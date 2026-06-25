@@ -88,6 +88,11 @@ func registerCodeStudioRoutes(mux *http.ServeMux, s *Server) {
 	mux.HandleFunc("/api/code-studio/exec", handlers.handleExec)
 	mux.HandleFunc("/api/code-studio/search", handlers.handleSearch)
 	mux.HandleFunc("/api/code-studio/terminal", handlers.handleTerminal)
+	mux.HandleFunc("/api/code-studio/git/status", handlers.handleGitStatus)
+	mux.HandleFunc("/api/code-studio/git/diff", handlers.handleGitDiff)
+	mux.HandleFunc("/api/code-studio/git/commit", handlers.handleGitCommit)
+	mux.HandleFunc("/api/code-studio/git/branch", handlers.handleGitBranch)
+	mux.HandleFunc("/api/code-studio/git/log", handlers.handleGitLog)
 }
 
 func (h codeStudioHandlers) codeContainer(ctx context.Context, start bool) (*desktop.CodeContainerService, string, error) {
@@ -599,6 +604,281 @@ func (h codeStudioHandlers) handleTerminal(w http.ResponseWriter, r *http.Reques
 	}
 	defer conn.Close()
 	h.runLineTerminal(r.Context(), conn, containerID)
+}
+
+func (h codeStudioHandlers) handleGitStatus(w http.ResponseWriter, r *http.Request) {
+	if !h.requirePermission(w, r, desktopScopeRead) {
+		return
+	}
+	if r.Method != http.MethodGet {
+		jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	_, containerID, err := h.codeContainer(r.Context(), true)
+	if err != nil {
+		jsonError(w, err.Error(), http.StatusServiceUnavailable)
+		return
+	}
+	statusResult, err := h.docker.Exec(r.Context(), containerID, []string{"sh", "-lc", "cd /workspace && git status --porcelain 2>/dev/null"}, 15*time.Second)
+	if err != nil {
+		jsonError(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+	branchResult, _ := h.docker.Exec(r.Context(), containerID, []string{"sh", "-lc", "cd /workspace && git branch --show-current 2>/dev/null"}, 10*time.Second)
+	logResult, _ := h.docker.Exec(r.Context(), containerID, []string{"sh", "-lc", "cd /workspace && git log --oneline -10 2>/dev/null"}, 10*time.Second)
+
+	changes := parseGitPorcelain(statusResult.Output)
+	branch := strings.TrimSpace(branchResult.Output)
+	logEntries := parseGitLog(logResult.Output)
+
+	writeJSON(w, map[string]interface{}{
+		"status":   "ok",
+		"branch":   branch,
+		"changes":  changes,
+		"log":      logEntries,
+	})
+}
+
+func (h codeStudioHandlers) handleGitDiff(w http.ResponseWriter, r *http.Request) {
+	if !h.requirePermission(w, r, desktopScopeRead) {
+		return
+	}
+	if r.Method != http.MethodGet {
+		jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	file := strings.TrimSpace(r.URL.Query().Get("file"))
+	staged := r.URL.Query().Get("staged") == "true"
+	cmd := "cd /workspace && git diff"
+	if staged {
+		cmd += " --staged"
+	}
+	if file != "" {
+		safeFile := strings.ReplaceAll(file, "'", "'\\''")
+		cmd += " -- '" + safeFile + "'"
+	}
+	_, containerID, err := h.codeContainer(r.Context(), true)
+	if err != nil {
+		jsonError(w, err.Error(), http.StatusServiceUnavailable)
+		return
+	}
+	result, err := h.docker.Exec(r.Context(), containerID, []string{"sh", "-lc", cmd}, 30*time.Second)
+	if err != nil {
+		jsonError(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+	writeJSON(w, map[string]interface{}{"status": "ok", "diff": result.Output})
+}
+
+func (h codeStudioHandlers) handleGitCommit(w http.ResponseWriter, r *http.Request) {
+	if !h.requirePermission(w, r, desktopScopeWrite) {
+		return
+	}
+	if h.rejectReadOnly(w) {
+		return
+	}
+	if r.Method != http.MethodPost {
+		jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var body struct {
+		Message string `json:"message"`
+		AddAll  bool   `json:"add_all"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		jsonError(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+	message := strings.TrimSpace(body.Message)
+	if message == "" {
+		jsonError(w, "commit message is required", http.StatusBadRequest)
+		return
+	}
+	_, containerID, err := h.codeContainer(r.Context(), true)
+	if err != nil {
+		jsonError(w, err.Error(), http.StatusServiceUnavailable)
+		return
+	}
+	safeMsg := strings.ReplaceAll(message, "'", "'\\''")
+	cmd := "cd /workspace && "
+	if body.AddAll {
+		cmd += "git add -A && "
+	}
+	cmd += "git commit -m '" + safeMsg + "'"
+	result, err := h.docker.Exec(r.Context(), containerID, []string{"sh", "-lc", cmd}, 30*time.Second)
+	if err != nil {
+		jsonError(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+	if result.ExitCode != 0 {
+		errMsg := strings.TrimSpace(result.Output)
+		if errMsg == "" {
+			errMsg = "commit failed"
+		}
+		jsonError(w, errMsg, http.StatusBadRequest)
+		return
+	}
+	hashResult, _ := h.docker.Exec(r.Context(), containerID, []string{"sh", "-lc", "cd /workspace && git rev-parse --short HEAD"}, 5*time.Second)
+	writeJSON(w, map[string]interface{}{"status": "ok", "hash": strings.TrimSpace(hashResult.Output)})
+}
+
+func (h codeStudioHandlers) handleGitBranch(w http.ResponseWriter, r *http.Request) {
+	if !h.requirePermission(w, r, desktopScopeRead) {
+		return
+	}
+	if r.Method != http.MethodGet {
+		jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	name := strings.TrimSpace(r.URL.Query().Get("name"))
+	action := strings.TrimSpace(r.URL.Query().Get("action"))
+
+	_, containerID, err := h.codeContainer(r.Context(), true)
+	if err != nil {
+		jsonError(w, err.Error(), http.StatusServiceUnavailable)
+		return
+	}
+
+	if name != "" && (action == "create" || action == "switch") {
+		if !h.requirePermission(w, r, desktopScopeWrite) {
+			return
+		}
+		safeName := strings.ReplaceAll(name, "'", "'\\''")
+		cmd := "cd /workspace && git checkout "
+		if action == "create" {
+			cmd += "-b "
+		}
+		cmd += "'" + safeName + "'"
+		result, err := h.docker.Exec(r.Context(), containerID, []string{"sh", "-lc", cmd}, 15*time.Second)
+		if err != nil {
+			jsonError(w, err.Error(), http.StatusBadGateway)
+			return
+		}
+		if result.ExitCode != 0 {
+			jsonError(w, strings.TrimSpace(result.Output), http.StatusBadRequest)
+			return
+		}
+	}
+
+	listResult, err := h.docker.Exec(r.Context(), containerID, []string{"sh", "-lc", "cd /workspace && git branch -a"}, 10*time.Second)
+	if err != nil {
+		jsonError(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+	currentResult, _ := h.docker.Exec(r.Context(), containerID, []string{"sh", "-lc", "cd /workspace && git branch --show-current"}, 5*time.Second)
+
+	branches := parseGitBranches(listResult.Output)
+	current := strings.TrimSpace(currentResult.Output)
+
+	writeJSON(w, map[string]interface{}{
+		"status":   "ok",
+		"branches": branches,
+		"current":  current,
+	})
+}
+
+func (h codeStudioHandlers) handleGitLog(w http.ResponseWriter, r *http.Request) {
+	if !h.requirePermission(w, r, desktopScopeRead) {
+		return
+	}
+	if r.Method != http.MethodGet {
+		jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	count := parsePositiveInt(r.URL.Query().Get("count"), 20)
+	if count > 100 {
+		count = 100
+	}
+	path := strings.TrimSpace(r.URL.Query().Get("path"))
+	cmd := fmt.Sprintf("cd /workspace && git log --oneline -%d", count)
+	if path != "" {
+		safePath := strings.ReplaceAll(path, "'", "'\\''")
+		cmd += " -- '" + safePath + "'"
+	}
+	_, containerID, err := h.codeContainer(r.Context(), true)
+	if err != nil {
+		jsonError(w, err.Error(), http.StatusServiceUnavailable)
+		return
+	}
+	result, err := h.docker.Exec(r.Context(), containerID, []string{"sh", "-lc", cmd}, 15*time.Second)
+	if err != nil {
+		jsonError(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+	writeJSON(w, map[string]interface{}{"status": "ok", "log": parseGitLog(result.Output)})
+}
+
+func parseGitPorcelain(output string) []map[string]string {
+	output = strings.TrimSpace(output)
+	if output == "" {
+		return []map[string]string{}
+	}
+	lines := strings.Split(output, "\n")
+	changes := make([]map[string]string, 0, len(lines))
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if len(line) < 3 {
+			continue
+		}
+		statusCode := strings.TrimSpace(line[:2])
+		path := strings.TrimSpace(line[3:])
+		if statusCode == "" || path == "" {
+			continue
+		}
+		status := statusCode
+		if statusCode == "??" {
+			status = "??"
+		} else if len(statusCode) >= 1 {
+			status = string(statusCode[0])
+		}
+		changes = append(changes, map[string]string{"path": path, "status": status})
+	}
+	return changes
+}
+
+func parseGitLog(output string) []map[string]string {
+	output = strings.TrimSpace(output)
+	if output == "" {
+		return []map[string]string{}
+	}
+	lines := strings.Split(output, "\n")
+	entries := make([]map[string]string, 0, len(lines))
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		parts := strings.SplitN(line, " ", 2)
+		entry := map[string]string{"hash": parts[0]}
+		if len(parts) > 1 {
+			entry["message"] = strings.TrimSpace(parts[1])
+		} else {
+			entry["message"] = ""
+		}
+		entries = append(entries, entry)
+	}
+	return entries
+}
+
+func parseGitBranches(output string) []string {
+	output = strings.TrimSpace(output)
+	if output == "" {
+		return []string{}
+	}
+	lines := strings.Split(output, "\n")
+	branches := make([]string, 0, len(lines))
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		line = strings.TrimPrefix(line, "* ")
+		if strings.Contains(line, " -> ") {
+			continue
+		}
+		branches = append(branches, line)
+	}
+	return branches
 }
 
 func (h codeStudioHandlers) runLineTerminal(ctx context.Context, conn *websocket.Conn, containerID string) {

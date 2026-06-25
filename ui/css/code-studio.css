@@ -1933,3 +1933,284 @@
 .cs-agent-stop:hover {
     background: rgba(255, 107, 122, 0.22);
 }
+
+/* ── Git Panel ── */
+.code-studio-git {
+    display: flex;
+    flex-direction: column;
+    width: var(--cs-agent-width, 320px);
+    min-width: 220px;
+    max-width: 400px;
+    border-left: 1px solid var(--cs-border);
+    background: var(--cs-panel);
+    overflow-y: auto;
+}
+
+.code-studio[data-git="hidden"] .code-studio-git {
+    display: none;
+}
+
+.cs-git-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--cs-border);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.cs-git-head strong {
+    flex: 1;
+}
+
+.cs-git-branch {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 10px;
+    font-size: 12px;
+    color: var(--cs-text);
+    border-bottom: 1px solid var(--cs-border);
+}
+
+.cs-git-branch svg {
+    opacity: 0.7;
+}
+
+.cs-git-section {
+    padding: 4px 0;
+}
+
+.cs-git-section-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--cs-muted);
+}
+
+.cs-git-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: var(--cs-accent-soft);
+    color: var(--cs-accent);
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.cs-git-changes {
+    display: flex;
+    flex-direction: column;
+}
+
+.cs-git-change {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 10px;
+    border: 0;
+    background: transparent;
+    color: var(--cs-text);
+    font-size: 12px;
+    cursor: pointer;
+    text-align: left;
+    transition: background var(--cs-transition-fast);
+}
+
+.cs-git-change:hover {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.cs-git-status {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: var(--ds-radius-xs);
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.cs-git-status.modified {
+    background: rgba(255, 196, 0, 0.15);
+    color: #ffc400;
+}
+
+.cs-git-status.added {
+    background: rgba(62, 198, 181, 0.15);
+    color: var(--cs-accent);
+}
+
+.cs-git-status.deleted {
+    background: var(--cs-danger-soft);
+    color: var(--cs-danger);
+}
+
+.cs-git-status.untracked {
+    background: rgba(150, 150, 150, 0.12);
+    color: var(--cs-muted);
+}
+
+.cs-git-status.renamed {
+    background: rgba(120, 120, 255, 0.12);
+    color: #7878ff;
+}
+
+.cs-git-filename {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cs-git-empty {
+    padding: 12px 10px;
+    font-size: 12px;
+    color: var(--cs-muted);
+    text-align: center;
+}
+
+.cs-git-commit-area {
+    padding: 8px 10px;
+    border-top: 1px solid var(--cs-border);
+}
+
+.cs-git-commit-msg {
+    width: 100%;
+    min-height: 48px;
+    padding: 6px 8px;
+    border: 1px solid var(--cs-border);
+    border-radius: var(--cs-radius-sm);
+    background: var(--cs-input-bg, var(--cs-panel-soft));
+    color: var(--cs-text);
+    font: 12px var(--cs-ui-font);
+    resize: vertical;
+}
+
+.cs-git-commit-msg:focus {
+    outline: none;
+    border-color: var(--cs-accent-glow);
+}
+
+.cs-git-commit-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+}
+
+.cs-git-log {
+    padding: 0 10px 8px;
+}
+
+.cs-git-log-entry {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    padding: 3px 0;
+    font-size: 12px;
+    color: var(--cs-text);
+    line-height: 1.4;
+}
+
+.cs-git-hash {
+    font: 11px var(--cs-mono-font);
+    color: var(--cs-accent);
+    flex-shrink: 0;
+}
+
+/* ── Diff View ── */
+.cs-diff-view {
+    height: 100%;
+    overflow: auto;
+}
+
+.cs-diff-view-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--cs-border);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.cs-diff-view-head span {
+    color: var(--cs-muted);
+    font-weight: 400;
+}
+
+.cs-diff-content {
+    padding: 4px 0;
+    font: 12px/1.5 var(--cs-mono-font);
+}
+
+/* ── Responsive Breakpoints ── */
+@media (max-width: 640px) {
+    .code-studio-activity-bar {
+        display: none;
+    }
+
+    .code-studio-sidebar {
+        width: 100% !important;
+        max-width: 100%;
+    }
+
+    .code-studio-chat,
+    .code-studio-git {
+        width: 100% !important;
+        max-width: 100%;
+    }
+
+    .code-studio-terminal {
+        height: 120px !important;
+    }
+
+    .cs-search-form {
+        flex-wrap: wrap;
+    }
+
+    .cs-search-form input[name="include"],
+    .cs-search-form input[name="exclude"] {
+        display: none;
+    }
+}
+
+@media (max-width: 480px) {
+    .cs-toolbar-filename {
+        display: none;
+    }
+
+    .cs-tab {
+        max-width: 80px;
+    }
+
+    .cs-quick-actions {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+    }
+}
+
+@media (hover: none) {
+    .cs-icon-button,
+    .cs-activity-btn,
+    .cs-tab,
+    .cs-button {
+        min-height: 34px;
+    }
+
+    .cs-file-action {
+        min-width: 34px;
+        min-height: 34px;
+    }
+}

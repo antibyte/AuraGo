@@ -84,9 +84,15 @@ const jsBundles = [
   {
     out: 'ui/js/desktop/bundles/code-studio.bundle.js',
     parts: [
-      'ui/js/desktop/apps/code-studio/core-shell-files.js',
-      'ui/js/desktop/apps/code-studio/editor-terminal-files.js',
-      'ui/js/desktop/apps/code-studio/actions-agent-editor.js',
+      'ui/js/desktop/apps/code-studio/core.js',
+      'ui/js/desktop/apps/code-studio/sidebar.js',
+      'ui/js/desktop/apps/code-studio/editor.js',
+      'ui/js/desktop/apps/code-studio/terminal.js',
+      'ui/js/desktop/apps/code-studio/search.js',
+      'ui/js/desktop/apps/code-studio/agent.js',
+      'ui/js/desktop/apps/code-studio/git.js',
+      'ui/js/desktop/apps/code-studio/panels.js',
+      'ui/js/desktop/apps/code-studio/shortcuts.js',
       'ui/js/desktop/apps/code-studio/command-palette.js'
     ]
   },

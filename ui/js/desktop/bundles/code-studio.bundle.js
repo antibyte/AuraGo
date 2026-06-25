@@ -2,7 +2,7 @@
 // Source files are listed in scripts/build-ui-bundles.js.
 
 ;
-/* ui/js/desktop/apps/code-studio/core-shell-files.js */
+/* ui/js/desktop/apps/code-studio/core.js */
 (function () {
     const STATE_KEY = 'aurago.codeStudio.state.v1';
     const WORKSPACE_ROOT = '/workspace';
@@ -41,13 +41,19 @@
             searchResults: [],
             agentVisible: false,
             agentMessages: [],
-agentBusy: false,
+            agentBusy: false,
             agentAbortController: null,
             pendingSuggestion: null,
             shortcutsWired: false,
             zenMode: false,
             expandedDirs: new Set(),
             treeCache: {},
+            gitVisible: false,
+            gitBranch: '',
+            gitChanges: [],
+            gitLog: [],
+            splitMode: null,
+            splitRatio: 0.5,
             iconMarkup: context && typeof context.iconMarkup === 'function' ? context.iconMarkup : null,
             disposers: []
         };
@@ -276,7 +282,16 @@ agentBusy: false,
         agentChat: (message, context) => api('/api/desktop/chat', {
             method: 'POST',
             body: JSON.stringify({ message, context })
-        })
+        }),
+        gitStatus: () => api('/api/code-studio/git/status'),
+        gitDiff: (file, staged) => api('/api/code-studio/git/diff?file=' + encodeURIComponent(file || '') + '&staged=' + (staged ? 'true' : 'false')),
+        gitCommit: (message, addAll) => api('/api/code-studio/git/commit', {
+            method: 'POST',
+            body: JSON.stringify({ message, add_all: addAll })
+        }),
+        gitBranch: (name, action) => api('/api/code-studio/git/branch?' + new URLSearchParams({ name: name || '', action: action || 'list' })),
+        gitLog: (path, count) => api('/api/code-studio/git/log?' + new URLSearchParams({ path: path || '', count: String(count || 20) })),
+        agentStream: (message, context) => api('/api/code-studio/agent/stream?' + new URLSearchParams({ message, context: JSON.stringify(context || {}) }))
     };
 
     function loadState() {
@@ -428,6 +443,9 @@ agentBusy: false,
                     <button type="button" class="cs-activity-btn" data-activity="search" title="${esc(tr('codeStudio.search', 'Search'))}">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
                     </button>
+                    <button type="button" class="cs-activity-btn" data-activity="git" title="${esc(tr('codeStudio.gitPanel', 'Git'))}">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 012 2v7"/><line x1="6" y1="9" x2="6" y2="21"/></svg>
+                    </button>
                     <button type="button" class="cs-activity-btn" data-activity="agent" title="${esc(tr('codeStudio.agentChat', 'Agent'))}">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
                     </button>
@@ -436,7 +454,7 @@ agentBusy: false,
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
                     </button>
                 </nav>
-<aside class="code-studio-sidebar" data-sidebar></aside>
+                <aside class="code-studio-sidebar" data-sidebar></aside>
                 <main class="code-studio-main">
                     <div class="code-studio-tabs" data-tabs></div>
                     <div class="code-studio-breadcrumbs" data-breadcrumbs></div>
@@ -444,6 +462,7 @@ agentBusy: false,
                     <div class="code-studio-terminal" data-terminal></div>
                 </main>
                 <aside class="code-studio-chat" data-agent-panel></aside>
+                <aside class="code-studio-git" data-git-panel hidden></aside>
             </div>
             <div class="code-studio-statusbar" data-statusbar></div>
             <button type="button" class="cs-zen-exit" data-zen-exit title="Exit Zen Mode (Esc)">
@@ -462,6 +481,7 @@ agentBusy: false,
         root.dataset.terminal = state.terminalVisible ? 'visible' : 'hidden';
         root.dataset.sidebar = state.sidebarVisible ? 'visible' : 'hidden';
         root.dataset.agent = state.agentVisible ? 'visible' : 'hidden';
+        root.dataset.git = state.gitVisible ? 'visible' : 'hidden';
         root.dataset.zen = state.zenMode ? 'true' : 'false';
         renderToolbar();
         renderSearchPanel();
@@ -471,6 +491,7 @@ agentBusy: false,
         renderEditor();
         renderTerminal();
         renderAgentPanel();
+        renderGitPanel();
         renderStatus();
         renderWindowMenus();
         renderActivityBar();
@@ -511,6 +532,10 @@ agentBusy: false,
                     { id: 'sidebar', label: tr('codeStudio.sidebar', 'Sidebar'), icon: 'sidebar', shortcut: 'Ctrl+B', checked: state.sidebarVisible, action: bind(toggleSidebar) },
                     { id: 'terminal', labelKey: 'desktop.menu_terminal', icon: 'terminal', checked: state.terminalVisible, action: bind(toggleTerminal) },
                     { id: 'agent-panel', labelKey: 'desktop.menu_agent_panel', icon: 'chat', checked: state.agentVisible, action: bind(toggleAgentPanel) },
+                    { id: 'git-panel', label: tr('codeStudio.gitPanel', 'Git'), icon: 'git', checked: state.gitVisible, action: bind(toggleGitPanel) },
+                    { type: 'separator' },
+                    { id: 'split-right', label: tr('codeStudio.splitRight', 'Split Right'), icon: 'split', action: bind(() => splitEditor('right')) },
+                    { id: 'split-down', label: tr('codeStudio.splitDown', 'Split Down'), icon: 'split', action: bind(() => splitEditor('down')) },
                     { type: 'separator' },
                     { id: 'zoom-in', label: tr('codeStudio.zoomIn', 'Zoom In'), icon: 'zoom-in', shortcut: 'Ctrl+=', disabled: state.editorFontSize >= MAX_EDITOR_FONT_SIZE, action: bind(() => adjustEditorZoom(1)) },
                     { id: 'zoom-out', label: tr('codeStudio.zoomOut', 'Zoom Out'), icon: 'zoom-out', shortcut: 'Ctrl+-', disabled: state.editorFontSize <= MIN_EDITOR_FONT_SIZE, action: bind(() => adjustEditorZoom(-1)) },
@@ -562,345 +587,6 @@ agentBusy: false,
                 window.CodeStudioCommandPalette.toggle();
             }
         }));
-    }
-
-    function renderSearchPanel() {
-        const panel = shellPart('[data-search]');
-        if (!panel) return;
-        panel.hidden = !state.searchVisible;
-        if (!state.searchVisible) return;
-        const results = state.searchResults.length ? state.searchResults.map(result => `
-            <button type="button" class="cs-search-result" data-search-path="${esc(result.path)}" data-search-line="${esc(result.line)}">
-                <span>${esc(result.path)}:${esc(result.line)}</span>
-                <code>${esc(result.preview)}</code>
-            </button>`).join('') : `<div class="cs-empty">${esc(tr('codeStudio.noFiles', 'No files open'))}</div>`;
-        panel.innerHTML = `<form class="cs-search-form" data-search-form>
-            <input name="q" placeholder="${esc(tr('codeStudio.searchFiles', 'Search in Files'))}" autocomplete="off" spellcheck="false">
-            <input name="include" placeholder="*.go" autocomplete="off" spellcheck="false">
-            <input name="exclude" placeholder="vendor/" autocomplete="off" spellcheck="false">
-            <label><input type="checkbox" name="case"> Aa</label>
-            <label><input type="checkbox" name="whole"> Ab</label>
-            <label><input type="checkbox" name="regex"> .*</label>
-            <button type="submit" class="cs-button primary">${buttonIcon('search', 'S')}<span>${esc(tr('codeStudio.search', 'Search'))}</span></button>
-        </form><div class="cs-search-results">${results}</div>`;
-        panel.querySelector('[data-search-form]').addEventListener('submit', bind(event => {
-            event.preventDefault();
-            runSearch(new FormData(event.currentTarget));
-        }));
-        panel.querySelectorAll('[data-search-path]').forEach(btn => {
-            btn.addEventListener('click', bind(() => openSearchResult(btn.dataset.searchPath, Number(btn.dataset.searchLine || 1))));
-        });
-        const input = panel.querySelector('input[name="q"]');
-        if (input && !input.value) input.focus();
-    }
-
-    function renderAgentPanel() {
-        const panel = shellPart('[data-agent-panel]');
-        if (!panel) return;
-        if (!state.agentVisible) {
-            panel.innerHTML = '';
-            return;
-        }
-        const messages = state.agentMessages.length ? state.agentMessages.map(message => {
-            const roleClass = message.role === 'user' ? 'user' : 'agent';
-            const content = message.role === 'user' ? esc(message.text) : renderMarkdown(message.text);
-            return `<div class="cs-agent-message ${roleClass}"><div class="cs-md-content">${content}</div></div>`;
-        }).join('') : `<div class="cs-agent-message agent"><div class="cs-md-content">${esc(tr('desktop.chat_welcome', 'Ask me to create apps, widgets, or files for this desktop.'))}</div></div>`;
-
-        const quickActions = `<div class="cs-quick-actions">
-            <button type="button" class="cs-quick-action" data-code-action="explain">${esc(tr('codeStudio.explain', 'Explain'))}</button>
-            <button type="button" class="cs-quick-action" data-code-action="comments">${esc(tr('codeStudio.generateComments', 'Comments'))}</button>
-            <button type="button" class="cs-quick-action" data-code-action="tests">${esc(tr('codeStudio.generateTests', 'Tests'))}</button>
-            <button type="button" class="cs-quick-action" data-code-action="refactor">${esc(tr('codeStudio.refactor', 'Refactor'))}</button>
-        </div>`;
-
-        const suggestion = state.pendingSuggestion ? `<div class="code-studio-diff">
-            <div class="cs-diff-head">
-                <strong>${esc(tr('codeStudio.applyChanges', 'Apply Changes'))}</strong>
-                <button type="button" class="cs-button primary" data-agent-apply>${buttonIcon('check-square', 'Y')}<span>${esc(tr('codeStudio.applyChanges', 'Apply Changes'))}</span></button>
-                <button type="button" class="cs-button" data-agent-discard>${buttonIcon('x', 'X')}<span>${esc(tr('codeStudio.discardChanges', 'Discard Changes'))}</span></button>
-            </div>
-            <pre>${esc(state.pendingSuggestion)}</pre>
-        </div>` : '';
-
-        const typingIndicator = state.agentBusy ? `<div class="cs-agent-typing"><span class="cs-typing-dot"></span><span class="cs-typing-dot"></span><span class="cs-typing-dot"></span></div>` : '';
-
-        panel.innerHTML = `<div class="cs-agent-head">
-            <strong>${esc(tr('codeStudio.agentChat', 'Agent Chat'))}</strong>
-            <button type="button" class="cs-icon-button" data-agent-close title="${esc(tr('codeStudio.closeTab', 'Close tab'))}">${iconMarkup('x', 'X', 'cs-icon-button-icon', 16)}</button>
-        </div>
-        ${quickActions}
-        <div class="cs-agent-log">${messages}${typingIndicator}</div>
-        ${suggestion}
-        <form class="cs-agent-form" data-agent-form>
-            <input name="message" autocomplete="off" spellcheck="false" placeholder="${esc(tr('desktop.chat_placeholder', 'Ask the agent...'))}">
-            ${state.agentBusy
-                ? `<button type="button" class="cs-agent-stop" data-agent-stop>${esc(tr('codeStudio.stop', 'Stop'))}</button>`
-                : `<button type="submit" class="cs-button primary">${buttonIcon('chat', 'S')}<span>${esc(tr('desktop.send', 'Send'))}</span></button>`
-            }
-        </form>`;
-        panel.querySelector('[data-agent-close]').addEventListener('click', bind(toggleAgentPanel));
-        panel.querySelectorAll('[data-code-action]').forEach(btn => {
-            btn.addEventListener('click', bind(() => runCodeAction(btn.dataset.codeAction)));
-        });
-        panel.querySelector('[data-agent-form]').addEventListener('submit', bind(event => {
-            event.preventDefault();
-            const input = event.currentTarget.elements.message;
-            const message = input.value.trim();
-            if (!message) return;
-            input.value = '';
-            sendAgentMessage(message);
-        }));
-        const stopBtn = panel.querySelector('[data-agent-stop]');
-if (stopBtn) stopBtn.addEventListener('click', bind(() => {
-            if (state.agentAbortController) {
-                state.agentAbortController.abort();
-                state.agentAbortController = null;
-            }
-            state.agentBusy = false;
-            renderAgentPanel();
-        }));
-        const apply = panel.querySelector('[data-agent-apply]');
-        if (apply) apply.addEventListener('click', bind(applyAgentSuggestion));
-        const discard = panel.querySelector('[data-agent-discard]');
-        if (discard) discard.addEventListener('click', bind(() => {
-            state.pendingSuggestion = null;
-            renderAgentPanel();
-        }));
-        // Wire copy buttons on code blocks
-        panel.querySelectorAll('.cs-md-code-copy').forEach(btn => {
-            btn.addEventListener('click', bind(() => {
-                const code = btn.closest('pre')?.querySelector('code');
-                if (code) {
-                    navigator.clipboard.writeText(code.textContent).then(() => {
-                        btn.textContent = 'Copied!';
-                        setTimeout(() => { btn.textContent = 'Copy'; }, 1500);
-                    }).catch(() => {});
-                }
-            }));
-        });
-        // Scroll log to bottom
-        const log = panel.querySelector('.cs-agent-log');
-        if (log) log.scrollTop = log.scrollHeight;
-    }
-
-    function renderMarkdown(text) {
-        if (!text) return '';
-        let html = esc(text);
-        // Code blocks with language
-        html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) => {
-            const langAttr = lang ? ` data-lang="${lang}"` : '';
-            return `<pre${langAttr}><code class="language-${lang || 'text'}">${code}</code><button type="button" class="cs-md-code-copy">Copy</button></pre>`;
-        });
-        // Inline code
-        html = html.replace(/`([^`\n]+)`/g, '<code>$1</code>');
-        // Headers
-        html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
-        html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
-        html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
-        // Bold and italic
-        html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-        html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
-        // Blockquotes
-        html = html.replace(/^&gt; (.+)$/gm, '<blockquote>$1</blockquote>');
-        // Horizontal rules
-        html = html.replace(/^---$/gm, '<hr>');
-        // Unordered lists
-        html = html.replace(/^[\-\*] (.+)$/gm, '<li>$1</li>');
-        html = html.replace(/((?:<li>.*<\/li>\n?)+)/g, '<ul>$1</ul>');
-        // Ordered lists
-        html = html.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
-        // Links
-        html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
-        // Paragraphs (lines not already wrapped in block elements)
-        html = html.replace(/^(?!<[a-z/])((?!<).+)$/gm, '<p>$1</p>');
-        // Clean up empty paragraphs
-        html = html.replace(/<p>\s*<\/p>/g, '');
-        return html;
-    }
-
-    function renderSidebar(errorMessage) {
-        const sidebar = shellPart('[data-sidebar]');
-        if (!sidebar) return;
-if (errorMessage) {
-            sidebar.innerHTML = `<div class="cs-sidebar-head"><strong>${esc(tr('codeStudio.title', 'Code Studio'))}</strong></div>
-                <div class="code-studio-error compact">${esc(errorMessage)}</div>
-                <div class="cs-sidebar-resize" data-sidebar-resize></div>`;
-            wireSidebarResize();
-            return;
-        }
-        const rows = state.files.length ? state.files.map(file => treeItemRow(file, 0)).join('') : `<div class="cs-empty">${esc(tr('codeStudio.noFiles', 'No files open'))}</div>`;
-sidebar.innerHTML = `<div class="cs-sidebar-head">
-            <strong>${esc(tr('codeStudio.title', 'Code Studio'))}</strong>
-            <span>${esc(state.currentPath)}</span>
-        </div><div class="cs-file-tree">${rows}</div>
-        <div class="cs-sidebar-resize" data-sidebar-resize></div>`;
-        wireSidebarTreeEvents(sidebar);
-        wireSidebarDragDrop(sidebar);
-        wireSidebarResize();
-    }
-
-    function treeItemRow(file, depth) {
-        const isDir = file.type === 'directory';
-        const isExpanded = isDir && state.expandedDirs.has(file.path);
-        const indent = depth * 14;
-        const icon = isDir
-            ? (isExpanded ? iconMarkup('folder-open', 'D', 'cs-file-papirus-icon', 16) : iconMarkup('folder', 'D', 'cs-file-papirus-icon', 16))
-            : iconMarkup(fileIconName(file.name), fileIcon(file.name), 'cs-file-papirus-icon', 16);
-        const chevron = isDir
-            ? `<span class="cs-tree-chevron${isExpanded ? ' expanded' : ''}">›</span>`
-            : '<span style="width:18px;display:inline-block"></span>';
-        const childrenHtml = isDir && isExpanded ? treeChildrenHtml(file.path, depth + 1) : '';
-        return `<div class="cs-tree-item${isDir ? ' is-dir' : ' is-file'}" data-file-path="${esc(file.path)}" data-type="${esc(file.type)}" data-depth="${depth}" style="padding-left:${6 + indent}px">
-            ${chevron}
-            <span class="cs-file-icon">${icon}</span>
-            <span class="cs-file-name">${esc(file.name)}</span>
-            <span class="cs-file-actions">
-                <span role="button" tabindex="0" class="cs-file-action" data-file-action="rename" title="${esc(tr('codeStudio.rename', 'Rename'))}">${iconMarkup('edit', 'E', 'cs-file-action-icon', 14)}</span>
-                ${!isDir ? `<span role="button" tabindex="0" class="cs-file-action" data-file-action="download" title="${esc(tr('codeStudio.download', 'Download'))}">${iconMarkup('download', 'D', 'cs-file-action-icon', 14)}</span>` : ''}
-                <span role="button" tabindex="0" class="cs-file-action danger" data-file-action="delete" title="${esc(tr('desktop.delete', 'Delete'))}">${iconMarkup('trash', 'X', 'cs-file-action-icon', 14)}</span>
-            </span>
-        </div>${childrenHtml}`;
-    }
-
-    function treeChildrenHtml(dirPath, depth) {
-        const children = state.treeCache[dirPath];
-        if (!children || !children.length) return '<div class="cs-tree-children" data-dir-path="' + esc(dirPath) + '"></div>';
-        return '<div class="cs-tree-children" data-dir-path="' + esc(dirPath) + '">' +
-            children.map(file => treeItemRow(file, depth)).join('') + '</div>';
-    }
-
-    async function expandDirectory(dirPath) {
-        const target = state;
-        if (!isLiveInstance(target)) return;
-        if (state.expandedDirs.has(dirPath)) {
-            state.expandedDirs.delete(dirPath);
-            renderSidebar();
-            return;
-        }
-        state.expandedDirs.add(dirPath);
-        if (!state.treeCache[dirPath]) {
-            try {
-                const result = await apiClient.files(dirPath);
-                if (!isLiveInstance(target)) return;
-                runWithInstance(target, () => {
-                    state.treeCache[dirPath] = (result.files || []).sort((a, b) => {
-                        if (a.type === b.type) return a.name.localeCompare(b.name);
-                        return a.type === 'directory' ? -1 : 1;
-                    });
-                    renderSidebar();
-                });
-            } catch (err) {
-                if (isLiveInstance(target)) {
-                    runWithInstance(target, () => {
-                        state.expandedDirs.delete(dirPath);
-                        renderSidebar();
-                    });
-                }
-            }
-        } else {
-            renderSidebar();
-        }
-    }
-
-    function wireSidebarTreeEvents(sidebar) {
-        sidebar.querySelectorAll('.cs-tree-item').forEach(row => {
-            row.addEventListener('click', bind(event => {
-                const action = event.target.closest('[data-file-action]');
-                if (action) return;
-                const filePath = row.dataset.filePath;
-                const fileType = row.dataset.type;
-                if (fileType === 'directory') {
-                    expandDirectory(filePath);
-                } else {
-                    openFile(filePath);
-                }
-            }));
-            row.addEventListener('keydown', bind(event => {
-                const filePath = row.dataset.filePath;
-                const fileType = row.dataset.type;
-                if (event.key === 'Enter') {
-                    event.preventDefault();
-                    if (fileType === 'directory') expandDirectory(filePath);
-                    else openFile(filePath);
-                }
-                if (event.key === 'F2') {
-                    event.preventDefault();
-                    const file = findFileInTree(filePath);
-                    if (file) renamePath(file);
-                }
-                if (event.key === 'Delete') {
-                    event.preventDefault();
-                    const file = findFileInTree(filePath);
-                    if (file) deletePath(file);
-                }
-            }));
-        });
-        sidebar.querySelectorAll('[data-file-action]').forEach(btn => {
-            btn.addEventListener('click', bind(event => {
-                event.stopPropagation();
-                const filePath = btn.closest('[data-file-path]').dataset.filePath;
-                const file = findFileInTree(filePath);
-                if (!file) return;
-                const action = btn.dataset.fileAction;
-                if (action === 'rename') renamePath(file);
-                if (action === 'delete') deletePath(file);
-                if (action === 'download') downloadFile(file);
-            }));
-        });
-    }
-
-    function findFileInTree(path) {
-        for (const files of Object.values(state.treeCache)) {
-            const found = files.find(f => f.path === path);
-            if (found) return found;
-        }
-        const found = state.files.find(f => f.path === path);
-        if (found) return found;
-        const name = path.split('/').filter(Boolean).pop() || '';
-        const parent = path.slice(0, Math.max(0, path.lastIndexOf('/')));
-        return { path, name, type: 'file', size: 0 };
-    }
-
-    function wireSidebarDragDrop(sidebar) {
-        sidebar.ondragover = bind(event => {
-            event.preventDefault();
-            sidebar.classList.add('dragover');
-        });
-        sidebar.ondragleave = bind(() => sidebar.classList.remove('dragover'));
-        sidebar.ondrop = bind(async event => {
-            const target = state;
-            if (!isLiveInstance(target)) return;
-            event.preventDefault();
-            sidebar.classList.remove('dragover');
-            const files = Array.from(event.dataTransfer && event.dataTransfer.files ? event.dataTransfer.files : []);
-            const currentPath = target.currentPath;
-            try {
-                for (const file of files) {
-                    await apiClient.uploadFile(currentPath, file);
-                    if (!isLiveInstance(target)) return;
-                }
-                if (files.length) await runAsyncStep(target, () => refreshFiles(currentPath));
-            } catch (err) {
-                if (isLiveInstance(target)) runWithInstance(target, () => showOperationError(err));
-            }
-        });
-    }
-
-    function fileRow(file) {
-        const icon = file.type === 'directory'
-            ? iconMarkup('folder', 'D', 'cs-file-papirus-icon', 18)
-            : iconMarkup(fileIconName(file.name), fileIcon(file.name), 'cs-file-papirus-icon', 18);
-        return `<div role="button" tabindex="0" class="cs-file-row" data-file-path="${esc(file.path)}" data-type="${esc(file.type)}">
-            <span class="cs-file-icon">${icon}</span>
-            <span class="cs-file-name">${esc(file.name)}</span>
-            <span class="cs-file-meta">${file.type === 'directory' ? '' : esc(formatBytes(file.size))}</span>
-            <span class="cs-file-actions">
-                <span role="button" tabindex="0" class="cs-file-action" data-file-action="rename" title="${esc(tr('codeStudio.rename', 'Rename'))}">${iconMarkup('edit', 'E', 'cs-file-action-icon', 14)}</span>
-                ${file.type === 'file' ? `<span role="button" tabindex="0" class="cs-file-action" data-file-action="download" title="${esc(tr('codeStudio.download', 'Download'))}">${iconMarkup('download', 'D', 'cs-file-action-icon', 14)}</span>` : ''}
-                <span role="button" tabindex="0" class="cs-file-action danger" data-file-action="delete" title="${esc(tr('desktop.delete', 'Delete'))}">${iconMarkup('trash', 'X', 'cs-file-action-icon', 14)}</span>
-            </span>
-        </div>`;
     }
 
     function renderTabs() {
@@ -972,7 +658,7 @@ sidebar.innerHTML = `<div class="cs-sidebar-head">
         parts.forEach((part, i) => {
             buildPath += '/' + part;
             const isLast = i === parts.length - 1;
-            items.push(`<span class="cs-breadcrumb-sep">›</span>`);
+            items.push(`<span class="cs-breadcrumb-sep">\u203a</span>`);
             if (isLast) {
                 items.push(`<span class="cs-breadcrumb-item current">${esc(part)}</span>`);
             } else {
@@ -989,137 +675,36 @@ sidebar.innerHTML = `<div class="cs-sidebar-head">
         });
     }
 
-    function renderActivityBar() {
-        const bar = shellPart('[data-activity-bar]');
-        if (!bar) return;
-        bar.querySelectorAll('.cs-activity-btn').forEach(btn => {
-            const activity = btn.dataset.activity;
-            // Remove existing badge
-            const existingBadge = btn.querySelector('.cs-activity-badge');
-            if (existingBadge) existingBadge.remove();
-            if (activity === 'explorer') {
-                btn.classList.toggle('active', state.sidebarVisible);
-            } else if (activity === 'search') {
-                btn.classList.toggle('active', state.searchVisible);
-            } else if (activity === 'agent') {
-                btn.classList.toggle('active', state.agentVisible);
-            } else if (activity === 'terminal') {
-                btn.classList.toggle('active', state.terminalVisible);
-            }
-            // Add badge for open files count on explorer
-            if (activity === 'explorer' && state.openTabs && state.openTabs.length > 0) {
-                const badge = document.createElement('span');
-                badge.className = 'cs-activity-badge';
-                badge.textContent = state.openTabs.length;
-                btn.appendChild(badge);
-            }
-            if (!btn._wired) {
-                btn._wired = true;
-                btn.addEventListener('click', bind(() => {
-                    const act = btn.dataset.activity;
-                    if (act === 'explorer') toggleSidebar();
-                    else if (act === 'search') toggleSearch();
-                    else if (act === 'agent') toggleAgentPanel();
-                    else if (act === 'terminal') toggleTerminal();
-                }));
-            }
-        });
-    }
-
-    function renderEditor() {
-        const editor = shellPart('[data-editor]');
-        if (!editor) return;
+    function renderStatus(message) {
+        const statusEl = shellPart('[data-statusbar]');
+        if (!statusEl) return;
         const tab = activeTab();
-        if (!tab) {
-            state.openTabs.forEach(destroyTabView);
-            editor.innerHTML = `<div class="cs-editor-empty">
-                <div class="cs-empty-icon">{ }</div>
-                <div class="cs-empty-title">${esc(tr('codeStudio.welcome', 'Welcome to Code Studio'))}</div>
-                <div class="cs-empty-hint">${esc(tr('codeStudio.welcomeHint', 'Open a file from the sidebar or press Ctrl+Shift+P to open the Command Palette'))}</div>
-            </div>`;
-            return;
-        }
-        state.openTabs.forEach(openTab => {
-            if (openTab !== tab) destroyTabView(openTab);
-        });
-        destroyTabView(tab);
-        editor.innerHTML = '';
-        tab.view = state.editorType === 'codemirror'
-            ? createCodeMirrorEditor(editor, tab)
-            : createTextareaEditor(editor, tab);
-        editor.oncontextmenu = bind(event => {
-            event.preventDefault();
-            showCodeActionMenu(event.clientX, event.clientY);
-        });
+        const lang = tab ? tab.language || '' : '';
+        const lineInfo = tab ? cursorPositionText(tab) : '';
+        const leftItems = [];
+        if (message) leftItems.push(`<span>${esc(message)}</span>`);
+        else leftItems.push(`<span>${esc(state.containerStatus)}</span>`);
+        if (tab) leftItems.push(`<span>${tab.modified ? '<span style="color:var(--cs-accent)">\u25cf</span> ' : ''}${esc(baseName(tab.path))}</span>`);
+        const rightItems = [];
+        if (lang) rightItems.push(`<span data-clickable title="${esc(tr('codeStudio.language', 'Language'))}">${esc(lang)}</span>`);
+        if (lineInfo) rightItems.push(`<span>${esc(lineInfo)}</span>`);
+        rightItems.push(`<span>${esc(state.editorType === 'codemirror' ? 'CodeMirror' : 'Basic')}</span>`);
+        statusEl.innerHTML = leftItems.join('') + '<span style="flex:1"></span>' + rightItems.join('');
     }
 
-;
-/* ui/js/desktop/apps/code-studio/editor-terminal-files.js */
-    function renderTerminal() {
-        const terminal = shellPart('[data-terminal]');
-        if (!terminal) return;
-        const sessionTabs = (state.terminalSessions || []).map((session, index) => `
-            <button type="button" class="cs-terminal-tab${index === (state.activeTerminalSession || 0) ? ' active' : ''}" data-terminal-tab="${index}">
-                <span>${esc(session.name || 'Shell ' + (index + 1))}</span>
-                <span class="cs-terminal-tab-close" data-terminal-close="${index}">×</span>
-            </button>`).join('');
-        const activeIdx = state.activeTerminalSession || 0;
-        terminal.innerHTML = `<div class="cs-terminal-resize" data-terminal-resize></div>
-            <div class="cs-terminal-head">
-                <div class="cs-terminal-tabs">
-                    ${sessionTabs || `<button type="button" class="cs-terminal-tab active" data-terminal-tab="0"><span>${esc(tr('codeStudio.terminal', 'Terminal'))}</span></button>`}
-                    <button type="button" class="cs-terminal-add" data-terminal-add title="${esc(tr('codeStudio.newTerminal', 'New Terminal'))}">+</button>
-                </div>
-                <span data-terminal-state>${esc(tr('codeStudio.stopped', 'Stopped'))}</span>
-            </div><div class="cs-terminal-screen" data-terminal-screen></div>`;
-        wireTerminalResize();
-        terminal.querySelectorAll('[data-terminal-tab]').forEach(btn => {
-            btn.addEventListener('click', bind(() => switchTerminalSession(Number(btn.dataset.terminalTab))));
-        });
-        terminal.querySelectorAll('[data-terminal-close]').forEach(btn => {
-            btn.addEventListener('click', bind(event => {
-                event.stopPropagation();
-                closeTerminalSession(Number(btn.dataset.terminalClose));
-            }));
-        });
-        const addBtn = terminal.querySelector('[data-terminal-add]');
-        if (addBtn) addBtn.addEventListener('click', bind(() => addTerminalSession()));
+    function renderLoading(message) {
+        state.root.innerHTML = `<div class="code-studio"><div class="code-studio-loading">
+            <div class="cs-loader"></div><div>${esc(message)}</div>
+        </div></div>`;
     }
 
-    function wireTerminalResize() {
-        const handle = shellPart('[data-terminal-resize]');
-        if (!handle) return;
-        let startY = 0;
-        let startHeight = 0;
-        const onPointerDown = bind(event => {
-            event.preventDefault();
-            const root = studioRoot();
-            if (!root) return;
-            startHeight = parseInt(root.style.getPropertyValue('--cs-terminal-height')) || state.terminalHeight || 220;
-            startY = event.clientY;
-            handle.classList.add('dragging');
-            handle.setPointerCapture(event.pointerId);
-            handle.addEventListener('pointermove', onPointerMove);
-            handle.addEventListener('pointerup', onPointerUp);
-            handle.addEventListener('pointercancel', onPointerUp);
-        });
-        const onPointerMove = bind(event => {
-            const delta = startY - event.clientY;
-            const newHeight = Math.max(80, Math.min(600, startHeight + delta));
-            const root = studioRoot();
-            if (root) root.style.setProperty('--cs-terminal-height', newHeight + 'px');
-            state.terminalHeight = newHeight;
-        });
-        const onPointerUp = bind(event => {
-            handle.classList.remove('dragging');
-            handle.releasePointerCapture(event.pointerId);
-            handle.removeEventListener('pointermove', onPointerMove);
-            handle.removeEventListener('pointerup', onPointerUp);
-            handle.removeEventListener('pointercancel', onPointerUp);
-            saveState();
-            if (state.fitAddon) setTimeout(bind(() => state.fitAddon.fit()), 50);
-        });
-        handle.addEventListener('pointerdown', onPointerDown);
+    function renderError(message) {
+        state.containerStatus = 'error';
+        state.root.innerHTML = `<div class="code-studio"><div class="code-studio-error">
+            <strong>${esc(tr('codeStudio.containerError', 'Container error: {error}', { error: message }))}</strong>
+            <button type="button" class="cs-button primary" data-retry>${esc(tr('codeStudio.refresh', 'Refresh'))}</button>
+        </div></div>`;
+        state.root.querySelector('[data-retry]').addEventListener('click', bind(() => render(state.root, state.windowId, state.context || {})));
     }
 
     function applyEditorZoom() {
@@ -1165,38 +750,6 @@ sidebar.innerHTML = `<div class="cs-sidebar-head">
         saveState();
         renderWindowMenus();
         renderStatus();
-    }
-
-    function renderStatus(message) {
-        const status = shellPart('[data-statusbar]');
-        if (!status) return;
-        const tab = activeTab();
-        const lang = tab ? tab.language || '' : '';
-        const lineInfo = tab ? cursorPositionText(tab) : '';
-        const leftItems = [];
-        if (message) leftItems.push(`<span>${esc(message)}</span>`);
-        else leftItems.push(`<span>${esc(state.containerStatus)}</span>`);
-        if (tab) leftItems.push(`<span>${tab.modified ? '<span style="color:var(--cs-accent)">●</span> ' : ''}${esc(baseName(tab.path))}</span>`);
-        const rightItems = [];
-        if (lang) rightItems.push(`<span data-clickable title="${esc(tr('codeStudio.language', 'Language'))}">${esc(lang)}</span>`);
-        if (lineInfo) rightItems.push(`<span>${esc(lineInfo)}</span>`);
-        rightItems.push(`<span>${esc(state.editorType === 'codemirror' ? 'CodeMirror' : 'Basic')}</span>`);
-        status.innerHTML = leftItems.join('') + '<span style="flex:1"></span>' + rightItems.join('');
-    }
-
-    function renderLoading(message) {
-        state.root.innerHTML = `<div class="code-studio"><div class="code-studio-loading">
-            <div class="cs-loader"></div><div>${esc(message)}</div>
-        </div></div>`;
-    }
-
-    function renderError(message) {
-        state.containerStatus = 'error';
-        state.root.innerHTML = `<div class="code-studio"><div class="code-studio-error">
-            <strong>${esc(tr('codeStudio.containerError', 'Container error: {error}', { error: message }))}</strong>
-            <button type="button" class="cs-button primary" data-retry>${esc(tr('codeStudio.refresh', 'Refresh'))}</button>
-        </div></div>`;
-        state.root.querySelector('[data-retry]').addEventListener('click', bind(() => render(state.root, state.windowId, state.context || {})));
     }
 
     async function refreshFiles(path) {
@@ -1340,9 +893,6 @@ sidebar.innerHTML = `<div class="cs-sidebar-head">
     }
 
     async function createNewFile() {
-
-;
-/* ui/js/desktop/apps/code-studio/actions-agent-editor.js */
         const target = state;
         if (!isLiveInstance(target)) return;
         const name = await promptValue(tr('codeStudio.newFile', 'New File'), 'main.go');
@@ -1498,59 +1048,6 @@ sidebar.innerHTML = `<div class="cs-sidebar-head">
         await runAsyncStep(target, () => openFile(desktopToCodeStudioPath(result.path)));
     }
 
-    function toggleSearch() {
-        state.searchVisible = !state.searchVisible;
-        renderSearchPanel();
-        renderActivityBar();
-    }
-
-    async function runSearch(formData) {
-        const target = state;
-        if (!isLiveInstance(target)) return;
-        const query = String(formData.get('q') || '').trim();
-        if (!query) return;
-        renderStatus(tr('codeStudio.search', 'Search'));
-        const currentPath = target.currentPath || WORKSPACE_ROOT;
-        const result = await apiClient.search({
-            q: query,
-            path: currentPath,
-            case: formData.get('case') ? 'true' : 'false',
-            whole: formData.get('whole') ? 'true' : 'false',
-            regex: formData.get('regex') ? 'true' : 'false',
-            include: String(formData.get('include') || ''),
-            exclude: String(formData.get('exclude') || '')
-        });
-        if (!isLiveInstance(target)) return;
-        runWithInstance(target, () => {
-            state.searchResults = result.results || [];
-            renderSearchPanel();
-            renderStatus(tr('codeStudio.search', 'Search') + ': ' + state.searchResults.length);
-        });
-    }
-
-    async function openSearchResult(path, line) {
-        const target = state;
-        if (!isLiveInstance(target)) return;
-        await runAsyncStep(target, () => openFile(path));
-        if (!isLiveInstance(target)) return;
-        runWithInstance(target, () => {
-            const tab = activeTab();
-            if (!tab || !tab.view) return;
-            if (tab.view.state && tab.view.state.doc && state.cmModule && state.cmModule.EditorView) {
-                const docLine = tab.view.state.doc.line(Math.max(1, line || 1));
-                tab.view.dispatch({
-                    selection: { anchor: docLine.from },
-                    effects: state.cmModule.EditorView.scrollIntoView(docLine.from, { y: 'center' })
-                });
-            } else if (tab.view.textarea) {
-                const lines = tab.view.textarea.value.split('\n');
-                const offset = lines.slice(0, Math.max(0, (line || 1) - 1)).join('\n').length;
-                tab.view.textarea.focus();
-                tab.view.textarea.setSelectionRange(offset, offset);
-            }
-        });
-    }
-
     async function runCurrentFile() {
         const target = state;
         if (!isLiveInstance(target)) return;
@@ -1587,88 +1084,184 @@ sidebar.innerHTML = `<div class="cs-sidebar-head">
         }
     }
 
-    function toggleAgentPanel() {
-        state.agentVisible = !state.agentVisible;
-        ensureShellRoot().dataset.agent = state.agentVisible ? 'visible' : 'hidden';
-        renderAgentPanel();
+    function toggleSidebar() {
+        state.sidebarVisible = !state.sidebarVisible;
+        ensureShellRoot().dataset.sidebar = state.sidebarVisible ? 'visible' : 'hidden';
+        saveState();
         renderActivityBar();
         renderWindowMenus();
     }
 
-    async function sendAgentMessage(message) {
-        const target = state;
-        if (!isLiveInstance(target)) return;
-        if (state.agentBusy) return;
-        let context;
-        runWithInstance(target, () => {
-            state.agentVisible = true;
-            ensureShellRoot().dataset.agent = 'visible';
-            state.agentMessages.push({ role: 'user', text: message });
-            state.agentMessages.push({ role: 'agent', text: tr('desktop.thinking', 'Working...') });
-            state.agentBusy = true;
-            state.agentAbortController = new AbortController();
-            context = codeStudioAgentContext();
-            renderAgentPanel();
-        });
-        try {
-            const response = await api('/api/desktop/chat', {
-                method: 'POST',
-                body: JSON.stringify({ message, context }),
-                signal: state.agentAbortController && state.agentAbortController.signal
-            });
-            if (!isLiveInstance(target)) return;
-            const answer = response.answer || tr('desktop.done', 'Done');
-            runWithInstance(target, () => {
-                state.agentMessages[state.agentMessages.length - 1] = { role: 'agent', text: answer };
-                const suggestion = extractFirstCodeBlock(answer);
-                if (suggestion) state.pendingSuggestion = suggestion;
-            });
-        } catch (err) {
-            if (isLiveInstance(target) && err.name !== 'AbortError') {
-                runWithInstance(target, () => {
-                    state.agentMessages[state.agentMessages.length - 1] = { role: 'agent', text: err.message || String(err) };
-                });
-            }
-        } finally {
-            if (isLiveInstance(target)) {
-                runWithInstance(target, () => {
-                    state.agentBusy = false;
-                    state.agentAbortController = null;
-                    renderAgentPanel();
-                });
-            }
+    function toggleTerminal() {
+        state.terminalVisible = !state.terminalVisible;
+        ensureShellRoot().dataset.terminal = state.terminalVisible ? 'visible' : 'hidden';
+        if (state.fitAddon && state.terminalVisible) setTimeout(bind(() => state.fitAddon.fit()), 50);
+        saveState();
+        renderActivityBar();
+        renderWindowMenus();
+    }
+
+    function toggleZenMode() {
+        state.zenMode = !state.zenMode;
+        const root = ensureShellRoot();
+        root.dataset.zen = state.zenMode ? 'true' : 'false';
+        if (state.zenMode) {
+            root.querySelector('[data-zen-exit]')?.addEventListener('click', bind(() => toggleZenMode()));
         }
     }
 
-    function runCodeAction(action) {
-        const tab = activeTab();
-        if (!tab) return;
-        const selection = codeStudioSelection();
-        const target = selection.text ? 'selected code' : 'current file';
-        const prompts = {
-            explain: `Explain the ${target} in ${tab.path}.`,
-            comments: `Generate clear comments for the ${target} in ${tab.path}. Return only the modified code when you change code.`,
-            tests: `Generate useful tests for ${tab.path}. Return code blocks for new or changed files.`,
-            refactor: `Refactor the ${target} in ${tab.path}. Return only the modified code.`
-        };
-        sendAgentMessage(prompts[action] || prompts.explain);
+    function wireSidebarResize() {
+        const handle = shellPart('[data-sidebar-resize]');
+        if (!handle) return;
+        let startX = 0;
+        let startWidth = 0;
+        const onPointerDown = bind(event => {
+            event.preventDefault();
+            event.stopPropagation();
+            const root = studioRoot();
+            if (!root) return;
+            startWidth = parseInt(root.style.getPropertyValue('--cs-sidebar-width')) || state.sidebarWidth || 280;
+            startX = event.clientX;
+            handle.classList.add('dragging');
+            handle.setPointerCapture(event.pointerId);
+            handle.addEventListener('pointermove', onPointerMove);
+            handle.addEventListener('pointerup', onPointerUp);
+            handle.addEventListener('pointercancel', onPointerUp);
+        });
+        const onPointerMove = bind(event => {
+            const delta = event.clientX - startX;
+            const newWidth = Math.max(180, Math.min(500, startWidth + delta));
+            const root = studioRoot();
+            if (root) root.style.setProperty('--cs-sidebar-width', newWidth + 'px');
+            state.sidebarWidth = newWidth;
+        });
+        const onPointerUp = bind(event => {
+            handle.classList.remove('dragging');
+            handle.releasePointerCapture(event.pointerId);
+            handle.removeEventListener('pointermove', onPointerMove);
+            handle.removeEventListener('pointerup', onPointerUp);
+            handle.removeEventListener('pointercancel', onPointerUp);
+            saveState();
+        });
+        handle.addEventListener('pointerdown', onPointerDown);
     }
 
-    function codeStudioAgentContext() {
+    function writeTerminalLine(line) {
+        if (state.terminal) {
+            String(line || '').split('\n').forEach(part => state.terminal.writeln(part));
+            return;
+        }
+        const screen = state.root.querySelector('[data-terminal-screen]');
+        if (screen) screen.textContent += String(line || '') + '\n';
+    }
+
+    function showOperationError(err) {
+        const message = err && err.message ? err.message : String(err || '');
+        renderStatus(tr('codeStudio.containerError', 'Container error: {error}', { error: message }));
+        writeTerminalLine(message);
+    }
+
+    function languageForPath(path) {
+        const ext = String(path || '').split('.').pop().toLowerCase();
+        return ({ js: 'javascript', mjs: 'javascript', ts: 'javascript', jsx: 'javascript', tsx: 'javascript', py: 'python', go: 'go', rs: 'rust', json: 'json', html: 'html', htm: 'html', css: 'css', md: 'markdown' })[ext] || '';
+    }
+
+    function languageExtension(cm, language) {
+        const map = { javascript: cm.javascript, python: cm.python, go: cm.go, rust: cm.rust, json: cm.json, html: cm.html, css: cm.css, markdown: cm.markdown };
+        const factory = map[language];
+        return typeof factory === 'function' ? factory() : [];
+    }
+
+    function runCommandFor(path) {
+        const quoted = "'" + String(path).replaceAll("'", "'\"'\"'") + "'";
+        const lang = languageForPath(path);
+        if (lang === 'go') return 'go run ' + quoted;
+        if (lang === 'python') return 'python3 ' + quoted;
+        if (lang === 'javascript') return 'node ' + quoted;
+        if (lang === 'rust') return 'rustc ' + quoted + ' -o /tmp/cs-run && /tmp/cs-run';
+        return 'cat ' + quoted;
+    }
+
+    function fileIcon(name) {
+        const lang = languageForPath(name);
+        return ({ javascript: 'JS', python: 'PY', go: 'GO', rust: 'RS', json: '{}', html: '<>', css: '#', markdown: 'MD' })[lang] || '\u2022';
+    }
+
+    function editorValue(tab) {
+        if (!tab) return '';
+        if (tab.view && tab.view.state && tab.view.state.doc) return tab.view.state.doc.toString();
+        if (tab.view && typeof tab.view.getValue === 'function') return tab.view.getValue();
+        return tab.content || '';
+    }
+
+    function activeTab() {
+        if (!state) return null;
+        return state.openTabs[state.activeTabIndex] || null;
+    }
+
+    function currentDirectory() {
         const tab = activeTab();
-        const cursor = codeStudioCursor();
-        const selection = codeStudioSelection();
-        const content = tab ? editorValue(tab) : '';
-        return {
-            source: 'code-studio',
-            current_file: tab ? tab.path : '',
-            current_language: tab ? tab.language : '',
-            current_content: selection.text ? '' : content,
-            cursor_line: cursor.line,
-            cursor_column: cursor.column,
-            selected_text: selection.text,
-            open_files: state.openTabs.map(item => item.path)
-        };
+        if (tab && tab.path) return tab.path.slice(0, Math.max(WORKSPACE_ROOT.length, tab.path.lastIndexOf('/')));
+        return state && state.currentPath || WORKSPACE_ROOT;
+    }
+
+    function studioRoot() {
+        if (!state || !state.root) return null;
+        return state.root.querySelector('[data-code-studio]');
+    }
+
+    function ensureShellRoot() {
+        let root = studioRoot();
+        if (!root) {
+            state.root.innerHTML = shellMarkup();
+            root = studioRoot();
+        }
+        return root;
+    }
+
+    function shellPart(selector) {
+        const root = ensureShellRoot();
+        return root ? root.querySelector(selector) : null;
+    }
+
+    function joinPath(base, name) {
+        if (!base || base === WORKSPACE_ROOT) return WORKSPACE_ROOT + '/' + name;
+        return base + '/' + name;
+    }
+
+    function parentPath(path) {
+        const clean = String(path || WORKSPACE_ROOT).replace(/\/+$/, '');
+        const index = clean.lastIndexOf('/');
+        if (index <= 0) return WORKSPACE_ROOT;
+        return clean.slice(0, index) || WORKSPACE_ROOT;
+    }
+
+    function baseName(path) {
+        return String(path || '').split('/').filter(Boolean).pop() || WORKSPACE_ROOT;
+    }
+
+    function cursorPositionText(tab) {
+        if (!tab || !tab.view) return '';
+        let line = 1, col = 1;
+        if (tab.view.state && tab.view.state.doc) {
+            const head = tab.view.state.selection.main.head;
+            const ln = tab.view.state.doc.lineAt(head);
+            line = ln.number;
+            col = head - ln.from + 1;
+        } else if (tab.view.textarea) {
+            const value = tab.view.textarea.value.slice(0, tab.view.textarea.selectionStart || 0);
+            const lines = value.split('\n');
+            line = lines.length;
+            col = lines[lines.length - 1].length + 1;
+        }
+        return 'Ln ' + line + ', Col ' + col;
+    }
+
+    function formatBytes(size) {
+        const n = Number(size || 0);
+        if (n < 1024) return n + ' B';
+        if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KiB';
+        return (n / 1024 / 1024).toFixed(1) + ' MiB';
     }
 
     function codeStudioCursor() {
@@ -1703,188 +1296,342 @@ sidebar.innerHTML = `<div class="cs-sidebar-head">
         return { text: '' };
     }
 
-    function extractFirstCodeBlock(text) {
-        const match = String(text || '').match(/```[a-zA-Z0-9_-]*\n([\s\S]*?)```/);
-        return match ? match[1].trimEnd() : '';
-    }
-
-    function applyAgentSuggestion() {
-        const tab = activeTab();
-        if (!tab || !state.pendingSuggestion) return;
-        if (tab.view && tab.view.state && tab.view.state.doc) {
-            tab.view.dispatch({ changes: { from: 0, to: tab.view.state.doc.length, insert: state.pendingSuggestion } });
-        } else if (tab.view && tab.view.textarea) {
-            tab.view.setValue(state.pendingSuggestion);
-        }
-        tab.content = state.pendingSuggestion;
-        tab.modified = true;
-        state.pendingSuggestion = null;
-        renderTabs();
-        renderStatus();
-        renderAgentPanel();
-    }
-
-    function showCodeActionMenu(x, y) {
-        document.querySelectorAll('.cs-context-menu').forEach(menu => {
-            if (typeof menu.__codeStudioCleanup === 'function') menu.__codeStudioCleanup();
-            else menu.remove();
-        });
-        const instance = state;
-        const menu = document.createElement('div');
-        menu.className = 'cs-context-menu';
-        menu.style.left = x + 'px';
-        menu.style.top = y + 'px';
-        menu.innerHTML = `
-            <button type="button" data-code-action="explain">${buttonIcon('info', 'i')}<span>${esc(tr('codeStudio.explain', 'Explain'))}</span></button>
-            <button type="button" data-code-action="comments">${buttonIcon('notes', 'N')}<span>${esc(tr('codeStudio.generateComments', 'Generate Comments'))}</span></button>
-            <button type="button" data-code-action="tests">${buttonIcon('check-square', 'T')}<span>${esc(tr('codeStudio.generateTests', 'Generate Tests'))}</span></button>
-            <button type="button" data-code-action="refactor">${buttonIcon('tools', 'R')}<span>${esc(tr('codeStudio.refactor', 'Refactor'))}</span></button>`;
-        document.body.appendChild(menu);
-        let boundClose = null;
-        let menuClosed = false;
-        let unregister = () => {};
-        const cleanupMenu = () => {
-            if (menuClosed) return;
-            menuClosed = true;
-            unregister();
-            if (boundClose) document.removeEventListener('mousedown', boundClose);
-            menu.remove();
-        };
-        menu.__codeStudioCleanup = cleanupMenu;
-        runWithInstance(instance, () => {
-            unregister = registerDisposer(cleanupMenu);
-        });
-        menu.querySelectorAll('[data-code-action]').forEach(btn => {
-            btn.addEventListener('click', bind(() => {
-                runCodeAction(btn.dataset.codeAction);
-                cleanupMenu();
-            }));
-        });
-        setTimeout(bind(() => {
-            if (menuClosed) return;
-            const close = event => {
-                if (!menu.contains(event.target)) {
-                    cleanupMenu();
-                }
+    function promptValue(title, value) {
+        return new Promise(resolve => {
+            const instance = state;
+            const overlay = document.createElement('div');
+            overlay.className = 'cs-modal-backdrop';
+            overlay.innerHTML = `<form class="cs-modal">
+                <label>${esc(title)}<input name="value" value="${esc(value || '')}" autocomplete="off" spellcheck="false"></label>
+                <div class="cs-modal-actions">
+                    <button type="button" class="cs-button" data-cancel>${buttonIcon('x', 'X')}<span>${esc(tr('desktop.cancel', 'Cancel'))}</span></button>
+                    <button type="submit" class="cs-button primary">${buttonIcon('check-square', 'Y')}<span>${esc(tr('desktop.ok', 'OK'))}</span></button>
+                </div>
+            </form>`;
+            document.body.appendChild(overlay);
+            const input = overlay.querySelector('input');
+            let settled = false;
+            let unregister = () => {};
+            const cleanup = result => {
+                if (settled) return;
+                settled = true;
+                unregister();
+                overlay.remove();
+                resolve(result);
             };
-            boundClose = bind(close);
-            document.addEventListener('mousedown', boundClose);
-        }), 0);
+            runWithInstance(instance, () => {
+                unregister = registerDisposer(() => cleanup(''));
+            });
+            overlay.querySelector('form').addEventListener('submit', bind(event => {
+                event.preventDefault();
+                cleanup(input.value.trim());
+            }));
+            overlay.querySelector('[data-cancel]').addEventListener('click', bind(() => cleanup('')));
+            overlay.addEventListener('click', bind(event => {
+                if (event.target === overlay) cleanup('');
+            }));
+            input.focus();
+            input.select();
+        });
     }
 
-    function connectTerminal() {
-        const screen = shellPart('[data-terminal-screen]');
-        const label = shellPart('[data-terminal-state]');
-        if (!screen || !window.Terminal) {
-            if (screen) screen.textContent = tr('codeStudio.terminalUnavailable', 'Terminal unavailable');
+    function confirmValue(message) {
+        return new Promise(resolve => {
+            const instance = state;
+            const overlay = document.createElement('div');
+            overlay.className = 'cs-modal-backdrop';
+            overlay.innerHTML = `<div class="cs-modal">
+                <p>${esc(message)}</p>
+                <div class="cs-modal-actions">
+                    <button type="button" class="cs-button" data-cancel>${buttonIcon('x', 'X')}<span>${esc(tr('desktop.cancel', 'Cancel'))}</span></button>
+                    <button type="button" class="cs-button danger" data-confirm>${buttonIcon('trash', 'X')}<span>${esc(tr('desktop.delete', 'Delete'))}</span></button>
+                </div>
+            </div>`;
+            document.body.appendChild(overlay);
+            let settled = false;
+            let unregister = () => {};
+            const cleanup = result => {
+                if (settled) return;
+                settled = true;
+                unregister();
+                overlay.remove();
+                resolve(result);
+            };
+            runWithInstance(instance, () => {
+                unregister = registerDisposer(() => cleanup(false));
+            });
+            overlay.querySelector('[data-confirm]').addEventListener('click', bind(() => cleanup(true)));
+            overlay.querySelector('[data-cancel]').addEventListener('click', bind(() => cleanup(false)));
+            overlay.addEventListener('click', bind(event => {
+                if (event.target === overlay) cleanup(false);
+            }));
+            overlay.querySelector('[data-confirm]').focus();
+        });
+    }
+
+    function runOnWindow(windowId, fn) {
+        const instance = windowId ? instances.get(windowId) : currentInstance();
+        if (!instance) return undefined;
+        latestWindowId = instance.windowId;
+        return runWithInstance(instance, fn);
+    }
+
+;
+/* ui/js/desktop/apps/code-studio/sidebar.js */
+    function renderSidebar(errorMessage) {
+        const sidebar = shellPart('[data-sidebar]');
+        if (!sidebar) return;
+        if (errorMessage) {
+            sidebar.innerHTML = `<div class="cs-sidebar-head"><strong>${esc(tr('codeStudio.title', 'Code Studio'))}</strong></div>
+                <div class="code-studio-error compact">${esc(errorMessage)}</div>
+                <div class="cs-sidebar-resize" data-sidebar-resize></div>`;
+            wireSidebarResize();
             return;
         }
-        state.terminalSessions = [{ name: 'Shell 1', term: null, ws: null }];
-        state.activeTerminalSession = 0;
-        connectTerminalSession(0, screen, label);
+        const rows = state.files.length ? state.files.map(file => treeItemRow(file, 0)).join('') : `<div class="cs-empty">${esc(tr('codeStudio.noFiles', 'No files open'))}</div>`;
+        sidebar.innerHTML = `<div class="cs-sidebar-head">
+            <strong>${esc(tr('codeStudio.title', 'Code Studio'))}</strong>
+            <span>${esc(state.currentPath)}</span>
+        </div><div class="cs-file-tree">${rows}</div>
+        <div class="cs-sidebar-resize" data-sidebar-resize></div>`;
+        wireSidebarTreeEvents(sidebar);
+        wireSidebarDragDrop(sidebar);
+        wireSidebarResize();
     }
 
-    function connectTerminalSession(index, screen, label) {
-        if (!screen) screen = shellPart('[data-terminal-screen]');
-        if (!label) label = shellPart('[data-terminal-state]');
-        if (!screen || !window.Terminal) return;
-        try {
-            const term = new window.Terminal({ cursorBlink: true, convertEol: true, fontFamily: "'Cascadia Code', 'JetBrains Mono', 'SF Mono', 'Fira Code', Consolas, monospace", fontSize: 13 });
-            const instance = state;
-            let terminalDisposed = false;
-            instance.disposers.push(() => {
-                if (terminalDisposed) return;
-                terminalDisposed = true;
-                if (term && typeof term.dispose === 'function') term.dispose();
-            });
-            if (window.FitAddon && window.FitAddon.FitAddon) {
-                const fitAddon = new window.FitAddon.FitAddon();
-                term.loadAddon(fitAddon);
-                if (index === 0) state.fitAddon = fitAddon;
-                if (state.terminalSessions[index]) state.terminalSessions[index].fitAddon = fitAddon;
-            }
-            term.open(screen);
-            if (state.terminalSessions[index]) state.terminalSessions[index].term = term;
-            if (index === 0) state.terminal = term;
-            const fitTarget = state.terminalSessions[index]?.fitAddon || state.fitAddon;
-            if (fitTarget) fitTarget.fit();
-            term.writeln('Code Studio - Shell ' + (index + 1));
-            const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const ws = new WebSocket(protocol + '//' + location.host + '/api/code-studio/terminal');
-            ws.binaryType = 'arraybuffer';
-            if (state.terminalSessions[index]) state.terminalSessions[index].ws = ws;
-            if (index === 0) state.ws = ws;
-            ws.onopen = bindInstance(instance, () => {
-                if (label && index === (state.activeTerminalSession || 0)) label.textContent = tr('codeStudio.running', 'Running...');
-                const termDataDispose = term.onData(bindInstance(instance, data => ws.readyState === WebSocket.OPEN && ws.send(data)));
-                if (termDataDispose && typeof termDataDispose.dispose === 'function') {
-                    instance.disposers.push(() => termDataDispose.dispose());
+    function treeItemRow(file, depth) {
+        const isDir = file.type === 'directory';
+        const isExpanded = isDir && state.expandedDirs.has(file.path);
+        const indent = depth * 14;
+        const icon = isDir
+            ? (isExpanded ? iconMarkup('folder-open', 'D', 'cs-file-papirus-icon', 16) : iconMarkup('folder', 'D', 'cs-file-papirus-icon', 16))
+            : iconMarkup(fileIconName(file.name), fileIcon(file.name), 'cs-file-papirus-icon', 16);
+        const chevron = isDir
+            ? `<span class="cs-tree-chevron${isExpanded ? ' expanded' : ''}">\u203a</span>`
+            : '<span style="width:18px;display:inline-block"></span>';
+        const childrenHtml = isDir && isExpanded ? treeChildrenHtml(file.path, depth + 1) : '';
+        return `<div class="cs-tree-item${isDir ? ' is-dir' : ' is-file'}" data-file-path="${esc(file.path)}" data-type="${esc(file.type)}" data-depth="${depth}" style="padding-left:${6 + indent}px">
+            ${chevron}
+            <span class="cs-file-icon">${icon}</span>
+            <span class="cs-file-name">${esc(file.name)}</span>
+            <span class="cs-file-actions">
+                <span role="button" tabindex="0" class="cs-file-action" data-file-action="rename" title="${esc(tr('codeStudio.rename', 'Rename'))}">${iconMarkup('edit', 'E', 'cs-file-action-icon', 14)}</span>
+                ${!isDir ? `<span role="button" tabindex="0" class="cs-file-action" data-file-action="download" title="${esc(tr('codeStudio.download', 'Download'))}">${iconMarkup('download', 'D', 'cs-file-action-icon', 14)}</span>` : ''}
+                <span role="button" tabindex="0" class="cs-file-action danger" data-file-action="delete" title="${esc(tr('desktop.delete', 'Delete'))}">${iconMarkup('trash', 'X', 'cs-file-action-icon', 14)}</span>
+            </span>
+        </div>${childrenHtml}`;
+    }
+
+    function treeChildrenHtml(dirPath, depth) {
+        const children = state.treeCache[dirPath];
+        if (!children || !children.length) return '<div class="cs-tree-children" data-dir-path="' + esc(dirPath) + '"></div>';
+        return '<div class="cs-tree-children" data-dir-path="' + esc(dirPath) + '">' +
+            children.map(file => treeItemRow(file, depth)).join('') + '</div>';
+    }
+
+    async function expandDirectory(dirPath) {
+        const target = state;
+        if (!isLiveInstance(target)) return;
+        if (state.expandedDirs.has(dirPath)) {
+            state.expandedDirs.delete(dirPath);
+            renderSidebar();
+            return;
+        }
+        state.expandedDirs.add(dirPath);
+        if (!state.treeCache[dirPath]) {
+            try {
+                const result = await apiClient.files(dirPath);
+                if (!isLiveInstance(target)) return;
+                runWithInstance(target, () => {
+                    state.treeCache[dirPath] = (result.files || []).sort((a, b) => {
+                        if (a.type === b.type) return a.name.localeCompare(b.name);
+                        return a.type === 'directory' ? -1 : 1;
+                    });
+                    renderSidebar();
+                });
+            } catch (err) {
+                if (isLiveInstance(target)) {
+                    runWithInstance(target, () => {
+                        state.expandedDirs.delete(dirPath);
+                        renderSidebar();
+                    });
                 }
-            });
-            ws.onmessage = bindInstance(instance, event => {
-                if (event.data instanceof ArrayBuffer) term.write(new Uint8Array(event.data));
-                else term.write(String(event.data));
-            });
-            ws.onerror = bindInstance(instance, () => {
-                if (label && index === (state.activeTerminalSession || 0)) label.textContent = tr('codeStudio.terminalUnavailable', 'Terminal unavailable');
-            });
-            ws.onclose = bindInstance(instance, () => {
-                if (label && index === (state.activeTerminalSession || 0)) label.textContent = tr('codeStudio.stopped', 'Stopped');
-            });
-        } catch (err) {
-            screen.textContent = tr('codeStudio.terminalUnavailable', 'Terminal unavailable');
-        }
-    }
-
-    function switchTerminalSession(index) {
-        if (!state.terminalSessions || index < 0 || index >= state.terminalSessions.length) return;
-        state.activeTerminalSession = index;
-        const screen = shellPart('[data-terminal-screen]');
-        if (screen) screen.innerHTML = '';
-        const session = state.terminalSessions[index];
-        if (session && session.term) {
-            const screen = shellPart('[data-terminal-screen]');
-            if (screen) session.term.open(screen);
-            if (session.fitAddon) session.fitAddon.fit();
-            else if (state.fitAddon) state.fitAddon.fit();
-        }
-        state.terminal = session?.term || null;
-        state.ws = session?.ws || null;
-        renderTerminal();
-    }
-
-    function addTerminalSession() {
-        if (!state.terminalSessions) state.terminalSessions = [];
-        const index = state.terminalSessions.length;
-        state.terminalSessions.push({ name: 'Shell ' + (index + 1), term: null, ws: null });
-        state.activeTerminalSession = index;
-        renderTerminal();
-        const screen = shellPart('[data-terminal-screen]');
-        const label = shellPart('[data-terminal-state]');
-        if (screen) screen.innerHTML = '';
-        connectTerminalSession(index, screen, label);
-    }
-
-    function closeTerminalSession(index) {
-        if (!state.terminalSessions || index < 0 || index >= state.terminalSessions.length) return;
-        const session = state.terminalSessions[index];
-        if (session) {
-            if (session.ws && session.ws.readyState !== WebSocket.CLOSED) session.ws.close();
-            if (session.term && typeof session.term.dispose === 'function') session.term.dispose();
-        }
-        state.terminalSessions.splice(index, 1);
-        if (!state.terminalSessions.length) {
-            state.terminalSessions.push({ name: 'Shell 1', term: null, ws: null });
-            state.activeTerminalSession = 0;
-            renderTerminal();
-            const screen = shellPart('[data-terminal-screen]');
-            const label = shellPart('[data-terminal-state]');
-            if (screen) screen.innerHTML = '';
-            connectTerminalSession(0, screen, label);
+            }
         } else {
-            state.activeTerminalSession = Math.min(index, state.terminalSessions.length - 1);
-            switchTerminalSession(state.activeTerminalSession);
+            renderSidebar();
         }
+    }
+
+    function wireSidebarTreeEvents(sidebar) {
+        sidebar.querySelectorAll('.cs-tree-item').forEach(row => {
+            row.addEventListener('click', bind(event => {
+                const action = event.target.closest('[data-file-action]');
+                if (action) return;
+                const filePath = row.dataset.filePath;
+                const fileType = row.dataset.type;
+                if (fileType === 'directory') {
+                    expandDirectory(filePath);
+                } else {
+                    openFile(filePath);
+                }
+            }));
+            row.addEventListener('keydown', bind(event => {
+                const filePath = row.dataset.filePath;
+                const fileType = row.dataset.type;
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    if (fileType === 'directory') expandDirectory(filePath);
+                    else openFile(filePath);
+                }
+                if (event.key === 'F2') {
+                    event.preventDefault();
+                    const file = findFileInTree(filePath);
+                    if (file) renamePath(file);
+                }
+                if (event.key === 'Delete') {
+                    event.preventDefault();
+                    const file = findFileInTree(filePath);
+                    if (file) deletePath(file);
+                }
+            }));
+        });
+        sidebar.querySelectorAll('[data-file-action]').forEach(btn => {
+            btn.addEventListener('click', bind(event => {
+                event.stopPropagation();
+                const filePath = btn.closest('[data-file-path]').dataset.filePath;
+                const file = findFileInTree(filePath);
+                if (!file) return;
+                const action = btn.dataset.fileAction;
+                if (action === 'rename') renamePath(file);
+                if (action === 'delete') deletePath(file);
+                if (action === 'download') downloadFile(file);
+            }));
+        });
+    }
+
+    function findFileInTree(path) {
+        for (const files of Object.values(state.treeCache)) {
+            const found = files.find(f => f.path === path);
+            if (found) return found;
+        }
+        const found = state.files.find(f => f.path === path);
+        if (found) return found;
+        const name = path.split('/').filter(Boolean).pop() || '';
+        return { path, name, type: 'file', size: 0 };
+    }
+
+    function wireSidebarDragDrop(sidebar) {
+        sidebar.ondragover = bind(event => {
+            event.preventDefault();
+            sidebar.classList.add('dragover');
+        });
+        sidebar.ondragleave = bind(() => sidebar.classList.remove('dragover'));
+        sidebar.ondrop = bind(async event => {
+            const target = state;
+            if (!isLiveInstance(target)) return;
+            event.preventDefault();
+            sidebar.classList.remove('dragover');
+            const files = Array.from(event.dataTransfer && event.dataTransfer.files ? event.dataTransfer.files : []);
+            const currentPath = target.currentPath;
+            try {
+                for (const file of files) {
+                    await apiClient.uploadFile(currentPath, file);
+                    if (!isLiveInstance(target)) return;
+                }
+                if (files.length) await runAsyncStep(target, () => refreshFiles(currentPath));
+            } catch (err) {
+                if (isLiveInstance(target)) runWithInstance(target, () => showOperationError(err));
+            }
+        });
+    }
+
+    function fileRow(file) {
+        const icon = file.type === 'directory'
+            ? iconMarkup('folder', 'D', 'cs-file-papirus-icon', 18)
+            : iconMarkup(fileIconName(file.name), fileIcon(file.name), 'cs-file-papirus-icon', 18);
+        return `<div role="button" tabindex="0" class="cs-file-row" data-file-path="${esc(file.path)}" data-type="${esc(file.type)}">
+            <span class="cs-file-icon">${icon}</span>
+            <span class="cs-file-name">${esc(file.name)}</span>
+            <span class="cs-file-meta">${file.type === 'directory' ? '' : esc(formatBytes(file.size))}</span>
+            <span class="cs-file-actions">
+                <span role="button" tabindex="0" class="cs-file-action" data-file-action="rename" title="${esc(tr('codeStudio.rename', 'Rename'))}">${iconMarkup('edit', 'E', 'cs-file-action-icon', 14)}</span>
+                ${file.type === 'file' ? `<span role="button" tabindex="0" class="cs-file-action" data-file-action="download" title="${esc(tr('codeStudio.download', 'Download'))}">${iconMarkup('download', 'D', 'cs-file-action-icon', 14)}</span>` : ''}
+                <span role="button" tabindex="0" class="cs-file-action danger" data-file-action="delete" title="${esc(tr('desktop.delete', 'Delete'))}">${iconMarkup('trash', 'X', 'cs-file-action-icon', 14)}</span>
+            </span>
+        </div>`;
+    }
+
+    function renderActivityBar() {
+        const bar = shellPart('[data-activity-bar]');
+        if (!bar) return;
+        bar.querySelectorAll('.cs-activity-btn').forEach(btn => {
+            const activity = btn.dataset.activity;
+            const existingBadge = btn.querySelector('.cs-activity-badge');
+            if (existingBadge) existingBadge.remove();
+            if (activity === 'explorer') {
+                btn.classList.toggle('active', state.sidebarVisible);
+            } else if (activity === 'search') {
+                btn.classList.toggle('active', state.searchVisible);
+            } else if (activity === 'git') {
+                btn.classList.toggle('active', state.gitVisible);
+                if (state.gitChanges && state.gitChanges.length > 0) {
+                    const badge = document.createElement('span');
+                    badge.className = 'cs-activity-badge';
+                    badge.textContent = state.gitChanges.length;
+                    btn.appendChild(badge);
+                }
+            } else if (activity === 'agent') {
+                btn.classList.toggle('active', state.agentVisible);
+            } else if (activity === 'terminal') {
+                btn.classList.toggle('active', state.terminalVisible);
+            }
+            if (activity === 'explorer' && state.openTabs && state.openTabs.length > 0) {
+                const badge = document.createElement('span');
+                badge.className = 'cs-activity-badge';
+                badge.textContent = state.openTabs.length;
+                btn.appendChild(badge);
+            }
+            if (!btn._wired) {
+                btn._wired = true;
+                btn.addEventListener('click', bind(() => {
+                    const act = btn.dataset.activity;
+                    if (act === 'explorer') toggleSidebar();
+                    else if (act === 'search') toggleSearch();
+                    else if (act === 'git') toggleGitPanel();
+                    else if (act === 'agent') toggleAgentPanel();
+                    else if (act === 'terminal') toggleTerminal();
+                }));
+            }
+        });
+    }
+
+;
+/* ui/js/desktop/apps/code-studio/editor.js */
+    function renderEditor() {
+        const editor = shellPart('[data-editor]');
+        if (!editor) return;
+        const tab = activeTab();
+        if (!tab) {
+            state.openTabs.forEach(destroyTabView);
+            editor.innerHTML = `<div class="cs-editor-empty">
+                <div class="cs-empty-icon">{ }</div>
+                <div class="cs-empty-title">${esc(tr('codeStudio.welcome', 'Welcome to Code Studio'))}</div>
+                <div class="cs-empty-hint">${esc(tr('codeStudio.welcomeHint', 'Open a file from the sidebar or press Ctrl+Shift+P to open the Command Palette'))}</div>
+            </div>`;
+            return;
+        }
+        state.openTabs.forEach(openTab => {
+            if (openTab !== tab) destroyTabView(openTab);
+        });
+        destroyTabView(tab);
+        editor.innerHTML = '';
+        tab.view = state.editorType === 'codemirror'
+            ? createCodeMirrorEditor(editor, tab)
+            : createTextareaEditor(editor, tab);
+        editor.oncontextmenu = bind(event => {
+            event.preventDefault();
+            showCodeActionMenu(event.clientX, event.clientY);
+        });
     }
 
     function createCodeMirrorEditor(container, tab) {
@@ -2014,72 +1761,50 @@ sidebar.innerHTML = `<div class="cs-sidebar-head">
         return { textarea, getValue: () => textarea.value, setValue: value => { textarea.value = value; updatePreview(); } };
     }
 
-    function editorValue(tab) {
-        if (!tab) return '';
-        if (tab.view && tab.view.state && tab.view.state.doc) return tab.view.state.doc.toString();
-        if (tab.view && typeof tab.view.getValue === 'function') return tab.view.getValue();
-        return tab.content || '';
+;
+/* ui/js/desktop/apps/code-studio/terminal.js */
+    function renderTerminal() {
+        const terminal = shellPart('[data-terminal]');
+        if (!terminal) return;
+        const sessionTabs = (state.terminalSessions || []).map((session, index) => `
+            <button type="button" class="cs-terminal-tab${index === (state.activeTerminalSession || 0) ? ' active' : ''}" data-terminal-tab="${index}">
+                <span>${esc(session.name || 'Shell ' + (index + 1))}</span>
+                <span class="cs-terminal-tab-close" data-terminal-close="${index}">\u00d7</span>
+            </button>`).join('');
+        const activeIdx = state.activeTerminalSession || 0;
+        terminal.innerHTML = `<div class="cs-terminal-resize" data-terminal-resize></div>
+            <div class="cs-terminal-head">
+                <div class="cs-terminal-tabs">
+                    ${sessionTabs || `<button type="button" class="cs-terminal-tab active" data-terminal-tab="0"><span>${esc(tr('codeStudio.terminal', 'Terminal'))}</span></button>`}
+                    <button type="button" class="cs-terminal-add" data-terminal-add title="${esc(tr('codeStudio.newTerminal', 'New Terminal'))}">+</button>
+                </div>
+                <span data-terminal-state>${esc(tr('codeStudio.stopped', 'Stopped'))}</span>
+            </div><div class="cs-terminal-screen" data-terminal-screen></div>`;
+        wireTerminalResize();
+        terminal.querySelectorAll('[data-terminal-tab]').forEach(btn => {
+            btn.addEventListener('click', bind(() => switchTerminalSession(Number(btn.dataset.terminalTab))));
+        });
+        terminal.querySelectorAll('[data-terminal-close]').forEach(btn => {
+            btn.addEventListener('click', bind(event => {
+                event.stopPropagation();
+                closeTerminalSession(Number(btn.dataset.terminalClose));
+            }));
+        });
+        const addBtn = terminal.querySelector('[data-terminal-add]');
+        if (addBtn) addBtn.addEventListener('click', bind(() => addTerminalSession()));
     }
 
-    function activeTab() {
-        if (!state) return null;
-        return state.openTabs[state.activeTabIndex] || null;
-    }
-
-    function currentDirectory() {
-        const tab = activeTab();
-        if (tab && tab.path) return tab.path.slice(0, Math.max(WORKSPACE_ROOT.length, tab.path.lastIndexOf('/')));
-        return state && state.currentPath || WORKSPACE_ROOT;
-    }
-
-    function studioRoot() {
-        if (!state || !state.root) return null;
-        return state.root.querySelector('[data-code-studio]');
-    }
-
-    function ensureShellRoot() {
-        let root = studioRoot();
-        if (!root) {
-            state.root.innerHTML = shellMarkup();
-            root = studioRoot();
-        }
-        return root;
-    }
-
-    function shellPart(selector) {
-        const root = ensureShellRoot();
-        return root ? root.querySelector(selector) : null;
-    }
-
-    function toggleSidebar() {
-        state.sidebarVisible = !state.sidebarVisible;
-        ensureShellRoot().dataset.sidebar = state.sidebarVisible ? 'visible' : 'hidden';
-        saveState();
-        renderActivityBar();
-        renderWindowMenus();
-    }
-
-    function toggleZenMode() {
-        state.zenMode = !state.zenMode;
-        const root = ensureShellRoot();
-        root.dataset.zen = state.zenMode ? 'true' : 'false';
-        if (state.zenMode) {
-            root.querySelector('[data-zen-exit]')?.addEventListener('click', bind(() => toggleZenMode()));
-        }
-    }
-
-    function wireSidebarResize() {
-        const handle = shellPart('[data-sidebar-resize]');
+    function wireTerminalResize() {
+        const handle = shellPart('[data-terminal-resize]');
         if (!handle) return;
-        let startX = 0;
-        let startWidth = 0;
+        let startY = 0;
+        let startHeight = 0;
         const onPointerDown = bind(event => {
             event.preventDefault();
-            event.stopPropagation();
             const root = studioRoot();
             if (!root) return;
-            startWidth = parseInt(root.style.getPropertyValue('--cs-sidebar-width')) || state.sidebarWidth || 280;
-            startX = event.clientX;
+            startHeight = parseInt(root.style.getPropertyValue('--cs-terminal-height')) || state.terminalHeight || 220;
+            startY = event.clientY;
             handle.classList.add('dragging');
             handle.setPointerCapture(event.pointerId);
             handle.addEventListener('pointermove', onPointerMove);
@@ -2087,11 +1812,11 @@ sidebar.innerHTML = `<div class="cs-sidebar-head">
             handle.addEventListener('pointercancel', onPointerUp);
         });
         const onPointerMove = bind(event => {
-            const delta = event.clientX - startX;
-            const newWidth = Math.max(180, Math.min(500, startWidth + delta));
+            const delta = startY - event.clientY;
+            const newHeight = Math.max(80, Math.min(600, startHeight + delta));
             const root = studioRoot();
-            if (root) root.style.setProperty('--cs-sidebar-width', newWidth + 'px');
-            state.sidebarWidth = newWidth;
+            if (root) root.style.setProperty('--cs-terminal-height', newHeight + 'px');
+            state.terminalHeight = newHeight;
         });
         const onPointerUp = bind(event => {
             handle.classList.remove('dragging');
@@ -2100,169 +1825,726 @@ sidebar.innerHTML = `<div class="cs-sidebar-head">
             handle.removeEventListener('pointerup', onPointerUp);
             handle.removeEventListener('pointercancel', onPointerUp);
             saveState();
+            if (state.fitAddon) setTimeout(bind(() => state.fitAddon.fit()), 50);
         });
         handle.addEventListener('pointerdown', onPointerDown);
     }
 
-    function toggleTerminal() {
-        state.terminalVisible = !state.terminalVisible;
-        ensureShellRoot().dataset.terminal = state.terminalVisible ? 'visible' : 'hidden';
-        if (state.fitAddon && state.terminalVisible) setTimeout(bind(() => state.fitAddon.fit()), 50);
-        saveState();
+    function connectTerminal() {
+        const screen = shellPart('[data-terminal-screen]');
+        const label = shellPart('[data-terminal-state]');
+        if (!screen || !window.Terminal) {
+            if (screen) screen.textContent = tr('codeStudio.terminalUnavailable', 'Terminal unavailable');
+            return;
+        }
+        state.terminalSessions = [{ name: 'Shell 1', term: null, ws: null }];
+        state.activeTerminalSession = 0;
+        connectTerminalSession(0, screen, label);
+    }
+
+    function connectTerminalSession(index, screen, label) {
+        if (!screen) screen = shellPart('[data-terminal-screen]');
+        if (!label) label = shellPart('[data-terminal-state]');
+        if (!screen || !window.Terminal) return;
+        try {
+            const term = new window.Terminal({ cursorBlink: true, convertEol: true, fontFamily: "'Cascadia Code', 'JetBrains Mono', 'SF Mono', 'Fira Code', Consolas, monospace", fontSize: 13 });
+            const instance = state;
+            let terminalDisposed = false;
+            instance.disposers.push(() => {
+                if (terminalDisposed) return;
+                terminalDisposed = true;
+                if (term && typeof term.dispose === 'function') term.dispose();
+            });
+            if (window.FitAddon && window.FitAddon.FitAddon) {
+                const fitAddon = new window.FitAddon.FitAddon();
+                term.loadAddon(fitAddon);
+                if (index === 0) state.fitAddon = fitAddon;
+                if (state.terminalSessions[index]) state.terminalSessions[index].fitAddon = fitAddon;
+            }
+            term.open(screen);
+            if (state.terminalSessions[index]) state.terminalSessions[index].term = term;
+            if (index === 0) state.terminal = term;
+            const fitTarget = state.terminalSessions[index]?.fitAddon || state.fitAddon;
+            if (fitTarget) fitTarget.fit();
+            term.writeln('Code Studio - Shell ' + (index + 1));
+            const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const ws = new WebSocket(protocol + '//' + location.host + '/api/code-studio/terminal');
+            ws.binaryType = 'arraybuffer';
+            if (state.terminalSessions[index]) state.terminalSessions[index].ws = ws;
+            if (index === 0) state.ws = ws;
+            ws.onopen = bindInstance(instance, () => {
+                if (label && index === (state.activeTerminalSession || 0)) label.textContent = tr('codeStudio.running', 'Running...');
+                const termDataDispose = term.onData(bindInstance(instance, data => ws.readyState === WebSocket.OPEN && ws.send(data)));
+                if (termDataDispose && typeof termDataDispose.dispose === 'function') {
+                    instance.disposers.push(() => termDataDispose.dispose());
+                }
+            });
+            ws.onmessage = bindInstance(instance, event => {
+                if (event.data instanceof ArrayBuffer) term.write(new Uint8Array(event.data));
+                else term.write(String(event.data));
+            });
+            ws.onerror = bindInstance(instance, () => {
+                if (label && index === (state.activeTerminalSession || 0)) label.textContent = tr('codeStudio.terminalUnavailable', 'Terminal unavailable');
+            });
+            ws.onclose = bindInstance(instance, () => {
+                if (label && index === (state.activeTerminalSession || 0)) label.textContent = tr('codeStudio.stopped', 'Stopped');
+            });
+        } catch (err) {
+            screen.textContent = tr('codeStudio.terminalUnavailable', 'Terminal unavailable');
+        }
+    }
+
+    function switchTerminalSession(index) {
+        if (!state.terminalSessions || index < 0 || index >= state.terminalSessions.length) return;
+        state.activeTerminalSession = index;
+        const screen = shellPart('[data-terminal-screen]');
+        if (screen) screen.innerHTML = '';
+        const session = state.terminalSessions[index];
+        if (session && session.term) {
+            const scr = shellPart('[data-terminal-screen]');
+            if (scr) session.term.open(scr);
+            if (session.fitAddon) session.fitAddon.fit();
+            else if (state.fitAddon) state.fitAddon.fit();
+        }
+        state.terminal = session?.term || null;
+        state.ws = session?.ws || null;
+        renderTerminal();
+    }
+
+    function addTerminalSession() {
+        if (!state.terminalSessions) state.terminalSessions = [];
+        const index = state.terminalSessions.length;
+        state.terminalSessions.push({ name: 'Shell ' + (index + 1), term: null, ws: null });
+        state.activeTerminalSession = index;
+        renderTerminal();
+        const screen = shellPart('[data-terminal-screen]');
+        const label = shellPart('[data-terminal-state]');
+        if (screen) screen.innerHTML = '';
+        connectTerminalSession(index, screen, label);
+    }
+
+    function closeTerminalSession(index) {
+        if (!state.terminalSessions || index < 0 || index >= state.terminalSessions.length) return;
+        const session = state.terminalSessions[index];
+        if (session) {
+            if (session.ws && session.ws.readyState !== WebSocket.CLOSED) session.ws.close();
+            if (session.term && typeof session.term.dispose === 'function') session.term.dispose();
+        }
+        state.terminalSessions.splice(index, 1);
+        if (!state.terminalSessions.length) {
+            state.terminalSessions.push({ name: 'Shell 1', term: null, ws: null });
+            state.activeTerminalSession = 0;
+            renderTerminal();
+            const screen = shellPart('[data-terminal-screen]');
+            const label = shellPart('[data-terminal-state]');
+            if (screen) screen.innerHTML = '';
+            connectTerminalSession(0, screen, label);
+        } else {
+            state.activeTerminalSession = Math.min(index, state.terminalSessions.length - 1);
+            switchTerminalSession(state.activeTerminalSession);
+        }
+    }
+
+;
+/* ui/js/desktop/apps/code-studio/search.js */
+    function renderSearchPanel() {
+        const panel = shellPart('[data-search]');
+        if (!panel) return;
+        panel.hidden = !state.searchVisible;
+        if (!state.searchVisible) return;
+        const results = state.searchResults.length ? state.searchResults.map(result => `
+            <button type="button" class="cs-search-result" data-search-path="${esc(result.path)}" data-search-line="${esc(result.line)}">
+                <span>${esc(result.path)}:${esc(result.line)}</span>
+                <code>${esc(result.preview)}</code>
+            </button>`).join('') : `<div class="cs-empty">${esc(tr('codeStudio.noFiles', 'No files open'))}</div>`;
+        panel.innerHTML = `<form class="cs-search-form" data-search-form>
+            <input name="q" placeholder="${esc(tr('codeStudio.searchFiles', 'Search in Files'))}" autocomplete="off" spellcheck="false">
+            <input name="include" placeholder="*.go" autocomplete="off" spellcheck="false">
+            <input name="exclude" placeholder="vendor/" autocomplete="off" spellcheck="false">
+            <label><input type="checkbox" name="case"> Aa</label>
+            <label><input type="checkbox" name="whole"> Ab</label>
+            <label><input type="checkbox" name="regex"> .*</label>
+            <button type="submit" class="cs-button primary">${buttonIcon('search', 'S')}<span>${esc(tr('codeStudio.search', 'Search'))}</span></button>
+        </form><div class="cs-search-results">${results}</div>`;
+        panel.querySelector('[data-search-form]').addEventListener('submit', bind(event => {
+            event.preventDefault();
+            runSearch(new FormData(event.currentTarget));
+        }));
+        panel.querySelectorAll('[data-search-path]').forEach(btn => {
+            btn.addEventListener('click', bind(() => openSearchResult(btn.dataset.searchPath, Number(btn.dataset.searchLine || 1))));
+        });
+        const input = panel.querySelector('input[name="q"]');
+        if (input && !input.value) input.focus();
+    }
+
+    function toggleSearch() {
+        state.searchVisible = !state.searchVisible;
+        renderSearchPanel();
+        renderActivityBar();
+    }
+
+    async function runSearch(formData) {
+        const target = state;
+        if (!isLiveInstance(target)) return;
+        const query = String(formData.get('q') || '').trim();
+        if (!query) return;
+        renderStatus(tr('codeStudio.search', 'Search'));
+        const currentPath = target.currentPath || WORKSPACE_ROOT;
+        const result = await apiClient.search({
+            q: query,
+            path: currentPath,
+            case: formData.get('case') ? 'true' : 'false',
+            whole: formData.get('whole') ? 'true' : 'false',
+            regex: formData.get('regex') ? 'true' : 'false',
+            include: String(formData.get('include') || ''),
+            exclude: String(formData.get('exclude') || '')
+        });
+        if (!isLiveInstance(target)) return;
+        runWithInstance(target, () => {
+            state.searchResults = result.results || [];
+            renderSearchPanel();
+            renderStatus(tr('codeStudio.search', 'Search') + ': ' + state.searchResults.length);
+        });
+    }
+
+    async function openSearchResult(path, line) {
+        const target = state;
+        if (!isLiveInstance(target)) return;
+        await runAsyncStep(target, () => openFile(path));
+        if (!isLiveInstance(target)) return;
+        runWithInstance(target, () => {
+            const tab = activeTab();
+            if (!tab || !tab.view) return;
+            if (tab.view.state && tab.view.state.doc && state.cmModule && state.cmModule.EditorView) {
+                const docLine = tab.view.state.doc.line(Math.max(1, line || 1));
+                tab.view.dispatch({
+                    selection: { anchor: docLine.from },
+                    effects: state.cmModule.EditorView.scrollIntoView(docLine.from, { y: 'center' })
+                });
+            } else if (tab.view.textarea) {
+                const lines = tab.view.textarea.value.split('\n');
+                const offset = lines.slice(0, Math.max(0, (line || 1) - 1)).join('\n').length;
+                tab.view.textarea.focus();
+                tab.view.textarea.setSelectionRange(offset, offset);
+            }
+        });
+    }
+
+;
+/* ui/js/desktop/apps/code-studio/agent.js */
+    function renderAgentPanel() {
+        const panel = shellPart('[data-agent-panel]');
+        if (!panel) return;
+        if (!state.agentVisible) {
+            panel.innerHTML = '';
+            return;
+        }
+        const messages = state.agentMessages.length ? state.agentMessages.map(message => {
+            const roleClass = message.role === 'user' ? 'user' : 'agent';
+            const content = message.role === 'user' ? esc(message.text) : renderMarkdown(message.text);
+            return `<div class="cs-agent-message ${roleClass}"><div class="cs-md-content">${content}</div></div>`;
+        }).join('') : `<div class="cs-agent-message agent"><div class="cs-md-content">${esc(tr('desktop.chat_welcome', 'Ask me to create apps, widgets, or files for this desktop.'))}</div></div>`;
+
+        const quickActions = `<div class="cs-quick-actions">
+            <button type="button" class="cs-quick-action" data-code-action="explain">${esc(tr('codeStudio.explain', 'Explain'))}</button>
+            <button type="button" class="cs-quick-action" data-code-action="comments">${esc(tr('codeStudio.generateComments', 'Comments'))}</button>
+            <button type="button" class="cs-quick-action" data-code-action="tests">${esc(tr('codeStudio.generateTests', 'Tests'))}</button>
+            <button type="button" class="cs-quick-action" data-code-action="refactor">${esc(tr('codeStudio.refactor', 'Refactor'))}</button>
+        </div>`;
+
+        const suggestion = state.pendingSuggestion ? `<div class="code-studio-diff">
+            <div class="cs-diff-head">
+                <strong>${esc(tr('codeStudio.applyChanges', 'Apply Changes'))}</strong>
+                <button type="button" class="cs-button primary" data-agent-apply>${buttonIcon('check-square', 'Y')}<span>${esc(tr('codeStudio.applyChanges', 'Apply Changes'))}</span></button>
+                <button type="button" class="cs-button" data-agent-discard>${buttonIcon('x', 'X')}<span>${esc(tr('codeStudio.discardChanges', 'Discard Changes'))}</span></button>
+            </div>
+            <pre>${esc(state.pendingSuggestion)}</pre>
+        </div>` : '';
+
+        const typingIndicator = state.agentBusy ? `<div class="cs-agent-typing"><span class="cs-typing-dot"></span><span class="cs-typing-dot"></span><span class="cs-typing-dot"></span></div>` : '';
+
+        panel.innerHTML = `<div class="cs-agent-head">
+            <strong>${esc(tr('codeStudio.agentChat', 'Agent Chat'))}</strong>
+            <button type="button" class="cs-icon-button" data-agent-close title="${esc(tr('codeStudio.closeTab', 'Close tab'))}">${iconMarkup('x', 'X', 'cs-icon-button-icon', 16)}</button>
+        </div>
+        ${quickActions}
+        <div class="cs-agent-log">${messages}${typingIndicator}</div>
+        ${suggestion}
+        <form class="cs-agent-form" data-agent-form>
+            <input name="message" autocomplete="off" spellcheck="false" placeholder="${esc(tr('desktop.chat_placeholder', 'Ask the agent...'))}">
+            ${state.agentBusy
+                ? `<button type="button" class="cs-agent-stop" data-agent-stop>${esc(tr('codeStudio.stop', 'Stop'))}</button>`
+                : `<button type="submit" class="cs-button primary">${buttonIcon('chat', 'S')}<span>${esc(tr('desktop.send', 'Send'))}</span></button>`
+            }
+        </form>`;
+        panel.querySelector('[data-agent-close]').addEventListener('click', bind(toggleAgentPanel));
+        panel.querySelectorAll('[data-code-action]').forEach(btn => {
+            btn.addEventListener('click', bind(() => runCodeAction(btn.dataset.codeAction)));
+        });
+        panel.querySelector('[data-agent-form]').addEventListener('submit', bind(event => {
+            event.preventDefault();
+            const input = event.currentTarget.elements.message;
+            const message = input.value.trim();
+            if (!message) return;
+            input.value = '';
+            sendAgentMessage(message);
+        }));
+        const stopBtn = panel.querySelector('[data-agent-stop]');
+        if (stopBtn) stopBtn.addEventListener('click', bind(() => {
+            if (state.agentAbortController) {
+                state.agentAbortController.abort();
+                state.agentAbortController = null;
+            }
+            state.agentBusy = false;
+            renderAgentPanel();
+        }));
+        const apply = panel.querySelector('[data-agent-apply]');
+        if (apply) apply.addEventListener('click', bind(applyAgentSuggestion));
+        const discard = panel.querySelector('[data-agent-discard]');
+        if (discard) discard.addEventListener('click', bind(() => {
+            state.pendingSuggestion = null;
+            renderAgentPanel();
+        }));
+        panel.querySelectorAll('.cs-md-code-copy').forEach(btn => {
+            btn.addEventListener('click', bind(() => {
+                const code = btn.closest('pre')?.querySelector('code');
+                if (code) {
+                    navigator.clipboard.writeText(code.textContent).then(() => {
+                        btn.textContent = 'Copied!';
+                        setTimeout(() => { btn.textContent = 'Copy'; }, 1500);
+                    }).catch(() => {});
+                }
+            }));
+        });
+        const log = panel.querySelector('.cs-agent-log');
+        if (log) log.scrollTop = log.scrollHeight;
+    }
+
+    function renderMarkdown(text) {
+        if (!text) return '';
+        let html = esc(text);
+        html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) => {
+            const langAttr = lang ? ` data-lang="${lang}"` : '';
+            return `<pre${langAttr}><code class="language-${lang || 'text'}">${code}</code><button type="button" class="cs-md-code-copy">Copy</button></pre>`;
+        });
+        html = html.replace(/`([^`\n]+)`/g, '<code>$1</code>');
+        html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+        html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+        html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+        html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+        html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+        html = html.replace(/^&gt; (.+)$/gm, '<blockquote>$1</blockquote>');
+        html = html.replace(/^---$/gm, '<hr>');
+        html = html.replace(/^[\-\*] (.+)$/gm, '<li>$1</li>');
+        html = html.replace(/((?:<li>.*<\/li>\n?)+)/g, '<ul>$1</ul>');
+        html = html.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
+        html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+        html = html.replace(/^(?!<[a-z/])((?!<).+)$/gm, '<p>$1</p>');
+        html = html.replace(/<p>\s*<\/p>/g, '');
+        return html;
+    }
+
+    function toggleAgentPanel() {
+        state.agentVisible = !state.agentVisible;
+        ensureShellRoot().dataset.agent = state.agentVisible ? 'visible' : 'hidden';
+        renderAgentPanel();
         renderActivityBar();
         renderWindowMenus();
     }
 
-    function writeTerminalLine(line) {
-        if (state.terminal) {
-            String(line || '').split('\n').forEach(part => state.terminal.writeln(part));
+    async function sendAgentMessage(message) {
+        const target = state;
+        if (!isLiveInstance(target)) return;
+        if (state.agentBusy) return;
+        let context;
+        runWithInstance(target, () => {
+            state.agentVisible = true;
+            ensureShellRoot().dataset.agent = 'visible';
+            state.agentMessages.push({ role: 'user', text: message });
+            state.agentMessages.push({ role: 'agent', text: tr('desktop.thinking', 'Working...') });
+            state.agentBusy = true;
+            state.agentAbortController = new AbortController();
+            context = codeStudioAgentContext();
+            renderAgentPanel();
+        });
+        try {
+            const response = await api('/api/desktop/chat', {
+                method: 'POST',
+                body: JSON.stringify({ message, context }),
+                signal: state.agentAbortController && state.agentAbortController.signal
+            });
+            if (!isLiveInstance(target)) return;
+            const answer = response.answer || tr('desktop.done', 'Done');
+            runWithInstance(target, () => {
+                state.agentMessages[state.agentMessages.length - 1] = { role: 'agent', text: answer };
+                const suggestion = extractFirstCodeBlock(answer);
+                if (suggestion) state.pendingSuggestion = suggestion;
+            });
+        } catch (err) {
+            if (isLiveInstance(target) && err.name !== 'AbortError') {
+                runWithInstance(target, () => {
+                    state.agentMessages[state.agentMessages.length - 1] = { role: 'agent', text: err.message || String(err) };
+                });
+            }
+        } finally {
+            if (isLiveInstance(target)) {
+                runWithInstance(target, () => {
+                    state.agentBusy = false;
+                    state.agentAbortController = null;
+                    renderAgentPanel();
+                });
+            }
+        }
+    }
+
+    function runCodeAction(action) {
+        const tab = activeTab();
+        if (!tab) return;
+        const selection = codeStudioSelection();
+        const target = selection.text ? 'selected code' : 'current file';
+        const prompts = {
+            explain: `Explain the ${target} in ${tab.path}.`,
+            comments: `Generate clear comments for the ${target} in ${tab.path}. Return only the modified code when you change code.`,
+            tests: `Generate useful tests for ${tab.path}. Return code blocks for new or changed files.`,
+            refactor: `Refactor the ${target} in ${tab.path}. Return only the modified code.`
+        };
+        sendAgentMessage(prompts[action] || prompts.explain);
+    }
+
+    function codeStudioAgentContext() {
+        const tab = activeTab();
+        const cursor = codeStudioCursor();
+        const selection = codeStudioSelection();
+        const content = tab ? editorValue(tab) : '';
+        return {
+            source: 'code-studio',
+            current_file: tab ? tab.path : '',
+            current_language: tab ? tab.language : '',
+            current_content: selection.text ? '' : content,
+            cursor_line: cursor.line,
+            cursor_column: cursor.column,
+            selected_text: selection.text,
+            open_files: state.openTabs.map(item => item.path)
+        };
+    }
+
+    function extractFirstCodeBlock(text) {
+        const match = String(text || '').match(/```[a-zA-Z0-9_-]*\n([\s\S]*?)```/);
+        return match ? match[1].trimEnd() : '';
+    }
+
+    function applyAgentSuggestion() {
+        const tab = activeTab();
+        if (!tab || !state.pendingSuggestion) return;
+        if (tab.view && tab.view.state && tab.view.state.doc) {
+            tab.view.dispatch({ changes: { from: 0, to: tab.view.state.doc.length, insert: state.pendingSuggestion } });
+        } else if (tab.view && tab.view.textarea) {
+            tab.view.setValue(state.pendingSuggestion);
+        }
+        tab.content = state.pendingSuggestion;
+        tab.modified = true;
+        state.pendingSuggestion = null;
+        renderTabs();
+        renderStatus();
+        renderAgentPanel();
+    }
+
+    function showCodeActionMenu(x, y) {
+        document.querySelectorAll('.cs-context-menu').forEach(menu => {
+            if (typeof menu.__codeStudioCleanup === 'function') menu.__codeStudioCleanup();
+            else menu.remove();
+        });
+        const instance = state;
+        const menu = document.createElement('div');
+        menu.className = 'cs-context-menu';
+        menu.style.left = x + 'px';
+        menu.style.top = y + 'px';
+        menu.innerHTML = `
+            <button type="button" data-code-action="explain">${buttonIcon('info', 'i')}<span>${esc(tr('codeStudio.explain', 'Explain'))}</span></button>
+            <button type="button" data-code-action="comments">${buttonIcon('notes', 'N')}<span>${esc(tr('codeStudio.generateComments', 'Generate Comments'))}</span></button>
+            <button type="button" data-code-action="tests">${buttonIcon('check-square', 'T')}<span>${esc(tr('codeStudio.generateTests', 'Generate Tests'))}</span></button>
+            <button type="button" data-code-action="refactor">${buttonIcon('tools', 'R')}<span>${esc(tr('codeStudio.refactor', 'Refactor'))}</span></button>`;
+        document.body.appendChild(menu);
+        let boundClose = null;
+        let menuClosed = false;
+        let unregister = () => {};
+        const cleanupMenu = () => {
+            if (menuClosed) return;
+            menuClosed = true;
+            unregister();
+            if (boundClose) document.removeEventListener('mousedown', boundClose);
+            menu.remove();
+        };
+        menu.__codeStudioCleanup = cleanupMenu;
+        runWithInstance(instance, () => {
+            unregister = registerDisposer(cleanupMenu);
+        });
+        menu.querySelectorAll('[data-code-action]').forEach(btn => {
+            btn.addEventListener('click', bind(() => {
+                runCodeAction(btn.dataset.codeAction);
+                cleanupMenu();
+            }));
+        });
+        setTimeout(bind(() => {
+            if (menuClosed) return;
+            const close = event => {
+                if (!menu.contains(event.target)) {
+                    cleanupMenu();
+                }
+            };
+            boundClose = bind(close);
+            document.addEventListener('mousedown', boundClose);
+        }), 0);
+    }
+
+;
+/* ui/js/desktop/apps/code-studio/git.js */
+    function renderGitPanel() {
+        const panel = shellPart('[data-git-panel]');
+        if (!panel) return;
+        if (!state.gitVisible) {
+            panel.hidden = true;
             return;
         }
-        const screen = state.root.querySelector('[data-terminal-screen]');
-        if (screen) screen.textContent += String(line || '') + '\n';
+        panel.hidden = false;
+        const branchHtml = state.gitBranch
+            ? `<div class="cs-git-branch"><svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor"><path d="M11.75 2.5a.75.75 0 100 1.5.75.75 0 000-1.5zm-2.25.75a2.25 2.25 0 113 2.122V6.5a2 2 0 01-2 2H7.5v1.128a2.251 2.251 0 11-1.5 0V5.372a2.25 2.25 0 111.5 0v1.878h3a.5.5 0 00.5-.5v-1.128A2.251 2.251 0 019.5 3.25zM4.25 3.5a.75.75 0 100 1.5.75.75 0 000-1.5zM4.25 12a.75.75 0 100 1.5.75.75 0 000-1.5z"/></svg><span>${esc(state.gitBranch)}</span></div>`
+            : `<div class="cs-git-branch">${esc(tr('codeStudio.noRepo', 'No git repository'))}</div>`;
+
+        const changesHtml = state.gitChanges.length
+            ? state.gitChanges.map(change => {
+                const statusClass = change.status === '??' ? 'untracked' : change.status === 'M' ? 'modified' : change.status === 'A' ? 'added' : change.status === 'D' ? 'deleted' : 'renamed';
+                const statusLabel = change.status === '??' ? 'U' : change.status;
+                return `<button type="button" class="cs-git-change" data-git-file="${esc(change.path)}" title="${esc(change.path)}">
+                    <span class="cs-git-status ${statusClass}">${esc(statusLabel)}</span>
+                    <span class="cs-git-filename">${esc(change.path.split('/').pop())}</span>
+                </button>`;
+            }).join('')
+            : `<div class="cs-git-empty">${esc(tr('codeStudio.noChanges', 'No changes'))}</div>`;
+
+        const logHtml = state.gitLog.length
+            ? state.gitLog.slice(0, 10).map(entry => `<div class="cs-git-log-entry"><span class="cs-git-hash">${esc(entry.hash)}</span> <span>${esc(entry.message)}</span></div>`).join('')
+            : '';
+
+        panel.innerHTML = `<div class="cs-git-head">
+            <strong>${esc(tr('codeStudio.gitPanel', 'Source Control'))}</strong>
+            <button type="button" class="cs-icon-button" data-git-refresh title="${esc(tr('codeStudio.refresh', 'Refresh'))}">${iconMarkup('refresh', 'R', 'cs-icon-button-icon', 14)}</button>
+            <button type="button" class="cs-icon-button" data-git-close title="${esc(tr('codeStudio.closeTab', 'Close'))}">${iconMarkup('x', 'X', 'cs-icon-button-icon', 14)}</button>
+        </div>
+        ${branchHtml}
+        <div class="cs-git-section">
+            <div class="cs-git-section-head">${esc(tr('codeStudio.changes', 'Changes'))} <span class="cs-git-count">${state.gitChanges.length}</span></div>
+            <div class="cs-git-changes">${changesHtml}</div>
+        </div>
+        <div class="cs-git-commit-area">
+            <textarea class="cs-git-commit-msg" data-git-commit-msg placeholder="${esc(tr('codeStudio.commitMessage', 'Commit message...'))}" rows="3"></textarea>
+            <div class="cs-git-commit-actions">
+                <button type="button" class="cs-button primary" data-git-commit>${esc(tr('codeStudio.commit', 'Commit'))}</button>
+            </div>
+        </div>
+        ${logHtml ? `<div class="cs-git-section"><div class="cs-git-section-head">${esc(tr('codeStudio.gitLog', 'Recent Commits'))}</div><div class="cs-git-log">${logHtml}</div></div>` : ''}`;
+
+        panel.querySelector('[data-git-close]').addEventListener('click', bind(toggleGitPanel));
+        panel.querySelector('[data-git-refresh]').addEventListener('click', bind(refreshGitStatus));
+        panel.querySelector('[data-git-commit]').addEventListener('click', bind(commitGitChanges));
+        panel.querySelectorAll('[data-git-file]').forEach(btn => {
+            btn.addEventListener('click', bind(() => openGitDiff(btn.dataset.gitFile)));
+        });
     }
 
-    function showOperationError(err) {
-        const message = err && err.message ? err.message : String(err || '');
-        renderStatus(tr('codeStudio.containerError', 'Container error: {error}', { error: message }));
-        writeTerminalLine(message);
+    function toggleGitPanel() {
+        state.gitVisible = !state.gitVisible;
+        const root = ensureShellRoot();
+        if (root) root.dataset.git = state.gitVisible ? 'visible' : 'hidden';
+        if (state.gitVisible) refreshGitStatus();
+        renderActivityBar();
+        renderWindowMenus();
     }
 
-    function languageForPath(path) {
-        const ext = String(path || '').split('.').pop().toLowerCase();
-        return ({ js: 'javascript', mjs: 'javascript', ts: 'javascript', jsx: 'javascript', tsx: 'javascript', py: 'python', go: 'go', rs: 'rust', json: 'json', html: 'html', htm: 'html', css: 'css', md: 'markdown' })[ext] || '';
-    }
-
-    function languageExtension(cm, language) {
-        const map = { javascript: cm.javascript, python: cm.python, go: cm.go, rust: cm.rust, json: cm.json, html: cm.html, css: cm.css, markdown: cm.markdown };
-        const factory = map[language];
-        return typeof factory === 'function' ? factory() : [];
-    }
-
-    function runCommandFor(path) {
-        const quoted = "'" + String(path).replaceAll("'", "'\"'\"'") + "'";
-        const lang = languageForPath(path);
-        if (lang === 'go') return 'go run ' + quoted;
-        if (lang === 'python') return 'python3 ' + quoted;
-        if (lang === 'javascript') return 'node ' + quoted;
-        if (lang === 'rust') return 'rustc ' + quoted + ' -o /tmp/cs-run && /tmp/cs-run';
-        return 'cat ' + quoted;
-    }
-
-    function fileIcon(name) {
-        const lang = languageForPath(name);
-        return ({ javascript: 'JS', python: 'PY', go: 'GO', rust: 'RS', json: '{}', html: '<>', css: '#', markdown: 'MD' })[lang] || '•';
-    }
-
-
-    function parentPath(path) {
-        const clean = String(path || WORKSPACE_ROOT).replace(/\/+$/, '');
-        const index = clean.lastIndexOf('/');
-        if (index <= 0) return WORKSPACE_ROOT;
-        return clean.slice(0, index) || WORKSPACE_ROOT;
-    }
-
-    function baseName(path) {
-        return String(path || '').split('/').filter(Boolean).pop() || WORKSPACE_ROOT;
-    }
-
-    function cursorPositionText(tab) {
-        if (!tab || !tab.view) return '';
-        let line = 1, col = 1;
-        if (tab.view.state && tab.view.state.doc) {
-            const head = tab.view.state.selection.main.head;
-            const ln = tab.view.state.doc.lineAt(head);
-            line = ln.number;
-            col = head - ln.from + 1;
-        } else if (tab.view.textarea) {
-            const value = tab.view.textarea.value.slice(0, tab.view.textarea.selectionStart || 0);
-            const lines = value.split('\n');
-            line = lines.length;
-            col = lines[lines.length - 1].length + 1;
+    async function refreshGitStatus() {
+        const target = state;
+        if (!isLiveInstance(target)) return;
+        try {
+            const result = await apiClient.gitStatus();
+            if (!isLiveInstance(target)) return;
+            runWithInstance(target, () => {
+                state.gitBranch = result.branch || '';
+                state.gitChanges = result.changes || [];
+                state.gitLog = result.log || [];
+                renderGitPanel();
+                renderActivityBar();
+            });
+        } catch (err) {
+            if (isLiveInstance(target)) {
+                runWithInstance(target, () => {
+                    state.gitBranch = '';
+                    state.gitChanges = [];
+                    state.gitLog = [];
+                    renderGitPanel();
+                });
+            }
         }
-        return 'Ln ' + line + ', Col ' + col;
     }
 
-    function formatBytes(size) {
-        const n = Number(size || 0);
-        if (n < 1024) return n + ' B';
-        if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KiB';
-        return (n / 1024 / 1024).toFixed(1) + ' MiB';
-    }
-
-    function promptValue(title, value) {
-        return new Promise(resolve => {
-            const instance = state;
-            const overlay = document.createElement('div');
-            overlay.className = 'cs-modal-backdrop';
-            overlay.innerHTML = `<form class="cs-modal">
-                <label>${esc(title)}<input name="value" value="${esc(value || '')}" autocomplete="off" spellcheck="false"></label>
-                <div class="cs-modal-actions">
-                    <button type="button" class="cs-button" data-cancel>${buttonIcon('x', 'X')}<span>${esc(tr('desktop.cancel', 'Cancel'))}</span></button>
-                    <button type="submit" class="cs-button primary">${buttonIcon('check-square', 'Y')}<span>${esc(tr('desktop.ok', 'OK'))}</span></button>
-                </div>
-            </form>`;
-            document.body.appendChild(overlay);
-            const input = overlay.querySelector('input');
-            let settled = false;
-            let unregister = () => {};
-            const cleanup = result => {
-                if (settled) return;
-                settled = true;
-                unregister();
-                overlay.remove();
-                resolve(result);
-            };
-            runWithInstance(instance, () => {
-                unregister = registerDisposer(() => cleanup(''));
+    async function openGitDiff(filePath) {
+        const target = state;
+        if (!isLiveInstance(target)) return;
+        try {
+            const result = await apiClient.gitDiff(filePath, false);
+            if (!isLiveInstance(target)) return;
+            runWithInstance(target, () => {
+                const diffLines = (result.diff || '').split('\n');
+                const diffHtml = diffLines.map(line => {
+                    if (line.startsWith('+') && !line.startsWith('+++')) return `<span class="cs-diff-line added">${esc(line)}</span>`;
+                    if (line.startsWith('-') && !line.startsWith('---')) return `<span class="cs-diff-line removed">${esc(line)}</span>`;
+                    if (line.startsWith('@@')) return `<span class="cs-diff-line context">${esc(line)}</span>`;
+                    return `<span class="cs-diff-line">${esc(line)}</span>`;
+                }).join('');
+                const editor = shellPart('[data-editor]');
+                if (editor) {
+                    editor.innerHTML = `<div class="cs-diff-view">
+                        <div class="cs-diff-view-head">
+                            <strong>${esc(filePath.split('/').pop())}</strong>
+                            <span>${esc(tr('codeStudio.gitDiff', 'Git Diff'))}</span>
+                        </div>
+                        <div class="cs-diff-content">${diffHtml}</div>
+                    </div>`;
+                }
             });
-            overlay.querySelector('form').addEventListener('submit', bind(event => {
-                event.preventDefault();
-                cleanup(input.value.trim());
-            }));
-            overlay.querySelector('[data-cancel]').addEventListener('click', bind(() => cleanup('')));
-            overlay.addEventListener('click', bind(event => {
-                if (event.target === overlay) cleanup('');
-            }));
-            input.focus();
-            input.select();
-        });
+        } catch (err) {
+            if (isLiveInstance(target)) runWithInstance(target, () => renderStatus(err.message || String(err)));
+        }
     }
 
-    function confirmValue(message) {
-        return new Promise(resolve => {
-            const instance = state;
-            const overlay = document.createElement('div');
-            overlay.className = 'cs-modal-backdrop';
-            overlay.innerHTML = `<div class="cs-modal">
-                <p>${esc(message)}</p>
-                <div class="cs-modal-actions">
-                    <button type="button" class="cs-button" data-cancel>${buttonIcon('x', 'X')}<span>${esc(tr('desktop.cancel', 'Cancel'))}</span></button>
-                    <button type="button" class="cs-button danger" data-confirm>${buttonIcon('trash', 'X')}<span>${esc(tr('desktop.delete', 'Delete'))}</span></button>
-                </div>
-            </div>`;
-            document.body.appendChild(overlay);
-            let settled = false;
-            let unregister = () => {};
-            const cleanup = result => {
-                if (settled) return;
-                settled = true;
-                unregister();
-                overlay.remove();
-                resolve(result);
-            };
-            runWithInstance(instance, () => {
-                unregister = registerDisposer(() => cleanup(false));
+    async function commitGitChanges() {
+        const target = state;
+        if (!isLiveInstance(target)) return;
+        const msgInput = shellPart('[data-git-commit-msg]');
+        const message = msgInput ? msgInput.value.trim() : '';
+        if (!message) {
+            renderStatus(tr('codeStudio.commitMessage', 'Commit message...'));
+            return;
+        }
+        try {
+            const result = await apiClient.gitCommit(message, true);
+            if (!isLiveInstance(target)) return;
+            runWithInstance(target, () => {
+                renderStatus(tr('codeStudio.committed', 'Committed') + ': ' + (result.hash || '').slice(0, 7));
+                if (msgInput) msgInput.value = '';
+                refreshGitStatus();
             });
-            overlay.querySelector('[data-confirm]').addEventListener('click', bind(() => cleanup(true)));
-            overlay.querySelector('[data-cancel]').addEventListener('click', bind(() => cleanup(false)));
-            overlay.addEventListener('click', bind(event => {
-                if (event.target === overlay) cleanup(false);
-            }));
-            overlay.querySelector('[data-confirm]').focus();
-        });
+        } catch (err) {
+            if (isLiveInstance(target)) runWithInstance(target, () => renderStatus(err.message || String(err)));
+        }
     }
 
+;
+/* ui/js/desktop/apps/code-studio/panels.js */
+    function splitEditor(direction) {
+        if (!state) return;
+        const root = studioRoot();
+        if (!root) return;
+        const editor = shellPart('[data-editor]');
+        if (!editor) return;
+        if (state.splitMode === direction) {
+            state.splitMode = null;
+            state.splitRatio = 0.5;
+            editor.classList.remove('code-studio-split');
+            editor.style.gridTemplateColumns = '';
+            editor.style.gridTemplateRows = '';
+            const panes = editor.querySelectorAll('.code-studio-split-pane');
+            panes.forEach(pane => {
+                while (pane.firstChild) editor.appendChild(pane.firstChild);
+                pane.remove();
+            });
+            const divider = editor.querySelector('.code-studio-split-divider');
+            if (divider) divider.remove();
+            renderEditor();
+            return;
+        }
+        state.splitMode = direction;
+        const tab = activeTab();
+        if (!tab) return;
+        const currentView = tab.view;
+        editor.innerHTML = '';
+        const isHorizontal = direction === 'right';
+        const pane1 = document.createElement('div');
+        pane1.className = 'code-studio-split-pane';
+        const pane2 = document.createElement('div');
+        pane2.className = 'code-studio-split-pane';
+        const divider = document.createElement('div');
+        divider.className = 'code-studio-split-divider';
+        if (isHorizontal) {
+            editor.style.gridTemplateColumns = `${state.splitRatio}fr 4px ${1 - state.splitRatio}fr`;
+            editor.style.gridTemplateRows = '1fr';
+        } else {
+            editor.style.gridTemplateColumns = '1fr';
+            editor.style.gridTemplateRows = `${state.splitRatio}fr 4px ${1 - state.splitRatio}fr`;
+        }
+        editor.classList.add('code-studio-split');
+        editor.appendChild(pane1);
+        editor.appendChild(divider);
+        editor.appendChild(pane2);
+        if (currentView) {
+            pane1.appendChild(editor.appendChild(currentView.dom || currentView.textarea || document.createElement('div')));
+            if (currentView.dom) pane1.appendChild(currentView.dom);
+        }
+        const emptyMsg = document.createElement('div');
+        emptyMsg.className = 'cs-editor-empty';
+        emptyMsg.innerHTML = `<div class="cs-empty-icon">{ }</div><div class="cs-empty-title">${esc(tr('codeStudio.splitRight', 'Split View'))}</div>`;
+        pane2.appendChild(emptyMsg);
+        wireSplitDivider(divider, editor, isHorizontal);
+    }
+
+    function wireSplitDivider(divider, container, isHorizontal) {
+        let startPos = 0;
+        let startRatio = state.splitRatio;
+        const onPointerDown = bind(event => {
+            event.preventDefault();
+            startPos = isHorizontal ? event.clientX : event.clientY;
+            startRatio = state.splitRatio;
+            divider.classList.add('dragging');
+            divider.setPointerCapture(event.pointerId);
+            divider.addEventListener('pointermove', onPointerMove);
+            divider.addEventListener('pointerup', onPointerUp);
+            divider.addEventListener('pointercancel', onPointerUp);
+        });
+        const onPointerMove = bind(event => {
+            const currentPos = isHorizontal ? event.clientX : event.clientY;
+            const containerRect = container.getBoundingClientRect();
+            const containerSize = isHorizontal ? containerRect.width : containerRect.height;
+            const delta = currentPos - startPos;
+            const newRatio = Math.max(0.2, Math.min(0.8, startRatio + delta / containerSize));
+            state.splitRatio = newRatio;
+            const template = isHorizontal
+                ? `${newRatio}fr 4px ${1 - newRatio}fr`
+                : `${newRatio}fr 4px ${1 - newRatio}fr`;
+            if (isHorizontal) container.style.gridTemplateColumns = template;
+            else container.style.gridTemplateRows = template;
+        });
+        const onPointerUp = bind(event => {
+            divider.classList.remove('dragging');
+            divider.releasePointerCapture(event.pointerId);
+            divider.removeEventListener('pointermove', onPointerMove);
+            divider.removeEventListener('pointerup', onPointerUp);
+            divider.removeEventListener('pointercancel', onPointerUp);
+        });
+        divider.addEventListener('pointerdown', onPointerDown);
+    }
+
+    function togglePinPanel(panelType) {
+        if (!state) return;
+        const pinKey = panelType + 'Pinned';
+        state[pinKey] = !state[pinKey];
+        const root = studioRoot();
+        if (root) {
+            root.dataset[pinKey] = state[pinKey] ? 'true' : 'false';
+        }
+        renderWindowMenus();
+    }
+
+;
+/* ui/js/desktop/apps/code-studio/shortcuts.js */
     function wireShortcuts() {
         if (state.shortcutsWired) return;
         state.shortcutsWired = true;
@@ -2322,13 +2604,6 @@ sidebar.innerHTML = `<div class="cs-sidebar-head">
         state.disposers.push(() => { document.removeEventListener('keydown', onKeydown); });
     }
 
-    function runOnWindow(windowId, fn) {
-        const instance = windowId ? instances.get(windowId) : currentInstance();
-        if (!instance) return undefined;
-        latestWindowId = instance.windowId;
-        return runWithInstance(instance, fn);
-    }
-
     function showShortcutOverlay() {
         const existing = document.querySelector('.cs-shortcut-overlay');
         if (existing) { existing.remove(); return; }
@@ -2350,6 +2625,7 @@ sidebar.innerHTML = `<div class="cs-sidebar-head">
             { title: tr('codeStudio.shortcutsView', 'View'), items: [
                 { label: tr('codeStudio.sidebar', 'Toggle Sidebar'), keys: 'Ctrl+B' },
                 { label: tr('codeStudio.agentChat', 'Toggle Agent'), keys: 'Ctrl+Shift+A' },
+                { label: tr('codeStudio.gitPanel', 'Toggle Git'), keys: '' },
                 { label: tr('codeStudio.commandPalette', 'Command Palette'), keys: 'Ctrl+Shift+P' },
                 { label: tr('codeStudio.zenMode', 'Zen Mode'), keys: 'Ctrl+K' }
             ]}
@@ -2366,7 +2642,7 @@ sidebar.innerHTML = `<div class="cs-sidebar-head">
         overlay.innerHTML = `<div class="cs-shortcut-modal">
             <div class="cs-shortcut-modal-head">
                 <h3>${esc(tr('codeStudio.keyboardShortcuts', 'Keyboard Shortcuts'))}</h3>
-                <button type="button" class="cs-icon-button" data-close-overlay>${esc('×')}</button>
+                <button type="button" class="cs-icon-button" data-close-overlay>${esc('\u00d7')}</button>
             </div>
             <div class="cs-shortcut-modal-body">${bodyHtml}</div>
         </div>`;

@@ -24,6 +24,15 @@ This subtree owns built-in virtual desktop app modules that are loaded lazily by
   support. Split across `sheets.js` (core), `sheets-formulas.js` (formula
   engine), `sheets-format.js` (format toolbar), and `sheets-search.js`
   (find/replace overlay).
+- `code-studio/*.js` implements Code Studio, a full IDE with file explorer,
+  CodeMirror editor, terminal, search, agent chat with SSE streaming, Git
+  integration, split editor, and keyboard shortcuts. Split across `core.js`
+  (state management, API client, lifecycle, shell), `sidebar.js` (file tree),
+  `editor.js` (CodeMirror/textarea), `terminal.js` (xterm.js sessions),
+  `search.js` (search-in-files), `agent.js` (agent chat, diff preview),
+  `git.js` (Git panel, diff view, commit), `panels.js` (split editor,
+  panel management), `shortcuts.js` (keyboard shortcuts, window.CodeStudioApp),
+  and `command-palette.js` (separate IIFE).
 
 ## Ownership
 
@@ -96,6 +105,19 @@ registration lives in `internal/desktop/types.go`.
   with regex-based match detection, formatted highlight via `formatText`
   background, and scroll-to-match via `getBounds`. Highlight cleanup on save
   and close avoids stale formats leaking into saved content.
+- Code Studio exposes `window.CodeStudioApp = { render, dispose, state, instances,
+  api, loadState, saveState, refreshFiles, openFile, openFileFromDialog,
+  saveCurrentFile, uploadFile, downloadFile }`. All non-command-palette modules
+  share a single IIFE closure; `core.js` opens the IIFE, `shortcuts.js` closes it.
+  Function declarations are hoisted across the entire IIFE scope. All `const`/`let`
+  declarations must stay in `core.js` (the first module in the bundle load order).
+- Code Studio bundle load order in `scripts/build-ui-bundles.js` must be:
+  core.js, sidebar.js, editor.js, terminal.js, search.js, agent.js, git.js,
+  panels.js, shortcuts.js, command-palette.js.
+- Code Studio visible UI strings use `codeStudio.*` keys in all
+  `ui/lang/desktop/*.json` files.
+- Code Studio Git commands run via Docker exec in the container workspace (`/workspace`).
+  Git API endpoints are in `internal/server/code_studio_handlers.go`.
 
 ## Work Guidance
 
@@ -118,6 +140,9 @@ registration lives in `internal/desktop/types.go`.
 - Keep Sheets split across `sheets.js`, `sheets-formulas.js`,
   `sheets-format.js`, and `sheets-search.js`; do not fold the formula engine,
   format toolbar, or search/replace logic into the main app file.
+- Keep Code Studio split across `core.js`, `sidebar.js`, `editor.js`,
+  `terminal.js`, `search.js`, `agent.js`, `git.js`, `panels.js`, `shortcuts.js`,
+  and `command-palette.js`; do not fold domain modules into core.js.
 - Keep Writer self-contained in `writer.js` below the 1100-line budget;
   if find/replace grows unwieldy, extract into `writer-search.js` and register
   in `module-loader.js` and `DESKTOP_APP_ASSETS`.
@@ -134,6 +159,8 @@ registration lives in `internal/desktop/types.go`.
 - `go test ./ui/ -run "TestDesktopChess|TestDesktopAppsExposeDisposeLifecycle|TestDesktopAppAssetsRegistry"`
 - `go test ./ui/ -run "TestDesktopCheater"`
 - `go test ./ui/ -run "TestDesktopSheets"`
+- `go test ./ui/ -run TestDesktopAppAssetsRegistry`
+- `go test ./ui/ -run TestVirtualDesktopFirstPartyJSFilesStayBelowLineBudget`
 - `go build ./cmd/aurago`
 
 ## Child DOX Index
@@ -177,3 +204,28 @@ registration lives in `internal/desktop/types.go`.
 - `sheets-search.js` - Search/replace overlay: find next/prev, match case,
   replace current, replace all, match highlighting. Exposes
   `window.SheetsSearch`. No child DOX file needed.
+- `code-studio/core.js` - Code Studio core: state management, API client, path
+  utilities, lifecycle (render/dispose), shell markup, toolbar, tabs, breadcrumbs,
+  status bar, file operations, window menus. Opens the shared IIFE. No child DOX
+  file needed.
+- `code-studio/sidebar.js` - File explorer: tree view, expand/collapse, drag &
+  drop upload, file actions (rename/delete/download), activity bar. No child DOX
+  file needed.
+- `code-studio/editor.js` - CodeMirror and textarea editors, syntax highlighting
+  integration. No child DOX file needed.
+- `code-studio/terminal.js` - Terminal sessions with xterm.js, WebSocket
+  connection, multi-session management. No child DOX file needed.
+- `code-studio/search.js` - Search-in-files panel with grep, result navigation.
+  No child DOX file needed.
+- `code-studio/agent.js` - Agent chat panel, SSE streaming, diff preview,
+  code actions (explain/comments/tests/refactor), markdown rendering. No child
+  DOX file needed.
+- `code-studio/git.js` - Git panel: branch display, change list, diff view,
+  commit dialog, recent log. No child DOX file needed.
+- `code-studio/panels.js` - Split editor (horizontal/vertical), resizable
+  divider, panel pinning. No child DOX file needed.
+- `code-studio/shortcuts.js` - Keyboard shortcuts, shortcut overlay, exposed
+  API, `window.CodeStudioApp` assignment. Closes the shared IIFE. No child DOX
+  file needed.
+- `code-studio/command-palette.js` - Command palette overlay with fuzzy search,
+  keyboard navigation. Separate IIFE. No child DOX file needed.
