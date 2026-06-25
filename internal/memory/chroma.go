@@ -316,7 +316,7 @@ func (cv *ChromemVectorDB) IndexDirectory(dir, collectionName string, stm *SQLit
 			if err != nil {
 				return fmt.Errorf("get file index for %s in %s: %w", path, collectionName, err)
 			}
-			if !shouldReindexMarkdownFile(info.ModTime(), contentHash, indexFingerprint, indexState) && collection.Count() > 0 {
+			if !shouldReindexMarkdownFile(contentHash, indexFingerprint, indexState) && collection.Count() > 0 {
 				cv.logger.Debug("File unchanged, skipping RAG indexing", "path", path)
 				continue
 			}
@@ -451,7 +451,7 @@ func (cv *ChromemVectorDB) markdownIndexFingerprint() string {
 	return markdownIndexerFingerprint
 }
 
-func shouldReindexMarkdownFile(modTime time.Time, contentHash, indexFingerprint string, state FileIndexState) bool {
+func shouldReindexMarkdownFile(contentHash, indexFingerprint string, state FileIndexState) bool {
 	if state.LastModified.IsZero() {
 		return true
 	}
@@ -464,7 +464,7 @@ func shouldReindexMarkdownFile(modTime time.Time, contentHash, indexFingerprint 
 	if state.IndexFingerprint != indexFingerprint {
 		return true
 	}
-	return modTime.After(state.LastModified)
+	return false
 }
 
 func hashMarkdownIndexContent(data []byte) string {

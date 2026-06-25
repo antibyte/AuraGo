@@ -438,7 +438,7 @@ func (fi *FileIndexer) scanDirectory(ctx context.Context, dir, collection string
 			errors = append(errors, fmt.Sprintf("get file index %s: %v", path, stateErr))
 			return nil
 		}
-		if !shouldReindexFile(info.ModTime(), rawHash, indexFingerprint, indexState) {
+		if !shouldReindexFile(rawHash, indexFingerprint, indexState) {
 			return nil
 		}
 
@@ -699,7 +699,7 @@ func hashSecretForFingerprint(secret string) string {
 	return hex.EncodeToString(sum[:])
 }
 
-func shouldReindexFile(modTime time.Time, contentHash, indexFingerprint string, state memory.FileIndexState) bool {
+func shouldReindexFile(contentHash, indexFingerprint string, state memory.FileIndexState) bool {
 	if state.LastModified.IsZero() {
 		return true
 	}
@@ -712,7 +712,7 @@ func shouldReindexFile(modTime time.Time, contentHash, indexFingerprint string, 
 	if state.IndexFingerprint != indexFingerprint {
 		return true
 	}
-	return modTime.After(state.LastModified)
+	return false
 }
 
 func hashIndexedFileBytes(path string) (string, error) {

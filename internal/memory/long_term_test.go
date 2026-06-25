@@ -682,6 +682,50 @@ func TestIndexDirectoryReindexesWhenMarkdownContentChangesWithSameModTime(t *tes
 	}
 }
 
+func TestIndexDirectorySkipsMarkdownWhenOnlyModTimeChanges(t *testing.T) {
+	var calls atomic.Int32
+	cv := newTestChromemVectorDB(t, func(_ context.Context, _ string) ([]float32, error) {
+		calls.Add(1)
+		return []float32{0.1, 0.2, 0.3}, nil
+	})
+	dir := t.TempDir()
+	path := filepath.Join(dir, "guide.md")
+	modTime := time.Now().UTC().Add(-time.Minute).Truncate(time.Second)
+	content := []byte("same markdown body")
+	if err := os.WriteFile(path, content, 0o644); err != nil {
+		t.Fatalf("write guide: %v", err)
+	}
+	if err := os.Chtimes(path, modTime, modTime); err != nil {
+		t.Fatalf("Chtimes guide: %v", err)
+	}
+
+	stm, err := NewSQLiteMemory(":memory:", slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	defer stm.Close()
+
+	if err := cv.IndexDirectory(dir, "docs", stm, false); err != nil {
+		t.Fatalf("IndexDirectory initial: %v", err)
+	}
+	initialCalls := calls.Load()
+	if initialCalls == 0 {
+		t.Fatal("expected initial indexing to call embedding function")
+	}
+
+	touchedModTime := modTime.Add(time.Minute)
+	if err := os.Chtimes(path, touchedModTime, touchedModTime); err != nil {
+		t.Fatalf("Chtimes touched guide: %v", err)
+	}
+
+	if err := cv.IndexDirectory(dir, "docs", stm, false); err != nil {
+		t.Fatalf("IndexDirectory touched: %v", err)
+	}
+	if got := calls.Load(); got != initialCalls {
+		t.Fatalf("embedding calls = %d after mtime-only change, want %d", got, initialCalls)
+	}
+}
+
 func TestIndexDirectorySkipsSymlinkedMarkdownAndCleansTracking(t *testing.T) {
 	var calls atomic.Int32
 	cv := newTestChromemVectorDB(t, func(_ context.Context, _ string) ([]float32, error) {

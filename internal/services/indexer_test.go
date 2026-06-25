@@ -508,6 +508,11 @@ func TestFileIndexerSkipsUnchangedImageBeforeVisionCall(t *testing.T) {
 		t.Fatalf("vision calls after first scan = %d, want 1", got)
 	}
 
+	touchedModTime := modTime.Add(time.Minute)
+	if err := os.Chtimes(path, touchedModTime, touchedModTime); err != nil {
+		t.Fatalf("Chtimes touched image: %v", err)
+	}
+
 	_, indexed, errs = fi.scanDirectory(context.Background(), dir, IndexerCollection)
 	if indexed != 0 || len(errs) != 0 {
 		t.Fatalf("second scan indexed=%d errors=%v, want indexed=0 errors=[]", indexed, errs)
