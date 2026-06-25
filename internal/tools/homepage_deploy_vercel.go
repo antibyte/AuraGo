@@ -165,6 +165,17 @@ func HomepageDeployVercel(cfg HomepageConfig, vcfg VercelConfig, projectDir, bui
 	if _, err := os.Stat(deployPath); err != nil {
 		return errJSON("Deploy path does not exist: %s", deployPath)
 	}
+	manifestBuildDir := candidate.BuildDir
+	if projectInfo.HasPackageJSON {
+		manifestBuildDir = "."
+	}
+	if manifest, manifestErr := BuildHomepageArtifactManifest(cfg, 0, projectDir, 0, "", manifestBuildDir); manifestErr == nil {
+		if writeErr := WriteHomepageArtifactManifest(cfg, manifest); writeErr != nil {
+			logger.Warn("[Homepage] Vercel: failed to write deployment manifest", "project_dir", projectDir, "build_dir", manifestBuildDir, "error", writeErr)
+		}
+	} else {
+		logger.Warn("[Homepage] Vercel: failed to build deployment manifest", "project_dir", projectDir, "build_dir", manifestBuildDir, "error", manifestErr)
+	}
 
 	projectRef := strings.TrimSpace(projectID)
 	if projectRef == "" {

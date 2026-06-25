@@ -50,6 +50,92 @@ func homepageResultSuccess(result string) bool {
 	return !strings.Contains(result, `"status":"error"`)
 }
 
+func homepageProjectDirFromPath(relPath string) string {
+	projectDir := strings.SplitN(filepath.ToSlash(strings.TrimSpace(relPath)), "/", 2)[0]
+	if projectDir == "" {
+		return "."
+	}
+	return projectDir
+}
+
+func homepageProjectDirFromResult(result, fallback string) string {
+	var parsed map[string]interface{}
+	if err := json.Unmarshal([]byte(result), &parsed); err == nil {
+		for _, key := range []string{"project_dir", "path", "fallback_project_dir"} {
+			if v, _ := parsed[key].(string); strings.TrimSpace(v) != "" {
+				return homepageProjectDirFromPath(v)
+			}
+		}
+	}
+	if strings.TrimSpace(fallback) != "" {
+		return homepageProjectDirFromPath(fallback)
+	}
+	return "."
+}
+
+func withHomepageResultFields(result string, fields map[string]interface{}) string {
+	if len(fields) == 0 {
+		return result
+	}
+	var parsed map[string]interface{}
+	if err := json.Unmarshal([]byte(result), &parsed); err != nil {
+		return result
+	}
+	for k, v := range fields {
+		if _, exists := parsed[k]; !exists {
+			parsed[k] = v
+		}
+	}
+	out, _ := json.Marshal(parsed)
+	return string(out)
+}
+
+func withHomepageLedgerWarnings(result string, warnings []string) string {
+	if len(warnings) == 0 {
+		return result
+	}
+	var parsed map[string]interface{}
+	if err := json.Unmarshal([]byte(result), &parsed); err != nil {
+		return result
+	}
+	parsed["ledger_warnings"] = warnings
+	out, _ := json.Marshal(parsed)
+	return string(out)
+}
+
+func recordHomepageLedgerMutation(homepageCfg tools.HomepageConfig, db *sql.DB, projectDir, eventType, summary, source string, saveRevision bool, payload map[string]interface{}, logger *slog.Logger) []string {
+	if db == nil {
+		return []string{"homepage registry DB not initialized"}
+	}
+	if strings.TrimSpace(projectDir) == "" {
+		return []string{"project_dir is required for homepage ledger"}
+	}
+	if saveRevision {
+		proj, err := tools.EnsureHomepageProjectForDir(db, homepageCfg, projectDir, "", "")
+		if err != nil {
+			return []string{err.Error()}
+		}
+		res := tools.SaveHomepageRevisionAndState(homepageCfg, db, projectDir, summary, eventType, source, payload, logger)
+		warnings := append([]string{}, res.Warnings...)
+		if _, err := tools.RecordHomepageEvent(db, proj.ID, eventType, source, summary, payload); err != nil {
+			warnings = append(warnings, err.Error())
+		}
+		return warnings
+	}
+	proj, err := tools.EnsureHomepageProjectForDir(db, homepageCfg, projectDir, "", "")
+	if err != nil {
+		return []string{err.Error()}
+	}
+	if _, err := tools.RecordHomepageEvent(db, proj.ID, eventType, source, summary, payload); err != nil {
+		return []string{err.Error()}
+	}
+	_, _ = tools.AddHomepageHistoryEntry(db, proj.ID, "note", summary, source, nil)
+	if _, err := tools.ReconcileHomepageProject(homepageCfg, db, proj.ProjectDir, logger); err != nil {
+		return []string{fmt.Sprintf("reconcile failed: %v", err)}
+	}
+	return nil
+}
+
 // CloseMeshCentralClient closes the cached MeshCentral connection.
 func CloseMeshCentralClient() {
 	meshCentralClientMu.Lock()
@@ -483,21 +569,27 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			case "init_project":
 				logger.Info("LLM requested homepage init_project", "framework", req.Framework, "name", req.Name, "template", req.Template)
 				result := tools.HomepageInitProject(homepageCfg, req.Framework, req.Name, req.Template, logger)
-				// Auto-register project in homepage registry
+				projectDir := homepageProjectDirFromResult(result, req.Name)
+				result = withHomepageResultFields(result, map[string]interface{}{"project_dir": projectDir})
+				var ledgerWarnings []string
 				var projectID int64
-				if homepageRegistryDB != nil && req.Name != "" {
-					id, _, _ := tools.RegisterProject(homepageRegistryDB, tools.HomepageProject{
-						Name:      req.Name,
-						Framework: req.Framework,
-						Status:    "active",
-						Tags:      []string{"auto-registered"},
-					})
-					projectID = id
+				if homepageRegistryDB != nil && homepageResultSuccess(result) {
+					proj, err := tools.EnsureHomepageProjectForDir(homepageRegistryDB, homepageCfg, projectDir, req.Name, req.Framework)
+					if err != nil {
+						ledgerWarnings = append(ledgerWarnings, err.Error())
+					} else {
+						projectID = proj.ID
+						if _, err := tools.RecordHomepageEvent(homepageRegistryDB, projectID, "project_initialized", "homepage_project",
+							fmt.Sprintf("Project initialized with framework %q", req.Framework), map[string]interface{}{"project_dir": projectDir}); err != nil {
+							ledgerWarnings = append(ledgerWarnings, err.Error())
+						}
+					}
 				}
 				if homepageResultSuccess(result) && projectID > 0 {
 					_, _ = tools.AddHomepageHistoryEntry(homepageRegistryDB, projectID, "milestone",
 						fmt.Sprintf("Project initialized with framework %q", req.Framework), "homepage_project", nil)
 				}
+				result = withHomepageLedgerWarnings(result, ledgerWarnings)
 				return "Tool Output: " + result
 			case "build":
 				logger.Info("LLM requested homepage build", "dir", req.ProjectDir, "auto_fix", req.AutoFix)
@@ -516,6 +608,10 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 								fmt.Sprintf("Build completed for project directory %q", req.ProjectDir), "homepage_project", nil)
 						}
 					}
+				}
+				if homepageResultSuccess(result) {
+					warnings := recordHomepageLedgerMutation(homepageCfg, homepageRegistryDB, req.ProjectDir, "build", fmt.Sprintf("Build completed for project directory %q", req.ProjectDir), "homepage_project", false, nil, logger)
+					result = withHomepageLedgerWarnings(result, warnings)
 				}
 				return "Tool Output: " + result
 			case "install_deps":
@@ -568,8 +664,9 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				}
 				result := tools.HomepageWriteFile(homepageCfg, req.Path, req.Content, logger)
 				if homepageResultSuccess(result) {
-					autoAddHomepageHistory(homepageRegistryDB, filepath.Dir(req.Path), "note",
-						fmt.Sprintf("Wrote file %q", req.Path), "homepage_file")
+					warnings := recordHomepageLedgerMutation(homepageCfg, homepageRegistryDB, homepageProjectDirFromPath(req.Path), "file_written",
+						fmt.Sprintf("Wrote file %q", req.Path), "homepage_file", true, map[string]interface{}{"path": req.Path}, logger)
+					result = withHomepageLedgerWarnings(result, warnings)
 				}
 				return "Tool Output: " + result
 			case "edit_file":
@@ -580,8 +677,9 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				}
 				result := tools.HomepageEditFile(homepageCfg, req.Path, editOp, req.Old, req.New, req.Marker, req.Content, req.StartLine, req.EndLine, logger)
 				if homepageResultSuccess(result) {
-					autoAddHomepageHistory(homepageRegistryDB, filepath.Dir(req.Path), "note",
-						fmt.Sprintf("Edited file %q (operation: %s)", req.Path, editOp), "homepage_file")
+					warnings := recordHomepageLedgerMutation(homepageCfg, homepageRegistryDB, homepageProjectDirFromPath(req.Path), "file_edited",
+						fmt.Sprintf("Edited file %q (operation: %s)", req.Path, editOp), "homepage_file", true, map[string]interface{}{"path": req.Path, "operation": editOp}, logger)
+					result = withHomepageLedgerWarnings(result, warnings)
 				}
 				return "Tool Output: " + result
 			case "json_edit":
@@ -592,8 +690,9 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				}
 				result := tools.HomepageJsonEdit(homepageCfg, req.Path, editOp, req.JsonPath, req.SetValue, req.Content, logger)
 				if homepageResultSuccess(result) {
-					autoAddHomepageHistory(homepageRegistryDB, filepath.Dir(req.Path), "note",
-						fmt.Sprintf("Edited JSON file %q (operation: %s)", req.Path, editOp), "homepage_file")
+					warnings := recordHomepageLedgerMutation(homepageCfg, homepageRegistryDB, homepageProjectDirFromPath(req.Path), "json_edited",
+						fmt.Sprintf("Edited JSON file %q (operation: %s)", req.Path, editOp), "homepage_file", true, map[string]interface{}{"path": req.Path, "operation": editOp}, logger)
+					result = withHomepageLedgerWarnings(result, warnings)
 				}
 				return "Tool Output: " + result
 			case "yaml_edit":
@@ -604,8 +703,9 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				}
 				result := tools.HomepageYamlEdit(homepageCfg, req.Path, editOp, req.JsonPath, req.SetValue, logger)
 				if homepageResultSuccess(result) {
-					autoAddHomepageHistory(homepageRegistryDB, filepath.Dir(req.Path), "note",
-						fmt.Sprintf("Edited YAML file %q (operation: %s)", req.Path, editOp), "homepage_file")
+					warnings := recordHomepageLedgerMutation(homepageCfg, homepageRegistryDB, homepageProjectDirFromPath(req.Path), "yaml_edited",
+						fmt.Sprintf("Edited YAML file %q (operation: %s)", req.Path, editOp), "homepage_file", true, map[string]interface{}{"path": req.Path, "operation": editOp}, logger)
+					result = withHomepageLedgerWarnings(result, warnings)
 				}
 				return "Tool Output: " + result
 			case "xml_edit":
@@ -620,13 +720,20 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				}
 				result := tools.HomepageXmlEdit(homepageCfg, req.Path, editOp, xpath, req.SetValue, logger)
 				if homepageResultSuccess(result) {
-					autoAddHomepageHistory(homepageRegistryDB, filepath.Dir(req.Path), "note",
-						fmt.Sprintf("Edited XML file %q (operation: %s)", req.Path, editOp), "homepage_file")
+					warnings := recordHomepageLedgerMutation(homepageCfg, homepageRegistryDB, homepageProjectDirFromPath(req.Path), "xml_edited",
+						fmt.Sprintf("Edited XML file %q (operation: %s)", req.Path, editOp), "homepage_file", true, map[string]interface{}{"path": req.Path, "operation": editOp}, logger)
+					result = withHomepageLedgerWarnings(result, warnings)
 				}
 				return "Tool Output: " + result
 			case "optimize_images":
 				logger.Info("LLM requested homepage optimize_images", "dir", req.ProjectDir)
-				return "Tool Output: " + tools.HomepageOptimizeImages(homepageCfg, req.ProjectDir, logger)
+				result := tools.HomepageOptimizeImages(homepageCfg, req.ProjectDir, logger)
+				if homepageResultSuccess(result) {
+					warnings := recordHomepageLedgerMutation(homepageCfg, homepageRegistryDB, req.ProjectDir, "images_optimized",
+						fmt.Sprintf("Optimized images in project directory %q", req.ProjectDir), "homepage_file", true, nil, logger)
+					result = withHomepageLedgerWarnings(result, warnings)
+				}
+				return "Tool Output: " + result
 			case "dev":
 				logger.Info("LLM requested homepage dev server", "dir", req.ProjectDir)
 				return "Tool Output: " + tools.HomepageDev(homepageCfg, req.ProjectDir, 3000, logger)
@@ -642,6 +749,10 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 								fmt.Sprintf("Deployed to %s", deployCfg.Host), "homepage_deploy", nil)
 						}
 					}
+				}
+				if homepageResultSuccess(result) {
+					warnings := tools.RecordHomepageDeploymentFromResult(homepageCfg, homepageRegistryDB, req.ProjectDir, "sftp", req.BuildDir, result, logger)
+					result = withHomepageLedgerWarnings(result, warnings)
 				}
 				return "Tool Output: " + result
 			case "test_connection":
@@ -665,7 +776,12 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return "Tool Output: " + tools.HomepageTunnel(homepageCfg, port, logger)
 			case "publish_local":
 				logger.Info("LLM requested homepage publish_local")
-				return "Tool Output: " + tools.HomepagePublishToLocal(homepageCfg, req.ProjectDir, logger)
+				result := tools.HomepagePublishToLocal(homepageCfg, req.ProjectDir, logger)
+				if homepageResultSuccess(result) {
+					warnings := tools.RecordHomepageDeploymentFromResult(homepageCfg, homepageRegistryDB, req.ProjectDir, "local", req.BuildDir, result, logger)
+					result = withHomepageLedgerWarnings(result, warnings)
+				}
+				return "Tool Output: " + result
 			case "deploy_netlify":
 				if !cfg.Netlify.AllowDeploy {
 					return `Tool Output: {"status":"error","message":"Deployment is disabled. Enable netlify.allow_deploy in config."}`
@@ -706,6 +822,10 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 							})
 						}
 					}
+				}
+				if homepageResultSuccess(result) {
+					warnings := tools.RecordHomepageDeploymentFromResult(homepageCfg, homepageRegistryDB, req.ProjectDir, "netlify", req.BuildDir, result, logger)
+					result = withHomepageLedgerWarnings(result, warnings)
 				}
 				return "Tool Output: " + result
 			case "deploy_vercel":
@@ -764,6 +884,10 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 						})
 					}
 				}
+				if homepageResultSuccess(result) {
+					warnings := tools.RecordHomepageDeploymentFromResult(homepageCfg, homepageRegistryDB, req.ProjectDir, "vercel", req.BuildDir, result, logger)
+					result = withHomepageLedgerWarnings(result, warnings)
+				}
 				return "Tool Output: " + result
 			// ─── Git operations ─────────────────────────────────────
 			case "git_init":
@@ -775,7 +899,13 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					msg = req.Message
 				}
 				logger.Info("LLM requested homepage git_commit", "dir", req.ProjectDir, "message", msg)
-				return "Tool Output: " + tools.HomepageGitCommit(homepageCfg, req.ProjectDir, msg, logger)
+				result := tools.HomepageGitCommit(homepageCfg, req.ProjectDir, msg, logger)
+				if homepageResultSuccess(result) {
+					warnings := recordHomepageLedgerMutation(homepageCfg, homepageRegistryDB, req.ProjectDir, "git_committed",
+						fmt.Sprintf("Git commit: %s", msg), "homepage_git", true, map[string]interface{}{"message": msg}, logger)
+					result = withHomepageLedgerWarnings(result, warnings)
+				}
+				return "Tool Output: " + result
 			case "git_status":
 				logger.Info("LLM requested homepage git_status", "dir", req.ProjectDir)
 				return "Tool Output: " + tools.HomepageGitStatus(homepageCfg, req.ProjectDir, logger)
@@ -795,10 +925,17 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					count = 1
 				}
 				logger.Info("LLM requested homepage git_rollback", "dir", req.ProjectDir, "steps", count)
-				return "Tool Output: " + tools.HomepageGitRollback(homepageCfg, req.ProjectDir, count, logger)
+				result := tools.HomepageGitRollback(homepageCfg, req.ProjectDir, count, logger)
+				if homepageResultSuccess(result) {
+					warnings := recordHomepageLedgerMutation(homepageCfg, homepageRegistryDB, req.ProjectDir, "git_rolled_back",
+						fmt.Sprintf("Git rollback by %d step(s)", count), "homepage_git", true, map[string]interface{}{"steps": count}, logger)
+					result = withHomepageLedgerWarnings(result, warnings)
+				}
+				return "Tool Output: " + result
 			case "save_revision":
 				logger.Info("LLM requested homepage save_revision", "dir", req.ProjectDir, "message", req.Message)
-				result := tools.HomepageSaveRevision(homepageCfg, homepageRegistryDB, req.ProjectDir, req.Message, req.Reason, logger)
+				ledgerResult := tools.SaveHomepageRevisionAndState(homepageCfg, homepageRegistryDB, req.ProjectDir, req.Message, req.Reason, "homepage_revisions", nil, logger)
+				result := withHomepageLedgerWarnings(ledgerResult.JSON, ledgerResult.Warnings)
 				if homepageResultSuccess(result) && homepageRegistryDB != nil && req.ProjectDir != "" {
 					if proj, err := tools.GetProjectByDir(homepageRegistryDB, req.ProjectDir); err == nil {
 						msg := req.Message

@@ -1,11 +1,13 @@
 package agent
 
 import (
+	"fmt"
 	"strings"
 
 	"aurago/internal/config"
 	"aurago/internal/llm"
 	"aurago/internal/prompts"
+	"aurago/internal/tools"
 )
 
 // ModelCapabilities describes provider/model-specific behavior that affects
@@ -579,6 +581,7 @@ func buildPromptContextFlags(runCfg RunConfig, policy ToolingPolicy, opts prompt
 		TelnyxEnabled:            state.TelnyxEnabled,
 		AdditionalPrompt:         cfg.Agent.AdditionalPrompt,
 		MessageSource:            runCfg.MessageSource,
+		ReuseContext:             buildManagedSitesPromptContext(runCfg),
 		ChatChannelsContext:      buildReachableChatChannelsContext(runCfg),
 		ToolsDir:                 "",
 		SkillsDir:                "",
@@ -590,6 +593,52 @@ func buildPromptContextFlags(runCfg RunConfig, policy ToolingPolicy, opts prompt
 		NativeToolsEnabled:       policy.UseNativeFunctions,
 		IsTextModeModel:          !policy.UseNativeFunctions && policy.Capabilities.DisableNativeFunctionCalling,
 	}
+}
+
+func buildManagedSitesPromptContext(runCfg RunConfig) string {
+	if runCfg.Config == nil || !runCfg.Config.Homepage.Enabled || runCfg.HomepageRegistryDB == nil {
+		return ""
+	}
+	sites, err := tools.ListHomepageManagedSites(runCfg.HomepageRegistryDB)
+	if err != nil || len(sites) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString("# MANAGED WEBSITES\n")
+	limit := len(sites)
+	if limit > 8 {
+		limit = 8
+	}
+	for i := 0; i < limit; i++ {
+		site := sites[i]
+		line := fmt.Sprintf("- %s (`%s`): drift=%s", site.Name, site.ProjectDir, site.DriftStatus)
+		if site.LocalRoot != "" {
+			line += fmt.Sprintf(", local=%s", site.LocalRoot)
+		}
+		if site.CurrentRevisionID > 0 {
+			line += fmt.Sprintf(", revision=%d", site.CurrentRevisionID)
+		}
+		if site.LastDeployURL != "" {
+			line += fmt.Sprintf(", last_deploy=%s", site.LastDeployURL)
+		}
+		if site.GitSHA != "" {
+			short := site.GitSHA
+			if len(short) > 12 {
+				short = short[:12]
+			}
+			line += fmt.Sprintf(", git=%s", short)
+		}
+		if site.DriftMessage != "" {
+			line += fmt.Sprintf(", note=%s", site.DriftMessage)
+		}
+		b.WriteString(line)
+		b.WriteByte('\n')
+	}
+	if len(sites) > limit {
+		b.WriteString(fmt.Sprintf("- ...and %d more managed website(s)\n", len(sites)-limit))
+	}
+	b.WriteString("Before editing a managed website, use the listed project_dir and keep its ledger current through homepage tools.\n")
+	return strings.TrimSpace(b.String())
 }
 
 func buildToolFeatureFlags(runCfg RunConfig, policy ToolingPolicy) ToolFeatureFlags {

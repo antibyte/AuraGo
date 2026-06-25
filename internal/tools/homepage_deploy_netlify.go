@@ -106,6 +106,13 @@ func HomepageDeployNetlify(cfg HomepageConfig, nfCfg NetlifyConfig, projectDir, 
 	if _, err := os.Stat(deployPath); err != nil {
 		return errJSON("Deploy path does not exist: %s. project_dir must be relative to the homepage workspace, and homepage project files must be created with homepage write_file/read_file instead of the filesystem tool. For static sites, ensure the project root or a dist/build/out directory contains index.html. Local published sites are served by container %q from /srv, not /var/www/html.", deployPath, homepageWebContainer)
 	}
+	if manifest, manifestErr := BuildHomepageArtifactManifest(cfg, 0, projectDir, 0, "", candidate.BuildDir); manifestErr == nil {
+		if writeErr := WriteHomepageArtifactManifest(cfg, manifest); writeErr != nil {
+			logger.Warn("[Homepage] Netlify: failed to write deployment manifest", "project_dir", projectDir, "build_dir", candidate.BuildDir, "error", writeErr)
+		}
+	} else {
+		logger.Warn("[Homepage] Netlify: failed to build deployment manifest", "project_dir", projectDir, "build_dir", candidate.BuildDir, "error", manifestErr)
+	}
 
 	logger.Info("[Homepage] Packaging for Netlify deploy", "path", deployPath)
 

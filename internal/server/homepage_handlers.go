@@ -1,10 +1,13 @@
 package server
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"path/filepath"
 	"strconv"
+	"strings"
 
 	"aurago/internal/config"
 	"aurago/internal/tools"
@@ -62,6 +65,108 @@ func handleHomepageStatus(s *Server) http.HandlerFunc {
 		}
 
 		w.Write([]byte(result))
+	}
+}
+
+func homepageConfigFromServer(s *Server) tools.HomepageConfig {
+	s.CfgMu.RLock()
+	cfgSnapshot := *s.Cfg
+	s.CfgMu.RUnlock()
+	workspacePath := cfgSnapshot.Homepage.WorkspacePath
+	if workspacePath == "" {
+		workspacePath = filepath.Join(cfgSnapshot.Directories.DataDir, "homepage")
+	}
+	return tools.HomepageConfig{
+		DockerHost:            cfgSnapshot.Docker.Host,
+		WorkspacePath:         workspacePath,
+		AgentWorkspaceDir:     cfgSnapshot.Directories.WorkspaceDir,
+		DataDir:               cfgSnapshot.Directories.DataDir,
+		WebServerPort:         cfgSnapshot.Homepage.WebServerPort,
+		WebServerDomain:       cfgSnapshot.Homepage.WebServerDomain,
+		WebServerInternalOnly: cfgSnapshot.Homepage.WebServerInternalOnly,
+		AllowLocalServer:      cfgSnapshot.Homepage.AllowLocalServer,
+	}
+}
+
+// handleHomepageSites lists managed Homepage projects with current ledger state.
+func handleHomepageSites(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.Method != http.MethodGet {
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if s.HomepageRegistryDB == nil {
+			jsonError(w, "Homepage registry is not enabled or DB not initialized", http.StatusServiceUnavailable)
+			return
+		}
+		sites, err := tools.ListHomepageManagedSites(s.HomepageRegistryDB)
+		if err != nil {
+			jsonError(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"status": "success",
+			"total":  len(sites),
+			"sites":  sites,
+		})
+	}
+}
+
+// handleHomepageSiteByID returns one managed site or reconciles its ledger state.
+func handleHomepageSiteByID(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if s.HomepageRegistryDB == nil {
+			jsonError(w, "Homepage registry is not enabled or DB not initialized", http.StatusServiceUnavailable)
+			return
+		}
+		path := strings.TrimPrefix(r.URL.Path, "/api/homepage/sites/")
+		reconcile := false
+		if strings.HasSuffix(path, "/reconcile") {
+			reconcile = true
+			path = strings.TrimSuffix(path, "/reconcile")
+		}
+		id, err := strconv.ParseInt(strings.Trim(path, "/"), 10, 64)
+		if err != nil || id <= 0 {
+			jsonError(w, "invalid site id", http.StatusBadRequest)
+			return
+		}
+		switch {
+		case reconcile && r.Method != http.MethodPost:
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		case !reconcile && r.Method != http.MethodGet:
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		site, err := tools.GetHomepageManagedSite(s.HomepageRegistryDB, id)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				jsonError(w, "site not found", http.StatusNotFound)
+				return
+			}
+			jsonError(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if reconcile {
+			state, err := tools.ReconcileHomepageProject(homepageConfigFromServer(s), s.HomepageRegistryDB, site.ProjectDir, s.Logger)
+			if err != nil {
+				jsonError(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			site, _ = tools.GetHomepageManagedSite(s.HomepageRegistryDB, id)
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+				"status": "success",
+				"site":   site,
+				"state":  state,
+			})
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"status": "success",
+			"site":   site,
+		})
 	}
 }
 

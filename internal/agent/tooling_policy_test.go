@@ -392,6 +392,29 @@ func TestBuildPromptContextFlagsInjectsReachableChatChannelsForAutonomousRuns(t 
 	}
 }
 
+func TestBuildPromptContextFlagsInjectsManagedSitesContext(t *testing.T) {
+	db, err := tools.InitHomepageRegistryDB(filepath.Join(t.TempDir(), "homepage.db"))
+	if err != nil {
+		t.Fatalf("InitHomepageRegistryDB failed: %v", err)
+	}
+	defer db.Close()
+	cfg := &config.Config{}
+	cfg.Homepage.Enabled = true
+	cfg.Homepage.WorkspacePath = t.TempDir()
+	if _, err := tools.EnsureHomepageProjectForDir(db, tools.HomepageConfig{WorkspacePath: cfg.Homepage.WorkspacePath}, "site-a", "Site A", "html"); err != nil {
+		t.Fatalf("EnsureHomepageProjectForDir failed: %v", err)
+	}
+
+	flags := buildPromptContextFlags(RunConfig{
+		Config:             cfg,
+		HomepageRegistryDB: db,
+	}, buildToolingPolicy(cfg, "update the homepage"), promptContextOptions{})
+
+	if !strings.Contains(flags.ReuseContext, "# MANAGED WEBSITES") || !strings.Contains(flags.ReuseContext, "site-a") {
+		t.Fatalf("ReuseContext missing managed site summary: %q", flags.ReuseContext)
+	}
+}
+
 func TestBuildToolingPolicyKeepsConfiguredGuideBudgetByDefault(t *testing.T) {
 	resetAgentTelemetryForTest()
 

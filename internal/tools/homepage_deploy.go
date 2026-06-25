@@ -404,6 +404,13 @@ func HomepageDeploy(cfg HomepageConfig, deployCfg HomepageDeployConfig, projectD
 	if buildDir == "" {
 		buildDir = detectBuildDir(cfg, projectDir)
 	}
+	if manifest, manifestErr := BuildHomepageArtifactManifest(cfg, 0, projectDir, 0, "", buildDir); manifestErr == nil {
+		if writeErr := WriteHomepageArtifactManifest(cfg, manifest); writeErr != nil {
+			logger.Warn("[Homepage] Failed to write deployment manifest", "project_dir", projectDir, "build_dir", buildDir, "error", writeErr)
+		}
+	} else {
+		logger.Warn("[Homepage] Failed to build deployment manifest", "project_dir", projectDir, "build_dir", buildDir, "error", manifestErr)
+	}
 
 	// Get file list from build directory inside the container
 	dockerCfg := DockerConfig{Host: cfg.DockerHost}

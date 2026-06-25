@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 )
 
 const (
@@ -50,6 +51,7 @@ type fileEntry struct {
 	Size     int64
 	Hash     string
 	IsBinary bool
+	ModTime  time.Time
 }
 
 type revisionDelta struct {
@@ -88,6 +90,7 @@ func enumerateProjectFiles(basePath string, logger *slog.Logger) ([]fileEntry, e
 			Size:     info.Size(),
 			Hash:     hashContent(data),
 			IsBinary: isBinaryContent(data),
+			ModTime:  info.ModTime(),
 		})
 		return nil
 	})
@@ -157,12 +160,12 @@ type revisionStatus struct {
 	UnifiedDelta  revisionDelta `json:"unified_delta"`
 }
 
-func computeUnifiedDelta(db *sql.DB, projectDir string, baseRevID int64, logger *slog.Logger) (*revisionDelta, error) {
+func computeUnifiedDelta(db *sql.DB, projectDir, basePath string, baseRevID int64, logger *slog.Logger) (*revisionDelta, error) {
 	baseline, err := reconstructProjectState(db, projectDir, baseRevID, logger)
 	if err != nil {
 		return nil, err
 	}
-	currentFiles, err := enumerateProjectFiles(projectDir, logger)
+	currentFiles, err := enumerateProjectFiles(basePath, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -192,7 +195,8 @@ func reconstructProjectState(db *sql.DB, projectDir string, baseRevID int64, log
 		revFiles[rev.ID] = files
 	}
 	state := make(map[string]fileEntry)
-	for _, rev := range revisions {
+	for i := len(revisions) - 1; i >= 0; i-- {
+		rev := revisions[i]
 		for _, f := range revFiles[rev.ID] {
 			switch f.ChangeType {
 			case "added", "modified":
@@ -284,7 +288,7 @@ func HomepageSaveRevision(cfg HomepageConfig, db *sql.DB, projectDir, message, r
 	var delta revisionDelta
 	if db != nil {
 		if latest, err := GetLatestHomepageRevision(db, projectDir); err == nil && latest != nil {
-			baseline, _ = reconstructProjectState(db, basePath, latest.ID, logger)
+			baseline, _ = reconstructProjectState(db, projectDir, latest.ID, logger)
 		}
 	}
 	if baseline == nil {
@@ -491,6 +495,9 @@ func HomepageRestoreRevision(cfg HomepageConfig, db *sql.DB, revisionID int64, p
 		files = filtered
 	}
 	restored, warnings := RestoreRevisionFiles(basePath, files, logger)
+	if len(restored) > 0 {
+		invalidateHomepageRevisionStateCache(projectDir)
+	}
 	b, _ := json.Marshal(map[string]interface{}{
 		"status":         "ok",
 		"revision_id":    rev.ID,
@@ -530,7 +537,7 @@ func HomepageRevisionStatus(cfg HomepageConfig, db *sql.DB, projectDir string, l
 	status.HasRevisions = true
 	status.LatestRevID = latest.ID
 	status.LatestMessage = latest.Message
-	delta, err := computeUnifiedDelta(db, basePath, latest.ID, logger)
+	delta, err := computeUnifiedDelta(db, projectDir, basePath, latest.ID, logger)
 	if err != nil {
 		return fmt.Sprintf(`{"status":"error","message":"%s"}`, err.Error())
 	}

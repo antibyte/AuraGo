@@ -284,6 +284,7 @@ func Start(opts StartOptions) error {
 
 	startLoginRecordCleaner(shutdownCh)
 	s := newServerFromOptions(opts)
+	startHomepageLedgerReconciler(shutdownCh, s)
 	if shortTermMem != nil && s.MissionManagerV2 != nil {
 		s.MissionManagerV2.SetAuditRecorder(shortTermMem.UpsertAuditEventByCorrelation)
 	}

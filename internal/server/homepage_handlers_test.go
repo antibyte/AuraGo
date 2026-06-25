@@ -5,8 +5,10 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 
 	"aurago/internal/config"
@@ -195,5 +197,73 @@ func TestHandleHomepageHistoryUnknownProjectReturnsEmpty(t *testing.T) {
 	}
 	if listResp.Total != 0 {
 		t.Fatalf("total = %d, want 0 for unknown project", listResp.Total)
+	}
+}
+
+func TestHandleHomepageSitesListDetailAndReconcile(t *testing.T) {
+	db, err := tools.InitHomepageRegistryDB(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatalf("init db: %v", err)
+	}
+	defer db.Close()
+
+	workspace := t.TempDir()
+	projectDir := "site-a"
+	projectPath := filepath.Join(workspace, projectDir)
+	if err := tools.HomepageWriteFile(tools.HomepageConfig{WorkspacePath: workspace, DockerHost: "tcp://127.0.0.1:1"}, projectDir+"/index.html", "<h1>Site</h1>", slog.Default()); !strings.Contains(err, `"status":"ok"`) {
+		t.Fatalf("write homepage file failed: %s", err)
+	}
+	cfg := &config.Config{}
+	cfg.Homepage.WorkspacePath = workspace
+	homepageCfg := tools.HomepageConfig{WorkspacePath: workspace}
+	proj, err := tools.EnsureHomepageProjectForDir(db, homepageCfg, projectPath, "site-a", "html")
+	if err != nil {
+		t.Fatalf("ensure project: %v", err)
+	}
+	if got := tools.SaveHomepageRevisionAndState(homepageCfg, db, projectDir, "initial", "test", "test", nil, slog.Default()); len(got.Warnings) > 0 {
+		t.Fatalf("save revision warnings: %v", got.Warnings)
+	}
+
+	s := &Server{HomepageRegistryDB: db, Cfg: cfg, Logger: slog.Default()}
+	listReq := httptest.NewRequest(http.MethodGet, "/api/homepage/sites", nil)
+	listRec := httptest.NewRecorder()
+	handleHomepageSites(s)(listRec, listReq)
+	if listRec.Code != http.StatusOK {
+		t.Fatalf("list status = %d: %s", listRec.Code, listRec.Body.String())
+	}
+	var listResp struct {
+		Status string `json:"status"`
+		Total  int    `json:"total"`
+		Sites  []struct {
+			ID          int64  `json:"id"`
+			ProjectDir  string `json:"project_dir"`
+			DriftStatus string `json:"drift_status"`
+		} `json:"sites"`
+	}
+	if err := json.Unmarshal(listRec.Body.Bytes(), &listResp); err != nil {
+		t.Fatalf("unmarshal list: %v", err)
+	}
+	if listResp.Total != 1 || len(listResp.Sites) != 1 || listResp.Sites[0].ProjectDir != "site-a" {
+		t.Fatalf("unexpected site list: %+v", listResp)
+	}
+
+	detailReq := httptest.NewRequest(http.MethodGet, "/api/homepage/sites/"+strconv.FormatInt(proj.ID, 10), nil)
+	detailRec := httptest.NewRecorder()
+	handleHomepageSiteByID(s)(detailRec, detailReq)
+	if detailRec.Code != http.StatusOK {
+		t.Fatalf("detail status = %d: %s", detailRec.Code, detailRec.Body.String())
+	}
+
+	if err := os.WriteFile(filepath.Join(projectPath, "index.html"), []byte("<h1>Changed</h1>"), 0644); err != nil {
+		t.Fatalf("modify file: %v", err)
+	}
+	reconcileReq := httptest.NewRequest(http.MethodPost, "/api/homepage/sites/"+strconv.FormatInt(proj.ID, 10)+"/reconcile", nil)
+	reconcileRec := httptest.NewRecorder()
+	handleHomepageSiteByID(s)(reconcileRec, reconcileReq)
+	if reconcileRec.Code != http.StatusOK {
+		t.Fatalf("reconcile status = %d: %s", reconcileRec.Code, reconcileRec.Body.String())
+	}
+	if !strings.Contains(reconcileRec.Body.String(), `"drift_status":"local_changed"`) {
+		t.Fatalf("expected local_changed reconcile response, got %s", reconcileRec.Body.String())
 	}
 }

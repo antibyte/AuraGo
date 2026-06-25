@@ -791,11 +791,12 @@ func HomepageInitProject(cfg HomepageConfig, framework, name, template string, l
 				return errJSON("Failed to write index.html: %v", err)
 			}
 			out, _ := json.Marshal(map[string]interface{}{
-				"status":  "ok",
-				"mode":    "local",
-				"message": fmt.Sprintf("Project '%s' created locally (html). Use write_file to add more files.", name),
-				"path":    name,
-				"files":   []string{name + "/index.html"},
+				"status":      "ok",
+				"mode":        "local",
+				"message":     fmt.Sprintf("Project '%s' created locally (html). Use write_file to add more files.", name),
+				"path":        name,
+				"project_dir": name,
+				"files":       []string{name + "/index.html"},
 			})
 			if template != "" {
 				if templateErr := applyHomepageTemplate(cfg, name, template, logger); templateErr != "" {
@@ -820,11 +821,12 @@ func HomepageInitProject(cfg HomepageConfig, framework, name, template string, l
 					return errJSON("Project init failed (local npx): %s", strings.TrimSpace(string(out)))
 				}
 				res, _ := json.Marshal(map[string]interface{}{
-					"status":  "ok",
-					"mode":    "local",
-					"message": fmt.Sprintf("Project '%s' scaffolded locally via npx (Docker not available).", name),
-					"path":    name,
-					"output":  strings.TrimSpace(string(out)),
+					"status":      "ok",
+					"mode":        "local",
+					"message":     fmt.Sprintf("Project '%s' scaffolded locally via npx (Docker not available).", name),
+					"path":        name,
+					"project_dir": name,
+					"output":      strings.TrimSpace(string(out)),
 				})
 				if template != "" {
 					if templateErr := applyHomepageTemplate(cfg, name, template, logger); templateErr != "" {
@@ -871,6 +873,17 @@ func HomepageInitProject(cfg HomepageConfig, framework, name, template string, l
 		}
 	}
 
+	var scaffold map[string]interface{}
+	if json.Unmarshal([]byte(scaffoldResult), &scaffold) == nil {
+		if _, exists := scaffold["project_dir"]; !exists {
+			scaffold["project_dir"] = name
+		}
+		if _, exists := scaffold["path"]; !exists {
+			scaffold["path"] = name
+		}
+		b, _ := json.Marshal(scaffold)
+		return string(b)
+	}
 	return scaffoldResult
 }
 
