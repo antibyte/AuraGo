@@ -179,17 +179,22 @@ func handleCronAPI(s *Server) http.HandlerFunc {
 				jsonError(w, "Failed to add cron job", http.StatusInternalServerError)
 				return
 			}
-			if !writeCronManagerStatus(w, result) {
+			if !cronManagerSucceeded(result) {
+				writeCronManagerStatus(w, result)
 				return
 			}
 			if body.Disabled != nil && *body.Disabled {
-				if result, err := s.CronManager.ManageSchedule("disable", body.ID, "", "", dashboardLanguage(s)); err != nil {
+				disableResult, err := s.CronManager.ManageSchedule("disable", body.ID, "", "", dashboardLanguage(s))
+				if err != nil {
 					jsonError(w, "Failed to disable cron job", http.StatusInternalServerError)
 					return
-				} else if !writeCronManagerStatus(w, result) {
+				}
+				if !cronManagerSucceeded(disableResult) {
+					writeCronManagerStatus(w, disableResult)
 					return
 				}
 			}
+			writeCronManagerStatus(w, result)
 
 		case http.MethodDelete:
 			id := legacyCronIDFromRequest(r)
@@ -218,6 +223,14 @@ func handleCronAPI(s *Server) http.HandlerFunc {
 			body.ID = strings.TrimSpace(body.ID)
 			body.CronExpr = strings.TrimSpace(body.CronExpr)
 			body.TaskPrompt = strings.TrimSpace(body.TaskPrompt)
+			if !dashboardCronjobExists(s.CronManager.GetJobs(), body.ID) {
+				jsonError(w, "Cron job not found", http.StatusNotFound)
+				return
+			}
+			if _, err := dashboardCronParser().Parse(body.CronExpr); err != nil {
+				jsonError(w, "Invalid cron expression", http.StatusBadRequest)
+				return
+			}
 			removeResult, err := s.CronManager.ManageSchedule("remove", body.ID, "", "", dashboardLanguage(s))
 			if err != nil {
 				if s.Logger != nil {
@@ -238,17 +251,22 @@ func handleCronAPI(s *Server) http.HandlerFunc {
 				jsonError(w, "Internal server error", http.StatusInternalServerError)
 				return
 			}
-			if !writeCronManagerStatus(w, result) {
+			if !cronManagerSucceeded(result) {
+				writeCronManagerStatus(w, result)
 				return
 			}
 			if body.Disabled != nil && *body.Disabled {
-				if result, err := s.CronManager.ManageSchedule("disable", body.ID, "", "", dashboardLanguage(s)); err != nil {
+				disableResult, err := s.CronManager.ManageSchedule("disable", body.ID, "", "", dashboardLanguage(s))
+				if err != nil {
 					jsonError(w, "Failed to disable updated cron job", http.StatusInternalServerError)
 					return
-				} else if !writeCronManagerStatus(w, result) {
+				}
+				if !cronManagerSucceeded(disableResult) {
+					writeCronManagerStatus(w, disableResult)
 					return
 				}
 			}
+			writeCronManagerStatus(w, result)
 
 		default:
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)

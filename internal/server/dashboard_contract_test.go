@@ -647,6 +647,79 @@ func TestHandleCronAPILegacyContract(t *testing.T) {
 	}
 }
 
+func TestHandleCronAPIPutInvalidExpressionPreservesExistingJob(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+	tools.ConfigureRuntimePermissions(tools.RuntimePermissions{SchedulerEnabled: true})
+	t.Cleanup(tools.ClearRuntimePermissionsForTest)
+	cronMgr := tools.NewCronManager(t.TempDir())
+	t.Cleanup(func() { _ = cronMgr.Close() })
+
+	s := &Server{CronManager: cronMgr, Logger: logger}
+	handler := handleCronAPI(s)
+
+	postReq := httptest.NewRequest(http.MethodPost, "/api/cron", bytes.NewReader([]byte(`{"id":"legacy-job","cron_expr":"0 8 * * *","task_prompt":"run legacy"}`)))
+	postReq.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, postReq)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("post status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+
+	putReq := httptest.NewRequest(http.MethodPut, "/api/cron", bytes.NewReader([]byte(`{"id":"legacy-job","cron_expr":"not a cron expression","task_prompt":"bad update"}`)))
+	putReq.Header.Set("Content-Type", "application/json")
+	rec = httptest.NewRecorder()
+	handler.ServeHTTP(rec, putReq)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("invalid put status = %d, want 400; body=%s", rec.Code, rec.Body.String())
+	}
+
+	jobs := cronMgr.GetJobs()
+	if len(jobs) != 1 || jobs[0].ID != "legacy-job" || jobs[0].CronExpr != "0 8 * * *" || jobs[0].TaskPrompt != "run legacy" {
+		t.Fatalf("jobs after invalid put = %+v, want original job preserved", jobs)
+	}
+}
+
+func TestHandleCronAPIDisabledMutationsWriteSingleJSONResponse(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+	tools.ConfigureRuntimePermissions(tools.RuntimePermissions{SchedulerEnabled: true})
+	t.Cleanup(tools.ClearRuntimePermissionsForTest)
+	cronMgr := tools.NewCronManager(t.TempDir())
+	t.Cleanup(func() { _ = cronMgr.Close() })
+
+	s := &Server{CronManager: cronMgr, Logger: logger}
+	handler := handleCronAPI(s)
+
+	postReq := httptest.NewRequest(http.MethodPost, "/api/cron", bytes.NewReader([]byte(`{"id":"legacy-disabled","cron_expr":"0 7 * * *","task_prompt":"run disabled","disabled":true}`)))
+	postReq.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, postReq)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("disabled post status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+	if !json.Valid(rec.Body.Bytes()) {
+		t.Fatalf("disabled post returned invalid JSON body: %s", rec.Body.String())
+	}
+	jobs := cronMgr.GetJobs()
+	if len(jobs) != 1 || !jobs[0].Disabled {
+		t.Fatalf("jobs after disabled post = %+v, want one disabled job", jobs)
+	}
+
+	putReq := httptest.NewRequest(http.MethodPut, "/api/cron", bytes.NewReader([]byte(`{"id":"legacy-disabled","cron_expr":"0 8 * * *","task_prompt":"still disabled","disabled":true}`)))
+	putReq.Header.Set("Content-Type", "application/json")
+	rec = httptest.NewRecorder()
+	handler.ServeHTTP(rec, putReq)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("disabled put status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+	if !json.Valid(rec.Body.Bytes()) {
+		t.Fatalf("disabled put returned invalid JSON body: %s", rec.Body.String())
+	}
+	jobs = cronMgr.GetJobs()
+	if len(jobs) != 1 || !jobs[0].Disabled || jobs[0].CronExpr != "0 8 * * *" || jobs[0].TaskPrompt != "still disabled" {
+		t.Fatalf("jobs after disabled put = %+v, want one updated disabled job", jobs)
+	}
+}
+
 func TestHandleDashboardGuardianContract(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.LLMGuardian.Enabled = true
