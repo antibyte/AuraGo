@@ -1,13 +1,13 @@
 (function () {
     'use strict';
 
-    let searchOverlay = null;
-    let searchState = { matches: [], current: -1, query: '', matchCase: false };
-    let searchCallbacks = null;
+    function createState() {
+        return { overlay: null, matches: [], current: -1, query: '', matchCase: false, callbacks: null };
+    }
 
     function openSearch(host, gridHost, workbook, getActiveSheet, t, esc, onSelectCell, callbacks) {
-        closeSearch();
-        searchCallbacks = callbacks || {};
+        const state = createState();
+        state.callbacks = callbacks || {};
         const overlay = document.createElement('div');
         overlay.className = 'office-search-overlay';
         overlay.innerHTML = `
@@ -25,56 +25,64 @@
                 <button type="button" class="office-search-btn" data-action="replace-all">${esc(t('desktop.sheets_replace_all'))}</button>
             </div>`;
         host.querySelector('.office-app').appendChild(overlay);
-        searchOverlay = overlay;
-        searchState = { matches: [], current: -1, query: '', matchCase: false };
+        state.overlay = overlay;
 
         const searchInput = overlay.querySelector('[data-search-input]');
         const matchCaseCheck = overlay.querySelector('[data-match-case]');
         const countSpan = overlay.querySelector('[data-search-count]');
 
         searchInput.addEventListener('input', () => {
-            searchState.query = searchInput.value;
-            performSearch(gridHost, workbook, getActiveSheet(), t, countSpan);
+            state.query = searchInput.value;
+            performSearch(state, gridHost, workbook, getActiveSheet(), t, countSpan);
         });
         matchCaseCheck.addEventListener('change', () => {
-            searchState.matchCase = matchCaseCheck.checked;
-            performSearch(gridHost, workbook, getActiveSheet(), t, countSpan);
+            state.matchCase = matchCaseCheck.checked;
+            performSearch(state, gridHost, workbook, getActiveSheet(), t, countSpan);
         });
         searchInput.addEventListener('keydown', e => {
-            if (e.key === 'Enter') { e.preventDefault(); navigateNext(countSpan, t, onSelectCell); }
-            if (e.key === 'Escape') { closeSearch(); }
+            if (e.key === 'Enter') { e.preventDefault(); navigateNext(state, countSpan, t, onSelectCell); }
+            if (e.key === 'Escape') { closeInstance(state); }
         });
 
-        overlay.querySelector('[data-action="find-next"]').addEventListener('click', () => navigateNext(countSpan, t, onSelectCell));
-        overlay.querySelector('[data-action="find-prev"]').addEventListener('click', () => navigatePrev(countSpan, t, onSelectCell));
-        overlay.querySelector('[data-action="close"]').addEventListener('click', closeSearch);
-        overlay.querySelector('[data-action="replace"]').addEventListener('click', () => replaceCurrent(gridHost, workbook, getActiveSheet(), overlay, countSpan, t, onSelectCell));
-        overlay.querySelector('[data-action="replace-all"]').addEventListener('click', () => replaceAll(gridHost, workbook, getActiveSheet(), overlay, countSpan, t));
+        overlay.querySelector('[data-action="find-next"]').addEventListener('click', () => navigateNext(state, countSpan, t, onSelectCell));
+        overlay.querySelector('[data-action="find-prev"]').addEventListener('click', () => navigatePrev(state, countSpan, t, onSelectCell));
+        overlay.querySelector('[data-action="close"]').addEventListener('click', () => closeInstance(state));
+        overlay.querySelector('[data-action="replace"]').addEventListener('click', () => replaceCurrent(state, gridHost, workbook, getActiveSheet(), overlay, countSpan, t, onSelectCell));
+        overlay.querySelector('[data-action="replace-all"]').addEventListener('click', () => replaceAll(state, gridHost, workbook, getActiveSheet(), overlay, countSpan, t));
 
         searchInput.focus();
+        return state;
+    }
+
+    function closeInstance(state) {
+        if (state.overlay) {
+            state.overlay.remove();
+            state.overlay = null;
+        }
+        state.matches = [];
+        state.current = -1;
+        state.query = '';
+        state.matchCase = false;
+        state.callbacks = null;
+        document.querySelectorAll('.office-cell-search-match').forEach(el => el.classList.remove('office-cell-search-match'));
     }
 
     function closeSearch() {
-        if (searchOverlay) {
-            searchOverlay.remove();
-            searchOverlay = null;
-        }
-        searchState = { matches: [], current: -1, query: '', matchCase: false };
-        searchCallbacks = null;
+        document.querySelectorAll('.office-search-overlay').forEach(el => el.remove());
         document.querySelectorAll('.office-cell-search-match').forEach(el => el.classList.remove('office-cell-search-match'));
     }
 
-    function performSearch(gridHost, workbook, activeSheet, t, countSpan) {
+    function performSearch(state, gridHost, workbook, activeSheet, t, countSpan) {
         document.querySelectorAll('.office-cell-search-match').forEach(el => el.classList.remove('office-cell-search-match'));
-        searchState.matches = [];
-        searchState.current = -1;
-        if (!searchState.query) {
+        state.matches = [];
+        state.current = -1;
+        if (!state.query) {
             if (countSpan) countSpan.textContent = '';
             return;
         }
         const sheet = workbook.sheets[activeSheet];
         if (!sheet || !sheet.rows) return;
-        const query = searchState.matchCase ? searchState.query : searchState.query.toLowerCase();
+        const query = state.matchCase ? state.query : state.query.toLowerCase();
         sheet.rows.forEach((row, r) => {
             if (!Array.isArray(row)) return;
             row.forEach((cell, c) => {
@@ -82,72 +90,100 @@
                 const value = cell.value != null ? String(cell.value) : '';
                 const formula = cell.formula || '';
                 const haystack = formula ? (value + ' ' + formula) : value;
-                const compare = searchState.matchCase ? haystack : haystack.toLowerCase();
+                const compare = state.matchCase ? haystack : haystack.toLowerCase();
                 if (compare.includes(query)) {
-                    searchState.matches.push({ row: r, col: c });
+                    state.matches.push({ row: r, col: c });
                     const td = gridHost.querySelector(`td[data-cell-row="${r}"][data-cell-col="${c}"]`);
                     if (td) td.classList.add('office-cell-search-match');
                 }
             });
         });
-        if (searchState.matches.length > 0) {
-            searchState.current = 0;
-            if (countSpan) countSpan.textContent = '1 of ' + searchState.matches.length;
+        if (state.matches.length > 0) {
+            state.current = 0;
+            if (countSpan) countSpan.textContent = '1 of ' + state.matches.length;
         } else {
             if (countSpan) countSpan.textContent = t('desktop.sheets_no_matches');
         }
     }
 
-    function navigateNext(countSpan, t, onSelectCell) {
-        if (!searchState.matches.length) return;
-        searchState.current = (searchState.current + 1) % searchState.matches.length;
-        highlightCurrent(countSpan, t, onSelectCell);
+    function navigateNext(state, countSpan, t, onSelectCell) {
+        if (!state.matches.length) return;
+        state.current = (state.current + 1) % state.matches.length;
+        highlightCurrent(state, countSpan, t, onSelectCell);
     }
 
-    function navigatePrev(countSpan, t, onSelectCell) {
-        if (!searchState.matches.length) return;
-        searchState.current = (searchState.current - 1 + searchState.matches.length) % searchState.matches.length;
-        highlightCurrent(countSpan, t, onSelectCell);
+    function navigatePrev(state, countSpan, t, onSelectCell) {
+        if (!state.matches.length) return;
+        state.current = (state.current - 1 + state.matches.length) % state.matches.length;
+        highlightCurrent(state, countSpan, t, onSelectCell);
     }
 
-    function highlightCurrent(countSpan, t, onSelectCell) {
-        if (countSpan) countSpan.textContent = (searchState.current + 1) + ' of ' + searchState.matches.length;
-        const match = searchState.matches[searchState.current];
+    function highlightCurrent(state, countSpan, t, onSelectCell) {
+        if (countSpan) countSpan.textContent = (state.current + 1) + ' of ' + state.matches.length;
+        const match = state.matches[state.current];
         if (!match) return;
         const input = document.querySelector(`input[data-row="${match.row}"][data-col="${match.col}"]`);
         if (input) { input.focus(); input.select(); }
         if (typeof onSelectCell === 'function') onSelectCell(match.row, match.col);
     }
 
-    function replaceCurrent(gridHost, workbook, activeSheet, overlay, countSpan, t, onSelectCell) {
-        if (!searchState.matches.length || searchState.current < 0) return;
+    function replaceCurrent(state, gridHost, workbook, activeSheet, overlay, countSpan, t, onSelectCell) {
+        if (!state.matches.length || state.current < 0) return;
         const replaceInput = overlay.querySelector('[data-replace-input]');
         if (!replaceInput) return;
-        if (searchCallbacks && typeof searchCallbacks.pushSnapshot === 'function') searchCallbacks.pushSnapshot();
+        if (state.callbacks && typeof state.callbacks.pushSnapshot === 'function') state.callbacks.pushSnapshot();
         const replaceVal = replaceInput.value;
-        const match = searchState.matches[searchState.current];
+        const match = state.matches[state.current];
         const sheet = workbook.sheets[activeSheet];
         if (!sheet || !sheet.rows || !sheet.rows[match.row] || !sheet.rows[match.row][match.col]) return;
         const cell = sheet.rows[match.row][match.col];
-        const oldValue = cell.value != null ? String(cell.value) : '';
-        const query = searchState.matchCase ? searchState.query : searchState.query.toLowerCase();
-        const lowerOld = searchState.matchCase ? oldValue : oldValue.toLowerCase();
-        const idx = lowerOld.indexOf(query);
-        if (idx >= 0) {
-            cell.value = oldValue.substring(0, idx) + replaceVal + oldValue.substring(idx + searchState.query.length);
-            delete cell.formula;
+        const query = state.matchCase ? state.query : state.query.toLowerCase();
+        if (cell.formula) {
+            const formulaText = cell.formula;
+            const lowerFormula = state.matchCase ? formulaText : formulaText.toLowerCase();
+            const idx = lowerFormula.indexOf(query);
+            if (idx >= 0) {
+                const newFormula = formulaText.substring(0, idx) + replaceVal + formulaText.substring(idx + state.query.length);
+                if (newFormula.startsWith('=')) {
+                    cell.formula = newFormula.substring(1);
+                } else {
+                    cell.value = newFormula;
+                    delete cell.formula;
+                }
+            }
+        } else {
+            const oldValue = cell.value != null ? String(cell.value) : '';
+            const lowerOld = state.matchCase ? oldValue : oldValue.toLowerCase();
+            const idx = lowerOld.indexOf(query);
+            if (idx >= 0) {
+                cell.value = oldValue.substring(0, idx) + replaceVal + oldValue.substring(idx + state.query.length);
+            }
         }
         const input = gridHost.querySelector(`input[data-row="${match.row}"][data-col="${match.col}"]`);
-        if (input) input.value = cell.value;
-        if (searchCallbacks && typeof searchCallbacks.setDirty === 'function') searchCallbacks.setDirty(true);
-        performSearch(gridHost, workbook, activeSheet, t, countSpan);
+        if (input) {
+            if (cell.formula) {
+                const evaluate = (window.SheetsFormulas && window.SheetsFormulas.evaluate) || (() => '#ERR');
+                const displayValue = evaluate(workbook.sheets[activeSheet], cell.formula);
+                input.value = displayValue;
+                input.dataset.formula = cell.formula;
+                input.dataset.displayValue = displayValue;
+                input.title = '=' + cell.formula;
+            } else {
+                input.value = cell.value || '';
+                delete input.dataset.formula;
+                delete input.dataset.displayValue;
+                input.removeAttribute('title');
+            }
+        }
+        if (state.callbacks && typeof state.callbacks.setDirty === 'function') state.callbacks.setDirty(true);
+        performSearch(state, gridHost, workbook, activeSheet, t, countSpan);
     }
 
-    function replaceAll(gridHost, workbook, activeSheet, overlay, countSpan, t) {
-        if (!searchState.query) return;
+    function replaceAll(state, gridHost, workbook, activeSheet, overlay, countSpan, t) {
+        if (!state.query) return;
         const replaceInput = overlay.querySelector('[data-replace-input]');
         if (!replaceInput) return;
-        if (searchCallbacks && typeof searchCallbacks.pushSnapshot === 'function') searchCallbacks.pushSnapshot();
+        if (state.callbacks && typeof state.callbacks.pushSnapshot === 'function') state.callbacks.pushSnapshot();
         const replaceVal = replaceInput.value;
         const sheet = workbook.sheets[activeSheet];
         if (!sheet || !sheet.rows) return;
@@ -156,29 +192,55 @@
             if (!Array.isArray(row)) return;
             row.forEach((cell, c) => {
                 if (!cell) return;
-                const oldValue = cell.value != null ? String(cell.value) : '';
-                const query = searchState.matchCase ? searchState.query : searchState.query.toLowerCase();
-                const lowerOld = searchState.matchCase ? oldValue : oldValue.toLowerCase();
-                if (lowerOld.includes(query)) {
-                    let newVal = oldValue;
-                    let idx = 0;
-                    while (true) {
-                        const lowerNew = searchState.matchCase ? newVal : newVal.toLowerCase();
-                        const found = lowerNew.indexOf(query, idx);
-                        if (found < 0) break;
-                        newVal = newVal.substring(0, found) + replaceVal + newVal.substring(found + searchState.query.length);
-                        idx = found + replaceVal.length;
-                        count++;
+                const query = state.matchCase ? state.query : state.query.toLowerCase();
+                if (cell.formula) {
+                    const formulaText = cell.formula;
+                    const lowerFormula = state.matchCase ? formulaText : formulaText.toLowerCase();
+                    if (lowerFormula.includes(query)) {
+                        let newVal = formulaText;
+                        let idx = 0;
+                        while (true) {
+                            const lowerNew = state.matchCase ? newVal : newVal.toLowerCase();
+                            const found = lowerNew.indexOf(query, idx);
+                            if (found < 0) break;
+                            newVal = newVal.substring(0, found) + replaceVal + newVal.substring(found + state.query.length);
+                            idx = found + replaceVal.length;
+                            count++;
+                        }
+                        cell.formula = newVal;
+                        const input = gridHost.querySelector(`input[data-row="${r}"][data-col="${c}"]`);
+                        if (input) {
+                            const evaluate = (window.SheetsFormulas && window.SheetsFormulas.evaluate) || (() => '#ERR');
+                            const displayValue = evaluate(sheet, cell.formula);
+                            input.value = displayValue;
+                            input.dataset.formula = cell.formula;
+                            input.dataset.displayValue = displayValue;
+                            input.title = '=' + cell.formula;
+                        }
                     }
-                    cell.value = newVal;
-                    delete cell.formula;
-                    const input = gridHost.querySelector(`input[data-row="${r}"][data-col="${c}"]`);
-                    if (input) input.value = newVal;
+                } else {
+                    const oldValue = cell.value != null ? String(cell.value) : '';
+                    const lowerOld = state.matchCase ? oldValue : oldValue.toLowerCase();
+                    if (lowerOld.includes(query)) {
+                        let newVal = oldValue;
+                        let idx = 0;
+                        while (true) {
+                            const lowerNew = state.matchCase ? newVal : newVal.toLowerCase();
+                            const found = lowerNew.indexOf(query, idx);
+                            if (found < 0) break;
+                            newVal = newVal.substring(0, found) + replaceVal + newVal.substring(found + state.query.length);
+                            idx = found + replaceVal.length;
+                            count++;
+                        }
+                        cell.value = newVal;
+                        const input = gridHost.querySelector(`input[data-row="${r}"][data-col="${c}"]`);
+                        if (input) input.value = newVal;
+                    }
                 }
             });
         });
-        if (searchCallbacks && typeof searchCallbacks.setDirty === 'function') searchCallbacks.setDirty(true);
-        performSearch(gridHost, workbook, activeSheet, t, countSpan);
+        if (state.callbacks && typeof state.callbacks.setDirty === 'function') state.callbacks.setDirty(true);
+        performSearch(state, gridHost, workbook, activeSheet, t, countSpan);
     }
 
     window.SheetsSearch = {

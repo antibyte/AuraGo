@@ -169,7 +169,23 @@
         const numSelect = toolbar.querySelector('[data-fmt="number-format"]');
         if (numSelect) numSelect.value = f.numFormat || '';
         const borderSelect = toolbar.querySelector('[data-fmt="border"]');
-        if (borderSelect) borderSelect.value = '';
+        if (borderSelect) borderSelect.value = detectBorderType(f.borders);
+    }
+
+    function detectBorderType(borders) {
+        if (!borders) return '';
+        const hasTop = !!borders.top;
+        const hasBottom = !!borders.bottom;
+        const hasLeft = !!borders.left;
+        const hasRight = !!borders.right;
+        if (hasTop && hasBottom && hasLeft && hasRight) return 'all';
+        if (hasTop && hasBottom && !hasLeft && !hasRight) return 'outer';
+        if (hasTop && !hasBottom && !hasLeft && !hasRight) return 'top';
+        if (!hasTop && hasBottom && !hasLeft && !hasRight) return 'bottom';
+        if (!hasTop && !hasBottom && hasLeft && !hasRight) return 'left';
+        if (!hasTop && !hasBottom && !hasLeft && hasRight) return 'right';
+        if (hasTop && hasBottom && hasLeft && hasRight) return 'all';
+        return '';
     }
 
     window.SheetsFormat = {

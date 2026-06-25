@@ -216,6 +216,7 @@
                     pushSnapshot();
                     const raw = input.value;
                     setCellFromInput(input, raw);
+                    recalcFormulas();
                     if (isFocusCell(Number(input.dataset.row), Number(input.dataset.col))) updateFormulaBar();
                     setDirty(true);
                 });
@@ -517,7 +518,6 @@
             toolbar.querySelectorAll('.office-fmt-select').forEach(select => {
                 select.addEventListener('change', () => {
                     handleFormatChange(select.dataset.fmt, select.value);
-                    select.value = '';
                 });
             });
             const closePickersHandler = e => {
@@ -536,6 +536,7 @@
             if (!input || !formulaInput) return;
             pushSnapshot();
             setCellFromInput(input, formulaInput.value);
+            recalcFormulas();
             input.focus();
             updateFormulaBar();
             setDirty(true);
@@ -544,11 +545,11 @@
         function openSearch() {
             if (searchModule) {
                 const inst = instances.get(windowId);
-                if (inst) inst.closeSearch = () => searchModule.closeSearch();
-                searchModule.openSearch(host, gridHost, workbook, () => activeSheet, t, esc, (r, c) => selectCell(r, c, false), {
+                const searchState = searchModule.openSearch(host, gridHost, workbook, () => activeSheet, t, esc, (r, c) => selectCell(r, c, false), {
                     pushSnapshot: pushSnapshot,
                     setDirty: setDirty
                 });
+                if (inst) inst.closeSearch = () => searchModule.closeSearch();
             }
         }
 
@@ -570,6 +571,7 @@
             const menu = document.createElement('div');
             menu.className = 'office-sheet-context-menu';
             menu.setAttribute('role', 'menu');
+            menu.style.visibility = 'hidden';
             menu.innerHTML = items.map(item => item.separator
                 ? '<div class="office-sheet-context-separator" role="separator"></div>'
                 : `<button type="button" role="menuitem" data-action="${esc(item.action)}">${iconMarkup(item.icon, '', 'office-sheet-context-icon', 14)}<span>${esc(item.label)}</span></button>`).join('');
@@ -577,6 +579,7 @@
             const rect = menu.getBoundingClientRect();
             menu.style.left = Math.max(8, Math.min(x, window.innerWidth - rect.width - 8)) + 'px';
             menu.style.top = Math.max(8, Math.min(y, window.innerHeight - rect.height - 8)) + 'px';
+            menu.style.visibility = 'visible';
             menu.addEventListener('click', event => {
                 const button = event.target.closest('button[data-action]');
                 if (!button) return;
@@ -601,6 +604,7 @@
             const menu = document.createElement('div');
             menu.className = 'office-sheet-context-menu';
             menu.setAttribute('role', 'menu');
+            menu.style.visibility = 'hidden';
             menu.innerHTML = items.map(item => item.separator
                 ? '<div class="office-sheet-context-separator" role="separator"></div>'
                 : `<button type="button" role="menuitem" data-action="${esc(item.action)}" data-sheet-index="${sheetIndex}">${iconMarkup(item.icon, '', 'office-sheet-context-icon', 14)}<span>${esc(item.label)}</span></button>`).join('');
@@ -608,6 +612,7 @@
             const rect = menu.getBoundingClientRect();
             menu.style.left = Math.max(8, Math.min(x, window.innerWidth - rect.width - 8)) + 'px';
             menu.style.top = Math.max(8, Math.min(y, window.innerHeight - rect.height - 8)) + 'px';
+            menu.style.visibility = 'visible';
             menu.addEventListener('click', event => {
                 const button = event.target.closest('button[data-action]');
                 if (!button) return;
@@ -1134,7 +1139,7 @@
 
     function displayCell(cell) {
         if (!cell) return '';
-        if (cell.formula) return '=' + String(cell.formula).replace(/^=/, '');
+        if (cell.formula) return '=' + String(cell.formula);
         return cell.value || '';
     }
 
@@ -1146,21 +1151,40 @@
         return `value="${displayValue.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}" data-formula="${formula.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}" data-display-value="${displayValue.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}" title="=${formula.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}"`;
     }
 
-    function syncFormulaDataset(input, cell, sheet) {
-        if (!input) return;
-        if (cell && cell.formula) {
-            const formula = String(cell.formula).replace(/^=/, '');
-            const evaluate = (window.SheetsFormulas && window.SheetsFormulas.evaluate) || (() => '#ERR');
-            const displayValue = evaluate(sheet, formula);
-            input.dataset.formula = formula;
-            input.dataset.displayValue = displayValue;
-            input.title = '=' + formula;
-            return;
+        function syncFormulaDataset(input, cell, sheet) {
+            if (!input) return;
+            if (cell && cell.formula) {
+                const formula = String(cell.formula).replace(/^=/, '');
+                const evaluate = (window.SheetsFormulas && window.SheetsFormulas.evaluate) || (() => '#ERR');
+                const displayValue = evaluate(sheet, formula);
+                input.dataset.formula = formula;
+                input.dataset.displayValue = displayValue;
+                input.title = '=' + formula;
+                return;
+            }
+            delete input.dataset.formula;
+            delete input.dataset.displayValue;
+            input.removeAttribute('title');
         }
-        delete input.dataset.formula;
-        delete input.dataset.displayValue;
-        input.removeAttribute('title');
-    }
+
+        function recalcFormulas() {
+            const sheet = workbook.sheets[activeSheet];
+            if (!sheet || !sheet.rows) return;
+            const evaluate = (window.SheetsFormulas && window.SheetsFormulas.evaluate) || (() => '#ERR');
+            sheet.rows.forEach((row, r) => {
+                if (!Array.isArray(row)) return;
+                row.forEach((cell, c) => {
+                    if (!cell || !cell.formula) return;
+                    const input = gridHost.querySelector(`input[data-row="${r}"][data-col="${c}"]`);
+                    if (!input) return;
+                    const displayValue = evaluate(sheet, cell.formula);
+                    input.dataset.displayValue = displayValue;
+                    if (document.activeElement !== input) {
+                        input.value = displayValue;
+                    }
+                });
+            });
+        }
 
     function showFormulaForEditing(input) {
         if (!input || !input.dataset.formula) return;

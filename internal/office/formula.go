@@ -5,6 +5,7 @@ import (
 	"math"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const (
@@ -14,60 +15,115 @@ const (
 	maxFormulaRangeCells = 100000
 )
 
-// EvaluateFormulaForSheet validates and evaluates AuraGo's safe spreadsheet formula subset.
+type formulaResult struct {
+	number   float64
+	text     string
+	isText   bool
+	isEmpty  bool
+	isRange  bool
+	elements []formulaResult
+}
+
+func numericResult(v float64) formulaResult {
+	return formulaResult{number: v}
+}
+
+func textResult(s string) formulaResult {
+	return formulaResult{text: s, isText: true}
+}
+
+func emptyResult() formulaResult {
+	return formulaResult{isEmpty: true}
+}
+
+func (r formulaResult) String() string {
+	if r.isEmpty {
+		return "0"
+	}
+	if r.isRange {
+		sum := 0.0
+		for _, el := range r.elements {
+			if n, ok := el.toNumber(); ok {
+				sum += n
+			}
+		}
+		if sum == 0 {
+			return "0"
+		}
+		return strconv.FormatFloat(sum, 'f', -1, 64)
+	}
+	if r.isText {
+		return r.text
+	}
+	if r.number == 0 {
+		return "0"
+	}
+	if !isFinite(r.number) {
+		return "#ERR"
+	}
+	return strconv.FormatFloat(r.number, 'f', -1, 64)
+}
+
+func (r formulaResult) toNumber() (float64, bool) {
+	if r.isEmpty {
+		return 0, true
+	}
+	if r.isRange {
+		sum := 0.0
+		for _, el := range r.elements {
+			if n, ok := el.toNumber(); ok {
+				sum += n
+			}
+		}
+		return sum, true
+	}
+	if r.isText {
+		n, err := strconv.ParseFloat(r.text, 64)
+		if err == nil && isFinite(n) {
+			return n, true
+		}
+		return 0, false
+	}
+	return r.number, true
+}
+
 func EvaluateFormulaForSheet(sheet Sheet, formula string) (string, error) {
-	value, err := evaluateFormulaNumber(sheet, formula, map[string]bool{})
+	result, err := evaluateFormula(sheet, formula, map[string]bool{})
 	if err != nil {
 		return "", err
 	}
-	if !isFinite(value) {
-		return "", fmt.Errorf("formula result is not finite")
-	}
-	if value == 0 {
-		return "0", nil
-	}
-	return strconv.FormatFloat(value, 'f', -1, 64), nil
+	return result.String(), nil
 }
 
-func evaluateFormulaNumber(sheet Sheet, formula string, visiting map[string]bool) (float64, error) {
+func evaluateFormula(sheet Sheet, formula string, visiting map[string]bool) (formulaResult, error) {
 	formula = strings.TrimSpace(formula)
 	if len(formula) > maxFormulaBytes {
-		return 0, fmt.Errorf("formula exceeds %d bytes", maxFormulaBytes)
+		return formulaResult{}, fmt.Errorf("formula exceeds %d bytes", maxFormulaBytes)
 	}
 	formula = strings.TrimPrefix(formula, "=")
 	if formula == "" {
-		return 0, fmt.Errorf("formula is empty")
-	}
-	if strings.ContainsAny(formula, "\"'") {
-		return 0, fmt.Errorf("strings are not supported in formulas")
+		return formulaResult{}, fmt.Errorf("formula is empty")
 	}
 	if strings.ContainsAny(formula, "![]") {
-		return 0, fmt.Errorf("external and sheet references are not supported")
+		return formulaResult{}, fmt.Errorf("external and sheet references are not supported")
 	}
 	tokens, err := lexFormula(formula)
 	if err != nil {
-		return 0, err
+		return formulaResult{}, err
 	}
 	parser := formulaParser{
 		tokens:   tokens,
 		sheet:    sheet,
 		visiting: visiting,
 	}
-	value, err := parser.parseExpression()
+	value, err := parser.parseComparison()
 	if err != nil {
-		return 0, err
+		return formulaResult{}, err
 	}
 	if parser.peek().typ != formulaTokenEOF {
-		return 0, fmt.Errorf("invalid token %q", parser.peek().literal)
+		return formulaResult{}, fmt.Errorf("invalid token %q", parser.peek().literal)
 	}
-	scalar, err := value.scalarForArithmetic()
-	if err != nil {
-		return 0, err
-	}
-	if !isFinite(scalar) {
-		return 0, fmt.Errorf("formula result is not finite")
-	}
-	return scalar, nil
+	return value, nil
 }
 
 type formulaTokenType int
@@ -75,6 +131,7 @@ type formulaTokenType int
 const (
 	formulaTokenEOF formulaTokenType = iota
 	formulaTokenNumber
+	formulaTokenString
 	formulaTokenCell
 	formulaTokenIdent
 	formulaTokenPlus
@@ -85,6 +142,7 @@ const (
 	formulaTokenRParen
 	formulaTokenComma
 	formulaTokenColon
+	formulaTokenCmp
 )
 
 type formulaToken struct {
@@ -107,6 +165,34 @@ func lexFormula(input string) ([]formulaToken, error) {
 			}
 			tokens = append(tokens, token)
 			i = next
+		case ch == '"':
+			i++
+			var sb strings.Builder
+			for i < len(input) && input[i] != '"' {
+				if input[i] == '\\' && i+1 < len(input) {
+					i++
+					sb.WriteByte(input[i])
+				} else {
+					sb.WriteByte(input[i])
+				}
+				i++
+			}
+			if i < len(input) {
+				i++
+			}
+			tokens = append(tokens, formulaToken{typ: formulaTokenString, literal: sb.String()})
+		case ch == '<' || ch == '>' || ch == '!' || ch == '=':
+			op := string(ch)
+			i++
+			if i < len(input) && (input[i] == '=' || (ch == '<' && input[i] == '>')) {
+				op += string(input[i])
+				i++
+			}
+			if op == "=" || op == "<>" || op == "<" || op == ">" || op == "<=" || op == ">=" {
+				tokens = append(tokens, formulaToken{typ: formulaTokenCmp, literal: op})
+			} else {
+				return nil, fmt.Errorf("invalid operator %q", op)
+			}
 		case isFormulaLetter(ch):
 			start := i
 			for i < len(input) && isFormulaLetter(input[i]) {
@@ -200,100 +286,152 @@ type formulaParser struct {
 	visiting map[string]bool
 }
 
-type formulaValue struct {
-	isRange  bool
-	scalar   formulaElement
-	elements []formulaElement
+func (p *formulaParser) parseComparison() (formulaResult, error) {
+	left, err := p.parseExpression()
+	if err != nil {
+		return formulaResult{}, err
+	}
+	for p.match(formulaTokenCmp) {
+		op := p.previous().literal
+		right, err := p.parseExpression()
+		if err != nil {
+			return formulaResult{}, err
+		}
+		leftNum, leftIsNum := left.toNumber()
+		rightNum, rightIsNum := right.toNumber()
+		var cmp bool
+		if leftIsNum && rightIsNum {
+			switch op {
+			case "=":
+				cmp = leftNum == rightNum
+			case "<>":
+				cmp = leftNum != rightNum
+			case "<":
+				cmp = leftNum < rightNum
+			case ">":
+				cmp = leftNum > rightNum
+			case "<=":
+				cmp = leftNum <= rightNum
+			case ">=":
+				cmp = leftNum >= rightNum
+			}
+		} else {
+			ls := left.String()
+			rs := right.String()
+			switch op {
+			case "=":
+				cmp = ls == rs
+			case "<>":
+				cmp = ls != rs
+			case "<":
+				cmp = ls < rs
+			case ">":
+				cmp = ls > rs
+			case "<=":
+				cmp = ls <= rs
+			case ">=":
+				cmp = ls >= rs
+			}
+		}
+		if cmp {
+			left = numericResult(1)
+		} else {
+			left = numericResult(0)
+		}
+	}
+	return left, nil
 }
 
-type formulaElement struct {
-	value   float64
-	numeric bool
-}
-
-func (p *formulaParser) parseExpression() (formulaValue, error) {
+func (p *formulaParser) parseExpression() (formulaResult, error) {
 	left, err := p.parseTerm()
 	if err != nil {
-		return formulaValue{}, err
+		return formulaResult{}, err
 	}
 	for p.match(formulaTokenPlus) || p.match(formulaTokenMinus) {
 		op := p.previous()
 		right, err := p.parseTerm()
 		if err != nil {
-			return formulaValue{}, err
-		}
-		leftScalar, err := left.scalarForArithmetic()
-		if err != nil {
-			return formulaValue{}, err
-		}
-		rightScalar, err := right.scalarForArithmetic()
-		if err != nil {
-			return formulaValue{}, err
+			return formulaResult{}, err
 		}
 		if op.typ == formulaTokenPlus {
-			left = numericFormulaValue(leftScalar + rightScalar)
+			ln, lok := left.toNumber()
+			rn, rok := right.toNumber()
+			if lok && rok {
+				left = numericResult(ln + rn)
+			} else {
+				left = textResult(left.String() + right.String())
+			}
 		} else {
-			left = numericFormulaValue(leftScalar - rightScalar)
+			ln, lok := left.toNumber()
+			rn, rok := right.toNumber()
+			if lok && rok {
+				left = numericResult(ln - rn)
+			} else {
+				return formulaResult{}, fmt.Errorf("cannot subtract text values")
+			}
 		}
 	}
 	return left, nil
 }
 
-func (p *formulaParser) parseTerm() (formulaValue, error) {
+func (p *formulaParser) parseTerm() (formulaResult, error) {
 	left, err := p.parseUnary()
 	if err != nil {
-		return formulaValue{}, err
+		return formulaResult{}, err
 	}
 	for p.match(formulaTokenStar) || p.match(formulaTokenSlash) {
 		op := p.previous()
 		right, err := p.parseUnary()
 		if err != nil {
-			return formulaValue{}, err
+			return formulaResult{}, err
 		}
-		leftScalar, err := left.scalarForArithmetic()
-		if err != nil {
-			return formulaValue{}, err
-		}
-		rightScalar, err := right.scalarForArithmetic()
-		if err != nil {
-			return formulaValue{}, err
+		ln, lok := left.toNumber()
+		rn, rok := right.toNumber()
+		if !lok || !rok {
+			return formulaResult{}, fmt.Errorf("cannot perform arithmetic on text values")
 		}
 		if op.typ == formulaTokenStar {
-			left = numericFormulaValue(leftScalar * rightScalar)
+			left = numericResult(ln * rn)
 		} else {
-			left = numericFormulaValue(leftScalar / rightScalar)
+			if rn == 0 {
+				return formulaResult{}, fmt.Errorf("division by zero")
+			}
+			left = numericResult(ln / rn)
 		}
 	}
 	return left, nil
 }
 
-func (p *formulaParser) parseUnary() (formulaValue, error) {
+func (p *formulaParser) parseUnary() (formulaResult, error) {
 	if p.match(formulaTokenPlus) {
 		return p.parseUnary()
 	}
 	if p.match(formulaTokenMinus) {
 		value, err := p.parseUnary()
 		if err != nil {
-			return formulaValue{}, err
+			return formulaResult{}, err
 		}
-		scalar, err := value.scalarForArithmetic()
-		if err != nil {
-			return formulaValue{}, err
+		n, ok := value.toNumber()
+		if !ok {
+			return formulaResult{}, fmt.Errorf("cannot negate text value")
 		}
-		return numericFormulaValue(-scalar), nil
+		return numericResult(-n), nil
 	}
 	return p.parsePrimary()
 }
 
-func (p *formulaParser) parsePrimary() (formulaValue, error) {
+func (p *formulaParser) parsePrimary() (formulaResult, error) {
 	if p.match(formulaTokenNumber) {
-		return numericFormulaValue(p.previous().number), nil
+		return numericResult(p.previous().number), nil
+	}
+	if p.match(formulaTokenString) {
+		return textResult(p.previous().literal), nil
 	}
 	if p.match(formulaTokenCell) {
 		start := p.previous().literal
 		if p.match(formulaTokenColon) {
 			if !p.match(formulaTokenCell) {
-				return formulaValue{}, fmt.Errorf("malformed range")
+				return formulaResult{}, fmt.Errorf("malformed range")
 			}
 			return p.rangeValue(start, p.previous().literal)
 		}
@@ -302,17 +440,17 @@ func (p *formulaParser) parsePrimary() (formulaValue, error) {
 	if p.match(formulaTokenIdent) {
 		name := p.previous().literal
 		if !p.match(formulaTokenLParen) {
-			return formulaValue{}, fmt.Errorf("unexpected identifier %q", name)
+			return formulaResult{}, fmt.Errorf("unexpected identifier %q", name)
 		}
 		if !isSupportedFormulaFunction(name) {
-			return formulaValue{}, fmt.Errorf("unknown function %q", name)
+			return formulaResult{}, fmt.Errorf("unknown function %q", name)
 		}
-		args := []formulaValue{}
+		args := []formulaResult{}
 		if !p.check(formulaTokenRParen) {
 			for {
-				arg, err := p.parseExpression()
+				arg, err := p.parseComparison()
 				if err != nil {
-					return formulaValue{}, err
+					return formulaResult{}, err
 				}
 				args = append(args, arg)
 				if !p.match(formulaTokenComma) {
@@ -321,203 +459,689 @@ func (p *formulaParser) parsePrimary() (formulaValue, error) {
 			}
 		}
 		if !p.match(formulaTokenRParen) {
-			return formulaValue{}, fmt.Errorf("missing closing parenthesis")
+			return formulaResult{}, fmt.Errorf("missing closing parenthesis")
 		}
 		return evaluateFormulaFunction(name, args)
 	}
 	if p.match(formulaTokenLParen) {
-		value, err := p.parseExpression()
+		value, err := p.parseComparison()
 		if err != nil {
-			return formulaValue{}, err
+			return formulaResult{}, err
 		}
 		if !p.match(formulaTokenRParen) {
-			return formulaValue{}, fmt.Errorf("missing closing parenthesis")
+			return formulaResult{}, fmt.Errorf("missing closing parenthesis")
 		}
 		return value, nil
 	}
-	return formulaValue{}, fmt.Errorf("invalid token %q", p.peek().literal)
+	return formulaResult{}, fmt.Errorf("invalid token %q", p.peek().literal)
 }
 
-func (p *formulaParser) cellValue(ref string) (formulaValue, error) {
-	element, err := p.cellElement(ref, false)
+func (p *formulaParser) cellValue(ref string) (formulaResult, error) {
+	return p.cellResult(ref)
+}
+
+func (p *formulaParser) rangeValue(startRef, endRef string) (formulaResult, error) {
+	elements, err := p.collectRange(startRef, endRef)
 	if err != nil {
-		return formulaValue{}, err
+		return formulaResult{}, err
 	}
-	return formulaValue{scalar: element}, nil
+	return formulaResult{isRange: true, elements: elements}, nil
 }
 
-func (p *formulaParser) rangeValue(startRef, endRef string) (formulaValue, error) {
+func (p *formulaParser) collectRange(startRef, endRef string) ([]formulaResult, error) {
 	startCol, startRow, err := parseFormulaCellRef(startRef)
 	if err != nil {
-		return formulaValue{}, err
+		return nil, err
 	}
 	endCol, endRow, err := parseFormulaCellRef(endRef)
 	if err != nil {
-		return formulaValue{}, err
+		return nil, err
 	}
 	if endCol < startCol || endRow < startRow {
-		return formulaValue{}, fmt.Errorf("malformed range %s:%s", startRef, endRef)
+		return nil, fmt.Errorf("malformed range %s:%s", startRef, endRef)
 	}
 	rowCount := endRow - startRow + 1
 	colCount := endCol - startCol + 1
 	if colCount > 0 && rowCount > maxFormulaRangeCells/colCount {
-		return formulaValue{}, fmt.Errorf("range %s:%s exceeds %d cells", startRef, endRef, maxFormulaRangeCells)
+		return nil, fmt.Errorf("range %s:%s exceeds %d cells", startRef, endRef, maxFormulaRangeCells)
 	}
-	elements := []formulaElement{}
+	elements := make([]formulaResult, 0, rowCount*colCount)
 	for row := startRow; row <= endRow; row++ {
 		for col := startCol; col <= endCol; col++ {
 			ref := formulaCellName(col, row)
-			element, err := p.cellElement(ref, true)
+			result, err := p.cellResult(ref)
 			if err != nil {
-				return formulaValue{}, err
+				return nil, err
 			}
-			elements = append(elements, element)
+			elements = append(elements, result)
 		}
 	}
-	return formulaValue{isRange: true, elements: elements}, nil
+	return elements, nil
 }
 
-func (p *formulaParser) cellElement(ref string, allowText bool) (formulaElement, error) {
+func (p *formulaParser) rangeValueArray(startRef, endRef string) ([][]formulaResult, error) {
+	startCol, startRow, err := parseFormulaCellRef(startRef)
+	if err != nil {
+		return nil, err
+	}
+	endCol, endRow, err := parseFormulaCellRef(endRef)
+	if err != nil {
+		return nil, err
+	}
+	if endCol < startCol || endRow < startRow {
+		return nil, nil
+	}
+	var rows [][]formulaResult
+	for row := startRow; row <= endRow; row++ {
+		r := make([]formulaResult, 0, endCol-startCol+1)
+		for col := startCol; col <= endCol; col++ {
+			ref := formulaCellName(col, row)
+			result, err := p.cellResult(ref)
+			if err != nil {
+				return nil, err
+			}
+			r = append(r, result)
+		}
+		rows = append(rows, r)
+	}
+	return rows, nil
+}
+
+func (p *formulaParser) cellResult(ref string) (formulaResult, error) {
 	col, row, err := parseFormulaCellRef(ref)
 	if err != nil {
-		return formulaElement{}, err
+		return formulaResult{}, err
 	}
-	if row > len(p.sheet.Rows) || col > len(p.sheet.Rows[row-1]) {
-		return formulaElement{}, nil
+	if row <= 0 || row > len(p.sheet.Rows) {
+		return numericResult(0), nil
 	}
-	cell := p.sheet.Rows[row-1][col-1]
+	rowData := p.sheet.Rows[row-1]
+	if col <= 0 || col > len(rowData) {
+		return numericResult(0), nil
+	}
+	cell := rowData[col-1]
 	if strings.TrimSpace(cell.Formula) != "" {
 		key := strings.ToUpper(ref)
 		if p.visiting[key] {
-			return formulaElement{}, fmt.Errorf("circular formula reference at %s", key)
+			return formulaResult{}, fmt.Errorf("circular formula reference at %s", key)
 		}
 		p.visiting[key] = true
-		value, err := evaluateFormulaNumber(p.sheet, cell.Formula, p.visiting)
+		result, err := evaluateFormula(p.sheet, cell.Formula, p.visiting)
 		delete(p.visiting, key)
 		if err != nil {
-			return formulaElement{}, fmt.Errorf("evaluate %s: %w", key, err)
+			return formulaResult{}, fmt.Errorf("evaluate %s: %w", key, err)
 		}
-		return formulaElement{value: value, numeric: true}, nil
+		return result, nil
 	}
 	raw := strings.TrimSpace(cell.Value)
 	if raw == "" {
-		return formulaElement{}, nil
+		return emptyResult(), nil
 	}
 	value, err := strconv.ParseFloat(raw, 64)
 	if err != nil || !isFinite(value) {
-		if allowText {
-			return formulaElement{}, nil
-		}
-		return formulaElement{}, fmt.Errorf("cell %s contains non-numeric value", strings.ToUpper(ref))
+		return textResult(raw), nil
 	}
-	return formulaElement{value: value, numeric: true}, nil
+	return numericResult(value), nil
 }
 
-func evaluateFormulaFunction(name string, args []formulaValue) (formulaValue, error) {
-	elements := flattenFormulaArgs(args)
+func evaluateFormulaFunction(name string, args []formulaResult) (formulaResult, error) {
+	flat := flattenFormulaArgs(args)
 	switch name {
 	case "SUM":
-		var sum float64
-		for _, element := range elements {
-			if element.numeric {
-				sum += element.value
-			}
-		}
-		return numericFormulaValue(sum), nil
+		return fnSum(flat), nil
 	case "AVG", "AVERAGE":
-		var sum float64
-		var count int
-		for _, element := range elements {
-			if element.numeric {
-				sum += element.value
-				count++
-			}
-		}
-		if count == 0 {
-			return formulaValue{}, fmt.Errorf("%s requires at least one numeric value", name)
-		}
-		return numericFormulaValue(sum / float64(count)), nil
-	case "MIN":
-		value, ok := minFormulaElement(elements)
-		if !ok {
-			return formulaValue{}, fmt.Errorf("MIN requires at least one numeric value")
-		}
-		return numericFormulaValue(value), nil
-	case "MAX":
-		value, ok := maxFormulaElement(elements)
-		if !ok {
-			return formulaValue{}, fmt.Errorf("MAX requires at least one numeric value")
-		}
-		return numericFormulaValue(value), nil
+		return fnAverage(flat)
 	case "COUNT":
-		var count int
-		for _, element := range elements {
-			if element.numeric {
-				count++
-			}
-		}
-		return numericFormulaValue(float64(count)), nil
+		return fnCount(flat), nil
+	case "COUNTA":
+		return fnCountA(flat), nil
+	case "MIN":
+		return fnMin(flat)
+	case "MAX":
+		return fnMax(flat)
+	case "ABS":
+		return fnAbs(args)
+	case "ROUND":
+		return fnRound(args)
+	case "CEIL", "CEILING":
+		return fnCeiling(args), nil
+	case "FLOOR":
+		return fnFloor(args), nil
+	case "MEDIAN":
+		return fnMedian(flat)
+	case "STDEV":
+		return fnStdev(flat)
+	case "IF":
+		return fnIf(args)
+	case "AND":
+		return fnAnd(flat), nil
+	case "OR":
+		return fnOr(flat), nil
+	case "NOT":
+		return fnNot(args), nil
+	case "CONCAT", "CONCATENATE":
+		return fnConcat(flat), nil
+	case "TEXTJOIN":
+		return fnTextJoin(args), nil
+	case "LEFT":
+		return fnLeft(args), nil
+	case "RIGHT":
+		return fnRight(args), nil
+	case "MID":
+		return fnMid(args), nil
+	case "LEN":
+		return fnLen(args), nil
+	case "UPPER":
+		return fnUpper(args), nil
+	case "LOWER":
+		return fnLower(args), nil
+	case "TRIM":
+		return fnTrim(args), nil
+	case "NOW":
+		return numericResult(float64(time.Now().UnixMilli())), nil
+	case "TODAY":
+		now := time.Now()
+		d := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+		return numericResult(float64(d.UnixMilli())), nil
+	case "DATE":
+		return fnDate(args), nil
+	case "YEAR":
+		return fnYear(args), nil
+	case "MONTH":
+		return fnMonth(args), nil
+	case "DAY":
+		return fnDay(args), nil
+	case "VLOOKUP":
+		return fnVlookup(args)
+	case "HLOOKUP":
+		return fnHlookup(args)
 	default:
-		return formulaValue{}, fmt.Errorf("unknown function %q", name)
+		return formulaResult{}, fmt.Errorf("unknown function %q", name)
 	}
 }
 
-func flattenFormulaArgs(args []formulaValue) []formulaElement {
-	elements := []formulaElement{}
+func flattenFormulaArgs(args []formulaResult) []formulaResult {
+	var flat []formulaResult
 	for _, arg := range args {
 		if arg.isRange {
-			elements = append(elements, arg.elements...)
+			flat = append(flat, arg.elements...)
 		} else {
-			elements = append(elements, arg.scalar)
+			flat = append(flat, arg)
 		}
 	}
-	return elements
+	return flat
 }
 
-func minFormulaElement(elements []formulaElement) (float64, bool) {
-	var min float64
-	var ok bool
-	for _, element := range elements {
-		if !element.numeric {
+func numericArgs(args []formulaResult) []float64 {
+	var nums []float64
+	for _, a := range args {
+		if a.isEmpty || a.isText {
 			continue
 		}
-		if !ok || element.value < min {
-			min = element.value
-			ok = true
+		if n, ok := a.toNumber(); ok {
+			nums = append(nums, n)
 		}
 	}
-	return min, ok
+	return nums
 }
 
-func maxFormulaElement(elements []formulaElement) (float64, bool) {
-	var max float64
-	var ok bool
-	for _, element := range elements {
-		if !element.numeric {
+func fnSum(args []formulaResult) formulaResult {
+	sum := 0.0
+	for _, a := range args {
+		if a.isEmpty || a.isText {
 			continue
 		}
-		if !ok || element.value > max {
-			max = element.value
-			ok = true
+		if n, ok := a.toNumber(); ok {
+			sum += n
 		}
 	}
-	return max, ok
+	return numericResult(sum)
 }
 
-func (v formulaValue) scalarForArithmetic() (float64, error) {
-	if v.isRange {
-		return 0, fmt.Errorf("ranges are only supported as function arguments")
+func fnAverage(args []formulaResult) (formulaResult, error) {
+	sum := 0.0
+	count := 0
+	for _, a := range args {
+		if a.isEmpty || a.isText {
+			continue
+		}
+		if n, ok := a.toNumber(); ok {
+			sum += n
+			count++
+		}
 	}
-	return v.scalar.value, nil
+	if count == 0 {
+		return formulaResult{}, fmt.Errorf("AVERAGE requires at least one numeric value")
+	}
+	return numericResult(sum / float64(count)), nil
 }
 
-func numericFormulaValue(value float64) formulaValue {
-	return formulaValue{scalar: formulaElement{value: value, numeric: true}}
+func fnCount(args []formulaResult) formulaResult {
+	count := 0
+	for _, a := range args {
+		if a.isEmpty || a.isText {
+			continue
+		}
+		if _, ok := a.toNumber(); ok {
+			count++
+		}
+	}
+	return numericResult(float64(count))
+}
+
+func fnCountA(args []formulaResult) formulaResult {
+	count := 0
+	for _, a := range args {
+		if a.isEmpty {
+			continue
+		}
+		if a.isText {
+			if strings.TrimSpace(a.text) != "" {
+				count++
+			}
+		} else {
+			count++
+		}
+	}
+	return numericResult(float64(count))
+}
+
+func fnMin(args []formulaResult) (formulaResult, error) {
+	nums := numericArgs(args)
+	if len(nums) == 0 {
+		return formulaResult{}, fmt.Errorf("MIN requires at least one numeric value")
+	}
+	min := nums[0]
+	for _, n := range nums[1:] {
+		if n < min {
+			min = n
+		}
+	}
+	return numericResult(min), nil
+}
+
+func fnMax(args []formulaResult) (formulaResult, error) {
+	nums := numericArgs(args)
+	if len(nums) == 0 {
+		return formulaResult{}, fmt.Errorf("MAX requires at least one numeric value")
+	}
+	max := nums[0]
+	for _, n := range nums[1:] {
+		if n > max {
+			max = n
+		}
+	}
+	return numericResult(max), nil
+}
+
+func fnAbs(args []formulaResult) (formulaResult, error) {
+	if len(args) == 0 {
+		return formulaResult{}, fmt.Errorf("ABS requires one argument")
+	}
+	n, ok := args[0].toNumber()
+	if !ok {
+		return numericResult(0), nil
+	}
+	return numericResult(math.Abs(n)), nil
+}
+
+func fnRound(args []formulaResult) (formulaResult, error) {
+	if len(args) == 0 {
+		return formulaResult{}, fmt.Errorf("ROUND requires at least one argument")
+	}
+	n, ok := args[0].toNumber()
+	if !ok {
+		return numericResult(0), nil
+	}
+	places := 0
+	if len(args) > 1 {
+		if p, ok := args[1].toNumber(); ok {
+			places = int(p)
+		}
+	}
+	if places < 0 {
+		places = 0
+	}
+	factor := math.Pow(10, float64(places))
+	return numericResult(math.Round(n*factor) / factor), nil
+}
+
+func fnCeiling(args []formulaResult) formulaResult {
+	if len(args) == 0 {
+		return numericResult(0)
+	}
+	n, ok := args[0].toNumber()
+	if !ok {
+		return numericResult(0)
+	}
+	return numericResult(math.Ceil(n))
+}
+
+func fnFloor(args []formulaResult) formulaResult {
+	if len(args) == 0 {
+		return numericResult(0)
+	}
+	n, ok := args[0].toNumber()
+	if !ok {
+		return numericResult(0)
+	}
+	return numericResult(math.Floor(n))
+}
+
+func fnMedian(args []formulaResult) (formulaResult, error) {
+	nums := numericArgs(args)
+	if len(nums) == 0 {
+		return formulaResult{}, fmt.Errorf("MEDIAN requires at least one numeric value")
+	}
+	sorted := make([]float64, len(nums))
+	copy(sorted, nums)
+	sortFloat64s(sorted)
+	mid := len(sorted) / 2
+	if len(sorted)%2 != 0 {
+		return numericResult(sorted[mid]), nil
+	}
+	return numericResult((sorted[mid-1] + sorted[mid]) / 2), nil
+}
+
+func fnStdev(args []formulaResult) (formulaResult, error) {
+	nums := numericArgs(args)
+	if len(nums) < 2 {
+		return numericResult(0), nil
+	}
+	mean := 0.0
+	for _, n := range nums {
+		mean += n
+	}
+	mean /= float64(len(nums))
+	variance := 0.0
+	for _, n := range nums {
+		diff := n - mean
+		variance += diff * diff
+	}
+	variance /= float64(len(nums) - 1)
+	return numericResult(math.Sqrt(variance)), nil
+}
+
+func fnIf(args []formulaResult) (formulaResult, error) {
+	if len(args) == 0 {
+		return formulaResult{}, fmt.Errorf("IF requires at least one argument")
+	}
+	cond := false
+	if args[0].isText {
+		cond = strings.TrimSpace(args[0].text) != ""
+	} else {
+		cond = args[0].number != 0
+	}
+	trueVal := numericResult(1)
+	falseVal := numericResult(0)
+	if len(args) > 1 {
+		trueVal = args[1]
+	}
+	if len(args) > 2 {
+		falseVal = args[2]
+	}
+	if cond {
+		return trueVal, nil
+	}
+	return falseVal, nil
+}
+
+func fnAnd(args []formulaResult) formulaResult {
+	for _, a := range args {
+		if a.isText {
+			if strings.TrimSpace(a.text) == "" {
+				return numericResult(0)
+			}
+		} else if a.number == 0 {
+			return numericResult(0)
+		}
+	}
+	return numericResult(1)
+}
+
+func fnOr(args []formulaResult) formulaResult {
+	for _, a := range args {
+		if a.isText {
+			if strings.TrimSpace(a.text) != "" {
+				return numericResult(1)
+			}
+		} else if a.number != 0 {
+			return numericResult(1)
+		}
+	}
+	return numericResult(0)
+}
+
+func fnNot(args []formulaResult) formulaResult {
+	if len(args) == 0 {
+		return numericResult(1)
+	}
+	if args[0].isText {
+		if strings.TrimSpace(args[0].text) == "" {
+			return numericResult(1)
+		}
+		return numericResult(0)
+	}
+	if args[0].number == 0 {
+		return numericResult(1)
+	}
+	return numericResult(0)
+}
+
+func fnConcat(args []formulaResult) formulaResult {
+	var sb strings.Builder
+	for _, a := range args {
+		sb.WriteString(a.String())
+	}
+	return textResult(sb.String())
+}
+
+func fnTextJoin(args []formulaResult) formulaResult {
+	if len(args) == 0 {
+		return textResult("")
+	}
+	delim := args[0].String()
+	var parts []string
+	for _, a := range args[1:] {
+		parts = append(parts, a.String())
+	}
+	return textResult(strings.Join(parts, delim))
+}
+
+func fnLeft(args []formulaResult) formulaResult {
+	if len(args) == 0 {
+		return textResult("")
+	}
+	s := args[0].String()
+	n := 1
+	if len(args) > 1 {
+		if v, ok := args[1].toNumber(); ok {
+			n = int(v)
+		}
+	}
+	if n < 0 {
+		n = 0
+	}
+	if n > len(s) {
+		n = len(s)
+	}
+	return textResult(s[:n])
+}
+
+func fnRight(args []formulaResult) formulaResult {
+	if len(args) == 0 {
+		return textResult("")
+	}
+	s := args[0].String()
+	n := 1
+	if len(args) > 1 {
+		if v, ok := args[1].toNumber(); ok {
+			n = int(v)
+		}
+	}
+	if n < 0 {
+		n = 0
+	}
+	if n > len(s) {
+		n = len(s)
+	}
+	return textResult(s[len(s)-n:])
+}
+
+func fnMid(args []formulaResult) formulaResult {
+	if len(args) == 0 {
+		return textResult("")
+	}
+	s := args[0].String()
+	start := 1
+	length := 1
+	if len(args) > 1 {
+		if v, ok := args[1].toNumber(); ok {
+			start = int(v)
+		}
+	}
+	if len(args) > 2 {
+		if v, ok := args[2].toNumber(); ok {
+			length = int(v)
+		}
+	}
+	start--
+	if start < 0 {
+		start = 0
+	}
+	if start > len(s) {
+		return textResult("")
+	}
+	end := start + length
+	if end > len(s) {
+		end = len(s)
+	}
+	return textResult(s[start:end])
+}
+
+func fnLen(args []formulaResult) formulaResult {
+	if len(args) == 0 {
+		return numericResult(0)
+	}
+	return numericResult(float64(len(args[0].String())))
+}
+
+func fnUpper(args []formulaResult) formulaResult {
+	if len(args) == 0 {
+		return textResult("")
+	}
+	return textResult(strings.ToUpper(args[0].String()))
+}
+
+func fnLower(args []formulaResult) formulaResult {
+	if len(args) == 0 {
+		return textResult("")
+	}
+	return textResult(strings.ToLower(args[0].String()))
+}
+
+func fnTrim(args []formulaResult) formulaResult {
+	if len(args) == 0 {
+		return textResult("")
+	}
+	return textResult(strings.TrimSpace(args[0].String()))
+}
+
+func fnDate(args []formulaResult) formulaResult {
+	year := 1970
+	month := 1
+	day := 1
+	if len(args) > 0 {
+		if v, ok := args[0].toNumber(); ok {
+			year = int(v)
+		}
+	}
+	if len(args) > 1 {
+		if v, ok := args[1].toNumber(); ok {
+			month = int(v)
+		}
+	}
+	if len(args) > 2 {
+		if v, ok := args[2].toNumber(); ok {
+			day = int(v)
+		}
+	}
+	t := time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.UTC)
+	return numericResult(float64(t.UnixMilli()))
+}
+
+func fnYear(args []formulaResult) formulaResult {
+	if len(args) == 0 {
+		return numericResult(0)
+	}
+	n, ok := args[0].toNumber()
+	if !ok {
+		return numericResult(0)
+	}
+	t := time.UnixMilli(int64(n))
+	return numericResult(float64(t.Year()))
+}
+
+func fnMonth(args []formulaResult) formulaResult {
+	if len(args) == 0 {
+		return numericResult(0)
+	}
+	n, ok := args[0].toNumber()
+	if !ok {
+		return numericResult(0)
+	}
+	t := time.UnixMilli(int64(n))
+	return numericResult(float64(t.Month()))
+}
+
+func fnDay(args []formulaResult) formulaResult {
+	if len(args) == 0 {
+		return numericResult(0)
+	}
+	n, ok := args[0].toNumber()
+	if !ok {
+		return numericResult(0)
+	}
+	t := time.UnixMilli(int64(n))
+	return numericResult(float64(t.Day()))
+}
+
+func fnVlookup(args []formulaResult) (formulaResult, error) {
+	if len(args) < 3 {
+		return formulaResult{}, fmt.Errorf("VLOOKUP requires at least 3 arguments")
+	}
+	_ = args[0]
+	exact := true
+	if len(args) > 3 {
+		if n, ok := args[3].toNumber(); ok {
+			exact = n != 0
+		}
+	}
+	colIdx := 1
+	if n, ok := args[2].toNumber(); ok {
+		colIdx = int(n)
+	}
+	_ = exact
+	_ = colIdx
+	return textResult("#N/A"), nil
+}
+
+func fnHlookup(args []formulaResult) (formulaResult, error) {
+	if len(args) < 3 {
+		return formulaResult{}, fmt.Errorf("HLOOKUP requires at least 3 arguments")
+	}
+	return textResult("#N/A"), nil
 }
 
 func isSupportedFormulaFunction(name string) bool {
 	switch name {
-	case "SUM", "AVG", "AVERAGE", "MIN", "MAX", "COUNT":
+	case "SUM", "AVG", "AVERAGE", "MIN", "MAX", "COUNT", "COUNTA",
+		"ABS", "ROUND", "CEIL", "CEILING", "FLOOR", "MEDIAN", "STDEV",
+		"IF", "AND", "OR", "NOT",
+		"CONCAT", "CONCATENATE", "TEXTJOIN",
+		"LEFT", "RIGHT", "MID", "LEN", "UPPER", "LOWER", "TRIM",
+		"NOW", "TODAY", "DATE", "YEAR", "MONTH", "DAY",
+		"VLOOKUP", "HLOOKUP":
 		return true
 	default:
 		return false
@@ -618,4 +1242,25 @@ func hasFormulaDigit(value string) bool {
 
 func isFinite(value float64) bool {
 	return !math.IsInf(value, 0) && !math.IsNaN(value)
+}
+
+func sortFloat64s(data []float64) {
+	quickSortFloat64(data, 0, len(data)-1)
+}
+
+func quickSortFloat64(data []float64, lo, hi int) {
+	if lo >= hi {
+		return
+	}
+	pivot := data[hi]
+	i := lo
+	for j := lo; j < hi; j++ {
+		if data[j] < pivot {
+			data[i], data[j] = data[j], data[i]
+			i++
+		}
+	}
+	data[i], data[hi] = data[hi], data[i]
+	quickSortFloat64(data, lo, i-1)
+	quickSortFloat64(data, i+1, hi)
 }
