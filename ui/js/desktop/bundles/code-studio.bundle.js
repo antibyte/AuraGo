@@ -382,6 +382,7 @@
         }
         const instance = instances.get(windowId);
         if (!instance) return;
+        closeTerminalSessionSockets(instance);
         if (instance.ws && (typeof WebSocket === 'undefined' || instance.ws.readyState !== WebSocket.CLOSED)) {
             instance.ws.close();
         }
@@ -392,6 +393,15 @@
         instances.delete(windowId);
         if (state === instance) state = null;
         if (latestWindowId === windowId) latestWindowId = instances.size ? Array.from(instances.keys()).pop() : '';
+    }
+
+    function closeTerminalSessionSockets(instance) {
+        if (!instance || !Array.isArray(instance.terminalSessions)) return;
+        instance.terminalSessions.forEach(session => {
+            if (session && session.ws && (typeof WebSocket === 'undefined' || session.ws.readyState !== WebSocket.CLOSED)) {
+                session.ws.close();
+            }
+        });
     }
 
     async function prepareContainer(instance) {
@@ -1897,18 +1907,21 @@
     function switchTerminalSession(index) {
         if (!state.terminalSessions || index < 0 || index >= state.terminalSessions.length) return;
         state.activeTerminalSession = index;
+        const session = state.terminalSessions[index];
+        renderTerminal();
+        mountActiveTerminalSession(session);
+    }
+
+    function mountActiveTerminalSession(session) {
         const screen = shellPart('[data-terminal-screen]');
         if (screen) screen.innerHTML = '';
-        const session = state.terminalSessions[index];
-        if (session && session.term) {
-            const scr = shellPart('[data-terminal-screen]');
-            if (scr) session.term.open(scr);
+        if (session && session.term && screen) {
+            session.term.open(screen);
             if (session.fitAddon) session.fitAddon.fit();
             else if (state.fitAddon) state.fitAddon.fit();
         }
         state.terminal = session?.term || null;
         state.ws = session?.ws || null;
-        renderTerminal();
     }
 
     function addTerminalSession() {
@@ -2138,10 +2151,22 @@
         html = html.replace(/^[\-\*] (.+)$/gm, '<li>$1</li>');
         html = html.replace(/((?:<li>.*<\/li>\n?)+)/g, '<ul>$1</ul>');
         html = html.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
-        html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+        html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, label, href) => `<a href="${sanitizeMarkdownHref(href)}" target="_blank" rel="noopener">${label}</a>`);
         html = html.replace(/^(?!<[a-z/])((?!<).+)$/gm, '<p>$1</p>');
         html = html.replace(/<p>\s*<\/p>/g, '');
         return html;
+    }
+
+    function sanitizeMarkdownHref(rawHref) {
+        const href = String(rawHref || '').trim();
+        try {
+            const parsed = new URL(href, window.location.origin);
+            const protocol = parsed.protocol;
+            if (protocol === 'http:' || protocol === 'https:' || protocol === 'mailto:') {
+                return href;
+            }
+        } catch (_) {}
+        return '#';
     }
 
     function toggleAgentPanel() {

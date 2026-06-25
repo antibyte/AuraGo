@@ -122,8 +122,8 @@ registration lives in `internal/desktop/types.go`.
 ## Work Guidance
 
 - Files exceeding 1100 lines must be added to `knownOversizedContinuations` in
-  `ui/desktop_js_line_budget_test.go` (currently `galaxa-deluxe.js`,
-  `galaxa-entities.js`, `galaxa-render.js`).
+  `ui/desktop_js_line_budget_test.go`; use the map there as the current
+  source of truth for oversized continuation files.
 - Performance-sensitive Galaxa rendering respects the `ctx.settings.particles`
   setting (`low`/`medium`/`high`); particle/trail caps must scale accordingly.
 - Galaxa audio uses Web Audio API synthesis only (no sample files). New SFX

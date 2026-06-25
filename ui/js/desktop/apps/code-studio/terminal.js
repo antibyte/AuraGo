@@ -132,18 +132,21 @@
     function switchTerminalSession(index) {
         if (!state.terminalSessions || index < 0 || index >= state.terminalSessions.length) return;
         state.activeTerminalSession = index;
+        const session = state.terminalSessions[index];
+        renderTerminal();
+        mountActiveTerminalSession(session);
+    }
+
+    function mountActiveTerminalSession(session) {
         const screen = shellPart('[data-terminal-screen]');
         if (screen) screen.innerHTML = '';
-        const session = state.terminalSessions[index];
-        if (session && session.term) {
-            const scr = shellPart('[data-terminal-screen]');
-            if (scr) session.term.open(scr);
+        if (session && session.term && screen) {
+            session.term.open(screen);
             if (session.fitAddon) session.fitAddon.fit();
             else if (state.fitAddon) state.fitAddon.fit();
         }
         state.terminal = session?.term || null;
         state.ws = session?.ws || null;
-        renderTerminal();
     }
 
     function addTerminalSession() {

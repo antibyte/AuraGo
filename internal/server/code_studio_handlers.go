@@ -479,6 +479,24 @@ func (h codeStudioHandlers) handleDownload(w http.ResponseWriter, r *http.Reques
 		jsonError(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
+	statResult, err := h.docker.Exec(r.Context(), containerID, []string{"stat", "-c", "%s|%Y", path}, 30*time.Second)
+	if err != nil {
+		jsonError(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+	if statResult.ExitCode != 0 {
+		jsonError(w, strings.TrimSpace(statResult.Output), http.StatusBadRequest)
+		return
+	}
+	size, _, err := parseCodeStudioStatLine(strings.TrimSpace(statResult.Output))
+	if err != nil {
+		jsonError(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+	if size > h.maxFileSizeBytes() {
+		jsonError(w, "file exceeds configured maximum size", http.StatusRequestEntityTooLarge)
+		return
+	}
 	result, err := h.docker.Exec(r.Context(), containerID, []string{"base64", "-w0", path}, 30*time.Second)
 	if err != nil {
 		jsonError(w, err.Error(), http.StatusBadGateway)
@@ -632,10 +650,10 @@ func (h codeStudioHandlers) handleGitStatus(w http.ResponseWriter, r *http.Reque
 	logEntries := parseGitLog(logResult.Output)
 
 	writeJSON(w, map[string]interface{}{
-		"status":   "ok",
-		"branch":   branch,
-		"changes":  changes,
-		"log":      logEntries,
+		"status":  "ok",
+		"branch":  branch,
+		"changes": changes,
+		"log":     logEntries,
 	})
 }
 
@@ -732,6 +750,15 @@ func (h codeStudioHandlers) handleGitBranch(w http.ResponseWriter, r *http.Reque
 	}
 	name := strings.TrimSpace(r.URL.Query().Get("name"))
 	action := strings.TrimSpace(r.URL.Query().Get("action"))
+	mutating := name != "" && (action == "create" || action == "switch")
+	if mutating {
+		if !h.requirePermission(w, r, desktopScopeWrite) {
+			return
+		}
+		if h.rejectReadOnly(w) {
+			return
+		}
+	}
 
 	_, containerID, err := h.codeContainer(r.Context(), true)
 	if err != nil {
@@ -739,10 +766,7 @@ func (h codeStudioHandlers) handleGitBranch(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	if name != "" && (action == "create" || action == "switch") {
-		if !h.requirePermission(w, r, desktopScopeWrite) {
-			return
-		}
+	if mutating {
 		safeName := strings.ReplaceAll(name, "'", "'\\''")
 		cmd := "cd /workspace && git checkout "
 		if action == "create" {

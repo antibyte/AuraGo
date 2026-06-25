@@ -377,6 +377,7 @@
         }
         const instance = instances.get(windowId);
         if (!instance) return;
+        closeTerminalSessionSockets(instance);
         if (instance.ws && (typeof WebSocket === 'undefined' || instance.ws.readyState !== WebSocket.CLOSED)) {
             instance.ws.close();
         }
@@ -387,6 +388,15 @@
         instances.delete(windowId);
         if (state === instance) state = null;
         if (latestWindowId === windowId) latestWindowId = instances.size ? Array.from(instances.keys()).pop() : '';
+    }
+
+    function closeTerminalSessionSockets(instance) {
+        if (!instance || !Array.isArray(instance.terminalSessions)) return;
+        instance.terminalSessions.forEach(session => {
+            if (session && session.ws && (typeof WebSocket === 'undefined' || session.ws.readyState !== WebSocket.CLOSED)) {
+                session.ws.close();
+            }
+        });
     }
 
     async function prepareContainer(instance) {

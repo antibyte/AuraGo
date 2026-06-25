@@ -104,10 +104,22 @@
         html = html.replace(/^[\-\*] (.+)$/gm, '<li>$1</li>');
         html = html.replace(/((?:<li>.*<\/li>\n?)+)/g, '<ul>$1</ul>');
         html = html.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
-        html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+        html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, label, href) => `<a href="${sanitizeMarkdownHref(href)}" target="_blank" rel="noopener">${label}</a>`);
         html = html.replace(/^(?!<[a-z/])((?!<).+)$/gm, '<p>$1</p>');
         html = html.replace(/<p>\s*<\/p>/g, '');
         return html;
+    }
+
+    function sanitizeMarkdownHref(rawHref) {
+        const href = String(rawHref || '').trim();
+        try {
+            const parsed = new URL(href, window.location.origin);
+            const protocol = parsed.protocol;
+            if (protocol === 'http:' || protocol === 'https:' || protocol === 'mailto:') {
+                return href;
+            }
+        } catch (_) {}
+        return '#';
     }
 
     function toggleAgentPanel() {

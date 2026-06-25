@@ -3,6 +3,7 @@ package server
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/binary"
 	"log/slog"
 	"net/http"
@@ -14,6 +15,7 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/desktop"
 )
 
 func TestSanitizeCodeStudioPathRejectsTraversalAndEscapesWorkspace(t *testing.T) {
@@ -289,6 +291,57 @@ func TestCodeStudioTerminalRejectsUnauthenticatedBeforeUpgrade(t *testing.T) {
 	}
 }
 
+func TestCodeStudioDownloadRejectsFilesOverConfiguredLimit(t *testing.T) {
+	s := testCodeStudioServerWithFakeCodeContainer(t, 1)
+
+	docker := &recordingCodeStudioDockerAPI{
+		results: []codeStudioExecResult{
+			{ExitCode: 0, Output: "1048577|1710000000\n"},
+			{ExitCode: 0, Output: base64.StdEncoding.EncodeToString([]byte("should-not-read"))},
+		},
+	}
+	handler := codeStudioHandlers{server: s, docker: docker}
+	req := httptest.NewRequest(http.MethodGet, "/api/code-studio/download?path=/workspace/large.bin", nil)
+	rec := httptest.NewRecorder()
+
+	handler.handleDownload(rec, req)
+
+	if rec.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusRequestEntityTooLarge, rec.Body.String())
+	}
+	if len(docker.commands) != 1 {
+		t.Fatalf("docker exec calls = %d, want 1; commands=%v", len(docker.commands), docker.commands)
+	}
+	if joined := strings.Join(docker.commands[0], " "); !strings.Contains(joined, "stat") || strings.Contains(joined, "base64") {
+		t.Fatalf("first download command = %q, want stat-only size probe", joined)
+	}
+}
+
+func TestCodeStudioDownloadStillStreamsFilesWithinConfiguredLimit(t *testing.T) {
+	s := testCodeStudioServerWithFakeCodeContainer(t, 1)
+	docker := &recordingCodeStudioDockerAPI{
+		results: []codeStudioExecResult{
+			{ExitCode: 0, Output: "5|1710000000\n"},
+			{ExitCode: 0, Output: base64.StdEncoding.EncodeToString([]byte("hello"))},
+		},
+	}
+	handler := codeStudioHandlers{server: s, docker: docker}
+	req := httptest.NewRequest(http.MethodGet, "/api/code-studio/download?path=/workspace/hello.txt", nil)
+	rec := httptest.NewRecorder()
+
+	handler.handleDownload(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	if rec.Body.String() != "hello" {
+		t.Fatalf("body = %q, want hello", rec.Body.String())
+	}
+	if len(docker.commands) != 2 {
+		t.Fatalf("docker exec calls = %d, want 2; commands=%v", len(docker.commands), docker.commands)
+	}
+}
+
 func TestCodeStudioDefaultImageDoesNotRequireDockerAPIBuild(t *testing.T) {
 	source, err := os.ReadFile("code_studio_docker_adapter.go")
 	if err != nil {
@@ -363,6 +416,33 @@ func testCodeStudioServer(t *testing.T) *Server {
 	return &Server{Cfg: cfg, Logger: slog.Default()}
 }
 
+func testCodeStudioServerWithFakeCodeContainer(t *testing.T, maxFileSizeMB int) *Server {
+	t.Helper()
+	s := testCodeStudioServer(t)
+	s.Cfg.Auth.Enabled = false
+	s.Cfg.VirtualDesktop.MaxFileSizeMB = maxFileSizeMB
+	svc, err := desktop.NewService(desktop.ConfigFromAuraConfig(s.Cfg))
+	if err != nil {
+		t.Fatalf("NewService: %v", err)
+	}
+	t.Cleanup(func() { _ = svc.Close() })
+	normalized := svc.Config()
+	s.Cfg.VirtualDesktop.WorkspaceDir = normalized.WorkspaceDir
+	s.Cfg.SQLite.VirtualDesktopPath = normalized.DBPath
+	s.Cfg.Directories.DataDir = normalized.DataDir
+	s.Cfg.Tools.DocumentCreator.OutputDir = normalized.DocumentDir
+	s.Cfg.SQLite.MediaRegistryPath = normalized.MediaRegistryPath
+	s.Cfg.SQLite.ImageGalleryPath = normalized.ImageGalleryPath
+	svc.CodeContainer().SetDockerClient(&fakeServerCodeContainerDocker{
+		containers: []desktop.CodeDockerContainer{{ID: "code-1", Names: []string{"/aurago-code-studio"}}},
+		inspectByName: map[string]desktop.CodeDockerInspect{
+			"code-1": {ID: "code-1", Name: "/aurago-code-studio", State: desktop.CodeDockerState{Running: true}},
+		},
+	})
+	s.DesktopService = svc
+	return s
+}
+
 type fakeCodeStudioDockerAPI struct{}
 
 func (fakeCodeStudioDockerAPI) Exec(ctx context.Context, containerID string, cmd []string, timeout time.Duration) (codeStudioExecResult, error) {
@@ -379,4 +459,60 @@ func (fakeCodeStudioDockerAPI) StartExec(ctx context.Context, execID string) ([]
 
 func (fakeCodeStudioDockerAPI) ResizeExec(ctx context.Context, execID string, cols, rows int) error {
 	return nil
+}
+
+type recordingCodeStudioDockerAPI struct {
+	commands [][]string
+	results  []codeStudioExecResult
+}
+
+func (f *recordingCodeStudioDockerAPI) Exec(ctx context.Context, containerID string, cmd []string, timeout time.Duration) (codeStudioExecResult, error) {
+	f.commands = append(f.commands, append([]string(nil), cmd...))
+	if len(f.results) == 0 {
+		return codeStudioExecResult{}, nil
+	}
+	result := f.results[0]
+	f.results = f.results[1:]
+	return result, nil
+}
+
+func (f *recordingCodeStudioDockerAPI) CreateTerminalExec(context.Context, string, int, int) (string, error) {
+	return "exec-id", nil
+}
+
+func (f *recordingCodeStudioDockerAPI) StartExec(context.Context, string) ([]byte, error) {
+	return nil, nil
+}
+
+func (f *recordingCodeStudioDockerAPI) ResizeExec(context.Context, string, int, int) error {
+	return nil
+}
+
+type fakeServerCodeContainerDocker struct {
+	containers    []desktop.CodeDockerContainer
+	inspectByName map[string]desktop.CodeDockerInspect
+}
+
+func (f *fakeServerCodeContainerDocker) ListContainers(ctx context.Context, all bool) ([]desktop.CodeDockerContainer, error) {
+	return append([]desktop.CodeDockerContainer(nil), f.containers...), nil
+}
+
+func (f *fakeServerCodeContainerDocker) InspectContainer(ctx context.Context, container string) (desktop.CodeDockerInspect, error) {
+	return f.inspectByName[container], nil
+}
+
+func (f *fakeServerCodeContainerDocker) EnsureImage(context.Context, string) error {
+	return nil
+}
+
+func (f *fakeServerCodeContainerDocker) CreateContainer(context.Context, desktop.CodeDockerCreateRequest) (string, error) {
+	return "code-1", nil
+}
+
+func (f *fakeServerCodeContainerDocker) ContainerAction(context.Context, string, string) error {
+	return nil
+}
+
+func (f *fakeServerCodeContainerDocker) ExecContainer(context.Context, string, []string, string, time.Duration) (desktop.CodeDockerExecResult, error) {
+	return desktop.CodeDockerExecResult{}, nil
 }

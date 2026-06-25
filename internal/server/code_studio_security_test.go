@@ -32,6 +32,8 @@ func TestCodeStudioReadonlyBlocksMutatingHandlers(t *testing.T) {
 		{"delete", h.handleFile, httptest.NewRequest(http.MethodDelete, "/api/code-studio/file?path=/workspace/a.txt", nil)},
 		{"directory", h.handleDirectory, httptest.NewRequest(http.MethodPost, "/api/code-studio/directory", strings.NewReader(`{"path":"/workspace/new"}`))},
 		{"exec", h.handleExec, httptest.NewRequest(http.MethodPost, "/api/code-studio/exec", strings.NewReader(`{"command":"go","args":["test"]}`))},
+		{"git branch create", h.handleGitBranch, httptest.NewRequest(http.MethodGet, "/api/code-studio/git/branch?name=feature&action=create", nil)},
+		{"git branch switch", h.handleGitBranch, httptest.NewRequest(http.MethodGet, "/api/code-studio/git/branch?name=main&action=switch", nil)},
 	}
 
 	for _, tt := range tests {

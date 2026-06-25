@@ -34,6 +34,9 @@ func TestCodeStudioUsesPerWindowStateAndClosesTerminal(t *testing.T) {
 		"registerDisposer(() => cleanup(''))",
 		"registerDisposer(() => cleanup(false))",
 		"term.dispose()",
+		"closeTerminalSessionSockets(instance);",
+		"function closeTerminalSessionSockets(instance)",
+		"session.ws.close()",
 		"terminalDisposed",
 		"state.disposers.push(() => {",
 		"document.removeEventListener('mousedown'",
@@ -62,6 +65,43 @@ func TestCodeStudioUsesPerWindowStateAndClosesTerminal(t *testing.T) {
 	}
 	if !strings.Contains(source, "window.CodeStudio = window.CodeStudioApp") {
 		t.Fatalf("Code Studio compatibility export missing")
+	}
+}
+
+func TestCodeStudioMarkdownLinksRejectUnsafeProtocols(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/apps/code-studio.js")
+	for _, marker := range []string{
+		"function sanitizeMarkdownHref(rawHref)",
+		"protocol === 'http:' || protocol === 'https:' || protocol === 'mailto:'",
+		"href=\"${sanitizeMarkdownHref(href)}\"",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("Code Studio markdown link sanitizer missing marker %q", marker)
+		}
+	}
+	if strings.Contains(source, `'<a href="$2" target="_blank" rel="noopener">$1</a>'`) {
+		t.Fatalf("Code Studio markdown renderer must not emit raw hrefs from agent text")
+	}
+}
+
+func TestCodeStudioTerminalSwitchPreservesMountedSession(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/apps/code-studio.js")
+	for _, marker := range []string{
+		"function mountActiveTerminalSession(session)",
+		"mountActiveTerminalSession(session);",
+		"renderTerminal();",
+		"connectTerminalSession(index, screen, label);",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("Code Studio terminal lifecycle missing marker %q", marker)
+		}
+	}
+	if strings.Contains(source, "state.ws = session?.ws || null;\n        renderTerminal();") {
+		t.Fatalf("Code Studio terminal switch must not rerender after mounting an existing xterm session")
 	}
 }
 
