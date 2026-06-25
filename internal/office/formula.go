@@ -519,34 +519,6 @@ func (p *formulaParser) collectRange(startRef, endRef string) ([]formulaResult, 
 	return elements, nil
 }
 
-func (p *formulaParser) rangeValueArray(startRef, endRef string) ([][]formulaResult, error) {
-	startCol, startRow, err := parseFormulaCellRef(startRef)
-	if err != nil {
-		return nil, err
-	}
-	endCol, endRow, err := parseFormulaCellRef(endRef)
-	if err != nil {
-		return nil, err
-	}
-	if endCol < startCol || endRow < startRow {
-		return nil, nil
-	}
-	var rows [][]formulaResult
-	for row := startRow; row <= endRow; row++ {
-		r := make([]formulaResult, 0, endCol-startCol+1)
-		for col := startCol; col <= endCol; col++ {
-			ref := formulaCellName(col, row)
-			result, err := p.cellResult(ref)
-			if err != nil {
-				return nil, err
-			}
-			r = append(r, result)
-		}
-		rows = append(rows, r)
-	}
-	return rows, nil
-}
-
 func (p *formulaParser) cellResult(ref string) (formulaResult, error) {
 	col, row, err := parseFormulaCellRef(ref)
 	if err != nil {

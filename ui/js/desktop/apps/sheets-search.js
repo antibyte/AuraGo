@@ -40,12 +40,12 @@
             performSearch(state, gridHost, workbook, getActiveSheet(), t, countSpan);
         });
         searchInput.addEventListener('keydown', e => {
-            if (e.key === 'Enter') { e.preventDefault(); navigateNext(state, countSpan, t, onSelectCell); }
+            if (e.key === 'Enter') { e.preventDefault(); navigateNext(state, gridHost, countSpan, t, onSelectCell); }
             if (e.key === 'Escape') { closeInstance(state); }
         });
 
-        overlay.querySelector('[data-action="find-next"]').addEventListener('click', () => navigateNext(state, countSpan, t, onSelectCell));
-        overlay.querySelector('[data-action="find-prev"]').addEventListener('click', () => navigatePrev(state, countSpan, t, onSelectCell));
+        overlay.querySelector('[data-action="find-next"]').addEventListener('click', () => navigateNext(state, gridHost, countSpan, t, onSelectCell));
+        overlay.querySelector('[data-action="find-prev"]').addEventListener('click', () => navigatePrev(state, gridHost, countSpan, t, onSelectCell));
         overlay.querySelector('[data-action="close"]').addEventListener('click', () => closeInstance(state));
         overlay.querySelector('[data-action="replace"]').addEventListener('click', () => replaceCurrent(state, gridHost, workbook, getActiveSheet(), overlay, countSpan, t, onSelectCell));
         overlay.querySelector('[data-action="replace-all"]').addEventListener('click', () => replaceAll(state, gridHost, workbook, getActiveSheet(), overlay, countSpan, t));
@@ -64,7 +64,6 @@
         state.query = '';
         state.matchCase = false;
         state.callbacks = null;
-        document.querySelectorAll('.office-cell-search-match').forEach(el => el.classList.remove('office-cell-search-match'));
     }
 
     function closeSearch() {
@@ -73,7 +72,7 @@
     }
 
     function performSearch(state, gridHost, workbook, activeSheet, t, countSpan) {
-        document.querySelectorAll('.office-cell-search-match').forEach(el => el.classList.remove('office-cell-search-match'));
+        gridHost.querySelectorAll('.office-cell-search-match').forEach(el => el.classList.remove('office-cell-search-match'));
         state.matches = [];
         state.current = -1;
         if (!state.query) {
@@ -106,23 +105,23 @@
         }
     }
 
-    function navigateNext(state, countSpan, t, onSelectCell) {
+    function navigateNext(state, gridHost, countSpan, t, onSelectCell) {
         if (!state.matches.length) return;
         state.current = (state.current + 1) % state.matches.length;
-        highlightCurrent(state, countSpan, t, onSelectCell);
+        highlightCurrent(state, gridHost, countSpan, t, onSelectCell);
     }
 
-    function navigatePrev(state, countSpan, t, onSelectCell) {
+    function navigatePrev(state, gridHost, countSpan, t, onSelectCell) {
         if (!state.matches.length) return;
         state.current = (state.current - 1 + state.matches.length) % state.matches.length;
-        highlightCurrent(state, countSpan, t, onSelectCell);
+        highlightCurrent(state, gridHost, countSpan, t, onSelectCell);
     }
 
-    function highlightCurrent(state, countSpan, t, onSelectCell) {
+    function highlightCurrent(state, gridHost, countSpan, t, onSelectCell) {
         if (countSpan) countSpan.textContent = (state.current + 1) + ' of ' + state.matches.length;
         const match = state.matches[state.current];
         if (!match) return;
-        const input = document.querySelector(`input[data-row="${match.row}"][data-col="${match.col}"]`);
+        const input = gridHost.querySelector(`input[data-row="${match.row}"][data-col="${match.col}"]`);
         if (input) { input.focus(); input.select(); }
         if (typeof onSelectCell === 'function') onSelectCell(match.row, match.col);
     }

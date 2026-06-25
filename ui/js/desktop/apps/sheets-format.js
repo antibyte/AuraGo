@@ -184,7 +184,6 @@
         if (!hasTop && hasBottom && !hasLeft && !hasRight) return 'bottom';
         if (!hasTop && !hasBottom && hasLeft && !hasRight) return 'left';
         if (!hasTop && !hasBottom && !hasLeft && hasRight) return 'right';
-        if (hasTop && hasBottom && hasLeft && hasRight) return 'all';
         return '';
     }
 

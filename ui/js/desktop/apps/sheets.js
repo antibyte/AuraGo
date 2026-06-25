@@ -549,7 +549,15 @@
                     pushSnapshot: pushSnapshot,
                     setDirty: setDirty
                 });
-                if (inst) inst.closeSearch = () => searchModule.closeSearch();
+                if (inst) {
+                    inst.searchState = searchState;
+                    inst.closeSearch = () => {
+                        if (searchState && searchState.overlay) {
+                            searchState.overlay.remove();
+                            searchState.overlay = null;
+                        }
+                    };
+                }
             }
         }
 
