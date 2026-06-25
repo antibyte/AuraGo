@@ -67,7 +67,7 @@ func handleIndexingDirectories(s *Server) http.HandlerFunc {
 		switch r.Method {
 		case http.MethodGet:
 			s.CfgMu.RLock()
-			dirs := s.Cfg.Indexing.Directories
+			dirs := append([]config.IndexingDirectory(nil), s.Cfg.Indexing.Directories...)
 			s.CfgMu.RUnlock()
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(map[string]interface{}{"directories": dirs})
@@ -86,8 +86,14 @@ func handleIndexingDirectories(s *Server) http.HandlerFunc {
 				return
 			}
 
+			s.CfgMu.RLock()
+			configPath := s.Cfg.ConfigPath
+			enabled := s.Cfg.Indexing.Enabled
+			currentDirs := append([]config.IndexingDirectory(nil), s.Cfg.Indexing.Directories...)
+			s.CfgMu.RUnlock()
+
 			// Resolve path relative to config dir
-			configDir := filepath.Dir(s.Cfg.ConfigPath)
+			configDir := filepath.Dir(configPath)
 			absPath := resolveIndexingRequestPath(configDir, req.Path)
 			if isRootIndexingPath(absPath) {
 				jsonError(w, "Root directories cannot be indexed", http.StatusBadRequest)
@@ -95,35 +101,35 @@ func handleIndexingDirectories(s *Server) http.HandlerFunc {
 			}
 
 			// Check for duplicates
-			s.CfgMu.RLock()
-			for _, d := range s.Cfg.Indexing.Directories {
+			for _, d := range currentDirs {
 				if sameIndexingPath(d.Path, absPath) {
-					s.CfgMu.RUnlock()
 					jsonError(w, "Verzeichnis bereits in der Liste", http.StatusConflict)
 					return
 				}
 			}
-			s.CfgMu.RUnlock()
+
+			newDirs := append(currentDirs, config.IndexingDirectory{
+				Path:       absPath,
+				Collection: strings.TrimSpace(req.Collection),
+			})
+
+			// Persist to YAML
+			if err := patchIndexingDirs(s, newDirs, enabled); err != nil {
+				s.Logger.Error("[Indexer] Failed to persist directory change", "error", err)
+				jsonError(w, "Failed to save config", http.StatusInternalServerError)
+				return
+			}
 
 			// Create directory if it doesn't exist
 			if err := os.MkdirAll(absPath, 0755); err != nil {
 				s.Logger.Warn("[Indexer] Failed to create directory", "path", absPath, "error", err)
 			}
 
-			// Update config
+			// Update runtime config only after successful persistence.
 			s.CfgMu.Lock()
-			s.Cfg.Indexing.Directories = append(s.Cfg.Indexing.Directories, config.IndexingDirectory{
-				Path:       absPath,
-				Collection: strings.TrimSpace(req.Collection),
-			})
+			s.Cfg.Indexing.Directories = newDirs
+			s.Cfg.Indexing.Enabled = enabled
 			s.CfgMu.Unlock()
-
-			// Persist to YAML
-			if err := patchIndexingDirs(s); err != nil {
-				s.Logger.Error("[Indexer] Failed to persist directory change", "error", err)
-				jsonError(w, "Failed to save config", http.StatusInternalServerError)
-				return
-			}
 
 			// Trigger rescan
 			if s.FileIndexer != nil {
@@ -146,14 +152,19 @@ func handleIndexingDirectories(s *Server) http.HandlerFunc {
 				return
 			}
 
-			configDir := filepath.Dir(s.Cfg.ConfigPath)
+			s.CfgMu.RLock()
+			configPath := s.Cfg.ConfigPath
+			enabled := s.Cfg.Indexing.Enabled
+			currentDirs := append([]config.IndexingDirectory(nil), s.Cfg.Indexing.Directories...)
+			s.CfgMu.RUnlock()
+
+			configDir := filepath.Dir(configPath)
 			absPath := resolveIndexingRequestPath(configDir, req.Path)
 
-			s.CfgMu.Lock()
-			newDirs := make([]config.IndexingDirectory, 0, len(s.Cfg.Indexing.Directories))
+			newDirs := make([]config.IndexingDirectory, 0, len(currentDirs))
 			found := false
 			var removed config.IndexingDirectory
-			for _, d := range s.Cfg.Indexing.Directories {
+			for _, d := range currentDirs {
 				if sameIndexingPath(d.Path, absPath) {
 					found = true
 					removed = d
@@ -162,19 +173,21 @@ func handleIndexingDirectories(s *Server) http.HandlerFunc {
 				newDirs = append(newDirs, d)
 			}
 			if !found {
-				s.CfgMu.Unlock()
 				jsonError(w, "Verzeichnis nicht gefunden", http.StatusNotFound)
 				return
 			}
-			s.Cfg.Indexing.Directories = newDirs
-			s.CfgMu.Unlock()
 
 			// Persist
-			if err := patchIndexingDirs(s); err != nil {
+			if err := patchIndexingDirs(s, newDirs, enabled); err != nil {
 				s.Logger.Error("[Indexer] Failed to persist directory change", "error", err)
 				jsonError(w, "Failed to save config", http.StatusInternalServerError)
 				return
 			}
+
+			s.CfgMu.Lock()
+			s.Cfg.Indexing.Directories = newDirs
+			s.Cfg.Indexing.Enabled = enabled
+			s.CfgMu.Unlock()
 
 			cleanupErrors := []string{}
 			if s.FileIndexer != nil {
@@ -194,9 +207,15 @@ func handleIndexingDirectories(s *Server) http.HandlerFunc {
 	}
 }
 
-// patchIndexingDirs persists the current indexing directories to config.yaml.
-func patchIndexingDirs(s *Server) error {
+// patchIndexingDirs persists indexing directories to config.yaml.
+func patchIndexingDirs(s *Server, dirs []config.IndexingDirectory, enabled bool) error {
+	s.CfgSaveMu.Lock()
+	defer s.CfgSaveMu.Unlock()
+
+	s.CfgMu.RLock()
 	configPath := s.Cfg.ConfigPath
+	s.CfgMu.RUnlock()
+
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		return err
@@ -209,10 +228,6 @@ func patchIndexingDirs(s *Server) error {
 
 	// Build relative paths for storage in YAML (cleaner than absolute)
 	configDir := filepath.Dir(configPath)
-	s.CfgMu.RLock()
-	dirs := make([]config.IndexingDirectory, len(s.Cfg.Indexing.Directories))
-	copy(dirs, s.Cfg.Indexing.Directories)
-	s.CfgMu.RUnlock()
 
 	relDirs := make([]interface{}, len(dirs))
 	for i, d := range dirs {
@@ -234,7 +249,7 @@ func patchIndexingDirs(s *Server) error {
 		rawCfg["indexing"] = indexing
 	}
 	indexing["directories"] = relDirs
-	indexing["enabled"] = true
+	indexing["enabled"] = enabled
 
 	out, err := yaml.Marshal(rawCfg)
 	if err != nil {

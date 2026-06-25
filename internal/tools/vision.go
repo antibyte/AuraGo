@@ -2,6 +2,7 @@ package tools
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -21,6 +22,15 @@ const DefaultVisionModel = "google/gemini-2.0-flash-001"
 // AnalyzeImageWithPrompt sends an image file to the configured Vision LLM for analysis.
 // The prompt parameter controls what the model should focus on.
 func AnalyzeImageWithPrompt(filePath, prompt string, cfg *config.Config) (string, int, int, error) {
+	return AnalyzeImageWithPromptContext(context.Background(), filePath, prompt, cfg)
+}
+
+// AnalyzeImageWithPromptContext sends an image file to the configured Vision LLM
+// and binds the provider request to ctx.
+func AnalyzeImageWithPromptContext(ctx context.Context, filePath, prompt string, cfg *config.Config) (string, int, int, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	resolvedPath, err := resolveToolInputPath(filePath, cfg)
 	if err != nil {
 		return "", 0, 0, fmt.Errorf("invalid image file path: %w", err)
@@ -115,7 +125,7 @@ func AnalyzeImageWithPrompt(filePath, prompt string, cfg *config.Config) (string
 	}
 
 	reqURL := baseURL + "/chat/completions"
-	req, err := http.NewRequest("POST", reqURL, bytes.NewBuffer(jsonData))
+	req, err := http.NewRequestWithContext(ctx, "POST", reqURL, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return "", 0, 0, fmt.Errorf("failed to create vision request: %w", err)
 	}

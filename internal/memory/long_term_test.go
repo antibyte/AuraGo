@@ -637,6 +637,92 @@ func TestIndexDirectoryRemovesDeletedTrackedMarkdownFiles(t *testing.T) {
 	}
 }
 
+func TestIndexDirectoryReindexesWhenMarkdownContentChangesWithSameModTime(t *testing.T) {
+	var calls atomic.Int32
+	cv := newTestChromemVectorDB(t, func(_ context.Context, _ string) ([]float32, error) {
+		calls.Add(1)
+		return []float32{0.1, 0.2, 0.3}, nil
+	})
+	dir := t.TempDir()
+	path := filepath.Join(dir, "guide.md")
+	modTime := time.Now().UTC().Add(-time.Minute).Truncate(time.Second)
+	if err := os.WriteFile(path, []byte("first markdown body"), 0o644); err != nil {
+		t.Fatalf("write first guide: %v", err)
+	}
+	if err := os.Chtimes(path, modTime, modTime); err != nil {
+		t.Fatalf("Chtimes first guide: %v", err)
+	}
+
+	stm, err := NewSQLiteMemory(":memory:", slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	defer stm.Close()
+
+	if err := cv.IndexDirectory(dir, "docs", stm, false); err != nil {
+		t.Fatalf("IndexDirectory initial: %v", err)
+	}
+	initialCalls := calls.Load()
+	if initialCalls == 0 {
+		t.Fatal("expected initial indexing to call embedding function")
+	}
+
+	if err := os.WriteFile(path, []byte("second markdown body with same timestamp"), 0o644); err != nil {
+		t.Fatalf("write second guide: %v", err)
+	}
+	if err := os.Chtimes(path, modTime, modTime); err != nil {
+		t.Fatalf("Chtimes second guide: %v", err)
+	}
+
+	if err := cv.IndexDirectory(dir, "docs", stm, false); err != nil {
+		t.Fatalf("IndexDirectory second: %v", err)
+	}
+	if got := calls.Load(); got <= initialCalls {
+		t.Fatalf("embedding calls = %d after content change, want > %d", got, initialCalls)
+	}
+}
+
+func TestIndexDirectorySkipsSymlinkedMarkdownAndCleansTracking(t *testing.T) {
+	var calls atomic.Int32
+	cv := newTestChromemVectorDB(t, func(_ context.Context, _ string) ([]float32, error) {
+		calls.Add(1)
+		return []float32{0.1, 0.2, 0.3}, nil
+	})
+	dir := t.TempDir()
+	outsideDir := t.TempDir()
+	target := filepath.Join(outsideDir, "outside.md")
+	if err := os.WriteFile(target, []byte("outside markdown"), 0o644); err != nil {
+		t.Fatalf("write target: %v", err)
+	}
+	linkPath := filepath.Join(dir, "linked.md")
+	if err := os.Symlink(target, linkPath); err != nil {
+		t.Skipf("symlink creation unavailable: %v", err)
+	}
+
+	stm, err := NewSQLiteMemory(":memory:", slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	defer stm.Close()
+	if err := stm.UpdateFileIndexWithDocsAndState(linkPath, "docs", time.Now().UTC(), "old-hash", "old-fingerprint", []string{"old-doc"}); err != nil {
+		t.Fatalf("UpdateFileIndexWithDocsAndState: %v", err)
+	}
+
+	if err := cv.IndexDirectory(dir, "docs", stm, false); err != nil {
+		t.Fatalf("IndexDirectory: %v", err)
+	}
+	if got := calls.Load(); got != 0 {
+		t.Fatalf("embedding calls = %d, want 0 for symlinked markdown", got)
+	}
+	paths, err := stm.ListIndexedFiles("docs")
+	if err != nil {
+		t.Fatalf("ListIndexedFiles: %v", err)
+	}
+	if len(paths) != 0 {
+		t.Fatalf("tracked files after symlink cleanup = %v, want none", paths)
+	}
+}
+
 func TestIndexDirectoryAfterCloseReturnsVectorDBClosed(t *testing.T) {
 	cv := newTestChromemVectorDB(t, func(_ context.Context, _ string) ([]float32, error) {
 		return []float32{0.1, 0.2, 0.3}, nil

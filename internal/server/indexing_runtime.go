@@ -12,7 +12,10 @@ import (
 
 func (s *Server) restartFileIndexer(cfg *config.Config) {
 	if s.FileIndexer != nil {
-		s.FileIndexer.Stop()
+		if !s.FileIndexer.Stop() {
+			s.Logger.Warn("[Indexer] Existing file indexer did not stop; aborting restart")
+			return
+		}
 		s.FileIndexer = nil
 	}
 	if cfg == nil || !cfg.Indexing.Enabled {

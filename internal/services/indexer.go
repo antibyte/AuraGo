@@ -4,7 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"errors"
+	stderrors "errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -22,7 +22,7 @@ import (
 // IndexerCollection is the default collection name for file indexing.
 const IndexerCollection = "file_index"
 
-const fileIndexerFingerprint = "file-indexer-v2"
+const fileIndexerFingerprint = "file-indexer-v3"
 
 // Retry constants for indexing operations (aligned with KnowledgeGraph retry pattern).
 const (
@@ -50,6 +50,8 @@ type FileIndexer struct {
 	stm               *memory.SQLiteMemory
 	logger            *slog.Logger
 	cancel            context.CancelFunc
+	runCtx            context.Context
+	runToken          *struct{}
 	lifecycleMu       sync.Mutex
 	runWg             sync.WaitGroup
 	scanMu            sync.Mutex
@@ -79,8 +81,20 @@ func NewFileIndexer(cfg *config.Config, cfgMu *sync.RWMutex, vectorDB memory.Vec
 // Start begins the indexing loop. It performs an initial scan and then polls
 // at the configured interval.
 func (fi *FileIndexer) Start(ctx context.Context) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	fi.lifecycleMu.Lock()
-	ctx, fi.cancel = context.WithCancel(ctx)
+	if fi.cancel != nil {
+		fi.lifecycleMu.Unlock()
+		fi.logger.Info("[Indexer] Start requested while file indexer is already running")
+		return
+	}
+	runCtx, cancel := context.WithCancel(ctx)
+	runToken := &struct{}{}
+	fi.runCtx = runCtx
+	fi.cancel = cancel
+	fi.runToken = runToken
 	fi.lifecycleMu.Unlock()
 
 	fi.logger.Info("[Indexer] Starting file indexer",
@@ -100,33 +114,44 @@ func (fi *FileIndexer) Start(ctx context.Context) {
 	fi.runWg.Add(1)
 	go func() {
 		defer fi.runWg.Done()
-		fi.scan()
+		defer func() {
+			fi.lifecycleMu.Lock()
+			if fi.runToken == runToken {
+				fi.cancel = nil
+				fi.runCtx = nil
+				fi.runToken = nil
+			}
+			fi.lifecycleMu.Unlock()
+		}()
+		fi.scan(runCtx)
 
 		ticker := time.NewTicker(fi.pollInterval())
 		defer ticker.Stop()
 		for {
 			select {
-			case <-ctx.Done():
+			case <-runCtx.Done():
 				fi.mu.Lock()
 				fi.status.Running = false
 				fi.mu.Unlock()
 				fi.logger.Info("[Indexer] File indexer stopped")
 				return
 			case <-ticker.C:
-				fi.scan()
+				fi.scan(runCtx)
 			}
 		}
 	}()
 }
 
 // Stop gracefully stops the indexer.
-func (fi *FileIndexer) Stop() {
+func (fi *FileIndexer) Stop() bool {
 	fi.lifecycleMu.Lock()
 	cancel := fi.cancel
 	fi.lifecycleMu.Unlock()
 
 	if cancel != nil {
 		cancel()
+	} else {
+		return true
 	}
 
 	done := make(chan struct{})
@@ -136,8 +161,10 @@ func (fi *FileIndexer) Stop() {
 	}()
 	select {
 	case <-done:
+		return true
 	case <-time.After(fileIndexerStopWait):
 		fi.logger.Warn("[Indexer] Timed out waiting for file indexer to stop", "timeout", fileIndexerStopWait)
+		return false
 	}
 }
 
@@ -158,7 +185,13 @@ func (fi *FileIndexer) Status() IndexerStatus {
 
 // Rescan triggers an immediate full rescan of all directories.
 func (fi *FileIndexer) Rescan() {
-	go fi.scan()
+	ctx := context.Background()
+	fi.lifecycleMu.Lock()
+	if fi.runCtx != nil {
+		ctx = fi.runCtx
+	}
+	fi.lifecycleMu.Unlock()
+	go fi.scan(ctx)
 }
 
 // ensureDirectories creates any missing configured directories.
@@ -171,7 +204,13 @@ func (fi *FileIndexer) ensureDirectories() {
 }
 
 // scan walks all configured directories and indexes new/changed files.
-func (fi *FileIndexer) scan() {
+func (fi *FileIndexer) scan(ctx context.Context) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return
+	}
 	if !fi.scanMu.TryLock() {
 		fi.logger.Info("[Indexer] Scan already running, skipping overlapping request")
 		return
@@ -189,8 +228,11 @@ func (fi *FileIndexer) scan() {
 
 	if fi.vectorDB.IsDisabled() {
 		for _, indexingDir := range dirs {
+			if err := ctx.Err(); err != nil {
+				break
+			}
 			dirPaths = append(dirPaths, indexingDir.Path)
-			nTotal, errs := fi.countIndexableFiles(indexingDir.Path)
+			nTotal, errs := fi.countIndexableFiles(ctx, indexingDir.Path)
 			totalFiles += nTotal
 			scanErrors = append(scanErrors, errs...)
 		}
@@ -211,9 +253,12 @@ func (fi *FileIndexer) scan() {
 	}
 
 	for _, indexingDir := range dirs {
+		if err := ctx.Err(); err != nil {
+			break
+		}
 		dirPaths = append(dirPaths, indexingDir.Path)
 		collection := getDirCollection(indexingDir)
-		nTotal, nIndexed, errs := fi.scanDirectory(indexingDir.Path, collection)
+		nTotal, nIndexed, errs := fi.scanDirectory(ctx, indexingDir.Path, collection)
 		totalFiles += nTotal
 		indexedFiles += nIndexed
 		scanErrors = append(scanErrors, errs...)
@@ -242,7 +287,13 @@ func (fi *FileIndexer) scan() {
 	}
 }
 
-func (fi *FileIndexer) countIndexableFiles(dir string) (int, []string) {
+func (fi *FileIndexer) countIndexableFiles(ctx context.Context, dir string) (int, []string) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return 0, nil
+	}
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		return 0, nil
 	}
@@ -250,8 +301,15 @@ func (fi *FileIndexer) countIndexableFiles(dir string) (int, []string) {
 	var total int
 	var errors []string
 	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return ctxErr
+		}
 		if err != nil {
 			errors = append(errors, fmt.Sprintf("walk error %s: %v", path, err))
+			return nil
+		}
+		if isSymlink(info) {
+			fi.logger.Debug("[Indexer] Skipping symlink", "path", path)
 			return nil
 		}
 		if info.IsDir() {
@@ -278,7 +336,7 @@ func (fi *FileIndexer) countIndexableFiles(dir string) (int, []string) {
 		}
 		return nil
 	})
-	if err != nil {
+	if err != nil && !stderrors.Is(err, context.Canceled) {
 		errors = append(errors, fmt.Sprintf("walk error %s: %v", dir, err))
 	}
 	return total, errors
@@ -294,7 +352,13 @@ func getDirCollection(dir config.IndexingDirectory) string {
 }
 
 // scanDirectory walks a single directory (recursively) and indexes supported files.
-func (fi *FileIndexer) scanDirectory(dir, collection string) (totalFiles, indexedFiles int, errors []string) {
+func (fi *FileIndexer) scanDirectory(ctx context.Context, dir, collection string) (totalFiles, indexedFiles int, errors []string) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return 0, 0, nil
+	}
 	trackedPaths, trackedErr := fi.stm.ListIndexedFiles(collection)
 	if trackedErr != nil {
 		errors = append(errors, fmt.Sprintf("list indexed files %s: %v", dir, trackedErr))
@@ -308,9 +372,16 @@ func (fi *FileIndexer) scanDirectory(dir, collection string) (totalFiles, indexe
 	}
 
 	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return ctxErr
+		}
 		if err != nil {
 			errors = append(errors, fmt.Sprintf("walk error %s: %v", path, err))
 			return nil // continue walking
+		}
+		if isSymlink(info) {
+			fi.logger.Debug("[Indexer] Skipping symlink", "path", path)
+			return nil
 		}
 
 		// Skip directories and hidden files/folders
@@ -355,6 +426,22 @@ func (fi *FileIndexer) scanDirectory(dir, collection string) (totalFiles, indexe
 		totalFiles++
 		seenPaths[path] = struct{}{}
 
+		indexMode := fi.indexModeForFile(ext, isImage, isAudio, multimodal)
+		rawHash, hashErr := hashIndexedFileBytes(path)
+		if hashErr != nil {
+			errors = append(errors, fmt.Sprintf("hash error %s: %v", path, hashErr))
+			return nil
+		}
+		indexFingerprint := fi.indexFingerprintForMode(indexMode)
+		indexState, stateErr := fi.stm.GetFileIndexState(path, collection)
+		if stateErr != nil {
+			errors = append(errors, fmt.Sprintf("get file index %s: %v", path, stateErr))
+			return nil
+		}
+		if !shouldReindexFile(info.ModTime(), rawHash, indexFingerprint, indexState) {
+			return nil
+		}
+
 		// Build relative path for concept
 		relPath, _ := filepath.Rel(dir, path)
 		if relPath == "" {
@@ -371,8 +458,8 @@ func (fi *FileIndexer) scanDirectory(dir, collection string) (totalFiles, indexe
 				errors = append(errors, fmt.Sprintf("multimodal embedder unavailable for %s", path))
 				return nil
 			}
-			vec, embedErr := fi.indexEmbedWithRetry(func() ([]float32, error) {
-				return embedder.EmbedFile(context.Background(), path)
+			vec, embedErr := fi.indexEmbedWithRetry(ctx, func(ctx context.Context) ([]float32, error) {
+				return embedder.EmbedFile(ctx, path)
 			}, path, "multimodal")
 			if embedErr != nil {
 				errors = append(errors, fmt.Sprintf("multimodal embed error %s: %v", path, embedErr))
@@ -398,7 +485,7 @@ func (fi *FileIndexer) scanDirectory(dir, collection string) (totalFiles, indexe
 			for attempt := 1; attempt <= indexingRetryMaxAttempts; attempt++ {
 				var a string
 				var w, h int
-				a, w, h, visionErr = tools.AnalyzeImageWithPrompt(path, prompt, fi.cfg)
+				a, w, h, visionErr = tools.AnalyzeImageWithPromptContext(ctx, path, prompt, fi.cfg)
 				if visionErr == nil {
 					if attempt > 1 {
 						fi.logger.Info("[Indexer] Vision retry successful", "path", path, "attempt", attempt)
@@ -415,7 +502,10 @@ func (fi *FileIndexer) scanDirectory(dir, collection string) (totalFiles, indexe
 
 				backoff := time.Duration(attempt*attempt) * indexingRetryBackoffBase
 				fi.logger.Warn("[Indexer] Vision analysis failed, retrying", "path", path, "attempt", attempt, "backoff", backoff, "error", visionErr)
-				time.Sleep(backoff)
+				if sleepErr := waitIndexingBackoff(ctx, backoff); sleepErr != nil {
+					visionErr = sleepErr
+					break
+				}
 			}
 			if visionErr != nil {
 				errors = append(errors, fmt.Sprintf("vision error %s: %v", path, visionErr))
@@ -430,7 +520,7 @@ func (fi *FileIndexer) scanDirectory(dir, collection string) (totalFiles, indexe
 			extracted, extractErr := ExtractText(path)
 			if extractErr != nil {
 				if multimodal && ext == ".pdf" {
-					fallbackContent, vec, fallbackErr := fi.indexPDFWithMultimodalFallback(path, relPath, info.Name())
+					fallbackContent, vec, fallbackErr := fi.indexPDFWithMultimodalFallback(ctx, path, relPath, info.Name())
 					if fallbackErr == nil {
 						content = fallbackContent
 						precomputedEmbedding = vec
@@ -451,7 +541,7 @@ func (fi *FileIndexer) scanDirectory(dir, collection string) (totalFiles, indexe
 			// PDF auto-fallback: if text extraction yielded almost nothing and
 			// multimodal is enabled, treat the PDF as an image (scanned document)
 			if multimodal && ext == ".pdf" && precomputedEmbedding == nil && len(strings.TrimSpace(content)) < 10 {
-				fallbackContent, vec, fallbackErr := fi.indexPDFWithMultimodalFallback(path, relPath, info.Name())
+				fallbackContent, vec, fallbackErr := fi.indexPDFWithMultimodalFallback(ctx, path, relPath, info.Name())
 				if fallbackErr == nil {
 					content = fallbackContent
 					precomputedEmbedding = vec
@@ -474,18 +564,11 @@ func (fi *FileIndexer) scanDirectory(dir, collection string) (totalFiles, indexe
 		if len(content) == 0 && precomputedEmbedding == nil {
 			return nil
 		}
-		contentHash := hashIndexedFileContent(content, precomputedEmbedding, path)
 		if precomputedEmbedding == nil {
 			if limitedContent, truncated := limitIndexedContent(content); truncated {
 				fi.logger.Warn("[Indexer] Truncated extracted content before indexing", "path", path, "limit_bytes", maxIndexedContentBytes)
 				content = limitedContent
 			}
-		}
-
-		indexFingerprint := fi.indexFingerprint()
-		indexState, _ := fi.stm.GetFileIndexState(path, collection)
-		if !shouldReindexFile(info.ModTime(), contentHash, indexFingerprint, indexState) {
-			return nil
 		}
 
 		if err := fi.removeTrackedFile(path, collection); err != nil {
@@ -504,14 +587,14 @@ func (fi *FileIndexer) scanDirectory(dir, collection string) (totalFiles, indexe
 		var storeErr error
 		if precomputedEmbedding != nil {
 			var docID string
-			docID, storeErr = fi.indexStoreDocWithRetry(func() (string, error) {
+			docID, storeErr = fi.indexStoreDocWithRetry(ctx, func() (string, error) {
 				return fi.vectorDB.StoreDocumentWithEmbeddingInCollection(concept, content, precomputedEmbedding, collection)
 			}, path)
 			if storeErr == nil && docID != "" {
 				docIDs = []string{docID}
 			}
 		} else {
-			docIDs, storeErr = fi.indexStoreWithRetry(func() ([]string, error) {
+			docIDs, storeErr = fi.indexStoreWithRetry(ctx, func() ([]string, error) {
 				return fi.vectorDB.StoreDocumentInCollection(concept, content, collection)
 			}, path)
 		}
@@ -521,7 +604,7 @@ func (fi *FileIndexer) scanDirectory(dir, collection string) (totalFiles, indexe
 			return nil
 		}
 
-		if err := fi.stm.UpdateFileIndexWithDocsAndState(path, collection, info.ModTime(), contentHash, indexFingerprint, docIDs); err != nil {
+		if err := fi.stm.UpdateFileIndexWithDocsAndState(path, collection, info.ModTime(), rawHash, indexFingerprint, docIDs); err != nil {
 			errors = append(errors, fmt.Sprintf("tracking error %s: %v", path, err))
 			fi.logger.Warn("[Indexer] Failed to persist file index tracking", "path", path, "error", err)
 			return nil
@@ -534,6 +617,9 @@ func (fi *FileIndexer) scanDirectory(dir, collection string) (totalFiles, indexe
 		return nil
 	})
 	if err != nil {
+		if stderrors.Is(err, context.Canceled) {
+			return totalFiles, indexedFiles, errors
+		}
 		errors = append(errors, fmt.Sprintf("walk error %s: %v", dir, err))
 	}
 
@@ -545,13 +631,72 @@ type embeddingFingerprinter interface {
 	EmbeddingFingerprint() string
 }
 
-func (fi *FileIndexer) indexFingerprint() string {
+const (
+	fileIndexModeText       = "text"
+	fileIndexModeDocument   = "document"
+	fileIndexModeVision     = "vision"
+	fileIndexModeMultimodal = "multimodal"
+	fileIndexModePDF        = "pdf"
+)
+
+func (fi *FileIndexer) indexModeForFile(ext string, isImage, isAudio, multimodal bool) string {
+	switch {
+	case multimodal && (isImage || isAudio):
+		return fileIndexModeMultimodal
+	case isImage:
+		return fileIndexModeVision
+	case ext == ".pdf":
+		return fileIndexModePDF
+	case IsDocumentFile(ext):
+		return fileIndexModeDocument
+	default:
+		return fileIndexModeText
+	}
+}
+
+func (fi *FileIndexer) indexFingerprintForMode(mode string) string {
+	parts := []string{fileIndexerFingerprint, "mode=" + mode}
 	if fp, ok := fi.vectorDB.(embeddingFingerprinter); ok {
 		if embeddingFingerprint := strings.TrimSpace(fp.EmbeddingFingerprint()); embeddingFingerprint != "" {
-			return fileIndexerFingerprint + "|" + embeddingFingerprint
+			parts = append(parts, "embedding="+embeddingFingerprint)
 		}
 	}
-	return fileIndexerFingerprint
+
+	fi.cfgMu.RLock()
+	defer fi.cfgMu.RUnlock()
+	switch mode {
+	case fileIndexModeVision:
+		parts = append(parts,
+			fingerprintProvider("vision", fi.cfg.Vision.Provider, fi.cfg.Vision.ProviderType, fi.cfg.Vision.BaseURL, fi.cfg.Vision.Model, fi.cfg.Vision.APIKey),
+			fingerprintProvider("llm", fi.cfg.LLM.Provider, fi.cfg.LLM.ProviderType, fi.cfg.LLM.BaseURL, fi.cfg.LLM.Model, fi.cfg.LLM.APIKey),
+		)
+	case fileIndexModeMultimodal, fileIndexModePDF:
+		parts = append(parts,
+			fingerprintProvider("embeddings", fi.cfg.Embeddings.Provider, fi.cfg.Embeddings.ProviderType, fi.cfg.Embeddings.BaseURL, fi.cfg.Embeddings.Model, fi.cfg.Embeddings.APIKey),
+			"multimodal_format="+strings.TrimSpace(fi.cfg.Embeddings.MultimodalFormat),
+		)
+	}
+	return strings.Join(parts, "|")
+}
+
+func fingerprintProvider(name, provider, providerType, baseURL, model, apiKey string) string {
+	return strings.Join([]string{
+		name,
+		"provider=" + strings.TrimSpace(provider),
+		"type=" + strings.TrimSpace(providerType),
+		"base=" + strings.TrimSpace(baseURL),
+		"model=" + strings.TrimSpace(model),
+		"key_sha256=" + hashSecretForFingerprint(apiKey),
+	}, ";")
+}
+
+func hashSecretForFingerprint(secret string) string {
+	secret = strings.TrimSpace(secret)
+	if secret == "" {
+		return ""
+	}
+	sum := sha256.Sum256([]byte(secret))
+	return hex.EncodeToString(sum[:])
 }
 
 func shouldReindexFile(modTime time.Time, contentHash, indexFingerprint string, state memory.FileIndexState) bool {
@@ -570,16 +715,13 @@ func shouldReindexFile(modTime time.Time, contentHash, indexFingerprint string, 
 	return modTime.After(state.LastModified)
 }
 
-func hashIndexedFileContent(content string, precomputedEmbedding []float32, path string) string {
-	h := sha256.New()
-	if precomputedEmbedding != nil {
-		if data, err := os.ReadFile(path); err == nil {
-			h.Write(data)
-			return hex.EncodeToString(h.Sum(nil))
-		}
+func hashIndexedFileBytes(path string) (string, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
 	}
-	h.Write([]byte(content))
-	return hex.EncodeToString(h.Sum(nil))
+	sum := sha256.Sum256(data)
+	return hex.EncodeToString(sum[:]), nil
 }
 
 func (fi *FileIndexer) syncIndexedFileToKG(path, collection string) {
@@ -686,11 +828,11 @@ func shouldRetryIndexingErr(err error) bool {
 	if err == nil {
 		return false
 	}
-	if errors.Is(err, context.DeadlineExceeded) {
+	if stderrors.Is(err, context.DeadlineExceeded) {
 		return true
 	}
 	var netErr net.Error
-	if errors.As(err, &netErr) && (netErr.Timeout() || netErr.Temporary()) {
+	if stderrors.As(err, &netErr) && (netErr.Timeout() || netErr.Temporary()) {
 		return true
 	}
 	// Best-effort handling for provider-side throttling / transient upstream issues.
@@ -738,10 +880,16 @@ func (fi *FileIndexer) getMultimodalEmbedder() *memory.MultimodalEmbedder {
 // indexEmbedWithRetry calls the provided embedding function with exponential backoff retry.
 // It retries up to indexingRetryMaxAttempts times on transient errors (network timeouts,
 // rate limits, 5xx HTTP errors). Returns the embedding vector on success.
-func (fi *FileIndexer) indexEmbedWithRetry(fn func() ([]float32, error), path, op string) ([]float32, error) {
+func (fi *FileIndexer) indexEmbedWithRetry(ctx context.Context, fn func(context.Context) ([]float32, error), path, op string) ([]float32, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	var lastErr error
 	for attempt := 1; attempt <= indexingRetryMaxAttempts; attempt++ {
-		vec, err := fn()
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		vec, err := fn(ctx)
 		if err == nil {
 			if attempt > 1 {
 				fi.logger.Info("[Indexer] Retry successful", "op", op, "path", path, "attempt", attempt)
@@ -756,16 +904,24 @@ func (fi *FileIndexer) indexEmbedWithRetry(fn func() ([]float32, error), path, o
 
 		backoff := time.Duration(attempt*attempt) * indexingRetryBackoffBase
 		fi.logger.Warn("[Indexer] Embedding failed, retrying", "op", op, "path", path, "attempt", attempt, "backoff", backoff, "error", err)
-		time.Sleep(backoff)
+		if sleepErr := waitIndexingBackoff(ctx, backoff); sleepErr != nil {
+			return nil, sleepErr
+		}
 	}
 	return nil, lastErr
 }
 
 // indexStoreWithRetry calls the provided VectorDB store function with exponential backoff retry.
 // It retries up to indexingRetryMaxAttempts times on transient errors. Returns the doc IDs on success.
-func (fi *FileIndexer) indexStoreWithRetry(fn func() ([]string, error), path string) ([]string, error) {
+func (fi *FileIndexer) indexStoreWithRetry(ctx context.Context, fn func() ([]string, error), path string) ([]string, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	var lastErr error
 	for attempt := 1; attempt <= indexingRetryMaxAttempts; attempt++ {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		docIDs, err := fn()
 		if err == nil {
 			if attempt > 1 {
@@ -781,15 +937,23 @@ func (fi *FileIndexer) indexStoreWithRetry(fn func() ([]string, error), path str
 
 		backoff := time.Duration(attempt*attempt) * indexingRetryBackoffBase
 		fi.logger.Warn("[Indexer] Store failed, retrying", "path", path, "attempt", attempt, "backoff", backoff, "error", err)
-		time.Sleep(backoff)
+		if sleepErr := waitIndexingBackoff(ctx, backoff); sleepErr != nil {
+			return nil, sleepErr
+		}
 	}
 	return nil, lastErr
 }
 
 // indexStoreDocWithRetry is like indexStoreWithRetry but for single document ID return.
-func (fi *FileIndexer) indexStoreDocWithRetry(fn func() (string, error), path string) (string, error) {
+func (fi *FileIndexer) indexStoreDocWithRetry(ctx context.Context, fn func() (string, error), path string) (string, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	var lastErr error
 	for attempt := 1; attempt <= indexingRetryMaxAttempts; attempt++ {
+		if err := ctx.Err(); err != nil {
+			return "", err
+		}
 		docID, err := fn()
 		if err == nil {
 			if attempt > 1 {
@@ -805,7 +969,23 @@ func (fi *FileIndexer) indexStoreDocWithRetry(fn func() (string, error), path st
 
 		backoff := time.Duration(attempt*attempt) * indexingRetryBackoffBase
 		fi.logger.Warn("[Indexer] Store failed, retrying", "path", path, "attempt", attempt, "backoff", backoff, "error", err)
-		time.Sleep(backoff)
+		if sleepErr := waitIndexingBackoff(ctx, backoff); sleepErr != nil {
+			return "", sleepErr
+		}
 	}
 	return "", lastErr
+}
+
+func waitIndexingBackoff(ctx context.Context, backoff time.Duration) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	timer := time.NewTimer(backoff)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
 }

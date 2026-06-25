@@ -5,11 +5,14 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -24,6 +27,7 @@ type fakeIndexerVectorDB struct {
 	deleted      []string
 	disabled     bool
 	fingerprint  string
+	storeErr     error
 	storeStarted chan struct{}
 	releaseStore chan struct{}
 }
@@ -38,6 +42,9 @@ func (f *fakeIndexerVectorDB) StoreDocument(concept, content string) ([]string, 
 	f.mu.Unlock()
 	if f.releaseStore != nil {
 		<-f.releaseStore
+	}
+	if f.storeErr != nil {
+		return nil, f.storeErr
 	}
 	return []string{docID}, nil
 }
@@ -130,7 +137,7 @@ func TestFileIndexerReplacesTrackedEmbeddingsOnReindex(t *testing.T) {
 	vdb := &fakeIndexerVectorDB{}
 	fi := NewFileIndexer(cfg, cfgMu, vdb, stm, logger)
 
-	_, indexed, errs := fi.scanDirectory(dir, "file_index")
+	_, indexed, errs := fi.scanDirectory(context.Background(), dir, "file_index")
 	if indexed != 1 {
 		t.Fatalf("first scan indexed = %d, want 1", indexed)
 	}
@@ -154,7 +161,7 @@ func TestFileIndexerReplacesTrackedEmbeddingsOnReindex(t *testing.T) {
 		t.Fatalf("Chtimes second version: %v", err)
 	}
 
-	_, indexed, errs = fi.scanDirectory(dir, "file_index")
+	_, indexed, errs = fi.scanDirectory(context.Background(), dir, "file_index")
 	if indexed != 1 {
 		t.Fatalf("second scan indexed = %d, want 1", indexed)
 	}
@@ -201,7 +208,7 @@ func TestFileIndexerReindexesWhenContentChangesWithSameModTime(t *testing.T) {
 	vdb := &fakeIndexerVectorDB{}
 	fi := NewFileIndexer(cfg, cfgMu, vdb, stm, logger)
 
-	_, indexed, errs := fi.scanDirectory(dir, "file_index")
+	_, indexed, errs := fi.scanDirectory(context.Background(), dir, "file_index")
 	if indexed != 1 {
 		t.Fatalf("first scan indexed = %d, want 1", indexed)
 	}
@@ -216,7 +223,7 @@ func TestFileIndexerReindexesWhenContentChangesWithSameModTime(t *testing.T) {
 		t.Fatalf("Chtimes second version: %v", err)
 	}
 
-	_, indexed, errs = fi.scanDirectory(dir, "file_index")
+	_, indexed, errs = fi.scanDirectory(context.Background(), dir, "file_index")
 	if indexed != 1 {
 		t.Fatalf("second scan indexed = %d, want 1", indexed)
 	}
@@ -254,13 +261,13 @@ func TestFileIndexerReindexesWhenEmbeddingFingerprintChanges(t *testing.T) {
 	vdb := &fakeIndexerVectorDB{fingerprint: "provider|old-model"}
 	fi := NewFileIndexer(cfg, cfgMu, vdb, stm, logger)
 
-	_, indexed, errs := fi.scanDirectory(dir, "file_index")
+	_, indexed, errs := fi.scanDirectory(context.Background(), dir, "file_index")
 	if indexed != 1 || len(errs) != 0 {
 		t.Fatalf("first scan indexed=%d errors=%v", indexed, errs)
 	}
 
 	vdb.fingerprint = "provider|new-model"
-	_, indexed, errs = fi.scanDirectory(dir, "file_index")
+	_, indexed, errs = fi.scanDirectory(context.Background(), dir, "file_index")
 	if indexed != 1 || len(errs) != 0 {
 		t.Fatalf("second scan indexed=%d errors=%v", indexed, errs)
 	}
@@ -325,7 +332,7 @@ func TestFileIndexerRemovesEmbeddingsForDeletedFiles(t *testing.T) {
 	vdb := &fakeIndexerVectorDB{}
 	fi := NewFileIndexer(cfg, cfgMu, vdb, stm, logger)
 
-	_, indexed, errs := fi.scanDirectory(dir, "file_index")
+	_, indexed, errs := fi.scanDirectory(context.Background(), dir, "file_index")
 	if indexed != 1 {
 		t.Fatalf("initial scan indexed = %d, want 1", indexed)
 	}
@@ -337,7 +344,7 @@ func TestFileIndexerRemovesEmbeddingsForDeletedFiles(t *testing.T) {
 		t.Fatalf("Remove indexed file: %v", err)
 	}
 
-	total, indexed, errs := fi.scanDirectory(dir, "file_index")
+	total, indexed, errs := fi.scanDirectory(context.Background(), dir, "file_index")
 	if total != 0 {
 		t.Fatalf("deleted-file scan total = %d, want 0", total)
 	}
@@ -369,6 +376,56 @@ func TestFileIndexerRemovesEmbeddingsForDeletedFiles(t *testing.T) {
 	}
 }
 
+func TestFileIndexerSkipsSymlinkFilesAndCleansTrackedPath(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	defer stm.Close()
+
+	dir := t.TempDir()
+	outsideDir := t.TempDir()
+	target := filepath.Join(outsideDir, "outside.txt")
+	if err := os.WriteFile(target, []byte("do not index via symlink"), 0o644); err != nil {
+		t.Fatalf("WriteFile target: %v", err)
+	}
+	linkPath := filepath.Join(dir, "linked.txt")
+	if err := os.Symlink(target, linkPath); err != nil {
+		t.Skipf("symlink creation unavailable: %v", err)
+	}
+	if err := stm.UpdateFileIndexWithDocsAndState(linkPath, IndexerCollection, time.Now().UTC(), "old-hash", "old-fingerprint", []string{"old-doc"}); err != nil {
+		t.Fatalf("UpdateFileIndexWithDocsAndState: %v", err)
+	}
+
+	cfg := &config.Config{}
+	cfg.Indexing.Directories = []config.IndexingDirectory{{Path: dir}}
+	cfg.Indexing.Extensions = []string{".txt"}
+	cfgMu := &sync.RWMutex{}
+	vdb := &fakeIndexerVectorDB{}
+	fi := NewFileIndexer(cfg, cfgMu, vdb, stm, logger)
+
+	counted, countErrs := fi.countIndexableFiles(context.Background(), dir)
+	if counted != 0 || len(countErrs) != 0 {
+		t.Fatalf("countIndexableFiles counted=%d errors=%v, want counted=0 errors=[]", counted, countErrs)
+	}
+
+	total, indexed, errs := fi.scanDirectory(context.Background(), dir, IndexerCollection)
+	if total != 0 || indexed != 0 || len(errs) != 0 {
+		t.Fatalf("scan total=%d indexed=%d errors=%v, want all zero", total, indexed, errs)
+	}
+	if !reflect.DeepEqual(vdb.deleted, []string{"old-doc"}) {
+		t.Fatalf("deleted docs = %v, want [old-doc]", vdb.deleted)
+	}
+	paths, err := stm.ListIndexedFiles(IndexerCollection)
+	if err != nil {
+		t.Fatalf("ListIndexedFiles: %v", err)
+	}
+	if len(paths) != 0 {
+		t.Fatalf("tracked files after symlink cleanup = %v, want none", paths)
+	}
+}
+
 func TestFileIndexerRecordsDisabledVectorDBScanStatus(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	stm, err := memory.NewSQLiteMemory(":memory:", logger)
@@ -388,7 +445,7 @@ func TestFileIndexerRecordsDisabledVectorDBScanStatus(t *testing.T) {
 	cfgMu := &sync.RWMutex{}
 	fi := NewFileIndexer(cfg, cfgMu, &fakeIndexerVectorDB{disabled: true}, stm, logger)
 
-	fi.scan()
+	fi.scan(context.Background())
 
 	status := fi.Status()
 	if status.LastScanAt.IsZero() {
@@ -402,6 +459,61 @@ func TestFileIndexerRecordsDisabledVectorDBScanStatus(t *testing.T) {
 	}
 	if len(status.Errors) == 0 || !strings.Contains(strings.ToLower(status.Errors[0]), "embedding") {
 		t.Fatalf("Errors = %v, want embedding pipeline explanation", status.Errors)
+	}
+}
+
+func TestFileIndexerSkipsUnchangedImageBeforeVisionCall(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	defer stm.Close()
+
+	var calls atomic.Int32
+	visionSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"same image description"}}],"usage":{"prompt_tokens":1,"completion_tokens":2}}`))
+	}))
+	defer visionSrv.Close()
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "photo.jpg")
+	if err := os.WriteFile(path, []byte("not really a jpeg, but enough bytes for the provider payload"), 0o644); err != nil {
+		t.Fatalf("WriteFile image: %v", err)
+	}
+	modTime := time.Now().UTC().Add(-time.Minute).Truncate(time.Second)
+	if err := os.Chtimes(path, modTime, modTime); err != nil {
+		t.Fatalf("Chtimes image: %v", err)
+	}
+
+	cfg := &config.Config{}
+	cfg.Directories.WorkspaceDir = dir
+	cfg.Indexing.Directories = []config.IndexingDirectory{{Path: dir}}
+	cfg.Indexing.Extensions = []string{".jpg"}
+	cfg.Indexing.IndexImages = true
+	cfg.Vision.BaseURL = visionSrv.URL
+	cfg.Vision.APIKey = "vision-key"
+	cfg.Vision.Model = "vision-model"
+	cfgMu := &sync.RWMutex{}
+	vdb := &fakeIndexerVectorDB{}
+	fi := NewFileIndexer(cfg, cfgMu, vdb, stm, logger)
+
+	_, indexed, errs := fi.scanDirectory(context.Background(), dir, IndexerCollection)
+	if indexed != 1 || len(errs) != 0 {
+		t.Fatalf("first scan indexed=%d errors=%v, want indexed=1 errors=[]", indexed, errs)
+	}
+	if got := calls.Load(); got != 1 {
+		t.Fatalf("vision calls after first scan = %d, want 1", got)
+	}
+
+	_, indexed, errs = fi.scanDirectory(context.Background(), dir, IndexerCollection)
+	if indexed != 0 || len(errs) != 0 {
+		t.Fatalf("second scan indexed=%d errors=%v, want indexed=0 errors=[]", indexed, errs)
+	}
+	if got := calls.Load(); got != 1 {
+		t.Fatalf("vision calls after unchanged second scan = %d, want 1", got)
 	}
 }
 
@@ -428,7 +540,7 @@ func TestFileIndexerSkipsOverlappingScans(t *testing.T) {
 
 	done := make(chan struct{})
 	go func() {
-		fi.scan()
+		fi.scan(context.Background())
 		close(done)
 	}()
 
@@ -438,7 +550,7 @@ func TestFileIndexerSkipsOverlappingScans(t *testing.T) {
 		t.Fatal("first scan did not start storing")
 	}
 
-	fi.scan()
+	fi.scan(context.Background())
 	vdb.mu.Lock()
 	storedWhileBlocked := vdb.nextID
 	vdb.mu.Unlock()
@@ -573,6 +685,91 @@ func TestFileIndexerStopWaitsForInFlightScan(t *testing.T) {
 	}
 }
 
+func TestFileIndexerStartIsIdempotent(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	defer stm.Close()
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "note.txt"), []byte("index once"), 0o644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	cfg := &config.Config{}
+	cfg.Indexing.Directories = []config.IndexingDirectory{{Path: dir}}
+	cfg.Indexing.Extensions = []string{".txt"}
+	cfg.Indexing.PollIntervalSeconds = 60
+	cfgMu := &sync.RWMutex{}
+	vdb := &fakeIndexerVectorDB{storeStarted: make(chan struct{}), releaseStore: make(chan struct{})}
+	fi := NewFileIndexer(cfg, cfgMu, vdb, stm, logger)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	fi.Start(ctx)
+	fi.Start(ctx)
+
+	select {
+	case <-vdb.storeStarted:
+	case <-time.After(time.Second):
+		close(vdb.releaseStore)
+		t.Fatal("initial scan did not start")
+	}
+	close(vdb.releaseStore)
+
+	if !fi.Stop() {
+		t.Fatal("Stop returned false after a single active runner")
+	}
+	vdb.mu.Lock()
+	stored := vdb.nextID
+	vdb.mu.Unlock()
+	if stored != 1 {
+		t.Fatalf("stored docs = %d, want 1 with idempotent Start", stored)
+	}
+}
+
+func TestFileIndexerStopCancelsRetryBackoff(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	defer stm.Close()
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "note.txt"), []byte("retry then stop"), 0o644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	cfg := &config.Config{}
+	cfg.Indexing.Directories = []config.IndexingDirectory{{Path: dir}}
+	cfg.Indexing.Extensions = []string{".txt"}
+	cfg.Indexing.PollIntervalSeconds = 60
+	cfgMu := &sync.RWMutex{}
+	vdb := &fakeIndexerVectorDB{
+		storeStarted: make(chan struct{}),
+		storeErr:     fmt.Errorf("rate limit exceeded"),
+	}
+	fi := NewFileIndexer(cfg, cfgMu, vdb, stm, logger)
+
+	fi.Start(context.Background())
+	select {
+	case <-vdb.storeStarted:
+	case <-time.After(time.Second):
+		t.Fatal("initial store attempt did not start")
+	}
+
+	start := time.Now()
+	if !fi.Stop() {
+		t.Fatal("Stop returned false, want true after canceling retry backoff")
+	}
+	if elapsed := time.Since(start); elapsed > 200*time.Millisecond {
+		t.Fatalf("Stop took %v, want retry backoff canceled promptly", elapsed)
+	}
+}
+
 func TestFileIndexerCleanupDirectoryRemovesTrackedFiles(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	stm, err := memory.NewSQLiteMemory(":memory:", logger)
@@ -594,7 +791,7 @@ func TestFileIndexerCleanupDirectoryRemovesTrackedFiles(t *testing.T) {
 	vdb := &fakeIndexerVectorDB{}
 	fi := NewFileIndexer(cfg, cfgMu, vdb, stm, logger)
 
-	_, indexed, errs := fi.scanDirectory(dir, IndexerCollection)
+	_, indexed, errs := fi.scanDirectory(context.Background(), dir, IndexerCollection)
 	if indexed != 1 || len(errs) != 0 {
 		t.Fatalf("scan indexed=%d errors=%v, want indexed=1 errors=[]", indexed, errs)
 	}
@@ -641,7 +838,7 @@ func TestFileIndexerReindexesWhenFullContentChangesBeyondIndexedLimit(t *testing
 	vdb := &fakeIndexerVectorDB{}
 	fi := NewFileIndexer(cfg, cfgMu, vdb, stm, logger)
 
-	_, indexed, errs := fi.scanDirectory(dir, IndexerCollection)
+	_, indexed, errs := fi.scanDirectory(context.Background(), dir, IndexerCollection)
 	if indexed != 1 || len(errs) != 0 {
 		t.Fatalf("first scan indexed=%d errors=%v, want indexed=1 errors=[]", indexed, errs)
 	}
@@ -653,7 +850,7 @@ func TestFileIndexerReindexesWhenFullContentChangesBeyondIndexedLimit(t *testing
 		t.Fatalf("Chtimes second version: %v", err)
 	}
 
-	_, indexed, errs = fi.scanDirectory(dir, IndexerCollection)
+	_, indexed, errs = fi.scanDirectory(context.Background(), dir, IndexerCollection)
 	if indexed != 1 || len(errs) != 0 {
 		t.Fatalf("second scan indexed=%d errors=%v, want indexed=1 errors=[] for full-content hash change", indexed, errs)
 	}
@@ -680,7 +877,7 @@ func TestFileIndexerSkipsDocumentWhenExtractionFails(t *testing.T) {
 	vdb := &fakeIndexerVectorDB{}
 	fi := NewFileIndexer(cfg, cfgMu, vdb, stm, logger)
 
-	total, indexed, errs := fi.scanDirectory(dir, IndexerCollection)
+	total, indexed, errs := fi.scanDirectory(context.Background(), dir, IndexerCollection)
 	if total != 1 {
 		t.Fatalf("total = %d, want 1", total)
 	}
@@ -729,7 +926,7 @@ func TestFileIndexerTriggersKGSyncForIndexedFiles(t *testing.T) {
 	}
 	fi.SetKGSyncer(syncer)
 
-	_, indexed, errs := fi.scanDirectory(dir, IndexerCollection)
+	_, indexed, errs := fi.scanDirectory(context.Background(), dir, IndexerCollection)
 	if indexed != 1 {
 		t.Fatalf("scan indexed = %d, want 1", indexed)
 	}

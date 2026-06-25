@@ -26,6 +26,8 @@ type ToolGuideMeta struct {
 	Description string `yaml:"description"`
 }
 
+const markdownIndexerFingerprint = "markdown-rag-indexer-v2"
+
 // IndexToolGuides reads all .md files in the tool folder and indexes them in ChromaDB.
 // It skips indexing if tool guides are already present, unless force is true.
 // Uses parallel batch indexing for speed.
@@ -271,17 +273,23 @@ func (cv *ChromemVectorDB) IndexDirectory(dir, collectionName string, stm *SQLit
 	}
 
 	type indexedFile struct {
-		path    string
-		modTime time.Time
-		source  string
-		docs    []chromem.Document
-		docIDs  []string
+		path             string
+		modTime          time.Time
+		contentHash      string
+		indexFingerprint string
+		source           string
+		docs             []chromem.Document
+		docIDs           []string
 	}
 
 	var indexedFiles []indexedFile
 	totalDocs := 0
 
 	for _, file := range files {
+		if file.Type()&os.ModeSymlink != 0 {
+			cv.logger.Debug("Skipping symlinked markdown file", "path", filepath.Join(dir, file.Name()))
+			continue
+		}
 		if file.IsDir() || !strings.HasSuffix(file.Name(), ".md") {
 			continue
 		}
@@ -293,29 +301,37 @@ func (cv *ChromemVectorDB) IndexDirectory(dir, collectionName string, stm *SQLit
 			continue
 		}
 
+		// 3. Read before change detection so same-mtime content changes are caught.
+		data, err := os.ReadFile(path)
+		if err != nil {
+			cv.logger.Warn("Failed to read file for indexing", "path", path, "error", err)
+			continue
+		}
+		contentHash := hashMarkdownIndexContent(data)
+		indexFingerprint := cv.markdownIndexFingerprint()
+
 		// 3. Change detection
 		if !force && stm != nil {
-			lastIndexed, err := stm.GetFileIndex(path, collectionName)
+			indexState, err := stm.GetFileIndexState(path, collectionName)
 			if err != nil {
 				return fmt.Errorf("get file index for %s in %s: %w", path, collectionName, err)
 			}
-			if !info.ModTime().After(lastIndexed) && collection.Count() > 0 {
+			if !shouldReindexMarkdownFile(info.ModTime(), contentHash, indexFingerprint, indexState) && collection.Count() > 0 {
 				cv.logger.Debug("File unchanged, skipping RAG indexing", "path", path)
 				continue
 			}
 		}
 		cv.logger.Info("File new or changed, indexing for RAG", "path", path, "collection", collectionName)
 
-		// 4. Read and Chunk
-		data, err := os.ReadFile(path)
-		if err != nil {
-			cv.logger.Warn("Failed to read file for indexing", "path", path, "error", err)
-			continue
-		}
-
 		content := string(data)
 		title := strings.TrimSuffix(file.Name(), ".md")
-		planned := indexedFile{path: path, modTime: info.ModTime(), source: title}
+		planned := indexedFile{
+			path:             path,
+			modTime:          info.ModTime(),
+			contentHash:      contentHash,
+			indexFingerprint: indexFingerprint,
+			source:           title,
+		}
 
 		// Simple chunking for indexing (if too large)
 		if utf8.RuneCountInString(content) <= 4000 {
@@ -415,7 +431,7 @@ func (cv *ChromemVectorDB) IndexDirectory(dir, collectionName string, stm *SQLit
 			return errors.Join(updateErr, fmt.Errorf("failed to add documents for %s: %w", f.path, err))
 		}
 		if stm != nil {
-			if err := stm.UpdateFileIndexWithDocs(f.path, collectionName, f.modTime, f.docIDs); err != nil {
+			if err := stm.UpdateFileIndexWithDocsAndState(f.path, collectionName, f.modTime, f.contentHash, f.indexFingerprint, f.docIDs); err != nil {
 				updateErr = errors.Join(updateErr, fmt.Errorf("update file index for %s in %s: %w", f.path, collectionName, err))
 			}
 		}
@@ -426,6 +442,34 @@ func (cv *ChromemVectorDB) IndexDirectory(dir, collectionName string, stm *SQLit
 
 	cv.logger.Info("Directory indexing completed", "dir", dir, "new_count", totalDocs)
 	return nil
+}
+
+func (cv *ChromemVectorDB) markdownIndexFingerprint() string {
+	if embeddingFingerprint := strings.TrimSpace(cv.embeddingFingerprint); embeddingFingerprint != "" {
+		return markdownIndexerFingerprint + "|" + embeddingFingerprint
+	}
+	return markdownIndexerFingerprint
+}
+
+func shouldReindexMarkdownFile(modTime time.Time, contentHash, indexFingerprint string, state FileIndexState) bool {
+	if state.LastModified.IsZero() {
+		return true
+	}
+	if state.ContentHash == "" || state.IndexFingerprint == "" {
+		return true
+	}
+	if state.ContentHash != contentHash {
+		return true
+	}
+	if state.IndexFingerprint != indexFingerprint {
+		return true
+	}
+	return modTime.After(state.LastModified)
+}
+
+func hashMarkdownIndexContent(data []byte) string {
+	sum := sha256.Sum256(data)
+	return hex.EncodeToString(sum[:])
 }
 
 func isPathWithinDirectory(path, dir string) bool {
