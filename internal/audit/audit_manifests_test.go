@@ -523,6 +523,100 @@ func TestWindowsReleaseUploadsAssetsIndividually(t *testing.T) {
 	}
 }
 
+func TestReleaseSignatureDownloadsAreQuietlyOptional(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name          string
+		path          string
+		helper        string
+		curlLine      string
+		wgetLine      string
+		requiredSig   string
+		requiredCert  string
+		forbiddenSig  string
+		forbiddenCert string
+	}{
+		{
+			name:          "update",
+			path:          "update.sh",
+			helper:        "fetch_optional_url_to_file()",
+			curlLine:      `curl -fsSL "$url" -o "$out" 2>/dev/null`,
+			wgetLine:      `wget -q "$url" -O "$out" 2>/dev/null`,
+			requiredSig:   `fetch_optional_url_to_file "${RELEASE_BASE}/SHA256SUMS.sig" "$sig_file"`,
+			requiredCert:  `fetch_optional_url_to_file "${RELEASE_BASE}/SHA256SUMS.pem" "$cert_file"`,
+			forbiddenSig:  `fetch_url_to_file "${RELEASE_BASE}/SHA256SUMS.sig"`,
+			forbiddenCert: `fetch_url_to_file "${RELEASE_BASE}/SHA256SUMS.pem"`,
+		},
+		{
+			name:          "install",
+			path:          "install.sh",
+			helper:        "_download_optional()",
+			curlLine:      `curl -fsSL "$url" -o "$dest" 2>/dev/null`,
+			wgetLine:      `wget -q "$url" -O "$dest" 2>/dev/null`,
+			requiredSig:   `_download_optional "${RELEASE_BASE}/SHA256SUMS.sig" "$sig_file"`,
+			requiredCert:  `_download_optional "${RELEASE_BASE}/SHA256SUMS.pem" "$cert_file"`,
+			forbiddenSig:  `_download "${RELEASE_BASE}/SHA256SUMS.sig"`,
+			forbiddenCert: `_download "${RELEASE_BASE}/SHA256SUMS.pem"`,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			script := readRepoFile(t, tc.path)
+			for _, want := range []string{tc.helper, tc.curlLine, tc.wgetLine, tc.requiredSig, tc.requiredCert} {
+				if !strings.Contains(script, want) {
+					t.Fatalf("%s must quietly treat missing release signatures as optional; missing %q", tc.path, want)
+				}
+			}
+			for _, forbidden := range []string{tc.forbiddenSig, tc.forbiddenCert} {
+				if strings.Contains(script, forbidden) {
+					t.Fatalf("%s must not use noisy required downloads for optional signatures: %q", tc.path, forbidden)
+				}
+			}
+		})
+	}
+}
+
+func TestWindowsReleaseScriptsPublishVerificationArtifacts(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name string
+		path string
+	}{
+		{name: "powershell", path: "make_release.ps1"},
+		{name: "batch", path: "make_release.bat"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			script := readRepoFile(t, tc.path)
+			for _, want := range []string{
+				`deploy\SHA256SUMS`,
+				`deploy\SHA256SUMS.sig`,
+				`deploy\SHA256SUMS.pem`,
+				`deploy\update.sh`,
+			} {
+				if !strings.Contains(script, want) {
+					t.Fatalf("%s must publish release verification/update artifact %q", tc.path, want)
+				}
+			}
+		})
+	}
+}
+
+func TestPowerShellReleaseGeneratesChecksumsAndCopiesUpdater(t *testing.T) {
+	t.Parallel()
+
+	script := readRepoFile(t, "make_release.ps1")
+	for _, want := range []string{
+		`Copy-Item "update.sh" "deploy\update.sh"`,
+		`System.Security.Cryptography.SHA256`,
+		`deploy\SHA256SUMS`,
+	} {
+		if !strings.Contains(script, want) {
+			t.Fatalf("make_release.ps1 must generate a verifiable release manifest and updater asset; missing %q", want)
+		}
+	}
+}
+
 func TestReleaseResourcePackagersIncludeMediaSamples(t *testing.T) {
 	t.Parallel()
 

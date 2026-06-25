@@ -233,7 +233,54 @@ Build-Binary -Output "deploy\aurago-remote_windows_arm64.exe" -Target "./cmd/rem
 
 # Copy install.sh
 Copy-Item "install.sh" "deploy\install.sh" -Force
+Copy-Item "update.sh" "deploy\update.sh" -Force
 Write-Host "    -> deploy\install.sh" -ForegroundColor Green
+Write-Host "    -> deploy\update.sh" -ForegroundColor Green
+
+Write-Host "  Generating SHA256SUMS..." -ForegroundColor Cyan
+function Get-Sha256Hex {
+    param([string]$Path)
+    $sha = [System.Security.Cryptography.SHA256]::Create()
+    $stream = [IO.File]::OpenRead($Path)
+    try {
+        $bytes = $sha.ComputeHash($stream)
+        return -join ($bytes | ForEach-Object { $_.ToString("x2") })
+    } finally {
+        $stream.Dispose()
+        $sha.Dispose()
+    }
+}
+
+$checksumFiles = @(
+    "deploy\resources.dat",
+    "deploy\install.sh",
+    "deploy\update.sh",
+    "bin\aurago_linux",
+    "bin\aurago_linux_arm64",
+    "bin\lifeboat_linux",
+    "bin\lifeboat_linux_arm64",
+    "bin\config-merger_linux",
+    "bin\config-merger_linux_arm64",
+    "bin\aurago-remote_linux",
+    "bin\aurago-remote_linux_arm64",
+    "deploy\aurago_darwin_amd64",
+    "deploy\aurago_darwin_arm64",
+    "deploy\aurago-remote_darwin_amd64",
+    "deploy\aurago-remote_darwin_arm64",
+    "deploy\aurago_windows_amd64.exe",
+    "deploy\aurago_windows_arm64.exe",
+    "deploy\aurago-remote_windows_amd64.exe",
+    "deploy\aurago-remote_windows_arm64.exe"
+)
+$checksumLines = foreach ($file in $checksumFiles) {
+    $fullPath = Join-Path $scriptDir $file
+    if (Test-Path $fullPath) {
+        $hash = Get-Sha256Hex $fullPath
+        "{0}  {1}" -f $hash, [IO.Path]::GetFileName($file)
+    }
+}
+Set-Content -Path "deploy\SHA256SUMS" -Value $checksumLines
+Write-Host "    -> deploy\SHA256SUMS" -ForegroundColor Green
 
 # Reset env
 $env:GOOS = "windows"
@@ -266,6 +313,9 @@ Write-Host ""
 $assets = @()
 $assetPaths = @(
     "deploy\resources.dat",
+    "deploy\SHA256SUMS",
+    "deploy\SHA256SUMS.sig",
+    "deploy\SHA256SUMS.pem",
     "bin\aurago_linux",
     "bin\aurago_linux_arm64",
     "bin\lifeboat_linux",
@@ -282,7 +332,8 @@ $assetPaths = @(
     "deploy\aurago_windows_arm64.exe",
     "deploy\aurago-remote_windows_amd64.exe",
     "deploy\aurago-remote_windows_arm64.exe",
-    "deploy\install.sh"
+    "deploy\install.sh",
+    "deploy\update.sh"
 )
 
 foreach ($path in $assetPaths) {

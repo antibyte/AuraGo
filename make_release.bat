@@ -276,6 +276,8 @@ echo     Uploading release assets...
 for %%F in (
     "deploy\resources.dat"
     "deploy\SHA256SUMS"
+    "deploy\SHA256SUMS.sig"
+    "deploy\SHA256SUMS.pem"
     "bin\aurago_linux"
     "bin\aurago_linux_arm64"
     "bin\lifeboat_linux"

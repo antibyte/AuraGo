@@ -175,6 +175,18 @@ fetch_url_to_file() {
     fi
 }
 
+fetch_optional_url_to_file() {
+    local url="$1"
+    local out="$2"
+    if command -v curl >/dev/null 2>&1; then
+        curl -fsSL "$url" -o "$out" 2>/dev/null
+    elif command -v wget >/dev/null 2>&1; then
+        wget -q "$url" -O "$out" 2>/dev/null
+    else
+        return 1
+    fi
+}
+
 sha256_file() {
     local path="$1"
     if command -v sha256sum >/dev/null 2>&1; then
@@ -203,7 +215,7 @@ verify_release_checksums_signature() {
     sig_file="$(mktemp "/tmp/aurago-sha256-sig.XXXXXX")"
     cert_file="$(mktemp "/tmp/aurago-sha256-cert.XXXXXX")"
 
-    if ! fetch_url_to_file "${RELEASE_BASE}/SHA256SUMS.sig" "$sig_file" || ! fetch_url_to_file "${RELEASE_BASE}/SHA256SUMS.pem" "$cert_file"; then
+    if ! fetch_optional_url_to_file "${RELEASE_BASE}/SHA256SUMS.sig" "$sig_file" || ! fetch_optional_url_to_file "${RELEASE_BASE}/SHA256SUMS.pem" "$cert_file"; then
         rm -f "$sig_file" "$cert_file"
         if strict_release_verify_enabled; then
             die "Release signature files are missing and AURAGO_STRICT_RELEASE_VERIFY=1 is set."
