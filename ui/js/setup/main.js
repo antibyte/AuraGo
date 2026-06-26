@@ -21,6 +21,16 @@ let setupPasswordRequired = true;
 let csrfToken = '';
 let setupOllamaBaseURL = 'http://localhost:11434/v1';
 
+// Centralized language metadata (single source of truth for setup wizard).
+// Key = ISO 639-1 code; Value = Display name in that language.
+const LANG_MAP = {
+    de: 'Deutsch', en: 'English', es: 'Español', fr: 'Français',
+    pl: 'Polski', zh: '中文', hi: 'हिन्दी', nl: 'Nederlands',
+    it: 'Italiano', pt: 'Português', da: 'Dansk', ja: '日本語',
+    sv: 'Svenska', no: 'Norsk', el: 'Ελληνικά', cs: 'Čeština',
+};
+const SUPPORTED_LANGS = Object.keys(LANG_MAP);
+
 // Derived helpers
 function activeFlow()  { return isQuickFlow ? QUICK_FLOW_STEPS  : CUSTOM_FLOW_STEPS; }
 function activeLabels(){ return isQuickFlow ? QUICK_FLOW_LABELS : CUSTOM_FLOW_LABELS; }
@@ -506,7 +516,7 @@ function buildQuickConfigPatch() {
     const trustRadio = document.querySelector('input[name="trust-level"]:checked');
     const trustLevel = trustRadio ? parseInt(trustRadio.value, 10) : (p.default_trust_level || 1);
 
-    const langMap = {de:'Deutsch',en:'English',es:'Español',fr:'Français',pl:'Polski',zh:'中文',hi:'हिन्दी',nl:'Nederlands',it:'Italiano',pt:'Português',da:'Dansk',ja:'日本語',sv:'Svenska',no:'Norsk',el:'Ελληνικά',cs:'Čeština'};
+    const langMap = LANG_MAP;
     const patch = {
         _setup_profile_id: p.id,
         server: {
@@ -1411,10 +1421,9 @@ function buildConfigPatch() {
         },
         agent: {
             system_language: (function() {
-                const langMap = {de:'Deutsch',en:'English',es:'Español',fr:'Français',pl:'Polski',zh:'中文',hi:'हिन्दी',nl:'Nederlands',it:'Italiano',pt:'Português',da:'Dansk',ja:'日本語',sv:'Svenska',no:'Norsk',el:'Ελληνικά',cs:'Čeština'};
                 const v = document.getElementById('system-language').value;
                 if (v === 'custom') return document.getElementById('system-language-custom').value.trim();
-                return langMap[v] || v;
+                return LANG_MAP[v] || v;
             })(),
             personality_engine_v2: helperConfigured,
             personality_engine: helperConfigured,
@@ -1560,8 +1569,7 @@ function showToast(message, type = 'info') {
 (function detectAndSetLanguage() {
     const lang = (navigator.languages && navigator.languages[0]) || navigator.language || 'en';
     const base = lang.toLowerCase().split('-')[0];
-    const supported = ['de','en','es','fr','pl','zh','hi','nl','it','pt','da','ja','sv','no','cs','el'];
-    const detected = supported.includes(base) ? base : 'en';
+    const detected = SUPPORTED_LANGS.includes(base) ? base : 'en';
     const sel = document.getElementById('system-language');
     if (sel) sel.value = detected;
     const quickSel = document.getElementById('quick-language');
