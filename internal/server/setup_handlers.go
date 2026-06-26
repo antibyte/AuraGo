@@ -696,6 +696,7 @@ func isLocalOrPrivateSetupHost(host string) bool {
 
 func isAllowedSetupProviderHost(host string) bool {
 	allowed := []string{
+		// Major SaaS providers
 		"api.openai.com",
 		"api.anthropic.com",
 		"generativelanguage.googleapis.com",
@@ -706,6 +707,25 @@ func isAllowedSetupProviderHost(host string) bool {
 		"open.bigmodel.cn",
 		"api.stepfun.ai",
 		"api.moonshot.cn",
+		// Common self-hosted providers (typically behind reverse proxy).
+		// Note: "localhost", "127.0.0.1", "::1" are only reachable via the
+		// Ollama code path because validateSetupTestBaseURL rejects
+		// non-Ollama requests with isLocalOrPrivateSetupHost before
+		// consulting this list.
+		"localhost",
+		"127.0.0.1",
+		"::1",
+		// Public inference endpoints frequently used by self-hosters
+		"api.deepinfra.com",
+		"api.together.xyz",
+		"api.fireworks.ai",
+		"inference.friendli.ai",
+		"api.mistral.ai",
+		"api.cohere.ai",
+		"api.groq.com",
+		"api.perplexity.ai",
+		"api.deepseek.com",
+		"api.x.ai",
 	}
 	for _, allowedHost := range allowed {
 		if host == allowedHost {
