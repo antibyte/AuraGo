@@ -362,6 +362,13 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 				s.Logger.Info("[Setup] LLM client reconfigured",
 					"provider", newCfg.LLM.ProviderType,
 					"base_url", newCfg.LLM.BaseURL)
+			} else {
+				// s.LLMClient is not a FailoverManager (e.g., a future client type
+				// or a test double). The setup-saved config is correct on disk and
+				// in s.Cfg, but the in-memory client still uses the old values. A
+				// process restart is required for the new API key to take effect.
+				s.Logger.Warn("[Setup] LLM client is not a FailoverManager; restart may be required for new API key to take effect",
+					"client_type", fmt.Sprintf("%T", s.LLMClient))
 			}
 
 			// Re-initialize the VectorDB (LTM / embeddings) if it was disabled at
