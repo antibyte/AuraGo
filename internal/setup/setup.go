@@ -443,6 +443,26 @@ exec %s
 func serviceAlreadyInstalled(installDir string, logger *slog.Logger) bool {
 	switch runtime.GOOS {
 	case "linux":
+		// Primary check: ask systemd whether the service is enabled.
+		// `systemctl is-enabled` exits 0 with "enabled" or "static" if the
+		// service is registered; exits non-zero (with "disabled", "masked",
+		// "not-found", etc.) if not. This catches the case where the user
+		// ran `systemctl disable aurago` after the unit file was installed —
+		// we should treat the service as not installed so the setup flow
+		// can re-enable it on user request.
+		if out, err := exec.Command("systemctl", "is-enabled", "aurago.service").CombinedOutput(); err == nil {
+			status := strings.TrimSpace(string(out))
+			if status == "enabled" || status == "static" || status == "enabled-runtime" || status == "alias" {
+				return true
+			}
+			// Service file exists but is explicitly disabled — treat as not
+			// installed so the setup flow can re-enable it on user request.
+			return false
+		} else {
+			// systemctl command failed (e.g., systemd not running, no DBus).
+			// Fall back to checking for the unit file.
+			logger.Debug("systemctl is-enabled failed; falling back to file presence check", "output", string(out), "error", err)
+		}
 		_, err := os.Stat("/etc/systemd/system/aurago.service")
 		return err == nil
 	case "darwin":

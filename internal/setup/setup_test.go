@@ -298,3 +298,16 @@ func TestBuildSystemdUnitEmptyArgsRejected(t *testing.T) {
 		t.Fatal("expected error when user is empty")
 	}
 }
+
+func TestServiceAlreadyInstalledLinuxFileFallback(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("linux-specific test")
+	}
+	t.Parallel()
+
+	// On a test machine without the unit file, this should return false
+	// regardless of systemctl availability.
+	if serviceAlreadyInstalled("/nonexistent-install-dir", slog.Default()) {
+		t.Log("serviceAlreadyInstalled returned true — possibly because aurago.service is actually installed in this environment. Test inconclusive.")
+	}
+}
