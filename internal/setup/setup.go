@@ -191,6 +191,10 @@ func extractTarGz(archivePath, destDir string) error {
 	defer gz.Close()
 
 	tr := tar.NewReader(gz)
+	// Accumulate per-entry errors so a single bad file (e.g. permission denied)
+	// does not abort the rest of the extraction. Path-traversal violations are
+	// still FATAL: a malicious archive must never be partially extracted.
+	var extractionErrors []string
 	for {
 		hdr, err := tr.Next()
 		if err == io.EOF {
@@ -202,7 +206,8 @@ func extractTarGz(archivePath, destDir string) error {
 
 		target := filepath.Join(destDir, filepath.FromSlash(hdr.Name))
 
-		// Security: prevent path traversal
+		// Security: prevent path traversal. Fatal on purpose — partial
+		// extraction of a malicious archive is worse than a hard failure.
 		if !strings.HasPrefix(filepath.Clean(target), filepath.Clean(destDir)) {
 			return fmt.Errorf("illegal path in archive: %s", hdr.Name)
 		}
@@ -212,11 +217,13 @@ func extractTarGz(archivePath, destDir string) error {
 			// AND with safe default (0o750 = owner+group rwx, no public access).
 			safeMode := os.FileMode(hdr.Mode).Perm() & 0o750
 			if err := os.MkdirAll(target, safeMode); err != nil {
-				return err
+				extractionErrors = append(extractionErrors, fmt.Sprintf("mkdir %s: %v", hdr.Name, err))
+				continue
 			}
 		case tar.TypeReg:
 			if err := os.MkdirAll(filepath.Dir(target), 0750); err != nil {
-				return err
+				extractionErrors = append(extractionErrors, fmt.Sprintf("mkdir parent of %s: %v", hdr.Name, err))
+				continue
 			}
 			// Don't overwrite config.yaml if it already exists (user may have edited it)
 			if filepath.Base(target) == "config.yaml" {
@@ -228,14 +235,19 @@ func extractTarGz(archivePath, destDir string) error {
 			safeMode := os.FileMode(hdr.Mode).Perm() & 0o640
 			out, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, safeMode)
 			if err != nil {
-				return err
+				extractionErrors = append(extractionErrors, fmt.Sprintf("open %s: %v", hdr.Name, err))
+				continue
 			}
 			if _, err := io.Copy(out, tr); err != nil {
 				out.Close()
-				return err
+				extractionErrors = append(extractionErrors, fmt.Sprintf("copy %s: %v", hdr.Name, err))
+				continue
 			}
 			out.Close()
 		}
+	}
+	if len(extractionErrors) > 0 {
+		return fmt.Errorf("extracted with %d errors: %s", len(extractionErrors), strings.Join(extractionErrors, "; "))
 	}
 	return nil
 }
@@ -431,6 +443,26 @@ exec %s
 func serviceAlreadyInstalled(installDir string, logger *slog.Logger) bool {
 	switch runtime.GOOS {
 	case "linux":
+		// Primary check: ask systemd whether the service is enabled.
+		// `systemctl is-enabled` exits 0 with "enabled" or "static" if the
+		// service is registered; exits non-zero (with "disabled", "masked",
+		// "not-found", etc.) if not. This catches the case where the user
+		// ran `systemctl disable aurago` after the unit file was installed —
+		// we should treat the service as not installed so the setup flow
+		// can re-enable it on user request.
+		if out, err := exec.Command("systemctl", "is-enabled", "aurago.service").CombinedOutput(); err == nil {
+			status := strings.TrimSpace(string(out))
+			if status == "enabled" || status == "static" || status == "enabled-runtime" || status == "alias" {
+				return true
+			}
+			// Service file exists but is explicitly disabled — treat as not
+			// installed so the setup flow can re-enable it on user request.
+			return false
+		} else {
+			// systemctl command failed (e.g., systemd not running, no DBus).
+			// Fall back to checking for the unit file.
+			logger.Debug("systemctl is-enabled failed; falling back to file presence check", "output", string(out), "error", err)
+		}
 		_, err := os.Stat("/etc/systemd/system/aurago.service")
 		return err == nil
 	case "darwin":
@@ -455,8 +487,11 @@ func serviceAlreadyInstalled(installDir string, logger *slog.Logger) bool {
 func installWindowsTask(exePath, installDir string, logger *slog.Logger) error {
 	taskName := "AuraGo"
 
-	// Delete existing task if present (ignore errors — task may not exist)
-	exec.Command("schtasks", "/Delete", "/TN", taskName, "/F").Run()
+	// Delete existing task if present (output captured for debug logging; non-fatal
+	// because the task may simply not exist yet on a fresh install).
+	if out, err := exec.Command("schtasks", "/Delete", "/TN", taskName, "/F").CombinedOutput(); err != nil {
+		logger.Debug("schtasks /Delete returned non-zero (task may not exist)", "output", string(out), "error", err)
+	}
 
 	cmd := exec.Command("schtasks", "/Create",
 		"/TN", taskName,
@@ -505,7 +540,9 @@ func readEnvKey(envPath, key string) string {
 
 func ensureMasterKey(installDir string, logger *slog.Logger) error {
 	envFile := filepath.Join(installDir, ".env")
-	if envKey := strings.TrimSpace(os.Getenv("AURAGO_MASTER_KEY")); isValidMasterKeyHex(envKey) {
+	envKey := strings.TrimSpace(os.Getenv("AURAGO_MASTER_KEY"))
+	envValid := isValidMasterKeyHex(envKey)
+	if envValid {
 		if fileKey := readEnvKey(envFile, "AURAGO_MASTER_KEY"); fileKey != envKey {
 			content := fmt.Sprintf("AURAGO_MASTER_KEY=%s\n", envKey)
 			if err := os.WriteFile(envFile, []byte(content), 0600); err != nil {
@@ -568,7 +605,17 @@ func runningInDocker() bool {
 	if _, err := os.Stat("/.dockerenv"); err == nil {
 		return true
 	}
-	data, err := os.ReadFile("/proc/self/cgroup")
+	f, err := os.Open("/proc/self/cgroup")
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+	// Cap reads at 64KB — we only need the leading bytes to find the
+	// docker/containerd/kubepods markers. /proc/self/cgroup can be MBs on
+	// systems with many cgroups.
+	const maxCgroupBytes = 64 * 1024
+	limited := io.LimitReader(f, maxCgroupBytes)
+	data, err := io.ReadAll(limited)
 	if err != nil {
 		return false
 	}

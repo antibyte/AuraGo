@@ -241,7 +241,20 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 		reloadedCfg, err := applyConfigPatch(s, patch)
 		if err != nil {
 			s.Logger.Error("[Setup] Failed to apply config patch", "error", err)
-			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.setup_failed_save_config"), http.StatusInternalServerError)
+			// Marshal/YAML errors are user-input issues (e.g., bad profile data
+			// with mismatched quotes). Other errors (read/write/disk) are
+			// server-side and should keep their 500 status.
+			msg := err.Error()
+			isUserError := strings.Contains(msg, "marshal") || strings.Contains(msg, "yaml") || strings.Contains(msg, "unmarshal")
+			status := http.StatusInternalServerError
+			if isUserError {
+				status = http.StatusBadRequest
+			}
+			if isUserError {
+				jsonErrorWithDetails(w, i18n.T(s.Cfg.Server.UILanguage, "backend.setup_failed_save_config"), msg, status)
+			} else {
+				jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.setup_failed_save_config"), status)
+			}
 			return
 		}
 
@@ -683,6 +696,7 @@ func isLocalOrPrivateSetupHost(host string) bool {
 
 func isAllowedSetupProviderHost(host string) bool {
 	allowed := []string{
+		// Major SaaS providers
 		"api.openai.com",
 		"api.anthropic.com",
 		"generativelanguage.googleapis.com",
@@ -693,6 +707,25 @@ func isAllowedSetupProviderHost(host string) bool {
 		"open.bigmodel.cn",
 		"api.stepfun.ai",
 		"api.moonshot.cn",
+		// Common self-hosted providers (typically behind reverse proxy).
+		// Note: "localhost", "127.0.0.1", "::1" are only reachable via the
+		// Ollama code path because validateSetupTestBaseURL rejects
+		// non-Ollama requests with isLocalOrPrivateSetupHost before
+		// consulting this list.
+		"localhost",
+		"127.0.0.1",
+		"::1",
+		// Public inference endpoints frequently used by self-hosters
+		"api.deepinfra.com",
+		"api.together.xyz",
+		"api.fireworks.ai",
+		"inference.friendli.ai",
+		"api.mistral.ai",
+		"api.cohere.ai",
+		"api.groq.com",
+		"api.perplexity.ai",
+		"api.deepseek.com",
+		"api.x.ai",
 	}
 	for _, allowedHost := range allowed {
 		if host == allowedHost {

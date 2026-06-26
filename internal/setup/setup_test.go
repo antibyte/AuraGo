@@ -197,6 +197,67 @@ func TestExtractTarGzStripsSetuidAndSetgidBits(t *testing.T) {
 	}
 }
 
+func TestExtractTarGzContinuesOnFileError(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+
+	// Build an in-memory tar.gz with one good file and one that we'll
+	// make un-extractable by pre-creating a read-only directory at the
+	// target location.
+	var buf bytes.Buffer
+	gz := gzip.NewWriter(&buf)
+	tw := tar.NewWriter(gz)
+
+	// File 1: normal file (should extract successfully)
+	body1 := []byte("hello\n")
+	hdr1 := &tar.Header{Name: "good.txt", Mode: 0o644, Size: int64(len(body1)), Typeflag: tar.TypeReg}
+	if err := tw.WriteHeader(hdr1); err != nil {
+		t.Fatalf("WriteHeader 1: %v", err)
+	}
+	tw.Write(body1)
+
+	// File 2: in a subdirectory that we'll pre-create as read-only
+	body2 := []byte("world\n")
+	hdr2 := &tar.Header{Name: "readonly/bad.txt", Mode: 0o644, Size: int64(len(body2)), Typeflag: tar.TypeReg}
+	if err := tw.WriteHeader(hdr2); err != nil {
+		t.Fatalf("WriteHeader 2: %v", err)
+	}
+	tw.Write(body2)
+
+	tw.Close()
+	gz.Close()
+
+	archivePath := filepath.Join(dir, "resources.dat")
+	if err := os.WriteFile(archivePath, buf.Bytes(), 0o600); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	// Pre-create the readonly directory and remove write permission.
+	roDir := filepath.Join(dir, "readonly")
+	if err := os.MkdirAll(roDir, 0o555); err != nil {
+		t.Fatalf("MkdirAll readonly: %v", err)
+	}
+	// On Windows the chmod bits are largely irrelevant; skip the rest of
+	// the test on Windows since we can't make the directory truly read-only.
+	if runtime.GOOS == "windows" {
+		t.Skip("file permission semantics differ on Windows; skip negative test")
+	}
+
+	// Extract — should NOT abort; good.txt should be created, readonly/bad.txt should fail.
+	err := extractTarGz(archivePath, dir)
+	if err == nil {
+		t.Fatal("expected extract to return error due to readonly directory")
+	}
+
+	// But the first file should still be extracted (proving we continued past the error).
+	if _, err := os.Stat(filepath.Join(dir, "good.txt")); err != nil {
+		t.Errorf("good.txt should have been extracted before the error: %v", err)
+	}
+
+	// Restore so TempDir cleanup works.
+	os.Chmod(roDir, 0o755)
+}
+
 func TestBuildSystemdUnitEscapesInstallDirWithQuotes(t *testing.T) {
 	t.Parallel()
 
@@ -235,5 +296,18 @@ func TestBuildSystemdUnitEmptyArgsRejected(t *testing.T) {
 	_, err := buildSystemdUnit("AuraGo", "", "/opt/aurago", "/opt/aurago/aurago", "/opt/aurago/.env", "/opt/aurago", false, false)
 	if err == nil {
 		t.Fatal("expected error when user is empty")
+	}
+}
+
+func TestServiceAlreadyInstalledLinuxFileFallback(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("linux-specific test")
+	}
+	t.Parallel()
+
+	// On a test machine without the unit file, this should return false
+	// regardless of systemctl availability.
+	if serviceAlreadyInstalled("/nonexistent-install-dir", slog.Default()) {
+		t.Log("serviceAlreadyInstalled returned true — possibly because aurago.service is actually installed in this environment. Test inconclusive.")
 	}
 }

@@ -515,6 +515,57 @@ func TestSetupProviderHostAllowsStepFunStepPlan(t *testing.T) {
 	}
 }
 
+func TestIsAllowedSetupProviderHost(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name    string
+		host    string
+		allowed bool
+	}{
+		// Major SaaS providers (original allowlist)
+		{"openai", "api.openai.com", true},
+		{"anthropic", "api.anthropic.com", true},
+		{"google", "generativelanguage.googleapis.com", true},
+		{"openrouter", "openrouter.ai", true},
+		{"minimax", "api.minimax.io", true},
+		{"minimaxi", "api.minimaxi.com", true},
+		{"alibaba", "dashscope-intl.aliyuncs.com", true},
+		{"bigmodel", "open.bigmodel.cn", true},
+		{"stepfun", "api.stepfun.ai", true},
+		{"moonshot", "api.moonshot.cn", true},
+		// Common self-hosted providers (new additions)
+		{"deepinfra", "api.deepinfra.com", true},
+		{"together", "api.together.xyz", true},
+		{"fireworks", "api.fireworks.ai", true},
+		{"friendli", "inference.friendli.ai", true},
+		{"mistral", "api.mistral.ai", true},
+		{"cohere", "api.cohere.ai", true},
+		{"groq", "api.groq.com", true},
+		{"perplexity", "api.perplexity.ai", true},
+		{"deepseek", "api.deepseek.com", true},
+		{"xai", "api.x.ai", true},
+		// Localhost entries (safe because isLocalOrPrivateSetupHost blocks
+		// them in validateSetupTestBaseURL before reaching this allowlist)
+		{"localhost", "localhost", true},
+		{"loopback v4", "127.0.0.1", true},
+		{"loopback v6", "::1", true},
+		// Negative cases
+		{"unknown public host", "evil.com", false},
+		{"suffix attack", "api.openai.com.evil.com", false},
+		{"subdomain of allowed", "evil.api.openai.com", false},
+		{"empty", "", false},
+		{"uppercase mismatch", "API.OPENAI.COM", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := isAllowedSetupProviderHost(tc.host); got != tc.allowed {
+				t.Errorf("isAllowedSetupProviderHost(%q) = %v, want %v", tc.host, got, tc.allowed)
+			}
+		})
+	}
+}
+
 func TestHandleSetupProfilesRejectsPost(t *testing.T) {
 	t.Parallel()
 

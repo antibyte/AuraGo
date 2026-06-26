@@ -13,11 +13,13 @@ let currentStepIndex = 0;   // index into the active flow array
 let highestStepIndex = 0;
 let isQuickFlow = false;
 let selectedProfile = null;
+let prevSelectedProfileId = null;
 let profiles = [];
 let saving = false;
 let setupStepInFlight = false;
 let setupSkipInFlight = false;
-let setupPasswordRequired = true;
+// Tri-state: null = unknown (don't show star yet), true = required, false = already set
+let setupPasswordRequired = null;
 let csrfToken = '';
 let setupOllamaBaseURL = 'http://localhost:11434/v1';
 
@@ -438,7 +440,11 @@ function syncLanguage(value) {
     if (!value) return;
     ['plan-language', 'system-language', 'quick-language'].forEach(id => {
         const el = document.getElementById(id);
-        if (el) el.value = value;
+        if (el) {
+            el.value = value;
+        } else if (typeof console !== 'undefined' && console.warn) {
+            console.warn('syncLanguage: missing selector #' + id + ' (i18n mirror incomplete)');
+        }
     });
     fetchAndApplyLang(value);
 }
@@ -455,7 +461,7 @@ function onPlanLanguageChange() {
 function validateQuickStep(skip = false) {
     let valid = true;
 
-    if (setupPasswordRequired) {
+    if (setupPasswordRequired === true) {
         const pw = document.getElementById('quick-admin-password').value.trim();
         if (pw.length < 8) {
             showFieldError('quick-admin-password', 'err-quick-admin-password');
@@ -1019,6 +1025,13 @@ async function nextStep(skip = false) {
             }
             // Determine flow based on selected profile
             isQuickFlow = (selectedProfile.id !== 'custom');
+            // If the user just changed their profile choice (re-selected after
+            // going back), reset any flow-specific state to avoid stale references.
+            if (selectedProfile.id !== prevSelectedProfileId) {
+                prevSelectedProfileId = selectedProfile.id;
+                highestStepIndex = 0;
+                // selectedProfile is already the new one; nothing else to reset.
+            }
         } else if (stepId === 'plan-quick') {
             if (!validateQuickStep(skip)) return;
         } else if (stepId === 'step-0') {
@@ -1134,7 +1147,7 @@ function validateStep0(skip = false) {
     let valid = true;
 
     // Password validation — always enforced, never skippable
-    if (setupPasswordRequired) {
+    if (setupPasswordRequired === true) {
         const adminPassword = document.getElementById('admin-password').value.trim();
         if (adminPassword.length < 8) {
             showFieldError('admin-password', 'err-admin-password');
@@ -1635,11 +1648,15 @@ function applyI18N() {
         if (val !== key) el.title = val;
     });
 
-    // Special: admin password — show/hide required star based on auth status
+    // Special: admin password — show/hide required star based on auth status.
+    // Star is hidden until the security status response confirms password is required.
     const lblPw = document.getElementById('lbl-admin-password');
     if (lblPw) {
         const star = lblPw.querySelector('.required-star');
-        if (star) star.style.display = setupPasswordRequired ? '' : 'none';
+        if (star) {
+            // Default hidden; shown only when explicitly confirmed required.
+            star.style.display = (setupPasswordRequired === true) ? '' : 'none';
+        }
     }
 }
 
