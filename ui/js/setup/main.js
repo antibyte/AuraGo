@@ -18,7 +18,8 @@ let profiles = [];
 let saving = false;
 let setupStepInFlight = false;
 let setupSkipInFlight = false;
-let setupPasswordRequired = true;
+// Tri-state: null = unknown (don't show star yet), true = required, false = already set
+let setupPasswordRequired = null;
 let csrfToken = '';
 let setupOllamaBaseURL = 'http://localhost:11434/v1';
 
@@ -460,7 +461,7 @@ function onPlanLanguageChange() {
 function validateQuickStep(skip = false) {
     let valid = true;
 
-    if (setupPasswordRequired) {
+    if (setupPasswordRequired === true) {
         const pw = document.getElementById('quick-admin-password').value.trim();
         if (pw.length < 8) {
             showFieldError('quick-admin-password', 'err-quick-admin-password');
@@ -1146,7 +1147,7 @@ function validateStep0(skip = false) {
     let valid = true;
 
     // Password validation — always enforced, never skippable
-    if (setupPasswordRequired) {
+    if (setupPasswordRequired === true) {
         const adminPassword = document.getElementById('admin-password').value.trim();
         if (adminPassword.length < 8) {
             showFieldError('admin-password', 'err-admin-password');
@@ -1647,11 +1648,15 @@ function applyI18N() {
         if (val !== key) el.title = val;
     });
 
-    // Special: admin password — show/hide required star based on auth status
+    // Special: admin password — show/hide required star based on auth status.
+    // Star is hidden until the security status response confirms password is required.
     const lblPw = document.getElementById('lbl-admin-password');
     if (lblPw) {
         const star = lblPw.querySelector('.required-star');
-        if (star) star.style.display = setupPasswordRequired ? '' : 'none';
+        if (star) {
+            // Default hidden; shown only when explicitly confirmed required.
+            star.style.display = (setupPasswordRequired === true) ? '' : 'none';
+        }
     }
 }
 
