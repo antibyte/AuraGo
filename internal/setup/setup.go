@@ -455,8 +455,11 @@ func serviceAlreadyInstalled(installDir string, logger *slog.Logger) bool {
 func installWindowsTask(exePath, installDir string, logger *slog.Logger) error {
 	taskName := "AuraGo"
 
-	// Delete existing task if present (ignore errors — task may not exist)
-	exec.Command("schtasks", "/Delete", "/TN", taskName, "/F").Run()
+	// Delete existing task if present (output captured for debug logging; non-fatal
+	// because the task may simply not exist yet on a fresh install).
+	if out, err := exec.Command("schtasks", "/Delete", "/TN", taskName, "/F").CombinedOutput(); err != nil {
+		logger.Debug("schtasks /Delete returned non-zero (task may not exist)", "output", string(out), "error", err)
+	}
 
 	cmd := exec.Command("schtasks", "/Create",
 		"/TN", taskName,
@@ -505,7 +508,9 @@ func readEnvKey(envPath, key string) string {
 
 func ensureMasterKey(installDir string, logger *slog.Logger) error {
 	envFile := filepath.Join(installDir, ".env")
-	if envKey := strings.TrimSpace(os.Getenv("AURAGO_MASTER_KEY")); isValidMasterKeyHex(envKey) {
+	envKey := strings.TrimSpace(os.Getenv("AURAGO_MASTER_KEY"))
+	envValid := isValidMasterKeyHex(envKey)
+	if envValid {
 		if fileKey := readEnvKey(envFile, "AURAGO_MASTER_KEY"); fileKey != envKey {
 			content := fmt.Sprintf("AURAGO_MASTER_KEY=%s\n", envKey)
 			if err := os.WriteFile(envFile, []byte(content), 0600); err != nil {
