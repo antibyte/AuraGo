@@ -191,6 +191,10 @@ func extractTarGz(archivePath, destDir string) error {
 	defer gz.Close()
 
 	tr := tar.NewReader(gz)
+	// Accumulate per-entry errors so a single bad file (e.g. permission denied)
+	// does not abort the rest of the extraction. Path-traversal violations are
+	// still FATAL: a malicious archive must never be partially extracted.
+	var extractionErrors []string
 	for {
 		hdr, err := tr.Next()
 		if err == io.EOF {
@@ -202,7 +206,8 @@ func extractTarGz(archivePath, destDir string) error {
 
 		target := filepath.Join(destDir, filepath.FromSlash(hdr.Name))
 
-		// Security: prevent path traversal
+		// Security: prevent path traversal. Fatal on purpose — partial
+		// extraction of a malicious archive is worse than a hard failure.
 		if !strings.HasPrefix(filepath.Clean(target), filepath.Clean(destDir)) {
 			return fmt.Errorf("illegal path in archive: %s", hdr.Name)
 		}
@@ -212,11 +217,13 @@ func extractTarGz(archivePath, destDir string) error {
 			// AND with safe default (0o750 = owner+group rwx, no public access).
 			safeMode := os.FileMode(hdr.Mode).Perm() & 0o750
 			if err := os.MkdirAll(target, safeMode); err != nil {
-				return err
+				extractionErrors = append(extractionErrors, fmt.Sprintf("mkdir %s: %v", hdr.Name, err))
+				continue
 			}
 		case tar.TypeReg:
 			if err := os.MkdirAll(filepath.Dir(target), 0750); err != nil {
-				return err
+				extractionErrors = append(extractionErrors, fmt.Sprintf("mkdir parent of %s: %v", hdr.Name, err))
+				continue
 			}
 			// Don't overwrite config.yaml if it already exists (user may have edited it)
 			if filepath.Base(target) == "config.yaml" {
@@ -228,14 +235,19 @@ func extractTarGz(archivePath, destDir string) error {
 			safeMode := os.FileMode(hdr.Mode).Perm() & 0o640
 			out, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, safeMode)
 			if err != nil {
-				return err
+				extractionErrors = append(extractionErrors, fmt.Sprintf("open %s: %v", hdr.Name, err))
+				continue
 			}
 			if _, err := io.Copy(out, tr); err != nil {
 				out.Close()
-				return err
+				extractionErrors = append(extractionErrors, fmt.Sprintf("copy %s: %v", hdr.Name, err))
+				continue
 			}
 			out.Close()
 		}
+	}
+	if len(extractionErrors) > 0 {
+		return fmt.Errorf("extracted with %d errors: %s", len(extractionErrors), strings.Join(extractionErrors, "; "))
 	}
 	return nil
 }
