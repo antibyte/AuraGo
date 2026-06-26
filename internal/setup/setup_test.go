@@ -1,9 +1,13 @@
 package setup
 
 import (
+	"archive/tar"
+	"bytes"
+	"compress/gzip"
 	"log/slog"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -110,5 +114,61 @@ func TestConfigAllowsSudoUnrestricted(t *testing.T) {
 
 	if !configAllowsSudoUnrestricted(configPath) {
 		t.Fatal("expected sudo_unrestricted=true to be detected")
+	}
+}
+
+func TestExtractTarGzStripsSetuidAndSetgidBits(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+
+	// Build an in-memory tar.gz containing a file with setuid+setgid+sticky bits.
+	var buf bytes.Buffer
+	gz := gzip.NewWriter(&buf)
+	tw := tar.NewWriter(gz)
+	body := []byte("#!/bin/sh\necho pwned\n")
+	hdr := &tar.Header{
+		Name:     "evil.sh",
+		Mode:     0o7777 | int64(os.ModeSetuid) | int64(os.ModeSetgid) | int64(os.ModeSticky),
+		Size:     int64(len(body)),
+		Typeflag: tar.TypeReg,
+	}
+	if err := tw.WriteHeader(hdr); err != nil {
+		t.Fatalf("WriteHeader: %v", err)
+	}
+	if _, err := tw.Write(body); err != nil {
+		t.Fatalf("Write body: %v", err)
+	}
+	tw.Close()
+	gz.Close()
+
+	archivePath := filepath.Join(dir, "resources.dat")
+	if err := os.WriteFile(archivePath, buf.Bytes(), 0o600); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	if err := extractTarGz(archivePath, dir); err != nil {
+		t.Fatalf("extractTarGz: %v", err)
+	}
+
+	info, err := os.Stat(filepath.Join(dir, "evil.sh"))
+	if err != nil {
+		t.Fatalf("Stat: %v", err)
+	}
+	mode := info.Mode()
+	if mode&os.ModeSetuid != 0 {
+		t.Errorf("setuid bit preserved: mode=%v", mode)
+	}
+	if mode&os.ModeSetgid != 0 {
+		t.Errorf("setgid bit preserved: mode=%v", mode)
+	}
+	if mode&os.ModeSticky != 0 {
+		t.Errorf("sticky bit preserved: mode=%v", mode)
+	}
+	// Windows does not honor POSIX mode bits via os.OpenFile/os.Stat, so the
+	// exact permission value can only be asserted on POSIX platforms.
+	if runtime.GOOS != "windows" {
+		if perm := mode.Perm(); perm != 0o640 {
+			t.Errorf("perm = %o, want 0o640", perm)
+		}
 	}
 }

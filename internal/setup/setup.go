@@ -193,7 +193,11 @@ func extractTarGz(archivePath, destDir string) error {
 
 		switch hdr.Typeflag {
 		case tar.TypeDir:
-			if err := os.MkdirAll(target, os.FileMode(hdr.Mode)|0750); err != nil {
+			// Strip all non-permission bits (setuid/setgid/sticky, file type)
+			// to prevent privilege escalation via crafted resources.dat.
+			// AND with the safe default so the archive can only ever narrow permissions.
+			perm := os.FileMode(hdr.Mode).Perm() & 0o750
+			if err := os.MkdirAll(target, perm); err != nil {
 				return err
 			}
 		case tar.TypeReg:
@@ -206,7 +210,10 @@ func extractTarGz(archivePath, destDir string) error {
 					continue
 				}
 			}
-			out, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.FileMode(hdr.Mode)|0640)
+			// Strip non-permission bits and clamp to a safe default to prevent
+			// setuid binaries and overly permissive files from crafted archives.
+			perm := os.FileMode(hdr.Mode).Perm() & 0o640
+			out, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, perm)
 			if err != nil {
 				return err
 			}
