@@ -200,7 +200,11 @@ func buildOpenAIClientConfig(cfg *config.Config, p resolvedProvider) openai.Clie
 	}
 
 	if isLoopbackHTTPS(baseURLRaw) {
-		clientConfig.HTTPClient = &http.Client{Transport: loopbackHTTPSTransport()}
+		transport := http.RoundTripper(loopbackHTTPSTransport())
+		if providerType == "manifest" && cfg != nil {
+			transport = &manifestRoutingTransport{base: transport, routing: cfg.Manifest.Routing}
+		}
+		clientConfig.HTTPClient = &http.Client{Transport: transport}
 	} else if httpClient := buildLLMHTTPClient(cfg, providerType, aiGatewayToken, clientConfig.BaseURL); httpClient != nil {
 		clientConfig.HTTPClient = httpClient
 	}

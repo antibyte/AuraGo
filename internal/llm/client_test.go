@@ -283,6 +283,33 @@ func TestBuildLLMHTTPClientOnlyInstallsManifestRoutingForManifestProvider(t *tes
 	}
 }
 
+func TestBuildOpenAIClientConfigWrapsManifestLoopbackHTTPSWithRouting(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Manifest.Routing.Enabled = true
+	cfg.Manifest.Routing.Headers = map[string]string{"x-aurago-task": "coding"}
+	p := resolvedProvider{
+		ProviderType: "manifest",
+		BaseURL:      "https://127.0.0.1:2099/v1",
+		APIKey:       "test-key",
+	}
+
+	clientConfig := buildOpenAIClientConfig(cfg, p)
+	if clientConfig.HTTPClient == nil {
+		t.Fatal("HTTPClient = nil, want loopback HTTPS client")
+	}
+	httpClient, ok := clientConfig.HTTPClient.(*http.Client)
+	if !ok {
+		t.Fatalf("HTTPClient = %T, want *http.Client", clientConfig.HTTPClient)
+	}
+	routingTransport, ok := unwrapLLMTransport(httpClient.Transport).(*manifestRoutingTransport)
+	if !ok {
+		t.Fatalf("loopback HTTPS transport = %T, want *manifestRoutingTransport", unwrapLLMTransport(httpClient.Transport))
+	}
+	if _, ok := routingTransport.base.(*http.Transport); !ok {
+		t.Fatalf("manifest routing base = %T, want *http.Transport", routingTransport.base)
+	}
+}
+
 func openAIPromptCacheKeyFromBodyForTest(t *testing.T, body []byte) string {
 	t.Helper()
 	var payload map[string]interface{}
