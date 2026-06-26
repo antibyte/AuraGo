@@ -407,27 +407,24 @@ async function testQuickConnection() {
     }
 }
 
-// ── Quick Flow Language Change ───────────────
+// ── Language Change ──────────────────────────
+// Sync the three language selectors and apply the chosen language.
+// Single source of truth for cross-flow language mirror.
+function syncLanguage(value) {
+    if (!value) return;
+    ['plan-language', 'system-language', 'quick-language'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = value;
+    });
+    fetchAndApplyLang(value);
+}
+
 function onQuickLanguageChange() {
-    const sel = document.getElementById('quick-language');
-    if (!sel) return;
-    fetchAndApplyLang(sel.value);
-    // Mirror to other language selectors so all flows stay in sync
-    const mainSel = document.getElementById('system-language');
-    if (mainSel) mainSel.value = sel.value;
-    const planSel = document.getElementById('plan-language');
-    if (planSel) planSel.value = sel.value;
+    syncLanguage(document.getElementById('quick-language')?.value);
 }
 
 function onPlanLanguageChange() {
-    const sel = document.getElementById('plan-language');
-    if (!sel) return;
-    fetchAndApplyLang(sel.value);
-    // Mirror to other language selectors so all flows stay in sync
-    const mainSel = document.getElementById('system-language');
-    if (mainSel) mainSel.value = sel.value;
-    const quickSel = document.getElementById('quick-language');
-    if (quickSel) quickSel.value = sel.value;
+    syncLanguage(document.getElementById('plan-language')?.value);
 }
 
 // ── Quick Flow Validation ────────────────────
@@ -910,7 +907,7 @@ function onLanguageChange() {
         customInput.focus();
     } else {
         setupSetHidden(customInput, true);
-        fetchAndApplyLang(sel.value);
+        syncLanguage(sel.value);
     }
 }
 
