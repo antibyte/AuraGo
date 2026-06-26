@@ -142,6 +142,22 @@ func (c recursiveChunker) Chunk(text string) ([]Chunk, error) {
 	blocks := markdownBlocks(text)
 	var chunks []string
 	var current strings.Builder
+	maxChunkChars := c.opts.MaxChars
+	baseMaxChars := maxChunkChars
+	overlapChars := c.opts.OverlapChars
+	if overlapChars > 0 {
+		const overlapSeparatorChars = 1
+		if overlapChars+overlapSeparatorChars >= maxChunkChars {
+			overlapChars = maxChunkChars / 4
+		}
+		if overlapChars > 0 {
+			baseMaxChars = maxChunkChars - overlapChars - overlapSeparatorChars
+			if baseMaxChars <= 0 {
+				baseMaxChars = maxChunkChars
+				overlapChars = 0
+			}
+		}
+	}
 
 	flush := func() {
 		if s := strings.TrimSpace(current.String()); s != "" {
@@ -155,16 +171,16 @@ func (c recursiveChunker) Chunk(text string) ([]Chunk, error) {
 		if block == "" {
 			continue
 		}
-		if runeLen(block) > c.opts.MaxChars {
+		if runeLen(block) > baseMaxChars {
 			flush()
-			chunks = append(chunks, splitOversizeBlock(block, c.opts.MaxChars)...)
+			chunks = append(chunks, splitOversizeBlock(block, baseMaxChars)...)
 			continue
 		}
 		candidate := block
 		if current.Len() > 0 {
 			candidate = strings.TrimSpace(current.String()) + "\n\n" + block
 		}
-		if runeLen(candidate) <= c.opts.MaxChars {
+		if runeLen(candidate) <= baseMaxChars {
 			current.Reset()
 			current.WriteString(candidate)
 			continue
@@ -174,8 +190,8 @@ func (c recursiveChunker) Chunk(text string) ([]Chunk, error) {
 	}
 	flush()
 
-	if c.opts.OverlapChars > 0 && len(chunks) > 1 {
-		chunks = applyOverlap(chunks, c.opts.OverlapChars, c.opts.MaxChars)
+	if overlapChars > 0 && len(chunks) > 1 {
+		chunks = applyOverlap(chunks, overlapChars, maxChunkChars)
 	}
 	return finalizeChunks(chunks, c.opts.MaxChunks), nil
 }
@@ -319,13 +335,21 @@ func applyOverlap(chunks []string, overlap, maxChars int) []string {
 	out[0] = chunks[0]
 	for i := 1; i < len(chunks); i++ {
 		prefix := tailRunes(chunks[i-1], overlap)
+		chunk := strings.TrimSpace(chunks[i])
 		if prefix == "" {
-			out[i] = chunks[i]
+			out[i] = chunk
 			continue
 		}
-		combined := strings.TrimSpace(prefix + "\n" + chunks[i])
+		combined := strings.TrimSpace(prefix + "\n" + chunk)
 		if runeLen(combined) > maxChars {
-			combined = string([]rune(combined)[:maxChars])
+			const overlapSeparatorChars = 1
+			availableOverlap := maxChars - runeLen(chunk) - overlapSeparatorChars
+			if availableOverlap <= 0 {
+				out[i] = chunk
+				continue
+			}
+			prefix = tailRunes(prefix, availableOverlap)
+			combined = strings.TrimSpace(prefix + "\n" + chunk)
 		}
 		out[i] = strings.TrimSpace(combined)
 	}

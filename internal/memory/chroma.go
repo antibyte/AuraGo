@@ -269,8 +269,9 @@ func (cv *ChromemVectorDB) SearchToolGuidesContext(ctx context.Context, query st
 	if topK <= 0 {
 		return nil, nil
 	}
-	if count := collection.Count(); topK > count {
-		topK = count
+	searchK := collection.Count()
+	if searchK <= 0 {
+		return nil, nil
 	}
 
 	queryEmbedding, err := cv.getQueryEmbedding(ctx, query)
@@ -278,7 +279,7 @@ func (cv *ChromemVectorDB) SearchToolGuidesContext(ctx context.Context, query st
 		return nil, fmt.Errorf("failed to compute query embedding: %w", err)
 	}
 
-	results, err := collection.QueryEmbedding(ctx, queryEmbedding, topK, nil, nil)
+	results, err := collection.QueryEmbedding(ctx, queryEmbedding, searchK, nil, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query tool guides: %w", err)
 	}
@@ -294,6 +295,9 @@ func (cv *ChromemVectorDB) SearchToolGuidesContext(ctx context.Context, query st
 				}
 				seenPaths[key] = struct{}{}
 				guidePaths = append(guidePaths, path)
+				if len(guidePaths) >= topK {
+					break
+				}
 			}
 		}
 	}

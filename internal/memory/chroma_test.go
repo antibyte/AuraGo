@@ -487,6 +487,79 @@ func TestIndexToolGuidesChunksLongGuidesAndSearchDedupesPath(t *testing.T) {
 	}
 }
 
+func TestSearchToolGuidesReturnsTopKUniquePathsWhenChunksCollide(t *testing.T) {
+	embeddingFunc := func(_ context.Context, text string) ([]float32, error) {
+		switch {
+		case strings.Contains(text, "query"):
+			return []float32{1, 0}, nil
+		case strings.Contains(text, "docker"):
+			return []float32{1, 0}, nil
+		case strings.Contains(text, "ansible"):
+			return []float32{0.5, 0}, nil
+		default:
+			return []float32{0, 1}, nil
+		}
+	}
+	db := chromem.NewDB()
+	collection, err := db.GetOrCreateCollection("aurago_memories", nil, embeddingFunc)
+	if err != nil {
+		t.Fatalf("GetOrCreateCollection aurago_memories: %v", err)
+	}
+	cv := &ChromemVectorDB{
+		db:                   db,
+		dataDir:              t.TempDir(),
+		collection:           collection,
+		logger:               slog.New(slog.NewTextHandler(io.Discard, nil)),
+		embeddingFunc:        embeddingFunc,
+		embeddingFingerprint: "test|tool-guides|3",
+		queryCache:           make(map[string]queryCacheEntry),
+		queryCacheTTL:        5 * time.Minute,
+	}
+	markTestVectorDBReady(cv)
+
+	toolGuides, err := cv.db.GetOrCreateCollection("tool_guides", nil, embeddingFunc)
+	if err != nil {
+		t.Fatalf("GetOrCreateCollection tool_guides: %v", err)
+	}
+	ctx := context.Background()
+	if err := toolGuides.AddDocuments(ctx, []chromem.Document{
+		{
+			ID:       "tool_docker_chunk_0",
+			Metadata: map[string]string{"path": "docker.md"},
+			Content:  "docker first chunk",
+		},
+		{
+			ID:       "tool_docker_chunk_1",
+			Metadata: map[string]string{"path": "docker.md"},
+			Content:  "docker second chunk",
+		},
+		{
+			ID:       "tool_ansible",
+			Metadata: map[string]string{"path": "ansible.md"},
+			Content:  "ansible guide",
+		},
+	}, 1); err != nil {
+		t.Fatalf("AddDocuments tool guides: %v", err)
+	}
+
+	paths, err := cv.SearchToolGuides("query", 2)
+	if err != nil {
+		t.Fatalf("SearchToolGuides: %v", err)
+	}
+	if len(paths) != 2 {
+		t.Fatalf("paths = %v, want two unique guide paths", paths)
+	}
+	want := map[string]bool{
+		"docker.md":  true,
+		"ansible.md": true,
+	}
+	for _, path := range paths {
+		if !want[path] {
+			t.Fatalf("path = %q, want one of %v", path, want)
+		}
+	}
+}
+
 func TestChunkText_UTF8Safety(t *testing.T) {
 	// Text containing German umlauts and emojis
 	text := "Ein schöner Tag mit Sonnenschein und Freude 😊. " +

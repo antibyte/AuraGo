@@ -194,7 +194,7 @@
             </div>
             <div class="cfg-field idx-field-block idx-field-block-xl">
                 <label class="idx-field-label">${t('config.indexing.chunk_overlap_chars')}</label>
-                <input type="number" min="0" max="5000" value="${chunkOverlapChars}"
+                <input type="number" min="1" max="5000" value="${chunkOverlapChars}"
                     data-path="indexing.chunking.overlap_chars"
                     oninput="setNestedValue(configData,'indexing.chunking.overlap_chars', parseInt(this.value));markDirty()"
                     class="idx-poll-input">

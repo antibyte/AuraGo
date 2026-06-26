@@ -93,6 +93,42 @@ func TestRecursiveChunkerIsUTF8SafeAndCapsChunks(t *testing.T) {
 	}
 }
 
+func TestRecursiveChunkerOverlapDoesNotDropContent(t *testing.T) {
+	text := strings.Repeat("a", 100) + strings.Repeat("b", 100) + strings.Repeat("c", 100)
+	chunks, err := ChunkText(text, Options{
+		Strategy:     StrategyRecursive,
+		MaxChars:     100,
+		OverlapChars: 10,
+		MaxChunks:    10,
+	})
+	if err != nil {
+		t.Fatalf("ChunkText error: %v", err)
+	}
+	if len(chunks) < 3 {
+		t.Fatalf("len(chunks) = %d, want at least 3", len(chunks))
+	}
+
+	var reconstructed strings.Builder
+	for i, chunk := range chunks {
+		if got := runeLen(chunk.Text); got > 100 {
+			t.Fatalf("chunk[%d] length = %d, want <= 100", i, got)
+		}
+
+		textPart := chunk.Text
+		if i > 0 {
+			overlap := tailRunes(chunks[i-1].Text, 10)
+			if strings.HasPrefix(textPart, overlap) {
+				textPart = strings.TrimPrefix(textPart, overlap)
+				textPart = strings.TrimPrefix(textPart, "\n")
+			}
+		}
+		reconstructed.WriteString(textPart)
+	}
+	if got := reconstructed.String(); got != text {
+		t.Fatalf("reconstructed text lost content: got len=%d want len=%d", len(got), len(text))
+	}
+}
+
 func TestLegacyChunkerPreservesExistingParagraphSplitBehavior(t *testing.T) {
 	text := strings.Repeat("a", 300) + "\n\n" + strings.Repeat("b", 300)
 	chunks, err := ChunkText(text, Options{
