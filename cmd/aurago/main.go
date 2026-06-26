@@ -176,17 +176,13 @@ func main() {
 	cfg, err := config.Load(configFile)
 	if err != nil && !runSetup {
 		if setup.NeedsSetup(installDir, configFile) {
-			resPath := filepath.Join(installDir, "resources.dat")
-			if _, statErr := os.Stat(resPath); statErr != nil {
-				appLog.Warn("resources.dat not found in install directory — bootstrapping from local defaults", "path", resPath)
-			} else {
-				appLog.Info("Running automatic setup from resources.dat")
-			}
-			if setupErr := setup.Run(appLog); setupErr != nil {
-				appLog.Error("Auto-setup failed", "error", setupErr)
+			relCfg, bsErr := bootstrapIfNeeded(installDir, configFile, appLog)
+			if bsErr != nil {
+				appLog.Error("Auto-setup failed", "error", bsErr)
 				os.Exit(1)
 			}
-			cfg, err = config.Load(configFile)
+			cfg = relCfg
+			err = nil
 		}
 		if err != nil {
 			// If we can't load config and we're not in setup, we can't safely proceed
