@@ -7553,6 +7553,18 @@ if (appId === 'pixel') {
         ]);
     }
 
+    function evaluateProgrammerExpression(expression, base) {
+        const tokens = tokenizeProgrammerExpression(expression, base);
+        return parseProgrammerExpression(tokens);
+    }
+
+    function tokenizeProgrammerExpression(expression, base) {
+        const tokens = [];
+        let index = 0;
+        const isDigit = ch => {
+            if (base === 8) return ch >= '0' && ch <= '7';
+            if (base === 10) return ch >= '0' && ch <= '9';
+
 ;
 /* ui/js/desktop/apps/planning-gallery-music.js */
             if (base === 8) return ch >= '0' && ch <= '7';
