@@ -32,14 +32,6 @@ const setupCSRFTokenTTL = 30 * time.Minute
 
 var validateSetupProviderSSRF = security.ValidateSSRF
 
-// setupCSRFTokens holds short-lived CSRF tokens for the setup wizard.
-// Multiple tokens may be valid at once so a second tab or status refresh does
-// not silently invalidate an in-progress setup form.
-var (
-	setupCSRFTokens = map[string]time.Time{}
-	setupCSRFMu     sync.Mutex
-)
-
 // setupCSRFCleanupOnce ensures the cleanup goroutine is started exactly once.
 var setupCSRFCleanupOnce sync.Once
 
@@ -60,15 +52,15 @@ func loadCachedSetupProfiles(logger *slog.Logger) []setup.SetupProfile {
 // startSetupCSRFCleanup launches a background goroutine that prunes expired
 // tokens every 5 minutes. It runs until the process exits and is safe to call
 // from any code path that issues or validates tokens.
-func startSetupCSRFCleanup() {
+func startSetupCSRFCleanup(s *Server) {
 	setupCSRFCleanupOnce.Do(func() {
 		go func() {
 			ticker := time.NewTicker(5 * time.Minute)
 			defer ticker.Stop()
 			for now := range ticker.C {
-				setupCSRFMu.Lock()
-				pruneExpiredSetupCSRFTokensLocked(now)
-				setupCSRFMu.Unlock()
+				s.SetupCSRFMu.Lock()
+				pruneExpiredSetupCSRFTokensLocked(s.SetupCSRFTokens, now)
+				s.SetupCSRFMu.Unlock()
 			}
 		}()
 	})
@@ -84,40 +76,46 @@ func generateSetupCSRF() string {
 	return hex.EncodeToString(b)
 }
 
-func issueSetupCSRFToken() string {
-	startSetupCSRFCleanup() // idempotent
+func issueSetupCSRFToken(s *Server) string {
+	startSetupCSRFCleanup(s) // idempotent
 	token := generateSetupCSRF()
 	now := time.Now()
-	setupCSRFMu.Lock()
-	defer setupCSRFMu.Unlock()
-	pruneExpiredSetupCSRFTokensLocked(now)
-	setupCSRFTokens[token] = now.Add(setupCSRFTokenTTL)
+	s.SetupCSRFMu.Lock()
+	defer s.SetupCSRFMu.Unlock()
+	if s.SetupCSRFTokens == nil {
+		s.SetupCSRFTokens = make(map[string]time.Time)
+	}
+	pruneExpiredSetupCSRFTokensLocked(s.SetupCSRFTokens, now)
+	s.SetupCSRFTokens[token] = now.Add(setupCSRFTokenTTL)
 	return token
 }
 
-func validateSetupCSRFToken(token string, consume bool) bool {
+func validateSetupCSRFToken(s *Server, token string, consume bool) bool {
 	if token == "" {
 		return false
 	}
 	now := time.Now()
-	setupCSRFMu.Lock()
-	defer setupCSRFMu.Unlock()
-	pruneExpiredSetupCSRFTokensLocked(now)
-	expiry, ok := setupCSRFTokens[token]
+	s.SetupCSRFMu.Lock()
+	defer s.SetupCSRFMu.Unlock()
+	if s.SetupCSRFTokens == nil {
+		s.SetupCSRFTokens = make(map[string]time.Time)
+	}
+	pruneExpiredSetupCSRFTokensLocked(s.SetupCSRFTokens, now)
+	expiry, ok := s.SetupCSRFTokens[token]
 	if !ok || now.After(expiry) {
-		delete(setupCSRFTokens, token)
+		delete(s.SetupCSRFTokens, token)
 		return false
 	}
 	if consume {
-		delete(setupCSRFTokens, token)
+		delete(s.SetupCSRFTokens, token)
 	}
 	return true
 }
 
-func pruneExpiredSetupCSRFTokensLocked(now time.Time) {
-	for token, expiry := range setupCSRFTokens {
+func pruneExpiredSetupCSRFTokensLocked(tokens map[string]time.Time, now time.Time) {
+	for token, expiry := range tokens {
 		if now.After(expiry) {
-			delete(setupCSRFTokens, token)
+			delete(tokens, token)
 		}
 	}
 }
@@ -142,7 +140,7 @@ func handleSetupStatus(s *Server) http.HandlerFunc {
 
 		// Issue a fresh CSRF token on every status request when setup is needed.
 		if show {
-			resp["csrf_token"] = issueSetupCSRFToken()
+			resp["csrf_token"] = issueSetupCSRFToken(s)
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -176,7 +174,7 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 
 		// CSRF protection: the token was issued via GET /api/setup/status.
 		// Final setup saves consume the token to prevent replay.
-		if !validateSetupCSRFToken(r.Header.Get("X-CSRF-Token"), true) {
+		if !validateSetupCSRFToken(s, r.Header.Get("X-CSRF-Token"), true) {
 			s.Logger.Warn("[Setup] CSRF token mismatch")
 			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.setup_invalid_csrf_token"), http.StatusForbidden)
 			return
@@ -535,7 +533,7 @@ func handleSetupTestConnection(s *Server) http.HandlerFunc {
 		// connection details, so it must be protected even though setup itself is
 		// available before login. Do not consume the token: users often test and
 		// then save from the same setup page.
-		if !validateSetupCSRFToken(r.Header.Get("X-CSRF-Token"), false) {
+		if !validateSetupCSRFToken(s, r.Header.Get("X-CSRF-Token"), false) {
 			s.Logger.Warn("[Setup] CSRF token mismatch on test connection")
 			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.setup_invalid_csrf_token"), http.StatusForbidden)
 			return

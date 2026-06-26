@@ -17,10 +17,13 @@ import (
 
 type panicVectorDB struct{}
 
-func addSetupCSRFTokenForTest(token string) {
-	setupCSRFMu.Lock()
-	defer setupCSRFMu.Unlock()
-	setupCSRFTokens[token] = time.Now().Add(setupCSRFTokenTTL)
+func addSetupCSRFTokenForTest(s *Server, token string) {
+	s.SetupCSRFMu.Lock()
+	defer s.SetupCSRFMu.Unlock()
+	if s.SetupCSRFTokens == nil {
+		s.SetupCSRFTokens = make(map[string]time.Time)
+	}
+	s.SetupCSRFTokens[token] = time.Now().Add(setupCSRFTokenTTL)
 }
 
 func (panicVectorDB) StoreDocument(concept, content string) ([]string, error) {
@@ -252,19 +255,21 @@ func TestHandleSetupStatusNoCSRFWhenConfigured(t *testing.T) {
 }
 
 func TestSetupCSRFTokensAllowMultipleTabs(t *testing.T) {
-	tokenA := issueSetupCSRFToken()
-	tokenB := issueSetupCSRFToken()
+	s := &Server{Cfg: &config.Config{}, Logger: slog.Default()}
+
+	tokenA := issueSetupCSRFToken(s)
+	tokenB := issueSetupCSRFToken(s)
 
 	if tokenA == "" || tokenB == "" || tokenA == tokenB {
 		t.Fatalf("expected distinct non-empty tokens, got %q and %q", tokenA, tokenB)
 	}
-	if !validateSetupCSRFToken(tokenA, true) {
+	if !validateSetupCSRFToken(s, tokenA, true) {
 		t.Fatal("expected first token to validate")
 	}
-	if validateSetupCSRFToken(tokenA, false) {
+	if validateSetupCSRFToken(s, tokenA, false) {
 		t.Fatal("expected consumed first token to be rejected")
 	}
-	if !validateSetupCSRFToken(tokenB, false) {
+	if !validateSetupCSRFToken(s, tokenB, false) {
 		t.Fatal("expected second token to remain valid")
 	}
 }
@@ -341,9 +346,8 @@ func TestHandleSetupTestConnectionRejectsWithoutCSRF(t *testing.T) {
 }
 
 func TestHandleSetupSaveRejectsWithoutCSRF(t *testing.T) {
-	addSetupCSRFTokenForTest("test-csrf-token-12345")
-
 	s := &Server{Cfg: &config.Config{}, Logger: slog.Default()}
+	addSetupCSRFTokenForTest(s, "test-csrf-token-12345")
 
 	req := httptest.NewRequest(http.MethodPost, "/api/setup", strings.NewReader(`{}`))
 	req.Header.Set("Content-Type", "application/json")
@@ -359,9 +363,8 @@ func TestHandleSetupSaveRejectsWithoutCSRF(t *testing.T) {
 }
 
 func TestHandleSetupSaveRejectsWrongCSRF(t *testing.T) {
-	addSetupCSRFTokenForTest("correct-token")
-
 	s := &Server{Cfg: &config.Config{}, Logger: slog.Default()}
+	addSetupCSRFTokenForTest(s, "correct-token")
 
 	req := httptest.NewRequest(http.MethodPost, "/api/setup", strings.NewReader(`{}`))
 	req.Header.Set("Content-Type", "application/json")
@@ -519,8 +522,6 @@ func TestHandleSetupProfilesRejectsPost(t *testing.T) {
 }
 
 func TestHandleSetupSaveAcceptsMiniMaxQuickPatch(t *testing.T) {
-	addSetupCSRFTokenForTest("minimax-setup-token")
-
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "config.yaml")
 	input, err := os.ReadFile(filepath.Join("..", "..", "config_template.yaml"))
@@ -537,6 +538,7 @@ func TestHandleSetupSaveAcceptsMiniMaxQuickPatch(t *testing.T) {
 	}
 	s.Cfg.Server.UILanguage = "de"
 	s.Cfg.Auth.Enabled = true
+	addSetupCSRFTokenForTest(s, "minimax-setup-token")
 
 	patch := map[string]interface{}{
 		"auth": map[string]interface{}{
@@ -672,8 +674,6 @@ func TestHandleSetupSaveAcceptsMiniMaxQuickPatch(t *testing.T) {
 }
 
 func TestHandleSetupSaveAcceptsMiniMaxQuickPatchAgainstTemplateConfig(t *testing.T) {
-	addSetupCSRFTokenForTest("minimax-current-config-token")
-
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "config.yaml")
 	input, err := os.ReadFile(filepath.Join("..", "..", "config_template.yaml"))
@@ -690,6 +690,7 @@ func TestHandleSetupSaveAcceptsMiniMaxQuickPatchAgainstTemplateConfig(t *testing
 	}
 	s.Cfg.Server.UILanguage = "de"
 	s.Cfg.Auth.Enabled = true
+	addSetupCSRFTokenForTest(s, "minimax-current-config-token")
 
 	patch := map[string]interface{}{
 		"auth": map[string]interface{}{
@@ -731,8 +732,6 @@ func TestHandleSetupSaveAcceptsMiniMaxQuickPatchAgainstTemplateConfig(t *testing
 }
 
 func TestHandleSetupSaveReturnsRestartRequiredWhenHotReloadPanics(t *testing.T) {
-	addSetupCSRFTokenForTest("minimax-panic-token")
-
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "config.yaml")
 	input, err := os.ReadFile(filepath.Join("..", "..", "config_template.yaml"))
@@ -750,6 +749,7 @@ func TestHandleSetupSaveReturnsRestartRequiredWhenHotReloadPanics(t *testing.T) 
 	}
 	s.Cfg.Server.UILanguage = "de"
 	s.Cfg.Auth.Enabled = true
+	addSetupCSRFTokenForTest(s, "minimax-panic-token")
 
 	patch := map[string]interface{}{
 		"auth": map[string]interface{}{
