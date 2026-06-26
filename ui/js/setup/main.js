@@ -21,6 +21,20 @@ let setupPasswordRequired = true;
 let csrfToken = '';
 let setupOllamaBaseURL = 'http://localhost:11434/v1';
 
+// Sequence counter for /api/i18n fetches. When the user rapidly switches
+// languages, only the most recent fetch's response should be applied.
+let langFetchSeq = 0;
+
+// Centralized language metadata (single source of truth for setup wizard).
+// Key = ISO 639-1 code; Value = Display name in that language.
+const LANG_MAP = {
+    de: 'Deutsch', en: 'English', es: 'Español', fr: 'Français',
+    pl: 'Polski', zh: '中文', hi: 'हिन्दी', nl: 'Nederlands',
+    it: 'Italiano', pt: 'Português', da: 'Dansk', ja: '日本語',
+    sv: 'Svenska', no: 'Norsk', el: 'Ελληνικά', cs: 'Čeština',
+};
+const SUPPORTED_LANGS = Object.keys(LANG_MAP);
+
 // Derived helpers
 function activeFlow()  { return isQuickFlow ? QUICK_FLOW_STEPS  : CUSTOM_FLOW_STEPS; }
 function activeLabels(){ return isQuickFlow ? QUICK_FLOW_LABELS : CUSTOM_FLOW_LABELS; }
@@ -31,7 +45,10 @@ function totalSteps()  { return activeFlow().length; }
 (async function checkSetupStatus() {
     try {
         const resp = await fetch('/api/setup/status');
-        if (!resp.ok) return;
+        if (!resp.ok) {
+            showSetupConnectionWarning('status ' + resp.status);
+            return;
+        }
         const data = await resp.json();
         if (!data.needs_setup) {
             window.location.href = '/';
@@ -49,8 +66,25 @@ function totalSteps()  { return activeFlow().length; }
                 }
             }
         }
-    } catch (e) { /* ignore — proceed with setup */ }
+    } catch (e) {
+        showSetupConnectionWarning(e.message || 'network error');
+    }
 })();
+
+// Display a non-blocking warning banner when the setup status endpoint is
+// unreachable so the user gets actionable feedback before the final save
+// returns 403. The banner is inserted directly after the header.
+function showSetupConnectionWarning(detail) {
+    if (document.getElementById('setup-conn-warning')) return; // already shown
+    const header = document.querySelector('.setup-header');
+    if (!header) return;
+    const banner = document.createElement('div');
+    banner.id = 'setup-conn-warning';
+    banner.className = 'setup-conn-warning';
+    banner.setAttribute('role', 'alert');
+    banner.textContent = 'Could not reach setup status endpoint (' + detail + '). Reload the page once the server is ready.';
+    header.parentNode.insertBefore(banner, header.nextSibling);
+}
 
 // ── Security: HTTPS warning ──────────────────
 (function httpsWarning() {
@@ -198,7 +232,11 @@ function renderProfileCards(list) {
         return `
         <div class="profile-card${isCustom ? ' is-custom' : ''}"
              id="profile-card-${escapeAttr(p.id)}"
-             onclick="selectProfile('${escapeAttr(p.id)}')">
+             role="button"
+             tabindex="0"
+             aria-pressed="false"
+             onclick="selectProfile('${escapeAttr(p.id)}')"
+             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();selectProfile('${escapeAttr(p.id)}')}">
             <div class="profile-check">✓</div>
             ${p.recommended ? '<div class="profile-recommended-bubble">Recommended</div>' : ''}
             <div class="profile-card-icon">${escapeHtml(p.icon || (isCustom ? '⚙️' : '🤖'))}</div>
@@ -330,9 +368,11 @@ function onQuickMiniMaxOptionsChange() {
 
 function selectProfile(profileId) {
     selectedProfile = profiles.find(p => p.id === profileId) || null;
-    // Update card selection state
+    // Update card selection state and ARIA pressed state
     document.querySelectorAll('.profile-card').forEach(card => {
-        card.classList.toggle('selected', card.id === `profile-card-${profileId}`);
+        const isSel = card.id === `profile-card-${profileId}`;
+        card.classList.toggle('selected', isSel);
+        card.setAttribute('aria-pressed', isSel ? 'true' : 'false');
     });
     if (!selectedProfile) return;
     // Update Next button state
@@ -391,27 +431,24 @@ async function testQuickConnection() {
     }
 }
 
-// ── Quick Flow Language Change ───────────────
+// ── Language Change ──────────────────────────
+// Sync the three language selectors and apply the chosen language.
+// Single source of truth for cross-flow language mirror.
+function syncLanguage(value) {
+    if (!value) return;
+    ['plan-language', 'system-language', 'quick-language'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = value;
+    });
+    fetchAndApplyLang(value);
+}
+
 function onQuickLanguageChange() {
-    const sel = document.getElementById('quick-language');
-    if (!sel) return;
-    fetchAndApplyLang(sel.value);
-    // Mirror to other language selectors so all flows stay in sync
-    const mainSel = document.getElementById('system-language');
-    if (mainSel) mainSel.value = sel.value;
-    const planSel = document.getElementById('plan-language');
-    if (planSel) planSel.value = sel.value;
+    syncLanguage(document.getElementById('quick-language')?.value);
 }
 
 function onPlanLanguageChange() {
-    const sel = document.getElementById('plan-language');
-    if (!sel) return;
-    fetchAndApplyLang(sel.value);
-    // Mirror to other language selectors so all flows stay in sync
-    const mainSel = document.getElementById('system-language');
-    if (mainSel) mainSel.value = sel.value;
-    const quickSel = document.getElementById('quick-language');
-    if (quickSel) quickSel.value = sel.value;
+    syncLanguage(document.getElementById('plan-language')?.value);
 }
 
 // ── Quick Flow Validation ────────────────────
@@ -500,7 +537,7 @@ function buildQuickConfigPatch() {
     const trustRadio = document.querySelector('input[name="trust-level"]:checked');
     const trustLevel = trustRadio ? parseInt(trustRadio.value, 10) : (p.default_trust_level || 1);
 
-    const langMap = {de:'Deutsch',en:'English',es:'Español',fr:'Français',pl:'Polski',zh:'中文',hi:'हिन्दी',nl:'Nederlands',it:'Italiano',pt:'Português',da:'Dansk',ja:'日本語',sv:'Svenska',no:'Norsk',el:'Ελληνικά',cs:'Čeština'};
+    const langMap = LANG_MAP;
     const patch = {
         _setup_profile_id: p.id,
         server: {
@@ -801,7 +838,10 @@ function updateEmbeddingSetupWarnings() {
     const quickWarning = document.getElementById('quick-embedding-warning');
     if (quickWarning) {
         const quickProvider = selectedProfile && selectedProfile.provider_type ? selectedProfile.provider_type : '';
-        setupSetHidden(quickWarning, !quickProvider || quickProvider === 'openrouter' || selectedProfile.id === 'custom');
+        setupSetHidden(quickWarning,
+            !quickProvider ||
+            quickProvider === 'openrouter' ||
+            (selectedProfile && selectedProfile.id === 'custom'));
     }
 
     const providerWarning = document.getElementById('provider-embedding-warning');
@@ -891,15 +931,17 @@ function onLanguageChange() {
         customInput.focus();
     } else {
         setupSetHidden(customInput, true);
-        fetchAndApplyLang(sel.value);
+        syncLanguage(sel.value);
     }
 }
 
 function fetchAndApplyLang(langValue) {
     document.documentElement.lang = langValue || 'en';
+    const seq = ++langFetchSeq; // capture current sequence; stale responses are discarded
     fetch('/api/i18n?lang=' + encodeURIComponent(langValue))
         .then(r => r.ok ? r.json() : null)
         .then(json => {
+            if (seq !== langFetchSeq) return; // a newer fetch started — discard this response
             if (json && json.data && typeof json.data === 'object') {
                 I18N = json.data;
                 applyI18N();
@@ -1402,10 +1444,9 @@ function buildConfigPatch() {
         },
         agent: {
             system_language: (function() {
-                const langMap = {de:'Deutsch',en:'English',es:'Español',fr:'Français',pl:'Polski',zh:'中文',hi:'हिन्दी',nl:'Nederlands',it:'Italiano',pt:'Português',da:'Dansk',ja:'日本語',sv:'Svenska',no:'Norsk',el:'Ελληνικά',cs:'Čeština'};
                 const v = document.getElementById('system-language').value;
                 if (v === 'custom') return document.getElementById('system-language-custom').value.trim();
-                return langMap[v] || v;
+                return LANG_MAP[v] || v;
             })(),
             personality_engine_v2: helperConfigured,
             personality_engine: helperConfigured,
@@ -1413,7 +1454,7 @@ function buildConfigPatch() {
         },
         auth: {
             enabled: true,
-            admin_password: document.getElementById('admin-password').value,
+            admin_password: document.getElementById('admin-password').value.trim(),
         },
         maintenance: {
             enabled: document.getElementById('maintenance-enabled').checked,
@@ -1551,8 +1592,7 @@ function showToast(message, type = 'info') {
 (function detectAndSetLanguage() {
     const lang = (navigator.languages && navigator.languages[0]) || navigator.language || 'en';
     const base = lang.toLowerCase().split('-')[0];
-    const supported = ['de','en','es','fr','pl','zh','hi','nl','it','pt','da','ja','sv','no','cs','el'];
-    const detected = supported.includes(base) ? base : 'en';
+    const detected = SUPPORTED_LANGS.includes(base) ? base : 'en';
     const sel = document.getElementById('system-language');
     if (sel) sel.value = detected;
     const quickSel = document.getElementById('quick-language');

@@ -26,20 +26,42 @@ import (
 	"time"
 
 	openai "github.com/sashabaranov/go-openai"
-	"gopkg.in/yaml.v3"
 )
 
 const setupCSRFTokenTTL = 30 * time.Minute
 
 var validateSetupProviderSSRF = security.ValidateSSRF
 
-// setupCSRFTokens holds short-lived CSRF tokens for the setup wizard.
-// Multiple tokens may be valid at once so a second tab or status refresh does
-// not silently invalidate an in-progress setup form.
 var (
-	setupCSRFTokens = map[string]time.Time{}
-	setupCSRFMu     sync.Mutex
+	setupProfilesCache     []setup.SetupProfile
+	setupProfilesCacheOnce sync.Once
 )
+
+// loadCachedSetupProfiles returns the embedded setup profiles, parsed once.
+// Safe to call from multiple goroutines concurrently.
+func loadCachedSetupProfiles(logger *slog.Logger) []setup.SetupProfile {
+	setupProfilesCacheOnce.Do(func() {
+		setupProfilesCache = setup.LoadProfiles("", logger)
+	})
+	return setupProfilesCache
+}
+
+// startSetupCSRFCleanup launches a background goroutine that prunes expired
+// tokens every 5 minutes. It runs until the process exits and is safe to call
+// from any code path that issues or validates tokens.
+func startSetupCSRFCleanup(s *Server) {
+	s.SetupCSRFCleanupOnce.Do(func() {
+		go func() {
+			ticker := time.NewTicker(5 * time.Minute)
+			defer ticker.Stop()
+			for now := range ticker.C {
+				s.SetupCSRFMu.Lock()
+				pruneExpiredSetupCSRFTokensLocked(s.SetupCSRFTokens, now)
+				s.SetupCSRFMu.Unlock()
+			}
+		}()
+	})
+}
 
 // generateSetupCSRF creates a cryptographically random 32-byte hex token.
 func generateSetupCSRF() string {
@@ -51,39 +73,46 @@ func generateSetupCSRF() string {
 	return hex.EncodeToString(b)
 }
 
-func issueSetupCSRFToken() string {
+func issueSetupCSRFToken(s *Server) string {
+	startSetupCSRFCleanup(s) // idempotent
 	token := generateSetupCSRF()
 	now := time.Now()
-	setupCSRFMu.Lock()
-	defer setupCSRFMu.Unlock()
-	pruneExpiredSetupCSRFTokensLocked(now)
-	setupCSRFTokens[token] = now.Add(setupCSRFTokenTTL)
+	s.SetupCSRFMu.Lock()
+	defer s.SetupCSRFMu.Unlock()
+	if s.SetupCSRFTokens == nil {
+		s.SetupCSRFTokens = make(map[string]time.Time)
+	}
+	pruneExpiredSetupCSRFTokensLocked(s.SetupCSRFTokens, now)
+	s.SetupCSRFTokens[token] = now.Add(setupCSRFTokenTTL)
 	return token
 }
 
-func validateSetupCSRFToken(token string, consume bool) bool {
+func validateSetupCSRFToken(s *Server, token string, consume bool) bool {
 	if token == "" {
 		return false
 	}
 	now := time.Now()
-	setupCSRFMu.Lock()
-	defer setupCSRFMu.Unlock()
-	pruneExpiredSetupCSRFTokensLocked(now)
-	expiry, ok := setupCSRFTokens[token]
+	s.SetupCSRFMu.Lock()
+	defer s.SetupCSRFMu.Unlock()
+	if s.SetupCSRFTokens == nil {
+		s.SetupCSRFTokens = make(map[string]time.Time)
+	}
+	pruneExpiredSetupCSRFTokensLocked(s.SetupCSRFTokens, now)
+	expiry, ok := s.SetupCSRFTokens[token]
 	if !ok || now.After(expiry) {
-		delete(setupCSRFTokens, token)
+		delete(s.SetupCSRFTokens, token)
 		return false
 	}
 	if consume {
-		delete(setupCSRFTokens, token)
+		delete(s.SetupCSRFTokens, token)
 	}
 	return true
 }
 
-func pruneExpiredSetupCSRFTokensLocked(now time.Time) {
-	for token, expiry := range setupCSRFTokens {
+func pruneExpiredSetupCSRFTokensLocked(tokens map[string]time.Time, now time.Time) {
+	for token, expiry := range tokens {
 		if now.After(expiry) {
-			delete(setupCSRFTokens, token)
+			delete(tokens, token)
 		}
 	}
 }
@@ -108,7 +137,7 @@ func handleSetupStatus(s *Server) http.HandlerFunc {
 
 		// Issue a fresh CSRF token on every status request when setup is needed.
 		if show {
-			resp["csrf_token"] = issueSetupCSRFToken()
+			resp["csrf_token"] = issueSetupCSRFToken(s)
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -142,7 +171,7 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 
 		// CSRF protection: the token was issued via GET /api/setup/status.
 		// Final setup saves consume the token to prevent replay.
-		if !validateSetupCSRFToken(r.Header.Get("X-CSRF-Token"), true) {
+		if !validateSetupCSRFToken(s, r.Header.Get("X-CSRF-Token"), true) {
 			s.Logger.Warn("[Setup] CSRF token mismatch")
 			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.setup_invalid_csrf_token"), http.StatusForbidden)
 			return
@@ -173,32 +202,19 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 			return
 		}
 
-		setupPassword, authEnabled, err := extractSetupAdminPassword(patch, s.Cfg.Auth.Enabled, s.Cfg.Auth.PasswordHash != "")
+		authPatch, _ := patch["auth"].(map[string]interface{})
+		setupPassword, authEnabled, err := validateSetupAdminPassword(authPatch, s.Cfg.Auth.Enabled, s.Cfg.Auth.PasswordHash != "")
 		if err != nil {
 			jsonError(w, setupValidationMessage(err), http.StatusBadRequest)
 			return
 		}
-		applySetupProfileConfigPatch(patch, s)
+		stripSetupAdminPassword(authPatch)
 
-		// Read current config file
-		data, err := os.ReadFile(configPath)
-		if err != nil {
-			s.Logger.Error("[Setup] Failed to read config file", "error", err)
-			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.setup_failed_read_config"), http.StatusInternalServerError)
-			return
-		}
-
-		var rawCfg map[string]interface{}
-		if err := yaml.Unmarshal(data, &rawCfg); err != nil {
-			s.Logger.Error("[Setup] Failed to parse config", "error", err)
-			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.setup_failed_parse_config"), http.StatusInternalServerError)
-			return
-		}
-		rawCfg = normalizeConfigYAMLMap(rawCfg)
-
-		// Extract and persist provider API keys into the vault BEFORE merging
-		// into the YAML. ProviderEntry.APIKey has yaml:"-" so it is vault-only
-		// and must never be stored as plaintext in config.yaml.
+		// Pre-extract provider API keys into the vault BEFORE applyConfigPatch.
+		// Provider keys live at dynamic paths (providers[N].api_key) which the
+		// generic extractSecretsToVault helper cannot reach — vault keys are
+		// derived as "provider_<id>_api_key". Strip them from the patch so they
+		// never reach config.yaml (ProviderEntry.APIKey has yaml:"-").
 		if s.Vault != nil {
 			if providers, ok := patch["providers"].([]interface{}); ok {
 				for _, item := range providers {
@@ -213,60 +229,31 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 								s.Logger.Info("[Setup] Provider API key stored in vault", "provider", id)
 							}
 						}
-						// Remove api_key from the map so it is never written to YAML
 						delete(prov, "api_key")
 					}
 				}
 			}
-
-			// Extract TTS API keys into vault. TTS has its own config structure
-			// (tts.minimax.api_key, tts.elevenlabs.api_key) separate from the
-			// provider system. The vault keys match config_migrate.go conventions.
-			if tts, ok := patch["tts"].(map[string]interface{}); ok {
-				for _, sub := range []struct {
-					key      string
-					vaultKey string
-				}{
-					{"minimax", "tts_minimax_api_key"},
-					{"elevenlabs", "tts_elevenlabs_api_key"},
-				} {
-					if section, ok := tts[sub.key].(map[string]interface{}); ok {
-						if key, _ := section["api_key"].(string); key != "" {
-							if werr := s.Vault.WriteSecret(sub.vaultKey, key); werr != nil {
-								s.Logger.Warn("[Setup] Failed to write TTS API key to vault", "provider", sub.key, "error", werr)
-							} else {
-								s.Logger.Info("[Setup] TTS API key stored in vault", "provider", sub.key)
-							}
-							delete(section, "api_key")
-						}
-					}
-				}
-			}
 		}
 
-		// Deep merge the setup patch into existing config
-		deepMerge(rawCfg, patch, "")
-		rawCfg = normalizeConfigYAMLMap(rawCfg)
-
-		// Write back
-		out, err := yaml.Marshal(rawCfg)
+		// Apply the patch: extract secrets to vault (TTS keys via vaultKeyMap),
+		// deep-merge, write to disk, reload and resolve vault secrets. This is the
+		// shared read/merge/write/reload sequence used by /api/setup and /api/config.
+		reloadedCfg, err := applyConfigPatch(s, patch)
 		if err != nil {
-			s.Logger.Error("[Setup] Failed to marshal config", "error", err)
-			jsonErrorWithDetails(w, i18n.T(s.Cfg.Server.UILanguage, "backend.setup_failed_save_config"), err.Error(), http.StatusInternalServerError)
+			s.Logger.Error("[Setup] Failed to apply config patch", "error", err)
+			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.setup_failed_save_config"), http.StatusInternalServerError)
 			return
 		}
+
+		// Managed-Docker backend validation runs AFTER the write/reload so the
+		// merged config (not the raw patch) is what gets validated. This matches
+		// the behavior of handleUpdateConfig.
 		s.CfgMu.RLock()
 		runtimeSnapshot := s.Cfg.Runtime
 		s.CfgMu.RUnlock()
-		if managedDockerErr := validateManagedDockerBackends(managedDockerConfigFromRaw(rawCfg), runtimeSnapshot); managedDockerErr != nil {
+		if managedDockerErr := validateManagedDockerBackends(*reloadedCfg, runtimeSnapshot); managedDockerErr != nil {
 			s.Logger.Error("[Setup] Managed Docker backend unavailable — save rejected", "error", managedDockerErr)
 			jsonError(w, managedDockerErr.Error(), http.StatusBadRequest)
-			return
-		}
-
-		if err := config.WriteFileAtomic(configPath, out, 0o600); err != nil {
-			s.Logger.Error("[Setup] Failed to write config", "error", err)
-			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.setup_failed_write_config"), http.StatusInternalServerError)
 			return
 		}
 
@@ -297,7 +284,9 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 			s.Logger.Info("[Setup] Admin password initialized")
 		}
 
-		// Hot-reload: re-parse and apply
+		// Hot-reload: the config has already been read, vault-secrets applied,
+		// and providers resolved by applyConfigPatch. We just need to swap the
+		// in-memory snapshot and rewire the live subsystems.
 		needsRestart := false
 		restartReasons := []string{}
 		func() {
@@ -312,22 +301,8 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 			s.CfgMu.Lock()
 			defer s.CfgMu.Unlock()
 
-			newCfg, loadErr := config.Load(configPath)
-			if loadErr != nil {
-				s.Logger.Warn("[Setup] Hot-reload failed, changes saved but require restart", "error", loadErr)
-				needsRestart = true
-				restartReasons = append(restartReasons, "config reload failed")
-				return
-			}
+			newCfg := reloadedCfg // already loaded + vault-secrets applied
 
-			// Apply vault secrets (including the provider API keys just saved above)
-			// so the in-memory config reflects the full resolved configuration and
-			// needsSetup() returns false on the next request.
-			newCfg.ConfigPath = configPath
-			newCfg.ApplyVaultSecrets(s.Vault)
-			// Re-resolve providers so vault API keys propagate into cfg.LLM.APIKey etc.
-			// (same sequence as main.go: ApplyVaultSecrets → ResolveProviders)
-			newCfg.ResolveProviders()
 			s.replaceConfigSnapshot(newCfg)
 
 			// Re-create BudgetTracker and re-register MissionManagerV2 callback.
@@ -341,6 +316,15 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 				s.Logger.Info("[Setup] LLM client reconfigured",
 					"provider", newCfg.LLM.ProviderType,
 					"base_url", newCfg.LLM.BaseURL)
+			} else {
+				// s.LLMClient is not a FailoverManager (e.g., a future client type
+				// or a test double). The setup-saved config is correct on disk and
+				// in s.Cfg, but the in-memory client still uses the old values. A
+				// process restart is required for the new API key to take effect.
+				s.Logger.Warn("[Setup] LLM client is not a FailoverManager; restart may be required for new API key to take effect",
+					"client_type", fmt.Sprintf("%T", s.LLMClient))
+				needsRestart = true
+				restartReasons = append(restartReasons, "llm client not FailoverManager")
 			}
 
 			// Re-initialize the VectorDB (LTM / embeddings) if it was disabled at
@@ -427,10 +411,15 @@ func applySetupProfileConfigPatch(patch map[string]interface{}, s *Server) {
 	}
 }
 
-func extractSetupAdminPassword(patch map[string]interface{}, currentAuthEnabled bool, currentPasswordSet bool) (string, bool, error) {
+// validateSetupAdminPassword inspects the auth block of a setup patch and
+// returns the password (if any), whether auth should remain enabled, and an
+// error if validation fails. Does not mutate the patch.
+//
+// The caller is responsible for stripping the temporary admin_password field
+// from the patch (see stripSetupAdminPassword) before persisting it.
+func validateSetupAdminPassword(authPatch map[string]interface{}, currentAuthEnabled bool, currentPasswordSet bool) (string, bool, error) {
 	authEnabled := currentAuthEnabled
-	authPatch, ok := patch["auth"].(map[string]interface{})
-	if !ok || authPatch == nil {
+	if authPatch == nil {
 		if authEnabled && !currentPasswordSet {
 			return "", authEnabled, fmt.Errorf("admin password is required")
 		}
@@ -444,8 +433,6 @@ func extractSetupAdminPassword(patch map[string]interface{}, currentAuthEnabled 
 		authEnabled = enabled
 	}
 	rawPassword, hasPassword := authPatch["admin_password"]
-	delete(authPatch, "admin_password")
-
 	if !authEnabled {
 		return "", false, nil
 	}
@@ -464,6 +451,15 @@ func extractSetupAdminPassword(patch map[string]interface{}, currentAuthEnabled 
 		return "", true, fmt.Errorf("admin password must be at least 8 characters long")
 	}
 	return password, true, nil
+}
+
+// stripSetupAdminPassword removes the temporary admin_password field from the
+// auth block of a setup patch so it is never written to disk. Call this AFTER
+// validateSetupAdminPassword has extracted the password.
+func stripSetupAdminPassword(authPatch map[string]interface{}) {
+	if authPatch != nil {
+		delete(authPatch, "admin_password")
+	}
 }
 
 func setupValidationMessage(err error) string {
@@ -509,6 +505,15 @@ func needsSetup(cfg *config.Config) bool {
 	if !llmConfigured {
 		return true
 	}
+	// Setup is complete when at least one LLM provider is reachable AND auth is
+	// either disabled by the operator or has a password configured.
+	//
+	// Deliberately NOT requiring setup when Auth.Enabled is false and no password
+	// is set: operators who intentionally disable auth (e.g., single-user LAN
+	// deployments, OAuth2 setups that don't need a UI password) are considered
+	// configured. The config UI can be used to re-enable auth and set a password
+	// at any time. See TestNeedsSetupAcceptsOAuthProviderWithAppliedToken and
+	// TestHandleSetupStatusNoCSRFWhenConfigured for the codified behavior.
 	return cfg.Auth.Enabled && cfg.Auth.PasswordHash == ""
 }
 
@@ -541,7 +546,7 @@ func handleSetupTestConnection(s *Server) http.HandlerFunc {
 		// connection details, so it must be protected even though setup itself is
 		// available before login. Do not consume the token: users often test and
 		// then save from the same setup page.
-		if !validateSetupCSRFToken(r.Header.Get("X-CSRF-Token"), false) {
+		if !validateSetupCSRFToken(s, r.Header.Get("X-CSRF-Token"), false) {
 			s.Logger.Warn("[Setup] CSRF token mismatch on test connection")
 			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.setup_invalid_csrf_token"), http.StatusForbidden)
 			return
@@ -706,7 +711,7 @@ func handleSetupProfiles(s *Server) http.HandlerFunc {
 			return
 		}
 
-		profiles := setup.LoadProfiles("", s.Logger)
+		profiles := loadCachedSetupProfiles(s.Logger)
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{

@@ -112,9 +112,18 @@ func panicRecoveryMiddleware(logger *slog.Logger, next http.Handler) http.Handle
 type Server struct {
 	Cfg                *config.Config
 	cfgSnapshot        atomic.Pointer[config.Config]
-	CfgMu              sync.RWMutex // protects Cfg during hot-reload
-	CfgSaveMu          sync.Mutex   // serializes config file writes to prevent TOCTOU races
-	Logger             *slog.Logger
+	CfgMu     sync.RWMutex // protects Cfg during hot-reload
+	CfgSaveMu sync.Mutex   // serializes config file writes to prevent TOCTOU races
+	// Setup wizard CSRF tokens (short-lived, multi-token support).
+	// These live on the Server so tests can construct independent Server
+	// instances without racing on a shared package-level map.
+	SetupCSRFMu     sync.Mutex
+	SetupCSRFTokens map[string]time.Time
+	// SetupCSRFCleanupOnce ensures the per-Server CSRF cleanup goroutine is
+	// started exactly once. Lives on Server (not package global) so each
+	// Server instance has independent cleanup lifecycle for test isolation.
+	SetupCSRFCleanupOnce sync.Once
+	Logger          *slog.Logger
 	AccessLogger       *slog.Logger
 	LLMClient          llm.ChatClient
 	ShortTermMem       *memory.SQLiteMemory
@@ -1019,6 +1028,7 @@ func newServerFromOptions(opts StartOptions) *Server {
 
 	s := &Server{
 		Cfg:                cfg,
+		SetupCSRFTokens:    make(map[string]time.Time),
 		Logger:             logger,
 		AccessLogger:       opts.AccessLogger,
 		LLMClient:          opts.LLMClient,

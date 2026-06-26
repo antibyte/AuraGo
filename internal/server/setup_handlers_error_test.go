@@ -13,11 +13,10 @@ import (
 func TestHandleSetupSaveInvalidJSONIsGeneric(t *testing.T) {
 	t.Parallel()
 
-	addSetupCSRFTokenForTest("test-token")
-
 	s := &Server{
 		Cfg: &config.Config{ConfigPath: t.TempDir() + "\\config.yaml"},
 	}
+	addSetupCSRFTokenForTest(s, "test-token")
 	if err := os.WriteFile(s.Cfg.ConfigPath, []byte("server:\n  ui_language: de\n"), 0o600); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}

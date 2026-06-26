@@ -115,7 +115,12 @@ func ensureConfigFile(installDir, configPath string, logger *slog.Logger) error 
 		return nil
 	}
 
-	minimalConfig := []byte("{}\n")
+	minimalConfig := []byte(`# AuraGo minimal fallback config — please edit.
+server:
+  host: "0.0.0.0"
+  port: 8088
+  ui_language: en
+`)
 	if err := config.WriteFileAtomic(configPath, minimalConfig, 0o600); err != nil {
 		return fmt.Errorf("failed to create minimal config.yaml: %w", err)
 	}
@@ -161,6 +166,17 @@ func EnsureDirectories(installDir string, logger *slog.Logger) {
 
 // ── tar.gz extraction ────────────────────────────────────────────────────
 
+// extractTarGz extracts a tar.gz archive into destDir. It enforces two security
+// invariants:
+//
+//  1. All paths in the archive must resolve inside destDir (path-traversal
+//     protection via filepath.Clean).
+//  2. File modes are AND-masked with safe defaults (0o750 for directories,
+//     0o640 for files) so the archive can only ever NARROW permissions.
+//     Setuid, setgid, and sticky bits from the archive are dropped.
+//
+// Non-regular entries (symlinks, char devices, fifos, hard links) are silently
+// skipped — they are not extracted, eliminating symlink-following TOCTOU races.
 func extractTarGz(archivePath, destDir string) error {
 	f, err := os.Open(archivePath)
 	if err != nil {
@@ -193,7 +209,9 @@ func extractTarGz(archivePath, destDir string) error {
 
 		switch hdr.Typeflag {
 		case tar.TypeDir:
-			if err := os.MkdirAll(target, os.FileMode(hdr.Mode)|0750); err != nil {
+			// AND with safe default (0o750 = owner+group rwx, no public access).
+			safeMode := os.FileMode(hdr.Mode).Perm() & 0o750
+			if err := os.MkdirAll(target, safeMode); err != nil {
 				return err
 			}
 		case tar.TypeReg:
@@ -206,7 +224,9 @@ func extractTarGz(archivePath, destDir string) error {
 					continue
 				}
 			}
-			out, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.FileMode(hdr.Mode)|0640)
+			// AND with safe default (0o640 = owner rw, group r, no public access).
+			safeMode := os.FileMode(hdr.Mode).Perm() & 0o640
+			out, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, safeMode)
 			if err != nil {
 				return err
 			}
@@ -237,6 +257,75 @@ func installService(exePath, installDir string, logger *slog.Logger) error {
 
 // ── Linux: systemd ──────────────────────────────────────────────────────
 
+// buildSystemdUnit returns the systemd unit file content for AuraGo.
+// All paths and the user/group identifiers are quoted via strconv.Quote to
+// escape embedded quotes, backslashes, and other special characters so the
+// unit file remains syntactically valid even when installDir or credentialFile
+// contain unusual characters. The caller decides whether to disable
+// ProtectSystem=strict via sudoUnrestricted.
+//
+// dockerMode is reserved for a future container-aware unit template (currently
+// unused but kept so callers don't need to change signatures when the Docker
+// branch is implemented). See installSystemd for the runningInDocker wiring.
+func buildSystemdUnit(desc, user, installDir, exePath, credentialFile, readWritePaths string, dockerMode, sudoUnrestricted bool) (string, error) {
+	_ = dockerMode // reserved for future container-aware template
+	user = strings.TrimSpace(user)
+	installDir = strings.TrimSpace(installDir)
+	exePath = strings.TrimSpace(exePath)
+	credentialFile = strings.TrimSpace(credentialFile)
+	if user == "" {
+		return "", fmt.Errorf("buildSystemdUnit: user is required")
+	}
+	if installDir == "" {
+		return "", fmt.Errorf("buildSystemdUnit: installDir is required")
+	}
+	if exePath == "" {
+		return "", fmt.Errorf("buildSystemdUnit: exePath is required")
+	}
+	if credentialFile == "" {
+		return "", fmt.Errorf("buildSystemdUnit: credentialFile is required")
+	}
+
+	protectSystemLine := "ProtectSystem=strict"
+	if sudoUnrestricted {
+		protectSystemLine = "# ProtectSystem=strict disabled because sudo_unrestricted is enabled"
+	}
+
+	return fmt.Sprintf(`[Unit]
+Description=%s
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=%s
+Group=%s
+WorkingDirectory=%s
+ExecStart=%s --config %s/config.yaml
+Restart=on-failure
+RestartSec=10
+EnvironmentFile=-%s
+NoNewPrivileges=true
+%s
+ReadWritePaths=%s
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
+`,
+		strconv.Quote(desc),
+		strconv.Quote(user),
+		strconv.Quote(user),
+		strconv.Quote(installDir),
+		strconv.Quote(exePath),
+		strconv.Quote(installDir),
+		strconv.Quote(credentialFile),
+		protectSystemLine,
+		strconv.Quote(readWritePaths),
+	), nil
+}
+
 func installSystemd(exePath, installDir string, logger *slog.Logger) error {
 	// Determine the actual user (fallback from sudo if applicable)
 	user := os.Getenv("SUDO_USER")
@@ -253,34 +342,20 @@ func installSystemd(exePath, installDir string, logger *slog.Logger) error {
 		credentialFile = "/etc/aurago/master.key"
 		readWritePaths = installDir + " /etc/aurago"
 	}
-	protectSystemLine := "ProtectSystem=strict"
-	if configAllowsSudoUnrestricted(filepath.Join(installDir, "config.yaml")) {
-		protectSystemLine = "# ProtectSystem=strict disabled because sudo_unrestricted is enabled"
+
+	unit, err := buildSystemdUnit(
+		"AuraGo AI Agent",
+		user,
+		installDir,
+		exePath,
+		credentialFile,
+		readWritePaths,
+		runningInDocker(),
+		configAllowsSudoUnrestricted(filepath.Join(installDir, "config.yaml")),
+	)
+	if err != nil {
+		return fmt.Errorf("build systemd unit: %w", err)
 	}
-
-	unit := fmt.Sprintf(`[Unit]
-Description=AuraGo AI Agent
-After=network-online.target
-Wants=network-online.target
-StartLimitIntervalSec=0
-
-[Service]
-Type=simple
-User=%s
-Group=%s
-WorkingDirectory="%s"
-ExecStart="%s" --config "%s/config.yaml"
-Restart=on-failure
-RestartSec=10
-EnvironmentFile=-%s
-NoNewPrivileges=true
-%s
-ReadWritePaths=%s
-PrivateTmp=true
-
-[Install]
-WantedBy=multi-user.target
-`, user, user, installDir, exePath, installDir, credentialFile, protectSystemLine, readWritePaths)
 
 	unitPath := "/etc/systemd/system/aurago.service"
 	if err := os.WriteFile(unitPath, []byte(unit), 0600); err != nil {
@@ -378,10 +453,9 @@ func serviceAlreadyInstalled(installDir string, logger *slog.Logger) bool {
 // ── Windows: Task Scheduler ─────────────────────────────────────────────
 
 func installWindowsTask(exePath, installDir string, logger *slog.Logger) error {
-	// Use schtasks to create a task that runs at logon
 	taskName := "AuraGo"
 
-	// Delete existing task if present (ignore errors)
+	// Delete existing task if present (ignore errors — task may not exist)
 	exec.Command("schtasks", "/Delete", "/TN", taskName, "/F").Run()
 
 	cmd := exec.Command("schtasks", "/Create",
@@ -398,14 +472,15 @@ func installWindowsTask(exePath, installDir string, logger *slog.Logger) error {
 		return fmt.Errorf("schtasks failed: %s — %w", string(out), err)
 	}
 
-	// Also create a batch wrapper that sets the env and starts the binary
 	batContent := fmt.Sprintf(`@echo off
 cd /d "%s"
 for /f "tokens=1,* delims==" %%%%a in (.env) do set "%%%%a=%%%%b"
 start "" "%s"
 `, installDir, exePath)
 	batPath := filepath.Join(installDir, "start_aurago.bat")
-	os.WriteFile(batPath, []byte(batContent), 0644)
+	if err := os.WriteFile(batPath, []byte(batContent), 0o700); err != nil {
+		return fmt.Errorf("failed to write %s: %w", batPath, err)
+	}
 
 	logger.Info("Windows scheduled task created", "task", taskName)
 	return nil
