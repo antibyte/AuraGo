@@ -605,7 +605,17 @@ func runningInDocker() bool {
 	if _, err := os.Stat("/.dockerenv"); err == nil {
 		return true
 	}
-	data, err := os.ReadFile("/proc/self/cgroup")
+	f, err := os.Open("/proc/self/cgroup")
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+	// Cap reads at 64KB — we only need the leading bytes to find the
+	// docker/containerd/kubepods markers. /proc/self/cgroup can be MBs on
+	// systems with many cgroups.
+	const maxCgroupBytes = 64 * 1024
+	limited := io.LimitReader(f, maxCgroupBytes)
+	data, err := io.ReadAll(limited)
 	if err != nil {
 		return false
 	}
