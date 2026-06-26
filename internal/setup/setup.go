@@ -161,6 +161,17 @@ func EnsureDirectories(installDir string, logger *slog.Logger) {
 
 // ── tar.gz extraction ────────────────────────────────────────────────────
 
+// extractTarGz extracts a tar.gz archive into destDir. It enforces two security
+// invariants:
+//
+//  1. All paths in the archive must resolve inside destDir (path-traversal
+//     protection via filepath.Clean).
+//  2. File modes are AND-masked with safe defaults (0o750 for directories,
+//     0o640 for files) so the archive can only ever NARROW permissions.
+//     Setuid, setgid, and sticky bits from the archive are dropped.
+//
+// Non-regular entries (symlinks, char devices, fifos, hard links) are silently
+// skipped — they are not extracted, eliminating symlink-following TOCTOU races.
 func extractTarGz(archivePath, destDir string) error {
 	f, err := os.Open(archivePath)
 	if err != nil {
@@ -193,11 +204,9 @@ func extractTarGz(archivePath, destDir string) error {
 
 		switch hdr.Typeflag {
 		case tar.TypeDir:
-			// Strip all non-permission bits (setuid/setgid/sticky, file type)
-			// to prevent privilege escalation via crafted resources.dat.
-			// AND with the safe default so the archive can only ever narrow permissions.
-			perm := os.FileMode(hdr.Mode).Perm() & 0o750
-			if err := os.MkdirAll(target, perm); err != nil {
+			// AND with safe default (0o750 = owner+group rwx, no public access).
+			safeMode := os.FileMode(hdr.Mode).Perm() & 0o750
+			if err := os.MkdirAll(target, safeMode); err != nil {
 				return err
 			}
 		case tar.TypeReg:
@@ -210,10 +219,9 @@ func extractTarGz(archivePath, destDir string) error {
 					continue
 				}
 			}
-			// Strip non-permission bits and clamp to a safe default to prevent
-			// setuid binaries and overly permissive files from crafted archives.
-			perm := os.FileMode(hdr.Mode).Perm() & 0o640
-			out, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, perm)
+			// AND with safe default (0o640 = owner rw, group r, no public access).
+			safeMode := os.FileMode(hdr.Mode).Perm() & 0o640
+			out, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, safeMode)
 			if err != nil {
 				return err
 			}
