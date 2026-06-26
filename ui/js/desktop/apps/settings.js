@@ -116,23 +116,24 @@
         const sidebarWasOpen = host.querySelector('.vd-settings-sidebar') && host.querySelector('.vd-settings-sidebar').classList.contains('open');
         const sections = settingsSections();
         const active = sections.find(section => section.id === host.dataset.activeSettings) || sections[0];
+        const { esc, t, iconMarkup } = ctx;
         host.innerHTML = `<div class="vd-settings-app">
-            <button type="button" class="vd-settings-hamburger" data-toggle-sidebar aria-label="${esc(ctx.t('desktop.app_settings'))}">
+            <button type="button" class="vd-settings-hamburger" data-toggle-sidebar aria-label="${esc(t('desktop.app_settings'))}">
                 ${iconMarkup('menu-symbolic', 'M', 'vd-settings-hamburger-icon', 20)}
             </button>
-            <aside class="vd-settings-sidebar" aria-label="${esc(ctx.t('desktop.app_settings'))}">
+            <aside class="vd-settings-sidebar" aria-label="${esc(t('desktop.app_settings'))}">
                 <div class="vd-settings-sidebar-header">
-                    <div class="vd-settings-sidebar-title">${esc(ctx.t('desktop.app_settings'))}</div>
+                    <div class="vd-settings-sidebar-title">${esc(t('desktop.app_settings'))}</div>
                 </div>
                 <div class="vd-settings-search">
-                    <input type="search" class="vd-settings-search-input" placeholder="${esc(ctx.t('desktop.settings_search_placeholder'))}" autocomplete="off" spellcheck="false" inputmode="search" enterkeyhint="search" autocapitalize="off">
+                    <input type="search" class="vd-settings-search-input" placeholder="${esc(t('desktop.settings_search_placeholder'))}" autocomplete="off" spellcheck="false" inputmode="search" enterkeyhint="search" autocapitalize="off">
                 </div>
                 <nav class="vd-settings-nav-list">
                     ${sections.map(section => `<button type="button" class="vd-settings-nav ${section.id === active.id ? 'active' : ''}" data-section="${esc(section.id)}">
                         <span class="vd-settings-nav-icon">${iconMarkup(section.icon, section.fallback || section.icon, 'vd-settings-nav-icon', 20)}</span>
                         <span class="vd-settings-nav-text">
-                            <span class="vd-settings-nav-title">${esc(ctx.t(section.title))}</span>
-                            <span class="vd-settings-nav-desc">${esc(ctx.t(section.desc))}</span>
+                            <span class="vd-settings-nav-title">${esc(t(section.title))}</span>
+                            <span class="vd-settings-nav-desc">${esc(t(section.desc))}</span>
                         </span>
                     </button>`).join('')}
                 </nav>
@@ -142,8 +143,8 @@
                 <div class="vd-settings-pane-head">
                     <div class="vd-settings-pane-icon">${iconMarkup(active.icon, active.fallback || active.icon, 'vd-settings-pane-papirus-icon', 28)}</div>
                     <div>
-                        <div class="vd-settings-pane-title">${esc(ctx.t(active.title))}</div>
-                        <div class="vd-settings-pane-desc">${esc(ctx.t(active.desc))}</div>
+                        <div class="vd-settings-pane-title">${esc(t(active.title))}</div>
+                        <div class="vd-settings-pane-desc">${esc(t(active.desc))}</div>
                     </div>
                 </div>
                 <div class="vd-settings-list">${active.items.map(renderSettingItem).join('')}</div>
@@ -238,22 +239,23 @@
     }
 
     function renderSettingItem(item) {
+        const { esc, t, settingBool, settingValue } = ctx;
         if (item.type === 'info') {
             return `<article class="vd-setting-row readonly">
-                <div><div class="vd-setting-label">${esc(ctx.t(item.label))}</div></div>
+                <div><div class="vd-setting-label">${esc(t(item.label))}</div></div>
                 <div class="vd-setting-value">${esc(item.value)}</div>
             </article>`;
         }
         const control = item.type === 'toggle'
-            ? `<label class="vd-switch"><input type="checkbox" data-setting-key="${esc(item.key)}" ${ctx.settingBool(item.key) ? 'checked' : ''}><span></span></label>`
+            ? `<label class="vd-switch"><input type="checkbox" data-setting-key="${esc(item.key)}" ${settingBool(item.key) ? 'checked' : ''}><span></span></label>`
             : `<select class="vd-setting-select" data-setting-key="${esc(item.key)}">${item.options.map(option => {
                 const normalized = normalizeSettingOption(option);
-                return `<option value="${esc(normalized.value)}" ${ctx.settingValue(item.key) === normalized.value ? 'selected' : ''}>${esc(normalized.label)}</option>`;
+                return `<option value="${esc(normalized.value)}" ${settingValue(item.key) === normalized.value ? 'selected' : ''}>${esc(normalized.label)}</option>`;
             }).join('')}</select>`;
         return `<article class="vd-setting-row">
             <div>
-                <div class="vd-setting-label">${esc(ctx.t(item.label))}</div>
-                <div class="vd-setting-help">${esc(ctx.t(item.desc))}</div>
+                <div class="vd-setting-label">${esc(t(item.label))}</div>
+                <div class="vd-setting-help">${esc(t(item.desc))}</div>
             </div>
             ${control}
         </article>`;
@@ -286,8 +288,7 @@
                 })
             ));
             const last = results[results.length - 1];
-            ctx.state.bootstrap.settings = last.settings || Object.assign(ctx.desktopSettings(), {});
-            ctx.state.bootstrap.settings[key] = value;
+            ctx.state.bootstrap.settings = last.settings || Object.assign(ctx.desktopSettings(), { [key]: value });
             if (updates.length > 1) {
                 for (const u of updates) ctx.state.bootstrap.settings[u.key] = u.value;
             }
