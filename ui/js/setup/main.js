@@ -13,6 +13,7 @@ let currentStepIndex = 0;   // index into the active flow array
 let highestStepIndex = 0;
 let isQuickFlow = false;
 let selectedProfile = null;
+let prevSelectedProfileId = null;
 let profiles = [];
 let saving = false;
 let setupStepInFlight = false;
@@ -438,7 +439,11 @@ function syncLanguage(value) {
     if (!value) return;
     ['plan-language', 'system-language', 'quick-language'].forEach(id => {
         const el = document.getElementById(id);
-        if (el) el.value = value;
+        if (el) {
+            el.value = value;
+        } else if (typeof console !== 'undefined' && console.warn) {
+            console.warn('syncLanguage: missing selector #' + id + ' (i18n mirror incomplete)');
+        }
     });
     fetchAndApplyLang(value);
 }
@@ -1019,6 +1024,13 @@ async function nextStep(skip = false) {
             }
             // Determine flow based on selected profile
             isQuickFlow = (selectedProfile.id !== 'custom');
+            // If the user just changed their profile choice (re-selected after
+            // going back), reset any flow-specific state to avoid stale references.
+            if (selectedProfile.id !== prevSelectedProfileId) {
+                prevSelectedProfileId = selectedProfile.id;
+                highestStepIndex = 0;
+                // selectedProfile is already the new one; nothing else to reset.
+            }
         } else if (stepId === 'plan-quick') {
             if (!validateQuickStep(skip)) return;
         } else if (stepId === 'step-0') {
