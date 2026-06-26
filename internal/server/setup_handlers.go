@@ -241,7 +241,20 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 		reloadedCfg, err := applyConfigPatch(s, patch)
 		if err != nil {
 			s.Logger.Error("[Setup] Failed to apply config patch", "error", err)
-			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.setup_failed_save_config"), http.StatusInternalServerError)
+			// Marshal/YAML errors are user-input issues (e.g., bad profile data
+			// with mismatched quotes). Other errors (read/write/disk) are
+			// server-side and should keep their 500 status.
+			msg := err.Error()
+			isUserError := strings.Contains(msg, "marshal") || strings.Contains(msg, "yaml") || strings.Contains(msg, "unmarshal")
+			status := http.StatusInternalServerError
+			if isUserError {
+				status = http.StatusBadRequest
+			}
+			if isUserError {
+				jsonErrorWithDetails(w, i18n.T(s.Cfg.Server.UILanguage, "backend.setup_failed_save_config"), msg, status)
+			} else {
+				jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.setup_failed_save_config"), status)
+			}
 			return
 		}
 
