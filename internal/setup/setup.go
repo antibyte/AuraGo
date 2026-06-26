@@ -448,10 +448,9 @@ func serviceAlreadyInstalled(installDir string, logger *slog.Logger) bool {
 // ── Windows: Task Scheduler ─────────────────────────────────────────────
 
 func installWindowsTask(exePath, installDir string, logger *slog.Logger) error {
-	// Use schtasks to create a task that runs at logon
 	taskName := "AuraGo"
 
-	// Delete existing task if present (ignore errors)
+	// Delete existing task if present (ignore errors — task may not exist)
 	exec.Command("schtasks", "/Delete", "/TN", taskName, "/F").Run()
 
 	cmd := exec.Command("schtasks", "/Create",
@@ -468,14 +467,15 @@ func installWindowsTask(exePath, installDir string, logger *slog.Logger) error {
 		return fmt.Errorf("schtasks failed: %s — %w", string(out), err)
 	}
 
-	// Also create a batch wrapper that sets the env and starts the binary
 	batContent := fmt.Sprintf(`@echo off
 cd /d "%s"
 for /f "tokens=1,* delims==" %%%%a in (.env) do set "%%%%a=%%%%b"
 start "" "%s"
 `, installDir, exePath)
 	batPath := filepath.Join(installDir, "start_aurago.bat")
-	os.WriteFile(batPath, []byte(batContent), 0644)
+	if err := os.WriteFile(batPath, []byte(batContent), 0o700); err != nil {
+		return fmt.Errorf("failed to write %s: %w", batPath, err)
+	}
 
 	logger.Info("Windows scheduled task created", "task", taskName)
 	return nil
