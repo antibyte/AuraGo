@@ -44,6 +44,20 @@ var (
 // setupCSRFCleanupOnce ensures the cleanup goroutine is started exactly once.
 var setupCSRFCleanupOnce sync.Once
 
+var (
+	setupProfilesCache     []setup.SetupProfile
+	setupProfilesCacheOnce sync.Once
+)
+
+// loadCachedSetupProfiles returns the embedded setup profiles, parsed once.
+// Safe to call from multiple goroutines concurrently.
+func loadCachedSetupProfiles(logger *slog.Logger) []setup.SetupProfile {
+	setupProfilesCacheOnce.Do(func() {
+		setupProfilesCache = setup.LoadProfiles("", logger)
+	})
+	return setupProfilesCache
+}
+
 // startSetupCSRFCleanup launches a background goroutine that prunes expired
 // tokens every 5 minutes. It runs until the process exits and is safe to call
 // from any code path that issues or validates tokens.
@@ -743,7 +757,7 @@ func handleSetupProfiles(s *Server) http.HandlerFunc {
 			return
 		}
 
-		profiles := setup.LoadProfiles("", s.Logger)
+		profiles := loadCachedSetupProfiles(s.Logger)
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
