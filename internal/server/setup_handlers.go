@@ -509,6 +509,15 @@ func needsSetup(cfg *config.Config) bool {
 	if !llmConfigured {
 		return true
 	}
+	// Setup is complete when at least one LLM provider is reachable AND auth is
+	// either disabled by the operator or has a password configured.
+	//
+	// Deliberately NOT requiring setup when Auth.Enabled is false and no password
+	// is set: operators who intentionally disable auth (e.g., single-user LAN
+	// deployments, OAuth2 setups that don't need a UI password) are considered
+	// configured. The config UI can be used to re-enable auth and set a password
+	// at any time. See TestNeedsSetupAcceptsOAuthProviderWithAppliedToken and
+	// TestHandleSetupStatusNoCSRFWhenConfigured for the codified behavior.
 	return cfg.Auth.Enabled && cfg.Auth.PasswordHash == ""
 }
 
