@@ -41,6 +41,26 @@ var (
 	setupCSRFMu     sync.Mutex
 )
 
+// setupCSRFCleanupOnce ensures the cleanup goroutine is started exactly once.
+var setupCSRFCleanupOnce sync.Once
+
+// startSetupCSRFCleanup launches a background goroutine that prunes expired
+// tokens every 5 minutes. It runs until the process exits and is safe to call
+// from any code path that issues or validates tokens.
+func startSetupCSRFCleanup() {
+	setupCSRFCleanupOnce.Do(func() {
+		go func() {
+			ticker := time.NewTicker(5 * time.Minute)
+			defer ticker.Stop()
+			for now := range ticker.C {
+				setupCSRFMu.Lock()
+				pruneExpiredSetupCSRFTokensLocked(now)
+				setupCSRFMu.Unlock()
+			}
+		}()
+	})
+}
+
 // generateSetupCSRF creates a cryptographically random 32-byte hex token.
 func generateSetupCSRF() string {
 	b := make([]byte, 32)
@@ -52,6 +72,7 @@ func generateSetupCSRF() string {
 }
 
 func issueSetupCSRFToken() string {
+	startSetupCSRFCleanup() // idempotent
 	token := generateSetupCSRF()
 	now := time.Now()
 	setupCSRFMu.Lock()
