@@ -326,6 +326,8 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 				// process restart is required for the new API key to take effect.
 				s.Logger.Warn("[Setup] LLM client is not a FailoverManager; restart may be required for new API key to take effect",
 					"client_type", fmt.Sprintf("%T", s.LLMClient))
+				needsRestart = true
+				restartReasons = append(restartReasons, "llm client not FailoverManager")
 			}
 
 			// Re-initialize the VectorDB (LTM / embeddings) if it was disabled at
