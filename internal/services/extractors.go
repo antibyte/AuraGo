@@ -41,18 +41,20 @@ var knownBinaryExtensions = map[string]bool{
 }
 
 // IsBinaryFile checks if a file is a binary/executable that should not be indexed.
-// It checks extension first, then samples file content for non-text bytes.
+// It allows formats handled by dedicated indexer paths, then samples file content
+// for non-text bytes.
 func IsBinaryFile(path string) bool {
 	ext := strings.ToLower(filepath.Ext(path))
+
+	// Office/PDF documents and media handled by dedicated indexer paths are
+	// binary containers, but they still have valid extraction/embedding routes.
+	if IsDocumentFile(ext) || IsImageFile(ext) || IsAudioFile(ext) {
+		return false
+	}
 
 	// Explicit binary extensions
 	if knownBinaryExtensions[ext] {
 		return true
-	}
-
-	// Office/PDF documents are "binary" containers but contain extractable text
-	if IsDocumentFile(ext) || IsImageFile(ext) || IsAudioFile(ext) {
-		return false
 	}
 
 	// Sample first 8KB to check for binary content
