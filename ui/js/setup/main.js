@@ -198,7 +198,11 @@ function renderProfileCards(list) {
         return `
         <div class="profile-card${isCustom ? ' is-custom' : ''}"
              id="profile-card-${escapeAttr(p.id)}"
-             onclick="selectProfile('${escapeAttr(p.id)}')">
+             role="button"
+             tabindex="0"
+             aria-pressed="false"
+             onclick="selectProfile('${escapeAttr(p.id)}')"
+             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();selectProfile('${escapeAttr(p.id)}')}">
             <div class="profile-check">✓</div>
             ${p.recommended ? '<div class="profile-recommended-bubble">Recommended</div>' : ''}
             <div class="profile-card-icon">${escapeHtml(p.icon || (isCustom ? '⚙️' : '🤖'))}</div>
@@ -330,9 +334,11 @@ function onQuickMiniMaxOptionsChange() {
 
 function selectProfile(profileId) {
     selectedProfile = profiles.find(p => p.id === profileId) || null;
-    // Update card selection state
+    // Update card selection state and ARIA pressed state
     document.querySelectorAll('.profile-card').forEach(card => {
-        card.classList.toggle('selected', card.id === `profile-card-${profileId}`);
+        const isSel = card.id === `profile-card-${profileId}`;
+        card.classList.toggle('selected', isSel);
+        card.setAttribute('aria-pressed', isSel ? 'true' : 'false');
     });
     if (!selectedProfile) return;
     // Update Next button state
