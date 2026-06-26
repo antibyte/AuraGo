@@ -97,7 +97,7 @@
         },
         'viewer': {
             styles: appStyles('/css/desktop-app-viewer.css'),
-            scripts: ['/js/vendor/pdf.min.js', '/js/desktop/apps/viewer.js']
+            scripts: ['/js/vendor/pdf.min.js', '/js/vendor/markdown-it.min.js', '/js/desktop/apps/viewer.js']
         },
         'camera': {
             styles: appStyles('/css/camera.css'),

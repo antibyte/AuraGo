@@ -262,6 +262,10 @@
                 contentEl.innerHTML = `<div class="vd-viewer-empty">${esc(t('viewer.no_content'))}</div>`;
                 return;
             }
+            if (typeof window.markdownit !== 'function') {
+                contentEl.innerHTML = `<div class="vd-viewer-error">${esc(t('viewer.error'))}: markdown-it not loaded</div>`;
+                return;
+            }
             const md = window.markdownit({ html: false, linkify: true, typographer: true });
             const rendered = md.render(raw);
             contentEl.innerHTML = `<div class="vd-viewer-md vd-viewer-rendered">${rendered}</div>`;
