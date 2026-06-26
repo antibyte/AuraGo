@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 
+	"aurago/internal/chunking"
 	"aurago/internal/config"
 )
 
@@ -115,12 +116,18 @@ func ensureConfigFile(installDir, configPath string, logger *slog.Logger) error 
 		return nil
 	}
 
-	minimalConfig := []byte(`# AuraGo minimal fallback config — please edit.
+	minimalConfig := []byte(fmt.Sprintf(`# AuraGo minimal fallback config — please edit.
 server:
   host: "0.0.0.0"
   port: 8088
   ui_language: en
-`)
+indexing:
+  chunking:
+    strategy: %s
+    max_chars: %d
+    overlap_chars: %d
+    max_chunks_per_file: %d
+`, chunking.DefaultStrategy, chunking.DefaultMaxChars, chunking.DefaultOverlapChars, chunking.DefaultMaxChunks))
 	if err := config.WriteFileAtomic(configPath, minimalConfig, 0o600); err != nil {
 		return fmt.Errorf("failed to create minimal config.yaml: %w", err)
 	}

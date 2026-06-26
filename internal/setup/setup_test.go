@@ -117,6 +117,17 @@ func TestEnsureConfigFileCreatesMinimalFallbackWithoutTemplate(t *testing.T) {
 	if _, ok := raw["server"]; !ok {
 		t.Fatalf("fallback missing server section: %s", data)
 	}
+	indexing, ok := raw["indexing"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("fallback missing indexing section: %s", data)
+	}
+	chunking, ok := indexing["chunking"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("fallback missing indexing.chunking section: %s", data)
+	}
+	if got, want := chunking["strategy"], "recursive"; got != want {
+		t.Fatalf("fallback indexing.chunking.strategy = %q, want %q", got, want)
+	}
 
 	// And contain no placeholder values that would cause silent breakage.
 	server, ok := raw["server"].(map[string]interface{})
