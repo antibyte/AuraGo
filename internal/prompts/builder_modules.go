@@ -40,6 +40,7 @@ func parseOrFallback(filename, content string, logger *slog.Logger) PromptModule
 var GetActivePromptOverrides func() map[string]string
 
 func loadPromptModules(dir string, logger *slog.Logger) []PromptModule {
+	logger = normalizePromptLogger(logger)
 	// --- Fast path: check cache validity (TTL + disk files) ---
 	promptCacheMu.RLock()
 	cached, ok := promptCacheByDir[dir]

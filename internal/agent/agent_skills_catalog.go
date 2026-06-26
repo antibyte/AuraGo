@@ -24,7 +24,12 @@ func buildAgentSkillsPromptCatalog() string {
 		if entry.SecurityStatus == tools.SecurityWarning && !entry.WarningApproved {
 			continue
 		}
-		b.WriteString(fmt.Sprintf("- `%s`: %s\n", entry.Name, strings.TrimSpace(entry.Description)))
+		name := safePromptMetadataText(entry.Name, 80)
+		if name == "" {
+			continue
+		}
+		description := safePromptMetadataText(entry.Description, 180)
+		b.WriteString(fmt.Sprintf("- `%s`: %s\n", name, description))
 	}
 	return strings.TrimSpace(b.String())
 }

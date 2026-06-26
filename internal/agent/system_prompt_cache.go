@@ -49,6 +49,8 @@ type systemPromptCacheKey struct {
 	SessionTodoItems         string   `json:"session_todo_items"`
 	WebhooksDefinitions      string   `json:"webhooks_definitions"`
 	RetrievedMemories        string   `json:"retrieved_memories"`
+	AvailableMemoryIndex     string   `json:"available_memory_index"`
+	AvailableKnowledgeIndex  string   `json:"available_knowledge_index"`
 	RecentActivityOverview   string   `json:"recent_activity_overview"`
 	PredictedMemories        string   `json:"predicted_memories"`
 	ActiveProcesses          string   `json:"active_processes"`
@@ -125,6 +127,8 @@ func buildSystemPromptCacheKey(promptsDir string, flags *prompts.ContextFlags, c
 		SessionTodoItems:         flags.SessionTodoItems,
 		WebhooksDefinitions:      flags.WebhooksDefinitions,
 		RetrievedMemories:        flags.RetrievedMemories,
+		AvailableMemoryIndex:     flags.AvailableMemoryContextIndex,
+		AvailableKnowledgeIndex:  flags.AvailableKnowledgeContextIndex,
 		RecentActivityOverview:   flags.RecentActivityOverview,
 		PredictedMemories:        flags.PredictedMemories,
 		ActiveProcesses:          flags.ActiveProcesses,

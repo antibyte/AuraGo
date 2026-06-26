@@ -192,6 +192,18 @@ func TestBuildSystemPromptCacheKey_DifferentFlags(t *testing.T) {
 			wantNewKey: true,
 		},
 		{
+			name: "AvailableMemoryContextIndex changes cache key",
+			modify: func(f *prompts.ContextFlags) {
+				f.AvailableMemoryContextIndex = "[memory:mem-2] score=0.80 - backup detail"
+			},
+			wantNewKey: true,
+		},
+		{
+			name:       "AvailableKnowledgeContextIndex changes cache key",
+			modify:     func(f *prompts.ContextFlags) { f.AvailableKnowledgeContextIndex = "[kg:node-1] service - Proxmox" },
+			wantNewKey: true,
+		},
+		{
 			name:       "Unchanged flags produce same cache key",
 			modify:     func(f *prompts.ContextFlags) { /* no-op */ },
 			wantNewKey: false,

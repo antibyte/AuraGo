@@ -43,6 +43,9 @@ func ValidateCoreMemoryFact(fact string) error {
 	if hasAnyCoreMemoryMarker(lower, transientCoreMemoryTaskMarkers) {
 		return fmt.Errorf("task-local operational details belong in journal or episodic memory, not core memory")
 	}
+	if isCoreMemoryInstructionLike(lower) {
+		return fmt.Errorf("instructions, policy overrides, secret disclosure requests, and tool-permission changes are not core memory facts")
+	}
 	if isCoreMemoryOperationalSnapshot(lower) {
 		return fmt.Errorf("operational run status and deployment snapshots belong in journal or activity memory, not core memory")
 	}
@@ -103,6 +106,35 @@ var transientCoreMemoryTaskMarkers = []string{
 	"context canceled",
 	"no such file or directory",
 	"not found",
+}
+
+var coreMemoryInstructionMarkers = []string{
+	"# system",
+	"developer policy",
+	"do not follow system",
+	"ignore all previous",
+	"ignore developer",
+	"ignore previous",
+	"ignore system",
+	"override safety",
+	"override system",
+	"reveal secrets",
+	"system instructions",
+}
+
+var coreMemoryValidationBypassMarkers = []string{
+	"disable validation",
+	"never validate",
+	"skip validation",
+}
+
+var coreMemoryPermissionOverrideMarkers = []string{
+	"allow disabled tools",
+	"bypass permission",
+	"bypass safety",
+	"call shell even when disabled",
+	"override tool permission",
+	"tool permissions",
 }
 
 var transientCoreMemoryOperationalMarkers = []string{
@@ -285,6 +317,30 @@ func isCoreMemoryToolStateClaim(text string) bool {
 		"aktiviert", "konfiguriert", "verfügbar", "reachable", "immer aktiv",
 	}
 	return hasAnyCoreMemoryMarker(text, stateTerms)
+}
+
+func isCoreMemoryInstructionLike(text string) bool {
+	if strings.HasPrefix(strings.TrimSpace(text), "# system") {
+		return true
+	}
+	if hasAnyCoreMemoryMarker(text, coreMemoryInstructionMarkers) ||
+		hasAnyCoreMemoryMarker(text, coreMemoryValidationBypassMarkers) ||
+		hasAnyCoreMemoryMarker(text, coreMemoryPermissionOverrideMarkers) {
+		return true
+	}
+	if (strings.Contains(text, "always call") || strings.Contains(text, "must call")) &&
+		(strings.Contains(text, "tool") ||
+			strings.Contains(text, "shell") ||
+			strings.Contains(text, "send_") ||
+			strings.Contains(text, "discord") ||
+			strings.Contains(text, "telegram")) {
+		return true
+	}
+	if strings.Contains(text, "policy") &&
+		(strings.Contains(text, "replace") || strings.Contains(text, "replaced") || strings.Contains(text, "override")) {
+		return true
+	}
+	return false
 }
 
 type CoreMemoryReviewIssue struct {

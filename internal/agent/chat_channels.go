@@ -21,7 +21,7 @@ func buildReachableChatChannelsContext(runCfg RunConfig) string {
 	if cfg.Discord.Enabled {
 		target := "configured Discord server"
 		if cfg.Discord.DefaultChannelID != "" {
-			target = fmt.Sprintf("default channel `%s`", cfg.Discord.DefaultChannelID)
+			target = fmt.Sprintf("default channel `%s`", safePromptMetadataText(cfg.Discord.DefaultChannelID, 80))
 		}
 		if cfg.Discord.ReadOnly {
 			lines = append(lines, "- Discord: reachable read-only via `fetch_discord` and `list_discord_channels`; outbound sends are blocked by config.")
@@ -50,14 +50,15 @@ func buildReachableChatChannelsContext(runCfg RunConfig) string {
 	}
 
 	for _, device := range connectedAgoDeskChatDevices(runCfg.RemoteHub) {
-		label := strings.TrimSpace(device.Name)
+		label := safePromptMetadataText(device.Name, 80)
 		if label == "" {
-			label = strings.TrimSpace(device.Hostname)
+			label = safePromptMetadataText(device.Hostname, 80)
 		}
 		if label == "" {
 			label = "AgoDesk"
 		}
-		lines = append(lines, fmt.Sprintf("- AgoChat: `%s` (%s) is connected; send proactive text with `send_agodesk_chat` using device_id `%s`.", label, device.ID, device.ID))
+		deviceID := safePromptMetadataText(device.ID, 80)
+		lines = append(lines, fmt.Sprintf("- AgoChat: `%s` (%s) is connected; send proactive text with `send_agodesk_chat` using device_id `%s`.", label, deviceID, deviceID))
 	}
 
 	if len(lines) == 0 {
