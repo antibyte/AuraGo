@@ -81,5 +81,14 @@
   "config.updates.running": "実行中…",
   "config.web_scraper.summary_mode": "サマリーモード",
   "config.webdav.secret_empty": "値が空です",
-  "config.indexing.remove_confirm_title": "インデックス済みパスを削除しますか？"
+  "config.indexing.remove_confirm_title": "インデックス済みパスを削除しますか？",
+  "config.indexing.indexed_documents": "インデックス済みドキュメント",
+  "config.indexing.chunking_strategy": "チャンク戦略",
+  "config.indexing.chunking_recursive": "再帰",
+  "config.indexing.chunking_legacy": "レガシー",
+  "config.indexing.chunking_help": "再帰チャンクはMarkdownの見出し、段落、リスト、表、コードブロックを尊重します。",
+  "config.indexing.chunk_max_chars": "チャンクあたり最大文字数",
+  "config.indexing.chunk_overlap_chars": "文字オーバーラップ",
+  "config.indexing.chunk_max_chunks": "ファイルあたり最大チャンク数",
+  "config.indexing.chunking_reindex_notice": "これらの値を変更すると、次回スキャン時にクリーンな再インデックスが実行されます。"
 }

@@ -14,6 +14,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"aurago/internal/chunking"
 	"aurago/internal/config"
 
 	chromem "github.com/philippgille/chromem-go"
@@ -658,6 +659,23 @@ func (cv *ChromemVectorDB) StoreDocumentInCollection(concept, content, collectio
 
 // storeDocumentInCollectionWithDomain is the internal implementation for collection-aware storage.
 func (cv *ChromemVectorDB) storeDocumentInCollectionWithDomain(concept, content, collection, domain string) ([]string, error) {
+	return cv.storeDocumentInCollectionWithDomainAndChunking(concept, content, collection, domain, chunking.Options{}, nil)
+}
+
+// StoreDocumentInCollectionWithChunking stores a document in a collection using
+// caller-provided chunking options and optional metadata. It is used by the file
+// indexer so config changes can affect chunking without changing VectorDB.
+func (cv *ChromemVectorDB) StoreDocumentInCollectionWithChunking(concept, content, collection string, options chunking.Options, extraMetadata map[string]string) ([]string, error) {
+	doneStore, err := cv.beginTrackedOperation(&cv.storeWg)
+	if err != nil {
+		return nil, err
+	}
+	defer doneStore()
+
+	return cv.storeDocumentInCollectionWithDomainAndChunking(concept, content, collection, "", options, extraMetadata)
+}
+
+func (cv *ChromemVectorDB) storeDocumentInCollectionWithDomainAndChunking(concept, content, collection, domain string, options chunking.Options, extraMetadata map[string]string) ([]string, error) {
 	if err := cv.requireReadyForStore(); err != nil {
 		return nil, err
 	}
@@ -667,12 +685,7 @@ func (cv *ChromemVectorDB) storeDocumentInCollectionWithDomain(concept, content,
 
 	// Track this collection for FileIndexer document lookups
 	cv.registerFileIndexerCollection(collection)
-
-	const maxContentBytes = 500 * 1024
-	if len(content) > maxContentBytes {
-		cv.logger.Warn("Document content exceeds 500 KB limit, truncating", "concept", concept, "bytes", len(content))
-		content = truncateUTF8Bytes(content, maxContentBytes)
-	}
+	options = chunking.NormalizeOptionsWithDefaults(options)
 
 	cv.mu.Lock()
 	defer cv.mu.Unlock()
@@ -696,14 +709,41 @@ func (cv *ChromemVectorDB) storeDocumentInCollectionWithDomain(concept, content,
 	if domain != "" {
 		metadata["domain"] = domain
 	}
+	for key, value := range extraMetadata {
+		if strings.TrimSpace(key) == "" || strings.TrimSpace(value) == "" {
+			continue
+		}
+		metadata[key] = value
+	}
+	if _, ok := metadata["source_path"]; !ok {
+		if sourcePath := sourcePathFromConcept(concept); sourcePath != "" {
+			metadata["source_path"] = sourcePath
+		}
+	}
 
-	// Small texts: store as a single document
-	if len(fullContent) <= 4000 {
+	chunks, chunkErr := chunking.ChunkText(content, options)
+	if chunkErr != nil {
+		return nil, fmt.Errorf("chunk document for collection %s: %w", collection, chunkErr)
+	}
+	if len(chunks) == 0 {
+		if strings.TrimSpace(fullContent) == "" {
+			return nil, nil
+		}
+		chunks = []chunking.Chunk{{Text: fullContent, Index: 0, Total: 1}}
+	}
+	if len(chunks) == options.MaxChunks && len(content) > options.MaxChars*options.MaxChunks {
+		cv.logger.Warn("Document chunking reached max chunk cap", "concept", concept, "collection", collection, "chunks", len(chunks), "max_chunks", options.MaxChunks)
+	}
+
+	if len(chunks) == 1 {
+		metadata["chunk_index"] = "1"
+		metadata["chunk_total"] = "1"
+		metadata["chunker"] = options.Strategy
 		docID := fmt.Sprintf("file_%d_%d", time.Now().UnixMilli(), cv.idCounter.Add(1))
 		doc := chromem.Document{
 			ID:       docID,
 			Metadata: cv.addEmbeddingMetadata(metadata),
-			Content:  fullContent,
+			Content:  buildContentString(concept, chunks[0].Text),
 		}
 		if err := col.AddDocument(ctx, doc); err != nil {
 			cv.logger.Error("Failed to store document in collection", "collection", collection, "error", err)
@@ -713,22 +753,18 @@ func (cv *ChromemVectorDB) storeDocumentInCollectionWithDomain(concept, content,
 		return []string{docID}, nil
 	}
 
-	// Large texts: split into chunks and batch-store
-	const maxChunks = 200
-	chunks := chunkText(content, 3500, 200)
-	if len(chunks) > maxChunks {
-		cv.logger.Warn("Document produces too many chunks, capping", "concept", concept, "chunks", len(chunks), "max", maxChunks)
-		chunks = chunks[:maxChunks]
-	}
 	baseCounter := cv.idCounter.Add(int64(len(chunks)))
 
 	var docs []chromem.Document
 	var storedIDs []string
-	for i, chunk := range chunks {
-		docID := fmt.Sprintf("file_%d_%d_chunk_%d", time.Now().UnixMilli(), baseCounter-int64(len(chunks))+int64(i)+1, i)
+	for _, chunk := range chunks {
+		docID := fmt.Sprintf("file_%d_%d_chunk_%d", time.Now().UnixMilli(), baseCounter-int64(len(chunks))+int64(chunk.Index)+1, chunk.Index)
 		chunkMeta := map[string]string{
 			"concept":     concept,
-			"chunk_index": fmt.Sprintf("%d/%d", i+1, len(chunks)),
+			"chunk":       fmt.Sprintf("%d/%d", chunk.Index+1, chunk.Total),
+			"chunk_index": fmt.Sprintf("%d", chunk.Index+1),
+			"chunk_total": fmt.Sprintf("%d", chunk.Total),
+			"chunker":     options.Strategy,
 			"timestamp":   fmt.Sprintf("%d", time.Now().Unix()),
 			"source_type": "file_indexer",
 			"collection":  collection,
@@ -736,10 +772,21 @@ func (cv *ChromemVectorDB) storeDocumentInCollectionWithDomain(concept, content,
 		if domain != "" {
 			chunkMeta["domain"] = domain
 		}
+		for key, value := range extraMetadata {
+			if strings.TrimSpace(key) == "" || strings.TrimSpace(value) == "" {
+				continue
+			}
+			chunkMeta[key] = value
+		}
+		if _, ok := chunkMeta["source_path"]; !ok {
+			if sourcePath := sourcePathFromConcept(concept); sourcePath != "" {
+				chunkMeta["source_path"] = sourcePath
+			}
+		}
 		docs = append(docs, chromem.Document{
 			ID:       docID,
 			Metadata: cv.addEmbeddingMetadata(chunkMeta),
-			Content:  buildContentString(concept, chunk),
+			Content:  fmt.Sprintf("%s (%d/%d)\n\n%s", concept, chunk.Index+1, chunk.Total, chunk.Text),
 		})
 		storedIDs = append(storedIDs, docID)
 	}
@@ -1010,68 +1057,12 @@ func (cv *ChromemVectorDB) DeleteCheatsheet(id string) error {
 // chunkText splits a large text into smaller segments of roughly chunkSize characters,
 // preferring paragraph (\n\n) or sentence boundaries. Adds overlap characters between chunks.
 func chunkText(text string, chunkSize, overlap int) []string {
-	text = strings.TrimSpace(text)
-	if text == "" {
-		return nil
-	}
-	runes := []rune(text)
-	if chunkSize <= 0 {
-		chunkSize = len(runes)
-		if chunkSize == 0 {
-			return nil
-		}
-	}
-	if overlap < 0 {
-		overlap = 0
-	}
-	if overlap >= chunkSize {
-		overlap = chunkSize / 4
-	}
-	if len(runes) <= chunkSize {
-		return []string{text}
-	}
-
-	var chunks []string
-	start := 0
-
-	for start < len(runes) {
-		end := start + chunkSize
-		if end >= len(runes) {
-			if chunk := strings.TrimSpace(string(runes[start:])); chunk != "" {
-				chunks = append(chunks, chunk)
-			}
-			break
-		}
-
-		// Try to split at paragraph boundary (\n\n) or sentence boundary (. )
-		chunkRunes := runes[start:end]
-		chunkStr := string(chunkRunes)
-
-		splitAt := strings.LastIndex(chunkStr, "\n\n")
-		if splitAt > len(chunkStr)/2 {
-			runeSplitAt := len([]rune(chunkStr[:splitAt]))
-			end = start + runeSplitAt + 2 // include the double newline
-		} else {
-			splitAt = strings.LastIndex(chunkStr, ". ")
-			if splitAt > len(chunkStr)/2 {
-				runeSplitAt := len([]rune(chunkStr[:splitAt]))
-				end = start + runeSplitAt + 2 // include the dot and space
-			}
-		}
-
-		if chunk := strings.TrimSpace(string(runes[start:end])); chunk != "" {
-			chunks = append(chunks, chunk)
-		}
-
-		// Move forward with overlap, ensuring we always progress
-		nextStart := end - overlap
-		if nextStart <= start {
-			nextStart = end
-		}
-		start = nextStart
-	}
-
-	return chunks
+	return chunking.ChunkStrings(text, chunking.Options{
+		Strategy:     chunking.StrategyLegacy,
+		MaxChars:     chunkSize,
+		OverlapChars: overlap,
+		MaxChunks:    chunking.DefaultMaxChunks,
+	})
 }
 
 // StoreBatch stores multiple concept/content pairs. Small documents are collected
@@ -1853,4 +1844,20 @@ func buildContentString(concept, content string) string {
 	default:
 		return concept + "\n\n" + content
 	}
+}
+
+func sourcePathFromConcept(concept string) string {
+	const marker = "Pfad: "
+	start := strings.Index(concept, marker)
+	if start < 0 {
+		return ""
+	}
+	rest := concept[start+len(marker):]
+	end := len(rest)
+	for _, sep := range []string{",", ")"} {
+		if idx := strings.Index(rest, sep); idx >= 0 && idx < end {
+			end = idx
+		}
+	}
+	return strings.TrimSpace(rest[:end])
 }

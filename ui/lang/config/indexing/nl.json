@@ -81,5 +81,14 @@
   "config.updates.running": "Draait…",
   "config.web_scraper.summary_mode": "Samenvattingsmodus",
   "config.webdav.secret_empty": "Waarde is leeg",
-  "config.indexing.remove_confirm_title": "Geïndexeerd pad verwijderen?"
+  "config.indexing.remove_confirm_title": "Geïndexeerd pad verwijderen?",
+  "config.indexing.indexed_documents": "Geïndexeerde documenten",
+  "config.indexing.chunking_strategy": "Chunkingstrategie",
+  "config.indexing.chunking_recursive": "Recursief",
+  "config.indexing.chunking_legacy": "Legacy",
+  "config.indexing.chunking_help": "Recursieve chunking houdt rekening met Markdown-koppen, alinea's, lijsten, tabellen en codeblokken.",
+  "config.indexing.chunk_max_chars": "Max. tekens per chunk",
+  "config.indexing.chunk_overlap_chars": "Tekenoverlap",
+  "config.indexing.chunk_max_chunks": "Max. chunks per bestand",
+  "config.indexing.chunking_reindex_notice": "Wijzigingen aan deze waarden starten bij de volgende scan een schone reindex."
 }

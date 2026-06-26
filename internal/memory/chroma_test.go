@@ -208,8 +208,9 @@ func TestComputeToolGuidesHash_EmptyDir(t *testing.T) {
 	dir := t.TempDir()
 	cv := fakeCV(t)
 	hash := cv.computeToolGuidesHash(dir)
-	// Empty directory → SHA-256 of nothing → well-known constant.
-	expected := hex.EncodeToString(sha256.New().Sum(nil))
+	h := sha256.New()
+	h.Write([]byte(toolGuideIndexFingerprint()))
+	expected := hex.EncodeToString(h.Sum(nil))
 	if hash != expected {
 		t.Errorf("empty dir hash: got %q want %q", hash, expected)
 	}
@@ -428,6 +429,61 @@ func TestIndexToolGuidesDeletesRemovedGuideAfterSuccessfulReindex(t *testing.T) 
 	}
 	if _, err := toolGuides.GetByID(context.Background(), "tool_docker"); err != nil {
 		t.Fatalf("remaining guide tool_docker missing after successful reindex: %v", err)
+	}
+}
+
+func TestIndexToolGuidesChunksLongGuidesAndSearchDedupesPath(t *testing.T) {
+	const marker = "rare-tail-marker-for-tool-guide-search"
+	embeddingFunc := func(_ context.Context, text string) ([]float32, error) {
+		if strings.Contains(text, marker) {
+			return []float32{1, 0, 0}, nil
+		}
+		return []float32{0, 1, 0}, nil
+	}
+	db := chromem.NewDB()
+	collection, err := db.GetOrCreateCollection("aurago_memories", nil, embeddingFunc)
+	if err != nil {
+		t.Fatalf("GetOrCreateCollection aurago_memories: %v", err)
+	}
+	cv := &ChromemVectorDB{
+		db:                   db,
+		dataDir:              t.TempDir(),
+		collection:           collection,
+		logger:               slog.New(slog.NewTextHandler(io.Discard, nil)),
+		embeddingFunc:        embeddingFunc,
+		embeddingFingerprint: "test|tool-guides|3",
+		queryCache:           make(map[string]queryCacheEntry),
+		queryCacheTTL:        5 * time.Minute,
+	}
+	markTestVectorDBReady(cv)
+
+	toolsDir := t.TempDir()
+	guidePath := filepath.Join(toolsDir, "docker.md")
+	body := "# Docker\n\n" + strings.Repeat("general container guidance.\n\n", 250) + marker
+	if err := os.WriteFile(guidePath, []byte(body), 0o644); err != nil {
+		t.Fatalf("WriteFile guide: %v", err)
+	}
+	if err := cv.IndexToolGuides(toolsDir, true); err != nil {
+		t.Fatalf("IndexToolGuides: %v", err)
+	}
+
+	toolGuides, err := cv.db.GetOrCreateCollection("tool_guides", nil, embeddingFunc)
+	if err != nil {
+		t.Fatalf("GetOrCreateCollection tool_guides: %v", err)
+	}
+	if got := toolGuides.Count(); got < 2 {
+		t.Fatalf("tool guide docs = %d, want multiple chunk docs", got)
+	}
+
+	paths, err := cv.SearchToolGuides(marker, 5)
+	if err != nil {
+		t.Fatalf("SearchToolGuides: %v", err)
+	}
+	if len(paths) != 1 {
+		t.Fatalf("paths = %v, want one deduplicated guide path", paths)
+	}
+	if filepath.Clean(paths[0]) != filepath.Clean(guidePath) {
+		t.Fatalf("path = %q, want %q", paths[0], guidePath)
 	}
 }
 

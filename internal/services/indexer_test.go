@@ -25,6 +25,7 @@ type fakeIndexerVectorDB struct {
 	storeOnce    sync.Once
 	nextID       int
 	deleted      []string
+	stored       []string
 	disabled     bool
 	fingerprint  string
 	storeErr     error
@@ -46,6 +47,9 @@ func (f *fakeIndexerVectorDB) StoreDocument(concept, content string) ([]string, 
 	if f.storeErr != nil {
 		return nil, f.storeErr
 	}
+	f.mu.Lock()
+	f.stored = append(f.stored, content)
+	f.mu.Unlock()
 	return []string{docID}, nil
 }
 
@@ -858,6 +862,94 @@ func TestFileIndexerReindexesWhenFullContentChangesBeyondIndexedLimit(t *testing
 	_, indexed, errs = fi.scanDirectory(context.Background(), dir, IndexerCollection)
 	if indexed != 1 || len(errs) != 0 {
 		t.Fatalf("second scan indexed=%d errors=%v, want indexed=1 errors=[] for full-content hash change", indexed, errs)
+	}
+}
+
+func TestFileIndexerPassesFullTextContentToVectorDB(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	defer stm.Close()
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "large.txt")
+	tail := "needle-tail-beyond-old-limit"
+	content := strings.Repeat("a", maxIndexedContentBytes+1024) + tail
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	cfg := &config.Config{}
+	cfg.Indexing.Directories = []config.IndexingDirectory{{Path: dir}}
+	cfg.Indexing.Extensions = []string{".txt"}
+	cfg.Indexing.Chunking.Strategy = "recursive"
+	cfg.Indexing.Chunking.MaxChars = 3500
+	cfg.Indexing.Chunking.OverlapChars = 200
+	cfg.Indexing.Chunking.MaxChunksPerFile = 200
+
+	cfgMu := &sync.RWMutex{}
+	vdb := &fakeIndexerVectorDB{}
+	fi := NewFileIndexer(cfg, cfgMu, vdb, stm, logger)
+
+	_, indexed, errs := fi.scanDirectory(context.Background(), dir, IndexerCollection)
+	if indexed != 1 || len(errs) != 0 {
+		t.Fatalf("scan indexed=%d errors=%v, want indexed=1 errors=[]", indexed, errs)
+	}
+
+	vdb.mu.Lock()
+	defer vdb.mu.Unlock()
+	if len(vdb.stored) != 1 {
+		t.Fatalf("stored contents = %d, want 1", len(vdb.stored))
+	}
+	if !strings.Contains(vdb.stored[0], tail) {
+		t.Fatalf("stored content missing tail beyond old 500KB limit")
+	}
+}
+
+func TestFileIndexerReindexesWhenChunkingFingerprintChanges(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	defer stm.Close()
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "note.txt")
+	if err := os.WriteFile(path, []byte("same content, different chunking config"), 0o644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	modTime := time.Now().UTC().Add(-time.Minute).Truncate(time.Second)
+	if err := os.Chtimes(path, modTime, modTime); err != nil {
+		t.Fatalf("Chtimes: %v", err)
+	}
+
+	cfg := &config.Config{}
+	cfg.Indexing.Directories = []config.IndexingDirectory{{Path: dir}}
+	cfg.Indexing.Extensions = []string{".txt"}
+	cfg.Indexing.Chunking.Strategy = "legacy"
+	cfg.Indexing.Chunking.MaxChars = 3500
+	cfg.Indexing.Chunking.OverlapChars = 200
+	cfg.Indexing.Chunking.MaxChunksPerFile = 200
+
+	cfgMu := &sync.RWMutex{}
+	vdb := &fakeIndexerVectorDB{}
+	fi := NewFileIndexer(cfg, cfgMu, vdb, stm, logger)
+
+	_, indexed, errs := fi.scanDirectory(context.Background(), dir, IndexerCollection)
+	if indexed != 1 || len(errs) != 0 {
+		t.Fatalf("first scan indexed=%d errors=%v, want indexed=1 errors=[]", indexed, errs)
+	}
+
+	cfgMu.Lock()
+	cfg.Indexing.Chunking.Strategy = "recursive"
+	cfgMu.Unlock()
+
+	_, indexed, errs = fi.scanDirectory(context.Background(), dir, IndexerCollection)
+	if indexed != 1 || len(errs) != 0 {
+		t.Fatalf("second scan indexed=%d errors=%v, want indexed=1 errors=[] after chunking fingerprint change", indexed, errs)
 	}
 }
 

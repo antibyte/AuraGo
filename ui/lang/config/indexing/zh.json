@@ -81,5 +81,14 @@
   "config.updates.running": "运行中…",
   "config.web_scraper.summary_mode": "摘要模式",
   "config.webdav.secret_empty": "值为空",
-  "config.indexing.remove_confirm_title": "要移除已索引路径吗？"
+  "config.indexing.remove_confirm_title": "要移除已索引路径吗？",
+  "config.indexing.indexed_documents": "已索引文档",
+  "config.indexing.chunking_strategy": "分块策略",
+  "config.indexing.chunking_recursive": "递归",
+  "config.indexing.chunking_legacy": "Legacy",
+  "config.indexing.chunking_help": "递归分块会保留 Markdown 标题、段落、列表、表格和代码块结构。",
+  "config.indexing.chunk_max_chars": "每块最大字符数",
+  "config.indexing.chunk_overlap_chars": "字符重叠",
+  "config.indexing.chunk_max_chunks": "每个文件最大块数",
+  "config.indexing.chunking_reindex_notice": "更改这些值会在下次扫描时触发干净的重新索引。"
 }

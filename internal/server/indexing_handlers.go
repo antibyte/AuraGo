@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"aurago/internal/chunking"
 	"aurago/internal/config"
 
 	"gopkg.in/yaml.v3"
@@ -21,21 +22,44 @@ func handleIndexingStatus(s *Server) http.HandlerFunc {
 			return
 		}
 
+		chunkingStrategy := indexingChunkingStrategy(s)
+		indexedDocuments := 0
 		if s.FileIndexer == nil {
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(map[string]interface{}{
-				"enabled": false,
+				"enabled":           false,
+				"chunking_strategy": chunkingStrategy,
+				"indexed_documents": indexedDocuments,
 			})
 			return
 		}
 
 		status := s.FileIndexer.Status()
+		chunkingStrategy = status.ChunkingStrategy
+		indexedDocuments = status.IndexedDocuments
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"enabled": true,
-			"status":  status,
+			"enabled":           true,
+			"chunking_strategy": chunkingStrategy,
+			"indexed_documents": indexedDocuments,
+			"status":            status,
 		})
 	}
+}
+
+func indexingChunkingStrategy(s *Server) string {
+	if s == nil || s.Cfg == nil {
+		return chunking.DefaultStrategy
+	}
+	s.CfgMu.RLock()
+	defer s.CfgMu.RUnlock()
+	cfg := s.Cfg.Indexing.Chunking
+	return chunking.NormalizeOptionsWithDefaults(chunking.Options{
+		Strategy:     cfg.Strategy,
+		MaxChars:     cfg.MaxChars,
+		OverlapChars: cfg.OverlapChars,
+		MaxChunks:    cfg.MaxChunksPerFile,
+	}).Strategy
 }
 
 // handleIndexingRescan triggers an immediate rescan of all directories.

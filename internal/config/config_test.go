@@ -545,6 +545,75 @@ indexing:
 	}
 }
 
+func TestLoadIndexingChunkingDefaults(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	configContent := `
+indexing:
+  enabled: true
+  directories:
+    - ./knowledge
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("failed to load config: %v", err)
+	}
+
+	if got, want := cfg.Indexing.Chunking.Strategy, "recursive"; got != want {
+		t.Fatalf("chunking strategy = %q, want %q", got, want)
+	}
+	if got, want := cfg.Indexing.Chunking.MaxChars, 3500; got != want {
+		t.Fatalf("chunking max chars = %d, want %d", got, want)
+	}
+	if got, want := cfg.Indexing.Chunking.OverlapChars, 200; got != want {
+		t.Fatalf("chunking overlap chars = %d, want %d", got, want)
+	}
+	if got, want := cfg.Indexing.Chunking.MaxChunksPerFile, 200; got != want {
+		t.Fatalf("chunking max chunks per file = %d, want %d", got, want)
+	}
+}
+
+func TestLoadNormalizesIndexingChunkingConfig(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	configContent := `
+indexing:
+  enabled: true
+  directories:
+    - ./knowledge
+  chunking:
+    strategy: unknown
+    max_chars: -10
+    overlap_chars: 9000
+    max_chunks_per_file: 0
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("failed to load config: %v", err)
+	}
+
+	if got, want := cfg.Indexing.Chunking.Strategy, "recursive"; got != want {
+		t.Fatalf("normalized strategy = %q, want %q", got, want)
+	}
+	if got, want := cfg.Indexing.Chunking.MaxChars, 3500; got != want {
+		t.Fatalf("normalized max chars = %d, want %d", got, want)
+	}
+	if got, want := cfg.Indexing.Chunking.OverlapChars, 200; got != want {
+		t.Fatalf("normalized overlap chars = %d, want %d", got, want)
+	}
+	if got, want := cfg.Indexing.Chunking.MaxChunksPerFile, 200; got != want {
+		t.Fatalf("normalized max chunks per file = %d, want %d", got, want)
+	}
+}
+
 func TestLoadDoesNotAutoEnableInnerVoiceFromEmotionSynthesizer(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.yaml")

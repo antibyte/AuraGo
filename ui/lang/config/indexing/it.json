@@ -81,5 +81,14 @@
   "config.updates.running": "In esecuzione…",
   "config.web_scraper.summary_mode": "Modalità riepilogo",
   "config.webdav.secret_empty": "Il valore è vuoto",
-  "config.indexing.remove_confirm_title": "Rimuovere il percorso indicizzato?"
+  "config.indexing.remove_confirm_title": "Rimuovere il percorso indicizzato?",
+  "config.indexing.indexed_documents": "Documenti indicizzati",
+  "config.indexing.chunking_strategy": "Strategia di chunking",
+  "config.indexing.chunking_recursive": "Ricorsiva",
+  "config.indexing.chunking_legacy": "Legacy",
+  "config.indexing.chunking_help": "Il chunking ricorsivo rispetta titoli Markdown, paragrafi, liste, tabelle e blocchi di codice.",
+  "config.indexing.chunk_max_chars": "Caratteri max per chunk",
+  "config.indexing.chunk_overlap_chars": "Sovrapposizione caratteri",
+  "config.indexing.chunk_max_chunks": "Chunk max per file",
+  "config.indexing.chunking_reindex_notice": "La modifica di questi valori avvia un reindex pulito alla prossima scansione."
 }

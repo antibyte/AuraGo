@@ -15,6 +15,12 @@
             } catch (_) {}
 
             const isEnabled = status && status.enabled;
+            const indexingCfg = configData.indexing || (configData.indexing = {});
+            const chunkingCfg = indexingCfg.chunking || (indexingCfg.chunking = {});
+            const chunkingStrategy = chunkingCfg.strategy || status?.chunking_strategy || 'recursive';
+            const chunkMaxChars = chunkingCfg.max_chars || 3500;
+            const chunkOverlapChars = chunkingCfg.overlap_chars || 200;
+            const chunkMaxChunks = chunkingCfg.max_chunks_per_file || 200;
 
             // ── General Settings Card ──
             html += `<div class="idx-card">
@@ -52,6 +58,8 @@
                     <div class="idx-status-meta">
                         <span>📁 ${t('config.indexing.files')}: <strong>${st.total_files}</strong></span>
                         <span>🔗 ${t('config.indexing.indexed')}: <strong>${st.indexed_files}</strong></span>
+                        <span>🧩 ${t('config.indexing.indexed_documents')}: <strong>${status.indexed_documents ?? st.indexed_documents ?? 0}</strong></span>
+                        <span>${t('config.indexing.chunking_strategy')}: <strong>${escapeHtml(status.chunking_strategy || st.chunking_strategy || chunkingStrategy)}</strong></span>
                         ${st.last_scan_at ? `<span>⏱️ ${t('config.indexing.last_scan')}: ${st.last_scan_duration || '—'}</span>` : ''}
                     </div>
                     ${st.errors && st.errors.length > 0 ? `<div class="idx-status-errors">⚠️ ${st.errors.length} ${t('config.indexing.errors')}</div>` : ''}
@@ -153,7 +161,7 @@
                 <div class="idx-card-body">`;
 
             // Poll interval
-            const poll = (configData.indexing && configData.indexing.poll_interval_seconds) || 60;
+            const poll = indexingCfg.poll_interval_seconds || 60;
             html += `<div class="cfg-field idx-field-block idx-field-block-top">
                 <label class="idx-field-label">${t('config.indexing.poll_interval')}</label>
                 <input type="number" min="10" max="3600" value="${poll}"
@@ -165,8 +173,45 @@
                 </div>
             </div>`;
 
+            html += `<div class="cfg-field idx-field-block idx-field-block-xl">
+                <label class="idx-field-label">${t('config.indexing.chunking_strategy')}</label>
+                <select data-path="indexing.chunking.strategy"
+                    onchange="setNestedValue(configData,'indexing.chunking.strategy', this.value);markDirty()"
+                    class="idx-poll-input">
+                    <option value="recursive" ${chunkingStrategy === 'recursive' ? 'selected' : ''}>${t('config.indexing.chunking_recursive')}</option>
+                    <option value="legacy" ${chunkingStrategy === 'legacy' ? 'selected' : ''}>${t('config.indexing.chunking_legacy')}</option>
+                </select>
+                <div class="idx-field-help idx-field-help-tight">
+                    ${t('config.indexing.chunking_help')}
+                </div>
+            </div>
+            <div class="cfg-field idx-field-block idx-field-block-xl">
+                <label class="idx-field-label">${t('config.indexing.chunk_max_chars')}</label>
+                <input type="number" min="500" max="50000" value="${chunkMaxChars}"
+                    data-path="indexing.chunking.max_chars"
+                    oninput="setNestedValue(configData,'indexing.chunking.max_chars', parseInt(this.value));markDirty()"
+                    class="idx-poll-input">
+            </div>
+            <div class="cfg-field idx-field-block idx-field-block-xl">
+                <label class="idx-field-label">${t('config.indexing.chunk_overlap_chars')}</label>
+                <input type="number" min="0" max="5000" value="${chunkOverlapChars}"
+                    data-path="indexing.chunking.overlap_chars"
+                    oninput="setNestedValue(configData,'indexing.chunking.overlap_chars', parseInt(this.value));markDirty()"
+                    class="idx-poll-input">
+            </div>
+            <div class="cfg-field idx-field-block idx-field-block-xl">
+                <label class="idx-field-label">${t('config.indexing.chunk_max_chunks')}</label>
+                <input type="number" min="1" max="2000" value="${chunkMaxChunks}"
+                    data-path="indexing.chunking.max_chunks_per_file"
+                    oninput="setNestedValue(configData,'indexing.chunking.max_chunks_per_file', parseInt(this.value));markDirty()"
+                    class="idx-poll-input">
+                <div class="idx-field-help idx-field-help-tight">
+                    ${t('config.indexing.chunking_reindex_notice')}
+                </div>
+            </div>`;
+
             // ── Index Images toggle ──
-            const indexImagesVal = configData.indexing && configData.indexing.index_images;
+            const indexImagesVal = indexingCfg.index_images;
             html += `<div class="cfg-field idx-field-block idx-field-block-xl">
                 <div class="idx-field-row">
                     <label class="idx-field-label">🖼️ ${t('config.indexing.index_images_label')}</label>

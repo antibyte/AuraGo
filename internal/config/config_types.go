@@ -33,6 +33,13 @@ type IndexingDirectory struct {
 	Collection string `yaml:"collection"` // optional; empty = default "file_index"
 }
 
+type IndexingChunkingConfig struct {
+	Strategy         string `yaml:"strategy" json:"strategy"`
+	MaxChars         int    `yaml:"max_chars" json:"max_chars"`
+	OverlapChars     int    `yaml:"overlap_chars" json:"overlap_chars"`
+	MaxChunksPerFile int    `yaml:"max_chunks_per_file" json:"max_chunks_per_file"`
+}
+
 // MemoryOnDemandRetrievalConfig controls compact prompt context plus explicit recall tools.
 type MemoryOnDemandRetrievalConfig struct {
 	Enabled              bool   `yaml:"enabled"`
@@ -1456,11 +1463,12 @@ type Config struct {
 	} `yaml:"egg_mode"`
 
 	Indexing struct {
-		Enabled             bool                `yaml:"enabled"`
-		Directories         []IndexingDirectory `yaml:"directories"`
-		PollIntervalSeconds int                 `yaml:"poll_interval_seconds"` // default 60
-		Extensions          []string            `yaml:"extensions"`            // default: .txt, .md, .json, .csv, .log, .yaml, .yml, .pdf, .docx, .xlsx, .pptx, .odt, .rtf
-		IndexImages         bool                `yaml:"index_images"`          // send images to Vision LLM for analysis and index results
+		Enabled             bool                   `yaml:"enabled"`
+		Directories         []IndexingDirectory    `yaml:"directories"`
+		PollIntervalSeconds int                    `yaml:"poll_interval_seconds"` // default 60
+		Extensions          []string               `yaml:"extensions"`            // default: .txt, .md, .json, .csv, .log, .yaml, .yml, .pdf, .docx, .xlsx, .pptx, .odt, .rtf
+		IndexImages         bool                   `yaml:"index_images"`          // send images to Vision LLM for analysis and index results
+		Chunking            IndexingChunkingConfig `yaml:"chunking" json:"chunking"`
 	} `yaml:"indexing"`
 
 	GitHub struct {

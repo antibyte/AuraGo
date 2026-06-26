@@ -870,6 +870,11 @@ indexing:
         - path: ./knowledge
           collection: ""                        # optional; empty = default collection "file_index"
     poll_interval_seconds: 60
+    chunking:
+        strategy: recursive                         # recursive (default) or legacy; changes trigger a clean reindex
+        max_chars: 3500                             # target maximum characters per text chunk
+        overlap_chars: 200                          # characters repeated between adjacent chunks
+        max_chunks_per_file: 200                    # hard cap per indexed file
     extensions:
         - .txt
         - .md

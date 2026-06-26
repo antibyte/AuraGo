@@ -81,5 +81,14 @@
   "config.updates.running": "Kör…",
   "config.web_scraper.summary_mode": "Sammanfattningsläge",
   "config.webdav.secret_empty": "Värdet är tomt",
-  "config.indexing.remove_confirm_title": "Ta bort indexerad sökväg?"
+  "config.indexing.remove_confirm_title": "Ta bort indexerad sökväg?",
+  "config.indexing.indexed_documents": "Indexerade dokument",
+  "config.indexing.chunking_strategy": "Chunking-strategi",
+  "config.indexing.chunking_recursive": "Rekursiv",
+  "config.indexing.chunking_legacy": "Legacy",
+  "config.indexing.chunking_help": "Rekursiv chunking respekterar Markdown-rubriker, stycken, listor, tabeller och kodblock.",
+  "config.indexing.chunk_max_chars": "Max tecken per chunk",
+  "config.indexing.chunk_overlap_chars": "Teckenöverlapp",
+  "config.indexing.chunk_max_chunks": "Max chunks per fil",
+  "config.indexing.chunking_reindex_notice": "Ändringar av dessa värden startar en ren reindex vid nästa skanning."
 }

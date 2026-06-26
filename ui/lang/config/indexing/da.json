@@ -81,5 +81,14 @@
   "config.updates.running": "Kører…",
   "config.web_scraper.summary_mode": "Opsummeringstilstand",
   "config.webdav.secret_empty": "Værdien er tom",
-  "config.indexing.remove_confirm_title": "Fjern indekseret sti?"
+  "config.indexing.remove_confirm_title": "Fjern indekseret sti?",
+  "config.indexing.indexed_documents": "Indekserede dokumenter",
+  "config.indexing.chunking_strategy": "Chunking-strategi",
+  "config.indexing.chunking_recursive": "Rekursiv",
+  "config.indexing.chunking_legacy": "Legacy",
+  "config.indexing.chunking_help": "Rekursiv chunking respekterer Markdown-overskrifter, afsnit, lister, tabeller og kodeblokke.",
+  "config.indexing.chunk_max_chars": "Maks. tegn pr. chunk",
+  "config.indexing.chunk_overlap_chars": "Overlap i tegn",
+  "config.indexing.chunk_max_chunks": "Maks. chunks pr. fil",
+  "config.indexing.chunking_reindex_notice": "Ændringer af disse værdier udløser et rent reindex ved næste scanning."
 }

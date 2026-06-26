@@ -14,8 +14,8 @@ import (
 	"sort"
 	"strings"
 	"time"
-	"unicode/utf8"
 
+	"aurago/internal/chunking"
 	promptsembed "aurago/prompts"
 	chromem "github.com/philippgille/chromem-go"
 	"gopkg.in/yaml.v3"
@@ -72,6 +72,7 @@ func (cv *ChromemVectorDB) IndexToolGuides(toolsDir string, force bool) error {
 
 	var docs []chromem.Document
 	newDocIDs := make(map[string]struct{})
+	staleDocIDs := make(map[string]struct{})
 	guideFiles, err := loadToolGuideFilesWithWarnings(toolsDir, cv.logger)
 	if err != nil {
 		return err
@@ -95,17 +96,15 @@ func (cv *ChromemVectorDB) IndexToolGuides(toolsDir string, force bool) error {
 		}
 
 		content := buildToolGuideEmbeddingContent(description, body)
-
-		docID := fmt.Sprintf("tool_%s", strings.TrimSuffix(guide.Name, ".md"))
-		newDocIDs[docID] = struct{}{}
-		docs = append(docs, chromem.Document{
-			ID: docID,
-			Metadata: map[string]string{
-				"path":      path,
-				"tool_name": strings.TrimSuffix(guide.Name, ".md"),
-			},
-			Content: content,
-		})
+		toolName := strings.TrimSuffix(guide.Name, ".md")
+		guideDocs := buildToolGuideDocuments(toolName, path, content)
+		if len(guideDocs) > 1 {
+			staleDocIDs[fmt.Sprintf("tool_%s", toolName)] = struct{}{}
+		}
+		for _, doc := range guideDocs {
+			newDocIDs[doc.ID] = struct{}{}
+			docs = append(docs, doc)
+		}
 	}
 
 	if len(docs) == 0 {
@@ -130,6 +129,14 @@ func (cv *ChromemVectorDB) IndexToolGuides(toolsDir string, force bool) error {
 		}
 		if err := collection.Delete(ctx, nil, nil, oldID); err != nil {
 			cv.logger.Warn("Failed to delete stale tool guide document", "doc_id", oldID, "error", err)
+		}
+	}
+	for staleID := range staleDocIDs {
+		if _, ok := newDocIDs[staleID]; ok {
+			continue
+		}
+		if err := collection.Delete(ctx, nil, nil, staleID); err != nil {
+			cv.logger.Warn("Failed to delete legacy tool guide document", "doc_id", staleID, "error", err)
 		}
 	}
 
@@ -161,9 +168,6 @@ func mapKeysSorted(values map[string]struct{}) []string {
 func buildToolGuideEmbeddingContent(description, body string) string {
 	description = strings.TrimSpace(description)
 	body = strings.TrimSpace(body)
-	if utf8.RuneCountInString(body) > 4000 {
-		body = string([]rune(body)[:4000])
-	}
 	switch {
 	case description != "" && body != "":
 		return description + "\n\n" + body
@@ -174,6 +178,49 @@ func buildToolGuideEmbeddingContent(description, body string) string {
 	default:
 		return ""
 	}
+}
+
+func buildToolGuideDocuments(toolName, path, content string) []chromem.Document {
+	opts := chunking.Options{
+		Strategy:     chunking.StrategyRecursive,
+		MaxChars:     chunking.DefaultMaxChars,
+		OverlapChars: chunking.DefaultOverlapChars,
+		MaxChunks:    chunking.DefaultMaxChunks,
+	}
+	chunks, err := chunking.ChunkText(content, opts)
+	if err != nil || len(chunks) == 0 {
+		return nil
+	}
+	if len(chunks) == 1 {
+		return []chromem.Document{{
+			ID: fmt.Sprintf("tool_%s", toolName),
+			Metadata: map[string]string{
+				"path":        path,
+				"tool_name":   toolName,
+				"chunk_index": "1",
+				"chunk_total": "1",
+				"chunker":     chunking.StrategyRecursive,
+			},
+			Content: chunks[0].Text,
+		}}
+	}
+
+	docs := make([]chromem.Document, 0, len(chunks))
+	for _, chunk := range chunks {
+		docID := fmt.Sprintf("tool_%s_chunk_%d", toolName, chunk.Index)
+		docs = append(docs, chromem.Document{
+			ID: docID,
+			Metadata: map[string]string{
+				"path":        path,
+				"tool_name":   toolName,
+				"chunk_index": fmt.Sprintf("%d", chunk.Index+1),
+				"chunk_total": fmt.Sprintf("%d", chunk.Total),
+				"chunker":     chunking.StrategyRecursive,
+			},
+			Content: fmt.Sprintf("%s (%d/%d)\n\n%s", toolName, chunk.Index+1, chunk.Total, chunk.Text),
+		})
+	}
+	return docs
 }
 
 // SearchToolGuides finds relevant tool guides based on a query.
@@ -219,6 +266,12 @@ func (cv *ChromemVectorDB) SearchToolGuidesContext(ctx context.Context, query st
 	if collection.Count() == 0 {
 		return nil, nil
 	}
+	if topK <= 0 {
+		return nil, nil
+	}
+	if count := collection.Count(); topK > count {
+		topK = count
+	}
 
 	queryEmbedding, err := cv.getQueryEmbedding(ctx, query)
 	if err != nil {
@@ -231,9 +284,15 @@ func (cv *ChromemVectorDB) SearchToolGuidesContext(ctx context.Context, query st
 	}
 
 	var guidePaths []string
+	seenPaths := make(map[string]struct{})
 	for _, result := range results {
 		if result.Similarity > 0.3 {
 			if path, ok := result.Metadata["path"]; ok {
+				key := strings.ToLower(filepath.Clean(path))
+				if _, seen := seenPaths[key]; seen {
+					continue
+				}
+				seenPaths[key] = struct{}{}
 				guidePaths = append(guidePaths, path)
 			}
 		}
@@ -333,30 +392,44 @@ func (cv *ChromemVectorDB) IndexDirectory(dir, collectionName string, stm *SQLit
 			source:           title,
 		}
 
-		// Simple chunking for indexing (if too large)
-		if utf8.RuneCountInString(content) <= 4000 {
+		chunks, chunkErr := chunking.ChunkText(content, chunking.Options{
+			Strategy:     chunking.StrategyRecursive,
+			MaxChars:     chunking.DefaultMaxChars,
+			OverlapChars: chunking.DefaultOverlapChars,
+			MaxChunks:    chunking.DefaultMaxChunks,
+		})
+		if chunkErr != nil {
+			cv.logger.Warn("Failed to chunk markdown for indexing", "path", path, "error", chunkErr)
+			continue
+		}
+		if len(chunks) == 1 {
 			docID := fmt.Sprintf("%s_%s", collectionName, title)
 			planned.docs = append(planned.docs, chromem.Document{
 				ID: docID,
 				Metadata: map[string]string{
-					"path":   path,
-					"source": title,
+					"path":        path,
+					"source":      title,
+					"chunk_index": "1",
+					"chunk_total": "1",
+					"chunker":     chunking.StrategyRecursive,
 				},
-				Content: title + "\n\n" + content,
+				Content: title + "\n\n" + chunks[0].Text,
 			})
 			planned.docIDs = append(planned.docIDs, docID)
 		} else {
-			chunks := chunkText(content, 3500, 200)
-			for i, chunk := range chunks {
-				docID := fmt.Sprintf("%s_%s_chunk_%d", collectionName, title, i)
+			for _, chunk := range chunks {
+				docID := fmt.Sprintf("%s_%s_chunk_%d", collectionName, title, chunk.Index)
 				planned.docs = append(planned.docs, chromem.Document{
 					ID: docID,
 					Metadata: map[string]string{
-						"path":   path,
-						"source": title,
-						"chunk":  fmt.Sprintf("%d/%d", i+1, len(chunks)),
+						"path":        path,
+						"source":      title,
+						"chunk":       fmt.Sprintf("%d/%d", chunk.Index+1, chunk.Total),
+						"chunk_index": fmt.Sprintf("%d", chunk.Index+1),
+						"chunk_total": fmt.Sprintf("%d", chunk.Total),
+						"chunker":     chunking.StrategyRecursive,
 					},
-					Content: title + " (" + fmt.Sprintf("%d/%d", i+1, len(chunks)) + ")\n\n" + chunk,
+					Content: title + " (" + fmt.Sprintf("%d/%d", chunk.Index+1, chunk.Total) + ")\n\n" + chunk.Text,
 				})
 				planned.docIDs = append(planned.docIDs, docID)
 			}
@@ -445,10 +518,16 @@ func (cv *ChromemVectorDB) IndexDirectory(dir, collectionName string, stm *SQLit
 }
 
 func (cv *ChromemVectorDB) markdownIndexFingerprint() string {
+	chunkingFingerprint := chunking.Fingerprint(chunking.Options{
+		Strategy:     chunking.StrategyRecursive,
+		MaxChars:     chunking.DefaultMaxChars,
+		OverlapChars: chunking.DefaultOverlapChars,
+		MaxChunks:    chunking.DefaultMaxChunks,
+	})
 	if embeddingFingerprint := strings.TrimSpace(cv.embeddingFingerprint); embeddingFingerprint != "" {
-		return markdownIndexerFingerprint + "|" + embeddingFingerprint
+		return markdownIndexerFingerprint + "|" + embeddingFingerprint + "|" + chunkingFingerprint
 	}
-	return markdownIndexerFingerprint
+	return markdownIndexerFingerprint + "|" + chunkingFingerprint
 }
 
 func shouldReindexMarkdownFile(contentHash, indexFingerprint string, state FileIndexState) bool {
@@ -497,11 +576,21 @@ func (cv *ChromemVectorDB) computeToolGuidesHash(toolsDir string) string {
 		return ""
 	}
 	h := sha256.New()
+	h.Write([]byte(toolGuideIndexFingerprint()))
 	for _, f := range files {
 		h.Write([]byte(f.Name))
 		h.Write(f.Data)
 	}
 	return hex.EncodeToString(h.Sum(nil))
+}
+
+func toolGuideIndexFingerprint() string {
+	return "tool-guides-indexer-v2|" + chunking.Fingerprint(chunking.Options{
+		Strategy:     chunking.StrategyRecursive,
+		MaxChars:     chunking.DefaultMaxChars,
+		OverlapChars: chunking.DefaultOverlapChars,
+		MaxChunks:    chunking.DefaultMaxChunks,
+	})
 }
 
 func (cv *ChromemVectorDB) toolGuidesDocManifestPath() string {

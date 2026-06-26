@@ -1,6 +1,7 @@
 package config
 
 import (
+	"aurago/internal/chunking"
 	"aurago/internal/kgquality"
 	"bytes"
 	"fmt"
@@ -1819,6 +1820,7 @@ func Load(path string) (*Config, error) {
 	if len(cfg.Indexing.Directories) == 0 {
 		cfg.Indexing.Directories = []IndexingDirectory{{Path: "./knowledge"}}
 	}
+	cfg.Indexing.Chunking = normalizeIndexingChunkingConfig(cfg.Indexing.Chunking)
 	// Resolve indexing directory paths to absolute paths
 	for i := range cfg.Indexing.Directories {
 		cfg.Indexing.Directories[i].Path = resolvePath(configDir, cfg.Indexing.Directories[i].Path)
@@ -1916,6 +1918,21 @@ func usesLegacyDefaultIndexingExtensions(exts []string) bool {
 	slices.Sort(expected)
 
 	return slices.Equal(normalized, expected)
+}
+
+func normalizeIndexingChunkingConfig(cfg IndexingChunkingConfig) IndexingChunkingConfig {
+	opts := chunking.NormalizeOptionsWithDefaults(chunking.Options{
+		Strategy:     cfg.Strategy,
+		MaxChars:     cfg.MaxChars,
+		OverlapChars: cfg.OverlapChars,
+		MaxChunks:    cfg.MaxChunksPerFile,
+	})
+	return IndexingChunkingConfig{
+		Strategy:         opts.Strategy,
+		MaxChars:         opts.MaxChars,
+		OverlapChars:     opts.OverlapChars,
+		MaxChunksPerFile: opts.MaxChunks,
+	}
 }
 
 // Save persists the configuration to the specified path using a targeted patch

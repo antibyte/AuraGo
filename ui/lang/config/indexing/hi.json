@@ -81,5 +81,14 @@
   "config.updates.running": "चल रहा है…",
   "config.web_scraper.summary_mode": "सारांश मोड",
   "config.webdav.secret_empty": "मान खाली है",
-  "config.indexing.remove_confirm_title": "इंडेक्स किया गया पथ हटाएँ?"
+  "config.indexing.remove_confirm_title": "इंडेक्स किया गया पथ हटाएँ?",
+  "config.indexing.indexed_documents": "इंडेक्स किए गए दस्तावेज़",
+  "config.indexing.chunking_strategy": "चंकिंग रणनीति",
+  "config.indexing.chunking_recursive": "रिकर्सिव",
+  "config.indexing.chunking_legacy": "लेगसी",
+  "config.indexing.chunking_help": "रिकर्सिव चंकिंग Markdown शीर्षक, पैराग्राफ, सूचियां, टेबल और कोड ब्लॉक का सम्मान करती है।",
+  "config.indexing.chunk_max_chars": "प्रति चंक अधिकतम अक्षर",
+  "config.indexing.chunk_overlap_chars": "अक्षर ओवरलैप",
+  "config.indexing.chunk_max_chunks": "प्रति फ़ाइल अधिकतम चंक",
+  "config.indexing.chunking_reindex_notice": "इन मानों को बदलने पर अगले स्कैन में साफ reindex शुरू होगा।"
 }

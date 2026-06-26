@@ -81,5 +81,14 @@
   "config.updates.running": "Běží…",
   "config.web_scraper.summary_mode": "Režim shrnutí",
   "config.webdav.secret_empty": "Hodnota je prázdná",
-  "config.indexing.remove_confirm_title": "Odebrat indexovanou cestu?"
+  "config.indexing.remove_confirm_title": "Odebrat indexovanou cestu?",
+  "config.indexing.indexed_documents": "Indexované dokumenty",
+  "config.indexing.chunking_strategy": "Strategie dělení",
+  "config.indexing.chunking_recursive": "Rekurzivní",
+  "config.indexing.chunking_legacy": "Legacy",
+  "config.indexing.chunking_help": "Rekurzivní dělení respektuje nadpisy Markdownu, odstavce, seznamy, tabulky a bloky kódu.",
+  "config.indexing.chunk_max_chars": "Max. znaků na chunk",
+  "config.indexing.chunk_overlap_chars": "Překryv znaků",
+  "config.indexing.chunk_max_chunks": "Max. chunků na soubor",
+  "config.indexing.chunking_reindex_notice": "Změny těchto hodnot spustí čistý reindex při dalším skenování."
 }

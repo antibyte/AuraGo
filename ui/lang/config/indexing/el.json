@@ -81,5 +81,14 @@
   "config.updates.running": "Εκτελείται…",
   "config.web_scraper.summary_mode": "Λειτουργία περίληψης",
   "config.webdav.secret_empty": "Η τιμή είναι κενή",
-  "config.indexing.remove_confirm_title": "Κατάργηση ευρετηριασμένης διαδρομής;"
+  "config.indexing.remove_confirm_title": "Κατάργηση ευρετηριασμένης διαδρομής;",
+  "config.indexing.indexed_documents": "Ευρετηριασμένα έγγραφα",
+  "config.indexing.chunking_strategy": "Στρατηγική τεμαχισμού",
+  "config.indexing.chunking_recursive": "Αναδρομική",
+  "config.indexing.chunking_legacy": "Legacy",
+  "config.indexing.chunking_help": "Ο αναδρομικός τεμαχισμός σέβεται επικεφαλίδες Markdown, παραγράφους, λίστες, πίνακες και μπλοκ κώδικα.",
+  "config.indexing.chunk_max_chars": "Μέγ. χαρακτήρες ανά chunk",
+  "config.indexing.chunk_overlap_chars": "Επικάλυψη χαρακτήρων",
+  "config.indexing.chunk_max_chunks": "Μέγ. chunks ανά αρχείο",
+  "config.indexing.chunking_reindex_notice": "Οι αλλαγές σε αυτές τις τιμές προκαλούν καθαρό reindex στην επόμενη σάρωση."
 }

@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"aurago/internal/chunking"
 	"aurago/internal/config"
 	"aurago/internal/memory"
 	"aurago/internal/tools"
@@ -37,6 +38,8 @@ type IndexerStatus struct {
 	Directories      []string  `json:"directories"`
 	TotalFiles       int       `json:"total_files"`
 	IndexedFiles     int       `json:"indexed_files"`
+	IndexedDocuments int       `json:"indexed_documents"`
+	ChunkingStrategy string    `json:"chunking_strategy"`
 	LastScanAt       time.Time `json:"last_scan_at,omitempty"`
 	LastScanDuration string    `json:"last_scan_duration,omitempty"`
 	Errors           []string  `json:"errors,omitempty"`
@@ -180,7 +183,9 @@ func (fi *FileIndexer) SetKGSyncer(syncer *FileKGSyncer) {
 func (fi *FileIndexer) Status() IndexerStatus {
 	fi.mu.RLock()
 	defer fi.mu.RUnlock()
-	return fi.status
+	status := fi.status
+	status.ChunkingStrategy = fi.chunkingOptionsSnapshot().Strategy
+	return status
 }
 
 // Rescan triggers an immediate full rescan of all directories.
@@ -221,6 +226,12 @@ func (fi *FileIndexer) scan(ctx context.Context) {
 	fi.logger.Debug("[Indexer] Starting scan...")
 
 	dirs := fi.indexingDirectoriesSnapshot()
+	chunkingOptions := fi.chunkingOptionsSnapshot()
+
+	fi.mu.Lock()
+	fi.status.IndexedDocuments = 0
+	fi.status.ChunkingStrategy = chunkingOptions.Strategy
+	fi.mu.Unlock()
 
 	var totalFiles, indexedFiles int
 	var scanErrors []string
@@ -242,6 +253,8 @@ func (fi *FileIndexer) scan(ctx context.Context) {
 		fi.mu.Lock()
 		fi.status.TotalFiles = totalFiles
 		fi.status.IndexedFiles = 0
+		fi.status.IndexedDocuments = 0
+		fi.status.ChunkingStrategy = chunkingOptions.Strategy
 		fi.status.LastScanAt = start
 		fi.status.LastScanDuration = duration.Round(time.Millisecond).String()
 		fi.status.Errors = scanErrors
@@ -269,6 +282,7 @@ func (fi *FileIndexer) scan(ctx context.Context) {
 	fi.mu.Lock()
 	fi.status.TotalFiles = totalFiles
 	fi.status.IndexedFiles = indexedFiles
+	fi.status.ChunkingStrategy = chunkingOptions.Strategy
 	fi.status.LastScanAt = start
 	fi.status.LastScanDuration = duration.Round(time.Millisecond).String()
 	fi.status.Errors = scanErrors
@@ -564,12 +578,6 @@ func (fi *FileIndexer) scanDirectory(ctx context.Context, dir, collection string
 		if len(content) == 0 && precomputedEmbedding == nil {
 			return nil
 		}
-		if precomputedEmbedding == nil {
-			if limitedContent, truncated := limitIndexedContent(content); truncated {
-				fi.logger.Warn("[Indexer] Truncated extracted content before indexing", "path", path, "limit_bytes", maxIndexedContentBytes)
-				content = limitedContent
-			}
-		}
 
 		if err := fi.removeTrackedFile(path, collection); err != nil {
 			errors = append(errors, fmt.Sprintf("cleanup error %s: %v", path, err))
@@ -593,6 +601,18 @@ func (fi *FileIndexer) scanDirectory(ctx context.Context, dir, collection string
 			if storeErr == nil && docID != "" {
 				docIDs = []string{docID}
 			}
+		} else if store, ok := fi.vectorDB.(chunkingCollectionStore); ok {
+			chunkingOptions := fi.chunkingOptionsSnapshot()
+			extraMetadata := map[string]string{
+				"source_path":    path,
+				"relative_path":  relPath,
+				"source_type":    "file_indexer",
+				"file_extension": ext,
+				"index_mode":     indexMode,
+			}
+			docIDs, storeErr = fi.indexStoreWithRetry(ctx, func() ([]string, error) {
+				return store.StoreDocumentInCollectionWithChunking(concept, content, collection, chunkingOptions, extraMetadata)
+			}, path)
 		} else {
 			docIDs, storeErr = fi.indexStoreWithRetry(ctx, func() ([]string, error) {
 				return fi.vectorDB.StoreDocumentInCollection(concept, content, collection)
@@ -611,6 +631,7 @@ func (fi *FileIndexer) scanDirectory(ctx context.Context, dir, collection string
 		}
 
 		indexedFiles++
+		fi.recordIndexedDocuments(len(docIDs))
 		fi.logger.Info("[Indexer] Indexed file", "path", relPath, "size", info.Size(), "doc_ids", len(docIDs))
 		fi.syncIndexedFileToKG(path, collection)
 
@@ -629,6 +650,10 @@ func (fi *FileIndexer) scanDirectory(ctx context.Context, dir, collection string
 
 type embeddingFingerprinter interface {
 	EmbeddingFingerprint() string
+}
+
+type chunkingCollectionStore interface {
+	StoreDocumentInCollectionWithChunking(concept, content, collection string, options chunking.Options, extraMetadata map[string]string) ([]string, error)
 }
 
 const (
@@ -661,6 +686,7 @@ func (fi *FileIndexer) indexFingerprintForMode(mode string) string {
 			parts = append(parts, "embedding="+embeddingFingerprint)
 		}
 	}
+	parts = append(parts, "chunking="+chunking.Fingerprint(fi.chunkingOptionsSnapshot()))
 
 	fi.cfgMu.RLock()
 	defer fi.cfgMu.RUnlock()
@@ -677,6 +703,32 @@ func (fi *FileIndexer) indexFingerprintForMode(mode string) string {
 		)
 	}
 	return strings.Join(parts, "|")
+}
+
+func (fi *FileIndexer) chunkingOptionsSnapshot() chunking.Options {
+	if fi == nil || fi.cfg == nil {
+		return chunking.NormalizeOptions(chunking.Options{})
+	}
+	if fi.cfgMu != nil {
+		fi.cfgMu.RLock()
+		defer fi.cfgMu.RUnlock()
+	}
+	cfg := fi.cfg.Indexing.Chunking
+	return chunking.NormalizeOptionsWithDefaults(chunking.Options{
+		Strategy:     cfg.Strategy,
+		MaxChars:     cfg.MaxChars,
+		OverlapChars: cfg.OverlapChars,
+		MaxChunks:    cfg.MaxChunksPerFile,
+	})
+}
+
+func (fi *FileIndexer) recordIndexedDocuments(count int) {
+	if count <= 0 {
+		return
+	}
+	fi.mu.Lock()
+	fi.status.IndexedDocuments += count
+	fi.mu.Unlock()
 }
 
 func fingerprintProvider(name, provider, providerType, baseURL, model, apiKey string) string {

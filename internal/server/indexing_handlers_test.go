@@ -36,6 +36,33 @@ func serveIndexingDirectoriesRequest(t *testing.T, s *Server, method string, bod
 	return rec
 }
 
+func TestHandleIndexingStatusIncludesChunkingConfigWhenIndexerUnavailable(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Indexing.Chunking.Strategy = "recursive"
+	cfg.Indexing.Chunking.MaxChars = 3500
+	cfg.Indexing.Chunking.OverlapChars = 200
+	cfg.Indexing.Chunking.MaxChunksPerFile = 200
+	s := newIndexingHandlerTestServer(cfg)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/indexing/status", nil)
+	rec := httptest.NewRecorder()
+	handleIndexingStatus(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	var body map[string]interface{}
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if got, want := body["chunking_strategy"], "recursive"; got != want {
+		t.Fatalf("chunking_strategy = %v, want %q", got, want)
+	}
+	if got, want := int(body["indexed_documents"].(float64)), 0; got != want {
+		t.Fatalf("indexed_documents = %d, want %d", got, want)
+	}
+}
+
 func TestHandleIndexingDirectoriesPostPersistFailureLeavesRuntimeUnchanged(t *testing.T) {
 	tmp := t.TempDir()
 	existing := filepath.Join(tmp, "existing")
