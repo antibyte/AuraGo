@@ -127,6 +127,41 @@ func main() {
 		initialPassword = resolved
 	}
 
+	// -- Robust File Locking ------------------------------------------------
+	// IMPORTANT: Acquire BEFORE any setup.Run() call to prevent concurrent
+	// aurago processes (e.g. --setup running in parallel with a normal start,
+	// or an update script that runs both back-to-back) from racing on
+	// .env writes and aurago.service installation. setup.Run is fast (no
+	// network calls) so this is an acceptable correctness trade-off.
+	//
+	// At this point we don't yet have cfg loaded, so we can't use
+	// cfg.Directories.DataDir for the lock path. installDir (the directory
+	// containing the aurago binary) is always available and is where .env
+	// lives, which is the very file we need to protect. We MkdirAll the
+	// parent to tolerate first-install scenarios where installDir doesn't
+	// exist yet.
+	var lockPath string
+	if installDir != "" {
+		lockPath = filepath.Join(installDir, "aurago.lock")
+		if err := os.MkdirAll(installDir, 0o755); err != nil {
+			appLog.Error("Failed to create install directory for lock", "path", installDir, "error", err)
+		}
+	} else {
+		// installDir unknown (very unusual): fall back to current working dir.
+		lockPath = "aurago.lock"
+	}
+	absLockPath, _ := filepath.Abs(lockPath)
+	appLog.Info("Checking application lock", "path", absLockPath)
+
+	fileLock := flock.New(absLockPath)
+	locked, err := fileLock.TryLock()
+	if err != nil || !locked {
+		appLog.Error("BLOCKIERT: AuraGo laeuft bereits!", "lock_path", absLockPath)
+		os.Exit(1)
+	}
+	defer fileLock.Unlock()
+	appLog.Info("Application lock acquired", "path", absLockPath)
+
 	// -- Config-check mode: validate YAML and exit (used by Docker entrypoint)
 	if checkConfig {
 		if _, err := config.Load(configFile); err != nil {
@@ -232,29 +267,6 @@ func main() {
 		appLog.Info("Init-only mode: configuration applied, exiting.")
 		os.Exit(0)
 	}
-
-	// -- Robust File Locking ------------------------------------------------
-	var lockPath string
-	if cfg != nil && cfg.Directories.DataDir != "" {
-		lockPath = filepath.Join(cfg.Directories.DataDir, "aurago.lock")
-		if err := os.MkdirAll(cfg.Directories.DataDir, 0755); err != nil {
-			appLog.Error("Failed to create data directory", "path", cfg.Directories.DataDir, "error", err)
-		}
-	} else {
-		lockPath = "aurago.lock"
-	}
-
-	absLockPath, _ := filepath.Abs(lockPath)
-	appLog.Info("Checking application lock", "path", absLockPath)
-
-	fileLock := flock.New(absLockPath)
-	locked, err := fileLock.TryLock()
-	if err != nil || !locked {
-		appLog.Error("BLOCKIERT: AuraGo laeuft bereits!", "lock_path", absLockPath)
-		os.Exit(1)
-	}
-	defer fileLock.Unlock()
-	appLog.Info("Application lock acquired", "path", absLockPath)
 
 	// -- Setup mode: extract resources and install service -----------------
 	if runSetup {
