@@ -39,10 +39,12 @@
             ]
         },
         'settings': {
-            styles: appStyles('/css/desktop-app-settings.css')
+            styles: appStyles('/css/desktop-app-settings.css'),
+            scripts: ['/js/desktop/apps/settings.js']
         },
         'calculator': {
-            styles: appStyles('/css/desktop-app-calculator.css')
+            styles: appStyles('/css/desktop-app-calculator.css'),
+            scripts: ['/js/desktop/apps/calculator.js']
         },
         'todo': {
             styles: appStyles('/css/desktop-app-planning.css')

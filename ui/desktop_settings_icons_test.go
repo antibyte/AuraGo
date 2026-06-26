@@ -8,7 +8,7 @@ import (
 func TestDesktopSettingsUsesSymbolicSectionIcons(t *testing.T) {
 	t.Parallel()
 
-	source := readDesktopAssetText(t, "js/desktop/apps/settings-calculator.js")
+	source := readDesktopAssetText(t, "js/desktop/apps/settings.js")
 	for _, marker := range []string{
 		"id: 'appearance', icon: 'settings-symbolic'",
 		"id: 'desktop', icon: 'desktop-symbolic'",

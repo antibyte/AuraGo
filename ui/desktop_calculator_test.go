@@ -209,7 +209,7 @@ func TestDesktopCalculatorGridKeepsEqualsButtonInRow(t *testing.T) {
 
 func readDesktopCalculatorScript(t *testing.T) string {
 	t.Helper()
-	return readDesktopAssetText(t, "js/desktop/main.js")
+	return readDesktopAssetText(t, "js/desktop/apps/calculator.js")
 }
 
 func assertOrderedCalculatorMarkers(t *testing.T, source string, markers []string) {

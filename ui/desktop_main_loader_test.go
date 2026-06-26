@@ -12,7 +12,7 @@ func TestDesktopHTMLLoadsFragmentedAppsOnlyThroughMainLoader(t *testing.T) {
 	mainLoader := rawDesktopAssetText(t, "js/desktop/main.js")
 	mainBundle := readDesktopAssetText(t, "js/desktop/main.js")
 	for _, part := range []string{
-		"/js/desktop/apps/settings-calculator.js",
+		"/js/desktop/apps/editor-filemenu.js",
 		"/js/desktop/apps/planning-gallery-music.js",
 		"/js/desktop/apps/quickconnect-launchpad-chat.js",
 	} {

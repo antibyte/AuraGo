@@ -217,13 +217,16 @@ func TestDesktopBuiltInAppsDeclareContextMenuPolicy(t *testing.T) {
 	t.Parallel()
 
 	mainText := readDesktopAssetText(t, "js/desktop/main.js")
+	calcText := readDesktopAssetText(t, "js/desktop/apps/calculator.js")
 	for _, check := range []struct {
 		name      string
+		source    string
 		signature string
 		markers   []string
 	}{
 		{
 			name:      "calculator",
+			source:    calcText,
 			signature: "function renderCalculator(id)",
 			markers: []string{
 				"wireContextMenuBoundary(root",
@@ -233,6 +236,7 @@ func TestDesktopBuiltInAppsDeclareContextMenuPolicy(t *testing.T) {
 		},
 		{
 			name:      "todo",
+			source:    mainText,
 			signature: "async function renderTodo(id)",
 			markers: []string{
 				"showTodoContextMenu",
@@ -241,6 +245,7 @@ func TestDesktopBuiltInAppsDeclareContextMenuPolicy(t *testing.T) {
 		},
 		{
 			name:      "calendar",
+			source:    mainText,
 			signature: "async function renderCalendar(id)",
 			markers: []string{
 				"showCalendarContextMenu",
@@ -249,6 +254,7 @@ func TestDesktopBuiltInAppsDeclareContextMenuPolicy(t *testing.T) {
 		},
 		{
 			name:      "gallery",
+			source:    mainText,
 			signature: "async function renderGallery(id)",
 			markers: []string{
 				"showGalleryContextMenu",
@@ -257,6 +263,7 @@ func TestDesktopBuiltInAppsDeclareContextMenuPolicy(t *testing.T) {
 		},
 		{
 			name:      "music player",
+			source:    mainText,
 			signature: "async function renderMusicPlayer(id)",
 			markers: []string{
 				"showMusicPlayerContextMenu",
@@ -265,6 +272,7 @@ func TestDesktopBuiltInAppsDeclareContextMenuPolicy(t *testing.T) {
 		},
 		{
 			name:      "quick connect",
+			source:    mainText,
 			signature: "function renderQuickConnect(id)",
 			markers: []string{
 				"showDeviceContextMenu",
@@ -273,6 +281,7 @@ func TestDesktopBuiltInAppsDeclareContextMenuPolicy(t *testing.T) {
 		},
 		{
 			name:      "launchpad",
+			source:    mainText,
 			signature: "function renderLaunchpad(id)",
 			markers: []string{
 				"showLaunchpadContextMenu",
@@ -280,7 +289,7 @@ func TestDesktopBuiltInAppsDeclareContextMenuPolicy(t *testing.T) {
 			},
 		},
 	} {
-		body := jsFunctionBodyInWindowMenuTest(t, mainText, check.signature)
+		body := jsFunctionBodyInWindowMenuTest(t, check.source, check.signature)
 		for _, marker := range check.markers {
 			if !strings.Contains(body, marker) {
 				t.Fatalf("%s missing context menu policy marker %q", check.name, marker)

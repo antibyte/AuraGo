@@ -12,14 +12,10 @@ func TestDesktopIconThemeSettingAssets(t *testing.T) {
 	t.Parallel()
 
 	shellText := readDesktopAssetText(t, "js/desktop/main.js")
+	settingsText := readDesktopAssetText(t, "js/desktop/apps/settings.js")
 	for _, want := range []string{
 		"'appearance.icon_theme': 'papirus'",
 		"body.dataset.iconTheme = settingValue('appearance.icon_theme')",
-		"settingSelect('appearance.icon_theme'",
-		"desktop.settings_icon_theme_papirus",
-		"desktop.settings_icon_theme_whitesur",
-		"const pairedIconTheme = value === 'fruity' ? 'whitesur' : value === 'standard' ? 'papirus' : '';",
-		"updates.push({ key: 'appearance.icon_theme', value: pairedIconTheme });",
 		"/img/whitesur/manifest.json",
 		"iconThemeManifests",
 		"function renderStartButtonIcon()",
@@ -27,6 +23,17 @@ func TestDesktopIconThemeSettingAssets(t *testing.T) {
 	} {
 		if !strings.Contains(shellText, want) {
 			t.Fatalf("desktop shell is missing icon theme setting marker %q", want)
+		}
+	}
+	for _, want := range []string{
+		"desktop.settings_icon_theme_papirus",
+		"desktop.settings_icon_theme_whitesur",
+		"settingSelect('appearance.icon_theme'",
+		"const pairedIconTheme = value === 'fruity' ? 'whitesur' : value === 'standard' ? 'papirus' : '';",
+		"updates.push({ key: 'appearance.icon_theme', value: pairedIconTheme });",
+	} {
+		if !strings.Contains(settingsText, want) {
+			t.Fatalf("settings app is missing icon theme setting marker %q", want)
 		}
 	}
 	for _, forbidden := range []string{

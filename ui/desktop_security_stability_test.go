@@ -155,7 +155,7 @@ func TestDesktopQuickConnectWarnsAndCleansUpSSHResources(t *testing.T) {
 func TestDesktopCalculatorRejectsZeroDivisorsBeforeNonFiniteResult(t *testing.T) {
 	t.Parallel()
 
-	source := readDesktopAssetText(t, "js/desktop/main.js")
+	source := readDesktopAssetText(t, "js/desktop/apps/calculator.js")
 	for _, want := range []string{
 		"function rejectZeroDivisor(operator, right)",
 		"rejectZeroDivisor(operator, right);",

@@ -12,12 +12,10 @@ func TestDesktopFruityThemeSettingAssets(t *testing.T) {
 	t.Parallel()
 
 	shellText := readDesktopAssetText(t, "js/desktop/main.js")
+	settingsText := readDesktopAssetText(t, "js/desktop/apps/settings.js")
 	for _, want := range []string{
 		"'appearance.theme': 'standard'",
 		"body.dataset.theme = settingValue('appearance.theme')",
-		"settingSelect('appearance.theme'",
-		"desktop.settings_theme_standard",
-		"desktop.settings_theme_fruity",
 		"function isFruityTheme()",
 		"function renderStandardTaskbar()",
 		"function renderFruityDock()",
@@ -39,6 +37,15 @@ func TestDesktopFruityThemeSettingAssets(t *testing.T) {
 		if !strings.Contains(shellText, want) {
 			t.Fatalf("desktop shell is missing Fruity theme setting marker %q", want)
 		}
+	}
+	if !strings.Contains(settingsText, "desktop.settings_theme_standard") {
+		t.Fatalf("settings app is missing theme translation key %q", "desktop.settings_theme_standard")
+	}
+	if !strings.Contains(settingsText, "desktop.settings_theme_fruity") {
+		t.Fatalf("settings app is missing theme translation key %q", "desktop.settings_theme_fruity")
+	}
+	if !strings.Contains(settingsText, "settingSelect('appearance.theme'") {
+		t.Fatalf("settings app is missing theme setting marker %q", "settingSelect('appearance.theme'")
 	}
 
 	cssText := readAllDesktopCSS(t)

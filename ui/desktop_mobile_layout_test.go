@@ -262,7 +262,7 @@ func TestDesktopInputsHaveMobileAttributes(t *testing.T) {
 
 	jsFiles := []string{
 		"js/desktop/file-manager/core-render.js",
-		"js/desktop/apps/settings-calculator.js",
+		"js/desktop/apps/settings.js",
 		"js/desktop/apps/quickconnect-launchpad-chat.js",
 		"js/desktop/core/window-shell-runtime.js",
 		"js/desktop/core/file-dialog-runtime.js",

@@ -151,7 +151,7 @@ func TestEditorWriterAndSheetsExposeAgentMenus(t *testing.T) {
 	}{
 		{
 			name: "editor",
-			path: "js/desktop/apps/settings-calculator.js",
+			path: "js/desktop/apps/editor-filemenu.js",
 			markers: []string{
 				"id: 'agent'",
 				"labelKey: 'desktop.menu_agent'",
@@ -255,7 +255,7 @@ func TestDesktopEditorLazyLoadsOfficeStyles(t *testing.T) {
 func TestDesktopAgentLaunchContextPreservesSourceApp(t *testing.T) {
 	t.Parallel()
 
-	editorSource := readDesktopAssetText(t, "js/desktop/apps/settings-calculator.js")
+	editorSource := readDesktopAssetText(t, "js/desktop/apps/editor-filemenu.js")
 	for _, marker := range []string{
 		"sourceApp: 'editor'",
 		"chat_source_app = sourceApp",

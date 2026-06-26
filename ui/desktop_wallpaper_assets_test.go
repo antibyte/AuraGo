@@ -26,7 +26,7 @@ var desktopWallpaperOptions = []string{
 func TestDesktopWallpaperAssetsAreEmbeddedAndSelectable(t *testing.T) {
 	t.Parallel()
 
-	shellText := readDesktopAssetText(t, "js/desktop/main.js")
+	settingsText := readDesktopAssetText(t, "js/desktop/apps/settings.js")
 	foundationText := readDesktopAssetText(t, "js/desktop/core/desktop-foundation.js")
 	cssText := readAllDesktopCSS(t)
 
@@ -42,8 +42,8 @@ func TestDesktopWallpaperAssetsAreEmbeddedAndSelectable(t *testing.T) {
 
 	for _, name := range desktopWallpaperOptions {
 		translationKey := "desktop.settings_wallpaper_" + name
-		if !strings.Contains(shellText, "'"+name+"'") || !strings.Contains(shellText, translationKey) {
-			t.Fatalf("desktop shell is missing wallpaper option %q", name)
+		if !strings.Contains(settingsText, "'"+name+"'") || !strings.Contains(settingsText, translationKey) {
+			t.Fatalf("settings app is missing wallpaper option %q", name)
 		}
 		if !strings.Contains(cssText, `data-wallpaper="`+name+`"`) || !strings.Contains(cssText, "wallpapers/"+name+".jpg") {
 			t.Fatalf("desktop stylesheet is missing wallpaper background %q", name)

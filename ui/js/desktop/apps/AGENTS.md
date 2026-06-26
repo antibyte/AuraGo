@@ -191,10 +191,19 @@ registration lives in `internal/desktop/types.go`.
   keys. No child DOX file needed.
 - `cheater-attachments.js` - Attachment upload/delete side panel with
   drag-and-drop and 5-second undo. No child DOX file needed.
-- `sheets.js` - Sheets app core: grid rendering, selection, save/load, sheet
-  tabs, context menu, undo/redo, auto-save, dirty state, status bar, format
-  toolbar integration, search integration. Exposes `window.SheetsApp`. No child
-  DOX file needed.
+- `calculator.js` implements the Calculator app, a three-mode calculator
+  (standard, scientific, programmer) with expression tokenizer/parser, context
+  menu for clipboard operations, and window cleanup. Loaded lazily by
+  `module-loader.js` as a standalone app. Exposes `window.CalculatorApp`.
+- `settings.js` implements the Settings app, a virtual desktop configuration
+  panel with sidebar navigation, global search, hamburger menu on mobile,
+  and full desktop shell re-render on changes (icons, widgets, start menu,
+  start button). Loaded lazily by `module-loader.js`. Exposes
+  `window.SettingsApp`.
+- `editor-filemenu.js` implements file management helpers and the inline text
+  editor with window menus (file, edit, agent, help). Bundled in the main shell
+  bundle (`desktopMainParts` in `build-ui-bundles.js`) because it is referenced
+  directly by the desktop foundation runtime.
 - `sheets-formulas.js` - Formula engine: tokenizer, recursive-descent parser,
   cell/range evaluation, extended functions (IF, VLOOKUP, CONCAT, DATE, string
   functions, etc.). Exposes `window.SheetsFormulas`. No child DOX file needed.

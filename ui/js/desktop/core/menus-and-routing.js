@@ -1005,12 +1005,26 @@ function modalDialog(options) {
         if (appId === 'sheets' && window.SheetsApp && typeof window.SheetsApp.render === 'function') {
             return window.SheetsApp.render(contentEl(id), id, officeAppContext(context));
         }
-        if (appId === 'settings') return renderSettings(id);
-        if (appId === 'pet-picker' && window.PetPickerApp && typeof window.PetPickerApp.render === 'function') {
-            return window.PetPickerApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, t, iconMarkup, api, loadBootstrap, notify: showDesktopNotification }));
+        if (appId === 'settings') {
+            if (!window.SettingsApp) {
+                window.AuraDesktopModules.loadAppScript('settings').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            if (typeof window.SettingsApp.render === 'function') {
+                const ctx = Object.assign({}, context || {}, { contentEl, esc, t, iconMarkup, api, state, settingValue, settingBool, desktopSettings, applyDesktopSettings, renderStartButtonIcon, renderIcons, renderWidgets, renderStartApps, showDesktopNotification, loadBootstrap });
+                return window.SettingsApp.render(contentEl(id), ctx);
+            }
         }
-        if (appId === 'calendar') return renderCalendar(id);
-        if (appId === 'calculator') return renderCalculator(id);
+        if (appId === 'calculator') {
+            if (!window.CalculatorApp) {
+                window.AuraDesktopModules.loadAppScript('calculator').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            if (typeof window.CalculatorApp.render === 'function') {
+                const ctx = Object.assign({}, context || {}, { contentEl, esc, t, iconMarkup, showDesktopNotification, showContextMenu, wireContextMenuBoundary, registerWindowCleanup });
+                return window.CalculatorApp.render(contentEl(id), id, ctx);
+            }
+        }
         if (appId === 'todo') return renderTodo(id);
         if (appId === 'gallery') return renderGallery(id);
         if (appId === 'music-player') return renderMusicPlayer(id);

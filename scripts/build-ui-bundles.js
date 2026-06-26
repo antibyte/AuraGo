@@ -20,7 +20,7 @@ const desktopMainParts = [
   'ui/js/desktop/core/desktop-window-file-drops.js',
   'ui/js/desktop/core/widget-drawer-runtime.js',
   'ui/js/desktop/core/menus-and-routing.js',
-  'ui/js/desktop/apps/settings-calculator.js',
+  'ui/js/desktop/apps/editor-filemenu.js',
   'ui/js/desktop/apps/planning-gallery-music.js',
   'ui/js/desktop/apps/quickconnect-launchpad-chat.js',
   'ui/js/desktop/core/sdk-events-bootstrap.js'

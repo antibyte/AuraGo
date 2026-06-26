@@ -1,42 +1,50 @@
-/* desktop-app-settings.css */
+/* desktop-app-settings.css — Reworked with sidebar + hamburger menu */
 .vd-settings-app {
     min-height: 0;
     display: grid;
-    grid-template-columns: 236px 1fr;
+    grid-template-columns: 260px 1fr;
     background: rgba(5, 8, 12, 0.2);
+    position: relative;
 }
 
+/* === Sidebar === */
 .vd-settings-sidebar {
-    padding: 14px 10px;
+    padding: 14px 0;
     border-right: 1px solid var(--ds-color-border-subtle);
-    background: rgba(8, 12, 18, 0.4);
-    overflow: auto;
+    background: linear-gradient(180deg, rgba(10, 14, 22, 0.55) 0%, rgba(6, 9, 15, 0.45) 100%);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.vd-settings-sidebar-header {
+    padding: 2px 14px 10px;
 }
 
 .vd-settings-sidebar-title {
-    padding: 2px 10px 12px;
     color: var(--ds-color-fg-muted);
-    font-size: 0.74rem;
+    font-size: 0.72rem;
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 0.08em;
 }
 
 .vd-settings-search {
-    padding: 4px 10px 10px;
+    padding: 2px 12px 10px;
 }
 
 .vd-settings-search-input {
     width: 100%;
-    height: 36px;
+    height: 34px;
     padding: 0 11px;
     border: 1px solid var(--ds-color-border-subtle);
     border-radius: var(--ds-radius-md);
-    background: rgba(0, 0, 0, 0.22);
+    background: rgba(0, 0, 0, 0.25);
     color: var(--ds-color-fg-primary);
     font: inherit;
     font-size: 13px;
     outline: none;
+    box-sizing: border-box;
     transition: border-color 0.15s;
 }
 
@@ -44,13 +52,20 @@
     border-color: var(--vd-accent);
 }
 
+.vd-settings-nav-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    padding: 0 6px;
+}
+
 .vd-settings-nav {
     width: 100%;
-    min-height: 40px;
+    min-height: 48px;
     display: grid;
-    grid-template-columns: 28px 1fr;
+    grid-template-columns: 32px 1fr;
     align-items: center;
-    gap: var(--ds-space-2);
+    gap: 10px;
     border: 0;
     border-radius: var(--ds-radius-md);
     background: transparent;
@@ -58,37 +73,69 @@
     font: inherit;
     text-align: left;
     cursor: pointer;
+    padding: 8px 10px;
+    transition: background 0.12s, box-shadow 0.12s;
 }
 
 .vd-settings-nav-icon {
     justify-self: center;
+    opacity: 0.7;
+    transition: opacity 0.12s;
 }
 
-.vd-settings-nav:hover,
+.vd-settings-nav.active .vd-settings-nav-icon {
+    opacity: 1;
+}
+
+.vd-settings-nav-text {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+}
+
+.vd-settings-nav-title {
+    font-size: 0.84rem;
+    font-weight: 850;
+    line-height: 1.3;
+}
+
+.vd-settings-nav-desc {
+    font-size: 0.68rem;
+    color: var(--ds-color-fg-muted);
+    line-height: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.vd-settings-nav:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
 .vd-settings-nav.active {
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.09);
+    box-shadow: inset 4px 0 0 var(--vd-accent);
 }
 
-.vd-settings-nav.active {
-    box-shadow: inset 3px 0 0 var(--vd-accent);
-}
-
+/* === Pane === */
 .vd-settings-pane {
     min-width: 0;
-    overflow: auto;
-    padding: 22px;
+    overflow-y: auto;
+    padding: 22px 24px;
 }
 
 .vd-settings-pane-head {
     display: flex;
     align-items: center;
     gap: 14px;
-    margin-bottom: 18px;
+    margin-bottom: 20px;
 }
 
 .vd-settings-pane-icon {
     width: 48px;
     height: 48px;
+    flex-shrink: 0;
     display: grid;
     place-items: center;
     border-radius: var(--ds-radius-lg);
@@ -107,8 +154,7 @@
     font-weight: 900;
 }
 
-.vd-settings-pane-desc,
-.vd-setting-help {
+.vd-settings-pane-desc {
     color: var(--ds-color-fg-muted);
     font-size: 0.78rem;
     line-height: 1.4;
@@ -116,7 +162,7 @@
 
 .vd-settings-list {
     display: grid;
-    gap: 10px;
+    gap: 8px;
 }
 
 .vd-setting-row {
@@ -124,20 +170,35 @@
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
     gap: 16px;
-    padding: 14px;
+    padding: 14px 16px;
     border: 1px solid var(--ds-color-border-subtle);
     border-radius: var(--ds-radius-md);
     background: rgba(255, 255, 255, 0.055);
+    transition: background 0.12s;
+}
+
+.vd-setting-row:hover {
+    background: rgba(255, 255, 255, 0.08);
 }
 
 .vd-setting-row.readonly {
     background: rgba(0, 0, 0, 0.14);
 }
 
+.vd-setting-row.readonly:hover {
+    background: rgba(0, 0, 0, 0.18);
+}
+
 .vd-setting-label {
     font-size: 0.88rem;
     font-weight: 850;
-    margin-bottom: 5px;
+    margin-bottom: 4px;
+}
+
+.vd-setting-help {
+    color: var(--ds-color-fg-muted);
+    font-size: 0.78rem;
+    line-height: 1.4;
 }
 
 .vd-setting-value {
@@ -146,6 +207,7 @@
     font-weight: 800;
     overflow-wrap: anywhere;
     text-align: right;
+    font-size: 0.82rem;
 }
 
 .vd-setting-select {
@@ -157,6 +219,12 @@
     background: rgba(0, 0, 0, 0.26);
     color: var(--ds-color-fg-primary);
     font: inherit;
+    outline: none;
+    transition: border-color 0.15s;
+}
+
+.vd-setting-select:focus {
+    border-color: var(--vd-accent);
 }
 
 .vd-switch {
@@ -164,6 +232,7 @@
     width: 52px;
     height: 30px;
     display: inline-block;
+    flex-shrink: 0;
 }
 
 .vd-switch input {
@@ -179,6 +248,7 @@
     border-radius: 999px;
     background: rgba(255, 255, 255, 0.1);
     cursor: pointer;
+    transition: background 0.14s, border-color 0.14s;
 }
 
 .vd-switch span::before {
@@ -203,45 +273,99 @@
     background: var(--vd-accent);
 }
 
+/* === Hamburger Button (hidden on desktop) === */
+.vd-settings-hamburger {
+    display: none;
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    z-index: 15;
+    width: 36px;
+    height: 36px;
+    border: 0;
+    border-radius: var(--ds-radius-md);
+    background: transparent;
+    color: var(--ds-color-fg-primary);
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+}
 
-.vd-settings-app {
+.vd-settings-hamburger:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* === Backdrop (mobile) === */
+.vd-settings-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+    background: rgba(0, 0, 0, 0.5);
+    opacity: 0;
+    transition: opacity 0.25s ease;
+    pointer-events: none;
+}
+
+/* === Mobile / Narrow Layout (< 768px) === */
+@media (max-width: 767px) {
+    .vd-settings-app {
         grid-template-columns: 1fr;
-        grid-template-rows: auto 1fr;
+        grid-template-rows: 1fr;
     }
-.vd-settings-sidebar {
+
+    .vd-settings-hamburger {
         display: flex;
-        gap: 6px;
-        overflow: auto hidden;
-        border-right: 0;
-        border-bottom: 1px solid var(--ds-color-border-subtle);
     }
-.vd-settings-sidebar-title {
-        display: none;
+
+    .vd-settings-pane-head {
+        padding-left: 42px;
     }
-.vd-settings-nav {
-        width: auto;
-        min-width: max-content;
-        grid-template-columns: 24px auto;
-        padding: 0 10px;
-    }
-.vd-settings-pane {
+
+    .vd-settings-pane {
         padding: 14px;
     }
-.vd-setting-row {
+
+    .vd-setting-row {
         grid-template-columns: 1fr;
         align-items: start;
     }
-.vd-setting-value {
+
+    .vd-setting-value {
         text-align: left;
     }
 
-/* === Focus-visible for settings app (Phase 4) === */
+    .vd-settings-sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        z-index: 20;
+        width: 280px;
+        max-width: 80vw;
+        border-right: 1px solid var(--ds-color-border-subtle);
+        background: rgba(8, 12, 20, 0.97);
+        backdrop-filter: blur(16px);
+        transform: translateX(-100%);
+        transition: transform 0.25s ease;
+        padding-top: 10px;
+    }
+
+    .vd-settings-sidebar.open {
+        transform: translateX(0);
+    }
+
+    .vd-settings-backdrop.visible {
+        display: block;
+        opacity: 1;
+        pointer-events: auto;
+    }
+}
+
+/* === Focus-visible === */
 .vd-settings-app button:focus-visible,
 .vd-settings-app input:focus-visible,
-.vd-settings-app select:focus-visible,
-.vd-settings-app textarea:focus-visible,
-.vd-settings-app [tabindex]:focus-visible,
-.vd-settings-app a:focus-visible {
+.vd-settings-app select:focus-visible {
     outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus);
     outline-offset: var(--ds-focus-ring-offset);
 }
