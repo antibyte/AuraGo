@@ -258,9 +258,27 @@ func installService(exePath, installDir string, logger *slog.Logger) error {
 // unit file remains syntactically valid even when installDir or credentialFile
 // contain unusual characters. The caller decides whether to disable
 // ProtectSystem=strict via sudoUnrestricted.
+//
+// dockerMode is reserved for a future container-aware unit template (currently
+// unused but kept so callers don't need to change signatures when the Docker
+// branch is implemented). See installSystemd for the runningInDocker wiring.
 func buildSystemdUnit(desc, user, installDir, exePath, credentialFile, readWritePaths string, dockerMode, sudoUnrestricted bool) (string, error) {
-	if user == "" || installDir == "" || exePath == "" || credentialFile == "" {
-		return "", fmt.Errorf("buildSystemdUnit: user, installDir, exePath, credentialFile are required")
+	_ = dockerMode // reserved for future container-aware template
+	user = strings.TrimSpace(user)
+	installDir = strings.TrimSpace(installDir)
+	exePath = strings.TrimSpace(exePath)
+	credentialFile = strings.TrimSpace(credentialFile)
+	if user == "" {
+		return "", fmt.Errorf("buildSystemdUnit: user is required")
+	}
+	if installDir == "" {
+		return "", fmt.Errorf("buildSystemdUnit: installDir is required")
+	}
+	if exePath == "" {
+		return "", fmt.Errorf("buildSystemdUnit: exePath is required")
+	}
+	if credentialFile == "" {
+		return "", fmt.Errorf("buildSystemdUnit: credentialFile is required")
 	}
 
 	protectSystemLine := "ProtectSystem=strict"
