@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -170,5 +171,46 @@ func TestExtractTarGzStripsSetuidAndSetgidBits(t *testing.T) {
 		if perm := mode.Perm(); perm != 0o640 {
 			t.Errorf("perm = %o, want 0o640", perm)
 		}
+	}
+}
+
+func TestBuildSystemdUnitEscapesInstallDirWithQuotes(t *testing.T) {
+	t.Parallel()
+
+	// Use a path containing a double-quote to simulate a malicious installDir.
+	installDir := `/opt/aurago/odd"path`
+	exePath := installDir + "/aurago"
+
+	unit, err := buildSystemdUnit(
+		"AuraGo AI Agent",
+		"alice",
+		installDir,
+		exePath,
+		"/etc/aurago/master.key",
+		installDir+" /etc/aurago",
+		false,
+		false,
+	)
+	if err != nil {
+		t.Fatalf("buildSystemdUnit: %v", err)
+	}
+
+	// The raw, unescaped quote must NOT appear in the unit file.
+	if strings.Contains(unit, `odd"path`) {
+		t.Errorf("unit contains unescaped installDir; raw quote leaked: %s", unit)
+	}
+
+	// The escaped form (with backslash before the quote) MUST appear.
+	if !strings.Contains(unit, `odd\"path`) {
+		t.Errorf("unit does not contain escaped path: %s", unit)
+	}
+}
+
+func TestBuildSystemdUnitEmptyArgsRejected(t *testing.T) {
+	t.Parallel()
+
+	_, err := buildSystemdUnit("AuraGo", "", "/opt/aurago", "/opt/aurago/aurago", "/opt/aurago/.env", "/opt/aurago", false, false)
+	if err == nil {
+		t.Fatal("expected error when user is empty")
 	}
 }

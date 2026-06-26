@@ -252,6 +252,57 @@ func installService(exePath, installDir string, logger *slog.Logger) error {
 
 // ── Linux: systemd ──────────────────────────────────────────────────────
 
+// buildSystemdUnit returns the systemd unit file content for AuraGo.
+// All paths and the user/group identifiers are quoted via strconv.Quote to
+// escape embedded quotes, backslashes, and other special characters so the
+// unit file remains syntactically valid even when installDir or credentialFile
+// contain unusual characters. The caller decides whether to disable
+// ProtectSystem=strict via sudoUnrestricted.
+func buildSystemdUnit(desc, user, installDir, exePath, credentialFile, readWritePaths string, dockerMode, sudoUnrestricted bool) (string, error) {
+	if user == "" || installDir == "" || exePath == "" || credentialFile == "" {
+		return "", fmt.Errorf("buildSystemdUnit: user, installDir, exePath, credentialFile are required")
+	}
+
+	protectSystemLine := "ProtectSystem=strict"
+	if sudoUnrestricted {
+		protectSystemLine = "# ProtectSystem=strict disabled because sudo_unrestricted is enabled"
+	}
+
+	return fmt.Sprintf(`[Unit]
+Description=%s
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=%s
+Group=%s
+WorkingDirectory=%s
+ExecStart=%s --config %s/config.yaml
+Restart=on-failure
+RestartSec=10
+EnvironmentFile=-%s
+NoNewPrivileges=true
+%s
+ReadWritePaths=%s
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
+`,
+		strconv.Quote(desc),
+		strconv.Quote(user),
+		strconv.Quote(user),
+		strconv.Quote(installDir),
+		strconv.Quote(exePath),
+		strconv.Quote(installDir),
+		strconv.Quote(credentialFile),
+		protectSystemLine,
+		strconv.Quote(readWritePaths),
+	), nil
+}
+
 func installSystemd(exePath, installDir string, logger *slog.Logger) error {
 	// Determine the actual user (fallback from sudo if applicable)
 	user := os.Getenv("SUDO_USER")
@@ -268,34 +319,20 @@ func installSystemd(exePath, installDir string, logger *slog.Logger) error {
 		credentialFile = "/etc/aurago/master.key"
 		readWritePaths = installDir + " /etc/aurago"
 	}
-	protectSystemLine := "ProtectSystem=strict"
-	if configAllowsSudoUnrestricted(filepath.Join(installDir, "config.yaml")) {
-		protectSystemLine = "# ProtectSystem=strict disabled because sudo_unrestricted is enabled"
+
+	unit, err := buildSystemdUnit(
+		"AuraGo AI Agent",
+		user,
+		installDir,
+		exePath,
+		credentialFile,
+		readWritePaths,
+		runningInDocker(),
+		configAllowsSudoUnrestricted(filepath.Join(installDir, "config.yaml")),
+	)
+	if err != nil {
+		return fmt.Errorf("build systemd unit: %w", err)
 	}
-
-	unit := fmt.Sprintf(`[Unit]
-Description=AuraGo AI Agent
-After=network-online.target
-Wants=network-online.target
-StartLimitIntervalSec=0
-
-[Service]
-Type=simple
-User=%s
-Group=%s
-WorkingDirectory="%s"
-ExecStart="%s" --config "%s/config.yaml"
-Restart=on-failure
-RestartSec=10
-EnvironmentFile=-%s
-NoNewPrivileges=true
-%s
-ReadWritePaths=%s
-PrivateTmp=true
-
-[Install]
-WantedBy=multi-user.target
-`, user, user, installDir, exePath, installDir, credentialFile, protectSystemLine, readWritePaths)
 
 	unitPath := "/etc/systemd/system/aurago.service"
 	if err := os.WriteFile(unitPath, []byte(unit), 0600); err != nil {
