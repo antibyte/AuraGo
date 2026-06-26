@@ -6,6 +6,7 @@ import (
 	"time"
 
 	chromem "github.com/philippgille/chromem-go"
+	"golang.org/x/sync/singleflight"
 )
 
 // QueryCacheEntry stores a pre-computed query embedding with a timestamp for TTL expiry.
@@ -23,6 +24,7 @@ type Index struct {
 	ReindexMu     sync.Mutex
 	QueryCache    map[string]QueryCacheEntry
 	QueryCacheTTL time.Duration
+	QueryGroup    singleflight.Group
 	ContentCache  map[string]string
 	ContentKeys   []string
 }

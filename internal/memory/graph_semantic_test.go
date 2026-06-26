@@ -66,6 +66,157 @@ func TestKGSemanticUpsertDoesNotDeleteOnEmbeddingFailure(t *testing.T) {
 	}
 }
 
+func TestKGSemanticQueryEmbeddingUsesSemanticTimeout(t *testing.T) {
+	kg := &KnowledgeGraph{}
+	deadlineCh := make(chan time.Duration, 1)
+	embeddingFunc := func(ctx context.Context, _ string) ([]float32, error) {
+		deadline, ok := ctx.Deadline()
+		if !ok {
+			return nil, errors.New("embedding context has no deadline")
+		}
+		deadlineCh <- time.Until(deadline)
+		return []float32{1, 0}, nil
+	}
+
+	db := chromem.NewDB()
+	collection, err := db.GetOrCreateCollection(kgsemantic.CollectionName, nil, embeddingFunc)
+	if err != nil {
+		t.Fatalf("GetOrCreateCollection: %v", err)
+	}
+	kg.semantic = &kgsemantic.Index{
+		Collection:    collection,
+		EmbeddingFunc: embeddingFunc,
+		QueryCache:    make(map[string]kgsemantic.QueryCacheEntry),
+		QueryCacheTTL: kgsemantic.QueryCacheTTL,
+		ContentCache:  make(map[string]string),
+	}
+
+	if _, err := kg.getSemanticQueryEmbedding("same query"); err != nil {
+		t.Fatalf("getSemanticQueryEmbedding: %v", err)
+	}
+	select {
+	case remaining := <-deadlineCh:
+		if remaining < kgsemantic.QueryTimeout-2*time.Second {
+			t.Fatalf("semantic query timeout = %s, want close to %s", remaining, kgsemantic.QueryTimeout)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("embedding function was not called")
+	}
+}
+
+func TestKGSemanticQueryEmbeddingDedupesConcurrentQueries(t *testing.T) {
+	kg := &KnowledgeGraph{}
+	started := make(chan struct{}, 2)
+	release := make(chan struct{})
+	var calls atomic.Int32
+	embeddingFunc := func(ctx context.Context, _ string) ([]float32, error) {
+		calls.Add(1)
+		started <- struct{}{}
+		select {
+		case <-release:
+			return []float32{1, 0}, nil
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
+
+	db := chromem.NewDB()
+	collection, err := db.GetOrCreateCollection(kgsemantic.CollectionName, nil, embeddingFunc)
+	if err != nil {
+		t.Fatalf("GetOrCreateCollection: %v", err)
+	}
+	kg.semantic = &kgsemantic.Index{
+		Collection:    collection,
+		EmbeddingFunc: embeddingFunc,
+		QueryCache:    make(map[string]kgsemantic.QueryCacheEntry),
+		QueryCacheTTL: kgsemantic.QueryCacheTTL,
+		ContentCache:  make(map[string]string),
+	}
+
+	firstDone := make(chan error, 1)
+	go func() {
+		_, err := kg.getSemanticQueryEmbedding("same query")
+		firstDone <- err
+	}()
+	<-started
+
+	secondDone := make(chan error, 1)
+	go func() {
+		_, err := kg.getSemanticQueryEmbedding("same query")
+		secondDone <- err
+	}()
+
+	time.Sleep(50 * time.Millisecond)
+	if got := calls.Load(); got != 1 {
+		close(release)
+		t.Fatalf("embedding calls while first query is in flight = %d, want 1", got)
+	}
+
+	close(release)
+	for name, done := range map[string]chan error{"first": firstDone, "second": secondDone} {
+		select {
+		case err := <-done:
+			if err != nil {
+				t.Fatalf("%s query err = %v", name, err)
+			}
+		case <-time.After(time.Second):
+			t.Fatalf("%s query did not complete", name)
+		}
+	}
+	if got := calls.Load(); got != 1 {
+		t.Fatalf("embedding calls = %d, want one shared request", got)
+	}
+}
+
+func TestEnableSemanticSearchWithCollectionReturnsBeforeDirtyBacklogReindex(t *testing.T) {
+	kg := newTestKG(t)
+	if err := kg.AddNode("slow-node", "Slow Node", map[string]string{"kind": "slow"}); err != nil {
+		t.Fatalf("AddNode: %v", err)
+	}
+
+	release := make(chan struct{})
+	var closeRelease sync.Once
+	releaseReindex := func() {
+		closeRelease.Do(func() { close(release) })
+	}
+	t.Cleanup(releaseReindex)
+
+	embeddingFunc := func(ctx context.Context, text string) ([]float32, error) {
+		if text == "knowledge graph semantic validation" {
+			return []float32{1, 0}, nil
+		}
+		select {
+		case <-release:
+			return []float32{float32(len(text)), 1}, nil
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		done <- kg.enableSemanticSearchWithCollection(chromem.NewDB(), embeddingFunc, nil)
+	}()
+
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("enableSemanticSearchWithCollection: %v", err)
+		}
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("enableSemanticSearchWithCollection blocked on dirty semantic reindex backlog")
+	}
+
+	_, dirtyNodes, dirtyEdges, err := kg.HasSemanticReindexBacklog()
+	if err != nil {
+		t.Fatalf("HasSemanticReindexBacklog: %v", err)
+	}
+	if dirtyNodes == 0 && dirtyEdges == 0 {
+		t.Fatal("expected dirty semantic reindex rows to remain visible after startup returns")
+	}
+	releaseReindex()
+}
+
 func TestKGDeleteBySourceFileRemovesSemanticIndexEntries(t *testing.T) {
 	kg := newTestKG(t)
 
@@ -552,6 +703,9 @@ func TestKGRunSemanticReindexIfDueRespectsInterval(t *testing.T) {
 	}
 
 	kg.SetSemanticReindexInterval("1h")
+	kg.lastSemanticReindexMu.Lock()
+	kg.lastSemanticReindex = time.Now()
+	kg.lastSemanticReindexMu.Unlock()
 	ran, err := kg.RunSemanticReindexIfDue()
 	if err != nil {
 		t.Fatalf("RunSemanticReindexIfDue: %v", err)
@@ -734,6 +888,7 @@ func TestKGRunSemanticReindexIfDueSkipsConcurrentRuns(t *testing.T) {
 	if err := kg.enableSemanticSearchWithCollection(db, embeddingFunc, nil); err != nil {
 		t.Fatalf("enableSemanticSearchWithCollection: %v", err)
 	}
+	waitForSemanticReindexIdle(t, kg)
 	if err := kg.AddNode("docker", "Docker", map[string]string{"type": "software"}); err != nil {
 		t.Fatalf("AddNode: %v", err)
 	}
@@ -769,4 +924,19 @@ func TestKGRunSemanticReindexIfDueSkipsConcurrentRuns(t *testing.T) {
 	if started.Load()-beforeReindex != 1 {
 		t.Fatalf("expected one embedding reindex pass during concurrent due check, got %d", started.Load()-beforeReindex)
 	}
+}
+
+func waitForSemanticReindexIdle(t *testing.T, kg *KnowledgeGraph) {
+	t.Helper()
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		kg.lastSemanticReindexMu.Lock()
+		last := kg.lastSemanticReindex
+		kg.lastSemanticReindexMu.Unlock()
+		if !last.IsZero() && !kg.reindexInProgress.Load() {
+			return
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	t.Fatal("semantic startup reindex did not become idle")
 }

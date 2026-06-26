@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"math"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -406,6 +407,77 @@ func TestGetQueryEmbeddingReturnsCanceledCallerWithoutWaitingForSingleflight(t *
 	}
 }
 
+func TestGetQueryEmbeddingSharedRequestSurvivesFirstCallerCancel(t *testing.T) {
+	started := make(chan struct{})
+	release := make(chan struct{})
+	var calls atomic.Int32
+	cv := newTestChromemVectorDB(t, func(ctx context.Context, _ string) ([]float32, error) {
+		calls.Add(1)
+		select {
+		case <-started:
+		default:
+			close(started)
+		}
+		select {
+		case <-release:
+			return []float32{1, 0, 0}, nil
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	})
+
+	firstCtx, firstCancel := context.WithCancel(context.Background())
+	firstDone := make(chan error, 1)
+	go func() {
+		_, err := cv.getQueryEmbedding(firstCtx, "shared query")
+		firstDone <- err
+	}()
+	<-started
+
+	secondEntered := make(chan struct{})
+	secondDone := make(chan error, 1)
+	go func() {
+		close(secondEntered)
+		embedding, err := cv.getQueryEmbedding(context.Background(), "shared query")
+		if err == nil && len(embedding) != 3 {
+			err = errors.New("unexpected embedding length")
+		}
+		secondDone <- err
+	}()
+	<-secondEntered
+	time.Sleep(25 * time.Millisecond)
+
+	firstCancel()
+	select {
+	case err := <-firstDone:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("first caller err = %v, want context.Canceled", err)
+		}
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("first caller did not return after cancellation")
+	}
+
+	close(release)
+	select {
+	case err := <-secondDone:
+		if err != nil {
+			t.Fatalf("second caller err = %v, want shared request success", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("second caller did not receive shared embedding result")
+	}
+
+	if got := calls.Load(); got != 1 {
+		t.Fatalf("embedding calls = %d, want one shared in-flight request", got)
+	}
+	if _, err := cv.getQueryEmbedding(context.Background(), "shared query"); err != nil {
+		t.Fatalf("cached getQueryEmbedding: %v", err)
+	}
+	if got := calls.Load(); got != 1 {
+		t.Fatalf("embedding calls after cache hit = %d, want 1", got)
+	}
+}
+
 func TestGetQueryEmbeddingReturnsCacheCopies(t *testing.T) {
 	var calls atomic.Int32
 	cv := newTestChromemVectorDB(t, func(_ context.Context, _ string) ([]float32, error) {
@@ -437,6 +509,46 @@ func TestGetQueryEmbeddingReturnsCacheCopies(t *testing.T) {
 	}
 	if third[1] != 2 {
 		t.Fatalf("cached embedding was mutated by second caller slice: got %v", third)
+	}
+}
+
+func TestStoreDocumentWithEmbeddingValidatesVectors(t *testing.T) {
+	cv := newTestChromemVectorDB(t, func(_ context.Context, _ string) ([]float32, error) {
+		return []float32{1, 0, 0}, nil
+	})
+	cv.embeddingDimension.Store(3)
+
+	tests := []struct {
+		name      string
+		embedding []float32
+		wantErr   string
+	}{
+		{name: "empty", embedding: nil, wantErr: "embedding vector is empty"},
+		{name: "nan", embedding: []float32{1, float32(math.NaN()), 0}, wantErr: "embedding vector contains invalid value"},
+		{name: "inf", embedding: []float32{1, float32(math.Inf(1)), 0}, wantErr: "embedding vector contains invalid value"},
+		{name: "dimension mismatch", embedding: []float32{1, 0}, wantErr: "embedding dimension mismatch"},
+	}
+
+	for _, tt := range tests {
+		t.Run("default_"+tt.name, func(t *testing.T) {
+			_, err := cv.StoreDocumentWithEmbedding("concept", "content", tt.embedding)
+			if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
+				t.Fatalf("StoreDocumentWithEmbedding err = %v, want %q", err, tt.wantErr)
+			}
+		})
+		t.Run("collection_"+tt.name, func(t *testing.T) {
+			_, err := cv.StoreDocumentWithEmbeddingInCollection("concept", "content", tt.embedding, "files")
+			if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
+				t.Fatalf("StoreDocumentWithEmbeddingInCollection err = %v, want %q", err, tt.wantErr)
+			}
+		})
+	}
+
+	if _, err := cv.StoreDocumentWithEmbedding("concept", "content", []float32{1, 0, 0}); err != nil {
+		t.Fatalf("StoreDocumentWithEmbedding valid vector: %v", err)
+	}
+	if _, err := cv.StoreDocumentWithEmbeddingInCollection("concept", "content", []float32{1, 0, 0}, "files"); err != nil {
+		t.Fatalf("StoreDocumentWithEmbeddingInCollection valid vector: %v", err)
 	}
 }
 

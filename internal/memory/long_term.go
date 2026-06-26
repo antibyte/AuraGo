@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"net/url"
 	"sort"
 	"strconv"
@@ -113,6 +114,7 @@ type ChromemVectorDB struct {
 	conceptLocks           [64]sync.Mutex // Striped locks to serialise checks/stores per concept bucket
 	embeddingFunc          chromem.EmbeddingFunc
 	embeddingFingerprint   string
+	embeddingDimension     atomic.Int64
 	ready                  atomic.Bool  // Set once startup embedding validation reaches a final state
 	disabled               atomic.Bool  // Set when embedding pipeline fails; skips operations gracefully
 	closed                 atomic.Bool  // Set once Close begins; rejects new store/search operations.
@@ -767,8 +769,8 @@ func (cv *ChromemVectorDB) StoreDocumentWithEmbedding(concept, content string, e
 	if err := cv.requireReadyForStore(); err != nil {
 		return "", err
 	}
-	if len(embedding) == 0 {
-		return "", fmt.Errorf("embedding vector is empty")
+	if err := cv.validateStoredEmbedding(embedding); err != nil {
+		return "", err
 	}
 
 	cv.mu.Lock()
@@ -810,8 +812,8 @@ func (cv *ChromemVectorDB) StoreDocumentWithEmbeddingInCollection(concept, conte
 	if err := cv.requireReadyForStore(); err != nil {
 		return "", err
 	}
-	if len(embedding) == 0 {
-		return "", fmt.Errorf("embedding vector is empty")
+	if err := cv.validateStoredEmbedding(embedding); err != nil {
+		return "", err
 	}
 	if collection == "" {
 		collection = "aurago_memories"
@@ -852,6 +854,28 @@ func (cv *ChromemVectorDB) StoreDocumentWithEmbeddingInCollection(concept, conte
 
 	cv.logger.Info("Stored multimodal document in collection", "collection", collection, "id", docID, "concept", concept)
 	return docID, nil
+}
+
+func (cv *ChromemVectorDB) validateStoredEmbedding(embedding []float32) error {
+	if len(embedding) == 0 {
+		return fmt.Errorf("embedding vector is empty")
+	}
+	for _, value := range embedding {
+		if math.IsNaN(float64(value)) || math.IsInf(float64(value), 0) {
+			return fmt.Errorf("embedding vector contains invalid value")
+		}
+	}
+	if expected := cv.embeddingDimension.Load(); expected > 0 && len(embedding) != int(expected) {
+		return fmt.Errorf("embedding dimension mismatch: got %d, want %d", len(embedding), expected)
+	}
+	return nil
+}
+
+func (cv *ChromemVectorDB) rememberEmbeddingDimension(dim int) {
+	if dim <= 0 {
+		return
+	}
+	cv.embeddingDimension.CompareAndSwap(0, int64(dim))
 }
 
 // StoreCheatsheet stores a cheatsheet document with its ID as a unique identifier.
@@ -1672,7 +1696,7 @@ func (cv *ChromemVectorDB) getQueryEmbedding(ctx context.Context, query string) 
 	cv.queryCacheMu.RUnlock()
 
 	resultCh := cv.sfGroup.DoChan(query, func() (interface{}, error) {
-		internalCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+		internalCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 		return cv.embeddingFunc(internalCtx, query)
 	})
@@ -1690,6 +1714,7 @@ func (cv *ChromemVectorDB) getQueryEmbedding(ctx context.Context, query string) 
 		return nil, err
 	}
 	embedding := res.([]float32)
+	cv.rememberEmbeddingDimension(len(embedding))
 	cachedEmbedding := cloneFloat32Slice(embedding)
 
 	cv.queryCacheMu.Lock()

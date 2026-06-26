@@ -103,10 +103,7 @@ func (kg *KnowledgeGraph) enableSemanticSearchWithCollection(db *chromem.DB, emb
 	kg.semanticMu.Lock()
 	kg.semantic = index
 	kg.semanticMu.Unlock()
-	if err := kg.reindexSemanticNodes(); err != nil {
-		return err
-	}
-	kg.markSemanticReindexComplete()
+	kg.startSemanticReindexBacklogDrain()
 	return nil
 }
 
@@ -119,6 +116,31 @@ func (kg *KnowledgeGraph) validateSemanticIndex(index *kgsemantic.Index) error {
 		return fmt.Errorf("validate semantic embeddings: %w", err)
 	}
 	return nil
+}
+
+func (kg *KnowledgeGraph) startSemanticReindexBacklogDrain() {
+	idx := kg.semanticIndex()
+	if idx == nil {
+		return
+	}
+	logger := idx.Logger
+	if logger != nil {
+		logger.Debug("KG semantic reindex backlog drain scheduled")
+	}
+	kg.wg.Add(1)
+	go func() {
+		defer kg.wg.Done()
+		attempted, err := kg.RunSemanticReindexIfDue()
+		if err != nil {
+			if logger != nil {
+				logger.Warn("KG semantic reindex backlog drain failed", "error", err)
+			}
+			return
+		}
+		if attempted && logger != nil {
+			logger.Info("KG semantic reindex backlog drain completed")
+		}
+	}()
 }
 
 // RunSemanticReindex triggers a reindex of dirty KG nodes and edges into the
@@ -880,12 +902,20 @@ func (kg *KnowledgeGraph) getSemanticQueryEmbedding(query string) ([]float32, er
 	idx.Mu.Unlock()
 
 	// Slow path: call embedding API WITHOUT holding the lock to avoid blocking other goroutines.
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	embedding, err := idx.EmbeddingFunc(ctx, query)
+	result, err, _ := idx.QueryGroup.Do(query, func() (interface{}, error) {
+		ctx, cancel := context.WithTimeout(context.Background(), kgsemantic.QueryTimeout)
+		defer cancel()
+		embedding, err := idx.EmbeddingFunc(ctx, query)
+		if err != nil {
+			return nil, err
+		}
+		return cloneFloat32Slice(embedding), nil
+	})
 	if err != nil {
+		idx.QueryGroup.Forget(query)
 		return nil, err
 	}
+	embedding := result.([]float32)
 
 	// Store result under lock; re-check cache in case another goroutine raced us.
 	idx.Mu.Lock()
