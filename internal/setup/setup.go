@@ -115,7 +115,12 @@ func ensureConfigFile(installDir, configPath string, logger *slog.Logger) error 
 		return nil
 	}
 
-	minimalConfig := []byte("{}\n")
+	minimalConfig := []byte(`# AuraGo minimal fallback config — please edit.
+server:
+  host: "0.0.0.0"
+  port: 8088
+  ui_language: en
+`)
 	if err := config.WriteFileAtomic(configPath, minimalConfig, 0o600); err != nil {
 		return fmt.Errorf("failed to create minimal config.yaml: %w", err)
 	}

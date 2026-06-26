@@ -10,6 +10,8 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"gopkg.in/yaml.v3"
 )
 
 func TestNeedsSetupUsesExplicitConfigPath(t *testing.T) {
@@ -96,13 +98,52 @@ func TestEnsureConfigFileCreatesMinimalFallbackWithoutTemplate(t *testing.T) {
 		t.Fatalf("ensureConfigFile() error = %v", err)
 	}
 
-	got, err := os.ReadFile(configPath)
+	data, err := os.ReadFile(configPath)
 	if err != nil {
 		t.Fatalf("read config: %v", err)
 	}
-	if string(got) != "{}\n" {
-		t.Fatalf("config contents = %q, want minimal fallback", string(got))
+	var raw map[string]interface{}
+	if err := yaml.Unmarshal(data, &raw); err != nil {
+		t.Fatalf("fallback not valid YAML: %v", err)
 	}
+	if _, ok := raw["server"]; !ok {
+		t.Fatalf("fallback missing server section: %s", data)
+	}
+}
+
+func TestEnsureConfigFileCreatesValidMinimalConfig(t *testing.T) {
+	t.Parallel()
+
+	installDir := t.TempDir()
+	configPath := filepath.Join(installDir, "config.yaml")
+
+	if err := ensureConfigFile(installDir, configPath, slog.Default()); err != nil {
+		t.Fatalf("ensureConfigFile: %v", err)
+	}
+
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+
+	// The minimal config must load successfully.
+	var raw map[string]interface{}
+	if err := yaml.Unmarshal(data, &raw); err != nil {
+		t.Fatalf("fallback config is not valid YAML: %v", err)
+	}
+
+	// And contain at least the server section so port/host have defaults.
+	if _, ok := raw["server"]; !ok {
+		t.Errorf("fallback config missing 'server' section, got keys: %v", keys(raw))
+	}
+}
+
+func keys(m map[string]interface{}) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	return out
 }
 
 func TestConfigAllowsSudoUnrestricted(t *testing.T) {
