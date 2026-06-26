@@ -88,6 +88,10 @@ func TestEnsureConfigFileCopiesTemplateWhenMissing(t *testing.T) {
 	}
 }
 
+// TestEnsureConfigFileCreatesMinimalFallbackWithoutTemplate verifies that when
+// neither the user config nor the embedded template exists, ensureConfigFile
+// produces a syntactically valid YAML document with a `server` section so the
+// next startup can boot with sensible defaults.
 func TestEnsureConfigFileCreatesMinimalFallbackWithoutTemplate(t *testing.T) {
 	t.Parallel()
 
@@ -102,48 +106,26 @@ func TestEnsureConfigFileCreatesMinimalFallbackWithoutTemplate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read config: %v", err)
 	}
+
+	// The fallback must be valid YAML.
 	var raw map[string]interface{}
 	if err := yaml.Unmarshal(data, &raw); err != nil {
 		t.Fatalf("fallback not valid YAML: %v", err)
 	}
+
+	// And contain the server section so port/host have defaults.
 	if _, ok := raw["server"]; !ok {
 		t.Fatalf("fallback missing server section: %s", data)
 	}
-}
 
-func TestEnsureConfigFileCreatesValidMinimalConfig(t *testing.T) {
-	t.Parallel()
-
-	installDir := t.TempDir()
-	configPath := filepath.Join(installDir, "config.yaml")
-
-	if err := ensureConfigFile(installDir, configPath, slog.Default()); err != nil {
-		t.Fatalf("ensureConfigFile: %v", err)
+	// And contain no placeholder values that would cause silent breakage.
+	server, ok := raw["server"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("server section is not a map: %v", raw["server"])
 	}
-
-	data, err := os.ReadFile(configPath)
-	if err != nil {
-		t.Fatalf("ReadFile: %v", err)
+	if _, ok := server["port"]; !ok {
+		t.Errorf("fallback server.port missing: %v", server)
 	}
-
-	// The minimal config must load successfully.
-	var raw map[string]interface{}
-	if err := yaml.Unmarshal(data, &raw); err != nil {
-		t.Fatalf("fallback config is not valid YAML: %v", err)
-	}
-
-	// And contain at least the server section so port/host have defaults.
-	if _, ok := raw["server"]; !ok {
-		t.Errorf("fallback config missing 'server' section, got keys: %v", keys(raw))
-	}
-}
-
-func keys(m map[string]interface{}) []string {
-	out := make([]string, 0, len(m))
-	for k := range m {
-		out = append(out, k)
-	}
-	return out
 }
 
 func TestConfigAllowsSudoUnrestricted(t *testing.T) {

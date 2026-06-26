@@ -12,9 +12,10 @@ import (
 // into it, extracts any sensitive credentials to the vault, writes back
 // atomically, and returns the reloaded config in-memory.
 //
-// This helper consolidates the read → vault-extract → deep-merge → write →
-// reload sequence shared by /api/setup (unauthenticated first-run wizard) and
-// /api/config update (authenticated user-initiated save).
+// Currently used by /api/setup (the unauthenticated first-run wizard). It is
+// designed as the future consolidation point for /api/config update as well —
+// that handler still has its own inline implementation with extra pre-write
+// validation that will be migrated separately.
 //
 // The patch is mutated: sensitive credential fields are stripped (moved to the
 // vault), and `_setup_profile_id` is consumed and removed.
