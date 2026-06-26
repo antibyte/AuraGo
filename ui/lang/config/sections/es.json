@@ -484,5 +484,17 @@
   "config.group_title.agent.importance_scoring": "Puntuación de importancia",
   "config.group_title.agent.auto_learning": "Aprendizaje automático",
   "config.group_title.agent.reuse_first": "Reutilizar primero",
-  "config.github.saving": "Guardando..."
+  "config.github.saving": "Guardando...",
+  "config.manifest.routing_title": "Enrutamiento de Manifest",
+  "config.manifest.routing_enabled_label": "Enviar cabeceras de enrutamiento",
+  "config.manifest.routing_specificity_mode_label": "Modo de specificity",
+  "config.manifest.routing_specificity_label": "Specificity fija",
+  "config.manifest.routing_headers_label": "Cabeceras personalizadas",
+  "config.manifest.routing_add_header": "Agregar cabecera",
+  "config.manifest.routing_remove_header": "Eliminar cabecera",
+  "config.manifest.routing_note": "Configura los header tiers en Manifest; AuraGo solo envia senales seguras.",
+  "config.manifest.routing_mode_off": "Apagado",
+  "config.manifest.routing_mode_fixed": "Fijo",
+  "config.manifest.routing_mode_auto": "Automatico",
+  "config.manifest.routing_specificity_none": "Ninguna"
 }

@@ -243,6 +243,11 @@ func applyManifestPatch(w http.ResponseWriter, r *http.Request, cfg *config.Conf
 		jsonError(w, "Invalid request payload", http.StatusBadRequest)
 		return false
 	}
+	var rawReq map[string]json.RawMessage
+	var rawManifest map[string]json.RawMessage
+	if err := json.Unmarshal(data, &rawReq); err == nil {
+		_ = json.Unmarshal(rawReq["manifest"], &rawManifest)
+	}
 	patch := req.Manifest
 	if patch.Enabled {
 		cfg.Manifest.Enabled = true
@@ -300,6 +305,10 @@ func applyManifestPatch(w http.ResponseWriter, r *http.Request, cfg *config.Conf
 	}
 	if strings.TrimSpace(patch.HealthPath) != "" {
 		cfg.Manifest.HealthPath = patch.HealthPath
+	}
+	if _, ok := rawManifest["routing"]; ok {
+		config.NormalizeManifestRoutingConfig(&patch.Routing)
+		cfg.Manifest.Routing = patch.Routing
 	}
 	return true
 }

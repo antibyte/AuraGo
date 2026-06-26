@@ -173,6 +173,33 @@ func TestManifestTestAcceptsPatchAndReportsSetupRequired(t *testing.T) {
 	}
 }
 
+func TestManifestPatchAppliesRoutingFalseAndNormalizesMode(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Manifest.Routing.Enabled = true
+	cfg.Manifest.Routing.SpecificityMode = "fixed"
+	cfg.Manifest.Routing.Specificity = "coding"
+
+	body := strings.NewReader(`{"manifest":{"routing":{"enabled":false,"specificity_mode":"surprise","specificity":"root_shell","headers":{"x-aurago-task":"coding"}}}}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/manifest/test", body)
+	rec := httptest.NewRecorder()
+
+	if !applyManifestPatch(rec, req, cfg) {
+		t.Fatalf("applyManifestPatch returned false; status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	if cfg.Manifest.Routing.Enabled {
+		t.Fatal("manifest.routing.enabled = true, want false")
+	}
+	if cfg.Manifest.Routing.SpecificityMode != "off" {
+		t.Fatalf("specificity_mode = %q, want off", cfg.Manifest.Routing.SpecificityMode)
+	}
+	if cfg.Manifest.Routing.Specificity != "" {
+		t.Fatalf("specificity = %q, want empty", cfg.Manifest.Routing.Specificity)
+	}
+	if got := cfg.Manifest.Routing.Headers["x-aurago-task"]; got != "coding" {
+		t.Fatalf("routing header = %q, want coding", got)
+	}
+}
+
 func TestManifestTestRejectsInvalidJSONWithoutStatusBody(t *testing.T) {
 	s := &Server{Cfg: &config.Config{}}
 	req := httptest.NewRequest(http.MethodPost, "/api/manifest/test", strings.NewReader(`{"manifest":`))

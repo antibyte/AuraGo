@@ -14,6 +14,11 @@ function manifestText(key, fallback) {
 function manifestEnsureData() {
     if (!configData.manifest) configData.manifest = {};
     const data = configData.manifest;
+    if (!data.routing) data.routing = {};
+    if (typeof data.routing.enabled !== 'boolean') data.routing.enabled = false;
+    if (!['off', 'fixed', 'auto'].includes(data.routing.specificity_mode)) data.routing.specificity_mode = 'off';
+    if (typeof data.routing.specificity !== 'string') data.routing.specificity = '';
+    if (!data.routing.headers || typeof data.routing.headers !== 'object' || Array.isArray(data.routing.headers)) data.routing.headers = {};
     if (typeof data.auto_start !== 'boolean') data.auto_start = true;
     if (!data.mode) data.mode = 'managed';
     if (!data.url) data.url = 'http://127.0.0.1:2099';
@@ -116,6 +121,22 @@ async function renderManifestSection(section) {
         ]);
     }
 
+    html += '<details class="cfg-advanced-panel manifest-routing-panel">';
+    html += '<summary class="cfg-advanced-summary">' + manifestText('config.manifest.routing_title') + '</summary>';
+    html += '<div class="cfg-advanced-body">';
+    html += '<div class="cfg-note-banner cfg-note-banner-info">▦ ' + manifestText('config.manifest.routing_note') + '</div>';
+    html += '<div class="field-grid two-cols">';
+    html += manifestToggleRow('config.manifest.routing_enabled_label', '', data.routing.enabled === true, 'manifest.routing.enabled');
+    html += manifestSelectFieldFixed('config.manifest.routing_specificity_mode_label', '', 'manifest.routing.specificity_mode', data.routing.specificity_mode || 'off', [
+        { value: 'off', label: manifestText('config.manifest.routing_mode_off') },
+        { value: 'fixed', label: manifestText('config.manifest.routing_mode_fixed') },
+        { value: 'auto', label: manifestText('config.manifest.routing_mode_auto') }
+    ]);
+    html += '</div>';
+    html += manifestSelectFieldFixed('config.manifest.routing_specificity_label', '', 'manifest.routing.specificity', data.routing.specificity || '', manifestSpecificityOptions());
+    html += manifestRoutingHeaderRows(data.routing.headers);
+    html += '</div></details>';
+
     html += '<div class="field-group">';
     html += '<div class="field-group-title">' + manifestText('config.manifest.secrets_title') + '</div>';
     html += '<div class="field-group-desc">' + manifestText('config.manifest.secrets_desc') + '</div>';
@@ -181,6 +202,48 @@ function manifestSelectField(labelKey, helpKey, path, value, options) {
     return manifestField(labelKey, helpKey, html);
 }
 
+function manifestSelectFieldFixed(labelKey, helpKey, path, value, options) {
+    const normalizedValue = String(value ?? '');
+    let html = '<select class="field-select" data-path="' + escapeAttr(path) + '" onchange="setNestedValue(configData,this.dataset.path,this.value);markDirty()">';
+    options.forEach(opt => {
+        const optValue = String(opt.value ?? '');
+        const selected = normalizedValue === optValue ? ' selected' : '';
+        html += '<option value="' + escapeAttr(optValue) + '"' + selected + '>' + escapeHtml(opt.label || optValue) + '</option>';
+    });
+    html += '</select>';
+    return manifestField(labelKey, helpKey, html);
+}
+
+function manifestSpecificityOptions() {
+    const categories = ['', 'coding', 'web_browsing', 'data_analysis', 'image_generation', 'video_generation', 'social_media', 'email_management', 'calendar_management', 'trading'];
+    return categories.map(value => ({
+        value,
+        label: value === '' ? manifestText('config.manifest.routing_specificity_none') : value
+    }));
+}
+
+function manifestRoutingHeaderRows(headers) {
+    const entries = Object.entries(headers || {}).filter(([key, value]) => String(key).trim() !== '' && String(value).trim() !== '');
+    let html = '<div class="field-group manifest-routing-headers" data-routing-path="manifest.routing.headers">';
+    html += '<div class="field-label">' + manifestText('config.manifest.routing_headers_label') + '</div>';
+    html += '<input type="hidden" data-path="manifest.routing.headers" data-type="json" data-manifest-routing-headers-store value="' + escapeAttr(JSON.stringify(Object.fromEntries(entries))) + '">';
+    entries.forEach(([key, value]) => {
+        html += '<div class="field-grid two-cols manifest-routing-header-row">';
+        html += '<input class="field-input" type="text" value="' + escapeAttr(key) + '" data-header-key oninput="manifestRoutingCollectHeaders()">';
+        html += '<div class="password-wrap">';
+        html += '<input class="field-input" type="text" value="' + escapeAttr(value) + '" data-header-value oninput="manifestRoutingCollectHeaders()">';
+        html += '<button type="button" class="password-toggle" data-header-remove="' + escapeAttr(key) + '" onclick="manifestRoutingRemoveHeader(this.dataset.headerRemove)" title="' + escapeAttr(manifestText('config.manifest.routing_remove_header')) + '">&times;</button>';
+        html += '</div></div>';
+    });
+    html += '<div class="field-grid two-cols manifest-routing-header-row">';
+    html += '<input class="field-input" type="text" value="" data-header-key oninput="manifestRoutingCollectHeaders()">';
+    html += '<input class="field-input" type="text" value="" data-header-value oninput="manifestRoutingCollectHeaders()">';
+    html += '</div>';
+    html += '<button type="button" class="btn-save btn-secondary" onclick="manifestRoutingAddHeader()">' + manifestText('config.manifest.routing_add_header') + '</button>';
+    html += '</div>';
+    return html;
+}
+
 function manifestSecretField(labelKey, helpKey, id, path, placeholder) {
     return manifestField(labelKey, helpKey,
         '<div class="password-wrap"><input class="field-input" type="password" id="' + id + '" value="' + escapeAttr(cfgSecretValue(path.split('.').reduce((o,k)=>o&&o[k], configData))) + '" placeholder="' + escapeAttr(placeholder) + '" data-path="' + path + '" autocomplete="off"><button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button></div>');
@@ -195,9 +258,14 @@ function manifestToggleEnabled(isOn) {
 
 function manifestPayload() {
     manifestEnsureData();
+    manifestRoutingCollectHeaders(false);
     if (typeof buildConfigPatchFromForm === 'function') {
         const patch = buildConfigPatchFromForm();
-        return { manifest: Object.assign({}, configData.manifest, patch.manifest || {}) };
+        const merged = Object.assign({}, configData.manifest, patch.manifest || {});
+        if (patch.manifest && patch.manifest.routing) {
+            merged.routing = Object.assign({}, configData.manifest.routing || {}, patch.manifest.routing);
+        }
+        return { manifest: merged };
     }
     return { manifest: configData.manifest };
 }
@@ -215,6 +283,35 @@ function manifestCustomChanged(inputEl) {
     const path = inputEl.dataset.customFor;
     if (path) setNestedValue(configData, path, inputEl.value.trim());
     markDirty();
+}
+
+function manifestRoutingCollectHeaders(mark = true) {
+    const data = manifestEnsureData();
+    const next = {};
+    document.querySelectorAll('.manifest-routing-header-row').forEach(row => {
+        const keyEl = row.querySelector('[data-header-key]');
+        const valueEl = row.querySelector('[data-header-value]');
+        if (!keyEl || !valueEl) return;
+        const key = String(keyEl.value || '').trim().toLowerCase();
+        const value = String(valueEl.value || '').trim();
+        if (key && value) next[key] = value;
+    });
+    data.routing.headers = next;
+    const store = document.querySelector('[data-manifest-routing-headers-store]');
+    if (store) store.value = JSON.stringify(next);
+    if (mark) markDirty();
+}
+
+function manifestRoutingAddHeader() {
+    manifestRoutingCollectHeaders();
+    renderManifestSection(null);
+}
+
+function manifestRoutingRemoveHeader(key) {
+    const data = manifestEnsureData();
+    delete data.routing.headers[String(key || '').trim().toLowerCase()];
+    markDirty();
+    renderManifestSection(null);
 }
 
 function manifestStatusState(body) {

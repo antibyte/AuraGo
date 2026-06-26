@@ -60,6 +60,22 @@ Manifest providers without their own provider API key automatically use the
 vault-backed `manifest.api_key` value, so a single Manifest key can be managed
 from the Manifest config section.
 
+## Routing Hints
+
+AuraGo can optionally send safe routing headers to Manifest-provider requests:
+
+```yaml
+manifest:
+  routing:
+    enabled: true
+    specificity_mode: fixed
+    specificity: coding
+    headers:
+      x-aurago-task: coding
+```
+
+Use `specificity_mode: off` for the default no-header behavior. `fixed` sends `x-manifest-specificity` for a valid Manifest category, while `auto` only sends a header when AuraGo sees an unambiguous tool-prefix category. Custom headers can be used with Manifest header tiers; configure the matching tier rules in Manifest itself.
+
 ## External Mode
 
 Use external mode when Manifest is already running somewhere else.

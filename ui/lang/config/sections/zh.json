@@ -484,5 +484,17 @@
   "config.group_title.agent.importance_scoring": "重要性评分",
   "config.group_title.agent.auto_learning": "自动学习",
   "config.group_title.agent.reuse_first": "优先复用",
-  "config.github.saving": "正在保存..."
+  "config.github.saving": "正在保存...",
+  "config.manifest.routing_title": "Manifest 路由",
+  "config.manifest.routing_enabled_label": "发送路由标头",
+  "config.manifest.routing_specificity_mode_label": "Specificity 模式",
+  "config.manifest.routing_specificity_label": "固定 specificity",
+  "config.manifest.routing_headers_label": "自定义标头",
+  "config.manifest.routing_add_header": "添加标头",
+  "config.manifest.routing_remove_header": "移除标头",
+  "config.manifest.routing_note": "在 Manifest 中配置 header tiers；AuraGo 只发送安全信号。",
+  "config.manifest.routing_mode_off": "关闭",
+  "config.manifest.routing_mode_fixed": "固定",
+  "config.manifest.routing_mode_auto": "自动",
+  "config.manifest.routing_specificity_none": "无"
 }

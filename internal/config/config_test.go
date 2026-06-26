@@ -1046,6 +1046,81 @@ func TestLoadManifestDefaults(t *testing.T) {
 	if cfg.Manifest.PostgresVolume != "aurago_manifest_pgdata" {
 		t.Fatalf("postgres_volume = %q, want aurago_manifest_pgdata", cfg.Manifest.PostgresVolume)
 	}
+	if cfg.Manifest.Routing.Enabled {
+		t.Fatal("manifest.routing.enabled should default to false")
+	}
+	if cfg.Manifest.Routing.SpecificityMode != "off" {
+		t.Fatalf("manifest.routing.specificity_mode = %q, want off", cfg.Manifest.Routing.SpecificityMode)
+	}
+	if cfg.Manifest.Routing.Specificity != "" {
+		t.Fatalf("manifest.routing.specificity = %q, want empty", cfg.Manifest.Routing.Specificity)
+	}
+	if len(cfg.Manifest.Routing.Headers) != 0 {
+		t.Fatalf("manifest.routing.headers = %#v, want empty", cfg.Manifest.Routing.Headers)
+	}
+}
+
+func TestLoadManifestRoutingExplicitValues(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	configContent := `
+manifest:
+  enabled: true
+  routing:
+    enabled: true
+    specificity_mode: fixed
+    specificity: coding
+    headers:
+      x-aurago-task: coding
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if !cfg.Manifest.Routing.Enabled {
+		t.Fatal("manifest.routing.enabled = false, want true")
+	}
+	if cfg.Manifest.Routing.SpecificityMode != "fixed" {
+		t.Fatalf("manifest.routing.specificity_mode = %q, want fixed", cfg.Manifest.Routing.SpecificityMode)
+	}
+	if cfg.Manifest.Routing.Specificity != "coding" {
+		t.Fatalf("manifest.routing.specificity = %q, want coding", cfg.Manifest.Routing.Specificity)
+	}
+	if got := cfg.Manifest.Routing.Headers["x-aurago-task"]; got != "coding" {
+		t.Fatalf("manifest.routing.headers[x-aurago-task] = %q, want coding", got)
+	}
+}
+
+func TestLoadManifestRoutingNormalizesInvalidModeAndSpecificity(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	configContent := `
+manifest:
+  routing:
+    enabled: true
+    specificity_mode: surprise
+    specificity: root_shell
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if cfg.Manifest.Routing.SpecificityMode != "off" {
+		t.Fatalf("manifest.routing.specificity_mode = %q, want off", cfg.Manifest.Routing.SpecificityMode)
+	}
+	if cfg.Manifest.Routing.Specificity != "" {
+		t.Fatalf("manifest.routing.specificity = %q, want empty for invalid category", cfg.Manifest.Routing.Specificity)
+	}
 }
 
 func TestLoadDograhDefaultsUseOfficialGHCRImages(t *testing.T) {
@@ -2368,6 +2443,59 @@ webhooks:
 	}
 	if reloaded.Webhooks.Outgoing[0].URL != "https://example.test/deploy" {
 		t.Fatalf("saved webhook url = %q", reloaded.Webhooks.Outgoing[0].URL)
+	}
+}
+
+func TestConfigSavePersistsManifestRouting(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	configContent := `
+server:
+  ui_language: en
+auth:
+  enabled: false
+personality:
+  core_personality: neutral
+manifest:
+  enabled: true
+  routing:
+    enabled: false
+    specificity_mode: off
+    specificity: ""
+    headers: {}
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	cfg.Manifest.Routing.Enabled = true
+	cfg.Manifest.Routing.SpecificityMode = "fixed"
+	cfg.Manifest.Routing.Specificity = "coding"
+	cfg.Manifest.Routing.Headers = map[string]string{"x-aurago-task": "coding"}
+
+	if err := cfg.Save(configPath); err != nil {
+		t.Fatalf("Save() error = %v", err)
+	}
+
+	reloaded, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("reload config: %v", err)
+	}
+	if !reloaded.Manifest.Routing.Enabled {
+		t.Fatal("manifest.routing.enabled = false, want true")
+	}
+	if reloaded.Manifest.Routing.SpecificityMode != "fixed" {
+		t.Fatalf("specificity_mode = %q, want fixed", reloaded.Manifest.Routing.SpecificityMode)
+	}
+	if reloaded.Manifest.Routing.Specificity != "coding" {
+		t.Fatalf("specificity = %q, want coding", reloaded.Manifest.Routing.Specificity)
+	}
+	if reloaded.Manifest.Routing.Headers["x-aurago-task"] != "coding" {
+		t.Fatalf("routing header = %q, want coding", reloaded.Manifest.Routing.Headers["x-aurago-task"])
 	}
 }
 

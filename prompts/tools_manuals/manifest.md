@@ -33,3 +33,5 @@ Secrets are vault-only:
 - Better Auth secret
 
 Never write these values to `config.yaml`, documentation, logs, reports, or generated tools.
+
+Optional routing hints live under `manifest.routing`. When enabled, AuraGo can add safe custom headers for Manifest header tiers and, when explicitly configured, `x-manifest-specificity` values such as `coding` or `web_browsing`. Header tiers are still configured inside Manifest; AuraGo only sends hints.

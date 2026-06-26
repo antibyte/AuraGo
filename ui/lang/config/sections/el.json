@@ -484,5 +484,17 @@
   "config.group_title.agent.importance_scoring": "Βαθμολόγηση σημαντικότητας",
   "config.group_title.agent.auto_learning": "Αυτόματη μάθηση",
   "config.group_title.agent.reuse_first": "Πρώτα επαναχρησιμοποίηση",
-  "config.github.saving": "Αποθήκευση..."
+  "config.github.saving": "Αποθήκευση...",
+  "config.manifest.routing_title": "Δρομολόγηση Manifest",
+  "config.manifest.routing_enabled_label": "Αποστολή κεφαλίδων δρομολόγησης",
+  "config.manifest.routing_specificity_mode_label": "Λειτουργία specificity",
+  "config.manifest.routing_specificity_label": "Σταθερό specificity",
+  "config.manifest.routing_headers_label": "Προσαρμοσμένες κεφαλίδες",
+  "config.manifest.routing_add_header": "Προσθήκη κεφαλίδας",
+  "config.manifest.routing_remove_header": "Αφαίρεση κεφαλίδας",
+  "config.manifest.routing_note": "Ρυθμίστε τα header tiers στο Manifest; το AuraGo στέλνει μόνο ασφαλή σήματα.",
+  "config.manifest.routing_mode_off": "Ανενεργό",
+  "config.manifest.routing_mode_fixed": "Σταθερό",
+  "config.manifest.routing_mode_auto": "Αυτόματα",
+  "config.manifest.routing_specificity_none": "Κανένα"
 }

@@ -148,6 +148,141 @@ func TestManifestProviderURLMismatchIsQuietForLocalGateway(t *testing.T) {
 	}
 }
 
+func TestManifestRoutingTransportDisabledDoesNotSetHeaders(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Manifest.Routing.Enabled = false
+	transport := &manifestRoutingTransport{
+		routing: cfg.Manifest.Routing,
+		base: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			if got := req.Header.Get("x-aurago-task"); got != "" {
+				t.Fatalf("x-aurago-task = %q, want empty", got)
+			}
+			if got := req.Header.Get("x-manifest-specificity"); got != "" {
+				t.Fatalf("x-manifest-specificity = %q, want empty", got)
+			}
+			return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader("ok")), Header: make(http.Header)}, nil
+		}),
+	}
+
+	req, err := http.NewRequest(http.MethodPost, "https://manifest.example.test/v1/chat/completions", strings.NewReader(`{"tools":[]}`))
+	if err != nil {
+		t.Fatalf("http.NewRequest() error = %v", err)
+	}
+	if _, err := transport.RoundTrip(req); err != nil {
+		t.Fatalf("RoundTrip() error = %v", err)
+	}
+}
+
+func TestManifestRoutingTransportFixedSpecificityAndSafeHeaders(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Manifest.Routing.Enabled = true
+	cfg.Manifest.Routing.SpecificityMode = "fixed"
+	cfg.Manifest.Routing.Specificity = "coding"
+	cfg.Manifest.Routing.Headers = map[string]string{
+		"x-aurago-task":          "coding",
+		"authorization":          "Bearer leaked",
+		"bad header":             "nope",
+		"x-empty":                "",
+		"x-manifest-specificity": "trading",
+	}
+	transport := &manifestRoutingTransport{
+		routing: cfg.Manifest.Routing,
+		base: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			if got := req.Header.Get("x-aurago-task"); got != "coding" {
+				t.Fatalf("x-aurago-task = %q, want coding", got)
+			}
+			if got := req.Header.Get("x-manifest-specificity"); got != "coding" {
+				t.Fatalf("x-manifest-specificity = %q, want fixed coding", got)
+			}
+			for _, blocked := range []string{"authorization", "bad header", "x-empty"} {
+				if got := req.Header.Get(blocked); got != "" {
+					t.Fatalf("%s = %q, want empty", blocked, got)
+				}
+			}
+			return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader("ok")), Header: make(http.Header)}, nil
+		}),
+	}
+
+	req, err := http.NewRequest(http.MethodPost, "https://manifest.example.test/v1/chat/completions", strings.NewReader(`{"tools":[]}`))
+	if err != nil {
+		t.Fatalf("http.NewRequest() error = %v", err)
+	}
+	if _, err := transport.RoundTrip(req); err != nil {
+		t.Fatalf("RoundTrip() error = %v", err)
+	}
+}
+
+func TestManifestRoutingTransportAutoSpecificityRequiresSingleCategory(t *testing.T) {
+	tests := []struct {
+		name string
+		body string
+		want string
+	}{
+		{
+			name: "single coding prefix",
+			body: `{"tools":[{"type":"function","function":{"name":"code_review"}}]}`,
+			want: "coding",
+		},
+		{
+			name: "conflicting prefixes",
+			body: `{"tools":[{"type":"function","function":{"name":"code_review"}},{"type":"function","function":{"name":"browser_open"}}]}`,
+			want: "",
+		},
+		{
+			name: "unknown prefix",
+			body: `{"tools":[{"type":"function","function":{"name":"execute_shell"}}]}`,
+			want: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := &config.Config{}
+			cfg.Manifest.Routing.Enabled = true
+			cfg.Manifest.Routing.SpecificityMode = "auto"
+			transport := &manifestRoutingTransport{
+				routing: cfg.Manifest.Routing,
+				base: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+					if got := req.Header.Get("x-manifest-specificity"); got != tt.want {
+						t.Fatalf("x-manifest-specificity = %q, want %q", got, tt.want)
+					}
+					raw, err := io.ReadAll(req.Body)
+					if err != nil {
+						t.Fatalf("read forwarded body: %v", err)
+					}
+					if string(raw) != tt.body {
+						t.Fatalf("forwarded body = %q, want original %q", string(raw), tt.body)
+					}
+					return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader("ok")), Header: make(http.Header)}, nil
+				}),
+			}
+			req, err := http.NewRequest(http.MethodPost, "https://manifest.example.test/v1/chat/completions", strings.NewReader(tt.body))
+			if err != nil {
+				t.Fatalf("http.NewRequest() error = %v", err)
+			}
+			if _, err := transport.RoundTrip(req); err != nil {
+				t.Fatalf("RoundTrip() error = %v", err)
+			}
+		})
+	}
+}
+
+func TestBuildLLMHTTPClientOnlyInstallsManifestRoutingForManifestProvider(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Manifest.Routing.Enabled = true
+	cfg.Manifest.Routing.Headers = map[string]string{"x-aurago-task": "coding"}
+
+	manifestClient := buildLLMHTTPClient(cfg, "manifest", "", "https://manifest.example.test/v1")
+	if _, ok := unwrapLLMTransport(manifestClient.Transport).(*manifestRoutingTransport); !ok {
+		t.Fatalf("manifest provider base transport = %T, want *manifestRoutingTransport", unwrapLLMTransport(manifestClient.Transport))
+	}
+
+	openAIClient := buildLLMHTTPClient(cfg, "openai", "", "https://api.openai.com/v1")
+	if _, ok := unwrapLLMTransport(openAIClient.Transport).(*manifestRoutingTransport); ok {
+		t.Fatal("openai provider should not install manifest routing transport")
+	}
+}
+
 func openAIPromptCacheKeyFromBodyForTest(t *testing.T, body []byte) string {
 	t.Helper()
 	var payload map[string]interface{}

@@ -665,12 +665,12 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				}
 			}
 
-			manifestChanged := oldCfg.Manifest != newCfg.Manifest || oldCfg.Docker.Host != newCfg.Docker.Host || oldCfg.Runtime.IsDocker != newCfg.Runtime.IsDocker || manifestSidecarAuthConfigChanged(oldCfg, *newCfg)
+			manifestChanged := !reflect.DeepEqual(oldCfg.Manifest, newCfg.Manifest) || oldCfg.Docker.Host != newCfg.Docker.Host || oldCfg.Runtime.IsDocker != newCfg.Runtime.IsDocker || manifestSidecarAuthConfigChanged(oldCfg, *newCfg)
 			oldManifestRuntime := oldCfg.Manifest
 			newManifestRuntime := newCfg.Manifest
 			oldManifestRuntime.APIKey = ""
 			newManifestRuntime.APIKey = ""
-			manifestRuntimeChanged := oldManifestRuntime != newManifestRuntime || oldCfg.Docker.Host != newCfg.Docker.Host || oldCfg.Runtime.IsDocker != newCfg.Runtime.IsDocker
+			manifestRuntimeChanged := !reflect.DeepEqual(oldManifestRuntime, newManifestRuntime) || oldCfg.Docker.Host != newCfg.Docker.Host || oldCfg.Runtime.IsDocker != newCfg.Runtime.IsDocker
 			if manifestChanged && newCfg.Docker.Enabled && newCfg.Manifest.Enabled && newCfg.Manifest.AutoStart && strings.EqualFold(newCfg.Manifest.Mode, "managed") {
 				if err := s.ensureManifestSecrets(newCfg); err != nil {
 					s.Logger.Warn("[Config UI] Failed to ensure Manifest secrets", "error", err)

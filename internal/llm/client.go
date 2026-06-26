@@ -330,6 +330,10 @@ func buildLLMHTTPClient(cfg *config.Config, providerType, aiGatewayToken, baseUR
 		transport = &opencodeGoTransport{base: transport}
 	}
 
+	if providerType == "manifest" && cfg != nil {
+		transport = &manifestRoutingTransport{base: transport, routing: cfg.Manifest.Routing}
+	}
+
 	// Always return a custom HTTP client so every provider gets proper
 	// ResponseHeaderTimeout and transport settings.  Using nil here caused
 	// generic providers (crof.ai, openrouter, etc.) to fall back to the

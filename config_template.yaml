@@ -776,6 +776,11 @@ manifest:
     postgres_database: manifest
     postgres_volume: aurago_manifest_pgdata
     health_path: ""                                       # optional explicit health path; empty probes /health, /api/health, then TCP
+    routing:                                              # optional non-breaking routing hints for Manifest header tiers/specificity
+      enabled: false                                      # when true, AuraGo may add safe Manifest routing headers to Manifest-provider LLM requests
+      specificity_mode: off                               # off, fixed, or auto; auto only sends a header for unambiguous tool-prefix matches
+      specificity: ""                                     # fixed mode category, e.g. coding, web_browsing, data_analysis, image_generation
+      headers: {}                                         # safe custom headers for Manifest header tiers, e.g. {"x-aurago-task": "coding"}
     # Vault-only fields saved via UI, never config.yaml:
     # api_key: mnfst_...
     # postgres_password: generated/stored in vault

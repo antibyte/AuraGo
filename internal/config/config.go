@@ -363,6 +363,8 @@ func Load(path string) (*Config, error) {
 	cfg.Manifest.PostgresUser = "manifest"
 	cfg.Manifest.PostgresDatabase = "manifest"
 	cfg.Manifest.PostgresVolume = "aurago_manifest_pgdata"
+	cfg.Manifest.Routing.SpecificityMode = "off"
+	cfg.Manifest.Routing.Headers = map[string]string{}
 
 	// Dograh defaults: disabled by default, managed Docker stack when enabled.
 	cfg.Dograh.AutoStart = true
@@ -761,6 +763,7 @@ func Load(path string) (*Config, error) {
 	if strings.TrimSpace(cfg.Manifest.PostgresVolume) == "" {
 		cfg.Manifest.PostgresVolume = "aurago_manifest_pgdata"
 	}
+	NormalizeManifestRoutingConfig(&cfg.Manifest.Routing)
 	if strings.TrimSpace(cfg.Dograh.Mode) == "" {
 		cfg.Dograh.Mode = "managed"
 	}
@@ -1935,6 +1938,43 @@ func normalizeIndexingChunkingConfig(cfg IndexingChunkingConfig) IndexingChunkin
 	}
 }
 
+// NormalizeManifestRoutingConfig applies conservative defaults to Manifest routing hints.
+func NormalizeManifestRoutingConfig(cfg *ManifestRoutingConfig) {
+	switch strings.ToLower(strings.TrimSpace(cfg.SpecificityMode)) {
+	case "fixed":
+		cfg.SpecificityMode = "fixed"
+	case "auto":
+		cfg.SpecificityMode = "auto"
+	default:
+		cfg.SpecificityMode = "off"
+	}
+	cfg.Specificity = strings.ToLower(strings.TrimSpace(cfg.Specificity))
+	if !IsValidManifestSpecificityCategory(cfg.Specificity) {
+		cfg.Specificity = ""
+	}
+	if cfg.Headers == nil {
+		cfg.Headers = map[string]string{}
+	}
+}
+
+// IsValidManifestSpecificityCategory reports whether value is a Manifest specificity category.
+func IsValidManifestSpecificityCategory(value string) bool {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "coding",
+		"web_browsing",
+		"data_analysis",
+		"image_generation",
+		"video_generation",
+		"social_media",
+		"email_management",
+		"calendar_management",
+		"trading":
+		return true
+	default:
+		return false
+	}
+}
+
 // Save persists the configuration to the specified path using a targeted patch
 // strategy: the original file is read as YAML nodes, only the changed runtime
 // fields are updated, and the document is written back atomically. This keeps
@@ -2041,6 +2081,10 @@ func (c *Config) Save(path string) error {
 		{[]string{"space_agent", "data_path"}, c.SpaceAgent.DataPath},
 		{[]string{"space_agent", "admin_user"}, c.SpaceAgent.AdminUser},
 		{[]string{"space_agent", "public_url"}, c.SpaceAgent.PublicURL},
+		{[]string{"manifest", "routing", "enabled"}, c.Manifest.Routing.Enabled},
+		{[]string{"manifest", "routing", "specificity_mode"}, c.Manifest.Routing.SpecificityMode},
+		{[]string{"manifest", "routing", "specificity"}, c.Manifest.Routing.Specificity},
+		{[]string{"manifest", "routing", "headers"}, c.Manifest.Routing.Headers},
 		{[]string{"virtual_desktop", "enabled"}, c.VirtualDesktop.Enabled},
 		{[]string{"virtual_desktop", "readonly"}, c.VirtualDesktop.ReadOnly},
 		{[]string{"virtual_desktop", "allow_agent_control"}, c.VirtualDesktop.AllowAgentControl},
