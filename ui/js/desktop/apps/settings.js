@@ -113,6 +113,7 @@
     }
 
     function renderSettingsShell() {
+        const sidebarWasOpen = host.querySelector('.vd-settings-sidebar') && host.querySelector('.vd-settings-sidebar').classList.contains('open');
         const sections = settingsSections();
         const active = sections.find(section => section.id === host.dataset.activeSettings) || sections[0];
         host.innerHTML = `<div class="vd-settings-app">
@@ -152,6 +153,12 @@
         wireSettings();
         wireSearch(sections);
         wireSidebarToggle();
+        if (sidebarWasOpen) {
+            const sidebar = host.querySelector('.vd-settings-sidebar');
+            const backdrop = host.querySelector('.vd-settings-backdrop');
+            if (sidebar) sidebar.classList.add('open');
+            if (backdrop) backdrop.classList.add('visible');
+        }
     }
 
     function wireNav(sections) {
@@ -271,13 +278,18 @@
                 }
             }
             if (!ctx.state.bootstrap) ctx.state.bootstrap = {};
-            for (const update of updates) {
-                const body = await ctx.api('/api/desktop/settings', {
+            const results = await Promise.all(updates.map(update =>
+                ctx.api('/api/desktop/settings', {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(update)
-                });
-                ctx.state.bootstrap.settings = body.settings || Object.assign(ctx.desktopSettings(), { [update.key]: update.value });
+                })
+            ));
+            const last = results[results.length - 1];
+            ctx.state.bootstrap.settings = last.settings || Object.assign(ctx.desktopSettings(), {});
+            ctx.state.bootstrap.settings[key] = value;
+            if (updates.length > 1) {
+                for (const u of updates) ctx.state.bootstrap.settings[u.key] = u.value;
             }
             ctx.applyDesktopSettings();
             ctx.renderStartButtonIcon();

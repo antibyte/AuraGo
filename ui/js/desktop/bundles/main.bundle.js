@@ -531,7 +531,9 @@
             cheater: 'CheaterApp',
             'agent-chat': 'AgentChatApp',
             'viewer-3d': 'Viewer3DApp',
-            'mission-control': 'MissionControlApp'
+            'mission-control': 'MissionControlApp',
+            settings: 'SettingsApp',
+            calculator: 'CalculatorApp'
         }[appId] || '';
     }
 
@@ -7549,34 +7551,6 @@ if (appId === 'pixel') {
                 ]
             }
         ]);
-    }
-
-    function plannerJSON(url, method, body) {
-        return api(url, {
-            method,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body || {})
-        });
-    }
-
-    function isoDate(date) {
-        const d = new Date(date);
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
-        return `${d.getFullYear()}-${month}-${day}`;
-    }
-
-    function dateTimeLocalValue(value) {
-        const d = value ? new Date(value) : new Date();
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
-        const hour = String(d.getHours()).padStart(2, '0');
-        const minute = String(d.getMinutes()).padStart(2, '0');
-        return `${d.getFullYear()}-${month}-${day}T${hour}:${minute}`;
-    }
-
-    function fromLocalDateTime(value) {
-        return value ? new Date(value).toISOString() : new Date().toISOString();
     }
 
 ;

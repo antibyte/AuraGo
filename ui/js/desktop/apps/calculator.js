@@ -3,11 +3,6 @@
 
     let host, ctx, esc, t, showDesktopNotification, registerWindowCleanup, showContextMenu, wireContextMenuBoundary;
 
-    function resolve(fn, args) {
-        if (typeof fn === 'function') return fn.apply(null, args);
-        return fn;
-    }
-
     function tokenizeCalculatorExpression(expression) {
         const tokens = [];
         let index = 0;

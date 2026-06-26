@@ -526,7 +526,9 @@
             cheater: 'CheaterApp',
             'agent-chat': 'AgentChatApp',
             'viewer-3d': 'Viewer3DApp',
-            'mission-control': 'MissionControlApp'
+            'mission-control': 'MissionControlApp',
+            settings: 'SettingsApp',
+            calculator: 'CalculatorApp'
         }[appId] || '';
     }
 
