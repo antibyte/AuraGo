@@ -205,11 +205,13 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 			return
 		}
 
-		setupPassword, authEnabled, err := extractSetupAdminPassword(patch, s.Cfg.Auth.Enabled, s.Cfg.Auth.PasswordHash != "")
+		authPatch, _ := patch["auth"].(map[string]interface{})
+		setupPassword, authEnabled, err := validateSetupAdminPassword(authPatch, s.Cfg.Auth.Enabled, s.Cfg.Auth.PasswordHash != "")
 		if err != nil {
 			jsonError(w, setupValidationMessage(err), http.StatusBadRequest)
 			return
 		}
+		stripSetupAdminPassword(authPatch)
 
 		// Pre-extract provider API keys into the vault BEFORE applyConfigPatch.
 		// Provider keys live at dynamic paths (providers[N].api_key) which the
@@ -410,10 +412,15 @@ func applySetupProfileConfigPatch(patch map[string]interface{}, s *Server) {
 	}
 }
 
-func extractSetupAdminPassword(patch map[string]interface{}, currentAuthEnabled bool, currentPasswordSet bool) (string, bool, error) {
+// validateSetupAdminPassword inspects the auth block of a setup patch and
+// returns the password (if any), whether auth should remain enabled, and an
+// error if validation fails. Does not mutate the patch.
+//
+// The caller is responsible for stripping the temporary admin_password field
+// from the patch (see stripSetupAdminPassword) before persisting it.
+func validateSetupAdminPassword(authPatch map[string]interface{}, currentAuthEnabled bool, currentPasswordSet bool) (string, bool, error) {
 	authEnabled := currentAuthEnabled
-	authPatch, ok := patch["auth"].(map[string]interface{})
-	if !ok || authPatch == nil {
+	if authPatch == nil {
 		if authEnabled && !currentPasswordSet {
 			return "", authEnabled, fmt.Errorf("admin password is required")
 		}
@@ -427,8 +434,6 @@ func extractSetupAdminPassword(patch map[string]interface{}, currentAuthEnabled 
 		authEnabled = enabled
 	}
 	rawPassword, hasPassword := authPatch["admin_password"]
-	delete(authPatch, "admin_password")
-
 	if !authEnabled {
 		return "", false, nil
 	}
@@ -447,6 +452,15 @@ func extractSetupAdminPassword(patch map[string]interface{}, currentAuthEnabled 
 		return "", true, fmt.Errorf("admin password must be at least 8 characters long")
 	}
 	return password, true, nil
+}
+
+// stripSetupAdminPassword removes the temporary admin_password field from the
+// auth block of a setup patch so it is never written to disk. Call this AFTER
+// validateSetupAdminPassword has extracted the password.
+func stripSetupAdminPassword(authPatch map[string]interface{}) {
+	if authPatch != nil {
+		delete(authPatch, "admin_password")
+	}
 }
 
 func setupValidationMessage(err error) string {

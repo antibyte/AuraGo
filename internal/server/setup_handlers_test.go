@@ -133,7 +133,7 @@ func TestNeedsSetupAcceptsOAuthProviderWithAppliedToken(t *testing.T) {
 	}
 }
 
-func TestExtractSetupAdminPasswordStripsTemporaryField(t *testing.T) {
+func TestValidateSetupAdminPasswordStripsTemporaryField(t *testing.T) {
 	t.Parallel()
 
 	patch := map[string]interface{}{
@@ -143,7 +143,8 @@ func TestExtractSetupAdminPasswordStripsTemporaryField(t *testing.T) {
 		},
 	}
 
-	password, authEnabled, err := extractSetupAdminPassword(patch, true, false)
+	authPatch, _ := patch["auth"].(map[string]interface{})
+	password, authEnabled, err := validateSetupAdminPassword(authPatch, true, false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -154,13 +155,19 @@ func TestExtractSetupAdminPasswordStripsTemporaryField(t *testing.T) {
 		t.Fatalf("unexpected password %q", password)
 	}
 
-	authPatch := patch["auth"].(map[string]interface{})
+	// validateSetupAdminPassword must NOT mutate the patch.
+	if _, exists := authPatch["admin_password"]; !exists {
+		t.Fatal("validateSetupAdminPassword should not strip admin_password; stripSetupAdminPassword does that")
+	}
+
+	// Now strip and verify it's gone.
+	stripSetupAdminPassword(authPatch)
 	if _, exists := authPatch["admin_password"]; exists {
-		t.Fatal("expected temporary admin_password field to be removed before config merge")
+		t.Fatal("expected stripSetupAdminPassword to remove admin_password")
 	}
 }
 
-func TestExtractSetupAdminPasswordAllowsExistingPasswordToRemain(t *testing.T) {
+func TestValidateSetupAdminPasswordAllowsExistingPasswordToRemain(t *testing.T) {
 	t.Parallel()
 
 	patch := map[string]interface{}{
@@ -169,7 +176,8 @@ func TestExtractSetupAdminPasswordAllowsExistingPasswordToRemain(t *testing.T) {
 		},
 	}
 
-	password, authEnabled, err := extractSetupAdminPassword(patch, true, true)
+	authPatch, _ := patch["auth"].(map[string]interface{})
+	password, authEnabled, err := validateSetupAdminPassword(authPatch, true, true)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
