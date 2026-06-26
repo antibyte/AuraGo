@@ -801,7 +801,10 @@ function updateEmbeddingSetupWarnings() {
     const quickWarning = document.getElementById('quick-embedding-warning');
     if (quickWarning) {
         const quickProvider = selectedProfile && selectedProfile.provider_type ? selectedProfile.provider_type : '';
-        setupSetHidden(quickWarning, !quickProvider || quickProvider === 'openrouter' || selectedProfile.id === 'custom');
+        setupSetHidden(quickWarning,
+            !quickProvider ||
+            quickProvider === 'openrouter' ||
+            (selectedProfile && selectedProfile.id === 'custom'));
     }
 
     const providerWarning = document.getElementById('provider-embedding-warning');
