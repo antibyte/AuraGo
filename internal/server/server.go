@@ -119,6 +119,10 @@ type Server struct {
 	// instances without racing on a shared package-level map.
 	SetupCSRFMu     sync.Mutex
 	SetupCSRFTokens map[string]time.Time
+	// SetupCSRFCleanupOnce ensures the per-Server CSRF cleanup goroutine is
+	// started exactly once. Lives on Server (not package global) so each
+	// Server instance has independent cleanup lifecycle for test isolation.
+	SetupCSRFCleanupOnce sync.Once
 	Logger          *slog.Logger
 	AccessLogger       *slog.Logger
 	LLMClient          llm.ChatClient

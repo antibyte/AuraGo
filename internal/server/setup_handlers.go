@@ -32,9 +32,6 @@ const setupCSRFTokenTTL = 30 * time.Minute
 
 var validateSetupProviderSSRF = security.ValidateSSRF
 
-// setupCSRFCleanupOnce ensures the cleanup goroutine is started exactly once.
-var setupCSRFCleanupOnce sync.Once
-
 var (
 	setupProfilesCache     []setup.SetupProfile
 	setupProfilesCacheOnce sync.Once
@@ -53,7 +50,7 @@ func loadCachedSetupProfiles(logger *slog.Logger) []setup.SetupProfile {
 // tokens every 5 minutes. It runs until the process exits and is safe to call
 // from any code path that issues or validates tokens.
 func startSetupCSRFCleanup(s *Server) {
-	setupCSRFCleanupOnce.Do(func() {
+	s.SetupCSRFCleanupOnce.Do(func() {
 		go func() {
 			ticker := time.NewTicker(5 * time.Minute)
 			defer ticker.Stop()
