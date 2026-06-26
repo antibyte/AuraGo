@@ -1413,7 +1413,7 @@ function buildConfigPatch() {
         },
         auth: {
             enabled: true,
-            admin_password: document.getElementById('admin-password').value,
+            admin_password: document.getElementById('admin-password').value.trim(),
         },
         maintenance: {
             enabled: document.getElementById('maintenance-enabled').checked,
