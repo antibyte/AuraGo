@@ -21,6 +21,10 @@ let setupPasswordRequired = true;
 let csrfToken = '';
 let setupOllamaBaseURL = 'http://localhost:11434/v1';
 
+// Sequence counter for /api/i18n fetches. When the user rapidly switches
+// languages, only the most recent fetch's response should be applied.
+let langFetchSeq = 0;
+
 // Centralized language metadata (single source of truth for setup wizard).
 // Key = ISO 639-1 code; Value = Display name in that language.
 const LANG_MAP = {
@@ -913,9 +917,11 @@ function onLanguageChange() {
 
 function fetchAndApplyLang(langValue) {
     document.documentElement.lang = langValue || 'en';
+    const seq = ++langFetchSeq; // capture current sequence; stale responses are discarded
     fetch('/api/i18n?lang=' + encodeURIComponent(langValue))
         .then(r => r.ok ? r.json() : null)
         .then(json => {
+            if (seq !== langFetchSeq) return; // a newer fetch started — discard this response
             if (json && json.data && typeof json.data === 'object') {
                 I18N = json.data;
                 applyI18N();
