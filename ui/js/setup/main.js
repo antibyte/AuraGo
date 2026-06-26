@@ -45,7 +45,10 @@ function totalSteps()  { return activeFlow().length; }
 (async function checkSetupStatus() {
     try {
         const resp = await fetch('/api/setup/status');
-        if (!resp.ok) return;
+        if (!resp.ok) {
+            showSetupConnectionWarning('status ' + resp.status);
+            return;
+        }
         const data = await resp.json();
         if (!data.needs_setup) {
             window.location.href = '/';
@@ -63,8 +66,25 @@ function totalSteps()  { return activeFlow().length; }
                 }
             }
         }
-    } catch (e) { /* ignore — proceed with setup */ }
+    } catch (e) {
+        showSetupConnectionWarning(e.message || 'network error');
+    }
 })();
+
+// Display a non-blocking warning banner when the setup status endpoint is
+// unreachable so the user gets actionable feedback before the final save
+// returns 403. The banner is inserted directly after the header.
+function showSetupConnectionWarning(detail) {
+    if (document.getElementById('setup-conn-warning')) return; // already shown
+    const header = document.querySelector('.setup-header');
+    if (!header) return;
+    const banner = document.createElement('div');
+    banner.id = 'setup-conn-warning';
+    banner.className = 'setup-conn-warning';
+    banner.setAttribute('role', 'alert');
+    banner.textContent = 'Could not reach setup status endpoint (' + detail + '). Reload the page once the server is ready.';
+    header.parentNode.insertBefore(banner, header.nextSibling);
+}
 
 // ── Security: HTTPS warning ──────────────────
 (function httpsWarning() {
