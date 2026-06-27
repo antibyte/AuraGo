@@ -657,6 +657,7 @@
             return result;
         }
 
+        var _flashCanvas = null, _flashCtx = null;
         let _sheetLogOnce = false;
         function drawSp(cv, sp, cols, x, y, flash, noCache) {
             if (typeof sp === 'string' && ctx.spriteSheet && !noCache) {
@@ -664,10 +665,18 @@
                 if (fr) {
                     if (!_sheetLogOnce) { _sheetLogOnce = true; console.log('[GALAXA] drawing from sprite sheet, first frame:', sp); }
                     const dx = Math.floor(x), dy = Math.floor(y);
-                    cv.drawImage(ctx.spriteSheet, fr.x, fr.y, fr.w, fr.h, dx, dy, fr.w, fr.h);
                     if (flash) {
-                        cv.fillStyle = '#fff';
-                        cv.fillRect(dx, dy, fr.w, fr.h);
+                        if (!_flashCanvas) { _flashCanvas = new OffscreenCanvas(32, 32); _flashCtx = _flashCanvas.getContext('2d'); }
+                        _flashCanvas.width = fr.w; _flashCanvas.height = fr.h;
+                        _flashCtx.clearRect(0, 0, fr.w, fr.h);
+                        _flashCtx.drawImage(ctx.spriteSheet, fr.x, fr.y, fr.w, fr.h, 0, 0, fr.w, fr.h);
+                        _flashCtx.globalCompositeOperation = 'source-atop';
+                        _flashCtx.fillStyle = '#fff';
+                        _flashCtx.fillRect(0, 0, fr.w, fr.h);
+                        _flashCtx.globalCompositeOperation = 'source-over';
+                        cv.drawImage(_flashCanvas, 0, 0, fr.w, fr.h, dx, dy, fr.w, fr.h);
+                    } else {
+                        cv.drawImage(ctx.spriteSheet, fr.x, fr.y, fr.w, fr.h, dx, dy, fr.w, fr.h);
                     }
                     return;
                 }
