@@ -10,7 +10,7 @@ function renderObsidianSection(section) {
     const apiKeyPlaceholder = cfgSecretPlaceholder(data.api_key, t('config.obsidian.apikey_placeholder'));
 
     let html = '<div class="cfg-section active">';
-    html += '<div class="section-header">' + section.icon + ' ' + section.label + '</div>';
+    html += '<div class="section-header">' + section.label + '</div>';
     html += '<div class="section-desc">' + section.desc + '</div>';
     const setupHint = t('help.obsidian.setup_hint');
     if (setupHint) {

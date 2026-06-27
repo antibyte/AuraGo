@@ -930,7 +930,7 @@ async function renderSection(key) {
     ]);
 
     let html = '<div class="cfg-section active">';
-    html += '<div class="section-header">' + section.icon + ' ' + section.label + '</div>';
+    html += '<div class="section-header">' + section.label + '</div>';
     html += '<div class="section-desc">' + section.desc + '</div>';
 
     // Generic feature-unavailability banner for sections with runtime checks

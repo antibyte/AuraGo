@@ -13,7 +13,7 @@ async function renderSkillManagerSection(section) {
     const guardianOn = data.scan_with_guardian === true;
 
     let html = '<div class="cfg-section active">';
-    html += '<div class="section-header">' + section.icon + ' ' + section.label + '</div>';
+    html += '<div class="section-header">' + section.label + '</div>';
     html += '<div class="section-desc">' + section.desc + '</div>';
 
     // ── Enabled toggle ──

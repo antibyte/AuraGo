@@ -20,7 +20,7 @@ async function renderComposioSection(section) {
     const selectedCount = Array.isArray(cmp.toolkits) ? cmp.toolkits.filter(tk => tk && tk.enabled).length : 0;
 
     let html = '<div class="cfg-section active">';
-    html += '<div class="section-header">' + section.icon + ' ' + section.label + '</div>';
+    html += '<div class="section-header">' + section.label + '</div>';
     html += '<div class="section-desc">' + section.desc + '</div>';
 
     html += '<div id="composio-status-banner" class="adg-status-banner">' + t('config.composio.status_loading') + '</div>';

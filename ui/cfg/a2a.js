@@ -11,7 +11,7 @@ function renderA2ASection(section) {
     const authBearerPlaceholder = cfgSecretPlaceholder(auth.bearer_secret, t('config.a2a.bearer_placeholder'));
 
     let html = '<div class="cfg-section active">';
-    html += '<div class="section-header">' + section.icon + ' ' + section.label + '</div>';
+    html += '<div class="section-header">' + section.label + '</div>';
     html += '<div class="section-desc">' + section.desc + '</div>';
 
     html += '<div id="a2a-status-banner" class="a2a-status-banner">' + t('config.a2a.checking') + '</div>';

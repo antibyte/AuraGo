@@ -13,7 +13,7 @@ async function renderSandboxSection(section) {
     const st = sandboxStatusCache || {};
 
     let html = `<div class="cfg-section active">
-        <div class="section-header">${section.icon} ${section.label}</div>
+        <div class="section-header">${section.label}</div>
         <div class="section-desc">${section.desc}</div>`;
 
     const sbBanner = featureUnavailableBanner('sandbox');
@@ -188,7 +188,7 @@ async function renderSandboxSection(section) {
     const shSt = shellSandboxStatusCache || {};
 
     html += `<div class="cfg-section active sb-section-mt">
-        <div class="section-header">🛡️ ${t('config.shell_sandbox.title')}</div>
+        <div class="section-header">${t('config.shell_sandbox.title')}</div>
         <div class="section-desc">${t('config.shell_sandbox.desc')}</div>`;
 
     // ── Shell Sandbox General Card ──

@@ -23,7 +23,7 @@ let persState = { personalities: [], active: '', editName: undefined, isCore: fa
             const addHelp = (helpTexts['agent.additional_prompt'] || {})[lang] || '';
 
             let html = '<div class="cfg-section active">';
-            html += '<div class="section-header">' + section.icon + ' ' + section.label + '</div>';
+            html += '<div class="section-header">' + section.label + '</div>';
             html += '<div class="section-desc">' + section.desc + '</div>';
 
             // Additional Prompt

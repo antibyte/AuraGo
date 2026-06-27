@@ -8,7 +8,7 @@ async function renderCloudflareTunnelSection(section) {
     const exposeHomepage = cfg.expose_homepage !== false;
 
     let html = `<div class="cfg-section active">
-        <div class="section-header">${section.icon} ${section.label}</div>
+        <div class="section-header">${section.label}</div>
         <div class="section-desc">${section.desc}</div>
         <div id="cf-tunnel-status-banner" class="adg-status-banner">${t('config.cloudflare_tunnel.checking')}</div>`;
 

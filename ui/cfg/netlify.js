@@ -16,7 +16,7 @@ async function renderNetlifySection(section) {
     const st = nfStatusCache || {};
 
     let html = `<div class="cfg-section active">
-        <div class="section-header">${section.icon} ${section.label}</div>
+        <div class="section-header">${section.label}</div>
         <div class="section-desc">${section.desc}</div>`;
 
     if (nfEnabled && st.status === 'ok') {

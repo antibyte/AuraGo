@@ -9,7 +9,7 @@ window.addEventListener('cfg:section-leave', function () {
 
 function renderSQLConnectionsSection(section) {
     let html = '<div class="cfg-section active">';
-    html += '<div class="section-header">' + section.icon + ' ' + section.label + '</div>';
+    html += '<div class="section-header">' + section.label + '</div>';
     html += '<div class="section-desc">' + section.desc + '</div>';
 
     const sqlCfg = configData['sql_connections'] || {};

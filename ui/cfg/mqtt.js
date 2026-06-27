@@ -12,7 +12,7 @@ async function renderMQTTSection(section) {
     const passwordPlaceholder = cfgSecretPlaceholder(data.password, t('config.mqtt.password_placeholder'));
 
     let html = `<div class="cfg-section active">
-        <div class="section-header">${section.icon} ${section.label}</div>
+        <div class="section-header">${section.label}</div>
         <div class="section-desc">${section.desc}</div>`;
 
     // Status banner

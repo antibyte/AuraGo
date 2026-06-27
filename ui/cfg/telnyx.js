@@ -7,7 +7,7 @@ function renderTelnyxSection(section) {
     const apiKeyPlaceholder = cfgSecretPlaceholder(data.api_key, t('config.telnyx.api_key_placeholder'));
 
     let html = '<div class="cfg-section active">';
-    html += '<div class="section-header">' + section.icon + ' ' + section.label + '</div>';
+    html += '<div class="section-header">' + section.label + '</div>';
     html += '<div class="section-desc">' + section.desc + '</div>';
     html += '<div id="telnyx-status-banner" class="adg-status-banner">' + t('config.telnyx.checking') + '</div>';
 

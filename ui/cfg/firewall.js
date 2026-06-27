@@ -4,7 +4,7 @@
 
 window.renderFirewallSection = function (sectionParam) {
     let html = '<div class="cfg-section active fw-section">';
-    html += '<div class="section-header">' + sectionParam.icon + ' ' + sectionParam.label + '</div>';
+    html += '<div class="section-header">' + sectionParam.label + '</div>';
     html += '<div class="section-desc">' + sectionParam.desc + '</div>';
 
     // Banner for non-Linux OS

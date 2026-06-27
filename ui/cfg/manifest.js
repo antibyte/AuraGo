@@ -44,7 +44,7 @@ async function renderManifestSection(section) {
     const managed = data.mode !== 'external';
 
     let html = '<div class="cfg-section active">';
-    html += '<div class="section-header">' + section.icon + ' ' + manifestText('config.section.manifest.label', section.label) + '</div>';
+    html += '<div class="section-header">' + manifestText('config.section.manifest.label', section.label) + '</div>';
     html += '<div class="section-desc">' + manifestText('config.section.manifest.desc', section.desc) + '</div>';
 
     html += manifestToggleRow('config.manifest.enabled_label', 'help.manifest.enabled', enabled, 'manifest.enabled', "manifestToggleEnabled(this.classList.contains('on'))");

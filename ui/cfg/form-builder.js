@@ -120,7 +120,7 @@
     function renderSpec(spec) {
         spec = spec || {};
         let out = '<div class="cfg-section active">';
-        out += '<div class="section-header">' + (spec.icon || '') + ' ' + html(spec.label || '') + '</div>';
+        out += '<div class="section-header">' + html(spec.label || '') + '</div>';
         if (spec.desc) out += '<div class="section-desc">' + html(spec.desc) + '</div>';
         if (spec.beforeHTML) out += spec.beforeHTML;
         (spec.fields || []).forEach(item => {

@@ -39,7 +39,7 @@
                 </div>`;
             } else {
                 content.innerHTML = `<div class="cfg-section active">
-                <div class="section-header">${section.icon} ${section.label}</div>
+                <div class="section-header">${section.label}</div>
                 <div class="section-desc">${section.desc}</div>
                 <div id="secrets-vault-status" style="margin-bottom:1rem;"></div>
                 <div id="secrets-main"></div>

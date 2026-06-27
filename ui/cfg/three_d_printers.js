@@ -14,7 +14,7 @@ function renderThreeDPrintersSection(section) {
     const klipperPrinters = Array.isArray(klipper.printers) ? klipper.printers : [];
 
     let html = '<div class="cfg-section active">';
-    html += '<div class="section-header">' + section.icon + ' ' + section.label + '</div>';
+    html += '<div class="section-header">' + section.label + '</div>';
     html += '<div class="section-desc">' + section.desc + '</div>';
 
     html += threeDPrinterToggle('three_d_printers.enabled', cfg.enabled === true, t('config.three_d_printers.enabled_label'), t('help.three_d_printers.enabled'), 'renderThreeDPrintersSection');

@@ -10,7 +10,7 @@ window.renderHeartbeatSection = function (section) {
     const nightWindow = data.night_time_window || {};
 
     let html = '<div class="cfg-section active hb-section">';
-    html += '<div class="section-header">' + section.icon + ' ' + section.label + '</div>';
+    html += '<div class="section-header">' + section.label + '</div>';
     html += '<div class="section-desc">' + section.desc + '</div>';
 
     // Info banner

@@ -10,7 +10,7 @@ async function renderGitHubSection(section) {
     const allowedRepos = Array.isArray(data.allowed_repos) ? data.allowed_repos : [];
 
     let html = `<div class="cfg-section active">
-        <div class="section-header">${section.icon} ${section.label}</div>
+        <div class="section-header">${section.label}</div>
         <div class="section-desc">${section.desc}</div>`;
 
     html += `<div class="field-group">

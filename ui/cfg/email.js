@@ -9,7 +9,7 @@ async function renderEmailSection(section) {
         } catch (_) { emailAccountsCache = []; }
     }
     let html = `<div class="cfg-section active">
-        <div class="section-header">${section.icon} ${section.label}</div>
+        <div class="section-header">${section.label}</div>
         <div class="section-desc">${section.desc}</div>`;
 
     html += emailCheatsheetSelect(emailCfg.relay_cheatsheet_id || '');

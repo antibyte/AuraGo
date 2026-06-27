@@ -96,7 +96,7 @@ function renderChromecastSection(section) {
     const ttsPort = data.tts_port || 8090;
 
     let html = '<div class="cfg-section active">';
-    html += '<div class="section-header">' + section.icon + ' ' + section.label + '</div>';
+    html += '<div class="section-header">' + section.label + '</div>';
     html += '<div class="section-desc">' + section.desc + '</div>';
 
     // mDNS discovery unavailable banner (Docker bridge network)

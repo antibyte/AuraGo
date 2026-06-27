@@ -802,7 +802,7 @@ let _providerCatalogPromise = null;
 
         function renderProvidersSection(section) {
             let html = `<div class="cfg-section active">
-                <div class="section-header">${section.icon} ${section.label}</div>
+                <div class="section-header">${section.label}</div>
                 <div class="section-desc">${section.desc}</div>
                 <div class="prov-section-actions">
                     <button class="btn-save prov-btn-sm" onclick="providerAdd()">

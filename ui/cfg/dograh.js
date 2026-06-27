@@ -51,7 +51,7 @@ async function renderDograhSection(section) {
     const managed = data.mode !== 'external';
 
     let html = '<div class="cfg-section active">';
-    html += '<div class="section-header">' + section.icon + ' ' + dograhText('config.section.dograh.label', section.label) + '</div>';
+    html += '<div class="section-header">' + dograhText('config.section.dograh.label', section.label) + '</div>';
     html += '<div class="section-desc">' + dograhText('config.section.dograh.desc', section.desc) + '</div>';
     html += dograhToggleRow('config.dograh.enabled_label', 'help.dograh.enabled', enabled, 'dograh.enabled', "dograhToggleEnabled(this.classList.contains('on'))");
 

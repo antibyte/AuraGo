@@ -6,7 +6,7 @@ function renderAIGatewaySection(section) {
     const tokenPlaceholder = cfgSecretPlaceholder(gw.token, t('config.ai_gateway.token_placeholder'));
 
     let html = '<div class="cfg-section active">';
-    html += '<div class="section-header">' + section.icon + ' ' + section.label + '</div>';
+    html += '<div class="section-header">' + section.label + '</div>';
     html += '<div class="section-desc">' + section.desc + '</div>';
 
     html += '<div id="ai-gw-status-banner" class="adg-status-banner">' + t('config.ai_gateway.checking') + '</div>';

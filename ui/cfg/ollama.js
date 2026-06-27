@@ -8,7 +8,7 @@ async function renderOllamaSection(section) {
     const managedEnabled = miData.enabled === true;
 
     let html = '<div class="cfg-section active">';
-    html += '<div class="section-header">' + section.icon + ' ' + section.label + '</div>';
+    html += '<div class="section-header">' + section.label + '</div>';
     html += '<div class="section-desc">' + section.desc + '</div>';
 
     // ── Basic Ollama settings ──

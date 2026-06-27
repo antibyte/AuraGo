@@ -24,7 +24,7 @@ async function renderMCPSection(section) {
     const allowMcp = configData.agent && configData.agent.allow_mcp;
 
     let html = `<div class="cfg-section active">
-        <div class="section-header">${section.icon} ${section.label}</div>
+        <div class="section-header">${section.label}</div>
         <div class="section-desc">${section.desc}</div>`;
 
     if (!allowMcp) {

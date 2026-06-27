@@ -87,7 +87,7 @@
             ];
 
             let html = '<div class="cfg-section active">';
-            html += '<div class="section-header danger-section-header">' + section.icon + ' ' + section.label + '</div>';
+            html += '<div class="section-header danger-section-header">' + section.label + '</div>';
             html += '<div class="section-desc">' + section.desc + '</div>';
 
             html += `<div class="danger-banner">

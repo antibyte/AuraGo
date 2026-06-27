@@ -8,7 +8,7 @@ function renderUptimeKumaSection(section) {
     const apiKeyPlaceholder = cfgSecretPlaceholder(data.api_key, t('config.uptime_kuma.api_key_placeholder'));
 
     let html = '<div class="cfg-section active">';
-    html += '<div class="section-header">' + section.icon + ' ' + section.label + '</div>';
+    html += '<div class="section-header">' + section.label + '</div>';
     html += '<div class="section-desc">' + section.desc + '</div>';
 
     html += '<div id="uk-status-banner" class="adg-status-banner">' + t('config.uptime_kuma.checking') + '</div>';

@@ -52,7 +52,7 @@ async function renderVideoDownloadSection(section) {
     const mode = data.mode || 'docker';
 
     let html = '<div class="cfg-section active">';
-    html += '<div class="section-header">' + section.icon + ' ' + section.label + '</div>';
+    html += '<div class="section-header">' + section.label + '</div>';
     html += '<div class="section-desc">' + section.desc + '</div>';
     html += '<div class="cfg-note-banner cfg-note-banner-info">▶️ ' + t('config.video_download.note') + '</div>';
 

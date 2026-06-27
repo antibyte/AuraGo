@@ -18,7 +18,7 @@ async function renderMemoryAnalysisSection(section) {
     setNestedValue(configData, 'memory_analysis.weekly_reflection', cfg.weekly_reflection !== false);
 
     const html = `<div class="cfg-section active">
-        <div class="section-header">${section.icon} ${section.label}</div>
+        <div class="section-header">${section.label}</div>
         <div class="section-desc">${section.desc}</div>
 
         <div class="ma-intro-notice">

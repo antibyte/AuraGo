@@ -11,7 +11,7 @@ function renderFritzBoxSection(section) {
     const tv  = (data.tv) || {};
 
     let html = '<div class="cfg-section active">';
-    html += '<div class="section-header">' + section.icon + ' ' + section.label + '</div>';
+    html += '<div class="section-header">' + section.label + '</div>';
     html += '<div class="section-desc">' + section.desc + '</div>';
 
     html += '<div id="fb-status-banner" class="adg-status-banner">' + t('config.fritzbox.checking') + '</div>';

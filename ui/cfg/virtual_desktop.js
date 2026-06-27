@@ -26,7 +26,7 @@ function renderVirtualDesktopSection(section) {
     const data = vdCfgEnsureData();
     const enabled = data.enabled === true;
     let html = '<div class="cfg-section active">';
-    html += '<div class="section-header">' + section.icon + ' ' + section.label + '</div>';
+    html += '<div class="section-header">' + section.label + '</div>';
     html += '<div class="section-desc">' + section.desc + '</div>';
     html += vdCfgToggleRow('config.virtual_desktop.enabled_label', 'help.virtual_desktop.enabled', enabled, 'virtual_desktop.enabled', "vdCfgToggleEnabled(this.classList.contains('on'))");
     html += vdCfgHiddenToggle('tools.virtual_desktop.enabled', data.allow_agent_control === true);
