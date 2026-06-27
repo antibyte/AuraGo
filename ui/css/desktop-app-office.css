@@ -960,7 +960,7 @@
 .office-status-bar {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    gap: 8px;
     padding: 4px 12px;
     border-top: 1px solid var(--vd-border);
     background: linear-gradient(180deg, rgba(8, 12, 18, 0.55) 0%, rgba(8, 12, 18, 0.3) 100%);
@@ -970,10 +970,37 @@
 }
 
 .office-status-left {
-    flex: 1;
+    flex: 0 1 auto;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.office-status-path {
+    flex: 1 1 auto;
+    min-width: 60px;
+    max-width: 100%;
+    height: 22px;
+    border: 1px solid transparent;
+    border-radius: var(--ds-radius-sm);
+    background: transparent;
+    color: var(--vd-muted);
+    padding: 0 8px;
+    font: inherit;
+    font-size: 0.74rem;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+    cursor: text;
+    transition: border-color 150ms ease, background 150ms ease, color 150ms ease;
+}
+
+.office-status-path:hover,
+.office-status-path:focus {
+    outline: none;
+    border-color: var(--vd-border);
+    background: rgba(0, 0, 0, 0.22);
+    color: var(--vd-text);
 }
 
 .office-status-right {

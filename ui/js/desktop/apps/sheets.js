@@ -42,7 +42,6 @@
 
         host.innerHTML = `<div class="office-app office-sheets" data-office-sheets="${esc(windowId)}">
             <div class="vd-toolbar office-toolbar">
-                <input class="office-path-input" data-path value="${esc(currentPath)}" spellcheck="false" autocomplete="off">
                 <span class="vd-chat-meta" data-status>${esc(t('desktop.sheets_loading'))}</span>
             </div>
             <div class="office-formula-bar" data-formula-bar>
@@ -56,6 +55,7 @@
             <div class="office-sheet-tabs" data-tabs></div>
             <div class="office-status-bar" data-status-bar>
                 <span class="office-status-left" data-status-left></span>
+                <input class="office-status-path" data-path value="${esc(currentPath)}" spellcheck="false" autocomplete="off">
                 <span class="office-status-right" data-status-right></span>
             </div>
         </div>`;
