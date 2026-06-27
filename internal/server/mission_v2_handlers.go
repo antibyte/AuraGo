@@ -4,6 +4,7 @@ import (
 	"aurago/internal/tools"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strings"
 	"time"
@@ -56,6 +57,37 @@ func missionErrorStatus(err error) int {
 	default:
 		return http.StatusInternalServerError
 	}
+}
+
+func missionDispatchStatus(mgr *tools.MissionManagerV2, id string) string {
+	if mission, ok := mgr.Get(id); ok && mission.Status == tools.MissionStatusRunning {
+		return "running"
+	}
+	return "queued"
+}
+
+func writeMissionDispatchResponse(w http.ResponseWriter, mgr *tools.MissionManagerV2, id string, err error) bool {
+	if tools.IsMissionTriggerSkipped(err) {
+		w.Header().Set("Content-Type", "application/json")
+		reason := "rate_limited"
+		var skipped *tools.MissionTriggerSkippedError
+		if errors.As(err, &skipped) && skipped.Reason != "" {
+			reason = skipped.Reason
+		}
+		_ = json.NewEncoder(w).Encode(map[string]string{
+			"status": "skipped",
+			"reason": reason,
+		})
+		return true
+	}
+	if err != nil {
+		return false
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]string{
+		"status": missionDispatchStatus(mgr, id),
+	})
+	return true
 }
 
 // handleListMissionsV2 returns all missions V2 with queue status
@@ -279,9 +311,7 @@ func handleMissionRunV2(s *Server, w http.ResponseWriter, r *http.Request, id st
 		return
 	}
 	broadcastMissionState(s)
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"status": "queued"})
+	writeMissionDispatchResponse(w, s.MissionManagerV2, id, nil)
 }
 
 func handleMissionTriggerV2(s *Server, w http.ResponseWriter, r *http.Request, id string) {
@@ -299,13 +329,14 @@ func handleMissionTriggerV2(s *Server, w http.ResponseWriter, r *http.Request, i
 	}
 
 	if err := s.MissionManagerV2.TriggerMission(id, "api", payload.TriggerData); err != nil {
+		if writeMissionDispatchResponse(w, s.MissionManagerV2, id, err) {
+			return
+		}
 		jsonError(w, "Failed to trigger mission: "+err.Error(), missionErrorStatus(err))
 		return
 	}
 	broadcastMissionState(s)
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"status": "queued"})
+	writeMissionDispatchResponse(w, s.MissionManagerV2, id, nil)
 }
 
 func handleMissionRemoveFromQueue(s *Server, w http.ResponseWriter, r *http.Request, id string) {

@@ -1720,6 +1720,69 @@ func TestRemoveFromQueueRejectsRunningMission(t *testing.T) {
 	}
 }
 
+func TestTriggerMissionRateLimitedReturnsSkippedError(t *testing.T) {
+	mm := NewMissionManagerV2(tempSystemTaskDir(t), nil)
+	mm.missions["rate-limited"] = &MissionV2{
+		ID:            "rate-limited",
+		Name:          "Rate limited",
+		Prompt:        "run",
+		ExecutionType: ExecutionTriggered,
+		TriggerType:   TriggerWebhook,
+		TriggerConfig: &TriggerConfig{
+			WebhookID:          "hook-1",
+			MinIntervalSeconds: 60,
+		},
+		Priority: "medium",
+		Enabled:  true,
+		Status:   MissionStatusIdle,
+	}
+
+	if err := mm.TriggerMission("rate-limited", "webhook", `{"event":"first"}`); err != nil {
+		t.Fatalf("first trigger error = %v", err)
+	}
+	if got := len(mm.queue.List()); got != 1 {
+		t.Fatalf("queue len after first trigger = %d, want 1", got)
+	}
+
+	err := mm.TriggerMission("rate-limited", "webhook", `{"event":"second"}`)
+	if !IsMissionTriggerSkipped(err) {
+		t.Fatalf("second trigger error = %v, want MissionTriggerSkippedError", err)
+	}
+	if got := len(mm.queue.List()); got != 1 {
+		t.Fatalf("queue len after skipped trigger = %d, want 1", got)
+	}
+}
+
+func TestRemoteMissionRunSetsRunningStatus(t *testing.T) {
+	mm := NewMissionManagerV2(tempSystemTaskDir(t), nil)
+	mm.SetRemoteMissionClient(&fakeRemoteMissionClient{})
+	if err := mm.Create(&MissionV2{
+		ID:            "remote-running",
+		Name:          "Remote running",
+		Prompt:        "run",
+		ExecutionType: ExecutionManual,
+		RunnerType:    MissionRunnerRemote,
+		RemoteNestID:  "nest-1",
+		RemoteEggID:   "egg-1",
+		Enabled:       true,
+	}); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if err := mm.RunNow("remote-running"); err != nil {
+		t.Fatalf("RunNow: %v", err)
+	}
+	got, ok := mm.Get("remote-running")
+	if !ok {
+		t.Fatal("mission missing")
+	}
+	if got.Status != MissionStatusRunning {
+		t.Fatalf("status = %q, want running", got.Status)
+	}
+	if got.LastRun.IsZero() {
+		t.Fatal("expected LastRun to be set for remote mission start")
+	}
+}
+
 func TestRemoveFromQueueResetsOrphanQueuedStatus(t *testing.T) {
 	tmpDir := tempSystemTaskDir(t)
 	mm := NewMissionManagerV2(tmpDir, nil)

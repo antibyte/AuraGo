@@ -77,13 +77,13 @@ func handleInternalMissionRun(s *Server) http.HandlerFunc {
 		} else {
 			err = s.MissionManagerV2.TriggerMission(id, payload.TriggerType, payload.TriggerData)
 		}
-		if err != nil {
+		if !writeMissionDispatchResponse(w, s.MissionManagerV2, id, err) {
 			jsonError(w, err.Error(), missionErrorStatus(err))
 			return
 		}
-		broadcastMissionState(s)
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]string{"status": "queued"})
+		if err == nil {
+			broadcastMissionState(s)
+		}
 	}
 }
 

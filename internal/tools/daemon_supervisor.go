@@ -497,6 +497,14 @@ func (s *DaemonSupervisor) dispatchMissionTrigger(event daemonWakeEvent, mission
 	}
 
 	if err := s.missionMgr.TriggerMissionWithOptions(missionID, triggerType, triggerData, extraCSIDs, extraPromptSuffix); err != nil {
+		if IsMissionTriggerSkipped(err) {
+			s.logger.Debug("Daemon mission trigger skipped",
+				"skill_id", event.SkillID,
+				"mission_id", missionID,
+				"error", err,
+			)
+			return
+		}
 		s.logger.Error("Failed to trigger daemon mission",
 			"skill_id", event.SkillID,
 			"mission_id", missionID,

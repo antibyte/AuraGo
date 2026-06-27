@@ -21,9 +21,10 @@ const (
 	RemoteSyncError   = "error"
 )
 
-// Remote runs are acknowledged over RPC within 20 seconds. The result guard is
-// longer to allow real work, but short enough to surface dead eggs quickly.
-var remoteMissionResultTimeout = 3 * time.Minute
+// Remote runs are acknowledged over RPC within 20 seconds. The result guard
+// matches the local mission execution timeout so long-running remote work is
+// not aborted prematurely.
+var remoteMissionResultTimeout = 40 * time.Minute
 
 // RemoteMissionClient delivers mission definitions and commands to remote eggs.
 type RemoteMissionClient interface {

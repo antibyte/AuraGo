@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -16,6 +17,24 @@ import (
 	"aurago/internal/memory"
 	"aurago/internal/security"
 )
+
+// MissionTriggerSkippedError indicates a trigger was intentionally suppressed.
+type MissionTriggerSkippedError struct {
+	Reason string
+}
+
+func (e *MissionTriggerSkippedError) Error() string {
+	if e == nil || e.Reason == "" {
+		return "trigger skipped"
+	}
+	return "trigger skipped: " + e.Reason
+}
+
+// IsMissionTriggerSkipped reports whether err is a suppressed trigger (e.g. rate limit).
+func IsMissionTriggerSkipped(err error) bool {
+	var skipped *MissionTriggerSkippedError
+	return errors.As(err, &skipped)
+}
 
 // ExecutionType defines how a mission is executed
 type ExecutionType string
@@ -1046,7 +1065,7 @@ func (m *MissionManagerV2) TriggerMissionWithOptions(missionID, triggerType, tri
 		return fmt.Errorf("mission is disabled")
 	}
 	if mission.ExecutionType == ExecutionTriggered && !m.shouldFireTriggerLocked(mission, triggerType, time.Now()) {
-		return nil
+		return &MissionTriggerSkippedError{Reason: "rate_limited"}
 	}
 	if isRemoteMission(mission) {
 		if len(extraCheatsheetIDs) > 0 || extraPromptSuffix != "" {
@@ -1063,10 +1082,7 @@ func (m *MissionManagerV2) TriggerMissionWithOptions(missionID, triggerType, tri
 			m.save()
 			return err
 		}
-		mission.Status = MissionStatusQueued
-		mission.RemoteSyncStatus = RemoteSyncSynced
-		mission.RemoteSyncError = ""
-		m.startRemoteRunGuardLocked(mission.ID)
+		m.markRemoteMissionRunningLocked(mission)
 		m.save()
 		return nil
 	}
@@ -1575,6 +1591,17 @@ func (m *MissionManagerV2) SyncRemoteMissionsForNest(nestID string) (int, error)
 	return synced, firstErr
 }
 
+func (m *MissionManagerV2) markRemoteMissionRunningLocked(mission *MissionV2) {
+	if mission == nil {
+		return
+	}
+	mission.Status = MissionStatusRunning
+	mission.LastRun = time.Now()
+	mission.RemoteSyncStatus = RemoteSyncSynced
+	mission.RemoteSyncError = ""
+	m.startRemoteRunGuardLocked(mission.ID)
+}
+
 func (m *MissionManagerV2) startRemoteRunGuardLocked(missionID string) {
 	if cancel, ok := m.remoteRunGuards[missionID]; ok {
 		cancel()
@@ -1606,7 +1633,7 @@ func (m *MissionManagerV2) completeRemoteMissionTimeout(missionID string) {
 	if !ok {
 		return
 	}
-	if mission.Status != MissionStatusQueued || !isRemoteMission(mission) {
+	if !isRemoteMission(mission) || (mission.Status != MissionStatusRunning && mission.Status != MissionStatusQueued) {
 		return
 	}
 	mission.Status = MissionStatusIdle
@@ -1710,10 +1737,7 @@ func (m *MissionManagerV2) RunNow(id string) error {
 			m.save()
 			return err
 		}
-		mission.Status = MissionStatusQueued
-		mission.RemoteSyncStatus = RemoteSyncSynced
-		mission.RemoteSyncError = ""
-		m.startRemoteRunGuardLocked(mission.ID)
+		m.markRemoteMissionRunningLocked(mission)
 		m.save()
 		return nil
 	}

@@ -185,6 +185,82 @@ func TestHandleMissionRemoveFromQueuePersistsState(t *testing.T) {
 	}
 }
 
+func TestHandleMissionTriggerV2ReturnsSkippedWhenRateLimited(t *testing.T) {
+	allowMissionMutationsForTest(t)
+
+	mgr := tools.NewMissionManagerV2(t.TempDir(), nil)
+	if err := mgr.Create(&tools.MissionV2{
+		ID:            "mission_rate_limit",
+		Name:          "Rate limit",
+		Prompt:        "run",
+		ExecutionType: tools.ExecutionTriggered,
+		TriggerType:   tools.TriggerWebhook,
+		TriggerConfig: &tools.TriggerConfig{
+			WebhookID:          "hook-1",
+			MinIntervalSeconds: 60,
+		},
+		Enabled: true,
+	}); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if err := mgr.TriggerMission("mission_rate_limit", "api", `{"first":true}`); err != nil {
+		t.Fatalf("first trigger: %v", err)
+	}
+
+	s := &Server{MissionManagerV2: mgr}
+	body, _ := json.Marshal(map[string]string{"trigger_data": `{"second":true}`})
+	req := httptest.NewRequest(http.MethodPost, "/api/missions/v2/mission_rate_limit/trigger", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+	handleMissionTriggerV2(s, rr, req, "mission_rate_limit")
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%s, want 200", rr.Code, rr.Body.String())
+	}
+	var resp map[string]string
+	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if resp["status"] != "skipped" || resp["reason"] != "rate_limited" {
+		t.Fatalf("response = %#v, want skipped/rate_limited", resp)
+	}
+}
+
+func TestHandleMissionRunV2ReturnsRunningForRemoteMission(t *testing.T) {
+	allowMissionMutationsForTest(t)
+
+	mgr := tools.NewMissionManagerV2(t.TempDir(), nil)
+	mgr.SetRemoteMissionClient(&fakeHandlerRemoteMissionClient{})
+	if err := mgr.Create(&tools.MissionV2{
+		ID:            "mission_remote_run",
+		Name:          "Remote run",
+		Prompt:        "run",
+		ExecutionType: tools.ExecutionManual,
+		RunnerType:    tools.MissionRunnerRemote,
+		RemoteNestID:  "nest-1",
+		RemoteEggID:   "egg-1",
+		Enabled:       true,
+	}); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	s := &Server{MissionManagerV2: mgr}
+	req := httptest.NewRequest(http.MethodPost, "/api/missions/v2/mission_remote_run/run", nil)
+	rr := httptest.NewRecorder()
+	handleMissionRunV2(s, rr, req, "mission_remote_run")
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%s, want 200", rr.Code, rr.Body.String())
+	}
+	var resp map[string]string
+	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if resp["status"] != "running" {
+		t.Fatalf("response = %#v, want running", resp)
+	}
+}
+
 func TestHandleMissionRemoveFromQueueReturnsNotFound(t *testing.T) {
 	allowMissionMutationsForTest(t)
 
