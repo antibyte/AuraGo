@@ -46,7 +46,7 @@ func TestGalaxaPremiumCodeDefinedSprites(t *testing.T) {
 	}
 
 	for _, marker := range []string{
-		"galaxa-spritesheet.png",
+		"data:image/png;base64,",
 		"new Image()",
 		"_preloadedSheet",
 	} {
