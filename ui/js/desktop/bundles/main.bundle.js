@@ -6971,8 +6971,12 @@ if (appId === 'system-info') {
             if (typeof window.SystemInfoApp.render === 'function') return window.SystemInfoApp.render(contentEl(id), id, Object.assign({}, context || {}, {esc, t, iconMarkup}));
         }
         if (appId === 'agent-chat') return window.AgentChatApp && typeof window.AgentChatApp.render === 'function' ? window.AgentChatApp.render(id, Object.assign({}, context || {}, { __desktopRuntime: { contentEl, esc, desktopText, iconMarkup, api, loadBootstrap, showDesktopNotification } })) : renderAppError(id, appId, new Error('Agent chat renderer is not loaded'));
-        if (appId === 'viewer' && window.ViewerApp && typeof window.ViewerApp.render === 'function') {
-            return window.ViewerApp.render(contentEl(id), id, viewerAppContext(context));
+        if (appId === 'viewer') {
+            if (!window.ViewerApp) {
+                window.AuraDesktopModules.loadAppScript('viewer').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            if (typeof window.ViewerApp.render === 'function') return window.ViewerApp.render(contentEl(id), id, viewerAppContext(context));
         }
         if (appId === 'viewer-3d') {
             if (!window.Viewer3DApp) {
@@ -7085,6 +7089,15 @@ if (appId === 'pixel') {
                 return;
             }
             if (typeof window.HomepageStudioApp.render === 'function') return window.HomepageStudioApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification }));
+        }
+        if (appId === 'pet-picker') {
+            if (!window.PetPickerApp) {
+                window.AuraDesktopModules.loadAppScript('pet-picker').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            if (typeof window.PetPickerApp.render === 'function') {
+                return window.PetPickerApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, t, api, notify: showDesktopNotification }));
+            }
         }
         if (appId === 'mission-control' && window.MissionControlApp && typeof window.MissionControlApp.render === 'function') {
             return window.MissionControlApp.render(contentEl(id), id, Object.assign({}, context || {}, {

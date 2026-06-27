@@ -1161,6 +1161,15 @@ if (appId === 'pixel') {
             }
             if (typeof window.HomepageStudioApp.render === 'function') return window.HomepageStudioApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification }));
         }
+        if (appId === 'pet-picker') {
+            if (!window.PetPickerApp) {
+                window.AuraDesktopModules.loadAppScript('pet-picker').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            if (typeof window.PetPickerApp.render === 'function') {
+                return window.PetPickerApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, t, api, notify: showDesktopNotification }));
+            }
+        }
         if (appId === 'mission-control' && window.MissionControlApp && typeof window.MissionControlApp.render === 'function') {
             return window.MissionControlApp.render(contentEl(id), id, Object.assign({}, context || {}, {
                 esc, api, t, iconMarkup, notify: showDesktopNotification,
