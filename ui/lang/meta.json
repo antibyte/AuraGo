@@ -35,12 +35,17 @@
   "help.agent.core_personality": {
     "options": [
       "neutral",
-      "punk",
-      "zen",
+      "friend",
       "professional",
-      "cheerful",
+      "punk",
+      "terminator",
+      "psycho",
+      "mcp",
       "secretary",
-      "thinker"
+      "servant",
+      "thinker",
+      "evil",
+      "mistress"
     ]
   },
   "help.budget.enforcement": {

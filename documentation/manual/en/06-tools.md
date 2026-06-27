@@ -8,21 +8,30 @@ AuraGo's **100+ built-in tools** transform it from a chatbot into an autonomous 
 
 | Category | Tools | Danger Zone |
 |----------|-------|-------------|
-| **🗂️ Filesystem** | Read, write, delete files | Yes |
-| **🌐 Web & APIs** | Search, HTTP, scraping, screenshots | No (partial) |
-| **🌐 Web & Sites** | Homepage scaffold, build, deploy, registry | No (`homepage.enabled`) |
-| **🐳 Docker** | Containers, images, networks | Yes |
+| **🗂️ Filesystem** | Read, write, edit, search, hashline editor | Yes |
+| **🌐 Web & APIs** | Search (DDG, Brave, Wikipedia), HTTP, scraping, screenshots, mDNS/UPnP/WHOIS/DNS | No (partial) |
+| **🌐 Web & Sites** | Homepage scaffold, build, deploy, registry, Netlify, Vercel | No (`homepage.enabled`) |
+| **🐳 Docker** | Containers, images, networks, sidecars | Yes |
 | **🖥️ Proxmox** | VMs, LXCs, snapshots | Yes |
-| **🏠 Smart Home** | Home Assistant, MQTT, Wake-on-LAN | Yes |
-| **☁️ Cloud** | Google Workspace, WebDAV, GitHub, S3, OneDrive | No (partial) |
-| **📧 Communication** | Email, Telegram, Discord, Telnyx | No |
-| **🎬 Media Generation** | Images, music, videos, TTS, media registry | No (provider limits apply) |
-| **🔧 System** | Metrics, processes, cron, network tools | Partial |
-| **🧠 Memory** | Memory, notes, knowledge graph | No |
-| **🌐 Network** | Ping, port scan, mDNS, UPnP | No |
-| **🖥️ Remote** | SSH, Invasion Control, MeshCentral | Yes |
-| **📝 Documents** | PDF Creator/Extractor, Paperless NGX | No |
-| **🎬 Media Conversion** | FFmpeg, ImageMagick, Video Download | No |
+| **🏠 Smart Home** | Home Assistant, MQTT, Wake-on-LAN, Frigate, AdGuard, Fritz!Box, 3D printer | Yes (partial) |
+| **☁️ Cloud** | Google Workspace, WebDAV, GitHub, S3, OneDrive, Koofr, Netlify, Vercel | No (partial) |
+| **📧 Communication** | Email, Telegram, Discord, Telnyx, Rocket.Chat, MQTT, MeshCentral | No |
+| **🎬 Media Generation** | Images, music, videos, TTS, vision, Piper, media registry | No (provider limits apply) |
+| **🔧 System** | Metrics, processes, cron, sandbox, background tasks, daemon skills | Partial |
+| **🧠 Memory** | Memory, notes, knowledge graph, cheatsheets, core memory | No |
+| **🌐 Network** | Ping, port scan, mDNS, UPnP, WHOIS, DNS lookup | No |
+| **🖥️ Remote** | SSH, Invasion Control, MeshCentral, Ansible sidecar | Yes |
+| **📝 Documents** | PDF Creator/Extractor, Paperless NGX, JSON/YAML/XML/TOML editors | No |
+| **🎬 Media Conversion** | FFmpeg, ImageMagick, video download, YouTube player, transcription | No |
+| **🛒 Skills & Python** | Skill Manager, manifest, Python tool bridge, daemon skills | No (partial) |
+| **🔐 Security & Vault** | Vault, AES-256-GCM, secret injection, LLM Guardian, SSH key manager | No |
+| **🖥️ Virtual Desktop** | Code Studio, Pixel, Zipper, app launcher, SSH/SFTP/VNC, office (Pixel/Calc/Writer) | No (partial) |
+| **🚀 Missions & Co-Agents** | Mission Control v2, co-agent dispatcher, A2A, handoff | No (partial) |
+| **🔌 MCP & Composio** | Model Context Protocol client/server, Compos.io, AI Gateway | No (`agent.allow_mcp`) |
+| **🛡️ Inventory & Wake-on-LAN** | SSH device inventory, WOL, SSH key manager | Yes (passive access) |
+| **📦 Browser Automation** | Headless Chrome, forms, screenshots, PDF | No (partial) |
+| **⏰ Heartbeat & Background** | Scheduled wake-ups, background tasks, heartbeat service | No |
+| **🧰 Editors** | JSON, YAML, XML, TOML, office (document, workbook), hashline | No |
 
 ---
 

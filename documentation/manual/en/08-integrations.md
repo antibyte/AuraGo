@@ -116,9 +116,35 @@ AuraGo can read emails via IMAP and send via SMTP.
 
 For Gmail, you must create an **App Password** (not your regular password) at [Google Account Security](https://myaccount.google.com/security) → 2-Step Verification → App passwords.
 
-### YAML Reference
+### YAML Reference (Multiple Accounts)
+The modern configuration uses a **list** of email accounts under `email_accounts`. At startup, any existing `email:` section is automatically migrated to an `email_accounts` entry with `id: "default"` (see `internal/config/config_migrate.go:MigrateEmailAccounts`).
+
 ```yaml
-email:
+email_accounts:
+  - id: "personal"
+    name: "Personal"
+    enabled: true
+    imap_host: "imap.gmail.com"
+    imap_port: 993
+    smtp_host: "smtp.gmail.com"
+    smtp_port: 587
+    username: "your.email@gmail.com"
+    from_address: "your.email@gmail.com"
+    watch_enabled: true
+    watch_interval_seconds: 120
+    watch_folder: "INBOX"
+    readonly: false            # true = read only, no sending
+    disabled: false
+  - id: "work"
+    name: "Work"
+    imap_host: "imap.office365.com"
+    smtp_host: "smtp.office365.com"
+    # ...
+```
+
+### Legacy: Single Account (`email:`)
+```yaml
+email:                         # deprecated – migrated to email_accounts at startup
     enabled: true
     imap_host: imap.gmail.com
     imap_port: 993

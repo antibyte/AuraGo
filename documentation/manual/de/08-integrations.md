@@ -122,9 +122,35 @@ Für Gmail musst du ein [App-Passwort](https://myaccount.google.com/apppasswords
 | GMX | `imap.gmx.net` | `mail.gmx.net` |
 | Web.de | `imap.web.de` | `smtp.web.de` |
 
-### YAML-Referenz
+### YAML-Referenz (Mehrere Konten)
+Die moderne Konfiguration verwendet eine **Liste** von E-Mail-Konten unter `email_accounts`. Beim Start wird eine eventuell vorhandene `email:`-Sektion automatisch in einen `email_accounts`-Eintrag mit `id: "default"` migriert (siehe `internal/config/config_migrate.go:MigrateEmailAccounts`).
+
 ```yaml
-email:
+email_accounts:
+  - id: "personal"
+    name: "Privat"
+    enabled: true
+    imap_host: "imap.gmail.com"
+    imap_port: 993
+    smtp_host: "smtp.gmail.com"
+    smtp_port: 587
+    username: "dein.email@gmail.com"
+    from_address: "dein.email@gmail.com"
+    watch_enabled: true
+    watch_interval_seconds: 120
+    watch_folder: "INBOX"
+    readonly: false            # true = nur lesen, kein Versand
+    disabled: false
+  - id: "work"
+    name: "Arbeit"
+    imap_host: "imap.office365.com"
+    smtp_host: "smtp.office365.com"
+    # ...
+```
+
+### Legacy: Einzel-Konto (`email:`)
+```yaml
+email:                         # deprecated – wird beim Start zu email_accounts migriert
   enabled: true
   imap_host: "imap.gmail.com"
   smtp_host: "smtp.gmail.com"

@@ -537,6 +537,46 @@ Manage AgentMail inboxes, messages, threads, drafts, labels, and replies.
 | `html` | string | HTML body for send/reply/forward/draft operations |
 | `attachments` | array | Attachments as workspace paths or base64 objects |
 | `username` | string | Inbox username for create_inbox |
+
+### `agentmail_inboxes`
+Focused tool for AgentMail inboxes (preferred over the generic `agentmail`).
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `operation` | enum | test_connection, list, get, create, update, delete |
+| `inbox_id` | string | Inbox ID |
+
+### `agentmail_messages`
+Focused tool for AgentMail messages.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `operation` | enum | list, get, send, reply, reply_all, forward, update_labels, delete, get_raw, get_attachment |
+| `inbox_id` | string | Inbox ID |
+| `message_id` | string | Message ID |
+| `to` / `cc` / `bcc` | string[] | Recipients |
+| `subject` | string | Subject |
+| `text` / `html` | string | Body |
+
+### `agentmail_threads`
+Focused tool for AgentMail threads.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `operation` | enum | list, get |
+| `inbox_id` | string | Inbox ID |
+| `thread_id` | string | Thread ID |
+| `limit` / `cursor` | string/integer | Pagination |
+
+### `agentmail_drafts`
+Focused tool for AgentMail drafts.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `operation` | enum | list, get, create, update, delete, send |
+| `inbox_id` | string | Inbox ID |
+| `draft_id` | string | Draft ID |
+| `to` / `subject` / `text` / `html` | string | Content |
 | `domain` | string | Inbox domain for create_inbox |
 | `display_name` | string | Inbox display name for create/update inbox |
 
@@ -1195,6 +1235,36 @@ Manage Invasion Control (remote deployment).
 | `egg_id` | string | Egg ID |
 | `task` | string | Task description |
 
+### `invasion_nests`
+Focused tool for Invasion nests (preferred).
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `operation` | enum | list, get, assign_egg, hatch_egg, stop_egg, nest_status |
+| `nest_id` | string | Nest ID |
+| `egg_id` | string | Egg ID |
+
+### `invasion_tasks`
+Send tasks to eggs and read their status. **Note:** Egg names are not tool names — tasks must be addressed via `nest_id` + `egg_id`.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `operation` | enum | send, get_status, list |
+| `nest_id` | string | Nest ID |
+| `egg_id` | string | Egg ID |
+| `task` | string | Task description |
+
+### `invasion_artifacts`
+Read and manage artifacts (results, logs, files) produced by invasion tasks.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `operation` | enum | list, get, download |
+| `nest_id` | string | Nest ID |
+| `egg_id` | string | Egg ID |
+| `task_id` | string | Task ID |
+| `artifact_id` | string | Artifact ID |
+
 ### `co_agent`
 Spawn and manage parallel co-agents.
 
@@ -1319,6 +1389,36 @@ Manage TrueNAS storage (pools, datasets, snapshots, shares).
 | `content` | string | Compression type for truenas_dataset_create: lz4, zstd, gzip, off |
 | `recursive` | boolean | Enable recursive operation |
 | `force` | boolean | Force rollback |
+
+### `virtual_desktop_files`
+Focused tool for file operations in the virtual desktop workspace (preferred over `virtual_desktop`). Office files are routed to `office_document` / `office_workbook`.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `operation` | enum | list, read, read_excerpt, write, patch, search, delete |
+| `path` | string | Workspace-relative path |
+| `content` | string | File content (for write) |
+| `query` | string | Search text (for search) |
+| `line_start` / `line_count` | integer | Range for read_excerpt |
+| `case_sensitive` | boolean | Case-sensitive search |
+
+### `virtual_desktop_apps`
+Focused tool for app management in the virtual desktop.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `operation` | enum | install, open, list, get, diagnose, delete |
+| `app_id` | string | App identifier |
+| `params` | object | Optional launch parameters |
+
+### `virtual_desktop_widgets`
+Focused tool for widgets and notifications.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `operation` | enum | upsert, pin, list, get, diagnose, delete |
+| `widget_id` | string | Widget identifier |
+| `title` / `content` | string | Widget content |
 
 ### `office_document`
 Create, read, patch, and export virtual desktop Writer documents.

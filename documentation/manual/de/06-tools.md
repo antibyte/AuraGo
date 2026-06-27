@@ -8,21 +8,30 @@ AuraGo verfügt über **100+ eingebaute Werkzeuge**, die ihn von einem einfachen
 
 | Kategorie | Tools | Danger Zone |
 |-----------|-------|-------------|
-| **🗂️ Dateisystem** | Dateien lesen, schreiben, löschen | Ja |
-| **🌐 Web & APIs** | Suche, HTTP, Scraping, Screenshots | Nein (teilweise) |
-| **🌐 Web & Sites** | Homepage scaffold, Build, Deploy, Registry | Nein (`homepage.enabled`) |
-| **🐳 Docker** | Container, Images, Netzwerke | Ja |
+| **🗂️ Dateisystem** | Lesen, Schreiben, Bearbeiten, Suchen, Hashline-Editor | Ja |
+| **🌐 Web & APIs** | Suche (DDG, Brave, Wikipedia), HTTP, Scraping, Screenshots, mDNS/UPnP/Whois/DNS | Nein (teilweise) |
+| **🌐 Web & Sites** | Homepage scaffold, Build, Deploy, Registry, Netlify, Vercel | Nein (`homepage.enabled`) |
+| **🐳 Docker** | Container, Images, Netzwerke, Sidecars | Ja |
 | **🖥️ Proxmox** | VMs, LXCs, Snapshots | Ja |
-| **🏠 Smart Home** | Home Assistant, MQTT, Wake-on-LAN | Ja |
-| **☁️ Cloud** | Google Workspace, WebDAV, GitHub, S3, OneDrive | Nein (teilweise) |
-| **📧 Kommunikation** | E-Mail, Telegram, Discord, Telnyx | Nein |
-| **🎬 Medien-Generierung** | Bilder, Musik, Videos, TTS, Media Registry | Nein (Provider-Limits gelten) |
-| **🔧 System** | Metriken, Prozesse, Cron, Netzwerk-Tools | Teilweise |
-| **🧠 Memory** | Gedächtnis, Notizen, Knowledge Graph | Nein |
-| **🌐 Netzwerk** | Ping, Port-Scan, mDNS, UPnP | Nein |
-| **🖥️ Remote** | SSH, Invasion Control, MeshCentral | Ja |
-| **📝 Dokumente** | PDF Creator/Extractor, Paperless NGX | Nein |
-| **🎬 Medien-Konvertierung** | FFmpeg, ImageMagick, Video-Download | Nein |
+| **🏠 Smart Home** | Home Assistant, MQTT, Wake-on-LAN, Frigate, AdGuard, Fritz!Box, 3D-Drucker | Ja (teilweise) |
+| **☁️ Cloud** | Google Workspace, WebDAV, GitHub, S3, OneDrive, Koofr, Netlify, Vercel | Nein (teilweise) |
+| **📧 Kommunikation** | E-Mail, Telegram, Discord, Telnyx, Rocket.Chat, MQTT, MeshCentral | Nein |
+| **🎬 Medien-Generierung** | Bilder, Musik, Videos, TTS, Vision, Piper, Media Registry | Nein (Provider-Limits) |
+| **🔧 System** | Metriken, Prozesse, Cron, Sandbox, Background Tasks, Daemon Skills | Teilweise |
+| **🧠 Memory** | Gedächtnis, Notizen, Knowledge Graph, Cheatsheets, Core Memory | Nein |
+| **🌐 Netzwerk** | Ping, Port-Scan, mDNS, UPnP, WHOIS, DNS-Lookup | Nein |
+| **🖥️ Remote** | SSH, Invasion Control, MeshCentral, Ansible Sidecar | Ja |
+| **📝 Dokumente** | PDF Creator/Extractor, Paperless NGX, JSON/YAML/XML/TOML-Editoren | Nein |
+| **🎬 Medien-Konvertierung** | FFmpeg, ImageMagick, Video-Download, YouTube-Player, Transcription | Nein |
+| **🛒 Skills & Python** | Skill Manager, Manifest, Python Tool Bridge, Daemon Skills | Nein (teilweise) |
+| **🔐 Sicherheit & Vault** | Vault, AES-256-GCM, Secret Injection, LLM Guardian, SSH Key Manager | Nein |
+| **🖥️ Virtual Desktop** | Code Studio, Pixel, Zipper, App-Launcher, SSH/SFTP/VNC, Office (Pixel/Calc/Writer) | Nein (teilweise) |
+| **🚀 Missionen & Co-Agents** | Mission Control v2, Co-Agent Dispatcher, A2A, Handoff | Nein (teilweise) |
+| **🔌 MCP & Composio** | Model Context Protocol Client/Server, Compos.io, AI Gateway | Nein (`agent.allow_mcp`) |
+| **🛡️ Inventar & Wake-on-LAN** | SSH-Geräte-Inventar, WOL, SSH Key Manager | Ja (passiver Zugriff) |
+| **📦 Browser-Automatisierung** | Headless Chrome, Formulare, Screenshot, PDF | Nein (teilweise) |
+| **⏰ Heartbeat & Background** | Geplante Wake-ups, Background Tasks, Heartbeat Service | Nein |
+| **🧰 Editoren** | JSON, YAML, XML, TOML, Office (Document, Workbook), Hashline | Nein |
 
 ---
 

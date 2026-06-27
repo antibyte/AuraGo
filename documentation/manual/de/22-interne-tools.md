@@ -521,6 +521,46 @@ Verwaltet AgentMail Postfächer, Nachrichten, Threads, Entwürfe und Labels übe
 | `text` | string | Klartext-Body |
 | `html` | string | HTML-Body |
 
+### `agentmail_inboxes`
+Fokussiertes Tool für AgentMail-Postfächer (bevorzugt gegenüber dem generischen `agentmail`).
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `operation` | enum | test_connection, list, get, create, update, delete |
+| `inbox_id` | string | Postfach-ID |
+
+### `agentmail_messages`
+Fokussiertes Tool für AgentMail-Nachrichten.
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `operation` | enum | list, get, send, reply, reply_all, forward, update_labels, delete, get_raw, get_attachment |
+| `inbox_id` | string | Postfach-ID |
+| `message_id` | string | Nachrichten-ID |
+| `to` / `cc` / `bcc` | string[] | Empfänger |
+| `subject` | string | Betreff |
+| `text` / `html` | string | Body |
+
+### `agentmail_threads`
+Fokussiertes Tool für AgentMail-Threads.
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `operation` | enum | list, get |
+| `inbox_id` | string | Postfach-ID |
+| `thread_id` | string | Thread-ID |
+| `limit` / `cursor` | string/integer | Paginierung |
+
+### `agentmail_drafts`
+Fokussiertes Tool für AgentMail-Entwürfe.
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `operation` | enum | list, get, create, update, delete, send |
+| `inbox_id` | string | Postfach-ID |
+| `draft_id` | string | Entwurfs-ID |
+| `to` / `subject` / `text` / `html` | string | Inhalt |
+
 ### `send_discord`
 Sendet eine Nachricht an einen Discord-Kanal.
 
@@ -1118,6 +1158,36 @@ Invasion Control (Remote Deployment) verwalten.
 | `egg_id` | string | Egg-ID |
 | `task` | string | Aufgaben-Beschreibung |
 
+### `invasion_nests`
+Fokussiertes Tool für Invasion-Nests (bevorzugt).
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `operation` | enum | list, get, assign_egg, hatch_egg, stop_egg, nest_status |
+| `nest_id` | string | Nest-ID |
+| `egg_id` | string | Egg-ID |
+
+### `invasion_tasks`
+Sendet Aufgaben an Eggs und liest deren Status. **Achtung:** Egg-Namen sind keine Tool-Namen – Tasks müssen über `nest_id` + `egg_id` adressiert werden.
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `operation` | enum | send, get_status, list |
+| `nest_id` | string | Nest-ID |
+| `egg_id` | string | Egg-ID |
+| `task` | string | Aufgaben-Beschreibung |
+
+### `invasion_artifacts`
+Liest und verwaltet Artefakte (Ergebnisse, Logs, Dateien) von Invasion-Aufgaben.
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `operation` | enum | list, get, download |
+| `nest_id` | string | Nest-ID |
+| `egg_id` | string | Egg-ID |
+| `task_id` | string | Aufgaben-ID |
+| `artifact_id` | string | Artefakt-ID |
+
 ### `co_agent`
 Parallele Co-Agents spawnen und verwalten.
 
@@ -1227,6 +1297,36 @@ Steuert den AuraGo Virtual Desktop (Browser-Desktop). Ermöglicht Datei-Operatio
 | `html` | string | Optional: HTML-Repräsentation für Dokumente |
 | `document` | object | Dokumenten-Payload für write_document |
 | `workbook` | object | Workbook-Payload für write_workbook |
+
+### `virtual_desktop_files`
+Fokussiertes Tool für Datei-Operationen im Virtual-Desktop-Workspace (bevorzugt gegenüber `virtual_desktop`). Office-Dateien werden an `office_document` / `office_workbook` weitergeleitet.
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `operation` | enum | list, read, read_excerpt, write, patch, search, delete |
+| `path` | string | Workspace-relativer Pfad |
+| `content` | string | Datei-Inhalt (für write) |
+| `query` | string | Suchtext (für search) |
+| `line_start` / `line_count` | integer | Bereich für read_excerpt |
+| `case_sensitive` | boolean | Groß-/Kleinschreibung beachten |
+
+### `virtual_desktop_apps`
+Fokussiertes Tool für App-Verwaltung im Virtual Desktop.
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `operation` | enum | install, open, list, get, diagnose, delete |
+| `app_id` | string | App-Identifier |
+| `params` | object | Optionale Startparameter |
+
+### `virtual_desktop_widgets`
+Fokussiertes Tool für Widgets und Benachrichtigungen.
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `operation` | enum | upsert, pin, list, get, diagnose, delete |
+| `widget_id` | string | Widget-Identifier |
+| `title` / `content` | string | Widget-Inhalt |
 
 ### `office_document`
 Erstellt, liest, patcht und exportiert Writer-Dokumente im virtuellen Desktop-Arbeitsbereich.

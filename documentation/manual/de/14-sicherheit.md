@@ -251,7 +251,7 @@ AuraGo bietet ein mehrschichtiges Authentifizierungssystem für die Web-Oberflä
 ### Einrichtung in der Web-UI
 1. Öffne **Config → Server → Web-Konfiguration & Login**.
 2. Aktiviere Login-Schutz, Session-Timeout und Rate-Limiting.
-3. Setze Passwort und optional TOTP über `/auth/setup`.
+3. Setze Passwort und optional TOTP über `POST /api/auth/password` bzw. `POST /api/auth/totp/setup` (oder direkt in der Web-UI).
 4. Speichern.
 
 ### YAML-Referenz
@@ -265,7 +265,7 @@ auth:
     lockout_minutes: 15
 ```
 
-Passwort-Hash, TOTP-Secret und Session-Secret werden im **Vault** gespeichert (`auth_password_hash`, `auth_totp_secret`, `auth_session_secret`), nicht in der `config.yaml`. Setze sie über die Web-UI (**Config → Server → Web-Konfiguration & Login** bzw. `/auth/setup`) oder die API (`POST /api/auth/password`, `/api/auth/totp/setup`).
+Passwort-Hash, TOTP-Secret und Session-Secret werden im **Vault** gespeichert (`auth_password_hash`, `auth_totp_secret`, `auth_session_secret`), nicht in der `config.yaml`. Setze sie über die Web-UI (**Config → Server → Web-Konfiguration & Login** bzw. `/auth/login`) oder die API (`POST /api/auth/password`, `/api/auth/totp/setup`).
 
 ### Schritt 2: Passwort über die Web-UI setzen
 
@@ -309,9 +309,9 @@ node -e "const bcrypt = require('bcrypt'); console.log(bcrypt.hashSync('dein-pas
 2. **AuraGo neu starten**
 
 3. **QR-Code scannen:**
-   - Öffne `/auth/setup` in der Web-UI
+   - Öffne die Login-Seite `/auth/login` und folge dem TOTP-Setup-Assistenten (oder direkt `POST /api/auth/totp/setup` für den QR-Code)
    - Scan den angezeigten QR-Code mit deiner Authenticator-App
-   - Gib den 6-stelligen Code zur Bestätigung ein
+   - Bestätige mit `POST /api/auth/totp/confirm` und dem 6-stelligen Code
 
 ### Wichtige Hinweise zur 2FA
 
@@ -637,7 +637,7 @@ GET /api/vault/status
 
 3. AuraGo starten und neues Passwort setzen
    ./aurago
-   # → Web-UI öffnen → /auth/setup
+   # → Web-UI öffnen → /auth/login (bzw. `POST /api/auth/password`)
 
 4. Auth wieder aktivieren
 ```
