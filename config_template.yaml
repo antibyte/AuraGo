@@ -836,7 +836,7 @@ dograh:
     # minio_root_password: generated/stored in vault
     # aurago_mcp_token: optional metadata copy, stored in vault
 virtual_desktop:
-    enabled: false
+    enabled: true
     readonly: false
     allow_agent_control: false                            # exposes the virtual_desktop tool when tools.virtual_desktop.enabled is also true
     allow_generated_apps: true
