@@ -3044,6 +3044,7 @@
             border: 1px solid var(--border-subtle);
             border-radius: var(--radius-md);
             background: color-mix(in srgb, var(--card-bg-elevated) 82%, transparent);
+            overflow: hidden;
         }
 
         .tooling-telemetry-summary-item {
@@ -3055,9 +3056,12 @@
 
         .tooling-telemetry-summary-value {
             display: block;
-            font-size: var(--text-xl);
+            font-size: var(--text-lg);
             font-weight: 700;
             color: var(--text-primary);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .tooling-telemetry-summary-label {
@@ -3085,8 +3089,11 @@
         .tooling-telemetry-chip-value {
             display: block;
             font-weight: 700;
-            font-size: var(--text-lg);
+            font-size: var(--text-sm);
             color: var(--text-primary);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .tooling-telemetry-chip-label {
