@@ -1184,7 +1184,9 @@
         const evaluate = (window.SheetsFormulas && window.SheetsFormulas.evaluate) || (() => '#ERR');
         const rawResult = evaluate(sheet, formula);
         const displayValue = (numFmt && fmtMod) ? fmtMod.formatDisplayValue(rawResult, numFmt) : rawResult;
-        return `value="${displayValue.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}" data-formula="${formula.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}" data-display-value="${rawResult.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}" data-raw-value="${rawResult.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}" title="=${formula.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}"`;
+        let attrs = `value="${displayValue.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}" data-formula="${formula.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}" data-display-value="${rawResult.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}" data-raw-value="${rawResult.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}" title="=${formula.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}"`;
+        if (numFmt) attrs += ` data-num-format="${numFmt.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}"`;
+        return attrs;
     }
 
         function syncFormulaDataset(input, cell, sheet) {
