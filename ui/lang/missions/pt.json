@@ -166,6 +166,8 @@
   "missions.toast_mission_updated": "Missão atualizada",
   "missions.toast_name_prompt_required": "Nome e prompt são obrigatórios",
   "missions.toast_queued": "Adicionada à fila",
+  "missions.toast_running": "Missão em execução",
+  "missions.toast_trigger_skipped": "Gatilho ignorado (limite de frequência)",
   "missions.toast_removed_from_queue": "Removida da fila",
   "missions.toast_select_exec_type": "Selecione o tipo de execução",
   "missions.toast_select_trigger_type": "Selecione o tipo de gatilho",

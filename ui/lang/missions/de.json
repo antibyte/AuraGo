@@ -166,6 +166,8 @@
   "missions.toast_mission_updated": "Mission aktualisiert",
   "missions.toast_name_prompt_required": "Name und Prompt sind erforderlich",
   "missions.toast_queued": "Mission in Warteschlange",
+  "missions.toast_running": "Mission läuft",
+  "missions.toast_trigger_skipped": "Auslöser übersprungen (Rate-Limit)",
   "missions.toast_removed_from_queue": "Aus Warteschlange entfernt",
   "missions.toast_select_exec_type": "Bitte Ausführungstyp wählen",
   "missions.toast_select_trigger_type": "Bitte wähle einen Auslösertyp",

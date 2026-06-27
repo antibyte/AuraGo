@@ -166,6 +166,8 @@
   "missions.toast_mission_updated": "Mission opdateret",
   "missions.toast_name_prompt_required": "Navn og prompt er obligatoriske",
   "missions.toast_queued": "Mission sat i kø",
+  "missions.toast_running": "Mission kører",
+  "missions.toast_trigger_skipped": "Trigger sprunget over (hastighedsgrænse)",
   "missions.toast_removed_from_queue": "Fjernet fra kø",
   "missions.toast_select_exec_type": "Vælg venligst en kørselstype",
   "missions.toast_select_trigger_type": "Vælg venligst en udløsertype",

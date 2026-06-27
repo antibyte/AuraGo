@@ -166,6 +166,8 @@
   "missions.toast_mission_updated": "Misja zaktualizowana",
   "missions.toast_name_prompt_required": "Nazwa i prompt są wymagane",
   "missions.toast_queued": "Misja zakolejkowana",
+  "missions.toast_running": "Misja działa",
+  "missions.toast_trigger_skipped": "Wyzwalacz pominięty (limit częstotliwości)",
   "missions.toast_removed_from_queue": "Usunięto z kolejki",
   "missions.toast_select_exec_type": "Wybierz typ wykonania",
   "missions.toast_select_trigger_type": "Wybierz typ wyzwalacza",

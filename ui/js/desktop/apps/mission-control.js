@@ -83,6 +83,35 @@
         const $ = (suffix) => container.querySelector(`[data-mc="${suffix}"]`);
         const $$ = (suffix) => container.querySelectorAll(`[data-mc="${suffix}"]`);
 
+        function missionIsRunning(mission, queueState = state.queue) {
+            if (!mission) return false;
+            return mission.id === queueState.running || mission.status === 'running';
+        }
+
+        function getRunningMissions(missionsList = state.missions, queueState = state.queue) {
+            const seen = new Set();
+            const running = [];
+            const add = (mission) => {
+                if (!mission || seen.has(mission.id)) return;
+                seen.add(mission.id);
+                running.push(mission);
+            };
+            if (queueState.running) {
+                add(missionsList.find((m) => m.id === queueState.running));
+            }
+            missionsList.forEach((m) => {
+                if (m.status === 'running') add(m);
+            });
+            return running;
+        }
+
+        function toastForMissionDispatch(data) {
+            const status = data && data.status ? data.status : 'queued';
+            if (status === 'running') return t('missions.toast_running');
+            if (status === 'skipped') return t('missions.toast_trigger_skipped');
+            return t('missions.toast_queued');
+        }
+
         container.innerHTML = `<div class="${P}"><div class="${P}-loading" data-mc="loading">${esc(t('desktop.loading'))}</div></div>`;
 
         setupSSE();
@@ -136,7 +165,7 @@
                 const mid = card.dataset.missionId;
                 const mission = state.missions.find(m => m.id === mid);
                 if (!mission) return;
-                const isRunning = mid === state.queue.running;
+                const isRunning = missionIsRunning(mission);
                 const items = [
                     { icon: 'play', label: t('missions.card_btn_run_title'), action: () => runMission(mid), disabled: isRunning },
                     { icon: 'edit', label: t('missions.card_btn_edit_title'), action: () => openModal(mid) },
@@ -332,7 +361,7 @@
             const bar = $('status-bar');
             if (!bar) return;
             const total = state.missions.length;
-            const running = state.missions.filter(m => m.status === 'running').length + (state.queue.running ? 1 : 0);
+            const running = state.missions.filter(m => m.status === 'running').length;
             const queued = state.queue.items.length;
             const triggered = state.missions.filter(m => m.execution_type === 'triggered').length;
             bar.innerHTML = `
@@ -347,19 +376,17 @@
         function renderQueue() {
             const el = $('queue');
             if (!el) return;
-            if (state.queue.items.length === 0 && !state.queue.running) {
+            const runningMissions = getRunningMissions();
+            if (state.queue.items.length === 0 && runningMissions.length === 0) {
                 el.style.display = 'none';
                 return;
             }
             el.style.display = '';
             let html = `<div class="${P}-queue-header"><span>${esc(t('missions.queue_title'))}</span><span class="${P}-queue-badge">${esc(t('missions.queue_serial_badge'))}</span></div><div class="${P}-queue-items">`;
 
-            if (state.queue.running) {
-                const rm = state.missions.find(m => m.id === state.queue.running);
-                if (rm) {
-                    html += `<div class="${P}-queue-item running"><span class="${P}-queue-pos">▶</span><span class="${P}-queue-name">${esc(rm.name)}</span><span class="${P}-queue-meta">${esc(t('missions.queue_running_now'))}</span></div>`;
-                }
-            }
+            runningMissions.forEach((rm) => {
+                html += `<div class="${P}-queue-item running"><span class="${P}-queue-pos">▶</span><span class="${P}-queue-name">${esc(rm.name)}</span><span class="${P}-queue-meta">${esc(t('missions.queue_running_now'))}</span></div>`;
+            });
             state.queue.items.forEach((item, idx) => {
                 const m = state.missions.find(ms => ms.id === item.mission_id);
                 if (!m) return;
@@ -410,8 +437,8 @@
 
         // ── Card Rendering ──
         function renderGridCard(mission) {
-            const isRunning = mission.id === state.queue.running;
-            const isQueued = state.queue.items.some(i => i.mission_id === mission.id);
+            const isRunning = missionIsRunning(mission);
+            const isQueued = !isRunning && state.queue.items.some(i => i.mission_id === mission.id);
             const isExpanded = state.expandedCards.has(mission.id);
             const mid = escAttr(mission.id);
             const statusKind = isRunning ? 'running' : isQueued ? 'queued' : (mission.execution_type || 'manual');
@@ -469,8 +496,8 @@
         }
 
         function renderListCard(mission) {
-            const isRunning = mission.id === state.queue.running;
-            const isQueued = state.queue.items.some(i => i.mission_id === mission.id);
+            const isRunning = missionIsRunning(mission);
+            const isQueued = !isRunning && state.queue.items.some(i => i.mission_id === mission.id);
             const mid = escAttr(mission.id);
             const typeIcon = { manual: '👆', scheduled: '📅', triggered: '⚡' }[mission.execution_type] || '👆';
             const statusBadge = isRunning ? `<span class="${P}-chip ${P}-chip--running">${esc(t('missions.card_badge_running'))}</span>` : isQueued ? `<span class="${P}-chip ${P}-chip--queued">${esc(t('missions.card_badge_queued'))}</span>` : '';
@@ -593,8 +620,8 @@
         // ── API Actions ──
         async function runMission(id) {
             try {
-                await api('/api/missions/v2/' + id + '/run', { method: 'POST' });
-                notify(t('missions.toast_queued'));
+                const data = await api('/api/missions/v2/' + id + '/run', { method: 'POST' });
+                notify(toastForMissionDispatch(data || {}));
                 loadData();
             } catch (err) { notify(t('missions.toast_error_prefix') + err.message, 'error'); }
         }

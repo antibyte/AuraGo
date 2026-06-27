@@ -166,6 +166,8 @@
   "missions.toast_mission_updated": "Mission mise à jour",
   "missions.toast_name_prompt_required": "Le nom et le prompt sont requis",
   "missions.toast_queued": "Mission mise en file d'attente",
+  "missions.toast_running": "Mission en cours",
+  "missions.toast_trigger_skipped": "Déclencheur ignoré (limite de fréquence)",
   "missions.toast_removed_from_queue": "Retirée de la file d'attente",
   "missions.toast_select_exec_type": "Veuillez sélectionner un type d'exécution",
   "missions.toast_select_trigger_type": "Veuillez sélectionner un type de déclencheur",

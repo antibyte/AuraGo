@@ -166,6 +166,8 @@
   "missions.toast_mission_updated": "Mise aktualizována",
   "missions.toast_name_prompt_required": "Název a prompt jsou povinné",
   "missions.toast_queued": "Mise zařazena do fronty",
+  "missions.toast_running": "Mise běží",
+  "missions.toast_trigger_skipped": "Spouštěč přeskočen (limit frekvence)",
   "missions.toast_removed_from_queue": "Odebráno z fronty",
   "missions.toast_select_exec_type": "Vyberte typ spuštění",
   "missions.toast_select_trigger_type": "Vyberte typ spouštěče",

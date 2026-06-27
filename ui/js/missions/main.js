@@ -18,6 +18,35 @@ let remoteTargets = [];
 
 const remoteAllowedTriggers = new Set(['system_startup', 'mqtt_message', 'home_assistant_state']);
 
+function missionIsRunning(mission, queueState = queue) {
+    if (!mission) return false;
+    return mission.id === queueState.running || mission.status === 'running';
+}
+
+function getRunningMissions(missionsList = missions, queueState = queue) {
+    const seen = new Set();
+    const running = [];
+    const add = (mission) => {
+        if (!mission || seen.has(mission.id)) return;
+        seen.add(mission.id);
+        running.push(mission);
+    };
+    if (queueState.running) {
+        add(missionsList.find((m) => m.id === queueState.running));
+    }
+    missionsList.forEach((m) => {
+        if (m.status === 'running') add(m);
+    });
+    return running;
+}
+
+function toastForMissionDispatch(data) {
+    const status = data && data.status ? data.status : 'queued';
+    if (status === 'running') return t('missions.toast_running');
+    if (status === 'skipped') return t('missions.toast_trigger_skipped');
+    return t('missions.toast_queued');
+}
+
 // Extract displayable text from mission last_output.
 // Handles legacy entries where the raw OpenAI-format JSON was stored.
 function extractLastOutput(raw) {
@@ -317,7 +346,8 @@ function renderQueue() {
     const section = document.getElementById('queue-section');
     const container = document.getElementById('queue-items');
 
-    if (queue.items.length === 0 && !queue.running) {
+    const runningMissions = getRunningMissions();
+    if (queue.items.length === 0 && runningMissions.length === 0) {
         section.classList.add('is-hidden');
         return;
     }
@@ -325,11 +355,8 @@ function renderQueue() {
     section.classList.remove('is-hidden');
     let html = '';
 
-    // Show running mission first
-    if (queue.running) {
-        const runningMission = missions.find(m => m.id === queue.running);
-        if (runningMission) {
-            html += `
+    runningMissions.forEach((runningMission) => {
+        html += `
                         <div class="queue-item queue-item-running priority-${runningMission.priority}">
                             <div class="queue-position">${icons.running}</div>
                             <div class="queue-info">
@@ -339,8 +366,7 @@ function renderQueue() {
                             <span class="queue-trigger queue-trigger-active">${t('missions.queue_active_badge')}</span>
                         </div>
                     `;
-        }
-    }
+    });
 
     // Show queued items
     queue.items.forEach((item, index) => {
@@ -400,8 +426,8 @@ function renderMissions() {
 
 // Compact List View Card
 function renderMissionCompact(mission) {
-    const isRunning = mission.id === queue.running;
-    const isQueued = queue.items.some(i => i.mission_id === mission.id);
+    const isRunning = missionIsRunning(mission);
+    const isQueued = !isRunning && queue.items.some(i => i.mission_id === mission.id);
     const typeIcon = icons[mission.execution_type] || icons.manual;
     const statusBadge = isRunning ? `<span class="badge badge-running">${t('missions.card_badge_running')}</span>` :
                        isQueued ? `<span class="badge badge-warning">${t('missions.card_badge_queued')}</span>` : '';
@@ -430,8 +456,8 @@ function renderMissionCompact(mission) {
 
 // Grid View Card (Expandable) — redesigned for clarity, hierarchy, touch-friendliness.
 function renderMissionGrid(mission, isFirstRender) {
-    const isRunning = mission.id === queue.running;
-    const isQueued = queue.items.some(i => i.mission_id === mission.id);
+    const isRunning = missionIsRunning(mission);
+    const isQueued = !isRunning && queue.items.some(i => i.mission_id === mission.id);
     const isWaiting = !isRunning && !isQueued && mission.status === 'waiting';
     const statusKind = isRunning ? 'running'
         : isQueued ? 'queued'
@@ -1161,7 +1187,9 @@ async function runMission(id) {
     try {
         const response = await fetch(`/api/missions/v2/${id}/run`, { method: 'POST' });
         if (!response.ok) throw new Error(await response.text());
-        showToast(t('missions.toast_queued'), 'success');
+        const data = await response.json().catch(() => ({}));
+        const toastType = data.status === 'skipped' ? 'info' : 'success';
+        showToast(toastForMissionDispatch(data), toastType);
         loadData();
     } catch (err) {
         showToast(t('missions.toast_error_prefix') + err.message, 'error');

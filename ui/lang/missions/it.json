@@ -166,6 +166,8 @@
   "missions.toast_mission_updated": "Missione aggiornata",
   "missions.toast_name_prompt_required": "Nome e prompt sono richiesti",
   "missions.toast_queued": "Missione in coda",
+  "missions.toast_running": "Missione in esecuzione",
+  "missions.toast_trigger_skipped": "Trigger ignorato (limite di frequenza)",
   "missions.toast_removed_from_queue": "Rimosso dalla coda",
   "missions.toast_select_exec_type": "Seleziona un tipo di esecuzione",
   "missions.toast_select_trigger_type": "Seleziona un tipo di trigger",

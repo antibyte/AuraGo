@@ -166,6 +166,8 @@
   "missions.toast_mission_updated": "Oppdrag oppdatert",
   "missions.toast_name_prompt_required": "Navn og prompt er obligatoriske",
   "missions.toast_queued": "Oppdrag satt i kø",
+  "missions.toast_running": "Oppdrag kjører",
+  "missions.toast_trigger_skipped": "Utløser hoppet over (frekvensgrense)",
   "missions.toast_removed_from_queue": "Fjernet fra kø",
   "missions.toast_select_exec_type": "Velg en kjøringstype",
   "missions.toast_select_trigger_type": "Velg en utløsertype",

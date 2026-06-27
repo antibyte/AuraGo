@@ -27,6 +27,9 @@ func TestDesktopMissionControlNormalizesListPayload(t *testing.T) {
 	for _, marker := range []string{
 		"function normalizeMissionControlPayload(data)",
 		"function normalizeMissionQueue(queue)",
+		"function missionIsRunning(mission",
+		"function getRunningMissions(",
+		"function toastForMissionDispatch(data)",
 		"Array.isArray(data.missions)",
 		"Array.isArray(data.data)",
 		"Array.isArray(data)",

@@ -166,6 +166,8 @@
   "missions.toast_mission_updated": "Mission updated",
   "missions.toast_name_prompt_required": "Name and prompt are required",
   "missions.toast_queued": "Mission queued",
+  "missions.toast_running": "Mission running",
+  "missions.toast_trigger_skipped": "Trigger skipped (rate limit)",
   "missions.toast_removed_from_queue": "Removed from queue",
   "missions.toast_select_exec_type": "Please select an execution type",
   "missions.toast_select_trigger_type": "Please select a trigger type",

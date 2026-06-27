@@ -166,6 +166,8 @@
   "missions.toast_mission_updated": "Missie bijgewerkt",
   "missions.toast_name_prompt_required": "Naam en prompt zijn verplicht",
   "missions.toast_queued": "Missie in wachtrij",
+  "missions.toast_running": "Missie draait",
+  "missions.toast_trigger_skipped": "Trigger overgeslagen (snelheidslimiet)",
   "missions.toast_removed_from_queue": "Uit wachtrij verwijderd",
   "missions.toast_select_exec_type": "Selecteer een uitvoeringstype",
   "missions.toast_select_trigger_type": "Selecteer een triggertype",
