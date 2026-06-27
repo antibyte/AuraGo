@@ -799,6 +799,10 @@
     min-width: 230px;
 }
 
+.office-color-picker[hidden] {
+    display: none;
+}
+
 .office-color-swatch {
     width: 22px;
     height: 22px;

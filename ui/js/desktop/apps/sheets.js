@@ -1081,6 +1081,29 @@
         const inst = instances.get(windowId);
         if (inst) { inst.undo = undo; inst.redo = redo; }
 
+        function recalcFormulas() {
+            const sheet = workbook.sheets[activeSheet];
+            if (!sheet || !sheet.rows) return;
+            const evaluate = (window.SheetsFormulas && window.SheetsFormulas.evaluate) || (() => '#ERR');
+            const fmtMod = window.SheetsFormat;
+            sheet.rows.forEach((row, r) => {
+                if (!Array.isArray(row)) return;
+                row.forEach((cell, c) => {
+                    if (!cell || !cell.formula) return;
+                    const input = gridHost.querySelector(`input[data-row="${r}"][data-col="${c}"]`);
+                    if (!input) return;
+                    const rawResult = evaluate(sheet, cell.formula);
+                    input.dataset.displayValue = rawResult;
+                    input.dataset.rawValue = rawResult;
+                    const numFmt = cell.format && cell.format.numFormat;
+                    const displayValue = (numFmt && fmtMod) ? fmtMod.formatDisplayValue(rawResult, numFmt) : rawResult;
+                    if (document.activeElement !== input) {
+                        input.value = displayValue;
+                    }
+                });
+            });
+        }
+
         function applyReadonlyState() {
             host.querySelectorAll('[data-action="apply-formula"]').forEach(button => { button.disabled = readonly; });
             if (formulaInput) formulaInput.disabled = readonly;
@@ -1215,29 +1238,6 @@
             delete input.dataset.formula;
             delete input.dataset.displayValue;
             input.removeAttribute('title');
-        }
-
-        function recalcFormulas() {
-            const sheet = workbook.sheets[activeSheet];
-            if (!sheet || !sheet.rows) return;
-            const evaluate = (window.SheetsFormulas && window.SheetsFormulas.evaluate) || (() => '#ERR');
-            const fmtMod = window.SheetsFormat;
-            sheet.rows.forEach((row, r) => {
-                if (!Array.isArray(row)) return;
-                row.forEach((cell, c) => {
-                    if (!cell || !cell.formula) return;
-                    const input = gridHost.querySelector(`input[data-row="${r}"][data-col="${c}"]`);
-                    if (!input) return;
-                    const rawResult = evaluate(sheet, cell.formula);
-                    input.dataset.displayValue = rawResult;
-                    input.dataset.rawValue = rawResult;
-                    const numFmt = cell.format && cell.format.numFormat;
-                    const displayValue = (numFmt && fmtMod) ? fmtMod.formatDisplayValue(rawResult, numFmt) : rawResult;
-                    if (document.activeElement !== input) {
-                        input.value = displayValue;
-                    }
-                });
-            });
         }
 
     function showFormulaForEditing(input) {
