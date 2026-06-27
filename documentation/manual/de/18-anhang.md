@@ -66,7 +66,7 @@ agent:
   allow_remote_shell: false
   allow_self_update: false
   allow_mcp: false
-  allow_web_scraper: false
+  # Web-Scraping wird jetzt über `tools.web_scraper.enabled` gesteuert (deprecated)
 
   output_compression:
     enabled: true
@@ -161,7 +161,7 @@ telegram:
 
 discord:
   enabled: false
-  read_only: false
+  readonly: false
   bot_token: ""
   guild_id: ""
   allowed_user_id: ""
@@ -169,7 +169,7 @@ discord:
 
 email:
   enabled: false
-  read_only: false
+  readonly: false
   imap_host: ""
   imap_port: 993
   smtp_host: ""
@@ -183,13 +183,13 @@ email:
 
 home_assistant:
   enabled: false
-  read_only: false
+  readonly: false
   url: ""
   access_token: ""
 
 docker:
   enabled: false
-  read_only: false
+  readonly: false
   host: ""
 
 directories:
@@ -209,7 +209,7 @@ sqlite:
 tools:
   memory:
     enabled: true
-    read_only: false
+    readonly: false
     ondemand_retrieval:
       enabled: true
       max_essential_memories: 1
@@ -219,19 +219,19 @@ tools:
       dedupe_scope: turn
   knowledge_graph:
     enabled: true
-    read_only: false
+    readonly: false
   secrets_vault:
     enabled: true
-    read_only: false
+    readonly: false
   scheduler:
     enabled: true
-    read_only: false
+    readonly: false
   notes:
     enabled: true
-    read_only: false
+    readonly: false
   missions:
     enabled: true
-    read_only: false
+    readonly: false
   stop_process:
     enabled: true
   inventory:

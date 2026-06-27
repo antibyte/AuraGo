@@ -223,10 +223,19 @@ Agent: Your name is Alex. ← Remembers from earlier
 
 | Command | Effect |
 |---------|--------|
+| `/help` | List all available commands |
 | `/reset` | Clears all history, fresh start |
 | `/stop` | Interrupts current agent action |
+| `/restart` | Restarts the AuraGo server |
 | `/debug on` | Shows detailed tool outputs |
 | `/debug off` | Returns to compact output |
+| `/personality <name>` | Lists or switches personality profiles |
+| `/budget` | Shows current API costs |
+| `/voice [on/off]` | Toggles text-to-speech output |
+| `/warnings` | Lists active system warnings |
+| `/sudopwd <password>` | Stores sudo password in the vault |
+| `/credits` | Shows OpenRouter credit balance |
+| `/addssh host=NAME user=USER ...` | Registers a new SSH server |
 
 ### When to Reset
 
@@ -513,9 +522,15 @@ Agent: 🌤️ London Weather:
 /help          - Show all commands
 /reset         - Clear chat history
 /stop          - Cancel current action
+/restart       - Restart AuraGo server
 /debug on/off  - Toggle debug mode
 /budget        - Show API costs
 /personality   - Switch personality
+/voice         - Toggle voice output
+/warnings      - Show system warnings
+/sudopwd       - Store sudo password in vault
+/credits       - Show OpenRouter credits
+/addssh        - Register SSH server
 ```
 
 ### Message Patterns That Work Well

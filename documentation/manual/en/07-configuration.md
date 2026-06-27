@@ -357,7 +357,8 @@ agent:
     allow_remote_shell: false    # execute_remote_shell tool
     allow_self_update: false     # manage_updates tool
     allow_mcp: false             # MCP server connections
-    allow_web_scraper: false     # web scraper tool
+    # Note: Web scraping is now controlled via `tools.web_scraper.enabled`
+    # The legacy key `allow_web_scraper` is auto-migrated at startup and deprecated.
     sudo_enabled: false          # execute_sudo tool (requires vault entry)
 ```
 

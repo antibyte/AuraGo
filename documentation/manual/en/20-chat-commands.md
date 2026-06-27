@@ -137,26 +137,35 @@ Lists all available personalities or switches to a specific personality.
 
 **Examples:**
 ```
-/personality           # Lists all personalities
-/personality default   # Switches to default personality
-/personality tech      # Switches to tech personality
+/personality                       # Lists all personalities
+/personality friend                # Switches to friend personality
+/personality professional          # Switches to professional personality
+/personality neutral               # Switches to neutral personality
 ```
 
 **Output (list):**
 ```
 🎭 **Available Personalities:**
 
-• default ✅ (active)
-• tech
-• creative
+• neutral
+• friend ✅ (active)
 • professional
+• punk
+• terminator
+• thinker
+• mcp
+• secretary
+• servant
+• psycho
+• evil
+• mistress
 
 Use `/personality <name>` to switch.
 ```
 
 **Output (switch):**
 ```
-🎭 Personality switched to **tech**. The change is permanent.
+🎭 Personality switched to **friend**. The change is permanent.
 ```
 
 > ℹ️ Personalities are stored as Markdown files in the `prompts/personalities/` directory.

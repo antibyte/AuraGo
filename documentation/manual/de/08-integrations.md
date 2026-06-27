@@ -638,7 +638,7 @@ composio:
   enabled: true
   base_url: https://backend.composio.dev/api/v3.1
   user_id: aurago-default
-  read_only: true
+  readonly: true
   allow_destructive: false
   allow_natural_language_input: false
   request_timeout_seconds: 60
@@ -647,7 +647,7 @@ composio:
   toolkits: []
   # - slug: github
   #   enabled: true
-  #   read_only: true
+  #   readonly: true
   #   allow_destructive: false
   #   allowed_tool_slugs: []
   #   blocked_tool_slugs: []
@@ -655,7 +655,7 @@ composio:
 
 > 🔒 Der API-Key wird im Vault als `composio_api_key` gespeichert, nicht in der `config.yaml`.
 
-Standardmäßig blockiert `read_only: true` mutierende Aktionen. Setze `allow_destructive: true` nur, wenn Delete/Remove/Revoke-Operationen explizit benötigt werden. Pro Toolkit steuern `allowed_tool_slugs` und `blocked_tool_slugs` die Feingranularität.
+Standardmäßig blockiert `readonly: true` mutierende Aktionen. Setze `allow_destructive: true` nur, wenn Delete/Remove/Revoke-Operationen explizit benötigt werden. Pro Toolkit steuern `allowed_tool_slugs` und `blocked_tool_slugs` die Feingranularität.
 
 ## SQL Connections – Externe Datenbanken
 
@@ -683,7 +683,7 @@ sql_connections:
       database: "aurago"
       username: "aurago_readonly"
       password_vault_key: "sql_prod_password"
-      read_only: true
+      readonly: true
       max_pool_size: 5
       connect_timeout: 10
       query_timeout: 30
@@ -1483,22 +1483,14 @@ Hintergrund-Wake-up-Scheduler für autonome Statusprüfungen in konfigurierbaren
 6. Speichere und starte neu.
 
 ### YAML-Referenz
-```yaml
-heartbeat:
-    enabled: true
-    check_tasks: true
-    check_appointments: true
-    check_emails: true
-    additional_prompt: "Benachrichtige mich nur bei kritischen Problemen."
-    day_time_window:
-        start: "08:00"
-        end: "22:00"
-        interval: "1h"
-    night_time_window:
-        start: "22:00"
-        end: "08:00"
-        interval: "4h"
-```
+
+> ⚠️ **Hinweis:** Die Heartbeat-Konfiguration erfolgt derzeit vollständig über die **Web-UI** (`Config → Integrationen → Heartbeat`). Ein dedizierter `heartbeat:`-Block in `config.yaml` wird aktuell nicht ausgewertet – die oben gezeigten Werte (Tag-/Nacht-Fenster, Intervalle, `additional_prompt` etc.) werden intern im Heartbeat-Service persistiert.
+
+Die Standardeinstellungen sind:
+
+- **Tag-Fenster:** 08:00 – 22:00, Intervall 1h
+- **Nacht-Fenster:** 22:00 – 08:00, Intervall 4h
+- **Geprüfte Quellen:** Aufgaben, Termine, E-Mails (in der UI aktivierbar)
 
 ### Wichtige Funktionen
 - **Zeitbasierte Führung**: Unterschiedliche Wake-up-Prioritäten je nach Tageszeit (Morgen-Check, Mittag-Review, Abend-Zusammenfassung, Nacht-Ruhe-Modus)

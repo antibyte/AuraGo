@@ -245,7 +245,7 @@ Du: Zeige System-Informationen
 ### Config-Validierung
 
 ```bash
-./aurago --validate-config
+./aurago -check-config
 ```
 
 ### Netzwerk-Test

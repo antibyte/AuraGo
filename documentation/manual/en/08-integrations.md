@@ -660,7 +660,7 @@ composio:
     enabled: true
     base_url: https://backend.composio.dev/api/v3.1
     user_id: aurago-default
-    read_only: true
+    readonly: true
     allow_destructive: false
     allow_natural_language_input: false
     request_timeout_seconds: 60
@@ -669,7 +669,7 @@ composio:
     toolkits: []
     # - slug: github
     #   enabled: true
-    #   read_only: true
+    #   readonly: true
     #   allow_destructive: false
     #   allowed_tool_slugs: []
     #   blocked_tool_slugs: []
@@ -677,7 +677,7 @@ composio:
 
 > 🔒 The API key is stored in the Vault as `composio_api_key`, not in `config.yaml`.
 
-By default, `read_only: true` blocks mutating actions. Set `allow_destructive: true` only when delete/remove/revoke operations are explicitly required. Per-toolkit `allowed_tool_slugs` and `blocked_tool_slugs` provide fine-grained control.
+By default, `readonly: true` blocks mutating actions. Set `allow_destructive: true` only when delete/remove/revoke operations are explicitly required. Per-toolkit `allowed_tool_slugs` and `blocked_tool_slugs` provide fine-grained control.
 
 ---
 
@@ -1102,7 +1102,7 @@ sql_connections:
           database: "aurago"
           username: "aurago_readonly"
           password_vault_key: "sql_prod_password"
-          read_only: true
+          readonly: true
           max_pool_size: 5
           connect_timeout: 10
           query_timeout: 30
@@ -1724,22 +1724,14 @@ Background wake-up scheduler for autonomous status checks at configurable interv
 6. Save and restart.
 
 ### YAML Reference
-```yaml
-heartbeat:
-    enabled: true
-    check_tasks: true
-    check_appointments: true
-    check_emails: true
-    additional_prompt: "Alert me only for critical issues."
-    day_time_window:
-        start: "08:00"
-        end: "22:00"
-        interval: "1h"
-    night_time_window:
-        start: "22:00"
-        end: "08:00"
-        interval: "4h"
-```
+
+> ⚠️ **Note:** Heartbeat is currently configured exclusively via the **Web UI** (`Config → Integrations → Heartbeat`). A dedicated `heartbeat:` block in `config.yaml` is not currently evaluated — the values shown above (day/night windows, intervals, `additional_prompt`, etc.) are persisted internally by the heartbeat service.
+
+Defaults:
+
+- **Day window:** 08:00 – 22:00, interval 1h
+- **Night window:** 22:00 – 08:00, interval 4h
+- **Checked sources:** Tasks, appointments, emails (toggleable in the UI)
 
 ### Key Features
 - **Time-aware guidance**: Different wake-up priorities based on time of day (morning check, midday review, evening summary, night quiet mode)
@@ -2276,7 +2268,7 @@ The dashboard shows status indicators:
 
 ### Debugging Integration Issues
 1. **Check logs:** `tail -f log/aurago_$(date +%Y-%m-%d).log`
-2. **Verify configuration:** `./aurago -validate-config`
+2. **Verify configuration:** `./aurago -check-config`
 3. **Test with verbose output:** `./aurago -debug`
 
 ### Common Issues

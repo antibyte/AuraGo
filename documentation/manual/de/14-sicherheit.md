@@ -342,7 +342,7 @@ Die Danger Zone kontrolliert, welche potenziell gefährlichen Fähigkeiten der A
 tools:
     memory:
         enabled: true
-        read_only: false           # Agent darf Memories nicht ändern
+        readonly: false           # Agent darf Memories nicht ändern
         ondemand_retrieval:
             enabled: true
             max_essential_memories: 1
@@ -353,23 +353,23 @@ tools:
     
     knowledge_graph:
         enabled: true
-        read_only: false
+        readonly: false
     
     secrets_vault:
         enabled: true
-        read_only: false           # ❌ Empfohlen: true
+        readonly: false           # ❌ Empfohlen: true
     
     scheduler:
         enabled: true
-        read_only: false
+        readonly: false
     
     notes:
         enabled: true
-        read_only: false
+        readonly: false
     
     missions:
         enabled: true
-        read_only: false
+        readonly: false
     
     stop_process:
         enabled: true              # Prozesse beenden erlaubt?
@@ -385,12 +385,12 @@ tools:
 
 | Integration | Read-Only Option | Beschreibung |
 |-------------|------------------|--------------|
-| **Docker** | `docker.read_only` | Keine Container-Start/Stop-Operationen |
-| **Home Assistant** | `home_assistant.read_only` | Nur Gerätestatus lesen, nicht steuern |
-| **Email** | `email.read_only` | Kein Versand von E-Mails |
-| **Discord** | `discord.read_only` | Nur lesen, keine Nachrichten senden |
+| **Docker** | `docker.readonly` | Keine Container-Start/Stop-Operationen |
+| **Home Assistant** | `home_assistant.readonly` | Nur Gerätestatus lesen, nicht steuern |
+| **Email** | `email.readonly` | Kein Versand von E-Mails |
+| **Discord** | `discord.readonly` | Nur lesen, keine Nachrichten senden |
 
-> 💡 **Best Practice:** Starte mit `read_only: true` für alle kritischen Integrationen und aktiviere Schreibzugriff nur bei Bedarf.
+> 💡 **Best Practice:** Starte mit `readonly: true` für alle kritischen Integrationen und aktiviere Schreibzugriff nur bei Bedarf.
 
 ---
 
@@ -414,15 +414,15 @@ Integrationen jeweils unter **Config → Integrationen → …** (Toggle **Nur-L
 # Beispiel: Sichere Konfiguration für Monitoring
 docker:
     enabled: true
-    read_only: true              # Container anzeigen, aber nicht ändern
+    readonly: true              # Container anzeigen, aber nicht ändern
 
 home_assistant:
     enabled: true
-    read_only: true              # Temperatur lesen, Heizung nicht steuern
+    readonly: true              # Temperatur lesen, Heizung nicht steuern
 
 email:
     enabled: true
-    read_only: true              # E-Mails lesen, nicht senden
+    readonly: true              # E-Mails lesen, nicht senden
 
 # Der Agent kann trotzdem:
 # - Dateien im Workspace lesen/schreiben
@@ -562,17 +562,30 @@ export AURAGO_MASTER_KEY="$(openssl rand -hex 32)"
 
 ### Vault-Schlüssel rotieren
 
+AuraGo bietet keine CLI-Flags `--export-vault` / `--import-vault`. Stattdessen werden Backups über die Backup-API erstellt und ein neuer Master-Key beim ersten Start mit dem neuen Key in den Vault geschrieben. Der Ablauf ist:
+
 ```bash
-# 1. Aktuellen Vault entschlüsseln (mit altem Key)
-export AURAGO_MASTER_KEY="alter-key"
-./aurago --export-vault > vault_backup.json
+# 1. Aktuellen Vault über die Backup-API sichern (mit altem Key)
+curl -X POST http://localhost:8088/api/backup/create \
+     -H "Content-Type: application/json" \
+     -d '{"include_vault": true}' \
+     -o vault_backup.aurago
 
-# 2. Neuen Key setzen
-export AURAGO_MASTER_KEY="neuer-key"
+# 2. AuraGo stoppen
+./kill_all.sh     # oder systemctl stop aurago
 
-# 3. Vault neu importieren
-./aurago --import-vault vault_backup.json
+# 3. Neuen Master-Key setzen
+export AURAGO_MASTER_KEY="$(openssl rand -hex 32)"
+echo "AURAGO_MASTER_KEY=$AURAGO_MASTER_KEY" >> .env
+
+# 4. AuraGo starten – der Vault wird mit dem neuen Key neu initialisiert
+# 5. Secrets aus dem Backup über die Backup-API wiederherstellen
+curl -X POST http://localhost:8088/api/backup/import \
+     -H "Content-Type: application/json" \
+     --data-binary @vault_backup.aurago
 ```
+
+> 📖 Vollständige API-Referenz: [Kapitel 21: API-Referenz](21-api-reference.md#backup--restore)
 
 ### Vault-Status prüfen
 
@@ -702,8 +715,8 @@ hmac = SHA256(secret + payload)
 | 2FA | `auth.totp_enabled` | `true` (externer Zugriff) |
 | Session-Timeout | `auth.session_timeout_hours` | `24` |
 | Rate Limiting | `auth.max_login_attempts` | `5` |
-| Docker-Gate | `docker.read_only` | `true` (Monitoring) |
-| Vault-Gate | `tools.secrets_vault.read_only` | `true` |
+| Docker-Gate | `docker.readonly` | `true` (Monitoring) |
+| Vault-Gate | `tools.secrets_vault.readonly` | `true` |
 
 ---
 

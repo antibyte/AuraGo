@@ -262,12 +262,18 @@ You should see the login screen or chat (depending on auth configuration).
 │   └── workdir/              # Working directory
 │       └── attachments/      # Uploaded files
 ├── data/
-│   ├── core_memory.md        # Persistent memory
-│   ├── chat_history.json     # Chat history
+│   ├── short_term.db         # SQLite – chat history & short-term memory
+│   ├── core_memory.md        # Persistent core memory (Markdown)
+│   ├── knowledge_graph.db    # Knowledge graph (entities/relations)
+│   ├── system_tasks.db       # Background tasks & cron jobs
+│   ├── mission_history.db    # Mission history
+│   ├── media_registry.db     # Generated media (images/audio/video)
+│   ├── inventory.db          # SSH device inventory
+│   ├── invasion.db           # Invasion control eggs/nests
 │   ├── vault.bin             # Encrypted secrets (AES-256-GCM)
-│   └── vectordb/             # Vector database
+│   └── vectordb/             # Vector database (chromem-go)
 └── log/
-    └── supervisor.log        # Application logs
+    └── aurago_YYYY-MM-DD.log # Structured daily logs (slog)
 ```
 
 ## Updating

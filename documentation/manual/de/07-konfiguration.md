@@ -210,7 +210,9 @@ agent:
   allow_remote_shell: false
   allow_self_update: false
   allow_mcp: false
-  allow_web_scraper: false
+  # Hinweis: Web-Scraping wird jetzt über `tools.web_scraper.enabled` gesteuert
+  # (siehe unten). Der alte Schlüssel `allow_web_scraper` wird beim Start
+  # automatisch migriert und ist deprecated.
   sudo_enabled: false
 ```
 

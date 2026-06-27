@@ -665,7 +665,7 @@ Die API-Handler sind in [`internal/server/`](../../../internal/server/) organisi
 
 Die Internationalisierung erfolgt über [`internal/i18n/`](../../../internal/i18n/):
 
-- 15 Sprachen: cs, da, de, el, en, es, fr, hi, it, ja, nl, no, pl, pt, sv, zh
+- 16 Sprachen: cs, da, de, el, en, es, fr, hi, it, ja, nl, no, pl, pt, sv, zh (zzgl. „Other / Custom“ in `ui/lang/meta.json`)
 - JSON-basierte Übersetzungsdateien in `ui/lang/`
 - Automatische Spracherkennung und Fallback auf Englisch
 

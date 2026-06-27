@@ -96,7 +96,7 @@ agent:
   allow_remote_shell: false
   allow_self_update: false
   allow_mcp: false
-  allow_web_scraper: false
+  # Web scraping is now controlled via `tools.web_scraper.enabled` (legacy key deprecated)
   output_compression:
     enabled: true
     min_chars: 500

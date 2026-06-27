@@ -256,12 +256,18 @@ Du solltest den Login-Screen oder den Chat sehen (je nach Auth-Konfiguration).
 │   └── workdir/              # Arbeitsverzeichnis
 │       └── attachments/      # Hochgeladene Dateien
 ├── data/
-│   ├── core_memory.md        # Persistentes Gedächtnis
-│   ├── chat_history.json     # Chat-Verlauf
+│   ├── short_term.db         # SQLite – Chat-Verlauf & Kurzzeitgedächtnis
+│   ├── core_memory.md        # Persistentes Kern-Gedächtnis (Markdown)
+│   ├── knowledge_graph.db    # Knowledge Graph (Entities/Relations)
+│   ├── system_tasks.db       # Hintergrundaufgaben & Cron
+│   ├── mission_history.db    # Missions-Historie
+│   ├── media_registry.db     # Generierte Medien (Bilder/Audio/Video)
+│   ├── inventory.db          # SSH-Geräte-Inventar
+│   ├── invasion.db           # Invasion-Control Eggs/Nests
 │   ├── vault.bin             # Verschlüsselte Secrets (AES-256-GCM)
-│   └── vectordb/             # Vektor-Datenbank
+│   └── vectordb/             # Vektor-Datenbank (chromem-go)
 └── log/
-    └── supervisor.log        # Anwendungs-Logs
+    └── aurago_YYYY-MM-DD.log # Strukturierte Tages-Logs (slog)
 ```
 
 ## Update durchführen

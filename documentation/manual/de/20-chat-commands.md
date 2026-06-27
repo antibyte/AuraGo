@@ -137,26 +137,35 @@ Listet alle verfügbaren Persönlichkeiten auf oder wechselt zu einer spezifisch
 
 **Beispiele:**
 ```
-/personality           # Listet alle Persönlichkeiten
-/personality default   # Wechselt zur Standard-Persönlichkeit
-/personality tech      # Wechselt zur Tech-Persönlichkeit
+/personality                       # Listet alle Persönlichkeiten
+/personality friend                # Wechselt zur Freund-Persönlichkeit
+/personality professional          # Wechselt zur Profi-Persönlichkeit
+/personality neutral               # Wechselt zur neutralen Persönlichkeit
 ```
 
 **Ausgabe (Listen):**
 ```
 🎭 **Verfügbare Persönlichkeiten:**
 
-• default ✅ (aktiv)
-• tech
-• creative
+• neutral
+• friend ✅ (aktiv)
 • professional
+• punk
+• terminator
+• thinker
+• mcp
+• secretary
+• servant
+• psycho
+• evil
+• mistress
 
 Nutze `/personality <name>` zum Umstellen.
 ```
 
 **Ausgabe (Wechseln):**
 ```
-🎭 Persönlichkeit auf **tech** umgestellt. Die Änderung ist permanent.
+🎭 Persönlichkeit auf **friend** umgestellt. Die Änderung ist permanent.
 ```
 
 > ℹ️ Persönlichkeiten werden als Markdown-Dateien im `prompts/personalities/` Verzeichnis gespeichert.
