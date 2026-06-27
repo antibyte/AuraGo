@@ -425,7 +425,7 @@
                     const _offsets = [-40, 40, -80, 80];
                     for (const _off of _offsets) {
                         ctx.c.globalAlpha = 0.3 + Math.sin(ctx.tick * 0.2 + _off) * 0.1;
-                        const _cloneFrame = (ctx.getPlayerSpriteFrame && ctx.getPlayerSpriteFrame()) || ctx.SP.playerIcon || ctx.SP.player;
+                        const _cloneFrame = ctx.SP.playerFrames[ctx.SP.PLAYER_FRAME.idleA] || ctx.SP.playerIcon || ctx.SP.player;
                         ctx.drawSp(ctx.c, _cloneFrame, { 1: _def.col, 2: '#4466aa', 3: '#224477', 4: '#112244', 5: '#ff8800', 6: '#44ffaa', 7: '#aaddff', a: '#ff5544' }, p.x + _off - 12, p.y - 12, false);
                     }
                     ctx.c.globalAlpha = 1;
@@ -715,7 +715,7 @@
             if (ctx.G.mirrorActive && ctx.G.p.alive) {
                 const mirrorX = ctx.W - ctx.G.p.x;
                 ctx.c.globalAlpha = 0.35 + Math.sin(ctx.tick * 0.1) * 0.1;
-                const _mirrorFrame = (ctx.getPlayerSpriteFrame && ctx.getPlayerSpriteFrame()) || ctx.SP.playerIcon || ctx.SP.player;
+                const _mirrorFrame = ctx.SP.playerFrames[ctx.SP.PLAYER_FRAME.idleA] || ctx.SP.playerIcon || ctx.SP.player;
                 ctx.drawSp(ctx.c, _mirrorFrame, { 1: '#88ddff', 2: '#4488aa', 3: '#225577', 4: '#113344', 5: '#ff8800', 6: '#44ffaa', 7: '#aaddff', a: '#ff5544' }, mirrorX - 12, ctx.G.p.y - 12, false);
                 ctx.c.globalAlpha = 0.15;
                 ctx.c.strokeStyle = '#88ddff'; ctx.c.lineWidth = 1;

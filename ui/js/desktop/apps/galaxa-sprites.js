@@ -650,7 +650,21 @@
             return result;
         }
 
+        let _sheetLogOnce = false;
         function drawSp(cv, sp, cols, x, y, flash, noCache) {
+            if (typeof sp === 'string' && ctx.spriteSheet && !noCache) {
+                const fr = SHEET_FRAMES[sp];
+                if (fr) {
+                    if (!_sheetLogOnce) { _sheetLogOnce = true; console.log('[GALAXA] drawing from sprite sheet, first frame:', sp); }
+                    const dx = Math.floor(x), dy = Math.floor(y);
+                    cv.drawImage(ctx.spriteSheet, fr.x, fr.y, fr.w, fr.h, dx, dy, fr.w, fr.h);
+                    if (flash) {
+                        cv.fillStyle = '#fff';
+                        cv.fillRect(dx, dy, fr.w, fr.h);
+                    }
+                    return;
+                }
+            }
             if (noCache) {
                 const px = [];
                 for (let r = 0; r < sp.length; r++) for (let cl = 0; cl < sp[r].length; cl++) {
@@ -679,6 +693,50 @@
             _rcCache = { 1: 'hsl(' + hue + ',100%,70%)', 2: 'hsl(' + ((hue + 120) % 360) + ',100%,70%)', 3: 'hsl(' + ((hue + 240) % 360) + ',100%,70%)' };
             _rcTick = ctx.tick;
             return _rcCache;
+        }
+
+        const SHEET_STRIDE = 34;
+        const SHEET_FRAMES = {
+            player_idleA:    { x: 0,   y: 0, w: 32, h: 32 },
+            player_idleB:    { x: 34,  y: 0, w: 32, h: 32 },
+            player_bankLeft: { x: 68,  y: 0, w: 32, h: 32 },
+            player_bankRight:{ x: 102, y: 0, w: 32, h: 32 },
+            player_boost:    { x: 136, y: 0, w: 32, h: 32 },
+            player_fire:     { x: 170, y: 0, w: 32, h: 32 },
+            player_super:    { x: 204, y: 0, w: 32, h: 32 },
+            boss_green:      { x: 238, y: 0, w: 32, h: 32 },
+            boss_green_hit:  { x: 272, y: 0, w: 32, h: 32 },
+            boss_green_crit: { x: 306, y: 0, w: 32, h: 32 },
+            boss_red:        { x: 340, y: 0, w: 32, h: 32 },
+            boss_red_hit:    { x: 374, y: 0, w: 32, h: 32 },
+            boss_red_crit:   { x: 408, y: 0, w: 32, h: 32 },
+            boss_blue:       { x: 442, y: 0, w: 32, h: 32 },
+            boss_blue_hit:   { x: 476, y: 0, w: 32, h: 32 },
+            boss_blue_crit:  { x: 510, y: 0, w: 32, h: 32 },
+        };
+        const ENEMY_SHEET_TYPES = ['bee', 'butterfly', 'stalker', 'sniper', 'hunter', 'spinner', 'bomber', 'lasher', 'weaver', 'splitter', 'shield_bee', 'kamikaze', 'carrier', 'teleporter'];
+        (function buildEnemySheetFrames() {
+            const ENEMY_PAD = 4;
+            for (let ri = 0; ri < 2; ri++) {
+                const baseY = (ri + 1) * SHEET_STRIDE;
+                const startType = ri * 10;
+                for (let ti = 0; ti < 10; ti++) {
+                    const typeIdx = startType + ti;
+                    if (typeIdx >= ENEMY_SHEET_TYPES.length) break;
+                    const type = ENEMY_SHEET_TYPES[typeIdx];
+                    for (let fi = 0; fi < 4; fi++) {
+                        SHEET_FRAMES[type + '_' + fi] = { x: ti * SHEET_STRIDE + ENEMY_PAD, y: baseY + ENEMY_PAD, w: 24, h: 24 };
+                    }
+                }
+            }
+            SHEET_FRAMES.shield_pw = { x: 0, y: 2 * SHEET_STRIDE + 4, w: 24, h: 24 };
+        })();
+
+        const PLAYER_SHEET_KEYS = ['player_idleA', 'player_idleB', 'player_bankLeft', 'player_bankRight', 'player_boost', 'player_fire', 'player_super'];
+        function bossSheetKey(healthState, variant) {
+            const v = variant === 1 ? 'red' : variant === 2 ? 'blue' : 'green';
+            const h = healthState === 2 ? '_crit' : healthState === 1 ? '_hit' : '';
+            return 'boss_' + v + h;
         }
 
         const _rawSP = buildSprites();
@@ -766,39 +824,63 @@
             validateSpriteFrameCount(type, SP[keys[0]], expected);
             validateSpriteSet(type, SP[keys[0]], SP[keys[1]]);
         }
-        const enemySpriteScratch = { sp: null, cols: null };
+        const enemySpriteScratch = { sp: null, cols: null, frameKey: null };
         function enemySpriteFor(e) {
             const bossVariant = ((ctx.G && ctx.G.stage ? ctx.G.stage : 1) - 1) % 3;
             const bossCols = bossVariant === 1 ? SP.bossRedC : bossVariant === 2 ? SP.bossBlueC : SP.bossC;
-            if (!e) { enemySpriteScratch.sp = SP.boss; enemySpriteScratch.cols = bossCols; return enemySpriteScratch; }
-            if (e.type === 'boss' || e.type === 'miniboss') {
-                enemySpriteScratch.sp = e.hp <= 1 ? SP.bossCrit : e.hp <= Math.ceil(e.maxHp / 2) ? SP.bossHit : SP.boss;
+            const useSheet = !!ctx.spriteSheet;
+            if (!e) {
                 enemySpriteScratch.cols = bossCols;
+                if (useSheet) { enemySpriteScratch.sp = bossSheetKey(0, bossVariant); enemySpriteScratch.frameKey = enemySpriteScratch.sp; }
+                else { enemySpriteScratch.sp = SP.boss; enemySpriteScratch.frameKey = null; }
+                return enemySpriteScratch;
+            }
+            if (e.type === 'boss' || e.type === 'miniboss') {
+                const hpState = e.hp <= 1 ? 2 : e.hp <= Math.ceil(e.maxHp / 2) ? 1 : 0;
+                enemySpriteScratch.cols = bossCols;
+                if (useSheet) { enemySpriteScratch.sp = bossSheetKey(hpState, bossVariant); enemySpriteScratch.frameKey = enemySpriteScratch.sp; }
+                else { enemySpriteScratch.sp = hpState === 2 ? SP.bossCrit : hpState === 1 ? SP.bossHit : SP.boss; enemySpriteScratch.frameKey = null; }
                 return enemySpriteScratch;
             }
             const keys = ENEMY_SPRITE_KEYS[e.type];
-            if (!keys) { enemySpriteScratch.sp = SP.boss; enemySpriteScratch.cols = bossCols; return enemySpriteScratch; }
-            const frames = SP[keys[0]];
-            const frameIndex = Math.max(0, Math.floor(e.fr || e.animFrame || 0));
-            enemySpriteScratch.sp = Array.isArray(frames) ? frames[frameIndex % frames.length] : frames;
+            if (!keys) {
+                enemySpriteScratch.cols = bossCols;
+                if (useSheet) { enemySpriteScratch.sp = bossSheetKey(0, bossVariant); enemySpriteScratch.frameKey = enemySpriteScratch.sp; }
+                else { enemySpriteScratch.sp = SP.boss; enemySpriteScratch.frameKey = null; }
+                return enemySpriteScratch;
+            }
+            const frameIndex = Math.max(0, Math.floor(e.fr || e.animFrame || 0)) % 4;
             enemySpriteScratch.cols = SP[keys[1]];
+            if (useSheet) {
+                const sheetKey = e.type + '_' + frameIndex;
+                enemySpriteScratch.sp = sheetKey;
+                enemySpriteScratch.frameKey = sheetKey;
+            } else {
+                const frames = SP[keys[0]];
+                enemySpriteScratch.sp = Array.isArray(frames) ? frames[frameIndex] : frames;
+                enemySpriteScratch.frameKey = null;
+            }
             return enemySpriteScratch;
         }
         function getPlayerSpriteFrame() {
             const g = ctx.G || {};
-            if (!g.p || !g.p.alive) return SP.playerIcon;
+            const useSheet = !!ctx.spriteSheet;
+            if (!g.p || !g.p.alive) return useSheet ? 'player_idleA' : SP.playerIcon;
             const tilt = g.shipTilt || 0;
-            if (tilt < -0.08) return SP.playerFrames[SP.PLAYER_FRAME.bankLeft];
-            if (tilt > 0.08) return SP.playerFrames[SP.PLAYER_FRAME.bankRight];
-            if (g.superActive > 0) return SP.playerFrames[SP.PLAYER_FRAME.super];
-            if (g.muzzleT > 0) return SP.playerFrames[SP.PLAYER_FRAME.fire];
-            if (g.activePU && (g.activePU.type === 'speed' || g.activePU.type === 'hyper_speed')) return SP.playerFrames[SP.PLAYER_FRAME.boost];
-            return SP.playerFrames[Math.floor((ctx.tick || 0) / 14) % 2 === 0 ? SP.PLAYER_FRAME.idleA : SP.PLAYER_FRAME.idleB];
+            if (tilt < -0.08) return useSheet ? PLAYER_SHEET_KEYS[SP.PLAYER_FRAME.bankLeft] : SP.playerFrames[SP.PLAYER_FRAME.bankLeft];
+            if (tilt > 0.08) return useSheet ? PLAYER_SHEET_KEYS[SP.PLAYER_FRAME.bankRight] : SP.playerFrames[SP.PLAYER_FRAME.bankRight];
+            if (g.superActive > 0) return useSheet ? PLAYER_SHEET_KEYS[SP.PLAYER_FRAME.super] : SP.playerFrames[SP.PLAYER_FRAME.super];
+            if (g.muzzleT > 0) return useSheet ? PLAYER_SHEET_KEYS[SP.PLAYER_FRAME.fire] : SP.playerFrames[SP.PLAYER_FRAME.fire];
+            if (g.activePU && (g.activePU.type === 'speed' || g.activePU.type === 'hyper_speed')) return useSheet ? PLAYER_SHEET_KEYS[SP.PLAYER_FRAME.boost] : SP.playerFrames[SP.PLAYER_FRAME.boost];
+            const fi = Math.floor((ctx.tick || 0) / 14) % 2 === 0 ? SP.PLAYER_FRAME.idleA : SP.PLAYER_FRAME.idleB;
+            return useSheet ? PLAYER_SHEET_KEYS[fi] : SP.playerFrames[fi];
         }
         ctx.enemySpriteFor = enemySpriteFor;
         ctx.getPlayerSpriteFrame = getPlayerSpriteFrame;
 
         ctx.SP = SP;
+        ctx.SHEET_FRAMES = SHEET_FRAMES;
+        ctx.SHEET_STRIDE = SHEET_STRIDE;
         ctx.buildSprites = buildSprites;
         ctx.getSpriteData = getSpriteData;
         ctx.drawSp = drawSp;
@@ -807,5 +889,15 @@
         ctx.radialGradientCache = radialGradientCache;
         ctx.spriteAtlasCache = spriteAtlasCache;
         ctx.flashPixelColors = flashPixelColors;
+
+        try {
+            var sheetImg = new Image();
+            sheetImg.onload = function () {
+                ctx.spriteSheet = sheetImg;
+                console.log('[GALAXA] sprite sheet loaded ' + sheetImg.width + 'x' + sheetImg.height);
+            };
+            sheetImg.onerror = function () { console.log('[GALAXA] sprite sheet not available'); };
+            sheetImg.src = '/img/galaxa-spritesheet.png';
+        } catch (e) { console.log('[GALAXA] sprite sheet error: ' + e); }
     };
 })();

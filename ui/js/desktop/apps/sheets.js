@@ -191,13 +191,23 @@
 
         function applyCellFormats(sheet) {
             if (!formatModule || !sheet || !sheet.rows) return;
+            let applied = 0;
             gridHost.querySelectorAll('td[data-cell-row][data-cell-col]').forEach(td => {
                 const row = Number(td.dataset.cellRow);
                 const col = Number(td.dataset.cellCol);
                 const cell = sheet.rows[row] && sheet.rows[row][col];
                 const input = td.querySelector('input');
+                if (cell && cell.format) {
+                    applied++;
+                    console.log('[FMT] applyCellFormats row=' + row + ' col=' + col + ' format=' + JSON.stringify(cell.format));
+                    console.log('[FMT] td before: fontWeight=' + td.style.fontWeight + ' input before: fontWeight=' + (input ? input.style.fontWeight : 'no-input'));
+                }
                 formatModule.renderFormatStyles(td, input, cell && cell.format);
+                if (cell && cell.format) {
+                    console.log('[FMT] td after: fontWeight=' + td.style.fontWeight + ' input after: fontWeight=' + (input ? input.style.fontWeight : 'no-input'));
+                }
             });
+            console.log('[FMT] applyCellFormats total=' + gridHost.querySelectorAll('td[data-cell-row][data-cell-col]').length + ' formatted=' + applied);
         }
 
         function wireGrid() {
@@ -485,6 +495,8 @@
                     if (formatModule) formatModule.applyFormat(sheet.rows[r][c], formatType, value);
                 }
             }
+            const cell = sheet.rows[range.startRow] && sheet.rows[range.startRow][range.startCol];
+            console.log('[FMT] handleFormatChange type=' + formatType + ' value=' + value + ' cell.format=' + JSON.stringify(cell && cell.format));
             renderWorkbook();
             setDirty(true);
         }

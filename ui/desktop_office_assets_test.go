@@ -154,7 +154,7 @@ func TestDesktopSheetsEnhancedFeatures(t *testing.T) {
 		"applyFormat",
 		"renderFormatStyles",
 		"formatDisplayValue",
-		"renderBorderStyle",
+		"applyBorderStyles",
 	} {
 		if !strings.Contains(formatJS, marker) {
 			t.Fatalf("sheets-format.js missing marker %q", marker)

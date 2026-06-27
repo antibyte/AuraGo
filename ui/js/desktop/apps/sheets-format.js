@@ -137,27 +137,44 @@
 
     function renderFormatStyles(td, input, format) {
         if (!format || !td) return;
-        const style = [];
-        if (format.bold) style.push('font-weight:bold');
-        if (format.italic) style.push('font-style:italic');
-        if (format.underline) style.push('text-decoration:underline');
-        if (format.fontColor) style.push('color:' + format.fontColor);
-        if (format.fillColor) style.push('background:' + format.fillColor);
-        if (format.hAlign) style.push('text-align:' + format.hAlign);
-        renderBorderStyle(style, format.borders);
-        if (style.length) td.style.cssText = style.join(';');
-        if (input) {
-            const inputStyle = [];
-            if (format.bold) inputStyle.push('font-weight:bold');
-            if (format.italic) inputStyle.push('font-style:italic');
-            if (format.underline) inputStyle.push('text-decoration:underline');
-            if (format.fontColor) inputStyle.push('color:' + format.fontColor);
-            if (format.hAlign) inputStyle.push('text-align:' + format.hAlign);
-            if (inputStyle.length) input.style.cssText = inputStyle.join(';');
-        }
+        applyCellStyle(td, format);
+        if (input) applyInputStyle(input, format);
     }
 
-    function renderBorderStyle(style, borders) {
+    function applyCellStyle(el, format) {
+        if (format.bold) el.style.fontWeight = 'bold';
+        else el.style.removeProperty('font-weight');
+        if (format.italic) el.style.fontStyle = 'italic';
+        else el.style.removeProperty('font-style');
+        if (format.underline) el.style.textDecoration = 'underline';
+        else el.style.removeProperty('text-decoration');
+        if (format.fontColor) el.style.color = format.fontColor;
+        else el.style.removeProperty('color');
+        if (format.fillColor) el.style.background = format.fillColor;
+        else el.style.removeProperty('background');
+        if (format.hAlign) el.style.textAlign = format.hAlign;
+        else el.style.removeProperty('text-align');
+        applyBorderStyles(el, format.borders);
+    }
+
+    function applyInputStyle(el, format) {
+        if (format.bold) el.style.fontWeight = 'bold';
+        else el.style.removeProperty('font-weight');
+        if (format.italic) el.style.fontStyle = 'italic';
+        else el.style.removeProperty('font-style');
+        if (format.underline) el.style.textDecoration = 'underline';
+        else el.style.removeProperty('text-decoration');
+        if (format.fontColor) el.style.color = format.fontColor;
+        else el.style.removeProperty('color');
+        if (format.hAlign) el.style.textAlign = format.hAlign;
+        else el.style.removeProperty('text-align');
+    }
+
+    function applyBorderStyles(el, borders) {
+        el.style.removeProperty('border-top');
+        el.style.removeProperty('border-bottom');
+        el.style.removeProperty('border-left');
+        el.style.removeProperty('border-right');
         if (!borders) return;
         const borderCss = (b) => {
             const w = b.style === 'medium' ? '2px' : '1px';
@@ -165,10 +182,10 @@
             const c = b.color || '#000000';
             return w + ' ' + s + ' ' + c;
         };
-        if (borders.top) style.push('border-top:' + borderCss(borders.top));
-        if (borders.bottom) style.push('border-bottom:' + borderCss(borders.bottom));
-        if (borders.left) style.push('border-left:' + borderCss(borders.left));
-        if (borders.right) style.push('border-right:' + borderCss(borders.right));
+        if (borders.top) el.style.borderTop = borderCss(borders.top);
+        if (borders.bottom) el.style.borderBottom = borderCss(borders.bottom);
+        if (borders.left) el.style.borderLeft = borderCss(borders.left);
+        if (borders.right) el.style.borderRight = borderCss(borders.right);
     }
 
     function formatDisplayValue(rawValue, numFormat) {
@@ -209,6 +226,10 @@
         if (numSelect) numSelect.value = f.numFormat || '';
         const borderSelect = toolbar.querySelector('[data-fmt="border"]');
         if (borderSelect) borderSelect.value = detectBorderType(f.borders);
+        const fontIndicator = toolbar.querySelector('[data-fmt="font-color"] .office-fmt-color-indicator');
+        if (fontIndicator) fontIndicator.style.borderBottomColor = f.fontColor || '#f6f7fb';
+        const fillIndicator = toolbar.querySelector('[data-fmt="fill-color"] .office-fmt-color-indicator');
+        if (fillIndicator) fillIndicator.style.background = f.fillColor || '#27c7a6';
     }
 
     function detectBorderType(borders) {

@@ -592,7 +592,9 @@
     background: transparent;
     color: var(--ds-color-fg-primary, #f6f7fb);
     padding: 0 10px;
-    font: inherit;
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
     caret-color: var(--vd-accent, #27c7a6);
 }
 

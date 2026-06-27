@@ -25,6 +25,10 @@ func TestGalaxaPremiumCodeDefinedSprites(t *testing.T) {
 		"function getPlayerSpriteFrame()",
 		"function enemySpriteFor(e)",
 		"ctx.enemySpriteFor = enemySpriteFor",
+		"SHEET_FRAMES",
+		"SHEET_STRIDE",
+		"ctx.SHEET_FRAMES = SHEET_FRAMES",
+		"typeof sp === 'string' && ctx.spriteSheet",
 	} {
 		if !strings.Contains(sprites, marker) {
 			t.Fatalf("galaxa premium sprites missing marker %q", marker)
@@ -38,6 +42,16 @@ func TestGalaxaPremiumCodeDefinedSprites(t *testing.T) {
 	} {
 		if !strings.Contains(render, marker) {
 			t.Fatalf("galaxa premium render missing marker %q", marker)
+		}
+	}
+
+	for _, marker := range []string{
+		"galaxa-spritesheet.png",
+		"new Image()",
+		"ctx.spriteSheet = sheetImg",
+	} {
+		if !strings.Contains(sprites, marker) {
+			t.Fatalf("galaxa sprites missing sprite sheet marker %q", marker)
 		}
 	}
 
