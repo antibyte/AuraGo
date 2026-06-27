@@ -138,3 +138,63 @@ func TestMissionV2AcceptsSecondsFieldCron(t *testing.T) {
 		t.Fatalf("cron jobs = %+v, want one registered scheduled mission", cronMgr.GetJobs())
 	}
 }
+
+func TestHandleMissionRemoveFromQueuePersistsState(t *testing.T) {
+	allowMissionMutationsForTest(t)
+
+	dir := t.TempDir()
+	mgr := tools.NewMissionManagerV2(dir, nil)
+	if err := mgr.Create(&tools.MissionV2{
+		ID:            "mission_queue_remove",
+		Name:          "Queue remove",
+		Prompt:        "run",
+		ExecutionType: tools.ExecutionManual,
+		Enabled:       true,
+	}); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if err := mgr.RunNow("mission_queue_remove"); err != nil {
+		t.Fatalf("RunNow: %v", err)
+	}
+
+	s := &Server{MissionManagerV2: mgr}
+	req := httptest.NewRequest(http.MethodDelete, "/api/missions/v2/mission_queue_remove/queue", nil)
+	rr := httptest.NewRecorder()
+	handleMissionRemoveFromQueue(s, rr, req, "mission_queue_remove")
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%s, want 200", rr.Code, rr.Body.String())
+	}
+
+	restarted := tools.NewMissionManagerV2(dir, nil)
+	if err := restarted.Start(); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	defer restarted.Stop()
+
+	got, ok := restarted.Get("mission_queue_remove")
+	if !ok {
+		t.Fatal("mission missing after restart")
+	}
+	if got.Status != tools.MissionStatusIdle {
+		t.Fatalf("status = %q, want idle", got.Status)
+	}
+	queue, _ := restarted.GetQueue()
+	if len(queue.List()) != 0 {
+		t.Fatalf("queue = %+v, want empty after persisted remove", queue.List())
+	}
+}
+
+func TestHandleMissionRemoveFromQueueReturnsNotFound(t *testing.T) {
+	allowMissionMutationsForTest(t)
+
+	mgr := tools.NewMissionManagerV2(t.TempDir(), nil)
+	s := &Server{MissionManagerV2: mgr}
+	req := httptest.NewRequest(http.MethodDelete, "/api/missions/v2/missing_mission/queue", nil)
+	rr := httptest.NewRecorder()
+	handleMissionRemoveFromQueue(s, rr, req, "missing_mission")
+
+	if rr.Code != http.StatusNotFound {
+		t.Fatalf("status = %d body=%s, want 404", rr.Code, rr.Body.String())
+	}
+}

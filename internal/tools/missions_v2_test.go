@@ -1652,3 +1652,93 @@ func TestScheduledMissionNotRegisteredWhenDisabled(t *testing.T) {
 		}
 	}
 }
+
+func TestRemoveFromQueuePersistsAndResetsStatus(t *testing.T) {
+	tmpDir := tempSystemTaskDir(t)
+	mm := NewMissionManagerV2(tmpDir, nil)
+	if err := mm.Create(&MissionV2{
+		ID:            "queued-remove",
+		Name:          "Queued remove",
+		Prompt:        "run",
+		ExecutionType: ExecutionManual,
+		Priority:      "medium",
+		Enabled:       true,
+	}); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if err := mm.RunNow("queued-remove"); err != nil {
+		t.Fatalf("RunNow: %v", err)
+	}
+	if err := mm.RemoveFromQueue("queued-remove"); err != nil {
+		t.Fatalf("RemoveFromQueue: %v", err)
+	}
+
+	got, ok := mm.Get("queued-remove")
+	if !ok {
+		t.Fatal("mission missing after remove from queue")
+	}
+	if got.Status != MissionStatusIdle {
+		t.Fatalf("status = %q, want idle", got.Status)
+	}
+	queue, _ := mm.GetQueue()
+	if len(queue.List()) != 0 {
+		t.Fatalf("queue items = %+v, want empty", queue.List())
+	}
+
+	restarted := NewMissionManagerV2(tmpDir, nil)
+	if err := restarted.Start(); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	defer restarted.Stop()
+
+	reloaded, ok := restarted.Get("queued-remove")
+	if !ok {
+		t.Fatal("mission missing after restart")
+	}
+	if reloaded.Status != MissionStatusIdle {
+		t.Fatalf("persisted status = %q, want idle", reloaded.Status)
+	}
+	restartedQueue, _ := restarted.GetQueue()
+	if len(restartedQueue.List()) != 0 {
+		t.Fatalf("restored queue = %+v, want empty", restartedQueue.List())
+	}
+}
+
+func TestRemoveFromQueueRejectsRunningMission(t *testing.T) {
+	mm := NewMissionManagerV2(tempSystemTaskDir(t), nil)
+	mm.missions["running-remove"] = &MissionV2{
+		ID:      "running-remove",
+		Name:    "Running",
+		Enabled: true,
+		Status:  MissionStatusRunning,
+	}
+	mm.queue.Restore(nil, "running-remove")
+
+	err := mm.RemoveFromQueue("running-remove")
+	if err == nil || !strings.Contains(err.Error(), "cannot remove running") {
+		t.Fatalf("RemoveFromQueue error = %v, want running rejection", err)
+	}
+}
+
+func TestRemoveFromQueueResetsOrphanQueuedStatus(t *testing.T) {
+	tmpDir := tempSystemTaskDir(t)
+	mm := NewMissionManagerV2(tmpDir, nil)
+	mm.missions["orphan-queued"] = &MissionV2{
+		ID:       "orphan-queued",
+		Name:     "Orphan",
+		Priority: "medium",
+		Enabled:  true,
+		Status:   MissionStatusQueued,
+	}
+	if err := mm.save(); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+
+	if err := mm.RemoveFromQueue("orphan-queued"); err != nil {
+		t.Fatalf("RemoveFromQueue: %v", err)
+	}
+	got, _ := mm.Get("orphan-queued")
+	if got.Status != MissionStatusIdle {
+		t.Fatalf("status = %q, want idle", got.Status)
+	}
+}

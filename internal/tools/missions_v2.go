@@ -1653,6 +1653,35 @@ func (m *MissionManagerV2) SetRemoteResultFromNest(nestID, id, result, output st
 	return m.save()
 }
 
+// RemoveFromQueue removes a queued mission, resets its status to idle, and persists state.
+func (m *MissionManagerV2) RemoveFromQueue(id string) error {
+	if err := requireMissionMutationPermission(); err != nil {
+		return err
+	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.queue.GetRunning() == id {
+		return fmt.Errorf("cannot remove running mission from queue")
+	}
+
+	removed := m.queue.Remove(id)
+	mission, exists := m.missions[id]
+	statusWasQueued := exists && mission.Status == MissionStatusQueued
+	if !removed && !statusWasQueued {
+		return fmt.Errorf("mission not in queue")
+	}
+
+	if statusWasQueued {
+		mission.Status = MissionStatusIdle
+	}
+	if err := m.saveQueueLocked(); err != nil {
+		return err
+	}
+	return m.save()
+}
+
 // RunNow triggers a mission immediately (bypasses queue for manual execution)
 func (m *MissionManagerV2) RunNow(id string) error {
 	if err := requireMissionMutationPermission(); err != nil {

@@ -49,8 +49,10 @@ func missionErrorStatus(err error) int {
 		return http.StatusNotFound
 	case strings.Contains(msg, "required"), strings.Contains(msg, "not supported"), strings.Contains(msg, "disabled"):
 		return http.StatusBadRequest
-	case strings.Contains(msg, "not connected"), strings.Contains(msg, "timed out"):
+	case strings.Contains(msg, "not connected"), strings.Contains(msg, "timed out"), strings.Contains(msg, "cannot remove running"):
 		return http.StatusConflict
+	case strings.Contains(msg, "not in queue"):
+		return http.StatusNotFound
 	default:
 		return http.StatusInternalServerError
 	}
@@ -307,18 +309,13 @@ func handleMissionTriggerV2(s *Server, w http.ResponseWriter, r *http.Request, i
 }
 
 func handleMissionRemoveFromQueue(s *Server, w http.ResponseWriter, r *http.Request, id string) {
-	queue, _ := s.MissionManagerV2.GetQueue()
-	if queue.GetRunning() == id {
-		jsonError(w, "Cannot remove running mission from queue", http.StatusConflict)
+	if err := s.MissionManagerV2.RemoveFromQueue(id); err != nil {
+		jsonError(w, err.Error(), missionErrorStatus(err))
 		return
 	}
-	if removed := queue.Remove(id); removed {
-		broadcastMissionState(s)
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{"status": "removed"})
-		return
-	}
-	jsonError(w, "mission not in queue", http.StatusNotFound)
+	broadcastMissionState(s)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"status": "removed"})
 }
 
 // handleMissionQueue returns the current queue status
