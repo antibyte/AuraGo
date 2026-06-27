@@ -183,9 +183,21 @@
                 <tbody>${rows.map((row, r) => `<tr><th data-row-header="${r}">${r + 1}</th>${row.map((cell, c) => `<td data-cell-row="${r}" data-cell-col="${c}" class="${esc(cellClass(r, c))}"><input data-row="${r}" data-col="${c}" ${cellInputAttributes(cell, sheet)} spellcheck="false" ${readonly ? 'readonly' : ''}></td>`).join('')}</tr>`).join('')}</tbody>
             </table>`;
             wireGrid();
+            applyCellFormats(sheet);
             applyReadonlyState();
             renderSelection();
             updateStatusBar();
+        }
+
+        function applyCellFormats(sheet) {
+            if (!formatModule || !sheet || !sheet.rows) return;
+            gridHost.querySelectorAll('td[data-cell-row][data-cell-col]').forEach(td => {
+                const row = Number(td.dataset.cellRow);
+                const col = Number(td.dataset.cellCol);
+                const cell = sheet.rows[row] && sheet.rows[row][col];
+                const input = td.querySelector('input');
+                formatModule.renderFormatStyles(td, input, cell && cell.format);
+            });
         }
 
         function wireGrid() {
@@ -1145,18 +1157,34 @@
 
     function maxCols(rows) { return Math.max(0, ...((rows || []).map(row => Array.isArray(row) ? row.length : 0))); }
 
-    function displayCell(cell) {
+    function displayCell(cell, applyNumFormat) {
         if (!cell) return '';
         if (cell.formula) return '=' + String(cell.formula);
-        return cell.value || '';
+        const raw = cell.value || '';
+        if (applyNumFormat && cell.format && cell.format.numFormat) {
+            const fmtMod = window.SheetsFormat;
+            return fmtMod ? fmtMod.formatDisplayValue(raw, cell.format.numFormat) : raw;
+        }
+        return raw;
     }
 
     function cellInputAttributes(cell, sheet) {
-        if (!cell || !cell.formula) return `value="${displayCell(cell).replace(/&/g, '&amp;').replace(/"/g, '&quot;')}"`;
+        const fmtMod = window.SheetsFormat;
+        const numFmt = cell && cell.format && cell.format.numFormat;
+        if (!cell || !cell.formula) {
+            const raw = cell ? (cell.value || '') : '';
+            const display = (numFmt && fmtMod) ? fmtMod.formatDisplayValue(raw, numFmt) : raw;
+            const escDisplay = display.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+            const escRaw = raw.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+            let attrs = `value="${escDisplay}" data-raw-value="${escRaw}"`;
+            if (numFmt) attrs += ` data-num-format="${numFmt.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}"`;
+            return attrs;
+        }
         const formula = String(cell.formula).replace(/^=/, '');
         const evaluate = (window.SheetsFormulas && window.SheetsFormulas.evaluate) || (() => '#ERR');
-        const displayValue = evaluate(sheet, formula);
-        return `value="${displayValue.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}" data-formula="${formula.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}" data-display-value="${displayValue.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}" title="=${formula.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}"`;
+        const rawResult = evaluate(sheet, formula);
+        const displayValue = (numFmt && fmtMod) ? fmtMod.formatDisplayValue(rawResult, numFmt) : rawResult;
+        return `value="${displayValue.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}" data-formula="${formula.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}" data-display-value="${rawResult.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}" data-raw-value="${rawResult.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}" title="=${formula.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}"`;
     }
 
         function syncFormulaDataset(input, cell, sheet) {
@@ -1179,14 +1207,18 @@
             const sheet = workbook.sheets[activeSheet];
             if (!sheet || !sheet.rows) return;
             const evaluate = (window.SheetsFormulas && window.SheetsFormulas.evaluate) || (() => '#ERR');
+            const fmtMod = window.SheetsFormat;
             sheet.rows.forEach((row, r) => {
                 if (!Array.isArray(row)) return;
                 row.forEach((cell, c) => {
                     if (!cell || !cell.formula) return;
                     const input = gridHost.querySelector(`input[data-row="${r}"][data-col="${c}"]`);
                     if (!input) return;
-                    const displayValue = evaluate(sheet, cell.formula);
-                    input.dataset.displayValue = displayValue;
+                    const rawResult = evaluate(sheet, cell.formula);
+                    input.dataset.displayValue = rawResult;
+                    input.dataset.rawValue = rawResult;
+                    const numFmt = cell.format && cell.format.numFormat;
+                    const displayValue = (numFmt && fmtMod) ? fmtMod.formatDisplayValue(rawResult, numFmt) : rawResult;
                     if (document.activeElement !== input) {
                         input.value = displayValue;
                     }
@@ -1195,13 +1227,25 @@
         }
 
     function showFormulaForEditing(input) {
-        if (!input || !input.dataset.formula) return;
-        input.value = '=' + input.dataset.formula;
+        if (!input) return;
+        if (input.dataset.formula) {
+            input.value = '=' + input.dataset.formula;
+        } else if (input.dataset.rawValue && input.dataset.numFormat) {
+            input.value = input.dataset.rawValue;
+        }
     }
 
     function showFormulaResult(input) {
-        if (!input || !input.dataset.formula) return;
-        input.value = input.dataset.displayValue || '';
+        if (!input) return;
+        if (input.dataset.formula) {
+            const fmtMod = window.SheetsFormat;
+            const raw = input.dataset.displayValue || input.dataset.rawValue || '';
+            const numFmt = input.dataset.numFormat;
+            input.value = (numFmt && fmtMod) ? fmtMod.formatDisplayValue(raw, numFmt) : raw;
+        } else if (input.dataset.rawValue && input.dataset.numFormat) {
+            const fmtMod = window.SheetsFormat;
+            input.value = fmtMod ? fmtMod.formatDisplayValue(input.dataset.rawValue, input.dataset.numFormat) : input.dataset.rawValue;
+        }
     }
 
     function cellNameFallback(row, col) {

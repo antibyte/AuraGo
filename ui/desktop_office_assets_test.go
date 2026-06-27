@@ -153,9 +153,23 @@ func TestDesktopSheetsEnhancedFeatures(t *testing.T) {
 		"renderToolbar",
 		"applyFormat",
 		"renderFormatStyles",
+		"formatDisplayValue",
+		"renderBorderStyle",
 	} {
 		if !strings.Contains(formatJS, marker) {
 			t.Fatalf("sheets-format.js missing marker %q", marker)
+		}
+	}
+
+	// Verify sheets.js actually invokes the format renderer (prevents silent regression)
+	for _, marker := range []string{
+		"applyCellFormats",
+		"formatModule.renderFormatStyles",
+		"data-raw-value",
+		"data-num-format",
+	} {
+		if !strings.Contains(sheetsJS, marker) {
+			t.Fatalf("sheets.js missing format wiring marker %q", marker)
 		}
 	}
 

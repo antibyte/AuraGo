@@ -144,6 +144,7 @@
         if (format.fontColor) style.push('color:' + format.fontColor);
         if (format.fillColor) style.push('background:' + format.fillColor);
         if (format.hAlign) style.push('text-align:' + format.hAlign);
+        renderBorderStyle(style, format.borders);
         if (style.length) td.style.cssText = style.join(';');
         if (input) {
             const inputStyle = [];
@@ -153,6 +154,44 @@
             if (format.fontColor) inputStyle.push('color:' + format.fontColor);
             if (format.hAlign) inputStyle.push('text-align:' + format.hAlign);
             if (inputStyle.length) input.style.cssText = inputStyle.join(';');
+        }
+    }
+
+    function renderBorderStyle(style, borders) {
+        if (!borders) return;
+        const borderCss = (b) => {
+            const w = b.style === 'medium' ? '2px' : '1px';
+            const s = b.style === 'none' ? 'none' : 'solid';
+            const c = b.color || '#000000';
+            return w + ' ' + s + ' ' + c;
+        };
+        if (borders.top) style.push('border-top:' + borderCss(borders.top));
+        if (borders.bottom) style.push('border-bottom:' + borderCss(borders.bottom));
+        if (borders.left) style.push('border-left:' + borderCss(borders.left));
+        if (borders.right) style.push('border-right:' + borderCss(borders.right));
+    }
+
+    function formatDisplayValue(rawValue, numFormat) {
+        if (rawValue == null || rawValue === '') return '';
+        if (!numFormat) return String(rawValue);
+        const num = Number(rawValue);
+        if (!Number.isFinite(num)) return String(rawValue);
+        switch (numFormat) {
+            case '0': return String(Math.round(num));
+            case '0.00': return num.toFixed(2);
+            case '#,##0': return num.toLocaleString('en-US', { maximumFractionDigits: 0 });
+            case '$#,##0.00': return '$' + num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            case '0%': return (num * 100).toFixed(0) + '%';
+            case 'mm-dd-yy': {
+                const d = new Date(num);
+                if (isNaN(d.getTime())) return String(rawValue);
+                const mm = String(d.getMonth() + 1).padStart(2, '0');
+                const dd = String(d.getDate()).padStart(2, '0');
+                const yy = String(d.getFullYear()).slice(-2);
+                return mm + '-' + dd + '-' + yy;
+            }
+            case '@': return String(rawValue);
+            default: return String(rawValue);
         }
     }
 
@@ -192,6 +231,7 @@
         applyFormat: applyFormat,
         getFormatForCell: getFormatForCell,
         renderFormatStyles: renderFormatStyles,
-        updateToolbarState: updateToolbarState
+        updateToolbarState: updateToolbarState,
+        formatDisplayValue: formatDisplayValue
     };
 })();
