@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -538,6 +539,65 @@ func TestKGRunSemanticReindexDoesNotMarkPartialBatchOnFailure(t *testing.T) {
 	}
 	if dirtyNodes != 2 {
 		t.Fatalf("dirty nodes = %d, want both nodes to remain dirty after failed batch", dirtyNodes)
+	}
+}
+
+func TestKGRunSemanticReindexChunksDirtyEdgeEmbeddings(t *testing.T) {
+	kg := newTestKG(t)
+
+	var capture atomic.Bool
+	var mu sync.Mutex
+	callsByContext := make(map[uintptr]int)
+	embeddingFunc := func(ctx context.Context, text string) ([]float32, error) {
+		if capture.Load() {
+			rv := reflect.ValueOf(ctx)
+			if rv.Kind() == reflect.Ptr {
+				mu.Lock()
+				callsByContext[rv.Pointer()]++
+				mu.Unlock()
+			}
+		}
+		return []float32{float32(len(text)), 1}, nil
+	}
+	db := chromem.NewDB()
+	if err := kg.enableSemanticSearchWithCollection(db, embeddingFunc, nil); err != nil {
+		t.Fatalf("enableSemanticSearchWithCollection: %v", err)
+	}
+	waitForSemanticReindexIdle(t, kg)
+
+	for i := 0; i < 26; i++ {
+		if err := kg.AddEdge(fmt.Sprintf("source-%02d", i), fmt.Sprintf("target-%02d", i), "depends_on", map[string]string{"notes": "dirty edge reindex"}); err != nil {
+			t.Fatalf("AddEdge %d: %v", i, err)
+		}
+	}
+	if _, err := kg.db.Exec("UPDATE kg_edges SET semantic_indexed_at = NULL"); err != nil {
+		t.Fatalf("mark edges dirty: %v", err)
+	}
+
+	capture.Store(true)
+	if err := kg.RunSemanticReindex(); err != nil {
+		t.Fatalf("RunSemanticReindex: %v", err)
+	}
+	capture.Store(false)
+
+	maxCallsPerContext := 0
+	mu.Lock()
+	for _, calls := range callsByContext {
+		if calls > maxCallsPerContext {
+			maxCallsPerContext = calls
+		}
+	}
+	mu.Unlock()
+	if maxCallsPerContext > 25 {
+		t.Fatalf("max edge embedding calls per timeout context = %d, want <= 25", maxCallsPerContext)
+	}
+
+	_, dirtyEdges, err := kg.DirtySemanticCounts()
+	if err != nil {
+		t.Fatalf("DirtySemanticCounts: %v", err)
+	}
+	if dirtyEdges != 0 {
+		t.Fatalf("dirty edges = %d, want all dirty edges indexed", dirtyEdges)
 	}
 }
 

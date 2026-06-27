@@ -361,14 +361,21 @@ func (kg *KnowledgeGraph) upsertSemanticNodeReindexBatch(idx *kgsemantic.Index, 
 
 	idx.Mu.Lock()
 	defer idx.Mu.Unlock()
-	err := kg.retrySemanticEmbedding("node_reindex_batch", func(ctx context.Context) error {
-		return idx.Collection.AddDocuments(ctx, docs, 1)
-	})
-	if err != nil {
-		if idx.Logger != nil {
-			idx.Logger.Warn("KG semantic node batch reindex failed", "count", len(docs), "error", err)
+	for start := 0; start < len(docs); start += kgsemantic.ReindexDocumentBatchSize {
+		end := start + kgsemantic.ReindexDocumentBatchSize
+		if end > len(docs) {
+			end = len(docs)
 		}
-		return nil, fmt.Errorf("semantic node batch reindex: %w", err)
+		chunk := docs[start:end]
+		err := kg.retrySemanticEmbedding("node_reindex_batch", func(ctx context.Context) error {
+			return idx.Collection.AddDocuments(ctx, chunk, 1)
+		})
+		if err != nil {
+			if idx.Logger != nil {
+				idx.Logger.Warn("KG semantic node batch reindex failed", "count", len(chunk), "total", len(docs), "error", err)
+			}
+			return nil, fmt.Errorf("semantic node batch reindex: %w", err)
+		}
 	}
 	for id, content := range contentByID {
 		idx.SetContentCacheEntry(id, content)
@@ -406,14 +413,21 @@ func (kg *KnowledgeGraph) upsertSemanticEdgeReindexBatch(idx *kgsemantic.Index, 
 
 	idx.Mu.Lock()
 	defer idx.Mu.Unlock()
-	err := kg.retrySemanticEmbedding("edge_reindex_batch", func(ctx context.Context) error {
-		return idx.Collection.AddDocuments(ctx, docs, 1)
-	})
-	if err != nil {
-		if idx.Logger != nil {
-			idx.Logger.Warn("KG semantic edge batch reindex failed", "count", len(docs), "error", err)
+	for start := 0; start < len(docs); start += kgsemantic.ReindexDocumentBatchSize {
+		end := start + kgsemantic.ReindexDocumentBatchSize
+		if end > len(docs) {
+			end = len(docs)
 		}
-		return nil, fmt.Errorf("semantic edge batch reindex: %w", err)
+		chunk := docs[start:end]
+		err := kg.retrySemanticEmbedding("edge_reindex_batch", func(ctx context.Context) error {
+			return idx.Collection.AddDocuments(ctx, chunk, 1)
+		})
+		if err != nil {
+			if idx.Logger != nil {
+				idx.Logger.Warn("KG semantic edge batch reindex failed", "count", len(chunk), "total", len(docs), "error", err)
+			}
+			return nil, fmt.Errorf("semantic edge batch reindex: %w", err)
+		}
 	}
 	return indexedEdges, nil
 }
