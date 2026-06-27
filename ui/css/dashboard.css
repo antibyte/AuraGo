@@ -4111,14 +4111,14 @@
     border-bottom: 1px solid color-mix(in srgb, var(--border-subtle) 70%, transparent);
     background: color-mix(in srgb, var(--card-bg) 50%, transparent);
     vertical-align: middle;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
     transition: background 0.2s ease, border-color 0.2s ease;
 }
 .mh-table td:first-child {
     border-left: 1px solid color-mix(in srgb, var(--border-subtle) 70%, transparent);
     border-radius: 0.55rem 0 0 0.55rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 .mh-table td:last-child {
     border-right: 1px solid color-mix(in srgb, var(--border-subtle) 70%, transparent);
