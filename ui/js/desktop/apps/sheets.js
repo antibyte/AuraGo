@@ -724,7 +724,8 @@
             if (readonly || index < 0 || index >= workbook.sheets.length) return;
             pushSnapshot();
             const src = workbook.sheets[index];
-            const copy = { name: src.name + ' (' + t('desktop.fm.copy') + ')', rows: JSON.parse(JSON.stringify(src.rows || [])) };
+            const srcName = src.name || (t('desktop.sheets_sheet') + ' ' + (index + 1));
+            const copy = { name: srcName + ' (' + t('desktop.fm.copy') + ')', rows: JSON.parse(JSON.stringify(src.rows || [])) };
             workbook.sheets.splice(index + 1, 0, copy);
             activeSheet = index + 1;
             renderWorkbook();
@@ -1144,7 +1145,7 @@
         return body;
     }
 
-    function emptyWorkbook(path) { return { path, sheets: [{ name: 'Sheet1', rows: [] }] }; }
+    function emptyWorkbook(path) { return { path, sheets: [{ name: '', rows: [] }] }; }
 
     function nextUntitledPath(ext) {
         const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\..+$/, '').replace('T', '-');
@@ -1158,11 +1159,11 @@
     }
 
     function normalizeWorkbook(raw, path) {
-        const sheets = Array.isArray(raw.sheets) && raw.sheets.length ? raw.sheets : [{ name: 'Sheet1', rows: [] }];
+        const sheets = Array.isArray(raw.sheets) && raw.sheets.length ? raw.sheets : [{ name: '', rows: [] }];
         return {
             path: raw.path || path || DEFAULT_PATH,
             sheets: sheets.map((sheet, index) => ({
-                name: sheet.name || ('Sheet' + (index + 1)),
+                name: sheet.name || '',
                 rows: Array.isArray(sheet.rows) ? sheet.rows : []
             }))
         };
