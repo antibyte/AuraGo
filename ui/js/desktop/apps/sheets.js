@@ -70,8 +70,6 @@
         const statusLeft = host.querySelector('[data-status-left]');
         const statusRight = host.querySelector('[data-status-right]');
         if (typeof ctx.wireContextMenuBoundary === 'function') ctx.wireContextMenuBoundary(host);
-        const windowContent = host.closest('.vd-window-content');
-        if (windowContent) windowContent.classList.add('office-sheets-window-content');
 
         const formulas = window.SheetsFormulas;
         const formatModule = window.SheetsFormat;
@@ -504,6 +502,19 @@
         }
 
         function wireFormatToolbar(toolbar) {
+            function closeColorPicker(picker) {
+                if (!picker) return;
+                picker.hidden = true;
+                picker.classList.remove('is-fixed');
+                picker.style.top = '';
+                picker.style.left = '';
+            }
+            function positionColorPicker(btn, picker) {
+                const rect = btn.getBoundingClientRect();
+                picker.classList.add('is-fixed');
+                picker.style.top = rect.bottom + 'px';
+                picker.style.left = rect.left + 'px';
+            }
             toolbar.querySelectorAll('.office-fmt-btn[data-fmt]').forEach(btn => {
                 btn.addEventListener('click', () => {
                     const fmt = btn.dataset.fmt;
@@ -518,7 +529,7 @@
                     const dropdown = picker.closest('.office-fmt-dropdown');
                     const type = dropdown && dropdown.dataset.dropdown;
                     if (type) handleFormatChange(type === 'font-color' ? 'font-color' : 'fill-color', swatch.dataset.color);
-                    picker.hidden = true;
+                    closeColorPicker(picker);
                 });
                 const applyBtn = picker.querySelector('.office-color-apply');
                 if (applyBtn) {
@@ -527,7 +538,7 @@
                         const dropdown = picker.closest('.office-fmt-dropdown');
                         const type = dropdown && dropdown.dataset.dropdown;
                         if (type && input) handleFormatChange(type === 'font-color' ? 'font-color' : 'fill-color', input.value);
-                        picker.hidden = true;
+                        closeColorPicker(picker);
                     });
                 }
             });
@@ -536,8 +547,11 @@
                 const picker = dropdown.querySelector('.office-color-picker');
                 if (btn && picker) {
                     btn.addEventListener('click', () => {
-                        toolbar.querySelectorAll('.office-color-picker').forEach(p => { if (p !== picker) p.hidden = true; });
-                        picker.hidden = !picker.hidden;
+                        toolbar.querySelectorAll('.office-color-picker').forEach(p => { if (p !== picker) closeColorPicker(p); });
+                        const wasHidden = picker.hidden;
+                        picker.hidden = !wasHidden;
+                        if (wasHidden) positionColorPicker(btn, picker);
+                        else closeColorPicker(picker);
                     });
                 }
             });
@@ -548,7 +562,7 @@
             });
             const closePickersHandler = e => {
                 if (!e.target.closest('.office-fmt-dropdown')) {
-                    toolbar.querySelectorAll('.office-color-picker').forEach(p => p.hidden = true);
+                    toolbar.querySelectorAll('.office-color-picker').forEach(p => closeColorPicker(p));
                 }
             };
             document.addEventListener('click', closePickersHandler);
@@ -1081,7 +1095,7 @@
         setWindowMenus();
         load();
         const inst = instances.get(windowId);
-        if (inst) { inst.undo = undo; inst.redo = redo; inst.windowContent = windowContent; }
+        if (inst) { inst.undo = undo; inst.redo = redo; }
 
         function recalcFormulas() {
             const sheet = workbook.sheets[activeSheet];
@@ -1120,7 +1134,6 @@
         if (instance.autosaveTimer) clearTimeout(instance.autosaveTimer);
         if (typeof instance.closeSearch === 'function') instance.closeSearch();
         if (instance.formatClickHandler) document.removeEventListener('click', instance.formatClickHandler);
-        if (instance.windowContent) instance.windowContent.classList.remove('office-sheets-window-content');
         instances.delete(windowId);
     }
 
