@@ -14,6 +14,12 @@ let terminalResizeObserver = null;
 let terminalSessionToken = 0;
 let terminalFitScheduled = false;
 
+// Per-card render cache: id -> { html, el }.
+// Used by renderContainers() to update the grid in place instead of rebuilding
+// the entire innerHTML on every SSE update. Cards whose rendered HTML hasn't
+// changed are left alone — scroll position, focus and hover state survive.
+const cardRenderCache = new Map();
+
 // ── Initialization ──────────────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -96,15 +102,84 @@ function renderContainers() {
     const filtered = getFilteredContainers();
 
     if (filtered.length === 0) {
-        grid.style.display = 'none';
-        empty.style.display = '';
+        if (cardRenderCache.size > 0) {
+            grid.replaceChildren();
+            cardRenderCache.clear();
+        }
+        if (grid.style.display !== 'none') grid.style.display = 'none';
+        if (empty.style.display !== '') empty.style.display = '';
         return;
     }
-    empty.style.display = 'none';
-    grid.style.display = '';
+    if (grid.style.display !== '') grid.style.display = '';
+    if (empty.style.display !== 'none') empty.style.display = 'none';
 
-    grid.innerHTML = filtered.map(c => renderCard(c)).join('');
-    if (typeof applyI18n === 'function') applyI18n();
+    // Diff the new filtered list against the cached DOM. Cards that haven't
+    // changed are left untouched so scroll/focus/hover survive; only added,
+    // removed or changed cards trigger DOM mutations. Order is rebuilt by
+    // inserting each card after the previously placed one.
+    const newIds = new Set();
+    for (const c of filtered) newIds.add(c.id || '');
+
+    let mutated = false;
+
+    // Remove cards that disappeared from the filtered set.
+    for (const [id, entry] of cardRenderCache) {
+        if (!newIds.has(id)) {
+            entry.el.remove();
+            cardRenderCache.delete(id);
+            mutated = true;
+        }
+    }
+
+    let prevEl = null;
+    for (const c of filtered) {
+        const id = c.id || '';
+        const html = renderCard(c);
+        const existing = cardRenderCache.get(id);
+
+        if (existing) {
+            if (existing.html === html) {
+                // Unchanged: keep the live DOM node as-is.
+                prevEl = existing.el;
+                continue;
+            }
+            // Changed: replace the node in place.
+            const newEl = buildCardElement(html);
+            if (!newEl) continue;
+            existing.el.replaceWith(newEl);
+            cardRenderCache.set(id, { html, el: newEl });
+            prevEl = newEl;
+            mutated = true;
+            continue;
+        }
+
+        // New card: insert after prevEl (or at the top if none yet).
+        const newEl = buildCardElement(html);
+        if (!newEl) continue;
+        if (prevEl && prevEl.parentNode === grid) {
+            prevEl.after(newEl);
+        } else if (grid.firstChild) {
+            grid.insertBefore(newEl, grid.firstChild);
+        } else {
+            grid.appendChild(newEl);
+        }
+        cardRenderCache.set(id, { html, el: newEl });
+        prevEl = newEl;
+        mutated = true;
+    }
+
+    // Only re-apply i18n when DOM actually changed — text on untouched cards
+    // is already translated and would be needlessly re-walked otherwise.
+    if (mutated && typeof applyI18n === 'function') applyI18n();
+}
+
+// buildCardElement parses the renderCard HTML string into a real DOM element.
+// Uses a <template> so the children are inserted as elements (not as a text
+// node) without invoking any inline scripts.
+function buildCardElement(html) {
+    const tpl = document.createElement('template');
+    tpl.innerHTML = String(html || '').trim();
+    return tpl.content.firstElementChild;
 }
 
 function renderCard(c) {
