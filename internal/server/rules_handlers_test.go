@@ -105,3 +105,32 @@ func TestRulesHandlerRejectsTraversalID(t *testing.T) {
 		t.Fatalf("status = %d, want 400", rec.Code)
 	}
 }
+
+func TestSaveRuleOverrideDefaultsEnabledForNewRules(t *testing.T) {
+	t.Parallel()
+
+	promptsDir := filepath.Join(t.TempDir(), "prompts")
+	s := &Server{
+		Cfg:    &config.Config{},
+		Logger: slog.Default(),
+	}
+	s.Cfg.Rules.Enabled = true
+	s.Cfg.Directories.PromptsDir = promptsDir
+
+	// POST without explicit enabled field should default to true.
+	createBody := `{"id":"my-rule","title":"My Rule","priority":50,"tools":["filesystem"],"workflows":[],"keywords":[],"body":"body"}`
+	createRec := httptest.NewRecorder()
+	handleConfigRules(s).ServeHTTP(createRec, httptest.NewRequest(http.MethodPost, "/api/config/rules", bytes.NewBufferString(createBody)))
+	if createRec.Code != http.StatusOK {
+		t.Fatalf("create status = %d body=%s", createRec.Code, createRec.Body.String())
+	}
+
+	getRec := httptest.NewRecorder()
+	handleConfigRuleByID(s).ServeHTTP(getRec, httptest.NewRequest(http.MethodGet, "/api/config/rules/my-rule", nil))
+	if getRec.Code != http.StatusOK {
+		t.Fatalf("get status = %d body=%s", getRec.Code, getRec.Body.String())
+	}
+	if !strings.Contains(getRec.Body.String(), `"enabled":true`) {
+		t.Fatalf("expected new rule to default to enabled=true, got: %s", getRec.Body.String())
+	}
+}

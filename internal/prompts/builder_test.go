@@ -2359,6 +2359,59 @@ func TestTokenMultiplierUsesConservativeModelMargins(t *testing.T) {
 	}
 }
 
+func TestTaskRulesTruncatedOnce(t *testing.T) {
+	longRules := "## Rule\n" + strings.Repeat("a", 2000)
+	flags := &ContextFlags{
+		Tier:       "full",
+		TaskRules:  longRules,
+		SystemLanguage: "en",
+	}
+
+	prompt, _ := BuildSystemPromptContext(context.Background(), t.TempDir(), flags, "", slog.Default())
+
+	if !strings.Contains(prompt, "# TASK RULES") {
+		t.Fatal("expected # TASK RULES section")
+	}
+	// The section must be truncated to roughly the budget (900 chars) plus ellipsis marker.
+	idx := strings.Index(prompt, "# TASK RULES")
+	sectionEnd := strings.Index(prompt[idx+1:], "\n\n#")
+	if sectionEnd < 0 {
+		sectionEnd = len(prompt) - idx
+	} else {
+		sectionEnd += idx + 1
+	}
+	section := prompt[idx:sectionEnd]
+	if len(section) > 1100 {
+		t.Fatalf("TASK RULES section should be truncated, got %d chars", len(section))
+	}
+}
+
+func TestHomepageDesignSystemBudget(t *testing.T) {
+	longDesign := "## Design\n" + strings.Repeat("b", 2500)
+	flags := &ContextFlags{
+		Tier:                 "full",
+		HomepageDesignSystem: longDesign,
+		SystemLanguage:       "en",
+	}
+
+	prompt, _ := BuildSystemPromptContext(context.Background(), t.TempDir(), flags, "", slog.Default())
+
+	if !strings.Contains(prompt, "# HOMEPAGE DESIGN SYSTEM") {
+		t.Fatal("expected # HOMEPAGE DESIGN SYSTEM section")
+	}
+	idx := strings.Index(prompt, "# HOMEPAGE DESIGN SYSTEM")
+	sectionEnd := strings.Index(prompt[idx+1:], "\n\n#")
+	if sectionEnd < 0 {
+		sectionEnd = len(prompt) - idx
+	} else {
+		sectionEnd += idx + 1
+	}
+	section := prompt[idx:sectionEnd]
+	if len(section) > 1700 {
+		t.Fatalf("HOMEPAGE DESIGN SYSTEM section should be budgeted, got %d chars", len(section))
+	}
+}
+
 func containsString(values []string, needle string) bool {
 	for _, value := range values {
 		if value == needle {

@@ -101,6 +101,7 @@ func processPendingToolCalls(s *agentLoopState, ctx context.Context, lastUserMsg
 	}
 	trackActivityTool(&s.turnToolNames, &s.turnToolSummaries, ptc.Action, pResultContent)
 	recordPlanToolProgress(shortTermMem, sessionID, ptc, pResultContent, currentLogger)
+	recordLearnedRuleOutcome(shortTermMem, s.flags.InjectedLearnedRules, ptc.Action, policyResult.Failed, currentLogger)
 	broker.Send("tool_output", pResultContent)
 	emitMediaSSEEvents(broker, ptc.Action, pEventContent, cfg.Directories.DataDir)
 	broker.Send("tool_end", ptc.Action)
@@ -362,6 +363,7 @@ func executeAgentToolTurn(
 	toolAction = completeAgentToolAction(currentLogger, actionLedger, toolAction, policyResult, dispatchCtx.ExecutionTimeMs)
 	trackActivityTool(&s.turnToolNames, &s.turnToolSummaries, tc.Action, resultContent)
 	recordPlanToolProgress(shortTermMem, sessionID, tc, resultContent, currentLogger)
+	recordLearnedRuleOutcome(shortTermMem, s.flags.InjectedLearnedRules, tc.Action, policyResult.Failed, currentLogger)
 
 	broker.Send("tool_output", resultContent)
 	emitMediaSSEEvents(broker, tc.Action, eventContent, cfg.Directories.DataDir)
@@ -582,6 +584,7 @@ func executeAgentToolTurn(
 			}
 			trackActivityTool(&s.turnToolNames, &s.turnToolSummaries, btc.Action, bResult)
 			recordPlanToolProgress(shortTermMem, sessionID, btc, bResult, currentLogger)
+			recordLearnedRuleOutcome(shortTermMem, s.flags.InjectedLearnedRules, btc.Action, policyResult.Failed, currentLogger)
 			broker.Send("tool_output", bResult)
 			emitMediaSSEEvents(broker, btc.Action, bEventContent, cfg.Directories.DataDir)
 			broker.Send("tool_end", btc.Action)

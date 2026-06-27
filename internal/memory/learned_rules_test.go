@@ -4,6 +4,7 @@ import (
 	"io"
 	"log/slog"
 	"testing"
+	"time"
 )
 
 func setupLearnedRulesTest(t *testing.T) *SQLiteMemory {
@@ -245,5 +246,124 @@ func TestGetErrorCountInSession(t *testing.T) {
 	}
 	if count != 0 {
 		t.Errorf("expected count=0 for unknown, got %d", count)
+	}
+}
+
+func TestUpsertLearnedRuleDoesNotResetCreatedAt(t *testing.T) {
+	stm := setupLearnedRulesTest(t)
+
+	rule := &LearnedRule{ToolName: "docker_run", Pattern: "p1", Rule: "r1", Confidence: 0.5, Active: true}
+	if err := stm.UpsertLearnedRule(rule); err != nil {
+		t.Fatalf("upsert failed: %v", err)
+	}
+
+	rules, err := stm.GetActiveLearnedRules(1)
+	if err != nil {
+		t.Fatalf("get active failed: %v", err)
+	}
+	if len(rules) == 0 {
+		t.Fatal("expected 1 rule")
+	}
+	createdAt := rules[0].CreatedAt
+	updatedAt := rules[0].UpdatedAt
+	if createdAt.IsZero() {
+		t.Fatal("expected created_at to be set")
+	}
+
+	// Wait a moment to ensure timestamp difference.
+	time.Sleep(50 * time.Millisecond)
+
+	rule2 := &LearnedRule{ToolName: "docker_run", Pattern: "p1", Rule: "r1 updated", Confidence: 0.6, Active: true}
+	if err := stm.UpsertLearnedRule(rule2); err != nil {
+		t.Fatalf("second upsert failed: %v", err)
+	}
+
+	rules, err = stm.GetActiveLearnedRules(1)
+	if err != nil {
+		t.Fatalf("get active after update failed: %v", err)
+	}
+	if len(rules) == 0 {
+		t.Fatal("expected 1 rule after update")
+	}
+	if !rules[0].CreatedAt.Equal(createdAt) {
+		t.Fatalf("created_at changed on upsert: before=%v after=%v", createdAt, rules[0].CreatedAt)
+	}
+	if !rules[0].UpdatedAt.After(updatedAt) {
+		t.Fatalf("updated_at did not advance: before=%v after=%v", updatedAt, rules[0].UpdatedAt)
+	}
+}
+
+func TestCleanOldLearnedRulesUsesUpdatedAt(t *testing.T) {
+	stm := setupLearnedRulesTest(t)
+
+	rule := &LearnedRule{ToolName: "old_tool", Pattern: "p1", Rule: "r1", Confidence: 0.5, Hits: 5, Active: true}
+	if err := stm.UpsertLearnedRule(rule); err != nil {
+		t.Fatalf("upsert failed: %v", err)
+	}
+
+	// Sleep then update the rule so updated_at is recent even though the
+	// original created_at is older.
+	time.Sleep(50 * time.Millisecond)
+	rule2 := &LearnedRule{ToolName: "old_tool", Pattern: "p1", Rule: "r1 updated", Confidence: 0.5, Hits: 5, Active: true}
+	if err := stm.UpsertLearnedRule(rule2); err != nil {
+		t.Fatalf("second upsert failed: %v", err)
+	}
+
+	// Cleanup with 0 days should delete only rules whose updated_at is old.
+	// Because we just updated it, nothing should be deleted.
+	deleted, err := stm.CleanOldLearnedRules(0.1, 0)
+	if err != nil {
+		t.Fatalf("clean failed: %v", err)
+	}
+	if deleted != 0 {
+		t.Fatalf("expected 0 deleted because updated_at is recent, got %d", deleted)
+	}
+}
+
+func TestRecordLearnedRuleHitUpdatesConfidence(t *testing.T) {
+	stm := setupLearnedRulesTest(t)
+
+	rule := &LearnedRule{ToolName: "docker_run", Pattern: "p1", Rule: "r1", Confidence: 0.5, Active: true}
+	if err := stm.UpsertLearnedRule(rule); err != nil {
+		t.Fatalf("upsert failed: %v", err)
+	}
+
+	rules, err := stm.GetActiveLearnedRules(1)
+	if err != nil {
+		t.Fatalf("get active failed: %v", err)
+	}
+	if len(rules) == 0 {
+		t.Fatal("expected 1 rule")
+	}
+	id := rules[0].ID
+
+	if err := stm.RecordLearnedRuleHit(id); err != nil {
+		t.Fatalf("hit failed: %v", err)
+	}
+
+	rules, err = stm.GetActiveLearnedRules(1)
+	if err != nil {
+		t.Fatalf("get active after hit failed: %v", err)
+	}
+	if rules[0].Confidence <= 0.5 {
+		t.Errorf("expected confidence to increase after hit, got %f", rules[0].Confidence)
+	}
+	if rules[0].Hits != 1 {
+		t.Errorf("expected hits=1, got %d", rules[0].Hits)
+	}
+	if rules[0].Misses != 0 {
+		t.Errorf("expected misses=0, got %d", rules[0].Misses)
+	}
+
+	if err := stm.RecordLearnedRuleMiss(id); err != nil {
+		t.Fatalf("miss failed: %v", err)
+	}
+
+	rules, err = stm.GetActiveLearnedRules(1)
+	if err != nil {
+		t.Fatalf("get active after miss failed: %v", err)
+	}
+	if rules[0].Misses != 1 {
+		t.Errorf("expected misses=1, got %d", rules[0].Misses)
 	}
 }

@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"database/sql"
 	"fmt"
 	"time"
 	"unicode/utf8"
@@ -18,9 +19,11 @@ type LearnedRule struct {
 	Misses     int       `json:"misses"`
 	Active     bool      `json:"active"`
 	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
 }
 
 // InitLearnedRulesTable creates the learned_rules table and indexes.
+// It also migrates existing tables to add an updated_at column.
 func (s *SQLiteMemory) InitLearnedRulesTable() error {
 	schema := `
 	CREATE TABLE IF NOT EXISTS learned_rules (
@@ -33,6 +36,7 @@ func (s *SQLiteMemory) InitLearnedRulesTable() error {
 		misses INTEGER DEFAULT 0,
 		active BOOLEAN DEFAULT 1,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		UNIQUE(tool_name, pattern)
 	);
 	CREATE INDEX IF NOT EXISTS idx_learned_tool ON learned_rules(tool_name);
@@ -40,6 +44,48 @@ func (s *SQLiteMemory) InitLearnedRulesTable() error {
 
 	if _, err := s.db.Exec(schema); err != nil {
 		return fmt.Errorf("learned_rules schema: %w", err)
+	}
+
+	if err := s.migrateLearnedRulesUpdatedAt(); err != nil {
+		return fmt.Errorf("learned_rules migration: %w", err)
+	}
+	return nil
+}
+
+// migrateLearnedRulesUpdatedAt adds the updated_at column to older tables.
+func (s *SQLiteMemory) migrateLearnedRulesUpdatedAt() error {
+	rows, err := s.db.Query(`PRAGMA table_info(learned_rules)`)
+	if err != nil {
+		return fmt.Errorf("table_info: %w", err)
+	}
+	defer rows.Close()
+
+	hasUpdatedAt := false
+	for rows.Next() {
+		var cid int
+		var name string
+		var typ string
+		var notNull int
+		var dfltValue sql.NullString
+		var pk int
+		if err := rows.Scan(&cid, &name, &typ, &notNull, &dfltValue, &pk); err != nil {
+			return fmt.Errorf("scan table_info: %w", err)
+		}
+		if name == "updated_at" {
+			hasUpdatedAt = true
+			break
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	if hasUpdatedAt {
+		return nil
+	}
+
+	_, err = s.db.Exec(`ALTER TABLE learned_rules ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP`)
+	if err != nil {
+		return fmt.Errorf("add updated_at: %w", err)
 	}
 	return nil
 }
@@ -64,14 +110,14 @@ func (s *SQLiteMemory) UpsertLearnedRule(rule *LearnedRule) error {
 	now := time.Now().UTC()
 
 	_, err := s.db.Exec(`
-		INSERT INTO learned_rules (tool_name, pattern, rule, confidence, hits, misses, active, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO learned_rules (tool_name, pattern, rule, confidence, hits, misses, active, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(tool_name, pattern) DO UPDATE SET
 			rule = excluded.rule,
 			confidence = CASE WHEN learned_rules.confidence + 0.05 > 0.95 THEN 0.95 ELSE learned_rules.confidence + 0.05 END,
 			hits = learned_rules.hits + 1,
-			created_at = excluded.created_at
-	`, rule.ToolName, rule.Pattern, rule.Rule, rule.Confidence, rule.Hits, rule.Misses, rule.Active, now)
+			updated_at = excluded.updated_at
+	`, rule.ToolName, rule.Pattern, rule.Rule, rule.Confidence, rule.Hits, rule.Misses, rule.Active, now, now)
 	if err != nil {
 		return fmt.Errorf("upsert learned rule: %w", err)
 	}
@@ -86,10 +132,10 @@ func (s *SQLiteMemory) GetActiveLearnedRules(limit int) ([]LearnedRule, error) {
 	}
 
 	rows, err := s.db.Query(`
-		SELECT id, tool_name, pattern, rule, confidence, hits, misses, active, created_at
+		SELECT id, tool_name, pattern, rule, confidence, hits, misses, active, created_at, updated_at
 		FROM learned_rules
 		WHERE active = 1
-		ORDER BY confidence DESC, hits DESC, created_at DESC
+		ORDER BY confidence DESC, hits DESC, updated_at DESC
 		LIMIT ?
 	`, limit)
 	if err != nil {
@@ -101,7 +147,7 @@ func (s *SQLiteMemory) GetActiveLearnedRules(limit int) ([]LearnedRule, error) {
 	for rows.Next() {
 		var r LearnedRule
 		var active int
-		if err := rows.Scan(&r.ID, &r.ToolName, &r.Pattern, &r.Rule, &r.Confidence, &r.Hits, &r.Misses, &active, &r.CreatedAt); err != nil {
+		if err := rows.Scan(&r.ID, &r.ToolName, &r.Pattern, &r.Rule, &r.Confidence, &r.Hits, &r.Misses, &active, &r.CreatedAt, &r.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scan learned rule: %w", err)
 		}
 		r.Active = active != 0
@@ -122,7 +168,7 @@ func (s *SQLiteMemory) GetLearnedRulesForTools(toolNames []string, limit int) ([
 	}
 
 	query := `
-		SELECT id, tool_name, pattern, rule, confidence, hits, misses, active, created_at
+		SELECT id, tool_name, pattern, rule, confidence, hits, misses, active, created_at, updated_at
 		FROM learned_rules
 		WHERE active = 1 AND tool_name IN (`
 	args := make([]interface{}, 0, len(toolNames)+1)
@@ -134,7 +180,7 @@ func (s *SQLiteMemory) GetLearnedRulesForTools(toolNames []string, limit int) ([
 		args = append(args, name)
 	}
 	query += `)
-		ORDER BY confidence DESC, hits DESC, created_at DESC
+		ORDER BY confidence DESC, hits DESC, updated_at DESC
 		LIMIT ?`
 	args = append(args, limit)
 
@@ -148,7 +194,7 @@ func (s *SQLiteMemory) GetLearnedRulesForTools(toolNames []string, limit int) ([
 	for rows.Next() {
 		var r LearnedRule
 		var active int
-		if err := rows.Scan(&r.ID, &r.ToolName, &r.Pattern, &r.Rule, &r.Confidence, &r.Hits, &r.Misses, &active, &r.CreatedAt); err != nil {
+		if err := rows.Scan(&r.ID, &r.ToolName, &r.Pattern, &r.Rule, &r.Confidence, &r.Hits, &r.Misses, &active, &r.CreatedAt, &r.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scan learned rule: %w", err)
 		}
 		r.Active = active != 0
@@ -162,7 +208,8 @@ func (s *SQLiteMemory) RecordLearnedRuleHit(ruleID int64) error {
 	_, err := s.db.Exec(`
 		UPDATE learned_rules
 		SET hits = hits + 1,
-		    confidence = CASE WHEN confidence + 0.02 > 0.99 THEN 0.99 ELSE confidence + 0.02 END
+		    confidence = CASE WHEN confidence + 0.02 > 0.99 THEN 0.99 ELSE confidence + 0.02 END,
+		    updated_at = CURRENT_TIMESTAMP
 		WHERE id = ?
 	`, ruleID)
 	return err
@@ -173,7 +220,8 @@ func (s *SQLiteMemory) RecordLearnedRuleMiss(ruleID int64) error {
 	_, err := s.db.Exec(`
 		UPDATE learned_rules
 		SET misses = misses + 1,
-		    confidence = CASE WHEN confidence - 0.05 < 0.1 THEN 0.1 ELSE confidence - 0.05 END
+		    confidence = CASE WHEN confidence - 0.05 < 0.1 THEN 0.1 ELSE confidence - 0.05 END,
+		    updated_at = CURRENT_TIMESTAMP
 		WHERE id = ?
 	`, ruleID)
 	return err
@@ -204,7 +252,7 @@ func (s *SQLiteMemory) CleanOldLearnedRules(minConfidence float64, maxAgeDays in
 	res, err := s.db.Exec(`
 		DELETE FROM learned_rules
 		WHERE confidence < ?
-		   OR (hits = 0 AND created_at < ?)
+		   OR (hits = 0 AND updated_at < ?)
 	`, minConfidence, cutoff)
 	if err != nil {
 		return 0, fmt.Errorf("clean old learned rules: %w", err)

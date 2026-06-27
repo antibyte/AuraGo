@@ -920,6 +920,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			rules, lrErr := shortTermMem.GetLearnedRulesForTools(recentTools, 3)
 			if lrErr == nil && len(rules) > 0 {
 				flags.LearnedRulesContext = buildLearnedRulesContext(rules, 120)
+				flags.InjectedLearnedRules = append([]memory.LearnedRule(nil), rules...)
 			}
 		}
 
@@ -1048,7 +1049,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		for tool := range s.sessionUsedTools {
 			ruleTools = append(ruleTools, tool)
 		}
-		applyTaskRulePromptContext(&flags, buildTaskRulePromptContext(cfg, initialUserMsg, ruleTools, nil, s.homepageRuleProjectDir))
+		applyTaskRulePromptContext(&flags, buildTaskRulePromptContext(cfg, initialUserMsg, ruleTools, nil, s.homepageRuleProjectDir, s.currentLogger))
 		applyRuntimePromptContextPolicy(&flags, runtimePromptContextOptions{
 			UserText:         lastUserMsg,
 			MessageSource:    flags.MessageSource,

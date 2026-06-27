@@ -232,6 +232,7 @@ type ContextFlags struct {
 	KnowledgeContext         string // Relevant KG entities injected from SearchForContext
 	ErrorPatternContext      string // Known error patterns with resolutions for agent learning
 	LearnedRulesContext      string // Learned action rules from recurring errors/recovery
+	InjectedLearnedRules     []memory.LearnedRule // Rules injected this turn (for hit/miss tracking)
 	ReuseContext             string // Reuse-first lookup hints for non-trivial tasks
 	ChatChannelsContext      string // Reachable chat/notification channels for this runtime
 	TaskRules                string // Task-scoped markdown rules selected for the current request/tools
@@ -764,9 +765,9 @@ func buildSystemPromptInnerContext(ctx context.Context, promptsDir string, flags
 		finalPrompt.WriteString(taskRules)
 		finalPrompt.WriteString("\n\n")
 	}
-	if strings.TrimSpace(flags.HomepageDesignSystem) != "" {
+	if designSystem := compactHomepageDesignSystemForPrompt(flags.HomepageDesignSystem); designSystem != "" {
 		finalPrompt.WriteString("# HOMEPAGE DESIGN SYSTEM\n")
-		finalPrompt.WriteString(strings.TrimSpace(flags.HomepageDesignSystem))
+		finalPrompt.WriteString(designSystem)
 		finalPrompt.WriteString("\n\n")
 	}
 
@@ -1099,6 +1100,7 @@ const (
 	maxUnifiedMemoryBlockChars       = 1500
 	maxUnifiedMemorySectionBodyChars = 520
 	maxTaskRulesPromptChars          = 900
+	maxHomepageDesignSystemChars     = 1500
 )
 
 func compactCoreMemoryForPrompt(coreMemory string) string {
@@ -1293,6 +1295,14 @@ func compactTaskRulesForPrompt(taskRules string) string {
 		return ""
 	}
 	return truncateWithEllipsis(taskRules, maxTaskRulesPromptChars)
+}
+
+func compactHomepageDesignSystemForPrompt(designSystem string) string {
+	designSystem = strings.TrimSpace(designSystem)
+	if designSystem == "" {
+		return ""
+	}
+	return truncateWithEllipsis(designSystem, maxHomepageDesignSystemChars)
 }
 
 func buildCompactPersonaSignals(flags *ContextFlags) string {

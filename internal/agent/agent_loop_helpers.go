@@ -1539,7 +1539,6 @@ const (
 	aggressiveReuseContextChars      = 700
 	aggressiveAvailableContextChars  = 1600
 	runtimeOperationalIssueChars     = 600
-	runtimeTaskRulesChars            = 900
 )
 
 type promptMemoryEntry struct {
@@ -1857,7 +1856,6 @@ func applyRuntimePromptContextBudgets(flags *prompts.ContextFlags) {
 		return
 	}
 	flags.OperationalIssueReminder = compactMemoryForPrompt(flags.OperationalIssueReminder, runtimeOperationalIssueChars)
-	flags.TaskRules = compactMemoryForPrompt(flags.TaskRules, runtimeTaskRulesChars)
 }
 
 func shouldInjectReachableChatChannelsContext(userText, messageSource string, recentTools []string, sessionUsed map[string]bool) bool {

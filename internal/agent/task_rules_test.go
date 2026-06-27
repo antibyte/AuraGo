@@ -29,7 +29,7 @@ func TestBuildTaskRulePromptContextSelectsHomepageRuleAndProjectDesign(t *testin
 	cfg.Directories.PromptsDir = promptsDir
 	cfg.Homepage.WorkspacePath = workspace
 
-	ctx := buildTaskRulePromptContext(cfg, "Build a homepage landing page", []string{"homepage"}, []string{"homepage"}, "my-site")
+	ctx := buildTaskRulePromptContext(cfg, "Build a homepage landing page", []string{"homepage"}, []string{"homepage"}, "my-site", nil)
 	if !strings.Contains(ctx.TaskRules, "Homepage Workflow") {
 		t.Fatalf("TaskRules missing homepage rule:\n%s", ctx.TaskRules)
 	}
@@ -48,7 +48,7 @@ func TestBuildTaskRulePromptContextHonorsDisabledConfig(t *testing.T) {
 	cfg.Rules.Enabled = false
 	cfg.Directories.PromptsDir = t.TempDir()
 
-	ctx := buildTaskRulePromptContext(cfg, "Build a homepage", []string{"homepage"}, []string{"homepage"}, "")
+	ctx := buildTaskRulePromptContext(cfg, "Build a homepage", []string{"homepage"}, []string{"homepage"}, "", nil)
 	if ctx.TaskRules != "" || ctx.HomepageDesignSystem != "" {
 		t.Fatalf("expected disabled rules to produce empty context, got %+v", ctx)
 	}
@@ -61,7 +61,7 @@ func TestBuildTaskRulePromptContextTreatsGermanPageRebuildAsHomepageWorkflow(t *
 	cfg.Rules.Enabled = true
 	cfg.Directories.PromptsDir = t.TempDir()
 
-	ctx := buildTaskRulePromptContext(cfg, "lösche die ki news seite und erstelle sie komplett neu", nil, nil, "")
+	ctx := buildTaskRulePromptContext(cfg, "lösche die ki news seite und erstelle sie komplett neu", nil, nil, "", nil)
 	if !strings.Contains(ctx.TaskRules, "Homepage Workflow") {
 		t.Fatalf("TaskRules missing homepage rule for German page rebuild request:\n%s", ctx.TaskRules)
 	}
@@ -80,7 +80,7 @@ func TestBuildTaskRulePromptContextIncludesHomepageLocalAssetGuidance(t *testing
 	cfg.Rules.Enabled = true
 	cfg.Directories.PromptsDir = t.TempDir()
 
-	ctx := buildTaskRulePromptContext(cfg, "Build a homepage with local images", []string{"homepage"}, []string{"homepage"}, "")
+	ctx := buildTaskRulePromptContext(cfg, "Build a homepage with local images", []string{"homepage"}, []string{"homepage"}, "", nil)
 	for _, marker := range []string{"Local Asset References", "project-relative web URLs", "public/assets/hero.jpg", "/assets/hero.jpg", "file://"} {
 		if !strings.Contains(ctx.TaskRules, marker) {
 			t.Fatalf("homepage rule missing local asset guidance marker %q:\n%s", marker, ctx.TaskRules)
@@ -95,7 +95,7 @@ func TestBuildTaskRulePromptContextSelectsPDFRuleByKeyword(t *testing.T) {
 	cfg.Rules.Enabled = true
 	cfg.Directories.PromptsDir = t.TempDir()
 
-	ctx := buildTaskRulePromptContext(cfg, "erstelle ein PDF aus diesem Bericht", nil, nil, "")
+	ctx := buildTaskRulePromptContext(cfg, "erstelle ein PDF aus diesem Bericht", nil, nil, "", nil)
 	if !strings.Contains(ctx.TaskRules, "PDF Creation Workflow") {
 		t.Fatalf("TaskRules missing PDF rule for PDF creation request:\n%s", ctx.TaskRules)
 	}
@@ -111,7 +111,7 @@ func TestBuildTaskRulePromptContextSelectsVirtualDesktopRuleByKeyword(t *testing
 	cfg.Rules.Enabled = true
 	cfg.Directories.PromptsDir = t.TempDir()
 
-	ctx := buildTaskRulePromptContext(cfg, "erstelle im virtuellen Desktop eine App mit Widget", nil, nil, "")
+	ctx := buildTaskRulePromptContext(cfg, "erstelle im virtuellen Desktop eine App mit Widget", nil, nil, "", nil)
 	if !strings.Contains(ctx.TaskRules, "Generated App And Widget Creation Workflow") {
 		t.Fatalf("TaskRules missing virtual desktop rule for app/widget request:\n%s", ctx.TaskRules)
 	}
@@ -127,7 +127,7 @@ func TestBuildTaskRulePromptContextSelectsSkillCreationRuleByKeyword(t *testing.
 	cfg.Rules.Enabled = true
 	cfg.Directories.PromptsDir = t.TempDir()
 
-	ctx := buildTaskRulePromptContext(cfg, "erstelle einen skill der docker als internes tool nutzt", nil, nil, "")
+	ctx := buildTaskRulePromptContext(cfg, "erstelle einen skill der docker als internes tool nutzt", nil, nil, "", nil)
 	if !strings.Contains(ctx.TaskRules, "Skill Creation Workflow") {
 		t.Fatalf("TaskRules missing skill creation rule for skill request:\n%s", ctx.TaskRules)
 	}
@@ -146,7 +146,7 @@ func TestBuildTaskRulePromptContextSelectsSkillCreationRuleForAgentSkillKeyword(
 	cfg.Rules.Enabled = true
 	cfg.Directories.PromptsDir = t.TempDir()
 
-	ctx := buildTaskRulePromptContext(cfg, "erstelle einen Agent Skill nach agentskills.io mit SKILL.md", nil, nil, "")
+	ctx := buildTaskRulePromptContext(cfg, "erstelle einen Agent Skill nach agentskills.io mit SKILL.md", nil, nil, "", nil)
 	if !strings.Contains(ctx.TaskRules, "Skill Creation Workflow") {
 		t.Fatalf("TaskRules missing skill creation rule for Agent Skill request:\n%s", ctx.TaskRules)
 	}
@@ -310,7 +310,7 @@ func TestEnsureTaskRulesBeforeToolExecutionLoadsProjectDesignAfterInitialRule(t 
 	cfg.Directories.PromptsDir = promptsDir
 	cfg.Homepage.WorkspacePath = workspace
 
-	initial := buildTaskRulePromptContext(cfg, "Build a homepage", nil, nil, "")
+	initial := buildTaskRulePromptContext(cfg, "Build a homepage", nil, nil, "", nil)
 	if !strings.Contains(initial.TaskRules, "Homepage Workflow") {
 		t.Fatalf("initial context missing homepage rule:\n%s", initial.TaskRules)
 	}
@@ -338,5 +338,28 @@ func TestEnsureTaskRulesBeforeToolExecutionLoadsProjectDesignAfterInitialRule(t 
 	}
 	if state.homepageRuleProjectDir != "my-site" {
 		t.Fatalf("homepageRuleProjectDir = %q, want my-site", state.homepageRuleProjectDir)
+	}
+}
+
+func TestBuildTaskRulePromptContextFallsBackToEmbeddedOnCorruptDiskOverride(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	promptsDir := filepath.Join(root, "prompts")
+	ruleDir := filepath.Join(promptsDir, "rules", "homepage")
+	if err := os.MkdirAll(ruleDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(ruleDir, "rule.md"), []byte("---\ninvalid yaml: [\n---\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := &config.Config{}
+	cfg.Rules.Enabled = true
+	cfg.Directories.PromptsDir = promptsDir
+
+	ctx := buildTaskRulePromptContext(cfg, "Build a homepage", []string{"homepage"}, []string{"homepage"}, "", nil)
+	if !strings.Contains(ctx.TaskRules, "Homepage Workflow") {
+		t.Fatalf("expected embedded homepage rule after corrupt disk override was skipped, got:\n%s", ctx.TaskRules)
 	}
 }

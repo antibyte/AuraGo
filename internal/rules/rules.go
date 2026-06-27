@@ -4,11 +4,14 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
+	"time"
 
 	"aurago/internal/security"
 
@@ -22,9 +25,25 @@ const (
 
 var validRuleID = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
 
+// catalogCache caches parsed rule catalogs keyed by promptsDir.
+// Invalidated by file ModTime changes or explicit ClearRulesCatalogCache.
+var (
+	catalogCacheMu sync.RWMutex
+	catalogCache   = make(map[string]catalogCacheEntry)
+)
+
+type catalogCacheEntry struct {
+	catalog *Catalog
+	mtimes  map[string]time.Time
+	checked time.Time
+}
+
+const catalogCacheTTL = 60 * time.Second
+
 type LoadOptions struct {
 	PromptsDir string
 	EmbeddedFS fs.FS
+	Logger     *slog.Logger
 }
 
 type Rule struct {
@@ -71,16 +90,75 @@ func ValidateRuleID(id string) error {
 }
 
 func LoadCatalog(opts LoadOptions) (*Catalog, error) {
+	logger := opts.Logger
+	if logger == nil {
+		logger = slog.Default()
+	}
+
+	key := catalogCacheKey(opts)
+
+	// Fast path: return cached catalog while its tracked disk files are unchanged.
+	catalogCacheMu.RLock()
+	cached, ok := catalogCache[key]
+	catalogCacheMu.RUnlock()
+	if ok && !catalogCacheStale(opts.PromptsDir, cached.mtimes) {
+		catalogCacheMu.Lock()
+		if c, still := catalogCache[key]; still {
+			c.checked = time.Now()
+			catalogCache[key] = c
+		}
+		catalogCacheMu.Unlock()
+		return cached.catalog, nil
+	}
+
+	// Slow path: rebuild catalog.
+	catalog, mtimes, err := buildCatalog(opts, logger)
+	if err != nil {
+		return nil, err
+	}
+
+	catalogCacheMu.Lock()
+	catalogCache[key] = catalogCacheEntry{
+		catalog: catalog,
+		mtimes:  mtimes,
+		checked: time.Now(),
+	}
+	catalogCacheMu.Unlock()
+
+	if ok {
+		logger.Debug("[RulesCatalog] Reloaded (files changed)", "promptsDir", opts.PromptsDir)
+	} else {
+		logger.Debug("[RulesCatalog] Populated", "promptsDir", opts.PromptsDir)
+	}
+	return catalog, nil
+}
+
+// ClearRulesCatalogCache empties the in-memory rule catalog cache.
+// Call after modifying rules via the API or disk.
+func ClearRulesCatalogCache() {
+	catalogCacheMu.Lock()
+	defer catalogCacheMu.Unlock()
+	catalogCache = make(map[string]catalogCacheEntry)
+}
+
+func catalogCacheKey(opts LoadOptions) string {
+	// Embedded FS is immutable; only the on-disk promptsDir can change.
+	return strings.TrimSpace(opts.PromptsDir)
+}
+
+func buildCatalog(opts LoadOptions, logger *slog.Logger) (*Catalog, map[string]time.Time, error) {
 	rulesByID := map[string]Rule{}
 	designsByID := map[string]Design{}
 	if opts.EmbeddedFS != nil {
 		if err := loadEmbedded(opts.EmbeddedFS, rulesByID, designsByID); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
+
+	mtimes := make(map[string]time.Time)
 	if strings.TrimSpace(opts.PromptsDir) != "" {
-		if err := loadDisk(opts.PromptsDir, rulesByID, designsByID); err != nil {
-			return nil, err
+		if err := loadDisk(opts.PromptsDir, rulesByID, designsByID, logger, mtimes); err != nil {
+			return nil, nil, err
 		}
 	}
 
@@ -96,7 +174,7 @@ func LoadCatalog(opts LoadOptions) (*Catalog, error) {
 	}
 	sortRules(catalog.Rules)
 	sort.Slice(catalog.Designs, func(i, j int) bool { return catalog.Designs[i].ID < catalog.Designs[j].ID })
-	return catalog, nil
+	return catalog, mtimes, nil
 }
 
 func (c *Catalog) Rule(id string) (Rule, bool) {
@@ -229,7 +307,7 @@ func loadEmbedded(embedFS fs.FS, rulesByID map[string]Rule, designsByID map[stri
 	return nil
 }
 
-func loadDisk(promptsDir string, rulesByID map[string]Rule, designsByID map[string]Design) error {
+func loadDisk(promptsDir string, rulesByID map[string]Rule, designsByID map[string]Design, logger *slog.Logger, mtimes map[string]time.Time) error {
 	root := filepath.Join(promptsDir, "rules")
 	entries, err := os.ReadDir(root)
 	if err != nil {
@@ -244,28 +322,81 @@ func loadDisk(promptsDir string, rulesByID map[string]Rule, designsByID map[stri
 		}
 		id := entry.Name()
 		if err := ValidateRuleID(id); err != nil {
+			logger.Warn("Skipping invalid rule directory name", "id", id, "error", err)
 			continue
 		}
 		rulePath := filepath.Join(root, id, "rule.md")
 		if data, err := readLimited(rulePath, MaxRuleBytes); err == nil {
+			if info, serr := os.Stat(rulePath); serr == nil {
+				mtimes[rulePath] = info.ModTime()
+			}
 			rule, err := ParseRuleMarkdown(id, data)
 			if err != nil {
-				return fmt.Errorf("parse disk rule %s: %w", id, err)
+				logger.Warn("Skipping corrupt disk rule override", "id", id, "path", rulePath, "error", err)
+				continue
 			}
 			rule.BuiltIn = false
 			rule.Source = "disk"
 			rulesByID[rule.ID] = rule
 		} else if !os.IsNotExist(err) {
-			return err
+			logger.Warn("Skipping unreadable disk rule override", "id", id, "path", rulePath, "error", err)
+			continue
+		}
+		// Only load a DESIGN.md if a rule (embedded or disk) exists for this ID.
+		if _, hasRule := rulesByID[id]; !hasRule {
+			continue
 		}
 		designPath := filepath.Join(root, id, "DESIGN.md")
 		if data, err := readLimited(designPath, MaxDesignBytes); err == nil {
+			if info, serr := os.Stat(designPath); serr == nil {
+				mtimes[designPath] = info.ModTime()
+			}
 			designsByID[id] = Design{ID: id, Content: strings.TrimSpace(string(data)), BuiltIn: false, Source: "disk"}
 		} else if !os.IsNotExist(err) {
-			return err
+			logger.Warn("Skipping unreadable disk design override", "id", id, "path", designPath, "error", err)
 		}
 	}
 	return nil
+}
+
+// catalogCacheStale returns true if the cached mtimes differ from the current
+// files on disk. An empty promptsDir is never stale because the embedded FS is
+// immutable.
+func catalogCacheStale(promptsDir string, mtimes map[string]time.Time) bool {
+	root := filepath.Join(strings.TrimSpace(promptsDir), "rules")
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		// If the directory disappeared, we consider it stale only if we had
+		// previously tracked files.
+		return len(mtimes) > 0
+	}
+
+	current := make(map[string]time.Time)
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		id := entry.Name()
+		for _, name := range []string{"rule.md", "DESIGN.md"} {
+			path := filepath.Join(root, id, name)
+			info, err := os.Stat(path)
+			if err != nil {
+				continue
+			}
+			current[path] = info.ModTime()
+		}
+	}
+
+	if len(current) != len(mtimes) {
+		return true
+	}
+	for path, t := range current {
+		cached, ok := mtimes[path]
+		if !ok || !t.Equal(cached) {
+			return true
+		}
+	}
+	return false
 }
 
 func ParseRuleMarkdown(defaultID string, data []byte) (Rule, error) {

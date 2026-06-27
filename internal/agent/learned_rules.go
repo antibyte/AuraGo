@@ -181,6 +181,34 @@ func RunSessionRetro(
 	}
 }
 
+// recordLearnedRuleOutcome updates hit/miss counters for injected learned rules
+// that match the executed tool. It runs best-effort and never blocks the caller.
+func recordLearnedRuleOutcome(
+	stm *memory.SQLiteMemory,
+	injected []memory.LearnedRule,
+	toolName string,
+	failed bool,
+	logger *slog.Logger,
+) {
+	if stm == nil || len(injected) == 0 || toolName == "" {
+		return
+	}
+	for _, r := range injected {
+		if r.ToolName != toolName {
+			continue
+		}
+		if failed {
+			if err := stm.RecordLearnedRuleMiss(r.ID); err != nil && logger != nil {
+				logger.Debug("[AutoLearning] failed to record rule miss", "rule_id", r.ID, "error", err)
+			}
+		} else {
+			if err := stm.RecordLearnedRuleHit(r.ID); err != nil && logger != nil {
+				logger.Debug("[AutoLearning] failed to record rule hit", "rule_id", r.ID, "error", err)
+			}
+		}
+	}
+}
+
 // buildLearnedRulesContext formats the top learned rules as a concise string
 // suitable for injection into the system prompt. Returns "" when no rules
 // are available or the feature is disabled.

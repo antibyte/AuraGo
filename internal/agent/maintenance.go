@@ -139,6 +139,15 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 			logger.Info("[Maintenance] Cleaned stale tool transitions", "deleted", deletedTrans)
 		}
 
+		// Stale learned rule eviction: rules that have not been hit and are older
+		// than the error-pattern retention are unlikely to remain relevant.
+		deletedLR, err := shortTermMem.CleanOldLearnedRules(0.1, retention.ErrorPatternsDays)
+		if err != nil {
+			logger.Error("[Maintenance] Failed to clean old learned rules", "error", err)
+		} else if deletedLR > 0 {
+			logger.Info("[Maintenance] Cleaned stale learned rules", "deleted", deletedLR)
+		}
+
 		if deleted, err := runMaintenanceCompressedOutputCleanup(ctx, cfg, logger, shortTermMem); err != nil {
 			ledger.addError("compressed_output_cleanup: " + err.Error())
 		} else {

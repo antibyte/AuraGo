@@ -108,8 +108,8 @@ async function renderRulesSection(section) {
     const content = document.getElementById('content');
     content.innerHTML = `
     <div class="cfg-section active">
-        <div class="section-header">${section.label}</div>
-        <div class="section-desc">${section.desc}</div>
+        <div class="section-header">${rulesEscape(section.label)}</div>
+        <div class="section-desc">${rulesEscape(section.desc)}</div>
         <div id="rules-body" class="rules-body">
             <div class="cfg-loading-state">
                 <div class="cfg-loading-icon">📏</div>

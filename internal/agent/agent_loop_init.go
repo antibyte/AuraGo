@@ -184,7 +184,7 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 	})
 	flags.Model = req.Model
 	flags.AgentSkillsCatalog = buildAgentSkillsPromptCatalog()
-	applyTaskRulePromptContext(&flags, buildTaskRulePromptContext(cfg, initialUserMsg, nil, nil, ""))
+	applyTaskRulePromptContext(&flags, buildTaskRulePromptContext(cfg, initialUserMsg, nil, nil, "", logger))
 	logger.Debug("[Agent] Context flags initialised",
 		"token_budget", flags.TokenBudget,
 		"session_id", runCfg.SessionID,

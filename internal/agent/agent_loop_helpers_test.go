@@ -452,10 +452,11 @@ func TestApplyRuntimePromptContextPolicySetsIntentFlagsAndGatesInternetWarning(t
 	}
 }
 
-func TestApplyRuntimePromptContextBudgetsCapsOperationalAndTaskRules(t *testing.T) {
+func TestApplyRuntimePromptContextBudgetsCapsOperationalIssueReminderOnly(t *testing.T) {
+	originalTaskRules := "## Heavy Task Rule\n" + strings.Repeat("rule detail ", 200)
 	flags := &prompts.ContextFlags{
 		OperationalIssueReminder: strings.Repeat("issue ", 300),
-		TaskRules:                "## Heavy Task Rule\n" + strings.Repeat("rule detail ", 200),
+		TaskRules:                originalTaskRules,
 	}
 
 	applyRuntimePromptContextBudgets(flags)
@@ -463,8 +464,10 @@ func TestApplyRuntimePromptContextBudgetsCapsOperationalAndTaskRules(t *testing.
 	if len([]rune(flags.OperationalIssueReminder)) > 601 {
 		t.Fatalf("OperationalIssueReminder length = %d, want <= 601", len([]rune(flags.OperationalIssueReminder)))
 	}
-	if len([]rune(flags.TaskRules)) > 901 {
-		t.Fatalf("TaskRules length = %d, want <= 901", len([]rune(flags.TaskRules)))
+	// TaskRules are truncated once by compactTaskRulesForPrompt in the prompt builder,
+	// not here in the runtime budgets.
+	if flags.TaskRules != originalTaskRules {
+		t.Fatalf("TaskRules should not be truncated by applyRuntimePromptContextBudgets")
 	}
 }
 

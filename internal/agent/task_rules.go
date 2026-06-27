@@ -2,6 +2,7 @@ package agent
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -26,9 +27,12 @@ var (
 	homepageActionIntentPattern   = regexp.MustCompile(`(?i)\b(?:erstelle|erstellen|baue|bauen|lösche|loesche|neubauen|neu\s+aufsetzen|aufsetzen|redesign|deploy|veröffentliche|veroeffentliche|publish|create|build|rebuild|delete|recreate|redesign|deploy|publish)\b`)
 )
 
-func buildTaskRulePromptContext(cfg *config.Config, prompt string, tools, workflows []string, homepageProjectDir string) taskRulePromptContext {
+func buildTaskRulePromptContext(cfg *config.Config, prompt string, tools, workflows []string, homepageProjectDir string, logger *slog.Logger) taskRulePromptContext {
 	if cfg == nil || !cfg.Rules.Enabled {
 		return taskRulePromptContext{}
+	}
+	if logger == nil {
+		logger = slog.Default()
 	}
 	promptsDir := cfg.Directories.PromptsDir
 	if strings.TrimSpace(promptsDir) == "" {
@@ -37,8 +41,10 @@ func buildTaskRulePromptContext(cfg *config.Config, prompt string, tools, workfl
 	catalog, err := taskrules.LoadCatalog(taskrules.LoadOptions{
 		PromptsDir: promptsDir,
 		EmbeddedFS: promptsembed.FS,
+		Logger:     logger,
 	})
 	if err != nil {
+		logger.Warn("[TaskRules] failed to load rule catalog", "error", err)
 		return taskRulePromptContext{}
 	}
 	workflows = append(workflows, inferRuleWorkflows(prompt, tools)...)
@@ -47,22 +53,26 @@ func buildTaskRulePromptContext(cfg *config.Config, prompt string, tools, workfl
 		Tools:     tools,
 		Workflows: workflows,
 	})
+	// Build design system with project-specific DESIGN.md first so it is preserved
+	// if the combined content exceeds the prompt budget.
+	var designs []taskrules.Design
 	if projectDesign := loadHomepageProjectDesign(cfg.Homepage.WorkspacePath, homepageProjectDir); projectDesign != "" {
 		if hasRule(selection.Rules, "homepage") {
-			selection.Designs = append(selection.Designs, taskrules.Design{
+			designs = append(designs, taskrules.Design{
 				ID:      "homepage project",
 				Content: projectDesign,
 				Source:  "project",
 			})
 		}
 	}
+	designs = append(designs, selection.Designs...)
 	ids := make([]string, 0, len(selection.Rules))
 	for _, rule := range selection.Rules {
 		ids = append(ids, rule.ID)
 	}
 	return taskRulePromptContext{
 		TaskRules:            taskrules.RenderRules(selection.Rules),
-		HomepageDesignSystem: taskrules.RenderDesigns(selection.Designs),
+		HomepageDesignSystem: taskrules.RenderDesigns(designs),
 		RuleIDs:              ids,
 	}
 }
@@ -84,7 +94,7 @@ func ensureTaskRulesBeforeToolExecution(s *agentLoopState, tc ToolCall, lastUser
 	if projectDir == "" {
 		projectDir = toolArgString(tc.Params, "project_dir")
 	}
-	ctx := buildTaskRulePromptContext(s.runCfg.Config, lastUserMsg, []string{tc.Action}, nil, projectDir)
+	ctx := buildTaskRulePromptContext(s.runCfg.Config, lastUserMsg, []string{tc.Action}, nil, projectDir, s.currentLogger)
 	if len(ctx.RuleIDs) == 0 {
 		return "", false
 	}

@@ -17,7 +17,7 @@ import (
 
 type ruleSaveRequest struct {
 	Title     string   `json:"title"`
-	Enabled   bool     `json:"enabled"`
+	Enabled   *bool    `json:"enabled"`
 	Priority  int      `json:"priority"`
 	Tools     []string `json:"tools"`
 	Workflows []string `json:"workflows"`
@@ -55,7 +55,7 @@ func handleConfigRules(s *Server) http.HandlerFunc {
 				jsonError(w, "Bad request", http.StatusBadRequest)
 				return
 			}
-			if err := saveRuleOverride(s, req.ID, req.ruleSaveRequest); err != nil {
+			if err := saveRuleOverride(s, req.ID, req.ruleSaveRequest, true); err != nil {
 				jsonError(w, err.Error(), statusForRuleError(err))
 				return
 			}
@@ -96,7 +96,7 @@ func handleConfigRuleByID(s *Server) http.HandlerFunc {
 				jsonError(w, "Bad request", http.StatusBadRequest)
 				return
 			}
-			if err := saveRuleOverride(s, id, req); err != nil {
+			if err := saveRuleOverride(s, id, req, false); err != nil {
 				jsonError(w, err.Error(), statusForRuleError(err))
 				return
 			}
@@ -210,10 +210,11 @@ func loadServerRulesCatalog(s *Server) (*taskrules.Catalog, error) {
 	return taskrules.LoadCatalog(taskrules.LoadOptions{
 		PromptsDir: s.Cfg.Directories.PromptsDir,
 		EmbeddedFS: promptsembed.FS,
+		Logger:     s.Logger,
 	})
 }
 
-func saveRuleOverride(s *Server, id string, req ruleSaveRequest) error {
+func saveRuleOverride(s *Server, id string, req ruleSaveRequest, isNew bool) error {
 	if err := taskrules.ValidateRuleID(id); err != nil {
 		return err
 	}
@@ -221,10 +222,17 @@ func saveRuleOverride(s *Server, id string, req ruleSaveRequest) error {
 	if err := os.MkdirAll(ruleDir, 0755); err != nil {
 		return fmt.Errorf("create rule dir: %w", err)
 	}
+	// New rules default to enabled=true unless the client explicitly sends false.
+	// Updates use the sent value (or true if omitted, matching UI behavior).
+	enabled := true
+	if req.Enabled != nil {
+		enabled = *req.Enabled
+	}
+
 	rule := taskrules.Rule{
 		ID:        id,
 		Title:     strings.TrimSpace(req.Title),
-		Enabled:   req.Enabled,
+		Enabled:   enabled,
 		Priority:  req.Priority,
 		Tools:     req.Tools,
 		Workflows: req.Workflows,
@@ -245,6 +253,8 @@ func saveRuleOverride(s *Server, id string, req ruleSaveRequest) error {
 	if err := os.WriteFile(filepath.Join(ruleDir, "rule.md"), []byte(content), 0644); err != nil {
 		return fmt.Errorf("write rule: %w", err)
 	}
+	taskrules.ClearRulesCatalogCache()
+
 	design := strings.TrimSpace(req.Design)
 	if design != "" {
 		if len(design) > taskrules.MaxDesignBytes {
@@ -263,7 +273,11 @@ func deleteRuleOverride(s *Server, id string) error {
 	if err := taskrules.ValidateRuleID(id); err != nil {
 		return err
 	}
-	return os.RemoveAll(filepath.Join(s.Cfg.Directories.PromptsDir, "rules", id))
+	err := os.RemoveAll(filepath.Join(s.Cfg.Directories.PromptsDir, "rules", id))
+	if err == nil {
+		taskrules.ClearRulesCatalogCache()
+	}
+	return err
 }
 
 func ruleIDFromPath(path, prefix string) string {

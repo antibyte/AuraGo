@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	promptsembed "aurago/prompts"
 )
@@ -534,4 +535,159 @@ func contains(items []string, want string) bool {
 		}
 	}
 	return false
+}
+
+func TestLoadCatalogSkipsCorruptDiskOverride(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	ruleDir := filepath.Join(dir, "rules", "homepage")
+	if err := os.MkdirAll(ruleDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(ruleDir, "rule.md"), []byte("---\ninvalid yaml: [unclosed\n---\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	catalog, err := LoadCatalog(LoadOptions{PromptsDir: dir, EmbeddedFS: promptsembed.FS})
+	if err != nil {
+		t.Fatalf("LoadCatalog: %v", err)
+	}
+
+	// Corrupt disk override is skipped, embedded homepage rule is still present.
+	rule, ok := catalog.Rule("homepage")
+	if !ok {
+		t.Fatal("expected embedded homepage rule after corrupt disk override was skipped")
+	}
+	if rule.Source != "embedded" {
+		t.Fatalf("expected embedded rule, got source %q", rule.Source)
+	}
+}
+
+func TestLoadCatalogIgnoresOrphanDesign(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	ruleDir := filepath.Join(dir, "rules", "orphan")
+	if err := os.MkdirAll(ruleDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(ruleDir, "DESIGN.md"), []byte("# Orphan Design"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	catalog, err := LoadCatalog(LoadOptions{PromptsDir: dir, EmbeddedFS: promptsembed.FS})
+	if err != nil {
+		t.Fatalf("LoadCatalog: %v", err)
+	}
+
+	if _, ok := catalog.Design("orphan"); ok {
+		t.Fatal("expected orphan DESIGN.md to be ignored because no rule exists for the ID")
+	}
+}
+
+func TestLoadCatalogCaching(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	ruleDir := filepath.Join(dir, "rules", "custom")
+	if err := os.MkdirAll(ruleDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(ruleDir, "rule.md"), []byte("---\nid: custom\ntitle: Custom\nenabled: true\npriority: 50\ntools: [custom]\n---\n\nbody v1"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	defer ClearRulesCatalogCache()
+
+	c1, err := LoadCatalog(LoadOptions{PromptsDir: dir, EmbeddedFS: promptsembed.FS})
+	if err != nil {
+		t.Fatalf("LoadCatalog first call: %v", err)
+	}
+	rule1, ok := c1.Rule("custom")
+	if !ok {
+		t.Fatal("first load missing custom rule")
+	}
+	if !strings.Contains(rule1.Body, "body v1") {
+		t.Fatalf("first load missing v1 body: %s", rule1.Body)
+	}
+
+	// Repeated load without disk changes should return cached content.
+	c2, err := LoadCatalog(LoadOptions{PromptsDir: dir, EmbeddedFS: promptsembed.FS})
+	if err != nil {
+		t.Fatalf("LoadCatalog second call: %v", err)
+	}
+	rule2, ok := c2.Rule("custom")
+	if !ok {
+		t.Fatal("cached load missing custom rule")
+	}
+	if !strings.Contains(rule2.Body, "body v1") {
+		t.Fatalf("cached load should still return v1: %s", rule2.Body)
+	}
+
+	// Mutate file on disk, then clear explicitly to force reload.
+	if err := os.WriteFile(filepath.Join(ruleDir, "rule.md"), []byte("---\nid: custom\ntitle: Custom\nenabled: true\npriority: 50\ntools: [custom]\n---\n\nbody v2"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	ClearRulesCatalogCache()
+	c3, err := LoadCatalog(LoadOptions{PromptsDir: dir, EmbeddedFS: promptsembed.FS})
+	if err != nil {
+		t.Fatalf("LoadCatalog after cache clear: %v", err)
+	}
+	rule3, ok := c3.Rule("custom")
+	if !ok {
+		t.Fatal("load after cache clear missing custom rule")
+	}
+	if !strings.Contains(rule3.Body, "body v2") {
+		t.Fatalf("load after cache clear should return v2: %s", rule3.Body)
+	}
+}
+
+func TestLoadCatalogCacheInvalidationOnDiskChange(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	ruleDir := filepath.Join(dir, "rules", "custom")
+	if err := os.MkdirAll(ruleDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(ruleDir, "rule.md"), []byte("---\nid: custom\ntitle: Custom\nenabled: true\npriority: 50\ntools: [custom]\n---\n\nbody v1"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	defer ClearRulesCatalogCache()
+
+	c1, err := LoadCatalog(LoadOptions{PromptsDir: dir, EmbeddedFS: promptsembed.FS})
+	if err != nil {
+		t.Fatalf("LoadCatalog first call: %v", err)
+	}
+	rule1, ok := c1.Rule("custom")
+	if !ok {
+		t.Fatal("first load missing custom rule")
+	}
+	if !strings.Contains(rule1.Body, "body v1") {
+		t.Fatalf("first load missing v1 body: %s", rule1.Body)
+	}
+
+	// Mutate file and set its ModTime into the future so the TTL check sees a change.
+	newPath := filepath.Join(ruleDir, "rule.md")
+	if err := os.WriteFile(newPath, []byte("---\nid: custom\ntitle: Custom\nenabled: true\npriority: 50\ntools: [custom]\n---\n\nbody v2"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	future := time.Now().Add(2 * time.Minute)
+	if err := os.Chtimes(newPath, future, future); err != nil {
+		t.Fatalf("Chtimes: %v", err)
+	}
+
+	c2, err := LoadCatalog(LoadOptions{PromptsDir: dir, EmbeddedFS: promptsembed.FS})
+	if err != nil {
+		t.Fatalf("LoadCatalog after disk change: %v", err)
+	}
+	rule2, ok := c2.Rule("custom")
+	if !ok {
+		t.Fatal("load after disk change missing custom rule")
+	}
+	if !strings.Contains(rule2.Body, "body v2") {
+		t.Fatalf("load should reflect disk change: %s", rule2.Body)
+	}
 }
