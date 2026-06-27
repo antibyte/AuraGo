@@ -659,17 +659,18 @@
 
         var _flashCanvas = null, _flashCtx = null;
         function drawSp(cv, sp, cols, x, y, flash, noCache) {
-            if (typeof sp === 'string' && ctx.spriteSheet && !noCache) {
+            if (typeof sp === 'string' && ctx.spriteSheet) {
                 const fr = SHEET_FRAMES[sp];
                 if (fr) {
                     const dx = Math.floor(x), dy = Math.floor(y);
-                    if (flash) {
+                    if (flash || noCache) {
+                        const tint = flash ? '#fff' : (cols && cols[1] ? cols[1] : '#fff');
                         if (!_flashCanvas) { _flashCanvas = new OffscreenCanvas(32, 32); _flashCtx = _flashCanvas.getContext('2d'); }
                         _flashCanvas.width = fr.w; _flashCanvas.height = fr.h;
                         _flashCtx.clearRect(0, 0, fr.w, fr.h);
                         _flashCtx.drawImage(ctx.spriteSheet, fr.x, fr.y, fr.w, fr.h, 0, 0, fr.w, fr.h);
                         _flashCtx.globalCompositeOperation = 'source-atop';
-                        _flashCtx.fillStyle = '#fff';
+                        _flashCtx.fillStyle = tint;
                         _flashCtx.fillRect(0, 0, fr.w, fr.h);
                         _flashCtx.globalCompositeOperation = 'source-over';
                         cv.drawImage(_flashCanvas, 0, 0, fr.w, fr.h, dx, dy, fr.w, fr.h);
