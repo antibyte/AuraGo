@@ -48,7 +48,7 @@ func TestGalaxaPremiumCodeDefinedSprites(t *testing.T) {
 	for _, marker := range []string{
 		"galaxa-spritesheet.png",
 		"new Image()",
-		"ctx.spriteSheet = sheetImg",
+		"_preloadedSheet",
 	} {
 		if !strings.Contains(sprites, marker) {
 			t.Fatalf("galaxa sprites missing sprite sheet marker %q", marker)

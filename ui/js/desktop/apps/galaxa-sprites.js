@@ -1,6 +1,13 @@
 (function () {
     'use strict';
     const GC = window.GalaxaCore = window.GalaxaCore || {};
+    var _preloadedSheet = null;
+    var _sheetLoadAttempted = false;
+    try {
+        var _sheetImg = new Image();
+        _sheetImg.onload = function () { _preloadedSheet = _sheetImg; };
+        _sheetImg.src = '/img/galaxa-spritesheet.png';
+    } catch (_) {}
     GC.createSprites = function (ctx) {
         const radialGradientCache = new Map();
         const spriteAtlasCache = new WeakMap();
@@ -890,14 +897,17 @@
         ctx.spriteAtlasCache = spriteAtlasCache;
         ctx.flashPixelColors = flashPixelColors;
 
-        try {
-            var sheetImg = new Image();
-            sheetImg.onload = function () {
-                ctx.spriteSheet = sheetImg;
-                console.log('[GALAXA] sprite sheet loaded ' + sheetImg.width + 'x' + sheetImg.height);
+        if (_preloadedSheet) {
+            ctx.spriteSheet = _preloadedSheet;
+            if (!_sheetLoadAttempted) { _sheetLoadAttempted = true; console.log('[GALAXA] sprite sheet ready ' + _preloadedSheet.width + 'x' + _preloadedSheet.height); }
+        } else if (!_sheetLoadAttempted) {
+            _sheetLoadAttempted = true;
+            _sheetImg.onload = function () {
+                _preloadedSheet = _sheetImg;
+                ctx.spriteSheet = _sheetImg;
+                console.log('[GALAXA] sprite sheet loaded ' + _sheetImg.width + 'x' + _sheetImg.height);
             };
-            sheetImg.onerror = function () { console.log('[GALAXA] sprite sheet not available'); };
-            sheetImg.src = '/img/galaxa-spritesheet.png';
-        } catch (e) { console.log('[GALAXA] sprite sheet error: ' + e); }
+            _sheetImg.onerror = function () { console.log('[GALAXA] sprite sheet not available'); };
+        }
     };
 })();
