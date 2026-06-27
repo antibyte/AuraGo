@@ -27,9 +27,9 @@ func addSetupCSRFTokenForTest(s *Server, token string) {
 }
 
 // withDebugForceSetup temporarily overrides the debugForceSetup flag for a
-// single test and returns a cleanup func to restore the original value. The
-// default production value is true (so the setup wizard always shows while
-// debugging); tests that exercise the real gating logic flip it to false.
+// single test and returns a cleanup func to restore the original value.
+// The default is false (production behaviour); tests that exercise the
+// debug-override branch flip it to true.
 func withDebugForceSetup(v bool) func() {
 	prev := debugForceSetup
 	debugForceSetup = v

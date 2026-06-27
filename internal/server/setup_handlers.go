@@ -41,7 +41,7 @@ var (
 // Setup wizard is shown on every request. Used as a temporary debugging aid
 // while iterating on the setup UI. Revert (set to false) once debugging is
 // complete — never ship with this enabled.
-var debugForceSetup = true
+var debugForceSetup = false
 
 // loadCachedSetupProfiles returns the embedded setup profiles, parsed once.
 // Safe to call from multiple goroutines concurrently.
