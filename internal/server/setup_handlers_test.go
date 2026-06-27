@@ -26,6 +26,16 @@ func addSetupCSRFTokenForTest(s *Server, token string) {
 	s.SetupCSRFTokens[token] = time.Now().Add(setupCSRFTokenTTL)
 }
 
+// withDebugForceSetup temporarily overrides the debugForceSetup flag for a
+// single test and returns a cleanup func to restore the original value. The
+// default production value is true (so the setup wizard always shows while
+// debugging); tests that exercise the real gating logic flip it to false.
+func withDebugForceSetup(v bool) func() {
+	prev := debugForceSetup
+	debugForceSetup = v
+	return func() { debugForceSetup = prev }
+}
+
 func (panicVectorDB) StoreDocument(concept, content string) ([]string, error) {
 	return nil, errors.New("not implemented")
 }
@@ -72,7 +82,7 @@ func (panicVectorDB) DeleteCheatsheet(id string) error {
 func (panicVectorDB) RegisterCollections(collections []string) {}
 
 func TestNeedsSetupRequiresPasswordWhenAuthEnabled(t *testing.T) {
-	t.Parallel()
+	defer withDebugForceSetup(false)()
 
 	cfg := &config.Config{}
 	cfg.LLM.APIKey = "configured"
@@ -89,7 +99,7 @@ func TestNeedsSetupRequiresPasswordWhenAuthEnabled(t *testing.T) {
 }
 
 func TestNeedsSetupRequiresOAuthTokenForOAuthProvider(t *testing.T) {
-	t.Parallel()
+	defer withDebugForceSetup(false)()
 
 	cfg := &config.Config{
 		Providers: []config.ProviderEntry{{
@@ -111,7 +121,7 @@ func TestNeedsSetupRequiresOAuthTokenForOAuthProvider(t *testing.T) {
 }
 
 func TestNeedsSetupAcceptsOAuthProviderWithAppliedToken(t *testing.T) {
-	t.Parallel()
+	defer withDebugForceSetup(false)()
 
 	cfg := &config.Config{
 		Providers: []config.ProviderEntry{{
@@ -243,6 +253,8 @@ func TestHandleSetupStatusReturnsCSRFToken(t *testing.T) {
 }
 
 func TestHandleSetupStatusNoCSRFWhenConfigured(t *testing.T) {
+	defer withDebugForceSetup(false)()
+
 	s := &Server{Cfg: &config.Config{}}
 	s.Cfg.LLM.APIKey = "configured"
 

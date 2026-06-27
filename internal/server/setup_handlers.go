@@ -37,6 +37,12 @@ var (
 	setupProfilesCacheOnce sync.Once
 )
 
+// debugForceSetup, when true, makes needsSetup always return true so the Quick
+// Setup wizard is shown on every request. Used as a temporary debugging aid
+// while iterating on the setup UI. Revert (set to false) once debugging is
+// complete — never ship with this enabled.
+var debugForceSetup = true
+
 // loadCachedSetupProfiles returns the embedded setup profiles, parsed once.
 // Safe to call from multiple goroutines concurrently.
 func loadCachedSetupProfiles(logger *slog.Logger) []setup.SetupProfile {
@@ -493,7 +499,19 @@ func setupValidationMessage(err error) string {
 // needsSetup returns true if the Quick Setup wizard should be shown.
 // We check that at least one provider with a usable API key exists. OAuth2
 // providers only count after their access token has been applied to LLM.APIKey.
+//
+// DEBUG OVERRIDE: while the debugForceSetup flag is true the setup wizard is
+// shown on every request, regardless of the current configuration. This is a
+// temporary switch used to iterate on the setup UI without first clearing the
+// provider/auth state. Remember to revert before shipping.
 func needsSetup(cfg *config.Config) bool {
+	if debugForceSetup {
+		return true
+	}
+	return needsSetupReal(cfg)
+}
+
+func needsSetupReal(cfg *config.Config) bool {
 	llmConfigured := false
 	// If the LLM has a resolved API key, the provider side is configured.
 	// This covers new-format configs where the key is loaded from vault.
