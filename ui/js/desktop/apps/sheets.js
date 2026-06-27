@@ -70,6 +70,8 @@
         const statusLeft = host.querySelector('[data-status-left]');
         const statusRight = host.querySelector('[data-status-right]');
         if (typeof ctx.wireContextMenuBoundary === 'function') ctx.wireContextMenuBoundary(host);
+        const windowContent = host.closest('.vd-window-content');
+        if (windowContent) windowContent.classList.add('office-sheets-window-content');
 
         const formulas = window.SheetsFormulas;
         const formatModule = window.SheetsFormat;
@@ -1079,7 +1081,7 @@
         setWindowMenus();
         load();
         const inst = instances.get(windowId);
-        if (inst) { inst.undo = undo; inst.redo = redo; }
+        if (inst) { inst.undo = undo; inst.redo = redo; inst.windowContent = windowContent; }
 
         function recalcFormulas() {
             const sheet = workbook.sheets[activeSheet];
@@ -1118,6 +1120,7 @@
         if (instance.autosaveTimer) clearTimeout(instance.autosaveTimer);
         if (typeof instance.closeSearch === 'function') instance.closeSearch();
         if (instance.formatClickHandler) document.removeEventListener('click', instance.formatClickHandler);
+        if (instance.windowContent) instance.windowContent.classList.remove('office-sheets-window-content');
         instances.delete(windowId);
     }
 

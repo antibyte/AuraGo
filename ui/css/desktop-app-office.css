@@ -803,6 +803,12 @@
     display: none;
 }
 
+/* Sheets color picker is positioned inside the format bar; allow it to
+   overflow the window content so it isn't clipped by overflow:hidden. */
+.vd-window:not(.maximized) > .vd-window-content.office-sheets-window-content {
+    overflow: visible;
+}
+
 .office-color-swatch {
     width: 22px;
     height: 22px;
