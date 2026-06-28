@@ -26,6 +26,8 @@ const (
 	contentScanSnippetMaxBytes    = 6 * 1024
 	contentScanSnippetEdgeBytes   = 2 * 1024
 	contentScanSnippetMiddleBytes = 2 * 1024
+	contentScanChunkBytes         = 4 * 1024
+	contentScanChunkOverlapBytes  = 512
 	contentScanOmittedMark        = "\n[... content omitted for guardian scan ...]\n"
 )
 
@@ -726,10 +728,8 @@ Example: dangerous 90 hidden prompt injection in body`
 func (g *LLMGuardian) EvaluateContent(ctx context.Context, contentType string, content string) GuardianResult {
 	start := time.Now()
 
-	snippet := prepareContentScanSnippet(content)
-
 	// Check cache
-	cacheKey := GenerateCacheKey("content_scan:"+contentType, map[string]string{"content": snippet})
+	cacheKey := GenerateCacheKey("content_scan:"+contentType, map[string]string{"content": content})
 	if result, hit := g.cache.Get(cacheKey); hit {
 		result.Duration = time.Since(start)
 		g.Metrics.RecordContentScan(result)
@@ -747,42 +747,63 @@ func (g *LLMGuardian) EvaluateContent(ctx context.Context, contentType string, c
 		return g.failSafeResult(start, "rate limit exceeded")
 	}
 
-	prompt := buildContentScanPrompt(contentType, snippet)
+	chunks := prepareContentScanChunks(content, contentScanChunkBytes, contentScanChunkOverlapBytes)
+	var best GuardianResult
+	haveBest := false
+	totalTokens := 0
+	for _, chunk := range chunks {
+		prompt := buildContentScanPrompt(contentType, chunk)
 
-	req := openai.ChatCompletionRequest{
-		Model:       g.model,
-		Messages:    g.buildMessages(contentScanSystemPrompt, prompt),
-		MaxTokens:   2048,
-		Temperature: 0,
+		req := openai.ChatCompletionRequest{
+			Model:       g.model,
+			Messages:    g.buildMessages(contentScanSystemPrompt, prompt),
+			MaxTokens:   2048,
+			Temperature: 0,
+		}
+
+		resp, err := g.client.CreateChatCompletion(ctx, req)
+		if err != nil {
+			g.logger.Warn("[Guardian] Content scan LLM call failed", "error", err, "type", contentType)
+			g.Metrics.RecordError()
+			return g.failSafeResult(start, fmt.Sprintf("content scan error: %v", err))
+		}
+
+		if len(resp.Choices) == 0 {
+			g.Metrics.RecordError()
+			return g.failSafeResult(start, "empty content scan response")
+		}
+
+		raw := extractMessageContent(resp.Choices[0].Message)
+		result := parseGuardianResponse(raw)
+		totalTokens += resp.Usage.TotalTokens
+		result.TokensUsed = totalTokens
+		result.Duration = time.Since(start)
+		if !haveBest || result.RiskScore > best.RiskScore {
+			best = result
+			haveBest = true
+		}
+		if result.Decision == DecisionBlock {
+			break
+		}
 	}
 
-	resp, err := g.client.CreateChatCompletion(ctx, req)
-	if err != nil {
-		g.logger.Warn("[Guardian] Content scan LLM call failed", "error", err, "type", contentType)
-		g.Metrics.RecordError()
-		return g.failSafeResult(start, fmt.Sprintf("content scan error: %v", err))
+	if !haveBest {
+		best = GuardianResult{Decision: DecisionAllow, RiskScore: 0, Reason: "empty content"}
 	}
-
-	if len(resp.Choices) == 0 {
-		g.Metrics.RecordError()
-		return g.failSafeResult(start, "empty content scan response")
-	}
-
-	raw := extractMessageContent(resp.Choices[0].Message)
-	result := parseGuardianResponse(raw)
-	result.TokensUsed = resp.Usage.TotalTokens
-	result.Duration = time.Since(start)
+	best.TokensUsed = totalTokens
+	best.Duration = time.Since(start)
 
 	g.logger.Info("[Guardian] Content scanned",
 		"type", contentType,
-		"decision", result.Decision,
-		"risk", result.RiskScore,
-		"reason", result.Reason,
-		"tokens", result.TokensUsed)
+		"decision", best.Decision,
+		"risk", best.RiskScore,
+		"reason", best.Reason,
+		"tokens", best.TokensUsed,
+		"chunks", len(chunks))
 
-	g.cache.Set(cacheKey, result)
-	g.Metrics.RecordContentScan(result)
-	return result
+	g.cache.Set(cacheKey, best)
+	g.Metrics.RecordContentScan(best)
+	return best
 }
 
 func buildContentScanPrompt(contentType string, content string) string {
@@ -841,6 +862,38 @@ func prepareContentScanSnippet(content string) string {
 	}
 	sb.WriteString(content[tailStart:])
 	return sb.String()
+}
+
+func prepareContentScanChunks(content string, chunkSize int, overlap int) []string {
+	if content == "" {
+		return []string{""}
+	}
+	if chunkSize <= 0 {
+		chunkSize = contentScanChunkBytes
+	}
+	if overlap < 0 {
+		overlap = 0
+	}
+	if overlap >= chunkSize {
+		overlap = chunkSize / 4
+	}
+	if len(content) <= chunkSize {
+		return []string{content}
+	}
+
+	chunks := make([]string, 0, (len(content)/chunkSize)+1)
+	step := chunkSize - overlap
+	for start := 0; start < len(content); start += step {
+		end := start + chunkSize
+		if end > len(content) {
+			end = len(content)
+		}
+		chunks = append(chunks, content[start:end])
+		if end == len(content) {
+			break
+		}
+	}
+	return chunks
 }
 
 // Judge implements promptsec.LLMJudge so the LLMGuardian can be wired into the
