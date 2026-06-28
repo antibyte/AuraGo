@@ -1,6 +1,7 @@
 package server
 
 import (
+	"database/sql"
 	"encoding/json"
 	"net/http"
 	"strconv"
@@ -53,7 +54,8 @@ func handleDashboardMemory(s *Server) http.HandlerFunc {
 		usageStats, _ := s.ShortTermMem.GetMemoryUsageStats(14, 5)
 		pendingActions, _ := s.ShortTermMem.GetPendingEpisodicActionsForQuery("", 5)
 		memoryConflicts, _ := s.ShortTermMem.GetOpenMemoryConflicts(5)
-		latestReflection, reflectionActionableCount := latestReflectionDashboardPayload(s.ShortTermMem)
+		reflectionActionableCount := countOpenReflectionOperationalIssues(s.PlannerDB)
+		latestReflection := latestReflectionDashboardPayload(s.ShortTermMem, reflectionActionableCount)
 		memoryHealth := memory.MemoryHealthReport{
 			Usage: usageStats,
 		}
@@ -89,16 +91,15 @@ func handleDashboardMemory(s *Server) http.HandlerFunc {
 	}
 }
 
-func latestReflectionDashboardPayload(stm *memory.SQLiteMemory) (map[string]interface{}, int) {
+func latestReflectionDashboardPayload(stm *memory.SQLiteMemory, actionableCount int) map[string]interface{} {
 	if stm == nil {
-		return nil, 0
+		return nil
 	}
 	entries, err := stm.GetJournalEntries("", "", []string{"reflection"}, 1)
 	if err != nil || len(entries) == 0 {
-		return nil, 0
+		return nil
 	}
 	entry := entries[0]
-	actionableCount := countReflectionActionItems(entry.Content)
 	return map[string]interface{}{
 		"id":               entry.ID,
 		"title":            entry.Title,
@@ -107,7 +108,23 @@ func latestReflectionDashboardPayload(stm *memory.SQLiteMemory) (map[string]inte
 		"created_at":       entry.CreatedAt,
 		"tags":             entry.Tags,
 		"actionable_count": actionableCount,
-	}, actionableCount
+	}
+}
+
+func countOpenReflectionOperationalIssues(db *sql.DB) int {
+	if db == nil {
+		return 0
+	}
+	var count int
+	err := db.QueryRow(`
+		SELECT COUNT(*)
+		FROM operational_issues
+		WHERE source = ?
+		  AND status IN ('open', 'in_progress')`, "memory_reflect").Scan(&count)
+	if err != nil {
+		return 0
+	}
+	return count
 }
 
 func firstReflectionParagraph(content string) string {

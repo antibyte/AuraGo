@@ -15,6 +15,7 @@ import (
 	"aurago/internal/agent"
 	"aurago/internal/config"
 	"aurago/internal/memory"
+	"aurago/internal/planner"
 	"aurago/internal/prompts"
 	"aurago/internal/security"
 	"aurago/internal/tools"
@@ -148,6 +149,66 @@ func TestHandleDashboardMemoryContract(t *testing.T) {
 	}
 	if _, ok := health["effectiveness"]; !ok {
 		t.Fatal("memory_health missing key \"effectiveness\"")
+	}
+}
+
+func TestHandleDashboardMemoryCountsOpenReflectionOperationalIssues(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	t.Cleanup(func() { _ = stm.Close() })
+	if err := stm.InitJournalTables(); err != nil {
+		t.Fatalf("InitJournalTables: %v", err)
+	}
+	if _, err := stm.InsertJournalEntry(memory.JournalEntry{
+		EntryType: "reflection",
+		Title:     "Memory Reflection (weekly)",
+		Content:   "Summary only.\n\nAction Items:\n- Journal action that should not be counted here.\n- Another journal action that should not be counted here.",
+	}); err != nil {
+		t.Fatalf("InsertJournalEntry: %v", err)
+	}
+
+	plannerDB, err := planner.InitDB(filepath.Join(t.TempDir(), "planner.db"))
+	if err != nil {
+		t.Fatalf("planner.InitDB: %v", err)
+	}
+	t.Cleanup(func() { _ = plannerDB.Close() })
+	for _, issue := range []planner.OperationalIssue{
+		{Source: "memory_reflect", Context: "recent", Title: "Reflection issue 1", Detail: "First", Severity: "warning", Reference: "memory_reflect", Fingerprint: "memory_reflect|recent|test|1", OccurredAt: time.Now()},
+		{Source: "memory_reflect", Context: "recent", Title: "Reflection issue 2", Detail: "Second", Severity: "warning", Reference: "memory_reflect", Fingerprint: "memory_reflect|recent|test|2", OccurredAt: time.Now()},
+		{Source: "maintenance", Context: "recent", Title: "Other issue", Detail: "Other", Severity: "warning", Reference: "maintenance", Fingerprint: "maintenance|recent|test", OccurredAt: time.Now()},
+	} {
+		if _, err := planner.RecordOperationalIssue(plannerDB, issue); err != nil {
+			t.Fatalf("RecordOperationalIssue(%s): %v", issue.Fingerprint, err)
+		}
+	}
+	if _, err := plannerDB.Exec(`UPDATE operational_issues SET status='done' WHERE fingerprint=?`, "memory_reflect|recent|test|2"); err != nil {
+		t.Fatalf("mark reflection issue done: %v", err)
+	}
+
+	s := &Server{ShortTermMem: stm, PlannerDB: plannerDB}
+	req := httptest.NewRequest(http.MethodGet, "/api/dashboard/memory", nil)
+	rec := httptest.NewRecorder()
+	handleDashboardMemory(s).ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d", rec.Code)
+	}
+
+	var body map[string]interface{}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode JSON: %v", err)
+	}
+	if got := int(body["reflection_actionable_count"].(float64)); got != 1 {
+		t.Fatalf("reflection_actionable_count = %d, want open reflection issue count 1", got)
+	}
+	latest, ok := body["latest_reflection"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("latest_reflection has unexpected type %T", body["latest_reflection"])
+	}
+	if got := int(latest["actionable_count"].(float64)); got != 1 {
+		t.Fatalf("latest_reflection.actionable_count = %d, want open reflection issue count 1", got)
 	}
 }
 

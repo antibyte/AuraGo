@@ -127,6 +127,26 @@ func TestParseMemoryReflectionResultFlagsLowQualityAndAcceptsActionableJSON(t *t
 	}
 }
 
+func TestRunMemoryReflectionKeepsParseFailedFlagWhenRetryIsInvalid(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.LLM.Model = "test-model"
+	client := &reflectionTestClient{responses: []string{
+		`{"summary":"ok"}`,
+		`not json`,
+	}}
+
+	result, err := runMemoryReflection(context.Background(), cfg, slog.New(slog.NewTextHandler(io.Discard, nil)), nil, nil, nil, client, nil, memoryReflectionRequest{})
+	if err != nil {
+		t.Fatalf("runMemoryReflection: %v", err)
+	}
+	if !stringSliceContains(result.QualityFlags, "low_quality") {
+		t.Fatalf("quality flags = %v, want low_quality", result.QualityFlags)
+	}
+	if !stringSliceContains(result.QualityFlags, "parse_failed") {
+		t.Fatalf("quality flags = %v, want parse_failed after invalid retry", result.QualityFlags)
+	}
+}
+
 func TestBuildMemoryReflectionActionIssuesCapsAndFingerprintsFindings(t *testing.T) {
 	result := memoryReflectionResult{
 		Summary: "The recent memory window has actionable reflection findings that require follow-up.",

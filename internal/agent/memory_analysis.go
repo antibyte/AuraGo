@@ -1473,6 +1473,7 @@ func runMemoryReflection(
 	var result memoryReflectionResult
 	var lastRaw string
 	var lastParseErr error
+	finalParseFailed := false
 	var flags []string
 	for attempt := 0; attempt < 2; attempt++ {
 		prompt := buildMemoryReflectionPrompt(input, attempt > 0)
@@ -1494,8 +1495,10 @@ func runMemoryReflection(
 		parsed, err := parseMemoryReflectionResult(lastRaw)
 		if err != nil {
 			lastParseErr = err
+			finalParseFailed = true
 			continue
 		}
+		finalParseFailed = false
 		flags = validateMemoryReflectionResult(parsed, input.HasData)
 		result = parsed
 		if len(flags) == 0 {
@@ -1508,8 +1511,14 @@ func runMemoryReflection(
 			Summary:      strings.TrimSpace(lastRaw),
 			QualityFlags: []string{"parse_failed", "low_quality"},
 		}
-	} else if len(flags) > 0 {
-		result.QualityFlags = uniqueReflectionFlags(append(result.QualityFlags, flags...))
+	} else {
+		if len(flags) > 0 {
+			result.QualityFlags = append(result.QualityFlags, flags...)
+		}
+		if finalParseFailed {
+			result.QualityFlags = append(result.QualityFlags, "parse_failed")
+		}
+		result.QualityFlags = uniqueReflectionFlags(result.QualityFlags)
 	}
 	result.Scope = input.Scope
 	result.Focus = input.Focus
