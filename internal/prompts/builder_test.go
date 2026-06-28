@@ -2281,6 +2281,34 @@ func TestBudgetShedTrimsRetrievedMemoriesBeforeDroppingWholeSection(t *testing.T
 	}
 }
 
+func TestBudgetShedReportsFullRetrievedMemoryDropWhenEscapedHeaderRemains(t *testing.T) {
+	resetTokenEncoderStateForTest(t, func() (tokenEncoder, error) {
+		return charRatioEncoder{}, nil
+	}, time.Second, time.Second)
+
+	largeEntry := strings.Repeat("large memory entry ", 30)
+	prompt := "# RETRIEVED MEMORIES\n" + largeEntry +
+		"\n\n# FINAL\n<external_data>\n\\# RETRIEVED MEMORIES\nmarker text\n</external_data>\n"
+	flags := &ContextFlags{TokenBudget: 25}
+
+	result, shed, err := budgetShedContext(context.Background(), prompt, flags, "", "", time.Now(), slog.Default())
+	if err != nil {
+		t.Fatalf("budgetShedContext: %v", err)
+	}
+	if strings.Contains(result, largeEntry) {
+		t.Fatalf("large retrieved memory entry should be removed:\n%s", result)
+	}
+	if !strings.Contains(result, "\\# RETRIEVED MEMORIES") {
+		t.Fatalf("escaped downstream header mention should remain:\n%s", result)
+	}
+	if containsString(shed, "# RETRIEVED MEMORIES (partial)") {
+		t.Fatalf("escaped header mention should not be reported as a partial retrieved-memory section: %v", shed)
+	}
+	if !containsString(shed, "# RETRIEVED MEMORIES") {
+		t.Fatalf("shed = %v, want full retrieved memories shed marker", shed)
+	}
+}
+
 func TestBuildSystemPromptEscapesExternalMarkdownHeadersBeforeBudgetShedding(t *testing.T) {
 	resetTokenEncoderStateForTest(t, func() (tokenEncoder, error) {
 		return markerAwareEncoder{}, nil

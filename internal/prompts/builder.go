@@ -1490,7 +1490,7 @@ func budgetShedContext(ctx context.Context, prompt string, flags *ContextFlags, 
 			return "", nil, err
 		}
 		if trimmed {
-			if strings.Contains(result, "# RETRIEVED MEMORIES") {
+			if hasSectionHeader(result, "# RETRIEVED MEMORIES") {
 				shedList = append(shedList, "# RETRIEVED MEMORIES (partial)")
 			} else {
 				shedList = append(shedList, "# RETRIEVED MEMORIES")
@@ -1525,6 +1525,28 @@ func budgetShedContext(ctx context.Context, prompt string, flags *ContextFlags, 
 	}
 
 	return result, shedList, nil
+}
+
+func hasSectionHeader(text, header string) bool {
+	searchStart := 0
+	for {
+		idx := strings.Index(text[searchStart:], header)
+		if idx < 0 {
+			return false
+		}
+		idx += searchStart
+		if (idx == 0 || text[idx-1] == '\n') && !isInsideCodeBlock(text, idx) {
+			lineEnd := strings.IndexByte(text[idx:], '\n')
+			line := text[idx:]
+			if lineEnd >= 0 {
+				line = text[idx : idx+lineEnd]
+			}
+			if strings.TrimSpace(strings.TrimRight(line, "\r")) == header {
+				return true
+			}
+		}
+		searchStart = idx + len(header)
+	}
 }
 
 // trimRetrievedMemoriesSection progressively removes individual memory entries (separated by \n---\n)
