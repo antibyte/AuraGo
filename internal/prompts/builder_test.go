@@ -873,6 +873,32 @@ func TestBuildSystemPromptContextNilLoggerDoesNotPanic(t *testing.T) {
 	}, "[1] User prefers concise answers", nil)
 }
 
+func TestBuildSystemPromptContextNilFlagsDoesNotPanic(t *testing.T) {
+	resetTokenEncoderStateForTest(t, func() (tokenEncoder, error) {
+		return charRatioEncoder{}, nil
+	}, time.Second, time.Second)
+
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("BuildSystemPromptContext panicked with nil flags: %v", r)
+		}
+	}()
+
+	prompt, tokens := BuildSystemPromptContext(context.Background(), t.TempDir(), nil, "Remember this", nil)
+	if strings.TrimSpace(prompt) == "" {
+		t.Fatal("expected fallback-capable prompt for nil flags")
+	}
+	if tokens <= 0 {
+		t.Fatalf("tokens = %d, want positive count", tokens)
+	}
+}
+
+func TestDetermineTierAdaptiveNilFlagsDefaultsFull(t *testing.T) {
+	if got := DetermineTierAdaptive(nil); got != "full" {
+		t.Fatalf("DetermineTierAdaptive(nil) = %q, want full", got)
+	}
+}
+
 func TestBuildSystemPromptIncludesOperationalIssueReminder(t *testing.T) {
 	flags := ContextFlags{
 		SystemLanguage:           "en",

@@ -274,6 +274,7 @@ type ContextFlags struct {
 //
 // Tier mapping: score ≤3 → full, ≤6 → compact, >6 → minimal.
 func DetermineTierAdaptive(flags *ContextFlags) string {
+	flags = normalizePromptFlags(flags)
 	score := 0
 
 	// Message count is the primary pressure towards compacting
@@ -344,6 +345,7 @@ func BuildSystemPrompt(promptsDir string, flags *ContextFlags, coreMemory string
 func BuildSystemPromptContext(ctx context.Context, promptsDir string, flags *ContextFlags, coreMemory string, logger *slog.Logger) (string, int) {
 	ctx = normalizePromptContext(ctx)
 	logger = normalizePromptLogger(logger)
+	flags = normalizePromptFlags(flags)
 	ctx, cancel := context.WithTimeout(ctx, buildPromptTimeout)
 	defer cancel()
 	if err := promptContextErr(ctx); err != nil {
@@ -377,6 +379,13 @@ func normalizePromptLogger(logger *slog.Logger) *slog.Logger {
 	return logger
 }
 
+func normalizePromptFlags(flags *ContextFlags) *ContextFlags {
+	if flags == nil {
+		return &ContextFlags{}
+	}
+	return flags
+}
+
 func promptContextErr(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
@@ -395,6 +404,7 @@ func fallbackSystemPrompt(promptsDir string, flags *ContextFlags, coreMemory str
 func fallbackSystemPromptContext(ctx context.Context, promptsDir string, flags *ContextFlags, coreMemory string, logger *slog.Logger) (string, int) {
 	ctx = normalizePromptContext(ctx)
 	logger = normalizePromptLogger(logger)
+	flags = normalizePromptFlags(flags)
 	var sb strings.Builder
 	sb.WriteString("Respond in " + flags.SystemLanguage + ".\n")
 	if instruction := antiChineseLanguageDriftInstruction(flags.SystemLanguage); instruction != "" {
@@ -487,6 +497,7 @@ func buildSystemPromptInner(promptsDir string, flags *ContextFlags, coreMemory s
 func buildSystemPromptInnerContext(ctx context.Context, promptsDir string, flags *ContextFlags, coreMemory string, logger *slog.Logger) (string, int, error) {
 	ctx = normalizePromptContext(ctx)
 	logger = normalizePromptLogger(logger)
+	flags = normalizePromptFlags(flags)
 	if err := promptContextErr(ctx); err != nil {
 		return "", 0, err
 	}
@@ -1388,6 +1399,7 @@ func budgetShed(prompt string, flags *ContextFlags, personalityContent, coreMemo
 
 func budgetShedContext(ctx context.Context, prompt string, flags *ContextFlags, personalityContent, coreMemory string, now time.Time, logger *slog.Logger) (string, []string, error) {
 	ctx = normalizePromptContext(ctx)
+	flags = normalizePromptFlags(flags)
 	if err := promptContextErr(ctx); err != nil {
 		return "", nil, err
 	}
@@ -1707,6 +1719,7 @@ func longestBytePrefixWithinBudgetContext(ctx context.Context, data []byte, suff
 }
 
 func buildUnifiedMemoryContextBlock(tier string, flags *ContextFlags) string {
+	flags = normalizePromptFlags(flags)
 	type unifiedMemorySection struct {
 		title        string
 		body         string
@@ -2292,6 +2305,7 @@ func countTokensWithModelContext(ctx context.Context, text, model string) int {
 // This lets the agent know what integrations are available even when the
 // adaptive tool filter removes some tool schemas to save tokens.
 func buildEnabledToolsOverview(flags *ContextFlags) string {
+	flags = normalizePromptFlags(flags)
 	const maxVisibleIntegrations = 12
 
 	skipSet := make(map[string]bool, len(flags.SkipIntegrationTools))
