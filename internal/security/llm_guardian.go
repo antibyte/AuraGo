@@ -28,8 +28,11 @@ const (
 	contentScanSnippetMiddleBytes = 2 * 1024
 	contentScanChunkBytes         = 4 * 1024
 	contentScanChunkOverlapBytes  = 512
+	contentScanMaxChunks          = 8
 	contentScanOmittedMark        = "\n[... content omitted for guardian scan ...]\n"
 )
+
+var contentScanSuspiciousChunkPattern = regexp.MustCompile(`(?i)(ignore\s+(all\s+)?previous|system\s*:|assistant\s*:|developer\s*:|prompt\s+injection|external_data|reveal\s+.*secret|tool\s+call|follow\s+these\s+instructions)`)
 
 // GuardianLevel defines the protection intensity.
 type GuardianLevel int
@@ -770,7 +773,10 @@ func (g *LLMGuardian) EvaluateContent(ctx context.Context, contentType string, c
 		return g.failSafeResult(start, "rate limit exceeded")
 	}
 
-	chunks := prepareContentScanChunks(content, contentScanChunkBytes, contentScanChunkOverlapBytes)
+	chunks := selectContentScanChunks(
+		prepareContentScanChunks(content, contentScanChunkBytes, contentScanChunkOverlapBytes),
+		contentScanMaxChunks,
+	)
 	var best GuardianResult
 	haveBest := false
 	totalTokens := 0
@@ -801,10 +807,7 @@ func (g *LLMGuardian) EvaluateContent(ctx context.Context, contentType string, c
 		totalTokens += resp.Usage.TotalTokens
 		result.TokensUsed = totalTokens
 		result.Duration = time.Since(start)
-		if !haveBest || result.RiskScore > best.RiskScore {
-			best = result
-			haveBest = true
-		}
+		best, haveBest = preferContentScanResult(best, haveBest, result)
 		if result.Decision == DecisionBlock {
 			break
 		}
@@ -917,6 +920,70 @@ func prepareContentScanChunks(content string, chunkSize int, overlap int) []stri
 		}
 	}
 	return chunks
+}
+
+func selectContentScanChunks(chunks []string, maxChunks int) []string {
+	if maxChunks <= 0 || len(chunks) <= maxChunks {
+		return chunks
+	}
+
+	selected := make([]string, 0, maxChunks)
+	selectedIndexes := make(map[int]bool, maxChunks)
+	add := func(index int) {
+		if len(selected) >= maxChunks || index < 0 || index >= len(chunks) || selectedIndexes[index] {
+			return
+		}
+		selectedIndexes[index] = true
+		selected = append(selected, chunks[index])
+	}
+
+	add(0)
+	add(len(chunks) - 1)
+	for i, chunk := range chunks {
+		if len(selected) >= maxChunks {
+			break
+		}
+		if contentScanSuspiciousChunkPattern.MatchString(chunk) {
+			add(i)
+		}
+	}
+	for slot := 1; len(selected) < maxChunks && slot < maxChunks-1; slot++ {
+		index := slot * (len(chunks) - 1) / (maxChunks - 1)
+		add(index)
+	}
+	for i := 0; len(selected) < maxChunks && i < len(chunks); i++ {
+		add(i)
+	}
+
+	return selected
+}
+
+func preferContentScanResult(best GuardianResult, haveBest bool, candidate GuardianResult) (GuardianResult, bool) {
+	if !haveBest {
+		return candidate, true
+	}
+	candidateSeverity := contentScanDecisionSeverity(candidate.Decision)
+	bestSeverity := contentScanDecisionSeverity(best.Decision)
+	if candidateSeverity > bestSeverity {
+		return candidate, true
+	}
+	if candidateSeverity == bestSeverity && candidate.RiskScore > best.RiskScore {
+		return candidate, true
+	}
+	return best, true
+}
+
+func contentScanDecisionSeverity(decision Decision) int {
+	switch decision {
+	case DecisionBlock:
+		return 3
+	case DecisionQuarantine:
+		return 2
+	case DecisionAllow:
+		return 1
+	default:
+		return 0
+	}
 }
 
 // Judge implements promptsec.LLMJudge so the LLMGuardian can be wired into the

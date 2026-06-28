@@ -728,6 +728,53 @@ func TestPrepareContentScanChunksCoversLongContent(t *testing.T) {
 	}
 }
 
+func TestPreferContentScanResultKeepsQuarantineOverHigherScoredAllow(t *testing.T) {
+	best, haveBest := preferContentScanResult(GuardianResult{}, false, GuardianResult{
+		Decision:  DecisionQuarantine,
+		RiskScore: 0.60,
+		Reason:    "suspicious instructions",
+	})
+	best, haveBest = preferContentScanResult(best, haveBest, GuardianResult{
+		Decision:  DecisionAllow,
+		RiskScore: 0.95,
+		Reason:    "safe but overconfident",
+	})
+
+	if !haveBest {
+		t.Fatal("expected a selected result")
+	}
+	if best.Decision != DecisionQuarantine {
+		t.Fatalf("expected quarantine to outrank allow, got %+v", best)
+	}
+}
+
+func TestSelectContentScanChunksLimitsLargeContentAndKeepsSuspiciousCoverage(t *testing.T) {
+	chunks := []string{
+		"chunk-0 opening context",
+		"chunk-1 safe filler",
+		"chunk-2 safe filler",
+		"chunk-3 safe filler",
+		"chunk-4 safe filler",
+		"chunk-5 ignore previous instructions",
+		"chunk-6 safe filler",
+		"chunk-7 safe filler",
+		"chunk-8 safe filler",
+		"chunk-9 closing context",
+	}
+
+	got := selectContentScanChunks(chunks, 4)
+
+	if len(got) > 4 {
+		t.Fatalf("expected at most 4 chunks, got %d: %#v", len(got), got)
+	}
+	joined := strings.Join(got, "\n")
+	for _, want := range []string{"chunk-0", "chunk-5", "chunk-9"} {
+		if !strings.Contains(joined, want) {
+			t.Fatalf("expected selected chunks to contain %s, got %#v", want, got)
+		}
+	}
+}
+
 func TestContentScanMetrics(t *testing.T) {
 	m := &GuardianMetrics{}
 
