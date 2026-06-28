@@ -1134,6 +1134,7 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                 e.rotTarget = Math.PI;
                 e.rotTimer = 0;
                 e.rotDuration = 500;
+                if (window.__galaxaDebug) console.log('[rot]', e.type, 'startDive rotTarget=', e.rotTarget);
             }
             if (e.type === 'hunter') ctx.SFX.hunterDive(e.x); else ctx.SFX.dive();
             if ((e.type === 'boss' || e.type === 'miniboss') && !e.hasCap && !ctx.G.beam && ctx.G.stage > 1 && Math.random() < 0.3) ctx.G.beam = { active: true, owner: e, x: e.x, y: e.y + 16, h: 0, t: 0, cap: false, capT: 0 };
@@ -1207,6 +1208,7 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                     if (e.rotPhase === undefined) e.rotPhase = Math.random() * Math.PI * 2;
                     e.rotPhase += eDt * 1.5;
                     e.rot = Math.sin(e.rotPhase) * 0.052;
+                    if (window.__galaxaDebug && (e.type === 'hunter' || e.type === 'stalker' || e.type === 'kamikaze') && (ctx.tick % 30 === 0)) console.log('[rot]', e.type, 'FORM rot=', e.rot, 'rotPhase=', e.rotPhase);
                     if ((e.spawnAnim || 0) < (e.spawnDur || 400)) e.spawnAnim = Math.min(e.spawnDur, (e.spawnAnim || 0) + dtMs);
                     // NEW: Weaver sine-wave horizontal movement
                     if (e.type === 'weaver') {
@@ -1266,6 +1268,7 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                             e.rotTimer = 0;
                             e.rotDuration = 500;
                             e.rotTarget = 0;
+                            if (window.__galaxaDebug) console.log('[rot]', e.type, 'enter RETURN at rot=', e.rot, 'rotTimer=', e.rotTimer);
                         }
                     }
                     else {
@@ -1273,6 +1276,7 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                             e.rotTimer += dtMs;
                             const t = Math.min(e.rotTimer / e.rotDuration, 1);
                             e.rot = e.rotTarget * t;
+                            if (window.__galaxaDebug) console.log('[rot]', e.type, 'DIVE t=', t, 'rot=', e.rot);
                         }
                         const diveSpd = ctx.DIVE_SPD * (e.type === 'hunter' ? 2.1 : e.type === 'stalker' ? 1.5 : e.type === 'kamikaze' ? 2.5 : 1) * (e.rageSpeedMult || 1);
                         e.y += diveSpd * eDt;

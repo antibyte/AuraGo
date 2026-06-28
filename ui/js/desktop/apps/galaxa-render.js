@@ -591,6 +591,7 @@
             for (const e of ctx.G.enemies) {
                 if (e.st === 'DEAD') continue;
                 const _rot = e.rot || 0;
+                if (window.__galaxaDebug && (e.type === 'hunter' || e.type === 'stalker' || e.type === 'kamikaze') && (ctx.tick % 30 === 0)) console.log('[render]', e.type, 'st=', e.st, 'rot=', _rot);
                 if (e.st === 'DIVING') {
                     ctx.c.globalAlpha = 0.12;
                     const _ghostRef = ctx.enemySpriteFor(e);
