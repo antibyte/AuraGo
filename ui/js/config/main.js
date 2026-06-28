@@ -188,7 +188,8 @@ const SECTIONS = [
         group: t('config.group.security'),
         items: [
             { key: 'security_proxy', icon: '🔒', label: t('config.section.security_proxy.label'), desc: t('config.section.security_proxy.desc') },
-            { key: 'llm_guardian', icon: '🛡️', label: t('config.section.llm_guardian.label'), desc: t('config.section.llm_guardian.desc') },
+            { key: 'guardian', icon: '🛡️', label: t('config.section.guardian.label'), desc: t('config.section.guardian.desc') },
+            { key: 'llm_guardian', icon: '🤖', label: t('config.section.llm_guardian.label'), desc: t('config.section.llm_guardian.desc') },
             { key: 'virustotal', icon: '🦠', label: t('config.section.virustotal.label'), desc: t('config.section.virustotal.desc') }
         ]
     },
@@ -2047,6 +2048,7 @@ const SECTION_MODULES = {
     remote_control: { m: 'remote_control', fn: 'renderRemoteControlSection' },
     security_proxy: { m: 'security_proxy', fn: 'renderSecurityProxySection' },
     memory_analysis: { m: 'memory_analysis', fn: 'renderMemoryAnalysisSection' },
+    guardian: { m: 'guardian', fn: 'renderGuardianSection' },
     llm_guardian: { m: 'llm_guardian', fn: 'renderLLMGuardianSection' },
     output_compression: { m: 'output_compression', fn: 'renderOutputCompressionSection' },
     document_creator: { m: 'document_creator', fn: 'renderDocumentCreatorSection' },

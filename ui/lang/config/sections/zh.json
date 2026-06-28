@@ -167,6 +167,8 @@
   "config.section.llm.desc": "高级语言模型设置",
   "config.section.llm.label": "LLM 设置",
   "config.section.llm_guardian.desc": "基于LLM的工具调用验证安全层",
+  "config.section.guardian.label": "PromptSec 守护者",
+  "config.section.guardian.desc": "具有清理器、嵌入、策略等功能的本地提示注入防御",
   "config.section.llm_guardian.label": "LLM守护者",
   "config.section.logging.desc": "日志设置",
   "config.section.logging.label": "日志",

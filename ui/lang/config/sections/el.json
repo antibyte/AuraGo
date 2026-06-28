@@ -167,6 +167,8 @@
   "config.section.llm.desc": "Προηγμένες ρυθμίσεις γλωσσικού μοντέλου",
   "config.section.llm.label": "Ρυθμίσεις LLM",
   "config.section.llm_guardian.desc": "Επίπεδο ασφαλείας βασισμένο σε LLM για επικύρωση κλήσεων εργαλείων",
+  "config.section.guardian.label": "PromptSec Φύλακας",
+  "config.section.guardian.desc": "Τοπική άμυνα έγχυσης prompt με sanitizer, embedding, πολιτική και άλλα",
   "config.section.llm_guardian.label": "Φύλακας LLM",
   "config.section.logging.desc": "Ρυθμίσεις καταγραφής",
   "config.section.logging.label": "Logování",

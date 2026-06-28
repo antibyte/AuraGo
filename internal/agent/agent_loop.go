@@ -1095,6 +1095,12 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 		}
 
+		// Update the Guardian with the current trusted system prompt so that
+		// structure enforcement (sandwich defense) can frame user/external input.
+		if cfg.Guardian.PromptSec.Structure.Enabled && s.guardian != nil {
+			s.guardian.SetSystemPrompt(sysPrompt)
+		}
+
 		s.currentLogger.Debug("[Sync] System prompt ready",
 			"cache_hit", cacheHit,
 			"length", len(sysPrompt),

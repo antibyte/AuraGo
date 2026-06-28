@@ -1216,6 +1216,28 @@ guardian:
         preset: strict                        # promptsec preset ("strict", "moderate", "lenient")
         spotlight: true                       # use promptsec spotlighting for output isolation
         canary: true                          # use promptsec canaries for manipulation detection
+        sanitizer:
+            normalize: true                   # unicode normalization
+            dehomoglyph: true                 # replace homoglyphs with base characters
+            decode: true                      # decode obfuscated payloads (base64, url, hex)
+        embedding:
+            enabled: false                   # local cosine-similarity guard against known attack vectors
+            threshold: 0.65                  # similarity threshold (0.0 - 1.0)
+        policy: ""                           # context-aware policy: "", "rag", "support", "coding", "translation", "custom"
+        custom_policy:
+            disallowed_tasks: []            # only used when policy is "custom"
+        taint:
+            enabled: false                  # track data provenance / trust levels
+            default_level: untrusted        # untrusted, suspicious, trusted
+        structure:
+            enabled: false                  # enforce prompt structure (sandwich defense)
+            mode: sandwich                  # sandwich, xml, random
+        llm_judge:
+            enabled: false                  # escalate uncertain detections to LLM Guardian
+            mode: uncertain                 # uncertain, always, threat_detected, no_threat
+            timeout_secs: 2                 # max wait for judge response
+            policy: ""                      # optional app-specific policy for the judge
+        use_sanitized_output: false         # feed promptsec sanitized output to the LLM
 netlify:
     enabled: false
     readonly: false

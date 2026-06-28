@@ -694,3 +694,68 @@ budget:
 ```
 
 Mit dieser Konfiguration behalten Sie die Kontrolle über Ihre LLM-Kosten und können das System entsprechend Ihrem Budget optimieren.
+
+
+---
+
+## `guardian` — PromptSec / Prompt Injection Defense
+
+AuraGo uses the local `promptsec` Go library as the first line of defense against prompt injection. All guards run in-process without external API calls unless LLM-as-Judge escalation is enabled.
+
+```yaml
+guardian:
+  max_scan_bytes: 16384
+  scan_edge_bytes: 6144
+  promptsec:
+    preset: strict
+    spotlight: true
+    canary: true
+    sanitizer:
+      normalize: true
+      dehomoglyph: true
+      decode: true
+    embedding:
+      enabled: false
+      threshold: 0.65
+    policy: ""                       # "", "rag", "support", "coding", "translation", "custom"
+    custom_policy:
+      disallowed_tasks: []
+    taint:
+      enabled: false
+      default_level: untrusted
+    structure:
+      enabled: false
+      mode: sandwich
+    llm_judge:
+      enabled: false
+      mode: uncertain
+      timeout_secs: 2
+      policy: ""
+    use_sanitized_output: false
+```
+
+| Key | Default | Description |
+|---|---|---|
+| `max_scan_bytes` | `16384` | Maximum bytes scanned by the regex/heuristic guard before windowing. |
+| `scan_edge_bytes` | `6144` | Bytes kept from start and end when windowing large inputs. |
+| `promptsec.preset` | `"strict"` | Heuristic preset: `strict`, `moderate`, `lenient`. |
+| `promptsec.spotlight` | `true` | Data-mark untrusted content for isolation. |
+| `promptsec.canary` | `true` | Inject canary tokens to detect prompt/data leakage. |
+| `promptsec.sanitizer.normalize` | `true` | Strip zero-width/invisible Unicode characters. |
+| `promptsec.sanitizer.dehomoglyph` | `true` | Replace confusable/homoglyph characters (e.g. Cyrillic look-alikes). |
+| `promptsec.sanitizer.decode` | `true` | Decode base64/hex-obfuscated payloads before scanning. |
+| `promptsec.embedding.enabled` | `false` | Enable local cosine-similarity classifier against known attack vectors. |
+| `promptsec.embedding.threshold` | `0.65` | Similarity threshold for the embedding guard (0.0–1.0). |
+| `promptsec.policy` | `""` | Context-aware policy: `rag`, `support`, `coding`, `translation`, `custom`. |
+| `promptsec.custom_policy.disallowed_tasks` | `[]` | Tasks blocked when `policy: custom`. |
+| `promptsec.taint.enabled` | `false` | Track data provenance/trust levels through the pipeline. |
+| `promptsec.taint.default_level` | `"untrusted"` | Default trust level: `untrusted`, `suspicious`, `trusted`. |
+| `promptsec.structure.enabled` | `false` | Enable sandwich/XML/random enclosure structure enforcement. |
+| `promptsec.structure.mode` | `"sandwich"` | Structure mode: `sandwich`, `xml`, `random`. |
+| `promptsec.llm_judge.enabled` | `false` | Escalate uncertain/policy detections to the LLM Guardian. |
+| `promptsec.llm_judge.mode` | `"uncertain"` | When to call the judge: `uncertain`, `always`, `threat_detected`, `no_threat`. |
+| `promptsec.llm_judge.timeout_secs` | `2` | Maximum wait time for the judge LLM. |
+| `promptsec.llm_judge.policy` | `""` | Optional app-specific policy text for the judge. |
+| `promptsec.use_sanitized_output` | `false` | Forward the sanitized promptsec output to the agent/LLM. |
+
+> **Recommendation:** Keep `sanitizer` enabled (default). Enable `embedding` or `llm_judge` only when you need stronger detection and accept the small latency/cost trade-off.

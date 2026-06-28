@@ -534,6 +534,20 @@ func Load(path string) (*Config, error) {
 	cfg.Guardian.PromptSec.Preset = "strict"
 	cfg.Guardian.PromptSec.Spotlight = true
 	cfg.Guardian.PromptSec.Canary = true
+	cfg.Guardian.PromptSec.Sanitizer.Normalize = true
+	cfg.Guardian.PromptSec.Sanitizer.Dehomoglyph = true
+	cfg.Guardian.PromptSec.Sanitizer.Decode = true
+	cfg.Guardian.PromptSec.Embedding.Enabled = false
+	cfg.Guardian.PromptSec.Embedding.Threshold = 0.65
+	cfg.Guardian.PromptSec.Policy = ""
+	cfg.Guardian.PromptSec.Taint.Enabled = false
+	cfg.Guardian.PromptSec.Taint.DefaultLevel = "untrusted"
+	cfg.Guardian.PromptSec.Structure.Enabled = false
+	cfg.Guardian.PromptSec.Structure.Mode = "sandwich"
+	cfg.Guardian.PromptSec.LLMJudge.Enabled = false
+	cfg.Guardian.PromptSec.LLMJudge.Mode = "uncertain"
+	cfg.Guardian.PromptSec.LLMJudge.TimeoutSecs = 2
+	cfg.Guardian.PromptSec.UseSanitizedOutput = false
 
 	// Task rules are core prompt guardrails and are enabled by default.
 	cfg.Rules.Enabled = true
@@ -1048,6 +1062,9 @@ func Load(path string) (*Config, error) {
 
 	// Migrate legacy agent.personality_* fields → new personality section.
 	cfg.MigrateAgentToPersonality()
+
+	// Fill defaults for expanded guardian.promptsec options.
+	cfg.MigratePromptSecDefaults(data)
 
 	// Resolve provider references → populates all yaml:"-" fields.
 	// Legacy migration creates provider entries from inline fields if Providers is empty.

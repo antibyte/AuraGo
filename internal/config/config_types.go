@@ -930,6 +930,34 @@ type Config struct {
 			Preset    string `yaml:"preset"`    // "strict", "moderate", "lenient" (default: strict)
 			Spotlight bool   `yaml:"spotlight"` // default: true
 			Canary    bool   `yaml:"canary"`    // default: true
+			Sanitizer struct {
+				Normalize   bool `yaml:"normalize"`   // unicode normalization (default: true)
+				Dehomoglyph bool `yaml:"dehomoglyph"` // replace homoglyphs (default: true)
+				Decode      bool `yaml:"decode"`      // decode obfuscated payloads (default: true)
+			} `yaml:"sanitizer"`
+			Embedding struct {
+				Enabled   bool    `yaml:"enabled"`   // default: false
+				Threshold float64 `yaml:"threshold"` // cosine similarity threshold (default: 0.65)
+			} `yaml:"embedding"`
+			Policy       string `yaml:"policy"` // "", "rag", "support", "coding", "translation", "custom"
+			CustomPolicy struct {
+				DisallowedTasks []string `yaml:"disallowed_tasks"`
+			} `yaml:"custom_policy"`
+			Taint struct {
+				Enabled      bool   `yaml:"enabled"`       // default: false
+				DefaultLevel string `yaml:"default_level"` // "untrusted", "suspicious", "trusted"
+			} `yaml:"taint"`
+			Structure struct {
+				Enabled bool   `yaml:"enabled"` // default: false
+				Mode    string `yaml:"mode"`    // "sandwich", "xml", "random"
+			} `yaml:"structure"`
+			LLMJudge struct {
+				Enabled     bool   `yaml:"enabled"`      // default: false
+				Mode        string `yaml:"mode"`         // "uncertain", "always", "threat_detected", "no_threat"
+				TimeoutSecs int    `yaml:"timeout_secs"` // default: 2
+				Policy      string `yaml:"policy"`       // optional app-specific policy text
+			} `yaml:"llm_judge"`
+			UseSanitizedOutput bool `yaml:"use_sanitized_output"` // return promptsec sanitized output (default: false)
 		} `yaml:"promptsec"`
 	} `yaml:"guardian"`
 	Logging struct {

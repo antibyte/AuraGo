@@ -217,6 +217,32 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 		Preset:        cfg.Guardian.PromptSec.Preset,
 		Spotlight:     cfg.Guardian.PromptSec.Spotlight,
 		Canary:        cfg.Guardian.PromptSec.Canary,
+		Sanitizer: security.PromptSecSanitizerOptions{
+			Normalize:   cfg.Guardian.PromptSec.Sanitizer.Normalize,
+			Dehomoglyph: cfg.Guardian.PromptSec.Sanitizer.Dehomoglyph,
+			Decode:      cfg.Guardian.PromptSec.Sanitizer.Decode,
+		},
+		Embedding: security.PromptSecEmbeddingOptions{
+			Enabled:   cfg.Guardian.PromptSec.Embedding.Enabled,
+			Threshold: cfg.Guardian.PromptSec.Embedding.Threshold,
+		},
+		Policy:       cfg.Guardian.PromptSec.Policy,
+		CustomPolicy: security.PromptSecCustomPolicyOptions{DisallowedTasks: cfg.Guardian.PromptSec.CustomPolicy.DisallowedTasks},
+		Taint: security.PromptSecTaintOptions{
+			Enabled:      cfg.Guardian.PromptSec.Taint.Enabled,
+			DefaultLevel: cfg.Guardian.PromptSec.Taint.DefaultLevel,
+		},
+		LLMJudge: security.PromptSecLLMJudgeOptions{
+			Enabled:     cfg.Guardian.PromptSec.LLMJudge.Enabled,
+			Mode:        cfg.Guardian.PromptSec.LLMJudge.Mode,
+			TimeoutSecs: cfg.Guardian.PromptSec.LLMJudge.TimeoutSecs,
+			Policy:      cfg.Guardian.PromptSec.LLMJudge.Policy,
+		},
+		Structure: security.PromptSecStructureOptions{
+			Enabled: cfg.Guardian.PromptSec.Structure.Enabled,
+			Mode:    cfg.Guardian.PromptSec.Structure.Mode,
+		},
+		UseSanitizedOutput: cfg.Guardian.PromptSec.UseSanitizedOutput,
 	})
 	tools.ConfigureTimeouts(cfg.Tools.PythonTimeoutSeconds, cfg.Tools.SkillTimeoutSeconds, cfg.Tools.BackgroundTimeoutSeconds)
 	configureToolRuntimePermissions(cfg)
@@ -227,6 +253,16 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 	llmGuardian := runCfg.LLMGuardian
 	if llmGuardian == nil {
 		llmGuardian = security.NewLLMGuardian(cfg, logger)
+	}
+
+	// Wire LLM Guardian into promptsec as an LLM-as-Judge escalation layer.
+	if cfg.Guardian.PromptSec.LLMJudge.Enabled && llmGuardian != nil {
+		guardian.AttachLLMJudge(llmGuardian, security.PromptSecLLMJudgeOptions{
+			Enabled:     cfg.Guardian.PromptSec.LLMJudge.Enabled,
+			Mode:        cfg.Guardian.PromptSec.LLMJudge.Mode,
+			TimeoutSecs: cfg.Guardian.PromptSec.LLMJudge.TimeoutSecs,
+			Policy:      cfg.Guardian.PromptSec.LLMJudge.Policy,
+		})
 	}
 
 	var currentLogger *slog.Logger = logger

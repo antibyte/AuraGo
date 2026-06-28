@@ -1109,3 +1109,41 @@ func (c *Config) MigrateAgentToPersonality() {
 		c.Personality.UserProfilingThreshold = c.Agent.LegacyUserProfilingThreshold
 	}
 }
+
+// MigratePromptSecDefaults fills missing promptsec sub-fields with their
+// current defaults so existing configs continue to work after the guardian
+// section is expanded. This is safe because all new guards are opt-in except
+// the sanitizer, which defaults to enabled.
+func (c *Config) MigratePromptSecDefaults(data []byte) {
+	ps := &c.Guardian.PromptSec
+
+	if ps.Preset == "" {
+		ps.Preset = "strict"
+	}
+
+	// Sanitizer defaults to enabled for hardened out-of-the-box behaviour.
+	if !yamlHasPath(data, "guardian", "promptsec", "sanitizer") {
+		ps.Sanitizer.Normalize = true
+		ps.Sanitizer.Dehomoglyph = true
+		ps.Sanitizer.Decode = true
+	}
+
+	if ps.Embedding.Threshold == 0 {
+		ps.Embedding.Threshold = 0.65
+	}
+
+	if ps.Taint.DefaultLevel == "" {
+		ps.Taint.DefaultLevel = "untrusted"
+	}
+
+	if ps.Structure.Mode == "" {
+		ps.Structure.Mode = "sandwich"
+	}
+
+	if ps.LLMJudge.Mode == "" {
+		ps.LLMJudge.Mode = "uncertain"
+	}
+	if ps.LLMJudge.TimeoutSecs == 0 {
+		ps.LLMJudge.TimeoutSecs = 2
+	}
+}

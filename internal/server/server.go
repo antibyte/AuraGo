@@ -110,10 +110,10 @@ func panicRecoveryMiddleware(logger *slog.Logger, next http.Handler) http.Handle
 
 // Server holds the state and dependencies for the web server and socket bridge.
 type Server struct {
-	Cfg                *config.Config
-	cfgSnapshot        atomic.Pointer[config.Config]
-	CfgMu     sync.RWMutex // protects Cfg during hot-reload
-	CfgSaveMu sync.Mutex   // serializes config file writes to prevent TOCTOU races
+	Cfg         *config.Config
+	cfgSnapshot atomic.Pointer[config.Config]
+	CfgMu       sync.RWMutex // protects Cfg during hot-reload
+	CfgSaveMu   sync.Mutex   // serializes config file writes to prevent TOCTOU races
 	// Setup wizard CSRF tokens (short-lived, multi-token support).
 	// These live on the Server so tests can construct independent Server
 	// instances without racing on a shared package-level map.
@@ -123,64 +123,64 @@ type Server struct {
 	// started exactly once. Lives on Server (not package global) so each
 	// Server instance has independent cleanup lifecycle for test isolation.
 	SetupCSRFCleanupOnce sync.Once
-	Logger          *slog.Logger
-	AccessLogger       *slog.Logger
-	LLMClient          llm.ChatClient
-	ShortTermMem       *memory.SQLiteMemory
-	LongTermMem        memory.VectorDB
-	Vault              *security.Vault
-	Registry           *tools.ProcessRegistry
-	CronManager        *tools.CronManager
-	BackgroundTasks    *tools.BackgroundTaskManager
-	HistoryManager     *memory.HistoryManager
-	KG                 *memory.KnowledgeGraph
-	InventoryDB        *sql.DB
-	InvasionDB         *sql.DB
-	Guardian           *security.Guardian
-	LLMGuardian        *security.LLMGuardian
-	CoAgentRegistry    *agent.CoAgentRegistry
-	BudgetTracker      *budget.Tracker
-	TokenManager       *security.TokenManager
-	WebhookManager     *webhooks.Manager
-	WebhookHandler     *webhooks.Handler
-	SSE                *SSEBroadcaster // shared SSE broadcaster, set by run()
-	MissionManagerV2   *tools.MissionManagerV2
-	EggHub             *bridge.EggHub
-	RemoteHub          *remote.RemoteHub
-	agodeskDesktopMu   sync.Mutex
-	agodeskDesktop     *agodeskDesktopBroker
-	ProxyManager       *proxy.Manager
-	TsNetManager       *tsnetnode.Manager
-	tsNetHandler       http.Handler // stored so the UI can restart tsnet without a full server restart
-	FileIndexer        *services.FileIndexer
-	HeartbeatScheduler *heartbeat.Scheduler
-	UptimeKumaPoller   *tools.UptimeKumaPoller
-	AgentMailService   *agentmail.Service
-	AgentMailMu        sync.Mutex
-	CheatsheetDB       *sql.DB
-	ImageGalleryDB     *sql.DB
-	MediaRegistryDB    *sql.DB
-	HomepageRegistryDB *sql.DB
-	ContactsDB         *sql.DB
-	PlannerDB          *sql.DB
-	LaunchpadDB        *sql.DB
-	SQLConnectionsDB   *sql.DB
-	SQLConnectionPool  *sqlconnections.ConnectionPool
-	A2AServer          *a2apkg.Server        // A2A protocol server (nil if disabled)
-	A2AClientMgr       *a2apkg.ClientManager // A2A client manager (nil if disabled)
-	A2ABridge          *a2apkg.Bridge        // A2A co-agent bridge (nil if disabled)
-	SkillManager       *tools.SkillManager   // Skill Manager for registry and security scanning
-	AgentSkillManager  *tools.AgentSkillManager
-	SkillsDB           *sql.DB // Skills registry database
-	PreparedMissionsDB *sql.DB // Prepared missions SQLite database
-	MissionHistoryDB   *sql.DB // Mission execution history SQLite database
-	PreparationService *services.MissionPreparationService
-	WarningsRegistry   *warnings.Registry // Runtime warnings and health issues
-	DaemonSupervisor   *tools.DaemonSupervisor
-	DesktopService     *desktop.Service
-	DesktopStore       *desktopstore.Service
-	DesktopHub         *desktop.Hub
-	DesktopMu          sync.Mutex
+	Logger               *slog.Logger
+	AccessLogger         *slog.Logger
+	LLMClient            llm.ChatClient
+	ShortTermMem         *memory.SQLiteMemory
+	LongTermMem          memory.VectorDB
+	Vault                *security.Vault
+	Registry             *tools.ProcessRegistry
+	CronManager          *tools.CronManager
+	BackgroundTasks      *tools.BackgroundTaskManager
+	HistoryManager       *memory.HistoryManager
+	KG                   *memory.KnowledgeGraph
+	InventoryDB          *sql.DB
+	InvasionDB           *sql.DB
+	Guardian             *security.Guardian
+	LLMGuardian          *security.LLMGuardian
+	CoAgentRegistry      *agent.CoAgentRegistry
+	BudgetTracker        *budget.Tracker
+	TokenManager         *security.TokenManager
+	WebhookManager       *webhooks.Manager
+	WebhookHandler       *webhooks.Handler
+	SSE                  *SSEBroadcaster // shared SSE broadcaster, set by run()
+	MissionManagerV2     *tools.MissionManagerV2
+	EggHub               *bridge.EggHub
+	RemoteHub            *remote.RemoteHub
+	agodeskDesktopMu     sync.Mutex
+	agodeskDesktop       *agodeskDesktopBroker
+	ProxyManager         *proxy.Manager
+	TsNetManager         *tsnetnode.Manager
+	tsNetHandler         http.Handler // stored so the UI can restart tsnet without a full server restart
+	FileIndexer          *services.FileIndexer
+	HeartbeatScheduler   *heartbeat.Scheduler
+	UptimeKumaPoller     *tools.UptimeKumaPoller
+	AgentMailService     *agentmail.Service
+	AgentMailMu          sync.Mutex
+	CheatsheetDB         *sql.DB
+	ImageGalleryDB       *sql.DB
+	MediaRegistryDB      *sql.DB
+	HomepageRegistryDB   *sql.DB
+	ContactsDB           *sql.DB
+	PlannerDB            *sql.DB
+	LaunchpadDB          *sql.DB
+	SQLConnectionsDB     *sql.DB
+	SQLConnectionPool    *sqlconnections.ConnectionPool
+	A2AServer            *a2apkg.Server        // A2A protocol server (nil if disabled)
+	A2AClientMgr         *a2apkg.ClientManager // A2A client manager (nil if disabled)
+	A2ABridge            *a2apkg.Bridge        // A2A co-agent bridge (nil if disabled)
+	SkillManager         *tools.SkillManager   // Skill Manager for registry and security scanning
+	AgentSkillManager    *tools.AgentSkillManager
+	SkillsDB             *sql.DB // Skills registry database
+	PreparedMissionsDB   *sql.DB // Prepared missions SQLite database
+	MissionHistoryDB     *sql.DB // Mission execution history SQLite database
+	PreparationService   *services.MissionPreparationService
+	WarningsRegistry     *warnings.Registry // Runtime warnings and health issues
+	DaemonSupervisor     *tools.DaemonSupervisor
+	DesktopService       *desktop.Service
+	DesktopStore         *desktopstore.Service
+	DesktopHub           *desktop.Hub
+	DesktopMu            sync.Mutex
 	// IsFirstStart is true if core_memory.md was just freshly created (no prior data).
 	IsFirstStart    bool
 	StartedAt       time.Time     // server start time for uptime calculation
@@ -1026,6 +1026,50 @@ func newServerFromOptions(opts StartOptions) *Server {
 		}
 	}
 
+	// Build the server-wide Guardian with the same promptsec options as the agent loop.
+	guardian := security.NewGuardianWithOptions(logger, security.GuardianOptions{
+		MaxScanBytes:  cfg.Guardian.MaxScanBytes,
+		ScanEdgeBytes: cfg.Guardian.ScanEdgeBytes,
+		Preset:        cfg.Guardian.PromptSec.Preset,
+		Spotlight:     cfg.Guardian.PromptSec.Spotlight,
+		Canary:        cfg.Guardian.PromptSec.Canary,
+		Sanitizer: security.PromptSecSanitizerOptions{
+			Normalize:   cfg.Guardian.PromptSec.Sanitizer.Normalize,
+			Dehomoglyph: cfg.Guardian.PromptSec.Sanitizer.Dehomoglyph,
+			Decode:      cfg.Guardian.PromptSec.Sanitizer.Decode,
+		},
+		Embedding: security.PromptSecEmbeddingOptions{
+			Enabled:   cfg.Guardian.PromptSec.Embedding.Enabled,
+			Threshold: cfg.Guardian.PromptSec.Embedding.Threshold,
+		},
+		Policy:       cfg.Guardian.PromptSec.Policy,
+		CustomPolicy: security.PromptSecCustomPolicyOptions{DisallowedTasks: cfg.Guardian.PromptSec.CustomPolicy.DisallowedTasks},
+		Taint: security.PromptSecTaintOptions{
+			Enabled:      cfg.Guardian.PromptSec.Taint.Enabled,
+			DefaultLevel: cfg.Guardian.PromptSec.Taint.DefaultLevel,
+		},
+		Structure: security.PromptSecStructureOptions{
+			Enabled: cfg.Guardian.PromptSec.Structure.Enabled,
+			Mode:    cfg.Guardian.PromptSec.Structure.Mode,
+		},
+		LLMJudge: security.PromptSecLLMJudgeOptions{
+			Enabled:     cfg.Guardian.PromptSec.LLMJudge.Enabled,
+			Mode:        cfg.Guardian.PromptSec.LLMJudge.Mode,
+			TimeoutSecs: cfg.Guardian.PromptSec.LLMJudge.TimeoutSecs,
+			Policy:      cfg.Guardian.PromptSec.LLMJudge.Policy,
+		},
+		UseSanitizedOutput: cfg.Guardian.PromptSec.UseSanitizedOutput,
+	})
+	llmGuardian := security.NewLLMGuardian(cfg, logger)
+	if cfg.Guardian.PromptSec.LLMJudge.Enabled {
+		guardian.AttachLLMJudge(llmGuardian, security.PromptSecLLMJudgeOptions{
+			Enabled:     cfg.Guardian.PromptSec.LLMJudge.Enabled,
+			Mode:        cfg.Guardian.PromptSec.LLMJudge.Mode,
+			TimeoutSecs: cfg.Guardian.PromptSec.LLMJudge.TimeoutSecs,
+			Policy:      cfg.Guardian.PromptSec.LLMJudge.Policy,
+		})
+	}
+
 	s := &Server{
 		Cfg:                cfg,
 		SetupCSRFTokens:    make(map[string]time.Time),
@@ -1051,22 +1095,16 @@ func newServerFromOptions(opts StartOptions) *Server {
 		LaunchpadDB:        opts.LaunchpadDB,
 		SQLConnectionsDB:   opts.SQLConnectionsDB,
 		SQLConnectionPool:  opts.SQLConnectionPool,
-		Guardian: security.NewGuardianWithOptions(logger, security.GuardianOptions{
-			MaxScanBytes:  cfg.Guardian.MaxScanBytes,
-			ScanEdgeBytes: cfg.Guardian.ScanEdgeBytes,
-			Preset:        cfg.Guardian.PromptSec.Preset,
-			Spotlight:     cfg.Guardian.PromptSec.Spotlight,
-			Canary:        cfg.Guardian.PromptSec.Canary,
-		}),
-		LLMGuardian:      security.NewLLMGuardian(cfg, logger),
-		CoAgentRegistry:  agent.NewCoAgentRegistry(cfg.CoAgents.MaxConcurrent, logger),
-		BudgetTracker:    budget.NewTracker(cfg, logger, cfg.Directories.DataDir),
-		IsFirstStart:     opts.IsFirstStart,
-		StartedAt:        time.Now(),
-		ShutdownCh:       opts.ShutdownCh,
-		MissionManagerV2: tools.NewMissionManagerV2(cfg.Directories.DataDir, opts.CronManager),
-		EggHub:           bridge.NewEggHub(logger),
-		WarningsRegistry: opts.WarningsRegistry,
+		Guardian:           guardian,
+		LLMGuardian:        llmGuardian,
+		CoAgentRegistry:    agent.NewCoAgentRegistry(cfg.CoAgents.MaxConcurrent, logger),
+		BudgetTracker:      budget.NewTracker(cfg, logger, cfg.Directories.DataDir),
+		IsFirstStart:       opts.IsFirstStart,
+		StartedAt:          time.Now(),
+		ShutdownCh:         opts.ShutdownCh,
+		MissionManagerV2:   tools.NewMissionManagerV2(cfg.Directories.DataDir, opts.CronManager),
+		EggHub:             bridge.NewEggHub(logger),
+		WarningsRegistry:   opts.WarningsRegistry,
 	}
 	s.initConfigSnapshot()
 	return s

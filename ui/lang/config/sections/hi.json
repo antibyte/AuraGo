@@ -167,6 +167,8 @@
   "config.section.llm.desc": "उन्नत भाषा मॉडल सेटिंग्स",
   "config.section.llm.label": "एलएलएम सेटिंग्स",
   "config.section.llm_guardian.desc": "टूल कॉल सत्यापन के लिए LLM-आधारित सुरक्षा परत",
+  "config.section.guardian.label": "PromptSec संरक्षक",
+  "config.section.guardian.desc": "सैनिटाइज़र, एम्बेडिंग, नीति और अन्य के साथ स्थानीय प्रॉम्प्ट-इंजेक्शन रक्षा",
   "config.section.llm_guardian.label": "LLM गार्जियन",
   "config.section.logging.desc": "लॉग सेटिंग्स",
   "config.section.logging.label": "लॉगिंग",

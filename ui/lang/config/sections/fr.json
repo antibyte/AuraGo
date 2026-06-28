@@ -167,6 +167,8 @@
   "config.section.llm.desc": "Paramètres avancés du modèle de langage",
   "config.section.llm.label": "Paramètres LLM",
   "config.section.llm_guardian.desc": "Couche de sécurité basée sur LLM pour la validation des appels d'outils",
+  "config.section.guardian.label": "PromptSec Gardien",
+  "config.section.guardian.desc": "Défense locale contre les injections de prompt avec sanitizer, embedding, politique et plus",
   "config.section.llm_guardian.label": "Gardien LLM",
   "config.section.logging.desc": "Paramètres de log",
   "config.section.logging.label": "Logging",

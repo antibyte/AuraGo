@@ -167,6 +167,8 @@
   "config.section.llm.desc": "Avancerede sprogmodelindstillinger",
   "config.section.llm.label": "LLM-indstillinger",
   "config.section.llm_guardian.desc": "LLM-baseret sikkerhedslag til validering af værktøjskald",
+  "config.section.guardian.label": "PromptSec Guardian",
+  "config.section.guardian.desc": "Lokal prompt-injection-forsvar med sanitizer, embedding, politik og mere",
   "config.section.llm_guardian.label": "LLM-beskytter",
   "config.section.logging.desc": "Logindstillinger",
   "config.section.logging.label": "Logning",

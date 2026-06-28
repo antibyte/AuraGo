@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/danielthedm/promptsec"
 	openai "github.com/sashabaranov/go-openai"
 
 	"aurago/internal/config"
@@ -841,3 +842,35 @@ func prepareContentScanSnippet(content string) string {
 	sb.WriteString(content[tailStart:])
 	return sb.String()
 }
+
+// Judge implements promptsec.LLMJudge so the LLMGuardian can be wired into the
+// promptsec pipeline as an escalation classifier. It reuses the existing
+// GuardianCheck machinery and mapping to/from GuardianResult.
+func (g *LLMGuardian) Judge(ctx context.Context, req promptsec.LLMJudgeRequest) (promptsec.LLMJudgeDecision, error) {
+	check := GuardianCheck{
+		Operation:  "promptsec_judge",
+		Context:    req.Input,
+		Parameters: map[string]string{"policy": req.Policy},
+	}
+	result := g.EvaluateWithFailSafe(ctx, check)
+
+	var verdict promptsec.LLMJudgeVerdict
+	switch result.Decision {
+	case DecisionBlock:
+		verdict = promptsec.LLMJudgeVerdictUnsafe
+	case DecisionAllow:
+		verdict = promptsec.LLMJudgeVerdictSafe
+	default:
+		verdict = promptsec.LLMJudgeVerdictUnknown
+	}
+
+	return promptsec.LLMJudgeDecision{
+		Verdict:    verdict,
+		Score:      result.RiskScore,
+		Reason:     result.Reason,
+		ThreatType: promptsec.ThreatInstructionOverride,
+	}, nil
+}
+
+// Compile-time check that LLMGuardian implements promptsec.LLMJudge.
+var _ promptsec.LLMJudge = (*LLMGuardian)(nil)

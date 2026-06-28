@@ -167,6 +167,8 @@
   "config.section.llm.desc": "高度な言語モデル設定",
   "config.section.llm.label": "LLM 設定",
   "config.section.llm_guardian.desc": "ツール呼び出し検証のためのLLMベースのセキュリティレイヤー",
+  "config.section.guardian.label": "PromptSec ガーディアン",
+  "config.section.guardian.desc": "サニタイザー、エンベディング、ポリシーなどを備えたローカル プロンプト インジェクション対策",
   "config.section.llm_guardian.label": "LLMガーディアン",
   "config.section.logging.desc": "ログ設定",
   "config.section.logging.label": "ログ",
