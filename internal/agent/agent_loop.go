@@ -1952,17 +1952,11 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 		// Weekly reflection: async trigger if configured and due.
 		if memAnalysis.Enabled && memAnalysis.WeeklyReflection && runTurnSideEffects && weeklyReflectionDue(cfg, shortTermMem) && shortTermMem != nil {
-			if tryClaimWeeklyReflection(shortTermMem) {
-				_ = sideEffects.Go(func(taskCtx context.Context) {
-					reflCtx, cancel := context.WithTimeout(taskCtx, 120*time.Second)
-					defer cancel()
-					_, err := generateMemoryReflection(reflCtx, cfg, s.currentLogger, shortTermMem, kg, longTermMem, client, s.runCfg.PlannerDB, "recent")
-					if err != nil {
-						releaseWeeklyReflectionClaim()
-						s.currentLogger.Warn("Weekly reflection failed", "error", err)
-					}
-				})
-			}
+			_ = sideEffects.Go(func(taskCtx context.Context) {
+				if _, err := runWeeklyReflectionJob(taskCtx, cfg, s.currentLogger, client, shortTermMem, kg, longTermMem, s.runCfg.PlannerDB); err != nil {
+					s.currentLogger.Warn("Weekly reflection failed", "error", err)
+				}
+			})
 		}
 
 		return resp, nil

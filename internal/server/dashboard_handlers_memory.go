@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"aurago/internal/agent"
 	"aurago/internal/memory"
@@ -52,6 +53,7 @@ func handleDashboardMemory(s *Server) http.HandlerFunc {
 		usageStats, _ := s.ShortTermMem.GetMemoryUsageStats(14, 5)
 		pendingActions, _ := s.ShortTermMem.GetPendingEpisodicActionsForQuery("", 5)
 		memoryConflicts, _ := s.ShortTermMem.GetOpenMemoryConflicts(5)
+		latestReflection, reflectionActionableCount := latestReflectionDashboardPayload(s.ShortTermMem)
 		memoryHealth := memory.MemoryHealthReport{
 			Usage: usageStats,
 		}
@@ -62,18 +64,20 @@ func handleDashboardMemory(s *Server) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"core_memory_facts": coreCount,
-			"chat_messages":     msgCount,
-			"vectordb_entries":  vectorCount,
-			"vectordb_disabled": vectorDisabled,
-			"knowledge_graph":   kgPayload,
-			"journal_entries":  journalCount,
-			"notes_count":      notesCount,
-			"error_patterns":   errorPatternsCount,
-			"milestones":       milestones,
-			"episodic":         episodicStats,
-			"pending_actions":  pendingActions,
-			"memory_conflicts": memoryConflicts,
+			"core_memory_facts":           coreCount,
+			"chat_messages":               msgCount,
+			"vectordb_entries":            vectorCount,
+			"vectordb_disabled":           vectorDisabled,
+			"knowledge_graph":             kgPayload,
+			"journal_entries":             journalCount,
+			"notes_count":                 notesCount,
+			"error_patterns":              errorPatternsCount,
+			"milestones":                  milestones,
+			"episodic":                    episodicStats,
+			"pending_actions":             pendingActions,
+			"memory_conflicts":            memoryConflicts,
+			"latest_reflection":           latestReflection,
+			"reflection_actionable_count": reflectionActionableCount,
 			"memory_health": map[string]interface{}{
 				"usage":         memoryHealth.Usage,
 				"confidence":    memoryHealth.Confidence,
@@ -83,6 +87,53 @@ func handleDashboardMemory(s *Server) http.HandlerFunc {
 			},
 		})
 	}
+}
+
+func latestReflectionDashboardPayload(stm *memory.SQLiteMemory) (map[string]interface{}, int) {
+	if stm == nil {
+		return nil, 0
+	}
+	entries, err := stm.GetJournalEntries("", "", []string{"reflection"}, 1)
+	if err != nil || len(entries) == 0 {
+		return nil, 0
+	}
+	entry := entries[0]
+	actionableCount := countReflectionActionItems(entry.Content)
+	return map[string]interface{}{
+		"id":               entry.ID,
+		"title":            entry.Title,
+		"summary":          firstReflectionParagraph(entry.Content),
+		"date":             entry.Date,
+		"created_at":       entry.CreatedAt,
+		"tags":             entry.Tags,
+		"actionable_count": actionableCount,
+	}, actionableCount
+}
+
+func firstReflectionParagraph(content string) string {
+	content = strings.TrimSpace(content)
+	if content == "" {
+		return ""
+	}
+	parts := strings.Split(content, "\n\n")
+	return strings.TrimSpace(parts[0])
+}
+
+func countReflectionActionItems(content string) int {
+	lines := strings.Split(content, "\n")
+	inActions := false
+	count := 0
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasSuffix(trimmed, ":") {
+			inActions = strings.EqualFold(strings.TrimSuffix(trimmed, ":"), "Action Items")
+			continue
+		}
+		if inActions && strings.HasPrefix(trimmed, "- ") {
+			count++
+		}
+	}
+	return count
 }
 
 // handleDashboardCoreMemory returns all core memory facts as a JSON array.

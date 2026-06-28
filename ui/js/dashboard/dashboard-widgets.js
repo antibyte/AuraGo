@@ -1284,6 +1284,8 @@
             const episodic = data.episodic || {};
             const pendingActions = Array.isArray(data.pending_actions) ? data.pending_actions : [];
             const conflicts = Array.isArray(data.memory_conflicts) ? data.memory_conflicts : [];
+            const latestReflection = data.latest_reflection || null;
+            const reflectionActionables = Number(data.reflection_actionable_count || latestReflection?.actionable_count || 0);
 
             const summaryEl = document.getElementById('memory-health-summary');
             if (summaryEl) {
@@ -1307,7 +1309,9 @@
                     { value: Number(episodic.recent_count || 0).toLocaleString(), label: t('dashboard.memory_health_recent_episodes') },
                     { value: Number(pendingActions.length || 0).toLocaleString(), label: t('dashboard.memory_pending_title') },
                     { value: Number(conflicts.length || 0).toLocaleString(), label: t('dashboard.memory_conflicts_title') },
+                    { value: reflectionActionables.toLocaleString(), label: t('dashboard.memory_reflection_actionables') },
                 ];
+                const reflectionSummary = latestReflection && latestReflection.summary ? latestReflection.summary : t('dashboard.memory_latest_reflection_empty');
                 summaryEl.innerHTML = `
                     <div class="memory-health-strategy">
                         <div class="memory-health-strategy-head">
@@ -1317,6 +1321,15 @@
                         <div class="memory-health-strategy-reason-wrap">
                             <span class="memory-health-strategy-label">${esc(t('dashboard.memory_strategy_reason'))}</span>
                             <span class="memory-health-strategy-reason">${esc(reason)}</span>
+                        </div>
+                    </div>
+                    <div class="memory-health-strategy">
+                        <div class="memory-health-strategy-head">
+                            <span class="memory-health-strategy-label">${esc(t('dashboard.memory_latest_reflection'))}</span>
+                            <span class="memory-health-strategy-chip">${esc(latestReflection?.date || '')}</span>
+                        </div>
+                        <div class="memory-health-strategy-reason-wrap">
+                            <span class="memory-health-strategy-reason">${esc(reflectionSummary)}</span>
                         </div>
                     </div>
                     <div class="memory-health-summary">` + items.map(item => `

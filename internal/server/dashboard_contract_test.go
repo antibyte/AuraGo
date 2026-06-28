@@ -120,6 +120,12 @@ func TestHandleDashboardMemoryContract(t *testing.T) {
 			t.Fatalf("memory payload missing key %q", key)
 		}
 	}
+	if _, ok := body["latest_reflection"]; !ok {
+		t.Fatal("memory payload missing key \"latest_reflection\"")
+	}
+	if _, ok := body["reflection_actionable_count"]; !ok {
+		t.Fatal("memory payload missing key \"reflection_actionable_count\"")
+	}
 
 	episodic, ok := body["episodic"].(map[string]interface{})
 	if !ok {
@@ -142,6 +148,31 @@ func TestHandleDashboardMemoryContract(t *testing.T) {
 	}
 	if _, ok := health["effectiveness"]; !ok {
 		t.Fatal("memory_health missing key \"effectiveness\"")
+	}
+}
+
+func TestDashboardTranslationsIncludeLatestReflectionKeys(t *testing.T) {
+	keys := []string{
+		"dashboard.memory_latest_reflection",
+		"dashboard.memory_latest_reflection_empty",
+		"dashboard.memory_reflection_actionables",
+	}
+	langs := []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"}
+	for _, lang := range langs {
+		path := filepath.Join("..", "..", "ui", "lang", "dashboard", lang+".json")
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read %s: %v", path, err)
+		}
+		var payload map[string]interface{}
+		if err := json.Unmarshal(raw, &payload); err != nil {
+			t.Fatalf("decode %s: %v", path, err)
+		}
+		for _, key := range keys {
+			if _, ok := payload[key]; !ok {
+				t.Fatalf("%s missing translation key %q", path, key)
+			}
+		}
 	}
 }
 

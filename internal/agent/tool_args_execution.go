@@ -322,7 +322,9 @@ type remoteFileTransferArgs struct {
 }
 
 type memoryReflectArgs struct {
-	Scope string
+	Scope        string
+	Focus        string
+	OutputFormat string
 }
 
 type memoryOrchestratorArgs struct {
@@ -986,7 +988,9 @@ func decodeRemoteFileTransferArgs(tc ToolCall) remoteFileTransferArgs {
 
 func decodeMemoryReflectArgs(tc ToolCall) memoryReflectArgs {
 	return memoryReflectArgs{
-		Scope: firstNonEmptyToolString(tc.Scope, toolArgString(tc.Params, "scope")),
+		Scope:        firstNonEmptyToolString(tc.Scope, toolArgString(tc.Params, "scope")),
+		Focus:        toolArgString(tc.Params, "focus"),
+		OutputFormat: firstNonEmptyToolString(tc.OutputFormat, toolArgString(tc.Params, "output_format")),
 	}
 }
 

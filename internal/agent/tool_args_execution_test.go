@@ -710,11 +710,19 @@ func TestDecodeMemoryMaintenanceArgsUseParamsFallback(t *testing.T) {
 	reflectReq := decodeMemoryReflectArgs(ToolCall{
 		Action: "memory_reflect",
 		Params: map[string]interface{}{
-			"scope": "all",
+			"scope":         "all_time",
+			"focus":         "errors",
+			"output_format": "action_items",
 		},
 	})
-	if reflectReq.Scope != "all" {
-		t.Fatalf("Scope = %q, want all", reflectReq.Scope)
+	if reflectReq.Scope != "all_time" {
+		t.Fatalf("Scope = %q, want all_time", reflectReq.Scope)
+	}
+	if reflectReq.Focus != "errors" {
+		t.Fatalf("Focus = %q, want errors", reflectReq.Focus)
+	}
+	if reflectReq.OutputFormat != "action_items" {
+		t.Fatalf("OutputFormat = %q, want action_items", reflectReq.OutputFormat)
 	}
 
 	orchestratorReq := decodeMemoryOrchestratorArgs(ToolCall{

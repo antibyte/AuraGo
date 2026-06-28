@@ -203,6 +203,13 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 		}
 	}
 
+	if ran, err := runWeeklyReflectionJob(ctx, cfg, logger, client, shortTermMem, kg, longTermMem, plannerDB); err != nil {
+		logger.Warn("[Memory Reflection] Weekly reflection failed during maintenance", "error", err)
+		ledger.addError("weekly_reflection: " + err.Error())
+	} else if ran {
+		logger.Info("[Memory Reflection] Weekly reflection completed during maintenance")
+	}
+
 	// Notes: clean up old completed notes (done for >7 days)
 	if cfg.Tools.Notes.Enabled && shortTermMem != nil {
 		deleted, err := shortTermMem.DeleteOldDoneNotes(retention.DoneNotesDays)

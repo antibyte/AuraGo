@@ -1,6 +1,6 @@
 ## Tool: Memory Reflection (`memory_reflect`)
 
-Reflects on past interactions and generates insights about patterns, errors, progress, and relationships. Weekly reflections now also consider the recent activity timeline and daily rollups.
+Reflects on past interactions and generates structured insights about patterns, recurring errors, progress, relationships, memory quality, and safe follow-ups. Weekly reflections also consider recent activity, daily rollups, Error Learning, Learned Rules, Core Memory, Knowledge Graph context, previous reflections, and the memory curator dry-run.
 
 ### When to use
 
@@ -14,17 +14,17 @@ Reflects on past interactions and generates insights about patterns, errors, pro
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `scope` | string | required | `session` / `day` / `week` / `month` / `project` / `all_time` |
+| `scope` | string | `"recent"` | `session` / `day` / `week` or `recent` / `month` or `monthly` / `project` / `all_time` or `full` |
 | `focus` | string | `"all"` | `patterns` / `errors` / `progress` / `relationships` / `all` |
 | `output_format` | string | `"summary"` | `summary` / `detailed` / `action_items` / `insights_only` |
 
 ### Scope
 
-- **session** — current session only
+- **session** — v1 best-effort recent context
 - **day** — today
 - **week** — last 7 days
 - **month** — last 30 days
-- **project** — active project (from KG context)
+- **project** — v1 best-effort recent/project context from available memory signals
 - **all_time** — full history
 
 ### Focus Areas
@@ -41,7 +41,7 @@ Analyses errors and resolutions:
 - Most frequent error types
 - Successful workarounds
 - Repeated errors (not yet learned)
-- Error trends (↗ ↘)
+- Error trends and missing Learned Rules
 
 #### `progress`
 Shows achievements and completions:
@@ -56,12 +56,27 @@ Analyses the Knowledge Graph:
 - Active projects
 - Important relationships
 
-### Output Formats
+### Output
 
-- **summary** — highlights overview
-- **detailed** — full analysis with examples
-- **action_items** — concrete next-step suggestions
-- **insights_only** — only the key "aha" findings
+The tool always returns structured JSON. `output_format` changes emphasis, not the wire shape.
+
+Expected fields include:
+
+- `patterns`
+- `contradictions`
+- `gaps`
+- `suggestions`
+- `error_patterns`
+- `learned_rule_review`
+- `trends`
+- `action_items`
+- `metrics`
+- `summary`
+- `quality_flags`
+- `curator_dry_run`
+- `actionable_findings`
+
+If the LLM response is too generic or invalid, AuraGo retries once. If the retry is still weak, the result is stored with `quality_flags` and an Operational Issue is recorded for later review.
 
 ### Examples
 
@@ -71,35 +86,18 @@ Analyses the Knowledge Graph:
 {"action": "memory_reflect", "scope": "week", "focus": "all", "output_format": "summary"}
 ```
 
-**Result:**
-```
-📊 Your week (09.03 - 15.03.2026)
-
-🎯 Highlights:
-   ✅ 4 successful Docker setups
-   ✅ 3 servers registered in inventory
-   ✅ 2 cron jobs configured
-   ✅ 1 Python tool created
-
-🔄 Patterns:
-   • Main focus: Docker/Infrastructure (65% of time)
-   • Most active: 20:00–22:00
-   • Favourite tools: docker, filesystem, execute_shell
-
-⚠️ Learnings:
-   • 3× Permission Denied → forgot sudo
-     💡 Suggestion: always check sudo first?
-
-   • 2× container name already in use
-     💡 Suggestion: establish a naming convention?
-
-📈 Knowledge Graph:
-   +5 entities | +8 relations
-
-🎯 Suggestions for next week:
-   1. Set up Docker volumes backup?
-   2. Create Proxmox templates?
-   3. Automate SSH key management?
+**Result shape:**
+```json
+{
+  "patterns": ["Docker and infrastructure tasks dominated the week."],
+  "contradictions": [],
+  "gaps": ["Confirm the current NAS hostname before storing another host fact."],
+  "suggestions": ["Review stale memory candidates from the curator dry-run."],
+  "error_patterns": ["docker inspect failures recur without a strong learned rule."],
+  "learned_rule_review": ["Create a rule to list containers before inspecting IDs."],
+  "action_items": ["Verify the NAS host fact.", "Add the Docker lookup rule."],
+  "summary": "The week shows useful progress, but repeated Docker lookup errors and one missing infrastructure detail should be cleaned up first."
+}
 ```
 
 #### Error analysis
@@ -108,25 +106,7 @@ Analyses the Knowledge Graph:
 {"action": "memory_reflect", "scope": "month", "focus": "errors", "output_format": "detailed"}
 ```
 
-**Result:**
-```
-⚠️ Error Analysis (last month)
-
-Top 3 error types:
-
-1. Permission Denied (12×) ↗ +3 vs. previous month
-   ├─ Resolved: 10/12 (83%)
-   ├─ Recurring: 2× (not yet learned)
-   └─ 💡 Recommendation: prefer execute_sudo
-
-2. Container port already in use (5×) → unchanged
-   ├─ Resolved: 5/5 (100%)
-   └─ ✅ Learned: added port check before start
-
-3. SSH key error (3×) ↘ -2 vs. previous month
-   ├─ Resolved: 3/3 (100%)
-   └─ ✅ Improvement detected!
-```
+Use this when recurring tool failures should be converted into concrete action items or Learned Rule review work.
 
 #### Project-specific
 
@@ -146,10 +126,10 @@ Top 3 error types:
    - Need motivation → `focus: "progress"`
    - Lost the overview → `focus: "patterns"`
 
-3. **Act on the insights**
-   - Don't just read — update Core Memory with new constraints
-   - Add lessons learned as journal entries
-   - Establish new workflows based on pattern findings
+3. **Act safely on the insights**
+   - Do not automatically delete or mutate Core Memory based only on reflection
+   - Verify contradictions before changing durable memory
+   - Create Learned Rules only when the recommended rule is specific and repeatable
 
 4. **Share with user**
    - Weekly summaries are motivating and build trust

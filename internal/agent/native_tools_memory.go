@@ -88,12 +88,22 @@ func appendMemoryToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai.
 		// memory_reflect — only when memory_analysis is enabled
 		if ff.MemoryAnalysisEnabled {
 			tools = append(tools, tool("memory_reflect",
-				"Generate a reflection on memory activity: analyze patterns, detect contradictions, identify knowledge gaps, and suggest memory optimizations. Weekly reflections now include the recent activity timeline.",
+				"Generate a reflection on memory activity: analyze patterns, detect contradictions, identify knowledge gaps, inspect recurring errors and learned rules, and suggest safe follow-ups. Weekly reflections include recent activity, error learning, and curator context.",
 				schema(map[string]interface{}{
 					"scope": map[string]interface{}{
 						"type":        "string",
 						"description": "Scope of the reflection: session, day, week/recent, month/monthly, project, or all_time/full",
 						"enum":        []string{"session", "day", "week", "recent", "month", "monthly", "project", "all_time", "full"},
+					},
+					"focus": map[string]interface{}{
+						"type":        "string",
+						"description": "Optional analysis focus. Defaults to all.",
+						"enum":        []string{"all", "patterns", "errors", "progress", "relationships"},
+					},
+					"output_format": map[string]interface{}{
+						"type":        "string",
+						"description": "Preferred output emphasis. The tool still returns structured JSON. Defaults to summary.",
+						"enum":        []string{"summary", "detailed", "action_items", "insights_only"},
 					},
 				}),
 			))
