@@ -554,6 +554,9 @@ func collectFeatureToggles(flags *prompts.ContextFlags) []string {
 	if flags.InternetExposed {
 		toggles = append(toggles, "internet_exposed")
 	}
+	if flags.HomepageAllowLocalServer {
+		toggles = append(toggles, "homepage_allow_local_server")
+	}
 	if flags.IsDocker {
 		toggles = append(toggles, "is_docker")
 	}
