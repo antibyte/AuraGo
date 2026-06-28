@@ -2215,6 +2215,33 @@ func TestBudgetShedCanDropRetrievedMemoriesAsWholeSection(t *testing.T) {
 	}
 }
 
+func TestBudgetShedTrimsRetrievedMemoriesBeforeDroppingWholeSection(t *testing.T) {
+	resetTokenEncoderStateForTest(t, func() (tokenEncoder, error) {
+		return charRatioEncoder{}, nil
+	}, time.Second, time.Second)
+
+	largeEntry := strings.Repeat("large memory entry ", 30)
+	prompt := "# RETRIEVED MEMORIES\nsmall memory\n---\n" + largeEntry + "\n\n# FINAL\nsmall"
+	flags := &ContextFlags{TokenBudget: 18}
+
+	result, shed, err := budgetShedContext(context.Background(), prompt, flags, "", "", time.Now(), slog.Default())
+	if err != nil {
+		t.Fatalf("budgetShedContext: %v", err)
+	}
+	if strings.Contains(result, largeEntry) {
+		t.Fatalf("large low-priority memory entry should be trimmed:\n%s", result)
+	}
+	if !strings.Contains(result, "small memory") {
+		t.Fatalf("small high-priority memory entry should remain after partial trim:\n%s", result)
+	}
+	if !containsString(shed, "# RETRIEVED MEMORIES (partial)") {
+		t.Fatalf("shed = %v, want partial retrieved memories marker", shed)
+	}
+	if containsString(shed, "# RETRIEVED MEMORIES") {
+		t.Fatalf("retrieved memories should not be dropped wholesale when partial trim fits: %v", shed)
+	}
+}
+
 func TestBuildSystemPromptEscapesExternalMarkdownHeadersBeforeBudgetShedding(t *testing.T) {
 	resetTokenEncoderStateForTest(t, func() (tokenEncoder, error) {
 		return markerAwareEncoder{}, nil

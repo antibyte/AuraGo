@@ -1376,10 +1376,11 @@ func truncateWithEllipsis(text string, maxChars int) string {
 
 // budgetShed progressively removes content sections until the prompt fits within the token budget.
 // Returns the trimmed prompt and the list of section headers that were shed.
-// Shedding order (lowest value first):
-// 1. Tool Guides, 2. Predicted/Unified memory, 3. User Profile, 4. KG/errors/rules,
-// 5. Planner/reminders, 6. Inner Voice, 7. Emotion & personality traits, 8. Core personality profile,
-// then per-entry Retrieved Memories trim, then hard truncate.
+// Shedding order:
+// 1. Tool Guides, 2. predicted/recent context, 3. user profile and advisory
+// sections, 4. planner/reminders/task rules/persona sections, then
+// per-entry Retrieved Memories trim, full Retrieved Memories drop if needed,
+// and final hard truncate.
 func budgetShed(prompt string, flags *ContextFlags, personalityContent, coreMemory string, now time.Time, logger *slog.Logger) (string, []string) {
 	result, shedList, _ := budgetShedContext(context.Background(), prompt, flags, personalityContent, coreMemory, now, logger)
 	return result, shedList
@@ -1421,7 +1422,6 @@ func budgetShedContext(ctx context.Context, prompt string, flags *ContextFlags, 
 		shedTargets = append(shedTargets,
 			shedTarget{"# PREDICTED CONTEXT", false},
 			shedTarget{"# LAST 7 DAYS OVERVIEW", false},
-			shedTarget{"# RETRIEVED MEMORIES", false},
 			shedTarget{"## USER PROFILING", false},
 		)
 	}
@@ -1481,7 +1481,21 @@ func budgetShedContext(ctx context.Context, prompt string, flags *ContextFlags, 
 			return "", nil, err
 		}
 		if trimmed {
-			shedList = append(shedList, "# RETRIEVED MEMORIES (partial)")
+			if strings.Contains(result, "# RETRIEVED MEMORIES") {
+				shedList = append(shedList, "# RETRIEVED MEMORIES (partial)")
+			} else {
+				shedList = append(shedList, "# RETRIEVED MEMORIES")
+			}
+		}
+	}
+
+	if tokens > flags.TokenBudget && !flags.UnifiedMemoryBlock {
+		before := len(result)
+		result = removeSection(result, "# RETRIEVED MEMORIES")
+		if len(result) < before {
+			tokens = countTokensWithModelContext(ctx, result, flags.Model)
+			shedList = append(shedList, "# RETRIEVED MEMORIES")
+			logger.Debug("[Budget] Shed section", "header", "# RETRIEVED MEMORIES", "tokens", tokens)
 		}
 	}
 
