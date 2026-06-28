@@ -590,12 +590,18 @@
 
             for (const e of ctx.G.enemies) {
                 if (e.st === 'DEAD') continue;
+                const _rot = e.rot || 0;
                 if (e.st === 'DIVING') {
                     ctx.c.globalAlpha = 0.12;
                     const _ghostRef = ctx.enemySpriteFor(e);
                     const sp = _ghostRef.sp, cols = _ghostRef.cols;
+                    ctx.c.save();
+                    ctx.c.translate(e.x, e.y);
+                    ctx.c.rotate(_rot);
+                    ctx.c.translate(-e.x, -e.y);
                     ctx.drawSp(ctx.c, sp, cols, e.x - 12, e.y - 18, false);
                     ctx.drawSp(ctx.c, sp, cols, e.x - 12, e.y - 10, false);
+                    ctx.c.restore();
                     ctx.c.globalAlpha = 1;
                 }
                 const fl = e.hitF > 0;
@@ -606,7 +612,12 @@
                 if (e.type === 'hunter' && e.st !== 'DEAD') {
                     ctx.c.globalAlpha = 0.25 + Math.sin(ctx.tick * 0.12) * 0.1;
                     ctx.c.shadowBlur = 10; ctx.c.shadowColor = '#ff6600';
+                    ctx.c.save();
+                    ctx.c.translate(e.x, e.y);
+                    ctx.c.rotate(_rot);
+                    ctx.c.translate(-e.x, -e.y);
                     ctx.drawSp(ctx.c, sp, cols, e.x - _eOff, e.y - _eOff, false);
+                    ctx.c.restore();
                     ctx.c.shadowBlur = 0; ctx.c.globalAlpha = 1;
                 }
                 const _spawnT = e.spawnAnim || 0;
@@ -617,12 +628,18 @@
                     const _sc = Math.max(0.1, _bounce);
                     ctx.c.save();
                     ctx.c.translate(e.x, e.y);
+                    ctx.c.rotate(_rot);
                     ctx.c.scale(_sc, _sc);
                     ctx.c.translate(-e.x, -e.y);
                     ctx.drawSp(ctx.c, sp, cols, e.x - _eOff, e.y - _eOff, fl);
                     ctx.c.restore();
                 } else {
+                    ctx.c.save();
+                    ctx.c.translate(e.x, e.y);
+                    ctx.c.rotate(_rot);
+                    ctx.c.translate(-e.x, -e.y);
                     ctx.drawSp(ctx.c, sp, cols, e.x - _eOff, e.y - _eOff, fl);
+                    ctx.c.restore();
                 }
                 if (fl && e.hitF > 60) {
                     const _hitAlpha = (e.hitF - 60) / 40 * 0.5;
@@ -635,9 +652,27 @@
                 if (!fl && ctx.G.beatPhase > 0.82 && (e.type === 'bee' || e.type === 'butterfly')) {
                     // beat glow drawn in batched pass below to avoid per-enemy shadowBlur changes
                 }
-                if (e.rageMode > 0) { ctx.c.globalAlpha = 0.3 + Math.sin(ctx.tick * 0.3) * 0.15; ctx.c.shadowBlur = 8; ctx.c.shadowColor = '#ff0000'; ctx.drawSp(ctx.c, sp, cols, e.x - _eOff, e.y - _eOff, false); ctx.c.shadowBlur = 0; ctx.c.globalAlpha = 1; }
+                if (e.rageMode > 0) {
+                    ctx.c.globalAlpha = 0.3 + Math.sin(ctx.tick * 0.3) * 0.15; ctx.c.shadowBlur = 8; ctx.c.shadowColor = '#ff0000';
+                    ctx.c.save();
+                    ctx.c.translate(e.x, e.y);
+                    ctx.c.rotate(_rot);
+                    ctx.c.translate(-e.x, -e.y);
+                    ctx.drawSp(ctx.c, sp, cols, e.x - _eOff, e.y - _eOff, false);
+                    ctx.c.restore();
+                    ctx.c.shadowBlur = 0; ctx.c.globalAlpha = 1;
+                }
                 if (e.weakPoint && (e.type === 'boss' || e.type === 'miniboss')) { const wpx = e.x + e.weakPoint.x, wpy = e.y + e.weakPoint.y; const wpPulse = 0.6 + Math.sin(ctx.tick * 0.15) * 0.4; ctx.c.globalAlpha = wpPulse; ctx.c.fillStyle = '#ff4444'; ctx.c.shadowBlur = 8; ctx.c.shadowColor = '#ff4444'; ctx.c.beginPath(); ctx.c.arc(wpx, wpy, 3, 0, Math.PI * 2); ctx.c.fill(); ctx.c.shadowBlur = 0; ctx.c.globalAlpha = 1; }
-                if (e.type === 'kamikaze' && e.st === 'DIVING') { ctx.c.globalAlpha = 0.15; ctx.drawSp(ctx.c, sp, cols, e.x - _eOff, e.y - _eOff - 6, false); ctx.c.globalAlpha = 0.08; ctx.drawSp(ctx.c, sp, cols, e.x - _eOff, e.y - _eOff - 12, false); ctx.c.globalAlpha = 1; }
+                if (e.type === 'kamikaze' && e.st === 'DIVING') {
+                    ctx.c.save();
+                    ctx.c.translate(e.x, e.y);
+                    ctx.c.rotate(_rot);
+                    ctx.c.translate(-e.x, -e.y);
+                    ctx.c.globalAlpha = 0.15; ctx.drawSp(ctx.c, sp, cols, e.x - _eOff, e.y - _eOff - 6, false);
+                    ctx.c.globalAlpha = 0.08; ctx.drawSp(ctx.c, sp, cols, e.x - _eOff, e.y - _eOff - 12, false);
+                    ctx.c.globalAlpha = 1;
+                    ctx.c.restore();
+                }
             }
 
             // batched beat-glow pass — one shadow setup per color type instead of per enemy
@@ -648,31 +683,61 @@
                 for (const e of ctx.G.enemies) {
                     if (e.st === 'DEAD' || e.hitF > 0 || e.type !== 'bee') continue;
                     const _bg = ctx.enemySpriteFor(e);
+                    const _brot = e.rot || 0;
+                    ctx.c.save();
+                    ctx.c.translate(e.x, e.y);
+                    ctx.c.rotate(_brot);
+                    ctx.c.translate(-e.x, -e.y);
                     ctx.drawSp(ctx.c, _bg.sp, _bg.cols, e.x - 12, e.y - 12, false);
+                    ctx.c.restore();
                 }
                 ctx.c.shadowColor = '#88ffaa';
                 for (const e of ctx.G.enemies) {
                     if (e.st === 'DEAD' || e.hitF > 0 || e.type !== 'butterfly') continue;
                     const _bg = ctx.enemySpriteFor(e);
+                    const _brot = e.rot || 0;
+                    ctx.c.save();
+                    ctx.c.translate(e.x, e.y);
+                    ctx.c.rotate(_brot);
+                    ctx.c.translate(-e.x, -e.y);
                     ctx.drawSp(ctx.c, _bg.sp, _bg.cols, e.x - 12, e.y - 12, false);
+                    ctx.c.restore();
                 }
                 ctx.c.shadowColor = '#aa66ee';
                 for (const e of ctx.G.enemies) {
                     if (e.st === 'DEAD' || e.hitF > 0 || e.type !== 'stalker') continue;
                     const _bg = ctx.enemySpriteFor(e);
+                    const _brot = e.rot || 0;
+                    ctx.c.save();
+                    ctx.c.translate(e.x, e.y);
+                    ctx.c.rotate(_brot);
+                    ctx.c.translate(-e.x, -e.y);
                     ctx.drawSp(ctx.c, _bg.sp, _bg.cols, e.x - 12, e.y - 12, false);
+                    ctx.c.restore();
                 }
                 ctx.c.shadowColor = '#ffff44';
                 for (const e of ctx.G.enemies) {
                     if (e.st === 'DEAD' || e.hitF > 0 || e.type !== 'sniper') continue;
                     const _bg = ctx.enemySpriteFor(e);
+                    const _brot = e.rot || 0;
+                    ctx.c.save();
+                    ctx.c.translate(e.x, e.y);
+                    ctx.c.rotate(_brot);
+                    ctx.c.translate(-e.x, -e.y);
                     ctx.drawSp(ctx.c, _bg.sp, _bg.cols, e.x - 12, e.y - 12, false);
+                    ctx.c.restore();
                 }
                 ctx.c.shadowColor = '#ff6600';
                 for (const e of ctx.G.enemies) {
                     if (e.st === 'DEAD' || e.hitF > 0 || e.type !== 'hunter') continue;
                     const _bg = ctx.enemySpriteFor(e);
+                    const _brot = e.rot || 0;
+                    ctx.c.save();
+                    ctx.c.translate(e.x, e.y);
+                    ctx.c.rotate(_brot);
+                    ctx.c.translate(-e.x, -e.y);
                     ctx.drawSp(ctx.c, _bg.sp, _bg.cols, e.x - 12, e.y - 12, false);
+                    ctx.c.restore();
                 }
                 ctx.c.shadowBlur = 0; ctx.c.globalAlpha = 1;
             }

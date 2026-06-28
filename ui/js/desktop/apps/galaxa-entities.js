@@ -1129,6 +1129,12 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
             e.dPath = { ph: 0, amp: e.type === 'hunter' ? 18 + Math.random() * 20 : 30 + Math.random() * 40, vx: (Math.random() - 0.5) * (e.type === 'hunter' ? 70 : 130) };
             e.dTmr = e.type === 'hunter' ? 4500 : 3000;
             e.sTmr = e.type === 'hunter' ? 280 + Math.random() * 420 : 500 + Math.random() * 1000;
+            if (e.type === 'hunter' || e.type === 'stalker' || e.type === 'kamikaze') {
+                e.rot = 0;
+                e.rotTarget = Math.PI;
+                e.rotTimer = 0;
+                e.rotDuration = 500;
+            }
             if (e.type === 'hunter') ctx.SFX.hunterDive(e.x); else ctx.SFX.dive();
             if ((e.type === 'boss' || e.type === 'miniboss') && !e.hasCap && !ctx.G.beam && ctx.G.stage > 1 && Math.random() < 0.3) ctx.G.beam = { active: true, owner: e, x: e.x, y: e.y + 16, h: 0, t: 0, cap: false, capT: 0 };
         }
@@ -1198,6 +1204,9 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                 }
                 else if (e.st === 'FORM') {
                     e.x = e.fx + ctx.G.fX; e.y = e.fy + Math.sin(ctx.G.fTmr * 2 + (e.rowPhase || e.col * 0.5)) * (e.bobAmp || 3);
+                    if (e.rotPhase === undefined) e.rotPhase = Math.random() * Math.PI * 2;
+                    e.rotPhase += eDt * 1.5;
+                    e.rot = Math.sin(e.rotPhase) * 0.052;
                     if ((e.spawnAnim || 0) < (e.spawnDur || 400)) e.spawnAnim = Math.min(e.spawnDur, (e.spawnAnim || 0) + dtMs);
                     // NEW: Weaver sine-wave horizontal movement
                     if (e.type === 'weaver') {
@@ -1251,8 +1260,20 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                 }
                 else if (e.st === 'DIVING') {
                     e.dTmr -= dtMs;
-                    if (e.dTmr <= 0 || e.y > ctx.H + 20) { e.st = 'RETURN'; e.y = -20; }
+                    if (e.dTmr <= 0 || e.y > ctx.H + 20) {
+                        e.st = 'RETURN'; e.y = -20;
+                        if (e.type === 'hunter' || e.type === 'stalker' || e.type === 'kamikaze') {
+                            e.rotTimer = 0;
+                            e.rotDuration = 500;
+                            e.rotTarget = 0;
+                        }
+                    }
                     else {
+                        if ((e.type === 'hunter' || e.type === 'stalker' || e.type === 'kamikaze') && e.rotTimer < e.rotDuration) {
+                            e.rotTimer += dtMs;
+                            const t = Math.min(e.rotTimer / e.rotDuration, 1);
+                            e.rot = e.rotTarget * t;
+                        }
                         const diveSpd = ctx.DIVE_SPD * (e.type === 'hunter' ? 2.1 : e.type === 'stalker' ? 1.5 : e.type === 'kamikaze' ? 2.5 : 1) * (e.rageSpeedMult || 1);
                         e.y += diveSpd * eDt;
                         if (e.type === 'hunter' && ctx.G.p.alive) {
@@ -1285,7 +1306,15 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                         }
                     }
                 }
-                else if (e.st === 'RETURN') { e.x += (e.fx + ctx.G.fX - e.x) * eDt * 3; e.y += (e.fy - e.y) * eDt * 3; if (Math.abs(e.x - e.fx - ctx.G.fX) < 3 && Math.abs(e.y - e.fy) < 3) { if (ctx.G.chal) { e.st = 'DEAD'; ctx.G.chalHits++; } else e.st = 'FORM'; } }
+                else if (e.st === 'RETURN') {
+                    e.x += (e.fx + ctx.G.fX - e.x) * eDt * 3; e.y += (e.fy - e.y) * eDt * 3;
+                    if ((e.type === 'hunter' || e.type === 'stalker' || e.type === 'kamikaze') && e.rotTimer < e.rotDuration) {
+                        e.rotTimer += dtMs;
+                        const t = Math.min(e.rotTimer / e.rotDuration, 1);
+                        e.rot = e.rotTarget * t;
+                    }
+                    if (Math.abs(e.x - e.fx - ctx.G.fX) < 3 && Math.abs(e.y - e.fy) < 3) { if (ctx.G.chal) { e.st = 'DEAD'; ctx.G.chalHits++; } else e.st = 'FORM'; }
+                }
             }
             if (ctx.G.vipShip && ctx.G.vipShip.hp <= 0) {
                 ctx.G.archetypeFailed = true;
