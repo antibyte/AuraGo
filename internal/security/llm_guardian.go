@@ -202,19 +202,42 @@ func (g *LLMGuardian) EvaluateWithFailSafe(ctx context.Context, check GuardianCh
 // buildMessages creates the message list for a Guardian LLM call.
 // Models that reject the system role get the system prompt prepended to the user message instead.
 func (g *LLMGuardian) buildMessages(systemPrompt, userPrompt string) []openai.ChatCompletionMessage {
-	pt := strings.ToLower(g.cfg.LLMGuardian.ProviderType)
-	if pt == "ollama" {
-		// Ollama handles system role fine; keep separate for better formatting.
+	if g.guardianSupportsSystemRole() {
 		return []openai.ChatCompletionMessage{
 			{Role: openai.ChatMessageRoleSystem, Content: systemPrompt},
 			{Role: openai.ChatMessageRoleUser, Content: userPrompt},
 		}
 	}
-	// For cloud providers: merge system prompt into user message to avoid 405 errors
-	// on models that do not support the system role (e.g. stepfun/step-3.5-flash).
 	return []openai.ChatCompletionMessage{
 		{Role: openai.ChatMessageRoleUser, Content: systemPrompt + "\n\n" + userPrompt},
 	}
+}
+
+func (g *LLMGuardian) guardianSupportsSystemRole() bool {
+	if g == nil || g.cfg == nil {
+		return guardianProviderSupportsSystemRole("")
+	}
+	if guardianHasMergedPromptCompatibilityException(g.cfg.LLMGuardian.BaseURL, g.model) {
+		return false
+	}
+	return guardianProviderSupportsSystemRole(g.cfg.LLMGuardian.ProviderType)
+}
+
+func guardianProviderSupportsSystemRole(providerType string) bool {
+	switch strings.ToLower(strings.TrimSpace(providerType)) {
+	case "", "azure", "ollama", "openai", "openrouter":
+		return true
+	default:
+		return false
+	}
+}
+
+func guardianHasMergedPromptCompatibilityException(baseURL, model string) bool {
+	lowerBaseURL := strings.ToLower(strings.TrimSpace(baseURL))
+	lowerModel := strings.ToLower(strings.TrimSpace(model))
+	return strings.Contains(lowerBaseURL, "stepfun") ||
+		strings.Contains(lowerModel, "stepfun/") ||
+		strings.HasPrefix(lowerModel, "step-")
 }
 
 func (g *LLMGuardian) callLLM(ctx context.Context, check GuardianCheck, start time.Time) GuardianResult {

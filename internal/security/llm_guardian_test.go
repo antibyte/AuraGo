@@ -442,6 +442,55 @@ func TestFailSafeResult(t *testing.T) {
 	}
 }
 
+func TestLLMGuardianBuildMessagesUsesSystemRoleForOpenAICompatibleProviders(t *testing.T) {
+	g := &LLMGuardian{cfg: &config.Config{}}
+	g.cfg.LLMGuardian.ProviderType = "openai"
+
+	messages := g.buildMessages("system guard", "user content")
+
+	if len(messages) != 2 {
+		t.Fatalf("expected 2 messages, got %d", len(messages))
+	}
+	if messages[0].Role != openai.ChatMessageRoleSystem {
+		t.Fatalf("expected system role, got %#v", messages[0])
+	}
+	if messages[1].Role != openai.ChatMessageRoleUser {
+		t.Fatalf("expected user role, got %#v", messages[1])
+	}
+}
+
+func TestLLMGuardianBuildMessagesFallsBackForMergedPromptProviders(t *testing.T) {
+	g := &LLMGuardian{cfg: &config.Config{}}
+	g.cfg.LLMGuardian.ProviderType = "legacy"
+
+	messages := g.buildMessages("system guard", "user content")
+
+	if len(messages) != 1 {
+		t.Fatalf("expected merged single message, got %d", len(messages))
+	}
+	if messages[0].Role != openai.ChatMessageRoleUser {
+		t.Fatalf("expected user role, got %#v", messages[0])
+	}
+	if !strings.Contains(messages[0].Content, "system guard") || !strings.Contains(messages[0].Content, "user content") {
+		t.Fatalf("expected merged content, got %#v", messages[0])
+	}
+}
+
+func TestLLMGuardianBuildMessagesFallsBackForStepFunCompatibility(t *testing.T) {
+	g := &LLMGuardian{cfg: &config.Config{}, model: "step-3.5-flash"}
+	g.cfg.LLMGuardian.ProviderType = "openai"
+	g.cfg.LLMGuardian.BaseURL = "https://api.stepfun.com/v1"
+
+	messages := g.buildMessages("system guard", "user content")
+
+	if len(messages) != 1 {
+		t.Fatalf("expected merged single message for StepFun, got %d", len(messages))
+	}
+	if messages[0].Role != openai.ChatMessageRoleUser {
+		t.Fatalf("expected user role, got %#v", messages[0])
+	}
+}
+
 func TestEvaluateRateLimitExceeded(t *testing.T) {
 	g := &LLMGuardian{
 		cfg:     &config.Config{},
