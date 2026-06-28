@@ -683,79 +683,11 @@ func (g *Guardian) SanitizeToolOutput(toolName, output string) string {
 		return "[" + strings.TrimSuffix(match, ":") + "]:"
 	})
 
-	// 2. Determine if this tool returns external/untrusted data
-	externalTools := map[string]bool{
-		// Core execution tools that return third-party output
-		"execute_skill":        true,
-		"api_request":          true,
-		"execute_remote_shell": true,
-		"remote_execution":     true,
-		// Communication — email and messaging content is external data
-		"email":         true,
-		"agentmail":     true,
-		"fetch_email":   true,
-		"check_email":   true,
-		"discord":       true,
-		"fetch_discord": true,
-		// File and memory reads can include attacker-controlled project or user content
-		"filesystem":           true,
-		"filesystem_op":        true,
-		"file_reader_advanced": true,
-		"smart_file_read":      true,
-		"file_search":          true,
-		// Network/web content
-		"web_scraper":       true,
-		"fetch_url":         true,
-		"call_webhook":      true,
-		"mqtt_get_messages": true,
-		// External integrations — return data from third-party systems
-		"fritzbox":          true,
-		"mcp_call":          true,
-		"sql_query":         true,
-		"docker":            true,
-		"meshcentral":       true,
-		"proxmox":           true,
-		"proxmox_ve":        true,
-		"github":            true,
-		"netlify":           true,
-		"google_workspace":  true,
-		"gworkspace":        true,
-		"home_assistant":    true,
-		"tailscale":         true,
-		"webdav":            true,
-		"webdav_storage":    true,
-		"s3_storage":        true,
-		"s3":                true,
-		"paperless":         true,
-		"paperless_ngx":     true,
-		"adguard":           true,
-		"adguard_home":      true,
-		"truenas":           true,
-		"co_agent":          true,
-		"co_agents":         true,
-		"ansible":           true,
-		"jellyfin":          true,
-		"cloudflare_tunnel": true,
-		"yepapi_seo":        true,
-		"yepapi_serp":       true,
-		"yepapi_scrape":     true,
-		"yepapi_youtube":    true,
-		"yepapi_tiktok":     true,
-		"yepapi_instagram":  true,
-		"yepapi_amazon":     true,
-	}
-
-	// Tools that may contain external data depending on usage
-	semiTrustedTools := map[string]bool{
-		"execute_shell":  true,
-		"execute_python": true,
-		"run_tool":       true,
-	}
-
-	if externalTools[toolName] {
+	switch classifyToolOutput(toolName) {
+	case toolOutputExternal:
 		// Always isolate: these tools inherently return third-party content
 		output = IsolateExternalData(output)
-	} else if semiTrustedTools[toolName] {
+	case toolOutputSemiTrusted:
 		// Scan for injection patterns — isolate if suspicious
 		scan := g.ScanForInjection(output)
 		if scan.Level >= ThreatMedium {
