@@ -277,14 +277,13 @@ func trimMessagesForEmptyResponseWithSummary(msgs []openai.ChatCompletionMessage
 		return msgs, recoveryTrimSummary{Trigger: "empty_response"}
 	}
 
-	// Always keep the system prompt (index 0, and optionally index 1 if also system).
-	trimmed := []openai.ChatCompletionMessage{msgs[0]}
-	startIdx := 1
-	if len(msgs) > 1 && msgs[1].Role == openai.ChatMessageRoleSystem {
-		trimmed = append(trimmed, msgs[1])
-		startIdx = 2
+	// Always keep the generated system prompt and every leading system addendum.
+	leadingSystems := countLeadingSystemMessages(msgs)
+	if leadingSystems == 0 {
+		leadingSystems = 1
 	}
-	historyMsgs := msgs[startIdx:]
+	trimmed := append([]openai.ChatCompletionMessage(nil), msgs[:leadingSystems]...)
+	historyMsgs := msgs[leadingSystems:]
 
 	// Find the last genuine user message (non-empty, non-internal tool noise).
 	// It represents the original user intent and must survive the trim so the LLM

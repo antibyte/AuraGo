@@ -155,10 +155,10 @@ func CompressHistory(
 		fmt.Fprintf(&transcript, "[%s]: %s\n", role, content)
 	}
 
-	summaryPrompt := "Compress the following conversation excerpt into a concise factual summary. " +
-		"Preserve key decisions, tool results, facts learned, and action items. " +
-		"Omit greetings, filler, and redundant exchanges. Output ONLY the summary, no preamble.\n\n" +
-		transcript.String()
+	summaryPrompt := buildSafeConversationSummaryPrompt(
+		"Compress the following conversation excerpt into a concise factual summary. Preserve key decisions, tool results, facts learned, and action items. Omit greetings, filler, and redundant exchanges. Output ONLY the summary, no preamble.",
+		transcript.String(),
+	)
 
 	summaryReq := openai.ChatCompletionRequest{
 		Model: model,
@@ -188,9 +188,10 @@ func CompressHistory(
 	}
 
 	// Build the replacement message
+	summaryContent := formatConversationSummaryForPrompt("[CONVERSATION SUMMARY]", summary)
 	summaryMsg := openai.ChatCompletionMessage{
 		Role:    openai.ChatMessageRoleSystem,
-		Content: "[CONVERSATION SUMMARY]\n" + summary,
+		Content: summaryContent,
 	}
 
 	// Reconstruct: system + summary + tail
@@ -201,7 +202,7 @@ func CompressHistory(
 
 	result.Compressed = true
 	result.DroppedCount = len(compressible)
-	result.SummaryTokens = prompts.CountTokensForModel(summary, model)
+	result.SummaryTokens = prompts.CountTokensForModel(summaryContent, model)
 
 	// Compute total message tokens for the compressed result (excl. system prompt at index 0).
 	compressedTotal := result.SummaryTokens + 4 // summary message overhead

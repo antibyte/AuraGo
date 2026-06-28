@@ -218,6 +218,35 @@ func TestLoopbackContextUsesAgentLoopSystemPromptAndDoesNotDuplicateCurrentMessa
 	}
 }
 
+func TestExecuteAgentLoopPreservesIncomingSystemAddendum(t *testing.T) {
+	runCfg, client, cleanup := newPromptPipelineTestRunConfig(t, "default", "web_chat")
+	defer cleanup()
+
+	req := openai.ChatCompletionRequest{
+		Model: runCfg.Config.LLM.Model,
+		Messages: []openai.ChatCompletionMessage{
+			{Role: openai.ChatMessageRoleSystem, Content: "[CONTEXT_RECAP]: prior summary"},
+			{Role: openai.ChatMessageRoleUser, Content: "hello"},
+		},
+	}
+
+	if _, err := ExecuteAgentLoop(context.Background(), req, runCfg, false, NoopBroker{}); err != nil {
+		t.Fatalf("ExecuteAgentLoop: %v", err)
+	}
+	if len(client.lastReq.Messages) < 3 {
+		t.Fatalf("messages = %#v, want generated system prompt, addendum and user message", client.lastReq.Messages)
+	}
+	if client.lastReq.Messages[0].Role != openai.ChatMessageRoleSystem || strings.Contains(client.lastReq.Messages[0].Content, "[CONTEXT_RECAP]") {
+		t.Fatalf("first message = (%q, %q), want generated AuraGo system prompt", client.lastReq.Messages[0].Role, client.lastReq.Messages[0].Content)
+	}
+	if client.lastReq.Messages[1].Role != openai.ChatMessageRoleSystem || !strings.Contains(client.lastReq.Messages[1].Content, "[CONTEXT_RECAP]: prior summary") {
+		t.Fatalf("second message = (%q, %q), want preserved leading system addendum", client.lastReq.Messages[1].Role, client.lastReq.Messages[1].Content)
+	}
+	if !containsMessage(client.lastReq.Messages, openai.ChatMessageRoleUser, "hello") {
+		t.Fatalf("user message was not preserved: %#v", client.lastReq.Messages)
+	}
+}
+
 func TestAskAuraGoBridgeUsesAgentLoopSystemPromptAndPreservesBridgeHistory(t *testing.T) {
 	runCfg, client, cleanup := newPromptPipelineTestRunConfig(t, vscodeDebugBridgeSessionID, "")
 	defer cleanup()

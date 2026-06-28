@@ -195,8 +195,6 @@ func isActiveContentExtension(filename string) bool {
 	}
 }
 
-
-
 func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 	// Pre-create manifest once — it caches internally and auto-reloads on file changes
 	manifest := tools.NewManifest(s.Cfg.Directories.ToolsDir)
@@ -442,16 +440,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 						s.Logger.Info("[Compression] Triggering character-based context compression",
 							"msg_count", len(msgs), "chars", charsPruned, "limit", charLimit, "llm", llmSource, "model", compressionModel)
 
-						prompt := "Update the following 'Persistent Summary' with the details from the 'Recent Messages' below. Maintain a chronological flow of facts, technical decisions, and user preferences. Ensure metadata is explicitly protected. Result must be a concise briefing.\n\n"
-						if existingSummary != "" {
-							prompt += "[\"Persistent Summary\"]:\n" + existingSummary + "\n\n"
-						}
-						prompt += "[\"Recent Messages\"]:\n"
-						var dropIDs []int64
-						for _, m := range msgs {
-							prompt += fmt.Sprintf("[%s]: %s\n\n", m.Role, m.Content)
-							dropIDs = append(dropIDs, m.ID)
-						}
+						prompt, dropIDs := buildPersistentSummaryPrompt(existingSummary, msgs)
 
 						summaryReq := openai.ChatCompletionRequest{
 							Model: compressionModel,
@@ -560,7 +549,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			if currentSummary := s.HistoryManager.GetSummary(); currentSummary != "" {
 				finalMessages = append([]openai.ChatCompletionMessage{{
 					Role:    openai.ChatMessageRoleSystem,
-					Content: "[CONTEXT_RECAP]: The following is a summary of previous relevant discussions for context. DO NOT echo or repeat this recap in your response:\n" + currentSummary,
+					Content: formatPersistentContextRecap(currentSummary),
 				}}, finalMessages...)
 			}
 		}

@@ -18,7 +18,29 @@ func applyPromptSecToLatestUserMessage(messages []openai.ChatCompletionMessage, 
 			continue
 		}
 		if len(msg.MultiContent) > 0 {
-			return messages, false
+			updatedParts := append([]openai.ChatMessagePart(nil), msg.MultiContent...)
+			applied := false
+			for partIdx, part := range updatedParts {
+				if part.Type != openai.ChatMessagePartTypeText {
+					continue
+				}
+				content := strings.TrimSpace(part.Text)
+				if content == "" || guardian.HasPromptSecStructuredOutput(part.Text) {
+					continue
+				}
+				scan := guardian.SanitizeForLLM(part.Text, "user")
+				if scan.Sanitized == "" || scan.Sanitized == part.Text {
+					continue
+				}
+				updatedParts[partIdx].Text = scan.Sanitized
+				applied = true
+			}
+			if !applied {
+				return messages, false
+			}
+			updated := append([]openai.ChatCompletionMessage(nil), messages...)
+			updated[i].MultiContent = updatedParts
+			return updated, true
 		}
 		content := strings.TrimSpace(msg.Content)
 		if content == "" {

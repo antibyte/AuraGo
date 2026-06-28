@@ -5,7 +5,6 @@ import (
 	"math"
 	"strings"
 	"time"
-	"unicode/utf8"
 
 	"aurago/internal/prompts"
 
@@ -124,45 +123,40 @@ func buildTrimmedContextRecap(messages []openai.ChatCompletionMessage, tokenBudg
 	if len(messages) > 6 {
 		start = len(messages) - 6
 	}
-	var builder strings.Builder
-	builder.WriteString("[TRIMMED_CONTEXT_RECAP]: Older conversation content was condensed to stay within the model context window. Use this only as supporting context and do not quote it verbatim.\n")
+	var header strings.Builder
+	header.WriteString("[TRIMMED_CONTEXT_RECAP]: Older conversation content was condensed to stay within the model context window. Use this only as supporting context and do not quote it verbatim.\n")
 	if start > 0 {
-		builder.WriteString(fmt.Sprintf("Earlier omitted messages before this recap: %d\n", start))
+		header.WriteString(fmt.Sprintf("Earlier omitted messages before this recap: %d\n", start))
 	}
+	entries := make([]string, 0, len(messages[start:]))
 	for _, msg := range messages[start:] {
 		content := strings.Join(strings.Fields(messageText(msg)), " ")
 		if content == "" {
 			continue
 		}
-		builder.WriteString("- ")
-		builder.WriteString(msg.Role)
-		builder.WriteString(": ")
-		builder.WriteString(Truncate(content, 220))
-		builder.WriteString("\n")
+		var entry strings.Builder
+		entry.WriteString("- ")
+		entry.WriteString(msg.Role)
+		entry.WriteString(":\n")
+		entry.WriteString(isolateAgentPromptExternalData(Truncate(content, 220)))
+		entry.WriteString("\n")
+		entries = append(entries, entry.String())
 	}
-	recap := strings.TrimSpace(builder.String())
-	if recap == "" {
-		return ""
-	}
-	// Estimate target char length from token budget (approx 4 chars per token)
-	// then verify with a single CountTokens call.
-	estChars := tokenBudget * 4
-	if len(recap) > estChars {
-		for estChars > 0 && estChars < len(recap) && !utf8.RuneStart(recap[estChars]) {
-			estChars--
+	return fitTrimmedContextRecap(header.String(), entries, tokenBudget)
+}
+
+func fitTrimmedContextRecap(header string, entries []string, tokenBudget int) string {
+	for {
+		recap := strings.TrimSpace(header + strings.Join(entries, ""))
+		if recap == "" {
+			return ""
 		}
-		recap = strings.TrimSpace(recap[:estChars])
-	}
-	if prompts.CountTokens(recap) > tokenBudget {
-		if len(recap) > 160 {
-			recap = strings.TrimSpace(Truncate(recap, len(recap)/2))
+		if prompts.CountTokens(recap) <= tokenBudget {
+			return recap
 		}
-		for recap != "" && prompts.CountTokens(recap) > tokenBudget {
-			if len(recap) <= 160 {
-				return ""
-			}
-			recap = strings.TrimSpace(Truncate(recap, len(recap)-(len(recap)/4)))
+		if len(entries) == 0 {
+			return ""
 		}
+		entries = entries[1:]
 	}
-	return recap
 }

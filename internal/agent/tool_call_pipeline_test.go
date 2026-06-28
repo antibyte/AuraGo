@@ -358,6 +358,33 @@ func TestRecoverFromEmptyResponseTrimsContextOnce(t *testing.T) {
 	}
 }
 
+func TestTrimMessagesForEmptyResponsePreservesAllLeadingSystemMessages(t *testing.T) {
+	msgs := []openai.ChatCompletionMessage{
+		{Role: openai.ChatMessageRoleSystem, Content: "sys"},
+		{Role: openai.ChatMessageRoleSystem, Content: "context recap"},
+		{Role: openai.ChatMessageRoleSystem, Content: "task state"},
+		{Role: openai.ChatMessageRoleUser, Content: "u1"},
+		{Role: openai.ChatMessageRoleAssistant, Content: "a1"},
+		{Role: openai.ChatMessageRoleUser, Content: "u2"},
+		{Role: openai.ChatMessageRoleAssistant, Content: "a2"},
+		{Role: openai.ChatMessageRoleUser, Content: "u3"},
+	}
+
+	trimmed, summary := trimMessagesForEmptyResponseWithSummary(msgs)
+
+	if summary.LeadingSystemMessages != 3 {
+		t.Fatalf("LeadingSystemMessages = %d, want 3", summary.LeadingSystemMessages)
+	}
+	if len(trimmed) < 3 {
+		t.Fatalf("trimmed too short: %+v", trimmed)
+	}
+	for i, want := range []string{"sys", "context recap", "task state"} {
+		if trimmed[i].Role != openai.ChatMessageRoleSystem || trimmed[i].Content != want {
+			t.Fatalf("trimmed[%d] = (%q, %q), want system %q; all=%+v", i, trimmed[i].Role, trimmed[i].Content, want, trimmed)
+		}
+	}
+}
+
 func TestRecoverFromEmptyResponseWithPolicyHonorsMinMessages(t *testing.T) {
 	req := openai.ChatCompletionRequest{
 		Messages: []openai.ChatCompletionMessage{

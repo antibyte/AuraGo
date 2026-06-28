@@ -272,6 +272,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	adaptiveFilteredTools := s.adaptiveFilteredTools
 	reuseLookup := ReuseLookupResult{}
 	lastReuseLookupMsg := ""
+	lastGeneratedSystemPrompt := ""
 
 	loopStartedAt := time.Now()
 	loopIterationCount := 0
@@ -1119,13 +1120,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			"active_daemons", flags.ActiveProcesses,
 		)
 
-		if len(req.Messages) > 0 && req.Messages[0].Role == openai.ChatMessageRoleSystem {
-			req.Messages[0].Content = sysPrompt
-		} else {
-			req.Messages = append([]openai.ChatCompletionMessage{
-				{Role: openai.ChatMessageRoleSystem, Content: sysPrompt},
-			}, req.Messages...)
-		}
+		req.Messages = ensureGeneratedSystemPromptMessage(req.Messages, sysPrompt, lastGeneratedSystemPrompt)
+		lastGeneratedSystemPrompt = sysPrompt
 
 		// ── Context compression ──
 		// Before the hard-trim guard, try to compress older messages into a summary

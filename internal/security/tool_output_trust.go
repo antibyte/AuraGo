@@ -12,6 +12,8 @@ const (
 
 func classifyToolOutput(action string) toolOutputTrust {
 	switch strings.ToLower(strings.TrimSpace(action)) {
+	case "activate_tools", "context_manager", "discover_tools", "get_tool_info":
+		return toolOutputTrusted
 	case "execute_shell", "execute_python", "run_tool":
 		return toolOutputSemiTrusted
 	case
@@ -96,6 +98,6 @@ func classifyToolOutput(action string) toolOutputTrust {
 		"yepapi_youtube":
 		return toolOutputExternal
 	default:
-		return toolOutputTrusted
+		return toolOutputExternal
 	}
 }

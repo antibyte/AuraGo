@@ -699,7 +699,10 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 					return `Tool Output: {"status": "error", "message": "No unpinned messages to compact."}`
 				}
 
-				prompt := "Compress this conversation into a concise factual summary. Preserve key facts, tool results, decisions. Output ONLY the summary.\n\n" + transcript.String()
+				prompt := buildSafeConversationSummaryPrompt(
+					"Compress this conversation into a concise factual summary. Preserve key facts, tool results, decisions. Output ONLY the summary.",
+					transcript.String(),
+				)
 				llmReq := openai.ChatCompletionRequest{
 					Model: dc.Cfg.LLM.Model,
 					Messages: []openai.ChatCompletionMessage{

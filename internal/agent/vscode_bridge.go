@@ -66,7 +66,7 @@ func AskAuraGoBridge(ctx context.Context, runCfg RunConfig, message string) (str
 	if summary := historyManager.GetSummary(); summary != "" {
 		finalMessages = append(finalMessages, openai.ChatCompletionMessage{
 			Role:    openai.ChatMessageRoleSystem,
-			Content: "[CONTEXT_RECAP]: The following is a summary of previous relevant discussions for context. DO NOT echo or repeat this recap in your response:\n" + summary,
+			Content: formatContextRecapForPrompt(summary),
 		})
 	}
 	finalMessages = append(finalMessages, historyManager.Get()...)
