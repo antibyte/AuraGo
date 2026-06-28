@@ -1902,6 +1902,19 @@ func TestOptimizePrompt_PreservesTildeFences(t *testing.T) {
 	}
 }
 
+func TestOptimizePromptPreservesHTMLCommentsInsideCodeFences(t *testing.T) {
+	input := "```html\n<div><!-- keep me --></div>\n```\n\n<!-- drop me -->\nVisible text\n"
+
+	got, _ := OptimizePrompt(input)
+
+	if !strings.Contains(got, "<!-- keep me -->") {
+		t.Fatalf("HTML comment inside code fence should be preserved:\n%s", got)
+	}
+	if strings.Contains(got, "<!-- drop me -->") {
+		t.Fatalf("HTML comment outside code fence should be removed:\n%s", got)
+	}
+}
+
 // TestBuildEnabledToolsOverview_IncludesPaperlessNGX verifies DESIGN-6 fix:
 // PaperlessNGXEnabled must appear in the enabled tools overview.
 func TestBuildEnabledToolsOverview_IncludesPaperlessNGX(t *testing.T) {

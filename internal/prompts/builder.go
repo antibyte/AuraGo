@@ -92,9 +92,6 @@ type guideCacheEntry struct {
 	mtime      time.Time
 }
 
-// reHTMLComments matches HTML comments for removal during prompt optimization.
-var reHTMLComments = regexp.MustCompile(`(?s)<!--.*?-->`)
-
 // ContextFlags dictate which secondary prompt files are appended
 // to the core system identity.
 type ContextFlags struct {
@@ -1922,6 +1919,55 @@ func removeSection(text, header string) string {
 	return strings.TrimSpace(text[:idx] + rest[nextHeader:])
 }
 
+func stripHTMLCommentsOutsideCodeFences(raw string) string {
+	if raw == "" {
+		return ""
+	}
+	lines := strings.SplitAfter(raw, "\n")
+	var out strings.Builder
+	inCodeBlock := false
+	inComment := false
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(strings.TrimRight(line, "\r\n"))
+		isFence := strings.HasPrefix(trimmed, "```") || strings.HasPrefix(trimmed, "~~~")
+		if isFence && !inComment {
+			inCodeBlock = !inCodeBlock
+			out.WriteString(line)
+			continue
+		}
+		if inCodeBlock {
+			out.WriteString(line)
+			continue
+		}
+		out.WriteString(stripHTMLCommentsFromLine(line, &inComment))
+	}
+	return out.String()
+}
+
+func stripHTMLCommentsFromLine(line string, inComment *bool) string {
+	var out strings.Builder
+	for line != "" {
+		if *inComment {
+			end := strings.Index(line, "-->")
+			if end < 0 {
+				return out.String()
+			}
+			line = line[end+3:]
+			*inComment = false
+			continue
+		}
+		start := strings.Index(line, "<!--")
+		if start < 0 {
+			out.WriteString(line)
+			return out.String()
+		}
+		out.WriteString(line[:start])
+		line = line[start+4:]
+		*inComment = true
+	}
+	return out.String()
+}
+
 // OptimizePrompt minifies the prompt for better token efficiency.
 // It protects Markdown code blocks and template placeholders.
 // Returns the optimized string and the number of characters saved.
@@ -1930,8 +1976,8 @@ func OptimizePrompt(raw string) (string, int) {
 		return "", 0
 	}
 
-	// 1. Remove HTML comments (multiline safe)
-	raw = reHTMLComments.ReplaceAllString(raw, "")
+	// 1. Remove HTML comments outside code fences.
+	raw = stripHTMLCommentsOutsideCodeFences(raw)
 
 	lines := strings.Split(raw, "\n")
 	result := make([]string, 0, len(lines))
