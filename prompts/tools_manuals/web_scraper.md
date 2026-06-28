@@ -2,6 +2,8 @@
 
 Extract plain text content from a web page by removing HTML tags, scripts, and styles.
 It can also parse RSS/Atom feeds into structured items.
+RSS/Atom text fields are treated as external data and wrapped in isolation tags;
+decode or summarise the `content` field when you need plain article text.
 
 When **summary mode** is enabled, the scraped content is automatically sent to a
 separate summarisation model before being returned to you. In this mode you
@@ -35,6 +37,6 @@ and may miss the data you need.
 
 ### Parameters
 - `url` (string, required): The full URL of the page to scrape.
-- `mode` (string, optional): `auto` (default), `static`, `dynamic`, or `rss`. Use `rss` for RSS/Atom feeds. `auto` detects feed URLs and may use dynamic rendering when static content is too thin.
+- `mode` (string, optional): `auto` (default), `static`, `dynamic`, or `rss`. Use `rss` for RSS/Atom feeds. `auto` detects feed URLs or RSS/XML responses and may use dynamic rendering when static content is too thin.
 - `wait_for_selector` (string, optional): CSS selector to wait for in `dynamic` mode or auto dynamic fallback.
 - `search_query` (string, optional but **required in summary mode**): Tell the summarisation model exactly what information you are looking for on the page. Be specific — e.g. "pricing details and system requirements" rather than just "info".

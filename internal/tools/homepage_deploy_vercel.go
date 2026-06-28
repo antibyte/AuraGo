@@ -129,7 +129,7 @@ func HomepageDeployVercel(cfg HomepageConfig, vcfg VercelConfig, projectDir, bui
 
 	if projectInfo.HasPackageJSON {
 		logger.Info("[Homepage] Attempting build before Vercel deploy", "dir", projectDir, "target", target)
-		buildResult := HomepageBuildWithAutoFix(cfg, projectDir, logger)
+		buildResult := homepageBuildWithAutoFixOptions(cfg, projectDir, logger, homepageBuildOptions{RequireDeployableOutput: false})
 		var br map[string]interface{}
 		if err := json.Unmarshal([]byte(buildResult), &br); err == nil {
 			if s, _ := br["status"].(string); s == "error" {

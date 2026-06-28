@@ -3,6 +3,7 @@ package tools
 import (
 	"aurago/internal/scraper"
 	"aurago/internal/security"
+	"bytes"
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
@@ -69,10 +70,8 @@ func ExecuteWebScraperWithOptions(rawURL string, options WebScraperOptions) stri
 }
 
 func executeWebScraperAuto(rawURL, waitForSelector string) string {
-	if looksLikeFeedURL(rawURL) {
-		if rss := executeWebScraperRSS(rawURL); !strings.Contains(rss, `"status":"error"`) {
-			return rss
-		}
+	if rss, ok := executeWebScraperRSSAuto(rawURL); ok {
+		return rss
 	}
 	s := scraper.New(scraperGuardian)
 	result, err := s.FetchStatic(rawURL)
@@ -127,19 +126,53 @@ func formatScrapeResult(mode string, result *scraper.ScrapeResult, warning strin
 }
 
 func executeWebScraperRSS(rawURL string) string {
-	feed, err := fetchRSSFeed(rawURL)
+	feed, err := fetchRSSFeed(rawURL, false)
 	if err != nil {
 		return formatError(fmt.Sprintf("rss scrape failed: %v", err))
 	}
+	return formatRSSFeedResult(rawURL, feed)
+}
+
+func executeWebScraperRSSAuto(rawURL string) (string, bool) {
+	feed, err := fetchRSSFeed(rawURL, !looksLikeFeedURL(rawURL))
+	if err != nil {
+		return "", false
+	}
+	return formatRSSFeedResult(rawURL, feed), true
+}
+
+func formatRSSFeedResult(rawURL string, feed parsedRSSFeed) string {
+	safeFeed := isolateRSSFeedText(rawURL, feed)
 	out := map[string]interface{}{
 		"status":  "success",
 		"mode":    "rss",
-		"title":   feed.Title,
-		"content": rssItemsContent(feed.Items),
-		"items":   feed.Items,
+		"title":   safeFeed.Title,
+		"content": scraperGuardian.ScanExternalContent(rawURL, rssItemsContent(feed.Items)),
+		"items":   safeFeed.Items,
 	}
 	b, _ := json.Marshal(out)
 	return string(b)
+}
+
+func isolateRSSFeedText(rawURL string, feed parsedRSSFeed) parsedRSSFeed {
+	safe := parsedRSSFeed{
+		Title: isolateRSSField(rawURL, feed.Title),
+		Items: make([]webScraperRSSItem, 0, len(feed.Items)),
+	}
+	for _, item := range feed.Items {
+		item.Title = isolateRSSField(rawURL, item.Title)
+		item.Description = isolateRSSField(rawURL, item.Description)
+		safe.Items = append(safe.Items, item)
+	}
+	return safe
+}
+
+func isolateRSSField(rawURL, value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
+	}
+	return scraperGuardian.ScanExternalContent(rawURL, value)
 }
 
 type parsedRSSFeed struct {
@@ -183,7 +216,7 @@ type atomXMLLink struct {
 	Rel  string `xml:"rel,attr"`
 }
 
-func fetchRSSFeed(rawURL string) (parsedRSSFeed, error) {
+func fetchRSSFeed(rawURL string, requireFeedResponse bool) (parsedRSSFeed, error) {
 	if err := security.ValidateSSRF(rawURL); err != nil {
 		return parsedRSSFeed{}, fmt.Errorf("URL not allowed: %w", err)
 	}
@@ -205,7 +238,34 @@ func fetchRSSFeed(rawURL string) (parsedRSSFeed, error) {
 	if err != nil {
 		return parsedRSSFeed{}, err
 	}
+	if requireFeedResponse && !rssResponseLooksLikeFeed(resp.Header.Get("Content-Type"), body) {
+		return parsedRSSFeed{}, fmt.Errorf("response is not an RSS/Atom feed")
+	}
 	return parseRSSOrAtom(body)
+}
+
+func rssResponseLooksLikeFeed(contentType string, body []byte) bool {
+	ct := strings.ToLower(strings.TrimSpace(strings.Split(contentType, ";")[0]))
+	switch {
+	case ct == "application/rss+xml",
+		ct == "application/atom+xml",
+		ct == "application/xml",
+		ct == "text/xml",
+		strings.HasSuffix(ct, "+xml"):
+		return true
+	}
+
+	trimmed := bytes.TrimSpace(body)
+	if bytes.HasPrefix(trimmed, []byte{0xef, 0xbb, 0xbf}) {
+		trimmed = bytes.TrimSpace(trimmed[3:])
+	}
+	lower := strings.ToLower(string(trimmed))
+	if strings.HasPrefix(lower, "<?xml") {
+		if idx := strings.Index(lower, "?>"); idx >= 0 {
+			lower = strings.TrimSpace(lower[idx+2:])
+		}
+	}
+	return strings.HasPrefix(lower, "<rss") || strings.HasPrefix(lower, "<feed")
 }
 
 func parseRSSOrAtom(body []byte) (parsedRSSFeed, error) {

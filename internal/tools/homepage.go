@@ -891,6 +891,14 @@ func HomepageInitProject(cfg HomepageConfig, framework, name, template string, l
 // HomepageBuild runs the build command in the project directory.
 // Plain HTML projects (no package.json) are detected and skipped -- they need no build step.
 func HomepageBuild(cfg HomepageConfig, projectDir string, logger *slog.Logger) string {
+	return homepageBuildWithOptions(cfg, projectDir, logger, homepageBuildOptions{RequireDeployableOutput: true})
+}
+
+type homepageBuildOptions struct {
+	RequireDeployableOutput bool
+}
+
+func homepageBuildWithOptions(cfg HomepageConfig, projectDir string, logger *slog.Logger, options homepageBuildOptions) string {
 	if projectDir == "" {
 		projectDir = "."
 	}
@@ -929,10 +937,13 @@ func HomepageBuild(cfg HomepageConfig, projectDir string, logger *slog.Logger) s
 	if err := homepageEnsureProjectNodeArtifactsWritable(dockerCfg, projectDir, logger); err != nil {
 		return errJSON("Homepage project %q has Node/Vite artifacts that are not writable and automatic permission repair failed: %v", projectDir, err)
 	}
+	buildStarted := time.Now()
 	result := homepageDockerExecFunc(dockerCfg, homepageContainerName, fmt.Sprintf("cd /workspace/%s && %s 2>&1", projectDir, homepageBuildCommand(project.PackageManager)), "")
 	if homepageBuildSucceeded(result) {
-		if err := homepageValidateDeployableBuildOutput(cfg, project); err != nil {
-			return errJSON("Homepage build command succeeded for project_dir %q, but no deployable build output is available: %v", projectDir, err)
+		if options.RequireDeployableOutput {
+			if err := homepageValidateDeployableBuildOutput(cfg, project, buildStarted); err != nil {
+				return errJSON("Homepage build command succeeded for project_dir %q, but no deployable build output is available: %v", projectDir, err)
+			}
 		}
 		copyReferencedAssetsAfterBuild(cfg, project, logger)
 	}
@@ -965,7 +976,7 @@ func copyReferencedAssetsAfterBuild(cfg HomepageConfig, project homepageProjectI
 	copyAssetsToBuildDir(candidate.Path, cfg.DataDir, logger)
 }
 
-func homepageValidateDeployableBuildOutput(cfg HomepageConfig, project homepageProjectInfo) error {
+func homepageValidateDeployableBuildOutput(cfg HomepageConfig, project homepageProjectInfo, buildStarted time.Time) error {
 	candidate, err := homepageDetectDeployCandidate(cfg, project.ProjectDir, "", project.Framework)
 	if err != nil {
 		return err
@@ -975,8 +986,8 @@ func homepageValidateDeployableBuildOutput(cfg HomepageConfig, project homepageP
 	if err != nil {
 		return fmt.Errorf("deployable output %q is missing index.html: %w", candidate.BuildDir, err)
 	}
-	if time.Since(stat.ModTime()) > 24*time.Hour {
-		return fmt.Errorf("deployable output %q has stale index.html; rerun the build so dist, build, out, public, or project root contains a fresh index.html", candidate.BuildDir)
+	if stat.ModTime().Before(buildStarted.Add(-2 * time.Second)) {
+		return fmt.Errorf("deployable output %q has stale index.html; rerun the build so dist, build, out, public, or project root contains an index.html from the current build", candidate.BuildDir)
 	}
 	return nil
 }
@@ -990,7 +1001,6 @@ func decorateHomepageBuildRuntimeFailure(raw string, projectDir string) string {
 	}
 	return raw
 }
-
 func homepageEnsureNodeRuntime(cfg HomepageConfig, logger *slog.Logger) error {
 	dockerCfg := DockerConfig{Host: cfg.DockerHost}
 	check := func() string {

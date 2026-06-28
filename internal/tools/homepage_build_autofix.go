@@ -135,8 +135,12 @@ var buildFixPatterns = []buildFixPattern{
 // HomepageBuildWithAutoFix runs the build, and if it fails, tries pattern-based
 // auto-fixes with exactly one retry. Returns the final build result.
 func HomepageBuildWithAutoFix(cfg HomepageConfig, projectDir string, logger *slog.Logger) string {
+	return homepageBuildWithAutoFixOptions(cfg, projectDir, logger, homepageBuildOptions{RequireDeployableOutput: true})
+}
+
+func homepageBuildWithAutoFixOptions(cfg HomepageConfig, projectDir string, logger *slog.Logger, options homepageBuildOptions) string {
 	// First build attempt
-	result := HomepageBuild(cfg, projectDir, logger)
+	result := homepageBuildWithOptions(cfg, projectDir, logger, options)
 
 	// Check if the build succeeded
 	var resp map[string]interface{}
@@ -184,7 +188,7 @@ func HomepageBuildWithAutoFix(cfg HomepageConfig, projectDir string, logger *slo
 		"pattern", fixName, "fix_output_len", len(fixOutput))
 
 	// Retry the build exactly once
-	retryResult := HomepageBuild(cfg, projectDir, logger)
+	retryResult := homepageBuildWithOptions(cfg, projectDir, logger, options)
 
 	// Annotate the retry result with auto-fix info
 	var retryResp map[string]interface{}

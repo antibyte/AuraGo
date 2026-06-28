@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func slogDiscard() *slog.Logger {
@@ -483,6 +484,57 @@ func TestHomepageBuildRejectsSuccessWithoutDeployableIndex(t *testing.T) {
 	}
 	if !strings.Contains(result, "index.html") {
 		t.Fatalf("expected index.html guidance, got: %s", result)
+	}
+}
+
+func TestHomepageBuildRejectsDeployableIndexOlderThanCurrentBuild(t *testing.T) {
+	dir := t.TempDir()
+	workspace := filepath.Join(dir, "workspace")
+	projectRoot := filepath.Join(workspace, "ki-news")
+	buildDir := filepath.Join(projectRoot, "dist")
+	if err := os.MkdirAll(filepath.Join(projectRoot, "node_modules"), 0o755); err != nil {
+		t.Fatalf("mkdir node_modules: %v", err)
+	}
+	if err := os.MkdirAll(buildDir, 0o755); err != nil {
+		t.Fatalf("mkdir dist: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(projectRoot, "package.json"), []byte(`{"scripts":{"build":"vite"}}`), 0o644); err != nil {
+		t.Fatalf("write package.json: %v", err)
+	}
+	indexPath := filepath.Join(buildDir, "index.html")
+	if err := os.WriteFile(indexPath, []byte(`<div id="old-root"></div>`), 0o644); err != nil {
+		t.Fatalf("write stale index: %v", err)
+	}
+	staleTime := time.Now().Add(-2 * time.Hour)
+	if err := os.Chtimes(indexPath, staleTime, staleTime); err != nil {
+		t.Fatalf("set stale index mtime: %v", err)
+	}
+
+	oldExec := homepageDockerExecFunc
+	oldInternal := homepageDockerExecInternalFunc
+	defer func() {
+		homepageDockerExecFunc = oldExec
+		homepageDockerExecInternalFunc = oldInternal
+	}()
+	homepageDockerExecInternalFunc = func(cfg DockerConfig, containerName, command, user string, env []string) string {
+		return `{"status":"ok","exit_code":0,"output":""}`
+	}
+	homepageDockerExecFunc = func(cfg DockerConfig, containerName, command, user string) string {
+		if strings.Contains(command, "command -v node") {
+			return `{"status":"ok","exit_code":0,"output":"/usr/local/bin/node\n/usr/local/bin/npm"}`
+		}
+		if strings.Contains(command, "npm run build") {
+			return `{"status":"ok","exit_code":0,"output":"build succeeded but did not update dist"}`
+		}
+		return `{"status":"ok","exit_code":0,"output":""}`
+	}
+
+	result := HomepageBuild(HomepageConfig{WorkspacePath: workspace}, "ki-news", slogDiscard())
+	if !strings.Contains(result, `"status":"error"`) {
+		t.Fatalf("expected stale deployable output to fail, got: %s", result)
+	}
+	if !strings.Contains(result, "stale") {
+		t.Fatalf("expected stale output guidance, got: %s", result)
 	}
 }
 
