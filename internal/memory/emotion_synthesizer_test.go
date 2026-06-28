@@ -2,6 +2,7 @@ package memory
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -28,6 +29,24 @@ func (m *mockEmotionClient) CreateChatCompletion(_ context.Context, _ openai.Cha
 	return openai.ChatCompletionResponse{
 		Choices: []openai.ChatCompletionChoice{
 			{Message: openai.ChatCompletionMessage{Content: m.response}},
+		},
+	}, nil
+}
+
+type contextAwareEmotionClient struct {
+	calls int
+}
+
+func (m *contextAwareEmotionClient) CreateChatCompletion(ctx context.Context, _ openai.ChatCompletionRequest) (openai.ChatCompletionResponse, error) {
+	m.calls++
+	select {
+	case <-ctx.Done():
+		return openai.ChatCompletionResponse{}, ctx.Err()
+	default:
+	}
+	return openai.ChatCompletionResponse{
+		Choices: []openai.ChatCompletionChoice{
+			{Message: openai.ChatCompletionMessage{Content: `{"description":"I feel steady and ready to help.","primary_mood":"focused","secondary_mood":"","valence":0.1,"arousal":0.3,"confidence":0.8,"cause":"clear request","recommended_response_style":"calm_and_clear"}`}},
 		},
 	}, nil
 }
@@ -140,6 +159,73 @@ func TestSynthesizeEmotion_RateLimiting(t *testing.T) {
 	}
 	if mock.calls != 1 {
 		t.Errorf("expected only 1 LLM call (rate limited), got %d", mock.calls)
+	}
+}
+
+func TestCanSynthesizeNowHonorsExternalStateRateLimit(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+	es := NewEmotionSynthesizer(&mockEmotionClient{}, "test-model", 300, 100, "English", logger)
+	stm := newTestEmotionDB(t)
+
+	if ok, last := es.CanSynthesizeNow(time.Now()); !ok || last != nil {
+		t.Fatalf("initial CanSynthesizeNow() = (%v, %#v), want (true, nil)", ok, last)
+	}
+
+	state := &EmotionState{
+		Description:              "I feel steady and ready to help.",
+		PrimaryMood:              MoodFocused,
+		SecondaryMood:            "calm",
+		Valence:                  0.2,
+		Arousal:                  0.3,
+		Confidence:               0.8,
+		Cause:                    "clear request",
+		RecommendedResponseStyle: "calm_and_precise",
+	}
+	if err := es.ApplyExternalState(stm, state, "clear user request"); err != nil {
+		t.Fatalf("ApplyExternalState: %v", err)
+	}
+
+	ok, last := es.CanSynthesizeNow(time.Now())
+	if ok {
+		t.Fatal("CanSynthesizeNow() = true inside min interval, want false")
+	}
+	if last == nil || last.Description != state.Description {
+		t.Fatalf("last = %#v, want cached external state", last)
+	}
+	last.Description = "mutated copy"
+	if got := es.GetLastEmotion(); got == nil || got.Description != state.Description {
+		t.Fatalf("CanSynthesizeNow returned internal pointer; cached state = %#v", got)
+	}
+
+	es.mu.Lock()
+	es.lastCall = time.Now().Add(-301 * time.Second)
+	es.mu.Unlock()
+	if ok, _ := es.CanSynthesizeNow(time.Now()); !ok {
+		t.Fatal("CanSynthesizeNow() = false after min interval elapsed, want true")
+	}
+}
+
+func TestSynthesizeEmotionUsesCallerContext(t *testing.T) {
+	client := &contextAwareEmotionClient{}
+	es := newTestSynthesizer(client)
+	stm := newTestEmotionDB(t)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	state, err := es.SynthesizeEmotion(ctx, stm, EmotionInput{
+		UserMessage: "please help",
+		CurrentMood: MoodFocused,
+		TimeOfDay:   "afternoon",
+	})
+	if err == nil {
+		t.Fatalf("SynthesizeEmotion() err = nil, state = %#v; want caller context cancellation", state)
+	}
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("SynthesizeEmotion() err = %v, want context.Canceled", err)
+	}
+	if client.calls != 1 {
+		t.Fatalf("client calls = %d, want 1", client.calls)
 	}
 }
 

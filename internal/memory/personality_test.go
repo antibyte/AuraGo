@@ -171,6 +171,23 @@ func TestDetectMoodCautious(t *testing.T) {
 	}
 }
 
+func TestDetectMoodDoesNotMatchShortKeywordsInsideWords(t *testing.T) {
+	mood, _ := detectMoodDefault("normaler ablauf", "")
+	if mood != MoodFocused {
+		t.Fatalf("detectMoodDefault(%q) = %s, want focused; short keyword should not match inside a word", "normaler ablauf", mood)
+	}
+
+	mood, _ = detectMoodDefault("esto está mal", "")
+	if mood != MoodCautious {
+		t.Fatalf("detectMoodDefault(%q) = %s, want cautious for explicit keyword", "esto está mal", mood)
+	}
+
+	mood, _ = detectMoodDefault("this is not working again", "")
+	if mood != MoodFrustrated {
+		t.Fatalf("detectMoodDefault(%q) = %s, want frustrated for phrase keyword", "this is not working again", mood)
+	}
+}
+
 func TestDetectMoodCautiousFromToolError(t *testing.T) {
 	mood, deltas := detectMoodDefault("run my script", "[EXECUTION ERROR] something broke")
 	if mood != MoodCautious {

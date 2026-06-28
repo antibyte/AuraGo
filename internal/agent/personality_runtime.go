@@ -128,10 +128,12 @@ func resolveHelperEmotionBatchState(cfg *config.Config, emotionSynthesizer *memo
 	helperEmotionBatchEligible := llm.IsHelperLLMAvailable(cfg) && emotionSynthesizer != nil
 	var previousEmotion *memory.EmotionState
 	if helperEmotionBatchEligible {
-		previousEmotion = emotionSynthesizer.GetLastEmotion()
+		canSynthesize, lastEmotion := emotionSynthesizer.CanSynthesizeNow(time.Now())
+		previousEmotion = lastEmotion
 		helperEmotionBatchEligible = cfg.Personality.EmotionSynthesizer.TriggerAlways ||
 			cfg.Personality.EmotionSynthesizer.TriggerOnMoodChange ||
 			previousEmotion == nil
+		helperEmotionBatchEligible = helperEmotionBatchEligible && canSynthesize
 	}
 	return helperEmotionBatchEligible, previousEmotion
 }
@@ -258,8 +260,7 @@ func applyPersonalityV2AnalysisResult(
 			"confidence", result.NudgeConfidence,
 			"accepted", accepted,
 			"reason", reason,
-			"thought_len", len(result.InnerThought),
-			"thought", result.InnerThought)
+			"thought_len", len(result.InnerThought))
 		if accepted {
 			applyInnerVoiceResult(sessionID, thought, category, confidence)
 			pendingInnerVoice = &struct {
@@ -270,8 +271,7 @@ func applyPersonalityV2AnalysisResult(
 				"session_id", sessionID,
 				"category", category,
 				"confidence", confidence,
-				"thought_len", len(thought),
-				"thought", thought)
+				"thought_len", len(thought))
 		}
 	}
 
@@ -287,6 +287,9 @@ func applyPersonalityV2AnalysisResult(
 		(cfg.Personality.EmotionSynthesizer.TriggerOnMoodChange && moodChanged) ||
 		previousEmotion == nil
 	if !shouldSynthesize {
+		return
+	}
+	if canSynthesize, _ := emotionSynthesizer.CanSynthesizeNow(time.Now()); !canSynthesize {
 		return
 	}
 

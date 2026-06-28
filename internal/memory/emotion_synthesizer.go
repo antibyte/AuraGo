@@ -147,6 +147,27 @@ func (es *EmotionSynthesizer) GetLastEmotion() *EmotionState {
 	return &stateCopy
 }
 
+// CanSynthesizeNow reports whether a new emotion state may be synthesized at now.
+// It returns a copy of the last cached emotion state when one exists.
+func (es *EmotionSynthesizer) CanSynthesizeNow(now time.Time) (bool, *EmotionState) {
+	if es == nil {
+		return false, nil
+	}
+	if now.IsZero() {
+		now = time.Now()
+	}
+	es.mu.RLock()
+	defer es.mu.RUnlock()
+	if es.lastState == nil {
+		return true, nil
+	}
+	stateCopy := *es.lastState
+	if now.Sub(es.lastCall) < es.minInterval {
+		return false, &stateCopy
+	}
+	return true, &stateCopy
+}
+
 // ApplyExternalState validates, caches, and persists an already synthesized emotion state.
 func (es *EmotionSynthesizer) ApplyExternalState(stm *SQLiteMemory, state *EmotionState, triggerSummary string) error {
 	if es == nil {
@@ -192,25 +213,19 @@ type sfEmotionResult struct {
 // Concurrent calls are deduplicated via singleflight to prevent simultaneous LLM calls (P-01).
 func (es *EmotionSynthesizer) SynthesizeEmotion(ctx context.Context, stm *SQLiteMemory, input EmotionInput) (*EmotionState, error) {
 	// Fast path: rate-limit check with read lock.
-	es.mu.RLock()
-	if time.Since(es.lastCall) < es.minInterval && es.lastState != nil {
-		stateCopy := *es.lastState
-		es.mu.RUnlock()
-		return &stateCopy, nil
+	if ok, last := es.CanSynthesizeNow(time.Now()); !ok {
+		return last, nil
 	}
-	es.mu.RUnlock()
 
 	// Slow path: deduplicate concurrent LLM calls so only one runs at a time.
 	sfKey := emotionSynthesisKey(input)
 	v, _, _ := es.sfGroup.Do(sfKey, func() (interface{}, error) {
 		// Re-check inside singleflight and lock early to enforce rate-limit on concurrent calls.
-		es.mu.Lock()
-		if time.Since(es.lastCall) < es.minInterval && es.lastState != nil {
-			stateCopy := *es.lastState
-			es.mu.Unlock()
-			return &sfEmotionResult{state: &stateCopy}, nil
+		if ok, last := es.CanSynthesizeNow(time.Now()); !ok {
+			return &sfEmotionResult{state: last}, nil
 		}
 		// Claim the rate limit slot immediately so concurrent misses are blocked.
+		es.mu.Lock()
 		es.lastCall = time.Now()
 		es.mu.Unlock()
 
@@ -221,9 +236,7 @@ func (es *EmotionSynthesizer) SynthesizeEmotion(ctx context.Context, stm *SQLite
 			modelName = "gpt-4o-mini"
 		}
 
-		// Use a fresh context for the LLM call so that one caller's cancellation
-		// does not abort the shared singleflight operation and fail all waiters.
-		llmCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		llmCtx, cancel := emotionLLMContext(ctx, 30*time.Second)
 		defer cancel()
 
 		resp, err := es.client.CreateChatCompletion(llmCtx, openai.ChatCompletionRequest{
@@ -284,6 +297,16 @@ func (es *EmotionSynthesizer) SynthesizeEmotion(ctx context.Context, stm *SQLite
 		return nil, fmt.Errorf("emotion synthesis: unexpected nil result from singleflight")
 	}
 	return res.state, res.err
+}
+
+func emotionLLMContext(ctx context.Context, maxDuration time.Duration) (context.Context, context.CancelFunc) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if deadline, ok := ctx.Deadline(); ok && time.Until(deadline) <= maxDuration {
+		return context.WithCancel(ctx)
+	}
+	return context.WithTimeout(ctx, maxDuration)
 }
 
 // emotionSynthesisKey generates a singleflight key from the EmotionInput context

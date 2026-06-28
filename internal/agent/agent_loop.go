@@ -946,7 +946,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					s.currentLogger.Info("[InnerVoice] Injecting inner voice into system prompt",
 						"session_id", sessionID,
 						"category", ivCategory,
-						"content", iv)
+						"content_len", len(iv))
 				}
 			}
 		}
@@ -1755,6 +1755,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					Language:           cfg.Agent.SystemLanguage,
 					Traits:             traits,
 					PreviousEmotion:    previousEmotion,
+					PersonaName:        cfg.Personality.CorePersonality,
+					PersonaPrompt:      prompts.GetCorePersonalityPromptSummary(cfg.Directories.PromptsDir, cfg.Personality.CorePersonality, 300),
 					TriggerInfo:        moodTrigger(),
 					TriggerType:        userEmotionTrigger,
 					TriggerDetail:      userEmotionTriggerDetail,

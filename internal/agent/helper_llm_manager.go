@@ -20,7 +20,7 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-const helperTurnBatchPrompt = `You are the shared helper LLM for support tasks.
+var helperTurnBatchPrompt = strings.ReplaceAll(`You are the shared helper LLM for support tasks.
 Analyze one completed conversation turn and return ALL outputs in one JSON object.
 
 Return ONLY valid JSON in this exact shape:
@@ -89,14 +89,14 @@ Rules for activity_digest:
 - If there are no pending items, return an empty array.
 
 Rules for personality_analysis:
-- mood_analysis.agent_appropriate_response_mood must be one of: curious, focused, creative, analytical, cautious, playful.
+- mood_analysis.agent_appropriate_response_mood must be one of: {{canonical_mood_options}}.
 - relationship_delta and every trait delta must stay within -0.1 to 0.1.
 - user_profile_updates may contain at most 1 durable user fact. Use [] if nothing durable is present.
 - emotion_state.primary_mood should match the final response mood.
 - Keep emotion_state realistic, brief, and non-dramatic.
 - If uncertain, prefer focused, zero deltas, [], and a calm generic emotion description.
 
-Be conservative. Do not invent details.`
+Be conservative. Do not invent details.`, "{{canonical_mood_options}}", memory.CanonicalMoodOptions())
 
 const helperMaintenanceBatchPrompt = `You are the shared helper LLM for low-cost maintenance tasks.
 You receive three inputs:
@@ -297,6 +297,8 @@ type helperTurnPersonalityInput struct {
 	Language           string
 	Traits             memory.PersonalityTraits
 	PreviousEmotion    *memory.EmotionState
+	PersonaName        string
+	PersonaPrompt      string
 	TriggerInfo        string
 	TriggerType        memory.EmotionTriggerType
 	TriggerDetail      string
@@ -820,6 +822,17 @@ func buildHelperTurnPersonalitySection(input *helperTurnPersonalityInput) string
 		if previous := helperExternalDataBlock("previous_emotion", input.PreviousEmotion.Description, 180); previous != "" {
 			b.WriteString("Previous emotion:\n")
 			b.WriteString(previous)
+			b.WriteString("\n")
+		}
+	}
+	personaName := strings.TrimSpace(input.PersonaName)
+	if personaName != "" && !strings.EqualFold(personaName, "neutral") {
+		b.WriteString("Active persona: ")
+		b.WriteString(truncateActivityDigestInput(personaName, 80))
+		b.WriteString("\n")
+		if personaPrompt := helperExternalDataBlock("persona_prompt", input.PersonaPrompt, 300); personaPrompt != "" {
+			b.WriteString("Persona character:\n")
+			b.WriteString(personaPrompt)
 			b.WriteString("\n")
 		}
 	}

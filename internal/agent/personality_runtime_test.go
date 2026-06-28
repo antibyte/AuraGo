@@ -180,6 +180,99 @@ func TestApplyPersonalityV2AnalysisResultPersistsPrecomputedBatch(t *testing.T) 
 	}
 }
 
+func TestApplyPersonalityV2AnalysisResultSkipsBatchedEmotionInsideRateLimit(t *testing.T) {
+	ResetInnerVoiceState()
+	stm := newTestPersonalityRuntimeMemory(t)
+	if err := stm.InitInnerVoiceTables(); err != nil {
+		t.Fatalf("InitInnerVoiceTables: %v", err)
+	}
+	if err := stm.SetTrait(memory.TraitEmpathy, 0.5); err != nil {
+		t.Fatalf("SetTrait empathy: %v", err)
+	}
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+	cfg := &config.Config{}
+	cfg.Personality.InnerVoice.Enabled = true
+	cfg.Personality.EmotionSynthesizer.TriggerAlways = true
+	es := memory.NewEmotionSynthesizer(nil, "", 300, 100, "English", logger)
+
+	previous := &memory.EmotionState{
+		Description:              "I feel steady from the prior turn.",
+		PrimaryMood:              memory.MoodFocused,
+		SecondaryMood:            "steady",
+		Valence:                  0.1,
+		Arousal:                  0.3,
+		Confidence:               0.8,
+		Cause:                    "previous turn",
+		RecommendedResponseStyle: "calm_and_clear",
+	}
+	if err := es.ApplyExternalState(stm, previous, "previous"); err != nil {
+		t.Fatalf("ApplyExternalState previous: %v", err)
+	}
+
+	applyPersonalityV2AnalysisResult(
+		"rate-limit-session",
+		cfg,
+		logger,
+		stm,
+		es,
+		previous,
+		"user asked for another update",
+		memory.EmotionTriggerConversation,
+		"",
+		0,
+		false,
+		0,
+		1,
+		personalityV2AnalysisResult{
+			Mood: memory.MoodConcerned,
+			TraitDeltas: map[string]float64{
+				memory.TraitEmpathy: 0.05,
+			},
+			InnerThought:    "I feel ready to stay patient and verify this carefully.",
+			NudgeCategory:   "patience",
+			NudgeConfidence: 0.8,
+			SynthesizedEmotion: &memory.EmotionState{
+				Description:              "I feel newly concerned but steady.",
+				PrimaryMood:              memory.MoodConcerned,
+				SecondaryMood:            "watchful",
+				Valence:                  -0.1,
+				Arousal:                  0.4,
+				Confidence:               0.8,
+				Cause:                    "the task needs careful verification",
+				RecommendedResponseStyle: "careful_and_supportive",
+			},
+		},
+	)
+
+	if got := stm.GetCurrentMood(); got != memory.MoodConcerned {
+		t.Fatalf("GetCurrentMood() = %q, want %q", got, memory.MoodConcerned)
+	}
+	traits, err := stm.GetTraits()
+	if err != nil {
+		t.Fatalf("GetTraits: %v", err)
+	}
+	if traits[memory.TraitEmpathy] <= 0.5 {
+		t.Fatalf("empathy trait = %.4f, want mood/trait analysis to still apply", traits[memory.TraitEmpathy])
+	}
+	if last := es.GetLastEmotion(); last == nil || last.Description != previous.Description {
+		t.Fatalf("GetLastEmotion() = %#v, want previous emotion retained inside rate limit", last)
+	}
+	history, err := stm.GetEmotionHistory(24)
+	if err != nil {
+		t.Fatalf("GetEmotionHistory: %v", err)
+	}
+	if len(history) != 1 {
+		t.Fatalf("emotion history entries = %d, want 1", len(history))
+	}
+	voices, err := stm.GetRecentInnerVoices(3)
+	if err != nil {
+		t.Fatalf("GetRecentInnerVoices: %v", err)
+	}
+	if len(voices) != 0 {
+		t.Fatalf("inner voice should not be attached to old emotion row when emotion synthesis is skipped: %#v", voices)
+	}
+}
+
 func TestApplyPersonalityV2AnalysisResultStoresInnerVoiceOnNewEmotionRow(t *testing.T) {
 	stm := newTestPersonalityRuntimeMemory(t)
 	if err := stm.InitInnerVoiceTables(); err != nil {

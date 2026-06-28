@@ -32,6 +32,11 @@ const (
 
 const canonicalMoodOptions = "curious, focused, creative, analytical, cautious, playful, frustrated, concerned, relaxed"
 
+// CanonicalMoodOptions returns the prompt-ready list of supported mood values.
+func CanonicalMoodOptions() string {
+	return canonicalMoodOptions
+}
+
 func normalizeMoodValue(value string) (Mood, bool) {
 	switch mood := Mood(strings.ToLower(strings.TrimSpace(value))); mood {
 	case MoodCurious, MoodFocused, MoodCreative, MoodAnalytical, MoodCautious, MoodPlayful, MoodFrustrated, MoodConcerned, MoodRelaxed:

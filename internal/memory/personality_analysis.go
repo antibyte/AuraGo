@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"math"
 	"regexp"
+	"sort"
 	"strings"
+	"unicode"
 
 	"github.com/sashabaranov/go-openai"
 )
@@ -132,12 +134,53 @@ func matchesAny(lower string, keywords []string) bool {
 
 // buildKeywordRx compiles a pre-compiled OR-regex from a keyword list.
 // Each keyword is QuoteMeta'd so special chars (umlauts, punctuation) are safe.
+// Single-token keywords require word boundaries so short words do not match
+// inside unrelated words such as "mal" in "normaler".
 func buildKeywordRx(keywords []string) *regexp.Regexp {
-	quoted := make([]string, len(keywords))
-	for i, kw := range keywords {
-		quoted[i] = regexp.QuoteMeta(kw)
+	normalized := make([]string, 0, len(keywords))
+	seen := make(map[string]struct{}, len(keywords))
+	for _, kw := range keywords {
+		kw = strings.TrimSpace(strings.ToLower(kw))
+		if kw == "" {
+			continue
+		}
+		if _, ok := seen[kw]; ok {
+			continue
+		}
+		seen[kw] = struct{}{}
+		normalized = append(normalized, kw)
 	}
-	return regexp.MustCompile(strings.Join(quoted, "|"))
+	sort.SliceStable(normalized, func(i, j int) bool {
+		return len([]rune(normalized[i])) > len([]rune(normalized[j]))
+	})
+	if len(normalized) == 0 {
+		return regexp.MustCompile("a^")
+	}
+	patterns := make([]string, len(normalized))
+	for i, kw := range normalized {
+		patterns[i] = keywordPattern(kw)
+	}
+	return regexp.MustCompile(strings.Join(patterns, "|"))
+}
+
+func keywordPattern(keyword string) string {
+	quoted := regexp.QuoteMeta(keyword)
+	if !isSingleKeywordToken(keyword) {
+		return quoted
+	}
+	return `(?:^|[^\p{L}\p{N}_])` + quoted + `(?:$|[^\p{L}\p{N}_])`
+}
+
+func isSingleKeywordToken(keyword string) bool {
+	if keyword == "" {
+		return false
+	}
+	for _, r := range keyword {
+		if r != '_' && !unicode.IsLetter(r) && !unicode.IsDigit(r) {
+			return false
+		}
+	}
+	return true
 }
 
 // ClampTrait ensures a value stays within [0.0, 1.0].
