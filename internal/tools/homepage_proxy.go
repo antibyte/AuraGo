@@ -91,6 +91,54 @@ func RemoveProxyRoute(workspacePath, path string) error {
 	return saveProxyRoutes(workspacePath, filtered)
 }
 
+func filterProxyRoutesForStaticProject(routes []ProxyRoute, projectDir string) []ProxyRoute {
+	conflicts := staticProjectProxyRouteConflicts(projectDir)
+	if len(routes) == 0 || len(conflicts) == 0 {
+		return routes
+	}
+
+	filtered := make([]ProxyRoute, 0, len(routes))
+	for _, route := range routes {
+		if _, blocked := conflicts[normalizeProxyRoutePath(route.Path)]; blocked {
+			continue
+		}
+		filtered = append(filtered, route)
+	}
+	if len(filtered) == len(routes) {
+		return routes
+	}
+	return filtered
+}
+
+func staticProjectProxyRouteConflicts(projectDir string) map[string]struct{} {
+	clean := strings.TrimSpace(filepath.ToSlash(projectDir))
+	clean = strings.Trim(clean, "/")
+	if clean == "" || clean == "." {
+		return nil
+	}
+
+	conflicts := map[string]struct{}{
+		"/" + clean: {},
+	}
+	if strings.HasSuffix(clean, "-static") {
+		withoutSuffix := strings.TrimSuffix(clean, "-static")
+		if withoutSuffix != "" {
+			conflicts["/"+withoutSuffix] = struct{}{}
+		}
+	}
+	return conflicts
+}
+
+func normalizeProxyRoutePath(path string) string {
+	path = strings.TrimSpace(path)
+	path = strings.TrimSuffix(path, "*")
+	path = strings.Trim(path, "/")
+	if path == "" || path == "." {
+		return ""
+	}
+	return "/" + path
+}
+
 // ensureHomepageNetwork creates the shared Docker network if it does not exist.
 // It is idempotent — calling it when the network already exists is a no-op.
 func ensureHomepageNetwork(dockerCfg DockerConfig, logger *slog.Logger) {

@@ -203,6 +203,33 @@ func TestBuildCaddyfileWithProxiesPathSuffix(t *testing.T) {
 	}
 }
 
+func TestFilterProxyRoutesForStaticProjectRemovesConflictingDevRoute(t *testing.T) {
+	routes := []ProxyRoute{
+		{Path: "/ki-news", Port: 3000},
+		{Path: "/ki-news-static", Port: 3001},
+		{Path: "/ki-news-admin", Port: 3002},
+		{Path: "/space-invaders", Port: 3003},
+	}
+
+	filtered := filterProxyRoutesForStaticProject(routes, "ki-news-static")
+	caddyfile := buildCaddyfileWithProxies("", 8080, filtered)
+
+	if strings.Contains(caddyfile, "handle /ki-news*") {
+		t.Fatalf("expected stale /ki-news proxy to be removed, got:\n%s", caddyfile)
+	}
+	if strings.Contains(caddyfile, "handle /ki-news-static*") {
+		t.Fatalf("expected static fallback proxy to be removed, got:\n%s", caddyfile)
+	}
+	for _, want := range []string{
+		"handle /ki-news-admin*",
+		"handle /space-invaders*",
+	} {
+		if !strings.Contains(caddyfile, want) {
+			t.Fatalf("expected unrelated proxy route %q to remain, got:\n%s", want, caddyfile)
+		}
+	}
+}
+
 func TestProxyRoutesFilePersistence(t *testing.T) {
 	dir := t.TempDir()
 	p := proxyRoutesPath(dir)

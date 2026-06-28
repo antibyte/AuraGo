@@ -626,6 +626,15 @@ func HomepageWebServerStart(cfg HomepageConfig, projectDir, buildDir string, log
 
 	// Generate Caddyfile (with proxy routes if any)
 	routes := loadProxyRoutes(cfg.WorkspacePath)
+	filteredRoutes := filterProxyRoutesForStaticProject(routes, projectDir)
+	if len(filteredRoutes) != len(routes) {
+		if err := saveProxyRoutes(cfg.WorkspacePath, filteredRoutes); err != nil {
+			logger.Warn("[Homepage] Failed to prune stale proxy routes for static project", "project_dir", projectDir, "error", err)
+		} else {
+			logger.Info("[Homepage] Pruned stale proxy routes for static project", "project_dir", projectDir, "removed", len(routes)-len(filteredRoutes))
+		}
+		routes = filteredRoutes
+	}
 	caddyfile := buildCaddyfileWithProxies(cfg.WebServerDomain, port, routes)
 
 	// Write Caddyfile to workspace
