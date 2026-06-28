@@ -64,6 +64,12 @@ func appendContentToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai
 			schema(map[string]interface{}{
 				"url":          prop("string", "Full URL of the page to scrape (must start with http:// or https://)"),
 				"search_query": prop("string", "Optional: tell the summariser what specific information to extract from the page when summary mode is enabled. Be specific (e.g. 'pricing, release date, system requirements'). Ignored if summary mode is disabled."),
+				"mode": map[string]interface{}{
+					"type":        "string",
+					"description": "Scraping mode. auto detects RSS/XML feeds and may fall back to dynamic rendering for thin JavaScript pages; rss parses RSS/Atom feeds; static uses plain HTTP; dynamic uses a headless browser.",
+					"enum":        []string{"auto", "static", "dynamic", "rss"},
+				},
+				"wait_for_selector": prop("string", "Optional CSS selector to wait for in dynamic mode or auto dynamic fallback."),
 			}, "url"),
 		))
 

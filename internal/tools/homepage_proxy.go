@@ -174,10 +174,23 @@ func buildCaddyfileWithProxies(domain string, port int, routes []ProxyRoute) str
 // reloadCaddy sends a SIGHUP to the Caddy process inside the web container so
 // it re-reads the Caddyfile.  This is a lightweight alternative to recreating
 // the container when only the config changed.
-func reloadCaddy(dockerCfg DockerConfig, logger *slog.Logger) {
-	cmd := "caddy reload --config /etc/caddy/Caddyfile 2>&1 || true"
-	result := DockerExec(dockerCfg, homepageWebContainer, cmd, "")
-	logger.Info("[Homepage] Reloaded Caddy config", "output", truncateStr(extractOutput(result), 300))
+func reloadCaddy(dockerCfg DockerConfig, logger *slog.Logger) (string, error) {
+	cmd := "caddy reload --config /etc/caddy/Caddyfile 2>&1"
+	result := homepageDockerExecFunc(dockerCfg, homepageWebContainer, cmd, "")
+	output := strings.TrimSpace(extractOutput(result))
+	if homepageBuildSucceeded(result) {
+		if logger != nil {
+			logger.Info("[Homepage] Reloaded Caddy config", "output", truncateStr(output, 300))
+		}
+		return output, nil
+	}
+	if output == "" {
+		output = strings.TrimSpace(result)
+	}
+	if logger != nil {
+		logger.Warn("[Homepage] Caddy config reload failed", "output", truncateStr(output, 500))
+	}
+	return output, fmt.Errorf("caddy reload failed: %s", truncateStr(output, 500))
 }
 
 // rewriteCaddyfileWithProxyRoutes rewrites the Caddyfile on disk (inside the
@@ -193,6 +206,10 @@ func rewriteCaddyfileWithProxyRoutes(cfg HomepageConfig, dockerCfg DockerConfig,
 	ensureHomepageNetwork(dockerCfg, logger)
 	connectContainerToNetwork(dockerCfg, homepageWebContainer, logger)
 
-	reloadCaddy(dockerCfg, logger)
+	reloadOutput, err := reloadCaddy(dockerCfg, logger)
+	if err != nil {
+		return fmt.Errorf("failed to reload Caddy after writing proxy routes: host_caddyfile_path=%s container_config_path=/etc/caddy/Caddyfile webserver_container=%s port=%d output=%s: %w",
+			caddyfilePath, homepageWebContainer, cfg.WebServerPort, truncateStr(reloadOutput, 500), err)
+	}
 	return nil
 }

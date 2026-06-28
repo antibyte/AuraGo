@@ -40,6 +40,7 @@ const (
 var homepageDockerExecFunc = DockerExec
 var homepageDockerExecInternalFunc = dockerExecInternal
 var homepageWebCaptureFunc = WebCapture
+var homepageRuntimeRebuildFunc = HomepageRebuild
 
 var homepageUIDGIDPattern = regexp.MustCompile(`^\d+:\d+$`)
 var homepageWorkspaceGeneratedOutputPattern = regexp.MustCompile(`(?i)(?:^|[\s"'=;|&])/(?:workspace)/[^\s"';&|]+/(?:dist|build|out)(?:/|$)`)
@@ -915,6 +916,9 @@ func HomepageBuild(cfg HomepageConfig, projectDir string, logger *slog.Logger) s
 		return string(out)
 	}
 
+	if err := homepageEnsureNodeRuntime(cfg, logger); err != nil {
+		return errJSON("Homepage build cannot run for project_dir %q: %v", projectDir, err)
+	}
 	prep := homepagePrepareDependencies(cfg, project, logger)
 	if prep.Status != "ok" {
 		return errJSON("Dependency preparation failed for project_dir %q: %s", projectDir, prep.Message)
@@ -927,6 +931,9 @@ func HomepageBuild(cfg HomepageConfig, projectDir string, logger *slog.Logger) s
 	}
 	result := homepageDockerExecFunc(dockerCfg, homepageContainerName, fmt.Sprintf("cd /workspace/%s && %s 2>&1", projectDir, homepageBuildCommand(project.PackageManager)), "")
 	if homepageBuildSucceeded(result) {
+		if err := homepageValidateDeployableBuildOutput(cfg, project); err != nil {
+			return errJSON("Homepage build command succeeded for project_dir %q, but no deployable build output is available: %v", projectDir, err)
+		}
 		copyReferencedAssetsAfterBuild(cfg, project, logger)
 	}
 	return decorateHomepageBuildRuntimeFailure(result, projectDir)
@@ -958,17 +965,102 @@ func copyReferencedAssetsAfterBuild(cfg HomepageConfig, project homepageProjectI
 	copyAssetsToBuildDir(candidate.Path, cfg.DataDir, logger)
 }
 
+func homepageValidateDeployableBuildOutput(cfg HomepageConfig, project homepageProjectInfo) error {
+	candidate, err := homepageDetectDeployCandidate(cfg, project.ProjectDir, "", project.Framework)
+	if err != nil {
+		return err
+	}
+	indexPath := filepath.Join(candidate.Path, "index.html")
+	stat, err := os.Stat(indexPath)
+	if err != nil {
+		return fmt.Errorf("deployable output %q is missing index.html: %w", candidate.BuildDir, err)
+	}
+	if time.Since(stat.ModTime()) > 24*time.Hour {
+		return fmt.Errorf("deployable output %q has stale index.html; rerun the build so dist, build, out, public, or project root contains a fresh index.html", candidate.BuildDir)
+	}
+	return nil
+}
+
 func decorateHomepageBuildRuntimeFailure(raw string, projectDir string) string {
 	if homepageBuildSucceeded(raw) {
 		return raw
 	}
-	output := strings.ToLower(strings.TrimSpace(extractOutput(raw)))
-	if strings.Contains(output, "npm: not found") ||
-		strings.Contains(output, "npm: command not found") ||
-		strings.Contains(output, "npm not found") {
-		return errJSON("Build failed because npm is missing inside the AuraGo homepage dev container for project_dir %q. Run homepage rebuild or homepage init to recreate the managed container with Node.js/npm, then retry the homepage build. Do not install Node.js on the host as the primary fix. Original build output: %s", projectDir, truncateStr(strings.TrimSpace(extractOutput(raw)), 500))
+	if homepageNodeRuntimeMissing(raw) {
+		return errJSON("%s", homepageNodeRuntimeMissingMessage("Build failed", projectDir, raw, nil))
 	}
 	return raw
+}
+
+func homepageEnsureNodeRuntime(cfg HomepageConfig, logger *slog.Logger) error {
+	dockerCfg := DockerConfig{Host: cfg.DockerHost}
+	check := func() string {
+		return homepageDockerExecFunc(dockerCfg, homepageContainerName, "command -v node >/dev/null 2>&1 && command -v npm >/dev/null 2>&1 && node --version && npm --version 2>&1", "")
+	}
+	first := check()
+	if homepageBuildSucceeded(first) {
+		return nil
+	}
+	if !homepageNodeRuntimeMissing(first) {
+		return fmt.Errorf("Node.js/npm precheck failed inside the AuraGo homepage dev container. Original output: %s", truncateStr(strings.TrimSpace(extractOutput(first)), 500))
+	}
+	if err := requireDockerMutationPermission(); err != nil {
+		return fmt.Errorf("%s", homepageNodeRuntimeMissingMessage("Node.js/npm is missing", "", first, err))
+	}
+	if logger != nil {
+		logger.Warn("[Homepage] Node.js/npm missing in managed dev container; attempting one homepage rebuild self-heal")
+	}
+	rebuild := homepageRuntimeRebuildFunc(cfg, logger)
+	if !homepageToolResultOK(rebuild) {
+		return fmt.Errorf("%s", homepageNodeRuntimeMissingMessage("Node.js/npm is missing", "", first, fmt.Errorf("homepage rebuild failed: %s", truncateStr(strings.TrimSpace(extractOutput(rebuild)), 500))))
+	}
+	second := check()
+	if homepageBuildSucceeded(second) {
+		return nil
+	}
+	return fmt.Errorf("%s", homepageNodeRuntimeMissingMessage("Node.js/npm is still missing after homepage rebuild", "", second, nil))
+}
+
+func homepageToolResultOK(raw string) bool {
+	var parsed struct {
+		Status   string `json:"status"`
+		ExitCode int    `json:"exit_code"`
+	}
+	if err := json.Unmarshal([]byte(raw), &parsed); err != nil {
+		return false
+	}
+	status := strings.ToLower(strings.TrimSpace(parsed.Status))
+	if status == "ok" || status == "success" {
+		return true
+	}
+	if status == "error" {
+		return false
+	}
+	return strings.Contains(raw, `"exit_code"`) && parsed.ExitCode == 0
+}
+
+func homepageNodeRuntimeMissing(raw string) bool {
+	output := strings.ToLower(strings.TrimSpace(extractOutput(raw)))
+	return strings.Contains(output, "node: not found") ||
+		strings.Contains(output, "node: command not found") ||
+		strings.Contains(output, "node not found") ||
+		strings.Contains(output, "npm: not found") ||
+		strings.Contains(output, "npm: command not found") ||
+		strings.Contains(output, "npm not found") ||
+		strings.Contains(output, "'node' is not recognized") ||
+		strings.Contains(output, "'npm' is not recognized")
+}
+
+func homepageNodeRuntimeMissingMessage(prefix, projectDir, raw string, cause error) string {
+	projectNote := ""
+	if strings.TrimSpace(projectDir) != "" {
+		projectNote = fmt.Sprintf(" for project_dir %q", projectDir)
+	}
+	causeNote := ""
+	if cause != nil {
+		causeNote = fmt.Sprintf(" Automatic homepage rebuild self-heal could not run or did not complete: %v.", cause)
+	}
+	return fmt.Sprintf("%s because Node.js/npm is missing inside the AuraGo homepage dev container%s. Run homepage rebuild or homepage init to recreate the managed container with Node.js/npm, then retry the homepage build. Do not install Node.js on the host as the primary fix.%s Original output: %s",
+		prefix, projectNote, causeNote, truncateStr(strings.TrimSpace(extractOutput(raw)), 500))
 }
 
 // HomepageInstallDeps installs npm packages inside the container.
@@ -993,6 +1085,9 @@ func HomepageInstallDeps(cfg HomepageConfig, projectDir string, packages []strin
 	}
 	logger.Info("[Homepage] Install deps", "project_dir", projectDir, "packages", packages)
 	dockerCfg := DockerConfig{Host: cfg.DockerHost}
+	if err := homepageEnsureNodeRuntime(cfg, logger); err != nil {
+		return errJSON("Homepage dependency install cannot run for project_dir %q: %v", projectDir, err)
+	}
 	if err := homepageEnsureWorkspaceWritable(dockerCfg, logger); err != nil {
 		return errJSON("Homepage dev container /workspace is not writable and automatic permission repair failed: %v", err)
 	}
@@ -1002,14 +1097,14 @@ func HomepageInstallDeps(cfg HomepageConfig, projectDir string, packages []strin
 
 	// Pre-check: verify the project directory exists to give a clear error
 	if projectDir != "." {
-		checkResult := DockerExec(dockerCfg, homepageContainerName, fmt.Sprintf("test -d /workspace/%s && echo EXISTS", projectDir), "")
+		checkResult := homepageDockerExecFunc(dockerCfg, homepageContainerName, fmt.Sprintf("test -d /workspace/%s && echo EXISTS", projectDir), "")
 		if !strings.Contains(checkResult, "EXISTS") {
 			return errJSON("Project directory '/workspace/%s' does not exist in the homepage container. "+
 				"Run init_project first, or use homepage write_file to create files in the correct location.", projectDir)
 		}
 	}
 
-	return homepageDecorateInstallResult(DockerExec(dockerCfg, homepageContainerName, fmt.Sprintf("cd /workspace/%s && %s 2>&1", projectDir, cmd), ""))
+	return homepageDecorateInstallResult(homepageDockerExecFunc(dockerCfg, homepageContainerName, fmt.Sprintf("cd /workspace/%s && %s 2>&1", projectDir, cmd), ""))
 }
 
 // homepageDecorateInstallResult adds actionable hints for common npm install failures.
@@ -1025,6 +1120,11 @@ func homepageDecorateInstallResult(result string) string {
 	}
 	output, _ := resp["output"].(string)
 	lower := strings.ToLower(output)
+	if homepageNodeRuntimeMissing(result) {
+		resp["message"] = homepageNodeRuntimeMissingMessage("npm install failed", "", result, nil)
+		b, _ := json.Marshal(resp)
+		return string(b)
+	}
 	if strings.Contains(lower, "eacces") || strings.Contains(lower, "permission denied") {
 		// Return original output but annotate with a clear fix suggestion.
 		resp["message"] = "npm install failed with a permissions error (EACCES). " +

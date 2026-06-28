@@ -48,7 +48,16 @@ func TestHomepagePrepareDependenciesInstallsMissingNodeModules(t *testing.T) {
 	if result.PackageManager != "npm" {
 		t.Fatalf("expected npm package manager, got %q", result.PackageManager)
 	}
-	if len(commands) == 0 || !strings.Contains(commands[0], "npm ci") {
+	if len(commands) < 2 || !strings.Contains(commands[0], "command -v node") || !strings.Contains(commands[0], "command -v npm") {
+		t.Fatalf("expected node/npm precheck before install, got %#v", commands)
+	}
+	foundInstall := false
+	for _, command := range commands {
+		if strings.Contains(command, "npm ci") {
+			foundInstall = true
+		}
+	}
+	if !foundInstall {
 		t.Fatalf("expected npm ci command, got %#v", commands)
 	}
 }

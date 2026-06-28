@@ -45,6 +45,27 @@ func TestDispatchCommWebScraperMatchesExecuteSkillWhenDisabled(t *testing.T) {
 	}
 }
 
+func TestDecodeWebScraperArgsIncludesModeAndWaitSelector(t *testing.T) {
+	req := decodeWebScraperArgs(map[string]interface{}{
+		"url":               "https://example.com/feed.xml",
+		"search_query":      "latest AI headlines",
+		"mode":              "rss",
+		"wait_for_selector": "article",
+	})
+	if req.URL != "https://example.com/feed.xml" {
+		t.Fatalf("URL = %q", req.URL)
+	}
+	if req.SearchQuery != "latest AI headlines" {
+		t.Fatalf("SearchQuery = %q", req.SearchQuery)
+	}
+	if req.Mode != "rss" {
+		t.Fatalf("Mode = %q, want rss", req.Mode)
+	}
+	if req.WaitForSelector != "article" {
+		t.Fatalf("WaitForSelector = %q, want article", req.WaitForSelector)
+	}
+}
+
 func TestDispatchServicesPaperlessMatchesExecuteSkillWhenReadOnly(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.PaperlessNGX.Enabled = true

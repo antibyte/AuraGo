@@ -136,6 +136,59 @@ func TestBuildCaddyfileWithProxiesDomain(t *testing.T) {
 	}
 }
 
+func TestReloadCaddyReturnsErrorOutputAndDoesNotSuppressFailure(t *testing.T) {
+	oldExec := homepageDockerExecFunc
+	defer func() { homepageDockerExecFunc = oldExec }()
+
+	var command string
+	homepageDockerExecFunc = func(cfg DockerConfig, containerName, cmd, user string) string {
+		command = cmd
+		return `{"status":"error","exit_code":1,"output":"Error: adapting config using caddyfile: open /etc/caddy/Caddyfile: no such file or directory"}`
+	}
+
+	output, err := reloadCaddy(DockerConfig{}, discardLogger())
+	if err == nil {
+		t.Fatalf("expected reload error, got output: %s", output)
+	}
+	if strings.Contains(command, "|| true") {
+		t.Fatalf("reload command must not suppress failures, got: %s", command)
+	}
+	if !strings.Contains(output, "/etc/caddy/Caddyfile") {
+		t.Fatalf("expected Caddy output to include config path, got: %s", output)
+	}
+}
+
+func TestRewriteCaddyfileWithProxyRoutesReportsReloadDiagnostics(t *testing.T) {
+	dir := t.TempDir()
+	oldExec := homepageDockerExecFunc
+	defer func() { homepageDockerExecFunc = oldExec }()
+
+	homepageDockerExecFunc = func(cfg DockerConfig, containerName, cmd, user string) string {
+		return `{"status":"error","exit_code":1,"output":"reload failed: file not found"}`
+	}
+
+	err := rewriteCaddyfileWithProxyRoutes(
+		HomepageConfig{WorkspacePath: dir, WebServerPort: 8080},
+		DockerConfig{},
+		[]ProxyRoute{{Path: "/app", Port: 3000}},
+		discardLogger(),
+	)
+	if err == nil {
+		t.Fatal("expected rewrite to surface reload error")
+	}
+	msg := err.Error()
+	for _, want := range []string{
+		filepath.Join(dir, ".aurago-Caddyfile"),
+		"/etc/caddy/Caddyfile",
+		homepageWebContainer,
+		"reload failed: file not found",
+	} {
+		if !strings.Contains(msg, want) {
+			t.Fatalf("expected error to contain %q, got: %s", want, msg)
+		}
+	}
+}
+
 func TestBuildCaddyfileWithProxiesPathSuffix(t *testing.T) {
 	routes := []ProxyRoute{
 		{Path: "/trailing/", Port: 3000},

@@ -26,7 +26,10 @@ func handleBuiltinSkillAction(ctx context.Context, dc *DispatchContext, action s
 			return "Tool Output: [PERMISSION DENIED] web_scraper is disabled in settings (tools.web_scraper.enabled: false).", true
 		}
 		req := decodeWebScraperArgs(args)
-		scraped := tools.ExecuteWebScraper(req.URL)
+		scraped := tools.ExecuteWebScraperWithOptions(req.URL, tools.WebScraperOptions{
+			Mode:            req.Mode,
+			WaitForSelector: req.WaitForSelector,
+		})
 		if cfg.Tools.WebScraper.SummaryMode {
 			searchQuery := req.SearchQuery
 			if searchQuery == "" {

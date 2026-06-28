@@ -1364,6 +1364,7 @@ func (kg *KnowledgeGraph) CleanupStaleGraph(thresholdDays int) (int, int, error)
 
 func (kg *KnowledgeGraph) CleanupStaleGraphWithOptions(options KnowledgeGraphCleanupOptions) (int, int, error) {
 	options = kg.normalizeCleanupOptions(options)
+	policy := kg.qualityPolicy()
 
 	if err := kg.FlushAccessHits(); err != nil && kg.logger != nil {
 		kg.logger.Warn("CleanupStaleGraph: failed to flush access hits", "error", err)
@@ -1376,18 +1377,31 @@ func (kg *KnowledgeGraph) CleanupStaleGraphWithOptions(options KnowledgeGraphCle
 	defer tx.Rollback()
 
 	staleEdges := kg.collectSemanticEdgeIdentities(tx, `
-		SELECT source, target, relation FROM kg_edges
-		WHERE relation = 'co_mentioned_with'
-		  AND json_extract(properties, '$.source') = 'pending'
-		  AND updated_at <= datetime('now', '-' || ? || ' days')
-	`, options.PendingCoMentionDays)
+		SELECT e.source, e.target, e.relation FROM kg_edges e
+		LEFT JOIN kg_nodes ns ON ns.id = e.source
+		LEFT JOIN kg_nodes nt ON nt.id = e.target
+		WHERE e.relation = 'co_mentioned_with'
+		  AND COALESCE(NULLIF(TRIM(json_extract(e.properties, '$.source')), ''), 'pending') = 'pending'
+		  AND CAST(COALESCE(NULLIF(json_extract(e.properties, '$.weight'), ''), '0') AS INTEGER) < ?
+		  AND COALESCE(ns.protected, 0) = 0
+		  AND COALESCE(nt.protected, 0) = 0
+		  AND e.updated_at <= datetime('now', '-' || ? || ' days')
+	`, policy.LowConfidenceCoMentionMinWeight, options.PendingCoMentionDays)
 
 	edgeRes, err := tx.Exec(`
-		DELETE FROM kg_edges 
-		WHERE relation = 'co_mentioned_with' 
-		  AND json_extract(properties, '$.source') = 'pending'
-		  AND updated_at <= datetime('now', '-' || ? || ' days')
-	`, options.PendingCoMentionDays)
+		DELETE FROM kg_edges
+		WHERE rowid IN (
+			SELECT e.rowid FROM kg_edges e
+			LEFT JOIN kg_nodes ns ON ns.id = e.source
+			LEFT JOIN kg_nodes nt ON nt.id = e.target
+			WHERE e.relation = 'co_mentioned_with'
+			  AND COALESCE(NULLIF(TRIM(json_extract(e.properties, '$.source')), ''), 'pending') = 'pending'
+			  AND CAST(COALESCE(NULLIF(json_extract(e.properties, '$.weight'), ''), '0') AS INTEGER) < ?
+			  AND COALESCE(ns.protected, 0) = 0
+			  AND COALESCE(nt.protected, 0) = 0
+			  AND e.updated_at <= datetime('now', '-' || ? || ' days')
+		)
+	`, policy.LowConfidenceCoMentionMinWeight, options.PendingCoMentionDays)
 	if err != nil {
 		return 0, 0, fmt.Errorf("delete stale pending edges: %w", err)
 	}

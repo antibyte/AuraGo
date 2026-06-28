@@ -315,6 +315,9 @@ func TestHomepageBuildCopiesReferencedGeneratedAssets(t *testing.T) {
 		return `{"status":"ok","exit_code":0,"output":""}`
 	}
 	homepageDockerExecFunc = func(cfg DockerConfig, containerName, command, user string) string {
+		if strings.Contains(command, "command -v node") && strings.Contains(command, "command -v npm") {
+			return `{"status":"ok","exit_code":0,"output":"/usr/local/bin/node\n/usr/local/bin/npm"}`
+		}
 		if !strings.Contains(command, "npm run build") {
 			t.Fatalf("unexpected docker exec command: %s", command)
 		}
@@ -351,12 +354,17 @@ func TestHomepageBuildMissingNpmGuidesContainerRebuild(t *testing.T) {
 
 	oldExec := homepageDockerExecFunc
 	oldInternal := homepageDockerExecInternalFunc
+	oldRebuild := homepageRuntimeRebuildFunc
 	defer func() {
 		homepageDockerExecFunc = oldExec
 		homepageDockerExecInternalFunc = oldInternal
+		homepageRuntimeRebuildFunc = oldRebuild
 	}()
 	homepageDockerExecInternalFunc = func(cfg DockerConfig, containerName, command, user string, env []string) string {
 		return `{"status":"ok","exit_code":0,"output":""}`
+	}
+	homepageRuntimeRebuildFunc = func(cfg HomepageConfig, logger *slog.Logger) string {
+		return `{"status":"error","message":"docker image rebuild failed"}`
 	}
 	homepageDockerExecFunc = func(cfg DockerConfig, containerName, command, user string) string {
 		return `{"status":"error","exit_code":127,"output":"/bin/sh: 1: npm: not found"}`
@@ -368,6 +376,166 @@ func TestHomepageBuildMissingNpmGuidesContainerRebuild(t *testing.T) {
 	}
 	if strings.Contains(strings.ToLower(result), "curl -fssl https://deb.nodesource.com") {
 		t.Fatalf("expected container rebuild guidance, not host Node install commands: %s", result)
+	}
+}
+
+func TestHomepageBuildSelfHealsMissingNodeRuntimeOnce(t *testing.T) {
+	dir := t.TempDir()
+	workspace := filepath.Join(dir, "workspace")
+	projectRoot := filepath.Join(workspace, "ki-news")
+	buildDir := filepath.Join(projectRoot, "dist")
+	if err := os.MkdirAll(filepath.Join(projectRoot, "node_modules"), 0o755); err != nil {
+		t.Fatalf("mkdir node_modules: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(projectRoot, "package.json"), []byte(`{"scripts":{"build":"vite"}}`), 0o644); err != nil {
+		t.Fatalf("write package.json: %v", err)
+	}
+
+	oldExec := homepageDockerExecFunc
+	oldInternal := homepageDockerExecInternalFunc
+	oldRebuild := homepageRuntimeRebuildFunc
+	defer func() {
+		homepageDockerExecFunc = oldExec
+		homepageDockerExecInternalFunc = oldInternal
+		homepageRuntimeRebuildFunc = oldRebuild
+	}()
+
+	precheckCalls := 0
+	rebuildCalls := 0
+	buildCalls := 0
+	homepageDockerExecInternalFunc = func(cfg DockerConfig, containerName, command, user string, env []string) string {
+		return `{"status":"ok","exit_code":0,"output":""}`
+	}
+	homepageRuntimeRebuildFunc = func(cfg HomepageConfig, logger *slog.Logger) string {
+		rebuildCalls++
+		return `{"status":"ok","message":"rebuilt"}`
+	}
+	homepageDockerExecFunc = func(cfg DockerConfig, containerName, command, user string) string {
+		switch {
+		case strings.Contains(command, "command -v node") && strings.Contains(command, "command -v npm"):
+			precheckCalls++
+			if precheckCalls == 1 {
+				return `{"status":"error","exit_code":127,"output":"/bin/sh: 1: node: not found"}`
+			}
+			return `{"status":"ok","exit_code":0,"output":"/usr/local/bin/node\n/usr/local/bin/npm"}`
+		case strings.Contains(command, "npm run build"):
+			buildCalls++
+			if err := os.MkdirAll(buildDir, 0o755); err != nil {
+				t.Fatalf("mkdir dist: %v", err)
+			}
+			if err := os.WriteFile(filepath.Join(buildDir, "index.html"), []byte(`<div id="root"></div>`), 0o644); err != nil {
+				t.Fatalf("write dist index: %v", err)
+			}
+			return `{"status":"ok","exit_code":0,"output":"built"}`
+		default:
+			return `{"status":"ok","exit_code":0,"output":""}`
+		}
+	}
+
+	result := HomepageBuild(HomepageConfig{WorkspacePath: workspace}, "ki-news", slogDiscard())
+	if !strings.Contains(result, `"status":"ok"`) {
+		t.Fatalf("expected build to recover and succeed, got: %s", result)
+	}
+	if precheckCalls != 2 {
+		t.Fatalf("runtime precheck calls = %d, want 2", precheckCalls)
+	}
+	if rebuildCalls != 1 {
+		t.Fatalf("runtime rebuild calls = %d, want 1", rebuildCalls)
+	}
+	if buildCalls != 1 {
+		t.Fatalf("build calls = %d, want 1", buildCalls)
+	}
+}
+
+func TestHomepageBuildRejectsSuccessWithoutDeployableIndex(t *testing.T) {
+	dir := t.TempDir()
+	workspace := filepath.Join(dir, "workspace")
+	projectRoot := filepath.Join(workspace, "ki-news")
+	if err := os.MkdirAll(filepath.Join(projectRoot, "node_modules"), 0o755); err != nil {
+		t.Fatalf("mkdir node_modules: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(projectRoot, "package.json"), []byte(`{"scripts":{"build":"vite"}}`), 0o644); err != nil {
+		t.Fatalf("write package.json: %v", err)
+	}
+
+	oldExec := homepageDockerExecFunc
+	oldInternal := homepageDockerExecInternalFunc
+	defer func() {
+		homepageDockerExecFunc = oldExec
+		homepageDockerExecInternalFunc = oldInternal
+	}()
+	homepageDockerExecInternalFunc = func(cfg DockerConfig, containerName, command, user string, env []string) string {
+		return `{"status":"ok","exit_code":0,"output":""}`
+	}
+	homepageDockerExecFunc = func(cfg DockerConfig, containerName, command, user string) string {
+		if strings.Contains(command, "command -v node") {
+			return `{"status":"ok","exit_code":0,"output":"/usr/local/bin/node\n/usr/local/bin/npm"}`
+		}
+		if strings.Contains(command, "npm run build") {
+			return `{"status":"ok","exit_code":0,"output":"built without static output"}`
+		}
+		return `{"status":"ok","exit_code":0,"output":""}`
+	}
+
+	result := HomepageBuild(HomepageConfig{WorkspacePath: workspace}, "ki-news", slogDiscard())
+	if !strings.Contains(result, `"status":"error"`) {
+		t.Fatalf("expected missing deployable index to fail, got: %s", result)
+	}
+	if !strings.Contains(result, "index.html") {
+		t.Fatalf("expected index.html guidance, got: %s", result)
+	}
+}
+
+func TestHomepageInstallDepsSelfHealsMissingNodeRuntimeBeforeNpm(t *testing.T) {
+	oldExec := homepageDockerExecFunc
+	oldInternal := homepageDockerExecInternalFunc
+	oldRebuild := homepageRuntimeRebuildFunc
+	defer func() {
+		homepageDockerExecFunc = oldExec
+		homepageDockerExecInternalFunc = oldInternal
+		homepageRuntimeRebuildFunc = oldRebuild
+	}()
+
+	precheckCalls := 0
+	rebuildCalls := 0
+	installCalls := 0
+	homepageDockerExecInternalFunc = func(cfg DockerConfig, containerName, command, user string, env []string) string {
+		return `{"status":"ok","exit_code":0,"output":""}`
+	}
+	homepageRuntimeRebuildFunc = func(cfg HomepageConfig, logger *slog.Logger) string {
+		rebuildCalls++
+		return `{"status":"ok","message":"rebuilt"}`
+	}
+	homepageDockerExecFunc = func(cfg DockerConfig, containerName, command, user string) string {
+		switch {
+		case strings.Contains(command, "command -v node") && strings.Contains(command, "command -v npm"):
+			precheckCalls++
+			if precheckCalls == 1 {
+				return `{"status":"error","exit_code":127,"output":"npm: command not found"}`
+			}
+			return `{"status":"ok","exit_code":0,"output":"/usr/local/bin/node\n/usr/local/bin/npm"}`
+		case strings.Contains(command, "test -d /workspace/ki-news"):
+			return `{"status":"ok","exit_code":0,"output":"EXISTS"}`
+		case strings.Contains(command, "npm install"):
+			installCalls++
+			return `{"status":"ok","exit_code":0,"output":"installed"}`
+		default:
+			return `{"status":"ok","exit_code":0,"output":""}`
+		}
+	}
+
+	result := HomepageInstallDeps(HomepageConfig{WorkspacePath: t.TempDir()}, "ki-news", nil, slogDiscard())
+	if !strings.Contains(result, `"status":"ok"`) {
+		t.Fatalf("expected install to recover and succeed, got: %s", result)
+	}
+	if precheckCalls != 2 {
+		t.Fatalf("runtime precheck calls = %d, want 2", precheckCalls)
+	}
+	if rebuildCalls != 1 {
+		t.Fatalf("runtime rebuild calls = %d, want 1", rebuildCalls)
+	}
+	if installCalls != 1 {
+		t.Fatalf("npm install calls = %d, want 1", installCalls)
 	}
 }
 

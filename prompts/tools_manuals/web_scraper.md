@@ -1,6 +1,7 @@
 ## Tool: Web Scraper
 
 Extract plain text content from a web page by removing HTML tags, scripts, and styles.
+It can also parse RSS/Atom feeds into structured items.
 
 When **summary mode** is enabled, the scraped content is automatically sent to a
 separate summarisation model before being returned to you. In this mode you
@@ -14,6 +15,18 @@ and may miss the data you need.
 {"action": "web_scraper", "url": "https://example.com/news/123"}
 ```
 
+### Usage (RSS/Atom feed)
+
+```json
+{"action": "web_scraper", "url": "https://www.tagesschau.de/xml/rss2", "mode": "rss"}
+```
+
+### Usage (JavaScript-rendered page)
+
+```json
+{"action": "web_scraper", "url": "https://example.com/app-news", "mode": "dynamic", "wait_for_selector": "article"}
+```
+
 ### Usage (summary mode — only a focused summary is returned)
 
 ```json
@@ -22,4 +35,6 @@ and may miss the data you need.
 
 ### Parameters
 - `url` (string, required): The full URL of the page to scrape.
+- `mode` (string, optional): `auto` (default), `static`, `dynamic`, or `rss`. Use `rss` for RSS/Atom feeds. `auto` detects feed URLs and may use dynamic rendering when static content is too thin.
+- `wait_for_selector` (string, optional): CSS selector to wait for in `dynamic` mode or auto dynamic fallback.
 - `search_query` (string, optional but **required in summary mode**): Tell the summarisation model exactly what information you are looking for on the page. Be specific — e.g. "pricing details and system requirements" rather than just "info".

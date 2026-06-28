@@ -44,12 +44,16 @@ func TestToolRecoveryStateHandleDuplicateToolCallTriggersCircuitBreaker(t *testi
 	}
 
 	// After the circuit breaker fires, the frequency counter is preserved.
-	// Any subsequent identical call must immediately re-trigger — no free retries.
+	// Any subsequent identical call must immediately re-trigger until a different
+	// successful tool step proves that recovery work happened.
 	if !state.handleDuplicateToolCall(tc, &req, nil, AgentTelemetryScope{}) {
 		t.Fatal("expected 4th identical call to immediately re-trigger circuit breaker (persistent block)")
 	}
-	if !state.handleDuplicateToolCall(tc, &req, nil, AgentTelemetryScope{}) {
-		t.Fatal("expected 5th identical call to also re-trigger circuit breaker")
+
+	recoveryTC := ToolCall{Action: "homepage", Operation: "rebuild"}
+	_ = state.updateToolErrorState(recoveryTC, `Tool Output: {"status":"success","message":"rebuilt"}`, &req, nil, AgentTelemetryScope{}, "v1", 100)
+	if state.handleDuplicateToolCall(tc, &req, nil, AgentTelemetryScope{}) {
+		t.Fatal("expected successful different tool step to reset duplicate breaker for the blocked signature")
 	}
 }
 

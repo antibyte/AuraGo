@@ -192,6 +192,94 @@ func TestKGCleanupStaleGraphWithOptionsSeparatesPendingEdgeAndNodeTTLs(t *testin
 	}
 }
 
+func TestKGCleanupStaleGraphPrunesOnlyLowConfidencePendingCoMentions(t *testing.T) {
+	kg := newTestKG(t)
+
+	for _, n := range []Node{
+		{ID: "low_a", Label: "Low A", Properties: map[string]string{"type": "concept"}},
+		{ID: "low_b", Label: "Low B", Properties: map[string]string{"type": "concept"}},
+		{ID: "high_a", Label: "High A", Properties: map[string]string{"type": "concept"}},
+		{ID: "high_b", Label: "High B", Properties: map[string]string{"type": "concept"}},
+		{ID: "promoted_a", Label: "Promoted A", Properties: map[string]string{"type": "concept"}},
+		{ID: "promoted_b", Label: "Promoted B", Properties: map[string]string{"type": "concept"}},
+		{ID: "manual_a", Label: "Manual A", Properties: map[string]string{"type": "concept"}},
+		{ID: "manual_b", Label: "Manual B", Properties: map[string]string{"type": "concept"}},
+		{ID: "protected_a", Label: "Protected A", Properties: map[string]string{"type": "concept", "protected": "true"}},
+		{ID: "protected_b", Label: "Protected B", Properties: map[string]string{"type": "concept"}},
+		{ID: "fresh_a", Label: "Fresh A", Properties: map[string]string{"type": "concept"}},
+		{ID: "fresh_b", Label: "Fresh B", Properties: map[string]string{"type": "concept"}},
+	} {
+		if err := kg.AddNode(n.ID, n.Label, n.Properties); err != nil {
+			t.Fatalf("AddNode %s: %v", n.ID, err)
+		}
+	}
+
+	tests := []struct {
+		source string
+		target string
+		props  map[string]string
+		stale  bool
+	}{
+		{"low_a", "low_b", map[string]string{"source": "pending", "weight": "1"}, true},
+		{"high_a", "high_b", map[string]string{"source": "pending", "weight": "3"}, true},
+		{"promoted_a", "promoted_b", map[string]string{"source": "activity_turn", "weight": "1"}, true},
+		{"manual_a", "manual_b", map[string]string{"source": "manual", "weight": "1"}, true},
+		{"protected_a", "protected_b", map[string]string{"source": "pending", "weight": "1"}, true},
+		{"fresh_a", "fresh_b", map[string]string{"source": "pending", "weight": "1"}, false},
+	}
+	for _, tt := range tests {
+		if err := kg.AddEdge(tt.source, tt.target, "co_mentioned_with", tt.props); err != nil {
+			t.Fatalf("AddEdge %s->%s: %v", tt.source, tt.target, err)
+		}
+		if tt.stale {
+			if _, err := kg.db.Exec(`
+				UPDATE kg_edges
+				SET created_at = datetime('now', '-10 days'), updated_at = datetime('now', '-10 days')
+				WHERE source = ? AND target = ? AND relation = 'co_mentioned_with'
+			`, tt.source, tt.target); err != nil {
+				t.Fatalf("age edge %s->%s: %v", tt.source, tt.target, err)
+			}
+		}
+	}
+
+	edgesRemoved, nodesRemoved, err := kg.CleanupStaleGraphWithOptions(KnowledgeGraphCleanupOptions{
+		PendingCoMentionDays: 7,
+		StaleNodeDays:        365,
+	})
+	if err != nil {
+		t.Fatalf("CleanupStaleGraphWithOptions: %v", err)
+	}
+	if edgesRemoved != 1 {
+		t.Fatalf("edgesRemoved = %d, want 1", edgesRemoved)
+	}
+	if nodesRemoved != 0 {
+		t.Fatalf("nodesRemoved = %d, want 0", nodesRemoved)
+	}
+
+	edges, err := kg.GetAllEdges(100)
+	if err != nil {
+		t.Fatalf("GetAllEdges: %v", err)
+	}
+	edgeExists := map[string]bool{}
+	for _, edge := range edges {
+		edgeExists[edge.Source+"->"+edge.Target] = true
+	}
+	if edgeExists["low_a->low_b"] {
+		t.Fatal("expected stale low-confidence pending co-mention to be pruned")
+	}
+	for _, want := range []string{
+		"high_a->high_b",
+		"promoted_a->promoted_b",
+		"manual_a->manual_b",
+		"protected_a->protected_b",
+		"fresh_a->fresh_b",
+	} {
+		if !edgeExists[want] {
+			t.Fatalf("expected %s to survive cleanup; remaining edges: %#v", want, edgeExists)
+		}
+	}
+}
+
 func TestKGQualityReportIncludesEdgeConfidenceMetrics(t *testing.T) {
 	kg := newTestKG(t)
 

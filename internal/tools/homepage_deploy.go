@@ -669,15 +669,26 @@ func HomepageWebServerStart(cfg HomepageConfig, projectDir, buildDir string, log
 	body, _ := json.Marshal(payload)
 	createData, createCode, createErr := dockerRequest(dockerCfg, "POST", "/containers/create?name="+homepageWebContainer, string(body))
 	if createErr != nil {
-		return errJSON("Failed to create web server container: %v", createErr)
+		return errJSON("Failed to create web server container %q on port %d using host Caddyfile %s mounted as /etc/caddy/Caddyfile: %v",
+			homepageWebContainer, port, caddyfilePath, createErr)
 	}
 	if createCode != 201 {
-		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, createCode, string(createData))
+		out, _ := json.Marshal(map[string]interface{}{
+			"status":                "error",
+			"http_code":             createCode,
+			"message":               string(createData),
+			"host_caddyfile_path":   caddyfilePath,
+			"container_config_path": "/etc/caddy/Caddyfile",
+			"webserver_container":   homepageWebContainer,
+			"port":                  port,
+		})
+		return string(out)
 	}
 
 	_, startCode, startErr := dockerRequest(dockerCfg, "POST", "/containers/"+homepageWebContainer+"/start", "")
 	if startErr != nil || (startCode != 204 && startCode != 304) {
-		return errJSON("Failed to start web server: code=%d err=%v", startCode, startErr)
+		return errJSON("Failed to start web server container %q on port %d using host Caddyfile %s mounted as /etc/caddy/Caddyfile: code=%d err=%v",
+			homepageWebContainer, port, caddyfilePath, startCode, startErr)
 	}
 
 	ensureHomepageNetwork(dockerCfg, logger)
@@ -725,8 +736,11 @@ func HomepageWebServerStart(cfg HomepageConfig, projectDir, buildDir string, log
 		"mode", "docker",
 		"deploy_target", "caddy_web_root",
 		"container_name", homepageWebContainer,
+		"webserver_container", homepageWebContainer,
 		"document_root", "/srv",
 		"config_path", "/etc/caddy/Caddyfile",
+		"container_config_path", "/etc/caddy/Caddyfile",
+		"host_caddyfile_path", caddyfilePath,
 		"source_path", hostBuildPath,
 		"project_dir", projectDir,
 		"build_dir", buildDir,

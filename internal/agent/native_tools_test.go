@@ -311,6 +311,39 @@ func TestBuiltinToolSchemasIncludeUptimeKumaWhenEnabled(t *testing.T) {
 	t.Fatal("expected uptime_kuma tool schema when UptimeKumaEnabled is true")
 }
 
+func TestBuiltinToolSchemasExposeWebScraperModes(t *testing.T) {
+	schemas := builtinToolSchemas(ToolFeatureFlags{WebScraperEnabled: true})
+	for _, schema := range schemas {
+		if schema.Function == nil || schema.Function.Name != "web_scraper" {
+			continue
+		}
+		params, ok := schema.Function.Parameters.(map[string]interface{})
+		if !ok {
+			t.Fatalf("web_scraper parameters type = %T, want map[string]interface{}", schema.Function.Parameters)
+		}
+		properties, ok := params["properties"].(map[string]interface{})
+		if !ok {
+			t.Fatalf("web_scraper properties type = %T, want map[string]interface{}", params["properties"])
+		}
+		mode, ok := properties["mode"].(map[string]interface{})
+		if !ok {
+			t.Fatalf("expected web_scraper mode property, got properties: %#v", properties)
+		}
+		enum, ok := mode["enum"].([]string)
+		if !ok {
+			t.Fatalf("web_scraper mode enum type = %T, want []string", mode["enum"])
+		}
+		if strings.Join(enum, ",") != "auto,static,dynamic,rss" {
+			t.Fatalf("web_scraper mode enum = %#v", enum)
+		}
+		if _, ok := properties["wait_for_selector"]; !ok {
+			t.Fatalf("expected web_scraper wait_for_selector property, got properties: %#v", properties)
+		}
+		return
+	}
+	t.Fatal("expected web_scraper schema when WebScraperEnabled is true")
+}
+
 func TestBuildNativeToolSchemasIncludesVirusTotalAndListSkills(t *testing.T) {
 	skillsDir := t.TempDir()
 	skillManifest := `{

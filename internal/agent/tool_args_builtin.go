@@ -1,8 +1,10 @@
 package agent
 
 type webScraperArgs struct {
-	URL         string
-	SearchQuery string
+	URL             string
+	SearchQuery     string
+	Mode            string
+	WaitForSelector string
 }
 
 type wikipediaSearchArgs struct {
@@ -92,8 +94,10 @@ func toolArgInt(args map[string]interface{}, fallback int, keys ...string) int {
 
 func decodeWebScraperArgs(args map[string]interface{}) webScraperArgs {
 	return webScraperArgs{
-		URL:         toolArgString(args, "url"),
-		SearchQuery: toolArgString(args, "search_query"),
+		URL:             toolArgString(args, "url"),
+		SearchQuery:     toolArgString(args, "search_query"),
+		Mode:            toolArgString(args, "mode"),
+		WaitForSelector: toolArgString(args, "wait_for_selector"),
 	}
 }
 

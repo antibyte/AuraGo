@@ -23,6 +23,7 @@ type toolRecoveryState struct {
 	LastToolCallSig       string
 	DuplicateToolCount    int
 	ToolCallFrequency     map[string]int
+	BlockedToolSignatures map[string]struct{}
 	RecoveryHintFrequency map[string]int
 }
 
@@ -37,6 +38,7 @@ func newToolRecoveryStateWithPolicy(policy RecoveryPolicy) toolRecoveryState {
 		mu:                    &sync.RWMutex{},
 		Policy:                policy,
 		ToolCallFrequency:     make(map[string]int),
+		BlockedToolSignatures: make(map[string]struct{}),
 		RecoveryHintFrequency: make(map[string]int),
 	}
 }
@@ -303,6 +305,7 @@ func (s *toolRecoveryState) handleDuplicateToolCall(tc ToolCall, req *openai.Cha
 	}
 	if _, exists := s.ToolCallFrequency[toolSig]; !exists && len(s.ToolCallFrequency) >= maxTrackedToolCallSignatures {
 		s.ToolCallFrequency = make(map[string]int, maxTrackedToolCallSignatures)
+		s.BlockedToolSignatures = make(map[string]struct{})
 	}
 	s.ToolCallFrequency[toolSig]++
 	freqCount := s.ToolCallFrequency[toolSig]
@@ -326,6 +329,10 @@ func (s *toolRecoveryState) handleDuplicateToolCall(tc ToolCall, req *openai.Cha
 		})
 		s.DuplicateToolCount = 0
 		s.LastToolCallSig = ""
+		if s.BlockedToolSignatures == nil {
+			s.BlockedToolSignatures = make(map[string]struct{})
+		}
+		s.BlockedToolSignatures[toolSig] = struct{}{}
 		// Do NOT delete ToolCallFrequency[toolSig] here.
 		// Keeping the frequency count ensures every subsequent call to the same
 		// signature immediately re-triggers the circuit breaker (freqCount stays
@@ -416,7 +423,21 @@ func (s *toolRecoveryState) updateToolErrorState(tc ToolCall, resultContent stri
 
 	s.ConsecutiveErrorCount = 0
 	s.LastToolError = ""
+	s.resetBlockedDuplicateSignaturesAfterSuccessLocked(buildToolSignature(tc))
 	return false
+}
+
+func (s *toolRecoveryState) resetBlockedDuplicateSignaturesAfterSuccessLocked(successSig string) {
+	if len(s.BlockedToolSignatures) == 0 {
+		return
+	}
+	for blockedSig := range s.BlockedToolSignatures {
+		if blockedSig == successSig {
+			continue
+		}
+		delete(s.ToolCallFrequency, blockedSig)
+		delete(s.BlockedToolSignatures, blockedSig)
+	}
 }
 
 func containsToolError(resultContent string) bool {

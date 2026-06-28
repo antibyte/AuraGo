@@ -154,6 +154,14 @@ func homepagePrepareDependencies(cfg HomepageConfig, project homepageProjectInfo
 			InstallRan:     false,
 		}
 	}
+	if err := homepageEnsureNodeRuntime(cfg, logger); err != nil {
+		return homepagePrepareResult{
+			Status:         "error",
+			Message:        err.Error(),
+			PackageManager: pm,
+			InstallRan:     false,
+		}
+	}
 	cmd := homepageInstallCommand(pm, project.Root)
 	if logger != nil {
 		logger.Info("[Homepage] Installing missing dependencies", "project_dir", project.ProjectDir, "package_manager", pm)
