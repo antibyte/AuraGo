@@ -172,3 +172,37 @@ guardian:
 		t.Error("expected UseSanitizedOutput=true")
 	}
 }
+
+func TestPromptSecPartialSanitizerConfigKeepsMissingDefaults(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "promptsec_config_test")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	configContent := `
+guardian:
+  promptsec:
+    sanitizer:
+      normalize: false
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("failed to load config: %v", err)
+	}
+
+	if cfg.Guardian.PromptSec.Sanitizer.Normalize {
+		t.Error("expected explicitly configured normalize=false to be preserved")
+	}
+	if !cfg.Guardian.PromptSec.Sanitizer.Dehomoglyph {
+		t.Error("expected missing dehomoglyph to keep default true")
+	}
+	if !cfg.Guardian.PromptSec.Sanitizer.Decode {
+		t.Error("expected missing decode to keep default true")
+	}
+}

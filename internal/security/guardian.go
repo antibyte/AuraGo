@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/danielthedm/promptsec"
+	"github.com/danielthedm/promptsec/guard/taint"
 )
 
 const (
@@ -48,10 +49,12 @@ func (t ThreatLevel) String() string {
 
 // ScanResult contains the analysis of a text for injection patterns.
 type ScanResult struct {
-	Level     ThreatLevel
-	Patterns  []string // matched pattern names
-	Message   string   // human-readable summary
-	Sanitized string   // promptsec sanitized output, when enabled
+	Level       ThreatLevel
+	Patterns    []string // matched pattern names
+	Message     string   // human-readable summary
+	Sanitized   string   // promptsec sanitized output, when enabled
+	TaintSource string   // promptsec taint provenance source, when enabled
+	TaintLevel  string   // promptsec taint trust level, when enabled
 }
 
 // PromptSecSanitizerOptions mirrors the sanitizer configuration.
@@ -121,8 +124,10 @@ type Guardian struct {
 	protector         *promptsec.Protector
 	useSanitized      bool
 	psOpts            []promptsec.Guard
+	taintOpts         PromptSecTaintOptions
 	llmJudgeOpts      PromptSecLLMJudgeOptions
 	llmJudge          promptsec.LLMJudge
+	llmJudgeGuard     promptsec.Guard
 	structureOpts     PromptSecStructureOptions
 	systemPrompt      string
 	hasStructureGuard bool
@@ -156,6 +161,7 @@ func NewGuardianWithOptions(logger *slog.Logger, opts GuardianOptions) *Guardian
 		maxScanBytes:  maxScanBytes,
 		scanEdgeBytes: scanEdgeBytes,
 		useSanitized:  opts.UseSanitizedOutput,
+		taintOpts:     opts.Taint,
 		llmJudge:      opts.LLMJudgeClient,
 		llmJudgeOpts:  opts.LLMJudge,
 		structureOpts: opts.Structure,
@@ -167,7 +173,7 @@ func NewGuardianWithOptions(logger *slog.Logger, opts GuardianOptions) *Guardian
 	if opts.Structure.Enabled && opts.SystemPrompt != "" {
 		g.hasStructureGuard = true
 	}
-	g.protector = promptsec.New(g.psOpts...)
+	g.protector = g.newProtector(scanOptions{})
 
 	// If a judge client was supplied at construction time, wire it in now.
 	if opts.LLMJudge.Enabled && g.llmJudge != nil {
@@ -221,7 +227,7 @@ func (g *Guardian) SetSystemPrompt(systemPrompt string) {
 		SystemPrompt: g.systemPrompt,
 	}))
 	g.hasStructureGuard = true
-	g.protector = promptsec.New(g.psOpts...)
+	g.protector = g.newProtector(scanOptions{})
 	if g.llmJudge != nil {
 		g.attachLLMJudge()
 	}
@@ -237,10 +243,7 @@ func (g *Guardian) buildPromptSecGuards(opts GuardianOptions) []promptsec.Guard 
 		preset = promptsec.PresetLenient
 	}
 
-	psOpts := []promptsec.Guard{
-		promptsec.WithHeuristics(&promptsec.HeuristicOptions{Preset: preset}),
-		promptsec.WithOutputValidator(&promptsec.OutputOptions{}),
-	}
+	psOpts := []promptsec.Guard{}
 
 	// Sanitizer runs early so later guards operate on canonical input.
 	if opts.Sanitizer.Normalize || opts.Sanitizer.Dehomoglyph || opts.Sanitizer.Decode {
@@ -250,6 +253,11 @@ func (g *Guardian) buildPromptSecGuards(opts GuardianOptions) []promptsec.Guard 
 			DecodePayloads: opts.Sanitizer.Decode,
 		}))
 	}
+
+	psOpts = append(psOpts,
+		promptsec.WithHeuristics(&promptsec.HeuristicOptions{Preset: preset}),
+		promptsec.WithOutputValidator(&promptsec.OutputOptions{}),
+	)
 
 	// Embedding-based similarity guard against known attack vectors.
 	if opts.Embedding.Enabled {
@@ -299,6 +307,11 @@ func (g *Guardian) attachLLMJudge() {
 	if g.llmJudge == nil {
 		return
 	}
+	g.llmJudgeGuard = g.buildLLMJudgeGuard()
+	g.protector = g.newProtector(scanOptions{})
+}
+
+func (g *Guardian) buildLLMJudgeGuard() promptsec.Guard {
 	mode := promptsec.LLMJudgeModeUncertain
 	switch strings.ToLower(g.llmJudgeOpts.Mode) {
 	case "always":
@@ -313,7 +326,7 @@ func (g *Guardian) attachLLMJudge() {
 		timeout = 2 * time.Second
 	}
 
-	judgeGuard := promptsec.WithLLMJudge(&promptsec.LLMJudgeOptions{
+	return promptsec.WithLLMJudge(&promptsec.LLMJudgeOptions{
 		Mode:       mode,
 		Timeout:    timeout,
 		Policy:     g.llmJudgeOpts.Policy,
@@ -322,8 +335,55 @@ func (g *Guardian) attachLLMJudge() {
 		FailClosed: false,
 		Model:      "llm_guardian",
 	})
+}
 
-	g.protector = promptsec.New(append(g.psOpts, judgeGuard)...)
+func (g *Guardian) newProtector(opts scanOptions) *promptsec.Protector {
+	guards := make([]promptsec.Guard, 0, len(g.psOpts)+2)
+	if g.taintOpts.Enabled {
+		level := parsePromptSecTrustLevel(g.taintOpts.DefaultLevel)
+		if opts.hasTaintLevel {
+			level = opts.taintLevel
+		}
+		source := "guardian"
+		if opts.source != "" {
+			source = opts.source
+		}
+		guards = append(guards, promptsec.WithTaint(&promptsec.TaintOptions{
+			Level:  level,
+			Source: source,
+		}))
+	}
+	guards = append(guards, g.psOpts...)
+	if g.llmJudgeGuard != nil {
+		guards = append(guards, g.llmJudgeGuard)
+	}
+	return promptsec.New(guards...)
+}
+
+func parsePromptSecTrustLevel(name string) promptsec.TrustLevel {
+	switch strings.ToLower(strings.TrimSpace(name)) {
+	case "trusted":
+		return promptsec.Trusted
+	case "system":
+		return promptsec.System
+	case "suspicious", "unknown":
+		return promptsec.Unknown
+	default:
+		return promptsec.Untrusted
+	}
+}
+
+func promptSecTrustLevelName(level promptsec.TrustLevel) string {
+	switch level {
+	case promptsec.Trusted:
+		return "trusted"
+	case promptsec.System:
+		return "system"
+	case promptsec.Unknown:
+		return "suspicious"
+	default:
+		return "untrusted"
+	}
 }
 
 // buildPromptSecPolicy returns a policy options value for the configured policy name.
@@ -383,7 +443,7 @@ func (g *Guardian) ScanForInjection(text string) ScanResult {
 
 // ScanForInjectionWithSource analyzes text while tracking its provenance.
 func (g *Guardian) ScanForInjectionWithSource(text, source string, taintLevel promptsec.TrustLevel) ScanResult {
-	return g.scanWithOptions(text, scanOptions{source: source, taintLevel: taintLevel})
+	return g.scanWithOptions(text, scanOptions{source: source, taintLevel: taintLevel, hasTaintLevel: true})
 }
 
 // SanitizeForLLM runs the full promptsec pipeline and returns the sanitized output
@@ -394,12 +454,13 @@ func (g *Guardian) SanitizeForLLM(text, source string) ScanResult {
 	if source == "system" {
 		lvl = promptsec.System
 	}
-	return g.scanWithOptions(text, scanOptions{source: source, taintLevel: lvl, returnSanitized: true})
+	return g.scanWithOptions(text, scanOptions{source: source, taintLevel: lvl, hasTaintLevel: true, returnSanitized: true})
 }
 
 type scanOptions struct {
 	source          string
 	taintLevel      promptsec.TrustLevel
+	hasTaintLevel   bool
 	returnSanitized bool
 }
 
@@ -413,12 +474,19 @@ func (g *Guardian) scanWithOptions(text string, opts scanOptions) ScanResult {
 	var msgs []string
 
 	for _, scanText := range scanWindows {
-		analysis := g.protector.Analyze(scanText)
+		protector := g.protector
+		if g.taintOpts.Enabled {
+			protector = g.newProtector(opts)
+		}
+		analysis := protector.Analyze(scanText)
 
 		// Collect sanitized output from the first window when requested.
 		// Some guards (e.g. structure) rewrite the output without adding threats.
 		if (g.useSanitized || opts.returnSanitized) && result.Sanitized == "" {
 			result.Sanitized = analysis.Output
+		}
+		if result.TaintSource == "" {
+			applyPromptSecTaintMetadata(&result, analysis)
 		}
 
 		if analysis.Safe && len(analysis.Threats) == 0 {
@@ -462,6 +530,22 @@ func (g *Guardian) scanWithOptions(text string, opts scanOptions) ScanResult {
 	}
 
 	return result
+}
+
+func applyPromptSecTaintMetadata(result *ScanResult, analysis *promptsec.Result) {
+	if result == nil || analysis == nil {
+		return
+	}
+	v, ok := analysis.Metadata["tainted_input"]
+	if !ok {
+		return
+	}
+	ts, ok := v.(*taint.TaintedString)
+	if !ok || ts == nil {
+		return
+	}
+	result.TaintSource = ts.Source
+	result.TaintLevel = promptSecTrustLevelName(ts.TrustLevel)
 }
 
 func prepareGuardianScanTexts(text string, maxScanBytes, scanEdgeBytes int) ([]string, bool) {

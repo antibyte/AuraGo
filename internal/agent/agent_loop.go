@@ -1100,6 +1100,14 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		if cfg.Guardian.PromptSec.Structure.Enabled && s.guardian != nil {
 			s.guardian.SetSystemPrompt(sysPrompt)
 		}
+		if s.guardian != nil && (cfg.Guardian.PromptSec.UseSanitizedOutput || cfg.Guardian.PromptSec.Structure.Enabled) {
+			if updatedMessages, applied := applyPromptSecToLatestUserMessage(req.Messages, s.guardian); applied {
+				req.Messages = updatedMessages
+				s.currentLogger.Debug("[Guardian] Applied promptsec sanitized user message",
+					"structure", cfg.Guardian.PromptSec.Structure.Enabled,
+					"use_sanitized_output", cfg.Guardian.PromptSec.UseSanitizedOutput)
+			}
+		}
 
 		s.currentLogger.Debug("[Sync] System prompt ready",
 			"cache_hit", cacheHit,
