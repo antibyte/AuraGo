@@ -208,7 +208,7 @@ type contextToolGuideSearcher interface {
 var nonAlphaNumPattern = regexp.MustCompile(`[^a-z0-9]+`)
 var adaptiveFamilySeedTools = map[string][]string{
 	"files": {
-		"filesystem", "smart_file_read", "file_search", "file_reader_advanced",
+		"filesystem", "workspace_search", "smart_file_read", "file_search", "file_reader_advanced",
 		"detect_file_type", "pdf_operations", "document_creator", "media_conversion", "send_document",
 	},
 	"shell": {
@@ -254,10 +254,11 @@ var adaptiveToolNeighbors = map[string][]string{
 	"homepage_registry": {"homepage_project", "homepage_deploy", "homepage_git"},
 
 	// File System & Editing
-	"filesystem":           {"file_search", "file_reader_advanced", "file_editor", "manage_memory"},
-	"smart_file_read":      {"filesystem", "file_reader_advanced", "file_search"},
-	"file_search":          {"filesystem", "file_reader_advanced"},
-	"file_reader_advanced": {"filesystem", "file_search", "smart_file_read"},
+	"filesystem":           {"workspace_search", "file_search", "file_reader_advanced", "file_editor", "manage_memory"},
+	"workspace_search":     {"filesystem", "file_search", "file_reader_advanced", "smart_file_read"},
+	"smart_file_read":      {"filesystem", "workspace_search", "file_reader_advanced", "file_search"},
+	"file_search":          {"filesystem", "workspace_search", "file_reader_advanced"},
+	"file_reader_advanced": {"filesystem", "workspace_search", "file_search", "smart_file_read"},
 	"file_editor":          {"filesystem", "json_editor", "yaml_editor", "toml_editor", "xml_editor"},
 	"json_editor":          {"filesystem", "file_editor"},
 	"yaml_editor":          {"filesystem", "file_editor"},
@@ -266,7 +267,7 @@ var adaptiveToolNeighbors = map[string][]string{
 
 	// Code & Execution
 	"certificate_manager":  {"filesystem", "api_request"},
-	"execute_shell":        {"filesystem", "file_editor", "file_search", "media_registry", "send_document", "document_creator"},
+	"execute_shell":        {"filesystem", "file_editor", "workspace_search", "file_search", "media_registry", "send_document", "document_creator"},
 	"execute_python":       {"filesystem", "execute_sandbox", "media_registry", "send_document", "document_creator"},
 	"execute_sandbox":      {"filesystem", "execute_python"},
 	"ansible":              {"ssh_exec", "query_inventory", "execute_shell", "filesystem"},

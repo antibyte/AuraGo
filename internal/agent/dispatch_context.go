@@ -55,6 +55,7 @@ type DispatchContext struct {
 	BudgetTracker       *budget.Tracker
 	DaemonSupervisor    *tools.DaemonSupervisor
 	PreparationService  *services.MissionPreparationService
+	WorkspaceSearch     *services.WorkspaceSearchService
 	ExecutionTimeMs     int64
 	MessageSource       string
 	Broker              FeedbackBroker

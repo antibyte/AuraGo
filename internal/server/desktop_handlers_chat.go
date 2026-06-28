@@ -720,6 +720,7 @@ func buildDesktopRunConfigForSession(s *Server, cfg *config.Config, llmClient ll
 		DaemonSupervisor:   s.DaemonSupervisor,
 		LLMGuardian:        s.LLMGuardian,
 		PreparationService: s.PreparationService,
+		WorkspaceSearch:    s.WorkspaceSearch,
 		SessionID:          sessionID,
 		MessageSource:      messageSource,
 		VoiceOutputActive:  GetSpeakerMode(),

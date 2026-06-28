@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 
 	"aurago/internal/tools"
@@ -159,7 +160,7 @@ func dispatchFilesystem(ctx context.Context, tc ToolCall, dc *DispatchContext) s
 		logger.Info("LLM requested file_editor operation", "op", op, "path", fpath)
 		switch op {
 		case "hashline_replace", "hashline_insert_after", "hashline_insert_before", "hashline_delete":
-			return tools.ExecuteHashlineEditor(tools.HashlineEditorRequest{
+			result := tools.ExecuteHashlineEditor(tools.HashlineEditorRequest{
 				Operation:  op,
 				FilePath:   fpath,
 				Old:        req.Old,
@@ -171,8 +172,12 @@ func dispatchFilesystem(ctx context.Context, tc ToolCall, dc *DispatchContext) s
 				AnchorLine: req.AnchorLine,
 				AnchorHash: req.AnchorHash,
 			}, cfg.Directories.WorkspaceDir)
+			trackWorkspaceAccessFromToolOutput(dc, fpath, "write", result)
+			return result
 		}
-		return tools.ExecuteFileEditor(op, fpath, req.Old, req.New, req.Marker, req.Content, req.StartLine, req.EndLine, req.LineCount, cfg.Directories.WorkspaceDir)
+		result := tools.ExecuteFileEditor(op, fpath, req.Old, req.New, req.Marker, req.Content, req.StartLine, req.EndLine, req.LineCount, cfg.Directories.WorkspaceDir)
+		trackWorkspaceAccessFromToolOutput(dc, fpath, "write", result)
+		return result
 
 	case "json_editor":
 		req := decodeJSONEditorArgs(tc)
@@ -257,30 +262,64 @@ func dispatchFilesystem(ctx context.Context, tc ToolCall, dc *DispatchContext) s
 		logger.Info("LLM requested text_diff", "op", op)
 		return tools.ExecuteTextDiff(op, req.File1, req.File2, req.Text1, req.Text2, cfg.Directories.WorkspaceDir)
 
+	case "workspace_search":
+		req := decodeWorkspaceSearchArgs(tc)
+		op := strings.TrimSpace(strings.ToLower(req.Operation))
+		logger.Info("LLM requested workspace_search", "op", op, "query", req.Query, "pattern", req.Pattern)
+		if dc.WorkspaceSearch == nil {
+			return `{"status":"error","message":"workspace_search service is not available"}`
+		}
+		return dc.WorkspaceSearch.ExecuteTool(ctx, req.toServiceRequest())
+
 	case "file_search":
 		req := decodeFileSearchArgs(tc)
 		op := strings.TrimSpace(strings.ToLower(req.Operation))
 		logger.Info("LLM requested file_search", "op", op, "pattern", req.Pattern)
+		if dc.WorkspaceSearch != nil {
+			if result, ok := dc.WorkspaceSearch.ExecuteLegacyFileSearch(ctx, op, req.Pattern, req.FilePath, req.Glob, req.OutputMode); ok {
+				return result
+			}
+		}
 		return tools.ExecuteFileSearch(op, req.Pattern, req.FilePath, req.Glob, req.OutputMode, cfg.Directories.WorkspaceDir)
 
 	case "file_reader_advanced":
 		req := decodeAdvancedFileReadArgs(tc)
 		op := strings.TrimSpace(strings.ToLower(req.Operation))
 		logger.Info("LLM requested file_reader_advanced", "op", op, "path", req.FilePath)
-		return tools.ExecuteFileReaderAdvanced(op, req.FilePath, req.Pattern, req.StartLine, req.EndLine, req.LineCount, cfg.Directories.WorkspaceDir)
+		result := tools.ExecuteFileReaderAdvanced(op, req.FilePath, req.Pattern, req.StartLine, req.EndLine, req.LineCount, cfg.Directories.WorkspaceDir)
+		trackWorkspaceAccessFromToolOutput(dc, req.FilePath, "read", result)
+		return result
 
 	case "smart_file_read":
 		req := decodeSmartFileReadArgs(tc)
 		op := strings.TrimSpace(strings.ToLower(req.Operation))
 		logger.Info("LLM requested smart_file_read", "op", op, "path", req.FilePath, "strategy", req.SamplingStrategy)
-		return tools.ExecuteSmartFileRead(ctx, tools.ResolveSummaryLLMConfig(cfg, tools.SummaryLLMConfig{
+		result := tools.ExecuteSmartFileRead(ctx, tools.ResolveSummaryLLMConfig(cfg, tools.SummaryLLMConfig{
 			APIKey:  cfg.LLM.APIKey,
 			BaseURL: cfg.LLM.BaseURL,
 			Model:   cfg.LLM.Model,
 		}), logger, op, req.FilePath, req.Query, req.SamplingStrategy, req.MaxTokens, req.LineCount, cfg.Directories.WorkspaceDir)
+		trackWorkspaceAccessFromToolOutput(dc, req.FilePath, "read", result)
+		return result
 
 	default:
 		return ""
+	}
+}
+
+func trackWorkspaceAccessFromToolOutput(dc *DispatchContext, path, kind, output string) {
+	if dc == nil || dc.WorkspaceSearch == nil || strings.TrimSpace(path) == "" {
+		return
+	}
+	raw := strings.TrimSpace(strings.TrimPrefix(output, "Tool Output:"))
+	var parsed struct {
+		Status string `json:"status"`
+	}
+	if err := json.Unmarshal([]byte(raw), &parsed); err != nil {
+		return
+	}
+	if strings.EqualFold(parsed.Status, "success") {
+		_ = dc.WorkspaceSearch.TrackAccess(path, kind)
 	}
 }
 

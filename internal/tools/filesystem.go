@@ -772,6 +772,38 @@ func filesystemOperationWrites(operation string) bool {
 	}
 }
 
+func trackFilesystemAccessResult(result FSResult, operation, path, destination, workspaceDir string, items []map[string]interface{}) {
+	if result.Status != "success" && result.Status != "partial" {
+		return
+	}
+	switch normalizeFilesystemOperation(operation) {
+	case "read_file":
+		trackFileAccess(workspaceDir, path, "read")
+	case "stat":
+		trackFileAccess(workspaceDir, path, "read")
+	case "write_file", "create_dir", "delete":
+		trackFileAccess(workspaceDir, path, "write")
+	case "copy":
+		trackFileAccess(workspaceDir, path, "read")
+		trackFileAccess(workspaceDir, destination, "write")
+	case "move":
+		trackFileAccess(workspaceDir, destination, "write")
+	case "copy_batch", "move_batch", "delete_batch", "create_dir_batch":
+		for _, item := range items {
+			itemPath := filesystemBatchItemString(item, "file_path", "path")
+			itemDest := filesystemBatchItemString(item, "destination", "dest")
+			if normalizeFilesystemOperation(operation) == "copy_batch" {
+				trackFileAccess(workspaceDir, itemPath, "read")
+				trackFileAccess(workspaceDir, itemDest, "write")
+			} else if normalizeFilesystemOperation(operation) == "move_batch" {
+				trackFileAccess(workspaceDir, itemDest, "write")
+			} else {
+				trackFileAccess(workspaceDir, itemPath, "write")
+			}
+		}
+	}
+}
+
 func hashlineReadFileResult(path string, data []byte, fileSize int64, byteTruncated bool) FSResult {
 	readBytes := len(data)
 	usable := data
@@ -819,6 +851,7 @@ func hashlineReadFileResult(path string, data []byte, fileSize int64, byteTrunca
 // ExecuteFilesystem handles all filesystem operations, sandboxed to workspaceDir.
 func ExecuteFilesystem(operation, path, destination, content string, items []map[string]interface{}, workspaceDir string, limit, offset int) string {
 	result := executeFilesystemResult(operation, path, destination, content, items, workspaceDir, limit, offset)
+	trackFilesystemAccessResult(result, operation, path, destination, workspaceDir, items)
 	b, _ := json.Marshal(result)
 	return string(b)
 }
@@ -827,6 +860,7 @@ func ExecuteFilesystem(operation, path, destination, content string, items []map
 // behavior while preserving ExecuteFilesystem for existing callers.
 func ExecuteFilesystemWithOptions(operation, path, destination, content string, items []map[string]interface{}, workspaceDir string, limit, offset int, options FilesystemOptions) string {
 	result := executeFilesystemResultWithOptions(operation, path, destination, content, items, workspaceDir, limit, offset, options)
+	trackFilesystemAccessResult(result, operation, path, destination, workspaceDir, items)
 	b, _ := json.Marshal(result)
 	return string(b)
 }

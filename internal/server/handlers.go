@@ -527,6 +527,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			DaemonSupervisor:   s.DaemonSupervisor,
 			LLMGuardian:        s.LLMGuardian,
 			PreparationService: s.PreparationService,
+			WorkspaceSearch:    s.WorkspaceSearch,
 			SessionID:          sessionID,
 			IsMaintenance:      inMaintenance,
 			IsMission:          missionID != "",

@@ -391,6 +391,7 @@ func buildToolFlagsFromConfig(cfg *config.Config) ToolFeatureFlags {
 		VideoDownloadEnabled:         cfg.Tools.VideoDownload.Enabled,
 		VideoDownloadAllowDownload:   cfg.Tools.VideoDownload.AllowDownload && !cfg.Tools.VideoDownload.ReadOnly,
 		VideoDownloadAllowTranscribe: cfg.Tools.VideoDownload.AllowTranscribe && !cfg.Tools.VideoDownload.ReadOnly,
+		WorkspaceSearchEnabled:       cfg.WorkspaceSearch.Enabled,
 		SendYouTubeVideoEnabled:      cfg.Tools.SendYouTubeVideo.Enabled,
 		WebCaptureEnabled:            cfg.Tools.WebCapture.Enabled,
 		BrowserAutomationEnabled:     cfg.BrowserAutomation.Enabled && cfg.Tools.BrowserAutomation.Enabled,

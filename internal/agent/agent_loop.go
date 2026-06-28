@@ -185,6 +185,7 @@ func (s *agentLoopState) makeDispatchContext(currentLogger *slog.Logger) *Dispat
 		BudgetTracker:       s.runCfg.BudgetTracker,
 		DaemonSupervisor:    s.runCfg.DaemonSupervisor,
 		PreparationService:  s.runCfg.PreparationService,
+		WorkspaceSearch:     s.runCfg.WorkspaceSearch,
 		MessageSource:       s.runCfg.MessageSource,
 		Broker:              s.broker,
 	}

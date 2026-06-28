@@ -1967,7 +1967,7 @@ func guardianPathScope(tc ToolCall, path string) string {
 	if path == "" {
 		return ""
 	}
-	if tc.Action == "filesystem" || tc.Action == "filesystem_op" || tc.Action == "file_reader_advanced" || tc.Action == "smart_file_read" || tc.Action == "file_search" || tc.Action == "file_editor" {
+	if tc.Action == "filesystem" || tc.Action == "filesystem_op" || tc.Action == "file_reader_advanced" || tc.Action == "smart_file_read" || tc.Action == "workspace_search" || tc.Action == "file_search" || tc.Action == "file_editor" {
 		clean := filepath.ToSlash(filepath.Clean(path))
 		if strings.HasPrefix(clean, "../../") {
 			return "project_root_relative"

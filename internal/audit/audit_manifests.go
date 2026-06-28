@@ -45,6 +45,7 @@ func ToolPermissionMatrix() []ToolPermission {
 		{Name: "vercel", ConfigGate: "vercel.enabled", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityChange, CapabilityDelete, CapabilityNetwork}},
 		{Name: "video_download", ConfigGate: "tools.video_download.enabled", ReadOnlyGate: "tools.video_download.read_only", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityNetwork, CapabilityHost}},
 		{Name: "virtual_desktop", ConfigGate: "virtual_desktop.allow_agent_control + tools.virtual_desktop.enabled", ReadOnlyGate: "virtual_desktop.readonly", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityChange, CapabilityExecute, CapabilityHost}},
+		{Name: "workspace_search", ConfigGate: "workspace_search.enabled", Capabilities: []Capability{CapabilityRead, CapabilityHost}},
 		{Name: "xml_editor", ConfigGate: "agent.allow_filesystem_write", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityChange, CapabilityDelete, CapabilityHost}},
 		{Name: "yaml_editor", ConfigGate: "agent.allow_filesystem_write", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityChange, CapabilityDelete, CapabilityHost}},
 	}
@@ -210,6 +211,7 @@ func DBMigrationManifest() []DBMigrationDomain {
 		{Domain: "skills-registry", PackagePath: "internal/tools", SchemaVersioned: false, OwnsRuntimeData: true},
 		{Domain: "system-tasks", PackagePath: "internal/tools", SchemaVersioned: false, OwnsRuntimeData: true},
 		{Domain: "virtual-desktop", PackagePath: "internal/desktop", SchemaVersioned: true, OwnsRuntimeData: true},
+		{Domain: "workspace-search", PackagePath: "internal/services", SchemaVersioned: false, OwnsRuntimeData: true},
 	}
 }
 

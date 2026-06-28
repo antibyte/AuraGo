@@ -1158,6 +1158,9 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 		case "text_diff":
 			return dispatchFilesystem(ctx, tc, dc)
 
+		case "workspace_search":
+			return dispatchFilesystem(ctx, tc, dc)
+
 		case "file_search":
 			return dispatchFilesystem(ctx, tc, dc)
 

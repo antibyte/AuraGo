@@ -376,6 +376,25 @@ func buildCoreToolSchemas(ff ToolFeatureFlags, execSkillProps map[string]interfa
 			}, "tool_call_id"),
 		),
 	}
+	if ff.WorkspaceSearchEnabled {
+		tools = append(tools, tool("workspace_search",
+			"Use the resident workspace index to quickly find files, grep indexed text, list recent files, rescan the index, or inspect index status. Searches are scoped to directories.workspace_dir.",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "Operation to perform",
+					"enum":        []string{"find", "grep", "glob", "recent", "rescan", "status"},
+				},
+				"query":          prop("string", "Search text. Used for find fuzzy path matching and grep content matching."),
+				"pattern":        prop("string", "Alias for query for compatibility with file_search-style calls."),
+				"glob":           prop("string", "Optional glob filter such as '**/*.go' or '**/*.md'. Required for glob when query is empty."),
+				"mode":           map[string]interface{}{"type": "string", "description": "Search mode: plain or regex for grep; fuzzy_path for find.", "enum": []string{"plain", "regex", "fuzzy_path"}},
+				"output_mode":    map[string]interface{}{"type": "string", "description": "Output format for grep: content (default) or count.", "enum": []string{"content", "count"}},
+				"case_sensitive": prop("boolean", "When true, grep is case-sensitive. Default false."),
+				"limit":          prop("integer", "Maximum results to return. Defaults to workspace_search.max_results and caps at 1000."),
+			}, "operation"),
+		))
+	}
 	if ff.SendYouTubeVideoEnabled {
 		tools = append(tools, tool("send_youtube_video",
 			"Send a YouTube video to the user. In the Web UI it appears as an embedded YouTube player; in Telegram, Discord, and other text channels it appears as a normal YouTube link. Do not download the video.",

@@ -1,6 +1,10 @@
 package agent
 
-import "encoding/json"
+import (
+	"encoding/json"
+
+	"aurago/internal/services"
+)
 
 type callWebhookArgs struct {
 	WebhookName string
@@ -252,6 +256,17 @@ type fileSearchArgs struct {
 	FilePath   string
 	Glob       string
 	OutputMode string
+}
+
+type workspaceSearchArgs struct {
+	Operation     string
+	Query         string
+	Pattern       string
+	Glob          string
+	Mode          string
+	OutputMode    string
+	CaseSensitive bool
+	Limit         int
 }
 
 type advancedFileReadArgs struct {
@@ -881,6 +896,33 @@ func decodeFileSearchArgs(tc ToolCall) fileSearchArgs {
 		FilePath:   firstNonEmptyToolString(tc.FilePath, tc.Path, toolArgString(tc.Params, "file_path", "path")),
 		Glob:       toolArgString(tc.Params, "glob"),
 		OutputMode: toolArgString(tc.Params, "output_mode"),
+	}
+}
+
+func decodeWorkspaceSearchArgs(tc ToolCall) workspaceSearchArgs {
+	caseSensitive, _ := toolArgBool(tc.Params, "case_sensitive")
+	return workspaceSearchArgs{
+		Operation:     firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
+		Query:         firstNonEmptyToolString(tc.Query, toolArgString(tc.Params, "query")),
+		Pattern:       toolArgString(tc.Params, "pattern"),
+		Glob:          toolArgString(tc.Params, "glob"),
+		Mode:          toolArgString(tc.Params, "mode"),
+		OutputMode:    toolArgString(tc.Params, "output_mode"),
+		CaseSensitive: caseSensitive,
+		Limit:         toolArgInt(tc.Params, 0, "limit"),
+	}
+}
+
+func (req workspaceSearchArgs) toServiceRequest() services.WorkspaceSearchRequest {
+	return services.WorkspaceSearchRequest{
+		Operation:     req.Operation,
+		Query:         req.Query,
+		Pattern:       req.Pattern,
+		Glob:          req.Glob,
+		Mode:          req.Mode,
+		OutputMode:    req.OutputMode,
+		CaseSensitive: req.CaseSensitive,
+		Limit:         req.Limit,
 	}
 }
 

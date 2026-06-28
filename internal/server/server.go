@@ -153,6 +153,7 @@ type Server struct {
 	TsNetManager         *tsnetnode.Manager
 	tsNetHandler         http.Handler // stored so the UI can restart tsnet without a full server restart
 	FileIndexer          *services.FileIndexer
+	WorkspaceSearch      *services.WorkspaceSearchService
 	HeartbeatScheduler   *heartbeat.Scheduler
 	UptimeKumaPoller     *tools.UptimeKumaPoller
 	AgentMailService     *agentmail.Service
@@ -294,6 +295,27 @@ func Start(opts StartOptions) error {
 	startLoginRecordCleaner(shutdownCh)
 	s := newServerFromOptions(opts)
 	startHomepageLedgerReconciler(shutdownCh, s)
+	if cfg.WorkspaceSearch.Enabled {
+		workspaceSearch, err := services.NewWorkspaceSearchService(cfg, &s.CfgMu, logger)
+		if err != nil {
+			logger.Warn("Failed to initialize workspace search service", "error", err)
+		} else {
+			s.WorkspaceSearch = workspaceSearch
+			if err := s.WorkspaceSearch.Start(context.Background()); err != nil {
+				logger.Warn("Failed to start workspace search service", "error", err)
+			} else {
+				tools.SetFileAccessTracker(func(workspaceDir, path, kind string) {
+					if s.WorkspaceSearch == nil {
+						return
+					}
+					if err := s.WorkspaceSearch.TrackAccess(path, kind); err != nil {
+						logger.Debug("Failed to track workspace file access", "workspace", workspaceDir, "path", path, "kind", kind, "error", err)
+					}
+				})
+				logger.Info("Workspace search service started", "workspace", cfg.Directories.WorkspaceDir)
+			}
+		}
+	}
 	if shortTermMem != nil && s.MissionManagerV2 != nil {
 		s.MissionManagerV2.SetAuditRecorder(shortTermMem.UpsertAuditEventByCorrelation)
 	}
@@ -339,6 +361,7 @@ func Start(opts StartOptions) error {
 		CoAgentRegistry:    s.CoAgentRegistry,
 		BudgetTracker:      s.BudgetTracker,
 		LLMGuardian:        s.LLMGuardian,
+		WorkspaceSearch:    s.WorkspaceSearch,
 		SessionID:          "heartbeat",
 		MessageSource:      "heartbeat",
 	}

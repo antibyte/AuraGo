@@ -58,6 +58,7 @@ func (s *Server) configureMQTTRelay() {
 			DaemonSupervisor:   s.DaemonSupervisor,
 			LLMGuardian:        s.LLMGuardian,
 			PreparationService: s.PreparationService,
+			WorkspaceSearch:    s.WorkspaceSearch,
 			SessionID:          "default",
 			IsMaintenance:      tools.IsBusy(),
 			MessageSource:      messageSource,

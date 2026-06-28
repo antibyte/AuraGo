@@ -40,6 +40,17 @@ type IndexingChunkingConfig struct {
 	MaxChunksPerFile int    `yaml:"max_chunks_per_file" json:"max_chunks_per_file"`
 }
 
+// WorkspaceSearchConfig controls the resident, workspace-scoped search index.
+type WorkspaceSearchConfig struct {
+	Enabled             bool     `yaml:"enabled" json:"enabled"`
+	MaxFileSizeMB       int      `yaml:"max_file_size_mb" json:"max_file_size_mb"`
+	MaxIndexSizeMB      int      `yaml:"max_index_size_mb" json:"max_index_size_mb"`
+	MaxResults          int      `yaml:"max_results" json:"max_results"`
+	PollIntervalSeconds int      `yaml:"poll_interval_seconds" json:"poll_interval_seconds"`
+	FuzzyThreshold      float64  `yaml:"fuzzy_threshold" json:"fuzzy_threshold"`
+	Exclude             []string `yaml:"exclude" json:"exclude"`
+}
+
 // MemoryOnDemandRetrievalConfig controls compact prompt context plus explicit recall tools.
 type MemoryOnDemandRetrievalConfig struct {
 	Enabled              bool   `yaml:"enabled"`
@@ -598,7 +609,8 @@ type Config struct {
 		AgentSkillsDir string `yaml:"agent_skills_dir"`
 		VectorDBDir    string `yaml:"vectordb_dir"`
 	} `yaml:"directories"`
-	SQLite struct {
+	WorkspaceSearch WorkspaceSearchConfig `yaml:"workspace_search" json:"workspace_search"`
+	SQLite          struct {
 		ShortTermPath        string `yaml:"short_term_path"`
 		LongTermPath         string `yaml:"long_term_path"` // deprecated: LTM uses directories.vectordb_dir
 		InventoryPath        string `yaml:"inventory_path"`

@@ -1092,6 +1092,7 @@ type RunConfig struct {
 	DaemonSupervisor   *tools.DaemonSupervisor
 	LLMGuardian        *security.LLMGuardian
 	PreparationService *services.MissionPreparationService
+	WorkspaceSearch    *services.WorkspaceSearchService
 	SideEffects        *AsyncTaskGroup
 	SessionID          string
 	IsMaintenance      bool

@@ -3,6 +3,8 @@ package server
 import (
 	"database/sql"
 	"log/slog"
+
+	"aurago/internal/tools"
 )
 
 // closeRuntimeResources releases server-owned runtime handles during graceful shutdown.
@@ -13,6 +15,14 @@ func (s *Server) closeRuntimeResources() {
 
 	if s.PreparationService != nil {
 		s.PreparationService.Stop()
+	}
+	if s.WorkspaceSearch != nil {
+		tools.SetFileAccessTracker(nil)
+		s.WorkspaceSearch.Stop()
+		if err := s.WorkspaceSearch.Close(); err != nil && s.Logger != nil {
+			s.Logger.Warn("Failed to close workspace search service", "error", err)
+		}
+		s.WorkspaceSearch = nil
 	}
 
 	if s.SQLConnectionPool != nil {

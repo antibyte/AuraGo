@@ -176,6 +176,7 @@ type ToolFeatureFlags struct {
 	VideoDownloadEnabled         bool
 	VideoDownloadAllowDownload   bool
 	VideoDownloadAllowTranscribe bool
+	WorkspaceSearchEnabled       bool
 	SendYouTubeVideoEnabled      bool
 	WebCaptureEnabled            bool
 	BrowserAutomationEnabled     bool

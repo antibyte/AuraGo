@@ -85,6 +85,7 @@ func classifyToolOutput(action string) toolOutputTrust {
 		"web_scraper",
 		"webdav",
 		"webdav_storage",
+		"workspace_search",
 		"wikipedia_search",
 		"yepapi_amazon",
 		"yepapi_discover",

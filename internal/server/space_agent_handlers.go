@@ -47,10 +47,10 @@ type webhostIntegration struct {
 }
 
 var (
-	webhostsCache      []webhostIntegration
-	webhostsCacheMu    sync.RWMutex
-	webhostsCachedAt   time.Time
-	webhostsCacheTTL   = 10 * time.Second
+	webhostsCache    []webhostIntegration
+	webhostsCacheMu  sync.RWMutex
+	webhostsCachedAt time.Time
+	webhostsCacheTTL = 10 * time.Second
 )
 
 func handleSpaceAgentStatus(s *Server) http.HandlerFunc {
@@ -223,6 +223,7 @@ func runSpaceAgentBridgeMessage(s *Server, msg spaceAgentBridgeMessage) (string,
 		DaemonSupervisor:   s.DaemonSupervisor,
 		LLMGuardian:        s.LLMGuardian,
 		PreparationService: s.PreparationService,
+		WorkspaceSearch:    s.WorkspaceSearch,
 		SessionID:          sessionID,
 		MessageSource:      "space_agent_bridge",
 		VoiceOutputActive:  GetSpeakerMode(),

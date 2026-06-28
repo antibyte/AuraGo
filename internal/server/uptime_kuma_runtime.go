@@ -74,6 +74,7 @@ func (s *Server) buildUptimeKumaRunConfig() agent.RunConfig {
 		DaemonSupervisor:   s.DaemonSupervisor,
 		LLMGuardian:        s.LLMGuardian,
 		PreparationService: s.PreparationService,
+		WorkspaceSearch:    s.WorkspaceSearch,
 		SessionID:          "default",
 		MessageSource:      "uptime_kuma",
 	}

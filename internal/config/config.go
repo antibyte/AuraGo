@@ -71,7 +71,25 @@ func replaceFileAtomic(tmpPath, path string) error {
 
 var defaultIndexingExtensions = []string{".txt", ".md", ".json", ".csv", ".log", ".yaml", ".yml", ".pdf", ".docx", ".xlsx", ".pptx", ".odt", ".ods", ".odp", ".rtf"}
 var legacyIndexingExtensions = []string{".txt", ".md", ".json", ".csv", ".log", ".yaml", ".yml"}
+var defaultWorkspaceSearchExcludes = []string{
+	".git",
+	"node_modules",
+	"__pycache__",
+	"venv",
+	".venv",
+	".env",
+	"*.db",
+	"*.sqlite",
+	"*.sqlite3",
+	"vault.bin",
+	"data/vault.bin",
+}
 var configSaveMu sync.Mutex
+
+// DefaultWorkspaceSearchExcludes returns the safe default skip list for the resident workspace index.
+func DefaultWorkspaceSearchExcludes() []string {
+	return append([]string(nil), defaultWorkspaceSearchExcludes...)
+}
 
 const (
 	defaultManifestTsNetPort      = 443
@@ -269,6 +287,13 @@ func Load(path string) (*Config, error) {
 	cfg.Tools.MemoryMaintenance.Enabled = true
 	cfg.Tools.Journal.Enabled = true
 	cfg.Tools.WebScraper.Enabled = true
+	cfg.WorkspaceSearch.Enabled = true
+	cfg.WorkspaceSearch.MaxFileSizeMB = 10
+	cfg.WorkspaceSearch.MaxIndexSizeMB = 256
+	cfg.WorkspaceSearch.MaxResults = 100
+	cfg.WorkspaceSearch.PollIntervalSeconds = 5
+	cfg.WorkspaceSearch.FuzzyThreshold = 0.35
+	cfg.WorkspaceSearch.Exclude = DefaultWorkspaceSearchExcludes()
 
 	// Structural text-only continuation recovery: enabled by default; YAML can override with 'enabled: false'.
 	cfg.Agent.AnnouncementDetector.Enabled = true
@@ -1844,6 +1869,26 @@ func Load(path string) (*Config, error) {
 	// Resolve indexing directory paths to absolute paths
 	for i := range cfg.Indexing.Directories {
 		cfg.Indexing.Directories[i].Path = resolvePath(configDir, cfg.Indexing.Directories[i].Path)
+	}
+
+	// Workspace search defaults.
+	if cfg.WorkspaceSearch.MaxFileSizeMB <= 0 {
+		cfg.WorkspaceSearch.MaxFileSizeMB = 10
+	}
+	if cfg.WorkspaceSearch.MaxIndexSizeMB <= 0 {
+		cfg.WorkspaceSearch.MaxIndexSizeMB = 256
+	}
+	if cfg.WorkspaceSearch.MaxResults <= 0 {
+		cfg.WorkspaceSearch.MaxResults = 100
+	}
+	if cfg.WorkspaceSearch.PollIntervalSeconds <= 0 {
+		cfg.WorkspaceSearch.PollIntervalSeconds = 5
+	}
+	if cfg.WorkspaceSearch.FuzzyThreshold <= 0 {
+		cfg.WorkspaceSearch.FuzzyThreshold = 0.35
+	}
+	if len(cfg.WorkspaceSearch.Exclude) == 0 {
+		cfg.WorkspaceSearch.Exclude = DefaultWorkspaceSearchExcludes()
 	}
 
 	if cfg.GitHub.BaseURL == "" {

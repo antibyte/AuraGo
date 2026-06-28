@@ -26,6 +26,8 @@ var discoverToolAliases = map[string]string{
 	"ddg":                    "ddg_search",
 	"brave":                  "brave_search",
 	"pdf extractor":          "pdf_extractor",
+	"workspace search":       "workspace_search",
+	"resident search":        "workspace_search",
 	"openscad":               "openscad_render",
 	"cad":                    "openscad_render",
 }
@@ -110,6 +112,7 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"toml_editor", "Query and modify TOML files"},
 		{"xml_editor", "Query and modify XML files using XPath"},
 		{"text_diff", "Compare files or strings with unified diff"},
+		{"workspace_search", "Search the resident workspace index and inspect index status"},
 		{"file_search", "Grep text patterns across files or find files by name"},
 		{"file_reader_advanced", "Read line ranges, head/tail, and contextual search in large files"},
 		{"smart_file_read", "Intelligently inspect large files: analyze, sample, structure, summarize"},
