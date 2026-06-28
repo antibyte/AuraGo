@@ -385,7 +385,7 @@
             },
             stop() { this.stopped = true; clearTimeout(this.loopId); for (const n of this.nodes) try { n.stop(); } catch (e) {} this.nodes = []; if (this.masterGain) try { this.masterGain.disconnect(); } catch (e) {} this.playing = null; },
             setTempo(mult) { this.tempoMult = mult; if (this.playing) this.play(this.playing); },
-            setMuted(m) { if (this.masterGain) this.masterGain.gain.value = m ? 0 : ctx.G.vol * 0.35; },
+            setMuted(m) { if (this.masterGain) this.masterGain.gain.value = m ? 0 : ctx.G.vol * 0.35; if (ctx.GalagaMusic) ctx.GalagaMusic.setMuted(m); },
             setIntensity(level) {
                 this.intensity = level;
                 const volMult = 1 + Math.min(level, 5) * 0.08;
@@ -425,5 +425,44 @@
         ctx.schedNoise = schedNoise;
         ctx.SFX = SFX;
         ctx.MusicEngine = MusicEngine;
+
+        const GalagaMusic = {
+            el: null,
+            _playing: false,
+            _shouldPlay: false,
+            _url: '/files/audio/galaga.mp3',
+            _ensure() {
+                if (this.el) return this.el;
+                const a = document.createElement('audio');
+                a.src = this._url;
+                a.loop = true;
+                a.preload = 'auto';
+                a.volume = Math.max(0, Math.min(1, (ctx.G.vol || 0.3) * 0.7));
+                a.addEventListener('error', () => { this._playing = false; });
+                this.el = a;
+                return a;
+            },
+            play() {
+                this._shouldPlay = true;
+                if (ctx.G && ctx.G.muted) return;
+                if (this._playing) return;
+                const a = this._ensure();
+                try { a.currentTime = 0; const p = a.play(); if (p && typeof p.catch === 'function') p.catch(() => {}); this._playing = true; } catch (_) { this._playing = false; }
+            },
+            stop() {
+                this._shouldPlay = false;
+                if (!this._playing && !this.el) return;
+                const a = this._ensure();
+                try { a.pause(); a.currentTime = 0; } catch (_) {}
+                this._playing = false;
+            },
+            setMuted(m) {
+                if (!this.el && !m) this._ensure();
+                if (this.el) this.el.volume = m ? 0 : Math.max(0, Math.min(1, (ctx.G.vol || 0.3) * 0.7));
+                if (m && this._playing) { try { this.el.pause(); } catch (_) {} this._playing = false; }
+                else if (!m && this._shouldPlay && !this._playing) { this.play(); }
+            }
+        };
+        ctx.GalagaMusic = GalagaMusic;
     };
 })();

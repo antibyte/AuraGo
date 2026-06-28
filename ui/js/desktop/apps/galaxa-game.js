@@ -405,14 +405,14 @@
             }
             if (l || r) {
                 if (ctx.G.settingsSel === 1) { ctx.settings.diff = l ? (ctx.settings.diff === 'hard' ? 'normal' : ctx.settings.diff === 'normal' ? 'easy' : 'easy') : (ctx.settings.diff === 'easy' ? 'normal' : ctx.settings.diff === 'normal' ? 'hard' : 'hard'); ctx.saveSettings(); }
-                if (ctx.G.settingsSel === 2) { ctx.settings.vol = Math.max(0, Math.min(100, ctx.settings.vol + (l ? -10 : 10))); ctx.G.vol = ctx.settings.vol / 100; if (ctx.MusicEngine.masterGain) ctx.MusicEngine.masterGain.gain.value = ctx.G.muted ? 0 : ctx.G.vol * 0.35; ctx.saveSettings(); }
+                if (ctx.G.settingsSel === 2) { ctx.settings.vol = Math.max(0, Math.min(100, ctx.settings.vol + (l ? -10 : 10))); ctx.G.vol = ctx.settings.vol / 100; if (ctx.MusicEngine.masterGain) ctx.MusicEngine.masterGain.gain.value = ctx.G.muted ? 0 : ctx.G.vol * 0.35; if (ctx.GalagaMusic && ctx.GalagaMusic.el) ctx.GalagaMusic.el.volume = ctx.G.muted ? 0 : Math.max(0, Math.min(1, ctx.G.vol * 0.7)); ctx.saveSettings(); }
                 if (ctx.G.settingsSel === 3) { const ships = Object.keys(ctx.SHIP_TYPES); const idx = ships.indexOf(ctx.settings.ship); ctx.settings.ship = l ? ships[(idx + ships.length - 1) % ships.length] : ships[(idx + 1) % ships.length]; ctx.saveSettings(); }
                 if (ctx.G.settingsSel === 5) { const modes = ['high', 'medium', 'low']; const idx = modes.indexOf(ctx.settings.particles); ctx.settings.particles = l ? modes[(idx + modes.length - 1) % modes.length] : modes[(idx + 1) % modes.length]; ctx.saveSettings(); }
                 if (ctx.G.settingsSel === 6) { ctx.settings.shake = Math.max(0, Math.min(1, ctx.settings.shake + (l ? -0.25 : 0.25))); ctx.saveSettings(); }
             }
         }
 
-        function showTitle() { ctx.overlayEl.classList.remove('active'); ctx.overlayEl.innerHTML = ''; ctx.MusicEngine.play('title'); }
+        function showTitle() { ctx.overlayEl.classList.remove('active'); ctx.overlayEl.innerHTML = ''; ctx.MusicEngine.play('title'); if (ctx.GalagaMusic) ctx.GalagaMusic.play(); }
         function showHSOverlay() {
             ctx.overlayEl.classList.add('active');
             let h = '<div class="galaxa-overlay-box"><h2>' + ctx.esc(ctx.t('galaxa.game_over')) + '</h2>';
@@ -593,12 +593,25 @@
         }
 
         let _frameBudgetSkip = 0;
+        function syncGalagaMusic() {
+            if (!ctx.GalagaMusic) return;
+            const st = ctx.G.st;
+            const isDemoPlay = ctx.G.demoMode && (st === 'PLAYING' || st === 'STAGE_INTRO' || st === 'STAGE_CLEAR' || st === 'GAME_OVER' || st === 'SHOP');
+            const shouldPlay = st === 'TITLE' || isDemoPlay;
+            if (shouldPlay) {
+                if (!ctx.G.muted) ctx.GalagaMusic.play();
+                else ctx.GalagaMusic.stop();
+            } else {
+                ctx.GalagaMusic.stop();
+            }
+        }
         function loop() {
             if (ctx.state.disposed) return;
             const dt = ctx.frameDelta();
             ctx.savePrev(); ctx.pollGP(); ctx.mergeInput();
             if (ctx.G.demoMode && ctx.updateDemo) ctx.updateDemo(dt);
             ctx.update(dt, performance.now());
+            syncGalagaMusic();
             ctx.tick++;
             ctx.renderFrame(dt);
             if (dt > 0.018) { _frameBudgetSkip = Math.min(3, _frameBudgetSkip + 1); } else if (_frameBudgetSkip > 0) _frameBudgetSkip--;
