@@ -219,23 +219,23 @@ type ContextFlags struct {
 	FritzBoxTVEnabled        bool
 	A2AEnabled               bool
 	TelnyxEnabled            bool
-	InternetExposed          bool   // HTTPS is enabled — system is likely reachable from the internet
-	IsDocker                 bool   // Running inside a Docker container
-	UserProfilingEnabled     bool   // User profiling is active — agent should learn about the user
-	UserProfileSummary       string // Optional user profile summary from profiling engine
-	AdditionalPrompt         string // Extra instructions always appended at end of system prompt
-	SessionTodoItems         string // Session-scoped task list piggybacked on tool calls
-	HighPriorityNotes        string // Open high-priority notes injected as reminders
-	PlannerContext           string // Trigger-based planner context with open todos and upcoming appointments
-	DailyTodoReminder        string // First-contact-of-day reminder for open planner todos
-	OperationalIssueReminder string // Unresolved background problems to report on next user contact
-	KnowledgeContext         string // Relevant KG entities injected from SearchForContext
-	ErrorPatternContext      string // Known error patterns with resolutions for agent learning
-	LearnedRulesContext      string // Learned action rules from recurring errors/recovery
+	InternetExposed          bool                 // HTTPS is enabled — system is likely reachable from the internet
+	IsDocker                 bool                 // Running inside a Docker container
+	UserProfilingEnabled     bool                 // User profiling is active — agent should learn about the user
+	UserProfileSummary       string               // Optional user profile summary from profiling engine
+	AdditionalPrompt         string               // Extra instructions always appended at end of system prompt
+	SessionTodoItems         string               // Session-scoped task list piggybacked on tool calls
+	HighPriorityNotes        string               // Open high-priority notes injected as reminders
+	PlannerContext           string               // Trigger-based planner context with open todos and upcoming appointments
+	DailyTodoReminder        string               // First-contact-of-day reminder for open planner todos
+	OperationalIssueReminder string               // Unresolved background problems to report on next user contact
+	KnowledgeContext         string               // Relevant KG entities injected from SearchForContext
+	ErrorPatternContext      string               // Known error patterns with resolutions for agent learning
+	LearnedRulesContext      string               // Learned action rules from recurring errors/recovery
 	InjectedLearnedRules     []memory.LearnedRule // Rules injected this turn (for hit/miss tracking)
-	ReuseContext             string // Reuse-first lookup hints for non-trivial tasks
-	ChatChannelsContext      string // Reachable chat/notification channels for this runtime
-	TaskRules                string // Task-scoped markdown rules selected for the current request/tools
+	ReuseContext             string               // Reuse-first lookup hints for non-trivial tasks
+	ChatChannelsContext      string               // Reachable chat/notification channels for this runtime
+	TaskRules                string               // Task-scoped markdown rules selected for the current request/tools
 	TaskRuleIDs              []string
 	HomepageDesignSystem     string // Homepage DESIGN.md guidance selected for homepage workflows
 	EmotionDescription       string // LLM-synthesized emotional state description (Emotion Synthesizer)
@@ -610,7 +610,7 @@ func buildSystemPromptInnerContext(ctx context.Context, promptsDir string, flags
 	// Surgery Plan injection (always inject when present, regardless of maintenance module)
 	if flags.IsMaintenanceMode && flags.SurgeryPlan != "" {
 		finalPrompt.WriteString("### SURGERY PLAN ###\n")
-		finalPrompt.WriteString(security.IsolateExternalData(flags.SurgeryPlan))
+		finalPrompt.WriteString(isolatePromptExternalData(flags.SurgeryPlan))
 		finalPrompt.WriteString("\n\n")
 	}
 
@@ -639,34 +639,34 @@ func buildSystemPromptInnerContext(ctx context.Context, promptsDir string, flags
 	// High-priority open notes — inject as reminders
 	if flags.HighPriorityNotes != "" {
 		finalPrompt.WriteString("### ACTIVE REMINDERS (high-priority notes) ###\n")
-		finalPrompt.WriteString(security.IsolateExternalData(flags.HighPriorityNotes))
+		finalPrompt.WriteString(isolatePromptExternalData(flags.HighPriorityNotes))
 		finalPrompt.WriteString("\n\n")
 	}
 
 	if flags.PlannerContext != "" {
 		finalPrompt.WriteString("### PLANNER CONTEXT ###\n")
-		finalPrompt.WriteString(security.IsolateExternalData(flags.PlannerContext))
+		finalPrompt.WriteString(isolatePromptExternalData(flags.PlannerContext))
 		finalPrompt.WriteString("\n\n")
 	}
 
 	if flags.DailyTodoReminder != "" {
 		finalPrompt.WriteString("### DAILY TODO REMINDER ###\n")
 		finalPrompt.WriteString("On this turn, start your reply with a brief proactive reminder about these open tasks before addressing the user's new message.\n")
-		finalPrompt.WriteString(security.IsolateExternalData(flags.DailyTodoReminder))
+		finalPrompt.WriteString(isolatePromptExternalData(flags.DailyTodoReminder))
 		finalPrompt.WriteString("\n\n")
 	}
 
 	if flags.OperationalIssueReminder != "" {
 		finalPrompt.WriteString("### OPERATIONAL ISSUE REMINDER ###\n")
 		finalPrompt.WriteString("Use these issues as diagnostic context; mention them only if relevant to the current request or urgent. Do not repeat the reminder if you already mentioned it in this conversation.\n")
-		finalPrompt.WriteString(security.IsolateExternalData(flags.OperationalIssueReminder))
+		finalPrompt.WriteString(isolatePromptExternalData(flags.OperationalIssueReminder))
 		finalPrompt.WriteString("\n\n")
 	}
 
 	// Session-scoped task list — always inject when present
 	if flags.SessionTodoItems != "" {
 		finalPrompt.WriteString("### ACTIVE TASK LIST ###\n")
-		finalPrompt.WriteString(security.IsolateExternalData(flags.SessionTodoItems))
+		finalPrompt.WriteString(isolatePromptExternalData(flags.SessionTodoItems))
 		finalPrompt.WriteString("\n\n")
 	}
 
@@ -679,7 +679,7 @@ func buildSystemPromptInnerContext(ctx context.Context, promptsDir string, flags
 		// RAG: Retrieved Long-Term Memories — skip in minimal tier
 		if flags.RecentActivityOverview != "" && tier != "minimal" {
 			finalPrompt.WriteString("# LAST 7 DAYS OVERVIEW\n")
-			finalPrompt.WriteString(security.IsolateExternalData(flags.RecentActivityOverview))
+			finalPrompt.WriteString(isolatePromptExternalData(flags.RecentActivityOverview))
 			finalPrompt.WriteString("\n\n")
 		}
 
@@ -687,28 +687,28 @@ func buildSystemPromptInnerContext(ctx context.Context, promptsDir string, flags
 		if flags.RetrievedMemories != "" && tier != "minimal" {
 			finalPrompt.WriteString("# RETRIEVED MEMORIES\n")
 			finalPrompt.WriteString("[advisory, stale] Memory is a lead only; fresh tool/file output wins.\n\n")
-			finalPrompt.WriteString(security.IsolateExternalData(flags.RetrievedMemories))
+			finalPrompt.WriteString(isolatePromptExternalData(flags.RetrievedMemories))
 			finalPrompt.WriteString("\n\n")
 		}
 
 		// Predictive RAG — only in full tier
 		if flags.PredictedMemories != "" && tier == "full" {
 			finalPrompt.WriteString("# PREDICTED CONTEXT\n")
-			finalPrompt.WriteString(security.IsolateExternalData(flags.PredictedMemories))
+			finalPrompt.WriteString(isolatePromptExternalData(flags.PredictedMemories))
 			finalPrompt.WriteString("\n\n")
 		}
 
 		// Knowledge Graph context — relevant entities and relationships
 		if flags.KnowledgeContext != "" && tier != "minimal" {
 			finalPrompt.WriteString("# RELEVANT KNOWLEDGE\n")
-			finalPrompt.WriteString(security.IsolateExternalData(flags.KnowledgeContext))
+			finalPrompt.WriteString(isolatePromptExternalData(flags.KnowledgeContext))
 			finalPrompt.WriteString("\n\n")
 		}
 
 		if availableContextIndex(flags) != "" && tier != "minimal" {
 			finalPrompt.WriteString("# AVAILABLE CONTEXT INDEX\n")
 			finalPrompt.WriteString("[advisory, stale] Use recall_memory(ids) or explore_kg(ids, depth, limit) only when the listed context is needed.\n\n")
-			finalPrompt.WriteString(security.IsolateExternalData(availableContextIndex(flags)))
+			finalPrompt.WriteString(isolatePromptExternalData(availableContextIndex(flags)))
 			finalPrompt.WriteString("\n\n")
 		}
 	}
@@ -717,19 +717,19 @@ func buildSystemPromptInnerContext(ctx context.Context, promptsDir string, flags
 		// Error Pattern Context — inject known error patterns during error recovery
 		if flags.ErrorPatternContext != "" && tier != "minimal" {
 			finalPrompt.WriteString("# KNOWN ERROR PATTERNS\n")
-			finalPrompt.WriteString(security.IsolateExternalData(flags.ErrorPatternContext))
+			finalPrompt.WriteString(isolatePromptExternalData(flags.ErrorPatternContext))
 			finalPrompt.WriteString("\n\n")
 		}
 		// Learned Rules — concrete action rules from recurring errors/recovery
 		if flags.LearnedRulesContext != "" && tier != "minimal" {
 			finalPrompt.WriteString("# LEARNED RULES\n")
 			finalPrompt.WriteString("Apply proactively if relevant to the current task.\n")
-			finalPrompt.WriteString(security.IsolateExternalData(flags.LearnedRulesContext))
+			finalPrompt.WriteString(isolatePromptExternalData(flags.LearnedRulesContext))
 			finalPrompt.WriteString("\n\n")
 		}
 		if flags.ReuseContext != "" {
 			finalPrompt.WriteString("# REUSE-FIRST CONTEXT\n")
-			finalPrompt.WriteString(security.IsolateExternalData(flags.ReuseContext))
+			finalPrompt.WriteString(isolatePromptExternalData(flags.ReuseContext))
 			finalPrompt.WriteString("\n\n")
 		}
 	}
@@ -797,7 +797,7 @@ func buildSystemPromptInnerContext(ctx context.Context, promptsDir string, flags
 	// Dynamic Outgoing Webhooks definition
 	if flags.WebhooksEnabled && flags.WebhooksDefinitions != "" && tier != "minimal" {
 		finalPrompt.WriteString("# OUTGOING WEBHOOKS\n")
-		finalPrompt.WriteString(security.IsolateExternalData(flags.WebhooksDefinitions))
+		finalPrompt.WriteString(isolatePromptExternalData(flags.WebhooksDefinitions))
 		finalPrompt.WriteString("\n\n")
 	}
 
@@ -810,7 +810,7 @@ func buildSystemPromptInnerContext(ctx context.Context, promptsDir string, flags
 		finalPrompt.WriteString("Learn durable user preferences naturally. Ask at most one useful follow-up when it improves the task; background capture stores relevant details.\n")
 		if flags.UserProfileSummary != "" {
 			finalPrompt.WriteString("\n### Known User Profile\n")
-			finalPrompt.WriteString(security.IsolateExternalData(flags.UserProfileSummary))
+			finalPrompt.WriteString(isolatePromptExternalData(flags.UserProfileSummary))
 		}
 		finalPrompt.WriteString("\n")
 		logger.Debug("User profiling prompt section injected", "hasSummary", flags.UserProfileSummary != "")
@@ -1781,18 +1781,18 @@ func appendBudgetedUnifiedMemorySection(current, title, body string, maxChars in
 	}
 	prefix := "\n\n## " + title + "\n"
 	remaining := maxChars - len(current) - len(prefix)
-	if remaining <= len(security.IsolateExternalData(""))+24 {
+	if remaining <= len(isolatePromptExternalData(""))+24 {
 		return current, false
 	}
 	if len(body) > maxUnifiedMemorySectionBodyChars {
 		body = truncateWithEllipsis(body, maxUnifiedMemorySectionBodyChars)
 	}
-	section := prefix + security.IsolateExternalData(body)
+	section := prefix + isolatePromptExternalData(body)
 	if len(current)+len(section) <= maxChars {
 		return current + section, true
 	}
-	for bodyBudget := remaining - len(security.IsolateExternalData("")) - 8; bodyBudget > 24; bodyBudget -= 32 {
-		section = prefix + security.IsolateExternalData(truncateWithEllipsis(body, bodyBudget))
+	for bodyBudget := remaining - len(isolatePromptExternalData("")) - 8; bodyBudget > 24; bodyBudget -= 32 {
+		section = prefix + isolatePromptExternalData(truncateWithEllipsis(body, bodyBudget))
 		if len(current)+len(section) <= maxChars {
 			return current + section, true
 		}
