@@ -24,6 +24,9 @@ func applyPromptSecToLatestUserMessage(messages []openai.ChatCompletionMessage, 
 		if content == "" {
 			return messages, false
 		}
+		if guardian.HasPromptSecStructuredOutput(msg.Content) {
+			return messages, false
+		}
 
 		scan := guardian.SanitizeForLLM(msg.Content, "user")
 		if scan.Sanitized == "" || scan.Sanitized == msg.Content {

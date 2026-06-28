@@ -199,6 +199,28 @@ func TestGuardianSetSystemPromptStructure(t *testing.T) {
 	}
 }
 
+func TestGuardianDetectsPromptSecStructuredOutput(t *testing.T) {
+	for _, mode := range []string{"sandwich", "post", "random", "xml"} {
+		t.Run(mode, func(t *testing.T) {
+			g := NewGuardianWithOptions(nil, GuardianOptions{
+				Structure: PromptSecStructureOptions{Enabled: true, Mode: mode},
+			})
+			g.SetSystemPrompt("You are a secure assistant.")
+
+			res := g.SanitizeForLLM("summarize this page", "user")
+			if res.Sanitized == "" {
+				t.Fatal("expected structured output")
+			}
+			if !g.HasPromptSecStructuredOutput(res.Sanitized) {
+				t.Fatalf("expected structured output to be detected for mode %s: %q", mode, res.Sanitized)
+			}
+			if g.HasPromptSecStructuredOutput("summarize this page") {
+				t.Fatalf("did not expect plain input to be detected for mode %s", mode)
+			}
+		})
+	}
+}
+
 func TestGuardianCustomPolicy(t *testing.T) {
 	g := NewGuardianWithOptions(nil, GuardianOptions{
 		Policy:       "custom",

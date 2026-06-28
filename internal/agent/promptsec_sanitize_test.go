@@ -52,6 +52,31 @@ func TestApplyPromptSecToLatestUserMessageAppliesStructure(t *testing.T) {
 	}
 }
 
+func TestApplyPromptSecToLatestUserMessageSkipsAlreadyStructuredContent(t *testing.T) {
+	guardian := security.NewGuardianWithOptions(nil, security.GuardianOptions{
+		Structure: security.PromptSecStructureOptions{Enabled: true, Mode: "sandwich"},
+	})
+	guardian.SetSystemPrompt("You are a secure assistant.")
+	messages := []openai.ChatCompletionMessage{
+		{Role: openai.ChatMessageRoleSystem, Content: "system"},
+		{Role: openai.ChatMessageRoleUser, Content: "summarize this page"},
+		{Role: openai.ChatMessageRoleAssistant, Content: "I need to call a tool."},
+		{Role: openai.ChatMessageRoleTool, Content: "tool result"},
+	}
+
+	first, applied := applyPromptSecToLatestUserMessage(messages, guardian)
+	if !applied {
+		t.Fatal("expected first structure pass to apply")
+	}
+	second, applied := applyPromptSecToLatestUserMessage(first, guardian)
+	if applied {
+		t.Fatal("did not expect structure to be applied twice")
+	}
+	if second[1].Content != first[1].Content {
+		t.Fatalf("expected already structured content to remain unchanged, got %q", second[1].Content)
+	}
+}
+
 func TestApplyPromptSecToLatestUserMessageSkipsMultiContent(t *testing.T) {
 	guardian := security.NewGuardianWithOptions(nil, security.GuardianOptions{
 		Sanitizer: security.PromptSecSanitizerOptions{Normalize: true, Dehomoglyph: true, Decode: false},
