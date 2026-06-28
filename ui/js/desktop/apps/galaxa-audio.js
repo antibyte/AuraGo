@@ -430,7 +430,7 @@
             el: null,
             _playing: false,
             _shouldPlay: false,
-            _url: '/files/audio/galaga.mp3',
+            _url: '/img/audio/galaga.mp3',
             _ensure() {
                 if (this.el) return this.el;
                 const a = document.createElement('audio');
