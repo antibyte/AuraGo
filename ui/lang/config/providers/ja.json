@@ -91,7 +91,7 @@
   "config.providers.not_authorized": "許可されていません",
   "config.providers.not_authorized_click": "許可されていません - 「許可」をクリックします",
   "config.providers.oauth_auth_url_help": "プロバイダーの OAuth2 認証エンドポイント。",
-  "config.providers.oauth_required_error": "OAuth2: 認証 URL、トークン URL、クライアント ID が必要です。",
+  "config.providers.oauth_required_error": "OAuth2: Client ID が必要です。",
   "config.providers.oauth_scopes_help": "スペースで区切られた OAuth2 スコープ。",
   "config.providers.oauth_token_url_help": "OAuth2 トークン交換エンドポイント。",
   "config.providers.open_model_browser": "モデルブラウザを開く",
@@ -192,5 +192,11 @@
   "config.providers.oauth_field_auth_url": "認可 URL",
   "config.providers.oauth_field_token_url": "トークン URL",
   "config.providers.oauth_field_client_id": "クライアント ID",
-  "config.providers.oauth_connect_unavailable": "接続する前にOAuth項目を入力してください。"
+  "config.providers.oauth_connect_unavailable": "接続する前にOAuth項目を入力してください。",
+  "config.providers.oauth_endpoint_required_error": "OAuth2: カスタムエンドポイントには Auth URL と Token URL が必要です。",
+  "config.providers.oauth_browser_hint": "AuraGo はこのプロバイダーの既知の OAuth エンドポイントを使います。クライアント情報を入力し、保存してブラウザーで接続してください。",
+  "config.providers.oauth_advanced_toggle": "高度な OAuth エンドポイント",
+  "config.providers.oauth_advanced_help": "これらの値は、独自の OAuth アプリや組み込み preset がないプロバイダーでのみ変更してください。",
+  "config.providers.oauth_preset_google": "Google OAuth preset",
+  "config.providers.oauth_preset_custom": "カスタム OAuth エンドポイント"
 }

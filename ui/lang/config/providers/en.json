@@ -28,7 +28,7 @@
   "config.providers.expires": "expires",
   "config.providers.id_empty_error": "ID must not be empty.",
   "config.providers.url_empty_error": "Base URL must not be empty.",
-  "config.providers.oauth_required_error": "OAuth2: Auth URL, Token URL and Client ID are required.",
+  "config.providers.oauth_required_error": "OAuth2: Client ID is required.",
   "config.providers.revoke_confirm_title": "Revoke OAuth Token",
   "config.providers.revoke_confirm": "Really revoke OAuth token?",
   "config.providers.id_exists": "A provider with this ID already exists.",
@@ -192,5 +192,11 @@
   "config.providers.oauth_field_auth_url": "Auth URL",
   "config.providers.oauth_field_token_url": "Token URL",
   "config.providers.oauth_field_client_id": "Client ID",
-  "config.providers.oauth_connect_unavailable": "Complete the OAuth fields before connecting."
+  "config.providers.oauth_connect_unavailable": "Complete the OAuth fields before connecting.",
+  "config.providers.oauth_endpoint_required_error": "OAuth2: Auth URL and Token URL are required for custom endpoints.",
+  "config.providers.oauth_browser_hint": "AuraGo uses the known OAuth endpoints for this provider. Add the client details, then save and connect in the browser.",
+  "config.providers.oauth_advanced_toggle": "Advanced OAuth endpoints",
+  "config.providers.oauth_advanced_help": "Only change these values for custom OAuth apps or providers without a built-in preset.",
+  "config.providers.oauth_preset_google": "Google OAuth preset",
+  "config.providers.oauth_preset_custom": "Custom OAuth endpoints"
 }

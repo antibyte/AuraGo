@@ -91,7 +91,7 @@
   "config.providers.not_authorized": "Nepovoleno",
   "config.providers.not_authorized_click": "Neautorizováno — klikněte na Autorizovat",
   "config.providers.oauth_auth_url_help": "Koncový bod autorizace OAuth2 poskytovatele.",
-  "config.providers.oauth_required_error": "OAuth2: Auth URL, Token URL a Client ID jsou vyžadovány.",
+  "config.providers.oauth_required_error": "OAuth2: ID klienta je povinné.",
   "config.providers.oauth_scopes_help": "Rozsahy OAuth2 oddělené mezerou.",
   "config.providers.oauth_token_url_help": "Koncový bod výměny tokenů OAuth2.",
   "config.providers.open_model_browser": "Otevřít prohlížeč modelů",
@@ -192,5 +192,11 @@
   "config.providers.oauth_field_auth_url": "Auth URL",
   "config.providers.oauth_field_token_url": "Token URL",
   "config.providers.oauth_field_client_id": "Client ID",
-  "config.providers.oauth_connect_unavailable": "Před připojením doplň OAuth pole."
+  "config.providers.oauth_connect_unavailable": "Před připojením doplň OAuth pole.",
+  "config.providers.oauth_endpoint_required_error": "OAuth2: Pro vlastní koncové body je nutná Auth URL a Token URL.",
+  "config.providers.oauth_browser_hint": "AuraGo použije známé OAuth koncové body tohoto poskytovatele. Doplň údaje klienta, potom ulož a připoj se v prohlížeči.",
+  "config.providers.oauth_advanced_toggle": "Pokročilé OAuth koncové body",
+  "config.providers.oauth_advanced_help": "Tyto hodnoty měň jen pro vlastní OAuth aplikace nebo poskytovatele bez vestavěného presetu.",
+  "config.providers.oauth_preset_google": "Google OAuth preset",
+  "config.providers.oauth_preset_custom": "Vlastní OAuth koncové body"
 }

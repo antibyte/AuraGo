@@ -91,7 +91,7 @@
   "config.providers.not_authorized": "Ej auktoriserad",
   "config.providers.not_authorized_click": "Ej auktoriserad — klicka på Auktorisera",
   "config.providers.oauth_auth_url_help": "OAuth2-auktoriseringsslutpunkt för leverantören.",
-  "config.providers.oauth_required_error": "OAuth2: Auth URL, Token URL och klient ID krävs.",
+  "config.providers.oauth_required_error": "OAuth2: Client-ID krävs.",
   "config.providers.oauth_scopes_help": "Utrymmesseparerade OAuth2-omfång.",
   "config.providers.oauth_token_url_help": "Slutpunkt för OAuth2-tokenutbyte.",
   "config.providers.open_model_browser": "Öppna modellwebbläsaren",
@@ -192,5 +192,11 @@
   "config.providers.oauth_field_auth_url": "Auth-URL",
   "config.providers.oauth_field_token_url": "Token-URL",
   "config.providers.oauth_field_client_id": "Client-ID",
-  "config.providers.oauth_connect_unavailable": "Fyll i OAuth-fälten innan du ansluter."
+  "config.providers.oauth_connect_unavailable": "Fyll i OAuth-fälten innan du ansluter.",
+  "config.providers.oauth_endpoint_required_error": "OAuth2: Auth URL och Token URL krävs för egna endpoints.",
+  "config.providers.oauth_browser_hint": "AuraGo använder de kända OAuth-endpoints för den här leverantören. Fyll i klientuppgifter, spara och anslut i webbläsaren.",
+  "config.providers.oauth_advanced_toggle": "Avancerade OAuth-endpoints",
+  "config.providers.oauth_advanced_help": "Ändra dessa värden bara för egna OAuth-appar eller leverantörer utan inbyggt preset.",
+  "config.providers.oauth_preset_google": "Google OAuth-preset",
+  "config.providers.oauth_preset_custom": "Egna OAuth-endpoints"
 }

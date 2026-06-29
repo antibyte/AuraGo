@@ -6066,6 +6066,18 @@ select.cfg-input option {
 .prov-oauth-card-btn { padding: 0.25rem 0.55rem; font-size: 0.72rem; }
 .prov-oauth-authorize-btn { padding: 0.42rem 1rem; font-size: 0.78rem; background: var(--accent); }
 .prov-oauth-revoke-btn { padding: 0.42rem 1rem; font-size: 0.78rem; background: var(--danger); }
+.prov-oauth-browser-box { display: flex; flex-direction: column; gap: 0.35rem; }
+.prov-oauth-advanced {
+    margin-top: 0.65rem; padding: 0.65rem 0.75rem; border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md); background: color-mix(in srgb, var(--bg-secondary) 74%, transparent);
+}
+.prov-oauth-advanced summary {
+    cursor: pointer; color: var(--text-secondary); font-size: 0.78rem; font-weight: 700;
+}
+.prov-oauth-advanced > .field-help { margin-top: 0.45rem; }
+.prov-oauth-advanced > .field-group {
+    margin-top: 0.6rem; padding: 0; border: 0; background: transparent; box-shadow: none;
+}
 .prov-oauth-redirect-box {
     display: flex; justify-content: space-between; gap: 0.7rem; align-items: flex-end;
     margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--border-subtle);

@@ -91,7 +91,7 @@
   "config.providers.not_authorized": "Não autorizado",
   "config.providers.not_authorized_click": "Não autorizado — clique em Autorizar",
   "config.providers.oauth_auth_url_help": "Endpoint de autorização OAuth2 do provedor.",
-  "config.providers.oauth_required_error": "OAuth2: Auth URL, Token URL e Cliente ID são obrigatórios.",
+  "config.providers.oauth_required_error": "OAuth2: Client ID é obrigatório.",
   "config.providers.oauth_scopes_help": "Escopos OAuth2 separados por espaço.",
   "config.providers.oauth_token_url_help": "Ponto de extremidade de troca de token OAuth2.",
   "config.providers.open_model_browser": "Abrir navegador de modelos",
@@ -192,5 +192,11 @@
   "config.providers.oauth_field_auth_url": "URL de autorização",
   "config.providers.oauth_field_token_url": "URL do token",
   "config.providers.oauth_field_client_id": "ID do cliente",
-  "config.providers.oauth_connect_unavailable": "Preencha os campos OAuth antes de conectar."
+  "config.providers.oauth_connect_unavailable": "Preencha os campos OAuth antes de conectar.",
+  "config.providers.oauth_endpoint_required_error": "OAuth2: Auth URL e Token URL são obrigatórios para endpoints personalizados.",
+  "config.providers.oauth_browser_hint": "AuraGo usa os endpoints OAuth conhecidos deste provedor. Adiciona os dados do cliente, salva e conecta no navegador.",
+  "config.providers.oauth_advanced_toggle": "Endpoints OAuth avançados",
+  "config.providers.oauth_advanced_help": "Altera estes valores apenas para apps OAuth próprias ou provedores sem preset integrado.",
+  "config.providers.oauth_preset_google": "Preset OAuth do Google",
+  "config.providers.oauth_preset_custom": "Endpoints OAuth personalizados"
 }

@@ -91,7 +91,7 @@
   "config.providers.not_authorized": "Ikke autoriseret",
   "config.providers.not_authorized_click": "Ikke autoriseret — klik på Godkend",
   "config.providers.oauth_auth_url_help": "OAuth2-godkendelsesslutpunkt for udbyderen.",
-  "config.providers.oauth_required_error": "OAuth2: Auth URL, Token URL og klient ID er påkrævet.",
+  "config.providers.oauth_required_error": "OAuth2: Client-ID er påkrævet.",
   "config.providers.oauth_scopes_help": "Rum-separerede OAuth2-skoper.",
   "config.providers.oauth_token_url_help": "Slutpunkt for OAuth2-tokenudveksling.",
   "config.providers.open_model_browser": "Åbn Model Browser",
@@ -192,5 +192,11 @@
   "config.providers.oauth_field_auth_url": "Auth-URL",
   "config.providers.oauth_field_token_url": "Token-URL",
   "config.providers.oauth_field_client_id": "Client-ID",
-  "config.providers.oauth_connect_unavailable": "Udfyld OAuth-felterne før forbindelsen."
+  "config.providers.oauth_connect_unavailable": "Udfyld OAuth-felterne før forbindelsen.",
+  "config.providers.oauth_endpoint_required_error": "OAuth2: Auth URL og Token URL er påkrævet for egne endpoints.",
+  "config.providers.oauth_browser_hint": "AuraGo bruger de kendte OAuth-endpoints for denne udbyder. Udfyld klientdata, gem, og forbind i browseren.",
+  "config.providers.oauth_advanced_toggle": "Avancerede OAuth-endpoints",
+  "config.providers.oauth_advanced_help": "Skift kun disse værdier for egne OAuth-apps eller udbydere uden indbygget preset.",
+  "config.providers.oauth_preset_google": "Google OAuth-preset",
+  "config.providers.oauth_preset_custom": "Egne OAuth-endpoints"
 }

@@ -91,7 +91,7 @@
   "config.providers.not_authorized": "Μη εξουσιοδοτημένο",
   "config.providers.not_authorized_click": "Μη εξουσιοδοτημένο — κάντε κλικ στην Εξουσιοδότηση",
   "config.providers.oauth_auth_url_help": "Τελικό σημείο εξουσιοδότησης OAuth2 του παρόχου.",
-  "config.providers.oauth_required_error": "OAuth2: Απαιτούνται πιστοποιητικά URL, Token URL και Πελάτης ID.",
+  "config.providers.oauth_required_error": "OAuth2: Απαιτείται Client ID.",
   "config.providers.oauth_scopes_help": "Scopes OAuth2 χωρισμένα με κενό.",
   "config.providers.oauth_token_url_help": "Τελικό σημείο ανταλλαγής διακριτικών OAuth2.",
   "config.providers.open_model_browser": "Άνοιγμα Περιηγητή Μοντέλων",
@@ -192,5 +192,11 @@
   "config.providers.oauth_field_auth_url": "Auth URL",
   "config.providers.oauth_field_token_url": "Token URL",
   "config.providers.oauth_field_client_id": "Client ID",
-  "config.providers.oauth_connect_unavailable": "Συμπλήρωσε τα OAuth πεδία πριν τη σύνδεση."
+  "config.providers.oauth_connect_unavailable": "Συμπλήρωσε τα OAuth πεδία πριν τη σύνδεση.",
+  "config.providers.oauth_endpoint_required_error": "OAuth2: Απαιτούνται Auth URL και Token URL για προσαρμοσμένα endpoints.",
+  "config.providers.oauth_browser_hint": "Το AuraGo χρησιμοποιεί τα γνωστά OAuth endpoints αυτού του παρόχου. Συμπλήρωσε τα στοιχεία client, αποθήκευσε και συνδέσου από το πρόγραμμα περιήγησης.",
+  "config.providers.oauth_advanced_toggle": "Σύνθετα OAuth endpoints",
+  "config.providers.oauth_advanced_help": "Άλλαξε αυτές τις τιμές μόνο για προσαρμοσμένες OAuth εφαρμογές ή παρόχους χωρίς ενσωματωμένο preset.",
+  "config.providers.oauth_preset_google": "Google OAuth preset",
+  "config.providers.oauth_preset_custom": "Προσαρμοσμένα OAuth endpoints"
 }

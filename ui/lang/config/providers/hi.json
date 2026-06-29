@@ -91,7 +91,7 @@
   "config.providers.not_authorized": "अधिकृत नहीं",
   "config.providers.not_authorized_click": "अधिकृत नहीं - अधिकृत करें",
   "config.providers.oauth_auth_url_help": "प्रदाता का OAuth2 प्राधिकरण समापन बिंदु।",
-  "config.providers.oauth_required_error": "OAuth2: प्रामाणिक URL, टोकन URL और क्लाइंट आईडी आवश्यक हैं।",
+  "config.providers.oauth_required_error": "OAuth2: Client ID आवश्यक है.",
   "config.providers.oauth_scopes_help": "अंतरिक्ष से अलग किए गए OAuth2 स्कोप।",
   "config.providers.oauth_token_url_help": "OAuth2 टोकन एक्सचेंज समापन बिंदु।",
   "config.providers.open_model_browser": "मॉडल ब्राउज़र खोलें",
@@ -192,5 +192,11 @@
   "config.providers.oauth_field_auth_url": "Auth URL",
   "config.providers.oauth_field_token_url": "Token URL",
   "config.providers.oauth_field_client_id": "Client ID",
-  "config.providers.oauth_connect_unavailable": "कनेक्ट करने से पहले OAuth फ़ील्ड पूरे करें."
+  "config.providers.oauth_connect_unavailable": "कनेक्ट करने से पहले OAuth फ़ील्ड पूरे करें.",
+  "config.providers.oauth_endpoint_required_error": "OAuth2: कस्टम endpoints के लिए Auth URL और Token URL आवश्यक हैं.",
+  "config.providers.oauth_browser_hint": "AuraGo इस provider के ज्ञात OAuth endpoints का उपयोग करता है. Client विवरण जोड़ो, फिर save करके browser में connect करो.",
+  "config.providers.oauth_advanced_toggle": "उन्नत OAuth endpoints",
+  "config.providers.oauth_advanced_help": "इन मानों को केवल custom OAuth apps या बिना built-in preset वाले providers के लिए बदलो.",
+  "config.providers.oauth_preset_google": "Google OAuth preset",
+  "config.providers.oauth_preset_custom": "Custom OAuth endpoints"
 }

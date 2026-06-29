@@ -91,7 +91,7 @@
   "config.providers.not_authorized": "未授权",
   "config.providers.not_authorized_click": "未授权 — 点击授权",
   "config.providers.oauth_auth_url_help": "提供商的 OAuth2 授权端点。",
-  "config.providers.oauth_required_error": "OAuth2：需要授权 URL、令牌 URL 和客户端 ID。",
+  "config.providers.oauth_required_error": "OAuth2：需要 Client ID。",
   "config.providers.oauth_scopes_help": "空格分隔的 OAuth2 作用域。",
   "config.providers.oauth_token_url_help": "OAuth2 令牌交换端点。",
   "config.providers.open_model_browser": "打开模型浏览器",
@@ -192,5 +192,11 @@
   "config.providers.oauth_field_auth_url": "授权 URL",
   "config.providers.oauth_field_token_url": "Token URL",
   "config.providers.oauth_field_client_id": "客户端 ID",
-  "config.providers.oauth_connect_unavailable": "连接前请补全 OAuth 字段。"
+  "config.providers.oauth_connect_unavailable": "连接前请补全 OAuth 字段。",
+  "config.providers.oauth_endpoint_required_error": "OAuth2：自定义端点需要 Auth URL 和 Token URL。",
+  "config.providers.oauth_browser_hint": "AuraGo 会使用此提供商的已知 OAuth 端点。填写客户端信息，保存后在浏览器中连接。",
+  "config.providers.oauth_advanced_toggle": "高级 OAuth 端点",
+  "config.providers.oauth_advanced_help": "仅在自定义 OAuth 应用或没有内置 preset 的提供商中修改这些值。",
+  "config.providers.oauth_preset_google": "Google OAuth preset",
+  "config.providers.oauth_preset_custom": "自定义 OAuth 端点"
 }

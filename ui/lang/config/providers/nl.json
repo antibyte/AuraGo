@@ -91,7 +91,7 @@
   "config.providers.not_authorized": "Niet geautoriseerd",
   "config.providers.not_authorized_click": "Niet geautoriseerd — klik op Autoriseren",
   "config.providers.oauth_auth_url_help": "OAuth2-autorisatie-eindpunt van de provider.",
-  "config.providers.oauth_required_error": "OAuth2: Auth URL, token URL en client ID zijn vereist.",
+  "config.providers.oauth_required_error": "OAuth2: Client ID is vereist.",
   "config.providers.oauth_scopes_help": "Door spaties gescheiden OAuth2-bereiken.",
   "config.providers.oauth_token_url_help": "OAuth2-tokenuitwisselingseindpunt.",
   "config.providers.open_model_browser": "Modelbrowser openen",
@@ -192,5 +192,11 @@
   "config.providers.oauth_field_auth_url": "Auth-URL",
   "config.providers.oauth_field_token_url": "Token-URL",
   "config.providers.oauth_field_client_id": "Client-ID",
-  "config.providers.oauth_connect_unavailable": "Vul de OAuth-velden in voordat je verbindt."
+  "config.providers.oauth_connect_unavailable": "Vul de OAuth-velden in voordat je verbindt.",
+  "config.providers.oauth_endpoint_required_error": "OAuth2: Auth URL en Token URL zijn vereist voor eigen endpoints.",
+  "config.providers.oauth_browser_hint": "AuraGo gebruikt de bekende OAuth-endpoints voor deze provider. Vul de clientgegevens in, sla op en verbind in de browser.",
+  "config.providers.oauth_advanced_toggle": "Geavanceerde OAuth-endpoints",
+  "config.providers.oauth_advanced_help": "Wijzig deze waarden alleen voor eigen OAuth-apps of providers zonder ingebouwde preset.",
+  "config.providers.oauth_preset_google": "Google OAuth-preset",
+  "config.providers.oauth_preset_custom": "Eigen OAuth-endpoints"
 }

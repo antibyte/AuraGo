@@ -948,6 +948,71 @@ let _providerCatalogPromise = null;
 
         const PROVIDER_TYPE_FALLBACKS = ['openai','openrouter','ollama','anthropic','google','minimax','workers-ai','manifest','yepapi','custom','deepseek','groq','mistral','xai','moonshot','qwen','zai','llamacpp','lmstudio','copilot','opencode-go'];
 
+        const PROVIDER_OAUTH_PRESETS = {
+            google: {
+                label_key: 'config.providers.oauth_preset_google',
+                auth_url: 'https://accounts.google.com/o/oauth2/v2/auth',
+                token_url: 'https://oauth2.googleapis.com/token',
+                scopes: 'openid email https://www.googleapis.com/auth/cloud-platform'
+            }
+        };
+
+        function providerOAuthPresetForType(type) {
+            return PROVIDER_OAUTH_PRESETS[type] || null;
+        }
+
+        function providerOAuthPresetLabel(type) {
+            const preset = providerOAuthPresetForType(type);
+            return preset ? t(preset.label_key) : t('config.providers.oauth_preset_custom');
+        }
+
+        function providerOAuthPresetFieldValue(type, field, currentValue) {
+            const value = (currentValue || '').trim();
+            if (value) return value;
+            const preset = providerOAuthPresetForType(type);
+            return preset && preset[field] ? preset[field] : '';
+        }
+
+        function providerOAuthValueIsKnownPreset(field, value) {
+            const normalized = (value || '').trim();
+            if (!normalized) return true;
+            return Object.values(PROVIDER_OAUTH_PRESETS).some(preset => (preset[field] || '') === normalized);
+        }
+
+        function providerOAuthConfigFromInputs(type) {
+            return {
+                auth_url: providerOAuthPresetFieldValue(type, 'auth_url', document.getElementById('prov-oauth-auth-url')?.value || ''),
+                token_url: providerOAuthPresetFieldValue(type, 'token_url', document.getElementById('prov-oauth-token-url')?.value || ''),
+                client_id: (document.getElementById('prov-oauth-client-id')?.value || '').trim(),
+                client_secret: (document.getElementById('prov-oauth-client-secret')?.value || '').trim(),
+                scopes: providerOAuthPresetFieldValue(type, 'scopes', document.getElementById('prov-oauth-scopes')?.value || '')
+            };
+        }
+
+        function providerApplyOAuthPresetForType(type, options) {
+            const preset = providerOAuthPresetForType(type);
+            const force = !!(options && options.force);
+            const presetLabel = document.getElementById('prov-oauth-preset-label');
+            const presetHelp = document.getElementById('prov-oauth-preset-help');
+            const advanced = document.getElementById('prov-oauth-advanced');
+
+            if (presetLabel) presetLabel.textContent = providerOAuthPresetLabel(type);
+            if (presetHelp) presetHelp.textContent = preset ? t('config.providers.oauth_browser_hint') : t('config.providers.oauth_advanced_help');
+            if (advanced && !preset) advanced.open = true;
+            if (!preset) return;
+
+            const applyField = (id, field) => {
+                const input = document.getElementById(id);
+                if (!input) return;
+                if (force || providerOAuthValueIsKnownPreset(field, input.value)) {
+                    input.value = preset[field] || '';
+                }
+            };
+            applyField('prov-oauth-auth-url', 'auth_url');
+            applyField('prov-oauth-token-url', 'token_url');
+            applyField('prov-oauth-scopes', 'scopes');
+        }
+
         function providerOAuthFieldLabel(field) {
             const labels = {
                 provider: t('config.providers.oauth_field_provider'),
@@ -1324,6 +1389,12 @@ let _providerCatalogPromise = null;
             const isManagedManifestInitial = currentType === 'manifest';
             const isAutoURLInitial = currentType === 'workers-ai' || isManagedManifestInitial;
             const initialURLHint = isManagedManifestInitial ? t('config.providers.manifest_url_auto') : t('config.providers.workers_ai_url_auto');
+            const initialOAuthPreset = providerOAuthPresetForType(currentType);
+            const initialOAuthAuthURL = providerOAuthPresetFieldValue(currentType, 'auth_url', data.oauth_auth_url || '');
+            const initialOAuthTokenURL = providerOAuthPresetFieldValue(currentType, 'token_url', data.oauth_token_url || '');
+            const initialOAuthScopes = providerOAuthPresetFieldValue(currentType, 'scopes', data.oauth_scopes || '');
+            const initialOAuthAdvancedOpen = initialOAuthPreset ? '' : ' open';
+            const initialOAuthPresetHelp = initialOAuthPreset ? t('config.providers.oauth_browser_hint') : t('config.providers.oauth_advanced_help');
 
             overlay.innerHTML = `
             <div class="prov-modal-panel" onclick="event.stopPropagation()">
@@ -1481,15 +1552,10 @@ let _providerCatalogPromise = null;
 
                 <!-- OAuth2 section (visible when auth_type = oauth2) -->
                 <div id="prov-oauth-section" class="${isOAuth ? '' : 'is-hidden'}">
-                    <div class="field-group">
-                        <div class="field-label">${t('config.providers.field_auth_url_label')}</div>
-                        <div class="field-help">${t('config.providers.oauth_auth_url_help')}</div>
-                        <input class="field-input" id="prov-oauth-auth-url" value="${escapeAttr(data.oauth_auth_url || '')}" placeholder="${t('config.providers.auth_url_placeholder')}">
-                    </div>
-                    <div class="field-group">
-                        <div class="field-label">${t('config.providers.field_token_url_label')}</div>
-                        <div class="field-help">${t('config.providers.oauth_token_url_help')}</div>
-                        <input class="field-input" id="prov-oauth-token-url" value="${escapeAttr(data.oauth_token_url || '')}" placeholder="${t('config.providers.token_url_placeholder')}">
+                    <div class="field-group prov-oauth-browser-box">
+                        <div class="field-label">${t('config.providers.oauth_connect_title')}</div>
+                        <div class="field-help" id="prov-oauth-preset-help">${initialOAuthPresetHelp}</div>
+                        <span class="prov-provider-pill prov-provider-pill-oauth" id="prov-oauth-preset-label">${providerOAuthPresetLabel(currentType)}</span>
                     </div>
                     <div class="field-group">
                         <div class="field-label">${t('config.providers.field_client_id_label')}</div>
@@ -1503,11 +1569,25 @@ let _providerCatalogPromise = null;
                         </div>
                         ${data.oauth_client_secret === '••••••••' ? `<div class="prov-field-hint">${t('config.providers.keep_existing_secret')}</div>` : ''}
                     </div>
-                    <div class="field-group">
-                        <div class="field-label">${t('config.providers.field_scopes')}</div>
-                        <div class="field-help">${t('config.providers.oauth_scopes_help')}</div>
-                        <input class="field-input" id="prov-oauth-scopes" value="${escapeAttr(data.oauth_scopes || '')}" placeholder="${t('config.providers.scopes_placeholder')}">
-                    </div>
+                    <details class="prov-oauth-advanced" id="prov-oauth-advanced"${initialOAuthAdvancedOpen}>
+                        <summary>${t('config.providers.oauth_advanced_toggle')}</summary>
+                        <div class="field-help">${t('config.providers.oauth_advanced_help')}</div>
+                        <div class="field-group">
+                            <div class="field-label">${t('config.providers.field_auth_url_label')}</div>
+                            <div class="field-help">${t('config.providers.oauth_auth_url_help')}</div>
+                            <input class="field-input" id="prov-oauth-auth-url" value="${escapeAttr(initialOAuthAuthURL)}" placeholder="${t('config.providers.auth_url_placeholder')}">
+                        </div>
+                        <div class="field-group">
+                            <div class="field-label">${t('config.providers.field_token_url_label')}</div>
+                            <div class="field-help">${t('config.providers.oauth_token_url_help')}</div>
+                            <input class="field-input" id="prov-oauth-token-url" value="${escapeAttr(initialOAuthTokenURL)}" placeholder="${t('config.providers.token_url_placeholder')}">
+                        </div>
+                        <div class="field-group">
+                            <div class="field-label">${t('config.providers.field_scopes')}</div>
+                            <div class="field-help">${t('config.providers.oauth_scopes_help')}</div>
+                            <input class="field-input" id="prov-oauth-scopes" value="${escapeAttr(initialOAuthScopes)}" placeholder="${t('config.providers.scopes_placeholder')}">
+                        </div>
+                    </details>
                     <div class="field-group prov-oauth-redirect-box">
                         <div>
                             <div class="field-label">${t('config.providers.oauth_redirect_uri_label')}</div>
@@ -1660,6 +1740,7 @@ let _providerCatalogPromise = null;
                 if (copilotBlock) setHidden(copilotBlock, typ !== 'copilot');
                 // For copilot: hide standard auth sections
                 const _authTypeSel = document.getElementById('prov-auth-type');
+                if (_authTypeSel && _authTypeSel.value === 'oauth2') providerApplyOAuthPresetForType(typ, { force: false });
                 const _authTypeGroup = _authTypeSel ? _authTypeSel.closest('.field-group') : null;
                 const _apikeySec = document.getElementById('prov-apikey-section');
                 const _oauthSec = document.getElementById('prov-oauth-section');
@@ -1697,7 +1778,10 @@ let _providerCatalogPromise = null;
                 setHidden(apikeySection, isOA);
                 setHidden(oauthSection, !isOA);
                 if (!isOA) rebuildCopyKeyDropdown();
-                if (isOA) providerRefreshOAuthRedirectPreview(document.getElementById('prov-id')?.value.trim()).catch(() => {});
+                if (isOA) {
+                    providerApplyOAuthPresetForType(typeSelect ? typeSelect.value : (data.type || 'openai'), { force: false });
+                    providerRefreshOAuthRedirectPreview(document.getElementById('prov-id')?.value.trim()).catch(() => {});
+                }
                 updateProviderOAuthActionVisibility();
             });
             updateProviderOAuthActionVisibility();
@@ -1898,16 +1982,21 @@ let _providerCatalogPromise = null;
 
                 if (auth_type === 'oauth2') {
                     entry.api_key = data.api_key === '••••••••' ? '••••••••' : '';
-                    entry.oauth_auth_url = document.getElementById('prov-oauth-auth-url').value.trim();
-                    entry.oauth_token_url = document.getElementById('prov-oauth-token-url').value.trim();
-                    entry.oauth_client_id = document.getElementById('prov-oauth-client-id').value.trim();
-                    let client_secret = document.getElementById('prov-oauth-client-secret').value.trim();
+                    const oauthConfig = providerOAuthConfigFromInputs(type);
+                    entry.oauth_auth_url = oauthConfig.auth_url;
+                    entry.oauth_token_url = oauthConfig.token_url;
+                    entry.oauth_client_id = oauthConfig.client_id;
+                    let client_secret = oauthConfig.client_secret;
                     if (!client_secret && data.oauth_client_secret === '••••••••') client_secret = '••••••••';
                     entry.oauth_client_secret = client_secret;
-                    entry.oauth_scopes = document.getElementById('prov-oauth-scopes').value.trim();
+                    entry.oauth_scopes = oauthConfig.scopes;
 
-                    if (!entry.oauth_auth_url || !entry.oauth_token_url || !entry.oauth_client_id) {
+                    if (!entry.oauth_client_id) {
                         showToast(t('config.providers.oauth_required_error'), 'warn');
+                        return;
+                    }
+                    if (!entry.oauth_auth_url || !entry.oauth_token_url) {
+                        showToast(t('config.providers.oauth_endpoint_required_error'), 'warn');
                         return;
                     }
                 } else {

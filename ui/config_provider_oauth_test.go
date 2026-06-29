@@ -35,6 +35,23 @@ func TestConfigProviderOAuthWizardContract(t *testing.T) {
 			t.Fatalf("providers OAuth wizard missing marker %q", marker)
 		}
 	}
+	for _, marker := range []string{
+		"const PROVIDER_OAUTH_PRESETS",
+		"auth_url: 'https://accounts.google.com/o/oauth2/v2/auth'",
+		"token_url: 'https://oauth2.googleapis.com/token'",
+		"function providerOAuthConfigFromInputs(type)",
+		"function providerApplyOAuthPresetForType(type, options)",
+		`id="prov-oauth-advanced"`,
+		"config.providers.oauth_advanced_toggle",
+		"config.providers.oauth_browser_hint",
+	} {
+		if !strings.Contains(providersJS, marker) {
+			t.Fatalf("providers OAuth browser setup missing marker %q", marker)
+		}
+	}
+	if strings.Contains(providersJS, "!entry.oauth_auth_url || !entry.oauth_token_url || !entry.oauth_client_id") {
+		t.Fatal("known OAuth providers must not require users to type auth/token endpoint paths before browser login")
+	}
 	if strings.Contains(providersJS, "alert(") {
 		t.Fatal("providers config module must use modals/toasts instead of alert()")
 	}
@@ -87,6 +104,11 @@ func TestConfigProviderOAuthTranslationsExistInAllLocales(t *testing.T) {
 		"config.providers.oauth_paste_submit",
 		"config.providers.oauth_paste_success",
 		"config.providers.oauth_save_first",
+		"config.providers.oauth_browser_hint",
+		"config.providers.oauth_advanced_toggle",
+		"config.providers.oauth_advanced_help",
+		"config.providers.oauth_preset_google",
+		"config.providers.oauth_preset_custom",
 	}
 	for _, path := range files {
 		data, err := os.ReadFile(path)
