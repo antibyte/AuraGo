@@ -15252,6 +15252,25 @@ html[data-theme="8bit"]::after {
     box-sizing: border-box;
 }
 
+.app-header .header-actions .btn-warnings {
+    overflow: visible;
+}
+
+.app-header .header-actions .warnings-badge {
+    top: 1px;
+    right: 1px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 3px;
+    border-radius: 999px;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    z-index: 5;
+}
+
 .app-header .header-actions :where(.chat-ui-icon, .chat-theme-icon, .warnings-icon, .personality-chevron, .mood-chevron) {
     pointer-events: none;
 }
