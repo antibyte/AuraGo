@@ -163,7 +163,6 @@ server:
   host: "127.0.0.1"
   port: 8088
   max_body_bytes: 10485760
-  bridge_address: ""
   https:
     enabled: false
     cert_mode: auto          # "auto" (Let's Encrypt), "custom", "selfsigned"
@@ -179,7 +178,6 @@ server:
 | `host` | `127.0.0.1` | Bind-Adresse |
 | `port` | `8088` | HTTP-Port |
 | `max_body_bytes` | `10485760` | Maximale Request-Größe |
-| `bridge_address` | `""` | Bridge-Adresse für Telegram/Discord |
 | `https.enabled` | `false` | HTTPS aktivieren |
 | `https.cert_mode` | `auto` | Zertifikatsmodus: `auto`, `custom`, `selfsigned` |
 

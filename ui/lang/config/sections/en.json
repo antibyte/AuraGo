@@ -172,7 +172,7 @@
   "config.section.llm_guardian.label": "LLM Guardian",
   "config.section.logging.desc": "Log settings",
   "config.section.logging.label": "Logging",
-  "config.section.maintenance.desc": "Maintenance mode and lifeboat",
+  "config.section.maintenance.desc": "Maintenance mode and scheduled tasks",
   "config.section.maintenance.label": "Maintenance",
   "config.section.mcp.desc": "Model Context Protocol — manage external tool servers",
   "config.section.mcp.label": "MCP Servers",

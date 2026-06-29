@@ -31,14 +31,3 @@ func TestPromptContentIdentityAndToolAvailabilityWording(t *testing.T) {
 		t.Fatal("rules prompt should gate tool-specific instructions on tool availability")
 	}
 }
-
-func TestPromptContentMaintenanceDoesNotDuplicateSurgeryPlan(t *testing.T) {
-	data, err := promptsembed.FS.ReadFile("maintenance.md")
-	if err != nil {
-		t.Fatalf("read maintenance: %v", err)
-	}
-	maintenance := string(data)
-	if strings.Contains(strings.ToLower(maintenance), "surgery plan") {
-		t.Fatal("maintenance prompt should not duplicate the injected surgery plan block")
-	}
-}

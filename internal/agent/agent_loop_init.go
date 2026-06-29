@@ -90,7 +90,6 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 	budgetTracker := s.runCfg.BudgetTracker
 	sessionID := s.runCfg.SessionID
 	isMaintenance := s.runCfg.IsMaintenance
-	surgeryPlan := s.runCfg.SurgeryPlan
 
 	if shortTermMem != nil {
 		InitializeAgentTelemetryPersistence(shortTermMem)
@@ -176,7 +175,6 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 	}
 	flags := buildPromptContextFlags(runCfg, toolingPolicy, promptContextOptions{
 		IsMaintenanceMode:     isMaintenance,
-		SurgeryPlan:           surgeryPlan,
 		WebhooksDefinitions:   webhooksDef.String(),
 		SpecialistsAvailable:  specialistsAvailable(cfg),
 		SpecialistsStatus:     buildSpecialistsStatus(cfg),
@@ -571,7 +569,6 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 	_ = coAgentRegistry
 	_ = budgetTracker
 	_ = sessionID
-	_ = surgeryPlan
 
 	return s
 }

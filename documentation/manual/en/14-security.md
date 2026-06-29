@@ -161,7 +161,7 @@ AuraGo uses file locks to prevent multiple instances from running simultaneously
 | Lock File | Purpose |
 |-----------|---------|
 | `data/vault.lock` | Prevents concurrent vault access |
-| `lifeboat.lock` | Prevents update conflicts |
+| `data/aurago.lock` | Prevents multiple AuraGo instances |
 | `agent.lock` | Prevents multiple agent instances |
 
 **If stuck:**

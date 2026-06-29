@@ -69,7 +69,6 @@ type PromptContextOptions struct {
 	IsErrorState          bool
 	RequiresCoding        bool
 	IsMaintenanceMode     bool
-	SurgeryPlan           string
 	WebhooksDefinitions   string
 	ActiveProcesses       string
 	SpecialistsAvailable  bool
@@ -481,9 +480,7 @@ func buildPromptContextFlags(runCfg RunConfig, policy ToolingPolicy, opts prompt
 		IsErrorState:             opts.IsErrorState,
 		RequiresCoding:           opts.RequiresCoding,
 		SystemLanguage:           cfg.Agent.SystemLanguage,
-		LifeboatEnabled:          cfg.Maintenance.LifeboatEnabled,
 		IsMaintenanceMode:        opts.IsMaintenanceMode,
-		SurgeryPlan:              opts.SurgeryPlan,
 		CorePersonality:          cfg.Personality.CorePersonality,
 		TokenBudget:              config.CalculateAdaptiveSystemPromptTokenBudget(cfg),
 		IsDebugMode:              cfg.Agent.DebugMode || GetDebugMode(),
@@ -586,7 +583,6 @@ func buildPromptContextFlags(runCfg RunConfig, policy ToolingPolicy, opts prompt
 		ChatChannelsContext:      buildReachableChatChannelsContext(runCfg),
 		ToolsDir:                 "",
 		SkillsDir:                "",
-		LifeboatIntent:           opts.IsMaintenanceMode,
 		UnifiedMemoryBlock:       state.UnifiedMemoryBlock,
 		SpecialistsAvailable:     false,
 		SpecialistsStatus:        "",

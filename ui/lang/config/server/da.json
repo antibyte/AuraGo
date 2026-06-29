@@ -40,8 +40,6 @@
   "config.security_proxy.status_loading": "Indlæser…",
   "config.security_proxy.status_unknown": "Ukendt status",
   "config.server.behind_proxy_label": "Bag omvendt proxy",
-  "config.server.bridge_address_hint": "Ekstern adresse til webhooks og callbacks. Lad stå tomt for automatisk registrering.",
-  "config.server.bridge_address_label": "Bridge-adresse",
   "config.server.cert_auto_notice": "Automatiske certifikater via Let's Encrypt. Kræver et offentligt tilgængeligt domæne og porte 80/443.",
   "config.server.cert_custom_notice": "Brug dine egne TLS certifikatfiler (PEM format). Du kan uploade dem nedenfor eller angive filstier.",
   "config.server.cert_file_label": "Certifikatfilsti",

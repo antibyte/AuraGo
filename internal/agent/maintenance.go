@@ -364,7 +364,6 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 		PlannerDB:        plannerDB,
 		IsMaintenance:    true,
 		MessageSource:    "maintenance",
-		SurgeryPlan:      "",
 	}
 
 	resp, err := ExecuteAgentLoop(agentCtx, req, runCfg, false, broker)

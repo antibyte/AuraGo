@@ -314,10 +314,10 @@ _download_release_bin() {
 
 select_release_bins_for_arch() {
     if [ "$GOARCH" = "arm64" ]; then
-        REQUIRED_BINS=("aurago_linux_arm64" "lifeboat_linux_arm64" "config-merger_linux_arm64")
+        REQUIRED_BINS=("aurago_linux_arm64" "config-merger_linux_arm64")
         OPTIONAL_BINS=("aurago-remote_linux_arm64")
     elif [ "$GOARCH" = "amd64" ]; then
-        REQUIRED_BINS=("aurago_linux" "lifeboat_linux" "config-merger_linux")
+        REQUIRED_BINS=("aurago_linux" "config-merger_linux")
         OPTIONAL_BINS=("aurago-remote_linux")
     else
         die "No prebuilt release binaries for architecture ${ARCH_RAW}. Install Go 1.26.4+ to build from source."
@@ -690,7 +690,6 @@ if command -v systemctl >/dev/null 2>&1 && systemctl is-active --quiet aurago 2>
 fi
 # Always kill any remaining instances (covers manual starts, systemd restarts, etc.)
 _kill_proc "aurago"   "bin/aurago_linux" "bin/aurago"
-_kill_proc "lifeboat" "bin/lifeboat_linux" "bin/lifeboat"
 
 # ── Remove lock files left by killed processes ─────────────────────────
 info "Removing stale lock files..."
@@ -1283,13 +1282,6 @@ if $GO_FOUND; then
         abort_update "Failed to build required bin/aurago_linux. Update aborted."
     fi
 
-    info "Building lifeboat_linux ($GOARCH)..."
-    if CGO_ENABLED=0 GOOS=linux GOARCH="$GOARCH" go build -trimpath -ldflags='-s -w' -o bin/lifeboat_linux ./cmd/lifeboat; then
-        ok "bin/lifeboat_linux built from source"
-    else
-        warn "lifeboat build failed — using pre-built binary."
-    fi
-
     info "Building config-merger_linux ($GOARCH)..."
     if CGO_ENABLED=0 GOOS=linux GOARCH="$GOARCH" go build -trimpath -ldflags='-s -w' -o bin/config-merger_linux ./cmd/config-merger; then
         ok "bin/config-merger_linux built from source"
@@ -1366,7 +1358,6 @@ else
     # Ensure standard names exist (for arm64 → copy to non-suffixed names)
     if [ "$GOARCH" = "arm64" ]; then
         [ -f "$DIR/bin/aurago_linux_arm64" ]             && cp -p "$DIR/bin/aurago_linux_arm64"             "$DIR/bin/aurago_linux"
-        [ -f "$DIR/bin/lifeboat_linux_arm64" ]           && cp -p "$DIR/bin/lifeboat_linux_arm64"           "$DIR/bin/lifeboat_linux"
         [ -f "$DIR/bin/config-merger_linux_arm64" ]      && cp -p "$DIR/bin/config-merger_linux_arm64"      "$DIR/bin/config-merger_linux"
         [ -f "$DIR/bin/aurago-remote_linux_arm64" ]      && cp -p "$DIR/bin/aurago-remote_linux_arm64"      "$DIR/bin/aurago-remote_linux"
     fi
@@ -1394,9 +1385,6 @@ else
     [ -f "$DIR/bin/aurago_linux" ] || abort_update "Required AuraGo binary missing after update."
     ok "Main binary built successfully"
     printf '%s' "$RELEASE_TAG" > "$DIR/.version"
-
-    # Create lifeboat symlink
-    [ -f "$DIR/bin/lifeboat_linux" ] && cp -p "$DIR/bin/lifeboat_linux" "$DIR/bin/lifeboat" 2>/dev/null || true
 fi
 
 # Ensure known binaries and helper scripts are executable. Keep this list
@@ -1405,10 +1393,6 @@ for _exe in \
     "$DIR/bin/aurago_linux" \
     "$DIR/bin/aurago_linux_amd64" \
     "$DIR/bin/aurago_linux_arm64" \
-    "$DIR/bin/lifeboat" \
-    "$DIR/bin/lifeboat_linux" \
-    "$DIR/bin/lifeboat_linux_amd64" \
-    "$DIR/bin/lifeboat_linux_arm64" \
     "$DIR/bin/config-merger_linux" \
     "$DIR/bin/config-merger_linux_amd64" \
     "$DIR/bin/config-merger_linux_arm64" \

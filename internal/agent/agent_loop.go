@@ -173,7 +173,6 @@ func (s *agentLoopState) makeDispatchContext(currentLogger *slog.Logger) *Dispat
 		RemoteHub:           s.runCfg.RemoteHub,
 		HistoryMgr:          s.runCfg.HistoryManager,
 		IsMaintenance:       s.runCfg.IsMaintenance || tools.IsBusy(),
-		SurgeryPlan:         s.runCfg.SurgeryPlan,
 		Guardian:            s.guardian,
 		LLMGuardian:         s.llmGuardian,
 		SessionID:           s.runCfg.SessionID,
@@ -328,10 +327,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}, nil
 		}
 
-		// Revive logic: If idle in lifeboat for too long, poke the agent
+		// Revive logic: If idle in maintenance for too long, poke the agent.
 		if isMaintenance && time.Since(lastActivity) > time.Duration(cfg.CircuitBreaker.MaintenanceTimeoutMinutes)*time.Minute {
-			s.currentLogger.Warn("[Sync] Lifeboat idle for too long, injecting revive prompt", "minutes", cfg.CircuitBreaker.MaintenanceTimeoutMinutes)
-			reviveMsg := "You are idle in the lifeboat. finish your tasks or change back to the supervisor."
+			s.currentLogger.Warn("[Sync] Maintenance idle for too long, injecting revive prompt", "minutes", cfg.CircuitBreaker.MaintenanceTimeoutMinutes)
+			reviveMsg := "You are idle in maintenance mode. Finish your tasks or return to the standard supervisor flow."
 			req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: reviveMsg})
 			lastActivity = time.Now() // Reset timer
 		}
@@ -342,7 +341,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 		// Caching the logger to avoid opening file on every iteration (leaking FDs)
 		if isMaintenance && s.currentLogger == nil {
-			logPath := filepath.Join(cfg.Logging.LogDir, "lifeboat.log")
+			logPath := filepath.Join(cfg.Logging.LogDir, "maintenance.log")
 			if l, err := loggerPkg.SetupWithFile(true, logPath, true); err == nil {
 				s.currentLogger = l.Logger
 			}

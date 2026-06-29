@@ -172,7 +172,7 @@
   "config.section.llm_guardian.label": "LLMガーディアン",
   "config.section.logging.desc": "ログ設定",
   "config.section.logging.label": "ログ",
-  "config.section.maintenance.desc": "メンテナンスモードとライフボート",
+  "config.section.maintenance.desc": "メンテナンスモードとスケジュール済みタスク",
   "config.section.maintenance.label": "メンテナンス",
   "config.section.mcp.desc": "Model Context Protocol — 外部ツールサーバーの管理",
   "config.section.mcp.label": "MCP ツール",

@@ -32,11 +32,6 @@ if ! go build -o bin/aurago ./cmd/aurago; then
     exit 1
 fi
 
-if ! go build -o bin/lifeboat ./cmd/lifeboat; then
-    echo "Build of lifeboat failed!"
-    exit 1
-fi
-
 # Auto-load master key from .env if not already set in environment
 if [ -z "${AURAGO_MASTER_KEY:-}" ] && [ -f "$(dirname "$0")/.env" ]; then
     source "$(dirname "$0")/.env"

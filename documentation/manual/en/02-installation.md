@@ -122,7 +122,7 @@ cd AuraGo
 # Build
 go build -o aurago cmd/aurago/main.go
 
-# Or with lifeboat (for self-updates)
+# Or build release artifacts
 ./make_deploy.sh  # Linux/macOS
 # or
 make_deploy.bat   # Windows

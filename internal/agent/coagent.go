@@ -301,7 +301,6 @@ func SpawnCoAgent(
 			IsMaintenance:     false,
 			IsCoAgent:         true,
 			CoAgentSpecialist: req.Specialist,
-			SurgeryPlan:       "",
 		}
 
 		maxRetries := cfg.CoAgents.RetryPolicy.MaxRetries

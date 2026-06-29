@@ -62,11 +62,6 @@ func TestBuildSystemPromptCacheKey_DifferentFlags(t *testing.T) {
 			wantNewKey: true,
 		},
 		{
-			name:       "SurgeryPlan changes cache key",
-			modify:     func(f *prompts.ContextFlags) { f.IsMaintenanceMode = true; f.SurgeryPlan = "restart service safely" },
-			wantNewKey: true,
-		},
-		{
 			name:       "SpecialistsSuggestion changes cache key",
 			modify:     func(f *prompts.ContextFlags) { f.SpecialistsSuggestion = "Delegate frontend audit" },
 			wantNewKey: true,
@@ -124,11 +119,6 @@ func TestBuildSystemPromptCacheKey_DifferentFlags(t *testing.T) {
 		{
 			name:       "DaemonSkillsIntent changes cache key",
 			modify:     func(f *prompts.ContextFlags) { f.DaemonSkillsIntent = true },
-			wantNewKey: true,
-		},
-		{
-			name:       "LifeboatIntent changes cache key",
-			modify:     func(f *prompts.ContextFlags) { f.LifeboatIntent = true },
 			wantNewKey: true,
 		},
 		{

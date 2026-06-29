@@ -380,11 +380,11 @@ func TestConfigPhase3MediaGenerationModules(t *testing.T) {
 	t.Parallel()
 
 	specs := []struct {
-		file       string
-		testAPI    string
-		testFn     string
-		resultID   string
-		wantGrid   bool
+		file     string
+		testAPI  string
+		testFn   string
+		resultID string
+		wantGrid bool
 	}{
 		{"cfg/image_generation.js", "/api/image-generation/test", "imggenTestConnection", "imggen-test-result", true},
 		{"cfg/music_generation.js", "/api/music-generation/test", "musicTestConnection", "music-test-result", true},
@@ -697,8 +697,8 @@ func TestConfigManifestDograhAvoidEmbeddedFallbackTables(t *testing.T) {
 	t.Parallel()
 
 	for _, spec := range []struct {
-		file       string
-		forbidden  string
+		file      string
+		forbidden string
 	}{
 		{"cfg/manifest.js", "manifestFallbackText"},
 		{"cfg/dograh.js", "dograhFallbackText"},
@@ -832,8 +832,6 @@ func TestConfigMaintenanceHelpTextComplete(t *testing.T) {
 	keys := []string{
 		"help.maintenance.enabled",
 		"help.maintenance.time",
-		"help.maintenance.lifeboat_enabled",
-		"help.maintenance.lifeboat_port",
 		"help.maintenance.retention.patterns_days",
 		"help.maintenance.retention.archive_events_days",
 		"help.maintenance.retention.mood_log_days",
@@ -971,4 +969,3 @@ func TestSetupSuccessConfigDeepLinksMarkers(t *testing.T) {
 		}
 	}
 }
-

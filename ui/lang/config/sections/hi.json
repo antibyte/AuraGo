@@ -172,7 +172,7 @@
   "config.section.llm_guardian.label": "LLM गार्जियन",
   "config.section.logging.desc": "लॉग सेटिंग्स",
   "config.section.logging.label": "लॉगिंग",
-  "config.section.maintenance.desc": "रखरखाव मोड और जीवनरक्षक नौका",
+  "config.section.maintenance.desc": "रखरखाव मोड और निर्धारित कार्य",
   "config.section.maintenance.label": "रखरखाव",
   "config.section.mcp.desc": "मॉडल संदर्भ प्रोटोकॉल - बाहरी टूल सर्वर प्रबंधित करें",
   "config.section.mcp.label": "एमसीपी सर्वर",

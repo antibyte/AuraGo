@@ -3,7 +3,7 @@
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-echo "Stopping AuraGo and Lifeboat..."
+echo "Stopping AuraGo..."
 
 _kill_wait() {
     local label="$1"; shift
@@ -45,14 +45,12 @@ _kill_wait() {
 }
 
 _kill_wait "aurago"   "bin/aurago_linux" "bin/aurago"
-_kill_wait "lifeboat" "bin/lifeboat_linux" "bin/lifeboat"
 
 # Remove all known lock files
 for lockfile in \
     "$DIR/data/aurago.lock" \
     "$DIR/data/maintenance.lock" \
-    "$DIR/aurago.lock" \
-    "$DIR/lifeboat.lock"
+    "$DIR/aurago.lock"
 do
     if [ -f "$lockfile" ]; then
         rm -f "$lockfile"

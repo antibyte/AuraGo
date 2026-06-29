@@ -25,8 +25,6 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
     go build -trimpath -ldflags="-s -w" -o /aurago ./cmd/aurago
 RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
-    go build -trimpath -ldflags="-s -w" -o /lifeboat ./cmd/lifeboat
-RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
     go build -trimpath -ldflags="-s -w" -o /config-merger ./cmd/config-merger
 RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
     go build -trimpath -ldflags="-s -w" -o /aurago-remote ./cmd/remote
@@ -62,7 +60,6 @@ WORKDIR /app
 
 # Binaries from builder stage
 COPY --from=builder /aurago /app/aurago
-COPY --from=builder /lifeboat /app/lifeboat
 COPY --from=builder /config-merger /app/config-merger
 COPY --from=builder /aurago-remote /app/aurago-remote
 COPY --from=builder /deploy /app/deploy

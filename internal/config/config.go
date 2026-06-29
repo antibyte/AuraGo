@@ -1154,9 +1154,6 @@ func Load(path string) (*Config, error) {
 	if cfg.Agent.StepDelaySeconds < 0 {
 		cfg.Agent.StepDelaySeconds = 0
 	}
-	if cfg.Maintenance.LifeboatPort <= 0 {
-		cfg.Maintenance.LifeboatPort = 8091
-	}
 	if !yamlHasPath(data, "maintenance", "enabled") {
 		cfg.Maintenance.Enabled = true
 	}
@@ -1569,9 +1566,6 @@ func Load(path string) (*Config, error) {
 	}
 
 	// Server defaults
-	if cfg.Server.BridgeAddress == "" {
-		cfg.Server.BridgeAddress = "localhost:8089"
-	}
 	if cfg.Server.MaxBodyBytes <= 0 {
 		cfg.Server.MaxBodyBytes = 10 << 20 // 10 MB
 	}

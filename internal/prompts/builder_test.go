@@ -44,7 +44,6 @@ func TestBalancedCorePromptModulesStayCompact(t *testing.T) {
 		"ctx_capability_creation.md": 2400,
 		"ctx_daemon_skills.md":       1400,
 		"ctx_personality_state.md":   450,
-		"lifeboat.md":                1200,
 	}
 
 	for filename, limit := range limits {
@@ -97,14 +96,14 @@ func TestAggressiveCoreSystemPromptStaysUnderBudget(t *testing.T) {
 	}
 }
 
-func TestBuildSystemPromptGatesCapabilityDaemonAndLifeboatModules(t *testing.T) {
+func TestBuildSystemPromptGatesCapabilityAndDaemonModules(t *testing.T) {
 	basePrompt, _ := BuildSystemPromptContext(context.Background(), t.TempDir(), &ContextFlags{
 		Tier:               "full",
 		SystemLanguage:     "en",
 		TokenBudget:        200000,
 		NativeToolsEnabled: true,
 	}, "", slog.Default())
-	for _, blocked := range []string{"# CREATING NEW CAPABILITIES", "# DAEMON SKILLS", "# LIFEBOAT HANDOVER"} {
+	for _, blocked := range []string{"# CREATING NEW CAPABILITIES", "# DAEMON SKILLS"} {
 		if strings.Contains(basePrompt, blocked) {
 			t.Fatalf("base prompt unexpectedly contains %s", blocked)
 		}
@@ -130,17 +129,6 @@ func TestBuildSystemPromptGatesCapabilityDaemonAndLifeboatModules(t *testing.T) 
 	}, "", slog.Default())
 	if !strings.Contains(daemonPrompt, "# DAEMON SKILLS") {
 		t.Fatal("daemon skills intent did not load daemon module")
-	}
-
-	lifeboatPrompt, _ := BuildSystemPromptContext(context.Background(), t.TempDir(), &ContextFlags{
-		Tier:               "full",
-		SystemLanguage:     "en",
-		TokenBudget:        200000,
-		NativeToolsEnabled: true,
-		IsMaintenanceMode:  true,
-	}, "", slog.Default())
-	if !strings.Contains(lifeboatPrompt, "# LIFEBOAT HANDOVER") {
-		t.Fatal("maintenance mode did not load lifeboat module")
 	}
 }
 
@@ -2108,8 +2096,6 @@ func TestPromptConditionsCoverEmbeddedFrontmatter(t *testing.T) {
 		"is_docker":                  func() *ContextFlags { return &ContextFlags{IsDocker: true} },
 		"is_error":                   func() *ContextFlags { return &ContextFlags{IsErrorState: true} },
 		"koofr_enabled":              func() *ContextFlags { return &ContextFlags{KoofrEnabled: true} },
-		"lifeboat":                   func() *ContextFlags { return &ContextFlags{LifeboatEnabled: true} },
-		"lifeboat_intent":            func() *ContextFlags { return &ContextFlags{LifeboatIntent: true} },
 		"capability_creation_intent": func() *ContextFlags { return &ContextFlags{CapabilityCreationIntent: true} },
 		"daemon_skills_intent":       func() *ContextFlags { return &ContextFlags{DaemonSkillsIntent: true} },
 		"main_agent":                 func() *ContextFlags { return &ContextFlags{} },

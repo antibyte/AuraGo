@@ -37,10 +37,6 @@ type toolManualArgs struct {
 	ToolName string
 }
 
-type lifeboatHandoverArgs struct {
-	TaskPrompt string
-}
-
 type systemMetricsArgs struct {
 	Target string
 }
@@ -236,12 +232,6 @@ func decodeWaitForEventArgs(tc ToolCall) waitForEventArgs {
 func decodeToolManualArgs(tc ToolCall) toolManualArgs {
 	return toolManualArgs{
 		ToolName: firstNonEmptyToolString(tc.ToolName, tc.Name, toolArgString(tc.Params, "tool_name", "name")),
-	}
-}
-
-func decodeLifeboatHandoverArgs(tc ToolCall) lifeboatHandoverArgs {
-	return lifeboatHandoverArgs{
-		TaskPrompt: firstNonEmptyToolString(tc.TaskPrompt, tc.Content, toolArgString(tc.Params, "task_prompt", "content", "prompt")),
 	}
 }
 

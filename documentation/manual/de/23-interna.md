@@ -135,7 +135,6 @@ sequenceDiagram
 | `-init-only` | Password/HTTPS in Config/Vault setzen, dann beenden |
 | `-check-config` | Config-Syntax validieren (für Docker-Entrypoint) |
 | `-config <pfad>` | Pfad zur Config-Datei (Standard: `config.yaml`) |
-| `-recovery-context` | Base64-Kontext nach Wartung |
 | `-https` | HTTPS (Let's Encrypt) aktivieren |
 | `-domain` | Domain für Let's Encrypt |
 | `-password` | Initiales Login-Passwort setzen |

@@ -40,8 +40,6 @@
   "config.security_proxy.status_loading": "読み込み中…",
   "config.security_proxy.status_unknown": "不明なステータス",
   "config.server.behind_proxy_label": "リバースプロキシの背後",
-  "config.server.bridge_address_hint": "Webhook とコールバック用の外部アドレス。空欄で自動検出。",
-  "config.server.bridge_address_label": "ブリッジアドレス",
   "config.server.cert_auto_notice": "Let's Encrypt による自動証明書。公開到達可能なドメインとポート 80/443 が必要です。",
   "config.server.cert_custom_notice": "独自の TLS 証明書ファイル（PEM 形式）を使用します。下からアップロードするか、ファイルパスを指定してください。",
   "config.server.cert_file_label": "証明書ファイルパス",

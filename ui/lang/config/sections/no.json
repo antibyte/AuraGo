@@ -172,7 +172,7 @@
   "config.section.llm_guardian.label": "LLM-vokter",
   "config.section.logging.desc": "Logginnstillinger",
   "config.section.logging.label": "Logging",
-  "config.section.maintenance.desc": "Vedlikeholdsmodus og livbåt",
+  "config.section.maintenance.desc": "Vedlikeholdsmodus og planlagte oppgaver",
   "config.section.maintenance.label": "Vedlikehold",
   "config.section.mcp.desc": "Model Context Protocol — administrer eksterne verktøyservere",
   "config.section.mcp.label": "MCP-servere",

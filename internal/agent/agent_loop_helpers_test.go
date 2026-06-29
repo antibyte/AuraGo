@@ -423,7 +423,6 @@ func TestRuntimePromptContextIgnoresReasoningForIntentGates(t *testing.T) {
 func TestApplyRuntimePromptContextPolicySetsIntentFlagsAndGatesInternetWarning(t *testing.T) {
 	flags := &prompts.ContextFlags{
 		InternetExposed: true,
-		LifeboatEnabled: true,
 	}
 	applyRuntimePromptContextPolicy(flags, runtimePromptContextOptions{
 		UserText: "erstelle einen Python Skill",
@@ -441,14 +440,6 @@ func TestApplyRuntimePromptContextPolicySetsIntentFlagsAndGatesInternetWarning(t
 	})
 	if !flags.InternetExposed {
 		t.Fatal("network/deployment intent should keep internet exposure warning")
-	}
-
-	flags = &prompts.ContextFlags{LifeboatEnabled: true}
-	applyRuntimePromptContextPolicy(flags, runtimePromptContextOptions{
-		UserText: "initiate lifeboat handover",
-	})
-	if !flags.LifeboatIntent {
-		t.Fatal("expected lifeboat intent flag")
 	}
 }
 

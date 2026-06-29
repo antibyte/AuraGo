@@ -39,7 +39,6 @@ type systemPromptCacheKey struct {
 	CorePersonality          string   `json:"core_personality"`
 	AdditionalPrompt         string   `json:"additional_prompt"`
 	InnerVoice               string   `json:"inner_voice"`
-	SurgeryPlan              string   `json:"surgery_plan"`
 	PredictedGuidesHash      string   `json:"predicted_guides_hash"`
 	HighPriorityNotes        string   `json:"high_priority_notes"`
 	AgentSkillsCatalog       string   `json:"agent_skills_catalog"`
@@ -73,7 +72,6 @@ type systemPromptCacheKey struct {
 	SkillsDir                string   `json:"skills_dir"`
 	CapabilityCreationIntent bool     `json:"capability_creation_intent"`
 	DaemonSkillsIntent       bool     `json:"daemon_skills_intent"`
-	LifeboatIntent           bool     `json:"lifeboat_intent"`
 	Model                    string   `json:"model"`
 	IsTextModeModel          bool     `json:"is_text_mode_model"`
 	PersonalityLine          string   `json:"personality_line"`
@@ -117,7 +115,6 @@ func buildSystemPromptCacheKey(promptsDir string, flags *prompts.ContextFlags, c
 		CorePersonality:          flags.CorePersonality,
 		AdditionalPrompt:         flags.AdditionalPrompt,
 		InnerVoice:               flags.InnerVoice,
-		SurgeryPlan:              flags.SurgeryPlan,
 		PredictedGuidesHash:      predictedGuidesHash,
 		HighPriorityNotes:        flags.HighPriorityNotes,
 		AgentSkillsCatalog:       flags.AgentSkillsCatalog,
@@ -151,7 +148,6 @@ func buildSystemPromptCacheKey(promptsDir string, flags *prompts.ContextFlags, c
 		SkillsDir:                flags.SkillsDir,
 		CapabilityCreationIntent: flags.CapabilityCreationIntent,
 		DaemonSkillsIntent:       flags.DaemonSkillsIntent,
-		LifeboatIntent:           flags.LifeboatIntent,
 		Model:                    flags.Model,
 		IsTextModeModel:          flags.IsTextModeModel,
 		PersonalityLine:          flags.PersonalityLine,
@@ -571,12 +567,6 @@ func collectFeatureToggles(flags *prompts.ContextFlags) []string {
 	}
 	if flags.IsMaintenanceMode {
 		toggles = append(toggles, "maintenance_mode")
-	}
-	if flags.LifeboatEnabled {
-		toggles = append(toggles, "lifeboat")
-	}
-	if flags.LifeboatIntent {
-		toggles = append(toggles, "lifeboat_intent")
 	}
 	if flags.CapabilityCreationIntent {
 		toggles = append(toggles, "capability_creation_intent")

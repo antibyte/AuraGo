@@ -213,8 +213,6 @@ Scheduled nightly agent run for housekeeping. The agent loads `agent_workspace/p
 |---|---|---|
 | `enabled` | `true` | Enable the nightly maintenance loop. |
 | `time` | `"04:00"` | Time to run in `HH:MM` (24h, local system time). |
-| `lifeboat_enabled` | `true` | Allow the agent to trigger self-modification (code surgery) via the lifeboat binary. **Use with caution.** |
-| `lifeboat_port` | `8091` | Internal TCP port used for lifeboat ↔ aurago communication. |
 
 While nightly maintenance runs, user chats are briefly treated as maintenance via the global busy lock. The dashboard shows this as `busy`.
 

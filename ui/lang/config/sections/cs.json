@@ -172,7 +172,7 @@
   "config.section.llm_guardian.label": "LLM Strážce",
   "config.section.logging.desc": "Nastaveni logovani",
   "config.section.logging.label": "Logovani",
-  "config.section.maintenance.desc": "Udrzbove ukoly",
+  "config.section.maintenance.desc": "Údržbové úlohy",
   "config.section.maintenance.label": "Udrzba",
   "config.section.mcp.desc": "Model Context Protocol",
   "config.section.mcp.label": "MCP",

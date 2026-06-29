@@ -1411,11 +1411,6 @@ function buildTrustLevelPatch(level) {
         remote_control:   { readonly: n <= 2 },
     };
 
-    // Level 4: enable lifeboat self-update
-    if (n >= 4) {
-        patch.maintenance = { lifeboat_enabled: true };
-    }
-
     return patch;
 }
 

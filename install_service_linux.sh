@@ -89,8 +89,8 @@ if [[ ! -f "$BINARY_PATH" ]]; then
     error "AuraGo binary not found at ${BINARY_PATH}. Please run make_deploy.sh first (if building from source) or check your installation."
 fi
 
-# Ensure binaries are executable (Windows git push often loses the +x bit)
-chmod +x "$BINARY_PATH" "${INSTALL_DIR}/bin/lifeboat_linux" 2>/dev/null || true
+# Ensure the binary is executable (Windows git push often loses the +x bit)
+chmod +x "$BINARY_PATH" 2>/dev/null || true
 ok "Binary permissions verified."
 
 # Grant CAP_NET_BIND_SERVICE so AuraGo can bind ports 80/443 as a non-root user.

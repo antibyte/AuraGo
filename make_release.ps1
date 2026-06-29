@@ -191,7 +191,6 @@ Write-Host "  Linux amd64..." -ForegroundColor Cyan
 $env:GOOS = "linux"
 $env:GOARCH = "amd64"
 Build-Binary -Output "bin\aurago_linux" -Target "./cmd/aurago/"
-Build-Binary -Output "bin\lifeboat_linux" -Target "./cmd/lifeboat/"
 Build-Binary -Output "bin\config-merger_linux" -Target "./cmd/config-merger/"
 Build-Binary -Output "bin\aurago-remote_linux" -Target "./cmd/remote/"
 # ── Linux arm64 ──
@@ -199,7 +198,6 @@ Write-Host "  Linux arm64..." -ForegroundColor Cyan
 $env:GOOS = "linux"
 $env:GOARCH = "arm64"
 Build-Binary -Output "bin\aurago_linux_arm64" -Target "./cmd/aurago/"
-Build-Binary -Output "bin\lifeboat_linux_arm64" -Target "./cmd/lifeboat/"
 Build-Binary -Output "bin\config-merger_linux_arm64" -Target "./cmd/config-merger/"
 Build-Binary -Output "bin\aurago-remote_linux_arm64" -Target "./cmd/remote/"
 
@@ -257,8 +255,6 @@ $checksumFiles = @(
     "deploy\update.sh",
     "bin\aurago_linux",
     "bin\aurago_linux_arm64",
-    "bin\lifeboat_linux",
-    "bin\lifeboat_linux_arm64",
     "bin\config-merger_linux",
     "bin\config-merger_linux_arm64",
     "bin\aurago-remote_linux",
@@ -318,8 +314,6 @@ $assetPaths = @(
     "deploy\SHA256SUMS.pem",
     "bin\aurago_linux",
     "bin\aurago_linux_arm64",
-    "bin\lifeboat_linux",
-    "bin\lifeboat_linux_arm64",
     "bin\config-merger_linux",
     "bin\config-merger_linux_arm64",
     "bin\aurago-remote_linux",
@@ -359,7 +353,7 @@ curl -fsSL https://raw.githubusercontent.com/antibyte/AuraGo/main/install.sh | b
 ```
 
 ### Included binaries
-- Linux amd64 / arm64 (main, lifeboat, config-merger, aurago-remote)
+- Linux amd64 / arm64 (main, config-merger, aurago-remote)
 - macOS amd64 / arm64 (Apple Silicon)
 - Windows x64 / arm64
 '@

@@ -1099,7 +1099,6 @@ type RunConfig struct {
 	IsCoAgent          bool
 	CoAgentSpecialist  string
 	ParentSessionID    string
-	SurgeryPlan        string
 	IsMission          bool   // true when triggered by a mission (skips RAG, personality, profiling)
 	MissionID          string // mission ID for logging/tracking
 	MessageSource      string // origin channel: "web_chat", "telegram", "discord", "a2a", "sms", "mission"

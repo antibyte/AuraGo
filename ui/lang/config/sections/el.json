@@ -172,7 +172,7 @@
   "config.section.llm_guardian.label": "Φύλακας LLM",
   "config.section.logging.desc": "Ρυθμίσεις καταγραφής",
   "config.section.logging.label": "Logování",
-  "config.section.maintenance.desc": "Λειτουργία συντήρησης και σωσίβια λέμβος",
+  "config.section.maintenance.desc": "Λειτουργία συντήρησης και προγραμματισμένες εργασίες",
   "config.section.maintenance.label": "Συντήρηση",
   "config.section.mcp.desc": "Model Context Protocol — διαχείριση εξωτερικών διακομιστών εργαλείων",
   "config.section.mcp.label": "Διακομιστές MCP",

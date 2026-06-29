@@ -22,7 +22,6 @@ import (
 	"syscall"
 	"time"
 
-	"aurago/internal/agent"
 	"aurago/internal/config"
 	"aurago/internal/contacts"
 	"aurago/internal/credentials"
@@ -86,7 +85,6 @@ func main() {
 	var initOnly bool
 	var checkConfig bool
 	var configFile string
-	var recoveryContext string
 	var enableHTTPS bool
 	var httpsDomain string
 	var httpsEmail string
@@ -97,7 +95,6 @@ func main() {
 	flag.BoolVar(&initOnly, "init-only", false, "Apply -password/-password-file/-https flags to config/vault, then exit immediately (used by installer)")
 	flag.BoolVar(&checkConfig, "check-config", false, "Validate config file syntax and exit (used by Docker entrypoint)")
 	flag.StringVar(&configFile, "config", "config.yaml", "Path to config file (default: config.yaml)")
-	flag.StringVar(&recoveryContext, "recovery-context", "", "Recovery context after maintenance (Base64)")
 	flag.BoolVar(&enableHTTPS, "https", false, "Enable HTTPS (Let's Encrypt) and update config")
 	flag.StringVar(&httpsDomain, "domain", "", "Domain for Let's Encrypt")
 	flag.StringVar(&httpsEmail, "email", "", "Email for Let's Encrypt")
@@ -902,26 +899,6 @@ func main() {
 		appLog.Info("KG semantic search skipped (embeddings disabled)")
 	}
 
-	// Handle Recovery Context
-	if recoveryContext != "" {
-		decoded, err := base64.StdEncoding.DecodeString(recoveryContext)
-		if err != nil {
-			appLog.Error("Failed to decode recovery context", "error", err)
-		} else {
-			msg := fmt.Sprintf("SYSTEM: Neustart nach Wartung abgeschlossen. Zusammenfassung der Aenderungen: %s. Setze deinen Plan fort.", string(decoded))
-			mid, err := shortTermMem.InsertMessage("default", "system", msg, false, false)
-			if agent.ShouldAppendHistoryMessage(mid, err) {
-				historyManager.Add("system", msg, mid, false, false)
-			}
-			appLog.Info("Recovery context injected into history")
-		}
-	}
-
-	// Start Lifeboat Sidecar if enabled
-	if cfg.Maintenance.LifeboatEnabled {
-		startLifeboatSidecar(appLog, cfg, loopbackToken)
-	}
-
 	// -- Egg Mode: start WebSocket client to master ------------------------
 	var eggMissionResultSink func(result bridge.MissionResultPayload) error
 	if cfg.EggMode.Enabled {
@@ -1261,70 +1238,4 @@ func findLegacyVaultPath(configPath, currentDataDir string) string {
 		return legacyVaultPath
 	}
 	return ""
-}
-
-func startLifeboatSidecar(log *slog.Logger, cfg *config.Config, bridgeToken string) {
-	// Candidate paths in priority order:
-	//   1. ./lifeboat         " Docker image layout (/app/lifeboat next to /app/aurago)
-	//   2. ./bin/lifeboat     " native Linux install via install.sh
-	//   3. ./bin/lifeboat_linux " pre-built binary distributed in the repo
-	//   4. ./bin/lifeboat.exe " Windows
-	var lifeboatPath string
-	if runtime.GOOS == "windows" {
-		lifeboatPath = "./bin/lifeboat.exe"
-	} else {
-		candidates := []string{"./lifeboat", "./bin/lifeboat", "./bin/lifeboat_linux"}
-		for _, c := range candidates {
-			if _, err := os.Stat(c); err == nil {
-				lifeboatPath = c
-				break
-			}
-		}
-		if lifeboatPath == "" {
-			lifeboatPath = "./bin/lifeboat_linux" // use last candidate for the warning message
-		}
-	}
-
-	if _, err := os.Stat(lifeboatPath); os.IsNotExist(err) {
-		log.Warn("Lifeboat binary not found, sidecar not started", "path", lifeboatPath)
-		return
-	}
-
-	log.Info("Starting Lifeboat Sidecar...", "path", lifeboatPath)
-
-	planPath := filepath.Join(cfg.Directories.DataDir, "current_plan.md")
-	statePath := filepath.Join(cfg.Directories.DataDir, "state.json")
-	if strings.TrimSpace(bridgeToken) == "" {
-		log.Error("Lifeboat sidecar not started because bridge token is empty")
-		return
-	}
-	if err := os.MkdirAll(cfg.Directories.DataDir, 0o755); err != nil {
-		log.Error("Failed to create data directory for Lifeboat token", "error", err)
-		return
-	}
-	tokenPath := tools.LifeboatTokenPath(cfg)
-
-	cmd := exec.Command(lifeboatPath, "--state", statePath, "--plan", planPath, "--sidecar")
-	// Pass the bridge authentication token via environment variable so lifeboat
-	// can authenticate itself when sending commands over the TCP bridge.
-	cmd.Env = append(sandbox.FilterEnv(os.Environ()), "AURAGO_BRIDGE_TOKEN="+bridgeToken)
-
-	// Platform specific detachment
-	attachDetachedAttributes(cmd)
-
-	if err := cmd.Start(); err != nil {
-		log.Error("Failed to start Lifeboat Sidecar", "error", err)
-	} else {
-		if err := os.WriteFile(tokenPath, []byte(bridgeToken), 0o600); err != nil {
-			log.Error("Failed to write Lifeboat token", "error", err)
-			_ = cmd.Process.Kill()
-			return
-		}
-		if err := os.Chmod(tokenPath, 0o600); err != nil {
-			log.Error("Failed to protect Lifeboat token", "error", err)
-			_ = cmd.Process.Kill()
-			return
-		}
-		log.Info("Lifeboat Sidecar started", "pid", cmd.Process.Pid)
-	}
 }

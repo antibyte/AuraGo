@@ -1726,7 +1726,6 @@ func applyRuntimePromptContextPolicy(flags *prompts.ContextFlags, opts runtimePr
 	}
 	flags.CapabilityCreationIntent = flags.CapabilityCreationIntent || shouldInjectCapabilityCreationPrompt(opts.UserText, opts.RecentTools, opts.SessionUsedTools)
 	flags.DaemonSkillsIntent = flags.DaemonSkillsIntent || shouldInjectDaemonSkillsPrompt(opts.UserText, opts.RecentTools, opts.SessionUsedTools)
-	flags.LifeboatIntent = flags.LifeboatIntent || flags.IsMaintenanceMode || (flags.LifeboatEnabled && shouldInjectLifeboatPrompt(opts.UserText, opts.RecentTools, opts.SessionUsedTools))
 	if flags.InternetExposed && !shouldInjectInternetExposureWarning(opts.UserText, opts.RecentTools, opts.SessionUsedTools, flags) {
 		flags.InternetExposed = false
 	}
@@ -1791,29 +1790,6 @@ func shouldInjectDaemonSkillsPrompt(userText string, recentTools []string, sessi
 	}
 	for tool := range sessionUsed {
 		if isDaemonSkillTool(tool) {
-			return true
-		}
-	}
-	return false
-}
-
-func shouldInjectLifeboatPrompt(userText string, recentTools []string, sessionUsed map[string]bool) bool {
-	text := normalizeAdaptiveIntentText(userText)
-	cues := []string{
-		"lifeboat", "life boat", "rettungsboot", "maintenance handover",
-		"initiate_handover", "execute_surgery", "exit_lifeboat", "self update",
-		"self-update", "supervisor rebuild", "rebuild supervisor", "wartungsmodus",
-	}
-	if containsAnyRuntimeCue(text, cues) {
-		return true
-	}
-	for _, tool := range recentTools {
-		if isLifeboatTool(tool) {
-			return true
-		}
-	}
-	for tool := range sessionUsed {
-		if isLifeboatTool(tool) {
 			return true
 		}
 	}
@@ -1972,15 +1948,6 @@ func isDaemonSkillTool(name string) bool {
 		return false
 	}
 	return strings.Contains(name, "daemon") || strings.EqualFold(name, "manage_daemon")
-}
-
-func isLifeboatTool(name string) bool {
-	name = strings.ToLower(strings.TrimSpace(name))
-	if name == "" {
-		return false
-	}
-	cues := []string{"lifeboat", "initiate_handover", "execute_surgery", "exit_lifeboat", "optimize_memory"}
-	return containsAnyRuntimeCue(name, cues)
 }
 
 func isInternetExposureTool(name string) bool {

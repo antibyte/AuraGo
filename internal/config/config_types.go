@@ -554,7 +554,6 @@ type Config struct {
 	Server        struct {
 		Host                 string `yaml:"host"`
 		Port                 int    `yaml:"port"`
-		BridgeAddress        string `yaml:"bridge_address"`
 		MaxBodyBytes         int64  `yaml:"max_body_bytes"`
 		UILanguage           string `yaml:"ui_language"`
 		OAuthRedirectBaseURL string `yaml:"oauth_redirect_base_url"` // override for OAuth callback (e.g. http://localhost:8088)
@@ -870,11 +869,9 @@ type Config struct {
 		ErrorThreshold       int    `yaml:"error_threshold"`
 	} `yaml:"fallback_llm"`
 	Maintenance struct {
-		Enabled         bool   `yaml:"enabled"`
-		Time            string `yaml:"time"`
-		LifeboatEnabled bool   `yaml:"lifeboat_enabled"`
-		LifeboatPort    int    `yaml:"lifeboat_port"`
-		Retention       struct {
+		Enabled   bool   `yaml:"enabled"`
+		Time      string `yaml:"time"`
+		Retention struct {
 			PatternsDays          int `yaml:"patterns_days"`           // interaction patterns (default 90)
 			ArchiveEventsDays     int `yaml:"archive_events_days"`     // archive events (default 90)
 			MoodLogDays           int `yaml:"mood_log_days"`           // mood log entries (default 30)

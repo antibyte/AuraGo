@@ -152,8 +152,6 @@ logging:
 maintenance:
   enabled: true
   time: "04:00"
-  lifeboat_enabled: true
-  lifeboat_port: 8090
 
 telegram:
   bot_token: ""

@@ -71,7 +71,6 @@ yarn.lock
 /aurago_test_build2.exe~
 /tmp_aurago*
 /config-merger.exe
-/lifeboat.exe
 /remote.exe
 /gap_detector.exe
 *.exe

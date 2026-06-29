@@ -40,8 +40,6 @@
   "config.security_proxy.status_loading": "Φόρτωση…",
   "config.security_proxy.status_unknown": "Άγνωστη κατάσταση",
   "config.server.behind_proxy_label": "Πίσω από το Reverse Proxy",
-  "config.server.bridge_address_hint": "Εξωτερική διεύθυνση για webhooks και callbacks. Αφήστε κενό για αυτόματη ανίχνευση.",
-  "config.server.bridge_address_label": "Διεύθυνση bridge",
   "config.server.cert_auto_notice": "Αυτόματα πιστοποιητικά μέσω Let's Encrypt. Απαιτεί δημόσια προσβάσιμο domain και θύρες 80/443.",
   "config.server.cert_custom_notice": "Χρησιμοποιήστε τα δικά σας αρχεία πιστοποιητικών TLS (μορφή PEM). Μπορείτε να τα ανεβάσετε παρακάτω ή να καθορίσετε διαδρομές αρχείων.",
   "config.server.cert_file_label": "Διαδρομή αρχείου πιστοποιητικού",

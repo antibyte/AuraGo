@@ -40,8 +40,6 @@
   "config.security_proxy.status_loading": "Caricamento…",
   "config.security_proxy.status_unknown": "Stato sconosciuto",
   "config.server.behind_proxy_label": "Dietro reverse proxy",
-  "config.server.bridge_address_hint": "Indirizzo esterno per webhook e callback. Lasciare vuoto per il rilevamento automatico.",
-  "config.server.bridge_address_label": "Indirizzo bridge",
   "config.server.cert_auto_notice": "Certificati automatici tramite Let's Encrypt. Richiede un dominio raggiungibile pubblicamente e le porte 80/443.",
   "config.server.cert_custom_notice": "Usa i tuoi file certificato TLS (formato PEM). Puoi caricarli qui sotto o specificare i percorsi dei file.",
   "config.server.cert_file_label": "Percorso file certificato",

@@ -252,10 +252,6 @@ func matchPromptCondition(cond string, flags *ContextFlags) bool {
 		return flags.IsErrorState
 	case "requires_coding":
 		return flags.RequiresCoding
-	case "lifeboat":
-		return flags.LifeboatEnabled
-	case "lifeboat_intent":
-		return flags.LifeboatIntent
 	case "capability_creation_intent":
 		return flags.CapabilityCreationIntent
 	case "daemon_skills_intent":

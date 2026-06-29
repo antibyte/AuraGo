@@ -177,8 +177,7 @@ func GenerateEggConfig(masterCfg *config.Config, egg EggRecord, nest NestRecord,
 
 	// ── Maintenance ──
 	cfg["maintenance"] = map[string]interface{}{
-		"enabled":          false,
-		"lifeboat_enabled": false,
+		"enabled": false,
 	}
 
 	// ── EggMode (the critical section) ──

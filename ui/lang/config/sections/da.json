@@ -172,7 +172,7 @@
   "config.section.llm_guardian.label": "LLM-beskytter",
   "config.section.logging.desc": "Logindstillinger",
   "config.section.logging.label": "Logning",
-  "config.section.maintenance.desc": "Vedligeholdelsestilstand og redningsbåd",
+  "config.section.maintenance.desc": "Vedligeholdelsestilstand og planlagte opgaver",
   "config.section.maintenance.label": "Vedligeholdelse",
   "config.section.mcp.desc": "Model Context Protocol — administrer eksterne værktøjsservere",
   "config.section.mcp.label": "MCP-servere",

@@ -654,10 +654,6 @@ if $BUILD_FROM_SOURCE; then
     ok "bin/aurago_linux built."
 
     CGO_ENABLED=0 GOOS=linux GOARCH="$GOARCH" \
-        go build -trimpath -ldflags="-s -w" -o bin/lifeboat_linux ./cmd/lifeboat
-    ok "bin/lifeboat_linux built."
-
-    CGO_ENABLED=0 GOOS=linux GOARCH="$GOARCH" \
         go build -trimpath -ldflags="-s -w" -o bin/config-merger_linux ./cmd/config-merger
     ok "bin/config-merger_linux built."
 
@@ -721,17 +717,14 @@ else
     if [ "$GOARCH" = "arm64" ]; then
         info "Downloading arm64 binaries..."
         download_release_asset "aurago_linux_arm64"                "bin/aurago_linux_arm64"
-        download_release_asset "lifeboat_linux_arm64"              "bin/lifeboat_linux_arm64"              2>/dev/null || warn "lifeboat_linux_arm64 not in release."
         download_release_asset "config-merger_linux_arm64"         "bin/config-merger_linux_arm64"         2>/dev/null || warn "config-merger_linux_arm64 not in release."
         download_release_asset "aurago-remote_linux_arm64"         "bin/aurago-remote_linux_arm64"         2>/dev/null || warn "aurago-remote_linux_arm64 not in release."
         cp bin/aurago_linux_arm64           bin/aurago_linux
-        cp bin/lifeboat_linux_arm64         bin/lifeboat_linux             2>/dev/null || true
         cp bin/config-merger_linux_arm64    bin/config-merger_linux         2>/dev/null || true
         cp bin/aurago-remote_linux_arm64    bin/aurago-remote_linux         2>/dev/null || true
     else
         info "Downloading amd64 binaries..."
         download_release_asset "aurago_linux"                      "bin/aurago_linux"
-        download_release_asset "lifeboat_linux"                    "bin/lifeboat_linux"                    2>/dev/null || warn "lifeboat_linux not in release."
         download_release_asset "config-merger_linux"               "bin/config-merger_linux"               2>/dev/null || warn "config-merger_linux not in release."
         download_release_asset "aurago-remote_linux"               "bin/aurago-remote_linux"               2>/dev/null || warn "aurago-remote_linux not in release."
     fi
@@ -740,7 +733,7 @@ else
     ok "Binaries downloaded."
 fi
 
-chmod +x bin/aurago_linux bin/lifeboat_linux bin/config-merger_linux bin/aurago-remote_linux 2>/dev/null || true
+chmod +x bin/aurago_linux bin/config-merger_linux bin/aurago-remote_linux 2>/dev/null || true
 ok "Binaries ready."
 
 if ! $BUILD_FROM_SOURCE; then

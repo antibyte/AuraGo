@@ -27,12 +27,6 @@ async function renderServerSection(section) {
     </div>`;
 
     html += `<div class="field-group">
-        <div class="field-label">${t('config.server.bridge_address_label')}</div>
-        <div class="field-help">${t('config.server.bridge_address_hint')}</div>
-        <input type="text" class="field-input" data-path="server.bridge_address" value="${escapeAttr(cfg.bridge_address || '')}" placeholder="">
-    </div>`;
-
-    html += `<div class="field-group">
         <div class="field-label">${t('config.server.ui_language_label')}</div>
         <select class="field-select" data-path="server.ui_language">
             ${['de','en','es','fr','it','pt','nl','pl','zh','ja','hi','da','sv','no','cs','el'].map(l =>

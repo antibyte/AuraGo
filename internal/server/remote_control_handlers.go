@@ -530,16 +530,6 @@ func remoteDownloadSupervisorURL(s *Server, r *http.Request) (string, error) {
 }
 
 func autoRemoteDownloadSupervisorURL(s *Server, r *http.Request) string {
-	// Priority: explicit bridge_address (non-localhost) > Host header > localhost fallback.
-	// We skip bridge_address when it points to localhost/127.0.0.1 because that value
-	// is used for the lifeboat IPC TCP bridge — it is meaningless for remote clients.
-	bridgeAddr := s.Cfg.Server.BridgeAddress
-	bridgeIsLocal := bridgeAddr == "" ||
-		strings.HasPrefix(bridgeAddr, "localhost:") ||
-		strings.HasPrefix(bridgeAddr, "127.0.0.1:")
-	if !bridgeIsLocal {
-		return fmt.Sprintf("ws://%s/api/remote/ws", bridgeAddr)
-	}
 	if host := r.Host; host != "" {
 		// r.Host contains the hostname (and port) the client used to reach this server.
 		// Strip any existing port and re-attach the configured server port so the

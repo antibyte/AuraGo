@@ -179,7 +179,6 @@ The `server` section controls the web interface and API endpoints.
 server:
     host: 127.0.0.1         # Bind address (127.0.0.1 = localhost only)
     port: 8088              # HTTP port
-    bridge_address: ""      # Internal bridge for WebSocket
     max_body_bytes: 10485760          # Max request body size (10MB)
     ui_language: "en"       # Default Web UI language
     oauth_redirect_base_url: ""       # Base URL for OAuth callbacks (e.g. http://localhost:8088)
@@ -201,7 +200,6 @@ server:
 |--------|---------|-------------|
 | `host` | `127.0.0.1` | Network interface to bind to. Use `0.0.0.0` for all interfaces (Docker) |
 | `port` | `8088` | HTTP port for the Web UI and API |
-| `bridge_address` | `""` | Internal bridge address for WebSocket connections |
 | `max_body_bytes` | `10485760` (10MB) | Maximum size for uploaded files and request bodies |
 | `https.enabled` | `false` | Enable HTTPS/Let's Encrypt |
 | `https.cert_mode` | `auto` | Certificate mode: `auto`, `custom`, or `selfsigned` |

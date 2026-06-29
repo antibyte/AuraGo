@@ -814,11 +814,6 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	s.registerToolAPIRoutes(mux)
 	s.registerInfrastructureRoutes(mux, shutdownCh)
 
-	// Start Phase 1 TCP Bridge (Lifeboat IPC — lifeboat dials this on port 8089)
-	// This port is intentionally separate from maintenance.lifeboat_port (8091),
-	// which is the port lifeboat itself listens on.
-	go s.StartTCPBridge("localhost:8089")
-
 	// Dedicated loopback HTTP port:
 	// When HTTPS is active, open a plain HTTP listener on 127.0.0.1 only for
 	// internal self-calls. If cloudflare_tunnel.loopback_port is set, cloudflared

@@ -172,7 +172,7 @@
   "config.section.llm_guardian.label": "LLM-väktare",
   "config.section.logging.desc": "Logginställningar",
   "config.section.logging.label": "Loggning",
-  "config.section.maintenance.desc": "Underhållsläge och livbåt",
+  "config.section.maintenance.desc": "Underhållsläge och schemalagda uppgifter",
   "config.section.maintenance.label": "Underhåll",
   "config.section.mcp.desc": "Model Context Protocol — hantera externa verktygsservrar",
   "config.section.mcp.label": "MCP-servrar",

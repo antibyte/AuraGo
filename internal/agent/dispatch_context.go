@@ -43,7 +43,6 @@ type DispatchContext struct {
 	RemoteHub           *remote.RemoteHub
 	HistoryMgr          *memory.HistoryManager
 	IsMaintenance       bool
-	SurgeryPlan         string
 	Guardian            *security.Guardian
 	LLMGuardian         *security.LLMGuardian
 	SessionID           string

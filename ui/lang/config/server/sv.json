@@ -40,8 +40,6 @@
   "config.security_proxy.status_loading": "Laddar…",
   "config.security_proxy.status_unknown": "Okänd status",
   "config.server.behind_proxy_label": "Bakom omvänd proxy",
-  "config.server.bridge_address_hint": "Extern adress för webhooks och callbacks. Lämna tomt för automatisk identifiering.",
-  "config.server.bridge_address_label": "Bridge-adress",
   "config.server.cert_auto_notice": "Automatiska certifikat via Let's Encrypt. Kräver en allmänt tillgänglig domän och portar 80/443.",
   "config.server.cert_custom_notice": "Använd dina egna TLS-certifikatfiler (format PEM). Du kan ladda upp dem nedan eller ange filsökvägar.",
   "config.server.cert_file_label": "Sökväg till certifikatfil",

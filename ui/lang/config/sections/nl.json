@@ -172,7 +172,7 @@
   "config.section.llm_guardian.label": "LLM-bewaker",
   "config.section.logging.desc": "Log instellingen",
   "config.section.logging.label": "Logboek",
-  "config.section.maintenance.desc": "Onderhoudstaken",
+  "config.section.maintenance.desc": "Onderhoudsmodus en geplande taken",
   "config.section.maintenance.label": "Onderhoud",
   "config.section.mcp.desc": "Model Context Protocol — beheer externe toolservers",
   "config.section.mcp.label": "MCP",

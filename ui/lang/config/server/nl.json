@@ -40,8 +40,6 @@
   "config.security_proxy.status_loading": "Laden…",
   "config.security_proxy.status_unknown": "Onbekende status",
   "config.server.behind_proxy_label": "Achter Reverse Proxy",
-  "config.server.bridge_address_hint": "Extern adres voor webhooks en callbacks. Leeg laten voor automatische detectie.",
-  "config.server.bridge_address_label": "Bridge-adres",
   "config.server.cert_auto_notice": "Automatische certificaten via Let's Encrypt. Vereist een publiek bereikbaar domein en poorten 80/443.",
   "config.server.cert_custom_notice": "Gebruik je eigen TLS-certificaatbestanden (PEM-formaat). Je kunt ze hieronder uploaden of bestandspaden opgeven.",
   "config.server.cert_file_label": "Pad certificaatbestand",

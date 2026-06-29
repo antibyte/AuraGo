@@ -146,7 +146,6 @@ set CGO_ENABLED=0
 echo   Linux amd64...
 set "GOOS=linux" & set "GOARCH=amd64"
 go build -trimpath -ldflags="-s -w" -o "bin\aurago_linux"          ./cmd/aurago/        || goto :build_error
-go build -trimpath -ldflags="-s -w" -o "bin\lifeboat_linux"        ./cmd/lifeboat/      || goto :build_error
 go build -trimpath -ldflags="-s -w" -o "bin\config-merger_linux"   ./cmd/config-merger/ || goto :build_error
 go build -trimpath -ldflags="-s -w" -o "bin\aurago-remote_linux"   ./cmd/remote/        || goto :build_error
 echo     -> Linux amd64 OK
@@ -154,7 +153,6 @@ echo     -> Linux amd64 OK
 echo   Linux arm64...
 set "GOOS=linux" & set "GOARCH=arm64"
 go build -trimpath -ldflags="-s -w" -o "bin\aurago_linux_arm64"        ./cmd/aurago/        || goto :build_error
-go build -trimpath -ldflags="-s -w" -o "bin\lifeboat_linux_arm64"      ./cmd/lifeboat/      || goto :build_error
 go build -trimpath -ldflags="-s -w" -o "bin\config-merger_linux_arm64" ./cmd/config-merger/ || goto :build_error
 go build -trimpath -ldflags="-s -w" -o "bin\aurago-remote_linux_arm64" ./cmd/remote/        || goto :build_error
 echo     -> Linux arm64 OK
@@ -197,8 +195,6 @@ powershell -nologo -noprofile -command ^
   "  'deploy\\update.sh'," ^
   "  'bin\\aurago_linux'," ^
   "  'bin\\aurago_linux_arm64'," ^
-  "  'bin\\lifeboat_linux'," ^
-  "  'bin\\lifeboat_linux_arm64'," ^
   "  'bin\\config-merger_linux'," ^
   "  'bin\\config-merger_linux_arm64'," ^
   "  'bin\\aurago-remote_linux'," ^
@@ -280,8 +276,6 @@ for %%F in (
     "deploy\SHA256SUMS.pem"
     "bin\aurago_linux"
     "bin\aurago_linux_arm64"
-    "bin\lifeboat_linux"
-    "bin\lifeboat_linux_arm64"
     "bin\config-merger_linux"
     "bin\config-merger_linux_arm64"
     "bin\aurago-remote_linux"

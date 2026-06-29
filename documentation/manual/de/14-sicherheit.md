@@ -448,19 +448,19 @@ fileLock := flock.New(vaultFile + ".lock")
 - **Funktion:** Verhindert gleichzeitige Vault-Zugriffe
 - **Timeout:** Kein Timeout – blockiert bis zur Freigabe
 
-### Instance Lock (Lifeboat)
+### Instance Lock
 
 ```
 ┌─────────────────┐
-│  lifeboat.lock  │  ← Verhindert parallele AuraGo-Instanzen
+│  aurago.lock    │  ← Verhindert parallele AuraGo-Instanzen
 └─────────────────┘
 ```
 
-- **Datei:** `lifeboat.lock` im Projektverzeichnis
+- **Datei:** `data/aurago.lock`
 - **Zweck:** Verhindert, dass mehrere AuraGo-Prozesse gleichzeitig laufen
 - **Neustart:** Wird beim sauberen Beenden automatisch aufgeräumt
 
-> ⚠️ **Achtung:** Falls AuraGo abstürzt, kann die Lock-Datei bestehen bleiben. Lösche sie manuell: `rm lifeboat.lock`
+> ⚠️ **Achtung:** Falls AuraGo abstürzt, kann die Lock-Datei bestehen bleiben. Lösche sie manuell: `rm data/aurago.lock`
 
 ---
 

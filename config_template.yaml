@@ -587,8 +587,6 @@ meshcentral:
     insecure: false  # Set to true to skip TLS certificate verification (not recommended for production)
 maintenance:
     enabled: true
-    lifeboat_enabled: true
-    lifeboat_port: 8091
     time: "04:00"
     retention:
         patterns_days: 90
@@ -616,7 +614,6 @@ memory_analysis:
 server:
     host: 127.0.0.1
     port: 8088
-    bridge_address: ""
     max_body_bytes: 10485760
     https:
         enabled: false

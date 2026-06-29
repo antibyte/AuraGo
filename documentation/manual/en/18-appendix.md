@@ -36,7 +36,6 @@ Comprehensive reference material for AuraGo including complete configuration opt
 server:
   host: "127.0.0.1"           # Bind address (use 0.0.0.0 for LAN access)
   port: 8088                  # HTTP server port
-  bridge_address: "localhost:8089"  # Internal bridge port
   max_body_bytes: 10485760    # Max request body (10MB)
 
 # LLM Providers — configure via the Setup Wizard or Config UI
@@ -309,8 +308,6 @@ meshcentral:
 maintenance:
   enabled: true
   time: "04:00"               # Run time (24h format)
-  lifeboat_enabled: true      # Allow self-modification
-  lifeboat_port: 8091         # Lifeboat communication port
 
 # Logging
 # -------
@@ -781,7 +778,6 @@ docker:
 maintenance:
   enabled: true
   time: "04:00"
-  lifeboat_enabled: false  # Disable in production
 ```
 
 ### Docker Configuration
@@ -923,7 +919,6 @@ docker compose up -d
 ```
 AuraGo/
 ├── aurago                    # Main executable
-├── lifeboat                  # Update companion (optional)
 ├── config.yaml               # Configuration
 ├── .env                      # Environment variables
 ├── agent_workspace/

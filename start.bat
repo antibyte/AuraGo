@@ -12,12 +12,6 @@ if %ERRORLEVEL% neq 0 (
     exit /b %ERRORLEVEL%
 )
 
-go build -o bin\lifeboat.exe ./cmd/lifeboat
-if %ERRORLEVEL% neq 0 (
-    echo Build of lifeboat failed!
-    exit /b %ERRORLEVEL%
-)
-
 REM Auto-load master key from .env if not already set
 if not defined AURAGO_MASTER_KEY (
     if exist .env (

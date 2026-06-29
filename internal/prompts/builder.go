@@ -106,9 +106,7 @@ type ContextFlags struct {
 	CorePersonality                string // Selected core personality profile name (e.g. "neutral", "punk")
 	ActiveProcesses                string // PID (name) comma-separated
 	SystemLanguage                 string
-	LifeboatEnabled                bool
 	IsMaintenanceMode              bool
-	SurgeryPlan                    string
 	PredictedGuides                []string // Content of tool guides to inject
 	// Optimization fields
 	Tier               string   // "full", "compact", "minimal" — controls module loading
@@ -244,7 +242,6 @@ type ContextFlags struct {
 	AgentSkillsCatalog       string // enabled Agent Skill names/descriptions; full SKILL.md loads via activate_agent_skill
 	CapabilityCreationIntent bool   // current turn needs capability/skill/tool creation guidance
 	DaemonSkillsIntent       bool   // current turn needs daemon skill guidance
-	LifeboatIntent           bool   // current turn needs lifeboat handover guidance outside maintenance mode
 	UnifiedMemoryBlock       bool   // experimental: merge retrieval/activity/KG context into one prompt section
 	Model                    string // model identifier for token-counting accuracy
 	// SkipIntegrationTools lists tool names to exclude from the [ENABLED INTEGRATIONS]
@@ -613,13 +610,6 @@ func buildSystemPromptInnerContext(ctx context.Context, promptsDir string, flags
 			finalPrompt.WriteString("\n")
 		}
 		finalPrompt.WriteString("\n")
-	}
-
-	// Surgery Plan injection (always inject when present, regardless of maintenance module)
-	if flags.IsMaintenanceMode && flags.SurgeryPlan != "" {
-		finalPrompt.WriteString("### SURGERY PLAN ###\n")
-		finalPrompt.WriteString(isolatePromptExternalData(flags.SurgeryPlan))
-		finalPrompt.WriteString("\n\n")
 	}
 
 	// Core Memory — always inject (small and critical)

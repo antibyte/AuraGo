@@ -2154,10 +2154,8 @@ config.security_proxy.status_title
 config.security_proxy.status_unknown
 config.security_proxy.tls_desc
 config.security_proxy.tls_title
---- section_server (51) ---
+--- section_server (49) ---
 config.server.behind_proxy_label
-config.server.bridge_address_hint
-config.server.bridge_address_label
 config.server.cert_auto_notice
 config.server.cert_custom_notice
 config.server.cert_file_label

@@ -505,21 +505,6 @@ func executeAgentToolTurn(
 		}
 	}
 
-	if strings.Contains(resultContent, "Maintenance Mode activated") {
-		currentLogger.Info("Handover sentinel detected, Sidecar taking over...")
-		if len(resp.Choices) == 0 {
-			return resp, nil, false
-		}
-		id, err := shortTermMem.InsertMessage(sessionID, resp.Choices[0].Message.Role, content, false, false)
-		if err != nil {
-			currentLogger.Error("Failed to persist handover message to SQLite", "error", err)
-		}
-		if sessionID == "default" && ShouldAppendHistoryMessage(id, err) {
-			historyManager.Add(resp.Choices[0].Message.Role, content, id, false, false)
-		}
-		return resp, nil, false
-	}
-
 	if useNativePath {
 		s.req.Messages = append(s.req.Messages, nativeAssistantMsg)
 		s.req.Messages = append(s.req.Messages, openai.ChatCompletionMessage{
@@ -643,11 +628,6 @@ func executeAgentToolTurn(
 		voiceModeActive := (s.runCfg.VoiceOutputActive || GetVoiceMode()) && !isAutonomousAgentRun(s.runCfg, s.runCfg.SessionID) && !s.runCfg.IsMission
 		followUpContent := toolResultFollowUpContent(tc, resultContent, voiceModeActive)
 		s.req.Messages = append(s.req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: followUpContent})
-	}
-
-	if strings.Contains(resultContent, "[LIFEBOAT_EXIT_SIGNAL]") {
-		currentLogger.Info("[Sync] Early exit signal received, stopping loop.")
-		return resp, nil, false
 	}
 
 	refreshActivatedNativeToolSchemas(s)

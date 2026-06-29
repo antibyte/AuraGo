@@ -366,8 +366,8 @@ func handleDashboardLogs(s *Server) http.HandlerFunc {
 		logPath := filepath.Join(logDir, "aurago.log")
 		lines, err := tailFile(logPath, maxLines)
 		if err != nil {
-			// Try lifeboat.log as fallback
-			logPath = filepath.Join(logDir, "lifeboat.log")
+			// Try maintenance.log as fallback for scheduled maintenance runs.
+			logPath = filepath.Join(logDir, "maintenance.log")
 			lines, err = tailFile(logPath, maxLines)
 			if err != nil {
 				w.Header().Set("Content-Type", "application/json")

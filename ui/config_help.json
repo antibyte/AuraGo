@@ -9,10 +9,6 @@
       "title": "Server Port",
       "description": "The TCP port for the web interface and REST API. Default is 8088."
     },
-    "bridge_address": {
-      "title": "Bridge Address",
-      "description": "Internal TCP address for Lifeboat communication (hot-swapping updates). Default: localhost:8089"
-    },
     "oauth_redirect_base_url": {
       "title": "OAuth Redirect Base URL",
       "description": "Override the OAuth2 callback base URL. Leave empty for auto-detection. Required when Google/other providers reject your server's IP. Set to 'http://localhost:PORT' and register the same URL in your OAuth app settings (e.g. Google Cloud Console).",
@@ -572,11 +568,6 @@
     "time": {
       "title": "Maintenance Time",
       "description": "Time of day for maintenance run (HH:MM format). Default: 04:00"
-    },
-    "lifeboat_enabled": {
-      "title": "Enable Lifeboat",
-      "description": "Allow hot-swapping updates via the lifeboat companion binary.",
-      "warning": "⚠️ Allows the agent to modify its own code!"
     }
   },
   "tools": {

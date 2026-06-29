@@ -281,7 +281,6 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 	sqlConnectionPool := dc.SQLConnectionPool
 	remoteHub := dc.RemoteHub
 	historyMgr := dc.HistoryMgr
-	isMaintenance := dc.IsMaintenance
 	llmGuardian := dc.LLMGuardian
 	sessionID := dc.SessionID
 	coAgentRegistry := dc.CoAgentRegistry
@@ -878,44 +877,6 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				return fmt.Sprintf("Tool Output: ERROR could not read manual for '%s'", req.ToolName)
 			}
 			return fmt.Sprintf("Tool Output: [MANUAL FOR %s]\n%s", req.ToolName, content)
-
-		case "execute_surgery":
-			if !isMaintenance {
-				return "Tool Output: ERROR 'execute_surgery' can ONLY be used when in Maintenance mode (Lifeboat). You are currently in Supervisor mode. You MUST use 'initiate_handover' first to propose a plan and switch to Maintenance mode for complex code changes."
-			}
-
-			// Robustness: handle both 'task_prompt' and 'content' for the plan
-			plan := tc.TaskPrompt
-			if plan == "" {
-				plan = tc.Content
-			}
-
-			logger.Info("LLM requested surgery via Gemini CLI", "plan_len", len(plan), "prompt_preview", Truncate(plan, 100))
-			if plan == "" {
-				return "Tool Output: ERROR surgery plan is required (via 'task_prompt' or 'content')"
-			}
-			// Using external Gemini CLI via the surgery tool
-			res, err := tools.ExecuteSurgery(plan, cfg.Directories.WorkspaceDir, logger)
-			if err != nil {
-				return fmt.Sprintf("Tool Output: ERROR surgery failed: %v\nOutput: %s", err, res)
-			}
-			return fmt.Sprintf("Tool Output: Surgery successful.\nDetails:\n%s", res)
-
-		case "exit_lifeboat":
-			if !isMaintenance {
-				return "Tool Output: ERROR 'exit_lifeboat' can only be used when already in maintenance mode. You are currently in the standard Supervisor mode."
-			}
-			logger.Info("LLM requested to exit lifeboat")
-			tools.SetBusy(false)
-			return "Tool Output: [LIFEBOAT_EXIT_SIGNAL] Maintenance complete. Attempting to return to main supervisor."
-
-		case "initiate_handover":
-			req := decodeLifeboatHandoverArgs(tc)
-			if isMaintenance {
-				return "Tool Output: ERROR You are already in Lifeboat mode. Maintenance is active. Use 'exit_lifeboat' to return to the supervisor or 'execute_surgery' for code changes."
-			}
-			logger.Info("LLM requested lifeboat handover", "plan_len", len(req.TaskPrompt))
-			return tools.InitiateLifeboatHandover(req.TaskPrompt, cfg)
 
 		case "get_system_metrics", "system_metrics":
 			req := decodeSystemMetricsArgs(tc)

@@ -172,7 +172,7 @@
   "config.section.llm_guardian.label": "LLM守护者",
   "config.section.logging.desc": "日志设置",
   "config.section.logging.label": "日志",
-  "config.section.maintenance.desc": "维护模式和 Lifeboat",
+  "config.section.maintenance.desc": "维护模式和计划任务",
   "config.section.maintenance.label": "维护",
   "config.section.mcp.desc": "Model Context Protocol — 管理外部工具服务器",
   "config.section.mcp.label": "MCP 工具",

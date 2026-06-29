@@ -5,8 +5,8 @@
 # make_deploy.sh — Build AuraGo deployment artifacts for Linux, macOS, Windows.
 #
 # Output in bin/ (Linux release binaries, committed to git):
-#   aurago_linux            lifeboat_linux            config-merger_linux
-#   aurago_linux_arm64      lifeboat_linux_arm64      config-merger_linux_arm64
+#   aurago_linux            config-merger_linux
+#   aurago_linux_arm64      config-merger_linux_arm64
 #
 # Output in deploy/ (cross-platform artifacts):
 #   aurago_darwin_amd64         aurago_windows_amd64.exe
@@ -111,10 +111,6 @@ for target in "${TARGETS[@]}"; do
     OUT_AURAGO="bin/aurago_linux"
     echo "    → $OUT_AURAGO"
     CGO_ENABLED=0 GOOS="$OS" GOARCH="$ARCH" go build -trimpath -ldflags="-s -w" -o "$OUT_AURAGO" ./cmd/aurago/
-    
-    OUT_LIFEBOAT="bin/lifeboat_linux"
-    echo "    → $OUT_LIFEBOAT"
-    CGO_ENABLED=0 GOOS="$OS" GOARCH="$ARCH" go build -trimpath -ldflags="-s -w" -o "$OUT_LIFEBOAT" ./cmd/lifeboat/
 
     OUT_MERGER="bin/config-merger_linux"
     echo "    → $OUT_MERGER"
@@ -125,9 +121,6 @@ for target in "${TARGETS[@]}"; do
 
     echo "    → bin/aurago_linux_arm64"
     CGO_ENABLED=0 GOOS="$OS" GOARCH="$ARCH" go build -trimpath -ldflags="-s -w" -o "bin/aurago_linux_arm64" ./cmd/aurago/
-
-    echo "    → bin/lifeboat_linux_arm64"
-    CGO_ENABLED=0 GOOS="$OS" GOARCH="$ARCH" go build -trimpath -ldflags="-s -w" -o "bin/lifeboat_linux_arm64" ./cmd/lifeboat/
 
     echo "    → bin/config-merger_linux_arm64"
     CGO_ENABLED=0 GOOS="$OS" GOARCH="$ARCH" go build -trimpath -ldflags="-s -w" -o "bin/config-merger_linux_arm64" ./cmd/config-merger/
@@ -201,8 +194,6 @@ cp update.sh "$DEPLOY_DIR/update.sh" 2>/dev/null || true
     sha256sum \
       aurago_linux \
       aurago_linux_arm64 \
-      lifeboat_linux \
-      lifeboat_linux_arm64 \
       config-merger_linux \
       config-merger_linux_arm64 \
       aurago-remote_linux \
@@ -212,8 +203,6 @@ cp update.sh "$DEPLOY_DIR/update.sh" 2>/dev/null || true
     shasum -a 256 \
       aurago_linux \
       aurago_linux_arm64 \
-      lifeboat_linux \
-      lifeboat_linux_arm64 \
       config-merger_linux \
       config-merger_linux_arm64 \
       aurago-remote_linux \
