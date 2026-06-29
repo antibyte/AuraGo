@@ -262,8 +262,7 @@ if [ -z "${AURAGO_MASTER_KEY:-}" ]; then
         export AURAGO_MASTER_KEY="$(cat "$OPTIONAL_SECRET_FILE" | tr -d '[:space:]')"
     elif [ -f "$ENV_FILE" ]; then
         echo "[Entrypoint] Loading master key from $ENV_FILE"
-        # shellcheck source=/dev/null
-        source "$ENV_FILE"
+        export AURAGO_MASTER_KEY="$(read_master_key_from_env_file "$ENV_FILE")"
         export AURAGO_MASTER_KEY
     else
         echo "[Entrypoint] Generating new master key..."

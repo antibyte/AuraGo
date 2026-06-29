@@ -148,7 +148,7 @@ By default, the `docker-compose.yml` uses a **Docker socket proxy** (`tecnativa/
 | Risk if compromised | Limited to allowed operations | Complete host takeover |
 | Container management | Start, stop, inspect, exec | Everything (including privilege escalation) |
 
-The default proxy keeps Docker build requests disabled (`BUILD=0`). Code Studio uses the published `ghcr.io/antibyte/aurago-code-studio` image, so AuraGo only needs image pull/create access through `IMAGES=1` and `POST=1`; it does not require the `docker` CLI or the Docker build API inside its own container.
+The default proxy is attached to an internal `docker-control` network that is shared only with the AuraGo container. `BUILD=1` and `EXEC=1` are enabled because managed local image builds, Code Studio terminals, DockerExec, homepage deploys, and security-proxy reloads use those Docker Engine API paths. Keep the `docker-control` network private and do not attach unrelated sidecars to it.
 
 ### Switching to Direct Socket Access (NOT recommended)
 
@@ -459,8 +459,8 @@ docker compose up -d
 - [ ] Master key created with `chmod 600` permissions
 - [ ] Master key backed up securely (password manager, encrypted storage)
 - [ ] Docker socket proxy enabled (not direct socket mount)
-- [ ] EXEC=0 in docker-proxy if DockerExec tool not needed
-- [ ] IMAGES=1 and POST=1 kept enabled if you use the managed Code Studio app
+- [ ] Docker socket proxy reachable only through the internal `docker-control` network
+- [ ] `BUILD=1`, `EXEC=1`, `IMAGES=1`, and `POST=1` kept enabled if you use managed Docker features
 - [ ] Resource limits configured appropriately for your hardware
 - [ ] SSH keys for Ansible are dedicated keys, not your personal keys
 - [ ] Regular security updates applied to host system
@@ -478,10 +478,11 @@ For production environments:
    image: ghcr.io/antibyte/aurago:v1.2.3
    ```
 
-2. **Enable Docker socket proxy restrictions**:
+2. **Keep the Docker socket proxy isolated**:
    ```yaml
-   environment:
-     - EXEC=0  # Disable if not needed
+   networks:
+     docker-control:
+       internal: true
    ```
 
 3. **Configure backup strategy**:
