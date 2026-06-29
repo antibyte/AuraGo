@@ -16,6 +16,8 @@
             previewUrl: '',
             statusLoaded: false,
             homepageEnabled: false,
+            deploymentTargets: [],
+            targetsLoading: null,
             disposed: false,
             activePanel: 'preview',
             historyQuery: '',
@@ -219,6 +221,7 @@
 
                 state.previewUrl = homepageStatusPreviewURL(data, state.target);
                 updatePreviewUrl();
+                refreshHomepageTargets(data);
             } catch (_) {
                 statusDot.className = 'vd-hp-status-dot offline';
                 statusDot.title = t('homepage_studio.status_error');
@@ -227,20 +230,142 @@
             }
         }
 
+        function refreshHomepageTargets(statusData) {
+            loadHomepageTargets().then(() => {
+                if (state.disposed) return;
+                const nextURL = homepageStatusPreviewURL(statusData, state.target);
+                if (nextURL !== state.previewUrl) {
+                    state.previewUrl = nextURL;
+                    updatePreviewUrl();
+                }
+            });
+        }
+
+        function firstString(...values) {
+            for (const value of values) {
+                if (typeof value === 'string' && value.trim()) {
+                    return value.trim();
+                }
+            }
+            return '';
+        }
+
+        function firstPreviewURL(...values) {
+            for (const value of values) {
+                const url = firstString(value);
+                if (url && /^https?:\/\//i.test(url)) {
+                    return url;
+                }
+            }
+            return '';
+        }
+
+        async function loadHomepageTargets() {
+            if (state.targetsLoading) return state.targetsLoading;
+            state.targetsLoading = (async () => {
+                const nextTargets = [];
+                const [sitesData, webhostsData] = await Promise.all([
+                    safeHomepageApi('/api/homepage/sites'),
+                    safeHomepageApi('/api/integrations/webhosts')
+                ]);
+
+                const webhosts = Array.isArray(webhostsData && webhostsData.webhosts) ? webhostsData.webhosts : [];
+                for (const item of webhosts) {
+                    if (item && item.id === 'homepage') {
+                        addHomepageTarget(nextTargets, 'local', item.url, item.name || 'Homepage');
+                    }
+                }
+
+                const sites = Array.isArray(sitesData && sitesData.sites) ? sitesData.sites : [];
+                for (const site of sites) {
+                    collectHomepageTargetsFromSite(site, nextTargets);
+                }
+
+                await Promise.all(sites.map(async site => {
+                    const id = Number(site && site.id);
+                    if (!Number.isFinite(id) || id <= 0) return;
+                    const detail = await safeHomepageApi('/api/homepage/sites/' + encodeURIComponent(String(id)));
+                    collectHomepageTargetsFromSite(detail && detail.site, nextTargets);
+                }));
+
+                state.deploymentTargets = nextTargets;
+                return nextTargets;
+            })().catch(() => {
+                state.deploymentTargets = [];
+                return state.deploymentTargets;
+            }).finally(() => {
+                state.targetsLoading = null;
+            });
+            return state.targetsLoading;
+        }
+
+        async function safeHomepageApi(path) {
+            try {
+                return await api(path);
+            } catch (_) {
+                return null;
+            }
+        }
+
+        function collectHomepageTargetsFromSite(site, targets) {
+            if (!site || typeof site !== 'object') return;
+            addHomepageTarget(targets, 'remote', site.last_deploy_url, site.name || site.project_dir);
+            const deployTargets = Array.isArray(site.deploy_targets) ? site.deploy_targets : [];
+            for (const target of deployTargets) {
+                const provider = normalizeHomepageTargetProvider(target && target.provider);
+                const label = firstString(target && target.provider_target_id, site.name, site.project_dir, provider);
+                const url = firstPreviewURL(target && target.url, target && target.remote_path);
+                addHomepageTarget(targets, provider, url, label);
+            }
+        }
+
+        function addHomepageTarget(targets, provider, url, label) {
+            const normalizedProvider = normalizeHomepageTargetProvider(provider);
+            const normalizedURL = firstPreviewURL(url);
+            if (!normalizedProvider || !normalizedURL) return;
+            const key = normalizedProvider + '\n' + normalizedURL;
+            if (targets.some(item => item.key === key)) return;
+            targets.push({
+                key,
+                provider: normalizedProvider,
+                url: normalizedURL,
+                label: firstString(label, normalizedProvider)
+            });
+        }
+
+        function normalizeHomepageTargetProvider(provider) {
+            const value = firstString(provider).toLowerCase();
+            if (value === 'homepage') return 'local';
+            if (value === 'sftp' || value === 'scp' || value === 'ssh') return 'remote';
+            return value || 'remote';
+        }
+
+        function homepageExternalTargetURL(target, deploymentTargets) {
+            if (!Array.isArray(deploymentTargets) || !deploymentTargets.length) return '';
+            const selected = normalizeHomepageTargetProvider(target);
+            const aliases = {
+                local: ['local', 'homepage'],
+                vercel: ['vercel'],
+                netlify: ['netlify'],
+                remote: ['remote', 'sftp', 'scp', 'ssh']
+            };
+            const allowed = aliases[selected] || [selected];
+            const exact = deploymentTargets.find(item => item && allowed.includes(item.provider) && item.url);
+            if (exact) return exact.url;
+            if (selected === 'remote') {
+                const fallback = deploymentTargets.find(item => item && item.provider !== 'local' && item.url);
+                if (fallback) return fallback.url;
+            }
+            return '';
+        }
+
         function homepageStatusPreviewURL(data, target) {
             if (!data) return '';
             const webRunning = data.web_container && data.web_container.running;
             const pythonRunning = data.python_server && data.python_server.running;
             const serverRunning = webRunning || pythonRunning;
+            const externalURL = homepageExternalTargetURL(target, state.deploymentTargets);
 
-            const firstString = (...values) => {
-                for (const value of values) {
-                    if (typeof value === 'string' && value.trim()) {
-                        return value.trim();
-                    }
-                }
-                return '';
-            };
             const objectURL = key => {
                 const obj = data[key];
                 if (!obj || typeof obj !== 'object') return '';
@@ -249,11 +374,11 @@
 
             switch (target) {
                 case 'vercel':
-                    return firstString(data.vercel_url, data.vercel_deployment_url, data.deployment_url, objectURL('vercel'));
+                    return firstString(data.vercel_url, data.vercel_deployment_url, data.deployment_url, objectURL('vercel'), externalURL);
                 case 'netlify':
-                    return firstString(data.netlify_url, data.netlify_deploy_url, data.deploy_url, objectURL('netlify'));
+                    return firstString(data.netlify_url, data.netlify_deploy_url, data.deploy_url, objectURL('netlify'), externalURL);
                 case 'remote':
-                    return firstString(data.remote_url, data.remote_deploy_url, objectURL('remote'));
+                    return firstString(data.remote_url, data.remote_deploy_url, objectURL('remote'), externalURL);
                 case 'local':
                 default:
                     break;
@@ -267,6 +392,7 @@
             if (pythonRunning && data.python_server.browser_url) {
                 return String(data.python_server.browser_url);
             }
+            if (externalURL) return externalURL;
             return '';
         }
 

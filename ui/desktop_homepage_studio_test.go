@@ -94,6 +94,32 @@ func TestHomepageStudioUsesStatusPreviewURL(t *testing.T) {
 	}
 }
 
+func TestHomepageStudioUsesExternalHomepageTargets(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/apps/homepage-studio.js")
+	for _, want := range []string{
+		"deploymentTargets: []",
+		"function loadHomepageTargets()",
+		"function collectHomepageTargetsFromSite(",
+		"function homepageExternalTargetURL(",
+		"/api/homepage/sites",
+		"/api/integrations/webhosts",
+		"deploy_targets",
+		"last_deploy_url",
+		"provider_target_id",
+		"remote_path",
+		"homepageExternalTargetURL(target, state.deploymentTargets)",
+	} {
+		if !strings.Contains(source, want) {
+			t.Fatalf("homepage studio external target support missing marker %q", want)
+		}
+	}
+	if strings.Contains(source, "sites.slice(0,") {
+		t.Fatal("homepage studio must not cap managed site detail loading before resolving external targets")
+	}
+}
+
 func TestHomepageStudioPreviewSandboxKeepsOpaqueOrigin(t *testing.T) {
 	t.Parallel()
 
