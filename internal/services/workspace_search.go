@@ -124,11 +124,10 @@ type WorkspaceSearchService struct {
 	cfgMu  *sync.RWMutex
 	logger *slog.Logger
 
-	root                 string
-	workspaceDir         string
-	workdirRel           string
-	rootRelativePrefixes []string
-	db                   *sql.DB
+	root         string
+	workspaceDir string
+	workdirRel   string
+	db           *sql.DB
 
 	lifecycleMu sync.Mutex
 	cancel      context.CancelFunc
@@ -190,15 +189,14 @@ func NewWorkspaceSearchService(cfg *config.Config, cfgMu *sync.RWMutex, logger *
 	}
 
 	s := &WorkspaceSearchService{
-		cfg:                  cfg,
-		cfgMu:                cfgMu,
-		logger:               logger,
-		root:                 root,
-		workspaceDir:         workspaceDir,
-		workdirRel:           workdirRel,
-		rootRelativePrefixes: workspaceSearchRootRelativePrefixes(root, workspaceDir, cfg),
-		db:                   db,
-		ready:                make(chan struct{}),
+		cfg:          cfg,
+		cfgMu:        cfgMu,
+		logger:       logger,
+		root:         root,
+		workspaceDir: workspaceDir,
+		workdirRel:   workdirRel,
+		db:           db,
+		ready:        make(chan struct{}),
 		index: workspaceSearchIndex{
 			files: map[string]*workspaceIndexedFile{},
 		},
@@ -223,10 +221,14 @@ func workspaceSearchRoots(cfg *config.Config) (string, string, error) {
 	workspaceDir = filepath.Clean(workspaceDir)
 	root := workspaceDir
 	workspaceParent := filepath.Dir(workspaceDir)
-	if strings.EqualFold(filepath.Base(workspaceDir), "workdir") || workspaceSearchHasConfiguredSibling(workspaceParent, cfg) {
+	if workspaceSearchIsAgentWorkspaceRoot(workspaceParent) || workspaceSearchHasConfiguredSibling(workspaceParent, cfg) {
 		root = workspaceParent
 	}
 	return filepath.Clean(root), workspaceDir, nil
+}
+
+func workspaceSearchIsAgentWorkspaceRoot(path string) bool {
+	return strings.EqualFold(filepath.Base(filepath.Clean(path)), "agent_workspace")
 }
 
 func workspaceSearchHasConfiguredSibling(parent string, cfg *config.Config) bool {
@@ -243,39 +245,6 @@ func workspaceSearchHasConfiguredSibling(parent string, cfg *config.Config) bool
 		}
 	}
 	return false
-}
-
-func workspaceSearchRootRelativePrefixes(root, workspaceDir string, cfg *config.Config) []string {
-	seen := map[string]bool{}
-	add := func(prefix string) {
-		prefix = strings.Trim(filepath.ToSlash(filepath.Clean(prefix)), "/")
-		if prefix == "" || prefix == "." || seen[prefix] {
-			return
-		}
-		seen[prefix] = true
-	}
-	for _, dir := range []string{workspaceDir, cfg.Directories.ToolsDir, cfg.Directories.SkillsDir, cfg.Directories.AgentSkillsDir, cfg.VirtualDesktop.WorkspaceDir} {
-		if strings.TrimSpace(dir) == "" {
-			continue
-		}
-		abs, err := filepath.Abs(dir)
-		if err != nil || !pathWithinRoot(abs, root) {
-			continue
-		}
-		rel, err := filepath.Rel(root, abs)
-		if err == nil {
-			add(rel)
-		}
-	}
-	for _, prefix := range []string{"workdir", "tools", "skills", "agent_skills", "virtual_desktop"} {
-		add(prefix)
-	}
-	result := make([]string, 0, len(seen))
-	for prefix := range seen {
-		result = append(result, prefix)
-	}
-	sort.Strings(result)
-	return result
 }
 
 func initWorkspaceSearchDB(db *sql.DB) error {
@@ -973,6 +942,7 @@ func (s *WorkspaceSearchService) scanWorkspace(ctx context.Context) (workspaceSe
 	next := workspaceSearchIndex{
 		files: map[string]*workspaceIndexedFile{},
 	}
+	contentCandidates := []*workspaceIndexedFile{}
 
 	err = filepath.WalkDir(s.root, func(path string, entry os.DirEntry, walkErr error) error {
 		if walkErr != nil {
@@ -1026,27 +996,51 @@ func (s *WorkspaceSearchService) scanWorkspace(ctx context.Context) (workspaceSe
 			size:    info.Size(),
 			modTime: info.ModTime().UTC(),
 		}
-		if info.Size() <= maxFileSize && next.indexedContentBytes < maxIndexSize {
-			data, err := os.ReadFile(path)
-			if err == nil && !workspaceDataLooksBinary(data) && utf8.Valid(data) {
-				if int64(len(data))+next.indexedContentBytes <= maxIndexSize {
-					file.lines = splitWorkspaceLines(string(data))
-					file.hash = workspaceContentHash(data)
-					file.indexedContent = true
-					next.contentFiles++
-					next.indexedContentBytes += int64(len(data))
-				}
-			}
-		}
 		next.files[rel] = file
 		next.orderedPaths = append(next.orderedPaths, rel)
+		contentCandidates = append(contentCandidates, file)
 		return nil
 	})
 	if err != nil {
 		return workspaceSearchIndex{}, err
 	}
 	sort.Strings(next.orderedPaths)
+	sort.SliceStable(contentCandidates, func(i, j int) bool {
+		leftPriority := workspaceSearchContentPriority(contentCandidates[i].path, s.workdirRel)
+		rightPriority := workspaceSearchContentPriority(contentCandidates[j].path, s.workdirRel)
+		if leftPriority == rightPriority {
+			return contentCandidates[i].path < contentCandidates[j].path
+		}
+		return leftPriority < rightPriority
+	})
+	for _, file := range contentCandidates {
+		if err := ctx.Err(); err != nil {
+			return workspaceSearchIndex{}, err
+		}
+		if file.size > maxFileSize || next.indexedContentBytes >= maxIndexSize {
+			continue
+		}
+		data, err := os.ReadFile(file.absPath)
+		if err != nil || workspaceDataLooksBinary(data) || !utf8.Valid(data) {
+			continue
+		}
+		if int64(len(data))+next.indexedContentBytes > maxIndexSize {
+			continue
+		}
+		file.lines = splitWorkspaceLines(string(data))
+		file.hash = workspaceContentHash(data)
+		file.indexedContent = true
+		next.contentFiles++
+		next.indexedContentBytes += int64(len(data))
+	}
 	return next, nil
+}
+
+func workspaceSearchContentPriority(rel, workdirRel string) int {
+	if workspacePathInScope(rel, workdirRel) {
+		return 0
+	}
+	return 1
 }
 
 func splitWorkspaceLines(content string) []string {
@@ -1149,7 +1143,16 @@ func (s *WorkspaceSearchService) toRelativePath(raw string) (string, bool) {
 	if raw == "" {
 		return "", false
 	}
-	for _, candidate := range s.pathCandidates(raw) {
+	candidates := s.pathCandidates(raw)
+	for _, candidate := range candidates {
+		if !workspaceSearchPathExists(candidate) {
+			continue
+		}
+		if rel, ok := s.relativePathInsideRoot(candidate); ok {
+			return rel, true
+		}
+	}
+	for _, candidate := range candidates {
 		if rel, ok := s.relativePathInsideRoot(candidate); ok {
 			return rel, true
 		}
@@ -1163,27 +1166,15 @@ func (s *WorkspaceSearchService) pathCandidates(raw string) []string {
 	}
 	cleaned := filepath.ToSlash(filepath.Clean(raw))
 	cleaned = strings.TrimPrefix(cleaned, "./")
-	if s.isAgentWorkspaceRelativePath(cleaned) {
-		return []string{filepath.Join(s.root, filepath.FromSlash(cleaned))}
-	}
 	return []string{
 		filepath.Join(s.workspaceDir, filepath.FromSlash(cleaned)),
 		filepath.Join(s.root, filepath.FromSlash(cleaned)),
 	}
 }
 
-func (s *WorkspaceSearchService) isAgentWorkspaceRelativePath(rel string) bool {
-	rel = strings.Trim(filepath.ToSlash(rel), "/")
-	if rel == "" || strings.HasPrefix(rel, "..") {
-		return false
-	}
-	for _, prefix := range s.rootRelativePrefixes {
-		prefix = strings.Trim(filepath.ToSlash(prefix), "/")
-		if rel == prefix || strings.HasPrefix(rel, prefix+"/") {
-			return true
-		}
-	}
-	return false
+func workspaceSearchPathExists(path string) bool {
+	_, err := os.Lstat(path)
+	return err == nil
 }
 
 func (s *WorkspaceSearchService) relativePathInsideRoot(candidate string) (string, bool) {

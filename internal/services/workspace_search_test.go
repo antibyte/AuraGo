@@ -184,6 +184,39 @@ func TestWorkspaceSearchIndexesWholeAgentWorkspace(t *testing.T) {
 	}
 }
 
+func TestWorkspaceSearchRootDoesNotPromoteArbitraryWorkdir(t *testing.T) {
+	root := t.TempDir()
+	dataDir := filepath.Join(root, "data")
+	workspaceDir := filepath.Join(root, "custom", "workdir")
+	if err := os.MkdirAll(workspaceDir, 0o755); err != nil {
+		t.Fatalf("create workspace dir: %v", err)
+	}
+	if err := os.MkdirAll(dataDir, 0o755); err != nil {
+		t.Fatalf("create data dir: %v", err)
+	}
+
+	cfg := &config.Config{}
+	cfg.Directories.DataDir = dataDir
+	cfg.Directories.WorkspaceDir = workspaceDir
+	cfg.WorkspaceSearch.Enabled = true
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	svc, err := NewWorkspaceSearchService(cfg, nil, logger)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	t.Cleanup(func() {
+		svc.Stop()
+		if err := svc.Close(); err != nil {
+			t.Fatalf("close service: %v", err)
+		}
+	})
+
+	if got := filepath.Clean(svc.Status().Root); got != filepath.Clean(workspaceDir) {
+		t.Fatalf("status root = %s, want custom workspace dir %s", got, workspaceDir)
+	}
+}
+
 func TestWorkspaceSearchFindGlobGrepAndRegexErrors(t *testing.T) {
 	ctx := context.Background()
 	svc, cfg := newWorkspaceSearchTestService(t, 2)
@@ -273,7 +306,9 @@ func TestWorkspaceSearchTrackAccessMapsRelativePathsFromWorkdirAndAgentWorkspace
 	agentWorkspaceDir := filepath.Dir(cfg.Directories.WorkspaceDir)
 
 	writeWorkspaceSearchFixture(t, cfg.Directories.WorkspaceDir, "docs/readme.md", "workdir\n")
+	writeWorkspaceSearchFixture(t, cfg.Directories.WorkspaceDir, "tools/helpers/local.py", "local workdir tool\n")
 	writeWorkspaceSearchFixture(t, cfg.Directories.ToolsDir, "helpers/tool.py", "tool\n")
+	writeWorkspaceSearchFixture(t, cfg.Directories.ToolsDir, "helpers/local.py", "root tool with same suffix\n")
 	writeWorkspaceSearchFixture(t, filepath.Join(agentWorkspaceDir, "virtual_desktop"), "notes.md", "desktop\n")
 
 	if err := svc.Rescan(ctx); err != nil {
@@ -284,6 +319,9 @@ func TestWorkspaceSearchTrackAccessMapsRelativePathsFromWorkdirAndAgentWorkspace
 	}
 	if err := svc.TrackAccess("tools/helpers/tool.py", "read"); err != nil {
 		t.Fatalf("track agent-workspace-relative access: %v", err)
+	}
+	if err := svc.TrackAccess("tools/helpers/local.py", "read"); err != nil {
+		t.Fatalf("track workdir tools access: %v", err)
 	}
 	if err := svc.TrackAccess("virtual_desktop/notes.md", "read"); err != nil {
 		t.Fatalf("track virtual desktop access: %v", err)
@@ -301,6 +339,12 @@ func TestWorkspaceSearchTrackAccessMapsRelativePathsFromWorkdirAndAgentWorkspace
 	}
 	if !containsWorkspaceSearchPath(recent, "virtual_desktop/notes.md") {
 		t.Fatalf("recent should include virtual desktop access, got %#v", recent)
+	}
+	if !containsWorkspaceSearchPath(recent, "workdir/tools/helpers/local.py") {
+		t.Fatalf("recent should treat tools/helpers/local.py as workdir-relative when that file exists, got %#v", recent)
+	}
+	if containsWorkspaceSearchPath(recent, "tools/helpers/local.py") {
+		t.Fatalf("recent misattributed workdir tools path to agent tools root: %#v", recent)
 	}
 }
 
@@ -348,6 +392,30 @@ func TestWorkspaceSearchLegacyFileSearchStaysWorkdirRelative(t *testing.T) {
 	}
 	if grepParsed.Status != "success" || len(grepParsed.Data) != 1 || grepParsed.Data[0].File != "docs/readme.md" {
 		t.Fatalf("legacy grep output = %#v, want one workdir-relative docs/readme.md match", grepParsed)
+	}
+}
+
+func TestWorkspaceSearchContentBudgetPrioritizesWorkdir(t *testing.T) {
+	ctx := context.Background()
+	svc, cfg := newWorkspaceSearchTestService(t, 2)
+	cfg.WorkspaceSearch.MaxIndexSizeMB = 1
+
+	writeWorkspaceSearchFixture(t, cfg.Directories.AgentSkillsDir, "large/context.txt", strings.Repeat("a", 900*1024))
+	writeWorkspaceSearchFixture(t, cfg.Directories.WorkspaceDir, "docs/critical.txt", strings.Repeat("w", 200*1024)+"\ncritical-needle\n")
+
+	if err := svc.Rescan(ctx); err != nil {
+		t.Fatalf("rescan: %v", err)
+	}
+	matches, err := svc.Grep(ctx, WorkspaceSearchRequest{
+		Query: "critical-needle",
+		Glob:  "**/*.txt",
+		Limit: 10,
+	})
+	if err != nil {
+		t.Fatalf("grep: %v", err)
+	}
+	if len(matches.Matches) != 1 || matches.Matches[0].File != "workdir/docs/critical.txt" {
+		t.Fatalf("grep matches = %#v, want workdir critical file indexed despite non-workdir budget pressure", matches.Matches)
 	}
 }
 
