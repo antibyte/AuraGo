@@ -148,7 +148,7 @@ By default, the `docker-compose.yml` uses a **Docker socket proxy** (`tecnativa/
 | Risk if compromised | Limited to allowed operations | Complete host takeover |
 | Container management | Start, stop, inspect, exec | Everything (including privilege escalation) |
 
-The default proxy is attached to an internal `docker-control` network that is shared only with the AuraGo container. `BUILD=1` and `EXEC=1` are enabled because managed local image builds, Code Studio terminals, DockerExec, homepage deploys, and security-proxy reloads use those Docker Engine API paths. Keep the `docker-control` network private and do not attach unrelated sidecars to it.
+The default proxy is attached to an internal `docker-control` network that is shared only with the AuraGo container. `IMAGES=1` and `POST=1` allow AuraGo to pull published managed sidecar images such as Code Studio, while `BUILD=0` keeps Docker build API access disabled by default. `EXEC=1` is enabled for DockerExec, Code Studio terminals, and security-proxy reloads. Keep the `docker-control` network private and do not attach unrelated sidecars to it.
 
 ### Switching to Direct Socket Access (NOT recommended)
 
@@ -460,7 +460,7 @@ docker compose up -d
 - [ ] Master key backed up securely (password manager, encrypted storage)
 - [ ] Docker socket proxy enabled (not direct socket mount)
 - [ ] Docker socket proxy reachable only through the internal `docker-control` network
-- [ ] `BUILD=1`, `EXEC=1`, `IMAGES=1`, and `POST=1` kept enabled if you use managed Docker features
+- [ ] `IMAGES=1`, `POST=1`, and `EXEC=1` kept enabled if you use managed Docker features; keep `BUILD=0` unless you explicitly need local Docker image builds
 - [ ] Resource limits configured appropriately for your hardware
 - [ ] SSH keys for Ansible are dedicated keys, not your personal keys
 - [ ] Regular security updates applied to host system

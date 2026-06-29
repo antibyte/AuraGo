@@ -309,7 +309,7 @@ services:
   #   - The proxy is isolated on the docker-control network, shared only with AuraGo
   #   - POST=1 allows starting/stopping containers (needed for managed sidecars and Invasion Control)
   #   - IMAGES=1 + POST=1 allow AuraGo to pull managed sidecar images such as Code Studio
-  #   - BUILD=1 allows managed local image builds (Code Studio fallback, homepage deploys)
+  #   - BUILD=0 keeps Docker build API access disabled by default; prefer published images
   #   - EXEC=1 allows DockerExec, Code Studio terminals, and security-proxy reloads
   #   - Together these grant significant control — keep the docker-control network private
   #
@@ -333,7 +333,7 @@ services:
       - NETWORKS=1
       - VOLUMES=1
       - POST=1          # allow start/stop/restart/create (needed for managed sidecars and Invasion Control)
-      - BUILD=1          # allow managed local image builds (Code Studio fallback, homepage deploys)
+      - BUILD=0          # keep Docker build API access disabled by default; prefer published images
       - COMMIT=0
       - EXEC=1          # allow DockerExec, Code Studio terminals, and security-proxy reloads
       - SWARM=0
