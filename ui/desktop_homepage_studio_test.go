@@ -120,6 +120,40 @@ func TestHomepageStudioUsesExternalHomepageTargets(t *testing.T) {
 	}
 }
 
+func TestHomepageStudioUsesLedgerDeploymentsAndObservationsForExternalTargets(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/apps/homepage-studio.js")
+	for _, want := range []string{
+		"site.deployments",
+		"site.remote_observations",
+		"deployment.provider",
+		"deployment.url",
+		"observation.provider",
+		"observation.url",
+		"provider_deploy_id",
+	} {
+		if !strings.Contains(source, want) {
+			t.Fatalf("homepage studio external target fallback missing marker %q", want)
+		}
+	}
+}
+
+func TestHomepageStudioCloudTargetsFallbackToKnownExternalURL(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/apps/homepage-studio.js")
+	for _, want := range []string{
+		"const externalTargets = ['remote', 'vercel', 'netlify'];",
+		"externalTargets.includes(selected)",
+		"item.provider !== 'local'",
+	} {
+		if !strings.Contains(source, want) {
+			t.Fatalf("homepage studio cloud target fallback missing marker %q", want)
+		}
+	}
+}
+
 func TestHomepageStudioPreviewSandboxKeepsOpaqueOrigin(t *testing.T) {
 	t.Parallel()
 

@@ -317,6 +317,18 @@
                 const url = firstPreviewURL(target && target.url, target && target.remote_path);
                 addHomepageTarget(targets, provider, url, label);
             }
+            const deployments = Array.isArray(site.deployments) ? site.deployments : [];
+            for (const deployment of deployments) {
+                const provider = normalizeHomepageTargetProvider(deployment && deployment.provider);
+                const label = firstString(deployment && deployment.provider_deploy_id, site.name, site.project_dir, provider);
+                addHomepageTarget(targets, provider, deployment && deployment.url, label);
+            }
+            const observations = Array.isArray(site.remote_observations) ? site.remote_observations : [];
+            for (const observation of observations) {
+                const provider = normalizeHomepageTargetProvider(observation && observation.provider);
+                const label = firstString(observation && observation.provider_deploy_id, site.name, site.project_dir, provider);
+                addHomepageTarget(targets, provider, observation && observation.url, label);
+            }
         }
 
         function addHomepageTarget(targets, provider, url, label) {
@@ -352,7 +364,8 @@
             const allowed = aliases[selected] || [selected];
             const exact = deploymentTargets.find(item => item && allowed.includes(item.provider) && item.url);
             if (exact) return exact.url;
-            if (selected === 'remote') {
+            const externalTargets = ['remote', 'vercel', 'netlify'];
+            if (externalTargets.includes(selected)) {
                 const fallback = deploymentTargets.find(item => item && item.provider !== 'local' && item.url);
                 if (fallback) return fallback.url;
             }
