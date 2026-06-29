@@ -184,6 +184,7 @@ func NetworkClientInventory() []NetworkClientUse {
 		{Path: "internal/telnyx/", Classification: "telnyx-api", Credentialed: true},
 		{Path: "internal/tools/", Classification: "tool-specific-network-policy", RequiresSSRF: true, AllowsLocalNet: true, Credentialed: true},
 		{Path: "internal/truenas/", Classification: "configured-home-lab", AllowsLocalNet: true, Credentialed: true},
+		{Path: "internal/updater/", Classification: "github-release-check", Credentialed: false},
 		{Path: "internal/webhooks/", Classification: "user-configured-outgoing-webhook", RequiresSSRF: true, Credentialed: true},
 		{Path: "scripts/", Classification: "developer-helper-download", RequiresSSRF: true},
 	}

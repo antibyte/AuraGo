@@ -6,6 +6,7 @@ import (
 	"aurago/internal/tools"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -305,6 +306,55 @@ func TestDeploymentDefaultsUsePrivateConfigAndNoNewPrivileges(t *testing.T) {
 	}
 	if !strings.Contains(installScript, "-password-file") {
 		t.Fatal("install.sh must pass the initial password through a protected temporary file")
+	}
+}
+
+func TestUpdateScriptHelperOrderAndVersionTiming(t *testing.T) {
+	t.Parallel()
+
+	updateScript := readRepoFile(t, "update.sh")
+
+	helperDef := strings.Index(updateScript, "mark_executable_if_present()")
+	firstHelperUse := strings.Index(updateScript, `mark_executable_if_present "`)
+	if helperDef < 0 || firstHelperUse < 0 {
+		t.Fatal("update.sh must define and use mark_executable_if_present")
+	}
+	if helperDef > firstHelperUse {
+		t.Fatal("update.sh must define mark_executable_if_present before the first call")
+	}
+
+	releaseVersionWrite := strings.LastIndex(updateScript, `printf '%s' "$RELEASE_TAG" > "$DIR/.version"`)
+	releaseMainBinaryReady := strings.Index(updateScript, `[ -f "$DIR/bin/aurago_linux" ] || abort_update "Required AuraGo binary missing after update."`)
+	if releaseVersionWrite < 0 || releaseMainBinaryReady < 0 {
+		t.Fatal("update.sh must write release .version only after validating bin/aurago_linux")
+	}
+	if releaseVersionWrite < releaseMainBinaryReady {
+		t.Fatal("update.sh must not write release .version before the required main binary is ready")
+	}
+
+	gitVersionWrite := strings.LastIndex(updateScript, `printf '%s' "$GIT_VER" > "$DIR/.version"`)
+	gitMainBinaryReady := strings.Index(updateScript, `ok "Main binary built successfully"`)
+	if gitVersionWrite < 0 || gitMainBinaryReady < 0 {
+		t.Fatal("update.sh must write git .version only after building the main binary")
+	}
+	if gitVersionWrite < gitMainBinaryReady {
+		t.Fatal("update.sh must not write git .version before the main binary build succeeds")
+	}
+}
+
+func TestUpdateScriptsParseWithBash(t *testing.T) {
+	t.Parallel()
+
+	bash, err := exec.LookPath("bash")
+	if err != nil {
+		t.Skip("bash is not available")
+	}
+	for _, script := range []string{"update.sh", "install.sh"} {
+		cmd := exec.Command(bash, "-n", script)
+		cmd.Dir = repoPath(".")
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("bash -n %s failed: %v\n%s", script, err, string(out))
+		}
 	}
 }
 

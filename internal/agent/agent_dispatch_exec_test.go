@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -12,6 +13,7 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/memory"
 	"aurago/internal/tools"
+	"aurago/internal/updater"
 )
 
 func TestDispatchExecManageScheduleBlocksEnableInReadOnlyMode(t *testing.T) {
@@ -167,6 +169,105 @@ func TestDispatchExecKnowledgeGraphHealth(t *testing.T) {
 	}
 	if payload.Stats.PendingCoMentionEdges != 1 || payload.Quality.LowConfidenceEdges != 1 {
 		t.Fatalf("unexpected graph_health payload: %+v", payload)
+	}
+}
+
+func TestDispatchExecManageUpdatesCheckUsesSharedUpdater(t *testing.T) {
+	dir := t.TempDir()
+	cfg := &config.Config{}
+	cfg.ConfigPath = filepath.Join(dir, "config.yaml")
+	cfg.Agent.AllowSelfUpdate = true
+
+	oldCheck := updateCheck
+	updateCheck = func(ctx context.Context, opts updater.CheckOptions) updater.CheckResult {
+		if opts.InstallDir != dir {
+			t.Fatalf("InstallDir = %q, want %q", opts.InstallDir, dir)
+		}
+		return updater.CheckResult{
+			Mode:            "binary",
+			UpdateAvailable: true,
+			CurrentVersion:  "unknown",
+			LatestVersion:   "v9.9.9",
+			Message:         "Installed version could not be determined. Latest available: v9.9.9",
+		}
+	}
+	t.Cleanup(func() { updateCheck = oldCheck })
+
+	out, ok := dispatchExec(
+		context.Background(),
+		ToolCall{Action: "manage_updates", Operation: "check"},
+		&DispatchContext{Cfg: cfg, Logger: slog.Default()},
+	)
+	if !ok {
+		t.Fatal("expected dispatchExec to handle manage_updates")
+	}
+	payloadJSON := strings.TrimPrefix(out, "Tool Output: ")
+	var payload map[string]interface{}
+	if err := json.Unmarshal([]byte(payloadJSON), &payload); err != nil {
+		t.Fatalf("manage_updates check returned invalid JSON: %v\n%s", err, out)
+	}
+	if payload["status"] != "success" || payload["update_available"] != true || payload["current_version"] != "unknown" {
+		t.Fatalf("unexpected manage_updates check payload: %#v", payload)
+	}
+}
+
+func TestDispatchExecManageUpdatesInstallBlocksSharedRuntimeGates(t *testing.T) {
+	dir := t.TempDir()
+	cfg := &config.Config{}
+	cfg.ConfigPath = filepath.Join(dir, "config.yaml")
+	cfg.Agent.AllowSelfUpdate = true
+	cfg.Runtime.IsDocker = true
+
+	oldGOOS := updateGOOS
+	oldLookPath := updateLookPath
+	updateGOOS = "linux"
+	updateLookPath = func(name string) (string, error) { return "/bin/bash", nil }
+	t.Cleanup(func() {
+		updateGOOS = oldGOOS
+		updateLookPath = oldLookPath
+	})
+
+	out, ok := dispatchExec(
+		context.Background(),
+		ToolCall{Action: "manage_updates", Operation: "install"},
+		&DispatchContext{Cfg: cfg, Logger: slog.Default()},
+	)
+	if !ok {
+		t.Fatal("expected dispatchExec to handle manage_updates")
+	}
+	if !strings.Contains(out, "Docker") {
+		t.Fatalf("expected Docker runtime block, got %s", out)
+	}
+}
+
+func TestDispatchExecManageUpdatesInstallBlocksMissingBash(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "update.sh"), []byte("#!/usr/bin/env bash\n"), 0o755); err != nil {
+		t.Fatalf("write update.sh: %v", err)
+	}
+	cfg := &config.Config{}
+	cfg.ConfigPath = filepath.Join(dir, "config.yaml")
+	cfg.Agent.AllowSelfUpdate = true
+
+	oldGOOS := updateGOOS
+	oldLookPath := updateLookPath
+	updateGOOS = "linux"
+	updateLookPath = func(name string) (string, error) { return "", errors.New("not found") }
+	t.Cleanup(func() {
+		updateGOOS = oldGOOS
+		updateLookPath = oldLookPath
+	})
+
+	out, ok := dispatchExec(
+		context.Background(),
+		ToolCall{Action: "manage_updates", Operation: "install"},
+		&DispatchContext{Cfg: cfg, Logger: slog.Default()},
+	)
+	if !ok {
+		t.Fatal("expected dispatchExec to handle manage_updates")
+	}
+	if !strings.Contains(out, "bash") {
+		t.Fatalf("expected missing bash runtime block, got %s", out)
 	}
 }
 

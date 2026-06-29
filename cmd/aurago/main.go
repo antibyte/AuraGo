@@ -1294,6 +1294,24 @@ func startLifeboatSidecar(log *slog.Logger, cfg *config.Config, bridgeToken stri
 
 	planPath := filepath.Join(cfg.Directories.DataDir, "current_plan.md")
 	statePath := filepath.Join(cfg.Directories.DataDir, "state.json")
+	if strings.TrimSpace(bridgeToken) == "" {
+		log.Error("Lifeboat sidecar not started because bridge token is empty")
+		return
+	}
+	if err := os.MkdirAll(cfg.Directories.DataDir, 0o755); err != nil {
+		log.Error("Failed to create data directory for Lifeboat token", "error", err)
+		return
+	}
+	tokenPath := tools.LifeboatTokenPath(cfg)
+	if err := os.WriteFile(tokenPath, []byte(bridgeToken), 0o600); err != nil {
+		log.Error("Failed to write Lifeboat token", "error", err)
+		return
+	}
+	if err := os.Chmod(tokenPath, 0o600); err != nil {
+		log.Error("Failed to protect Lifeboat token", "error", err)
+		return
+	}
+
 	cmd := exec.Command(lifeboatPath, "--state", statePath, "--plan", planPath, "--sidecar")
 	// Pass the bridge authentication token via environment variable so lifeboat
 	// can authenticate itself when sending commands over the TCP bridge.

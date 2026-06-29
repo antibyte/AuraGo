@@ -8,8 +8,13 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
+
+func LifeboatTokenPath(cfg *config.Config) string {
+	return filepath.Join(cfg.Directories.DataDir, "lifeboat.token")
+}
 
 // InitiateLifeboatHandover sets the agent to busy mode, saves the update plan and state,
 // and returns a sentinel string that the agent supervisor uses to trigger the actual process swap.
@@ -18,6 +23,11 @@ func InitiateLifeboatHandover(plan string, cfg *config.Config) string {
 	dataDir := cfg.Directories.DataDir
 	if err := os.MkdirAll(dataDir, 0755); err != nil {
 		return fmt.Sprintf("Tool Output: ERROR creating data directory: %v", err)
+	}
+
+	token, err := readLifeboatToken(cfg)
+	if err != nil {
+		return fmt.Sprintf("Tool Output: ERROR reading lifeboat token: %v", err)
 	}
 
 	SetBusy(true)
@@ -50,7 +60,7 @@ func InitiateLifeboatHandover(plan string, cfg *config.Config) string {
 		}
 		defer conn.Close()
 
-		cmd := map[string]string{"command": "start_operation"}
+		cmd := map[string]string{"command": "start_operation", "token": token}
 		data, _ := json.Marshal(cmd)
 		data = append(data, '\n')
 		if _, err := conn.Write(data); err != nil {
@@ -61,6 +71,18 @@ func InitiateLifeboatHandover(plan string, cfg *config.Config) string {
 	}()
 
 	return "Maintenance Mode activated. Use 'initiate_handover' only when ready. The Sidecar is now waiting for your signal."
+}
+
+func readLifeboatToken(cfg *config.Config) (string, error) {
+	data, err := os.ReadFile(LifeboatTokenPath(cfg))
+	if err != nil {
+		return "", err
+	}
+	token := strings.TrimSpace(string(data))
+	if token == "" {
+		return "", fmt.Errorf("lifeboat token file is empty")
+	}
+	return token, nil
 }
 
 func writeSensitiveMaintenanceFile(path string, data []byte) error {

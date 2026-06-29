@@ -1216,11 +1216,13 @@ Importe werden zuerst gestaged, auf Path-Traversal, Schema-Warnungen und Archiv-
 ```http
 GET /api/updates/check
 ```
+Prüft Git-Installationen gegen `origin/main` und Binary-Installationen gegen die neueste GitHub Release. Wenn bei einer Binary-Installation die lokale `.version` unbekannt ist, aber eine aktuelle Release-Version bekannt ist, kann die Antwort trotzdem `update_available: true` setzen.
 
 ### Update installieren
 ```http
 POST /api/updates/install
 ```
+Startet `update.sh --yes` im Hintergrund und gibt bei Erfolg `{"status":"started","message":"..."}` zurück. Das Backend liefert JSON-`error`-Antworten, wenn Self-Update deaktiviert ist, AuraGo in Docker/Container läuft, das System nicht Linux ist, `bash` fehlt oder `update.sh` fehlt.
 
 ### Neustart
 ```http

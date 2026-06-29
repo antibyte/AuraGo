@@ -6,10 +6,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -23,7 +23,85 @@ import (
 	"aurago/internal/remote"
 	"aurago/internal/security"
 	"aurago/internal/tools"
+	"aurago/internal/updater"
 )
+
+var (
+	updateCheck        = updater.CheckUpdates
+	updateStartInstall = updater.StartInstall
+	updateGOOS         = runtime.GOOS
+	updateLookPath     = exec.LookPath
+)
+
+func formatUpdateCheckToolOutput(result updater.CheckResult) string {
+	status := "success"
+	if result.Error != "" {
+		status = "error"
+	}
+	payload := map[string]interface{}{
+		"status":           status,
+		"mode":             result.Mode,
+		"update_available": result.UpdateAvailable,
+		"current_version":  result.CurrentVersion,
+		"latest_version":   result.LatestVersion,
+		"message":          result.Message,
+	}
+	if result.CommitCount > 0 {
+		payload["commit_count"] = result.CommitCount
+		payload["count"] = result.CommitCount
+	}
+	if result.Changelog != "" {
+		payload["changelog"] = result.Changelog
+	}
+	if result.Error != "" {
+		payload["error"] = result.Error
+	}
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Sprintf(`Tool Output: {"status":"error","message":"Failed to serialize update result: %v"}`, err)
+	}
+	return "Tool Output: " + string(data)
+}
+
+func formatUpdateInstallToolOutput(result updater.InstallStartResult) string {
+	payload := map[string]string{
+		"status":  "success",
+		"message": result.Message,
+	}
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Sprintf(`Tool Output: {"status":"error","message":"Failed to serialize update result: %v"}`, err)
+	}
+	return "Tool Output: " + string(data)
+}
+
+func formatUpdateErrorToolOutput(err error) string {
+	payload := map[string]string{
+		"status":  "error",
+		"message": cleanUpdateError(err),
+	}
+	data, marshalErr := json.Marshal(payload)
+	if marshalErr != nil {
+		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, strings.ReplaceAll(cleanUpdateError(err), `"`, `'`))
+	}
+	return "Tool Output: " + string(data)
+}
+
+func cleanUpdateError(err error) string {
+	msg := err.Error()
+	for _, prefix := range []string{
+		updater.ErrSelfUpdateDisabled.Error() + ": ",
+		updater.ErrDockerRuntime.Error() + ": ",
+		updater.ErrUnsupportedOS.Error() + ": ",
+		updater.ErrMissingScript.Error() + ": ",
+		updater.ErrMissingBash.Error() + ": ",
+	} {
+		if strings.HasPrefix(msg, prefix) {
+			return strings.TrimSpace(strings.TrimPrefix(msg, prefix))
+		}
+	}
+	return msg
+}
 
 func stringValueFromMap(m map[string]interface{}, keys ...string) string {
 	for _, key := range keys {
@@ -325,91 +403,26 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			return resultOutput
 
 		case "manage_updates":
-			if !cfg.Agent.AllowSelfUpdate {
-				return "Tool Output: [PERMISSION DENIED] manage_updates is disabled in Danger Zone settings (agent.allow_self_update: false)."
-			}
 			req := decodeUpdateManagementArgs(tc)
 			logger.Info("LLM requested update management", "operation", req.Operation)
+			installDir := updater.InstallDir(cfg.ConfigPath)
 			switch req.Operation {
 			case "check":
-				installDir := filepath.Dir(cfg.ConfigPath)
-
-				// Binary-only install: no .git directory → use GitHub Releases API
-				if _, gitErr := os.Stat(filepath.Join(installDir, ".git")); os.IsNotExist(gitErr) {
-					// Read installed version from .version file
-					currentVer := "unknown"
-					if vb, err := os.ReadFile(filepath.Join(installDir, ".version")); err == nil {
-						currentVer = strings.TrimSpace(string(vb))
-					}
-					// Fetch latest release from GitHub
-					type ghRelease struct {
-						TagName string `json:"tag_name"`
-					}
-					httpClient := &http.Client{Timeout: 10 * time.Second}
-					req, reqErr := http.NewRequest("GET", "https://api.github.com/repos/antibyte/AuraGo/releases/latest", nil)
-					if reqErr != nil {
-						return fmt.Sprintf(`Tool Output: {"status":"error","message":"Failed to build request: %v"}`, reqErr)
-					}
-					req.Header.Set("User-Agent", "AuraGo-Agent/1.0")
-					resp, fetchErr := httpClient.Do(req)
-					if fetchErr != nil {
-						return fmt.Sprintf(`Tool Output: {"status":"error","message":"Failed to reach GitHub: %v"}`, fetchErr)
-					}
-					defer resp.Body.Close()
-					var rel ghRelease
-					if decErr := json.NewDecoder(resp.Body).Decode(&rel); decErr != nil {
-						return fmt.Sprintf(`Tool Output: {"status":"error","message":"Failed to parse GitHub response: %v"}`, decErr)
-					}
-					if currentVer != "unknown" && currentVer == rel.TagName {
-						return fmt.Sprintf(`Tool Output: {"status":"success","update_available":false,"current_version":%q,"latest_version":%q,"message":"AuraGo is up to date."}`, currentVer, rel.TagName)
-					}
-					return fmt.Sprintf(`Tool Output: {"status":"success","update_available":true,"current_version":%q,"latest_version":%q,"message":"Update available."}`, currentVer, rel.TagName)
-				}
-
-				// Git-based install
-				_, err := runGitCommand(filepath.Dir(cfg.ConfigPath), "fetch", "origin", "main", "--quiet")
-				if err != nil {
-					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Failed to fetch updates: %v"}`, err)
-				}
-
-				countOut, err := runGitCommand(filepath.Dir(cfg.ConfigPath), "rev-list", "HEAD..origin/main", "--count")
-				if err != nil {
-					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Failed to check update count: %v"}`, err)
-				}
-				countStr := strings.TrimSpace(string(countOut))
-				count, _ := strconv.Atoi(countStr)
-
-				if count == 0 {
-					return `Tool Output: {"status": "success", "update_available": false, "message": "AuraGo is up to date."}`
-				}
-
-				logOut, _ := runGitCommand(filepath.Dir(cfg.ConfigPath), "log", "HEAD..origin/main", "--oneline", "-n", "10")
-
-				return fmt.Sprintf(`Tool Output: {"status": "success", "update_available": true, "count": %d, "changelog": %q}`, count, string(logOut))
+				result := updateCheck(ctx, updater.CheckOptions{InstallDir: installDir})
+				return formatUpdateCheckToolOutput(result)
 
 			case "install":
 				logger.Warn("LLM requested update installation")
-				updateScript := filepath.Join(filepath.Dir(cfg.ConfigPath), "update.sh")
-				if _, err := os.Stat(updateScript); err != nil {
-					return `Tool Output: {"status": "error", "message": "update.sh not found in application directory"}`
+				result, err := updateStartInstall(updater.StartInstallOptions{
+					Cfg:        cfg,
+					InstallDir: installDir,
+					GOOS:       updateGOOS,
+					LookPath:   updateLookPath,
+				})
+				if err != nil {
+					return formatUpdateErrorToolOutput(err)
 				}
-
-				// Run ./update.sh --yes
-				updateCmd := exec.Command("/bin/bash", "./update.sh", "--yes")
-				updateCmd.Dir = filepath.Dir(cfg.ConfigPath)
-				// Ensure environment is passed for update script too
-				home, _ := os.UserHomeDir()
-				if home != "" {
-					updateCmd.Env = append(os.Environ(), "HOME="+home)
-				}
-				// Start update script. It will handle the rest, potentially killing this process.
-				if err := updateCmd.Start(); err != nil {
-					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Failed to start update script: %v"}`, err)
-				}
-				// Reap the child to avoid a zombie process. The update script may
-				// kill this process, so we do not block — Wait runs in a goroutine.
-				go func() { _ = updateCmd.Wait() }()
-				return `Tool Output: {"status": "success", "message": "Update initiated. The system will restart and apply changes shortly."}`
+				return formatUpdateInstallToolOutput(result)
 
 			default:
 				return `Tool Output: {"status": "error", "message": "Invalid operation. Use 'check' or 'install'."}`

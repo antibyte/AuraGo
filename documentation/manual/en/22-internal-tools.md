@@ -1298,7 +1298,7 @@ Requires `homepage.enabled: true`. Workspace paths in tool arguments are **relat
 SQLite-backed project catalog (`sqlite.homepage_registry_path`). Auto-registration on `init_project`. Operations include `register`, `search`, `get`, `list`, `update`, `delete`, `log_edit`, `log_deploy`, `log_problem`, `resolve_problem`, and history: `add_history`, `list_history`, `get_history`, `search_history`, `update_history`, `delete_history`.
 
 ### `manage_updates`
-Check/install AuraGo updates.
+Check/install AuraGo updates. `check` uses the same release/git logic as `/api/updates/check`; if a binary install has no `.version` but GitHub reports a latest release, it can still report `update_available: true`. `install` is backend-gated: it requires `allow_self_update: true`, a native Linux runtime, `bash`, and `update.sh`. Docker/container installs are blocked; update the container image instead.
 
 ### `manage_webhooks`
 Manage incoming webhooks.
@@ -1597,4 +1597,3 @@ Most tools use `{tool_name}.md`. Exceptions and grouped manuals:
 
 
 ---
-

@@ -102,6 +102,22 @@ remove_regular_file_if_present() {
     return 1
 }
 
+mark_executable_if_present() {
+    local path="$1"
+    [ -f "$path" ] || return 0
+    chmod +x "$path" 2>/dev/null || $SUDO chmod +x "$path" 2>/dev/null || true
+}
+
+apply_aurago_setcap_if_available() {
+    local binary="$DIR/bin/aurago_linux"
+    [ -f "$binary" ] || binary="$DIR/bin/aurago"
+    [ -f "$binary" ] || return 0
+    command -v setcap >/dev/null 2>&1 || return 0
+    setcap cap_net_bind_service=+ep "$binary" 2>/dev/null || \
+        $SUDO setcap cap_net_bind_service=+ep "$binary" 2>/dev/null || \
+        warn "setcap failed on ${binary} — run manually if you need HTTPS on privileged ports."
+}
+
 # ── Find installation directory ────────────────────────────────────────
 # _AU_ORIG_DIR is exported when re-execing from a temp copy (see below).
 # In that case BASH_SOURCE[0] points to /tmp/... so we must use the saved path.
@@ -156,6 +172,8 @@ fi
 # ── Detect install mode ───────────────────────────────────────────────────
 # Binary-only installs (no .git directory) are fully supported.
 BINARY_ONLY=false
+PRE_UPDATE_REF=""
+GIT_VER=""
 if [ ! -d "$DIR/.git" ]; then
     BINARY_ONLY=true
 fi
@@ -270,13 +288,13 @@ verify_release_asset() {
     local asset="$1"
     local path="$2"
     local expected actual
-    [ -f "$path" ] || die "Cannot verify missing file: $path"
-    [ -n "${RELEASE_CHECKSUMS_FILE:-}" ] && [ -f "$RELEASE_CHECKSUMS_FILE" ] || die "Release checksums are not available."
+    [ -f "$path" ] || { warn "Cannot verify missing file: $path"; return 1; }
+    [ -n "${RELEASE_CHECKSUMS_FILE:-}" ] && [ -f "$RELEASE_CHECKSUMS_FILE" ] || { warn "Release checksums are not available."; return 1; }
     expected="$(awk -v target="$asset" '$2 == target {print $1; exit}' "$RELEASE_CHECKSUMS_FILE")"
-    [ -n "$expected" ] || die "Missing checksum entry for ${asset} in release manifest."
+    [ -n "$expected" ] || { warn "Missing checksum entry for ${asset} in release manifest."; return 1; }
     actual="$(sha256_file "$path" || true)"
-    [ -n "$actual" ] || die "No SHA256 tool available to verify ${asset}."
-    [ "$actual" = "$expected" ] || die "Checksum verification failed for ${asset}."
+    [ -n "$actual" ] || { warn "No SHA256 tool available to verify ${asset}."; return 1; }
+    [ "$actual" = "$expected" ] || { warn "Checksum verification failed for ${asset}."; return 1; }
 }
 
 download_release_asset() {
@@ -285,6 +303,25 @@ download_release_asset() {
     local url="${RELEASE_BASE}/${asset}"
     fetch_url_to_file "$url" "$dest"
     verify_release_asset "$asset" "$dest"
+}
+
+_download_release_bin() {
+    local name="$1"
+    local dest="${2:-$DIR/bin/$name}"
+    mkdir -p "$(dirname "$dest")"
+    download_release_asset "$name" "$dest"
+}
+
+select_release_bins_for_arch() {
+    if [ "$GOARCH" = "arm64" ]; then
+        REQUIRED_BINS=("aurago_linux_arm64" "lifeboat_linux_arm64" "config-merger_linux_arm64")
+        OPTIONAL_BINS=("aurago-remote_linux_arm64")
+    elif [ "$GOARCH" = "amd64" ]; then
+        REQUIRED_BINS=("aurago_linux" "lifeboat_linux" "config-merger_linux")
+        OPTIONAL_BINS=("aurago-remote_linux")
+    else
+        die "No prebuilt release binaries for architecture ${ARCH_RAW}. Install Go 1.26.4+ to build from source."
+    fi
 }
 
 fetch_url_stdout() {
@@ -704,6 +741,50 @@ restore_previous_aurago_binary() {
     return 1
 }
 
+restore_critical_user_data_after_failure() {
+    for f in "${PROTECTED_FILES[@]}"; do
+        local bak="$BACKUP_DIR/$(basename "$f")"
+        [ -f "$bak" ] || continue
+        safe_restore_file "$bak" "$DIR/$f" || warn "Could not restore $f during rollback."
+    done
+    if [ -d "$BACKUP_DIR/data" ]; then
+        mkdir -p "$DIR/data"
+        for f in "${DATA_FILES[@]}"; do
+            local bak="$BACKUP_DIR/data/$(basename "$f")"
+            [ -f "$bak" ] || continue
+            safe_restore_file "$bak" "$DIR/$f" || warn "Could not restore $f during rollback."
+        done
+    fi
+}
+
+restart_previous_after_rollback() {
+    $NO_RESTART && return 0
+    if command -v systemctl >/dev/null 2>&1; then
+        if $SUDO systemctl start aurago 2>/dev/null; then
+            ok "Previous aurago systemd service restarted after rollback."
+            return 0
+        fi
+    fi
+    local launch_bin="$DIR/bin/aurago_linux"
+    [ -f "$launch_bin" ] || launch_bin="$DIR/bin/aurago"
+    [ -f "$launch_bin" ] || return 0
+    mkdir -p "$DIR/log"
+    nohup "$launch_bin" --config "$DIR/config.yaml" >> "$DIR/log/aurago.log" 2>&1 &
+    ok "Previous AuraGo binary restarted after rollback."
+}
+
+abort_update() {
+    local msg="$1"
+    warn "Update failed after shutdown; rolling back to the previous working state."
+    restore_previous_aurago_binary || true
+    if [ -n "${PRE_UPDATE_REF:-}" ] && [ -d "$DIR/.git" ]; then
+        git -C "$DIR" reset --hard "$PRE_UPDATE_REF" >/dev/null 2>&1 || warn "Could not reset git checkout to $PRE_UPDATE_REF during rollback."
+    fi
+    restore_critical_user_data_after_failure
+    restart_previous_after_rollback || true
+    die "$msg"
+}
+
 backup_current_aurago_binary
 
 for f in "${PROTECTED_FILES[@]}"; do
@@ -773,6 +854,42 @@ if [ -d "$PROMPTS_DIR" ]; then
     ok "Backed up $CUSTOM_COUNT prompt file(s)"
 fi
 
+# Add common Go install locations to PATH (in case the shell was not re-sourced after install)
+for _godir in /usr/local/go/bin "$HOME/go/bin" /usr/local/bin; do
+    [ -d "$_godir" ] && [[ ":$PATH:" != *":$_godir:"* ]] && export PATH="$_godir:$PATH"
+done
+unset _godir
+
+GO_FOUND=false
+if command -v go >/dev/null 2>&1; then
+    GO_VERSION=$(go version | awk '{print $3}' | sed 's/go//')
+    GO_FOUND=true
+fi
+
+STAGED_RELEASE_DIR=""
+REQUIRED_BINS=()
+OPTIONAL_BINS=()
+if $BINARY_ONLY && ! $GO_FOUND; then
+    select_release_bins_for_arch
+    STAGED_RELEASE_DIR="$(mktemp -d "${_AU_RUNTIME_DIR}/release.XXXXXX")"
+    for BIN_NAME in "${REQUIRED_BINS[@]}"; do
+        info "Staging required $BIN_NAME from GitHub Releases..."
+        if _download_release_bin "$BIN_NAME" "$STAGED_RELEASE_DIR/$BIN_NAME"; then
+            ok "$BIN_NAME downloaded and verified."
+        else
+            abort_update "Required release artifact $BIN_NAME could not be downloaded or verified."
+        fi
+    done
+    for BIN_NAME in "${OPTIONAL_BINS[@]}"; do
+        info "Staging optional $BIN_NAME from GitHub Releases..."
+        if _download_release_bin "$BIN_NAME" "$STAGED_RELEASE_DIR/$BIN_NAME"; then
+            ok "$BIN_NAME downloaded and verified."
+        else
+            warn "$BIN_NAME download failed; continuing without optional remote client artifact."
+        fi
+    done
+fi
+
 # ── Apply update ───────────────────────────────────────────────────────
 if $BINARY_ONLY; then
     # Binary-only: download resources.dat and extract
@@ -807,11 +924,11 @@ if $BINARY_ONLY; then
     fi
 
     rm -rf "$TMPEXT"
-    printf '%s' "$RELEASE_TAG" > "$DIR/.version"
     ok "Resources updated from release $RELEASE_TAG"
 else
     # Git-based update.
     if ! $GIT_UP_TO_DATE; then
+        PRE_UPDATE_REF="$(git -C "$DIR" rev-parse HEAD 2>/dev/null || true)"
         if ! git diff --quiet || ! git diff --cached --quiet; then
             info "Cleaning local tracked changes before update..."
             if ! clean_tracked_changes; then
@@ -853,7 +970,6 @@ else
         fi
         ok "Code updated to $(git log --format='%h  %s' -1)"
         GIT_VER=$(git describe --tags --always 2>/dev/null || git rev-parse --short HEAD 2>/dev/null || echo 'git')
-        printf '%s' "$GIT_VER" > "$DIR/.version"
     fi
 
     # Restore user's config.yaml — git must never win over user's config.
@@ -1115,23 +1231,6 @@ fi
 RELEASE_BASE="https://github.com/${GITHUB_REPO}/releases/download/${RELEASE_TAG}"
 fetch_release_checksums || die "Could not download SHA256SUMS for release ${RELEASE_TAG}."
 
-_download_release_bin() {
-    local name="$1"
-    download_release_asset "$name" "$DIR/bin/$name"
-}
-
-# Add common Go install locations to PATH (in case the shell was not re-sourced after install)
-for _godir in /usr/local/go/bin "$HOME/go/bin" /usr/local/bin; do
-    [ -d "$_godir" ] && [[ ":$PATH:" != *":$_godir:"* ]] && export PATH="$_godir:$PATH"
-done
-unset _godir
-
-GO_FOUND=false
-if command -v go >/dev/null 2>&1; then
-    GO_VERSION=$(go version | awk '{print $3}' | sed 's/go//')
-    GO_FOUND=true
-fi
-
 if $GO_FOUND; then
     # ── Source build (Go available) ───────────────────────────────────────
     info "Go $GO_VERSION found — building from source..."
@@ -1144,7 +1243,7 @@ if $GO_FOUND; then
     if CGO_ENABLED=0 GOOS=linux GOARCH="$GOARCH" go build -trimpath -ldflags='-s -w' -o bin/aurago_linux ./cmd/aurago; then
         ok "bin/aurago_linux built from source"
     else
-        warn "Build failed! Falling back to pre-built binary included in the repository."
+        abort_update "Failed to build required bin/aurago_linux. Update aborted."
     fi
 
     info "Building lifeboat_linux ($GOARCH)..."
@@ -1187,27 +1286,44 @@ if $GO_FOUND; then
         fi
     done
 
+    [ -f "$DIR/bin/aurago_linux" ] || abort_update "Required AuraGo binary missing after source build."
+    ok "Main binary built successfully"
+    if $BINARY_ONLY; then
+        printf '%s' "$RELEASE_TAG" > "$DIR/.version"
+    elif [ -n "${GIT_VER:-}" ]; then
+        printf '%s' "$GIT_VER" > "$DIR/.version"
+    fi
 
 else
     # ── Download binaries from GitHub Releases (no Go available) ─────────
     warn "Go is not installed — downloading pre-built binaries from GitHub Releases."
 
-    # Pick arch-appropriate binary names
-    if [ "$GOARCH" = "arm64" ]; then
-        BINS=("aurago_linux_arm64" "lifeboat_linux_arm64" "config-merger_linux_arm64" "aurago-remote_linux_arm64")
-    elif [ "$GOARCH" = "amd64" ]; then
-        BINS=("aurago_linux" "lifeboat_linux" "config-merger_linux" "aurago-remote_linux")
-    else
-        die "No prebuilt release binaries for architecture ${ARCH_RAW}. Install Go 1.26.4+ to build from source."
+    select_release_bins_for_arch
+
+    if [ -z "${STAGED_RELEASE_DIR:-}" ]; then
+        STAGED_RELEASE_DIR="$(mktemp -d "${_AU_RUNTIME_DIR}/release.XXXXXX")"
+        for BIN_NAME in "${REQUIRED_BINS[@]}"; do
+            info "Downloading required $BIN_NAME from GitHub Releases..."
+            if _download_release_bin "$BIN_NAME" "$STAGED_RELEASE_DIR/$BIN_NAME"; then
+                ok "$BIN_NAME downloaded and verified."
+            else
+                abort_update "Required release artifact $BIN_NAME could not be downloaded or verified."
+            fi
+        done
+        for BIN_NAME in "${OPTIONAL_BINS[@]}"; do
+            info "Downloading optional $BIN_NAME from GitHub Releases..."
+            if _download_release_bin "$BIN_NAME" "$STAGED_RELEASE_DIR/$BIN_NAME"; then
+                ok "$BIN_NAME downloaded and verified."
+            else
+                warn "$BIN_NAME download failed; continuing without optional remote client artifact."
+            fi
+        done
     fi
 
-    for BIN_NAME in "${BINS[@]}"; do
-        info "Downloading $BIN_NAME from GitHub Releases..."
-        if _download_release_bin "$BIN_NAME"; then
-            ok "$BIN_NAME downloaded."
-        else
-            warn "$BIN_NAME download failed."
-        fi
+    mkdir -p "$DIR/bin"
+    for BIN_NAME in "${REQUIRED_BINS[@]}" "${OPTIONAL_BINS[@]}"; do
+        [ -f "$STAGED_RELEASE_DIR/$BIN_NAME" ] || continue
+        cp -p "$STAGED_RELEASE_DIR/$BIN_NAME" "$DIR/bin/$BIN_NAME" || abort_update "Could not install verified release artifact $BIN_NAME."
     done
 
     # Ensure standard names exist (for arm64 → copy to non-suffixed names)
@@ -1236,7 +1352,9 @@ else
     mark_executable_if_present "$DIR/deploy/aurago-remote_linux_arm64"
     mark_executable_if_present "$DIR/deploy/aurago-remote_linux"
 
-    [ -f "$DIR/bin/aurago_linux" ] || die "Failed to obtain aurago_linux binary. Cannot continue."
+    [ -f "$DIR/bin/aurago_linux" ] || abort_update "Required AuraGo binary missing after update."
+    ok "Main binary built successfully"
+    printf '%s' "$RELEASE_TAG" > "$DIR/.version"
 
     # Create lifeboat symlink
     [ -f "$DIR/bin/lifeboat_linux" ] && cp -p "$DIR/bin/lifeboat_linux" "$DIR/bin/lifeboat" 2>/dev/null || true
@@ -1244,22 +1362,6 @@ fi
 
 # Ensure known binaries and helper scripts are executable. Keep this list
 # explicit so updates never make arbitrary dropped files executable.
-mark_executable_if_present() {
-    local path="$1"
-    [ -f "$path" ] || return 0
-    chmod +x "$path" 2>/dev/null || $SUDO chmod +x "$path" 2>/dev/null || true
-}
-
-apply_aurago_setcap_if_available() {
-    local binary="$DIR/bin/aurago_linux"
-    [ -f "$binary" ] || binary="$DIR/bin/aurago"
-    [ -f "$binary" ] || return 0
-    command -v setcap >/dev/null 2>&1 || return 0
-    setcap cap_net_bind_service=+ep "$binary" 2>/dev/null || \
-        $SUDO setcap cap_net_bind_service=+ep "$binary" 2>/dev/null || \
-        warn "setcap failed on ${binary} — run manually if you need HTTPS on privileged ports."
-}
-
 for _exe in \
     "$DIR/bin/aurago_linux" \
     "$DIR/bin/aurago_linux_amd64" \

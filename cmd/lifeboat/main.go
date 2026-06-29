@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"crypto/rand"
+	"crypto/subtle"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -15,6 +16,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -116,6 +118,7 @@ func handleSidecarConnection(conn net.Conn, cfg *config.Config, statePath, planP
 
 	var cmd struct {
 		Command string `json:"command"`
+		Token   string `json:"token"`
 	}
 	if err := json.Unmarshal(line, &cmd); err != nil {
 		l.Error("Sidecar: Failed to unmarshal command", "error", err, "raw", string(line))
@@ -124,6 +127,10 @@ func handleSidecarConnection(conn net.Conn, cfg *config.Config, statePath, planP
 	l.Debug("Sidecar: Received command", "command", cmd.Command)
 
 	if cmd.Command == "start_operation" {
+		if !lifeboatCommandAuthorized(os.Getenv("AURAGO_BRIDGE_TOKEN"), cmd.Token) {
+			l.Warn("Sidecar: rejected unauthorized start_operation command")
+			return
+		}
 		l.Info("Sidecar: Received start_operation signal!")
 		if err := runOperation(cfg, statePath, planPath, l); err != nil {
 			l.Error("Sidecar: Operation failed", "error", err)
@@ -397,6 +404,13 @@ func sendShutdownAndReload(l *slog.Logger) error {
 func rebuildMainAgent(l *slog.Logger) error {
 	buildArgs := lifeboatBuildCommandArgs()
 	l.Info("Führe Build aus", "command", "go "+strings.Join(buildArgs, " "))
+	if len(buildArgs) >= 3 {
+		if dir := filepath.Dir(buildArgs[2]); dir != "." && dir != "" {
+			if err := os.MkdirAll(dir, 0o755); err != nil {
+				return fmt.Errorf("create build output directory: %w", err)
+			}
+		}
+	}
 
 	buildCmd := exec.Command("go", buildArgs...)
 	output, err := buildCmd.CombinedOutput()
@@ -456,18 +470,69 @@ func lifeboatMainBinaryName() string {
 }
 
 func lifeboatBuildCommandArgs() []string {
-	return []string{"build", "-o", lifeboatMainBinaryName(), "./cmd/aurago"}
+	return lifeboatBuildCommandArgsForTarget(lifeboatMainBinaryPath())
+}
+
+func lifeboatBuildCommandArgsForTarget(target string) []string {
+	return []string{"build", "-o", target, "./cmd/aurago"}
 }
 
 func lifeboatRestartSpec(recoveryContext string, absFn func(string) (string, error)) (string, []string, error) {
-	exeName := lifeboatMainBinaryName()
-	exePath, err := absFn(exeName)
+	return lifeboatRestartSpecForTarget(lifeboatMainBinaryPath(), recoveryContext, absFn)
+}
+
+func lifeboatRestartSpecForTarget(target string, recoveryContext string, absFn func(string) (string, error)) (string, []string, error) {
+	exePath, err := absFn(target)
 	if err != nil {
-		exePath = "./" + exeName
+		exePath = "." + string(filepath.Separator) + target
 	}
 	args := []string{}
 	if recoveryContext != "" {
 		args = append(args, "--recovery-context", recoveryContext)
 	}
 	return exePath, args, err
+}
+
+func lifeboatMainBinaryPath() string {
+	return lifeboatSelectMainBinaryPath(runtime.GOOS, func(name string) bool {
+		_, err := os.Stat(name)
+		return err == nil
+	})
+}
+
+func lifeboatSelectMainBinaryPath(goos string, exists func(string) bool) string {
+	candidates := lifeboatMainBinaryCandidates(goos)
+	for _, candidate := range candidates {
+		if exists(candidate) {
+			return candidate
+		}
+	}
+	return candidates[0]
+}
+
+func lifeboatMainBinaryCandidates(goos string) []string {
+	if goos == "windows" {
+		return []string{
+			filepath.Join("bin", "aurago_windows.exe"),
+			filepath.Join("bin", "aurago.exe"),
+			"aurago.exe",
+		}
+	}
+	return []string{
+		filepath.Join("bin", "aurago_linux"),
+		filepath.Join("bin", "aurago"),
+		lifeboatMainBinaryName(),
+	}
+}
+
+func lifeboatCommandAuthorized(expectedToken, suppliedToken string) bool {
+	expectedToken = strings.TrimSpace(expectedToken)
+	suppliedToken = strings.TrimSpace(suppliedToken)
+	if expectedToken == "" || suppliedToken == "" {
+		return false
+	}
+	if len(expectedToken) != len(suppliedToken) {
+		return false
+	}
+	return subtle.ConstantTimeCompare([]byte(expectedToken), []byte(suppliedToken)) == 1
 }

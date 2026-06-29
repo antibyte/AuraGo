@@ -1221,7 +1221,7 @@ Erfordert `homepage.enabled: true`. Tool-Argumente (`project_dir`, `path`) sind 
 SQLite-Registry (`sqlite.homepage_registry_path`). Auto-Registrierung bei `init_project`. Operationen u. a. `register`, `search`, `list`, `log_edit`, `log_deploy`, `log_problem`, `resolve_problem`, `add_history`, `list_history`, `get_history`, `search_history`.
 
 ### `manage_updates`
-AuraGo Updates prüfen/installieren.
+AuraGo Updates prüfen/installieren. `check` nutzt dieselbe Release-/Git-Logik wie `/api/updates/check`; wenn bei einer Binary-Installation `.version` fehlt, GitHub aber eine aktuelle Release-Version liefert, kann trotzdem `update_available: true` gemeldet werden. `install` wird backendseitig begrenzt: nötig sind `allow_self_update: true`, ein natives Linux-System, `bash` und `update.sh`. Docker-/Container-Installationen werden blockiert; aktualisiere dort stattdessen das Container-Image.
 
 ### `manage_webhooks`
 Eingehende Webhooks verwalten.
