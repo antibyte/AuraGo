@@ -898,7 +898,7 @@ indexing:
         - .rtf
     index_images: false                         # send images to Vision LLM for analysis and index results
 workspace_search:
-    enabled: true                                # resident fast search index for directories.workspace_dir
+    enabled: true                                # resident fast search index for the full agent workspace
     max_file_size_mb: 10                         # text files up to this size are indexed for grep
     max_index_size_mb: 256                       # total in-memory text-content budget
     max_results: 100                             # default result limit for workspace_search operations

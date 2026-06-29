@@ -227,9 +227,14 @@ func TestDispatchFilesystemRoutesTomlEditor(t *testing.T) {
 func TestDispatchWorkspaceSearchExecutesIndexedGrep(t *testing.T) {
 	tempRoot := t.TempDir()
 	dataDir := filepath.Join(tempRoot, "data")
-	workspaceDir := filepath.Join(tempRoot, "agent_workspace", "workdir")
+	agentWorkspaceDir := filepath.Join(tempRoot, "agent_workspace")
+	workspaceDir := filepath.Join(agentWorkspaceDir, "workdir")
+	toolsDir := filepath.Join(agentWorkspaceDir, "tools")
 	if err := os.MkdirAll(filepath.Join(workspaceDir, "docs"), 0o755); err != nil {
 		t.Fatalf("create workspace: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(toolsDir, "helpers"), 0o755); err != nil {
+		t.Fatalf("create tools dir: %v", err)
 	}
 	if err := os.MkdirAll(dataDir, 0o755); err != nil {
 		t.Fatalf("create data dir: %v", err)
@@ -237,10 +242,14 @@ func TestDispatchWorkspaceSearchExecutesIndexedGrep(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(workspaceDir, "docs", "readme.md"), []byte("needle line\n"), 0o644); err != nil {
 		t.Fatalf("write fixture: %v", err)
 	}
+	if err := os.WriteFile(filepath.Join(toolsDir, "helpers", "tool.md"), []byte("needle tool\n"), 0o644); err != nil {
+		t.Fatalf("write tool fixture: %v", err)
+	}
 
 	cfg := &config.Config{}
 	cfg.Directories.DataDir = dataDir
 	cfg.Directories.WorkspaceDir = workspaceDir
+	cfg.Directories.ToolsDir = toolsDir
 	cfg.WorkspaceSearch.Enabled = true
 	cfg.WorkspaceSearch.MaxFileSizeMB = 2
 	cfg.WorkspaceSearch.MaxIndexSizeMB = 64
@@ -286,21 +295,32 @@ func TestDispatchWorkspaceSearchExecutesIndexedGrep(t *testing.T) {
 	}
 	data := parsed["data"].(map[string]interface{})
 	matches := data["matches"].([]interface{})
-	if len(matches) != 1 {
-		t.Fatalf("matches = %#v, want 1", matches)
+	if len(matches) != 2 {
+		t.Fatalf("matches = %#v, want 2", matches)
 	}
-	match := matches[0].(map[string]interface{})
-	if match["file"] != "docs/readme.md" {
-		t.Fatalf("match file = %v, want docs/readme.md", match["file"])
+	gotFiles := map[string]bool{}
+	for _, rawMatch := range matches {
+		match := rawMatch.(map[string]interface{})
+		gotFiles[match["file"].(string)] = true
+	}
+	for _, want := range []string{"workdir/docs/readme.md", "tools/helpers/tool.md"} {
+		if !gotFiles[want] {
+			t.Fatalf("matches missing %s, got %#v", want, gotFiles)
+		}
 	}
 }
 
 func TestDispatchFileSearchFindDelegatesToWorkspaceSearchWithCompatibleShape(t *testing.T) {
 	tempRoot := t.TempDir()
 	dataDir := filepath.Join(tempRoot, "data")
-	workspaceDir := filepath.Join(tempRoot, "agent_workspace", "workdir")
+	agentWorkspaceDir := filepath.Join(tempRoot, "agent_workspace")
+	workspaceDir := filepath.Join(agentWorkspaceDir, "workdir")
+	toolsDir := filepath.Join(agentWorkspaceDir, "tools")
 	if err := os.MkdirAll(filepath.Join(workspaceDir, "docs"), 0o755); err != nil {
 		t.Fatalf("create workspace: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(toolsDir, "helpers"), 0o755); err != nil {
+		t.Fatalf("create tools dir: %v", err)
 	}
 	if err := os.MkdirAll(dataDir, 0o755); err != nil {
 		t.Fatalf("create data dir: %v", err)
@@ -308,10 +328,14 @@ func TestDispatchFileSearchFindDelegatesToWorkspaceSearchWithCompatibleShape(t *
 	if err := os.WriteFile(filepath.Join(workspaceDir, "docs", "readme.md"), []byte("needle line\n"), 0o644); err != nil {
 		t.Fatalf("write fixture: %v", err)
 	}
+	if err := os.WriteFile(filepath.Join(toolsDir, "helpers", "tool.md"), []byte("needle tool\n"), 0o644); err != nil {
+		t.Fatalf("write tool fixture: %v", err)
+	}
 
 	cfg := &config.Config{}
 	cfg.Directories.DataDir = dataDir
 	cfg.Directories.WorkspaceDir = workspaceDir
+	cfg.Directories.ToolsDir = toolsDir
 	cfg.WorkspaceSearch.Enabled = true
 	cfg.WorkspaceSearch.MaxFileSizeMB = 2
 	cfg.WorkspaceSearch.MaxIndexSizeMB = 64
@@ -357,7 +381,7 @@ func TestDispatchFileSearchFindDelegatesToWorkspaceSearchWithCompatibleShape(t *
 	data := parsed["data"].(map[string]interface{})
 	files := data["files"].([]interface{})
 	if len(files) != 1 || files[0] != "docs/readme.md" {
-		t.Fatalf("files = %#v, want docs/readme.md", files)
+		t.Fatalf("files = %#v, want only workdir-relative docs/readme.md", files)
 	}
 }
 
@@ -435,7 +459,7 @@ func TestDispatchFilesystemAccessTrackingHooks(t *testing.T) {
 	if err != nil {
 		t.Fatalf("recent: %v", err)
 	}
-	if len(recent) == 0 || recent[0].Path != "notes.txt" || recent[0].AccessCount < 2 {
-		t.Fatalf("recent = %#v, want notes.txt with at least two tracked accesses", recent)
+	if len(recent) == 0 || recent[0].Path != "workdir/notes.txt" || recent[0].AccessCount < 2 {
+		t.Fatalf("recent = %#v, want workdir/notes.txt with at least two tracked accesses", recent)
 	}
 }

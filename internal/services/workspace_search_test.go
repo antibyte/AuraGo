@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"log/slog"
@@ -18,17 +19,26 @@ func newWorkspaceSearchTestService(t *testing.T, maxFileSizeMB int) (*WorkspaceS
 
 	root := t.TempDir()
 	dataDir := filepath.Join(root, "data")
-	workspaceDir := filepath.Join(root, "workspace")
+	agentWorkspaceDir := filepath.Join(root, "agent_workspace")
+	workspaceDir := filepath.Join(agentWorkspaceDir, "workdir")
+	toolsDir := filepath.Join(agentWorkspaceDir, "tools")
+	skillsDir := filepath.Join(agentWorkspaceDir, "skills")
+	agentSkillsDir := filepath.Join(agentWorkspaceDir, "agent_skills")
 	if err := os.MkdirAll(dataDir, 0o755); err != nil {
 		t.Fatalf("create data dir: %v", err)
 	}
-	if err := os.MkdirAll(workspaceDir, 0o755); err != nil {
-		t.Fatalf("create workspace dir: %v", err)
+	for _, dir := range []string{workspaceDir, toolsDir, skillsDir, agentSkillsDir} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatalf("create workspace dir %s: %v", dir, err)
+		}
 	}
 
 	cfg := &config.Config{}
 	cfg.Directories.DataDir = dataDir
 	cfg.Directories.WorkspaceDir = workspaceDir
+	cfg.Directories.ToolsDir = toolsDir
+	cfg.Directories.SkillsDir = skillsDir
+	cfg.Directories.AgentSkillsDir = agentSkillsDir
 	cfg.WorkspaceSearch.Enabled = true
 	cfg.WorkspaceSearch.MaxFileSizeMB = maxFileSizeMB
 	cfg.WorkspaceSearch.MaxIndexSizeMB = 64
@@ -103,15 +113,15 @@ func TestWorkspaceSearchScanSkipsUnsafeAndExcludedContent(t *testing.T) {
 	for _, match := range matches.Matches {
 		got[match.File] = true
 	}
-	if !got["docs/readme.md"] {
+	if !got["workdir/docs/readme.md"] {
 		t.Fatalf("expected docs/readme.md in grep results, got %#v", got)
 	}
-	for _, forbidden := range []string{".env", "node_modules/pkg/a.js", "cache.db", "binary.bin", "large.txt"} {
+	for _, forbidden := range []string{"workdir/.env", "workdir/node_modules/pkg/a.js", "workdir/cache.db", "workdir/binary.bin", "workdir/large.txt"} {
 		if got[forbidden] {
 			t.Fatalf("grep result included skipped file %s: %#v", forbidden, got)
 		}
 	}
-	if symlinkCreated && got["leak.txt"] {
+	if symlinkCreated && got["workdir/leak.txt"] {
 		t.Fatalf("grep result included symlink escape: %#v", got)
 	}
 
@@ -119,8 +129,58 @@ func TestWorkspaceSearchScanSkipsUnsafeAndExcludedContent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("find large: %v", err)
 	}
-	if !containsWorkspaceSearchPath(files, "large.txt") {
+	if !containsWorkspaceSearchPath(files, "workdir/large.txt") {
 		t.Fatalf("large text file should remain path-searchable, got %#v", files)
+	}
+}
+
+func TestWorkspaceSearchIndexesWholeAgentWorkspace(t *testing.T) {
+	ctx := context.Background()
+	svc, cfg := newWorkspaceSearchTestService(t, 2)
+
+	writeWorkspaceSearchFixture(t, cfg.Directories.WorkspaceDir, "docs/readme.md", "needle workdir\n")
+	writeWorkspaceSearchFixture(t, cfg.Directories.ToolsDir, "helpers/tool.py", "needle tool\n")
+	writeWorkspaceSearchFixture(t, cfg.Directories.SkillsDir, "demo/skill.py", "needle skill\n")
+	writeWorkspaceSearchFixture(t, cfg.Directories.AgentSkillsDir, "demo/SKILL.md", "needle agent skill\n")
+
+	if err := svc.Rescan(ctx); err != nil {
+		t.Fatalf("rescan: %v", err)
+	}
+
+	wantRoot := filepath.Dir(cfg.Directories.WorkspaceDir)
+	if got := filepath.Clean(svc.Status().Root); got != filepath.Clean(wantRoot) {
+		t.Fatalf("status root = %s, want agent workspace root %s", got, wantRoot)
+	}
+
+	matches, err := svc.Grep(ctx, WorkspaceSearchRequest{
+		Query: "needle",
+		Glob:  "**/*",
+		Limit: 20,
+	})
+	if err != nil {
+		t.Fatalf("grep: %v", err)
+	}
+	got := map[string]bool{}
+	for _, match := range matches.Matches {
+		got[match.File] = true
+	}
+	for _, want := range []string{
+		"workdir/docs/readme.md",
+		"tools/helpers/tool.py",
+		"skills/demo/skill.py",
+		"agent_skills/demo/SKILL.md",
+	} {
+		if !got[want] {
+			t.Fatalf("grep result missing %s, got %#v", want, got)
+		}
+	}
+
+	files, err := svc.Find(ctx, WorkspaceSearchRequest{Query: "tool", Limit: 10})
+	if err != nil {
+		t.Fatalf("find tool: %v", err)
+	}
+	if !containsWorkspaceSearchPath(files, "tools/helpers/tool.py") {
+		t.Fatalf("find should include tools directory result, got %#v", files)
 	}
 }
 
@@ -141,16 +201,16 @@ func TestWorkspaceSearchFindGlobGrepAndRegexErrors(t *testing.T) {
 	if err != nil {
 		t.Fatalf("find: %v", err)
 	}
-	if len(files) == 0 || files[0].Path != "src/app.go" {
-		t.Fatalf("find app first result = %#v, want src/app.go first", files)
+	if len(files) == 0 || files[0].Path != "workdir/src/app.go" {
+		t.Fatalf("find app first result = %#v, want workdir/src/app.go first", files)
 	}
 
 	globbed, err := svc.Glob(ctx, WorkspaceSearchRequest{Glob: "**/*_test.go", Limit: 10})
 	if err != nil {
 		t.Fatalf("glob: %v", err)
 	}
-	if len(globbed) != 1 || globbed[0].Path != "src/app_test.go" {
-		t.Fatalf("glob results = %#v, want only src/app_test.go", globbed)
+	if len(globbed) != 1 || globbed[0].Path != "workdir/src/app_test.go" {
+		t.Fatalf("glob results = %#v, want only workdir/src/app_test.go", globbed)
 	}
 
 	matches, err := svc.Grep(ctx, WorkspaceSearchRequest{
@@ -189,7 +249,7 @@ func TestWorkspaceSearchFrecencyBoostsFindRanking(t *testing.T) {
 	if err != nil {
 		t.Fatalf("find before access: %v", err)
 	}
-	if len(before) < 2 || before[0].Path != "docs/aaa-target.md" {
+	if len(before) < 2 || before[0].Path != "workdir/docs/aaa-target.md" {
 		t.Fatalf("baseline ordering = %#v, want alphabetical aaa first", before)
 	}
 
@@ -202,8 +262,92 @@ func TestWorkspaceSearchFrecencyBoostsFindRanking(t *testing.T) {
 	if err != nil {
 		t.Fatalf("find after access: %v", err)
 	}
-	if len(after) == 0 || after[0].Path != "docs/zzz-target.md" {
+	if len(after) == 0 || after[0].Path != "workdir/docs/zzz-target.md" {
 		t.Fatalf("frecency ordering = %#v, want zzz-target first", after)
+	}
+}
+
+func TestWorkspaceSearchTrackAccessMapsRelativePathsFromWorkdirAndAgentWorkspace(t *testing.T) {
+	ctx := context.Background()
+	svc, cfg := newWorkspaceSearchTestService(t, 2)
+	agentWorkspaceDir := filepath.Dir(cfg.Directories.WorkspaceDir)
+
+	writeWorkspaceSearchFixture(t, cfg.Directories.WorkspaceDir, "docs/readme.md", "workdir\n")
+	writeWorkspaceSearchFixture(t, cfg.Directories.ToolsDir, "helpers/tool.py", "tool\n")
+	writeWorkspaceSearchFixture(t, filepath.Join(agentWorkspaceDir, "virtual_desktop"), "notes.md", "desktop\n")
+
+	if err := svc.Rescan(ctx); err != nil {
+		t.Fatalf("rescan: %v", err)
+	}
+	if err := svc.TrackAccess("docs/readme.md", "read"); err != nil {
+		t.Fatalf("track workdir-relative access: %v", err)
+	}
+	if err := svc.TrackAccess("tools/helpers/tool.py", "read"); err != nil {
+		t.Fatalf("track agent-workspace-relative access: %v", err)
+	}
+	if err := svc.TrackAccess("virtual_desktop/notes.md", "read"); err != nil {
+		t.Fatalf("track virtual desktop access: %v", err)
+	}
+
+	recent, err := svc.Recent(ctx, WorkspaceSearchRequest{Limit: 10})
+	if err != nil {
+		t.Fatalf("recent: %v", err)
+	}
+	if !containsWorkspaceSearchPath(recent, "workdir/docs/readme.md") {
+		t.Fatalf("recent should include workdir-relative access, got %#v", recent)
+	}
+	if !containsWorkspaceSearchPath(recent, "tools/helpers/tool.py") {
+		t.Fatalf("recent should include tools access, got %#v", recent)
+	}
+	if !containsWorkspaceSearchPath(recent, "virtual_desktop/notes.md") {
+		t.Fatalf("recent should include virtual desktop access, got %#v", recent)
+	}
+}
+
+func TestWorkspaceSearchLegacyFileSearchStaysWorkdirRelative(t *testing.T) {
+	ctx := context.Background()
+	svc, cfg := newWorkspaceSearchTestService(t, 2)
+
+	writeWorkspaceSearchFixture(t, cfg.Directories.WorkspaceDir, "docs/readme.md", "needle workdir\n")
+	writeWorkspaceSearchFixture(t, cfg.Directories.ToolsDir, "helpers/tool.md", "needle tool\n")
+
+	if err := svc.Rescan(ctx); err != nil {
+		t.Fatalf("rescan: %v", err)
+	}
+
+	findOutput, ok := svc.ExecuteLegacyFileSearch(ctx, "find", "", "", "**/*.md", "")
+	if !ok {
+		t.Fatal("legacy find should be handled by workspace search")
+	}
+	var findParsed struct {
+		Status string `json:"status"`
+		Data   struct {
+			Count int      `json:"count"`
+			Files []string `json:"files"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(findOutput), &findParsed); err != nil {
+		t.Fatalf("unmarshal find output %q: %v", findOutput, err)
+	}
+	if findParsed.Status != "success" || findParsed.Data.Count != 1 || len(findParsed.Data.Files) != 1 || findParsed.Data.Files[0] != "docs/readme.md" {
+		t.Fatalf("legacy find output = %#v, want one workdir-relative docs/readme.md", findParsed)
+	}
+
+	grepOutput, ok := svc.ExecuteLegacyFileSearch(ctx, "grep_recursive", "needle", "", "**/*.md", "")
+	if !ok {
+		t.Fatal("legacy grep_recursive should be handled by workspace search")
+	}
+	var grepParsed struct {
+		Status string `json:"status"`
+		Data   []struct {
+			File string `json:"file"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(grepOutput), &grepParsed); err != nil {
+		t.Fatalf("unmarshal grep output %q: %v", grepOutput, err)
+	}
+	if grepParsed.Status != "success" || len(grepParsed.Data) != 1 || grepParsed.Data[0].File != "docs/readme.md" {
+		t.Fatalf("legacy grep output = %#v, want one workdir-relative docs/readme.md match", grepParsed)
 	}
 }
 

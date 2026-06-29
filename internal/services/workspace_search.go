@@ -48,6 +48,7 @@ type WorkspaceSearchRequest struct {
 	OutputMode    string `json:"output_mode,omitempty"`
 	CaseSensitive bool   `json:"case_sensitive,omitempty"`
 	Limit         int    `json:"limit,omitempty"`
+	ScopePrefix   string `json:"-"`
 }
 
 // WorkspaceSearchFileResult describes a file returned by find/glob/recent.
@@ -82,6 +83,7 @@ type WorkspaceSearchStatus struct {
 	Running             bool     `json:"running"`
 	Ready               bool     `json:"ready"`
 	Root                string   `json:"root"`
+	WorkspaceDir        string   `json:"workspace_dir,omitempty"`
 	Files               int      `json:"files"`
 	IndexedFiles        int      `json:"indexed_files"`
 	ContentFiles        int      `json:"content_files"`
@@ -122,8 +124,11 @@ type WorkspaceSearchService struct {
 	cfgMu  *sync.RWMutex
 	logger *slog.Logger
 
-	root string
-	db   *sql.DB
+	root                 string
+	workspaceDir         string
+	workdirRel           string
+	rootRelativePrefixes []string
+	db                   *sql.DB
 
 	lifecycleMu sync.Mutex
 	cancel      context.CancelFunc
@@ -150,13 +155,18 @@ func NewWorkspaceSearchService(cfg *config.Config, cfgMu *sync.RWMutex, logger *
 		logger = slog.Default()
 	}
 
-	root, err := filepath.Abs(cfg.Directories.WorkspaceDir)
+	root, workspaceDir, err := workspaceSearchRoots(cfg)
 	if err != nil {
-		return nil, fmt.Errorf("resolve workspace dir: %w", err)
+		return nil, err
 	}
 	if err := os.MkdirAll(root, 0o755); err != nil {
+		return nil, fmt.Errorf("create agent workspace dir: %w", err)
+	}
+	if err := os.MkdirAll(workspaceDir, 0o755); err != nil {
 		return nil, fmt.Errorf("create workspace dir: %w", err)
 	}
+	workdirRel, _ := filepath.Rel(root, workspaceDir)
+	workdirRel = filepath.ToSlash(workdirRel)
 
 	dataDir := cfg.Directories.DataDir
 	if strings.TrimSpace(dataDir) == "" {
@@ -180,22 +190,92 @@ func NewWorkspaceSearchService(cfg *config.Config, cfgMu *sync.RWMutex, logger *
 	}
 
 	s := &WorkspaceSearchService{
-		cfg:    cfg,
-		cfgMu:  cfgMu,
-		logger: logger,
-		root:   root,
-		db:     db,
-		ready:  make(chan struct{}),
+		cfg:                  cfg,
+		cfgMu:                cfgMu,
+		logger:               logger,
+		root:                 root,
+		workspaceDir:         workspaceDir,
+		workdirRel:           workdirRel,
+		rootRelativePrefixes: workspaceSearchRootRelativePrefixes(root, workspaceDir, cfg),
+		db:                   db,
+		ready:                make(chan struct{}),
 		index: workspaceSearchIndex{
 			files: map[string]*workspaceIndexedFile{},
 		},
 		status: WorkspaceSearchStatus{
-			Enabled:  cfg.WorkspaceSearch.Enabled,
-			Root:     root,
-			Excludes: normalizedWorkspaceSearchExcludes(cfg.WorkspaceSearch.Exclude),
+			Enabled:      cfg.WorkspaceSearch.Enabled,
+			Root:         root,
+			WorkspaceDir: workspaceDir,
+			Excludes:     normalizedWorkspaceSearchExcludes(cfg.WorkspaceSearch.Exclude),
 		},
 	}
 	return s, nil
+}
+
+func workspaceSearchRoots(cfg *config.Config) (string, string, error) {
+	if strings.TrimSpace(cfg.Directories.WorkspaceDir) == "" {
+		return "", "", fmt.Errorf("directories.workspace_dir is required")
+	}
+	workspaceDir, err := filepath.Abs(cfg.Directories.WorkspaceDir)
+	if err != nil {
+		return "", "", fmt.Errorf("resolve workspace dir: %w", err)
+	}
+	workspaceDir = filepath.Clean(workspaceDir)
+	root := workspaceDir
+	workspaceParent := filepath.Dir(workspaceDir)
+	if strings.EqualFold(filepath.Base(workspaceDir), "workdir") || workspaceSearchHasConfiguredSibling(workspaceParent, cfg) {
+		root = workspaceParent
+	}
+	return filepath.Clean(root), workspaceDir, nil
+}
+
+func workspaceSearchHasConfiguredSibling(parent string, cfg *config.Config) bool {
+	for _, dir := range []string{cfg.Directories.ToolsDir, cfg.Directories.SkillsDir, cfg.Directories.AgentSkillsDir} {
+		if strings.TrimSpace(dir) == "" {
+			continue
+		}
+		abs, err := filepath.Abs(dir)
+		if err != nil {
+			continue
+		}
+		if strings.EqualFold(filepath.Clean(filepath.Dir(abs)), filepath.Clean(parent)) {
+			return true
+		}
+	}
+	return false
+}
+
+func workspaceSearchRootRelativePrefixes(root, workspaceDir string, cfg *config.Config) []string {
+	seen := map[string]bool{}
+	add := func(prefix string) {
+		prefix = strings.Trim(filepath.ToSlash(filepath.Clean(prefix)), "/")
+		if prefix == "" || prefix == "." || seen[prefix] {
+			return
+		}
+		seen[prefix] = true
+	}
+	for _, dir := range []string{workspaceDir, cfg.Directories.ToolsDir, cfg.Directories.SkillsDir, cfg.Directories.AgentSkillsDir, cfg.VirtualDesktop.WorkspaceDir} {
+		if strings.TrimSpace(dir) == "" {
+			continue
+		}
+		abs, err := filepath.Abs(dir)
+		if err != nil || !pathWithinRoot(abs, root) {
+			continue
+		}
+		rel, err := filepath.Rel(root, abs)
+		if err == nil {
+			add(rel)
+		}
+	}
+	for _, prefix := range []string{"workdir", "tools", "skills", "agent_skills", "virtual_desktop"} {
+		add(prefix)
+	}
+	result := make([]string, 0, len(seen))
+	for prefix := range seen {
+		result = append(result, prefix)
+	}
+	sort.Strings(result)
+	return result
 }
 
 func initWorkspaceSearchDB(db *sql.DB) error {
@@ -236,6 +316,7 @@ func (s *WorkspaceSearchService) Start(ctx context.Context) error {
 	s.status.Enabled = true
 	s.status.Running = true
 	s.status.Root = s.root
+	s.status.WorkspaceDir = s.workspaceDir
 	s.status.Excludes = normalizedWorkspaceSearchExcludes(s.cfg.WorkspaceSearch.Exclude)
 	s.mu.Unlock()
 
@@ -368,6 +449,7 @@ func (s *WorkspaceSearchService) Rescan(ctx context.Context) error {
 	s.status.Enabled = true
 	s.status.Ready = true
 	s.status.Root = s.root
+	s.status.WorkspaceDir = s.workspaceDir
 	s.status.Files = len(next.files)
 	s.status.IndexedFiles = len(next.files)
 	s.status.ContentFiles = next.contentFiles
@@ -396,6 +478,9 @@ func (s *WorkspaceSearchService) Find(ctx context.Context, req WorkspaceSearchRe
 	for _, rel := range snapshot.orderedPaths {
 		if err := ctx.Err(); err != nil {
 			return nil, err
+		}
+		if !workspacePathInScope(rel, req.ScopePrefix) {
+			continue
 		}
 		file := snapshot.files[rel]
 		if file == nil {
@@ -446,6 +531,9 @@ func (s *WorkspaceSearchService) Glob(ctx context.Context, req WorkspaceSearchRe
 	for _, rel := range snapshot.orderedPaths {
 		if err := ctx.Err(); err != nil {
 			return nil, err
+		}
+		if !workspacePathInScope(rel, req.ScopePrefix) {
+			continue
 		}
 		if !workspaceMatchesAnyGlob(pattern, rel) {
 			continue
@@ -507,6 +595,9 @@ func (s *WorkspaceSearchService) Grep(ctx context.Context, req WorkspaceSearchRe
 		}
 		file := snapshot.files[rel]
 		if file == nil || !file.indexedContent {
+			continue
+		}
+		if !workspacePathInScope(rel, req.ScopePrefix) {
 			continue
 		}
 		if req.Glob != "" && !workspaceMatchesAnyGlob(req.Glob, rel) {
@@ -577,6 +668,9 @@ func (s *WorkspaceSearchService) Recent(ctx context.Context, req WorkspaceSearch
 		var count int
 		if err := rows.Scan(&rel, &count); err != nil {
 			return nil, fmt.Errorf("scan workspace search recent: %w", err)
+		}
+		if !workspacePathInScope(rel, req.ScopePrefix) {
+			continue
 		}
 		if file := snapshot.files[rel]; file != nil {
 			results = append(results, workspaceFileResult(file, float64(count), count))
@@ -717,34 +811,49 @@ func (s *WorkspaceSearchService) ExecuteLegacyFileSearch(ctx context.Context, op
 		if pattern != "" && (glob == "" || glob == "**/*") {
 			effectiveGlob = pattern
 		}
-		files, err := s.Glob(ctx, WorkspaceSearchRequest{Glob: effectiveGlob, Limit: 1000})
+		files, err := s.Glob(ctx, WorkspaceSearchRequest{Glob: effectiveGlob, Limit: 1000, ScopePrefix: s.workdirRel})
 		if err != nil {
 			return encode(legacyResult{Status: "error", Message: err.Error()}), true
 		}
 		paths := make([]string, 0, len(files))
 		for _, file := range files {
-			paths = append(paths, file.Path)
+			if legacyPath, ok := s.legacyWorkdirRelativePath(file.Path); ok {
+				paths = append(paths, legacyPath)
+			}
 		}
 		return encode(legacyResult{Status: "success", Data: map[string]interface{}{"count": len(paths), "files": paths}}), true
 	case "grep_recursive":
 		if strings.TrimSpace(pattern) == "" {
 			return encode(legacyResult{Status: "error", Message: "'pattern' is required for grep_recursive"}), true
 		}
-		result, err := s.Grep(ctx, WorkspaceSearchRequest{Query: pattern, Glob: glob, Mode: "regex", OutputMode: outputMode, Limit: 500})
+		result, err := s.Grep(ctx, WorkspaceSearchRequest{Query: pattern, Glob: glob, Mode: "regex", OutputMode: outputMode, Limit: 500, ScopePrefix: s.workdirRel})
 		if err != nil {
 			return encode(legacyResult{Status: "error", Message: err.Error()}), true
+		}
+		legacyByFile := map[string]int{}
+		for path, count := range result.ByFile {
+			if legacyPath, ok := s.legacyWorkdirRelativePath(path); ok {
+				legacyByFile[legacyPath] = count
+			}
+		}
+		if len(legacyByFile) == 0 {
+			legacyByFile = nil
 		}
 		if strings.EqualFold(outputMode, "count") {
 			return encode(legacyResult{Status: "success", Data: map[string]interface{}{
 				"total":       result.Total,
-				"files_count": result.FilesCount,
-				"by_file":     result.ByFile,
+				"files_count": len(legacyByFile),
+				"by_file":     legacyByFile,
 			}}), true
 		}
 		matches := make([]map[string]interface{}, 0, len(result.Matches))
 		for _, match := range result.Matches {
+			legacyPath, ok := s.legacyWorkdirRelativePath(match.File)
+			if !ok {
+				continue
+			}
 			matches = append(matches, map[string]interface{}{
-				"file":    match.File,
+				"file":    legacyPath,
 				"line":    match.Line,
 				"content": match.Content,
 			})
@@ -756,6 +865,26 @@ func (s *WorkspaceSearchService) ExecuteLegacyFileSearch(ctx context.Context, op
 	default:
 		return "", false
 	}
+}
+
+func (s *WorkspaceSearchService) legacyWorkdirRelativePath(rel string) (string, bool) {
+	rel = strings.Trim(filepath.ToSlash(rel), "/")
+	workdirRel := strings.Trim(filepath.ToSlash(s.workdirRel), "/")
+	if workdirRel == "" || workdirRel == "." {
+		if rel == "" {
+			return "", false
+		}
+		return rel, true
+	}
+	prefix := workdirRel + "/"
+	if rel == workdirRel {
+		return "", false
+	}
+	if !strings.HasPrefix(rel, prefix) {
+		return "", false
+	}
+	legacy := strings.TrimPrefix(rel, prefix)
+	return legacy, legacy != ""
 }
 
 func (s *WorkspaceSearchService) enabled() bool {
@@ -1020,10 +1149,44 @@ func (s *WorkspaceSearchService) toRelativePath(raw string) (string, bool) {
 	if raw == "" {
 		return "", false
 	}
-	candidate := raw
-	if !filepath.IsAbs(candidate) {
-		candidate = filepath.Join(s.root, filepath.FromSlash(candidate))
+	for _, candidate := range s.pathCandidates(raw) {
+		if rel, ok := s.relativePathInsideRoot(candidate); ok {
+			return rel, true
+		}
 	}
+	return "", false
+}
+
+func (s *WorkspaceSearchService) pathCandidates(raw string) []string {
+	if filepath.IsAbs(raw) {
+		return []string{raw}
+	}
+	cleaned := filepath.ToSlash(filepath.Clean(raw))
+	cleaned = strings.TrimPrefix(cleaned, "./")
+	if s.isAgentWorkspaceRelativePath(cleaned) {
+		return []string{filepath.Join(s.root, filepath.FromSlash(cleaned))}
+	}
+	return []string{
+		filepath.Join(s.workspaceDir, filepath.FromSlash(cleaned)),
+		filepath.Join(s.root, filepath.FromSlash(cleaned)),
+	}
+}
+
+func (s *WorkspaceSearchService) isAgentWorkspaceRelativePath(rel string) bool {
+	rel = strings.Trim(filepath.ToSlash(rel), "/")
+	if rel == "" || strings.HasPrefix(rel, "..") {
+		return false
+	}
+	for _, prefix := range s.rootRelativePrefixes {
+		prefix = strings.Trim(filepath.ToSlash(prefix), "/")
+		if rel == prefix || strings.HasPrefix(rel, prefix+"/") {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *WorkspaceSearchService) relativePathInsideRoot(candidate string) (string, bool) {
 	abs, err := filepath.Abs(candidate)
 	if err != nil {
 		return "", false
@@ -1046,6 +1209,15 @@ func (s *WorkspaceSearchService) toRelativePath(raw string) (string, bool) {
 		return "", false
 	}
 	return filepath.ToSlash(rel), true
+}
+
+func workspacePathInScope(rel, scopePrefix string) bool {
+	scopePrefix = strings.Trim(filepath.ToSlash(strings.TrimSpace(scopePrefix)), "/")
+	if scopePrefix == "" || scopePrefix == "." {
+		return true
+	}
+	rel = strings.Trim(filepath.ToSlash(rel), "/")
+	return rel == scopePrefix || strings.HasPrefix(rel, scopePrefix+"/")
 }
 
 func pathWithinRoot(path, root string) bool {

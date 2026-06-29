@@ -61,7 +61,7 @@
   "help.agent.user_profiling": "Aktiverar automatisk användarprofilering: Agenten upptäcker preferenser och vanor från chatten och sparar dem (kräver Personality Engine V2).",
   "help.agent.user_profiling_threshold": "Minimum: confidence (number of confirmations) before a profile attribute is injected into the system prompt. Standard: 2.",
   "help.agent.workflow_feedback": "Aktiverar tillfälliga statusuppdateringar under långa arbetsflöden (t.ex. \"Ett ögonblick...\").",
-  "help.workspace_search.enabled": "Aktiverar det residenta snabbsöksindexet för agentens workspace.",
+  "help.workspace_search.enabled": "Aktiverar det residenta snabbsöksindexet för hela agentens workspace.",
   "help.workspace_search.max_file_size_mb": "Maximal textfilstorlek som indexeras för innehållssökning. Större textfiler kan fortfarande hittas via sökväg.",
   "help.workspace_search.max_index_size_mb": "Maximal storlek för innehållsindexet i minnet. Filinnehåll sparas inte permanent.",
   "help.workspace_search.max_results": "Standardgräns för resultat i workspace_search-operationer.",

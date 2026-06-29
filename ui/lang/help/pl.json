@@ -61,7 +61,7 @@
   "help.agent.user_profiling": "Włącza automatyczne profilowanie użytkownika: agent wykrywa preferencje i nawyki z czatu i zapisuje je (wymaga Personality Engine V2).",
   "help.agent.user_profiling_threshold": "Minimalna pewność (liczba potwierdzeń), zanim atrybut profilu zostanie wstrzyknięty do promptu systemowego. Domyślnie: 2.",
   "help.agent.workflow_feedback": "Włącza okazjonalne aktualizacje statusu podczas długich workflow (np. 'Chwileczkę proszę...').",
-  "help.workspace_search.enabled": "Włącza rezydentny szybki indeks wyszukiwania dla workspace agenta.",
+  "help.workspace_search.enabled": "Włącza rezydentny szybki indeks wyszukiwania dla całego workspace agenta.",
   "help.workspace_search.max_file_size_mb": "Maksymalny rozmiar pliku tekstowego indeksowanego do wyszukiwania treści. Większe pliki tekstowe pozostają wyszukiwalne po ścieżce.",
   "help.workspace_search.max_index_size_mb": "Maksymalny rozmiar indeksu treści w pamięci. Treść plików nie jest zapisywana trwale.",
   "help.workspace_search.max_results": "Domyślny limit wyników dla operacji workspace_search.",

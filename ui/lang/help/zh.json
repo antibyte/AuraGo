@@ -61,7 +61,7 @@
   "help.agent.user_profiling": "启用自动用户分析：代理从聊天中检测偏好和习惯并存储它们（需要 Personality Engine V2）。",
   "help.agent.user_profiling_threshold": "将配置文件属性注入系统提示之前的最小置信度（确认次数）。默认值：2。",
   "help.agent.workflow_feedback": "在长时间的工作流程中启用偶尔的状态更新（例如“请稍等...”）。",
-  "help.workspace_search.enabled": "启用面向代理 workspace 的常驻快速搜索索引。",
+  "help.workspace_search.enabled": "启用面向整个代理 workspace 的常驻快速搜索索引。",
   "help.workspace_search.max_file_size_mb": "用于内容搜索索引的文本文件最大大小。更大的文本文件仍可按路径搜索。",
   "help.workspace_search.max_index_size_mb": "内存中文本内容索引的最大大小。文件内容不会持久保存。",
   "help.workspace_search.max_results": "workspace_search 操作的默认结果数量上限。",

@@ -378,7 +378,7 @@ func buildCoreToolSchemas(ff ToolFeatureFlags, execSkillProps map[string]interfa
 	}
 	if ff.WorkspaceSearchEnabled {
 		tools = append(tools, tool("workspace_search",
-			"Use the resident workspace index to quickly find files, grep indexed text, list recent files, rescan the index, or inspect index status. Searches are scoped to directories.workspace_dir.",
+			"Use the resident workspace index to quickly find files, grep indexed text, list recent files, rescan the index, or inspect index status. Searches are scoped to the full agent workspace derived from directories.workspace_dir.",
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{
 					"type":        "string",

@@ -61,7 +61,7 @@
   "help.agent.user_profiling": "Schakelt automatisch gebruikersprofiel in: de agent detecteert voorkeuren en gewoonten uit de chat en slaat ze op (vereist Personality Engine V2).",
   "help.agent.user_profiling_threshold": "Minimum: confidence (number of confirmations) before a profile attribute is injected into the system prompt. Standaard: 2.",
   "help.agent.workflow_feedback": "Schakelt occasionele statusupdates in tijdens lange workflows (bijv. \"Een ogenblik geduld...\").",
-  "help.workspace_search.enabled": "Schakelt de snelle residente zoekindex voor de agent-workspace in.",
+  "help.workspace_search.enabled": "Schakelt de snelle residente zoekindex voor de volledige agent-workspace in.",
   "help.workspace_search.max_file_size_mb": "Maximale tekstbestandsgrootte die voor inhoudszoekopdrachten wordt geïndexeerd. Grotere tekstbestanden blijven alleen op pad vindbaar.",
   "help.workspace_search.max_index_size_mb": "Maximale grootte van de inhoudsindex in geheugen. Bestandsinhoud wordt niet blijvend opgeslagen.",
   "help.workspace_search.max_results": "Standaardresultaatlimiet voor workspace_search-bewerkingen.",

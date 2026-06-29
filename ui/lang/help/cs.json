@@ -61,7 +61,7 @@
   "help.agent.user_profiling": "Aktivuje automatické profilování uživatele: agent z chatu rozpoznává preference a zvyky a ukládá je (vyžaduje Personality Engine V2).",
   "help.agent.user_profiling_threshold": "Minimale zekerheid (aantal bevestigingen) voordat een profielattribuut in de systeemprompt wordt geïnjecteerd. Standaard: 2.",
   "help.agent.workflow_feedback": "Aktivuje občasné stavové aktualizace během dlouhých workflow (např. \"Moment...\").",
-  "help.workspace_search.enabled": "Zapne rezidentní rychlý vyhledávací index pro workspace agenta.",
+  "help.workspace_search.enabled": "Zapne rezidentní rychlý vyhledávací index pro celý workspace agenta.",
   "help.workspace_search.max_file_size_mb": "Maximální velikost textového souboru indexovaného pro hledání v obsahu. Větší textové soubory zůstávají hledatelné podle cesty.",
   "help.workspace_search.max_index_size_mb": "Maximální velikost obsahového indexu v paměti. Obsah souborů se trvale neukládá.",
   "help.workspace_search.max_results": "Výchozí limit výsledků pro operace workspace_search.",

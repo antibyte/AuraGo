@@ -1,10 +1,10 @@
 ## Tool: Workspace Search (`workspace_search`)
 
-Fast resident search over `directories.workspace_dir`. Use it before broad file walks when you need to find files, grep indexed text, inspect recent files, rescan the index, or check search status.
+Fast resident search over the full agent workspace (`agent_workspace`, including `workdir`, `tools`, `skills`, and `agent_skills` when present). Use it before broad file walks when you need to find files, grep indexed text, inspect recent files, rescan the index, or check search status.
 
 ### Scope and Safety
 
-- Searches only the configured agent workspace directory.
+- Searches only the configured agent workspace root derived from `directories.workspace_dir`; result paths are relative to that root, for example `workdir/notes.txt` or `tools/helper.py`.
 - Does not persist file content. Only file access metadata is stored in `data/workspace_search.db`.
 - Skips common dependency/cache folders, `.env`, database/vault files, binary files, large files beyond `workspace_search.max_file_size_mb`, and symlink escapes.
 - The index is built asynchronously. If it is still building, use `file_search` as a compatibility fallback.

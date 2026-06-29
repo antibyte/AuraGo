@@ -61,7 +61,7 @@
   "help.agent.user_profiling": "Enables automatic user profiling: the agent detects preferences and habits from the chat and stores them (requires Personality Engine V2).",
   "help.agent.user_profiling_threshold": "Minimum confidence (number of confirmations) before a profile attribute is injected into the system prompt. Default: 2.",
   "help.agent.workflow_feedback": "Enables occasional status updates during long workflows (e.g. 'One moment please...').",
-  "help.workspace_search.enabled": "Enables the resident fast search index for the agent workspace.",
+  "help.workspace_search.enabled": "Enables the resident fast search index for the full agent workspace.",
   "help.workspace_search.max_file_size_mb": "Maximum text file size indexed for content search. Larger text files remain searchable by path only.",
   "help.workspace_search.max_index_size_mb": "Maximum in-memory content index size. File content is not stored persistently.",
   "help.workspace_search.max_results": "Default result limit for workspace_search operations.",

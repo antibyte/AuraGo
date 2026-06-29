@@ -61,7 +61,7 @@
   "help.agent.user_profiling": "Permet le profilage automatique des utilisateurs : l'agent détecte les préférences et les habitudes du chat et les stocke (nécessite Personality Engine V2).",
   "help.agent.user_profiling_threshold": "Confiance minimale (nombre de confirmations) avant qu'un attribut de profil ne soit injecté dans l'invite système. Par défaut : 2.",
   "help.agent.workflow_feedback": "Permet des mises à jour de statut occasionnelles pendant de longs flux de travail (par exemple « Un instant s'il vous plaît... »).",
-  "help.workspace_search.enabled": "Active l’index de recherche rapide résident pour l’espace de travail de l’agent.",
+  "help.workspace_search.enabled": "Active l’index de recherche rapide résident pour l’ensemble de l’espace de travail de l’agent.",
   "help.workspace_search.max_file_size_mb": "Taille maximale des fichiers texte indexés pour la recherche de contenu. Les fichiers plus grands restent recherchables par chemin.",
   "help.workspace_search.max_index_size_mb": "Taille maximale de l’index de contenu en mémoire. Le contenu des fichiers n’est pas stocké durablement.",
   "help.workspace_search.max_results": "Limite de résultats par défaut pour les opérations workspace_search.",
