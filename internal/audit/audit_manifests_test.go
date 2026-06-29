@@ -342,6 +342,47 @@ func TestUpdateScriptHelperOrderAndVersionTiming(t *testing.T) {
 	}
 }
 
+func TestUpdateScriptRestoresBinaryOnlyResourcesOnFailure(t *testing.T) {
+	t.Parallel()
+
+	updateScript := readRepoFile(t, "update.sh")
+	for _, required := range []string{
+		"backup_binary_update_resources()",
+		"restore_binary_update_resources_after_failure()",
+		"restore_binary_update_resources_after_failure",
+	} {
+		if !strings.Contains(updateScript, required) {
+			t.Fatalf("update.sh must preserve binary-only resources during rollback; missing %q", required)
+		}
+	}
+	backupIdx := strings.Index(updateScript, "\nbackup_binary_update_resources\n")
+	applyIdx := strings.Index(updateScript, `cp -r "$TMPEXT/prompts"`)
+	if backupIdx < 0 || applyIdx < 0 {
+		t.Fatal("update.sh must back up binary-only resources before applying resources.dat")
+	}
+	if backupIdx > applyIdx {
+		t.Fatal("update.sh must back up binary-only resources before resources.dat overwrites prompts/ui/assets")
+	}
+}
+
+func TestUpdateScriptStagesOptionalDeployArtifacts(t *testing.T) {
+	t.Parallel()
+
+	updateScript := readRepoFile(t, "update.sh")
+	if strings.Contains(updateScript, `download_release_asset "${_rname}" "$DIR/deploy/${_rname}"`) {
+		t.Fatal("update.sh must not download optional remote client artifacts directly into deploy/")
+	}
+	for _, required := range []string{
+		`STAGED_DEPLOY_DIR=`,
+		`download_release_asset "${_rname}" "$STAGED_DEPLOY_DIR/${_rname}"`,
+		`cp -p "$STAGED_DEPLOY_DIR/${_rname}" "$DIR/deploy/${_rname}"`,
+	} {
+		if !strings.Contains(updateScript, required) {
+			t.Fatalf("update.sh must stage optional deploy artifacts before copying; missing %q", required)
+		}
+	}
+}
+
 func TestUpdateScriptsParseWithBash(t *testing.T) {
 	t.Parallel()
 

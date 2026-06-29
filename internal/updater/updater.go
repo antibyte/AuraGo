@@ -324,6 +324,9 @@ func DefaultStartScript(launch ScriptLaunch) error {
 
 func updateEnv(extra []string) []string {
 	env := sandbox.FilterEnv(os.Environ())
+	if masterKey := os.Getenv("AURAGO_MASTER_KEY"); strings.TrimSpace(masterKey) != "" {
+		env = append(env, "AURAGO_MASTER_KEY="+masterKey)
+	}
 	if home, _ := os.UserHomeDir(); home != "" {
 		env = append(env, "HOME="+home)
 	}

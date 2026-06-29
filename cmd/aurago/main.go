@@ -1303,14 +1303,6 @@ func startLifeboatSidecar(log *slog.Logger, cfg *config.Config, bridgeToken stri
 		return
 	}
 	tokenPath := tools.LifeboatTokenPath(cfg)
-	if err := os.WriteFile(tokenPath, []byte(bridgeToken), 0o600); err != nil {
-		log.Error("Failed to write Lifeboat token", "error", err)
-		return
-	}
-	if err := os.Chmod(tokenPath, 0o600); err != nil {
-		log.Error("Failed to protect Lifeboat token", "error", err)
-		return
-	}
 
 	cmd := exec.Command(lifeboatPath, "--state", statePath, "--plan", planPath, "--sidecar")
 	// Pass the bridge authentication token via environment variable so lifeboat
@@ -1323,6 +1315,16 @@ func startLifeboatSidecar(log *slog.Logger, cfg *config.Config, bridgeToken stri
 	if err := cmd.Start(); err != nil {
 		log.Error("Failed to start Lifeboat Sidecar", "error", err)
 	} else {
+		if err := os.WriteFile(tokenPath, []byte(bridgeToken), 0o600); err != nil {
+			log.Error("Failed to write Lifeboat token", "error", err)
+			_ = cmd.Process.Kill()
+			return
+		}
+		if err := os.Chmod(tokenPath, 0o600); err != nil {
+			log.Error("Failed to protect Lifeboat token", "error", err)
+			_ = cmd.Process.Kill()
+			return
+		}
 		log.Info("Lifeboat Sidecar started", "pid", cmd.Process.Pid)
 	}
 }

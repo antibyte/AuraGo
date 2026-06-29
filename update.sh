@@ -757,6 +757,40 @@ restore_critical_user_data_after_failure() {
     fi
 }
 
+backup_binary_update_resources() {
+    $BINARY_ONLY || return 0
+    BINARY_RESOURCE_BACKUP_DIR="$BACKUP_DIR/binary_update_resources"
+    mkdir -p "$BINARY_RESOURCE_BACKUP_DIR"
+    : > "$BINARY_RESOURCE_BACKUP_DIR/missing.txt"
+    for rel in prompts agent_workspace assets ui update.sh config.yaml.new_template; do
+        if [ -e "$DIR/$rel" ]; then
+            mkdir -p "$BINARY_RESOURCE_BACKUP_DIR/$(dirname "$rel")"
+            cp -a "$DIR/$rel" "$BINARY_RESOURCE_BACKUP_DIR/$rel" 2>/dev/null || \
+                copy_tree_merge "$DIR/$rel/" "$BINARY_RESOURCE_BACKUP_DIR/$rel/" || \
+                warn "Could not fully back up $rel for binary rollback."
+        else
+            printf '%s\n' "$rel" >> "$BINARY_RESOURCE_BACKUP_DIR/missing.txt"
+        fi
+    done
+}
+
+restore_binary_update_resources_after_failure() {
+    $BINARY_ONLY || return 0
+    [ -n "${BINARY_RESOURCE_BACKUP_DIR:-}" ] && [ -d "$BINARY_RESOURCE_BACKUP_DIR" ] || return 0
+    for rel in prompts agent_workspace assets ui update.sh config.yaml.new_template; do
+        if grep -Fxq "$rel" "$BINARY_RESOURCE_BACKUP_DIR/missing.txt" 2>/dev/null; then
+            rm -rf "$DIR/$rel"
+            continue
+        fi
+        [ -e "$BINARY_RESOURCE_BACKUP_DIR/$rel" ] || continue
+        rm -rf "$DIR/$rel"
+        mkdir -p "$DIR/$(dirname "$rel")"
+        cp -a "$BINARY_RESOURCE_BACKUP_DIR/$rel" "$DIR/$rel" 2>/dev/null || \
+            copy_tree_merge "$BINARY_RESOURCE_BACKUP_DIR/$rel/" "$DIR/$rel/" || \
+            warn "Could not fully restore $rel during binary rollback."
+    done
+}
+
 restart_previous_after_rollback() {
     $NO_RESTART && return 0
     if command -v systemctl >/dev/null 2>&1; then
@@ -780,6 +814,7 @@ abort_update() {
     if [ -n "${PRE_UPDATE_REF:-}" ] && [ -d "$DIR/.git" ]; then
         git -C "$DIR" reset --hard "$PRE_UPDATE_REF" >/dev/null 2>&1 || warn "Could not reset git checkout to $PRE_UPDATE_REF during rollback."
     fi
+    restore_binary_update_resources_after_failure
     restore_critical_user_data_after_failure
     restart_previous_after_rollback || true
     die "$msg"
@@ -853,6 +888,8 @@ if [ -d "$PROMPTS_DIR" ]; then
     fi
     ok "Backed up $CUSTOM_COUNT prompt file(s)"
 fi
+
+backup_binary_update_resources
 
 # Add common Go install locations to PATH (in case the shell was not re-sourced after install)
 for _godir in /usr/local/go/bin "$HOME/go/bin" /usr/local/bin; do
@@ -1337,12 +1374,14 @@ else
     # Download aurago-remote client binaries for all platforms so the
     # /api/remote/download/{os}/{arch} endpoint can serve them.
     mkdir -p "$DIR/deploy"
+    STAGED_DEPLOY_DIR="$(mktemp -d "${_AU_RUNTIME_DIR}/deploy.XXXXXX")"
     info "Downloading aurago-remote client binaries for all platforms..."
     for _t in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64; do
         _ros="${_t%/*}"; _rarch="${_t#*/}"; _rext=""
         [ "$_ros" = "windows" ] && _rext=".exe"
         _rname="aurago-remote_${_ros}_${_rarch}${_rext}"
-        if download_release_asset "${_rname}" "$DIR/deploy/${_rname}"; then
+        if download_release_asset "${_rname}" "$STAGED_DEPLOY_DIR/${_rname}"; then
+            cp -p "$STAGED_DEPLOY_DIR/${_rname}" "$DIR/deploy/${_rname}"
             ok "  deploy/${_rname}"
         else
             warn "  Could not download deploy/${_rname} — skipping."

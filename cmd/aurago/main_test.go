@@ -80,3 +80,19 @@ func TestLocalOllamaEmbeddingsStartBeforeVectorDBInitialization(t *testing.T) {
 		t.Fatal("local Ollama embeddings must start before VectorDB initialization")
 	}
 }
+
+func TestLifeboatTokenIsWrittenAfterSidecarStartSucceeds(t *testing.T) {
+	data, err := os.ReadFile("main.go")
+	if err != nil {
+		t.Fatalf("ReadFile main.go: %v", err)
+	}
+	source := string(data)
+	startIdx := strings.Index(source, "err := cmd.Start()")
+	writeIdx := strings.Index(source, "os.WriteFile(tokenPath")
+	if startIdx < 0 || writeIdx < 0 {
+		t.Fatal("startLifeboatSidecar must start the sidecar and write the token file")
+	}
+	if writeIdx < startIdx {
+		t.Fatal("lifeboat token file must be written only after sidecar start succeeds")
+	}
+}

@@ -154,3 +154,54 @@ func TestValidateInstallRuntimeGates(t *testing.T) {
 		}
 	})
 }
+
+func TestStartInstallPreservesMasterKeyOnlyForTrustedUpdateScript(t *testing.T) {
+	installDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(installDir, "update.sh"), []byte("#!/usr/bin/env bash\n"), 0o755); err != nil {
+		t.Fatalf("write update.sh: %v", err)
+	}
+	t.Setenv("AURAGO_MASTER_KEY", strings.Repeat("a", 64))
+	t.Setenv("OPENAI_API_KEY", "must-not-leak")
+
+	cfg := &config.Config{}
+	cfg.Agent.AllowSelfUpdate = true
+	var gotEnv []string
+	_, err := StartInstall(StartInstallOptions{
+		Cfg:        cfg,
+		InstallDir: installDir,
+		GOOS:       "linux",
+		LookPath:   func(name string) (string, error) { return "/bin/bash", nil },
+		StartScript: func(launch ScriptLaunch) error {
+			gotEnv = append([]string(nil), launch.Env...)
+			return nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("StartInstall returned error: %v", err)
+	}
+
+	if !envContains(gotEnv, "AURAGO_MASTER_KEY="+strings.Repeat("a", 64)) {
+		t.Fatalf("trusted update script env is missing AURAGO_MASTER_KEY: %#v", gotEnv)
+	}
+	if envContainsPrefix(gotEnv, "OPENAI_API_KEY=") {
+		t.Fatalf("trusted update script env leaked OPENAI_API_KEY: %#v", gotEnv)
+	}
+}
+
+func envContains(env []string, want string) bool {
+	for _, entry := range env {
+		if entry == want {
+			return true
+		}
+	}
+	return false
+}
+
+func envContainsPrefix(env []string, prefix string) bool {
+	for _, entry := range env {
+		if strings.HasPrefix(entry, prefix) {
+			return true
+		}
+	}
+	return false
+}
