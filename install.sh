@@ -17,6 +17,8 @@ SERVICE_FILE_CREATED=0
 CREDENTIAL_FILE_CREATED=0
 SERVICE_ENABLED=0
 RELEASE_CHECKSUMS_FILE=""
+INITIAL_PASSWORD_FILE=""
+TMP_GO=""
 
 GITHUB_REPO="antibyte/AuraGo"
 REPO="https://github.com/${GITHUB_REPO}.git"
@@ -47,8 +49,10 @@ die()  { echo -e "${RED}${ICO_ERR} ERROR${NC} -> $*"; exit 1; }
 
 cleanup_install_failure() {
     local exit_code=$?
+    [ -n "${RELEASE_CHECKSUMS_FILE:-}" ] && rm -f "$RELEASE_CHECKSUMS_FILE"
+    [ -n "${INITIAL_PASSWORD_FILE:-}" ] && rm -f "$INITIAL_PASSWORD_FILE"
+    [ -n "${TMP_GO:-}" ] && rm -rf "$TMP_GO"
     if [ "$exit_code" -eq 0 ] || [ "$INSTALL_SUCCESS" -eq 1 ]; then
-        [ -n "${RELEASE_CHECKSUMS_FILE:-}" ] && rm -f "$RELEASE_CHECKSUMS_FILE"
         return 0
     fi
 
@@ -63,7 +67,6 @@ cleanup_install_failure() {
     if [ "$CREDENTIAL_FILE_CREATED" -eq 1 ] && [ -f "/etc/aurago/master.key" ]; then
         ${SUDO:-} rm -f "/etc/aurago/master.key" >/dev/null 2>&1 || true
     fi
-    [ -n "${RELEASE_CHECKSUMS_FILE:-}" ] && rm -f "$RELEASE_CHECKSUMS_FILE"
 }
 
 trap cleanup_install_failure EXIT
@@ -518,8 +521,19 @@ ensure_python_runtime() {
 
 ensure_docker_engine() {
     if command -v docker >/dev/null 2>&1; then
-        ok "Docker found."
-        return 0
+        if docker info >/dev/null 2>&1; then
+            ok "Docker found and daemon reachable."
+            return 0
+        fi
+        warn "Docker CLI found but the daemon is not reachable."
+        if command -v systemctl >/dev/null 2>&1; then
+            info "Trying to enable/start docker.service..."
+            if $SUDO systemctl enable --now docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+                ok "Docker daemon started."
+                return 0
+            fi
+        fi
+        warn "Docker daemon is still not reachable. AuraGo can install or repair Docker via the local package manager."
     fi
 
     echo ""
@@ -532,6 +546,9 @@ ensure_docker_engine() {
     if [[ "${DKR_REPLY:-y}" =~ ^[Yy]$ ]]; then
         info "Installing Docker via the local package manager..."
         if install_docker_engine; then
+            if command -v docker >/dev/null 2>&1 && ! docker info >/dev/null 2>&1; then
+                warn "Docker installed, but the daemon is not reachable yet. Check: sudo systemctl status docker"
+            fi
             DOCKER_USER="${SUDO_USER:-${USER:-}}"
             if [ -n "$DOCKER_USER" ] && [ "$DOCKER_USER" != "root" ]; then
                 if id -nG "$DOCKER_USER" 2>/dev/null | tr ' ' '\n' | grep -qx docker; then
@@ -594,14 +611,13 @@ else
         info "Installing Go $GO_VERSION for $GOARCH..."
         GO_TAR="go${GO_VERSION}.linux-${GOARCH}.tar.gz"
         GO_URL="https://go.dev/dl/${GO_TAR}"
-        TMP_GO=$(mktemp -d)
-        trap 'rm -rf "$TMP_GO"' EXIT
+        TMP_GO="$(mktemp -d)"
 
         _download "$GO_URL" "$TMP_GO/$GO_TAR"
         $SUDO rm -rf "$GO_INSTALL_DIR/go"
         $SUDO tar -C "$GO_INSTALL_DIR" -xzf "$TMP_GO/$GO_TAR"
         rm -rf "$TMP_GO"
-        trap - EXIT
+        TMP_GO=""
 
         export PATH="$GO_INSTALL_DIR/go/bin:$PATH"
         $SUDO tee /etc/profile.d/go.sh > /dev/null <<'GOPATH'
@@ -871,7 +887,6 @@ CONFIG_FILE="$INSTALL_DIR/config.yaml"
 if [ -f "$CONFIG_FILE" ]; then
     INFO_PASSWORD=$(openssl rand -base64 12 2>/dev/null || python3 -c "import secrets; print(secrets.token_urlsafe(12))")
     INITIAL_PASSWORD_FILE="$(mktemp "${INSTALL_DIR}/.initial-password.XXXXXX")"
-    trap 'rm -f "${INITIAL_PASSWORD_FILE:-}"' EXIT
     write_secret_text_file "$INITIAL_PASSWORD_FILE" "$INFO_PASSWORD" || die "Failed to write temporary initial password securely."
 
     # Save first-use password (owner-readable only)
@@ -1068,8 +1083,8 @@ fi
 
 if [ "$SERVICE_INSTALLED" = "true" ]; then
     echo "  Next steps:"
-    echo "  1. Edit config:  nano $CONFIG_FILE"
-    echo "     Set at minimum: llm.api_key"
+    echo "  1. Open the Web UI and go to Config -> Providers"
+    echo "     Add your LLM provider and API key there."
     echo "  2. Restart after config change: sudo systemctl restart $SYSTEMD_SERVICE"
     echo ""
     echo -e "  ${CYAN}Service status:${NC}  sudo systemctl status $SYSTEMD_SERVICE"
@@ -1077,8 +1092,8 @@ if [ "$SERVICE_INSTALLED" = "true" ]; then
     echo -e "  ${CYAN}Master key:    ${NC}  /etc/aurago/master.key (root-only)"
 else
     echo "  Next steps:"
-    echo "  1. Edit config:  nano $CONFIG_FILE"
-    echo "     Set at minimum: llm.api_key"
+    echo "  1. Open the Web UI and go to Config -> Providers"
+    echo "     Add your LLM provider and API key there."
     echo "  2. Restart after config change: cd $INSTALL_DIR && ./start.sh"
     echo "  3. Open UI:      http://localhost:8088"
     echo ""

@@ -308,6 +308,63 @@ func TestDeploymentDefaultsUsePrivateConfigAndNoNewPrivileges(t *testing.T) {
 	}
 }
 
+func TestInstallerReleaseCopyUsesRootInstaller(t *testing.T) {
+	t.Parallel()
+
+	makeDeploy := readRepoFile(t, "make_deploy.sh")
+	if strings.Contains(makeDeploy, `cp deploy/install.sh "$DEPLOY_DIR/install.sh"`) {
+		t.Fatal("make_deploy.sh must not prefer deploy/install.sh over root install.sh")
+	}
+	if !strings.Contains(makeDeploy, `cp install.sh "$DEPLOY_DIR/install.sh"`) {
+		t.Fatal("make_deploy.sh must copy root install.sh into the release directory")
+	}
+	if strings.Contains(makeDeploy, `|| cp install.sh`) {
+		t.Fatal("make_deploy.sh must not treat root install.sh as a fallback after an ignored deploy script")
+	}
+}
+
+func TestInstallerCleanupTrapIsPreserved(t *testing.T) {
+	t.Parallel()
+
+	installScript := readRepoFile(t, "install.sh")
+	if strings.Count(installScript, "trap cleanup_install_failure EXIT") != 1 {
+		t.Fatal("install.sh must keep cleanup_install_failure registered as the EXIT trap")
+	}
+	if strings.Contains(installScript, `trap 'rm -f "${INITIAL_PASSWORD_FILE:-}"' EXIT`) {
+		t.Fatal("install.sh must not overwrite cleanup_install_failure when creating the temporary password file")
+	}
+	if !strings.Contains(installScript, `INITIAL_PASSWORD_FILE=""`) || !strings.Contains(installScript, `[ -n "${INITIAL_PASSWORD_FILE:-}" ] && rm -f "$INITIAL_PASSWORD_FILE"`) {
+		t.Fatal("install.sh cleanup handler must remove the temporary initial password file without replacing the main trap")
+	}
+}
+
+func TestInstallerDockerCheckVerifiesDaemonAvailability(t *testing.T) {
+	t.Parallel()
+
+	installScript := readRepoFile(t, "install.sh")
+	for _, want := range []string{
+		"docker info",
+		"systemctl enable --now docker",
+		"Docker CLI found but the daemon is not reachable",
+	} {
+		if !strings.Contains(installScript, want) {
+			t.Fatalf("install.sh must verify Docker daemon availability; missing %q", want)
+		}
+	}
+}
+
+func TestInstallerNextStepsUseProviderSystem(t *testing.T) {
+	t.Parallel()
+
+	installScript := readRepoFile(t, "install.sh")
+	if strings.Contains(installScript, "llm.api_key") {
+		t.Fatal("install.sh next steps must not direct users to legacy llm.api_key")
+	}
+	if !strings.Contains(installScript, "Config -> Providers") {
+		t.Fatal("install.sh next steps should direct users to the provider system")
+	}
+}
+
 func TestUpdateScriptSkipsMissingModifiedPromptsDuringBackup(t *testing.T) {
 	t.Parallel()
 

@@ -172,7 +172,7 @@ done
 
 # ── Step 4: Copy release scripts + checksums ─────────────────────────────
 echo "[4/5] Copying release scripts and generating checksums ..."
-cp deploy/install.sh "$DEPLOY_DIR/install.sh" 2>/dev/null || cp install.sh "$DEPLOY_DIR/" 2>/dev/null || true
+cp install.sh "$DEPLOY_DIR/install.sh"
 cp update.sh "$DEPLOY_DIR/update.sh" 2>/dev/null || true
 
 (
