@@ -953,7 +953,8 @@ let _providerCatalogPromise = null;
                 label_key: 'config.providers.oauth_preset_google',
                 auth_url: 'https://accounts.google.com/o/oauth2/v2/auth',
                 token_url: 'https://oauth2.googleapis.com/token',
-                scopes: 'openid email https://www.googleapis.com/auth/cloud-platform'
+                scopes: 'openid email https://www.googleapis.com/auth/cloud-platform https://www.googleapis.com/auth/generative-language.retriever',
+                legacy_scopes: ['openid email https://www.googleapis.com/auth/cloud-platform']
             }
         };
 
@@ -968,15 +969,18 @@ let _providerCatalogPromise = null;
 
         function providerOAuthPresetFieldValue(type, field, currentValue) {
             const value = (currentValue || '').trim();
-            if (value) return value;
             const preset = providerOAuthPresetForType(type);
+            if (value && !(preset && field === 'scopes' && preset.legacy_scopes && preset.legacy_scopes.includes(value))) return value;
             return preset && preset[field] ? preset[field] : '';
         }
 
         function providerOAuthValueIsKnownPreset(field, value) {
             const normalized = (value || '').trim();
             if (!normalized) return true;
-            return Object.values(PROVIDER_OAUTH_PRESETS).some(preset => (preset[field] || '') === normalized);
+            return Object.values(PROVIDER_OAUTH_PRESETS).some(preset =>
+                (preset[field] || '') === normalized ||
+                (field === 'scopes' && preset.legacy_scopes && preset.legacy_scopes.includes(normalized))
+            );
         }
 
         function providerOAuthConfigFromInputs(type) {
