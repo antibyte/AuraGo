@@ -1,6 +1,6 @@
 # Netlify (`netlify`)
 
-Management of Netlify sites, deployments, environment variables, forms, notification hooks, and SSL certificates through the Netlify REST API. Destructive site deletion is available only when site management is enabled and readonly mode is off.
+Management of Netlify sites, deployments, environment variables, forms, notification hooks, and SSL certificates through the Netlify REST API. Mutating site-level operations are available only when the matching permission toggle is enabled and readonly mode is off.
 
 ## Operations
 
@@ -24,9 +24,9 @@ Management of Netlify sites, deployments, environment variables, forms, notifica
 | `list_forms` | List forms configured on the site |
 | `get_submissions` | Get form submissions |
 | `list_hooks` | List notification hooks |
-| `create_hook` | Create a notification hook |
-| `delete_hook` | Delete a notification hook |
-| `provision_ssl` | Provision Let's Encrypt SSL certificate |
+| `create_hook` | Create a notification hook; requires site management |
+| `delete_hook` | Delete a notification hook; requires site management |
+| `provision_ssl` | Provision Let's Encrypt SSL certificate; requires site management |
 
 ## Parameters
 
@@ -80,17 +80,17 @@ netlify:
   # Personal Access Token stored in vault: netlify_token
   # Generate at: https://app.netlify.com/user/applications#personal-access-tokens
   readonly: false           # Set true to block mutations
-  allow_deploy: true        # Allow rollback/cancel_deploy
-  allow_site_management: true  # Allow create_site, update_site, delete_site
-  allow_env_management: true  # Allow set_env, delete_env
+  allow_deploy: false       # Explicitly allow rollback/cancel_deploy
+  allow_site_management: false  # Explicitly allow create/update/delete site, hooks, and SSL
+  allow_env_management: false  # Explicitly allow set_env/delete_env
 ```
 
 ## Notes
 
 - **Authentication**: A Personal Access Token (PAT) is required. Store it in the vault with key `netlify_token`.
-- **Homepage/project deploys**: Do not use this tool to upload website files. For AuraGo homepage workspace projects, use `homepage_deploy` `deploy_netlify` with `project_dir`; it installs dependencies, builds, validates static output, uploads a ZIP, polls Netlify until ready, and verifies the public URL.
+- **Homepage/project deploys**: Do not use this tool or `homepage exec` with the Netlify CLI to upload website files. Direct CLI commands do not receive the vault token. For AuraGo homepage workspace projects, use `homepage_deploy` `deploy_netlify` with `project_dir`; it installs dependencies, builds, validates static output, uploads a hardened ZIP, polls Netlify until ready, and verifies the public URL.
 - **ZIP deploys**: Binary ZIP data cannot be reliably transported through LLM tool arguments. Use `homepage_deploy` `deploy_netlify` instead for builds.
 - **Destructive cleanup**: `delete_site` permanently deletes a site. Keep `netlify.allow_site_management=false` or `netlify.readonly=true` if agents should not be able to delete sites.
 - **Rate limits**: General API: 500 requests/minute. Deploys: 3/minute, 100/day.
-- **Permission model**: `readonly` blocks all mutations. Other flags control specific operations.
+- **Permission model**: `readonly` blocks all mutations. `allow_deploy` controls rollback/cancel. `allow_site_management` controls create/update/delete site plus hook mutations and SSL provisioning. `allow_env_management` controls env var writes/deletes.
 - **Form submissions**: Contain user-generated content and are wrapped in `<external_data>` for safety.

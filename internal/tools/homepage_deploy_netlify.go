@@ -11,6 +11,62 @@ import (
 	"strings"
 )
 
+func homepageNetlifyShouldSkipZipEntry(rel string, info os.FileInfo) bool {
+	rel = strings.Trim(strings.ToLower(filepath.ToSlash(rel)), "/")
+	if rel == "" || rel == "." {
+		return false
+	}
+	parts := strings.Split(rel, "/")
+	skipDirs := map[string]struct{}{
+		".git":          {},
+		".cache":        {},
+		".next":         {},
+		".netlify":      {},
+		".parcel-cache": {},
+		".turbo":        {},
+		".vercel":       {},
+		".vite":         {},
+		"node_modules":  {},
+	}
+	for _, part := range parts {
+		if _, ok := skipDirs[part]; ok {
+			return true
+		}
+	}
+	if info != nil && info.IsDir() {
+		return false
+	}
+	base := parts[len(parts)-1]
+	if base == ".env" || strings.HasPrefix(base, ".env.") {
+		return true
+	}
+	skipFiles := map[string]struct{}{
+		".aurago-site-manifest.json": {},
+		".npmrc":                     {},
+		".pnpmrc":                    {},
+		".yarnrc":                    {},
+		".yarnrc.yml":                {},
+		"config.yaml":                {},
+		"config.yml":                 {},
+		"credentials.json":           {},
+		"id_ed25519":                 {},
+		"id_rsa":                     {},
+		"secret.json":                {},
+		"secrets.json":               {},
+		"service-account.json":       {},
+		"vault.bin":                  {},
+	}
+	if _, ok := skipFiles[base]; ok {
+		return true
+	}
+	for _, suffix := range []string{".db", ".sqlite", ".sqlite3", ".sqlite-shm", ".sqlite-wal", ".log", ".pem", ".key"} {
+		if strings.HasSuffix(base, suffix) {
+			return true
+		}
+	}
+	return false
+}
+
 func HomepageDeployNetlify(cfg HomepageConfig, nfCfg NetlifyConfig, projectDir, buildDir, siteID, title string, draft bool, logger *slog.Logger) string {
 	if nfCfg.Token == "" {
 		return errJSON("Netlify token is required")
@@ -150,14 +206,20 @@ func HomepageDeployNetlify(cfg HomepageConfig, nfCfg NetlifyConfig, projectDir, 
 		if err != nil {
 			return err
 		}
-		if info.IsDir() {
-			return nil
-		}
 		rel, err := filepath.Rel(deployPath, path)
 		if err != nil {
 			return err
 		}
 		rel = filepath.ToSlash(rel)
+		if homepageNetlifyShouldSkipZipEntry(rel, info) {
+			if info.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if info.IsDir() {
+			return nil
+		}
 		if rel == "_headers" {
 			hasHeaders = true
 		}
@@ -308,6 +370,7 @@ func HomepageDeployNetlify(cfg HomepageConfig, nfCfg NetlifyConfig, projectDir, 
 				newDomain, _ := cr["default_domain"].(string)
 				if newID != "" {
 					logger.Info("[Homepage] Site created, retrying deploy", "site_id", newID, "domain", newDomain)
+					resolvedID = newID
 					deployResult = NetlifyDeployZip(nfCfg, newID, title, draft, zipBytes)
 					// Annotate success with the auto-created site info
 					var rr map[string]interface{}
@@ -329,24 +392,40 @@ func HomepageDeployNetlify(cfg HomepageConfig, nfCfg NetlifyConfig, projectDir, 
 	if json.Unmarshal([]byte(deployResult), &dr) != nil || dr["status"] == "error" {
 		return deployResult
 	}
+	if strVal(dr, "site_id") == "" {
+		dr["site_id"] = resolvedID
+	}
 	if fallbackProjectDir != "" {
 		dr["fallback_project_dir"] = fallbackProjectDir
 		dr["fallback_build_dir"] = candidate.BuildDir
 	}
-	deployID := strVal(dr, "id")
+	deployID := firstNonEmptyString(strVal(dr, "deploy_id"), strVal(dr, "id"))
 	if deployID != "" {
+		dr["deploy_id"] = deployID
 		waitResult := NetlifyWaitForDeploy(nfCfg, deployID, netlifyDeployPollAttempts, netlifyDeployPollInterval)
 		var wr map[string]interface{}
 		if json.Unmarshal([]byte(waitResult), &wr) == nil {
 			if wr["status"] == "error" {
-				return errJSON("Netlify deploy failed after upload: %s", strVal(wr, "message"))
+				msg := firstNonEmptyString(strVal(wr, "message"), strVal(wr, "error_message"), waitResult)
+				return errJSON("Netlify deploy failed after upload: %s", msg)
 			}
 			for k, v := range wr {
-				if k != "status" {
+				switch k {
+				case "status":
+				case "id":
+					if id, _ := v.(string); strings.TrimSpace(id) != "" {
+						dr["deploy_id"] = id
+					} else {
+						dr["deploy_id"] = v
+					}
+				default:
 					dr["deploy_"+k] = v
 				}
 			}
 		}
+	}
+	if _, exists := dr["verified"]; !exists {
+		dr["verified"] = false
 	}
 	verifyURL := strVal(dr, "deploy_url")
 	if verifyURL == "" {

@@ -100,6 +100,9 @@ func TestNetlifyDirectMutationsRequireGranularAllows(t *testing.T) {
 		"site management": NetlifyCreateSite(cfg, "site", ""),
 		"deploy":          NetlifyRollback(cfg, "site-123", "deploy-123"),
 		"env management":  NetlifySetEnvVar(cfg, "site-123", "KEY", "value", ""),
+		"create hook":     NetlifyCreateHook(cfg, "site-123", "email", "deploy_created", nil),
+		"delete hook":     NetlifyDeleteHook(cfg, "hook-123"),
+		"provision ssl":   NetlifyProvisionSSL(cfg, "site-123"),
 	}
 
 	for name, got := range tests {
@@ -108,5 +111,89 @@ func TestNetlifyDirectMutationsRequireGranularAllows(t *testing.T) {
 				t.Fatalf("expected permission error, got %s", got)
 			}
 		})
+	}
+}
+
+func TestNetlifyRollbackUsesRestoreEndpoint(t *testing.T) {
+	var gotMethod, gotPath string
+	server := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotMethod = r.Method
+		gotPath = r.URL.EscapedPath()
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer server.Close()
+
+	prevBaseURL := netlifyBaseURL
+	prevClient := netlifyHTTPClient
+	netlifyBaseURL = server.URL + "/api/v1"
+	netlifyHTTPClient = server.Client()
+	defer func() {
+		netlifyBaseURL = prevBaseURL
+		netlifyHTTPClient = prevClient
+	}()
+
+	result := NetlifyRollback(NetlifyConfig{Token: "test-token", AllowDeploy: true}, "site-123", "deploy-123")
+	if !strings.Contains(result, `"status":"ok"`) {
+		t.Fatalf("expected rollback success, got %s", result)
+	}
+	if gotMethod != http.MethodPost {
+		t.Fatalf("method = %s, want POST", gotMethod)
+	}
+	if gotPath != "/api/v1/sites/site-123/deploys/deploy-123/restore" {
+		t.Fatalf("path = %s, want /api/v1/sites/site-123/deploys/deploy-123/restore", gotPath)
+	}
+}
+
+func TestNetlifyEscapesPathSegmentsAndQueryValues(t *testing.T) {
+	seen := map[string]bool{}
+	server := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		key := r.Method + " " + r.URL.EscapedPath()
+		if r.URL.RawQuery != "" {
+			key += "?" + r.URL.RawQuery
+		}
+		seen[key] = true
+		switch {
+		case r.Method == http.MethodGet && r.URL.EscapedPath() == "/api/v1/sites/site%2Falpha%20beta":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"id":"site/alpha beta","name":"escaped"}`))
+		case r.Method == http.MethodGet && r.URL.EscapedPath() == "/api/v1/accounts/team%2Falpha/env/API%2FKEY":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"key":"API/KEY","values":[]}`))
+		case r.Method == http.MethodDelete && r.URL.EscapedPath() == "/api/v1/hooks/hook%2Falpha":
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			t.Fatalf("unexpected request %s %s?%s", r.Method, r.URL.EscapedPath(), r.URL.RawQuery)
+		}
+	}))
+	defer server.Close()
+
+	prevBaseURL := netlifyBaseURL
+	prevClient := netlifyHTTPClient
+	netlifyBaseURL = server.URL + "/api/v1"
+	netlifyHTTPClient = server.Client()
+	defer func() {
+		netlifyBaseURL = prevBaseURL
+		netlifyHTTPClient = prevClient
+	}()
+
+	cfg := NetlifyConfig{Token: "test-token", TeamSlug: "team/alpha", AllowSiteManagement: true}
+	if got := NetlifyGetSite(cfg, "site/alpha beta"); !strings.Contains(got, `"status":"ok"`) {
+		t.Fatalf("NetlifyGetSite failed: %s", got)
+	}
+	if got := NetlifyGetEnvVar(cfg, "site/alpha beta", "API/KEY"); !strings.Contains(got, `"status":"ok"`) {
+		t.Fatalf("NetlifyGetEnvVar failed: %s", got)
+	}
+	if got := NetlifyDeleteHook(cfg, "hook/alpha"); !strings.Contains(got, `"status":"ok"`) {
+		t.Fatalf("NetlifyDeleteHook failed: %s", got)
+	}
+
+	for _, want := range []string{
+		"GET /api/v1/sites/site%2Falpha%20beta",
+		"GET /api/v1/accounts/team%2Falpha/env/API%2FKEY?site_id=site%2Falpha+beta",
+		"DELETE /api/v1/hooks/hook%2Falpha",
+	} {
+		if !seen[want] {
+			t.Fatalf("missing escaped request %q; saw %#v", want, seen)
+		}
 	}
 }

@@ -914,7 +914,7 @@ The blocks below are available for advanced and headless setups. Most can be con
 | `s3` | S3-compatible storage. | `s3:`<br>`  enabled: false`<br>`  readonly: false`<br>`  endpoint: ""`<br>`  region: us-east-1`<br>`  bucket: ""` |
 | `sql_connections` | External DB connections. | `sql_connections:`<br>`  enabled: false`<br>`  max_pool_size: 5`<br>`  connection_timeout_sec: 30`<br>`  query_timeout_sec: 120` |
 | `homepage` | Personal dashboard deploy. | `homepage:`<br>`  enabled: false`<br>`  allow_deploy: false`<br>`  allow_container_management: true`<br>`  webserver_port: 8080` |
-| `netlify` | Netlify site management. | `netlify:`<br>`  enabled: false`<br>`  readonly: false`<br>`  allow_deploy: true`<br>`  allow_site_management: false` |
+| `netlify` | Netlify site management. | `netlify:`<br>`  enabled: false`<br>`  readonly: false`<br>`  allow_deploy: false`<br>`  allow_site_management: false` |
 | `cloudflare_tunnel` | cloudflared integration. | `cloudflare_tunnel:`<br>`  enabled: false`<br>`  readonly: false`<br>`  mode: auto`<br>`  auto_start: true` |
 | `tailscale` | Tailscale VPN integration. | `tailscale:`<br>`  enabled: false`<br>`  readonly: false`<br>`  tailnet: ""`<br>`  tsnet:`<br>`    enabled: false`<br>`    hostname: "aurago"`<br>`    serve_http: false`<br>`    expose_homepage: false`<br>`    funnel: false`<br>`    allow_http_fallback: false` |
 | `fritzbox` | AVM Fritz!Box TR-064. | `fritzbox:`<br>`  enabled: false`<br>`  host: fritz.box`<br>`  port: 49000`<br>`  https: true`<br>`  system:`<br>`    enabled: false`<br>`    readonly: false`<br>`  network:`<br>`    enabled: false`<br>`    readonly: false`<br>`  telephony:`<br>`    enabled: false`<br>`    polling:`<br>`      enabled: false` |

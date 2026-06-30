@@ -12,21 +12,21 @@ conditions: ["netlify_enabled"]
 **Site operations:**
 - `list_sites` — List all Netlify sites for your account/team
 - `get_site` — Get detailed info about a site (`site_id` optional if default configured)
-- `create_site` — Create a new site (`site_name` = subdomain, `custom_domain` optional)
-- `update_site` — Update site settings (`site_id`, `site_name`, `custom_domain`)
+- `create_site` — Create a new site (`site_name` = subdomain, `custom_domain` optional; requires `netlify.allow_site_management=true`)
+- `update_site` — Update site settings (`site_id`, `site_name`, `custom_domain`; requires `netlify.allow_site_management=true`)
 - `delete_site` — Permanently delete a site (`site_id` required; requires `netlify.allow_site_management=true` and not readonly)
 
 **Deploy operations:**
 - `list_deploys` — List recent deploys for a site
 - `get_deploy` — Get deploy details (`deploy_id` required)
-- `rollback` — Rollback to a previous deploy (`site_id`, `deploy_id`)
-- `cancel_deploy` — Cancel a pending deploy (`deploy_id`)
+- `rollback` — Rollback to a previous deploy (`site_id`, `deploy_id`; requires `netlify.allow_deploy=true`)
+- `cancel_deploy` — Cancel a pending deploy (`deploy_id`; requires `netlify.allow_deploy=true`)
 
 **Environment variable operations:**
 - `list_env` — List all env vars for a site
 - `get_env` — Get details of a specific env var (`env_key`)
-- `set_env` — Create or update env var (`env_key`, `env_value`, `env_context`)
-- `delete_env` — Delete an env var (`env_key`)
+- `set_env` — Create or update env var (`env_key`, `env_value`, `env_context`; requires `netlify.allow_env_management=true`)
+- `delete_env` — Delete an env var (`env_key`; requires `netlify.allow_env_management=true`)
 
 **File & Form operations:**
 - `list_files` — List files in the current deploy
@@ -35,11 +35,11 @@ conditions: ["netlify_enabled"]
 
 **Hook operations:**
 - `list_hooks` — List notification hooks for a site
-- `create_hook` — Create a hook (`hook_type`: url/email/slack, `hook_event`, `url` or `value`)
-- `delete_hook` — Delete a hook (`hook_id`)
+- `create_hook` — Create a hook (`hook_type`: url/email/slack, `hook_event`, `url` or `value`; requires `netlify.allow_site_management=true`)
+- `delete_hook` — Delete a hook (`hook_id`; requires `netlify.allow_site_management=true`)
 
 **SSL:**
-- `provision_ssl` — Provision a Let's Encrypt SSL certificate for a site
+- `provision_ssl` — Provision a Let's Encrypt SSL certificate for a site; requires `netlify.allow_site_management=true`
 
 **Diagnostics:**
 - `check_connection` — Test connectivity to the Netlify API (DNS resolution → TCP → authenticated API call). Run this first if any Netlify operation fails with a network error.
@@ -49,6 +49,7 @@ conditions: ["netlify_enabled"]
 **Homepage → Netlify deployment (only supported method):**
 - Use `homepage_deploy` `deploy_netlify` — handles dependency install, build, static output validation, ZIP upload, deploy polling, and live URL verification entirely server-side
   - Params: `project_dir`, `site_id` (optional if default configured or site management may auto-create), `title`, `draft`
+  - Direct Netlify CLI commands through `homepage exec` do not receive `NETLIFY_AUTH_TOKEN`; use `deploy_netlify` for official deploys.
 
 ⚠️ ZIP-based deploy operations are intentionally not part of the agent flow.
 The agent cannot reliably pass binary/base64 data through tool arguments — the ZIP will be truncated or corrupted, causing 400 errors. Always use `homepage › deploy_netlify` for homepage deployments.

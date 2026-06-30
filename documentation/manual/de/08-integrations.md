@@ -861,6 +861,9 @@ Deploye statische Webseiten direkt auf Netlify.
 ```yaml
 netlify:
   enabled: true
+  allow_deploy: false
+  allow_site_management: false
+  allow_env_management: false
 ```
 
 ## Paperless NGX

@@ -1257,7 +1257,7 @@ guardian:
 netlify:
     enabled: false
     readonly: false
-    allow_deploy: true
+    allow_deploy: false
     allow_site_management: false
     allow_env_management: false
     default_site_id: ""

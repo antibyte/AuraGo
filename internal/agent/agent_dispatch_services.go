@@ -103,6 +103,28 @@ func withHomepageLedgerWarnings(result string, warnings []string) string {
 	return string(out)
 }
 
+func homepageExecEnvForCommand(vault *security.Vault, command string) []string {
+	if vault == nil {
+		return nil
+	}
+	var execEnv []string
+	if strings.Contains(command, "vercel ") {
+		if vcTok, tokErr := vault.ReadSecret("vercel_token"); tokErr == nil && vcTok != "" {
+			execEnv = append(execEnv, "VERCEL_TOKEN="+vcTok)
+		}
+	}
+	return execEnv
+}
+
+func homepageResultString(parsed map[string]interface{}, keys ...string) string {
+	for _, key := range keys {
+		if v, _ := parsed[key].(string); strings.TrimSpace(v) != "" {
+			return v
+		}
+	}
+	return ""
+}
+
 func recordHomepageLedgerMutation(homepageCfg tools.HomepageConfig, db *sql.DB, projectDir, eventType, summary, source string, saveRevision bool, payload map[string]interface{}, logger *slog.Logger) []string {
 	if db == nil {
 		return []string{"homepage registry DB not initialized"}
@@ -553,18 +575,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					return `Tool Output: {"status":"error","message":"command is required for homepage exec. Do not retry an empty exec call. Use homepage list_files/read_file to inspect the project, homepage build for builds, or provide a concrete command that should run inside the homepage container."}`
 				}
 				logger.Info("LLM requested homepage exec", "cmd", req.Command)
-				var execEnv []string
-				// Auto-inject Netlify auth token when the command invokes the netlify CLI
-				if vault != nil && strings.Contains(req.Command, "netlify ") {
-					if nfTok, tokErr := vault.ReadSecret("netlify_token"); tokErr == nil && nfTok != "" {
-						execEnv = []string{"NETLIFY_AUTH_TOKEN=" + nfTok}
-					}
-				}
-				if vault != nil && strings.Contains(req.Command, "vercel ") {
-					if vcTok, tokErr := vault.ReadSecret("vercel_token"); tokErr == nil && vcTok != "" {
-						execEnv = append(execEnv, "VERCEL_TOKEN="+vcTok)
-					}
-				}
+				execEnv := homepageExecEnvForCommand(vault, req.Command)
 				return "Tool Output: " + tools.HomepageExec(homepageCfg, req.Command, execEnv, logger)
 			case "init_project":
 				logger.Info("LLM requested homepage init_project", "framework", req.Framework, "name", req.Name, "template", req.Template)
@@ -805,20 +816,20 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				logger.Info("LLM requested homepage deploy_netlify", "project", req.ProjectDir, "build_dir", req.BuildDir, "site_id", req.SiteID, "draft", req.Draft)
 				result := tools.HomepageDeployNetlify(homepageCfg, nfCfg, req.ProjectDir, req.BuildDir, req.SiteID, req.Title, req.Draft, logger)
 				// Auto-log deploy and history in homepage registry
-				if homepageRegistryDB != nil && req.ProjectDir != "" {
-					deployURL := req.SiteID
+				if homepageRegistryDB != nil && req.ProjectDir != "" && homepageResultSuccess(result) {
+					var parsed map[string]interface{}
+					_ = json.Unmarshal([]byte(result), &parsed)
+					deployURL := homepageResultString(parsed, "verified_url", "deploy_url", "url", "deploy_deploy_url")
 					if deployURL == "" {
-						deployURL = "netlify"
+						deployURL = firstNonEmpty(homepageResultString(parsed, "site_id", "new_site_id", "deploy_site_id"), req.SiteID, "netlify")
 					}
 					if proj, err := tools.GetProjectByDir(homepageRegistryDB, req.ProjectDir); err == nil {
 						tools.LogDeploy(homepageRegistryDB, proj.ID, deployURL)
-						if homepageResultSuccess(result) {
-							_, _ = tools.AddHomepageHistoryEntry(homepageRegistryDB, proj.ID, "milestone",
-								fmt.Sprintf("Deployed to Netlify (site: %s)", deployURL), "homepage_deploy", nil)
-						}
-						if req.SiteID != "" {
+						_, _ = tools.AddHomepageHistoryEntry(homepageRegistryDB, proj.ID, "milestone",
+							fmt.Sprintf("Deployed to Netlify (site: %s)", deployURL), "homepage_deploy", nil)
+						if siteID := firstNonEmpty(homepageResultString(parsed, "site_id", "new_site_id", "deploy_site_id"), req.SiteID); siteID != "" {
 							tools.UpdateProject(homepageRegistryDB, proj.ID, map[string]interface{}{
-								"netlify_site_id": req.SiteID,
+								"netlify_site_id": siteID,
 							})
 						}
 					}

@@ -102,3 +102,46 @@ func TestDispatchHomepageWriteFileRecordsLedgerRevision(t *testing.T) {
 		t.Fatalf("ledger counts revision=%d event=%d file_state=%d, want all 1", revisionCount, eventCount, fileStateCount)
 	}
 }
+
+func TestDispatchHomepageDeployNetlifyDoesNotLogFailedDeploy(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Homepage.Enabled = true
+	cfg.Homepage.AllowDeploy = true
+	cfg.Homepage.WorkspacePath = t.TempDir()
+	cfg.Netlify.Enabled = true
+	cfg.Netlify.AllowDeploy = true
+	cfg.Netlify.DefaultSiteID = "site-123"
+
+	db, err := tools.InitHomepageRegistryDB(t.TempDir() + "/homepage.db")
+	if err != nil {
+		t.Fatalf("InitHomepageRegistryDB failed: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	if _, err := tools.EnsureHomepageProjectForDir(db, tools.HomepageConfig{WorkspacePath: cfg.Homepage.WorkspacePath}, "site-a", "site-a", "html"); err != nil {
+		t.Fatalf("EnsureHomepageProjectForDir failed: %v", err)
+	}
+	vault := newDispatchTestVault(t, map[string]string{"netlify_token": "nf-secret"})
+
+	output, ok := dispatchServices(context.Background(), ToolCall{
+		Action:    "homepage",
+		Operation: "deploy_netlify",
+		Params: map[string]interface{}{
+			"project_dir": "site-a",
+			"build_dir":   ".",
+		},
+	}, &DispatchContext{Cfg: cfg, Logger: testLogger, Vault: vault, HomepageRegistryDB: db})
+	if !ok {
+		t.Fatal("expected homepage operation to be handled")
+	}
+	if !strings.Contains(output, `"status":"error"`) {
+		t.Fatalf("expected deploy failure for missing project files, got %s", output)
+	}
+
+	proj, err := tools.GetProjectByDir(db, "site-a")
+	if err != nil {
+		t.Fatalf("GetProjectByDir failed: %v", err)
+	}
+	if proj.LastDeployURL != "" || proj.LastDeployedAt != "" {
+		t.Fatalf("failed Netlify deploy must not update last deployment fields, got url=%q at=%q", proj.LastDeployURL, proj.LastDeployedAt)
+	}
+}

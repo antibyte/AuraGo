@@ -3,6 +3,7 @@ package tools
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"strings"
 
 	"aurago/internal/security"
@@ -21,13 +22,10 @@ func NetlifyRollback(cfg NetlifyConfig, siteID, deployID string) string {
 		return errJSON("deploy_id is required for rollback")
 	}
 
-	// Restore a previous deploy by publishing it
-	data, code, err := netlifyRequest(cfg, "POST", fmt.Sprintf("/sites/%s/rollback/%s", siteID, deployID), nil)
+	data, code, err := netlifyRequest(cfg, "POST", fmt.Sprintf("/sites/%s/deploys/%s/restore", netlifyPathSegment(siteID), netlifyPathSegment(deployID)), nil)
 	if err != nil {
 		return errJSON("Failed to rollback: %v", err)
 	}
-	// Netlify returns a 204 for the restore endpoint — but the rollback endpoint
-	// may vary; accept 200/201/204.
 	if code != 200 && code != 201 && code != 204 {
 		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
 	}
@@ -49,7 +47,7 @@ func NetlifyCancelDeploy(cfg NetlifyConfig, deployID string) string {
 		return errJSON("deploy_id is required")
 	}
 
-	data, code, err := netlifyRequest(cfg, "POST", "/deploys/"+deployID+"/cancel", nil)
+	data, code, err := netlifyRequest(cfg, "POST", "/deploys/"+netlifyPathSegment(deployID)+"/cancel", nil)
 	if err != nil {
 		return errJSON("Failed to cancel deploy: %v", err)
 	}
@@ -63,6 +61,21 @@ func NetlifyCancelDeploy(cfg NetlifyConfig, deployID string) string {
 
 // ── Environment Variables ───────────────────────────────────────────────────
 
+func netlifySiteQuery(siteID string) string {
+	return url.Values{"site_id": []string{siteID}}.Encode()
+}
+
+func netlifyAccountEnvEndpoint(cfg NetlifyConfig, siteID, key string) (string, string) {
+	if strings.TrimSpace(cfg.TeamSlug) == "" {
+		return "", errJSON("netlify.team_slug is required for Netlify account environment variable operations")
+	}
+	endpoint := fmt.Sprintf("/accounts/%s/env", netlifyPathSegment(cfg.TeamSlug))
+	if key != "" {
+		endpoint += "/" + netlifyPathSegment(key)
+	}
+	return endpoint + "?" + netlifySiteQuery(siteID), ""
+}
+
 // NetlifyListEnvVars returns all env vars for a site.
 func NetlifyListEnvVars(cfg NetlifyConfig, siteID string) string {
 	siteID = netlifyResolveSiteID(cfg, siteID)
@@ -70,19 +83,24 @@ func NetlifyListEnvVars(cfg NetlifyConfig, siteID string) string {
 		return errJSON("site_id is required")
 	}
 
-	data, code, err := netlifyRequest(cfg, "GET", fmt.Sprintf("/accounts/%s/env?site_id=%s", cfg.TeamSlug, siteID), nil)
-	if err != nil {
-		return errJSON("Failed to list env vars: %v", err)
-	}
-	if code != 200 {
-		// Fallback to site-level env vars API
-		data, code, err = netlifyRequest(cfg, "GET", fmt.Sprintf("/sites/%s/env", siteID), nil)
+	var data []byte
+	var code int
+	var err error
+	if strings.TrimSpace(cfg.TeamSlug) != "" {
+		endpoint, _ := netlifyAccountEnvEndpoint(cfg, siteID, "")
+		data, code, err = netlifyRequest(cfg, "GET", endpoint, nil)
 		if err != nil {
 			return errJSON("Failed to list env vars: %v", err)
 		}
-		if code != 200 {
-			return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
+	}
+	if strings.TrimSpace(cfg.TeamSlug) == "" || code != 200 {
+		data, code, err = netlifyRequest(cfg, "GET", fmt.Sprintf("/sites/%s/env", netlifyPathSegment(siteID)), nil)
+		if err != nil {
+			return errJSON("Failed to list env vars: %v", err)
 		}
+	}
+	if code != 200 {
+		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%q}`, code, string(data))
 	}
 
 	var envVars []map[string]interface{}
@@ -121,7 +139,11 @@ func NetlifyGetEnvVar(cfg NetlifyConfig, siteID, key string) string {
 		return errJSON("site_id and key are required")
 	}
 
-	data, code, err := netlifyRequest(cfg, "GET", fmt.Sprintf("/accounts/%s/env/%s?site_id=%s", cfg.TeamSlug, key, siteID), nil)
+	endpoint, msg := netlifyAccountEnvEndpoint(cfg, siteID, key)
+	if msg != "" {
+		return msg
+	}
+	data, code, err := netlifyRequest(cfg, "GET", endpoint, nil)
 	if err != nil {
 		return errJSON("Failed to get env var: %v", err)
 	}
@@ -166,7 +188,11 @@ func NetlifySetEnvVar(cfg NetlifyConfig, siteID, key, value, envContext string) 
 		},
 	}
 
-	data, code, err := netlifyRequest(cfg, "POST", fmt.Sprintf("/accounts/%s/env?site_id=%s", cfg.TeamSlug, siteID), body)
+	endpoint, msg := netlifyAccountEnvEndpoint(cfg, siteID, "")
+	if msg != "" {
+		return msg
+	}
+	data, code, err := netlifyRequest(cfg, "POST", endpoint, body)
 	if err != nil {
 		return errJSON("Failed to set env var: %v", err)
 	}
@@ -183,7 +209,11 @@ func NetlifySetEnvVar(cfg NetlifyConfig, siteID, key, value, envContext string) 
 				},
 			},
 		}
-		data, code, err = netlifyRequest(cfg, "PATCH", fmt.Sprintf("/accounts/%s/env/%s?site_id=%s", cfg.TeamSlug, key, siteID), patchBody)
+		patchEndpoint, msg := netlifyAccountEnvEndpoint(cfg, siteID, key)
+		if msg != "" {
+			return msg
+		}
+		data, code, err = netlifyRequest(cfg, "PATCH", patchEndpoint, patchBody)
 		if err != nil {
 			return errJSON("Failed to set env var: %v", err)
 		}
@@ -206,7 +236,11 @@ func NetlifyDeleteEnvVar(cfg NetlifyConfig, siteID, key string) string {
 		return errJSON("site_id and key are required")
 	}
 
-	_, code, err := netlifyRequest(cfg, "DELETE", fmt.Sprintf("/accounts/%s/env/%s?site_id=%s", cfg.TeamSlug, key, siteID), nil)
+	endpoint, msg := netlifyAccountEnvEndpoint(cfg, siteID, key)
+	if msg != "" {
+		return msg
+	}
+	_, code, err := netlifyRequest(cfg, "DELETE", endpoint, nil)
 	if err != nil {
 		return errJSON("Failed to delete env var: %v", err)
 	}
@@ -227,7 +261,7 @@ func NetlifyListFiles(cfg NetlifyConfig, siteID string) string {
 		return errJSON("site_id is required")
 	}
 
-	data, code, err := netlifyRequest(cfg, "GET", fmt.Sprintf("/sites/%s/files", siteID), nil)
+	data, code, err := netlifyRequest(cfg, "GET", fmt.Sprintf("/sites/%s/files", netlifyPathSegment(siteID)), nil)
 	if err != nil {
 		return errJSON("Failed to list files: %v", err)
 	}
@@ -273,7 +307,7 @@ func NetlifyListForms(cfg NetlifyConfig, siteID string) string {
 		return errJSON("site_id is required")
 	}
 
-	data, code, err := netlifyRequest(cfg, "GET", fmt.Sprintf("/sites/%s/forms", siteID), nil)
+	data, code, err := netlifyRequest(cfg, "GET", fmt.Sprintf("/sites/%s/forms", netlifyPathSegment(siteID)), nil)
 	if err != nil {
 		return errJSON("Failed to list forms: %v", err)
 	}
@@ -319,7 +353,7 @@ func NetlifyGetFormSubmissions(cfg NetlifyConfig, formID string) string {
 		return errJSON("form_id is required")
 	}
 
-	data, code, err := netlifyRequest(cfg, "GET", fmt.Sprintf("/forms/%s/submissions?per_page=50", formID), nil)
+	data, code, err := netlifyRequest(cfg, "GET", fmt.Sprintf("/forms/%s/submissions?per_page=50", netlifyPathSegment(formID)), nil)
 	if err != nil {
 		return errJSON("Failed to get submissions: %v", err)
 	}
@@ -371,7 +405,7 @@ func NetlifyListHooks(cfg NetlifyConfig, siteID string) string {
 		return errJSON("site_id is required")
 	}
 
-	data, code, err := netlifyRequest(cfg, "GET", fmt.Sprintf("/hooks?site_id=%s", siteID), nil)
+	data, code, err := netlifyRequest(cfg, "GET", "/hooks?"+netlifySiteQuery(siteID), nil)
 	if err != nil {
 		return errJSON("Failed to list hooks: %v", err)
 	}
@@ -412,7 +446,7 @@ func NetlifyListHooks(cfg NetlifyConfig, siteID string) string {
 
 // NetlifyCreateHook creates a new notification hook for a site.
 func NetlifyCreateHook(cfg NetlifyConfig, siteID, hookType, event string, hookData map[string]interface{}) string {
-	if msg := netlifyReadOnlyError(cfg); msg != "" {
+	if msg := netlifySiteManagementError(cfg); msg != "" {
 		return msg
 	}
 	siteID = netlifyResolveSiteID(cfg, siteID)
@@ -455,14 +489,14 @@ func NetlifyCreateHook(cfg NetlifyConfig, siteID, hookType, event string, hookDa
 
 // NetlifyDeleteHook deletes a notification hook.
 func NetlifyDeleteHook(cfg NetlifyConfig, hookID string) string {
-	if msg := netlifyReadOnlyError(cfg); msg != "" {
+	if msg := netlifySiteManagementError(cfg); msg != "" {
 		return msg
 	}
 	if hookID == "" {
 		return errJSON("hook_id is required")
 	}
 
-	_, code, err := netlifyRequest(cfg, "DELETE", "/hooks/"+hookID, nil)
+	_, code, err := netlifyRequest(cfg, "DELETE", "/hooks/"+netlifyPathSegment(hookID), nil)
 	if err != nil {
 		return errJSON("Failed to delete hook: %v", err)
 	}
@@ -478,7 +512,7 @@ func NetlifyDeleteHook(cfg NetlifyConfig, hookID string) string {
 
 // NetlifyProvisionSSL provisions a Let's Encrypt certificate for the site.
 func NetlifyProvisionSSL(cfg NetlifyConfig, siteID string) string {
-	if msg := netlifyReadOnlyError(cfg); msg != "" {
+	if msg := netlifySiteManagementError(cfg); msg != "" {
 		return msg
 	}
 	siteID = netlifyResolveSiteID(cfg, siteID)
@@ -486,7 +520,7 @@ func NetlifyProvisionSSL(cfg NetlifyConfig, siteID string) string {
 		return errJSON("site_id is required")
 	}
 
-	data, code, err := netlifyRequest(cfg, "POST", fmt.Sprintf("/sites/%s/ssl", siteID), nil)
+	data, code, err := netlifyRequest(cfg, "POST", fmt.Sprintf("/sites/%s/ssl", netlifyPathSegment(siteID)), nil)
 	if err != nil {
 		return errJSON("Failed to provision SSL: %v", err)
 	}

@@ -103,6 +103,207 @@ func TestHomepageDetectDeployCandidateAcceptsDistWithIndex(t *testing.T) {
 	}
 }
 
+func TestHomepageDeployNetlifyZipExcludesSensitiveAndNonDeployableFiles(t *testing.T) {
+	dir := t.TempDir()
+	projectRoot := filepath.Join(dir, "site-a")
+	for _, subdir := range []string{".git", "node_modules/pkg", ".cache", "data", "assets"} {
+		if err := os.MkdirAll(filepath.Join(projectRoot, filepath.FromSlash(subdir)), 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", subdir, err)
+		}
+	}
+	files := map[string]string{
+		"index.html":                 `<script src="/assets/app.js"></script>`,
+		"assets/app.js":              `console.log("ok")`,
+		".env":                       "NETLIFY_AUTH_TOKEN=secret",
+		".env.local":                 "API_TOKEN=secret",
+		".git/config":                "[remote]\nurl=https://token@example.com",
+		"node_modules/pkg/index.js":  "module.exports = 'large'",
+		".cache/tool-state.json":     `{"token":"secret"}`,
+		"data/vault.bin":             "vault",
+		"data/homepage_registry.db":  "sqlite",
+		"debug.log":                  "stack with secret",
+		"npm-debug.log":              "stack with secret",
+		".npmrc":                     "//registry.npmjs.org/:_authToken=secret",
+		"config.yaml":                "providers:\n- api_key: secret",
+		".aurago-site-manifest.json": "old manifest",
+	}
+	for rel, content := range files {
+		path := filepath.Join(projectRoot, filepath.FromSlash(rel))
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+			t.Fatalf("write %s: %v", rel, err)
+		}
+	}
+
+	oldBaseURL := netlifyBaseURL
+	oldAttempts := netlifyDeployPollAttempts
+	defer func() {
+		netlifyBaseURL = oldBaseURL
+		netlifyDeployPollAttempts = oldAttempts
+	}()
+	netlifyDeployPollAttempts = 0
+
+	zipped := map[string]bool{}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/sites/site-123/deploys" {
+			t.Fatalf("unexpected request %s %s", r.Method, r.URL.Path)
+		}
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Fatalf("read deploy body: %v", err)
+		}
+		zr, err := zip.NewReader(bytes.NewReader(body), int64(len(body)))
+		if err != nil {
+			t.Fatalf("read deploy zip: %v", err)
+		}
+		for _, f := range zr.File {
+			zipped[f.Name] = true
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":"","state":"ready"}`))
+	}))
+	defer server.Close()
+	netlifyBaseURL = server.URL
+
+	result := HomepageDeployNetlify(
+		HomepageConfig{WorkspacePath: dir},
+		NetlifyConfig{Token: "token", DefaultSiteID: "site-123", AllowDeploy: true},
+		"site-a", ".", "", "", false, slogDiscard(),
+	)
+	var parsed map[string]interface{}
+	if err := json.Unmarshal([]byte(result), &parsed); err != nil {
+		t.Fatalf("decode result %q: %v", result, err)
+	}
+	if parsed["status"] == "error" {
+		t.Fatalf("deploy should succeed while excluding sensitive files, got %s", result)
+	}
+	if !zipped["index.html"] || !zipped["assets/app.js"] {
+		t.Fatalf("expected deployable static files in ZIP, got %#v", zipped)
+	}
+	for _, blocked := range []string{
+		".env",
+		".env.local",
+		".git/config",
+		"node_modules/pkg/index.js",
+		".cache/tool-state.json",
+		"data/vault.bin",
+		"data/homepage_registry.db",
+		"debug.log",
+		"npm-debug.log",
+		".npmrc",
+		"config.yaml",
+		".aurago-site-manifest.json",
+	} {
+		if zipped[blocked] {
+			t.Fatalf("Netlify ZIP included sensitive or non-deployable file %q; names=%#v", blocked, zipped)
+		}
+	}
+}
+
+func TestHomepageDeployNetlifyPollsDeployIDAndReturnsProviderError(t *testing.T) {
+	dir := t.TempDir()
+	projectRoot := filepath.Join(dir, "site-a")
+	if err := os.MkdirAll(projectRoot, 0o755); err != nil {
+		t.Fatalf("mkdir project: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(projectRoot, "index.html"), []byte(`<h1>Site</h1>`), 0o644); err != nil {
+		t.Fatalf("write index: %v", err)
+	}
+
+	oldBaseURL := netlifyBaseURL
+	oldAttempts := netlifyDeployPollAttempts
+	oldInterval := netlifyDeployPollInterval
+	defer func() {
+		netlifyBaseURL = oldBaseURL
+		netlifyDeployPollAttempts = oldAttempts
+		netlifyDeployPollInterval = oldInterval
+	}()
+	netlifyDeployPollAttempts = 2
+	netlifyDeployPollInterval = 0
+
+	var polls int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case r.Method == http.MethodPost && r.URL.Path == "/sites/site-123/deploys":
+			_, _ = w.Write([]byte(`{"id":"deploy-123","site_id":"site-123","state":"uploaded"}`))
+		case r.Method == http.MethodGet && r.URL.Path == "/deploys/deploy-123":
+			polls++
+			_, _ = w.Write([]byte(`{"id":"deploy-123","state":"error","error_message":"provider build failed"}`))
+		default:
+			t.Fatalf("unexpected request %s %s", r.Method, r.URL.Path)
+		}
+	}))
+	defer server.Close()
+	netlifyBaseURL = server.URL
+
+	result := HomepageDeployNetlify(
+		HomepageConfig{WorkspacePath: dir},
+		NetlifyConfig{Token: "token", DefaultSiteID: "site-123", AllowDeploy: true},
+		"site-a", ".", "", "", false, slogDiscard(),
+	)
+	if polls == 0 {
+		t.Fatalf("expected Netlify deploy status polling after upload, got result %s", result)
+	}
+	if !strings.Contains(result, `"status":"error"`) || !strings.Contains(result, "provider build failed") {
+		t.Fatalf("expected provider deploy error after upload, got %s", result)
+	}
+}
+
+func TestHomepageDeployNetlifyReturnsSiteAndDeployIDs(t *testing.T) {
+	dir := t.TempDir()
+	projectRoot := filepath.Join(dir, "site-a")
+	if err := os.MkdirAll(projectRoot, 0o755); err != nil {
+		t.Fatalf("mkdir project: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(projectRoot, "index.html"), []byte(`<h1>Site</h1>`), 0o644); err != nil {
+		t.Fatalf("write index: %v", err)
+	}
+
+	oldBaseURL := netlifyBaseURL
+	oldAttempts := netlifyDeployPollAttempts
+	oldInterval := netlifyDeployPollInterval
+	defer func() {
+		netlifyBaseURL = oldBaseURL
+		netlifyDeployPollAttempts = oldAttempts
+		netlifyDeployPollInterval = oldInterval
+	}()
+	netlifyDeployPollAttempts = 1
+	netlifyDeployPollInterval = 0
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case r.Method == http.MethodPost && r.URL.Path == "/sites/site-123/deploys":
+			_, _ = w.Write([]byte(`{"id":"deploy-123","site_id":"site-123","state":"uploaded"}`))
+		case r.Method == http.MethodGet && r.URL.Path == "/deploys/deploy-123":
+			_, _ = w.Write([]byte(`{"id":"deploy-123","state":"ready"}`))
+		default:
+			t.Fatalf("unexpected request %s %s", r.Method, r.URL.Path)
+		}
+	}))
+	defer server.Close()
+	netlifyBaseURL = server.URL
+
+	result := HomepageDeployNetlify(
+		HomepageConfig{WorkspacePath: dir},
+		NetlifyConfig{Token: "token", DefaultSiteID: "site-123", AllowDeploy: true},
+		"site-a", ".", "", "", false, slogDiscard(),
+	)
+	var parsed map[string]interface{}
+	if err := json.Unmarshal([]byte(result), &parsed); err != nil {
+		t.Fatalf("decode result %q: %v", result, err)
+	}
+	if parsed["status"] == "error" {
+		t.Fatalf("expected successful deploy, got %s", result)
+	}
+	if parsed["site_id"] != "site-123" {
+		t.Fatalf("site_id = %v, want site-123; result=%s", parsed["site_id"], result)
+	}
+	if parsed["deploy_id"] != "deploy-123" {
+		t.Fatalf("deploy_id = %v, want deploy-123; result=%s", parsed["deploy_id"], result)
+	}
+}
+
 func TestHomepageDeployNetlifyFallsBackToStaticSiblingAfterBuildFailure(t *testing.T) {
 	dir := t.TempDir()
 	appRoot := filepath.Join(dir, "ki-news")

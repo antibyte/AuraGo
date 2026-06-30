@@ -136,6 +136,17 @@ func netlifyResolveSiteID(cfg NetlifyConfig, siteID string) string {
 	return cfg.DefaultSiteID
 }
 
+func netlifyPathSegment(value string) string {
+	return url.PathEscape(strings.TrimSpace(value))
+}
+
+func netlifySitesEndpoint(teamSlug string) string {
+	if strings.TrimSpace(teamSlug) == "" {
+		return "/sites?per_page=100"
+	}
+	return fmt.Sprintf("/%s/sites?per_page=100", netlifyPathSegment(teamSlug))
+}
+
 func netlifyReadOnlyError(cfg NetlifyConfig) string {
 	if !cfg.ReadOnly {
 		return ""
@@ -180,10 +191,7 @@ func netlifyResolveNameToID(cfg NetlifyConfig, name string) string {
 		// Already a UUID — no lookup needed.
 		return name
 	}
-	endpoint := "/sites?per_page=100"
-	if cfg.TeamSlug != "" {
-		endpoint = fmt.Sprintf("/%s/sites?per_page=100", cfg.TeamSlug)
-	}
+	endpoint := netlifySitesEndpoint(cfg.TeamSlug)
 	data, code, err := netlifyRequest(cfg, "GET", endpoint, nil)
 	if err != nil || code != 200 {
 		return ""
@@ -204,10 +212,7 @@ func netlifyResolveNameToID(cfg NetlifyConfig, name string) string {
 
 // NetlifyListSites returns all sites for the account/team.
 func NetlifyListSites(cfg NetlifyConfig) string {
-	endpoint := "/sites?per_page=100"
-	if cfg.TeamSlug != "" {
-		endpoint = fmt.Sprintf("/%s/sites?per_page=100", cfg.TeamSlug)
-	}
+	endpoint := netlifySitesEndpoint(cfg.TeamSlug)
 	data, code, err := netlifyRequest(cfg, "GET", endpoint, nil)
 	if err != nil {
 		return errJSON("Failed to list sites: %v", err)
@@ -261,7 +266,7 @@ func NetlifyGetSite(cfg NetlifyConfig, siteID string) string {
 	if siteID == "" {
 		return errJSON("site_id is required (or set default_site_id in config)")
 	}
-	data, code, err := netlifyRequest(cfg, "GET", "/sites/"+siteID, nil)
+	data, code, err := netlifyRequest(cfg, "GET", "/sites/"+netlifyPathSegment(siteID), nil)
 	if err != nil {
 		return errJSON("Failed to get site: %v", err)
 	}
@@ -308,7 +313,7 @@ func NetlifyCreateSite(cfg NetlifyConfig, name, customDomain string) string {
 
 	endpoint := "/sites"
 	if cfg.TeamSlug != "" {
-		endpoint = fmt.Sprintf("/%s/sites", cfg.TeamSlug)
+		endpoint = fmt.Sprintf("/%s/sites", netlifyPathSegment(cfg.TeamSlug))
 	}
 
 	data, code, err := netlifyRequest(cfg, "POST", endpoint, body)
@@ -355,7 +360,7 @@ func NetlifyUpdateSite(cfg NetlifyConfig, siteID, name, customDomain string) str
 		body["custom_domain"] = customDomain
 	}
 
-	data, code, err := netlifyRequest(cfg, "PATCH", "/sites/"+siteID, body)
+	data, code, err := netlifyRequest(cfg, "PATCH", "/sites/"+netlifyPathSegment(siteID), body)
 	if err != nil {
 		return errJSON("Failed to update site: %v", err)
 	}
@@ -388,7 +393,7 @@ func NetlifyDeleteSite(cfg NetlifyConfig, siteID string) string {
 		return errJSON("site_id is required")
 	}
 
-	_, code, err := netlifyRequest(cfg, "DELETE", "/sites/"+siteID, nil)
+	_, code, err := netlifyRequest(cfg, "DELETE", "/sites/"+netlifyPathSegment(siteID), nil)
 	if err != nil {
 		return errJSON("Failed to delete site: %v", err)
 	}
@@ -409,7 +414,7 @@ func NetlifyListDeploys(cfg NetlifyConfig, siteID string) string {
 		return errJSON("site_id is required")
 	}
 
-	data, code, err := netlifyRequest(cfg, "GET", fmt.Sprintf("/sites/%s/deploys?per_page=20", siteID), nil)
+	data, code, err := netlifyRequest(cfg, "GET", fmt.Sprintf("/sites/%s/deploys?per_page=20", netlifyPathSegment(siteID)), nil)
 	if err != nil {
 		return errJSON("Failed to list deploys: %v", err)
 	}
@@ -463,7 +468,7 @@ func NetlifyGetDeploy(cfg NetlifyConfig, deployID string) string {
 		return errJSON("deploy_id is required")
 	}
 
-	data, code, err := netlifyRequest(cfg, "GET", "/deploys/"+deployID, nil)
+	data, code, err := netlifyRequest(cfg, "GET", "/deploys/"+netlifyPathSegment(deployID), nil)
 	if err != nil {
 		return errJSON("Failed to get deploy: %v", err)
 	}
@@ -632,16 +637,16 @@ func NetlifyDeployZip(cfg NetlifyConfig, siteID, title string, draft bool, zipDa
 		return errJSON("zip data is empty")
 	}
 
-	endpoint := fmt.Sprintf("/sites/%s/deploys", siteID)
+	endpoint := fmt.Sprintf("/sites/%s/deploys", netlifyPathSegment(siteID))
+	query := url.Values{}
 	if draft {
-		endpoint += "?draft=true"
+		query.Set("draft", "true")
 	}
 	if title != "" {
-		sep := "?"
-		if draft {
-			sep = "&"
-		}
-		endpoint += sep + "title=" + url.QueryEscape(title)
+		query.Set("title", title)
+	}
+	if len(query) > 0 {
+		endpoint += "?" + query.Encode()
 	}
 
 	data, code, err := netlifyRequestRaw(cfg, "POST", endpoint, "application/zip", bytes.NewReader(zipData))
@@ -671,10 +676,14 @@ func NetlifyDeployZip(cfg NetlifyConfig, siteID, title string, draft bool, zipDa
 		return errJSON("Failed to parse deploy response: %v", err)
 	}
 
+	deployID := strVal(deploy, "id")
+	deploySiteID := firstNonEmptyString(strVal(deploy, "site_id"), siteID)
 	out, _ := json.Marshal(map[string]interface{}{
 		"status":     "ok",
 		"message":    "Deploy initiated",
-		"deploy_id":  strVal(deploy, "id"),
+		"id":         deployID,
+		"deploy_id":  deployID,
+		"site_id":    deploySiteID,
 		"state":      strVal(deploy, "state"),
 		"deploy_url": strVal(deploy, "deploy_url"),
 		"url":        strVal(deploy, "url"),

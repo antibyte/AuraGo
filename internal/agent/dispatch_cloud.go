@@ -193,7 +193,7 @@ func dispatchCloud(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 			}
 			if !cfg.Netlify.AllowSiteManagement {
 				switch req.Operation {
-				case "create_site", "update_site", "delete_site":
+				case "create_site", "update_site", "delete_site", "create_hook", "delete_hook", "provision_ssl":
 					return `Tool Output: {"status":"error","message":"Netlify site management is not allowed. Set netlify.allow_site_management=true in config.yaml."}`
 				}
 			}

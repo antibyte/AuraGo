@@ -802,6 +802,9 @@ Deploy static sites on Netlify.
 netlify:
     enabled: true
     team_slug: "your-team"
+    allow_deploy: false
+    allow_site_management: false
+    allow_env_management: false
 ```
 
 ---

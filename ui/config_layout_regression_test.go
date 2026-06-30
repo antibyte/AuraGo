@@ -269,6 +269,33 @@ func TestConfigPhase3MQTTAndNetlifyActionRows(t *testing.T) {
 	}
 }
 
+func TestNetlifyDeployToggleAndTemplateDefaultAreConservative(t *testing.T) {
+	t.Parallel()
+
+	netlifyJS := normalizeAssetText(mustReadUIFile(t, "cfg/netlify.js"))
+	if !strings.Contains(netlifyJS, "cfg.allow_deploy === true") {
+		t.Fatal("netlify.js deploy toggle should only render active when allow_deploy is explicitly true")
+	}
+	if strings.Contains(netlifyJS, "cfg.allow_deploy !== false") {
+		t.Fatal("netlify.js must not treat a missing allow_deploy value as enabled")
+	}
+
+	template, err := os.ReadFile("../config_template.yaml")
+	if err != nil {
+		t.Fatalf("read config_template.yaml: %v", err)
+	}
+	text := normalizeAssetText(template)
+	start := strings.Index(text, "netlify:")
+	end := strings.Index(text, "vercel:")
+	if start < 0 || end <= start {
+		t.Fatalf("could not locate netlify block in config_template.yaml")
+	}
+	netlifyBlock := text[start:end]
+	if !strings.Contains(netlifyBlock, "allow_deploy: false") {
+		t.Fatalf("netlify allow_deploy should default to false for new installs; block:\n%s", netlifyBlock)
+	}
+}
+
 func TestConfigPhase3VercelActionRows(t *testing.T) {
 	t.Parallel()
 
