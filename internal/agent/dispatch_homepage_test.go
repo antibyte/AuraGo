@@ -107,6 +107,39 @@ func TestDispatchHomepageDeployRequiresProjectDir(t *testing.T) {
 	}
 }
 
+func TestHomepageRecordDeploymentStrictSkipsNilRegistry(t *testing.T) {
+	result := `{"status":"ok","url":"http://localhost:8080","project_dir":"site-a","build_dir":"."}`
+
+	output := homepageRecordDeploymentStrictResult(tools.HomepageConfig{}, nil, "site-a", "local", ".", result, testLogger)
+
+	if strings.Contains(output, `"status":"error"`) {
+		t.Fatalf("successful deploy must stay successful when registry is unavailable, got %s", output)
+	}
+}
+
+func TestHomepageRecordDeploymentStrictSkipsCaddyRootProjectDir(t *testing.T) {
+	db, err := tools.InitHomepageRegistryDB(t.TempDir() + "/homepage.db")
+	if err != nil {
+		t.Fatalf("InitHomepageRegistryDB failed: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+
+	result := `{"status":"ok","url":"http://localhost:8080","build_dir":"."}`
+	projectDir := homepageProjectDirFromResult(result, "")
+	output := homepageRecordDeploymentStrictResult(tools.HomepageConfig{WorkspacePath: t.TempDir()}, db, projectDir, "caddy", ".", result, testLogger)
+
+	if strings.Contains(output, `"status":"error"`) {
+		t.Fatalf("successful root webserver_start must stay successful, got %s", output)
+	}
+	var deployments int
+	if err := db.QueryRow("SELECT COUNT(*) FROM homepage_deployments").Scan(&deployments); err != nil {
+		t.Fatalf("count deployments: %v", err)
+	}
+	if deployments != 0 {
+		t.Fatalf("root caddy start should not record a deployment, got %d", deployments)
+	}
+}
+
 func TestDispatchHomepageWriteFileRecordsLedgerRevision(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Homepage.Enabled = true
