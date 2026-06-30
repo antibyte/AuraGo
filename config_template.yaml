@@ -1265,7 +1265,7 @@ netlify:
 vercel:
     enabled: false
     readonly: false
-    allow_deploy: true
+    allow_deploy: false
     allow_project_management: false
     allow_env_management: false
     allow_domain_management: false

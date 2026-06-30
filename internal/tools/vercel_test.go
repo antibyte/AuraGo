@@ -115,8 +115,8 @@ func TestVercelRollbackSuccess(t *testing.T) {
 		if r.Method != http.MethodPost {
 			t.Fatalf("method = %s, want POST", r.Method)
 		}
-		if got := r.URL.Path; got != "/v9/projects/my-project/rollback/dpl_123" {
-			t.Fatalf("path = %s, want /v9/projects/my-project/rollback/dpl_123", got)
+		if got := r.URL.Path; got != "/v1/projects/my-project/rollback/dpl_123" {
+			t.Fatalf("path = %s, want /v1/projects/my-project/rollback/dpl_123", got)
 		}
 		_, _ = w.Write([]byte(`{"url":"https://my-project.vercel.app"}`))
 	}))
@@ -137,6 +137,69 @@ func TestVercelRollbackSuccess(t *testing.T) {
 	}
 	if !strings.Contains(result, `"deployment_id":"dpl_123"`) {
 		t.Fatalf("expected deployment_id in response, got %s", result)
+	}
+}
+
+func TestVercelListDeploymentsUsesCurrentEndpointAndEscapesProject(t *testing.T) {
+	server := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Fatalf("method = %s, want GET", r.Method)
+		}
+		if got := r.URL.Path; got != "/v7/deployments" {
+			t.Fatalf("path = %s, want /v7/deployments", got)
+		}
+		if got := r.URL.Query().Get("projectId"); got != "project/name" {
+			t.Fatalf("projectId = %q, want project/name", got)
+		}
+		_, _ = w.Write([]byte(`{"deployments":[{"uid":"dpl_123","url":"site.vercel.app"}]}`))
+	}))
+	defer server.Close()
+
+	prevBaseURL := vercelBaseURL
+	prevClient := vercelHTTPClient
+	vercelBaseURL = server.URL
+	vercelHTTPClient = server.Client()
+	defer func() {
+		vercelBaseURL = prevBaseURL
+		vercelHTTPClient = prevClient
+	}()
+
+	result := VercelListDeployments(VercelConfig{Token: "test-token"}, "project/name")
+	if !strings.Contains(result, `"status":"ok"`) {
+		t.Fatalf("expected ok result, got %s", result)
+	}
+	if !strings.Contains(result, `"url":"site.vercel.app"`) {
+		t.Fatalf("expected deployment in response, got %s", result)
+	}
+}
+
+func TestVercelListEnvUsesCurrentEndpoint(t *testing.T) {
+	server := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Fatalf("method = %s, want GET", r.Method)
+		}
+		if got := r.URL.Path; got != "/v10/projects/my-project/env" {
+			t.Fatalf("path = %s, want /v10/projects/my-project/env", got)
+		}
+		_, _ = w.Write([]byte(`{"envs":[{"id":"env_123","key":"API_URL","type":"plain","target":["production"]}]}`))
+	}))
+	defer server.Close()
+
+	prevBaseURL := vercelBaseURL
+	prevClient := vercelHTTPClient
+	vercelBaseURL = server.URL
+	vercelHTTPClient = server.Client()
+	defer func() {
+		vercelBaseURL = prevBaseURL
+		vercelHTTPClient = prevClient
+	}()
+
+	result := VercelListEnv(VercelConfig{Token: "test-token"}, "my-project")
+	if !strings.Contains(result, `"status":"ok"`) {
+		t.Fatalf("expected ok result, got %s", result)
+	}
+	if !strings.Contains(result, `"key":"API_URL"`) {
+		t.Fatalf("expected env in response, got %s", result)
 	}
 }
 

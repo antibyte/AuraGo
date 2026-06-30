@@ -489,7 +489,7 @@ func VercelUpdateProject(cfg VercelConfig, projectID, name, framework, rootDirec
 
 func VercelListDeployments(cfg VercelConfig, projectID string) string {
 	projectID = vercelResolveProjectID(cfg, projectID)
-	endpoint := "/v6/deployments?limit=20"
+	endpoint := "/v7/deployments?limit=20"
 	if projectID != "" {
 		endpoint += "&projectId=" + url.QueryEscape(projectID)
 	}
@@ -553,7 +553,7 @@ func VercelListEnv(cfg VercelConfig, projectID string) string {
 	if projectID == "" {
 		return errJSON("project_id is required (or set default_project_id in config)")
 	}
-	data, code, err := vercelRequest(cfg, http.MethodGet, "/v9/projects/"+url.PathEscape(projectID)+"/env", nil)
+	data, code, err := vercelRequest(cfg, http.MethodGet, "/v10/projects/"+url.PathEscape(projectID)+"/env", nil)
 	if err != nil {
 		return errJSON("Failed to list Vercel environment variables: %v", err)
 	}
@@ -925,7 +925,7 @@ func VercelRollback(cfg VercelConfig, projectID, deploymentID string) string {
 	if deploymentID == "" {
 		return errJSON("deployment_id is required for rollback")
 	}
-	data, code, err := vercelRequest(cfg, http.MethodPost, "/v9/projects/"+url.PathEscape(projectID)+"/rollback/"+url.PathEscape(deploymentID), map[string]interface{}{})
+	data, code, err := vercelRequest(cfg, http.MethodPost, "/v1/projects/"+url.PathEscape(projectID)+"/rollback/"+url.PathEscape(deploymentID), map[string]interface{}{})
 	if err != nil {
 		return errJSON("Failed to rollback Vercel deployment: %v", err)
 	}

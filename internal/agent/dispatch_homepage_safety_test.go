@@ -51,19 +51,19 @@ func TestDispatchServicesHomepageExecRejectsEmptyCommandWithGuidance(t *testing.
 	}
 }
 
-func TestHomepageExecEnvForCommandDoesNotExposeNetlifyToken(t *testing.T) {
+func TestHomepageExecEnvForCommandDoesNotExposeDeployProviderTokens(t *testing.T) {
 	vault := newDispatchTestVault(t, map[string]string{
-		"netlify_token": "nf-secret",
-		"vercel_token":  "vc-secret",
+		"netlify_token": "nf-token-fixture",
+		"vercel_token":  "vc-token-fixture",
 	})
 
 	env := homepageExecEnvForCommand(vault, "netlify deploy && vercel deploy")
 	joined := strings.Join(env, "\n")
 
-	if strings.Contains(joined, "NETLIFY_AUTH_TOKEN") || strings.Contains(joined, "nf-secret") {
+	if strings.Contains(joined, "NETLIFY_AUTH_TOKEN") || strings.Contains(joined, "nf-token-fixture") {
 		t.Fatalf("homepage exec must not expose the Netlify vault token, got env %#v", env)
 	}
-	if !strings.Contains(joined, "VERCEL_TOKEN=vc-secret") {
-		t.Fatalf("homepage exec should still inject the Vercel token for Vercel CLI commands, got env %#v", env)
+	if strings.Contains(joined, "VERCEL_TOKEN") || strings.Contains(joined, "vc-token-fixture") {
+		t.Fatalf("homepage exec must not expose the Vercel vault token, got env %#v", env)
 	}
 }

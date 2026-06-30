@@ -78,7 +78,7 @@ async function renderVercelSection(section) {
     </div>`;
 
     html += `<div class="cfg-toggle-row-compact">
-        <div class="toggle ${cfg.allow_deploy !== false ? 'on' : ''}" data-path="vercel.allow_deploy" onclick="toggleBool(this)"></div>
+        <div class="toggle ${cfg.allow_deploy === true ? 'on' : ''}" data-path="vercel.allow_deploy" onclick="toggleBool(this)"></div>
         <div class="cfg-toggle-copy">
             <span class="cfg-toggle-label">${t('config.vercel.allow_deploy')}</span>
             <div class="field-help">${t('config.vercel.allow_deploy_help')}</div>

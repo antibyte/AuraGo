@@ -103,17 +103,10 @@ func withHomepageLedgerWarnings(result string, warnings []string) string {
 	return string(out)
 }
 
-func homepageExecEnvForCommand(vault *security.Vault, command string) []string {
-	if vault == nil {
-		return nil
-	}
-	var execEnv []string
-	if strings.Contains(command, "vercel ") {
-		if vcTok, tokErr := vault.ReadSecret("vercel_token"); tokErr == nil && vcTok != "" {
-			execEnv = append(execEnv, "VERCEL_TOKEN="+vcTok)
-		}
-	}
-	return execEnv
+func homepageExecEnvForCommand(_ *security.Vault, _ string) []string {
+	// Generic homepage exec must not receive deploy provider tokens. Provider
+	// deploy flows inject scoped credentials through their dedicated operations.
+	return nil
 }
 
 func homepageResultString(parsed map[string]interface{}, keys ...string) string {
@@ -894,7 +887,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					cfg.Vercel.AllowDomainManagement,
 					logger,
 				)
-				if homepageRegistryDB != nil && req.ProjectDir != "" {
+				if homepageRegistryDB != nil && req.ProjectDir != "" && homepageResultSuccess(result) {
 					deployURL := "vercel"
 					var parsed map[string]interface{}
 					if err := json.Unmarshal([]byte(result), &parsed); err == nil {
@@ -904,10 +897,8 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					}
 					if proj, err := tools.GetProjectByDir(homepageRegistryDB, req.ProjectDir); err == nil {
 						tools.LogDeploy(homepageRegistryDB, proj.ID, deployURL)
-						if homepageResultSuccess(result) {
-							_, _ = tools.AddHomepageHistoryEntry(homepageRegistryDB, proj.ID, "milestone",
-								fmt.Sprintf("Deployed to Vercel: %s", deployURL), "homepage_deploy", nil)
-						}
+						_, _ = tools.AddHomepageHistoryEntry(homepageRegistryDB, proj.ID, "milestone",
+							fmt.Sprintf("Deployed to Vercel: %s", deployURL), "homepage_deploy", nil)
 						_ = tools.UpdateProject(homepageRegistryDB, proj.ID, map[string]interface{}{
 							"deploy_host": "vercel",
 							"url":         deployURL,
