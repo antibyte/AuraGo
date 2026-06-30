@@ -143,8 +143,8 @@ func EnsureHomepageProjectForDir(db *sql.DB, cfg HomepageConfig, projectDir, nam
 	if err != nil {
 		return nil, err
 	}
-	if canonical == "" {
-		canonical = "."
+	if canonical, err = NormalizeHomepageProjectIdentity(canonical, false); err != nil {
+		return nil, err
 	}
 	if proj, err := GetProjectByDir(db, canonical); err == nil {
 		if err := ensureHomepageProjectState(db, cfg, proj.ID, canonical, 0, "", "not_deployed", ""); err != nil {
@@ -334,6 +334,11 @@ func RecordHomepageDeployment(db *sql.DB, rec HomepageDeploymentRecord) error {
 	rec.Provider = strings.ToLower(strings.TrimSpace(rec.Provider))
 	if rec.Provider == "" {
 		return fmt.Errorf("provider is required")
+	}
+	rec.URL = strings.TrimSpace(rec.URL)
+	rec.RemotePath = strings.TrimSpace(rec.RemotePath)
+	if rec.URL == "" && rec.RemotePath == "" {
+		return fmt.Errorf("deployment target could not be recorded; deploy URL or remote_path is required")
 	}
 	if rec.Status == "" {
 		rec.Status = "ok"

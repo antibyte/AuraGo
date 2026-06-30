@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -56,6 +57,32 @@ func TestEnsureHomepageProjectForDirCanonicalizesAndCreatesState(t *testing.T) {
 	}
 	if driftStatus != "not_deployed" {
 		t.Fatalf("drift_status = %q, want not_deployed", driftStatus)
+	}
+}
+
+func TestEnsureHomepageProjectForDirRejectsAmbiguousRoot(t *testing.T) {
+	db := newHomepageLedgerTestDB(t)
+	_, err := EnsureHomepageProjectForDir(db, HomepageConfig{WorkspacePath: t.TempDir()}, "", "Root", "html")
+	if err == nil || !strings.Contains(err.Error(), "ambiguous") {
+		t.Fatalf("expected ambiguous root error, got %v", err)
+	}
+}
+
+func TestRecordHomepageDeploymentRequiresTargetLocation(t *testing.T) {
+	db := newHomepageLedgerTestDB(t)
+	workspace := t.TempDir()
+	proj, err := EnsureHomepageProjectForDir(db, HomepageConfig{WorkspacePath: workspace}, "site-a", "site-a", "html")
+	if err != nil {
+		t.Fatalf("ensure project: %v", err)
+	}
+
+	err = RecordHomepageDeployment(db, HomepageDeploymentRecord{
+		ProjectID: proj.ID,
+		Provider:  "local",
+		Status:    "ok",
+	})
+	if err == nil || !strings.Contains(err.Error(), "deploy URL or remote_path") {
+		t.Fatalf("expected target location error, got %v", err)
 	}
 }
 
@@ -365,7 +392,7 @@ func TestReconcileHomepageProjectDetectsUndeployedLatestRevision(t *testing.T) {
 		ProjectID:  proj.ID,
 		RevisionID: initial.RevisionID,
 		Provider:   "local",
-		URL:        "",
+		RemotePath: filepath.Join(workspace, projectDir),
 		BuildDir:   ".",
 		Status:     "ok",
 	}); err != nil {
