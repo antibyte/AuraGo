@@ -891,14 +891,22 @@ func canonicalHomepageProjectDir(cfg HomepageConfig, projectDir string) (string,
 	if projectDir == "" {
 		projectDir = "."
 	}
-	if strings.HasPrefix(projectDir, "/workspace/") {
-		projectDir = strings.TrimPrefix(projectDir, "/workspace/")
-	}
-	if filepath.IsAbs(projectDir) && cfg.WorkspacePath != "" {
-		rel, err := filepath.Rel(cfg.WorkspacePath, filepath.FromSlash(projectDir))
-		if err == nil && rel != "" && !strings.HasPrefix(rel, "..") {
-			projectDir = filepath.ToSlash(rel)
+	isAbsProjectDir := filepath.IsAbs(filepath.FromSlash(projectDir)) ||
+		isWindowsDriveAbsolutePath(projectDir) ||
+		strings.HasPrefix(projectDir, "/") ||
+		strings.HasPrefix(projectDir, "\\")
+	if isAbsProjectDir {
+		if strings.TrimSpace(cfg.WorkspacePath) == "" {
+			return "", fmt.Errorf("project_dir must be relative to or inside the homepage workspace")
 		}
+		rel, err := filepath.Rel(
+			filepath.Clean(cfg.WorkspacePath),
+			filepath.Clean(filepath.FromSlash(projectDir)),
+		)
+		if err != nil || rel == "" || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			return "", fmt.Errorf("project_dir must be relative to or inside the homepage workspace")
+		}
+		projectDir = filepath.ToSlash(rel)
 	}
 	projectDir = strings.Trim(filepath.ToSlash(filepath.Clean(filepath.FromSlash(projectDir))), "/")
 	if projectDir == "" {

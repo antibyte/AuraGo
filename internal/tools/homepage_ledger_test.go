@@ -68,6 +68,37 @@ func TestEnsureHomepageProjectForDirRejectsAmbiguousRoot(t *testing.T) {
 	}
 }
 
+func TestEnsureHomepageProjectForDirRejectsWorkspaceRootAsAmbiguous(t *testing.T) {
+	db := newHomepageLedgerTestDB(t)
+	workspace := t.TempDir()
+
+	_, err := EnsureHomepageProjectForDir(db, HomepageConfig{WorkspacePath: workspace}, workspace, "Root", "html")
+	if err == nil || !strings.Contains(err.Error(), "ambiguous") {
+		t.Fatalf("expected ambiguous root error, got %v", err)
+	}
+}
+
+func TestEnsureHomepageProjectForDirRejectsAbsolutePathOutsideWorkspace(t *testing.T) {
+	db := newHomepageLedgerTestDB(t)
+	workspace := t.TempDir()
+	outside := filepath.Join(t.TempDir(), "site-b")
+
+	_, err := EnsureHomepageProjectForDir(db, HomepageConfig{WorkspacePath: workspace}, outside, "Site B", "html")
+	if err == nil || !strings.Contains(err.Error(), "relative to or inside the homepage workspace") {
+		t.Fatalf("expected outside workspace error, got %v", err)
+	}
+}
+
+func TestEnsureHomepageProjectForDirRejectsAbsolutePathWithoutWorkspace(t *testing.T) {
+	db := newHomepageLedgerTestDB(t)
+	projectPath := filepath.Join(t.TempDir(), "site-c")
+
+	_, err := EnsureHomepageProjectForDir(db, HomepageConfig{}, projectPath, "Site C", "html")
+	if err == nil || !strings.Contains(err.Error(), "relative to or inside the homepage workspace") {
+		t.Fatalf("expected no-workspace absolute path error, got %v", err)
+	}
+}
+
 func TestRecordHomepageDeploymentRequiresTargetLocation(t *testing.T) {
 	db := newHomepageLedgerTestDB(t)
 	workspace := t.TempDir()
