@@ -96,7 +96,7 @@ func appendHomepageFocusedSchemas(toolSchemas []openai.Tool, ff ToolFeatureFlags
 		}, "operation")),
 		tool("homepage_deploy", "Deploy or publish homepage projects through configured deployment targets.", schema(map[string]interface{}{
 			"operation":   operationProperty("Deployment operation.", []string{"build", "dev", "publish_local", "webserver_start", "webserver_stop", "webserver_status", "test_connection", "tunnel", "deploy", "deploy_netlify", "deploy_vercel"}),
-			"project_dir": prop("string", "Required workspace-relative project subdirectory for deploy, publish_local, deploy_netlify, and deploy_vercel."),
+			"project_dir": prop("string", "Required workspace-relative project subdirectory for project-scoped build, dev, publish_local, and deploy operations. Always pass the exact project_dir for deploy, deploy_netlify, and deploy_vercel."),
 			"build_dir":   prop("string", "Build output directory."),
 			"auto_fix":    prop("boolean", "Retry common build fixes when true."),
 			"port":        prop("integer", "Port for dev server, webserver_start, or tunnel."),
@@ -501,7 +501,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 				"command":       prop("string", "Shell command to execute (for 'exec'). Do not write directly into generated output directories such as /workspace/<project>/dist, build, or out; edit source files with write_file/edit_file and run build instead."),
 				"framework":     prop("string", "Web framework: next, vite, astro, svelte, vue, html (for 'init_project')"),
 				"name":          prop("string", "Project name (for 'init_project')"),
-				"project_dir":   prop("string", "Required workspace-relative project directory for build, publish_local, deploy, deploy_netlify, deploy_vercel, and webserver_start."),
+				"project_dir":   prop("string", "Required workspace-relative project directory for build, publish_local, deploy, deploy_netlify, and deploy_vercel. For webserver_start, pass it when selecting a project; omit only for restore/auto-detect."),
 				"build_dir":     prop("string", "Build output directory (auto-detected if empty)"),
 				"template":      prop("string", "Project template for init_project: portfolio, blog, landing, dashboard (optional — applies starter content after scaffolding)"),
 				"auto_fix":      map[string]interface{}{"type": "boolean", "description": "If true, attempt to auto-fix common build errors (missing deps, lint issues) and retry once (for 'build')"},

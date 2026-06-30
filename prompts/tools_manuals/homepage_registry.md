@@ -82,7 +82,7 @@ Required fields for `register`: `name`, `project_dir`.
 
 ### resolve_problem — Mark a problem as resolved
 ```json
-{"action": "homepage_registry", "operation": "resolve_problem", "id": 1, "project_dir": "portfolio"}
+{"action": "homepage_registry", "operation": "resolve_problem", "id": 1, "project_dir": "portfolio", "problem": "Mobile navigation menu doesn't close on tap"}
 ```
 
 ## Project History (MUST USE)
