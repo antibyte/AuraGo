@@ -165,10 +165,27 @@ func TestNormalizeHomepageProjectIdentityRequiresProjectDir(t *testing.T) {
 	}
 }
 
+func TestNormalizeHomepageProjectIdentityRequiresNonWhitespaceProjectDir(t *testing.T) {
+	_, err := NormalizeHomepageProjectIdentity("   ", false)
+	if err == nil || !strings.Contains(err.Error(), "project_dir is required") {
+		t.Fatalf("expected project_dir required error, got %v", err)
+	}
+}
+
 func TestNormalizeHomepageProjectIdentityRejectsAmbiguousRoot(t *testing.T) {
 	_, err := NormalizeHomepageProjectIdentity(".", false)
 	if err == nil || !strings.Contains(err.Error(), "ambiguous") {
 		t.Fatalf("expected ambiguous root error, got %v", err)
+	}
+}
+
+func TestNormalizeHomepageProjectIdentityAllowsRootWhenRequested(t *testing.T) {
+	got, err := NormalizeHomepageProjectIdentity(".", true)
+	if err != nil {
+		t.Fatalf("NormalizeHomepageProjectIdentity failed: %v", err)
+	}
+	if got != "." {
+		t.Fatalf("normalized project_dir = %q, want .", got)
 	}
 }
 
