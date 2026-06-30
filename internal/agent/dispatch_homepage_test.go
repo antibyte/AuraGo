@@ -2,12 +2,32 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 	"testing"
 
 	"aurago/internal/config"
 	"aurago/internal/tools"
 )
+
+func homepageToolOutputMessage(t *testing.T, output string) string {
+	t.Helper()
+	const prefix = "Tool Output: "
+	if !strings.HasPrefix(output, prefix) {
+		t.Fatalf("expected Tool Output prefix, got %s", output)
+	}
+	var payload struct {
+		Status  string `json:"status"`
+		Message string `json:"message"`
+	}
+	if err := json.Unmarshal([]byte(strings.TrimPrefix(output, prefix)), &payload); err != nil {
+		t.Fatalf("parse tool output JSON: %v; output=%s", err, output)
+	}
+	if payload.Status != "error" {
+		t.Fatalf("expected error status, got %q in %s", payload.Status, output)
+	}
+	return payload.Message
+}
 
 func TestDispatchHomepageDestroyRequiresForce(t *testing.T) {
 	cfg := &config.Config{}
@@ -84,6 +104,32 @@ func TestDispatchHomepagePublishLocalRequiresProjectDir(t *testing.T) {
 	}
 }
 
+func TestDispatchHomepagePublishLocalRejectsAmbiguousProjectDir(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Homepage.Enabled = true
+	cfg.Homepage.WorkspacePath = t.TempDir()
+	cfg.Homepage.AllowLocalServer = true
+	db, err := tools.InitHomepageRegistryDB(t.TempDir() + "/homepage.db")
+	if err != nil {
+		t.Fatalf("InitHomepageRegistryDB failed: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+
+	output, ok := dispatchServices(context.Background(), ToolCall{
+		Action:    "homepage",
+		Operation: "publish_local",
+		Params: map[string]interface{}{
+			"project_dir": ".",
+		},
+	}, &DispatchContext{Cfg: cfg, Logger: testLogger, HomepageRegistryDB: db})
+	if !ok {
+		t.Fatal("expected homepage operation to be handled")
+	}
+	if message := homepageToolOutputMessage(t, output); !strings.Contains(message, `project_dir "." is ambiguous`) {
+		t.Fatalf("expected ambiguous project_dir error, got %q", message)
+	}
+}
+
 func TestDispatchHomepageDeployRequiresProjectDir(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Homepage.Enabled = true
@@ -104,6 +150,54 @@ func TestDispatchHomepageDeployRequiresProjectDir(t *testing.T) {
 	}
 	if !strings.Contains(output, `"status":"error"`) || !strings.Contains(output, "project_dir is required") {
 		t.Fatalf("expected missing project_dir error, got %s", output)
+	}
+}
+
+func TestDispatchHomepageDeployRejectsAmbiguousProjectDir(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Homepage.Enabled = true
+	cfg.Homepage.AllowDeploy = true
+	cfg.Homepage.WorkspacePath = t.TempDir()
+	db, err := tools.InitHomepageRegistryDB(t.TempDir() + "/homepage.db")
+	if err != nil {
+		t.Fatalf("InitHomepageRegistryDB failed: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+
+	output, ok := dispatchServices(context.Background(), ToolCall{
+		Action:    "homepage",
+		Operation: "deploy",
+		Params: map[string]interface{}{
+			"project_dir": ".",
+		},
+	}, &DispatchContext{Cfg: cfg, Logger: testLogger, HomepageRegistryDB: db})
+	if !ok {
+		t.Fatal("expected homepage operation to be handled")
+	}
+	if message := homepageToolOutputMessage(t, output); !strings.Contains(message, `project_dir "." is ambiguous`) {
+		t.Fatalf("expected ambiguous project_dir error, got %q", message)
+	}
+}
+
+func TestDispatchHomepageDeployNetlifyRejectsAmbiguousProjectDirBeforeTokenCheck(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Homepage.Enabled = true
+	cfg.Homepage.WorkspacePath = t.TempDir()
+	cfg.Netlify.Enabled = true
+	cfg.Netlify.AllowDeploy = true
+
+	output, ok := dispatchServices(context.Background(), ToolCall{
+		Action:    "homepage",
+		Operation: "deploy_netlify",
+		Params: map[string]interface{}{
+			"project_dir": ".",
+		},
+	}, &DispatchContext{Cfg: cfg, Logger: testLogger})
+	if !ok {
+		t.Fatal("expected homepage operation to be handled")
+	}
+	if message := homepageToolOutputMessage(t, output); !strings.Contains(message, `project_dir "." is ambiguous`) {
+		t.Fatalf("expected ambiguous project_dir error before token check, got %q", message)
 	}
 }
 

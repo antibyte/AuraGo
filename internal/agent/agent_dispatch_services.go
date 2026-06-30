@@ -136,13 +136,16 @@ func homepageRecordDeploymentStrictResult(cfg tools.HomepageConfig, db *sql.DB, 
 	return result
 }
 
-func homepageProjectDirRequired(operation string) string {
-	payload := map[string]interface{}{
-		"status":  "error",
-		"message": fmt.Sprintf("project_dir is required for homepage %s. Pass the workspace-relative project directory, for example project_dir=\"my-site\".", operation),
+func homepageProjectDirRequired(operation, projectDir string) string {
+	if _, err := tools.NormalizeHomepageProjectIdentity(projectDir, false); err != nil {
+		payload := map[string]interface{}{
+			"status":  "error",
+			"message": fmt.Sprintf("invalid project_dir for homepage %s: %s. Pass the workspace-relative project directory, for example project_dir=\"my-site\".", operation, err.Error()),
+		}
+		out, _ := json.Marshal(payload)
+		return "Tool Output: " + string(out)
 	}
-	out, _ := json.Marshal(payload)
-	return "Tool Output: " + string(out)
+	return ""
 }
 
 func homepageExecEnvForCommand(_ *security.Vault, _ string) []string {
@@ -795,8 +798,8 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				logger.Info("LLM requested homepage dev server", "dir", req.ProjectDir)
 				return "Tool Output: " + tools.HomepageDev(homepageCfg, req.ProjectDir, 3000, logger)
 			case "deploy":
-				if strings.TrimSpace(req.ProjectDir) == "" {
-					return homepageProjectDirRequired(req.Operation)
+				if validation := homepageProjectDirRequired(req.Operation, req.ProjectDir); validation != "" {
+					return validation
 				}
 				logger.Info("LLM requested homepage deploy", "host", deployCfg.Host)
 				result := tools.HomepageDeploy(homepageCfg, deployCfg, req.ProjectDir, req.BuildDir, logger)
@@ -839,8 +842,8 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				}
 				return "Tool Output: " + tools.HomepageTunnel(homepageCfg, port, logger)
 			case "publish_local":
-				if strings.TrimSpace(req.ProjectDir) == "" {
-					return homepageProjectDirRequired(req.Operation)
+				if validation := homepageProjectDirRequired(req.Operation, req.ProjectDir); validation != "" {
+					return validation
 				}
 				logger.Info("LLM requested homepage publish_local")
 				result := tools.HomepagePublishToLocal(homepageCfg, req.ProjectDir, logger)
@@ -849,8 +852,8 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				}
 				return "Tool Output: " + result
 			case "deploy_netlify":
-				if strings.TrimSpace(req.ProjectDir) == "" {
-					return homepageProjectDirRequired(req.Operation)
+				if validation := homepageProjectDirRequired(req.Operation, req.ProjectDir); validation != "" {
+					return validation
 				}
 				if !cfg.Netlify.AllowDeploy {
 					return `Tool Output: {"status":"error","message":"Deployment is disabled. Enable netlify.allow_deploy in config."}`
@@ -907,8 +910,8 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				}
 				return "Tool Output: " + result
 			case "deploy_vercel":
-				if strings.TrimSpace(req.ProjectDir) == "" {
-					return homepageProjectDirRequired(req.Operation)
+				if validation := homepageProjectDirRequired(req.Operation, req.ProjectDir); validation != "" {
+					return validation
 				}
 				if !cfg.Vercel.AllowDeploy {
 					return `Tool Output: {"status":"error","message":"Deployment is disabled. Enable vercel.allow_deploy in config."}`
