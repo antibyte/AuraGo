@@ -64,7 +64,7 @@ func appendHomepageFocusedSchemas(toolSchemas []openai.Tool, ff ToolFeatureFlags
 			"command":     prop("string", "Shell command for exec inside the homepage container."),
 			"framework":   prop("string", "Framework for init_project: next, vite, astro, svelte, vue, html."),
 			"name":        prop("string", "Project name for init_project."),
-			"project_dir": prop("string", "Project subdirectory within /workspace."),
+			"project_dir": prop("string", "Required workspace-relative project subdirectory for build, install_deps, dev, publish_local, and other project-scoped mutations."),
 			"build_dir":   prop("string", "Build output directory."),
 			"template":    prop("string", "Optional starter template."),
 			"auto_fix":    prop("boolean", "Retry common build fixes when true."),
@@ -76,7 +76,7 @@ func appendHomepageFocusedSchemas(toolSchemas []openai.Tool, ff ToolFeatureFlags
 			"operation":     operationProperty("File operation.", []string{"list_files", "read_file", "write_file", "edit_file", "json_edit", "yaml_edit", "xml_edit", "optimize_images"}),
 			"path":          prop("string", "Homepage workspace path including project directory."),
 			"file_path":     prop("string", "Alias for path."),
-			"project_dir":   prop("string", "Project subdirectory for optimize_images."),
+			"project_dir":   prop("string", "Required workspace-relative project subdirectory for optimize_images."),
 			"content":       prop("string", "File content or inserted text."),
 			"sub_operation": prop("string", "Edit sub-operation for edit_file/json_edit/yaml_edit/xml_edit."),
 			"old":           prop("string", "Text to find."),
@@ -92,11 +92,11 @@ func appendHomepageFocusedSchemas(toolSchemas []openai.Tool, ff ToolFeatureFlags
 			"operation":   operationProperty("Quality operation.", []string{"lighthouse", "screenshot", "check_js", "lint", "optimize_images"}),
 			"url":         prop("string", "URL for browser-based checks."),
 			"viewport":    prop("string", "Viewport size, e.g. 1280x720."),
-			"project_dir": prop("string", "Project subdirectory for lint or optimize_images."),
+			"project_dir": prop("string", "Required workspace-relative project subdirectory for lint or optimize_images."),
 		}, "operation")),
 		tool("homepage_deploy", "Deploy or publish homepage projects through configured deployment targets.", schema(map[string]interface{}{
 			"operation":   operationProperty("Deployment operation.", []string{"build", "dev", "publish_local", "webserver_start", "webserver_stop", "webserver_status", "test_connection", "tunnel", "deploy", "deploy_netlify", "deploy_vercel"}),
-			"project_dir": prop("string", "Project subdirectory."),
+			"project_dir": prop("string", "Required workspace-relative project subdirectory for deploy, publish_local, deploy_netlify, and deploy_vercel."),
 			"build_dir":   prop("string", "Build output directory."),
 			"auto_fix":    prop("boolean", "Retry common build fixes when true."),
 			"port":        prop("integer", "Port for dev server, webserver_start, or tunnel."),
@@ -110,7 +110,7 @@ func appendHomepageFocusedSchemas(toolSchemas []openai.Tool, ff ToolFeatureFlags
 		}, "operation")),
 		tool("homepage_git", "Manage homepage project git and revision history.", schema(map[string]interface{}{
 			"operation":   operationProperty("Git/revision operation.", []string{"git_init", "git_commit", "git_status", "git_diff", "git_log", "git_rollback", "save_revision", "list_revisions", "get_revision", "diff_revision", "restore_revision", "revision_status"}),
-			"project_dir": prop("string", "Project subdirectory."),
+			"project_dir": prop("string", "Required workspace-relative project subdirectory for git and revision mutations."),
 			"git_message": prop("string", "Commit message."),
 			"message":     prop("string", "Revision message."),
 			"reason":      prop("string", "Revision reason."),
@@ -501,7 +501,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 				"command":       prop("string", "Shell command to execute (for 'exec'). Do not write directly into generated output directories such as /workspace/<project>/dist, build, or out; edit source files with write_file/edit_file and run build instead."),
 				"framework":     prop("string", "Web framework: next, vite, astro, svelte, vue, html (for 'init_project')"),
 				"name":          prop("string", "Project name (for 'init_project')"),
-				"project_dir":   prop("string", "Project subdirectory within /workspace. Pass it for build/deploy/webserver_start when you know the project that should be served at the root URL."),
+				"project_dir":   prop("string", "Required workspace-relative project directory for build, publish_local, deploy, deploy_netlify, deploy_vercel, and webserver_start."),
 				"build_dir":     prop("string", "Build output directory (auto-detected if empty)"),
 				"template":      prop("string", "Project template for init_project: portfolio, blog, landing, dashboard (optional — applies starter content after scaffolding)"),
 				"auto_fix":      map[string]interface{}{"type": "boolean", "description": "If true, attempt to auto-fix common build errors (missing deps, lint issues) and retry once (for 'build')"},
@@ -1467,7 +1467,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 	}
 	if ff.HomepageRegistryEnabled {
 		tools = append(tools, tool("homepage_registry",
-			"Track homepage/web projects, deploy history, project history, problems, metadata. Read list_history before changes; add_history after.",
+			"Track homepage/web projects, deploy history, project history, problems, metadata. register requires project_dir. Read list_history before changes; add_history after.",
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{
 					"type":        "string",
@@ -1479,7 +1479,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 				"id":          map[string]interface{}{"type": "integer", "description": "Project ID (used as project_id for history operations)"},
 				"description": prop("string", "Project description"),
 				"framework":   prop("string", "Web framework (next, vite, astro, svelte, vue, html, etc.)"),
-				"project_dir": prop("string", "Project directory within workspace"),
+				"project_dir": prop("string", "Required workspace-relative project directory for register and all project mutations"),
 				"url":         prop("string", "Live URL of the project or deploy URL for log_deploy"),
 				"status":      prop("string", "Project status: active, archived, maintenance"),
 				"reason":      prop("string", "Edit reason (for log_edit)"),
