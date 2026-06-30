@@ -103,6 +103,43 @@ func TestDispatchHomepageWriteFileRecordsLedgerRevision(t *testing.T) {
 	}
 }
 
+func TestHomepageNetlifyResultVerifiedRequiresVerifiedFlagAndURL(t *testing.T) {
+	if !homepageNetlifyResultVerified(map[string]interface{}{
+		"status":       "ok",
+		"verified":     true,
+		"verified_url": "https://site.example",
+	}) {
+		t.Fatal("verified Netlify result with URL should be accepted")
+	}
+
+	for name, parsed := range map[string]map[string]interface{}{
+		"missing flag": {
+			"status":       "ok",
+			"verified_url": "https://site.example",
+		},
+		"false flag": {
+			"status":       "ok",
+			"verified":     false,
+			"verified_url": "https://site.example",
+		},
+		"missing url": {
+			"status":   "ok",
+			"verified": true,
+		},
+		"empty url": {
+			"status":       "ok",
+			"verified":     true,
+			"verified_url": " ",
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if homepageNetlifyResultVerified(parsed) {
+				t.Fatalf("unverified Netlify result should not be accepted: %#v", parsed)
+			}
+		})
+	}
+}
+
 func TestDispatchHomepageDeployNetlifyDoesNotLogFailedDeploy(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Homepage.Enabled = true

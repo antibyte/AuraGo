@@ -114,6 +114,34 @@ func TestNetlifyDirectMutationsRequireGranularAllows(t *testing.T) {
 	}
 }
 
+func TestNetlifyDeployZipRejectsUploadWithoutDeployID(t *testing.T) {
+	server := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Fatalf("method = %s, want POST", r.Method)
+		}
+		if got := r.URL.EscapedPath(); got != "/api/v1/sites/site-123/deploys" {
+			t.Fatalf("path = %s, want /api/v1/sites/site-123/deploys", got)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"site_id":"site-123","state":"uploaded","deploy_url":"https://site.netlify.app"}`))
+	}))
+	defer server.Close()
+
+	prevBaseURL := netlifyBaseURL
+	prevClient := netlifyHTTPClient
+	netlifyBaseURL = server.URL + "/api/v1"
+	netlifyHTTPClient = server.Client()
+	defer func() {
+		netlifyBaseURL = prevBaseURL
+		netlifyHTTPClient = prevClient
+	}()
+
+	result := NetlifyDeployZip(NetlifyConfig{Token: "test-token", AllowDeploy: true}, "site-123", "", false, []byte("zip"))
+	if !strings.Contains(result, `"status":"error"`) || !strings.Contains(result, "deploy_id") {
+		t.Fatalf("expected missing deploy_id error, got %s", result)
+	}
+}
+
 func TestNetlifyRollbackUsesRestoreEndpoint(t *testing.T) {
 	var gotMethod, gotPath string
 	server := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

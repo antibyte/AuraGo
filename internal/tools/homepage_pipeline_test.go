@@ -140,26 +140,34 @@ func TestHomepageDeployNetlifyZipExcludesSensitiveAndNonDeployableFiles(t *testi
 		netlifyBaseURL = oldBaseURL
 		netlifyDeployPollAttempts = oldAttempts
 	}()
-	netlifyDeployPollAttempts = 0
+	netlifyDeployPollAttempts = 1
 
 	zipped := map[string]bool{}
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost || r.URL.Path != "/sites/site-123/deploys" {
+	var server *httptest.Server
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodPost && r.URL.Path == "/sites/site-123/deploys":
+			body, err := io.ReadAll(r.Body)
+			if err != nil {
+				t.Fatalf("read deploy body: %v", err)
+			}
+			zr, err := zip.NewReader(bytes.NewReader(body), int64(len(body)))
+			if err != nil {
+				t.Fatalf("read deploy zip: %v", err)
+			}
+			for _, f := range zr.File {
+				zipped[f.Name] = true
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"id":"deploy-zip","site_id":"site-123","state":"uploaded"}`))
+		case r.Method == http.MethodGet && r.URL.Path == "/deploys/deploy-zip":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"id":"deploy-zip","state":"ready","url":"` + server.URL + `/live"}`))
+		case r.Method == http.MethodGet && r.URL.Path == "/live":
+			_, _ = w.Write([]byte(`<html><body>Site</body></html>`))
+		default:
 			t.Fatalf("unexpected request %s %s", r.Method, r.URL.Path)
 		}
-		body, err := io.ReadAll(r.Body)
-		if err != nil {
-			t.Fatalf("read deploy body: %v", err)
-		}
-		zr, err := zip.NewReader(bytes.NewReader(body), int64(len(body)))
-		if err != nil {
-			t.Fatalf("read deploy zip: %v", err)
-		}
-		for _, f := range zr.File {
-			zipped[f.Name] = true
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"id":"","state":"ready"}`))
 	}))
 	defer server.Close()
 	netlifyBaseURL = server.URL
@@ -249,7 +257,7 @@ func TestHomepageDeployNetlifyPollsDeployIDAndReturnsProviderError(t *testing.T)
 	}
 }
 
-func TestHomepageDeployNetlifyReturnsSiteAndDeployIDs(t *testing.T) {
+func TestHomepageDeployNetlifyRequiresVerificationURL(t *testing.T) {
 	dir := t.TempDir()
 	projectRoot := filepath.Join(dir, "site-a")
 	if err := os.MkdirAll(projectRoot, 0o755); err != nil {
@@ -289,6 +297,54 @@ func TestHomepageDeployNetlifyReturnsSiteAndDeployIDs(t *testing.T) {
 		NetlifyConfig{Token: "token", DefaultSiteID: "site-123", AllowDeploy: true},
 		"site-a", ".", "", "", false, slogDiscard(),
 	)
+	if !strings.Contains(result, `"status":"error"`) || !strings.Contains(result, "verification URL") {
+		t.Fatalf("expected missing verification URL error, got %s", result)
+	}
+}
+
+func TestHomepageDeployNetlifyReturnsSiteAndDeployIDs(t *testing.T) {
+	dir := t.TempDir()
+	projectRoot := filepath.Join(dir, "site-a")
+	if err := os.MkdirAll(projectRoot, 0o755); err != nil {
+		t.Fatalf("mkdir project: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(projectRoot, "index.html"), []byte(`<h1>Site</h1>`), 0o644); err != nil {
+		t.Fatalf("write index: %v", err)
+	}
+
+	oldBaseURL := netlifyBaseURL
+	oldAttempts := netlifyDeployPollAttempts
+	oldInterval := netlifyDeployPollInterval
+	defer func() {
+		netlifyBaseURL = oldBaseURL
+		netlifyDeployPollAttempts = oldAttempts
+		netlifyDeployPollInterval = oldInterval
+	}()
+	netlifyDeployPollAttempts = 1
+	netlifyDeployPollInterval = 0
+
+	var server *httptest.Server
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case r.Method == http.MethodPost && r.URL.Path == "/sites/site-123/deploys":
+			_, _ = w.Write([]byte(`{"id":"deploy-123","site_id":"site-123","state":"uploaded"}`))
+		case r.Method == http.MethodGet && r.URL.Path == "/deploys/deploy-123":
+			_, _ = w.Write([]byte(`{"id":"deploy-123","state":"ready","url":"` + server.URL + `/live"}`))
+		case r.Method == http.MethodGet && r.URL.Path == "/live":
+			_, _ = w.Write([]byte(`<html><body>Site</body></html>`))
+		default:
+			t.Fatalf("unexpected request %s %s", r.Method, r.URL.Path)
+		}
+	}))
+	defer server.Close()
+	netlifyBaseURL = server.URL
+
+	result := HomepageDeployNetlify(
+		HomepageConfig{WorkspacePath: dir},
+		NetlifyConfig{Token: "token", DefaultSiteID: "site-123", AllowDeploy: true},
+		"site-a", ".", "", "", false, slogDiscard(),
+	)
 	var parsed map[string]interface{}
 	if err := json.Unmarshal([]byte(result), &parsed); err != nil {
 		t.Fatalf("decode result %q: %v", result, err)
@@ -301,6 +357,10 @@ func TestHomepageDeployNetlifyReturnsSiteAndDeployIDs(t *testing.T) {
 	}
 	if parsed["deploy_id"] != "deploy-123" {
 		t.Fatalf("deploy_id = %v, want deploy-123; result=%s", parsed["deploy_id"], result)
+	}
+	verifiedURL, _ := parsed["verified_url"].(string)
+	if parsed["verified"] != true || strings.TrimSpace(verifiedURL) == "" {
+		t.Fatalf("expected verified Netlify deploy with verified_url, got %s", result)
 	}
 }
 
@@ -333,35 +393,43 @@ func TestHomepageDeployNetlifyFallsBackToStaticSiblingAfterBuildFailure(t *testi
 		netlifyBaseURL = oldBaseURL
 		netlifyDeployPollAttempts = oldAttempts
 	}()
-	netlifyDeployPollAttempts = 0
+	netlifyDeployPollAttempts = 1
 
 	var sawStaticIndex bool
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost || r.URL.Path != "/sites/site-123/deploys" {
+	var server *httptest.Server
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodPost && r.URL.Path == "/sites/site-123/deploys":
+			body, err := io.ReadAll(r.Body)
+			if err != nil {
+				t.Fatalf("read deploy body: %v", err)
+			}
+			zr, err := zip.NewReader(bytes.NewReader(body), int64(len(body)))
+			if err != nil {
+				t.Fatalf("read deploy zip: %v", err)
+			}
+			for _, f := range zr.File {
+				if f.Name != "index.html" {
+					continue
+				}
+				rc, err := f.Open()
+				if err != nil {
+					t.Fatalf("open zipped index: %v", err)
+				}
+				data, _ := io.ReadAll(rc)
+				_ = rc.Close()
+				sawStaticIndex = strings.Contains(string(data), "Static KI News")
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"id":"deploy-fallback","site_id":"site-123","state":"uploaded"}`))
+		case r.Method == http.MethodGet && r.URL.Path == "/deploys/deploy-fallback":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"id":"deploy-fallback","state":"ready","url":"` + server.URL + `/live"}`))
+		case r.Method == http.MethodGet && r.URL.Path == "/live":
+			_, _ = w.Write([]byte(`<html><body>Static KI News</body></html>`))
+		default:
 			t.Fatalf("unexpected request %s %s", r.Method, r.URL.Path)
 		}
-		body, err := io.ReadAll(r.Body)
-		if err != nil {
-			t.Fatalf("read deploy body: %v", err)
-		}
-		zr, err := zip.NewReader(bytes.NewReader(body), int64(len(body)))
-		if err != nil {
-			t.Fatalf("read deploy zip: %v", err)
-		}
-		for _, f := range zr.File {
-			if f.Name != "index.html" {
-				continue
-			}
-			rc, err := f.Open()
-			if err != nil {
-				t.Fatalf("open zipped index: %v", err)
-			}
-			data, _ := io.ReadAll(rc)
-			_ = rc.Close()
-			sawStaticIndex = strings.Contains(string(data), "Static KI News")
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"id":"","state":"ready"}`))
 	}))
 	defer server.Close()
 	netlifyBaseURL = server.URL
@@ -416,28 +484,36 @@ func TestHomepageDeployNetlifyBundlesLegacyRootGeneratedImageRefs(t *testing.T) 
 		netlifyBaseURL = oldBaseURL
 		netlifyDeployPollAttempts = oldAttempts
 	}()
-	netlifyDeployPollAttempts = 0
+	netlifyDeployPollAttempts = 1
 
 	var sawRootImage bool
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost || r.URL.Path != "/sites/site-123/deploys" {
+	var server *httptest.Server
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodPost && r.URL.Path == "/sites/site-123/deploys":
+			body, err := io.ReadAll(r.Body)
+			if err != nil {
+				t.Fatalf("read deploy body: %v", err)
+			}
+			zr, err := zip.NewReader(bytes.NewReader(body), int64(len(body)))
+			if err != nil {
+				t.Fatalf("read deploy zip: %v", err)
+			}
+			for _, f := range zr.File {
+				if f.Name == imageName {
+					sawRootImage = true
+				}
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"id":"deploy-root-image","site_id":"site-123","state":"uploaded"}`))
+		case r.Method == http.MethodGet && r.URL.Path == "/deploys/deploy-root-image":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"id":"deploy-root-image","state":"ready","url":"` + server.URL + `/live"}`))
+		case r.Method == http.MethodGet && r.URL.Path == "/live":
+			_, _ = w.Write([]byte(`<html><body>Image site</body></html>`))
+		default:
 			t.Fatalf("unexpected request %s %s", r.Method, r.URL.Path)
 		}
-		body, err := io.ReadAll(r.Body)
-		if err != nil {
-			t.Fatalf("read deploy body: %v", err)
-		}
-		zr, err := zip.NewReader(bytes.NewReader(body), int64(len(body)))
-		if err != nil {
-			t.Fatalf("read deploy zip: %v", err)
-		}
-		for _, f := range zr.File {
-			if f.Name == imageName {
-				sawRootImage = true
-			}
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"id":"","state":"ready"}`))
 	}))
 	defer server.Close()
 	netlifyBaseURL = server.URL
@@ -515,28 +591,36 @@ func TestHomepageDeployNetlifyBundlesGeneratedImageAssetRefs(t *testing.T) {
 		netlifyBaseURL = oldBaseURL
 		netlifyDeployPollAttempts = oldAttempts
 	}()
-	netlifyDeployPollAttempts = 0
+	netlifyDeployPollAttempts = 1
 
 	var sawAssetImage bool
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost || r.URL.Path != "/sites/site-123/deploys" {
+	var server *httptest.Server
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodPost && r.URL.Path == "/sites/site-123/deploys":
+			body, err := io.ReadAll(r.Body)
+			if err != nil {
+				t.Fatalf("read deploy body: %v", err)
+			}
+			zr, err := zip.NewReader(bytes.NewReader(body), int64(len(body)))
+			if err != nil {
+				t.Fatalf("read deploy zip: %v", err)
+			}
+			for _, f := range zr.File {
+				if f.Name == "assets/"+imageName {
+					sawAssetImage = true
+				}
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"id":"deploy-asset-image","site_id":"site-123","state":"uploaded"}`))
+		case r.Method == http.MethodGet && r.URL.Path == "/deploys/deploy-asset-image":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"id":"deploy-asset-image","state":"ready","url":"` + server.URL + `/live"}`))
+		case r.Method == http.MethodGet && r.URL.Path == "/live":
+			_, _ = w.Write([]byte(`<html><body>Asset image site</body></html>`))
+		default:
 			t.Fatalf("unexpected request %s %s", r.Method, r.URL.Path)
 		}
-		body, err := io.ReadAll(r.Body)
-		if err != nil {
-			t.Fatalf("read deploy body: %v", err)
-		}
-		zr, err := zip.NewReader(bytes.NewReader(body), int64(len(body)))
-		if err != nil {
-			t.Fatalf("read deploy zip: %v", err)
-		}
-		for _, f := range zr.File {
-			if f.Name == "assets/"+imageName {
-				sawAssetImage = true
-			}
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"id":"","state":"ready"}`))
 	}))
 	defer server.Close()
 	netlifyBaseURL = server.URL

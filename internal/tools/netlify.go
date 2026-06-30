@@ -676,7 +676,10 @@ func NetlifyDeployZip(cfg NetlifyConfig, siteID, title string, draft bool, zipDa
 		return errJSON("Failed to parse deploy response: %v", err)
 	}
 
-	deployID := strVal(deploy, "id")
+	deployID := firstNonEmptyString(strVal(deploy, "id"), strVal(deploy, "deploy_id"))
+	if deployID == "" {
+		return errJSON("Netlify deploy response missing deploy_id")
+	}
 	deploySiteID := firstNonEmptyString(strVal(deploy, "site_id"), siteID)
 	out, _ := json.Marshal(map[string]interface{}{
 		"status":     "ok",

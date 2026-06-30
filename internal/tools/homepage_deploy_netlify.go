@@ -400,27 +400,28 @@ func HomepageDeployNetlify(cfg HomepageConfig, nfCfg NetlifyConfig, projectDir, 
 		dr["fallback_build_dir"] = candidate.BuildDir
 	}
 	deployID := firstNonEmptyString(strVal(dr, "deploy_id"), strVal(dr, "id"))
-	if deployID != "" {
-		dr["deploy_id"] = deployID
-		waitResult := NetlifyWaitForDeploy(nfCfg, deployID, netlifyDeployPollAttempts, netlifyDeployPollInterval)
-		var wr map[string]interface{}
-		if json.Unmarshal([]byte(waitResult), &wr) == nil {
-			if wr["status"] == "error" {
-				msg := firstNonEmptyString(strVal(wr, "message"), strVal(wr, "error_message"), waitResult)
-				return errJSON("Netlify deploy failed after upload: %s", msg)
-			}
-			for k, v := range wr {
-				switch k {
-				case "status":
-				case "id":
-					if id, _ := v.(string); strings.TrimSpace(id) != "" {
-						dr["deploy_id"] = id
-					} else {
-						dr["deploy_id"] = v
-					}
-				default:
-					dr["deploy_"+k] = v
+	if deployID == "" {
+		return errJSON("Netlify deploy response missing deploy_id")
+	}
+	dr["deploy_id"] = deployID
+	waitResult := NetlifyWaitForDeploy(nfCfg, deployID, netlifyDeployPollAttempts, netlifyDeployPollInterval)
+	var wr map[string]interface{}
+	if json.Unmarshal([]byte(waitResult), &wr) == nil {
+		if wr["status"] == "error" {
+			msg := firstNonEmptyString(strVal(wr, "message"), strVal(wr, "error_message"), waitResult)
+			return errJSON("Netlify deploy failed after upload: %s", msg)
+		}
+		for k, v := range wr {
+			switch k {
+			case "status":
+			case "id":
+				if id, _ := v.(string); strings.TrimSpace(id) != "" {
+					dr["deploy_id"] = id
+				} else {
+					dr["deploy_id"] = v
 				}
+			default:
+				dr["deploy_"+k] = v
 			}
 		}
 	}
@@ -435,16 +436,17 @@ func HomepageDeployNetlify(cfg HomepageConfig, nfCfg NetlifyConfig, projectDir, 
 		verifyURL = strVal(dr, "deploy_deploy_url")
 	}
 	if verifyURL == "" {
-		verifyURL = strVal(dr, "deploy_url")
+		verifyURL = strVal(dr, "deploy_ssl_url")
 	}
-	if verifyURL != "" {
-		verify := homepageVerifyDeploymentURL(verifyURL)
-		if verify.Status != "ok" {
-			return errJSON("Netlify deploy completed but live verification failed: %s", verify.Message)
-		}
-		dr["verified"] = true
-		dr["verified_url"] = verify.URL
+	if verifyURL == "" {
+		return errJSON("Netlify deploy completed but no verification URL was returned")
 	}
+	verify := homepageVerifyDeploymentURL(verifyURL)
+	if verify.Status != "ok" {
+		return errJSON("Netlify deploy completed but live verification failed: %s", verify.Message)
+	}
+	dr["verified"] = true
+	dr["verified_url"] = verify.URL
 	out, _ := json.Marshal(dr)
 	return string(out)
 }

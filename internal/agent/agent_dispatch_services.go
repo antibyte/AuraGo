@@ -125,6 +125,17 @@ func homepageResultString(parsed map[string]interface{}, keys ...string) string 
 	return ""
 }
 
+func homepageNetlifyResultVerified(parsed map[string]interface{}) bool {
+	if parsed == nil {
+		return false
+	}
+	verified, ok := parsed["verified"].(bool)
+	if !ok || !verified {
+		return false
+	}
+	return homepageResultString(parsed, "verified_url", "deploy_url", "url", "deploy_deploy_url", "deploy_ssl_url") != ""
+}
+
 func recordHomepageLedgerMutation(homepageCfg tools.HomepageConfig, db *sql.DB, projectDir, eventType, summary, source string, saveRevision bool, payload map[string]interface{}, logger *slog.Logger) []string {
 	if db == nil {
 		return []string{"homepage registry DB not initialized"}
@@ -815,11 +826,16 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				}
 				logger.Info("LLM requested homepage deploy_netlify", "project", req.ProjectDir, "build_dir", req.BuildDir, "site_id", req.SiteID, "draft", req.Draft)
 				result := tools.HomepageDeployNetlify(homepageCfg, nfCfg, req.ProjectDir, req.BuildDir, req.SiteID, req.Title, req.Draft, logger)
+				var parsed map[string]interface{}
+				netlifyVerified := false
+				if homepageResultSuccess(result) {
+					if json.Unmarshal([]byte(result), &parsed) == nil {
+						netlifyVerified = homepageNetlifyResultVerified(parsed)
+					}
+				}
 				// Auto-log deploy and history in homepage registry
-				if homepageRegistryDB != nil && req.ProjectDir != "" && homepageResultSuccess(result) {
-					var parsed map[string]interface{}
-					_ = json.Unmarshal([]byte(result), &parsed)
-					deployURL := homepageResultString(parsed, "verified_url", "deploy_url", "url", "deploy_deploy_url")
+				if homepageRegistryDB != nil && req.ProjectDir != "" && netlifyVerified {
+					deployURL := homepageResultString(parsed, "verified_url", "deploy_url", "url", "deploy_deploy_url", "deploy_ssl_url")
 					if deployURL == "" {
 						deployURL = firstNonEmpty(homepageResultString(parsed, "site_id", "new_site_id", "deploy_site_id"), req.SiteID, "netlify")
 					}
@@ -835,7 +851,10 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					}
 				}
 				if homepageResultSuccess(result) {
-					warnings := tools.RecordHomepageDeploymentFromResult(homepageCfg, homepageRegistryDB, req.ProjectDir, "netlify", req.BuildDir, result, logger)
+					warnings := []string{"Netlify deploy result was not verified; deployment ledger was not updated"}
+					if netlifyVerified {
+						warnings = tools.RecordHomepageDeploymentFromResult(homepageCfg, homepageRegistryDB, req.ProjectDir, "netlify", req.BuildDir, result, logger)
+					}
 					result = withHomepageLedgerWarnings(result, warnings)
 				}
 				return "Tool Output: " + result
