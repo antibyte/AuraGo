@@ -103,6 +103,30 @@ func withHomepageLedgerWarnings(result string, warnings []string) string {
 	return string(out)
 }
 
+func homepageLedgerFatalResult(result string, err error) string {
+	if err == nil {
+		return result
+	}
+	message := "deployment target could not be recorded: " + err.Error()
+	var parsed map[string]interface{}
+	if json.Unmarshal([]byte(result), &parsed) != nil {
+		parsed = map[string]interface{}{}
+	}
+	parsed["status"] = "error"
+	parsed["message"] = message
+	out, _ := json.Marshal(parsed)
+	return string(out)
+}
+
+func homepageProjectDirRequired(operation string) string {
+	payload := map[string]interface{}{
+		"status":  "error",
+		"message": fmt.Sprintf("project_dir is required for homepage %s. Pass the workspace-relative project directory, for example project_dir=\"my-site\".", operation),
+	}
+	out, _ := json.Marshal(payload)
+	return "Tool Output: " + string(out)
+}
+
 func homepageExecEnvForCommand(_ *security.Vault, _ string) []string {
 	// Generic homepage exec must not receive deploy provider tokens. Provider
 	// deploy flows inject scoped credentials through their dedicated operations.
@@ -753,6 +777,9 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				logger.Info("LLM requested homepage dev server", "dir", req.ProjectDir)
 				return "Tool Output: " + tools.HomepageDev(homepageCfg, req.ProjectDir, 3000, logger)
 			case "deploy":
+				if strings.TrimSpace(req.ProjectDir) == "" {
+					return homepageProjectDirRequired(req.Operation)
+				}
 				logger.Info("LLM requested homepage deploy", "host", deployCfg.Host)
 				result := tools.HomepageDeploy(homepageCfg, deployCfg, req.ProjectDir, req.BuildDir, logger)
 				// Auto-log deploy and history in homepage registry
@@ -766,8 +793,11 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					}
 				}
 				if homepageResultSuccess(result) {
-					warnings := tools.RecordHomepageDeploymentFromResult(homepageCfg, homepageRegistryDB, req.ProjectDir, "sftp", req.BuildDir, result, logger)
+					warnings, fatal := tools.RecordHomepageDeploymentFromResultStrict(homepageCfg, homepageRegistryDB, req.ProjectDir, "sftp", req.BuildDir, result, logger)
 					result = withHomepageLedgerWarnings(result, warnings)
+					if fatal != nil {
+						result = homepageLedgerFatalResult(result, fatal)
+					}
 				}
 				return "Tool Output: " + result
 			case "test_connection":
@@ -775,7 +805,16 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return "Tool Output: " + tools.HomepageTestConnection(deployCfg, logger)
 			case "webserver_start":
 				logger.Info("LLM requested homepage webserver_start")
-				return "Tool Output: " + tools.HomepageWebServerStart(homepageCfg, req.ProjectDir, req.BuildDir, logger)
+				result := tools.HomepageWebServerStart(homepageCfg, req.ProjectDir, req.BuildDir, logger)
+				if homepageResultSuccess(result) && homepageRegistryDB != nil {
+					projectDir := homepageProjectDirFromResult(result, req.ProjectDir)
+					warnings, fatal := tools.RecordHomepageDeploymentFromResultStrict(homepageCfg, homepageRegistryDB, projectDir, "caddy", req.BuildDir, result, logger)
+					result = withHomepageLedgerWarnings(result, warnings)
+					if fatal != nil {
+						result = homepageLedgerFatalResult(result, fatal)
+					}
+				}
+				return "Tool Output: " + result
 			case "webserver_stop":
 				logger.Info("LLM requested homepage webserver_stop")
 				return "Tool Output: " + tools.HomepageWebServerStop(homepageCfg, logger)
@@ -790,14 +829,23 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				}
 				return "Tool Output: " + tools.HomepageTunnel(homepageCfg, port, logger)
 			case "publish_local":
+				if strings.TrimSpace(req.ProjectDir) == "" {
+					return homepageProjectDirRequired(req.Operation)
+				}
 				logger.Info("LLM requested homepage publish_local")
 				result := tools.HomepagePublishToLocal(homepageCfg, req.ProjectDir, logger)
 				if homepageResultSuccess(result) {
-					warnings := tools.RecordHomepageDeploymentFromResult(homepageCfg, homepageRegistryDB, req.ProjectDir, "local", req.BuildDir, result, logger)
+					warnings, fatal := tools.RecordHomepageDeploymentFromResultStrict(homepageCfg, homepageRegistryDB, req.ProjectDir, "local", req.BuildDir, result, logger)
 					result = withHomepageLedgerWarnings(result, warnings)
+					if fatal != nil {
+						result = homepageLedgerFatalResult(result, fatal)
+					}
 				}
 				return "Tool Output: " + result
 			case "deploy_netlify":
+				if strings.TrimSpace(req.ProjectDir) == "" {
+					return homepageProjectDirRequired(req.Operation)
+				}
 				if !cfg.Netlify.AllowDeploy {
 					return `Tool Output: {"status":"error","message":"Deployment is disabled. Enable netlify.allow_deploy in config."}`
 				}
@@ -845,13 +893,20 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				}
 				if homepageResultSuccess(result) {
 					warnings := []string{"Netlify deploy result was not verified; deployment ledger was not updated"}
+					var fatal error
 					if netlifyVerified {
-						warnings = tools.RecordHomepageDeploymentFromResult(homepageCfg, homepageRegistryDB, req.ProjectDir, "netlify", req.BuildDir, result, logger)
+						warnings, fatal = tools.RecordHomepageDeploymentFromResultStrict(homepageCfg, homepageRegistryDB, req.ProjectDir, "netlify", req.BuildDir, result, logger)
 					}
 					result = withHomepageLedgerWarnings(result, warnings)
+					if fatal != nil {
+						result = homepageLedgerFatalResult(result, fatal)
+					}
 				}
 				return "Tool Output: " + result
 			case "deploy_vercel":
+				if strings.TrimSpace(req.ProjectDir) == "" {
+					return homepageProjectDirRequired(req.Operation)
+				}
 				if !cfg.Vercel.AllowDeploy {
 					return `Tool Output: {"status":"error","message":"Deployment is disabled. Enable vercel.allow_deploy in config."}`
 				}
@@ -906,8 +961,11 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					}
 				}
 				if homepageResultSuccess(result) {
-					warnings := tools.RecordHomepageDeploymentFromResult(homepageCfg, homepageRegistryDB, req.ProjectDir, "vercel", req.BuildDir, result, logger)
+					warnings, fatal := tools.RecordHomepageDeploymentFromResultStrict(homepageCfg, homepageRegistryDB, req.ProjectDir, "vercel", req.BuildDir, result, logger)
 					result = withHomepageLedgerWarnings(result, warnings)
+					if fatal != nil {
+						result = homepageLedgerFatalResult(result, fatal)
+					}
 				}
 				return "Tool Output: " + result
 			// ─── Git operations ─────────────────────────────────────

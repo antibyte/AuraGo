@@ -61,6 +61,52 @@ func TestDispatchHomepageInitProjectRegistersProjectDir(t *testing.T) {
 	}
 }
 
+func TestDispatchHomepagePublishLocalRequiresProjectDir(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Homepage.Enabled = true
+	cfg.Homepage.WorkspacePath = t.TempDir()
+	cfg.Homepage.AllowLocalServer = true
+	db, err := tools.InitHomepageRegistryDB(t.TempDir() + "/homepage.db")
+	if err != nil {
+		t.Fatalf("InitHomepageRegistryDB failed: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+
+	output, ok := dispatchServices(context.Background(), ToolCall{
+		Action:    "homepage",
+		Operation: "publish_local",
+	}, &DispatchContext{Cfg: cfg, Logger: testLogger, HomepageRegistryDB: db})
+	if !ok {
+		t.Fatal("expected homepage operation to be handled")
+	}
+	if !strings.Contains(output, `"status":"error"`) || !strings.Contains(output, "project_dir is required") {
+		t.Fatalf("expected missing project_dir error, got %s", output)
+	}
+}
+
+func TestDispatchHomepageDeployRequiresProjectDir(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Homepage.Enabled = true
+	cfg.Homepage.AllowDeploy = true
+	cfg.Homepage.WorkspacePath = t.TempDir()
+	db, err := tools.InitHomepageRegistryDB(t.TempDir() + "/homepage.db")
+	if err != nil {
+		t.Fatalf("InitHomepageRegistryDB failed: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+
+	output, ok := dispatchServices(context.Background(), ToolCall{
+		Action:    "homepage",
+		Operation: "deploy",
+	}, &DispatchContext{Cfg: cfg, Logger: testLogger, HomepageRegistryDB: db})
+	if !ok {
+		t.Fatal("expected homepage operation to be handled")
+	}
+	if !strings.Contains(output, `"status":"error"`) || !strings.Contains(output, "project_dir is required") {
+		t.Fatalf("expected missing project_dir error, got %s", output)
+	}
+}
+
 func TestDispatchHomepageWriteFileRecordsLedgerRevision(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Homepage.Enabled = true
