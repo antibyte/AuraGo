@@ -131,7 +131,7 @@ func NormalizeHomepageProjectIdentity(projectDir string, allowRoot bool) (string
 	if projectDir == "" {
 		return "", fmt.Errorf("project_dir is required to register a homepage project")
 	}
-	if filepath.IsAbs(projectDir) || strings.HasPrefix(projectDir, "/") || strings.HasPrefix(projectDir, "\\") {
+	if filepath.IsAbs(projectDir) || isWindowsDriveAbsolutePath(projectDir) || strings.HasPrefix(projectDir, "/") || strings.HasPrefix(projectDir, "\\") {
 		return "", fmt.Errorf("project_dir must be relative to the homepage workspace")
 	}
 	projectDir = strings.Trim(projectDir, "/")
@@ -146,6 +146,14 @@ func NormalizeHomepageProjectIdentity(projectDir string, allowRoot bool) (string
 		return "", fmt.Errorf(`project_dir "." is ambiguous for new homepage projects`)
 	}
 	return projectDir, nil
+}
+
+func isWindowsDriveAbsolutePath(path string) bool {
+	if len(path) < 3 {
+		return false
+	}
+	drive := path[0]
+	return ((drive >= 'A' && drive <= 'Z') || (drive >= 'a' && drive <= 'z')) && path[1] == ':' && (path[2] == '/' || path[2] == '\\')
 }
 
 func validateHomepageProjectName(name string) error {

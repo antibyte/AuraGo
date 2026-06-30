@@ -196,6 +196,13 @@ func TestNormalizeHomepageProjectIdentityRejectsAbsolutePath(t *testing.T) {
 	}
 }
 
+func TestNormalizeHomepageProjectIdentityRejectsWindowsDriveAbsolutePath(t *testing.T) {
+	_, err := NormalizeHomepageProjectIdentity("C:/Users/Andi/site", false)
+	if err == nil || !strings.Contains(err.Error(), "relative to the homepage workspace") {
+		t.Fatalf("expected absolute path error, got %v", err)
+	}
+}
+
 func TestValidateHomepageRelativePathArgGuidance(t *testing.T) {
 	err := validateHomepageRelativePathArg("/workspace/ki-news/src/app/page.tsx", "path")
 	if err == nil {
