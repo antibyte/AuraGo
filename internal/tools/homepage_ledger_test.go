@@ -328,6 +328,51 @@ func TestRecordHomepageDeploymentFromResultParsesProviderFields(t *testing.T) {
 	}
 }
 
+func TestRecordHomepageDeploymentFromResultStrictRejectsMissingTargetLocation(t *testing.T) {
+	db := newHomepageLedgerTestDB(t)
+	workspace := t.TempDir()
+	cfg := HomepageConfig{WorkspacePath: workspace}
+	if _, err := EnsureHomepageProjectForDir(db, cfg, "site-a", "site-a", "html"); err != nil {
+		t.Fatalf("ensure project: %v", err)
+	}
+
+	warnings, err := RecordHomepageDeploymentFromResultStrict(cfg, db, "site-a", "netlify", ".", `{"status":"ok","id":"deploy-1","site_id":"site-1"}`, slog.Default())
+	if err == nil || !strings.Contains(err.Error(), "deploy URL or remote_path") {
+		t.Fatalf("expected strict target error, got warnings=%v err=%v", warnings, err)
+	}
+	var deployments int
+	if countErr := db.QueryRow("SELECT COUNT(*) FROM homepage_deployments").Scan(&deployments); countErr != nil {
+		t.Fatalf("count deployments: %v", countErr)
+	}
+	if deployments != 0 {
+		t.Fatalf("deployments = %d, want 0", deployments)
+	}
+}
+
+func TestRecordHomepageDeploymentFromResultStrictKeepsArtifactWarningsNonFatal(t *testing.T) {
+	db := newHomepageLedgerTestDB(t)
+	workspace := t.TempDir()
+	cfg := HomepageConfig{WorkspacePath: workspace}
+	if _, err := EnsureHomepageProjectForDir(db, cfg, "site-a", "site-a", "html"); err != nil {
+		t.Fatalf("ensure project: %v", err)
+	}
+
+	warnings, err := RecordHomepageDeploymentFromResultStrict(cfg, db, "site-a", "local", "missing-build", `{"status":"ok","url":"http://localhost:8080","project_dir":"site-a","build_dir":"missing-build"}`, slog.Default())
+	if err != nil {
+		t.Fatalf("strict record should keep artifact manifest failure non-fatal, err=%v warnings=%v", err, warnings)
+	}
+	if len(warnings) == 0 {
+		t.Fatal("expected artifact warning for missing build directory")
+	}
+	var deployments int
+	if countErr := db.QueryRow("SELECT COUNT(*) FROM homepage_deployments").Scan(&deployments); countErr != nil {
+		t.Fatalf("count deployments: %v", countErr)
+	}
+	if deployments != 1 {
+		t.Fatalf("deployments = %d, want 1", deployments)
+	}
+}
+
 func TestRecordHomepageDeploymentFromResultUsesNetlifyFallbackProjectAndBuildDir(t *testing.T) {
 	db := newHomepageLedgerTestDB(t)
 	workspace := t.TempDir()

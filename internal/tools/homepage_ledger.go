@@ -37,6 +37,11 @@ type HomepageLedgerResult struct {
 	Changed    bool     `json:"changed"`
 }
 
+type HomepageDeploymentLedgerResult struct {
+	Warnings []string
+	Fatal    error
+}
+
 // HomepageDeploymentRecord is the normalized deployment row written by the ledger.
 type HomepageDeploymentRecord struct {
 	ProjectID        int64                  `json:"project_id"`
@@ -399,16 +404,32 @@ func RecordHomepageDeployment(db *sql.DB, rec HomepageDeploymentRecord) error {
 
 // RecordHomepageDeploymentFromResult parses a homepage deploy tool result and records it.
 func RecordHomepageDeploymentFromResult(cfg HomepageConfig, db *sql.DB, projectDir, provider, buildDir, rawResult string, logger *slog.Logger) []string {
-	var warnings []string
+	result := recordHomepageDeploymentFromResult(cfg, db, projectDir, provider, buildDir, rawResult, logger)
+	warnings := append([]string{}, result.Warnings...)
+	if result.Fatal != nil {
+		warnings = append(warnings, result.Fatal.Error())
+	}
+	return warnings
+}
+
+func RecordHomepageDeploymentFromResultStrict(cfg HomepageConfig, db *sql.DB, projectDir, provider, buildDir, rawResult string, logger *slog.Logger) ([]string, error) {
+	result := recordHomepageDeploymentFromResult(cfg, db, projectDir, provider, buildDir, rawResult, logger)
+	return result.Warnings, result.Fatal
+}
+
+func recordHomepageDeploymentFromResult(cfg HomepageConfig, db *sql.DB, projectDir, provider, buildDir, rawResult string, logger *slog.Logger) HomepageDeploymentLedgerResult {
+	result := HomepageDeploymentLedgerResult{}
 	if db == nil {
-		return []string{"homepage registry DB not initialized"}
+		result.Fatal = fmt.Errorf("homepage registry DB not initialized")
+		return result
 	}
 	parsed := map[string]interface{}{}
 	if err := json.Unmarshal([]byte(rawResult), &parsed); err != nil {
-		return []string{fmt.Sprintf("deployment result was not JSON: %v", err)}
+		result.Fatal = fmt.Errorf("deployment result was not JSON: %v", err)
+		return result
 	}
 	if status, _ := parsed["status"].(string); status == "error" {
-		return nil
+		return result
 	}
 	provider = strings.ToLower(strings.TrimSpace(provider))
 	if fallbackProjectDir := ledgerString(parsed, "fallback_project_dir"); fallbackProjectDir != "" {
@@ -422,7 +443,8 @@ func RecordHomepageDeploymentFromResult(cfg HomepageConfig, db *sql.DB, projectD
 	}
 	proj, err := EnsureHomepageProjectForDir(db, cfg, projectDir, "", "")
 	if err != nil {
-		return []string{err.Error()}
+		result.Fatal = err
+		return result
 	}
 	if buildDir == "" {
 		buildDir = ledgerString(parsed, "build_dir")
@@ -440,19 +462,35 @@ func RecordHomepageDeploymentFromResult(cfg HomepageConfig, db *sql.DB, projectD
 	}
 	gitSHA := HomepageProjectGitSHA(cfg, proj.ProjectDir)
 	artifactHash := ""
-	if manifest, err := BuildHomepageArtifactManifest(cfg, proj.ID, proj.ProjectDir, revisionID, gitSHA, buildDir); err == nil {
-		artifactHash = manifest.ArtifactHash
-		if writeErr := WriteHomepageArtifactManifest(cfg, manifest); writeErr != nil {
-			warnings = append(warnings, fmt.Sprintf("artifact manifest write failed: %v", writeErr))
+	buildRoot := filepath.Join(homepageLocalRoot(cfg, proj.ProjectDir), filepath.FromSlash(buildDir))
+	if info, err := os.Stat(buildRoot); err != nil {
+		if logger != nil {
+			logger.Warn("[Homepage] Artifact manifest failed", "project_dir", proj.ProjectDir, "build_dir", buildDir, "error", err)
 		}
-	} else if logger != nil {
-		logger.Warn("[Homepage] Artifact manifest failed", "project_dir", proj.ProjectDir, "build_dir", buildDir, "error", err)
-		warnings = append(warnings, fmt.Sprintf("artifact manifest failed: %v", err))
+		result.Warnings = append(result.Warnings, fmt.Sprintf("artifact manifest failed: build directory %q unavailable: %v", buildDir, err))
+	} else if !info.IsDir() {
+		err := fmt.Errorf("build path is not a directory")
+		if logger != nil {
+			logger.Warn("[Homepage] Artifact manifest failed", "project_dir", proj.ProjectDir, "build_dir", buildDir, "error", err)
+		}
+		result.Warnings = append(result.Warnings, fmt.Sprintf("artifact manifest failed: build path %q is not a directory", buildDir))
+	} else {
+		if manifest, err := BuildHomepageArtifactManifest(cfg, proj.ID, proj.ProjectDir, revisionID, gitSHA, buildDir); err == nil {
+			artifactHash = manifest.ArtifactHash
+			if writeErr := WriteHomepageArtifactManifest(cfg, manifest); writeErr != nil {
+				result.Warnings = append(result.Warnings, fmt.Sprintf("artifact manifest write failed: %v", writeErr))
+			}
+		} else {
+			if logger != nil {
+				logger.Warn("[Homepage] Artifact manifest failed", "project_dir", proj.ProjectDir, "build_dir", buildDir, "error", err)
+			}
+			result.Warnings = append(result.Warnings, fmt.Sprintf("artifact manifest failed: %v", err))
+		}
 	}
 	targetID := firstLedgerString(parsed, "site_id", "new_site_id", "deploy_site_id", "project_id")
 	deployID := firstLedgerString(parsed, "deployment_id", "deploy_id", "id")
-	url := firstLedgerString(parsed, "verified_url", "deployment_url", "deploy_url", "url", "deploy_ssl_url", "deploy_deploy_url")
-	remotePath := firstLedgerString(parsed, "path", "remote_path")
+	url := firstLedgerString(parsed, "verified_url", "deployment_url", "deploy_url", "url", "served_url", "deploy_ssl_url", "deploy_deploy_url")
+	remotePath := firstLedgerString(parsed, "path", "remote_path", "source_path")
 	status := firstLedgerString(parsed, "status")
 	if status == "" {
 		status = "ok"
@@ -484,9 +522,10 @@ func RecordHomepageDeploymentFromResult(cfg HomepageConfig, db *sql.DB, projectD
 		VerificationJSON: verificationJSON,
 		Metadata:         parsed,
 	}); err != nil {
-		warnings = append(warnings, err.Error())
+		result.Fatal = err
+		return result
 	}
-	return warnings
+	return result
 }
 
 // BuildHomepageArtifactManifest hashes a deployable build directory.
