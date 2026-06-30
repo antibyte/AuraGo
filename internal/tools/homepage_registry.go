@@ -724,7 +724,7 @@ func DispatchHomepageRegistry(db *sql.DB, operation, query, name, description, f
 			return `{"status":"error","message":"'name' is required to register a project."}`
 		}
 		if _, err := NormalizeHomepageProjectIdentity(projectDir, false); err != nil {
-			return fmt.Sprintf(`{"status":"error","message":"%s"}`, strings.ReplaceAll(err.Error(), `"`, `'`))
+			return errJSON("%s", err.Error())
 		}
 		p := HomepageProject{
 			Name:        name,

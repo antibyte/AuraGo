@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"encoding/json"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -82,9 +83,37 @@ func TestDispatchHomepageRegistryRegisterRequiresProjectDir(t *testing.T) {
 	}
 	defer db.Close()
 
-	got := DispatchHomepageRegistry(db, "register", "", "MissingDir", "", "html", "", "", "", "", "", "", nil, 0, "", 10, 0)
-	if !strings.Contains(got, `"status":"error"`) || !strings.Contains(got, "project_dir is required") {
-		t.Fatalf("expected missing project_dir error, got %s", got)
+	tests := []struct {
+		name       string
+		projectDir string
+		want       string
+	}{
+		{
+			name:       "missing",
+			projectDir: "",
+			want:       "project_dir is required",
+		},
+		{
+			name:       "invalid escaping",
+			projectDir: `bad\"..`,
+			want:       "path traversal detected",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := DispatchHomepageRegistry(db, "register", "", "MissingDir", "", "html", tt.projectDir, "", "", "", "", "", nil, 0, "", 10, 0)
+			var resp struct {
+				Status  string `json:"status"`
+				Message string `json:"message"`
+			}
+			if err := json.Unmarshal([]byte(got), &resp); err != nil {
+				t.Fatalf("response is not valid JSON: %v; got %s", err, got)
+			}
+			if resp.Status != "error" || !strings.Contains(resp.Message, tt.want) {
+				t.Fatalf("expected %q error, got %+v from %s", tt.want, resp, got)
+			}
+		})
 	}
 }
 
