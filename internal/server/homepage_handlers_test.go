@@ -83,8 +83,13 @@ func TestHandleHomepageHistoryListAndDelete(t *testing.T) {
 	}
 	defer db.Close()
 
-	projectID, _, _ := tools.RegisterProject(db, tools.HomepageProject{Name: "HistoryUIProject", Framework: "astro"})
-	_, _ = tools.AddHomepageHistoryEntry(db, projectID, "decision", "Use dark hero", "homepage_file", []string{"design"})
+	projectID, _, err := tools.RegisterProject(db, tools.HomepageProject{Name: "HistoryUIProject", ProjectDir: "history-ui-project", Framework: "astro"})
+	if err != nil {
+		t.Fatalf("RegisterProject failed: %v", err)
+	}
+	if _, err := tools.AddHomepageHistoryEntry(db, projectID, "decision", "Use dark hero", "homepage_file", []string{"design"}); err != nil {
+		t.Fatalf("AddHomepageHistoryEntry failed: %v", err)
+	}
 
 	s := &Server{HomepageRegistryDB: db, Logger: slog.Default()}
 	handler := handleHomepageHistory(s)
@@ -141,12 +146,17 @@ func TestHandleHomepageHistoryWorkspaceFallback(t *testing.T) {
 	}
 	defer db.Close()
 
-	workspace := t.TempDir()
-	projectID, _, _ := tools.RegisterProject(db, tools.HomepageProject{Name: "WorkspaceFallback", ProjectDir: workspace, Framework: "astro"})
-	_, _ = tools.AddHomepageHistoryEntry(db, projectID, "note", "Workspace fallback entry", "homepage_file", nil)
+	projectDir := "workspace-fallback"
+	projectID, _, err := tools.RegisterProject(db, tools.HomepageProject{Name: "WorkspaceFallback", ProjectDir: projectDir, Framework: "astro"})
+	if err != nil {
+		t.Fatalf("RegisterProject failed: %v", err)
+	}
+	if _, err := tools.AddHomepageHistoryEntry(db, projectID, "note", "Workspace fallback entry", "homepage_file", nil); err != nil {
+		t.Fatalf("AddHomepageHistoryEntry failed: %v", err)
+	}
 
 	cfg := &config.Config{}
-	cfg.Homepage.WorkspacePath = workspace
+	cfg.Homepage.WorkspacePath = projectDir
 	s := &Server{HomepageRegistryDB: db, Cfg: cfg, Logger: slog.Default()}
 	handler := handleHomepageHistory(s)
 
