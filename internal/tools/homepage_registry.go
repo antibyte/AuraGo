@@ -262,6 +262,11 @@ func RegisterProject(db *sql.DB, p HomepageProject) (int64, bool, error) {
 	if db == nil {
 		return 0, false, fmt.Errorf("homepage registry DB not initialized")
 	}
+	projectDir, err := NormalizeHomepageProjectIdentity(p.ProjectDir, false)
+	if err != nil {
+		return 0, false, err
+	}
+	p.ProjectDir = projectDir
 
 	// Dedup by name
 	if p.Name != "" {
@@ -717,6 +722,9 @@ func DispatchHomepageRegistry(db *sql.DB, operation, query, name, description, f
 	case "register":
 		if name == "" {
 			return `{"status":"error","message":"'name' is required to register a project."}`
+		}
+		if _, err := NormalizeHomepageProjectIdentity(projectDir, false); err != nil {
+			return fmt.Sprintf(`{"status":"error","message":"%s"}`, strings.ReplaceAll(err.Error(), `"`, `'`))
 		}
 		p := HomepageProject{
 			Name:        name,

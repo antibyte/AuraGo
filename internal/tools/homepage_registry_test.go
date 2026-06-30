@@ -34,7 +34,7 @@ func TestRegisterAndGetProject(t *testing.T) {
 		Description: "Personal portfolio website",
 		Framework:   "astro",
 		URL:         "https://mysite.example.com",
-		ProjectDir:  "/workspace/portfolio",
+		ProjectDir:  "portfolio",
 		Status:      "active",
 		Tags:        []string{"portfolio", "personal"},
 	}
@@ -57,6 +57,35 @@ func TestRegisterAndGetProject(t *testing.T) {
 	if got.Framework != "astro" {
 		t.Errorf("framework = %q, want %q", got.Framework, "astro")
 	}
+	if got.ProjectDir != "portfolio" {
+		t.Errorf("project_dir = %q, want %q", got.ProjectDir, "portfolio")
+	}
+}
+
+func TestRegisterProjectRequiresProjectDir(t *testing.T) {
+	db, err := InitHomepageRegistryDB(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatalf("init db: %v", err)
+	}
+	defer db.Close()
+
+	_, _, err = RegisterProject(db, HomepageProject{Name: "MissingDir"})
+	if err == nil || !strings.Contains(err.Error(), "project_dir is required") {
+		t.Fatalf("expected project_dir required error, got %v", err)
+	}
+}
+
+func TestDispatchHomepageRegistryRegisterRequiresProjectDir(t *testing.T) {
+	db, err := InitHomepageRegistryDB(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatalf("init db: %v", err)
+	}
+	defer db.Close()
+
+	got := DispatchHomepageRegistry(db, "register", "", "MissingDir", "", "html", "", "", "", "", "", "", nil, 0, "", 10, 0)
+	if !strings.Contains(got, `"status":"error"`) || !strings.Contains(got, "project_dir is required") {
+		t.Fatalf("expected missing project_dir error, got %s", got)
+	}
 }
 
 func TestRegisterProjectDedup(t *testing.T) {
@@ -69,7 +98,7 @@ func TestRegisterProjectDedup(t *testing.T) {
 	proj := HomepageProject{
 		Name:       "TestSite",
 		Framework:  "react",
-		ProjectDir: "/workspace/testsite",
+		ProjectDir: "testsite",
 		Status:     "active",
 	}
 
@@ -88,7 +117,7 @@ func TestGetProjectByName(t *testing.T) {
 	}
 	defer db.Close()
 
-	RegisterProject(db, HomepageProject{Name: "SiteA", Framework: "vue"})
+	RegisterProject(db, HomepageProject{Name: "SiteA", ProjectDir: "site-a", Framework: "vue"})
 
 	got, getErr := GetProjectByName(db, "SiteA")
 	if getErr != nil {
@@ -106,9 +135,9 @@ func TestGetProjectByDir(t *testing.T) {
 	}
 	defer db.Close()
 
-	RegisterProject(db, HomepageProject{Name: "DirSite", ProjectDir: "/workspace/dirsite", Framework: "svelte"})
+	RegisterProject(db, HomepageProject{Name: "DirSite", ProjectDir: "dirsite", Framework: "svelte"})
 
-	got, getErr := GetProjectByDir(db, "/workspace/dirsite")
+	got, getErr := GetProjectByDir(db, "dirsite")
 	if getErr != nil {
 		t.Fatalf("GetProjectByDir failed: %v", getErr)
 	}
@@ -124,8 +153,8 @@ func TestSearchProjects(t *testing.T) {
 	}
 	defer db.Close()
 
-	RegisterProject(db, HomepageProject{Name: "Portfolio", Description: "Personal site", Framework: "astro"})
-	RegisterProject(db, HomepageProject{Name: "Blog", Description: "Tech blog", Framework: "hugo"})
+	RegisterProject(db, HomepageProject{Name: "Portfolio", ProjectDir: "portfolio", Description: "Personal site", Framework: "astro"})
+	RegisterProject(db, HomepageProject{Name: "Blog", ProjectDir: "blog", Description: "Tech blog", Framework: "hugo"})
 
 	results, _, searchErr := SearchProjects(db, "portfolio", "", nil, 10, 0)
 	if searchErr != nil {
@@ -148,7 +177,7 @@ func TestLogEditAndDeploy(t *testing.T) {
 	}
 	defer db.Close()
 
-	id, _, _ := RegisterProject(db, HomepageProject{Name: "EditTest", Framework: "next"})
+	id, _, _ := RegisterProject(db, HomepageProject{Name: "EditTest", ProjectDir: "edit-test", Framework: "next"})
 
 	if err := LogEdit(db, id, "Added contact form"); err != nil {
 		t.Fatalf("LogEdit failed: %v", err)
@@ -182,7 +211,7 @@ func TestLogProblemAndResolve(t *testing.T) {
 	}
 	defer db.Close()
 
-	id, _, _ := RegisterProject(db, HomepageProject{Name: "ProblemTest", Framework: "gatsby"})
+	id, _, _ := RegisterProject(db, HomepageProject{Name: "ProblemTest", ProjectDir: "problem-test", Framework: "gatsby"})
 
 	if err := LogProblem(db, id, "Mobile nav broken"); err != nil {
 		t.Fatalf("LogProblem failed: %v", err)
@@ -210,9 +239,9 @@ func TestListProjects(t *testing.T) {
 	}
 	defer db.Close()
 
-	RegisterProject(db, HomepageProject{Name: "A", Status: "active"})
-	RegisterProject(db, HomepageProject{Name: "B", Status: "archived"})
-	RegisterProject(db, HomepageProject{Name: "C", Status: "active"})
+	RegisterProject(db, HomepageProject{Name: "A", ProjectDir: "site-a", Status: "active"})
+	RegisterProject(db, HomepageProject{Name: "B", ProjectDir: "site-b", Status: "archived"})
+	RegisterProject(db, HomepageProject{Name: "C", ProjectDir: "site-c", Status: "active"})
 
 	all, _, _ := ListProjects(db, "", 100, 0)
 	if len(all) != 3 {
