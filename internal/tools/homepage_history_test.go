@@ -13,7 +13,10 @@ func TestAddAndGetHistoryEntry(t *testing.T) {
 	}
 	defer db.Close()
 
-	projectID, _, _ := RegisterProject(db, HomepageProject{Name: "HistoryTest", Framework: "astro"})
+	projectID, _, err := RegisterProject(db, HomepageProject{Name: "HistoryTest", ProjectDir: "history-test", Framework: "astro"})
+	if err != nil {
+		t.Fatalf("RegisterProject failed: %v", err)
+	}
 
 	id, err := AddHomepageHistoryEntry(db, projectID, "decision", "Use dark hero with single CTA", "homepage_file", []string{"design", "hero"})
 	if err != nil {
@@ -48,7 +51,10 @@ func TestListHistoryEntries(t *testing.T) {
 	}
 	defer db.Close()
 
-	projectID, _, _ := RegisterProject(db, HomepageProject{Name: "ListHistoryTest", Framework: "next"})
+	projectID, _, err := RegisterProject(db, HomepageProject{Name: "ListHistoryTest", ProjectDir: "list-history-test", Framework: "next"})
+	if err != nil {
+		t.Fatalf("RegisterProject failed: %v", err)
+	}
 
 	AddHomepageHistoryEntry(db, projectID, "note", "First note", "", nil)
 	AddHomepageHistoryEntry(db, projectID, "decision", "Second decision", "", nil)
@@ -61,7 +67,7 @@ func TestListHistoryEntries(t *testing.T) {
 		t.Errorf("total = %d, want 2", total)
 	}
 	if len(entries) != 2 {
-		t.Errorf("entries count = %d, want 2", len(entries))
+		t.Fatalf("entries count = %d, want 2", len(entries))
 	}
 	// Newest first
 	if entries[0].EntryType != "decision" {
@@ -81,7 +87,10 @@ func TestSearchHistoryEntries(t *testing.T) {
 	}
 	defer db.Close()
 
-	projectID, _, _ := RegisterProject(db, HomepageProject{Name: "SearchHistoryTest", Framework: "html"})
+	projectID, _, err := RegisterProject(db, HomepageProject{Name: "SearchHistoryTest", ProjectDir: "search-history-test", Framework: "html"})
+	if err != nil {
+		t.Fatalf("RegisterProject failed: %v", err)
+	}
 
 	AddHomepageHistoryEntry(db, projectID, "note", "Hero section looks great", "", nil)
 	AddHomepageHistoryEntry(db, projectID, "decision", "Footer will have three columns", "", nil)
@@ -105,7 +114,10 @@ func TestUpdateAndDeleteHistoryEntry(t *testing.T) {
 	}
 	defer db.Close()
 
-	projectID, _, _ := RegisterProject(db, HomepageProject{Name: "UpdateHistoryTest", Framework: "vue"})
+	projectID, _, err := RegisterProject(db, HomepageProject{Name: "UpdateHistoryTest", ProjectDir: "update-history-test", Framework: "vue"})
+	if err != nil {
+		t.Fatalf("RegisterProject failed: %v", err)
+	}
 
 	id, _ := AddHomepageHistoryEntry(db, projectID, "note", "Original note", "", nil)
 
@@ -138,7 +150,10 @@ func TestDispatchHomepageHistory(t *testing.T) {
 	}
 	defer db.Close()
 
-	projectID, _, _ := RegisterProject(db, HomepageProject{Name: "DispatchHistoryTest", Framework: "svelte"})
+	projectID, _, err := RegisterProject(db, HomepageProject{Name: "DispatchHistoryTest", ProjectDir: "dispatch-history-test", Framework: "svelte"})
+	if err != nil {
+		t.Fatalf("RegisterProject failed: %v", err)
+	}
 
 	result := DispatchHomepageHistory(db, "add_history", 0, projectID, "milestone", "Initial setup complete", "", "homepage_project", []string{"setup"}, 0, 0)
 	if !strings.Contains(result, `"status":"success"`) {
