@@ -58,17 +58,28 @@ func homepageProjectDirFromPath(relPath string) string {
 	return projectDir
 }
 
+func homepageProjectDirFromIdentity(projectDir string) string {
+	normalized, err := tools.NormalizeHomepageProjectIdentity(projectDir, false)
+	if err != nil {
+		return ""
+	}
+	return normalized
+}
+
 func homepageProjectDirFromResult(result, fallback string) string {
 	var parsed map[string]interface{}
 	if err := json.Unmarshal([]byte(result), &parsed); err == nil {
-		for _, key := range []string{"project_dir", "path", "fallback_project_dir"} {
-			if v, _ := parsed[key].(string); strings.TrimSpace(v) != "" {
-				return homepageProjectDirFromPath(v)
+		for _, key := range []string{"project_dir", "fallback_project_dir"} {
+			if projectDir := homepageProjectDirFromIdentity(homepageResultString(parsed, key)); projectDir != "" {
+				return projectDir
 			}
 		}
+		if v := homepageResultString(parsed, "path"); v != "" {
+			return homepageProjectDirFromPath(v)
+		}
 	}
-	if strings.TrimSpace(fallback) != "" {
-		return homepageProjectDirFromPath(fallback)
+	if projectDir := homepageProjectDirFromIdentity(fallback); projectDir != "" {
+		return projectDir
 	}
 	return "."
 }

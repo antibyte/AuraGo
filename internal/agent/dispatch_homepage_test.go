@@ -234,6 +234,69 @@ func TestHomepageRecordDeploymentStrictSkipsCaddyRootProjectDir(t *testing.T) {
 	}
 }
 
+func TestHomepageProjectDirFromResultPreservesNestedProjectIdentities(t *testing.T) {
+	for name, tc := range map[string]struct {
+		result   string
+		fallback string
+		want     string
+	}{
+		"project_dir identity": {
+			result: `{"status":"ok","project_dir":"sites/landing-page","path":"site-a/index.html"}`,
+			want:   "sites/landing-page",
+		},
+		"fallback_project_dir identity": {
+			result: `{"status":"ok","fallback_project_dir":"sites/landing-page"}`,
+			want:   "sites/landing-page",
+		},
+		"path remains file path": {
+			result: `{"status":"ok","path":"sites/landing-page/index.html"}`,
+			want:   "sites",
+		},
+		"fallback identity": {
+			result:   `{"status":"ok"}`,
+			fallback: "sites/landing-page",
+			want:     "sites/landing-page",
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if got := homepageProjectDirFromResult(tc.result, tc.fallback); got != tc.want {
+				t.Fatalf("homepageProjectDirFromResult() = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestHomepageRecordDeploymentStrictRecordsCaddyNestedProjectDir(t *testing.T) {
+	db, err := tools.InitHomepageRegistryDB(t.TempDir() + "/homepage.db")
+	if err != nil {
+		t.Fatalf("InitHomepageRegistryDB failed: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+
+	result := `{"status":"ok","url":"http://localhost:8080","project_dir":"sites/landing-page","build_dir":"."}`
+	projectDir := homepageProjectDirFromResult(result, "")
+	if projectDir != "sites/landing-page" {
+		t.Fatalf("webserver project_dir = %q, want sites/landing-page", projectDir)
+	}
+	output := homepageRecordDeploymentStrictResult(tools.HomepageConfig{WorkspacePath: t.TempDir()}, db, projectDir, "caddy", ".", result, testLogger)
+
+	if strings.Contains(output, `"status":"error"`) {
+		t.Fatalf("successful nested caddy start must stay successful, got %s", output)
+	}
+	var recordedProjectDir string
+	if err := db.QueryRow(`
+		SELECT p.project_dir
+		FROM homepage_deployments d
+		JOIN homepage_projects p ON p.id = d.project_id
+		WHERE d.provider = 'caddy'
+	`).Scan(&recordedProjectDir); err != nil {
+		t.Fatalf("read recorded deployment project_dir: %v", err)
+	}
+	if recordedProjectDir != "sites/landing-page" {
+		t.Fatalf("recorded caddy project_dir = %q, want sites/landing-page", recordedProjectDir)
+	}
+}
+
 func TestDispatchHomepageWriteFileRecordsLedgerRevision(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Homepage.Enabled = true
