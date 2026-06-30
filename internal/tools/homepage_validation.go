@@ -124,6 +124,30 @@ func sanitizeProjectDir(projectDir string) error {
 	return nil
 }
 
+// NormalizeHomepageProjectIdentity returns the canonical registry identity for a
+// homepage project. It accepts only workspace-relative project directories.
+func NormalizeHomepageProjectIdentity(projectDir string, allowRoot bool) (string, error) {
+	projectDir = strings.TrimSpace(filepath.ToSlash(projectDir))
+	if projectDir == "" {
+		return "", fmt.Errorf("project_dir is required to register a homepage project")
+	}
+	if filepath.IsAbs(projectDir) || strings.HasPrefix(projectDir, "/") || strings.HasPrefix(projectDir, "\\") {
+		return "", fmt.Errorf("project_dir must be relative to the homepage workspace")
+	}
+	projectDir = strings.Trim(projectDir, "/")
+	if err := sanitizeProjectDir(projectDir); err != nil {
+		return "", err
+	}
+	projectDir = strings.Trim(filepath.ToSlash(filepath.Clean(filepath.FromSlash(projectDir))), "/")
+	if projectDir == "" || projectDir == "." {
+		if allowRoot {
+			return ".", nil
+		}
+		return "", fmt.Errorf(`project_dir "." is ambiguous for new homepage projects`)
+	}
+	return projectDir, nil
+}
+
 func validateHomepageProjectName(name string) error {
 	if name == "" {
 		return fmt.Errorf("project name is required")

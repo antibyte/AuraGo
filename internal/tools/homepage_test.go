@@ -158,6 +158,44 @@ func TestSanitizeProjectDir_AbsolutePathGuidance(t *testing.T) {
 	}
 }
 
+func TestNormalizeHomepageProjectIdentityRequiresProjectDir(t *testing.T) {
+	_, err := NormalizeHomepageProjectIdentity("", false)
+	if err == nil || !strings.Contains(err.Error(), "project_dir is required") {
+		t.Fatalf("expected project_dir required error, got %v", err)
+	}
+}
+
+func TestNormalizeHomepageProjectIdentityRejectsAmbiguousRoot(t *testing.T) {
+	_, err := NormalizeHomepageProjectIdentity(".", false)
+	if err == nil || !strings.Contains(err.Error(), "ambiguous") {
+		t.Fatalf("expected ambiguous root error, got %v", err)
+	}
+}
+
+func TestNormalizeHomepageProjectIdentityNormalizesSafeRelativePath(t *testing.T) {
+	got, err := NormalizeHomepageProjectIdentity("sites/site-a/", false)
+	if err != nil {
+		t.Fatalf("NormalizeHomepageProjectIdentity failed: %v", err)
+	}
+	if got != "sites/site-a" {
+		t.Fatalf("normalized project_dir = %q, want sites/site-a", got)
+	}
+}
+
+func TestNormalizeHomepageProjectIdentityRejectsTraversal(t *testing.T) {
+	_, err := NormalizeHomepageProjectIdentity("sites/../site-a", false)
+	if err == nil || !strings.Contains(err.Error(), "path traversal") {
+		t.Fatalf("expected path traversal error, got %v", err)
+	}
+}
+
+func TestNormalizeHomepageProjectIdentityRejectsAbsolutePath(t *testing.T) {
+	_, err := NormalizeHomepageProjectIdentity("/workspace/site-a", false)
+	if err == nil || !strings.Contains(err.Error(), "relative to the homepage workspace") {
+		t.Fatalf("expected absolute path error, got %v", err)
+	}
+}
+
 func TestValidateHomepageRelativePathArgGuidance(t *testing.T) {
 	err := validateHomepageRelativePathArg("/workspace/ki-news/src/app/page.tsx", "path")
 	if err == nil {
