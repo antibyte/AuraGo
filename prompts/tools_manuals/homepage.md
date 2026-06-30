@@ -314,7 +314,7 @@ Do **not** assume `/var/www/html`. Use `publish_local` or `webserver_start` inst
 
 ### webserver_start — Start local Caddy web server
 Serves the build output via Caddy (Docker required). Always pass `project_dir` for the project that should be public at `/`.
-Omission is only a recovery/status convenience for restoring an already published site; do not use it for build, publish, or deploy work.
+Omit `project_dir` only for recovery/status restoration of an already published site, or when intentionally using the single-project/plain-HTML auto-detect path. When the project is known, pass `project_dir`; do not omit it for ordinary build, publish, or deploy work.
 ```json
 {"action": "homepage", "operation": "webserver_start", "project_dir": "my-site"}
 ```
