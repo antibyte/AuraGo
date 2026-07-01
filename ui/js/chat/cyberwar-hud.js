@@ -7,24 +7,24 @@
     const BLIP_LIMIT = 5;
 
     let hud = null;
-    let panels = null;
     let messageCountEl = null;
     let tokenCountEl = null;
     let toolCountEl = null;
     let threatFillEl = null;
     let threatLevelEl = null;
     let radarFieldEl = null;
-    let securityBadgeEl = null;
     let agentNodeDot = null;
     let llmNodeDot = null;
     let vaultNodeDot = null;
     let webhooksNodeDot = null;
 
-    let counters = { messages: 0, tokens: 0, tools: 0 };
+    let counters = { messages: 0, tools: 0 };
     let threatLevel = 0;
     let threatDecayTimer = null;
+    let threatBumpDebounce = 0;
     let updateFrame = 0;
     let unsubscribeFns = [];
+    let _wired = false;
 
     const motionQuery = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
     const mobileQuery = window.matchMedia ? window.matchMedia('(max-width: 767px)') : null;
@@ -43,16 +43,27 @@
 
     function getConversationLength() {
         try {
-            if (Array.isArray(window.conversation)) return window.conversation.length;
-            if (typeof conversation !== 'undefined' && Array.isArray(conversation)) return conversation.length;
+            if (typeof conversation !== 'undefined' && Array.isArray(conversation)) {
+                return conversation.length;
+            }
         } catch (_) { /* ignore */ }
         return 0;
     }
 
-    function getTokenCount() {
+    function getTokenText() {
         const el = document.getElementById('tokenCounter');
         if (!el) return '';
         return (el.textContent || '').trim();
+    }
+
+    function formatTokenShort() {
+        const raw = getTokenText();
+        const match = raw.replace(/[^\d.,]/g, '');
+        const num = parseInt(match.replace(/[.,]/g, ''), 10);
+        if (!Number.isFinite(num) || num <= 0) return '0';
+        if (num >= 1000000) return (num / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+        if (num >= 1000) return (num / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
+        return String(num);
     }
 
     function readConnectionPillState() {
@@ -110,12 +121,13 @@
         const raf = window.requestAnimationFrame || ((cb) => window.setTimeout(cb, 16));
         updateFrame = raf(() => {
             updateFrame = 0;
-            counters.messages = getConversationLength();
-            updateCounter(messageCountEl, counters.messages);
-            const tk = getTokenCount();
-            if (tokenCountEl && tk) {
-                if (tokenCountEl.textContent !== tk) tokenCountEl.textContent = tk;
+            const next = getConversationLength();
+            if (next !== counters.messages) {
+                counters.messages = next;
+                updateCounter(messageCountEl, counters.messages);
             }
+            const tk = formatTokenShort();
+            if (tokenCountEl && tokenCountEl.textContent !== tk) tokenCountEl.textContent = tk;
             updateCounter(toolCountEl, counters.tools);
             updateThreatGauge();
             refreshNodes();
@@ -185,7 +197,13 @@
 
     function onConnectionEvent() {
         refreshNodes();
-        if (!window.AuraSSE || !window.AuraSSE.isConnected()) bumpThreat(1);
+        if (!window.AuraSSE || !window.AuraSSE.isConnected()) {
+            const now = Date.now();
+            if (now - threatBumpDebounce > 8000) {
+                threatBumpDebounce = now;
+                bumpThreat(1);
+            }
+        }
     }
 
     function wireSSE() {
@@ -248,20 +266,12 @@
     }
 
     function captureRefs() {
-        panels = {
-            nodes: hud.querySelector('[data-panel="nodes"]'),
-            threat: hud.querySelector('[data-panel="threat"]'),
-            counters: hud.querySelector('[data-panel="counters"]'),
-            radar: hud.querySelector('[data-panel="radar"]'),
-            security: hud.querySelector('[data-panel="security"]')
-        };
         messageCountEl = hud.querySelector('[data-counter="messages"]');
         tokenCountEl = hud.querySelector('[data-counter="tokens"]');
         toolCountEl = hud.querySelector('[data-counter="tools"]');
         threatFillEl = hud.querySelector('[data-threat-fill]');
         threatLevelEl = hud.querySelector('[data-threat-level]');
         radarFieldEl = hud.querySelector('[data-radar-field]');
-        securityBadgeEl = hud.querySelector('.hud-security-badge');
         agentNodeDot = hud.querySelector('[data-node="agent"] .hud-node-dot');
         llmNodeDot = hud.querySelector('[data-node="llm"] .hud-node-dot');
         vaultNodeDot = hud.querySelector('[data-node="vault"] .hud-node-dot');
@@ -286,18 +296,20 @@
     function destroyHUD() {
         if (hud && hud.parentElement) hud.parentElement.removeChild(hud);
         hud = null;
-        panels = null;
         messageCountEl = null;
         tokenCountEl = null;
         toolCountEl = null;
         threatFillEl = null;
         threatLevelEl = null;
         radarFieldEl = null;
-        securityBadgeEl = null;
         agentNodeDot = null;
         llmNodeDot = null;
         vaultNodeDot = null;
         webhooksNodeDot = null;
+        counters = { messages: 0, tools: 0 };
+        threatLevel = 0;
+        if (threatDecayTimer) { clearTimeout(threatDecayTimer); threatDecayTimer = null; }
+        if (updateFrame) { (window.cancelAnimationFrame || window.clearTimeout)(updateFrame); updateFrame = 0; }
     }
 
     function start() {
@@ -320,15 +332,21 @@
             if (chatBox) {
                 start();
             } else if (!sync._waiting) {
-                sync._waiting = true;
+                sync._waiting = { attempts: 0, timer: 0 };
                 const tryStart = () => {
-                    if (!shouldRun()) { sync._waiting = false; return; }
+                    const w = sync._waiting;
+                    if (!shouldRun()) { sync._waiting = null; return; }
                     if (document.getElementById(CHAT_BOX_ID)) {
-                        sync._waiting = false;
+                        sync._waiting = null;
                         start();
-                    } else {
-                        window.setTimeout(tryStart, 100);
+                        return;
                     }
+                    w.attempts += 1;
+                    if (w.attempts > 50) {
+                        sync._waiting = null;
+                        return;
+                    }
+                    w.timer = window.setTimeout(tryStart, 100);
                 };
                 tryStart();
             }
@@ -336,8 +354,6 @@
             stop();
         }
     }
-
-    let _wired = false;
 
     function init() {
         if (document.readyState === 'loading') {
