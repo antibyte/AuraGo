@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -545,7 +546,9 @@ func handleMeshCentralTest(s *Server) http.HandlerFunc {
 			})
 			return
 		}
-		if err := mc.Connect(); err != nil {
+		ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
+		defer cancel()
+		if err := mc.ConnectContext(ctx); err != nil {
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"status":  "error",
 				"message": "Connection failed",

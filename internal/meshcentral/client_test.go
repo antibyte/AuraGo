@@ -1,7 +1,9 @@
 package meshcentral
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -650,6 +652,48 @@ func TestConnect_Success(t *testing.T) {
 	c.Close()
 }
 
+func TestConnectContextHonorsCanceledContext(t *testing.T) {
+	srv := mockMeshServer(t, func(ws *websocket.Conn) {
+		for {
+			_, msg, err := ws.ReadMessage()
+			if err != nil {
+				return
+			}
+			var data map[string]interface{}
+			if err := json.Unmarshal(msg, &data); err != nil {
+				continue
+			}
+			if data["action"] == "serverinfo" {
+				rid, _ := data["reqid"].(float64)
+				ws.WriteJSON(map[string]interface{}{
+					"reqid":         int(rid),
+					"action":        "serverinfo",
+					"serverVersion": "1.2.3",
+				})
+			}
+		}
+	})
+	defer srv.Close()
+
+	c, err := NewClient(srv.URL, "admin", "pass", "", true)
+	if err != nil {
+		t.Fatalf("NewClient: %v", err)
+	}
+	c.SetLogger(testLogger())
+	defer c.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err = c.ConnectContext(ctx)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("ConnectContext error = %v, want context.Canceled", err)
+	}
+	if c.IsConnected() {
+		t.Fatal("client should not connect when context is already canceled")
+	}
+}
+
 func TestConnect_WebSocketHandshakeFails(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
@@ -1183,6 +1227,30 @@ func TestReadPump_DeliversByReqID(t *testing.T) {
 	}
 }
 
+func TestReadPumpNotifiesPendingRequestsOnDisconnect(t *testing.T) {
+	c, sConn, cleanup := clientWithWS(t)
+	defer cleanup()
+
+	pr := &pendingRequest{
+		action: "test",
+		ch:     make(chan response, 1),
+	}
+	c.reqsMu.Lock()
+	c.pendingReqs[7] = pr
+	c.reqsMu.Unlock()
+
+	_ = sConn.Close()
+
+	select {
+	case res := <-pr.ch:
+		if res.err == nil {
+			t.Fatal("expected disconnect error")
+		}
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("timed out waiting for pending request disconnect notification")
+	}
+}
+
 func TestReadPump_SkipsNonJSON(t *testing.T) {
 	_, sConn, cleanup := clientWithWS(t)
 	defer cleanup()
@@ -1218,7 +1286,7 @@ func TestHTTPLogin_NoCookies(t *testing.T) {
 	c, _ := NewClient(srv.URL, "admin", "pass", "", true)
 	c.SetLogger(testLogger())
 
-	err := c.httpLogin("admin")
+	err := c.httpLogin(context.Background(), "admin")
 	if err == nil {
 		t.Fatal("expected error when no cookies returned")
 	}
@@ -1239,7 +1307,7 @@ func TestHTTPLogin_BadStatus(t *testing.T) {
 	c, _ := NewClient(srv.URL, "admin", "pass", "", true)
 	c.SetLogger(testLogger())
 
-	err := c.httpLogin("admin")
+	err := c.httpLogin(context.Background(), "admin")
 	if err == nil {
 		t.Fatal("expected error for bad status")
 	}

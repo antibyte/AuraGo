@@ -97,8 +97,15 @@ func (c *Client) SetLogger(l *slog.Logger) {
 	c.logger = l
 }
 
-// log logs a message at Info level.
-func (c *Client) log(msg string, args ...interface{}) {
+// logf logs a formatted message at Info level.
+func (c *Client) logf(format string, args ...interface{}) {
+	if c.logger != nil {
+		c.logger.Info(fmt.Sprintf(format, args...))
+	}
+}
+
+// logAttrs logs a structured message at Info level.
+func (c *Client) logAttrs(msg string, args ...interface{}) {
 	if c.logger != nil {
 		c.logger.Info(msg, args...)
 	}
@@ -142,6 +149,15 @@ func (c *Client) Connect() error {
 // ConnectContext authenticates and opens the WebSocket connection to MeshCentral.
 // Supports context cancellation for timeouts and graceful shutdown.
 func (c *Client) ConnectContext(ctx context.Context) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
 	// Build the WebSocket URL
 	baseURL := strings.TrimSuffix(c.url, "/")
 	u, err := url.Parse(baseURL + "/control.ashx")
@@ -157,7 +173,7 @@ func (c *Client) ConnectContext(ctx context.Context) error {
 		u.Scheme = "wss"
 	}
 
-	c.log("[MeshCentral] Connecting to %s", c.url)
+	c.logf("[MeshCentral] Connecting to %s", c.url)
 
 	header := http.Header{}
 
@@ -167,27 +183,27 @@ func (c *Client) ConnectContext(ctx context.Context) error {
 	// The loginToken field contains the token name (with or without ~t: prefix)
 	// The password field contains the actual token secret
 	case c.loginToken != "" && c.password != "":
-		c.log("[MeshCentral] Auth: Login Token")
+		c.logf("[MeshCentral] Auth: Login Token")
 		loginUser := c.loginToken
 		if !strings.HasPrefix(loginUser, "~t:") {
 			loginUser = "~t:" + loginUser
 		}
-		if err := c.httpLogin(loginUser); err != nil {
+		if err := c.httpLogin(ctx, loginUser); err != nil {
 			return fmt.Errorf("login with token failed: %w", err)
 		}
 		c.addAuthCookies(header)
 
 	// Strategy 2: Username + Password
 	case c.username != "" && c.password != "":
-		c.log("[MeshCentral] Auth: Username/Password")
-		if err := c.httpLogin(c.username); err != nil {
+		c.logf("[MeshCentral] Auth: Username/Password")
+		if err := c.httpLogin(ctx, c.username); err != nil {
 			return fmt.Errorf("login with username/password failed: %w", err)
 		}
 		c.addAuthCookies(header)
 
 	// Strategy 3: Unauthenticated (will likely fail)
 	default:
-		c.log("[MeshCentral] Auth: None (unauthenticated)")
+		c.logf("[MeshCentral] Auth: None (unauthenticated)")
 	}
 
 	// Dial WebSocket with authentication cookies
@@ -196,7 +212,7 @@ func (c *Client) ConnectContext(ctx context.Context) error {
 		HandshakeTimeout: 10 * time.Second,
 	}
 
-	ws, resp, err := dialer.Dial(u.String(), header)
+	ws, resp, err := dialer.DialContext(ctx, u.String(), header)
 	if err != nil {
 		if resp != nil {
 			body, _ := io.ReadAll(resp.Body)
@@ -222,21 +238,23 @@ func (c *Client) ConnectContext(ctx context.Context) error {
 	// Verify connection by requesting serverinfo
 	reqid, err := c.Send(map[string]interface{}{"action": "serverinfo"})
 	if err != nil {
+		c.Close()
 		return fmt.Errorf("failed to send serverinfo request: %w", err)
 	}
 
-	res, err := c.WaitForReq(reqid, "serverinfo", 10*time.Second)
+	res, err := c.WaitForReqContext(ctx, reqid, "serverinfo", 10*time.Second)
 	if err != nil {
+		c.Close()
 		return fmt.Errorf("serverinfo verification failed: %w", err)
 	}
 
-	c.log("[MeshCentral] Connected (server version: %v)", res["serverVersion"])
+	c.logf("[MeshCentral] Connected (server version: %v)", res["serverVersion"])
 	return nil
 }
 
 // httpLogin performs HTTP POST to /login to obtain session cookies.
 // For token auth: username should be "~t:tokenname", password is the token secret.
-func (c *Client) httpLogin(loginUser string) error {
+func (c *Client) httpLogin(ctx context.Context, loginUser string) error {
 	baseURL := strings.TrimSuffix(c.url, "/")
 	u, err := url.Parse(baseURL + "/login")
 	if err != nil {
@@ -265,14 +283,18 @@ func (c *Client) httpLogin(loginUser string) error {
 
 	// Get CSRF nonce from login page
 	var nonce string
-	if getResp, err := httpClient.Get(loginURL); err == nil {
+	getReq, err := http.NewRequestWithContext(ctx, http.MethodGet, loginURL, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create login page request: %w", err)
+	}
+	if getResp, err := httpClient.Do(getReq); err == nil {
 		pageBytes, _ := io.ReadAll(io.LimitReader(getResp.Body, 32*1024))
 		getResp.Body.Close()
 		if m := regexp.MustCompile(`random="([^"]+)"`).FindSubmatch(pageBytes); len(m) == 2 {
 			nonce = string(m[1])
 		}
 	} else {
-		c.log("[MeshCentral] Warning: failed to fetch CSRF nonce: %v", err)
+		c.logf("[MeshCentral] Warning: failed to fetch CSRF nonce: %v", err)
 	}
 
 	// Determine content type based on auth method
@@ -297,7 +319,7 @@ func (c *Client) httpLogin(loginUser string) error {
 		bodyData, _ = json.Marshal(payload)
 	}
 
-	req, err := http.NewRequest("POST", loginURL, bytes.NewBuffer(bodyData))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, loginURL, bytes.NewBuffer(bodyData))
 	if err != nil {
 		return fmt.Errorf("failed to create login request: %w", err)
 	}
@@ -376,7 +398,7 @@ func (c *Client) Close() {
 		}
 		c.reqsMu.Unlock()
 
-		c.log("[MeshCentral] Client closed")
+		c.logf("[MeshCentral] Client closed")
 	})
 }
 
@@ -399,7 +421,13 @@ func (c *Client) readPump() {
 
 		_, msg, err := ws.ReadMessage()
 		if err != nil {
-			c.log("[MeshCentral] WebSocket read error: %v", err)
+			c.logf("[MeshCentral] WebSocket read error: %v", err)
+			c.wsMu.Lock()
+			if c.ws == ws {
+				c.ws = nil
+			}
+			c.wsMu.Unlock()
+			c.failPendingRequests(fmt.Errorf("websocket disconnected: %w", err))
 			return
 		}
 
@@ -410,7 +438,7 @@ func (c *Client) readPump() {
 
 		var data map[string]interface{}
 		if err := json.Unmarshal(msg, &data); err != nil {
-			c.log("[MeshCentral] Failed to parse JSON message: %v", err)
+			c.logf("[MeshCentral] Failed to parse JSON message: %v", err)
 			continue
 		}
 
@@ -438,7 +466,7 @@ func (c *Client) readPump() {
 					select {
 					case pr.ch <- response{data: data}:
 						delivered = true
-						c.log("[MeshCentral] Delivered response to reqid %d (action=%s)", reqid, action)
+						c.logf("[MeshCentral] Delivered response to reqid %d (action=%s)", reqid, action)
 					default:
 						// Channel full, skip (shouldn't happen with buffered channels)
 					}
@@ -450,7 +478,7 @@ func (c *Client) readPump() {
 		// Fallback: route events by eventType if no reqid match
 		if !delivered && action == "event" {
 			if eventType, ok := data["eventType"].(string); ok {
-				c.log("[MeshCentral] Received event", "eventType", eventType)
+				c.logAttrs("[MeshCentral] Received event", "eventType", eventType)
 				// Note: Events don't have reqid, so we can't route them properly
 				// without additional event subscription mechanism
 			}
@@ -458,8 +486,20 @@ func (c *Client) readPump() {
 
 		// Debug logging for unhandled non-event messages
 		if !delivered && action != "" && action != "ping" && action != "pong" && action != "serverinfo" {
-			c.log("[MeshCentral] Unmatched message", "action", action, "reqid", reqid)
+			c.logAttrs("[MeshCentral] Unmatched message", "action", action, "reqid", reqid)
 		}
+	}
+}
+
+func (c *Client) failPendingRequests(err error) {
+	c.reqsMu.Lock()
+	defer c.reqsMu.Unlock()
+	for reqid, pr := range c.pendingReqs {
+		select {
+		case pr.ch <- response{err: err}:
+		default:
+		}
+		delete(c.pendingReqs, reqid)
 	}
 }
 
@@ -503,6 +543,14 @@ func (c *Client) Send(cmd map[string]interface{}) (int, error) {
 // WaitForReq waits for a response with the given reqid.
 // This is the low-level primitive that readPump delivers to via reqid routing.
 func (c *Client) WaitForReq(reqid int, action string, timeout time.Duration) (map[string]interface{}, error) {
+	return c.WaitForReqContext(context.Background(), reqid, action, timeout)
+}
+
+// WaitForReqContext waits for a response with the given reqid or context cancellation.
+func (c *Client) WaitForReqContext(ctx context.Context, reqid int, action string, timeout time.Duration) (map[string]interface{}, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	c.reqsMu.Lock()
 	if c.pendingReqs[reqid] == nil {
 		c.pendingReqs[reqid] = &pendingRequest{
@@ -512,6 +560,9 @@ func (c *Client) WaitForReq(reqid int, action string, timeout time.Duration) (ma
 	}
 	pr := c.pendingReqs[reqid]
 	c.reqsMu.Unlock()
+
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
 
 	select {
 	case res := <-pr.ch:
@@ -525,7 +576,7 @@ func (c *Client) WaitForReq(reqid int, action string, timeout time.Duration) (ma
 			return nil, res.err
 		}
 		return res.data, nil
-	case <-time.After(timeout):
+	case <-timer.C:
 		c.reqsMu.Lock()
 		if c.pendingReqs[reqid] == pr {
 			delete(c.pendingReqs, reqid)
@@ -533,6 +584,14 @@ func (c *Client) WaitForReq(reqid int, action string, timeout time.Duration) (ma
 		close(pr.ch)
 		c.reqsMu.Unlock()
 		return nil, fmt.Errorf("timeout waiting for reqid %d (action=%s)", reqid, action)
+	case <-ctx.Done():
+		c.reqsMu.Lock()
+		if c.pendingReqs[reqid] == pr {
+			delete(c.pendingReqs, reqid)
+		}
+		close(pr.ch)
+		c.reqsMu.Unlock()
+		return nil, ctx.Err()
 	case <-c.done:
 		c.reqsMu.Lock()
 		if c.pendingReqs[reqid] == pr {

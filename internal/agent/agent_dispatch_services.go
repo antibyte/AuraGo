@@ -19,9 +19,19 @@ var (
 	dispatchPreferredMCPVision     = tools.CallPreferredMCPVision
 	dispatchAnalyzeImageWithPrompt = tools.AnalyzeImageWithPrompt
 
-	meshCentralCachedClient *meshcentral.CachedClient
-	meshCentralClientMu     sync.Mutex
+	meshCentralCachedClient    *meshcentral.CachedClient
+	meshCentralCachedConfig    meshCentralClientConfig
+	meshCentralCachedConfigSet bool
+	meshCentralClientMu        sync.Mutex
 )
+
+type meshCentralClientConfig struct {
+	url        string
+	username   string
+	password   string
+	loginToken string
+	insecure   bool
+}
 
 // autoAddHomepageHistory records a project history entry when a mutating homepage
 // operation succeeds. It swallows errors so that history logging never breaks the
@@ -226,14 +236,28 @@ func CloseMeshCentralClient() {
 		meshCentralCachedClient.Close()
 		meshCentralCachedClient = nil
 	}
+	meshCentralCachedConfig = meshCentralClientConfig{}
+	meshCentralCachedConfigSet = false
 }
 
 func getMeshCentralClient(url, username, password, loginToken string, insecure bool, logger *slog.Logger) *meshcentral.CachedClient {
 	meshCentralClientMu.Lock()
 	defer meshCentralClientMu.Unlock()
 
-	if meshCentralCachedClient == nil {
+	cfg := meshCentralClientConfig{
+		url:        url,
+		username:   username,
+		password:   password,
+		loginToken: loginToken,
+		insecure:   insecure,
+	}
+	if meshCentralCachedClient == nil || !meshCentralCachedConfigSet || meshCentralCachedConfig != cfg {
+		if meshCentralCachedClient != nil {
+			meshCentralCachedClient.Close()
+		}
 		meshCentralCachedClient = meshcentral.NewCachedClient(url, username, password, loginToken, insecure, logger)
+		meshCentralCachedConfig = cfg
+		meshCentralCachedConfigSet = true
 	} else {
 		meshCentralCachedClient.SetLogger(logger)
 	}
@@ -343,13 +367,13 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			// Attempt to resolve password/token from vault if missing
 			token := cfg.MeshCentral.LoginToken
 			pass := cfg.MeshCentral.Password
-			if token == "" {
+			if token == "" && vault != nil {
 				vToken, _ := vault.ReadSecret("meshcentral_token")
 				if vToken != "" {
 					token = vToken
 				}
 			}
-			if pass == "" {
+			if pass == "" && vault != nil {
 				vPass, _ := vault.ReadSecret("meshcentral_password")
 				if vPass != "" {
 					pass = vPass
@@ -416,7 +440,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				if !strings.HasPrefix(req.NodeID, "node//") {
 					return `Tool Output: {"status": "error", "message": "invalid node_id: must start with 'node//'"}`
 				}
-				logger.Info("MeshCentral run_command", "node_id", req.NodeID, "command", req.Command, "session_id", sessionID)
+				logger.Info("MeshCentral run_command", "node_id", req.NodeID, "command_length", len(req.Command), "session_id", sessionID)
 				result, err := mcClient.RunCommand(req.NodeID, req.Command)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Failed to run command: %v"}`, err)
@@ -432,7 +456,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				if !strings.HasPrefix(req.NodeID, "node//") {
 					return `Tool Output: {"status": "error", "message": "invalid node_id: must start with 'node//'"}`
 				}
-				logger.Info("MeshCentral shell", "node_id", req.NodeID, "command", req.Command, "session_id", sessionID)
+				logger.Info("MeshCentral shell", "node_id", req.NodeID, "command_length", len(req.Command), "session_id", sessionID)
 				result, err := mcClient.Shell(req.NodeID, req.Command)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Failed to execute shell command: %v"}`, err)
