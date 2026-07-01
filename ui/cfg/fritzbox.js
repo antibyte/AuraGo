@@ -208,7 +208,7 @@ function fbTestConnection() {
             if (res.status === 'ok') {
                 result.className = 'adg-test-result is-success';
                 result.textContent = t('config.fritzbox.test_ok') + (res.model ? ' — ' + res.model : '');
-                fbCheckStatus();
+                fbSetBanner('success', t('config.fritzbox.status_ok') + (res.model ? ' — ' + res.model : ''));
             } else {
                 result.className = 'adg-test-result is-danger';
                 result.textContent = res.message || t('config.fritzbox.test_fail');

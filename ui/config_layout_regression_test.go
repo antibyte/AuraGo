@@ -351,6 +351,19 @@ func TestConfigPhase3FritzboxGitHub(t *testing.T) {
 	if strings.Contains(fritzboxJS, "cfg-status-banner") {
 		t.Fatal("fritzbox.js should use adg-status-banner instead of cfg-status-banner")
 	}
+	successStart := strings.Index(fritzboxJS, "if (res.status === 'ok') {")
+	if successStart < 0 {
+		t.Fatal("fritzbox.js missing test success branch")
+	}
+	successBranch := fritzboxJS[successStart:]
+	successEnd := strings.Index(successBranch, "} else {")
+	if successEnd < 0 {
+		t.Fatal("fritzbox.js missing test failure branch after success branch")
+	}
+	successBranch = successBranch[:successEnd]
+	if strings.Contains(successBranch, "fbCheckStatus()") {
+		t.Fatal("fritzbox.js should not replace a successful form-value test with saved-config status")
+	}
 
 	githubJS := normalizeAssetText(mustReadUIFile(t, "cfg/github.js"))
 	for _, marker := range []string{

@@ -88,6 +88,18 @@ func TestFritzBoxTestAcceptsTLSOverrideWithSelfSignedCertificate(t *testing.T) {
 	}
 }
 
+func TestFritzBoxTestOverridesAllowWebPortZero(t *testing.T) {
+	cfg := config.Config{}
+	cfg.FritzBox.WebPort = 8443
+
+	zero := 0
+	applyFritzBoxTestOverrides(&cfg, fritzBoxTestRequest{WebPort: &zero})
+
+	if cfg.FritzBox.WebPort != 0 {
+		t.Fatalf("web_port override = %d, want 0", cfg.FritzBox.WebPort)
+	}
+}
+
 func newTR064InfoServer(t *testing.T, tls bool) *httptest.Server {
 	t.Helper()
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

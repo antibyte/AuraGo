@@ -9,8 +9,19 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"aurago/internal/config"
 	"aurago/internal/fritzbox"
 )
+
+type fritzBoxTestRequest struct {
+	Host               string `json:"host"`
+	Port               int    `json:"port"`
+	HTTPS              *bool  `json:"https"`
+	WebPort            *int   `json:"web_port"`
+	InsecureSkipVerify *bool  `json:"insecure_skip_verify"`
+	Username           string `json:"username"`
+	Password           string `json:"password"`
+}
 
 // handleFritzBoxStatus returns a brief status object for the Fritz!Box config panel.
 func handleFritzBoxStatus(s *Server) http.HandlerFunc {
@@ -82,7 +93,7 @@ func handleFritzBoxStatus(s *Server) http.HandlerFunc {
 }
 
 // handleFritzBoxTest tests the Fritz!Box connection.
-// Accepts an optional JSON body {host, port, https, username, password};
+// Accepts an optional JSON body {host, port, https, web_port, insecure_skip_verify, username, password};
 // any omitted/empty field falls back to the saved config / vault value.
 func handleFritzBoxTest(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -93,15 +104,7 @@ func handleFritzBoxTest(s *Server) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 
 		// Parse optional override body.
-		var body struct {
-			Host               string `json:"host"`
-			Port               int    `json:"port"`
-			HTTPS              *bool  `json:"https"`
-			WebPort            int    `json:"web_port"`
-			InsecureSkipVerify *bool  `json:"insecure_skip_verify"`
-			Username           string `json:"username"`
-			Password           string `json:"password"`
-		}
+		var body fritzBoxTestRequest
 		_ = json.NewDecoder(r.Body).Decode(&body)
 
 		// Build test config from saved config + overrides.
@@ -109,27 +112,7 @@ func handleFritzBoxTest(s *Server) http.HandlerFunc {
 		testCfg := *s.Cfg // shallow copy
 		s.CfgMu.RUnlock()
 
-		if body.Host != "" {
-			testCfg.FritzBox.Host = body.Host
-		}
-		if body.Port != 0 {
-			testCfg.FritzBox.Port = body.Port
-		}
-		if body.HTTPS != nil {
-			testCfg.FritzBox.HTTPS = *body.HTTPS
-		}
-		if body.WebPort != 0 {
-			testCfg.FritzBox.WebPort = body.WebPort
-		}
-		if body.InsecureSkipVerify != nil {
-			testCfg.FritzBox.InsecureSkipVerify = *body.InsecureSkipVerify
-		}
-		if body.Username != "" {
-			testCfg.FritzBox.Username = body.Username
-		}
-		if body.Password != "" {
-			testCfg.FritzBox.Password = body.Password
-		}
+		applyFritzBoxTestOverrides(&testCfg, body)
 
 		// Vault fallback for password.
 		if testCfg.FritzBox.Password == "" && s.Vault != nil {
@@ -176,5 +159,29 @@ func handleFritzBoxTest(s *Server) http.HandlerFunc {
 			"model":    info.ModelName,
 			"firmware": info.SoftwareVersion,
 		})
+	}
+}
+
+func applyFritzBoxTestOverrides(testCfg *config.Config, body fritzBoxTestRequest) {
+	if body.Host != "" {
+		testCfg.FritzBox.Host = body.Host
+	}
+	if body.Port != 0 {
+		testCfg.FritzBox.Port = body.Port
+	}
+	if body.HTTPS != nil {
+		testCfg.FritzBox.HTTPS = *body.HTTPS
+	}
+	if body.WebPort != nil {
+		testCfg.FritzBox.WebPort = *body.WebPort
+	}
+	if body.InsecureSkipVerify != nil {
+		testCfg.FritzBox.InsecureSkipVerify = *body.InsecureSkipVerify
+	}
+	if body.Username != "" {
+		testCfg.FritzBox.Username = body.Username
+	}
+	if body.Password != "" {
+		testCfg.FritzBox.Password = body.Password
 	}
 }
