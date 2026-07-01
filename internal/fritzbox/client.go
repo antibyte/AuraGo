@@ -4,7 +4,11 @@
 package fritzbox
 
 import (
+	"crypto/tls"
 	"fmt"
+	"net"
+	"net/http"
+	"strconv"
 	"time"
 
 	"aurago/internal/config"
@@ -32,11 +36,11 @@ func NewClient(cfg config.Config) (*Client, error) {
 	}
 
 	baseURL := buildBaseURL(fb.Host, fb.Port, fb.HTTPS)
-	webURL := buildWebURL(fb.Host, fb.HTTPS) // SID/AHA use the web interface port (80/443), not TR-064 (49000)
+	webURL := buildWebURL(fb.Host, fb.HTTPS, fb.WebPort) // SID/AHA use the web interface port, not TR-064 (49000)
 	timeout := time.Duration(fb.Timeout) * time.Second
 
-	tr := newTR064Client(baseURL, fb.Username, fb.Password, timeout)
-	aha := newAHAClient(webURL, fb.Username, fb.Password, timeout)
+	tr := newTR064Client(baseURL, fb.Username, fb.Password, timeout, fb.InsecureSkipVerify)
+	aha := newAHAClient(webURL, fb.Username, fb.Password, timeout, fb.InsecureSkipVerify)
 
 	return &Client{
 		Cfg:    cfg,
@@ -103,10 +107,25 @@ func buildBaseURL(host string, port int, useHTTPS bool) string {
 }
 
 // buildWebURL constructs the base URL for the Fritz!Box web interface (login_sid.lua, AHA-HTTP).
-// The web interface always runs on the standard port (80 for HTTP, 443 for HTTPS).
-func buildWebURL(host string, useHTTPS bool) string {
+// webPort 0 means the scheme's default port (80 for HTTP, 443 for HTTPS).
+func buildWebURL(host string, useHTTPS bool, webPort int) string {
 	if useHTTPS {
-		return fmt.Sprintf("https://%s", host)
+		return fmt.Sprintf("https://%s", hostWithOptionalPort(host, webPort))
 	}
-	return fmt.Sprintf("http://%s", host)
+	return fmt.Sprintf("http://%s", hostWithOptionalPort(host, webPort))
+}
+
+func hostWithOptionalPort(host string, port int) string {
+	if port <= 0 {
+		return host
+	}
+	return net.JoinHostPort(host, strconv.Itoa(port))
+}
+
+func newHTTPTransport(insecureSkipVerify bool) http.RoundTripper {
+	base := http.DefaultTransport.(*http.Transport).Clone()
+	if insecureSkipVerify {
+		base.TLSClientConfig = &tls.Config{InsecureSkipVerify: true} //nolint:gosec // User-configured for trusted Fritz!Box LAN certificates.
+	}
+	return base
 }

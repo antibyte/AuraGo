@@ -88,6 +88,9 @@ func fbSystemOp(c *fritzbox.Client, op string, logger *slog.Logger) string {
 	}
 	switch op {
 	case "get_info":
+		if !c.Cfg.FritzBox.System.SubFeatures.DeviceInfo {
+			return fbSubFeatureDisabled("device_info")
+		}
 		logger.Info("LLM requested Fritz!Box system info")
 		info, err := c.GetSystemInfo()
 		if err != nil {
@@ -101,6 +104,9 @@ func fbSystemOp(c *fritzbox.Client, op string, logger *slog.Logger) string {
 			"serial":         info.Serial,
 		})
 	case "get_log":
+		if !c.Cfg.FritzBox.System.SubFeatures.Log {
+			return fbSubFeatureDisabled("log")
+		}
 		logger.Info("LLM requested Fritz!Box system log")
 		lines, err := c.GetSystemLog()
 		if err != nil {
@@ -131,6 +137,9 @@ func fbNetworkOp(c *fritzbox.Client, req fritzBoxArgs, op string, logger *slog.L
 	}
 	switch op {
 	case "get_wlan":
+		if !c.Cfg.FritzBox.Network.SubFeatures.WLAN {
+			return fbSubFeatureDisabled("wlan")
+		}
 		idx := req.WLANIndex
 		if idx == 0 {
 			idx = 1
@@ -143,6 +152,9 @@ func fbNetworkOp(c *fritzbox.Client, req fritzBoxArgs, op string, logger *slog.L
 		return fbOK(info)
 
 	case "set_wlan":
+		if !c.Cfg.FritzBox.Network.SubFeatures.WLAN {
+			return fbSubFeatureDisabled("wlan")
+		}
 		if c.NetworkReadOnly() {
 			return `Tool Output: {"status":"error","message":"Fritz!Box network is in read-only mode."}`
 		}
@@ -157,6 +169,9 @@ func fbNetworkOp(c *fritzbox.Client, req fritzBoxArgs, op string, logger *slog.L
 		return fbOK(map[string]interface{}{"wlan_index": idx, "enabled": req.Enabled})
 
 	case "get_hosts":
+		if !c.Cfg.FritzBox.Network.SubFeatures.Hosts {
+			return fbSubFeatureDisabled("hosts")
+		}
 		logger.Info("LLM requested Fritz!Box host list")
 		hosts, err := c.GetHostList()
 		if err != nil {
@@ -165,6 +180,9 @@ func fbNetworkOp(c *fritzbox.Client, req fritzBoxArgs, op string, logger *slog.L
 		return fbOK(map[string]interface{}{"count": len(hosts), "hosts": hosts})
 
 	case "wake_on_lan":
+		if !c.Cfg.FritzBox.Network.SubFeatures.WakeOnLAN {
+			return fbSubFeatureDisabled("wake_on_lan")
+		}
 		if c.NetworkReadOnly() {
 			return `Tool Output: {"status":"error","message":"Fritz!Box network is in read-only mode."}`
 		}
@@ -179,6 +197,9 @@ func fbNetworkOp(c *fritzbox.Client, req fritzBoxArgs, op string, logger *slog.L
 		return fbOK(map[string]interface{}{"sent": true, "mac": mac})
 
 	case "get_port_forwards":
+		if !c.Cfg.FritzBox.Network.SubFeatures.PortForwarding {
+			return fbSubFeatureDisabled("port_forwarding")
+		}
 		logger.Info("LLM requested Fritz!Box port forwarding list")
 		list, err := c.GetPortForwardingList()
 		if err != nil {
@@ -187,6 +208,9 @@ func fbNetworkOp(c *fritzbox.Client, req fritzBoxArgs, op string, logger *slog.L
 		return fbOK(map[string]interface{}{"count": len(list), "port_forwards": list})
 
 	case "add_port_forward":
+		if !c.Cfg.FritzBox.Network.SubFeatures.PortForwarding {
+			return fbSubFeatureDisabled("port_forwarding")
+		}
 		if c.NetworkReadOnly() {
 			return `Tool Output: {"status":"error","message":"Fritz!Box network is in read-only mode."}`
 		}
@@ -209,6 +233,9 @@ func fbNetworkOp(c *fritzbox.Client, req fritzBoxArgs, op string, logger *slog.L
 		return fbOK(map[string]interface{}{"added": true})
 
 	case "delete_port_forward":
+		if !c.Cfg.FritzBox.Network.SubFeatures.PortForwarding {
+			return fbSubFeatureDisabled("port_forwarding")
+		}
 		if c.NetworkReadOnly() {
 			return `Tool Output: {"status":"error","message":"Fritz!Box network is in read-only mode."}`
 		}
@@ -236,6 +263,9 @@ func fbTelephonyOp(c *fritzbox.Client, req fritzBoxArgs, op string, cfg *config.
 	}
 	switch op {
 	case "get_call_list":
+		if !c.Cfg.FritzBox.Telephony.SubFeatures.CallLists {
+			return fbSubFeatureDisabled("call_lists")
+		}
 		logger.Info("LLM requested Fritz!Box call list")
 		calls, err := c.GetCallList()
 		if err != nil {
@@ -249,6 +279,9 @@ func fbTelephonyOp(c *fritzbox.Client, req fritzBoxArgs, op string, cfg *config.
 		})
 
 	case "get_phonebooks":
+		if !c.Cfg.FritzBox.Telephony.SubFeatures.Phonebooks {
+			return fbSubFeatureDisabled("phonebooks")
+		}
 		logger.Info("LLM requested Fritz!Box phonebook list")
 		ids, err := c.GetPhonebookList()
 		if err != nil {
@@ -257,6 +290,9 @@ func fbTelephonyOp(c *fritzbox.Client, req fritzBoxArgs, op string, cfg *config.
 		return fbOK(map[string]interface{}{"phonebook_ids": ids})
 
 	case "get_phonebook_entries":
+		if !c.Cfg.FritzBox.Telephony.SubFeatures.Phonebooks {
+			return fbSubFeatureDisabled("phonebooks")
+		}
 		logger.Info("LLM requested Fritz!Box phonebook entries", "id", req.PhonebookID)
 		entries, err := c.GetPhonebookEntries(req.PhonebookID)
 		if err != nil {
@@ -269,6 +305,9 @@ func fbTelephonyOp(c *fritzbox.Client, req fritzBoxArgs, op string, cfg *config.
 		})
 
 	case "get_tam_messages":
+		if !c.Cfg.FritzBox.Telephony.SubFeatures.TAM {
+			return fbSubFeatureDisabled("tam")
+		}
 		logger.Info("LLM requested Fritz!Box TAM messages", "tam", req.TamIndex)
 		msgs, err := c.GetTAMList(req.TamIndex)
 		if err != nil {
@@ -281,6 +320,9 @@ func fbTelephonyOp(c *fritzbox.Client, req fritzBoxArgs, op string, cfg *config.
 		})
 
 	case "mark_tam_message_read":
+		if !c.Cfg.FritzBox.Telephony.SubFeatures.TAM {
+			return fbSubFeatureDisabled("tam")
+		}
 		if c.TelephonyReadOnly() {
 			return `Tool Output: {"status":"error","message":"Fritz!Box telephony is in read-only mode."}`
 		}
@@ -291,6 +333,9 @@ func fbTelephonyOp(c *fritzbox.Client, req fritzBoxArgs, op string, cfg *config.
 		return fbOK(map[string]interface{}{"marked_read": true})
 
 	case "get_tam_message_url":
+		if !c.Cfg.FritzBox.Telephony.SubFeatures.TAM {
+			return fbSubFeatureDisabled("tam")
+		}
 		logger.Info("LLM requested Fritz!Box TAM message URL (diagnostic)", "tam", req.TamIndex, "msg", req.MsgIndex)
 		audioURL, err := c.GetTAMMessageURL(req.TamIndex, req.MsgIndex)
 		if err != nil {
@@ -304,6 +349,9 @@ func fbTelephonyOp(c *fritzbox.Client, req fritzBoxArgs, op string, cfg *config.
 		})
 
 	case "download_tam_message":
+		if !c.Cfg.FritzBox.Telephony.SubFeatures.TAM {
+			return fbSubFeatureDisabled("tam")
+		}
 		logger.Info("LLM requested Fritz!Box TAM audio download", "tam", req.TamIndex, "msg", req.MsgIndex)
 		destDir := filepath.Join(cfg.Directories.WorkspaceDir, "workdir", "tam")
 		if err := os.MkdirAll(destDir, 0o750); err != nil {
@@ -319,6 +367,9 @@ func fbTelephonyOp(c *fritzbox.Client, req fritzBoxArgs, op string, cfg *config.
 		})
 
 	case "transcribe_tam_message":
+		if !c.Cfg.FritzBox.Telephony.SubFeatures.TAM {
+			return fbSubFeatureDisabled("tam")
+		}
 		logger.Info("LLM requested Fritz!Box TAM transcription", "tam", req.TamIndex, "msg", req.MsgIndex)
 		tmpDir := filepath.Join(cfg.Directories.WorkspaceDir, "workdir", "tam")
 		if err := os.MkdirAll(tmpDir, 0o750); err != nil {
@@ -358,6 +409,9 @@ func fbSmartHomeOp(c *fritzbox.Client, req fritzBoxArgs, op string, logger *slog
 	}
 	switch op {
 	case "get_devices":
+		if !c.Cfg.FritzBox.SmartHome.SubFeatures.Devices {
+			return fbSubFeatureDisabled("devices")
+		}
 		logger.Info("LLM requested Fritz!Box smart home device list")
 		devs, err := c.GetSmartHomeDevices()
 		if err != nil {
@@ -366,6 +420,9 @@ func fbSmartHomeOp(c *fritzbox.Client, req fritzBoxArgs, op string, logger *slog
 		return fbOK(map[string]interface{}{"count": len(devs), "devices": devs})
 
 	case "set_switch":
+		if !c.Cfg.FritzBox.SmartHome.SubFeatures.Switches {
+			return fbSubFeatureDisabled("switches")
+		}
 		if c.SmartHomeReadOnly() {
 			return `Tool Output: {"status":"error","message":"Fritz!Box smart home is in read-only mode."}`
 		}
@@ -379,6 +436,9 @@ func fbSmartHomeOp(c *fritzbox.Client, req fritzBoxArgs, op string, logger *slog
 		return fbOK(map[string]interface{}{"ain": req.AIN, "on": req.Enabled})
 
 	case "set_heating":
+		if !c.Cfg.FritzBox.SmartHome.SubFeatures.Heating {
+			return fbSubFeatureDisabled("heating")
+		}
 		if c.SmartHomeReadOnly() {
 			return `Tool Output: {"status":"error","message":"Fritz!Box smart home is in read-only mode."}`
 		}
@@ -392,6 +452,9 @@ func fbSmartHomeOp(c *fritzbox.Client, req fritzBoxArgs, op string, logger *slog
 		return fbOK(map[string]interface{}{"ain": req.AIN, "target_temp_c": req.TempC})
 
 	case "set_brightness":
+		if !c.Cfg.FritzBox.SmartHome.SubFeatures.Lamps {
+			return fbSubFeatureDisabled("lamps")
+		}
 		if c.SmartHomeReadOnly() {
 			return `Tool Output: {"status":"error","message":"Fritz!Box smart home is in read-only mode."}`
 		}
@@ -405,25 +468,32 @@ func fbSmartHomeOp(c *fritzbox.Client, req fritzBoxArgs, op string, logger *slog
 		return fbOK(map[string]interface{}{"ain": req.AIN, "brightness_pct": req.Brightness})
 
 	case "get_templates":
+		if !c.Cfg.FritzBox.SmartHome.SubFeatures.Templates {
+			return fbSubFeatureDisabled("templates")
+		}
 		logger.Info("LLM requested Fritz!Box smart home templates")
-		names, err := c.GetSmartHomeTemplates()
+		templates, err := c.GetSmartHomeTemplates()
 		if err != nil {
 			return fbError("get_templates", err)
 		}
-		return fbOK(map[string]interface{}{"count": len(names), "templates": names})
+		return fbOK(map[string]interface{}{"count": len(templates), "templates": templates})
 
 	case "apply_template":
+		if !c.Cfg.FritzBox.SmartHome.SubFeatures.Templates {
+			return fbSubFeatureDisabled("templates")
+		}
 		if c.SmartHomeReadOnly() {
 			return `Tool Output: {"status":"error","message":"Fritz!Box smart home is in read-only mode."}`
 		}
-		if req.AIN == "" {
-			return `Tool Output: {"status":"error","message":"ain (template ID) is required for apply_template"}`
+		templateID := firstNonEmptyToolString(req.TemplateID, req.AIN)
+		if templateID == "" {
+			return `Tool Output: {"status":"error","message":"template_id is required for apply_template"}`
 		}
-		logger.Info("LLM requested Fritz!Box apply template", "ain", req.AIN)
-		if err := c.ApplySmartHomeTemplate(req.AIN); err != nil {
+		logger.Info("LLM requested Fritz!Box apply template", "template_id", templateID)
+		if err := c.ApplySmartHomeTemplate(templateID); err != nil {
 			return fbError("apply_template", err)
 		}
-		return fbOK(map[string]interface{}{"applied": true, "template_id": req.AIN})
+		return fbOK(map[string]interface{}{"applied": true, "template_id": templateID})
 
 	default:
 		return fmt.Sprintf(`Tool Output: {"status":"error","message":"Unknown fritzbox_smarthome operation %q. Use: get_devices, set_switch, set_heating, set_brightness, get_templates, apply_template"}`, op)
@@ -440,6 +510,9 @@ func fbStorageOp(c *fritzbox.Client, req fritzBoxArgs, op string, logger *slog.L
 	}
 	switch op {
 	case "get_storage_info":
+		if !c.Cfg.FritzBox.Storage.SubFeatures.NAS {
+			return fbSubFeatureDisabled("nas")
+		}
 		logger.Info("LLM requested Fritz!Box storage info")
 		info, err := c.GetStorageInfo()
 		if err != nil {
@@ -448,6 +521,9 @@ func fbStorageOp(c *fritzbox.Client, req fritzBoxArgs, op string, logger *slog.L
 		return fbOK(info)
 
 	case "get_ftp_status":
+		if !c.Cfg.FritzBox.Storage.SubFeatures.FTP {
+			return fbSubFeatureDisabled("ftp")
+		}
 		logger.Info("LLM requested Fritz!Box FTP status")
 		enabled, err := c.GetFTPStatus()
 		if err != nil {
@@ -456,6 +532,9 @@ func fbStorageOp(c *fritzbox.Client, req fritzBoxArgs, op string, logger *slog.L
 		return fbOK(map[string]interface{}{"ftp_enabled": enabled})
 
 	case "set_ftp":
+		if !c.Cfg.FritzBox.Storage.SubFeatures.FTP {
+			return fbSubFeatureDisabled("ftp")
+		}
 		if c.StorageReadOnly() {
 			return `Tool Output: {"status":"error","message":"Fritz!Box storage is in read-only mode."}`
 		}
@@ -466,6 +545,9 @@ func fbStorageOp(c *fritzbox.Client, req fritzBoxArgs, op string, logger *slog.L
 		return fbOK(map[string]interface{}{"ftp_enabled": req.Enabled})
 
 	case "get_media_server_status":
+		if !c.Cfg.FritzBox.Storage.SubFeatures.MediaServer {
+			return fbSubFeatureDisabled("media_server")
+		}
 		logger.Info("LLM requested Fritz!Box media server status")
 		enabled, err := c.GetMediaServerStatus()
 		if err != nil {
@@ -485,6 +567,9 @@ func fbStorageOp(c *fritzbox.Client, req fritzBoxArgs, op string, logger *slog.L
 func fbTVOp(c *fritzbox.Client, logger *slog.Logger) string {
 	if !c.TVEnabled() {
 		return `Tool Output: {"status":"error","message":"Fritz!Box TV integration is not enabled (cable models only)."}`
+	}
+	if !c.Cfg.FritzBox.TV.SubFeatures.ChannelList {
+		return fbSubFeatureDisabled("channel_list")
 	}
 	logger.Info("LLM requested Fritz!Box TV channel list")
 	channels, err := c.GetTVChannelList()
@@ -506,4 +591,8 @@ func fbOK(data interface{}) string {
 
 func fbError(op string, err error) string {
 	return fmt.Sprintf(`Tool Output: {"status":"error","operation":%q,"message":%q}`, op, err.Error())
+}
+
+func fbSubFeatureDisabled(feature string) string {
+	return fmt.Sprintf(`Tool Output: {"status":"error","message":"Fritz!Box %s sub-feature is not enabled."}`, feature)
 }

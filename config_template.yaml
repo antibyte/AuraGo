@@ -1001,33 +1001,58 @@ fritzbox:
     enabled: false
     host: "fritz.box"                       # Fritz!Box hostname or IP (default: fritz.box)
     port: 49000                             # TR-064 SOAP port (default: 49000)
-    https: false                            # use HTTPS for TR-064 (port 49443)
+    https: false                            # use HTTPS for TR-064 (often port 49443)
+    web_port: 0                             # optional web UI/SID/AHA port; 0 = default 80/443
+    insecure_skip_verify: false             # allow self-signed HTTPS certs on trusted LANs
     username: "admin"                       # Fritz!Box login username
     # password stored in vault under key "fritzbox_password"
     system:
         enabled: true
         readonly: false
+        sub_features:
+            device_info: true
+            uptime: true
+            log: true
     network:
         enabled: true
         readonly: false
+        sub_features:
+            wlan: true
+            hosts: true
+            wake_on_lan: true
+            port_forwarding: true
     telephony:
         enabled: false
         readonly: true                      # read-only by default (call lists, phonebooks)
         sub_features:
-            call_list: true
+            call_lists: true
             phonebooks: true
             tam: true
         polling:
             enabled: false
             interval_seconds: 60            # how often to check for new calls/messages
-    smarthome:
+    smart_home:
         enabled: false
         readonly: false
+        sub_features:
+            devices: true
+            switches: true
+            heating: true
+            lamps: true
+            templates: true
     storage:
         enabled: false
         readonly: false
+        sub_features:
+            nas: true
+            ftp: true
+            media_server: true
     tv:
         enabled: false                      # only available on Fritz!Box with built-in TV tuner
+        readonly: true
+        sub_features:
+            channel_list: true
+            stream_urls: true
 # ── Additional Integrations ── disabled by default for fresh installs
 webhooks:
     enabled: false

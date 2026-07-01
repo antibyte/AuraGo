@@ -88,8 +88,12 @@
   "config.webdav.secret_empty": "値が空です",
   "help.fritzbox.enabled": "Fritz!Box統合を有効にします。エージェントはシステム情報のクエリ、WLAN管理、通話リストの読み取り、スマートホームデバイスの制御などを行えます。",
   "help.fritzbox.host": "Fritz!Boxのホスト名またはIPアドレス（デフォルト：fritz.box）。",
-  "help.fritzbox.https": "TR-064接続にHTTPSを使用（推奨）。Fritz!Boxに有効な証明書がない場合のみ無効にしてください。",
+  "help.fritzbox.https": "TR-064 接続に HTTPS を使用します。HTTPS ポートと証明書が設定済みの場合だけ有効にしてください。",
   "help.fritzbox.password": "Fritz!Boxログインパスワード。暗号化されたボルトに安全に保存されます。",
   "help.fritzbox.port": "TR-064制御ポート（デフォルト：49000）。カスタム設定がない限り変更しないでください。",
-  "help.fritzbox.username": "Fritz!Boxログインユーザー名。ユーザー名なしのデフォルト管理者アカウントを使用する場合は空のままにしてください。"
+  "help.fritzbox.username": "Fritz!Boxログインユーザー名。ユーザー名なしのデフォルト管理者アカウントを使用する場合は空のままにしてください。",
+  "config.fritzbox.web_port_label": "Web インターフェースポート",
+  "config.fritzbox.insecure_skip_verify_label": "自己署名証明書を許可",
+  "help.fritzbox.web_port": "ログインと Smart Home リクエスト用の任意ポート。80 または 443 を使う場合は 0 のままにします。",
+  "help.fritzbox.insecure_skip_verify": "自己署名の Fritz!Box 証明書で HTTPS を許可します。信頼できるホームネットワークでのみ使ってください。"
 }

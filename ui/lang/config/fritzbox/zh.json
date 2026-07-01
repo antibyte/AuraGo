@@ -88,8 +88,12 @@
   "config.webdav.secret_empty": "值为空",
   "help.fritzbox.enabled": "启用 Fritz!Box 集成。代理可以查询系统信息、管理 WLAN、读取通话列表、控制智能家居设备等。",
   "help.fritzbox.host": "Fritz!Box 的主机名或 IP 地址（默认：fritz.box）。",
-  "help.fritzbox.https": "对 TR-064 连接使用 HTTPS（推荐）。仅在 Fritz!Box 没有有效证书时才禁用。",
+  "help.fritzbox.https": "为 TR-064 连接使用 HTTPS。仅在已配置 HTTPS 端口和证书时启用。",
   "help.fritzbox.password": "Fritz!Box 登录密码。安全地存储在加密保险库中。",
   "help.fritzbox.port": "TR-064 控制端口（默认：49000）。除非有自定义配置，否则请勿更改。",
-  "help.fritzbox.username": "Fritz!Box 登录用户名。留空以使用无用户名的默认管理员账户。"
+  "help.fritzbox.username": "Fritz!Box 登录用户名。留空以使用无用户名的默认管理员账户。",
+  "config.fritzbox.web_port_label": "Web 界面端口",
+  "config.fritzbox.insecure_skip_verify_label": "允许自签名证书",
+  "help.fritzbox.web_port": "登录和 Smart Home 请求的可选端口。保留 0 以使用 80 或 443。",
+  "help.fritzbox.insecure_skip_verify": "允许使用自签名 Fritz!Box 证书的 HTTPS。仅在可信家庭网络中使用。"
 }

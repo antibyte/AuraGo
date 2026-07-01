@@ -26,15 +26,58 @@ func handleFritzBoxStatus(s *Server) http.HandlerFunc {
 		host := s.Cfg.FritzBox.Host
 		port := s.Cfg.FritzBox.Port
 		useHTTPS := s.Cfg.FritzBox.HTTPS
+		webPort := s.Cfg.FritzBox.WebPort
+		insecureSkipVerify := s.Cfg.FritzBox.InsecureSkipVerify
 		s.CfgMu.RUnlock()
 
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"enabled":    enabled,
-			"host":       host,
-			"port":       port,
-			"https":      useHTTPS,
-			"configured": host != "",
-		})
+		status := map[string]interface{}{
+			"enabled":              enabled,
+			"host":                 host,
+			"port":                 port,
+			"https":                useHTTPS,
+			"web_port":             webPort,
+			"insecure_skip_verify": insecureSkipVerify,
+			"configured":           host != "",
+		}
+		if r.URL.Query().Get("check") != "1" {
+			json.NewEncoder(w).Encode(status)
+			return
+		}
+		if !enabled || host == "" {
+			status["connected"] = false
+			json.NewEncoder(w).Encode(status)
+			return
+		}
+
+		s.CfgMu.RLock()
+		testCfg := *s.Cfg
+		s.CfgMu.RUnlock()
+		if testCfg.FritzBox.Password == "" && s.Vault != nil {
+			if v, _ := s.Vault.ReadSecret("fritzbox_password"); v != "" {
+				testCfg.FritzBox.Password = v
+			}
+		}
+		testCfg.FritzBox.Enabled = true
+		testCfg.FritzBox.System.Enabled = true
+		c, err := fritzbox.NewClient(testCfg)
+		if err != nil {
+			status["connected"] = false
+			status["message"] = "Failed to initialize Fritz!Box client"
+			json.NewEncoder(w).Encode(status)
+			return
+		}
+		defer c.Close()
+		info, err := c.GetSystemInfo()
+		if err != nil {
+			status["connected"] = false
+			status["message"] = "Failed to connect to Fritz!Box"
+			json.NewEncoder(w).Encode(status)
+			return
+		}
+		status["connected"] = true
+		status["model"] = info.ModelName
+		status["firmware"] = info.SoftwareVersion
+		json.NewEncoder(w).Encode(status)
 	}
 }
 
@@ -51,11 +94,13 @@ func handleFritzBoxTest(s *Server) http.HandlerFunc {
 
 		// Parse optional override body.
 		var body struct {
-			Host     string `json:"host"`
-			Port     int    `json:"port"`
-			HTTPS    *bool  `json:"https"`
-			Username string `json:"username"`
-			Password string `json:"password"`
+			Host               string `json:"host"`
+			Port               int    `json:"port"`
+			HTTPS              *bool  `json:"https"`
+			WebPort            int    `json:"web_port"`
+			InsecureSkipVerify *bool  `json:"insecure_skip_verify"`
+			Username           string `json:"username"`
+			Password           string `json:"password"`
 		}
 		_ = json.NewDecoder(r.Body).Decode(&body)
 
@@ -72,6 +117,12 @@ func handleFritzBoxTest(s *Server) http.HandlerFunc {
 		}
 		if body.HTTPS != nil {
 			testCfg.FritzBox.HTTPS = *body.HTTPS
+		}
+		if body.WebPort != 0 {
+			testCfg.FritzBox.WebPort = body.WebPort
+		}
+		if body.InsecureSkipVerify != nil {
+			testCfg.FritzBox.InsecureSkipVerify = *body.InsecureSkipVerify
 		}
 		if body.Username != "" {
 			testCfg.FritzBox.Username = body.Username

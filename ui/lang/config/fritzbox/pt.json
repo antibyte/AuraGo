@@ -88,8 +88,12 @@
   "config.webdav.secret_empty": "O valor está vazio",
   "help.fritzbox.enabled": "Permite a integração do Fritz!Box. O agente pode então consultar informações do sistema, gerenciar WLAN, ler listas de chamadas, controlar dispositivos Smart Home e muito mais.",
   "help.fritzbox.host": "Nome do host ou endereço IP do Fritz!Box (padrão: fritz.box).",
-  "help.fritzbox.https": "Usar HTTPS para conexões TR-064 (recomendado). Desative apenas se o Fritz!Box não tiver um certificado válido.",
+  "help.fritzbox.https": "Usa HTTPS para ligações TR-064. Ativa apenas quando a porta HTTPS e o certificado estiverem configurados.",
   "help.fritzbox.password": "Palavra-passe de login do Fritz!Box. Armazenada com segurança no cofre cifrado.",
   "help.fritzbox.port": "Porta de controle TR-064 (padrão: 49000). Não altere a menos que tenha uma configuração personalizada.",
-  "help.fritzbox.username": "Nome de utilizador para login no Fritz!Box. Deixe vazio para usar a conta de administrador padrão sem nome de utilizador."
+  "help.fritzbox.username": "Nome de utilizador para login no Fritz!Box. Deixe vazio para usar a conta de administrador padrão sem nome de utilizador.",
+  "config.fritzbox.web_port_label": "Porta da interface web",
+  "config.fritzbox.insecure_skip_verify_label": "Permitir certificado autoassinado",
+  "help.fritzbox.web_port": "Porta opcional para login e pedidos Smart Home. Deixa 0 para usar 80 ou 443.",
+  "help.fritzbox.insecure_skip_verify": "Permite HTTPS com um certificado Fritz!Box autoassinado. Usa apenas numa rede doméstica de confiança."
 }

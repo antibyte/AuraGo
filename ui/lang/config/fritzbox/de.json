@@ -88,8 +88,12 @@
   "config.webdav.secret_empty": "Wert ist leer",
   "help.fritzbox.enabled": "Aktiviert die Fritz!Box-Integration. Der Agent kann dann Systeminformationen abfragen, WLAN verwalten, Anruflisten lesen, Smart-Home-Geräte steuern und mehr.",
   "help.fritzbox.host": "Hostname oder IP-Adresse deiner Fritz!Box (Standard: fritz.box).",
-  "help.fritzbox.https": "HTTPS für TR-064-Verbindungen verwenden (empfohlen). Nur deaktivieren, wenn deine Fritz!Box kein gültiges Zertifikat hat.",
+  "help.fritzbox.https": "HTTPS für TR-064-Verbindungen verwenden. Aktiviere es nur, wenn HTTPS-Port und Zertifikat eingerichtet sind.",
   "help.fritzbox.password": "Fritz!Box-Anmeldepasswort. Sicher im verschlüsselten Vault gespeichert.",
   "help.fritzbox.port": "TR-064-Steuerport (Standard: 49000). Nicht ändern, es sei denn, du hast eine benutzerdefinierte Konfiguration.",
-  "help.fritzbox.username": "Benutzername für die Fritz!Box-Anmeldung. Leer lassen, um das Standard-Admin-Konto ohne Benutzername zu verwenden."
+  "help.fritzbox.username": "Benutzername für die Fritz!Box-Anmeldung. Leer lassen, um das Standard-Admin-Konto ohne Benutzername zu verwenden.",
+  "config.fritzbox.web_port_label": "Weboberflächen-Port",
+  "config.fritzbox.insecure_skip_verify_label": "Selbstsigniertes Zertifikat erlauben",
+  "help.fritzbox.web_port": "Optionaler Port für Login- und Smart-Home-Anfragen. Lass 0 stehen, um 80 oder 443 zu nutzen.",
+  "help.fritzbox.insecure_skip_verify": "Erlaubt HTTPS mit einem selbstsignierten Fritz!Box-Zertifikat. Nutze das nur in deinem vertrauenswürdigen Heimnetz."
 }

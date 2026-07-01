@@ -4,7 +4,7 @@
   "config.fritzbox.feature_enabled": "Enabled",
   "config.fritzbox.feature_readonly": "Read-only",
   "config.fritzbox.features_title": "Feature Groups",
-  "config.fritzbox.group_network": "📶 Network \u0026 WLAN",
+  "config.fritzbox.group_network": "📶 Network & WLAN",
   "config.fritzbox.group_polling": "Telephony Polling",
   "config.fritzbox.group_smarthome": "🏡 Smart Home",
   "config.fritzbox.group_storage": "💾 Storage / NAS",
@@ -88,8 +88,12 @@
   "config.webdav.secret_empty": "Value is empty",
   "help.fritzbox.enabled": "Enables the Fritz!Box integration. The agent can then query system info, manage WLAN, read call lists, control Smart Home devices, and more.",
   "help.fritzbox.host": "Hostname or IP address of your Fritz!Box (default: fritz.box).",
-  "help.fritzbox.https": "Use HTTPS for TR-064 connections (recommended). Disable only if your Fritz!Box does not have a valid certificate.",
+  "help.fritzbox.https": "Use HTTPS for TR-064 connections. Enable it only when the HTTPS port and certificate are configured.",
   "help.fritzbox.password": "Fritz!Box login password. Stored securely in the encrypted vault.",
   "help.fritzbox.port": "TR-064 control port (default: 49000). Do not change unless you have a custom configuration.",
-  "help.fritzbox.username": "Fritz!Box login username. Leave empty to use the default admin account without a username."
+  "help.fritzbox.username": "Fritz!Box login username. Leave empty to use the default admin account without a username.",
+  "config.fritzbox.web_port_label": "Web Interface Port",
+  "config.fritzbox.insecure_skip_verify_label": "Allow self-signed certificate",
+  "help.fritzbox.web_port": "Optional port for login and Smart Home requests. Leave 0 to use 80 or 443.",
+  "help.fritzbox.insecure_skip_verify": "Allows HTTPS with a self-signed Fritz!Box certificate. Use only on a trusted home network."
 }

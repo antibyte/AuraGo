@@ -338,7 +338,11 @@ func TestConfigPhase3FritzboxGitHub(t *testing.T) {
 		"adg-test-result",
 		"attachChangeListeners",
 		"status_not_configured",
+		"/api/fritzbox/status?check=1",
 		"/api/fritzbox/test",
+		"JSON.stringify(body)",
+		"fritzbox.web_port",
+		"fritzbox.insecure_skip_verify",
 	} {
 		if !strings.Contains(fritzboxJS, marker) {
 			t.Fatalf("fritzbox.js missing marker %q", marker)

@@ -249,6 +249,7 @@ func Load(path string) (*Config, error) {
 
 	// Pre-process: fix common YAML corruption issues
 	data = fixCommonConfigIssues(data)
+	data = normalizeFritzBoxLegacyKeys(data)
 
 	var cfg Config
 	cfg.ModelCatalog.Enabled = true
@@ -301,13 +302,30 @@ func Load(path string) (*Config, error) {
 	// FritzBox defaults: disabled by default; system group enabled + readonly when fritzbox.enabled is set.
 	cfg.FritzBox.Host = "fritz.box"
 	cfg.FritzBox.Port = 49000
-	cfg.FritzBox.HTTPS = true
+	cfg.FritzBox.HTTPS = false
 	cfg.FritzBox.Timeout = 10
 	cfg.FritzBox.System.Enabled = true
 	cfg.FritzBox.System.ReadOnly = true
 	cfg.FritzBox.System.SubFeatures.DeviceInfo = true
 	cfg.FritzBox.System.SubFeatures.Uptime = true
 	cfg.FritzBox.System.SubFeatures.Log = true
+	cfg.FritzBox.Network.SubFeatures.WLAN = true
+	cfg.FritzBox.Network.SubFeatures.Hosts = true
+	cfg.FritzBox.Network.SubFeatures.WakeOnLAN = true
+	cfg.FritzBox.Network.SubFeatures.PortForwarding = true
+	cfg.FritzBox.Telephony.SubFeatures.CallLists = true
+	cfg.FritzBox.Telephony.SubFeatures.Phonebooks = true
+	cfg.FritzBox.Telephony.SubFeatures.TAM = true
+	cfg.FritzBox.SmartHome.SubFeatures.Devices = true
+	cfg.FritzBox.SmartHome.SubFeatures.Switches = true
+	cfg.FritzBox.SmartHome.SubFeatures.Heating = true
+	cfg.FritzBox.SmartHome.SubFeatures.Lamps = true
+	cfg.FritzBox.SmartHome.SubFeatures.Templates = true
+	cfg.FritzBox.Storage.SubFeatures.NAS = true
+	cfg.FritzBox.Storage.SubFeatures.FTP = true
+	cfg.FritzBox.Storage.SubFeatures.MediaServer = true
+	cfg.FritzBox.TV.SubFeatures.ChannelList = true
+	cfg.FritzBox.TV.SubFeatures.StreamURLs = true
 	cfg.FritzBox.Telephony.Polling.IntervalSeconds = 60
 	cfg.FritzBox.Telephony.Polling.DedupWindowMinutes = 5
 	cfg.FritzBox.Telephony.Polling.MaxCallbacksPerHour = 20
@@ -2332,6 +2350,85 @@ func fixBareStringDirectoryItems(content string) string {
 		}
 		return match
 	})
+}
+
+func normalizeFritzBoxLegacyKeys(data []byte) []byte {
+	var doc yaml.Node
+	if err := yaml.Unmarshal(data, &doc); err != nil {
+		return data
+	}
+
+	root := yamlDocumentRoot(&doc)
+	if root == nil || root.Kind != yaml.MappingNode {
+		return data
+	}
+	fritzbox := yamlMappingValue(root, "fritzbox")
+	if fritzbox == nil || fritzbox.Kind != yaml.MappingNode {
+		return data
+	}
+
+	if yamlMappingValue(fritzbox, "smart_home") == nil {
+		if legacy := yamlMappingValue(fritzbox, "smarthome"); legacy != nil {
+			yamlAppendMapping(fritzbox, "smart_home", cloneYAMLNode(legacy))
+		}
+	}
+
+	telephony := yamlMappingValue(fritzbox, "telephony")
+	subFeatures := yamlMappingValue(telephony, "sub_features")
+	if subFeatures != nil && subFeatures.Kind == yaml.MappingNode && yamlMappingValue(subFeatures, "call_lists") == nil {
+		if legacy := yamlMappingValue(subFeatures, "call_list"); legacy != nil {
+			yamlAppendMapping(subFeatures, "call_lists", cloneYAMLNode(legacy))
+		}
+	}
+
+	out, err := yaml.Marshal(&doc)
+	if err != nil {
+		return data
+	}
+	return out
+}
+
+func yamlDocumentRoot(doc *yaml.Node) *yaml.Node {
+	if doc == nil {
+		return nil
+	}
+	if doc.Kind == yaml.DocumentNode && len(doc.Content) > 0 {
+		return doc.Content[0]
+	}
+	return doc
+}
+
+func yamlMappingValue(node *yaml.Node, key string) *yaml.Node {
+	if node == nil || node.Kind != yaml.MappingNode {
+		return nil
+	}
+	for i := 0; i+1 < len(node.Content); i += 2 {
+		if node.Content[i].Value == key {
+			return node.Content[i+1]
+		}
+	}
+	return nil
+}
+
+func yamlAppendMapping(node *yaml.Node, key string, value *yaml.Node) {
+	node.Content = append(node.Content,
+		&yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: key},
+		value,
+	)
+}
+
+func cloneYAMLNode(node *yaml.Node) *yaml.Node {
+	if node == nil {
+		return nil
+	}
+	clone := *node
+	if len(node.Content) > 0 {
+		clone.Content = make([]*yaml.Node, len(node.Content))
+		for i, child := range node.Content {
+			clone.Content[i] = cloneYAMLNode(child)
+		}
+	}
+	return &clone
 }
 
 func resolvePath(baseDir, targetPath string) string {

@@ -88,8 +88,12 @@
   "config.webdav.secret_empty": "Waarde is leeg",
   "help.fritzbox.enabled": "Schakelt de Fritz!Box-integratie in. De agent kan vervolgens systeeminformatie opvragen, WLAN beheren, oproeplijsten lezen, Smart Home-apparaten bedienen en meer.",
   "help.fritzbox.host": "Hostnaam of IP-adres van uw Fritz!Box (standaard: fritz.box).",
-  "help.fritzbox.https": "HTTPS gebruiken voor TR-064-verbindingen (aanbevolen). Schakel alleen uit als uw Fritz!Box geen geldig certificaat heeft.",
+  "help.fritzbox.https": "Gebruik HTTPS voor TR-064-verbindingen. Schakel dit alleen in als de HTTPS-poort en het certificaat zijn ingesteld.",
   "help.fritzbox.password": "Fritz!Box inlogwachtwoord. Veilig opgeslagen in de versleutelde kluis.",
   "help.fritzbox.port": "TR-064 besturingspoort (standaard: 49000). Niet wijzigen tenzij u een aangepaste configuratie heeft.",
-  "help.fritzbox.username": "Gebruikersnaam voor Fritz!Box login. Leeg laten om het standaard beheerdersaccount zonder gebruikersnaam te gebruiken."
+  "help.fritzbox.username": "Gebruikersnaam voor Fritz!Box login. Leeg laten om het standaard beheerdersaccount zonder gebruikersnaam te gebruiken.",
+  "config.fritzbox.web_port_label": "Webinterfacepoort",
+  "config.fritzbox.insecure_skip_verify_label": "Zelfondertekend certificaat toestaan",
+  "help.fritzbox.web_port": "Optionele poort voor login- en Smart Home-verzoeken. Laat 0 staan om 80 of 443 te gebruiken.",
+  "help.fritzbox.insecure_skip_verify": "Staat HTTPS met een zelfondertekend Fritz!Box-certificaat toe. Gebruik dit alleen op een vertrouwd thuisnetwerk."
 }

@@ -1010,13 +1010,15 @@ type Config struct {
 		AccessToken     string   `yaml:"-" vault:"access_token"` // vault-only
 	} `yaml:"home_assistant"`
 	FritzBox struct {
-		Enabled  bool   `yaml:"enabled"`
-		Host     string `yaml:"host"`                                 // hostname or IP, default: fritz.box
-		Port     int    `yaml:"port"`                                 // TR-064 port, default: 49000
-		HTTPS    bool   `yaml:"https"`                                // use HTTPS for TR-064, default: true
-		Timeout  int    `yaml:"timeout"`                              // HTTP timeout in seconds, default: 10
-		Username string `yaml:"username"`                             // Fritz!Box username (leave empty to use no username)
-		Password string `yaml:"-" vault:"fritzbox_password" json:"-"` // vault-only
+		Enabled            bool   `yaml:"enabled"`
+		Host               string `yaml:"host"`                                 // hostname or IP, default: fritz.box
+		Port               int    `yaml:"port"`                                 // TR-064 port, default: 49000
+		HTTPS              bool   `yaml:"https"`                                // use HTTPS for TR-064, default: false
+		WebPort            int    `yaml:"web_port"`                             // optional web interface port for SID/AHA; 0 = default 80/443
+		InsecureSkipVerify bool   `yaml:"insecure_skip_verify"`                 // allow self-signed HTTPS certificates on trusted LANs
+		Timeout            int    `yaml:"timeout"`                              // HTTP timeout in seconds, default: 10
+		Username           string `yaml:"username"`                             // Fritz!Box username (leave empty to use no username)
+		Password           string `yaml:"-" vault:"fritzbox_password" json:"-"` // vault-only
 
 		// Feature groups – all gated individually
 		System struct {

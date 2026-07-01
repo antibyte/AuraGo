@@ -15,6 +15,7 @@ type fritzBoxArgs struct {
 	TamIndex       int
 	MsgIndex       int
 	AIN            string
+	TemplateID     string
 	TempC          float64
 	Brightness     int
 }
@@ -36,6 +37,7 @@ func decodeFritzBoxArgs(tc ToolCall) fritzBoxArgs {
 		TamIndex:       toolArgInt(tc.Params, 0, "tam_index"),
 		MsgIndex:       toolArgInt(tc.Params, 0, "msg_index"),
 		AIN:            toolArgString(tc.Params, "ain"),
+		TemplateID:     toolArgString(tc.Params, "template_id"),
 		TempC:          toolArgFloat64(tc.Params, "temp_c"),
 		Brightness:     toolArgInt(tc.Params, 0, "brightness"),
 	}

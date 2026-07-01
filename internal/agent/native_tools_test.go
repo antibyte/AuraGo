@@ -371,6 +371,44 @@ func TestBuildNativeToolSchemasIncludesVirusTotalAndListSkills(t *testing.T) {
 	}
 }
 
+func TestBuildNativeToolSchemasIncludesFritzBoxSchemaFixes(t *testing.T) {
+	schemas := BuildNativeToolSchemas(t.TempDir(), nil, ToolFeatureFlags{
+		FritzBoxTelephonyEnabled: true,
+		FritzBoxSmartHomeEnabled: true,
+	}, nil)
+
+	telephonyProps := nativeToolProperties(t, schemas, "fritzbox_telephony")
+	telephonyOp := telephonyProps["operation"].(map[string]interface{})
+	if !containsInterfaceString(telephonyOp["enum"], "get_tam_message_url") {
+		t.Fatalf("fritzbox_telephony operation enum missing get_tam_message_url: %#v", telephonyOp["enum"])
+	}
+
+	smartHomeProps := nativeToolProperties(t, schemas, "fritzbox_smarthome")
+	if _, ok := smartHomeProps["template_id"]; !ok {
+		t.Fatalf("fritzbox_smarthome schema missing template_id: %#v", smartHomeProps)
+	}
+}
+
+func nativeToolProperties(t *testing.T, schemas []openai.Tool, name string) map[string]interface{} {
+	t.Helper()
+	for _, schema := range schemas {
+		if schema.Function == nil || schema.Function.Name != name {
+			continue
+		}
+		params, ok := schema.Function.Parameters.(map[string]interface{})
+		if !ok {
+			t.Fatalf("%s parameters type = %T, want map[string]interface{}", name, schema.Function.Parameters)
+		}
+		props, ok := params["properties"].(map[string]interface{})
+		if !ok {
+			t.Fatalf("%s properties type = %T, want map[string]interface{}", name, params["properties"])
+		}
+		return props
+	}
+	t.Fatalf("tool schema %q not found", name)
+	return nil
+}
+
 func TestBuiltinToolSchemasRegistersMeshCentralOnlyOnce(t *testing.T) {
 	schemas := builtinToolSchemas(ToolFeatureFlags{MeshCentralEnabled: true})
 	count := 0

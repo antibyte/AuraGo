@@ -62,8 +62,8 @@ type TR064Client struct {
 }
 
 // newTR064Client sets up the SOAP client with Digest Auth.
-func newTR064Client(baseURL, username, password string, timeout time.Duration) *TR064Client {
-	transport := NewDigestTransport(username, password, nil)
+func newTR064Client(baseURL, username, password string, timeout time.Duration, insecureSkipVerify bool) *TR064Client {
+	transport := NewDigestTransport(username, password, newHTTPTransport(insecureSkipVerify))
 	return &TR064Client{
 		baseURL: baseURL,
 		httpClient: &http.Client{

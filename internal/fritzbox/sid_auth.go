@@ -46,14 +46,14 @@ type SIDAuth struct {
 }
 
 // newSIDAuth creates an SIDAuth for the given host.
-func newSIDAuth(baseURL, username, password string, transport http.RoundTripper) *SIDAuth {
+func newSIDAuth(baseURL, username, password string, timeout time.Duration, transport http.RoundTripper) *SIDAuth {
 	return &SIDAuth{
 		baseURL:  baseURL,
 		username: username,
 		password: password,
 		client: &http.Client{
 			Transport: transport,
-			Timeout:   15 * time.Second,
+			Timeout:   timeout,
 		},
 	}
 }

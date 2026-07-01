@@ -131,6 +131,110 @@ tools:
 	}
 }
 
+func TestLoadFritzBoxDefaultsAndTLSFields(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(configPath, []byte(""), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+
+	if cfg.FritzBox.Port != 49000 {
+		t.Fatalf("fritzbox.port = %d, want 49000", cfg.FritzBox.Port)
+	}
+	if cfg.FritzBox.HTTPS {
+		t.Fatal("fritzbox.https must default to false")
+	}
+	if cfg.FritzBox.Timeout != 10 {
+		t.Fatalf("fritzbox.timeout = %d, want 10", cfg.FritzBox.Timeout)
+	}
+	if cfg.FritzBox.InsecureSkipVerify {
+		t.Fatal("fritzbox.insecure_skip_verify must default to false")
+	}
+	if cfg.FritzBox.WebPort != 0 {
+		t.Fatalf("fritzbox.web_port = %d, want 0", cfg.FritzBox.WebPort)
+	}
+}
+
+func TestLoadFritzBoxLegacySmartHomeAlias(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	configContent := `
+fritzbox:
+  smarthome:
+    enabled: true
+    readonly: true
+    sub_features:
+      templates: true
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+
+	if !cfg.FritzBox.SmartHome.Enabled {
+		t.Fatal("legacy fritzbox.smarthome.enabled was not mapped to smart_home")
+	}
+	if !cfg.FritzBox.SmartHome.ReadOnly {
+		t.Fatal("legacy fritzbox.smarthome.readonly was not mapped to smart_home")
+	}
+	if !cfg.FritzBox.SmartHome.SubFeatures.Templates {
+		t.Fatal("legacy fritzbox.smarthome.sub_features.templates was not mapped")
+	}
+}
+
+func TestLoadFritzBoxCanonicalSmartHomeWinsOverLegacyAlias(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	configContent := `
+fritzbox:
+  smarthome:
+    enabled: false
+  smart_home:
+    enabled: true
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+
+	if !cfg.FritzBox.SmartHome.Enabled {
+		t.Fatal("canonical fritzbox.smart_home should win over legacy smarthome")
+	}
+}
+
+func TestLoadFritzBoxLegacyTelephonyCallListAlias(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	configContent := `
+fritzbox:
+  telephony:
+    enabled: true
+    sub_features:
+      call_list: false
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+
+	if cfg.FritzBox.Telephony.SubFeatures.CallLists {
+		t.Fatal("legacy fritzbox.telephony.sub_features.call_list=false was not mapped to call_lists=false")
+	}
+}
+
 func TestNormalizeDockerWorkspaceDirUsesMountedWorkdir(t *testing.T) {
 	t.Parallel()
 

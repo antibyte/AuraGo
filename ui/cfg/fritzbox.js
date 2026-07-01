@@ -36,13 +36,28 @@ function renderFritzBoxSection(section) {
     html += '<input class="field-input" type="number" data-path="fritzbox.port" value="' + escapeAttr(String(data.port || '49000')) + '" placeholder="49000">';
     html += '</div>';
 
-    const httpsOn = data.https !== false;
+    html += '<div class="field-group">';
+    html += '<div class="field-label">' + t('config.fritzbox.web_port_label') + '</div>';
+    html += '<div class="field-help">' + t('help.fritzbox.web_port') + '</div>';
+    html += '<input class="field-input" type="number" min="0" data-path="fritzbox.web_port" value="' + escapeAttr(String(data.web_port || '0')) + '" placeholder="0">';
+    html += '</div>';
+
+    const httpsOn = data.https === true;
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.fritzbox.https_label') + '</div>';
     html += '<div class="field-help">' + t('help.fritzbox.https') + '</div>';
     html += '<div class="toggle-wrap">';
     html += '<div class="toggle' + (httpsOn ? ' on' : '') + '" data-path="fritzbox.https" onclick="toggleBool(this)"></div>';
     html += '<span class="toggle-label">' + (httpsOn ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
+    html += '</div></div>';
+
+    const insecureOn = data.insecure_skip_verify === true;
+    html += '<div class="field-group">';
+    html += '<div class="field-label">' + t('config.fritzbox.insecure_skip_verify_label') + '</div>';
+    html += '<div class="field-help">' + t('help.fritzbox.insecure_skip_verify') + '</div>';
+    html += '<div class="toggle-wrap">';
+    html += '<div class="toggle' + (insecureOn ? ' on' : '') + '" data-path="fritzbox.insecure_skip_verify" onclick="toggleBool(this)"></div>';
+    html += '<span class="toggle-label">' + (insecureOn ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
     html += '</div></div>';
 
     html += '<div class="field-group">';
@@ -130,7 +145,7 @@ function fbCheckStatus() {
     if (!document.getElementById('fb-status-banner')) return;
     fbSetBanner('', t('config.fritzbox.checking'));
 
-    fetch('/api/fritzbox/status')
+    fetch('/api/fritzbox/status?check=1')
         .then(r => r.json())
         .then(res => {
             if (!res.enabled) {
@@ -141,9 +156,23 @@ function fbCheckStatus() {
                 fbSetBanner('warning', '⚪ ' + t('config.fritzbox.status_not_configured'));
                 return;
             }
-            fbSetBanner('success', t('config.fritzbox.status_ok') + ' — ' + (res.host || ''));
+            if (res.connected) {
+                fbSetBanner('success', t('config.fritzbox.status_ok') + ' — ' + (res.model || res.host || ''));
+                return;
+            }
+            fbSetBanner('danger', '🔴 ' + (res.message || t('config.fritzbox.status_error')));
         })
         .catch(() => fbSetBanner('danger', '🔴 ' + t('config.fritzbox.status_error')));
+}
+
+function fbFieldValue(path, fallback) {
+    const el = document.querySelector('[data-path="' + path + '"]');
+    return el ? el.value : fallback;
+}
+
+function fbToggleValue(path, fallback) {
+    const el = document.querySelector('[data-path="' + path + '"]');
+    return el ? el.classList.contains('on') : fallback;
 }
 
 function fbTestConnection() {
@@ -155,7 +184,23 @@ function fbTestConnection() {
         result.textContent = t('config.fritzbox.testing');
     }
 
-    fetch('/api/fritzbox/test', { method: 'POST' })
+    const passwordInput = document.getElementById('fb-password');
+    const password = passwordInput ? passwordInput.value.trim() : '';
+    const body = {
+        host: fbFieldValue('fritzbox.host', ''),
+        port: parseInt(fbFieldValue('fritzbox.port', '49000'), 10) || 49000,
+        web_port: parseInt(fbFieldValue('fritzbox.web_port', '0'), 10) || 0,
+        https: fbToggleValue('fritzbox.https', false),
+        insecure_skip_verify: fbToggleValue('fritzbox.insecure_skip_verify', false),
+        username: fbFieldValue('fritzbox.username', '')
+    };
+    if (password) body.password = password;
+
+    fetch('/api/fritzbox/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+    })
         .then(r => r.json())
         .then(res => {
             if (btn) btn.disabled = false;

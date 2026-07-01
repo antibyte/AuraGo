@@ -334,11 +334,11 @@ func appendContentToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai
 				"operation": map[string]interface{}{
 					"type":        "string",
 					"description": "Operation to perform",
-					"enum":        []string{"get_call_list", "get_phonebooks", "get_phonebook_entries", "get_tam_messages", "mark_tam_message_read", "download_tam_message", "transcribe_tam_message"},
+					"enum":        []string{"get_call_list", "get_phonebooks", "get_phonebook_entries", "get_tam_messages", "mark_tam_message_read", "get_tam_message_url", "download_tam_message", "transcribe_tam_message"},
 				},
 				"phonebook_id": map[string]interface{}{"type": "integer", "description": "Phonebook index (for get_phonebook_entries; omit to list all phonebooks first)"},
 				"tam_index":    map[string]interface{}{"type": "integer", "description": "TAM/answering machine index (for TAM operations, default 0)"},
-				"msg_index":    map[string]interface{}{"type": "integer", "description": "Message index within the TAM (for mark_tam_message_read, download_tam_message, transcribe_tam_message)"},
+				"msg_index":    map[string]interface{}{"type": "integer", "description": "Message index within the TAM (for mark_tam_message_read, get_tam_message_url, download_tam_message, transcribe_tam_message)"},
 			}, "operation"),
 		))
 	}
@@ -351,10 +351,11 @@ func appendContentToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai
 					"description": "Operation to perform",
 					"enum":        []string{"get_devices", "set_switch", "set_heating", "set_brightness", "get_templates", "apply_template"},
 				},
-				"ain":        prop("string", "Actor Identification Number (AIN) of the device or template (required for set_*/apply_template)"),
-				"enabled":    map[string]interface{}{"type": "boolean", "description": "Turn switch on (true) or off (false) for set_switch"},
-				"temp_c":     map[string]interface{}{"type": "number", "description": "Target temperature in °C for set_heating (8–28°C; 0=OFF, 30=MAX)"},
-				"brightness": map[string]interface{}{"type": "integer", "description": "Lamp brightness 0–100% for set_brightness"},
+				"ain":         prop("string", "Actor Identification Number (AIN) of the device; legacy alias for template_id on apply_template"),
+				"template_id": prop("string", "Template identifier returned by get_templates (required for apply_template)"),
+				"enabled":     map[string]interface{}{"type": "boolean", "description": "Turn switch on (true) or off (false) for set_switch"},
+				"temp_c":      map[string]interface{}{"type": "number", "description": "Target temperature in °C for set_heating (8–28°C; 0=OFF, 30=MAX)"},
+				"brightness":  map[string]interface{}{"type": "integer", "description": "Lamp brightness 0–100% for set_brightness"},
 			}, "operation"),
 		))
 	}

@@ -88,8 +88,12 @@
   "config.webdav.secret_empty": "Värdet är tomt",
   "help.fritzbox.enabled": "Aktiverar Fritz!Box-integreringen. Agenten kan sedan fråga systeminformation, hantera WLAN, läsa samtalslistor, styra smarta hemenheter och mer.",
   "help.fritzbox.host": "Värdnamn eller IP-adress för din Fritz!Box (standard: fritz.box).",
-  "help.fritzbox.https": "Använd HTTPS för TR -064-anslutningar (rekommenderas). Inaktivera endast om din Fritz!Box inte har ett giltigt certifikat.",
+  "help.fritzbox.https": "Använd HTTPS för TR-064-anslutningar. Aktivera bara när HTTPS-port och certifikat är konfigurerade.",
   "help.fritzbox.password": "Fritz!Box inloggningslösenord. Lagras säkert i det krypterade valvet.",
   "help.fritzbox.port": "TR -064 kontrollport (standard: 49000). Ändra inte om du inte har en anpassad konfiguration.",
-  "help.fritzbox.username": "Användarnamn för Fritz!Box-inloggning. Lämna tomt för att använda standardadministratörskontot utan användarnamn."
+  "help.fritzbox.username": "Användarnamn för Fritz!Box-inloggning. Lämna tomt för att använda standardadministratörskontot utan användarnamn.",
+  "config.fritzbox.web_port_label": "Webbgränssnittsport",
+  "config.fritzbox.insecure_skip_verify_label": "Tillåt självsignerat certifikat",
+  "help.fritzbox.web_port": "Valfri port för inloggning och Smart Home-förfrågningar. Lämna 0 för att använda 80 eller 443.",
+  "help.fritzbox.insecure_skip_verify": "Tillåter HTTPS med ett självsignerat Fritz!Box-certifikat. Använd bara i ett betrott hemnätverk."
 }

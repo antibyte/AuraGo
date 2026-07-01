@@ -21,10 +21,11 @@ type AHAClient struct {
 }
 
 // newAHAClient creates an AHA-HTTP client.
-func newAHAClient(baseURL, username, password string, timeout time.Duration) *AHAClient {
-	httpClient := &http.Client{Timeout: timeout}
-	// newSIDAuth uses its own internal http.Client for the login handshake.
-	sidAuth := newSIDAuth(baseURL, username, password, nil)
+func newAHAClient(baseURL, username, password string, timeout time.Duration, insecureSkipVerify bool) *AHAClient {
+	transport := newHTTPTransport(insecureSkipVerify)
+	httpClient := &http.Client{Transport: transport, Timeout: timeout}
+	// SIDAuth uses the same transport policy for the login handshake.
+	sidAuth := newSIDAuth(baseURL, username, password, timeout, transport)
 	return &AHAClient{
 		baseURL:    baseURL,
 		sid:        sidAuth,

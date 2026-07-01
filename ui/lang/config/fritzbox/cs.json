@@ -88,8 +88,12 @@
   "config.webdav.secret_empty": "Hodnota je prázdná",
   "help.fritzbox.enabled": "Povoluje integraci Fritz!Box. Agent pak může dotazovat systémové informace, spravovat WLAN, číst seznamy hovorů, ovládat zařízení Smart Home a další.",
   "help.fritzbox.host": "Název hostitele nebo IP adresa Fritz!Box (výchozí: fritz.box).",
-  "help.fritzbox.https": "Použít HTTPS pro připojení TR-064 (doporučeno). Zakažte pouze pokud Fritz!Box nemá platný certifikát.",
+  "help.fritzbox.https": "Použij HTTPS pro spojení TR-064. Zapni jen tehdy, když jsou nastavené HTTPS port a certifikát.",
   "help.fritzbox.password": "Přihlašovací heslo Fritz!Box. Bezpečně uloženo v šifrovaném trezoru.",
   "help.fritzbox.port": "Řídicí port TR-064 (výchozí: 49000). Neměňte, pokud nemáte vlastní konfiguraci.",
-  "help.fritzbox.username": "Uživatelské jméno pro přihlášení Fritz!Box. Nechte prázdné pro použití výchozího administrátorského účtu bez uživatelského jména."
+  "help.fritzbox.username": "Uživatelské jméno pro přihlášení Fritz!Box. Nechte prázdné pro použití výchozího administrátorského účtu bez uživatelského jména.",
+  "config.fritzbox.web_port_label": "Port webového rozhraní",
+  "config.fritzbox.insecure_skip_verify_label": "Povolit vlastnoručně podepsaný certifikát",
+  "help.fritzbox.web_port": "Volitelný port pro přihlášení a požadavky Smart Home. Nech 0 pro použití 80 nebo 443.",
+  "help.fritzbox.insecure_skip_verify": "Povolí HTTPS s vlastnoručně podepsaným certifikátem Fritz!Boxu. Používej jen v důvěryhodné domácí síti."
 }

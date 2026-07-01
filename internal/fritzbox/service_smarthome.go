@@ -38,6 +38,14 @@ type SmartHomeDevice struct {
 	LampColor      *string `json:"lamp_color,omitempty"`
 }
 
+// SmartHomeTemplate represents an AVM AHA smart home template/scenario.
+type SmartHomeTemplate struct {
+	ID              string `json:"id"`
+	Name            string `json:"name"`
+	FunctionBitmask string `json:"function_bitmask,omitempty"`
+	AutoCreate      bool   `json:"auto_create"`
+}
+
 // deviceListXML is the top-level XML from AHA getdevicelistinfos.
 type deviceListXML struct {
 	XMLName xml.Name    `xml:"devicelist"`
@@ -213,40 +221,45 @@ func (c *Client) SetLampBrightness(ain string, pct int) error {
 	if pct > 100 {
 		pct = 100
 	}
-	level := (pct * 255) / 100
-	_, err := c.AHA(ain, "setlevelpercentage", map[string]string{"param": strconv.Itoa(pct)})
-	_ = level // strconv used to validate range, level not passed (AHA uses percentage directly)
+	_, err := c.AHA(ain, "setlevelpercentage", map[string]string{"level": strconv.Itoa(pct)})
 	if err != nil {
 		return fmt.Errorf("fritzbox smarthome: setlevelpercentage %s: %w", ain, err)
 	}
 	return nil
 }
 
-// GetSmartHomeTemplates returns the names of all Fritz!Box smart home templates.
-func (c *Client) GetSmartHomeTemplates() ([]string, error) {
+// GetSmartHomeTemplates returns all Fritz!Box smart home templates.
+func (c *Client) GetSmartHomeTemplates() ([]SmartHomeTemplate, error) {
 	raw, err := c.AHA("", "gettemplatelistinfos", nil)
 	if err != nil {
 		return nil, fmt.Errorf("fritzbox smarthome: gettemplatelistinfos: %w", err)
 	}
-	// Parse template names from XML <templatelist><template name="...">
 	type templateList struct {
 		XMLName   xml.Name `xml:"templatelist"`
 		Templates []struct {
-			Name string `xml:"name,attr"`
+			ID              string `xml:"identifier,attr"`
+			FunctionBitmask string `xml:"functionbitmask,attr"`
+			AutoCreate      string `xml:"autocreate,attr"`
+			Name            string `xml:"name"`
 		} `xml:"template"`
 	}
 	var list templateList
 	if err := xml.Unmarshal([]byte(raw), &list); err != nil {
 		return nil, fmt.Errorf("fritzbox smarthome: parse templates: %w", err)
 	}
-	names := make([]string, 0, len(list.Templates))
+	templates := make([]SmartHomeTemplate, 0, len(list.Templates))
 	for _, t := range list.Templates {
-		names = append(names, t.Name)
+		templates = append(templates, SmartHomeTemplate{
+			ID:              strings.TrimSpace(t.ID),
+			Name:            strings.TrimSpace(t.Name),
+			FunctionBitmask: strings.TrimSpace(t.FunctionBitmask),
+			AutoCreate:      strings.TrimSpace(t.AutoCreate) == "1",
+		})
 	}
-	return names, nil
+	return templates, nil
 }
 
-// ApplySmartHomeTemplate applies a named template.
+// ApplySmartHomeTemplate applies a template by its identifier.
 // Blocked when ReadOnly is true.
 func (c *Client) ApplySmartHomeTemplate(templateID string) error {
 	if c.SmartHomeReadOnly() {
