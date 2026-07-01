@@ -1014,6 +1014,256 @@
 }
 
 
+/* === Cyberwar Chat Tactical HUD Sidebar === */
+#cyberwar-hud {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 180px;
+    height: 100%;
+    z-index: 4;
+    pointer-events: none;
+    display: none;
+    flex-direction: column;
+    gap: 6px;
+    padding: 12px 8px;
+    box-sizing: border-box;
+    border-left: 1px solid rgba(0, 240, 255, 0.12);
+    background: linear-gradient(270deg, rgba(0, 240, 255, 0.04), transparent);
+    overflow: hidden;
+    font-family: var(--cyber-font-ui, 'Oxanium', 'Share Tech Mono', monospace, system-ui, sans-serif);
+    color: rgba(0, 240, 255, 0.85);
+    text-transform: uppercase;
+}
+
+#cyberwar-hud.hud-active {
+    display: flex;
+}
+
+[data-theme="cyberwar"] #chat-content {
+    padding-right: 196px;
+}
+
+[data-theme="cyberwar"] .scroll-to-bottom-btn {
+    right: calc(180px + clamp(1rem, 2.4vw, 1.75rem));
+}
+
+.hud-panel {
+    position: relative;
+    background: rgba(4, 9, 22, 0.85);
+    border: 1px solid rgba(0, 240, 255, 0.18);
+    clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px));
+    padding: 6px 8px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    text-transform: uppercase;
+    font-size: 0.6rem;
+    letter-spacing: 0.05em;
+    line-height: 1.25;
+    color: rgba(0, 240, 255, 0.85);
+    text-shadow: 0 0 4px rgba(0, 240, 255, 0.35);
+}
+
+.hud-panel-title {
+    font-size: 0.55rem;
+    color: rgba(0, 240, 255, 0.55);
+    letter-spacing: 0.12em;
+    border-bottom: 1px solid rgba(0, 240, 255, 0.1);
+    padding-bottom: 3px;
+    margin-bottom: 2px;
+}
+
+.hud-node {
+    display: grid;
+    grid-template-columns: 10px 1fr auto;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.6rem;
+}
+
+.hud-node-name {
+    color: rgba(0, 240, 255, 0.75);
+}
+
+.hud-node-status {
+    font-size: 0.55rem;
+    color: rgba(0, 240, 255, 0.55);
+    letter-spacing: 0.08em;
+}
+
+.hud-node-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: rgba(0, 240, 255, 0.3);
+    box-shadow: 0 0 4px rgba(0, 240, 255, 0.3);
+}
+
+.hud-node-dot.node-online {
+    background: #08ff7a;
+    box-shadow: 0 0 6px rgba(8, 255, 122, 0.7);
+}
+
+.hud-node-dot.node-offline {
+    background: #ff2670;
+    box-shadow: 0 0 6px rgba(255, 38, 112, 0.7);
+}
+
+.hud-node-dot.node-pulsing {
+    background: #ffae3b;
+    box-shadow: 0 0 6px rgba(255, 174, 59, 0.7);
+    animation: hudDotPulse 1.2s ease-in-out infinite;
+}
+
+.hud-node-status.status-online { color: #08ff7a; }
+.hud-node-status.status-offline { color: #ff2670; }
+.hud-node-status.status-pulsing { color: #ffae3b; }
+
+@keyframes hudDotPulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.55; transform: scale(0.8); }
+}
+
+.hud-threat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.hud-threat-level {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    color: #08ff7a;
+    text-shadow: 0 0 6px rgba(8, 255, 122, 0.5);
+}
+
+.hud-threat-gauge {
+    position: relative;
+    width: 100%;
+    height: 8px;
+    background: rgba(0, 240, 255, 0.08);
+    border: 1px solid rgba(0, 240, 255, 0.18);
+    overflow: hidden;
+    clip-path: polygon(0 0, calc(100% - 3px) 0, 100% 3px, 100% 100%, 3px 100%, 0 calc(100% - 3px));
+}
+
+.hud-threat-fill {
+    height: 100%;
+    width: 8%;
+    background: linear-gradient(90deg, #08ff7a, #6dffb3);
+    box-shadow: 0 0 8px rgba(8, 255, 122, 0.6);
+    transition: width 350ms ease, background 350ms ease, box-shadow 350ms ease;
+}
+
+.hud-threat-fill.threat-yellow {
+    background: linear-gradient(90deg, #d8ff4a, #ffe552);
+    box-shadow: 0 0 8px rgba(255, 229, 82, 0.6);
+}
+
+.hud-threat-fill.threat-amber {
+    background: linear-gradient(90deg, #ffae3b, #ff7c2a);
+    box-shadow: 0 0 8px rgba(255, 174, 59, 0.6);
+}
+
+.hud-threat-fill.threat-red {
+    background: linear-gradient(90deg, #ff2670, #ff5c8a);
+    box-shadow: 0 0 10px rgba(255, 38, 112, 0.7);
+}
+
+.hud-counter {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 6px;
+    font-size: 0.6rem;
+}
+
+.hud-counter-label {
+    color: rgba(0, 240, 255, 0.55);
+    letter-spacing: 0.08em;
+}
+
+.hud-counter-value {
+    color: rgba(0, 240, 255, 0.95);
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-shadow: 0 0 4px rgba(0, 240, 255, 0.4);
+}
+
+.hud-blist {
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 5px;
+    min-height: 18px;
+    padding: 2px 0;
+}
+
+.hud-blist-item {
+    position: relative;
+    width: 10px;
+    height: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    animation: hudBlipFade 1800ms ease-out forwards;
+}
+
+.hud-blist-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #08ff7a;
+    box-shadow: 0 0 6px rgba(8, 255, 122, 0.7);
+}
+
+.hud-blist-item.hud-blist-error .hud-blist-dot {
+    background: #ff2670;
+    box-shadow: 0 0 6px rgba(255, 38, 112, 0.7);
+}
+
+@keyframes hudBlipFade {
+    0% { transform: scale(0.4); opacity: 0; }
+    15% { transform: scale(1.25); opacity: 1; }
+    100% { transform: scale(0.85); opacity: 0; }
+}
+
+.hud-security-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 8px;
+    border: 1px solid rgba(0, 240, 255, 0.25);
+    background: rgba(0, 240, 255, 0.06);
+    color: rgba(0, 240, 255, 0.9);
+    font-size: 0.6rem;
+    letter-spacing: 0.1em;
+    clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 4px 100%, 0 calc(100% - 4px));
+}
+
+.hud-security-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #08ff7a;
+    box-shadow: 0 0 4px rgba(8, 255, 122, 0.7);
+}
+
+#cyberwar-hud.hud-reduced-motion .hud-node-dot.node-pulsing,
+#cyberwar-hud.hud-reduced-motion .hud-blist-item {
+    animation: none !important;
+}
+
+#cyberwar-hud.hud-reduced-motion .hud-blist-dot {
+    opacity: 0.8;
+}
+
 /* === Virtual Desktop — Cyberwar Tactical HUD === */
 [data-theme="cyberwar"] .vd-window,
 [data-theme="cyberwar"] .vd-widget {
