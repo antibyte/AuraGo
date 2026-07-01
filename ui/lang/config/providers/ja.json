@@ -198,5 +198,17 @@
   "config.providers.oauth_advanced_toggle": "高度な OAuth エンドポイント",
   "config.providers.oauth_advanced_help": "これらの値は、独自の OAuth アプリや組み込み preset がないプロバイダーでのみ変更してください。",
   "config.providers.oauth_preset_google": "Google OAuth preset",
-  "config.providers.oauth_preset_custom": "カスタム OAuth エンドポイント"
+  "config.providers.oauth_preset_custom": "カスタム OAuth エンドポイント",
+  "config.providers.oauth_setup_title": "OAuth 設定",
+  "config.providers.oauth_setup_open_provider_settings": "プロバイダー設定を開く",
+  "config.providers.oauth_setup_provider_settings_hint": "プロバイダー設定を開き、OAuth アプリを作成または選択して、下の Redirect URI を authorized redirect/callback フィールドに貼り付けてください。",
+  "config.providers.oauth_setup_custom_provider_hint": "プロバイダーの OAuth アプリ設定を開き、下の Redirect URI を authorized redirect/callback フィールドに貼り付けてください。",
+  "config.providers.oauth_setup_redirect_step": "下の Redirect URI を、プロバイダーの authorized redirect URI / callback URL フィールドにコピーします。",
+  "config.providers.oauth_setup_credentials_step": "その OAuth アプリの Client ID と任意の Client Secret をここに貼り付けます。",
+  "config.providers.oauth_setup_save_connect_step": "保存して接続をクリックすると、AuraGo がプロバイダーを保存してログインを開きます。",
+  "config.providers.oauth_setup_connect_step": "プロバイダーを接続をクリックすると、AuraGo がログインを開き callback を待ちます。",
+  "config.providers.oauth_setup_callback_step": "プロバイダーのログインを完了してください。AuraGo が token を自動保存します。ブラウザーが localhost で止まった場合は、その最終アドレスを下に貼り付けてください。",
+  "config.providers.oauth_direct_retry_help": "ログインタブが開かなかった、または閉じられた場合は、ここからもう一度開けます。",
+  "config.providers.oauth_copy_login_link": "ログインリンクをコピー",
+  "config.providers.oauth_login_link_copied": "ログインリンクをコピーしました"
 }

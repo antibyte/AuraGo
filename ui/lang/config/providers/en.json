@@ -198,5 +198,17 @@
   "config.providers.oauth_advanced_toggle": "Advanced OAuth endpoints",
   "config.providers.oauth_advanced_help": "Only change these values for custom OAuth apps or providers without a built-in preset.",
   "config.providers.oauth_preset_google": "Google OAuth preset",
-  "config.providers.oauth_preset_custom": "Custom OAuth endpoints"
+  "config.providers.oauth_preset_custom": "Custom OAuth endpoints",
+  "config.providers.oauth_setup_title": "OAuth setup",
+  "config.providers.oauth_setup_open_provider_settings": "Open provider settings",
+  "config.providers.oauth_setup_provider_settings_hint": "Open the provider settings, create or select an OAuth app, and paste the Redirect URI below into its authorized redirect/callback field.",
+  "config.providers.oauth_setup_custom_provider_hint": "Open your provider's OAuth app settings and paste the Redirect URI below into its authorized redirect/callback field.",
+  "config.providers.oauth_setup_redirect_step": "Copy the Redirect URI below into the provider's authorized redirect URI / callback URL field.",
+  "config.providers.oauth_setup_credentials_step": "Paste the Client ID and optional Client Secret from that OAuth app here.",
+  "config.providers.oauth_setup_save_connect_step": "Click Save & connect; AuraGo saves the provider and opens the login.",
+  "config.providers.oauth_setup_connect_step": "Click Connect provider; AuraGo opens the login and watches for the callback.",
+  "config.providers.oauth_setup_callback_step": "Finish the provider login. AuraGo stores the token automatically; if the browser stops on localhost, paste that final address below.",
+  "config.providers.oauth_direct_retry_help": "If the login tab did not open or was closed, open it again here.",
+  "config.providers.oauth_copy_login_link": "Copy login link",
+  "config.providers.oauth_login_link_copied": "Login link copied"
 }

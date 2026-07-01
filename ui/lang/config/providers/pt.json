@@ -198,5 +198,17 @@
   "config.providers.oauth_advanced_toggle": "Endpoints OAuth avançados",
   "config.providers.oauth_advanced_help": "Altera estes valores apenas para apps OAuth próprias ou provedores sem preset integrado.",
   "config.providers.oauth_preset_google": "Preset OAuth do Google",
-  "config.providers.oauth_preset_custom": "Endpoints OAuth personalizados"
+  "config.providers.oauth_preset_custom": "Endpoints OAuth personalizados",
+  "config.providers.oauth_setup_title": "Configuração OAuth",
+  "config.providers.oauth_setup_open_provider_settings": "Abrir definições do provedor",
+  "config.providers.oauth_setup_provider_settings_hint": "Abre as definições do provedor, cria ou escolhe uma app OAuth e cola o Redirect URI abaixo no campo de redirect/callback autorizado.",
+  "config.providers.oauth_setup_custom_provider_hint": "Abre as definições da app OAuth do teu provedor e cola o Redirect URI abaixo no campo de redirect/callback autorizado.",
+  "config.providers.oauth_setup_redirect_step": "Copia o Redirect URI abaixo para o campo authorized redirect URI / callback URL do provedor.",
+  "config.providers.oauth_setup_credentials_step": "Cola aqui o Client ID e o Client Secret opcional dessa app OAuth.",
+  "config.providers.oauth_setup_save_connect_step": "Clica em Salvar e conectar; AuraGo salva o provedor e abre o login.",
+  "config.providers.oauth_setup_connect_step": "Clica em Conectar provedor; AuraGo abre o login e acompanha o callback.",
+  "config.providers.oauth_setup_callback_step": "Conclui o login do provedor. AuraGo salva o token automaticamente; se o navegador parar em localhost, cola esse endereço final abaixo.",
+  "config.providers.oauth_direct_retry_help": "Se a aba de login não abriu ou foi fechada, abre-a novamente aqui.",
+  "config.providers.oauth_copy_login_link": "Copiar link de login",
+  "config.providers.oauth_login_link_copied": "Link de login copiado"
 }

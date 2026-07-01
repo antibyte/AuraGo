@@ -198,5 +198,17 @@
   "config.providers.oauth_advanced_toggle": "Pokročilé OAuth koncové body",
   "config.providers.oauth_advanced_help": "Tyto hodnoty měň jen pro vlastní OAuth aplikace nebo poskytovatele bez vestavěného presetu.",
   "config.providers.oauth_preset_google": "Google OAuth preset",
-  "config.providers.oauth_preset_custom": "Vlastní OAuth koncové body"
+  "config.providers.oauth_preset_custom": "Vlastní OAuth koncové body",
+  "config.providers.oauth_setup_title": "Nastavení OAuth",
+  "config.providers.oauth_setup_open_provider_settings": "Otevřít nastavení poskytovatele",
+  "config.providers.oauth_setup_provider_settings_hint": "Otevři nastavení poskytovatele, vytvoř nebo vyber OAuth aplikaci a vlož Redirect URI níže do pole pro autorizovanou redirect/callback URL.",
+  "config.providers.oauth_setup_custom_provider_hint": "Otevři nastavení OAuth aplikace svého poskytovatele a vlož Redirect URI níže do pole pro autorizovanou redirect/callback URL.",
+  "config.providers.oauth_setup_redirect_step": "Zkopíruj Redirect URI níže do pole pro autorizovanou redirect URI / callback URL u poskytovatele.",
+  "config.providers.oauth_setup_credentials_step": "Sem vlož Client ID a volitelně Client Secret z této OAuth aplikace.",
+  "config.providers.oauth_setup_save_connect_step": "Klikni na Uložit a připojit; AuraGo uloží poskytovatele a otevře přihlášení.",
+  "config.providers.oauth_setup_connect_step": "Klikni na Připojit poskytovatele; AuraGo otevře přihlášení a čeká na callback.",
+  "config.providers.oauth_setup_callback_step": "Dokonči přihlášení u poskytovatele. AuraGo token uloží automaticky; pokud prohlížeč skončí na localhost, vlož finální adresu níže.",
+  "config.providers.oauth_direct_retry_help": "Pokud se karta přihlášení neotevřela nebo byla zavřena, otevři ji zde znovu.",
+  "config.providers.oauth_copy_login_link": "Kopírovat odkaz na přihlášení",
+  "config.providers.oauth_login_link_copied": "Odkaz na přihlášení zkopírován"
 }

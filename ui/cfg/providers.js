@@ -958,8 +958,16 @@ let _providerCatalogPromise = null;
             }
         };
 
+        const PROVIDER_OAUTH_SETUP_LINKS = {
+            google: 'https://console.cloud.google.com/apis/credentials'
+        };
+
         function providerOAuthPresetForType(type) {
             return PROVIDER_OAUTH_PRESETS[type] || null;
+        }
+
+        function providerOAuthSetupURL(type) {
+            return PROVIDER_OAUTH_SETUP_LINKS[(type || '').toLowerCase()] || '';
         }
 
         function providerOAuthPresetLabel(type) {
@@ -1015,6 +1023,22 @@ let _providerCatalogPromise = null;
             applyField('prov-oauth-auth-url', 'auth_url');
             applyField('prov-oauth-token-url', 'token_url');
             applyField('prov-oauth-scopes', 'scopes');
+        }
+
+        function providerRefreshOAuthSetupGuide(type) {
+            const setupURL = providerOAuthSetupURL(type);
+            const setupLink = document.getElementById('prov-oauth-provider-setup-link');
+            const setupHint = document.getElementById('prov-oauth-provider-setup-hint');
+            if (setupLink) {
+                setupLink.href = setupURL || '#';
+                setupLink.setAttribute('aria-disabled', setupURL ? 'false' : 'true');
+                setupLink.classList.toggle('is-hidden', !setupURL);
+            }
+            if (setupHint) {
+                setupHint.textContent = setupURL
+                    ? t('config.providers.oauth_setup_provider_settings_hint')
+                    : t('config.providers.oauth_setup_custom_provider_hint');
+            }
         }
 
         function providerOAuthFieldLabel(field) {
@@ -1085,14 +1109,31 @@ let _providerCatalogPromise = null;
             }
         }
 
-        function providerSetOAuthPopupFallback(visible, url) {
+        function providerSetOAuthPopupFallback(visible, url, reason) {
             const fallback = document.getElementById('prov-oauth-popup-fallback');
             const link = document.getElementById('prov-oauth-direct-link');
-            if (link && url) link.href = url;
+            const help = document.getElementById('prov-oauth-direct-help');
+            const copyBtn = document.getElementById('prov-oauth-copy-login-link');
+            let loginURL = url || '';
+            if (url) {
+                try {
+                    loginURL = new URL(url, window.location.href).href;
+                } catch (e) {}
+            }
+            if (link && url) link.href = loginURL;
+            if (help) {
+                help.textContent = reason === 'blocked'
+                    ? t('config.providers.oauth_popup_blocked')
+                    : t('config.providers.oauth_direct_retry_help');
+            }
+            if (copyBtn) {
+                copyBtn.dataset.loginUrl = loginURL;
+                copyBtn.disabled = !loginURL;
+            }
             if (fallback) {
                 setHidden(fallback, !visible);
             } else if (visible && url) {
-                providerShowOAuthDirectLink(url);
+                providerShowOAuthDirectLink(loginURL);
             }
         }
 
@@ -1109,9 +1150,25 @@ let _providerCatalogPromise = null;
                 <div>
                     <strong>${escapeHtml(t('config.providers.oauth_popup_blocked'))}</strong>
                 </div>
-                <a href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(t('config.providers.oauth_open_login'))}</a>
+                <div class="prov-oauth-direct-actions">
+                    <a href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(t('config.providers.oauth_open_login'))}</a>
+                    <button type="button" class="btn-save prov-btn-muted prov-btn-sm" id="provider-oauth-direct-copy" data-login-url="${escapeAttr(url)}">${escapeHtml(t('config.providers.oauth_copy_login_link'))}</button>
+                </div>
                 <button type="button" class="prov-icon-btn" onclick="document.getElementById('provider-oauth-direct-banner')?.remove()">×</button>
             `;
+            const copyBtn = document.getElementById('provider-oauth-direct-copy');
+            if (copyBtn) {
+                copyBtn.onclick = async () => {
+                    const loginURL = copyBtn.dataset.loginUrl || '';
+                    if (!loginURL) return;
+                    try {
+                        await navigator.clipboard.writeText(loginURL);
+                        showToast(t('config.providers.oauth_login_link_copied'));
+                    } catch (e) {
+                        showToast(loginURL);
+                    }
+                };
+            }
         }
 
         async function providerCopyOAuthRedirectURI() {
@@ -1123,6 +1180,18 @@ let _providerCatalogPromise = null;
                 showToast(t('config.providers.oauth_redirect_copied'));
             } catch (e) {
                 showToast(uri);
+            }
+        }
+
+        async function providerCopyOAuthLoginLink() {
+            const copyBtn = document.getElementById('prov-oauth-copy-login-link');
+            const url = copyBtn ? (copyBtn.dataset.loginUrl || '') : '';
+            if (!url) return;
+            try {
+                await navigator.clipboard.writeText(url);
+                showToast(t('config.providers.oauth_login_link_copied'));
+            } catch (e) {
+                showToast(url);
             }
         }
 
@@ -1206,7 +1275,7 @@ let _providerCatalogPromise = null;
                 statusEl.textContent = t('config.providers.oauth_waiting');
             }
             const launch = providerLaunchOAuthWindow(providerID, preparedPopup);
-            providerSetOAuthPopupFallback(!launch.opened, launch.url);
+            providerSetOAuthPopupFallback(!launch.opened || !!document.getElementById('prov-oauth-popup-fallback'), launch.url, launch.opened ? 'retry' : 'blocked');
             if (!launch.opened) {
                 showToast(t('config.providers.oauth_popup_blocked'), 'warn');
                 if (statusEl) statusEl.textContent = t('config.providers.oauth_popup_blocked');
@@ -1399,6 +1468,7 @@ let _providerCatalogPromise = null;
             const initialOAuthScopes = providerOAuthPresetFieldValue(currentType, 'scopes', data.oauth_scopes || '');
             const initialOAuthAdvancedOpen = initialOAuthPreset ? '' : ' open';
             const initialOAuthPresetHelp = initialOAuthPreset ? t('config.providers.oauth_browser_hint') : t('config.providers.oauth_advanced_help');
+            const initialOAuthSetupURL = providerOAuthSetupURL(currentType);
 
             overlay.innerHTML = `
             <div class="prov-modal-panel" onclick="event.stopPropagation()">
@@ -1557,9 +1627,25 @@ let _providerCatalogPromise = null;
                 <!-- OAuth2 section (visible when auth_type = oauth2) -->
                 <div id="prov-oauth-section" class="${isOAuth ? '' : 'is-hidden'}">
                     <div class="field-group prov-oauth-browser-box">
-                        <div class="field-label">${t('config.providers.oauth_connect_title')}</div>
-                        <div class="field-help" id="prov-oauth-preset-help">${initialOAuthPresetHelp}</div>
+                        <div class="prov-oauth-setup-head">
+                            <div>
+                                <div class="field-label">${t('config.providers.oauth_setup_title')}</div>
+                                <div class="field-help" id="prov-oauth-preset-help">${initialOAuthPresetHelp}</div>
+                            </div>
+                            <a id="prov-oauth-provider-setup-link" class="btn-save prov-btn-muted prov-btn-sm ${initialOAuthSetupURL ? '' : 'is-hidden'}" href="${escapeAttr(initialOAuthSetupURL || '#')}" target="_blank" rel="noopener noreferrer" aria-disabled="${initialOAuthSetupURL ? 'false' : 'true'}">
+                                ${t('config.providers.oauth_setup_open_provider_settings')}
+                            </a>
+                        </div>
                         <span class="prov-provider-pill prov-provider-pill-oauth" id="prov-oauth-preset-label">${providerOAuthPresetLabel(currentType)}</span>
+                        <div class="field-help" id="prov-oauth-provider-setup-hint">
+                            ${initialOAuthSetupURL ? t('config.providers.oauth_setup_provider_settings_hint') : t('config.providers.oauth_setup_custom_provider_hint')}
+                        </div>
+                        <ol class="prov-oauth-steps">
+                            <li>${t('config.providers.oauth_setup_redirect_step')}</li>
+                            <li>${t('config.providers.oauth_setup_credentials_step')}</li>
+                            <li>${data._editMode ? t('config.providers.oauth_setup_connect_step') : t('config.providers.oauth_setup_save_connect_step')}</li>
+                            <li>${t('config.providers.oauth_setup_callback_step')}</li>
+                        </ol>
                     </div>
                     <div class="field-group">
                         <div class="field-label">${t('config.providers.field_client_id_label')}</div>
@@ -1620,8 +1706,13 @@ let _providerCatalogPromise = null;
                             </button>
                         </div>
                         <div id="prov-oauth-popup-fallback" class="prov-oauth-direct-box is-hidden">
-                            <div class="field-help">${t('config.providers.oauth_popup_blocked')}</div>
-                            <a id="prov-oauth-direct-link" href="#" target="_blank" rel="noopener noreferrer">${t('config.providers.oauth_open_login')}</a>
+                            <div class="field-help" id="prov-oauth-direct-help">${t('config.providers.oauth_direct_retry_help')}</div>
+                            <div class="prov-oauth-direct-actions">
+                                <a id="prov-oauth-direct-link" class="btn-save prov-btn-sm" href="#" target="_blank" rel="noopener noreferrer">${t('config.providers.oauth_open_login')}</a>
+                                <button type="button" class="btn-save prov-btn-muted prov-btn-sm" id="prov-oauth-copy-login-link" disabled>
+                                    ${t('config.providers.oauth_copy_login_link')}
+                                </button>
+                            </div>
                         </div>
                         <div class="prov-oauth-paste-box">
                             <div class="field-label">${t('config.providers.oauth_paste_label')}</div>
@@ -1733,6 +1824,7 @@ let _providerCatalogPromise = null;
                 if (ollamaBlock) setHidden(ollamaBlock, typ !== 'ollama');
                 // Show/hide OpenRouter model browser block
                 if (openrouterBlock) setHidden(openrouterBlock, typ !== 'openrouter');
+                providerRefreshOAuthSetupGuide(typ);
                 // Show/hide fetch pricing button
                 if (fetchPricingBtn) {
                     setHidden(fetchPricingBtn, !['openrouter','openai','anthropic','google','ollama','workers-ai','deepseek','groq','mistral','xai','moonshot','qwen','zai','llamacpp','lmstudio','copilot','opencode-go'].includes(typ));
@@ -1936,6 +2028,11 @@ let _providerCatalogPromise = null;
             const copyRedirectBtn = document.getElementById('prov-oauth-copy-redirect');
             if (copyRedirectBtn) {
                 copyRedirectBtn.onclick = () => providerCopyOAuthRedirectURI();
+            }
+
+            const copyLoginBtn = document.getElementById('prov-oauth-copy-login-link');
+            if (copyLoginBtn) {
+                copyLoginBtn.onclick = () => providerCopyOAuthLoginLink();
             }
 
             const pasteBtn = document.getElementById('prov-oauth-paste-submit');

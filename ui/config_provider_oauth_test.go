@@ -37,6 +37,14 @@ func TestConfigProviderOAuthWizardContract(t *testing.T) {
 	}
 	for _, marker := range []string{
 		"const PROVIDER_OAUTH_PRESETS",
+		"const PROVIDER_OAUTH_SETUP_LINKS",
+		"function providerRefreshOAuthSetupGuide(type)",
+		`id="prov-oauth-provider-setup-link"`,
+		"config.providers.oauth_setup_redirect_step",
+		"config.providers.oauth_setup_credentials_step",
+		"config.providers.oauth_setup_save_connect_step",
+		"function providerCopyOAuthLoginLink()",
+		`id="prov-oauth-copy-login-link"`,
 		"auth_url: 'https://accounts.google.com/o/oauth2/v2/auth'",
 		"token_url: 'https://oauth2.googleapis.com/token'",
 		"https://www.googleapis.com/auth/generative-language.retriever",
@@ -67,9 +75,12 @@ func TestConfigProviderOAuthWizardStyles(t *testing.T) {
 	for _, marker := range []string{
 		".prov-oauth-connect-panel",
 		".prov-oauth-connect-head",
+		".prov-oauth-setup-head",
+		".prov-oauth-steps",
 		".prov-oauth-status.is-ok",
 		".prov-oauth-status.is-warn",
 		".prov-oauth-status.is-error",
+		".prov-oauth-direct-actions",
 		".prov-oauth-paste-box",
 		".prov-oauth-paste-row",
 	} {
@@ -112,6 +123,18 @@ func TestConfigProviderOAuthTranslationsExistInAllLocales(t *testing.T) {
 		"config.providers.oauth_advanced_help",
 		"config.providers.oauth_preset_google",
 		"config.providers.oauth_preset_custom",
+		"config.providers.oauth_setup_title",
+		"config.providers.oauth_setup_open_provider_settings",
+		"config.providers.oauth_setup_provider_settings_hint",
+		"config.providers.oauth_setup_custom_provider_hint",
+		"config.providers.oauth_setup_redirect_step",
+		"config.providers.oauth_setup_credentials_step",
+		"config.providers.oauth_setup_save_connect_step",
+		"config.providers.oauth_setup_connect_step",
+		"config.providers.oauth_setup_callback_step",
+		"config.providers.oauth_direct_retry_help",
+		"config.providers.oauth_copy_login_link",
+		"config.providers.oauth_login_link_copied",
 	}
 	for _, path := range files {
 		data, err := os.ReadFile(path)

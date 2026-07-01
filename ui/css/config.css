@@ -6067,6 +6067,13 @@ select.cfg-input option {
 .prov-oauth-authorize-btn { padding: 0.42rem 1rem; font-size: 0.78rem; background: var(--accent); }
 .prov-oauth-revoke-btn { padding: 0.42rem 1rem; font-size: 0.78rem; background: var(--danger); }
 .prov-oauth-browser-box { display: flex; flex-direction: column; gap: 0.35rem; }
+.prov-oauth-setup-head { display: flex; justify-content: space-between; gap: 0.8rem; align-items: flex-start; }
+.prov-oauth-setup-head .btn-save { flex-shrink: 0; }
+.prov-oauth-steps {
+    margin: 0.45rem 0 0; padding-left: 1.15rem; color: var(--text-secondary);
+    font-size: 0.78rem; line-height: 1.55;
+}
+.prov-oauth-steps li { margin-bottom: 0.2rem; }
 .prov-oauth-advanced {
     margin-top: 0.65rem; padding: 0.65rem 0.75rem; border: 1px solid var(--border-subtle);
     border-radius: var(--radius-md); background: color-mix(in srgb, var(--bg-secondary) 74%, transparent);
@@ -6093,6 +6100,8 @@ select.cfg-input option {
     background: color-mix(in srgb, var(--warning) 8%, transparent);
 }
 .prov-oauth-direct-box a { color: var(--accent); font-size: 0.78rem; font-weight: 600; }
+.prov-oauth-direct-actions { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; margin-top: 0.45rem; }
+.prov-oauth-direct-actions a.btn-save { color: var(--button-text, #fff); text-decoration: none; }
 .prov-oauth-direct-banner {
     display: flex; align-items: center; gap: 0.75rem; justify-content: space-between;
     margin-bottom: 0.75rem; padding: 0.75rem 0.9rem; border-radius: var(--radius-lg);
@@ -6167,6 +6176,16 @@ select.cfg-input option {
     .prov-oauth-paste-row {
         flex-direction: column;
         align-items: stretch;
+    }
+    .prov-oauth-setup-head {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .prov-oauth-setup-head .btn-save,
+    .prov-oauth-direct-actions .btn-save {
+        width: 100%;
+        text-align: center;
+        justify-content: center;
     }
     .prov-oauth-direct-banner {
         flex-direction: column;

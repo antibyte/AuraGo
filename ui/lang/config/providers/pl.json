@@ -198,5 +198,17 @@
   "config.providers.oauth_advanced_toggle": "Zaawansowane endpointy OAuth",
   "config.providers.oauth_advanced_help": "Zmieniaj te wartości tylko dla własnych aplikacji OAuth lub dostawców bez wbudowanego presetu.",
   "config.providers.oauth_preset_google": "Preset OAuth Google",
-  "config.providers.oauth_preset_custom": "Własne endpointy OAuth"
+  "config.providers.oauth_preset_custom": "Własne endpointy OAuth",
+  "config.providers.oauth_setup_title": "Konfiguracja OAuth",
+  "config.providers.oauth_setup_open_provider_settings": "Otwórz ustawienia dostawcy",
+  "config.providers.oauth_setup_provider_settings_hint": "Otwórz ustawienia dostawcy, utwórz lub wybierz aplikację OAuth i wklej poniższy Redirect URI w polu autoryzowanego redirect/callback.",
+  "config.providers.oauth_setup_custom_provider_hint": "Otwórz ustawienia aplikacji OAuth swojego dostawcy i wklej poniższy Redirect URI w polu autoryzowanego redirect/callback.",
+  "config.providers.oauth_setup_redirect_step": "Skopiuj poniższy Redirect URI do pola authorized redirect URI / callback URL u dostawcy.",
+  "config.providers.oauth_setup_credentials_step": "Wklej tutaj Client ID i opcjonalny Client Secret z tej aplikacji OAuth.",
+  "config.providers.oauth_setup_save_connect_step": "Kliknij Zapisz i połącz; AuraGo zapisze dostawcę i otworzy logowanie.",
+  "config.providers.oauth_setup_connect_step": "Kliknij Połącz dostawcę; AuraGo otworzy logowanie i będzie czekać na callback.",
+  "config.providers.oauth_setup_callback_step": "Dokończ logowanie u dostawcy. AuraGo automatycznie zapisze token; jeśli przeglądarka zatrzyma się na localhost, wklej poniżej ten końcowy adres.",
+  "config.providers.oauth_direct_retry_help": "Jeśli karta logowania się nie otworzyła albo została zamknięta, otwórz ją tutaj ponownie.",
+  "config.providers.oauth_copy_login_link": "Kopiuj link logowania",
+  "config.providers.oauth_login_link_copied": "Link logowania skopiowany"
 }

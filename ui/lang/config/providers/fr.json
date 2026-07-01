@@ -198,5 +198,17 @@
   "config.providers.oauth_advanced_toggle": "Endpoints OAuth avancés",
   "config.providers.oauth_advanced_help": "Modifie ces valeurs seulement pour des apps OAuth personnalisées ou des fournisseurs sans preset intégré.",
   "config.providers.oauth_preset_google": "Preset OAuth Google",
-  "config.providers.oauth_preset_custom": "Endpoints OAuth personnalisés"
+  "config.providers.oauth_preset_custom": "Endpoints OAuth personnalisés",
+  "config.providers.oauth_setup_title": "Configuration OAuth",
+  "config.providers.oauth_setup_open_provider_settings": "Ouvrir les réglages du fournisseur",
+  "config.providers.oauth_setup_provider_settings_hint": "Ouvre les réglages du fournisseur, crée ou choisis une app OAuth, puis colle la Redirect URI ci-dessous dans le champ redirect/callback autorisé.",
+  "config.providers.oauth_setup_custom_provider_hint": "Ouvre les réglages de l'app OAuth de ton fournisseur et colle la Redirect URI ci-dessous dans le champ redirect/callback autorisé.",
+  "config.providers.oauth_setup_redirect_step": "Copie la Redirect URI ci-dessous dans le champ authorized redirect URI / callback URL du fournisseur.",
+  "config.providers.oauth_setup_credentials_step": "Colle ici le Client ID et le Client Secret optionnel de cette app OAuth.",
+  "config.providers.oauth_setup_save_connect_step": "Clique sur Enregistrer et connecter ; AuraGo enregistre le fournisseur et ouvre la connexion.",
+  "config.providers.oauth_setup_connect_step": "Clique sur Connecter le fournisseur ; AuraGo ouvre la connexion et surveille le callback.",
+  "config.providers.oauth_setup_callback_step": "Termine la connexion chez le fournisseur. AuraGo stocke le token automatiquement ; si le navigateur reste sur localhost, colle cette adresse finale ci-dessous.",
+  "config.providers.oauth_direct_retry_help": "Si l'onglet de connexion ne s'est pas ouvert ou a été fermé, ouvre-le de nouveau ici.",
+  "config.providers.oauth_copy_login_link": "Copier le lien de connexion",
+  "config.providers.oauth_login_link_copied": "Lien de connexion copié"
 }

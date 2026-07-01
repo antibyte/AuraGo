@@ -198,5 +198,17 @@
   "config.providers.oauth_advanced_toggle": "Avanserte OAuth-endepunkter",
   "config.providers.oauth_advanced_help": "Endre disse verdiene bare for egne OAuth-apper eller leverandører uten innebygd preset.",
   "config.providers.oauth_preset_google": "Google OAuth-preset",
-  "config.providers.oauth_preset_custom": "Egne OAuth-endepunkter"
+  "config.providers.oauth_preset_custom": "Egne OAuth-endepunkter",
+  "config.providers.oauth_setup_title": "OAuth-oppsett",
+  "config.providers.oauth_setup_open_provider_settings": "Åpne providerinnstillinger",
+  "config.providers.oauth_setup_provider_settings_hint": "Åpne providerinnstillingene, opprett eller velg en OAuth-app, og lim inn Redirect URI nedenfor i feltet for autorisert redirect/callback.",
+  "config.providers.oauth_setup_custom_provider_hint": "Åpne OAuth-appinnstillingene hos provideren din og lim inn Redirect URI nedenfor i feltet for autorisert redirect/callback.",
+  "config.providers.oauth_setup_redirect_step": "Kopier Redirect URI nedenfor til providerens felt for authorized redirect URI / callback URL.",
+  "config.providers.oauth_setup_credentials_step": "Lim inn Client-ID og eventuelt Client Secret fra OAuth-appen her.",
+  "config.providers.oauth_setup_save_connect_step": "Klikk på Lagre og koble til; AuraGo lagrer provideren og åpner login.",
+  "config.providers.oauth_setup_connect_step": "Klikk på Koble til provider; AuraGo åpner login og følger med på callbacken.",
+  "config.providers.oauth_setup_callback_step": "Fullfør provider-login. AuraGo lagrer tokenet automatisk; hvis nettleseren stopper på localhost, lim inn den endelige adressen nedenfor.",
+  "config.providers.oauth_direct_retry_help": "Hvis loginfanen ikke åpnet eller ble lukket, kan du åpne den igjen her.",
+  "config.providers.oauth_copy_login_link": "Kopier loginlenke",
+  "config.providers.oauth_login_link_copied": "Loginlenke kopiert"
 }

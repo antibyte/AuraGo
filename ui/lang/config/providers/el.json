@@ -198,5 +198,17 @@
   "config.providers.oauth_advanced_toggle": "Σύνθετα OAuth endpoints",
   "config.providers.oauth_advanced_help": "Άλλαξε αυτές τις τιμές μόνο για προσαρμοσμένες OAuth εφαρμογές ή παρόχους χωρίς ενσωματωμένο preset.",
   "config.providers.oauth_preset_google": "Google OAuth preset",
-  "config.providers.oauth_preset_custom": "Προσαρμοσμένα OAuth endpoints"
+  "config.providers.oauth_preset_custom": "Προσαρμοσμένα OAuth endpoints",
+  "config.providers.oauth_setup_title": "Ρύθμιση OAuth",
+  "config.providers.oauth_setup_open_provider_settings": "Άνοιγμα ρυθμίσεων παρόχου",
+  "config.providers.oauth_setup_provider_settings_hint": "Άνοιξε τις ρυθμίσεις του παρόχου, δημιούργησε ή επίλεξε μια OAuth εφαρμογή και επικόλλησε το Redirect URI παρακάτω στο πεδίο authorized redirect/callback.",
+  "config.providers.oauth_setup_custom_provider_hint": "Άνοιξε τις ρυθμίσεις OAuth εφαρμογής του παρόχου σου και επικόλλησε το Redirect URI παρακάτω στο πεδίο authorized redirect/callback.",
+  "config.providers.oauth_setup_redirect_step": "Αντέγραψε το Redirect URI παρακάτω στο πεδίο authorized redirect URI / callback URL του παρόχου.",
+  "config.providers.oauth_setup_credentials_step": "Επικόλλησε εδώ το Client ID και προαιρετικά το Client Secret από αυτή την OAuth εφαρμογή.",
+  "config.providers.oauth_setup_save_connect_step": "Πάτησε Αποθήκευση & σύνδεση· το AuraGo αποθηκεύει τον πάροχο και ανοίγει το login.",
+  "config.providers.oauth_setup_connect_step": "Πάτησε Σύνδεση παρόχου· το AuraGo ανοίγει το login και περιμένει το callback.",
+  "config.providers.oauth_setup_callback_step": "Ολοκλήρωσε το login στον πάροχο. Το AuraGo αποθηκεύει αυτόματα το token· αν ο browser σταματήσει στο localhost, επικόλλησε την τελική διεύθυνση παρακάτω.",
+  "config.providers.oauth_direct_retry_help": "Αν η καρτέλα login δεν άνοιξε ή έκλεισε, άνοιξέ την ξανά από εδώ.",
+  "config.providers.oauth_copy_login_link": "Αντιγραφή login link",
+  "config.providers.oauth_login_link_copied": "Το login link αντιγράφηκε"
 }
