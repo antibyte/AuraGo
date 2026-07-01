@@ -329,6 +329,41 @@
             if (p.cap) {
                 ctx.drawSp(ctx.c, ctx.SP.playerIcon || ctx.SP.player, ctx.SP.pC, p.cap.x - 16, p.cap.y - 16, false);
             }
+            if (ctx.G.startShieldHits > 0 && p.alive) {
+                const ssh = ctx.G.startShieldHits;
+                const sshR = ssh === 3 ? 28 : ssh === 2 ? 22 : 16;
+                const sshA = ssh === 3 ? 0.7 : ssh === 2 ? 0.5 : 0.3;
+                const sshGlow = ssh === 3 ? 14 : ssh === 2 ? 10 : 6;
+                const sshLW = ssh === 3 ? 2.5 : ssh === 2 ? 1.8 : 1.2;
+                const pulse = Math.sin(ctx.tick * 0.1) * 0.15;
+                ctx.c.shadowBlur = sshGlow; ctx.c.shadowColor = '#66ccff';
+                ctx.c.globalAlpha = sshA + pulse;
+                ctx.c.strokeStyle = '#66ccff'; ctx.c.lineWidth = sshLW;
+                ctx.c.beginPath(); ctx.c.arc(p.x, p.y, sshR, 0, Math.PI * 2); ctx.c.stroke();
+                ctx.c.strokeStyle = '#88ddff'; ctx.c.lineWidth = sshLW * 0.6;
+                ctx.c.beginPath(); ctx.c.arc(p.x, p.y, sshR * 0.7, 0, Math.PI * 2); ctx.c.stroke();
+                for (let i = 0; i < ssh; i++) {
+                    const a = ctx.tick * 0.05 + i * 2.1;
+                    ctx.c.fillStyle = '#88ddff';
+                    ctx.c.beginPath(); ctx.c.arc(p.x + Math.cos(a) * sshR, p.y + Math.sin(a) * sshR, ssh === 3 ? 3 : ssh === 2 ? 2.5 : 2, 0, Math.PI * 2); ctx.c.fill();
+                }
+                if (ssh === 1) {
+                    ctx.c.shadowBlur = 0;
+                    ctx.c.strokeStyle = '#4488cc'; ctx.c.lineWidth = 1; ctx.c.globalAlpha = 0.8;
+                    for (let i = 0; i < 3; i++) {
+                        const ca = (i / 3) * Math.PI * 2 + ctx.tick * 0.02;
+                        const len = sshR * (0.45 + (i % 2) * 0.2);
+                        const jag1 = 0.3 + Math.sin(i * 1.7) * 0.1;
+                        const jag2 = 0.7 + Math.cos(i * 2.3) * 0.1;
+                        ctx.c.beginPath();
+                        ctx.c.moveTo(p.x, p.y);
+                        ctx.c.lineTo(p.x + Math.cos(ca) * len * jag1, p.y + Math.sin(ca) * len * jag1);
+                        ctx.c.lineTo(p.x + Math.cos(ca) * len * jag2, p.y + Math.sin(ca) * len * jag2);
+                        ctx.c.stroke();
+                    }
+                }
+                ctx.c.shadowBlur = 0; ctx.c.globalAlpha = 1;
+            }
             if (ctx.G.shieldHits > 0 && p.alive) {
                 ctx.c.strokeStyle = '#4488ff'; ctx.c.lineWidth = 1.5; ctx.c.globalAlpha = 0.5 + Math.sin(ctx.tick * 0.1) * 0.2;
                 ctx.c.shadowBlur = 10; ctx.c.shadowColor = '#4488ff';

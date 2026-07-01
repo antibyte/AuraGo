@@ -303,7 +303,7 @@
             if (ctx.G.st === 'TITLE') {
                 ctx.G.tIdle += dt * 1000;
                 if (ctx.G.tIdle > ctx.TITLE_IDLE && !ctx.G.demoMode) { ctx.startDemo(); }
-                else if (ctx.G.inp.s && !ctx.G.inp.sp) { ctx.SFX.coinInsert(); ctx.G.titleParts = []; ctx.G.score = 0; ctx.G.lives = ctx.diffMod('lives'); ctx.G.stage = 1; ctx.G.p.dual = false; ctx.G.p.cap = null; ctx.G.weaponLv = 1; ctx.G.killCount = 0; ctx.G.displayScore = 0; ctx.G.deathParts = []; ctx.G.collectedPU = new Set(); ctx.G.perfectCount = 0; ctx.G.bossKillTotal = 0; ctx.startStage(); ctx.MusicEngine.play('gameplay'); }
+                else if (ctx.G.inp.s && !ctx.G.inp.sp) { ctx.SFX.coinInsert(); ctx.G.titleParts = []; ctx.G.score = 0; ctx.G.lives = ctx.diffMod('lives'); ctx.G.stage = 1; ctx.G.p.dual = false; ctx.G.p.cap = null; ctx.G.weaponLv = 1; ctx.G.killCount = 0; ctx.G.displayScore = 0; ctx.G.deathParts = []; ctx.G.collectedPU = new Set(); ctx.G.perfectCount = 0; ctx.G.bossKillTotal = 0; ctx.G.startShieldHits = 3; ctx.startStage(); ctx.MusicEngine.play('gameplay'); }
                 if (!ctx.G.demoMode) {
                     if (Math.random() < 0.04) { const _tc = ['#4488ff','#ffcc00','#ff4444','#00ffcc','#ff88aa']; ctx.G.titleParts.push({ x: Math.random() * ctx.W, y: ctx.H + 5, vx: (Math.random()-0.5)*20, vy: -30 - Math.random()*40, life: 2500, t: 0, col: _tc[Math.floor(Math.random()*_tc.length)], size: 1 + Math.floor(Math.random()*2) }); }
                     let _tplen = 0; for (let _ti = 0; _ti < ctx.G.titleParts.length; _ti++) { const _tp = ctx.G.titleParts[_ti]; _tp.x += _tp.vx * dt; _tp.y += _tp.vy * dt; _tp.t += dt * 1000; if (_tp.t < _tp.life && _tp.y >= -10) ctx.G.titleParts[_tplen++] = _tp; } ctx.G.titleParts.length = _tplen;
@@ -389,7 +389,7 @@
             if (d) ctx.G.pauseSel = (ctx.G.pauseSel + 1) % 3;
             if (f) {
                 if (ctx.G.pauseSel === 0) { ctx.G.st = ctx.G._prevSt; }
-                else if (ctx.G.pauseSel === 1) { ctx.G.st = 'TITLE'; ctx.G.tIdle = 0; ctx.G.score = 0; ctx.G.lives = ctx.diffMod('lives'); ctx.G.stage = 1; ctx.G.p.dual = false; ctx.G.p.cap = null; ctx.G.activePU = null; ctx.G.shieldHits = 0; ctx.G.timeScale = 1; ctx.G.combo = 0; ctx.G.comboMult = 1; ctx.G.weaponLv = 1; ctx.G.killCount = 0; ctx.G.puUpgrade = null; ctx.G.displayScore = 0; ctx.G.deathParts = []; ctx.setPUClass(null); ctx.showTitle(); ctx.MusicEngine.play('title'); }
+                else if (ctx.G.pauseSel === 1) { ctx.G.st = 'TITLE'; ctx.G.tIdle = 0; ctx.G.score = 0; ctx.G.lives = ctx.diffMod('lives'); ctx.G.stage = 1; ctx.G.p.dual = false; ctx.G.p.cap = null; ctx.G.activePU = null; ctx.G.shieldHits = 0; ctx.G.timeScale = 1; ctx.G.combo = 0; ctx.G.comboMult = 1; ctx.G.weaponLv = 1; ctx.G.killCount = 0; ctx.G.puUpgrade = null; ctx.G.displayScore = 0; ctx.G.deathParts = []; ctx.G.startShieldHits = 3; ctx.setPUClass(null); ctx.showTitle(); ctx.MusicEngine.play('title'); }
                 else if (ctx.G.pauseSel === 2) { ctx.G.st = 'TITLE'; ctx.G.tIdle = 0; ctx.showTitle(); ctx.MusicEngine.play('title'); }
             }
         }

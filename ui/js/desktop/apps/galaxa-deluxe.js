@@ -156,7 +156,7 @@
             fX: 0, fTmr: 0, dTmr: 0, sTmr: 0, tIdle: 0,
             attract: false, aTmr: 0, ne: { ch: [65, 65, 65], pos: 0, done: false },
             chal: false, chalHits: 0, chalTot: 0, beam: null, shkT: 0, shkM: 0, shkX: 0, shkY: 0,
-            powerups: [], activePU: null, puTimer: 0, shieldHits: 0,
+            powerups: [], activePU: null, puTimer: 0, shieldHits: 0, startShieldHits: 0,
             scorePopups: [], flashT: 0, warpT: 0, warpFlash: 0, perfectT: 0, contTmr: 0, contCnt: 0,
             damageVignetteT: 0, freezeT: 0, lightningT: 0, lightningX: 0, bgTheme: 'nebula',
             pauseSel: 0, settingsSel: 0, settingsVolDrag: false,

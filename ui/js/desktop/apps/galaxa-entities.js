@@ -546,6 +546,23 @@
         }
         function killP() {
             if (!ctx.G.p.alive) return;
+            if (ctx.G.startShieldHits > 0) {
+                ctx.G.startShieldHits--;
+                ctx.G.damageVignetteT = 200;
+                for (let i = 0; i < 6; i++) {
+                    const a = (i / 6) * Math.PI * 2, sp = 60 + Math.random() * 40;
+                    ctx.G.part.push({ x: ctx.G.p.x, y: ctx.G.p.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 200 + Math.random() * 100, t: 0, col: '#66ccff', size: 2, spark: true });
+                }
+                if (ctx.G.startShieldHits <= 0) {
+                    ctx.SFX.shieldBreak();
+                    for (let i = 0; i < 16; i++) {
+                        const a = Math.random() * Math.PI * 2, sp = 80 + Math.random() * 80;
+                        ctx.G.part.push({ x: ctx.G.p.x, y: ctx.G.p.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 400 + Math.random() * 200, t: 0, col: i % 2 === 0 ? '#66ccff' : '#88ddff', size: 2, spark: true });
+                    }
+                    ctx.G.shkT = 150; ctx.G.shkM = 2;
+                } else { ctx.SFX.shieldHit(); }
+                return;
+            }
             if (ctx.G.shieldHits > 0) { ctx.G.shieldHits--; ctx.G.damageVignetteT = 300; if (ctx.G.shieldHits <= 0) { ctx.G.activePU = null; ctx.G.puTimer = 0; ctx.setPUClass(null); ctx.SFX.shieldBreak(); } else ctx.SFX.shieldHit(); return; }
 ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.pExplode(ctx.G.p.x); ctx.G.shkT = 300; ctx.G.shkM = 4; ctx.G.lives--; ctx.G.stageDamageTaken = (ctx.G.stageDamageTaken || 0) + 1;
             ctx.wrapEl.classList.add('galaxa-desaturate'); setTimeout(() => { if (!ctx.state.disposed) ctx.wrapEl.classList.remove('galaxa-desaturate'); }, 800);
