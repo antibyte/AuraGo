@@ -771,6 +771,11 @@ S3-compatible storage (AWS, MinIO, Wasabi).
 | `operation` | enum | list_buckets, list_objects, upload, download, delete, copy, move |
 | `bucket` | string | Bucket name |
 | `key` | string | Object key |
+| `local_path` | string | Upload source in workspace/data, or download destination in workspace |
+| `destination_bucket` | string | Target bucket for copy/move; defaults to source bucket |
+| `destination_key` | string | Target key for copy/move |
+
+Downloads require filesystem write permission. HTTP endpoints require `s3.insecure: true`; HTTPS is used by default.
 
 ### `netlify`
 Manage Netlify sites, deploys, environment variables.

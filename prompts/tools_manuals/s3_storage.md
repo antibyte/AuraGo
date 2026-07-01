@@ -7,6 +7,7 @@ Manage objects in S3-compatible storage services (AWS S3, MinIO, Wasabi, Backbla
 - `s3.enabled: true` in config
 - Store `s3_access_key` and `s3_secret_key` in the secrets vault
 - For S3-compatible services (MinIO, Wasabi): set `s3.endpoint` and `s3.use_path_style: true`
+- HTTP endpoints require `s3.insecure: true`; HTTPS is used by default.
 
 ## Parameters
 | Parameter | Type | Required | Description |
@@ -14,7 +15,7 @@ Manage objects in S3-compatible storage services (AWS S3, MinIO, Wasabi, Backbla
 | `operation` | string | ✅ | `list_buckets`, `list_objects`, `upload`, `download`, `delete`, `copy`, `move` |
 | `bucket` | string | ❌ | Bucket name (uses config default if omitted) |
 | `key` | string | ❌ | Object key (path within bucket) — required for upload/download/delete/copy/move |
-| `local_path` | string | ❌ | Local file path — required for upload (source), optional for download (destination) |
+| `local_path` | string | ❌ | Local file path — upload sources must be inside the workspace or data directory; download destinations must be inside the workspace |
 | `prefix` | string | ❌ | Key prefix filter for list_objects (e.g. `backups/2025/`) |
 | `destination_bucket` | string | ❌ | Target bucket for copy/move (defaults to source bucket) |
 | `destination_key` | string | ❌ | Target key for copy/move |
@@ -28,16 +29,16 @@ List all accessible buckets. No additional parameters needed.
 List objects in a bucket. Use `prefix` to filter by path.
 
 ### `upload`
-Upload a local file to S3. Requires `key` and `local_path`.
+Upload a local file to S3. Requires `key` and `local_path`; the source file must be inside AuraGo's workspace or data directory.
 
 ### `download`
-Download an S3 object to a local file. Requires `key`; `local_path` defaults to the key's filename.
+Download an S3 object to a local workspace file. Requires `key`; `local_path` defaults to the key's filename inside the workspace. Requires `agent.allow_filesystem_write`.
 
 ### `delete`
 Delete an object from S3. Requires `key`.
 
 ### `copy`
-Copy an object within or across buckets. Requires `key`, `destination_bucket`, and `destination_key`.
+Copy an object within or across buckets. Requires `key` and `destination_key`; `destination_bucket` defaults to the source bucket.
 
 ### `move`
 Move (copy + delete source) within or across buckets. Same params as copy.

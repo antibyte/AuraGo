@@ -17,14 +17,17 @@ import (
 
 // S3Config holds the resolved S3 connection parameters.
 type S3Config struct {
-	Endpoint     string
-	Region       string
-	Bucket       string
-	AccessKey    string
-	SecretKey    string
-	UsePathStyle bool
-	Insecure     bool
-	ReadOnly     bool
+	Endpoint             string
+	Region               string
+	Bucket               string
+	AccessKey            string
+	SecretKey            string
+	UsePathStyle         bool
+	Insecure             bool
+	ReadOnly             bool
+	WorkspaceDir         string
+	DataDir              string
+	AllowFilesystemWrite bool
 }
 
 // s3Result is the JSON payload returned by S3 operations.
@@ -53,16 +56,20 @@ func s3Encode(r s3Result) string {
 	return string(b)
 }
 
-// parseEndpoint strips an http/https scheme from an endpoint and returns
-// the bare host:port together with whether TLS should be used.
-func parseEndpoint(endpoint string, insecure bool) (string, bool) {
-	if strings.HasPrefix(endpoint, "https://") {
-		return strings.TrimPrefix(endpoint, "https://"), true
+// parseEndpoint strips an http/https scheme and enforces explicit opt-in for HTTP.
+func parseEndpoint(endpoint string, insecure bool) (string, bool, error) {
+	endpoint = strings.TrimSpace(endpoint)
+	lower := strings.ToLower(endpoint)
+	if strings.HasPrefix(lower, "https://") {
+		return endpoint[len("https://"):], true, nil
 	}
-	if strings.HasPrefix(endpoint, "http://") {
-		return strings.TrimPrefix(endpoint, "http://"), false
+	if strings.HasPrefix(lower, "http://") {
+		if !insecure {
+			return "", false, fmt.Errorf("HTTP S3 endpoints require s3.insecure=true")
+		}
+		return endpoint[len("http://"):], false, nil
 	}
-	return endpoint, !insecure
+	return endpoint, !insecure, nil
 }
 
 // newS3Client creates a configured minio client from the given config.
@@ -72,7 +79,10 @@ func newS3Client(cfg S3Config) (*minio.Client, error) {
 		endpoint = "s3.amazonaws.com"
 	}
 
-	host, secure := parseEndpoint(endpoint, cfg.Insecure)
+	host, secure, err := parseEndpoint(endpoint, cfg.Insecure)
+	if err != nil {
+		return nil, err
+	}
 
 	lookup := minio.BucketLookupAuto
 	if cfg.UsePathStyle {
@@ -115,15 +125,17 @@ func ExecuteS3(cfg S3Config, operation, bucket, key, localPath, prefix, destBuck
 	case "list_objects", "list":
 		return s3ListObjects(client, resolveBucket(bucket, cfg.Bucket), prefix)
 	case "upload":
-		return s3Upload(client, resolveBucket(bucket, cfg.Bucket), key, localPath)
+		return s3Upload(client, cfg, resolveBucket(bucket, cfg.Bucket), key, localPath)
 	case "download":
-		return s3Download(client, resolveBucket(bucket, cfg.Bucket), key, localPath)
+		return s3Download(client, cfg, resolveBucket(bucket, cfg.Bucket), key, localPath)
 	case "delete":
 		return s3Delete(client, resolveBucket(bucket, cfg.Bucket), key)
 	case "copy":
-		return s3Copy(client, resolveBucket(bucket, cfg.Bucket), key, resolveBucket(destBucket, cfg.Bucket), destKey)
+		srcBucket := resolveBucket(bucket, cfg.Bucket)
+		return s3Copy(client, srcBucket, key, resolveS3DestinationBucket(srcBucket, destBucket), destKey)
 	case "move":
-		return s3Move(client, resolveBucket(bucket, cfg.Bucket), key, resolveBucket(destBucket, cfg.Bucket), destKey)
+		srcBucket := resolveBucket(bucket, cfg.Bucket)
+		return s3Move(client, srcBucket, key, resolveS3DestinationBucket(srcBucket, destBucket), destKey)
 	default:
 		return s3Encode(s3Result{Status: "error", Message: "operation must be: list_buckets, list_objects, upload, download, delete, copy, or move"})
 	}
@@ -134,6 +146,132 @@ func resolveBucket(explicit, fallback string) string {
 		return explicit
 	}
 	return fallback
+}
+
+func resolveS3DestinationBucket(srcBucket, explicitDestBucket string) string {
+	if strings.TrimSpace(explicitDestBucket) != "" {
+		return explicitDestBucket
+	}
+	return srcBucket
+}
+
+func resolveS3DownloadDestination(cfg S3Config, key, localPath string) (string, error) {
+	if !cfg.AllowFilesystemWrite {
+		return "", fmt.Errorf("filesystem write is disabled by runtime permissions")
+	}
+	if strings.TrimSpace(cfg.WorkspaceDir) == "" {
+		return "", fmt.Errorf("workspace_dir is not configured")
+	}
+	dest := strings.TrimSpace(localPath)
+	if dest == "" {
+		dest = filepath.Base(key)
+	}
+	if dest == "" || dest == "." || dest == string(filepath.Separator) {
+		return "", fmt.Errorf("local_path or key filename is required for download")
+	}
+	resolved, err := resolveS3PathWithinRoot(cfg.WorkspaceDir, dest, true, "workspace")
+	if err != nil {
+		return "", err
+	}
+	if info, err := os.Stat(resolved); err == nil && info.IsDir() {
+		return "", fmt.Errorf("download destination is a directory")
+	} else if err != nil && !os.IsNotExist(err) {
+		return "", fmt.Errorf("download destination: %w", err)
+	}
+	return resolved, nil
+}
+
+func resolveS3UploadSource(cfg S3Config, localPath string) (string, error) {
+	if strings.TrimSpace(localPath) == "" {
+		return "", fmt.Errorf("local_path is required for upload")
+	}
+
+	var lastErr error
+	if strings.TrimSpace(cfg.WorkspaceDir) != "" {
+		if resolved, err := resolveS3PathWithinRoot(cfg.WorkspaceDir, localPath, true, "workspace"); err == nil {
+			return validateS3UploadSource(resolved)
+		} else {
+			lastErr = err
+		}
+	}
+	if strings.TrimSpace(cfg.DataDir) != "" {
+		if resolved, err := resolveS3PathWithinRoot(cfg.DataDir, localPath, false, "data"); err == nil {
+			return validateS3UploadSource(resolved)
+		} else {
+			lastErr = err
+		}
+	}
+	if lastErr != nil {
+		return "", fmt.Errorf("local_path must be within workspace or data directory: %w", lastErr)
+	}
+	return "", fmt.Errorf("workspace or data directory is not configured")
+}
+
+func validateS3UploadSource(path string) (string, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return "", fmt.Errorf("upload source: %w", err)
+	}
+	if info.IsDir() {
+		return "", fmt.Errorf("upload source is a directory")
+	}
+	return path, nil
+}
+
+func resolveS3PathWithinRoot(root, userPath string, normalizeWorkspace bool, rootName string) (string, error) {
+	absRoot, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		absRoot, err = filepath.Abs(root)
+		if err != nil {
+			return "", fmt.Errorf("resolve %s root: %w", rootName, err)
+		}
+	}
+
+	candidate := strings.TrimSpace(userPath)
+	if normalizeWorkspace {
+		candidate = normalizeS3WorkspacePath(candidate)
+	}
+
+	var full string
+	if filepath.IsAbs(candidate) {
+		full = filepath.Clean(candidate)
+	} else {
+		full = filepath.Clean(filepath.Join(absRoot, candidate))
+	}
+	resolved, err := secureResolveFinalPath(full)
+	if err != nil {
+		return "", fmt.Errorf("resolve path: %w", err)
+	}
+	if !s3PathWithinRoot(absRoot, resolved) {
+		return "", fmt.Errorf("path must stay within %s root", rootName)
+	}
+	return resolved, nil
+}
+
+func normalizeS3WorkspacePath(path string) string {
+	slash := filepath.ToSlash(filepath.Clean(strings.TrimSpace(path)))
+	switch {
+	case slash == "workdir" || slash == "/workdir" || slash == "agent_workspace/workdir" || slash == "/agent_workspace/workdir":
+		return "."
+	case strings.HasPrefix(slash, "workdir/"):
+		return filepath.FromSlash(strings.TrimPrefix(slash, "workdir/"))
+	case strings.HasPrefix(slash, "/workdir/"):
+		return filepath.FromSlash(strings.TrimPrefix(slash, "/workdir/"))
+	case strings.HasPrefix(slash, "agent_workspace/workdir/"):
+		return filepath.FromSlash(strings.TrimPrefix(slash, "agent_workspace/workdir/"))
+	case strings.HasPrefix(slash, "/agent_workspace/workdir/"):
+		return filepath.FromSlash(strings.TrimPrefix(slash, "/agent_workspace/workdir/"))
+	default:
+		return filepath.FromSlash(slash)
+	}
+}
+
+func s3PathWithinRoot(root, path string) bool {
+	rel, err := filepath.Rel(root, path)
+	if err != nil {
+		return false
+	}
+	return rel == "." || (rel != ".." && !strings.HasPrefix(rel, ".."+string(os.PathSeparator)) && !filepath.IsAbs(rel))
 }
 
 // ── Operations ───────────────────────────────────────────────────────────────
@@ -193,36 +331,38 @@ func s3ListObjects(client *minio.Client, bucket, prefix string) string {
 	return s3Encode(s3Result{Status: "success", Message: msg, Data: objects})
 }
 
-func s3Upload(client *minio.Client, bucket, key, localPath string) string {
+func s3Upload(client *minio.Client, cfg S3Config, bucket, key, localPath string) string {
 	if bucket == "" {
 		return s3Encode(s3Result{Status: "error", Message: "bucket is required"})
 	}
 	if key == "" {
 		return s3Encode(s3Result{Status: "error", Message: "key is required"})
 	}
-	if localPath == "" {
-		return s3Encode(s3Result{Status: "error", Message: "local_path is required for upload"})
+	sourcePath, err := resolveS3UploadSource(cfg, localPath)
+	if err != nil {
+		return s3Encode(s3Result{Status: "error", Message: err.Error()})
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 
-	_, err := client.FPutObject(ctx, bucket, key, localPath, minio.PutObjectOptions{})
+	_, err = client.FPutObject(ctx, bucket, key, sourcePath, minio.PutObjectOptions{})
 	if err != nil {
 		return s3Encode(s3Result{Status: "error", Message: fmt.Sprintf("upload: %v", err)})
 	}
-	return s3Encode(s3Result{Status: "success", Message: fmt.Sprintf("uploaded %s → s3://%s/%s", filepath.Base(localPath), bucket, key)})
+	return s3Encode(s3Result{Status: "success", Message: fmt.Sprintf("uploaded %s → s3://%s/%s", filepath.Base(sourcePath), bucket, key)})
 }
 
-func s3Download(client *minio.Client, bucket, key, localPath string) string {
+func s3Download(client *minio.Client, cfg S3Config, bucket, key, localPath string) string {
 	if bucket == "" {
 		return s3Encode(s3Result{Status: "error", Message: "bucket is required"})
 	}
 	if key == "" {
 		return s3Encode(s3Result{Status: "error", Message: "key is required"})
 	}
-	if localPath == "" {
-		localPath = filepath.Base(key)
+	destPath, err := resolveS3DownloadDestination(cfg, key, localPath)
+	if err != nil {
+		return s3Encode(s3Result{Status: "error", Message: err.Error()})
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
@@ -234,23 +374,79 @@ func s3Download(client *minio.Client, bucket, key, localPath string) string {
 	}
 	defer obj.Close()
 
-	if dir := filepath.Dir(localPath); dir != "" {
-		if err := os.MkdirAll(dir, 0o750); err != nil {
-			return s3Encode(s3Result{Status: "error", Message: fmt.Sprintf("mkdir: %v", err)})
-		}
+	if _, err := obj.Stat(); err != nil {
+		return s3Encode(s3Result{Status: "error", Message: fmt.Sprintf("download stat: %v", err)})
 	}
 
-	file, err := os.Create(localPath)
-	if err != nil {
-		return s3Encode(s3Result{Status: "error", Message: fmt.Sprintf("create file: %v", err)})
-	}
-	defer file.Close()
-
-	written, err := io.Copy(file, obj)
+	written, err := writeS3DownloadAtomic(destPath, obj)
 	if err != nil {
 		return s3Encode(s3Result{Status: "error", Message: fmt.Sprintf("write file: %v", err)})
 	}
-	return s3Encode(s3Result{Status: "success", Message: fmt.Sprintf("downloaded s3://%s/%s → %s (%d bytes)", bucket, key, localPath, written)})
+	return s3Encode(s3Result{Status: "success", Message: fmt.Sprintf("downloaded s3://%s/%s → %s (%d bytes)", bucket, key, destPath, written)})
+}
+
+func writeS3DownloadAtomic(destPath string, src io.Reader) (int64, error) {
+	dir := filepath.Dir(destPath)
+	if err := os.MkdirAll(dir, 0o750); err != nil {
+		return 0, fmt.Errorf("mkdir: %w", err)
+	}
+
+	tmp, err := os.CreateTemp(dir, "."+filepath.Base(destPath)+".*.tmp")
+	if err != nil {
+		return 0, fmt.Errorf("create temp file: %w", err)
+	}
+	tmpPath := tmp.Name()
+	cleanup := true
+	defer func() {
+		if cleanup {
+			_ = os.Remove(tmpPath)
+		}
+	}()
+
+	written, copyErr := io.Copy(tmp, src)
+	closeErr := tmp.Close()
+	if copyErr != nil {
+		return written, fmt.Errorf("copy download: %w", copyErr)
+	}
+	if closeErr != nil {
+		return written, fmt.Errorf("close temp file: %w", closeErr)
+	}
+	if err := replaceS3DownloadFile(tmpPath, destPath); err != nil {
+		return written, err
+	}
+	cleanup = false
+	return written, nil
+}
+
+func replaceS3DownloadFile(tmpPath, destPath string) error {
+	if err := os.Rename(tmpPath, destPath); err == nil {
+		return nil
+	} else if _, statErr := os.Stat(destPath); statErr != nil {
+		return fmt.Errorf("replace destination: %w", err)
+	}
+
+	dir := filepath.Dir(destPath)
+	backup, err := os.CreateTemp(dir, "."+filepath.Base(destPath)+".*.bak")
+	if err != nil {
+		return fmt.Errorf("create destination backup: %w", err)
+	}
+	backupPath := backup.Name()
+	if err := backup.Close(); err != nil {
+		_ = os.Remove(backupPath)
+		return fmt.Errorf("close destination backup: %w", err)
+	}
+	if err := os.Remove(backupPath); err != nil {
+		return fmt.Errorf("prepare destination backup: %w", err)
+	}
+	if err := os.Rename(destPath, backupPath); err != nil {
+		return fmt.Errorf("backup existing destination: %w", err)
+	}
+	if err := os.Rename(tmpPath, destPath); err != nil {
+		_ = os.Rename(backupPath, destPath)
+		return fmt.Errorf("replace destination: %w", err)
+	}
+	_ = os.Remove(backupPath)
+	return nil
 }
 
 func s3Delete(client *minio.Client, bucket, key string) string {

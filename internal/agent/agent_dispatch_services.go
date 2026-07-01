@@ -1159,14 +1159,17 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				}
 			}
 			s3Cfg := tools.S3Config{
-				Endpoint:     cfg.S3.Endpoint,
-				Region:       cfg.S3.Region,
-				Bucket:       cfg.S3.Bucket,
-				AccessKey:    cfg.S3.AccessKey,
-				SecretKey:    cfg.S3.SecretKey,
-				UsePathStyle: cfg.S3.UsePathStyle,
-				Insecure:     cfg.S3.Insecure,
-				ReadOnly:     cfg.S3.ReadOnly,
+				Endpoint:             cfg.S3.Endpoint,
+				Region:               cfg.S3.Region,
+				Bucket:               cfg.S3.Bucket,
+				AccessKey:            cfg.S3.AccessKey,
+				SecretKey:            cfg.S3.SecretKey,
+				UsePathStyle:         cfg.S3.UsePathStyle,
+				Insecure:             cfg.S3.Insecure,
+				ReadOnly:             cfg.S3.ReadOnly,
+				WorkspaceDir:         cfg.Directories.WorkspaceDir,
+				DataDir:              cfg.Directories.DataDir,
+				AllowFilesystemWrite: cfg.Agent.AllowFilesystemWrite,
 			}
 			logger.Info("LLM requested S3 operation", "op", req.Operation, "bucket", req.Bucket, "key", req.Key)
 			return "Tool Output: " + tools.ExecuteS3(s3Cfg, req.Operation, req.Bucket, req.Key, req.LocalPath, req.Prefix, req.DestinationBucket, req.DestinationKey)

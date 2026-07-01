@@ -92,7 +92,7 @@ func appendContentToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai
 		tools = append(tools, tool("s3_storage",
 			"Manage objects in S3-compatible storage (AWS S3, MinIO, Wasabi, Backblaze B2). "+
 				"Operations: list_buckets, list_objects (with optional prefix filter), upload (local file → S3), "+
-				"download (S3 → local file), delete, copy (within or across buckets), move.",
+				"download (S3 → local workspace file), delete, copy (within or across buckets), move.",
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{
 					"type":        "string",
@@ -101,7 +101,7 @@ func appendContentToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai
 				},
 				"bucket":             prop("string", "S3 bucket name (uses default if not specified)"),
 				"key":                prop("string", "S3 object key (path within the bucket)"),
-				"local_path":         prop("string", "Local file path for upload source or download destination"),
+				"local_path":         prop("string", "Local file path. Upload sources must be inside the workspace or data directory; download destinations must be inside the workspace."),
 				"prefix":             prop("string", "Key prefix filter for list_objects (e.g. 'backups/2025/')"),
 				"destination_bucket": prop("string", "Target bucket for copy/move (defaults to source bucket)"),
 				"destination_key":    prop("string", "Target key for copy/move"),
