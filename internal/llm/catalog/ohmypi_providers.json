@@ -146,6 +146,27 @@
     "env_vars": [
       "GEMINI_API_KEY"
     ],
+    "oauth_setup": {
+      "source": "oh-my-pi",
+      "source_package": "@oh-my-pi/pi-ai",
+      "source_provider": "google-gemini-cli",
+      "flow": "authorization_code_pkce",
+      "setup_url": "https://console.cloud.google.com/apis/credentials",
+      "docs_url": "https://goo.gle/gemini-cli-auth-docs#workspace-gca",
+      "console_label": "Google Cloud Credentials",
+      "redirect_uri_field": "Authorized redirect URIs",
+      "client_id_field": "Client ID",
+      "client_secret_field": "Client secret",
+      "auth_url": "https://accounts.google.com/o/oauth2/v2/auth",
+      "token_url": "https://oauth2.googleapis.com/token",
+      "scopes": [
+        "https://www.googleapis.com/auth/cloud-platform",
+        "https://www.googleapis.com/auth/userinfo.email",
+        "https://www.googleapis.com/auth/userinfo.profile"
+      ],
+      "callback_port": 8085,
+      "callback_path": "/oauth2callback"
+    },
     "catalog_only": false,
     "source": "oh-my-pi"
   },

@@ -6069,6 +6069,7 @@ select.cfg-input option {
 .prov-oauth-browser-box { display: flex; flex-direction: column; gap: 0.35rem; }
 .prov-oauth-setup-head { display: flex; justify-content: space-between; gap: 0.8rem; align-items: flex-start; }
 .prov-oauth-setup-head .btn-save { flex-shrink: 0; }
+.prov-oauth-source { margin-top: 0.1rem; }
 .prov-oauth-steps {
     margin: 0.45rem 0 0; padding-left: 1.15rem; color: var(--text-secondary);
     font-size: 0.78rem; line-height: 1.55;
@@ -6089,6 +6090,7 @@ select.cfg-input option {
     display: flex; justify-content: space-between; gap: 0.7rem; align-items: flex-end;
     margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--border-subtle);
 }
+.prov-oauth-browser-box .prov-oauth-redirect-box { margin-top: 0.45rem; }
 .prov-oauth-redirect-uri {
     display: block; max-width: 100%; overflow-wrap: anywhere; margin-top: 0.25rem;
     padding: 0.35rem 0.45rem; border-radius: var(--radius-sm); font-size: 0.72rem;

@@ -159,6 +159,7 @@ func ParseProviderDescriptors(data []byte) ([]catalog.Provider, error) {
 		if len(envVars) == 0 && discovery != "" {
 			envVars = extractStringArrayField(discovery, "envVars")
 		}
+		oauthProvider := extractStringField(discovery, "oauthProvider")
 		auraType := catalog.NormalizeProviderID(id)
 		providers = append(providers, catalog.Provider{
 			ID:                         id,
@@ -166,7 +167,8 @@ func ParseProviderDescriptors(data []byte) ([]catalog.Provider, error) {
 			Name:                       firstNonEmpty(extractStringField(discovery, "label"), titleFromID(id)),
 			DefaultModel:               extractStringField(object, "defaultModel"),
 			EnvVars:                    envVars,
-			OAuthProvider:              extractStringField(discovery, "oauthProvider"),
+			OAuthProvider:              oauthProvider,
+			OAuthSetup:                 providerOAuthSetup(id, oauthProvider),
 			AllowUnauthenticated:       extractBoolField(object, "allowUnauthenticated") || extractBoolField(discovery, "allowUnauthenticated"),
 			DynamicModelsAuthoritative: extractBoolField(object, "dynamicModelsAuthoritative"),
 			CatalogOnly:                !catalog.IsRuntimeProviderType(auraType),
@@ -177,6 +179,36 @@ func ParseProviderDescriptors(data []byte) ([]catalog.Provider, error) {
 		return nil, fmt.Errorf("no providers parsed from descriptors.ts")
 	}
 	return providers, nil
+}
+
+func providerOAuthSetup(id, oauthProvider string) *catalog.OAuthSetup {
+	key := strings.ToLower(strings.TrimSpace(firstNonEmpty(oauthProvider, id)))
+	switch key {
+	case "google", "google-gemini-cli":
+		return &catalog.OAuthSetup{
+			Source:            catalog.SourceOhMyPi,
+			SourcePackage:     "@oh-my-pi/pi-ai",
+			SourceProvider:    "google-gemini-cli",
+			Flow:              "authorization_code_pkce",
+			SetupURL:          "https://console.cloud.google.com/apis/credentials",
+			DocsURL:           "https://goo.gle/gemini-cli-auth-docs#workspace-gca",
+			ConsoleLabel:      "Google Cloud Credentials",
+			RedirectURIField:  "Authorized redirect URIs",
+			ClientIDField:     "Client ID",
+			ClientSecretField: "Client secret",
+			AuthURL:           "https://accounts.google.com/o/oauth2/v2/auth",
+			TokenURL:          "https://oauth2.googleapis.com/token",
+			Scopes: []string{
+				"https://www.googleapis.com/auth/cloud-platform",
+				"https://www.googleapis.com/auth/userinfo.email",
+				"https://www.googleapis.com/auth/userinfo.profile",
+			},
+			CallbackPort: 8085,
+			CallbackPath: "/oauth2callback",
+		}
+	default:
+		return nil
+	}
 }
 
 func MarshalSnapshotFiles(snapshot Snapshot) (modelsJSON, providersJSON, metadataJSON []byte, err error) {

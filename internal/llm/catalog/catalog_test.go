@@ -45,6 +45,23 @@ func TestLoadBundledSnapshotFindsModelsAndProviders(t *testing.T) {
 		t.Fatal("github-copilot should map to a runtime provider")
 	}
 
+	google, ok := snapshot.FindProvider("google")
+	if !ok {
+		t.Fatal("expected google provider")
+	}
+	if google.OAuthSetup == nil {
+		t.Fatal("expected google OAuth setup metadata")
+	}
+	if google.OAuthSetup.SourcePackage != "@oh-my-pi/pi-ai" {
+		t.Fatalf("google OAuth setup source package = %q", google.OAuthSetup.SourcePackage)
+	}
+	if google.OAuthSetup.SetupURL != "https://console.cloud.google.com/apis/credentials" {
+		t.Fatalf("google OAuth setup URL = %q", google.OAuthSetup.SetupURL)
+	}
+	if google.OAuthSetup.RedirectURIField == "" {
+		t.Fatal("google OAuth setup must name the provider redirect URI field")
+	}
+
 	model, ok := snapshot.FindModel("openai", "gpt-4o")
 	if !ok {
 		t.Fatal("expected openai/gpt-4o model")

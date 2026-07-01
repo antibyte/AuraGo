@@ -65,6 +65,17 @@ llm:
 		t.Fatalf("openrouter availability = %+v", openrouter)
 	}
 
+	google := findCatalogProvider(body.Providers, "google")
+	if google == nil {
+		t.Fatal("expected google provider in catalog")
+	}
+	if google.OAuthSetup == nil {
+		t.Fatal("expected google OAuth setup metadata in catalog response")
+	}
+	if google.OAuthSetup.SourcePackage != "@oh-my-pi/pi-ai" {
+		t.Fatalf("google OAuth setup source package = %q", google.OAuthSetup.SourcePackage)
+	}
+
 	if catalogOnly := firstCatalogOnlyProvider(body.Providers); catalogOnly == nil {
 		t.Fatal("expected at least one catalog_only provider")
 	} else if catalogOnly.Available {

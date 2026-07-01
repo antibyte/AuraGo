@@ -39,16 +39,35 @@ type Model struct {
 }
 
 type Provider struct {
-	ID                         string   `json:"id"`
-	AuraProviderType           string   `json:"aura_provider_type"`
-	Name                       string   `json:"name,omitempty"`
-	DefaultModel               string   `json:"default_model,omitempty"`
-	EnvVars                    []string `json:"env_vars,omitempty"`
-	OAuthProvider              string   `json:"oauth_provider,omitempty"`
-	AllowUnauthenticated       bool     `json:"allow_unauthenticated,omitempty"`
-	DynamicModelsAuthoritative bool     `json:"dynamic_models_authoritative,omitempty"`
-	CatalogOnly                bool     `json:"catalog_only"`
-	Source                     string   `json:"source"`
+	ID                         string      `json:"id"`
+	AuraProviderType           string      `json:"aura_provider_type"`
+	Name                       string      `json:"name,omitempty"`
+	DefaultModel               string      `json:"default_model,omitempty"`
+	EnvVars                    []string    `json:"env_vars,omitempty"`
+	OAuthProvider              string      `json:"oauth_provider,omitempty"`
+	OAuthSetup                 *OAuthSetup `json:"oauth_setup,omitempty"`
+	AllowUnauthenticated       bool        `json:"allow_unauthenticated,omitempty"`
+	DynamicModelsAuthoritative bool        `json:"dynamic_models_authoritative,omitempty"`
+	CatalogOnly                bool        `json:"catalog_only"`
+	Source                     string      `json:"source"`
+}
+
+type OAuthSetup struct {
+	Source            string   `json:"source,omitempty"`
+	SourcePackage     string   `json:"source_package,omitempty"`
+	SourceProvider    string   `json:"source_provider,omitempty"`
+	Flow              string   `json:"flow,omitempty"`
+	SetupURL          string   `json:"setup_url,omitempty"`
+	DocsURL           string   `json:"docs_url,omitempty"`
+	ConsoleLabel      string   `json:"console_label,omitempty"`
+	RedirectURIField  string   `json:"redirect_uri_field,omitempty"`
+	ClientIDField     string   `json:"client_id_field,omitempty"`
+	ClientSecretField string   `json:"client_secret_field,omitempty"`
+	AuthURL           string   `json:"auth_url,omitempty"`
+	TokenURL          string   `json:"token_url,omitempty"`
+	Scopes            []string `json:"scopes,omitempty"`
+	CallbackPort      int      `json:"callback_port,omitempty"`
+	CallbackPath      string   `json:"callback_path,omitempty"`
 }
 
 type Metadata struct {
@@ -147,6 +166,7 @@ func (s *Snapshot) Validate() error {
 		p.AuraProviderType = NormalizeProviderID(firstNonEmpty(p.AuraProviderType, p.ID))
 		p.CatalogOnly = p.CatalogOnly || !IsRuntimeProviderType(p.AuraProviderType)
 		p.Source = firstNonEmpty(p.Source, SourceOhMyPi)
+		normalizeOAuthSetup(p.OAuthSetup)
 	}
 	for i := range s.Models {
 		m := &s.Models[i]
@@ -158,6 +178,38 @@ func (s *Snapshot) Validate() error {
 		m.Source = firstNonEmpty(m.Source, SourceOhMyPi)
 	}
 	return nil
+}
+
+func normalizeOAuthSetup(setup *OAuthSetup) {
+	if setup == nil {
+		return
+	}
+	setup.Source = firstNonEmpty(setup.Source, SourceOhMyPi)
+	setup.SourcePackage = strings.TrimSpace(setup.SourcePackage)
+	setup.SourceProvider = strings.TrimSpace(setup.SourceProvider)
+	setup.Flow = strings.TrimSpace(setup.Flow)
+	setup.SetupURL = strings.TrimSpace(setup.SetupURL)
+	setup.DocsURL = strings.TrimSpace(setup.DocsURL)
+	setup.ConsoleLabel = strings.TrimSpace(setup.ConsoleLabel)
+	setup.RedirectURIField = strings.TrimSpace(setup.RedirectURIField)
+	setup.ClientIDField = strings.TrimSpace(setup.ClientIDField)
+	setup.ClientSecretField = strings.TrimSpace(setup.ClientSecretField)
+	setup.AuthURL = strings.TrimSpace(setup.AuthURL)
+	setup.TokenURL = strings.TrimSpace(setup.TokenURL)
+	setup.CallbackPath = strings.TrimSpace(setup.CallbackPath)
+	if len(setup.Scopes) > 0 {
+		scopes := make([]string, 0, len(setup.Scopes))
+		seen := map[string]bool{}
+		for _, scope := range setup.Scopes {
+			scope = strings.TrimSpace(scope)
+			if scope == "" || seen[scope] {
+				continue
+			}
+			seen[scope] = true
+			scopes = append(scopes, scope)
+		}
+		setup.Scopes = scopes
+	}
 }
 
 func (s *Snapshot) FindProvider(id string) (Provider, bool) {

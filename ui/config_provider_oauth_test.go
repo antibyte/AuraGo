@@ -37,11 +37,16 @@ func TestConfigProviderOAuthWizardContract(t *testing.T) {
 	}
 	for _, marker := range []string{
 		"const PROVIDER_OAUTH_PRESETS",
-		"const PROVIDER_OAUTH_SETUP_LINKS",
+		"function providerOAuthSetupForType(type)",
+		"provider && provider.oauth_setup",
+		"function providerOAuthSetupOpenLabel(type)",
 		"function providerRefreshOAuthSetupGuide(type)",
 		`id="prov-oauth-provider-setup-link"`,
-		"config.providers.oauth_setup_redirect_step",
-		"config.providers.oauth_setup_credentials_step",
+		`id="prov-oauth-step-redirect"`,
+		`id="prov-oauth-step-credentials"`,
+		"config.providers.oauth_setup_redirect_step_named",
+		"config.providers.oauth_setup_credentials_step_named",
+		`id="prov-oauth-redirect-uri"`,
 		"config.providers.oauth_setup_save_connect_step",
 		"function providerCopyOAuthLoginLink()",
 		`id="prov-oauth-copy-login-link"`,
@@ -62,6 +67,9 @@ func TestConfigProviderOAuthWizardContract(t *testing.T) {
 	}
 	if strings.Contains(providersJS, "!entry.oauth_auth_url || !entry.oauth_token_url || !entry.oauth_client_id") {
 		t.Fatal("known OAuth providers must not require users to type auth/token endpoint paths before browser login")
+	}
+	if strings.Contains(providersJS, "PROVIDER_OAUTH_SETUP_LINKS") {
+		t.Fatal("OAuth setup links must come from catalog provider metadata, not a UI-only link map")
 	}
 	if strings.Contains(providersJS, "alert(") {
 		t.Fatal("providers config module must use modals/toasts instead of alert()")
@@ -125,10 +133,16 @@ func TestConfigProviderOAuthTranslationsExistInAllLocales(t *testing.T) {
 		"config.providers.oauth_preset_custom",
 		"config.providers.oauth_setup_title",
 		"config.providers.oauth_setup_open_provider_settings",
+		"config.providers.oauth_setup_open_console",
+		"config.providers.oauth_setup_catalog_hint",
+		"config.providers.oauth_setup_no_catalog_hint",
+		"config.providers.oauth_setup_source",
 		"config.providers.oauth_setup_provider_settings_hint",
 		"config.providers.oauth_setup_custom_provider_hint",
 		"config.providers.oauth_setup_redirect_step",
+		"config.providers.oauth_setup_redirect_step_named",
 		"config.providers.oauth_setup_credentials_step",
+		"config.providers.oauth_setup_credentials_step_named",
 		"config.providers.oauth_setup_save_connect_step",
 		"config.providers.oauth_setup_connect_step",
 		"config.providers.oauth_setup_callback_step",

@@ -38,6 +38,12 @@ func TestBuildSnapshotNormalizesModelsProvidersAndMetadata(t *testing.T) {
 			envVars: ["EXAMPLE_API_KEY"],
 			catalogDiscovery: { label: "Example Provider", oauthProvider: "example" },
 		},
+		{
+			id: "google",
+			defaultModel: "gemini-2.5-pro",
+			envVars: ["GEMINI_API_KEY"],
+			catalogDiscovery: { label: "Google" },
+		},
 	] satisfies ProviderCatalogEntry[];`)
 
 	snapshot, err := BuildSnapshot(modelsJSON, descriptorsTS, PackageMetadata{
@@ -100,6 +106,19 @@ func TestBuildSnapshotNormalizesModelsProvidersAndMetadata(t *testing.T) {
 	}
 	if example.OAuthProvider != "example" {
 		t.Fatalf("oauth provider = %q", example.OAuthProvider)
+	}
+	google, ok := snapshot.FindProvider("google")
+	if !ok {
+		t.Fatal("expected google provider")
+	}
+	if google.OAuthSetup == nil {
+		t.Fatal("expected google OAuth setup metadata")
+	}
+	if google.OAuthSetup.SourceProvider != "google-gemini-cli" {
+		t.Fatalf("google OAuth setup source provider = %q", google.OAuthSetup.SourceProvider)
+	}
+	if google.OAuthSetup.CallbackPort != 8085 {
+		t.Fatalf("google OAuth setup callback port = %d, want 8085", google.OAuthSetup.CallbackPort)
 	}
 }
 

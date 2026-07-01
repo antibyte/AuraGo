@@ -17,18 +17,19 @@ type modelCatalogResponse struct {
 }
 
 type modelCatalogProviderResponse struct {
-	ID                         string   `json:"id"`
-	AuraProviderType           string   `json:"aura_provider_type"`
-	Name                       string   `json:"name,omitempty"`
-	DefaultModel               string   `json:"default_model,omitempty"`
-	EnvVars                    []string `json:"env_vars,omitempty"`
-	OAuthProvider              string   `json:"oauth_provider,omitempty"`
-	AllowUnauthenticated       bool     `json:"allow_unauthenticated"`
-	DynamicModelsAuthoritative bool     `json:"dynamic_models_authoritative"`
-	CatalogOnly                bool     `json:"catalog_only"`
-	Available                  bool     `json:"available"`
-	Availability               string   `json:"availability"`
-	ModelsCount                int      `json:"models_count"`
+	ID                         string              `json:"id"`
+	AuraProviderType           string              `json:"aura_provider_type"`
+	Name                       string              `json:"name,omitempty"`
+	DefaultModel               string              `json:"default_model,omitempty"`
+	EnvVars                    []string            `json:"env_vars,omitempty"`
+	OAuthProvider              string              `json:"oauth_provider,omitempty"`
+	OAuthSetup                 *catalog.OAuthSetup `json:"oauth_setup,omitempty"`
+	AllowUnauthenticated       bool                `json:"allow_unauthenticated"`
+	DynamicModelsAuthoritative bool                `json:"dynamic_models_authoritative"`
+	CatalogOnly                bool                `json:"catalog_only"`
+	Available                  bool                `json:"available"`
+	Availability               string              `json:"availability"`
+	ModelsCount                int                 `json:"models_count"`
 }
 
 type modelCatalogModelResponse struct {
@@ -91,6 +92,7 @@ func handleModelCatalog(s *Server) http.HandlerFunc {
 				DefaultModel:               provider.DefaultModel,
 				EnvVars:                    append([]string(nil), provider.EnvVars...),
 				OAuthProvider:              provider.OAuthProvider,
+				OAuthSetup:                 provider.OAuthSetup,
 				AllowUnauthenticated:       provider.AllowUnauthenticated,
 				DynamicModelsAuthoritative: provider.DynamicModelsAuthoritative,
 				CatalogOnly:                provider.CatalogOnly,

@@ -958,16 +958,62 @@ let _providerCatalogPromise = null;
             }
         };
 
-        const PROVIDER_OAUTH_SETUP_LINKS = {
-            google: 'https://console.cloud.google.com/apis/credentials'
-        };
-
         function providerOAuthPresetForType(type) {
             return PROVIDER_OAUTH_PRESETS[type] || null;
         }
 
+        function providerOAuthSetupForType(type) {
+            const provider = providerCatalogProvider(type);
+            return provider && provider.oauth_setup ? provider.oauth_setup : null;
+        }
+
         function providerOAuthSetupURL(type) {
-            return PROVIDER_OAUTH_SETUP_LINKS[(type || '').toLowerCase()] || '';
+            const setup = providerOAuthSetupForType(type);
+            return setup && setup.setup_url ? setup.setup_url : '';
+        }
+
+        function providerOAuthSetupConsoleLabel(type) {
+            const setup = providerOAuthSetupForType(type);
+            return (setup && setup.console_label) || providerTypeLabel(type);
+        }
+
+        function providerOAuthSetupSourceLabel(type) {
+            const setup = providerOAuthSetupForType(type);
+            if (!setup) return '';
+            const source = setup.source_package || setup.source || 'oh-my-pi';
+            return setup.source_provider ? `${source} / ${setup.source_provider}` : source;
+        }
+
+        function providerOAuthSetupOpenLabel(type) {
+            return t('config.providers.oauth_setup_open_console', {
+                console: providerOAuthSetupConsoleLabel(type)
+            });
+        }
+
+        function providerOAuthSetupHint(type) {
+            const setup = providerOAuthSetupForType(type);
+            if (!setup) {
+                return t('config.providers.oauth_setup_no_catalog_hint', {
+                    provider: providerTypeLabel(type)
+                });
+            }
+            return t('config.providers.oauth_setup_catalog_hint', {
+                console: providerOAuthSetupConsoleLabel(type),
+                source: providerOAuthSetupSourceLabel(type)
+            });
+        }
+
+        function providerOAuthSetupRedirectStep(type) {
+            const setup = providerOAuthSetupForType(type);
+            const field = setup && setup.redirect_uri_field ? setup.redirect_uri_field : t('config.providers.oauth_redirect_uri_label');
+            return t('config.providers.oauth_setup_redirect_step_named', { field });
+        }
+
+        function providerOAuthSetupCredentialsStep(type) {
+            const setup = providerOAuthSetupForType(type);
+            const clientId = setup && setup.client_id_field ? setup.client_id_field : t('config.providers.field_client_id_label');
+            const clientSecret = setup && setup.client_secret_field ? setup.client_secret_field : t('config.providers.field_client_secret_label');
+            return t('config.providers.oauth_setup_credentials_step_named', { clientId, clientSecret });
         }
 
         function providerOAuthPresetLabel(type) {
@@ -1029,16 +1075,25 @@ let _providerCatalogPromise = null;
             const setupURL = providerOAuthSetupURL(type);
             const setupLink = document.getElementById('prov-oauth-provider-setup-link');
             const setupHint = document.getElementById('prov-oauth-provider-setup-hint');
+            const setupSource = document.getElementById('prov-oauth-provider-setup-source');
+            const redirectStep = document.getElementById('prov-oauth-step-redirect');
+            const credentialsStep = document.getElementById('prov-oauth-step-credentials');
             if (setupLink) {
                 setupLink.href = setupURL || '#';
                 setupLink.setAttribute('aria-disabled', setupURL ? 'false' : 'true');
+                setupLink.textContent = providerOAuthSetupOpenLabel(type);
                 setupLink.classList.toggle('is-hidden', !setupURL);
             }
             if (setupHint) {
-                setupHint.textContent = setupURL
-                    ? t('config.providers.oauth_setup_provider_settings_hint')
-                    : t('config.providers.oauth_setup_custom_provider_hint');
+                setupHint.textContent = providerOAuthSetupHint(type);
             }
+            if (setupSource) {
+                const source = providerOAuthSetupSourceLabel(type);
+                setupSource.textContent = source ? t('config.providers.oauth_setup_source', { source }) : '';
+                setupSource.classList.toggle('is-hidden', !source);
+            }
+            if (redirectStep) redirectStep.textContent = providerOAuthSetupRedirectStep(type);
+            if (credentialsStep) credentialsStep.textContent = providerOAuthSetupCredentialsStep(type);
         }
 
         function providerOAuthFieldLabel(field) {
@@ -1633,16 +1688,29 @@ let _providerCatalogPromise = null;
                                 <div class="field-help" id="prov-oauth-preset-help">${initialOAuthPresetHelp}</div>
                             </div>
                             <a id="prov-oauth-provider-setup-link" class="btn-save prov-btn-muted prov-btn-sm ${initialOAuthSetupURL ? '' : 'is-hidden'}" href="${escapeAttr(initialOAuthSetupURL || '#')}" target="_blank" rel="noopener noreferrer" aria-disabled="${initialOAuthSetupURL ? 'false' : 'true'}">
-                                ${t('config.providers.oauth_setup_open_provider_settings')}
+                                ${providerOAuthSetupOpenLabel(currentType)}
                             </a>
                         </div>
                         <span class="prov-provider-pill prov-provider-pill-oauth" id="prov-oauth-preset-label">${providerOAuthPresetLabel(currentType)}</span>
                         <div class="field-help" id="prov-oauth-provider-setup-hint">
-                            ${initialOAuthSetupURL ? t('config.providers.oauth_setup_provider_settings_hint') : t('config.providers.oauth_setup_custom_provider_hint')}
+                            ${providerOAuthSetupHint(currentType)}
+                        </div>
+                        <div class="prov-field-hint prov-oauth-source ${providerOAuthSetupSourceLabel(currentType) ? '' : 'is-hidden'}" id="prov-oauth-provider-setup-source">
+                            ${providerOAuthSetupSourceLabel(currentType) ? t('config.providers.oauth_setup_source', { source: providerOAuthSetupSourceLabel(currentType) }) : ''}
+                        </div>
+                        <div class="prov-oauth-redirect-box">
+                            <div>
+                                <div class="field-label">${t('config.providers.oauth_redirect_uri_label')}</div>
+                                <div class="field-help">${t('config.providers.oauth_redirect_uri_help')}</div>
+                                <code id="prov-oauth-redirect-uri" class="prov-oauth-redirect-uri">...</code>
+                            </div>
+                            <button type="button" class="btn-save prov-btn-muted prov-btn-sm" id="prov-oauth-copy-redirect" disabled>
+                                ${t('config.providers.oauth_copy_redirect')}
+                            </button>
                         </div>
                         <ol class="prov-oauth-steps">
-                            <li>${t('config.providers.oauth_setup_redirect_step')}</li>
-                            <li>${t('config.providers.oauth_setup_credentials_step')}</li>
+                            <li id="prov-oauth-step-redirect">${providerOAuthSetupRedirectStep(currentType)}</li>
+                            <li id="prov-oauth-step-credentials">${providerOAuthSetupCredentialsStep(currentType)}</li>
                             <li>${data._editMode ? t('config.providers.oauth_setup_connect_step') : t('config.providers.oauth_setup_save_connect_step')}</li>
                             <li>${t('config.providers.oauth_setup_callback_step')}</li>
                         </ol>
@@ -1678,16 +1746,6 @@ let _providerCatalogPromise = null;
                             <input class="field-input" id="prov-oauth-scopes" value="${escapeAttr(initialOAuthScopes)}" placeholder="${t('config.providers.scopes_placeholder')}">
                         </div>
                     </details>
-                    <div class="field-group prov-oauth-redirect-box">
-                        <div>
-                            <div class="field-label">${t('config.providers.oauth_redirect_uri_label')}</div>
-                            <div class="field-help">${t('config.providers.oauth_redirect_uri_help')}</div>
-                            <code id="prov-oauth-redirect-uri" class="prov-oauth-redirect-uri">...</code>
-                        </div>
-                        <button type="button" class="btn-save prov-btn-muted prov-btn-sm" id="prov-oauth-copy-redirect" disabled>
-                            ${t('config.providers.oauth_copy_redirect')}
-                        </button>
-                    </div>
                     ${data._editMode && currentAuthType === 'oauth2' ? `
                     <div class="field-group prov-oauth-connect-panel">
                         <div class="prov-oauth-connect-head">
@@ -2167,7 +2225,10 @@ let _providerCatalogPromise = null;
                 }
             }
             providerRenderCatalogModelPicker(typeSelect.value);
-            providerLoadCatalog().then(() => providerRenderCatalogModelPicker(typeSelect.value));
+            providerLoadCatalog().then(() => {
+                providerRenderCatalogModelPicker(typeSelect.value);
+                providerRefreshOAuthSetupGuide(typeSelect.value);
+            });
         }
 
         function providerAdd() {
