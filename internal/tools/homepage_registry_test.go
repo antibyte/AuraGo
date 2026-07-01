@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"encoding/json"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -34,7 +35,7 @@ func TestRegisterAndGetProject(t *testing.T) {
 		Description: "Personal portfolio website",
 		Framework:   "astro",
 		URL:         "https://mysite.example.com",
-		ProjectDir:  "/workspace/portfolio",
+		ProjectDir:  "portfolio",
 		Status:      "active",
 		Tags:        []string{"portfolio", "personal"},
 	}
@@ -57,6 +58,63 @@ func TestRegisterAndGetProject(t *testing.T) {
 	if got.Framework != "astro" {
 		t.Errorf("framework = %q, want %q", got.Framework, "astro")
 	}
+	if got.ProjectDir != "portfolio" {
+		t.Errorf("project_dir = %q, want %q", got.ProjectDir, "portfolio")
+	}
+}
+
+func TestRegisterProjectRequiresProjectDir(t *testing.T) {
+	db, err := InitHomepageRegistryDB(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatalf("init db: %v", err)
+	}
+	defer db.Close()
+
+	_, _, err = RegisterProject(db, HomepageProject{Name: "MissingDir"})
+	if err == nil || !strings.Contains(err.Error(), "project_dir is required") {
+		t.Fatalf("expected project_dir required error, got %v", err)
+	}
+}
+
+func TestDispatchHomepageRegistryRegisterRequiresProjectDir(t *testing.T) {
+	db, err := InitHomepageRegistryDB(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatalf("init db: %v", err)
+	}
+	defer db.Close()
+
+	tests := []struct {
+		name       string
+		projectDir string
+		want       string
+	}{
+		{
+			name:       "missing",
+			projectDir: "",
+			want:       "project_dir is required",
+		},
+		{
+			name:       "invalid escaping",
+			projectDir: `bad\"..`,
+			want:       "path traversal detected",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := DispatchHomepageRegistry(db, "register", "", "MissingDir", "", "html", tt.projectDir, "", "", "", "", "", nil, 0, "", 10, 0)
+			var resp struct {
+				Status  string `json:"status"`
+				Message string `json:"message"`
+			}
+			if err := json.Unmarshal([]byte(got), &resp); err != nil {
+				t.Fatalf("response is not valid JSON: %v; got %s", err, got)
+			}
+			if resp.Status != "error" || !strings.Contains(resp.Message, tt.want) {
+				t.Fatalf("expected %q error, got %+v from %s", tt.want, resp, got)
+			}
+		})
+	}
 }
 
 func TestRegisterProjectDedup(t *testing.T) {
@@ -69,7 +127,7 @@ func TestRegisterProjectDedup(t *testing.T) {
 	proj := HomepageProject{
 		Name:       "TestSite",
 		Framework:  "react",
-		ProjectDir: "/workspace/testsite",
+		ProjectDir: "testsite",
 		Status:     "active",
 	}
 
@@ -81,6 +139,31 @@ func TestRegisterProjectDedup(t *testing.T) {
 	}
 }
 
+func TestRegisterProjectSameNameIncompleteRowDoesNotDedupNewProjectDir(t *testing.T) {
+	db, err := InitHomepageRegistryDB(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatalf("init db: %v", err)
+	}
+	defer db.Close()
+
+	res, err := db.Exec(`INSERT INTO homepage_projects (name, project_dir, status) VALUES (?, '', 'active')`, "Site")
+	if err != nil {
+		t.Fatalf("insert incomplete project: %v", err)
+	}
+	existingID, err := res.LastInsertId()
+	if err != nil {
+		t.Fatalf("existing id: %v", err)
+	}
+
+	id, duplicate, err := RegisterProject(db, HomepageProject{Name: "Site", ProjectDir: "clients/site", Status: "active"})
+	if err == nil {
+		t.Fatalf("expected same-name project_dir mismatch error, got id=%d duplicate=%v", id, duplicate)
+	}
+	if duplicate && id == existingID {
+		t.Fatalf("same-name incomplete row must not be returned as duplicate for a new project_dir")
+	}
+}
+
 func TestGetProjectByName(t *testing.T) {
 	db, err := InitHomepageRegistryDB(filepath.Join(t.TempDir(), "test.db"))
 	if err != nil {
@@ -88,7 +171,7 @@ func TestGetProjectByName(t *testing.T) {
 	}
 	defer db.Close()
 
-	RegisterProject(db, HomepageProject{Name: "SiteA", Framework: "vue"})
+	RegisterProject(db, HomepageProject{Name: "SiteA", ProjectDir: "site-a", Framework: "vue"})
 
 	got, getErr := GetProjectByName(db, "SiteA")
 	if getErr != nil {
@@ -106,9 +189,9 @@ func TestGetProjectByDir(t *testing.T) {
 	}
 	defer db.Close()
 
-	RegisterProject(db, HomepageProject{Name: "DirSite", ProjectDir: "/workspace/dirsite", Framework: "svelte"})
+	RegisterProject(db, HomepageProject{Name: "DirSite", ProjectDir: "dirsite", Framework: "svelte"})
 
-	got, getErr := GetProjectByDir(db, "/workspace/dirsite")
+	got, getErr := GetProjectByDir(db, "dirsite")
 	if getErr != nil {
 		t.Fatalf("GetProjectByDir failed: %v", getErr)
 	}
@@ -124,8 +207,8 @@ func TestSearchProjects(t *testing.T) {
 	}
 	defer db.Close()
 
-	RegisterProject(db, HomepageProject{Name: "Portfolio", Description: "Personal site", Framework: "astro"})
-	RegisterProject(db, HomepageProject{Name: "Blog", Description: "Tech blog", Framework: "hugo"})
+	RegisterProject(db, HomepageProject{Name: "Portfolio", ProjectDir: "portfolio", Description: "Personal site", Framework: "astro"})
+	RegisterProject(db, HomepageProject{Name: "Blog", ProjectDir: "blog", Description: "Tech blog", Framework: "hugo"})
 
 	results, _, searchErr := SearchProjects(db, "portfolio", "", nil, 10, 0)
 	if searchErr != nil {
@@ -148,7 +231,7 @@ func TestLogEditAndDeploy(t *testing.T) {
 	}
 	defer db.Close()
 
-	id, _, _ := RegisterProject(db, HomepageProject{Name: "EditTest", Framework: "next"})
+	id, _, _ := RegisterProject(db, HomepageProject{Name: "EditTest", ProjectDir: "edit-test", Framework: "next"})
 
 	if err := LogEdit(db, id, "Added contact form"); err != nil {
 		t.Fatalf("LogEdit failed: %v", err)
@@ -175,6 +258,96 @@ func TestLogEditAndDeploy(t *testing.T) {
 	}
 }
 
+func TestDispatchHomepageRegistryLogDeployRejectsEmptyURL(t *testing.T) {
+	db, err := InitHomepageRegistryDB(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatalf("init db: %v", err)
+	}
+	defer db.Close()
+
+	id, _, err := RegisterProject(db, HomepageProject{Name: "DeployTest", ProjectDir: "deploy-test", Status: "active"})
+	if err != nil {
+		t.Fatalf("register project: %v", err)
+	}
+
+	got := DispatchHomepageRegistry(db, "log_deploy", "", "", "", "", "", " ", "", "", "", "", nil, id, "", 10, 0)
+	var resp struct {
+		Status  string `json:"status"`
+		Message string `json:"message"`
+	}
+	if err := json.Unmarshal([]byte(got), &resp); err != nil {
+		t.Fatalf("response is not valid JSON: %v; got %s", err, got)
+	}
+	if resp.Status != "error" || !strings.Contains(resp.Message, "deploy URL or target is required") {
+		t.Fatalf("expected empty deploy target error, got %+v from %s", resp, got)
+	}
+
+	proj, err := GetProject(db, id)
+	if err != nil {
+		t.Fatalf("get project: %v", err)
+	}
+	if proj.LastDeployURL != "" || proj.LastDeployedAt != "" {
+		t.Fatalf("empty log_deploy must not update deployment fields, got url=%q at=%q", proj.LastDeployURL, proj.LastDeployedAt)
+	}
+}
+
+func TestUpdateProjectRejectsInvalidProjectDir(t *testing.T) {
+	db, err := InitHomepageRegistryDB(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatalf("init db: %v", err)
+	}
+	defer db.Close()
+
+	id, _, err := RegisterProject(db, HomepageProject{Name: "UpdateTest", ProjectDir: "update-test", Status: "active"})
+	if err != nil {
+		t.Fatalf("register project: %v", err)
+	}
+
+	for _, projectDir := range []string{".", filepath.Join(t.TempDir(), "absolute-site")} {
+		t.Run(projectDir, func(t *testing.T) {
+			if err := UpdateProject(db, id, map[string]interface{}{"project_dir": projectDir}); err == nil {
+				t.Fatalf("expected invalid project_dir %q to be rejected", projectDir)
+			}
+		})
+	}
+
+	if err := UpdateProject(db, id, map[string]interface{}{"project_dir": "clients//site"}); err != nil {
+		t.Fatalf("valid nested project_dir update failed: %v", err)
+	}
+	proj, err := GetProject(db, id)
+	if err != nil {
+		t.Fatalf("get project: %v", err)
+	}
+	if proj.ProjectDir != "clients/site" {
+		t.Fatalf("project_dir = %q, want normalized clients/site", proj.ProjectDir)
+	}
+}
+
+func TestDispatchHomepageRegistryUpdateRejectsInvalidProjectDir(t *testing.T) {
+	db, err := InitHomepageRegistryDB(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatalf("init db: %v", err)
+	}
+	defer db.Close()
+
+	id, _, err := RegisterProject(db, HomepageProject{Name: "DispatchUpdateTest", ProjectDir: "dispatch-update-test", Status: "active"})
+	if err != nil {
+		t.Fatalf("register project: %v", err)
+	}
+
+	got := DispatchHomepageRegistry(db, "update", "", "", "", "", ".", "", "", "", "", "", nil, id, "", 10, 0)
+	var resp struct {
+		Status  string `json:"status"`
+		Message string `json:"message"`
+	}
+	if err := json.Unmarshal([]byte(got), &resp); err != nil {
+		t.Fatalf("response is not valid JSON: %v; got %s", err, got)
+	}
+	if resp.Status != "error" || !strings.Contains(resp.Message, `project_dir "." is ambiguous`) {
+		t.Fatalf("expected invalid project_dir error, got %+v from %s", resp, got)
+	}
+}
+
 func TestLogProblemAndResolve(t *testing.T) {
 	db, err := InitHomepageRegistryDB(filepath.Join(t.TempDir(), "test.db"))
 	if err != nil {
@@ -182,7 +355,7 @@ func TestLogProblemAndResolve(t *testing.T) {
 	}
 	defer db.Close()
 
-	id, _, _ := RegisterProject(db, HomepageProject{Name: "ProblemTest", Framework: "gatsby"})
+	id, _, _ := RegisterProject(db, HomepageProject{Name: "ProblemTest", ProjectDir: "problem-test", Framework: "gatsby"})
 
 	if err := LogProblem(db, id, "Mobile nav broken"); err != nil {
 		t.Fatalf("LogProblem failed: %v", err)
@@ -210,9 +383,9 @@ func TestListProjects(t *testing.T) {
 	}
 	defer db.Close()
 
-	RegisterProject(db, HomepageProject{Name: "A", Status: "active"})
-	RegisterProject(db, HomepageProject{Name: "B", Status: "archived"})
-	RegisterProject(db, HomepageProject{Name: "C", Status: "active"})
+	RegisterProject(db, HomepageProject{Name: "A", ProjectDir: "site-a", Status: "active"})
+	RegisterProject(db, HomepageProject{Name: "B", ProjectDir: "site-b", Status: "archived"})
+	RegisterProject(db, HomepageProject{Name: "C", ProjectDir: "site-c", Status: "active"})
 
 	all, _, _ := ListProjects(db, "", 100, 0)
 	if len(all) != 3 {

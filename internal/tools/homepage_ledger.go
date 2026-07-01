@@ -37,6 +37,11 @@ type HomepageLedgerResult struct {
 	Changed    bool     `json:"changed"`
 }
 
+type HomepageDeploymentLedgerResult struct {
+	Warnings []string
+	Fatal    error
+}
+
 // HomepageDeploymentRecord is the normalized deployment row written by the ledger.
 type HomepageDeploymentRecord struct {
 	ProjectID        int64                  `json:"project_id"`
@@ -143,8 +148,8 @@ func EnsureHomepageProjectForDir(db *sql.DB, cfg HomepageConfig, projectDir, nam
 	if err != nil {
 		return nil, err
 	}
-	if canonical == "" {
-		canonical = "."
+	if canonical, err = NormalizeHomepageProjectIdentity(canonical, false); err != nil {
+		return nil, err
 	}
 	if proj, err := GetProjectByDir(db, canonical); err == nil {
 		if err := ensureHomepageProjectState(db, cfg, proj.ID, canonical, 0, "", "not_deployed", ""); err != nil {
@@ -167,12 +172,15 @@ func EnsureHomepageProjectForDir(db *sql.DB, cfg HomepageConfig, projectDir, nam
 		return nil, err
 	}
 	if existed {
-		if current, getErr := GetProject(db, id); getErr == nil && current.ProjectDir != canonical {
-			fields := map[string]interface{}{"project_dir": canonical}
-			if framework != "" && current.Framework == "" {
-				fields["framework"] = framework
-			}
-			if updateErr := UpdateProject(db, id, fields); updateErr != nil {
+		current, getErr := GetProject(db, id)
+		if getErr != nil {
+			return nil, getErr
+		}
+		if current.ProjectDir != canonical {
+			return nil, fmt.Errorf("homepage project identity mismatch: existing project %d has project_dir %q, requested %q", id, current.ProjectDir, canonical)
+		}
+		if framework != "" && current.Framework == "" {
+			if updateErr := UpdateProject(db, id, map[string]interface{}{"framework": framework}); updateErr != nil {
 				return nil, updateErr
 			}
 		}
@@ -335,6 +343,11 @@ func RecordHomepageDeployment(db *sql.DB, rec HomepageDeploymentRecord) error {
 	if rec.Provider == "" {
 		return fmt.Errorf("provider is required")
 	}
+	rec.URL = strings.TrimSpace(rec.URL)
+	rec.RemotePath = strings.TrimSpace(rec.RemotePath)
+	if rec.URL == "" && rec.RemotePath == "" {
+		return fmt.Errorf("deployment target could not be recorded; deploy URL or remote_path is required")
+	}
 	if rec.Status == "" {
 		rec.Status = "ok"
 	}
@@ -394,16 +407,32 @@ func RecordHomepageDeployment(db *sql.DB, rec HomepageDeploymentRecord) error {
 
 // RecordHomepageDeploymentFromResult parses a homepage deploy tool result and records it.
 func RecordHomepageDeploymentFromResult(cfg HomepageConfig, db *sql.DB, projectDir, provider, buildDir, rawResult string, logger *slog.Logger) []string {
-	var warnings []string
+	result := recordHomepageDeploymentFromResult(cfg, db, projectDir, provider, buildDir, rawResult, logger)
+	warnings := append([]string{}, result.Warnings...)
+	if result.Fatal != nil {
+		warnings = append(warnings, result.Fatal.Error())
+	}
+	return warnings
+}
+
+func RecordHomepageDeploymentFromResultStrict(cfg HomepageConfig, db *sql.DB, projectDir, provider, buildDir, rawResult string, logger *slog.Logger) ([]string, error) {
+	result := recordHomepageDeploymentFromResult(cfg, db, projectDir, provider, buildDir, rawResult, logger)
+	return result.Warnings, result.Fatal
+}
+
+func recordHomepageDeploymentFromResult(cfg HomepageConfig, db *sql.DB, projectDir, provider, buildDir, rawResult string, logger *slog.Logger) HomepageDeploymentLedgerResult {
+	result := HomepageDeploymentLedgerResult{}
 	if db == nil {
-		return []string{"homepage registry DB not initialized"}
+		result.Fatal = fmt.Errorf("homepage registry DB not initialized")
+		return result
 	}
 	parsed := map[string]interface{}{}
 	if err := json.Unmarshal([]byte(rawResult), &parsed); err != nil {
-		return []string{fmt.Sprintf("deployment result was not JSON: %v", err)}
+		result.Fatal = fmt.Errorf("deployment result was not JSON: %v", err)
+		return result
 	}
 	if status, _ := parsed["status"].(string); status == "error" {
-		return nil
+		return result
 	}
 	provider = strings.ToLower(strings.TrimSpace(provider))
 	if fallbackProjectDir := ledgerString(parsed, "fallback_project_dir"); fallbackProjectDir != "" {
@@ -417,7 +446,8 @@ func RecordHomepageDeploymentFromResult(cfg HomepageConfig, db *sql.DB, projectD
 	}
 	proj, err := EnsureHomepageProjectForDir(db, cfg, projectDir, "", "")
 	if err != nil {
-		return []string{err.Error()}
+		result.Fatal = err
+		return result
 	}
 	if buildDir == "" {
 		buildDir = ledgerString(parsed, "build_dir")
@@ -435,19 +465,35 @@ func RecordHomepageDeploymentFromResult(cfg HomepageConfig, db *sql.DB, projectD
 	}
 	gitSHA := HomepageProjectGitSHA(cfg, proj.ProjectDir)
 	artifactHash := ""
-	if manifest, err := BuildHomepageArtifactManifest(cfg, proj.ID, proj.ProjectDir, revisionID, gitSHA, buildDir); err == nil {
-		artifactHash = manifest.ArtifactHash
-		if writeErr := WriteHomepageArtifactManifest(cfg, manifest); writeErr != nil {
-			warnings = append(warnings, fmt.Sprintf("artifact manifest write failed: %v", writeErr))
+	buildRoot := filepath.Join(homepageLocalRoot(cfg, proj.ProjectDir), filepath.FromSlash(buildDir))
+	if info, err := os.Stat(buildRoot); err != nil {
+		if logger != nil {
+			logger.Warn("[Homepage] Artifact manifest failed", "project_dir", proj.ProjectDir, "build_dir", buildDir, "error", err)
 		}
-	} else if logger != nil {
-		logger.Warn("[Homepage] Artifact manifest failed", "project_dir", proj.ProjectDir, "build_dir", buildDir, "error", err)
-		warnings = append(warnings, fmt.Sprintf("artifact manifest failed: %v", err))
+		result.Warnings = append(result.Warnings, fmt.Sprintf("artifact manifest failed: build directory %q unavailable: %v", buildDir, err))
+	} else if !info.IsDir() {
+		err := fmt.Errorf("build path is not a directory")
+		if logger != nil {
+			logger.Warn("[Homepage] Artifact manifest failed", "project_dir", proj.ProjectDir, "build_dir", buildDir, "error", err)
+		}
+		result.Warnings = append(result.Warnings, fmt.Sprintf("artifact manifest failed: build path %q is not a directory", buildDir))
+	} else {
+		if manifest, err := BuildHomepageArtifactManifest(cfg, proj.ID, proj.ProjectDir, revisionID, gitSHA, buildDir); err == nil {
+			artifactHash = manifest.ArtifactHash
+			if writeErr := WriteHomepageArtifactManifest(cfg, manifest); writeErr != nil {
+				result.Warnings = append(result.Warnings, fmt.Sprintf("artifact manifest write failed: %v", writeErr))
+			}
+		} else {
+			if logger != nil {
+				logger.Warn("[Homepage] Artifact manifest failed", "project_dir", proj.ProjectDir, "build_dir", buildDir, "error", err)
+			}
+			result.Warnings = append(result.Warnings, fmt.Sprintf("artifact manifest failed: %v", err))
+		}
 	}
 	targetID := firstLedgerString(parsed, "site_id", "new_site_id", "deploy_site_id", "project_id")
 	deployID := firstLedgerString(parsed, "deployment_id", "deploy_id", "id")
-	url := firstLedgerString(parsed, "verified_url", "deployment_url", "deploy_url", "url", "deploy_ssl_url", "deploy_deploy_url")
-	remotePath := firstLedgerString(parsed, "path", "remote_path")
+	url := firstLedgerString(parsed, "verified_url", "deployment_url", "deploy_url", "url", "served_url", "deploy_ssl_url", "deploy_deploy_url")
+	remotePath := firstLedgerString(parsed, "path", "remote_path", "source_path")
 	status := firstLedgerString(parsed, "status")
 	if status == "" {
 		status = "ok"
@@ -479,9 +525,10 @@ func RecordHomepageDeploymentFromResult(cfg HomepageConfig, db *sql.DB, projectD
 		VerificationJSON: verificationJSON,
 		Metadata:         parsed,
 	}); err != nil {
-		warnings = append(warnings, err.Error())
+		result.Fatal = err
+		return result
 	}
-	return warnings
+	return result
 }
 
 // BuildHomepageArtifactManifest hashes a deployable build directory.
@@ -886,14 +933,22 @@ func canonicalHomepageProjectDir(cfg HomepageConfig, projectDir string) (string,
 	if projectDir == "" {
 		projectDir = "."
 	}
-	if strings.HasPrefix(projectDir, "/workspace/") {
-		projectDir = strings.TrimPrefix(projectDir, "/workspace/")
-	}
-	if filepath.IsAbs(projectDir) && cfg.WorkspacePath != "" {
-		rel, err := filepath.Rel(cfg.WorkspacePath, filepath.FromSlash(projectDir))
-		if err == nil && rel != "" && !strings.HasPrefix(rel, "..") {
-			projectDir = filepath.ToSlash(rel)
+	isAbsProjectDir := filepath.IsAbs(filepath.FromSlash(projectDir)) ||
+		isWindowsDriveAbsolutePath(projectDir) ||
+		strings.HasPrefix(projectDir, "/") ||
+		strings.HasPrefix(projectDir, "\\")
+	if isAbsProjectDir {
+		if strings.TrimSpace(cfg.WorkspacePath) == "" {
+			return "", fmt.Errorf("project_dir must be relative to or inside the homepage workspace")
 		}
+		rel, err := filepath.Rel(
+			filepath.Clean(cfg.WorkspacePath),
+			filepath.Clean(filepath.FromSlash(projectDir)),
+		)
+		if err != nil || rel == "" || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			return "", fmt.Errorf("project_dir must be relative to or inside the homepage workspace")
+		}
+		projectDir = filepath.ToSlash(rel)
 	}
 	projectDir = strings.Trim(filepath.ToSlash(filepath.Clean(filepath.FromSlash(projectDir))), "/")
 	if projectDir == "" {
@@ -918,11 +973,14 @@ func homepageLocalRoot(cfg HomepageConfig, projectDir string) string {
 }
 
 func homepageProjectNameFromDir(projectDir string) string {
-	projectDir = strings.Trim(projectDir, "/")
+	projectDir = strings.Trim(filepath.ToSlash(projectDir), "/")
 	if projectDir == "" || projectDir == "." {
 		return "homepage-root"
 	}
-	return filepath.Base(filepath.FromSlash(projectDir))
+	if strings.Contains(projectDir, "/") {
+		return strings.ReplaceAll(projectDir, "/", "-")
+	}
+	return projectDir
 }
 
 func ledgerString(values map[string]interface{}, key string) string {

@@ -83,8 +83,13 @@ func TestHandleHomepageHistoryListAndDelete(t *testing.T) {
 	}
 	defer db.Close()
 
-	projectID, _, _ := tools.RegisterProject(db, tools.HomepageProject{Name: "HistoryUIProject", Framework: "astro"})
-	_, _ = tools.AddHomepageHistoryEntry(db, projectID, "decision", "Use dark hero", "homepage_file", []string{"design"})
+	projectID, _, err := tools.RegisterProject(db, tools.HomepageProject{Name: "HistoryUIProject", ProjectDir: "history-ui-project", Framework: "astro"})
+	if err != nil {
+		t.Fatalf("RegisterProject failed: %v", err)
+	}
+	if _, err := tools.AddHomepageHistoryEntry(db, projectID, "decision", "Use dark hero", "homepage_file", []string{"design"}); err != nil {
+		t.Fatalf("AddHomepageHistoryEntry failed: %v", err)
+	}
 
 	s := &Server{HomepageRegistryDB: db, Logger: slog.Default()}
 	handler := handleHomepageHistory(s)
@@ -142,8 +147,14 @@ func TestHandleHomepageHistoryWorkspaceFallback(t *testing.T) {
 	defer db.Close()
 
 	workspace := t.TempDir()
-	projectID, _, _ := tools.RegisterProject(db, tools.HomepageProject{Name: "WorkspaceFallback", ProjectDir: workspace, Framework: "astro"})
-	_, _ = tools.AddHomepageHistoryEntry(db, projectID, "note", "Workspace fallback entry", "homepage_file", nil)
+	projectDir := "workspace-fallback"
+	projectID, _, err := tools.RegisterProject(db, tools.HomepageProject{Name: "WorkspaceFallback", ProjectDir: projectDir, Framework: "astro"})
+	if err != nil {
+		t.Fatalf("RegisterProject failed: %v", err)
+	}
+	if _, err := tools.AddHomepageHistoryEntry(db, projectID, "note", "Workspace fallback entry", "homepage_file", nil); err != nil {
+		t.Fatalf("AddHomepageHistoryEntry failed: %v", err)
+	}
 
 	cfg := &config.Config{}
 	cfg.Homepage.WorkspacePath = workspace
@@ -166,6 +177,52 @@ func TestHandleHomepageHistoryWorkspaceFallback(t *testing.T) {
 	}
 	if listResp.Total != 1 {
 		t.Fatalf("total = %d, want 1", listResp.Total)
+	}
+}
+
+func TestHandleHomepageHistoryWorkspaceFallbackDoesNotGuessMultipleProjects(t *testing.T) {
+	db, err := tools.InitHomepageRegistryDB(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatalf("init db: %v", err)
+	}
+	defer db.Close()
+
+	projectAID, _, err := tools.RegisterProject(db, tools.HomepageProject{Name: "WorkspaceFallbackA", ProjectDir: "workspace-fallback-a", Framework: "astro"})
+	if err != nil {
+		t.Fatalf("RegisterProject A failed: %v", err)
+	}
+	if _, err := tools.AddHomepageHistoryEntry(db, projectAID, "note", "Entry A", "homepage_file", nil); err != nil {
+		t.Fatalf("AddHomepageHistoryEntry A failed: %v", err)
+	}
+	projectBID, _, err := tools.RegisterProject(db, tools.HomepageProject{Name: "WorkspaceFallbackB", ProjectDir: "workspace-fallback-b", Framework: "astro"})
+	if err != nil {
+		t.Fatalf("RegisterProject B failed: %v", err)
+	}
+	if _, err := tools.AddHomepageHistoryEntry(db, projectBID, "note", "Entry B", "homepage_file", nil); err != nil {
+		t.Fatalf("AddHomepageHistoryEntry B failed: %v", err)
+	}
+
+	cfg := &config.Config{}
+	cfg.Homepage.WorkspacePath = t.TempDir()
+	s := &Server{HomepageRegistryDB: db, Cfg: cfg, Logger: slog.Default()}
+	handler := handleHomepageHistory(s)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/homepage/history", nil)
+	rec := httptest.NewRecorder()
+	handler(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	var listResp struct {
+		Total   int `json:"total"`
+		Entries []tools.HomepageHistoryEntry
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &listResp); err != nil {
+		t.Fatalf("unmarshal response: %v", err)
+	}
+	if listResp.Total != 0 || len(listResp.Entries) != 0 {
+		t.Fatalf("expected ambiguous fallback to return empty history, got %+v", listResp)
 	}
 }
 

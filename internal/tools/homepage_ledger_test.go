@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -56,6 +57,106 @@ func TestEnsureHomepageProjectForDirCanonicalizesAndCreatesState(t *testing.T) {
 	}
 	if driftStatus != "not_deployed" {
 		t.Fatalf("drift_status = %q, want not_deployed", driftStatus)
+	}
+}
+
+func TestEnsureHomepageProjectForDirCreatesDistinctNestedSameBasenameProjects(t *testing.T) {
+	db := newHomepageLedgerTestDB(t)
+	workspace := t.TempDir()
+	cfg := HomepageConfig{WorkspacePath: workspace}
+
+	for _, dir := range []string{"clients/site", "archive/site"} {
+		if err := os.MkdirAll(filepath.Join(workspace, filepath.FromSlash(dir)), 0755); err != nil {
+			t.Fatalf("mkdir %s: %v", dir, err)
+		}
+	}
+
+	clientSite, err := EnsureHomepageProjectForDir(db, cfg, "clients/site", "", "html")
+	if err != nil {
+		t.Fatalf("ensure clients/site: %v", err)
+	}
+	archiveSite, err := EnsureHomepageProjectForDir(db, cfg, "archive/site", "", "html")
+	if err != nil {
+		t.Fatalf("ensure archive/site: %v", err)
+	}
+
+	if clientSite.ID == archiveSite.ID {
+		t.Fatalf("nested projects with same basename must have distinct IDs, got %d", clientSite.ID)
+	}
+	if clientSite.ProjectDir != "clients/site" {
+		t.Fatalf("clients project_dir = %q, want clients/site", clientSite.ProjectDir)
+	}
+	if archiveSite.ProjectDir != "archive/site" {
+		t.Fatalf("archive project_dir = %q, want archive/site", archiveSite.ProjectDir)
+	}
+
+	reloadedClient, err := GetProject(db, clientSite.ID)
+	if err != nil {
+		t.Fatalf("reload clients/site: %v", err)
+	}
+	reloadedArchive, err := GetProject(db, archiveSite.ID)
+	if err != nil {
+		t.Fatalf("reload archive/site: %v", err)
+	}
+	if reloadedClient.ProjectDir != "clients/site" || reloadedArchive.ProjectDir != "archive/site" {
+		t.Fatalf("project dirs were rewritten: clients=%q archive=%q", reloadedClient.ProjectDir, reloadedArchive.ProjectDir)
+	}
+}
+
+func TestEnsureHomepageProjectForDirRejectsAmbiguousRoot(t *testing.T) {
+	db := newHomepageLedgerTestDB(t)
+	_, err := EnsureHomepageProjectForDir(db, HomepageConfig{WorkspacePath: t.TempDir()}, "", "Root", "html")
+	if err == nil || !strings.Contains(err.Error(), "ambiguous") {
+		t.Fatalf("expected ambiguous root error, got %v", err)
+	}
+}
+
+func TestEnsureHomepageProjectForDirRejectsWorkspaceRootAsAmbiguous(t *testing.T) {
+	db := newHomepageLedgerTestDB(t)
+	workspace := t.TempDir()
+
+	_, err := EnsureHomepageProjectForDir(db, HomepageConfig{WorkspacePath: workspace}, workspace, "Root", "html")
+	if err == nil || !strings.Contains(err.Error(), "ambiguous") {
+		t.Fatalf("expected ambiguous root error, got %v", err)
+	}
+}
+
+func TestEnsureHomepageProjectForDirRejectsAbsolutePathOutsideWorkspace(t *testing.T) {
+	db := newHomepageLedgerTestDB(t)
+	workspace := t.TempDir()
+	outside := filepath.Join(t.TempDir(), "site-b")
+
+	_, err := EnsureHomepageProjectForDir(db, HomepageConfig{WorkspacePath: workspace}, outside, "Site B", "html")
+	if err == nil || !strings.Contains(err.Error(), "relative to or inside the homepage workspace") {
+		t.Fatalf("expected outside workspace error, got %v", err)
+	}
+}
+
+func TestEnsureHomepageProjectForDirRejectsAbsolutePathWithoutWorkspace(t *testing.T) {
+	db := newHomepageLedgerTestDB(t)
+	projectPath := filepath.Join(t.TempDir(), "site-c")
+
+	_, err := EnsureHomepageProjectForDir(db, HomepageConfig{}, projectPath, "Site C", "html")
+	if err == nil || !strings.Contains(err.Error(), "relative to or inside the homepage workspace") {
+		t.Fatalf("expected no-workspace absolute path error, got %v", err)
+	}
+}
+
+func TestRecordHomepageDeploymentRequiresTargetLocation(t *testing.T) {
+	db := newHomepageLedgerTestDB(t)
+	workspace := t.TempDir()
+	proj, err := EnsureHomepageProjectForDir(db, HomepageConfig{WorkspacePath: workspace}, "site-a", "site-a", "html")
+	if err != nil {
+		t.Fatalf("ensure project: %v", err)
+	}
+
+	err = RecordHomepageDeployment(db, HomepageDeploymentRecord{
+		ProjectID: proj.ID,
+		Provider:  "local",
+		Status:    "ok",
+	})
+	if err == nil || !strings.Contains(err.Error(), "deploy URL or remote_path") {
+		t.Fatalf("expected target location error, got %v", err)
 	}
 }
 
@@ -270,6 +371,51 @@ func TestRecordHomepageDeploymentFromResultParsesProviderFields(t *testing.T) {
 	}
 }
 
+func TestRecordHomepageDeploymentFromResultStrictRejectsMissingTargetLocation(t *testing.T) {
+	db := newHomepageLedgerTestDB(t)
+	workspace := t.TempDir()
+	cfg := HomepageConfig{WorkspacePath: workspace}
+	if _, err := EnsureHomepageProjectForDir(db, cfg, "site-a", "site-a", "html"); err != nil {
+		t.Fatalf("ensure project: %v", err)
+	}
+
+	warnings, err := RecordHomepageDeploymentFromResultStrict(cfg, db, "site-a", "netlify", ".", `{"status":"ok","id":"deploy-1","site_id":"site-1"}`, slog.Default())
+	if err == nil || !strings.Contains(err.Error(), "deploy URL or remote_path") {
+		t.Fatalf("expected strict target error, got warnings=%v err=%v", warnings, err)
+	}
+	var deployments int
+	if countErr := db.QueryRow("SELECT COUNT(*) FROM homepage_deployments").Scan(&deployments); countErr != nil {
+		t.Fatalf("count deployments: %v", countErr)
+	}
+	if deployments != 0 {
+		t.Fatalf("deployments = %d, want 0", deployments)
+	}
+}
+
+func TestRecordHomepageDeploymentFromResultStrictKeepsArtifactWarningsNonFatal(t *testing.T) {
+	db := newHomepageLedgerTestDB(t)
+	workspace := t.TempDir()
+	cfg := HomepageConfig{WorkspacePath: workspace}
+	if _, err := EnsureHomepageProjectForDir(db, cfg, "site-a", "site-a", "html"); err != nil {
+		t.Fatalf("ensure project: %v", err)
+	}
+
+	warnings, err := RecordHomepageDeploymentFromResultStrict(cfg, db, "site-a", "local", "missing-build", `{"status":"ok","url":"http://localhost:8080","project_dir":"site-a","build_dir":"missing-build"}`, slog.Default())
+	if err != nil {
+		t.Fatalf("strict record should keep artifact manifest failure non-fatal, err=%v warnings=%v", err, warnings)
+	}
+	if len(warnings) == 0 {
+		t.Fatal("expected artifact warning for missing build directory")
+	}
+	var deployments int
+	if countErr := db.QueryRow("SELECT COUNT(*) FROM homepage_deployments").Scan(&deployments); countErr != nil {
+		t.Fatalf("count deployments: %v", countErr)
+	}
+	if deployments != 1 {
+		t.Fatalf("deployments = %d, want 1", deployments)
+	}
+}
+
 func TestRecordHomepageDeploymentFromResultUsesNetlifyFallbackProjectAndBuildDir(t *testing.T) {
 	db := newHomepageLedgerTestDB(t)
 	workspace := t.TempDir()
@@ -365,7 +511,7 @@ func TestReconcileHomepageProjectDetectsUndeployedLatestRevision(t *testing.T) {
 		ProjectID:  proj.ID,
 		RevisionID: initial.RevisionID,
 		Provider:   "local",
-		URL:        "",
+		RemotePath: filepath.Join(workspace, projectDir),
 		BuildDir:   ".",
 		Status:     "ok",
 	}); err != nil {

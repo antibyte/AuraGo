@@ -64,8 +64,8 @@ When updating or publishing an existing homepage project, use this direct path:
 1. `homepage` → `list_files` with `path: "."` to identify the project directory.
 2. `homepage` → `read_file` / `write_file` with a project-prefixed `path`, for example `my-site/index.html`.
 3. `homepage` → `build` with `project_dir: "my-site"`; missing dependencies are installed automatically.
-4. `homepage` → `publish_local` for browser checks, then `deploy_netlify` or `deploy_vercel`.
-4. Verify the returned deployment URL or the live page before reporting success.
+4. `homepage` → `publish_local` with `project_dir: "my-site"` for browser checks, then `deploy_netlify` or `deploy_vercel` with `project_dir: "my-site"`.
+5. Verify the returned deployment URL or the live page before reporting success.
 
 Do not use the generic `filesystem` tool to inspect, copy, or edit homepage project files. It writes to `agent_workspace/workdir/`, not the homepage workspace. Do not use generic `execute_shell` for `/workspace/...` commands either; `/workspace` is the homepage container path, so use focused homepage operations instead.
 
@@ -182,7 +182,7 @@ Returns up to 200 files, excluding node_modules, .next, and .git.
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `packages` | string[] | no | Specific packages (omit for `npm install`) |
-| `project_dir` | string | no | Project subdirectory |
+| `project_dir` | string | yes | Workspace-relative project subdirectory |
 
 ```json
 {"action": "homepage", "operation": "install_deps", "project_dir": "my-site", "packages": ["tailwindcss", "@headlessui/react", "framer-motion"]}
@@ -259,6 +259,7 @@ Returns compact scores for performance, accessibility, best practices and SEO.
 
 ### deploy — Build and upload to remote server via SFTP
 Builds the project, then uploads the build output to the configured remote server.
+Always pass the workspace-relative `project_dir` for the project being deployed.
 ```json
 {"action": "homepage", "operation": "deploy", "project_dir": "my-site"}
 ```
@@ -312,7 +313,8 @@ The generated Caddyfile uses `handle` blocks for proxy routes (matched first) an
 Do **not** assume `/var/www/html`. Use `publish_local` or `webserver_start` instead of manual `docker cp` to guessed paths.
 
 ### webserver_start — Start local Caddy web server
-Serves the build output via Caddy (Docker required). Always pass `project_dir` when you know which project should be public at `/`. If omitted, AuraGo restores the last published project or auto-detects a single servable project, including plain HTML projects with `index.html` at the project root.
+Serves the build output via Caddy (Docker required). Always pass `project_dir` for the project that should be public at `/`.
+Omit `project_dir` only for recovery/status restoration of an already published site, or when intentionally using the single-project/plain-HTML auto-detect path. When the project is known, pass `project_dir`; do not omit it for ordinary build, publish, or deploy work.
 ```json
 {"action": "homepage", "operation": "webserver_start", "project_dir": "my-site"}
 ```
@@ -340,6 +342,7 @@ Serves the build output via Caddy (Docker required). Always pass `project_dir` w
 Combines `build` + `webserver_start` in one step.
 For plain HTML projects (no `package.json`), the build step is automatically skipped and the project directory is served directly.
 Referenced AuraGo assets (`/files/generated_images/*`, generated image `/assets/img_*` paths, `/files/audio/*`, `/files/documents/*`) are automatically copied into the build directory so the Caddy container can serve them.
+Always pass the workspace-relative `project_dir` for the project being published.
 ```json
 {"action": "homepage", "operation": "publish_local", "project_dir": "my-site"}
 ```
@@ -354,8 +357,8 @@ Referenced AuraGo assets (`/files/generated_images/*`, generated image `/assets/
 6. **Preview:** `dev` to start the dev server, `tunnel` to share externally, `screenshot` to capture preview
 7. **Test:** `lighthouse` for performance audit, `lint` for code quality, `check_js` for runtime JS errors
 8. **Optimize:** `optimize_images` for SVG optimization
-9. **Build:** `build` (with `auto_fix: true` for automatic error recovery)
-10. **Deploy:** Choose based on target:
+9. **Build:** `build` with `project_dir` (and `auto_fix: true` for automatic error recovery)
+10. **Deploy:** Choose based on target and pass `project_dir`:
     - `publish_local` — serve locally with Caddy (DEFAULT for most cases, no config flags needed)
     - `deploy` — upload to remote server (requires `homepage.allow_deploy=true`)
     - `deploy_netlify` — deploy to Netlify (requires `netlify.allow_deploy=true`)
@@ -377,7 +380,7 @@ Stages all modifications and commits.
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `git_message` | string | no | Commit message (default: "Update") |
-| `project_dir` | string | no | Project subdirectory |
+| `project_dir` | string | yes | Workspace-relative project subdirectory |
 
 ```json
 {"action": "homepage", "operation": "git_commit", "project_dir": "my-site", "git_message": "Add hero section and navigation"}
@@ -473,7 +476,9 @@ Starts a Cloudflare quick tunnel to expose a local port to the internet via a te
 ## Important Notes
 
 - All file paths are relative to `/workspace` inside the container
-- `project_dir` must always be relative to the homepage workspace. Use `ki-news`, not `/workspace/ki-news`.
+- `project_dir` must always be relative to the homepage workspace. Use `ki-news`; never `/workspace/ki-news`.
+- Mutating and deployment operations must carry the workspace-relative `project_dir`.
+  Do not deploy, publish, build, or clean up a homepage project from a guessed folder name.
 - `homepage.workspace_path` in the config UI is only the host mount path. Tool arguments still stay relative, e.g. `project_dir: "my-site"` and `path: "my-site/src/app/page.tsx"`.
 - The container persists between sessions (uses `unless-stopped` restart policy)
 - Build output directory is auto-detected: checks `out`, `dist`, `build`, `.next`, `public`. If none exist (plain HTML), serves the project root directly.
@@ -629,7 +634,7 @@ homepage:
 ## Notes
 
 - **File paths**: All file paths are relative to `/workspace` inside the container
-- **project_dir**: Must always be relative to the homepage workspace (e.g., `my-site`, not `/workspace/my-site`)
+- **project_dir**: Must always be relative to the homepage workspace (e.g., `my-site`; never `/workspace/my-site`)
 - Use homepage workspace operations for homepage project files; generic workspace tools use a different location
 - **Container persistence**: The container persists between sessions (uses `unless-stopped` restart policy)
 - **Build output**: Auto-detected: `out`, `dist`, `build`, `.next`, `public`

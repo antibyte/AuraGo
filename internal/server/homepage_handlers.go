@@ -366,6 +366,7 @@ func handleHomepageHistory(s *Server) http.HandlerFunc {
 				projectID = pid
 			} else {
 				projectDir := r.URL.Query().Get("project_dir")
+				explicitProjectDir := projectDir != ""
 				if projectDir == "" {
 					s.CfgMu.RLock()
 					projectDir = s.Cfg.Homepage.WorkspacePath
@@ -374,6 +375,11 @@ func handleHomepageHistory(s *Server) http.HandlerFunc {
 				if projectDir != "" {
 					if proj, projErr := tools.GetProjectByDir(s.HomepageRegistryDB, projectDir); projErr == nil {
 						projectID = proj.ID
+					}
+				}
+				if projectID == 0 && !explicitProjectDir {
+					if projects, total, listErr := tools.ListProjects(s.HomepageRegistryDB, "", 2, 0); listErr == nil && total == 1 && len(projects) == 1 {
+						projectID = projects[0].ID
 					}
 				}
 			}
