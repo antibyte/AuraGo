@@ -172,12 +172,15 @@ func EnsureHomepageProjectForDir(db *sql.DB, cfg HomepageConfig, projectDir, nam
 		return nil, err
 	}
 	if existed {
-		if current, getErr := GetProject(db, id); getErr == nil && current.ProjectDir != canonical {
-			fields := map[string]interface{}{"project_dir": canonical}
-			if framework != "" && current.Framework == "" {
-				fields["framework"] = framework
-			}
-			if updateErr := UpdateProject(db, id, fields); updateErr != nil {
+		current, getErr := GetProject(db, id)
+		if getErr != nil {
+			return nil, getErr
+		}
+		if current.ProjectDir != canonical {
+			return nil, fmt.Errorf("homepage project identity mismatch: existing project %d has project_dir %q, requested %q", id, current.ProjectDir, canonical)
+		}
+		if framework != "" && current.Framework == "" {
+			if updateErr := UpdateProject(db, id, map[string]interface{}{"framework": framework}); updateErr != nil {
 				return nil, updateErr
 			}
 		}
@@ -970,11 +973,14 @@ func homepageLocalRoot(cfg HomepageConfig, projectDir string) string {
 }
 
 func homepageProjectNameFromDir(projectDir string) string {
-	projectDir = strings.Trim(projectDir, "/")
+	projectDir = strings.Trim(filepath.ToSlash(projectDir), "/")
 	if projectDir == "" || projectDir == "." {
 		return "homepage-root"
 	}
-	return filepath.Base(filepath.FromSlash(projectDir))
+	if strings.Contains(projectDir, "/") {
+		return strings.ReplaceAll(projectDir, "/", "-")
+	}
+	return projectDir
 }
 
 func ledgerString(values map[string]interface{}, key string) string {

@@ -815,12 +815,14 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				logger.Info("LLM requested homepage deploy", "host", deployCfg.Host)
 				result := tools.HomepageDeploy(homepageCfg, deployCfg, req.ProjectDir, req.BuildDir, logger)
 				// Auto-log deploy and history in homepage registry
-				if homepageRegistryDB != nil && req.ProjectDir != "" {
+				if homepageRegistryDB != nil && req.ProjectDir != "" && homepageResultSuccess(result) {
 					if proj, err := tools.GetProjectByDir(homepageRegistryDB, req.ProjectDir); err == nil {
-						tools.LogDeploy(homepageRegistryDB, proj.ID, deployCfg.Host)
-						if homepageResultSuccess(result) {
-							_, _ = tools.AddHomepageHistoryEntry(homepageRegistryDB, proj.ID, "milestone",
-								fmt.Sprintf("Deployed to %s", deployCfg.Host), "homepage_deploy", nil)
+						deployTarget := strings.TrimSpace(deployCfg.Host)
+						if deployTarget != "" {
+							if err := tools.LogDeploy(homepageRegistryDB, proj.ID, deployTarget); err == nil {
+								_, _ = tools.AddHomepageHistoryEntry(homepageRegistryDB, proj.ID, "milestone",
+									fmt.Sprintf("Deployed to %s", deployTarget), "homepage_deploy", nil)
+							}
 						}
 					}
 				}

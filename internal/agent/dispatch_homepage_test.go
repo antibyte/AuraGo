@@ -461,3 +461,45 @@ func TestDispatchHomepageDeployVercelDoesNotLogFailedDeploy(t *testing.T) {
 		t.Fatalf("failed Vercel deploy must not update deployment fields, got last_url=%q last_at=%q host=%q url=%q", proj.LastDeployURL, proj.LastDeployedAt, proj.DeployHost, proj.URL)
 	}
 }
+
+func TestDispatchHomepageDeploySFTPDoesNotLogFailedDeploy(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Homepage.Enabled = true
+	cfg.Homepage.AllowDeploy = true
+	cfg.Homepage.WorkspacePath = t.TempDir()
+	cfg.Homepage.DeployHost = "sftp.example"
+	cfg.Homepage.DeployUser = "deploy"
+	cfg.Homepage.DeployPath = "/var/www/site-a"
+
+	db, err := tools.InitHomepageRegistryDB(t.TempDir() + "/homepage.db")
+	if err != nil {
+		t.Fatalf("InitHomepageRegistryDB failed: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	if _, err := tools.EnsureHomepageProjectForDir(db, tools.HomepageConfig{WorkspacePath: cfg.Homepage.WorkspacePath}, "site-a", "site-a", "html"); err != nil {
+		t.Fatalf("EnsureHomepageProjectForDir failed: %v", err)
+	}
+
+	output, ok := dispatchServices(context.Background(), ToolCall{
+		Action:    "homepage",
+		Operation: "deploy",
+		Params: map[string]interface{}{
+			"project_dir": "site-a",
+			"build_dir":   ".",
+		},
+	}, &DispatchContext{Cfg: cfg, Logger: testLogger, HomepageRegistryDB: db})
+	if !ok {
+		t.Fatal("expected homepage operation to be handled")
+	}
+	if !strings.Contains(output, `"status":"error"`) {
+		t.Fatalf("expected deploy failure for missing SFTP credential, got %s", output)
+	}
+
+	proj, err := tools.GetProjectByDir(db, "site-a")
+	if err != nil {
+		t.Fatalf("GetProjectByDir failed: %v", err)
+	}
+	if proj.LastDeployURL != "" || proj.LastDeployedAt != "" {
+		t.Fatalf("failed SFTP deploy must not update last deployment fields, got url=%q at=%q", proj.LastDeployURL, proj.LastDeployedAt)
+	}
+}

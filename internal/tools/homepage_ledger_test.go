@@ -60,6 +60,49 @@ func TestEnsureHomepageProjectForDirCanonicalizesAndCreatesState(t *testing.T) {
 	}
 }
 
+func TestEnsureHomepageProjectForDirCreatesDistinctNestedSameBasenameProjects(t *testing.T) {
+	db := newHomepageLedgerTestDB(t)
+	workspace := t.TempDir()
+	cfg := HomepageConfig{WorkspacePath: workspace}
+
+	for _, dir := range []string{"clients/site", "archive/site"} {
+		if err := os.MkdirAll(filepath.Join(workspace, filepath.FromSlash(dir)), 0755); err != nil {
+			t.Fatalf("mkdir %s: %v", dir, err)
+		}
+	}
+
+	clientSite, err := EnsureHomepageProjectForDir(db, cfg, "clients/site", "", "html")
+	if err != nil {
+		t.Fatalf("ensure clients/site: %v", err)
+	}
+	archiveSite, err := EnsureHomepageProjectForDir(db, cfg, "archive/site", "", "html")
+	if err != nil {
+		t.Fatalf("ensure archive/site: %v", err)
+	}
+
+	if clientSite.ID == archiveSite.ID {
+		t.Fatalf("nested projects with same basename must have distinct IDs, got %d", clientSite.ID)
+	}
+	if clientSite.ProjectDir != "clients/site" {
+		t.Fatalf("clients project_dir = %q, want clients/site", clientSite.ProjectDir)
+	}
+	if archiveSite.ProjectDir != "archive/site" {
+		t.Fatalf("archive project_dir = %q, want archive/site", archiveSite.ProjectDir)
+	}
+
+	reloadedClient, err := GetProject(db, clientSite.ID)
+	if err != nil {
+		t.Fatalf("reload clients/site: %v", err)
+	}
+	reloadedArchive, err := GetProject(db, archiveSite.ID)
+	if err != nil {
+		t.Fatalf("reload archive/site: %v", err)
+	}
+	if reloadedClient.ProjectDir != "clients/site" || reloadedArchive.ProjectDir != "archive/site" {
+		t.Fatalf("project dirs were rewritten: clients=%q archive=%q", reloadedClient.ProjectDir, reloadedArchive.ProjectDir)
+	}
+}
+
 func TestEnsureHomepageProjectForDirRejectsAmbiguousRoot(t *testing.T) {
 	db := newHomepageLedgerTestDB(t)
 	_, err := EnsureHomepageProjectForDir(db, HomepageConfig{WorkspacePath: t.TempDir()}, "", "Root", "html")

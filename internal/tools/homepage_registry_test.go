@@ -139,6 +139,31 @@ func TestRegisterProjectDedup(t *testing.T) {
 	}
 }
 
+func TestRegisterProjectSameNameIncompleteRowDoesNotDedupNewProjectDir(t *testing.T) {
+	db, err := InitHomepageRegistryDB(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatalf("init db: %v", err)
+	}
+	defer db.Close()
+
+	res, err := db.Exec(`INSERT INTO homepage_projects (name, project_dir, status) VALUES (?, '', 'active')`, "Site")
+	if err != nil {
+		t.Fatalf("insert incomplete project: %v", err)
+	}
+	existingID, err := res.LastInsertId()
+	if err != nil {
+		t.Fatalf("existing id: %v", err)
+	}
+
+	id, duplicate, err := RegisterProject(db, HomepageProject{Name: "Site", ProjectDir: "clients/site", Status: "active"})
+	if err == nil {
+		t.Fatalf("expected same-name project_dir mismatch error, got id=%d duplicate=%v", id, duplicate)
+	}
+	if duplicate && id == existingID {
+		t.Fatalf("same-name incomplete row must not be returned as duplicate for a new project_dir")
+	}
+}
+
 func TestGetProjectByName(t *testing.T) {
 	db, err := InitHomepageRegistryDB(filepath.Join(t.TempDir(), "test.db"))
 	if err != nil {
@@ -230,6 +255,96 @@ func TestLogEditAndDeploy(t *testing.T) {
 	}
 	if proj.LastDeployedAt == "" {
 		t.Error("last_deployed_at should be set after LogDeploy")
+	}
+}
+
+func TestDispatchHomepageRegistryLogDeployRejectsEmptyURL(t *testing.T) {
+	db, err := InitHomepageRegistryDB(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatalf("init db: %v", err)
+	}
+	defer db.Close()
+
+	id, _, err := RegisterProject(db, HomepageProject{Name: "DeployTest", ProjectDir: "deploy-test", Status: "active"})
+	if err != nil {
+		t.Fatalf("register project: %v", err)
+	}
+
+	got := DispatchHomepageRegistry(db, "log_deploy", "", "", "", "", "", " ", "", "", "", "", nil, id, "", 10, 0)
+	var resp struct {
+		Status  string `json:"status"`
+		Message string `json:"message"`
+	}
+	if err := json.Unmarshal([]byte(got), &resp); err != nil {
+		t.Fatalf("response is not valid JSON: %v; got %s", err, got)
+	}
+	if resp.Status != "error" || !strings.Contains(resp.Message, "deploy URL or target is required") {
+		t.Fatalf("expected empty deploy target error, got %+v from %s", resp, got)
+	}
+
+	proj, err := GetProject(db, id)
+	if err != nil {
+		t.Fatalf("get project: %v", err)
+	}
+	if proj.LastDeployURL != "" || proj.LastDeployedAt != "" {
+		t.Fatalf("empty log_deploy must not update deployment fields, got url=%q at=%q", proj.LastDeployURL, proj.LastDeployedAt)
+	}
+}
+
+func TestUpdateProjectRejectsInvalidProjectDir(t *testing.T) {
+	db, err := InitHomepageRegistryDB(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatalf("init db: %v", err)
+	}
+	defer db.Close()
+
+	id, _, err := RegisterProject(db, HomepageProject{Name: "UpdateTest", ProjectDir: "update-test", Status: "active"})
+	if err != nil {
+		t.Fatalf("register project: %v", err)
+	}
+
+	for _, projectDir := range []string{".", filepath.Join(t.TempDir(), "absolute-site")} {
+		t.Run(projectDir, func(t *testing.T) {
+			if err := UpdateProject(db, id, map[string]interface{}{"project_dir": projectDir}); err == nil {
+				t.Fatalf("expected invalid project_dir %q to be rejected", projectDir)
+			}
+		})
+	}
+
+	if err := UpdateProject(db, id, map[string]interface{}{"project_dir": "clients//site"}); err != nil {
+		t.Fatalf("valid nested project_dir update failed: %v", err)
+	}
+	proj, err := GetProject(db, id)
+	if err != nil {
+		t.Fatalf("get project: %v", err)
+	}
+	if proj.ProjectDir != "clients/site" {
+		t.Fatalf("project_dir = %q, want normalized clients/site", proj.ProjectDir)
+	}
+}
+
+func TestDispatchHomepageRegistryUpdateRejectsInvalidProjectDir(t *testing.T) {
+	db, err := InitHomepageRegistryDB(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatalf("init db: %v", err)
+	}
+	defer db.Close()
+
+	id, _, err := RegisterProject(db, HomepageProject{Name: "DispatchUpdateTest", ProjectDir: "dispatch-update-test", Status: "active"})
+	if err != nil {
+		t.Fatalf("register project: %v", err)
+	}
+
+	got := DispatchHomepageRegistry(db, "update", "", "", "", "", ".", "", "", "", "", "", nil, id, "", 10, 0)
+	var resp struct {
+		Status  string `json:"status"`
+		Message string `json:"message"`
+	}
+	if err := json.Unmarshal([]byte(got), &resp); err != nil {
+		t.Fatalf("response is not valid JSON: %v; got %s", err, got)
+	}
+	if resp.Status != "error" || !strings.Contains(resp.Message, `project_dir "." is ambiguous`) {
+		t.Fatalf("expected invalid project_dir error, got %+v from %s", resp, got)
 	}
 }
 

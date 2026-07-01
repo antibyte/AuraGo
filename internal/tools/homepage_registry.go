@@ -257,7 +257,7 @@ func InitHomepageRegistryDB(dbPath string) (*sql.DB, error) {
 	return db, nil
 }
 
-// RegisterProject inserts a new homepage project. Returns existing ID if name matches.
+// RegisterProject inserts a new homepage project. Returns existing ID if project_dir matches.
 func RegisterProject(db *sql.DB, p HomepageProject) (int64, bool, error) {
 	if db == nil {
 		return 0, false, fmt.Errorf("homepage registry DB not initialized")
@@ -268,21 +268,24 @@ func RegisterProject(db *sql.DB, p HomepageProject) (int64, bool, error) {
 	}
 	p.ProjectDir = projectDir
 
-	// Dedup by name
-	if p.Name != "" {
-		var existingID int64
-		err := db.QueryRow("SELECT id FROM homepage_projects WHERE name = ?", p.Name).Scan(&existingID)
-		if err == nil {
-			return existingID, true, nil
-		}
-	}
-
 	// Dedup by project_dir
 	if p.ProjectDir != "" {
 		var existingID int64
 		err := db.QueryRow("SELECT id FROM homepage_projects WHERE project_dir = ? AND project_dir != ''", p.ProjectDir).Scan(&existingID)
 		if err == nil {
 			return existingID, true, nil
+		}
+	}
+
+	if p.Name != "" {
+		var existingID int64
+		var existingProjectDir string
+		err := db.QueryRow("SELECT id, project_dir FROM homepage_projects WHERE name = ?", p.Name).Scan(&existingID, &existingProjectDir)
+		if err == nil {
+			return 0, false, fmt.Errorf("homepage project name %q already exists with project_dir %q; refusing to register project_dir %q", p.Name, existingProjectDir, p.ProjectDir)
+		}
+		if err != sql.ErrNoRows {
+			return 0, false, fmt.Errorf("failed to check homepage project name: %w", err)
 		}
 	}
 
@@ -483,6 +486,17 @@ func UpdateProject(db *sql.DB, id int64, fields map[string]interface{}) error {
 				continue
 			}
 		}
+		if k == "project_dir" {
+			raw, ok := v.(string)
+			if !ok {
+				return fmt.Errorf("project_dir must be a string")
+			}
+			normalized, err := NormalizeHomepageProjectIdentity(raw, false)
+			if err != nil {
+				return err
+			}
+			v = normalized
+		}
 		setClauses = append(setClauses, k+" = ?")
 		args = append(args, v)
 	}
@@ -512,6 +526,10 @@ func LogEdit(db *sql.DB, projectID int64, reason string) error {
 func LogDeploy(db *sql.DB, projectID int64, url string) error {
 	if db == nil {
 		return fmt.Errorf("homepage registry DB not initialized")
+	}
+	url = strings.TrimSpace(url)
+	if url == "" {
+		return fmt.Errorf("deploy URL or target is required")
 	}
 	now := time.Now().UTC().Format("2006-01-02 15:04:05")
 	_, err := db.Exec("UPDATE homepage_projects SET last_deployed_at = ?, last_deploy_url = ?, updated_at = ? WHERE id = ?",
@@ -738,7 +756,7 @@ func DispatchHomepageRegistry(db *sql.DB, operation, query, name, description, f
 		}
 		newID, dup, err := RegisterProject(db, p)
 		if err != nil {
-			return fmt.Sprintf(`{"status":"error","message":"%s"}`, err.Error())
+			return errJSON("%s", err.Error())
 		}
 		if dup {
 			return fmt.Sprintf(`{"status":"duplicate","id":%d,"message":"Project already exists."}`, newID)
@@ -818,7 +836,7 @@ func DispatchHomepageRegistry(db *sql.DB, operation, query, name, description, f
 			return `{"status":"error","message":"No fields provided to update."}`
 		}
 		if err := UpdateProject(db, id, fields); err != nil {
-			return fmt.Sprintf(`{"status":"error","message":"%s"}`, err.Error())
+			return errJSON("%s", err.Error())
 		}
 		return `{"status":"success","message":"Project updated."}`
 
@@ -870,7 +888,7 @@ func DispatchHomepageRegistry(db *sql.DB, operation, query, name, description, f
 		}
 		deployURL := url
 		if err := LogDeploy(db, id, deployURL); err != nil {
-			return fmt.Sprintf(`{"status":"error","message":"%s"}`, err.Error())
+			return errJSON("%s", err.Error())
 		}
 		return `{"status":"success","message":"Deploy logged."}`
 
