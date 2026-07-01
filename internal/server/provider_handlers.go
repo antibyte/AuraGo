@@ -182,6 +182,12 @@ func applyVaultMutations(vault *security.Vault, mutations []vaultMutation) (map[
 	return snapshots, nil
 }
 
+type providerSaveResult struct {
+	Count             int
+	ActiveLLMModel    string
+	ActiveLLMProvider string
+}
+
 // handleProviders dispatches GET / PUT for /api/providers.
 func handleProviders(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -390,7 +396,36 @@ func handlePutProviders(s *Server, w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Clean up vault secrets for providers that were removed.
+	result, err := persistProviderEntries(s, entries, vaultMutations, oldProviderIDs)
+	if err != nil {
+		s.Logger.Error("[Providers] Failed to update providers", "error", err)
+		jsonError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"status":           "ok",
+		"count":            result.Count,
+		"active_llm_model": result.ActiveLLMModel,
+		"active_llm_type":  result.ActiveLLMProvider,
+	})
+}
+
+func persistProviderEntries(s *Server, entries []config.ProviderEntry, vaultMutations []vaultMutation, oldProviderIDs []string) (providerSaveResult, error) {
+	if s == nil || s.Cfg == nil {
+		return providerSaveResult{}, fmt.Errorf("server config is not available")
+	}
+	s.CfgMu.RLock()
+	configPath := s.Cfg.ConfigPath
+	s.CfgMu.RUnlock()
+	if strings.TrimSpace(configPath) == "" {
+		return providerSaveResult{}, fmt.Errorf("config path not set")
+	}
+
+	s.CfgSaveMu.Lock()
+	defer s.CfgSaveMu.Unlock()
+
 	if s.Vault != nil {
 		newIDSet := make(map[string]bool, len(entries))
 		for _, e := range entries {
@@ -403,27 +438,23 @@ func handlePutProviders(s *Server, w http.ResponseWriter, r *http.Request) {
 					vaultMutation{key: "provider_" + oldID + "_oauth_client_secret", delete: true},
 					vaultMutation{key: "oauth_" + oldID, delete: true},
 				)
-				s.Logger.Info("[Providers] Cleaned up vault secrets for removed provider", "id", oldID)
+				if s.Logger != nil {
+					s.Logger.Info("[Providers] Cleaned up vault secrets for removed provider", "id", oldID)
+				}
 			}
 		}
 	}
 
-	// Read raw YAML, update providers key, write back
 	data, err := os.ReadFile(configPath)
 	if err != nil {
-		s.Logger.Error("Failed to read config for provider update", "error", err)
-		jsonError(w, "Failed to read config", http.StatusInternalServerError)
-		return
+		return providerSaveResult{}, fmt.Errorf("failed to read config: %w", err)
 	}
 
 	var rawCfg map[string]interface{}
 	if err := yaml.Unmarshal(data, &rawCfg); err != nil {
-		s.Logger.Error("Failed to parse config for provider update", "error", err)
-		jsonError(w, "Failed to parse config", http.StatusInternalServerError)
-		return
+		return providerSaveResult{}, fmt.Errorf("failed to parse config: %w", err)
 	}
 
-	// Build providers as []interface{} for YAML marshal (secrets excluded)
 	provList := make([]interface{}, len(entries))
 	for i, e := range entries {
 		provList[i] = buildProviderYAMLEntry(e)
@@ -432,73 +463,58 @@ func handlePutProviders(s *Server, w http.ResponseWriter, r *http.Request) {
 
 	out, err := yaml.Marshal(rawCfg)
 	if err != nil {
-		s.Logger.Error("Failed to marshal config after provider update", "error", err)
-		jsonError(w, "Failed to save config", http.StatusInternalServerError)
-		return
+		return providerSaveResult{}, fmt.Errorf("failed to save config: %w", err)
 	}
 
 	if err := config.WriteFileAtomic(configPath, out, 0o600); err != nil {
-		s.Logger.Error("Failed to write config after provider update", "error", err)
-		jsonError(w, "Failed to write config", http.StatusInternalServerError)
-		return
+		return providerSaveResult{}, fmt.Errorf("failed to write config: %w", err)
 	}
 
 	vaultSnapshots, err := applyVaultMutations(s.Vault, vaultMutations)
 	if err != nil {
 		_ = config.WriteFileAtomic(configPath, data, 0o600)
-		s.Logger.Error("[Providers] Failed to update vault after config write", "error", err)
-		jsonError(w, "Failed to update provider secrets", http.StatusInternalServerError)
-		return
+		return providerSaveResult{}, fmt.Errorf("failed to update provider secrets: %w", err)
 	}
 
-	// Hot-reload
 	s.CfgMu.Lock()
 	newCfg, loadErr := config.Load(configPath)
 	if loadErr != nil {
 		s.CfgMu.Unlock()
 		_ = config.WriteFileAtomic(configPath, data, 0o600)
-		if restoreErr := restoreVaultSecrets(s.Vault, vaultSnapshots); restoreErr != nil {
+		if restoreErr := restoreVaultSecrets(s.Vault, vaultSnapshots); restoreErr != nil && s.Logger != nil {
 			s.Logger.Error("[Providers] Failed to restore vault after hot-reload failure", "error", restoreErr)
 		}
-		s.Logger.Error("[Providers] Hot-reload failed", "error", loadErr)
-		jsonError(w, "Saved but reload failed: "+loadErr.Error(), http.StatusInternalServerError)
-		return
+		return providerSaveResult{}, fmt.Errorf("saved but reload failed: %w", loadErr)
 	}
-	// Apply vault secrets and re-resolve providers after hot-reload
 	newCfg.ConfigPath = configPath
 	newCfg.ApplyVaultSecrets(s.Vault)
 	newCfg.ResolveProviders()
 	newCfg.ApplyOAuthTokens(s.Vault)
 	s.replaceConfigSnapshot(newCfg)
 
-	// Reconfigure LLM client so model/key/URL changes take effect immediately.
 	if fm, ok := s.LLMClient.(*llm.FailoverManager); ok {
 		fm.Reconfigure(newCfg)
-		s.Logger.Info("[Providers] LLM client reconfigured",
-			"model", newCfg.LLM.Model,
-			"provider", newCfg.LLM.ProviderType)
+		if s.Logger != nil {
+			s.Logger.Info("[Providers] LLM client reconfigured",
+				"model", newCfg.LLM.Model,
+				"provider", newCfg.LLM.ProviderType)
+		}
 	}
-	// Recreate LLMGuardian so its client uses the updated API keys.
 	s.LLMGuardian = security.NewLLMGuardian(newCfg, s.Logger)
 
-	// Capture updated agent info before releasing the lock.
-	activeLLMModel := newCfg.LLM.Model
-	activeLLMProvider := newCfg.LLM.ProviderType
+	result := providerSaveResult{
+		Count:             len(entries),
+		ActiveLLMModel:    newCfg.LLM.Model,
+		ActiveLLMProvider: newCfg.LLM.ProviderType,
+	}
 	s.CfgMu.Unlock()
 
-	// Reset the global Helper-LLM singleton so its next request picks up the
-	// new configuration (updated API keys, model, etc.).
 	agent.ResetGlobalHelperLLMManager()
 
-	s.Logger.Info("[Providers] Updated", "count", len(entries))
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"status":           "ok",
-		"count":            len(entries),
-		"active_llm_model": activeLLMModel,
-		"active_llm_type":  activeLLMProvider,
-	})
+	if s.Logger != nil {
+		s.Logger.Info("[Providers] Updated", "count", len(entries))
+	}
+	return result, nil
 }
 
 // handleProviderCapabilities detects capability flags for a provider/model pair.

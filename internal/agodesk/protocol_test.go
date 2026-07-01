@@ -42,6 +42,114 @@ func TestNewEnvelopeCarriesPayload(t *testing.T) {
 	}
 }
 
+func TestProviderManagementProtocolPayloadsRoundTrip(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		got  MessageType
+		want string
+	}{
+		{"catalog list", TypeConfigProviderCatalogList, "config.provider.catalog.list"},
+		{"catalog detail", TypeConfigProviderCatalogDetail, "config.provider.catalog.detail"},
+		{"catalog", TypeConfigProviderCatalog, "config.provider.catalog"},
+		{"providers list", TypeConfigProvidersList, "config.providers.list"},
+		{"providers", TypeConfigProviders, "config.providers"},
+		{"provider get", TypeConfigProviderGet, "config.provider.get"},
+		{"provider", TypeConfigProvider, "config.provider"},
+		{"provider upsert", TypeConfigProviderUpsert, "config.provider.upsert"},
+		{"provider delete", TypeConfigProviderDelete, "config.provider.delete"},
+		{"provider test", TypeConfigProviderTest, "config.provider.test"},
+		{"provider test result", TypeConfigProviderTestResult, "config.provider.test_result"},
+		{"oauth start", TypeConfigProviderOAuthStart, "config.provider.oauth.start"},
+		{"oauth started", TypeConfigProviderOAuthStarted, "config.provider.oauth.started"},
+		{"oauth complete", TypeConfigProviderOAuthComplete, "config.provider.oauth.complete"},
+		{"oauth status request", TypeConfigProviderOAuthStatusRequest, "config.provider.oauth.status"},
+		{"oauth status", TypeConfigProviderOAuthStatus, "config.provider.oauth.status"},
+		{"oauth revoke", TypeConfigProviderOAuthRevoke, "config.provider.oauth.revoke"},
+	} {
+		if string(tt.got) != tt.want {
+			t.Fatalf("%s message type = %q, want %q", tt.name, tt.got, tt.want)
+		}
+	}
+
+	upsert, err := NewEnvelope(TypeConfigProviderUpsert, ConfigProviderUpsertPayload{
+		SessionID: "agodesk:dev-1",
+		Mode:      "update",
+		Provider: ConfigProviderEntryPayload{
+			ID:            "google",
+			Name:          "Google",
+			Type:          "google",
+			BaseURL:       "https://generativelanguage.googleapis.com/v1beta/openai",
+			Model:         "gemini-2.5-flash",
+			AuthType:      "oauth2",
+			OAuthAuthURL:  "https://accounts.google.com/o/oauth2/v2/auth",
+			OAuthTokenURL: "https://oauth2.googleapis.com/token",
+			OAuthClientID: "client-id",
+			OAuthScopes:   "openid profile email",
+			Capabilities:  &ProviderCapabilitiesPayload{Auto: true, ToolCalling: true},
+		},
+		Secrets: ConfigProviderSecretOpsPayload{
+			APIKey:            SecretOperationPayload{Op: "clear"},
+			OAuthClientSecret: SecretOperationPayload{Op: "keep"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("NewEnvelope upsert: %v", err)
+	}
+	var upsertPayload ConfigProviderUpsertPayload
+	if err := json.Unmarshal(upsert.Payload, &upsertPayload); err != nil {
+		t.Fatalf("unmarshal upsert: %v", err)
+	}
+	if upsertPayload.Provider.ID != "google" || upsertPayload.Secrets.APIKey.Op != "clear" || upsertPayload.Secrets.OAuthClientSecret.Op != "keep" {
+		t.Fatalf("upsert payload = %+v", upsertPayload)
+	}
+
+	started, err := NewEnvelope(TypeConfigProviderOAuthStarted, ConfigProviderOAuthStartedPayload{
+		SessionID:   "agodesk:dev-1",
+		ProviderID:  "google",
+		AuthURL:     "https://accounts.example/auth?state=state-1",
+		Mode:        "agodesk_loopback",
+		OAuthState:  "state-1",
+		ExpiresAt:   "2026-06-25T12:10:00Z",
+		RedirectURI: "http://127.0.0.1:8088/callback",
+	})
+	if err != nil {
+		t.Fatalf("NewEnvelope oauth.started: %v", err)
+	}
+	var startedPayload ConfigProviderOAuthStartedPayload
+	if err := json.Unmarshal(started.Payload, &startedPayload); err != nil {
+		t.Fatalf("unmarshal oauth.started: %v", err)
+	}
+	if startedPayload.Mode != "agodesk_loopback" || startedPayload.OAuthState != "state-1" {
+		t.Fatalf("oauth.started payload = %+v", startedPayload)
+	}
+
+	catalog, err := NewEnvelope(TypeConfigProviderCatalog, ConfigProviderCatalogPayload{
+		SessionID: "agodesk:dev-1",
+		Status:    "ok",
+		Providers: []ProviderCatalogProviderPayload{{
+			ID:               "google",
+			AuraProviderType: "google",
+			Name:             "Google",
+			DefaultModel:     "gemini-2.5-flash",
+			OAuthSetup: &ProviderCatalogOAuthSetupPayload{
+				Flow:         "authorization_code_pkce",
+				CallbackPort: 8088,
+				CallbackPath: "/oauth/callback",
+			},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("NewEnvelope provider catalog: %v", err)
+	}
+	var catalogPayload ConfigProviderCatalogPayload
+	if err := json.Unmarshal(catalog.Payload, &catalogPayload); err != nil {
+		t.Fatalf("unmarshal provider catalog: %v", err)
+	}
+	if len(catalogPayload.Providers) != 1 || catalogPayload.Providers[0].OAuthSetup == nil || catalogPayload.Providers[0].OAuthSetup.CallbackPort != 8088 {
+		t.Fatalf("catalog payload = %+v", catalogPayload)
+	}
+}
+
 func TestSharedKeyProofVerifiesEnvelopeBoundHMAC(t *testing.T) {
 	now := time.Date(2026, 5, 24, 12, 0, 0, 0, time.UTC)
 	proof, err := NewSharedKeyProof("0123456789abcdef", "session-start-1", "device-1", now)

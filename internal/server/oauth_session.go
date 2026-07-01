@@ -16,6 +16,7 @@ import (
 const (
 	oauthFlowModeBrowserCallback = "browser_callback"
 	oauthFlowModeManualPaste     = "manual_paste"
+	oauthFlowModeAgodeskLoopback = "agodesk_loopback"
 	oauthSessionTTL              = 10 * time.Minute
 )
 

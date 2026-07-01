@@ -53,6 +53,15 @@ AuraGo accepts AgoDesk WebSocket messages up to 16 MiB. Desktop screenshot resul
 - `system.warning.acknowledge`: acknowledge one warning or all warnings.
 - `persona.assets.request`: client request for the currently active AuraGo persona's visual assets and prompt.
 - `persona.assets`: server response with the active persona name, asset key, avatar image URL, icon URL, and persona prompt.
+- `config.provider.catalog.list` / `config.provider.catalog.detail` / `config.provider.catalog`: provider catalog discovery backed by AuraGo's model catalog.
+- `config.providers.list` / `config.providers`: list configured providers with safe secret and OAuth state only.
+- `config.provider.get` / `config.provider`: load one configured provider for editing.
+- `config.provider.upsert`: create or update one provider using explicit secret operations.
+- `config.provider.delete`: remove a provider and its vault secrets.
+- `config.provider.test` / `config.provider.test_result`: validate required provider settings and safe credential presence.
+- `config.provider.oauth.start` / `config.provider.oauth.started`: start desktop-assisted OAuth with a local AgoDesk loopback redirect URI.
+- `config.provider.oauth.complete` / `config.provider.oauth.status`: complete OAuth and return sanitized authorization status.
+- `config.provider.oauth.revoke`: delete stored OAuth tokens and return sanitized authorization status.
 - `desktop.command` / `desktop.result`: server-to-client command transport for screenshots, discovery, UI automation, browser CDP, permission requests, locally approved input/actions, locally approved file access, and locally enabled remote shell commands.
 
 ## Client Capabilities
@@ -90,6 +99,9 @@ Desktop commands are dispatched only when the matching client capability is pres
 - `chat.voice_output_status`: enables AgoDesk to report the current chat speech-output state with `chat.voice_output.status`.
 - `integrations.webhosts`: enables the Web Chat integrations drawer list over WebSocket.
 - `system.warnings`: enables the Web Chat system warnings list and acknowledgement flow over WebSocket.
+- `config.providers.read`: enables provider catalog, configured-provider list, provider detail, and OAuth status reads.
+- `config.providers.write`: enables provider create, update, delete, and test commands. AuraGo offers this only when Web Config is enabled, the Vault is available, and the paired AgoDesk device is not read-only.
+- `config.providers.oauth`: enables desktop-assisted OAuth start, complete, status, and revoke commands. AuraGo offers this only when Web Config is enabled, the Vault is available, and the paired AgoDesk device is not read-only.
 - `remote.desktop.capture`: required for `desktop_screenshot`
 - `remote.desktop.permission_request`: required for `desktop_permission_request`
 - `remote.desktop.input`: required for `desktop_input`
@@ -595,6 +607,377 @@ When `system.warnings` is negotiated, send `system.warnings.list` with the accep
 To acknowledge, send `system.warning.acknowledge` with either `id` or `all:true`. AuraGo responds with a fresh `system.warnings` snapshot and also broadcasts snapshots to connected AgoDesk clients that negotiated `system.warnings` when warnings change.
 
 For concrete AgoDesk client implementation checklists, see [`agodesk_coding_agent_chat_controls.md`](./agodesk_coding_agent_chat_controls.md) for Stop/New Chat/History/TTS and [`agodesk_coding_agent_media_integrations_warnings.md`](./agodesk_coding_agent_media_integrations_warnings.md) for media artifacts, integration webhosts, and system warnings.
+
+## Provider Management And Desktop OAuth
+
+AgoDesk can manage AuraGo providers over the primary WebSocket after `session.accepted`. This feature deliberately reuses the existing AgoDesk pairing, read-only device policy, capability negotiation, Vault-backed secret storage, and model catalog data.
+
+AuraGo offers provider capabilities as follows:
+
+- `config.providers.read` when `web_config.enabled` is true.
+- `config.providers.write` only when `web_config.enabled` is true, the Vault is available, and the accepted AgoDesk device is not read-only.
+- `config.providers.oauth` only when `web_config.enabled` is true, the Vault is available, and the accepted AgoDesk device is not read-only.
+
+Every mutating command still checks these conditions server-side, even if the client sends an old or forged capability list.
+
+### Safe provider shape
+
+Configured provider responses never contain real secrets, access tokens, refresh tokens, auth codes, PKCE verifiers, or vault keys. They expose only safe state:
+
+```json
+{
+  "id": "main",
+  "name": "Main",
+  "type": "openai",
+  "base_url": "https://api.openai.com/v1",
+  "model": "gpt-4o-mini",
+  "account_id": "",
+  "auth_type": "api_key",
+  "oauth_auth_url": "",
+  "oauth_token_url": "",
+  "oauth_client_id": "",
+  "oauth_scopes": "",
+  "capabilities": {
+    "auto": true,
+    "tool_calling": false,
+    "structured_outputs": false,
+    "multimodal": false
+  },
+  "effective_capabilities": {
+    "auto": true,
+    "tool_calling": true,
+    "structured_outputs": true,
+    "multimodal": true,
+    "source": "model"
+  },
+  "secrets": {
+    "api_key": { "present": true },
+    "oauth_client_secret": { "present": false }
+  },
+  "oauth": {
+    "provider_id": "main",
+    "configured": false,
+    "authorized": false,
+    "has_refresh_token": false,
+    "missing_fields": ["auth_type"]
+  },
+  "references": [
+    { "path": "llm.provider", "role": "primary_llm" },
+    { "path": "image_generation.provider", "role": "image_generation" }
+  ]
+}
+```
+
+`references` identifies config slots currently pointing at the provider, such as `llm.provider`, `llm.helper_provider`, `vision.provider`, `whisper.provider`, `embeddings.provider`, `llm_guardian.provider`, `mission_preparation.provider`, `image_generation.provider`, `music_generation.provider`, `video_generation.provider`, and `a2a.llm.provider`.
+
+### Catalog
+
+Provider catalog list:
+
+```json
+{
+  "type": "config.provider.catalog.list",
+  "payload": {
+    "session_id": "agodesk:device-123",
+    "include_models": false
+  }
+}
+```
+
+Provider catalog detail:
+
+```json
+{
+  "type": "config.provider.catalog.detail",
+  "payload": {
+    "session_id": "agodesk:device-123",
+    "provider_id": "google",
+    "include_models": true
+  }
+}
+```
+
+Both return `config.provider.catalog` with `metadata`, `providers`, and optional `models`. The provider objects mirror `/api/models/catalog` availability and include `oauth_setup` metadata from the bundled model catalog when available:
+
+```json
+{
+  "type": "config.provider.catalog",
+  "payload": {
+    "session_id": "agodesk:device-123",
+    "status": "ok",
+    "enabled": true,
+    "metadata": {
+      "package_name": "oh-my-pi",
+      "version": "..."
+    },
+    "providers": [
+      {
+        "id": "google",
+        "aura_provider_type": "google",
+        "name": "Google",
+        "default_model": "gemini-2.5-flash",
+        "oauth_provider": "google",
+        "oauth_setup": {
+          "flow": "authorization_code_pkce",
+          "auth_url": "https://accounts.google.com/o/oauth2/v2/auth",
+          "token_url": "https://oauth2.googleapis.com/token",
+          "scopes": ["openid", "profile", "email"],
+          "callback_port": 8088,
+          "callback_path": "/oauth/callback"
+        },
+        "available": false,
+        "availability": "missing_credentials",
+        "models_count": 8
+      }
+    ]
+  }
+}
+```
+
+AgoDesk must not hard-code Google, OpenRouter, or other provider-specific OAuth UI. Use `oauth_setup` to prefill setup URLs, scopes, endpoint fields, callback port/path hints, and labels.
+
+### List and edit configured providers
+
+List:
+
+```json
+{
+  "type": "config.providers.list",
+  "payload": {
+    "session_id": "agodesk:device-123"
+  }
+}
+```
+
+Response:
+
+```json
+{
+  "type": "config.providers",
+  "payload": {
+    "session_id": "agodesk:device-123",
+    "status": "ok",
+    "providers": []
+  }
+}
+```
+
+Load one provider:
+
+```json
+{
+  "type": "config.provider.get",
+  "payload": {
+    "session_id": "agodesk:device-123",
+    "provider_id": "main"
+  }
+}
+```
+
+Response is `config.provider` with one safe provider object.
+
+Upsert uses explicit secret operations. Password/secret inputs in AgoDesk must be empty by default; never prefill masked values. Use `op:"keep"` unless the user entered a new value or explicitly cleared the field.
+
+```json
+{
+  "type": "config.provider.upsert",
+  "payload": {
+    "session_id": "agodesk:device-123",
+    "mode": "update",
+    "provider": {
+      "id": "main",
+      "name": "Main",
+      "type": "openai",
+      "base_url": "https://api.openai.com/v1",
+      "model": "gpt-4o-mini",
+      "auth_type": "api_key"
+    },
+    "secrets": {
+      "api_key": { "op": "set", "value": "new-secret" },
+      "oauth_client_secret": { "op": "clear" }
+    }
+  }
+}
+```
+
+Supported secret ops are:
+
+- `keep`: preserve the current Vault value.
+- `set`: write `value` to the Vault.
+- `clear`: delete the Vault value.
+
+For OAuth providers, static API keys are cleared and OAuth tokens are stored only under `oauth_<provider_id>` in AuraGo's Vault. OAuth client secrets, when required by the provider, are stored under `provider_<provider_id>_oauth_client_secret`.
+
+Delete:
+
+```json
+{
+  "type": "config.provider.delete",
+  "payload": {
+    "session_id": "agodesk:device-123",
+    "provider_id": "spare",
+    "force": false
+  }
+}
+```
+
+AuraGo rejects delete when the provider is still referenced unless `force:true` is sent. Successful delete returns `config.providers` and removes `provider_<id>_api_key`, `provider_<id>_oauth_client_secret`, and `oauth_<id>` from the Vault.
+
+Test:
+
+```json
+{
+  "type": "config.provider.test",
+  "payload": {
+    "session_id": "agodesk:device-123",
+    "provider_id": "main"
+  }
+}
+```
+
+Response:
+
+```json
+{
+  "type": "config.provider.test_result",
+  "payload": {
+    "session_id": "agodesk:device-123",
+    "provider_id": "main",
+    "status": "ok",
+    "ok": true,
+    "message": "Provider configuration looks usable."
+  }
+}
+```
+
+### Desktop-assisted OAuth
+
+AgoDesk runs on the desktop, so the happy path must not require the user to copy/paste a callback URL into AuraGo. AgoDesk starts a local loopback HTTP listener, opens the authorization URL in the system browser or embedded WebView, catches the redirect, and sends the result back over the WebSocket.
+
+Start:
+
+```json
+{
+  "type": "config.provider.oauth.start",
+  "payload": {
+    "session_id": "agodesk:device-123",
+    "provider_id": "google",
+    "redirect_uri": "http://127.0.0.1:8088/oauth/callback"
+  }
+}
+```
+
+AuraGo validates that `redirect_uri` is HTTP loopback, stores a PKCE session with mode `agodesk_loopback`, and returns:
+
+```json
+{
+  "type": "config.provider.oauth.started",
+  "payload": {
+    "session_id": "agodesk:device-123",
+    "provider_id": "google",
+    "auth_url": "https://accounts.google.com/o/oauth2/v2/auth?...",
+    "mode": "agodesk_loopback",
+    "oauth_state": "state-value",
+    "expires_at": "2026-06-25T12:10:00Z",
+    "fallback_modes": ["manual_paste"],
+    "redirect_uri": "http://127.0.0.1:8088/oauth/callback"
+  }
+}
+```
+
+Complete with the full redirect URL:
+
+```json
+{
+  "type": "config.provider.oauth.complete",
+  "payload": {
+    "session_id": "agodesk:device-123",
+    "provider_id": "google",
+    "redirect_url": "http://127.0.0.1:8088/oauth/callback?code=...&state=..."
+  }
+}
+```
+
+Or complete with parsed values:
+
+```json
+{
+  "type": "config.provider.oauth.complete",
+  "payload": {
+    "session_id": "agodesk:device-123",
+    "provider_id": "google",
+    "redirect_uri": "http://127.0.0.1:8088/oauth/callback",
+    "code": "...",
+    "state": "..."
+  }
+}
+```
+
+AuraGo validates state, provider id, expiry, session mode, and redirect URI before exchanging the code. Tokens are stored only in the Vault. The response is sanitized `config.provider.oauth.status`:
+
+```json
+{
+  "type": "config.provider.oauth.status",
+  "payload": {
+    "session_id": "agodesk:device-123",
+    "provider_id": "google",
+    "status": "ok",
+    "configured": true,
+    "authorized": true,
+    "expired": false,
+    "expiry": "2026-06-25T13:10:00Z",
+    "has_refresh_token": true,
+    "missing_fields": [],
+    "redirect_uri": "http://127.0.0.1:8088/oauth/callback",
+    "mode": "agodesk_loopback",
+    "message": "Authorization successful."
+  }
+}
+```
+
+Status:
+
+```json
+{
+  "type": "config.provider.oauth.status",
+  "payload": {
+    "session_id": "agodesk:device-123",
+    "provider_id": "google",
+    "redirect_uri": "http://127.0.0.1:8088/oauth/callback"
+  }
+}
+```
+
+Revoke:
+
+```json
+{
+  "type": "config.provider.oauth.revoke",
+  "payload": {
+    "session_id": "agodesk:device-123",
+    "provider_id": "google"
+  }
+}
+```
+
+AgoDesk must never log authorization callback query strings after redirect, authorization codes, tokens, client secrets, API keys, PKCE verifier values, Vault keys, or complete token-exchange errors that might include provider response bodies.
+
+If provider login or consent is required by the upstream provider, AgoDesk may show the browser or WebView. The happy path still must not require a copy/paste step or an AuraGo-side manual callback action.
+
+## Coding Agent Instruction: Provider Settings
+
+When modifying the AgoDesk desktop client, implement provider settings against this WebSocket protocol.
+
+1. Advertise `config.providers.read`, `config.providers.write`, and `config.providers.oauth` in `session.start.client_capabilities`.
+2. After `session.accepted`, use `advertised_capabilities`; hide or disable provider UI actions that were not negotiated.
+3. Build a Provider settings UI from `config.providers.list`. Show existing providers, active/reference badges, auth mode, OAuth status, model, base URL, and missing configuration warnings.
+4. On edit, request `config.provider.get`. Never prefill password fields with masks.
+5. Use `secret op=keep` unless the user enters a new secret or explicitly clears it.
+6. Build "Add from catalog" with `config.provider.catalog.list`, then request `config.provider.catalog.detail` for the selected provider and prefill type, name, base URL, model, OAuth endpoints, scopes, and callback hints from AuraGo data.
+7. Start a local loopback listener using `oauth_setup.callback_port` and `oauth_setup.callback_path` when present, otherwise choose a safe localhost fallback.
+8. Send `config.provider.oauth.start` with the exact local `redirect_uri`, open `auth_url`, catch the callback, then send `config.provider.oauth.complete` with the full redirect URL or parsed `code` and `state`.
+9. Close the loopback listener, refresh provider detail/status, and keep secrets out of logs, local state, telemetry, and crash reports.
+10. Commit AgoDesk client changes separately from AuraGo backend changes and include protocol fixture tests.
 
 ## Active Persona Assets
 

@@ -268,6 +268,83 @@ func handleAgodeskEnvelope(s *Server, r *http.Request, conn *websocket.Conn, sta
 			return true
 		}
 		handleAgodeskPersonaAssetsRequest(s, conn, state, env.ID, payload)
+	case agodesk.TypeConfigProviderCatalogList:
+		payload, errPayload := decodeAgodeskPayload[agodesk.ConfigProviderCatalogListPayload](env)
+		if errPayload != nil {
+			_ = writeAgodeskErrorLocked(conn, state, env.ID, agodesk.ErrorInvalidMessage, errPayload.Error())
+			return true
+		}
+		handleAgodeskProviderCatalogList(s, conn, state, env.ID, payload)
+	case agodesk.TypeConfigProviderCatalogDetail:
+		payload, errPayload := decodeAgodeskPayload[agodesk.ConfigProviderCatalogDetailPayload](env)
+		if errPayload != nil {
+			_ = writeAgodeskErrorLocked(conn, state, env.ID, agodesk.ErrorInvalidMessage, errPayload.Error())
+			return true
+		}
+		handleAgodeskProviderCatalogDetail(s, conn, state, env.ID, payload)
+	case agodesk.TypeConfigProvidersList:
+		payload, errPayload := decodeAgodeskPayload[agodesk.ConfigProvidersListPayload](env)
+		if errPayload != nil {
+			_ = writeAgodeskErrorLocked(conn, state, env.ID, agodesk.ErrorInvalidMessage, errPayload.Error())
+			return true
+		}
+		handleAgodeskProvidersList(s, conn, state, env.ID, payload)
+	case agodesk.TypeConfigProviderGet:
+		payload, errPayload := decodeAgodeskPayload[agodesk.ConfigProviderGetPayload](env)
+		if errPayload != nil {
+			_ = writeAgodeskErrorLocked(conn, state, env.ID, agodesk.ErrorInvalidMessage, errPayload.Error())
+			return true
+		}
+		handleAgodeskProviderGet(s, conn, state, env.ID, payload)
+	case agodesk.TypeConfigProviderUpsert:
+		payload, errPayload := decodeAgodeskPayload[agodesk.ConfigProviderUpsertPayload](env)
+		if errPayload != nil {
+			_ = writeAgodeskErrorLocked(conn, state, env.ID, agodesk.ErrorInvalidMessage, errPayload.Error())
+			return true
+		}
+		handleAgodeskProviderUpsert(s, conn, state, env.ID, payload)
+	case agodesk.TypeConfigProviderDelete:
+		payload, errPayload := decodeAgodeskPayload[agodesk.ConfigProviderDeletePayload](env)
+		if errPayload != nil {
+			_ = writeAgodeskErrorLocked(conn, state, env.ID, agodesk.ErrorInvalidMessage, errPayload.Error())
+			return true
+		}
+		handleAgodeskProviderDelete(s, conn, state, env.ID, payload)
+	case agodesk.TypeConfigProviderTest:
+		payload, errPayload := decodeAgodeskPayload[agodesk.ConfigProviderTestPayload](env)
+		if errPayload != nil {
+			_ = writeAgodeskErrorLocked(conn, state, env.ID, agodesk.ErrorInvalidMessage, errPayload.Error())
+			return true
+		}
+		handleAgodeskProviderTest(s, conn, state, env.ID, payload)
+	case agodesk.TypeConfigProviderOAuthStart:
+		payload, errPayload := decodeAgodeskPayload[agodesk.ConfigProviderOAuthStartPayload](env)
+		if errPayload != nil {
+			_ = writeAgodeskErrorLocked(conn, state, env.ID, agodesk.ErrorInvalidMessage, errPayload.Error())
+			return true
+		}
+		handleAgodeskProviderOAuthStart(s, conn, state, env.ID, payload)
+	case agodesk.TypeConfigProviderOAuthComplete:
+		payload, errPayload := decodeAgodeskPayload[agodesk.ConfigProviderOAuthCompletePayload](env)
+		if errPayload != nil {
+			_ = writeAgodeskErrorLocked(conn, state, env.ID, agodesk.ErrorInvalidMessage, errPayload.Error())
+			return true
+		}
+		handleAgodeskProviderOAuthComplete(s, conn, state, env.ID, payload)
+	case agodesk.TypeConfigProviderOAuthStatusRequest:
+		payload, errPayload := decodeAgodeskPayload[agodesk.ConfigProviderOAuthStatusRequestPayload](env)
+		if errPayload != nil {
+			_ = writeAgodeskErrorLocked(conn, state, env.ID, agodesk.ErrorInvalidMessage, errPayload.Error())
+			return true
+		}
+		handleAgodeskProviderOAuthStatus(s, conn, state, env.ID, payload)
+	case agodesk.TypeConfigProviderOAuthRevoke:
+		payload, errPayload := decodeAgodeskPayload[agodesk.ConfigProviderOAuthRevokePayload](env)
+		if errPayload != nil {
+			_ = writeAgodeskErrorLocked(conn, state, env.ID, agodesk.ErrorInvalidMessage, errPayload.Error())
+			return true
+		}
+		handleAgodeskProviderOAuthRevoke(s, conn, state, env.ID, payload)
 	case agodesk.TypeDesktopResult:
 		payload, errPayload := decodeAgodeskPayload[agodesk.DesktopResultPayload](env)
 		if errPayload != nil {
@@ -767,6 +844,12 @@ func agodeskServerCapabilities(s *Server) []string {
 	}
 	if agodeskAttachmentUploadsEnabled(s) {
 		capabilities = append(capabilities, "chat.media_upload", "chat.attachments")
+	}
+	if agodeskProviderManagementReadable(s) {
+		capabilities = append(capabilities, agodesk.CapabilityConfigProvidersRead)
+		if agodeskProviderManagementWritable(s) {
+			capabilities = append(capabilities, agodesk.CapabilityConfigProvidersWrite, agodesk.CapabilityConfigProvidersOAuth)
+		}
 	}
 	return capabilities
 }
@@ -1315,7 +1398,6 @@ func acceptAgodeskSessionStart(s *Server, r *http.Request, requestID string, pay
 	if err != nil {
 		return agodesk.SessionAcceptedPayload{}, agodesk.ErrorInternal, "failed to generate shared key"
 	}
-	serverCapabilities := agodeskServerCapabilities(s)
 	name := strings.TrimSpace(enrollment.DeviceName)
 	if name == "" {
 		name = strings.TrimSpace(payload.Host.Hostname)
@@ -1324,6 +1406,7 @@ func acceptAgodeskSessionStart(s *Server, r *http.Request, requestID string, pay
 		name = "agodesk"
 	}
 	readOnly := s.RemoteHub.DefaultReadOnly
+	serverCapabilities := agodeskServerCapabilitiesForDevice(s, readOnly)
 	deviceID, err := remote.CreateDevice(s.RemoteHub.DB(), remote.DeviceRecord{
 		Name:          name,
 		Hostname:      strings.TrimSpace(payload.Host.Hostname),
@@ -1390,7 +1473,7 @@ func acceptAgodeskDeviceReconnect(s *Server, requestID string, payload agodesk.S
 	if !agodesk.VerifySharedKeyProof(sharedKey, requestID, deviceID, *payload.SharedKeyProof, time.Now().UTC(), 5*time.Minute) {
 		return agodesk.SessionAcceptedPayload{}, agodesk.ErrorAuthFailed, "invalid shared key proof"
 	}
-	serverCapabilities := agodeskServerCapabilities(s)
+	serverCapabilities := agodeskServerCapabilitiesForDevice(s, device.ReadOnly)
 	device.Hostname = strings.TrimSpace(payload.Host.Hostname)
 	device.OS = strings.TrimSpace(payload.Host.OS)
 	device.Arch = strings.TrimSpace(payload.Host.Arch)
