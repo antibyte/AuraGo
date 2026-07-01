@@ -189,13 +189,13 @@
     }
 
     function wireSSE() {
-        if (!window.AuraSSE) return;
-        if (typeof window.AuraSSE.on === 'function') {
-            window.AuraSSE.on('agent_action', onAgentAction);
-            window.AuraSSE.on('token_update', onTokenUpdate);
-            window.AuraSSE.on('_open', onConnectionEvent);
-            window.AuraSSE.on('_error', onConnectionEvent);
-        }
+        if (!window.AuraSSE || _wired) return;
+        if (typeof window.AuraSSE.on !== 'function') return;
+        _wired = true;
+        window.AuraSSE.on('agent_action', onAgentAction);
+        window.AuraSSE.on('token_update', onTokenUpdate);
+        window.AuraSSE.on('_open', onConnectionEvent);
+        window.AuraSSE.on('_error', onConnectionEvent);
         unsubscribeFns.push(() => {
             if (typeof window.AuraSSE.off === 'function') {
                 window.AuraSSE.off('agent_action', onAgentAction);
@@ -203,6 +203,7 @@
                 window.AuraSSE.off('_open', onConnectionEvent);
                 window.AuraSSE.off('_error', onConnectionEvent);
             }
+            _wired = false;
         });
     }
 
@@ -315,11 +316,28 @@
 
     function sync() {
         if (shouldRun()) {
-            start();
+            const chatBox = document.getElementById(CHAT_BOX_ID);
+            if (chatBox) {
+                start();
+            } else if (!sync._waiting) {
+                sync._waiting = true;
+                const tryStart = () => {
+                    if (!shouldRun()) { sync._waiting = false; return; }
+                    if (document.getElementById(CHAT_BOX_ID)) {
+                        sync._waiting = false;
+                        start();
+                    } else {
+                        window.setTimeout(tryStart, 100);
+                    }
+                };
+                tryStart();
+            }
         } else if (hud) {
             stop();
         }
     }
+
+    let _wired = false;
 
     function init() {
         if (document.readyState === 'loading') {
@@ -327,6 +345,9 @@
             return;
         }
         window.addEventListener('aurago:themechange', sync);
+        window.addEventListener('aurago:theme-effects-loaded', function (e) {
+            if (e && e.detail && e.detail.theme === THEME) sync();
+        });
         window.addEventListener('resize', sync);
         if (motionQuery) {
             if (typeof motionQuery.addEventListener === 'function') {
