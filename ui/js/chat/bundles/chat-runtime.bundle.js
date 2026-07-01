@@ -688,7 +688,10 @@
             scripts: ['/js/chat/8bit-pixelate.js']
         },
         'cyberwar': {
-            scripts: ['/js/chat/cyberwar-shader.js']
+            scripts: [
+                '/js/chat/cyberwar-shader.js',
+                '/js/chat/cyberwar-hud.js'
+            ]
         },
         'lollipop': {
             scripts: ['/js/chat/lollipop-petals.js']
