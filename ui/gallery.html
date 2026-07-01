@@ -63,9 +63,11 @@
         </div>
 
         <div id="gallery-pagination" class="gallery-pagination is-hidden">
+            <button id="gallery-first" class="btn-gallery-nav btn-gallery-nav-icon" onclick="galleryFirst()" data-i18n-title="common.pagination_first" data-i18n-aria-label="common.pagination_first">⇤</button>
             <button id="gallery-prev" class="btn-gallery-nav" onclick="galleryPrev()">← <span data-i18n="common.pagination_previous"></span></button>
             <span id="gallery-page-info"></span>
             <button id="gallery-next" class="btn-gallery-nav" onclick="galleryNext()"><span data-i18n="common.pagination_next"></span> →</button>
+            <button id="gallery-last" class="btn-gallery-nav btn-gallery-nav-icon" onclick="galleryLast()" data-i18n-title="common.pagination_last" data-i18n-aria-label="common.pagination_last">⇥</button>
         </div>
     </div>
 

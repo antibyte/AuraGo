@@ -168,6 +168,12 @@
     transition: all var(--transition-base);
 }
 
+.btn-gallery-nav-icon {
+    width: 2.25rem;
+    min-width: 2.25rem;
+    padding: var(--space-2);
+}
+
 .btn-gallery-nav:hover {
     border-color: var(--accent);
 }

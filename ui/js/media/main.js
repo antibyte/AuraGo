@@ -20,6 +20,10 @@ let currentAudioModalId = null;
 let isLoadingAudio = false;
 const MEDIA_LIMIT = 30;
 
+function lastMediaOffset(total) {
+    return Math.max(0, (Math.ceil(total / MEDIA_LIMIT) - 1) * MEDIA_LIMIT);
+}
+
 // ── Video tab state ──────────────────────────────────────────────────────────
 let videoItems = [];
 let videoOffset = 0;
@@ -267,15 +271,21 @@ function updateAudioPagination() {
     const pag = document.getElementById('audio-pagination');
     if (audioTotal <= MEDIA_LIMIT) { pag.classList.add('is-hidden'); return; }
     pag.classList.remove('is-hidden');
-    document.getElementById('audio-prev').disabled = audioOffset === 0;
-    document.getElementById('audio-next').disabled = audioOffset + MEDIA_LIMIT >= audioTotal;
+    const isFirstPage = audioOffset === 0;
+    const isLastPage = audioOffset + MEDIA_LIMIT >= audioTotal;
+    document.getElementById('audio-first').disabled = isFirstPage;
+    document.getElementById('audio-prev').disabled = isFirstPage;
+    document.getElementById('audio-next').disabled = isLastPage;
+    document.getElementById('audio-last').disabled = isLastPage;
     const page = Math.floor(audioOffset / MEDIA_LIMIT) + 1;
     const pages = Math.ceil(audioTotal / MEDIA_LIMIT);
     document.getElementById('audio-page-info').textContent = page + ' / ' + pages + ' (' + audioTotal + ')';
 }
 
+function audioFirst() { clearCurrentMediaSelection(false); audioOffset = 0; loadAudio(); }
 function audioPrev() { clearCurrentMediaSelection(false); audioOffset = Math.max(0, audioOffset - MEDIA_LIMIT); loadAudio(); }
 function audioNext() { clearCurrentMediaSelection(false); audioOffset += MEDIA_LIMIT; loadAudio(); }
+function audioLast() { clearCurrentMediaSelection(false); audioOffset = lastMediaOffset(audioTotal); loadAudio(); }
 
 async function deleteAudioItem(id) {
     const confirmed = await showConfirm(t('common.confirm_title'), t('gallery.confirm_delete'));
@@ -770,15 +780,21 @@ function updateVideoPagination() {
     const pag = document.getElementById('video-pagination');
     if (videoTotal <= MEDIA_LIMIT) { pag.classList.add('is-hidden'); return; }
     pag.classList.remove('is-hidden');
-    document.getElementById('video-prev').disabled = videoOffset === 0;
-    document.getElementById('video-next').disabled = videoOffset + MEDIA_LIMIT >= videoTotal;
+    const isFirstPage = videoOffset === 0;
+    const isLastPage = videoOffset + MEDIA_LIMIT >= videoTotal;
+    document.getElementById('video-first').disabled = isFirstPage;
+    document.getElementById('video-prev').disabled = isFirstPage;
+    document.getElementById('video-next').disabled = isLastPage;
+    document.getElementById('video-last').disabled = isLastPage;
     const page = Math.floor(videoOffset / MEDIA_LIMIT) + 1;
     const pages = Math.ceil(videoTotal / MEDIA_LIMIT);
     document.getElementById('video-page-info').textContent = page + ' / ' + pages + ' (' + videoTotal + ')';
 }
 
+function videoFirst() { clearCurrentMediaSelection(false); videoOffset = 0; loadVideos(); }
 function videoPrev() { clearCurrentMediaSelection(false); videoOffset = Math.max(0, videoOffset - MEDIA_LIMIT); loadVideos(); }
 function videoNext() { clearCurrentMediaSelection(false); videoOffset += MEDIA_LIMIT; loadVideos(); }
+function videoLast() { clearCurrentMediaSelection(false); videoOffset = lastMediaOffset(videoTotal); loadVideos(); }
 
 async function deleteVideoItem(id) {
     const confirmed = await showConfirm(t('common.confirm_title'), t('gallery.confirm_delete'));
@@ -929,15 +945,21 @@ function updateDocPagination() {
     const pag = document.getElementById('doc-pagination');
     if (docTotal <= MEDIA_LIMIT) { pag.classList.add('is-hidden'); return; }
     pag.classList.remove('is-hidden');
-    document.getElementById('doc-prev').disabled = docOffset === 0;
-    document.getElementById('doc-next').disabled = docOffset + MEDIA_LIMIT >= docTotal;
+    const isFirstPage = docOffset === 0;
+    const isLastPage = docOffset + MEDIA_LIMIT >= docTotal;
+    document.getElementById('doc-first').disabled = isFirstPage;
+    document.getElementById('doc-prev').disabled = isFirstPage;
+    document.getElementById('doc-next').disabled = isLastPage;
+    document.getElementById('doc-last').disabled = isLastPage;
     const page = Math.floor(docOffset / MEDIA_LIMIT) + 1;
     const pages = Math.ceil(docTotal / MEDIA_LIMIT);
     document.getElementById('doc-page-info').textContent = page + ' / ' + pages + ' (' + docTotal + ')';
 }
 
+function docFirst() { clearCurrentMediaSelection(false); docOffset = 0; loadDocuments(); }
 function docPrev() { clearCurrentMediaSelection(false); docOffset = Math.max(0, docOffset - MEDIA_LIMIT); loadDocuments(); }
 function docNext() { clearCurrentMediaSelection(false); docOffset += MEDIA_LIMIT; loadDocuments(); }
+function docLast() { clearCurrentMediaSelection(false); docOffset = lastMediaOffset(docTotal); loadDocuments(); }
 
 async function docDelete(id) {
     const confirmed = await showConfirm(t('common.confirm_title'), t('gallery.confirm_delete'));

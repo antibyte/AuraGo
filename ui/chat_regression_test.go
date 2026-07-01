@@ -3256,3 +3256,91 @@ func TestMediaFrontend_BulkDeleteSelectionFlowRemainsPresent(t *testing.T) {
 		}
 	}
 }
+
+func TestMediaFrontend_PaginationIncludesFirstAndLastControls(t *testing.T) {
+	t.Parallel()
+
+	mediaHTML, err := os.ReadFile("media.html")
+	if err != nil {
+		t.Fatalf("read media.html: %v", err)
+	}
+	galleryHTML, err := os.ReadFile("gallery.html")
+	if err != nil {
+		t.Fatalf("read gallery.html: %v", err)
+	}
+	mediaJS, err := os.ReadFile(filepath.Join("js", "media", "main.js"))
+	if err != nil {
+		t.Fatalf("read media js: %v", err)
+	}
+	galleryJS, err := os.ReadFile(filepath.Join("js", "gallery", "main.js"))
+	if err != nil {
+		t.Fatalf("read gallery js: %v", err)
+	}
+
+	mediaHTMLText := string(mediaHTML)
+	for _, prefix := range []string{"gallery", "audio", "video", "doc"} {
+		for _, marker := range []string{
+			`id="` + prefix + `-first"`,
+			`onclick="` + prefix + `First()"`,
+			`id="` + prefix + `-last"`,
+			`onclick="` + prefix + `Last()"`,
+			`data-i18n-title="common.pagination_first"`,
+			`data-i18n-title="common.pagination_last"`,
+			`data-i18n-aria-label="common.pagination_first"`,
+			`data-i18n-aria-label="common.pagination_last"`,
+		} {
+			if !strings.Contains(mediaHTMLText, marker) {
+				t.Fatalf("media pagination %s missing marker %q", prefix, marker)
+			}
+		}
+	}
+
+	galleryHTMLText := string(galleryHTML)
+	for _, marker := range []string{
+		`id="gallery-first"`,
+		`onclick="galleryFirst()"`,
+		`id="gallery-last"`,
+		`onclick="galleryLast()"`,
+	} {
+		if !strings.Contains(galleryHTMLText, marker) {
+			t.Fatalf("gallery pagination missing marker %q", marker)
+		}
+	}
+
+	combinedJS := string(mediaJS) + "\n" + string(galleryJS)
+	for _, marker := range []string{
+		"function galleryFirst()",
+		"function galleryLast()",
+		"function audioFirst()",
+		"function audioLast()",
+		"function videoFirst()",
+		"function videoLast()",
+		"function docFirst()",
+		"function docLast()",
+		"lastMediaOffset(audioTotal)",
+		"lastMediaOffset(videoTotal)",
+		"lastMediaOffset(docTotal)",
+		"galleryLastOffset()",
+	} {
+		if !strings.Contains(combinedJS, marker) {
+			t.Fatalf("pagination javascript missing marker %q", marker)
+		}
+	}
+
+	for _, lang := range []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"} {
+		path := filepath.Join("lang", "common", lang+".json")
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read %s: %v", path, err)
+		}
+		var translations map[string]string
+		if err := json.Unmarshal(raw, &translations); err != nil {
+			t.Fatalf("parse %s: %v", path, err)
+		}
+		for _, key := range []string{"common.pagination_first", "common.pagination_last"} {
+			if strings.TrimSpace(translations[key]) == "" {
+				t.Fatalf("%s missing translation for %s", path, key)
+			}
+		}
+	}
+}

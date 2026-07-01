@@ -567,6 +567,7 @@
     align-items: center;
     gap: var(--space-4);
     padding: var(--space-6) 0;
+    flex-wrap: wrap;
 }
 
 /* Responsive */

@@ -105,8 +105,10 @@ function renderGrid(images) {
 
 function updatePagination() {
     const pag = document.getElementById('gallery-pagination');
+    const firstBtn = document.getElementById('gallery-first');
     const prevBtn = document.getElementById('gallery-prev');
     const nextBtn = document.getElementById('gallery-next');
+    const lastBtn = document.getElementById('gallery-last');
     const info = document.getElementById('gallery-page-info');
 
     if (galleryTotal <= GALLERY_LIMIT) {
@@ -115,12 +117,26 @@ function updatePagination() {
     }
 
     pag.classList.remove('is-hidden');
-    prevBtn.disabled = galleryOffset === 0;
-    nextBtn.disabled = galleryOffset + GALLERY_LIMIT >= galleryTotal;
+    const isFirstPage = galleryOffset === 0;
+    const isLastPage = galleryOffset + GALLERY_LIMIT >= galleryTotal;
+    if (firstBtn) firstBtn.disabled = isFirstPage;
+    prevBtn.disabled = isFirstPage;
+    nextBtn.disabled = isLastPage;
+    if (lastBtn) lastBtn.disabled = isLastPage;
 
     const page = Math.floor(galleryOffset / GALLERY_LIMIT) + 1;
     const pages = Math.ceil(galleryTotal / GALLERY_LIMIT);
     info.textContent = page + ' / ' + pages + ' (' + galleryTotal + ' ' + t('gallery.images') + ')';
+}
+
+function galleryLastOffset() {
+    return Math.max(0, (Math.ceil(galleryTotal / GALLERY_LIMIT) - 1) * GALLERY_LIMIT);
+}
+
+function galleryFirst() {
+    if (typeof clearCurrentMediaSelection === 'function') clearCurrentMediaSelection(false);
+    galleryOffset = 0;
+    loadGallery();
 }
 
 function galleryPrev() {
@@ -132,6 +148,12 @@ function galleryPrev() {
 function galleryNext() {
     if (typeof clearCurrentMediaSelection === 'function') clearCurrentMediaSelection(false);
     galleryOffset += GALLERY_LIMIT;
+    loadGallery();
+}
+
+function galleryLast() {
+    if (typeof clearCurrentMediaSelection === 'function') clearCurrentMediaSelection(false);
+    galleryOffset = galleryLastOffset();
     loadGallery();
 }
 
