@@ -2,7 +2,7 @@
   "config.github.agent_badge": "Agente",
   "config.github.agent_created_always_allowed": "Creato dall'agente - sempre consentito",
   "config.github.agent_created_note": "I repo creati dall'agente sono sempre accessibili - anche senza approvazione esplicita.",
-  "config.github.allowed_repos_desc": "L'agente puo accedere solo ai repo elencati qui. I repo creati dall'agente sono sempre consentiti. Se la lista e vuota, l'agente puo accedere solo ai repo che ha creato.",
+  "config.github.allowed_repos_desc": "L'agente può accedere solo ai repo elencati qui. Preferisci owner/repo; i vecchi nomi repo senza owner corrispondono solo all'owner configurato. Se la lista è vuota, sono consentiti solo i repo creati da AuraGo.",
   "config.github.allowed_repos_title": "Repository consentiti",
   "config.github.badge_private": "privato",
   "config.github.badge_public": "pubblico",

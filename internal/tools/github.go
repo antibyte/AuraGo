@@ -16,12 +16,15 @@ import (
 
 // GitHubConfig holds the GitHub API connection parameters.
 type GitHubConfig struct {
-	Token          string // Personal Access Token (ghp_…)
-	Owner          string // GitHub username or organisation
-	BaseURL        string // API base URL (default: https://api.github.com)
-	DefaultPrivate bool   // true = new repos are private by default
-	ReadOnly       bool   // true = block mutating operations
-	AllowedRepos   []string
+	Token                 string // Personal Access Token (ghp_…)
+	Owner                 string // GitHub username or organisation
+	BaseURL               string // API base URL (default: https://api.github.com)
+	DefaultPrivate        bool   // true = new repos are private by default
+	ReadOnly              bool   // true = block mutating operations
+	AllowedRepos          []string
+	TrustedRepos          []string // canonical owner/repo entries created by AuraGo
+	ListReposUnrestricted bool     // config UI only: list all token-visible repos
+	WorkspaceDir          string   // optional: track repos created by the agent
 }
 
 var githubHTTPClient = security.NewSSRFProtectedHTTPClient(30 * time.Second)
@@ -99,9 +102,9 @@ func githubRequest(cfg GitHubConfig, method, endpoint string, body interface{}) 
 // githubOwner returns the effective owner (user/org) for API calls.
 func githubOwner(cfg GitHubConfig, owner string) string {
 	if owner != "" {
-		return owner
+		return strings.TrimSpace(owner)
 	}
-	return cfg.Owner
+	return strings.TrimSpace(cfg.Owner)
 }
 
 func githubReadOnlyError(cfg GitHubConfig) string {
@@ -112,19 +115,86 @@ func githubReadOnlyError(cfg GitHubConfig) string {
 }
 
 func githubRepoAccessError(cfg GitHubConfig, owner, repo string) string {
-	if repo == "" || len(cfg.AllowedRepos) == 0 {
+	if repo == "" {
 		return ""
 	}
-	for _, allowed := range cfg.AllowedRepos {
-		allowed = strings.TrimSpace(allowed)
-		if allowed == "" {
+	effectiveOwner := githubOwner(cfg, owner)
+	if GitHubRepoAllowed(cfg, effectiveOwner, repo) {
+		return ""
+	}
+	fullName := GitHubCanonicalRepo(effectiveOwner, repo)
+	if fullName == "" {
+		fullName = strings.TrimSpace(repo)
+	}
+	return errJSON("Repo '%s' is not in the allowed repos list. Add it in Settings → GitHub to grant access.", fullName)
+}
+
+// GitHubCanonicalRepo returns the lower-case owner/repo key used for policy checks.
+func GitHubCanonicalRepo(owner, repo string) string {
+	owner = strings.TrimSpace(owner)
+	repo = strings.TrimSpace(repo)
+	if owner == "" || repo == "" {
+		return ""
+	}
+	return strings.ToLower(owner + "/" + repo)
+}
+
+// GitHubSplitFullName splits owner/repo references and trims whitespace.
+func GitHubSplitFullName(fullName string) (string, string) {
+	parts := strings.SplitN(strings.TrimSpace(fullName), "/", 2)
+	if len(parts) != 2 {
+		return "", strings.TrimSpace(fullName)
+	}
+	return strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1])
+}
+
+// GitHubRepoAllowed checks explicit allowlist entries and trusted agent-created repos.
+func GitHubRepoAllowed(cfg GitHubConfig, owner, repo string) bool {
+	owner = githubOwner(cfg, owner)
+	repo = strings.TrimSpace(repo)
+	if owner == "" || repo == "" {
+		return false
+	}
+	return githubRepoAllowedByList(cfg.AllowedRepos, cfg.Owner, owner, repo, true) ||
+		githubRepoAllowedByList(cfg.TrustedRepos, cfg.Owner, owner, repo, false)
+}
+
+func githubRepoExplicitlyAllowed(cfg GitHubConfig, owner, repo string) bool {
+	owner = githubOwner(cfg, owner)
+	repo = strings.TrimSpace(repo)
+	if owner == "" || repo == "" {
+		return false
+	}
+	return githubRepoAllowedByList(cfg.AllowedRepos, cfg.Owner, owner, repo, true)
+}
+
+func githubRepoAllowedByList(entries []string, cfgOwner, owner, repo string, allowLegacyBare bool) bool {
+	canonical := GitHubCanonicalRepo(owner, repo)
+	cfgOwner = strings.TrimSpace(cfgOwner)
+	for _, entry := range entries {
+		entry = strings.TrimSpace(entry)
+		if entry == "" {
 			continue
 		}
-		if allowed == repo || allowed == owner+"/"+repo {
-			return ""
+		entryOwner, entryRepo := GitHubSplitFullName(entry)
+		if entryOwner != "" {
+			if GitHubCanonicalRepo(entryOwner, entryRepo) == canonical {
+				return true
+			}
+			continue
+		}
+		if allowLegacyBare && strings.EqualFold(owner, cfgOwner) && strings.EqualFold(entryRepo, repo) {
+			return true
 		}
 	}
-	return errJSON("Repo '%s' is not in the allowed repos list. Add it in Settings → GitHub to grant access.", repo)
+	return false
+}
+
+func githubStringValue(value interface{}) string {
+	if value == nil {
+		return ""
+	}
+	return fmt.Sprintf("%v", value)
 }
 
 // ── Repository operations ───────────────────────────────────────────────────
@@ -164,20 +234,32 @@ func GitHubListRepos(cfg GitHubConfig, owner string) string {
 	var summaries []repoSummary
 	for _, r := range repos {
 		s := repoSummary{
-			Name:     fmt.Sprintf("%v", r["name"]),
-			FullName: fmt.Sprintf("%v", r["full_name"]),
+			Name:     githubStringValue(r["name"]),
+			FullName: githubStringValue(r["full_name"]),
 			Private:  r["private"] == true,
-			HTMLURL:  fmt.Sprintf("%v", r["html_url"]),
-			CloneURL: fmt.Sprintf("%v", r["clone_url"]),
+			HTMLURL:  githubStringValue(r["html_url"]),
+			CloneURL: githubStringValue(r["clone_url"]),
 		}
 		if r["description"] != nil {
-			s.Description = fmt.Sprintf("%v", r["description"])
+			s.Description = githubStringValue(r["description"])
 		}
 		if r["language"] != nil {
-			s.Language = fmt.Sprintf("%v", r["language"])
+			s.Language = githubStringValue(r["language"])
 		}
 		if r["updated_at"] != nil {
-			s.UpdatedAt = fmt.Sprintf("%v", r["updated_at"])
+			s.UpdatedAt = githubStringValue(r["updated_at"])
+		}
+		if !cfg.ListReposUnrestricted {
+			repoOwner, repoName := GitHubSplitFullName(s.FullName)
+			if repoName == "" {
+				repoName = s.Name
+			}
+			if repoOwner == "" {
+				repoOwner = githubOwner(cfg, owner)
+			}
+			if !GitHubRepoAllowed(cfg, repoOwner, repoName) {
+				continue
+			}
 		}
 		summaries = append(summaries, s)
 	}
@@ -224,7 +306,7 @@ func GitHubCreateRepo(cfg GitHubConfig, name, description string, private *bool)
 		return errJSON("Failed to parse response: %v", err)
 	}
 
-	out, _ := json.Marshal(map[string]interface{}{
+	response := map[string]interface{}{
 		"status":    "ok",
 		"message":   fmt.Sprintf("Repository '%s' created successfully", name),
 		"name":      repo["name"],
@@ -232,7 +314,49 @@ func GitHubCreateRepo(cfg GitHubConfig, name, description string, private *bool)
 		"private":   repo["private"],
 		"html_url":  repo["html_url"],
 		"clone_url": repo["clone_url"],
-	})
+	}
+	if cfg.WorkspaceDir != "" {
+		repoName := githubStringValue(repo["name"])
+		if repoName == "" {
+			repoName = name
+		}
+		fullName := githubStringValue(repo["full_name"])
+		repoOwner, splitName := GitHubSplitFullName(fullName)
+		if splitName != "" {
+			repoName = splitName
+		}
+		if repoOwner == "" {
+			repoOwner = cfg.Owner
+		}
+		purpose := description
+		if strings.TrimSpace(purpose) == "" {
+			purpose = "Created by AuraGo GitHub tool"
+		}
+		trackRaw := GitHubTrackCreatedProject(
+			cfg.WorkspaceDir,
+			repoName,
+			purpose,
+			githubStringValue(repo["html_url"]),
+			githubStringValue(repo["clone_url"]),
+			repoOwner,
+			repo["private"] == true,
+			fullName,
+		)
+		var trackResult map[string]interface{}
+		if err := json.Unmarshal([]byte(trackRaw), &trackResult); err != nil || trackResult["status"] != "ok" {
+			if err != nil {
+				response["tracking_warning"] = fmt.Sprintf("repo created, but project tracking response could not be parsed: %v", err)
+			} else if msg, _ := trackResult["message"].(string); msg != "" {
+				response["tracking_warning"] = "repo created, but project tracking failed: " + msg
+			} else {
+				response["tracking_warning"] = "repo created, but project tracking failed"
+			}
+		} else {
+			response["tracked"] = true
+			response["agent_created"] = true
+		}
+	}
+	out, _ := json.Marshal(response)
 	return string(out)
 }
 

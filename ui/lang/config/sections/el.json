@@ -2,7 +2,7 @@
   "config.github.agent_badge": "Πράκτορας",
   "config.github.agent_created_always_allowed": "Δημιουργήθηκε από τον πράκτορα - πάντα επιτρέπεται",
   "config.github.agent_created_note": "Τα repos που δημιουργούνται από τον πράκτορα είναι πάντα προσβάσιμα – ακόμα και χωρίς ρητή έγκριση.",
-  "config.github.allowed_repos_desc": "Ο πράκτορας μπορεί να έχει πρόσβαση μόνο στα repos που αναφέρονται εδώ. Τα repos που δημιουργεί ο ίδιος ο πράκτορας είναι πάντα επιτρεπτά. Εάν η λίστα είναι κενή, ο πράκτορας μπορεί να έχει πρόσβαση μόνο στα repos που δημιούργησε.",
+  "config.github.allowed_repos_desc": "Ο πράκτορας μπορεί να έχει πρόσβαση μόνο στα repos που αναφέρονται εδώ. Προτιμήστε owner/repo· τα παλιά απλά ονόματα repo ταιριάζουν μόνο με τον ρυθμισμένο owner. Αν η λίστα είναι κενή, επιτρέπονται μόνο repos που δημιούργησε το AuraGo.",
   "config.github.allowed_repos_title": "Επιτρεπόμενα αποθετήρια",
   "config.github.badge_private": "ιδιωτικό",
   "config.github.badge_public": "δημόσιο",

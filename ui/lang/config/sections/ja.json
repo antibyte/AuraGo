@@ -2,7 +2,7 @@
   "config.github.agent_badge": "エージェント",
   "config.github.agent_created_always_allowed": "エージェントが作成 - 常に許可",
   "config.github.agent_created_note": "エージェントが作成したリポジトリは、明示的な承認がなくても常にアクセスできます。",
-  "config.github.allowed_repos_desc": "エージェントはここに明示的に記載されたリポジトリのみにアクセスできます。エージェント自身が作成したリポジトリは常に許可されます。一覧が空の場合、エージェントは自分で作成したリポジトリのみにアクセスできます。",
+  "config.github.allowed_repos_desc": "エージェントはここに記載されたリポジトリのみにアクセスできます。owner/repo を推奨します。古い repo 名のみの値は設定済み owner にだけ一致します。一覧が空の場合、AuraGo が作成したリポジトリのみ許可されます。",
   "config.github.allowed_repos_title": "許可されたリポジトリ",
   "config.github.badge_private": "プライベート",
   "config.github.badge_public": "パブリック",

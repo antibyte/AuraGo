@@ -1524,7 +1524,7 @@ type Config struct {
 		Owner          string   `yaml:"owner"`           // GitHub username or organisation
 		DefaultPrivate bool     `yaml:"default_private"` // true = new repos are private by default
 		BaseURL        string   `yaml:"base_url"`        // API base URL (default: https://api.github.com), for GitHub Enterprise
-		AllowedRepos   []string `yaml:"allowed_repos"`   // repos agent may access; empty = only agent-created repos
+		AllowedRepos   []string `yaml:"allowed_repos"`   // repos agent may access; prefer owner/repo; bare names match owner only; empty = only agent-created repos
 	} `yaml:"github"`
 	Firewall struct {
 		Enabled             bool   `yaml:"enabled"`

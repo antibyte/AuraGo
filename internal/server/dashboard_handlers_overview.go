@@ -26,6 +26,8 @@ import (
 // Provides data for the /dashboard metrics page.
 // All endpoints are guarded by WebConfig.Enabled in server.go route registration.
 
+var githubListReposForServer = tools.GitHubListRepos
+
 // handleDashboardSystem returns system metrics (CPU, RAM, Disk, Network, SSE clients, uptime).
 func handleDashboardSystem(s *Server, sse *SSEBroadcaster, startedAt time.Time) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -390,8 +392,7 @@ func handleDashboardLogs(s *Server) http.HandlerFunc {
 }
 
 // handleDashboardGitHubRepos returns GitHub repos for the dashboard widget.
-// It first lists locally tracked projects, then fetches live repos from the GitHub API.
-// Only repos in cfg.GitHub.AllowedRepos are returned (or all repos if the list is empty).
+// It returns only repos explicitly allowed in config or trusted agent-created repos.
 func handleDashboardGitHubRepos(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
@@ -427,15 +428,18 @@ func handleDashboardGitHubRepos(s *Server) http.HandlerFunc {
 			return
 		}
 
+		trustedRepos := tools.GitHubTrustedProjectRepos(s.Cfg.Directories.WorkspaceDir)
+		trustedMap := tools.GitHubTrustedProjectMap(s.Cfg.Directories.WorkspaceDir)
 		ghCfg := tools.GitHubConfig{
 			Token:        token,
 			Owner:        s.Cfg.GitHub.Owner,
 			BaseURL:      s.Cfg.GitHub.BaseURL,
 			ReadOnly:     s.Cfg.GitHub.ReadOnly,
 			AllowedRepos: s.Cfg.GitHub.AllowedRepos,
+			TrustedRepos: trustedRepos,
 		}
 
-		raw := tools.GitHubListRepos(ghCfg, "")
+		raw := githubListReposForServer(ghCfg, "")
 		var result map[string]interface{}
 		if err := json.Unmarshal([]byte(raw), &result); err != nil {
 			jsonError(w, `{"error":"failed to parse GitHub response"}`, http.StatusInternalServerError)
@@ -452,40 +456,18 @@ func handleDashboardGitHubRepos(s *Server) http.HandlerFunc {
 			return
 		}
 
-		// Build allowed repos filter
-		allowedMap := map[string]bool{}
-		hasAllowedList := len(s.Cfg.GitHub.AllowedRepos) > 0
-		for _, r := range s.Cfg.GitHub.AllowedRepos {
-			allowedMap[r] = true
-		}
-
-		// Load tracked projects for cross-reference
-		tracked := map[string]bool{}
-		trackedRaw := tools.GitHubListProjects(s.Cfg.Directories.WorkspaceDir)
-		var trackedResult map[string]interface{}
-		if err := json.Unmarshal([]byte(trackedRaw), &trackedResult); err == nil {
-			if projects, ok := trackedResult["projects"].([]interface{}); ok {
-				for _, p := range projects {
-					if pm, ok := p.(map[string]interface{}); ok {
-						if name, ok := pm["name"].(string); ok {
-							tracked[name] = true
-						}
-					}
-				}
-			}
-		}
-
-		// Enrich repos with tracked status and filter by allowed list
+		// Enrich repos with trusted status and filter defensively even when tests bypass the tool filter.
 		repos := result["repos"]
 		var filteredRepos []interface{}
 		if repoList, ok := repos.([]interface{}); ok {
 			for _, r := range repoList {
 				if rm, ok := r.(map[string]interface{}); ok {
-					name, _ := rm["name"].(string)
-					rm["tracked"] = tracked[name]
-					// Include repo if: repo is explicitly allowed, OR it's tracked (agent-created).
-					// When AllowedRepos is empty, only tracked repos are shown (consistent with agent enforcement).
-					if tracked[name] || (hasAllowedList && allowedMap[name]) {
+					repoOwner, repoName := githubRepoIdentity(s.Cfg.GitHub.Owner, rm)
+					canonical := tools.GitHubCanonicalRepo(repoOwner, repoName)
+					agentCreated := trustedMap[canonical]
+					rm["tracked"] = agentCreated
+					rm["agent_created"] = agentCreated
+					if tools.GitHubRepoAllowed(ghCfg, repoOwner, repoName) {
 						filteredRepos = append(filteredRepos, rm)
 					}
 				}
@@ -540,14 +522,16 @@ func handleGitHubReposForUI(s *Server) http.HandlerFunc {
 		}
 
 		ghCfg := tools.GitHubConfig{
-			Token:        token,
-			Owner:        s.Cfg.GitHub.Owner,
-			BaseURL:      s.Cfg.GitHub.BaseURL,
-			ReadOnly:     s.Cfg.GitHub.ReadOnly,
-			AllowedRepos: s.Cfg.GitHub.AllowedRepos,
+			Token:                 token,
+			Owner:                 s.Cfg.GitHub.Owner,
+			BaseURL:               s.Cfg.GitHub.BaseURL,
+			ReadOnly:              s.Cfg.GitHub.ReadOnly,
+			AllowedRepos:          s.Cfg.GitHub.AllowedRepos,
+			TrustedRepos:          tools.GitHubTrustedProjectRepos(s.Cfg.Directories.WorkspaceDir),
+			ListReposUnrestricted: true,
 		}
 
-		raw := tools.GitHubListRepos(ghCfg, "")
+		raw := githubListReposForServer(ghCfg, "")
 		var result map[string]interface{}
 		if err := json.Unmarshal([]byte(raw), &result); err != nil {
 			json.NewEncoder(w).Encode(map[string]interface{}{
@@ -565,36 +549,20 @@ func handleGitHubReposForUI(s *Server) http.HandlerFunc {
 			return
 		}
 
-		// Build allowed set
-		allowedMap := map[string]bool{}
-		for _, r := range s.Cfg.GitHub.AllowedRepos {
-			allowedMap[r] = true
-		}
-
-		// Load tracked (agent-created) projects
-		tracked := map[string]bool{}
-		trackedRaw := tools.GitHubListProjects(s.Cfg.Directories.WorkspaceDir)
-		var trackedResult map[string]interface{}
-		if err := json.Unmarshal([]byte(trackedRaw), &trackedResult); err == nil {
-			if projects, ok := trackedResult["projects"].([]interface{}); ok {
-				for _, p := range projects {
-					if pm, ok := p.(map[string]interface{}); ok {
-						if name, ok := pm["name"].(string); ok {
-							tracked[name] = true
-						}
-					}
-				}
-			}
-		}
-
 		// Annotate repos
+		allowedCfg := tools.GitHubConfig{
+			Owner:        s.Cfg.GitHub.Owner,
+			AllowedRepos: s.Cfg.GitHub.AllowedRepos,
+		}
+		trustedMap := tools.GitHubTrustedProjectMap(s.Cfg.Directories.WorkspaceDir)
 		repos := result["repos"]
 		if repoList, ok := repos.([]interface{}); ok {
 			for _, r := range repoList {
 				if rm, ok := r.(map[string]interface{}); ok {
-					name, _ := rm["name"].(string)
-					rm["allowed"] = allowedMap[name]
-					rm["agent_created"] = tracked[name]
+					repoOwner, repoName := githubRepoIdentity(s.Cfg.GitHub.Owner, rm)
+					canonical := tools.GitHubCanonicalRepo(repoOwner, repoName)
+					rm["allowed"] = tools.GitHubRepoAllowed(allowedCfg, repoOwner, repoName)
+					rm["agent_created"] = trustedMap[canonical]
 				}
 			}
 		}
@@ -605,6 +573,19 @@ func handleGitHubReposForUI(s *Server) http.HandlerFunc {
 			"count":  result["count"],
 		})
 	}
+}
+
+func githubRepoIdentity(defaultOwner string, repo map[string]interface{}) (string, string) {
+	name, _ := repo["name"].(string)
+	fullName, _ := repo["full_name"].(string)
+	owner, repoName := tools.GitHubSplitFullName(fullName)
+	if repoName == "" {
+		repoName = name
+	}
+	if owner == "" {
+		owner = defaultOwner
+	}
+	return owner, repoName
 }
 
 // handleDashboardOverview returns a composite snapshot of agent status, integrations, missions, invasion, indexer, devices, MQTT, notes, security, context, and last activity.

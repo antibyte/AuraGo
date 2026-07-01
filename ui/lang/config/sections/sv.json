@@ -2,7 +2,7 @@
   "config.github.agent_badge": "AI-agent",
   "config.github.agent_created_always_allowed": "Skapad av agent - alltid tillåten",
   "config.github.agent_created_note": "Repos som skapats av agenten är alltid tillgängliga – även utan uttryckligt godkännande.",
-  "config.github.allowed_repos_desc": "Agenten får endast komma åt repos som explicit listas här. Repos som agenten själv skapat är alltid tillåtna. Om listan är tom får agenten endast komma åt repos den själv har skapat.",
+  "config.github.allowed_repos_desc": "Agenten får endast komma åt repos som listas här. Föredra owner/repo; gamla rena repo-namn matchar bara den konfigurerade ownern. Om listan är tom tillåts endast repos som AuraGo har skapat.",
   "config.github.allowed_repos_title": "Tillatna repositories",
   "config.github.badge_private": "privat",
   "config.github.badge_public": "offentlig",

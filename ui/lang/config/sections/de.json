@@ -2,7 +2,7 @@
   "config.github.agent_badge": "KI-Agent",
   "config.github.agent_created_always_allowed": "Vom Agent erstellt - immer erlaubt",
   "config.github.agent_created_note": "Repos die der Agent selbst erstellt hat, sind immer zugänglich - auch ohne explizite Freigabe.",
-  "config.github.allowed_repos_desc": "Der Agent darf nur auf die hier freigegebenen Repos zugreifen. Repos die der Agent selbst erstellt hat, sind immer erlaubt. Ist die Liste leer, darf der Agent nur auf selbst erstellte Repos zugreifen.",
+  "config.github.allowed_repos_desc": "Der Agent darf nur auf die hier freigegebenen Repos zugreifen. Bevorzuge owner/repo; alte reine Repo-Namen gelten nur für den konfigurierten Owner. Ist die Liste leer, sind nur von AuraGo selbst erstellte Repos erlaubt.",
   "config.github.allowed_repos_title": "Erlaubte Repositories",
   "config.github.badge_private": "privat",
   "config.github.badge_public": "öffentlich",

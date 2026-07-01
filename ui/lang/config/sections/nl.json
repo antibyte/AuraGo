@@ -2,7 +2,7 @@
   "config.github.agent_badge": "AI-agent",
   "config.github.agent_created_always_allowed": "Gemaakt door agent - altijd toegestaan",
   "config.github.agent_created_note": "Repos die de agent heeft aangemaakt zijn altijd toegankelijk - ook zonder expliciete goedkeuring.",
-  "config.github.allowed_repos_desc": "De agent mag alleen toegang krijgen tot de hier vermelde repos. Repos die de agent zelf heeft aangemaakt zijn altijd toegestaan. Als de lijst leeg is, mag de agent alleen toegang krijgen tot repos die hij heeft aangemaakt.",
+  "config.github.allowed_repos_desc": "De agent mag alleen toegang krijgen tot repos die hier staan. Gebruik bij voorkeur owner/repo; oude losse repo-namen gelden alleen voor de ingestelde owner. Als de lijst leeg is, zijn alleen repos toegestaan die AuraGo zelf heeft aangemaakt.",
   "config.github.allowed_repos_title": "Toegestane repositories",
   "config.github.badge_private": "privé",
   "config.github.badge_public": "openbaar",

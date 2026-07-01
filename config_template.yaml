@@ -1171,6 +1171,7 @@ github:
     owner: ""
     default_private: false
     base_url: ""
+    allowed_repos: []   # prefer owner/repo; old bare names only match owner; empty = only repos AuraGo created
 google_workspace:
     enabled: false
     readonly: false

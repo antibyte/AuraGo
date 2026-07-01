@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"log/slog"
 	"os"
@@ -10,6 +11,8 @@ import (
 	"testing"
 
 	"aurago/internal/config"
+	"aurago/internal/security"
+	"aurago/internal/tools"
 )
 
 func TestDispatchInfraManageWebhooksUsesActionAlias(t *testing.T) {
@@ -74,6 +77,69 @@ func TestDispatchInfraMQTTPublishUsesParamsFallback(t *testing.T) {
 	}
 	if !strings.Contains(out, "MQTT publish failed") {
 		t.Fatalf("expected downstream MQTT bridge error, got %s", out)
+	}
+}
+
+func TestDispatchGitHubTrackProjectDoesNotGrantRemoteRepoAccess(t *testing.T) {
+	workspaceDir := t.TempDir()
+	vault, err := security.NewVault("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", filepath.Join(t.TempDir(), "vault.bin"))
+	if err != nil {
+		t.Fatalf("NewVault: %v", err)
+	}
+	if err := vault.WriteSecret("github_token", "token"); err != nil {
+		t.Fatalf("WriteSecret: %v", err)
+	}
+
+	cfg := &config.Config{}
+	cfg.GitHub.Enabled = true
+	cfg.GitHub.Owner = "owner"
+	cfg.Directories.WorkspaceDir = workspaceDir
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	dc := &DispatchContext{Cfg: cfg, Logger: logger, Vault: vault}
+
+	out, ok := dispatchCloud(context.Background(), ToolCall{
+		Action: "github",
+		Params: map[string]interface{}{
+			"operation": "track_project",
+			"name":      "repo",
+			"content":   "manual tracking only",
+		},
+	}, dc)
+	if !ok {
+		t.Fatal("expected dispatchCloud to handle github")
+	}
+	if !strings.Contains(out, `"status":"ok"`) {
+		t.Fatalf("expected track_project success, got %s", out)
+	}
+
+	data, err := os.ReadFile(filepath.Join(workspaceDir, "github", "projects.json"))
+	if err != nil {
+		t.Fatalf("expected projects file: %v", err)
+	}
+	var projects []tools.TrackedProject
+	if err := json.Unmarshal(data, &projects); err != nil {
+		t.Fatalf("unmarshal projects: %v", err)
+	}
+	if len(projects) != 1 {
+		t.Fatalf("projects len = %d, want 1", len(projects))
+	}
+	if projects[0].AgentCreated {
+		t.Fatalf("manual track_project must not mark project as agent-created: %+v", projects[0])
+	}
+
+	out, ok = dispatchCloud(context.Background(), ToolCall{
+		Action: "github",
+		Params: map[string]interface{}{
+			"operation": "get_repo",
+			"owner":     "owner",
+			"name":      "repo",
+		},
+	}, dc)
+	if !ok {
+		t.Fatal("expected dispatchCloud to handle github get_repo")
+	}
+	if !strings.Contains(out, "allowed repos") {
+		t.Fatalf("expected manual tracked repo to remain blocked, got %s", out)
 	}
 }
 

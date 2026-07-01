@@ -2,7 +2,7 @@
   "config.github.agent_badge": "AI agent",
   "config.github.agent_created_always_allowed": "Vytvořeno agentem - vždy povoleno",
   "config.github.agent_created_note": "Repozitare vytvorene agentem jsou vzdy pristupne - i bez explicitniho schvaleni.",
-  "config.github.allowed_repos_desc": "Agent ma pristup pouze k repozitarum uvedenym zde. Repozitare vytvorene agentem jsou vzdy povoleny. Pokud je seznam prazdny, agent ma pristup pouze k repozitarum, ktere vytvoril.",
+  "config.github.allowed_repos_desc": "Agent má přístup pouze k repozitářům uvedeným zde. Upřednostni owner/repo; staré samotné názvy repo platí jen pro nakonfigurovaného vlastníka. Pokud je seznam prázdný, povolena jsou jen repozitáře vytvořené AuraGo.",
   "config.github.allowed_repos_title": "Povolene repozitare",
   "config.github.badge_private": "privátní",
   "config.github.badge_public": "veřejný",

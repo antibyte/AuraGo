@@ -6,9 +6,9 @@ Manage GitHub repositories, issues, pull requests, branches, files, commits, and
 
 | Operation | Description | Key Parameters |
 |-----------|-------------|----------------|
-| `list_repos` | List repositories | `limit` |
+| `list_repos` | List repositories allowed by policy | `limit` |
 | `get_repo` | Get repository details | `name` |
-| `create_repo` | Create a new repository | `name`, `description` |
+| `create_repo` | Create a new repository and auto-track it as agent-created | `name`, `description` |
 | `delete_repo` | Delete a repository | `name` |
 | `search_repos` | Search repositories | `query`, `limit` |
 | `list_issues` | List issues | `name`, `value` (state filter) |
@@ -44,5 +44,8 @@ Manage GitHub repositories, issues, pull requests, branches, files, commits, and
 
 ## Notes
 - `owner` defaults to the configured GitHub owner if omitted
+- `github.allowed_repos` is strict. Prefer `owner/repo`; legacy bare repo names only match the configured owner.
+- If `github.allowed_repos` is empty, the agent may only access repos AuraGo created and tracked with `agent_created=true`.
+- `track_project` only records local project metadata and does not grant remote GitHub access.
 - `value` is used as state filter for issues/PRs (`open`, `closed`, `all`)
 - File content for `create_or_update_file` must be base64-encoded

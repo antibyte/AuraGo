@@ -737,6 +737,8 @@ HTTP request to external APIs.
 ### `github`
 Manage GitHub repositories, issues, PRs, branches, files, commits, workflow runs, and local project tracking (`github.enabled`).
 
+Remote repository operations are restricted by `github.allowed_repos` plus repositories AuraGo created itself. Prefer `owner/repo` allowlist values; legacy bare names only match the configured owner. `track_project` records local metadata only and does not grant remote access.
+
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `operation` | enum | list_repos, create_repo, delete_repo, get_repo, list_issues, create_issue, close_issue, list_pull_requests, list_branches, get_file, create_or_update_file, list_commits, list_workflow_runs, search_repos, list_projects, track_project, untrack_project |

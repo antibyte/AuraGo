@@ -399,8 +399,9 @@ GitHub-Repositories, Issues, Pull Requests, Branches, Dateien, Commits und Workf
 3. Für GitHub Enterprise: **base_url** setzen (z. B. `https://github.example.com/api/v3`).
 4. Personal Access Token im Vault speichern (`github_token`).
 5. Optional **read-only** aktivieren, um Schreiboperationen zu blockieren.
-6. Für eingehende Webhooks: **Config → Integrationen → Webhooks**.
-7. Speichern und neu starten.
+6. Erlaubte Repositories auswählen. Neue Auswahlen werden als `owner/repo` gespeichert; alte reine Repo-Namen gelten nur für den konfigurierten Owner.
+7. Für eingehende Webhooks: **Config → Integrationen → Webhooks**.
+8. Speichern und neu starten.
 
 ### YAML-Referenz
 ```yaml
@@ -410,7 +411,10 @@ github:
   owner: ""
   default_private: false
   base_url: ""                  # GitHub Enterprise API-Basis-URL (optional)
+  allowed_repos: []             # bevorzugt owner/repo; leer = nur von AuraGo erstellte Repos
 ```
+
+`allowed_repos` ist eine strikte Freigabeliste. Eine leere Liste bedeutet nicht "alle Repos"; sie erlaubt nur Repositories, die AuraGo über `create_repo` erstellt und mit `agent_created=true` getrackt hat. Manuelle `track_project`-Einträge sind nur lokale Inventur und geben keinen Remote-Zugriff frei.
 
 ### Agent-Tool: `github`
 

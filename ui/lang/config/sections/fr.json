@@ -2,7 +2,7 @@
   "config.github.agent_badge": "Agent IA",
   "config.github.agent_created_always_allowed": "Créé par l'agent - toujours autorisé",
   "config.github.agent_created_note": "Les depots crees par l'agent sont toujours accessibles - meme sans approbation explicite.",
-  "config.github.allowed_repos_desc": "L'agent ne peut acceder qu'aux depots listes ici. Les depots crees par l'agent sont toujours autorises. Si la liste est vide, l'agent ne peut acceder qu'aux depots qu'il a crees.",
+  "config.github.allowed_repos_desc": "L'agent ne peut accéder qu'aux dépôts listés ici. Privilégiez owner/repo; les anciens noms sans owner ne correspondent qu'au owner configuré. Si la liste est vide, seuls les dépôts créés par AuraGo sont autorisés.",
   "config.github.allowed_repos_title": "Depots autorises",
   "config.github.badge_private": "privé",
   "config.github.badge_public": "public",

@@ -357,6 +357,8 @@ func TestConfigPhase3FritzboxGitHub(t *testing.T) {
 		"cfg-actions-row",
 		"github-token-status",
 		"github-fetch-status",
+		"data-repo-full-name",
+		"dataset.repoFullName",
 		"btn-save btn-secondary",
 	} {
 		if !strings.Contains(githubJS, marker) {

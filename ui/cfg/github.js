@@ -134,7 +134,7 @@ function githubBuildRepoList(repos, allowedRepos) {
         const desc = repo.description || '';
         const isPrivate = repo.private === true;
         const stars = repo.stargazers_count || 0;
-        const isAllowed = allowedSet.has(name);
+        const isAllowed = allowedSet.has(fullName) || allowedSet.has(name);
         const isAgentCreated = repo.agent_created === true;
         const privBadge = isPrivate
             ? `<span class="gh-badge gh-badge-private">🔒 ${t('config.github.badge_private')}</span>`
@@ -150,7 +150,7 @@ function githubBuildRepoList(repos, allowedRepos) {
                 onchange="githubUpdateAllowedRepos()">
             <div class="gh-repo-info">
                 <div class="gh-repo-header">
-                    <span class="gh-repo-name" data-repo-name="${escapeAttr(name)}">${escapeAttr(name)}</span>
+                    <span class="gh-repo-name" data-repo-name="${escapeAttr(name)}" data-repo-full-name="${escapeAttr(fullName)}">${escapeAttr(name)}</span>
                     ${privBadge}${agentBadge}${starStr}
                 </div>
                 ${desc ? `<div class="gh-repo-desc">${escapeAttr(desc)}</div>` : ''}
@@ -210,7 +210,7 @@ function githubUpdateAllowedRepos() {
     boxes.forEach(cb => {
         if (cb.checked && !cb.disabled) {
             const nameEl = cb.closest('label').querySelector('span[data-repo-name]');
-            if (nameEl) checkedRepos.push(nameEl.dataset.repoName);
+            if (nameEl) checkedRepos.push(nameEl.dataset.repoFullName || nameEl.dataset.repoName);
         }
     });
 

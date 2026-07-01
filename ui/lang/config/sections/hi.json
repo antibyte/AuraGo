@@ -2,7 +2,7 @@
   "config.github.agent_badge": "एजेंट",
   "config.github.agent_created_always_allowed": "एजेंट द्वारा बनाया गया - हमेशा अनुमत",
   "config.github.agent_created_note": "एजेंट द्वारा बनाई गई रिपॉज़िटरी हमेशा उपलब्ध रहती हैं - स्पष्ट अनुमति के बिना भी।",
-  "config.github.allowed_repos_desc": "एजेंट केवल यहाँ स्पष्ट रूप से सूचीबद्ध रिपॉज़िटरी तक पहुँच सकता है। एजेंट द्वारा स्वयं बनाई गई रिपॉज़िटरी हमेशा अनुमत हैं। यदि सूची खाली है, तो एजेंट केवल अपनी बनाई हुई रिपॉज़िटरी तक पहुँच सकता है।",
+  "config.github.allowed_repos_desc": "एजेंट केवल यहाँ सूचीबद्ध रिपॉज़िटरी तक पहुँच सकता है। owner/repo को प्राथमिकता दें; पुराने केवल-नाम वाले repo सिर्फ कॉन्फ़िगर किए गए owner से मिलते हैं। सूची खाली होने पर केवल AuraGo द्वारा बनाई गई रिपॉज़िटरी अनुमत हैं।",
   "config.github.allowed_repos_title": "अनुमत रिपॉज़िटरी",
   "config.github.badge_private": "निजी",
   "config.github.badge_public": "सार्वजनिक",

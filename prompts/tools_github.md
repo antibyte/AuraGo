@@ -10,8 +10,8 @@ conditions: ["github_enabled"]
 | `github` | Manage GitHub repositories, issues, pull requests, branches, files, commits, CI/CD runs, and track local projects |
 
 **Repository operations:**
-- `list_repos` — List all repositories (optionally filter by `owner`)
-- `create_repo` — Create a new repository (`name` required, `description` optional; visibility follows config default)
+- `list_repos` — List repositories allowed by policy (optionally filter by `owner`)
+- `create_repo` — Create a new repository (`name` required, `description` optional; visibility follows config default; AuraGo auto-tracks it as agent-created)
 - `delete_repo` — Delete a repository (`name` + `owner` required)
 - `get_repo` — Get detailed info about a repo (`name` required)
 - `search_repos` — Search GitHub repositories (`query` required, `limit` optional)
@@ -41,6 +41,8 @@ conditions: ["github_enabled"]
 **Parameters:** `operation`, `name` (repo/project name), `owner` (defaults to configured owner), `title`, `body`, `description`, `path`, `content`, `query`, `value`, `id`, `label`, `limit`
 
 **Important rules:**
-- When creating a repository, ALWAYS also track it as a project with `track_project` — provide a clear purpose description.
+- Repository access is limited to `github.allowed_repos` plus repos AuraGo created itself and tracked with `agent_created=true`.
+- Prefer `owner/repo` allowlist entries. Legacy bare repo names only match the configured GitHub owner.
+- `track_project` is local inventory only. It never grants remote repository access.
 - All GitHub project work (cloned repos, generated files) MUST be done in the `github/` subfolder of your workspace.
 - When the user asks for a project overview, use `list_projects` to show the tracked project list.
