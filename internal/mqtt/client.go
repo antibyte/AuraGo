@@ -103,7 +103,7 @@ func UnregisterMissionTrigger(key string) {
 	}
 	missionTriggerMu.Lock()
 	defer missionTriggerMu.Unlock()
-	filtered := missionTriggers[:0]
+	filtered := make([]missionTriggerEntry, 0, len(missionTriggers))
 	removed := 0
 	for _, trigger := range missionTriggers {
 		if trigger.key == key {

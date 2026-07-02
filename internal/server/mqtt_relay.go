@@ -20,6 +20,7 @@ type mqttRelayLimiter struct {
 	mu          sync.Mutex
 	interval    time.Duration
 	lastByTopic map[string]time.Time
+	lastPrune   time.Time
 	dropped     uint64
 }
 
@@ -39,6 +40,7 @@ func (l *mqttRelayLimiter) Allow(topic string, now time.Time) bool {
 	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
+	l.pruneLocked(now)
 	last, ok := l.lastByTopic[topic]
 	if ok && l.interval > 0 && now.Sub(last) < l.interval {
 		atomic.AddUint64(&l.dropped, 1)
@@ -46,6 +48,18 @@ func (l *mqttRelayLimiter) Allow(topic string, now time.Time) bool {
 	}
 	l.lastByTopic[topic] = now
 	return true
+}
+
+func (l *mqttRelayLimiter) pruneLocked(now time.Time) {
+	if l.interval <= 0 || (!l.lastPrune.IsZero() && now.Sub(l.lastPrune) < l.interval) {
+		return
+	}
+	for topic, last := range l.lastByTopic {
+		if now.Sub(last) >= l.interval {
+			delete(l.lastByTopic, topic)
+		}
+	}
+	l.lastPrune = now
 }
 
 func (l *mqttRelayLimiter) Dropped() uint64 {

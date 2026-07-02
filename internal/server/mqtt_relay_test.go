@@ -21,4 +21,17 @@ func TestMQTTRelayLimiterDebouncesPerTopic(t *testing.T) {
 	if !limiter.Allow("home/a", now.Add(2*time.Second)) {
 		t.Fatal("message at debounce boundary should be allowed")
 	}
+	if !limiter.Allow("home/c", now.Add(4*time.Second)) {
+		t.Fatal("new topic should be allowed after prune interval")
+	}
+	limiter.mu.Lock()
+	_, staleTopicKept := limiter.lastByTopic["home/b"]
+	_, newTopicKept := limiter.lastByTopic["home/c"]
+	limiter.mu.Unlock()
+	if staleTopicKept {
+		t.Fatal("stale topic should be pruned from debounce state")
+	}
+	if !newTopicKept {
+		t.Fatal("new topic should remain in debounce state")
+	}
 }
