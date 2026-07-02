@@ -9956,31 +9956,24 @@ pre,
     }
 }
 
-/* ── Polish: Bubble clip-path tail (soft round nub) ─────────────────────── */
-[data-theme="lollipop"] .bubble.bot::before,
-[data-theme="lollipop"] .bubble.user::before {
-    display: none !important;
+/* ── Polish: Soft round bubble (keep border-radius, polish tail) ─────────── */
+[data-theme="lollipop"] .bubble {
+    border-radius: 20px;
+    border-color: rgba(202, 132, 171, 0.45);
 }
 
 [data-theme="lollipop"] .bubble.bot {
-    clip-path: polygon(
-        0% 12%, 8% 4%, 96% 4%, 100% 12%,
-        100% 88%, 96% 96%, 28% 96%, 22% 100%, 18% 96%,
-        4% 96%, 0% 88%
-    );
+    border-bottom-left-radius: 8px;
 }
 
 [data-theme="lollipop"] .bubble.user {
-    clip-path: polygon(
-        0% 12%, 8% 4%, 96% 4%, 100% 12%,
-        100% 88%, 96% 96%, 82% 96%, 78% 100%, 72% 96%,
-        4% 96%, 0% 88%
-    );
+    border-bottom-right-radius: 8px;
 }
 
-[data-theme="lollipop"] .bubble.user::after,
-[data-theme="lollipop"] .bubble.bot::after {
-    display: none !important;
+[data-theme="lollipop"] .bubble.bot::before,
+[data-theme="lollipop"] .bubble.user::before {
+    border-radius: 2px;
+    filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.45));
 }
 
 /* ── Polish: Bubble hover (accent glow + lift) ──────────────────────────── */
