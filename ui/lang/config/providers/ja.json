@@ -202,7 +202,7 @@
   "config.providers.oauth_setup_title": "OAuth 設定",
   "config.providers.oauth_setup_open_provider_settings": "Provider 設定を開く",
   "config.providers.oauth_setup_provider_settings_hint": "Provider のセットアップリンクを開き、OAuth アプリを作成または選択して、ここに表示された Redirect URI を許可済み Redirect/Callback URL フィールドに貼り付けます。",
-  "config.providers.oauth_setup_custom_provider_hint": "この provider の具体的なセットアップデータは Oh-My-Pi カタログにありません。Provider の OAuth アプリを開き、ここに表示された Redirect URI を Callback URL フィールドに貼り付けます。",
+  "config.providers.oauth_setup_custom_provider_hint": "この provider の具体的なセットアップデータはありません。Provider の OAuth アプリを開き、ここに表示された Redirect URI を Callback URL フィールドに貼り付けます。",
   "config.providers.oauth_setup_redirect_step": "ここに表示された Redirect URI を provider の許可済み Redirect/Callback URL フィールドにコピーします。",
   "config.providers.oauth_setup_credentials_step": "この OAuth アプリの Client ID と必要なら Client Secret をここに入力します。",
   "config.providers.oauth_setup_save_connect_step": "保存して接続をクリックすると、AuraGo がプロバイダーを保存してログインを開きます。",
@@ -213,7 +213,7 @@
   "config.providers.oauth_login_link_copied": "ログインリンクをコピーしました",
   "config.providers.oauth_setup_open_console": "{{console}} を開く",
   "config.providers.oauth_setup_catalog_hint": "AuraGo は {{source}} のセットアップデータを使います。{{console}} を開き、ここに表示された Redirect URI を入力します。",
-  "config.providers.oauth_setup_no_catalog_hint": "{{provider}} のセットアップデータは Oh-My-Pi カタログにありません。この provider の設定が分かる場合だけ OAuth を使ってください。",
+  "config.providers.oauth_setup_no_catalog_hint": "{{provider}} のセットアップデータはありません。この provider の設定が分かる場合だけ OAuth を使ってください。",
   "config.providers.oauth_setup_source": "ソース: {{source}}",
   "config.providers.oauth_setup_redirect_step_named": "ここに表示された Redirect URI を provider の「{{field}}」フィールドに貼り付けます。",
   "config.providers.oauth_setup_credentials_step_named": "その OAuth アプリの「{{clientId}}」と必要なら「{{clientSecret}}」を AuraGo にコピーします。"

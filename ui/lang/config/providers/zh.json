@@ -202,7 +202,7 @@
   "config.providers.oauth_setup_title": "OAuth 设置",
   "config.providers.oauth_setup_open_provider_settings": "打开 provider 设置",
   "config.providers.oauth_setup_provider_settings_hint": "打开 provider 设置链接，创建或选择 OAuth app，然后把这里显示的 Redirect URI 粘贴到已授权 Redirect/Callback URL 字段。",
-  "config.providers.oauth_setup_custom_provider_hint": "Oh-My-Pi 目录没有这个 provider 的具体设置数据。打开 provider 的 OAuth app，把这里显示的 Redirect URI 粘贴到 Callback URL 字段。",
+  "config.providers.oauth_setup_custom_provider_hint": "没有这个 provider 的具体设置数据。打开 provider 的 OAuth app，把这里显示的 Redirect URI 粘贴到 Callback URL 字段。",
   "config.providers.oauth_setup_redirect_step": "把这里显示的 Redirect URI 复制到 provider 的已授权 Redirect/Callback URL 字段。",
   "config.providers.oauth_setup_credentials_step": "在这里填写该 OAuth app 的 Client ID，以及可选的 Client Secret。",
   "config.providers.oauth_setup_save_connect_step": "点击保存并连接；AuraGo 会保存提供商并打开登录。",
@@ -213,7 +213,7 @@
   "config.providers.oauth_login_link_copied": "登录链接已复制",
   "config.providers.oauth_setup_open_console": "打开 {{console}}",
   "config.providers.oauth_setup_catalog_hint": "AuraGo 使用来自 {{source}} 的设置数据。打开 {{console}}，并填入这里显示的 Redirect URI。",
-  "config.providers.oauth_setup_no_catalog_hint": "Oh-My-Pi 目录没有 {{provider}} 的设置数据。只有在你知道该 provider 设置时才使用 OAuth。",
+  "config.providers.oauth_setup_no_catalog_hint": "没有 {{provider}} 的设置数据。只有在你知道该 provider 设置时才使用 OAuth。",
   "config.providers.oauth_setup_source": "来源：{{source}}",
   "config.providers.oauth_setup_redirect_step_named": "把这里显示的 Redirect URI 粘贴到 provider 的“{{field}}”字段。",
   "config.providers.oauth_setup_credentials_step_named": "把该 OAuth app 的“{{clientId}}”以及可选的“{{clientSecret}}”复制到 AuraGo。"

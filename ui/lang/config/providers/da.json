@@ -202,7 +202,7 @@
   "config.providers.oauth_setup_title": "OAuth-opsætning",
   "config.providers.oauth_setup_open_provider_settings": "Åbn providerindstillinger",
   "config.providers.oauth_setup_provider_settings_hint": "Åbn providerens opsætningslink, opret eller vælg en OAuth-app, og indsæt Redirect-URI'en vist her i feltet for autoriserede Redirect/Callback-URL'er.",
-  "config.providers.oauth_setup_custom_provider_hint": "Oh-My-Pi-kataloget har ingen konkrete opsætningsdata for denne provider. Åbn OAuth-appen hos provideren, og indsæt Redirect-URI'en vist her i Callback URL-feltet.",
+  "config.providers.oauth_setup_custom_provider_hint": "Der findes ingen konkrete opsætningsdata for denne provider. Åbn OAuth-appen hos provideren, og indsæt Redirect-URI'en vist her i Callback URL-feltet.",
   "config.providers.oauth_setup_redirect_step": "Kopiér Redirect-URI'en vist her til feltet for autoriseret Redirect/Callback URL hos provideren.",
   "config.providers.oauth_setup_credentials_step": "Indsæt Client ID og eventuelt Client Secret fra denne OAuth-app her.",
   "config.providers.oauth_setup_save_connect_step": "Klik på Gem og forbind; AuraGo gemmer provideren og åbner login.",
@@ -213,7 +213,7 @@
   "config.providers.oauth_login_link_copied": "Loginlink kopieret",
   "config.providers.oauth_setup_open_console": "Åbn {{console}}",
   "config.providers.oauth_setup_catalog_hint": "AuraGo bruger opsætningsdata fra {{source}}. Åbn {{console}}, og indsæt Redirect-URI'en vist her.",
-  "config.providers.oauth_setup_no_catalog_hint": "Der findes ingen opsætningsdata for {{provider}} i Oh-My-Pi-kataloget. Brug kun OAuth, hvis du kender providerens indstillinger.",
+  "config.providers.oauth_setup_no_catalog_hint": "Der findes ingen opsætningsdata for {{provider}}. Brug kun OAuth, hvis du kender providerens indstillinger.",
   "config.providers.oauth_setup_source": "Kilde: {{source}}",
   "config.providers.oauth_setup_redirect_step_named": "Indsæt Redirect-URI'en vist her i feltet „{{field}}“ hos provideren.",
   "config.providers.oauth_setup_credentials_step_named": "Kopiér „{{clientId}}“ og eventuelt „{{clientSecret}}“ fra denne OAuth-app til AuraGo."

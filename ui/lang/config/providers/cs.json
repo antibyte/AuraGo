@@ -202,7 +202,7 @@
   "config.providers.oauth_setup_title": "Nastavení OAuth",
   "config.providers.oauth_setup_open_provider_settings": "Otevřít nastavení poskytovatele",
   "config.providers.oauth_setup_provider_settings_hint": "Otevři odkaz nastavení poskytovatele, vytvoř nebo vyber OAuth aplikaci a vlož Redirect-URI zobrazené zde do pole pro autorizované Redirect/Callback URL.",
-  "config.providers.oauth_setup_custom_provider_hint": "Pro tohoto poskytovatele nejsou v katalogu Oh-My-Pi konkrétní údaje nastavení. Otevři OAuth aplikaci u poskytovatele a vlož Redirect-URI zobrazené zde do pole Callback URL.",
+  "config.providers.oauth_setup_custom_provider_hint": "Pro tohoto poskytovatele nejsou k dispozici konkrétní údaje nastavení. Otevři OAuth aplikaci u poskytovatele a vlož Redirect-URI zobrazené zde do pole Callback URL.",
   "config.providers.oauth_setup_redirect_step": "Zkopíruj Redirect-URI zobrazené zde do pole pro autorizované Redirect/Callback URL u poskytovatele.",
   "config.providers.oauth_setup_credentials_step": "Vlož Client ID a volitelně Client Secret z této OAuth aplikace sem.",
   "config.providers.oauth_setup_save_connect_step": "Klikni na Uložit a připojit; AuraGo uloží poskytovatele a otevře přihlášení.",
@@ -213,7 +213,7 @@
   "config.providers.oauth_login_link_copied": "Odkaz na přihlášení zkopírován",
   "config.providers.oauth_setup_open_console": "Otevřít {{console}}",
   "config.providers.oauth_setup_catalog_hint": "AuraGo používá údaje nastavení z {{source}}. Otevři {{console}} a vlož tam Redirect-URI zobrazené zde.",
-  "config.providers.oauth_setup_no_catalog_hint": "Pro {{provider}} nejsou v katalogu Oh-My-Pi údaje nastavení. OAuth použij jen tehdy, když znáš nastavení svého poskytovatele.",
+  "config.providers.oauth_setup_no_catalog_hint": "Pro {{provider}} nejsou k dispozici údaje nastavení. OAuth použij jen tehdy, když znáš nastavení svého poskytovatele.",
   "config.providers.oauth_setup_source": "Zdroj: {{source}}",
   "config.providers.oauth_setup_redirect_step_named": "Vlož Redirect-URI zobrazené zde do pole „{{field}}“ u poskytovatele.",
   "config.providers.oauth_setup_credentials_step_named": "Zkopíruj „{{clientId}}“ a volitelně „{{clientSecret}}“ z této OAuth aplikace do AuraGo."

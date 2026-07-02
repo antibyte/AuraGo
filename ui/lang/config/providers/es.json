@@ -202,7 +202,7 @@
   "config.providers.oauth_setup_title": "Configuración OAuth",
   "config.providers.oauth_setup_open_provider_settings": "Abrir configuración del proveedor",
   "config.providers.oauth_setup_provider_settings_hint": "Abre el enlace de configuración del proveedor, crea o selecciona una app OAuth y pega la Redirect URI que se muestra aquí en el campo de URL Redirect/Callback autorizadas.",
-  "config.providers.oauth_setup_custom_provider_hint": "No hay datos concretos de configuración para este proveedor en el catálogo de Oh-My-Pi. Abre la app OAuth del proveedor y pega la Redirect URI que se muestra aquí en el campo Callback URL.",
+  "config.providers.oauth_setup_custom_provider_hint": "No hay datos concretos de configuración para este proveedor. Abre la app OAuth del proveedor y pega la Redirect URI que se muestra aquí en el campo Callback URL.",
   "config.providers.oauth_setup_redirect_step": "Copia la Redirect URI que se muestra aquí en el campo de URL Redirect/Callback autorizada del proveedor.",
   "config.providers.oauth_setup_credentials_step": "Introduce aquí el Client ID y, opcionalmente, el Client Secret de esa app OAuth.",
   "config.providers.oauth_setup_save_connect_step": "Pulsa Guardar y conectar; AuraGo guarda el proveedor y abre el login.",
@@ -213,7 +213,7 @@
   "config.providers.oauth_login_link_copied": "Enlace de login copiado",
   "config.providers.oauth_setup_open_console": "Abrir {{console}}",
   "config.providers.oauth_setup_catalog_hint": "AuraGo usa datos de configuración de {{source}}. Abre {{console}} e introduce allí la Redirect URI que se muestra aquí.",
-  "config.providers.oauth_setup_no_catalog_hint": "No hay datos de configuración para {{provider}} en el catálogo de Oh-My-Pi. Usa OAuth solo si conoces la configuración del proveedor.",
+  "config.providers.oauth_setup_no_catalog_hint": "No hay datos de configuración para {{provider}}. Usa OAuth solo si conoces la configuración del proveedor.",
   "config.providers.oauth_setup_source": "Fuente: {{source}}",
   "config.providers.oauth_setup_redirect_step_named": "Pega la Redirect URI que se muestra aquí en el campo «{{field}}» del proveedor.",
   "config.providers.oauth_setup_credentials_step_named": "Copia «{{clientId}}» y, opcionalmente, «{{clientSecret}}» de esa app OAuth a AuraGo."

@@ -202,7 +202,7 @@
   "config.providers.oauth_setup_title": "Ρύθμιση OAuth",
   "config.providers.oauth_setup_open_provider_settings": "Άνοιγμα ρυθμίσεων provider",
   "config.providers.oauth_setup_provider_settings_hint": "Άνοιξε τον σύνδεσμο ρύθμισης του provider, δημιούργησε ή διάλεξε μια OAuth εφαρμογή και βάλε το Redirect-URI που εμφανίζεται εδώ στο πεδίο των επιτρεπόμενων Redirect/Callback URL.",
-  "config.providers.oauth_setup_custom_provider_hint": "Δεν υπάρχουν συγκεκριμένα δεδομένα ρύθμισης για αυτόν τον provider στον κατάλογο Oh-My-Pi. Άνοιξε την OAuth εφαρμογή στον provider και βάλε το Redirect-URI που εμφανίζεται εδώ στο πεδίο Callback URL.",
+  "config.providers.oauth_setup_custom_provider_hint": "Δεν υπάρχουν συγκεκριμένα δεδομένα ρύθμισης για αυτόν τον provider. Άνοιξε την OAuth εφαρμογή στον provider και βάλε το Redirect-URI που εμφανίζεται εδώ στο πεδίο Callback URL.",
   "config.providers.oauth_setup_redirect_step": "Αντίγραψε το Redirect-URI που εμφανίζεται εδώ στο πεδίο επιτρεπόμενου Redirect/Callback URL στον provider.",
   "config.providers.oauth_setup_credentials_step": "Βάλε εδώ το Client ID και προαιρετικά το Client Secret από αυτή την OAuth εφαρμογή.",
   "config.providers.oauth_setup_save_connect_step": "Πάτησε Αποθήκευση & σύνδεση· το AuraGo αποθηκεύει τον πάροχο και ανοίγει το login.",
@@ -213,7 +213,7 @@
   "config.providers.oauth_login_link_copied": "Το login link αντιγράφηκε",
   "config.providers.oauth_setup_open_console": "Άνοιγμα {{console}}",
   "config.providers.oauth_setup_catalog_hint": "Το AuraGo χρησιμοποιεί δεδομένα ρύθμισης από {{source}}. Άνοιξε το {{console}} και βάλε εκεί το Redirect-URI που εμφανίζεται εδώ.",
-  "config.providers.oauth_setup_no_catalog_hint": "Δεν υπάρχουν δεδομένα ρύθμισης για {{provider}} στον κατάλογο Oh-My-Pi. Χρησιμοποίησε OAuth μόνο αν γνωρίζεις τις ρυθμίσεις του provider.",
+  "config.providers.oauth_setup_no_catalog_hint": "Δεν υπάρχουν δεδομένα ρύθμισης για {{provider}}. Χρησιμοποίησε OAuth μόνο αν γνωρίζεις τις ρυθμίσεις του provider.",
   "config.providers.oauth_setup_source": "Πηγή: {{source}}",
   "config.providers.oauth_setup_redirect_step_named": "Βάλε το Redirect-URI που εμφανίζεται εδώ στο πεδίο «{{field}}» του provider.",
   "config.providers.oauth_setup_credentials_step_named": "Αντίγραψε το «{{clientId}}» και προαιρετικά το «{{clientSecret}}» από αυτή την OAuth εφαρμογή στο AuraGo."

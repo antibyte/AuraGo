@@ -202,7 +202,7 @@
   "config.providers.oauth_setup_title": "OAuth setup",
   "config.providers.oauth_setup_open_provider_settings": "Open provider settings",
   "config.providers.oauth_setup_provider_settings_hint": "Open the provider setup link, create or select an OAuth app, and paste the Redirect URI shown here into the authorized Redirect/Callback URL field.",
-  "config.providers.oauth_setup_custom_provider_hint": "Oh-My-Pi has no concrete setup data for this provider. Open the provider's OAuth app and paste the Redirect URI shown here into its Callback URL field.",
+  "config.providers.oauth_setup_custom_provider_hint": "No concrete setup data is available for this provider. Open the provider's OAuth app and paste the Redirect URI shown here into its Callback URL field.",
   "config.providers.oauth_setup_redirect_step": "Copy the Redirect URI shown here into the provider's authorized Redirect/Callback URL field.",
   "config.providers.oauth_setup_credentials_step": "Enter the Client ID and optional Client Secret from that OAuth app here.",
   "config.providers.oauth_setup_save_connect_step": "Click Save & connect; AuraGo saves the provider and opens the login.",
@@ -213,7 +213,7 @@
   "config.providers.oauth_login_link_copied": "Login link copied",
   "config.providers.oauth_setup_open_console": "Open {{console}}",
   "config.providers.oauth_setup_catalog_hint": "AuraGo uses setup data from {{source}}. Open {{console}} and enter the Redirect URI shown here.",
-  "config.providers.oauth_setup_no_catalog_hint": "Oh-My-Pi has no setup data for {{provider}}. Use OAuth here only if you know this provider's settings.",
+  "config.providers.oauth_setup_no_catalog_hint": "No setup data is available for {{provider}}. Use OAuth here only if you know this provider's settings.",
   "config.providers.oauth_setup_source": "Source: {{source}}",
   "config.providers.oauth_setup_redirect_step_named": "Paste the Redirect URI shown here into the provider field named “{{field}}”.",
   "config.providers.oauth_setup_credentials_step_named": "Copy “{{clientId}}” and optionally “{{clientSecret}}” from that OAuth app into AuraGo."
