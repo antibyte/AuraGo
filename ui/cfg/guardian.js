@@ -70,7 +70,7 @@ async function renderGuardianSection(section) {
     const policies = ['', 'rag', 'support', 'coding', 'translation', 'custom'];
     html += `<div class="field-group">
         <div class="field-label">${t('config.guardian.policy_label')}</div>
-        <select class="field-select" data-path="guardian.promptsec.policy" onchange="renderGuardianSection(null)">`;
+        <select class="field-select" data-path="guardian.promptsec.policy" onchange="guardianSetPolicy(this.value)">`;
     policies.forEach(p => {
         const sel = (curPolicy === p) ? ' selected' : '';
         html += `<option value="${p}"${sel}>${t('config.guardian.policy_' + (p || 'none'))}</option>`;
@@ -192,6 +192,14 @@ function renderGuardianToggle(path, on, label) {
         <div class="toggle ${on ? 'on' : ''}" data-path="${path}" onclick="toggleBool(this);setNestedValue(configData,'${path}',this.classList.contains('on'));setDirty(true)"></div>
         <span class="cfg-toggle-label">${label}</span>
     </div>`;
+}
+
+function guardianSetPolicy(value) {
+    if (!configData.guardian) configData.guardian = {};
+    if (!configData.guardian.promptsec) configData.guardian.promptsec = {};
+    setNestedValue(configData, 'guardian.promptsec.policy', value);
+    setDirty(true);
+    renderGuardianSection(null);
 }
 
 function guardianToggleCustomTask(task, checked) {

@@ -164,3 +164,19 @@ func TestConfigUXMobileSaveBarLayout(t *testing.T) {
 		}
 	}
 }
+
+func TestConfigUXGuardianPolicySelectPersistsBeforeRerender(t *testing.T) {
+	t.Parallel()
+
+	guardianJS := normalizeAssetText(mustReadUIFile(t, "cfg/guardian.js"))
+	for _, marker := range []string{
+		`data-path="guardian.promptsec.policy" onchange="guardianSetPolicy(this.value)"`,
+		"function guardianSetPolicy(value) {",
+		"setNestedValue(configData, 'guardian.promptsec.policy', value);",
+		"renderGuardianSection(null);",
+	} {
+		if !strings.Contains(guardianJS, marker) {
+			t.Fatalf("guardian.js missing policy select persistence marker %q", marker)
+		}
+	}
+}
