@@ -158,7 +158,7 @@
   "config.providers.cap_tool_calling": "Wywoływanie narzędzi",
   "config.providers.cap_structured_outputs": "Ustrukturyzowane wyjścia",
   "config.providers.cap_multimodal": "Wejścia multimodalne",
-  "config.providers.cap_auto_source": "Automatycznie wykryto z {source} dla {model}.",
+  "config.providers.cap_auto_source": "Automatycznie wykryto dla {model}.",
   "config.providers.cap_manual_source": "Ręczne nadpisanie dla tego modelu.",
   "config.providers.cap_detecting": "Wykrywanie możliwości modelu...",
   "config.providers.cap_tool_short": "Tools",

@@ -158,7 +158,7 @@
   "config.providers.cap_tool_calling": "Llamadas a herramientas",
   "config.providers.cap_structured_outputs": "Salidas estructuradas",
   "config.providers.cap_multimodal": "Entradas multimodales",
-  "config.providers.cap_auto_source": "Detectado automáticamente desde {source} para {model}.",
+  "config.providers.cap_auto_source": "Detectado automáticamente para {model}.",
   "config.providers.cap_manual_source": "Anulación manual para este modelo.",
   "config.providers.cap_detecting": "Detectando capacidades del modelo...",
   "config.providers.cap_tool_short": "Tools",

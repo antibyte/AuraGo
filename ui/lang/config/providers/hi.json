@@ -158,7 +158,7 @@
   "config.providers.cap_tool_calling": "टूल कॉलिंग",
   "config.providers.cap_structured_outputs": "संरचित आउटपुट",
   "config.providers.cap_multimodal": "मल्टीमॉडल इनपुट",
-  "config.providers.cap_auto_source": "{model} के लिए {source} से स्वतः पहचाना गया।",
+  "config.providers.cap_auto_source": "{model} के लिए स्वतः पहचाना गया।",
   "config.providers.cap_manual_source": "इस मॉडल के लिए मैनुअल ओवरराइड।",
   "config.providers.cap_detecting": "मॉडल क्षमताएँ पहचानी जा रही हैं...",
   "config.providers.cap_tool_short": "Tools",

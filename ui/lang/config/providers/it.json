@@ -158,7 +158,7 @@
   "config.providers.cap_tool_calling": "Chiamata strumenti",
   "config.providers.cap_structured_outputs": "Output strutturati",
   "config.providers.cap_multimodal": "Input multimodali",
-  "config.providers.cap_auto_source": "Rilevato automaticamente da {source} per {model}.",
+  "config.providers.cap_auto_source": "Rilevato automaticamente per {model}.",
   "config.providers.cap_manual_source": "Override manuale per questo modello.",
   "config.providers.cap_detecting": "Rilevamento capacità del modello...",
   "config.providers.cap_tool_short": "Tools",
