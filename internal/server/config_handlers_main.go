@@ -853,26 +853,39 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				go tools.EnsurePiperRunning(newCfg, s.Logger)
 			}
 
-			// Hot-reload SQL Connections pool: create when enabled, close when disabled.
-			if newCfg.SQLConnections.Enabled != oldCfg.SQLConnections.Enabled {
-				if newCfg.SQLConnections.Enabled && s.SQLConnectionsDB != nil && s.SQLConnectionPool == nil {
-					pool := sqlconnections.NewConnectionPool(
-						s.SQLConnectionsDB, s.Vault,
-						newCfg.SQLConnections.MaxPoolSize,
-						newCfg.SQLConnections.ConnectionTimeoutSec,
-						s.Logger,
-					)
-					if newCfg.SQLConnections.RateLimitWindowSec > 0 {
-						pool.SetRateLimit(newCfg.SQLConnections.RateLimitWindowSec)
-					}
-					if newCfg.SQLConnections.IdleTTLSec > 0 {
-						pool.SetIdleTTL(time.Duration(newCfg.SQLConnections.IdleTTLSec) * time.Second)
-					}
-					s.SQLConnectionPool = pool
-					s.Logger.Info("[Config UI] SQL connection pool created")
-				} else if !newCfg.SQLConnections.Enabled && s.SQLConnectionPool != nil {
+			// Hot-reload SQL Connections pool when enabled state or runtime pool settings change.
+			sqlEnabledChanged := newCfg.SQLConnections.Enabled != oldCfg.SQLConnections.Enabled
+			sqlPoolSettingsChanged := newCfg.SQLConnections.Enabled &&
+				(newCfg.SQLConnections.MaxPoolSize != oldCfg.SQLConnections.MaxPoolSize ||
+					newCfg.SQLConnections.ConnectionTimeoutSec != oldCfg.SQLConnections.ConnectionTimeoutSec ||
+					newCfg.SQLConnections.RateLimitWindowSec != oldCfg.SQLConnections.RateLimitWindowSec ||
+					newCfg.SQLConnections.IdleTTLSec != oldCfg.SQLConnections.IdleTTLSec)
+			if sqlEnabledChanged || sqlPoolSettingsChanged {
+				if s.SQLConnectionPool != nil {
 					s.SQLConnectionPool.CloseAll()
 					s.SQLConnectionPool = nil
+				}
+
+				if newCfg.SQLConnections.Enabled {
+					if s.SQLConnectionsDB == nil {
+						s.Logger.Warn("[Config UI] SQL connection pool enabled but metadata DB is unavailable")
+					} else {
+						pool := sqlconnections.NewConnectionPool(
+							s.SQLConnectionsDB, s.Vault,
+							newCfg.SQLConnections.MaxPoolSize,
+							newCfg.SQLConnections.ConnectionTimeoutSec,
+							s.Logger,
+						)
+						if newCfg.SQLConnections.RateLimitWindowSec > 0 {
+							pool.SetRateLimit(newCfg.SQLConnections.RateLimitWindowSec)
+						}
+						if newCfg.SQLConnections.IdleTTLSec > 0 {
+							pool.SetIdleTTL(time.Duration(newCfg.SQLConnections.IdleTTLSec) * time.Second)
+						}
+						s.SQLConnectionPool = pool
+						s.Logger.Info("[Config UI] SQL connection pool created")
+					}
+				} else {
 					s.Logger.Info("[Config UI] SQL connection pool closed")
 				}
 			}

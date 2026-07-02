@@ -175,6 +175,9 @@ func List(db *sql.DB) ([]ConnectionRecord, error) {
 		c.AllowDelete = ad == 1
 		result = append(result, c)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to iterate connection rows: %w", err)
+	}
 	return result, nil
 }
 

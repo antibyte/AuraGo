@@ -3,6 +3,7 @@ package sqlconnections
 import (
 	"log/slog"
 	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -141,8 +142,55 @@ func TestService_Create(t *testing.T) {
 				if vault.secrets[conn.VaultSecretID] == "" {
 					t.Error("expected vault secret to be stored")
 				}
+			} else {
+				conn, _ := GetByID(db, res.ID)
+				if conn.VaultSecretID != "" {
+					t.Errorf("VaultSecretID = %q, want empty for connection without credentials", conn.VaultSecretID)
+				}
 			}
 		})
+	}
+}
+
+func TestService_CreateSQLiteWithoutCredentialsConnectsWithoutVaultSecret(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	vault := &mockVault{}
+	pool := NewConnectionPool(db, vault, 3, 5, nil)
+	defer pool.CloseAll()
+	svc := NewService(ServiceConfig{
+		DB:     db,
+		Vault:  vault,
+		Pool:   pool,
+		Logger: slogDefault(),
+	})
+
+	sqlitePath := filepath.Join(t.TempDir(), "app.db")
+	res, err := svc.Create(CreateRequest{
+		Name:         "sqlite-no-creds",
+		Driver:       "sqlite",
+		DatabaseName: sqlitePath,
+		AllowRead:    true,
+	})
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+
+	conn, err := GetByID(db, res.ID)
+	if err != nil {
+		t.Fatalf("GetByID() error = %v", err)
+	}
+	if conn.VaultSecretID != "" {
+		t.Fatalf("VaultSecretID = %q, want empty", conn.VaultSecretID)
+	}
+
+	opened, err := pool.GetConnection(res.ID)
+	if err != nil {
+		t.Fatalf("GetConnection() error = %v", err)
+	}
+	if opened == nil {
+		t.Fatal("GetConnection() returned nil db")
 	}
 }
 
@@ -275,6 +323,105 @@ func TestService_Update_CredentialDelete(t *testing.T) {
 	// Verify vault secret is deleted
 	if vault.secrets[secretID] != "" {
 		t.Error("expected vault secret to be deleted")
+	}
+}
+
+func TestService_UpdateReplaceCleansNewSecretWhenMetadataUpdateFails(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	vault := &mockVault{}
+	svc := NewService(ServiceConfig{
+		DB:     db,
+		Vault:  vault,
+		Logger: slogDefault(),
+	})
+
+	first, err := svc.Create(CreateRequest{
+		Name:         "first",
+		Driver:       "postgres",
+		DatabaseName: "app",
+		Username:     "old",
+		Password:     "oldpass",
+	})
+	if err != nil {
+		t.Fatalf("Create(first) error = %v", err)
+	}
+	if _, err := svc.Create(CreateRequest{
+		Name:         "second",
+		Driver:       "postgres",
+		DatabaseName: "app",
+		Username:     "other",
+		Password:     "otherpass",
+	}); err != nil {
+		t.Fatalf("Create(second) error = %v", err)
+	}
+
+	before := len(vault.secrets)
+	if err := svc.Update(UpdateRequest{
+		ID:               first.ID,
+		Name:             "second",
+		CredentialAction: "replace",
+		Username:         "new",
+		Password:         "newpass",
+	}); err == nil {
+		t.Fatal("Update() expected duplicate-name error")
+	}
+	if len(vault.secrets) != before {
+		t.Fatalf("vault secret count = %d, want %d after failed metadata update", len(vault.secrets), before)
+	}
+}
+
+func TestService_UpdateDeleteKeepsOldSecretWhenMetadataUpdateFails(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	vault := &mockVault{}
+	svc := NewService(ServiceConfig{
+		DB:     db,
+		Vault:  vault,
+		Logger: slogDefault(),
+	})
+
+	first, err := svc.Create(CreateRequest{
+		Name:         "first",
+		Driver:       "postgres",
+		DatabaseName: "app",
+		Username:     "old",
+		Password:     "oldpass",
+	})
+	if err != nil {
+		t.Fatalf("Create(first) error = %v", err)
+	}
+	firstRec, err := GetByID(db, first.ID)
+	if err != nil {
+		t.Fatalf("GetByID(first) error = %v", err)
+	}
+	if _, err := svc.Create(CreateRequest{
+		Name:         "second",
+		Driver:       "postgres",
+		DatabaseName: "app",
+	}); err != nil {
+		t.Fatalf("Create(second) error = %v", err)
+	}
+
+	if err := svc.Update(UpdateRequest{
+		ID:               first.ID,
+		Name:             "second",
+		CredentialAction: "delete",
+	}); err == nil {
+		t.Fatal("Update() expected duplicate-name error")
+	}
+	if vault.secrets[firstRec.VaultSecretID] == "" {
+		t.Fatalf("old secret %q was deleted even though metadata update failed", firstRec.VaultSecretID)
+	}
+
+	afterRec, err := GetByID(db, first.ID)
+	if err != nil {
+		t.Fatalf("GetByID(first after failed update) error = %v", err)
+	}
+	if afterRec.VaultSecretID != firstRec.VaultSecretID {
+		t.Fatalf("VaultSecretID = %q, want %q after failed update", afterRec.VaultSecretID, firstRec.VaultSecretID)
 	}
 }
 

@@ -1,11 +1,20 @@
 package sqlconnections
 
 import (
+	"context"
 	"database/sql"
+	"database/sql/driver"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
 )
+
+var errRowsIteration = errors.New("forced rows iteration error")
+
+func init() {
+	sql.Register("sqlconnections_rows_err", rowsErrDriver{})
+}
 
 func setupTestDB(t *testing.T) (*sql.DB, func()) {
 	t.Helper()
@@ -129,6 +138,19 @@ func TestList(t *testing.T) {
 	// Should be ordered by name
 	if list[0].Name != "alpha" || list[1].Name != "beta" || list[2].Name != "gamma" {
 		t.Errorf("unexpected order: %s, %s, %s", list[0].Name, list[1].Name, list[2].Name)
+	}
+}
+
+func TestListReturnsRowsErr(t *testing.T) {
+	db, err := sql.Open("sqlconnections_rows_err", "")
+	if err != nil {
+		t.Fatalf("sql.Open() error = %v", err)
+	}
+	defer db.Close()
+
+	_, err = List(db)
+	if !errors.Is(err, errRowsIteration) {
+		t.Fatalf("List() error = %v, want %v", err, errRowsIteration)
 	}
 }
 
@@ -257,3 +279,60 @@ func TestUnmarshalCredentials_Invalid(t *testing.T) {
 		t.Fatal("expected error for invalid JSON")
 	}
 }
+
+type rowsErrDriver struct{}
+
+func (rowsErrDriver) Open(name string) (driver.Conn, error) {
+	return rowsErrConn{}, nil
+}
+
+type rowsErrConn struct{}
+
+func (rowsErrConn) Prepare(query string) (driver.Stmt, error) {
+	return nil, errors.New("Prepare should not be called")
+}
+
+func (rowsErrConn) Close() error {
+	return nil
+}
+
+func (rowsErrConn) Begin() (driver.Tx, error) {
+	return nil, errors.New("Begin should not be called")
+}
+
+func (rowsErrConn) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
+	return &rowsErrRows{}, nil
+}
+
+type rowsErrRows struct {
+	sent bool
+}
+
+func (r *rowsErrRows) Columns() []string {
+	return []string{
+		"id", "name", "driver", "host", "port", "database_name", "description",
+		"allow_read", "allow_write", "allow_change", "allow_delete",
+		"vault_secret_id", "ssl_mode", "created_at", "updated_at",
+	}
+}
+
+func (r *rowsErrRows) Close() error {
+	return nil
+}
+
+func (r *rowsErrRows) Next(dest []driver.Value) error {
+	if r.sent {
+		return errRowsIteration
+	}
+	r.sent = true
+	values := []driver.Value{
+		"id-1", "alpha", "sqlite", "", int64(0), "/tmp/alpha.db", "",
+		int64(1), int64(0), int64(0), int64(0),
+		"", "disable", "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z",
+	}
+	copy(dest, values)
+	return nil
+}
+
+var _ driver.QueryerContext = rowsErrConn{}
+var _ driver.Rows = (*rowsErrRows)(nil)

@@ -125,17 +125,21 @@ func DetectStatementType(query string) (StatementType, error) {
 		// If we cannot definitively determine it's SELECT, block it.
 		inner := cteLeadingDML(trimmed)
 		switch inner {
-		case "SELECT":
+		case "SELECT", "SHOW", "DESCRIBE", "DESC":
 			return StmtSelect, nil
-		case "INSERT":
+		case "INSERT", "REPLACE":
 			return StmtInsert, nil
 		case "UPDATE":
 			return StmtUpdate, nil
 		case "DELETE":
 			return StmtDelete, nil
+		case "CREATE", "DROP", "ALTER", "TRUNCATE", "VACUUM", "ANALYZE", "REINDEX", "OPTIMIZE", "CHECK", "REPAIR", "GRANT", "REVOKE", "DENY":
+			return StmtDDL, nil
+		case "CALL":
+			return StmtUnknown, fmt.Errorf("CALL statements are not allowed")
 		default:
 			// Conservative: block unknown CTE rather than assuming read-only
-			return StmtUnknown, fmt.Errorf("ambiguous CTE statement — only SELECT/CTE/INSERT/UPDATE/DELETE allowed")
+			return StmtUnknown, fmt.Errorf("ambiguous CTE statement — only known read/write/DDL statements allowed")
 		}
 
 	case "INSERT", "REPLACE":
@@ -270,49 +274,200 @@ func firstKeyword(s string) string {
 	return b.String()
 }
 
-// cteLeadingDML tries to find the DML keyword after a WITH ... AS (...) block.
+// cteLeadingDML inspects WITH CTE bodies before returning the outer statement.
+// A mutating or administrative CTE body is returned immediately so callers can
+// enforce the stronger permission, even when the outer statement is SELECT.
 func cteLeadingDML(query string) string {
-	upper := strings.ToUpper(query)
-	// Find the last unmatched closing paren, then grab the next keyword.
-	depth := 0
-	i := 0
-	// Skip "WITH"
-	for i < len(upper) && (unicode.IsLetter(rune(upper[i])) || upper[i] == ' ') {
+	i := skipSQLSpace(query, len("WITH"))
+	if hasKeywordAt(query, i, "RECURSIVE") {
+		i = skipSQLSpace(query, i+len("RECURSIVE"))
+	}
+
+	for i < len(query) {
+		asIdx := findSQLKeywordAtDepthZero(query, i, "AS")
+		if asIdx == -1 {
+			return ""
+		}
+
+		openIdx := findSQLByteAtDepthZero(query, asIdx+len("AS"), '(')
+		if openIdx == -1 {
+			return ""
+		}
+
+		closeIdx := findMatchingSQLParen(query, openIdx)
+		if closeIdx == -1 {
+			return ""
+		}
+
+		bodyKeyword := cteBodyLeadingKeyword(query[openIdx+1 : closeIdx])
+		if bodyKeyword == "" {
+			return ""
+		}
+		if !isReadOnlyCTEBodyKeyword(bodyKeyword) {
+			return bodyKeyword
+		}
+
+		i = skipSQLSpace(query, closeIdx+1)
+		if i < len(query) && query[i] == ',' {
+			i = skipSQLSpace(query, i+1)
+			continue
+		}
+
+		outerKeyword := firstKeyword(strings.TrimSpace(query[i:]))
+		if outerKeyword != "" {
+			return outerKeyword
+		}
+		return ""
+	}
+	return ""
+}
+
+func cteBodyLeadingKeyword(body string) string {
+	body = strings.TrimSpace(body)
+	keyword := firstKeyword(body)
+	if keyword == "WITH" {
+		return cteLeadingDML(body)
+	}
+	return keyword
+}
+
+func isReadOnlyCTEBodyKeyword(keyword string) bool {
+	switch keyword {
+	case "SELECT", "SHOW", "DESCRIBE", "DESC":
+		return true
+	default:
+		return false
+	}
+}
+
+func skipSQLSpace(s string, i int) int {
+	for i < len(s) && unicode.IsSpace(rune(s[i])) {
 		i++
 	}
-	for i < len(upper) {
-		switch upper[i] {
+	return i
+}
+
+func findSQLKeywordAtDepthZero(s string, start int, keyword string) int {
+	depth := 0
+	quote := byte(0)
+	for i := start; i < len(s); i++ {
+		c := s[i]
+		if quote != 0 {
+			if c == quote {
+				if quote == '\'' && i+1 < len(s) && s[i+1] == '\'' {
+					i++
+					continue
+				}
+				quote = 0
+			}
+			continue
+		}
+
+		switch c {
+		case '\'', '"', '`':
+			quote = c
+		case '[':
+			quote = ']'
+		case '(':
+			depth++
+		case ')':
+			if depth > 0 {
+				depth--
+			}
+		default:
+			if depth == 0 && hasKeywordAt(s, i, keyword) {
+				return i
+			}
+		}
+	}
+	return -1
+}
+
+func findSQLByteAtDepthZero(s string, start int, target byte) int {
+	depth := 0
+	quote := byte(0)
+	for i := start; i < len(s); i++ {
+		c := s[i]
+		if quote != 0 {
+			if c == quote {
+				if quote == '\'' && i+1 < len(s) && s[i+1] == '\'' {
+					i++
+					continue
+				}
+				quote = 0
+			}
+			continue
+		}
+
+		switch c {
+		case '\'', '"', '`':
+			quote = c
+		case '[':
+			quote = ']'
+		case '(':
+			if depth == 0 && c == target {
+				return i
+			}
+			depth++
+		case ')':
+			if depth > 0 {
+				depth--
+			}
+		default:
+			if depth == 0 && c == target {
+				return i
+			}
+		}
+	}
+	return -1
+}
+
+func findMatchingSQLParen(s string, openIdx int) int {
+	depth := 0
+	quote := byte(0)
+	for i := openIdx; i < len(s); i++ {
+		c := s[i]
+		if quote != 0 {
+			if c == quote {
+				if quote == '\'' && i+1 < len(s) && s[i+1] == '\'' {
+					i++
+					continue
+				}
+				quote = 0
+			}
+			continue
+		}
+
+		switch c {
+		case '\'', '"', '`':
+			quote = c
+		case '[':
+			quote = ']'
 		case '(':
 			depth++
 		case ')':
 			depth--
 			if depth == 0 {
-				// Look ahead for the DML keyword
-				rest := strings.TrimSpace(upper[i+1:])
-				// Skip optional comma + another CTE definition
-				for strings.HasPrefix(rest, ",") {
-					rest = strings.TrimSpace(rest[1:])
-					// skip CTE name + AS + ( ... )
-					innerDepth := 0
-					for j := 0; j < len(rest); j++ {
-						if rest[j] == '(' {
-							innerDepth++
-						} else if rest[j] == ')' {
-							innerDepth--
-							if innerDepth == 0 {
-								rest = strings.TrimSpace(rest[j+1:])
-								break
-							}
-						}
-					}
-				}
-				kw := firstKeyword(rest)
-				if kw != "" {
-					return kw
-				}
+				return i
 			}
 		}
-		i++
 	}
-	return "SELECT" // default assumption
+	return -1
+}
+
+func hasKeywordAt(s string, idx int, keyword string) bool {
+	if idx < 0 || idx+len(keyword) > len(s) {
+		return false
+	}
+	if !strings.EqualFold(s[idx:idx+len(keyword)], keyword) {
+		return false
+	}
+	beforeOK := idx == 0 || !isSQLIdentChar(rune(s[idx-1]))
+	afterIdx := idx + len(keyword)
+	afterOK := afterIdx == len(s) || !isSQLIdentChar(rune(s[afterIdx]))
+	return beforeOK && afterOK
+}
+
+func isSQLIdentChar(r rune) bool {
+	return unicode.IsLetter(r) || unicode.IsDigit(r) || r == '_'
 }

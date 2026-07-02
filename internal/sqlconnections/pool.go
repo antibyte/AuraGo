@@ -317,6 +317,9 @@ func (p *ConnectionPool) openConnection(rec ConnectionRecord) (*sql.DB, error) {
 	var username, password string
 
 	if rec.VaultSecretID != "" {
+		if p.vault == nil {
+			return nil, fmt.Errorf("vault is required to read SQL connection credentials")
+		}
 		raw, err := p.vault.ReadSecret(rec.VaultSecretID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read credentials from vault: %w", err)

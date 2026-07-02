@@ -88,21 +88,22 @@ func (s *Service) Create(req CreateRequest) (*CreateResult, error) {
 		return nil, fmt.Errorf("unsupported driver: %s (must be postgres, mysql, or sqlite)", req.Driver)
 	}
 
-	// Generate opaque vault key - not derived from connection name
-	vaultSecretID := "sql_" + uid.New()
-
 	// Store credentials in vault if provided
+	vaultSecretID := ""
 	if req.Username != "" || req.Password != "" {
+		if s.vault == nil {
+			return nil, fmt.Errorf("vault is required to store SQL connection credentials")
+		}
+		// Generate opaque vault key - not derived from connection name
+		vaultSecretID = "sql_" + uid.New()
 		credJSON, err := MarshalCredentials(req.Username, req.Password)
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal credentials: %w", err)
 		}
-		if s.vault != nil {
-			if err := s.vault.WriteSecret(vaultSecretID, credJSON); err != nil {
-				return nil, fmt.Errorf("failed to store credentials: %w", err)
-			}
-			s.logger.Info("SQL connection credentials stored in vault", "secret_id", vaultSecretID, "connection", req.Name)
+		if err := s.vault.WriteSecret(vaultSecretID, credJSON); err != nil {
+			return nil, fmt.Errorf("failed to store credentials: %w", err)
 		}
+		s.logger.Info("SQL connection credentials stored in vault", "secret_id", vaultSecretID, "connection", req.Name)
 	}
 
 	if req.SSLMode == "" {
@@ -196,27 +197,23 @@ func (s *Service) Update(req UpdateRequest) error {
 	// Handle credential changes based on action
 	switch req.CredentialAction {
 	case "replace":
+		if s.vault == nil {
+			return fmt.Errorf("vault is required to store SQL connection credentials")
+		}
 		// Generate new opaque vault key
 		newVaultSecretID = "sql_" + uid.New()
 		credJSON, err := MarshalCredentials(req.Username, req.Password)
 		if err != nil {
 			return fmt.Errorf("failed to marshal credentials: %w", err)
 		}
-		if s.vault != nil {
-			if err := s.vault.WriteSecret(newVaultSecretID, credJSON); err != nil {
-				return fmt.Errorf("failed to store new credentials: %w", err)
-			}
-			s.logger.Info("SQL connection credentials rotated", "old_secret_id", oldVaultSecretID, "new_secret_id", newVaultSecretID, "connection", existing.Name)
+		if err := s.vault.WriteSecret(newVaultSecretID, credJSON); err != nil {
+			return fmt.Errorf("failed to store new credentials: %w", err)
 		}
+		s.logger.Info("SQL connection credentials rotated", "old_secret_id", oldVaultSecretID, "new_secret_id", newVaultSecretID, "connection", existing.Name)
 		existing.VaultSecretID = newVaultSecretID
 
 	case "delete":
-		newVaultSecretID = "" // mark for deletion
 		existing.VaultSecretID = ""
-		if oldVaultSecretID != "" && s.vault != nil {
-			_ = s.vault.DeleteSecret(oldVaultSecretID)
-			s.logger.Info("SQL connection credentials deleted from vault", "secret_id", oldVaultSecretID, "connection", existing.Name)
-		}
 
 	case "keep", "":
 		// No change to credentials
@@ -224,16 +221,19 @@ func (s *Service) Update(req UpdateRequest) error {
 		return fmt.Errorf("invalid credential_action: %s (use: keep, replace, delete)", req.CredentialAction)
 	}
 
-	// Close pooled connection to force reconnect with new settings
-	if s.pool != nil {
-		s.pool.CloseConnection(existing.ID)
-	}
-
 	if err := Update(s.db, existing.ID, existing.Name, existing.Driver, existing.Host, existing.Port,
 		existing.DatabaseName, existing.Description,
 		existing.AllowRead, existing.AllowWrite, existing.AllowChange, existing.AllowDelete,
 		existing.VaultSecretID, existing.SSLMode); err != nil {
+		if newVaultSecretID != "" && s.vault != nil {
+			_ = s.vault.DeleteSecret(newVaultSecretID)
+		}
 		return err
+	}
+
+	// Close pooled connection to force reconnect with new settings
+	if s.pool != nil {
+		s.pool.CloseConnection(existing.ID)
 	}
 
 	// Best-effort cleanup of old secret after successful update
@@ -241,6 +241,10 @@ func (s *Service) Update(req UpdateRequest) error {
 		if s.vault != nil {
 			_ = s.vault.DeleteSecret(oldVaultSecretID)
 		}
+	}
+	if req.CredentialAction == "delete" && oldVaultSecretID != "" && s.vault != nil {
+		_ = s.vault.DeleteSecret(oldVaultSecretID)
+		s.logger.Info("SQL connection credentials deleted from vault", "secret_id", oldVaultSecretID, "connection", existing.Name)
 	}
 
 	return nil

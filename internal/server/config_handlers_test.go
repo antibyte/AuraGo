@@ -9,10 +9,12 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"aurago/internal/config"
 	"aurago/internal/inventory"
 	"aurago/internal/security"
+	"aurago/internal/sqlconnections"
 
 	"gopkg.in/yaml.v3"
 )
@@ -440,6 +442,70 @@ func TestHandleUpdateConfigDiscordChangeDoesNotRequireFullRestart(t *testing.T) 
 	}
 	if resp["needs_restart"] == true {
 		t.Fatalf("needs_restart = true, want Discord hot reload without full restart; body=%s", rec.Body.String())
+	}
+}
+
+func TestHandleUpdateConfigRecreatesSQLPoolWhenPoolSettingsChange(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	sqlMetaPath := filepath.Join(tmpDir, "sql_connections.db")
+	configContent := "sqlite:\n  sql_connections_path: " + sqlMetaPath + "\n" +
+		"sql_connections:\n" +
+		"  enabled: true\n" +
+		"  max_pool_size: 2\n" +
+		"  connection_timeout_sec: 5\n" +
+		"  rate_limit_window_sec: 1\n" +
+		"  idle_ttl_sec: 600\n"
+	if err := os.WriteFile(configPath, []byte(configContent), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	vault, err := security.NewVault("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", filepath.Join(tmpDir, "vault.bin"))
+	if err != nil {
+		t.Fatalf("init vault: %v", err)
+	}
+	loaded, err := config.Load(configPath)
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	loaded.ConfigPath = configPath
+	metaDB, err := sqlconnections.InitDB(sqlMetaPath)
+	if err != nil {
+		t.Fatalf("init sql connections db: %v", err)
+	}
+	defer metaDB.Close()
+	oldPool := sqlconnections.NewConnectionPool(metaDB, vault, loaded.SQLConnections.MaxPoolSize, loaded.SQLConnections.ConnectionTimeoutSec, nil)
+	oldPool.SetRateLimit(loaded.SQLConnections.RateLimitWindowSec)
+	oldPool.SetIdleTTL(600 * time.Second)
+	defer oldPool.CloseAll()
+	s := &Server{
+		Cfg:               loaded,
+		Logger:            slog.Default(),
+		Vault:             vault,
+		SQLConnectionsDB:  metaDB,
+		SQLConnectionPool: oldPool,
+	}
+
+	body := strings.NewReader(`{"sql_connections":{"enabled":true,"max_pool_size":4,"connection_timeout_sec":7,"rate_limit_window_sec":3,"idle_ttl_sec":30}}`)
+	req := httptest.NewRequest(http.MethodPut, "/api/config", body)
+	rec := httptest.NewRecorder()
+
+	handleUpdateConfig(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+	if s.SQLConnectionPool == nil {
+		t.Fatal("SQLConnectionPool is nil after SQL pool settings update")
+	}
+	if s.SQLConnectionPool == oldPool {
+		t.Fatal("SQLConnectionPool pointer was not replaced after pool settings changed")
+	}
+	stats := s.SQLConnectionPool.PoolStats()
+	if stats["max_connections"] != 4 {
+		t.Fatalf("max_connections = %v, want 4", stats["max_connections"])
+	}
+	if stats["rate_limit_window"] != 3 {
+		t.Fatalf("rate_limit_window = %v, want 3", stats["rate_limit_window"])
 	}
 }
 

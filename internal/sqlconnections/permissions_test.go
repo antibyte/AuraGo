@@ -103,6 +103,13 @@ func TestDetectStatementType(t *testing.T) {
 		{"WITH cte AS (SELECT id FROM users) INSERT INTO logs SELECT id FROM cte", StmtInsert, false},
 		{"WITH cte AS (SELECT id FROM users) UPDATE users SET name='x' WHERE id IN (SELECT id FROM cte)", StmtUpdate, false},
 		{"WITH cte AS (SELECT id FROM users) DELETE FROM users WHERE id IN (SELECT id FROM cte)", StmtDelete, false},
+		{"WITH deleted AS (DELETE FROM users WHERE inactive = true RETURNING id) SELECT * FROM deleted", StmtDelete, false},
+		{"WITH updated AS (UPDATE users SET active = false RETURNING id) SELECT * FROM updated", StmtUpdate, false},
+		{"WITH inserted AS (INSERT INTO logs(message) VALUES ('x') RETURNING id) SELECT * FROM inserted", StmtInsert, false},
+		{"WITH replaced AS (REPLACE INTO cache(key, value) VALUES ('a', 'b') RETURNING key) SELECT * FROM replaced", StmtInsert, false},
+		{"WITH dropped AS (DROP TABLE old_users) SELECT 1", StmtDDL, false},
+		{"WITH granted AS (GRANT SELECT ON users TO app_user) SELECT 1", StmtDDL, false},
+		{"WITH called AS (CALL refresh_users()) SELECT 1", StmtUnknown, true},
 
 		// SHOW/DESCRIBE (read-only)
 		{"SHOW TABLES", StmtSelect, false},
