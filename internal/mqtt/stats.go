@@ -59,6 +59,11 @@ func recordError(err error) {
 	stats.lastErrorAt = time.Now().UTC().Format(time.RFC3339)
 }
 
+// RecordDroppedRelayMessage tracks relay drops that happen outside the MQTT queue.
+func RecordDroppedRelayMessage() {
+	atomic.AddUint64(&stats.droppedRelayMessages, 1)
+}
+
 func RuntimeStats() map[string]interface{} {
 	stats.mu.RLock()
 	connectedAt := stats.connectedAt

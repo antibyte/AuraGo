@@ -144,6 +144,17 @@ func requireMQTTPublishPermission() error {
 	return nil
 }
 
+func requireMQTTMutationPermission() error {
+	if err := requireMQTTPermission(); err != nil {
+		return err
+	}
+	perms, _ := currentRuntimePermissions()
+	if perms.MQTTReadOnly {
+		return fmt.Errorf("mqtt mutation is disabled by runtime permissions")
+	}
+	return nil
+}
+
 func requirePackageManagerPermission() error {
 	perms, configured := currentRuntimePermissions()
 	if !configured {

@@ -54,10 +54,20 @@ func (f *fakeEmailTriggerWatcher) RegisterMissionTrigger(folder, subjectContains
 }
 
 type fakeMQTTTriggerManager struct {
-	registrations []fakeMQTTRegistration
+	registrations        []fakeMQTTRegistration
+	keyedRegistrations   []fakeMQTTKeyedRegistration
+	unregisteredTriggers []string
 }
 
 type fakeMQTTRegistration struct {
+	topicFilter        string
+	payloadContains    string
+	minIntervalSeconds int
+	callback           func(topic, payload string)
+}
+
+type fakeMQTTKeyedRegistration struct {
+	key                string
 	topicFilter        string
 	payloadContains    string
 	minIntervalSeconds int
@@ -71,6 +81,20 @@ func (f *fakeMQTTTriggerManager) RegisterMissionTrigger(topicFilter string, payl
 		minIntervalSeconds: minIntervalSeconds,
 		callback:           callback,
 	})
+}
+
+func (f *fakeMQTTTriggerManager) RegisterMissionTriggerForKey(key string, topicFilter string, payloadContains string, minIntervalSeconds int, callback func(topic, payload string)) {
+	f.keyedRegistrations = append(f.keyedRegistrations, fakeMQTTKeyedRegistration{
+		key:                key,
+		topicFilter:        topicFilter,
+		payloadContains:    payloadContains,
+		minIntervalSeconds: minIntervalSeconds,
+		callback:           callback,
+	})
+}
+
+func (f *fakeMQTTTriggerManager) UnregisterMissionTrigger(key string) {
+	f.unregisteredTriggers = append(f.unregisteredTriggers, key)
 }
 
 func (f *fakeRemoteMissionClient) SyncMission(ctx context.Context, mission MissionV2, promptSnapshot string) error {
@@ -1039,11 +1063,61 @@ func TestMQTTGenericMinIntervalUsedWhenSpecificUnset(t *testing.T) {
 		t.Fatalf("Create: %v", err)
 	}
 
-	if got := len(mqttMgr.registrations); got != 1 {
-		t.Fatalf("mqtt registrations = %d, want 1", got)
+	if got := len(mqttMgr.keyedRegistrations); got != 1 {
+		t.Fatalf("mqtt keyed registrations = %d, want 1", got)
 	}
-	if got := mqttMgr.registrations[0].minIntervalSeconds; got != 45 {
+	if got := mqttMgr.keyedRegistrations[0].minIntervalSeconds; got != 45 {
 		t.Fatalf("mqtt min interval = %d, want 45", got)
+	}
+}
+
+func TestMQTTMissionTriggersUseKeyedRegistrationAndUnregisterOnDelete(t *testing.T) {
+	mqttMgr := &fakeMQTTTriggerManager{}
+	mm := NewMissionManagerV2(tempSystemTaskDir(t), nil)
+	mm.SetMQTTManager(mqttMgr)
+
+	if err := mm.Create(&MissionV2{
+		ID:            "mqtt-keyed",
+		Name:          "MQTT keyed",
+		Prompt:        "run",
+		ExecutionType: ExecutionTriggered,
+		TriggerType:   TriggerMQTTMessage,
+		TriggerConfig: &TriggerConfig{
+			MQTTTopic:           "home/#",
+			MQTTPayloadContains: "on",
+		},
+		Enabled: true,
+	}); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if got := len(mqttMgr.keyedRegistrations); got != 1 {
+		t.Fatalf("keyed registrations = %d, want 1", got)
+	}
+	key := mqttMgr.keyedRegistrations[0].key
+	if key == "" || mqttMgr.keyedRegistrations[0].topicFilter != "home/#" {
+		t.Fatalf("initial keyed registration = %+v", mqttMgr.keyedRegistrations[0])
+	}
+
+	updated, ok := mm.Get("mqtt-keyed")
+	if !ok {
+		t.Fatal("Get: mission not found")
+	}
+	updated.TriggerConfig.MQTTTopic = "garage/#"
+	if err := mm.Update("mqtt-keyed", updated); err != nil {
+		t.Fatalf("Update: %v", err)
+	}
+	if got := len(mqttMgr.keyedRegistrations); got != 2 {
+		t.Fatalf("keyed registrations after update = %d, want 2", got)
+	}
+	if mqttMgr.keyedRegistrations[1].key != key || mqttMgr.keyedRegistrations[1].topicFilter != "garage/#" {
+		t.Fatalf("updated keyed registration = %+v, want key %q topic garage/#", mqttMgr.keyedRegistrations[1], key)
+	}
+
+	if err := mm.Delete("mqtt-keyed"); err != nil {
+		t.Fatalf("Delete: %v", err)
+	}
+	if len(mqttMgr.unregisteredTriggers) != 1 || mqttMgr.unregisteredTriggers[0] != key {
+		t.Fatalf("unregistered triggers = %v, want [%s]", mqttMgr.unregisteredTriggers, key)
 	}
 }
 

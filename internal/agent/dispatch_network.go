@@ -198,6 +198,9 @@ func dispatchNetwork(ctx context.Context, tc ToolCall, dc *DispatchContext) (str
 			if !cfg.MQTT.Enabled {
 				return `Tool Output: {"status": "error", "message": "MQTT is not enabled. Configure the mqtt section in config.yaml."}`
 			}
+			if cfg.MQTT.ReadOnly {
+				return `Tool Output: {"status":"error","message":"MQTT is in read-only mode. Disable mqtt.read_only to allow changes."}`
+			}
 			req := decodeMQTTArgs(tc)
 			topic := req.Topic
 			if topic == "" {
@@ -216,6 +219,9 @@ func dispatchNetwork(ctx context.Context, tc ToolCall, dc *DispatchContext) (str
 		case "mqtt_unsubscribe":
 			if !cfg.MQTT.Enabled {
 				return `Tool Output: {"status": "error", "message": "MQTT is not enabled. Configure the mqtt section in config.yaml."}`
+			}
+			if cfg.MQTT.ReadOnly {
+				return `Tool Output: {"status":"error","message":"MQTT is in read-only mode. Disable mqtt.read_only to allow changes."}`
 			}
 			req := decodeMQTTArgs(tc)
 			topic := req.Topic

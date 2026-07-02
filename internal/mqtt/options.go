@@ -119,6 +119,36 @@ func mqttQoS(value, fallback int) byte {
 	return byte(value)
 }
 
+type mqttAvailabilitySnapshot struct {
+	Enabled        bool
+	Topic          string
+	OnlinePayload  string
+	OfflinePayload string
+	QoS            int
+	Retain         bool
+}
+
+func mqttAvailabilitySnapshotFromConfig(cfg *config.Config) *mqttAvailabilitySnapshot {
+	if cfg == nil {
+		return nil
+	}
+	return &mqttAvailabilitySnapshot{
+		Enabled:        cfg.MQTT.Availability.Enabled,
+		Topic:          cfg.MQTT.Availability.Topic,
+		OnlinePayload:  cfg.MQTT.Availability.OnlinePayload,
+		OfflinePayload: cfg.MQTT.Availability.OfflinePayload,
+		QoS:            cfg.MQTT.Availability.QoS,
+		Retain:         cfg.MQTT.Availability.Retain,
+	}
+}
+
+func validateQoS(qos int) error {
+	if qos < 0 || qos > 2 {
+		return fmt.Errorf("MQTT QoS must be 0, 1, or 2")
+	}
+	return nil
+}
+
 func publishAvailability(c pahomqtt.Client, cfg *config.Config, log *slog.Logger) {
 	if !cfg.MQTT.Availability.Enabled || c == nil || !c.IsConnected() {
 		return
@@ -148,6 +178,42 @@ func publishAvailability(c pahomqtt.Client, cfg *config.Config, log *slog.Logger
 		recordError(err)
 		if log != nil {
 			log.Warn("[MQTT] Availability publish failed", "topic", topic, "error", err)
+		}
+	}
+}
+
+func publishOfflineAvailability(c pahomqtt.Client, availability *mqttAvailabilitySnapshot, log *slog.Logger) {
+	if availability == nil || !availability.Enabled || c == nil || !c.IsConnected() {
+		return
+	}
+	topic := availability.Topic
+	if topic == "" {
+		topic = "aurago/status"
+	}
+	if err := validatePublishTopic(topic); err != nil {
+		recordError(err)
+		if log != nil {
+			log.Warn("[MQTT] Invalid offline availability topic", "error", err)
+		}
+		return
+	}
+	payload := availability.OfflinePayload
+	if payload == "" {
+		payload = "offline"
+	}
+	token := c.Publish(topic, mqttQoS(availability.QoS, 1), availability.Retain, payload)
+	if !token.WaitTimeout(5 * time.Second) {
+		err := fmt.Errorf("MQTT offline availability publish timed out")
+		recordError(err)
+		if log != nil {
+			log.Warn("[MQTT] Offline availability publish timed out", "topic", topic)
+		}
+		return
+	}
+	if err := token.Error(); err != nil {
+		recordError(err)
+		if log != nil {
+			log.Warn("[MQTT] Offline availability publish failed", "topic", topic, "error", err)
 		}
 	}
 }

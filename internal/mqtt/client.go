@@ -29,10 +29,17 @@ var (
 	// Mission trigger callbacks
 	missionTriggerMu sync.RWMutex
 	missionTriggers  []missionTriggerEntry
+
+	activeConfigMu     sync.RWMutex
+	activeAvailability *mqttAvailabilitySnapshot
+
+	runtimeSubscriptionsMu sync.RWMutex
+	runtimeSubscriptions   = make(map[string]byte)
 )
 
 // missionTriggerEntry holds a registered mission trigger filter + callback.
 type missionTriggerEntry struct {
+	key             string
 	topicFilter     string
 	payloadContains string
 	minInterval     time.Duration
@@ -43,6 +50,16 @@ type missionTriggerEntry struct {
 // RegisterMissionTrigger registers a callback that fires when a message matches
 // the given topic filter and optional payload substring.
 func RegisterMissionTrigger(topicFilter string, payloadContains string, minIntervalSeconds int, callback func(topic, payload string)) {
+	registerMissionTrigger("", topicFilter, payloadContains, minIntervalSeconds, callback)
+}
+
+// RegisterMissionTriggerForKey registers or replaces a mission trigger callback
+// associated with a stable key.
+func RegisterMissionTriggerForKey(key string, topicFilter string, payloadContains string, minIntervalSeconds int, callback func(topic, payload string)) {
+	registerMissionTrigger(key, topicFilter, payloadContains, minIntervalSeconds, callback)
+}
+
+func registerMissionTrigger(key string, topicFilter string, payloadContains string, minIntervalSeconds int, callback func(topic, payload string)) {
 	if err := validateTopicFilter(topicFilter); err != nil {
 		if logger != nil {
 			logger.Warn("[MQTT] Mission trigger rejected invalid topic filter", "topic_filter", topicFilter, "error", err)
@@ -55,14 +72,49 @@ func RegisterMissionTrigger(topicFilter string, payloadContains string, minInter
 	}
 	missionTriggerMu.Lock()
 	defer missionTriggerMu.Unlock()
-	missionTriggers = append(missionTriggers, missionTriggerEntry{
+	entry := missionTriggerEntry{
+		key:             key,
 		topicFilter:     topicFilter,
 		payloadContains: payloadContains,
 		minInterval:     minInterval,
 		callback:        callback,
-	})
+	}
+	if key != "" {
+		for index := range missionTriggers {
+			if missionTriggers[index].key == key {
+				missionTriggers[index] = entry
+				if logger != nil {
+					logger.Info("[MQTT] Mission trigger replaced", "key", key, "topic_filter", topicFilter, "payload_contains", payloadContains, "min_interval", minInterval.String())
+				}
+				return
+			}
+		}
+	}
+	missionTriggers = append(missionTriggers, entry)
 	if logger != nil {
-		logger.Info("[MQTT] Mission trigger registered", "topic_filter", topicFilter, "payload_contains", payloadContains, "min_interval", minInterval.String())
+		logger.Info("[MQTT] Mission trigger registered", "key", key, "topic_filter", topicFilter, "payload_contains", payloadContains, "min_interval", minInterval.String())
+	}
+}
+
+// UnregisterMissionTrigger removes a keyed mission trigger callback.
+func UnregisterMissionTrigger(key string) {
+	if key == "" {
+		return
+	}
+	missionTriggerMu.Lock()
+	defer missionTriggerMu.Unlock()
+	filtered := missionTriggers[:0]
+	removed := 0
+	for _, trigger := range missionTriggers {
+		if trigger.key == key {
+			removed++
+			continue
+		}
+		filtered = append(filtered, trigger)
+	}
+	missionTriggers = filtered
+	if removed > 0 && logger != nil {
+		logger.Info("[MQTT] Mission trigger unregistered", "key", key, "removed", removed)
 	}
 }
 
@@ -72,10 +124,12 @@ func RegisterMissionTrigger(topicFilter string, payloadContains string, minInter
 // It registers the MQTT bridge so the agent can use publish/subscribe/get tools.
 func StartClient(cfg *config.Config, log *slog.Logger) {
 	if !cfg.MQTT.Enabled || cfg.MQTT.Broker == "" {
+		setActiveConfig(nil)
 		return
 	}
 
 	logger = log
+	setActiveConfig(cfg)
 	buffer.Configure(cfg.MQTT.Buffer.MaxMessages, cfg.MQTT.Buffer.MaxAgeHours, cfg.MQTT.Buffer.MaxPayloadBytes)
 
 	logger.Info("[MQTT] Connecting", "broker", cfg.MQTT.Broker, "client_id", cfg.MQTT.ClientID)
@@ -135,12 +189,14 @@ func StopClient() {
 	mu.Unlock()
 
 	if c != nil && c.IsConnected() {
+		publishOfflineAvailability(c, currentAvailabilitySnapshot(), logger)
 		c.Disconnect(1000)
 		recordDisconnected(nil)
 		if logger != nil {
 			logger.Info("[MQTT] Disconnected")
 		}
 	}
+	setActiveConfig(nil)
 	stopRelayWorker()
 }
 
@@ -153,6 +209,10 @@ func publish(topic, payload string, qos int, retain bool, log *slog.Logger) erro
 
 	if c == nil || !c.IsConnected() {
 		return fmt.Errorf("MQTT client is not connected")
+	}
+	if err := validateQoS(qos); err != nil {
+		atomic.AddUint64(&stats.publishErrors, 1)
+		return err
 	}
 	if err := validatePublishTopic(topic); err != nil {
 		atomic.AddUint64(&stats.publishErrors, 1)
@@ -186,6 +246,10 @@ func subscribe(topic string, qos int, log *slog.Logger) error {
 	if c == nil || !c.IsConnected() {
 		return fmt.Errorf("MQTT client is not connected")
 	}
+	if err := validateQoS(qos); err != nil {
+		atomic.AddUint64(&stats.subscribeErrors, 1)
+		return err
+	}
 	if err := validateTopicFilter(topic); err != nil {
 		atomic.AddUint64(&stats.subscribeErrors, 1)
 		return err
@@ -201,6 +265,7 @@ func subscribe(topic string, qos int, log *slog.Logger) error {
 		return fmt.Errorf("MQTT subscribe failed: %w", token.Error())
 	}
 
+	rememberRuntimeSubscription(topic, byte(qos))
 	log.Info("[MQTT] Subscribed", "topic", topic, "qos", qos)
 	return nil
 }
@@ -228,6 +293,7 @@ func unsubscribe(topic string, log *slog.Logger) error {
 		return fmt.Errorf("MQTT unsubscribe failed: %w", token.Error())
 	}
 
+	forgetRuntimeSubscription(topic)
 	log.Info("[MQTT] Unsubscribed", "topic", topic)
 	return nil
 }
@@ -243,7 +309,9 @@ func subscribeConfiguredTopics(c pahomqtt.Client, cfg *config.Config) {
 	for _, topic := range cfg.MQTT.Topics {
 		if err := validateTopicFilter(topic); err != nil {
 			atomic.AddUint64(&stats.subscribeErrors, 1)
-			logger.Warn("[MQTT] Skipping invalid configured topic", "topic", topic, "error", err)
+			if logger != nil {
+				logger.Warn("[MQTT] Skipping invalid configured topic", "topic", topic, "error", err)
+			}
 			continue
 		}
 		topicMap[topic] = mqttQoS(cfg.MQTT.QoS, 0)
@@ -251,20 +319,36 @@ func subscribeConfiguredTopics(c pahomqtt.Client, cfg *config.Config) {
 	for _, topic := range FrigateRelayTopics(cfg) {
 		if err := validateTopicFilter(topic); err != nil {
 			atomic.AddUint64(&stats.subscribeErrors, 1)
-			logger.Warn("[MQTT] Skipping invalid Frigate relay topic", "topic", topic, "error", err)
+			if logger != nil {
+				logger.Warn("[MQTT] Skipping invalid Frigate relay topic", "topic", topic, "error", err)
+			}
 			continue
 		}
 		topicMap[topic] = mqttQoS(cfg.MQTT.QoS, 0)
+	}
+	for topic, qos := range runtimeSubscriptionSnapshot() {
+		if err := validateTopicFilter(topic); err != nil {
+			atomic.AddUint64(&stats.subscribeErrors, 1)
+			if logger != nil {
+				logger.Warn("[MQTT] Skipping invalid runtime subscription topic", "topic", topic, "error", err)
+			}
+			continue
+		}
+		topicMap[topic] = qos
 	}
 	if len(topicMap) == 0 {
 		return
 	}
 	token := c.SubscribeMultiple(topicMap, messageHandler)
 	if token.WaitTimeout(10*time.Second) && token.Error() == nil {
-		logger.Info("[MQTT] Subscribed to configured topics", "count", len(topicMap))
+		if logger != nil {
+			logger.Info("[MQTT] Subscribed to configured topics", "count", len(topicMap))
+		}
 	} else {
 		atomic.AddUint64(&stats.subscribeErrors, 1)
-		logger.Warn("[MQTT] Failed to subscribe configured topics", "error", token.Error())
+		if logger != nil {
+			logger.Warn("[MQTT] Failed to subscribe configured topics", "error", token.Error())
+		}
 	}
 }
 
@@ -361,4 +445,42 @@ func topicMatches(filter, topic string) bool {
 		}
 	}
 	return len(filterParts) == len(topicParts)
+}
+
+func setActiveConfig(cfg *config.Config) {
+	activeConfigMu.Lock()
+	defer activeConfigMu.Unlock()
+	activeAvailability = mqttAvailabilitySnapshotFromConfig(cfg)
+}
+
+func currentAvailabilitySnapshot() *mqttAvailabilitySnapshot {
+	activeConfigMu.RLock()
+	defer activeConfigMu.RUnlock()
+	if activeAvailability == nil {
+		return nil
+	}
+	snapshot := *activeAvailability
+	return &snapshot
+}
+
+func rememberRuntimeSubscription(topic string, qos byte) {
+	runtimeSubscriptionsMu.Lock()
+	defer runtimeSubscriptionsMu.Unlock()
+	runtimeSubscriptions[topic] = qos
+}
+
+func forgetRuntimeSubscription(topic string) {
+	runtimeSubscriptionsMu.Lock()
+	defer runtimeSubscriptionsMu.Unlock()
+	delete(runtimeSubscriptions, topic)
+}
+
+func runtimeSubscriptionSnapshot() map[string]byte {
+	runtimeSubscriptionsMu.RLock()
+	defer runtimeSubscriptionsMu.RUnlock()
+	snapshot := make(map[string]byte, len(runtimeSubscriptions))
+	for topic, qos := range runtimeSubscriptions {
+		snapshot[topic] = qos
+	}
+	return snapshot
 }

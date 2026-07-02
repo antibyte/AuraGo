@@ -80,6 +80,32 @@ func TestDispatchInfraMQTTPublishUsesParamsFallback(t *testing.T) {
 	}
 }
 
+func TestDispatchInfraMQTTReadOnlyBlocksSubscriptions(t *testing.T) {
+	for _, action := range []string{"mqtt_subscribe", "mqtt_unsubscribe"} {
+		t.Run(action, func(t *testing.T) {
+			cfg := &config.Config{}
+			cfg.MQTT.Enabled = true
+			cfg.MQTT.ReadOnly = true
+
+			out, ok := dispatchInfra(context.Background(), ToolCall{
+				Action: action,
+				Params: map[string]interface{}{
+					"topic": "home/test",
+				},
+			}, &DispatchContext{
+				Cfg:    cfg,
+				Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+			})
+			if !ok {
+				t.Fatalf("expected dispatchInfra to handle %s", action)
+			}
+			if !strings.Contains(out, "MQTT is in read-only mode") {
+				t.Fatalf("expected read-only denial, got %s", out)
+			}
+		})
+	}
+}
+
 func TestDispatchGitHubTrackProjectDoesNotGrantRemoteRepoAccess(t *testing.T) {
 	workspaceDir := t.TempDir()
 	vault, err := security.NewVault("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", filepath.Join(t.TempDir(), "vault.bin"))

@@ -211,6 +211,12 @@ type MQTTManagerInterface interface {
 	RegisterMissionTrigger(topicFilter string, payloadContains string, minIntervalSeconds int, callback func(topic, payload string))
 }
 
+// KeyedMQTTManagerInterface allows replacing and unregistering MQTT mission triggers.
+type KeyedMQTTManagerInterface interface {
+	RegisterMissionTriggerForKey(key string, topicFilter string, payloadContains string, minIntervalSeconds int, callback func(topic, payload string))
+	UnregisterMissionTrigger(key string)
+}
+
 // NewMissionManagerV2 creates a new enhanced MissionManager
 func NewMissionManagerV2(dataDir string, cronMgr *CronManager) *MissionManagerV2 {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -620,29 +626,29 @@ func (m *MissionManagerV2) registerTrigger(mission *MissionV2) {
 			if !m.markTriggerRegistrationLocked(mission, fmt.Sprintf("mqtt|%s|%s|%d", topicFilter, payloadContains, minIntervalSeconds)) {
 				return
 			}
-			m.mqttMgr.RegisterMissionTrigger(
-				topicFilter,
-				payloadContains,
-				minIntervalSeconds,
-				func(topic, payload string) {
-					if !m.triggerRegistrationIsCurrent(missionID, TriggerMQTTMessage, func(current *TriggerConfig) bool {
-						currentMinInterval := current.MQTTMinIntervalSeconds
-						if currentMinInterval <= 0 {
-							currentMinInterval = current.MinIntervalSeconds
-						}
-						return current.MQTTTopic == topicFilter &&
-							current.MQTTPayloadContains == payloadContains &&
-							currentMinInterval == minIntervalSeconds
-					}) {
-						return
+			callback := func(topic, payload string) {
+				if !m.triggerRegistrationIsCurrent(missionID, TriggerMQTTMessage, func(current *TriggerConfig) bool {
+					currentMinInterval := current.MQTTMinIntervalSeconds
+					if currentMinInterval <= 0 {
+						currentMinInterval = current.MinIntervalSeconds
 					}
-					triggerData, _ := json.Marshal(map[string]string{
-						"topic":   topic,
-						"payload": payload,
-					})
-					m.TriggerMission(missionID, "mqtt", string(triggerData))
-				},
-			)
+					return current.MQTTTopic == topicFilter &&
+						current.MQTTPayloadContains == payloadContains &&
+						currentMinInterval == minIntervalSeconds
+				}) {
+					return
+				}
+				triggerData, _ := json.Marshal(map[string]string{
+					"topic":   topic,
+					"payload": payload,
+				})
+				m.TriggerMission(missionID, "mqtt", string(triggerData))
+			}
+			if keyedMgr, ok := m.mqttMgr.(KeyedMQTTManagerInterface); ok {
+				keyedMgr.RegisterMissionTriggerForKey(m.mqttTriggerRegistrationKey(mission), topicFilter, payloadContains, minIntervalSeconds, callback)
+				return
+			}
+			m.mqttMgr.RegisterMissionTrigger(topicFilter, payloadContains, minIntervalSeconds, callback)
 		}
 	}
 	// TriggerMissionCompleted is handled via OnMissionComplete callback
@@ -661,6 +667,36 @@ func (m *MissionManagerV2) markTriggerRegistrationLocked(mission *MissionV2, key
 	}
 	m.registeredTriggers[slot] = key
 	return true
+}
+
+func (m *MissionManagerV2) mqttTriggerRegistrationKey(mission *MissionV2) string {
+	if mission == nil || mission.ID == "" {
+		return ""
+	}
+	return mission.ID + "|" + string(TriggerMQTTMessage)
+}
+
+func missionHasActiveLocalMQTTTrigger(mission *MissionV2) bool {
+	return mission != nil &&
+		mission.Enabled &&
+		!isRemoteMission(mission) &&
+		mission.ExecutionType == ExecutionTriggered &&
+		mission.TriggerType == TriggerMQTTMessage &&
+		mission.TriggerConfig != nil &&
+		mission.TriggerConfig.MQTTTopic != ""
+}
+
+func (m *MissionManagerV2) unregisterMQTTTriggerLocked(mission *MissionV2) {
+	if mission == nil || mission.TriggerType != TriggerMQTTMessage {
+		return
+	}
+	key := m.mqttTriggerRegistrationKey(mission)
+	if keyedMgr, ok := m.mqttMgr.(KeyedMQTTManagerInterface); ok && key != "" {
+		keyedMgr.UnregisterMissionTrigger(key)
+	}
+	if m.registeredTriggers != nil {
+		delete(m.registeredTriggers, key)
+	}
 }
 
 func (m *MissionManagerV2) triggerRegistrationIsCurrent(missionID string, triggerType TriggerType, match func(*TriggerConfig) bool) bool {
@@ -1832,6 +1868,9 @@ func (m *MissionManagerV2) ApplySyncedMission(mission *MissionV2) error {
 	if existing, ok := m.missions[mission.ID]; ok && existing.ExecutionType == ExecutionScheduled && existing.Schedule != "" && m.cron != nil {
 		_, _ = m.cron.ManageSchedule("remove", "mission_"+mission.ID, "", "", "")
 	}
+	if existing, ok := m.missions[mission.ID]; ok && missionHasActiveLocalMQTTTrigger(existing) && !missionHasActiveLocalMQTTTrigger(mission) {
+		m.unregisterMQTTTriggerLocked(existing)
+	}
 
 	mission.RunnerType = MissionRunnerLocal
 	mission.Prompt = StripMissionExecutionPlanAdvisory(mission.Prompt)
@@ -1885,6 +1924,9 @@ func (m *MissionManagerV2) Update(id string, updated *MissionV2) error {
 	if !isRemoteMission(mission) && mission.ExecutionType == ExecutionScheduled && mission.Schedule != "" && m.cron != nil {
 		cronID := "mission_" + id
 		m.cron.ManageSchedule("remove", cronID, "", "", "")
+	}
+	if missionHasActiveLocalMQTTTrigger(mission) && !missionHasActiveLocalMQTTTrigger(updated) {
+		m.unregisterMQTTTriggerLocked(mission)
 	}
 	oldRemoteNeedsCleanup := isRemoteMission(mission) && (!isRemoteMission(updated) || mission.RemoteNestID != updated.RemoteNestID)
 
@@ -1963,6 +2005,9 @@ func (m *MissionManagerV2) DeleteSyncedMission(id string) error {
 	if mission.ExecutionType == ExecutionScheduled && mission.Schedule != "" && m.cron != nil {
 		_, _ = m.cron.ManageSchedule("remove", "mission_"+id, "", "", "")
 	}
+	if missionHasActiveLocalMQTTTrigger(mission) {
+		m.unregisterMQTTTriggerLocked(mission)
+	}
 
 	delete(m.missions, id)
 	m.queue.Remove(id)
@@ -2005,6 +2050,9 @@ func (m *MissionManagerV2) DeleteWithOptions(id string, opts DeleteMissionOption
 	if !isRemoteMission(mission) && mission.ExecutionType == ExecutionScheduled && mission.Schedule != "" && m.cron != nil {
 		cronID := "mission_" + id
 		m.cron.ManageSchedule("remove", cronID, "", "", "")
+	}
+	if missionHasActiveLocalMQTTTrigger(mission) {
+		m.unregisterMQTTTriggerLocked(mission)
 	}
 	if isRemoteMission(mission) && m.remoteClient != nil && !opts.ForceRemote {
 		ctx, cancel := context.WithTimeout(m.ctx, 20*time.Second)

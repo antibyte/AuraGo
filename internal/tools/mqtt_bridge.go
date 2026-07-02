@@ -62,7 +62,7 @@ func MQTTPublish(topic, payload string, qos int, retain bool, logger *slog.Logge
 
 // MQTTSubscribe subscribes to an MQTT topic via the registered bridge.
 func MQTTSubscribe(topic string, qos int, logger *slog.Logger) error {
-	if err := requireMQTTPermission(); err != nil {
+	if err := requireMQTTMutationPermission(); err != nil {
 		return err
 	}
 	mqttMu.RLock()
@@ -76,7 +76,7 @@ func MQTTSubscribe(topic string, qos int, logger *slog.Logger) error {
 
 // MQTTUnsubscribe unsubscribes from an MQTT topic via the registered bridge.
 func MQTTUnsubscribe(topic string, logger *slog.Logger) error {
-	if err := requireMQTTPermission(); err != nil {
+	if err := requireMQTTMutationPermission(); err != nil {
 		return err
 	}
 	mqttMu.RLock()

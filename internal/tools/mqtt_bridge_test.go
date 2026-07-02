@@ -17,6 +17,20 @@ func TestMQTTPublishRespectsRuntimePermissions(t *testing.T) {
 	}
 }
 
+func TestMQTTMutatingSubscriptionsRespectReadOnlyRuntimePermissions(t *testing.T) {
+	ConfigureRuntimePermissions(RuntimePermissions{MQTTEnabled: true, MQTTReadOnly: true})
+	t.Cleanup(func() {
+		ConfigureRuntimePermissions(defaultRuntimePermissionsForTests())
+	})
+
+	if err := MQTTSubscribe("home/test", 0, nil); err == nil || !strings.Contains(err.Error(), "mqtt mutation is disabled") {
+		t.Fatalf("MQTTSubscribe error = %v, want readonly denial", err)
+	}
+	if err := MQTTUnsubscribe("home/test", nil); err == nil || !strings.Contains(err.Error(), "mqtt mutation is disabled") {
+		t.Fatalf("MQTTUnsubscribe error = %v, want readonly denial", err)
+	}
+}
+
 func TestMQTTReadOperationsRequireRuntimePermission(t *testing.T) {
 	ClearRuntimePermissionsForTest()
 	t.Cleanup(func() {

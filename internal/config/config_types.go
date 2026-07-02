@@ -1565,7 +1565,7 @@ type Config struct {
 
 	MQTT struct {
 		Enabled                   bool             `yaml:"enabled"`
-		ReadOnly                  bool             `yaml:"readonly"` // true = only subscribe/get_messages/unsubscribe, block publish
+		ReadOnly                  bool             `yaml:"readonly"` // true = only get_messages, block publish/subscribe/unsubscribe
 		Broker                    string           `yaml:"broker"`   // e.g. tcp://localhost:1883, mqtts://broker:8883
 		ClientID                  string           `yaml:"client_id"`
 		Username                  string           `yaml:"username"`

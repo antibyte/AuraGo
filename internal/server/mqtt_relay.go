@@ -2,12 +2,58 @@ package server
 
 import (
 	"fmt"
+	"sync"
+	"sync/atomic"
+	"time"
 
 	"aurago/internal/agent"
 	"aurago/internal/mqtt"
 	"aurago/internal/security"
 	"aurago/internal/tools"
 )
+
+const mqttRelayDebounceWindow = 2 * time.Second
+
+var defaultMQTTRelayLimiter = newMQTTRelayLimiter(mqttRelayDebounceWindow)
+
+type mqttRelayLimiter struct {
+	mu          sync.Mutex
+	interval    time.Duration
+	lastByTopic map[string]time.Time
+	dropped     uint64
+}
+
+func newMQTTRelayLimiter(interval time.Duration) *mqttRelayLimiter {
+	return &mqttRelayLimiter{
+		interval:    interval,
+		lastByTopic: make(map[string]time.Time),
+	}
+}
+
+func (l *mqttRelayLimiter) Allow(topic string, now time.Time) bool {
+	if l == nil {
+		return true
+	}
+	if now.IsZero() {
+		now = time.Now()
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	last, ok := l.lastByTopic[topic]
+	if ok && l.interval > 0 && now.Sub(last) < l.interval {
+		atomic.AddUint64(&l.dropped, 1)
+		return false
+	}
+	l.lastByTopic[topic] = now
+	return true
+}
+
+func (l *mqttRelayLimiter) Dropped() uint64 {
+	if l == nil {
+		return 0
+	}
+	return atomic.LoadUint64(&l.dropped)
+}
 
 func (s *Server) configureMQTTRelay() {
 	if s == nil || s.Cfg == nil || !s.Cfg.MQTT.Enabled || (!s.Cfg.MQTT.RelayToAgent && !mqtt.FrigateRelayEnabled(s.Cfg)) {
@@ -21,6 +67,13 @@ func (s *Server) configureMQTTRelay() {
 		relayEnabled := genericRelayEnabled || frigateRelayEnabled
 		s.CfgMu.RUnlock()
 		if !relayEnabled {
+			return
+		}
+		if !defaultMQTTRelayLimiter.Allow(topic, time.Now().UTC()) {
+			mqtt.RecordDroppedRelayMessage()
+			if s.Logger != nil {
+				s.Logger.Debug("[MQTT] Relay message debounced", "topic", topic, "dropped", defaultMQTTRelayLimiter.Dropped())
+			}
 			return
 		}
 		data := security.IsolateExternalData(fmt.Sprintf("topic: %s\npayload: %s", topic, payload))
