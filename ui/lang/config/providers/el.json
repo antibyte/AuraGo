@@ -214,6 +214,7 @@
   "config.providers.oauth_setup_open_console": "Άνοιγμα {{console}}",
   "config.providers.oauth_setup_catalog_hint": "Το AuraGo χρησιμοποιεί δεδομένα ρύθμισης από {{source}}. Άνοιξε το {{console}} και βάλε εκεί το Redirect-URI που εμφανίζεται εδώ.",
   "config.providers.oauth_setup_no_catalog_hint": "Δεν υπάρχουν δεδομένα ρύθμισης για {{provider}}. Χρησιμοποίησε OAuth μόνο αν γνωρίζεις τις ρυθμίσεις του provider.",
+  "config.providers.oauth_setup_agodesk_hint": "Εγκατάστησε το agodesk στον υπολογιστή σου για να ρυθμίζεις OAuth providers γρήγορα και εύκολα.",
   "config.providers.oauth_setup_source": "Πηγή: {{source}}",
   "config.providers.oauth_setup_redirect_step_named": "Βάλε το Redirect-URI που εμφανίζεται εδώ στο πεδίο «{{field}}» του provider.",
   "config.providers.oauth_setup_credentials_step_named": "Αντίγραψε το «{{clientId}}» και προαιρετικά το «{{clientSecret}}» από αυτή την OAuth εφαρμογή στο AuraGo."

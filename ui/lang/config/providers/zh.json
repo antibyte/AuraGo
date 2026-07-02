@@ -214,6 +214,7 @@
   "config.providers.oauth_setup_open_console": "打开 {{console}}",
   "config.providers.oauth_setup_catalog_hint": "AuraGo 使用来自 {{source}} 的设置数据。打开 {{console}}，并填入这里显示的 Redirect URI。",
   "config.providers.oauth_setup_no_catalog_hint": "没有 {{provider}} 的设置数据。只有在你知道该 provider 设置时才使用 OAuth。",
+  "config.providers.oauth_setup_agodesk_hint": "在你的 PC 上安装 agodesk，即可快速轻松地设置 OAuth provider。",
   "config.providers.oauth_setup_source": "来源：{{source}}",
   "config.providers.oauth_setup_redirect_step_named": "把这里显示的 Redirect URI 粘贴到 provider 的“{{field}}”字段。",
   "config.providers.oauth_setup_credentials_step_named": "把该 OAuth app 的“{{clientId}}”以及可选的“{{clientSecret}}”复制到 AuraGo。"

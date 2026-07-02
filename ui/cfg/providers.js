@@ -1695,6 +1695,9 @@ let _providerCatalogPromise = null;
                         <div class="field-help" id="prov-oauth-provider-setup-hint">
                             ${providerOAuthSetupHint(currentType)}
                         </div>
+                        <div class="prov-field-hint" id="prov-oauth-agodesk-hint">
+                            ${t('config.providers.oauth_setup_agodesk_hint')}
+                        </div>
                         <div class="prov-field-hint prov-oauth-source ${providerOAuthSetupSourceLabel(currentType) ? '' : 'is-hidden'}" id="prov-oauth-provider-setup-source">
                             ${providerOAuthSetupSourceLabel(currentType) ? t('config.providers.oauth_setup_source', { source: providerOAuthSetupSourceLabel(currentType) }) : ''}
                         </div>

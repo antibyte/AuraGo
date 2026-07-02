@@ -214,6 +214,7 @@
   "config.providers.oauth_setup_open_console": "Open {{console}}",
   "config.providers.oauth_setup_catalog_hint": "AuraGo uses setup data from {{source}}. Open {{console}} and enter the Redirect URI shown here.",
   "config.providers.oauth_setup_no_catalog_hint": "No setup data is available for {{provider}}. Use OAuth here only if you know this provider's settings.",
+  "config.providers.oauth_setup_agodesk_hint": "Install agodesk on your PC to set up OAuth providers quickly and easily.",
   "config.providers.oauth_setup_source": "Source: {{source}}",
   "config.providers.oauth_setup_redirect_step_named": "Paste the Redirect URI shown here into the provider field named “{{field}}”.",
   "config.providers.oauth_setup_credentials_step_named": "Copy “{{clientId}}” and optionally “{{clientSecret}}” from that OAuth app into AuraGo."

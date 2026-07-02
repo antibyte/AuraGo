@@ -214,6 +214,7 @@
   "config.providers.oauth_setup_open_console": "Otevřít {{console}}",
   "config.providers.oauth_setup_catalog_hint": "AuraGo používá údaje nastavení z {{source}}. Otevři {{console}} a vlož tam Redirect-URI zobrazené zde.",
   "config.providers.oauth_setup_no_catalog_hint": "Pro {{provider}} nejsou k dispozici údaje nastavení. OAuth použij jen tehdy, když znáš nastavení svého poskytovatele.",
+  "config.providers.oauth_setup_agodesk_hint": "Nainstaluj agodesk na svůj počítač, abys mohl OAuth poskytovatele nastavit rychle a snadno.",
   "config.providers.oauth_setup_source": "Zdroj: {{source}}",
   "config.providers.oauth_setup_redirect_step_named": "Vlož Redirect-URI zobrazené zde do pole „{{field}}“ u poskytovatele.",
   "config.providers.oauth_setup_credentials_step_named": "Zkopíruj „{{clientId}}“ a volitelně „{{clientSecret}}“ z této OAuth aplikace do AuraGo."
