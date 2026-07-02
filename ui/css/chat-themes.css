@@ -2073,7 +2073,7 @@
     backdrop-filter: blur(8px);
 }
 
-[data-theme="lollipop"] .session-drawer
+[data-theme="lollipop"] .session-drawer,
 [data-theme="lollipop"] .modal-card,
 [data-theme="lollipop"] .mermaid-modal-content {
     overflow: hidden;
@@ -2084,12 +2084,11 @@
         inset 0 1px 0 rgba(255, 255, 255, 0.98);
 }
 
-[data-theme="lollipop"] .session-drawer,
+[data-theme="lollipop"] .session-drawer {
     position: fixed;
     top: 0;
     left: 0;
 }
-
 
 [data-theme="lollipop"] .modal-card,
 [data-theme="lollipop"] .mermaid-modal-content {
@@ -2284,24 +2283,49 @@
 }
 
 /* ── Polish: Scrollbar ─────────────────────────────────────────────────── */
-[data-theme="lollipop"] #chat-content::-webkit-scrollbar,
-[data-theme="lollipop"] .session-drawer ::-webkit-scrollbar {
+[data-theme="lollipop"] #chat-content,
+[data-theme="lollipop"] .session-drawer,
 [data-theme="lollipop"] .integrations-drawer,
-    width: 10px;
-    height: 10px;
+[data-theme="lollipop"] .mermaid-modal-content,
+[data-theme="lollipop"] #img-lightbox {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(214, 123, 176, 0.42) rgba(239, 131, 188, 0.1);
 }
+
+[data-theme="lollipop"] #chat-content::-webkit-scrollbar,
+[data-theme="lollipop"] .session-drawer::-webkit-scrollbar,
+[data-theme="lollipop"] .integrations-drawer::-webkit-scrollbar,
+[data-theme="lollipop"] .mermaid-modal-content::-webkit-scrollbar,
+[data-theme="lollipop"] #img-lightbox::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
 [data-theme="lollipop"] #chat-content::-webkit-scrollbar-thumb,
-[data-theme="lollipop"] .session-drawer ::-webkit-scrollbar-thumb {
-[data-theme="lollipop"] .integrations-drawer,
-    background: linear-gradient(180deg, rgba(214, 123, 176, 0.4), rgba(199, 162, 255, 0.45));
+[data-theme="lollipop"] .session-drawer::-webkit-scrollbar-thumb,
+[data-theme="lollipop"] .integrations-drawer::-webkit-scrollbar-thumb,
+[data-theme="lollipop"] .mermaid-modal-content::-webkit-scrollbar-thumb,
+[data-theme="lollipop"] #img-lightbox::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, rgba(214, 123, 176, 0.45), rgba(199, 162, 255, 0.55));
     border-radius: 8px;
     border: 2px solid transparent;
     background-clip: padding-box;
 }
+
+[data-theme="lollipop"] #chat-content::-webkit-scrollbar-thumb:hover,
+[data-theme="lollipop"] .session-drawer::-webkit-scrollbar-thumb:hover,
+[data-theme="lollipop"] .integrations-drawer::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, rgba(230, 92, 165, 0.62), rgba(159, 130, 255, 0.7));
+    background-clip: padding-box;
+}
+
 [data-theme="lollipop"] #chat-content::-webkit-scrollbar-track,
-[data-theme="lollipop"] .session-drawer ::-webkit-scrollbar-track {
-[data-theme="lollipop"] .integrations-drawer,
+[data-theme="lollipop"] .session-drawer::-webkit-scrollbar-track,
+[data-theme="lollipop"] .integrations-drawer::-webkit-scrollbar-track,
+[data-theme="lollipop"] .mermaid-modal-content::-webkit-scrollbar-track,
+[data-theme="lollipop"] #img-lightbox::-webkit-scrollbar-track {
     background: rgba(214, 123, 176, 0.08);
+    border-radius: 8px;
 }
 
 /* ── Polish: Session item hover sweep ──────────────────────────────────── */
@@ -2345,6 +2369,354 @@
 [data-theme="lollipop"] .composer-tool-btn:active:not(:disabled) {
     transform: scale(0.94) !important;
 }
+
+
+/* ── Polish: Backdrop drift (subtle ambient motion) ─────────────────────── */
+@keyframes lollipopBackdropDrift {
+    0%   { background-position: 0% 0%, 0% 0%, 0% 0%, 0% 0%, 0% 0%; }
+    50%  { background-position: 1.2% 0.8%, -1% 1.4%, 0.6% -0.8%, -0.6% 1%, 0% 0%; }
+    100% { background-position: 0% 0%, 0% 0%, 0% 0%, 0% 0%, 0% 0%; }
+}
+
+[data-theme="lollipop"] body {
+    animation: lollipopBackdropDrift 62s cubic-bezier(0.42, 0, 0.58, 1) infinite;
+    will-change: background-position;
+}
+
+[data-theme="lollipop"] #chat-box {
+    animation: lollipopBackdropDrift 78s cubic-bezier(0.42, 0, 0.58, 1) infinite;
+    will-change: background-position;
+}
+
+/* ── Polish: Additional petals (snowflake + clover) ─────────────────────── */
+/* ── Blossom G: Snowflake — six-pointed, radial symmetry ──────────────── */
+[data-theme="lollipop"] .lollipop-petal.blossom-g {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cg transform='translate(32 32)' fill='none' stroke='%23bfe5ff' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M0 -22 L0 22'/%3E%3Cpath d='M-19 -11 L19 11'/%3E%3Cpath d='M-19 11 L19 -11'/%3E%3Cpath d='M0 -22 L-4 -16 M0 -22 L4 -16'/%3E%3Cpath d='M0 22 L-4 16 M0 22 L4 16'/%3E%3Cpath d='M-19 -11 L-15 -8 M-19 -11 L-15 -14'/%3E%3Cpath d='M19 11 L15 8 M19 11 L15 14'/%3E%3Cpath d='M-19 11 L-15 8 M-19 11 L-15 14'/%3E%3Cpath d='M19 -11 L15 -8 M19 -11 L15 -14'/%3E%3C/g%3E%3Ccircle cx='32' cy='32' r='2.6' fill='%23ffffff'/%3E%3C/svg%3E");
+    filter: drop-shadow(0 4px 8px rgba(140, 200, 255, 0.28));
+}
+
+/* ── Blossom H: Clover — four-leaf, soft green ─────────────────────────── */
+[data-theme="lollipop"] .lollipop-petal.blossom-h {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cg transform='translate(32 32)'%3E%3Cpath d='M0 -10 C-7 -16 -16 -10 -10 -2 C-7 1 -2 1 0 -3 Z' fill='%238fd9be' transform='rotate(0)'/%3E%3Cpath d='M0 -10 C-7 -16 -16 -10 -10 -2 C-7 1 -2 1 0 -3 Z' fill='%23a3e3c8' transform='rotate(90)'/%3E%3Cpath d='M0 -10 C-7 -16 -16 -10 -10 -2 C-7 1 -2 1 0 -3 Z' fill='%2376c9a8' transform='rotate(180)'/%3E%3Cpath d='M0 -10 C-7 -16 -16 -10 -10 -2 C-7 1 -2 1 0 -3 Z' fill='%2396d8b8' transform='rotate(270)'/%3E%3Ccircle r='2.4' fill='%23ffd966'/%3E%3C/g%3E%3C/svg%3E");
+    filter: drop-shadow(0 6px 9px rgba(105, 180, 145, 0.22));
+}
+
+/* ── Polish: Smoother petal fade-in / sinusoidal sway ───────────────────── */
+@keyframes lollipopPetalFall {
+    0% {
+        transform: translate3d(0, -14%, 0) rotate(var(--petal-rotate-start, 0deg)) scale(var(--petal-scale, 1));
+        opacity: 0;
+    }
+    8% {
+        transform: translate3d(calc(var(--petal-sway, 28px) * 0.32), calc(var(--petal-y-10, 12vh) * 0.18), 0) rotate(calc(var(--petal-rotate-start, 0deg) + var(--petal-rotate-end, 220deg) * 0.08)) scale(var(--petal-scale, 1));
+        opacity: calc(var(--petal-opacity, 0.72) * 0.85);
+    }
+    20% {
+        transform: translate3d(var(--petal-sway, 28px), var(--petal-y-10, 12vh), 0) rotate(calc(var(--petal-rotate-start, 0deg) + var(--petal-rotate-end, 220deg) * 0.2)) scale(var(--petal-scale, 1));
+        opacity: var(--petal-opacity, 0.72);
+    }
+    40% {
+        transform: translate3d(calc(var(--petal-sway, 28px) * -0.55), var(--petal-y-28, 30vh), 0) rotate(calc(var(--petal-rotate-start, 0deg) + var(--petal-rotate-end, 220deg) * 0.4)) scale(var(--petal-scale, 1));
+    }
+    58% {
+        transform: translate3d(calc(var(--petal-sway, 28px) * 0.7), var(--petal-y-48, 50vh), 0) rotate(calc(var(--petal-rotate-start, 0deg) + var(--petal-rotate-end, 220deg) * 0.58)) scale(var(--petal-scale, 1));
+    }
+    76% {
+        transform: translate3d(calc(var(--petal-sway, 28px) * -0.45), var(--petal-y-68, 70vh), 0) rotate(calc(var(--petal-rotate-start, 0deg) + var(--petal-rotate-end, 220deg) * 0.76)) scale(var(--petal-scale, 1));
+        opacity: var(--petal-opacity, 0.72);
+    }
+    92% {
+        transform: translate3d(var(--petal-drift, 28px), var(--petal-y-86, 88vh), 0) rotate(calc(var(--petal-rotate-start, 0deg) + var(--petal-rotate-end, 220deg) * 0.92)) scale(var(--petal-scale, 1));
+        opacity: calc(var(--petal-opacity, 0.72) * 0.35);
+    }
+    100% {
+        transform: translate3d(var(--petal-drift, 28px), var(--petal-travel, calc(100vh + 180px)), 0) rotate(var(--petal-rotate-end, 220deg)) scale(var(--petal-scale, 1));
+        opacity: 0;
+    }
+}
+
+/* ── Polish: Bubble clip-path tail (soft round nub) ─────────────────────── */
+[data-theme="lollipop"] .bubble.bot::before,
+[data-theme="lollipop"] .bubble.user::before {
+    display: none !important;
+}
+
+[data-theme="lollipop"] .bubble.bot {
+    clip-path: polygon(
+        0% 12%, 8% 4%, 96% 4%, 100% 12%,
+        100% 88%, 96% 96%, 28% 96%, 22% 100%, 18% 96%,
+        4% 96%, 0% 88%
+    );
+}
+
+[data-theme="lollipop"] .bubble.user {
+    clip-path: polygon(
+        0% 12%, 8% 4%, 96% 4%, 100% 12%,
+        100% 88%, 96% 96%, 82% 96%, 78% 100%, 72% 96%,
+        4% 96%, 0% 88%
+    );
+}
+
+[data-theme="lollipop"] .bubble.user::after,
+[data-theme="lollipop"] .bubble.bot::after {
+    display: none !important;
+}
+
+/* ── Polish: Bubble hover (accent glow + lift) ──────────────────────────── */
+[data-theme="lollipop"] .msg-row .bubble {
+    transition: transform 0.32s cubic-bezier(0.21, 0.98, 0.35, 1),
+                box-shadow 0.28s ease,
+                filter 0.28s ease;
+}
+
+[data-theme="lollipop"] .msg-row:hover .bubble {
+    transform: translateY(-2px);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.98),
+        0 16px 32px rgba(179, 108, 145, 0.24),
+        0 0 0 1px rgba(239, 131, 188, 0.18),
+        0 0 24px rgba(239, 131, 188, 0.18);
+    filter: saturate(1.06);
+}
+
+[data-theme="lollipop"] .bubble.user {
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.72),
+        0 12px 24px rgba(230, 92, 165, 0.22);
+}
+
+[data-theme="lollipop"] .msg-row:hover .bubble.user {
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.78),
+        0 16px 32px rgba(230, 92, 165, 0.3),
+        0 0 24px rgba(230, 92, 165, 0.22);
+}
+
+/* ── Polish: Bot vs user color contrast ─────────────────────────────────── */
+[data-theme="lollipop"] .bubble.bot {
+    background: linear-gradient(180deg, rgba(255, 248, 252, 0.97), rgba(247, 232, 248, 0.97));
+    color: var(--strong-color);
+    border-color: rgba(199, 162, 255, 0.5);
+}
+
+[data-theme="lollipop"] .bubble.user {
+    background: linear-gradient(135deg, #f7a8d0 0%, #f6c58d 100%);
+    color: #4b2436;
+}
+
+/* ── Polish: Avatar glow + greeting pulse ────────────────────────────────── */
+@keyframes lollipopGreetingPulse {
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(1.05); }
+}
+
+[data-theme="lollipop"] .greeting-icon {
+    position: relative;
+    animation: lollipopGreetingPulse 3.2s cubic-bezier(0.42, 0, 0.58, 1) infinite;
+}
+
+[data-theme="lollipop"] .greeting-icon::after {
+    content: '';
+    position: absolute;
+    inset: -8px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(239, 131, 188, 0.34), transparent 64%);
+    pointer-events: none;
+    z-index: -1;
+    animation: lollipopGreetingPulse 3.2s cubic-bezier(0.42, 0, 0.58, 1) infinite;
+}
+
+[data-theme="lollipop"] .avatar {
+    position: relative;
+}
+
+[data-theme="lollipop"] .avatar::after {
+    content: '';
+    position: absolute;
+    inset: -6px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(214, 123, 176, 0.32), transparent 62%);
+    pointer-events: none;
+    z-index: -1;
+}
+
+[data-theme="lollipop"] .avatar.bot::after {
+    background: radial-gradient(circle, rgba(159, 130, 255, 0.32), transparent 62%);
+}
+
+[data-theme="lollipop"] .avatar.human::after {
+    background: radial-gradient(circle, rgba(243, 181, 99, 0.32), transparent 62%);
+}
+
+/* ── Polish: Mascot + tool icon stack ───────────────────────────────────── */
+[data-theme="lollipop"] .chat-robot-mascot {
+    background: var(--lollipop-pill);
+    border: 1px solid rgba(233, 170, 210, 0.5);
+    border-radius: 18px;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.94),
+        var(--surface-shadow);
+}
+
+[data-theme="lollipop"] .tool-icon-stack {
+    filter: saturate(0.8) hue-rotate(-8deg);
+    opacity: 0.95;
+    transition: filter 0.28s ease, opacity 0.28s ease;
+}
+
+[data-theme="lollipop"] .tool-icon-stack:hover {
+    filter: saturate(1.05) hue-rotate(0deg);
+    opacity: 1;
+}
+
+/* ── Polish: Input focus ring + send button hover ───────────────────────── */
+[data-theme="lollipop"] .input-wrap textarea:focus,
+[data-theme="lollipop"] .input-wrap textarea:focus-visible {
+    outline: none;
+    border-color: rgba(239, 131, 188, 0.7);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.98),
+        0 0 0 3px var(--accent-dim),
+        0 12px 22px rgba(216, 179, 202, 0.2);
+}
+
+[data-theme="lollipop"] .input-wrap textarea:focus-visible {
+    outline: 2px solid rgba(239, 131, 188, 0.55);
+    outline-offset: 2px;
+}
+
+[data-theme="lollipop"] .btn-send {
+    transition: transform 0.28s cubic-bezier(0.21, 0.98, 0.35, 1),
+                box-shadow 0.28s ease,
+                filter 0.28s ease;
+}
+
+[data-theme="lollipop"] .btn-send:hover {
+    transform: scale(1.03);
+    filter: brightness(1.05) saturate(1.08);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.42),
+        0 16px 30px rgba(230, 92, 165, 0.34);
+}
+
+/* ── Polish: Attachment chip + close button rotation ────────────────────── */
+[data-theme="lollipop"] .attachment-chip {
+    border-radius: 16px;
+    transition: transform 0.22s cubic-bezier(0.21, 0.98, 0.35, 1),
+                box-shadow 0.22s ease;
+}
+
+[data-theme="lollipop"] .attachment-chip:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 20px rgba(179, 108, 145, 0.18);
+}
+
+[data-theme="lollipop"] .attachment-chip .attachment-remove,
+[data-theme="lollipop"] .modal-close-x,
+[data-theme="lollipop"] .session-drawer-close,
+[data-theme="lollipop"] .integrations-drawer-close,
+[data-theme="lollipop"] #img-lightbox-close {
+    transition: transform 0.32s cubic-bezier(0.34, 1.56, 0.64, 1),
+                background 0.22s ease;
+}
+
+[data-theme="lollipop"] .attachment-chip .attachment-remove:hover,
+[data-theme="lollipop"] .modal-close-x:hover,
+[data-theme="lollipop"] .session-drawer-close:hover,
+[data-theme="lollipop"] .integrations-drawer-close:hover,
+[data-theme="lollipop"] #img-lightbox-close:hover {
+    transform: rotate(90deg);
+}
+
+/* ── Polish: Modal/drawer backdrop blur + edge glow ─────────────────────── */
+[data-theme="lollipop"] .session-backdrop,
+[data-theme="lollipop"] .integrations-backdrop,
+[data-theme="lollipop"] .modal-overlay,
+[data-theme="lollipop"] .mermaid-modal-overlay,
+[data-theme="lollipop"] #img-lightbox {
+    backdrop-filter: blur(12px) saturate(1.05);
+    -webkit-backdrop-filter: blur(12px) saturate(1.05);
+}
+
+[data-theme="lollipop"] .session-drawer {
+    box-shadow:
+        inset -1px 0 0 rgba(255, 255, 255, 0.6),
+        -14px 0 36px rgba(179, 108, 145, 0.18),
+        inset -3px 0 18px rgba(239, 131, 188, 0.08);
+}
+
+[data-theme="lollipop"] .integrations-drawer {
+    box-shadow:
+        inset -1px 0 0 rgba(255, 255, 255, 0.6),
+        -14px 0 36px rgba(159, 130, 255, 0.18),
+        inset -3px 0 18px rgba(199, 162, 255, 0.08);
+}
+
+[data-theme="lollipop"] .modal-card {
+    box-shadow:
+        0 36px 78px rgba(179, 108, 145, 0.26),
+        inset 0 1px 0 rgba(255, 255, 255, 0.98),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+}
+
+/* ── Polish: Mood feedback row tighter integration ──────────────────────── */
+[data-theme="lollipop"] .mood-feedback-row {
+    background: linear-gradient(180deg,
+        rgba(255, 255, 255, 0) 0%,
+        rgba(242, 219, 233, 0.6) 30%,
+        rgba(228, 197, 217, 0.6) 100%);
+    border-top: 1px solid rgba(197, 112, 160, 0.32);
+}
+
+/* ── Polish: Smooth theme transition for foreground chrome ───────────────── */
+[data-theme="lollipop"] .app-header,
+[data-theme="lollipop"] .app-footer,
+[data-theme="lollipop"] .input-wrap textarea,
+[data-theme="lollipop"] .bubble,
+[data-theme="lollipop"] .greeting-icon,
+[data-theme="lollipop"] .avatar,
+[data-theme="lollipop"] .btn-send,
+[data-theme="lollipop"] .chat-theme-btn,
+[data-theme="lollipop"] .mood-btn,
+[data-theme="lollipop"] .session-drawer,
+[data-theme="lollipop"] .modal-card {
+    transition: background-color 0.4s ease,
+                color 0.3s ease,
+                box-shadow 0.4s ease;
+}
+
+/* ── Polish: Selection opacity + focus-visible outline ──────────────────── */
+[data-theme="lollipop"] ::selection,
+[data-theme="lollipop"] ::-moz-selection {
+    background: rgba(239, 131, 188, 0.25);
+}
+
+[data-theme="lollipop"] :focus-visible {
+    outline: 2px solid rgba(239, 131, 188, 0.55);
+    outline-offset: 2px;
+    border-radius: 6px;
+}
+
+[data-theme="lollipop"] .input-wrap textarea:focus-visible,
+[data-theme="lollipop"] .btn-send:focus-visible,
+[data-theme="lollipop"] .btn-voice:focus-visible,
+[data-theme="lollipop"] .composer-tool-btn:focus-visible {
+    outline-offset: 3px;
+}
+
+/* ── Polish: Reduced-motion guard ───────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+    [data-theme="lollipop"] body,
+    [data-theme="lollipop"] #chat-box {
+        animation: none !important;
+    }
+
+    [data-theme="lollipop"] .greeting-icon,
+    [data-theme="lollipop"] .greeting-icon::after {
+        animation: none !important;
+    }
+}
+
 
 
 /* === chat-dark-sun.css === */
@@ -2897,7 +3269,7 @@
     backdrop-filter: blur(10px);
 }
 
-[data-theme="dark-sun"] .session-drawer
+[data-theme="dark-sun"] .session-drawer,
 [data-theme="dark-sun"] .modal-card,
 [data-theme="dark-sun"] .mermaid-modal-content {
     overflow: hidden;
@@ -2909,12 +3281,11 @@
         inset 0 -1px 0 rgba(0, 0, 0, 0.4);
 }
 
-[data-theme="dark-sun"] .session-drawer,
+[data-theme="dark-sun"] .session-drawer {
     position: fixed;
     top: 0;
     left: 0;
 }
-
 
 [data-theme="dark-sun"] .modal-card,
 [data-theme="dark-sun"] .mermaid-modal-content {
@@ -3165,24 +3536,49 @@
 
 
 /* ── Polish: Scrollbar ─────────────────────────────────────────────────── */
-[data-theme="dark-sun"] #chat-content::-webkit-scrollbar,
-[data-theme="dark-sun"] .session-drawer ::-webkit-scrollbar {
+[data-theme="dark-sun"] #chat-content,
+[data-theme="dark-sun"] .session-drawer,
 [data-theme="dark-sun"] .integrations-drawer,
-    width: 10px;
-    height: 10px;
+[data-theme="dark-sun"] .mermaid-modal-content,
+[data-theme="dark-sun"] #img-lightbox {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(240, 92, 43, 0.55) rgba(0, 0, 0, 0.4);
 }
+
+[data-theme="dark-sun"] #chat-content::-webkit-scrollbar,
+[data-theme="dark-sun"] .session-drawer::-webkit-scrollbar,
+[data-theme="dark-sun"] .integrations-drawer::-webkit-scrollbar,
+[data-theme="dark-sun"] .mermaid-modal-content::-webkit-scrollbar,
+[data-theme="dark-sun"] #img-lightbox::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
 [data-theme="dark-sun"] #chat-content::-webkit-scrollbar-thumb,
-[data-theme="dark-sun"] .session-drawer ::-webkit-scrollbar-thumb {
-[data-theme="dark-sun"] .integrations-drawer,
-    background: linear-gradient(180deg, rgba(143, 63, 30, 0.4), rgba(100, 42, 18, 0.55));
+[data-theme="dark-sun"] .session-drawer::-webkit-scrollbar-thumb,
+[data-theme="dark-sun"] .integrations-drawer::-webkit-scrollbar-thumb,
+[data-theme="dark-sun"] .mermaid-modal-content::-webkit-scrollbar-thumb,
+[data-theme="dark-sun"] #img-lightbox::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, rgba(240, 92, 43, 0.55), rgba(255, 139, 45, 0.65));
     border-radius: 8px;
     border: 2px solid transparent;
     background-clip: padding-box;
 }
+
+[data-theme="dark-sun"] #chat-content::-webkit-scrollbar-thumb:hover,
+[data-theme="dark-sun"] .session-drawer::-webkit-scrollbar-thumb:hover,
+[data-theme="dark-sun"] .integrations-drawer::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, rgba(240, 92, 43, 0.75), rgba(255, 186, 85, 0.8));
+    background-clip: padding-box;
+}
+
 [data-theme="dark-sun"] #chat-content::-webkit-scrollbar-track,
-[data-theme="dark-sun"] .session-drawer ::-webkit-scrollbar-track {
-[data-theme="dark-sun"] .integrations-drawer,
-    background: rgba(143, 63, 30, 0.06);
+[data-theme="dark-sun"] .session-drawer::-webkit-scrollbar-track,
+[data-theme="dark-sun"] .integrations-drawer::-webkit-scrollbar-track,
+[data-theme="dark-sun"] .mermaid-modal-content::-webkit-scrollbar-track,
+[data-theme="dark-sun"] #img-lightbox::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.32);
+    border-radius: 8px;
 }
 
 /* ── Polish: Session item hover sweep ──────────────────────────────────── */

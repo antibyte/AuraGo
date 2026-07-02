@@ -6,7 +6,8 @@
     const PETAL_COUNT_MOBILE = 12;
     const BLOSSOM_CLASSES = [
         'blossom-a', 'blossom-b', 'blossom-c', 'blossom-d',
-        'blossom-e', 'blossom-f', 'blossom-star', 'blossom-heart'
+        'blossom-e', 'blossom-f', 'blossom-g', 'blossom-h',
+        'blossom-star', 'blossom-heart'
     ];
     const motionQuery = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
     const mobileQuery = window.matchMedia ? window.matchMedia('(max-width: 767px)') : null;
