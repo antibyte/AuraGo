@@ -943,26 +943,13 @@ async function renderSection(key) {
     const sectionBlocked = sectionFeatureKey && shouldBlockUnavailableSection(key) && runtimeData.features && runtimeData.features[sectionFeatureKey] && !runtimeData.features[sectionFeatureKey].available;
     if (sectionBlocked) html += '<div class="feature-unavailable-fields">';
 
-    // LLM settings explanation
+    // LLM settings only need a warning when a core helper path is disabled.
     if (key === 'llm') {
-        html += `<div class="cfg-note-banner cfg-note-banner-info">
-                    \u{1F9E0} ${t('config.llm.info_banner')}
-                </div>`;
-        if (configData.llm && configData.llm.helper_enabled) {
-            html += `<div class="cfg-note-banner cfg-note-banner-info">
-                    \u{26A1} ${t('config.llm.helper_enabled_banner')}
-                </div>`;
-        } else {
+        if (!configData.llm || !configData.llm.helper_enabled) {
             html += `<div class="cfg-note-banner cfg-note-banner-warning">
                     \u{26A0} ${t('config.llm.helper_disabled_banner')}
                 </div>`;
         }
-        html += `<div class="cfg-note-banner cfg-note-banner-info">
-                    \u{1F6E1} ${t('config.llm.helper_guardian_banner')}
-                </div>`;
-        html += `<div class="cfg-note-banner cfg-note-banner-info">
-                    \u{1F5BC}\uFE0F ${t('config.llm.multimodal_banner')}
-                </div>`;
     }
 
     // Embeddings explanation

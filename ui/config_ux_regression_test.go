@@ -180,3 +180,22 @@ func TestConfigUXGuardianPolicySelectPersistsBeforeRerender(t *testing.T) {
 		}
 	}
 }
+
+func TestConfigUXLLMSectionAvoidsInfoBannerFlood(t *testing.T) {
+	t.Parallel()
+
+	mainJS := normalizeAssetText(mustReadUIFile(t, "js/config/main.js"))
+	for _, marker := range []string{
+		"config.llm.info_banner",
+		"config.llm.helper_enabled_banner",
+		"config.llm.helper_guardian_banner",
+		"config.llm.multimodal_banner",
+	} {
+		if strings.Contains(mainJS, marker) {
+			t.Fatalf("config main.js should not render low-priority LLM banner %q", marker)
+		}
+	}
+	if !strings.Contains(mainJS, "config.llm.helper_disabled_banner") {
+		t.Fatal("config main.js should keep the disabled helper warning")
+	}
+}
