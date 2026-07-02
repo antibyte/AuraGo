@@ -721,6 +721,7 @@ Both return `config.provider.catalog` with `metadata`, `providers`, and optional
           "flow": "authorization_code_pkce",
           "auth_url": "https://accounts.google.com/o/oauth2/v2/auth",
           "token_url": "https://oauth2.googleapis.com/token",
+          "client_id": "optional-public-client-id",
           "scopes": ["openid", "profile", "email"],
           "callback_port": 8088,
           "callback_path": "/oauth/callback"

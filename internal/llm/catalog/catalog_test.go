@@ -62,6 +62,23 @@ func TestLoadBundledSnapshotFindsModelsAndProviders(t *testing.T) {
 		t.Fatal("google OAuth setup must name the provider redirect URI field")
 	}
 
+	xai, ok := snapshot.FindProvider("xai")
+	if !ok {
+		t.Fatal("expected xai provider")
+	}
+	if xai.OAuthSetup == nil {
+		t.Fatal("expected xai OAuth setup metadata inherited from xai-oauth")
+	}
+	if xai.OAuthSetup.SourceProvider != "xai-oauth" {
+		t.Fatalf("xai OAuth setup source provider = %q, want xai-oauth", xai.OAuthSetup.SourceProvider)
+	}
+	if xai.OAuthSetup.ClientID == "" {
+		t.Fatal("xai OAuth setup must include the public OAuth client ID")
+	}
+	if xai.OAuthSetup.CallbackPort != 56121 || xai.OAuthSetup.CallbackPath != "/callback" {
+		t.Fatalf("xai OAuth callback = %d %q, want 56121 /callback", xai.OAuthSetup.CallbackPort, xai.OAuthSetup.CallbackPath)
+	}
+
 	model, ok := snapshot.FindModel("openai", "gpt-4o")
 	if !ok {
 		t.Fatal("expected openai/gpt-4o model")

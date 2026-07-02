@@ -959,11 +959,25 @@ let _providerCatalogPromise = null;
         };
 
         function providerOAuthPresetForType(type) {
-            return PROVIDER_OAUTH_PRESETS[type] || null;
+            const staticPreset = PROVIDER_OAUTH_PRESETS[type] || null;
+            const setup = providerOAuthSetupForType(type);
+            if (!setup) return staticPreset;
+            const scopes = Array.isArray(setup.scopes) ? setup.scopes.join(' ') : (setup.scopes || '');
+            if (!setup.auth_url && !setup.token_url && !scopes && !setup.client_id) return staticPreset;
+            return Object.assign({}, staticPreset || {}, {
+                label: setup.console_label || (staticPreset && staticPreset.label),
+                auth_url: setup.auth_url || (staticPreset && staticPreset.auth_url) || '',
+                token_url: setup.token_url || (staticPreset && staticPreset.token_url) || '',
+                scopes: scopes || (staticPreset && staticPreset.scopes) || '',
+                client_id: setup.client_id || (staticPreset && staticPreset.client_id) || ''
+            });
         }
 
         function providerOAuthSetupForType(type) {
-            const provider = providerCatalogProvider(type);
+            let provider = providerCatalogProvider(type);
+            if ((!provider || !provider.oauth_setup) && type) {
+                provider = providerCatalogProvider(`${type}-oauth`);
+            }
             return provider && provider.oauth_setup ? provider.oauth_setup : null;
         }
 
@@ -1018,7 +1032,8 @@ let _providerCatalogPromise = null;
 
         function providerOAuthPresetLabel(type) {
             const preset = providerOAuthPresetForType(type);
-            return preset ? t(preset.label_key) : t('config.providers.oauth_preset_custom');
+            if (!preset) return t('config.providers.oauth_preset_custom');
+            return preset.label || t(preset.label_key || 'config.providers.oauth_preset_custom');
         }
 
         function providerOAuthPresetFieldValue(type, field, currentValue) {
@@ -1041,7 +1056,7 @@ let _providerCatalogPromise = null;
             return {
                 auth_url: providerOAuthPresetFieldValue(type, 'auth_url', document.getElementById('prov-oauth-auth-url')?.value || ''),
                 token_url: providerOAuthPresetFieldValue(type, 'token_url', document.getElementById('prov-oauth-token-url')?.value || ''),
-                client_id: (document.getElementById('prov-oauth-client-id')?.value || '').trim(),
+                client_id: providerOAuthPresetFieldValue(type, 'client_id', document.getElementById('prov-oauth-client-id')?.value || ''),
                 client_secret: (document.getElementById('prov-oauth-client-secret')?.value || '').trim(),
                 scopes: providerOAuthPresetFieldValue(type, 'scopes', document.getElementById('prov-oauth-scopes')?.value || '')
             };
@@ -1068,6 +1083,7 @@ let _providerCatalogPromise = null;
             };
             applyField('prov-oauth-auth-url', 'auth_url');
             applyField('prov-oauth-token-url', 'token_url');
+            applyField('prov-oauth-client-id', 'client_id');
             applyField('prov-oauth-scopes', 'scopes');
         }
 
@@ -1520,6 +1536,7 @@ let _providerCatalogPromise = null;
             const initialOAuthPreset = providerOAuthPresetForType(currentType);
             const initialOAuthAuthURL = providerOAuthPresetFieldValue(currentType, 'auth_url', data.oauth_auth_url || '');
             const initialOAuthTokenURL = providerOAuthPresetFieldValue(currentType, 'token_url', data.oauth_token_url || '');
+            const initialOAuthClientID = providerOAuthPresetFieldValue(currentType, 'client_id', data.oauth_client_id || '');
             const initialOAuthScopes = providerOAuthPresetFieldValue(currentType, 'scopes', data.oauth_scopes || '');
             const initialOAuthAdvancedOpen = initialOAuthPreset ? '' : ' open';
             const initialOAuthPresetHelp = initialOAuthPreset ? t('config.providers.oauth_browser_hint') : t('config.providers.oauth_advanced_help');
@@ -1720,7 +1737,7 @@ let _providerCatalogPromise = null;
                     </div>
                     <div class="field-group">
                         <div class="field-label">${t('config.providers.field_client_id_label')}</div>
-                        <input class="field-input" id="prov-oauth-client-id" value="${escapeAttr(data.oauth_client_id || '')}" placeholder="${t('config.providers.client_id_placeholder')}">
+                        <input class="field-input" id="prov-oauth-client-id" value="${escapeAttr(initialOAuthClientID)}" placeholder="${t('config.providers.client_id_placeholder')}">
                     </div>
                     <div class="field-group">
                         <div class="field-label">${t('config.providers.field_client_secret_label')}</div>

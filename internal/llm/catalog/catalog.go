@@ -63,6 +63,7 @@ type OAuthSetup struct {
 	RedirectURIField  string   `json:"redirect_uri_field,omitempty"`
 	ClientIDField     string   `json:"client_id_field,omitempty"`
 	ClientSecretField string   `json:"client_secret_field,omitempty"`
+	ClientID          string   `json:"client_id,omitempty"`
 	AuthURL           string   `json:"auth_url,omitempty"`
 	TokenURL          string   `json:"token_url,omitempty"`
 	Scopes            []string `json:"scopes,omitempty"`
@@ -168,6 +169,7 @@ func (s *Snapshot) Validate() error {
 		p.Source = firstNonEmpty(p.Source, SourceOhMyPi)
 		normalizeOAuthSetup(p.OAuthSetup)
 	}
+	inheritRuntimeOAuthSetup(s.Providers)
 	for i := range s.Models {
 		m := &s.Models[i]
 		m.ID = strings.TrimSpace(m.ID)
@@ -194,6 +196,7 @@ func normalizeOAuthSetup(setup *OAuthSetup) {
 	setup.RedirectURIField = strings.TrimSpace(setup.RedirectURIField)
 	setup.ClientIDField = strings.TrimSpace(setup.ClientIDField)
 	setup.ClientSecretField = strings.TrimSpace(setup.ClientSecretField)
+	setup.ClientID = strings.TrimSpace(setup.ClientID)
 	setup.AuthURL = strings.TrimSpace(setup.AuthURL)
 	setup.TokenURL = strings.TrimSpace(setup.TokenURL)
 	setup.CallbackPath = strings.TrimSpace(setup.CallbackPath)
@@ -210,6 +213,41 @@ func normalizeOAuthSetup(setup *OAuthSetup) {
 		}
 		setup.Scopes = scopes
 	}
+}
+
+func inheritRuntimeOAuthSetup(providers []Provider) {
+	setupByRuntimeType := map[string]*OAuthSetup{}
+	for i := range providers {
+		p := &providers[i]
+		if p.OAuthSetup == nil {
+			continue
+		}
+		baseType := runtimeTypeFromOAuthVariant(firstNonEmpty(p.OAuthProvider, p.AuraProviderType, p.ID))
+		if baseType == "" || !IsRuntimeProviderType(baseType) {
+			continue
+		}
+		if _, exists := setupByRuntimeType[baseType]; !exists {
+			setupByRuntimeType[baseType] = p.OAuthSetup
+		}
+	}
+	for i := range providers {
+		p := &providers[i]
+		if p.OAuthSetup != nil || !IsRuntimeProviderType(p.AuraProviderType) {
+			continue
+		}
+		if setup := setupByRuntimeType[p.AuraProviderType]; setup != nil {
+			copied := *setup
+			p.OAuthSetup = &copied
+		}
+	}
+}
+
+func runtimeTypeFromOAuthVariant(providerID string) string {
+	key := NormalizeProviderID(providerID)
+	if strings.HasSuffix(key, "-oauth") {
+		return strings.TrimSuffix(key, "-oauth")
+	}
+	return ""
 }
 
 func (s *Snapshot) FindProvider(id string) (Provider, bool) {

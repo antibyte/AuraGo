@@ -59,6 +59,8 @@ func TestConfigProviderOAuthWizardContract(t *testing.T) {
 		"preset.legacy_scopes.includes(value)",
 		"function providerOAuthConfigFromInputs(type)",
 		"function providerApplyOAuthPresetForType(type, options)",
+		"setup.client_id",
+		"applyField('prov-oauth-client-id', 'client_id')",
 		`id="prov-oauth-advanced"`,
 		"config.providers.oauth_advanced_toggle",
 		"config.providers.oauth_browser_hint",

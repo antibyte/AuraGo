@@ -206,6 +206,32 @@ func providerOAuthSetup(id, oauthProvider string) *catalog.OAuthSetup {
 			CallbackPort: 8085,
 			CallbackPath: "/oauth2callback",
 		}
+	case "xai", "xai-oauth":
+		return &catalog.OAuthSetup{
+			Source:            catalog.SourceOhMyPi,
+			SourcePackage:     "@oh-my-pi/pi-ai",
+			SourceProvider:    "xai-oauth",
+			Flow:              "authorization_code_pkce",
+			SetupURL:          "https://hermes-agent.nousresearch.com/docs/guides/xai-grok-oauth",
+			DocsURL:           "https://hermes-agent.nousresearch.com/docs/guides/xai-grok-oauth",
+			ConsoleLabel:      "xAI Grok OAuth guide",
+			RedirectURIField:  "Loopback callback URL",
+			ClientIDField:     "Client ID",
+			ClientSecretField: "Client secret",
+			ClientID:          "b1a00492-073a-47ea-816f-4c329264a828",
+			AuthURL:           "https://auth.x.ai/oauth/authorize?plan=generic&referrer=oh-my-pi",
+			TokenURL:          "https://auth.x.ai/oauth/token",
+			Scopes: []string{
+				"openid",
+				"profile",
+				"email",
+				"offline_access",
+				"grok-cli:access",
+				"api:access",
+			},
+			CallbackPort: 56121,
+			CallbackPath: "/callback",
+		}
 	default:
 		return nil
 	}

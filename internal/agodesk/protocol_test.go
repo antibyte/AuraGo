@@ -133,6 +133,7 @@ func TestProviderManagementProtocolPayloadsRoundTrip(t *testing.T) {
 			DefaultModel:     "gemini-2.5-flash",
 			OAuthSetup: &ProviderCatalogOAuthSetupPayload{
 				Flow:         "authorization_code_pkce",
+				ClientID:     "public-client-id",
 				CallbackPort: 8088,
 				CallbackPath: "/oauth/callback",
 			},
@@ -145,7 +146,7 @@ func TestProviderManagementProtocolPayloadsRoundTrip(t *testing.T) {
 	if err := json.Unmarshal(catalog.Payload, &catalogPayload); err != nil {
 		t.Fatalf("unmarshal provider catalog: %v", err)
 	}
-	if len(catalogPayload.Providers) != 1 || catalogPayload.Providers[0].OAuthSetup == nil || catalogPayload.Providers[0].OAuthSetup.CallbackPort != 8088 {
+	if len(catalogPayload.Providers) != 1 || catalogPayload.Providers[0].OAuthSetup == nil || catalogPayload.Providers[0].OAuthSetup.CallbackPort != 8088 || catalogPayload.Providers[0].OAuthSetup.ClientID != "public-client-id" {
 		t.Fatalf("catalog payload = %+v", catalogPayload)
 	}
 }

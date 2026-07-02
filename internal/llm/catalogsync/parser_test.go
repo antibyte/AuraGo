@@ -44,6 +44,12 @@ func TestBuildSnapshotNormalizesModelsProvidersAndMetadata(t *testing.T) {
 			envVars: ["GEMINI_API_KEY"],
 			catalogDiscovery: { label: "Google" },
 		},
+		{
+			id: "xai-oauth",
+			defaultModel: "grok-4.3",
+			envVars: ["XAI_OAUTH_TOKEN", "XAI_API_KEY"],
+			catalogDiscovery: { label: "xAI Grok OAuth (SuperGrok)", oauthProvider: "xai-oauth" },
+		},
 	] satisfies ProviderCatalogEntry[];`)
 
 	snapshot, err := BuildSnapshot(modelsJSON, descriptorsTS, PackageMetadata{
@@ -119,6 +125,20 @@ func TestBuildSnapshotNormalizesModelsProvidersAndMetadata(t *testing.T) {
 	}
 	if google.OAuthSetup.CallbackPort != 8085 {
 		t.Fatalf("google OAuth setup callback port = %d, want 8085", google.OAuthSetup.CallbackPort)
+	}
+
+	xai, ok := snapshot.FindProvider("xai-oauth")
+	if !ok {
+		t.Fatal("expected xai-oauth provider")
+	}
+	if xai.OAuthSetup == nil {
+		t.Fatal("expected xai-oauth OAuth setup metadata")
+	}
+	if xai.OAuthSetup.ClientID == "" {
+		t.Fatal("xai-oauth OAuth setup must include public client ID")
+	}
+	if xai.OAuthSetup.CallbackPort != 56121 || xai.OAuthSetup.CallbackPath != "/callback" {
+		t.Fatalf("xai-oauth OAuth callback = %d %q, want 56121 /callback", xai.OAuthSetup.CallbackPort, xai.OAuthSetup.CallbackPath)
 	}
 }
 

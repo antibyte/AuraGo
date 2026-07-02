@@ -730,6 +730,7 @@ func agodeskCatalogOAuthSetup(setup *llmcatalog.OAuthSetup) *agodesk.ProviderCat
 		RedirectURIField:  setup.RedirectURIField,
 		ClientIDField:     setup.ClientIDField,
 		ClientSecretField: setup.ClientSecretField,
+		ClientID:          setup.ClientID,
 		AuthURL:           setup.AuthURL,
 		TokenURL:          setup.TokenURL,
 		Scopes:            append([]string(nil), setup.Scopes...),

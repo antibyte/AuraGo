@@ -507,6 +507,7 @@ type ProviderCatalogOAuthSetupPayload struct {
 	RedirectURIField  string   `json:"redirect_uri_field,omitempty"`
 	ClientIDField     string   `json:"client_id_field,omitempty"`
 	ClientSecretField string   `json:"client_secret_field,omitempty"`
+	ClientID          string   `json:"client_id,omitempty"`
 	AuthURL           string   `json:"auth_url,omitempty"`
 	TokenURL          string   `json:"token_url,omitempty"`
 	Scopes            []string `json:"scopes,omitempty"`

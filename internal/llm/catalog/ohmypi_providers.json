@@ -552,6 +552,31 @@
       "XAI_API_KEY"
     ],
     "oauth_provider": "xai-oauth",
+    "oauth_setup": {
+      "source": "oh-my-pi",
+      "source_package": "@oh-my-pi/pi-ai",
+      "source_provider": "xai-oauth",
+      "flow": "authorization_code_pkce",
+      "setup_url": "https://hermes-agent.nousresearch.com/docs/guides/xai-grok-oauth",
+      "docs_url": "https://hermes-agent.nousresearch.com/docs/guides/xai-grok-oauth",
+      "console_label": "xAI Grok OAuth guide",
+      "redirect_uri_field": "Loopback callback URL",
+      "client_id_field": "Client ID",
+      "client_secret_field": "Client secret",
+      "client_id": "b1a00492-073a-47ea-816f-4c329264a828",
+      "auth_url": "https://auth.x.ai/oauth/authorize?plan=generic&referrer=oh-my-pi",
+      "token_url": "https://auth.x.ai/oauth/token",
+      "scopes": [
+        "openid",
+        "profile",
+        "email",
+        "offline_access",
+        "grok-cli:access",
+        "api:access"
+      ],
+      "callback_port": 56121,
+      "callback_path": "/callback"
+    },
     "catalog_only": true,
     "source": "oh-my-pi"
   },
