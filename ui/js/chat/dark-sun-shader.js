@@ -25,6 +25,7 @@
         varying vec2 v_uv;
         uniform float u_time;
         uniform vec2 u_res;
+        uniform vec3 u_orb3_color;
 
         float hash(vec2 p) {
             return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
@@ -64,25 +65,25 @@
             float t = u_time * (0.85 + phase * 0.08);
             float dist = length(p);
             float angle = atan(p.y, p.x);
-            float pulse = 0.94 + 0.1 * sin(t * 1.5 + phase * 3.1);
+            float pulse = 0.94 + 0.1 * sin(t * 0.9 + phase * 3.1);
 
             float core = smoothstep(radius * pulse, radius * 0.16, dist);
             float inner = smoothstep(radius * 1.55 * pulse, radius * 0.34, dist);
             float coronaNoise = fbm(vec2(angle * 2.6 + phase * 4.0, dist * 8.5 - t * 2.2));
             float corona = smoothstep(radius * 2.75 * pulse, radius * 0.74, dist) * (0.45 + coronaNoise * 0.9);
 
-            float flareH = exp(-30.0 * abs(p.y + sin(t * 1.7 + p.x * 16.0) * 0.045));
-            float flareD = exp(-24.0 * abs(p.y * 0.78 - p.x * side * 0.42 - sin(t * 0.9 + phase) * 0.12));
+            float flareH = exp(-30.0 * abs(p.y + sin(t * 1.4 + p.x * 16.0) * 0.045));
+            float flareD = exp(-24.0 * abs(p.y * 0.78 - p.x * side * 0.42 - sin(t * 0.7 + phase) * 0.12));
             float flare = flareH * 0.24 + flareD * 0.18;
 
             float sunspots = smoothstep(0.52, 0.74, fbm(p * 18.0 + vec2(t * 0.55, -t * 0.35))) * inner;
             float plume = fbm(vec2(p.x * 7.0 * side + t * 1.1, p.y * 4.5 - t * 0.7));
             float rim = exp(-abs(dist - radius * pulse * 0.96) * 24.0) * (0.62 + plume * 0.55);
 
-            vec3 deep = vec3(0.08, 0.02, 0.01);
+            vec3 deep = vec3(0.05, 0.015, 0.008);
             vec3 ember = vec3(0.8, 0.18, 0.08);
             vec3 orange = vec3(0.98, 0.43, 0.14);
-            vec3 gold = vec3(1.0, 0.76, 0.34);
+            vec3 gold = vec3(1.0, 0.82, 0.42);
 
             vec3 color =
                 deep * 0.08 +
@@ -124,6 +125,22 @@
                 1.0
             );
 
+            // Smoke FBM layer between the two suns
+            vec2 smokeUV = uv * 2.0 + vec2(t * 0.05, t * 0.02);
+            float smokeFbm = fbm(smokeUV);
+            float smokeAlpha = smokeFbm * 0.3 * edgeMask * smoothstep(0.5, 0.82, abs(uv.x - 0.5) * 2.0);
+            vec3 smokeColor = vec3(0.5, 0.18, 0.06) * smokeFbm * 0.24;
+
+            // Third orb — slow-drifting soft glow
+            vec2 orbCenter = vec2(
+                0.5 + sin(t * 0.025 + 1.7) * 0.14,
+                0.5 + cos(t * 0.035 + 0.8) * 0.12
+            );
+            vec2 orbP = uv - orbCenter;
+            float orbDist = length(orbP);
+            float orbGlow = exp(-orbDist * 4.5) * 0.55;
+            vec3 orbColor = u_orb3_color * orbGlow * edgeMask;
+
             float haze = fbm(vec2(uv.y * 5.2 + t * 0.28, abs(uv.x - 0.5) * 9.0 - t * 0.46));
             vec2 emberGrid = vec2(uv.x * 34.0, uv.y * 46.0) + vec2(t * 1.8, -t * 4.2);
             vec2 emberCell = floor(emberGrid);
@@ -138,11 +155,15 @@
 
             vec3 color =
                 (leftSun.rgb + rightSun.rgb) * edgeMask +
+                smokeColor * smokeAlpha +
+                orbColor +
                 hazeColor +
                 emberColor * ember * 1.15;
 
             float alpha =
                 (leftSun.a + rightSun.a) * edgeMask * 1.28 +
+                smokeAlpha * 0.5 +
+                orbGlow * 0.2 +
                 haze * edgeMask * 0.1 +
                 ember * 0.18;
 
@@ -247,6 +268,13 @@
 
         uniforms.time = gl.getUniformLocation(program, 'u_time');
         uniforms.resolution = gl.getUniformLocation(program, 'u_res');
+        uniforms.orb3Color = gl.getUniformLocation(program, 'u_orb3_color');
+
+        // Read CSS var for orb3 color
+        const orb3 = getComputedStyle(document.documentElement).getPropertyValue('--page-orb-3').trim();
+        const orb3Parsed = orb3.replace(/^rgba?\(/, '').replace(/\)$/, '').split(',').map(v => parseFloat(v.trim()));
+        const orb3Vec = orb3Parsed.length >= 3 ? orb3Parsed : [1, 0.7, 0.3];
+        gl.uniform3f(uniforms.orb3Color, orb3Vec[0], orb3Vec[1], orb3Vec[2]);
 
         gl.enable(gl.BLEND);
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
