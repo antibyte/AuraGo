@@ -2077,12 +2077,13 @@ func TestConfigFrontendProviderModalCancelUsesScopedCloseHandler(t *testing.T) {
 	}
 	for _, marker := range []string{
 		"function closeProviderModal()",
+		"async function requestCloseProviderModal()",
 		"clearInterval(copilotPollInterval);",
 		`id="provider-modal-close-btn"`,
 		`id="provider-modal-cancel-btn"`,
-		"document.getElementById('provider-modal-close-btn')?.addEventListener('click', closeProviderModal);",
-		"document.getElementById('provider-modal-cancel-btn')?.addEventListener('click', closeProviderModal);",
-		"overlay.onclick = (e) => { if (e.target === overlay) closeProviderModal(); };",
+		"document.getElementById('provider-modal-close-btn')?.addEventListener('click', requestCloseProviderModal);",
+		"document.getElementById('provider-modal-cancel-btn')?.addEventListener('click', requestCloseProviderModal);",
+		"overlay.onclick = (e) => { if (e.target === overlay) requestCloseProviderModal(); };",
 	} {
 		if !strings.Contains(moduleJS, marker) {
 			t.Fatalf("%s missing provider modal close marker %q", modulePath, marker)
