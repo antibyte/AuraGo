@@ -968,7 +968,7 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			if cfg.Jellyfin.ReadOnly {
 				switch req.Operation {
 				case "playback_control", "library_refresh":
-					return `Tool Output: {"status":"error","message":"Jellyfin is in read-only mode. Disable jellyfin.read_only to allow changes."}`
+					return `Tool Output: {"status":"error","message":"Jellyfin is in read-only mode. Disable jellyfin.readonly to allow changes."}`
 				}
 			}
 			// Destructive operation check

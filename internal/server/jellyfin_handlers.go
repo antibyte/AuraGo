@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"aurago/internal/jellyfin"
 	"aurago/internal/security"
@@ -36,7 +37,7 @@ func handleJellyfinStatus(s *Server) http.HandlerFunc {
 			w.WriteHeader(http.StatusServiceUnavailable)
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"status": "error",
-				"error":  "Failed to initialize Jellyfin client: " + security.Scrub(err.Error()),
+				"error":  jellyfinStatusError("Failed to initialize Jellyfin client", err),
 			})
 			return
 		}
@@ -46,7 +47,7 @@ func handleJellyfinStatus(s *Server) http.HandlerFunc {
 			w.WriteHeader(http.StatusServiceUnavailable)
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"status": "offline",
-				"error":  "Failed to reach Jellyfin: " + security.Scrub(err.Error()),
+				"error":  jellyfinStatusError("Failed to reach Jellyfin", err),
 			})
 			return
 		}
@@ -65,4 +66,32 @@ func handleJellyfinStatus(s *Server) http.HandlerFunc {
 			"version":     info.Version,
 		})
 	}
+}
+
+func jellyfinStatusError(prefix string, err error) string {
+	if err == nil {
+		return prefix
+	}
+	detail := sanitizeJellyfinStatusError(security.Scrub(err.Error()))
+	if strings.TrimSpace(detail) == "" {
+		return prefix
+	}
+	return prefix + ": " + detail
+}
+
+func sanitizeJellyfinStatusError(detail string) string {
+	detail = strings.TrimSpace(detail)
+	const apiErrorPrefix = "API error "
+	if !strings.HasPrefix(detail, apiErrorPrefix) {
+		return detail
+	}
+
+	statusAndBody := strings.TrimPrefix(detail, apiErrorPrefix)
+	if idx := strings.IndexByte(statusAndBody, ':'); idx >= 0 {
+		status := strings.TrimSpace(statusAndBody[:idx])
+		if status != "" {
+			return "Jellyfin API returned HTTP " + status
+		}
+	}
+	return "Jellyfin API returned an error"
 }

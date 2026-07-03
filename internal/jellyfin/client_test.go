@@ -6,9 +6,11 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"testing"
 
 	"aurago/internal/config"
+	"aurago/internal/security"
 	"aurago/internal/testutil"
 )
 
@@ -42,6 +44,23 @@ func TestNewClient(t *testing.T) {
 	expected := "http://localhost:8096"
 	if client.BaseURL() != expected {
 		t.Errorf("BaseURL = %q, want %q", client.BaseURL(), expected)
+	}
+}
+
+func TestNewClientRegistersAPIKeyAsSensitive(t *testing.T) {
+	apiKey := "jellyfin-sensitive-test-key"
+	_, err := NewClient(config.JellyfinConfig{
+		Enabled: true,
+		Host:    "localhost",
+		APIKey:  apiKey,
+	}, nil)
+	if err != nil {
+		t.Fatalf("NewClient failed: %v", err)
+	}
+
+	scrubbed := security.Scrub("reflected Authorization: " + apiKey)
+	if strings.Contains(scrubbed, apiKey) {
+		t.Fatalf("Scrub() leaked Jellyfin API key: %q", scrubbed)
 	}
 }
 

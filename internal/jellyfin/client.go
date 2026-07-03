@@ -61,6 +61,7 @@ func NewClient(cfg config.JellyfinConfig, vault *security.Vault) (*Client, error
 	if apiKey == "" {
 		return nil, fmt.Errorf("Jellyfin API key is required (set in vault as 'jellyfin_api_key')")
 	}
+	security.RegisterSensitive(apiKey)
 
 	// Configure TLS
 	tlsConfig := &tls.Config{
