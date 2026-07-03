@@ -128,8 +128,8 @@
             // Smoke FBM layer between the two suns
             vec2 smokeUV = uv * 2.0 + vec2(t * 0.05, t * 0.02);
             float smokeFbm = fbm(smokeUV);
-            float smokeAlpha = smokeFbm * 0.3 * edgeMask * smoothstep(0.5, 0.82, abs(uv.x - 0.5) * 2.0);
-            vec3 smokeColor = vec3(0.5, 0.18, 0.06) * smokeFbm * 0.24;
+            float smokeAlpha = smokeFbm * 0.18 * edgeMask;
+            vec3 smokeColor = vec3(0.5, 0.18, 0.06) * smokeFbm * 0.18;
 
             // Third orb — slow-drifting soft glow
             vec2 orbCenter = vec2(
