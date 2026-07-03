@@ -393,16 +393,16 @@
             const objectURL = key => {
                 const obj = data[key];
                 if (!obj || typeof obj !== 'object') return '';
-                return firstString(obj.preview_url, obj.url, obj.deployment_url, obj.deploy_url, obj.browser_url);
+                return firstPreviewURL(obj.preview_url, obj.url, obj.deployment_url, obj.deploy_url, obj.browser_url);
             };
 
             switch (target) {
                 case 'vercel':
-                    return firstString(data.vercel_url, data.vercel_deployment_url, data.deployment_url, objectURL('vercel'), externalURL);
+                    return firstPreviewURL(data.vercel_url, data.vercel_deployment_url, data.deployment_url, objectURL('vercel'), externalURL);
                 case 'netlify':
-                    return firstString(data.netlify_url, data.netlify_deploy_url, data.deploy_url, objectURL('netlify'), externalURL);
+                    return firstPreviewURL(data.netlify_url, data.netlify_deploy_url, data.deploy_url, objectURL('netlify'), externalURL);
                 case 'remote':
-                    return firstString(data.remote_url, data.remote_deploy_url, objectURL('remote'), externalURL);
+                    return firstPreviewURL(data.remote_url, data.remote_deploy_url, objectURL('remote'), externalURL);
                 case 'local':
                 default:
                     break;
@@ -421,13 +421,14 @@
         }
 
         function updatePreviewUrl() {
-            const hasUrl = !!state.previewUrl;
+            const safeURL = safeExternalURL(state.previewUrl);
+            const hasUrl = !!safeURL;
             externalBtn.disabled = !hasUrl;
             externalBtn.classList.toggle('is-disabled', !hasUrl);
             if (hasUrl) {
-                previewUrl.textContent = state.previewUrl;
-                previewUrl.title = state.previewUrl;
-                showPreview(state.previewUrl);
+                previewUrl.textContent = safeURL;
+                previewUrl.title = safeURL;
+                showPreview(safeURL);
             } else {
                 previewUrl.textContent = '—';
                 previewUrl.title = t('homepage_studio.no_url');
@@ -476,14 +477,16 @@
                 loadStatus();
                 return;
             }
-            previewLoading.classList.add('active');
-            previewLoading.setAttribute('aria-hidden', 'false');
-            const iframe = previewBody.querySelector('.vd-hp-preview-iframe');
             const safeURL = safeExternalURL(state.previewUrl);
             if (!safeURL) {
+                previewLoading.classList.remove('active');
+                previewLoading.setAttribute('aria-hidden', 'true');
                 hidePreview();
                 return;
             }
+            previewLoading.classList.add('active');
+            previewLoading.setAttribute('aria-hidden', 'false');
+            const iframe = previewBody.querySelector('.vd-hp-preview-iframe');
             if (iframe) {
                 iframe.onload = () => {
                     previewLoading.classList.remove('active');

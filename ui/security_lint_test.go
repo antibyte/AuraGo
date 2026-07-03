@@ -48,14 +48,18 @@ func TestFrontendWindowOpenUsesValidationAndNoReferrer(t *testing.T) {
 	}
 	for _, file := range files {
 		content := readUITestFile(t, file)
+		lines := strings.Split(content, "\n")
 		if strings.Contains(content, "window.open(state.previewUrl, '_blank')") ||
 			strings.Contains(content, "window.open(url, '_blank', 'noopener')") ||
-			strings.Contains(content, "window.open(body.url, '_blank', 'noopener')") ||
-			strings.Contains(content, "window.open('', '_blank')") {
+			strings.Contains(content, "window.open(body.url, '_blank', 'noopener')") {
 			t.Fatalf("%s opens unvalidated or referrer-leaking windows", filepath.ToSlash(file))
 		}
-		if strings.Contains(content, "window.open(") && !strings.Contains(content, "noopener,noreferrer") {
-			t.Fatalf("%s window.open calls must request noopener,noreferrer", filepath.ToSlash(file))
+		for i, line := range lines {
+			if strings.Contains(line, "window.open(") &&
+				!strings.Contains(line, "noopener,noreferrer") &&
+				!allowsDetachedBlankPopup(lines, i) {
+				t.Fatalf("%s:%d window.open calls must request noopener,noreferrer or explicitly clear opener on a pending about:blank popup", filepath.ToSlash(file), i+1)
+			}
 		}
 	}
 
@@ -69,7 +73,11 @@ func TestFrontendWindowOpenUsesValidationAndNoReferrer(t *testing.T) {
 
 func allowsDetachedBlankPopup(lines []string, idx int) bool {
 	line := strings.ReplaceAll(lines[idx], " ", "")
-	if !strings.Contains(line, "window.open('','_blank')") && !strings.Contains(line, `window.open("","_blank")`) {
+	opensBlank := strings.Contains(line, "window.open('','_blank')") ||
+		strings.Contains(line, `window.open("","_blank")`) ||
+		strings.Contains(line, "window.open('about:blank','_blank')") ||
+		strings.Contains(line, `window.open("about:blank","_blank")`)
+	if !opensBlank {
 		return false
 	}
 	for i := idx + 1; i < len(lines) && i <= idx+5; i++ {
@@ -78,6 +86,122 @@ func allowsDetachedBlankPopup(lines []string, idx int) bool {
 		}
 	}
 	return false
+}
+
+func TestSkillsResourcePreviewUsesBlobURL(t *testing.T) {
+	t.Parallel()
+
+	content := readUITestFile(t, filepath.Join("js", "skills", "main.js"))
+	preview := securitySectionBetween(t, content, "async function previewDetailResource", "async function downloadDetailResource")
+	for _, forbidden := range []string{
+		"w.document",
+		"document.write",
+		"window.open('', '_blank'",
+	} {
+		if strings.Contains(preview, forbidden) {
+			t.Fatalf("skill resource preview must not write into a popup document, found %q", forbidden)
+		}
+	}
+	for _, marker := range []string{
+		"new Blob([html], { type: 'text/html' })",
+		"URL.createObjectURL(blob)",
+		"window.open(blobURL, '_blank', 'noopener,noreferrer')",
+		"window.setTimeout(() => URL.revokeObjectURL(blobURL), 60000)",
+	} {
+		if !strings.Contains(preview, marker) {
+			t.Fatalf("skill resource preview missing Blob popup marker %q", marker)
+		}
+	}
+}
+
+func TestPendingExternalStoreWindowsKeepUserActivation(t *testing.T) {
+	t.Parallel()
+
+	files := []string{
+		filepath.Join("js", "desktop", "apps", "quickconnect-launchpad-chat.js"),
+		filepath.Join("js", "desktop", "apps", "software-store.js"),
+	}
+	for _, file := range files {
+		content := readUITestFile(t, file)
+		if strings.Contains(content, "window.open('about:blank', '_blank', 'noopener,noreferrer')") {
+			t.Fatalf("%s pending about:blank popup must keep the window handle for later navigation", filepath.ToSlash(file))
+		}
+		for _, marker := range []string{
+			"window.open('about:blank', '_blank')",
+			"pendingWindow.opener = null;",
+			"window.open(safeURL, '_blank', 'noopener,noreferrer')",
+		} {
+			if !strings.Contains(content, marker) {
+				t.Fatalf("%s missing external popup marker %q", filepath.ToSlash(file), marker)
+			}
+		}
+	}
+}
+
+func TestKnowledgeHTMLPreviewDoesNotIframeDeniedHTML(t *testing.T) {
+	t.Parallel()
+
+	content := readUITestFile(t, filepath.Join("js", "knowledge", "main.js"))
+	preview := securitySectionBetween(t, content, "} else if (ext === 'html' || ext === 'htm') {", "} else if (isTextFile(ext)) {")
+	for _, forbidden := range []string{
+		"frame.src = previewURL",
+		"frame.classList.remove('is-hidden')",
+		"frame.setAttribute('sandbox'",
+	} {
+		if strings.Contains(preview, forbidden) {
+			t.Fatalf("knowledge HTML preview must not iframe HTML served with X-Frame-Options: DENY, found %q", forbidden)
+		}
+	}
+	for _, marker := range []string{
+		"X-Frame-Options: DENY",
+		"fallbackTitle.textContent = t('knowledge.files_preview_unavailable_title');",
+		"fallbackText.textContent = t('knowledge.files_preview_unavailable_desc');",
+		"fallback.classList.remove('is-hidden');",
+	} {
+		if !strings.Contains(preview, marker) {
+			t.Fatalf("knowledge HTML fallback missing marker %q", marker)
+		}
+	}
+}
+
+func TestHomepageStudioSanitizesPreviewURLBeforeDisplay(t *testing.T) {
+	t.Parallel()
+
+	content := readUITestFile(t, filepath.Join("js", "desktop", "apps", "homepage-studio.js"))
+	statusPreview := securitySectionBetween(t, content, "function homepageStatusPreviewURL", "function updatePreviewUrl")
+	for _, marker := range []string{
+		"return firstPreviewURL(obj.preview_url, obj.url, obj.deployment_url, obj.deploy_url, obj.browser_url);",
+		"return firstPreviewURL(data.vercel_url, data.vercel_deployment_url, data.deployment_url, objectURL('vercel'), externalURL);",
+		"return firstPreviewURL(data.netlify_url, data.netlify_deploy_url, data.deploy_url, objectURL('netlify'), externalURL);",
+		"return firstPreviewURL(data.remote_url, data.remote_deploy_url, objectURL('remote'), externalURL);",
+	} {
+		if !strings.Contains(statusPreview, marker) {
+			t.Fatalf("homepage status preview URL must sanitize provider URLs before use, missing %q", marker)
+		}
+	}
+
+	updatePreview := securitySectionBetween(t, content, "function updatePreviewUrl", "function showPreview")
+	for _, marker := range []string{
+		"const safeURL = safeExternalURL(state.previewUrl);",
+		"const hasUrl = !!safeURL;",
+		"previewUrl.textContent = safeURL;",
+		"previewUrl.title = safeURL;",
+		"showPreview(safeURL);",
+	} {
+		if !strings.Contains(updatePreview, marker) {
+			t.Fatalf("homepage preview label must use a sanitized URL, missing %q", marker)
+		}
+	}
+
+	refresh := securitySectionBetween(t, content, "function refreshPreview", "function switchPanel")
+	safeIndex := strings.Index(refresh, "const safeURL = safeExternalURL(state.previewUrl);")
+	loadingIndex := strings.Index(refresh, "previewLoading.classList.add('active');")
+	if safeIndex < 0 || loadingIndex < 0 || safeIndex > loadingIndex {
+		t.Fatal("homepage refresh must validate the preview URL before activating the loading overlay")
+	}
+	if !strings.Contains(refresh, "previewLoading.classList.remove('active');") {
+		t.Fatal("homepage refresh must clear the loading overlay when the sanitized URL is invalid")
+	}
 }
 
 func TestConfigAndSetupErrorsAreNotRawInnerHTML(t *testing.T) {
@@ -197,4 +321,17 @@ func readUITestFile(t *testing.T, rel string) string {
 		t.Fatalf("read %s: %v", rel, err)
 	}
 	return string(content)
+}
+
+func securitySectionBetween(t *testing.T, content, startMarker, endMarker string) string {
+	t.Helper()
+	start := strings.Index(content, startMarker)
+	if start < 0 {
+		t.Fatalf("missing start marker %q", startMarker)
+	}
+	end := strings.Index(content[start:], endMarker)
+	if end < 0 {
+		t.Fatalf("missing end marker %q", endMarker)
+	}
+	return content[start : start+end]
 }

@@ -1242,7 +1242,7 @@
     }
 
     function openPendingExternalStoreWindow() {
-        const pendingWindow = window.open('about:blank', '_blank', 'noopener,noreferrer');
+        const pendingWindow = window.open('about:blank', '_blank');
         if (pendingWindow) {
             pendingWindow.opener = null;
         }

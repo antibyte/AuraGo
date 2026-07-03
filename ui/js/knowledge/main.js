@@ -468,20 +468,10 @@ function openFilePreview(name) {
             });
 
     } else if (ext === 'html' || ext === 'htm') {
-        // ── HTML: isolate active content from the AuraGo origin ──
-        frame.setAttribute('sandbox', 'allow-scripts');
-        frame.setAttribute('referrerpolicy', 'no-referrer');
-        frame.onload = () => {
-            clearTimeout(previewResetTimer);
-            fallback.classList.add('is-hidden');
-        };
-        frame.src = previewURL;
-        frame.classList.remove('is-hidden');
-        previewResetTimer = setTimeout(() => {
-            fallbackTitle.textContent = t('knowledge.files_preview_unavailable_title');
-            fallbackText.textContent = t('knowledge.files_preview_render_error');
-            fallback.classList.remove('is-hidden');
-        }, 4000);
+        // HTML is served with X-Frame-Options: DENY, so offer the download fallback instead of iframing it.
+        fallbackTitle.textContent = t('knowledge.files_preview_unavailable_title');
+        fallbackText.textContent = t('knowledge.files_preview_unavailable_desc');
+        fallback.classList.remove('is-hidden');
 
     } else if (isTextFile(ext)) {
         // ── Text / code: fetch and render in <pre> ──

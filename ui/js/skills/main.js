@@ -1277,12 +1277,11 @@ function showDisabledState() {
             const resp = await fetch(`/api/agent-skills/${encodeURIComponent(skillId)}/files?path=${encodeURIComponent(path)}`);
             const data = await resp.json();
             if (data.status === 'ok') {
-                const w = window.open('', '_blank', 'noopener,noreferrer');
-                if (!w) return;
-                w.document.title = path;
-                const pre = w.document.createElement('pre');
-                pre.textContent = data.content || '';
-                w.document.body.appendChild(pre);
+                const html = `<!doctype html><html><head><meta charset="utf-8"><title>${esc(path)}</title><style>body{margin:0;background:#10131a;color:#f7f7fb;font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}pre{box-sizing:border-box;margin:0;min-height:100vh;padding:18px;white-space:pre-wrap;word-break:break-word}</style></head><body><pre>${esc(data.content || '')}</pre></body></html>`;
+                const blob = new Blob([html], { type: 'text/html' });
+                const blobURL = URL.createObjectURL(blob);
+                window.open(blobURL, '_blank', 'noopener,noreferrer');
+                window.setTimeout(() => URL.revokeObjectURL(blobURL), 60000);
             } else {
                 showToast(data.message || t('common.error'), 'error');
             }

@@ -169,7 +169,7 @@ func TestSoftwareStoreOpensExternalStoreAppsInBrowserTab(t *testing.T) {
 		"const entry = catalog.find(item => item.id === appId);",
 		"if (action === 'open' && shouldOpenStoreEntryExternally(entry)) return openStorePort(appId, '');",
 		"function safeExternalURL(raw)",
-		"const pendingWindow = window.open('about:blank', '_blank', 'noopener,noreferrer');",
+		"const pendingWindow = window.open('about:blank', '_blank');",
 		"pendingWindow.opener = null;",
 		"pendingWindow.location.replace(safeURL);",
 	} {
