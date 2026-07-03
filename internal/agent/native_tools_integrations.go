@@ -360,17 +360,19 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 
 	if ff.MeshCentralEnabled {
 		tools = append(tools, tool("meshcentral",
-			"Manage and interact with devices and groups managed by a MeshCentral server. Supports listing devices, wake-on-lan, power actions, running commands, and interactive shell access.",
+			"Manage and inspect devices and groups managed by a MeshCentral server. Supports server info, device and event listing, wake-on-lan, power actions, and running commands.",
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{
 					"type":        "string",
 					"description": "Operation to perform",
-					"enum":        []string{"list_groups", "list_devices", "wake", "power_action", "run_command", "shell"},
+					"enum":        []string{"server_info", "list_groups", "list_devices", "device_info", "list_events", "wake", "power_action", "run_command"},
 				},
 				"mesh_id":      prop("string", "Mesh/Group ID (for list_devices)"),
-				"node_id":      prop("string", "Node/Device ID (for wake, power_action, run_command, shell)"),
-				"power_action": prop("integer", "Action (1=Sleep, 2=Hibernate, 3=PowerOff, 4=Reset)"),
-				"command":      prop("string", "Command string (for run_command or shell)"),
+				"node_id":      prop("string", "Node/Device ID (for device_info, list_events, wake, power_action, run_command)"),
+				"user_id":      prop("string", "User ID filter (for list_events)"),
+				"power_action": prop("string", "Power action: off, reset, sleep, amt_on, amt_off, or amt_reset"),
+				"command":      prop("string", "Command string (for run_command)"),
+				"limit":        prop("integer", "Maximum number of events to return (for list_events)"),
 			}, "operation"),
 		))
 	}

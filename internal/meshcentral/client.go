@@ -20,8 +20,11 @@ import (
 
 // pendingRequest holds a channel for a request awaiting a response.
 type pendingRequest struct {
-	action string        // original action name for debugging
-	ch     chan response // buffered channel for the response
+	action         string        // original action name for debugging
+	reqid          int           // optional legacy reqid correlation
+	responseID     string        // optional MeshCentral responseid correlation
+	actionFallback string        // optional action-only response correlation
+	ch             chan response // buffered channel for the response
 }
 
 // response wraps the response data with any parsing/transport error.
@@ -48,9 +51,11 @@ type Client struct {
 	done        chan struct{} // Signals goroutines to stop
 	closeOnce   sync.Once     // Ensures Close() is idempotent
 
-	// reqid-based request/response routing (replaces action-based routing)
-	pendingReqs map[int]*pendingRequest // keyed by reqid
-	reqsMu      sync.RWMutex
+	pendingReqs        map[int]*pendingRequest    // keyed by legacy reqid
+	pendingResponseIDs map[string]*pendingRequest // keyed by MeshCentral responseid
+	pendingActions     map[string][]*pendingRequest
+	reqsMu             sync.RWMutex
+	serverInfo         map[string]interface{}
 
 	// Logger for debug output
 	logger *slog.Logger
@@ -81,14 +86,16 @@ func NewClient(urlStr, username, password, loginToken string, insecure bool) (*C
 	}
 
 	return &Client{
-		url:         urlStr,
-		username:    username,
-		password:    password,
-		loginToken:  loginToken,
-		insecure:    insecure,
-		pendingReqs: make(map[int]*pendingRequest),
-		done:        make(chan struct{}),
-		logger:      slog.Default(),
+		url:                urlStr,
+		username:           username,
+		password:           password,
+		loginToken:         loginToken,
+		insecure:           insecure,
+		pendingReqs:        make(map[int]*pendingRequest),
+		pendingResponseIDs: make(map[string]*pendingRequest),
+		pendingActions:     make(map[string][]*pendingRequest),
+		done:               make(chan struct{}),
+		logger:             slog.Default(),
 	}, nil
 }
 
@@ -235,14 +242,7 @@ func (c *Client) ConnectContext(ctx context.Context) error {
 	go c.readPump()
 	go c.pingPump()
 
-	// Verify connection by requesting serverinfo
-	reqid, err := c.Send(map[string]interface{}{"action": "serverinfo"})
-	if err != nil {
-		c.Close()
-		return fmt.Errorf("failed to send serverinfo request: %w", err)
-	}
-
-	res, err := c.WaitForReqContext(ctx, reqid, "serverinfo", 10*time.Second)
+	res, err := c.WaitForServerInfoContext(ctx, 10*time.Second)
 	if err != nil {
 		c.Close()
 		return fmt.Errorf("serverinfo verification failed: %w", err)
@@ -388,15 +388,7 @@ func (c *Client) Close() {
 		c.wsMu.Unlock()
 
 		// Clean up pending request channels and notify waiters of disconnect
-		c.reqsMu.Lock()
-		for reqid, pr := range c.pendingReqs {
-			select {
-			case pr.ch <- response{err: fmt.Errorf("client closed")}:
-			default:
-			}
-			delete(c.pendingReqs, reqid)
-		}
-		c.reqsMu.Unlock()
+		c.failPendingRequests(fmt.Errorf("client closed"))
 
 		c.logf("[MeshCentral] Client closed")
 	})
@@ -449,28 +441,45 @@ func (c *Client) readPump() {
 		}
 
 		action, _ := data["action"].(string)
+		responseID, _ := data["responseid"].(string)
+
+		if action == "serverinfo" {
+			if info := extractServerInfo(data); info != nil {
+				c.reqsMu.Lock()
+				c.serverInfo = info
+				c.reqsMu.Unlock()
+			}
+		}
 
 		c.reqsMu.Lock()
 		var delivered bool
 		if reqid > 0 {
-			// Primary routing: by reqid (exact match, race-free)
 			if pr, ok := c.pendingReqs[reqid]; ok {
-				select {
-				case <-c.done:
-					c.reqsMu.Unlock()
-					return
-				default:
+				delivered = deliverPending(pr, response{data: data})
+				if delivered {
+					c.logf("[MeshCentral] Delivered response to reqid %d (action=%s)", reqid, action)
 				}
-				func() {
-					defer func() { recover() }()
-					select {
-					case pr.ch <- response{data: data}:
-						delivered = true
-						c.logf("[MeshCentral] Delivered response to reqid %d (action=%s)", reqid, action)
-					default:
-						// Channel full, skip (shouldn't happen with buffered channels)
-					}
-				}()
+			}
+		}
+		if !delivered && responseID != "" {
+			if pr, ok := c.pendingResponseIDs[responseID]; ok {
+				delivered = deliverPending(pr, response{data: data})
+				if delivered {
+					c.logAttrs("[MeshCentral] Delivered response to responseid", "responseid", responseID, "action", action)
+				}
+			}
+		}
+		if !delivered && action != "" {
+			if queue := c.pendingActions[action]; len(queue) > 0 {
+				pr := queue[0]
+				c.pendingActions[action] = queue[1:]
+				if len(c.pendingActions[action]) == 0 {
+					delete(c.pendingActions, action)
+				}
+				delivered = deliverPending(pr, response{data: data})
+				if delivered {
+					c.logAttrs("[MeshCentral] Delivered action-only response", "action", action)
+				}
 			}
 		}
 		c.reqsMu.Unlock()
@@ -494,18 +503,62 @@ func (c *Client) readPump() {
 func (c *Client) failPendingRequests(err error) {
 	c.reqsMu.Lock()
 	defer c.reqsMu.Unlock()
-	for reqid, pr := range c.pendingReqs {
+	seen := make(map[*pendingRequest]bool)
+	for _, pr := range c.pendingReqs {
+		if seen[pr] {
+			continue
+		}
+		seen[pr] = true
 		select {
 		case pr.ch <- response{err: err}:
 		default:
 		}
-		delete(c.pendingReqs, reqid)
 	}
+	for _, pr := range c.pendingResponseIDs {
+		if seen[pr] {
+			continue
+		}
+		seen[pr] = true
+		select {
+		case pr.ch <- response{err: err}:
+		default:
+		}
+	}
+	for _, queue := range c.pendingActions {
+		for _, pr := range queue {
+			if seen[pr] {
+				continue
+			}
+			seen[pr] = true
+			select {
+			case pr.ch <- response{err: err}:
+			default:
+			}
+		}
+	}
+	c.pendingReqs = make(map[int]*pendingRequest)
+	c.pendingResponseIDs = make(map[string]*pendingRequest)
+	c.pendingActions = make(map[string][]*pendingRequest)
 }
 
 // Send sends a JSON command to the server and registers it for response routing.
 // Returns the assigned reqid for correlation with the response.
 func (c *Client) Send(cmd map[string]interface{}) (int, error) {
+	reqid, _, _, err := c.send(cmd, false, false, true)
+	return reqid, err
+}
+
+func (c *Client) sendForResponse(cmd map[string]interface{}, actionFallback bool) (*pendingRequest, error) {
+	_, _, pr, err := c.send(cmd, true, actionFallback, true)
+	return pr, err
+}
+
+func (c *Client) sendNoResponse(cmd map[string]interface{}) error {
+	_, _, _, err := c.send(cmd, false, false, false)
+	return err
+}
+
+func (c *Client) send(cmd map[string]interface{}, withResponseID, actionFallback, registerPending bool) (int, string, *pendingRequest, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -514,30 +567,57 @@ func (c *Client) Send(cmd map[string]interface{}) (int, error) {
 	c.wsMu.RUnlock()
 
 	if ws == nil {
-		return 0, fmt.Errorf("not connected")
+		return 0, "", nil, fmt.Errorf("not connected")
 	}
 
 	c.reqID++
 	reqid := c.reqID
 	cmd["reqid"] = reqid
 	action, _ := cmd["action"].(string)
-
-	c.reqsMu.Lock()
-	if c.pendingReqs[reqid] == nil {
-		c.pendingReqs[reqid] = &pendingRequest{
-			action: action,
-			ch:     make(chan response, 1),
-		}
+	responseID, _ := cmd["responseid"].(string)
+	if withResponseID && responseID == "" {
+		responseID = fmt.Sprintf("aurago-%d", reqid)
+		cmd["responseid"] = responseID
 	}
-	c.reqsMu.Unlock()
+
+	var pr *pendingRequest
+	if registerPending {
+		c.reqsMu.Lock()
+		if withResponseID || actionFallback {
+			pr = &pendingRequest{
+				action:     action,
+				reqid:      reqid,
+				responseID: responseID,
+				ch:         make(chan response, 1),
+			}
+			c.pendingReqs[reqid] = pr
+			if responseID != "" {
+				c.pendingResponseIDs[responseID] = pr
+			}
+			if actionFallback && action != "" {
+				pr.actionFallback = action
+				c.pendingActions[action] = append(c.pendingActions[action], pr)
+			}
+		} else {
+			pr = &pendingRequest{
+				action: action,
+				reqid:  reqid,
+				ch:     make(chan response, 1),
+			}
+			c.pendingReqs[reqid] = pr
+		}
+		c.reqsMu.Unlock()
+	}
 
 	if err := ws.WriteJSON(cmd); err != nil {
-		c.reqsMu.Lock()
-		delete(c.pendingReqs, reqid)
-		c.reqsMu.Unlock()
-		return 0, err
+		if pr != nil {
+			c.reqsMu.Lock()
+			c.removePendingLocked(pr)
+			c.reqsMu.Unlock()
+		}
+		return 0, "", nil, err
 	}
-	return reqid, nil
+	return reqid, responseID, pr, nil
 }
 
 // WaitForReq waits for a response with the given reqid.
@@ -555,21 +635,27 @@ func (c *Client) WaitForReqContext(ctx context.Context, reqid int, action string
 	if c.pendingReqs[reqid] == nil {
 		c.pendingReqs[reqid] = &pendingRequest{
 			action: action,
+			reqid:  reqid,
 			ch:     make(chan response, 1),
 		}
 	}
 	pr := c.pendingReqs[reqid]
 	c.reqsMu.Unlock()
 
+	return c.waitForPending(ctx, pr, timeout)
+}
+
+func (c *Client) waitForPending(ctx context.Context, pr *pendingRequest, timeout time.Duration) (map[string]interface{}, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	timer := time.NewTimer(timeout)
 	defer timer.Stop()
 
 	select {
 	case res := <-pr.ch:
 		c.reqsMu.Lock()
-		if c.pendingReqs[reqid] == pr {
-			delete(c.pendingReqs, reqid)
-		}
+		c.removePendingLocked(pr)
 		close(pr.ch)
 		c.reqsMu.Unlock()
 		if res.err != nil {
@@ -578,29 +664,63 @@ func (c *Client) WaitForReqContext(ctx context.Context, reqid int, action string
 		return res.data, nil
 	case <-timer.C:
 		c.reqsMu.Lock()
-		if c.pendingReqs[reqid] == pr {
-			delete(c.pendingReqs, reqid)
-		}
+		c.removePendingLocked(pr)
 		close(pr.ch)
 		c.reqsMu.Unlock()
-		return nil, fmt.Errorf("timeout waiting for reqid %d (action=%s)", reqid, action)
+		return nil, fmt.Errorf("timeout waiting for MeshCentral response (action=%s, responseid=%s, reqid=%d)", pr.action, pr.responseID, pr.reqid)
 	case <-ctx.Done():
 		c.reqsMu.Lock()
-		if c.pendingReqs[reqid] == pr {
-			delete(c.pendingReqs, reqid)
-		}
+		c.removePendingLocked(pr)
 		close(pr.ch)
 		c.reqsMu.Unlock()
 		return nil, ctx.Err()
 	case <-c.done:
 		c.reqsMu.Lock()
-		if c.pendingReqs[reqid] == pr {
-			delete(c.pendingReqs, reqid)
-		}
+		c.removePendingLocked(pr)
 		close(pr.ch)
 		c.reqsMu.Unlock()
 		return nil, fmt.Errorf("client disconnected")
 	}
+}
+
+func (c *Client) removePendingLocked(pr *pendingRequest) {
+	if pr == nil {
+		return
+	}
+	if pr.reqid > 0 && c.pendingReqs[pr.reqid] == pr {
+		delete(c.pendingReqs, pr.reqid)
+	}
+	if pr.responseID != "" && c.pendingResponseIDs[pr.responseID] == pr {
+		delete(c.pendingResponseIDs, pr.responseID)
+	}
+	if pr.actionFallback != "" {
+		queue := c.pendingActions[pr.actionFallback]
+		for i, queued := range queue {
+			if queued == pr {
+				queue = append(queue[:i], queue[i+1:]...)
+				break
+			}
+		}
+		if len(queue) == 0 {
+			delete(c.pendingActions, pr.actionFallback)
+		} else {
+			c.pendingActions[pr.actionFallback] = queue
+		}
+	}
+}
+
+func deliverPending(pr *pendingRequest, res response) bool {
+	if pr == nil {
+		return false
+	}
+	func() {
+		defer func() { recover() }()
+		select {
+		case pr.ch <- res:
+		default:
+		}
+	}()
+	return true
 }
 
 // WaitForAction waits for a response with the given action string.
@@ -613,6 +733,36 @@ func (c *Client) WaitForAction(action string, timeout time.Duration) (map[string
 		return nil, fmt.Errorf("failed to send %s request: %w", action, err)
 	}
 	return c.WaitForReq(reqid, action, timeout)
+}
+
+// WaitForServerInfoContext waits for MeshCentral's initial serverinfo frame.
+func (c *Client) WaitForServerInfoContext(ctx context.Context, timeout time.Duration) (map[string]interface{}, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	c.reqsMu.Lock()
+	if c.serverInfo != nil {
+		info := cloneMap(c.serverInfo)
+		c.reqsMu.Unlock()
+		return info, nil
+	}
+	pr := &pendingRequest{
+		action:         "serverinfo",
+		actionFallback: "serverinfo",
+		ch:             make(chan response, 1),
+	}
+	c.pendingActions["serverinfo"] = append(c.pendingActions["serverinfo"], pr)
+	c.reqsMu.Unlock()
+
+	res, err := c.waitForPending(ctx, pr, timeout)
+	if err != nil {
+		return nil, err
+	}
+	info := extractServerInfo(res)
+	if info == nil {
+		return nil, fmt.Errorf("invalid response format for serverinfo")
+	}
+	return info, nil
 }
 
 // pingPump sends periodic ping messages to keep the connection alive.
@@ -645,14 +795,19 @@ func (c *Client) pingPump() {
 
 // --- High Level API Methods --- //
 
+// ServerInfo returns the MeshCentral server information received at connect time.
+func (c *Client) ServerInfo() (map[string]interface{}, error) {
+	return c.WaitForServerInfoContext(context.Background(), 10*time.Second)
+}
+
 // ListDeviceGroups requests the meshes/groups list.
 func (c *Client) ListDeviceGroups() ([]interface{}, error) {
-	reqid, err := c.Send(map[string]interface{}{"action": "meshes"})
+	pr, err := c.sendForResponse(map[string]interface{}{"action": "meshes"}, true)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send meshes request: %w", err)
 	}
 
-	res, err := c.WaitForReq(reqid, "meshes", 10*time.Second)
+	res, err := c.waitForPending(context.Background(), pr, 10*time.Second)
 	if err != nil {
 		return nil, err
 	}
@@ -670,12 +825,12 @@ func (c *Client) ListDevices(meshID string) ([]interface{}, error) {
 		cmd["meshid"] = meshID
 	}
 
-	reqid, err := c.Send(cmd)
+	pr, err := c.sendForResponse(cmd, true)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send nodes request: %w", err)
 	}
 
-	res, err := c.WaitForReq(reqid, "nodes", 10*time.Second)
+	res, err := c.waitForPending(context.Background(), pr, 10*time.Second)
 	if err != nil {
 		return nil, err
 	}
@@ -701,8 +856,8 @@ func (c *Client) ListDevices(meshID string) ([]interface{}, error) {
 // WakeOnLan sends a WOL magic packet to a specific node.
 // Returns success message or error.
 func (c *Client) WakeOnLan(nodeIDs []string) (string, error) {
-	_, err := c.Send(map[string]interface{}{
-		"action":  "wakeonlan",
+	err := c.sendNoResponse(map[string]interface{}{
+		"action":  "wakedevices",
 		"nodeids": nodeIDs,
 	})
 	if err != nil {
@@ -712,11 +867,11 @@ func (c *Client) WakeOnLan(nodeIDs []string) (string, error) {
 	return "Wake-on-LAN packet sent", nil
 }
 
-// PowerAction sends a power action (reset, sleep, poweroff) to a specific node.
-// Power actions: 1=Sleep, 2=Hibernate, 3=PowerOff, 4=Reset
+// PowerAction sends a MeshCentral actiontype to one or more nodes.
+// Common action types: 2=off, 3=reset, 4=sleep, 302=AMT on, 308=AMT off, 310=AMT reset.
 // Returns success message or error.
 func (c *Client) PowerAction(nodeIDs []string, powerAction int) (string, error) {
-	_, err := c.Send(map[string]interface{}{
+	err := c.sendNoResponse(map[string]interface{}{
 		"action":     "poweraction",
 		"nodeids":    nodeIDs,
 		"actiontype": powerAction,
@@ -731,17 +886,19 @@ func (c *Client) PowerAction(nodeIDs []string, powerAction int) (string, error) 
 // RunCommand executes a shell command on the device via the MeshAgent.
 // Waits for command completion and returns the result.
 func (c *Client) RunCommand(nodeID, command string) (map[string]interface{}, error) {
-	reqid, err := c.Send(map[string]interface{}{
-		"action": "runcommand",
-		"nodeid": nodeID,
-		"run":    command,
-	})
+	pr, err := c.sendForResponse(map[string]interface{}{
+		"action":    "runcommands",
+		"nodeids":   []string{nodeID},
+		"type":      0,
+		"cmds":      command,
+		"runAsUser": 0,
+		"reply":     true,
+	}, false)
 	if err != nil {
-		return nil, fmt.Errorf("failed to send runcommand request: %w", err)
+		return nil, fmt.Errorf("failed to send runcommands request: %w", err)
 	}
 
-	// Wait for runcommand response using reqid-based routing
-	res, err := c.WaitForReq(reqid, "runcommand", 30*time.Second)
+	res, err := c.waitForPending(context.Background(), pr, 30*time.Second)
 	if err != nil {
 		return nil, err
 	}
@@ -749,24 +906,100 @@ func (c *Client) RunCommand(nodeID, command string) (map[string]interface{}, err
 	return res, nil
 }
 
-// Shell starts an interactive shell session on the device via the MeshAgent.
-// This uses the WebSocket-based shell protocol which provides bidirectional
-// communication. Returns the output or error.
-func (c *Client) Shell(nodeID, command string) (map[string]interface{}, error) {
-	reqid, err := c.Send(map[string]interface{}{
-		"action": "shell",
-		"nodeid": nodeID,
-		"data":   command + "\n",
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to send shell request: %w", err)
+// ListEvents returns MeshCentral audit events, optionally filtered by node or user.
+func (c *Client) ListEvents(nodeID, userID string, limit int) ([]interface{}, error) {
+	cmd := map[string]interface{}{"action": "events"}
+	if nodeID != "" {
+		cmd["nodeid"] = nodeID
+	}
+	if userID != "" {
+		cmd["user"] = userID
+	}
+	if limit > 0 {
+		cmd["limit"] = limit
 	}
 
-	// Wait for shell response using reqid-based routing
-	res, err := c.WaitForReq(reqid, "shell", 30*time.Second)
+	pr, err := c.sendForResponse(cmd, false)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send events request: %w", err)
+	}
+	res, err := c.waitForPending(context.Background(), pr, 10*time.Second)
 	if err != nil {
 		return nil, err
 	}
+	if events, ok := res["events"].([]interface{}); ok {
+		return events, nil
+	}
+	return nil, fmt.Errorf("invalid response format for events")
+}
 
-	return res, nil
+// DeviceInfo collects device details from the same control actions MeshCtrl uses.
+func (c *Client) DeviceInfo(nodeID string) (map[string]interface{}, error) {
+	requests := []struct {
+		key string
+		cmd map[string]interface{}
+	}{
+		{key: "nodes", cmd: map[string]interface{}{"action": "nodes", "id": nodeID}},
+		{key: "network", cmd: map[string]interface{}{"action": "getnetworkinfo", "nodeid": nodeID}},
+		{key: "lastconnect", cmd: map[string]interface{}{"action": "lastconnect", "nodeid": nodeID}},
+		{key: "sysinfo", cmd: map[string]interface{}{"action": "getsysinfo", "nodeid": nodeID, "nodeinfo": true}},
+	}
+
+	pending := make([]struct {
+		key string
+		pr  *pendingRequest
+	}, 0, len(requests))
+	for _, req := range requests {
+		pr, err := c.sendForResponse(req.cmd, req.key == "nodes")
+		if err != nil {
+			return nil, fmt.Errorf("failed to send %s request: %w", req.cmd["action"], err)
+		}
+		pending = append(pending, struct {
+			key string
+			pr  *pendingRequest
+		}{key: req.key, pr: pr})
+	}
+
+	result := make(map[string]interface{}, len(pending))
+	for _, item := range pending {
+		res, err := c.waitForPending(context.Background(), item.pr, 10*time.Second)
+		if err != nil {
+			return nil, err
+		}
+		result[item.key] = res
+	}
+	return result, nil
+}
+
+// Shell is intentionally unsupported until the MeshRelay tunnel protocol is implemented.
+func (c *Client) Shell(nodeID, command string) (map[string]interface{}, error) {
+	return nil, fmt.Errorf("unsupported: MeshCentral shell requires a meshrelay.ashx tunnel, which is not implemented")
+}
+
+func extractServerInfo(data map[string]interface{}) map[string]interface{} {
+	if data == nil {
+		return nil
+	}
+	if info, ok := data["serverinfo"].(map[string]interface{}); ok {
+		return cloneMap(info)
+	}
+	info := make(map[string]interface{})
+	for k, v := range data {
+		if k == "action" || k == "reqid" || k == "responseid" {
+			continue
+		}
+		info[k] = v
+	}
+	if len(info) == 0 {
+		return nil
+	}
+	return info
+}
+
+func cloneMap(in map[string]interface{}) map[string]interface{} {
+	out := make(map[string]interface{}, len(in))
+	for k, v := range in {
+		out[k] = v
+	}
+	return out
 }

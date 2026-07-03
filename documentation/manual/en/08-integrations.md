@@ -1430,7 +1430,11 @@ webhooks:
 
 ## MeshCentral Integration
 
-Remote device management.
+Remote device management through MeshCentral.
+
+AuraGo supports the core MeshCentral control operations used for homelab automation: server info, device group listing, device listing, device details, event listing, Wake-on-LAN, supported power actions (`off`, `reset`, `sleep`, `amt_on`, `amt_off`, `amt_reset`), and MeshAgent `run_command`.
+
+The integration intentionally does not expose the full MeshCtrl surface yet. User/group administration, file upload/download, interactive shell, desktop relay, WebRelay, invite links, device sharing, reports, and other relay-heavy MeshCentral features require additional command or `meshrelay.ashx` handling.
 
 ### Web UI Setup
 1. Open **Config → Integrations → MeshCentral**.

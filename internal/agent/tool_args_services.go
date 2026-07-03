@@ -21,11 +21,14 @@ type imageAnalysisArgs struct {
 }
 
 type meshCentralArgs struct {
-	Operation   string
-	MeshID      string
-	NodeID      string
-	PowerAction int
-	Command     string
+	Operation       string
+	MeshID          string
+	NodeID          string
+	UserID          string
+	PowerAction     int
+	PowerActionName string
+	Command         string
+	Limit           int
 }
 
 type webDAVArgs struct {
@@ -246,25 +249,44 @@ func decodeImageAnalysisArgs(tc ToolCall) imageAnalysisArgs {
 }
 
 func normalizeMeshCentralOp(op string) string {
-	switch strings.ToLower(strings.TrimSpace(op)) {
-	case "meshes":
+	normalized := strings.ToLower(strings.TrimSpace(op))
+	normalized = strings.ReplaceAll(normalized, "-", "_")
+	switch normalized {
+	case "meshes", "list_device_groups", "listdevicegroups":
 		return "list_groups"
-	case "nodes":
+	case "nodes", "listdevices":
 		return "list_devices"
-	case "wakeonlan":
+	case "wakeonlan", "wake_devices", "wakedevices":
 		return "wake"
+	case "deviceinfo":
+		return "device_info"
+	case "serverinfo":
+		return "server_info"
+	case "events", "listevents":
+		return "list_events"
+	case "runcommands":
+		return "run_command"
+	case "devicepower":
+		return "power_action"
 	default:
-		return strings.ToLower(strings.TrimSpace(op))
+		return normalized
 	}
 }
 
 func decodeMeshCentralArgs(tc ToolCall) meshCentralArgs {
+	powerActionName := strings.ToLower(strings.TrimSpace(toolArgString(tc.Params, "power_action")))
+	if _, err := strconv.Atoi(powerActionName); err == nil {
+		powerActionName = ""
+	}
 	return meshCentralArgs{
-		Operation:   normalizeMeshCentralOp(firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation"))),
-		MeshID:      firstNonEmptyToolString(tc.MeshID, toolArgString(tc.Params, "mesh_id")),
-		NodeID:      firstNonEmptyToolString(tc.NodeID, toolArgString(tc.Params, "node_id")),
-		PowerAction: firstNonEmptyInt(tc.PowerAction, toolArgInt(tc.Params, 0, "power_action")),
-		Command:     firstNonEmptyToolString(tc.Command, toolArgString(tc.Params, "command")),
+		Operation:       normalizeMeshCentralOp(firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation"))),
+		MeshID:          firstNonEmptyToolString(tc.MeshID, toolArgString(tc.Params, "mesh_id")),
+		NodeID:          firstNonEmptyToolString(tc.NodeID, toolArgString(tc.Params, "node_id")),
+		UserID:          toolArgString(tc.Params, "user_id"),
+		PowerAction:     firstNonEmptyInt(tc.PowerAction, toolArgInt(tc.Params, 0, "power_action")),
+		PowerActionName: powerActionName,
+		Command:         firstNonEmptyToolString(tc.Command, toolArgString(tc.Params, "command")),
+		Limit:           toolArgInt(tc.Params, 0, "limit"),
 	}
 }
 

@@ -216,7 +216,7 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"office_document", "Create, read, patch, and export virtual desktop Writer documents"},
 		{"office_workbook", "Create, read, edit, evaluate, and export virtual desktop spreadsheets"},
 		{"openscad_render", "Render OpenSCAD CAD source to preview and export files"},
-		{"meshcentral", "Remote desktop via MeshCentral (screenshot, command, file transfer)"},
+		{"meshcentral", "Manage MeshCentral groups, devices, events, power actions, and commands"},
 		{"remote_control_devices", "List and inspect remote control devices"},
 		{"remote_control_shell", "Run shell commands on remote control devices"},
 		{"remote_control_files", "Read, write, edit, and search remote control device files"},

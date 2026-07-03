@@ -845,7 +845,17 @@ Run Ansible playbooks and ad-hoc commands.
 | `module` | string | Ansible module |
 
 ### `meshcentral`
-Manage MeshCentral devices.
+Manage MeshCentral devices through the core control WebSocket.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `operation` | enum | server_info, list_groups, list_devices, device_info, list_events, wake, power_action, run_command |
+| `mesh_id` | string | Device group filter for list_devices |
+| `node_id` | string | Device ID for device_info, wake, power_action, run_command, or event filtering |
+| `user_id` | string | User filter for list_events |
+| `power_action` | string | off, reset, sleep, amt_on, amt_off, amt_reset |
+| `command` | string | Command for run_command |
+| `limit` | integer | Maximum number of events |
 
 ### `koofr`
 Access Koofr cloud storage: list, read, download, upload, move, and copy files.

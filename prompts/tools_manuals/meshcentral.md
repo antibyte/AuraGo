@@ -3,36 +3,33 @@ conditions: ["meshcentral_enabled"]
 ---
 # MeshCentral
 
-The `meshcentral` tool allows you to interact with devices managed by a MeshCentral server. You can list device groups, list individual devices, send Wake-on-LAN packets, execute power actions (sleep, hibernate, power off, reset), and run arbitrary shell commands on remote devices using the MeshAgent.
+The `meshcentral` tool interacts with devices managed by a MeshCentral server through the MeshCentral control WebSocket. It can inspect server state, list groups and devices, read device details and events, wake devices, run MeshAgent commands, and send supported power actions.
 
-**Warning:** Running commands and executing power actions are highly privileged operations. Always verify the target `node_id` or `mesh_id` before executing commands that modify state.
+**Warning:** `wake`, `power_action`, and `run_command` are privileged operations. Verify the target `node_id` or `mesh_id` before changing remote device state.
 
 ## Parameters
 
-- **`operation`**: (Required) The action to perform. Must be one of:
-  - `"list_groups"`: Lists all device groups (meshes) accessible by the user.
-  - `"list_devices"`: Lists nodes within a specific group or all devices.
-  - `"wake"`: Sends a Wake-on-LAN magic packet to a sleeping device.
-  - `"power_action"`: Executes a power operation on a device.
-  - `"run_command"`: Dispatches a command string to be executed by the remote MeshAgent (fire-and-forget, no output returned).
-  - `"shell"`: Executes a command via interactive WebSocket shell and returns the output.
-- **`mesh_id`**: (Optional for `list_devices`) The identifier for a specific device group. If omitted, **all devices across all groups** are returned. Required when you already know the group and want to narrow the results.
-- **`node_id`**: (Required for `wake`, `power_action`, `run_command`, `shell`) The unique identifier for a specific device endpoint.
-- **`power_action`**: (Required for `power_action` operation) Integer representing the action to perform: `1` (Sleep), `2` (Hibernate), `3` (PowerOff), `4` (Reset/Reboot).
-- **`command`**: (Required for `run_command` and `shell`) The command string to execute on the remote device's shell.
+- **`operation`**: Required. One of:
+  - `"server_info"`: Returns MeshCentral server metadata.
+  - `"list_groups"`: Lists all device groups (meshes) accessible by the configured user.
+  - `"list_devices"`: Lists nodes within a specific group or across all groups.
+  - `"device_info"`: Reads device detail responses for one node.
+  - `"list_events"`: Lists audit events, optionally filtered by `node_id` or `user_id`.
+  - `"wake"`: Sends a Wake-on-LAN request through MeshCentral.
+  - `"power_action"`: Sends a supported power operation to a node.
+  - `"run_command"`: Runs a command through MeshAgent and waits for the MeshCentral response.
+- **`mesh_id`**: Optional for `list_devices`.
+- **`node_id`**: Required for `device_info`, `wake`, `power_action`, and `run_command`. Optional filter for `list_events`.
+- **`user_id`**: Optional user filter for `list_events`.
+- **`limit`**: Optional maximum number of events for `list_events`.
+- **`power_action`**: Required for `power_action`. Use one of `off`, `reset`, `sleep`, `amt_on`, `amt_off`, or `amt_reset`. Legacy numeric values are accepted only for compatibility: `1` maps to `sleep`, `3` maps to `off`, and `4` maps to `reset`; legacy `2` is rejected because current MeshCentral uses action type `2` for power off, not hibernate.
+- **`command`**: Required for `run_command`.
 
-## Operation Details
+## Notes
 
-### `run_command` vs `shell`
-
-Both operations execute commands on remote devices and return the full response from MeshCentral:
-
-- **`run_command`**: Executes a command and waits for the result (up to 30 seconds). Returns stdout, stderr, and exit code if available.
-- **`shell`**: Opens an interactive shell session, executes the command, and returns the output (up to 30 seconds).
-
-Both operations return a JSON response with:
-- `status`: "success" or "error"
-- `data`: The full response from MeshCentral (may include stdout, stderr, result, etc.)
+- Interactive shell, file transfer, desktop relay, WebRelay, invite links, device sharing, reports, and MeshCentral user/group administration are not exposed by this tool yet. Those features require additional MeshCentral relay or admin command handling.
+- `run_command` uses MeshCentral's `runcommands` control action. Returned data depends on the MeshCentral server and agent response.
+- The old `shell` operation is intentionally unsupported until a real `meshrelay.ashx` tunnel is implemented.
 
 ## Examples
 
@@ -41,14 +38,6 @@ Both operations return a JSON response with:
 {
   "action": "meshcentral",
   "operation": "list_groups"
-}
-```
-
-**List all devices (across all groups):**
-```json
-{
-  "action": "meshcentral",
-  "operation": "list_devices"
 }
 ```
 
@@ -61,32 +50,31 @@ Both operations return a JSON response with:
 }
 ```
 
-**Reboot a specific device:**
+**Read device details:**
+```json
+{
+  "action": "meshcentral",
+  "operation": "device_info",
+  "node_id": "node//..."
+}
+```
+
+**Reboot a device:**
 ```json
 {
   "action": "meshcentral",
   "operation": "power_action",
   "node_id": "node//...",
-  "power_action": 4
+  "power_action": "reset"
 }
 ```
 
-**Execute a command on a remote device (fire-and-forget):**
+**Run a command on a remote device:**
 ```json
 {
   "action": "meshcentral",
   "operation": "run_command",
   "node_id": "node//...",
-  "command": "systemctl restart nginx"
-}
-```
-
-**Execute a shell command and get the output:**
-```json
-{
-  "action": "meshcentral",
-  "operation": "shell",
-  "node_id": "node//...",
-  "command": "ls -la /etc"
+  "command": "systemctl status nginx"
 }
 ```

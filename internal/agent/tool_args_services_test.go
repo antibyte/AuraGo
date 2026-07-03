@@ -45,8 +45,41 @@ func TestDecodeMeshCentralArgsNormalizesOperationAndUsesParamsFallback(t *testin
 	if req.PowerAction != 4 {
 		t.Fatalf("PowerAction = %d, want 4", req.PowerAction)
 	}
+	if req.PowerActionName != "" {
+		t.Fatalf("PowerActionName = %q, want empty for numeric action", req.PowerActionName)
+	}
 	if req.Command != "hostname" {
 		t.Fatalf("Command = %q, want hostname", req.Command)
+	}
+}
+
+func TestDecodeMeshCentralArgsSupportsCoreCoverageFields(t *testing.T) {
+	tc := ToolCall{
+		Action: "meshcentral",
+		Params: map[string]interface{}{
+			"operation":    "DeviceInfo",
+			"node_id":      "node//abc",
+			"power_action": "reset",
+			"limit":        float64(25),
+			"user_id":      "user//admin",
+		},
+	}
+
+	req := decodeMeshCentralArgs(tc)
+	if req.Operation != "device_info" {
+		t.Fatalf("Operation = %q, want device_info", req.Operation)
+	}
+	if req.PowerActionName != "reset" {
+		t.Fatalf("PowerActionName = %q, want reset", req.PowerActionName)
+	}
+	if req.PowerAction != 0 {
+		t.Fatalf("PowerAction = %d, want 0 for string action", req.PowerAction)
+	}
+	if req.Limit != 25 {
+		t.Fatalf("Limit = %d, want 25", req.Limit)
+	}
+	if req.UserID != "user//admin" {
+		t.Fatalf("UserID = %q, want user//admin", req.UserID)
 	}
 }
 

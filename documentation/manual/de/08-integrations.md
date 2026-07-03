@@ -468,7 +468,11 @@ ollama:
 
 ## MeshCentral
 
-Remote-Desktop und -Verwaltung.
+Remote-Desktop und Geräteverwaltung über MeshCentral.
+
+AuraGo unterstützt die Kernfunktionen für Homelab-Automation: Serverinfos, Gerätegruppen, Gerätelisten, Gerätedetails, Ereignisse, Wake-on-LAN, unterstützte Power-Aktionen (`off`, `reset`, `sleep`, `amt_on`, `amt_off`, `amt_reset`) und MeshAgent-`run_command`.
+
+Die Integration bildet bewusst noch nicht die gesamte MeshCtrl-Oberfläche ab. Benutzer-/Gruppenverwaltung, Datei-Upload/-Download, interaktive Shell, Desktop-Relay, WebRelay, Invite-Links, Device Sharing, Reports und weitere Relay-lastige MeshCentral-Funktionen benötigen zusätzliche Command- oder `meshrelay.ashx`-Unterstützung.
 
 **Web-UI:** Config → Integrationen → MeshCentral → URL und Username eingeben. Passwort im Vault speichern.
 

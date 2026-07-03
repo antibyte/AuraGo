@@ -610,25 +610,17 @@ func mockMeshServer(t *testing.T, wsHandler func(*websocket.Conn)) *httptest.Ser
 }
 
 func TestConnect_Success(t *testing.T) {
-	// Server that responds to serverinfo
 	srv := mockMeshServer(t, func(ws *websocket.Conn) {
+		_ = ws.WriteJSON(map[string]interface{}{
+			"action": "serverinfo",
+			"serverinfo": map[string]interface{}{
+				"serverVersion": "1.2.3",
+				"domain":        "",
+			},
+		})
 		for {
-			_, msg, err := ws.ReadMessage()
-			if err != nil {
+			if _, _, err := ws.ReadMessage(); err != nil {
 				return
-			}
-			var data map[string]interface{}
-			if err := json.Unmarshal(msg, &data); err != nil {
-				continue
-			}
-			action, _ := data["action"].(string)
-			if action == "serverinfo" {
-				rid, _ := data["reqid"].(float64)
-				ws.WriteJSON(map[string]interface{}{
-					"reqid":         int(rid),
-					"action":        "serverinfo",
-					"serverVersion": "1.2.3",
-				})
 			}
 		}
 	})
@@ -640,7 +632,10 @@ func TestConnect_Success(t *testing.T) {
 	}
 	c.SetLogger(testLogger())
 
-	if err := c.Connect(); err != nil {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	if err := c.ConnectContext(ctx); err != nil {
 		t.Fatalf("Connect: %v", err)
 	}
 	if !c.IsConnected() {
@@ -744,6 +739,13 @@ func TestConnect_TokenAuth(t *testing.T) {
 			return
 		}
 		defer ws.Close()
+		_ = ws.WriteJSON(map[string]interface{}{
+			"action": "serverinfo",
+			"serverinfo": map[string]interface{}{
+				"serverVersion": "1.0.0",
+				"domain":        "",
+			},
+		})
 		for {
 			_, msg, err := ws.ReadMessage()
 			if err != nil {
@@ -815,6 +817,56 @@ func TestListDeviceGroups(t *testing.T) {
 	}
 	if len(groups) != 1 {
 		t.Fatalf("len(groups) = %d, want 1", len(groups))
+	}
+}
+
+func TestListDeviceGroupsHandlesActionOnlyResponse(t *testing.T) {
+	c, sConn, cleanup := clientWithWS(t)
+	defer cleanup()
+
+	resultCh := make(chan error, 1)
+	go func() {
+		groups, err := c.ListDeviceGroups()
+		if err != nil {
+			resultCh <- err
+			return
+		}
+		if len(groups) != 1 {
+			resultCh <- errors.New("expected one group")
+			return
+		}
+		resultCh <- nil
+	}()
+
+	_, msg, err := sConn.ReadMessage()
+	if err != nil {
+		t.Fatalf("ReadMessage: %v", err)
+	}
+	var data map[string]interface{}
+	if err := json.Unmarshal(msg, &data); err != nil {
+		t.Fatalf("Unmarshal: %v", err)
+	}
+	if data["action"] != "meshes" {
+		t.Fatalf("action = %v, want meshes", data["action"])
+	}
+	if data["responseid"] == "" {
+		t.Fatalf("responseid missing from meshes request: %v", data)
+	}
+
+	_ = sConn.WriteJSON(map[string]interface{}{
+		"action": "meshes",
+		"meshes": []interface{}{
+			map[string]interface{}{"name": "group1"},
+		},
+	})
+
+	select {
+	case err := <-resultCh:
+		if err != nil {
+			t.Fatalf("ListDeviceGroups: %v", err)
+		}
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("timed out waiting for action-only meshes response")
 	}
 }
 
@@ -969,6 +1021,223 @@ func TestListDevices_NodesMap(t *testing.T) {
 	}
 }
 
+func TestListDevicesHandlesResponseIDResponse(t *testing.T) {
+	c, sConn, cleanup := clientWithWS(t)
+	defer cleanup()
+
+	resultCh := make(chan error, 1)
+	go func() {
+		devices, err := c.ListDevices("mesh//group1")
+		if err != nil {
+			resultCh <- err
+			return
+		}
+		if len(devices) != 1 {
+			resultCh <- errors.New("expected one device")
+			return
+		}
+		resultCh <- nil
+	}()
+
+	_, msg, err := sConn.ReadMessage()
+	if err != nil {
+		t.Fatalf("ReadMessage: %v", err)
+	}
+	var data map[string]interface{}
+	if err := json.Unmarshal(msg, &data); err != nil {
+		t.Fatalf("Unmarshal: %v", err)
+	}
+	responseID, _ := data["responseid"].(string)
+	if data["action"] != "nodes" || responseID == "" {
+		t.Fatalf("nodes request missing action/responseid: %v", data)
+	}
+	if data["meshid"] != "mesh//group1" {
+		t.Fatalf("meshid = %v, want mesh//group1", data["meshid"])
+	}
+
+	_ = sConn.WriteJSON(map[string]interface{}{
+		"action":     "nodes",
+		"responseid": responseID,
+		"nodes": map[string]interface{}{
+			"mesh//group1": []interface{}{
+				map[string]interface{}{"_id": "node//dev1", "name": "dev1"},
+			},
+		},
+	})
+
+	select {
+	case err := <-resultCh:
+		if err != nil {
+			t.Fatalf("ListDevices: %v", err)
+		}
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("timed out waiting for responseid nodes response")
+	}
+}
+
+func TestServerInfoReceivesUnsolicitedServerInfo(t *testing.T) {
+	c, sConn, cleanup := clientWithWS(t)
+	defer cleanup()
+
+	resultCh := make(chan struct {
+		info map[string]interface{}
+		err  error
+	}, 1)
+	go func() {
+		info, err := c.ServerInfo()
+		resultCh <- struct {
+			info map[string]interface{}
+			err  error
+		}{info: info, err: err}
+	}()
+
+	_ = sConn.WriteJSON(map[string]interface{}{
+		"action": "serverinfo",
+		"serverinfo": map[string]interface{}{
+			"serverVersion": "2.0.0",
+			"domain":        "",
+		},
+	})
+
+	select {
+	case res := <-resultCh:
+		if res.err != nil {
+			t.Fatalf("ServerInfo: %v", res.err)
+		}
+		if res.info["serverVersion"] != "2.0.0" {
+			t.Fatalf("serverVersion = %v, want 2.0.0", res.info["serverVersion"])
+		}
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("timed out waiting for unsolicited serverinfo")
+	}
+}
+
+func TestListEventsSendsEventsRequest(t *testing.T) {
+	c, sConn, cleanup := clientWithWS(t)
+	defer cleanup()
+
+	resultCh := make(chan error, 1)
+	go func() {
+		events, err := c.ListEvents("", "user//admin", 5)
+		if err != nil {
+			resultCh <- err
+			return
+		}
+		if len(events) != 1 {
+			resultCh <- errors.New("expected one event")
+			return
+		}
+		resultCh <- nil
+	}()
+
+	_, msg, err := sConn.ReadMessage()
+	if err != nil {
+		t.Fatalf("ReadMessage: %v", err)
+	}
+	var data map[string]interface{}
+	if err := json.Unmarshal(msg, &data); err != nil {
+		t.Fatalf("Unmarshal: %v", err)
+	}
+	responseID, _ := data["responseid"].(string)
+	if data["action"] != "events" || responseID == "" {
+		t.Fatalf("events request missing action/responseid: %v", data)
+	}
+	if data["user"] != "user//admin" {
+		t.Fatalf("user = %v, want user//admin", data["user"])
+	}
+	if data["limit"] != float64(5) && data["limit"] != 5 {
+		t.Fatalf("limit = %v, want 5", data["limit"])
+	}
+
+	_ = sConn.WriteJSON(map[string]interface{}{
+		"action":     "events",
+		"responseid": responseID,
+		"events": []interface{}{
+			map[string]interface{}{"action": "nodeconnect"},
+		},
+	})
+
+	select {
+	case err := <-resultCh:
+		if err != nil {
+			t.Fatalf("ListEvents: %v", err)
+		}
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("timed out waiting for events response")
+	}
+}
+
+func TestDeviceInfoCollectsMeshCentralDetailResponses(t *testing.T) {
+	c, sConn, cleanup := clientWithWS(t)
+	defer cleanup()
+
+	resultCh := make(chan error, 1)
+	go func() {
+		info, err := c.DeviceInfo("node//dev1")
+		if err != nil {
+			resultCh <- err
+			return
+		}
+		for _, key := range []string{"nodes", "network", "lastconnect", "sysinfo"} {
+			if info[key] == nil {
+				resultCh <- errors.New("missing " + key)
+				return
+			}
+		}
+		resultCh <- nil
+	}()
+
+	seen := map[string]bool{}
+	for len(seen) < 4 {
+		_, msg, err := sConn.ReadMessage()
+		if err != nil {
+			t.Fatalf("ReadMessage: %v", err)
+		}
+		var data map[string]interface{}
+		if err := json.Unmarshal(msg, &data); err != nil {
+			t.Fatalf("Unmarshal: %v", err)
+		}
+		action, _ := data["action"].(string)
+		responseID, _ := data["responseid"].(string)
+		seen[action] = true
+		switch action {
+		case "nodes":
+			if data["id"] != "node//dev1" {
+				t.Fatalf("nodes id = %v, want node//dev1", data["id"])
+			}
+			_ = sConn.WriteJSON(map[string]interface{}{
+				"action":     "nodes",
+				"responseid": responseID,
+				"nodes": map[string]interface{}{
+					"mesh//group1": []interface{}{
+						map[string]interface{}{"_id": "node//dev1", "name": "dev1"},
+					},
+				},
+			})
+		case "getnetworkinfo":
+			_ = sConn.WriteJSON(map[string]interface{}{"action": "getnetworkinfo", "responseid": responseID, "net": []interface{}{}})
+		case "lastconnect":
+			_ = sConn.WriteJSON(map[string]interface{}{"action": "lastconnect", "responseid": responseID, "time": float64(123)})
+		case "getsysinfo":
+			if data["nodeinfo"] != true {
+				t.Fatalf("getsysinfo nodeinfo = %v, want true", data["nodeinfo"])
+			}
+			_ = sConn.WriteJSON(map[string]interface{}{"action": "getsysinfo", "responseid": responseID, "hardware": map[string]interface{}{"cpu": "x"}})
+		default:
+			t.Fatalf("unexpected device info action %q", action)
+		}
+	}
+
+	select {
+	case err := <-resultCh:
+		if err != nil {
+			t.Fatalf("DeviceInfo: %v", err)
+		}
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("timed out waiting for device info responses")
+	}
+}
+
 func TestListDevices_InvalidResponse(t *testing.T) {
 	c, sConn, cleanup := clientWithWS(t)
 	defer cleanup()
@@ -1005,25 +1274,6 @@ func TestWakeOnLan(t *testing.T) {
 	c, sConn, cleanup := clientWithWS(t)
 	defer cleanup()
 
-	gotNodeIDsCh := make(chan []interface{}, 1)
-	go func() {
-		for {
-			_, msg, err := sConn.ReadMessage()
-			if err != nil {
-				return
-			}
-			var data map[string]interface{}
-			if err := json.Unmarshal(msg, &data); err != nil {
-				continue
-			}
-			action, _ := data["action"].(string)
-			if action == "wakeonlan" {
-				gotNodeIDs, _ := data["nodeids"].([]interface{})
-				gotNodeIDsCh <- gotNodeIDs
-			}
-		}
-	}()
-
 	msg, err := c.WakeOnLan([]string{"node1", "node2"})
 	if err != nil {
 		t.Fatalf("WakeOnLan: %v", err)
@@ -1031,13 +1281,21 @@ func TestWakeOnLan(t *testing.T) {
 	if msg != "Wake-on-LAN packet sent" {
 		t.Errorf("msg = %q, want 'Wake-on-LAN packet sent'", msg)
 	}
-	select {
-	case gotNodeIDs := <-gotNodeIDsCh:
-		if len(gotNodeIDs) != 2 {
-			t.Errorf("nodeids = %v, want 2 items", gotNodeIDs)
-		}
-	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for wakeonlan request")
+
+	_, raw, err := sConn.ReadMessage()
+	if err != nil {
+		t.Fatalf("ReadMessage: %v", err)
+	}
+	var data map[string]interface{}
+	if err := json.Unmarshal(raw, &data); err != nil {
+		t.Fatalf("Unmarshal: %v", err)
+	}
+	if data["action"] != "wakedevices" {
+		t.Fatalf("action = %v, want wakedevices", data["action"])
+	}
+	gotNodeIDs, _ := data["nodeids"].([]interface{})
+	if len(gotNodeIDs) != 2 {
+		t.Errorf("nodeids = %v, want 2 items", gotNodeIDs)
 	}
 }
 
@@ -1114,12 +1372,14 @@ func TestRunCommand(t *testing.T) {
 				continue
 			}
 			action, _ := data["action"].(string)
-			if action == "runcommand" {
-				rid, _ := data["reqid"].(float64)
+			if action == "runcommands" {
+				responseID, _ := data["responseid"].(string)
 				sConn.WriteJSON(map[string]interface{}{
-					"reqid":  int(rid),
-					"action": "runcommand",
-					"output": "hello",
+					"action":     "runcommands",
+					"type":       "runcommands",
+					"responseid": responseID,
+					"result":     "OK",
+					"output":     "hello",
 				})
 			}
 		}
@@ -1131,6 +1391,56 @@ func TestRunCommand(t *testing.T) {
 	}
 	if res["output"] != "hello" {
 		t.Errorf("output = %v, want hello", res["output"])
+	}
+}
+
+func TestRunCommandSendsMeshCentralRuncommandsPayload(t *testing.T) {
+	c, sConn, cleanup := clientWithWS(t)
+	defer cleanup()
+
+	resultCh := make(chan error, 1)
+	go func() {
+		_, err := c.RunCommand("node//dev1", "echo hello")
+		resultCh <- err
+	}()
+
+	_, msg, err := sConn.ReadMessage()
+	if err != nil {
+		t.Fatalf("ReadMessage: %v", err)
+	}
+	var data map[string]interface{}
+	if err := json.Unmarshal(msg, &data); err != nil {
+		t.Fatalf("Unmarshal: %v", err)
+	}
+	responseID, _ := data["responseid"].(string)
+	if data["action"] != "runcommands" {
+		t.Fatalf("action = %v, want runcommands", data["action"])
+	}
+	if responseID == "" {
+		t.Fatalf("responseid missing from runcommands request: %v", data)
+	}
+	nodeIDs, _ := data["nodeids"].([]interface{})
+	if len(nodeIDs) != 1 || nodeIDs[0] != "node//dev1" {
+		t.Fatalf("nodeids = %v, want [node//dev1]", data["nodeids"])
+	}
+	if data["cmds"] != "echo hello" {
+		t.Fatalf("cmds = %v, want echo hello", data["cmds"])
+	}
+
+	_ = sConn.WriteJSON(map[string]interface{}{
+		"action":     "runcommands",
+		"type":       "runcommands",
+		"responseid": responseID,
+		"result":     "OK",
+	})
+
+	select {
+	case err := <-resultCh:
+		if err != nil {
+			t.Fatalf("RunCommand: %v", err)
+		}
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("timed out waiting for runcommands response")
 	}
 }
 
@@ -1147,39 +1457,29 @@ func TestShell(t *testing.T) {
 	c, sConn, cleanup := clientWithWS(t)
 	defer cleanup()
 
-	var gotData string
+	errCh := make(chan error, 1)
 	go func() {
-		for {
-			_, msg, err := sConn.ReadMessage()
-			if err != nil {
-				return
-			}
-			var data map[string]interface{}
-			if err := json.Unmarshal(msg, &data); err != nil {
-				continue
-			}
-			action, _ := data["action"].(string)
-			if action == "shell" {
-				gotData, _ = data["data"].(string)
-				rid, _ := data["reqid"].(float64)
-				sConn.WriteJSON(map[string]interface{}{
-					"reqid":  int(rid),
-					"action": "shell",
-					"result": "done",
-				})
-			}
+		_, err := c.Shell("node1", "ls")
+		errCh <- err
+	}()
+
+	msgCh := make(chan []byte, 1)
+	go func() {
+		_, msg, err := sConn.ReadMessage()
+		if err == nil {
+			msgCh <- msg
 		}
 	}()
 
-	res, err := c.Shell("node1", "ls")
-	if err != nil {
-		t.Fatalf("Shell: %v", err)
-	}
-	if res["result"] != "done" {
-		t.Errorf("result = %v, want done", res["result"])
-	}
-	if gotData != "ls\n" {
-		t.Errorf("data = %q, want 'ls\\n'", gotData)
+	select {
+	case err := <-errCh:
+		if err == nil || !strings.Contains(strings.ToLower(err.Error()), "unsupported") {
+			t.Fatalf("Shell error = %v, want unsupported", err)
+		}
+	case msg := <-msgCh:
+		t.Fatalf("Shell should be disabled, but sent WebSocket message: %s", string(msg))
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("timed out waiting for Shell unsupported error")
 	}
 }
 

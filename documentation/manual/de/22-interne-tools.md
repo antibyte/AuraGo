@@ -804,7 +804,17 @@ Ansible Playbooks und Ad-hoc-Befehle ausführen.
 | `module` | string | Ansible-Modul |
 
 ### `meshcentral`
-MeshCentral Geräte verwalten.
+MeshCentral Geräte über den Control-WebSocket verwalten.
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `operation` | enum | server_info, list_groups, list_devices, device_info, list_events, wake, power_action, run_command |
+| `mesh_id` | string | Gerätegruppenfilter für list_devices |
+| `node_id` | string | Geräte-ID für device_info, wake, power_action, run_command oder Ereignisfilter |
+| `user_id` | string | Benutzerfilter für list_events |
+| `power_action` | string | off, reset, sleep, amt_on, amt_off, amt_reset |
+| `command` | string | Befehl für run_command |
+| `limit` | integer | Maximale Anzahl von Ereignissen |
 
 ### `vercel`
 Vercel-Projekte, Deployments, Umgebungsvariablen und Domains verwalten.

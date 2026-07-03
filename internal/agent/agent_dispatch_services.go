@@ -265,6 +265,77 @@ func getMeshCentralClient(url, username, password, loginToken string, insecure b
 	return meshCentralCachedClient
 }
 
+func meshCentralOutput(fields map[string]interface{}) string {
+	b, err := json.Marshal(fields)
+	if err != nil {
+		return `Tool Output: {"status":"error","message":"failed to encode MeshCentral tool output"}`
+	}
+	return "Tool Output: " + string(b)
+}
+
+func meshCentralError(message string) string {
+	return meshCentralOutput(map[string]interface{}{"status": "error", "message": message})
+}
+
+func meshCentralSuccess(fields map[string]interface{}) string {
+	fields["status"] = "success"
+	return meshCentralOutput(fields)
+}
+
+func meshCentralReadOnlyAllowed(op string) bool {
+	switch op {
+	case "server_info", "list_groups", "list_devices", "device_info", "list_events":
+		return true
+	default:
+		return false
+	}
+}
+
+func meshCentralValidateNodeID(nodeID, op string) string {
+	if nodeID == "" {
+		return fmt.Sprintf("'node_id' is required for %s", op)
+	}
+	if !strings.HasPrefix(nodeID, "node//") {
+		return "invalid node_id: must start with 'node//'"
+	}
+	return ""
+}
+
+func meshCentralPowerActionType(req meshCentralArgs) (int, string, error) {
+	switch req.PowerActionName {
+	case "off", "power_off", "poweroff", "shutdown":
+		return 2, "off", nil
+	case "reset", "reboot", "restart":
+		return 3, "reset", nil
+	case "sleep":
+		return 4, "sleep", nil
+	case "amt_on", "amton":
+		return 302, "amt_on", nil
+	case "amt_off", "amtoff":
+		return 308, "amt_off", nil
+	case "amt_reset", "amtreset":
+		return 310, "amt_reset", nil
+	case "hibernate":
+		return 0, "hibernate", fmt.Errorf("unsupported hibernate power action: MeshCentral does not expose a safe hibernate action code")
+	case "":
+	default:
+		return 0, req.PowerActionName, fmt.Errorf("invalid power_action %q. Use one of: off, reset, sleep, amt_on, amt_off, amt_reset", req.PowerActionName)
+	}
+
+	switch req.PowerAction {
+	case 1:
+		return 4, "sleep", nil
+	case 2:
+		return 0, "hibernate", fmt.Errorf("unsupported hibernate power action: legacy value 2 is not sent because MeshCentral actiontype 2 means power off")
+	case 3:
+		return 2, "off", nil
+	case 4:
+		return 3, "reset", nil
+	default:
+		return 0, "", fmt.Errorf("invalid power_action. Use a string value: off, reset, sleep, amt_on, amt_off, amt_reset")
+	}
+}
+
 // dispatchServices handles media, infrastructure management, and platform tool calls
 // (vision, transcribe, meshcentral, docker, homepage, webdav, home_assistant).
 func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (string, bool) {
@@ -341,27 +412,33 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 
 		case "meshcentral":
 			if !cfg.MeshCentral.Enabled {
-				return `Tool Output: {"status": "error", "message": "MeshCentral integration is not enabled in config.yaml."}`
+				return meshCentralError("MeshCentral integration is not enabled in config.yaml.")
 			}
 
 			req := decodeMeshCentralArgs(tc)
 			logger.Info("LLM requested MeshCentral operation", "op", req.Operation)
 
 			op := req.Operation
+			switch op {
+			case "server_info", "list_groups", "list_devices", "device_info", "list_events", "wake", "power_action", "run_command":
+			case "shell":
+				return meshCentralError("unsupported: MeshCentral shell requires a meshrelay.ashx tunnel, which is not implemented")
+			default:
+				return meshCentralError(fmt.Sprintf("Unknown operation: %s", req.Operation))
+			}
 
-			if cfg.MeshCentral.ReadOnly {
-				switch op {
-				case "list_groups", "list_devices":
-					// allowed in read-only mode
-				default:
-					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "MeshCentral operation '%s' blocked: meshcentral.readonly is enabled."}`, req.Operation)
-				}
+			if cfg.MeshCentral.ReadOnly && !meshCentralReadOnlyAllowed(op) {
+				return meshCentralError(fmt.Sprintf("MeshCentral operation '%s' blocked: meshcentral.readonly is enabled.", req.Operation))
 			}
 
 			for _, blocked := range cfg.MeshCentral.BlockedOperations {
 				if normalizeMeshCentralOp(blocked) == op && op != "" {
-					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "MeshCentral operation '%s' blocked by policy (meshcentral.blocked_operations)."}`, req.Operation)
+					return meshCentralError(fmt.Sprintf("MeshCentral operation '%s' blocked by policy (meshcentral.blocked_operations).", req.Operation))
 				}
+			}
+
+			if op == "power_action" && req.PowerAction == 2 && req.PowerActionName == "" {
+				return meshCentralError("unsupported hibernate power action: legacy value 2 is not sent because MeshCentral actiontype 2 means power off")
 			}
 
 			// Attempt to resolve password/token from vault if missing
@@ -380,93 +457,95 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				}
 			}
 			if pass == "" && token == "" && cfg.MeshCentral.Username != "" {
-				return `Tool Output: {"status": "error", "message": "No password or token found. Please set 'meshcentral_password' or 'meshcentral_token' in the vault."}`
+				return meshCentralError("No password or token found. Please set 'meshcentral_password' or 'meshcentral_token' in the vault.")
 			}
 
 			mcClient := getMeshCentralClient(cfg.MeshCentral.URL, cfg.MeshCentral.Username, pass, token, cfg.MeshCentral.Insecure, logger)
 
 			switch op {
+			case "server_info":
+				info, err := mcClient.ServerInfo()
+				if err != nil {
+					return meshCentralError(fmt.Sprintf("Failed to read server info: %v", err))
+				}
+				return meshCentralSuccess(map[string]interface{}{"server_info": info})
+
 			case "list_groups":
 				meshes, err := mcClient.ListDeviceGroups()
 				if err != nil {
-					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Failed to list device groups: %v"}`, err)
+					return meshCentralError(fmt.Sprintf("Failed to list device groups: %v", err))
 				}
-				b, _ := json.Marshal(meshes)
-				return fmt.Sprintf(`Tool Output: {"status": "success", "groups": %s}`, string(b))
+				return meshCentralSuccess(map[string]interface{}{"groups": meshes})
 
 			case "list_devices":
 				nodes, err := mcClient.ListDevices(req.MeshID)
 				if err != nil {
-					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Failed to list devices: %v"}`, err)
+					return meshCentralError(fmt.Sprintf("Failed to list devices: %v", err))
 				}
-				b, _ := json.Marshal(nodes)
-				return fmt.Sprintf(`Tool Output: {"status": "success", "devices": %s}`, string(b))
+				return meshCentralSuccess(map[string]interface{}{"devices": nodes})
+
+			case "device_info":
+				if msg := meshCentralValidateNodeID(req.NodeID, "device_info"); msg != "" {
+					return meshCentralError(msg)
+				}
+				info, err := mcClient.DeviceInfo(req.NodeID)
+				if err != nil {
+					return meshCentralError(fmt.Sprintf("Failed to read device info: %v", err))
+				}
+				return meshCentralSuccess(map[string]interface{}{"device_info": info})
+
+			case "list_events":
+				if req.NodeID != "" && !strings.HasPrefix(req.NodeID, "node//") {
+					return meshCentralError("invalid node_id: must start with 'node//'")
+				}
+				events, err := mcClient.ListEvents(req.NodeID, req.UserID, req.Limit)
+				if err != nil {
+					return meshCentralError(fmt.Sprintf("Failed to list events: %v", err))
+				}
+				return meshCentralSuccess(map[string]interface{}{"events": events})
 
 			case "wake":
-				if req.NodeID == "" {
-					return `Tool Output: {"status": "error", "message": "'node_id' is required for wake"}`
-				}
-				if !strings.HasPrefix(req.NodeID, "node//") {
-					return `Tool Output: {"status": "error", "message": "invalid node_id: must start with 'node//'"}`
+				if msg := meshCentralValidateNodeID(req.NodeID, "wake"); msg != "" {
+					return meshCentralError(msg)
 				}
 				logger.Info("MeshCentral wake_on_lan", "node_id", req.NodeID, "session_id", sessionID)
 				result, err := mcClient.WakeOnLan([]string{req.NodeID})
 				if err != nil {
-					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Failed to send wake magic packet: %v"}`, err)
+					return meshCentralError(fmt.Sprintf("Failed to send wake magic packet: %v", err))
 				}
-				return fmt.Sprintf(`Tool Output: {"status": "success", "message": "%s"}`, result)
+				return meshCentralSuccess(map[string]interface{}{"message": result})
 
 			case "power_action":
-				if req.NodeID == "" {
-					return `Tool Output: {"status": "error", "message": "'node_id' is required for power_action"}`
+				if msg := meshCentralValidateNodeID(req.NodeID, "power_action"); msg != "" {
+					return meshCentralError(msg)
 				}
-				if !strings.HasPrefix(req.NodeID, "node//") {
-					return `Tool Output: {"status": "error", "message": "invalid node_id: must start with 'node//'"}`
-				}
-				if req.PowerAction < 1 || req.PowerAction > 4 {
-					return `Tool Output: {"status": "error", "message": "Invalid power action. 1=Sleep, 2=Hibernate, 3=PowerOff, 4=Reset"}`
-				}
-				logger.Info("MeshCentral power_action", "node_id", req.NodeID, "power_action", req.PowerAction, "session_id", sessionID)
-				result, err := mcClient.PowerAction([]string{req.NodeID}, req.PowerAction)
+				actionType, actionName, err := meshCentralPowerActionType(req)
 				if err != nil {
-					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Failed to send power action: %v"}`, err)
+					return meshCentralError(err.Error())
 				}
-				return fmt.Sprintf(`Tool Output: {"status": "success", "message": "%s"}`, result)
+				logger.Info("MeshCentral power_action", "node_id", req.NodeID, "power_action", actionName, "actiontype", actionType, "session_id", sessionID)
+				result, err := mcClient.PowerAction([]string{req.NodeID}, actionType)
+				if err != nil {
+					return meshCentralError(fmt.Sprintf("Failed to send power action: %v", err))
+				}
+				return meshCentralSuccess(map[string]interface{}{"message": result, "power_action": actionName, "actiontype": actionType})
 
 			case "run_command":
 				if req.NodeID == "" || req.Command == "" {
-					return `Tool Output: {"status": "error", "message": "'node_id' and 'command' are required for run_command"}`
+					return meshCentralError("'node_id' and 'command' are required for run_command")
 				}
 				if !strings.HasPrefix(req.NodeID, "node//") {
-					return `Tool Output: {"status": "error", "message": "invalid node_id: must start with 'node//'"}`
+					return meshCentralError("invalid node_id: must start with 'node//'")
 				}
 				logger.Info("MeshCentral run_command", "node_id", req.NodeID, "command_length", len(req.Command), "session_id", sessionID)
 				result, err := mcClient.RunCommand(req.NodeID, req.Command)
 				if err != nil {
-					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Failed to run command: %v"}`, err)
+					return meshCentralError(fmt.Sprintf("Failed to run command: %v", err))
 				}
-				// Format result for display
-				resultJSON, _ := json.Marshal(result)
-				return fmt.Sprintf(`Tool Output: {"status": "success", "data": %s}`, string(resultJSON))
-
-			case "shell":
-				if req.NodeID == "" || req.Command == "" {
-					return `Tool Output: {"status": "error", "message": "'node_id' and 'command' are required for shell"}`
-				}
-				if !strings.HasPrefix(req.NodeID, "node//") {
-					return `Tool Output: {"status": "error", "message": "invalid node_id: must start with 'node//'"}`
-				}
-				logger.Info("MeshCentral shell", "node_id", req.NodeID, "command_length", len(req.Command), "session_id", sessionID)
-				result, err := mcClient.Shell(req.NodeID, req.Command)
-				if err != nil {
-					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Failed to execute shell command: %v"}`, err)
-				}
-				// Format result for display
-				resultJSON, _ := json.Marshal(result)
-				return fmt.Sprintf(`Tool Output: {"status": "success", "data": %s}`, string(resultJSON))
+				return meshCentralSuccess(map[string]interface{}{"data": result})
 
 			default:
-				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Unknown operation: %s"}`, req.Operation)
+				return meshCentralError(fmt.Sprintf("Unknown operation: %s", req.Operation))
 			}
 
 		case "docker", "docker_management":

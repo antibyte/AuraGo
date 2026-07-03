@@ -422,6 +422,34 @@ func TestBuiltinToolSchemasRegistersMeshCentralOnlyOnce(t *testing.T) {
 	}
 }
 
+func TestBuiltinToolSchemasExposeMeshCentralCoreOperations(t *testing.T) {
+	schemas := builtinToolSchemas(ToolFeatureFlags{MeshCentralEnabled: true})
+	props := nativeToolProperties(t, schemas, "meshcentral")
+	operation, ok := props["operation"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("operation schema = %T, want map[string]interface{}", props["operation"])
+	}
+	enum, ok := operation["enum"].([]string)
+	if !ok {
+		t.Fatalf("operation enum = %T, want []string", operation["enum"])
+	}
+	for _, want := range []string{"server_info", "list_groups", "list_devices", "device_info", "list_events", "wake", "power_action", "run_command"} {
+		if !containsName(enum, want) {
+			t.Fatalf("meshcentral operation enum missing %q: %v", want, enum)
+		}
+	}
+	if containsName(enum, "shell") {
+		t.Fatalf("meshcentral operation enum should not expose shell: %v", enum)
+	}
+	powerAction, ok := props["power_action"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("power_action schema = %T, want map[string]interface{}", props["power_action"])
+	}
+	if powerAction["type"] != "string" {
+		t.Fatalf("power_action type = %v, want string", powerAction["type"])
+	}
+}
+
 func TestBuiltinToolSchemasIncludeVercelWhenEnabled(t *testing.T) {
 	schemas := builtinToolSchemas(ToolFeatureFlags{VercelEnabled: true})
 	for _, schema := range schemas {

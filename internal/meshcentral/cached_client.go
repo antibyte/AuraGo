@@ -142,12 +142,45 @@ func (cc *CachedClient) ListDeviceGroups() ([]interface{}, error) {
 	return result, err
 }
 
+// ServerInfo returns server metadata with auto-reconnect.
+func (cc *CachedClient) ServerInfo() (map[string]interface{}, error) {
+	var result map[string]interface{}
+	err := cc.executeWithRetry(func(c *Client) error {
+		var err error
+		result, err = c.ServerInfo()
+		return err
+	})
+	return result, err
+}
+
 // ListDevices requests the nodes/devices list with auto-reconnect.
 func (cc *CachedClient) ListDevices(meshID string) ([]interface{}, error) {
 	var result []interface{}
 	err := cc.executeWithRetry(func(c *Client) error {
 		var err error
 		result, err = c.ListDevices(meshID)
+		return err
+	})
+	return result, err
+}
+
+// ListEvents returns audit events with auto-reconnect.
+func (cc *CachedClient) ListEvents(nodeID, userID string, limit int) ([]interface{}, error) {
+	var result []interface{}
+	err := cc.executeWithRetry(func(c *Client) error {
+		var err error
+		result, err = c.ListEvents(nodeID, userID, limit)
+		return err
+	})
+	return result, err
+}
+
+// DeviceInfo returns device detail responses with auto-reconnect.
+func (cc *CachedClient) DeviceInfo(nodeID string) (map[string]interface{}, error) {
+	var result map[string]interface{}
+	err := cc.executeWithRetry(func(c *Client) error {
+		var err error
+		result, err = c.DeviceInfo(nodeID)
 		return err
 	})
 	return result, err
@@ -186,7 +219,7 @@ func (cc *CachedClient) RunCommand(nodeID, command string) (map[string]interface
 	return result, err
 }
 
-// Shell starts an interactive shell session with auto-reconnect.
+// Shell returns the client's unsupported MeshRelay tunnel error with auto-reconnect.
 func (cc *CachedClient) Shell(nodeID, command string) (map[string]interface{}, error) {
 	var result map[string]interface{}
 	err := cc.executeWithRetry(func(c *Client) error {
