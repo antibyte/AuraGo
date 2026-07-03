@@ -1242,23 +1242,34 @@
     }
 
     function openPendingExternalStoreWindow() {
-        const pendingWindow = window.open('about:blank', '_blank');
+        const pendingWindow = window.open('about:blank', '_blank', 'noopener,noreferrer');
         if (pendingWindow) {
             pendingWindow.opener = null;
         }
         return pendingWindow;
     }
 
+    function safeExternalURL(raw) {
+        const value = String(raw || '').trim();
+        if (!value) return '';
+        try {
+            const url = new URL(value, window.location.origin);
+            if (url.protocol === 'http:' || url.protocol === 'https:') return url.href;
+        } catch (_) {}
+        return '';
+    }
+
     function navigateExternalStoreWindow(pendingWindow, url) {
-        if (!url) {
+        const safeURL = safeExternalURL(url);
+        if (!safeURL) {
             closeExternalStoreWindow(pendingWindow);
             return false;
         }
         if (pendingWindow && !pendingWindow.closed) {
-            pendingWindow.location.replace(url);
+            pendingWindow.location.replace(safeURL);
             return true;
         }
-        window.open(url, '_blank', 'noopener');
+        window.open(safeURL, '_blank', 'noopener,noreferrer');
         return true;
     }
 

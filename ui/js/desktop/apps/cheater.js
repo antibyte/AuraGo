@@ -540,14 +540,21 @@
         state.previewTimer = setTimeout(() => renderPreview(state), PREVIEW_DEBOUNCE_MS);
     }
 
+    function sanitizePreviewHTML(html) {
+        if (window.DOMPurify && typeof window.DOMPurify.sanitize === 'function') {
+            return window.DOMPurify.sanitize(html, { USE_PROFILES: { html: true } });
+        }
+        return escHtml(html);
+    }
+
     function renderPreview(state) {
         const preview = state.host.querySelector('[data-preview]');
         if (!preview) return;
         if (state.viewMode === 'edit') return;
         const content = (state.sheet && state.sheet.content) || '';
         try {
-            const html = window.marked ? window.marked.parse(content, { gfm: true, breaks: false }) : escHtml(content);
-            preview.innerHTML = html;
+            const rendered = window.marked ? window.marked.parse(content, { gfm: true, breaks: false }) : escHtml(content);
+            preview.innerHTML = sanitizePreviewHTML(rendered);
             if (window.hljs && window.hljs.highlightElement) {
                 preview.querySelectorAll('pre code').forEach(c => window.hljs.highlightElement(c));
             }

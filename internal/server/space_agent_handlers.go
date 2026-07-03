@@ -113,7 +113,7 @@ func handleSpaceAgentSend(s *Server) http.HandlerFunc {
 
 func handleSpaceAgentBridgeMessages(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		allowSpaceAgentBridgeCORS(w, r)
+		allowSpaceAgentBridgeCORS(s, w, r)
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
 			return
@@ -298,15 +298,97 @@ func (b *spaceAgentReplyBroker) Send(event, message string) {
 	b.FeedbackBroker.Send(event, message)
 }
 
-func allowSpaceAgentBridgeCORS(w http.ResponseWriter, r *http.Request) {
+func allowSpaceAgentBridgeCORS(s *Server, w http.ResponseWriter, r *http.Request) {
 	origin := strings.TrimSpace(r.Header.Get("Origin"))
 	if origin == "" {
 		return
 	}
-	w.Header().Set("Access-Control-Allow-Origin", origin)
+	w.Header().Set("Vary", "Origin")
+	if !spaceAgentBridgeOriginAllowed(s, r, origin) {
+		return
+	}
+	w.Header().Set("Access-Control-Allow-Origin", normalizeHTTPOrigin(origin))
 	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
 	w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
-	w.Header().Set("Vary", "Origin")
+}
+
+func spaceAgentBridgeOriginAllowed(s *Server, r *http.Request, origin string) bool {
+	normalized := normalizeHTTPOrigin(origin)
+	if normalized == "" || s == nil || s.Cfg == nil {
+		return false
+	}
+	cfg := s.currentSpaceAgentConfig()
+	allowed := map[string]struct{}{}
+	addAllowedOrigin := func(raw string) {
+		if normalizedOrigin := normalizeHTTPOrigin(raw); normalizedOrigin != "" {
+			allowed[normalizedOrigin] = struct{}{}
+		}
+	}
+
+	addAllowedOrigin(cfg.SpaceAgent.PublicURL)
+	addAllowedOrigin(spaceAgentBrowserURL(s, &cfg, r))
+	addAllowedOrigin(requestHTTPOrigin(r))
+	addAllowedOrigin(deriveSpaceAgentTailscaleURL(&cfg, r))
+	addAllowedOrigin(configuredSpaceAgentTailscaleOrigin(&cfg))
+
+	_, ok := allowed[normalized]
+	return ok
+}
+
+func normalizeHTTPOrigin(raw string) string {
+	parsed, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil || parsed == nil || parsed.Scheme == "" || parsed.Host == "" {
+		return ""
+	}
+	scheme := strings.ToLower(parsed.Scheme)
+	if scheme != "http" && scheme != "https" {
+		return ""
+	}
+	host := strings.TrimSuffix(strings.ToLower(parsed.Host), ".")
+	if host == "" {
+		return ""
+	}
+	return scheme + "://" + host
+}
+
+func requestHTTPOrigin(r *http.Request) string {
+	if r == nil {
+		return ""
+	}
+	scheme := "http"
+	if r.TLS != nil {
+		scheme = "https"
+	}
+	if forwardedProto := firstForwardedHeaderValue(r.Header.Get("X-Forwarded-Proto")); forwardedProto == "http" || forwardedProto == "https" {
+		scheme = forwardedProto
+	}
+	host := firstForwardedHeaderValue(r.Header.Get("X-Forwarded-Host"))
+	if host == "" {
+		host = strings.TrimSpace(r.Host)
+	}
+	if host == "" {
+		return ""
+	}
+	return normalizeHTTPOrigin(scheme + "://" + host)
+}
+
+func firstForwardedHeaderValue(value string) string {
+	value = strings.TrimSpace(value)
+	if idx := strings.IndexByte(value, ','); idx >= 0 {
+		value = strings.TrimSpace(value[:idx])
+	}
+	return strings.ToLower(strings.TrimSuffix(value, "."))
+}
+
+func configuredSpaceAgentTailscaleOrigin(cfg *config.Config) string {
+	if cfg == nil || !cfg.Tailscale.TsNet.Enabled || !cfg.Tailscale.TsNet.ExposeSpaceAgent {
+		return ""
+	}
+	host := strings.TrimSuffix(strings.TrimSpace(cfg.Tailscale.TsNet.SpaceAgentHostname), ".")
+	if host == "" || !strings.Contains(host, ".") {
+		return ""
+	}
+	return "https://" + host
 }
 
 func handleIntegrationWebhosts(s *Server) http.HandlerFunc {

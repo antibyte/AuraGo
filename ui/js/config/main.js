@@ -1938,6 +1938,29 @@ function setRestartBusy(busy) {
     if (restartBtn) restartBtn.disabled = busy;
 }
 
+function showRestartScreen(message, description) {
+    const screen = document.createElement('div');
+    screen.className = 'cfg-restart-screen';
+    const spinner = document.createElement('div');
+    spinner.className = 'cfg-restart-spinner';
+    spinner.textContent = '↻';
+    const title = document.createElement('h2');
+    title.className = 'cfg-restart-title';
+    title.textContent = message || '';
+    const desc = document.createElement('p');
+    desc.className = 'cfg-restart-desc';
+    desc.textContent = description || '';
+    screen.append(spinner, title, desc);
+    document.body.replaceChildren(screen);
+}
+
+function showRestartDisconnected(message) {
+    const node = document.createElement('div');
+    node.className = 'cfg-restart-disconnected';
+    node.textContent = message || '';
+    document.body.replaceChildren(node);
+}
+
 async function restartAuraGo(skipConfirm = false) {
     if (restartInFlight) return;
     restartInFlight = true;
@@ -1951,13 +1974,7 @@ async function restartAuraGo(skipConfirm = false) {
         const resp = await fetch('/api/restart', { method: 'POST' });
         if (resp.ok) {
             const res = await resp.json();
-            document.body.innerHTML = `
-                        <div class="cfg-restart-screen">
-                            <div class="cfg-restart-spinner">↻</div>
-                            <h2 class="cfg-restart-title">${res.message}</h2>
-                            <p class="cfg-restart-desc">${t('config.restart.reloading')}</p>
-                        </div>
-                    `;
+            showRestartScreen(res.message, t('config.restart.reloading'));
             // Wait for server to restart, then reload with retry logic
             scheduleReloadWithRetry(8000);
         } else {
@@ -1968,7 +1985,7 @@ async function restartAuraGo(skipConfirm = false) {
     } catch (e) {
         // If the fetch fails immediately, it might be that the server died instantly.
         // We'll still show the reloading screen.
-        document.body.innerHTML = '<div class="cfg-restart-disconnected">' + t('config.restart.disconnected') + '</div>';
+        showRestartDisconnected(t('config.restart.disconnected'));
         scheduleReloadWithRetry(5000);
     }
 }

@@ -267,8 +267,15 @@
                 return;
             }
             const md = window.markdownit({ html: false, linkify: true, typographer: true });
-            const rendered = md.render(raw);
+            const rendered = sanitizeMarkdownHTML(md.render(raw));
             contentEl.innerHTML = `<div class="vd-viewer-md vd-viewer-rendered">${rendered}</div>`;
+        }
+
+        function sanitizeMarkdownHTML(html) {
+            if (window.DOMPurify && typeof window.DOMPurify.sanitize === 'function') {
+                return window.DOMPurify.sanitize(html, { USE_PROFILES: { html: true } });
+            }
+            return esc(html);
         }
 
         function sanitizeViewerHTML(html) {

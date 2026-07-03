@@ -1277,9 +1277,12 @@ function showDisabledState() {
             const resp = await fetch(`/api/agent-skills/${encodeURIComponent(skillId)}/files?path=${encodeURIComponent(path)}`);
             const data = await resp.json();
             if (data.status === 'ok') {
-                const w = window.open('', '_blank');
-                w.document.write(`<pre>${esc(data.content || '')}</pre>`);
+                const w = window.open('', '_blank', 'noopener,noreferrer');
+                if (!w) return;
                 w.document.title = path;
+                const pre = w.document.createElement('pre');
+                pre.textContent = data.content || '';
+                w.document.body.appendChild(pre);
             } else {
                 showToast(data.message || t('common.error'), 'error');
             }
@@ -1959,15 +1962,7 @@ function showDisabledState() {
             const resp = await fetch(`/api/skills/${encodeURIComponent(id)}/documentation`);
             const data = await resp.json();
             if (resp.ok && data.status === 'ok' && data.content) {
-                let rendered;
-                if (window.marked && window.DOMPurify) {
-                    rendered = window.DOMPurify.sanitize(window.marked.parse(data.content));
-                } else if (window.marked) {
-                    // marked is configured for safe defaults via setOptions on init.
-                    rendered = window.marked.parse(data.content);
-                } else {
-                    rendered = `<pre class="sk-documentation-pre">${esc(data.content)}</pre>`;
-                }
+                const rendered = renderSkillDocumentationMarkdown(data.content);
                 target.innerHTML = `<div class="sk-documentation-rendered">${rendered}</div>`;
             } else {
                 target.innerHTML = `<p class="sk-vault-none">${t('skills.documentation_empty')}</p>`;
@@ -1975,6 +1970,13 @@ function showDisabledState() {
         } catch (_) {
             target.innerHTML = `<p class="sk-error">${t('common.error')}</p>`;
         }
+    }
+
+    function renderSkillDocumentationMarkdown(content) {
+        if (window.marked && window.DOMPurify && typeof window.DOMPurify.sanitize === 'function') {
+            return window.DOMPurify.sanitize(window.marked.parse(content), { USE_PROFILES: { html: true } });
+        }
+        return `<pre class="sk-documentation-pre">${esc(content)}</pre>`;
     }
 
     // eslint-disable-next-line no-unused-vars

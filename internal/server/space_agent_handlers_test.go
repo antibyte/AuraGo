@@ -47,6 +47,7 @@ func TestHandleSpaceAgentBridgeAllowsBrowserPreflight(t *testing.T) {
 	s := &Server{Cfg: &config.Config{}, Logger: slog.Default(), SSE: NewSSEBroadcaster()}
 	s.Cfg.SpaceAgent.Enabled = true
 	s.Cfg.SpaceAgent.BridgeToken = "bridge-secret"
+	s.Cfg.SpaceAgent.PublicURL = "https://aurago-space-agent.example.ts.net"
 	req := httptest.NewRequest(http.MethodOptions, "/api/space-agent/bridge/messages", nil)
 	req.Header.Set("Origin", "https://aurago-space-agent.example.ts.net")
 	req.Header.Set("Access-Control-Request-Headers", "authorization,content-type")
@@ -62,6 +63,48 @@ func TestHandleSpaceAgentBridgeAllowsBrowserPreflight(t *testing.T) {
 	}
 	if got := rec.Header().Get("Access-Control-Allow-Headers"); !strings.Contains(strings.ToLower(got), "authorization") {
 		t.Fatalf("Access-Control-Allow-Headers = %q, want authorization", got)
+	}
+}
+
+func TestHandleSpaceAgentBridgeRejectsArbitraryPreflightOrigin(t *testing.T) {
+	s := &Server{Cfg: &config.Config{}, Logger: slog.Default(), SSE: NewSSEBroadcaster()}
+	s.Cfg.SpaceAgent.Enabled = true
+	s.Cfg.SpaceAgent.BridgeToken = "bridge-secret"
+	s.Cfg.SpaceAgent.PublicURL = "https://aurago-space-agent.example.ts.net"
+	req := httptest.NewRequest(http.MethodOptions, "/api/space-agent/bridge/messages", nil)
+	req.Header.Set("Origin", "https://evil.example")
+	req.Header.Set("Access-Control-Request-Headers", "authorization,content-type")
+	rec := httptest.NewRecorder()
+
+	handleSpaceAgentBridgeMessages(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("status code = %d, want 204; body=%s", rec.Code, rec.Body.String())
+	}
+	if got := rec.Header().Get("Access-Control-Allow-Origin"); got != "" {
+		t.Fatalf("Access-Control-Allow-Origin = %q, want empty for arbitrary origin", got)
+	}
+}
+
+func TestHandleSpaceAgentBridgeAllowsConfiguredTsnetOrigin(t *testing.T) {
+	s := &Server{Cfg: &config.Config{}, Logger: slog.Default(), SSE: NewSSEBroadcaster()}
+	s.Cfg.SpaceAgent.Enabled = true
+	s.Cfg.SpaceAgent.BridgeToken = "bridge-secret"
+	s.Cfg.Tailscale.TsNet.Enabled = true
+	s.Cfg.Tailscale.TsNet.ExposeSpaceAgent = true
+	s.Cfg.Tailscale.TsNet.SpaceAgentHostname = "aurago-space-agent.taild1480.ts.net"
+	req := httptest.NewRequest(http.MethodOptions, "/api/space-agent/bridge/messages", nil)
+	req.Header.Set("Origin", "https://aurago-space-agent.taild1480.ts.net")
+	req.Header.Set("Access-Control-Request-Headers", "authorization,content-type")
+	rec := httptest.NewRecorder()
+
+	handleSpaceAgentBridgeMessages(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("status code = %d, want 204; body=%s", rec.Code, rec.Body.String())
+	}
+	if got := rec.Header().Get("Access-Control-Allow-Origin"); got != "https://aurago-space-agent.taild1480.ts.net" {
+		t.Fatalf("Access-Control-Allow-Origin = %q", got)
 	}
 }
 

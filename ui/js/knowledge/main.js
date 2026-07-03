@@ -413,6 +413,8 @@ function openFilePreview(name) {
     // Reset all preview panels
     clearTimeout(previewResetTimer);
     frame.onload = null;
+    frame.removeAttribute('sandbox');
+    frame.removeAttribute('referrerpolicy');
     frame.src = 'about:blank';
     frame.classList.add('is-hidden');
     textEl.textContent = '';
@@ -466,7 +468,9 @@ function openFilePreview(name) {
             });
 
     } else if (ext === 'html' || ext === 'htm') {
-        // ── HTML: iframe renders these natively ──
+        // ── HTML: isolate active content from the AuraGo origin ──
+        frame.setAttribute('sandbox', 'allow-scripts');
+        frame.setAttribute('referrerpolicy', 'no-referrer');
         frame.onload = () => {
             clearTimeout(previewResetTimer);
             fallback.classList.add('is-hidden');
@@ -585,6 +589,8 @@ function closeFilePreview() {
     clearTimeout(previewResetTimer);
     previewResetTimer = null;
     frame.onload = null;
+    frame.removeAttribute('sandbox');
+    frame.removeAttribute('referrerpolicy');
     frame.src = 'about:blank';
     frame.classList.add('is-hidden');
     textEl.textContent = '';

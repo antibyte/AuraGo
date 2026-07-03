@@ -68,7 +68,8 @@ registration lives in `internal/desktop/types.go`.
   AbortController for in-flight saves.
 - Cheater editor uses a stable `<textarea>` source (NOT `contenteditable`) so
   cursor, selection, and native undo stay intact. Live preview is rendered into
-  a separate `.cheater-preview` panel via `window.marked` + `window.hljs`.
+  a separate `.cheater-preview` panel via `window.marked`, sanitized with
+  `window.DOMPurify`, and highlighted with `window.hljs`.
 - Cheater view modes (`edit`/`split`/`preview`) are persisted per-window in
   `localStorage` under `cheater.viewMode`.
 - Cheater toolbar is a separate `cheater-toolbar.js` module exposing
@@ -177,8 +178,8 @@ registration lives in `internal/desktop/types.go`.
   `galaxa-game.js` when `ctx.G.demoMode` is true. No child DOX file needed.
 - `cheater.js` - Cheater app entry: library, editor, create modal, auto-save,
   polling, view-mode toggle. Exposes `window.CheaterApp`. Editor uses a stable
-  `<textarea>` source and renders a separate live preview via `marked`/`hljs`.
-  No child DOX file needed.
+  `<textarea>` source and renders a separate live preview via marked,
+  DOMPurify, and hljs. No child DOX file needed.
 - `cheater-toolbar.js` - Markdown formatting toolbar (bold, italic, code,
   link, heading, lists, quote, divider) plus shortcut help modal. Mounts into
   the editor toolbar slot via `window.CheaterToolbar.mount(state, slot)`. No

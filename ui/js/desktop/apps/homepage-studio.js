@@ -167,7 +167,8 @@
 
         refreshBtn.addEventListener('click', () => refreshPreview());
         externalBtn.addEventListener('click', () => {
-            if (state.previewUrl) window.open(state.previewUrl, '_blank');
+            const safeURL = safeExternalURL(state.previewUrl);
+            if (safeURL) window.open(safeURL, '_blank', 'noopener,noreferrer');
         });
 
         previewTab.addEventListener('click', () => switchPanel('preview'));
@@ -252,11 +253,21 @@
 
         function firstPreviewURL(...values) {
             for (const value of values) {
-                const url = firstString(value);
-                if (url && /^https?:\/\//i.test(url)) {
+                const url = safeExternalURL(value);
+                if (url) {
                     return url;
                 }
             }
+            return '';
+        }
+
+        function safeExternalURL(raw) {
+            const value = firstString(raw);
+            if (!value) return '';
+            try {
+                const url = new URL(value, window.location.origin);
+                if (url.protocol === 'http:' || url.protocol === 'https:') return url.href;
+            } catch (_) {}
             return '';
         }
 
@@ -397,13 +408,13 @@
                     break;
             }
 
-            if (data.preview_url) return String(data.preview_url);
-            if (serverRunning && data.tunnel_url) return String(data.tunnel_url);
+            if (data.preview_url) return firstPreviewURL(data.preview_url);
+            if (serverRunning && data.tunnel_url) return firstPreviewURL(data.tunnel_url);
             if (webRunning && data.web_container.browser_url) {
-                return String(data.web_container.browser_url);
+                return firstPreviewURL(data.web_container.browser_url);
             }
             if (pythonRunning && data.python_server.browser_url) {
-                return String(data.python_server.browser_url);
+                return firstPreviewURL(data.python_server.browser_url);
             }
             if (externalURL) return externalURL;
             return '';
@@ -425,6 +436,11 @@
         }
 
         function showPreview(url) {
+            const safeURL = safeExternalURL(url);
+            if (!safeURL) {
+                hidePreview();
+                return;
+            }
             let iframe = previewBody.querySelector('.vd-hp-preview-iframe');
             if (!iframe) {
                 previewPlaceholder.style.display = 'none';
@@ -434,7 +450,7 @@
                 iframe.referrerPolicy = 'no-referrer';
                 previewPanel.insertBefore(iframe, previewLoading);
             }
-            if (iframe.src !== url) {
+            if (iframe.src !== safeURL) {
                 previewLoading.classList.add('active');
                 previewLoading.setAttribute('aria-hidden', 'false');
                 iframe.onload = () => {
@@ -445,7 +461,7 @@
                     previewLoading.classList.remove('active');
                     previewLoading.setAttribute('aria-hidden', 'true');
                 };
-                iframe.src = url;
+                iframe.src = safeURL;
             }
         }
 
@@ -463,14 +479,19 @@
             previewLoading.classList.add('active');
             previewLoading.setAttribute('aria-hidden', 'false');
             const iframe = previewBody.querySelector('.vd-hp-preview-iframe');
+            const safeURL = safeExternalURL(state.previewUrl);
+            if (!safeURL) {
+                hidePreview();
+                return;
+            }
             if (iframe) {
                 iframe.onload = () => {
                     previewLoading.classList.remove('active');
                     previewLoading.setAttribute('aria-hidden', 'true');
                 };
-                iframe.src = state.previewUrl;
+                iframe.src = safeURL;
             } else {
-                showPreview(state.previewUrl);
+                showPreview(safeURL);
             }
         }
 

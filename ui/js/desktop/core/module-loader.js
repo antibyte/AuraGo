@@ -97,7 +97,7 @@
         },
         'viewer': {
             styles: appStyles('/css/desktop-app-viewer.css'),
-            scripts: ['/js/vendor/pdf.min.js', '/js/vendor/markdown-it.min.js', '/js/desktop/apps/viewer.js']
+            scripts: ['/js/vendor/pdf.min.js', '/js/vendor/markdown-it.min.js', '/js/vendor/purify.min.js', '/js/desktop/apps/viewer.js']
         },
         'camera': {
             styles: appStyles('/css/camera.css'),
@@ -207,6 +207,7 @@
             styles: appStyles('/css/desktop-app-cheater.css', '/css/hljs-github.min.css'),
             scripts: [
                 '/js/vendor/marked.min.js',
+                '/js/vendor/purify.min.js',
                 '/js/vendor/highlight.min.js',
                 '/js/desktop/apps/cheater.js',
                 '/js/desktop/apps/cheater-templates.js',

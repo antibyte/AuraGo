@@ -233,8 +233,17 @@ async function _proxyFetchStatus() {
             const p = data.proxy;
             const color = p.running ? 'var(--success)' : 'var(--text-tertiary)';
             const icon = p.running ? '🟢' : '⚪';
-            el.innerHTML = `${icon} <strong style="color:${color}">${p.state || 'unknown'}</strong>` +
-                (p.image ? ` &mdash; ${p.image}` : '');
+            const state = document.createElement('strong');
+            state.style.color = color;
+            state.textContent = p.state || 'unknown';
+            const nodes = [
+                document.createTextNode(icon + ' '),
+                state,
+            ];
+            if (p.image) {
+                nodes.push(document.createTextNode(' - ' + p.image));
+            }
+            el.replaceChildren(...nodes);
         } else {
             el.textContent = data.message || t('config.security_proxy.status_unknown');
         }

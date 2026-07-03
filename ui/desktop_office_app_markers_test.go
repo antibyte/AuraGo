@@ -50,6 +50,8 @@ func TestDesktopViewerAppMarkers(t *testing.T) {
 		"desktop.viewer_pdfjs_unavailable",
 		"pdfLoadingTask",
 		"/api/desktop/viewer/content",
+		"window.DOMPurify",
+		"DOMPurify.sanitize",
 	} {
 		if !strings.Contains(source, marker) {
 			t.Fatalf("viewer.js missing marker %q", marker)

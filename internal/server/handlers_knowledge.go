@@ -217,9 +217,8 @@ func handleKnowledgeFile(s *Server) http.HandlerFunc {
 	}
 }
 
-// handleKnowledgeFileInline serves files for iframe embedding in the Knowledge Center.
-// It deliberately omits X-Frame-Options DENY and frame-ancestors 'none' so PDFs/images
-// can be previewed inline in the browser.
+// handleKnowledgeFileInline serves files for Knowledge Center previews.
+// HTML files get a route-local sandbox policy; PDFs/images/text keep same-origin preview behavior.
 func handleKnowledgeFileInline(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		knowledgeDir := s.knowledgeDir()
@@ -248,14 +247,18 @@ func handleKnowledgeFileInline(s *Server) http.HandlerFunc {
 			return
 		}
 
-		// Override security headers that would prevent iframe embedding
+		ext := strings.ToLower(filepath.Ext(safeName))
+
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("X-XSS-Protection", "1; mode=block")
 		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
-		// SAMEORIGIN allows the iframe since the content is served from the same origin
-		w.Header().Set("X-Frame-Options", "SAMEORIGIN")
+		if ext == ".html" || ext == ".htm" {
+			w.Header().Set("X-Frame-Options", "DENY")
+			w.Header().Set("Content-Security-Policy", "sandbox allow-scripts; default-src 'none'; script-src 'unsafe-inline'; img-src data: blob:; style-src 'unsafe-inline'")
+		} else {
+			w.Header().Set("X-Frame-Options", "SAMEORIGIN")
+		}
 
-		ext := strings.ToLower(filepath.Ext(safeName))
 		contentType := mime.TypeByExtension(ext)
 		if contentType == "" {
 			contentType = "application/octet-stream"

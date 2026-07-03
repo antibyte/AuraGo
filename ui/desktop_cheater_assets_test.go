@@ -287,6 +287,8 @@ func TestDesktopCheaterInlineRender(t *testing.T) {
 		"function schedulePreview",
 		"window.marked",
 		"window.hljs",
+		"window.DOMPurify",
+		"DOMPurify.sanitize",
 		"data-preview",
 		"data-view-mode",
 		"setViewMode",
@@ -312,7 +314,7 @@ func TestDesktopCheaterInlineRender(t *testing.T) {
 	}
 
 	loader := readDesktopAssetText(t, "js/desktop/core/module-loader.js")
-	if !strings.Contains(loader, "marked.min.js") || !strings.Contains(loader, "highlight.min.js") {
+	if !strings.Contains(loader, "marked.min.js") || !strings.Contains(loader, "highlight.min.js") || !strings.Contains(loader, "purify.min.js") {
 		t.Fatalf("cheater entry missing vendor libraries")
 	}
 	if !strings.Contains(loader, "hljs-github.min.css") {

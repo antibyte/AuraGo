@@ -405,18 +405,29 @@
             });
         }
 
+        function safeExternalURL(raw) {
+            const value = String(raw || '').trim();
+            if (!value) return '';
+            try {
+                const url = new URL(value, window.location.origin);
+                if (url.protocol === 'http:' || url.protocol === 'https:') return url.href;
+            } catch (_) {}
+            return '';
+        }
+
         async function openStorePort(appId, portId) {
-            const pendingWindow = window.open('about:blank', '_blank');
+            const pendingWindow = window.open('about:blank', '_blank', 'noopener,noreferrer');
             if (pendingWindow) {
                 pendingWindow.opener = null;
             }
             try {
                 const body = await api('/api/desktop/store/apps/' + encodeURIComponent(appId) + '/open-url?port_id=' + encodeURIComponent(portId || ''));
-                if (body.url) {
+                const safeURL = safeExternalURL(body.url);
+                if (safeURL) {
                     if (pendingWindow && !pendingWindow.closed) {
-                        pendingWindow.location.replace(body.url);
+                        pendingWindow.location.replace(safeURL);
                     } else {
-                        window.open(body.url, '_blank', 'noopener');
+                        window.open(safeURL, '_blank', 'noopener,noreferrer');
                     }
                 } else if (pendingWindow && !pendingWindow.closed) {
                     pendingWindow.close();

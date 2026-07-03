@@ -168,9 +168,10 @@ func TestSoftwareStoreOpensExternalStoreAppsInBrowserTab(t *testing.T) {
 		"entry.metadata.open_external === 'true'",
 		"const entry = catalog.find(item => item.id === appId);",
 		"if (action === 'open' && shouldOpenStoreEntryExternally(entry)) return openStorePort(appId, '');",
-		"const pendingWindow = window.open('about:blank', '_blank');",
+		"function safeExternalURL(raw)",
+		"const pendingWindow = window.open('about:blank', '_blank', 'noopener,noreferrer');",
 		"pendingWindow.opener = null;",
-		"pendingWindow.location.replace(body.url);",
+		"pendingWindow.location.replace(safeURL);",
 	} {
 		if !strings.Contains(source, want) {
 			t.Fatalf("software store missing external open marker %q", want)

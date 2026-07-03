@@ -65,7 +65,7 @@ func (v *knowledgeUploadVectorDB) Close() error     { return nil }
 func (v *knowledgeUploadVectorDB) StoreCheatsheet(id, name, content string, attachments ...string) error {
 	return nil
 }
-func (v *knowledgeUploadVectorDB) DeleteCheatsheet(id string) error { return nil }
+func (v *knowledgeUploadVectorDB) DeleteCheatsheet(id string) error         { return nil }
 func (v *knowledgeUploadVectorDB) RegisterCollections(collections []string) {}
 
 func TestHandleKnowledgeUploadRejectsDisallowedExtension(t *testing.T) {
@@ -196,4 +196,70 @@ func TestHandleKnowledgeUploadTriggersIndexerRescan(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 	}
 	t.Fatalf("uploaded knowledge file was not indexed within timeout")
+}
+
+func TestHandleKnowledgeInlineHTMLUsesSandboxHeaders(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "preview.html"), []byte(`<!doctype html><script>alert(1)</script>`), 0o640); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	cfg := &config.Config{}
+	cfg.Indexing.Directories = []config.IndexingDirectory{{Path: dir}}
+	s := &Server{Cfg: cfg, Logger: slog.Default()}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/knowledge-inline/preview.html", nil)
+	rec := httptest.NewRecorder()
+
+	handleKnowledgeFileInline(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	if got := rec.Header().Get("X-Frame-Options"); got != "DENY" {
+		t.Fatalf("X-Frame-Options = %q, want DENY", got)
+	}
+	csp := rec.Header().Get("Content-Security-Policy")
+	for _, want := range []string{
+		"sandbox allow-scripts",
+		"default-src 'none'",
+		"script-src 'unsafe-inline'",
+		"img-src data: blob:",
+		"style-src 'unsafe-inline'",
+	} {
+		if !strings.Contains(csp, want) {
+			t.Fatalf("Content-Security-Policy = %q, missing %q", csp, want)
+		}
+	}
+	if got := rec.Header().Get("Content-Type"); !strings.HasPrefix(got, "text/html") {
+		t.Fatalf("Content-Type = %q, want text/html", got)
+	}
+}
+
+func TestHandleKnowledgeInlinePDFKeepsInlinePreviewHeaders(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "preview.pdf"), []byte("%PDF-1.7"), 0o640); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	cfg := &config.Config{}
+	cfg.Indexing.Directories = []config.IndexingDirectory{{Path: dir}}
+	s := &Server{Cfg: cfg, Logger: slog.Default()}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/knowledge-inline/preview.pdf", nil)
+	rec := httptest.NewRecorder()
+
+	handleKnowledgeFileInline(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	if got := rec.Header().Get("X-Frame-Options"); got != "SAMEORIGIN" {
+		t.Fatalf("X-Frame-Options = %q, want SAMEORIGIN", got)
+	}
+	if got := rec.Header().Get("Content-Security-Policy"); strings.Contains(got, "sandbox") {
+		t.Fatalf("PDF preview should not receive HTML sandbox CSP, got %q", got)
+	}
 }
