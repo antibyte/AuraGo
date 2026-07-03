@@ -687,10 +687,14 @@ let _providerCatalogPromise = null;
 
             try {
                 let url;
-                if (provId && providersCache.some(p => p.id === provId)) {
+                const providerIsSaved = provId && providersCache.some(p => p.id === provId);
+                if (providerIsSaved) {
                     url = '/api/providers/pricing?id=' + encodeURIComponent(provId);
-                } else {
+                } else if (provType === 'openrouter') {
                     url = '/api/openrouter/models';
+                } else {
+                    showToast(t('config.providers.pricing_save_first'), 'warn');
+                    return;
                 }
 
                 const resp = await fetch(url);
@@ -805,7 +809,7 @@ let _providerCatalogPromise = null;
                 <div class="section-header">${section.label}</div>
                 <div class="section-desc">${section.desc}</div>
                 <div class="prov-section-actions">
-                    <button class="btn-save prov-btn-sm" onclick="providerAdd()">
+                    <button class="btn-save prov-btn-sm" onclick="providerAdd()" ${providersLoaded ? '' : 'disabled'}>
                         ＋ ${t('config.providers.new_provider')}
                     </button>
                 </div>
@@ -819,10 +823,42 @@ let _providerCatalogPromise = null;
             providerLoadCatalog().then(() => providerRenderCards());
         }
 
+        async function providerRetryLoad() {
+            await loadProviders();
+            providerRenderCards();
+        }
+
+        function providerEnsureLoaded() {
+            if (providersLoaded) return true;
+            showToast(t('config.providers.load_required'), 'warn');
+            providerRenderCards();
+            return false;
+        }
+
+        function providerReferenceLabel(ref) {
+            if (!ref) return '';
+            return t('config.providers.delete_references_item', {
+                path: ref.path || '',
+                role: ref.role || ''
+            });
+        }
+
         function providerRenderCards() {
             const wrap = document.getElementById('providers-list');
             const empty = document.getElementById('providers-empty');
             if (!wrap) return;
+            if (!providersLoaded && providersLoadError) {
+                wrap.innerHTML = `
+                <div class="prov-empty-state">
+                    <div class="prov-text-error">${escapeHtml(t('config.providers.load_failed_title'))}</div>
+                    <div class="prov-text-muted">${escapeHtml(t('config.providers.load_failed_body', { error: providersLoadError }))}</div>
+                    <button type="button" class="btn-save prov-btn-sm" onclick="providerRetryLoad()">
+                        ${escapeHtml(t('config.providers.retry_load'))}
+                    </button>
+                </div>`;
+                if (empty) setHidden(empty, true);
+                return;
+            }
             if (providersCache.length === 0) {
                 wrap.innerHTML = '';
                 if (empty) setHidden(empty, false);
@@ -1518,6 +1554,28 @@ let _providerCatalogPromise = null;
             overlay.id = 'provider-modal-overlay';
             overlay.className = 'prov-modal-overlay';
             let copilotPollInterval = null;
+            let initialModalSnapshot = '';
+            function providerModalSnapshot() {
+                const ids = [
+                    'prov-id', 'prov-name', 'prov-type', 'prov-url', 'prov-account-id', 'prov-model',
+                    'prov-auth-type', 'prov-copy-key-from', 'prov-key', 'prov-oauth-client-id',
+                    'prov-oauth-client-secret', 'prov-oauth-auth-url', 'prov-oauth-token-url',
+                    'prov-oauth-scopes'
+                ];
+                const fields = {};
+                ids.forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) fields[id] = el.value || '';
+                });
+                return JSON.stringify({
+                    fields,
+                    models: providerGetModels(),
+                    capabilities: providerReadCapabilities()
+                });
+            }
+            function providerModalDirty() {
+                return !!initialModalSnapshot && providerModalSnapshot() !== initialModalSnapshot;
+            }
             function closeProviderModal() {
                 if (copilotPollInterval) {
                     clearInterval(copilotPollInterval);
@@ -1525,7 +1583,17 @@ let _providerCatalogPromise = null;
                 }
                 overlay.remove();
             }
-            overlay.onclick = (e) => { if (e.target === overlay) closeProviderModal(); };
+            async function requestCloseProviderModal() {
+                if (providerModalDirty()) {
+                    const confirmed = await showConfirm(
+                        t('config.providers.discard_changes_confirm_title'),
+                        t('config.providers.discard_changes_confirm')
+                    );
+                    if (!confirmed) return;
+                }
+                closeProviderModal();
+            }
+            overlay.onclick = (e) => { if (e.target === overlay) requestCloseProviderModal(); };
 
             const currentAuthType = data.auth_type || 'api_key';
             const isOAuth = currentAuthType === 'oauth2';
@@ -1809,20 +1877,20 @@ let _providerCatalogPromise = null;
                 <!-- Copilot Auth Block (only visible for copilot type) -->
                 <div id="prov-copilot-block" class="field-group prov-group-divider ${(data.type || 'openai') === 'copilot' ? '' : 'is-hidden'}">
                     <div class="field-label">🔷 GitHub Copilot</div>
-                    <div id="copilot-auth-status" class="prov-field-hint">${data._copilotAuthorized ? '✅ Authorized' : 'Not authorized. Click below to start device-code flow.'}</div>
+                    <div id="copilot-auth-status" class="prov-field-hint">${data._copilotAuthorized ? '✅ ' + t('config.providers.copilot_authorized') : t('config.providers.copilot_not_authorized')}</div>
                     <div id="copilot-auth-actions">
                         <button type="button" class="btn-save" id="copilot-start-auth-btn">
-                            🔐 Start GitHub Authorization
+                            🔐 ${t('config.providers.copilot_start_auth')}
                         </button>
                     </div>
                     <div id="copilot-device-code-area" class="is-hidden" style="margin-top:8px;">
-                        <div class="prov-field-hint">Visit the URL below and enter the code:</div>
+                        <div class="prov-field-hint">${t('config.providers.copilot_visit_code')}</div>
                         <div style="margin:8px 0;">
                             <a id="copilot-verification-link" href="#" target="_blank" style="color:var(--accent);">https://github.com/login/device</a>
                         </div>
                         <div style="font-size:1.4rem;font-weight:bold;letter-spacing:2px;font-family:monospace;background:var(--input-bg);padding:8px 12px;border-radius:4px;text-align:center;" id="copilot-user-code">----</div>
                         <button type="button" class="btn-save prov-btn-sm" id="copilot-check-status-btn" style="margin-top:8px;">
-                            ⏳ Check Authorization
+                            ⏳ ${t('config.providers.copilot_check_auth')}
                         </button>
                     </div>
                 </div>
@@ -1840,8 +1908,8 @@ let _providerCatalogPromise = null;
                 </div>
             </div>`;
             document.body.appendChild(overlay);
-            document.getElementById('provider-modal-close-btn')?.addEventListener('click', closeProviderModal);
-            document.getElementById('provider-modal-cancel-btn')?.addEventListener('click', closeProviderModal);
+            document.getElementById('provider-modal-close-btn')?.addEventListener('click', requestCloseProviderModal);
+            document.getElementById('provider-modal-cancel-btn')?.addEventListener('click', requestCloseProviderModal);
 
             // ── Initialize model pricing table ──
             providerInitModelsTable(data.models);
@@ -1973,16 +2041,16 @@ let _providerCatalogPromise = null;
                 copilotStartBtn.onclick = async () => {
                     try {
                         copilotStartBtn.disabled = true;
-                        copilotStartBtn.textContent = '⏳ Requesting...';
+                        copilotStartBtn.textContent = '⏳ ' + t('config.providers.copilot_requesting');
                         const resp = await fetch('/api/copilot/device-code', {method: 'POST'});
                         const json = await resp.json();
-                        if (!resp.ok) throw new Error(json.error || 'Failed');
+                        if (!resp.ok) throw new Error(json.error || t('config.common.error'));
                         copilotDeviceCode = json.device_code;
                         copilotUserCode.textContent = json.user_code;
                         copilotLink.href = json.verification_uri;
                         copilotLink.textContent = json.verification_uri;
                         setHidden(copilotDeviceArea, false);
-                        copilotStatus.textContent = '⏳ Waiting for authorization...';
+                        copilotStatus.textContent = '⏳ ' + t('config.providers.copilot_waiting');
                         // Auto-poll
                         if (copilotPollInterval) clearInterval(copilotPollInterval);
                         copilotPollInterval = setInterval(() => {
@@ -1992,7 +2060,7 @@ let _providerCatalogPromise = null;
                         showToast('❌ ' + e.message);
                     } finally {
                         copilotStartBtn.disabled = false;
-                        copilotStartBtn.textContent = '🔐 Start GitHub Authorization';
+                        copilotStartBtn.textContent = '🔐 ' + t('config.providers.copilot_start_auth');
                     }
                 };
             }
@@ -2011,12 +2079,12 @@ let _providerCatalogPromise = null;
                         if (json.status === 'authorized') {
                             if (copilotPollInterval) clearInterval(copilotPollInterval);
                             setHidden(copilotDeviceArea, true);
-                            copilotStatus.textContent = '✅ Authorized';
-                            showToast('GitHub Copilot authorized successfully');
+                            copilotStatus.textContent = '✅ ' + t('config.providers.copilot_authorized');
+                            showToast(t('config.providers.copilot_auth_success'), 'success');
                         } else if (json.status === 'error') {
                             if (copilotPollInterval) clearInterval(copilotPollInterval);
-                            copilotStatus.textContent = '❌ Error: ' + (json.error || 'Unknown');
-                            showToast('❌ Copilot auth failed: ' + (json.error || 'Unknown'));
+                            copilotStatus.textContent = '❌ ' + t('config.providers.copilot_error') + ': ' + (json.error || t('config.providers.copilot_unknown_error'));
+                            showToast('❌ ' + t('config.providers.copilot_auth_failed', { error: json.error || t('config.providers.copilot_unknown_error') }));
                         } else {
                             // Still pending — keep polling
                         }
@@ -2069,7 +2137,7 @@ let _providerCatalogPromise = null;
                 const hasSelection = copySelect.value !== '';
                 if (keyInput) {
                     keyInput.disabled = hasSelection;
-                    if (!hasSelection) keyInput.placeholder = data.api_key === '••••••••' ? t('config.providers.key_placeholder_existing') : 'sk-...';
+                    if (!hasSelection) keyInput.placeholder = data.api_key === '••••••••' ? t('config.providers.key_placeholder_existing') : t('config.providers.api_key_placeholder');
                 }
             }
 
@@ -2090,7 +2158,7 @@ let _providerCatalogPromise = null;
                         keyInput.placeholder = t('config.providers.copy_key_none');
                     } else {
                         keyInput.disabled = false;
-                        keyInput.placeholder = data.api_key === '••••••••' ? t('config.providers.key_placeholder_existing') : 'sk-...';
+                        keyInput.placeholder = data.api_key === '••••••••' ? t('config.providers.key_placeholder_existing') : t('config.providers.api_key_placeholder');
                     }
                 });
                 // Initial population
@@ -2245,6 +2313,7 @@ let _providerCatalogPromise = null;
                 }
             }
             providerRenderCatalogModelPicker(typeSelect.value);
+            initialModalSnapshot = providerModalSnapshot();
             providerLoadCatalog().then(() => {
                 providerRenderCatalogModelPicker(typeSelect.value);
                 providerRefreshOAuthSetupGuide(typeSelect.value);
@@ -2252,6 +2321,7 @@ let _providerCatalogPromise = null;
         }
 
         function providerAdd() {
+            if (!providerEnsureLoaded()) return;
             providerShowModal(
                 t('config.providers.new_provider'),
                 {},
@@ -2274,6 +2344,7 @@ let _providerCatalogPromise = null;
         }
 
         function providerEdit(idx) {
+            if (!providerEnsureLoaded()) return;
             const p = { ...providersCache[idx], _editMode: true };
             providerShowModal(
                 t('config.providers.edit_provider'),
@@ -2293,8 +2364,15 @@ let _providerCatalogPromise = null;
         }
 
         async function providerDelete(idx) {
+            if (!providerEnsureLoaded()) return;
             const p = providersCache[idx];
-            if (!(await showConfirm(t('config.providers.delete_confirm_title'), t('config.providers.delete_confirm', { name: p.name || p.id })))) return;
+            const refs = Array.isArray(p.references) ? p.references : [];
+            let message = t('config.providers.delete_confirm', { name: p.name || p.id });
+            if (refs.length > 0) {
+                message += '\n\n' + t('config.providers.delete_references_warning', { count: refs.length }) +
+                    '\n' + refs.map(providerReferenceLabel).join('\n');
+            }
+            if (!(await showConfirm(t('config.providers.delete_confirm_title'), message))) return;
             providersCache.splice(idx, 1);
             const ok = await providerSave();
             if (!ok) {
@@ -2304,6 +2382,7 @@ let _providerCatalogPromise = null;
         }
 
         async function providerSave() {
+            if (!providerEnsureLoaded()) return false;
             try {
                 const resp = await fetch('/api/providers', {
                     method: 'PUT',
@@ -2317,8 +2396,10 @@ let _providerCatalogPromise = null;
                 }
                 const result = await resp.json();
                 // Reload providers from server (API keys will be masked)
-                const reload = await fetch('/api/providers');
-                if (reload.ok) providersCache = await reload.json();
+                const reloaded = await loadProviders();
+                if (!reloaded && providersLoadError) {
+                    showToast(t('config.providers.load_failed_body', { error: providersLoadError }), 'warn');
+                }
                 providerRenderCards();
 
                 // Update dashboard agent banner immediately if model/provider changed.

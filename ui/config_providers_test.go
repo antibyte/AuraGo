@@ -1,6 +1,9 @@
 package ui
 
 import (
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -44,6 +47,143 @@ func TestConfigCSSCacheBustForProviderContrast(t *testing.T) {
 	html := readDesktopAssetText(t, "config.html")
 	if !strings.Contains(html, `/css/config.css?v=20260520a`) {
 		t.Fatal("config.html must bust config.css cache for provider contrast styling")
+	}
+}
+
+func TestConfigProvidersGuardLoadFailureBeforeMutation(t *testing.T) {
+	t.Parallel()
+
+	mainJS := readDesktopAssetText(t, "js/config/main.js")
+	providersJS := readDesktopAssetText(t, "cfg/providers.js")
+	for _, marker := range []string{
+		"let providersLoaded = false;",
+		"let providersLoadError = '';",
+		"async function loadProviders()",
+		"providersLoaded = true;",
+		"providersLoadError =",
+	} {
+		if !strings.Contains(mainJS, marker) {
+			t.Fatalf("config main.js missing provider load guard marker %q", marker)
+		}
+	}
+	for _, marker := range []string{
+		"config.providers.load_failed_title",
+		"config.providers.retry_load",
+		"async function providerRetryLoad()",
+		"function providerEnsureLoaded()",
+		"if (!providerEnsureLoaded()) return;",
+		"if (!providerEnsureLoaded()) return false;",
+	} {
+		if !strings.Contains(providersJS, marker) {
+			t.Fatalf("providers.js missing provider mutation guard marker %q", marker)
+		}
+	}
+}
+
+func TestConfigProvidersPricingRequiresSavedNonOpenRouterProvider(t *testing.T) {
+	t.Parallel()
+
+	providersJS := readDesktopAssetText(t, "cfg/providers.js")
+	for _, marker := range []string{
+		"const providerIsSaved =",
+		"provType === 'openrouter'",
+		"config.providers.pricing_save_first",
+		"url = '/api/providers/pricing?id=' + encodeURIComponent(provId);",
+		"url = '/api/openrouter/models';",
+	} {
+		if !strings.Contains(providersJS, marker) {
+			t.Fatalf("providers.js missing safe pricing marker %q", marker)
+		}
+	}
+	if strings.Contains(providersJS, "} else {\r\n                    url = '/api/openrouter/models';") ||
+		strings.Contains(providersJS, "} else {\n                    url = '/api/openrouter/models';") {
+		t.Fatal("providers.js still falls back to OpenRouter pricing for every unsaved provider")
+	}
+}
+
+func TestConfigProvidersWarnBeforeRiskyModalAndDeleteActions(t *testing.T) {
+	t.Parallel()
+
+	providersJS := readDesktopAssetText(t, "cfg/providers.js")
+	for _, marker := range []string{
+		"function providerModalDirty()",
+		"config.providers.discard_changes_confirm_title",
+		"config.providers.discard_changes_confirm",
+		"function providerReferenceLabel(ref)",
+		"p.references",
+		"config.providers.delete_references_warning",
+	} {
+		if !strings.Contains(providersJS, marker) {
+			t.Fatalf("providers.js missing safer action marker %q", marker)
+		}
+	}
+}
+
+func TestConfigProvidersCopilotAndGuardTranslationsExistInAllLocales(t *testing.T) {
+	t.Parallel()
+
+	required := []string{
+		"config.providers.load_failed_title",
+		"config.providers.load_failed_body",
+		"config.providers.retry_load",
+		"config.providers.load_required",
+		"config.providers.pricing_save_first",
+		"config.providers.discard_changes_confirm_title",
+		"config.providers.discard_changes_confirm",
+		"config.providers.delete_references_warning",
+		"config.providers.delete_references_item",
+		"config.providers.copilot_authorized",
+		"config.providers.copilot_not_authorized",
+		"config.providers.copilot_requesting",
+		"config.providers.copilot_start_auth",
+		"config.providers.copilot_visit_code",
+		"config.providers.copilot_check_auth",
+		"config.providers.copilot_waiting",
+		"config.providers.copilot_auth_success",
+		"config.providers.copilot_auth_failed",
+		"config.providers.copilot_error",
+		"config.providers.copilot_unknown_error",
+	}
+	files, err := filepath.Glob(filepath.Join("lang", "config", "providers", "*.json"))
+	if err != nil {
+		t.Fatalf("glob provider translations: %v", err)
+	}
+	if len(files) < 15 {
+		t.Fatalf("expected all provider language files, got %d", len(files))
+	}
+	for _, path := range files {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read %s: %v", path, err)
+		}
+		var values map[string]string
+		if err := json.Unmarshal(data, &values); err != nil {
+			t.Fatalf("unmarshal %s: %v", path, err)
+		}
+		for _, key := range required {
+			if strings.TrimSpace(values[key]) == "" {
+				t.Fatalf("%s missing %s", path, key)
+			}
+		}
+	}
+}
+
+func TestConfigProvidersCopilotFlowUsesI18n(t *testing.T) {
+	t.Parallel()
+
+	providersJS := readDesktopAssetText(t, "cfg/providers.js")
+	for _, forbidden := range []string{
+		"Requesting...",
+		"Start GitHub Authorization",
+		"Waiting for authorization...",
+		"Visit the URL below and enter the code:",
+		"Check Authorization",
+		"GitHub Copilot authorized successfully",
+		"Copilot auth failed:",
+	} {
+		if strings.Contains(providersJS, forbidden) {
+			t.Fatalf("providers.js contains hardcoded Copilot copy %q", forbidden)
+		}
 	}
 }
 

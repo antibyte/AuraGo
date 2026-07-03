@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -95,6 +96,57 @@ llm:
 	}
 }
 
+func TestHandleGetProvidersMasksSecretsAndIncludesReferences(t *testing.T) {
+	t.Parallel()
+
+	server, vault := newProviderTestServer(t, `
+providers:
+  - id: main
+    name: Main
+    type: openai
+    base_url: https://api.openai.com/v1
+    model: gpt-4o-mini
+llm:
+  provider: main
+image_generation:
+  provider: main
+`)
+	if err := vault.WriteSecret("provider_main_api_key", "static-secret"); err != nil {
+		t.Fatalf("WriteSecret(api key) error = %v", err)
+	}
+	server.Cfg.ApplyVaultSecrets(vault)
+	server.Cfg.ResolveProviders()
+
+	req := httptest.NewRequest(http.MethodGet, "/api/providers", nil)
+	rec := httptest.NewRecorder()
+
+	handleProviders(server).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	var providers []struct {
+		providerJSON
+		References []struct {
+			Path string `json:"path"`
+			Role string `json:"role"`
+		} `json:"references"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &providers); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v", err)
+	}
+	if len(providers) != 1 {
+		t.Fatalf("provider count = %d, want 1", len(providers))
+	}
+	if providers[0].APIKey != maskedKey {
+		t.Fatalf("api_key = %q, want masked", providers[0].APIKey)
+	}
+	if !providerJSONReferenceContains(providers[0].References, "llm.provider") ||
+		!providerJSONReferenceContains(providers[0].References, "image_generation.provider") {
+		t.Fatalf("references = %+v, want llm and image generation references", providers[0].References)
+	}
+}
+
 func TestHandleProvidersRoundTripsCapabilities(t *testing.T) {
 	server, _ := newProviderTestServer(t, `
 providers:
@@ -154,6 +206,168 @@ llm:
 	}
 	if !providers[0].EffectiveCapabilities.ToolCalling || !providers[0].EffectiveCapabilities.StructuredOutputs || !providers[0].EffectiveCapabilities.Multimodal {
 		t.Fatalf("effective capabilities not returned: %+v", providers[0].EffectiveCapabilities)
+	}
+}
+
+func TestHandlePutProvidersRejectsInvalidProviderIDs(t *testing.T) {
+	t.Parallel()
+
+	server, _ := newProviderTestServer(t, `
+providers:
+  - id: main
+    name: Main
+    type: openai
+    base_url: https://api.openai.com/v1
+    model: gpt-4o-mini
+llm:
+  provider: main
+`)
+	body := `[{"id":"Bad.ID","name":"Bad","type":"openai","base_url":"https://api.openai.com/v1","model":"gpt-4o-mini","auth_type":"api_key"}]`
+	req := httptest.NewRequest(http.MethodPut, "/api/providers", bytes.NewBufferString(body))
+	rec := httptest.NewRecorder()
+
+	handleProviders(server).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusBadRequest, rec.Body.String())
+	}
+	if got := server.Cfg.FindProvider("main"); got == nil {
+		t.Fatal("existing provider disappeared after invalid request")
+	}
+}
+
+func TestHandlePutProvidersCopyFromUsesVaultAndConfigSecrets(t *testing.T) {
+	t.Parallel()
+
+	t.Run("vault secret", func(t *testing.T) {
+		server, vault := newProviderTestServer(t, `
+providers:
+  - id: source
+    name: Source
+    type: openai
+    base_url: https://api.openai.com/v1
+    model: gpt-4o-mini
+llm:
+  provider: source
+`)
+		if err := vault.WriteSecret("provider_source_api_key", "vault-secret"); err != nil {
+			t.Fatalf("WriteSecret() error = %v", err)
+		}
+		server.Cfg.ApplyVaultSecrets(vault)
+		server.Cfg.ResolveProviders()
+
+		body := `[{"id":"source","name":"Source","type":"openai","base_url":"https://api.openai.com/v1","api_key":"••••••••","model":"gpt-4o-mini","auth_type":"api_key"},{"id":"target","name":"Target","type":"openai","base_url":"https://api.openai.com/v1","api_key":"__copy_from__source","model":"gpt-4o-mini","auth_type":"api_key"}]`
+		req := httptest.NewRequest(http.MethodPut, "/api/providers", bytes.NewBufferString(body))
+		rec := httptest.NewRecorder()
+
+		handleProviders(server).ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+		}
+		got, err := vault.ReadSecret("provider_target_api_key")
+		if err != nil || got != "vault-secret" {
+			t.Fatalf("copied vault secret = %q err=%v, want vault-secret", got, err)
+		}
+	})
+
+	t.Run("loaded config secret", func(t *testing.T) {
+		server, vault := newProviderTestServer(t, `
+providers:
+  - id: source
+    name: Source
+    type: openai
+    base_url: https://api.openai.com/v1
+    model: gpt-4o-mini
+llm:
+  provider: source
+`)
+		server.Cfg.Providers[0].APIKey = "config-secret"
+		body := `[{"id":"source","name":"Source","type":"openai","base_url":"https://api.openai.com/v1","api_key":"••••••••","model":"gpt-4o-mini","auth_type":"api_key"},{"id":"target","name":"Target","type":"openai","base_url":"https://api.openai.com/v1","api_key":"__copy_from__source","model":"gpt-4o-mini","auth_type":"api_key"}]`
+		req := httptest.NewRequest(http.MethodPut, "/api/providers", bytes.NewBufferString(body))
+		rec := httptest.NewRecorder()
+
+		handleProviders(server).ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+		}
+		got, err := vault.ReadSecret("provider_target_api_key")
+		if err != nil || got != "config-secret" {
+			t.Fatalf("copied config secret = %q err=%v, want config-secret", got, err)
+		}
+	})
+}
+
+func TestHandlePutProvidersCopyFromMissingSourceReturnsBadRequest(t *testing.T) {
+	t.Parallel()
+
+	server, vault := newProviderTestServer(t, `
+providers:
+  - id: source
+    name: Source
+    type: openai
+    base_url: https://api.openai.com/v1
+    model: gpt-4o-mini
+llm:
+  provider: source
+`)
+	body := `[{"id":"source","name":"Source","type":"openai","base_url":"https://api.openai.com/v1","api_key":"","model":"gpt-4o-mini","auth_type":"api_key"},{"id":"target","name":"Target","type":"openai","base_url":"https://api.openai.com/v1","api_key":"__copy_from__source","model":"gpt-4o-mini","auth_type":"api_key"}]`
+	req := httptest.NewRequest(http.MethodPut, "/api/providers", bytes.NewBufferString(body))
+	rec := httptest.NewRecorder()
+
+	handleProviders(server).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusBadRequest, rec.Body.String())
+	}
+	if _, err := vault.ReadSecret("provider_target_api_key"); err == nil {
+		t.Fatal("target secret was written despite copy-from failure")
+	}
+	if provider := server.Cfg.FindProvider("target"); provider != nil {
+		t.Fatalf("target provider was saved despite copy-from failure: %+v", provider)
+	}
+}
+
+func TestHandlePutProvidersPreservesTopLevelYAMLCommentsAndOrder(t *testing.T) {
+	t.Parallel()
+
+	server, _ := newProviderTestServer(t, `# top comment
+server:
+  # host comment
+  host: 127.0.0.1
+providers:
+  - id: main
+    name: Main
+    type: openai
+    base_url: https://api.openai.com/v1
+    model: gpt-4o-mini
+# llm comment
+llm:
+  provider: main
+`)
+	body := `[{"id":"main","name":"Renamed","type":"openai","base_url":"https://api.openai.com/v1","api_key":"","model":"gpt-4o-mini","auth_type":"api_key"}]`
+	req := httptest.NewRequest(http.MethodPut, "/api/providers", bytes.NewBufferString(body))
+	rec := httptest.NewRecorder()
+
+	handleProviders(server).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	data, err := os.ReadFile(server.Cfg.ConfigPath)
+	if err != nil {
+		t.Fatalf("read config: %v", err)
+	}
+	out := string(data)
+	for _, want := range []string{"# top comment", "# host comment", "# llm comment", "name: Renamed"} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("saved config missing %q:\n%s", want, out)
+		}
+	}
+	if !(strings.Index(out, "server:") < strings.Index(out, "providers:") &&
+		strings.Index(out, "providers:") < strings.Index(out, "llm:")) {
+		t.Fatalf("top-level key order changed unexpectedly:\n%s", out)
 	}
 }
 
@@ -243,4 +457,16 @@ llm:
 	if !strings.Contains(token, "oauth-access-token") {
 		t.Fatalf("oauth token vault entry = %q, want access token to remain intact", token)
 	}
+}
+
+func providerJSONReferenceContains(refs []struct {
+	Path string `json:"path"`
+	Role string `json:"role"`
+}, path string) bool {
+	for _, ref := range refs {
+		if ref.Path == path {
+			return true
+		}
+	}
+	return false
 }

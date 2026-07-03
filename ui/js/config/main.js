@@ -270,6 +270,32 @@ function handleConfigRedirectResponse(resp) {
 
 // Provider management state (loaded from /api/providers)
 let providersCache = [];
+let providersLoaded = false;
+let providersLoadError = '';
+let providersLoadRedirected = false;
+
+async function loadProviders() {
+    providersLoadRedirected = false;
+    try {
+        const provResp = await fetch('/api/providers');
+        if (handleConfigRedirectResponse(provResp)) {
+            providersLoadRedirected = true;
+            return false;
+        }
+        if (!provResp.ok) {
+            const message = await provResp.text();
+            throw new Error(message || t('config.common.error'));
+        }
+        providersCache = await provResp.json();
+        providersLoaded = true;
+        providersLoadError = '';
+        return true;
+    } catch (e) {
+        providersLoadError = e && e.message ? e.message : String(e);
+        if (!providersLoaded) providersCache = [];
+        return false;
+    }
+}
 
 // Personality profiles cache (loaded from /api/personalities)
 let personalitiesCache = [];
@@ -294,11 +320,8 @@ async function init() {
         schema = await schemaResp.json();
         try { vaultExists = (await vaultResp.json()).exists === true; } catch (_) { }
         // Load providers (best-effort – endpoint only exists when web_config is enabled)
-        try {
-            const provResp = await fetch('/api/providers');
-            if (handleConfigRedirectResponse(provResp)) return;
-            if (provResp.ok) providersCache = await provResp.json();
-        } catch (_) { }
+        await loadProviders();
+        if (providersLoadRedirected) return;
         // Load personality profiles
         try {
             const persResp = await fetch('/api/personalities');

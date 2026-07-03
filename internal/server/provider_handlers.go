@@ -10,28 +10,27 @@ import (
 	"net/http"
 	"os"
 	"strings"
-
-	"gopkg.in/yaml.v3"
 )
 
 // providerJSON is the API representation of a provider entry.
 type providerJSON struct {
-	ID                    string                    `json:"id"`
-	Name                  string                    `json:"name"`
-	Type                  string                    `json:"type"`
-	BaseURL               string                    `json:"base_url"`
-	APIKey                string                    `json:"api_key"`
-	Model                 string                    `json:"model"`
-	AccountID             string                    `json:"account_id"`
-	AuthType              string                    `json:"auth_type"`
-	OAuthAuthURL          string                    `json:"oauth_auth_url"`
-	OAuthTokenURL         string                    `json:"oauth_token_url"`
-	OAuthClientID         string                    `json:"oauth_client_id"`
-	OAuthClientSecret     string                    `json:"oauth_client_secret"`
-	OAuthScopes           string                    `json:"oauth_scopes"`
-	Models                []config.ModelCost        `json:"models,omitempty"`
-	Capabilities          *providerCapabilitiesJSON `json:"capabilities,omitempty"`
-	EffectiveCapabilities providerCapabilitiesJSON  `json:"effective_capabilities,omitempty"`
+	ID                    string                     `json:"id"`
+	Name                  string                     `json:"name"`
+	Type                  string                     `json:"type"`
+	BaseURL               string                     `json:"base_url"`
+	APIKey                string                     `json:"api_key"`
+	Model                 string                     `json:"model"`
+	AccountID             string                     `json:"account_id"`
+	AuthType              string                     `json:"auth_type"`
+	OAuthAuthURL          string                     `json:"oauth_auth_url"`
+	OAuthTokenURL         string                     `json:"oauth_token_url"`
+	OAuthClientID         string                     `json:"oauth_client_id"`
+	OAuthClientSecret     string                     `json:"oauth_client_secret"`
+	OAuthScopes           string                     `json:"oauth_scopes"`
+	Models                []config.ModelCost         `json:"models,omitempty"`
+	Capabilities          *providerCapabilitiesJSON  `json:"capabilities,omitempty"`
+	EffectiveCapabilities providerCapabilitiesJSON   `json:"effective_capabilities,omitempty"`
+	References            []providerReferencePayload `json:"references,omitempty"`
 }
 
 type providerCapabilitiesJSON struct {
@@ -205,6 +204,7 @@ func handleProviders(s *Server) http.HandlerFunc {
 // handleGetProviders returns the provider list with API keys masked.
 func handleGetProviders(s *Server, w http.ResponseWriter, _ *http.Request) {
 	s.CfgMu.RLock()
+	cfgSnapshot := *s.Cfg
 	providers := append([]config.ProviderEntry(nil), s.Cfg.Providers...)
 	fallback := llm.CapabilityFallback{
 		ToolCalling:       s.Cfg.LLM.UseNativeFunctions,
@@ -241,6 +241,7 @@ func handleGetProviders(s *Server, w http.ResponseWriter, _ *http.Request) {
 			Models:                p.Models,
 			Capabilities:          &providerCapabilitiesJSON{},
 			EffectiveCapabilities: providerCapabilitiesResultToJSON(llm.ResolveProviderCapabilities(p, fallback)),
+			References:            providerReferences(&cfgSnapshot, p.ID),
 		}
 		caps := providerCapabilitiesToJSON(p.Capabilities)
 		out[i].Capabilities = &caps
@@ -266,20 +267,22 @@ func handlePutProviders(s *Server, w http.ResponseWriter, r *http.Request) {
 	oldProviderIDs := make([]string, len(s.Cfg.Providers))
 	for i, p := range s.Cfg.Providers {
 		oldAuthTypeMap[p.ID] = normalizeProviderAuthType(p.AuthType)
-		if normalizeProviderAuthType(p.AuthType) != "oauth2" {
+		if normalizeProviderAuthType(p.AuthType) != "oauth2" && strings.TrimSpace(p.APIKey) != "" {
 			oldKeyMap[p.ID] = p.APIKey
 		}
-		oldSecretMap[p.ID] = p.OAuthClientSecret
+		if strings.TrimSpace(p.OAuthClientSecret) != "" {
+			oldSecretMap[p.ID] = p.OAuthClientSecret
+		}
 		oldProviderIDs[i] = p.ID
 	}
 	configPath := s.Cfg.ConfigPath
 	s.CfgMu.RUnlock()
 	if s.Vault != nil {
 		for _, id := range oldProviderIDs {
-			if secret, err := s.Vault.ReadSecret("provider_" + id + "_api_key"); err == nil {
+			if secret, err := s.Vault.ReadSecret("provider_" + id + "_api_key"); err == nil && strings.TrimSpace(secret) != "" {
 				oldKeyMap[id] = secret
 			}
-			if secret, err := s.Vault.ReadSecret("provider_" + id + "_oauth_client_secret"); err == nil {
+			if secret, err := s.Vault.ReadSecret("provider_" + id + "_oauth_client_secret"); err == nil && strings.TrimSpace(secret) != "" {
 				oldSecretMap[id] = secret
 			}
 		}
@@ -296,8 +299,8 @@ func handlePutProviders(s *Server, w http.ResponseWriter, r *http.Request) {
 	vaultMutations := make([]vaultMutation, 0, len(incoming)*3)
 	for i, p := range incoming {
 		p.ID = strings.TrimSpace(p.ID)
-		if p.ID == "" {
-			jsonError(w, "Provider ID must not be empty", http.StatusBadRequest)
+		if err := validateProviderID(p.ID); err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 		if seenIDs[p.ID] {
@@ -320,21 +323,21 @@ func handlePutProviders(s *Server, w http.ResponseWriter, r *http.Request) {
 				}
 			} else if strings.HasPrefix(apiKey, copyFromPrefix) {
 				// User selected "copy from existing provider" in the UI.
-				sourceID := strings.TrimPrefix(apiKey, copyFromPrefix)
-				if s.Vault != nil {
-					copied, err := s.Vault.ReadSecret("provider_" + sourceID + "_api_key")
-					if err != nil || copied == "" {
-						s.Logger.Warn("[Providers] Copy-from source key not found in vault",
+				sourceID := strings.TrimSpace(strings.TrimPrefix(apiKey, copyFromPrefix))
+				copied := oldKeyMap[sourceID]
+				if strings.TrimSpace(copied) == "" {
+					if s.Logger != nil {
+						s.Logger.Warn("[Providers] Copy-from source key not found",
 							"source_id", sourceID, "target_id", p.ID)
-						apiKey = ""
-					} else {
-						s.Logger.Info("[Providers] Copied API key from source provider",
-							"source_id", sourceID, "target_id", p.ID)
-						apiKey = copied
 					}
-				} else {
-					apiKey = ""
+					jsonError(w, fmt.Sprintf("Cannot copy API key from provider %q: no key found", sourceID), http.StatusBadRequest)
+					return
 				}
+				if s.Logger != nil {
+					s.Logger.Info("[Providers] Copied API key from source provider",
+						"source_id", sourceID, "target_id", p.ID)
+				}
+				apiKey = copied
 			}
 		}
 
@@ -450,20 +453,9 @@ func persistProviderEntries(s *Server, entries []config.ProviderEntry, vaultMuta
 		return providerSaveResult{}, fmt.Errorf("failed to read config: %w", err)
 	}
 
-	var rawCfg map[string]interface{}
-	if err := yaml.Unmarshal(data, &rawCfg); err != nil {
-		return providerSaveResult{}, fmt.Errorf("failed to parse config: %w", err)
-	}
-
-	provList := make([]interface{}, len(entries))
-	for i, e := range entries {
-		provList[i] = buildProviderYAMLEntry(e)
-	}
-	rawCfg["providers"] = provList
-
-	out, err := yaml.Marshal(rawCfg)
+	out, err := marshalConfigWithProviderEntries(data, entries)
 	if err != nil {
-		return providerSaveResult{}, fmt.Errorf("failed to save config: %w", err)
+		return providerSaveResult{}, err
 	}
 
 	if err := config.WriteFileAtomic(configPath, out, 0o600); err != nil {
@@ -670,18 +662,7 @@ func persistProviders(s *Server, configPath string) error {
 	if err != nil {
 		return err
 	}
-	var rawCfg map[string]interface{}
-	if err := yaml.Unmarshal(data, &rawCfg); err != nil {
-		return err
-	}
-
-	provList := make([]interface{}, len(providers))
-	for i, e := range providers {
-		provList[i] = buildProviderYAMLEntry(e)
-	}
-	rawCfg["providers"] = provList
-
-	out, err := yaml.Marshal(rawCfg)
+	out, err := marshalConfigWithProviderEntries(data, providers)
 	if err != nil {
 		return err
 	}
