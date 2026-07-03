@@ -125,12 +125,6 @@
                 1.0
             );
 
-            // Smoke FBM layer between the two suns
-            vec2 smokeUV = uv * 2.0 + vec2(t * 0.05, t * 0.02);
-            float smokeFbm = fbm(smokeUV);
-            float smokeAlpha = smokeFbm * 0.18 * edgeMask;
-            vec3 smokeColor = vec3(0.5, 0.18, 0.06) * smokeFbm * 0.18;
-
             // Third orb — slow-drifting soft glow
             vec2 orbCenter = vec2(
                 0.5 + sin(t * 0.025 + 1.7) * 0.14,
@@ -155,14 +149,12 @@
 
             vec3 color =
                 (leftSun.rgb + rightSun.rgb) * edgeMask +
-                smokeColor * smokeAlpha +
                 orbColor +
                 hazeColor +
                 emberColor * ember * 1.15;
 
             float alpha =
                 (leftSun.a + rightSun.a) * edgeMask * 1.28 +
-                smokeAlpha * 0.5 +
                 orbGlow * 0.2 +
                 haze * edgeMask * 0.1 +
                 ember * 0.18;
@@ -273,7 +265,7 @@
         // Read CSS var for orb3 color
         const orb3 = getComputedStyle(document.documentElement).getPropertyValue('--page-orb-3').trim();
         const orb3Parsed = orb3.replace(/^rgba?\(/, '').replace(/\)$/, '').split(',').map(v => parseFloat(v.trim()));
-        const orb3Vec = orb3Parsed.length >= 3 ? orb3Parsed : [1, 0.7, 0.3];
+        const orb3Vec = orb3Parsed.length >= 3 ? orb3Parsed.map(v => v / 255.0) : [1, 0.71, 0.33];
         gl.uniform3f(uniforms.orb3Color, orb3Vec[0], orb3Vec[1], orb3Vec[2]);
 
         gl.enable(gl.BLEND);
