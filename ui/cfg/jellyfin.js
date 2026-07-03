@@ -3,7 +3,7 @@
 function renderJellyfinSection(section) {
     const data = configData['jellyfin'] || {};
     const enabledOn = data.enabled === true;
-    const readonlyOn = data.read_only === true;
+    const readonlyOn = data.readonly === true || data.read_only === true;
     const destructiveOn = data.allow_destructive === true;
     const httpsOn = data.use_https === true;
     const insecureOn = data.insecure_ssl === true;
@@ -32,7 +32,7 @@ function renderJellyfinSection(section) {
     html += '<div class="field-label">' + t('config.jellyfin.readonly_label') + '</div>';
     if (helpReadonly) html += '<div class="field-help">' + helpReadonly + '</div>';
     html += '<div class="toggle-wrap">';
-    html += '<div class="toggle' + (readonlyOn ? ' on' : '') + '" data-path="jellyfin.read_only" onclick="toggleBool(this)"></div>';
+    html += '<div class="toggle' + (readonlyOn ? ' on' : '') + '" data-path="jellyfin.readonly" onclick="toggleBool(this)"></div>';
     html += '<span class="toggle-label">' + (readonlyOn ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
     html += '</div></div>';
 

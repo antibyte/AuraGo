@@ -116,7 +116,7 @@ func (c *Client) request(ctx context.Context, method, endpoint string, body inte
 		return nil, fmt.Errorf("create request: %w", err)
 	}
 
-	req.Header.Set("X-Emby-Token", c.apiKey)
+	req.Header.Set("Authorization", fmt.Sprintf("MediaBrowser Token=%q", c.apiKey))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
 

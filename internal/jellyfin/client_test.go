@@ -96,8 +96,11 @@ func TestPing(t *testing.T) {
 		if r.URL.Path != "/System/Ping" {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
-		if r.Header.Get("X-Emby-Token") != "test-api-key" {
-			t.Error("missing or wrong auth header")
+		if got := r.Header.Get("Authorization"); got != `MediaBrowser Token="test-api-key"` {
+			t.Errorf("Authorization = %q, want MediaBrowser token header", got)
+		}
+		if got := r.Header.Get("X-Emby-Token"); got != "" {
+			t.Errorf("X-Emby-Token = %q, want deprecated header omitted", got)
 		}
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`"Jellyfin Server"`))

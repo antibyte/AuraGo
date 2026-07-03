@@ -3001,6 +3001,49 @@ obsidian:
 	}
 }
 
+func TestLoadJellyfinLegacyReadOnlyKey(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	configContent := `
+jellyfin:
+  enabled: true
+  read_only: true
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if !cfg.Jellyfin.ReadOnly {
+		t.Fatal("expected jellyfin.read_only to map to Jellyfin.ReadOnly")
+	}
+}
+
+func TestLoadJellyfinCanonicalReadOnlyWins(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	configContent := `
+jellyfin:
+  enabled: true
+  readonly: false
+  read_only: true
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if cfg.Jellyfin.ReadOnly {
+		t.Fatal("expected canonical jellyfin.readonly to take precedence over legacy read_only")
+	}
+}
+
 func TestMaintenanceEnabledDefaultsTrueWhenOmitted(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.yaml")

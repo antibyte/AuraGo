@@ -723,8 +723,12 @@ Manage your Jellyfin media server.
 ```yaml
 jellyfin:
     enabled: true
+    readonly: false
+    allow_destructive: false
     host: "jellyfin.local"
     port: 8096
+    use_https: false
+    insecure_ssl: false
 ```
 
 ---

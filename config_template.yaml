@@ -1299,6 +1299,16 @@ vercel:
     default_project_id: ""
     team_id: ""
     team_slug: ""
+jellyfin:
+    enabled: false
+    readonly: false
+    allow_destructive: false
+    host: ""
+    port: 8096
+    use_https: false
+    insecure_ssl: false
+    connect_timeout: 30
+    request_timeout: 60
 mcp:
     enabled: false
     secrets: []

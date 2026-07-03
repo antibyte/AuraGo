@@ -85,7 +85,7 @@ Set in config.yaml:
 ```yaml
 jellyfin:
   enabled: true
-  read_only: false           # Block playback control & library refresh
+  readonly: false            # Block playback control & library refresh
   allow_destructive: false   # Block item deletion
   host: "jellyfin.local"
   port: 8096

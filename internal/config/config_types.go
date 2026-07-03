@@ -1972,6 +1972,31 @@ type JellyfinConfig struct {
 	RequestTimeout   int    `yaml:"request_timeout"`   // request timeout in seconds (default: 60)
 }
 
+// UnmarshalYAML keeps backward compatibility with the legacy read_only key
+// while preferring the canonical readonly key when both are present.
+func (c *JellyfinConfig) UnmarshalYAML(value *yaml.Node) error {
+	type rawJellyfinConfig JellyfinConfig
+
+	var raw rawJellyfinConfig
+	if err := value.Decode(&raw); err != nil {
+		return err
+	}
+
+	*c = JellyfinConfig(raw)
+	if yamlConfigHasKey(value, "readonly") || !yamlConfigHasKey(value, "read_only") {
+		return nil
+	}
+
+	var legacy struct {
+		ReadOnly bool `yaml:"read_only"`
+	}
+	if err := value.Decode(&legacy); err != nil {
+		return err
+	}
+	c.ReadOnly = legacy.ReadOnly
+	return nil
+}
+
 // ObsidianConfig holds configuration for Obsidian integration via Local REST API plugin.
 type ObsidianConfig struct {
 	Enabled          bool   `yaml:"enabled"`
@@ -2012,6 +2037,10 @@ func (c *ObsidianConfig) UnmarshalYAML(value *yaml.Node) error {
 }
 
 func obsidianConfigHasYAMLKey(node *yaml.Node, key string) bool {
+	return yamlConfigHasKey(node, key)
+}
+
+func yamlConfigHasKey(node *yaml.Node, key string) bool {
 	if node == nil {
 		return false
 	}

@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"aurago/internal/jellyfin"
+	"aurago/internal/security"
 )
 
 func registerJellyfinHandlers(mux *http.ServeMux, s *Server) {
@@ -35,7 +36,7 @@ func handleJellyfinStatus(s *Server) http.HandlerFunc {
 			w.WriteHeader(http.StatusServiceUnavailable)
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"status": "error",
-				"error":  "Failed to initialize Jellyfin client",
+				"error":  "Failed to initialize Jellyfin client: " + security.Scrub(err.Error()),
 			})
 			return
 		}
@@ -45,7 +46,7 @@ func handleJellyfinStatus(s *Server) http.HandlerFunc {
 			w.WriteHeader(http.StatusServiceUnavailable)
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"status": "offline",
-				"error":  "Failed to reach Jellyfin",
+				"error":  "Failed to reach Jellyfin: " + security.Scrub(err.Error()),
 			})
 			return
 		}

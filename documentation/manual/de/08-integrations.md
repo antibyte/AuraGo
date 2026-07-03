@@ -1036,15 +1036,18 @@ tools:
 
 Media-Server-Verwaltung.
 
-**Web-UI:** Config → Integrationen → Jellyfin → URL eingeben. API-Key im Vault speichern.
+**Web-UI:** Config → Integrationen → Jellyfin → Host und Port eintragen. API-Key im Vault speichern.
 
 ### YAML-Referenz
 ```yaml
 jellyfin:
   enabled: true
-  url: "https://jellyfin.local:8096"
   readonly: false
   allow_destructive: false
+  host: "jellyfin.local"
+  port: 8096
+  use_https: true
+  insecure_ssl: false
 ```
 
 ## Image Generation
