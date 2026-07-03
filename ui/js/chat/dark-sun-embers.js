@@ -108,11 +108,6 @@
     function createParticle(rerollFn) {
         const particle = document.createElement('span');
         rerollFn(particle, true);
-        particle.addEventListener('animationiteration', (e) => {
-            if (e.animationName === 'darkSunAshFall' || e.animationName === 'darkSunEmberRise') {
-                rerollFn(particle, false);
-            }
-        });
         return particle;
     }
 
