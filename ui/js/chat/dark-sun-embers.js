@@ -54,10 +54,10 @@
     function rerollAsh(particle, immediate) {
         const chatBox = document.getElementById(CHAT_BOX_ID);
         const duration = randomBetween(40, 70);
-        const size = randomBetween(8, 22);
+        const size = randomBetween(3, 7);
         const left = randomBetween(2, 96);
         const sway = randomBetween(-60, 60);
-        const opacity = randomBetween(0.14, 0.36);
+        const opacity = randomBetween(0.12, 0.28);
         const rotateStart = randomBetween(-30, 30);
         const rotateEnd = rotateStart + randomBetween(20, 90) * (Math.random() > 0.5 ? 1 : -1);
         const scrollH = chatBox ? chatBox.scrollHeight : window.innerHeight;
@@ -81,10 +81,10 @@
     function rerollEmber(particle, immediate) {
         const chatBox = document.getElementById(CHAT_BOX_ID);
         const duration = randomBetween(20, 35);
-        const size = randomBetween(10, 28);
+        const size = randomBetween(2, 5);
         const left = randomBetween(2, 96);
         const sway = randomBetween(-40, 40);
-        const opacity = randomBetween(0.34, 0.76);
+        const opacity = randomBetween(0.45, 0.88);
         const rotateStart = randomBetween(-40, 40);
         const rotateEnd = rotateStart + randomBetween(80, 220) * (Math.random() > 0.5 ? 1 : -1);
         const scrollH = chatBox ? chatBox.scrollHeight : window.innerHeight;

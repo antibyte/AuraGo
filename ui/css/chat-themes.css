@@ -3643,30 +3643,20 @@
 }
 
 [data-theme="dark-sun"] .dark-sun-ash {
-    border-radius: 40% 60% 50% 50%;
-    background: radial-gradient(circle at 35% 35%, rgba(160, 110, 70, 0.55), rgba(70, 45, 30, 0.25) 55%, transparent 72%);
-    filter: blur(2.5px);
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(140, 100, 60, 0.45), transparent 70%);
+    filter: blur(3px);
     opacity: var(--ember-opacity, 0.24);
     animation: darkSunAshFall var(--ember-duration, 55s) linear var(--ember-delay, -10s) infinite;
-    box-shadow: 0 0 6px rgba(120, 80, 50, 0.15);
 }
 
 [data-theme="dark-sun"] .dark-sun-ember {
-    border-radius: 45% 55% 40% 60%;
-    background: radial-gradient(circle at 40% 40%, rgba(255, 190, 80, 0.85), rgba(255, 110, 30, 0.45) 50%, rgba(180, 50, 15, 0.15) 72%, transparent 90%);
-    filter: blur(1.5px);
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 230, 180, 0.95) 0%, rgba(255, 160, 50, 0.6) 35%, rgba(255, 80, 20, 0.25) 60%, transparent 72%);
+    filter: blur(1px);
     opacity: var(--ember-opacity, 0.55);
     animation: darkSunEmberRise var(--ember-duration, 28s) linear var(--ember-delay, -5s) infinite;
-    box-shadow: 0 0 8px 2px rgba(255, 140, 40, 0.25), inset 0 0 3px rgba(255, 220, 160, 0.3);
-}
-
-[data-theme="dark-sun"] .dark-sun-ember::after {
-    content: '';
-    position: absolute;
-    inset: 20%;
-    border-radius: 50%;
-    background: radial-gradient(circle, rgba(255, 240, 200, 0.7), transparent 65%);
-    filter: blur(0.5px);
+    box-shadow: 0 0 5px 2px rgba(255, 160, 60, 0.35), 0 0 12px 5px rgba(255, 100, 30, 0.12);
 }
 
 @media (prefers-reduced-motion: reduce) {
