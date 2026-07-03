@@ -147,7 +147,18 @@
 
 .sk-file-editor-actions {
     display: flex;
-    gap: 6px;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--space-2);
+}
+
+#agent-file-editor .sk-code-meta-grid {
+    margin-bottom: var(--space-3);
+}
+
+.sk-file-editor-actions .btn {
+    white-space: nowrap;
 }
 
 .sk-dep-tag-clickable {
