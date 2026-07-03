@@ -117,15 +117,15 @@
     }
 
     function fillParticles(layer, typeClass, desiredCount, rerollFn) {
-        const existing = layer.querySelectorAll('.' + typeClass);
-        while (existing.length < desiredCount) {
+        const live = layer.getElementsByClassName(typeClass);
+        while (live.length < desiredCount) {
             layer.appendChild(createParticle(rerollFn));
         }
-        while (existing.length > desiredCount) {
-            const last = layer.querySelector('.' + typeClass + ':last-of-type');
+        while (live.length > desiredCount) {
+            const last = live[live.length - 1];
             if (last) last.remove();
         }
-        Array.from(layer.querySelectorAll('.' + typeClass)).forEach((p) => rerollFn(p, true));
+        Array.from(live).forEach((p) => rerollFn(p, true));
     }
 
     function fillLayer(layer) {
