@@ -9,6 +9,7 @@ Add or update the `webdav` section in your `config.yaml`:
 ```yaml
 webdav:
   enabled: true
+  readonly: false
   auth_type: "basic" # or "bearer"
   url: "https://your-cloud.example.com/remote.php/dav/files/username/"
   username: "your_username"
@@ -20,6 +21,7 @@ For Bearer-token based servers:
 ```yaml
 webdav:
   enabled: true
+  readonly: false
   auth_type: "bearer"
   url: "https://storage.example.com/webdav/"
   # Store the bearer token via the Web UI Vault field
@@ -30,11 +32,11 @@ webdav:
 
 ## Available Operations
 
-The agent can perform the following operations via the `webdav` tool:
+The agent can perform the following operations via the native `webdav` tool:
 
 - **list**: List files and directories in a given path.
 - **read**: Download and read the content of a text-based file.
-- **write**: Create or overwrite a file with new content.
+- **write**: Create, overwrite, or truncate a file. Empty content is valid.
 - **mkdir**: Create a new directory.
 - **delete**: Permanently remove a file or directory.
 - **move**: Rename or move a file or directory.
@@ -43,7 +45,7 @@ The agent can perform the following operations via the `webdav` tool:
 ## Security
 
 - **App Passwords**: For services like Nextcloud, it is strongly recommended to generate a dedicated "App Password" rather than using your main account password.
-- **Base URL**: The `url` should point to the root folder you want the agent to access. The agent cannot navigate "up" beyond this base URL.
+- **Base URL**: The `url` should point to the root folder you want the agent to access. AuraGo validates every source and destination path before sending HTTP requests and rejects `.`, `..`, empty path segments, backslashes, and control characters.
 - **TLS/SSL**: Always use `https://` to ensure your credentials and file data are encrypted in transit.
 
 ## Technical Details

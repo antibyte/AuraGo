@@ -1188,7 +1188,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			if cfg.WebDAV.ReadOnly {
 				switch req.Operation {
 				case "write", "put", "upload", "mkdir", "create_dir", "delete", "rm", "move", "rename", "mv":
-					return `Tool Output: {"status":"error","message":"WebDAV is in read-only mode. Disable webdav.read_only to allow changes."}`
+					return `Tool Output: {"status":"error","message":"WebDAV is in read-only mode. Disable webdav.readonly to allow changes."}`
 				}
 			}
 			davCfg := tools.WebDAVConfig{

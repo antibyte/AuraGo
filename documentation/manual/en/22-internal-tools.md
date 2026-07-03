@@ -1222,7 +1222,7 @@ Inspect and control configured Elegoo Centauri Carbon and Klipper/Moonraker prin
 Search Composio toolkits/tools and execute user-approved Composio actions (`composio.enabled` + vault `composio_api_key`).
 
 ### `webdav`
-List, read, write, move, and delete files on a configured WebDAV endpoint (`webdav.enabled`). Respects `webdav.readonly`.
+List, read, write, move, and delete files on a configured WebDAV endpoint (`webdav.enabled`). Respects `webdav.readonly`; empty `content` is valid for creating or truncating a file.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
@@ -1230,6 +1230,8 @@ List, read, write, move, and delete files on a configured WebDAV endpoint (`webd
 | `path` | string | Remote path relative to the configured base URL |
 | `destination` | string | Target path for move |
 | `content` | string | File content for write |
+
+Paths are relative to `webdav.url`. Root paths `""` and `/` are allowed; `.`, `..`, empty traversal segments, backslashes, and control characters are rejected before HTTP requests are sent.
 
 ### `certificate_manager`
 Inspect PEM certificates, check remote HTTPS endpoints, or generate local self-signed test certificates.

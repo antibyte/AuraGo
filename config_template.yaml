@@ -915,10 +915,11 @@ workspace_search:
         - data/vault.bin
 webdav:
     enabled: false
+    readonly: false
     auth_type: basic
-    password: ""
     url: ""
     username: ""
+    # Store password/app password or bearer token in the Vault via the Web UI.
 whisper:
     provider: ""
 mqtt:

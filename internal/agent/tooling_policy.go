@@ -362,6 +362,7 @@ func buildToolFlagsFromConfig(cfg *config.Config) ToolFeatureFlags {
 		CloudflareTunnelEnabled:      cfg.CloudflareTunnel.Enabled,
 		GoogleWorkspaceEnabled:       cfg.GoogleWorkspace.Enabled,
 		OneDriveEnabled:              cfg.OneDrive.Enabled,
+		WebDAVEnabled:                cfg.WebDAV.Enabled,
 		VirusTotalEnabled:            cfg.VirusTotal.Enabled,
 		GolangciLintEnabled:          cfg.GolangciLint.Enabled,
 		ImageGenerationEnabled:       cfg.ImageGeneration.Enabled,

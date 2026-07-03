@@ -454,6 +454,7 @@ koofr:
 ```
 
 > 🔒 Passwords are stored in the Vault.
+> Do not add `password` or `token` fields to `config.yaml`; use the Vault fields in the Web UI.
 
 ---
 

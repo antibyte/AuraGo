@@ -71,7 +71,7 @@ func allBuiltinToolFeatureFlags() ToolFeatureFlags {
 		AnsibleEnabled: true, InvasionControlEnabled: true, GitHubEnabled: true, MQTTEnabled: true,
 		AdGuardEnabled: true, UptimeKumaEnabled: true, GrafanaEnabled: true, MCPEnabled: true, ComposioEnabled: true, SandboxEnabled: true, MeshCentralEnabled: true,
 		HomepageEnabled: true, NetlifyEnabled: true, VercelEnabled: true, FirewallEnabled: true, EmailEnabled: true, AgentMailEnabled: true,
-		CloudflareTunnelEnabled: true, GoogleWorkspaceEnabled: true, OneDriveEnabled: true,
+		CloudflareTunnelEnabled: true, GoogleWorkspaceEnabled: true, OneDriveEnabled: true, WebDAVEnabled: true,
 		VirusTotalEnabled: true, GolangciLintEnabled: true, ImageGenerationEnabled: true, MusicGenerationEnabled: true, VideoGenerationEnabled: true, TTSEnabled: true, RemoteControlEnabled: true, PackageManagerEnabled: true,
 		AllowShell: true, AllowPython: true, AllowFilesystemWrite: true, AllowNetworkRequests: true,
 		AllowRemoteShell: true, AllowSelfUpdate: true, HomepageAllowLocalServer: true,
@@ -146,6 +146,7 @@ func (ff ToolFeatureFlags) Key() string {
 	appendToolFeatureKeyPart("cloudflare_tunnel", ff.CloudflareTunnelEnabled)
 	appendToolFeatureKeyPart("google_workspace", ff.GoogleWorkspaceEnabled)
 	appendToolFeatureKeyPart("onedrive", ff.OneDriveEnabled)
+	appendToolFeatureKeyPart("webdav", ff.WebDAVEnabled)
 	appendToolFeatureKeyPart("virustotal", ff.VirusTotalEnabled)
 	appendToolFeatureKeyPart("golangci_lint", ff.GolangciLintEnabled)
 	appendToolFeatureKeyPart("image_generation", ff.ImageGenerationEnabled)

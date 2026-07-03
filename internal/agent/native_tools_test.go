@@ -450,6 +450,42 @@ func TestBuiltinToolSchemasExposeMeshCentralCoreOperations(t *testing.T) {
 	}
 }
 
+func TestBuiltinToolSchemasExposeWebDAVOperations(t *testing.T) {
+	schemas := builtinToolSchemas(ToolFeatureFlags{WebDAVEnabled: true})
+	props := nativeToolProperties(t, schemas, "webdav")
+	operation, ok := props["operation"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("operation schema = %T, want map[string]interface{}", props["operation"])
+	}
+	enum, ok := operation["enum"].([]string)
+	if !ok {
+		t.Fatalf("operation enum = %T, want []string", operation["enum"])
+	}
+	for _, want := range []string{"list", "read", "write", "mkdir", "delete", "move", "info"} {
+		if !containsName(enum, want) {
+			t.Fatalf("webdav operation enum missing %q: %v", want, enum)
+		}
+	}
+	for _, want := range []string{"path", "content", "destination"} {
+		if _, ok := props[want]; !ok {
+			t.Fatalf("webdav schema missing property %q", want)
+		}
+	}
+}
+
+func TestToolNamesFromConfigIncludesWebDAVWhenEnabled(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.WebDAV.Enabled = true
+
+	names := ToolNamesFromConfig(cfg)
+	if !containsName(names, "webdav") {
+		t.Fatalf("ToolNamesFromConfig = %v, want webdav", names)
+	}
+	if containsName(names, "webdav_storage") {
+		t.Fatalf("ToolNamesFromConfig should expose canonical webdav only: %v", names)
+	}
+}
+
 func TestBuiltinToolSchemasIncludeVercelWhenEnabled(t *testing.T) {
 	schemas := builtinToolSchemas(ToolFeatureFlags{VercelEnabled: true})
 	for _, schema := range schemas {
@@ -2290,6 +2326,7 @@ func TestBuildToolFlagsFromConfigProducesConsistentResults(t *testing.T) {
 	cfg.InvasionControl.Enabled = true
 	cfg.GitHub.Enabled = true
 	cfg.MQTT.Enabled = true
+	cfg.WebDAV.Enabled = true
 	cfg.AdGuard.Enabled = true
 	cfg.MCP.Enabled = true
 	cfg.Agent.AllowMCP = true
@@ -2380,5 +2417,8 @@ func TestBuildToolFlagsFromConfigProducesConsistentResults(t *testing.T) {
 	}
 	if !ff.RemoteControlEnabled {
 		t.Error("expected RemoteControlEnabled=true")
+	}
+	if !ff.WebDAVEnabled {
+		t.Error("expected WebDAVEnabled=true")
 	}
 }

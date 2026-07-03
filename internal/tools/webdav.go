@@ -55,18 +55,66 @@ type davProp struct {
 
 // ── Internal helpers ─────────────────────────────────────────────────
 
-// webdavURL joins the base URL with a sub-path.
-func webdavURL(cfg WebDAVConfig, path string) string {
+// webdavURL joins the base URL with a validated sub-path.
+func webdavURL(cfg WebDAVConfig, path string) (string, error) {
 	base := strings.TrimRight(cfg.URL, "/")
-	trimmed := strings.Trim(path, "/")
-	if trimmed == "" {
-		return base + "/"
+	suffix, err := webdavPathSuffix(path)
+	if err != nil {
+		return "", err
 	}
+	if suffix == "" {
+		return base + "/", nil
+	}
+	return base + "/" + suffix, nil
+}
+
+func webdavPathSuffix(path string) (string, error) {
+	if strings.Contains(path, "\\") {
+		return "", fmt.Errorf("invalid path %q: backslashes are not allowed", path)
+	}
+	for _, r := range path {
+		if r == 0 || r < 0x20 || r == 0x7f {
+			return "", fmt.Errorf("invalid path %q: control characters are not allowed", path)
+		}
+	}
+	if path == "" || path == "/" {
+		return "", nil
+	}
+	if strings.Contains(path, "//") {
+		return "", fmt.Errorf("invalid path %q: empty path segments are not allowed", path)
+	}
+	trimmed := strings.Trim(path, "/")
 	segments := strings.Split(trimmed, "/")
 	for i, segment := range segments {
+		switch segment {
+		case "", ".", "..":
+			return "", fmt.Errorf("invalid path %q: %q path segments are not allowed", path, segment)
+		}
 		segments[i] = url.PathEscape(segment)
 	}
-	return base + "/" + strings.Join(segments, "/")
+	return strings.Join(segments, "/"), nil
+}
+
+func webdavInvalidPathResult(err error) string {
+	return davEncode(FSResult{Status: "error", Message: err.Error()})
+}
+
+func webdavIsSelfResponse(requestURL, href string) bool {
+	return webdavHrefPath(requestURL) == webdavHrefPath(href)
+}
+
+func webdavHrefPath(raw string) string {
+	if parsed, err := url.Parse(raw); err == nil && parsed.Path != "" {
+		raw = parsed.EscapedPath()
+	}
+	if decoded, err := url.PathUnescape(raw); err == nil {
+		raw = decoded
+	}
+	raw = strings.TrimRight(raw, "/")
+	if raw == "" {
+		return "/"
+	}
+	return raw
 }
 
 // webdavRequest performs a generic WebDAV HTTP request.
@@ -104,7 +152,10 @@ func webDAVReadOnlyMutationError(cfg WebDAVConfig, operation string) string {
 
 // WebDAVList performs a PROPFIND on the given path and returns a directory listing.
 func WebDAVList(cfg WebDAVConfig, path string) string {
-	url := webdavURL(cfg, path)
+	requestURL, err := webdavURL(cfg, path)
+	if err != nil {
+		return webdavInvalidPathResult(err)
+	}
 
 	propfindBody := `<?xml version="1.0" encoding="utf-8"?>
 <d:propfind xmlns:d="DAV:">
@@ -117,7 +168,7 @@ func WebDAVList(cfg WebDAVConfig, path string) string {
   </d:prop>
 </d:propfind>`
 
-	resp, err := webdavRequest(cfg, "PROPFIND", url, strings.NewReader(propfindBody), map[string]string{
+	resp, err := webdavRequest(cfg, "PROPFIND", requestURL, strings.NewReader(propfindBody), map[string]string{
 		"Content-Type": "application/xml",
 		"Depth":        "1",
 	})
@@ -152,17 +203,18 @@ func WebDAVList(cfg WebDAVConfig, path string) string {
 	}
 	var items []entry
 
-	// Skip the first response (it's the directory itself)
-	for i, r := range ms.Responses {
-		if i == 0 {
+	for _, r := range ms.Responses {
+		if webdavIsSelfResponse(requestURL, r.Href) {
 			continue
 		}
 		name := r.Propstat.Prop.DisplayName
 		if name == "" {
-			// Extract from href
-			parts := strings.Split(strings.TrimRight(r.Href, "/"), "/")
+			parts := strings.Split(strings.TrimRight(webdavHrefPath(r.Href), "/"), "/")
 			if len(parts) > 0 {
 				name = parts[len(parts)-1]
+				if decoded, err := url.PathUnescape(name); err == nil {
+					name = decoded
+				}
 			}
 		}
 		isDir := r.Propstat.Prop.ResourceType.Collection != nil
@@ -184,7 +236,10 @@ func WebDAVRead(cfg WebDAVConfig, path string) string {
 		return davEncode(FSResult{Status: "error", Message: "'path' is required for read"})
 	}
 
-	url := webdavURL(cfg, path)
+	url, err := webdavURL(cfg, path)
+	if err != nil {
+		return webdavInvalidPathResult(err)
+	}
 	resp, err := webdavRequest(cfg, "GET", url, nil, nil)
 	if err != nil {
 		return davEncode(FSResult{Status: "error", Message: fmt.Sprintf("GET failed: %v", err)})
@@ -218,14 +273,17 @@ func WebDAVRead(cfg WebDAVConfig, path string) string {
 
 // WebDAVWrite uploads content to a file on WebDAV.
 func WebDAVWrite(cfg WebDAVConfig, path, content string) string {
-	if path == "" || content == "" {
-		return davEncode(FSResult{Status: "error", Message: "'path' and 'content' are required for write"})
+	if path == "" {
+		return davEncode(FSResult{Status: "error", Message: "'path' is required for write"})
 	}
 	if denied := webDAVReadOnlyMutationError(cfg, "write"); denied != "" {
 		return denied
 	}
 
-	url := webdavURL(cfg, path)
+	url, err := webdavURL(cfg, path)
+	if err != nil {
+		return webdavInvalidPathResult(err)
+	}
 	resp, err := webdavRequest(cfg, "PUT", url, strings.NewReader(content), map[string]string{
 		"Content-Type": "application/octet-stream",
 	})
@@ -254,7 +312,10 @@ func WebDAVMkdir(cfg WebDAVConfig, path string) string {
 		return denied
 	}
 
-	url := webdavURL(cfg, path)
+	url, err := webdavURL(cfg, path)
+	if err != nil {
+		return webdavInvalidPathResult(err)
+	}
 	resp, err := webdavRequest(cfg, "MKCOL", url, nil, nil)
 	if err != nil {
 		return davEncode(FSResult{Status: "error", Message: fmt.Sprintf("MKCOL failed: %v", err)})
@@ -284,7 +345,10 @@ func WebDAVDelete(cfg WebDAVConfig, path string) string {
 		return denied
 	}
 
-	url := webdavURL(cfg, path)
+	url, err := webdavURL(cfg, path)
+	if err != nil {
+		return webdavInvalidPathResult(err)
+	}
 	resp, err := webdavRequest(cfg, "DELETE", url, nil, nil)
 	if err != nil {
 		return davEncode(FSResult{Status: "error", Message: fmt.Sprintf("DELETE failed: %v", err)})
@@ -314,8 +378,14 @@ func WebDAVMove(cfg WebDAVConfig, srcPath, dstPath string) string {
 		return denied
 	}
 
-	srcURL := webdavURL(cfg, srcPath)
-	dstURL := webdavURL(cfg, dstPath)
+	srcURL, err := webdavURL(cfg, srcPath)
+	if err != nil {
+		return webdavInvalidPathResult(err)
+	}
+	dstURL, err := webdavURL(cfg, dstPath)
+	if err != nil {
+		return webdavInvalidPathResult(err)
+	}
 
 	resp, err := webdavRequest(cfg, "MOVE", srcURL, nil, map[string]string{
 		"Destination": dstURL,
@@ -342,11 +412,10 @@ func WebDAVMove(cfg WebDAVConfig, srcPath, dstPath string) string {
 
 // WebDAVInfo retrieves metadata for a single file/directory via PROPFIND depth=0.
 func WebDAVInfo(cfg WebDAVConfig, path string) string {
-	if path == "" {
-		return davEncode(FSResult{Status: "error", Message: "'path' is required for info"})
+	url, err := webdavURL(cfg, path)
+	if err != nil {
+		return webdavInvalidPathResult(err)
 	}
-
-	url := webdavURL(cfg, path)
 	propfindBody := `<?xml version="1.0" encoding="utf-8"?>
 <d:propfind xmlns:d="DAV:">
   <d:prop>

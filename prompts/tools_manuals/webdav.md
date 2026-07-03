@@ -4,6 +4,7 @@ Access files on a WebDAV-compatible cloud storage (Nextcloud, ownCloud, Synology
 
 ## Prerequisites
 - `webdav.enabled: true` in config.yaml
+- Optional: `webdav.readonly: true` allows only read/list/info operations and blocks write/mkdir/delete/move
 - `webdav.url` set to the WebDAV endpoint (e.g. `https://cloud.example.com/remote.php/dav/files/user/`)
 - either:
   - `webdav.auth_type: basic` with `webdav.username` and a password/app password stored in the Vault
@@ -22,9 +23,10 @@ Access files on a WebDAV-compatible cloud storage (Nextcloud, ownCloud, Synology
 {"action": "webdav", "operation": "read", "path": "Documents/notes.txt"}
 ```
 
-### write — Upload/create a file
+### write — Upload/create/truncate a file
 ```json
 {"action": "webdav", "operation": "write", "path": "Documents/report.md", "content": "# Monthly Report\n\nContent here..."}
+{"action": "webdav", "operation": "write", "path": "Documents/empty.txt", "content": ""}
 ```
 
 ### mkdir — Create a directory
@@ -49,8 +51,9 @@ Access files on a WebDAV-compatible cloud storage (Nextcloud, ownCloud, Synology
 
 ## Important Notes
 - All `path` values are relative to the configured `webdav.url` base
+- Paths may be `""` or `/` for the configured root. Segments `.`, `..`, empty traversal segments, backslashes, and control characters are rejected before any HTTP request.
 - Authentication is configured globally in the WebDAV section; the agent does not pass credentials manually per tool call
 - `read` output is truncated to ~8000 chars for large files
-- `write` creates a new file or overwrites an existing one
+- `write` creates a new file, overwrites an existing one, or writes an empty file when `content` is empty
 - `move` will fail if the destination already exists (no overwrite by default)
 - `delete` on a directory removes it recursively

@@ -1138,7 +1138,7 @@ Konfigurierte Elegoo Centauri Carbon- und Klipper/Moonraker-Drucker steuern.
 Composio-Toolkits/Tools suchen und freigegebene Aktionen ausführen (`composio.enabled` + Vault `composio_api_key`).
 
 ### `webdav`
-Dateien auf einem WebDAV-Endpunkt listen, lesen, schreiben, verschieben und löschen (`webdav.enabled`). Respektiert `webdav.readonly`.
+Dateien auf einem WebDAV-Endpunkt listen, lesen, schreiben, verschieben und löschen (`webdav.enabled`). Respektiert `webdav.readonly`; leerer `content` ist erlaubt, um eine Datei leer anzulegen oder zu kürzen.
 
 | Parameter | Typ | Beschreibung |
 |-----------|-----|--------------|
@@ -1146,6 +1146,8 @@ Dateien auf einem WebDAV-Endpunkt listen, lesen, schreiben, verschieben und lös
 | `path` | string | Remote-Pfad relativ zur konfigurierten Basis-URL |
 | `destination` | string | Zielpfad für move |
 | `content` | string | Dateiinhalt für write |
+
+Pfade sind relativ zu `webdav.url`. Root-Pfade `""` und `/` sind erlaubt; `.`, `..`, leere Traversal-Segmente, Backslashes und Control-Zeichen werden vor HTTP-Anfragen abgelehnt.
 
 ### `certificate_manager`
 PEM-Zertifikate prüfen, Remote-HTTPS-Endpunkte testen oder lokale Self-Signed-Testzertifikate erzeugen.

@@ -122,6 +122,7 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"image_processing", "Resize, crop, rotate, convert, compress, watermark images"},
 		{"detect_file_type", "Identify file type by content (magic bytes)"},
 		{"document_creator", "Create PDF, DOCX, XLSX, PPTX documents from structured data"},
+		{"webdav", "Access WebDAV-compatible cloud storage: list, read, write, mkdir, delete, move, and inspect files"},
 		{"koofr", "Access Koofr cloud storage: list, read, download, upload, move, and copy files"},
 		{"obsidian", "Search and manage Obsidian notes"},
 		{"google_workspace", "Work with Google Drive, Docs, Sheets, and related workspace files"},

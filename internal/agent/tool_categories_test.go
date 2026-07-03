@@ -295,6 +295,12 @@ func TestNoDuplicateToolsAcrossCategories(t *testing.T) {
 	}
 }
 
+func TestToolCategoryForNameIncludesWebDAV(t *testing.T) {
+	if category := ToolCategoryForName("webdav"); category == "" {
+		t.Fatal("webdav should be discoverable by category")
+	}
+}
+
 func TestAllBuiltinNativeToolsAreDiscoverableByCategory(t *testing.T) {
 	intentionallyUncategorized := map[string]bool{
 		"get_user_info":   true, // Internal/user-profile helper.

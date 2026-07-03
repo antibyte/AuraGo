@@ -138,6 +138,7 @@ type ToolFeatureFlags struct {
 	CloudflareTunnelEnabled bool
 	GoogleWorkspaceEnabled  bool
 	OneDriveEnabled         bool
+	WebDAVEnabled           bool
 	VirusTotalEnabled       bool
 	GolangciLintEnabled     bool
 	ImageGenerationEnabled  bool

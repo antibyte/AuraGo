@@ -356,12 +356,18 @@ google_workspace:
 ```yaml
 webdav:
   enabled: true
+  readonly: false
+  auth_type: basic
   url: "https://cloud.example.com/remote.php/dav/files/username/"
+  username: "user@example.com"
 
 koofr:
   enabled: true
+  readonly: false
   username: "user@example.com"
 ```
+
+> Passwörter und Tokens werden im Vault gespeichert, nicht als `password` oder `token` in der `config.yaml`.
 
 ## Tailscale
 

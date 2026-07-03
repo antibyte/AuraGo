@@ -377,6 +377,22 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 		))
 	}
 
+	if ff.WebDAVEnabled {
+		tools = append(tools, tool("webdav",
+			"Access files on the configured WebDAV-compatible cloud storage endpoint. Supports listing, reading, writing, creating directories, deleting, moving, and metadata lookup.",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "Operation to perform",
+					"enum":        []string{"list", "read", "write", "mkdir", "delete", "move", "info"},
+				},
+				"path":        prop("string", "Path relative to the configured WebDAV base URL. Use '/' for the root."),
+				"content":     prop("string", "File content for write. May be empty to create or truncate a file."),
+				"destination": prop("string", "Destination path for move."),
+			}, "operation"),
+		))
+	}
+
 	if ff.WOLEnabled {
 		tools = append(tools, tool("wake_on_lan",
 			"Send a Wake-on-LAN magic packet to wake up a device. Use the device's registered inventory ID or provide a MAC address directly. Only works on devices that support WOL and are on the local network.",

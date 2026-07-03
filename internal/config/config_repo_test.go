@@ -32,3 +32,35 @@ func TestRepositoryConfigTemplateYAMLIsParseable(t *testing.T) {
 		}
 	}
 }
+
+func TestRepositoryConfigTemplateWebDAVSecretsStayVaultOnly(t *testing.T) {
+	t.Parallel()
+
+	path := filepath.Join("..", "..", "config_template.yaml")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read config_template.yaml: %v", err)
+	}
+
+	var raw map[string]interface{}
+	if err := yaml.Unmarshal(data, &raw); err != nil {
+		t.Fatalf("parse config_template.yaml: %v", err)
+	}
+	webdav, ok := raw["webdav"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("config_template.yaml missing webdav section")
+	}
+	if _, ok := webdav["password"]; ok {
+		t.Fatalf("webdav template must not include plaintext password")
+	}
+	if _, ok := webdav["token"]; ok {
+		t.Fatalf("webdav template must not include plaintext token")
+	}
+	readonly, ok := webdav["readonly"].(bool)
+	if !ok {
+		t.Fatalf("webdav template missing readonly boolean")
+	}
+	if readonly {
+		t.Fatalf("webdav template readonly default = true, want false")
+	}
+}
