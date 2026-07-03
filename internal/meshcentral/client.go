@@ -713,14 +713,20 @@ func deliverPending(pr *pendingRequest, res response) bool {
 	if pr == nil {
 		return false
 	}
+	delivered := false
 	func() {
-		defer func() { recover() }()
+		defer func() {
+			if recover() != nil {
+				delivered = false
+			}
+		}()
 		select {
 		case pr.ch <- res:
+			delivered = true
 		default:
 		}
 	}()
-	return true
+	return delivered
 }
 
 // WaitForAction waits for a response with the given action string.

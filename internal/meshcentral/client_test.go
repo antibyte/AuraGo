@@ -113,6 +113,22 @@ func TestSetLogger(t *testing.T) {
 	}
 }
 
+func TestCachedClientShellReturnsUnsupportedWithoutConnecting(t *testing.T) {
+	cc := NewCachedClient("not-a-url", "admin", "pass", "", false, testLogger())
+
+	result, err := cc.Shell("node1", "whoami")
+
+	if err == nil {
+		t.Fatal("expected unsupported shell error")
+	}
+	if !strings.Contains(err.Error(), "unsupported") {
+		t.Fatalf("error = %v, want unsupported", err)
+	}
+	if result != nil {
+		t.Fatalf("result = %#v, want nil", result)
+	}
+}
+
 // ── WebSocket helpers ───────────────────────────────────────────────────────
 
 // wsPair creates a connected WebSocket pair (server + client) using httptest.
@@ -260,6 +276,24 @@ func TestSend_InjectsReqIDIntoCommand(t *testing.T) {
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("timed out waiting for message")
+	}
+}
+
+func TestDeliverPendingReportsDroppedResponse(t *testing.T) {
+	pr := &pendingRequest{ch: make(chan response, 1)}
+	first := response{data: map[string]interface{}{"seq": 1}}
+	second := response{data: map[string]interface{}{"seq": 2}}
+
+	if !deliverPending(pr, first) {
+		t.Fatal("first response should be delivered")
+	}
+	if deliverPending(pr, second) {
+		t.Fatal("second response should report dropped when channel is full")
+	}
+
+	got := <-pr.ch
+	if got.data["seq"] != 1 {
+		t.Fatalf("channel response = %#v, want first response", got.data)
 	}
 }
 

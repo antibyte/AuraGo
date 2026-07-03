@@ -219,13 +219,7 @@ func (cc *CachedClient) RunCommand(nodeID, command string) (map[string]interface
 	return result, err
 }
 
-// Shell returns the client's unsupported MeshRelay tunnel error with auto-reconnect.
+// Shell is intentionally unsupported until the MeshRelay tunnel protocol is implemented.
 func (cc *CachedClient) Shell(nodeID, command string) (map[string]interface{}, error) {
-	var result map[string]interface{}
-	err := cc.executeWithRetry(func(c *Client) error {
-		var err error
-		result, err = c.Shell(nodeID, command)
-		return err
-	})
-	return result, err
+	return nil, fmt.Errorf("unsupported: MeshCentral shell requires a meshrelay.ashx tunnel, which is not implemented")
 }
