@@ -148,6 +148,68 @@ func TestHandleThreeDPrinterTestSupportsAdHocKlipperPrinter(t *testing.T) {
 	}
 }
 
+func TestHandleThreeDPrinterTestUsesStoredKlipperKeyForMaskedMatchingURL(t *testing.T) {
+	var gotAPIKey string
+	moonraker := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotAPIKey = r.Header.Get("X-Api-Key")
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"result": map[string]interface{}{"klippy_state": "ready"}})
+	}))
+	defer moonraker.Close()
+
+	cfg := &config.Config{}
+	cfg.ThreeDPrinters.Klipper.Enabled = true
+	cfg.ThreeDPrinters.Klipper.Printers = []config.KlipperPrinterConfig{{
+		ID:     "voron",
+		Name:   "Voron 2.4",
+		URL:    moonraker.URL,
+		APIKey: "moon-secret",
+	}}
+	s := &Server{Cfg: cfg, Logger: slog.Default()}
+	body := strings.NewReader(`{"operation":"test_connection","protocol":"klipper","printer_id":"voron","url":"` + moonraker.URL + `","api_key":"` + maskedKey + `","timeout_seconds":2}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/3d-printers/test", body)
+	rec := httptest.NewRecorder()
+
+	handleThreeDPrinterTest(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%s", rec.Code, rec.Body.String())
+	}
+	if gotAPIKey != "moon-secret" {
+		t.Fatalf("X-Api-Key = %q, want stored key", gotAPIKey)
+	}
+}
+
+func TestHandleThreeDPrinterTestDoesNotReuseMaskedKlipperKeyForChangedURL(t *testing.T) {
+	var gotAPIKey string
+	moonraker := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotAPIKey = r.Header.Get("X-Api-Key")
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"result": map[string]interface{}{"klippy_state": "ready"}})
+	}))
+	defer moonraker.Close()
+
+	cfg := &config.Config{}
+	cfg.ThreeDPrinters.Klipper.Enabled = true
+	cfg.ThreeDPrinters.Klipper.Printers = []config.KlipperPrinterConfig{{
+		ID:     "voron",
+		Name:   "Voron 2.4",
+		URL:    "http://127.0.0.1:7125",
+		APIKey: "moon-secret",
+	}}
+	s := &Server{Cfg: cfg, Logger: slog.Default()}
+	body := strings.NewReader(`{"operation":"test_connection","protocol":"klipper","printer_id":"voron","url":"` + moonraker.URL + `","api_key":"` + maskedKey + `","timeout_seconds":2}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/3d-printers/test", body)
+	rec := httptest.NewRecorder()
+
+	handleThreeDPrinterTest(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%s", rec.Code, rec.Body.String())
+	}
+	if gotAPIKey != "" {
+		t.Fatalf("X-Api-Key leaked to changed URL: %q", gotAPIKey)
+	}
+}
+
 func TestHandleThreeDPrinterTestRejectsMalformedJSON(t *testing.T) {
 	cfg := &config.Config{}
 	s := &Server{Cfg: cfg, Logger: slog.Default()}

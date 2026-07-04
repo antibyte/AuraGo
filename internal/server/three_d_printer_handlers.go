@@ -55,7 +55,7 @@ func handleThreeDPrinterTest(s *Server) http.HandlerFunc {
 					ID:             id,
 					Name:           id,
 					URL:            req.URL,
-					APIKey:         req.APIKey,
+					APIKey:         klipperTestAPIKey(req, cfg),
 					TimeoutSeconds: req.TimeoutSeconds,
 					WebcamName:     req.WebcamName,
 				}}
@@ -73,6 +73,30 @@ func handleThreeDPrinterTest(s *Server) http.HandlerFunc {
 		}
 		_, _ = w.Write([]byte(tools.ExecuteThreeDPrinter(ctx, cfg, req)))
 	}
+}
+
+func klipperTestAPIKey(req tools.ThreeDPrinterRequest, cfg tools.ThreeDPrinterConfig) string {
+	apiKey := strings.TrimSpace(req.APIKey)
+	if apiKey != maskedKey {
+		return req.APIKey
+	}
+	reqURL := strings.TrimSpace(req.URL)
+	if reqURL == "" || !strings.EqualFold(strings.TrimSpace(req.Protocol), "klipper") {
+		return ""
+	}
+	id := strings.TrimSpace(req.PrinterID)
+	if id == "" {
+		return ""
+	}
+	for _, printer := range cfg.Klipper.Printers {
+		if !strings.EqualFold(strings.TrimSpace(printer.ID), id) && !strings.EqualFold(strings.TrimSpace(printer.Name), id) {
+			continue
+		}
+		if strings.TrimSpace(printer.URL) == reqURL {
+			return printer.APIKey
+		}
+	}
+	return ""
 }
 
 func handleThreeDPrinterCameraSnapshot(s *Server) http.HandlerFunc {
