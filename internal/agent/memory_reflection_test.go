@@ -175,6 +175,31 @@ func TestBuildMemoryReflectionActionIssuesCapsAndFingerprintsFindings(t *testing
 	}
 }
 
+func TestBuildMemoryReflectionActionIssuesIncludesActionItemsAndSuggestions(t *testing.T) {
+	result := memoryReflectionResult{
+		Summary:     "The recent memory window found durable follow-up work that the agent should review.",
+		ActionItems: []string{"Review whether the user's residence should be added to core memory."},
+		Suggestions: []string{"Ask the user to confirm the residence before storing it as a durable fact."},
+	}
+
+	issues := buildMemoryReflectionActionIssues("recent", result)
+	if len(issues) != 2 {
+		t.Fatalf("issues = %d, want 2: %#v", len(issues), issues)
+	}
+	if issues[0].Fingerprint != "memory_reflect|recent|action_item|0" {
+		t.Fatalf("first fingerprint = %q", issues[0].Fingerprint)
+	}
+	if issues[0].Title != "Memory reflection suggested a follow-up" {
+		t.Fatalf("first title = %q", issues[0].Title)
+	}
+	if issues[1].Fingerprint != "memory_reflect|recent|suggestion|0" {
+		t.Fatalf("second fingerprint = %q", issues[1].Fingerprint)
+	}
+	if issues[1].Title != "Memory reflection suggested a safe follow-up" {
+		t.Fatalf("second title = %q", issues[1].Title)
+	}
+}
+
 func TestRunWeeklyReflectionJobRetriesLowQualityStoresJournalAndNotification(t *testing.T) {
 	releaseWeeklyReflectionClaim()
 	t.Cleanup(releaseWeeklyReflectionClaim)

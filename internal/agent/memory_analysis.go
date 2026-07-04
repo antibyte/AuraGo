@@ -1332,6 +1332,12 @@ func buildMemoryReflectionActionIssues(scope string, result memoryReflectionResu
 	for i, detail := range result.Gaps {
 		appendIssue("knowledge_gap", i, "Memory reflection found a knowledge gap", detail)
 	}
+	for i, detail := range result.ActionItems {
+		appendIssue("action_item", i, "Memory reflection suggested a follow-up", detail)
+	}
+	for i, detail := range result.Suggestions {
+		appendIssue("suggestion", i, "Memory reflection suggested a safe follow-up", detail)
+	}
 	for i, flag := range result.QualityFlags {
 		if flag == "low_quality" || flag == "parse_failed" {
 			appendIssue("low_quality", i, "Memory reflection quality needs review", strings.Join(result.QualityFlags, ", "))
