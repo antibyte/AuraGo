@@ -68,6 +68,35 @@ three_d_printers:
 	}
 }
 
+func TestMigratePlaintextSecretsToVaultRemovesUnaddressableKlipperAPIKeys(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	legacy := `
+three_d_printers:
+  klipper:
+    printers:
+      - name: Legacy Klipper
+        url: http://192.168.6.60:7125
+        api_key: orphaned-secret
+`
+	if err := os.WriteFile(configPath, []byte(legacy), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	vault := &testSecretVault{data: map[string]string{}}
+
+	MigratePlaintextSecretsToVault(configPath, vault, slog.Default())
+
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("read migrated config: %v", err)
+	}
+	if strings.Contains(string(data), "orphaned-secret") || strings.Contains(string(data), "api_key") {
+		t.Fatalf("migrated config still contains unaddressable api_key:\n%s", string(data))
+	}
+	if len(vault.data) != 0 {
+		t.Fatalf("vault should not receive a key for printer without id, got %+v", vault.data)
+	}
+}
+
 func TestLoadAbsolutePaths(t *testing.T) {
 	// Create a temporary directory for testing
 	tmpDir, err := os.MkdirTemp("", "config_test")

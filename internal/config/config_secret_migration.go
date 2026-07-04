@@ -235,12 +235,18 @@ func migrateKlipperPrinterSecrets(rawCfg map[string]interface{}, vault SecretRea
 		id, _ := printer["id"].(string)
 		id = strings.TrimSpace(id)
 		if id == "" {
-			delete(printer, "api_key")
+			if _, exists := printer["api_key"]; exists {
+				delete(printer, "api_key")
+				migrated = true
+			}
 			continue
 		}
 		key := ThreeDPrinterKlipperAPIKeyVaultKey(id)
 		if key == "" {
-			delete(printer, "api_key")
+			if _, exists := printer["api_key"]; exists {
+				delete(printer, "api_key")
+				migrated = true
+			}
 			continue
 		}
 		if migrateMapStringSecret(printer, "api_key", key, vault, log) {
