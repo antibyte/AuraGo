@@ -1006,6 +1006,13 @@ function timeAgo(date) {
     return t('common.time_ago_days', {n: Math.floor(seconds / 86400)}) || (Math.floor(seconds / 86400) + 'd ago');
 }
 
+function fromLocalDateTime(localStr) {
+    if (!localStr) return '';
+    const d = new Date(localStr);
+    if (isNaN(d.getTime())) return '';
+    return d.toISOString();
+}
+
 /**
  * Debounce a function
  * @param {Function} fn
