@@ -205,6 +205,18 @@
     GC.SUPER_METER_GAIN = { kill: 2, combo: 1, parry: 8, headshot: 4 };
     GC.SUPER_COST = 100; // full meter to activate
 
+    GC.ENEMY_ANIM_SPEED = {
+        bee: 150, butterfly: 120, hunter: 90, boss: 220, miniboss: 220, kamikaze: 70,
+        stalker: 130, sniper: 160, spinner: 100, bomber: 180, lasher: 140,
+        weaver: 110, splitter: 130, shield_bee: 150, carrier: 200, teleporter: 100
+    };
+    GC.ENEMY_FRAME_COUNT = {
+        bee: 4, butterfly: 4, hunter: 4, boss: 3, miniboss: 3, kamikaze: 4,
+        stalker: 4, sniper: 4, spinner: 4, bomber: 4, lasher: 4,
+        weaver: 4, splitter: 4, shield_bee: 4, carrier: 4, teleporter: 4
+    };
+    GC.ENEMY_SPAWN_DURATION = 400;
+
     // NEW: Parry tuning
     GC.PARRY_WINDOW = 120;     // ms active parry window
     GC.PARRY_COOLDOWN = 600;   // ms cooldown after window ends

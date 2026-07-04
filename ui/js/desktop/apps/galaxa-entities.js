@@ -25,8 +25,8 @@
             function pushEnemy(type, r, col, fx, fy, hp) {
                 const side = idx % 2 === 0 ? -1 : 1;
                 const diveDelay = ctx.G.chal ? (800 + idx * 200) : (1000 + Math.random() * 3000 + idx * 50);
-                const animSpeedMap = { bee: 150, butterfly: 120, hunter: 90, boss: 220, miniboss: 220, kamikaze: 70, stalker: 130, sniper: 160, spinner: 100, bomber: 180, lasher: 140, weaver: 110, splitter: 130, shield_bee: 150, carrier: 200, teleporter: 100 };
-                const animFramesMap = { bee: 4, butterfly: 4, hunter: 4, boss: 3, miniboss: 3, kamikaze: 4, stalker: 4, sniper: 4, spinner: 4, bomber: 4, lasher: 4, weaver: 4, splitter: 4, shield_bee: 4, carrier: 4, teleporter: 4 };
+                const animSpeed = GC.ENEMY_ANIM_SPEED[type] || 120;
+                const animFrames = GC.ENEMY_FRAME_COUNT[type] || 3;
                 const enemy = { type, r, col, x: ctx.W / 2 + side * (120 + Math.random() * 80), y: -30 - (idx % 8) * 20,
                     fx, fy, hp, maxHp: hp, st: 'ENTER', eTmr: 500 + idx * 80 + r * 100,
                     fr: 0, frT: 0, dTmr: diveDelay / ctx.diffMod('diveRate'), dPath: null,
@@ -34,8 +34,8 @@
                     shootPh: 0, hasCap: false, hitF: 0, elite: type === 'hunter',
                     bossPhase: (type === 'boss' || type === 'miniboss') ? 1 : 0,
                     bossPhaseTransition: 0, bossPhaseHP: [0.6, 0.3, 0],
-                    animFrame: 0, animTimer: 0, animSpeed: animSpeedMap[type] || 120, animFrames: animFramesMap[type] || 3,
-                    spawnAnim: 0, spawnDur: 400, rowPhase: r * 1.2 + col * 0.3, bobAmp: 2.5 + r * 0.5,
+                    animFrame: 0, animTimer: 0, animSpeed, animFrames,
+                    spawnAnim: 0, spawnDur: GC.ENEMY_SPAWN_DURATION, rowPhase: r * 1.2 + col * 0.3, bobAmp: 2.5 + r * 0.5,
                     weakPoint: (type === 'boss' || type === 'miniboss') ? { x: 0, y: -10, angle: 0 } : null,
                     rageMode: 0, rageSpeedMult: 1, phaseTimer: 0 };
                 ctx.G.enemies.push(enemy);

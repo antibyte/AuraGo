@@ -630,7 +630,7 @@ ALWAYS USE THE disposable FOLDER FOR SCRIPTS AND OTHER FILES YOU NEED FOR YOUR W
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **AuraGo** (56547 symbols, 228718 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **AuraGo** (56567 symbols, 228808 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 
@@ -750,7 +750,21 @@ Default section order:
 
 ## User Preferences
 
-When the user requests a durable behavior change, record it here or in the relevant child AGENTS.md
+When the user requests a durable behavior change, record it here or in the relevant child AGENTS.md.
+
+### File Editing on Windows / PowerShell
+
+These rules prevent silent corruption when editing files viathe bash tool (PowerShell 7+) on Windows.
+
+- **Never use git checkout <file> to undo a single broken edit** — it discards every other working change in that file. Use git stash (file-level), git diff first, or surgically re-apply the failed patch.
+- **PowerShell [System.IO.File]::WriteAllText(..., [System.Text.Encoding]::UTF8) writes a UTF-8 BOM** by default. AuraGo files must be BOM-free. Use one of:
+  - [System.Text.Encoding]::UTF8 is wrong — use New-Object System.Text.UTF8Encoding(False) to omit the BOM.
+  - Or write bytes manually and strip the first 3 bytes (EF BB BF) afterwards.
+- **PowerShell here-strings (@'...'@) and Out-File -Encoding UTF8 use CRLF; PowerShell string concatenation in arrays can use LF** — the result is a file with mixed line endings. After every multi-line file edit, normalize to LF (the canonical form per .gitattributes's * text=auto) by stripping \r before each \n.
+- **Verify the encoding of modified files with 
+ode or git diff --stat** before running tests. [System.IO.File]::ReadAllBytes + hex-dump the first 3 bytes is the fastest check. JSON files in particular break Go's ncoding/json when a BOM is present.
+- **
+ode --check <file> is the cheapest syntax check** for JS/JSON edits; run it after every non-trivial change before go test.
 
 ## Child DOX Index
 

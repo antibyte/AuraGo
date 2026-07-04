@@ -794,10 +794,14 @@
                 caption.textContent = t('dashboard.knowledge_visual_empty');
                 resetButton.classList.add('is-hidden');
                 
-                // Clear any existing force graph instance
+                // Clear any existing force graph instance + ResizeObserver to avoid leaks
                 if (wrap._forceGraph) {
                     wrap._forceGraph._destructor();
                     delete wrap._forceGraph;
+                }
+                if (wrap._forceGraphResizeObserver) {
+                    wrap._forceGraphResizeObserver.disconnect();
+                    delete wrap._forceGraphResizeObserver;
                 }
                 wrap.innerHTML = `<div class="empty-state">${t('dashboard.knowledge_visual_empty')}</div>`;
                 return;
@@ -818,6 +822,20 @@
             if (!wrap._forceGraph) {
                 wrap.innerHTML = '';
                 wrap._forceGraph = ForceGraph()(wrap);
+                // ResizeObserver keeps the canvas dimensions in sync with the container,
+                // which matters for the KG visual that lives inside the (initially hidden)
+                // knowledge tab and is also rendered into the focused-detail modal.
+                if (typeof ResizeObserver === 'function') {
+                    const ro = new ResizeObserver(() => {
+                        if (wrap._forceGraph && typeof wrap._forceGraph.width === 'function') {
+                            const w = wrap.clientWidth || 720;
+                            const h = wrap.clientHeight || 360;
+                            wrap._forceGraph.width(w).height(h);
+                        }
+                    });
+                    ro.observe(wrap);
+                    wrap._forceGraphResizeObserver = ro;
+                }
             }
 
             wrap._forceGraph
@@ -1913,38 +1931,38 @@
             const rawKey = String(key || '');
             if (!rawKey) return rawKey;
 
-            const replacements = {
-                rag_auto_attempt: 'Auto-RAG searches',
-                rag_auto_hit: 'Auto-RAG hits',
-                rag_auto_miss: 'Auto-RAG misses',
-                rag_auto_filtered_out: 'Auto-RAG filtered after ranking',
-                rag_auto_error: 'Auto-RAG errors',
-                rag_predictive_attempt: 'Predictive prefetch searches',
-                rag_predictive_hit: 'Predictive prefetch hits',
-                rag_predictive_miss: 'Predictive prefetch misses',
-                rag_predictive_error: 'Predictive prefetch errors',
+            const labels = {
+                rag_auto_attempt: t('dashboard.tooling_telemetry_retrieval_rag_auto_attempt'),
+                rag_auto_hit: t('dashboard.tooling_telemetry_retrieval_rag_auto_hit'),
+                rag_auto_miss: t('dashboard.tooling_telemetry_retrieval_rag_auto_miss'),
+                rag_auto_filtered_out: t('dashboard.tooling_telemetry_retrieval_rag_auto_filtered_out'),
+                rag_auto_error: t('dashboard.tooling_telemetry_retrieval_rag_auto_error'),
+                rag_predictive_attempt: t('dashboard.tooling_telemetry_retrieval_rag_predictive_attempt'),
+                rag_predictive_hit: t('dashboard.tooling_telemetry_retrieval_rag_predictive_hit'),
+                rag_predictive_miss: t('dashboard.tooling_telemetry_retrieval_rag_predictive_miss'),
+                rag_predictive_error: t('dashboard.tooling_telemetry_retrieval_rag_predictive_error'),
             };
-            if (replacements[rawKey]) return replacements[rawKey];
+            if (labels[rawKey]) return labels[rawKey];
+            if (rawKey.startsWith('memory_prompt_share_value:')) {
+                return t('dashboard.tooling_telemetry_retrieval_memory_prompt_share_value', { pct: rawKey.split(':')[1] });
+            }
             if (rawKey.startsWith('rag_auto_source:')) {
-                return 'Auto-RAG source: ' + rawKey.split(':')[1].replaceAll('_', ' ');
+                return t('dashboard.tooling_telemetry_retrieval_rag_auto_source', { source: rawKey.split(':')[1].replaceAll('_', ' ') });
             }
             if (rawKey.startsWith('rag_predictive_source:')) {
-                return 'Predictive source: ' + rawKey.split(':')[1].replaceAll('_', ' ');
+                return t('dashboard.tooling_telemetry_retrieval_rag_predictive_source', { source: rawKey.split(':')[1].replaceAll('_', ' ') });
             }
             if (rawKey.startsWith('rag_auto_latency:')) {
-                return 'Auto-RAG latency ' + rawKey.split(':')[1].replaceAll('_', '-');
+                return t('dashboard.tooling_telemetry_retrieval_rag_auto_latency', { range: rawKey.split(':')[1].replaceAll('_', '-') });
             }
             if (rawKey.startsWith('rag_predictive_latency:')) {
-                return 'Predictive latency ' + rawKey.split(':')[1].replaceAll('_', '-');
+                return t('dashboard.tooling_telemetry_retrieval_rag_predictive_latency', { range: rawKey.split(':')[1].replaceAll('_', '-') });
             }
             if (rawKey.startsWith('memory_prompt_tokens:')) {
-                return 'Memory prompt tokens ' + rawKey.split(':')[1].replaceAll('_', '-');
+                return t('dashboard.tooling_telemetry_retrieval_memory_prompt_tokens', { range: rawKey.split(':')[1].replaceAll('_', '-') });
             }
             if (rawKey.startsWith('memory_prompt_share:')) {
-                return 'Memory prompt share ' + rawKey.split(':')[1].replaceAll('_', '-');
-            }
-            if (rawKey.startsWith('memory_prompt_share_value:')) {
-                return 'Memory prompt share ' + rawKey.split(':')[1] + '%';
+                return t('dashboard.tooling_telemetry_retrieval_memory_prompt_share', { range: rawKey.split(':')[1].replaceAll('_', '-') });
             }
             return rawKey;
         }
@@ -2423,7 +2441,7 @@
             const ctxFill = document.getElementById('ab-ctx-fill');
             const ctxPctEl = document.getElementById('ab-ctx-pct');
             if (ctxFill) {
-                ctxFill.className = 'agent-banner-ctx-fill w-pct-' + ctxPct + (ctxPct > 80 ? ' ctx-level-high' : ctxPct > 60 ? ' ctx-level-med' : ' ctx-level-ok');
+                ctxFill.className = 'context-gauge-fill w-pct-' + ctxPct + (ctxPct > 80 ? ' ctx-level-high' : ctxPct > 60 ? ' ctx-level-med' : ' ctx-level-ok');
             }
             if (ctxPctEl) ctxPctEl.textContent = ctxPct + '%';
 
@@ -3012,6 +3030,8 @@
         const MH_PAGE_SIZE = 10;
 
         async function loadMissionHistory(append) {
+            // Reset offset on a fresh load so re-entering the overview tab starts from the top.
+            if (!append) mhOffset = 0;
             try {
                 const url = `/api/dashboard/mission-history?limit=${MH_PAGE_SIZE}&offset=${mhOffset}`;
                 const resp = await fetch(url, { credentials: 'same-origin' });
@@ -3039,14 +3059,16 @@
             }
             if (emptyEl) emptyEl.style.display = 'none';
 
-            const statusIcons = { success: '✅', error: '❌', running: '🔄' };
+            // Use SVG sprite icons (see dash-icons.js) so the status indicator renders
+            // consistently across platforms and stays accessible for screen readers.
+            const statusIcons = { success: dashIcon('check'), error: dashIcon('x'), running: dashIcon('play') };
             const triggerLabels = {
-                manual: '👆', cron: '⏰', webhook: '🔗', email: '📧',
-                mqtt: '📡', daemon_wake: '👹', mission_completed: '🔗',
-                system_startup: '🚀', egg_hatched: '🥚', nest_cleared: '🪺',
-                device_connected: '🔌', device_disconnected: '⚡',
-                fritzbox_call: '📞', budget_warning: '💰', budget_exceeded: '🚫',
-                home_assistant_state: '🏠',
+                manual: dashIcon('edit'), cron: dashIcon('cron'), webhook: dashIcon('link'), email: dashIcon('email'),
+                mqtt: dashIcon('wifi'), daemon_wake: dashIcon('daemon'), mission_completed: dashIcon('check'),
+                system_startup: dashIcon('play'), egg_hatched: dashIcon('egg'), nest_cleared: dashIcon('box'),
+                device_connected: dashIcon('plug'), device_disconnected: dashIcon('plug'),
+                fritzbox_call: dashIcon('speaker'), budget_warning: dashIcon('warning'), budget_exceeded: dashIcon('warning'),
+                home_assistant_state: dashIcon('home'),
             };
 
             entries.forEach(e => {
@@ -3055,10 +3077,10 @@
                 const icon = statusIcons[e.status] || '❓';
                 const trigIcon = triggerLabels[e.trigger_type] || '⚡';
                 const dur = e.duration_ms > 0 ? (e.duration_ms >= 60000 ? `${(e.duration_ms / 60000).toFixed(1)}m` : `${(e.duration_ms / 1000).toFixed(1)}s`) : '—';
-                const started = e.started_at ? new Date(e.started_at).toLocaleString(document.documentElement.lang || 'de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
+                const started = e.started_at ? new Date(e.started_at).toLocaleString(document.documentElement.lang || LANG, { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
                 tr.innerHTML = `
                     <td title="${esc(e.mission_id)}">${esc(e.mission_name || e.mission_id)}</td>
-                    <td><span class="mh-status ${statusCls}">${icon} ${t('dashboard.mh_status_' + e.status) || esc(e.status)}</span></td>
+                    <td><span class="mh-status ${statusCls}">${icon} ${tOr('dashboard.mh_status_' + e.status, esc(e.status))}</span></td>
                     <td><span class="mh-trigger">${trigIcon} ${esc(e.trigger_type || '—')}</span></td>
                     <td>${started}</td>
                     <td>${dur}</td>`;
@@ -3084,16 +3106,16 @@
             const sec = overview.security || {};
 
             const items = [
-                { icon: '🚀', val: m.total || 0, lbl: t('dashboard.operations_missions'), sub: m.running ? t('dashboard.operations_missions_active', {n: m.running}) : (m.queued ? t('dashboard.operations_missions_queued', {n: m.queued}) : t('dashboard.operations_missions_active', {n: m.enabled || 0})) },
-                { icon: '🥚', val: inv.nests || 0, lbl: t('dashboard.operations_nests'), sub: t('dashboard.operations_eggs_connected', {n: inv.connected_eggs || 0}) },
-                { icon: '📂', val: idx.indexed_files || 0, lbl: t('dashboard.operations_indexed'), sub: idx.enabled ? t('dashboard.operations_of_files', {n: idx.total_files || 0}) : t('dashboard.operations_disabled') },
-                { icon: '📡', val: mq.connected ? '✓' : '✗', lbl: t('dashboard.operations_mqtt'), sub: mq.enabled ? t('dashboard.operations_buffered', {n: mq.buffer || 0}) : t('dashboard.operations_disabled') },
-                { icon: '📝', val: notes.open || 0, lbl: t('dashboard.operations_notes_open'), sub: t('dashboard.operations_notes_sub', {total: notes.total || 0, done: notes.done || 0}) },
-                { icon: '🔐', val: sec.vault_keys || 0, lbl: t('dashboard.operations_vault_keys'), sub: t('dashboard.operations_api_tokens', {n: sec.tokens || 0}) },
-                { icon: '📱', val: overview.devices || 0, lbl: t('dashboard.operations_devices'), sub: t('dashboard.operations_inventory') },
-                { icon: '🧠', val: overview.context?.has_summary ? '✓' : '✗', lbl: t('dashboard.operations_summary'), sub: t('dashboard.operations_chars_count', {n: ((overview.context?.total_chars || 0) / 1000).toFixed(1)}) },
-                { icon: '📋', val: (overview.cheatsheets?.total || 0), lbl: t('dashboard.operations_cheatsheets'), sub: t('dashboard.operations_cheatsheets_active', {n: overview.cheatsheets?.active || 0}) },
-                { icon: '🌐', val: overview.tunnel?.running ? '✓' : '✗', lbl: t('dashboard.operations_tunnel'), sub: overview.tunnel?.url ? truncate(overview.tunnel.url, 24) : t('dashboard.operations_disabled') },
+                { icon: dashIcon('rocket'), val: m.total || 0, lbl: t('dashboard.operations_missions'), sub: m.running ? t('dashboard.operations_missions_active', {n: m.running}) : (m.queued ? t('dashboard.operations_missions_queued', {n: m.queued}) : t('dashboard.operations_missions_active', {n: m.enabled || 0})) },
+                { icon: dashIcon('egg'), val: inv.nests || 0, lbl: t('dashboard.operations_nests'), sub: t('dashboard.operations_eggs_connected', {n: inv.connected_eggs || 0}) },
+                { icon: dashIcon('folder'), val: idx.indexed_files || 0, lbl: t('dashboard.operations_indexed'), sub: idx.enabled ? t('dashboard.operations_of_files', {n: idx.total_files || 0}) : t('dashboard.operations_disabled') },
+                { icon: dashIcon('wifi'), val: mq.connected ? '✓' : '✗', lbl: t('dashboard.operations_mqtt'), sub: mq.enabled ? t('dashboard.operations_buffered', {n: mq.buffer || 0}) : t('dashboard.operations_disabled') },
+                { icon: dashIcon('note'), val: notes.open || 0, lbl: t('dashboard.operations_notes_open'), sub: t('dashboard.operations_notes_sub', {total: notes.total || 0, done: notes.done || 0}) },
+                { icon: dashIcon('lock'), val: sec.vault_keys || 0, lbl: t('dashboard.operations_vault_keys'), sub: t('dashboard.operations_api_tokens', {n: sec.tokens || 0}) },
+                { icon: dashIcon('device'), val: overview.devices || 0, lbl: t('dashboard.operations_devices'), sub: t('dashboard.operations_inventory') },
+                { icon: dashIcon('brain'), val: overview.context?.has_summary ? '✓' : '✗', lbl: t('dashboard.operations_summary'), sub: t('dashboard.operations_chars_count', {n: ((overview.context?.total_chars || 0) / 1000).toFixed(1)}) },
+                { icon: dashIcon('clipboard'), val: (overview.cheatsheets?.total || 0), lbl: t('dashboard.operations_cheatsheets'), sub: t('dashboard.operations_cheatsheets_active', {n: overview.cheatsheets?.active || 0}) },
+                { icon: dashIcon('globe'), val: overview.tunnel?.running ? '✓' : '✗', lbl: t('dashboard.operations_tunnel'), sub: overview.tunnel?.url ? truncate(overview.tunnel.url, 24) : t('dashboard.operations_disabled') },
             ];
 
             grid.innerHTML = items.map(s =>
@@ -3369,22 +3391,22 @@
             if (!overview || !overview.integrations) return;
             const grid = document.getElementById('integration-grid');
             const icons = {
-                telegram: '📱', discord: '💬', email: '📧', home_assistant: '🏠',
-                docker: '🐳', co_agents: '🤖', webhooks: '🔗', webdav: '☁️',
-                koofr: '☁️', chromecast: '📺', proxmox: '🖥️', frigate: '📹', three_d_printers: '🖨️', ollama: '🧠',
-                rocketchat: '💬', tailscale: '🔒', ansible: '🔧', invasion: '🥚',
-                github: '🐙', mqtt: '📡', budget: '💰', indexing: '📂',
-                auth: '🔑', fallback_llm: '🔄', helper_llm: '🪶', personality_v2: '🎭', user_profiling: '👤', tts: '🔊',
-                piper_tts: '🗣️',
-                paperless_ngx: '📄', cloudflare_tunnel: '☁️',
-                fritzbox: '📡', meshcentral: '🖥️', a2a: '🔗',
-                adguard: '🛡️', s3: '🪣', mcp: '🔌', mcp_server: '🔌', dograh: '▧',
-                memory_analysis: '🧠', llm_guardian: '🛡️', security_proxy: '🔐',
-                sandbox: '📦', ai_gateway: '🌐', image_generation: '🎨',
-                google_workspace: '📧', netlify: '🚀',
-                homepage: '🏠', virustotal: '🦠', brave_search: '🔍',
-                firewall: '🔥', remote_control: '🖥️', web_scraper: '🕷️',
-                skill_manager: '🧩'
+                telegram: dashIcon('chat'), discord: dashIcon('chat'), email: dashIcon('email'), home_assistant: dashIcon('home'),
+                docker: dashIcon('docker'), co_agents: dashIcon('bot'), webhooks: dashIcon('link'), webdav: dashIcon('cloud'),
+                koofr: dashIcon('cloud'), chromecast: dashIcon('monitor'), proxmox: dashIcon('device'), frigate: dashIcon('video'), three_d_printers: dashIcon('printer'), ollama: dashIcon('brain'),
+                rocketchat: dashIcon('chat'), tailscale: dashIcon('lock'), ansible: dashIcon('wrench'), invasion: dashIcon('egg'),
+                github: dashIcon('package'), mqtt: dashIcon('wifi'), budget: dashIcon('wallet'), indexing: dashIcon('folder'),
+                auth: dashIcon('key'), fallback_llm: dashIcon('refresh'), helper_llm: dashIcon('feather'), personality_v2: dashIcon('drama'), user_profiling: dashIcon('user'), tts: dashIcon('speaker'),
+                piper_tts: dashIcon('speaker'),
+                paperless_ngx: dashIcon('doc'), cloudflare_tunnel: dashIcon('cloud'),
+                fritzbox: dashIcon('plug'), meshcentral: dashIcon('monitor'), a2a: dashIcon('link'),
+                adguard: dashIcon('shield'), s3: dashIcon('database'), mcp: dashIcon('plug'), mcp_server: dashIcon('plug'), dograh: dashIcon('cube'),
+                memory_analysis: dashIcon('brain'), llm_guardian: dashIcon('shield'), security_proxy: dashIcon('lock'),
+                sandbox: dashIcon('box'), ai_gateway: dashIcon('globe'), image_generation: dashIcon('palette'),
+                google_workspace: dashIcon('email'), netlify: dashIcon('rocket'),
+                homepage: dashIcon('home'), virustotal: dashIcon('virus'), brave_search: dashIcon('search'),
+                firewall: dashIcon('firewall'), remote_control: dashIcon('device'), web_scraper: dashIcon('spider'),
+                skill_manager: dashIcon('puzzle')
             };
             const names = {
                 telegram: t('dashboard.integration_telegram'), discord: t('dashboard.integration_discord'),

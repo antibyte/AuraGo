@@ -52,10 +52,66 @@
             return tw;
         }
 
+        function clear() { active.length = 0; }
+        function count() { return active.length; }
+
+        function killTweensOf(target, prop) {
+            let w = 0;
+            for (let i = 0; i < active.length; i++) {
+                const tw = active[i];
+                if (tw.target === target && (prop === undefined || tw.prop === prop)) {
+                    if (tw.onComplete && !tw._completeCalled) {
+                        tw._completeCalled = true;
+                        tw.onComplete();
+                    }
+                } else {
+                    active[w++] = tw;
+                }
+            }
+            active.length = w;
+        }
+
+        function killTween(tw) {
+            const idx = active.indexOf(tw);
+            if (idx !== -1) {
+                if (tw.onComplete && !tw._completeCalled) {
+                    tw._completeCalled = true;
+                    tw.onComplete();
+                }
+                active.splice(idx, 1);
+            }
+        }
+
+        function killAllTweens() {
+            for (let i = 0; i < active.length; i++) {
+                const tw = active[i];
+                if (tw.onComplete && !tw._completeCalled) {
+                    tw._completeCalled = true;
+                    tw.onComplete();
+                }
+            }
+            active.length = 0;
+        }
+
+        function pauseTweensOf(target) {
+            for (let i = 0; i < active.length; i++) {
+                const tw = active[i];
+                if (tw.target === target) tw._paused = true;
+            }
+        }
+
+        function resumeTweensOf(target) {
+            for (let i = 0; i < active.length; i++) {
+                const tw = active[i];
+                if (tw.target === target) tw._paused = false;
+            }
+        }
+
         function update(dtMs) {
             let w = 0;
             for (let i = 0; i < active.length; i++) {
                 const tw = active[i];
+                if (tw._paused) { active[w++] = tw; continue; }
                 tw.t += dtMs;
                 const p = Math.min(1, tw.t / tw.dur);
                 const e = tw.easeFn(p);
@@ -66,16 +122,19 @@
                     tw.target[tw.prop] = tw.from + (tw.to - tw.from) * e;
                 }
                 if (tw.onUpdate) tw.onUpdate(e);
-                if (p >= 1) { tw.done = true; if (tw.onComplete) tw.onComplete(); }
-                else active[w++] = tw;
+                if (p >= 1) {
+                    tw.done = true;
+                    if (tw.onComplete && !tw._completeCalled) {
+                        tw._completeCalled = true;
+                        tw.onComplete();
+                    }
+                } else {
+                    active[w++] = tw;
+                }
             }
             active.length = w;
         }
 
-        function clear() { active.length = 0; }
-        function count() { return active.length; }
-
-        // Convenience: get eased progress for a raw time value (stateless helper)
         function apply(easeName, t) { const fn = Easing[easeName] || Easing.easeOutCubic; return fn(t); }
 
         ctx.Easing = Easing;
@@ -83,6 +142,11 @@
         ctx.tweenVec = tweenVec;
         ctx.updateTweens = update;
         ctx.clearTweens = clear;
+        ctx.killTweensOf = killTweensOf;
+        ctx.killTween = killTween;
+        ctx.killAllTweens = killAllTweens;
+        ctx.pauseTweensOf = pauseTweensOf;
+        ctx.resumeTweensOf = resumeTweensOf;
         ctx.tweenCount = count;
         ctx.tweenApply = apply;
     };

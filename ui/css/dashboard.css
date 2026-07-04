@@ -5310,3 +5310,16 @@ button .dash-ic { width: 0.9rem; height: 0.9rem; }
         scroll-behavior: auto !important;
     }
 }
+
+/* ── Inline-style replacements (consolidated from dashboard.html) ──────────────── */
+.is-initially-hidden { display: none; }
+.fs-dash-toolbar-actions { margin-left: auto; display: flex; gap: 0.5rem; align-items: center; }
+.fs-dash-toolbar-dot { font-size: 0.75rem; }
+/* A11y helper: hide content visually but keep it for screen readers */
+.visually-hidden {
+    position: absolute;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0,0,0,0);
+    white-space: nowrap; border: 0;
+}

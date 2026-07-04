@@ -283,7 +283,7 @@
 
         function createMemoryBarChart(canvasId, data) {
             const ctx = document.getElementById(canvasId);
-            if (!ctx) return null;
+            if (!ctx || !data) return null;
             const embLabel = data.vectordb_disabled ? t('dashboard.memory_embeddings_disabled') : t('dashboard.memory_embeddings');
             const labels = [t('dashboard.memory_chart_core_memory'), t('dashboard.memory_chart_messages'), embLabel, t('dashboard.memory_chart_graph_nodes'), t('dashboard.memory_chart_graph_edges'), t('dashboard.memory_journal'), t('dashboard.memory_notes'), t('dashboard.memory_error_patterns'), t('dashboard.memory_episodic')];
             const values = [

@@ -25,6 +25,27 @@ function t(k, p) {
     return s;
 }
 
+/**
+ * Translate a key, returning the supplied fallback when the key is not present in I18N.
+ * Use this in templates where rendering the raw key path would leak implementation details.
+ * @param {string} k - The translation key
+ * @param {string} fallback - Value to return when the key is missing
+ * @param {Object} [p] - Optional placeholder map
+ * @returns {string}
+ */
+function tOr(k, fallback, p) {
+    const dict = typeof I18N !== 'undefined' ? I18N : null;
+    if (!dict || !Object.prototype.hasOwnProperty.call(dict, k)) {
+        return typeof fallback === 'string' ? fallback : (fallback == null ? k : String(fallback));
+    }
+    let s = dict[k];
+    if (p) Object.entries(p).forEach(([a, b]) => {
+        s = s.replaceAll('{{' + a + '}}', b);
+        s = s.replaceAll('{' + a + '}', b);
+    });
+    return s;
+}
+
 // ═══════════════════════════════════════════════════════════════
 // MODAL DIALOGS (replaces alert/confirm)
 // ═══════════════════════════════════════════════════════════════

@@ -7,6 +7,8 @@
 
         const LANG = document.documentElement.lang || 'en';
         const HIDDEN_INTEGRATIONS = new Set(['onedrive']);
+        // Expose LANG explicitly so it survives ES-Module conversion and is traceable across scripts.
+        window.LANG = LANG;
 
         // Theme is handled by shared.js (initTheme/toggleTheme); no separate init needed here.
 
@@ -225,8 +227,10 @@
 
         function showTab(tabId) {
             if (!VALID_TABS.includes(tabId)) tabId = 'overview';
-            localStorage.setItem('aurago-dash-tab', tabId);
             history.replaceState(null, '', '#' + tabId);
+            // Persist last tab only after the next microtask. This guards against a failing
+            // initial network call leaving the user with a broken saved tab on reload.
+            queueMicrotask(() => { try { localStorage.setItem('aurago-dash-tab', tabId); } catch (_) {} });
             // Clean up stale retry function references from previous tab
             CardState.clearAllRetryFns();
             const tablist = document.getElementById('dashTabs');
@@ -676,27 +680,10 @@
             const savedTab = localStorage.getItem('aurago-dash-tab') || 'overview';
             const initialTab = VALID_TABS.includes(hashTab) ? hashTab : (VALID_TABS.includes(savedTab) ? savedTab : 'overview');
 
-            // Show initial tab – triggers lazy load
+            // Show initial tab – showTab() invokes loadTabContent() synchronously when
+            // TabState.loaded[tabId] is false, and loadTabContent() marks the tab loaded before
+            // its async body runs, so no defensive double-load is required here.
             showTab(initialTab);
-
-            // Force-load initial tab content in case it wasn't loaded yet
-            // (handles edge case where page opens directly to a non-overview tab)
-            if (!TabState.loaded[initialTab]) {
-                TabState.loaded[initialTab] = true;
-                switch (initialTab) {
-                    case 'overview': loadTabOverview(); break;
-                    case 'agent':    loadTabAgent();    break;
-                    case 'user':     loadTabUser();     break;
-                    case 'knowledge': loadTabKnowledge(); break;
-                    case 'filesync':  loadFileSyncStatus(); break;
-                    case 'audit':     loadTabAudit();    break;
-                    case 'cronjobs':  loadTabCronjobs(); break;
-                    case 'system':   loadTabSystem();   break;
-                }
-            }
-
-            // Start auto-refresh
-            startAutoRefresh();
 
             // Always load agent banner regardless of initial tab
             if (initialTab !== 'overview') {
@@ -704,10 +691,6 @@
             }
         }
 
-        // ── Auto-Refresh ────────────────────────────────────────────────────────────
-        function startAutoRefresh() {
-            // System metrics are now pushed via SSE (EventSystemMetrics) every 10s.
-            // Mission updates are pushed via SSE (EventMissionUpdate) on state change.
-            // No interval polling needed; SSE handles all live updates.
-        }
+        // Note: live system, mission, memory, personality, daemon, and audit updates flow through
+        // SSE handlers registered in dashboard-events.js#connectSSE; no client-side polling is needed.
 
