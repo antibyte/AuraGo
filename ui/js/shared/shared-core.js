@@ -1013,6 +1013,14 @@ function fromLocalDateTime(localStr) {
     return d.toISOString();
 }
 
+function dateTimeLocalValue(isoStr) {
+    if (!isoStr) return '';
+    const d = new Date(isoStr);
+    if (isNaN(d.getTime())) return '';
+    const pad = (n) => String(n).padStart(2, '0');
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+}
+
 /**
  * Debounce a function
  * @param {Function} fn
