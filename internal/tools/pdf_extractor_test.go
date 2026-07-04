@@ -78,6 +78,33 @@ func TestExecutePDFExtract_InvalidPDF(t *testing.T) {
 	}
 }
 
+func TestExecutePDFExtract_TextPDFSuccess(t *testing.T) {
+	workDir := t.TempDir()
+	cfg := &config.DocumentCreatorConfig{
+		Enabled:   true,
+		Backend:   "maroto",
+		OutputDir: workDir,
+	}
+	createResult := ExecuteDocumentCreator(context.Background(), cfg, "create_pdf", "Extractor Smoke Test", "Needle text for PDF extraction", "", "extractable.pdf", "A4", false, "", "")
+	if !strings.Contains(createResult, `"status":"success"`) {
+		t.Fatalf("failed to create text PDF fixture: %s", createResult)
+	}
+
+	result := ExecutePDFExtract(workDir, "extractable.pdf")
+
+	var resp map[string]interface{}
+	if err := json.Unmarshal([]byte(result), &resp); err != nil {
+		t.Fatalf("Failed to parse result JSON: %v", err)
+	}
+	if resp["status"] != "success" {
+		t.Fatalf("expected status=success, got %v; result=%s", resp["status"], result)
+	}
+	content, _ := resp["content"].(string)
+	if !strings.Contains(content, "Needle text for PDF extraction") {
+		t.Fatalf("content = %q, want generated PDF text", content)
+	}
+}
+
 func TestSecurePDFPath_WithinWorkspace(t *testing.T) {
 	workDir := t.TempDir()
 

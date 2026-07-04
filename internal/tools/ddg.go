@@ -28,6 +28,10 @@ type ddgTitleLink struct {
 
 // ExecuteDDGSearch performs a DuckDuckGo HTML search
 func ExecuteDDGSearch(query string, maxResults int) string {
+	query = strings.TrimSpace(query)
+	if query == "" {
+		return formatError("query is required")
+	}
 	if maxResults <= 0 {
 		maxResults = 5
 	}

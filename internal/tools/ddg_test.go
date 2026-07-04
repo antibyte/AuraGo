@@ -68,6 +68,18 @@ func TestExecuteDDGSearchParsesCurrentLiteMarkup(t *testing.T) {
 	}
 }
 
+func TestExecuteDDGSearchRejectsEmptyQuery(t *testing.T) {
+	withDDGTestClient(t, `<html><body><a href="https://example.com" class="result-link">Unexpected</a></body></html>`)
+
+	out := decodeDDGResult(t, ExecuteDDGSearch("   ", 5))
+	if out["status"] != "error" {
+		t.Fatalf("status = %v, want error for empty query; output: %#v", out["status"], out)
+	}
+	if !strings.Contains(out["message"].(string), "query is required") {
+		t.Fatalf("message = %v, want query-required context", out["message"])
+	}
+}
+
 func TestExecuteDDGSearchReturnsErrorForUnparseableSuccessPage(t *testing.T) {
 	withDDGTestClient(t, `<html><title>tagesschau news at DuckDuckGo</title><body>No result markup here.</body></html>`)
 
