@@ -314,6 +314,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 		}
 		deepMerge(rawCfg, patch, "")
 		rawCfg = normalizeConfigYAMLMap(rawCfg)
+		normalizeAIGatewayYAMLSection(rawCfg)
 
 		// Write back
 		out, err := yaml.Marshal(rawCfg)
@@ -1109,6 +1110,47 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				"embeddings_changed": embeddingsChanged,
 			})
 		}
+	}
+}
+
+func normalizeAIGatewayYAMLSection(rawCfg map[string]interface{}) {
+	section, ok := rawCfg["ai_gateway"].(map[string]interface{})
+	if !ok {
+		return
+	}
+	data, err := yaml.Marshal(map[string]interface{}{"ai_gateway": section})
+	if err != nil {
+		return
+	}
+	var cfg config.Config
+	if err := yaml.Unmarshal(data, &cfg); err != nil {
+		return
+	}
+	config.NormalizeAIGatewayConfig(&cfg)
+
+	setString := func(key, value, defaultValue string) {
+		if _, exists := section[key]; exists || value != defaultValue {
+			section[key] = value
+		}
+	}
+	setInt := func(key string, value int) {
+		if _, exists := section[key]; exists || value != 0 {
+			section[key] = value
+		}
+	}
+
+	setString("mode", cfg.AIGateway.Mode, "auto")
+	setString("log_mode", cfg.AIGateway.LogMode, "metadata_only")
+	setString("backoff", cfg.AIGateway.Backoff, "")
+	setInt("request_timeout_ms", cfg.AIGateway.RequestTimeoutMS)
+	setInt("max_attempts", cfg.AIGateway.MaxAttempts)
+	setInt("retry_delay_ms", cfg.AIGateway.RetryDelayMS)
+	if _, exists := section["metadata"]; exists || len(cfg.AIGateway.Metadata) > 0 {
+		metadata := make(map[string]interface{}, len(cfg.AIGateway.Metadata))
+		for key, value := range cfg.AIGateway.Metadata {
+			metadata[key] = value
+		}
+		section["metadata"] = metadata
 	}
 }
 

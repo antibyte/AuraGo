@@ -137,3 +137,58 @@ func TestHandleAIGatewayTestUsesProviderIDAndScrubsSecrets(t *testing.T) {
 		t.Fatalf("test response leaked gateway token: %s", rec.Body.String())
 	}
 }
+
+func TestHandleAIGatewayTestWorkersAIUsesCloudflareAuthAndModelsSearch(t *testing.T) {
+	const apiKey = "cf-workers-api-token"
+	oldTransport := http.DefaultTransport
+	http.DefaultTransport = aiGatewayRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if got := req.Method; got != http.MethodGet {
+			t.Fatalf("method = %q, want GET", got)
+		}
+		if got := req.URL.String(); got != "https://api.cloudflare.com/client/v4/accounts/workers-acct/ai/models/search?per_page=1" {
+			t.Fatalf("probe URL = %q, want Workers AI models search endpoint", got)
+		}
+		if got := req.Header.Get("Authorization"); got != "Bearer "+apiKey {
+			t.Fatalf("Authorization = %q, want Cloudflare provider token", got)
+		}
+		if got := req.Header.Get("cf-aig-gateway-id"); got != "gw" {
+			t.Fatalf("cf-aig-gateway-id = %q, want gateway id", got)
+		}
+		if got := req.Header.Get("cf-aig-authorization"); got != "" {
+			t.Fatalf("cf-aig-authorization = %q, want no provider-native gateway token for Workers AI", got)
+		}
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader(`{"success":true,"result":[]}`)),
+			Header:     make(http.Header),
+		}, nil
+	})
+	t.Cleanup(func() { http.DefaultTransport = oldTransport })
+
+	s := &Server{Cfg: &config.Config{}, Logger: slog.Default()}
+	s.Cfg.LLM.Provider = "worker"
+	s.Cfg.AIGateway.Enabled = true
+	s.Cfg.AIGateway.AccountID = "gateway-acct"
+	s.Cfg.AIGateway.GatewayID = "gw"
+	s.Cfg.Providers = []config.ProviderEntry{{
+		ID:        "worker",
+		Type:      "workers-ai",
+		AccountID: "workers-acct",
+		APIKey:    apiKey,
+	}}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/ai-gateway/test", strings.NewReader(`{"provider_id":"worker"}`))
+	rec := httptest.NewRecorder()
+	handleAIGatewayTest(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+	var body map[string]interface{}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if body["live_status"] != "ok" {
+		t.Fatalf("live_status = %#v, want ok; body=%#v", body["live_status"], body)
+	}
+}

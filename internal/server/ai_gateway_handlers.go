@@ -99,7 +99,7 @@ func writeAIGatewayProbeResult(w http.ResponseWriter, s *Server, test bool, prov
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 
-	probeURL := strings.TrimRight(route.Endpoint, "/") + "/models"
+	probeURL := aiGatewayProbeURL(route, providerType)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, probeURL, nil)
 	if err != nil {
 		if test {
@@ -113,6 +113,21 @@ func writeAIGatewayProbeResult(w http.ResponseWriter, s *Server, test bool, prov
 	}
 	if cfg.Token != "" && route.AuthHeader == "cf-aig-authorization" {
 		req.Header.Set("cf-aig-authorization", "Bearer "+cfg.Token)
+	}
+	if route.AuthHeader == "Authorization" {
+		apiKey := aiGatewayProbeProviderAPIKey(cfgSnapshot, firstString(providerID))
+		if apiKey == "" {
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"status":          "no_credentials",
+				"message":         "Provider API key is required for this AI Gateway route",
+				"provider":        route.Provider,
+				"endpoint":        route.Endpoint,
+				"privacy_mode":    route.PrivacyMode,
+				"route_supported": route.RouteSupported,
+			})
+			return
+		}
+		req.Header.Set("Authorization", "Bearer "+apiKey)
 	}
 	if route.GatewayID != "" && providerType == "workers-ai" {
 		req.Header.Set("cf-aig-gateway-id", route.GatewayID)
@@ -163,6 +178,37 @@ func writeAIGatewayProbeResult(w http.ResponseWriter, s *Server, test bool, prov
 		"route_supported": route.RouteSupported,
 		"live_status":     "ok",
 	})
+}
+
+func aiGatewayProbeURL(route llm.AIGatewayRoute, providerType string) string {
+	endpoint := strings.TrimRight(route.Endpoint, "/")
+	if strings.EqualFold(providerType, "workers-ai") {
+		accountBase := strings.TrimSuffix(endpoint, "/ai/v1")
+		if accountBase != endpoint {
+			return accountBase + "/ai/models/search?per_page=1"
+		}
+	}
+	return endpoint + "/models"
+}
+
+func aiGatewayProbeProviderAPIKey(cfg config.Config, providerID string) string {
+	providerID = strings.TrimSpace(providerID)
+	if providerID != "" {
+		for _, provider := range cfg.Providers {
+			if provider.ID == providerID {
+				return strings.TrimSpace(provider.APIKey)
+			}
+		}
+		return ""
+	}
+	if activeProvider := strings.TrimSpace(cfg.LLM.Provider); activeProvider != "" {
+		for _, provider := range cfg.Providers {
+			if provider.ID == activeProvider {
+				return strings.TrimSpace(provider.APIKey)
+			}
+		}
+	}
+	return strings.TrimSpace(cfg.LLM.APIKey)
 }
 
 func aiGatewayDiagnostics(route llm.AIGatewayRoute) map[string]interface{} {

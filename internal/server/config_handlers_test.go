@@ -594,6 +594,69 @@ three_d_printers:
 	}
 }
 
+func TestHandleUpdateConfigNormalizesAIGatewayBeforePersisting(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	if err := os.WriteFile(configPath, []byte("ai_gateway:\n  enabled: true\n"), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	vault, err := security.NewVault("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", filepath.Join(tmpDir, "vault.bin"))
+	if err != nil {
+		t.Fatalf("init vault: %v", err)
+	}
+	loaded, err := config.Load(configPath)
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	loaded.ConfigPath = configPath
+	s := &Server{Cfg: loaded, Logger: slog.Default(), Vault: vault}
+
+	body := strings.NewReader(`{
+		"ai_gateway": {
+			"enabled": true,
+			"account_id": "acct",
+			"gateway_id": "gw",
+			"mode": "definitely-invalid",
+			"log_mode": "leak-everything",
+			"backoff": "sideways",
+			"request_timeout_ms": -500,
+			"max_attempts": 12,
+			"retry_delay_ms": -10
+		}
+	}`)
+	req := httptest.NewRequest(http.MethodPut, "/api/config", body)
+	rec := httptest.NewRecorder()
+	handleUpdateConfig(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("read config: %v", err)
+	}
+	var raw map[string]interface{}
+	if err := yaml.Unmarshal(data, &raw); err != nil {
+		t.Fatalf("unmarshal saved yaml: %v", err)
+	}
+	section, ok := raw["ai_gateway"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("ai_gateway missing or wrong type in saved config: %#v", raw["ai_gateway"])
+	}
+	assertSaved := func(key string, want interface{}) {
+		t.Helper()
+		if got := section[key]; got != want {
+			t.Fatalf("saved ai_gateway.%s = %#v, want %#v\n%s", key, got, want, string(data))
+		}
+	}
+	assertSaved("mode", "auto")
+	assertSaved("log_mode", "metadata_only")
+	assertSaved("backoff", "")
+	assertSaved("request_timeout_ms", 0)
+	assertSaved("max_attempts", 5)
+	assertSaved("retry_delay_ms", 0)
+}
+
 func containsString(values []string, want string) bool {
 	for _, value := range values {
 		if value == want {
