@@ -25,6 +25,7 @@
   "config.grafana.summary_datasources": "Zdroje dat",
   "config.grafana.summary_empty": "Data Grafana zatím nejsou k dispozici.",
   "config.grafana.summary_org": "Organization",
+  "config.grafana.partial_warning": "Některé kontroly vyžadují pozornost",
   "config.grafana.summary_title": "Souhrn Grafany",
   "config.grafana.test_btn": "Test připojení",
   "config.grafana.test_fail": "Připojení selhalo",

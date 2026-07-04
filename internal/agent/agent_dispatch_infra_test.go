@@ -176,6 +176,11 @@ func TestDecodeGrafanaArgsSupportsUIDTypeAndPagination(t *testing.T) {
 			"query":           "up",
 			"datasource_uid":  "prom-main",
 			"datasource_type": "prometheus",
+			"from":            "now-30m",
+			"to":              "now",
+			"format":          "table",
+			"max_data_points": float64(500),
+			"interval_ms":     float64(15000),
 			"limit":           float64(25),
 			"page":            float64(2),
 		},
@@ -192,6 +197,18 @@ func TestDecodeGrafanaArgsSupportsUIDTypeAndPagination(t *testing.T) {
 	}
 	if req.Page != 2 {
 		t.Fatalf("Page = %d, want 2", req.Page)
+	}
+	if req.From != "now-30m" || req.To != "now" {
+		t.Fatalf("time range = %q/%q, want now-30m/now", req.From, req.To)
+	}
+	if req.Format != "table" {
+		t.Fatalf("Format = %q, want table", req.Format)
+	}
+	if req.MaxDataPoints != 500 {
+		t.Fatalf("MaxDataPoints = %d, want 500", req.MaxDataPoints)
+	}
+	if req.IntervalMS != 15000 {
+		t.Fatalf("IntervalMS = %d, want 15000", req.IntervalMS)
 	}
 }
 

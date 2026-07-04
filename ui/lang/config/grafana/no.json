@@ -25,6 +25,7 @@
   "config.grafana.summary_datasources": "Datakilder",
   "config.grafana.summary_empty": "Ingen Grafana-data tilgjengelig ennå.",
   "config.grafana.summary_org": "Organization",
+  "config.grafana.partial_warning": "Noen kontroller trenger oppmerksomhet",
   "config.grafana.summary_title": "Grafana-sammendrag",
   "config.grafana.test_btn": "Test tilkobling",
   "config.grafana.test_fail": "Tilkobling mislyktes",

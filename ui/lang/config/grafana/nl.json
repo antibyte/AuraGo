@@ -25,6 +25,7 @@
   "config.grafana.summary_datasources": "Gegevensbronnen",
   "config.grafana.summary_empty": "Er zijn nog geen Grafana-gegevens beschikbaar.",
   "config.grafana.summary_org": "Organization",
+  "config.grafana.partial_warning": "Sommige controles vragen aandacht",
   "config.grafana.summary_title": "Grafana-samenvatting",
   "config.grafana.test_btn": "Verbinding testen",
   "config.grafana.test_fail": "Verbinding mislukt",

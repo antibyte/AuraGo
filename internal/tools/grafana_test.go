@@ -146,6 +146,18 @@ func TestQueryGrafanaDatasourceSupportsUIDAndDatasourceType(t *testing.T) {
 		if _, ok := query["datasourceId"]; ok {
 			t.Fatalf("datasourceId should be omitted when datasource_uid is used: %#v", query)
 		}
+		if body["from"] != "now-15m" || body["to"] != "now" {
+			t.Fatalf("time range = %#v/%#v, want now-15m/now", body["from"], body["to"])
+		}
+		if query["format"] != "table" {
+			t.Fatalf("format = %#v, want table", query["format"])
+		}
+		if query["maxDataPoints"] != float64(400) {
+			t.Fatalf("maxDataPoints = %#v, want 400", query["maxDataPoints"])
+		}
+		if query["intervalMs"] != float64(30000) {
+			t.Fatalf("intervalMs = %#v, want 30000", query["intervalMs"])
+		}
 		fmt.Fprint(w, `{"results":{"A":{"status":200}}}`)
 	}))
 	defer srv.Close()
@@ -153,6 +165,11 @@ func TestQueryGrafanaDatasourceSupportsUIDAndDatasourceType(t *testing.T) {
 	_, err := QueryGrafanaDatasource(context.Background(), grafanaTestConfig(srv.URL), 0, `{job="aurago"}`, GrafanaQueryOptions{
 		DatasourceUID:  "loki-main",
 		DatasourceType: "loki",
+		From:           "now-15m",
+		To:             "now",
+		Format:         "table",
+		MaxDataPoints:  400,
+		IntervalMS:     30000,
 	})
 	if err != nil {
 		t.Fatalf("QueryGrafanaDatasource() error = %v", err)
@@ -169,15 +186,17 @@ func TestQueryGrafanaDatasourceRejectsUnknownDatasourceType(t *testing.T) {
 	}
 }
 
-func TestListGrafanaAlertsPrefersUnifiedPrometheusAlerts(t *testing.T) {
+func TestListGrafanaAlertsCombinesActiveAlertsAndAlertRules(t *testing.T) {
 	var paths []string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		paths = append(paths, r.URL.Path)
 		switch r.URL.Path {
 		case "/api/prometheus/grafana/api/v1/alerts":
 			fmt.Fprint(w, `{"status":"success","data":{"alerts":[{"labels":{"alertname":"HighCPU","severity":"critical"},"annotations":{"summary":"CPU high"},"state":"firing","activeAt":"2026-05-02T10:00:00Z"}]}}`)
+		case "/api/v1/provisioning/alert-rules":
+			fmt.Fprint(w, `[{"uid":"rule-1","title":"DiskFull","condition":"C","data":[]}]`)
 		default:
-			t.Fatalf("unexpected fallback request to %s", r.URL.Path)
+			t.Fatalf("unexpected request to %s", r.URL.Path)
 		}
 	}))
 	defer srv.Close()
@@ -186,11 +205,17 @@ func TestListGrafanaAlertsPrefersUnifiedPrometheusAlerts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListGrafanaAlerts() error = %v", err)
 	}
-	if len(alerts) != 1 || alerts[0].Name != "HighCPU" || alerts[0].State != "firing" || alerts[0].Source != "prometheus_alerts" {
-		t.Fatalf("alerts = %#v, want mapped unified prometheus alert", alerts)
+	if len(alerts) != 2 {
+		t.Fatalf("alerts = %#v, want active alert plus configured rule", alerts)
 	}
-	if len(paths) != 1 {
-		t.Fatalf("paths = %#v, want only primary endpoint", paths)
+	if alerts[0].Name != "HighCPU" || alerts[0].State != "firing" || alerts[0].Source != "prometheus_alerts" {
+		t.Fatalf("first alert = %#v, want mapped unified prometheus alert", alerts[0])
+	}
+	if alerts[1].RuleUID != "rule-1" || alerts[1].Name != "DiskFull" || alerts[1].Source != "alert_rules" {
+		t.Fatalf("second alert = %#v, want mapped configured alert rule", alerts[1])
+	}
+	if len(paths) != 2 {
+		t.Fatalf("paths = %#v, want active alert endpoint and alert rules endpoint", paths)
 	}
 }
 
@@ -199,7 +224,7 @@ func TestListGrafanaAlertsFallsBackToAlertRules(t *testing.T) {
 		switch r.URL.Path {
 		case "/api/prometheus/grafana/api/v1/alerts":
 			http.NotFound(w, r)
-		case "/api/alert-rules":
+		case "/api/v1/provisioning/alert-rules":
 			fmt.Fprint(w, `[{"uid":"rule-1","title":"DiskFull","condition":"C","data":[]}]`)
 		default:
 			t.Fatalf("unexpected request to %s", r.URL.Path)
@@ -216,10 +241,32 @@ func TestListGrafanaAlertsFallsBackToAlertRules(t *testing.T) {
 	}
 }
 
+func TestListGrafanaAlertsFallsBackToRulesWhenNoActiveAlerts(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/prometheus/grafana/api/v1/alerts":
+			fmt.Fprint(w, `{"status":"success","data":{"alerts":[]}}`)
+		case "/api/v1/provisioning/alert-rules":
+			fmt.Fprint(w, `[{"uid":"rule-1","title":"DiskFull","condition":"C","data":[]}]`)
+		default:
+			t.Fatalf("unexpected request to %s", r.URL.Path)
+		}
+	}))
+	defer srv.Close()
+
+	alerts, err := ListGrafanaAlerts(context.Background(), grafanaTestConfig(srv.URL))
+	if err != nil {
+		t.Fatalf("ListGrafanaAlerts() error = %v", err)
+	}
+	if len(alerts) != 1 || alerts[0].RuleUID != "rule-1" || alerts[0].Name != "DiskFull" || alerts[0].Source != "alert_rules" {
+		t.Fatalf("alerts = %#v, want mapped alert rule after empty active alert response", alerts)
+	}
+}
+
 func TestListGrafanaAlertsFallsBackToLegacyAlerts(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/api/prometheus/grafana/api/v1/alerts", "/api/alert-rules":
+		case "/api/prometheus/grafana/api/v1/alerts", "/api/v1/provisioning/alert-rules":
 			http.NotFound(w, r)
 		case "/api/alerts":
 			fmt.Fprint(w, `[{"id":3,"name":"CPU","state":"alerting"}]`)
@@ -248,7 +295,7 @@ func TestListGrafanaAlertsReturnsCombinedEndpointError(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected combined alert endpoint error")
 	}
-	for _, endpoint := range []string{"/api/prometheus/grafana/api/v1/alerts", "/api/alert-rules", "/api/alerts"} {
+	for _, endpoint := range []string{"/api/prometheus/grafana/api/v1/alerts", "/api/v1/provisioning/alert-rules", "/api/alerts"} {
 		if !strings.Contains(err.Error(), endpoint) {
 			t.Fatalf("error %q missing endpoint %s", err.Error(), endpoint)
 		}

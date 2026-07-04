@@ -25,6 +25,7 @@
   "config.grafana.summary_datasources": "数据源",
   "config.grafana.summary_empty": "尚无可用的 Grafana 数据。",
   "config.grafana.summary_org": "Organization",
+  "config.grafana.partial_warning": "部分检查需要注意",
   "config.grafana.summary_title": "Grafana 摘要",
   "config.grafana.test_btn": "测试连接",
   "config.grafana.test_fail": "连接失败",

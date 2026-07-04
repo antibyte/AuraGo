@@ -75,12 +75,12 @@ function grafanaCheckStatus() {
                 return;
             }
             grafanaSetBanner('success', '🟢 ' + t('config.grafana.connected'));
-            grafanaRenderSummary(res.data.summary || {});
+            grafanaRenderSummary(res.data.summary || {}, res.data.partial_errors || []);
         })
         .catch(() => grafanaSetBanner('danger', '🔴 ' + t('config.grafana.connection_failed')));
 }
 
-function grafanaRenderSummary(summary) {
+function grafanaRenderSummary(summary, partialErrors) {
     const wrap = document.getElementById('grafana-summary');
     const content = document.getElementById('grafana-summary-content');
     if (!wrap || !content) return;
@@ -90,6 +90,9 @@ function grafanaRenderSummary(summary) {
     html += '<div><strong>' + t('config.grafana.summary_datasources') + '</strong><br>' + escapeHtml(String(summary.datasources || 0)) + '</div>';
     html += '<div><strong>' + t('config.grafana.summary_alerts') + '</strong><br>' + escapeHtml(String(summary.alerts || 0)) + '</div>';
     html += '<div><strong>' + t('config.grafana.summary_org') + '</strong><br>' + escapeHtml(summary.org || '-') + '</div>';
+    if (Array.isArray(partialErrors) && partialErrors.length > 0) {
+        html += '<div class="adg-stats-loaded"><strong>' + t('config.grafana.partial_warning') + '</strong><br>' + escapeHtml(partialErrors.join(' | ')) + '</div>';
+    }
     content.innerHTML = html || '<div class="adg-stats-loaded">' + t('config.grafana.summary_empty') + '</div>';
 }
 

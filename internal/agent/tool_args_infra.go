@@ -220,6 +220,11 @@ type grafanaArgs struct {
 	DatasourceID   int64
 	DatasourceUID  string
 	DatasourceType string
+	From           string
+	To             string
+	Format         string
+	MaxDataPoints  int
+	IntervalMS     int
 	Limit          int
 	Page           int
 }
@@ -439,6 +444,11 @@ func decodeGrafanaArgs(tc ToolCall) grafanaArgs {
 		DatasourceID:   int64(firstNonEmptyInt(toolArgInt(tc.Params, 0, "datasource_id", "ds_id"))),
 		DatasourceUID:  firstNonEmptyToolString(toolArgString(tc.Params, "datasource_uid", "ds_uid")),
 		DatasourceType: firstNonEmptyToolString(toolArgString(tc.Params, "datasource_type", "ds_type")),
+		From:           firstNonEmptyToolString(toolArgString(tc.Params, "from", "time_from")),
+		To:             firstNonEmptyToolString(toolArgString(tc.Params, "to", "time_to")),
+		Format:         firstNonEmptyToolString(toolArgString(tc.Params, "format")),
+		MaxDataPoints:  firstNonEmptyInt(toolArgInt(tc.Params, 0, "max_data_points", "maxDataPoints")),
+		IntervalMS:     firstNonEmptyInt(toolArgInt(tc.Params, 0, "interval_ms", "intervalMs")),
 		Limit:          firstNonEmptyInt(tc.Limit, toolArgInt(tc.Params, 0, "limit")),
 		Page:           firstNonEmptyInt(toolArgInt(tc.Params, 0, "page")),
 	}

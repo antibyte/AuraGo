@@ -66,6 +66,11 @@ type GrafanaListOptions struct {
 type GrafanaQueryOptions struct {
 	DatasourceUID  string
 	DatasourceType string
+	From           string
+	To             string
+	Format         string
+	MaxDataPoints  int
+	IntervalMS     int
 }
 
 type GrafanaAlert struct {
@@ -288,8 +293,27 @@ func QueryGrafanaDatasource(ctx context.Context, cfg GrafanaConfig, dsID int64, 
 	} else {
 		grafanaQuery["datasourceId"] = dsID
 	}
+	if strings.TrimSpace(queryOpts.Format) != "" {
+		grafanaQuery["format"] = strings.TrimSpace(queryOpts.Format)
+	}
+	if queryOpts.MaxDataPoints > 0 {
+		grafanaQuery["maxDataPoints"] = queryOpts.MaxDataPoints
+	}
+	if queryOpts.IntervalMS > 0 {
+		grafanaQuery["intervalMs"] = queryOpts.IntervalMS
+	}
+	from := strings.TrimSpace(queryOpts.From)
+	if from == "" {
+		from = "now-1h"
+	}
+	to := strings.TrimSpace(queryOpts.To)
+	if to == "" {
+		to = "now"
+	}
 	body := map[string]interface{}{
 		"queries": []map[string]interface{}{grafanaQuery},
+		"from":    from,
+		"to":      to,
 	}
 	raw, err := json.Marshal(body)
 	if err != nil {
@@ -304,15 +328,20 @@ func QueryGrafanaDatasource(ctx context.Context, cfg GrafanaConfig, dsID int64, 
 
 func ListGrafanaAlerts(ctx context.Context, cfg GrafanaConfig) ([]GrafanaAlert, error) {
 	var endpointErrors []string
+	var combined []GrafanaAlert
 	if alerts, err := listGrafanaPrometheusAlerts(ctx, cfg); err == nil {
-		return alerts, nil
+		combined = append(combined, alerts...)
 	} else {
 		endpointErrors = append(endpointErrors, fmt.Sprintf("/api/prometheus/grafana/api/v1/alerts: %v", err))
 	}
 	if alerts, err := listGrafanaAlertRules(ctx, cfg); err == nil {
-		return alerts, nil
+		combined = append(combined, alerts...)
+		return combined, nil
 	} else {
-		endpointErrors = append(endpointErrors, fmt.Sprintf("/api/alert-rules: %v", err))
+		endpointErrors = append(endpointErrors, fmt.Sprintf("/api/v1/provisioning/alert-rules: %v", err))
+	}
+	if len(combined) > 0 {
+		return combined, nil
 	}
 	var out []GrafanaAlert
 	if err := grafanaDoRequest(ctx, cfg, http.MethodGet, "/api/alerts", nil, &out); err != nil {
@@ -368,7 +397,7 @@ func listGrafanaAlertRules(ctx context.Context, cfg GrafanaConfig) ([]GrafanaAle
 		Condition string            `json:"condition,omitempty"`
 		Updated   string            `json:"updated,omitempty"`
 	}
-	if err := grafanaDoRequest(ctx, cfg, http.MethodGet, "/api/alert-rules", nil, &rules); err != nil {
+	if err := grafanaDoRequest(ctx, cfg, http.MethodGet, "/api/v1/provisioning/alert-rules", nil, &rules); err != nil {
 		return nil, err
 	}
 	alerts := make([]GrafanaAlert, 0, len(rules))

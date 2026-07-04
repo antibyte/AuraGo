@@ -25,6 +25,7 @@
   "config.grafana.summary_datasources": "データソース",
   "config.grafana.summary_empty": "Grafana データはまだ利用できません。",
   "config.grafana.summary_org": "Organization",
+  "config.grafana.partial_warning": "一部のチェックに注意が必要です",
   "config.grafana.summary_title": "Grafana サマリー",
   "config.grafana.test_btn": "接続をテスト",
   "config.grafana.test_fail": "接続に失敗しました",

@@ -311,6 +311,16 @@ func TestBuiltinToolSchemasIncludeUptimeKumaWhenEnabled(t *testing.T) {
 	t.Fatal("expected uptime_kuma tool schema when UptimeKumaEnabled is true")
 }
 
+func TestBuiltinToolSchemasExposeGrafanaQueryOptions(t *testing.T) {
+	schemas := builtinToolSchemas(ToolFeatureFlags{GrafanaEnabled: true})
+	props := nativeToolProperties(t, schemas, "grafana")
+	for _, want := range []string{"from", "to", "format", "max_data_points", "interval_ms"} {
+		if _, ok := props[want]; !ok {
+			t.Fatalf("grafana schema missing query option %q; properties: %#v", want, props)
+		}
+	}
+}
+
 func TestBuiltinToolSchemasExposeWebScraperModes(t *testing.T) {
 	schemas := builtinToolSchemas(ToolFeatureFlags{WebScraperEnabled: true})
 	for _, schema := range schemas {

@@ -1358,7 +1358,7 @@ Call external MCP (Model Context Protocol) servers.
 | `mcp_args` | object | Arguments |
 
 ### `grafana`
-Read Grafana observability data: health, dashboards, datasources, queries, alerts, and org info (`grafana.enabled`).
+Read Grafana observability data: health, dashboards, datasources, time-ranged queries, active alert instances, configured alert rules, and org info (`grafana.enabled`).
 
 | Parameter | Type | Description |
 |-----------|------|-------------|

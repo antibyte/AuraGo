@@ -1274,7 +1274,7 @@ Externe MCP (Model Context Protocol) Server aufrufen.
 | `mcp_args` | object | Argumente |
 
 ### `grafana`
-Grafana-Observability-Daten lesen: Health, Dashboards, Datasources, Queries, Alerts und Org-Info (`grafana.enabled`).
+Grafana-Observability-Daten lesen: Health, Dashboards, Datasources, zeitbegrenzte Queries, aktive Alert-Instanzen, konfigurierte Alert-Regeln und Org-Info (`grafana.enabled`).
 
 | Parameter | Typ | Beschreibung |
 |-----------|-----|--------------|

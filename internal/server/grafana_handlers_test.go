@@ -91,7 +91,7 @@ func TestHandleGrafanaStatusReturnsPartialErrors(t *testing.T) {
 			fmt.Fprint(w, `[{"uid":"sys","title":"System"}]`)
 		case "/api/datasources":
 			fmt.Fprint(w, `[{"id":1,"name":"Prometheus"}]`)
-		case "/api/prometheus/grafana/api/v1/alerts", "/api/alert-rules", "/api/alerts":
+		case "/api/prometheus/grafana/api/v1/alerts", "/api/v1/provisioning/alert-rules", "/api/alerts":
 			http.Error(w, "alert api unavailable", http.StatusInternalServerError)
 		case "/api/org":
 			fmt.Fprint(w, `{"id":1,"name":"Main Org."}`)

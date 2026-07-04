@@ -25,6 +25,7 @@
   "config.grafana.summary_datasources": "Πηγές δεδομένων",
   "config.grafana.summary_empty": "Δεν υπάρχουν ακόμη διαθέσιμα δεδομένα Grafana.",
   "config.grafana.summary_org": "Organization",
+  "config.grafana.partial_warning": "Ορισμένοι έλεγχοι χρειάζονται προσοχή",
   "config.grafana.summary_title": "Σύνοψη Grafana",
   "config.grafana.test_btn": "Δοκιμή σύνδεσης",
   "config.grafana.test_fail": "Η σύνδεση απέτυχε",

@@ -25,6 +25,7 @@
   "config.grafana.summary_datasources": "Sources de données",
   "config.grafana.summary_empty": "Aucune donnée Grafana disponible pour l’instant.",
   "config.grafana.summary_org": "Organization",
+  "config.grafana.partial_warning": "Certaines vérifications demandent ton attention",
   "config.grafana.summary_title": "Résumé Grafana",
   "config.grafana.test_btn": "Tester la connexion",
   "config.grafana.test_fail": "Échec de la connexion",

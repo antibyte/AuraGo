@@ -430,7 +430,15 @@ func dispatchNetwork(ctx context.Context, tc ToolCall, dc *DispatchContext) (str
 				return "Tool Output: " + tools.GrafanaListDatasourcesJSON(context.Background(), gfCfg)
 			case "query":
 				logger.Info("LLM requested Grafana datasource query", "datasource_id", req.DatasourceID, "datasource_uid", req.DatasourceUID, "datasource_type", req.DatasourceType)
-				return "Tool Output: " + tools.GrafanaQueryDatasourceJSON(context.Background(), gfCfg, req.DatasourceID, req.Query, tools.GrafanaQueryOptions{DatasourceUID: req.DatasourceUID, DatasourceType: req.DatasourceType})
+				return "Tool Output: " + tools.GrafanaQueryDatasourceJSON(context.Background(), gfCfg, req.DatasourceID, req.Query, tools.GrafanaQueryOptions{
+					DatasourceUID:  req.DatasourceUID,
+					DatasourceType: req.DatasourceType,
+					From:           req.From,
+					To:             req.To,
+					Format:         req.Format,
+					MaxDataPoints:  req.MaxDataPoints,
+					IntervalMS:     req.IntervalMS,
+				})
 			case "list_alerts":
 				logger.Info("LLM requested Grafana alerts")
 				return "Tool Output: " + tools.GrafanaListAlertsJSON(context.Background(), gfCfg)

@@ -25,6 +25,7 @@
   "config.grafana.summary_datasources": "डेटा स्रोत",
   "config.grafana.summary_empty": "अभी तक कोई ग्राफाना डेटा उपलब्ध नहीं है।",
   "config.grafana.summary_org": "Organization",
+  "config.grafana.partial_warning": "कुछ जाँचों पर ध्यान चाहिए",
   "config.grafana.summary_title": "Grafana सारांश",
   "config.grafana.test_btn": "कनेक्शन जाँचें",
   "config.grafana.test_fail": "कनेक्शन विफल",
