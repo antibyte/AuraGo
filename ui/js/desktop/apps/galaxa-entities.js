@@ -426,7 +426,7 @@
                 for (const e of ctx.G.enemies) {
                     if (e.st !== 'DEAD') {
                         if (e.type === 'boss' || e.type === 'miniboss') { e.enraged = true; e.hitF = 200; }
-                        else { ctx.addScore(ctx.PTS[e.type][0] + bonus, e.x, e.y, ctx.PU_COL[pu.type]); ctx.boom(e.x, e.y, false, e.type); e.st = 'DEAD'; }
+                        else { const pts = ctx.PTS[e.type] ? ctx.PTS[e.type][0] : 200; ctx.addScore(pts + bonus, e.x, e.y, ctx.PU_COL[pu.type]); ctx.boom(e.x, e.y, false, e.type); e.st = 'DEAD'; }
                     }
                 }
                 for (const e of ctx.G.enemies) { if (e.st !== 'DEAD' && e.enraged) { e.animSpeed = Math.max(40, (e.animSpeed || 120) * 0.6); } }
@@ -437,7 +437,7 @@
                 for (const e of ctx.G.enemies) {
                     if (e.st !== 'DEAD') {
                         if (e.type === 'boss' || e.type === 'miniboss') { e.enraged = true; e.hitF = 300; }
-                        else { ctx.addScore(ctx.PTS[e.type][0] + 1000, e.x, e.y, '#fff'); ctx.boom(e.x, e.y, false, e.type); e.st = 'DEAD'; }
+                        else { const pts = ctx.PTS[e.type] ? ctx.PTS[e.type][0] : 200; ctx.addScore(pts + 1000, e.x, e.y, '#fff'); ctx.boom(e.x, e.y, false, e.type); e.st = 'DEAD'; }
                     }
                 }
                 for (const e of ctx.G.enemies) { if (e.st !== 'DEAD' && e.enraged) { e.animSpeed = Math.max(40, (e.animSpeed || 120) * 0.6); } }
