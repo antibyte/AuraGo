@@ -1323,6 +1323,16 @@ func buildMemoryReflectionActionIssues(scope string, result memoryReflectionResu
 		})
 	}
 
+	for i, detail := range result.ActionItems {
+		if isCoreMemoryReflectionFollowUp(detail) {
+			appendIssue("action_item", i, "Memory reflection suggested a core memory follow-up", detail)
+		}
+	}
+	for i, detail := range result.Suggestions {
+		if isCoreMemoryReflectionFollowUp(detail) {
+			appendIssue("suggestion", i, "Memory reflection suggested a core memory follow-up", detail)
+		}
+	}
 	for i, detail := range result.Contradictions {
 		appendIssue("contradiction", i, "Memory reflection found a contradiction", detail)
 	}
@@ -1333,9 +1343,15 @@ func buildMemoryReflectionActionIssues(scope string, result memoryReflectionResu
 		appendIssue("knowledge_gap", i, "Memory reflection found a knowledge gap", detail)
 	}
 	for i, detail := range result.ActionItems {
+		if isCoreMemoryReflectionFollowUp(detail) {
+			continue
+		}
 		appendIssue("action_item", i, "Memory reflection suggested a follow-up", detail)
 	}
 	for i, detail := range result.Suggestions {
+		if isCoreMemoryReflectionFollowUp(detail) {
+			continue
+		}
 		appendIssue("suggestion", i, "Memory reflection suggested a safe follow-up", detail)
 	}
 	for i, flag := range result.QualityFlags {
@@ -1344,6 +1360,19 @@ func buildMemoryReflectionActionIssues(scope string, result memoryReflectionResu
 		}
 	}
 	return issues
+}
+
+func isCoreMemoryReflectionFollowUp(detail string) bool {
+	lower := strings.ToLower(strings.TrimSpace(detail))
+	if !strings.Contains(lower, "core memory") && !strings.Contains(lower, "core_memory") {
+		return false
+	}
+	for _, cue := range []string{"store", "add", "update", "remove", "missing", "lacks", "fact", "durable", "permanent"} {
+		if strings.Contains(lower, cue) {
+			return true
+		}
+	}
+	return false
 }
 
 func recordMemoryReflectionActionIssues(plannerDB *sql.DB, scope string, result memoryReflectionResult, logger *slog.Logger) {

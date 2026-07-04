@@ -189,7 +189,7 @@ func TestBuildMemoryReflectionActionIssuesIncludesActionItemsAndSuggestions(t *t
 	if issues[0].Fingerprint != "memory_reflect|recent|action_item|0" {
 		t.Fatalf("first fingerprint = %q", issues[0].Fingerprint)
 	}
-	if issues[0].Title != "Memory reflection suggested a follow-up" {
+	if issues[0].Title != "Memory reflection suggested a core memory follow-up" {
 		t.Fatalf("first title = %q", issues[0].Title)
 	}
 	if issues[1].Fingerprint != "memory_reflect|recent|suggestion|0" {
@@ -197,6 +197,36 @@ func TestBuildMemoryReflectionActionIssuesIncludesActionItemsAndSuggestions(t *t
 	}
 	if issues[1].Title != "Memory reflection suggested a safe follow-up" {
 		t.Fatalf("second title = %q", issues[1].Title)
+	}
+}
+
+func TestBuildMemoryReflectionActionIssuesPrioritizesCoreMemoryFollowUpBeforeCap(t *testing.T) {
+	result := memoryReflectionResult{
+		Summary: "The recent memory window found several issues, including a durable user fact that needs review.",
+		Contradictions: []string{
+			"Knowledge graph has stale KI-News project data.",
+			"Core memory lacks user location (Pforzheim) despite being used in weather queries.",
+			"Curator dry run reports unresolved contradictions without resolution.",
+		},
+		ActionItems: []string{
+			"Resolve the 5 contradictions flagged by curator dry run.",
+			"Verify 330 unverified memories to improve retrieval quality.",
+			"Store user location (Pforzheim) in core memory.",
+		},
+	}
+
+	issues := buildMemoryReflectionActionIssues("recent", result)
+	if len(issues) != 3 {
+		t.Fatalf("issues = %d, want capped 3: %#v", len(issues), issues)
+	}
+	found := false
+	for _, issue := range issues {
+		if strings.Contains(issue.Detail, "Pforzheim") && strings.Contains(issue.Fingerprint, "|action_item|") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected core memory action item to survive reflection issue cap: %#v", issues)
 	}
 }
 
