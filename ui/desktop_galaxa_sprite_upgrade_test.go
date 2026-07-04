@@ -81,7 +81,24 @@ func TestGalaxaPremiumCodeDefinedSprites(t *testing.T) {
 		}
 	}
 
-	if !strings.Contains(entities, "const animFramesMap =") || !strings.Contains(entities, "animFrames: animFramesMap[type] || 3") {
-		t.Fatal("galaxa enemies must use per-type animation frame counts")
+	for _, marker := range []string{
+		"const animSpeed = GC.ENEMY_ANIM_SPEED[type] || 120",
+		"const animFrames = GC.ENEMY_FRAME_COUNT[type] || 3",
+		"animFrame: 0, animTimer: 0, animSpeed, animFrames",
+		"spawnAnim: 0, spawnDur: GC.ENEMY_SPAWN_DURATION",
+	} {
+		if !strings.Contains(entities, marker) {
+			t.Fatalf("galaxa enemies must use centralized animation constants, missing %q", marker)
+		}
+	}
+	for _, stale := range []string{
+		"const animSpeedMap =",
+		"const animFramesMap =",
+		"animFrames: animFramesMap[type] || 3",
+		"spawnDur: 400",
+	} {
+		if strings.Contains(entities, stale) {
+			t.Fatalf("galaxa enemies still contain stale local animation constant %q", stale)
+		}
 	}
 }
