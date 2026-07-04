@@ -1,6 +1,11 @@
 package config
 
-import "gopkg.in/yaml.v3"
+import (
+	"strings"
+	"unicode"
+
+	"gopkg.in/yaml.v3"
+)
 
 // Defined here to avoid a circular dependency on the security package.
 type SecretReader interface {
@@ -498,9 +503,45 @@ type KlipperPrinterConfig struct {
 	ID             string `yaml:"id" json:"id"`
 	Name           string `yaml:"name" json:"name"`
 	URL            string `yaml:"url" json:"url"`                           // e.g. http://192.168.6.60:7125
-	APIKey         string `yaml:"api_key,omitempty" json:"api_key"`         // optional Moonraker API key
+	APIKey         string `yaml:"-" json:"-"`                               // optional Moonraker API key, vault-only
 	TimeoutSeconds int    `yaml:"timeout_seconds" json:"timeout_seconds"`   // default: 10
 	WebcamName     string `yaml:"webcam_name,omitempty" json:"webcam_name"` // optional Moonraker webcam name
+}
+
+// ThreeDPrinterKlipperAPIKeyVaultKey returns the per-printer vault key for a Klipper API key.
+func ThreeDPrinterKlipperAPIKeyVaultKey(printerID string) string {
+	id := strings.TrimSpace(strings.ToLower(printerID))
+	if id == "" {
+		return ""
+	}
+	var b strings.Builder
+	lastUnderscore := false
+	for _, r := range id {
+		if r == '-' || r == '_' || unicode.IsLetter(r) || unicode.IsDigit(r) {
+			if r > unicode.MaxASCII {
+				r = '_'
+			}
+			if r == '_' {
+				if lastUnderscore {
+					continue
+				}
+				lastUnderscore = true
+			} else {
+				lastUnderscore = false
+			}
+			b.WriteRune(r)
+			continue
+		}
+		if !lastUnderscore {
+			b.WriteByte('_')
+			lastUnderscore = true
+		}
+	}
+	sanitized := strings.Trim(b.String(), "_-")
+	if sanitized == "" {
+		return ""
+	}
+	return "three_d_printer_klipper_" + sanitized + "_api_key"
 }
 
 // KlipperConfig groups all Klipper/Moonraker printers.

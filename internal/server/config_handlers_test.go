@@ -397,6 +397,203 @@ func TestHandleUpdateConfigRegistersConfigured3DPrinterDevice(t *testing.T) {
 	}
 }
 
+func TestHandleGetConfigMasksKlipperPrinterAPIKeyInArray(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	configContent := `
+three_d_printers:
+  enabled: true
+  klipper:
+    enabled: true
+    printers:
+      - id: voron
+        url: http://192.168.6.60:7125
+        api_key: moon-secret
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	s := &Server{Cfg: &config.Config{ConfigPath: configPath}, Logger: slog.Default()}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/config", nil)
+	rec := httptest.NewRecorder()
+	handleGetConfig(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	if strings.Contains(rec.Body.String(), "moon-secret") {
+		t.Fatalf("config response leaked Klipper API key: %s", rec.Body.String())
+	}
+	var body map[string]interface{}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	printers := body["three_d_printers"].(map[string]interface{})["klipper"].(map[string]interface{})["printers"].([]interface{})
+	printer := printers[0].(map[string]interface{})
+	if printer["api_key"] != "••••••••" {
+		t.Fatalf("api_key = %#v, want masked placeholder", printer["api_key"])
+	}
+}
+
+func TestHandleUpdateConfigStoresKlipperAPIKeyInVaultAndStripsYAML(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	if err := os.WriteFile(configPath, []byte("three_d_printers:\n  enabled: true\n"), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	vault, err := security.NewVault("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", filepath.Join(tmpDir, "vault.bin"))
+	if err != nil {
+		t.Fatalf("init vault: %v", err)
+	}
+	loaded, err := config.Load(configPath)
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	loaded.ConfigPath = configPath
+	s := &Server{Cfg: loaded, Logger: slog.Default(), Vault: vault}
+
+	body := strings.NewReader(`{
+		"three_d_printers": {
+			"enabled": true,
+			"klipper": {
+				"enabled": true,
+				"printers": [
+					{
+						"id": "voron",
+						"name": "Voron 2.4",
+						"url": "http://192.168.6.60:7125",
+						"api_key": "moon-secret",
+						"timeout_seconds": 10
+					}
+				]
+			}
+		}
+	}`)
+	req := httptest.NewRequest(http.MethodPut, "/api/config", body)
+	rec := httptest.NewRecorder()
+	handleUpdateConfig(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	vaultKey := config.ThreeDPrinterKlipperAPIKeyVaultKey("voron")
+	secret, err := vault.ReadSecret(vaultKey)
+	if err != nil {
+		t.Fatalf("ReadSecret(%q): %v", vaultKey, err)
+	}
+	if secret != "moon-secret" {
+		t.Fatalf("vault secret = %q, want moon-secret", secret)
+	}
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("read config: %v", err)
+	}
+	if strings.Contains(string(data), "moon-secret") || strings.Contains(string(data), "api_key") {
+		t.Fatalf("config.yaml still contains Klipper API key material:\n%s", string(data))
+	}
+	if got := s.Cfg.ThreeDPrinters.Klipper.Printers[0].APIKey; got != "moon-secret" {
+		t.Fatalf("runtime APIKey = %q, want moon-secret", got)
+	}
+}
+
+func TestHandleUpdateConfigPreservesMaskedKlipperAPIKeyAndDeletesRemovedPrinterSecret(t *testing.T) {
+	for _, apiKeyValue := range []string{"••••••••", ""} {
+		t.Run("preserve_"+apiKeyValue, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			configPath := filepath.Join(tmpDir, "config.yaml")
+			configContent := `
+three_d_printers:
+  enabled: true
+  klipper:
+    enabled: true
+    printers:
+      - id: voron
+        name: Voron 2.4
+        url: http://192.168.6.60:7125
+`
+			if err := os.WriteFile(configPath, []byte(configContent), 0o600); err != nil {
+				t.Fatalf("write config: %v", err)
+			}
+			vault, err := security.NewVault("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", filepath.Join(tmpDir, "vault.bin"))
+			if err != nil {
+				t.Fatalf("init vault: %v", err)
+			}
+			vaultKey := config.ThreeDPrinterKlipperAPIKeyVaultKey("voron")
+			if err := vault.WriteSecret(vaultKey, "existing-secret"); err != nil {
+				t.Fatalf("WriteSecret: %v", err)
+			}
+			loaded, err := config.Load(configPath)
+			if err != nil {
+				t.Fatalf("load config: %v", err)
+			}
+			loaded.ConfigPath = configPath
+			loaded.ApplyVaultSecrets(vault)
+			s := &Server{Cfg: loaded, Logger: slog.Default(), Vault: vault}
+
+			body := strings.NewReader(`{"three_d_printers":{"enabled":true,"klipper":{"enabled":true,"printers":[{"id":"voron","name":"Voron 2.4","url":"http://192.168.6.60:7125","api_key":"` + apiKeyValue + `"}]}}}`)
+			req := httptest.NewRequest(http.MethodPut, "/api/config", body)
+			rec := httptest.NewRecorder()
+			handleUpdateConfig(s).ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusOK {
+				t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+			}
+			secret, err := vault.ReadSecret(vaultKey)
+			if err != nil {
+				t.Fatalf("ReadSecret: %v", err)
+			}
+			if secret != "existing-secret" {
+				t.Fatalf("vault secret = %q, want existing-secret", secret)
+			}
+			if got := s.Cfg.ThreeDPrinters.Klipper.Printers[0].APIKey; got != "existing-secret" {
+				t.Fatalf("runtime APIKey = %q, want existing-secret", got)
+			}
+		})
+	}
+
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	configContent := `
+three_d_printers:
+  enabled: true
+  klipper:
+    enabled: true
+    printers:
+      - id: old-voron
+        url: http://192.168.6.60:7125
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	vault, err := security.NewVault("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", filepath.Join(tmpDir, "vault.bin"))
+	if err != nil {
+		t.Fatalf("init vault: %v", err)
+	}
+	oldKey := config.ThreeDPrinterKlipperAPIKeyVaultKey("old-voron")
+	if err := vault.WriteSecret(oldKey, "remove-me"); err != nil {
+		t.Fatalf("WriteSecret: %v", err)
+	}
+	loaded, err := config.Load(configPath)
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	loaded.ConfigPath = configPath
+	loaded.ApplyVaultSecrets(vault)
+	s := &Server{Cfg: loaded, Logger: slog.Default(), Vault: vault}
+
+	req := httptest.NewRequest(http.MethodPut, "/api/config", strings.NewReader(`{"three_d_printers":{"enabled":true,"klipper":{"enabled":true,"printers":[]}}}`))
+	rec := httptest.NewRecorder()
+	handleUpdateConfig(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	if secret, err := vault.ReadSecret(oldKey); err == nil && secret != "" {
+		t.Fatalf("removed printer secret still exists: %q", secret)
+	}
+}
+
 func containsString(values []string, want string) bool {
 	for _, value := range values {
 		if value == want {

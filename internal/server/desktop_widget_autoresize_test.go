@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"aurago/internal/config"
 )
@@ -118,14 +119,29 @@ func TestDesktopWidgetAutoResizeAddsDesktopTokenToStaticPrinterCameraProxy(t *te
 	if err := os.WriteFile(filepath.Join(root, "Widgets", "printer-camera", "index.html"), []byte(`<img src="/api/3d-printers/printer-1/camera/stream">`), 0644); err != nil {
 		t.Fatalf("write widget: %v", err)
 	}
+	cfg := &config.Config{}
+	cfg.Auth.SessionSecret = "0123456789abcdef0123456789abcdef"
+	pageToken, err := issueDesktopEmbedToken(cfg.Auth.SessionSecret, "Widgets/printer-camera/index.html", time.Now())
+	if err != nil {
+		t.Fatalf("issueDesktopEmbedToken: %v", err)
+	}
 
-	req := httptest.NewRequest(http.MethodGet, "/files/desktop/Widgets/printer-camera/index.html?widget_id=printer-camera&desktop_token=abc.def", nil)
+	req := httptest.NewRequest(http.MethodGet, "/files/desktop/Widgets/printer-camera/index.html?widget_id=printer-camera&desktop_token="+pageToken, nil)
 	rec := httptest.NewRecorder()
-	if !serveDesktopWidgetAutoResizeHTML(rec, req, root, nil) {
+	if !serveDesktopWidgetAutoResizeHTML(rec, req, root, cfg) {
 		t.Fatal("expected widget HTML to be served")
 	}
-	if !strings.Contains(rec.Body.String(), `/api/3d-printers/printer-1/camera/stream?desktop_token=abc.def`) {
+	body := rec.Body.String()
+	if !strings.Contains(body, `/api/3d-printers/printer-1/camera/stream?desktop_token=`) {
 		t.Fatalf("served widget did not append desktop token to camera proxy: %s", rec.Body.String())
+	}
+	if strings.Contains(body, pageToken) {
+		t.Fatalf("served widget reused generic page token for camera proxy: %s", body)
+	}
+	streamToken := strings.TrimPrefix(strings.Split(strings.Split(body, `desktop_token=`)[1], `"`)[0], "")
+	reqStream := httptest.NewRequest(http.MethodGet, "/api/3d-printers/printer-1/camera/stream?desktop_token="+streamToken, nil)
+	if !validDesktopEmbedResourceToken(reqStream, cfg.Auth.SessionSecret, time.Now()) {
+		t.Fatalf("camera proxy token is not valid for its exact stream path: %s", body)
 	}
 }
 

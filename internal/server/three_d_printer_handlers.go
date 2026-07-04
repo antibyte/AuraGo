@@ -83,6 +83,10 @@ func handleThreeDPrinterCameraSnapshot(s *Server) http.HandlerFunc {
 		}
 		printerID := threeDPrinterIDFromPath(r.URL.Path, "/api/3d-printers/", "/camera/snapshot")
 		cfg := tools.BuildThreeDPrinterRuntimeConfig(s.Cfg)
+		if !cfg.Enabled {
+			jsonError(w, "3D printer integration is disabled", http.StatusForbidden)
+			return
+		}
 		printer, err := tools.ResolveThreeDPrinter(cfg, printerID)
 		if err != nil {
 			jsonError(w, err.Error(), http.StatusNotFound)
@@ -95,17 +99,17 @@ func handleThreeDPrinterCameraSnapshot(s *Server) http.HandlerFunc {
 			jsonError(w, err.Error(), http.StatusBadGateway)
 			return
 		}
-		if err := tools.ValidateThreeDPrinterStreamURL(printer.URL, streamURL); err != nil {
-			jsonError(w, err.Error(), http.StatusBadGateway)
+		fetchURL := strings.TrimSpace(streamURL)
+		if snapshotURL != "" {
+			fetchURL = strings.TrimSpace(snapshotURL)
+		}
+		if fetchURL == "" {
+			jsonError(w, "camera snapshot URL was not found", http.StatusBadGateway)
 			return
 		}
-		fetchURL := streamURL
-		if snapshotURL != "" {
-			if err := tools.ValidateThreeDPrinterStreamURL(printer.URL, snapshotURL); err != nil {
-				jsonError(w, err.Error(), http.StatusBadGateway)
-				return
-			}
-			fetchURL = snapshotURL
+		if err := tools.ValidateThreeDPrinterStreamURL(printer.URL, fetchURL); err != nil {
+			jsonError(w, err.Error(), http.StatusBadGateway)
+			return
 		}
 		data, contentType, err := tools.FetchThreeDPrinterSnapshot(ctx, fetchURL)
 		if err != nil {
@@ -130,6 +134,10 @@ func handleThreeDPrinterCameraStream(s *Server) http.HandlerFunc {
 		}
 		printerID := threeDPrinterIDFromPath(r.URL.Path, "/api/3d-printers/", "/camera/stream")
 		cfg := tools.BuildThreeDPrinterRuntimeConfig(s.Cfg)
+		if !cfg.Enabled {
+			jsonError(w, "3D printer integration is disabled", http.StatusForbidden)
+			return
+		}
 		printer, err := tools.ResolveThreeDPrinter(cfg, printerID)
 		if err != nil {
 			jsonError(w, err.Error(), http.StatusNotFound)
@@ -140,6 +148,10 @@ func handleThreeDPrinterCameraStream(s *Server) http.HandlerFunc {
 		streamURL, _, err := tools.ResolveThreeDPrinterCameraURLs(ctx, printer)
 		if err != nil {
 			jsonError(w, err.Error(), http.StatusBadGateway)
+			return
+		}
+		if strings.TrimSpace(streamURL) == "" {
+			jsonError(w, "camera stream URL was not found", http.StatusBadGateway)
 			return
 		}
 		if err := tools.ValidateThreeDPrinterStreamURL(printer.URL, streamURL); err != nil {

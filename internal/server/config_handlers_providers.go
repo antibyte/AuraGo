@@ -132,6 +132,8 @@ func injectVaultIndicators(rawCfg map[string]interface{}, vault *security.Vault)
 }
 
 func injectDynamicVaultIndicators(rawCfg map[string]interface{}, vault *security.Vault) {
+	injectKlipperPrinterVaultIndicators(rawCfg, vault)
+
 	a2aSection, ok := rawCfg["a2a"].(map[string]interface{})
 	if !ok {
 		return
@@ -158,6 +160,38 @@ func injectDynamicVaultIndicators(rawCfg map[string]interface{}, vault *security
 		}
 		if value, err := vault.ReadSecret("a2a_remote_" + id + "_bearer_token"); err == nil && strings.TrimSpace(value) != "" {
 			agent["bearer_token"] = "••••••••"
+		}
+	}
+}
+
+func injectKlipperPrinterVaultIndicators(rawCfg map[string]interface{}, vault *security.Vault) {
+	threeD, ok := rawCfg["three_d_printers"].(map[string]interface{})
+	if !ok {
+		return
+	}
+	klipper, ok := threeD["klipper"].(map[string]interface{})
+	if !ok {
+		return
+	}
+	printers, ok := klipper["printers"].([]interface{})
+	if !ok {
+		return
+	}
+	for _, item := range printers {
+		printer, ok := item.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		id := strings.TrimSpace(fmt.Sprint(printer["id"]))
+		if id == "" || id == "<nil>" {
+			continue
+		}
+		key := config.ThreeDPrinterKlipperAPIKeyVaultKey(id)
+		if key == "" {
+			continue
+		}
+		if value, err := vault.ReadSecret(key); err == nil && strings.TrimSpace(value) != "" {
+			printer["api_key"] = "••••••••"
 		}
 	}
 }

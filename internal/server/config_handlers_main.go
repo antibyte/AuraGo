@@ -272,6 +272,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 		// Deep merge the patch into the existing config, skipping masked password values.
 		// Before merging, extract any secrets from the patch and write them to the vault
 		// so they never end up in config.yaml.
+		copyMaskedKlipperPrinterSecretsForRenamedIDs(patch, s.Cfg, s.Vault, s.Logger)
 		if vaultErr := extractSecretsToVault(patch, s.Vault, s.Logger); vaultErr != nil {
 			s.Logger.Error("[Config] Credential could not be saved to vault", "error", vaultErr)
 			w.Header().Set("Content-Type", "application/json")
@@ -1050,6 +1051,9 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				s.Logger.Info("[Config UI] Synced 3D printers into device registry", "created", created, "updated", updated)
 			}
 		}
+		if loadErr == nil && newCfg != nil {
+			cleanupRemovedKlipperPrinterSecrets(oldCfg.ThreeDPrinters.Klipper.Printers, newCfg.ThreeDPrinters.Klipper.Printers, s.Vault, s.Logger)
+		}
 		if loadErr == nil && embeddingsChanged && newCfg != nil {
 			if err := WriteEmbeddingsResetMarker(newCfg, s.Logger, "config_ui_embedding_change"); err != nil {
 				s.Logger.Error("[Config UI] Failed to schedule embeddings reset", "error", err)
@@ -1290,10 +1294,114 @@ func maskSensitiveFields(m map[string]interface{}) {
 		switch v := val.(type) {
 		case map[string]interface{}:
 			maskSensitiveFields(v)
+		case []interface{}:
+			for _, item := range v {
+				if child, ok := item.(map[string]interface{}); ok {
+					maskSensitiveFields(child)
+				}
+			}
 		case string:
 			if sensitiveKeys[key] && v != "" {
 				m[key] = "••••••••"
 			}
+		}
+	}
+}
+
+func klipperPrinterPatchItems(patch map[string]interface{}) []interface{} {
+	threeD, ok := patch["three_d_printers"].(map[string]interface{})
+	if !ok {
+		return nil
+	}
+	klipper, ok := threeD["klipper"].(map[string]interface{})
+	if !ok {
+		return nil
+	}
+	rawPrinters, ok := klipper["printers"]
+	if !ok {
+		return nil
+	}
+	switch printers := rawPrinters.(type) {
+	case []interface{}:
+		return printers
+	case map[string]interface{}:
+		if converted, ok := numericKeyedMapToSlice(printers); ok {
+			klipper["printers"] = converted
+			return converted
+		}
+	}
+	return nil
+}
+
+func copyMaskedKlipperPrinterSecretsForRenamedIDs(patch map[string]interface{}, current *config.Config, vault *security.Vault, logger *slog.Logger) {
+	if current == nil || vault == nil {
+		return
+	}
+	items := klipperPrinterPatchItems(patch)
+	if len(items) == 0 {
+		return
+	}
+	for i, item := range items {
+		printer, ok := item.(map[string]interface{})
+		if !ok || i >= len(current.ThreeDPrinters.Klipper.Printers) {
+			continue
+		}
+		rawValue, hasAPIKey := printer["api_key"].(string)
+		if !hasAPIKey || (rawValue != "" && rawValue != "••••••••") {
+			continue
+		}
+		rawID, ok := printer["id"].(string)
+		if !ok {
+			continue
+		}
+		newID := strings.TrimSpace(rawID)
+		if newID == "" {
+			continue
+		}
+		oldPrinter := current.ThreeDPrinters.Klipper.Printers[i]
+		if strings.EqualFold(strings.TrimSpace(oldPrinter.ID), newID) || strings.TrimSpace(oldPrinter.APIKey) == "" {
+			continue
+		}
+		newKey := config.ThreeDPrinterKlipperAPIKeyVaultKey(newID)
+		if newKey == "" {
+			continue
+		}
+		if err := vault.WriteSecret(newKey, oldPrinter.APIKey); err != nil {
+			if logger != nil {
+				logger.Warn("[Config] Failed to carry Klipper API key to renamed printer", "printer_id", newID, "error", err)
+			}
+			continue
+		}
+		if logger != nil {
+			logger.Info("[Config] Carried Klipper API key to renamed printer", "printer_id", newID)
+		}
+	}
+}
+
+func cleanupRemovedKlipperPrinterSecrets(oldPrinters, newPrinters []config.KlipperPrinterConfig, vault *security.Vault, logger *slog.Logger) {
+	if vault == nil {
+		return
+	}
+	active := make(map[string]bool, len(newPrinters))
+	for _, printer := range newPrinters {
+		key := config.ThreeDPrinterKlipperAPIKeyVaultKey(printer.ID)
+		if key != "" {
+			active[key] = true
+		}
+	}
+	for _, printer := range oldPrinters {
+		key := config.ThreeDPrinterKlipperAPIKeyVaultKey(printer.ID)
+		if key == "" || active[key] {
+			continue
+		}
+		if err := vault.DeleteSecret(key); err != nil {
+			if logger != nil {
+				logger.Warn("[Config] Failed to delete removed Klipper printer API key", "key", key, "error", err)
+			}
+			continue
+		}
+		if logger != nil {
+			logger.Info("[Config] Deleted removed Klipper printer API key", "key", key)
 		}
 	}
 }
@@ -1582,8 +1690,23 @@ func extractRecursive(m map[string]interface{}, prefix string, vault *security.V
 
 		switch v := val.(type) {
 		case map[string]interface{}:
+			if fullPath == "three_d_printers.klipper.printers" {
+				if converted, ok := numericKeyedMapToSlice(v); ok {
+					m[key] = converted
+					if err := extractKlipperPrinterAPIKeysToVault(converted, vault, logger); err != nil && firstErr == nil {
+						firstErr = err
+					}
+					continue
+				}
+			}
 			if err := extractRecursive(v, fullPath, vault, logger); err != nil && firstErr == nil {
 				firstErr = err
+			}
+		case []interface{}:
+			if fullPath == "three_d_printers.klipper.printers" {
+				if err := extractKlipperPrinterAPIKeysToVault(v, vault, logger); err != nil && firstErr == nil {
+					firstErr = err
+				}
 			}
 		case string:
 			_, isMappedVaultPath := vaultKeyMap[fullPath]
@@ -1619,6 +1742,57 @@ func extractRecursive(m map[string]interface{}, prefix string, vault *security.V
 			} else {
 				logger.Info("[Config] Secret saved to vault", "key", vaultKey)
 			}
+		}
+	}
+	return firstErr
+}
+
+func extractKlipperPrinterAPIKeysToVault(items []interface{}, vault *security.Vault, logger *slog.Logger) error {
+	var firstErr error
+	for _, item := range items {
+		printer, ok := item.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		raw, exists := printer["api_key"]
+		if !exists {
+			continue
+		}
+		delete(printer, "api_key")
+		value, ok := raw.(string)
+		if !ok {
+			continue
+		}
+		value = strings.TrimSpace(value)
+		if value == "" || value == "••••••••" {
+			continue
+		}
+		id, _ := printer["id"].(string)
+		id = strings.TrimSpace(id)
+		vaultKey := config.ThreeDPrinterKlipperAPIKeyVaultKey(id)
+		if vaultKey == "" {
+			if firstErr == nil {
+				firstErr = fmt.Errorf("credential 'three_d_printers.klipper.printers.api_key' cannot be saved: printer id is required")
+			}
+			continue
+		}
+		if vault == nil {
+			if firstErr == nil {
+				firstErr = fmt.Errorf("credential 'three_d_printers.klipper.printers.%s.api_key' cannot be saved: no vault configured (AURAGO_MASTER_KEY required)", id)
+			}
+			continue
+		}
+		if err := vault.WriteSecret(vaultKey, value); err != nil {
+			if logger != nil {
+				logger.Error("[Config] Failed to write Klipper API key to vault", "key", vaultKey, "error", err)
+			}
+			if firstErr == nil {
+				firstErr = fmt.Errorf("failed to save Klipper API key for printer %q to vault: %w", id, err)
+			}
+			continue
+		}
+		if logger != nil {
+			logger.Info("[Config] Klipper API key saved to vault", "key", vaultKey)
 		}
 	}
 	return firstErr

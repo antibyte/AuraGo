@@ -1098,7 +1098,7 @@ three_d_printers:
         #   - id: "voron"
         #     name: "Voron 2.4"
         #     url: "http://192.168.6.60:7125"
-        #     api_key: ""
+        #     # Optional Moonraker API keys are vault-only and are entered via the config UI.
         #     timeout_seconds: 10
         #     webcam_name: ""
         printers: []

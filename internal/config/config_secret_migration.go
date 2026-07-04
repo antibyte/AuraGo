@@ -212,6 +212,44 @@ func migrateA2ARemoteAgentSecrets(rawCfg map[string]interface{}, vault SecretRea
 	return migrated
 }
 
+func migrateKlipperPrinterSecrets(rawCfg map[string]interface{}, vault SecretReadWriter, log *slog.Logger) bool {
+	threeD, ok := rawCfg["three_d_printers"].(map[string]interface{})
+	if !ok {
+		return false
+	}
+	klipper, ok := threeD["klipper"].(map[string]interface{})
+	if !ok {
+		return false
+	}
+	items, ok := klipper["printers"].([]interface{})
+	if !ok {
+		return false
+	}
+
+	migrated := false
+	for _, item := range items {
+		printer, ok := item.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		id, _ := printer["id"].(string)
+		id = strings.TrimSpace(id)
+		if id == "" {
+			delete(printer, "api_key")
+			continue
+		}
+		key := ThreeDPrinterKlipperAPIKeyVaultKey(id)
+		if key == "" {
+			delete(printer, "api_key")
+			continue
+		}
+		if migrateMapStringSecret(printer, "api_key", key, vault, log) {
+			migrated = true
+		}
+	}
+	return migrated
+}
+
 // MigratePlaintextSecretsToVault moves plaintext secrets from config.yaml into the vault.
 // It covers both static top-level paths and dynamic collections such as providers and email accounts.
 func MigratePlaintextSecretsToVault(configPath string, vault SecretReadWriter, log *slog.Logger) {
@@ -246,6 +284,9 @@ func MigratePlaintextSecretsToVault(configPath string, vault SecretReadWriter, l
 		migrated = true
 	}
 	if migrateA2ARemoteAgentSecrets(rawCfg, vault, log) {
+		migrated = true
+	}
+	if migrateKlipperPrinterSecrets(rawCfg, vault, log) {
 		migrated = true
 	}
 

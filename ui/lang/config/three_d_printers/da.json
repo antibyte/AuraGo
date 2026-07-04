@@ -4,7 +4,7 @@
   "config.three_d_printers.elegoo_enabled_label": "Aktivér Elegoo Centauri Carbon",
   "config.three_d_printers.elegoo_printers_title": "Elegoo Centauri Carbon-printere",
   "config.three_d_printers.enabled_label": "Aktivér 3D-printere",
-  "config.three_d_printers.klipper_add_button": "Tilfoj Klipper-printer",
+  "config.three_d_printers.klipper_add_button": "Tilføj Klipper-printer",
   "config.three_d_printers.klipper_api_key_label": "Moonraker API-nøgle",
   "config.three_d_printers.klipper_enabled_label": "Aktiver Klipper",
   "config.three_d_printers.klipper_printer_title": "Klipper-printer",

@@ -110,6 +110,25 @@ func TestThreeDPrinterListPrintersReturnsConfiguredPrinters(t *testing.T) {
 	}
 }
 
+func TestThreeDPrinterOperationsRequireExplicitPrinterOrDefault(t *testing.T) {
+	called := false
+	server := mockKlipperHTTPServer(t, func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		w.WriteHeader(http.StatusInternalServerError)
+	})
+	defer server.Close()
+
+	cfg := klipperOnlyConfig(server.URL)
+	cfg.DefaultPrinter = ""
+	out := ExecuteThreeDPrinter(context.Background(), cfg, ThreeDPrinterRequest{Operation: "status"})
+	if called {
+		t.Fatal("operation without printer_id/default_printer contacted Moonraker")
+	}
+	if !strings.Contains(out, `"status":"error"`) || !strings.Contains(strings.ToLower(out), "printer_id") {
+		t.Fatalf("expected missing printer_id error, got: %s", out)
+	}
+}
+
 func TestElegooCentauriCarbonMutationAndInfoCommandsUseExpectedSDCPCommands(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -342,6 +361,36 @@ func TestKlipperCameraURLSelectsConfiguredWebcam(t *testing.T) {
 	}
 	if !strings.Contains(out, `"/api/3d-printers/voron/camera/stream"`) {
 		t.Fatalf("camera_url output missing same-origin proxy URL: %s", out)
+	}
+}
+
+func TestKlipperCameraSnapshotUsesSnapshotURLWithoutStreamURL(t *testing.T) {
+	frame := testThreeDPrinterJPEG(t)
+	server := mockKlipperHTTPServer(t, func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/server/webcams/list":
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+				"result": map[string]interface{}{
+					"webcams": []map[string]interface{}{
+						{"name": "default", "enabled": true, "snapshot_url": "/snapshot.jpg"},
+					},
+				},
+			})
+		case "/snapshot.jpg":
+			w.Header().Set("Content-Type", "image/jpeg")
+			_, _ = w.Write(frame)
+		default:
+			t.Fatalf("unexpected path = %s", r.URL.Path)
+		}
+	})
+	defer server.Close()
+
+	cfg := klipperOnlyConfig(server.URL)
+	cfg.DataDir = t.TempDir()
+	cfg.MediaDB = initThreeDPrinterMediaTestDB(t)
+	out := ExecuteThreeDPrinter(context.Background(), cfg, ThreeDPrinterRequest{Operation: "camera_snapshot", PrinterID: "voron"})
+	if !strings.Contains(out, `"status":"ok"`) || !strings.Contains(out, `"/files/3d_printer_media/`) {
+		t.Fatalf("unexpected snapshot output: %s", out)
 	}
 }
 

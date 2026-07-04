@@ -800,6 +800,13 @@ func (c *Config) ApplyVaultSecrets(vault SecretReader) {
 	apply("telnyx_api_key", &c.Telnyx.APIKey)
 	apply("agentmail_api_key", &c.AgentMail.APIKey)
 
+	for i := range c.ThreeDPrinters.Klipper.Printers {
+		key := ThreeDPrinterKlipperAPIKeyVaultKey(c.ThreeDPrinters.Klipper.Printers[i].ID)
+		if key != "" {
+			apply(key, &c.ThreeDPrinters.Klipper.Printers[i].APIKey)
+		}
+	}
+
 	// ── Notifications ──
 	apply("ntfy_token", &c.Notifications.Ntfy.Token)
 	apply("pushover_user_key", &c.Notifications.Pushover.UserKey)

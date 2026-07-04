@@ -1583,7 +1583,7 @@ tools:
 
 Überwache und steuere 3D-Drucker mit dem `three_d_printer`-Tool. Unterstützt **Elegoo Centauri Carbon** (SDCP WebSocket) und **Klipper/Moonraker** (HTTP API).
 
-**Web-UI:** Config → Integrationen → 3D Printers → Drucker hinzufügen, `readonly: true` für Nur-Monitor.
+**Web-UI:** Config → Integrationen → 3D Printers → Drucker hinzufügen, optionale Klipper-Moonraker-API-Keys im Vault speichern, `readonly: true` für Nur-Monitor.
 
 ### YAML-Referenz
 ```yaml
@@ -1604,7 +1604,6 @@ three_d_printers:
       - id: "voron"
         name: "Voron 2.4"
         url: "http://192.168.1.60:7125"
-        api_key: ""
         timeout_seconds: 10
 ```
 

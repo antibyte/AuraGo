@@ -9,10 +9,13 @@ Supported protocols:
 
 ## Safety
 
+- The integration must be enabled with `three_d_printers.enabled` before normal tool/API use. `test_connection` is the exception and may be used for ad-hoc setup checks before enabling.
+- Always pass `printer_id` unless `three_d_printers.default_printer` is explicitly configured. The tool does not silently select the first configured printer.
 - Respect `three_d_printers.readonly`. When read-only mode is active, do not attempt `start_print`, `pause_print`, `resume_print`, `cancel_print`, or `set_camera_light`.
 - Never guess a print filename. For `start_print`, first list files and ask the user to confirm the exact file if it is not explicitly provided.
 - Treat camera images as local user data. Only analyze them for the printer-related task the user requested.
 - For Klipper, use only standard Moonraker actions. Do not request arbitrary G-code, macros, shell commands, file deletion, restart, update manager, or configuration writes.
+- Klipper `api_key` values are vault-only. They are accepted through the config UI/save flow, shown only as a mask, and must not be stored in `config.yaml` or tool output.
 
 ## Operations
 
@@ -21,8 +24,8 @@ Supported protocols:
 - `attributes`: fetch printer metadata and capabilities.
 - `files`: list G-code files. Elegoo accepts optional `directory`, default `/local`; Klipper lists Moonraker `gcodes`.
 - `history`: fetch print history IDs.
-- `camera_url`: get the printer camera stream URL as data only. The response includes `url` for the raw printer stream and `proxy_url` for AuraGo's same-origin browser proxy. Use `proxy_url` in generated desktop apps/widgets; it avoids browser mixed-content/CORS issues and keeps the stream routed through AuraGo.
-- `camera_snapshot`: capture, store, and register a snapshot in AuraGo's media registry when available.
+- `camera_url`: get the printer camera stream URL as data only. The response includes `url` for the raw printer stream and `proxy_url` for AuraGo's same-origin browser proxy. Use `proxy_url` in generated desktop apps/widgets; it avoids browser mixed-content/CORS issues and keeps the stream routed through AuraGo. Klipper live streams require a valid HTTP(S) `stream_url` on the configured printer host.
+- `camera_snapshot`: capture, store, and register a snapshot in AuraGo's media registry when available. Klipper prefers `snapshot_url`; `stream_url` is only used as a snapshot fallback when no snapshot URL is configured.
 - `analyze_camera`: capture, store, and register a snapshot, then analyze it with the configured Vision provider.
 - `show_live_stream`: render the live camera in chat through AuraGo's same-origin MJPEG/image-stream proxy. Use this for requests like "show the camera", "open the printer video", or "let me watch the printer". Do not capture or convert frames for this operation.
 - `start_print`: start an explicit `filename`. Elegoo also supports `start_layer`, `calibration`, and `time_lapse`; Klipper sends the filename to Moonraker unchanged.

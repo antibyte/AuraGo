@@ -82,6 +82,47 @@ func TestHandleThreeDPrinterStreamRejectsMismatchedCameraHost(t *testing.T) {
 	}
 }
 
+func TestHandleThreeDPrinterCameraSnapshotRequiresIntegrationEnabled(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Directories.DataDir = t.TempDir()
+	cfg.ThreeDPrinters.Enabled = false
+	cfg.ThreeDPrinters.DefaultPrinter = "voron"
+	cfg.ThreeDPrinters.Klipper.Enabled = true
+	cfg.ThreeDPrinters.Klipper.Printers = []config.KlipperPrinterConfig{{
+		ID:  "voron",
+		URL: "http://127.0.0.1:7125",
+	}}
+	s := &Server{Cfg: cfg, Logger: slog.Default()}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/3d-printers/voron/camera/snapshot", nil)
+	rec := httptest.NewRecorder()
+	handleThreeDPrinterCameraSnapshot(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusForbidden, rec.Body.String())
+	}
+}
+
+func TestHandleThreeDPrinterCameraStreamRequiresIntegrationEnabled(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.ThreeDPrinters.Enabled = false
+	cfg.ThreeDPrinters.DefaultPrinter = "voron"
+	cfg.ThreeDPrinters.Klipper.Enabled = true
+	cfg.ThreeDPrinters.Klipper.Printers = []config.KlipperPrinterConfig{{
+		ID:  "voron",
+		URL: "http://127.0.0.1:7125",
+	}}
+	s := &Server{Cfg: cfg, Logger: slog.Default()}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/3d-printers/voron/camera/stream", nil)
+	rec := httptest.NewRecorder()
+	handleThreeDPrinterCameraStream(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusForbidden, rec.Body.String())
+	}
+}
+
 func TestHandleThreeDPrinterTestSupportsAdHocKlipperPrinter(t *testing.T) {
 	moonraker := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/server/info" {

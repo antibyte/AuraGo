@@ -1953,8 +1953,9 @@ Monitor and control 3D printers via the `three_d_printer` tool. Supports **Elego
 1. Open **Config → Integrations → 3D Printers**.
 2. Enable the integration.
 3. Add printers under **Elegoo Centauri Carbon** or **Klipper** with `id`, `name`, and `url`.
-4. Set `readonly: true` for monitoring-only access (blocks start/pause/cancel).
-5. Test: `GET /api/3d-printers/test`.
+4. Enter optional Klipper Moonraker API keys in the UI; they are vault-only and are not stored in `config.yaml`.
+5. Set `readonly: true` for monitoring-only access (blocks start/pause/cancel).
+6. Test: `GET /api/3d-printers/test`.
 
 ### YAML Reference
 ```yaml
@@ -1976,7 +1977,6 @@ three_d_printers:
           - id: "voron"
             name: "Voron 2.4"
             url: "http://192.168.1.60:7125"
-            api_key: ""
             timeout_seconds: 10
             webcam_name: ""
 ```

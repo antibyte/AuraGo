@@ -165,8 +165,26 @@ func issueDesktopEmbedToken(secret, rawPath string, now time.Time) (string, erro
 	if err != nil {
 		return "", err
 	}
+	return issueDesktopEmbedTokenForPath(secret, normalizedPath, now)
+}
+
+func issueDesktopEmbedResourceToken(secret, rawPath string, now time.Time) (string, error) {
+	if strings.TrimSpace(secret) == "" {
+		return "", fmt.Errorf("desktop embed token secret is required")
+	}
+	resourcePath := strings.TrimSpace(rawPath)
+	if u, err := url.Parse(resourcePath); err == nil && u.Path != "" {
+		resourcePath = u.Path
+	}
+	if !isDesktopEmbedResourcePath(resourcePath) {
+		return "", fmt.Errorf("desktop embed resource path is not allowed")
+	}
+	return issueDesktopEmbedTokenForPath(secret, resourcePath, now)
+}
+
+func issueDesktopEmbedTokenForPath(secret, tokenPath string, now time.Time) (string, error) {
 	payload := desktopEmbedTokenPayload{
-		Path:    normalizedPath,
+		Path:    tokenPath,
 		Expires: now.Add(desktopEmbedTokenTTL).Unix(),
 	}
 	payloadJSON, err := json.Marshal(payload)
@@ -278,11 +296,7 @@ func validDesktopEmbedResourceToken(r *http.Request, secret string, now time.Tim
 	if !ok {
 		return false
 	}
-	desktopPath, err := normalizeDesktopEmbedPath(payload.Path)
-	if err != nil {
-		return false
-	}
-	return desktopEmbedPathCanLoadResource(desktopPath)
+	return payload.Path == r.URL.Path
 }
 
 func isDesktopEmbedResourcePath(requestPath string) bool {

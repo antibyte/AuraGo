@@ -218,6 +218,9 @@ func ExecuteThreeDPrinter(ctx context.Context, cfg ThreeDPrinterConfig, req Thre
 		if err != nil {
 			return threeDPrinterJSONError(err.Error())
 		}
+		if strings.TrimSpace(streamURL) == "" {
+			return threeDPrinterJSONError("camera stream URL was not found")
+		}
 		proxyURL := "/api/3d-printers/" + url.PathEscape(printer.ID) + "/camera/stream"
 		return threeDPrinterJSON(map[string]interface{}{"status": "ok", "printer_id": printer.ID, "protocol": printer.Protocol, "url": streamURL, "proxy_url": proxyURL, "mime_type": "multipart/x-mixed-replace"})
 	case "camera_snapshot":
@@ -226,6 +229,9 @@ func ExecuteThreeDPrinter(ctx context.Context, cfg ThreeDPrinterConfig, req Thre
 		streamURL, _, err := ResolveThreeDPrinterCameraURLs(ctx, printer)
 		if err != nil {
 			return threeDPrinterJSONError(err.Error())
+		}
+		if strings.TrimSpace(streamURL) == "" {
+			return threeDPrinterJSONError("camera stream URL was not found")
 		}
 		proxyURL := "/api/3d-printers/" + url.PathEscape(printer.ID) + "/camera/stream"
 		if err := ValidateThreeDPrinterStreamURL(printer.URL, streamURL); err != nil {
@@ -285,10 +291,13 @@ func ResolveThreeDPrinter(cfg ThreeDPrinterConfig, printerID string) (ResolvedTh
 	if id == "" {
 		id = strings.TrimSpace(cfg.DefaultPrinter)
 	}
+	if id == "" {
+		return ResolvedThreeDPrinter{}, fmt.Errorf("printer_id is required when default_printer is not configured")
+	}
 
 	if cfg.ElegooCentauriCarbon.Enabled {
 		for _, printer := range cfg.ElegooCentauriCarbon.Printers {
-			if id == "" || strings.EqualFold(printer.ID, id) || strings.EqualFold(printer.Name, id) {
+			if strings.EqualFold(printer.ID, id) || strings.EqualFold(printer.Name, id) {
 				if strings.TrimSpace(printer.URL) == "" {
 					return ResolvedThreeDPrinter{}, fmt.Errorf("printer %q has no url", printer.ID)
 				}
@@ -299,7 +308,7 @@ func ResolveThreeDPrinter(cfg ThreeDPrinterConfig, printerID string) (ResolvedTh
 	}
 	if cfg.Klipper.Enabled {
 		for _, printer := range cfg.Klipper.Printers {
-			if id == "" || strings.EqualFold(printer.ID, id) || strings.EqualFold(printer.Name, id) {
+			if strings.EqualFold(printer.ID, id) || strings.EqualFold(printer.Name, id) {
 				if strings.TrimSpace(printer.URL) == "" {
 					return ResolvedThreeDPrinter{}, fmt.Errorf("printer %q has no url", printer.ID)
 				}
@@ -307,9 +316,6 @@ func ResolveThreeDPrinter(cfg ThreeDPrinterConfig, printerID string) (ResolvedTh
 				return ResolvedThreeDPrinter{Protocol: "klipper", ID: printer.ID, Name: printer.Name, URL: printer.URL, Klipper: &p}, nil
 			}
 		}
-	}
-	if id == "" {
-		return ResolvedThreeDPrinter{}, fmt.Errorf("no 3D printer is configured")
 	}
 	return ResolvedThreeDPrinter{}, fmt.Errorf("3D printer %q was not found", id)
 }
@@ -608,18 +614,20 @@ func KlipperCameraURLs(ctx context.Context, printer KlipperPrinter) (string, str
 	}
 	streamURL, _ := webcam["stream_url"].(string)
 	snapshotURL, _ := webcam["snapshot_url"].(string)
-	if strings.TrimSpace(streamURL) == "" {
-		return "", "", fmt.Errorf("Klipper webcam stream_url was not found")
-	}
-	streamURL, err = resolvePrinterHTTPURL(printer.URL, streamURL)
-	if err != nil {
-		return "", "", err
+	if strings.TrimSpace(streamURL) != "" {
+		streamURL, err = resolvePrinterHTTPURL(printer.URL, streamURL)
+		if err != nil {
+			return "", "", err
+		}
 	}
 	if strings.TrimSpace(snapshotURL) != "" {
 		snapshotURL, err = resolvePrinterHTTPURL(printer.URL, snapshotURL)
 		if err != nil {
 			return "", "", err
 		}
+	}
+	if strings.TrimSpace(streamURL) == "" && strings.TrimSpace(snapshotURL) == "" {
+		return "", "", fmt.Errorf("Klipper webcam stream_url or snapshot_url was not found")
 	}
 	return streamURL, snapshotURL, nil
 }
@@ -829,15 +837,15 @@ func executeThreeDPrinterSnapshot(ctx context.Context, cfg ThreeDPrinterConfig, 
 	if err != nil {
 		return threeDPrinterJSONError(err.Error())
 	}
-	if err := ValidateThreeDPrinterStreamURL(printer.URL, streamURL); err != nil {
-		return threeDPrinterJSONError(err.Error())
-	}
-	fetchURL := streamURL
+	fetchURL := strings.TrimSpace(streamURL)
 	if snapshotURL != "" {
-		if err := ValidateThreeDPrinterStreamURL(printer.URL, snapshotURL); err != nil {
-			return threeDPrinterJSONError(err.Error())
-		}
-		fetchURL = snapshotURL
+		fetchURL = strings.TrimSpace(snapshotURL)
+	}
+	if fetchURL == "" {
+		return threeDPrinterJSONError("camera snapshot URL was not found")
+	}
+	if err := ValidateThreeDPrinterStreamURL(printer.URL, fetchURL); err != nil {
+		return threeDPrinterJSONError(err.Error())
 	}
 	data, contentType, err := FetchThreeDPrinterSnapshot(ctx, fetchURL)
 	if err != nil {

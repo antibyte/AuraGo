@@ -529,25 +529,40 @@ func shouldCacheBustDesktopAppResource(value string) bool {
 
 func prepareDesktopHTMLContentForEmbed(content []byte, cfg *config.Config, embedToken string) []byte {
 	rewritten := tools.RewriteVirtualDesktopPrinterCameraURLs(cfg, string(content))
-	rewritten = appendDesktopTokenToPrinterCameraProxies(rewritten, embedToken)
+	rewritten = appendDesktopTokenToPrinterCameraProxies(rewritten, desktopEmbedResourceTokenIssuer(cfg, embedToken))
 	return []byte(rewritten)
 }
 
-func appendDesktopTokenToPrinterCameraProxies(content, embedToken string) string {
-	embedToken = strings.TrimSpace(embedToken)
-	if content == "" || embedToken == "" {
+func desktopEmbedResourceTokenIssuer(cfg *config.Config, embedToken string) func(string) (string, error) {
+	if cfg == nil || strings.TrimSpace(embedToken) == "" || strings.TrimSpace(cfg.Auth.SessionSecret) == "" {
+		return nil
+	}
+	secret := cfg.Auth.SessionSecret
+	return func(resourcePath string) (string, error) {
+		return issueDesktopEmbedResourceToken(secret, resourcePath, time.Now())
+	}
+}
+
+func appendDesktopTokenToPrinterCameraProxies(content string, issueToken func(string) (string, error)) string {
+	if content == "" || issueToken == nil {
 		return content
 	}
-	encodedToken := url.QueryEscape(embedToken)
 	return desktopPrinterCameraProxyPattern.ReplaceAllStringFunc(content, func(match string) string {
 		if strings.Contains(match, desktopEmbedTokenParam+"=") {
 			return match
 		}
-		separator := "?"
-		if strings.Contains(match, "?") {
-			separator = "&"
+		parsed, err := url.Parse(match)
+		if err != nil || !isDesktopEmbedResourcePath(parsed.Path) {
+			return match
 		}
-		return match + separator + desktopEmbedTokenParam + "=" + encodedToken
+		token, err := issueToken(parsed.Path)
+		if err != nil || strings.TrimSpace(token) == "" {
+			return match
+		}
+		query := parsed.Query()
+		query.Set(desktopEmbedTokenParam, token)
+		parsed.RawQuery = query.Encode()
+		return parsed.String()
 	})
 }
 

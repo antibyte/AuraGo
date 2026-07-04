@@ -27,6 +27,47 @@ func (v *testSecretVault) WriteSecret(key, value string) error {
 	return nil
 }
 
+func TestMigratePlaintextSecretsToVaultMovesKlipperPrinterAPIKeys(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	legacy := `
+three_d_printers:
+  enabled: true
+  klipper:
+    enabled: true
+    printers:
+      - id: voron-main
+        name: Voron 2.4
+        url: http://192.168.6.60:7125
+        api_key: moon-secret
+`
+	if err := os.WriteFile(configPath, []byte(legacy), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	vault := &testSecretVault{data: map[string]string{}}
+
+	MigratePlaintextSecretsToVault(configPath, vault, slog.Default())
+
+	vaultKey := ThreeDPrinterKlipperAPIKeyVaultKey("voron-main")
+	if got := vault.data[vaultKey]; got != "moon-secret" {
+		t.Fatalf("vault[%q] = %q, want moon-secret", vaultKey, got)
+	}
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("read migrated config: %v", err)
+	}
+	if strings.Contains(string(data), "moon-secret") || strings.Contains(string(data), "api_key") {
+		t.Fatalf("migrated config still contains plaintext api_key:\n%s", string(data))
+	}
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load migrated config: %v", err)
+	}
+	cfg.ApplyVaultSecrets(vault)
+	if got := cfg.ThreeDPrinters.Klipper.Printers[0].APIKey; got != "moon-secret" {
+		t.Fatalf("runtime APIKey = %q, want moon-secret", got)
+	}
+}
+
 func TestLoadAbsolutePaths(t *testing.T) {
 	// Create a temporary directory for testing
 	tmpDir, err := os.MkdirTemp("", "config_test")
