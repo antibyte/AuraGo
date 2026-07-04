@@ -57,9 +57,14 @@ func handleGrafanaStatus(s *Server) http.HandlerFunc {
 		if err != nil {
 			partialErrors = append(partialErrors, "datasources: "+err.Error())
 		}
-		alerts, err := tools.ListGrafanaAlerts(ctx, cfg)
+		alertResult, err := tools.ListGrafanaAlertsDetailed(ctx, cfg)
+		alerts := alertResult.Alerts
 		if err != nil {
 			partialErrors = append(partialErrors, "alerts: "+err.Error())
+		} else {
+			for _, partialErr := range alertResult.PartialErrors {
+				partialErrors = append(partialErrors, "alerts: "+partialErr)
+			}
 		}
 		org, err := tools.GetGrafanaOrg(ctx, cfg)
 		if err != nil {

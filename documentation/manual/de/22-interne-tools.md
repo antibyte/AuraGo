@@ -1284,6 +1284,8 @@ Grafana-Observability-Daten lesen: Health, Dashboards, Datasources, zeitbegrenzt
 | `datasource_uid` | string | Datasource-UID für query |
 | `datasource_type` | string | prometheus, mimir, cortex, loki oder elasticsearch |
 
+`list_alerts` enthält `partial_errors`, wenn ein moderner Alert-Endpunkt fehlschlägt, aber eine andere Alert-Quelle weiterhin Daten liefert.
+
 ### `space_agent`
 Sendet Anweisungen an den konfigurierten Space-Agent-Sidecar.
 

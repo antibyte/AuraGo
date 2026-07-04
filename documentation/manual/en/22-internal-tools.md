@@ -1368,6 +1368,8 @@ Read Grafana observability data: health, dashboards, datasources, time-ranged qu
 | `datasource_uid` | string | Datasource UID for query |
 | `datasource_type` | string | prometheus, mimir, cortex, loki, or elasticsearch |
 
+`list_alerts` includes `partial_errors` when one modern alert endpoint fails but another alert source still returns data.
+
 ### `space_agent`
 Send instructions to the configured Space Agent sidecar.
 

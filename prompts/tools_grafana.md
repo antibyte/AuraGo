@@ -23,3 +23,4 @@ Notes:
 - `query` maps simple text expressions for `prometheus`, `mimir`, `cortex`, `loki`, and `elasticsearch`. Use `datasource_type` when the source is not Prometheus-compatible.
 - `query` defaults to `from:"now-1h"` and `to:"now"`; set `format`, `max_data_points`, and `interval_ms` when the data source needs a specific response shape.
 - `list_dashboards` defaults to `limit: 50` and caps at `limit: 200`.
+- `list_alerts` may include `partial_errors` when one modern alert endpoint fails but another alert source still returns data.

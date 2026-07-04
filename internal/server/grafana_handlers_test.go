@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"aurago/internal/config"
@@ -129,6 +130,58 @@ func TestHandleGrafanaStatusReturnsPartialErrors(t *testing.T) {
 	}
 	if body.Data.Summary.Dashboards != 1 || body.Data.Summary.Datasources != 1 || body.Data.Summary.Alerts != 0 || body.Data.Summary.Org != "Main Org." {
 		t.Fatalf("unexpected summary with partial error: %#v", body.Data.Summary)
+	}
+}
+
+func TestHandleGrafanaStatusReturnsAlertRulePartialErrorWithActiveAlerts(t *testing.T) {
+	srv := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("Authorization"); got != "Bearer gf_server_test" {
+			t.Fatalf("Authorization = %q, want bearer token", got)
+		}
+		switch r.URL.Path {
+		case "/api/health":
+			fmt.Fprint(w, `{"database":"ok","version":"10.4.0"}`)
+		case "/api/search":
+			fmt.Fprint(w, `[{"uid":"sys","title":"System"}]`)
+		case "/api/datasources":
+			fmt.Fprint(w, `[{"id":1,"name":"Prometheus"}]`)
+		case "/api/prometheus/grafana/api/v1/alerts":
+			fmt.Fprint(w, `{"status":"success","data":{"alerts":[{"labels":{"alertname":"HighCPU"},"state":"firing"}]}}`)
+		case "/api/v1/provisioning/alert-rules":
+			http.Error(w, "rules unavailable", http.StatusInternalServerError)
+		case "/api/org":
+			fmt.Fprint(w, `{"id":1,"name":"Main Org."}`)
+		default:
+			t.Fatalf("unexpected request to %s", r.URL.Path)
+		}
+	}))
+	defer srv.Close()
+	s := &Server{Cfg: &config.Config{Grafana: config.GrafanaConfig{Enabled: true, BaseURL: srv.URL, APIKey: "gf_server_test", RequestTimeout: 5}}, Logger: slog.Default()}
+	req := httptest.NewRequest(http.MethodGet, "/api/grafana/status", nil)
+	rec := httptest.NewRecorder()
+
+	handleGrafanaStatus(s).ServeHTTP(rec, req)
+
+	var body struct {
+		Status string `json:"status"`
+		Data   struct {
+			PartialErrors []string `json:"partial_errors"`
+			Summary       struct {
+				Alerts int `json:"alerts"`
+			} `json:"summary"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v", err)
+	}
+	if body.Status != "ok" {
+		t.Fatalf("status = %q, want ok", body.Status)
+	}
+	if body.Data.Summary.Alerts != 1 {
+		t.Fatalf("alerts summary = %d, want active alert preserved", body.Data.Summary.Alerts)
+	}
+	if len(body.Data.PartialErrors) != 1 || !strings.Contains(body.Data.PartialErrors[0], "/api/v1/provisioning/alert-rules") {
+		t.Fatalf("partial_errors = %#v, want alert rule endpoint warning", body.Data.PartialErrors)
 	}
 }
 

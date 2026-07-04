@@ -56,7 +56,7 @@ Read observability information from a configured Grafana instance using a vault-
 
 For Loki, use `datasource_type:"loki"` and pass the LogQL expression in `query`. For SQL-style data sources, first inspect `list_datasources`; raw datasource-specific payloads are not part of this v1 read interface.
 
-`list_alerts` returns both active alert instances from Grafana's Prometheus-compatible alert endpoint and configured Grafana-managed alert rules from the provisioning API when available. Use the returned `source` field to distinguish `prometheus_alerts`, `alert_rules`, and `legacy_alerts`.
+`list_alerts` returns both active alert instances from Grafana's Prometheus-compatible alert endpoint and configured Grafana-managed alert rules from the provisioning API when available. Use the returned `source` field to distinguish `prometheus_alerts`, `alert_rules`, and `legacy_alerts`. If one modern alert endpoint fails while another alert source still returns data, the response includes `partial_errors` with endpoint diagnostics.
 
 ## Configuration
 

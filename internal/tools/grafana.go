@@ -90,6 +90,11 @@ type GrafanaAlert struct {
 	Source         string            `json:"source,omitempty"`
 }
 
+type GrafanaAlertListResult struct {
+	Alerts        []GrafanaAlert
+	PartialErrors []string
+}
+
 type GrafanaOrg struct {
 	ID      int64  `json:"id,omitempty"`
 	Name    string `json:"name,omitempty"`
@@ -327,6 +332,14 @@ func QueryGrafanaDatasource(ctx context.Context, cfg GrafanaConfig, dsID int64, 
 }
 
 func ListGrafanaAlerts(ctx context.Context, cfg GrafanaConfig) ([]GrafanaAlert, error) {
+	result, err := ListGrafanaAlertsDetailed(ctx, cfg)
+	if err != nil {
+		return nil, err
+	}
+	return result.Alerts, nil
+}
+
+func ListGrafanaAlertsDetailed(ctx context.Context, cfg GrafanaConfig) (GrafanaAlertListResult, error) {
 	var endpointErrors []string
 	var combined []GrafanaAlert
 	if alerts, err := listGrafanaPrometheusAlerts(ctx, cfg); err == nil {
@@ -336,22 +349,21 @@ func ListGrafanaAlerts(ctx context.Context, cfg GrafanaConfig) ([]GrafanaAlert, 
 	}
 	if alerts, err := listGrafanaAlertRules(ctx, cfg); err == nil {
 		combined = append(combined, alerts...)
-		return combined, nil
 	} else {
 		endpointErrors = append(endpointErrors, fmt.Sprintf("/api/v1/provisioning/alert-rules: %v", err))
 	}
 	if len(combined) > 0 {
-		return combined, nil
+		return GrafanaAlertListResult{Alerts: combined, PartialErrors: endpointErrors}, nil
 	}
 	var out []GrafanaAlert
 	if err := grafanaDoRequest(ctx, cfg, http.MethodGet, "/api/alerts", nil, &out); err != nil {
 		endpointErrors = append(endpointErrors, fmt.Sprintf("/api/alerts: %v", err))
-		return nil, fmt.Errorf("grafana alert endpoints failed: %s", strings.Join(endpointErrors, "; "))
+		return GrafanaAlertListResult{}, fmt.Errorf("grafana alert endpoints failed: %s", strings.Join(endpointErrors, "; "))
 	}
 	for i := range out {
 		out[i].Source = "legacy_alerts"
 	}
-	return out, nil
+	return GrafanaAlertListResult{Alerts: out}, nil
 }
 
 func listGrafanaPrometheusAlerts(ctx context.Context, cfg GrafanaConfig) ([]GrafanaAlert, error) {
@@ -497,11 +509,15 @@ func GrafanaQueryDatasourceJSON(ctx context.Context, cfg GrafanaConfig, dsID int
 }
 
 func GrafanaListAlertsJSON(ctx context.Context, cfg GrafanaConfig) string {
-	data, err := ListGrafanaAlerts(ctx, cfg)
+	result, err := ListGrafanaAlertsDetailed(ctx, cfg)
 	if err != nil {
 		return grafanaErrorJSON(err)
 	}
-	return GrafanaJSONResponse(map[string]interface{}{"status": "ok", "count": len(data), "data": data})
+	response := map[string]interface{}{"status": "ok", "count": len(result.Alerts), "data": result.Alerts}
+	if len(result.PartialErrors) > 0 {
+		response["partial_errors"] = result.PartialErrors
+	}
+	return GrafanaJSONResponse(response)
 }
 
 func GrafanaGetOrgJSON(ctx context.Context, cfg GrafanaConfig) string {

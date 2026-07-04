@@ -219,6 +219,40 @@ func TestListGrafanaAlertsCombinesActiveAlertsAndAlertRules(t *testing.T) {
 	}
 }
 
+func TestGrafanaListAlertsJSONIncludesPartialErrorsForRuleEndpointFailure(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/prometheus/grafana/api/v1/alerts":
+			fmt.Fprint(w, `{"status":"success","data":{"alerts":[{"labels":{"alertname":"HighCPU"},"state":"firing"}]}}`)
+		case "/api/v1/provisioning/alert-rules":
+			http.Error(w, "rules unavailable", http.StatusInternalServerError)
+		default:
+			t.Fatalf("unexpected request to %s", r.URL.Path)
+		}
+	}))
+	defer srv.Close()
+
+	raw := GrafanaListAlertsJSON(context.Background(), grafanaTestConfig(srv.URL))
+	var body struct {
+		Status        string         `json:"status"`
+		Count         int            `json:"count"`
+		PartialErrors []string       `json:"partial_errors"`
+		Data          []GrafanaAlert `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(raw), &body); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v; raw=%s", err, raw)
+	}
+	if body.Status != "ok" {
+		t.Fatalf("status = %q, want ok; raw=%s", body.Status, raw)
+	}
+	if body.Count != 1 || len(body.Data) != 1 || body.Data[0].Name != "HighCPU" {
+		t.Fatalf("alerts = count %d data %#v, want one active alert", body.Count, body.Data)
+	}
+	if len(body.PartialErrors) != 1 || !strings.Contains(body.PartialErrors[0], "/api/v1/provisioning/alert-rules") {
+		t.Fatalf("partial_errors = %#v, want alert rule endpoint warning", body.PartialErrors)
+	}
+}
+
 func TestListGrafanaAlertsFallsBackToAlertRules(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
