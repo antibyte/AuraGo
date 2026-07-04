@@ -52,6 +52,28 @@ func TestFileKGSyncer_SyncFile_VectorDBDisabled(t *testing.T) {
 	}
 }
 
+func TestFileKGSyncer_RunSyncFileWithContextSkipsCanceledContext(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	var called atomic.Bool
+	syncer := &FileKGSyncer{
+		logger: logger,
+		syncFile: func(path, collection string, opts FileKGSyncOptions) FileKGSyncResult {
+			called.Store(true)
+			return FileKGSyncResult{FilesProcessed: 1}
+		},
+	}
+
+	result := syncer.runSyncFileWithContext(ctx, "/docs/a.txt", "file_index", FileKGSyncOptions{})
+	if called.Load() {
+		t.Fatal("syncFile callback should not be called after context cancellation")
+	}
+	if len(result.Errors) == 0 {
+		t.Fatal("expected canceled context to be reported")
+	}
+}
+
 func TestFileKGSyncer_CleanupFile_NilKG(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	cfg := &config.Config{}

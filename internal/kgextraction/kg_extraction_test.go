@@ -99,6 +99,24 @@ func TestExtractKGFromText_NilClientAndModel(t *testing.T) {
 	}
 }
 
+func TestExtractKGFromTextWithContext_CanceledContextSkipsClient(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.LLM.Model = "test-model"
+	logger := slog.Default()
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	client := &canceledKGExtractionClient{}
+	longInput := "This is a sufficiently long input text that exceeds the fifty character minimum threshold for extraction."
+
+	_, _, err := ExtractKGFromTextWithContext(ctx, cfg, logger, client, longInput, "")
+	if err == nil {
+		t.Fatal("expected canceled context error, got nil")
+	}
+	if client.calls != 0 {
+		t.Fatalf("client calls = %d, want 0", client.calls)
+	}
+}
+
 func TestExtractKGFromText_EmptyModel(t *testing.T) {
 	cfg := &config.Config{}
 	logger := slog.Default()
@@ -397,6 +415,19 @@ var _ interface {
 	CreateChatCompletion(context.Context, openai.ChatCompletionRequest) (openai.ChatCompletionResponse, error)
 	CreateChatCompletionStream(context.Context, openai.ChatCompletionRequest) (*openai.ChatCompletionStream, error)
 } = (*mockChatClient)(nil)
+
+type canceledKGExtractionClient struct {
+	calls int
+}
+
+func (c *canceledKGExtractionClient) CreateChatCompletion(context.Context, openai.ChatCompletionRequest) (openai.ChatCompletionResponse, error) {
+	c.calls++
+	return openai.ChatCompletionResponse{}, nil
+}
+
+func (c *canceledKGExtractionClient) CreateChatCompletionStream(context.Context, openai.ChatCompletionRequest) (*openai.ChatCompletionStream, error) {
+	return nil, nil
+}
 
 // ---------------------------------------------------------------------------
 // Node/Edge type sanity checks (ensures JSON tags are correct)

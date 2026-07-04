@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"path/filepath"
@@ -60,7 +61,19 @@ func NewFileKGSyncer(cfg *config.Config, logger *slog.Logger, llmClient llm.Chat
 
 // SyncAll synchronizes all tracked files across all collections.
 func (s *FileKGSyncer) SyncAll(opts FileKGSyncOptions) FileKGSyncResult {
+	return s.SyncAllWithContext(context.Background(), opts)
+}
+
+// SyncAllWithContext synchronizes all tracked files across all collections.
+func (s *FileKGSyncer) SyncAllWithContext(ctx context.Context, opts FileKGSyncOptions) FileKGSyncResult {
 	var result FileKGSyncResult
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		result.Errors = append(result.Errors, fmt.Sprintf("sync canceled: %v", err))
+		return result
+	}
 	if s.kg == nil || s.stm == nil {
 		s.logger.Warn("[FileKGSync] KG or STM not available, skipping sync")
 		return result
@@ -77,7 +90,11 @@ func (s *FileKGSyncer) SyncAll(opts FileKGSyncOptions) FileKGSyncResult {
 	}
 
 	for _, collection := range collections {
-		colResult := s.SyncCollection(collection, opts)
+		if err := ctx.Err(); err != nil {
+			result.Errors = append(result.Errors, fmt.Sprintf("sync canceled: %v", err))
+			break
+		}
+		colResult := s.SyncCollectionWithContext(ctx, collection, opts)
 		result.FilesProcessed += colResult.FilesProcessed
 		result.FilesSkipped += colResult.FilesSkipped
 		result.NodesExtracted += colResult.NodesExtracted
@@ -114,7 +131,19 @@ func (s *FileKGSyncer) discoverCollections() []string {
 
 // SyncCollection synchronizes all tracked files within a single collection.
 func (s *FileKGSyncer) SyncCollection(collection string, opts FileKGSyncOptions) FileKGSyncResult {
+	return s.SyncCollectionWithContext(context.Background(), collection, opts)
+}
+
+// SyncCollectionWithContext synchronizes all tracked files within a single collection.
+func (s *FileKGSyncer) SyncCollectionWithContext(ctx context.Context, collection string, opts FileKGSyncOptions) FileKGSyncResult {
 	var result FileKGSyncResult
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		result.Errors = append(result.Errors, fmt.Sprintf("sync collection %s canceled: %v", collection, err))
+		return result
+	}
 	files, err := s.stm.ListIndexedFiles(collection)
 	if err != nil {
 		s.logger.Error("[FileKGSync] Failed to list indexed files", "collection", collection, "error", err)
@@ -129,7 +158,11 @@ func (s *FileKGSyncer) SyncCollection(collection string, opts FileKGSyncOptions)
 	workerCount := s.fileSyncWorkerCount(len(files))
 	if workerCount <= 1 {
 		for _, path := range files {
-			fileResult := s.runSyncFile(path, collection, opts)
+			if err := ctx.Err(); err != nil {
+				result.Errors = append(result.Errors, fmt.Sprintf("sync collection %s canceled: %v", collection, err))
+				break
+			}
+			fileResult := s.runSyncFileWithContext(ctx, path, collection, opts)
 			result.FilesProcessed += fileResult.FilesProcessed
 			result.FilesSkipped += fileResult.FilesSkipped
 			result.NodesExtracted += fileResult.NodesExtracted
@@ -146,15 +179,30 @@ func (s *FileKGSyncer) SyncCollection(collection string, opts FileKGSyncOptions)
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			for path := range jobs {
-				results <- s.runSyncFile(path, collection, opts)
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case path, ok := <-jobs:
+					if !ok {
+						return
+					}
+					results <- s.runSyncFileWithContext(ctx, path, collection, opts)
+				}
 			}
 		}()
 	}
 
 	go func() {
 		for _, path := range files {
-			jobs <- path
+			select {
+			case <-ctx.Done():
+				close(jobs)
+				wg.Wait()
+				close(results)
+				return
+			case jobs <- path:
+			}
 		}
 		close(jobs)
 		wg.Wait()
@@ -168,12 +216,27 @@ func (s *FileKGSyncer) SyncCollection(collection string, opts FileKGSyncOptions)
 		result.EdgesExtracted += fileResult.EdgesExtracted
 		result.Errors = append(result.Errors, fileResult.Errors...)
 	}
+	if err := ctx.Err(); err != nil {
+		result.Errors = append(result.Errors, fmt.Sprintf("sync collection %s canceled: %v", collection, err))
+	}
 	return result
 }
 
 // SyncFile synchronizes a single tracked file into the Knowledge Graph.
 func (s *FileKGSyncer) SyncFile(path, collection string, opts FileKGSyncOptions) FileKGSyncResult {
+	return s.SyncFileWithContext(context.Background(), path, collection, opts)
+}
+
+// SyncFileWithContext synchronizes a single tracked file into the Knowledge Graph.
+func (s *FileKGSyncer) SyncFileWithContext(ctx context.Context, path, collection string, opts FileKGSyncOptions) FileKGSyncResult {
 	var result FileKGSyncResult
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		result.Errors = append(result.Errors, fmt.Sprintf("sync file %s canceled: %v", path, err))
+		return result
+	}
 
 	// 1. Resolve document content from VectorDB via tracked doc IDs.
 	content, err := s.resolveFileContent(path, collection)
@@ -215,7 +278,11 @@ func (s *FileKGSyncer) SyncFile(path, collection string, opts FileKGSyncOptions)
 	var nodes []memory.Node
 	var edges []memory.Edge
 	for i, segment := range segments {
-		segmentNodes, segmentEdges, err := kgextraction.ExtractKGFromText(s.cfg, s.logger, s.llmClient, segment, existingNodesString)
+		if err := ctx.Err(); err != nil {
+			result.Errors = append(result.Errors, fmt.Sprintf("sync file %s canceled: %v", path, err))
+			return result
+		}
+		segmentNodes, segmentEdges, err := kgextraction.ExtractKGFromTextWithContext(ctx, s.cfg, s.logger, s.llmClient, segment, existingNodesString)
 		if err != nil {
 			s.logger.Warn("[FileKGSync] KG extraction failed", "path", path, "segment", i+1, "segments", len(segments), "error", err)
 			result.Errors = append(result.Errors, fmt.Sprintf("extraction %s segment %d/%d: %v", path, i+1, len(segments), err))
@@ -370,10 +437,20 @@ func nodeMatchesFilePath(node memory.Node, canonicalPath string) bool {
 }
 
 func (s *FileKGSyncer) runSyncFile(path, collection string, opts FileKGSyncOptions) FileKGSyncResult {
+	return s.runSyncFileWithContext(context.Background(), path, collection, opts)
+}
+
+func (s *FileKGSyncer) runSyncFileWithContext(ctx context.Context, path, collection string, opts FileKGSyncOptions) FileKGSyncResult {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return FileKGSyncResult{Errors: []string{fmt.Sprintf("sync file %s canceled: %v", path, err)}}
+	}
 	if s.syncFile != nil {
 		return s.syncFile(path, collection, opts)
 	}
-	return s.SyncFile(path, collection, opts)
+	return s.SyncFileWithContext(ctx, path, collection, opts)
 }
 
 func (s *FileKGSyncer) fileSyncWorkerCount(fileCount int) int {

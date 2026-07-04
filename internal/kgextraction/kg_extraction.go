@@ -24,6 +24,17 @@ import (
 // It builds the LLM prompt, executes the extraction call, parses the response, and returns
 // nodes and edges. This function does not interact with the knowledge graph directly.
 func ExtractKGFromText(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, inputText string, existingNodesString string) ([]memory.Node, []memory.Edge, error) {
+	return ExtractKGFromTextWithContext(context.Background(), cfg, logger, client, inputText, existingNodesString)
+}
+
+// ExtractKGFromTextWithContext is the context-aware variant of ExtractKGFromText.
+func ExtractKGFromTextWithContext(ctx context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, inputText string, existingNodesString string) ([]memory.Node, []memory.Edge, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, nil, err
+	}
 	if len(inputText) < 50 {
 		return nil, nil, fmt.Errorf("input text too short for extraction")
 	}
@@ -65,7 +76,7 @@ Inputs:
 		return nil, nil, fmt.Errorf("no helper/main LLM available")
 	}
 
-	kgCtx, kgCancel := context.WithTimeout(context.Background(), 60*time.Second)
+	kgCtx, kgCancel := context.WithTimeout(ctx, 60*time.Second)
 	defer kgCancel()
 
 	resp, err := llm.ExecuteWithRetry(
