@@ -715,6 +715,8 @@ func Load(path string) (*Config, error) {
 		return nil, fmt.Errorf("failed to unmarshal config (backup saved to %s): %w", backupPath, err)
 	}
 
+	NormalizeAIGatewayConfig(&cfg)
+
 	switch strings.ToLower(strings.TrimSpace(cfg.WebDAV.AuthType)) {
 	case "", "basic":
 		cfg.WebDAV.AuthType = "basic"
@@ -2031,6 +2033,63 @@ func NormalizeManifestRoutingConfig(cfg *ManifestRoutingConfig) {
 	}
 }
 
+// NormalizeAIGatewayConfig applies conservative defaults for Cloudflare AI Gateway.
+func NormalizeAIGatewayConfig(c *Config) {
+	if c == nil {
+		return
+	}
+	switch strings.ToLower(strings.TrimSpace(c.AIGateway.Mode)) {
+	case "", "auto":
+		c.AIGateway.Mode = "auto"
+	case "openai_compatible", "provider_native":
+		c.AIGateway.Mode = strings.ToLower(strings.TrimSpace(c.AIGateway.Mode))
+	default:
+		c.AIGateway.Mode = "auto"
+	}
+	switch strings.ToLower(strings.TrimSpace(c.AIGateway.LogMode)) {
+	case "", "metadata_only":
+		c.AIGateway.LogMode = "metadata_only"
+	case "off", "full":
+		c.AIGateway.LogMode = strings.ToLower(strings.TrimSpace(c.AIGateway.LogMode))
+	default:
+		c.AIGateway.LogMode = "metadata_only"
+	}
+	if c.AIGateway.Metadata == nil {
+		c.AIGateway.Metadata = map[string]string{}
+	}
+	normalizedMetadata := make(map[string]string, len(c.AIGateway.Metadata))
+	for key, value := range c.AIGateway.Metadata {
+		key = strings.TrimSpace(key)
+		value = strings.TrimSpace(value)
+		if key == "" || value == "" || len(normalizedMetadata) >= 5 {
+			continue
+		}
+		normalizedMetadata[key] = value
+	}
+	c.AIGateway.Metadata = normalizedMetadata
+	if c.AIGateway.RequestTimeoutMS < 0 {
+		c.AIGateway.RequestTimeoutMS = 0
+	}
+	if c.AIGateway.MaxAttempts < 0 {
+		c.AIGateway.MaxAttempts = 0
+	}
+	if c.AIGateway.MaxAttempts > 5 {
+		c.AIGateway.MaxAttempts = 5
+	}
+	if c.AIGateway.RetryDelayMS < 0 {
+		c.AIGateway.RetryDelayMS = 0
+	}
+	if c.AIGateway.RetryDelayMS > 5000 {
+		c.AIGateway.RetryDelayMS = 5000
+	}
+	switch strings.ToLower(strings.TrimSpace(c.AIGateway.Backoff)) {
+	case "", "constant", "linear", "exponential":
+		c.AIGateway.Backoff = strings.ToLower(strings.TrimSpace(c.AIGateway.Backoff))
+	default:
+		c.AIGateway.Backoff = ""
+	}
+}
+
 // IsValidManifestSpecificityCategory reports whether value is a Manifest specificity category.
 func IsValidManifestSpecificityCategory(value string) bool {
 	switch strings.ToLower(strings.TrimSpace(value)) {
@@ -2126,6 +2185,16 @@ func (c *Config) Save(path string) error {
 		{[]string{"three_d_printers", "elegoo_centauri_carbon", "printers"}, c.ThreeDPrinters.ElegooCentauriCarbon.Printers},
 		{[]string{"three_d_printers", "klipper", "enabled"}, c.ThreeDPrinters.Klipper.Enabled},
 		{[]string{"three_d_printers", "klipper", "printers"}, c.ThreeDPrinters.Klipper.Printers},
+		{[]string{"ai_gateway", "enabled"}, c.AIGateway.Enabled},
+		{[]string{"ai_gateway", "account_id"}, c.AIGateway.AccountID},
+		{[]string{"ai_gateway", "gateway_id"}, c.AIGateway.GatewayID},
+		{[]string{"ai_gateway", "mode"}, c.AIGateway.Mode},
+		{[]string{"ai_gateway", "log_mode"}, c.AIGateway.LogMode},
+		{[]string{"ai_gateway", "metadata"}, c.AIGateway.Metadata},
+		{[]string{"ai_gateway", "request_timeout_ms"}, c.AIGateway.RequestTimeoutMS},
+		{[]string{"ai_gateway", "max_attempts"}, c.AIGateway.MaxAttempts},
+		{[]string{"ai_gateway", "retry_delay_ms"}, c.AIGateway.RetryDelayMS},
+		{[]string{"ai_gateway", "backoff"}, c.AIGateway.Backoff},
 		{[]string{"tailscale", "enabled"}, c.Tailscale.Enabled},
 		{[]string{"tailscale", "readonly"}, c.Tailscale.ReadOnly},
 		{[]string{"tailscale", "tailnet"}, c.Tailscale.Tailnet},

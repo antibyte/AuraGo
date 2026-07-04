@@ -69,9 +69,9 @@
   "help.workspace_search.fuzzy_threshold": "Ελάχιστη fuzzy βαθμολογία για αποτελέσματα διαδρομών. Υψηλότερες τιμές δίνουν αυστηρότερες αντιστοιχίες.",
   "help.workspace_search.exclude": "Αρχεία, φάκελοι ή glob μοτίβα που παραλείπει ο δείκτης workspace.",
   "help.ai_gateway.account_id": "Το αναγνωριστικό λογαριασμού σας στο Cloudflare. Βρίσκεται στο ταμπλό Cloudflare υπό Workers & Pages.",
-  "help.ai_gateway.enabled": "Ενεργοποιήστε Cloudflare AI Gateway to proxy all LLM API requests. Provides caching, rate-limiting, logging, and analytics. Local providers (Ollama) are excluded.",
+  "help.ai_gateway.enabled": "Ενεργοποιεί το Cloudflare AI Gateway για υποστηριζόμενους παρόχους LLM. Τοπικοί πάροχοι όπως το Ollama δεν δρομολογούνται ποτέ μέσω της πύλης.",
   "help.ai_gateway.gateway_id": "Το όνομα ή το slug της παρουσίας AI Gateway στο Cloudflare.",
-  "help.ai_gateway.token": "Προαιρετικό: Cloudflare AI Gateway token for authenticated gateways. Stored securely in the encrypted vault and sent as the cf-aig-authorization header.",
+  "help.ai_gateway.token": "Προαιρετικό token για πιστοποιημένα Cloudflare AI Gateways. Οι εγγενείς διαδρομές παρόχου το στέλνουν ως cf-aig-authorization· το Workers AI χρησιμοποιεί REST Authorization και cf-aig-gateway-id.",
   "help.ansible.container_name": "Περιγραφή: (Sidecar mode only) Docker container name for the auto-managed Ansible sidecar. Προεπιλογή: 'aurago_ansible'.",
   "help.ansible.default_inventory": "Περιγραφή: (Local mode only) Προεπιλογή inventory file (e.g. '/etc/ansible/hosts'). Env var: ANSIBLE_INVENTORY.",
   "help.ansible.enabled": "Ενεργοποιεί the Ansible integration. Supports two modes: 'sidecar' (Docker API) and 'local' (ansible CLI directly on the host).",
@@ -409,5 +409,12 @@
   "help.agent.reuse_first.auto_materialize": "Επιτρέπει αυτόματη δημιουργία cheatsheet/skill μετά από ουσιαστικά runs. Προεπιλογή: ενεργό.",
   "help.agent.reuse_first.require_success_signal": "Δημιουργεί αυτόματα reuse artifacts μόνο όταν ο γύρος ολοκληρώθηκε χωρίς tool errors. Προεπιλογή: ενεργό.",
   "help.agent.reuse_first.min_steps": "Ελάχιστα διαφορετικά βήματα εργαλείων πριν επιτραπεί αυτόματη materialization. Προεπιλογή: 3.",
-  "help.agent.reuse_first.max_artifacts_per_session": "Μέγιστος αριθμός αυτόματων cheatsheets και skills ανά session. Προεπιλογή: 1 από κάθε είδος."
+  "help.agent.reuse_first.max_artifacts_per_session": "Μέγιστος αριθμός αυτόματων cheatsheets και skills ανά session. Προεπιλογή: 1 από κάθε είδος.",
+  "help.ai_gateway.mode": "Το Αυτόματα χρησιμοποιεί ασφαλείς εγγενείς διαδρομές Cloudflare και παραλείπει μη υποστηριζόμενους παρόχους. Το OpenAI-compatible επιβάλλει /openai. Το Εγγενές παρόχου χρησιμοποιεί τμήματα παρόχων Cloudflare.",
+  "help.ai_gateway.log_mode": "Ελέγχει τις κεφαλίδες καταγραφής Cloudflare. Μόνο μεταδεδομένα αποφεύγει καταγραφή payload, πλήρες φορτίο την ενεργοποιεί και ανενεργό απενεργοποιεί τις collection κεφαλίδες.",
+  "help.ai_gateway.request_timeout_ms": "Προαιρετικό χρονικό όριο αιτήματος Cloudflare σε χιλιοστά του δευτερολέπτου. Το 0 αφήνει την προεπιλογή.",
+  "help.ai_gateway.max_attempts": "Προαιρετικός αριθμός επαναλήψεων Cloudflare. Το 0 αφήνει τις επαναλήψεις ανενεργές ή στην προεπιλογή.",
+  "help.ai_gateway.retry_delay_ms": "Καθυστέρηση πριν το Cloudflare επαναλάβει ένα αίτημα. Το 0 αφήνει την προεπιλογή.",
+  "help.ai_gateway.backoff": "Προαιρετική στρατηγική backoff Cloudflare για επαναλήψεις gateway.",
+  "help.ai_gateway.metadata": "Προαιρετικά μεταδεδομένα κλειδιού-τιμής που στέλνονται ως cf-aig-metadata. Μη βάζετε μυστικά εδώ."
 }

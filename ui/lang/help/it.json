@@ -69,9 +69,9 @@
   "help.workspace_search.fuzzy_threshold": "Punteggio minimo per le corrispondenze fuzzy dei percorsi. Valori più alti restituiscono risultati più rigorosi.",
   "help.workspace_search.exclude": "File, cartelle o pattern glob ignorati dall’indice del workspace.",
   "help.ai_gateway.account_id": "Il tuo Cloudflare Account ID. Lo trovi nella dashboard Cloudflare sotto Workers & Pages.",
-  "help.ai_gateway.enabled": "Abilita Cloudflare AI Gateway per proxyare tutte le richieste LLM API. Fornisce cache, rate-limiting, logging e analisi. I provider locali (Ollama) sono esclusi.",
+  "help.ai_gateway.enabled": "Abilita Cloudflare AI Gateway per i provider LLM supportati. I provider locali come Ollama non passano mai dal gateway.",
   "help.ai_gateway.gateway_id": "Il nome o lo slug della tua istanza AI Gateway in Cloudflare.",
-  "help.ai_gateway.token": "Token Cloudflare AI Gateway facoltativo per gateway autenticati. Viene salvato in modo sicuro nel vault cifrato e inviato come header cf-aig-authorization.",
+  "help.ai_gateway.token": "Token opzionale per Cloudflare AI Gateway autenticati. Le rotte native provider lo inviano come cf-aig-authorization; Workers AI usa REST Authorization e cf-aig-gateway-id.",
   "help.ansible.container_name": "(Solo modalità sidecar) Nome del container Docker per il sidecar Ansible gestito automaticamente. Default: 'aurago_ansible'.",
   "help.ansible.default_inventory": "(Solo modalità locale) File inventario predefinito (es. '/etc/ansible/hosts'). Var env: ANSIBLE_INVENTORY.",
   "help.ansible.enabled": "Abilita l'integrazione Ansible. Supporta due modalità: 'sidecar' (Docker API) e 'local' (ansible CLI direttamente sull'host).",
@@ -409,5 +409,12 @@
   "help.agent.reuse_first.auto_materialize": "Permette la creazione automatica di cheatsheet/skill dopo esecuzioni sostanziali. Default: attivo.",
   "help.agent.reuse_first.require_success_signal": "Crea artefatti di riuso solo se il turno termina senza errori degli strumenti. Default: attivo.",
   "help.agent.reuse_first.min_steps": "Numero minimo di passaggi strumenti distinti prima della materializzazione automatica. Default: 3.",
-  "help.agent.reuse_first.max_artifacts_per_session": "Massimo di cheatsheet e skill automatici per sessione. Default: 1 per tipo."
+  "help.agent.reuse_first.max_artifacts_per_session": "Massimo di cheatsheet e skill automatici per sessione. Default: 1 per tipo.",
+  "help.ai_gateway.mode": "Automatico usa rotte Cloudflare native sicure e salta i provider non supportati. Compatibile con OpenAI forza /openai. Nativo provider usa i segmenti provider di Cloudflare.",
+  "help.ai_gateway.log_mode": "Controlla gli header di log Cloudflare. Solo metadati evita il log del payload, payload completo lo abilita e disattivato non invia header di raccolta.",
+  "help.ai_gateway.request_timeout_ms": "Timeout richiesta Cloudflare opzionale in millisecondi. 0 mantiene il valore predefinito.",
+  "help.ai_gateway.max_attempts": "Numero opzionale di tentativi Cloudflare. 0 lascia i tentativi disattivati o predefiniti.",
+  "help.ai_gateway.retry_delay_ms": "Ritardo prima che Cloudflare ritenti una richiesta. 0 mantiene il valore predefinito.",
+  "help.ai_gateway.backoff": "Strategia backoff Cloudflare opzionale per i tentativi del gateway.",
+  "help.ai_gateway.metadata": "Metadati chiave-valore opzionali inviati come cf-aig-metadata. Non inserire segreti qui."
 }

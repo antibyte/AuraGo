@@ -69,9 +69,9 @@
   "help.workspace_search.fuzzy_threshold": "パス検索結果の最小 fuzzy スコアです。値が高いほど厳密な一致になります。",
   "help.workspace_search.exclude": "workspace インデックスがスキップするファイル、フォルダー、または glob パターンです。",
   "help.ai_gateway.account_id": "Cloudflare Account ID。CloudflareダッシュボードのWorkers & Pagesにあります。",
-  "help.ai_gateway.enabled": "Cloudflare AI Gatewayを有効にしてすべてのLLM APIリクエストをプロキシします。キャッシュ、レート制限、ログ、分析を提供します。ローカルプロバイダー（Ollama）は除外されます。",
+  "help.ai_gateway.enabled": "対応するLLMプロバイダーでCloudflare AI Gatewayを有効にします。Ollamaなどのローカルプロバイダーはゲートウェイ経由になりません。",
   "help.ai_gateway.gateway_id": "Cloudflare内のAI Gatewayインスタンスの名前またはスラッグ。",
-  "help.ai_gateway.token": "認証付きゲートウェイ向けの任意の Cloudflare AI Gateway トークン。暗号化された vault に安全に保存され、cf-aig-authorization ヘッダーとして送信されます。",
+  "help.ai_gateway.token": "認証付きCloudflare AI Gateway用の任意トークンです。プロバイダーネイティブルートではcf-aig-authorizationとして送信し、Workers AIではREST Authorizationとcf-aig-gateway-idを使用します。",
   "help.ansible.container_name": "(サイドカーモードのみ) 自動管理される Ansible サイドカーの Docker コンテナ名。デフォルト: 'aurago_ansible'。",
   "help.ansible.default_inventory": "(ローカル モードのみ) デフォルトのインベントリ ファイル (例: '/etc/ansible/hosts')。環境変数: ANSIBLE_INVENTORY。",
   "help.ansible.enabled": "Ansible 統合を有効にします。 「サイドカー」 (Docker API) と「ローカル」 (ホスト上の直接の Ansible CLI) の 2 つのモードをサポートします。",
@@ -409,5 +409,12 @@
   "help.agent.reuse_first.auto_materialize": "十分な作業後に cheatsheet/skill を自動作成できるようにします。既定: オン。",
   "help.agent.reuse_first.require_success_signal": "ツールエラーなしで完了したターンだけ、自動で再利用アーティファクトを作成します。既定: オン。",
   "help.agent.reuse_first.min_steps": "自動 materialization を許可する前に必要な異なるツール手順の最小数です。既定値: 3。",
-  "help.agent.reuse_first.max_artifacts_per_session": "1 セッションで自動作成できる cheatsheet と skill の上限です。既定: 各 1。"
+  "help.agent.reuse_first.max_artifacts_per_session": "1 セッションで自動作成できる cheatsheet と skill の上限です。既定: 各 1。",
+  "help.ai_gateway.mode": "自動は安全なCloudflareプロバイダーネイティブルートを使い、未対応プロバイダーをスキップします。OpenAI互換は/openaiを強制します。プロバイダーネイティブはCloudflareのプロバイダーセグメントを使います。",
+  "help.ai_gateway.log_mode": "Cloudflareのログヘッダーを制御します。メタデータのみはペイロードログを避け、ペイロード全体は有効化し、オフは収集ヘッダーを送信しません。",
+  "help.ai_gateway.request_timeout_ms": "任意のCloudflareリクエストタイムアウトをミリ秒で指定します。0は既定値です。",
+  "help.ai_gateway.max_attempts": "任意のCloudflare再試行回数です。0は再試行なしまたは既定値です。",
+  "help.ai_gateway.retry_delay_ms": "Cloudflareがリクエストを再試行するまでの遅延です。0は既定値です。",
+  "help.ai_gateway.backoff": "ゲートウェイ再試行用の任意のCloudflareバックオフ戦略です。",
+  "help.ai_gateway.metadata": "cf-aig-metadataとして送信する任意のキー値メタデータです。ここにシークレットを入れないでください。"
 }

@@ -69,9 +69,9 @@
   "help.workspace_search.fuzzy_threshold": "पाथ परिणामों के लिए न्यूनतम fuzzy स्कोर। अधिक मान अधिक सख्त मिलान लौटाते हैं।",
   "help.workspace_search.exclude": "workspace इंडेक्स द्वारा छोड़ी जाने वाली फ़ाइलें, फ़ोल्डर या glob पैटर्न।",
   "help.ai_gateway.account_id": "आपका Cloudflare Account ID। Cloudflare डैशबोर्ड में Workers & Pages के अंतर्गत मिलेगा।",
-  "help.ai_gateway.enabled": "सभी LLM API अनुरोधों को प्रॉक्सी करने के लिए Cloudflare AI Gateway सक्षम करें। कैशिंग, रेट-लिमिटिंग, लॉगिंग और एनालिटिक्स प्रदान करता है। स्थानीय प्रदाता (Ollama) बहिष्कृत हैं।",
+  "help.ai_gateway.enabled": "समर्थित LLM प्रदाताओं के लिए Cloudflare AI Gateway सक्षम करें। Ollama जैसे स्थानीय प्रदाता कभी gateway से रूट नहीं होते।",
   "help.ai_gateway.gateway_id": "Cloudflare में आपके AI Gateway इंस्टेंस का नाम या स्लग।",
-  "help.ai_gateway.token": "प्रमाणीकृत गेटवे के लिए वैकल्पिक Cloudflare AI Gateway टोकन। यह एन्क्रिप्टेड vault में सुरक्षित रूप से संग्रहित होता है और cf-aig-authorization हेडर के रूप में भेजा जाता है।",
+  "help.ai_gateway.token": "प्रमाणित Cloudflare AI Gateway के लिए वैकल्पिक टोकन। प्रदाता-नेटिव रूट इसे cf-aig-authorization के रूप में भेजते हैं; Workers AI REST Authorization और cf-aig-gateway-id उपयोग करता है।",
   "help.ansible.container_name": "(केवल साइडकार मोड) स्वतः प्रबंधित अन्सिबल साइडकार के लिए डॉकर कंटेनर नाम। डिफ़ॉल्ट: 'aurago_ansible'।",
   "help.ansible.default_inventory": "(केवल स्थानीय मोड) डिफ़ॉल्ट इन्वेंट्री फ़ाइल (जैसे '/etc/ansible/hosts')। पर्यावरण संस्करण: ANSIBLE_INVENTORY.",
   "help.ansible.enabled": "Ansible एकीकरण को सक्षम बनाता है। दो मोड का समर्थन करता है: 'साइडकार' (डॉकर एपीआई) और 'लोकल' (सीधे होस्ट पर उत्तरदायी सीएलआई)।",
@@ -409,5 +409,12 @@
   "help.agent.reuse_first.auto_materialize": "बड़े runs के बाद automatic cheatsheet/skill creation की अनुमति देता है। Default: on.",
   "help.agent.reuse_first.require_success_signal": "Reuse artifacts तभी auto-create करता है जब turn tool errors के बिना पूरा हो। Default: on.",
   "help.agent.reuse_first.min_steps": "Automatic materialization से पहले न्यूनतम अलग tool steps। Default: 3.",
-  "help.agent.reuse_first.max_artifacts_per_session": "प्रति session automatic cheatsheets और skills की अधिकतम संख्या। Default: प्रत्येक 1."
+  "help.agent.reuse_first.max_artifacts_per_session": "प्रति session automatic cheatsheets और skills की अधिकतम संख्या। Default: प्रत्येक 1.",
+  "help.ai_gateway.mode": "स्वचालित सुरक्षित Cloudflare प्रदाता-नेटिव रूट उपयोग करता है और असमर्थित प्रदाताओं को छोड़ता है। OpenAI-संगत /openai मजबूर करता है। प्रदाता-नेटिव Cloudflare प्रदाता सेगमेंट उपयोग करता है।",
+  "help.ai_gateway.log_mode": "Cloudflare लॉगिंग हेडर नियंत्रित करता है। केवल मेटाडेटा पेलोड लॉगिंग से बचता है, पूरा पेलोड उसे सक्षम करता है, और बंद collection हेडर नहीं भेजता।",
+  "help.ai_gateway.request_timeout_ms": "मिलीसेकंड में वैकल्पिक Cloudflare अनुरोध टाइमआउट। 0 डिफ़ॉल्ट रखता है।",
+  "help.ai_gateway.max_attempts": "Cloudflare पुनः प्रयासों की वैकल्पिक संख्या। 0 पुनः प्रयास बंद या डिफ़ॉल्ट रखता है।",
+  "help.ai_gateway.retry_delay_ms": "Cloudflare द्वारा अनुरोध दोबारा करने से पहले का विलंब। 0 डिफ़ॉल्ट रखता है।",
+  "help.ai_gateway.backoff": "Gateway पुनः प्रयासों के लिए वैकल्पिक Cloudflare बैकऑफ रणनीति।",
+  "help.ai_gateway.metadata": "cf-aig-metadata के रूप में भेजे गए वैकल्पिक key-value मेटाडेटा। यहाँ secrets न रखें।"
 }

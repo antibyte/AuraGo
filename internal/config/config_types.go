@@ -1828,10 +1828,17 @@ type Config struct {
 		} `yaml:"allowed_paths"` // additional paths beyond defaults
 	} `yaml:"shell_sandbox"`
 	AIGateway struct {
-		Enabled   bool   `yaml:"enabled"`
-		AccountID string `yaml:"account_id"`               // Cloudflare account ID
-		GatewayID string `yaml:"gateway_id"`               // AI Gateway name/slug
-		Token     string `yaml:"-" vault:"token" json:"-"` // optional Cloudflare AI Gateway token (vault-only)
+		Enabled          bool              `yaml:"enabled" json:"enabled"`
+		AccountID        string            `yaml:"account_id" json:"account_id"`                 // Cloudflare account ID
+		GatewayID        string            `yaml:"gateway_id" json:"gateway_id"`                 // AI Gateway name/slug
+		Mode             string            `yaml:"mode" json:"mode"`                             // "auto" (default), "openai_compatible", or "provider_native"
+		LogMode          string            `yaml:"log_mode" json:"log_mode"`                     // "metadata_only" (default), "off", or "full"
+		Metadata         map[string]string `yaml:"metadata" json:"metadata"`                     // up to five custom metadata tags for cf-aig-metadata
+		RequestTimeoutMS int               `yaml:"request_timeout_ms" json:"request_timeout_ms"` // cf-aig-request-timeout in milliseconds
+		MaxAttempts      int               `yaml:"max_attempts" json:"max_attempts"`             // cf-aig-max-attempts, max 5
+		RetryDelayMS     int               `yaml:"retry_delay_ms" json:"retry_delay_ms"`         // cf-aig-retry-delay in milliseconds, max 5000
+		Backoff          string            `yaml:"backoff" json:"backoff"`                       // "constant", "linear", or "exponential"
+		Token            string            `yaml:"-" vault:"token" json:"-"`                     // optional Cloudflare AI Gateway token (vault-only)
 	} `yaml:"ai_gateway"`
 	Composio  ComposioConfig `yaml:"composio" json:"composio"`
 	MCPServer struct {

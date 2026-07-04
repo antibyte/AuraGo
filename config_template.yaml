@@ -1412,6 +1412,13 @@ ai_gateway:
     enabled: false
     account_id: ""
     gateway_id: ""
+    mode: auto                 # auto, openai_compatible, provider_native
+    log_mode: metadata_only    # metadata_only, off, full
+    metadata: {}               # sent as cf-aig-metadata; do not store secrets here
+    request_timeout_ms: 0      # 0 = Cloudflare default
+    max_attempts: 0            # 0 = disabled/default
+    retry_delay_ms: 0          # 0 = Cloudflare default
+    backoff: ""                # "", constant, linear, exponential
 mcp_server:
     enabled: false
     allowed_tools: []                              # explicit server-side tool allowlist; empty = no exposed tools

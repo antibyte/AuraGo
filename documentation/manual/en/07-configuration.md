@@ -905,7 +905,7 @@ The blocks below are available for advanced and headless setups. Most can be con
 | `auth` | Web UI authentication. | `auth:`<br>`  enabled: true`<br>`  session_timeout_hours: 24`<br>`  totp_enabled: false`<br>`  max_login_attempts: 5` |
 | `llm_guardian` | Tool/document safety scanning. | `llm_guardian:`<br>`  enabled: false`<br>`  provider: ""`<br>`  model: ""`<br>`  default_level: medium` |
 | `guardian` | Regex-based input scanning. | `guardian:`<br>`  max_scan_bytes: 16384`<br>`  scan_edge_bytes: 6144` |
-| `ai_gateway` | Cloudflare AI Gateway. | `ai_gateway:`<br>`  enabled: false`<br>`  account_id: ""`<br>`  gateway_id: ""` |
+| `ai_gateway` | Cloudflare AI Gateway routing, privacy logging, request handling, and metadata headers. | `ai_gateway:`<br>`  enabled: false`<br>`  account_id: ""`<br>`  gateway_id: ""`<br>`  mode: auto`<br>`  log_mode: metadata_only`<br>`  metadata: {}` |
 | `mcp_server` | Expose AuraGo as MCP server. | `mcp_server:`<br>`  enabled: false`<br>`  allowed_tools: []`<br>`  require_auth: true` |
 | `consolidation` | Nightly memory optimization. | `consolidation:`<br>`  enabled: true`<br>`  auto_optimize: true`<br>`  archive_retain_days: 30`<br>`  max_batch_messages: 200` |
 | `web_config` | Web-based config editor. | `web_config:`<br>`  enabled: true` |

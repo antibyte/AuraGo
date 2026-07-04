@@ -69,9 +69,9 @@
   "help.workspace_search.fuzzy_threshold": "Minimum fuzzy path score for find results. Higher values return stricter matches.",
   "help.workspace_search.exclude": "Files, folders, or glob patterns skipped by the workspace index.",
   "help.ai_gateway.account_id": "Your Cloudflare Account ID. Found in the Cloudflare dashboard under Workers & Pages.",
-  "help.ai_gateway.enabled": "Enable Cloudflare AI Gateway to proxy all LLM API requests. Provides caching, rate-limiting, logging, and analytics. Local providers (Ollama) are excluded.",
+  "help.ai_gateway.enabled": "Enable Cloudflare AI Gateway for supported LLM providers. Local providers such as Ollama are never routed through the gateway.",
   "help.ai_gateway.gateway_id": "The name or slug of your AI Gateway instance in Cloudflare.",
-  "help.ai_gateway.token": "Optional Cloudflare AI Gateway token for authenticated gateways. Stored securely in the encrypted vault and sent as the cf-aig-authorization header.",
+  "help.ai_gateway.token": "Optional token for authenticated Cloudflare AI Gateways. Provider-native routes send it as cf-aig-authorization; Workers AI uses REST Authorization plus cf-aig-gateway-id.",
   "help.ansible.container_name": "(Sidecar mode only) Docker container name for the auto-managed Ansible sidecar. Default: 'aurago_ansible'.",
   "help.ansible.default_inventory": "(Local mode only) Default inventory file (e.g. '/etc/ansible/hosts'). Env var: ANSIBLE_INVENTORY.",
   "help.ansible.enabled": "Enables the Ansible integration. Supports two modes: 'sidecar' (Docker API) and 'local' (ansible CLI directly on the host).",
@@ -409,5 +409,12 @@
   "help.agent.reuse_first.auto_materialize": "Allows automatic cheatsheet/skill creation after substantial runs. Default: on.",
   "help.agent.reuse_first.require_success_signal": "Only auto-create reuse artifacts when the turn completed without tool errors. Default: on.",
   "help.agent.reuse_first.min_steps": "Minimum distinct tool steps before automatic materialization can run. Default: 3.",
-  "help.agent.reuse_first.max_artifacts_per_session": "Maximum automatic cheatsheets and skills per session. Default: 1 each."
+  "help.agent.reuse_first.max_artifacts_per_session": "Maximum automatic cheatsheets and skills per session. Default: 1 each.",
+  "help.ai_gateway.mode": "Auto uses Cloudflare provider-native routes when safe and skips unsupported providers. OpenAI-compatible forces compatible providers through /openai. Provider-native uses Cloudflare provider segments.",
+  "help.ai_gateway.log_mode": "Controls Cloudflare logging headers. Metadata only avoids payload logging, full enables payload logging, and off disables collection headers.",
+  "help.ai_gateway.request_timeout_ms": "Optional Cloudflare request timeout in milliseconds. Use 0 to leave the default.",
+  "help.ai_gateway.max_attempts": "Optional Cloudflare retry attempt count. Use 0 to leave retries disabled or defaulted.",
+  "help.ai_gateway.retry_delay_ms": "Delay before Cloudflare retries a request. Use 0 to leave the default.",
+  "help.ai_gateway.backoff": "Optional Cloudflare retry backoff strategy for gateway retries.",
+  "help.ai_gateway.metadata": "Optional key-value metadata sent as cf-aig-metadata. Do not put secrets here."
 }

@@ -1005,14 +1005,17 @@ tools:
 
 ## AI Gateway Integration
 
-Route and monitor AI traffic through Cloudflare AI Gateway.
+Route supported AI traffic through Cloudflare AI Gateway without spending a token for status checks.
 
 ### Web UI Setup
 1. Open **Config → Integrations → AI Gateway**.
-2. Enable the integration.
-3. Enter your **Account ID** and **Gateway ID**.
-4. Optionally enable `log_requests` for detailed logging.
-5. Save and restart.
+2. Enable the integration and enter your **Account ID** and **Gateway ID**.
+3. Choose a routing mode. `auto` uses Cloudflare provider-native routes where safe and skips unsupported providers instead of falling back to `/openai`.
+4. Choose a logging mode. `metadata_only` is the privacy-safe default; `full` enables payload logging; `off` disables collection headers.
+5. Optionally add request timeout, retry, backoff, and non-secret metadata headers.
+6. Save, then use **Test Gateway** for a live `/models` probe.
+
+Workers AI is routed through the Cloudflare REST endpoint (`https://api.cloudflare.com/client/v4/accounts/{account}/ai/v1`) with `cf-aig-gateway-id`. Provider-native gateway routes use `cf-aig-authorization` for the optional authenticated-gateway token. Keep secrets out of metadata.
 
 ### YAML Reference
 ```yaml
@@ -1020,7 +1023,13 @@ ai_gateway:
     enabled: true
     account_id: "YOUR_ACCOUNT_ID"
     gateway_id: "YOUR_GATEWAY_ID"
-    log_requests: false
+    mode: auto                 # auto, openai_compatible, provider_native
+    log_mode: metadata_only    # metadata_only, off, full
+    metadata: {}
+    request_timeout_ms: 0
+    max_attempts: 0
+    retry_delay_ms: 0
+    backoff: ""                # "", constant, linear, exponential
 ```
 
 ---

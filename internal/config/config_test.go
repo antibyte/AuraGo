@@ -2673,6 +2673,65 @@ manifest:
 	}
 }
 
+func TestLoadAndSaveAIGatewayRequestControls(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	configContent := `
+server:
+  ui_language: en
+ai_gateway:
+  enabled: true
+  account_id: acct
+  gateway_id: gw
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if cfg.AIGateway.Mode != "auto" {
+		t.Fatalf("ai_gateway.mode = %q, want auto", cfg.AIGateway.Mode)
+	}
+	if cfg.AIGateway.LogMode != "metadata_only" {
+		t.Fatalf("ai_gateway.log_mode = %q, want metadata_only", cfg.AIGateway.LogMode)
+	}
+	if cfg.AIGateway.Metadata == nil {
+		t.Fatal("ai_gateway.metadata map should default to an empty map")
+	}
+
+	cfg.AIGateway.Mode = "provider_native"
+	cfg.AIGateway.LogMode = "off"
+	cfg.AIGateway.Metadata = map[string]string{"env": "lab"}
+	cfg.AIGateway.RequestTimeoutMS = 5000
+	cfg.AIGateway.MaxAttempts = 3
+	cfg.AIGateway.RetryDelayMS = 250
+	cfg.AIGateway.Backoff = "linear"
+	if err := cfg.Save(configPath); err != nil {
+		t.Fatalf("Save() error = %v", err)
+	}
+
+	reloaded, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("reload config: %v", err)
+	}
+	if reloaded.AIGateway.Mode != "provider_native" {
+		t.Fatalf("saved mode = %q, want provider_native", reloaded.AIGateway.Mode)
+	}
+	if reloaded.AIGateway.LogMode != "off" {
+		t.Fatalf("saved log_mode = %q, want off", reloaded.AIGateway.LogMode)
+	}
+	if reloaded.AIGateway.Metadata["env"] != "lab" {
+		t.Fatalf("saved metadata = %#v, want env=lab", reloaded.AIGateway.Metadata)
+	}
+	if reloaded.AIGateway.RequestTimeoutMS != 5000 || reloaded.AIGateway.MaxAttempts != 3 ||
+		reloaded.AIGateway.RetryDelayMS != 250 || reloaded.AIGateway.Backoff != "linear" {
+		t.Fatalf("saved request controls = %+v", reloaded.AIGateway)
+	}
+}
+
 func TestLoadPreservesWebhookRateLimitZeroAsUnlimited(t *testing.T) {
 	t.Parallel()
 

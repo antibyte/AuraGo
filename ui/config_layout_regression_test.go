@@ -636,6 +636,14 @@ func TestConfigPhase3AIGateway(t *testing.T) {
 		"adg-test-result",
 		"/api/ai-gateway/test",
 		"aiGatewayTestConnection",
+		"ai_gateway.mode",
+		"ai_gateway.log_mode",
+		"ai_gateway.request_timeout_ms",
+		"ai_gateway.max_attempts",
+		"ai_gateway.retry_delay_ms",
+		"ai_gateway.backoff",
+		"aiGatewayRenderMetadataRows",
+		"ai_gateway.metadata",
 	} {
 		if !strings.Contains(aiGatewayJS, marker) {
 			t.Fatalf("ai_gateway.js missing marker %q", marker)
@@ -646,6 +654,79 @@ func TestConfigPhase3AIGateway(t *testing.T) {
 	}
 	if strings.Contains(aiGatewayJS, "is-neutral") {
 		t.Fatal("ai_gateway.js should not use nonexistent is-neutral banner state")
+	}
+}
+
+func TestConfigAIGatewayI18NComplete(t *testing.T) {
+	t.Parallel()
+
+	configKeys := []string{
+		"config.ai_gateway.mode",
+		"config.ai_gateway.mode_auto",
+		"config.ai_gateway.mode_openai_compatible",
+		"config.ai_gateway.mode_provider_native",
+		"config.ai_gateway.log_mode",
+		"config.ai_gateway.log_mode_metadata_only",
+		"config.ai_gateway.log_mode_off",
+		"config.ai_gateway.log_mode_full",
+		"config.ai_gateway.request_timeout_ms",
+		"config.ai_gateway.max_attempts",
+		"config.ai_gateway.retry_delay_ms",
+		"config.ai_gateway.backoff",
+		"config.ai_gateway.backoff_constant",
+		"config.ai_gateway.backoff_linear",
+		"config.ai_gateway.backoff_exponential",
+		"config.ai_gateway.metadata",
+		"config.ai_gateway.metadata_key",
+		"config.ai_gateway.metadata_value",
+		"config.ai_gateway.metadata_add",
+		"config.ai_gateway.status_configured",
+		"config.ai_gateway.status_unsupported",
+		"config.ai_gateway.status_live_ok",
+		"config.ai_gateway.status_live_failed",
+	}
+	helpKeys := []string{
+		"help.ai_gateway.mode",
+		"help.ai_gateway.log_mode",
+		"help.ai_gateway.request_timeout_ms",
+		"help.ai_gateway.max_attempts",
+		"help.ai_gateway.retry_delay_ms",
+		"help.ai_gateway.backoff",
+		"help.ai_gateway.metadata",
+	}
+
+	for _, lang := range []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"} {
+		lang := lang
+		t.Run(lang, func(t *testing.T) {
+			t.Parallel()
+			configData, err := os.ReadFile("lang/config/ai_gateway/" + lang + ".json")
+			if err != nil {
+				t.Fatalf("read config ai_gateway %s: %v", lang, err)
+			}
+			var configValues map[string]string
+			if err := json.Unmarshal(configData, &configValues); err != nil {
+				t.Fatalf("parse config ai_gateway %s: %v", lang, err)
+			}
+			for _, key := range configKeys {
+				if strings.TrimSpace(configValues[key]) == "" || configValues[key] == key {
+					t.Fatalf("lang/config/ai_gateway/%s.json missing %q", lang, key)
+				}
+			}
+
+			helpData, err := os.ReadFile("lang/help/" + lang + ".json")
+			if err != nil {
+				t.Fatalf("read help %s: %v", lang, err)
+			}
+			var helpValues map[string]string
+			if err := json.Unmarshal(helpData, &helpValues); err != nil {
+				t.Fatalf("parse help %s: %v", lang, err)
+			}
+			for _, key := range helpKeys {
+				if strings.TrimSpace(helpValues[key]) == "" || helpValues[key] == key {
+					t.Fatalf("lang/help/%s.json missing %q", lang, key)
+				}
+			}
+		})
 	}
 }
 

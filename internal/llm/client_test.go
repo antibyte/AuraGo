@@ -46,6 +46,67 @@ func TestAIGatewayAuthTransportAddsHeader(t *testing.T) {
 	}
 }
 
+func TestAIGatewayAuthTransportAddsControlHeaders(t *testing.T) {
+	transport := &aiGatewayAuthTransport{
+		token:            "gateway-token",
+		gatewayID:        "main-gateway",
+		collectLog:       true,
+		collectPayload:   false,
+		metadata:         map[string]string{"env": "test", "team": "ops"},
+		requestTimeoutMS: 5000,
+		maxAttempts:      3,
+		retryDelayMS:     250,
+		backoff:          "linear",
+		base: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			if got := req.Header.Get("cf-aig-authorization"); got != "Bearer gateway-token" {
+				t.Fatalf("cf-aig-authorization = %q, want Bearer gateway-token", got)
+			}
+			if got := req.Header.Get("cf-aig-gateway-id"); got != "main-gateway" {
+				t.Fatalf("cf-aig-gateway-id = %q, want main-gateway", got)
+			}
+			if got := req.Header.Get("cf-aig-collect-log"); got != "true" {
+				t.Fatalf("cf-aig-collect-log = %q, want true", got)
+			}
+			if got := req.Header.Get("cf-aig-collect-log-payload"); got != "false" {
+				t.Fatalf("cf-aig-collect-log-payload = %q, want false", got)
+			}
+			if got := req.Header.Get("cf-aig-request-timeout"); got != "5000" {
+				t.Fatalf("cf-aig-request-timeout = %q, want 5000", got)
+			}
+			if got := req.Header.Get("cf-aig-max-attempts"); got != "3" {
+				t.Fatalf("cf-aig-max-attempts = %q, want 3", got)
+			}
+			if got := req.Header.Get("cf-aig-retry-delay"); got != "250" {
+				t.Fatalf("cf-aig-retry-delay = %q, want 250", got)
+			}
+			if got := req.Header.Get("cf-aig-backoff"); got != "linear" {
+				t.Fatalf("cf-aig-backoff = %q, want linear", got)
+			}
+			var metadata map[string]string
+			if err := json.Unmarshal([]byte(req.Header.Get("cf-aig-metadata")), &metadata); err != nil {
+				t.Fatalf("cf-aig-metadata is not JSON: %v", err)
+			}
+			if metadata["env"] != "test" || metadata["team"] != "ops" {
+				t.Fatalf("metadata = %#v, want env/team entries", metadata)
+			}
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader("ok")),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	}
+
+	req, err := http.NewRequest(http.MethodPost, "https://api.cloudflare.com/client/v4/accounts/acct/ai/v1/chat/completions", strings.NewReader("{}"))
+	if err != nil {
+		t.Fatalf("http.NewRequest() error = %v", err)
+	}
+
+	if _, err := transport.RoundTrip(req); err != nil {
+		t.Fatalf("RoundTrip() error = %v", err)
+	}
+}
+
 func TestOpenAIPromptCacheRequestBodyAddsStableKeyFromPrefix(t *testing.T) {
 	bodyA := []byte(`{
 		"model": "gpt-4.1",
@@ -693,10 +754,27 @@ func TestDetectProviderURLMismatchNewProviders(t *testing.T) {
 }
 
 func TestAIGatewaySegmentNewProviders(t *testing.T) {
-	newProviders := []string{"deepseek", "groq", "mistral", "xai", "moonshot", "qwen", "zai", "llamacpp", "lmstudio"}
-	for _, p := range newProviders {
-		if got := aiGatewaySegment(p); got != "openai" {
-			t.Fatalf("aiGatewaySegment(%q) = %q, want openai", p, got)
+	tests := map[string]string{
+		"openai":     "openai",
+		"anthropic":  "anthropic",
+		"google":     "google-ai-studio",
+		"openrouter": "openrouter",
+		"deepseek":   "deepseek",
+		"groq":       "groq",
+		"mistral":    "mistral",
+		"xai":        "xai",
+	}
+	for providerType, want := range tests {
+		if got := aiGatewaySegment(providerType); got != want {
+			t.Fatalf("aiGatewaySegment(%q) = %q, want %q", providerType, got, want)
+		}
+	}
+}
+
+func TestAIGatewaySegmentUnsupportedProvidersDoNotFallbackToOpenAI(t *testing.T) {
+	for _, providerType := range []string{"custom", "manifest", "yepapi", "moonshot", "qwen", "zai", "llamacpp", "lmstudio", "unknown"} {
+		if got := aiGatewaySegment(providerType); got != "" {
+			t.Fatalf("aiGatewaySegment(%q) = %q, want empty unsupported segment", providerType, got)
 		}
 	}
 }
@@ -718,7 +796,7 @@ func TestNewClientFromProviderWithConfigAppliesAIGateway(t *testing.T) {
 	if !configValue.IsValid() {
 		t.Fatal("expected openai client config field")
 	}
-	wantBase := "https://gateway.ai.cloudflare.com/v1/acct/gw/openai"
+	wantBase := "https://gateway.ai.cloudflare.com/v1/acct/gw/openrouter"
 	if got := configValue.FieldByName("BaseURL").String(); got != wantBase {
 		t.Fatalf("BaseURL = %q, want %q", got, wantBase)
 	}
@@ -730,6 +808,40 @@ func TestNewClientFromProviderWithConfigAppliesAIGateway(t *testing.T) {
 	mainConfig := reflect.ValueOf(mainClient).Elem().FieldByName("config")
 	if got := mainConfig.FieldByName("BaseURL").String(); got != wantBase {
 		t.Fatalf("main client BaseURL = %q, want %q", got, wantBase)
+	}
+}
+
+func TestNewClientFromProviderWithConfigSkipsUnsupportedAIGatewayAuto(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.AIGateway.Enabled = true
+	cfg.AIGateway.AccountID = "acct"
+	cfg.AIGateway.GatewayID = "gw"
+
+	client := NewClientFromProviderWithConfig(cfg, "custom", "https://custom.example.test/v1", "provider-key", "")
+	if client == nil {
+		t.Fatal("expected client")
+	}
+	configValue := reflect.ValueOf(client).Elem().FieldByName("config")
+	if got := configValue.FieldByName("BaseURL").String(); got != "https://custom.example.test/v1" {
+		t.Fatalf("BaseURL = %q, want original custom provider URL", got)
+	}
+}
+
+func TestNewClientFromProviderWithConfigRoutesWorkersAIThroughRESTGatewayHeader(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.AIGateway.Enabled = true
+	cfg.AIGateway.AccountID = "gateway-account"
+	cfg.AIGateway.GatewayID = "main-gateway"
+	cfg.AIGateway.Token = "gateway-token"
+
+	client := NewClientFromProviderWithConfig(cfg, "workers-ai", "", "cf-api-token", "workers-account")
+	if client == nil {
+		t.Fatal("expected client")
+	}
+	configValue := reflect.ValueOf(client).Elem().FieldByName("config")
+	wantBase := "https://api.cloudflare.com/client/v4/accounts/workers-account/ai/v1"
+	if got := configValue.FieldByName("BaseURL").String(); got != wantBase {
+		t.Fatalf("BaseURL = %q, want %q", got, wantBase)
 	}
 }
 

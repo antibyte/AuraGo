@@ -69,9 +69,9 @@
   "help.workspace_search.fuzzy_threshold": "Minimální fuzzy skóre pro výsledky podle cesty. Vyšší hodnoty vrací přísnější shody.",
   "help.workspace_search.exclude": "Soubory, složky nebo glob vzory, které workspace index přeskočí.",
   "help.ai_gateway.account_id": "Vaše Cloudflare Account ID. Naleznete v Cloudflare dashboardu pod Workers & Pages.",
-  "help.ai_gateway.enabled": "Povolit Cloudflare AI Gateway pro proxy všech LLM API požadavků. Poskytuje mezipaměť, omezování rychlosti, protokolování a analytiku. Místní poskytovatelé (Ollama) jsou vyloučeni.",
+  "help.ai_gateway.enabled": "Povolí Cloudflare AI Gateway pro podporované LLM poskytovatele. Místní poskytovatelé jako Ollama se přes bránu nikdy nesměrují.",
   "help.ai_gateway.gateway_id": "Název nebo slug vaší instance AI Gateway v Cloudflare.",
-  "help.ai_gateway.token": "Volitelny token Cloudflare AI Gateway pro autentizovane gatewaye. Uklada se bezpecne do sifrovaneho vaultu a odesila se jako hlavicka cf-aig-authorization.",
+  "help.ai_gateway.token": "Volitelný token pro ověřené Cloudflare AI Gateway. Nativní trasy ho posílají jako cf-aig-authorization; Workers AI používá REST Authorization a cf-aig-gateway-id.",
   "help.ansible.container_name": "Popis: (Sidecar mode only) Docker container name for the auto-managed Ansible sidecar. Výchozí: 'aurago_ansible'.",
   "help.ansible.default_inventory": "Vychozi hodnota pro ansible.",
   "help.ansible.enabled": "Ansible.",
@@ -409,5 +409,12 @@
   "help.agent.reuse_first.auto_materialize": "Povolí automatické vytvoření cheatsheetů/skillů po větších bězích. Výchozí: zapnuto.",
   "help.agent.reuse_first.require_success_signal": "Automaticky vytvoří reuse artefakty jen pokud turn skončil bez chyb nástrojů. Výchozí: zapnuto.",
   "help.agent.reuse_first.min_steps": "Minimum různých kroků nástrojů před automatickou materializací. Výchozí: 3.",
-  "help.agent.reuse_first.max_artifacts_per_session": "Maximum automatických cheatsheetů a skillů za session. Výchozí: 1 od každého."
+  "help.agent.reuse_first.max_artifacts_per_session": "Maximum automatických cheatsheetů a skillů za session. Výchozí: 1 od každého.",
+  "help.ai_gateway.mode": "Automaticky používá bezpečné nativní trasy Cloudflare a nepodporované poskytovatele přeskočí. OpenAI kompatibilní vynutí /openai. Nativní poskytovatel používá segmenty Cloudflare.",
+  "help.ai_gateway.log_mode": "Řídí hlavičky protokolování Cloudflare. Pouze metadata neukládá obsah požadavků, celý obsah ho ukládá a vypnuto collection hlavičky neposílá.",
+  "help.ai_gateway.request_timeout_ms": "Volitelný časový limit požadavku Cloudflare v milisekundách. 0 ponechá výchozí hodnotu.",
+  "help.ai_gateway.max_attempts": "Volitelný počet opakovaných pokusů Cloudflare. 0 ponechá opakování vypnuté nebo výchozí.",
+  "help.ai_gateway.retry_delay_ms": "Prodleva před opakováním požadavku Cloudflare. 0 ponechá výchozí hodnotu.",
+  "help.ai_gateway.backoff": "Volitelná strategie zpětného čekání pro opakování přes gateway.",
+  "help.ai_gateway.metadata": "Volitelná metadata klíč-hodnota posílaná jako cf-aig-metadata. Nevkládejte sem tajné údaje."
 }

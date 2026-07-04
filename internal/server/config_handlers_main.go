@@ -108,6 +108,7 @@ func handleGetConfig(s *Server) http.HandlerFunc {
 		}
 		injectDefaultToolPermissions(rawCfg, s.Cfg)
 		injectRuntimeDockerDefaults(rawCfg, s.Cfg)
+		injectAIGatewayDefaults(rawCfg, s.Cfg)
 
 		// Mask sensitive fields
 		maskSensitiveFields(rawCfg)
@@ -179,6 +180,34 @@ func injectRuntimeDockerDefaults(rawCfg map[string]interface{}, cfg *config.Conf
 	}
 	if _, ok := dockerSection["enabled"]; !ok {
 		dockerSection["enabled"] = cfg.Docker.Enabled
+	}
+}
+
+func injectAIGatewayDefaults(rawCfg map[string]interface{}, cfg *config.Config) {
+	if cfg == nil {
+		return
+	}
+	section, ok := rawCfg["ai_gateway"].(map[string]interface{})
+	if !ok {
+		section = make(map[string]interface{})
+		rawCfg["ai_gateway"] = section
+	}
+	cfgCopy := *cfg
+	config.NormalizeAIGatewayConfig(&cfgCopy)
+	if _, ok := section["mode"]; !ok {
+		section["mode"] = cfgCopy.AIGateway.Mode
+	}
+	if _, ok := section["log_mode"]; !ok {
+		section["log_mode"] = cfgCopy.AIGateway.LogMode
+	}
+	if _, ok := section["metadata"]; !ok {
+		section["metadata"] = cfgCopy.AIGateway.Metadata
+	}
+	setDefaultInt(section, "request_timeout_ms", cfgCopy.AIGateway.RequestTimeoutMS)
+	setDefaultInt(section, "max_attempts", cfgCopy.AIGateway.MaxAttempts)
+	setDefaultInt(section, "retry_delay_ms", cfgCopy.AIGateway.RetryDelayMS)
+	if _, ok := section["backoff"]; !ok {
+		section["backoff"] = cfgCopy.AIGateway.Backoff
 	}
 }
 
@@ -1217,6 +1246,16 @@ func llmHotReloadChanged(oldCfg config.Config, newCfg config.Config) bool {
 		Multimodal                   bool
 		MultimodalProviderTypesExtra []string
 		ProviderCapabilities         []providerCapabilityFingerprint
+		AIGatewayEnabled             bool
+		AIGatewayAccountID           string
+		AIGatewayGatewayID           string
+		AIGatewayMode                string
+		AIGatewayLogMode             string
+		AIGatewayMetadata            map[string]string
+		AIGatewayRequestTimeoutMS    int
+		AIGatewayMaxAttempts         int
+		AIGatewayRetryDelayMS        int
+		AIGatewayBackoff             string
 	}
 	providerCaps := func(cfg config.Config) []providerCapabilityFingerprint {
 		out := make([]providerCapabilityFingerprint, 0, len(cfg.Providers))
@@ -1248,6 +1287,16 @@ func llmHotReloadChanged(oldCfg config.Config, newCfg config.Config) bool {
 		Multimodal:                   oldCfg.LLM.Multimodal,
 		MultimodalProviderTypesExtra: oldCfg.LLM.MultimodalProviderTypesExtra,
 		ProviderCapabilities:         providerCaps(oldCfg),
+		AIGatewayEnabled:             oldCfg.AIGateway.Enabled,
+		AIGatewayAccountID:           oldCfg.AIGateway.AccountID,
+		AIGatewayGatewayID:           oldCfg.AIGateway.GatewayID,
+		AIGatewayMode:                oldCfg.AIGateway.Mode,
+		AIGatewayLogMode:             oldCfg.AIGateway.LogMode,
+		AIGatewayMetadata:            oldCfg.AIGateway.Metadata,
+		AIGatewayRequestTimeoutMS:    oldCfg.AIGateway.RequestTimeoutMS,
+		AIGatewayMaxAttempts:         oldCfg.AIGateway.MaxAttempts,
+		AIGatewayRetryDelayMS:        oldCfg.AIGateway.RetryDelayMS,
+		AIGatewayBackoff:             oldCfg.AIGateway.Backoff,
 	}
 	newFP := llmFingerprint{
 		Provider:                     newCfg.LLM.Provider,
@@ -1263,6 +1312,16 @@ func llmHotReloadChanged(oldCfg config.Config, newCfg config.Config) bool {
 		Multimodal:                   newCfg.LLM.Multimodal,
 		MultimodalProviderTypesExtra: newCfg.LLM.MultimodalProviderTypesExtra,
 		ProviderCapabilities:         providerCaps(newCfg),
+		AIGatewayEnabled:             newCfg.AIGateway.Enabled,
+		AIGatewayAccountID:           newCfg.AIGateway.AccountID,
+		AIGatewayGatewayID:           newCfg.AIGateway.GatewayID,
+		AIGatewayMode:                newCfg.AIGateway.Mode,
+		AIGatewayLogMode:             newCfg.AIGateway.LogMode,
+		AIGatewayMetadata:            newCfg.AIGateway.Metadata,
+		AIGatewayRequestTimeoutMS:    newCfg.AIGateway.RequestTimeoutMS,
+		AIGatewayMaxAttempts:         newCfg.AIGateway.MaxAttempts,
+		AIGatewayRetryDelayMS:        newCfg.AIGateway.RetryDelayMS,
+		AIGatewayBackoff:             newCfg.AIGateway.Backoff,
 	}
 	return !reflect.DeepEqual(oldFP, newFP)
 }

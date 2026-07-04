@@ -69,9 +69,9 @@
   "help.workspace_search.fuzzy_threshold": "Mindste fuzzy-score for stifund. Højere værdier giver strengere resultater.",
   "help.workspace_search.exclude": "Filer, mapper eller globmønstre som workspace-indekset springer over.",
   "help.ai_gateway.account_id": "Dit Cloudflare Account ID. Findes i Cloudflare-dashboardet under Workers & Pages.",
-  "help.ai_gateway.enabled": "Aktivér Cloudflare AI Gateway to proxy all LLM API requests. Provides caching, rate-limiting, logging, and analytics. Local providers (Ollama) are excluded.",
+  "help.ai_gateway.enabled": "Aktiver Cloudflare AI Gateway for understøttede LLM-udbydere. Lokale udbydere som Ollama routes aldrig via gatewayen.",
   "help.ai_gateway.gateway_id": "Navnet eller slug for din AI Gateway-instans i Cloudflare.",
-  "help.ai_gateway.token": "Valgfrit: Cloudflare AI Gateway token for authenticated gateways. Stored securely in the encrypted vault and sent as the cf-aig-authorization header.",
+  "help.ai_gateway.token": "Valgfrit token til godkendte Cloudflare AI Gateways. Udbyder-native ruter sender det som cf-aig-authorization; Workers AI bruger REST Authorization plus cf-aig-gateway-id.",
   "help.ansible.container_name": "Beskrivelse: (Sidecar mode only) Docker container name for the auto-managed Ansible sidecar. Standard: 'aurago_ansible'.",
   "help.ansible.default_inventory": "Beskrivelse: (Local mode only) Standard inventory file (e.g. '/etc/ansible/hosts'). Env var: ANSIBLE_INVENTORY.",
   "help.ansible.enabled": "Aktiverer the Ansible integration. Supports two modes: 'sidecar' (Docker API) and 'local' (ansible CLI directly on the host).",
@@ -409,5 +409,12 @@
   "help.agent.reuse_first.auto_materialize": "Tillader automatisk oprettelse af cheatsheets/skills efter større kørsler. Standard: til.",
   "help.agent.reuse_first.require_success_signal": "Opretter kun genbrugsartefakter automatisk, når runden sluttede uden værktøjsfejl. Standard: til.",
   "help.agent.reuse_first.min_steps": "Minimum antal forskellige værktøjstrin før automatisk materialisering kan køre. Standard: 3.",
-  "help.agent.reuse_first.max_artifacts_per_session": "Maksimalt antal automatiske cheatsheets og skills pr. session. Standard: 1 af hver."
+  "help.agent.reuse_first.max_artifacts_per_session": "Maksimalt antal automatiske cheatsheets og skills pr. session. Standard: 1 af hver.",
+  "help.ai_gateway.mode": "Automatisk bruger sikre udbyder-native Cloudflare-ruter og springer ikke-understøttede udbydere over. OpenAI-kompatibel tvinger /openai. Udbyder-nativ bruger Cloudflares udbydersegmenter.",
+  "help.ai_gateway.log_mode": "Styrer Cloudflares logningsheadere. Kun metadata undgår payload-logning, fuld payload aktiverer den, og fra deaktiverer collection-headere.",
+  "help.ai_gateway.request_timeout_ms": "Valgfri Cloudflare-anmodningstimeout i millisekunder. 0 beholder standarden.",
+  "help.ai_gateway.max_attempts": "Valgfrit antal Cloudflare-gentagelsesforsøg. 0 lader gentagelser være deaktiveret eller standard.",
+  "help.ai_gateway.retry_delay_ms": "Forsinkelse før Cloudflare gentager en anmodning. 0 beholder standarden.",
+  "help.ai_gateway.backoff": "Valgfri Cloudflare-backoff-strategi for gateway-gentagelser.",
+  "help.ai_gateway.metadata": "Valgfri nøgle-værdi-metadata sendt som cf-aig-metadata. Læg ikke hemmeligheder her."
 }

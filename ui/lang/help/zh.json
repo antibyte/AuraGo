@@ -69,9 +69,9 @@
   "help.workspace_search.fuzzy_threshold": "路径模糊匹配结果的最低分数。值越高，匹配越严格。",
   "help.workspace_search.exclude": "workspace 索引跳过的文件、文件夹或 glob 模式。",
   "help.ai_gateway.account_id": "您的 Cloudflare Account ID。可在 Cloudflare 仪表板的 Workers & Pages 下找到。",
-  "help.ai_gateway.enabled": "启用 Cloudflare AI Gateway 代理所有 LLM API 请求。提供缓存、速率限制、日志和分析。本地提供商（Ollama）除外。",
+  "help.ai_gateway.enabled": "为受支持的 LLM 提供商启用 Cloudflare AI Gateway。Ollama 等本地提供商永远不会通过网关路由。",
   "help.ai_gateway.gateway_id": "您在 Cloudflare 中的 AI Gateway 实例的名称或 slug。",
-  "help.ai_gateway.token": "用于已认证网关的可选 Cloudflare AI Gateway 令牌。会安全存储在加密 vault 中，并作为 cf-aig-authorization 标头发送。",
+  "help.ai_gateway.token": "用于已认证 Cloudflare AI Gateway 的可选令牌。提供商原生路由会将其作为 cf-aig-authorization 发送；Workers AI 使用 REST Authorization 和 cf-aig-gateway-id。",
   "help.ansible.container_name": "(仅 sidecar 模式) 自动管理的 Ansible sidecar Docker 容器名称。默认：'aurago_ansible'。",
   "help.ansible.default_inventory": "（仅限本地模式）默认清单文件（例如“/etc/ansible/hosts”）。环境变量：ANSIBLE_INVENTORY。",
   "help.ansible.enabled": "启用 Ansible 集成。支持两种模式：“sidecar”（Docker API）和“local”（直接在主机上的 ansible CLI）。",
@@ -409,5 +409,12 @@
   "help.agent.reuse_first.auto_materialize": "允许在较完整的执行后自动创建 cheatsheet/skill。默认开启。",
   "help.agent.reuse_first.require_success_signal": "只有当前轮次没有工具错误时才自动创建复用产物。默认开启。",
   "help.agent.reuse_first.min_steps": "自动 materialization 运行前所需的不同工具步骤最少数量。默认：3。",
-  "help.agent.reuse_first.max_artifacts_per_session": "每个会话自动创建的 cheatsheet 和 skill 上限。默认各 1。"
+  "help.agent.reuse_first.max_artifacts_per_session": "每个会话自动创建的 cheatsheet 和 skill 上限。默认各 1。",
+  "help.ai_gateway.mode": "自动模式会使用安全的 Cloudflare 提供商原生路由，并跳过不支持的提供商。OpenAI 兼容会强制使用 /openai。提供商原生使用 Cloudflare 提供商段。",
+  "help.ai_gateway.log_mode": "控制 Cloudflare 日志标头。仅元数据避免记录载荷，完整载荷会启用载荷日志，关闭则不发送收集标头。",
+  "help.ai_gateway.request_timeout_ms": "可选的 Cloudflare 请求超时，单位为毫秒。0 保留默认值。",
+  "help.ai_gateway.max_attempts": "可选的 Cloudflare 重试次数。0 表示禁用重试或保留默认值。",
+  "help.ai_gateway.retry_delay_ms": "Cloudflare 重试请求前的延迟。0 保留默认值。",
+  "help.ai_gateway.backoff": "网关重试使用的可选 Cloudflare 退避策略。",
+  "help.ai_gateway.metadata": "作为 cf-aig-metadata 发送的可选键值元数据。不要在这里放入密钥。"
 }

@@ -820,14 +820,17 @@ cloudflare_tunnel:
 
 ## Cloudflare AI Gateway
 
-Routing und Monitoring für LLM-Traffic über Cloudflare AI Gateway.
+Routing für unterstützten LLM-Traffic über Cloudflare AI Gateway, ohne dass Statusprüfungen Tokens verbrauchen.
 
 ### Einrichtung in der Web-UI
 1. Öffne **Config → Integrationen → AI Gateway**.
-2. Aktiviere die Integration.
-3. Trage **Account ID** und **Gateway ID** ein.
-4. Optional: Aktiviere `log_requests` für detailliertes Logging.
-5. Speichere und starte neu.
+2. Aktiviere die Integration und trage **Account ID** sowie **Gateway ID** ein.
+3. Wähle den Routing-Modus. `auto` nutzt sichere anbieter-native Cloudflare-Routen und überspringt nicht unterstützte Anbieter, statt still auf `/openai` zu fallen.
+4. Wähle den Logging-Modus. `metadata_only` ist der datenschutzfreundliche Standard; `full` aktiviert Payload-Logging; `off` deaktiviert Collection-Header.
+5. Optional: Setze Request-Timeout, Wiederholungen, Backoff und nicht geheime Metadaten-Header.
+6. Speichere und nutze danach **Gateway testen** für einen Live-`/models`-Probe.
+
+Workers AI wird über den Cloudflare-REST-Endpunkt (`https://api.cloudflare.com/client/v4/accounts/{account}/ai/v1`) mit `cf-aig-gateway-id` geroutet. Anbieter-native Gateway-Routen nutzen `cf-aig-authorization` für das optionale Authenticated-Gateway-Token. Lege keine Secrets in Metadaten ab.
 
 ### YAML-Referenz
 ```yaml
@@ -835,7 +838,13 @@ ai_gateway:
   enabled: true
   account_id: "YOUR_ACCOUNT_ID"
   gateway_id: "YOUR_GATEWAY_ID"
-  log_requests: false
+  mode: auto                 # auto, openai_compatible, provider_native
+  log_mode: metadata_only    # metadata_only, off, full
+  metadata: {}
+  request_timeout_ms: 0
+  max_attempts: 0
+  retry_delay_ms: 0
+  backoff: ""                # "", constant, linear, exponential
 ```
 
 ## Chromecast Integration

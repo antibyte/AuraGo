@@ -69,9 +69,9 @@
   "help.workspace_search.fuzzy_threshold": "Minimalny wynik fuzzy dla dopasowań ścieżek. Wyższe wartości zwracają bardziej rygorystyczne wyniki.",
   "help.workspace_search.exclude": "Pliki, foldery lub wzorce glob pomijane przez indeks workspace.",
   "help.ai_gateway.account_id": "Twoje Cloudflare Account ID. Znajdziesz je w panelu Cloudflare w sekcji Workers & Pages.",
-  "help.ai_gateway.enabled": "Włącz Cloudflare AI Gateway do proxy wszystkich żądań LLM API. Zapewnia buforowanie, ograniczanie szybkości, logowanie i analitykę. Lokalni dostawcy (Ollama) są wykluczeni.",
+  "help.ai_gateway.enabled": "Włącza Cloudflare AI Gateway dla obsługiwanych dostawców LLM. Lokalni dostawcy, tacy jak Ollama, nigdy nie są kierowani przez bramę.",
   "help.ai_gateway.gateway_id": "Nazwa lub slug Twojej instancji AI Gateway w Cloudflare.",
-  "help.ai_gateway.token": "Opcjonalny token Cloudflare AI Gateway dla uwierzytelnianych bram. Jest bezpiecznie przechowywany w zaszyfrowanym vault i wysylany jako naglowek cf-aig-authorization.",
+  "help.ai_gateway.token": "Opcjonalny token dla uwierzytelnionych Cloudflare AI Gateway. Trasy natywne dostawcy wysyłają go jako cf-aig-authorization; Workers AI używa REST Authorization i cf-aig-gateway-id.",
   "help.ansible.container_name": "(Tylko tryb sidecar) Nazwa kontenera Docker dla automatycznie zarządzanego Ansible sidecar. Domyślnie: 'aurago_ansible'.",
   "help.ansible.default_inventory": "(Tryb lokalny tylko) Domyślny plik inwentarza (np. '/etc/ansible/hosts'). Zmienna env: ANSIBLE_INVENTORY.",
   "help.ansible.enabled": "Włącza integrację Ansible. Obsługuje dwa tryby: 'sidecar' (Docker API) i 'local' (ansible CLI bezpośrednio na hoście).",
@@ -409,5 +409,12 @@
   "help.agent.reuse_first.auto_materialize": "Pozwala automatycznie tworzyć cheatsheety/skille po większych przebiegach. Domyślnie: włączone.",
   "help.agent.reuse_first.require_success_signal": "Tworzy artefakty reuse automatycznie tylko gdy tura zakończyła się bez błędów narzędzi. Domyślnie: włączone.",
   "help.agent.reuse_first.min_steps": "Minimalna liczba różnych kroków narzędzi przed automatyczną materializacją. Domyślnie: 3.",
-  "help.agent.reuse_first.max_artifacts_per_session": "Maksymalna liczba automatycznych cheatsheetów i skilli na sesję. Domyślnie: po 1."
+  "help.agent.reuse_first.max_artifacts_per_session": "Maksymalna liczba automatycznych cheatsheetów i skilli na sesję. Domyślnie: po 1.",
+  "help.ai_gateway.mode": "Automatyczny używa bezpiecznych natywnych tras Cloudflare i pomija nieobsługiwanych dostawców. Zgodny z OpenAI wymusza /openai. Natywny dostawcy używa segmentów Cloudflare.",
+  "help.ai_gateway.log_mode": "Steruje nagłówkami logowania Cloudflare. Tylko metadane nie loguje payloadu, pełny payload go loguje, a wyłączone nie wysyła nagłówków collection.",
+  "help.ai_gateway.request_timeout_ms": "Opcjonalny limit czasu żądania Cloudflare w milisekundach. 0 pozostawia wartość domyślną.",
+  "help.ai_gateway.max_attempts": "Opcjonalna liczba ponowień Cloudflare. 0 pozostawia ponowienia wyłączone lub domyślne.",
+  "help.ai_gateway.retry_delay_ms": "Opóźnienie przed ponowieniem żądania przez Cloudflare. 0 pozostawia wartość domyślną.",
+  "help.ai_gateway.backoff": "Opcjonalna strategia backoff Cloudflare dla ponowień gateway.",
+  "help.ai_gateway.metadata": "Opcjonalne metadane klucz-wartość wysyłane jako cf-aig-metadata. Nie umieszczaj tu sekretów."
 }

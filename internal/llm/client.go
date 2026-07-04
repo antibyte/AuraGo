@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -187,15 +188,12 @@ func buildOpenAIClientConfig(cfg *config.Config, p resolvedProvider) openai.Clie
 	}
 
 	if cfg != nil && cfg.AIGateway.Enabled && cfg.AIGateway.AccountID != "" && cfg.AIGateway.GatewayID != "" && !isLocal {
-		segment := aiGatewaySegment(providerType)
-		if segment != "" {
-			clientConfig.BaseURL = fmt.Sprintf(
-				"https://gateway.ai.cloudflare.com/v1/%s/%s/%s",
-				cfg.AIGateway.AccountID,
-				cfg.AIGateway.GatewayID,
-				segment,
-			)
-			aiGatewayToken = cfg.AIGateway.Token
+		route := ResolveAIGatewayRoute(cfg, providerType, accountID)
+		if route.RouteSupported {
+			clientConfig.BaseURL = route.Endpoint
+			if route.AuthHeader == "cf-aig-authorization" {
+				aiGatewayToken = cfg.AIGateway.Token
+			}
 		}
 	}
 
@@ -302,8 +300,8 @@ func buildLLMHTTPClient(cfg *config.Config, providerType, aiGatewayToken, baseUR
 		)
 	}
 
-	if token := strings.TrimSpace(aiGatewayToken); token != "" {
-		transport = &aiGatewayAuthTransport{base: transport, token: token}
+	if gatewayTransport := aiGatewayTransportFromConfig(cfg, providerType, aiGatewayToken, baseURL, transport); gatewayTransport != nil {
+		transport = gatewayTransport
 	}
 
 	if providerType == "minimax" || providerType == "glm" {
@@ -420,7 +418,7 @@ func isOfficialOpenAIBaseURL(rawURL string) bool {
 
 // aiGatewaySegment maps a provider type to the Cloudflare AI Gateway URL segment.
 func aiGatewaySegment(providerType string) string {
-	switch providerType {
+	switch strings.ToLower(strings.TrimSpace(providerType)) {
 	case "openai":
 		return "openai"
 	case "anthropic":
@@ -429,22 +427,107 @@ func aiGatewaySegment(providerType string) string {
 		return "google-ai-studio"
 	case "workers-ai":
 		return "workers-ai"
-	case "openrouter", "custom", "manifest":
-		// OpenRouter, Manifest, and custom providers are OpenAI-compatible.
-		return "openai"
-	case "yepapi":
-		// YepAPI LLM endpoint is OpenAI-compatible
-		return "openai"
-	case "deepseek", "groq", "mistral", "xai", "moonshot", "qwen", "zai", "llamacpp", "lmstudio":
-		// All Manifest Phase-1 providers are OpenAI-compatible.
-		return "openai"
-	case "opencode-go":
-		return "openai"
-	case "copilot":
-		// Copilot is OpenAI-compatible (with custom headers)
-		return "openai"
+	case "openrouter":
+		return "openrouter"
+	case "deepseek":
+		return "deepseek"
+	case "groq":
+		return "groq"
+	case "mistral":
+		return "mistral"
+	case "xai":
+		return "xai"
 	default:
 		return ""
+	}
+}
+
+// AIGatewayRoute describes how a provider would be routed through Cloudflare AI Gateway.
+type AIGatewayRoute struct {
+	Status         string
+	Message        string
+	Provider       string
+	Mode           string
+	Endpoint       string
+	Segment        string
+	RouteSupported bool
+	PrivacyMode    string
+	AuthHeader     string
+	GatewayID      string
+	Warnings       []string
+}
+
+// ResolveAIGatewayRoute returns the runtime route AuraGo will use for an LLM provider.
+func ResolveAIGatewayRoute(cfg *config.Config, providerType, providerAccountID string) AIGatewayRoute {
+	provider := strings.ToLower(strings.TrimSpace(providerType))
+	route := AIGatewayRoute{
+		Status:      "disabled",
+		Message:     "AI Gateway is not enabled",
+		Provider:    provider,
+		Mode:        "auto",
+		PrivacyMode: "metadata_only",
+	}
+	if cfg == nil {
+		return route
+	}
+	cfgCopy := *cfg
+	config.NormalizeAIGatewayConfig(&cfgCopy)
+	gw := cfgCopy.AIGateway
+	route.Mode = gw.Mode
+	route.PrivacyMode = gw.LogMode
+	route.GatewayID = strings.TrimSpace(gw.GatewayID)
+	if !gw.Enabled {
+		return route
+	}
+	route.Status = "no_credentials"
+	route.Message = "AI Gateway account ID or gateway ID is not configured"
+	accountID := strings.TrimSpace(gw.AccountID)
+	if accountID == "" || route.GatewayID == "" {
+		return route
+	}
+	if isLocalProviderType(provider) {
+		route.Status = "local_provider"
+		route.Message = "Local providers are not routed through Cloudflare AI Gateway"
+		route.Warnings = append(route.Warnings, "Local providers are excluded from AI Gateway routing.")
+		return route
+	}
+	if provider == "workers-ai" {
+		workersAccountID := strings.TrimSpace(providerAccountID)
+		if workersAccountID == "" {
+			workersAccountID = accountID
+		}
+		route.Status = "configured"
+		route.Message = "AI Gateway route configured"
+		route.RouteSupported = true
+		route.AuthHeader = "Authorization"
+		route.Endpoint = fmt.Sprintf("https://api.cloudflare.com/client/v4/accounts/%s/ai/v1", workersAccountID)
+		return route
+	}
+	segment := aiGatewaySegment(provider)
+	if segment == "" && gw.Mode == "openai_compatible" && isOpenAICompatibleAIGatewayProvider(provider) {
+		segment = "openai"
+	}
+	if segment == "" {
+		route.Status = "unsupported_provider"
+		route.Message = "AI Gateway does not have a safe route for this provider in the selected mode"
+		route.Warnings = append(route.Warnings, fmt.Sprintf("Provider %q is not routed through AI Gateway in mode %q.", provider, gw.Mode))
+		return route
+	}
+	route.Status = "configured"
+	route.Message = "AI Gateway route configured"
+	route.RouteSupported = true
+	route.AuthHeader = "cf-aig-authorization"
+	route.Segment = segment
+	route.Endpoint = fmt.Sprintf("https://gateway.ai.cloudflare.com/v1/%s/%s/%s", accountID, route.GatewayID, segment)
+	return route
+}
+
+func isOpenAICompatibleAIGatewayProvider(providerType string) bool {
+	switch strings.ToLower(strings.TrimSpace(providerType)) {
+	case "openai", "openrouter", "custom", "manifest", "yepapi", "deepseek", "groq", "mistral", "xai", "moonshot", "qwen", "zai", "copilot", "opencode-go":
+		return true
+	default:
+		return false
 	}
 }
 
@@ -463,8 +546,16 @@ type openAIPromptCacheTransport struct {
 }
 
 type aiGatewayAuthTransport struct {
-	base  http.RoundTripper
-	token string
+	base             http.RoundTripper
+	token            string
+	gatewayID        string
+	collectLog       bool
+	collectPayload   bool
+	metadata         map[string]string
+	requestTimeoutMS int
+	maxAttempts      int
+	retryDelayMS     int
+	backoff          string
 }
 
 func (t *openAIPromptCacheTransport) RoundTrip(req *http.Request) (*http.Response, error) {
@@ -584,13 +675,86 @@ func openAICacheStablePrefix(system string) string {
 func (t *aiGatewayAuthTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	clone := req.Clone(req.Context())
 	clone.Header = req.Header.Clone()
-	clone.Header.Set("cf-aig-authorization", "Bearer "+t.token)
+	if strings.TrimSpace(t.token) != "" {
+		clone.Header.Set("cf-aig-authorization", "Bearer "+strings.TrimSpace(t.token))
+	}
+	if strings.TrimSpace(t.gatewayID) != "" {
+		clone.Header.Set("cf-aig-gateway-id", strings.TrimSpace(t.gatewayID))
+	}
+	clone.Header.Set("cf-aig-collect-log", strconv.FormatBool(t.collectLog))
+	clone.Header.Set("cf-aig-collect-log-payload", strconv.FormatBool(t.collectPayload))
+	if len(t.metadata) > 0 {
+		if raw, err := json.Marshal(t.metadata); err == nil {
+			clone.Header.Set("cf-aig-metadata", string(raw))
+		}
+	}
+	if t.requestTimeoutMS > 0 {
+		clone.Header.Set("cf-aig-request-timeout", strconv.Itoa(t.requestTimeoutMS))
+	}
+	if t.maxAttempts > 0 {
+		clone.Header.Set("cf-aig-max-attempts", strconv.Itoa(t.maxAttempts))
+	}
+	if t.retryDelayMS > 0 {
+		clone.Header.Set("cf-aig-retry-delay", strconv.Itoa(t.retryDelayMS))
+	}
+	if strings.TrimSpace(t.backoff) != "" {
+		clone.Header.Set("cf-aig-backoff", strings.TrimSpace(t.backoff))
+	}
 
 	base := t.base
 	if base == nil {
 		base = http.DefaultTransport
 	}
 	return base.RoundTrip(clone)
+}
+
+func aiGatewayTransportFromConfig(cfg *config.Config, providerType, aiGatewayToken, baseURL string, base http.RoundTripper) http.RoundTripper {
+	if cfg == nil || !cfg.AIGateway.Enabled || !isAIGatewayRoutedBaseURL(providerType, baseURL) {
+		return nil
+	}
+	cfgCopy := *cfg
+	config.NormalizeAIGatewayConfig(&cfgCopy)
+	gw := cfgCopy.AIGateway
+	transport := &aiGatewayAuthTransport{
+		base:             base,
+		metadata:         gw.Metadata,
+		requestTimeoutMS: gw.RequestTimeoutMS,
+		maxAttempts:      gw.MaxAttempts,
+		retryDelayMS:     gw.RetryDelayMS,
+		backoff:          gw.Backoff,
+	}
+	switch gw.LogMode {
+	case "off":
+		transport.collectLog = false
+		transport.collectPayload = false
+	case "full":
+		transport.collectLog = true
+		transport.collectPayload = true
+	default:
+		transport.collectLog = true
+		transport.collectPayload = false
+	}
+	if strings.ToLower(strings.TrimSpace(providerType)) == "workers-ai" {
+		transport.gatewayID = gw.GatewayID
+	} else {
+		transport.token = aiGatewayToken
+	}
+	return transport
+}
+
+func isAIGatewayRoutedBaseURL(providerType, baseURL string) bool {
+	parsed, err := url.Parse(strings.TrimSpace(baseURL))
+	if err != nil || parsed == nil {
+		return false
+	}
+	host := strings.ToLower(parsed.Hostname())
+	if host == "gateway.ai.cloudflare.com" {
+		return true
+	}
+	return strings.ToLower(strings.TrimSpace(providerType)) == "workers-ai" &&
+		host == "api.cloudflare.com" &&
+		strings.Contains(parsed.Path, "/client/v4/accounts/") &&
+		strings.Contains(parsed.Path, "/ai/v1")
 }
 
 func (t *miniMaxTransport) RoundTrip(req *http.Request) (*http.Response, error) {
