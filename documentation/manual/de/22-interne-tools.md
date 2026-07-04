@@ -700,6 +700,10 @@ Frigate NVR (Network Video Recorder) Integration. Kamerastatus, Objekterkennungs
 | `zone` | string | Zonen-Filter |
 | `after` / `before` | integer | Unix-Zeitstempel-Bereich |
 | `limit` / `offset` | integer | Paginierung für Events und Reviews |
+| `cameras` / `labels` / `zones` | string | Kommagetrennte Review-Filter |
+| `reviewed` | boolean | Reviews nach geprüftem Status filtern |
+| `severity` | string | Review-Schweregrad, zum Beispiel `alert` oder `detection` |
+| `start_time` / `end_time` | string | Unix-Zeitstempel-Bereich für Aufnahme-Clips |
 
 ---
 

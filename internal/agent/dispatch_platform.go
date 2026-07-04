@@ -599,7 +599,7 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				ReadOnly:      cfg.Frigate.ReadOnly,
 			}
 			eventParams := tools.FrigateEventParams{Camera: req.Camera, EventID: req.EventID, Label: req.Label, Zone: req.Zone, After: req.After, Before: req.Before, MinScore: req.MinScore, HasClip: req.HasClip, HasSnapshot: req.HasSnapshot, Limit: req.Limit, Offset: req.Offset}
-			reviewParams := tools.FrigateReviewParams{Camera: req.Camera, After: req.After, Before: req.Before, Limit: req.Limit, Offset: req.Offset, InProgress: req.InProgress, Cameras: req.Cameras, Labels: req.Labels, Zones: req.Zones}
+			reviewParams := tools.FrigateReviewParams{Camera: req.Camera, After: req.After, Before: req.Before, Limit: req.Limit, Offset: req.Offset, InProgress: req.InProgress, Reviewed: req.Reviewed, Cameras: req.Cameras, Labels: req.Labels, Zones: req.Zones, Severity: req.Severity}
 			mediaParams := tools.FrigateMediaParams{Camera: req.Camera, EventID: req.EventID, StartTime: req.StartTime, EndTime: req.EndTime, Playback: req.Playback}
 			switch req.Operation {
 			case "status", "health":

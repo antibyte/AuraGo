@@ -719,6 +719,10 @@ Frigate NVR (Network Video Recorder) integration. Query camera status, object de
 | `zone` | string | Zone name filter |
 | `after` / `before` | integer | Unix timestamp range |
 | `limit` / `offset` | integer | Pagination for events and reviews |
+| `cameras` / `labels` / `zones` | string | Comma-separated review filters |
+| `reviewed` | boolean | Filter reviews by reviewed state |
+| `severity` | string | Review severity filter, for example `alert` or `detection` |
+| `start_time` / `end_time` | string | Unix timestamp range for recording clips |
 
 ---
 

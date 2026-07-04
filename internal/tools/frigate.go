@@ -53,9 +53,11 @@ type FrigateReviewParams struct {
 	Limit      int
 	Offset     int
 	InProgress *bool
+	Reviewed   *bool
 	Cameras    string
 	Labels     string
 	Zones      string
+	Severity   string
 }
 
 // FrigateMediaParams contains parameters for image/video operations.
@@ -215,6 +217,17 @@ func addFrigateBoolQuery(q url.Values, key string, value *bool) {
 	}
 }
 
+func addFrigateBoolIntQuery(q url.Values, key string, value *bool) {
+	if value == nil {
+		return
+	}
+	if *value {
+		q.Set(key, "1")
+		return
+	}
+	q.Set(key, "0")
+}
+
 func frigatePath(path string, q url.Values) string {
 	if encoded := q.Encode(); encoded != "" {
 		return path + "?" + encoded
@@ -266,10 +279,13 @@ func FrigateEvent(cfg FrigateConfig, eventID string) string {
 // FrigateReviews queries review items.
 func FrigateReviews(cfg FrigateConfig, params FrigateReviewParams) string {
 	q := url.Values{}
-	addFrigateQuery(q, "camera", firstNonEmptyString(params.Camera, cfg.DefaultCamera))
+	addFrigateQuery(q, "cameras", firstNonEmptyString(params.Cameras, params.Camera, cfg.DefaultCamera))
+	addFrigateQuery(q, "labels", params.Labels)
+	addFrigateQuery(q, "zones", params.Zones)
 	addFrigateIntQuery(q, "after", params.After)
 	addFrigateIntQuery(q, "before", params.Before)
-	addFrigateBoolQuery(q, "in_progress", params.InProgress)
+	addFrigateBoolIntQuery(q, "reviewed", params.Reviewed)
+	addFrigateQuery(q, "severity", params.Severity)
 	if params.Limit > 0 {
 		q.Set("limit", strconv.Itoa(params.Limit))
 	}
@@ -296,8 +312,7 @@ func FrigateReviewActivity(cfg FrigateConfig, params FrigateReviewParams) string
 	addFrigateIntQuery(q, "after", params.After)
 	addFrigateIntQuery(q, "before", params.Before)
 	addFrigateQuery(q, "cameras", params.Cameras)
-	addFrigateBoolQuery(q, "in_progress", params.InProgress)
-	return frigateGetJSON(cfg, frigatePath("/api/review/activity", q))
+	return frigateGetJSON(cfg, frigatePath("/api/review/activity/motion", q))
 }
 
 // FrigateMedia fetches snapshots, clips, latest frames, or exported recording data.
@@ -325,11 +340,7 @@ func FrigateMedia(cfg FrigateConfig, operation string, params FrigateMediaParams
 		if strings.TrimSpace(camera) == "" || strings.TrimSpace(params.StartTime) == "" || strings.TrimSpace(params.EndTime) == "" {
 			return nil, "", fmt.Errorf("camera, start_time, and end_time are required")
 		}
-		q := url.Values{}
-		q.Set("start", params.StartTime)
-		q.Set("end", params.EndTime)
-		addFrigateQuery(q, "playback", params.Playback)
-		path = frigatePath("/api/"+url.PathEscape(camera)+"/recordings/export", q)
+		path = "/api/" + url.PathEscape(camera) + "/start/" + url.PathEscape(strings.TrimSpace(params.StartTime)) + "/end/" + url.PathEscape(strings.TrimSpace(params.EndTime)) + "/clip.mp4"
 	default:
 		return nil, "", fmt.Errorf("unsupported media operation %q", operation)
 	}
@@ -340,7 +351,15 @@ func FrigateMedia(cfg FrigateConfig, operation string, params FrigateMediaParams
 	if code < 200 || code >= 300 {
 		return nil, "", fmt.Errorf("Frigate returned HTTP %d: %s", code, string(data))
 	}
-	return data, http.DetectContentType(data), nil
+	return data, frigateContentType(data, operation), nil
+}
+
+func frigateContentType(data []byte, operation string) string {
+	contentType := http.DetectContentType(data)
+	if contentType == "application/octet-stream" && (operation == "event_clip" || operation == "export_recording") {
+		return "video/mp4"
+	}
+	return contentType
 }
 
 // StoreFrigateMedia persists a Frigate media response in the AuraGo data directory.

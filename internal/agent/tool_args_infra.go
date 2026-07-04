@@ -91,12 +91,14 @@ type frigateArgs struct {
 	Limit       int
 	Offset      int
 	InProgress  *bool
+	Reviewed    *bool
 	StartTime   string
 	EndTime     string
 	Playback    string
 	Cameras     string
 	Labels      string
 	Zones       string
+	Severity    string
 }
 
 type threeDPrinterArgs struct {
@@ -661,12 +663,14 @@ func decodeFrigateArgs(tc ToolCall) frigateArgs {
 		Limit:       toolArgInt(tc.Params, tc.Limit, "limit"),
 		Offset:      toolArgInt(tc.Params, 0, "offset"),
 		InProgress:  toolArgBoolPtr(tc.Params, "in_progress"),
+		Reviewed:    toolArgBoolPtr(tc.Params, "reviewed"),
 		StartTime:   firstNonEmptyToolString(toolArgString(tc.Params, "start_time")),
 		EndTime:     firstNonEmptyToolString(toolArgString(tc.Params, "end_time")),
 		Playback:    firstNonEmptyToolString(toolArgString(tc.Params, "playback")),
 		Cameras:     firstNonEmptyToolString(toolArgString(tc.Params, "cameras")),
 		Labels:      firstNonEmptyToolString(toolArgString(tc.Params, "labels")),
 		Zones:       firstNonEmptyToolString(toolArgString(tc.Params, "zones")),
+		Severity:    firstNonEmptyToolString(toolArgString(tc.Params, "severity")),
 	}
 }
 

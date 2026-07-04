@@ -48,11 +48,43 @@ func TestHandleFrigateTestRequiresURL(t *testing.T) {
 	rec := httptest.NewRecorder()
 	handleFrigateTest(s).ServeHTTP(rec, req)
 
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status code = %d, want %d", rec.Code, http.StatusBadRequest)
+	}
 	var body map[string]interface{}
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 		t.Fatalf("json.Unmarshal error = %v", err)
 	}
 	if body["status"] != "error" {
 		t.Fatalf("status = %#v, want error", body["status"])
+	}
+}
+
+func TestHandleFrigateTestDisabledReturnsBadRequest(t *testing.T) {
+	s := &Server{Cfg: &config.Config{}, Logger: slog.Default()}
+	req := httptest.NewRequest(http.MethodPost, "/api/frigate/test", nil)
+	rec := httptest.NewRecorder()
+	handleFrigateTest(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status code = %d, want %d", rec.Code, http.StatusBadRequest)
+	}
+}
+
+func TestHandleFrigateTestUpstreamErrorReturnsBadGateway(t *testing.T) {
+	srv := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "nope", http.StatusBadGateway)
+	}))
+	defer srv.Close()
+	s := &Server{Cfg: &config.Config{}, Logger: slog.Default()}
+	s.Cfg.Frigate.Enabled = true
+	s.Cfg.Frigate.URL = srv.URL
+
+	req := httptest.NewRequest(http.MethodPost, "/api/frigate/test", nil)
+	rec := httptest.NewRecorder()
+	handleFrigateTest(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadGateway {
+		t.Fatalf("status code = %d, want %d; body=%s", rec.Code, http.StatusBadGateway, rec.Body.String())
 	}
 }

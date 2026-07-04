@@ -409,6 +409,19 @@ func nativeToolProperties(t *testing.T, schemas []openai.Tool, name string) map[
 	return nil
 }
 
+func TestFrigateNativeSchemaUsesCurrentReviewFilters(t *testing.T) {
+	schemas := builtinToolSchemas(ToolFeatureFlags{FrigateEnabled: true})
+	props := nativeToolProperties(t, schemas, "frigate")
+	for _, want := range []string{"reviewed", "severity"} {
+		if _, ok := props[want]; !ok {
+			t.Fatalf("frigate schema missing %q", want)
+		}
+	}
+	if _, ok := props["in_progress"]; ok {
+		t.Fatal("frigate schema should not advertise obsolete in_progress review filter")
+	}
+}
+
 func TestBuiltinToolSchemasRegistersMeshCentralOnlyOnce(t *testing.T) {
 	schemas := builtinToolSchemas(ToolFeatureFlags{MeshCentralEnabled: true})
 	count := 0

@@ -10,12 +10,12 @@ Query Frigate NVR cameras, object detection events, review summaries, snapshots,
 | `event` | Get one event | `event_id` |
 | `event_snapshot` | Fetch and, when `frigate.store_media` is enabled, store an event snapshot | `event_id` |
 | `event_clip` | Fetch and, when `frigate.store_media` is enabled, store an event clip | `event_id` |
-| `reviews` | List review items | `camera`, `after`, `before`, `limit`, `offset`, `in_progress` |
+| `reviews` | List review items | `camera`, `cameras`, `labels`, `zones`, `reviewed`, `severity`, `after`, `before`, `limit`, `offset` |
 | `review_summary` | Review summary | `after`, `before`, `cameras`, `labels`, `zones` |
-| `review_activity` | Motion/audio activity over time | `after`, `before`, `cameras`, `in_progress` |
+| `review_activity` | Motion/audio activity over time | `after`, `before`, `cameras` |
 | `latest_frame` | Fetch and, when `frigate.store_media` is enabled, store the latest camera frame | `camera` |
 | `recordings_summary` | Recording availability | `camera`, `start_time`, `end_time` |
-| `export_recording` | Export and, when `frigate.store_media` is enabled, store a recording segment | `camera`, `start_time`, `end_time`, `playback` |
+| `export_recording` | Fetch and, when `frigate.store_media` is enabled, store a recording clip | `camera`, `start_time`, `end_time` |
 | `config` | Read processed config | none |
 | `config_raw` | Read raw config | none |
 
@@ -36,7 +36,8 @@ Examples:
 Notes:
 - Current Frigate tool operations are read-only against the Frigate API. Media operations may write fetched files into AuraGo's local data directory when `frigate.store_media` is enabled.
 - `default_camera` is used for camera-specific queries when `camera` is omitted.
-- Time filters use Unix seconds. `start_time` and `end_time` may use values accepted by the Frigate API.
+- Time filters use Unix seconds. `start_time` and `end_time` for `export_recording` should be Unix timestamps.
 - `offset` paginates `events` and `reviews` together with `limit`.
+- `reviews` uses Frigate's current `cameras`, `labels`, `zones`, `reviewed`, and `severity` filters. A single `camera` value is converted to `cameras`.
 - Stored media responses include `local_path`, `web_path`, `sha256`, and `media_id` when the media registry is available.
 - `event_relay` and `review_relay` subscribe to Frigate MQTT event/review topics when MQTT is enabled.

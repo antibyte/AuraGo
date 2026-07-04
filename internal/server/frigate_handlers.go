@@ -7,6 +7,11 @@ import (
 	"aurago/internal/tools"
 )
 
+func writeFrigateTestError(w http.ResponseWriter, status int, message string) {
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "error", "message": message})
+}
+
 func handleFrigateTest(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -16,11 +21,11 @@ func handleFrigateTest(s *Server) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		if !s.Cfg.Frigate.Enabled {
-			json.NewEncoder(w).Encode(map[string]interface{}{"status": "error", "message": "Frigate integration is not enabled"})
+			writeFrigateTestError(w, http.StatusBadRequest, "Frigate integration is not enabled")
 			return
 		}
 		if s.Cfg.Frigate.URL == "" {
-			json.NewEncoder(w).Encode(map[string]interface{}{"status": "error", "message": "Frigate URL is not configured"})
+			writeFrigateTestError(w, http.StatusBadRequest, "Frigate URL is not configured")
 			return
 		}
 
@@ -34,10 +39,11 @@ func handleFrigateTest(s *Server) http.HandlerFunc {
 		})
 		var data map[string]interface{}
 		if err := json.Unmarshal([]byte(raw), &data); err != nil {
-			json.NewEncoder(w).Encode(map[string]interface{}{"status": "error", "message": "Frigate returned an invalid health response"})
+			writeFrigateTestError(w, http.StatusBadGateway, "Frigate returned an invalid health response")
 			return
 		}
 		if data["status"] == "error" {
+			w.WriteHeader(http.StatusBadGateway)
 			json.NewEncoder(w).Encode(data)
 			return
 		}

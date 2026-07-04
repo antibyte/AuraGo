@@ -50,7 +50,7 @@ func TestFrigateEventsBuildsQuery(t *testing.T) {
 func TestFrigateReviewsBuildsOffsetQuery(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		q := r.URL.Query()
-		if r.URL.Path != "/api/review" || q.Get("camera") != "garage" || q.Get("limit") != "25" || q.Get("offset") != "50" {
+		if r.URL.Path != "/api/review" || q.Get("cameras") != "garage" || q.Get("limit") != "25" || q.Get("offset") != "50" {
 			t.Fatalf("unexpected request path=%q query=%s", r.URL.Path, r.URL.RawQuery)
 		}
 		_, _ = w.Write([]byte(`[{"id":"review-1"}]`))
@@ -59,6 +59,45 @@ func TestFrigateReviewsBuildsOffsetQuery(t *testing.T) {
 
 	out := FrigateReviews(FrigateConfig{URL: server.URL}, FrigateReviewParams{Camera: "garage", Limit: 25, Offset: 50})
 	if !strings.Contains(out, `"review-1"`) {
+		t.Fatalf("unexpected output: %s", out)
+	}
+}
+
+func TestFrigateReviewsBuildsCurrentFilters(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+		if r.URL.Path != "/api/review" || q.Get("cameras") != "doorbell,garage" || q.Get("labels") != "person" || q.Get("zones") != "porch" || q.Get("reviewed") != "0" || q.Get("severity") != "alert" {
+			t.Fatalf("unexpected request path=%q query=%s", r.URL.Path, r.URL.RawQuery)
+		}
+		_, _ = w.Write([]byte(`[{"id":"review-2"}]`))
+	}))
+	defer server.Close()
+
+	reviewed := false
+	out := FrigateReviews(FrigateConfig{URL: server.URL}, FrigateReviewParams{
+		Cameras:  "doorbell,garage",
+		Labels:   "person",
+		Zones:    "porch",
+		Reviewed: &reviewed,
+		Severity: "alert",
+	})
+	if !strings.Contains(out, `"review-2"`) {
+		t.Fatalf("unexpected output: %s", out)
+	}
+}
+
+func TestFrigateReviewActivityUsesMotionEndpoint(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+		if r.URL.Path != "/api/review/activity/motion" || q.Get("cameras") != "front" {
+			t.Fatalf("unexpected request path=%q query=%s", r.URL.Path, r.URL.RawQuery)
+		}
+		_, _ = w.Write([]byte(`{"motion":true}`))
+	}))
+	defer server.Close()
+
+	out := FrigateReviewActivity(FrigateConfig{URL: server.URL}, FrigateReviewParams{Cameras: "front"})
+	if !strings.Contains(out, `"motion":true`) {
 		t.Fatalf("unexpected output: %s", out)
 	}
 }
@@ -88,6 +127,34 @@ func TestFrigateMediaRequiresEventID(t *testing.T) {
 	_, _, err := FrigateMedia(FrigateConfig{URL: "http://example.invalid"}, "event_snapshot", FrigateMediaParams{})
 	if err == nil || !strings.Contains(err.Error(), "event_id is required") {
 		t.Fatalf("err = %v, want event_id error", err)
+	}
+}
+
+func TestFrigateMediaExportRecordingUsesClipEndpoint(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Fatalf("method = %s, want GET", r.Method)
+		}
+		if r.URL.Path != "/api/front/start/1767225600/end/1767225900/clip.mp4" {
+			t.Fatalf("path = %q, want recording clip endpoint", r.URL.Path)
+		}
+		_, _ = w.Write([]byte{0, 0, 0, 24, 'f', 't', 'y', 'p', 'm', 'p', '4', '2'})
+	}))
+	defer server.Close()
+
+	data, contentType, err := FrigateMedia(FrigateConfig{URL: server.URL}, "export_recording", FrigateMediaParams{
+		Camera:    "front",
+		StartTime: "1767225600",
+		EndTime:   "1767225900",
+	})
+	if err != nil {
+		t.Fatalf("FrigateMedia error = %v", err)
+	}
+	if len(data) == 0 {
+		t.Fatal("expected media data")
+	}
+	if !strings.Contains(contentType, "video/mp4") {
+		t.Fatalf("contentType = %q, want video/mp4", contentType)
 	}
 }
 
