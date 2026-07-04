@@ -133,6 +133,26 @@ func TestNormalizeOllamaModelsBaseURLAllowsLocalOllamaPort(t *testing.T) {
 	}
 }
 
+func TestNormalizeOllamaModelsBaseURLAllowsConfiguredLocalPort(t *testing.T) {
+	t.Parallel()
+
+	got, err := normalizeOllamaModelsBaseURL("http://localhost:11440/v1")
+	if err != nil {
+		t.Fatalf("expected configured local Ollama port to be allowed: %v", err)
+	}
+	if got != "http://localhost:11440" {
+		t.Fatalf("normalized URL = %q, want http://localhost:11440", got)
+	}
+}
+
+func TestValidateSetupTestBaseURLAllowsConfiguredLocalOllamaPort(t *testing.T) {
+	t.Parallel()
+
+	if err := validateSetupTestBaseURL("ollama", "http://localhost:11440/v1"); err != nil {
+		t.Fatalf("expected configured local Ollama port to be allowed: %v", err)
+	}
+}
+
 func TestResolveMeshCentralTestURLRejectsDifferentOverrideHost(t *testing.T) {
 	t.Parallel()
 

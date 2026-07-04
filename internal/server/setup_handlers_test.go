@@ -345,9 +345,9 @@ func TestValidateSetupTestBaseURLAllowsDockerOllamaURL(t *testing.T) {
 	}
 }
 
-func TestValidateSetupTestBaseURLRejectsOllamaUnexpectedPort(t *testing.T) {
-	if err := validateSetupTestBaseURL("ollama", "http://host.docker.internal:8080/v1"); err == nil {
-		t.Fatal("expected unexpected Ollama port to be rejected")
+func TestValidateSetupTestBaseURLAllowsOllamaConfiguredPort(t *testing.T) {
+	if err := validateSetupTestBaseURL("ollama", "http://host.docker.internal:8080/v1"); err != nil {
+		t.Fatalf("expected configured Ollama port to be allowed: %v", err)
 	}
 }
 

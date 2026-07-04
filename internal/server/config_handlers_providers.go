@@ -441,12 +441,8 @@ func normalizeOllamaModelsBaseURL(rawURL string) (string, error) {
 	if err := validateSetupTestBaseURL("ollama", ollamaHost); err != nil {
 		return "", err
 	}
-	parsed, err := neturl.Parse(ollamaHost)
-	if err != nil {
+	if _, err := neturl.Parse(ollamaHost); err != nil {
 		return "", fmt.Errorf("invalid URL: %w", err)
-	}
-	if parsed.Port() != "11434" {
-		return "", fmt.Errorf("ollama URL must use port 11434")
 	}
 	return ollamaHost, nil
 }

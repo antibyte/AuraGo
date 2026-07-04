@@ -209,7 +209,7 @@ func EnsureOllamaEmbeddingsRunning(cfg *config.Config, logger interface {
 		fmt.Sprintf(`/containers/json?filters={"status":["running"],"ancestor":[%q]}`, image), "")
 	if listErr == nil && listCode == 200 {
 		var containers []map[string]interface{}
-		if json.Unmarshal(listData, &containers) == nil && len(containers) > 0 {
+		if json.Unmarshal(listData, &containers) == nil && len(containers) > 0 && ollamaContainerListHasHostPort(listData, port) {
 			logger.Info("[Ollama Embeddings] Container already running (external)", "count", len(containers))
 			waitForOllamaReady(port, logger)
 			pullModelIfNeeded(port, lo.Model, logger)
@@ -434,7 +434,7 @@ func pullModelIfNeeded(port int, model string, logger interface {
 	client := &http.Client{Timeout: 5 * time.Second}
 
 	// Check if model already exists via /api/show
-	showBody := fmt.Sprintf(`{"name":%q}`, model)
+	showBody := fmt.Sprintf(`{"model":%q}`, model)
 	showResp, err := client.Post(baseURL+"/api/show", "application/json", strings.NewReader(showBody))
 	if err == nil {
 		showResp.Body.Close()
@@ -446,7 +446,7 @@ func pullModelIfNeeded(port int, model string, logger interface {
 
 	// Model not present — pull it (this can take a while)
 	logger.Info("[Ollama Embeddings] Pulling model (this may take several minutes on first run)", "model", model)
-	pullBody := fmt.Sprintf(`{"name":%q,"stream":false}`, model)
+	pullBody := fmt.Sprintf(`{"model":%q,"stream":false}`, model)
 	pullClient := &http.Client{Timeout: 30 * time.Minute} // model downloads can be large
 	pullResp, err := pullClient.Post(baseURL+"/api/pull", "application/json", strings.NewReader(pullBody))
 	if err != nil {

@@ -1366,11 +1366,16 @@ Use `GET /api/ollama/managed/status` to inspect the container and `POST /api/oll
 ```yaml
 ollama:
     enabled: true
+    readonly: false
     url: "http://localhost:11434"
-    managed:
+    managed_instance:
       enabled: true
-      image: "ollama/ollama:latest"
+      container_port: 11434
+      use_host_gpu: false
+      gpu_backend: "auto"
       default_models: ["llama3.1"]
+      memory_limit: ""
+      volume_path: ""
 ```
 
 ---

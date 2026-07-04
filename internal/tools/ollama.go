@@ -118,7 +118,7 @@ func OllamaShowModel(cfg OllamaConfig, modelName string) string {
 	if modelName == "" {
 		return errJSON("model name is required.")
 	}
-	body := fmt.Sprintf(`{"name":%q}`, modelName)
+	body := fmt.Sprintf(`{"model":%q}`, modelName)
 	data, code, err := ollamaRequest(cfg, "POST", "/api/show", body)
 	if err != nil {
 		return errJSON("Failed to show model: %v", err)
@@ -152,7 +152,7 @@ func OllamaPullModel(cfg OllamaConfig, modelName string) string {
 	if denied := ollamaReadOnlyMutationError(cfg, "pull"); denied != "" {
 		return denied
 	}
-	body := fmt.Sprintf(`{"name":%q,"stream":false}`, modelName)
+	body := fmt.Sprintf(`{"model":%q,"stream":false}`, modelName)
 	url := strings.TrimRight(cfg.URL, "/") + "/api/pull"
 	req, err := http.NewRequest("POST", url, strings.NewReader(body))
 	if err != nil {
@@ -184,7 +184,7 @@ func OllamaDeleteModel(cfg OllamaConfig, modelName string) string {
 	if denied := ollamaReadOnlyMutationError(cfg, "delete"); denied != "" {
 		return denied
 	}
-	body := fmt.Sprintf(`{"name":%q}`, modelName)
+	body := fmt.Sprintf(`{"model":%q}`, modelName)
 	data, code, err := ollamaRequest(cfg, "DELETE", "/api/delete", body)
 	if err != nil {
 		return errJSON("Delete failed: %v", err)

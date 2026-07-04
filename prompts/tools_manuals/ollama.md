@@ -72,7 +72,15 @@ Manage local Ollama LLM instance: models, GPU memory, and inference.
 ollama:
   enabled: true
   url: "http://localhost:11434"  # Default local Ollama
-  read_only: false  # Set true to block model changes
+  readonly: false  # Set true to block model changes
+  managed_instance:
+    enabled: false
+    container_port: 11434
+    use_host_gpu: false
+    gpu_backend: "auto"
+    default_models: []
+    memory_limit: ""
+    volume_path: ""
 ```
 
 ## Notes
@@ -80,5 +88,5 @@ ollama:
 - **Model naming**: Format is `modelname:tag` (e.g. `llama3:latest`, `mistral:7b`). Without tag, `:latest` is assumed.
 - **GPU memory**: `load` keeps model in GPU for fast responses; `unload` frees GPU memory when not needed.
 - **Container mode**: If Ollama runs in Docker, use container operations for lifecycle management.
-- **Read-only mode**: When `ollama.read_only: true`, pull/delete/copy/load/unload operations are blocked.
+- **Read-only mode**: When `ollama.readonly: true`, pull/delete/copy/load/unload operations are blocked.
 - **Common models**: llama3, mistral, codellama, phi3, Gemma, neural-chat

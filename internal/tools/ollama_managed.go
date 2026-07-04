@@ -53,7 +53,7 @@ func EnsureOllamaManagedRunning(cfg *config.Config, logger interface {
 		fmt.Sprintf(`/containers/json?filters={"status":["running"],"ancestor":[%q]}`, image), "")
 	if listErr == nil && listCode == 200 {
 		var containers []map[string]interface{}
-		if json.Unmarshal(listData, &containers) == nil && len(containers) > 0 {
+		if json.Unmarshal(listData, &containers) == nil && len(containers) > 0 && ollamaContainerListHasHostPort(listData, port) {
 			logger.Info("[Ollama Managed] Container already running (external)", "count", len(containers))
 			waitForOllamaReady(port, logger)
 			pullManagedModels(port, mi.DefaultModels, logger)
@@ -188,6 +188,30 @@ func ollamaContainerNeedsRecreateForHostDevices(data []byte) bool {
 		}
 		if _, err := os.Stat(path); err != nil {
 			return true
+		}
+	}
+	return false
+}
+
+func ollamaContainerListHasHostPort(data []byte, port int) bool {
+	if port <= 0 {
+		return false
+	}
+	var containers []struct {
+		Ports []struct {
+			PrivatePort int    `json:"PrivatePort"`
+			PublicPort  int    `json:"PublicPort"`
+			Type        string `json:"Type"`
+		} `json:"Ports"`
+	}
+	if err := json.Unmarshal(data, &containers); err != nil {
+		return false
+	}
+	for _, container := range containers {
+		for _, mapping := range container.Ports {
+			if mapping.PublicPort == port && strings.EqualFold(mapping.Type, "tcp") {
+				return true
+			}
 		}
 	}
 	return false

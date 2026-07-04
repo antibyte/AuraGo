@@ -655,9 +655,6 @@ func validateSetupTestBaseURL(providerType, rawURL string) error {
 		if scheme != "http" && scheme != "https" {
 			return fmt.Errorf("ollama base_url must use http or https")
 		}
-		if port != "" && port != "11434" {
-			return fmt.Errorf("ollama setup test only allows port 11434")
-		}
 		if isAllowedOllamaSetupHost(host) {
 			return nil
 		}
