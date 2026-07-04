@@ -1,10 +1,13 @@
 package server
 
 import (
+	"aurago/internal/config"
 	"encoding/json"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -20,6 +23,7 @@ func newTestCheatsheetServer(t *testing.T) *Server {
 	t.Cleanup(func() { db.Close() })
 	return &Server{
 		CheatsheetDB: db,
+		Cfg:          &config.Config{},
 		Logger:       slog.Default(),
 	}
 }
@@ -142,6 +146,47 @@ func TestHandleCheatSheetsCRUD(t *testing.T) {
 	}
 }
 
+func TestHandleCheatSheetsPersistsTags(t *testing.T) {
+	t.Parallel()
+	s := newTestCheatsheetServer(t)
+	handler := handleCheatSheets(s)
+	byIDHandler := handleCheatSheetByID(s)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/cheatsheets",
+		strings.NewReader(`{"name":"Tagged","content":"Hello","tags":["ops"," deploy ","ops",""]}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create: status = %d, want %d; body=%s", rec.Code, http.StatusCreated, rec.Body.String())
+	}
+	var created tools.CheatSheet
+	if err := json.Unmarshal(rec.Body.Bytes(), &created); err != nil {
+		t.Fatalf("create: unmarshal error: %v", err)
+	}
+	if got := strings.Join(created.Tags, ","); got != "deploy,ops" {
+		t.Fatalf("created tags = %q, want deploy,ops", got)
+	}
+
+	req = httptest.NewRequest(http.MethodPut, "/api/cheatsheets/"+created.ID,
+		strings.NewReader(`{"tags":[]}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec = httptest.NewRecorder()
+	byIDHandler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("update: status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	var updated tools.CheatSheet
+	if err := json.Unmarshal(rec.Body.Bytes(), &updated); err != nil {
+		t.Fatalf("update: unmarshal error: %v", err)
+	}
+	if len(updated.Tags) != 0 {
+		t.Fatalf("updated tags = %#v, want empty", updated.Tags)
+	}
+}
+
 func TestHandleCheatSheetsCreatedByAlwaysUser(t *testing.T) {
 	t.Parallel()
 	s := newTestCheatsheetServer(t)
@@ -249,5 +294,46 @@ func TestCheatsheetContentLimit(t *testing.T) {
 
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusBadRequest, rec.Body.String())
+	}
+}
+
+func TestHandleCheatSheetAttachmentsListMissingSheetReturnsNotFound(t *testing.T) {
+	t.Parallel()
+	s := newTestCheatsheetServer(t)
+	handler := handleCheatSheetAttachments(s)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/cheatsheets/missing/attachments", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusNotFound, rec.Body.String())
+	}
+}
+
+func TestHandleCheatSheetKnowledgeAttachmentValidatesExtensionBeforeRead(t *testing.T) {
+	t.Parallel()
+	s := newTestCheatsheetServer(t)
+	knowledgeDir := t.TempDir()
+	s.Cfg.Indexing.Directories = []config.IndexingDirectory{{Path: knowledgeDir}}
+	if err := os.Mkdir(filepath.Join(knowledgeDir, "image.png"), 0750); err != nil {
+		t.Fatalf("mkdir image.png: %v", err)
+	}
+	sheet, err := tools.CheatsheetCreate(s.CheatsheetDB, "Sheet", "content", "user")
+	if err != nil {
+		t.Fatalf("create sheet: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/cheatsheets/"+sheet.ID+"/attachments",
+		strings.NewReader(`{"source":"knowledge","filename":"image.png"}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	handleCheatSheetAttachments(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusBadRequest, rec.Body.String())
+	}
+	if !strings.Contains(strings.ToLower(rec.Body.String()), "extension") {
+		t.Fatalf("body = %q, want extension validation error", rec.Body.String())
 	}
 }

@@ -1,6 +1,10 @@
 (function () {
     'use strict';
 
+    const ALLOWED_EXTENSIONS = ['.txt', '.md'];
+    const MAX_UPLOAD_BYTES = 1 * 1024 * 1024;
+    const MAX_ATTACHMENT_CHARS = 25000;
+
     function openAttachmentPanel(state) {
         const t = state.t;
         const esc = state.esc;
@@ -74,17 +78,29 @@
         }
 
         async function uploadFile(file) {
-            if (file.size > 10 * 1024 * 1024) {
+            const name = String(file && file.name || '');
+            const lower = name.toLowerCase();
+            if (!ALLOWED_EXTENSIONS.some(ext => lower.endsWith(ext))) {
+                state.notify('cheater.error.invalid_attachment_type', 'error');
+                return;
+            }
+            if (file.size > MAX_UPLOAD_BYTES) {
                 state.notify('cheater.error.attachment_too_large', 'error');
                 return;
             }
             const text = await file.text().catch(() => '');
+            if ([...text].length > MAX_ATTACHMENT_CHARS) {
+                state.notify('cheater.error.attachment_too_large', 'error');
+                return;
+            }
+            const form = new FormData();
+            form.append('file', file);
             try {
                 await state.api('/api/cheatsheets/' + encodeURIComponent(state.sheet.id) + '/attachments', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ filename: file.name, content: text, source: 'cheater' })
+                    body: form
                 });
+                if (fileInput) fileInput.value = '';
                 await refresh();
             } catch (err) {
                 state.notify('cheater.error.upload_failed', 'error');

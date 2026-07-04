@@ -110,6 +110,7 @@ function renderSheets() {
     setGroupCount('agent', agentSheets.length);
     updateViewToggle();
     switchCheatTab(currentCheatTab);
+    bindSheetActionEvents();
 }
 
 function renderSheetGroup(groupKey, sheets, mode) {
@@ -155,7 +156,7 @@ function renderSheetCompact(s) {
             <div class="card-actions" onclick="event.stopPropagation()">
                 <button class="btn btn-sm btn-secondary" onclick="openEdit('${escJs(s.id)}')" title="${esc(t('cheatsheets.edit'))}">✏️</button>
                 <button class="btn btn-sm ${s.active ? 'btn-secondary' : 'btn-primary'}" onclick="toggleActive('${escJs(s.id)}', ${!s.active})" title="${s.active ? esc(t('cheatsheets.deactivate')) : esc(t('cheatsheets.activate'))}">${s.active ? '⏸️' : '▶️'}</button>
-                ${s.delete_locked ? '' : `<button class="btn btn-sm btn-danger" onclick="requestDelete('${escJs(s.id)}', '${esc(s.name)}')" title="${esc(t('cheatsheets.delete'))}">🗑️</button>`}
+                ${s.delete_locked ? '' : `<button class="btn btn-sm btn-danger" data-action="delete-sheet" data-sheet-id="${esc(s.id)}" data-sheet-name="${esc(s.name)}" title="${esc(t('cheatsheets.delete'))}">🗑️</button>`}
             </div>
         </div>
     `;
@@ -198,7 +199,7 @@ function renderSheetGrid(s) {
             <div class="card-footer">
                 <button class="btn btn-primary btn-sm" onclick="openEdit('${escJs(s.id)}')">${esc(t('cheatsheets.edit'))}</button>
                 <button class="btn btn-secondary btn-sm" onclick="toggleActive('${escJs(s.id)}', ${!s.active})">${s.active ? esc(t('cheatsheets.deactivate')) : esc(t('cheatsheets.activate'))}</button>
-                ${s.delete_locked ? '' : `<button class="btn btn-danger btn-sm" onclick="requestDelete('${escJs(s.id)}', '${esc(s.name)}')">${esc(t('cheatsheets.delete'))}</button>`}
+                ${s.delete_locked ? '' : `<button class="btn btn-danger btn-sm" data-action="delete-sheet" data-sheet-id="${esc(s.id)}" data-sheet-name="${esc(s.name)}">${esc(t('cheatsheets.delete'))}</button>`}
             </div>
         </div>
     `;
@@ -369,10 +370,20 @@ async function confirmDelete() {
     deleteTarget = null;
 }
 
+function bindSheetActionEvents() {
+    document.querySelectorAll('[data-action="delete-sheet"]').forEach(function (btn) {
+        btn.addEventListener('click', function (event) {
+            event.preventDefault();
+            event.stopPropagation();
+            requestDelete(btn.dataset.sheetId || '', btn.dataset.sheetName || '');
+        });
+    });
+}
+
 // ── Editor Preview ───────────────────────────────────────
 function switchEditorTab(tab) {
     document.querySelectorAll('.editor-tab').forEach(el =>
-        el.classList.toggle('active', el.textContent.toLowerCase().includes(tab))
+        el.classList.toggle('active', el.dataset.editorTab === tab)
     );
     const editor = document.getElementById('sheet-content');
     const preview = document.getElementById('sheet-preview');

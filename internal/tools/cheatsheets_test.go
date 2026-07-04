@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"aurago/internal/memory"
 	"strings"
 	"testing"
 	"time"
@@ -39,6 +40,40 @@ func TestCheatsheetCreateAndGet(t *testing.T) {
 	}
 }
 
+func TestCheatsheetTagsPersistAndClear(t *testing.T) {
+	t.Parallel()
+	db, err := InitCheatsheetDB(t.TempDir() + "/test.db")
+	if err != nil {
+		t.Fatalf("init: %v", err)
+	}
+	defer db.Close()
+
+	sheet, err := CheatsheetCreateWithTags(db, "Tagged", "content", "user", []string{"ops", " deploy ", "ops", ""})
+	if err != nil {
+		t.Fatalf("create with tags: %v", err)
+	}
+	if got := strings.Join(sheet.Tags, ","); got != "deploy,ops" {
+		t.Fatalf("created tags = %q, want deploy,ops", got)
+	}
+
+	got, err := CheatsheetGet(db, sheet.ID)
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	if gotTags := strings.Join(got.Tags, ","); gotTags != "deploy,ops" {
+		t.Fatalf("persisted tags = %q, want deploy,ops", gotTags)
+	}
+
+	emptyTags := []string{}
+	updated, err := CheatsheetUpdate(db, sheet.ID, nil, nil, nil, nil, nil, &emptyTags)
+	if err != nil {
+		t.Fatalf("clear tags: %v", err)
+	}
+	if len(updated.Tags) != 0 {
+		t.Fatalf("cleared tags = %#v, want empty", updated.Tags)
+	}
+}
+
 func TestCheatsheetCreateNameRequired(t *testing.T) {
 	t.Parallel()
 	db, err := InitCheatsheetDB(t.TempDir() + "/test.db")
@@ -50,6 +85,83 @@ func TestCheatsheetCreateNameRequired(t *testing.T) {
 	_, err = CheatsheetCreate(db, "", "content", "user")
 	if err == nil {
 		t.Fatal("expected error for empty name")
+	}
+}
+
+type cheatsheetVectorDBRecorder struct {
+	storedIDs  []string
+	deletedIDs []string
+}
+
+func (v *cheatsheetVectorDBRecorder) StoreDocument(string, string) ([]string, error) {
+	return nil, nil
+}
+func (v *cheatsheetVectorDBRecorder) StoreDocumentWithEmbedding(string, string, []float32) (string, error) {
+	return "", nil
+}
+func (v *cheatsheetVectorDBRecorder) StoreBatch([]memory.ArchiveItem) ([]string, error) {
+	return nil, nil
+}
+func (v *cheatsheetVectorDBRecorder) SearchSimilar(string, int, ...string) ([]string, []string, error) {
+	return nil, nil, nil
+}
+func (v *cheatsheetVectorDBRecorder) SearchMemoriesOnly(string, int) ([]string, []string, error) {
+	return nil, nil, nil
+}
+func (v *cheatsheetVectorDBRecorder) GetByID(string) (string, error) { return "", nil }
+func (v *cheatsheetVectorDBRecorder) GetByIDFromCollection(string, string) (string, error) {
+	return "", nil
+}
+func (v *cheatsheetVectorDBRecorder) DeleteDocument(string) error { return nil }
+func (v *cheatsheetVectorDBRecorder) DeleteDocumentFromCollection(string, string) error {
+	return nil
+}
+func (v *cheatsheetVectorDBRecorder) Count() int       { return 0 }
+func (v *cheatsheetVectorDBRecorder) IsDisabled() bool { return false }
+func (v *cheatsheetVectorDBRecorder) IsReady() bool    { return true }
+func (v *cheatsheetVectorDBRecorder) Close() error     { return nil }
+func (v *cheatsheetVectorDBRecorder) StoreDocumentInCollection(string, string, string) ([]string, error) {
+	return nil, nil
+}
+func (v *cheatsheetVectorDBRecorder) StoreDocumentWithEmbeddingInCollection(string, string, []float32, string) (string, error) {
+	return "", nil
+}
+func (v *cheatsheetVectorDBRecorder) StoreCheatsheet(id, name, content string, attachments ...string) error {
+	v.storedIDs = append(v.storedIDs, id)
+	return nil
+}
+func (v *cheatsheetVectorDBRecorder) DeleteCheatsheet(id string) error {
+	v.deletedIDs = append(v.deletedIDs, id)
+	return nil
+}
+func (v *cheatsheetVectorDBRecorder) RegisterCollections([]string) {}
+
+func TestReindexCheatsheetDeletesInactiveFromVectorDB(t *testing.T) {
+	t.Parallel()
+	db, err := InitCheatsheetDB(t.TempDir() + "/test.db")
+	if err != nil {
+		t.Fatalf("init: %v", err)
+	}
+	defer db.Close()
+
+	sheet, err := CheatsheetCreate(db, "Inactive", "content", "user")
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	inactive := false
+	if _, err := CheatsheetUpdate(db, sheet.ID, nil, nil, nil, &inactive, nil, nil); err != nil {
+		t.Fatalf("deactivate: %v", err)
+	}
+
+	vdb := &cheatsheetVectorDBRecorder{}
+	if err := ReindexCheatsheetInVectorDB(db, vdb, sheet.ID); err != nil {
+		t.Fatalf("reindex inactive: %v", err)
+	}
+	if len(vdb.storedIDs) != 0 {
+		t.Fatalf("stored inactive IDs = %#v, want none", vdb.storedIDs)
+	}
+	if len(vdb.deletedIDs) != 1 || vdb.deletedIDs[0] != sheet.ID {
+		t.Fatalf("deleted IDs = %#v, want %q", vdb.deletedIDs, sheet.ID)
 	}
 }
 

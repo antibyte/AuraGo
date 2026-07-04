@@ -180,6 +180,14 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 					logger.Error("[Maintenance] Failed to mark cheat sheet unused", "id", sheet.ID, "name", sheet.Name, "error", err)
 					continue
 				}
+				if err := tools.ReindexCheatsheetInVectorDB(cheatsheetDB, longTermMem, sheet.ID); err != nil {
+					logger.Warn("[Maintenance] Failed to remove inactive cheat sheet from vector DB", "id", sheet.ID, "name", sheet.Name, "error", err)
+				}
+				if missionManagerV2 != nil {
+					if err := tools.InvalidatePreparedMissionsByCheatsheet(missionManagerV2.GetPreparedDB(), missionManagerV2, sheet.ID); err != nil {
+						logger.Warn("[Maintenance] Failed to invalidate prepared missions for expired cheat sheet", "id", sheet.ID, "name", sheet.Name, "error", err)
+					}
+				}
 				logger.Info("[Maintenance] Marked unused agent cheat sheet", "id", sheet.ID, "name", sheet.Name)
 			}
 		}

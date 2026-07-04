@@ -828,6 +828,32 @@ func TestDecodeCheatsheetArgsUsesParamsFallback(t *testing.T) {
 	}
 }
 
+func TestDecodeCheatsheetArgsTracksEmptyUpdateFields(t *testing.T) {
+	req := decodeCheatsheetArgs(ToolCall{
+		Action: "cheatsheet",
+		Params: map[string]interface{}{
+			"operation": "update",
+			"id":        "sheet-1",
+			"content":   "",
+			"abstract":  "",
+			"tags":      []interface{}{},
+		},
+	})
+
+	if req.Operation != "update" || req.ID != "sheet-1" {
+		t.Fatalf("unexpected cheatsheet decode: %+v", req)
+	}
+	if !req.ContentSet || req.Content != "" {
+		t.Fatalf("ContentSet/Content = %v/%q, want true/empty", req.ContentSet, req.Content)
+	}
+	if !req.AbstractSet || req.Abstract != "" {
+		t.Fatalf("AbstractSet/Abstract = %v/%q, want true/empty", req.AbstractSet, req.Abstract)
+	}
+	if !req.TagsSet || len(req.Tags) != 0 {
+		t.Fatalf("TagsSet/Tags = %v/%#v, want true/empty", req.TagsSet, req.Tags)
+	}
+}
+
 func TestDecodeSecretVaultArgsUsesParamsFallback(t *testing.T) {
 	req := decodeSecretVaultArgs(ToolCall{
 		Action: "set_secret",

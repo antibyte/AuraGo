@@ -2,8 +2,11 @@ package tools
 
 import (
 	"database/sql"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -20,6 +23,7 @@ type CheatSheet struct {
 	Name            string                 `json:"name"`
 	Content         string                 `json:"content"`
 	Abstract        string                 `json:"abstract"`
+	Tags            []string               `json:"tags"`
 	Active          bool                   `json:"active"`
 	CreatedBy       string                 `json:"created_by"` // "user" or "agent"
 	CreatedAt       string                 `json:"created_at"`
@@ -43,7 +47,10 @@ type CheatSheetAttachment struct {
 	CreatedAt    string `json:"created_at"`
 }
 
-const cheatsheetSchemaVersion = 3
+const cheatsheetSchemaVersion = 4
+
+const maxCheatsheetTags = 16
+const maxCheatsheetTagLength = 40
 
 // MaxAttachmentChars is the total character limit across all attachments of a single cheat sheet.
 const MaxAttachmentChars = 25000
@@ -67,6 +74,7 @@ func InitCheatsheetDB(dbPath string) (*sql.DB, error) {
 		name       TEXT NOT NULL,
 		content    TEXT NOT NULL DEFAULT '',
 		abstract   TEXT NOT NULL DEFAULT '',
+		tags       TEXT NOT NULL DEFAULT '[]',
 		active     INTEGER NOT NULL DEFAULT 1,
 		created_by TEXT NOT NULL DEFAULT 'user',
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -133,12 +141,72 @@ func InitCheatsheetDB(dbPath string) (*sql.DB, error) {
 			return nil, fmt.Errorf("failed to backfill agent cheatsheet expirations: %w", err)
 		}
 	}
+	if version < 4 {
+		if _, err := db.Exec("ALTER TABLE cheatsheets ADD COLUMN tags TEXT NOT NULL DEFAULT '[]'"); err != nil && !strings.Contains(strings.ToLower(err.Error()), "duplicate column") {
+			db.Close()
+			return nil, fmt.Errorf("failed to migrate cheatsheet tags: %w", err)
+		}
+	}
 
 	if _, err := db.Exec(fmt.Sprintf("PRAGMA user_version = %d", cheatsheetSchemaVersion)); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("failed to set schema version: %w", err)
 	}
 	return db, nil
+}
+
+func normalizeCheatsheetTags(tags []string) ([]string, error) {
+	seen := make(map[string]struct{}, len(tags))
+	normalized := make([]string, 0, len(tags))
+	for _, raw := range tags {
+		tag := strings.TrimSpace(raw)
+		if tag == "" {
+			continue
+		}
+		if len([]rune(tag)) > maxCheatsheetTagLength {
+			return nil, fmt.Errorf("cheatsheet tag %q exceeds the %d character limit", tag, maxCheatsheetTagLength)
+		}
+		key := strings.ToLower(tag)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		normalized = append(normalized, tag)
+	}
+	if len(normalized) > maxCheatsheetTags {
+		return nil, fmt.Errorf("cheatsheets support at most %d tags", maxCheatsheetTags)
+	}
+	sort.Slice(normalized, func(i, j int) bool {
+		return strings.ToLower(normalized[i]) < strings.ToLower(normalized[j])
+	})
+	return normalized, nil
+}
+
+func encodeCheatsheetTags(tags []string) (string, error) {
+	normalized, err := normalizeCheatsheetTags(tags)
+	if err != nil {
+		return "", err
+	}
+	data, err := json.Marshal(normalized)
+	if err != nil {
+		return "", fmt.Errorf("failed to encode cheatsheet tags: %w", err)
+	}
+	return string(data), nil
+}
+
+func decodeCheatsheetTags(raw string) []string {
+	if strings.TrimSpace(raw) == "" {
+		return []string{}
+	}
+	var tags []string
+	if err := json.Unmarshal([]byte(raw), &tags); err != nil {
+		return []string{}
+	}
+	normalized, err := normalizeCheatsheetTags(tags)
+	if err != nil {
+		return []string{}
+	}
+	return normalized
 }
 
 // CheatsheetList returns all cheat sheets, optionally filtered.
@@ -148,7 +216,7 @@ func CheatsheetList(db *sql.DB, activeOnly bool) ([]CheatSheet, error) {
 
 // CheatsheetListByCreatedBy returns cheat sheets filtered by active state and creator.
 func CheatsheetListByCreatedBy(db *sql.DB, activeOnly bool, createdBy string) ([]CheatSheet, error) {
-	query := `SELECT c.id, c.name, c.content, c.abstract, c.active, c.created_by, c.created_at, c.updated_at,
+	query := `SELECT c.id, c.name, c.content, c.abstract, c.tags, c.active, c.created_by, c.created_at, c.updated_at,
 		c.usage_count, c.last_used_at, c.delete_locked, c.expires_at,
 		COALESCE((SELECT COUNT(*) FROM cheatsheet_attachments a WHERE a.cheatsheet_id = c.id), 0)
 		FROM cheatsheets c`
@@ -177,9 +245,11 @@ func CheatsheetListByCreatedBy(db *sql.DB, activeOnly bool, createdBy string) ([
 		var s CheatSheet
 		var active, deleteLocked int
 		var lastUsed, expires sql.NullString
-		if err := rows.Scan(&s.ID, &s.Name, &s.Content, &s.Abstract, &active, &s.CreatedBy, &s.CreatedAt, &s.UpdatedAt, &s.UsageCount, &lastUsed, &deleteLocked, &expires, &s.AttachmentCount); err != nil {
+		var tagsRaw string
+		if err := rows.Scan(&s.ID, &s.Name, &s.Content, &s.Abstract, &tagsRaw, &active, &s.CreatedBy, &s.CreatedAt, &s.UpdatedAt, &s.UsageCount, &lastUsed, &deleteLocked, &expires, &s.AttachmentCount); err != nil {
 			return nil, err
 		}
+		s.Tags = decodeCheatsheetTags(tagsRaw)
 		s.Active = active == 1
 		s.DeleteLocked = deleteLocked == 1
 		if lastUsed.Valid {
@@ -201,12 +271,14 @@ func CheatsheetGet(db *sql.DB, id string) (*CheatSheet, error) {
 	var s CheatSheet
 	var active, deleteLocked int
 	var lastUsed, expires sql.NullString
+	var tagsRaw string
 	err := db.QueryRow(
-		"SELECT id, name, content, abstract, active, created_by, created_at, updated_at, usage_count, last_used_at, delete_locked, expires_at FROM cheatsheets WHERE id = ?", id,
-	).Scan(&s.ID, &s.Name, &s.Content, &s.Abstract, &active, &s.CreatedBy, &s.CreatedAt, &s.UpdatedAt, &s.UsageCount, &lastUsed, &deleteLocked, &expires)
+		"SELECT id, name, content, abstract, tags, active, created_by, created_at, updated_at, usage_count, last_used_at, delete_locked, expires_at FROM cheatsheets WHERE id = ?", id,
+	).Scan(&s.ID, &s.Name, &s.Content, &s.Abstract, &tagsRaw, &active, &s.CreatedBy, &s.CreatedAt, &s.UpdatedAt, &s.UsageCount, &lastUsed, &deleteLocked, &expires)
 	if err != nil {
 		return nil, err
 	}
+	s.Tags = decodeCheatsheetTags(tagsRaw)
 	s.Active = active == 1
 	s.DeleteLocked = deleteLocked == 1
 	if lastUsed.Valid {
@@ -234,12 +306,14 @@ func CheatsheetGetByName(db *sql.DB, name string) (*CheatSheet, error) {
 	var s CheatSheet
 	var active, deleteLocked int
 	var lastUsed, expires sql.NullString
+	var tagsRaw string
 	err := db.QueryRow(
-		"SELECT id, name, content, abstract, active, created_by, created_at, updated_at, usage_count, last_used_at, delete_locked, expires_at FROM cheatsheets WHERE LOWER(name) = LOWER(?)", name,
-	).Scan(&s.ID, &s.Name, &s.Content, &s.Abstract, &active, &s.CreatedBy, &s.CreatedAt, &s.UpdatedAt, &s.UsageCount, &lastUsed, &deleteLocked, &expires)
+		"SELECT id, name, content, abstract, tags, active, created_by, created_at, updated_at, usage_count, last_used_at, delete_locked, expires_at FROM cheatsheets WHERE LOWER(name) = LOWER(?)", name,
+	).Scan(&s.ID, &s.Name, &s.Content, &s.Abstract, &tagsRaw, &active, &s.CreatedBy, &s.CreatedAt, &s.UpdatedAt, &s.UsageCount, &lastUsed, &deleteLocked, &expires)
 	if err != nil {
 		return nil, err
 	}
+	s.Tags = decodeCheatsheetTags(tagsRaw)
 	s.Active = active == 1
 	s.DeleteLocked = deleteLocked == 1
 	if lastUsed.Valid {
@@ -264,6 +338,11 @@ func CheatsheetGetByName(db *sql.DB, name string) (*CheatSheet, error) {
 
 // CheatsheetCreate creates a new cheat sheet and returns it.
 func CheatsheetCreate(db *sql.DB, name, content, createdBy string) (*CheatSheet, error) {
+	return CheatsheetCreateWithTags(db, name, content, createdBy, nil)
+}
+
+// CheatsheetCreateWithTags creates a new cheat sheet with normalized tags.
+func CheatsheetCreateWithTags(db *sql.DB, name, content, createdBy string, tags []string) (*CheatSheet, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
 		return nil, fmt.Errorf("name is required")
@@ -274,6 +353,10 @@ func CheatsheetCreate(db *sql.DB, name, content, createdBy string) (*CheatSheet,
 	if createdBy != "user" && createdBy != "agent" {
 		createdBy = "user"
 	}
+	tagsJSON, err := encodeCheatsheetTags(tags)
+	if err != nil {
+		return nil, err
+	}
 
 	id := uid.New()
 	now := time.Now().UTC().Format(time.RFC3339)
@@ -282,9 +365,9 @@ func CheatsheetCreate(db *sql.DB, name, content, createdBy string) (*CheatSheet,
 		expiresAt = sql.NullString{String: time.Now().UTC().Add(7 * 24 * time.Hour).Format(time.RFC3339), Valid: true}
 	}
 
-	_, err := db.Exec(
-		"INSERT INTO cheatsheets (id, name, content, active, created_by, created_at, updated_at, expires_at) VALUES (?, ?, ?, 1, ?, ?, ?, ?)",
-		id, name, content, createdBy, now, now, expiresAt,
+	_, err = db.Exec(
+		"INSERT INTO cheatsheets (id, name, content, tags, active, created_by, created_at, updated_at, expires_at) VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?)",
+		id, name, content, tagsJSON, createdBy, now, now, expiresAt,
 	)
 	if err != nil {
 		return nil, err
@@ -293,7 +376,7 @@ func CheatsheetCreate(db *sql.DB, name, content, createdBy string) (*CheatSheet,
 }
 
 // CheatsheetUpdate updates an existing cheat sheet.
-func CheatsheetUpdate(db *sql.DB, id string, name, content, abstract *string, active, deleteLocked *bool) (*CheatSheet, error) {
+func CheatsheetUpdate(db *sql.DB, id string, name, content, abstract *string, active, deleteLocked *bool, tags ...*[]string) (*CheatSheet, error) {
 	existing, err := CheatsheetGet(db, id)
 	if err != nil {
 		return nil, fmt.Errorf("cheat sheet not found: %w", err)
@@ -321,6 +404,17 @@ func CheatsheetUpdate(db *sql.DB, id string, name, content, abstract *string, ac
 	if deleteLocked != nil {
 		existing.DeleteLocked = *deleteLocked
 	}
+	if len(tags) > 0 && tags[0] != nil {
+		normalizedTags, err := normalizeCheatsheetTags(*tags[0])
+		if err != nil {
+			return nil, err
+		}
+		existing.Tags = normalizedTags
+	}
+	tagsJSON, err := encodeCheatsheetTags(existing.Tags)
+	if err != nil {
+		return nil, err
+	}
 
 	now := time.Now().UTC().Format(time.RFC3339)
 	activeInt := 0
@@ -340,8 +434,8 @@ func CheatsheetUpdate(db *sql.DB, id string, name, content, abstract *string, ac
 	}
 
 	_, err = db.Exec(
-		"UPDATE cheatsheets SET name = ?, content = ?, abstract = ?, active = ?, delete_locked = ?, expires_at = ?, updated_at = ? WHERE id = ?",
-		existing.Name, existing.Content, existing.Abstract, activeInt, deleteLockedInt, expiresAt, now, id,
+		"UPDATE cheatsheets SET name = ?, content = ?, abstract = ?, tags = ?, active = ?, delete_locked = ?, expires_at = ?, updated_at = ? WHERE id = ?",
+		existing.Name, existing.Content, existing.Abstract, tagsJSON, activeInt, deleteLockedInt, expiresAt, now, id,
 	)
 	if err != nil {
 		return nil, err
@@ -631,7 +725,13 @@ func ReindexCheatsheetInVectorDB(db *sql.DB, vdb memory.VectorDB, cheatsheetID s
 	}
 	cs, err := CheatsheetGet(db, cheatsheetID)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return vdb.DeleteCheatsheet(cheatsheetID)
+		}
 		return err
+	}
+	if !cs.Active {
+		return vdb.DeleteCheatsheet(cheatsheetID)
 	}
 	attachments := make([]string, len(cs.Attachments))
 	for i, a := range cs.Attachments {

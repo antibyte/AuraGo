@@ -414,7 +414,7 @@ func TestDesktopCheaterAttachments(t *testing.T) {
 		"/attachments",
 		"method: 'POST'",
 		"method: 'DELETE'",
-		"10 * 1024 * 1024",
+		"1 * 1024 * 1024",
 	} {
 		if !strings.Contains(source, marker) {
 			t.Fatalf("cheater attachments missing JS marker %q", marker)
@@ -441,6 +441,33 @@ func TestDesktopCheaterAttachments(t *testing.T) {
 	} {
 		if !strings.Contains(css, marker) {
 			t.Fatalf("cheater attachments CSS missing marker %q", marker)
+		}
+	}
+}
+
+func TestDesktopCheaterAttachmentsUseMultipartUploadContract(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/apps/cheater-attachments.js")
+	for _, marker := range []string{
+		"const form = new FormData();",
+		"form.append('file', file);",
+		"body: form",
+		"ALLOWED_EXTENSIONS",
+		"MAX_UPLOAD_BYTES = 1 * 1024 * 1024",
+		"MAX_ATTACHMENT_CHARS = 25000",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("cheater attachments missing multipart marker %q", marker)
+		}
+	}
+	for _, forbidden := range []string{
+		"source: 'cheater'",
+		"JSON.stringify({ filename: file.name",
+		"headers: { 'Content-Type': 'application/json' }",
+	} {
+		if strings.Contains(source, forbidden) {
+			t.Fatalf("cheater attachments must not use JSON upload contract marker %q", forbidden)
 		}
 	}
 }
@@ -532,6 +559,7 @@ func TestDesktopCheaterTranslations(t *testing.T) {
 		"cheater.template.backup",
 		"cheater.attach_empty",
 		"cheater.attach_drop_hint",
+		"cheater.error.invalid_attachment_type",
 		"cheater.agent_badge",
 		"cheater.update_available",
 		"cheater.update_apply",

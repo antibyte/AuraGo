@@ -2736,6 +2736,27 @@ func TestChatCheatsheetPickerRequestsOnlyUserSheets(t *testing.T) {
 	}
 }
 
+func TestChatCheatsheetPickerLoadsFullSheetBeforeSend(t *testing.T) {
+	t.Parallel()
+
+	content, err := os.ReadFile(filepath.Join("js", "chat", "main.js"))
+	if err != nil {
+		t.Fatalf("read chat main.js: %v", err)
+	}
+	source := string(content)
+	for _, marker := range []string{
+		"async function loadSelectedCheatsheetForAgentMessage",
+		"fetch('/api/cheatsheets/' + encodeURIComponent(selectedCheatsheetId))",
+		"buildCheatsheetAgentMessage(fullSheet)",
+		"formatCheatsheetAttachmentsForAgent",
+		"escapeCheatsheetContextValue",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("chat cheatsheet picker missing full-sheet marker %q", marker)
+		}
+	}
+}
+
 func TestMissionCheatsheetPickerRequestsOnlyUserSheets(t *testing.T) {
 	t.Parallel()
 

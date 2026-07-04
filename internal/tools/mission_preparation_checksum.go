@@ -6,7 +6,7 @@ import (
 	"fmt"
 )
 
-const missionPreparationChecksumVersion = "mission-preparation-v2"
+const missionPreparationChecksumVersion = "mission-preparation-v3"
 
 // MissionPreparationSourceChecksum returns a stable digest for the preparation
 // contract and canonical mission inputs used to generate prepared context.
@@ -23,6 +23,11 @@ func MissionPreparationSourceChecksum(mission *MissionV2, cheatsheetDB *sql.DB) 
 			if cs, err := CheatsheetGet(cheatsheetDB, id); err == nil && cs != nil {
 				h.Write([]byte(cs.ID))
 				h.Write([]byte(cs.Name))
+				h.Write([]byte(fmt.Sprintf("active=%t", cs.Active)))
+				for _, tag := range cs.Tags {
+					h.Write([]byte("tag:"))
+					h.Write([]byte(tag))
+				}
 				h.Write([]byte(cs.Content))
 				for _, a := range cs.Attachments {
 					h.Write([]byte(a.Filename))

@@ -375,6 +375,57 @@ func TestDispatchExecListToolsClarifiesBuiltinSkills(t *testing.T) {
 	}
 }
 
+func TestDispatchExecCheatsheetUpdateCanClearFields(t *testing.T) {
+	db, err := tools.InitCheatsheetDB(filepath.Join(t.TempDir(), "cheatsheets.db"))
+	if err != nil {
+		t.Fatalf("InitCheatsheetDB: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+
+	sheet, err := tools.CheatsheetCreateWithTags(db, "Clearable", "stale content", "agent", []string{"stale"})
+	if err != nil {
+		t.Fatalf("CheatsheetCreateWithTags: %v", err)
+	}
+	abstract := "stale abstract"
+	if _, err := tools.CheatsheetUpdate(db, sheet.ID, nil, nil, &abstract, nil, nil, nil); err != nil {
+		t.Fatalf("CheatsheetUpdate abstract: %v", err)
+	}
+
+	out, ok := dispatchExec(
+		context.Background(),
+		ToolCall{
+			Action: "cheatsheet",
+			Params: map[string]interface{}{
+				"operation": "update",
+				"id":        sheet.ID,
+				"content":   "",
+				"abstract":  "",
+				"tags":      []interface{}{},
+			},
+		},
+		&DispatchContext{
+			Cfg:          &config.Config{},
+			Logger:       slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError})),
+			CheatsheetDB: db,
+			LongTermMem:  &fakeVectorDB{},
+		},
+	)
+	if !ok {
+		t.Fatal("expected dispatchExec to handle cheatsheet")
+	}
+	if !strings.Contains(out, `"status":"ok"`) {
+		t.Fatalf("expected cheatsheet update success, got:\n%s", out)
+	}
+
+	updated, err := tools.CheatsheetGet(db, sheet.ID)
+	if err != nil {
+		t.Fatalf("CheatsheetGet: %v", err)
+	}
+	if updated.Content != "" || updated.Abstract != "" || len(updated.Tags) != 0 {
+		t.Fatalf("updated sheet = %+v, want empty content/abstract/tags", updated)
+	}
+}
+
 func TestBuildMemoryReflectionOutputSerializesResult(t *testing.T) {
 	out, err := buildMemoryReflectionOutput(map[string]interface{}{"summary": "ok"})
 	if err != nil {

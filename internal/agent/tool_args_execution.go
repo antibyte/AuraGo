@@ -2,6 +2,7 @@ package agent
 
 import (
 	"encoding/json"
+	"strings"
 
 	"aurago/internal/services"
 )
@@ -94,7 +95,11 @@ type cheatsheetArgs struct {
 	ID           string
 	Name         string
 	Content      string
+	ContentSet   bool
 	Abstract     string
+	AbstractSet  bool
+	Tags         []string
+	TagsSet      bool
 	Active       *bool
 	DeleteLocked *bool
 	Filename     string
@@ -655,18 +660,67 @@ func decodeCheatsheetArgs(tc ToolCall) cheatsheetArgs {
 		Operation:    firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
 		ID:           firstNonEmptyToolString(tc.ID, toolArgString(tc.Params, "id")),
 		Name:         firstNonEmptyToolString(tc.Name, toolArgString(tc.Params, "name")),
-		Content:      firstNonEmptyToolString(tc.Content, toolArgString(tc.Params, "content")),
-		Abstract:     firstNonEmptyToolString(toolArgString(tc.Params, "abstract")),
 		Active:       tc.Active,
 		DeleteLocked: toolArgBoolPtr(tc.Params, "delete_locked"),
 		Filename:     firstNonEmptyToolString(tc.Filename, toolArgString(tc.Params, "filename")),
 		Source:       firstNonEmptyToolString(tc.Source, toolArgString(tc.Params, "source")),
 		AttachmentID: firstNonEmptyToolString(tc.AttachmentID, toolArgString(tc.Params, "attachment_id")),
 	}
+	if raw, ok := toolArgRaw(tc.Params, "content"); ok {
+		if value, ok := raw.(string); ok {
+			req.Content = value
+			req.ContentSet = true
+		}
+	} else if tc.Content != "" {
+		req.Content = tc.Content
+		req.ContentSet = true
+	}
+	if raw, ok := toolArgRaw(tc.Params, "abstract"); ok {
+		if value, ok := raw.(string); ok {
+			req.Abstract = value
+			req.AbstractSet = true
+		}
+	}
+	if raw, ok := toolArgRaw(tc.Params, "tags"); ok {
+		req.Tags = cheatsheetTagsFromRaw(raw)
+		req.TagsSet = true
+	} else if strings.TrimSpace(tc.Tags) != "" {
+		req.Tags = cheatsheetTagsFromRaw(tc.Tags)
+		req.TagsSet = true
+	}
 	if req.Active == nil {
 		req.Active = toolArgBoolPtr(tc.Params, "active")
 	}
 	return req
+}
+
+func cheatsheetTagsFromRaw(raw interface{}) []string {
+	switch value := raw.(type) {
+	case nil:
+		return []string{}
+	case []string:
+		return append([]string(nil), value...)
+	case []interface{}:
+		tags := make([]string, 0, len(value))
+		for _, item := range value {
+			if tag, ok := item.(string); ok {
+				tags = append(tags, tag)
+			}
+		}
+		return tags
+	case string:
+		if strings.TrimSpace(value) == "" {
+			return []string{}
+		}
+		parts := strings.Split(value, ",")
+		tags := make([]string, 0, len(parts))
+		for _, part := range parts {
+			tags = append(tags, part)
+		}
+		return tags
+	default:
+		return []string{}
+	}
 }
 
 func decodeSecretVaultArgs(tc ToolCall) secretVaultArgs {

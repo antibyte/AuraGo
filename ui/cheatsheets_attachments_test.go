@@ -37,6 +37,47 @@ func TestCheatsheetKnowledgeAttachmentModalContract(t *testing.T) {
 	}
 }
 
+func TestCheatsheetListUsesSafeDeleteActionContract(t *testing.T) {
+	t.Parallel()
+
+	cheatsheetsJS := readDesktopAssetText(t, "js/cheatsheets/main.js")
+	for _, marker := range []string{
+		"data-action=\"delete-sheet\"",
+		"data-sheet-id",
+		"data-sheet-name",
+		"bindSheetActionEvents()",
+	} {
+		if !strings.Contains(cheatsheetsJS, marker) {
+			t.Fatalf("cheatsheet delete action missing safe marker %q", marker)
+		}
+	}
+	if strings.Contains(cheatsheetsJS, "requestDelete('${escJs(s.id)}', '${esc(s.name)}')") {
+		t.Fatal("cheatsheet delete action must not put HTML-escaped names inside inline JavaScript")
+	}
+}
+
+func TestCheatsheetEditorTabsUseStableDataAttributes(t *testing.T) {
+	t.Parallel()
+
+	html := readDesktopAssetText(t, "cheatsheets.html")
+	for _, marker := range []string{
+		`data-editor-tab="edit"`,
+		`data-editor-tab="preview"`,
+	} {
+		if !strings.Contains(html, marker) {
+			t.Fatalf("cheatsheet editor tab missing marker %q", marker)
+		}
+	}
+
+	cheatsheetsJS := readDesktopAssetText(t, "js/cheatsheets/main.js")
+	if !strings.Contains(cheatsheetsJS, "el.dataset.editorTab === tab") {
+		t.Fatal("cheatsheet editor tab state must use data-editor-tab, not localized text")
+	}
+	if strings.Contains(cheatsheetsJS, "textContent.toLowerCase().includes(tab)") {
+		t.Fatal("cheatsheet editor tab state must not depend on localized button text")
+	}
+}
+
 func TestSharedModalStackReactivatesNestedModal(t *testing.T) {
 	t.Parallel()
 

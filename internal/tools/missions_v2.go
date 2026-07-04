@@ -856,8 +856,14 @@ func (m *MissionManagerV2) dispatchQueuedMission(item QueueItem) {
 				if err := InvalidatePreparedMission(preparedDB, missionID); err != nil {
 					slog.Warn("[MissionV2] Failed to invalidate stale prepared mission context", "mission_id", missionID, "error", err)
 				}
-			} else if advisory := pm.RenderPreparedContext(); advisory != "" {
-				prompt += advisory
+			} else if pm.Status == PrepStatusPrepared {
+				if advisory := pm.RenderPreparedContext(); advisory != "" {
+					prompt += advisory
+				}
+			} else if pm.Status == PrepStatusStale {
+				if err := InvalidatePreparedMission(preparedDB, missionID); err != nil {
+					slog.Warn("[MissionV2] Failed to keep stale prepared mission context invalidated", "mission_id", missionID, "error", err)
+				}
 			}
 		}
 	}

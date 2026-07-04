@@ -78,6 +78,12 @@ registration lives in `internal/desktop/types.go`.
   `cheater.js`.
 - Cheater visible UI strings use `cheater.*` keys in all
   `ui/lang/desktop/*.json` files.
+- Cheater tags are persisted through the `/api/cheatsheets` JSON API and must
+  remain part of list normalization, creation, search, and card rendering.
+- Cheater attachment uploads use `multipart/form-data` to
+  `/api/cheatsheets/{id}/attachments`; client validation stays aligned with
+  backend limits: `.txt`/`.md`, 1 MiB upload size, and 25,000 text characters
+  per sheet.
 - Sheets exposes `window.SheetsApp = { render, dispose }`; every desktop window
   instance owns its own undo/redo stacks, auto-save timer, dirty state, and
   context menu state.
@@ -191,7 +197,8 @@ registration lives in `internal/desktop/types.go`.
   routine, API, backup) returning localized names via `cheater.template.*`
   keys. No child DOX file needed.
 - `cheater-attachments.js` - Attachment upload/delete side panel with
-  drag-and-drop and 5-second undo. No child DOX file needed.
+  drag-and-drop, multipart `.txt`/`.md` uploads, backend-aligned 1 MiB and
+  25,000-character validation, and 5-second undo. No child DOX file needed.
 - `calculator.js` implements the Calculator app, a three-mode calculator
   (standard, scientific, programmer) with expression tokenizer/parser, context
   menu for clipboard operations, and window cleanup. Loaded lazily by

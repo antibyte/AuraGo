@@ -866,19 +866,20 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
 				}
 				type entry struct {
-					ID           string `json:"id"`
-					Name         string `json:"name"`
-					Abstract     string `json:"abstract"`
-					Active       bool   `json:"active"`
-					CreatedBy    string `json:"created_by"`
-					UsageCount   int    `json:"usage_count"`
-					LastUsedAt   string `json:"last_used_at,omitempty"`
-					DeleteLocked bool   `json:"delete_locked"`
-					ExpiresAt    string `json:"expires_at,omitempty"`
+					ID           string   `json:"id"`
+					Name         string   `json:"name"`
+					Abstract     string   `json:"abstract"`
+					Tags         []string `json:"tags"`
+					Active       bool     `json:"active"`
+					CreatedBy    string   `json:"created_by"`
+					UsageCount   int      `json:"usage_count"`
+					LastUsedAt   string   `json:"last_used_at,omitempty"`
+					DeleteLocked bool     `json:"delete_locked"`
+					ExpiresAt    string   `json:"expires_at,omitempty"`
 				}
 				list := make([]entry, len(sheets))
 				for i, s := range sheets {
-					list[i] = entry{ID: s.ID, Name: s.Name, Abstract: s.Abstract, Active: s.Active, CreatedBy: s.CreatedBy, UsageCount: s.UsageCount, LastUsedAt: s.LastUsedAt, DeleteLocked: s.DeleteLocked, ExpiresAt: s.ExpiresAt}
+					list[i] = entry{ID: s.ID, Name: s.Name, Abstract: s.Abstract, Tags: s.Tags, Active: s.Active, CreatedBy: s.CreatedBy, UsageCount: s.UsageCount, LastUsedAt: s.LastUsedAt, DeleteLocked: s.DeleteLocked, ExpiresAt: s.ExpiresAt}
 				}
 				data, _ := json.Marshal(map[string]interface{}{"status": "ok", "count": len(list), "cheatsheets": list})
 				return fmt.Sprintf("Tool Output: %s", string(data))
@@ -906,7 +907,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				if req.Name == "" {
 					return `Tool Output: {"status":"error","message":"'name' is required for create."}`
 				}
-				sheet, err := tools.CheatsheetCreate(cheatsheetDB, req.Name, req.Content, "agent")
+				sheet, err := tools.CheatsheetCreateWithTags(cheatsheetDB, req.Name, req.Content, "agent", req.Tags)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
 				}
@@ -948,10 +949,10 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				if req.Name != "" {
 					namePtr = &req.Name
 				}
-				if req.Content != "" {
+				if req.ContentSet {
 					contentPtr = &req.Content
 				}
-				if req.Abstract != "" {
+				if req.AbstractSet {
 					abstractPtr = &req.Abstract
 				}
 				if req.Active != nil {
@@ -960,7 +961,11 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				if req.DeleteLocked != nil {
 					deleteLockedPtr = req.DeleteLocked
 				}
-				sheet, err := tools.CheatsheetUpdate(cheatsheetDB, req.ID, namePtr, contentPtr, abstractPtr, activePtr, deleteLockedPtr)
+				var tagsPtr *[]string
+				if req.TagsSet {
+					tagsPtr = &req.Tags
+				}
+				sheet, err := tools.CheatsheetUpdate(cheatsheetDB, req.ID, namePtr, contentPtr, abstractPtr, activePtr, deleteLockedPtr, tagsPtr)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
 				}

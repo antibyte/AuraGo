@@ -65,17 +65,18 @@ func handleCheatSheets(s *Server) http.HandlerFunc {
 
 		case http.MethodPost:
 			var body struct {
-				Name         string `json:"name"`
-				Content      string `json:"content"`
-				Abstract     string `json:"abstract"`
-				DeleteLocked bool   `json:"delete_locked"`
+				Name         string   `json:"name"`
+				Content      string   `json:"content"`
+				Abstract     string   `json:"abstract"`
+				Tags         []string `json:"tags"`
+				DeleteLocked bool     `json:"delete_locked"`
 			}
 			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 				jsonError(w, "invalid JSON", http.StatusBadRequest)
 				return
 			}
 			// HTTP API always creates as "user"; agent creates via tool dispatch
-			sheet, err := tools.CheatsheetCreate(s.CheatsheetDB, body.Name, body.Content, "user")
+			sheet, err := tools.CheatsheetCreateWithTags(s.CheatsheetDB, body.Name, body.Content, "user", body.Tags)
 			if err != nil {
 				jsonLoggedError(w, s.Logger, http.StatusBadRequest, "Failed to create cheat sheet", "Failed to create cheat sheet", err, "name", body.Name)
 				return
@@ -136,17 +137,18 @@ func handleCheatSheetByID(s *Server) http.HandlerFunc {
 
 		case http.MethodPut:
 			var body struct {
-				Name         *string `json:"name"`
-				Content      *string `json:"content"`
-				Abstract     *string `json:"abstract"`
-				Active       *bool   `json:"active"`
-				DeleteLocked *bool   `json:"delete_locked"`
+				Name         *string   `json:"name"`
+				Content      *string   `json:"content"`
+				Abstract     *string   `json:"abstract"`
+				Tags         *[]string `json:"tags"`
+				Active       *bool     `json:"active"`
+				DeleteLocked *bool     `json:"delete_locked"`
 			}
 			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 				jsonError(w, "invalid JSON", http.StatusBadRequest)
 				return
 			}
-			sheet, err := tools.CheatsheetUpdate(s.CheatsheetDB, id, body.Name, body.Content, body.Abstract, body.Active, body.DeleteLocked)
+			sheet, err := tools.CheatsheetUpdate(s.CheatsheetDB, id, body.Name, body.Content, body.Abstract, body.Active, body.DeleteLocked, body.Tags)
 			if err != nil {
 				if errors.Is(err, sql.ErrNoRows) {
 					jsonError(w, "not found", http.StatusNotFound)
@@ -217,6 +219,14 @@ func handleCheatSheetAttachments(s *Server) http.HandlerFunc {
 
 		switch r.Method {
 		case http.MethodGet:
+			if _, err := tools.CheatsheetGet(s.CheatsheetDB, csID); err != nil {
+				if errors.Is(err, sql.ErrNoRows) {
+					jsonError(w, "not found", http.StatusNotFound)
+					return
+				}
+				jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to load cheat sheet", "Failed to load cheat sheet", err, "cheatsheet_id", csID)
+				return
+			}
 			attachments, err := tools.CheatsheetAttachmentList(s.CheatsheetDB, csID)
 			if err != nil {
 				jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to list attachments", "Failed to list cheatsheet attachments", err, "cheatsheet_id", csID)
@@ -276,6 +286,18 @@ func handleCheatSheetAttachments(s *Server) http.HandlerFunc {
 					jsonError(w, "Invalid filename", http.StatusBadRequest)
 					return
 				}
+				ext := strings.ToLower(filepath.Ext(safeName))
+				allowedExt := false
+				for _, allowed := range tools.AllowedAttachmentExtensions {
+					if ext == allowed {
+						allowedExt = true
+						break
+					}
+				}
+				if !allowedExt {
+					jsonError(w, "Invalid attachment extension; only .txt and .md files are allowed", http.StatusBadRequest)
+					return
+				}
 
 				knowledgeDir := s.knowledgeDir()
 				if knowledgeDir == "" {
@@ -284,6 +306,23 @@ func handleCheatSheetAttachments(s *Server) http.HandlerFunc {
 				}
 
 				fullPath := filepath.Join(knowledgeDir, safeName)
+				info, err := os.Stat(fullPath)
+				if err != nil {
+					if os.IsNotExist(err) {
+						jsonError(w, "Knowledge file not found", http.StatusNotFound)
+					} else {
+						jsonError(w, "Failed to inspect knowledge file", http.StatusInternalServerError)
+					}
+					return
+				}
+				if info.IsDir() {
+					jsonError(w, "Knowledge file not found", http.StatusNotFound)
+					return
+				}
+				if info.Size() > 1<<20 {
+					jsonError(w, "Knowledge file is too large", http.StatusBadRequest)
+					return
+				}
 				resolvedKnowledgeDir, err := filepath.Abs(knowledgeDir)
 				if err != nil {
 					jsonError(w, "Knowledge storage unavailable", http.StatusInternalServerError)

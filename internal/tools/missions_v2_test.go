@@ -933,6 +933,99 @@ func TestMissionSkipsPreparedContextWithStaleSourceChecksum(t *testing.T) {
 	}
 }
 
+func TestMissionSkipsPreparedContextWithStaleStatus(t *testing.T) {
+	tmpDir := tempSystemTaskDir(t)
+	prepDB, err := InitPreparedMissionsDB(filepath.Join(tmpDir, "prepared_missions.db"))
+	if err != nil {
+		t.Fatalf("failed to init prepared missions db: %v", err)
+	}
+	t.Cleanup(func() { prepDB.Close() })
+
+	mm := NewMissionManagerV2(tmpDir, nil)
+	mm.SetPreparedDB(prepDB)
+
+	promptCh := make(chan string, 1)
+	mm.SetCallback(func(prompt string, missionID string) {
+		promptCh <- prompt
+	})
+
+	mission := &MissionV2{
+		ID:            "stale-status",
+		Name:          "Stale Status",
+		Prompt:        "Run the normal workflow.",
+		ExecutionType: ExecutionManual,
+		Priority:      "high",
+		AutoPrepare:   true,
+	}
+	if err := mm.Create(mission); err != nil {
+		t.Fatalf("failed to create mission: %v", err)
+	}
+	if err := SavePreparedMission(prepDB, &PreparedMission{
+		ID:             "prep_stale_status",
+		MissionID:      mission.ID,
+		Version:        1,
+		Status:         PrepStatusStale,
+		PreparedAt:     time.Now(),
+		SourceChecksum: missionPreparationChecksumForTest(mission.Prompt),
+		Confidence:     0.9,
+		Analysis: &PreparationAnalysis{
+			Summary: "Stale guidance must not be rendered.",
+			StepPlan: []StepGuide{
+				{Step: 1, Action: "Use stale guidance", Tool: "cheatsheet"},
+			},
+		},
+	}); err != nil {
+		t.Fatalf("failed to save prepared mission: %v", err)
+	}
+
+	if err := mm.RunNow(mission.ID); err != nil {
+		t.Fatalf("failed to queue mission: %v", err)
+	}
+	mm.processNext()
+
+	var prompt string
+	select {
+	case prompt = <-promptCh:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for mission callback")
+	}
+	mm.OnMissionComplete(mission.ID, MissionResultSuccess, "ok")
+
+	if strings.Contains(prompt, "Mission Execution Plan") || strings.Contains(prompt, "Stale guidance") {
+		t.Fatalf("stale status prepared context leaked into prompt: %q", prompt)
+	}
+}
+
+func TestMissionPreparationChecksumChangesWhenCheatsheetDeactivates(t *testing.T) {
+	tmpDir := tempSystemTaskDir(t)
+	db, err := InitCheatsheetDB(filepath.Join(tmpDir, "cheatsheets.db"))
+	if err != nil {
+		t.Fatalf("InitCheatsheetDB: %v", err)
+	}
+	t.Cleanup(func() { db.Close() })
+
+	sheet, err := CheatsheetCreate(db, "Runbook", "Active content", "user")
+	if err != nil {
+		t.Fatalf("CheatsheetCreate: %v", err)
+	}
+	mission := &MissionV2{
+		ID:            "checksum-cheatsheet-active",
+		Prompt:        "Use referenced context.",
+		CheatsheetIDs: []string{sheet.ID},
+	}
+	activeChecksum := MissionPreparationSourceChecksum(mission, db)
+
+	inactive := false
+	if _, err := CheatsheetUpdate(db, sheet.ID, nil, nil, nil, &inactive, nil, nil); err != nil {
+		t.Fatalf("deactivate cheatsheet: %v", err)
+	}
+	inactiveChecksum := MissionPreparationSourceChecksum(mission, db)
+
+	if activeChecksum == inactiveChecksum {
+		t.Fatalf("checksum did not change when cheatsheet active changed: %q", activeChecksum)
+	}
+}
+
 type fakeWebhookTriggerManager struct {
 	callbacks map[string][]func([]byte)
 }
