@@ -219,8 +219,8 @@ func providerOAuthSetup(id, oauthProvider string) *catalog.OAuthSetup {
 			ClientIDField:     "Client ID",
 			ClientSecretField: "Client secret",
 			ClientID:          "b1a00492-073a-47ea-816f-4c329264a828",
-			AuthURL:           "https://auth.x.ai/oauth/authorize?plan=generic&referrer=oh-my-pi",
-			TokenURL:          "https://auth.x.ai/oauth/token",
+			AuthURL:           "https://auth.x.ai/oauth2/authorize",
+			TokenURL:          "https://auth.x.ai/oauth2/token",
 			Scopes: []string{
 				"openid",
 				"profile",

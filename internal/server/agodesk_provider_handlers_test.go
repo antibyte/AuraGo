@@ -360,7 +360,7 @@ func TestAgodeskProviderUpsertAcceptsOAuthAuthTypeAlias(t *testing.T) {
 			BaseURL:       "https://api.x.ai/v1",
 			Model:         "grok-4",
 			AuthType:      "oauth",
-			OAuthAuthURL:  "https://auth.x.ai/oauth/authorize?plan=generic&referrer=oh-my-pi",
+			OAuthAuthURL:  "https://auth.x.ai/oauth2/authorize",
 			OAuthTokenURL: tokenServer.URL,
 			OAuthClientID: "client-id",
 			OAuthScopes:   "openid profile",
@@ -398,8 +398,8 @@ providers:
     base_url: https://api.x.ai/v1
     model: grok-4
     auth_type: oauth
-    oauth_auth_url: https://auth.x.ai/oauth/authorize?plan=generic&referrer=oh-my-pi
-    oauth_token_url: https://auth.x.ai/oauth/token
+    oauth_auth_url: https://auth.x.ai/oauth2/authorize
+    oauth_token_url: https://auth.x.ai/oauth2/token
     oauth_client_id: client-id
     oauth_scopes: openid profile
 `)

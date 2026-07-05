@@ -564,8 +564,8 @@
       "client_id_field": "Client ID",
       "client_secret_field": "Client secret",
       "client_id": "b1a00492-073a-47ea-816f-4c329264a828",
-      "auth_url": "https://auth.x.ai/oauth/authorize?plan=generic&referrer=oh-my-pi",
-      "token_url": "https://auth.x.ai/oauth/token",
+      "auth_url": "https://auth.x.ai/oauth2/authorize",
+      "token_url": "https://auth.x.ai/oauth2/token",
       "scopes": [
         "openid",
         "profile",

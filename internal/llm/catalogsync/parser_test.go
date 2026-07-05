@@ -137,6 +137,12 @@ func TestBuildSnapshotNormalizesModelsProvidersAndMetadata(t *testing.T) {
 	if xai.OAuthSetup.ClientID == "" {
 		t.Fatal("xai-oauth OAuth setup must include public client ID")
 	}
+	if xai.OAuthSetup.AuthURL != "https://auth.x.ai/oauth2/authorize" {
+		t.Fatalf("xai-oauth auth URL = %q, want OAuth2 authorize endpoint", xai.OAuthSetup.AuthURL)
+	}
+	if xai.OAuthSetup.TokenURL != "https://auth.x.ai/oauth2/token" {
+		t.Fatalf("xai-oauth token URL = %q, want OAuth2 token endpoint", xai.OAuthSetup.TokenURL)
+	}
 	if xai.OAuthSetup.CallbackPort != 56121 || xai.OAuthSetup.CallbackPath != "/callback" {
 		t.Fatalf("xai-oauth OAuth callback = %d %q, want 56121 /callback", xai.OAuthSetup.CallbackPort, xai.OAuthSetup.CallbackPath)
 	}
