@@ -3573,3 +3573,108 @@ func TestMediaFrontend_PaginationIncludesFirstAndLastControls(t *testing.T) {
 		}
 	}
 }
+
+func TestCyberwarLeftHudExistsAndUsesEqualizerBars(t *testing.T) {
+	t.Parallel()
+
+	cyberwarCSS := readChatThemeSectionCSS(t, "chat-cyberwar.css")
+
+	for _, marker := range []string{
+		"#cyberwar-hud-left {",
+		"position: fixed;",
+		"width: 180px;",
+		"border-right:",
+		".hud-eq {",
+		".hud-eq-bar {",
+		"transform-origin: bottom;",
+		".hud-eq-value {",
+		".hud-eq-sub {",
+	} {
+		if !strings.Contains(cyberwarCSS, marker) {
+			t.Fatalf("cyberwar left HUD CSS missing marker %q", marker)
+		}
+	}
+
+	hudJS, err := os.ReadFile(filepath.Join("js", "chat", "cyberwar-hud.js"))
+	if err != nil {
+		t.Fatalf("read cyberwar-hud.js: %v", err)
+	}
+	js := string(hudJS)
+
+	for _, marker := range []string{
+		"buildLeftHUD",
+		"captureLeftRefs",
+		"ensureLeftHUD",
+		"syncLeftPosition",
+		"onSystemMetrics",
+		"fetchSystemInfo",
+		"formatBytes",
+		"formatUptime",
+		"HUD_LEFT_ID = 'cyberwar-hud-left'",
+		"chatBox.appendChild(leftHud)",
+		"window.AuraSSE.on('system_metrics', onSystemMetrics)",
+	} {
+		if !strings.Contains(js, marker) {
+			t.Fatalf("cyberwar-hud.js missing left HUD marker %q", marker)
+		}
+	}
+}
+
+func TestCyberwarLeftHudPaddingAppliedToChatContent(t *testing.T) {
+	t.Parallel()
+
+	cyberwarCSS := readChatThemeSectionCSS(t, "chat-cyberwar.css")
+
+	chatContentBlock := func() string {
+		start := strings.Index(cyberwarCSS, `[data-theme="cyberwar"] #chat-content {`)
+		if start < 0 {
+			t.Fatalf("cyberwar CSS missing #chat-content selector")
+		}
+		end := strings.Index(cyberwarCSS[start:], "\n}")
+		if end < 0 {
+			t.Fatalf("cyberwar #chat-content missing closing brace")
+		}
+		return cyberwarCSS[start : start+end]
+	}()
+
+	if !strings.Contains(chatContentBlock, "padding-left: 196px;") {
+		t.Fatalf("cyberwar #chat-content missing padding-left: 196px; got: %s", chatContentBlock)
+	}
+	if !strings.Contains(chatContentBlock, "padding-right: 196px;") {
+		t.Fatalf("cyberwar #chat-content missing padding-right: 196px; got: %s", chatContentBlock)
+	}
+}
+
+func TestCyberwarLeftHudPositionIsFixed(t *testing.T) {
+	t.Parallel()
+
+	cyberwarCSS := readChatThemeSectionCSS(t, "chat-cyberwar.css")
+
+	leftHudBlock := func() string {
+		start := strings.Index(cyberwarCSS, "#cyberwar-hud-left {")
+		if start < 0 {
+			t.Fatalf("cyberwar CSS missing #cyberwar-hud-left selector")
+		}
+		end := strings.Index(cyberwarCSS[start:], "\n}")
+		if end < 0 {
+			t.Fatalf("cyberwar #cyberwar-hud-left missing closing brace")
+		}
+		return cyberwarCSS[start : start+end]
+	}()
+
+	for _, forbidden := range []string{
+		"position: absolute;",
+		"position: relative;",
+		"position: static;",
+		"top:",
+		"left: 0;",
+	} {
+		if strings.Contains(leftHudBlock, forbidden) {
+			t.Fatalf("cyberwar #cyberwar-hud-left must not set %q statically in CSS; it uses JS syncLeftPosition(): %s", forbidden, leftHudBlock)
+		}
+	}
+
+	if !strings.Contains(leftHudBlock, "position: fixed;") {
+		t.Fatalf("cyberwar #cyberwar-hud-left must use position: fixed; got: %s", leftHudBlock)
+	}
+}

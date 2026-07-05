@@ -7891,6 +7891,8 @@ pre,
     overflow: hidden;
     padding-top: 1.75rem;
     padding-bottom: 3.25rem; /* extra breathing room so last message doesn't feel cramped against composer */
+    padding-right: 196px;
+    padding-left: 196px;
 }
 
 /* Avatars as Tactical HUD Reticles */
@@ -8559,10 +8561,6 @@ pre,
     display: flex;
 }
 
-[data-theme="cyberwar"] #chat-content {
-    padding-right: 196px;
-}
-
 [data-theme="cyberwar"] .scroll-to-bottom-btn {
     right: calc(180px + clamp(1rem, 2.4vw, 1.75rem));
 }
@@ -8781,6 +8779,79 @@ pre,
 
 #cyberwar-hud.hud-reduced-motion .hud-blist-dot {
     opacity: 0.8;
+}
+
+/* === Cyberwar Left HUD — System Info & Metrics Equalizer === */
+#cyberwar-hud-left {
+    position: fixed;
+    width: 180px;
+    z-index: 4;
+    pointer-events: none;
+    display: none;
+    flex-direction: column;
+    gap: 6px;
+    padding: 12px 8px;
+    box-sizing: border-box;
+    border-right: 1px solid rgba(0, 240, 255, 0.12);
+    background: linear-gradient(90deg, rgba(0, 240, 255, 0.04), transparent);
+    overflow: hidden;
+    font-family: var(--cyber-font-ui, 'Oxanium', 'Share Tech Mono', monospace, system-ui, sans-serif);
+    color: rgba(0, 240, 255, 0.85);
+    text-transform: uppercase;
+}
+
+#cyberwar-hud-left.hud-active {
+    display: flex;
+}
+
+.hud-eq {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 4px;
+    height: 48px;
+}
+
+.hud-eq-bar {
+    width: 14px;
+    height: 100%;
+    background: #08ff7a;
+    box-shadow: 0 0 8px rgba(8, 255, 122, 0.6);
+    transform-origin: bottom;
+    transition: transform 350ms ease;
+    clip-path: polygon(0 2px, calc(100% - 1px) 0, 100% 2px, 100% calc(100% - 2px), 1px 100%, 0 calc(100% - 2px));
+}
+
+.hud-eq-bar.eq-amber {
+    background: #ffae3b;
+    box-shadow: 0 0 8px rgba(255, 174, 59, 0.6);
+}
+
+.hud-eq-bar.eq-red {
+    background: #ff2670;
+    box-shadow: 0 0 10px rgba(255, 38, 112, 0.7);
+}
+
+.hud-eq-bar:nth-child(1) { transition-delay: 0ms; }
+.hud-eq-bar:nth-child(2) { transition-delay: 40ms; }
+.hud-eq-bar:nth-child(3) { transition-delay: 80ms; }
+.hud-eq-bar:nth-child(4) { transition-delay: 120ms; }
+.hud-eq-bar:nth-child(5) { transition-delay: 160ms; }
+
+.hud-eq-value {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: rgba(0, 240, 255, 0.95);
+    text-shadow: 0 0 4px rgba(0, 240, 255, 0.4);
+    text-align: center;
+    margin-top: 3px;
+}
+
+.hud-eq-sub {
+    font-size: 0.5rem;
+    color: rgba(0, 240, 255, 0.5);
+    text-align: center;
+    letter-spacing: 0.06em;
 }
 
 /* === Virtual Desktop — Cyberwar Tactical HUD === */
@@ -11030,6 +11101,7 @@ pre,
     100% { background-position: 0% 0%, 0% 0%, 0% 0%, 0% 0%; }
 }
 
+/* ── Polish: Bubble entrance drift (cinematic horizontal settle) ──────────── */
 @keyframes darksunMaterialize {
     0% {
         opacity: 0;
@@ -11157,31 +11229,24 @@ pre,
     top: 0;
     width: var(--ember-size, 16px);
     height: var(--ember-size, 16px);
-    border-radius: 50%;
     pointer-events: none;
 }
 
 [data-theme="dark-sun"] .dark-sun-ash {
-    background: radial-gradient(circle, rgba(130, 80, 50, 0.5), rgba(40, 20, 10, 0.2));
-    filter: blur(1.5px);
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(140, 100, 60, 0.45), transparent 70%);
+    filter: blur(3px);
+    opacity: var(--ember-opacity, 0.24);
     animation: darkSunAshFall var(--ember-duration, 55s) linear var(--ember-delay, -10s) infinite;
 }
 
 [data-theme="dark-sun"] .dark-sun-ember {
-    background: radial-gradient(circle, rgba(255, 160, 40, 0.7), rgba(255, 90, 20, 0.3));
-    filter: blur(0.5px);
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 230, 180, 0.95) 0%, rgba(255, 160, 50, 0.6) 35%, rgba(255, 80, 20, 0.25) 60%, transparent 72%);
+    filter: blur(1px);
+    opacity: var(--ember-opacity, 0.55);
     animation: darkSunEmberRise var(--ember-duration, 28s) linear var(--ember-delay, -5s) infinite;
-}
-
-@keyframes darkSunEmberFlicker {
-    0%, 100% { opacity: var(--ember-opacity, 0.55); }
-    50% { opacity: calc(var(--ember-opacity, 0.55) * 0.65); }
-}
-
-[data-theme="dark-sun"] .dark-sun-ember {
-    animation:
-        darkSunEmberRise var(--ember-duration, 28s) linear var(--ember-delay, -5s) infinite,
-        darkSunEmberFlicker calc(var(--ember-duration, 28s) * 0.25) ease-in-out infinite;
+    box-shadow: 0 0 5px 2px rgba(255, 160, 60, 0.35), 0 0 12px 5px rgba(255, 100, 30, 0.12);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -11208,8 +11273,14 @@ pre,
     [data-theme="dark-sun"] .app-header::before,
     [data-theme="dark-sun"] #chat-box,
     [data-theme="dark-sun"] .greeting-icon,
+    [data-theme="dark-sun"] .greeting-icon::after,
+    [data-theme="dark-sun"] .avatar::after,
     [data-theme="dark-sun"] .msg-row,
     [data-theme="dark-sun"] .scroll-to-bottom-btn.has-new {
+        animation: none !important;
+    }
+
+    [data-theme="dark-sun"] body {
         animation: none !important;
     }
 }

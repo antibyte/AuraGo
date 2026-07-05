@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"aurago/internal/services/optimizer"
+	"aurago/internal/tools"
 )
 
 func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster) {
@@ -455,6 +456,21 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	mux.HandleFunc("/api/system/os", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{"os": runtime.GOOS})
+	})
+
+	mux.HandleFunc("/api/system/info", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		info := tools.GetHostInfo()
+		resp := map[string]string{
+			"hostname":        info.Hostname,
+			"os":              info.OS,
+			"platform":        info.Platform,
+			"platform_version": info.PlatformVersion,
+			"kernel_version":   info.KernelVersion,
+			"go_version":      runtime.Version(),
+			"go_arch":         runtime.GOARCH,
+		}
+		json.NewEncoder(w).Encode(resp)
 	})
 
 	// File Indexing API endpoints

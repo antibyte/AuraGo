@@ -4,6 +4,7 @@
     const THEME = 'cyberwar';
     const CHAT_BOX_ID = 'chat-box';
     const HUD_ID = 'cyberwar-hud';
+    const HUD_LEFT_ID = 'cyberwar-hud-left';
     const BLIP_LIMIT = 5;
 
     let hud = null;
@@ -18,15 +19,39 @@
     let vaultNodeDot = null;
     let webhooksNodeDot = null;
 
+    let leftHud = null;
+    let cpuEqBars = null;
+    let cpuEqValue = null;
+    let cpuEqSub = null;
+    let ramEqBars = null;
+    let ramEqValue = null;
+    let ramEqSub = null;
+    let diskEqBars = null;
+    let diskEqValue = null;
+    let diskEqSub = null;
+    let netUpEl = null;
+    let netDnEl = null;
+    let uptimeEl = null;
+    let sseClientsEl = null;
+    let systemHostEl = null;
+    let systemOsEl = null;
+    let systemGoEl = null;
+
     let counters = { messages: 0, tools: 0 };
     let threatLevel = 0;
     let threatDecayTimer = null;
     let threatBumpDebounce = 0;
     let updateFrame = 0;
     let positionFrame = 0;
+    let leftPositionFrame = 0;
     let unsubscribeFns = [];
     let _wired = false;
     let _positionSynced = false;
+    let _leftPositionSynced = false;
+    let _systemInfoFetched = false;
+    let _prevBytesSent = null;
+    let _prevBytesRecv = null;
+    let _prevNetTime = 0;
 
     const motionQuery = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
     const mobileQuery = window.matchMedia ? window.matchMedia('(max-width: 767px)') : null;
@@ -208,6 +233,115 @@
         }
     }
 
+    function formatBytes(value) {
+        var n = Number(value || 0);
+        if (!Number.isFinite(n) || n <= 0) return '0 B';
+        var units = ['B', 'KB', 'MB', 'GB', 'TB'];
+        var size = n;
+        var unit = 0;
+        while (size >= 1024 && unit < units.length - 1) {
+            size /= 1024;
+            unit += 1;
+        }
+        return size.toFixed(unit === 0 ? 0 : 1) + ' ' + units[unit];
+    }
+
+    function formatUptime(seconds) {
+        var total = Math.max(0, Math.floor(Number(seconds || 0)));
+        var days = Math.floor(total / 86400);
+        total -= days * 86400;
+        var hours = Math.floor(total / 3600);
+        total -= hours * 3600;
+        var minutes = Math.floor(total / 60);
+        var parts = [];
+        if (days > 0) parts.push(days + 'd');
+        if (hours > 0) parts.push(hours + 'h');
+        parts.push(minutes + 'm');
+        return parts.join(' ');
+    }
+
+    function eqBarColor(pct) {
+        if (pct > 70) return 'eq-red';
+        if (pct > 40) return 'eq-amber';
+        return '';
+    }
+
+    function setEqBars(bars, pct) {
+        if (!bars || !bars.length) return;
+        var colorCls = eqBarColor(pct);
+        for (var i = 0; i < bars.length; i++) {
+            var bar = bars[i];
+            var staggerPct = pct * (0.6 + 0.4 * Math.random());
+            if (pct <= 4) staggerPct = pct * 0.5;
+            bar.style.transform = 'scaleY(' + (staggerPct / 100).toFixed(3) + ')';
+            bar.classList.remove('eq-amber', 'eq-red');
+            if (colorCls) bar.classList.add(colorCls);
+        }
+    }
+
+    function onSystemMetrics(payload) {
+        if (!payload) return;
+        if (payload.cpu && cpuEqBars) {
+            var cpuPct = Number(payload.cpu.usage_percent) || 0;
+            setEqBars(cpuEqBars, cpuPct);
+            if (cpuEqValue) cpuEqValue.textContent = cpuPct.toFixed(1) + '%';
+            if (cpuEqSub) {
+                var cores = payload.cpu.cores;
+                if (cores == null) cores = '?';
+                cpuEqSub.textContent = cores + ' CORES';
+            }
+        }
+        if (payload.memory) {
+            var memPct = Number(payload.memory.used_percent) || 0;
+            if (ramEqBars) setEqBars(ramEqBars, memPct);
+            if (ramEqValue) ramEqValue.textContent = memPct.toFixed(1) + '%';
+            if (ramEqSub) {
+                ramEqSub.textContent = formatBytes(payload.memory.used) + ' / ' + formatBytes(payload.memory.total);
+            }
+        }
+        if (payload.disk) {
+            var diskPct = Number(payload.disk.used_percent) || 0;
+            if (diskEqBars) setEqBars(diskEqBars, diskPct);
+            if (diskEqValue) diskEqValue.textContent = diskPct.toFixed(1) + '%';
+            if (diskEqSub) {
+                diskEqSub.textContent = formatBytes(payload.disk.used) + ' / ' + formatBytes(payload.disk.total);
+            }
+        }
+        if (payload.network) {
+            if (netUpEl) netUpEl.textContent = formatBytes(payload.network.bytes_sent);
+            if (netDnEl) netDnEl.textContent = formatBytes(payload.network.bytes_recv);
+        }
+        if (uptimeEl && payload.uptime_seconds != null) {
+            uptimeEl.textContent = formatUptime(payload.uptime_seconds);
+        }
+        if (sseClientsEl && payload.sse_clients != null) {
+            sseClientsEl.textContent = 'SSE ' + payload.sse_clients;
+        }
+    }
+
+    function fetchSystemInfo() {
+        if (_systemInfoFetched) return;
+        _systemInfoFetched = true;
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', '/api/system/info', true);
+        xhr.onload = function () {
+            if (xhr.status !== 200) return;
+            try {
+                var info = JSON.parse(xhr.responseText);
+                if (systemHostEl && info.hostname) systemHostEl.textContent = info.hostname;
+                if (systemOsEl) {
+                    var osParts = [info.os];
+                    if (info.platform_version) osParts.push(info.platform_version);
+                    systemOsEl.textContent = osParts.join(' ');
+                }
+                if (systemGoEl) {
+                    systemGoEl.textContent = (info.go_version || '') + ' ' + (info.go_arch || '');
+                }
+            } catch (_) { /* ignore parse errors */ }
+        };
+        xhr.send();
+    }
+
     function wireSSE() {
         if (!window.AuraSSE || _wired) return;
         if (typeof window.AuraSSE.on !== 'function') return;
@@ -216,12 +350,14 @@
         window.AuraSSE.on('token_update', onTokenUpdate);
         window.AuraSSE.on('_open', onConnectionEvent);
         window.AuraSSE.on('_error', onConnectionEvent);
-        unsubscribeFns.push(() => {
+        window.AuraSSE.on('system_metrics', onSystemMetrics);
+        unsubscribeFns.push(function () {
             if (typeof window.AuraSSE.off === 'function') {
                 window.AuraSSE.off('agent_action', onAgentAction);
                 window.AuraSSE.off('token_update', onTokenUpdate);
                 window.AuraSSE.off('_open', onConnectionEvent);
                 window.AuraSSE.off('_error', onConnectionEvent);
+                window.AuraSSE.off('system_metrics', onSystemMetrics);
             }
             _wired = false;
         });
@@ -280,6 +416,123 @@
         webhooksNodeDot = hud.querySelector('[data-node="webhooks"] .hud-node-dot');
     }
 
+    function buildLeftHUD() {
+        var root = document.createElement('div');
+        root.id = HUD_LEFT_ID;
+        root.setAttribute('aria-hidden', 'true');
+        root.innerHTML = [
+            '<div class="hud-panel" data-panel="system-info">',
+            '  <div class="hud-panel-title">// SYSTEM</div>',
+            '  <div class="hud-node"><span class="hud-node-name">HOST</span><span class="hud-node-status" data-sys-host>-</span></div>',
+            '  <div class="hud-node"><span class="hud-node-name">OS</span><span class="hud-node-status" data-sys-os>-</span></div>',
+            '  <div class="hud-node"><span class="hud-node-name">GO</span><span class="hud-node-status" data-sys-go>-</span></div>',
+            '</div>',
+            '<div class="hud-panel" data-panel="cpu">',
+            '  <div class="hud-panel-title">// CPU</div>',
+            '  <div class="hud-eq"><span class="hud-eq-bar"></span><span class="hud-eq-bar"></span><span class="hud-eq-bar"></span><span class="hud-eq-bar"></span><span class="hud-eq-bar"></span></div>',
+            '  <div class="hud-eq-value" data-eq-cpu-value>0.0%</div>',
+            '  <div class="hud-eq-sub" data-eq-cpu-sub>? CORES</div>',
+            '</div>',
+            '<div class="hud-panel" data-panel="ram">',
+            '  <div class="hud-panel-title">// RAM</div>',
+            '  <div class="hud-eq"><span class="hud-eq-bar"></span><span class="hud-eq-bar"></span><span class="hud-eq-bar"></span><span class="hud-eq-bar"></span><span class="hud-eq-bar"></span></div>',
+            '  <div class="hud-eq-value" data-eq-ram-value>0.0%</div>',
+            '  <div class="hud-eq-sub" data-eq-ram-sub>0 B / 0 B</div>',
+            '</div>',
+            '<div class="hud-panel" data-panel="disk">',
+            '  <div class="hud-panel-title">// DISK</div>',
+            '  <div class="hud-eq"><span class="hud-eq-bar"></span><span class="hud-eq-bar"></span><span class="hud-eq-bar"></span><span class="hud-eq-bar"></span><span class="hud-eq-bar"></span></div>',
+            '  <div class="hud-eq-value" data-eq-disk-value>0.0%</div>',
+            '  <div class="hud-eq-sub" data-eq-disk-sub>0 B / 0 B</div>',
+            '</div>',
+            '<div class="hud-panel" data-panel="net">',
+            '  <div class="hud-panel-title">// NET</div>',
+            '  <div class="hud-counter"><span class="hud-counter-label">UP</span><span class="hud-counter-value" data-net-up>0 B</span></div>',
+            '  <div class="hud-counter"><span class="hud-counter-label">DN</span><span class="hud-counter-value" data-net-dn>0 B</span></div>',
+            '</div>',
+            '<div class="hud-panel" data-panel="runtime">',
+            '  <div class="hud-panel-title">// UPTIME</div>',
+            '  <div class="hud-counter"><span class="hud-counter-value" data-uptime>0m</span></div>',
+            '  <div class="hud-counter"><span class="hud-counter-value" data-sse-clients>SSE 0</span></div>',
+            '</div>'
+        ].join('');
+        return root;
+    }
+
+    function captureLeftRefs() {
+        systemHostEl = leftHud.querySelector('[data-sys-host]');
+        systemOsEl = leftHud.querySelector('[data-sys-os]');
+        systemGoEl = leftHud.querySelector('[data-sys-go]');
+        cpuEqBars = leftHud.querySelectorAll('[data-panel="cpu"] .hud-eq-bar');
+        cpuEqValue = leftHud.querySelector('[data-eq-cpu-value]');
+        cpuEqSub = leftHud.querySelector('[data-eq-cpu-sub]');
+        ramEqBars = leftHud.querySelectorAll('[data-panel="ram"] .hud-eq-bar');
+        ramEqValue = leftHud.querySelector('[data-eq-ram-value]');
+        ramEqSub = leftHud.querySelector('[data-eq-ram-sub]');
+        diskEqBars = leftHud.querySelectorAll('[data-panel="disk"] .hud-eq-bar');
+        diskEqValue = leftHud.querySelector('[data-eq-disk-value]');
+        diskEqSub = leftHud.querySelector('[data-eq-disk-sub]');
+        netUpEl = leftHud.querySelector('[data-net-up]');
+        netDnEl = leftHud.querySelector('[data-net-dn]');
+        uptimeEl = leftHud.querySelector('[data-uptime]');
+        sseClientsEl = leftHud.querySelector('[data-sse-clients]');
+    }
+
+    function ensureLeftHUD() {
+        var chatBox = document.getElementById(CHAT_BOX_ID);
+        if (!chatBox) return null;
+        if (leftHud && leftHud.parentElement !== chatBox) leftHud = null;
+        if (!leftHud) {
+            leftHud = document.getElementById(HUD_LEFT_ID);
+            if (!leftHud) {
+                leftHud = buildLeftHUD();
+                chatBox.appendChild(leftHud);
+            }
+            captureLeftRefs();
+        }
+        return leftHud;
+    }
+
+    function destroyLeftHUD() {
+        if (leftHud && leftHud.parentElement) leftHud.parentElement.removeChild(leftHud);
+        leftHud = null;
+        cpuEqBars = null;
+        cpuEqValue = null;
+        cpuEqSub = null;
+        ramEqBars = null;
+        ramEqValue = null;
+        ramEqSub = null;
+        diskEqBars = null;
+        diskEqValue = null;
+        diskEqSub = null;
+        netUpEl = null;
+        netDnEl = null;
+        uptimeEl = null;
+        sseClientsEl = null;
+        systemHostEl = null;
+        systemOsEl = null;
+        systemGoEl = null;
+        _systemInfoFetched = false;
+        _prevBytesSent = null;
+        _prevBytesRecv = null;
+        _prevNetTime = 0;
+    }
+
+    function syncLeftPosition() {
+        if (leftPositionFrame) return;
+        var raf = window.requestAnimationFrame || (function (cb) { return window.setTimeout(cb, 16); });
+        leftPositionFrame = raf(function () {
+            leftPositionFrame = 0;
+            if (!leftHud || !leftHud.classList.contains('hud-active')) return;
+            var chatBox = document.getElementById(CHAT_BOX_ID);
+            if (!chatBox) return;
+            var rect = chatBox.getBoundingClientRect();
+            leftHud.style.top = rect.top + 'px';
+            leftHud.style.left = rect.left + 'px';
+            leftHud.style.height = Math.max(0, rect.height) + 'px';
+        });
+    }
+
     function ensureHUD() {
         const chatBox = document.getElementById(CHAT_BOX_ID);
         if (!chatBox) return null;
@@ -331,11 +584,14 @@
 
     function start() {
         if (!ensureHUD()) return;
+        ensureLeftHUD();
         wireSSE();
         hud.classList.add('hud-active');
         if (prefersReducedMotion()) hud.classList.add('hud-reduced-motion');
+        if (leftHud) leftHud.classList.add('hud-active');
         scheduleCounterUpdate();
         refreshNodes();
+        fetchSystemInfo();
         if (positionFrame) { (window.cancelAnimationFrame || window.clearTimeout)(positionFrame); positionFrame = 0; }
         syncPosition();
         if (!_positionSynced) {
@@ -343,6 +599,14 @@
             window.addEventListener('scroll', syncPosition, { passive: true });
             document.addEventListener('scroll', syncPosition, { passive: true, capture: true });
             _positionSynced = true;
+        }
+        if (leftPositionFrame) { (window.cancelAnimationFrame || window.clearTimeout)(leftPositionFrame); leftPositionFrame = 0; }
+        syncLeftPosition();
+        if (!_leftPositionSynced) {
+            window.addEventListener('resize', syncLeftPosition);
+            window.addEventListener('scroll', syncLeftPosition, { passive: true });
+            document.addEventListener('scroll', syncLeftPosition, { passive: true, capture: true });
+            _leftPositionSynced = true;
         }
     }
 
@@ -354,8 +618,16 @@
             document.removeEventListener('scroll', syncPosition, { capture: true });
             _positionSynced = false;
         }
+        if (_leftPositionSynced) {
+            window.removeEventListener('resize', syncLeftPosition);
+            window.removeEventListener('scroll', syncLeftPosition);
+            document.removeEventListener('scroll', syncLeftPosition, { capture: true });
+            _leftPositionSynced = false;
+        }
         if (positionFrame) { (window.cancelAnimationFrame || window.clearTimeout)(positionFrame); positionFrame = 0; }
+        if (leftPositionFrame) { (window.cancelAnimationFrame || window.clearTimeout)(leftPositionFrame); leftPositionFrame = 0; }
         destroyHUD();
+        destroyLeftHUD();
     }
 
     function sync() {
@@ -383,6 +655,7 @@
                 tryStart();
             } else if (hud && hud.classList.contains('hud-active')) {
                 syncPosition();
+                syncLeftPosition();
             }
         } else if (hud) {
             stop();

@@ -370,6 +370,8 @@
     overflow: hidden;
     padding-top: 1.75rem;
     padding-bottom: 3.25rem; /* extra breathing room so last message doesn't feel cramped against composer */
+    padding-right: 196px;
+    padding-left: 196px;
 }
 
 /* Avatars as Tactical HUD Reticles */
@@ -1038,10 +1040,6 @@
     display: flex;
 }
 
-[data-theme="cyberwar"] #chat-content {
-    padding-right: 196px;
-}
-
 [data-theme="cyberwar"] .scroll-to-bottom-btn {
     right: calc(180px + clamp(1rem, 2.4vw, 1.75rem));
 }
@@ -1260,6 +1258,79 @@
 
 #cyberwar-hud.hud-reduced-motion .hud-blist-dot {
     opacity: 0.8;
+}
+
+/* === Cyberwar Left HUD — System Info & Metrics Equalizer === */
+#cyberwar-hud-left {
+    position: fixed;
+    width: 180px;
+    z-index: 4;
+    pointer-events: none;
+    display: none;
+    flex-direction: column;
+    gap: 6px;
+    padding: 12px 8px;
+    box-sizing: border-box;
+    border-right: 1px solid rgba(0, 240, 255, 0.12);
+    background: linear-gradient(90deg, rgba(0, 240, 255, 0.04), transparent);
+    overflow: hidden;
+    font-family: var(--cyber-font-ui, 'Oxanium', 'Share Tech Mono', monospace, system-ui, sans-serif);
+    color: rgba(0, 240, 255, 0.85);
+    text-transform: uppercase;
+}
+
+#cyberwar-hud-left.hud-active {
+    display: flex;
+}
+
+.hud-eq {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 4px;
+    height: 48px;
+}
+
+.hud-eq-bar {
+    width: 14px;
+    height: 100%;
+    background: #08ff7a;
+    box-shadow: 0 0 8px rgba(8, 255, 122, 0.6);
+    transform-origin: bottom;
+    transition: transform 350ms ease;
+    clip-path: polygon(0 2px, calc(100% - 1px) 0, 100% 2px, 100% calc(100% - 2px), 1px 100%, 0 calc(100% - 2px));
+}
+
+.hud-eq-bar.eq-amber {
+    background: #ffae3b;
+    box-shadow: 0 0 8px rgba(255, 174, 59, 0.6);
+}
+
+.hud-eq-bar.eq-red {
+    background: #ff2670;
+    box-shadow: 0 0 10px rgba(255, 38, 112, 0.7);
+}
+
+.hud-eq-bar:nth-child(1) { transition-delay: 0ms; }
+.hud-eq-bar:nth-child(2) { transition-delay: 40ms; }
+.hud-eq-bar:nth-child(3) { transition-delay: 80ms; }
+.hud-eq-bar:nth-child(4) { transition-delay: 120ms; }
+.hud-eq-bar:nth-child(5) { transition-delay: 160ms; }
+
+.hud-eq-value {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: rgba(0, 240, 255, 0.95);
+    text-shadow: 0 0 4px rgba(0, 240, 255, 0.4);
+    text-align: center;
+    margin-top: 3px;
+}
+
+.hud-eq-sub {
+    font-size: 0.5rem;
+    color: rgba(0, 240, 255, 0.5);
+    text-align: center;
+    letter-spacing: 0.06em;
 }
 
 /* === Virtual Desktop — Cyberwar Tactical HUD === */

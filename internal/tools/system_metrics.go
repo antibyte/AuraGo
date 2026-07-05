@@ -131,7 +131,7 @@ func GetSystemMetrics(target string) string {
 
 	switch target {
 	case "host":
-		return encode(MetricsResult{Status: "success", Data: getHostInfo()})
+		return encode(MetricsResult{Status: "success", Data: GetHostInfo()})
 	case "sensors":
 		return encode(MetricsResult{Status: "success", Data: getSensorData()})
 	case "network_detail":
@@ -201,8 +201,8 @@ func GetSystemMetrics(target string) string {
 	})
 }
 
-// getHostInfo returns OS / uptime information.
-func getHostInfo() HostInfo {
+// GetHostInfo returns OS / uptime information.
+func GetHostInfo() HostInfo {
 	info, err := host.Info()
 	if err != nil {
 		return HostInfo{}
