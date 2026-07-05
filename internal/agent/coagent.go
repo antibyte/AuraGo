@@ -832,6 +832,12 @@ func buildSpecialistSystemPrompt(cfg *config.Config, role string, req CoAgentReq
 				}
 			}
 		}
+		if role == "security" {
+			if skillPrompt := loadSecuritySpecialistSkillPrompt(cfg); skillPrompt != "" {
+				extras.WriteString("\n\n")
+				extras.WriteString(skillPrompt)
+			}
+		}
 		if specCfg.AdditionalPrompt != "" {
 			extras.WriteString("\n\n")
 			extras.WriteString(specCfg.AdditionalPrompt)
@@ -842,6 +848,34 @@ func buildSpecialistSystemPrompt(cfg *config.Config, role string, req CoAgentReq
 		prompt += extras.String()
 	}
 	return appendCoAgentOutputSchemaPrompt(prompt, req.OutputSchema)
+}
+
+func loadSecuritySpecialistSkillPrompt(cfg *config.Config) string {
+	path := securitySpecialistSkillPromptPath(cfg)
+	if path == "" {
+		return ""
+	}
+	raw, ok := loadPromptTemplateExists(path)
+	if !ok {
+		return ""
+	}
+	return strings.TrimSpace(stripYAMLFrontmatter(raw))
+}
+
+func securitySpecialistSkillPromptPath(cfg *config.Config) string {
+	if cfg == nil {
+		return ""
+	}
+	if strings.TrimSpace(cfg.ConfigPath) != "" {
+		return filepath.Join(filepath.Dir(cfg.ConfigPath), ".planning", "security_skill.md")
+	}
+	if strings.TrimSpace(cfg.Directories.PromptsDir) != "" {
+		return filepath.Join(filepath.Dir(cfg.Directories.PromptsDir), ".planning", "security_skill.md")
+	}
+	if wd, err := os.Getwd(); err == nil {
+		return filepath.Join(wd, ".planning", "security_skill.md")
+	}
+	return ""
 }
 
 func specialistConfigByRole(cfg *config.Config, role string) *config.SpecialistConfig {

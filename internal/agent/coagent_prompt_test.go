@@ -260,6 +260,60 @@ func TestBuildSpecialistSystemPromptIsolatesCheatsheetContent(t *testing.T) {
 	}
 }
 
+func TestBuildSecuritySpecialistSystemPromptIncludesPlanningSkill(t *testing.T) {
+	promptsDir := t.TempDir()
+	templatesDir := filepath.Join(promptsDir, "templates")
+	if err := os.MkdirAll(templatesDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll templates: %v", err)
+	}
+	template := "Language={{LANGUAGE}}\nTask={{TASK}}\n"
+	if err := os.WriteFile(filepath.Join(templatesDir, "specialist_security.md"), []byte(template), 0o644); err != nil {
+		t.Fatalf("WriteFile template: %v", err)
+	}
+
+	repoRoot := t.TempDir()
+	planningDir := filepath.Join(repoRoot, ".planning")
+	if err := os.MkdirAll(planningDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll planning: %v", err)
+	}
+	skill := "## AuraGo Security Skill\n\n- Report exploitable evidence, impact, and fix.\n"
+	if err := os.WriteFile(filepath.Join(planningDir, "security_skill.md"), []byte(skill), 0o644); err != nil {
+		t.Fatalf("WriteFile skill: %v", err)
+	}
+
+	cfg := &config.Config{}
+	cfg.Agent.SystemLanguage = "en"
+	cfg.Directories.PromptsDir = promptsDir
+	cfg.ConfigPath = filepath.Join(repoRoot, "config.yaml")
+
+	prompt := buildSpecialistSystemPrompt(cfg, "security", CoAgentRequest{
+		Task:       "Audit authentication",
+		Specialist: "security",
+	}, nil, nil, nil)
+
+	for _, want := range []string{
+		"Task=Audit authentication",
+		"## AuraGo Security Skill",
+		"Report exploitable evidence, impact, and fix.",
+	} {
+		if !strings.Contains(prompt, want) {
+			t.Fatalf("security prompt missing %q:\n%s", want, prompt)
+		}
+	}
+
+	coderTemplate := "Coder {{TASK}}\n"
+	if err := os.WriteFile(filepath.Join(templatesDir, "specialist_coder.md"), []byte(coderTemplate), 0o644); err != nil {
+		t.Fatalf("WriteFile coder template: %v", err)
+	}
+	coderPrompt := buildSpecialistSystemPrompt(cfg, "coder", CoAgentRequest{
+		Task:       "Review implementation",
+		Specialist: "coder",
+	}, nil, nil, nil)
+	if strings.Contains(coderPrompt, "AuraGo Security Skill") {
+		t.Fatalf("security skill should not be injected into coder prompt:\n%s", coderPrompt)
+	}
+}
+
 func TestBuildCoAgentSystemPromptAppendsOutputSchemaInstructions(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Agent.SystemLanguage = "en"
