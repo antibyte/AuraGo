@@ -365,6 +365,26 @@ func agodeskProviderCapabilitiesFromPayload(c *agodesk.ProviderCapabilitiesPaylo
 	}
 }
 
+func agodeskProviderAuthTypeForUpsert(existing config.ProviderEntry, provider agodesk.ConfigProviderEntryPayload) string {
+	if strings.TrimSpace(provider.AuthType) != "" {
+		return normalizeProviderAuthType(provider.AuthType)
+	}
+	if agodeskProviderPayloadHasOAuthFields(provider) {
+		return "oauth2"
+	}
+	if strings.TrimSpace(existing.AuthType) != "" {
+		return normalizeProviderAuthType(existing.AuthType)
+	}
+	return "api_key"
+}
+
+func agodeskProviderPayloadHasOAuthFields(provider agodesk.ConfigProviderEntryPayload) bool {
+	return strings.TrimSpace(provider.OAuthAuthURL) != "" ||
+		strings.TrimSpace(provider.OAuthTokenURL) != "" ||
+		strings.TrimSpace(provider.OAuthClientID) != "" ||
+		strings.TrimSpace(provider.OAuthScopes) != ""
+}
+
 func agodeskProviderReferences(cfg *config.Config, providerID string) []agodesk.ProviderReferencePayload {
 	refs := providerReferences(cfg, providerID)
 	if len(refs) == 0 {
@@ -429,16 +449,13 @@ func upsertAgodeskProvider(s *Server, payload agodesk.ConfigProviderUpsertPayloa
 	entry.BaseURL = payload.Provider.BaseURL
 	entry.Model = payload.Provider.Model
 	entry.AccountID = payload.Provider.AccountID
-	entry.AuthType = normalizeProviderAuthType(payload.Provider.AuthType)
+	entry.AuthType = agodeskProviderAuthTypeForUpsert(existing, payload.Provider)
 	entry.OAuthAuthURL = payload.Provider.OAuthAuthURL
 	entry.OAuthTokenURL = payload.Provider.OAuthTokenURL
 	entry.OAuthClientID = payload.Provider.OAuthClientID
 	entry.OAuthScopes = payload.Provider.OAuthScopes
 	entry.Models = agodeskProviderModelCosts(payload.Provider.Models)
 	entry.Capabilities = agodeskProviderCapabilitiesFromPayload(payload.Provider.Capabilities)
-	if strings.TrimSpace(entry.AuthType) == "" {
-		entry.AuthType = "api_key"
-	}
 
 	existingAPIKey := existing.APIKey
 	existingClientSecret := existing.OAuthClientSecret

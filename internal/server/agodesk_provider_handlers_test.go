@@ -287,6 +287,55 @@ func TestAgodeskProviderOAuthDesktopStartAndComplete(t *testing.T) {
 	}
 }
 
+func TestAgodeskProviderUpsertInfersOAuthAuthTypeFromOAuthFields(t *testing.T) {
+	t.Setenv("AURAGO_SSRF_ALLOW_LOOPBACK", "1")
+
+	tokenServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"access_token": "unused",
+			"token_type":   "Bearer",
+			"expires_in":   3600,
+		})
+	}))
+	t.Cleanup(tokenServer.Close)
+
+	server, vault := newProviderTestServer(t, `providers: []`)
+	server.Vault = vault
+	_, err := upsertAgodeskProvider(server, agodesk.ConfigProviderUpsertPayload{
+		SessionID: "agodesk:dev-1",
+		Mode:      "create",
+		Provider: agodesk.ConfigProviderEntryPayload{
+			ID:            "desktop-oauth",
+			Name:          "Desktop OAuth",
+			Type:          "google",
+			BaseURL:       "https://generativelanguage.googleapis.com/v1beta/openai",
+			Model:         "gemini-2.5-flash",
+			OAuthAuthURL:  "https://accounts.example/authorize",
+			OAuthTokenURL: tokenServer.URL,
+			OAuthClientID: "client-id",
+			OAuthScopes:   "openid profile",
+		},
+		Secrets: agodesk.ConfigProviderSecretOpsPayload{
+			OAuthClientSecret: agodesk.SecretOperationPayload{Op: "set", Value: "client-secret"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("upsert oauth provider: %v", err)
+	}
+
+	started, err := startAgodeskProviderOAuth(server, agodesk.ConfigProviderOAuthStartPayload{
+		SessionID:   "agodesk:dev-1",
+		ProviderID:  "desktop-oauth",
+		RedirectURI: "http://127.0.0.1:49152/oauth/callback",
+	}, time.Now().UTC())
+	if err != nil {
+		t.Fatalf("startAgodeskProviderOAuth() error = %v", err)
+	}
+	if started.AuthURL == "" || started.OAuthState == "" {
+		t.Fatalf("started payload = %+v", started)
+	}
+}
+
 func TestAgodeskProviderOAuthCompleteRejectsRedirectMismatch(t *testing.T) {
 	server, vault := newOAuthHandlerTestServer(t, "https://accounts.example/token")
 	session, err := newOAuthSession("main", oauthFlowModeAgodeskLoopback, "http://127.0.0.1:49152/oauth/callback", time.Now().UTC())
