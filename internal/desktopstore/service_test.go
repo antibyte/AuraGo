@@ -39,6 +39,7 @@ func TestDefaultCatalogContainsInitialApps(t *testing.T) {
 		"romm":                {image: "ghcr.io/rommapp/romm:latest", port: 8080, icon: "romm", runtime: RuntimeContainerWebApp},
 		"beszel":              {image: "ghcr.io/henrygd/beszel/beszel:latest", port: 8090, icon: "monitor", runtime: RuntimeContainerWebApp},
 		"dozzle":              {image: "ghcr.io/amir20/dozzle:latest", port: 8080, icon: "dozzle", runtime: RuntimeContainerWebApp},
+		"arcane":              {image: "ghcr.io/getarcaneapp/manager:latest", port: 3552, icon: "server", runtime: RuntimeContainerWebApp},
 		"code-server":         {image: "ghcr.io/linuxserver/code-server:latest", port: 8443, icon: "code", runtime: RuntimeContainerWebApp},
 		"termix":              {image: "ghcr.io/lukegus/termix:latest", port: 8080, icon: "termix", runtime: RuntimeContainerWebApp},
 		"commandcode":         {image: "ghcr.io/antibyte/aurago-commandcode:latest", port: 80, icon: "commandcode", runtime: RuntimeContainerWebApp},
@@ -148,6 +149,40 @@ func TestDefaultCatalogContainsInitialApps(t *testing.T) {
 		if entry.ID == "dozzle" {
 			if len(entry.HostBinds) != 1 || entry.HostBinds[0].HostPath != "/var/run/docker.sock" || !entry.HostBinds[0].ReadOnly {
 				t.Fatalf("dozzle must mount Docker socket read-only: %#v", entry.HostBinds)
+			}
+		}
+		if entry.ID == "arcane" {
+			if len(entry.HostBinds) != 0 {
+				t.Fatalf("arcane must not mount Docker socket directly: %#v", entry.HostBinds)
+			}
+			if len(entry.Volumes) != 1 || entry.Volumes[0].ContainerPath != "/app/data" {
+				t.Fatalf("arcane data volume = %#v, want /app/data", entry.Volumes)
+			}
+			for _, key := range []string{"encryption_key", "jwt_secret"} {
+				if !catalogSecretKey(entry.GeneratedSecrets, key) {
+					t.Fatalf("arcane missing generated secret %q in %#v", key, entry.GeneratedSecrets)
+				}
+			}
+			if !containsString(entry.Env, "DOCKER_HOST=tcp://aurago-store-arcane-socket-proxy:2375") {
+				t.Fatalf("arcane env must point at the socket proxy companion: %#v", entry.Env)
+			}
+			if entry.Metadata["open_external"] != "true" {
+				t.Fatalf("arcane must open outside the desktop iframe: %#v", entry.Metadata)
+			}
+			if len(entry.Companions) != 1 {
+				t.Fatalf("arcane must define a socket proxy companion, got %#v", entry.Companions)
+			}
+			proxy := entry.Companions[0]
+			if proxy.ID != "socket-proxy" || proxy.Image != "tecnativa/docker-socket-proxy:latest" || proxy.NetworkMode != "aurago-store-arcane-net" {
+				t.Fatalf("arcane socket proxy identity = %#v", proxy)
+			}
+			if len(proxy.HostBinds) != 1 || proxy.HostBinds[0].HostPath != "/var/run/docker.sock" || proxy.HostBinds[0].ContainerPath != "/var/run/docker.sock" || !proxy.HostBinds[0].ReadOnly {
+				t.Fatalf("arcane socket proxy must mount Docker socket read-only: %#v", proxy.HostBinds)
+			}
+			for _, env := range []string{"BUILD=0", "POST=1", "IMAGES=1", "CONTAINERS=1", "NETWORKS=1", "VOLUMES=1", "EXEC=1", "AUTH=0", "SECRETS=0", "SYSTEM=0"} {
+				if !containsString(proxy.Env, env) {
+					t.Fatalf("arcane socket proxy env missing %q in %#v", env, proxy.Env)
+				}
 			}
 		}
 		if entry.ID == "beszel" {
@@ -692,6 +727,91 @@ func TestInstallRomMCreatesDatabaseCompanionNetworkAndSecrets(t *testing.T) {
 	assertVolumeBinding(t, app.Volumes, "aurago_store_romm_resources", "/romm/resources")
 	assertVolumeBinding(t, app.Volumes, "aurago_store_romm_library", "/romm/library")
 	assertVolumeBinding(t, db.Volumes, "aurago_store_romm_db", "/config")
+}
+
+func TestInstallArcaneCreatesSocketProxyCompanionAndSecrets(t *testing.T) {
+	ctx := context.Background()
+	docker := &fakeDockerAdapter{}
+	secrets := &fakeSecretStore{data: map[string]string{}}
+	svc := newTestServiceWithSecrets(t, docker, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(13552), secrets)
+
+	op, err := svc.StartInstall(ctx, InstallRequest{AppID: "arcane", BindMode: BindModeLocal})
+	if err != nil {
+		t.Fatalf("start install: %v", err)
+	}
+	if err := svc.RunOperation(ctx, op.ID); err != nil {
+		t.Fatalf("run install: %v", err)
+	}
+
+	stored, ok, err := svc.GetInstalled(ctx, "arcane")
+	if err != nil || !ok {
+		t.Fatalf("get installed arcane: ok=%v err=%v", ok, err)
+	}
+	if stored.HostPort != 13552 || stored.ContainerPort != 3552 {
+		t.Fatalf("primary port = %d:%d, want 13552:3552", stored.HostPort, stored.ContainerPort)
+	}
+	assertPortBinding(t, stored.Ports, "web", 3552, 13552)
+	assertVolumeBinding(t, stored.Volumes, "aurago_store_arcane_data", "/app/data")
+	if len(stored.HostBinds) != 0 {
+		t.Fatalf("arcane app must not mount host binds directly: %#v", stored.HostBinds)
+	}
+	if len(stored.Companions) != 1 || stored.Companions[0].ID != "socket-proxy" || stored.Companions[0].Status != AppStatusRunning {
+		t.Fatalf("arcane socket proxy companion not persisted as running: %#v", stored.Companions)
+	}
+	if !containsString(docker.createdNetworks, "aurago-store-arcane-net") {
+		t.Fatalf("arcane private network not created: %#v", docker.createdNetworks)
+	}
+	if len(docker.created) != 2 {
+		t.Fatalf("created containers = %d, want socket proxy companion and arcane", len(docker.created))
+	}
+	proxy := docker.created[0]
+	app := docker.created[1]
+	if proxy.Name != "aurago-store-arcane-socket-proxy" || proxy.Image != "tecnativa/docker-socket-proxy:latest" {
+		t.Fatalf("arcane proxy container = %#v", proxy)
+	}
+	if app.Name != "aurago-store-arcane" || app.Image != "ghcr.io/getarcaneapp/manager:latest" {
+		t.Fatalf("arcane app container = %#v", app)
+	}
+	if proxy.NetworkMode != "aurago-store-arcane-net" || app.NetworkMode != "aurago-store-arcane-net" {
+		t.Fatalf("arcane containers must use private network, proxy=%q app=%q", proxy.NetworkMode, app.NetworkMode)
+	}
+	if len(app.HostBinds) != 0 {
+		t.Fatalf("arcane app should only use DOCKER_HOST, not direct host binds: %#v", app.HostBinds)
+	}
+	if len(proxy.HostBinds) != 1 || proxy.HostBinds[0].HostPath != "/var/run/docker.sock" || proxy.HostBinds[0].ContainerPath != "/var/run/docker.sock" || !proxy.HostBinds[0].ReadOnly {
+		t.Fatalf("arcane proxy host bind = %#v, want read-only Docker socket", proxy.HostBinds)
+	}
+	if !containsString(docker.events, "start:aurago-store-arcane-socket-proxy") || !containsString(docker.events, "start:aurago-store-arcane") {
+		t.Fatalf("arcane containers were not started: %#v", docker.events)
+	}
+	if indexOfString(docker.events, "start:aurago-store-arcane-socket-proxy") > indexOfString(docker.events, "start:aurago-store-arcane") {
+		t.Fatalf("arcane socket proxy must start before app: %#v", docker.events)
+	}
+	encryptionKey, ok := secrets.data["desktop_store_arcane_encryption_key"]
+	if !ok || len(encryptionKey) < 24 {
+		t.Fatalf("arcane encryption key secret missing: %#v", secrets.data)
+	}
+	jwtSecret, ok := secrets.data["desktop_store_arcane_jwt_secret"]
+	if !ok || len(jwtSecret) < 24 {
+		t.Fatalf("arcane JWT secret missing: %#v", secrets.data)
+	}
+	for _, env := range []string{
+		"APP_URL=http://localhost:13552",
+		"PUID=1000",
+		"PGID=1000",
+		"DOCKER_HOST=tcp://aurago-store-arcane-socket-proxy:2375",
+		"ENCRYPTION_KEY=" + encryptionKey,
+		"JWT_SECRET=" + jwtSecret,
+	} {
+		if !containsString(app.Env, env) {
+			t.Fatalf("arcane app env missing %q in %#v", env, app.Env)
+		}
+	}
+	for _, env := range []string{"BUILD=0", "POST=1", "IMAGES=1", "CONTAINERS=1", "NETWORKS=1", "VOLUMES=1", "EXEC=1", "AUTH=0", "SECRETS=0", "SYSTEM=0"} {
+		if !containsString(proxy.Env, env) {
+			t.Fatalf("arcane proxy env missing %q in %#v", env, proxy.Env)
+		}
+	}
 }
 
 func TestUninstallRomMDeleteDataRemovesCompanionVolumeSecretsAndNetwork(t *testing.T) {

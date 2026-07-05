@@ -2168,7 +2168,7 @@ The `virtual_desktop` tool is exposed only when both `tools.virtual_desktop.enab
 
 ### Desktop Software Store
 
-The Software Store installs AuraGo-managed Docker apps into the virtual desktop environment. Current catalog entries include Node-RED, Dozzle, code-server, Beszel, RomM, OliveTin, Manifest, and Termix. Termix starts with a `guacd` companion container so its Web UI can manage SSH, RDP, VNC, and Telnet sessions.
+The Software Store installs AuraGo-managed Docker apps into the virtual desktop environment. Current catalog entries include Arcane, Node-RED, Dozzle, code-server, Beszel, RomM, OliveTin, Manifest, and Termix. Arcane uses a Docker socket proxy companion for Docker management access. Termix starts with a `guacd` companion container so its Web UI can manage SSH, RDP, VNC, and Telnet sessions.
 
 ### YAML Reference
 ```yaml

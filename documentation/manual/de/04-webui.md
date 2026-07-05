@@ -230,11 +230,11 @@ Der Virtual Desktop öffnet Workspace-basierte Apps direkt im AuraGo-Browser-Des
 | **Code Studio** | Container-basierte IDE mit Dateibaum, Editor, Suche, Terminal und Agent-Kontext |
 | **Pixel** | Bildeditor für lokale Dateien, Canvas-Edits, Filter, Crop/Resize und optionale KI-Generierung/-Verbesserung |
 | **Zipper** | ZIP-Archive durchsuchen und Dateien in den Workspace extrahieren |
-| **Software Store** | Verwaltete Docker-Apps wie Termix, code-server, Dozzle, Beszel und Node-RED installieren und bedienen |
+| **Software Store** | Verwaltete Docker-Apps wie Arcane, Termix, code-server, Dozzle, Beszel und Node-RED installieren und bedienen |
 
 ### Hinweise zum Software Store
 
-Der Software Store nutzt vollständig von AuraGo verwaltete Docker-Container. Apps können Zugangsdaten über den Vault bereitstellen, Operationsfortschritt anzeigen und Open-Links für konfigurierte Ports liefern. Termix bringt einen `guacd`-Companion-Container für RDP/VNC mit und unterstützt zusätzlich SSH- und Telnet-Verwaltung über die eigene Web-UI.
+Der Software Store nutzt vollständig von AuraGo verwaltete Docker-Container. Apps können Zugangsdaten über den Vault bereitstellen, Operationsfortschritt anzeigen und Open-Links für konfigurierte Ports liefern. Arcane nutzt einen Docker-Socket-Proxy-Companion für Docker-Verwaltungszugriff. Termix bringt einen `guacd`-Companion-Container für RDP/VNC mit und unterstützt zusätzlich SSH- und Telnet-Verwaltung über die eigene Web-UI.
 
 ## Mission Control
 
