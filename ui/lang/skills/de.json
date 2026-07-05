@@ -227,5 +227,10 @@
   "skills.agent_delete_file_title": "Ressourcendatei löschen",
   "skills.agent_delete_file_text": "{path} aus diesem Agent Skill löschen?",
   "skills.agent_delete_file_button": "Datei löschen",
-  "skills.agent_resource_empty_hint": "Füge Referenzen, Skripte oder Assets hinzu, die der Skill nutzen soll."
+  "skills.agent_resource_empty_hint": "Füge Referenzen, Skripte oder Assets hinzu, die der Skill nutzen soll.",
+  "skills.skillspector_title": "SkillSpector",
+  "skills.skillspector_recommendation": "Empfehlung",
+  "skills.skillspector_score": "Score",
+  "skills.skillspector_severity": "Schweregrad",
+  "skills.skillspector_mode": "Modus"
 }

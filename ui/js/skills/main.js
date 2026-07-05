@@ -647,6 +647,26 @@ function showDisabledState() {
         }
     }
 
+    function renderSkillSpectorReport(sec) {
+        if (!sec) return '';
+        const ss = sec.SkillSpector || sec.skillspector;
+        if (!ss) return '';
+        const ssFindings = ss.Findings || ss.findings || [];
+        const ssError = ss.Error || ss.error || '';
+        return `<div class="sk-findings">
+            <h4>${t('skills.skillspector_title')}</h4>
+            <p><strong>${t('skills.skillspector_recommendation')}:</strong> ${esc(ss.Recommendation || ss.recommendation || '-')}</p>
+            <p><strong>${t('skills.skillspector_score')}:</strong> ${esc(String(ss.Score ?? ss.score ?? '-'))} · <strong>${t('skills.skillspector_severity')}:</strong> ${esc(ss.Severity || ss.severity || '-')}</p>
+            ${(ss.ScanMode || ss.scan_mode) ? `<p><strong>${t('skills.skillspector_mode')}:</strong> ${esc(ss.ScanMode || ss.scan_mode)}</p>` : ''}
+            ${ssError ? `<p class="sk-error">${esc(ssError)}</p>` : ''}
+            ${ssFindings.length > 0 ? `<ul>${ssFindings.map(f => `<li class="sk-finding sk-finding-${(f.Severity || f.severity || 'info').toLowerCase()}">
+                <strong>${esc(f.ID || f.id || f.Category || f.category || '')}</strong>: ${esc(f.Message || f.message || f.Category || f.category || '')}
+                ${f.File || f.file ? ` <code>${esc(f.File || f.file)}</code>` : ''}
+                ${f.Line || f.line ? ` <span class="sk-finding-line">(${t('skills.finding_line')} ${f.Line || f.line})</span>` : ''}
+            </li>`).join('')}</ul>` : ''}
+        </div>`;
+    }
+
     // eslint-disable-next-line no-unused-vars
     async function showAgentSkillDetail(id) {
         try {
@@ -661,6 +681,7 @@ function showDisabledState() {
             currentDetailId = '';
             const scripts = s.scripts || [];
             const resources = s.resources || [];
+            const secHTML = renderSkillSpectorReport(s.security_report);
             document.getElementById('detail-modal-title').textContent = s.name || t('skills.tab_agent');
             const actions = document.querySelector('#detail-modal .modal-actions');
             if (actions) actions.style.display = 'none';
@@ -671,6 +692,7 @@ function showDisabledState() {
                     <div class="sk-detail-row"><span class="sk-detail-label">${t('skills.detail_security')}:</span>${renderSecurityBadge((s.security_status || 'pending').toLowerCase())}</div>
                     <div class="sk-detail-row"><span class="sk-detail-label">${t('skills.agent_warning_approved_label')}:</span><span>${s.warning_approved ? t('common.yes') : t('common.no')}</span></div>
                 </div>
+                ${secHTML}
                 <h4>${t('skills.agent_skill_md')}</h4>
                 <pre class="sk-code-preview">${esc(data.content || '')}</pre>
                 <h4>${t('skills.agent_resources')}</h4>
@@ -1382,6 +1404,7 @@ function showDisabledState() {
                     ${sec.GuardianReason || sec.guardian_reason ? `<p>${esc(sec.GuardianReason || sec.guardian_reason)}</p>` : ''}
                 </div>`;
                 }
+                secHTML += renderSkillSpectorReport(sec);
             }
 
             body.innerHTML = `

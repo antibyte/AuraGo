@@ -91,5 +91,20 @@
   "help.skill_manager.require_scan": "Executar uma verificação de segurança nas habilidades carregadas antes de ativá-las",
   "help.skill_manager.scan_with_guardian": "Usar o LLM Guardian para verificar o código das habilidades carregadas",
   "help.skill_manager.agent_skills_dir": "Diretório para pacotes Agent Skills no formato SKILL.md.",
-  "config.skill_manager.agent_skills_dir_label": "Diretório de Agent Skills"
+  "config.skill_manager.agent_skills_dir_label": "Diretório de Agent Skills",
+  "config.skill_manager.skillspector_header": "SkillSpector",
+  "config.skill_manager.skillspector_enabled_label": "Ativar SkillSpector",
+  "config.skill_manager.skillspector_command_path_label": "Comando",
+  "config.skill_manager.skillspector_timeout_seconds_label": "Tempo limite (segundos)",
+  "config.skill_manager.skillspector_max_output_kb_label": "Saída máxima (KB)",
+  "config.skill_manager.skillspector_test": "Testar scanner",
+  "config.skill_manager.skillspector_status_available": "Disponível: {command}",
+  "config.skill_manager.skillspector_status_unavailable": "Indisponível: {message}",
+  "config.skill_manager.skillspector_status_disabled": "SkillSpector está desativado",
+  "config.skill_manager.skillspector_status_error": "Não foi possível verificar SkillSpector",
+  "help.skill_manager.skillspector.enabled": "Executa a CLI externa opcional do SkillSpector durante verificações de segurança de habilidades. Apenas modo estático; credenciais LLM não são repassadas.",
+  "help.skill_manager.skillspector.command_path": "Nome do executável ou caminho absoluto para o comando skillspector.",
+  "help.skill_manager.skillspector.timeout_seconds": "Tempo máximo de execução de cada verificação externa.",
+  "help.skill_manager.skillspector.max_output_kb": "Saída JSON máxima capturada do scanner.",
+  "config.skill_manager.skillspector_status_checking": "Verificando…"
 }

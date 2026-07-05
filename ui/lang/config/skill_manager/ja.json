@@ -91,5 +91,20 @@
   "help.skill_manager.require_scan": "スキルを有効にする前にアップロードされたスキルのセキュリティスキャンを実行する",
   "help.skill_manager.scan_with_guardian": "LLM Guardianを使用してアップロードされたスキルコードのセキュリティ問題を確認する",
   "help.skill_manager.agent_skills_dir": "SKILL.md パッケージ形式の Agent Skills を置くディレクトリです。",
-  "config.skill_manager.agent_skills_dir_label": "Agent Skills ディレクトリ"
+  "config.skill_manager.agent_skills_dir_label": "Agent Skills ディレクトリ",
+  "config.skill_manager.skillspector_header": "SkillSpector",
+  "config.skill_manager.skillspector_enabled_label": "SkillSpector を有効化",
+  "config.skill_manager.skillspector_command_path_label": "コマンド",
+  "config.skill_manager.skillspector_timeout_seconds_label": "タイムアウト (秒)",
+  "config.skill_manager.skillspector_max_output_kb_label": "最大出力 (KB)",
+  "config.skill_manager.skillspector_test": "スキャナーをテスト",
+  "config.skill_manager.skillspector_status_available": "利用可能: {command}",
+  "config.skill_manager.skillspector_status_unavailable": "利用不可: {message}",
+  "config.skill_manager.skillspector_status_disabled": "SkillSpector は無効です",
+  "config.skill_manager.skillspector_status_error": "SkillSpector を確認できませんでした",
+  "help.skill_manager.skillspector.enabled": "スキルのセキュリティスキャン時に任意の外部 SkillSpector CLI を実行します。静的モードのみで、LLM 認証情報は渡しません。",
+  "help.skill_manager.skillspector.command_path": "skillspector コマンドの実行ファイル名または絶対パス。",
+  "help.skill_manager.skillspector.timeout_seconds": "各外部スキャンの最大実行時間。",
+  "help.skill_manager.skillspector.max_output_kb": "スキャナーから取得する JSON 出力の最大サイズ。",
+  "config.skill_manager.skillspector_status_checking": "確認中…"
 }

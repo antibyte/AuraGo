@@ -440,7 +440,7 @@ func isAgentSkillAllowedTopDir(name string) bool {
 }
 
 // ScanAgentSkillPackage scans SKILL.md, references, and Python scripts for security risks.
-func ScanAgentSkillPackage(ctx context.Context, pkg *AgentSkillPackage, guardian *security.LLMGuardian, useGuardian bool) (*SecurityReport, SecurityStatus, error) {
+func ScanAgentSkillPackage(ctx context.Context, pkg *AgentSkillPackage, guardian *security.LLMGuardian, useGuardian bool, skillSpector ...SkillSpectorConfig) (*SecurityReport, SecurityStatus, error) {
 	if pkg == nil {
 		return nil, SecurityError, fmt.Errorf("agent skill package is required")
 	}
@@ -487,13 +487,21 @@ func ScanAgentSkillPackage(ctx context.Context, pkg *AgentSkillPackage, guardian
 		report.GuardianVerdict = string(result.Decision)
 		report.GuardianReason = result.Reason
 	}
+	var scanErr error
+	if cfg, ok := firstSkillSpectorConfig(skillSpector); ok && cfg.Enabled {
+		var ssStatus SecurityStatus
+		report.SkillSpector, ssStatus, scanErr = RunSkillSpectorScan(ctx, pkg.Directory, cfg)
+		if ssStatus == SecurityError && scanErr != nil && report.SkillSpector == nil {
+			report.SkillSpector = &SkillSpectorReport{Error: scanErr.Error()}
+		}
+	}
 	status := DetermineSecurityStatus(report)
 	if hasNonPythonScript && status == SecurityClean {
 		status = SecurityWarning
 		report.OverallStatus = string(SecurityWarning)
 		report.OverallScore = 0.5
 	}
-	return report, status, nil
+	return report, status, scanErr
 }
 
 func scanAgentSkillMarkdownFiles(pkg *AgentSkillPackage) ([]Finding, error) {
@@ -565,7 +573,7 @@ func buildAgentSkillGuardianText(pkg *AgentSkillPackage) string {
 	return b.String()
 }
 
-func (m *AgentSkillManager) CreateAgentSkill(ctx context.Context, name, description, body, createdBy string, guardian *security.LLMGuardian, useGuardian bool) (*AgentSkillRegistryEntry, error) {
+func (m *AgentSkillManager) CreateAgentSkill(ctx context.Context, name, description, body, createdBy string, guardian *security.LLMGuardian, useGuardian bool, skillSpector ...SkillSpectorConfig) (*AgentSkillRegistryEntry, error) {
 	name = strings.TrimSpace(name)
 	description = strings.TrimSpace(description)
 	if !agentSkillNamePattern.MatchString(name) || len(name) > maxAgentSkillNameLength {
@@ -599,7 +607,7 @@ func (m *AgentSkillManager) CreateAgentSkill(ctx context.Context, name, descript
 		_ = os.RemoveAll(dir)
 		return nil, err
 	}
-	report, status, err := ScanAgentSkillPackage(ctx, pkg, guardian, useGuardian)
+	report, status, err := ScanAgentSkillPackage(ctx, pkg, guardian, useGuardian, skillSpector...)
 	if err != nil {
 		status = SecurityError
 	}
@@ -631,7 +639,7 @@ func yamlQuoteIfNeeded(value string) string {
 	return value
 }
 
-func (m *AgentSkillManager) ImportAgentSkillZIP(ctx context.Context, data []byte, actor string, guardian *security.LLMGuardian, useGuardian bool) (*AgentSkillRegistryEntry, *ValidationResult, error) {
+func (m *AgentSkillManager) ImportAgentSkillZIP(ctx context.Context, data []byte, actor string, guardian *security.LLMGuardian, useGuardian bool, skillSpector ...SkillSpectorConfig) (*AgentSkillRegistryEntry, *ValidationResult, error) {
 	validation := &ValidationResult{Passed: true}
 	if len(data) == 0 || len(data) > maxAgentSkillPackageBytes {
 		validation.Passed = false
@@ -738,7 +746,7 @@ func (m *AgentSkillManager) ImportAgentSkillZIP(ctx context.Context, data []byte
 		validation.Message = err.Error()
 		return nil, validation, err
 	}
-	report, status, scanErr := ScanAgentSkillPackage(ctx, pkg, guardian, useGuardian)
+	report, status, scanErr := ScanAgentSkillPackage(ctx, pkg, guardian, useGuardian, skillSpector...)
 	entry, err := m.upsertAgentSkillPackage(pkg, actor, report, status, false, false)
 	if err != nil {
 		_ = os.RemoveAll(finalDir)
@@ -749,7 +757,7 @@ func (m *AgentSkillManager) ImportAgentSkillZIP(ctx context.Context, data []byte
 }
 
 // ImportAgentSkillDirectory copies a local Agent Skill directory into the managed registry.
-func (m *AgentSkillManager) ImportAgentSkillDirectory(ctx context.Context, sourceDir, actor string, guardian *security.LLMGuardian, useGuardian bool) (*AgentSkillRegistryEntry, *ValidationResult, error) {
+func (m *AgentSkillManager) ImportAgentSkillDirectory(ctx context.Context, sourceDir, actor string, guardian *security.LLMGuardian, useGuardian bool, skillSpector ...SkillSpectorConfig) (*AgentSkillRegistryEntry, *ValidationResult, error) {
 	validation := &ValidationResult{Passed: true}
 	sourceDir = strings.TrimSpace(sourceDir)
 	if sourceDir == "" {
@@ -770,7 +778,7 @@ func (m *AgentSkillManager) ImportAgentSkillDirectory(ctx context.Context, sourc
 	absSource, _ := filepath.Abs(sourceDir)
 	absFinal, _ := filepath.Abs(finalDir)
 	if agentSkillSamePath(absSource, absFinal) {
-		report, status, scanErr := ScanAgentSkillPackage(ctx, pkg, guardian, useGuardian)
+		report, status, scanErr := ScanAgentSkillPackage(ctx, pkg, guardian, useGuardian, skillSpector...)
 		entry, err := m.upsertAgentSkillPackage(pkg, actor, report, status, false, false)
 		if err != nil {
 			return nil, validation, err
@@ -796,7 +804,7 @@ func (m *AgentSkillManager) ImportAgentSkillDirectory(ctx context.Context, sourc
 		validation.Message = err.Error()
 		return nil, validation, err
 	}
-	report, status, scanErr := ScanAgentSkillPackage(ctx, pkg, guardian, useGuardian)
+	report, status, scanErr := ScanAgentSkillPackage(ctx, pkg, guardian, useGuardian, skillSpector...)
 	entry, err := m.upsertAgentSkillPackage(pkg, actor, report, status, false, false)
 	if err != nil {
 		_ = os.RemoveAll(finalDir)
@@ -844,7 +852,7 @@ func agentSkillSamePath(a, b string) bool {
 	return strings.EqualFold(filepath.Clean(a), filepath.Clean(b))
 }
 
-func (m *AgentSkillManager) SyncFromDisk(ctx context.Context, guardian *security.LLMGuardian, useGuardian bool) error {
+func (m *AgentSkillManager) SyncFromDisk(ctx context.Context, guardian *security.LLMGuardian, useGuardian bool, skillSpector ...SkillSpectorConfig) error {
 	entries, err := os.ReadDir(m.agentSkillsDir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -867,7 +875,7 @@ func (m *AgentSkillManager) SyncFromDisk(ctx context.Context, guardian *security
 		if existing != nil && existing.PackageHash == pkg.PackageHash {
 			continue
 		}
-		report, status, scanErr := ScanAgentSkillPackage(ctx, pkg, guardian, useGuardian)
+		report, status, scanErr := ScanAgentSkillPackage(ctx, pkg, guardian, useGuardian, skillSpector...)
 		if scanErr != nil && m.logger != nil {
 			m.logger.Warn("Agent Skill scan failed during sync", "name", pkg.Name, "error", scanErr)
 		}
@@ -885,7 +893,7 @@ func (m *AgentSkillManager) SyncFromDisk(ctx context.Context, guardian *security
 }
 
 // VerifyAgentSkill reparses, rescans, and disables a package when its hash changed.
-func (m *AgentSkillManager) VerifyAgentSkill(ctx context.Context, id, actor string, guardian *security.LLMGuardian, useGuardian bool) (*AgentSkillRegistryEntry, error) {
+func (m *AgentSkillManager) VerifyAgentSkill(ctx context.Context, id, actor string, guardian *security.LLMGuardian, useGuardian bool, skillSpector ...SkillSpectorConfig) (*AgentSkillRegistryEntry, error) {
 	entry, err := m.GetAgentSkill(id)
 	if err != nil {
 		return nil, err
@@ -896,7 +904,7 @@ func (m *AgentSkillManager) VerifyAgentSkill(ctx context.Context, id, actor stri
 		m.audit(id, entry.Name, "verify_error", actor, err.Error())
 		return nil, err
 	}
-	report, status, scanErr := ScanAgentSkillPackage(ctx, pkg, guardian, useGuardian)
+	report, status, scanErr := ScanAgentSkillPackage(ctx, pkg, guardian, useGuardian, skillSpector...)
 	enabled := entry.Enabled && entry.PackageHash == pkg.PackageHash && (status == SecurityClean || (status == SecurityWarning && entry.WarningApproved))
 	warningApproved := entry.WarningApproved && entry.PackageHash == pkg.PackageHash
 	updated, err := m.upsertAgentSkillPackage(pkg, actor, report, status, enabled, warningApproved)
@@ -1110,15 +1118,15 @@ func (m *AgentSkillManager) ApproveAgentSkillWarning(id, actor string) error {
 	return nil
 }
 
-func (m *AgentSkillManager) WriteAgentSkillFile(ctx context.Context, id, relPath, content, actor string, guardian *security.LLMGuardian, useGuardian bool) error {
-	return m.writeAgentSkillFileBytes(ctx, id, relPath, []byte(content), false, actor, guardian, useGuardian)
+func (m *AgentSkillManager) WriteAgentSkillFile(ctx context.Context, id, relPath, content, actor string, guardian *security.LLMGuardian, useGuardian bool, skillSpector ...SkillSpectorConfig) error {
+	return m.writeAgentSkillFileBytes(ctx, id, relPath, []byte(content), false, actor, guardian, useGuardian, skillSpector...)
 }
 
-func (m *AgentSkillManager) WriteAgentSkillFileBytes(ctx context.Context, id, relPath string, content []byte, actor string, guardian *security.LLMGuardian, useGuardian bool) error {
-	return m.writeAgentSkillFileBytes(ctx, id, relPath, content, false, actor, guardian, useGuardian)
+func (m *AgentSkillManager) WriteAgentSkillFileBytes(ctx context.Context, id, relPath string, content []byte, actor string, guardian *security.LLMGuardian, useGuardian bool, skillSpector ...SkillSpectorConfig) error {
+	return m.writeAgentSkillFileBytes(ctx, id, relPath, content, false, actor, guardian, useGuardian, skillSpector...)
 }
 
-func (m *AgentSkillManager) writeAgentSkillFileBytes(ctx context.Context, id, relPath string, content []byte, isBinary bool, actor string, guardian *security.LLMGuardian, useGuardian bool) error {
+func (m *AgentSkillManager) writeAgentSkillFileBytes(ctx context.Context, id, relPath string, content []byte, isBinary bool, actor string, guardian *security.LLMGuardian, useGuardian bool, skillSpector ...SkillSpectorConfig) error {
 	entry, err := m.GetAgentSkill(id)
 	if err != nil {
 		return err
@@ -1134,7 +1142,7 @@ func (m *AgentSkillManager) writeAgentSkillFileBytes(ctx context.Context, id, re
 	if err := os.WriteFile(full, content, 0o640); err != nil {
 		return err
 	}
-	return m.applyEditSafety(ctx, entry, relPath, actor, guardian, useGuardian)
+	return m.applyEditSafety(ctx, entry, relPath, actor, guardian, useGuardian, skillSpector...)
 }
 
 func (m *AgentSkillManager) ReadAgentSkillFile(id, relPath string) (string, error) {
@@ -1172,7 +1180,7 @@ func (m *AgentSkillManager) ReadAgentSkillFileBytes(id, relPath string) ([]byte,
 	return data, !utf8.Valid(data), nil
 }
 
-func (m *AgentSkillManager) CreateAgentSkillFile(ctx context.Context, id, relPath string, content []byte, isBinary bool, actor string, guardian *security.LLMGuardian, useGuardian bool) error {
+func (m *AgentSkillManager) CreateAgentSkillFile(ctx context.Context, id, relPath string, content []byte, isBinary bool, actor string, guardian *security.LLMGuardian, useGuardian bool, skillSpector ...SkillSpectorConfig) error {
 	entry, err := m.GetAgentSkill(id)
 	if err != nil {
 		return err
@@ -1185,7 +1193,7 @@ func (m *AgentSkillManager) CreateAgentSkillFile(ctx context.Context, id, relPat
 	if _, err := os.Stat(full); err == nil {
 		return fmt.Errorf("file already exists: %s", relPath)
 	}
-	return m.writeAgentSkillFileBytes(ctx, id, relPath, content, isBinary, actor, guardian, useGuardian)
+	return m.writeAgentSkillFileBytes(ctx, id, relPath, content, isBinary, actor, guardian, useGuardian, skillSpector...)
 }
 
 func (m *AgentSkillManager) DeleteAgentSkillFile(ctx context.Context, id, relPath, actor string) error {
@@ -1238,12 +1246,12 @@ func (m *AgentSkillManager) RenameAgentSkillFile(ctx context.Context, id, oldRel
 // disable and clear warning approval only when (a) the new status is dangerous/error,
 // or (b) security-relevant files (SKILL.md, scripts/) changed their hash.
 // Pure references/assets edits that remain at the same or better status keep the enabled state.
-func (m *AgentSkillManager) applyEditSafety(ctx context.Context, entry *AgentSkillRegistryEntry, changedPath, actor string, guardian *security.LLMGuardian, useGuardian bool) error {
+func (m *AgentSkillManager) applyEditSafety(ctx context.Context, entry *AgentSkillRegistryEntry, changedPath, actor string, guardian *security.LLMGuardian, useGuardian bool, skillSpector ...SkillSpectorConfig) error {
 	pkg, err := ParseAgentSkillPackage(entry.Directory)
 	if err != nil {
 		return err
 	}
-	report, status, scanErr := ScanAgentSkillPackage(ctx, pkg, guardian, useGuardian)
+	report, status, scanErr := ScanAgentSkillPackage(ctx, pkg, guardian, useGuardian, skillSpector...)
 	isSecurityRelevant := changedPath == "SKILL.md" || strings.HasPrefix(changedPath, "scripts/")
 	hashChanged := pkg.PackageHash != entry.PackageHash
 	statusDegraded := status == SecurityDangerous || status == SecurityError || (status == SecurityWarning && entry.SecurityStatus == SecurityClean)

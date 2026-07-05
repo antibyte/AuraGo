@@ -7,7 +7,7 @@ Web UI and API for managing, uploading, and monitoring Python skills. Provides a
 The Skill Manager extends the Skills Engine with:
 - **Visual management** via Web UI at `/skills`
 - **Upload support** for user-created Python skills
-- **Security scanning** (static analysis, optional VirusTotal + LLM Guardian)
+- **Security scanning** (static analysis, optional VirusTotal, LLM Guardian, and SkillSpector CLI)
 - **Template-based creation** for scaffolding new skills quickly
 - **Read-only mode** and upload toggles for safe operation
 
@@ -68,8 +68,11 @@ Every uploaded skill goes through:
 1. **Static analysis** — 15 regex patterns checking for dangerous code (eval, exec, subprocess, os.system, pickle, etc.)
 2. **VirusTotal** (optional) — File hash lookup if API key is configured
 3. **LLM Guardian** (optional, FC#1) — AI-powered code review when `scan_with_guardian` is enabled
+4. **NVIDIA SkillSpector CLI** (optional) — External static scanner when `skillspector.enabled` is true. AuraGo runs `skillspector scan <target> --no-llm --format json` without shell execution or LLM credentials.
 
-Security statuses: `clean`, `warning`, `dangerous`, `pending`, `error`
+SkillSpector recommendations are mapped into the existing statuses: `SAFE` -> `clean`, `CAUTION` -> `warning`, and `DO_NOT_INSTALL` -> `dangerous`. Exit code `1` is treated as a successfully parsed blocking finding; exit code `2` or invalid JSON is treated as `error`.
+
+Security statuses: `clean`, `warning`, `dangerous`, `pending`, `error`. The final status is the strictest result across all enabled scanners.
 
 ### Configuration
 
@@ -78,15 +81,24 @@ tools:
   skill_manager:
     enabled: true              # Enable the Skill Manager
     allow_uploads: true        # Allow user uploads
-    read_only: false           # Block all write operations
+    readonly: false            # Block all write operations
     require_scan: true         # Mandatory security scan before enabling
     max_upload_size_mb: 1      # Max file size for uploads
     auto_enable_clean: false   # Auto-enable skills that pass scanning
     scan_with_guardian: false   # Use LLM Guardian for code review
+    skillspector:
+      enabled: false           # Optional external SkillSpector CLI scanner
+      command_path: skillspector
+      timeout_seconds: 60
+      max_output_kb: 512
 ```
 
 ### Access Controls
 
-- **Read-only mode** (`read_only: true`): Disables upload, delete, toggle, and template creation
+- **Read-only mode** (`readonly: true`): Disables upload, delete, toggle, and template creation
 - **Upload toggle** (`allow_uploads: false`): Only disables file uploads while allowing other operations
 - Both are enforced server-side in all write handlers
+
+### Scanner Status
+
+`GET /api/skills/skillspector/status` reports whether the optional SkillSpector scanner is enabled and whether the configured command can be found on the server path. The endpoint does not run a scan and does not consume tokens.

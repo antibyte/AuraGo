@@ -505,6 +505,9 @@ func Load(path string) (*Config, error) {
 	cfg.Tools.SkillManager.MaxUploadSizeMB = 1
 	cfg.Tools.SkillManager.AllowedScriptLanguages = []string{"python"}
 	cfg.Tools.SkillManager.AllowBinaryAssets = true
+	cfg.Tools.SkillManager.SkillSpector.CommandPath = "skillspector"
+	cfg.Tools.SkillManager.SkillSpector.TimeoutSeconds = 60
+	cfg.Tools.SkillManager.SkillSpector.MaxOutputKB = 512
 	// Daemon Skills defaults: disabled by default (opt-in, potentially costly).
 	cfg.Tools.DaemonSkills.MaxConcurrentDaemons = 5
 	cfg.Tools.DaemonSkills.GlobalRateLimitSecs = 60

@@ -416,6 +416,18 @@ if __name__ == "__main__":
 
 ## Skills erstellen und verwalten
 
+### Sicherheits-Scans
+
+Uploads, generierte Skills und Agent-Skill-Pakete werden vor der Aktivierung geprüft. AuraGo führt immer die eingebauten statischen Checks aus und kann optional VirusTotal, LLM Guardian und NVIDIA SkillSpector einbinden.
+
+SkillSpector ist standardmäßig deaktiviert und wird nicht automatisch installiert. Wenn du es unter **Config → Tools → Fähigkeiten-Manager** aktivierst, ruft AuraGo die konfigurierte CLI im statischen Modus auf:
+
+```text
+skillspector scan <target> --no-llm --format json
+```
+
+Es werden kein SkillSpector-MCP-Server, kein Sidecar und keine LLM-Zugangsdaten verwendet. Die Ergebnisse fließen in den normalen Sicherheitsstatus ein: `SAFE` wird `clean`, `CAUTION` wird `warning`, und `DO_NOT_INSTALL` wird `dangerous`. Mit dem Button **Scanner testen** in den Skill-Manager-Einstellungen prüfst du, ob der konfigurierte Befehl verfügbar ist.
+
 ### Skill erstellen
 
 1. **Dateien erstellen**: Lege `.json` und `.py` Dateien in `agent_workspace/skills/` an

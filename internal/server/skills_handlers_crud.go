@@ -204,7 +204,7 @@ func handleCreateSkill(s *Server) http.HandlerFunc {
 		var secStatus tools.SecurityStatus
 
 		if requireScan {
-			scanReport, secStatus, err = s.SkillManager.ScanSkill(r.Context(), skill.ID, vtKey, s.LLMGuardian, vtEnabled, useGuardian)
+			scanReport, secStatus, err = s.SkillManager.ScanSkill(r.Context(), skill.ID, vtKey, s.LLMGuardian, vtEnabled, useGuardian, skillSpectorConfig(s))
 			if err != nil {
 				s.Logger.Warn("Skill security scan failed", "id", skill.ID, "error", err)
 			}
@@ -509,7 +509,7 @@ func handleUploadSkill(s *Server) http.HandlerFunc {
 
 		// Run security scan
 		if requireScan {
-			scanReport, secStatus, scanErr := s.SkillManager.ScanSkill(r.Context(), skill.ID, vtKey, s.LLMGuardian, vtEnabled, useGuardian)
+			scanReport, secStatus, scanErr := s.SkillManager.ScanSkill(r.Context(), skill.ID, vtKey, s.LLMGuardian, vtEnabled, useGuardian, skillSpectorConfig(s))
 			if scanErr != nil {
 				s.Logger.Warn("Skill security scan failed", "id", skill.ID, "error", scanErr)
 			}
@@ -575,7 +575,7 @@ func handleVerifySkill(s *Server) http.HandlerFunc {
 			useGuardian = *req.ScanGuardian
 		}
 
-		report, status, err := s.SkillManager.ScanSkill(r.Context(), id, vtKey, s.LLMGuardian, vtEnabled, useGuardian)
+		report, status, err := s.SkillManager.ScanSkill(r.Context(), id, vtKey, s.LLMGuardian, vtEnabled, useGuardian, skillSpectorConfig(s))
 		if err != nil {
 			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Security scan failed", "Skill security scan failed", err, "skill_id", id)
 			return

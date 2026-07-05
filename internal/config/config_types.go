@@ -1817,6 +1817,12 @@ type Config struct {
 			ScanWithGuardian       bool     `yaml:"scan_with_guardian"`       // use LLM Guardian for code review on upload (default: false, costs tokens)
 			AllowedScriptLanguages []string `yaml:"allowed_script_languages"` // allowed script languages for Agent Skills (default: ["python"])
 			AllowBinaryAssets      bool     `yaml:"allow_binary_assets"`      // allow binary asset upload/download for Agent Skills (default: true)
+			SkillSpector           struct {
+				Enabled        bool   `yaml:"enabled"`         // enable NVIDIA SkillSpector CLI scans (default: false)
+				CommandPath    string `yaml:"command_path"`    // skillspector executable path/name (default: "skillspector")
+				TimeoutSeconds int    `yaml:"timeout_seconds"` // per-scan timeout in seconds (default: 60)
+				MaxOutputKB    int    `yaml:"max_output_kb"`   // max JSON output captured from scanner (default: 512)
+			} `yaml:"skillspector"`
 		} `yaml:"skill_manager"`
 		DaemonSkills struct {
 			Enabled              bool    `yaml:"enabled"`                // enable daemon skill support (default: false, opt-in)

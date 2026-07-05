@@ -91,5 +91,20 @@
   "help.skill_manager.require_scan": "Run a security scan on uploaded skills before enabling them",
   "help.skill_manager.scan_with_guardian": "Use the LLM Guardian to review uploaded skill code for security issues",
   "help.skill_manager.agent_skills_dir": "Directory for Agent Skills packages using the SKILL.md package format.",
-  "config.skill_manager.agent_skills_dir_label": "Agent Skills Directory"
+  "config.skill_manager.agent_skills_dir_label": "Agent Skills Directory",
+  "config.skill_manager.skillspector_header": "SkillSpector",
+  "config.skill_manager.skillspector_enabled_label": "Enable SkillSpector",
+  "config.skill_manager.skillspector_command_path_label": "Command",
+  "config.skill_manager.skillspector_timeout_seconds_label": "Timeout (seconds)",
+  "config.skill_manager.skillspector_max_output_kb_label": "Max Output (KB)",
+  "config.skill_manager.skillspector_test": "Test Scanner",
+  "config.skill_manager.skillspector_status_available": "Available: {command}",
+  "config.skill_manager.skillspector_status_unavailable": "Unavailable: {message}",
+  "config.skill_manager.skillspector_status_disabled": "SkillSpector is disabled",
+  "config.skill_manager.skillspector_status_error": "Could not check SkillSpector",
+  "help.skill_manager.skillspector.enabled": "Run the optional external SkillSpector CLI during skill security scans. Static mode only; no LLM credentials are passed.",
+  "help.skill_manager.skillspector.command_path": "Executable name or absolute path for the skillspector command.",
+  "help.skill_manager.skillspector.timeout_seconds": "Maximum runtime for each external scan.",
+  "help.skill_manager.skillspector.max_output_kb": "Maximum JSON output captured from the scanner.",
+  "config.skill_manager.skillspector_status_checking": "Checking…"
 }

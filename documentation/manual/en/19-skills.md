@@ -467,6 +467,18 @@ if __name__ == "__main__":
 
 ## Creating and Managing Skills
 
+### Security scanning
+
+Uploads, generated skills, and Agent Skill packages are scanned before activation. AuraGo always runs its built-in static checks and can optionally add VirusTotal, LLM Guardian, and NVIDIA SkillSpector.
+
+SkillSpector is disabled by default and is not installed automatically. When you enable it under **Config → Tools → Skill Manager**, AuraGo calls the configured CLI in static mode:
+
+```text
+skillspector scan <target> --no-llm --format json
+```
+
+No SkillSpector MCP server, sidecar, or LLM credentials are used. Results are folded into the normal security status: `SAFE` becomes `clean`, `CAUTION` becomes `warning`, and `DO_NOT_INSTALL` becomes `dangerous`. Use the **Test Scanner** button in the Skill Manager settings to check whether the configured command is available.
+
 ### Create a skill
 
 1. **Create files**: Create `.json` and `.py` files in `agent_workspace/skills/`

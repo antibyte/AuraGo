@@ -91,5 +91,20 @@
   "help.skill_manager.require_scan": "Kjør en sikkerhetssjekk på opplastede ferdigheter før aktivering",
   "help.skill_manager.scan_with_guardian": "Bruk LLM Guardian til å gjennomgå opplastet ferdighetskode for sikkerhetsproblemer",
   "help.skill_manager.agent_skills_dir": "Mappe for Agent Skills-pakker i SKILL.md-format.",
-  "config.skill_manager.agent_skills_dir_label": "Agent Skills-mappe"
+  "config.skill_manager.agent_skills_dir_label": "Agent Skills-mappe",
+  "config.skill_manager.skillspector_header": "SkillSpector",
+  "config.skill_manager.skillspector_enabled_label": "Aktiver SkillSpector",
+  "config.skill_manager.skillspector_command_path_label": "Kommando",
+  "config.skill_manager.skillspector_timeout_seconds_label": "Tidsavbrudd (sekunder)",
+  "config.skill_manager.skillspector_max_output_kb_label": "Maks utdata (KB)",
+  "config.skill_manager.skillspector_test": "Test skanner",
+  "config.skill_manager.skillspector_status_available": "Tilgjengelig: {command}",
+  "config.skill_manager.skillspector_status_unavailable": "Ikke tilgjengelig: {message}",
+  "config.skill_manager.skillspector_status_disabled": "SkillSpector er deaktivert",
+  "config.skill_manager.skillspector_status_error": "Kunne ikke kontrollere SkillSpector",
+  "help.skill_manager.skillspector.enabled": "Kjører den valgfrie eksterne SkillSpector CLI-en under sikkerhetsskanning av ferdigheter. Bare statisk modus; ingen LLM-legitimasjon sendes videre.",
+  "help.skill_manager.skillspector.command_path": "Programnavn eller absolutt sti til skillspector-kommandoen.",
+  "help.skill_manager.skillspector.timeout_seconds": "Maksimal kjøretid for hver ekstern skanning.",
+  "help.skill_manager.skillspector.max_output_kb": "Maksimal JSON-utdata som hentes fra skanneren.",
+  "config.skill_manager.skillspector_status_checking": "Kontrollerer…"
 }

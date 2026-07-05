@@ -23,6 +23,7 @@ func (s *Server) registerToolAPIRoutes(mux *http.ServeMux) {
 			}
 		})
 		mux.HandleFunc("/api/skills/stats", handleSkillStats(s))
+		mux.HandleFunc("/api/skills/skillspector/status", handleSkillSpectorStatus(s))
 		mux.HandleFunc("/api/skills/available-tools", func(w http.ResponseWriter, r *http.Request) {
 			if r.Method != http.MethodGet {
 				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)

@@ -91,5 +91,20 @@
   "help.skill_manager.require_scan": "Een beveiligingsscan uitvoeren op geüploade vaardigheden voordat ze worden ingeschakeld",
   "help.skill_manager.scan_with_guardian": "LLM Guardian gebruiken om geüploade vaardigheidscode te controleren op beveiligingsproblemen",
   "help.skill_manager.agent_skills_dir": "Map voor Agent Skills-pakketten met het SKILL.md-formaat.",
-  "config.skill_manager.agent_skills_dir_label": "Map voor Agent Skills"
+  "config.skill_manager.agent_skills_dir_label": "Map voor Agent Skills",
+  "config.skill_manager.skillspector_header": "SkillSpector",
+  "config.skill_manager.skillspector_enabled_label": "SkillSpector inschakelen",
+  "config.skill_manager.skillspector_command_path_label": "Opdracht",
+  "config.skill_manager.skillspector_timeout_seconds_label": "Time-out (seconden)",
+  "config.skill_manager.skillspector_max_output_kb_label": "Max. uitvoer (KB)",
+  "config.skill_manager.skillspector_test": "Scanner testen",
+  "config.skill_manager.skillspector_status_available": "Beschikbaar: {command}",
+  "config.skill_manager.skillspector_status_unavailable": "Niet beschikbaar: {message}",
+  "config.skill_manager.skillspector_status_disabled": "SkillSpector is uitgeschakeld",
+  "config.skill_manager.skillspector_status_error": "SkillSpector kon niet worden gecontroleerd",
+  "help.skill_manager.skillspector.enabled": "Voert de optionele externe SkillSpector CLI uit tijdens beveiligingsscans van vaardigheden. Alleen statische modus; er worden geen LLM-referenties doorgegeven.",
+  "help.skill_manager.skillspector.command_path": "Naam van het uitvoerbare bestand of absoluut pad naar de skillspector-opdracht.",
+  "help.skill_manager.skillspector.timeout_seconds": "Maximale looptijd voor elke externe scan.",
+  "help.skill_manager.skillspector.max_output_kb": "Maximale JSON-uitvoer die van de scanner wordt vastgelegd.",
+  "config.skill_manager.skillspector_status_checking": "Controleren…"
 }

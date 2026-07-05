@@ -80,7 +80,8 @@ func handleCreateAgentSkill(s *Server) http.HandlerFunc {
 		if body == "" {
 			body = req.Content
 		}
-		entry, err := mgr.CreateAgentSkill(r.Context(), req.Name, req.Description, body, "user", s.LLMGuardian, useGuardian)
+		ssCfg := skillSpectorConfig(s)
+		entry, err := mgr.CreateAgentSkill(r.Context(), req.Name, req.Description, body, "user", s.LLMGuardian, useGuardian, ssCfg)
 		if err != nil {
 			status := http.StatusBadRequest
 			if strings.Contains(strings.ToLower(err.Error()), "already exists") {
@@ -98,13 +99,13 @@ func handleCreateAgentSkill(s *Server) http.HandlerFunc {
 						jsonError(w, "Invalid base64 content in resource "+res.Path, http.StatusBadRequest)
 						return
 					}
-					if wErr := mgr.CreateAgentSkillFile(r.Context(), entry.ID, res.Path, data, true, "user", s.LLMGuardian, useGuardian); wErr != nil {
+					if wErr := mgr.CreateAgentSkillFile(r.Context(), entry.ID, res.Path, data, true, "user", s.LLMGuardian, useGuardian, ssCfg); wErr != nil {
 						_ = mgr.DeleteAgentSkill(entry.ID, true, "user")
 						jsonLoggedError(w, s.Logger, http.StatusBadRequest, "Failed to write resource", "Failed to write resource file", wErr, "agent_skill", req.Name, "path", res.Path)
 						return
 					}
 				} else {
-					if wErr := mgr.CreateAgentSkillFile(r.Context(), entry.ID, res.Path, []byte(res.Content), false, "user", s.LLMGuardian, useGuardian); wErr != nil {
+					if wErr := mgr.CreateAgentSkillFile(r.Context(), entry.ID, res.Path, []byte(res.Content), false, "user", s.LLMGuardian, useGuardian, ssCfg); wErr != nil {
 						_ = mgr.DeleteAgentSkill(entry.ID, true, "user")
 						jsonLoggedError(w, s.Logger, http.StatusBadRequest, "Failed to write resource", "Failed to write resource file", wErr, "agent_skill", req.Name, "path", res.Path)
 						return
@@ -163,7 +164,7 @@ func handleImportAgentSkill(s *Server) http.HandlerFunc {
 				jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to read upload", "Failed to read Agent Skill upload", err)
 				return
 			}
-			entry, validation, err := mgr.ImportAgentSkillZIP(r.Context(), data, "user", s.LLMGuardian, useGuardian)
+			entry, validation, err := mgr.ImportAgentSkillZIP(r.Context(), data, "user", s.LLMGuardian, useGuardian, skillSpectorConfig(s))
 			if err != nil {
 				writeAgentSkillJSON(w, http.StatusBadRequest, map[string]interface{}{
 					"status":     "rejected",
@@ -188,7 +189,7 @@ func handleImportAgentSkill(s *Server) http.HandlerFunc {
 			jsonError(w, "Invalid request body", http.StatusBadRequest)
 			return
 		}
-		entry, validation, err := mgr.ImportAgentSkillDirectory(r.Context(), req.SourcePath, "user", s.LLMGuardian, useGuardian)
+		entry, validation, err := mgr.ImportAgentSkillDirectory(r.Context(), req.SourcePath, "user", s.LLMGuardian, useGuardian, skillSpectorConfig(s))
 		if err != nil {
 			writeAgentSkillJSON(w, http.StatusBadRequest, map[string]interface{}{
 				"status":     "rejected",
@@ -264,13 +265,13 @@ func handleUpdateAgentSkill(s *Server) http.HandlerFunc {
 			return
 		}
 		if req.Content != nil {
-			if err := mgr.WriteAgentSkillFile(r.Context(), id, "SKILL.md", *req.Content, "user", s.LLMGuardian, useGuardian); err != nil {
+			if err := mgr.WriteAgentSkillFile(r.Context(), id, "SKILL.md", *req.Content, "user", s.LLMGuardian, useGuardian, skillSpectorConfig(s)); err != nil {
 				jsonLoggedError(w, s.Logger, http.StatusBadRequest, "Failed to update Agent Skill", "Failed to update Agent Skill", err, "agent_skill_id", id)
 				return
 			}
 		}
 		if req.SkillMD != nil {
-			if err := mgr.WriteAgentSkillFile(r.Context(), id, "SKILL.md", *req.SkillMD, "user", s.LLMGuardian, useGuardian); err != nil {
+			if err := mgr.WriteAgentSkillFile(r.Context(), id, "SKILL.md", *req.SkillMD, "user", s.LLMGuardian, useGuardian, skillSpectorConfig(s)); err != nil {
 				jsonLoggedError(w, s.Logger, http.StatusBadRequest, "Failed to update Agent Skill", "Failed to update Agent Skill", err, "agent_skill_id", id)
 				return
 			}
@@ -315,7 +316,7 @@ func handleVerifyAgentSkill(s *Server) http.HandlerFunc {
 		}
 		id := extractSkillPathID(r.URL.Path, "/api/agent-skills/")
 		_, _, _, useGuardian := agentSkillManagerConfig(s)
-		entry, err := s.AgentSkillManager.VerifyAgentSkill(r.Context(), id, "user", s.LLMGuardian, useGuardian)
+		entry, err := s.AgentSkillManager.VerifyAgentSkill(r.Context(), id, "user", s.LLMGuardian, useGuardian, skillSpectorConfig(s))
 		if err != nil {
 			jsonLoggedError(w, s.Logger, http.StatusBadRequest, "Agent Skill verification failed", "Agent Skill verification failed", err, "agent_skill_id", id)
 			return
@@ -399,9 +400,9 @@ func handleAgentSkillFile(s *Server) http.HandlerFunc {
 					jsonError(w, "Invalid base64 content", http.StatusBadRequest)
 					return
 				}
-				if err := s.AgentSkillManager.CreateAgentSkillFile(r.Context(), id, relPath, data, true, "user", s.LLMGuardian, useGuardian); err != nil {
+				if err := s.AgentSkillManager.CreateAgentSkillFile(r.Context(), id, relPath, data, true, "user", s.LLMGuardian, useGuardian, skillSpectorConfig(s)); err != nil {
 					if strings.Contains(err.Error(), "already exists") {
-						if err := s.AgentSkillManager.WriteAgentSkillFileBytes(r.Context(), id, relPath, data, "user", s.LLMGuardian, useGuardian); err != nil {
+						if err := s.AgentSkillManager.WriteAgentSkillFileBytes(r.Context(), id, relPath, data, "user", s.LLMGuardian, useGuardian, skillSpectorConfig(s)); err != nil {
 							jsonLoggedError(w, s.Logger, http.StatusBadRequest, "Failed to write Agent Skill file", "Failed to write Agent Skill file", err, "agent_skill_id", id, "path", relPath)
 							return
 						}
@@ -411,7 +412,7 @@ func handleAgentSkillFile(s *Server) http.HandlerFunc {
 					}
 				}
 			} else {
-				if err := s.AgentSkillManager.WriteAgentSkillFile(r.Context(), id, relPath, req.Content, "user", s.LLMGuardian, useGuardian); err != nil {
+				if err := s.AgentSkillManager.WriteAgentSkillFile(r.Context(), id, relPath, req.Content, "user", s.LLMGuardian, useGuardian, skillSpectorConfig(s)); err != nil {
 					jsonLoggedError(w, s.Logger, http.StatusBadRequest, "Failed to write Agent Skill file", "Failed to write Agent Skill file", err, "agent_skill_id", id, "path", relPath)
 					return
 				}
@@ -514,9 +515,9 @@ func handleAgentSkillFileUpload(s *Server) http.HandlerFunc {
 			return
 		}
 		id := extractSkillPathID(r.URL.Path, "/api/agent-skills/")
-		if err := s.AgentSkillManager.CreateAgentSkillFile(r.Context(), id, relPath, data, isBinary, "user", s.LLMGuardian, useGuardian); err != nil {
+		if err := s.AgentSkillManager.CreateAgentSkillFile(r.Context(), id, relPath, data, isBinary, "user", s.LLMGuardian, useGuardian, skillSpectorConfig(s)); err != nil {
 			if strings.Contains(err.Error(), "already exists") {
-				if err := s.AgentSkillManager.WriteAgentSkillFileBytes(r.Context(), id, relPath, data, "user", s.LLMGuardian, useGuardian); err != nil {
+				if err := s.AgentSkillManager.WriteAgentSkillFileBytes(r.Context(), id, relPath, data, "user", s.LLMGuardian, useGuardian, skillSpectorConfig(s)); err != nil {
 					jsonLoggedError(w, s.Logger, http.StatusBadRequest, "Failed to write Agent Skill file", "Failed to write Agent Skill file", err, "agent_skill_id", id, "path", relPath)
 					return
 				}

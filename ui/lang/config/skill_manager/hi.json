@@ -91,5 +91,20 @@
   "help.skill_manager.require_scan": "कौशल सक्षम करने से पहले अपलोड किए गए कौशल पर सुरक्षा स्कैन चलाएं",
   "help.skill_manager.scan_with_guardian": "अपलोड किए गए कौशल कोड की सुरक्षा समस्याओं के लिए LLM Guardian का उपयोग करें",
   "help.skill_manager.agent_skills_dir": "SKILL.md पैकेज प्रारूप वाले Agent Skills पैकेजों का फ़ोल्डर।",
-  "config.skill_manager.agent_skills_dir_label": "Agent Skills फ़ोल्डर"
+  "config.skill_manager.agent_skills_dir_label": "Agent Skills फ़ोल्डर",
+  "config.skill_manager.skillspector_header": "SkillSpector",
+  "config.skill_manager.skillspector_enabled_label": "SkillSpector चालू करें",
+  "config.skill_manager.skillspector_command_path_label": "कमांड",
+  "config.skill_manager.skillspector_timeout_seconds_label": "टाइमआउट (सेकंड)",
+  "config.skill_manager.skillspector_max_output_kb_label": "अधिकतम आउटपुट (KB)",
+  "config.skill_manager.skillspector_test": "स्कैनर जाँचें",
+  "config.skill_manager.skillspector_status_available": "उपलब्ध: {command}",
+  "config.skill_manager.skillspector_status_unavailable": "उपलब्ध नहीं: {message}",
+  "config.skill_manager.skillspector_status_disabled": "SkillSpector बंद है",
+  "config.skill_manager.skillspector_status_error": "SkillSpector की जाँच नहीं हो सकी",
+  "help.skill_manager.skillspector.enabled": "कौशल सुरक्षा स्कैन के दौरान वैकल्पिक बाहरी SkillSpector CLI चलाता है। केवल स्थिर मोड; कोई LLM क्रेडेंशियल नहीं भेजे जाते।",
+  "help.skill_manager.skillspector.command_path": "skillspector कमांड का executable नाम या पूर्ण पथ।",
+  "help.skill_manager.skillspector.timeout_seconds": "हर बाहरी स्कैन की अधिकतम रनटाइम।",
+  "help.skill_manager.skillspector.max_output_kb": "स्कैनर से ली जाने वाली अधिकतम JSON आउटपुट।",
+  "config.skill_manager.skillspector_status_checking": "जाँच हो रही है…"
 }

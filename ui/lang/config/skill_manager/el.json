@@ -91,5 +91,20 @@
   "help.skill_manager.require_scan": "Εκτέλεση σάρωσης ασφαλείας στις μεταφορτωμένες δεξιότητες πριν την ενεργοποίησή τους",
   "help.skill_manager.scan_with_guardian": "Χρήση του LLM Guardian για έλεγχο του κώδικα μεταφορτωμένων δεξιοτήτων",
   "help.skill_manager.agent_skills_dir": "Φάκελος για πακέτα Agent Skills στη μορφή SKILL.md.",
-  "config.skill_manager.agent_skills_dir_label": "Φάκελος Agent Skills"
+  "config.skill_manager.agent_skills_dir_label": "Φάκελος Agent Skills",
+  "config.skill_manager.skillspector_header": "SkillSpector",
+  "config.skill_manager.skillspector_enabled_label": "Ενεργοποίηση SkillSpector",
+  "config.skill_manager.skillspector_command_path_label": "Εντολή",
+  "config.skill_manager.skillspector_timeout_seconds_label": "Χρονικό όριο (δευτερόλεπτα)",
+  "config.skill_manager.skillspector_max_output_kb_label": "Μέγιστη έξοδος (KB)",
+  "config.skill_manager.skillspector_test": "Δοκιμή σαρωτή",
+  "config.skill_manager.skillspector_status_available": "Διαθέσιμο: {command}",
+  "config.skill_manager.skillspector_status_unavailable": "Μη διαθέσιμο: {message}",
+  "config.skill_manager.skillspector_status_disabled": "Το SkillSpector είναι απενεργοποιημένο",
+  "config.skill_manager.skillspector_status_error": "Δεν ήταν δυνατός ο έλεγχος του SkillSpector",
+  "help.skill_manager.skillspector.enabled": "Εκτελεί το προαιρετικό εξωτερικό SkillSpector CLI στους ελέγχους ασφαλείας δεξιοτήτων. Μόνο στατική λειτουργία· δεν περνιούνται διαπιστευτήρια LLM.",
+  "help.skill_manager.skillspector.command_path": "Όνομα εκτελέσιμου ή απόλυτη διαδρομή για την εντολή skillspector.",
+  "help.skill_manager.skillspector.timeout_seconds": "Μέγιστος χρόνος εκτέλεσης για κάθε εξωτερικό σκανάρισμα.",
+  "help.skill_manager.skillspector.max_output_kb": "Μέγιστη έξοδος JSON που συλλέγεται από τον σαρωτή.",
+  "config.skill_manager.skillspector_status_checking": "Έλεγχος…"
 }

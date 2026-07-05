@@ -62,7 +62,7 @@ Do not silently write Agent Skill packages into runtime directories. Create, imp
 
 When you need to create or change an Agent Skill, use the Agent Skill Manager path instead of raw filesystem writes. If an authenticated AuraGo admin/API path is available, create a simple package with `POST /api/agent-skills` using `name`, `description`, and `body` or `skill_md`; import a prepared package with `POST /api/agent-skills/import`; add or update resource files with `POST /api/agent-skills/{id}/files` or `PUT /api/agent-skills/{id}/files`.
 
-After every Agent Skill create, import, or file edit, call `POST /api/agent-skills/{id}/verify` before enabling it. If the scan returns a warning, do not enable the skill until an admin explicitly approves it with `POST /api/agent-skills/{id}/approve-warning`. Only enable the skill after verification is clean or warning-approved; then use `list_agent_skills` and `activate_agent_skill` to confirm it is discoverable and readable. When a helper script is needed, run it only through `run_agent_skill_script`.
+After every Agent Skill create, import, or file edit, call `POST /api/agent-skills/{id}/verify` before enabling it. Verification includes the built-in static checks and, when configured, optional Guardian, VirusTotal, and SkillSpector CLI scanning. SkillSpector is an external static scanner only in this path; do not assume it is installed, do not pass LLM credentials to it, and treat `DO_NOT_INSTALL` as a blocking dangerous result. If the scan returns a warning, do not enable the skill until an admin explicitly approves it with `POST /api/agent-skills/{id}/approve-warning`. Only enable the skill after verification is clean or warning-approved; then use `list_agent_skills` and `activate_agent_skill` to confirm it is discoverable and readable. When a helper script is needed, run it only through `run_agent_skill_script`.
 
 If no safe Manager/API/UI path is available in the current session, do not imitate it with `filesystem`, `execute_shell`, or direct writes into `agent_workspace/agent_skills`. Instead, provide the user with the complete `SKILL.md` and resource contents, explain that the package must be imported through the Agent Skill Manager/UI, and state that it is not installed or enabled yet.
 
@@ -79,6 +79,7 @@ Before creating or editing a skill, check the problems the agent could stumble o
 - The generated manual is missing, vague, stale, or contains credentials.
 - The skill is not tested with safe sample inputs before reporting it as ready.
 - Daemon behavior is mixed into a normal skill, or daemon skills are not verified with the daemon lifecycle.
+- The optional SkillSpector result was ignored, or a `CAUTION` / `DO_NOT_INSTALL` recommendation was treated as clean.
 
 Create or update documentation as part of the work. Pass a `documentation` field to `create_skill_from_template` when possible, or call `set_skill_documentation` immediately afterwards. The manual should cover description, parameters, output, examples, and errors. Keep it concise and never include credentials.
 

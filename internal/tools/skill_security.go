@@ -14,15 +14,16 @@ import (
 
 // SecurityReport contains the results of all security scans for a skill.
 type SecurityReport struct {
-	StaticAnalysis   []Finding `json:"static_analysis,omitempty"`
-	VirusTotalScore  float64   `json:"virustotal_score,omitempty"`
-	VirusTotalReport string    `json:"virustotal_report,omitempty"`
-	GuardianScore    float64   `json:"guardian_score,omitempty"`
-	GuardianVerdict  string    `json:"guardian_verdict,omitempty"`
-	GuardianReason   string    `json:"guardian_reason,omitempty"`
-	OverallScore     float64   `json:"overall_score"`
-	OverallStatus    string    `json:"overall_status"`
-	ScannedAt        time.Time `json:"scanned_at"`
+	StaticAnalysis   []Finding           `json:"static_analysis,omitempty"`
+	VirusTotalScore  float64             `json:"virustotal_score,omitempty"`
+	VirusTotalReport string              `json:"virustotal_report,omitempty"`
+	GuardianScore    float64             `json:"guardian_score,omitempty"`
+	GuardianVerdict  string              `json:"guardian_verdict,omitempty"`
+	GuardianReason   string              `json:"guardian_reason,omitempty"`
+	SkillSpector     *SkillSpectorReport `json:"skillspector,omitempty"`
+	OverallScore     float64             `json:"overall_score"`
+	OverallStatus    string              `json:"overall_status"`
+	ScannedAt        time.Time           `json:"scanned_at"`
 }
 
 // Finding represents a single issue found during static code analysis.
@@ -496,6 +497,7 @@ func DetermineSecurityStatus(report *SecurityReport) SecurityStatus {
 
 	hasCritical := false
 	hasWarning := false
+	hasError := false
 
 	for _, f := range report.StaticAnalysis {
 		switch f.Severity {
@@ -518,6 +520,32 @@ func DetermineSecurityStatus(report *SecurityReport) SecurityStatus {
 	if report.GuardianVerdict == "suspicious" || report.GuardianVerdict == "quarantine" {
 		hasWarning = true
 	}
+	if report.SkillSpector != nil {
+		switch strings.ToUpper(strings.TrimSpace(report.SkillSpector.Recommendation)) {
+		case "DO_NOT_INSTALL":
+			hasCritical = true
+		case "CAUTION":
+			hasWarning = true
+		case "SAFE":
+			// no-op
+		default:
+			switch strings.ToUpper(strings.TrimSpace(report.SkillSpector.Severity)) {
+			case "CRITICAL", "HIGH":
+				hasCritical = true
+			case "MEDIUM":
+				hasWarning = true
+			}
+		}
+		if strings.TrimSpace(report.SkillSpector.Error) != "" {
+			hasError = true
+		}
+	}
+
+	if hasError {
+		report.OverallStatus = string(SecurityError)
+		report.OverallScore = 1.0
+		return SecurityError
+	}
 
 	if hasCritical {
 		report.OverallStatus = string(SecurityDangerous)
@@ -536,7 +564,11 @@ func DetermineSecurityStatus(report *SecurityReport) SecurityStatus {
 }
 
 // ScanSkill runs all configured security scans on a skill.
-func (m *SkillManager) ScanSkill(ctx context.Context, id string, vtAPIKey string, guardian *security.LLMGuardian, useVT, useGuardian bool) (*SecurityReport, SecurityStatus, error) {
+func (m *SkillManager) ScanSkill(ctx context.Context, id string, vtAPIKey string, guardian *security.LLMGuardian, useVT, useGuardian bool, skillSpector ...SkillSpectorConfig) (*SecurityReport, SecurityStatus, error) {
+	skill, err := m.GetSkill(id)
+	if err != nil {
+		return nil, SecurityError, fmt.Errorf("loading skill: %w", err)
+	}
 	code, err := m.GetSkillCode(id)
 	if err != nil {
 		return nil, SecurityError, fmt.Errorf("reading skill code: %w", err)
@@ -570,6 +602,22 @@ func (m *SkillManager) ScanSkill(ctx context.Context, id string, vtAPIKey string
 		report.GuardianReason = guardianResult.Reason
 	}
 
+	var scanErr error
+	if cfg, ok := firstSkillSpectorConfig(skillSpector); ok && cfg.Enabled {
+		target, cleanup, prepErr := m.prepareSkillSpectorBundle(skill)
+		if prepErr != nil {
+			report.SkillSpector = &SkillSpectorReport{Error: prepErr.Error()}
+			scanErr = prepErr
+		} else {
+			defer cleanup()
+			var ssStatus SecurityStatus
+			report.SkillSpector, ssStatus, scanErr = RunSkillSpectorScan(ctx, target, cfg)
+			if ssStatus == SecurityError && scanErr != nil && report.SkillSpector == nil {
+				report.SkillSpector = &SkillSpectorReport{Error: scanErr.Error()}
+			}
+		}
+	}
+
 	// Determine overall status
 	status := DetermineSecurityStatus(report)
 
@@ -578,5 +626,5 @@ func (m *SkillManager) ScanSkill(ctx context.Context, id string, vtAPIKey string
 		m.logger.Warn("Failed to update skill security status", "id", id, "error", err)
 	}
 
-	return report, status, nil
+	return report, status, scanErr
 }

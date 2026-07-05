@@ -227,5 +227,10 @@
   "skills.agent_delete_file_title": "リソースファイルを削除",
   "skills.agent_delete_file_text": "この Agent Skill から {path} を削除しますか？",
   "skills.agent_delete_file_button": "ファイルを削除",
-  "skills.agent_resource_empty_hint": "skill が使う references、scripts、assets を追加してください。"
+  "skills.agent_resource_empty_hint": "skill が使う references、scripts、assets を追加してください。",
+  "skills.skillspector_title": "SkillSpector",
+  "skills.skillspector_recommendation": "推奨",
+  "skills.skillspector_score": "スコア",
+  "skills.skillspector_severity": "重大度",
+  "skills.skillspector_mode": "モード"
 }

@@ -11,6 +11,8 @@ async function renderSkillManagerSection(section) {
     const requireSandboxOn = data.require_sandbox === true;
     const autoEnableOn = data.auto_enable_clean === true;
     const guardianOn = data.scan_with_guardian === true;
+    const skillSpectorData = data.skillspector || {};
+    const skillSpectorOn = skillSpectorData.enabled === true;
 
     let html = '<div class="cfg-section active">';
     html += '<div class="section-header">' + section.label + '</div>';
@@ -92,6 +94,45 @@ async function renderSkillManagerSection(section) {
     html += '<div class="field-label">' + t('config.skill_manager.max_upload_size_mb_label') + '</div>';
     if (helpMaxSize) html += '<div class="field-help">' + helpMaxSize + '</div>';
     html += '<input class="field-input" type="number" min="1" max="50" data-path="skill_manager.max_upload_size_mb" value="' + escapeAttr(data.max_upload_size_mb || 1) + '">';
+    html += '</div>';
+
+    // ── SkillSpector ───────────────────────────────────────────────────────
+    html += '<div class="section-divider"></div>';
+    html += '<div class="section-sub-header">' + t('config.skill_manager.skillspector_header') + '</div>';
+
+    const helpSkillSpectorEnabled = t('help.skill_manager.skillspector.enabled');
+    html += '<div class="field-group">';
+    html += '<div class="field-label">' + t('config.skill_manager.skillspector_enabled_label') + '</div>';
+    if (helpSkillSpectorEnabled) html += '<div class="field-help">' + helpSkillSpectorEnabled + '</div>';
+    html += '<div class="toggle-wrap">';
+    html += '<div class="toggle' + (skillSpectorOn ? ' on' : '') + '" data-path="skill_manager.skillspector.enabled" onclick="toggleBool(this)"></div>';
+    html += '<span class="toggle-label">' + (skillSpectorOn ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
+    html += '</div></div>';
+
+    const helpSkillSpectorCommand = t('help.skill_manager.skillspector.command_path');
+    html += '<div class="field-group">';
+    html += '<div class="field-label">' + t('config.skill_manager.skillspector_command_path_label') + '</div>';
+    if (helpSkillSpectorCommand) html += '<div class="field-help">' + helpSkillSpectorCommand + '</div>';
+    html += '<input class="field-input" type="text" data-path="skill_manager.skillspector.command_path" value="' + escapeAttr(skillSpectorData.command_path || 'skillspector') + '">';
+    html += '</div>';
+
+    const helpSkillSpectorTimeout = t('help.skill_manager.skillspector.timeout_seconds');
+    html += '<div class="field-group">';
+    html += '<div class="field-label">' + t('config.skill_manager.skillspector_timeout_seconds_label') + '</div>';
+    if (helpSkillSpectorTimeout) html += '<div class="field-help">' + helpSkillSpectorTimeout + '</div>';
+    html += '<input class="field-input" type="number" min="1" max="600" data-path="skill_manager.skillspector.timeout_seconds" value="' + escapeAttr(skillSpectorData.timeout_seconds || 60) + '">';
+    html += '</div>';
+
+    const helpSkillSpectorOutput = t('help.skill_manager.skillspector.max_output_kb');
+    html += '<div class="field-group">';
+    html += '<div class="field-label">' + t('config.skill_manager.skillspector_max_output_kb_label') + '</div>';
+    if (helpSkillSpectorOutput) html += '<div class="field-help">' + helpSkillSpectorOutput + '</div>';
+    html += '<input class="field-input" type="number" min="16" max="4096" data-path="skill_manager.skillspector.max_output_kb" value="' + escapeAttr(skillSpectorData.max_output_kb || 512) + '">';
+    html += '</div>';
+
+    html += '<div class="field-group">';
+    html += '<button class="btn btn-sm" type="button" onclick="testSkillSpectorStatus()">' + t('config.skill_manager.skillspector_test') + '</button>';
+    html += '<div id="skillspector-status" class="ptb-tools-status"></div>';
     html += '</div>';
 
     // ── Python Tool Bridge ──────────────────────────────────────────────────
@@ -411,6 +452,32 @@ function ptbUpdateWarning() {
     }
     warnEl.style.display = 'none';
     warnEl.textContent = '';
+}
+
+async function testSkillSpectorStatus() {
+    const statusEl = document.getElementById('skillspector-status');
+    if (!statusEl) return;
+
+    statusEl.textContent = t('config.skill_manager.skillspector_status_checking');
+    try {
+        const resp = await fetch('/api/skills/skillspector/status');
+        const data = await resp.json();
+        if (!resp.ok) throw new Error((data && data.error) || 'status failed');
+
+        if (!data.enabled) {
+            statusEl.textContent = t('config.skill_manager.skillspector_status_disabled');
+            return;
+        }
+
+        const tmpl = data.available
+            ? t('config.skill_manager.skillspector_status_available')
+            : t('config.skill_manager.skillspector_status_unavailable');
+        statusEl.textContent = String(tmpl)
+            .replace('{command}', String(data.command_path || 'skillspector'))
+            .replace('{message}', String(data.message || ''));
+    } catch (_) {
+        statusEl.textContent = t('config.skill_manager.skillspector_status_error');
+    }
 }
 
 async function ptbOpenSQLConnectionsModal() {

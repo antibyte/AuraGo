@@ -501,6 +501,11 @@ tools:
         max_upload_size_mb: 1                               # maximum upload file size in MB
         auto_enable_clean: false                            # automatically enable skills that pass security scan
         scan_with_guardian: false                            # use LLM Guardian for code review (opt-in)
+        skillspector:
+            enabled: false                                  # optional external NVIDIA SkillSpector CLI scanner
+            command_path: skillspector                      # executable name or absolute path
+            timeout_seconds: 60                             # per-scan timeout
+            max_output_kb: 512                              # maximum JSON output captured from the scanner
         # Allowed script languages for Agent Skills (default: ["python"])
         # Bash and JavaScript are supported but require user confirmation (warning-gated)
         # and agent.allow_shell=true at execution time. Python requires agent.allow_python=true.

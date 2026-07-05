@@ -274,6 +274,39 @@ func TestHandleUploadSkillRejectsNonPythonFiles(t *testing.T) {
 	}
 }
 
+func TestHandleSkillSpectorStatusReportsDisabledConfig(t *testing.T) {
+	t.Parallel()
+
+	s := &Server{
+		Cfg:    &config.Config{},
+		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	}
+	s.Cfg.Tools.SkillManager.SkillSpector.CommandPath = "skillspector"
+	s.Cfg.Tools.SkillManager.SkillSpector.TimeoutSeconds = 60
+	s.Cfg.Tools.SkillManager.SkillSpector.MaxOutputKB = 512
+
+	req := httptest.NewRequest(http.MethodGet, "/api/skills/skillspector/status", nil)
+	rec := httptest.NewRecorder()
+
+	handleSkillSpectorStatus(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status=%d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	var payload struct {
+		Status      string `json:"status"`
+		Enabled     bool   `json:"enabled"`
+		CommandPath string `json:"command_path"`
+		Available   bool   `json:"available"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if payload.Status != "ok" || payload.Enabled || payload.CommandPath != "skillspector" || payload.Available {
+		t.Fatalf("unexpected payload: %+v", payload)
+	}
+}
+
 func TestFallbackGeneratedSkillName(t *testing.T) {
 	t.Parallel()
 

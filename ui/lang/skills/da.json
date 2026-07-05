@@ -227,5 +227,10 @@
   "skills.agent_delete_file_title": "Slet ressourcefil",
   "skills.agent_delete_file_text": "Slet {path} fra denne Agent Skill?",
   "skills.agent_delete_file_button": "Slet fil",
-  "skills.agent_resource_empty_hint": "Tilføj referencer, scripts eller assets, som skillen skal bruge."
+  "skills.agent_resource_empty_hint": "Tilføj referencer, scripts eller assets, som skillen skal bruge.",
+  "skills.skillspector_title": "SkillSpector",
+  "skills.skillspector_recommendation": "Anbefaling",
+  "skills.skillspector_score": "Score",
+  "skills.skillspector_severity": "Alvorlighed",
+  "skills.skillspector_mode": "Tilstand"
 }

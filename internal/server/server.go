@@ -1185,7 +1185,7 @@ func (s *Server) initSkillManagers(ctx context.Context, installDir string) {
 	}
 	s.AgentSkillManager = tools.NewAgentSkillManager(skillsDB, cfg.Directories.AgentSkillsDir, cfg.Directories.WorkspaceDir, logger)
 	tools.SetDefaultAgentSkillManager(s.AgentSkillManager)
-	if err := s.AgentSkillManager.SyncFromDisk(ctx, s.LLMGuardian, cfg.Tools.SkillManager.ScanWithGuardian); err != nil {
+	if err := s.AgentSkillManager.SyncFromDisk(ctx, s.LLMGuardian, cfg.Tools.SkillManager.ScanWithGuardian, skillSpectorConfig(s)); err != nil {
 		logger.Warn("Failed to sync Agent Skills from disk", "error", err)
 	}
 	logger.Info("Agent Skills initialized", "agent_skills_dir", cfg.Directories.AgentSkillsDir)

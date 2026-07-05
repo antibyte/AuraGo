@@ -91,5 +91,20 @@
   "help.skill_manager.require_scan": "Sicherheitsscan für hochgeladene Fähigkeiten vor der Aktivierung durchführen",
   "help.skill_manager.scan_with_guardian": "LLM Guardian verwenden, um hochgeladenen Fähigkeitscode auf Sicherheitsprobleme zu prüfen",
   "help.skill_manager.agent_skills_dir": "Verzeichnis für Agent-Skill-Pakete im SKILL.md-Paketformat.",
-  "config.skill_manager.agent_skills_dir_label": "Agent-Skills-Verzeichnis"
+  "config.skill_manager.agent_skills_dir_label": "Agent-Skills-Verzeichnis",
+  "config.skill_manager.skillspector_header": "SkillSpector",
+  "config.skill_manager.skillspector_enabled_label": "SkillSpector aktivieren",
+  "config.skill_manager.skillspector_command_path_label": "Befehl",
+  "config.skill_manager.skillspector_timeout_seconds_label": "Zeitlimit (Sekunden)",
+  "config.skill_manager.skillspector_max_output_kb_label": "Maximale Ausgabe (KB)",
+  "config.skill_manager.skillspector_test": "Scanner testen",
+  "config.skill_manager.skillspector_status_available": "Verfügbar: {command}",
+  "config.skill_manager.skillspector_status_unavailable": "Nicht verfügbar: {message}",
+  "config.skill_manager.skillspector_status_disabled": "SkillSpector ist deaktiviert",
+  "config.skill_manager.skillspector_status_error": "SkillSpector konnte nicht geprüft werden",
+  "help.skill_manager.skillspector.enabled": "Führt die optionale externe SkillSpector-CLI bei Sicherheitsscans von Skills aus. Nur statischer Modus; es werden keine LLM-Zugangsdaten weitergegeben.",
+  "help.skill_manager.skillspector.command_path": "Name der ausführbaren Datei oder absoluter Pfad zum skillspector-Befehl.",
+  "help.skill_manager.skillspector.timeout_seconds": "Maximale Laufzeit pro externem Scan.",
+  "help.skill_manager.skillspector.max_output_kb": "Maximaler JSON-Output, der vom Scanner erfasst wird.",
+  "config.skill_manager.skillspector_status_checking": "Prüfe…"
 }

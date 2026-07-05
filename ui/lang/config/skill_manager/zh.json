@@ -91,5 +91,20 @@
   "help.skill_manager.require_scan": "在启用上传的技能之前运行安全扫描",
   "help.skill_manager.scan_with_guardian": "使用 LLM Guardian 审查上传的技能代码是否存在安全问题",
   "help.skill_manager.agent_skills_dir": "存放 SKILL.md 包格式 Agent Skills 的目录。",
-  "config.skill_manager.agent_skills_dir_label": "Agent Skills 目录"
+  "config.skill_manager.agent_skills_dir_label": "Agent Skills 目录",
+  "config.skill_manager.skillspector_header": "SkillSpector",
+  "config.skill_manager.skillspector_enabled_label": "启用 SkillSpector",
+  "config.skill_manager.skillspector_command_path_label": "命令",
+  "config.skill_manager.skillspector_timeout_seconds_label": "超时（秒）",
+  "config.skill_manager.skillspector_max_output_kb_label": "最大输出 (KB)",
+  "config.skill_manager.skillspector_test": "测试扫描器",
+  "config.skill_manager.skillspector_status_available": "可用：{command}",
+  "config.skill_manager.skillspector_status_unavailable": "不可用：{message}",
+  "config.skill_manager.skillspector_status_disabled": "SkillSpector 已禁用",
+  "config.skill_manager.skillspector_status_error": "无法检查 SkillSpector",
+  "help.skill_manager.skillspector.enabled": "在技能安全扫描期间运行可选的外部 SkillSpector CLI。仅静态模式；不会传递 LLM 凭据。",
+  "help.skill_manager.skillspector.command_path": "skillspector 命令的可执行文件名或绝对路径。",
+  "help.skill_manager.skillspector.timeout_seconds": "每次外部扫描的最长运行时间。",
+  "help.skill_manager.skillspector.max_output_kb": "从扫描器捕获的最大 JSON 输出。",
+  "config.skill_manager.skillspector_status_checking": "正在检查…"
 }

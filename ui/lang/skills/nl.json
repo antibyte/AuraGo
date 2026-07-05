@@ -227,5 +227,10 @@
   "skills.agent_delete_file_title": "Resourcebestand verwijderen",
   "skills.agent_delete_file_text": "{path} uit deze Agent Skill verwijderen?",
   "skills.agent_delete_file_button": "Bestand verwijderen",
-  "skills.agent_resource_empty_hint": "Voeg references, scripts of assets toe die de skill moet gebruiken."
+  "skills.agent_resource_empty_hint": "Voeg references, scripts of assets toe die de skill moet gebruiken.",
+  "skills.skillspector_title": "SkillSpector",
+  "skills.skillspector_recommendation": "Aanbeveling",
+  "skills.skillspector_score": "Score",
+  "skills.skillspector_severity": "Ernst",
+  "skills.skillspector_mode": "Modus"
 }

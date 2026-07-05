@@ -91,5 +91,20 @@
   "help.skill_manager.require_scan": "Kör en säkerhetsskanning av uppladdade färdigheter innan de aktiveras",
   "help.skill_manager.scan_with_guardian": "Använd LLM Guardian för att granska uppladdad färdighetskod för säkerhetsproblem",
   "help.skill_manager.agent_skills_dir": "Katalog för Agent Skills-paket i SKILL.md-format.",
-  "config.skill_manager.agent_skills_dir_label": "Agent Skills-katalog"
+  "config.skill_manager.agent_skills_dir_label": "Agent Skills-katalog",
+  "config.skill_manager.skillspector_header": "SkillSpector",
+  "config.skill_manager.skillspector_enabled_label": "Aktivera SkillSpector",
+  "config.skill_manager.skillspector_command_path_label": "Kommando",
+  "config.skill_manager.skillspector_timeout_seconds_label": "Timeout (sekunder)",
+  "config.skill_manager.skillspector_max_output_kb_label": "Max utdata (KB)",
+  "config.skill_manager.skillspector_test": "Testa skanner",
+  "config.skill_manager.skillspector_status_available": "Tillgänglig: {command}",
+  "config.skill_manager.skillspector_status_unavailable": "Inte tillgänglig: {message}",
+  "config.skill_manager.skillspector_status_disabled": "SkillSpector är avstängd",
+  "config.skill_manager.skillspector_status_error": "Kunde inte kontrollera SkillSpector",
+  "help.skill_manager.skillspector.enabled": "Kör den valfria externa SkillSpector CLI:n vid säkerhetsskanning av färdigheter. Endast statiskt läge; inga LLM-uppgifter skickas vidare.",
+  "help.skill_manager.skillspector.command_path": "Programnamn eller absolut sökväg till skillspector-kommandot.",
+  "help.skill_manager.skillspector.timeout_seconds": "Maximal körtid för varje extern skanning.",
+  "help.skill_manager.skillspector.max_output_kb": "Maximal JSON-utdata som fångas från skannern.",
+  "config.skill_manager.skillspector_status_checking": "Kontrollerar…"
 }

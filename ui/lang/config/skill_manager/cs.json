@@ -91,5 +91,20 @@
   "help.skill_manager.require_scan": "Spustit bezpečnostní sken nahraných dovedností před jejich povolením",
   "help.skill_manager.scan_with_guardian": "Použít LLM Guardian ke kontrole nahraného kódu dovedností na bezpečnostní problémy",
   "help.skill_manager.agent_skills_dir": "Složka pro balíčky Agent Skills ve formátu SKILL.md.",
-  "config.skill_manager.agent_skills_dir_label": "Složka Agent Skills"
+  "config.skill_manager.agent_skills_dir_label": "Složka Agent Skills",
+  "config.skill_manager.skillspector_header": "SkillSpector",
+  "config.skill_manager.skillspector_enabled_label": "Povolit SkillSpector",
+  "config.skill_manager.skillspector_command_path_label": "Příkaz",
+  "config.skill_manager.skillspector_timeout_seconds_label": "Časový limit (sekundy)",
+  "config.skill_manager.skillspector_max_output_kb_label": "Max. výstup (KB)",
+  "config.skill_manager.skillspector_test": "Otestovat skener",
+  "config.skill_manager.skillspector_status_available": "Dostupné: {command}",
+  "config.skill_manager.skillspector_status_unavailable": "Nedostupné: {message}",
+  "config.skill_manager.skillspector_status_disabled": "SkillSpector je vypnutý",
+  "config.skill_manager.skillspector_status_error": "SkillSpector se nepodařilo ověřit",
+  "help.skill_manager.skillspector.enabled": "Spustí volitelný externí SkillSpector CLI při bezpečnostních skenech dovedností. Jen statický režim; LLM přihlašovací údaje se nepředávají.",
+  "help.skill_manager.skillspector.command_path": "Název spustitelného souboru nebo absolutní cesta k příkazu skillspector.",
+  "help.skill_manager.skillspector.timeout_seconds": "Maximální doba běhu každého externího skenu.",
+  "help.skill_manager.skillspector.max_output_kb": "Maximální JSON výstup zachycený ze skeneru.",
+  "config.skill_manager.skillspector_status_checking": "Kontroluji…"
 }
