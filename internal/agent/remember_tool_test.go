@@ -171,6 +171,52 @@ func TestRememberTaskUsesExplicitTitleForNote(t *testing.T) {
 	}
 }
 
+func TestRememberRelationshipStoresProvenanceClaim(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	kg, err := memory.NewKnowledgeGraph(":memory:", "", logger)
+	if err != nil {
+		t.Fatalf("NewKnowledgeGraph: %v", err)
+	}
+	t.Cleanup(func() { _ = kg.Close() })
+
+	content := "Server A uses Portainer for container management."
+	out := handleRemember(
+		ToolCall{
+			Content:  content,
+			Category: "relationship",
+			Source:   "server-a",
+			Target:   "portainer",
+			Relation: "uses",
+		},
+		nil,
+		logger,
+		nil,
+		kg,
+		"session-test",
+	)
+
+	if !strings.Contains(out, `"status":"success"`) {
+		t.Fatalf("handleRemember output = %q, want success", out)
+	}
+	claims, err := kg.GetClaimsForEdge("server-a", "portainer", "uses", true, 10)
+	if err != nil {
+		t.Fatalf("GetClaimsForEdge: %v", err)
+	}
+	if len(claims) != 1 {
+		t.Fatalf("claims len = %d, want 1", len(claims))
+	}
+	claim := claims[0]
+	if claim.SourceKind != "user" || claim.SessionID != "session-test" || claim.ConfidenceLabel != "user_provided" {
+		t.Fatalf("unexpected claim provenance: %+v", claim)
+	}
+	if claim.Evidence == nil {
+		t.Fatalf("expected evidence for remember claim: %+v", claim)
+	}
+	if claim.Evidence.RawText != content || claim.Evidence.EvidenceType != "remember" || claim.Evidence.Channel != "agent" {
+		t.Fatalf("unexpected evidence: %+v", claim.Evidence)
+	}
+}
+
 func TestRememberTaskRespectsDisabledNotesConfig(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	stm, err := memory.NewSQLiteMemory(":memory:", logger)

@@ -49,7 +49,7 @@ func handleRemember(tc ToolCall, cfg *config.Config, logger *slog.Logger,
 		}
 		return rememberAsNoteWithTitle(content, tc.Title, shortTermMem, logger)
 	case "relationship", "entity", "graph":
-		return rememberAsGraphEdge(content, tc, kg, logger)
+		return rememberAsGraphEdge(content, tc, kg, sessionID, logger)
 	default:
 		// Unknown categories should not pollute Core Memory. Treat ambiguous
 		// useful information as a searchable journal learning unless the caller
@@ -273,13 +273,25 @@ func rememberAsNoteWithTitle(content, explicitTitle string, stm *memory.SQLiteMe
 	return fmt.Sprintf(`Tool Output: {"status":"success","stored_as":"note","message":"Task stored as note","id":%d}`, id)
 }
 
-func rememberAsGraphEdge(content string, tc ToolCall, kg *memory.KnowledgeGraph, logger *slog.Logger) string {
+func rememberAsGraphEdge(content string, tc ToolCall, kg *memory.KnowledgeGraph, sessionID string, logger *slog.Logger) string {
 	if kg == nil {
 		return `Tool Output: {"status":"error","message":"Knowledge graph not available"}`
 	}
 	// If source/target/relation are explicitly provided, use them
 	if tc.Source != "" && tc.Target != "" && tc.Relation != "" {
-		err := kg.AddEdge(tc.Source, tc.Target, tc.Relation, tc.Properties)
+		_, err := kg.AddEdgeWithProvenance(tc.Source, tc.Target, tc.Relation, tc.Properties, memory.KGProvenanceInput{
+			EvidenceType:    "remember",
+			SessionID:       sessionID,
+			Channel:         "agent",
+			Actor:           "user",
+			RawText:         content,
+			AssertedInGraph: "remember",
+			Confidence:      0.90,
+			ConfidenceLabel: "user_provided",
+			SourceKind:      "user",
+			PrivacyClass:    "standard",
+			RetentionPolicy: "default",
+		})
 		if err != nil {
 			return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
 		}
