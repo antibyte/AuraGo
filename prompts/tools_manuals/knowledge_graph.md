@@ -20,6 +20,13 @@ Manage a structured graph of entities and relations stored in SQLite with full-t
 | `graph_health` | none | Read KG stats and quality signals, including pending and low-confidence edge counts |
 | `explore` | `content` | Search with relationship context |
 | `suggest_relations` | `id` | Suggest possible relations for a node |
+| `suggest_inferred_relations` | optional `limit` | Read-only deterministic suggestions from inverse/transitive relationship rules |
+| `explain_edge` | `source`, `target`, `relation` | Show claims and evidence for a relationship. Set `include_inactive=true` for history |
+| `list_conflicts` | optional `limit` | List open contradictory claims that need resolution |
+| `resolve_conflict` | `conflict_id`, `claim_id` | Resolve an open conflict by selecting the winning claim |
+| `supersede_edge` | `source`, `target`, `relation` | Mark an edge outdated. Optional: `claim_id`, `reason` |
+| `retract_edge` | `source`, `target`, `relation` | Mark an edge withdrawn while keeping claim history. Optional: `reason` |
+| `export_jsonld` | optional `limit` | Export nodes, relationships, and claims as JSON-LD. Set `include_inactive=true` for inactive edges/claims |
 | `optimize` / `optimize_graph` | optional thresholds | Run priority-based KG cleanup through the memory optimizer |
 
 ## Parameters
@@ -37,6 +44,10 @@ Manage a structured graph of entities and relations stored in SQLite with full-t
 | `depth` | integer | for subgraph | Traversal depth (1-3, default: 2) |
 | `limit` | integer | for get_neighbors | Max results (default: 20) |
 | `include_low_confidence` | boolean | no | Include pending or low-confidence `co_mentioned_with` edges in `search` and `get_neighbors` results. Default: `false` |
+| `include_inactive` | boolean | no | Include superseded, retracted, or rejected claims/edges in `explain_edge` and `export_jsonld`. Default: `false` |
+| `claim_id` | string | for resolve_conflict | Winning claim ID for `resolve_conflict`; optional superseding claim for `supersede_edge` |
+| `conflict_id` | integer | for resolve_conflict | Open conflict ID from `list_conflicts` |
+| `reason` | string | for curation ops | Short human-readable reason for resolve/supersede/retract |
 
 ## Examples
 
@@ -65,6 +76,26 @@ Manage a structured graph of entities and relations stored in SQLite with full-t
 {"action": "knowledge_graph", "operation": "graph_health"}
 ```
 
+**Explain an edge with claim history:**
+```json
+{"action": "knowledge_graph", "operation": "explain_edge", "source": "andi", "target": "german", "relation": "primary_language", "include_inactive": true}
+```
+
+**Resolve a claim conflict:**
+```json
+{"action": "knowledge_graph", "operation": "resolve_conflict", "conflict_id": 12, "claim_id": "kg_claim_abc", "reason": "newer user correction wins"}
+```
+
+**Suggest inferred relations without writing:**
+```json
+{"action": "knowledge_graph", "operation": "suggest_inferred_relations", "limit": 20}
+```
+
+**Export JSON-LD:**
+```json
+{"action": "knowledge_graph", "operation": "export_jsonld", "include_inactive": true, "limit": 200}
+```
+
 **Get neighbors:**
 ```json
 {"action": "knowledge_graph", "operation": "get_neighbors", "id": "api_server", "limit": 10}
@@ -80,6 +111,9 @@ Manage a structured graph of entities and relations stored in SQLite with full-t
 - Search uses FTS5 full-text search with quoted tokens and AND semantics for multi-word queries, plus LIKE fallback for broad matching.
 - `search` and `get_neighbors` hide low-confidence `co_mentioned_with` edges by default. Set `include_low_confidence=true` only when auditing pending co-mentions.
 - `graph_health` is read-only and returns `stats` plus `quality`, including edge source breakdowns, pending co-mentions, generic-node samples, and duplicate suggestions.
+- Relationship writes now create claims with optional evidence. `explain_edge` is the safest way to audit why an edge exists.
+- `resolve_conflict`, `supersede_edge`, and `retract_edge` preserve history instead of silently erasing the claim trail.
+- `suggest_inferred_relations` and `export_jsonld` are read-only and do not mutate the graph.
 - `explore` and prompt-context search can use semantic similarity when embeddings are enabled; failed semantic upserts mark rows dirty for nightly reindex.
 - Relevant knowledge graph entities are automatically injected into the system prompt when `prompt_injection` is enabled.
 - Nightly batch extraction automatically discovers entities and relationships from conversations.

@@ -681,6 +681,17 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				})
 				return "Tool Output: " + string(data)
 
+			case "export_jsonld":
+				doc, err := kg.ExportJSONLD(req.IncludeInactive, req.Limit)
+				if err != nil {
+					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
+				}
+				data, _ := json.Marshal(map[string]interface{}{
+					"status": "success",
+					"jsonld": doc,
+				})
+				return "Tool Output: " + string(data)
+
 			case "explain_edge":
 				if req.Source == "" || req.Target == "" || req.Relation == "" {
 					return `Tool Output: {"status": "error", "message": "source, target, and relation are required for explain_edge"}`

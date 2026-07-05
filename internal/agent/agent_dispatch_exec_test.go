@@ -437,6 +437,59 @@ func TestDispatchExecKnowledgeGraphSuggestInferredRelations(t *testing.T) {
 	}
 }
 
+func TestDispatchExecKnowledgeGraphExportJSONLD(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Tools.KnowledgeGraph.Enabled = true
+	cfg.Tools.KnowledgeGraph.ReadOnly = true
+
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+	kg, err := memory.NewKnowledgeGraph(":memory:", "", logger)
+	if err != nil {
+		t.Fatalf("NewKnowledgeGraph: %v", err)
+	}
+	t.Cleanup(func() { _ = kg.Close() })
+	if _, err := kg.AddEdgeWithProvenance("server", "portainer", "uses", nil, memory.KGProvenanceInput{
+		SourceKind:   "user",
+		SessionID:    "session-test",
+		RawText:      "Server uses Portainer",
+		EvidenceType: "remember",
+	}); err != nil {
+		t.Fatalf("AddEdgeWithProvenance: %v", err)
+	}
+
+	out, ok := dispatchExec(
+		context.Background(),
+		ToolCall{
+			Action:    "knowledge_graph",
+			Operation: "export_jsonld",
+			Params: map[string]interface{}{
+				"limit":            float64(20),
+				"include_inactive": true,
+			},
+		},
+		&DispatchContext{Cfg: cfg, Logger: logger, KG: kg},
+	)
+	if !ok {
+		t.Fatal("expected dispatchExec to handle export_jsonld")
+	}
+	var payload struct {
+		Status string                  `json:"status"`
+		JSONLD memory.KGJSONLDDocument `json:"jsonld"`
+	}
+	if err := json.Unmarshal([]byte(strings.TrimPrefix(out, "Tool Output: ")), &payload); err != nil {
+		t.Fatalf("unmarshal export_jsonld: %v\n%s", err, out)
+	}
+	if payload.Status != "success" || payload.JSONLD.Context["kg"] == nil {
+		t.Fatalf("unexpected export payload: %+v", payload)
+	}
+	if payload.JSONLD.Metadata["include_inactive"] != true {
+		t.Fatalf("include_inactive metadata = %#v, want true", payload.JSONLD.Metadata["include_inactive"])
+	}
+	if len(payload.JSONLD.Graph) == 0 {
+		t.Fatalf("expected graph entries: %+v", payload.JSONLD)
+	}
+}
+
 func TestDispatchExecManageUpdatesCheckUsesSharedUpdater(t *testing.T) {
 	dir := t.TempDir()
 	cfg := &config.Config{}
