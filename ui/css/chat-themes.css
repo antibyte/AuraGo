@@ -1268,8 +1268,8 @@
     pointer-events: none;
     display: none;
     flex-direction: column;
-    gap: 6px;
-    padding: 12px 8px;
+    gap: 4px;
+    padding: 8px 6px;
     box-sizing: border-box;
     border-right: 1px solid rgba(0, 240, 255, 0.12);
     background: linear-gradient(90deg, rgba(0, 240, 255, 0.04), transparent);
@@ -1283,19 +1283,37 @@
     display: flex;
 }
 
-.hud-eq {
+#cyberwar-hud-left .hud-panel {
+    padding: 4px 6px;
+    gap: 2px;
+}
+
+#cyberwar-hud-left .hud-panel-title {
+    padding-bottom: 2px;
+    margin-bottom: 1px;
+}
+
+#cyberwar-hud-left .hud-node {
+    gap: 4px;
+}
+
+#cyberwar-hud-left .hud-counter {
+    gap: 4px;
+}
+
+#cyberwar-hud-left .hud-eq {
     display: flex;
     align-items: flex-end;
     justify-content: center;
-    gap: 4px;
-    height: 48px;
+    gap: 3px;
+    height: 32px;
 }
 
-.hud-eq-bar {
-    width: 14px;
+#cyberwar-hud-left .hud-eq-bar {
+    width: 10px;
     height: 100%;
     background: #08ff7a;
-    box-shadow: 0 0 8px rgba(8, 255, 122, 0.6);
+    box-shadow: 0 0 6px rgba(8, 255, 122, 0.6);
     transform-origin: bottom;
     transition: transform 350ms ease;
     clip-path: polygon(0 2px, calc(100% - 1px) 0, 100% 2px, 100% calc(100% - 2px), 1px 100%, 0 calc(100% - 2px));
@@ -1317,16 +1335,16 @@
 .hud-eq-bar:nth-child(4) { transition-delay: 120ms; }
 .hud-eq-bar:nth-child(5) { transition-delay: 160ms; }
 
-.hud-eq-value {
-    font-size: 0.7rem;
+#cyberwar-hud-left .hud-eq-value {
+    font-size: 0.65rem;
     font-weight: 600;
     color: rgba(0, 240, 255, 0.95);
     text-shadow: 0 0 4px rgba(0, 240, 255, 0.4);
     text-align: center;
-    margin-top: 3px;
+    margin-top: 1px;
 }
 
-.hud-eq-sub {
+#cyberwar-hud-left .hud-eq-sub {
     font-size: 0.5rem;
     color: rgba(0, 240, 255, 0.5);
     text-align: center;
