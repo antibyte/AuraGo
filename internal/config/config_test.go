@@ -9,6 +9,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"gopkg.in/yaml.v3"
 )
 
 type testSecretVault struct {
@@ -169,6 +171,104 @@ func TestLoadKnowledgeGraphQualityDefaults(t *testing.T) {
 	}
 	if got := cfg.Tools.KnowledgeGraph.HideLowConfidenceByDefault; got != want.HideLowConfidenceByDefault {
 		t.Fatalf("HideLowConfidenceByDefault = %v, want %v", got, want.HideLowConfidenceByDefault)
+	}
+}
+
+func TestLoadAppliesSupertonicTTSDefaults(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(configPath, []byte(""), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+
+	if cfg.TTS.Supertonic.AutoStart {
+		t.Fatal("tts.supertonic.auto_start must default to false")
+	}
+	if cfg.TTS.Supertonic.URL != "http://127.0.0.1:7788" {
+		t.Fatalf("tts.supertonic.url = %q", cfg.TTS.Supertonic.URL)
+	}
+	if cfg.TTS.Supertonic.ContainerName != "aurago-supertonic-tts" {
+		t.Fatalf("tts.supertonic.container_name = %q", cfg.TTS.Supertonic.ContainerName)
+	}
+	if cfg.TTS.Supertonic.Image != "ghcr.io/antibyte/aurago-supertonic:latest" {
+		t.Fatalf("tts.supertonic.image = %q", cfg.TTS.Supertonic.Image)
+	}
+	if cfg.TTS.Supertonic.ContainerPort != 7788 {
+		t.Fatalf("tts.supertonic.container_port = %d", cfg.TTS.Supertonic.ContainerPort)
+	}
+	if cfg.TTS.Supertonic.DataPath != "data/supertonic" {
+		t.Fatalf("tts.supertonic.data_path = %q", cfg.TTS.Supertonic.DataPath)
+	}
+	if cfg.TTS.Supertonic.Model != "supertonic-3" {
+		t.Fatalf("tts.supertonic.model = %q", cfg.TTS.Supertonic.Model)
+	}
+	if cfg.TTS.Supertonic.Voice != "M1" {
+		t.Fatalf("tts.supertonic.voice = %q", cfg.TTS.Supertonic.Voice)
+	}
+	if cfg.TTS.Supertonic.Speed != 1.0 {
+		t.Fatalf("tts.supertonic.speed = %v", cfg.TTS.Supertonic.Speed)
+	}
+	if cfg.TTS.Supertonic.Steps != 8 {
+		t.Fatalf("tts.supertonic.steps = %d", cfg.TTS.Supertonic.Steps)
+	}
+	if cfg.TTS.Supertonic.ResponseFormat != "wav" {
+		t.Fatalf("tts.supertonic.response_format = %q", cfg.TTS.Supertonic.ResponseFormat)
+	}
+}
+
+func TestSupertonicTTSYAMLRoundTrip(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	configContent := `
+tts:
+  provider: supertonic
+  supertonic:
+    auto_start: true
+    url: http://127.0.0.1:7789
+    container_name: aurago-supertonic-custom
+    image: ghcr.io/example/supertonic:test
+    container_port: 7789
+    data_path: data/custom-supertonic
+    model: supertonic-3
+    voice: studio_voice
+    speed: 1.15
+    steps: 12
+    response_format: ogg
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+
+	out, err := yaml.Marshal(cfg)
+	if err != nil {
+		t.Fatalf("marshal config: %v", err)
+	}
+	var roundTrip Config
+	if err := yaml.Unmarshal(out, &roundTrip); err != nil {
+		t.Fatalf("unmarshal config: %v", err)
+	}
+
+	got := roundTrip.TTS.Supertonic
+	if !got.AutoStart ||
+		got.URL != "http://127.0.0.1:7789" ||
+		got.ContainerName != "aurago-supertonic-custom" ||
+		got.Image != "ghcr.io/example/supertonic:test" ||
+		got.ContainerPort != 7789 ||
+		got.DataPath != "data/custom-supertonic" ||
+		got.Model != "supertonic-3" ||
+		got.Voice != "studio_voice" ||
+		got.Speed != 1.15 ||
+		got.Steps != 12 ||
+		got.ResponseFormat != "ogg" {
+		t.Fatalf("round-tripped Supertonic config = %+v", got)
 	}
 }
 

@@ -58,7 +58,10 @@
   "help.tts.provider": {
     "options": [
       "google",
-      "elevenlabs"
+      "elevenlabs",
+      "minimax",
+      "piper",
+      "supertonic"
     ]
   },
   "help.tts.language": {

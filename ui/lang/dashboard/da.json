@@ -787,5 +787,6 @@
   "dashboard.error_server": "Serverfejl. Prøv venligst igen senere.",
   "dashboard.error_network": "Netværksforbindelse mistet. Tjek din forbindelse.",
   "dashboard.tablist_label": "Dashboard-sektioner",
-  "dashboard.status_label": "Status"
+  "dashboard.status_label": "Status",
+  "dashboard.integration_supertonic_tts": "Supertonic TTS"
 }

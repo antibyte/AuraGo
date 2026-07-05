@@ -353,7 +353,7 @@
   "help.tts.elevenlabs.model_id": "Αναγνωριστικό μοντέλου ElevenLabs, π.χ. 'eleven_multilingual_v2'.",
   "help.tts.elevenlabs.voice_id": "Αναγνωριστικό φωνής ElevenLabs του ομιλητή.",
   "help.tts.language": "Κωδικός γλώσσας BCP-47 για Google TTS, π.χ. 'el' ή 'en'.",
-  "help.tts.provider": "Πάροχος κειμένου-σε-ομιλία: 'google' ή 'elevenlabs'.",
+  "help.tts.provider": "Πάροχος κειμένου-σε-ομιλία: 'google', 'elevenlabs', 'minimax', 'piper' ή 'supertonic'.",
   "help.virustotal.api_key": "Κλειδί API για VirusTotal tool. WARNING: DO NOT use this tool on files containing personal data or sensitive information. Files may be made available to security researchers and your submissions may be made public.",
   "help.virustotal.enabled": "Ενεργοποιήστε the VirusTotal integration. Allows scanning URLs, domains, IPs, and file hashes via the VirusTotal API.",
   "help.vision.api_key": "Κλειδί API για the vision LLM.",

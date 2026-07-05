@@ -353,7 +353,7 @@
   "help.tts.elevenlabs.model_id": "ID do modelo ElevenLabs, ex: 'eleven_multilingual_v2'.",
   "help.tts.elevenlabs.voice_id": "ID de voz ElevenLabs do locutor.",
   "help.tts.language": "Código de idioma BCP-47 para Google TTS, ex: 'pt' ou 'en'.",
-  "help.tts.provider": "Provedor de texto-para-fala: 'google' ou 'elevenlabs'.",
+  "help.tts.provider": "Provedor de texto para fala: 'google', 'elevenlabs', 'minimax', 'piper' ou 'supertonic'.",
   "help.virustotal.api_key": "Chave API para VirusTotal tool. WARNING: DO NOT use this tool on files containing personal data or sensitive information. Files may be made available to security researchers and your submissions may be made public.",
   "help.virustotal.enabled": "Habilita integração VirusTotal.",
   "help.vision.api_key": "Chave API para the vision LLM.",

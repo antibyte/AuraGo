@@ -1000,12 +1000,13 @@ Das A2A-Protokoll in [`internal/a2a/`](../../../internal/a2a/) ermöglicht Inter
 
 [`internal/tools/chromecast.go`](../../../internal/tools/chromecast.go) – Medien an Cast-Geräte senden.
 
-### 20.3 TTS / Piper
+### 20.3 TTS / Lokale Sidecars
 
-[`internal/tools/tts.go`](../../../internal/tools/tts.go) + [`piper_tts.go`](../../../internal/tools/piper_tts.go):
+[`internal/tools/tts.go`](../../../internal/tools/tts.go) + [`piper_tts.go`](../../../internal/tools/piper_tts.go) + [`supertonic_tts.go`](../../../internal/tools/supertonic_tts.go):
 
 - Text-to-Speech mit mehreren Backends
 - Piper als lokaler TTS-Provider
+- Supertonic als lokaler HTTP-Sidecar-Provider ohne CGO in AuraGo
 - Audio-Datei-Erstellung und Versand
 
 ### 20.4 Image Generation

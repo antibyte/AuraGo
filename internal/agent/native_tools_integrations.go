@@ -431,7 +431,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 	if ff.TTSEnabled {
 		tools = append(tools, tool("tts",
 			"Convert text to speech (TTS). The generated audio will AUTOMATICALLY be sent to the user and played in the chat UI! "+
-				"Supports Google, ElevenLabs, MiniMax, and Piper TTS providers. "+
+				"Supports Google, ElevenLabs, MiniMax, Piper, and Supertonic TTS providers. "+
 				"When VOICE MODE is active, YOU MUST USE THIS TOOL to reply to the user instead of typing a long text response. "+
 				"Put your conversational output in the 'text' argument.",
 			schema(map[string]interface{}{

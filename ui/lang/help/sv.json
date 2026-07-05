@@ -353,7 +353,7 @@
   "help.tts.elevenlabs.model_id": "ElevenLabs modell-ID, t.ex. 'eleven_multilingual_v2'.",
   "help.tts.elevenlabs.voice_id": "ElevenLabs röst-ID för talaren.",
   "help.tts.language": "BCP-47 språkkod för Google TTS, t.ex. 'sv' eller 'en'.",
-  "help.tts.provider": "Text-till-tal-leverantör: 'google' eller 'elevenlabs'.",
+  "help.tts.provider": "Text-till-tal-leverantör: 'google', 'elevenlabs', 'minimax', 'piper' eller 'supertonic'.",
   "help.virustotal.api_key": "API-nyckel för VirusTotal tool. WARNING: DO NOT use this tool on files containing personal data or sensitive information. Files may be made available to security researchers and your submissions may be made public.",
   "help.virustotal.enabled": "Aktivera the VirusTotal integration. Allows scanning URLs, domains, IPs, and file hashes via the VirusTotal API.",
   "help.vision.api_key": "API-nyckel för the vision LLM.",

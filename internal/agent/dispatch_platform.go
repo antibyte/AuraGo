@@ -101,6 +101,12 @@ func buildRuntimeTTSConfig(cfg *config.Config, language string) tools.TTSConfig 
 	ttsCfg.Piper.Port = cfg.TTS.Piper.ContainerPort
 	ttsCfg.Piper.Voice = cfg.TTS.Piper.Voice
 	ttsCfg.Piper.SpeakerID = cfg.TTS.Piper.SpeakerID
+	ttsCfg.Supertonic.URL = cfg.TTS.Supertonic.URL
+	ttsCfg.Supertonic.Model = cfg.TTS.Supertonic.Model
+	ttsCfg.Supertonic.Voice = cfg.TTS.Supertonic.Voice
+	ttsCfg.Supertonic.Speed = cfg.TTS.Supertonic.Speed
+	ttsCfg.Supertonic.Steps = cfg.TTS.Supertonic.Steps
+	ttsCfg.Supertonic.ResponseFormat = cfg.TTS.Supertonic.ResponseFormat
 	return ttsCfg
 }
 
@@ -122,6 +128,8 @@ func isTTSConfigured(cfg *config.Config) bool {
 		return strings.TrimSpace(cfg.TTS.MiniMax.APIKey) != ""
 	case "piper":
 		return cfg.TTS.Piper.Enabled
+	case "supertonic":
+		return strings.TrimSpace(cfg.TTS.Supertonic.URL) != ""
 	default:
 		return false
 	}

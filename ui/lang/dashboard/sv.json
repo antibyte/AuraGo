@@ -787,5 +787,6 @@
   "dashboard.error_server": "Serverfel. Försök igen senare.",
   "dashboard.error_network": "Nätverksanslutningen förlorad. Kontrollera din anslutning.",
   "dashboard.tablist_label": "Dashboard-sektioner",
-  "dashboard.status_label": "Status"
+  "dashboard.status_label": "Status",
+  "dashboard.integration_supertonic_tts": "Supertonic TTS"
 }

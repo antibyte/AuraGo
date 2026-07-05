@@ -353,7 +353,7 @@
   "help.tts.elevenlabs.model_id": "イレブンラボのモデルID、例: 「eleven_multilingual_v2」。",
   "help.tts.elevenlabs.voice_id": "発言者の Celebrities Voice ID。",
   "help.tts.language": "Google TTS の BCP-47 言語コード、例: 「で」または「えん」。",
-  "help.tts.provider": "テキスト読み上げプロバイダー: 「google」または「elevenlabs」。",
+  "help.tts.provider": "テキスト読み上げプロバイダー: 'google'、'elevenlabs'、'minimax'、'piper'、'supertonic'。",
   "help.virustotal.api_key": "VirusTotal ツールの API キー。警告: 個人データや機密情報を含むファイルに対してこのツールを使用しないでください。ファイルはセキュリティ研究者に提供される場合があり、提出された内容は公開される場合があります。",
   "help.virustotal.enabled": "VirusTotal 統合を有効にします。 VirusTotal API を介して URL、ドメイン、IP、ファイル ハッシュをスキャンできます。",
   "help.vision.api_key": "ビジョン LLM の API キー。",

@@ -1326,7 +1326,7 @@ Text-to-speech and speech-to-text.
 ### Web UI Setup
 1. Open **Config → Integrations → TTS / Whisper**.
 2. Enable the desired providers.
-3. Enter API keys or configure local Piper options.
+3. Enter API keys or configure local Piper/Supertonic sidecar options.
 4. Save and restart.
 
 ### YAML Reference
@@ -1339,9 +1339,18 @@ tts:
     piper:
         voice: "en_US-lessac-high"
         container_port: 10200
+    supertonic:
+        auto_start: false
+        url: http://127.0.0.1:7788
+        image: ghcr.io/antibyte/aurago-supertonic:latest
+        model: supertonic-3
+        voice: M1
+        response_format: wav
 whisper:
     provider: openai
 ```
+
+Supertonic runs through a managed Docker sidecar, so AuraGo itself remains a pure Go binary without CGO or ONNX Runtime linkage.
 
 ---
 

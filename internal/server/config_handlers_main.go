@@ -884,6 +884,17 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				go tools.EnsurePiperRunning(newCfg, s.Logger)
 			}
 
+			newSupertonicAutoStart := strings.EqualFold(strings.TrimSpace(newCfg.TTS.Provider), "supertonic") && newCfg.TTS.Supertonic.AutoStart
+			oldSupertonicAutoStart := strings.EqualFold(strings.TrimSpace(oldCfg.TTS.Provider), "supertonic") && oldCfg.TTS.Supertonic.AutoStart
+			supertonicSidecarChanged := newCfg.TTS.Supertonic.ContainerName != oldCfg.TTS.Supertonic.ContainerName ||
+				newCfg.TTS.Supertonic.Image != oldCfg.TTS.Supertonic.Image ||
+				newCfg.TTS.Supertonic.ContainerPort != oldCfg.TTS.Supertonic.ContainerPort ||
+				newCfg.TTS.Supertonic.DataPath != oldCfg.TTS.Supertonic.DataPath ||
+				newCfg.TTS.Supertonic.Model != oldCfg.TTS.Supertonic.Model
+			if newCfg.Docker.Enabled && newSupertonicAutoStart && (!oldSupertonicAutoStart || supertonicSidecarChanged) {
+				go tools.EnsureSupertonicRunning(newCfg, s.Logger)
+			}
+
 			// Hot-reload SQL Connections pool when enabled state or runtime pool settings change.
 			sqlEnabledChanged := newCfg.SQLConnections.Enabled != oldCfg.SQLConnections.Enabled
 			sqlPoolSettingsChanged := newCfg.SQLConnections.Enabled &&

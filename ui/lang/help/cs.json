@@ -353,7 +353,7 @@
   "help.tts.elevenlabs.model_id": "Model pro tts.",
   "help.tts.elevenlabs.voice_id": "ID pro tts.",
   "help.tts.language": "Jazyk pro tts.",
-  "help.tts.provider": "Poskytovatel pro tts.",
+  "help.tts.provider": "Poskytovatel TTS: 'google', 'elevenlabs', 'minimax', 'piper' nebo 'supertonic'.",
   "help.virustotal.api_key": "API klic pro virustotal.",
   "help.virustotal.enabled": "Povoluje VirusTotal integraci.",
   "help.vision.api_key": "API klic pro vision.",

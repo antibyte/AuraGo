@@ -1316,6 +1316,19 @@ type Config struct {
 			DataPath      string `yaml:"data_path"`      // voice model storage directory (default "data/piper")
 			Image         string `yaml:"image"`          // Docker image (default "rhasspy/wyoming-piper:latest")
 		} `yaml:"piper"`
+		Supertonic struct {
+			AutoStart      bool    `yaml:"auto_start"`      // auto-manage a Supertonic HTTP sidecar
+			URL            string  `yaml:"url"`             // local HTTP API URL (default "http://127.0.0.1:7788")
+			ContainerName  string  `yaml:"container_name"`  // managed Docker container name
+			Image          string  `yaml:"image"`           // Docker image for the sidecar
+			ContainerPort  int     `yaml:"container_port"`  // host port mapped to container 7788
+			DataPath       string  `yaml:"data_path"`       // cache/style persistence directory
+			Model          string  `yaml:"model"`           // e.g. "supertonic-3"
+			Voice          string  `yaml:"voice"`           // style/voice name, e.g. "M1"
+			Speed          float64 `yaml:"speed"`           // 0.7-2.0; 0 means default (1.0)
+			Steps          int     `yaml:"steps"`           // diffusion steps; 0 means default (8)
+			ResponseFormat string  `yaml:"response_format"` // wav, flac, or ogg
+		} `yaml:"supertonic"`
 	} `yaml:"tts"`
 	MediaRegistry struct {
 		Enabled bool `yaml:"enabled"`

@@ -787,5 +787,6 @@
   "dashboard.error_server": "सर्वर त्रुटि। कृपया बाद में पुनः प्रयास करें।",
   "dashboard.error_network": "नेटवर्क कनेक्शन खो गया। कृपया अपना कनेक्शन जांचें।",
   "dashboard.tablist_label": "डैशबोर्ड अनुभाग",
-  "dashboard.status_label": "स्थिति"
+  "dashboard.status_label": "स्थिति",
+  "dashboard.integration_supertonic_tts": "Supertonic TTS"
 }

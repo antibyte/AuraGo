@@ -910,6 +910,9 @@ func Start(opts StartOptions) error {
 		if cfg.TTS.Piper.Enabled {
 			go tools.EnsurePiperRunning(cfg, logger)
 		}
+		if strings.EqualFold(strings.TrimSpace(cfg.TTS.Provider), "supertonic") && cfg.TTS.Supertonic.AutoStart {
+			go tools.EnsureSupertonicRunning(cfg, logger)
+		}
 
 		// Auto-start managed Ollama container if enabled
 		if cfg.Ollama.ManagedInstance.Enabled {

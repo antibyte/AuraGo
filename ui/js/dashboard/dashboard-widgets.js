@@ -3397,7 +3397,7 @@
                 rocketchat: dashIcon('chat'), tailscale: dashIcon('lock'), ansible: dashIcon('wrench'), invasion: dashIcon('egg'),
                 github: dashIcon('package'), mqtt: dashIcon('wifi'), budget: dashIcon('wallet'), indexing: dashIcon('folder'),
                 auth: dashIcon('key'), fallback_llm: dashIcon('refresh'), helper_llm: dashIcon('feather'), personality_v2: dashIcon('drama'), user_profiling: dashIcon('user'), tts: dashIcon('speaker'),
-                piper_tts: dashIcon('speaker'),
+                piper_tts: dashIcon('speaker'), supertonic_tts: dashIcon('speaker'),
                 paperless_ngx: dashIcon('doc'), cloudflare_tunnel: dashIcon('cloud'),
                 fritzbox: dashIcon('plug'), meshcentral: dashIcon('monitor'), a2a: dashIcon('link'),
                 adguard: dashIcon('shield'), s3: dashIcon('database'), mcp: dashIcon('plug'), mcp_server: dashIcon('plug'), dograh: dashIcon('cube'),
@@ -3423,7 +3423,7 @@
                 helper_llm: t('dashboard.integration_helper_llm'),
                 personality_v2: t('dashboard.integration_personality_v2'), user_profiling: t('dashboard.integration_user_profiling'),
                 tts: t('dashboard.integration_tts'),
-                piper_tts: t('dashboard.integration_piper_tts'),
+                piper_tts: t('dashboard.integration_piper_tts'), supertonic_tts: t('dashboard.integration_supertonic_tts'),
                 paperless_ngx: t('dashboard.integration_paperless_ngx'),
                 cloudflare_tunnel: t('dashboard.integration_cloudflare_tunnel'),
                 fritzbox: t('dashboard.integration_fritzbox'),
@@ -3945,4 +3945,3 @@
             const data = await API.get('/api/dashboard/errors');
             renderErrorPatterns(data);
         }
-

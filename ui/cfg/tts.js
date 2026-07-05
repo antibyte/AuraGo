@@ -7,6 +7,8 @@ function renderTTSSection(section) {
     const currentProvider = data.provider || '';
     const elData = data.elevenlabs || {};
     const mmData = data.minimax || {};
+    const supertonicData = data.supertonic || {};
+    const supertonicAutoStart = supertonicData.auto_start === true;
 
     let html = '<div class="cfg-section active">';
     html += '<div class="section-header">' + section.label + '</div>';
@@ -21,6 +23,7 @@ function renderTTSSection(section) {
     html += '<option value="elevenlabs"' + (currentProvider === 'elevenlabs' ? ' selected' : '') + '>' + t('config.tts.provider_elevenlabs') + '</option>';
     html += '<option value="minimax"' + (currentProvider === 'minimax' ? ' selected' : '') + '>' + t('config.tts.provider_minimax') + '</option>';
     html += '<option value="piper"' + (currentProvider === 'piper' ? ' selected' : '') + '>' + t('config.tts.provider_piper') + '</option>';
+    html += '<option value="supertonic"' + (currentProvider === 'supertonic' ? ' selected' : '') + '>' + t('config.tts.provider_supertonic') + '</option>';
     html += '</select>';
     html += '</div>';
 
@@ -91,6 +94,95 @@ function renderTTSSection(section) {
     html += '</div>';
     html += '</div>';
 
+    const showSupertonic = currentProvider === 'supertonic';
+    html += '<div id="tts-supertonic-section" class="tts-provider-section' + (showSupertonic ? '' : ' is-hidden') + '">';
+    html += '<div class="tts-subsection-title">Supertonic TTS (Local Docker)</div>';
+    html += '<div id="supertonic-status-banner" class="adg-status-banner">' + t('config.tts.supertonic_checking') + '</div>';
+
+    html += '<div class="field-group">';
+    html += '<div class="field-label">' + t('config.tts.supertonic_auto_start_label') + '</div>';
+    html += '<div class="field-help">' + t('config.tts.supertonic_auto_start_help') + '</div>';
+    html += '<div class="toggle-wrap">';
+    html += '<div class="toggle' + (supertonicAutoStart ? ' on' : '') + '" data-path="tts.supertonic.auto_start" onclick="toggleBool(this)"></div>';
+    html += '<span class="toggle-label">' + (supertonicAutoStart ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
+    html += '</div></div>';
+
+    html += '<div class="field-group">';
+    html += '<div class="field-label">' + t('config.tts.supertonic_url_label') + '</div>';
+    html += '<div class="field-help">' + t('config.tts.supertonic_url_help') + '</div>';
+    html += '<input class="field-input" type="url" data-path="tts.supertonic.url" value="' + escapeAttr(supertonicData.url || 'http://127.0.0.1:7788') + '">';
+    html += '</div>';
+
+    html += '<div class="field-group">';
+    html += '<div class="field-label">' + t('config.tts.supertonic_model_label') + '</div>';
+    html += '<div class="field-help">' + t('config.tts.supertonic_model_help') + '</div>';
+    const supertonicModel = supertonicData.model || 'supertonic-3';
+    html += '<select class="field-select" data-path="tts.supertonic.model">';
+    html += '<option value="supertonic-3"' + (supertonicModel === 'supertonic-3' ? ' selected' : '') + '>supertonic-3</option>';
+    html += '<option value="supertonic-2"' + (supertonicModel === 'supertonic-2' ? ' selected' : '') + '>supertonic-2</option>';
+    html += '</select>';
+    html += '</div>';
+
+    html += '<div class="field-group">';
+    html += '<div class="field-label">' + t('config.tts.supertonic_voice_label') + '</div>';
+    html += '<div class="field-help">' + t('config.tts.supertonic_voice_help') + '</div>';
+    html += '<div class="tts-voice-row">';
+    html += '<input class="field-input" type="text" id="supertonic-voice-input" data-path="tts.supertonic.voice" value="' + escapeAttr(supertonicData.voice || 'M1') + '">';
+    html += '<button class="btn-save adg-save-btn" onclick="supertonicBrowseStyles()">' + t('config.tts.supertonic_load_voices') + '</button>';
+    html += '</div></div>';
+
+    html += '<div class="field-group">';
+    html += '<div class="field-label">' + t('config.tts.supertonic_speed_label') + '</div>';
+    html += '<div class="field-help">' + t('config.tts.supertonic_speed_help') + '</div>';
+    html += '<input class="field-input" type="number" data-path="tts.supertonic.speed" value="' + (supertonicData.speed || 1.0) + '" min="0.7" max="2.0" step="0.05">';
+    html += '</div>';
+
+    html += '<div class="field-group">';
+    html += '<div class="field-label">' + t('config.tts.supertonic_steps_label') + '</div>';
+    html += '<div class="field-help">' + t('config.tts.supertonic_steps_help') + '</div>';
+    html += '<input class="field-input" type="number" data-path="tts.supertonic.steps" value="' + (supertonicData.steps || 8) + '" min="1" max="100" step="1">';
+    html += '</div>';
+
+    const supertonicFormat = supertonicData.response_format || 'wav';
+    html += '<div class="field-group">';
+    html += '<div class="field-label">' + t('config.tts.supertonic_format_label') + '</div>';
+    html += '<div class="field-help">' + t('config.tts.supertonic_format_help') + '</div>';
+    html += '<select class="field-select" data-path="tts.supertonic.response_format">';
+    html += '<option value="wav"' + (supertonicFormat === 'wav' ? ' selected' : '') + '>' + t('config.tts.supertonic_format_wav') + '</option>';
+    html += '<option value="flac"' + (supertonicFormat === 'flac' ? ' selected' : '') + '>' + t('config.tts.supertonic_format_flac') + '</option>';
+    html += '<option value="ogg"' + (supertonicFormat === 'ogg' ? ' selected' : '') + '>' + t('config.tts.supertonic_format_ogg') + '</option>';
+    html += '</select>';
+    html += '</div>';
+
+    html += '<div class="field-group">';
+    html += '<div class="field-label">' + t('config.tts.supertonic_image_label') + '</div>';
+    html += '<input class="field-input" type="text" data-path="tts.supertonic.image" value="' + escapeAttr(supertonicData.image || 'ghcr.io/antibyte/aurago-supertonic:latest') + '">';
+    html += '</div>';
+
+    html += '<div class="field-group">';
+    html += '<div class="field-label">' + t('config.tts.supertonic_port_label') + '</div>';
+    html += '<input class="field-input" type="number" data-path="tts.supertonic.container_port" value="' + (supertonicData.container_port || 7788) + '" min="1" max="65535">';
+    html += '</div>';
+
+    html += '<div class="field-group">';
+    html += '<div class="field-label">' + t('config.tts.supertonic_data_path_label') + '</div>';
+    html += '<input class="field-input" type="text" data-path="tts.supertonic.data_path" value="' + escapeAttr(supertonicData.data_path || 'data/supertonic') + '">';
+    html += '</div>';
+
+    html += '<div class="field-group">';
+    html += '<div class="field-label">' + t('config.tts.supertonic_container_name_label') + '</div>';
+    html += '<input class="field-input" type="text" data-path="tts.supertonic.container_name" value="' + escapeAttr(supertonicData.container_name || 'aurago-supertonic-tts') + '">';
+    html += '</div>';
+
+    html += '<div id="supertonic-style-modal" class="modal-overlay tts-voice-modal" onclick="if(event.target===this)supertonicCloseStyleModal()">';
+    html += '<div class="modal">';
+    html += '<div class="modal-header"><span>' + t('config.tts.supertonic_style_browser_title') + '</span><span class="modal-close" onclick="supertonicCloseStyleModal()">&times;</span></div>';
+    html += '<div class="modal-body tts-voice-modal-body">';
+    html += '<div id="supertonic-style-list" class="tts-voice-list">' + t('config.tts.supertonic_loading_voices') + '</div>';
+    html += '</div></div></div>';
+
+    html += '</div>';
+
     html += '<div class="tts-subsection-title">🗣️ Piper TTS (Local Docker)</div>';
     html += '<div id="piper-status-banner" class="adg-status-banner">' + t('config.tts.piper_checking') + '</div>';
 
@@ -147,6 +239,9 @@ function renderTTSSection(section) {
     } else {
         piperSetBanner('neutral', t('config.tts.piper_status_disabled'));
     }
+    if (showSupertonic) {
+        supertonicCheckStatus();
+    }
 }
 
 function ttsLanguageSelect(path, selected) {
@@ -170,10 +265,23 @@ function ttsProviderChanged(val) {
     if (elSection) elSection.classList.toggle('is-hidden', val !== 'elevenlabs');
     const mmSection = document.getElementById('tts-minimax-section');
     if (mmSection) mmSection.classList.toggle('is-hidden', val !== 'minimax');
+    const supertonicSection = document.getElementById('tts-supertonic-section');
+    if (supertonicSection) {
+        supertonicSection.classList.toggle('is-hidden', val !== 'supertonic');
+        if (val === 'supertonic') supertonicCheckStatus();
+    }
 }
 
 function piperSetBanner(state, text) {
     const banner = document.getElementById('piper-status-banner');
+    if (!banner) return;
+    banner.className = 'adg-status-banner';
+    if (state) banner.classList.add('is-' + state);
+    banner.textContent = text;
+}
+
+function supertonicSetBanner(state, text) {
+    const banner = document.getElementById('supertonic-status-banner');
     if (!banner) return;
     banner.className = 'adg-status-banner';
     if (state) banner.classList.add('is-' + state);
@@ -249,6 +357,82 @@ function piperCheckStatus() {
             }
         })
         .catch(() => piperSetBanner('danger', '🔴 ' + t('config.tts.piper_status_error')));
+}
+
+function supertonicCheckStatus() {
+    supertonicSetBanner('neutral', t('config.tts.supertonic_checking'));
+
+    fetch('/api/supertonic/status')
+        .then(r => r.json())
+        .then(res => {
+            if (res.status === 'disabled') {
+                supertonicSetBanner('neutral', t('config.tts.supertonic_status_disabled'));
+            } else if (res.status === 'running') {
+                let text = t('config.tts.supertonic_status_running');
+                const details = [];
+                if (res.model) details.push(res.model);
+                if (res.voices_loaded !== undefined) details.push(res.voices_loaded + ' ' + t('config.tts.supertonic_voices_loaded'));
+                if (details.length) text += ' — ' + details.join(' · ');
+                supertonicSetBanner('success', text);
+            } else if (res.status === 'loading') {
+                supertonicSetBanner('warning', t('config.tts.supertonic_status_loading'));
+            } else if (res.status === 'stopped') {
+                supertonicSetBanner('warning', t('config.tts.supertonic_status_stopped'));
+            } else {
+                const message = res.message || res.error || '';
+                supertonicSetBanner('danger', t('config.tts.supertonic_status_error') + (message ? ': ' + message : ''));
+            }
+        })
+        .catch(() => supertonicSetBanner('danger', t('config.tts.supertonic_status_error')));
+}
+
+function supertonicBrowseStyles() {
+    const overlay = document.getElementById('supertonic-style-modal');
+    if (!overlay) return;
+    overlay.classList.add('active');
+    const list = document.getElementById('supertonic-style-list');
+    if (list) list.innerHTML = '<div class="tts-voice-loading">' + t('config.tts.supertonic_loading_voices') + '</div>';
+
+    fetch('/api/supertonic/styles')
+        .then(r => r.json())
+        .then(res => {
+            if (!list) return;
+            if (res.error) {
+                list.innerHTML = '<div class="tts-voice-error">' + escapeHtml(res.error) + '</div>';
+                return;
+            }
+            const styles = res.styles || [];
+            if (styles.length === 0) {
+                list.innerHTML = '<div class="tts-voice-empty">' + t('config.tts.supertonic_no_voices') + '</div>';
+                return;
+            }
+            let html = '';
+            for (const style of styles) {
+                const kind = style.kind || '';
+                html += '<div class="tts-voice-item" data-style-name="' + escapeAttr(style.name || '') + '" onclick="supertonicSelectStyle(this.dataset.styleName)">';
+                html += '<div class="tts-voice-item-name">' + escapeHtml(style.name || '') + '</div>';
+                if (kind) html += '<div class="tts-voice-item-desc">' + escapeHtml(kind) + '</div>';
+                html += '</div>';
+            }
+            list.innerHTML = html;
+        })
+        .catch(() => {
+            if (list) list.innerHTML = '<div class="tts-voice-error">' + t('config.tts.supertonic_voice_error') + '</div>';
+        });
+}
+
+function supertonicSelectStyle(name) {
+    const input = document.getElementById('supertonic-voice-input');
+    if (input) {
+        input.value = name;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    supertonicCloseStyleModal();
+}
+
+function supertonicCloseStyleModal() {
+    const overlay = document.getElementById('supertonic-style-modal');
+    if (overlay) overlay.classList.remove('active');
 }
 
 function piperBrowseVoices() {

@@ -11,6 +11,7 @@ env:
   IMAGE_NAME: ${{ github.repository }}
   CODE_STUDIO_IMAGE_NAME: ${{ github.repository_owner }}/aurago-code-studio
   COMMANDCODE_IMAGE_NAME: ${{ github.repository_owner }}/aurago-commandcode
+  SUPERTONIC_IMAGE_NAME: ${{ github.repository_owner }}/aurago-supertonic
 
 jobs:
   build-and-push:
@@ -43,6 +44,7 @@ jobs:
           echo "IMAGE_LC=${IMAGE_NAME,,}" >> "$GITHUB_ENV"
           echo "CODE_STUDIO_IMAGE_LC=${CODE_STUDIO_IMAGE_NAME,,}" >> "$GITHUB_ENV"
           echo "COMMANDCODE_IMAGE_LC=${COMMANDCODE_IMAGE_NAME,,}" >> "$GITHUB_ENV"
+          echo "SUPERTONIC_IMAGE_LC=${SUPERTONIC_IMAGE_NAME,,}" >> "$GITHUB_ENV"
 
       # Needed for multi-platform (arm64) emulation
       - name: Set up QEMU
@@ -158,3 +160,34 @@ jobs:
             [ -n "$image" ] || continue
             cosign sign --yes "$image"
           done <<< "${{ steps.commandcode-meta.outputs.tags }}"
+
+      - name: Extract Supertonic metadata (tags, labels)
+        id: supertonic-meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.SUPERTONIC_IMAGE_LC }}
+          tags: |
+            type=ref,event=tag
+            type=raw,value=latest
+            type=sha,prefix=sha-,format=short
+
+      - name: Build and push Supertonic image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: deploy/docker/Dockerfile.supertonic
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.supertonic-meta.outputs.tags }}
+          labels: ${{ steps.supertonic-meta.outputs.labels }}
+          provenance: true
+          sbom: true
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.SUPERTONIC_IMAGE_LC }}:buildcache
+          cache-to:   type=registry,ref=${{ env.REGISTRY }}/${{ env.SUPERTONIC_IMAGE_LC }}:buildcache,mode=max
+
+      - name: Sign Supertonic image tags
+        run: |
+          while IFS= read -r image; do
+            [ -n "$image" ] || continue
+            cosign sign --yes "$image"
+          done <<< "${{ steps.supertonic-meta.outputs.tags }}"

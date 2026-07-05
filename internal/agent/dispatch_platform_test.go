@@ -37,6 +37,12 @@ func TestBuildRuntimeTTSConfigIncludesMiniMaxAndPiper(t *testing.T) {
 	cfg.TTS.Piper.ContainerPort = 10200
 	cfg.TTS.Piper.Voice = "de_DE-thorsten-high"
 	cfg.TTS.Piper.SpeakerID = 3
+	cfg.TTS.Supertonic.URL = "http://127.0.0.1:7788"
+	cfg.TTS.Supertonic.Model = "supertonic-3"
+	cfg.TTS.Supertonic.Voice = "F1"
+	cfg.TTS.Supertonic.Speed = 1.2
+	cfg.TTS.Supertonic.Steps = 10
+	cfg.TTS.Supertonic.ResponseFormat = "ogg"
 
 	ttsCfg := buildRuntimeTTSConfig(cfg, "")
 	if ttsCfg.Provider != "minimax" {
@@ -53,6 +59,14 @@ func TestBuildRuntimeTTSConfigIncludesMiniMaxAndPiper(t *testing.T) {
 	}
 	if ttsCfg.Piper.Port != 10200 || ttsCfg.Piper.Voice != "de_DE-thorsten-high" || ttsCfg.Piper.SpeakerID != 3 {
 		t.Fatalf("Piper config not copied: %+v", ttsCfg.Piper)
+	}
+	if ttsCfg.Supertonic.URL != "http://127.0.0.1:7788" ||
+		ttsCfg.Supertonic.Model != "supertonic-3" ||
+		ttsCfg.Supertonic.Voice != "F1" ||
+		ttsCfg.Supertonic.Speed != 1.2 ||
+		ttsCfg.Supertonic.Steps != 10 ||
+		ttsCfg.Supertonic.ResponseFormat != "ogg" {
+		t.Fatalf("Supertonic config not copied: %+v", ttsCfg.Supertonic)
 	}
 }
 
@@ -84,6 +98,19 @@ func TestIsTTSConfiguredRequiresUsableBackend(t *testing.T) {
 	piperCfg.TTS.Piper.Enabled = true
 	if !isTTSConfigured(piperCfg) {
 		t.Fatal("enabled Piper should be considered configured")
+	}
+
+	supertonicMissingURLCfg := &config.Config{}
+	supertonicMissingURLCfg.TTS.Provider = "supertonic"
+	if isTTSConfigured(supertonicMissingURLCfg) {
+		t.Fatal("supertonic without URL should not be considered configured")
+	}
+
+	supertonicCfg := &config.Config{}
+	supertonicCfg.TTS.Provider = "supertonic"
+	supertonicCfg.TTS.Supertonic.URL = "http://127.0.0.1:7788"
+	if !isTTSConfigured(supertonicCfg) {
+		t.Fatal("supertonic with URL should be considered configured")
 	}
 }
 

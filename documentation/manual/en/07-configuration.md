@@ -930,7 +930,7 @@ The blocks below are available for advanced and headless setups. Most can be con
 | `ollama` | Local Ollama management. | `ollama:`<br>`  enabled: false`<br>`  readonly: false`<br>`  url: ""`<br>`  managed_instance:`<br>`    enabled: false`<br>`    container_port: 11434`<br>`    use_host_gpu: false`<br>`    gpu_backend: auto`<br>`    default_models: []`<br>`    memory_limit: ""`<br>`    volume_path: ""` |
 | `rocketchat` | Rocket.Chat bot. | `rocketchat:`<br>`  enabled: false`<br>`  url: ""`<br>`  user_id: ""`<br>`  channel: ""` |
 | `github` | GitHub repository integration. | `github:`<br>`  enabled: false`<br>`  readonly: false`<br>`  owner: ""`<br>`  default_private: false` |
-| `tts` | Text-to-speech config. | `tts:`<br>`  provider: google`<br>`  language: en`<br>`  cache_max_files: 500` |
+| `tts` | Text-to-speech config. | `tts:`<br>`  provider: supertonic`<br>`  language: en`<br>`  cache_max_files: 500`<br>`  supertonic:`<br>`    url: http://127.0.0.1:7788` |
 | `notifications` | Push notification providers. | `notifications:`<br>`  ntfy:`<br>`    enabled: false`<br>`    url: ""`<br>`    topic: ""` |
 | `budget` | Token cost tracking. | `budget:`<br>`  enabled: false`<br>`  daily_limit_usd: 5`<br>`  enforcement: warn`<br>`  warning_threshold: 0.8`<br>`  default_cost:`<br>`    input_per_million: 1.0`<br>`    output_per_million: 3.0` |
 | `fallback_llm` | Failover LLM. | `fallback_llm:`<br>`  enabled: false`<br>`  provider: ""`<br>`  error_threshold: 2`<br>`  probe_interval_seconds: 60` |

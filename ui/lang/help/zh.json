@@ -353,7 +353,7 @@
   "help.tts.elevenlabs.model_id": "ElevenLabs 型号 ID，例如'11_multilingual_v2'。",
   "help.tts.elevenlabs.voice_id": "ElevenLabs 发言者的语音 ID。",
   "help.tts.language": "Google TTS 的 BCP-47 语言代码，例如“德”或“恩”。",
-  "help.tts.provider": "文本转语音提供商：“google”或“elevenlabs”。",
+  "help.tts.provider": "文本转语音提供商：'google'、'elevenlabs'、'minimax'、'piper' 或 'supertonic'。",
   "help.virustotal.api_key": "VirusTotal 工具的 API 密钥。警告：请勿在包含个人数据或敏感信息的文件上使用此工具。文件可能会提供给安全研究人员，并且您提交的内容可能会被公开。",
   "help.virustotal.enabled": "启用 VirusTotal 集成。允许通过 VirusTotal API 扫描 URL、域、IP 和文件哈希。",
   "help.vision.api_key": "愿景法学硕士的 API 密钥。",

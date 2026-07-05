@@ -477,6 +477,8 @@ Send a YouTube video as an embedded player or link to the user.
 ### `tts`
 Text-to-Speech: convert text to audio.
 
+Supported backends are Google, ElevenLabs, MiniMax, Piper, and Supertonic. Piper and Supertonic are local Docker-backed providers; Supertonic is reached through its local HTTP sidecar and can return WAV, FLAC, or Ogg audio.
+
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `text` | string | Text to synthesize into speech |

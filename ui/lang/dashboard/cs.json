@@ -787,5 +787,6 @@
   "dashboard.error_server": "Chyba serveru. Zkuste to později.",
   "dashboard.error_network": "Síťové připojení ztraceno. Zkontrolujte připojení.",
   "dashboard.tablist_label": "Sekce řídicího panelu",
-  "dashboard.status_label": "Stav"
+  "dashboard.status_label": "Stav",
+  "dashboard.integration_supertonic_tts": "Supertonic TTS"
 }

@@ -787,5 +787,6 @@
   "dashboard.error_server": "Server error. Please try again later.",
   "dashboard.error_network": "Network connection lost. Please check your connection.",
   "dashboard.tablist_label": "Dashboard sections",
-  "dashboard.status_label": "Status"
+  "dashboard.status_label": "Status",
+  "dashboard.integration_supertonic_tts": "Supertonic TTS"
 }

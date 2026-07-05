@@ -1169,7 +1169,7 @@ rocketchat:
 
 Sprachsynthese (TTS) und Spracherkennung.
 
-**Web-UI:** Config → Integrationen → TTS → Provider (Piper, ElevenLabs, Google) und Voice-Einstellungen konfigurieren.
+**Web-UI:** Config → Integrationen → TTS → Provider (Piper, Supertonic, MiniMax, ElevenLabs, Google) und Voice-Einstellungen konfigurieren.
 
 ### YAML-Referenz
 ```yaml
@@ -1181,7 +1181,16 @@ tts:
   piper:
     voice: "de_DE-thorsten-high"
     container_port: 10200
+  supertonic:
+    auto_start: false
+    url: http://127.0.0.1:7788
+    image: ghcr.io/antibyte/aurago-supertonic:latest
+    model: supertonic-3
+    voice: M1
+    response_format: wav
 ```
+
+Supertonic läuft über einen verwalteten Docker-Sidecar. AuraGo selbst bleibt dadurch ein reines Go-Binary ohne CGO oder ONNX-Runtime-Linking.
 
 ## A2A Protocol
 

@@ -697,6 +697,18 @@ tts:
         speaker_id: 0
         voice: de_DE-thorsten-high
     provider: ""
+    supertonic:
+        auto_start: false
+        container_name: aurago-supertonic-tts
+        container_port: 7788
+        data_path: data/supertonic
+        image: ghcr.io/antibyte/aurago-supertonic:latest
+        model: supertonic-3
+        response_format: wav
+        speed: 1
+        steps: 8
+        url: http://127.0.0.1:7788
+        voice: M1
 media_registry:
     enabled: true
 vision:

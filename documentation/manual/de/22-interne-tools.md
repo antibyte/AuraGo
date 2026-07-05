@@ -1517,7 +1517,7 @@ Die meisten Tools nutzen `{tool_name}.md`. Ausnahmen und gruppierte Manuals:
 ## Zusätzliche Tools & Integrationen
 
 ### `tts`
-Text-to-Speech Synthese über konfigurierbare Provider (ElevenLabs, Piper, MiniMax, Wyoming). Immer verfügbar.
+Text-to-Speech Synthese über konfigurierbare Provider (Google, ElevenLabs, MiniMax, Piper, Supertonic). Piper und Supertonic laufen lokal über Docker; Supertonic wird über den lokalen HTTP-Sidecar angesprochen und kann WAV, FLAC oder Ogg liefern. Immer verfügbar.
 
 ### `chromecast`
 Chromecast-Geräte im Netzwerk entdecken und steuern (Play, TTS, Discover).

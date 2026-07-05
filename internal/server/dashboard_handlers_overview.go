@@ -643,6 +643,7 @@ func handleDashboardOverview(s *Server) http.HandlerFunc {
 			"user_profiling":    cfg.Personality.UserProfiling,
 			"tts":               cfg.TTS.Provider != "" || cfg.TTS.Piper.Enabled,
 			"piper_tts":         cfg.TTS.Piper.Enabled,
+			"supertonic_tts":    strings.EqualFold(strings.TrimSpace(cfg.TTS.Provider), "supertonic"),
 			// extended integrations
 			"fritzbox":         cfg.FritzBox.Enabled,
 			"meshcentral":      cfg.MeshCentral.Enabled,

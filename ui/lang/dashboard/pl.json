@@ -787,5 +787,6 @@
   "dashboard.error_server": "Błąd serwera. Spróbuj ponownie później.",
   "dashboard.error_network": "Utracono połączenie sieciowe. Sprawdź swoje połączenie.",
   "dashboard.tablist_label": "Sekcje pulpitu",
-  "dashboard.status_label": "Status"
+  "dashboard.status_label": "Status",
+  "dashboard.integration_supertonic_tts": "Supertonic TTS"
 }

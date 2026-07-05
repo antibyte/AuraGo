@@ -787,5 +787,6 @@
   "dashboard.error_server": "サーバーエラーが発生しました。しばらくしてから再試行してください。",
   "dashboard.error_network": "ネットワーク接続が切断されました。接続を確認してください。",
   "dashboard.tablist_label": "ダッシュボードセクション",
-  "dashboard.status_label": "ステータス"
+  "dashboard.status_label": "ステータス",
+  "dashboard.integration_supertonic_tts": "Supertonic TTS"
 }

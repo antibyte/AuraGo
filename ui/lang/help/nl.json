@@ -353,7 +353,7 @@
   "help.tts.elevenlabs.model_id": "ElevenLabs Model-ID, bijv. 'eleven_multilingual_v2'.",
   "help.tts.elevenlabs.voice_id": "ElevenLabs Voice-ID van de spreker.",
   "help.tts.language": "BCP-47 taalcode voor Google TTS, bijv. 'nl' of 'en'.",
-  "help.tts.provider": "Tekst-naar-spraak provider: 'google' of 'elevenlabs'.",
+  "help.tts.provider": "Tekst-naar-spraak provider: 'google', 'elevenlabs', 'minimax', 'piper' of 'supertonic'.",
   "help.virustotal.api_key": "API-sleutel voor VirusTotal tool. WARNING: DO NOT use this tool on files containing personal data or sensitive information. Files may be made available to security researchers and your submissions may be made public.",
   "help.virustotal.enabled": "VirusTotal-integratie inschakelen.",
   "help.vision.api_key": "API-sleutel voor the vision LLM.",

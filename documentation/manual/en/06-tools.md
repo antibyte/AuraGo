@@ -16,7 +16,7 @@ AuraGo's **100+ built-in tools** transform it from a chatbot into an autonomous 
 | **🏠 Smart Home** | Home Assistant, MQTT, Wake-on-LAN, Frigate, AdGuard, Fritz!Box, 3D printer | Yes (partial) |
 | **☁️ Cloud** | Google Workspace, WebDAV, GitHub, S3, OneDrive, Koofr, Netlify, Vercel | No (partial) |
 | **📧 Communication** | Email, Telegram, Discord, Telnyx, Rocket.Chat, MQTT, MeshCentral | No |
-| **🎬 Media Generation** | Images, music, videos, TTS, vision, Piper, media registry | No (provider limits apply) |
+| **🎬 Media Generation** | Images, music, videos, TTS, vision, Piper, Supertonic, media registry | No (provider limits apply) |
 | **🔧 System** | Metrics, processes, cron, sandbox, background tasks, daemon skills | Partial |
 | **🧠 Memory** | Memory, notes, knowledge graph, cheatsheets, core memory | No |
 | **🌐 Network** | Ping, port scan, mDNS, UPnP, WHOIS, DNS lookup | No |

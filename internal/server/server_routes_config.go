@@ -229,9 +229,11 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	// Ansible endpoints
 	mux.HandleFunc("/api/ansible/generate-token", handleAnsibleGenerateToken(s))
 
-	// Piper TTS endpoints
+	// Local TTS sidecar endpoints
 	mux.HandleFunc("/api/piper/status", handlePiperStatus(s))
 	mux.HandleFunc("/api/piper/voices", handlePiperVoices(s))
+	mux.HandleFunc("/api/supertonic/status", handleSupertonicStatus(s))
+	mux.HandleFunc("/api/supertonic/styles", handleSupertonicStyles(s))
 
 	// A2A Protocol endpoints (config UI management)
 	mux.HandleFunc("/api/a2a/status", handleA2AStatus(s))

@@ -6,7 +6,7 @@
 # Everything else is auto-configured from the profile.
 #
 # TTS NOTE: TTS does NOT use the provider system. It has its own config
-# structure (tts.provider, tts.minimax.*, tts.elevenlabs.*) and separate
+# structure (tts.provider, tts.minimax.*, tts.elevenlabs.*, tts.supertonic.*) and separate
 # vault keys. Use the dedicated "tts" block instead of "models.tts".
 
 profiles:

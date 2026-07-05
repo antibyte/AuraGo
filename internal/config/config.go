@@ -551,13 +551,23 @@ func Load(path string) (*Config, error) {
 	cfg.Embeddings.LocalOllama.GPUBackend = "auto"
 	cfg.Embeddings.MultimodalFormat = "auto"
 
-	// Piper TTS container defaults
+	// Local TTS provider defaults
 	cfg.TTS.CacheRetentionHours = 168
 	cfg.TTS.CacheMaxFiles = 500
 	cfg.TTS.Piper.ContainerPort = 10200
 	cfg.TTS.Piper.DataPath = "data/piper"
 	cfg.TTS.Piper.Image = "rhasspy/wyoming-piper:latest"
 	cfg.TTS.Piper.Voice = "de_DE-thorsten-high"
+	cfg.TTS.Supertonic.URL = "http://127.0.0.1:7788"
+	cfg.TTS.Supertonic.ContainerName = "aurago-supertonic-tts"
+	cfg.TTS.Supertonic.Image = "ghcr.io/antibyte/aurago-supertonic:latest"
+	cfg.TTS.Supertonic.ContainerPort = 7788
+	cfg.TTS.Supertonic.DataPath = "data/supertonic"
+	cfg.TTS.Supertonic.Model = "supertonic-3"
+	cfg.TTS.Supertonic.Voice = "M1"
+	cfg.TTS.Supertonic.Speed = 1.0
+	cfg.TTS.Supertonic.Steps = 8
+	cfg.TTS.Supertonic.ResponseFormat = "wav"
 
 	// Music Generation defaults
 	// (Provider must be configured via Provider Management — no defaults for API keys)

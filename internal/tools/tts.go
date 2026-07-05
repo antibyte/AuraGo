@@ -18,7 +18,7 @@ import (
 
 // TTSConfig holds TTS provider configuration.
 type TTSConfig struct {
-	Provider            string // "google", "elevenlabs", or "piper"
+	Provider            string // "google", "elevenlabs", "minimax", "piper", or "supertonic"
 	Language            string // BCP-47 language code (e.g. "de", "en")
 	DataDir             string // base data directory for storing audio files
 	CacheRetentionHours int    // remove cached files older than this many hours; 0 disables age-based cleanup
@@ -32,6 +32,14 @@ type TTSConfig struct {
 		Port      int    // Wyoming TCP port (default 10200)
 		Voice     string // e.g. "de_DE-thorsten-high"
 		SpeakerID int    // multi-speaker model index
+	}
+	Supertonic struct {
+		URL            string
+		Model          string
+		Voice          string
+		Speed          float64
+		Steps          int
+		ResponseFormat string
 	}
 	MiniMax struct {
 		APIKey  string
@@ -60,12 +68,10 @@ func TTSSynthesize(cfg TTSConfig, text string) (string, error) {
 		return "", fmt.Errorf("failed to create TTS directory: %w", err)
 	}
 
-	// Generate a hash-based filename for caching
-	hash := fmt.Sprintf("%x", md5.Sum([]byte(cfg.Provider+cfg.Language+text)))
-	ext := ".mp3"
-	if strings.ToLower(cfg.Provider) == "piper" {
-		ext = ".wav"
-	}
+	// Generate a hash-based filename for caching. Provider-specific settings are part
+	// of the key so changing voices, models, or audio formats never returns stale audio.
+	hash := fmt.Sprintf("%x", md5.Sum([]byte(ttsCacheKey(cfg, text))))
+	ext := ttsAudioExtension(cfg)
 	filename := hash + ext
 	filePath := filepath.Join(ttsDir, filename)
 
@@ -87,6 +93,8 @@ func TTSSynthesize(cfg TTSConfig, text string) (string, error) {
 		audioData, err = ttsMiniMax(cfg, text)
 	case "piper":
 		audioData, err = ttsPiper(cfg, text)
+	case "supertonic":
+		audioData, err = ttsSupertonic(cfg, text)
 	default: // "google" or fallback
 		audioData, err = ttsGoogle(text, cfg.Language)
 	}
@@ -102,6 +110,63 @@ func TTSSynthesize(cfg TTSConfig, text string) (string, error) {
 	_ = cleanupTTSCache(cfg, filename, time.Now())
 
 	return filename, nil
+}
+
+func ttsCacheKey(cfg TTSConfig, text string) string {
+	provider := strings.ToLower(strings.TrimSpace(cfg.Provider))
+	switch provider {
+	case "elevenlabs":
+		return strings.Join([]string{
+			provider,
+			cfg.Language,
+			cfg.ElevenLabs.VoiceID,
+			cfg.ElevenLabs.ModelID,
+			text,
+		}, "\x00")
+	case "minimax":
+		return strings.Join([]string{
+			provider,
+			cfg.Language,
+			cfg.MiniMax.VoiceID,
+			cfg.MiniMax.ModelID,
+			fmt.Sprintf("%.3f", cfg.MiniMax.Speed),
+			text,
+		}, "\x00")
+	case "piper":
+		return strings.Join([]string{
+			provider,
+			cfg.Language,
+			fmt.Sprintf("%d", cfg.Piper.Port),
+			cfg.Piper.Voice,
+			fmt.Sprintf("%d", cfg.Piper.SpeakerID),
+			text,
+		}, "\x00")
+	case "supertonic":
+		return strings.Join([]string{
+			provider,
+			cfg.Language,
+			cfg.Supertonic.URL,
+			cfg.Supertonic.Model,
+			cfg.Supertonic.Voice,
+			fmt.Sprintf("%.3f", cfg.Supertonic.Speed),
+			fmt.Sprintf("%d", cfg.Supertonic.Steps),
+			supertonicResponseFormat(cfg.Supertonic.ResponseFormat),
+			text,
+		}, "\x00")
+	default:
+		return cfg.Provider + cfg.Language + text
+	}
+}
+
+func ttsAudioExtension(cfg TTSConfig) string {
+	switch strings.ToLower(strings.TrimSpace(cfg.Provider)) {
+	case "piper":
+		return ".wav"
+	case "supertonic":
+		return "." + supertonicResponseFormat(cfg.Supertonic.ResponseFormat)
+	default:
+		return ".mp3"
+	}
 }
 
 type ttsCacheFile struct {
@@ -290,6 +355,116 @@ func ttsPiper(cfg TTSConfig, text string) ([]byte, error) {
 	}
 
 	return PCMToWAV(pcm, rate, width, channels), nil
+}
+
+// ttsSupertonic calls the native Supertonic HTTP API exposed by the managed sidecar.
+func ttsSupertonic(cfg TTSConfig, text string) ([]byte, error) {
+	baseURL := strings.TrimRight(strings.TrimSpace(cfg.Supertonic.URL), "/")
+	if baseURL == "" {
+		return nil, fmt.Errorf("Supertonic URL is required")
+	}
+
+	voice := strings.TrimSpace(cfg.Supertonic.Voice)
+	if voice == "" {
+		voice = "M1"
+	}
+	lang := strings.TrimSpace(cfg.Language)
+	if lang == "" {
+		lang = "na"
+	}
+	speed := cfg.Supertonic.Speed
+	if speed <= 0 {
+		speed = 1.0
+	}
+	steps := cfg.Supertonic.Steps
+	if steps <= 0 {
+		steps = 8
+	}
+	format := supertonicResponseFormat(cfg.Supertonic.ResponseFormat)
+
+	payload := map[string]interface{}{
+		"text":            text,
+		"voice":           voice,
+		"lang":            lang,
+		"speed":           speed,
+		"steps":           steps,
+		"response_format": format,
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode Supertonic request: %w", err)
+	}
+
+	req, err := http.NewRequest(http.MethodPost, baseURL+"/v1/tts", bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create Supertonic request: %w", err)
+	}
+	req.Header.Set("Accept", "audio/"+format)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := ttsHTTPClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("Supertonic request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
+	if err != nil {
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			return nil, fmt.Errorf("Supertonic returned status %d and failed to read response body: %w", resp.StatusCode, err)
+		}
+		return nil, fmt.Errorf("failed to read Supertonic response: %w", err)
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		if msg := supertonicErrorMessage(respBody); msg != "" {
+			return nil, fmt.Errorf("Supertonic API error %d: %s", resp.StatusCode, msg)
+		}
+		return nil, fmt.Errorf("Supertonic API error %d: %s", resp.StatusCode, string(respBody))
+	}
+	if len(respBody) == 0 {
+		return nil, fmt.Errorf("Supertonic returned empty audio data")
+	}
+	return respBody, nil
+}
+
+func supertonicResponseFormat(format string) string {
+	switch strings.ToLower(strings.TrimSpace(format)) {
+	case "flac":
+		return "flac"
+	case "ogg":
+		return "ogg"
+	default:
+		return "wav"
+	}
+}
+
+func supertonicErrorMessage(body []byte) string {
+	var envelope struct {
+		Error struct {
+			Message string `json:"message"`
+			Type    string `json:"type"`
+			Code    string `json:"code"`
+		} `json:"error"`
+		Detail interface{} `json:"detail"`
+	}
+	if err := json.Unmarshal(body, &envelope); err != nil {
+		return ""
+	}
+	if envelope.Error.Message != "" {
+		parts := []string{envelope.Error.Message}
+		if envelope.Error.Code != "" {
+			parts = append(parts, "code="+envelope.Error.Code)
+		}
+		if envelope.Error.Type != "" {
+			parts = append(parts, "type="+envelope.Error.Type)
+		}
+		return strings.Join(parts, ", ")
+	}
+	if envelope.Detail != nil {
+		return fmt.Sprintf("%v", envelope.Detail)
+	}
+	return ""
 }
 
 // ttsMiniMax calls the MiniMax T2A v2 API (non-streaming, hex output) and returns

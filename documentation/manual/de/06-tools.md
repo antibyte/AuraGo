@@ -16,7 +16,7 @@ AuraGo verfügt über **100+ eingebaute Werkzeuge**, die ihn von einem einfachen
 | **🏠 Smart Home** | Home Assistant, MQTT, Wake-on-LAN, Frigate, AdGuard, Fritz!Box, 3D-Drucker | Ja (teilweise) |
 | **☁️ Cloud** | Google Workspace, WebDAV, GitHub, S3, OneDrive, Koofr, Netlify, Vercel | Nein (teilweise) |
 | **📧 Kommunikation** | E-Mail, Telegram, Discord, Telnyx, Rocket.Chat, MQTT, MeshCentral | Nein |
-| **🎬 Medien-Generierung** | Bilder, Musik, Videos, TTS, Vision, Piper, Media Registry | Nein (Provider-Limits) |
+| **🎬 Medien-Generierung** | Bilder, Musik, Videos, TTS, Vision, Piper, Supertonic, Media Registry | Nein (Provider-Limits) |
 | **🔧 System** | Metriken, Prozesse, Cron, Sandbox, Background Tasks, Daemon Skills | Teilweise |
 | **🧠 Memory** | Gedächtnis, Notizen, Knowledge Graph, Cheatsheets, Core Memory | Nein |
 | **🌐 Netzwerk** | Ping, Port-Scan, mDNS, UPnP, WHOIS, DNS-Lookup | Nein |
