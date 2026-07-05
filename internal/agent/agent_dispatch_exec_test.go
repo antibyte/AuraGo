@@ -383,6 +383,60 @@ func TestDispatchExecKnowledgeGraphSupersedeAndRetractEdges(t *testing.T) {
 	}
 }
 
+func TestDispatchExecKnowledgeGraphSuggestInferredRelations(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Tools.KnowledgeGraph.Enabled = true
+	cfg.Tools.KnowledgeGraph.ReadOnly = true
+
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+	kg, err := memory.NewKnowledgeGraph(":memory:", "", logger)
+	if err != nil {
+		t.Fatalf("NewKnowledgeGraph: %v", err)
+	}
+	t.Cleanup(func() { _ = kg.Close() })
+	if err := kg.AddEdge("service-a", "service-b", "depends_on", nil); err != nil {
+		t.Fatalf("AddEdge a->b: %v", err)
+	}
+	if err := kg.AddEdge("service-b", "database", "depends_on", nil); err != nil {
+		t.Fatalf("AddEdge b->database: %v", err)
+	}
+
+	out, ok := dispatchExec(
+		context.Background(),
+		ToolCall{Action: "knowledge_graph", Operation: "suggest_inferred_relations", Params: map[string]interface{}{"limit": float64(10)}},
+		&DispatchContext{Cfg: cfg, Logger: logger, KG: kg},
+	)
+	if !ok {
+		t.Fatal("expected dispatchExec to handle suggest_inferred_relations")
+	}
+	var payload struct {
+		Status     string `json:"status"`
+		Count      int    `json:"count"`
+		Inferences []struct {
+			Source   string `json:"source"`
+			Relation string `json:"relation"`
+			Target   string `json:"target"`
+			Reason   string `json:"reason"`
+		} `json:"inferences"`
+	}
+	if err := json.Unmarshal([]byte(strings.TrimPrefix(out, "Tool Output: ")), &payload); err != nil {
+		t.Fatalf("unmarshal suggest_inferred_relations: %v\n%s", err, out)
+	}
+	if payload.Status != "success" || payload.Count == 0 {
+		t.Fatalf("unexpected inference payload: %+v", payload)
+	}
+	found := false
+	for _, inference := range payload.Inferences {
+		if inference.Source == "service-a" && inference.Relation == "depends_on" && inference.Target == "database" && inference.Reason == "transitive_relation" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("missing transitive inference: %+v", payload.Inferences)
+	}
+}
+
 func TestDispatchExecManageUpdatesCheckUsesSharedUpdater(t *testing.T) {
 	dir := t.TempDir()
 	cfg := &config.Config{}
