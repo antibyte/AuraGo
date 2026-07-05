@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 )
 
 func writeAgentSkillFile(t *testing.T, root, rel, content string) {
@@ -249,6 +250,48 @@ func TestAgentSkillManagerImportZipAndActivationPolicy(t *testing.T) {
 	}
 	if err := mgr.EnableAgentSkill(entry.ID, true, "user"); err != nil {
 		t.Fatalf("clean skill should enable: %v", err)
+	}
+}
+
+func TestAgentSkillFileDeleteUsesSkillSpectorConfig(t *testing.T) {
+	tmp := t.TempDir()
+	db, err := InitAgentSkillsDB(filepath.Join(tmp, "agent_skills.db"))
+	if err != nil {
+		t.Fatalf("InitAgentSkillsDB: %v", err)
+	}
+	defer db.Close()
+	mgr := NewAgentSkillManager(db, filepath.Join(tmp, "agent_skills"), filepath.Join(tmp, "workspace"), slog.Default())
+
+	entry, err := mgr.CreateAgentSkill(context.Background(), "delete-scan", "Delete scan test. Use when testing scans.", "# Delete scan\n", "user", nil, false)
+	if err != nil {
+		t.Fatalf("CreateAgentSkill: %v", err)
+	}
+	if err := mgr.CreateAgentSkillFile(context.Background(), entry.ID, "references/note.md", []byte("temporary note\n"), false, "user", nil, false); err != nil {
+		t.Fatalf("CreateAgentSkillFile: %v", err)
+	}
+
+	fake := buildFakeSkillSpector(t)
+	t.Setenv("SKILLSPECTOR_FAKE_REPORT", `{"risk_assessment":{"score":78,"severity":"HIGH","recommendation":"DO_NOT_INSTALL"},"issues":[{"id":"E2","category":"data_exfiltration","severity":"HIGH","confidence":0.94,"location":{"file":"SKILL.md","start_line":1},"message":"blocked"}],"metadata":{"skillspector_version":"2.0.0","scan_mode":"static"}}`)
+	t.Setenv("SKILLSPECTOR_FAKE_EXIT_CODE", "1")
+
+	err = mgr.DeleteAgentSkillFile(context.Background(), entry.ID, "references/note.md", "user", SkillSpectorConfig{
+		Enabled:        true,
+		CommandPath:    fake,
+		Timeout:        5 * time.Second,
+		MaxOutputBytes: 64 * 1024,
+	})
+	if err != nil {
+		t.Fatalf("DeleteAgentSkillFile: %v", err)
+	}
+	updated, err := mgr.GetAgentSkill(entry.ID)
+	if err != nil {
+		t.Fatalf("GetAgentSkill: %v", err)
+	}
+	if updated.SecurityStatus != SecurityDangerous {
+		t.Fatalf("security status=%s, want %s", updated.SecurityStatus, SecurityDangerous)
+	}
+	if updated.SecurityReport == nil || updated.SecurityReport.SkillSpector == nil || updated.SecurityReport.SkillSpector.Recommendation != "DO_NOT_INSTALL" {
+		t.Fatalf("missing SkillSpector report after delete: %+v", updated.SecurityReport)
 	}
 }
 

@@ -54,6 +54,11 @@ function applyPlaceholders() {
     });
 }
 
+function securitySeverityClass(value) {
+    const normalized = String(value || 'info').toLowerCase();
+    return ['critical', 'high', 'medium', 'low', 'warning', 'info'].includes(normalized) ? normalized : 'info';
+}
+
 async function loadCredentialMap() {
     try {
         const resp = await fetch('/api/credentials');
@@ -659,7 +664,7 @@ function showDisabledState() {
             <p><strong>${t('skills.skillspector_score')}:</strong> ${esc(String(ss.Score ?? ss.score ?? '-'))} · <strong>${t('skills.skillspector_severity')}:</strong> ${esc(ss.Severity || ss.severity || '-')}</p>
             ${(ss.ScanMode || ss.scan_mode) ? `<p><strong>${t('skills.skillspector_mode')}:</strong> ${esc(ss.ScanMode || ss.scan_mode)}</p>` : ''}
             ${ssError ? `<p class="sk-error">${esc(ssError)}</p>` : ''}
-            ${ssFindings.length > 0 ? `<ul>${ssFindings.map(f => `<li class="sk-finding sk-finding-${(f.Severity || f.severity || 'info').toLowerCase()}">
+            ${ssFindings.length > 0 ? `<ul>${ssFindings.map(f => `<li class="sk-finding sk-finding-${securitySeverityClass(f.Severity || f.severity)}">
                 <strong>${esc(f.ID || f.id || f.Category || f.category || '')}</strong>: ${esc(f.Message || f.message || f.Category || f.category || '')}
                 ${f.File || f.file ? ` <code>${esc(f.File || f.file)}</code>` : ''}
                 ${f.Line || f.line ? ` <span class="sk-finding-line">(${t('skills.finding_line')} ${f.Line || f.line})</span>` : ''}
@@ -1391,7 +1396,7 @@ function showDisabledState() {
                 if (findings.length > 0) {
                     secHTML = `<div class="sk-findings">
                     <h4 data-i18n="skills.findings_title">${t('skills.findings_title')}</h4>
-                    <ul>${findings.map(f => `<li class="sk-finding sk-finding-${(f.Severity || f.severity || 'info').toLowerCase()}">
+                    <ul>${findings.map(f => `<li class="sk-finding sk-finding-${securitySeverityClass(f.Severity || f.severity)}">
                         <strong>${esc(f.Category || f.category || '')}</strong>: ${esc(f.Message || f.message || '')}
                         ${f.Line || f.line ? ` <span class="sk-finding-line">(${t('skills.finding_line')} ${f.Line || f.line})</span>` : ''}
                     </li>`).join('')}</ul>

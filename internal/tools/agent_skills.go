@@ -1196,7 +1196,7 @@ func (m *AgentSkillManager) CreateAgentSkillFile(ctx context.Context, id, relPat
 	return m.writeAgentSkillFileBytes(ctx, id, relPath, content, isBinary, actor, guardian, useGuardian, skillSpector...)
 }
 
-func (m *AgentSkillManager) DeleteAgentSkillFile(ctx context.Context, id, relPath, actor string) error {
+func (m *AgentSkillManager) DeleteAgentSkillFile(ctx context.Context, id, relPath, actor string, skillSpector ...SkillSpectorConfig) error {
 	entry, err := m.GetAgentSkill(id)
 	if err != nil {
 		return err
@@ -1212,10 +1212,10 @@ func (m *AgentSkillManager) DeleteAgentSkillFile(ctx context.Context, id, relPat
 	if err := os.Remove(full); err != nil {
 		return err
 	}
-	return m.applyEditSafety(ctx, entry, relPath, actor, nil, false)
+	return m.applyEditSafety(ctx, entry, relPath, actor, nil, false, skillSpector...)
 }
 
-func (m *AgentSkillManager) RenameAgentSkillFile(ctx context.Context, id, oldRel, newRel, actor string) error {
+func (m *AgentSkillManager) RenameAgentSkillFile(ctx context.Context, id, oldRel, newRel, actor string, skillSpector ...SkillSpectorConfig) error {
 	entry, err := m.GetAgentSkill(id)
 	if err != nil {
 		return err
@@ -1239,7 +1239,7 @@ func (m *AgentSkillManager) RenameAgentSkillFile(ctx context.Context, id, oldRel
 	if err := os.Rename(oldFull, newFull); err != nil {
 		return err
 	}
-	return m.applyEditSafety(ctx, entry, newRel, actor, nil, false)
+	return m.applyEditSafety(ctx, entry, newRel, actor, nil, false, skillSpector...)
 }
 
 // applyEditSafety re-scans after a file change and applies D4 edit-safety logic:

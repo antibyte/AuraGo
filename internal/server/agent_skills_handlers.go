@@ -429,7 +429,7 @@ func handleAgentSkillFile(s *Server) http.HandlerFunc {
 				jsonError(w, "File path is required", http.StatusBadRequest)
 				return
 			}
-			if err := s.AgentSkillManager.DeleteAgentSkillFile(r.Context(), id, relPath, "user"); err != nil {
+			if err := s.AgentSkillManager.DeleteAgentSkillFile(r.Context(), id, relPath, "user", skillSpectorConfig(s)); err != nil {
 				jsonLoggedError(w, s.Logger, http.StatusBadRequest, "Failed to delete Agent Skill file", "Failed to delete Agent Skill file", err, "agent_skill_id", id, "path", relPath)
 				return
 			}
@@ -465,7 +465,7 @@ func handleAgentSkillFileRename(s *Server) http.HandlerFunc {
 			jsonError(w, "Both 'from' and 'to' paths are required", http.StatusBadRequest)
 			return
 		}
-		if err := s.AgentSkillManager.RenameAgentSkillFile(r.Context(), id, req.From, req.To, "user"); err != nil {
+		if err := s.AgentSkillManager.RenameAgentSkillFile(r.Context(), id, req.From, req.To, "user", skillSpectorConfig(s)); err != nil {
 			jsonLoggedError(w, s.Logger, http.StatusBadRequest, "Failed to rename Agent Skill file", "Failed to rename Agent Skill file", err, "agent_skill_id", id)
 			return
 		}
