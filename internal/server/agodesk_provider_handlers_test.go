@@ -336,6 +336,80 @@ func TestAgodeskProviderUpsertInfersOAuthAuthTypeFromOAuthFields(t *testing.T) {
 	}
 }
 
+func TestAgodeskProviderUpsertAcceptsOAuthAuthTypeAlias(t *testing.T) {
+	t.Setenv("AURAGO_SSRF_ALLOW_LOOPBACK", "1")
+
+	tokenServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"access_token": "unused",
+			"token_type":   "Bearer",
+			"expires_in":   3600,
+		})
+	}))
+	t.Cleanup(tokenServer.Close)
+
+	server, vault := newProviderTestServer(t, `providers: []`)
+	server.Vault = vault
+	saved, err := upsertAgodeskProvider(server, agodesk.ConfigProviderUpsertPayload{
+		SessionID: "agodesk:dev-1",
+		Mode:      "create",
+		Provider: agodesk.ConfigProviderEntryPayload{
+			ID:            "xai",
+			Name:          "xAI",
+			Type:          "xai",
+			BaseURL:       "https://api.x.ai/v1",
+			Model:         "grok-4",
+			AuthType:      "oauth",
+			OAuthAuthURL:  "https://auth.x.ai/oauth/authorize?plan=generic&referrer=oh-my-pi",
+			OAuthTokenURL: tokenServer.URL,
+			OAuthClientID: "client-id",
+			OAuthScopes:   "openid profile",
+		},
+		Secrets: agodesk.ConfigProviderSecretOpsPayload{
+			OAuthClientSecret: agodesk.SecretOperationPayload{Op: "set", Value: "client-secret"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("upsert oauth provider: %v", err)
+	}
+	if saved.AuthType != "oauth2" || !saved.OAuth.Configured {
+		t.Fatalf("saved provider auth/oauth state = %+v", saved)
+	}
+
+	started, err := startAgodeskProviderOAuth(server, agodesk.ConfigProviderOAuthStartPayload{
+		SessionID:   "agodesk:dev-1",
+		ProviderID:  "xai",
+		RedirectURI: "http://127.0.0.1:49152/oauth/callback",
+	}, time.Now().UTC())
+	if err != nil {
+		t.Fatalf("startAgodeskProviderOAuth() error = %v", err)
+	}
+	if started.AuthURL == "" || started.OAuthState == "" {
+		t.Fatalf("started payload = %+v", started)
+	}
+}
+
+func TestAgodeskProviderOAuthStatusAcceptsPersistedOAuthAuthTypeAlias(t *testing.T) {
+	server, _ := newProviderTestServer(t, `
+providers:
+  - id: xai
+    name: xAI
+    type: xai
+    base_url: https://api.x.ai/v1
+    model: grok-4
+    auth_type: oauth
+    oauth_auth_url: https://auth.x.ai/oauth/authorize?plan=generic&referrer=oh-my-pi
+    oauth_token_url: https://auth.x.ai/oauth/token
+    oauth_client_id: client-id
+    oauth_scopes: openid profile
+`)
+
+	status := agodeskProviderOAuthStatus(server, "xai", "http://127.0.0.1:49152/oauth/callback")
+	if !status.Configured || len(status.MissingFields) != 0 {
+		t.Fatalf("oauth status = %+v, want configured with no missing fields", status)
+	}
+}
+
 func TestAgodeskProviderOAuthCompleteRejectsRedirectMismatch(t *testing.T) {
 	server, vault := newOAuthHandlerTestServer(t, "https://accounts.example/token")
 	session, err := newOAuthSession("main", oauthFlowModeAgodeskLoopback, "http://127.0.0.1:49152/oauth/callback", time.Now().UTC())

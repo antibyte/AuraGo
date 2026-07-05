@@ -55,6 +55,9 @@ func normalizeProviderAuthType(authType string) string {
 	if normalized == "" {
 		return "api_key"
 	}
+	if normalized == "oauth" {
+		return "oauth2"
+	}
 	return normalized
 }
 

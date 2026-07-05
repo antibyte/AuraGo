@@ -271,7 +271,7 @@ func oauthProviderMissingFields(prov *config.ProviderEntry) []string {
 	if prov == nil {
 		return []string{"provider"}
 	}
-	if prov.AuthType != "oauth2" {
+	if normalizeProviderAuthType(prov.AuthType) != "oauth2" {
 		return []string{"auth_type"}
 	}
 	missing := []string{}
