@@ -1469,14 +1469,10 @@ func emitMediaSSEEvents(broker FeedbackBroker, action, resultContent string, dat
 			File   string `json:"file"`
 		}
 		if json.Unmarshal([]byte(raw), &ttsRes) == nil && ttsRes.Status == "success" {
-			mimeType := "audio/mpeg"
-			if strings.HasSuffix(ttsRes.File, ".wav") {
-				mimeType = "audio/wav"
-			}
 			evtPayload, _ := json.Marshal(map[string]string{
 				"path":      "/tts/" + ttsRes.File,
 				"title":     "TTS Audio",
-				"mime_type": mimeType,
+				"mime_type": audioMIMEType(ttsRes.File),
 				"filename":  ttsRes.File,
 				"file_path": filepath.Join(dataDir, "tts", ttsRes.File),
 			})

@@ -248,7 +248,7 @@ func waitForSupertonicReady(baseURL string, logger *slog.Logger) {
 	for time.Now().Before(deadline) {
 		health := SupertonicHealth(baseURL)
 		status, _ := health["status"].(string)
-		if status == "running" || status == "loading" {
+		if status == "running" {
 			logSupertonic(logger, slog.LevelInfo, "HTTP server is ready", "url", baseURL, "status", status)
 			return
 		}

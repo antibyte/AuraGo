@@ -144,6 +144,36 @@ func TestEmitMediaSSEEventsSendsGeneratedMusicAsAudioEvent(t *testing.T) {
 	}
 }
 
+func TestEmitMediaSSEEventsUsesAudioMIMETypeForTTSExtensions(t *testing.T) {
+	tests := []struct {
+		file string
+		want string
+	}{
+		{file: "voice.mp3", want: "audio/mpeg"},
+		{file: "voice.wav", want: "audio/wav"},
+		{file: "voice.flac", want: "audio/flac"},
+		{file: "voice.ogg", want: "audio/ogg"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.file, func(t *testing.T) {
+			broker := &captureBroker{}
+			emitMediaSSEEvents(broker, "tts", `Tool Output: {"status":"success","file":"`+tt.file+`"}`, t.TempDir())
+
+			if len(broker.events) != 1 || broker.events[0].event != "audio" {
+				t.Fatalf("events = %+v, want one audio event", broker.events)
+			}
+			var payload map[string]string
+			if err := json.Unmarshal([]byte(broker.events[0].message), &payload); err != nil {
+				t.Fatalf("unmarshal event payload: %v", err)
+			}
+			if payload["mime_type"] != tt.want {
+				t.Fatalf("mime_type = %q, want %q; payload=%+v", payload["mime_type"], tt.want, payload)
+			}
+		})
+	}
+}
+
 func TestEmitMediaSSEEventsSendsManualVideoEvent(t *testing.T) {
 	broker := &captureBroker{}
 	emitMediaSSEEvents(broker, "send_video", `Tool Output: {"status":"success","web_path":"/files/generated_videos/manual.webm","title":"Manual","mime_type":"video/webm","filename":"manual.webm","format":"webm"}`, t.TempDir())
