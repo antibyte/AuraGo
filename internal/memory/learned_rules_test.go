@@ -3,6 +3,7 @@ package memory
 import (
 	"io"
 	"log/slog"
+	"strings"
 	"testing"
 	"time"
 )
@@ -25,6 +26,62 @@ func TestInitLearnedRulesTable_Idempotent(t *testing.T) {
 	// Second init should not error
 	if err := stm.InitLearnedRulesTable(); err != nil {
 		t.Fatalf("second init failed: %v", err)
+	}
+}
+
+func TestInitLearnedRulesTable_MigratesLegacyUpdatedAt(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
+	stm, err := NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	t.Cleanup(func() { stm.Close() })
+
+	_, err = stm.db.Exec(`
+		CREATE TABLE learned_rules (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			tool_name TEXT NOT NULL,
+			pattern TEXT NOT NULL,
+			rule TEXT NOT NULL,
+			confidence REAL DEFAULT 0.5,
+			hits INTEGER DEFAULT 0,
+			misses INTEGER DEFAULT 0,
+			active BOOLEAN DEFAULT 1,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			UNIQUE(tool_name, pattern)
+		);
+		INSERT INTO learned_rules (tool_name, pattern, rule, created_at)
+		VALUES ('legacy_tool', 'legacy_pattern', 'legacy rule', '2026-01-02 03:04:05');
+	`)
+	if err != nil {
+		t.Fatalf("create legacy learned_rules table: %v", err)
+	}
+
+	if err := stm.InitLearnedRulesTable(); err != nil {
+		t.Fatalf("migrate legacy learned_rules table: %v", err)
+	}
+
+	var updatedAt interface{}
+	if err := stm.db.QueryRow(`SELECT updated_at FROM learned_rules WHERE tool_name = 'legacy_tool'`).Scan(&updatedAt); err != nil {
+		t.Fatalf("read migrated updated_at: %v", err)
+	}
+	switch v := updatedAt.(type) {
+	case nil:
+		t.Fatalf("expected migrated updated_at to be set, got %#v", updatedAt)
+	case string:
+		if strings.TrimSpace(strings.Trim(v, "\"")) == "" {
+			t.Fatalf("expected migrated updated_at to be set, got %#v", updatedAt)
+		}
+	case []byte:
+		if strings.TrimSpace(strings.Trim(string(v), "\"")) == "" {
+			t.Fatalf("expected migrated updated_at to be set, got %#v", updatedAt)
+		}
+	case time.Time:
+		if v.IsZero() {
+			t.Fatalf("expected migrated updated_at to be set, got %#v", updatedAt)
+		}
+	default:
+		t.Fatalf("unexpected updated_at type %T (%#v)", updatedAt, updatedAt)
 	}
 }
 

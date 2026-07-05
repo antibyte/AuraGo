@@ -4299,7 +4299,33 @@ async function openCheatsheetPicker() {
 function buildCheatsheetAgentMessage(sheet) {
     const title = sheet?.name || t('chat.cheatsheet_picker_unnamed');
     const content = String(sheet?.content || '').trim();
-    return `${t('chat.cheatsheet_picker_prompt_prefix')} "${title}"\n\n<cheatsheet name="${title}">\n${content}\n</cheatsheet>\n\n${t('chat.cheatsheet_picker_prompt_suffix')}`;
+    const attachments = formatCheatsheetAttachmentsForAgent(sheet);
+    return `${t('chat.cheatsheet_picker_prompt_prefix')} "${title}"\n\n<cheatsheet name="${escapeCheatsheetContextValue(title)}">\n${content}${attachments}\n</cheatsheet>\n\n${t('chat.cheatsheet_picker_prompt_suffix')}`;
+}
+
+async function loadSelectedCheatsheetForAgentMessage() {
+    const res = await fetch('/api/cheatsheets/' + encodeURIComponent(selectedCheatsheetId));
+    if (!res.ok) throw new Error(res.statusText || 'Failed to load cheatsheet');
+    return await res.json();
+}
+
+function formatCheatsheetAttachmentsForAgent(sheet) {
+    const attachments = Array.isArray(sheet?.attachments) ? sheet.attachments : [];
+    if (!attachments.length) return '';
+    return '\n\n<attachments>\n' + attachments.map((attachment) => {
+        const filename = escapeCheatsheetContextValue(attachment?.filename || 'attachment');
+        const source = escapeCheatsheetContextValue(attachment?.source || 'upload');
+        const content = String(attachment?.content || '').trim();
+        return `<attachment filename="${filename}" source="${source}">\n${content}\n</attachment>`;
+    }).join('\n') + '\n</attachments>\n';
+}
+
+function escapeCheatsheetContextValue(value) {
+    return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
 }
 
 ;
@@ -4325,7 +4351,7 @@ let seenSSESTLs = new Set();
 let currentPlanState = null;
 
 function resetSSEDedupSets() {
-    [
+    const sets = [
         seenSSEImages,
         seenSSEAudios,
         seenSSEVideos,
@@ -4333,9 +4359,16 @@ function resetSSEDedupSets() {
         seenSSEYouTubeVideos,
         seenSSEDocuments,
         seenSSESTLs
-    ].forEach(set => {
+    ];
+    if (typeof seenSSEAudioPlayers !== 'undefined') {
+        sets.push(seenSSEAudioPlayers);
+    }
+    sets.forEach(set => {
         if (set && typeof set.clear === 'function') set.clear();
     });
+    if (typeof pendingAutoplayAudios !== 'undefined' && pendingAutoplayAudios && typeof pendingAutoplayAudios.clear === 'function') {
+        pendingAutoplayAudios.clear();
+    }
 }
 
 // If user has explicitly set a preference in localStorage, use it.
@@ -4368,6 +4401,7 @@ bindHeaderActivation(document.getElementById('debug-pill'), toggleDebugMode);
 let speakerMode = localStorage.getItem('aurago-speaker') === 'true';
 const _audioQueue = [];
 let _audioPlaying = false;
+const _audioAutoplayFailedEvent = 'aurago-audio-autoplay-failed';
 
 function updateSpeakerButton() {
     const btn = document.getElementById('speaker-toggle');
@@ -4403,9 +4437,21 @@ function _playNextInQueue() {
     _audioPlaying = true;
     const src = _audioQueue.shift();
     const audio = new Audio(src);
-    audio.addEventListener('ended', _playNextInQueue);
-    audio.addEventListener('error', _playNextInQueue);
-    audio.play().catch(_playNextInQueue);
+    let settled = false;
+    const next = () => {
+        if (settled) return;
+        settled = true;
+        _playNextInQueue();
+    };
+    const fail = () => {
+        if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+            window.dispatchEvent(new CustomEvent(_audioAutoplayFailedEvent, { detail: { src } }));
+        }
+        next();
+    };
+    audio.addEventListener('ended', next, { once: true });
+    audio.addEventListener('error', fail, { once: true });
+    audio.play().catch(fail);
 }
 
 function enqueueAutoPlay(src) {
@@ -4841,9 +4887,13 @@ if (cheatsheetPickerSendBtn) {
         if (!selectedCheatsheetId) return;
         const selectedSheet = cheatsheetPickerItems.find((sheet) => sheet && sheet.id === selectedCheatsheetId);
         if (!selectedSheet) return;
+        let fullSheet = selectedSheet;
+        try {
+            fullSheet = await loadSelectedCheatsheetForAgentMessage();
+        } catch (_error) { }
         closeCheatsheetPicker();
-        const messageForAgent = buildCheatsheetAgentMessage(selectedSheet);
-        const visibleMessage = `${t('chat.cheatsheet_picker_sent_prefix')} ${selectedSheet.name || t('chat.cheatsheet_picker_unnamed')}`;
+        const messageForAgent = buildCheatsheetAgentMessage(fullSheet);
+        const visibleMessage = `${t('chat.cheatsheet_picker_sent_prefix')} ${fullSheet.name || selectedSheet.name || t('chat.cheatsheet_picker_unnamed')}`;
         await handleOutgoingMessage(messageForAgent, visibleMessage);
     });
 }
@@ -7536,6 +7586,41 @@ function setConnectionState(state) {
 
 let sseReconnectTimer = null;
 let _chatSSERegistered = false;
+const pendingAutoplayAudios = new Map();
+const seenSSEAudioPlayers = new Set();
+
+function appendChatAudioPlayer(audioData) {
+    if (!audioData || !audioData.path || seenSSEAudioPlayers.has(audioData.path)) return;
+    seenSSEAudioPlayers.add(audioData.path);
+    const wrapper = document.createElement('div');
+    wrapper.className = 'chat-audio-wrapper';
+    if (audioData.title) {
+        const titleEl = document.createElement('div');
+        titleEl.className = 'chat-audio-title';
+        titleEl.textContent = audioData.title;
+        wrapper.appendChild(titleEl);
+    }
+    const player = new ChatAudioPlayer(audioData.path);
+    wrapper.appendChild(player.element);
+    const row = document.createElement('div');
+    row.className = 'msg-row bot';
+    const botIcon = typeof personaAvatarMarkup === 'function' ? personaAvatarMarkup('bot') : '';
+    row.innerHTML = `<div class="avatar bot">${botIcon}</div><div class="message-stack"><div class="bubble bot"></div></div>`;
+    row.querySelector('.bubble').appendChild(wrapper);
+    if (typeof appendMessageTimestamp === 'function') appendMessageTimestamp(row, 'bot');
+    chatContent.appendChild(row);
+    chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+if (typeof window !== 'undefined') {
+    window.addEventListener('aurago-audio-autoplay-failed', function (event) {
+        const src = event && event.detail ? event.detail.src : '';
+        if (!src || !pendingAutoplayAudios.has(src)) return;
+        const audioData = pendingAutoplayAudios.get(src);
+        pendingAutoplayAudios.delete(src);
+        appendChatAudioPlayer(audioData);
+    });
+}
 
 function connectSSE() {
     if (_chatSSERegistered) return;
@@ -7858,27 +7943,14 @@ function handleSSEMessage(e) {
                     seenSSEAudios.add(audioData.path);
                     const shouldAutoPlay = speakerMode || audioData.autoplay === true;
                     if (shouldAutoPlay) {
+                        if (speakerMode) {
+                            pendingAutoplayAudios.set(audioData.path, audioData);
+                            window.setTimeout(() => pendingAutoplayAudios.delete(audioData.path), 300000);
+                        }
                         enqueueAutoPlay(audioData.path);
                     }
                     if (!speakerMode) {
-                        const wrapper = document.createElement('div');
-                        wrapper.className = 'chat-audio-wrapper';
-                        if (audioData.title) {
-                            const titleEl = document.createElement('div');
-                            titleEl.className = 'chat-audio-title';
-                            titleEl.textContent = audioData.title;
-                            wrapper.appendChild(titleEl);
-                        }
-                        const player = new ChatAudioPlayer(audioData.path);
-                        wrapper.appendChild(player.element);
-                        const row = document.createElement('div');
-                        row.className = 'msg-row bot';
-                        const botIcon = typeof personaAvatarMarkup === 'function' ? personaAvatarMarkup('bot') : '';
-                        row.innerHTML = `<div class="avatar bot">${botIcon}</div><div class="message-stack"><div class="bubble bot"></div></div>`;
-                        row.querySelector('.bubble').appendChild(wrapper);
-                        if (typeof appendMessageTimestamp === 'function') appendMessageTimestamp(row, 'bot');
-                        chatContent.appendChild(row);
-                        chatBox.scrollTop = chatBox.scrollHeight;
+                        appendChatAudioPlayer(audioData);
                     }
                 }
             } catch (e) { }

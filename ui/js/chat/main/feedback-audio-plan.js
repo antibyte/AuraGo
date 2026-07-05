@@ -19,7 +19,7 @@ let seenSSESTLs = new Set();
 let currentPlanState = null;
 
 function resetSSEDedupSets() {
-    [
+    const sets = [
         seenSSEImages,
         seenSSEAudios,
         seenSSEVideos,
@@ -27,9 +27,16 @@ function resetSSEDedupSets() {
         seenSSEYouTubeVideos,
         seenSSEDocuments,
         seenSSESTLs
-    ].forEach(set => {
+    ];
+    if (typeof seenSSEAudioPlayers !== 'undefined') {
+        sets.push(seenSSEAudioPlayers);
+    }
+    sets.forEach(set => {
         if (set && typeof set.clear === 'function') set.clear();
     });
+    if (typeof pendingAutoplayAudios !== 'undefined' && pendingAutoplayAudios && typeof pendingAutoplayAudios.clear === 'function') {
+        pendingAutoplayAudios.clear();
+    }
 }
 
 // If user has explicitly set a preference in localStorage, use it.
@@ -62,6 +69,7 @@ bindHeaderActivation(document.getElementById('debug-pill'), toggleDebugMode);
 let speakerMode = localStorage.getItem('aurago-speaker') === 'true';
 const _audioQueue = [];
 let _audioPlaying = false;
+const _audioAutoplayFailedEvent = 'aurago-audio-autoplay-failed';
 
 function updateSpeakerButton() {
     const btn = document.getElementById('speaker-toggle');
@@ -97,9 +105,21 @@ function _playNextInQueue() {
     _audioPlaying = true;
     const src = _audioQueue.shift();
     const audio = new Audio(src);
-    audio.addEventListener('ended', _playNextInQueue);
-    audio.addEventListener('error', _playNextInQueue);
-    audio.play().catch(_playNextInQueue);
+    let settled = false;
+    const next = () => {
+        if (settled) return;
+        settled = true;
+        _playNextInQueue();
+    };
+    const fail = () => {
+        if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+            window.dispatchEvent(new CustomEvent(_audioAutoplayFailedEvent, { detail: { src } }));
+        }
+        next();
+    };
+    audio.addEventListener('ended', next, { once: true });
+    audio.addEventListener('error', fail, { once: true });
+    audio.play().catch(fail);
 }
 
 function enqueueAutoPlay(src) {

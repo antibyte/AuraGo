@@ -83,9 +83,16 @@ func (s *SQLiteMemory) migrateLearnedRulesUpdatedAt() error {
 		return nil
 	}
 
-	_, err = s.db.Exec(`ALTER TABLE learned_rules ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP`)
+	_, err = s.db.Exec(`ALTER TABLE learned_rules ADD COLUMN updated_at DATETIME`)
 	if err != nil {
 		return fmt.Errorf("add updated_at: %w", err)
+	}
+	if _, err := s.db.Exec(`
+		UPDATE learned_rules
+		SET updated_at = COALESCE(created_at, CURRENT_TIMESTAMP)
+		WHERE updated_at IS NULL OR updated_at = ''
+	`); err != nil {
+		return fmt.Errorf("backfill updated_at: %w", err)
 	}
 	return nil
 }

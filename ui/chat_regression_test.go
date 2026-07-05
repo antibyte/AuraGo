@@ -150,6 +150,9 @@ func TestChatFrontend_AudioEventAutoplayFlagKeepsVisiblePlayer(t *testing.T) {
 		"const shouldAutoPlay = speakerMode || audioData.autoplay === true;",
 		"if (shouldAutoPlay) {",
 		"if (!speakerMode) {",
+		"function appendChatAudioPlayer(audioData)",
+		"pendingAutoplayAudios.set(audioData.path, audioData);",
+		"aurago-audio-autoplay-failed",
 		"const player = new ChatAudioPlayer(audioData.path);",
 	} {
 		if !strings.Contains(stream, marker) {

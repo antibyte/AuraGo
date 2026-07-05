@@ -92,6 +92,41 @@ function setConnectionState(state) {
 
 let sseReconnectTimer = null;
 let _chatSSERegistered = false;
+const pendingAutoplayAudios = new Map();
+const seenSSEAudioPlayers = new Set();
+
+function appendChatAudioPlayer(audioData) {
+    if (!audioData || !audioData.path || seenSSEAudioPlayers.has(audioData.path)) return;
+    seenSSEAudioPlayers.add(audioData.path);
+    const wrapper = document.createElement('div');
+    wrapper.className = 'chat-audio-wrapper';
+    if (audioData.title) {
+        const titleEl = document.createElement('div');
+        titleEl.className = 'chat-audio-title';
+        titleEl.textContent = audioData.title;
+        wrapper.appendChild(titleEl);
+    }
+    const player = new ChatAudioPlayer(audioData.path);
+    wrapper.appendChild(player.element);
+    const row = document.createElement('div');
+    row.className = 'msg-row bot';
+    const botIcon = typeof personaAvatarMarkup === 'function' ? personaAvatarMarkup('bot') : '';
+    row.innerHTML = `<div class="avatar bot">${botIcon}</div><div class="message-stack"><div class="bubble bot"></div></div>`;
+    row.querySelector('.bubble').appendChild(wrapper);
+    if (typeof appendMessageTimestamp === 'function') appendMessageTimestamp(row, 'bot');
+    chatContent.appendChild(row);
+    chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+if (typeof window !== 'undefined') {
+    window.addEventListener('aurago-audio-autoplay-failed', function (event) {
+        const src = event && event.detail ? event.detail.src : '';
+        if (!src || !pendingAutoplayAudios.has(src)) return;
+        const audioData = pendingAutoplayAudios.get(src);
+        pendingAutoplayAudios.delete(src);
+        appendChatAudioPlayer(audioData);
+    });
+}
 
 function connectSSE() {
     if (_chatSSERegistered) return;
@@ -414,27 +449,14 @@ function handleSSEMessage(e) {
                     seenSSEAudios.add(audioData.path);
                     const shouldAutoPlay = speakerMode || audioData.autoplay === true;
                     if (shouldAutoPlay) {
+                        if (speakerMode) {
+                            pendingAutoplayAudios.set(audioData.path, audioData);
+                            window.setTimeout(() => pendingAutoplayAudios.delete(audioData.path), 300000);
+                        }
                         enqueueAutoPlay(audioData.path);
                     }
                     if (!speakerMode) {
-                        const wrapper = document.createElement('div');
-                        wrapper.className = 'chat-audio-wrapper';
-                        if (audioData.title) {
-                            const titleEl = document.createElement('div');
-                            titleEl.className = 'chat-audio-title';
-                            titleEl.textContent = audioData.title;
-                            wrapper.appendChild(titleEl);
-                        }
-                        const player = new ChatAudioPlayer(audioData.path);
-                        wrapper.appendChild(player.element);
-                        const row = document.createElement('div');
-                        row.className = 'msg-row bot';
-                        const botIcon = typeof personaAvatarMarkup === 'function' ? personaAvatarMarkup('bot') : '';
-                        row.innerHTML = `<div class="avatar bot">${botIcon}</div><div class="message-stack"><div class="bubble bot"></div></div>`;
-                        row.querySelector('.bubble').appendChild(wrapper);
-                        if (typeof appendMessageTimestamp === 'function') appendMessageTimestamp(row, 'bot');
-                        chatContent.appendChild(row);
-                        chatBox.scrollTop = chatBox.scrollHeight;
+                        appendChatAudioPlayer(audioData);
                     }
                 }
             } catch (e) { }

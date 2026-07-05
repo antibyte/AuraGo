@@ -438,37 +438,36 @@ async function openCheatsheetPicker() {
     }
 }
 
-async function loadSelectedCheatsheetForAgentMessage() {
-    const res = await fetch('/api/cheatsheets/' + encodeURIComponent(selectedCheatsheetId));
-    if (!res.ok) throw new Error(res.statusText || 'Failed to fetch cheatsheet');
-    return res.json();
+function buildCheatsheetAgentMessage(sheet) {
+    const title = sheet?.name || t('chat.cheatsheet_picker_unnamed');
+    const content = String(sheet?.content || '').trim();
+    const attachments = formatCheatsheetAttachmentsForAgent(sheet);
+    return `${t('chat.cheatsheet_picker_prompt_prefix')} "${title}"\n\n<cheatsheet name="${escapeCheatsheetContextValue(title)}">\n${content}${attachments}\n</cheatsheet>\n\n${t('chat.cheatsheet_picker_prompt_suffix')}`;
 }
 
-function escapeCheatsheetContextValue(value) {
-    return String(value || '')
-        .replaceAll('&', '&amp;')
-        .replaceAll('<', '&lt;')
-        .replaceAll('>', '&gt;')
-        .replaceAll('"', '&quot;')
-        .replaceAll("'", '&#39;');
+async function loadSelectedCheatsheetForAgentMessage() {
+    const res = await fetch('/api/cheatsheets/' + encodeURIComponent(selectedCheatsheetId));
+    if (!res.ok) throw new Error(res.statusText || 'Failed to load cheatsheet');
+    return await res.json();
 }
 
 function formatCheatsheetAttachmentsForAgent(sheet) {
     const attachments = Array.isArray(sheet?.attachments) ? sheet.attachments : [];
     if (!attachments.length) return '';
-    return attachments.map((attachment) => {
-        const filename = escapeCheatsheetContextValue(attachment.filename || 'attachment');
-        const content = escapeCheatsheetContextValue(String(attachment.content || '').trim());
-        return `\n\n<cheatsheet_attachment filename="${filename}">\n${content}\n</cheatsheet_attachment>`;
-    }).join('');
+    return '\n\n<attachments>\n' + attachments.map((attachment) => {
+        const filename = escapeCheatsheetContextValue(attachment?.filename || 'attachment');
+        const source = escapeCheatsheetContextValue(attachment?.source || 'upload');
+        const content = String(attachment?.content || '').trim();
+        return `<attachment filename="${filename}" source="${source}">\n${content}\n</attachment>`;
+    }).join('\n') + '\n</attachments>\n';
 }
 
-function buildCheatsheetAgentMessage(sheet) {
-    const titleRaw = sheet?.name || t('chat.cheatsheet_picker_unnamed');
-    const title = escapeCheatsheetContextValue(titleRaw);
-    const content = escapeCheatsheetContextValue(String(sheet?.content || '').trim());
-    const attachments = formatCheatsheetAttachmentsForAgent(sheet);
-    return `${t('chat.cheatsheet_picker_prompt_prefix')} "${title}"\n\n<cheatsheet name="${title}">\n${content}${attachments}\n</cheatsheet>\n\n${t('chat.cheatsheet_picker_prompt_suffix')}`;
+function escapeCheatsheetContextValue(value) {
+    return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
 }
 
 ;
@@ -494,7 +493,7 @@ let seenSSESTLs = new Set();
 let currentPlanState = null;
 
 function resetSSEDedupSets() {
-    [
+    const sets = [
         seenSSEImages,
         seenSSEAudios,
         seenSSEVideos,
@@ -502,9 +501,16 @@ function resetSSEDedupSets() {
         seenSSEYouTubeVideos,
         seenSSEDocuments,
         seenSSESTLs
-    ].forEach(set => {
+    ];
+    if (typeof seenSSEAudioPlayers !== 'undefined') {
+        sets.push(seenSSEAudioPlayers);
+    }
+    sets.forEach(set => {
         if (set && typeof set.clear === 'function') set.clear();
     });
+    if (typeof pendingAutoplayAudios !== 'undefined' && pendingAutoplayAudios && typeof pendingAutoplayAudios.clear === 'function') {
+        pendingAutoplayAudios.clear();
+    }
 }
 
 // If user has explicitly set a preference in localStorage, use it.
@@ -537,6 +543,7 @@ bindHeaderActivation(document.getElementById('debug-pill'), toggleDebugMode);
 let speakerMode = localStorage.getItem('aurago-speaker') === 'true';
 const _audioQueue = [];
 let _audioPlaying = false;
+const _audioAutoplayFailedEvent = 'aurago-audio-autoplay-failed';
 
 function updateSpeakerButton() {
     const btn = document.getElementById('speaker-toggle');
@@ -572,9 +579,21 @@ function _playNextInQueue() {
     _audioPlaying = true;
     const src = _audioQueue.shift();
     const audio = new Audio(src);
-    audio.addEventListener('ended', _playNextInQueue);
-    audio.addEventListener('error', _playNextInQueue);
-    audio.play().catch(_playNextInQueue);
+    let settled = false;
+    const next = () => {
+        if (settled) return;
+        settled = true;
+        _playNextInQueue();
+    };
+    const fail = () => {
+        if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+            window.dispatchEvent(new CustomEvent(_audioAutoplayFailedEvent, { detail: { src } }));
+        }
+        next();
+    };
+    audio.addEventListener('ended', next, { once: true });
+    audio.addEventListener('error', fail, { once: true });
+    audio.play().catch(fail);
 }
 
 function enqueueAutoPlay(src) {
@@ -1010,16 +1029,14 @@ if (cheatsheetPickerSendBtn) {
         if (!selectedCheatsheetId) return;
         const selectedSheet = cheatsheetPickerItems.find((sheet) => sheet && sheet.id === selectedCheatsheetId);
         if (!selectedSheet) return;
+        let fullSheet = selectedSheet;
         try {
-            const fullSheet = await loadSelectedCheatsheetForAgentMessage();
-            closeCheatsheetPicker();
-            const messageForAgent = buildCheatsheetAgentMessage(fullSheet);
-            const visibleMessage = `${t('chat.cheatsheet_picker_sent_prefix')} ${fullSheet.name || selectedSheet.name || t('chat.cheatsheet_picker_unnamed')}`;
-            await handleOutgoingMessage(messageForAgent, visibleMessage);
-        } catch (error) {
-            console.error('failed to load cheatsheet before send', error);
-            cheatsheetPickerList.innerHTML = `<div class="cheatsheet-picker-empty">${escapeHtml(t('chat.cheatsheet_picker_error'))}</div>`;
-        }
+            fullSheet = await loadSelectedCheatsheetForAgentMessage();
+        } catch (_error) { }
+        closeCheatsheetPicker();
+        const messageForAgent = buildCheatsheetAgentMessage(fullSheet);
+        const visibleMessage = `${t('chat.cheatsheet_picker_sent_prefix')} ${fullSheet.name || selectedSheet.name || t('chat.cheatsheet_picker_unnamed')}`;
+        await handleOutgoingMessage(messageForAgent, visibleMessage);
     });
 }
 

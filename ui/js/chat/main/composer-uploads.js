@@ -321,9 +321,13 @@ if (cheatsheetPickerSendBtn) {
         if (!selectedCheatsheetId) return;
         const selectedSheet = cheatsheetPickerItems.find((sheet) => sheet && sheet.id === selectedCheatsheetId);
         if (!selectedSheet) return;
+        let fullSheet = selectedSheet;
+        try {
+            fullSheet = await loadSelectedCheatsheetForAgentMessage();
+        } catch (_error) { }
         closeCheatsheetPicker();
-        const messageForAgent = buildCheatsheetAgentMessage(selectedSheet);
-        const visibleMessage = `${t('chat.cheatsheet_picker_sent_prefix')} ${selectedSheet.name || t('chat.cheatsheet_picker_unnamed')}`;
+        const messageForAgent = buildCheatsheetAgentMessage(fullSheet);
+        const visibleMessage = `${t('chat.cheatsheet_picker_sent_prefix')} ${fullSheet.name || selectedSheet.name || t('chat.cheatsheet_picker_unnamed')}`;
         await handleOutgoingMessage(messageForAgent, visibleMessage);
     });
 }

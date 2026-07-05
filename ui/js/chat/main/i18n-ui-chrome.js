@@ -270,5 +270,31 @@ async function openCheatsheetPicker() {
 function buildCheatsheetAgentMessage(sheet) {
     const title = sheet?.name || t('chat.cheatsheet_picker_unnamed');
     const content = String(sheet?.content || '').trim();
-    return `${t('chat.cheatsheet_picker_prompt_prefix')} "${title}"\n\n<cheatsheet name="${title}">\n${content}\n</cheatsheet>\n\n${t('chat.cheatsheet_picker_prompt_suffix')}`;
+    const attachments = formatCheatsheetAttachmentsForAgent(sheet);
+    return `${t('chat.cheatsheet_picker_prompt_prefix')} "${title}"\n\n<cheatsheet name="${escapeCheatsheetContextValue(title)}">\n${content}${attachments}\n</cheatsheet>\n\n${t('chat.cheatsheet_picker_prompt_suffix')}`;
+}
+
+async function loadSelectedCheatsheetForAgentMessage() {
+    const res = await fetch('/api/cheatsheets/' + encodeURIComponent(selectedCheatsheetId));
+    if (!res.ok) throw new Error(res.statusText || 'Failed to load cheatsheet');
+    return await res.json();
+}
+
+function formatCheatsheetAttachmentsForAgent(sheet) {
+    const attachments = Array.isArray(sheet?.attachments) ? sheet.attachments : [];
+    if (!attachments.length) return '';
+    return '\n\n<attachments>\n' + attachments.map((attachment) => {
+        const filename = escapeCheatsheetContextValue(attachment?.filename || 'attachment');
+        const source = escapeCheatsheetContextValue(attachment?.source || 'upload');
+        const content = String(attachment?.content || '').trim();
+        return `<attachment filename="${filename}" source="${source}">\n${content}\n</attachment>`;
+    }).join('\n') + '\n</attachments>\n';
+}
+
+function escapeCheatsheetContextValue(value) {
+    return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
 }

@@ -613,8 +613,8 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			// Initial flush to establish SSE connection
 			flusher.Flush()
 
-			broker := feedbackBrokerForRequest(sse, sessionID, missionID, isFollowUp)
-			_, err := agent.ExecuteAgentLoop(r.Context(), req, runCfg, true, broker)
+			broker := newChatVoiceOutputTrackingBroker(feedbackBrokerForRequest(sse, sessionID, missionID, isFollowUp))
+			resp, err := agent.ExecuteAgentLoop(r.Context(), req, runCfg, true, broker)
 			if err != nil {
 				s.Logger.Error("Streamed agent loop failed", "error", err)
 				errMsg := chatCompletionErrorMessage(s.Cfg.Server.UILanguage, err)
@@ -622,6 +622,9 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 				broker.SendLLMStreamDone("stop")
 				broker.Send("done", i18n.T(s.Cfg.Server.UILanguage, "backend.stream_done"))
 				return
+			}
+			if len(resp.Choices) > 0 {
+				maybeEmitChatVoiceOutputFallback(s.Cfg, s.Logger, runCfg, broker, resp.Choices[0].Message.Content)
 			}
 
 			// Conclude SSE stream nicely
@@ -634,7 +637,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			// the agent already started hatching an egg or running a command).
 			syncCtx, syncCancel := context.WithTimeout(context.Background(), 30*time.Minute)
 			defer syncCancel()
-			broker := feedbackBrokerForRequest(sse, sessionID, missionID, isFollowUp)
+			broker := newChatVoiceOutputTrackingBroker(feedbackBrokerForRequest(sse, sessionID, missionID, isFollowUp))
 			resp, err := agent.ExecuteAgentLoop(syncCtx, req, runCfg, false, broker)
 			if err != nil {
 				s.Logger.Error("Sync agent loop failed", "error", err)
@@ -649,6 +652,9 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 				resp.Choices[i].Message.Content = security.StripThinkingTags(
 					security.Scrub(resp.Choices[i].Message.Content),
 				)
+			}
+			if len(resp.Choices) > 0 {
+				maybeEmitChatVoiceOutputFallback(s.Cfg, s.Logger, runCfg, broker, resp.Choices[0].Message.Content)
 			}
 			if missionID != "" && s.ShortTermMem != nil {
 				missionToolResultsAfter := missionToolResultsBefore
