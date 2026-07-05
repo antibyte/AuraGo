@@ -29,6 +29,7 @@ func (kg *KnowledgeGraph) PruneOutgoingRelationEdges(source, relation string, ke
 	rows, err := kg.db.Query(`
 		SELECT target FROM kg_edges
 		WHERE source = ? AND relation = ?
+		  AND `+activeKGEdgePredicate("")+`
 	`, source, relation)
 	if err != nil {
 		return 0, fmt.Errorf("query outgoing relation edges for prune: %w", err)
@@ -114,12 +115,19 @@ func (kg *KnowledgeGraph) UpdateEdge(source, target, relation, newRelation strin
 	}
 
 	if _, err := tx.Exec(`
-		INSERT INTO kg_edges (source, target, relation, properties, updated_at)
-		VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+		INSERT INTO kg_edges (
+			source, target, relation, properties, updated_at,
+			status, status_reason, superseded_by_claim_id, retracted_at
+		)
+		VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, ?, '', '', NULL)
 		ON CONFLICT(source, target, relation) DO UPDATE SET
 			properties = excluded.properties,
-			updated_at = CURRENT_TIMESTAMP
-	`, source, target, newRelation, string(propsJSON)); err != nil {
+			updated_at = CURRENT_TIMESTAMP,
+			status = excluded.status,
+			status_reason = '',
+			superseded_by_claim_id = '',
+			retracted_at = NULL
+	`, source, target, newRelation, string(propsJSON), string(KGClaimAccepted)); err != nil {
 		return nil, fmt.Errorf("upsert updated edge: %w", err)
 	}
 
@@ -146,7 +154,7 @@ func (kg *KnowledgeGraph) GetAllEdges(limit int) ([]Edge, error) {
 	if limit <= 0 {
 		limit = 1000
 	}
-	rows, err := kg.db.Query("SELECT source, target, relation, properties FROM kg_edges LIMIT ?", limit)
+	rows, err := kg.db.Query("SELECT source, target, relation, properties FROM kg_edges WHERE "+activeKGEdgePredicate("")+" LIMIT ?", limit)
 	if err != nil {
 		return nil, err
 	}
@@ -194,6 +202,7 @@ func (kg *KnowledgeGraph) GetImportantEdges(limit int, nodeIDs []string) ([]Edge
 			LEFT JOIN kg_nodes ns ON ns.id = e.source
 			LEFT JOIN kg_nodes nt ON nt.id = e.target
 			WHERE e.relation != 'co_mentioned_with'
+			  AND `+activeKGEdgePredicate("e")+`
 			  AND (e.source IN (%s) OR e.target IN (%s))
 			ORDER BY (COALESCE(ns.access_count, 0) + COALESCE(nt.access_count, 0)) DESC
 			LIMIT ?
@@ -214,6 +223,7 @@ func (kg *KnowledgeGraph) GetImportantEdges(limit int, nodeIDs []string) ([]Edge
 			LEFT JOIN kg_nodes ns ON ns.id = e.source
 			LEFT JOIN kg_nodes nt ON nt.id = e.target
 			WHERE e.relation != 'co_mentioned_with'
+			  AND `+activeKGEdgePredicate("e")+`
 			ORDER BY (COALESCE(ns.access_count, 0) + COALESCE(nt.access_count, 0)) DESC
 			LIMIT ?
 		`, limit)
@@ -283,6 +293,7 @@ func (kg *KnowledgeGraph) GetEdgesBySourceFile(path string, limit int) ([]Edge, 
 	rows, err := kg.db.Query(`
 		SELECT source, target, relation, properties FROM kg_edges
 		WHERE json_extract(properties, '$.source_file') = ?
+		  AND `+activeKGEdgePredicate("")+`
 		LIMIT ?
 	`, path, limit)
 	if err != nil {

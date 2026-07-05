@@ -34,6 +34,10 @@ func (kg *KnowledgeGraph) initTables() error {
 		relation TEXT NOT NULL,
 		properties TEXT NOT NULL DEFAULT '{}',
 		access_count INTEGER NOT NULL DEFAULT 0,
+		status TEXT NOT NULL DEFAULT 'accepted',
+		status_reason TEXT NOT NULL DEFAULT '',
+		superseded_by_claim_id TEXT NOT NULL DEFAULT '',
+		retracted_at DATETIME,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		semantic_indexed_at DATETIME,
@@ -105,6 +109,10 @@ func (kg *KnowledgeGraph) initTables() error {
 		{"kg_nodes", "semantic_indexed_at", "DATETIME"},
 		{"kg_edges", "semantic_indexed_at", "DATETIME"},
 		{"kg_edges", "updated_at", "DATETIME"},
+		{"kg_edges", "status", "TEXT NOT NULL DEFAULT 'accepted'"},
+		{"kg_edges", "status_reason", "TEXT NOT NULL DEFAULT ''"},
+		{"kg_edges", "superseded_by_claim_id", "TEXT NOT NULL DEFAULT ''"},
+		{"kg_edges", "retracted_at", "DATETIME"},
 	}
 	for _, cm := range colMigrations {
 		if !validIdentifier(cm.table) || !validIdentifier(cm.column) {
@@ -172,6 +180,7 @@ func (kg *KnowledgeGraph) initTables() error {
 		`CREATE INDEX IF NOT EXISTS idx_kg_edges_source ON kg_edges(source)`,
 		`CREATE INDEX IF NOT EXISTS idx_kg_edges_target ON kg_edges(target)`,
 		`CREATE INDEX IF NOT EXISTS idx_kg_edges_access_count ON kg_edges(access_count)`,
+		`CREATE INDEX IF NOT EXISTS idx_kg_edges_status ON kg_edges(status)`,
 		`CREATE INDEX IF NOT EXISTS idx_kg_edges_semantic_indexed_at ON kg_edges(semantic_indexed_at)`,
 		`CREATE INDEX IF NOT EXISTS idx_kg_edges_relation ON kg_edges(relation)`,
 		`CREATE INDEX IF NOT EXISTS idx_kg_edges_source_target ON kg_edges(source, target)`,
@@ -244,6 +253,10 @@ func (kg *KnowledgeGraph) ensureKGEdgesCascade() error {
 			relation TEXT NOT NULL,
 			properties TEXT NOT NULL DEFAULT '{}',
 			access_count INTEGER NOT NULL DEFAULT 0,
+			status TEXT NOT NULL DEFAULT 'accepted',
+			status_reason TEXT NOT NULL DEFAULT '',
+			superseded_by_claim_id TEXT NOT NULL DEFAULT '',
+			retracted_at DATETIME,
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 			semantic_indexed_at DATETIME,
@@ -251,8 +264,12 @@ func (kg *KnowledgeGraph) ensureKGEdgesCascade() error {
 			FOREIGN KEY(source) REFERENCES kg_nodes(id) ON DELETE CASCADE,
 			FOREIGN KEY(target) REFERENCES kg_nodes(id) ON DELETE CASCADE
 		)`,
-		`INSERT INTO kg_edges (id, source, target, relation, properties, access_count, created_at, updated_at, semantic_indexed_at)
+		`INSERT INTO kg_edges (id, source, target, relation, properties, access_count, status, status_reason, superseded_by_claim_id, retracted_at, created_at, updated_at, semantic_indexed_at)
 			SELECT id, source, target, relation, properties, access_count,
+			       COALESCE(status, 'accepted'),
+			       COALESCE(status_reason, ''),
+			       COALESCE(superseded_by_claim_id, ''),
+			       retracted_at,
 			       created_at,
 			       COALESCE(updated_at, created_at, CURRENT_TIMESTAMP),
 			       semantic_indexed_at

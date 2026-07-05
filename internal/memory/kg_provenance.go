@@ -130,12 +130,19 @@ func (kg *KnowledgeGraph) AddEdgeWithProvenance(source, target, relation string,
 	}
 	propsJSON, _ := json.Marshal(finalProps)
 	if _, err = tx.Exec(`
-		INSERT INTO kg_edges (source, target, relation, properties, updated_at)
-		VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+		INSERT INTO kg_edges (
+			source, target, relation, properties, updated_at,
+			status, status_reason, superseded_by_claim_id, retracted_at
+		)
+		VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, ?, '', '', NULL)
 		ON CONFLICT(source, target, relation) DO UPDATE SET
 			properties = excluded.properties,
-			updated_at = CURRENT_TIMESTAMP
-	`, source, target, relation, string(propsJSON)); err != nil {
+			updated_at = CURRENT_TIMESTAMP,
+			status = excluded.status,
+			status_reason = '',
+			superseded_by_claim_id = '',
+			retracted_at = NULL
+	`, source, target, relation, string(propsJSON), string(KGClaimAccepted)); err != nil {
 		return nil, fmt.Errorf("add edge: %w", err)
 	}
 
@@ -184,6 +191,83 @@ func (kg *KnowledgeGraph) AddEdgeWithProvenance(source, target, relation string,
 	return claim, nil
 }
 
+func (kg *KnowledgeGraph) SupersedeEdge(source, target, relation, supersededByClaimID, reason string) error {
+	source = strings.TrimSpace(source)
+	target = strings.TrimSpace(target)
+	relation = strings.TrimSpace(relation)
+	supersededByClaimID = strings.TrimSpace(supersededByClaimID)
+	reason = strings.TrimSpace(reason)
+	if source == "" || target == "" || relation == "" {
+		return fmt.Errorf("source, target, and relation are required")
+	}
+
+	tx, err := kg.db.Begin()
+	if err != nil {
+		return fmt.Errorf("begin supersede edge: %w", err)
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.Exec(`
+		UPDATE kg_edges
+		SET status = ?, superseded_by_claim_id = ?, status_reason = ?, updated_at = CURRENT_TIMESTAMP
+		WHERE source = ? AND target = ? AND relation = ?
+	`, string(KGClaimSuperseded), supersededByClaimID, reason, source, target, relation); err != nil {
+		return fmt.Errorf("supersede edge: %w", err)
+	}
+	if _, err := tx.Exec(`
+		UPDATE kg_claims
+		SET status = ?, superseded_by = ?
+		WHERE subject_id = ? AND object_id = ? AND predicate = ? AND status = ?
+	`, string(KGClaimSuperseded), supersededByClaimID, source, target, relation, string(KGClaimAccepted)); err != nil {
+		return fmt.Errorf("supersede edge claims: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	if err := kg.removeSemanticEdgeIndex(source, target, relation); err != nil && kg.logger != nil {
+		kg.logger.Warn("SupersedeEdge: failed to remove semantic edge index", "source", source, "target", target, "relation", relation, "error", err)
+	}
+	return nil
+}
+
+func (kg *KnowledgeGraph) RetractEdge(source, target, relation, reason string) error {
+	source = strings.TrimSpace(source)
+	target = strings.TrimSpace(target)
+	relation = strings.TrimSpace(relation)
+	reason = strings.TrimSpace(reason)
+	if source == "" || target == "" || relation == "" {
+		return fmt.Errorf("source, target, and relation are required")
+	}
+
+	tx, err := kg.db.Begin()
+	if err != nil {
+		return fmt.Errorf("begin retract edge: %w", err)
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.Exec(`
+		UPDATE kg_edges
+		SET status = ?, status_reason = ?, retracted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+		WHERE source = ? AND target = ? AND relation = ?
+	`, string(KGClaimRetracted), reason, source, target, relation); err != nil {
+		return fmt.Errorf("retract edge: %w", err)
+	}
+	if _, err := tx.Exec(`
+		UPDATE kg_claims
+		SET status = ?
+		WHERE subject_id = ? AND object_id = ? AND predicate = ? AND status = ?
+	`, string(KGClaimRetracted), source, target, relation, string(KGClaimAccepted)); err != nil {
+		return fmt.Errorf("retract edge claims: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	if err := kg.removeSemanticEdgeIndex(source, target, relation); err != nil && kg.logger != nil {
+		kg.logger.Warn("RetractEdge: failed to remove semantic edge index", "source", source, "target", target, "relation", relation, "error", err)
+	}
+	return nil
+}
+
 func (kg *KnowledgeGraph) GetClaimsForEdge(source, target, relation string, includeInactive bool, limit int) ([]KGClaim, error) {
 	source = strings.TrimSpace(source)
 	target = strings.TrimSpace(target)
@@ -209,6 +293,14 @@ func (kg *KnowledgeGraph) GetClaimsForEdge(source, target, relation string, incl
 	}
 	defer rows.Close()
 	return scanKGClaimRows(rows)
+}
+
+func activeKGEdgePredicate(alias string) string {
+	alias = strings.TrimSpace(alias)
+	if alias == "" {
+		return "COALESCE(status, 'accepted') = 'accepted'"
+	}
+	return fmt.Sprintf("COALESCE(%s.status, 'accepted') = 'accepted'", alias)
 }
 
 func (kg *KnowledgeGraph) insertKGEvidenceTx(tx *sql.Tx, provenance KGProvenanceInput, now time.Time) (string, error) {

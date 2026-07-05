@@ -237,10 +237,12 @@ func (kg *KnowledgeGraph) SearchWithOptions(query string, options KnowledgeGraph
 	edgeFTSQuery := kgquery.EscapeFTS5(query)
 	edgeRows, err := tx.Query(`
 		SELECT source, target, relation, properties FROM kg_edges
-		WHERE id IN (SELECT rowid FROM kg_edges_fts WHERE kg_edges_fts MATCH ?)
+		WHERE `+activeKGEdgePredicate("")+`
+		  AND id IN (SELECT rowid FROM kg_edges_fts WHERE kg_edges_fts MATCH ?)
 		UNION
 		SELECT source, target, relation, properties FROM kg_edges
-		WHERE LOWER(source) LIKE ? ESCAPE '\' OR LOWER(target) LIKE ? ESCAPE '\' OR LOWER(relation) LIKE ? ESCAPE '\' OR LOWER(properties) LIKE ? ESCAPE '\'
+		WHERE `+activeKGEdgePredicate("")+`
+		  AND (LOWER(source) LIKE ? ESCAPE '\' OR LOWER(target) LIKE ? ESCAPE '\' OR LOWER(relation) LIKE ? ESCAPE '\' OR LOWER(properties) LIKE ? ESCAPE '\')
 		LIMIT 50
 	`, edgeFTSQuery, likeQ, likeQ, likeQ, likeQ)
 	if err != nil {
@@ -346,7 +348,8 @@ func (kg *KnowledgeGraph) getNeighborsWithQueryer(q knowledgeGraphQueryer, nodeI
 	var allEdges []Edge
 	rows, err := q.Query(`
 		SELECT source, target, relation, properties FROM kg_edges
-		WHERE source = ? OR target = ?
+		WHERE `+activeKGEdgePredicate("")+`
+		  AND (source = ? OR target = ?)
 		ORDER BY updated_at DESC
 	`, nodeID, nodeID)
 	if err != nil {
@@ -773,7 +776,8 @@ func (kg *KnowledgeGraph) loadSearchContextData(q knowledgeGraphQueryer, nodeIDs
 		fmt.Sprintf(`
 			SELECT source, target, relation, properties
 			FROM kg_edges
-			WHERE source IN (%[1]s) OR target IN (%[1]s)
+			WHERE `+activeKGEdgePredicate("")+`
+			  AND (source IN (%[1]s) OR target IN (%[1]s))
 			ORDER BY access_count DESC
 		`, strings.Join(placeholders, ",")),
 		edgeArgs...,
@@ -885,7 +889,7 @@ func (kg *KnowledgeGraph) GetSubgraph(centerNodeID string, maxDepth int) ([]Node
 			batchArgs[len(levelNodeIDs)+i] = nid
 		}
 		batchEdgeQuery := fmt.Sprintf(
-			`SELECT source, target, relation, properties FROM kg_edges WHERE source IN (%s) OR target IN (%s)`,
+			`SELECT source, target, relation, properties FROM kg_edges WHERE `+activeKGEdgePredicate("")+` AND (source IN (%s) OR target IN (%s))`,
 			strings.Join(placeholders, ","),
 			strings.Join(placeholders, ","),
 		)
@@ -1002,7 +1006,7 @@ func (kg *KnowledgeGraph) QualityReport(sampleLimit int) (*KnowledgeGraphQuality
 	if err := tx.QueryRow("SELECT COUNT(*) FROM kg_nodes").Scan(&report.Nodes); err != nil {
 		return nil, fmt.Errorf("count knowledge graph nodes: %w", err)
 	}
-	if err := tx.QueryRow("SELECT COUNT(*) FROM kg_edges").Scan(&report.Edges); err != nil {
+	if err := tx.QueryRow("SELECT COUNT(*) FROM kg_edges WHERE " + activeKGEdgePredicate("")).Scan(&report.Edges); err != nil {
 		return nil, fmt.Errorf("count knowledge graph edges: %w", err)
 	}
 	edgeCounts, err := kg.edgeQualityCounts(tx)
@@ -1025,13 +1029,13 @@ func (kg *KnowledgeGraph) QualityReport(sampleLimit int) (*KnowledgeGraphQuality
 	report.GenericNodes = genericNodes
 	report.GenericSample = genericSample
 
-	if err := tx.QueryRow(`SELECT COUNT(*) FROM kg_nodes n WHERE NOT EXISTS (SELECT 1 FROM kg_edges e WHERE e.source = n.id OR e.target = n.id)`).Scan(&report.IsolatedNodes); err != nil {
+	if err := tx.QueryRow(`SELECT COUNT(*) FROM kg_nodes n WHERE NOT EXISTS (SELECT 1 FROM kg_edges e WHERE ` + activeKGEdgePredicate("e") + ` AND (e.source = n.id OR e.target = n.id))`).Scan(&report.IsolatedNodes); err != nil {
 		return nil, fmt.Errorf("count isolated knowledge graph nodes: %w", err)
 	}
 
 	isolatedRows, err := tx.Query(`
 		SELECT id, label, properties, protected FROM kg_nodes n 
-		WHERE NOT EXISTS (SELECT 1 FROM kg_edges e WHERE e.source = n.id OR e.target = n.id)
+		WHERE NOT EXISTS (SELECT 1 FROM kg_edges e WHERE `+activeKGEdgePredicate("e")+` AND (e.source = n.id OR e.target = n.id))
 		LIMIT ?`, sampleLimit)
 	if err != nil {
 		return nil, fmt.Errorf("query isolated knowledge graph sample: %w", err)
@@ -1184,7 +1188,7 @@ func (kg *KnowledgeGraph) OptimizeGraph(threshold int) (int, error) {
 
 	rows, err := tx.Query(`
 		SELECT n.id, n.access_count, COALESCE(n.source_type, ''),
-			(SELECT COUNT(*) FROM kg_edges e WHERE e.source = n.id OR e.target = n.id) as degree
+			(SELECT COUNT(*) FROM kg_edges e WHERE ` + activeKGEdgePredicate("e") + ` AND (e.source = n.id OR e.target = n.id)) as degree
 		FROM kg_nodes n
 		WHERE n.protected = 0
 	`)
@@ -1264,19 +1268,22 @@ func (kg *KnowledgeGraph) edgeQualityCounts(tx *sql.Tx) (knowledgeGraphEdgeQuali
 	counts := knowledgeGraphEdgeQualityCounts{bySource: make(map[string]int)}
 	if err := tx.QueryRow(`
 		SELECT COUNT(*) FROM kg_edges
-		WHERE json_extract(properties, '$.source') = 'pending'
+		WHERE ` + activeKGEdgePredicate("") + `
+		  AND json_extract(properties, '$.source') = 'pending'
 	`).Scan(&counts.pending); err != nil {
 		return counts, fmt.Errorf("count pending knowledge graph edges: %w", err)
 	}
 	if err := tx.QueryRow(`
 		SELECT COUNT(*) FROM kg_edges
-		WHERE relation = 'co_mentioned_with'
+		WHERE ` + activeKGEdgePredicate("") + `
+		  AND relation = 'co_mentioned_with'
 	`).Scan(&counts.coMention); err != nil {
 		return counts, fmt.Errorf("count co-mentioned knowledge graph edges: %w", err)
 	}
 	if err := tx.QueryRow(`
 		SELECT COUNT(*) FROM kg_edges
-		WHERE relation = 'co_mentioned_with'
+		WHERE ` + activeKGEdgePredicate("") + `
+		  AND relation = 'co_mentioned_with'
 		  AND json_extract(properties, '$.source') = 'pending'
 	`).Scan(&counts.pendingCoMention); err != nil {
 		return counts, fmt.Errorf("count pending co-mentioned knowledge graph edges: %w", err)
@@ -1284,7 +1291,8 @@ func (kg *KnowledgeGraph) edgeQualityCounts(tx *sql.Tx) (knowledgeGraphEdgeQuali
 	policy := kg.qualityPolicy()
 	if err := tx.QueryRow(`
 		SELECT COUNT(*) FROM kg_edges
-		WHERE relation = 'co_mentioned_with'
+		WHERE `+activeKGEdgePredicate("")+`
+		  AND relation = 'co_mentioned_with'
 		  AND (
 			COALESCE(json_extract(properties, '$.source'), '') IN ('', 'pending')
 			OR CAST(COALESCE(NULLIF(json_extract(properties, '$.weight'), ''), '0') AS INTEGER) < ?
@@ -1295,7 +1303,7 @@ func (kg *KnowledgeGraph) edgeQualityCounts(tx *sql.Tx) (knowledgeGraphEdgeQuali
 
 	sourceRows, err := tx.Query(`
 		SELECT COALESCE(NULLIF(json_extract(properties, '$.source'), ''), 'unknown') AS s, COUNT(*)
-		FROM kg_edges GROUP BY s ORDER BY COUNT(*) DESC
+		FROM kg_edges WHERE ` + activeKGEdgePredicate("") + ` GROUP BY s ORDER BY COUNT(*) DESC
 	`)
 	if err != nil {
 		return counts, fmt.Errorf("query knowledge graph edge source counts: %w", err)
@@ -1380,7 +1388,8 @@ func (kg *KnowledgeGraph) CleanupStaleGraphWithOptions(options KnowledgeGraphCle
 		SELECT e.source, e.target, e.relation FROM kg_edges e
 		LEFT JOIN kg_nodes ns ON ns.id = e.source
 		LEFT JOIN kg_nodes nt ON nt.id = e.target
-		WHERE e.relation = 'co_mentioned_with'
+		WHERE `+activeKGEdgePredicate("e")+`
+		  AND e.relation = 'co_mentioned_with'
 		  AND COALESCE(NULLIF(TRIM(json_extract(e.properties, '$.source')), ''), 'pending') = 'pending'
 		  AND CAST(COALESCE(NULLIF(json_extract(e.properties, '$.weight'), ''), '0') AS INTEGER) < ?
 		  AND COALESCE(ns.protected, 0) = 0
@@ -1394,7 +1403,8 @@ func (kg *KnowledgeGraph) CleanupStaleGraphWithOptions(options KnowledgeGraphCle
 			SELECT e.rowid FROM kg_edges e
 			LEFT JOIN kg_nodes ns ON ns.id = e.source
 			LEFT JOIN kg_nodes nt ON nt.id = e.target
-			WHERE e.relation = 'co_mentioned_with'
+			WHERE `+activeKGEdgePredicate("e")+`
+			  AND e.relation = 'co_mentioned_with'
 			  AND COALESCE(NULLIF(TRIM(json_extract(e.properties, '$.source')), ''), 'pending') = 'pending'
 			  AND CAST(COALESCE(NULLIF(json_extract(e.properties, '$.weight'), ''), '0') AS INTEGER) < ?
 			  AND COALESCE(ns.protected, 0) = 0
@@ -1421,7 +1431,7 @@ func (kg *KnowledgeGraph) CleanupStaleGraphWithOptions(options KnowledgeGraphCle
 		  AND n.protected = 0
 		  AND n.updated_at <= datetime('now', '-' || ? || ' days')
 		  AND NOT EXISTS (
-			SELECT 1 FROM kg_edges e WHERE e.source = n.id OR e.target = n.id
+			SELECT 1 FROM kg_edges e WHERE `+activeKGEdgePredicate("e")+` AND (e.source = n.id OR e.target = n.id)
 		  )
 	`, knowledgeGraphPlaceholderSource, placeholderGrace)
 	if err != nil {
@@ -1478,7 +1488,7 @@ func (kg *KnowledgeGraph) CleanupStaleGraphWithOptions(options KnowledgeGraphCle
 
 	removedEdges := append([]semanticEdgeIdentity(nil), staleEdges...)
 	for _, id := range toRemove {
-		removedEdges = append(removedEdges, kg.collectSemanticEdgeIdentities(tx, "SELECT source, target, relation FROM kg_edges WHERE source = ? OR target = ?", id, id)...)
+		removedEdges = append(removedEdges, kg.collectSemanticEdgeIdentities(tx, "SELECT source, target, relation FROM kg_edges WHERE "+activeKGEdgePredicate("")+" AND (source = ? OR target = ?)", id, id)...)
 		if _, execErr := tx.Exec("DELETE FROM kg_edges WHERE source = ? OR target = ?", id, id); execErr != nil {
 			kg.logger.Warn("CleanupStaleGraph: failed to delete edges for node", "id", id, "error", execErr)
 		}
@@ -1578,10 +1588,10 @@ func (kg *KnowledgeGraph) GetStats() (*KnowledgeGraphStats, error) {
 	if err := tx.QueryRow("SELECT COUNT(*) FROM kg_nodes").Scan(&stats.TotalNodes); err != nil {
 		return nil, fmt.Errorf("count knowledge graph nodes: %w", err)
 	}
-	if err := tx.QueryRow("SELECT COUNT(*) FROM kg_edges").Scan(&stats.TotalEdges); err != nil {
+	if err := tx.QueryRow("SELECT COUNT(*) FROM kg_edges WHERE " + activeKGEdgePredicate("")).Scan(&stats.TotalEdges); err != nil {
 		return nil, fmt.Errorf("count knowledge graph edges: %w", err)
 	}
-	if err := tx.QueryRow("SELECT COUNT(*) FROM kg_edges WHERE relation = 'co_mentioned_with'").Scan(&stats.CoMentionEdges); err != nil {
+	if err := tx.QueryRow("SELECT COUNT(*) FROM kg_edges WHERE " + activeKGEdgePredicate("") + " AND relation = 'co_mentioned_with'").Scan(&stats.CoMentionEdges); err != nil {
 		return nil, fmt.Errorf("count co-mention edges: %w", err)
 	}
 	stats.MeaningfulEdges = stats.TotalEdges - stats.CoMentionEdges

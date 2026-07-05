@@ -2,6 +2,7 @@ package memory
 
 import (
 	"database/sql"
+	"encoding/json"
 	"testing"
 )
 
@@ -106,4 +107,86 @@ func TestAddEdgeWithProvenanceAllowsClaimWithoutEvidence(t *testing.T) {
 	if claims[0].EvidenceID != "" || claims[0].Evidence != nil {
 		t.Fatalf("stored claim should not have evidence: %#v", claims[0])
 	}
+}
+
+func TestSupersededEdgesAreHiddenFromDefaultReads(t *testing.T) {
+	kg := newTestKG(t)
+
+	if _, err := kg.AddEdgeWithProvenance("andi", "german", "primary_language", nil, KGProvenanceInput{SourceKind: "user"}); err != nil {
+		t.Fatalf("AddEdgeWithProvenance: %v", err)
+	}
+	if err := kg.SupersedeEdge("andi", "german", "primary_language", "claim_new", "corrected language"); err != nil {
+		t.Fatalf("SupersedeEdge: %v", err)
+	}
+
+	edges, err := kg.GetImportantEdges(10, []string{"andi"})
+	if err != nil {
+		t.Fatalf("GetImportantEdges: %v", err)
+	}
+	if containsTestEdge(edges, "andi", "german", "primary_language") {
+		t.Fatalf("superseded edge should be hidden from important reads: %#v", edges)
+	}
+
+	claims, err := kg.GetClaimsForEdge("andi", "german", "primary_language", true, 10)
+	if err != nil {
+		t.Fatalf("GetClaimsForEdge: %v", err)
+	}
+	if len(claims) != 1 || claims[0].Status != KGClaimSuperseded || claims[0].SupersededBy != "claim_new" {
+		t.Fatalf("expected superseded claim history, got %#v", claims)
+	}
+}
+
+func TestRetractedEdgesKeepClaimHistory(t *testing.T) {
+	kg := newTestKG(t)
+
+	if _, err := kg.AddEdgeWithProvenance("andi", "english", "primary_language", nil, KGProvenanceInput{SourceKind: "user"}); err != nil {
+		t.Fatalf("AddEdgeWithProvenance: %v", err)
+	}
+	if err := kg.RetractEdge("andi", "english", "primary_language", "user correction"); err != nil {
+		t.Fatalf("RetractEdge: %v", err)
+	}
+
+	searchEdges := decodeTestSearchEdges(t, kg.Search("english"))
+	if containsTestEdge(searchEdges, "andi", "english", "primary_language") {
+		t.Fatalf("retracted edge should be hidden from default search: %#v", searchEdges)
+	}
+
+	activeClaims, err := kg.GetClaimsForEdge("andi", "english", "primary_language", false, 10)
+	if err != nil {
+		t.Fatalf("GetClaimsForEdge active: %v", err)
+	}
+	if len(activeClaims) != 0 {
+		t.Fatalf("active claims should be hidden after retraction, got %#v", activeClaims)
+	}
+
+	historicalClaims, err := kg.GetClaimsForEdge("andi", "english", "primary_language", true, 10)
+	if err != nil {
+		t.Fatalf("GetClaimsForEdge history: %v", err)
+	}
+	if len(historicalClaims) != 1 || historicalClaims[0].Status != KGClaimRetracted {
+		t.Fatalf("expected retracted claim history, got %#v", historicalClaims)
+	}
+}
+
+func containsTestEdge(edges []Edge, source, target, relation string) bool {
+	for _, edge := range edges {
+		if edge.Source == source && edge.Target == target && edge.Relation == relation {
+			return true
+		}
+	}
+	return false
+}
+
+func decodeTestSearchEdges(t *testing.T, raw string) []Edge {
+	t.Helper()
+	if raw == "[]" {
+		return nil
+	}
+	var payload struct {
+		Edges []Edge `json:"edges"`
+	}
+	if err := json.Unmarshal([]byte(raw), &payload); err != nil {
+		t.Fatalf("unmarshal search payload %q: %v", raw, err)
+	}
+	return payload.Edges
 }
