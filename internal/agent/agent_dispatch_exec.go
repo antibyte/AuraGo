@@ -449,7 +449,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			}
 			if cfg.Tools.KnowledgeGraph.ReadOnly {
 				switch req.Operation {
-				case "add_node", "add_edge", "delete_node", "delete_edge", "update_node", "update_edge", "merge_nodes", "optimize", "optimize_graph":
+				case "add_node", "add_edge", "delete_node", "delete_edge", "update_node", "update_edge", "merge_nodes", "resolve_conflict", "supersede_edge", "retract_edge", "optimize", "optimize_graph":
 					return `Tool Output: {"status":"error","message":"Knowledge graph is in read-only mode. Disable tools.knowledge_graph.read_only to allow changes."}`
 				}
 			}
@@ -668,6 +668,87 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 
 			case "suggest_relations":
 				return fmt.Sprintf("Tool Output: %s", kg.SuggestRelations(req.Limit))
+
+			case "explain_edge":
+				if req.Source == "" || req.Target == "" || req.Relation == "" {
+					return `Tool Output: {"status": "error", "message": "source, target, and relation are required for explain_edge"}`
+				}
+				claims, err := kg.GetClaimsForEdge(req.Source, req.Target, req.Relation, req.IncludeInactive, req.Limit)
+				if err != nil {
+					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
+				}
+				data, _ := json.Marshal(map[string]interface{}{
+					"status":           "success",
+					"source":           req.Source,
+					"target":           req.Target,
+					"relation":         req.Relation,
+					"include_inactive": req.IncludeInactive,
+					"count":            len(claims),
+					"claims":           claims,
+				})
+				return "Tool Output: " + string(data)
+
+			case "list_conflicts":
+				conflicts, err := kg.GetOpenKGConflicts(req.Limit)
+				if err != nil {
+					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
+				}
+				data, _ := json.Marshal(map[string]interface{}{
+					"status":    "success",
+					"count":     len(conflicts),
+					"conflicts": conflicts,
+				})
+				return "Tool Output: " + string(data)
+
+			case "resolve_conflict":
+				if req.ConflictID <= 0 || req.ClaimID == "" {
+					return `Tool Output: {"status": "error", "message": "conflict_id and claim_id are required for resolve_conflict"}`
+				}
+				if err := kg.ResolveKGConflict(req.ConflictID, req.ClaimID, req.Reason); err != nil {
+					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
+				}
+				data, _ := json.Marshal(map[string]interface{}{
+					"status":           "success",
+					"message":          "Conflict resolved",
+					"conflict_id":      req.ConflictID,
+					"winning_claim_id": req.ClaimID,
+				})
+				return "Tool Output: " + string(data)
+
+			case "supersede_edge":
+				if req.Source == "" || req.Target == "" || req.Relation == "" {
+					return `Tool Output: {"status": "error", "message": "source, target, and relation are required for supersede_edge"}`
+				}
+				if err := kg.SupersedeEdge(req.Source, req.Target, req.Relation, req.ClaimID, req.Reason); err != nil {
+					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
+				}
+				data, _ := json.Marshal(map[string]interface{}{
+					"status":           "success",
+					"message":          "Edge superseded",
+					"source":           req.Source,
+					"target":           req.Target,
+					"relation":         req.Relation,
+					"superseded_by":    req.ClaimID,
+					"supersede_reason": req.Reason,
+				})
+				return "Tool Output: " + string(data)
+
+			case "retract_edge":
+				if req.Source == "" || req.Target == "" || req.Relation == "" {
+					return `Tool Output: {"status": "error", "message": "source, target, and relation are required for retract_edge"}`
+				}
+				if err := kg.RetractEdge(req.Source, req.Target, req.Relation, req.Reason); err != nil {
+					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
+				}
+				data, _ := json.Marshal(map[string]interface{}{
+					"status":            "success",
+					"message":           "Edge retracted",
+					"source":            req.Source,
+					"target":            req.Target,
+					"relation":          req.Relation,
+					"retraction_reason": req.Reason,
+				})
+				return "Tool Output: " + string(data)
 
 			case "optimize", "optimize_graph":
 				res := runMemoryOrchestrator(decodeMemoryOrchestratorArgs(tc), cfg, logger, llmClient, longTermMem, shortTermMem, kg)

@@ -149,20 +149,24 @@ func appendMemoryToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai.
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{
 					"type":        "string",
-					"description": "Operation: 'add_node' (create entity), 'add_edge' (create relationship), 'delete_node' (remove entity+edges), 'delete_edge' (remove relationship), 'update_node' (modify node properties, merges with existing), 'update_edge' (modify edge relation/properties), 'merge_nodes' (merge source node into target and delete source), 'get_node' (retrieve single node), 'get_neighbors' (get connected nodes and edges), 'subgraph' (get neighborhood subgraph around a node), 'search' (full-text search across nodes and edges), 'graph_health' (read quality/stats), 'explore' (traverse graph randomly), 'suggest_relations' (suggest new relations)",
-					"enum":        []string{"add_node", "add_edge", "delete_node", "delete_edge", "update_node", "update_edge", "merge_nodes", "get_node", "get_neighbors", "subgraph", "search", "graph_health", "explore", "suggest_relations"},
+					"description": "Operation: 'add_node' (create entity), 'add_edge' (create relationship), 'delete_node' (remove entity+edges), 'delete_edge' (remove relationship), 'update_node' (modify node properties, merges with existing), 'update_edge' (modify edge relation/properties), 'merge_nodes' (merge source node into target and delete source), 'get_node' (retrieve single node), 'get_neighbors' (get connected nodes and edges), 'subgraph' (get neighborhood subgraph around a node), 'search' (full-text search across nodes and edges), 'graph_health' (read quality/stats), 'explore' (traverse graph randomly), 'suggest_relations' (suggest new relations), 'explain_edge' (show claims/evidence for an edge), 'list_conflicts' (show open claim conflicts), 'resolve_conflict' (choose the winning claim), 'supersede_edge' (mark a relationship outdated), 'retract_edge' (mark a relationship withdrawn)",
+					"enum":        []string{"add_node", "add_edge", "delete_node", "delete_edge", "update_node", "update_edge", "merge_nodes", "get_node", "get_neighbors", "subgraph", "search", "graph_health", "explore", "suggest_relations", "explain_edge", "list_conflicts", "resolve_conflict", "supersede_edge", "retract_edge"},
 				},
 				"id":                     prop("string", "Node ID (for add_node, delete_node, update_node, get_node, get_neighbors, subgraph)"),
 				"label":                  prop("string", "Human-readable label for the node (for add_node, update_node)"),
-				"source":                 prop("string", "Source node ID (for add_edge, delete_edge, update_edge, merge_nodes)"),
-				"target":                 prop("string", "Target node ID kept after merge (for add_edge, delete_edge, update_edge, merge_nodes)"),
+				"source":                 prop("string", "Source node ID (for add_edge, delete_edge, update_edge, merge_nodes, explain_edge, supersede_edge, retract_edge)"),
+				"target":                 prop("string", "Target node ID kept after merge (for add_edge, delete_edge, update_edge, merge_nodes, explain_edge, supersede_edge, retract_edge)"),
 				"relation":               prop("string", "Relationship type (e.g. 'owns', 'uses', 'manages', 'connected_to')"),
 				"content":                prop("string", "Search query text (for search operation)"),
 				"properties":             map[string]interface{}{"type": "object", "description": "Optional metadata properties for the node or edge"},
 				"new_relation":           prop("string", "New relation type for update_edge (optional, defaults to current relation)"),
+				"claim_id":               prop("string", "Claim ID. Required as winning claim for resolve_conflict; optional superseding claim for supersede_edge."),
+				"conflict_id":            prop("integer", "Conflict ID for resolve_conflict."),
+				"reason":                 prop("string", "Short reason for resolving, superseding, or retracting a claim/edge."),
 				"depth":                  prop("integer", "Depth for subgraph traversal (1-3, default 2)"),
 				"limit":                  prop("integer", "Max results for get_neighbors (default 20)"),
 				"include_low_confidence": prop("boolean", "Include low-confidence pending co-mention edges in search and get_neighbors results. Defaults to false."),
+				"include_inactive":       prop("boolean", "Include superseded, retracted, or rejected claims in explain_edge. Defaults to false."),
 			}, "operation"),
 		))
 	}

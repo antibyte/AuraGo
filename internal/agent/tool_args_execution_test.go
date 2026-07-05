@@ -749,10 +749,14 @@ func TestDecodeKnowledgeGraphArgsUsesParamsFallback(t *testing.T) {
 			"target":                 "rack-1",
 			"relation":               "located_in",
 			"new_relation":           "runs_in",
+			"claim_id":               "claim-123",
+			"conflict_id":            "42",
+			"reason":                 "user correction",
 			"depth":                  float64(3),
 			"limit":                  float64(25),
 			"content":                "search term",
 			"include_low_confidence": true,
+			"include_inactive":       true,
 			"properties": map[string]interface{}{
 				"role": "db",
 			},
@@ -765,11 +769,17 @@ func TestDecodeKnowledgeGraphArgsUsesParamsFallback(t *testing.T) {
 	if req.Source != "srv-1" || req.Target != "rack-1" || req.Relation != "located_in" || req.NewRelation != "runs_in" {
 		t.Fatalf("unexpected edge decode: %+v", req)
 	}
+	if req.ClaimID != "claim-123" || req.ConflictID != 42 || req.Reason != "user correction" {
+		t.Fatalf("unexpected provenance decode: %+v", req)
+	}
 	if req.Depth != 3 || req.Limit != 25 || req.Content != "search term" {
 		t.Fatalf("unexpected depth/limit/content decode: %+v", req)
 	}
 	if !req.IncludeLowConfidence {
 		t.Fatalf("IncludeLowConfidence = false, want true: %+v", req)
+	}
+	if !req.IncludeInactive {
+		t.Fatalf("IncludeInactive = false, want true: %+v", req)
 	}
 	if req.Properties["role"] != "db" {
 		t.Fatalf("Properties[role] = %q, want db", req.Properties["role"])

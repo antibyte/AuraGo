@@ -172,6 +172,217 @@ func TestDispatchExecKnowledgeGraphHealth(t *testing.T) {
 	}
 }
 
+func TestDispatchExecKnowledgeGraphProvenanceOperations(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Tools.KnowledgeGraph.Enabled = true
+	cfg.Tools.KnowledgeGraph.ReadOnly = true
+
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+	kg, err := memory.NewKnowledgeGraph(":memory:", "", logger)
+	if err != nil {
+		t.Fatalf("NewKnowledgeGraph: %v", err)
+	}
+	t.Cleanup(func() { _ = kg.Close() })
+
+	germanClaim, err := kg.AddEdgeWithProvenance("user", "german", "primary_language", nil, memory.KGProvenanceInput{SourceKind: "user"})
+	if err != nil {
+		t.Fatalf("AddEdgeWithProvenance german: %v", err)
+	}
+	englishClaim, err := kg.AddEdgeWithProvenance("user", "english", "primary_language", nil, memory.KGProvenanceInput{SourceKind: "user"})
+	if err != nil {
+		t.Fatalf("AddEdgeWithProvenance english: %v", err)
+	}
+	if germanClaim.ID == englishClaim.ID {
+		t.Fatalf("expected distinct claims")
+	}
+
+	out, ok := dispatchExec(
+		context.Background(),
+		ToolCall{Action: "knowledge_graph", Operation: "list_conflicts", Params: map[string]interface{}{"limit": float64(5)}},
+		&DispatchContext{Cfg: cfg, Logger: logger, KG: kg},
+	)
+	if !ok {
+		t.Fatal("expected dispatchExec to handle list_conflicts")
+	}
+	var conflictPayload struct {
+		Status    string              `json:"status"`
+		Count     int                 `json:"count"`
+		Conflicts []memory.KGConflict `json:"conflicts"`
+	}
+	if err := json.Unmarshal([]byte(strings.TrimPrefix(out, "Tool Output: ")), &conflictPayload); err != nil {
+		t.Fatalf("unmarshal list_conflicts: %v\n%s", err, out)
+	}
+	if conflictPayload.Status != "success" || conflictPayload.Count != 1 || len(conflictPayload.Conflicts) != 1 {
+		t.Fatalf("unexpected conflict payload: %+v", conflictPayload)
+	}
+
+	out, ok = dispatchExec(
+		context.Background(),
+		ToolCall{
+			Action:    "knowledge_graph",
+			Operation: "explain_edge",
+			Params: map[string]interface{}{
+				"source":           "user",
+				"target":           "german",
+				"relation":         "primary_language",
+				"include_inactive": true,
+			},
+		},
+		&DispatchContext{Cfg: cfg, Logger: logger, KG: kg},
+	)
+	if !ok {
+		t.Fatal("expected dispatchExec to handle explain_edge")
+	}
+	var explainPayload struct {
+		Status string           `json:"status"`
+		Count  int              `json:"count"`
+		Claims []memory.KGClaim `json:"claims"`
+	}
+	if err := json.Unmarshal([]byte(strings.TrimPrefix(out, "Tool Output: ")), &explainPayload); err != nil {
+		t.Fatalf("unmarshal explain_edge: %v\n%s", err, out)
+	}
+	if explainPayload.Status != "success" || explainPayload.Count != 1 || explainPayload.Claims[0].ID != germanClaim.ID {
+		t.Fatalf("unexpected explain_edge payload: %+v", explainPayload)
+	}
+
+	out, ok = dispatchExec(
+		context.Background(),
+		ToolCall{
+			Action:    "knowledge_graph",
+			Operation: "resolve_conflict",
+			Params: map[string]interface{}{
+				"conflict_id": conflictPayload.Conflicts[0].ID,
+				"claim_id":    englishClaim.ID,
+			},
+		},
+		&DispatchContext{Cfg: cfg, Logger: logger, KG: kg},
+	)
+	if !ok {
+		t.Fatal("expected dispatchExec to handle resolve_conflict")
+	}
+	if !strings.Contains(out, "read-only mode") {
+		t.Fatalf("expected read-only resolve_conflict block, got %s", out)
+	}
+
+	cfg.Tools.KnowledgeGraph.ReadOnly = false
+	out, ok = dispatchExec(
+		context.Background(),
+		ToolCall{
+			Action:    "knowledge_graph",
+			Operation: "resolve_conflict",
+			Params: map[string]interface{}{
+				"conflict_id": conflictPayload.Conflicts[0].ID,
+				"claim_id":    englishClaim.ID,
+				"reason":      "newer user correction",
+			},
+		},
+		&DispatchContext{Cfg: cfg, Logger: logger, KG: kg},
+	)
+	if !ok {
+		t.Fatal("expected dispatchExec to handle resolve_conflict")
+	}
+	var resolvePayload struct {
+		Status         string `json:"status"`
+		ConflictID     int64  `json:"conflict_id"`
+		WinningClaimID string `json:"winning_claim_id"`
+	}
+	if err := json.Unmarshal([]byte(strings.TrimPrefix(out, "Tool Output: ")), &resolvePayload); err != nil {
+		t.Fatalf("unmarshal resolve_conflict: %v\n%s", err, out)
+	}
+	if resolvePayload.Status != "success" || resolvePayload.ConflictID != conflictPayload.Conflicts[0].ID || resolvePayload.WinningClaimID != englishClaim.ID {
+		t.Fatalf("unexpected resolve payload: %+v", resolvePayload)
+	}
+	germanClaims, err := kg.GetClaimsForEdge("user", "german", "primary_language", true, 10)
+	if err != nil {
+		t.Fatalf("GetClaimsForEdge german: %v", err)
+	}
+	if len(germanClaims) != 1 || germanClaims[0].Status != memory.KGClaimSuperseded {
+		t.Fatalf("expected losing claim superseded, got %+v", germanClaims)
+	}
+}
+
+func TestDispatchExecKnowledgeGraphSupersedeAndRetractEdges(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Tools.KnowledgeGraph.Enabled = true
+
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+	kg, err := memory.NewKnowledgeGraph(":memory:", "", logger)
+	if err != nil {
+		t.Fatalf("NewKnowledgeGraph: %v", err)
+	}
+	t.Cleanup(func() { _ = kg.Close() })
+
+	if _, err := kg.AddEdgeWithProvenance("server", "old-rack", "located_in", nil, memory.KGProvenanceInput{SourceKind: "manual"}); err != nil {
+		t.Fatalf("AddEdgeWithProvenance supersede: %v", err)
+	}
+	out, ok := dispatchExec(
+		context.Background(),
+		ToolCall{
+			Action:    "knowledge_graph",
+			Operation: "supersede_edge",
+			Params: map[string]interface{}{
+				"source":   "server",
+				"target":   "old-rack",
+				"relation": "located_in",
+				"claim_id": "claim-new-rack",
+				"reason":   "inventory correction",
+			},
+		},
+		&DispatchContext{Cfg: cfg, Logger: logger, KG: kg},
+	)
+	if !ok {
+		t.Fatal("expected dispatchExec to handle supersede_edge")
+	}
+	if !strings.Contains(out, `"status":"success"`) {
+		t.Fatalf("expected successful supersede_edge, got %s", out)
+	}
+	supersededClaims, err := kg.GetClaimsForEdge("server", "old-rack", "located_in", true, 10)
+	if err != nil {
+		t.Fatalf("GetClaimsForEdge superseded: %v", err)
+	}
+	if len(supersededClaims) != 1 || supersededClaims[0].Status != memory.KGClaimSuperseded || supersededClaims[0].SupersededBy != "claim-new-rack" {
+		t.Fatalf("expected superseded claim, got %+v", supersededClaims)
+	}
+
+	if _, err := kg.AddEdgeWithProvenance("server", "guest-wifi", "uses_network", nil, memory.KGProvenanceInput{SourceKind: "manual"}); err != nil {
+		t.Fatalf("AddEdgeWithProvenance retract: %v", err)
+	}
+	out, ok = dispatchExec(
+		context.Background(),
+		ToolCall{
+			Action:    "knowledge_graph",
+			Operation: "retract_edge",
+			Params: map[string]interface{}{
+				"source":   "server",
+				"target":   "guest-wifi",
+				"relation": "uses_network",
+				"reason":   "edge was wrong",
+			},
+		},
+		&DispatchContext{Cfg: cfg, Logger: logger, KG: kg},
+	)
+	if !ok {
+		t.Fatal("expected dispatchExec to handle retract_edge")
+	}
+	if !strings.Contains(out, `"status":"success"`) {
+		t.Fatalf("expected successful retract_edge, got %s", out)
+	}
+	activeClaims, err := kg.GetClaimsForEdge("server", "guest-wifi", "uses_network", false, 10)
+	if err != nil {
+		t.Fatalf("GetClaimsForEdge active: %v", err)
+	}
+	if len(activeClaims) != 0 {
+		t.Fatalf("expected no active claims after retract, got %+v", activeClaims)
+	}
+	historyClaims, err := kg.GetClaimsForEdge("server", "guest-wifi", "uses_network", true, 10)
+	if err != nil {
+		t.Fatalf("GetClaimsForEdge history: %v", err)
+	}
+	if len(historyClaims) != 1 || historyClaims[0].Status != memory.KGClaimRetracted {
+		t.Fatalf("expected retracted claim history, got %+v", historyClaims)
+	}
+}
+
 func TestDispatchExecManageUpdatesCheckUsesSharedUpdater(t *testing.T) {
 	dir := t.TempDir()
 	cfg := &config.Config{}

@@ -73,10 +73,14 @@ type knowledgeGraphArgs struct {
 	Target               string
 	Relation             string
 	NewRelation          string
+	ClaimID              string
+	ConflictID           int64
+	Reason               string
 	Limit                int
 	Depth                int
 	Content              string
 	IncludeLowConfidence bool
+	IncludeInactive      bool
 }
 
 type coreMemoryArgs struct {
@@ -627,12 +631,17 @@ func decodeKnowledgeGraphArgs(tc ToolCall) knowledgeGraphArgs {
 		Target:      firstNonEmptyToolString(tc.Target, toolArgString(tc.Params, "target")),
 		Relation:    firstNonEmptyToolString(tc.Relation, toolArgString(tc.Params, "relation")),
 		NewRelation: firstNonEmptyToolString(tc.NewRelation, toolArgString(tc.Params, "new_relation")),
+		ClaimID:     toolArgString(tc.Params, "claim_id"),
+		ConflictID:  toolArgInt64(tc.Params, "conflict_id"),
+		Reason:      toolArgString(tc.Params, "reason"),
 		Limit:       firstNonEmptyInt(tc.Limit, toolArgInt(tc.Params, 0, "limit")),
 		Depth:       firstNonEmptyInt(tc.Depth, toolArgInt(tc.Params, 0, "depth")),
 		Content:     firstNonEmptyToolString(tc.Content, toolArgString(tc.Params, "content")),
 	}
 	includeLowConfidence, _ := toolArgBool(tc.Params, "include_low_confidence")
 	req.IncludeLowConfidence = includeLowConfidence
+	includeInactive, _ := toolArgBool(tc.Params, "include_inactive")
+	req.IncludeInactive = includeInactive
 	if len(req.Properties) == 0 {
 		req.Properties = toolArgStringMap(tc.Params, "properties")
 	}
