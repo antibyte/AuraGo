@@ -32,6 +32,11 @@ func applyPromptSecToLatestUserMessage(messages []openai.ChatCompletionMessage, 
 				if scan.Sanitized == "" || scan.Sanitized == part.Text {
 					continue
 				}
+				// Chat requests already carry the trusted prompt in a system role.
+				// Do not copy PromptSec's structural wrapper into user content.
+				if guardian.HasPromptSecStructuredOutput(scan.Sanitized) {
+					continue
+				}
 				updatedParts[partIdx].Text = scan.Sanitized
 				applied = true
 			}
@@ -52,6 +57,11 @@ func applyPromptSecToLatestUserMessage(messages []openai.ChatCompletionMessage, 
 
 		scan := guardian.SanitizeForLLM(msg.Content, "user")
 		if scan.Sanitized == "" || scan.Sanitized == msg.Content {
+			return messages, false
+		}
+		// Chat requests already carry the trusted prompt in a system role.
+		// Do not copy PromptSec's structural wrapper into user content.
+		if guardian.HasPromptSecStructuredOutput(scan.Sanitized) {
 			return messages, false
 		}
 
