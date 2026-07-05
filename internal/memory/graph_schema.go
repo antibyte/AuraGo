@@ -42,6 +42,56 @@ func (kg *KnowledgeGraph) initTables() error {
 		FOREIGN KEY(target) REFERENCES kg_nodes(id) ON DELETE CASCADE
 	);
 
+	CREATE TABLE IF NOT EXISTS kg_evidence (
+		id TEXT PRIMARY KEY,
+		evidence_type TEXT NOT NULL DEFAULT '',
+		source_message_id TEXT NOT NULL DEFAULT '',
+		session_id TEXT NOT NULL DEFAULT '',
+		channel TEXT NOT NULL DEFAULT '',
+		actor TEXT NOT NULL DEFAULT '',
+		raw_text TEXT NOT NULL DEFAULT '',
+		source_uri TEXT NOT NULL DEFAULT '',
+		content_hash TEXT NOT NULL DEFAULT '',
+		captured_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	);
+
+	CREATE TABLE IF NOT EXISTS kg_claims (
+		id TEXT PRIMARY KEY,
+		subject_id TEXT NOT NULL,
+		predicate TEXT NOT NULL,
+		object_id TEXT NOT NULL DEFAULT '',
+		object_literal TEXT NOT NULL DEFAULT '',
+		asserted_in_graph TEXT NOT NULL DEFAULT 'local:worldview',
+		learned_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		accepted_at DATETIME,
+		confidence REAL NOT NULL DEFAULT 0.75,
+		confidence_label TEXT NOT NULL DEFAULT '',
+		source_kind TEXT NOT NULL DEFAULT 'system',
+		ingestion_run_id TEXT NOT NULL DEFAULT '',
+		status TEXT NOT NULL DEFAULT 'accepted',
+		superseded_by TEXT NOT NULL DEFAULT '',
+		source_message_id TEXT NOT NULL DEFAULT '',
+		session_id TEXT NOT NULL DEFAULT '',
+		privacy_class TEXT NOT NULL DEFAULT 'normal',
+		retention_policy TEXT NOT NULL DEFAULT 'default',
+		evidence_id TEXT DEFAULT NULL,
+		FOREIGN KEY(evidence_id) REFERENCES kg_evidence(id) ON DELETE SET NULL
+	);
+
+	CREATE TABLE IF NOT EXISTS kg_conflicts (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		subject_id TEXT NOT NULL,
+		predicate TEXT NOT NULL,
+		left_claim_id TEXT NOT NULL,
+		right_claim_id TEXT NOT NULL,
+		winning_claim_id TEXT DEFAULT NULL,
+		superseded_claim_id TEXT DEFAULT NULL,
+		reason TEXT NOT NULL DEFAULT '',
+		status TEXT NOT NULL DEFAULT 'open',
+		detected_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		resolved_at DATETIME
+	);
+
 	CREATE TABLE IF NOT EXISTS kg_meta (key TEXT PRIMARY KEY, value TEXT);
 	`
 	if _, err := kg.db.Exec(schema); err != nil {
@@ -125,6 +175,12 @@ func (kg *KnowledgeGraph) initTables() error {
 		`CREATE INDEX IF NOT EXISTS idx_kg_edges_semantic_indexed_at ON kg_edges(semantic_indexed_at)`,
 		`CREATE INDEX IF NOT EXISTS idx_kg_edges_relation ON kg_edges(relation)`,
 		`CREATE INDEX IF NOT EXISTS idx_kg_edges_source_target ON kg_edges(source, target)`,
+		`CREATE INDEX IF NOT EXISTS idx_kg_claims_fact ON kg_claims(subject_id, predicate, object_id, object_literal)`,
+		`CREATE INDEX IF NOT EXISTS idx_kg_claims_status ON kg_claims(status, learned_at DESC)`,
+		`CREATE INDEX IF NOT EXISTS idx_kg_claims_evidence ON kg_claims(evidence_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_kg_conflicts_status ON kg_conflicts(status, detected_at DESC)`,
+		`CREATE INDEX IF NOT EXISTS idx_kg_conflicts_fact ON kg_conflicts(subject_id, predicate)`,
+		`CREATE UNIQUE INDEX IF NOT EXISTS idx_kg_conflicts_pair_open ON kg_conflicts(subject_id, predicate, left_claim_id, right_claim_id) WHERE status='open'`,
 	}
 	for _, stmt := range idxStmts {
 		if _, err := kg.db.Exec(stmt); err != nil {
