@@ -168,6 +168,80 @@ func TestRetractedEdgesKeepClaimHistory(t *testing.T) {
 	}
 }
 
+func TestKGConflictResolutionSupersedesLosingClaimAndEdge(t *testing.T) {
+	kg := newTestKG(t)
+
+	germanClaim, err := kg.AddEdgeWithProvenance("user", "german", "primary_language", nil, KGProvenanceInput{SourceKind: "user"})
+	if err != nil {
+		t.Fatalf("add german claim: %v", err)
+	}
+	englishClaim, err := kg.AddEdgeWithProvenance("user", "english", "primary_language", nil, KGProvenanceInput{SourceKind: "user"})
+	if err != nil {
+		t.Fatalf("add english claim: %v", err)
+	}
+
+	conflicts, err := kg.GetOpenKGConflicts(10)
+	if err != nil {
+		t.Fatalf("GetOpenKGConflicts: %v", err)
+	}
+	if len(conflicts) != 1 {
+		t.Fatalf("conflicts len = %d, want 1: %#v", len(conflicts), conflicts)
+	}
+	if conflicts[0].SubjectID != "user" || conflicts[0].Predicate != "primary_language" {
+		t.Fatalf("unexpected conflict: %#v", conflicts[0])
+	}
+
+	if err := kg.ResolveKGConflict(conflicts[0].ID, englishClaim.ID, "newer correction wins"); err != nil {
+		t.Fatalf("ResolveKGConflict: %v", err)
+	}
+
+	germanClaims, err := kg.GetClaimsForEdge("user", "german", "primary_language", true, 10)
+	if err != nil {
+		t.Fatalf("GetClaimsForEdge german: %v", err)
+	}
+	if len(germanClaims) != 1 || germanClaims[0].Status != KGClaimSuperseded || germanClaims[0].SupersededBy != englishClaim.ID {
+		t.Fatalf("german claim should be superseded by %s; original=%s got %#v", englishClaim.ID, germanClaim.ID, germanClaims)
+	}
+
+	englishClaims, err := kg.GetClaimsForEdge("user", "english", "primary_language", false, 10)
+	if err != nil {
+		t.Fatalf("GetClaimsForEdge english: %v", err)
+	}
+	if len(englishClaims) != 1 || englishClaims[0].Status != KGClaimAccepted {
+		t.Fatalf("english claim should remain accepted, got %#v", englishClaims)
+	}
+
+	edges, err := kg.GetImportantEdges(10, []string{"user"})
+	if err != nil {
+		t.Fatalf("GetImportantEdges: %v", err)
+	}
+	if containsTestEdge(edges, "user", "german", "primary_language") {
+		t.Fatalf("losing edge should be hidden after conflict resolution: %#v", edges)
+	}
+	if !containsTestEdge(edges, "user", "english", "primary_language") {
+		t.Fatalf("winning edge should remain active: %#v", edges)
+	}
+}
+
+func TestKGConflictDetectionSkipsMultiValuedPredicates(t *testing.T) {
+	kg := newTestKG(t)
+
+	if _, err := kg.AddEdgeWithProvenance("user", "shell", "uses_tool", nil, KGProvenanceInput{SourceKind: "user"}); err != nil {
+		t.Fatalf("add shell tool: %v", err)
+	}
+	if _, err := kg.AddEdgeWithProvenance("user", "python", "uses_tool", nil, KGProvenanceInput{SourceKind: "user"}); err != nil {
+		t.Fatalf("add python tool: %v", err)
+	}
+
+	conflicts, err := kg.GetOpenKGConflicts(10)
+	if err != nil {
+		t.Fatalf("GetOpenKGConflicts: %v", err)
+	}
+	if len(conflicts) != 0 {
+		t.Fatalf("multi-valued predicate should not create conflicts: %#v", conflicts)
+	}
+}
+
 func containsTestEdge(edges []Edge, source, target, relation string) bool {
 	for _, edge := range edges {
 		if edge.Source == source && edge.Target == target && edge.Relation == relation {

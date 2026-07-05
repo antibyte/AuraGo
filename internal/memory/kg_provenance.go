@@ -167,6 +167,9 @@ func (kg *KnowledgeGraph) AddEdgeWithProvenance(source, target, relation string,
 		nullableString(evidenceID)); err != nil {
 		return nil, fmt.Errorf("insert kg claim: %w", err)
 	}
+	if err := kg.detectKGConflictsTx(tx, claimID, source, target, relation, finalProps); err != nil {
+		return nil, err
+	}
 
 	claim, err := getKGClaimByIDTx(tx, claimID)
 	if err != nil {
@@ -268,6 +271,114 @@ func (kg *KnowledgeGraph) RetractEdge(source, target, relation, reason string) e
 	return nil
 }
 
+func (kg *KnowledgeGraph) RegisterKGConflict(subjectID, predicate, leftClaimID, rightClaimID, reason string) error {
+	tx, err := kg.db.Begin()
+	if err != nil {
+		return fmt.Errorf("begin kg conflict registration: %w", err)
+	}
+	defer tx.Rollback()
+	if err := registerKGConflictTx(tx, subjectID, predicate, leftClaimID, rightClaimID, reason); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func (kg *KnowledgeGraph) GetOpenKGConflicts(limit int) ([]KGConflict, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+	if limit > 500 {
+		limit = 500
+	}
+	rows, err := kg.db.Query(`
+		SELECT id, subject_id, predicate, left_claim_id, right_claim_id,
+		       COALESCE(winning_claim_id, ''), COALESCE(superseded_claim_id, ''),
+		       reason, status, COALESCE(detected_at, ''), COALESCE(resolved_at, '')
+		FROM kg_conflicts
+		WHERE status = 'open'
+		ORDER BY detected_at DESC, id DESC
+		LIMIT ?
+	`, limit)
+	if err != nil {
+		return nil, fmt.Errorf("query open kg conflicts: %w", err)
+	}
+	defer rows.Close()
+	return scanKGConflictRows(rows)
+}
+
+func (kg *KnowledgeGraph) ResolveKGConflict(id int64, winningClaimID, reason string) error {
+	winningClaimID = strings.TrimSpace(winningClaimID)
+	reason = strings.TrimSpace(reason)
+	if id <= 0 || winningClaimID == "" {
+		return fmt.Errorf("conflict id and winning claim id are required")
+	}
+
+	tx, err := kg.db.Begin()
+	if err != nil {
+		return fmt.Errorf("begin kg conflict resolution: %w", err)
+	}
+	defer tx.Rollback()
+
+	conflict, err := getKGConflictByIDTx(tx, id)
+	if err != nil {
+		return fmt.Errorf("load kg conflict: %w", err)
+	}
+	if conflict.Status != "open" {
+		return fmt.Errorf("kg conflict %d is not open", id)
+	}
+	var losingClaimID string
+	switch winningClaimID {
+	case conflict.LeftClaimID:
+		losingClaimID = conflict.RightClaimID
+	case conflict.RightClaimID:
+		losingClaimID = conflict.LeftClaimID
+	default:
+		return fmt.Errorf("winning claim %s does not belong to conflict %d", winningClaimID, id)
+	}
+
+	winning, err := getKGClaimCoreTx(tx, winningClaimID)
+	if err != nil {
+		return fmt.Errorf("load winning kg claim: %w", err)
+	}
+	losing, err := getKGClaimCoreTx(tx, losingClaimID)
+	if err != nil {
+		return fmt.Errorf("load losing kg claim: %w", err)
+	}
+	if winning.SubjectID != conflict.SubjectID || winning.Predicate != conflict.Predicate {
+		return fmt.Errorf("winning claim %s does not match conflict fact", winningClaimID)
+	}
+
+	if _, err := tx.Exec(`
+		UPDATE kg_claims
+		SET status = ?, superseded_by = ?
+		WHERE id = ?
+	`, string(KGClaimSuperseded), winningClaimID, losingClaimID); err != nil {
+		return fmt.Errorf("supersede losing kg claim: %w", err)
+	}
+	if _, err := tx.Exec(`
+		UPDATE kg_edges
+		SET status = ?, superseded_by_claim_id = ?, status_reason = ?, updated_at = CURRENT_TIMESTAMP
+		WHERE source = ? AND target = ? AND relation = ?
+	`, string(KGClaimSuperseded), winningClaimID, reason, losing.SubjectID, losing.ObjectID, losing.Predicate); err != nil {
+		return fmt.Errorf("supersede losing kg edge: %w", err)
+	}
+	if _, err := tx.Exec(`
+		UPDATE kg_conflicts
+		SET status = 'resolved', winning_claim_id = ?, superseded_claim_id = ?, reason = ?, resolved_at = CURRENT_TIMESTAMP
+		WHERE id = ?
+	`, winningClaimID, losingClaimID, reason, id); err != nil {
+		return fmt.Errorf("resolve kg conflict: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	if err := kg.removeSemanticEdgeIndex(losing.SubjectID, losing.ObjectID, losing.Predicate); err != nil && kg.logger != nil {
+		kg.logger.Warn("ResolveKGConflict: failed to remove losing semantic edge index", "source", losing.SubjectID, "target", losing.ObjectID, "relation", losing.Predicate, "error", err)
+	}
+	return nil
+}
+
 func (kg *KnowledgeGraph) GetClaimsForEdge(source, target, relation string, includeInactive bool, limit int) ([]KGClaim, error) {
 	source = strings.TrimSpace(source)
 	target = strings.TrimSpace(target)
@@ -301,6 +412,137 @@ func activeKGEdgePredicate(alias string) string {
 		return "COALESCE(status, 'accepted') = 'accepted'"
 	}
 	return fmt.Sprintf("COALESCE(%s.status, 'accepted') = 'accepted'", alias)
+}
+
+func (kg *KnowledgeGraph) detectKGConflictsTx(tx *sql.Tx, claimID, subjectID, objectID, predicate string, properties map[string]string) error {
+	if !isExclusiveKGPredicate(predicate, properties) {
+		return nil
+	}
+	rows, err := tx.Query(`
+		SELECT id
+		FROM kg_claims
+		WHERE subject_id = ? AND predicate = ? AND status = ? AND id != ?
+		  AND COALESCE(object_id, '') != ?
+		LIMIT 25
+	`, subjectID, predicate, string(KGClaimAccepted), claimID, objectID)
+	if err != nil {
+		return fmt.Errorf("query exclusive kg claim conflicts: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var otherClaimID string
+		if err := rows.Scan(&otherClaimID); err != nil {
+			return fmt.Errorf("scan exclusive kg claim conflict: %w", err)
+		}
+		if err := registerKGConflictTx(tx, subjectID, predicate, otherClaimID, claimID, "exclusive predicate has multiple accepted objects"); err != nil {
+			return err
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("iterate exclusive kg claim conflicts: %w", err)
+	}
+	return nil
+}
+
+func registerKGConflictTx(tx *sql.Tx, subjectID, predicate, leftClaimID, rightClaimID, reason string) error {
+	subjectID = strings.TrimSpace(subjectID)
+	predicate = strings.TrimSpace(predicate)
+	leftClaimID = strings.TrimSpace(leftClaimID)
+	rightClaimID = strings.TrimSpace(rightClaimID)
+	reason = strings.TrimSpace(reason)
+	if subjectID == "" || predicate == "" || leftClaimID == "" || rightClaimID == "" {
+		return fmt.Errorf("subject, predicate, and claim ids are required")
+	}
+	if rightClaimID < leftClaimID {
+		leftClaimID, rightClaimID = rightClaimID, leftClaimID
+	}
+	if _, err := tx.Exec(`
+		INSERT OR IGNORE INTO kg_conflicts (subject_id, predicate, left_claim_id, right_claim_id, reason, status)
+		VALUES (?, ?, ?, ?, ?, 'open')
+	`, subjectID, predicate, leftClaimID, rightClaimID, reason); err != nil {
+		return fmt.Errorf("insert kg conflict: %w", err)
+	}
+	return nil
+}
+
+func isExclusiveKGPredicate(predicate string, properties map[string]string) bool {
+	predicate = strings.ToLower(strings.TrimSpace(predicate))
+	if predicate == "" {
+		return false
+	}
+	props := normalizeKnowledgeGraphProperties(properties)
+	switch strings.ToLower(strings.TrimSpace(props["cardinality"])) {
+	case "single", "one", "1":
+		return true
+	}
+	switch strings.ToLower(strings.TrimSpace(props["exclusive"])) {
+	case "true", "yes", "1":
+		return true
+	}
+	switch predicate {
+	case "primary_language", "default_language", "current_ip", "current_hostname", "primary_owner":
+		return true
+	default:
+		return false
+	}
+}
+
+func scanKGConflictRows(rows *sql.Rows) ([]KGConflict, error) {
+	var conflicts []KGConflict
+	for rows.Next() {
+		var conflict KGConflict
+		if err := rows.Scan(
+			&conflict.ID, &conflict.SubjectID, &conflict.Predicate,
+			&conflict.LeftClaimID, &conflict.RightClaimID,
+			&conflict.WinningClaimID, &conflict.SupersededClaimID,
+			&conflict.Reason, &conflict.Status, &conflict.DetectedAt, &conflict.ResolvedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan kg conflict: %w", err)
+		}
+		conflicts = append(conflicts, conflict)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate kg conflicts: %w", err)
+	}
+	return conflicts, nil
+}
+
+func getKGConflictByIDTx(tx *sql.Tx, id int64) (*KGConflict, error) {
+	rows, err := tx.Query(`
+		SELECT id, subject_id, predicate, left_claim_id, right_claim_id,
+		       COALESCE(winning_claim_id, ''), COALESCE(superseded_claim_id, ''),
+		       reason, status, COALESCE(detected_at, ''), COALESCE(resolved_at, '')
+		FROM kg_conflicts
+		WHERE id = ?
+		LIMIT 1
+	`, id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	conflicts, err := scanKGConflictRows(rows)
+	if err != nil {
+		return nil, err
+	}
+	if len(conflicts) == 0 {
+		return nil, sql.ErrNoRows
+	}
+	return &conflicts[0], nil
+}
+
+func getKGClaimCoreTx(tx *sql.Tx, claimID string) (*KGClaim, error) {
+	var claim KGClaim
+	var status string
+	err := tx.QueryRow(`
+		SELECT id, subject_id, predicate, object_id, status
+		FROM kg_claims
+		WHERE id = ?
+	`, claimID).Scan(&claim.ID, &claim.SubjectID, &claim.Predicate, &claim.ObjectID, &status)
+	if err != nil {
+		return nil, err
+	}
+	claim.Status = KGClaimStatus(status)
+	return &claim, nil
 }
 
 func (kg *KnowledgeGraph) insertKGEvidenceTx(tx *sql.Tx, provenance KGProvenanceInput, now time.Time) (string, error) {
