@@ -10,65 +10,11 @@ import (
 )
 
 func (kg *KnowledgeGraph) AddEdge(source, target, relation string, properties map[string]string) error {
-	source = strings.TrimSpace(source)
-	target = strings.TrimSpace(target)
-	relation = strings.TrimSpace(relation)
-	if source == "" || target == "" || relation == "" {
-		return fmt.Errorf("source, target, and relation are required")
-	}
-	properties = normalizeKnowledgeGraphProperties(properties)
-	now := time.Now()
-
-	tx, err := kg.db.Begin()
-	if err != nil {
-		return fmt.Errorf("begin add edge: %w", err)
-	}
-	defer tx.Rollback()
-
-	for _, id := range []string{source, target} {
-		if err := ensureKnowledgeGraphPlaceholderNodeTx(tx, id); err != nil {
-			kg.logger.Warn("AddEdge: failed to ensure node exists", "id", id, "error", err)
-		}
-	}
-
-	existingProps, found, err := loadKnowledgeGraphEdge(tx, source, target, relation)
-	if err != nil {
-		return fmt.Errorf("load existing edge for add: %w", err)
-	}
-
-	var finalProps map[string]string
-	if found {
-		finalProps = mergeKnowledgeGraphPropertiesOverwrite(existingProps, properties)
-		finalProps = ensureKnowledgeGraphEdgeQualityProperties(finalProps, "manual", now)
-	} else {
-		finalProps = ensureKnowledgeGraphEdgeQualityProperties(properties, "manual", now)
-	}
-	propsJSON, _ := json.Marshal(finalProps)
-	_, err = tx.Exec(`
-		INSERT INTO kg_edges (source, target, relation, properties, updated_at)
-		VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
-		ON CONFLICT(source, target, relation) DO UPDATE SET
-			properties = excluded.properties,
-			updated_at = CURRENT_TIMESTAMP
-	`, source, target, relation, string(propsJSON))
-	if err != nil {
-		return fmt.Errorf("add edge: %w", err)
-	}
-	if err := tx.Commit(); err != nil {
-		return err
-	}
-	if sourceNode, err := kg.GetNode(source); err == nil && sourceNode != nil {
-		kg.indexSemanticNodeAfterWrite(*sourceNode)
-	} else if err != nil && kg.logger != nil {
-		kg.logger.Warn("AddEdge: failed to reload source node for semantic index", "id", source, "error", err)
-	}
-	if targetNode, err := kg.GetNode(target); err == nil && targetNode != nil {
-		kg.indexSemanticNodeAfterWrite(*targetNode)
-	} else if err != nil && kg.logger != nil {
-		kg.logger.Warn("AddEdge: failed to reload target node for semantic index", "id", target, "error", err)
-	}
-	kg.indexSemanticEdgeAfterWrite(Edge{Source: source, Target: target, Relation: relation, Properties: finalProps})
-	return nil
+	_, err := kg.AddEdgeWithProvenance(source, target, relation, properties, KGProvenanceInput{
+		SourceKind: "manual",
+		Confidence: 1.0,
+	})
+	return err
 }
 
 // PruneOutgoingRelationEdges removes outgoing edges from source with relation where
