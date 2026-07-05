@@ -243,7 +243,7 @@ func TestHandleKnowledgeGraphHealthIncludesLifecycleCounts(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
 		t.Fatalf("decode payload: %v", err)
 	}
-	if payload.AcceptedEdges != 1 || payload.RetractedEdges != 1 || payload.OpenConflicts != 1 {
+	if payload.AcceptedEdges != 1 || payload.RetractedEdges != 1 || payload.OpenConflicts != 0 {
 		t.Fatalf("unexpected lifecycle counts: %+v", payload)
 	}
 }

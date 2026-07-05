@@ -3,6 +3,7 @@ package memory
 import (
 	"database/sql"
 	"encoding/json"
+	"strings"
 	"testing"
 )
 
@@ -168,6 +169,88 @@ func TestRetractedEdgesKeepClaimHistory(t *testing.T) {
 	}
 }
 
+func TestRetractingEdgeClosesOpenConflicts(t *testing.T) {
+	kg := newTestKG(t)
+
+	if _, err := kg.AddEdgeWithProvenance("user", "german", "primary_language", nil, KGProvenanceInput{SourceKind: "user"}); err != nil {
+		t.Fatalf("add german claim: %v", err)
+	}
+	if _, err := kg.AddEdgeWithProvenance("user", "english", "primary_language", nil, KGProvenanceInput{SourceKind: "user"}); err != nil {
+		t.Fatalf("add english claim: %v", err)
+	}
+	conflicts, err := kg.GetOpenKGConflicts(10)
+	if err != nil {
+		t.Fatalf("GetOpenKGConflicts before retract: %v", err)
+	}
+	if len(conflicts) != 1 {
+		t.Fatalf("conflicts before retract = %d, want 1: %#v", len(conflicts), conflicts)
+	}
+
+	if err := kg.RetractEdge("user", "english", "primary_language", "not the current language"); err != nil {
+		t.Fatalf("RetractEdge: %v", err)
+	}
+
+	conflicts, err = kg.GetOpenKGConflicts(10)
+	if err != nil {
+		t.Fatalf("GetOpenKGConflicts after retract: %v", err)
+	}
+	if len(conflicts) != 0 {
+		t.Fatalf("retracted claim should close open conflicts, got %#v", conflicts)
+	}
+	if openRows := countOpenKGConflictRows(t, kg); openRows != 0 {
+		t.Fatalf("raw open conflict rows after retract = %d, want 0", openRows)
+	}
+	counts, err := kg.GetLifecycleCounts()
+	if err != nil {
+		t.Fatalf("GetLifecycleCounts: %v", err)
+	}
+	if counts.OpenConflicts != 0 {
+		t.Fatalf("open conflict count after retract = %d, want 0", counts.OpenConflicts)
+	}
+}
+
+func TestSupersedingEdgeClosesOpenConflicts(t *testing.T) {
+	kg := newTestKG(t)
+
+	germanClaim, err := kg.AddEdgeWithProvenance("user", "german", "primary_language", nil, KGProvenanceInput{SourceKind: "user"})
+	if err != nil {
+		t.Fatalf("add german claim: %v", err)
+	}
+	englishClaim, err := kg.AddEdgeWithProvenance("user", "english", "primary_language", nil, KGProvenanceInput{SourceKind: "user"})
+	if err != nil {
+		t.Fatalf("add english claim: %v", err)
+	}
+	conflicts, err := kg.GetOpenKGConflicts(10)
+	if err != nil {
+		t.Fatalf("GetOpenKGConflicts before supersede: %v", err)
+	}
+	if len(conflicts) != 1 {
+		t.Fatalf("conflicts before supersede = %d, want 1: %#v", len(conflicts), conflicts)
+	}
+
+	if err := kg.SupersedeEdge("user", "german", "primary_language", englishClaim.ID, "english correction wins"); err != nil {
+		t.Fatalf("SupersedeEdge: %v", err)
+	}
+
+	conflicts, err = kg.GetOpenKGConflicts(10)
+	if err != nil {
+		t.Fatalf("GetOpenKGConflicts after supersede: %v", err)
+	}
+	if len(conflicts) != 0 {
+		t.Fatalf("superseded claim %s should close conflicts against %s, got %#v", germanClaim.ID, englishClaim.ID, conflicts)
+	}
+	if openRows := countOpenKGConflictRows(t, kg); openRows != 0 {
+		t.Fatalf("raw open conflict rows after supersede = %d, want 0", openRows)
+	}
+	counts, err := kg.GetLifecycleCounts()
+	if err != nil {
+		t.Fatalf("GetLifecycleCounts: %v", err)
+	}
+	if counts.OpenConflicts != 0 {
+		t.Fatalf("open conflict count after supersede = %d, want 0", counts.OpenConflicts)
+	}
+}
+
 func TestKGConflictResolutionSupersedesLosingClaimAndEdge(t *testing.T) {
 	kg := newTestKG(t)
 
@@ -223,6 +306,36 @@ func TestKGConflictResolutionSupersedesLosingClaimAndEdge(t *testing.T) {
 	}
 }
 
+func TestResolveKGConflictRejectsInactiveWinningClaim(t *testing.T) {
+	kg := newTestKG(t)
+
+	if _, err := kg.AddEdgeWithProvenance("user", "german", "primary_language", nil, KGProvenanceInput{SourceKind: "user"}); err != nil {
+		t.Fatalf("add german claim: %v", err)
+	}
+	englishClaim, err := kg.AddEdgeWithProvenance("user", "english", "primary_language", nil, KGProvenanceInput{SourceKind: "user"})
+	if err != nil {
+		t.Fatalf("add english claim: %v", err)
+	}
+	conflicts, err := kg.GetOpenKGConflicts(10)
+	if err != nil {
+		t.Fatalf("GetOpenKGConflicts: %v", err)
+	}
+	if len(conflicts) != 1 {
+		t.Fatalf("conflicts len = %d, want 1: %#v", len(conflicts), conflicts)
+	}
+	if _, err := kg.db.Exec(`UPDATE kg_claims SET status = ? WHERE id = ?`, string(KGClaimRetracted), englishClaim.ID); err != nil {
+		t.Fatalf("force inactive winning claim: %v", err)
+	}
+
+	err = kg.ResolveKGConflict(conflicts[0].ID, englishClaim.ID, "inactive claim should not win")
+	if err == nil {
+		t.Fatalf("ResolveKGConflict should reject inactive winning claim")
+	}
+	if !strings.Contains(err.Error(), "only accepted claims can resolve conflicts") {
+		t.Fatalf("ResolveKGConflict error = %v", err)
+	}
+}
+
 func TestKGConflictDetectionSkipsMultiValuedPredicates(t *testing.T) {
 	kg := newTestKG(t)
 
@@ -249,6 +362,15 @@ func containsTestEdge(edges []Edge, source, target, relation string) bool {
 		}
 	}
 	return false
+}
+
+func countOpenKGConflictRows(t *testing.T, kg *KnowledgeGraph) int {
+	t.Helper()
+	var count int
+	if err := kg.db.QueryRow(`SELECT COUNT(*) FROM kg_conflicts WHERE status = 'open'`).Scan(&count); err != nil {
+		t.Fatalf("count raw open kg conflicts: %v", err)
+	}
+	return count
 }
 
 func decodeTestSearchEdges(t *testing.T, raw string) []Edge {

@@ -210,6 +210,10 @@ func (kg *KnowledgeGraph) SupersedeEdge(source, target, relation, supersededByCl
 	}
 	defer tx.Rollback()
 
+	affectedClaimIDs, err := listAcceptedKGClaimIDsForEdgeTx(tx, source, target, relation)
+	if err != nil {
+		return fmt.Errorf("load superseded edge claims: %w", err)
+	}
 	if _, err := tx.Exec(`
 		UPDATE kg_edges
 		SET status = ?, superseded_by_claim_id = ?, status_reason = ?, updated_at = CURRENT_TIMESTAMP
@@ -223,6 +227,9 @@ func (kg *KnowledgeGraph) SupersedeEdge(source, target, relation, supersededByCl
 		WHERE subject_id = ? AND object_id = ? AND predicate = ? AND status = ?
 	`, string(KGClaimSuperseded), supersededByClaimID, source, target, relation, string(KGClaimAccepted)); err != nil {
 		return fmt.Errorf("supersede edge claims: %w", err)
+	}
+	if err := resolveOpenKGConflictsForInactiveClaimsTx(tx, affectedClaimIDs, supersededByClaimID, reason); err != nil {
+		return fmt.Errorf("resolve superseded edge conflicts: %w", err)
 	}
 	if err := tx.Commit(); err != nil {
 		return err
@@ -248,6 +255,10 @@ func (kg *KnowledgeGraph) RetractEdge(source, target, relation, reason string) e
 	}
 	defer tx.Rollback()
 
+	affectedClaimIDs, err := listAcceptedKGClaimIDsForEdgeTx(tx, source, target, relation)
+	if err != nil {
+		return fmt.Errorf("load retracted edge claims: %w", err)
+	}
 	if _, err := tx.Exec(`
 		UPDATE kg_edges
 		SET status = ?, status_reason = ?, retracted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
@@ -261,6 +272,9 @@ func (kg *KnowledgeGraph) RetractEdge(source, target, relation, reason string) e
 		WHERE subject_id = ? AND object_id = ? AND predicate = ? AND status = ?
 	`, string(KGClaimRetracted), source, target, relation, string(KGClaimAccepted)); err != nil {
 		return fmt.Errorf("retract edge claims: %w", err)
+	}
+	if err := resolveOpenKGConflictsForInactiveClaimsTx(tx, affectedClaimIDs, "", reason); err != nil {
+		return fmt.Errorf("resolve retracted edge conflicts: %w", err)
 	}
 	if err := tx.Commit(); err != nil {
 		return err
@@ -291,14 +305,16 @@ func (kg *KnowledgeGraph) GetOpenKGConflicts(limit int) ([]KGConflict, error) {
 		limit = 500
 	}
 	rows, err := kg.db.Query(`
-		SELECT id, subject_id, predicate, left_claim_id, right_claim_id,
-		       COALESCE(winning_claim_id, ''), COALESCE(superseded_claim_id, ''),
-		       reason, status, COALESCE(detected_at, ''), COALESCE(resolved_at, '')
-		FROM kg_conflicts
-		WHERE status = 'open'
-		ORDER BY detected_at DESC, id DESC
+		SELECT c.id, c.subject_id, c.predicate, c.left_claim_id, c.right_claim_id,
+		       COALESCE(c.winning_claim_id, ''), COALESCE(c.superseded_claim_id, ''),
+		       c.reason, c.status, COALESCE(c.detected_at, ''), COALESCE(c.resolved_at, '')
+		FROM kg_conflicts c
+		JOIN kg_claims left_claim ON left_claim.id = c.left_claim_id AND left_claim.status = ?
+		JOIN kg_claims right_claim ON right_claim.id = c.right_claim_id AND right_claim.status = ?
+		WHERE c.status = 'open'
+		ORDER BY c.detected_at DESC, c.id DESC
 		LIMIT ?
-	`, limit)
+	`, string(KGClaimAccepted), string(KGClaimAccepted), limit)
 	if err != nil {
 		return nil, fmt.Errorf("query open kg conflicts: %w", err)
 	}
@@ -347,6 +363,12 @@ func (kg *KnowledgeGraph) ResolveKGConflict(id int64, winningClaimID, reason str
 	if winning.SubjectID != conflict.SubjectID || winning.Predicate != conflict.Predicate {
 		return fmt.Errorf("winning claim %s does not match conflict fact", winningClaimID)
 	}
+	if winning.Status != KGClaimAccepted {
+		return fmt.Errorf("winning claim %s is %s; only accepted claims can resolve conflicts", winningClaimID, winning.Status)
+	}
+	if losing.Status != KGClaimAccepted {
+		return fmt.Errorf("losing claim %s is %s; only accepted claims can resolve conflicts", losingClaimID, losing.Status)
+	}
 
 	if _, err := tx.Exec(`
 		UPDATE kg_claims
@@ -362,11 +384,7 @@ func (kg *KnowledgeGraph) ResolveKGConflict(id int64, winningClaimID, reason str
 	`, string(KGClaimSuperseded), winningClaimID, reason, losing.SubjectID, losing.ObjectID, losing.Predicate); err != nil {
 		return fmt.Errorf("supersede losing kg edge: %w", err)
 	}
-	if _, err := tx.Exec(`
-		UPDATE kg_conflicts
-		SET status = 'resolved', winning_claim_id = ?, superseded_claim_id = ?, reason = ?, resolved_at = CURRENT_TIMESTAMP
-		WHERE id = ?
-	`, winningClaimID, losingClaimID, reason, id); err != nil {
+	if err := resolveOpenKGConflictsForInactiveClaimsTx(tx, []string{losingClaimID}, winningClaimID, reason); err != nil {
 		return fmt.Errorf("resolve kg conflict: %w", err)
 	}
 
@@ -461,6 +479,57 @@ func registerKGConflictTx(tx *sql.Tx, subjectID, predicate, leftClaimID, rightCl
 		VALUES (?, ?, ?, ?, ?, 'open')
 	`, subjectID, predicate, leftClaimID, rightClaimID, reason); err != nil {
 		return fmt.Errorf("insert kg conflict: %w", err)
+	}
+	return nil
+}
+
+func listAcceptedKGClaimIDsForEdgeTx(tx *sql.Tx, source, target, relation string) ([]string, error) {
+	rows, err := tx.Query(`
+		SELECT id
+		FROM kg_claims
+		WHERE subject_id = ? AND object_id = ? AND predicate = ? AND status = ?
+	`, source, target, relation, string(KGClaimAccepted))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var claimIDs []string
+	for rows.Next() {
+		var claimID string
+		if err := rows.Scan(&claimID); err != nil {
+			return nil, err
+		}
+		claimIDs = append(claimIDs, claimID)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return claimIDs, nil
+}
+
+func resolveOpenKGConflictsForInactiveClaimsTx(tx *sql.Tx, claimIDs []string, winningClaimID, reason string) error {
+	winningClaimID = strings.TrimSpace(winningClaimID)
+	reason = strings.TrimSpace(reason)
+	if reason == "" {
+		reason = "claim is no longer accepted"
+	}
+	for _, claimID := range claimIDs {
+		claimID = strings.TrimSpace(claimID)
+		if claimID == "" {
+			continue
+		}
+		if _, err := tx.Exec(`
+			UPDATE kg_conflicts
+			SET status = 'resolved',
+			    winning_claim_id = CASE WHEN ? != '' THEN ? ELSE winning_claim_id END,
+			    superseded_claim_id = CASE WHEN COALESCE(superseded_claim_id, '') = '' THEN ? ELSE superseded_claim_id END,
+			    reason = ?,
+			    resolved_at = CURRENT_TIMESTAMP
+			WHERE status = 'open' AND (left_claim_id = ? OR right_claim_id = ?)
+		`, winningClaimID, winningClaimID, claimID, reason, claimID, claimID); err != nil {
+			return err
+		}
 	}
 	return nil
 }
