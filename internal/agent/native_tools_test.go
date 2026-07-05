@@ -944,6 +944,28 @@ func TestToolFeatureFlagsKeyIncludesComposioEnabled(t *testing.T) {
 	}
 }
 
+func TestBuildNativeToolSchemasGatesEvomap(t *testing.T) {
+	disabled := toolNames(BuildNativeToolSchemas(t.TempDir(), nil, ToolFeatureFlags{}, nil))
+	if containsName(disabled, "evomap") {
+		t.Fatalf("did not expect evomap schema when EvomapEnabled=false, got %v", disabled)
+	}
+
+	enabled := toolNames(BuildNativeToolSchemas(t.TempDir(), nil, ToolFeatureFlags{EvomapEnabled: true}, nil))
+	if !containsName(enabled, "evomap") {
+		t.Fatalf("expected evomap schema when EvomapEnabled=true, got %v", enabled)
+	}
+}
+
+func TestToolFeatureFlagsKeyIncludesEvomapEnabled(t *testing.T) {
+	withoutEvomap := ToolFeatureFlags{LDAPEnabled: true}
+	withEvomap := withoutEvomap
+	withEvomap.EvomapEnabled = true
+
+	if withoutEvomap.Key() == withEvomap.Key() {
+		t.Fatal("expected EvomapEnabled to change the native tool schema cache key")
+	}
+}
+
 func TestAllBuiltinToolFeatureFlagsIncludesTTS(t *testing.T) {
 	names := builtinToolNames(allBuiltinToolFeatureFlags())
 	if !containsName(names, "tts") {

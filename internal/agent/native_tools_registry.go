@@ -69,7 +69,7 @@ func allBuiltinToolFeatureFlags() ToolFeatureFlags {
 		HomeAssistantEnabled: true, DockerEnabled: true, CoAgentEnabled: true, SudoEnabled: true,
 		WebhooksEnabled: true, ProxmoxEnabled: true, FrigateEnabled: true, ThreeDPrinterEnabled: true, OllamaEnabled: true, TailscaleEnabled: true,
 		AnsibleEnabled: true, InvasionControlEnabled: true, GitHubEnabled: true, MQTTEnabled: true,
-		AdGuardEnabled: true, UptimeKumaEnabled: true, GrafanaEnabled: true, MCPEnabled: true, ComposioEnabled: true, SandboxEnabled: true, MeshCentralEnabled: true,
+		AdGuardEnabled: true, UptimeKumaEnabled: true, GrafanaEnabled: true, MCPEnabled: true, ComposioEnabled: true, EvomapEnabled: true, SandboxEnabled: true, MeshCentralEnabled: true,
 		HomepageEnabled: true, NetlifyEnabled: true, VercelEnabled: true, FirewallEnabled: true, EmailEnabled: true, AgentMailEnabled: true,
 		CloudflareTunnelEnabled: true, GoogleWorkspaceEnabled: true, OneDriveEnabled: true, WebDAVEnabled: true,
 		VirusTotalEnabled: true, GolangciLintEnabled: true, ImageGenerationEnabled: true, MusicGenerationEnabled: true, VideoGenerationEnabled: true, TTSEnabled: true, RemoteControlEnabled: true, PackageManagerEnabled: true,
@@ -135,6 +135,7 @@ func (ff ToolFeatureFlags) Key() string {
 	appendToolFeatureKeyPart("grafana", ff.GrafanaEnabled)
 	appendToolFeatureKeyPart("mcp", ff.MCPEnabled)
 	appendToolFeatureKeyPart("composio", ff.ComposioEnabled)
+	appendToolFeatureKeyPart("evomap", ff.EvomapEnabled)
 	appendToolFeatureKeyPart("sandbox", ff.SandboxEnabled)
 	appendToolFeatureKeyPart("meshcentral", ff.MeshCentralEnabled)
 	appendToolFeatureKeyPart("homepage", ff.HomepageEnabled)

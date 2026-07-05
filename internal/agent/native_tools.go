@@ -127,6 +127,7 @@ type ToolFeatureFlags struct {
 	GrafanaEnabled          bool
 	MCPEnabled              bool
 	ComposioEnabled         bool
+	EvomapEnabled           bool
 	SandboxEnabled          bool
 	MeshCentralEnabled      bool
 	HomepageEnabled         bool

@@ -176,6 +176,9 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	mux.HandleFunc("/api/uptime-kuma/test", handleUptimeKumaTest(s))
 	mux.HandleFunc("/api/grafana/status", handleGrafanaStatus(s))
 	mux.HandleFunc("/api/grafana/test", handleGrafanaTest(s))
+	mux.HandleFunc("/api/evomap/status", handleEvomapStatus(s))
+	mux.HandleFunc("/api/evomap/test", handleEvomapTest(s))
+	mux.HandleFunc("/api/evomap/register", handleEvomapRegister(s))
 	mux.HandleFunc("/api/agentmail/status", handleAgentMailStatus(s))
 	mux.HandleFunc("/api/agentmail/test", handleAgentMailTest(s))
 	mux.HandleFunc("/api/frigate/test", handleFrigateTest(s))
@@ -465,13 +468,13 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 		w.Header().Set("Content-Type", "application/json")
 		info := tools.GetHostInfo()
 		resp := map[string]string{
-			"hostname":        info.Hostname,
-			"os":              info.OS,
-			"platform":        info.Platform,
+			"hostname":         info.Hostname,
+			"os":               info.OS,
+			"platform":         info.Platform,
 			"platform_version": info.PlatformVersion,
 			"kernel_version":   info.KernelVersion,
-			"go_version":      runtime.Version(),
-			"go_arch":         runtime.GOARCH,
+			"go_version":       runtime.Version(),
+			"go_arch":          runtime.GOARCH,
 		}
 		json.NewEncoder(w).Encode(resp)
 	})

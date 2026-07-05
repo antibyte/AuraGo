@@ -700,6 +700,17 @@ func Load(path string) (*Config, error) {
 	cfg.Composio.CacheTTLSeconds = 300
 	cfg.Composio.MaxResultBytes = 262144
 
+	// EvoMap defaults: disabled by default and read-only once enabled.
+	cfg.Evomap.Enabled = false
+	cfg.Evomap.ReadOnly = true
+	cfg.Evomap.BaseURL = "https://evomap.ai"
+	cfg.Evomap.RequestTimeoutSeconds = 30
+	cfg.Evomap.MaxResultBytes = 262144
+	cfg.Evomap.KGEnabled = false
+	cfg.Evomap.AllowPublish = false
+	cfg.Evomap.AllowReport = false
+	cfg.Evomap.AllowBounties = false
+
 	// Remote control defaults: disabled by default, read-only for newly enrolled
 	// devices unless mutable operations are explicitly enabled, and audit logging stays on.
 	cfg.RemoteControl.ConnectionMode = "auto"
@@ -768,6 +779,16 @@ func Load(path string) (*Config, error) {
 	}
 	if cfg.Composio.MaxResultBytes <= 0 {
 		cfg.Composio.MaxResultBytes = 262144
+	}
+	if strings.TrimSpace(cfg.Evomap.BaseURL) == "" {
+		cfg.Evomap.BaseURL = "https://evomap.ai"
+	}
+	cfg.Evomap.BaseURL = strings.TrimRight(strings.TrimSpace(cfg.Evomap.BaseURL), "/")
+	if cfg.Evomap.RequestTimeoutSeconds <= 0 {
+		cfg.Evomap.RequestTimeoutSeconds = 30
+	}
+	if cfg.Evomap.MaxResultBytes <= 0 {
+		cfg.Evomap.MaxResultBytes = 262144
 	}
 
 	cfg.BrowserAutomation.URL = NormalizeLegacySidecarURL(cfg.BrowserAutomation.URL, runningInDocker, "browser-automation", 7331)
@@ -2239,6 +2260,16 @@ func (c *Config) Save(path string) error {
 		{[]string{"grafana", "readonly"}, c.Grafana.ReadOnly},
 		{[]string{"grafana", "insecure_ssl"}, c.Grafana.InsecureSSL},
 		{[]string{"grafana", "request_timeout"}, c.Grafana.RequestTimeout},
+		{[]string{"evomap", "enabled"}, c.Evomap.Enabled},
+		{[]string{"evomap", "readonly"}, c.Evomap.ReadOnly},
+		{[]string{"evomap", "base_url"}, c.Evomap.BaseURL},
+		{[]string{"evomap", "node_id"}, c.Evomap.NodeID},
+		{[]string{"evomap", "request_timeout_seconds"}, c.Evomap.RequestTimeoutSeconds},
+		{[]string{"evomap", "max_result_bytes"}, c.Evomap.MaxResultBytes},
+		{[]string{"evomap", "kg_enabled"}, c.Evomap.KGEnabled},
+		{[]string{"evomap", "allow_publish"}, c.Evomap.AllowPublish},
+		{[]string{"evomap", "allow_report"}, c.Evomap.AllowReport},
+		{[]string{"evomap", "allow_bounties"}, c.Evomap.AllowBounties},
 		{[]string{"frigate", "enabled"}, c.Frigate.Enabled},
 		{[]string{"frigate", "readonly"}, c.Frigate.ReadOnly},
 		{[]string{"frigate", "url"}, c.Frigate.URL},

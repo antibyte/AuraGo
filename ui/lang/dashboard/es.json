@@ -792,5 +792,6 @@
   "dashboard.error_network": "Conexión de red perdida. Comprueba tu conexión.",
   "dashboard.tablist_label": "Secciones del panel",
   "dashboard.status_label": "Estado",
-  "dashboard.integration_supertonic_tts": "Supertonic TTS"
+  "dashboard.integration_supertonic_tts": "Supertonic TTS",
+  "dashboard.integration_evomap": "EvoMap"
 }

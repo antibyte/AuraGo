@@ -792,5 +792,6 @@
   "dashboard.error_network": "Η σύνδεση δικτύου χάθηκε. Ελέγξτε τη σύνδεσή σας.",
   "dashboard.tablist_label": "Ενότητες πίνακα ελέγχου",
   "dashboard.status_label": "Κατάσταση",
-  "dashboard.integration_supertonic_tts": "Supertonic TTS"
+  "dashboard.integration_supertonic_tts": "Supertonic TTS",
+  "dashboard.integration_evomap": "EvoMap"
 }

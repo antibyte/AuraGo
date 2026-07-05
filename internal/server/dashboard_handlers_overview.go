@@ -660,6 +660,7 @@ func handleDashboardOverview(s *Server) http.HandlerFunc {
 			"security_proxy":   cfg.SecurityProxy.Enabled,
 			"sandbox":          cfg.Sandbox.Enabled,
 			"ai_gateway":       cfg.AIGateway.Enabled,
+			"evomap":           cfg.Evomap.Enabled,
 			"image_generation": cfg.ImageGeneration.Enabled,
 			"video_generation": cfg.VideoGeneration.Enabled,
 			"google_workspace": cfg.GoogleWorkspace.Enabled,

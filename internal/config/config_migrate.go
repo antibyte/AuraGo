@@ -888,6 +888,8 @@ func (c *Config) ApplyVaultSecrets(vault SecretReader) {
 	if strings.TrimSpace(c.Composio.APIKey) == "" {
 		apply("composio.api_key", &c.Composio.APIKey)
 	}
+	apply("evomap_node_secret", &c.Evomap.NodeSecret)
+	apply("evomap_api_key", &c.Evomap.APIKey)
 	apply("dograh_api_key", &c.Dograh.APIKey)
 	apply("dograh_oss_jwt_secret", &c.Dograh.OSSJWTSecret)
 	apply("dograh_postgres_password", &c.Dograh.PostgresPassword)

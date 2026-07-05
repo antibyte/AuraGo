@@ -792,5 +792,6 @@
   "dashboard.error_network": "Nettverkstilkoblingen ble mistet. Sjekk tilkoblingen din.",
   "dashboard.tablist_label": "Dashboard-deler",
   "dashboard.status_label": "Status",
-  "dashboard.integration_supertonic_tts": "Supertonic TTS"
+  "dashboard.integration_supertonic_tts": "Supertonic TTS",
+  "dashboard.integration_evomap": "EvoMap"
 }

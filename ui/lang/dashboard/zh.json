@@ -792,5 +792,6 @@
   "dashboard.error_network": "网络连接已丢失。请检查您的连接。",
   "dashboard.tablist_label": "仪表板分区",
   "dashboard.status_label": "状态",
-  "dashboard.integration_supertonic_tts": "Supertonic TTS"
+  "dashboard.integration_supertonic_tts": "Supertonic TTS",
+  "dashboard.integration_evomap": "EvoMap"
 }

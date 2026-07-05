@@ -190,6 +190,16 @@ type composioCallArgs struct {
 	Limit              int
 }
 
+type evomapArgs struct {
+	Operation string
+	Query     string
+	Problem   string
+	Question  string
+	AssetID   string
+	Limit     int
+	Signals   map[string]interface{}
+}
+
 type adGuardArgs struct {
 	Operation string
 	Query     string
@@ -894,6 +904,22 @@ func decodeComposioCallArgs(tc ToolCall) composioCallArgs {
 	req.Arguments = toolArgInterfaceMap(tc.Params, "arguments", "args", "parameters", "tool_args")
 	if req.Arguments == nil {
 		req.Arguments = map[string]interface{}{}
+	}
+	return req
+}
+
+func decodeEvomapArgs(tc ToolCall) evomapArgs {
+	req := evomapArgs{
+		Operation: firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
+		Query:     firstNonEmptyToolString(tc.Query, toolArgString(tc.Params, "query")),
+		Problem:   toolArgString(tc.Params, "problem"),
+		Question:  toolArgString(tc.Params, "question"),
+		AssetID:   toolArgString(tc.Params, "asset_id"),
+		Limit:     toolArgInt(tc.Params, 0, "limit"),
+	}
+	req.Signals = toolArgInterfaceMap(tc.Params, "signals")
+	if req.Signals == nil {
+		req.Signals = map[string]interface{}{}
 	}
 	return req
 }

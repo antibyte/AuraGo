@@ -792,5 +792,6 @@
   "dashboard.error_network": "Netwerkverbinding verbroken. Controleer je verbinding.",
   "dashboard.tablist_label": "Dashboardsecties",
   "dashboard.status_label": "Status",
-  "dashboard.integration_supertonic_tts": "Supertonic TTS"
+  "dashboard.integration_supertonic_tts": "Supertonic TTS",
+  "dashboard.integration_evomap": "EvoMap"
 }

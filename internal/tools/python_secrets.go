@@ -45,6 +45,7 @@ var blockedSecretPrefixes = []string{
 	"manifest_",
 	"omniroute_",
 	"dograh_",
+	"evomap_",
 	"desktop_store_",
 	"oauth_",
 	"mcp_secret_",
@@ -101,6 +102,8 @@ var blockedSecretExact = map[string]struct{}{
 	"egg_shared_key":              {},
 	"truenas_api_key":             {},
 	"composio_api_key":            {},
+	"evomap_node_secret":          {},
+	"evomap_api_key":              {},
 }
 
 // IsPythonAccessibleSecret returns true only if the vault key is a user/agent-created

@@ -792,5 +792,6 @@
   "dashboard.error_network": "Connessione di rete persa. Controlla la connessione.",
   "dashboard.tablist_label": "Sezioni della dashboard",
   "dashboard.status_label": "Stato",
-  "dashboard.integration_supertonic_tts": "Supertonic TTS"
+  "dashboard.integration_supertonic_tts": "Supertonic TTS",
+  "dashboard.integration_evomap": "EvoMap"
 }

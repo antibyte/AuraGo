@@ -609,6 +609,22 @@ type ComposioConfig struct {
 	APIKey                    string                  `yaml:"-" json:"-" vault:"composio_api_key"`
 }
 
+// EvomapConfig controls the optional evomap.ai integration.
+type EvomapConfig struct {
+	Enabled               bool   `yaml:"enabled" json:"enabled"`
+	ReadOnly              bool   `yaml:"readonly" json:"readonly"`
+	BaseURL               string `yaml:"base_url" json:"base_url"`
+	NodeID                string `yaml:"node_id" json:"node_id"`
+	RequestTimeoutSeconds int    `yaml:"request_timeout_seconds" json:"request_timeout_seconds"`
+	MaxResultBytes        int    `yaml:"max_result_bytes" json:"max_result_bytes"`
+	KGEnabled             bool   `yaml:"kg_enabled" json:"kg_enabled"`
+	AllowPublish          bool   `yaml:"allow_publish" json:"allow_publish"`
+	AllowReport           bool   `yaml:"allow_report" json:"allow_report"`
+	AllowBounties         bool   `yaml:"allow_bounties" json:"allow_bounties"`
+	NodeSecret            string `yaml:"-" json:"-" vault:"evomap_node_secret"`
+	APIKey                string `yaml:"-" json:"-" vault:"evomap_api_key"`
+}
+
 type Config struct {
 	ConfigPath    string             `yaml:"-"`          // runtime-only: absolute path to the config file
 	Runtime       Runtime            `yaml:"-" json:"-"` // runtime-only: detected environment capabilities
@@ -1884,6 +1900,7 @@ type Config struct {
 		Token            string            `yaml:"-" vault:"token" json:"-"`                     // optional Cloudflare AI Gateway token (vault-only)
 	} `yaml:"ai_gateway"`
 	Composio  ComposioConfig `yaml:"composio" json:"composio"`
+	Evomap    EvomapConfig   `yaml:"evomap" json:"evomap"`
 	MCPServer struct {
 		Enabled           bool     `yaml:"enabled"`
 		AllowedTools      []string `yaml:"allowed_tools"`       // tool names to expose; empty = none

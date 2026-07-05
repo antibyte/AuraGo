@@ -792,5 +792,6 @@
   "dashboard.error_network": "Ligação de rede perdida. Verifique a sua ligação.",
   "dashboard.tablist_label": "Secções do painel",
   "dashboard.status_label": "Estado",
-  "dashboard.integration_supertonic_tts": "Supertonic TTS"
+  "dashboard.integration_supertonic_tts": "Supertonic TTS",
+  "dashboard.integration_evomap": "EvoMap"
 }

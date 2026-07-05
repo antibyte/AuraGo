@@ -2252,6 +2252,84 @@ func TestConfigSaveOmitsGrafanaAPIKey(t *testing.T) {
 	}
 }
 
+func TestLoadEvomapDefaults(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(configPath, []byte("server:\n  ui_language: en\n"), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if cfg.Evomap.Enabled {
+		t.Fatal("expected evomap to be disabled by default")
+	}
+	if !cfg.Evomap.ReadOnly {
+		t.Fatal("expected evomap readonly to default to true")
+	}
+	if cfg.Evomap.BaseURL != "https://evomap.ai" {
+		t.Fatalf("base_url = %q, want https://evomap.ai", cfg.Evomap.BaseURL)
+	}
+	if cfg.Evomap.RequestTimeoutSeconds != 30 {
+		t.Fatalf("request_timeout_seconds = %d, want 30", cfg.Evomap.RequestTimeoutSeconds)
+	}
+	if cfg.Evomap.MaxResultBytes != 262144 {
+		t.Fatalf("max_result_bytes = %d, want 262144", cfg.Evomap.MaxResultBytes)
+	}
+	if cfg.Evomap.KGEnabled || cfg.Evomap.AllowPublish || cfg.Evomap.AllowReport || cfg.Evomap.AllowBounties {
+		t.Fatalf("expected paid/mutating evomap gates to default false: %+v", cfg.Evomap)
+	}
+}
+
+func TestApplyVaultSecretsLoadsEvomapSecrets(t *testing.T) {
+	cfg := &Config{}
+	vault := &testSecretVault{data: map[string]string{
+		"evomap_node_secret": "node-secret-from-vault",
+		"evomap_api_key":     "kg-secret-from-vault",
+	}}
+
+	cfg.ApplyVaultSecrets(vault)
+
+	if cfg.Evomap.NodeSecret != "node-secret-from-vault" {
+		t.Fatalf("NodeSecret = %q, want node secret", cfg.Evomap.NodeSecret)
+	}
+	if cfg.Evomap.APIKey != "kg-secret-from-vault" {
+		t.Fatalf("APIKey = %q, want KG API key", cfg.Evomap.APIKey)
+	}
+}
+
+func TestConfigSaveOmitsEvomapSecrets(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(configPath, []byte("server:\n  ui_language: en\n"), 0o644); err != nil {
+		t.Fatalf("failed to seed config file: %v", err)
+	}
+	cfg := &Config{}
+	cfg.Evomap.Enabled = true
+	cfg.Evomap.ReadOnly = true
+	cfg.Evomap.BaseURL = "https://evomap.ai"
+	cfg.Evomap.NodeID = "node-123"
+	cfg.Evomap.NodeSecret = "node_secret_should_not_be_serialized"
+	cfg.Evomap.APIKey = "kg_key_should_not_be_serialized"
+
+	if err := cfg.Save(configPath); err != nil {
+		t.Fatalf("Save() error = %v", err)
+	}
+
+	raw, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("os.ReadFile() error = %v", err)
+	}
+	got := string(raw)
+	if strings.Contains(got, "node_secret_should_not_be_serialized") || strings.Contains(got, "kg_key_should_not_be_serialized") || strings.Contains(got, "node_secret:") || strings.Contains(got, "api_key:") {
+		t.Fatalf("expected EvoMap secrets to stay out of YAML, got:\n%s", got)
+	}
+	if !strings.Contains(got, "evomap:") || !strings.Contains(got, "node_id: node-123") {
+		t.Fatalf("expected non-secret EvoMap settings to be serialized, got:\n%s", got)
+	}
+}
+
 func TestApplyVaultSecretsLoadsSpaceAgentSecrets(t *testing.T) {
 	cfg := &Config{}
 	vault := &testSecretVault{data: map[string]string{
