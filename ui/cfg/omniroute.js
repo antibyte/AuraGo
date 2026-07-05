@@ -187,8 +187,8 @@ function omniRouteSecretField(labelKey, helpKey, id, path, placeholder) {
 function omniRouteToggleEnabled(isOn) {
     const data = omniRouteEnsureData();
     data.enabled = !isOn;
-    setDirty(true);
     renderOmniRouteSection(null);
+    markDirty();
 }
 
 function omniRoutePayload() {
