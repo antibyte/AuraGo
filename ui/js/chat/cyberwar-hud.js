@@ -23,8 +23,10 @@
     let threatDecayTimer = null;
     let threatBumpDebounce = 0;
     let updateFrame = 0;
+    let positionFrame = 0;
     let unsubscribeFns = [];
     let _wired = false;
+    let _positionSynced = false;
 
     const motionQuery = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
     const mobileQuery = window.matchMedia ? window.matchMedia('(max-width: 767px)') : null;
@@ -312,6 +314,21 @@
         if (updateFrame) { (window.cancelAnimationFrame || window.clearTimeout)(updateFrame); updateFrame = 0; }
     }
 
+    function syncPosition() {
+        if (positionFrame) return;
+        const raf = window.requestAnimationFrame || ((cb) => window.setTimeout(cb, 16));
+        positionFrame = raf(function () {
+            positionFrame = 0;
+            if (!hud || !hud.classList.contains('hud-active')) return;
+            const chatBox = document.getElementById(CHAT_BOX_ID);
+            if (!chatBox) return;
+            const rect = chatBox.getBoundingClientRect();
+            hud.style.top = rect.top + 'px';
+            hud.style.right = (window.innerWidth - rect.right) + 'px';
+            hud.style.height = Math.max(0, rect.height) + 'px';
+        });
+    }
+
     function start() {
         if (!ensureHUD()) return;
         wireSSE();
@@ -319,10 +336,25 @@
         if (prefersReducedMotion()) hud.classList.add('hud-reduced-motion');
         scheduleCounterUpdate();
         refreshNodes();
+        if (positionFrame) { (window.cancelAnimationFrame || window.clearTimeout)(positionFrame); positionFrame = 0; }
+        syncPosition();
+        if (!_positionSynced) {
+            window.addEventListener('resize', syncPosition);
+            window.addEventListener('scroll', syncPosition, { passive: true });
+            document.addEventListener('scroll', syncPosition, { passive: true, capture: true });
+            _positionSynced = true;
+        }
     }
 
     function stop() {
         unwireSSE();
+        if (_positionSynced) {
+            window.removeEventListener('resize', syncPosition);
+            window.removeEventListener('scroll', syncPosition);
+            document.removeEventListener('scroll', syncPosition, { capture: true });
+            _positionSynced = false;
+        }
+        if (positionFrame) { (window.cancelAnimationFrame || window.clearTimeout)(positionFrame); positionFrame = 0; }
         destroyHUD();
     }
 
@@ -349,6 +381,8 @@
                     w.timer = window.setTimeout(tryStart, 100);
                 };
                 tryStart();
+            } else if (hud && hud.classList.contains('hud-active')) {
+                syncPosition();
             }
         } else if (hud) {
             stop();
@@ -364,7 +398,7 @@
         window.addEventListener('aurago:theme-effects-loaded', function (e) {
             if (e && e.detail && e.detail.theme === THEME) sync();
         });
-        window.addEventListener('resize', sync);
+        window.addEventListener('resize', syncPosition);
         if (motionQuery) {
             if (typeof motionQuery.addEventListener === 'function') {
                 motionQuery.addEventListener('change', sync);

@@ -1016,11 +1016,8 @@
 
 /* === Cyberwar Chat Tactical HUD Sidebar === */
 #cyberwar-hud {
-    position: absolute;
-    top: 0;
-    right: 0;
+    position: fixed;
     width: 180px;
-    height: 100%;
     z-index: 4;
     pointer-events: none;
     display: none;
@@ -1034,6 +1031,7 @@
     font-family: var(--cyber-font-ui, 'Oxanium', 'Share Tech Mono', monospace, system-ui, sans-serif);
     color: rgba(0, 240, 255, 0.85);
     text-transform: uppercase;
+    /* top, right, and height are set dynamically by JS to match #chat-box */
 }
 
 #cyberwar-hud.hud-active {
