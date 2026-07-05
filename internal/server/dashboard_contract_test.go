@@ -270,7 +270,7 @@ func TestHandleDashboardMemoryKnowledgeGraphHealthFields(t *testing.T) {
 	if !ok {
 		t.Fatalf("knowledge_graph has unexpected type %T", body["knowledge_graph"])
 	}
-	for _, key := range []string{"nodes", "edges", "dirty_nodes", "semantic_enabled"} {
+	for _, key := range []string{"nodes", "edges", "dirty_nodes", "semantic_enabled", "accepted_edges", "superseded_edges", "retracted_edges", "open_conflicts"} {
 		if _, ok := kgPayload[key]; !ok {
 			t.Fatalf("knowledge_graph missing key %q", key)
 		}

@@ -388,6 +388,10 @@ func knowledgeGraphDashboardPayload(kg *memory.KnowledgeGraph) map[string]interf
 		"edges":            0,
 		"dirty_nodes":      0,
 		"semantic_enabled": false,
+		"accepted_edges":   0,
+		"superseded_edges": 0,
+		"retracted_edges":  0,
+		"open_conflicts":   0,
 	}
 	if kg == nil {
 		return payload
@@ -400,6 +404,12 @@ func knowledgeGraphDashboardPayload(kg *memory.KnowledgeGraph) map[string]interf
 	payload["semantic_enabled"] = kg.SemanticSearchEnabled()
 	if dirtyNodes, _, err := kg.DirtySemanticCounts(); err == nil {
 		payload["dirty_nodes"] = dirtyNodes
+	}
+	if lifecycle, err := kg.GetLifecycleCounts(); err == nil {
+		payload["accepted_edges"] = lifecycle.AcceptedEdges
+		payload["superseded_edges"] = lifecycle.SupersededEdges
+		payload["retracted_edges"] = lifecycle.RetractedEdges
+		payload["open_conflicts"] = lifecycle.OpenConflicts
 	}
 	return payload
 }

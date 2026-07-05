@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 
 	"aurago/internal/config"
@@ -218,6 +219,35 @@ func TestHandleKnowledgeGraphHealth(t *testing.T) {
 	}
 }
 
+func TestHandleKnowledgeGraphHealthIncludesLifecycleCounts(t *testing.T) {
+	s := newTestKnowledgeGraphServer(t)
+	if _, err := s.KG.AddEdgeWithProvenance("user", "german", "primary_language", nil, memory.KGProvenanceInput{SourceKind: "user"}); err != nil {
+		t.Fatalf("AddEdgeWithProvenance german: %v", err)
+	}
+	if _, err := s.KG.AddEdgeWithProvenance("user", "english", "primary_language", nil, memory.KGProvenanceInput{SourceKind: "user"}); err != nil {
+		t.Fatalf("AddEdgeWithProvenance english: %v", err)
+	}
+	if err := s.KG.RetractEdge("user", "english", "primary_language", "wrong fact"); err != nil {
+		t.Fatalf("RetractEdge: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/knowledge-graph/health", nil)
+	rec := httptest.NewRecorder()
+	handleKnowledgeGraphHealth(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d, body=%s", rec.Code, rec.Body.String())
+	}
+
+	var payload memory.KnowledgeGraphHealthReport
+	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("decode payload: %v", err)
+	}
+	if payload.AcceptedEdges != 1 || payload.RetractedEdges != 1 || payload.OpenConflicts != 1 {
+		t.Fatalf("unexpected lifecycle counts: %+v", payload)
+	}
+}
+
 func TestHandleKnowledgeGraphQuality(t *testing.T) {
 	s := newTestKnowledgeGraphServer(t)
 	if err := s.KG.AddNode("router", "Router", map[string]string{"type": "device", "protected": "true"}); err != nil {
@@ -347,6 +377,105 @@ func TestHandleKnowledgeGraphEdgeUpdate(t *testing.T) {
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200 OK, got %d, body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestHandleKnowledgeGraphEdgeClaims(t *testing.T) {
+	s := newTestKnowledgeGraphServer(t)
+	claim, err := s.KG.AddEdgeWithProvenance("server", "portainer", "uses", nil, memory.KGProvenanceInput{
+		SourceKind:   "user",
+		SessionID:    "session-test",
+		RawText:      "Server uses Portainer",
+		EvidenceType: "remember",
+	})
+	if err != nil {
+		t.Fatalf("AddEdgeWithProvenance: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/knowledge-graph/edge/claims?source=server&target=portainer&relation=uses&include_inactive=true", nil)
+	rec := httptest.NewRecorder()
+	handleKnowledgeGraphEdgeClaims(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d, body=%s", rec.Code, rec.Body.String())
+	}
+	var payload struct {
+		Status string           `json:"status"`
+		Count  int              `json:"count"`
+		Claims []memory.KGClaim `json:"claims"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("decode payload: %v", err)
+	}
+	if payload.Status != "ok" || payload.Count != 1 || payload.Claims[0].ID != claim.ID {
+		t.Fatalf("unexpected claims payload: %+v", payload)
+	}
+	if payload.Claims[0].Evidence == nil || payload.Claims[0].Evidence.RawText != "Server uses Portainer" {
+		t.Fatalf("claim evidence missing from payload: %+v", payload.Claims[0])
+	}
+}
+
+func TestHandleKnowledgeGraphConflictsAndResolve(t *testing.T) {
+	s := newTestKnowledgeGraphServer(t)
+	germanClaim, err := s.KG.AddEdgeWithProvenance("user", "german", "primary_language", nil, memory.KGProvenanceInput{SourceKind: "user"})
+	if err != nil {
+		t.Fatalf("AddEdgeWithProvenance german: %v", err)
+	}
+	englishClaim, err := s.KG.AddEdgeWithProvenance("user", "english", "primary_language", nil, memory.KGProvenanceInput{SourceKind: "user"})
+	if err != nil {
+		t.Fatalf("AddEdgeWithProvenance english: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/knowledge-graph/conflicts?limit=10", nil)
+	rec := httptest.NewRecorder()
+	handleKnowledgeGraphConflicts(s).ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d, body=%s", rec.Code, rec.Body.String())
+	}
+	var conflictsPayload struct {
+		Status    string              `json:"status"`
+		Count     int                 `json:"count"`
+		Conflicts []memory.KGConflict `json:"conflicts"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &conflictsPayload); err != nil {
+		t.Fatalf("decode conflicts: %v", err)
+	}
+	if conflictsPayload.Status != "ok" || conflictsPayload.Count != 1 || len(conflictsPayload.Conflicts) != 1 {
+		t.Fatalf("unexpected conflicts payload: %+v", conflictsPayload)
+	}
+
+	body := bytes.NewBufferString(`{"conflict_id":` + strconv.FormatInt(conflictsPayload.Conflicts[0].ID, 10) + `,"claim_id":"` + englishClaim.ID + `","reason":"new correction"}`)
+	req = httptest.NewRequest(http.MethodPost, "/api/knowledge-graph/conflicts/resolve", body)
+	req.Header.Set("Content-Type", "application/json")
+	rec = httptest.NewRecorder()
+	handleKnowledgeGraphConflictResolve(s).ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d, body=%s", rec.Code, rec.Body.String())
+	}
+	losingClaims, err := s.KG.GetClaimsForEdge("user", "german", "primary_language", true, 10)
+	if err != nil {
+		t.Fatalf("GetClaimsForEdge losing: %v", err)
+	}
+	if germanClaim.ID == englishClaim.ID || len(losingClaims) != 1 || losingClaims[0].Status != memory.KGClaimSuperseded {
+		t.Fatalf("expected losing claim superseded, got %+v", losingClaims)
+	}
+}
+
+func TestRequireAdminBlocksKnowledgeGraphConflictResolveWhenAuthEnabled(t *testing.T) {
+	s := newTestKnowledgeGraphServer(t)
+	s.Cfg = &config.Config{}
+	s.Cfg.Auth.Enabled = true
+	s.Cfg.Auth.SessionSecret = "session-secret"
+	s.Cfg.Auth.PasswordHash = "configured"
+
+	body := bytes.NewBufferString(`{"conflict_id":1,"claim_id":"claim-1"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/knowledge-graph/conflicts/resolve", body)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	requireAdmin(s, handleKnowledgeGraphConflictResolve(s)).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401 Unauthorized, got %d, body=%s", rec.Code, rec.Body.String())
 	}
 }
 

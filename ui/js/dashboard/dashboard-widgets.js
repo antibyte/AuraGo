@@ -47,6 +47,10 @@
             const stats = [
                 { val: Number(health?.dirty_nodes || 0), lbl: t('dashboard.knowledge_health_dirty_nodes') },
                 { val: Number(health?.dirty_edges || 0), lbl: t('dashboard.knowledge_health_dirty_edges') },
+                { val: Number(health?.accepted_edges || 0), lbl: t('dashboard.knowledge_health_accepted_edges') },
+                { val: Number(health?.superseded_edges || 0), lbl: t('dashboard.knowledge_health_superseded_edges') },
+                { val: Number(health?.retracted_edges || 0), lbl: t('dashboard.knowledge_health_retracted_edges') },
+                { val: Number(health?.open_conflicts || 0), lbl: t('dashboard.knowledge_health_open_conflicts') },
                 { val: Number(health?.isolated_nodes || 0), lbl: t('dashboard.knowledge_health_isolated_nodes') },
                 { val: Number(health?.label_duplicate_groups || 0), lbl: t('dashboard.knowledge_health_label_duplicate_groups') },
                 { val: Number(health?.id_duplicate_groups || 0), lbl: t('dashboard.knowledge_health_id_duplicate_groups') },

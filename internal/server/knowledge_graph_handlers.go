@@ -367,6 +367,103 @@ func handleKnowledgeGraphEdgeMutate(s *Server) http.HandlerFunc {
 	}
 }
 
+func handleKnowledgeGraphEdgeClaims(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if s.KG == nil {
+			writeJSON(w, map[string]interface{}{"status": "ok", "claims": []interface{}{}, "count": 0})
+			return
+		}
+
+		source := strings.TrimSpace(r.URL.Query().Get("source"))
+		target := strings.TrimSpace(r.URL.Query().Get("target"))
+		relation := strings.TrimSpace(r.URL.Query().Get("relation"))
+		if source == "" || target == "" || relation == "" {
+			jsonError(w, "source, target, and relation are required", http.StatusBadRequest)
+			return
+		}
+
+		claims, err := s.KG.GetClaimsForEdge(source, target, relation, parseKnowledgeGraphBool(r, "include_inactive"), parseKnowledgeGraphLimit(r, 50))
+		if err != nil {
+			jsonError(w, "Failed to load knowledge graph edge claims", http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, map[string]interface{}{
+			"status":   "ok",
+			"source":   source,
+			"target":   target,
+			"relation": relation,
+			"claims":   claims,
+			"count":    len(claims),
+		})
+	}
+}
+
+func handleKnowledgeGraphConflicts(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if s.KG == nil {
+			writeJSON(w, map[string]interface{}{"status": "ok", "conflicts": []interface{}{}, "count": 0})
+			return
+		}
+
+		conflicts, err := s.KG.GetOpenKGConflicts(parseKnowledgeGraphLimit(r, 50))
+		if err != nil {
+			jsonError(w, "Failed to load knowledge graph conflicts", http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, map[string]interface{}{
+			"status":    "ok",
+			"conflicts": conflicts,
+			"count":     len(conflicts),
+		})
+	}
+}
+
+func handleKnowledgeGraphConflictResolve(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if s.KG == nil {
+			jsonError(w, "Knowledge graph is unavailable", http.StatusServiceUnavailable)
+			return
+		}
+
+		var req struct {
+			ConflictID int64  `json:"conflict_id"`
+			ClaimID    string `json:"claim_id"`
+			Reason     string `json:"reason"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			jsonError(w, "Invalid request body", http.StatusBadRequest)
+			return
+		}
+		req.ClaimID = strings.TrimSpace(req.ClaimID)
+		if req.ConflictID <= 0 || req.ClaimID == "" {
+			jsonError(w, "conflict_id and claim_id are required", http.StatusBadRequest)
+			return
+		}
+
+		if err := s.KG.ResolveKGConflict(req.ConflictID, req.ClaimID, req.Reason); err != nil {
+			jsonError(w, "Failed to resolve knowledge graph conflict", http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, map[string]interface{}{
+			"status":           "ok",
+			"conflict_id":      req.ConflictID,
+			"winning_claim_id": req.ClaimID,
+		})
+	}
+}
+
 func handleKnowledgeGraphMerge(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {

@@ -1064,6 +1064,10 @@ type KnowledgeGraphHealthReport struct {
 	DuplicateGroups      int                  `json:"duplicate_groups"`
 	LabelDuplicateGroups int                  `json:"label_duplicate_groups"`
 	IDDuplicateGroups    int                  `json:"id_duplicate_groups"`
+	AcceptedEdges        int                  `json:"accepted_edges"`
+	SupersededEdges      int                  `json:"superseded_edges"`
+	RetractedEdges       int                  `json:"retracted_edges"`
+	OpenConflicts        int                  `json:"open_conflicts"`
 	Consistency          *KGConsistencyReport `json:"consistency,omitempty"`
 }
 
@@ -1123,6 +1127,14 @@ func (kg *KnowledgeGraph) HealthReport() (*KnowledgeGraphHealthReport, error) {
 	}
 	_ = kg.db.QueryRow("SELECT COUNT(*) FROM kg_nodes").Scan(&report.TotalNodes)
 	_ = kg.db.QueryRow("SELECT COUNT(*) FROM kg_edges").Scan(&report.TotalEdges)
+	lifecycle, err := kg.GetLifecycleCounts()
+	if err != nil {
+		return nil, fmt.Errorf("count kg lifecycle state: %w", err)
+	}
+	report.AcceptedEdges = lifecycle.AcceptedEdges
+	report.SupersededEdges = lifecycle.SupersededEdges
+	report.RetractedEdges = lifecycle.RetractedEdges
+	report.OpenConflicts = lifecycle.OpenConflicts
 
 	isolatedNodes, err := countKnowledgeGraphIsolatedNodes(kg.db)
 	if err != nil {
