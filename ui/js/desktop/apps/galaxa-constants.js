@@ -2,10 +2,20 @@
     'use strict';
     const GC = window.GalaxaCore = window.GalaxaCore || {};
 
-    GC.W = 480;
-    GC.H = 640;
+    // OPTIMIZATION: Playing field slightly enlarged from 480x640 to 540x720
+    // (+12.5% wider, +12.5% taller) for more room to maneuver, larger formations
+    // and a less cramped feel. All game logic uses GC.W / GC.H via ctx inheritance,
+    // so the change propagates automatically. Tuning notes:
+    //   - FCOLS bumped 10->11 and ESP_X 48->50 so the formation fills the new
+    //     width without leaving a wide empty band on the sides.
+    //   - PLAYER_Y_MIN raised 380->400 so the player gets ~260px vertical range
+    //     (was ~180px) — more dodging room, same lower safe zone.
+    //   - PLAYER_Y_MAX kept at H-80 to preserve the bottom safe margin during
+    //     cinematic super-zoom.
+    GC.W = 540;
+    GC.H = 720;
     GC.PLAYER_SPEED = 220;
-    GC.PLAYER_Y_MIN = 380;
+    GC.PLAYER_Y_MIN = 400;
     // FIX: tightened from H-30 to H-60 so the 24x24 player sprite stays fully
     // visible during the cinematic super camera zoom (max camZoom 1.15x).
     // With the old value, sprite bottom (p.y+12 = 622) was drawn at canvas y
@@ -17,9 +27,9 @@
     GC.PLAYER_VERTICAL_SPEED_MULT = 0.85;
     GC.PB_SPEED = 500;
     GC.EB_SPEED = 260;
-    GC.FCOLS = 10;
+    GC.FCOLS = 11;
     GC.FROWS = 5;
-    GC.ESP_X = 48;
+    GC.ESP_X = 50;
     GC.ESP_Y = 43;
     GC.FTOP = 60;
     GC.DIVE_SPD = 180;

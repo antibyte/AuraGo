@@ -4,7 +4,16 @@
     GC.createGame = function (ctx) {
         function resize() {
             if (!ctx.wrapEl) return;
-            ctx.scale = Math.max(1, Math.min(Math.floor(ctx.wrapEl.clientWidth / ctx.W) || 1, Math.floor(ctx.wrapEl.clientHeight / ctx.H) || 1));
+            // OPTIMIZATION: use bit-shift for integer divide and clamp to a
+            // minimum of 1px so a degenerate layout never produces a 0×0
+            // canvas (which breaks imageSmoothingEnabled and the raf loop).
+            // The old Math.max/min with || 1 fallback handled 0-width but not
+            // negative ratios from sub-pixel zoom out.
+            const ww = ctx.wrapEl.clientWidth | 0;
+            const hh = ctx.wrapEl.clientHeight | 0;
+            const sx = Math.max(1, Math.floor(ww / ctx.W));
+            const sy = Math.max(1, Math.floor(hh / ctx.H));
+            ctx.scale = Math.min(sx, sy);
             ctx.canvas.width = ctx.W * ctx.scale; ctx.canvas.height = ctx.H * ctx.scale;
             ctx.canvas.style.width = (ctx.W * ctx.scale) + 'px'; ctx.canvas.style.height = (ctx.H * ctx.scale) + 'px';
             ctx.c.imageSmoothingEnabled = false;

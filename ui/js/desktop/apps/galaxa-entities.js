@@ -176,17 +176,23 @@
             const isMegaSpread = ctx.G.activePU && ctx.G.activePU.type === 'mega_spread';
             const isSpread = ctx.G.activePU && ctx.G.activePU.type === 'spread';
             if (isHoming && ctx.G.activePU.shots > 0) {
-                const nearestE = ctx.G.enemies.filter(e => e.st !== 'DEAD').sort((a2, b2) => {
-                    const da = Math.hypot(a2.x - ctx.G.p.x, a2.y - ctx.G.p.y);
-                    const db = Math.hypot(b2.x - ctx.G.p.x, b2.y - ctx.G.p.y);
-                    return da - db;
-                })[0];
+                // OPTIMIZATION: same pattern as drone targeting — replaced
+                // filter+sort with a single-pass nearest search.
+                let nearestE = null, nearD2 = Infinity;
+                const ppx = ctx.G.p.x, ppy = ctx.G.p.y;
+                for (let _ei = 0; _ei < ctx.G.enemies.length; _ei++) {
+                    const e = ctx.G.enemies[_ei];
+                    if (e.st === 'DEAD') continue;
+                    const dx = e.x - ppx, dy = e.y - ppy;
+                    const d2 = dx * dx + dy * dy;
+                    if (d2 < nearD2) { nearD2 = d2; nearestE = e; }
+                }
                 if (nearestE) {
-                    const dx = nearestE.x - ctx.G.p.x, dy = nearestE.y - ctx.G.p.y;
-                    const dist = Math.hypot(dx, dy);
-                    ctx.G.bul.push({ x: ctx.G.p.x, y: ctx.G.p.y - 8, w: 3, h: 6, vx: (dx / dist) * ctx.PB_SPEED * 0.7, vy: (dy / dist) * ctx.PB_SPEED * 0.7, homing: true, target: nearestE });
+                    const dx = nearestE.x - ppx, dy = nearestE.y - ppy;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    ctx.G.bul.push({ x: ppx, y: ppy - 8, w: 3, h: 6, vx: (dx / dist) * ctx.PB_SPEED * 0.7, vy: (dy / dist) * ctx.PB_SPEED * 0.7, homing: true, target: nearestE });
                     ctx.G.activePU.shots--;
-                    ctx.SFX.homingLock(ctx.G.p.x);
+                    ctx.SFX.homingLock(ppx);
                     if (ctx.G.activePU.shots <= 0) { ctx.G.activePU = null; ctx.G.puTimer = 0; ctx.setPUClass(null); }
                 }
                 return;
@@ -619,15 +625,28 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                 ctx.G.droneTimer -= dt * 1000;
                 if (ctx.G.droneTimer <= 0) { ctx.G.drones = []; }
                 else {
+                    // OPTIMIZATION: was filter+sort on the full enemy list for
+                    // every drone every 300ms. That's O(n log n) plus two full
+                    // array allocations per drone. Single-pass nearest search
+                    // is O(n) and allocates nothing — meaningful savings when
+                    // there are 40+ enemies and 2 drones active.
                     for (const dr of ctx.G.drones) {
                         dr.x += (dr.targetX - dr.x) * dt * 5;
                         dr.y += (dr.targetY - dr.y) * dt * 5;
                         dr.fireT -= dt * 1000;
                         if (dr.fireT <= 0) {
-                            const nearE = ctx.G.enemies.filter(e => e.st !== 'DEAD').sort((a, b) => Math.hypot(a.x - dr.x, a.y - dr.y) - Math.hypot(b.x - dr.x, b.y - dr.y))[0];
-                            if (nearE && Math.hypot(nearE.x - dr.x, nearE.y - dr.y) < 250) {
-                                const dx = nearE.x - dr.x, dy = nearE.y - dr.y, dist = Math.hypot(dx, dy);
-                                ctx.G.bul.push({ x: dr.x, y: dr.y - 4, w: 2, h: 4, vx: (dx / dist) * ctx.PB_SPEED * 0.5, vy: (dy / dist) * ctx.PB_SPEED * 0.5 });
+                            const drx = dr.x, dry = dr.y;
+                            let nearE = null, nearD2 = 250 * 250;
+                            for (let ei = 0; ei < ctx.G.enemies.length; ei++) {
+                                const e = ctx.G.enemies[ei];
+                                if (e.st === 'DEAD') continue;
+                                const ddx = e.x - drx, ddy = e.y - dry;
+                                const d2 = ddx * ddx + ddy * ddy;
+                                if (d2 < nearD2) { nearD2 = d2; nearE = e; }
+                            }
+                            if (nearE) {
+                                const dx = nearE.x - drx, dy = nearE.y - dry, dist = Math.sqrt(dx * dx + dy * dy);
+                                ctx.G.bul.push({ x: drx, y: dry - 4, w: 2, h: 4, vx: (dx / dist) * ctx.PB_SPEED * 0.5, vy: (dy / dist) * ctx.PB_SPEED * 0.5 });
                             }
                             dr.fireT = 300;
                         }
@@ -640,18 +659,22 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                 ctx.G.blackhole.y += (ctx.G.blackhole.targetY - ctx.G.blackhole.y) * dt * 2;
                 for (const e of ctx.G.enemies) {
                     if (e.st === 'DEAD') continue;
-                    const dx = ctx.G.blackhole.x - e.x, dy = ctx.G.blackhole.y - e.y, dist = Math.hypot(dx, dy);
+                    const dx = ctx.G.blackhole.x - e.x, dy = ctx.G.blackhole.y - e.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
                     if (dist > 5 && dist < 100) { e.x += (dx / dist) * 80 * dt; e.y += (dy / dist) * 80 * dt; }
                 }
                 for (const b of ctx.G.ebul) {
-                    const dx = ctx.G.blackhole.x - b.x, dy = ctx.G.blackhole.y - b.y, dist = Math.hypot(dx, dy);
+                    const dx = ctx.G.blackhole.x - b.x, dy = ctx.G.blackhole.y - b.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
                     if (dist > 5 && dist < 80) { b.x += (dx / dist) * 100 * dt; b.y += (dy / dist) * 100 * dt; }
                 }
                 if (ctx.G.blackhole.t > 3000) {
                     ctx.SFX.bigExplode(ctx.G.blackhole.x);
+                    const bhx = ctx.G.blackhole.x, bhy = ctx.G.blackhole.y;
                     for (const e of ctx.G.enemies) {
                         if (e.st === 'DEAD') continue;
-                        const dist = Math.hypot(e.x - ctx.G.blackhole.x, e.y - ctx.G.blackhole.y);
+                        const dx = e.x - bhx, dy = e.y - bhy;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
                         if (dist < 120) { ctx.addScore(ctx.PTS[e.type] ? ctx.PTS[e.type][0] : 100, e.x, e.y, '#8844ff'); ctx.boom(e.x, e.y, e.type === 'boss' || e.type === 'miniboss', e.type); e.st = 'DEAD'; }
                     }
                     ctx.G.flashT = 150; ctx.G.shkT = 400; ctx.G.shkM = 6;
@@ -662,9 +685,11 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                 ctx.G.gravityBomb.t += dt * 1000;
                 const gb = ctx.G.gravityBomb;
                 if (gb.phase === 'pull') {
+                    const gbx = gb.x, gby = gb.y;
                     for (const e of ctx.G.enemies) {
                         if (e.st === 'DEAD') continue;
-                        const dx = gb.x - e.x, dy = gb.y - e.y, dist = Math.hypot(dx, dy);
+                        const dx = gbx - e.x, dy = gby - e.y;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
                         if (dist > 5 && dist < 120) { e.x += (dx / dist) * 120 * dt; e.y += (dy / dist) * 120 * dt; }
                     }
                     if (gb.t > 2000) {
@@ -672,12 +697,13 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                         let caught = 0;
                         for (const e of ctx.G.enemies) {
                             if (e.st === 'DEAD') continue;
-                            const dist = Math.hypot(e.x - gb.x, e.y - gb.y);
+                            const dx = e.x - gbx, dy = e.y - gby;
+                            const dist = Math.sqrt(dx * dx + dy * dy);
                             if (dist < 80) { caught++; const dmgMult = 1 + caught * 0.3; ctx.addScore(Math.floor(ctx.PTS[e.type] ? ctx.PTS[e.type][0] * dmgMult : 200 * dmgMult), e.x, e.y, '#cc66ff'); ctx.boom(e.x, e.y, e.type === 'boss' || e.type === 'miniboss', e.type); e.st = 'DEAD'; }
                         }
                         ctx.G.flashT = 150; ctx.G.shkT = 500; ctx.G.shkM = 7;
-                        ctx.SFX.bigExplode(gb.x);
-                        for (let i = 0; i < 20; i++) { const a = (i / 20) * Math.PI * 2; ctx.G.part.push(getParticle({ x: gb.x, y: gb.y, vx: Math.cos(a) * 100, vy: Math.sin(a) * 100, life: 400, t: 0, col: '#cc66ff', size: 3, spark: true, trail: true })); }
+                        ctx.SFX.bigExplode(gbx);
+                        for (let i = 0; i < 20; i++) { const a = (i / 20) * Math.PI * 2; ctx.G.part.push(getParticle({ x: gbx, y: gby, vx: Math.cos(a) * 100, vy: Math.sin(a) * 100, life: 400, t: 0, col: '#cc66ff', size: 3, spark: true, trail: true })); }
                         ctx.G.gravityBomb = null;
                     }
                 }
@@ -819,12 +845,15 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                 const b = ctx.G.bul[i];
                 if (b.homing && b.target && b.target.st !== 'DEAD') {
                     const dx = b.target.x - b.x, dy = b.target.y - b.y;
-                    const dist = Math.hypot(dx, dy);
-                    if (dist > 5) {
+                    // OPTIMIZATION: compare squared distance against 25 to skip sqrt
+                    const d2 = dx * dx + dy * dy;
+                    if (d2 > 25) {
+                        const dist = Math.sqrt(d2);
                         b.vx += (dx / dist) * 800 * dt; b.vy += (dy / dist) * 800 * dt;
-                        const spd = Math.hypot(b.vx, b.vy);
+                        const spd2 = b.vx * b.vx + b.vy * b.vy;
                         const maxSpd = ctx.PB_SPEED * 0.8;
-                        if (spd > maxSpd) { b.vx *= maxSpd / spd; b.vy *= maxSpd / spd; }
+                        const maxSpd2 = maxSpd * maxSpd;
+                        if (spd2 > maxSpd2) { const sc = maxSpd / Math.sqrt(spd2); b.vx *= sc; b.vy *= sc; }
                     }
                     if (ctx.G.trails.length < 100) {
                         ctx.G.trails.push({ x: b.x, y: b.y, vx: (Math.random() - 0.5) * 10, vy: (Math.random() - 0.5) * 10, life: 150, t: 0, col: 'rgba(255,136,170,0.5)', size: 1 });
@@ -937,15 +966,29 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
             if (ctx.G._chainLightningTarget) {
                 const killedE = ctx.G._chainLightningTarget;
                 ctx.G._chainLightningTarget = null;
-                let chainTargets = [killedE];
+                const chainTargets = [killedE];
+                // OPTIMIZATION: was chainTargets.includes(ce) — O(n) check on
+                // every enemy iteration per hop, making the whole thing O(n²).
+                // Set lookup is O(1) and keeps the same semantics.
+                const chainSeen = new Set([killedE]);
                 let lastTarget = killedE;
                 for (let hop = 0; hop < 3; hop++) {
                     let nearest = null, nearDist = 120;
-                    for (const ce of ctx.G.enemies) { if (ce.st === 'DEAD' || chainTargets.includes(ce)) continue; const cdist = Math.hypot(ce.x - lastTarget.x, ce.y - lastTarget.y); if (cdist < nearDist) { nearDist = cdist; nearest = ce; } }
+                    const ltx = lastTarget.x, lty = lastTarget.y;
+                    for (const ce of ctx.G.enemies) {
+                        if (ce.st === 'DEAD' || chainSeen.has(ce)) continue;
+                        const cdx = ce.x - ltx, cdy = ce.y - lty;
+                        const cd2 = cdx * cdx + cdy * cdy;
+                        if (cd2 < nearDist * nearDist) { nearDist = Math.sqrt(cd2); nearest = ce; }
+                    }
                     if (nearest) {
-                        chainTargets.push(nearest); lastTarget = nearest; nearest.hp--; nearest.hitF = 100;
+                        chainTargets.push(nearest); chainSeen.add(nearest); lastTarget = nearest; nearest.hp--; nearest.hitF = 100;
                         ctx.SFX.chainLightning(hop, nearest.x);
-                        for (let li = 0; li < 5; li++) { const lt = li / 5; ctx.G.trails.push({ x: chainTargets[chainTargets.length - 2].x + (nearest.x - chainTargets[chainTargets.length - 2].x) * lt + (Math.random() - 0.5) * 8, y: chainTargets[chainTargets.length - 2].y + (nearest.y - chainTargets[chainTargets.length - 2].y) * lt + (Math.random() - 0.5) * 8, vx: 0, vy: 0, life: 200, t: 0, col: '#aaddff', size: 1, spark: true }); }
+                        const prev = chainTargets[chainTargets.length - 2];
+                        for (let li = 0; li < 5; li++) {
+                            const lt = li / 5;
+                            ctx.G.trails.push({ x: prev.x + (nearest.x - prev.x) * lt + (Math.random() - 0.5) * 8, y: prev.y + (nearest.y - prev.y) * lt + (Math.random() - 0.5) * 8, vx: 0, vy: 0, life: 200, t: 0, col: '#aaddff', size: 1, spark: true });
+                        }
                         if (nearest.hp <= 0) { ctx.addScore(ctx.PTS[nearest.type] ? ctx.PTS[nearest.type][0] : 100, nearest.x, nearest.y, '#aaddff'); ctx.boom(nearest.x, nearest.y, false, nearest.type); nearest.st = 'DEAD'; }
                     }
                 }
@@ -997,19 +1040,29 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                 // Mirror field mutation
                 if (ctx.G.mirrorField && Math.random() < 0.2 && origELen > 0) { ctx.G.ebul.push({ x: b.x, y: b.y, w: b.w || 2, h: b.h || 4, vx: -(b.vx || 0), vy: b.vy || 0, kind: b.kind }); }
                 // Gravity well mutation
-                if (ctx.G.gravityWell) { const _gbx = ctx.W / 2 - b.x, _gby = ctx.H / 3 - b.y, _gbd = Math.hypot(_gbx, _gby); if (_gbd > 20) { b.x += (_gbx / _gbd) * 30 * eDt; b.y += (_gby / _gbd) * 30 * eDt; } }
+                if (ctx.G.gravityWell) { const _gbx = ctx.W / 2 - b.x, _gby = ctx.H / 3 - b.y, _gbd = Math.sqrt(_gbx * _gbx + _gby * _gby); if (_gbd > 20) { b.x += (_gbx / _gbd) * 30 * eDt; b.y += (_gby / _gbd) * 30 * eDt; } }
                 if (ctx.G.p.alive && ctx.G.p.inv <= 0 && ctx.hit(b, { x: ctx.G.p.x - 8, y: ctx.G.p.y - 8, w: 16, h: 16 })) { ctx.killP(); continue; }
                 // NEW: Parry deflection — if parry active and bullet within parry radius, reflect it back
                 if (ctx.G.p.alive && ctx.G.parryActive > 0) {
                     const _pdx = b.x - ctx.G.p.x, _pdy = b.y - ctx.G.p.y;
-                    const _pdist = Math.hypot(_pdx, _pdy);
+                    const _pdist = Math.sqrt(_pdx * _pdx + _pdy * _pdy);
                     if (_pdist < ctx.PARRY_RADIUS) {
-                        // Reflect bullet back toward nearest enemy (or straight up)
+                        // Reflect bullet back toward nearest enemy (or straight up).
+                        // OPTIMIZATION: cache p.x/p.y outside the inner nearest-search
+                        // loop (previously reread on every enemy).
                         let _tx = b.x, _ty = b.y - 100;
-                        let _nearE = null, _nearD = Infinity;
-                        for (const _pe of ctx.G.enemies) { if (_pe.st === 'DEAD') continue; const _d = Math.hypot(_pe.x - ctx.G.p.x, _pe.y - ctx.G.p.y); if (_d < _nearD) { _nearD = _d; _nearE = _pe; } }
+                        let _nearE = null, _nearD2 = Infinity;
+                        const _ppx = ctx.G.p.x, _ppy = ctx.G.p.y;
+                        for (let _pei = 0; _pei < ctx.G.enemies.length; _pei++) {
+                            const _pe = ctx.G.enemies[_pei];
+                            if (_pe.st === 'DEAD') continue;
+                            const _pex = _pe.x - _ppx, _pey = _pe.y - _ppy;
+                            const _d2 = _pex * _pex + _pey * _pey;
+                            if (_d2 < _nearD2) { _nearD2 = _d2; _nearE = _pe; }
+                        }
                         if (_nearE) { _tx = _nearE.x; _ty = _nearE.y; }
-                        const _dx = _tx - b.x, _dy = _ty - b.y, _dd = Math.hypot(_dx, _dy) || 1;
+                        const _dx = _tx - b.x, _dy = _ty - b.y;
+                        const _dd = Math.sqrt(_dx * _dx + _dy * _dy) || 1;
                         b.vx = (_dx / _dd) * ctx.EB_SPEED * 1.2; b.vy = (_dy / _dd) * ctx.EB_SPEED * 1.2; b.kind = 'bolt'; b._parried = true;
                         ctx.G.parryActive = 0; ctx.G.parryCooldown = ctx.PARRY_COOLDOWN;
                         ctx.G.parryCount = (ctx.G.parryCount || 0) + 1;
