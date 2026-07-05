@@ -178,7 +178,7 @@ func catalogProviderAvailability(cfg *config.Config, provider catalog.Provider, 
 
 func providerTypeWorksWithoutKey(providerType string) bool {
 	switch catalog.NormalizeProviderID(providerType) {
-	case "ollama", "llamacpp", "lmstudio", "manifest", "copilot":
+	case "ollama", "llamacpp", "lmstudio", "manifest", "omniroute", "copilot":
 		return true
 	default:
 		return false

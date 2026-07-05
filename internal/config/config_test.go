@@ -1334,6 +1334,59 @@ func TestLoadManifestDefaults(t *testing.T) {
 	}
 }
 
+func TestLoadOmniRouteDefaults(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	if err := os.WriteFile(configPath, []byte("server:\n  ui_language: en\n"), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if cfg.OmniRoute.Enabled {
+		t.Fatal("expected omniroute.enabled to default to false")
+	}
+	if !cfg.OmniRoute.AutoStart {
+		t.Fatal("expected omniroute.auto_start to default to true")
+	}
+	if cfg.OmniRoute.Mode != "managed" {
+		t.Fatalf("mode = %q, want managed", cfg.OmniRoute.Mode)
+	}
+	if cfg.OmniRoute.URL == "" {
+		t.Fatal("expected omniroute.url default to be populated")
+	}
+	if cfg.OmniRoute.ExternalBaseURL != "http://127.0.0.1:20128/v1" {
+		t.Fatalf("external_base_url = %q, want local OmniRoute /v1 endpoint", cfg.OmniRoute.ExternalBaseURL)
+	}
+	if cfg.OmniRoute.ContainerName != "aurago_omniroute" {
+		t.Fatalf("container_name = %q, want aurago_omniroute", cfg.OmniRoute.ContainerName)
+	}
+	if cfg.OmniRoute.Image != "diegosouzapw/omniroute:3.8.39" {
+		t.Fatalf("image = %q, want pinned OmniRoute image", cfg.OmniRoute.Image)
+	}
+	if cfg.OmniRoute.Host != "127.0.0.1" {
+		t.Fatalf("host = %q, want 127.0.0.1", cfg.OmniRoute.Host)
+	}
+	if cfg.OmniRoute.Port != 20128 || cfg.OmniRoute.HostPort != 20128 {
+		t.Fatalf("port/host_port = %d/%d, want 20128/20128", cfg.OmniRoute.Port, cfg.OmniRoute.HostPort)
+	}
+	if cfg.OmniRoute.NetworkName != "aurago_omniroute" {
+		t.Fatalf("network_name = %q, want aurago_omniroute", cfg.OmniRoute.NetworkName)
+	}
+	if cfg.OmniRoute.DataVolume != "aurago_omniroute_data" {
+		t.Fatalf("data_volume = %q, want aurago_omniroute_data", cfg.OmniRoute.DataVolume)
+	}
+	if cfg.OmniRoute.HealthPath != "/api/monitoring/health" {
+		t.Fatalf("health_path = %q, want /api/monitoring/health", cfg.OmniRoute.HealthPath)
+	}
+	if cfg.OmniRoute.MemoryMB != 512 {
+		t.Fatalf("memory_mb = %d, want 512", cfg.OmniRoute.MemoryMB)
+	}
+}
+
 func TestLoadManifestRoutingExplicitValues(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.yaml")
@@ -2237,6 +2290,35 @@ func TestApplyVaultSecretsLoadsManifestSecrets(t *testing.T) {
 	}
 }
 
+func TestApplyVaultSecretsLoadsOmniRouteSecrets(t *testing.T) {
+	cfg := &Config{}
+	vault := &testSecretVault{data: map[string]string{
+		"omniroute_api_key":          "omni-api-key",
+		"omniroute_initial_password": "initial-admin-password",
+		"omniroute_jwt_secret":       "jwt-secret",
+		"omniroute_api_key_secret":   "api-key-secret",
+		"omniroute_ws_bridge_secret": "ws-bridge-secret",
+	}}
+
+	cfg.ApplyVaultSecrets(vault)
+
+	if cfg.OmniRoute.APIKey != "omni-api-key" {
+		t.Fatalf("APIKey = %q, want OmniRoute API key", cfg.OmniRoute.APIKey)
+	}
+	if cfg.OmniRoute.InitialPassword != "initial-admin-password" {
+		t.Fatalf("InitialPassword = %q, want initial admin password", cfg.OmniRoute.InitialPassword)
+	}
+	if cfg.OmniRoute.JWTSecret != "jwt-secret" {
+		t.Fatalf("JWTSecret = %q, want JWT secret", cfg.OmniRoute.JWTSecret)
+	}
+	if cfg.OmniRoute.APIKeySecret != "api-key-secret" {
+		t.Fatalf("APIKeySecret = %q, want API key secret", cfg.OmniRoute.APIKeySecret)
+	}
+	if cfg.OmniRoute.WSBridgeSecret != "ws-bridge-secret" {
+		t.Fatalf("WSBridgeSecret = %q, want websocket bridge secret", cfg.OmniRoute.WSBridgeSecret)
+	}
+}
+
 func TestApplyVaultSecretsLoadsComposioAPIKey(t *testing.T) {
 	cfg := &Config{}
 	vault := &testSecretVault{data: map[string]string{
@@ -2401,6 +2483,111 @@ func TestManifestProviderSpecificAPIKeyOverridesManifestSectionKey(t *testing.T)
 
 	if cfg.LLM.APIKey != "mnfst_provider_specific" {
 		t.Fatalf("LLM APIKey = %q, want provider-specific Manifest key", cfg.LLM.APIKey)
+	}
+}
+
+func TestOmniRouteProviderManagedDefaultBaseURL(t *testing.T) {
+	cfg := &Config{}
+	cfg.OmniRoute.Mode = "managed"
+	cfg.OmniRoute.URL = "http://omniroute:20128"
+	cfg.OmniRoute.APIKey = "omni_from_section"
+	cfg.Providers = []ProviderEntry{{
+		ID:    "omniroute",
+		Type:  "omniroute",
+		Model: "auto",
+	}}
+	cfg.LLM.Provider = "omniroute"
+
+	cfg.ResolveProviders()
+
+	if cfg.Providers[0].BaseURL != "http://omniroute:20128/v1" {
+		t.Fatalf("provider base_url = %q, want managed OmniRoute /v1 URL", cfg.Providers[0].BaseURL)
+	}
+	if cfg.LLM.BaseURL != "http://omniroute:20128/v1" {
+		t.Fatalf("LLM base_url = %q, want managed OmniRoute /v1 URL", cfg.LLM.BaseURL)
+	}
+	if cfg.LLM.ProviderType != "omniroute" {
+		t.Fatalf("ProviderType = %q, want omniroute", cfg.LLM.ProviderType)
+	}
+	if cfg.LLM.APIKey != "omni_from_section" {
+		t.Fatalf("LLM APIKey = %q, want OmniRoute section API key", cfg.LLM.APIKey)
+	}
+}
+
+func TestOmniRouteProviderManagedIgnoresBrowserBaseURL(t *testing.T) {
+	cfg := &Config{}
+	cfg.OmniRoute.Mode = "managed"
+	cfg.OmniRoute.URL = "http://omniroute:20128"
+	cfg.OmniRoute.APIKey = "omni_from_section"
+	cfg.Providers = []ProviderEntry{{
+		ID:      "omniroute",
+		Type:    "omniroute",
+		BaseURL: "http://192.168.6.43:20128/v1",
+		Model:   "auto",
+	}}
+	cfg.LLM.Provider = "omniroute"
+
+	cfg.ResolveProviders()
+
+	if cfg.LLM.BaseURL != "http://omniroute:20128/v1" {
+		t.Fatalf("LLM base_url = %q, want managed internal OmniRoute /v1 URL", cfg.LLM.BaseURL)
+	}
+}
+
+func TestOmniRouteProviderExternalDefaultBaseURL(t *testing.T) {
+	cfg := &Config{}
+	cfg.OmniRoute.Mode = "external"
+	cfg.OmniRoute.ExternalBaseURL = "https://omniroute.example.test/v1"
+	cfg.Providers = []ProviderEntry{{
+		ID:    "omniroute",
+		Type:  "omniroute",
+		Model: "auto",
+	}}
+	cfg.LLM.Provider = "omniroute"
+
+	cfg.ResolveProviders()
+
+	if cfg.LLM.BaseURL != "https://omniroute.example.test/v1" {
+		t.Fatalf("LLM base_url = %q, want external OmniRoute /v1 URL", cfg.LLM.BaseURL)
+	}
+}
+
+func TestOmniRouteProviderExternalIgnoresProviderBaseURL(t *testing.T) {
+	cfg := &Config{}
+	cfg.OmniRoute.Mode = "external"
+	cfg.OmniRoute.ExternalBaseURL = "https://omniroute.example.test/v1"
+	cfg.Providers = []ProviderEntry{{
+		ID:      "omniroute",
+		Type:    "omniroute",
+		BaseURL: "https://stale.example.test/v1",
+		Model:   "auto",
+	}}
+	cfg.LLM.Provider = "omniroute"
+
+	cfg.ResolveProviders()
+
+	if cfg.LLM.BaseURL != "https://omniroute.example.test/v1" {
+		t.Fatalf("LLM base_url = %q, want external OmniRoute settings URL", cfg.LLM.BaseURL)
+	}
+}
+
+func TestOmniRouteProviderSpecificAPIKeyOverridesSectionKey(t *testing.T) {
+	cfg := &Config{}
+	cfg.OmniRoute.Mode = "managed"
+	cfg.OmniRoute.URL = "http://omniroute:20128"
+	cfg.OmniRoute.APIKey = "omni_shared"
+	cfg.Providers = []ProviderEntry{{
+		ID:     "omniroute",
+		Type:   "omniroute",
+		Model:  "auto",
+		APIKey: "omni_provider_specific",
+	}}
+	cfg.LLM.Provider = "omniroute"
+
+	cfg.ResolveProviders()
+
+	if cfg.LLM.APIKey != "omni_provider_specific" {
+		t.Fatalf("LLM APIKey = %q, want provider-specific OmniRoute key", cfg.LLM.APIKey)
 	}
 }
 

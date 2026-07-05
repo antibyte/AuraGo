@@ -79,6 +79,49 @@ func TestBuildSchemaUsesJSONNamesForManifestVaultOnlyFields(t *testing.T) {
 	}
 }
 
+func TestBuildSchemaUsesJSONNamesForOmniRouteVaultOnlyFields(t *testing.T) {
+	schema := buildSchema(reflect.TypeOf(config.Config{}), "")
+
+	var omniRoute *SchemaField
+	for i := range schema {
+		if schema[i].YAMLKey == "omniroute" {
+			omniRoute = &schema[i]
+			break
+		}
+	}
+	if omniRoute == nil {
+		t.Fatal("omniroute section not found in schema")
+	}
+
+	want := map[string]string{
+		"api_key":          "omniroute.api_key",
+		"initial_password": "omniroute.initial_password",
+		"jwt_secret":       "omniroute.jwt_secret",
+		"api_key_secret":   "omniroute.api_key_secret",
+		"ws_bridge_secret": "omniroute.ws_bridge_secret",
+	}
+	seen := map[string]bool{}
+	for _, field := range omniRoute.Children {
+		if field.YAMLKey == "-" || field.Key == "omniroute.-" {
+			t.Fatalf("omniroute schema exposed raw yaml:\"-\" field: %#v", field)
+		}
+		if wantKey, ok := want[field.YAMLKey]; ok {
+			seen[field.YAMLKey] = true
+			if field.Key != wantKey {
+				t.Fatalf("omniroute.%s schema key = %q, want %q", field.YAMLKey, field.Key, wantKey)
+			}
+			if !field.Sensitive {
+				t.Fatalf("omniroute.%s must be marked sensitive", field.YAMLKey)
+			}
+		}
+	}
+	for key := range want {
+		if !seen[key] {
+			t.Fatalf("omniroute schema missing vault-only field %s", key)
+		}
+	}
+}
+
 func TestBuildSchemaDoesNotExposeRawYAMLDashFields(t *testing.T) {
 	schema := buildSchema(reflect.TypeOf(config.Config{}), "")
 
@@ -109,6 +152,27 @@ func TestManifestVaultTagsAreConcrete(t *testing.T) {
 		}
 		if got := field.Tag.Get("vault"); got != wantVaultTag {
 			t.Fatalf("ManifestConfig.%s vault tag = %q, want %q", fieldName, got, wantVaultTag)
+		}
+	}
+}
+
+func TestOmniRouteVaultTagsAreConcrete(t *testing.T) {
+	omniRouteType := reflect.TypeOf(config.OmniRouteConfig{})
+	want := map[string]string{
+		"APIKey":          "omniroute_api_key",
+		"InitialPassword": "omniroute_initial_password",
+		"JWTSecret":       "omniroute_jwt_secret",
+		"APIKeySecret":    "omniroute_api_key_secret",
+		"WSBridgeSecret":  "omniroute_ws_bridge_secret",
+	}
+
+	for fieldName, wantVaultTag := range want {
+		field, ok := omniRouteType.FieldByName(fieldName)
+		if !ok {
+			t.Fatalf("OmniRouteConfig.%s not found", fieldName)
+		}
+		if got := field.Tag.Get("vault"); got != wantVaultTag {
+			t.Fatalf("OmniRouteConfig.%s vault tag = %q, want %q", fieldName, got, wantVaultTag)
 		}
 	}
 }

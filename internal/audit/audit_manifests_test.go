@@ -1048,6 +1048,7 @@ func TestToolManualFilenamesAreKnownOrAllowlisted(t *testing.T) {
 		"log_analyzer":          "skill template/manual",
 		"mac_lookup":            "server endpoint/manual",
 		"manifest":              "Manifest.build integration manual",
+		"omniroute":             "OmniRoute integration manual",
 		"mcp":                   "MCP runtime/manual",
 		"mqtt":                  "messaging integration manual",
 		"optimize_memory":       "memory maintenance manual alias",

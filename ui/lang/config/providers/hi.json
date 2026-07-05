@@ -237,5 +237,8 @@
   "config.providers.copilot_auth_success": "GitHub Copilot सफलतापूर्वक authorized हो गया।",
   "config.providers.copilot_auth_failed": "Copilot authorization विफल: {{error}}",
   "config.providers.copilot_error": "त्रुटि",
-  "config.providers.copilot_unknown_error": "अज्ञात"
+  "config.providers.copilot_unknown_error": "अज्ञात",
+  "config.providers.type_omniroute": "OmniRoute",
+  "config.providers.omniroute_url_auto": "URL OmniRoute settings से निकाला जाता है।",
+  "config.providers.hint.omniroute": "OmniRoute integration settings का उपयोग करता है। Managed mode में AuraGo internal sidecar से बात करता है।"
 }

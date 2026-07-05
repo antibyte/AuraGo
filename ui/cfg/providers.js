@@ -939,6 +939,7 @@ let _providerCatalogPromise = null;
             minimax: 'https://api.minimax.io/v1',
             'workers-ai': '',
             manifest: '',
+            omniroute: '',
             yepapi: 'https://api.yepapi.com/v1/ai',
             custom: '',
             // Manifest Phase-1 providers
@@ -964,6 +965,7 @@ let _providerCatalogPromise = null;
             openai: 'config.providers.hint.openai',
             'workers-ai': 'config.providers.hint.workers_ai',
             manifest: 'config.providers.hint.manifest',
+            omniroute: 'config.providers.hint.omniroute',
             minimax: 'config.providers.hint.minimax',
             yepapi: 'config.providers.hint.yepapi',
             custom: 'config.providers.hint.custom',
@@ -982,7 +984,7 @@ let _providerCatalogPromise = null;
             'opencode-go': 'config.providers.hint.opencode_go'
         };
 
-        const PROVIDER_TYPE_FALLBACKS = ['openai','openrouter','ollama','anthropic','google','minimax','workers-ai','manifest','yepapi','custom','deepseek','groq','mistral','xai','moonshot','qwen','zai','llamacpp','lmstudio','copilot','opencode-go'];
+        const PROVIDER_TYPE_FALLBACKS = ['openai','openrouter','ollama','anthropic','google','minimax','workers-ai','manifest','omniroute','yepapi','custom','deepseek','groq','mistral','xai','moonshot','qwen','zai','llamacpp','lmstudio','copilot','opencode-go'];
 
         const PROVIDER_OAUTH_PRESETS = {
             google: {
@@ -1495,6 +1497,14 @@ let _providerCatalogPromise = null;
             return (catalogModel && catalogModel.base_url) || PROVIDER_BASE_URL_FALLBACKS[typ] || '';
         }
 
+        function providerAutoURLHintForType(type) {
+            const typ = (type || '').toLowerCase();
+            if (typ === 'workers-ai') return t('config.providers.workers_ai_url_auto');
+            if (typ === 'manifest') return t('config.providers.manifest_url_auto');
+            if (typ === 'omniroute') return t('config.providers.omniroute_url_auto');
+            return '';
+        }
+
         function providerKnownBaseURLs() {
             const urls = new Set(Object.values(PROVIDER_BASE_URL_FALLBACKS).filter(Boolean));
             const models = (_providerCatalogCache && _providerCatalogCache.models) || [];
@@ -1598,9 +1608,9 @@ let _providerCatalogPromise = null;
             const currentAuthType = data.auth_type || 'api_key';
             const isOAuth = currentAuthType === 'oauth2';
             const currentType = data.type || 'openai';
-            const isManagedManifestInitial = currentType === 'manifest';
-            const isAutoURLInitial = currentType === 'workers-ai' || isManagedManifestInitial;
-            const initialURLHint = isManagedManifestInitial ? t('config.providers.manifest_url_auto') : t('config.providers.workers_ai_url_auto');
+            const isManagedGatewayInitial = currentType === 'manifest' || currentType === 'omniroute';
+            const isAutoURLInitial = currentType === 'workers-ai' || isManagedGatewayInitial;
+            const initialURLHint = currentType === 'omniroute' ? t('config.providers.omniroute_url_auto') : (currentType === 'manifest' ? t('config.providers.manifest_url_auto') : t('config.providers.workers_ai_url_auto'));
             const initialOAuthPreset = providerOAuthPresetForType(currentType);
             const initialOAuthAuthURL = providerOAuthPresetFieldValue(currentType, 'auth_url', data.oauth_auth_url || '');
             const initialOAuthTokenURL = providerOAuthPresetFieldValue(currentType, 'token_url', data.oauth_token_url || '');
@@ -1938,8 +1948,8 @@ let _providerCatalogPromise = null;
                 const typ = typeSelect.value;
                 const currentUrl = urlInput.value.trim();
                 const isWorkersAI = typ === 'workers-ai';
-                const isManagedManifest = typ === 'manifest';
-                const isAutoURLProvider = isWorkersAI || isManagedManifest;
+                const isManagedGateway = typ === 'manifest' || typ === 'omniroute';
+                const isAutoURLProvider = isWorkersAI || isManagedGateway;
                 // Auto-fill URL when empty OR when it still contains a known default URL (i.e. user hasn't typed a custom one)
                 if (isAutoURLProvider) {
                     urlInput.value = '';
@@ -1954,7 +1964,7 @@ let _providerCatalogPromise = null;
                     }
                 }
                 // Update placeholder
-                urlInput.placeholder = isWorkersAI ? t('config.providers.workers_ai_url_auto') : (isManagedManifest ? t('config.providers.manifest_url_auto') : (providerBaseURLForType(typ) || 'https://...'));
+                urlInput.placeholder = providerAutoURLHintForType(typ) || (providerBaseURLForType(typ) || 'https://...');
                 // Update hint
                 if (hintEl) {
                     const hintKey = PROVIDER_HINTS[typ];
@@ -1963,7 +1973,7 @@ let _providerCatalogPromise = null;
                 // Show/hide Workers AI account ID + URL auto hint
                 if (accountIdBlock) setHidden(accountIdBlock, !isWorkersAI);
                 if (urlAutoHint) {
-                    urlAutoHint.textContent = isManagedManifest ? t('config.providers.manifest_url_auto') : t('config.providers.workers_ai_url_auto');
+                    urlAutoHint.textContent = providerAutoURLHintForType(typ) || '';
                     setHidden(urlAutoHint, !isAutoURLProvider);
                 }
                 // Show/hide Ollama model query block
@@ -2219,8 +2229,8 @@ let _providerCatalogPromise = null;
                 if (!id) { showToast(t('config.providers.id_empty_error'), 'warn'); return; }
                 if (type === 'workers-ai') {
                     if (!account_id) { showToast(t('config.providers.account_id_empty_error'), 'warn'); return; }
-                } else if (type === 'manifest') {
-                    // Manifest providers are resolved from the Manifest integration settings.
+                } else if (type === 'manifest' || type === 'omniroute') {
+                    // Managed gateway providers are resolved from their integration settings.
                 } else if (!base_url) {
                     showToast(t('config.providers.url_empty_error'), 'warn'); return;
                 }
@@ -2260,7 +2270,7 @@ let _providerCatalogPromise = null;
 
                     if (!api_key) {
                         // Warn only for types that usually require keys
-                        const noKeyTypes = ['ollama', 'llamacpp', 'lmstudio', 'manifest', 'copilot'];
+                        const noKeyTypes = ['ollama', 'llamacpp', 'lmstudio', 'manifest', 'omniroute', 'copilot'];
                         if (!noKeyTypes.includes(type)) {
                             const confirmed = await showConfirm(
                                 t('config.providers.empty_key_confirm_title'),

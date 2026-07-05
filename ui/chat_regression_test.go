@@ -2025,7 +2025,7 @@ func TestConfigFrontendManifestProviderTypeIsExplicitAndManaged(t *testing.T) {
 		"'manifest'",
 		"config.providers.hint.manifest",
 		"config.providers.manifest_url_auto",
-		"const isManagedManifest = typ === 'manifest';",
+		"const isManagedGateway = typ === 'manifest' || typ === 'omniroute';",
 		"type === 'workers-ai'",
 		"type === 'manifest'",
 	} {
@@ -2054,6 +2054,213 @@ func TestConfigFrontendManifestProviderTypeIsExplicitAndManaged(t *testing.T) {
 			"config.providers.type_manifest",
 			"config.providers.hint.manifest",
 			"config.providers.manifest_url_auto",
+		} {
+			if _, ok := lang[key]; !ok {
+				t.Fatalf("%s missing i18n key %s", path, key)
+			}
+		}
+	}
+}
+
+func TestConfigFrontendOmniRouteI18nKeysAndSecretHelpExist(t *testing.T) {
+	t.Parallel()
+
+	mainPath := filepath.Join("js", "config", "main.js")
+	modulePath := filepath.Join("cfg", "omniroute.js")
+
+	mainContent, err := os.ReadFile(mainPath)
+	if err != nil {
+		t.Fatalf("read %s: %v", mainPath, err)
+	}
+	moduleContent, err := os.ReadFile(modulePath)
+	if err != nil {
+		t.Fatalf("read %s: %v", modulePath, err)
+	}
+
+	mainJS := string(mainContent)
+	for _, marker := range []string{
+		"{ key: 'omniroute'",
+		"omniroute: { m: 'omniroute', fn: 'renderOmniRouteSection' }",
+	} {
+		if !strings.Contains(mainJS, marker) {
+			t.Fatalf("%s missing OmniRoute config marker %q", mainPath, marker)
+		}
+	}
+
+	moduleJS := string(moduleContent)
+	for _, marker := range []string{
+		"function omniRouteText",
+		"help.omniroute.api_key",
+		"help.omniroute.initial_password",
+		"help.omniroute.jwt_secret",
+		"help.omniroute.api_key_secret",
+		"help.omniroute.ws_bridge_secret",
+		"omniroute.api_key",
+		"omniroute.initial_password",
+		"omniroute.jwt_secret",
+		"omniroute.api_key_secret",
+		"omniroute.ws_bridge_secret",
+	} {
+		if !strings.Contains(moduleJS, marker) {
+			t.Fatalf("%s missing OmniRoute module marker %q", modulePath, marker)
+		}
+	}
+	if strings.Contains(moduleJS, "alert(") {
+		t.Fatal("OmniRoute config module must not introduce alert()")
+	}
+
+	keys := []string{
+		"config.section.omniroute.label",
+		"config.section.omniroute.desc",
+		"config.omniroute.admin_setup_required",
+		"config.omniroute.advanced_label",
+		"config.omniroute.api_key_label",
+		"config.omniroute.api_key_secret_label",
+		"config.omniroute.auto_start_label",
+		"config.omniroute.container_name_label",
+		"config.omniroute.data_volume_label",
+		"config.omniroute.disabled_desc",
+		"config.omniroute.disabled_notice",
+		"config.omniroute.enabled_label",
+		"config.omniroute.external_base_url_label",
+		"config.omniroute.health_path_label",
+		"config.omniroute.host_label",
+		"config.omniroute.host_port_label",
+		"config.omniroute.image_label",
+		"config.omniroute.initial_password_label",
+		"config.omniroute.jwt_secret_label",
+		"config.omniroute.memory_mb_label",
+		"config.omniroute.mode_external",
+		"config.omniroute.mode_label",
+		"config.omniroute.mode_managed",
+		"config.omniroute.network_name_label",
+		"config.omniroute.port_label",
+		"config.omniroute.secrets_desc",
+		"config.omniroute.secrets_title",
+		"config.omniroute.sidecar_note",
+		"config.omniroute.start_button",
+		"config.omniroute.starting",
+		"config.omniroute.status_error",
+		"config.omniroute.status_prefix",
+		"config.omniroute.stop_button",
+		"config.omniroute.stopping",
+		"config.omniroute.test_button",
+		"config.omniroute.testing",
+		"config.omniroute.url_label",
+		"config.omniroute.ws_bridge_secret_label",
+		"help.omniroute.api_key",
+		"help.omniroute.api_key_secret",
+		"help.omniroute.auto_start",
+		"help.omniroute.container_name",
+		"help.omniroute.data_volume",
+		"help.omniroute.enabled",
+		"help.omniroute.external_base_url",
+		"help.omniroute.health_path",
+		"help.omniroute.host",
+		"help.omniroute.host_port",
+		"help.omniroute.image",
+		"help.omniroute.initial_password",
+		"help.omniroute.jwt_secret",
+		"help.omniroute.memory_mb",
+		"help.omniroute.mode",
+		"help.omniroute.network_name",
+		"help.omniroute.port",
+		"help.omniroute.url",
+		"help.omniroute.ws_bridge_secret",
+	}
+	files, err := filepath.Glob(filepath.Join("lang", "config", "sections", "*.json"))
+	if err != nil {
+		t.Fatalf("glob config section lang files: %v", err)
+	}
+	if len(files) < 15 {
+		t.Fatalf("expected all config section language files, got %d", len(files))
+	}
+	for _, path := range files {
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read %s: %v", path, err)
+		}
+		var lang map[string]interface{}
+		if err := json.Unmarshal(raw, &lang); err != nil {
+			t.Fatalf("parse %s: %v", path, err)
+		}
+		for _, key := range keys {
+			value, ok := lang[key]
+			if !ok {
+				t.Fatalf("%s missing i18n key %s", path, key)
+			}
+			text, ok := value.(string)
+			if !ok || strings.TrimSpace(text) == "" || text == key {
+				t.Fatalf("%s has unusable i18n value for %s: %#v", path, key, value)
+			}
+		}
+	}
+
+	enPath := filepath.Join("lang", "config", "sections", "en.json")
+	rawEN, err := os.ReadFile(enPath)
+	if err != nil {
+		t.Fatalf("read %s: %v", enPath, err)
+	}
+	var en map[string]interface{}
+	if err := json.Unmarshal(rawEN, &en); err != nil {
+		t.Fatalf("parse %s: %v", enPath, err)
+	}
+	requiredHelpMarkers := map[string][]string{
+		"help.omniroute.api_key":          {"OpenAI-compatible", "OmniRoute dashboard", "Vault"},
+		"help.omniroute.initial_password": {"first managed start", "Vault", "not written to config.yaml"},
+		"help.omniroute.jwt_secret":       {"generated", "sessions", "Vault"},
+	}
+	for key, markers := range requiredHelpMarkers {
+		text, _ := en[key].(string)
+		for _, marker := range markers {
+			if !strings.Contains(text, marker) {
+				t.Fatalf("%s must explain %s with marker %q; got %q", enPath, key, marker, text)
+			}
+		}
+	}
+}
+
+func TestConfigFrontendOmniRouteProviderTypeIsExplicitAndManaged(t *testing.T) {
+	t.Parallel()
+
+	modulePath := filepath.Join("cfg", "providers.js")
+	moduleContent, err := os.ReadFile(modulePath)
+	if err != nil {
+		t.Fatalf("read %s: %v", modulePath, err)
+	}
+	moduleJS := string(moduleContent)
+	for _, marker := range []string{
+		"'omniroute'",
+		"config.providers.hint.omniroute",
+		"config.providers.omniroute_url_auto",
+		"const isManagedGateway = typ === 'manifest' || typ === 'omniroute';",
+		"type === 'omniroute'",
+	} {
+		if !strings.Contains(moduleJS, marker) {
+			t.Fatalf("%s missing explicit OmniRoute provider marker %q", modulePath, marker)
+		}
+	}
+
+	files, err := filepath.Glob(filepath.Join("lang", "config", "providers", "*.json"))
+	if err != nil {
+		t.Fatalf("glob provider lang files: %v", err)
+	}
+	if len(files) < 15 {
+		t.Fatalf("expected all provider language files, got %d", len(files))
+	}
+	for _, path := range files {
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read %s: %v", path, err)
+		}
+		var lang map[string]interface{}
+		if err := json.Unmarshal(raw, &lang); err != nil {
+			t.Fatalf("parse %s: %v", path, err)
+		}
+		for _, key := range []string{
+			"config.providers.type_omniroute",
+			"config.providers.hint.omniroute",
+			"config.providers.omniroute_url_auto",
 		} {
 			if _, ok := lang[key]; !ok {
 				t.Fatalf("%s missing i18n key %s", path, key)

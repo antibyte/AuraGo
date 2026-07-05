@@ -868,6 +868,21 @@ func Start(opts StartOptions) error {
 			}
 		}
 
+		// Auto-start OmniRoute sidecar whenever the integration is active in managed mode and auto_start is enabled.
+		if cfg.OmniRoute.Enabled && cfg.OmniRoute.AutoStart && strings.EqualFold(cfg.OmniRoute.Mode, "managed") {
+			if err := s.ensureOmniRouteSecrets(cfg); err != nil {
+				logger.Warn("[OmniRoute] Failed to ensure vault secrets", "error", err)
+			} else {
+				go func() {
+					ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+					defer cancel()
+					if err := tools.EnsureOmniRouteSidecarRunning(ctx, cfg.Docker.Host, cfg, logger); err != nil {
+						logger.Warn("[OmniRoute] Failed to auto-start sidecar", "error", err)
+					}
+				}()
+			}
+		}
+
 		// Auto-start Dograh stack whenever the integration is active in managed mode and auto_start is enabled.
 		if cfg.Dograh.Enabled && cfg.Dograh.AutoStart && strings.EqualFold(cfg.Dograh.Mode, "managed") {
 			if err := s.ensureDograhSecrets(cfg); err != nil {

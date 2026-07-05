@@ -538,7 +538,7 @@ s3:
     # access_key and secret_key are stored in the encrypted vault — configure via Config UI
 # LLM Providers — configure via the Setup Wizard or Config UI
 # Supported types: openai, openrouter, ollama, anthropic, google, minimax,
-# workers-ai, manifest, yepapi, custom, deepseek, groq, mistral, xai,
+# workers-ai, manifest, omniroute, yepapi, custom, deepseek, groq, mistral, xai,
 # moonshot, qwen, zai, llamacpp, lmstudio, copilot, opencode-go
 # Example: route through a managed or external Manifest.build gateway.
 # Store the mnfst_... API key in the vault via the Config UI.
@@ -554,6 +554,13 @@ s3:
 #       multimodal: false
 #       detected_model: "manifest/auto"
 #       source: "legacy_fallback"                        # manual, openrouter, oh-my-pi, models.dev, heuristic, legacy_fallback
+# Example: route through a managed or external OmniRoute gateway.
+# Store the OmniRoute API key in the vault via the Config UI.
+# providers:
+#   - id: omniroute
+#     type: omniroute
+#     name: "OmniRoute Gateway"
+#     model: "auto"
 providers: []
 model_catalog:
     enabled: true                                         # use bundled Oh-My-Pi provider/model metadata for UI and capability detection
@@ -794,6 +801,27 @@ manifest:
     # api_key: mnfst_...
     # postgres_password: generated/stored in vault
     # better_auth_secret: generated/stored in vault
+omniroute:
+    enabled: false
+    auto_start: true                                      # starts the managed OmniRoute sidecar when enabled
+    mode: managed                                         # managed or external
+    url: "http://omniroute:20128"                         # managed dashboard/API URL from inside AuraGo Docker; use http://127.0.0.1:20128 on bare metal
+    external_base_url: "http://127.0.0.1:20128/v1"        # OpenAI-compatible /v1 URL for an existing OmniRoute endpoint
+    container_name: aurago_omniroute
+    image: diegosouzapw/omniroute:3.8.39                  # pinned sidecar image
+    host: "127.0.0.1"                                     # requested dashboard/API bind address
+    port: 20128
+    host_port: 20128
+    network_name: aurago_omniroute
+    data_volume: aurago_omniroute_data                    # persists /app/data
+    health_path: "/api/monitoring/health"
+    memory_mb: 512
+    # Vault-only fields saved via UI, never config.yaml:
+    # api_key: copied from OmniRoute after creating an API key in its dashboard
+    # initial_password: required before the first managed start
+    # jwt_secret: generated/stored in vault
+    # api_key_secret: generated/stored in vault
+    # ws_bridge_secret: generated/stored in vault
 dograh:
     enabled: false
     auto_start: true                                      # starts managed Dograh stack when enabled

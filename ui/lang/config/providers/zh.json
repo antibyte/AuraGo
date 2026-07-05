@@ -237,5 +237,8 @@
   "config.providers.copilot_auth_success": "GitHub Copilot 授权成功。",
   "config.providers.copilot_auth_failed": "Copilot 授权失败：{{error}}",
   "config.providers.copilot_error": "错误",
-  "config.providers.copilot_unknown_error": "未知"
+  "config.providers.copilot_unknown_error": "未知",
+  "config.providers.type_omniroute": "OmniRoute",
+  "config.providers.omniroute_url_auto": "URL 从 OmniRoute 设置中解析。",
+  "config.providers.hint.omniroute": "使用 OmniRoute 集成设置。托管模式下 AuraGo 会与内部 sidecar 通信。"
 }

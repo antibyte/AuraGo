@@ -307,6 +307,56 @@ func TestExtractSecretsToVaultStoresManifestSecrets(t *testing.T) {
 	}
 }
 
+func TestExtractSecretsToVaultStoresOmniRouteSecrets(t *testing.T) {
+	const masterKey = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+
+	vault, err := security.NewVault(masterKey, t.TempDir()+"\\vault.bin")
+	if err != nil {
+		t.Fatalf("NewVault() error = %v", err)
+	}
+
+	patch := map[string]interface{}{
+		"omniroute": map[string]interface{}{
+			"enabled":          true,
+			"api_key":          "omni-api-key",
+			"initial_password": "initial-admin-password",
+			"jwt_secret":       "jwt-secret",
+			"api_key_secret":   "api-key-secret",
+			"ws_bridge_secret": "ws-bridge-secret",
+		},
+	}
+
+	if err := extractSecretsToVault(patch, vault, slog.Default()); err != nil {
+		t.Fatalf("extractSecretsToVault() error = %v", err)
+	}
+
+	assertVaultSecret := func(key, want string) {
+		t.Helper()
+		secret, err := vault.ReadSecret(key)
+		if err != nil {
+			t.Fatalf("vault.ReadSecret(%q) error = %v", key, err)
+		}
+		if secret != want {
+			t.Fatalf("vault secret %q = %q, want %q", key, secret, want)
+		}
+	}
+	assertVaultSecret("omniroute_api_key", "omni-api-key")
+	assertVaultSecret("omniroute_initial_password", "initial-admin-password")
+	assertVaultSecret("omniroute_jwt_secret", "jwt-secret")
+	assertVaultSecret("omniroute_api_key_secret", "api-key-secret")
+	assertVaultSecret("omniroute_ws_bridge_secret", "ws-bridge-secret")
+
+	section, ok := patch["omniroute"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("patch[\"omniroute\"] missing or wrong type: %#v", patch["omniroute"])
+	}
+	for _, key := range []string{"api_key", "initial_password", "jwt_secret", "api_key_secret", "ws_bridge_secret"} {
+		if _, exists := section[key]; exists {
+			t.Fatalf("%s field should have been removed from patch: %#v", key, section)
+		}
+	}
+}
+
 func TestHandleUpdateConfigInvalidJSONIsGeneric(t *testing.T) {
 	s := &Server{
 		Cfg: &config.Config{ConfigPath: "config.yaml"},

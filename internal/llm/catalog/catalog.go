@@ -369,6 +369,7 @@ var runtimeProviderTypes = map[string]bool{
 	"glm":         true,
 	"yepapi":      true,
 	"manifest":    true,
+	"omniroute":   true,
 	"deepseek":    true,
 	"groq":        true,
 	"mistral":     true,

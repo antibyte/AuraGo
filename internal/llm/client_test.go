@@ -209,6 +209,15 @@ func TestManifestProviderURLMismatchIsQuietForLocalGateway(t *testing.T) {
 	}
 }
 
+func TestOmniRouteProviderURLMismatchIsQuietForLocalGateway(t *testing.T) {
+	if got := detectProviderURLMismatch("omniroute", "http://127.0.0.1:20128/v1"); got != "" {
+		t.Fatalf("detectProviderURLMismatch(omniroute local) = %q, want empty", got)
+	}
+	if got := detectProviderURLMismatch("omniroute", "http://omniroute:20128/v1"); got != "" {
+		t.Fatalf("detectProviderURLMismatch(omniroute docker) = %q, want empty", got)
+	}
+}
+
 func TestManifestRoutingTransportDisabledDoesNotSetHeaders(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Manifest.Routing.Enabled = false
@@ -772,7 +781,7 @@ func TestAIGatewaySegmentNewProviders(t *testing.T) {
 }
 
 func TestAIGatewaySegmentUnsupportedProvidersDoNotFallbackToOpenAI(t *testing.T) {
-	for _, providerType := range []string{"custom", "manifest", "yepapi", "moonshot", "qwen", "zai", "llamacpp", "lmstudio", "unknown"} {
+	for _, providerType := range []string{"custom", "manifest", "omniroute", "yepapi", "moonshot", "qwen", "zai", "llamacpp", "lmstudio", "unknown"} {
 		if got := aiGatewaySegment(providerType); got != "" {
 			t.Fatalf("aiGatewaySegment(%q) = %q, want empty unsupported segment", providerType, got)
 		}

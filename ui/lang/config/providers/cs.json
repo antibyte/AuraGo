@@ -237,5 +237,8 @@
   "config.providers.copilot_auth_success": "GitHub Copilot byl úspěšně autorizován.",
   "config.providers.copilot_auth_failed": "Autorizace Copilotu selhala: {{error}}",
   "config.providers.copilot_error": "Chyba",
-  "config.providers.copilot_unknown_error": "Neznámé"
+  "config.providers.copilot_unknown_error": "Neznámé",
+  "config.providers.type_omniroute": "OmniRoute",
+  "config.providers.omniroute_url_auto": "URL se urcuje z nastaveni OmniRoute.",
+  "config.providers.hint.omniroute": "Pouziva nastaveni OmniRoute. V rizenem rezimu AuraGo komunikuje s internim sidecarem."
 }

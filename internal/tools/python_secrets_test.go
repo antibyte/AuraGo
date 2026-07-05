@@ -110,6 +110,11 @@ func TestIsPythonAccessibleSecret_BlocksPrefixedKeys(t *testing.T) {
 		"manifest_api_key",
 		"manifest_postgres_password",
 		"manifest_better_auth_secret",
+		"omniroute_api_key",
+		"omniroute_initial_password",
+		"omniroute_jwt_secret",
+		"omniroute_api_key_secret",
+		"omniroute_ws_bridge_secret",
 		"nest_refresh_token",
 	}
 	for _, k := range prefixed {

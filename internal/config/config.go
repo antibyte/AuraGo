@@ -409,6 +409,21 @@ func Load(path string) (*Config, error) {
 	cfg.Manifest.Routing.SpecificityMode = "off"
 	cfg.Manifest.Routing.Headers = map[string]string{}
 
+	// OmniRoute defaults: disabled by default, managed Docker gateway when enabled.
+	cfg.OmniRoute.AutoStart = true
+	cfg.OmniRoute.Mode = "managed"
+	cfg.OmniRoute.URL = defaultSidecarURL(runningInDocker, "omniroute", 20128)
+	cfg.OmniRoute.ExternalBaseURL = "http://127.0.0.1:20128/v1"
+	cfg.OmniRoute.ContainerName = "aurago_omniroute"
+	cfg.OmniRoute.Image = "diegosouzapw/omniroute:3.8.39"
+	cfg.OmniRoute.Host = "127.0.0.1"
+	cfg.OmniRoute.Port = 20128
+	cfg.OmniRoute.HostPort = 20128
+	cfg.OmniRoute.NetworkName = "aurago_omniroute"
+	cfg.OmniRoute.DataVolume = "aurago_omniroute_data"
+	cfg.OmniRoute.HealthPath = "/api/monitoring/health"
+	cfg.OmniRoute.MemoryMB = 512
+
 	// Dograh defaults: disabled by default, managed Docker stack when enabled.
 	cfg.Dograh.AutoStart = true
 	cfg.Dograh.Mode = "managed"
@@ -755,6 +770,7 @@ func Load(path string) (*Config, error) {
 	cfg.BrowserAutomation.URL = NormalizeLegacySidecarURL(cfg.BrowserAutomation.URL, runningInDocker, "browser-automation", 7331)
 	cfg.SpaceAgent.PublicURL, cfg.SpaceAgent.Port = normalizeSpaceAgentURLAndPort(cfg.SpaceAgent.PublicURL, cfg.SpaceAgent.Port, runningInDocker)
 	cfg.Manifest.URL = NormalizeLegacySidecarURL(cfg.Manifest.URL, runningInDocker, "manifest", 2099)
+	cfg.OmniRoute.URL = NormalizeLegacySidecarURL(cfg.OmniRoute.URL, runningInDocker, "omniroute", 20128)
 	cfg.Dograh.APIURL = NormalizeLegacySidecarURL(cfg.Dograh.APIURL, runningInDocker, "dograh-api", 8000)
 	cfg.Dograh.UIURL = NormalizeLegacySidecarURL(cfg.Dograh.UIURL, runningInDocker, "dograh-ui", 3010)
 	if strings.TrimSpace(cfg.SpaceAgent.RepoURL) == "" {
@@ -833,6 +849,48 @@ func Load(path string) (*Config, error) {
 		cfg.Manifest.PostgresVolume = "aurago_manifest_pgdata"
 	}
 	NormalizeManifestRoutingConfig(&cfg.Manifest.Routing)
+	if strings.TrimSpace(cfg.OmniRoute.Mode) == "" {
+		cfg.OmniRoute.Mode = "managed"
+	}
+	switch strings.ToLower(strings.TrimSpace(cfg.OmniRoute.Mode)) {
+	case "external":
+		cfg.OmniRoute.Mode = "external"
+	default:
+		cfg.OmniRoute.Mode = "managed"
+	}
+	if strings.TrimSpace(cfg.OmniRoute.URL) == "" {
+		cfg.OmniRoute.URL = defaultSidecarURL(runningInDocker, "omniroute", 20128)
+	}
+	if strings.TrimSpace(cfg.OmniRoute.ExternalBaseURL) == "" {
+		cfg.OmniRoute.ExternalBaseURL = "http://127.0.0.1:20128/v1"
+	}
+	if strings.TrimSpace(cfg.OmniRoute.ContainerName) == "" {
+		cfg.OmniRoute.ContainerName = "aurago_omniroute"
+	}
+	if strings.TrimSpace(cfg.OmniRoute.Image) == "" {
+		cfg.OmniRoute.Image = "diegosouzapw/omniroute:3.8.39"
+	}
+	if strings.TrimSpace(cfg.OmniRoute.Host) == "" {
+		cfg.OmniRoute.Host = "127.0.0.1"
+	}
+	if cfg.OmniRoute.Port <= 0 {
+		cfg.OmniRoute.Port = 20128
+	}
+	if cfg.OmniRoute.HostPort <= 0 {
+		cfg.OmniRoute.HostPort = cfg.OmniRoute.Port
+	}
+	if strings.TrimSpace(cfg.OmniRoute.NetworkName) == "" {
+		cfg.OmniRoute.NetworkName = "aurago_omniroute"
+	}
+	if strings.TrimSpace(cfg.OmniRoute.DataVolume) == "" {
+		cfg.OmniRoute.DataVolume = "aurago_omniroute_data"
+	}
+	if strings.TrimSpace(cfg.OmniRoute.HealthPath) == "" {
+		cfg.OmniRoute.HealthPath = "/api/monitoring/health"
+	}
+	if cfg.OmniRoute.MemoryMB <= 0 {
+		cfg.OmniRoute.MemoryMB = 512
+	}
 	if strings.TrimSpace(cfg.Dograh.Mode) == "" {
 		cfg.Dograh.Mode = "managed"
 	}
@@ -2238,6 +2296,20 @@ func (c *Config) Save(path string) error {
 		{[]string{"manifest", "routing", "specificity_mode"}, c.Manifest.Routing.SpecificityMode},
 		{[]string{"manifest", "routing", "specificity"}, c.Manifest.Routing.Specificity},
 		{[]string{"manifest", "routing", "headers"}, c.Manifest.Routing.Headers},
+		{[]string{"omniroute", "enabled"}, c.OmniRoute.Enabled},
+		{[]string{"omniroute", "auto_start"}, c.OmniRoute.AutoStart},
+		{[]string{"omniroute", "mode"}, c.OmniRoute.Mode},
+		{[]string{"omniroute", "url"}, c.OmniRoute.URL},
+		{[]string{"omniroute", "external_base_url"}, c.OmniRoute.ExternalBaseURL},
+		{[]string{"omniroute", "container_name"}, c.OmniRoute.ContainerName},
+		{[]string{"omniroute", "image"}, c.OmniRoute.Image},
+		{[]string{"omniroute", "host"}, c.OmniRoute.Host},
+		{[]string{"omniroute", "port"}, c.OmniRoute.Port},
+		{[]string{"omniroute", "host_port"}, c.OmniRoute.HostPort},
+		{[]string{"omniroute", "network_name"}, c.OmniRoute.NetworkName},
+		{[]string{"omniroute", "data_volume"}, c.OmniRoute.DataVolume},
+		{[]string{"omniroute", "health_path"}, c.OmniRoute.HealthPath},
+		{[]string{"omniroute", "memory_mb"}, c.OmniRoute.MemoryMB},
 		{[]string{"virtual_desktop", "enabled"}, c.VirtualDesktop.Enabled},
 		{[]string{"virtual_desktop", "readonly"}, c.VirtualDesktop.ReadOnly},
 		{[]string{"virtual_desktop", "allow_agent_control"}, c.VirtualDesktop.AllowAgentControl},

@@ -62,7 +62,7 @@ async function renderManifestSection(section) {
     html += '<div class="cfg-note-banner cfg-note-banner-info">▦ ' + manifestText('config.manifest.sidecar_note') + '</div>';
     html += '<div class="field-grid two-cols">';
     html += manifestField('config.manifest.mode_label', 'help.manifest.mode',
-        '<select class="field-select" data-path="manifest.mode" onchange="setNestedValue(configData,\\'manifest.mode\\',this.value);setDirty(true);renderManifestSection(null)">' +
+        "<select class=\"field-select\" data-path=\"manifest.mode\" onchange=\"setNestedValue(configData,'manifest.mode',this.value);setDirty(true);renderManifestSection(null)\">" +
         '<option value="managed"' + (managed ? ' selected' : '') + '>' + manifestText('config.manifest.mode_managed') + '</option>' +
         '<option value="external"' + (!managed ? ' selected' : '') + '>' + manifestText('config.manifest.mode_external') + '</option>' +
         '</select>');

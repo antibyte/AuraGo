@@ -237,5 +237,8 @@
   "config.providers.copilot_auth_success": "GitHub Copilot a été autorisé avec succès.",
   "config.providers.copilot_auth_failed": "Échec de l’autorisation Copilot : {{error}}",
   "config.providers.copilot_error": "Erreur",
-  "config.providers.copilot_unknown_error": "Inconnu"
+  "config.providers.copilot_unknown_error": "Inconnu",
+  "config.providers.type_omniroute": "OmniRoute",
+  "config.providers.omniroute_url_auto": "L'URL est resolue depuis les parametres OmniRoute.",
+  "config.providers.hint.omniroute": "Utilise les parametres OmniRoute. En mode gere, AuraGo communique avec le sidecar interne."
 }

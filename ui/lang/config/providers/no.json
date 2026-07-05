@@ -237,5 +237,8 @@
   "config.providers.copilot_auth_success": "GitHub Copilot ble autorisert.",
   "config.providers.copilot_auth_failed": "Copilot-autorisasjon mislyktes: {{error}}",
   "config.providers.copilot_error": "Feil",
-  "config.providers.copilot_unknown_error": "Ukjent"
+  "config.providers.copilot_unknown_error": "Ukjent",
+  "config.providers.type_omniroute": "OmniRoute",
+  "config.providers.omniroute_url_auto": "URL hentes fra OmniRoute-innstillingene.",
+  "config.providers.hint.omniroute": "Bruker OmniRoute-innstillingene. I managed modus snakker AuraGo med den interne sidecaren."
 }

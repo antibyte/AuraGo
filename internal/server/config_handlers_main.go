@@ -731,6 +731,41 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				}()
 			}
 
+			omniRouteChanged := !reflect.DeepEqual(oldCfg.OmniRoute, newCfg.OmniRoute) || oldCfg.Docker.Host != newCfg.Docker.Host || oldCfg.Runtime.IsDocker != newCfg.Runtime.IsDocker
+			oldOmniRouteRuntime := oldCfg.OmniRoute
+			newOmniRouteRuntime := newCfg.OmniRoute
+			oldOmniRouteRuntime.APIKey = ""
+			newOmniRouteRuntime.APIKey = ""
+			omniRouteRuntimeChanged := !reflect.DeepEqual(oldOmniRouteRuntime, newOmniRouteRuntime) || oldCfg.Docker.Host != newCfg.Docker.Host || oldCfg.Runtime.IsDocker != newCfg.Runtime.IsDocker
+			if omniRouteChanged && newCfg.Docker.Enabled && newCfg.OmniRoute.Enabled && newCfg.OmniRoute.AutoStart && strings.EqualFold(newCfg.OmniRoute.Mode, "managed") {
+				if err := s.ensureOmniRouteSecrets(newCfg); err != nil {
+					s.Logger.Warn("[Config UI] Failed to ensure OmniRoute secrets", "error", err)
+				} else {
+					omniRouteBrowserBaseURL := omniRouteBrowserBaseURLForRequest(s, newCfg, r)
+					go func() {
+						ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+						defer cancel()
+						if omniRouteRuntimeChanged && oldCfg.OmniRoute.Enabled && strings.EqualFold(oldCfg.OmniRoute.Mode, "managed") {
+							if err := tools.StopOmniRouteSidecar(ctx, oldCfg.Docker.Host, &oldCfg, s.Logger); err != nil {
+								s.Logger.Warn("[Config UI] Failed to recreate old OmniRoute sidecar", "error", err)
+							}
+						}
+						if err := tools.EnsureOmniRouteSidecarRunningWithBrowserURL(ctx, newCfg.Docker.Host, newCfg, omniRouteBrowserBaseURL, s.Logger); err != nil {
+							s.Logger.Warn("[Config UI] Failed to start OmniRoute sidecar", "error", err)
+						}
+					}()
+				}
+			}
+			if omniRouteChanged && (!newCfg.OmniRoute.Enabled || strings.EqualFold(newCfg.OmniRoute.Mode, "external")) && oldCfg.OmniRoute.Enabled && strings.EqualFold(oldCfg.OmniRoute.Mode, "managed") {
+				go func() {
+					ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+					defer cancel()
+					if err := tools.StopOmniRouteSidecar(ctx, oldCfg.Docker.Host, &oldCfg, s.Logger); err != nil {
+						s.Logger.Warn("[Config UI] Failed to stop OmniRoute sidecar", "error", err)
+					}
+				}()
+			}
+
 			dograhChanged := !reflect.DeepEqual(oldCfg.Dograh, newCfg.Dograh) || oldCfg.Docker.Host != newCfg.Docker.Host || oldCfg.Runtime.IsDocker != newCfg.Runtime.IsDocker
 			oldDograhRuntime := oldCfg.Dograh
 			newDograhRuntime := newCfg.Dograh
@@ -1772,6 +1807,11 @@ var vaultKeyMap = map[string]string{
 	"manifest.api_key":                 "manifest_api_key",
 	"manifest.postgres_password":       "manifest_postgres_password",
 	"manifest.better_auth_secret":      "manifest_better_auth_secret",
+	"omniroute.api_key":                "omniroute_api_key",
+	"omniroute.initial_password":       "omniroute_initial_password",
+	"omniroute.jwt_secret":             "omniroute_jwt_secret",
+	"omniroute.api_key_secret":         "omniroute_api_key_secret",
+	"omniroute.ws_bridge_secret":       "omniroute_ws_bridge_secret",
 	"composio.api_key":                 "composio_api_key",
 	"dograh.api_key":                   "dograh_api_key",
 	"dograh.oss_jwt_secret":            "dograh_oss_jwt_secret",

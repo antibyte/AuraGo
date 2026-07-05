@@ -332,6 +332,29 @@ type ManifestConfig struct {
 	Routing               ManifestRoutingConfig `yaml:"routing" json:"routing"`                                                    // optional Manifest routing headers
 }
 
+// OmniRouteConfig holds settings for the optional managed OmniRoute gateway.
+type OmniRouteConfig struct {
+	Enabled         bool   `yaml:"enabled" json:"enabled"`                                                 // enable OmniRoute integration
+	AutoStart       bool   `yaml:"auto_start" json:"auto_start"`                                           // create/start the managed Docker sidecar on AuraGo startup
+	Mode            string `yaml:"mode" json:"mode"`                                                       // "managed" (default) or "external"
+	URL             string `yaml:"url" json:"url"`                                                         // managed OmniRoute dashboard/API base URL
+	ExternalBaseURL string `yaml:"external_base_url" json:"external_base_url"`                             // external OpenAI-compatible OmniRoute /v1 URL
+	ContainerName   string `yaml:"container_name" json:"container_name"`                                   // managed OmniRoute container name
+	Image           string `yaml:"image" json:"image"`                                                     // managed OmniRoute Docker image
+	Host            string `yaml:"host" json:"host"`                                                       // host interface for OmniRoute dashboard/API exposure
+	Port            int    `yaml:"port" json:"port"`                                                       // OmniRoute container port
+	HostPort        int    `yaml:"host_port" json:"host_port"`                                             // published host port for dashboard/API access
+	NetworkName     string `yaml:"network_name" json:"network_name"`                                       // Docker network for the managed sidecar
+	DataVolume      string `yaml:"data_volume" json:"data_volume"`                                         // persistent OmniRoute named volume
+	HealthPath      string `yaml:"health_path" json:"health_path"`                                         // health endpoint path
+	MemoryMB        int    `yaml:"memory_mb" json:"memory_mb"`                                             // managed container memory limit in MiB
+	APIKey          string `yaml:"-" json:"api_key,omitempty" vault:"omniroute_api_key"`                   // vault-only API key used by AuraGo requests
+	InitialPassword string `yaml:"-" json:"initial_password,omitempty" vault:"omniroute_initial_password"` // vault-only initial admin password required before first managed start
+	JWTSecret       string `yaml:"-" json:"jwt_secret,omitempty" vault:"omniroute_jwt_secret"`             // vault-only session signing secret
+	APIKeySecret    string `yaml:"-" json:"api_key_secret,omitempty" vault:"omniroute_api_key_secret"`     // vault-only API key encryption/signing secret
+	WSBridgeSecret  string `yaml:"-" json:"ws_bridge_secret,omitempty" vault:"omniroute_ws_bridge_secret"` // vault-only websocket bridge secret
+}
+
 // DograhConfig holds settings for the optional managed Dograh workflow automation stack.
 type DograhConfig struct {
 	Enabled                 bool     `yaml:"enabled" json:"enabled"`                                                    // enable Dograh integration
@@ -1526,6 +1549,7 @@ type Config struct {
 	BrowserAutomation BrowserAutomationConfig `yaml:"browser_automation"`
 	SpaceAgent        SpaceAgentConfig        `yaml:"space_agent"`
 	Manifest          ManifestConfig          `yaml:"manifest"`
+	OmniRoute         OmniRouteConfig         `yaml:"omniroute"`
 	Dograh            DograhConfig            `yaml:"dograh"`
 	VirtualDesktop    VirtualDesktopConfig    `yaml:"virtual_desktop"`
 	SecurityProxy     struct {

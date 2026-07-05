@@ -237,5 +237,8 @@
   "config.providers.copilot_auth_success": "GitHub Copilot の認証が完了しました。",
   "config.providers.copilot_auth_failed": "Copilot 認証に失敗しました: {{error}}",
   "config.providers.copilot_error": "エラー",
-  "config.providers.copilot_unknown_error": "不明"
+  "config.providers.copilot_unknown_error": "不明",
+  "config.providers.type_omniroute": "OmniRoute",
+  "config.providers.omniroute_url_auto": "URL は OmniRoute 設定から解決されます。",
+  "config.providers.hint.omniroute": "OmniRoute 連携設定を使用します。管理モードでは AuraGo が内部 sidecar と通信します。"
 }

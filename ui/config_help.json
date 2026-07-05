@@ -1106,6 +1106,28 @@
       "description": "API key copied from the Manifest admin UI. It is stored only in the vault."
     }
   },
+  "omniroute": {
+    "enabled": {
+      "title": "Enable OmniRoute",
+      "description": "Enables OmniRoute as a managed or external OpenAI-compatible gateway."
+    },
+    "mode": {
+      "title": "Mode",
+      "description": "Managed starts one AuraGo-managed Docker sidecar. External uses an existing OmniRoute endpoint."
+    },
+    "url": {
+      "title": "Managed URL",
+      "description": "Internal URL used by AuraGo to reach the managed OmniRoute service."
+    },
+    "api_key": {
+      "title": "OmniRoute API Key",
+      "description": "API key created in the OmniRoute dashboard. It is stored only in the vault."
+    },
+    "initial_password": {
+      "title": "Initial Admin Password",
+      "description": "Required before the first managed start and stored only in the vault."
+    }
+  },
   "dograh": {
     "enabled": {
       "title": "Enable Dograh",

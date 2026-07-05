@@ -136,6 +136,7 @@ func RouteContractManifest() []RouteContract {
 		{Pattern: "/api/daemons", Methods: []string{"GET", "POST"}, Auth: "session", Category: "skills"},
 		{Pattern: "/api/sql-connections", Methods: []string{"GET", "POST", "PUT", "DELETE"}, Auth: "session", Category: "integration", ContentTypes: []string{"application/json"}},
 		{Pattern: "/api/dograh/", Methods: []string{"GET", "POST"}, Auth: "session", Category: "integration", ContentTypes: []string{"application/json"}},
+		{Pattern: "/api/omniroute/", Methods: []string{"GET", "POST"}, Auth: "session", Category: "integration", ContentTypes: []string{"application/json"}},
 		{Pattern: "/api/composio/", Methods: []string{"GET", "POST", "PUT"}, Auth: "session", Category: "integration", ContentTypes: []string{"application/json"}},
 		{Pattern: "/api/mcp", Methods: []string{"GET", "POST", "PUT", "DELETE"}, Auth: "session", Category: "mcp", ContentTypes: []string{"application/json"}},
 		{Pattern: "/mcp", Methods: []string{"POST"}, Auth: "bearer-token", Category: "mcp"},

@@ -43,6 +43,7 @@ var blockedSecretPrefixes = []string{
 	"webhook_",
 	"space_agent_",
 	"manifest_",
+	"omniroute_",
 	"dograh_",
 	"desktop_store_",
 	"oauth_",

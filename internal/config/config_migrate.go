@@ -172,7 +172,7 @@ var knownProviderTypes = map[string]bool{
 	"anthropic": true, "google": true, "workers-ai": true,
 	"custom": true, "stability": true, "ideogram": true,
 	"vision": true, "minimax": true, "glm": true,
-	"yepapi": true, "manifest": true,
+	"yepapi": true, "manifest": true, "omniroute": true,
 	// Providers from Manifest (Phase 1 — OpenAI-compatible)
 	"deepseek": true, "groq": true, "mistral": true,
 	"xai": true, "moonshot": true, "qwen": true,
@@ -194,6 +194,26 @@ func (c *Config) ManifestProviderBaseURL() string {
 	}
 	if base == "" {
 		base = providerutil.NormalizeBaseURL(defaultSidecarURL(c.Runtime.IsDocker || probeDockerContainer(), "manifest", 2099))
+	}
+	if base == "" {
+		return ""
+	}
+	return strings.TrimRight(base, "/") + "/v1"
+}
+
+// OmniRouteProviderBaseURL returns the OpenAI-compatible /v1 endpoint for the
+// configured OmniRoute gateway mode.
+func (c *Config) OmniRouteProviderBaseURL() string {
+	mode := strings.ToLower(strings.TrimSpace(c.OmniRoute.Mode))
+	if mode == "external" {
+		return providerutil.NormalizeBaseURL(c.OmniRoute.ExternalBaseURL)
+	}
+	base := providerutil.NormalizeBaseURL(c.OmniRoute.URL)
+	if isTailscaleMagicDNSURL(base) {
+		base = ""
+	}
+	if base == "" {
+		base = providerutil.NormalizeBaseURL(defaultSidecarURL(c.Runtime.IsDocker || probeDockerContainer(), "omniroute", 20128))
 	}
 	if base == "" {
 		return ""
@@ -230,6 +250,12 @@ func (c *Config) ResolveProviders() {
 		}
 		if lower == "manifest" && strings.TrimSpace(p.APIKey) == "" {
 			p.APIKey = strings.TrimSpace(c.Manifest.APIKey)
+		}
+		if lower == "omniroute" {
+			p.BaseURL = c.OmniRouteProviderBaseURL()
+		}
+		if lower == "omniroute" && strings.TrimSpace(p.APIKey) == "" {
+			p.APIKey = strings.TrimSpace(c.OmniRoute.APIKey)
 		}
 		p.BaseURL = providerutil.NormalizeBaseURL(p.BaseURL)
 	}
@@ -853,6 +879,11 @@ func (c *Config) ApplyVaultSecrets(vault SecretReader) {
 	apply("manifest_api_key", &c.Manifest.APIKey)
 	apply("manifest_postgres_password", &c.Manifest.PostgresPassword)
 	apply("manifest_better_auth_secret", &c.Manifest.BetterAuthSecret)
+	apply("omniroute_api_key", &c.OmniRoute.APIKey)
+	apply("omniroute_initial_password", &c.OmniRoute.InitialPassword)
+	apply("omniroute_jwt_secret", &c.OmniRoute.JWTSecret)
+	apply("omniroute_api_key_secret", &c.OmniRoute.APIKeySecret)
+	apply("omniroute_ws_bridge_secret", &c.OmniRoute.WSBridgeSecret)
 	apply("composio_api_key", &c.Composio.APIKey)
 	if strings.TrimSpace(c.Composio.APIKey) == "" {
 		apply("composio.api_key", &c.Composio.APIKey)
