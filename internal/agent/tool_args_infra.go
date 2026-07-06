@@ -851,15 +851,23 @@ func (req trueNASArgs) params() map[string]string {
 		params["path"] = p
 	}
 	if req.Query != "" {
-		params["pool"] = req.Query
-		params["dataset"] = req.Query
+		if req.Action == "truenas_nfs_create" {
+			params["networks"] = req.Query
+		} else {
+			params["pool"] = req.Query
+			params["dataset"] = req.Query
+		}
 	}
 	if req.Port != 0 {
 		params["pool_id"] = fmt.Sprintf("%d", req.Port)
 		params["share_id"] = fmt.Sprintf("%d", req.Port)
 	}
 	if req.Content != "" {
-		params["compression"] = req.Content
+		if req.Action == "truenas_nfs_create" {
+			params["hosts"] = req.Content
+		} else {
+			params["compression"] = req.Content
+		}
 	}
 	if req.Limit > 0 {
 		params["quota_gb"] = fmt.Sprintf("%d", req.Limit)

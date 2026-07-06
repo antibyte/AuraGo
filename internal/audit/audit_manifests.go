@@ -41,7 +41,7 @@ func ToolPermissionMatrix() []ToolPermission {
 		{Name: "remote_execution", ConfigGate: "agent.allow_remote_shell", Capabilities: []Capability{CapabilityExecute, CapabilityNetwork, CapabilityHost}},
 		{Name: "secrets_vault", ConfigGate: "tools.secrets_vault.enabled", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityDelete}},
 		{Name: "transfer_remote_file", ConfigGate: "agent.allow_remote_shell", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityNetwork, CapabilityHost}},
-		{Name: "truenas", ConfigGate: "truenas.enabled", ReadOnlyGate: "truenas.read_only", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityChange, CapabilityDelete, CapabilityNetwork}},
+		{Name: "truenas", ConfigGate: "truenas.enabled", ReadOnlyGate: "truenas.readonly", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityChange, CapabilityDelete, CapabilityNetwork}},
 		{Name: "vercel", ConfigGate: "vercel.enabled", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityChange, CapabilityDelete, CapabilityNetwork}},
 		{Name: "video_download", ConfigGate: "tools.video_download.enabled", ReadOnlyGate: "tools.video_download.read_only", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityNetwork, CapabilityHost}},
 		{Name: "virtual_desktop", ConfigGate: "virtual_desktop.allow_agent_control + tools.virtual_desktop.enabled", ReadOnlyGate: "virtual_desktop.readonly", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityChange, CapabilityExecute, CapabilityHost}},
@@ -78,7 +78,7 @@ func HomeLabIntegrationMatrix() []HomeLabIntegration {
 		{Name: "obsidian", ConfigGate: "obsidian.enabled", CredentialSource: "vault", AllowsLocalNetwork: true, ReadOnlyGate: "obsidian.readonly", HasWriteOrDelete: true, HasTestEndpoint: true},
 		{Name: "proxmox", ConfigGate: "proxmox.enabled", CredentialSource: "vault", AllowsLocalNetwork: true, ReadOnlyGate: "proxmox.readonly", HasWriteOrDelete: true, HasTestEndpoint: true},
 		{Name: "tailscale", ConfigGate: "tailscale.enabled", CredentialSource: "vault", AllowsLocalNetwork: true, ReadOnlyGate: "tailscale.readonly", HasWriteOrDelete: true, HasTestEndpoint: true},
-		{Name: "truenas", ConfigGate: "truenas.enabled", CredentialSource: "vault", AllowsLocalNetwork: true, ReadOnlyGate: "truenas.read_only", HasWriteOrDelete: true, HasTestEndpoint: true, DestructiveGuardConfig: "truenas.allow_destructive"},
+		{Name: "truenas", ConfigGate: "truenas.enabled", CredentialSource: "vault", AllowsLocalNetwork: true, ReadOnlyGate: "truenas.readonly", HasWriteOrDelete: true, HasTestEndpoint: true, DestructiveGuardConfig: "truenas.allow_destructive"},
 		{Name: "uptime_kuma", ConfigGate: "uptime_kuma.enabled", CredentialSource: "vault", AllowsLocalNetwork: true, HasTestEndpoint: true},
 	}
 }

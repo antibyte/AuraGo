@@ -494,6 +494,85 @@ func TrueNASSMBDelete(cfg config.TrueNASConfig, shareID int64, logger *slog.Logg
 	return okJSON("message", "SMB share deleted successfully")
 }
 
+// TrueNASNFSList returns all NFS shares.
+func TrueNASNFSList(cfg config.TrueNASConfig, logger *slog.Logger) string {
+	client, err := truenas.NewClient(cfg, nil)
+	if err != nil {
+		return errJSON("TrueNAS connection failed: %v", err)
+	}
+	defer client.Close()
+
+	ctx, cancel := truenasRequestContext(cfg)
+	defer cancel()
+
+	shares, err := client.ListNFSShares(ctx)
+	if err != nil {
+		return errJSON("Failed to list NFS shares: %v", err)
+	}
+
+	result, _ := json.Marshal(map[string]interface{}{"status": "ok", "shares": shares})
+	return string(result)
+}
+
+// TrueNASNFSCreate creates an NFS share.
+func TrueNASNFSCreate(cfg config.TrueNASConfig, path, networksCSV, hostsCSV string, logger *slog.Logger) string {
+	if cfg.ReadOnly {
+		return errJSON("NFS share creation is disabled (readonly mode)")
+	}
+	if err := validateTrueNASPath(path); err != nil {
+		return errJSON("%s", err.Error())
+	}
+
+	client, err := truenas.NewClient(cfg, nil)
+	if err != nil {
+		return errJSON("TrueNAS connection failed: %v", err)
+	}
+	defer client.Close()
+
+	req := truenas.CreateNFSShareRequest{
+		Path:     path,
+		Enabled:  true,
+		Networks: splitCSV(networksCSV),
+		Hosts:    splitCSV(hostsCSV),
+	}
+
+	ctx, cancel := truenasRequestContext(cfg)
+	defer cancel()
+
+	share, err := client.CreateNFSShare(ctx, req)
+	if err != nil {
+		return errJSON("Failed to create NFS share: %v", err)
+	}
+
+	result, _ := json.Marshal(map[string]interface{}{"status": "ok", "share": share})
+	return string(result)
+}
+
+// TrueNASNFSDelete deletes an NFS share.
+func TrueNASNFSDelete(cfg config.TrueNASConfig, shareID int64, logger *slog.Logger) string {
+	if cfg.ReadOnly {
+		return errJSON("NFS share deletion is disabled (readonly mode)")
+	}
+	if !cfg.AllowDestructive {
+		return errJSON("NFS share deletion is disabled (allow_destructive: false)")
+	}
+
+	client, err := truenas.NewClient(cfg, nil)
+	if err != nil {
+		return errJSON("TrueNAS connection failed: %v", err)
+	}
+	defer client.Close()
+
+	ctx, cancel := truenasRequestContext(cfg)
+	defer cancel()
+
+	if err := client.DeleteNFSShare(ctx, shareID); err != nil {
+		return errJSON("Failed to delete NFS share: %v", err)
+	}
+
+	return okJSON("message", "NFS share deleted successfully")
+}
+
 // TrueNASFSSpace returns space usage information.
 func TrueNASFSSpace(cfg config.TrueNASConfig, dataset string, logger *slog.Logger) string {
 	client, err := truenas.NewClient(cfg, nil)
@@ -613,6 +692,19 @@ func DispatchTrueNASTool(name string, params map[string]string, cfg *config.Conf
 		shareID := getInt64(params, "share_id")
 		return TrueNASSMBDelete(cfg.TrueNAS, shareID, logger)
 
+	case "truenas_nfs_list":
+		return TrueNASNFSList(cfg.TrueNAS, logger)
+
+	case "truenas_nfs_create":
+		path := getString(params, "path")
+		networks := getString(params, "networks", "")
+		hosts := getString(params, "hosts", "")
+		return TrueNASNFSCreate(cfg.TrueNAS, path, networks, hosts, logger)
+
+	case "truenas_nfs_delete":
+		shareID := getInt64(params, "share_id")
+		return TrueNASNFSDelete(cfg.TrueNAS, shareID, logger)
+
 	case "truenas_fs_space":
 		dataset := getString(params, "dataset", "")
 		return TrueNASFSSpace(cfg.TrueNAS, dataset, logger)
@@ -650,6 +742,17 @@ func validateTrueNASShareName(name string) error {
 		return fmt.Errorf("Invalid share name: path traversal detected")
 	}
 	return nil
+}
+
+func splitCSV(value string) []string {
+	var parts []string
+	for _, part := range strings.Split(value, ",") {
+		part = strings.TrimSpace(part)
+		if part != "" {
+			parts = append(parts, part)
+		}
+	}
+	return parts
 }
 
 // Helper functions

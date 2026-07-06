@@ -473,9 +473,12 @@ Manage ZFS pools, datasets, and shares.
 ```yaml
 truenas:
     enabled: true
+    readonly: false
+    allow_destructive: false
     host: "truenas.local"
     port: 443
     use_https: true
+    insecure_ssl: false
 ```
 
 ---

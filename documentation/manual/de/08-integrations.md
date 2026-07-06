@@ -523,6 +523,7 @@ truenas:
   host: "truenas.local"
   port: 443
   use_https: true
+  insecure_ssl: false
   allow_destructive: false
 ```
 

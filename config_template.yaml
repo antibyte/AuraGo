@@ -1202,6 +1202,26 @@ tailscale:
         space_agent_hostname: aurago-space-agent # MagicDNS hostname for Space Agent (https://aurago-space-agent.<tailnet>.ts.net/)
         funnel: false                       # expose AuraGo publicly via Tailscale Funnel on :443
         allow_http_fallback: false           # fall back to HTTP on :80 if HTTPS cert is unavailable (disabled by default for security)
+truenas:
+    enabled: false
+    readonly: false                         # true = list/read only; blocks create/delete/rollback/scrub
+    allow_destructive: false                # required for dataset/share delete, snapshot rollback, and pool scrub
+    host: ""                                # hostname or IP only, e.g. truenas.local or 192.168.1.10
+    port: 443                               # TrueNAS API port
+    use_https: true
+    insecure_ssl: false                     # allow self-signed certificates; use only on trusted local networks
+    connect_timeout: 30
+    request_timeout: 60
+    # API key is vault-only. Store it as: truenas_api_key
+    default_shares:
+        smb_enabled: true
+        nfs_enabled: false
+        atime_enabled: false
+        compression: lz4
+    snapshot_retention:
+        enabled: false
+        default_days: 0
+        max_snapshots: 0
 cloudflare_tunnel:
     enabled: false
     readonly: false

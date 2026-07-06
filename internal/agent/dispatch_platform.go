@@ -952,6 +952,7 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			"truenas_dataset_list", "truenas_dataset_create", "truenas_dataset_delete",
 			"truenas_snapshot_list", "truenas_snapshot_create", "truenas_snapshot_delete", "truenas_snapshot_rollback",
 			"truenas_smb_list", "truenas_smb_create", "truenas_smb_delete",
+			"truenas_nfs_list", "truenas_nfs_create", "truenas_nfs_delete",
 			"truenas_fs_space":
 			if !cfg.TrueNAS.Enabled {
 				return `Tool Output: {"status":"error","message":"TrueNAS integration is not enabled. Set truenas.enabled=true in config.yaml."}`
@@ -962,15 +963,16 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				case "truenas_pool_scrub",
 					"truenas_dataset_create", "truenas_dataset_delete",
 					"truenas_snapshot_create", "truenas_snapshot_delete", "truenas_snapshot_rollback",
-					"truenas_smb_create", "truenas_smb_delete":
+					"truenas_smb_create", "truenas_smb_delete",
+					"truenas_nfs_create", "truenas_nfs_delete":
 					return `Tool Output: {"status":"error","message":"TrueNAS is in read-only mode. Disable truenas.readonly to allow changes."}`
 				}
 			}
 			req := decodeTrueNASArgs(tc)
 			logger.Info("LLM requested TrueNAS operation", "action", req.Action)
 			// Build a comprehensive params map from ToolCall fields.
-			// The unified "truenas" schema maps: name→tc.Name, path→tc.Path, query→pool/dataset,
-			// port→pool_id/share_id, limit→quota_gb/retention_days, content→compression,
+			// The unified "truenas" schema maps: name→tc.Name, path→tc.Path, query→pool/dataset
+			// or NFS networks, port→pool_id/share_id, limit→quota_gb/retention_days, content→compression or NFS hosts,
 			// recursive→tc.Recursive, force→tc.Force.
 			return "Tool Output: " + tools.DispatchTrueNASTool(req.Action, req.params(), cfg, logger)
 

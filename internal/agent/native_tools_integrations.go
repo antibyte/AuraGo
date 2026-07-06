@@ -747,7 +747,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 	if ff.TrueNASEnabled {
 		tools = append(tools, tool("truenas",
 			"Manage TrueNAS storage system: check health, list/scrub storage pools, manage ZFS datasets and snapshots, "+
-				"manage SMB shares, and check filesystem space. Use 'action' to specify the operation.",
+				"manage SMB/NFS shares, and check filesystem space. Use 'action' to specify the operation.",
 			schema(map[string]interface{}{
 				"action": map[string]interface{}{
 					"type":        "string",
@@ -758,15 +758,16 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 						"truenas_dataset_list", "truenas_dataset_create", "truenas_dataset_delete",
 						"truenas_snapshot_list", "truenas_snapshot_create", "truenas_snapshot_delete", "truenas_snapshot_rollback",
 						"truenas_smb_list", "truenas_smb_create", "truenas_smb_delete",
+						"truenas_nfs_list", "truenas_nfs_create", "truenas_nfs_delete",
 						"truenas_fs_space",
 					},
 				},
 				"name":      prop("string", "Dataset, snapshot, or SMB share name. Required for create/delete/rollback operations."),
-				"path":      prop("string", "SMB share local filesystem path (for truenas_smb_create, e.g. '/mnt/pool/share')."),
-				"query":     prop("string", "Pool name or dataset path for filtering (e.g. 'tank' for pool, 'tank/data' for dataset)."),
-				"port":      map[string]interface{}{"type": "integer", "description": "Numeric pool ID for truenas_pool_scrub, or SMB share ID for truenas_smb_delete."},
+				"path":      prop("string", "SMB/NFS share local filesystem path (for share create actions, e.g. '/mnt/pool/share')."),
+				"query":     prop("string", "Pool name or dataset path for filtering; for truenas_nfs_create, comma-separated allowed networks."),
+				"port":      map[string]interface{}{"type": "integer", "description": "Numeric pool ID for truenas_pool_scrub, or share ID for SMB/NFS delete."},
 				"limit":     map[string]interface{}{"type": "integer", "description": "Quota in GB for truenas_dataset_create, or snapshot retention days for truenas_snapshot_create."},
-				"content":   prop("string", "Compression type for truenas_dataset_create: lz4 (default), zstd, gzip, off."),
+				"content":   prop("string", "Compression type for truenas_dataset_create: lz4 (default), zstd, gzip, off. For truenas_nfs_create, comma-separated allowed hosts."),
 				"recursive": map[string]interface{}{"type": "boolean", "description": "Enable recursive operation (for truenas_dataset_delete or truenas_snapshot_create)."},
 				"force":     map[string]interface{}{"type": "boolean", "description": "Force rollback (for truenas_snapshot_rollback)."},
 			}, "action"),

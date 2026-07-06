@@ -1407,13 +1407,13 @@ Manage TrueNAS storage (pools, datasets, snapshots, shares).
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `action` | enum | truenas_health, truenas_pool_list, truenas_pool_scrub, truenas_dataset_list, truenas_dataset_create, truenas_dataset_delete, truenas_snapshot_list, truenas_snapshot_create, truenas_snapshot_delete, truenas_snapshot_rollback, truenas_smb_list, truenas_smb_create, truenas_smb_delete, truenas_fs_space |
+| `action` | enum | truenas_health, truenas_pool_list, truenas_pool_scrub, truenas_dataset_list, truenas_dataset_create, truenas_dataset_delete, truenas_snapshot_list, truenas_snapshot_create, truenas_snapshot_delete, truenas_snapshot_rollback, truenas_smb_list, truenas_smb_create, truenas_smb_delete, truenas_nfs_list, truenas_nfs_create, truenas_nfs_delete, truenas_fs_space |
 | `name` | string | Dataset, snapshot, or SMB share name |
-| `path` | string | SMB share local filesystem path (for truenas_smb_create) |
-| `query` | string | Pool name or dataset path for filtering |
-| `port` | integer | Numeric pool ID for truenas_pool_scrub, or SMB share ID for truenas_smb_delete |
+| `path` | string | SMB/NFS share local filesystem path |
+| `query` | string | Pool/dataset filter; for truenas_nfs_create, comma-separated allowed networks |
+| `port` | integer | Numeric pool ID for truenas_pool_scrub, or SMB/NFS share ID for delete |
 | `limit` | integer | Quota in GB for truenas_dataset_create, or snapshot retention days |
-| `content` | string | Compression type for truenas_dataset_create: lz4, zstd, gzip, off |
+| `content` | string | Compression type for truenas_dataset_create; for truenas_nfs_create, comma-separated allowed hosts |
 | `recursive` | boolean | Enable recursive operation |
 | `force` | boolean | Force rollback |
 

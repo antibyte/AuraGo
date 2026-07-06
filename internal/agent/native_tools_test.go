@@ -419,6 +419,19 @@ func nativeToolProperties(t *testing.T, schemas []openai.Tool, name string) map[
 	return nil
 }
 
+func TestBuildNativeToolSchemasIncludesTrueNASNFSActions(t *testing.T) {
+	schemas := BuildNativeToolSchemas(t.TempDir(), nil, ToolFeatureFlags{TrueNASEnabled: true}, nil)
+	action, ok := nativeToolProperties(t, schemas, "truenas")["action"].(map[string]interface{})
+	if !ok {
+		t.Fatal("truenas schema missing action property")
+	}
+	for _, want := range []string{"truenas_nfs_list", "truenas_nfs_create", "truenas_nfs_delete"} {
+		if !containsInterfaceString(action["enum"], want) {
+			t.Fatalf("truenas action enum missing %q: %#v", want, action["enum"])
+		}
+	}
+}
+
 func TestFrigateNativeSchemaUsesCurrentReviewFilters(t *testing.T) {
 	schemas := builtinToolSchemas(ToolFeatureFlags{FrigateEnabled: true})
 	props := nativeToolProperties(t, schemas, "frigate")

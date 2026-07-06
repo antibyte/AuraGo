@@ -170,7 +170,7 @@ func (c *Client) Post(ctx context.Context, endpoint string, body, result interfa
 		return fmt.Errorf("read response body: %w", err)
 	}
 
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusAccepted {
 		return fmt.Errorf("API error %d: %s", resp.StatusCode, string(respBody))
 	}
 
@@ -191,7 +191,7 @@ func (c *Client) Put(ctx context.Context, endpoint string, body interface{}) err
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted && resp.StatusCode != http.StatusNoContent {
 		body, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("API error %d: %s", resp.StatusCode, string(body))
 	}
@@ -207,7 +207,7 @@ func (c *Client) Delete(ctx context.Context, endpoint string) error {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted && resp.StatusCode != http.StatusNoContent {
 		body, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("API error %d: %s", resp.StatusCode, string(body))
 	}

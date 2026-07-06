@@ -87,7 +87,7 @@
                     <div class="stat-card">
                         <h3 data-i18n="truenas.nav_shares"></h3>
                         <div class="stat-value" id="share-count">-</div>
-                        <div class="stat-detail"><span data-i18n="truenas.stat_smb"></span> <span id="smb-count">-</span></div>
+                        <div class="stat-detail"><span data-i18n="truenas.stat_smb"></span> <span id="smb-count">-</span> • <span data-i18n="truenas.stat_nfs"></span> <span id="nfs-count">-</span></div>
                     </div>
                 </div>
 
@@ -263,20 +263,45 @@
             <div id="share-error"></div>
             <form id="share-form">
                 <div class="form-group">
+                    <label data-i18n="truenas.label_share_type"></label>
+                    <select id="share-type">
+                        <option value="smb" selected data-i18n="truenas.opt_smb"></option>
+                        <option value="nfs" data-i18n="truenas.opt_nfs"></option>
+                    </select>
+                </div>
+                <div class="form-group" id="smb-share-name-field">
                     <label data-i18n="truenas.label_name"></label>
-                    <input type="text" id="share-name" required placeholder="MyShare">
+                    <input type="text" id="share-name" placeholder="MyShare">
                 </div>
                 <div class="form-group">
                     <label data-i18n="truenas.label_path"></label>
                     <input type="text" id="share-path" required placeholder="/mnt/tank/share">
                 </div>
-                <div class="form-group checkbox">
-                    <input type="checkbox" id="share-guest">
-                    <label for="share-guest" data-i18n="truenas.label_guest_access"></label>
+                <div id="smb-share-fields">
+                    <div class="form-group checkbox">
+                        <input type="checkbox" id="share-guest">
+                        <label for="share-guest" data-i18n="truenas.label_guest_access"></label>
+                    </div>
+                    <div class="form-group checkbox">
+                        <input type="checkbox" id="share-timemachine">
+                        <label for="share-timemachine" data-i18n="truenas.label_timemachine"></label>
+                    </div>
                 </div>
-                <div class="form-group checkbox">
-                    <input type="checkbox" id="share-timemachine">
-                    <label for="share-timemachine" data-i18n="truenas.label_timemachine"></label>
+                <div id="nfs-share-fields" style="display: none;">
+                    <div class="form-group">
+                        <label data-i18n="truenas.label_networks_optional"></label>
+                        <input type="text" id="nfs-networks" placeholder="192.168.1.0/24">
+                        <small data-i18n="truenas.hint_networks"></small>
+                    </div>
+                    <div class="form-group">
+                        <label data-i18n="truenas.label_hosts_optional"></label>
+                        <input type="text" id="nfs-hosts" placeholder="backup-host,media-host">
+                        <small data-i18n="truenas.hint_hosts"></small>
+                    </div>
+                    <div class="form-group checkbox">
+                        <input type="checkbox" id="nfs-readonly">
+                        <label for="nfs-readonly" data-i18n="truenas.label_nfs_readonly"></label>
+                    </div>
                 </div>
                 <div class="form-actions">
                     <button type="button" class="btn btn-secondary" data-close-modal data-i18n="common.btn_cancel"></button>

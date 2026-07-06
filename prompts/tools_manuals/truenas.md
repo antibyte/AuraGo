@@ -48,7 +48,21 @@ The integration has three security levels:
 3. **allow_destructive** - Allows delete, rollback, and other destructive operations
 
 When `readonly: true`, write operations will fail with an error.
-When `allow_destructive: false`, delete and rollback operations are blocked.
+When `allow_destructive: false`, dataset/share delete, snapshot rollback, snapshot delete, and pool scrub operations are blocked.
+
+## Native Tool Parameter Mapping
+
+The `truenas` native tool uses a compact shared schema:
+
+- `action`: One of the `truenas_*` operations below.
+- `name`: Dataset, snapshot, or SMB share name for create/delete/rollback operations.
+- `path`: Local dataset/share path for SMB and NFS share creation.
+- `query`: Pool/dataset filter. For `truenas_nfs_create`, comma-separated allowed networks.
+- `port`: Numeric pool ID for `truenas_pool_scrub`, or SMB/NFS share ID for delete.
+- `limit`: Quota in GB for dataset creation, or retention days for snapshot creation.
+- `content`: Dataset compression for `truenas_dataset_create`; for `truenas_nfs_create`, comma-separated allowed hosts.
+- `recursive`: Recursive dataset delete or snapshot creation.
+- `force`: Force snapshot rollback.
 
 ## Agent Tools
 
@@ -72,7 +86,7 @@ Show me all storage pools on TrueNAS
 Start a scrub operation on a pool to check for errors.
 
 **Parameters:**
-- `pool` (required): Name of the pool to scrub
+- `port` (required): Numeric pool ID to scrub
 
 **Example:**
 ```
@@ -83,7 +97,7 @@ Start a scrub on the tank pool
 List all datasets (including nested) with their properties.
 
 **Parameters:**
-- `pool` (optional): Filter by pool name
+- `query` (optional): Pool name filter
 
 **Example:**
 ```
@@ -95,8 +109,8 @@ Create a new ZFS dataset.
 
 **Parameters:**
 - `name` (required): Dataset path (e.g., "tank/media")
-- `compression` (optional): Compression type (lz4, gzip, zle, off)
-- `quota` (optional): Quota size (e.g., "100G", "1T")
+- `content` (optional): Compression type (lz4, zstd, gzip, off)
+- `limit` (optional): Quota in GB
 
 **Example:**
 ```
@@ -107,9 +121,10 @@ Create a new dataset called tank/backups with lz4 compression
 Create a ZFS snapshot of a dataset.
 
 **Parameters:**
-- `dataset` (required): Dataset path
+- `query` (required): Dataset path
 - `name` (optional): Snapshot name (auto-generated if not provided)
 - `recursive` (optional): Include child datasets
+- `limit` (optional): Retention days
 
 **Example:**
 ```
@@ -120,7 +135,7 @@ Create a snapshot of tank/media
 List snapshots for a dataset.
 
 **Parameters:**
-- `dataset` (required): Dataset path
+- `query` (optional): Dataset path filter
 
 **Example:**
 ```
@@ -131,7 +146,7 @@ Show all snapshots for tank/media
 Delete a snapshot.
 
 **Parameters:**
-- `snapshot` (required): Full snapshot name (e.g., "tank/media@auto-20240101")
+- `name` (required): Full snapshot name (e.g., "tank/media@auto-20240101")
 
 **Example:**
 ```
@@ -144,7 +159,7 @@ Delete the snapshot tank/media@old-backup
 Rollback a dataset to a snapshot state.
 
 **Parameters:**
-- `snapshot` (required): Full snapshot name
+- `name` (required): Full snapshot name
 - `force` (optional): Force rollback even if changes exist
 
 **Example:**
@@ -168,24 +183,46 @@ Create an SMB share for a dataset.
 Create an SMB share called Media for tank/media
 ```
 
+### truenas_smb_list
+List SMB shares.
+
+### truenas_smb_delete
+Delete an SMB share.
+
+**Parameters:**
+- `port` (required): Numeric SMB share ID
+
+**Note:** Requires `allow_destructive: true`
+
+### truenas_nfs_list
+List NFS shares.
+
 ### truenas_nfs_create
 Create an NFS share for a dataset.
 
 **Parameters:**
 - `path` (required): Dataset path
-- `networks` (optional): Allowed networks (default: ["192.168.0.0/16"])
-- `read_only` (optional): Read-only access
+- `query` (optional): Comma-separated allowed networks
+- `content` (optional): Comma-separated allowed hosts
 
 **Example:**
 ```
 Create an NFS share for tank/backups accessible from 192.168.1.0/24
 ```
 
+### truenas_nfs_delete
+Delete an NFS share.
+
+**Parameters:**
+- `port` (required): Numeric NFS share ID
+
+**Note:** Requires `allow_destructive: true`
+
 ### truenas_fs_space
 Check free space on pools or datasets.
 
 **Parameters:**
-- `target` (optional): Specific pool or dataset
+- `query` (optional): Specific pool or dataset
 
 **Example:**
 ```
@@ -235,7 +272,7 @@ How much free space is left on the tank pool?
 The integration uses TrueNAS API v2.0 endpoints:
 - `/api/v2.0/pool` - Pool operations
 - `/api/v2.0/pool/dataset` - Dataset operations  
-- `/api/v2.0/zfs/snapshot` - Snapshot operations
+- `/api/v2.0/pool/snapshot` - Snapshot operations
 - `/api/v2.0/sharing/smb` - SMB share operations
 - `/api/v2.0/sharing/nfs` - NFS share operations
 - `/api/v2.0/system/info` - System information

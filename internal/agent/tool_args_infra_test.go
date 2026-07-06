@@ -317,6 +317,32 @@ func TestDecodeTrueNASArgsBuildsDispatchParams(t *testing.T) {
 	}
 }
 
+func TestDecodeTrueNASArgsBuildsNFSDispatchParams(t *testing.T) {
+	tc := ToolCall{
+		Action: "truenas_nfs_create",
+		Params: map[string]interface{}{
+			"path":    "/mnt/tank/backups",
+			"query":   "192.168.1.0/24,10.0.0.0/24",
+			"content": "backup-host,media-host",
+		},
+	}
+
+	req := decodeTrueNASArgs(tc)
+	params := req.params()
+	if params["path"] != "/mnt/tank/backups" {
+		t.Fatalf("path = %q, want /mnt/tank/backups", params["path"])
+	}
+	if params["networks"] != "192.168.1.0/24,10.0.0.0/24" {
+		t.Fatalf("networks = %q, want CSV networks", params["networks"])
+	}
+	if params["hosts"] != "backup-host,media-host" {
+		t.Fatalf("hosts = %q, want CSV hosts", params["hosts"])
+	}
+	if _, ok := params["compression"]; ok {
+		t.Fatalf("NFS params should not map content to compression: %#v", params)
+	}
+}
+
 func TestDecodeFirewallArgsUsesCommandFallback(t *testing.T) {
 	tc := ToolCall{
 		Action: "firewall",

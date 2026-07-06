@@ -64,6 +64,9 @@ class TrueNASUI {
                 case 'delete-share':
                     this.deleteShare(actionBtn.dataset.shareId);
                     break;
+                case 'delete-nfs-share':
+                    this.deleteNFSShare(actionBtn.dataset.shareId);
+                    break;
             }
         });
         
@@ -72,6 +75,7 @@ class TrueNASUI {
         document.getElementById('dataset-form')?.addEventListener('submit', (e) => this.createDataset(e));
         document.getElementById('snapshot-form')?.addEventListener('submit', (e) => this.createSnapshot(e));
         document.getElementById('share-form')?.addEventListener('submit', (e) => this.createShare(e));
+        document.getElementById('share-type')?.addEventListener('change', () => this.toggleShareFields());
         
         // Modal close on outside click
         document.querySelectorAll('.truenas-modal').forEach(modal => {
@@ -131,9 +135,11 @@ class TrueNASUI {
             } else {
                 indicator.innerHTML = `<span class="status-offline">● ${t('truenas.status_offline')}</span>`;
             }
+            return data;
         } catch (err) {
             document.getElementById('status-indicator').innerHTML = 
                 `<span class="status-error">● ${t('truenas.status_connection_error')}</span>`;
+            return { status: 'error', error: t('truenas.status_connection_error') };
         }
     }
     
@@ -191,7 +197,9 @@ class TrueNASUI {
             } else if (alertsSection) {
                 alertsSection.classList.add('is-hidden');
             }
-            
+
+            await this.updateShareCounts();
+
         } catch (err) {
             this.showError('overview-error', t('truenas.error_load_overview') + ' ' + err.message);
         }
@@ -319,7 +327,7 @@ class TrueNASUI {
             }
             
             container.innerHTML = data.snapshots.map(snap => {
-                const age = this.formatDuration(snap.age_hours * 3600000);
+                const age = this.snapshotAge(snap);
                 return `
                     <div class="snapshot-item">
                         <div class="snapshot-info">
@@ -342,27 +350,44 @@ class TrueNASUI {
     async loadShares() {
         const container = document.getElementById('shares-container');
         container.innerHTML = `<div class="loading">${t('truenas.loading_shares')}</div>`;
-        
+
         try {
-            const response = await fetch(`${this.baseUrl}/shares/smb`);
-            const data = await response.json();
+            const [smbResponse, nfsResponse] = await Promise.all([
+                fetch(`${this.baseUrl}/shares/smb`),
+                fetch(`${this.baseUrl}/shares/nfs`)
+            ]);
+            const smbData = await smbResponse.json();
+            const nfsData = await nfsResponse.json();
+            const smbShares = smbData.shares || [];
+            const nfsShares = nfsData.shares || [];
+            const shares = [
+                ...smbShares.map(share => ({ ...share, share_type: 'smb' })),
+                ...nfsShares.map(share => ({ ...share, share_type: 'nfs' }))
+            ];
+
+            this.setShareCounts(smbShares, nfsShares);
             
-            if (!data.shares || data.shares.length === 0) {
+            if (shares.length === 0) {
                 container.innerHTML = `<div class="empty-state">${t('truenas.empty_shares')}</div>`;
                 return;
             }
             
-            container.innerHTML = data.shares.map(share => {
-                const guestLabel = share.guestok ? ` • ${t('truenas.share_guest')}` : '';
-                const tmLabel = share.timemachine ? ` • ${t('truenas.share_timemachine')}` : '';
+            container.innerHTML = shares.map(share => {
+                const isNFS = share.share_type === 'nfs';
+                const guestLabel = !isNFS && share.guestok ? ` • ${t('truenas.share_guest')}` : '';
+                const tmLabel = !isNFS && share.timemachine ? ` • ${t('truenas.share_timemachine')}` : '';
+                const networks = isNFS && share.networks?.length ? ` • ${escapeHtmlTruenas(share.networks.join(', '))}` : '';
+                const hosts = isNFS && share.hosts?.length ? ` • ${escapeHtmlTruenas(share.hosts.join(', '))}` : '';
+                const title = isNFS ? share.path : share.name;
+                const action = isNFS ? 'delete-nfs-share' : 'delete-share';
                 return `
                     <div class="share-item">
                         <div class="share-info">
-                            <h4>${escapeHtmlTruenas(share.name)}</h4>
-                            <p>${escapeHtmlTruenas(share.path)}${guestLabel}${tmLabel}</p>
+                            <h4>${escapeHtmlTruenas(title)} <span class="status-badge">${isNFS ? 'NFS' : 'SMB'}</span></h4>
+                            <p>${escapeHtmlTruenas(share.path)}${guestLabel}${tmLabel}${networks}${hosts}</p>
                         </div>
                         <div class="share-actions">
-                            <button class="btn btn-danger" data-truenas-action="delete-share" data-share-id="${escapeHtmlTruenas(share.id)}">${t('truenas.btn_delete')}</button>
+                            <button class="btn btn-danger" data-truenas-action="${action}" data-share-id="${escapeHtmlTruenas(share.id)}">${t('truenas.btn_delete')}</button>
                         </div>
                     </div>
                 `;
@@ -409,7 +434,7 @@ class TrueNASUI {
         const apiKey = document.getElementById('setting-apikey').value;
         if (apiKey) {
             try {
-                await fetch('/api/vault', {
+                await fetch('/api/vault/secrets', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ key: 'truenas_api_key', value: apiKey })
@@ -445,7 +470,10 @@ class TrueNASUI {
         btn.textContent = t('truenas.btn_testing');
         
         try {
-            await this.checkStatus();
+            const status = await this.checkStatus();
+            if (!status || status.status !== 'online') {
+                throw new Error(status.error || t('truenas.connection_failed'));
+            }
             this.showSuccess('settings-error', t('truenas.connection_success'));
         } catch (err) {
             this.showError('settings-error', t('truenas.connection_failed') + ' ' + err.message);
@@ -517,6 +545,11 @@ class TrueNASUI {
     
     async createShare(e) {
         e.preventDefault();
+
+        const type = document.getElementById('share-type')?.value || 'smb';
+        if (type === 'nfs') {
+            return this.createNFSShare();
+        }
         
         const name = document.getElementById('share-name').value;
         const path = document.getElementById('share-path').value;
@@ -532,6 +565,32 @@ class TrueNASUI {
             
             const data = await response.json();
             
+            if (response.ok) {
+                this.closeModal();
+                this.loadShares();
+            } else {
+                this.showError('share-error', data.error || t('truenas.error_create'));
+            }
+        } catch (err) {
+            this.showError('share-error', t('truenas.error_connection') + ' ' + err.message);
+        }
+    }
+
+    async createNFSShare() {
+        const path = document.getElementById('share-path').value;
+        const networks = this.csvValues(document.getElementById('nfs-networks').value);
+        const hosts = this.csvValues(document.getElementById('nfs-hosts').value);
+        const ro = document.getElementById('nfs-readonly').checked;
+
+        try {
+            const response = await fetch(`${this.baseUrl}/shares/nfs`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ path, networks, hosts, ro, enabled: true })
+            });
+
+            const data = await response.json();
+
             if (response.ok) {
                 this.closeModal();
                 this.loadShares();
@@ -638,11 +697,43 @@ class TrueNASUI {
             await showAlert(t('truenas.status_error_prefix'), err.message);
         }
     }
+
+    async deleteNFSShare(shareId) {
+        if (!(await showConfirm(t('truenas.confirm_share_delete_title'), t('truenas.confirm_share_delete_msg')))) return;
+
+        try {
+            const response = await fetch(`${this.baseUrl}/shares/nfs/${shareId}`, {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                this.loadShares();
+            } else {
+                const data = await response.json();
+                await showAlert(t('truenas.status_error_prefix'), data.error || t('truenas.error_connection'));
+            }
+        } catch (err) {
+            await showAlert(t('truenas.status_error_prefix'), err.message);
+        }
+    }
+
+    toggleShareFields() {
+        const type = document.getElementById('share-type')?.value || 'smb';
+        const nameField = document.getElementById('smb-share-name-field');
+        const smbFields = document.getElementById('smb-share-fields');
+        const nfsFields = document.getElementById('nfs-share-fields');
+        if (nameField) nameField.style.display = type === 'smb' ? '' : 'none';
+        if (smbFields) smbFields.style.display = type === 'smb' ? '' : 'none';
+        if (nfsFields) nfsFields.style.display = type === 'nfs' ? '' : 'none';
+    }
     
     // UI Helpers
     showCreateDataset() { document.getElementById('modal-dataset').classList.add('active'); }
     showCreateSnapshot() { document.getElementById('modal-snapshot').classList.add('active'); }
-    showCreateShare() { document.getElementById('modal-share').classList.add('active'); }
+    showCreateShare() {
+        document.getElementById('modal-share').classList.add('active');
+        this.toggleShareFields();
+    }
     
     closeModal() {
         document.querySelectorAll('.truenas-modal').forEach(m => m.classList.remove('active'));
@@ -671,6 +762,7 @@ class TrueNASUI {
     }
     
     formatDuration(ms) {
+        if (!Number.isFinite(ms) || ms < 0) return '-';
         const seconds = Math.floor(ms / 1000);
         const minutes = Math.floor(seconds / 60);
         const hours = Math.floor(minutes / 60);
@@ -680,6 +772,48 @@ class TrueNASUI {
         if (hours > 0) return `${hours}h`;
         if (minutes > 0) return `${minutes}m`;
         return `${seconds}s`;
+    }
+
+    snapshotAge(snap) {
+        const hours = Number(snap.age_hours);
+        if (Number.isFinite(hours) && hours >= 0) {
+            return this.formatDuration(hours * 3600000);
+        }
+        const timestamp = Number(snap.rawcreation?.$date);
+        if (Number.isFinite(timestamp) && timestamp > 0) {
+            return this.formatDuration(Date.now() - timestamp);
+        }
+        return '-';
+    }
+
+    csvValues(value) {
+        return String(value || '')
+            .split(',')
+            .map(item => item.trim())
+            .filter(Boolean);
+    }
+
+    async updateShareCounts() {
+        try {
+            const [smbResponse, nfsResponse] = await Promise.all([
+                fetch(`${this.baseUrl}/shares/smb`),
+                fetch(`${this.baseUrl}/shares/nfs`)
+            ]);
+            const smbData = await smbResponse.json();
+            const nfsData = await nfsResponse.json();
+            this.setShareCounts(smbData.shares || [], nfsData.shares || []);
+        } catch (err) {
+            this.setShareCounts([], []);
+        }
+    }
+
+    setShareCounts(smbShares, nfsShares) {
+        const totalCount = document.getElementById('share-count');
+        const smbCount = document.getElementById('smb-count');
+        const nfsCount = document.getElementById('nfs-count');
+        if (totalCount) totalCount.textContent = smbShares.length + nfsShares.length;
+        if (smbCount) smbCount.textContent = smbShares.length;
+        if (nfsCount) nfsCount.textContent = nfsShares.length;
     }
     
     startHealthCheck() {
