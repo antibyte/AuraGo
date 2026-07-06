@@ -32,6 +32,7 @@ func handleClearChat(s *Server) http.HandlerFunc {
 				return
 			}
 			agent.ClearDiscoverToolsState(sessionID)
+			agent.ResetInnerVoiceSession(sessionID)
 			w.WriteHeader(http.StatusOK)
 			return
 		}
@@ -41,7 +42,7 @@ func handleClearChat(s *Server) http.HandlerFunc {
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
 			return
 		}
-		agent.ResetInnerVoiceState()
+		agent.ResetInnerVoiceSession("default")
 		w.WriteHeader(http.StatusOK)
 	}
 }

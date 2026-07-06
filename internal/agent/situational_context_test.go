@@ -122,6 +122,21 @@ func TestResetInnerVoiceState(t *testing.T) {
 	}
 }
 
+func TestResetInnerVoiceSessionIsScoped(t *testing.T) {
+	ResetInnerVoiceState()
+	applyInnerVoiceResult("sess-a", "clear this thought", "focus", 0.8)
+	applyInnerVoiceResult("sess-b", "keep this thought", "focus", 0.8)
+
+	ResetInnerVoiceSession("sess-a")
+
+	if got, _ := getInnerVoiceForPrompt("sess-a", 3, 300); got != "" {
+		t.Fatalf("expected sess-a thought to be cleared, got %q", got)
+	}
+	if got, _ := getInnerVoiceForPrompt("sess-b", 3, 300); got != "keep this thought" {
+		t.Fatalf("expected sess-b thought to be preserved, got %q", got)
+	}
+}
+
 func TestShouldGenerateInnerVoice_Disabled(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Personality.InnerVoice.Enabled = false

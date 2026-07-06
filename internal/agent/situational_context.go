@@ -71,6 +71,13 @@ func ResetInnerVoiceState() {
 	globalInnerVoiceStore.states = make(map[string]*innerVoiceState)
 }
 
+// ResetInnerVoiceSession resets the inner voice state for a single session.
+func ResetInnerVoiceSession(sessionID string) {
+	globalInnerVoiceStore.mu.Lock()
+	defer globalInnerVoiceStore.mu.Unlock()
+	delete(globalInnerVoiceStore.states, normalizeInnerVoiceSessionID(sessionID))
+}
+
 // NoteInnerVoiceUserTurn increments the user-turn counter for a session.
 // This tracks real user-visible turns instead of internal loop iterations.
 func NoteInnerVoiceUserTurn(sessionID string) {
