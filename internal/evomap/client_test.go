@@ -10,6 +10,42 @@ import (
 	"time"
 )
 
+func requireA2AEnvelope(t *testing.T, r *http.Request, wantType, wantSender string) map[string]interface{} {
+	t.Helper()
+	var envelope map[string]interface{}
+	if err := json.NewDecoder(r.Body).Decode(&envelope); err != nil {
+		t.Fatalf("decode request: %v", err)
+	}
+	if envelope["protocol"] != ProtocolName {
+		t.Fatalf("protocol = %#v, want %q; envelope=%#v", envelope["protocol"], ProtocolName, envelope)
+	}
+	if envelope["protocol_version"] != ProtocolVersion {
+		t.Fatalf("protocol_version = %#v, want %q; envelope=%#v", envelope["protocol_version"], ProtocolVersion, envelope)
+	}
+	if envelope["message_type"] != wantType {
+		t.Fatalf("message_type = %#v, want %q; envelope=%#v", envelope["message_type"], wantType, envelope)
+	}
+	messageID, ok := envelope["message_id"].(string)
+	if !ok || strings.TrimSpace(messageID) == "" {
+		t.Fatalf("message_id missing from envelope: %#v", envelope)
+	}
+	timestamp, ok := envelope["timestamp"].(string)
+	if !ok {
+		t.Fatalf("timestamp missing from envelope: %#v", envelope)
+	}
+	if _, err := time.Parse(time.RFC3339, timestamp); err != nil {
+		t.Fatalf("timestamp is not RFC3339 UTC: %#v", envelope["timestamp"])
+	}
+	if wantSender != "" && envelope["sender_id"] != wantSender {
+		t.Fatalf("sender_id = %#v, want %q; envelope=%#v", envelope["sender_id"], wantSender, envelope)
+	}
+	payload, ok := envelope["payload"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("payload missing from envelope: %#v", envelope)
+	}
+	return payload
+}
+
 func TestClientStatusFetchesStats(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet || r.URL.Path != "/a2a/stats" {
@@ -42,15 +78,9 @@ func TestClientRegisterNodePostsHelloEnvelope(t *testing.T) {
 		if r.Method != http.MethodPost || r.URL.Path != "/a2a/hello" {
 			t.Fatalf("request = %s %s, want POST /a2a/hello", r.Method, r.URL.Path)
 		}
-		var payload map[string]interface{}
-		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-			t.Fatalf("decode request: %v", err)
-		}
-		if payload["protocol"] != ProtocolName || payload["version"] != ProtocolVersion {
-			t.Fatalf("protocol envelope = %#v", payload)
-		}
-		if payload["node_id"] != "node-existing" {
-			t.Fatalf("node_id = %#v, want node-existing", payload["node_id"])
+		payload := requireA2AEnvelope(t, r, "hello", "node-existing")
+		if got, ok := payload["capabilities"].([]interface{}); !ok || len(got) != 1 || got[0] != "fetch" {
+			t.Fatalf("capabilities payload = %#v, want [fetch]", payload["capabilities"])
 		}
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"node_id":"node-new","node_secret":"secret-new","claim_url":"https://evomap.ai/claim/node-new"}`))
@@ -76,10 +106,7 @@ func TestClientFetchCapsulesUsesExternalDataQuery(t *testing.T) {
 		if r.Method != http.MethodPost || r.URL.Path != "/a2a/fetch" {
 			t.Fatalf("request = %s %s, want POST /a2a/fetch", r.Method, r.URL.Path)
 		}
-		var payload map[string]interface{}
-		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-			t.Fatalf("decode request: %v", err)
-		}
+		payload := requireA2AEnvelope(t, r, "fetch", "node-1")
 		if payload["node_secret"] != "node-secret" {
 			t.Fatalf("node_secret missing from authenticated fetch envelope: %#v", payload)
 		}
@@ -102,6 +129,37 @@ func TestClientFetchCapsulesUsesExternalDataQuery(t *testing.T) {
 	}
 	if !strings.Contains(string(resp.Raw), `"cap-1"`) {
 		t.Fatalf("fetch raw response missing capsule: %s", resp.Raw)
+	}
+}
+
+func TestClientGetAssetPostsA2AEnvelope(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/a2a/asset" {
+			t.Fatalf("request = %s %s, want POST /a2a/asset", r.Method, r.URL.Path)
+		}
+		payload := requireA2AEnvelope(t, r, "asset", "node-1")
+		if payload["asset_id"] != "asset-1" {
+			t.Fatalf("asset_id = %#v, want asset-1", payload["asset_id"])
+		}
+		if payload["node_secret"] != "node-secret" {
+			t.Fatalf("node_secret missing from asset payload: %#v", payload)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"asset":{"id":"asset-1","content":"do not execute me"}}`))
+	}))
+	defer server.Close()
+
+	client, err := NewClient(Config{BaseURL: server.URL, NodeID: "node-1", NodeSecret: "node-secret", HTTPClient: server.Client(), Timeout: time.Second})
+	if err != nil {
+		t.Fatalf("NewClient() error = %v", err)
+	}
+
+	resp, err := client.GetAsset(context.Background(), AssetRequest{AssetID: "asset-1"})
+	if err != nil {
+		t.Fatalf("GetAsset() error = %v", err)
+	}
+	if !strings.Contains(string(resp.Raw), `"asset-1"`) {
+		t.Fatalf("asset raw response missing asset: %s", resp.Raw)
 	}
 }
 

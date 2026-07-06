@@ -3,6 +3,8 @@ package evomap
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -93,6 +95,16 @@ type KGQueryResponse struct {
 	Raw json.RawMessage `json:"raw,omitempty"`
 }
 
+type a2aEnvelope struct {
+	Protocol        string                 `json:"protocol"`
+	ProtocolVersion string                 `json:"protocol_version"`
+	MessageType     string                 `json:"message_type"`
+	MessageID       string                 `json:"message_id"`
+	SenderID        string                 `json:"sender_id,omitempty"`
+	Timestamp       string                 `json:"timestamp"`
+	Payload         map[string]interface{} `json:"payload"`
+}
+
 func NewClient(cfg Config) (*Client, error) {
 	baseURL, err := normalizeBaseURL(cfg.BaseURL)
 	if err != nil {
@@ -166,15 +178,16 @@ func (c *Client) Status(ctx context.Context) (StatusResult, error) {
 
 func (c *Client) RegisterNode(ctx context.Context, req RegisterRequest) (RegisterResponse, error) {
 	payload := map[string]interface{}{
-		"protocol":     ProtocolName,
-		"version":      ProtocolVersion,
-		"node_id":      c.nodeID,
 		"capabilities": req.Capabilities,
 	}
 	if len(req.Metadata) > 0 {
 		payload["metadata"] = req.Metadata
 	}
-	raw, err := c.do(ctx, http.MethodPost, "/a2a/hello", payload, "")
+	envelope, err := c.a2aEnvelope("hello", payload, false)
+	if err != nil {
+		return RegisterResponse{}, err
+	}
+	raw, err := c.do(ctx, http.MethodPost, "/a2a/hello", envelope, "")
 	if err != nil {
 		return RegisterResponse{}, err
 	}
@@ -186,12 +199,9 @@ func (c *Client) RegisterNode(ctx context.Context, req RegisterRequest) (Registe
 
 func (c *Client) FetchCapsules(ctx context.Context, req FetchRequest) (FetchResponse, error) {
 	payload := map[string]interface{}{
-		"protocol": ProtocolName,
-		"version":  ProtocolVersion,
-		"node_id":  c.nodeID,
-		"problem":  strings.TrimSpace(req.Problem),
-		"query":    strings.TrimSpace(req.Query),
-		"limit":    req.Limit,
+		"problem": strings.TrimSpace(req.Problem),
+		"query":   strings.TrimSpace(req.Query),
+		"limit":   req.Limit,
 	}
 	if c.nodeSecret != "" {
 		payload["node_secret"] = c.nodeSecret
@@ -199,7 +209,11 @@ func (c *Client) FetchCapsules(ctx context.Context, req FetchRequest) (FetchResp
 	if len(req.Signals) > 0 {
 		payload["signals"] = req.Signals
 	}
-	raw, err := c.do(ctx, http.MethodPost, "/a2a/fetch", payload, "")
+	envelope, err := c.a2aEnvelope("fetch", payload, true)
+	if err != nil {
+		return FetchResponse{}, err
+	}
+	raw, err := c.do(ctx, http.MethodPost, "/a2a/fetch", envelope, "")
 	if err != nil {
 		return FetchResponse{}, err
 	}
@@ -212,15 +226,16 @@ func (c *Client) GetAsset(ctx context.Context, req AssetRequest) (AssetResponse,
 		return AssetResponse{}, fmt.Errorf("asset_id is required")
 	}
 	payload := map[string]interface{}{
-		"protocol": ProtocolName,
-		"version":  ProtocolVersion,
-		"node_id":  c.nodeID,
 		"asset_id": assetID,
 	}
 	if c.nodeSecret != "" {
 		payload["node_secret"] = c.nodeSecret
 	}
-	raw, err := c.do(ctx, http.MethodPost, "/a2a/asset", payload, "")
+	envelope, err := c.a2aEnvelope("asset", payload, true)
+	if err != nil {
+		return AssetResponse{}, err
+	}
+	raw, err := c.do(ctx, http.MethodPost, "/a2a/asset", envelope, "")
 	if err != nil {
 		return AssetResponse{}, err
 	}
@@ -246,6 +261,37 @@ func (c *Client) KGQuery(ctx context.Context, req KGQueryRequest) (KGQueryRespon
 		return KGQueryResponse{}, err
 	}
 	return KGQueryResponse{Raw: raw}, nil
+}
+
+func (c *Client) a2aEnvelope(messageType string, payload map[string]interface{}, requireSender bool) (a2aEnvelope, error) {
+	senderID := strings.TrimSpace(c.nodeID)
+	if requireSender && senderID == "" {
+		return a2aEnvelope{}, fmt.Errorf("EvoMap node_id is required for %s requests", messageType)
+	}
+	if payload == nil {
+		payload = map[string]interface{}{}
+	}
+	messageID, err := newA2AMessageID()
+	if err != nil {
+		return a2aEnvelope{}, err
+	}
+	return a2aEnvelope{
+		Protocol:        ProtocolName,
+		ProtocolVersion: ProtocolVersion,
+		MessageType:     messageType,
+		MessageID:       messageID,
+		SenderID:        senderID,
+		Timestamp:       time.Now().UTC().Format(time.RFC3339),
+		Payload:         payload,
+	}, nil
+}
+
+func newA2AMessageID() (string, error) {
+	random := make([]byte, 6)
+	if _, err := rand.Read(random); err != nil {
+		return "", fmt.Errorf("create EvoMap message id: %w", err)
+	}
+	return fmt.Sprintf("msg_%d_%s", time.Now().UTC().UnixNano(), hex.EncodeToString(random)), nil
 }
 
 func (c *Client) do(ctx context.Context, method, path string, payload interface{}, authorization string) (json.RawMessage, error) {
