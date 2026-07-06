@@ -163,14 +163,43 @@ func TestEmitMediaSSEEventsUsesAudioMIMETypeForTTSExtensions(t *testing.T) {
 			if len(broker.events) != 1 || broker.events[0].event != "audio" {
 				t.Fatalf("events = %+v, want one audio event", broker.events)
 			}
-			var payload map[string]string
+			var payload struct {
+				Path       string `json:"path"`
+				MimeType   string `json:"mime_type"`
+				Autoplay   bool   `json:"autoplay"`
+				ShowPlayer bool   `json:"show_player"`
+			}
 			if err := json.Unmarshal([]byte(broker.events[0].message), &payload); err != nil {
 				t.Fatalf("unmarshal event payload: %v", err)
 			}
-			if payload["mime_type"] != tt.want {
-				t.Fatalf("mime_type = %q, want %q; payload=%+v", payload["mime_type"], tt.want, payload)
+			if payload.Path != "/tts/"+tt.file {
+				t.Fatalf("path = %q, want /tts/%s; payload=%+v", payload.Path, tt.file, payload)
+			}
+			if payload.MimeType != tt.want {
+				t.Fatalf("mime_type = %q, want %q; payload=%+v", payload.MimeType, tt.want, payload)
+			}
+			if !payload.Autoplay || !payload.ShowPlayer {
+				t.Fatalf("expected autoplay and show_player in TTS payload, got %+v", payload)
 			}
 		})
+	}
+}
+
+func TestEmitMediaSSEEventsUsesTTSWebPathWhenProvided(t *testing.T) {
+	broker := &captureBroker{}
+	emitMediaSSEEvents(broker, "tts", `Tool Output: {"status":"success","file":"voice.wav","web_path":"/tts/custom-voice.wav"}`, t.TempDir())
+
+	if len(broker.events) != 1 || broker.events[0].event != "audio" {
+		t.Fatalf("events = %+v, want one audio event", broker.events)
+	}
+	var payload struct {
+		Path string `json:"path"`
+	}
+	if err := json.Unmarshal([]byte(broker.events[0].message), &payload); err != nil {
+		t.Fatalf("unmarshal event payload: %v", err)
+	}
+	if payload.Path != "/tts/custom-voice.wav" {
+		t.Fatalf("path = %q, want provided web_path", payload.Path)
 	}
 }
 

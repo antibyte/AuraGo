@@ -459,9 +459,10 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				ttsPort = cfg.Chromecast.TTSPort // Chromecast has its own dedicated TTS server
 			}
 			audioURL := fmt.Sprintf("http://%s:%d/tts/%s", getLocalIP(cfg), ttsPort, filename)
+			webPath := "/tts/" + filename
 			absLocalPath, _ := filepath.Abs(filepath.Join(cfg.Directories.DataDir, "tts", filename))
 			absLocalPath = filepath.ToSlash(absLocalPath)
-			return fmt.Sprintf(`Tool Output: {"status": "success", "file": "%s", "url": "%s", "local_path": "%s"}`, filename, audioURL, absLocalPath)
+			return fmt.Sprintf(`Tool Output: {"status": "success", "file": "%s", "url": "%s", "web_path": "%s", "local_path": "%s"}`, filename, audioURL, webPath, absLocalPath)
 
 		case "chromecast":
 			if !cfg.Chromecast.Enabled {

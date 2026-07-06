@@ -1465,16 +1465,23 @@ func emitMediaSSEEvents(broker FeedbackBroker, action, resultContent string, dat
 		}
 	case "tts":
 		var ttsRes struct {
-			Status string `json:"status"`
-			File   string `json:"file"`
+			Status  string `json:"status"`
+			File    string `json:"file"`
+			WebPath string `json:"web_path"`
 		}
-		if json.Unmarshal([]byte(raw), &ttsRes) == nil && ttsRes.Status == "success" {
-			evtPayload, _ := json.Marshal(map[string]string{
-				"path":      "/tts/" + ttsRes.File,
-				"title":     "TTS Audio",
-				"mime_type": audioMIMEType(ttsRes.File),
-				"filename":  ttsRes.File,
-				"file_path": filepath.Join(dataDir, "tts", ttsRes.File),
+		if json.Unmarshal([]byte(raw), &ttsRes) == nil && ttsRes.Status == "success" && strings.TrimSpace(ttsRes.File) != "" {
+			webPath := strings.TrimSpace(ttsRes.WebPath)
+			if webPath == "" {
+				webPath = "/tts/" + ttsRes.File
+			}
+			evtPayload, _ := json.Marshal(map[string]interface{}{
+				"path":        webPath,
+				"title":       "TTS Audio",
+				"mime_type":   audioMIMEType(ttsRes.File),
+				"filename":    ttsRes.File,
+				"file_path":   filepath.Join(dataDir, "tts", ttsRes.File),
+				"autoplay":    true,
+				"show_player": true,
 			})
 			broker.Send("audio", string(evtPayload))
 		}
