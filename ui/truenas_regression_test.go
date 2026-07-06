@@ -22,6 +22,15 @@ func TestTrueNASFrontendUsesVaultSecretsEndpoint(t *testing.T) {
 	if strings.Contains(js, "fetch('/api/vault',") {
 		t.Fatal("truenas settings must not POST API keys to legacy /api/vault")
 	}
+	for _, marker := range []string{
+		"const vaultResponse = await fetch('/api/vault/secrets'",
+		"if (!vaultResponse.ok)",
+		"throw new Error(data.error || data.message || `HTTP ${vaultResponse.status}`)",
+	} {
+		if !strings.Contains(js, marker) {
+			t.Fatalf("truenas settings must surface vault save failures, missing marker %q", marker)
+		}
+	}
 }
 
 func TestTrueNASFrontendConnectionTestRequiresOnlineStatus(t *testing.T) {

@@ -434,11 +434,15 @@ class TrueNASUI {
         const apiKey = document.getElementById('setting-apikey').value;
         if (apiKey) {
             try {
-                await fetch('/api/vault/secrets', {
+                const vaultResponse = await fetch('/api/vault/secrets', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ key: 'truenas_api_key', value: apiKey })
                 });
+                if (!vaultResponse.ok) {
+                    const data = await vaultResponse.json().catch(() => ({}));
+                    throw new Error(data.error || data.message || `HTTP ${vaultResponse.status}`);
+                }
             } catch (err) {
                 this.showError('settings-error', t('truenas.error_save_apikey') + ' ' + err.message);
                 return;
