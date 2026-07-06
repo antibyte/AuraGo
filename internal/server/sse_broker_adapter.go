@@ -39,9 +39,16 @@ func (b *SSEBrokerAdapter) SendJSON(jsonStr string) {
 	}
 	var raw map[string]json.RawMessage
 	if err := json.Unmarshal([]byte(jsonStr), &raw); err == nil {
+		changed := false
 		if _, exists := raw["session_id"]; !exists {
 			sid, _ := json.Marshal(b.sessionID)
 			raw["session_id"] = sid
+			changed = true
+		}
+		if enrichTypedEnvelopePayloadWithSessionID(raw, b.sessionID) {
+			changed = true
+		}
+		if changed {
 			if enriched, err := json.Marshal(raw); err == nil {
 				b.sse.SendJSON(string(enriched))
 				return
@@ -49,6 +56,34 @@ func (b *SSEBrokerAdapter) SendJSON(jsonStr string) {
 		}
 	}
 	b.sse.SendJSON(jsonStr)
+}
+
+func enrichTypedEnvelopePayloadWithSessionID(raw map[string]json.RawMessage, sessionID string) bool {
+	if sessionID == "" {
+		return false
+	}
+	if _, ok := raw["type"]; !ok {
+		return false
+	}
+	payloadRaw, ok := raw["payload"]
+	if !ok {
+		return false
+	}
+	var payload map[string]json.RawMessage
+	if err := json.Unmarshal(payloadRaw, &payload); err != nil {
+		return false
+	}
+	if _, exists := payload["session_id"]; exists {
+		return false
+	}
+	sid, _ := json.Marshal(sessionID)
+	payload["session_id"] = sid
+	enriched, err := json.Marshal(payload)
+	if err != nil {
+		return false
+	}
+	raw["payload"] = enriched
+	return true
 }
 
 func (b *SSEBrokerAdapter) SendTyped(eventType string, payload interface{}) bool {

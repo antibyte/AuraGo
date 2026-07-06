@@ -93,6 +93,42 @@ func TestSSEBrokerAdapterSendTypedAddsSessionToPayload(t *testing.T) {
 	t.Fatal("no typed message received from broker adapter")
 }
 
+func TestSSEBrokerAdapterSendJSONAddsSessionToTypedPayload(t *testing.T) {
+	b := NewSSEBroadcaster()
+	ch := b.subscribe()
+	defer b.unsubscribe(ch)
+
+	adapter := NewSSEBrokerAdapterWithSession(b, "sess-question")
+	adapter.SendJSON(`{"type":"question_user","payload":{"id":"q1","question":"Continue?"}}`)
+
+	for i := 0; i < 10; i++ {
+		select {
+		case msg := <-ch:
+			var evt struct {
+				Type      SSEEventType           `json:"type"`
+				SessionID string                 `json:"session_id"`
+				Payload   map[string]interface{} `json:"payload"`
+			}
+			if err := json.Unmarshal([]byte(msg), &evt); err != nil {
+				t.Fatalf("failed to unmarshal typed event: %v", err)
+			}
+			if evt.Type != "question_user" {
+				t.Fatalf("event type = %q, want question_user", evt.Type)
+			}
+			if evt.SessionID != "sess-question" {
+				t.Fatalf("envelope session_id = %q, want sess-question", evt.SessionID)
+			}
+			if evt.Payload["session_id"] != "sess-question" {
+				t.Fatalf("payload session_id = %#v, want sess-question", evt.Payload["session_id"])
+			}
+			return
+		default:
+			time.Sleep(5 * time.Millisecond)
+		}
+	}
+	t.Fatal("no typed JSON message received from broker adapter")
+}
+
 func TestBroadcastTypeLLMStreamDone(t *testing.T) {
 	b := NewSSEBroadcaster()
 	ch := b.subscribe()

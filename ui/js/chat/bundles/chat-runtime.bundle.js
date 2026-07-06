@@ -8138,6 +8138,23 @@ function buildClearUrl() {
     return '/clear';
 }
 
+async function loadActivePlanForSession(sessionId) {
+    const sid = sessionId || getActiveSessionId();
+    try {
+        const res = await fetch('/api/plans/active?session_id=' + encodeURIComponent(sid || 'default'));
+        if (res.ok) {
+            const data = await res.json();
+            if (data && data.plan) {
+                updatePlanPanel(data.plan);
+            } else {
+                updatePlanPanel(null);
+            }
+        }
+    } catch (err) {
+        console.error('Failed to load active plan:', err);
+    }
+}
+
 const PERSONA_PREVIEW_FALLBACK = 'custom';
 const PERSONA_PREVIEW_KEYS = new Set([
     'evil', 'friend', 'mcp', 'mistress', 'neutral', 'professional', 'psycho',
@@ -8147,7 +8164,7 @@ const PERSONA_DESCRIPTION_KEYS = new Set([
     'evil', 'friend', 'mcp', 'mistress', 'neutral', 'professional', 'psycho',
     'punk', 'secretary', 'servant', 'terminator', 'thinker',
 ]);
-function personaImageUrl(key) {
+function personaPreviewImageUrl(key) {
     return `/img/personas/${key}.png?v=${window.PERSONA_ASSET_VERSION || '20260502-persona-refresh'}`;
 }
 
@@ -8166,11 +8183,11 @@ function personaDescriptionKey(name, isCore) {
 function setActivePersonaIconKey(previewKey) {
     const key = previewKey || PERSONA_PREVIEW_FALLBACK;
     window._activePersonaIconKey = key;
-    window._activePersonaImageUrl = personaImageUrl(key);
+    window._activePersonaImageUrl = personaPreviewImageUrl(key);
     const currentIcon = document.getElementById('personality-current-icon');
     if (currentIcon) currentIcon.src = personaIconUrl(key);
     document.querySelectorAll('.avatar.bot .persona-avatar-img').forEach(img => {
-        img.src = personaImageUrl(key);
+        img.src = personaPreviewImageUrl(key);
         img.dataset.personaIcon = key;
     });
     if (window.ChatRobotMascot && typeof window.ChatRobotMascot.setPersonaKey === 'function') {
@@ -8189,7 +8206,7 @@ function showPersonaPreview(previewKey, descriptionKey) {
     const translated = t(textKey);
     const fallback = t('chat.persona_description_custom');
     const text = translated && translated !== textKey ? translated : fallback;
-    const url = personaImageUrl(key);
+    const url = personaPreviewImageUrl(key);
     if (img.dataset.personaPreviewKey !== key) {
         img.dataset.personaPreviewKey = key;
         img.src = url;
@@ -8230,6 +8247,7 @@ window.onSessionSwitch = async function (sessionId) {
         console.error('Failed to load session history:', err);
         appendMessage('assistant', t('chat.greeting'));
     }
+    await loadActivePlanForSession(sessionId);
 };
 
 async function initPage() {
@@ -8264,17 +8282,7 @@ async function initPage() {
     } catch (err) {
         console.error("Failed to load history:", err);
     }
-    try {
-        const res = await fetch('/api/plans/active?session_id=default');
-        if (res.ok) {
-            const data = await res.json();
-            if (data && data.plan) {
-                updatePlanPanel(data.plan);
-            }
-        }
-    } catch (err) {
-        console.error('Failed to load active plan:', err);
-    }
+    await loadActivePlanForSession(getActiveSessionId());
     try {
         const res = await fetch('/notifications');
         if (res.ok) {

@@ -744,7 +744,7 @@ func TestChatFrontend_PersonaPreviewHoverDoesNotResetSameImageSrc(t *testing.T) 
 
 	historyJS := string(historyContent)
 	for _, marker := range []string{
-		`const url = personaImageUrl(key);`,
+		`const url = personaPreviewImageUrl(key);`,
 		`if (img.dataset.personaPreviewKey !== key) {`,
 		`img.dataset.personaPreviewKey = key;`,
 		`img.src = url;`,
@@ -2807,7 +2807,7 @@ func TestChatPersonaIconAssetsRemainWired(t *testing.T) {
 	for _, marker := range []string{
 		"function setActivePersonaIconKey(previewKey)",
 		"window._activePersonaIconKey = key;",
-		"window._activePersonaImageUrl = personaImageUrl(key);",
+		"window._activePersonaImageUrl = personaPreviewImageUrl(key);",
 		"personality-current-icon",
 		"persona-option-avatar",
 		"/img/persona-icons/${previewKey}.png",
@@ -2817,7 +2817,7 @@ func TestChatPersonaIconAssetsRemainWired(t *testing.T) {
 		}
 	}
 	if strings.Contains(historyJS, "img.src = personaIconUrl(key);") {
-		t.Fatalf("%s should update assistant bubble avatars with personaImageUrl(key), not the small persona icon", historyPath)
+		t.Fatalf("%s should update assistant bubble avatars with personaPreviewImageUrl(key), not the small persona icon", historyPath)
 	}
 
 	css := string(cssContent)
@@ -3679,5 +3679,36 @@ func TestCyberwarLeftHudPositionIsFixed(t *testing.T) {
 
 	if !strings.Contains(leftHudBlock, "position: fixed;") {
 		t.Fatalf("cyberwar #cyberwar-hud-left must use position: fixed; got: %s", leftHudBlock)
+	}
+}
+
+func TestChatSessionSwitchLoadsSessionScopedPlan(t *testing.T) {
+	t.Parallel()
+
+	paths := []string{
+		filepath.Join("js", "chat", "chat-history.js"),
+		filepath.Join("js", "chat", "bundles", "chat-runtime.bundle.js"),
+	}
+	for _, path := range paths {
+		content, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read %s: %v", path, err)
+		}
+		js := string(content)
+		for _, marker := range []string{
+			"async function loadActivePlanForSession(sessionId)",
+			"const sid = sessionId || getActiveSessionId();",
+			"'/api/plans/active?session_id=' + encodeURIComponent(sid || 'default')",
+			"updatePlanPanel(null);",
+			"await loadActivePlanForSession(sessionId);",
+			"await loadActivePlanForSession(getActiveSessionId());",
+		} {
+			if !strings.Contains(js, marker) {
+				t.Fatalf("%s is missing session-scoped plan marker %q", path, marker)
+			}
+		}
+		if strings.Contains(js, "fetch('/api/plans/active?session_id=default')") {
+			t.Fatalf("%s still hardcodes the active plan fetch to the default session", path)
+		}
 	}
 }
