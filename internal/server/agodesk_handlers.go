@@ -881,6 +881,8 @@ func agodeskTTSConfigured(cfg *config.Config) bool {
 		return strings.TrimSpace(cfg.TTS.MiniMax.APIKey) != ""
 	case "piper":
 		return cfg.TTS.Piper.Enabled
+	case "supertonic":
+		return strings.TrimSpace(cfg.TTS.Supertonic.URL) != ""
 	default:
 		return false
 	}
@@ -1067,11 +1069,7 @@ func handleAgodeskTTSAsset(s *Server) http.HandlerFunc {
 			http.NotFound(w, r)
 			return
 		}
-		if strings.HasSuffix(strings.ToLower(filename), ".wav") {
-			w.Header().Set("Content-Type", "audio/wav")
-		} else {
-			w.Header().Set("Content-Type", "audio/mpeg")
-		}
+		w.Header().Set("Content-Type", chatVoiceAudioMIMEType(filename))
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		http.ServeFile(w, r, target)
 	}
@@ -1272,7 +1270,12 @@ func isSafeAgodeskTTSFilename(filename string) bool {
 		return false
 	}
 	ext := strings.ToLower(filepath.Ext(filename))
-	return ext == ".mp3" || ext == ".wav"
+	switch ext {
+	case ".mp3", ".wav", ".ogg", ".flac":
+		return true
+	default:
+		return false
+	}
 }
 
 func pathStaysWithinDir(root, target string) bool {

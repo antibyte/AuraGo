@@ -1085,11 +1085,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 	os.MkdirAll(ttsDir, 0755)
 	mainTTSHandler := http.StripPrefix("/tts/", http.FileServer(http.Dir(ttsDir)))
 	mux.HandleFunc("/tts/", func(w http.ResponseWriter, r *http.Request) {
-		if strings.HasSuffix(r.URL.Path, ".wav") {
-			w.Header().Set("Content-Type", "audio/wav")
-		} else {
-			w.Header().Set("Content-Type", "audio/mpeg")
-		}
+		w.Header().Set("Content-Type", chatVoiceAudioMIMEType(r.URL.Path))
 		mainTTSHandler.ServeHTTP(w, r)
 	})
 
@@ -1101,11 +1097,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 		ttsMux := http.NewServeMux()
 		ttsFsHandler := http.StripPrefix("/tts/", http.FileServer(http.Dir(ccTTSDir)))
 		ttsMux.HandleFunc("/tts/", func(w http.ResponseWriter, r *http.Request) {
-			if strings.HasSuffix(r.URL.Path, ".wav") {
-				w.Header().Set("Content-Type", "audio/wav")
-			} else {
-				w.Header().Set("Content-Type", "audio/mpeg")
-			}
+			w.Header().Set("Content-Type", chatVoiceAudioMIMEType(r.URL.Path))
 			ttsFsHandler.ServeHTTP(w, r)
 		})
 

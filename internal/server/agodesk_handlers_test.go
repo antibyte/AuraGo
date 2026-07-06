@@ -246,6 +246,20 @@ func TestAgodeskAttachmentCapabilitiesRequireWorkspaceAndSigningSecret(t *testin
 	}
 }
 
+func TestAgodeskVoiceOutputCapabilitySupportsSupertonic(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.TTS.Provider = "supertonic"
+	cfg.TTS.Supertonic.URL = "http://127.0.0.1:7788"
+
+	capabilities := agodeskServerCapabilities(&Server{
+		Cfg:    cfg,
+		Logger: slog.Default(),
+	})
+	if !agodeskTestContainsString(capabilities, "chat.voice_output") {
+		t.Fatalf("capabilities = %v, want chat.voice_output for configured Supertonic TTS", capabilities)
+	}
+}
+
 func TestAgodeskAttachmentPrepareUploadAndTextlessChatMessage(t *testing.T) {
 	s := newAgodeskHandlerTestServer()
 	s.ShortTermMem = newAgodeskTestMemory(t)
@@ -1168,6 +1182,48 @@ func TestAgodeskTTSAssetBypassesSessionAuthAndServesCachedAudio(t *testing.T) {
 	}
 	if ct := rec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "audio/mpeg") {
 		t.Fatalf("Content-Type = %q, want audio/mpeg", ct)
+	}
+}
+
+func TestAgodeskTTSAssetServesSupertonicAudioContentTypes(t *testing.T) {
+	dataDir := t.TempDir()
+	ttsDir := filepath.Join(dataDir, "tts")
+	if err := os.MkdirAll(ttsDir, 0o755); err != nil {
+		t.Fatalf("mkdir tts dir: %v", err)
+	}
+	for _, filename := range []string{"voice.ogg", "voice.flac"} {
+		if err := os.WriteFile(filepath.Join(ttsDir, filename), []byte("audio-data"), 0o644); err != nil {
+			t.Fatalf("write %s: %v", filename, err)
+		}
+	}
+	s := newAgodeskHandlerTestServer()
+	s.Cfg.Auth.Enabled = true
+	s.Cfg.Auth.PasswordHash = "configured"
+	s.Cfg.Auth.SessionSecret = "test-secret"
+	s.Cfg.Directories.DataDir = dataDir
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/agodesk/tts/", handleAgodeskTTSAsset(s))
+	tests := []struct {
+		path        string
+		contentType string
+	}{
+		{path: "/api/agodesk/tts/voice.ogg", contentType: "audio/ogg"},
+		{path: "/api/agodesk/tts/voice.flac", contentType: "audio/flac"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.path, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, tt.path, nil)
+			rec := httptest.NewRecorder()
+			authMiddleware(s, mux).ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusOK {
+				t.Fatalf("status = %d, body = %q; want 200 without web session", rec.Code, rec.Body.String())
+			}
+			if ct := rec.Header().Get("Content-Type"); !strings.HasPrefix(ct, tt.contentType) {
+				t.Fatalf("Content-Type = %q, want %s", ct, tt.contentType)
+			}
+		})
 	}
 }
 
