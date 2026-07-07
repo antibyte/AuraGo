@@ -437,6 +437,55 @@ func TestImageGalleryDeleteMediaRegistryItemDoesNotRemoveUnsafeFilePath(t *testi
 	}
 }
 
+func TestImageGalleryDeleteMediaRegistryItemDoesNotTreatExternalWebPathAsLocalFile(t *testing.T) {
+	tmpDir := t.TempDir()
+	imageDir := filepath.Join(tmpDir, "generated_images")
+	if err := os.MkdirAll(imageDir, 0755); err != nil {
+		t.Fatalf("create image dir: %v", err)
+	}
+	localPath := filepath.Join(imageDir, "keep.png")
+	if err := os.WriteFile(localPath, []byte("keep"), 0644); err != nil {
+		t.Fatalf("write local image: %v", err)
+	}
+
+	mediaDB, err := tools.InitMediaRegistryDB(filepath.Join(tmpDir, "media_registry.db"))
+	if err != nil {
+		t.Fatalf("init media registry db: %v", err)
+	}
+	defer mediaDB.Close()
+	mediaID, _, err := tools.RegisterMedia(mediaDB, tools.MediaItem{
+		MediaType: "image",
+		Filename:  "keep.png",
+		WebPath:   "https://cdn.example.test/files/generated_images/keep.png",
+		Prompt:    "external image web path",
+	})
+	if err != nil {
+		t.Fatalf("register external image item: %v", err)
+	}
+
+	cfg := &config.Config{}
+	cfg.Directories.DataDir = tmpDir
+	s := &Server{
+		Cfg:             cfg,
+		Logger:          slog.New(slog.NewTextHandler(io.Discard, nil)),
+		MediaRegistryDB: mediaDB,
+	}
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/image-gallery/"+strconv.FormatInt(mediaID, 10)+"?source=media_registry", nil)
+	rr := httptest.NewRecorder()
+	handleImageGalleryByID(s).ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rr.Code, rr.Body.String())
+	}
+	if _, err := os.Stat(localPath); err != nil {
+		t.Fatalf("external web_path should not remove local image: %v", err)
+	}
+	if _, err := tools.GetMedia(mediaDB, mediaID); err == nil {
+		t.Fatal("media registry image should be soft-deleted")
+	}
+}
+
 func TestImageGalleryListSkipsMissingLegacyGalleryImages(t *testing.T) {
 	tmpDir := t.TempDir()
 	imageDir := filepath.Join(tmpDir, "generated_images")

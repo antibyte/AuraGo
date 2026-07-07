@@ -149,18 +149,25 @@ func listAllGeneratedImagesForServer(db *sql.DB, provider, query string) ([]tool
 
 func removeMediaItemFileSafely(dataDir string, item tools.MediaItem) (bool, error) {
 	candidates := []string{}
-	if strings.TrimSpace(item.FilePath) != "" {
+	hasFilePath := strings.TrimSpace(item.FilePath) != ""
+	hasWebPath := strings.TrimSpace(item.WebPath) != ""
+	if hasFilePath {
 		candidates = append(candidates, item.FilePath)
 	}
-	if localPath, ok := mediaWebPathToLocalPath(dataDir, item.WebPath); ok {
-		candidates = append(candidates, localPath)
-	}
-	if defaultWebPath, ok := defaultMediaWebPathForFilename(dataDir, item.MediaType, item.Filename); ok {
-		if localPath, ok := mediaWebPathToLocalPath(dataDir, defaultWebPath); ok {
+	if hasWebPath && !isExternalWebPath(item.WebPath) {
+		if localPath, ok := mediaWebPathToLocalPath(dataDir, item.WebPath); ok {
 			candidates = append(candidates, localPath)
 		}
 	}
-
+	if !hasFilePath && !hasWebPath {
+		if defaultWebPath, ok := defaultMediaWebPathForFilename(dataDir, item.MediaType, item.Filename); ok {
+			localPath, ok := mediaWebPathToLocalPath(dataDir, defaultWebPath)
+			if !ok {
+				return false, nil
+			}
+			candidates = append(candidates, localPath)
+		}
+	}
 	seen := map[string]bool{}
 	for _, candidate := range candidates {
 		candidate = filepath.Clean(strings.TrimSpace(candidate))

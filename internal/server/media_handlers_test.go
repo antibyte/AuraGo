@@ -314,6 +314,54 @@ func TestMediaDeleteDoesNotRemoveUnsafeFilePath(t *testing.T) {
 	}
 }
 
+func TestMediaDeleteDoesNotTreatExternalWebPathAsLocalFile(t *testing.T) {
+	tmpDir := t.TempDir()
+	audioDir := filepath.Join(tmpDir, "audio")
+	if err := os.MkdirAll(audioDir, 0755); err != nil {
+		t.Fatalf("create audio dir: %v", err)
+	}
+	localPath := filepath.Join(audioDir, "keep.mp3")
+	if err := os.WriteFile(localPath, []byte("keep"), 0644); err != nil {
+		t.Fatalf("write local audio: %v", err)
+	}
+
+	db, err := tools.InitMediaRegistryDB(filepath.Join(tmpDir, "media_registry.db"))
+	if err != nil {
+		t.Fatalf("init media registry db: %v", err)
+	}
+	defer db.Close()
+	id, _, err := tools.RegisterMedia(db, tools.MediaItem{
+		MediaType: "audio",
+		Filename:  "keep.mp3",
+		WebPath:   "https://cdn.example.test/files/audio/keep.mp3",
+	})
+	if err != nil {
+		t.Fatalf("register external web path item: %v", err)
+	}
+
+	cfg := &config.Config{}
+	cfg.Directories.DataDir = tmpDir
+	s := &Server{
+		Cfg:             cfg,
+		Logger:          slog.New(slog.NewTextHandler(io.Discard, nil)),
+		MediaRegistryDB: db,
+	}
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/media/"+int64String(id), nil)
+	rr := httptest.NewRecorder()
+	handleMediaByID(s).ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rr.Code, rr.Body.String())
+	}
+	if _, err := os.Stat(localPath); err != nil {
+		t.Fatalf("external web_path should not remove local file: %v", err)
+	}
+	if _, err := tools.GetMedia(db, id); err == nil {
+		t.Fatal("registry item should be soft-deleted")
+	}
+}
+
 func int64String(v int64) string {
 	return strconv.FormatInt(v, 10)
 }
