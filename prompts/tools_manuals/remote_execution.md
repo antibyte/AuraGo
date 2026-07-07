@@ -71,10 +71,11 @@ Enroll a new network device or server into the inventory and secure vault. You s
 | `ip_address` | string | no | Device IP address |
 | `port` | integer | no | Port (default: 22 for servers) |
 | `username` | string | conditional | SSH username (required for servers) |
-| `password` | string | conditional | SSH password (required for servers if no `private_key_path`) |
-| `private_key_path` | string | conditional | Path to private key on supervisor (required for servers if no `password`) |
+| `password` | string | no | SSH password, stored in the Vault if provided |
 | `mac_address` | string | no | MAC address (e.g. `"AA:BB:CC:DD:EE:FF"`) — optional, only needed for Wake-on-LAN |
 | `tags` | string | no | Comma-separated tags (e.g. "prod,web" or "smart-home") |
+
+`private_key_path` is intentionally not supported. Store SSH keys in the Credentials Registry/Vault and link devices through the credential reference workflow instead of exposing arbitrary local file paths to the agent.
 
 ```json
 {"action": "register_device", "hostname": "Wohnzimmer Chromecast", "device_type": "chromecast", "ip_address": "192.168.1.50", "description": "Speaker used for TTS", "tags": "smart-home,speaker"}

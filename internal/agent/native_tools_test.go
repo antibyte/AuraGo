@@ -419,6 +419,24 @@ func nativeToolProperties(t *testing.T, schemas []openai.Tool, name string) map[
 	return nil
 }
 
+func TestRegisterDeviceNativeSchemaDoesNotAdvertisePrivateKeyPath(t *testing.T) {
+	schemas := builtinToolSchemas(ToolFeatureFlags{InventoryEnabled: true})
+	props := nativeToolProperties(t, schemas, "register_device")
+	if _, ok := props["private_key_path"]; ok {
+		t.Fatalf("register_device schema still exposes private_key_path: %#v", props["private_key_path"])
+	}
+	for _, schema := range schemas {
+		if schema.Function == nil || schema.Function.Name != "register_device" {
+			continue
+		}
+		if strings.Contains(strings.ToLower(schema.Function.Description), "private_key_path") {
+			t.Fatalf("register_device description still mentions private_key_path: %q", schema.Function.Description)
+		}
+		return
+	}
+	t.Fatal("register_device schema not found")
+}
+
 func TestBuildNativeToolSchemasIncludesTrueNASNFSActions(t *testing.T) {
 	schemas := BuildNativeToolSchemas(t.TempDir(), nil, ToolFeatureFlags{TrueNASEnabled: true}, nil)
 	action, ok := nativeToolProperties(t, schemas, "truenas")["action"].(map[string]interface{})

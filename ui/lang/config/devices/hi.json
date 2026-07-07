@@ -56,5 +56,12 @@
   "config.devices.mac_placeholder": "AA:BB:CC:DD:EE:FF",
   "config.devices.field_tags_label": "टैग",
   "config.devices.field_vault_secret_id_label": "वॉल्ट सीक्रेट आईडी",
-  "config.devices.delete_confirm_title": "डिवाइस हटाएँ?"
+  "config.devices.delete_confirm_title": "डिवाइस हटाएँ?",
+  "config.devices.protocol_label": "प्रोटोकॉल",
+  "config.devices.protocol_none": "कोई रिमोट एक्सेस नहीं",
+  "config.devices.protocol_ssh": "SSH",
+  "config.devices.protocol_vnc": "VNC",
+  "config.devices.credential_label": "क्रेडेंशियल",
+  "config.devices.credential_none": "कोई लिंक किया हुआ क्रेडेंशियल नहीं",
+  "config.devices.credential_unavailable": "क्रेडेंशियल सूची उपलब्ध नहीं है"
 }

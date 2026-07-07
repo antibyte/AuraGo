@@ -60,6 +60,56 @@ func TestSyncExternalSourcesImportsInventoryDevices(t *testing.T) {
 	}
 }
 
+func TestSyncExternalSourcesImportsLegacyNullInventoryDevices(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	kg, err := NewKnowledgeGraph(":memory:", "", logger)
+	if err != nil {
+		t.Fatalf("NewKnowledgeGraph: %v", err)
+	}
+	t.Cleanup(func() { _ = kg.Close() })
+
+	inventoryDB, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("open inventory db: %v", err)
+	}
+	t.Cleanup(func() { _ = inventoryDB.Close() })
+
+	if _, err := inventoryDB.Exec(`
+		CREATE TABLE devices (
+			id TEXT PRIMARY KEY,
+			name TEXT NOT NULL,
+			type TEXT NOT NULL,
+			ip_address TEXT,
+			port INTEGER NOT NULL DEFAULT 22,
+			username TEXT,
+			vault_secret_id TEXT,
+			credential_id TEXT,
+			description TEXT,
+			tags TEXT,
+			mac_address TEXT,
+			protocol TEXT NOT NULL DEFAULT 'ssh'
+		);
+		INSERT INTO devices (id, name, type, ip_address, port, description, tags)
+		VALUES ('legacy-1', 'Legacy Device', 'server', NULL, 22, NULL, NULL);
+	`); err != nil {
+		t.Fatalf("seed inventory: %v", err)
+	}
+
+	if err := kg.SyncExternalSources(inventoryDB, logger); err != nil {
+		t.Fatalf("SyncExternalSources: %v", err)
+	}
+	node, err := kg.GetNode("dev_legacy-1")
+	if err != nil {
+		t.Fatalf("GetNode: %v", err)
+	}
+	if node == nil {
+		t.Fatal("legacy inventory device with NULL fields was not synced")
+	}
+	if node.Properties["ip"] != "" || node.Properties["description"] != "" || node.Properties["tags"] != "" {
+		t.Fatalf("legacy NULL properties were not normalized: %#v", node.Properties)
+	}
+}
+
 func TestSyncExternalSourcesRemovesStaleInventoryDevices(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	kg, err := NewKnowledgeGraph(":memory:", "", logger)

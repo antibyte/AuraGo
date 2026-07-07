@@ -56,5 +56,12 @@
   "config.devices.mac_placeholder": "AA:BB:CC:DD:EE:FF",
   "config.devices.field_tags_label": "Tags",
   "config.devices.field_vault_secret_id_label": "ID du secret du coffre",
-  "config.devices.delete_confirm_title": "Supprimer l’appareil ?"
+  "config.devices.delete_confirm_title": "Supprimer l’appareil ?",
+  "config.devices.protocol_label": "Protocole",
+  "config.devices.protocol_none": "Aucun accès distant",
+  "config.devices.protocol_ssh": "SSH",
+  "config.devices.protocol_vnc": "VNC",
+  "config.devices.credential_label": "Identifiant",
+  "config.devices.credential_none": "Aucun identifiant lié",
+  "config.devices.credential_unavailable": "Liste des identifiants indisponible"
 }

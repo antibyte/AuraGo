@@ -18,7 +18,7 @@ func handleListDevices(s *Server) http.HandlerFunc {
 			return
 		}
 		if s.InventoryDB == nil {
-			jsonError(w, `{"error":"inventory database not configured"}`, http.StatusServiceUnavailable)
+			jsonError(w, "inventory database not configured", http.StatusServiceUnavailable)
 			return
 		}
 
@@ -44,13 +44,13 @@ func handleGetDevice(s *Server) http.HandlerFunc {
 			return
 		}
 		if s.InventoryDB == nil {
-			jsonError(w, `{"error":"inventory database not configured"}`, http.StatusServiceUnavailable)
+			jsonError(w, "inventory database not configured", http.StatusServiceUnavailable)
 			return
 		}
 
 		id := strings.TrimPrefix(r.URL.Path, "/api/devices/")
 		if id == "" {
-			jsonError(w, `{"error":"device id required"}`, http.StatusBadRequest)
+			jsonError(w, "device id required", http.StatusBadRequest)
 			return
 		}
 
@@ -77,35 +77,34 @@ func handleCreateDevice(s *Server) http.HandlerFunc {
 			return
 		}
 		if s.InventoryDB == nil {
-			jsonError(w, `{"error":"inventory database not configured"}`, http.StatusServiceUnavailable)
+			jsonError(w, "inventory database not configured", http.StatusServiceUnavailable)
 			return
 		}
 
 		var req inventory.DeviceRecord
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			jsonError(w, `{"error":"invalid JSON"}`, http.StatusBadRequest)
+			jsonError(w, "invalid JSON", http.StatusBadRequest)
 			return
 		}
 		if req.Name == "" {
-			jsonError(w, `{"error":"name is required"}`, http.StatusBadRequest)
+			jsonError(w, "name is required", http.StatusBadRequest)
 			return
 		}
 		if req.Type == "" {
 			req.Type = "generic"
 		}
-		if req.Protocol == "" {
-			req.Protocol = "ssh"
-		}
-		if req.Protocol != "ssh" && req.Protocol != "vnc" {
-			jsonError(w, `{"error":"protocol must be ssh or vnc"}`, http.StatusBadRequest)
+		req.Protocol = normalizeDeviceProtocolForAPI(req.Protocol)
+		if !isAllowedDeviceProtocol(req.Protocol) {
+			jsonError(w, "protocol must be ssh, vnc, or none", http.StatusBadRequest)
 			return
 		}
 		if req.Tags == nil {
 			req.Tags = []string{}
 		}
-		if strings.TrimSpace(req.CredentialID) != "" {
+		req.CredentialID = strings.TrimSpace(req.CredentialID)
+		if req.CredentialID != "" {
 			if _, err := credentials.GetByID(s.InventoryDB, req.CredentialID); err != nil {
-				jsonError(w, `{"error":"linked credential not found"}`, http.StatusBadRequest)
+				jsonError(w, "linked credential not found", http.StatusBadRequest)
 				return
 			}
 			req.Username = ""
@@ -132,34 +131,32 @@ func handleUpdateDevice(s *Server) http.HandlerFunc {
 			return
 		}
 		if s.InventoryDB == nil {
-			jsonError(w, `{"error":"inventory database not configured"}`, http.StatusServiceUnavailable)
+			jsonError(w, "inventory database not configured", http.StatusServiceUnavailable)
 			return
 		}
 
 		id := strings.TrimPrefix(r.URL.Path, "/api/devices/")
 		if id == "" {
-			jsonError(w, `{"error":"device id required"}`, http.StatusBadRequest)
+			jsonError(w, "device id required", http.StatusBadRequest)
 			return
 		}
 
 		var req inventory.DeviceRecord
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			jsonError(w, `{"error":"invalid JSON"}`, http.StatusBadRequest)
+			jsonError(w, "invalid JSON", http.StatusBadRequest)
 			return
 		}
 		req.ID = id
 		if req.Name == "" {
-			jsonError(w, `{"error":"name is required"}`, http.StatusBadRequest)
+			jsonError(w, "name is required", http.StatusBadRequest)
 			return
 		}
 		if req.Type == "" {
 			req.Type = "generic"
 		}
-		if req.Protocol == "" {
-			req.Protocol = "ssh"
-		}
-		if req.Protocol != "ssh" && req.Protocol != "vnc" {
-			jsonError(w, `{"error":"protocol must be ssh or vnc"}`, http.StatusBadRequest)
+		req.Protocol = normalizeDeviceProtocolForAPI(req.Protocol)
+		if !isAllowedDeviceProtocol(req.Protocol) {
+			jsonError(w, "protocol must be ssh, vnc, or none", http.StatusBadRequest)
 			return
 		}
 		if req.Tags == nil {
@@ -174,11 +171,16 @@ func handleUpdateDevice(s *Server) http.HandlerFunc {
 			}
 			return
 		}
-		if strings.TrimSpace(req.CredentialID) != "" {
+		req.CredentialID = strings.TrimSpace(req.CredentialID)
+		if req.CredentialID != "" {
 			if _, err := credentials.GetByID(s.InventoryDB, req.CredentialID); err != nil {
-				jsonError(w, `{"error":"linked credential not found"}`, http.StatusBadRequest)
+				jsonError(w, "linked credential not found", http.StatusBadRequest)
 				return
 			}
+			req.Username = ""
+			req.VaultSecretID = ""
+		} else if existing.CredentialID != "" && strings.TrimSpace(req.Username) == "" && strings.TrimSpace(req.VaultSecretID) == "" {
+			req.CredentialID = existing.CredentialID
 			req.Username = ""
 			req.VaultSecretID = ""
 		} else if existing.CredentialID == "" {
@@ -210,13 +212,13 @@ func handleDeleteDevice(s *Server) http.HandlerFunc {
 			return
 		}
 		if s.InventoryDB == nil {
-			jsonError(w, `{"error":"inventory database not configured"}`, http.StatusServiceUnavailable)
+			jsonError(w, "inventory database not configured", http.StatusServiceUnavailable)
 			return
 		}
 
 		id := strings.TrimPrefix(r.URL.Path, "/api/devices/")
 		if id == "" {
-			jsonError(w, `{"error":"device id required"}`, http.StatusBadRequest)
+			jsonError(w, "device id required", http.StatusBadRequest)
 			return
 		}
 
@@ -247,7 +249,7 @@ func handleMACLookup(s *Server) http.HandlerFunc {
 			IP string `json:"ip"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil || strings.TrimSpace(req.IP) == "" {
-			jsonError(w, `{"error":"ip field required"}`, http.StatusBadRequest)
+			jsonError(w, "ip field required", http.StatusBadRequest)
 			return
 		}
 
@@ -256,5 +258,22 @@ func handleMACLookup(s *Server) http.HandlerFunc {
 		if _, err := w.Write([]byte(result)); err != nil {
 			s.Logger.Debug("failed to write mac_lookup response", "error", err)
 		}
+	}
+}
+
+func normalizeDeviceProtocolForAPI(protocol string) string {
+	protocol = strings.ToLower(strings.TrimSpace(protocol))
+	if protocol == "" {
+		return inventory.ProtocolSSH
+	}
+	return protocol
+}
+
+func isAllowedDeviceProtocol(protocol string) bool {
+	switch protocol {
+	case inventory.ProtocolSSH, inventory.ProtocolVNC, inventory.ProtocolNone:
+		return true
+	default:
+		return false
 	}
 }

@@ -350,18 +350,17 @@ func appendMemoryToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai.
 			}),
 		))
 		tools = append(tools, tool("register_device",
-			"Add a new device to the inventory. Automatically stores credentials in the vault.",
+			"Add a new device to the inventory. Passwords are stored in the vault; SSH keys must be managed through the Credentials Registry and linked by credential_id.",
 			schema(map[string]interface{}{
-				"hostname":         prop("string", "Device name or hostname"),
-				"device_type":      prop("string", "Type (e.g. 'server', 'docker', 'vm', 'network_device')"),
-				"ip_address":       prop("string", "IP address or FQDN"),
-				"port":             prop("integer", "Port number (default 22 for SSH)"),
-				"username":         prop("string", "Login username"),
-				"password":         prop("string", "Login password (optional)"),
-				"private_key_path": prop("string", "Path to private key (optional)"),
-				"description":      prop("string", "Brief description"),
-				"tags":             prop("string", "Comma-separated tags (e.g. 'prod,db')"),
-				"mac_address":      prop("string", "MAC address for Wake-on-LAN (optional)"),
+				"hostname":    prop("string", "Device name or hostname"),
+				"device_type": prop("string", "Type (e.g. 'server', 'docker', 'vm', 'network_device')"),
+				"ip_address":  prop("string", "IP address or FQDN"),
+				"port":        prop("integer", "Port number (default 22 for SSH devices)"),
+				"username":    prop("string", "Login username"),
+				"password":    prop("string", "Login password (optional; stored in the vault)"),
+				"description": prop("string", "Brief description"),
+				"tags":        prop("string", "Comma-separated tags (e.g. 'prod,db')"),
+				"mac_address": prop("string", "MAC address for Wake-on-LAN (optional)"),
 			}, "hostname", "device_type"),
 		))
 	}

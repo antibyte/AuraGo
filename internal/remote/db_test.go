@@ -138,6 +138,27 @@ func TestGetDeviceNotFound(t *testing.T) {
 	}
 }
 
+func TestDeviceMutationsReturnNotFoundForMissingRows(t *testing.T) {
+	db, err := InitDB(tempDB(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	if err := UpdateDevice(db, DeviceRecord{ID: "missing", Name: "missing"}); err == nil {
+		t.Fatal("UpdateDevice succeeded for missing row; expected error")
+	}
+	if err := UpdateDeviceStatus(db, "missing", "revoked"); err == nil {
+		t.Fatal("UpdateDeviceStatus succeeded for missing row; expected error")
+	}
+	if err := DeleteDevice(db, "missing"); err == nil {
+		t.Fatal("DeleteDevice succeeded for missing row; expected error")
+	}
+	if err := MarkEnrollmentUsed(db, "missing", "device-1"); err == nil {
+		t.Fatal("MarkEnrollmentUsed succeeded for missing row; expected error")
+	}
+}
+
 // ── Enrollment ──────────────────────────────────────────────────────────────
 
 func TestEnrollmentCRUD(t *testing.T) {

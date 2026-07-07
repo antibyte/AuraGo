@@ -56,5 +56,12 @@
   "config.devices.mac_placeholder": "AA:BB:CC:DD:EE:FF",
   "config.devices.field_tags_label": "Štítky",
   "config.devices.field_vault_secret_id_label": "ID tajemství trezoru",
-  "config.devices.delete_confirm_title": "Smazat zařízení?"
+  "config.devices.delete_confirm_title": "Smazat zařízení?",
+  "config.devices.protocol_label": "Protokol",
+  "config.devices.protocol_none": "Bez vzdáleného přístupu",
+  "config.devices.protocol_ssh": "SSH",
+  "config.devices.protocol_vnc": "VNC",
+  "config.devices.credential_label": "Přihlašovací údaje",
+  "config.devices.credential_none": "Žádné propojené přihlašovací údaje",
+  "config.devices.credential_unavailable": "Seznam přihlašovacích údajů není dostupný"
 }

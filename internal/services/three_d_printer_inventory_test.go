@@ -50,6 +50,9 @@ func TestSyncThreeDPrinterDevicesCreatesAndUpdatesAutoEntry(t *testing.T) {
 	if devices[0].IPAddress != "192.168.6.61" {
 		t.Fatalf("IPAddress=%q, want updated URL host", devices[0].IPAddress)
 	}
+	if devices[0].Protocol != "none" {
+		t.Fatalf("Protocol=%q, want none", devices[0].Protocol)
+	}
 }
 
 func TestSyncThreeDPrinterDevicesDoesNotOverwriteManualSameNameDevice(t *testing.T) {

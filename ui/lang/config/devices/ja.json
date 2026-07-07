@@ -56,5 +56,12 @@
   "config.devices.mac_placeholder": "AA:BB:CC:DD:EE:FF",
   "config.devices.field_tags_label": "タグ",
   "config.devices.field_vault_secret_id_label": "VaultシークレットID",
-  "config.devices.delete_confirm_title": "デバイスを削除しますか？"
+  "config.devices.delete_confirm_title": "デバイスを削除しますか？",
+  "config.devices.protocol_label": "プロトコル",
+  "config.devices.protocol_none": "リモートアクセスなし",
+  "config.devices.protocol_ssh": "SSH",
+  "config.devices.protocol_vnc": "VNC",
+  "config.devices.credential_label": "認証情報",
+  "config.devices.credential_none": "リンク済み認証情報なし",
+  "config.devices.credential_unavailable": "認証情報リストを利用できません"
 }

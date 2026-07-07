@@ -56,5 +56,12 @@
   "config.devices.mac_placeholder": "AA:BB:CC:DD:EE:FF",
   "config.devices.field_tags_label": "Ετικέτες",
   "config.devices.field_vault_secret_id_label": "Αναγνωριστικό μυστικού θησαυροφυλακίου",
-  "config.devices.delete_confirm_title": "Διαγραφή συσκευής;"
+  "config.devices.delete_confirm_title": "Διαγραφή συσκευής;",
+  "config.devices.protocol_label": "Πρωτόκολλο",
+  "config.devices.protocol_none": "Χωρίς απομακρυσμένη πρόσβαση",
+  "config.devices.protocol_ssh": "SSH",
+  "config.devices.protocol_vnc": "VNC",
+  "config.devices.credential_label": "Διαπιστευτήρια",
+  "config.devices.credential_none": "Χωρίς συνδεδεμένα διαπιστευτήρια",
+  "config.devices.credential_unavailable": "Η λίστα διαπιστευτηρίων δεν είναι διαθέσιμη"
 }

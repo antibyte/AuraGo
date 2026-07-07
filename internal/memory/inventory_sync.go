@@ -24,7 +24,7 @@ func (kg *KnowledgeGraph) SyncExternalSources(inventoryDB *sql.DB, logger *slog.
 		return fmt.Errorf("inventory database is nil")
 	}
 
-	rows, err := inventoryDB.Query(`SELECT id, name, type, ip_address, description, tags FROM devices`)
+	rows, err := inventoryDB.Query(`SELECT id, name, type, COALESCE(ip_address, ''), COALESCE(description, ''), COALESCE(tags, '') FROM devices`)
 	if err != nil {
 		return fmt.Errorf("query inventory devices: %w", err)
 	}

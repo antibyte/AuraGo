@@ -179,6 +179,10 @@ func handleRemoteDevice(s *Server) http.HandlerFunc {
 			}
 
 			if err := remote.UpdateDevice(s.RemoteHub.DB(), device); err != nil {
+				if isRemoteRegistryNotFound(err) {
+					jsonError(w, "device not found", http.StatusNotFound)
+					return
+				}
 				jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to update device", "Failed to update remote device", err, "device_id", deviceID)
 				return
 			}
@@ -202,11 +206,17 @@ func handleRemoteDevice(s *Server) http.HandlerFunc {
 				_ = s.RemoteHub.SendRevoke(deviceID)
 			}
 			if err := remote.DeleteDevice(s.RemoteHub.DB(), deviceID); err != nil {
+				if isRemoteRegistryNotFound(err) {
+					jsonError(w, "device not found", http.StatusNotFound)
+					return
+				}
 				jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to delete device", "Failed to delete remote device", err, "device_id", deviceID)
 				return
 			}
 			// Clean up vault secret
-			_ = s.Vault.DeleteSecret("remote_shared_key_" + deviceID)
+			if s.Vault != nil {
+				_ = s.Vault.DeleteSecret("remote_shared_key_" + deviceID)
+			}
 			writeJSON(w, map[string]string{"status": "deleted"})
 
 		default:
@@ -270,9 +280,20 @@ func handleRemoteDeviceRevoke(s *Server) http.HandlerFunc {
 		if s.RemoteHub.IsConnected(deviceID) {
 			_ = s.RemoteHub.SendRevoke(deviceID)
 		}
-		_ = remote.UpdateDeviceStatus(s.RemoteHub.DB(), deviceID, "revoked")
+		if err := remote.UpdateDeviceStatus(s.RemoteHub.DB(), deviceID, "revoked"); err != nil {
+			if isRemoteRegistryNotFound(err) {
+				jsonError(w, "device not found", http.StatusNotFound)
+				return
+			}
+			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to revoke device", "Failed to revoke remote device", err, "device_id", deviceID)
+			return
+		}
 		writeJSON(w, map[string]string{"status": "revoked"})
 	}
+}
+
+func isRemoteRegistryNotFound(err error) bool {
+	return err != nil && strings.Contains(strings.ToLower(err.Error()), "not found")
 }
 
 func handleRemoteEnrollmentCreate(s *Server) http.HandlerFunc {

@@ -56,5 +56,12 @@
   "config.devices.mac_placeholder": "AA:BB:CC:DD:EE:FF",
   "config.devices.field_tags_label": "Etiketter",
   "config.devices.field_vault_secret_id_label": "Vault-hemmeligheds-ID",
-  "config.devices.delete_confirm_title": "Slet enhed?"
+  "config.devices.delete_confirm_title": "Slet enhed?",
+  "config.devices.protocol_label": "Protokol",
+  "config.devices.protocol_none": "Ingen fjernadgang",
+  "config.devices.protocol_ssh": "SSH",
+  "config.devices.protocol_vnc": "VNC",
+  "config.devices.credential_label": "Legitimationsoplysninger",
+  "config.devices.credential_none": "Ingen tilknyttede legitimationsoplysninger",
+  "config.devices.credential_unavailable": "Listen over legitimationsoplysninger er ikke tilgængelig"
 }

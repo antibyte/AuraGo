@@ -3,7 +3,6 @@ package services
 import (
 	"database/sql"
 	"fmt"
-	"os"
 	"strings"
 
 	"aurago/internal/inventory"
@@ -14,18 +13,17 @@ import (
 
 // RegisterDevice handles the dual-ingestion logic for enrolling a new device.
 func RegisterDevice(db *sql.DB, v *security.Vault, name string, deviceType string, ipAddress string, port int, username string, password string, keyPath string, description string, tags []string, macAddress string) (string, error) {
-	if port <= 0 {
+	if strings.TrimSpace(keyPath) != "" {
+		return "", fmt.Errorf("private_key_path is no longer supported; store SSH keys in the credentials registry/vault and link devices by credential_id")
+	}
+
+	protocol := protocolForRegisteredDevice(deviceType, username, password)
+	if port <= 0 && protocol == inventory.ProtocolSSH {
 		port = 22
 	}
 
 	var secretValue string
-	if keyPath != "" {
-		data, err := os.ReadFile(keyPath)
-		if err != nil {
-			return "", fmt.Errorf("failed to read private key at %s: %w", keyPath, err)
-		}
-		secretValue = string(data)
-	} else if password != "" {
+	if password != "" {
 		secretValue = password
 	}
 
@@ -39,12 +37,24 @@ func RegisterDevice(db *sql.DB, v *security.Vault, name string, deviceType strin
 	}
 
 	// Store in Inventory DB
-	id, err := inventory.CreateDevice(db, name, deviceType, "ssh", ipAddress, port, username, vaultSecretID, "", description, tags, macAddress)
+	id, err := inventory.CreateDevice(db, name, deviceType, protocol, ipAddress, port, username, vaultSecretID, "", description, tags, macAddress)
 	if err != nil {
 		return "", fmt.Errorf("failed to create device record: %w", err)
 	}
 
 	return id, nil
+}
+
+func protocolForRegisteredDevice(deviceType, username, password string) string {
+	if strings.TrimSpace(username) != "" || password != "" {
+		return inventory.ProtocolSSH
+	}
+	switch strings.ToLower(strings.TrimSpace(deviceType)) {
+	case "server", "vm", "container", "docker", "nas":
+		return inventory.ProtocolSSH
+	default:
+		return inventory.ProtocolNone
+	}
 }
 
 // ParseTags converts a comma-separated string into a slice of strings.

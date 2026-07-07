@@ -79,6 +79,28 @@ func TestResolveDeviceSSHAccessUsesCredentialReference(t *testing.T) {
 	}
 }
 
+func TestResolveDeviceSSHAccessRejectsProtocolNone(t *testing.T) {
+	t.Parallel()
+
+	device := inventory.DeviceRecord{
+		Name:          "Registry Only",
+		Type:          "printer",
+		Protocol:      "none",
+		IPAddress:     "192.168.1.90",
+		Port:          22,
+		Username:      "root",
+		VaultSecretID: "secret-1",
+	}
+
+	_, err := resolveDeviceSSHAccess(device, nil, nil)
+	if err == nil {
+		t.Fatal("resolveDeviceSSHAccess succeeded for protocol none; expected error")
+	}
+	if !strings.Contains(err.Error(), `protocol "none"`) {
+		t.Fatalf("error = %q, want protocol none guidance", err.Error())
+	}
+}
+
 func TestRemoteRevokeDeviceFailsWhenStatusPersistenceFails(t *testing.T) {
 	t.Parallel()
 

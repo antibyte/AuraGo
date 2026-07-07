@@ -74,7 +74,7 @@ func elegooPrinterDeviceRecord(printer config.ElegooCentauriCarbonPrinterConfig)
 	return inventory.DeviceRecord{
 		Name:        name,
 		Type:        "printer",
-		Protocol:    "",
+		Protocol:    inventory.ProtocolNone,
 		IPAddress:   host,
 		Port:        port,
 		Description: "3D printer (Elegoo Centauri Carbon / SDCP)",
@@ -91,7 +91,7 @@ func klipperPrinterDeviceRecord(printer config.KlipperPrinterConfig) (inventory.
 	return inventory.DeviceRecord{
 		Name:        name,
 		Type:        "printer",
-		Protocol:    "",
+		Protocol:    inventory.ProtocolNone,
 		IPAddress:   host,
 		Port:        port,
 		Description: "3D printer (Klipper / Moonraker)",
@@ -115,6 +115,7 @@ func syncThreeDPrinterDevice(db *sql.DB, byName map[string]inventory.DeviceRecor
 	}
 	merged := existing
 	merged.Type = "printer"
+	merged.Protocol = record.Protocol
 	merged.IPAddress = record.IPAddress
 	merged.Port = record.Port
 	merged.Description = record.Description
@@ -188,7 +189,7 @@ func mergeTags(existing []string, required []string) []string {
 }
 
 func sameDeviceRecord(a, b inventory.DeviceRecord) bool {
-	if a.Type != b.Type || a.IPAddress != b.IPAddress || a.Port != b.Port || a.Description != b.Description {
+	if a.Type != b.Type || a.Protocol != b.Protocol || a.IPAddress != b.IPAddress || a.Port != b.Port || a.Description != b.Description {
 		return false
 	}
 	if len(a.Tags) != len(b.Tags) {

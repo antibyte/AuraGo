@@ -56,5 +56,12 @@
   "config.devices.mac_placeholder": "AA:BB:CC:DD:EE:FF",
   "config.devices.field_tags_label": "Tagi",
   "config.devices.field_vault_secret_id_label": "ID sekretu sejfu",
-  "config.devices.delete_confirm_title": "Usunąć urządzenie?"
+  "config.devices.delete_confirm_title": "Usunąć urządzenie?",
+  "config.devices.protocol_label": "Protokół",
+  "config.devices.protocol_none": "Brak dostępu zdalnego",
+  "config.devices.protocol_ssh": "SSH",
+  "config.devices.protocol_vnc": "VNC",
+  "config.devices.credential_label": "Dane logowania",
+  "config.devices.credential_none": "Brak połączonych danych logowania",
+  "config.devices.credential_unavailable": "Lista danych logowania jest niedostępna"
 }

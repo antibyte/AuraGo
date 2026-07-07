@@ -3197,6 +3197,10 @@ select.cfg-input option {
     grid-template-columns: 1fr 1fr;
 }
 
+.devices-grid-three {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+
 .devices-grid-ip-user {
     grid-template-columns: 2fr 1fr;
     margin-top: 0.8rem;

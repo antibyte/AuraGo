@@ -56,5 +56,12 @@
   "config.devices.mac_placeholder": "AA:BB:CC:DD:EE:FF",
   "config.devices.field_tags_label": "Etiquetas",
   "config.devices.field_vault_secret_id_label": "ID do segredo do cofre",
-  "config.devices.delete_confirm_title": "Excluir dispositivo?"
+  "config.devices.delete_confirm_title": "Excluir dispositivo?",
+  "config.devices.protocol_label": "Protocolo",
+  "config.devices.protocol_none": "Sem acesso remoto",
+  "config.devices.protocol_ssh": "SSH",
+  "config.devices.protocol_vnc": "VNC",
+  "config.devices.credential_label": "Credencial",
+  "config.devices.credential_none": "Nenhuma credencial vinculada",
+  "config.devices.credential_unavailable": "Lista de credenciais indisponível"
 }

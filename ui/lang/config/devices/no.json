@@ -56,5 +56,12 @@
   "config.devices.mac_placeholder": "AA:BB:CC:DD:EE:FF",
   "config.devices.field_tags_label": "Merker",
   "config.devices.field_vault_secret_id_label": "Vault-hemmelighets-ID",
-  "config.devices.delete_confirm_title": "Slette enhet?"
+  "config.devices.delete_confirm_title": "Slette enhet?",
+  "config.devices.protocol_label": "Protokoll",
+  "config.devices.protocol_none": "Ingen ekstern tilgang",
+  "config.devices.protocol_ssh": "SSH",
+  "config.devices.protocol_vnc": "VNC",
+  "config.devices.credential_label": "Påloggingsinformasjon",
+  "config.devices.credential_none": "Ingen tilknyttet påloggingsinformasjon",
+  "config.devices.credential_unavailable": "Listen over påloggingsinformasjon er ikke tilgjengelig"
 }

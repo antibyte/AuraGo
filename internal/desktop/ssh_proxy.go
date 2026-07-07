@@ -327,6 +327,11 @@ func promptSSHHostKey(conn *websocket.Conn, hostname string, key ssh.PublicKey) 
 // resolveSSHAccess resolves host, port, username and secret for a device,
 // following the same logic as the agent's resolveDeviceSSHAccess.
 func resolveSSHAccess(device inventory.DeviceRecord, inventoryDB *sql.DB, vault *security.Vault) (host string, port int, username string, secret []byte, err error) {
+	protocol := strings.ToLower(strings.TrimSpace(device.Protocol))
+	if protocol != "" && protocol != inventory.ProtocolSSH {
+		return "", 0, "", nil, fmt.Errorf("device protocol %q does not support SSH; set protocol to %q before using SSH or SFTP", protocol, inventory.ProtocolSSH)
+	}
+
 	host = strings.TrimSpace(device.IPAddress)
 	if host == "" {
 		host = strings.TrimSpace(device.Name)

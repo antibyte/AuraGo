@@ -56,5 +56,12 @@
   "config.devices.mac_placeholder": "AA:BB:CC:DD:EE:FF",
   "config.devices.field_tags_label": "Tags",
   "config.devices.field_vault_secret_id_label": "Vault Secret ID",
-  "config.devices.delete_confirm_title": "Delete device?"
+  "config.devices.delete_confirm_title": "Delete device?",
+  "config.devices.protocol_label": "Protocol",
+  "config.devices.protocol_none": "No remote access",
+  "config.devices.protocol_ssh": "SSH",
+  "config.devices.protocol_vnc": "VNC",
+  "config.devices.credential_label": "Credential",
+  "config.devices.credential_none": "No linked credential",
+  "config.devices.credential_unavailable": "Credential list unavailable"
 }

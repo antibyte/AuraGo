@@ -1,5 +1,8 @@
 // cfg/devices.js — Device Registry section module
 let devicesCache = [];
+let deviceCredentialsCache = [];
+let deviceCredentialsLoaded = false;
+let deviceCredentialsError = '';
 
 function renderDevicesSection(section) {
     let html = '<div class="cfg-section active">';
@@ -52,7 +55,7 @@ function renderDevicesSection(section) {
                 <div class="field-label">${t('config.devices.field_name_label')}</div>
                 <input type="text" id="device-field-name" class="field-input" placeholder="${t('config.devices.name_placeholder')}">
             </div>
-            <div class="devices-grid devices-grid-two">
+            <div class="devices-grid devices-grid-three">
                 <div class="field-group">
                     <div class="field-label">${t('config.devices.type_label')}</div>
                     <select id="device-field-type" class="field-input devices-select-compact">
@@ -69,6 +72,14 @@ function renderDevicesSection(section) {
                     </select>
                 </div>
                 <div class="field-group">
+                    <div class="field-label">${t('config.devices.protocol_label')}</div>
+                    <select id="device-field-protocol" class="field-input devices-select-compact">
+                        <option value="none">${t('config.devices.protocol_none')}</option>
+                        <option value="ssh">${t('config.devices.protocol_ssh')}</option>
+                        <option value="vnc">${t('config.devices.protocol_vnc')}</option>
+                    </select>
+                </div>
+                <div class="field-group">
                     <div class="field-label">${t('config.devices.field_port_label')}</div>
                     <input type="number" id="device-field-port" class="field-input" placeholder="${t('config.devices.port_placeholder')}" value="22">
                 </div>
@@ -82,6 +93,10 @@ function renderDevicesSection(section) {
                     <div class="field-label">${t('config.devices.username')}</div>
                     <input type="text" id="device-field-username" class="field-input" placeholder="${t('config.devices.username_placeholder')}">
                 </div>
+            </div>
+            <div class="field-group devices-field-group-top">
+                <div class="field-label">${t('config.devices.credential_label')}</div>
+                <select id="device-field-credential" class="field-input devices-select-compact" onchange="devicesUpdateCredentialMode()"></select>
             </div>
             <div class="field-group devices-field-group-top">
                 <div class="field-label">${t('config.devices.description')}</div>
@@ -183,11 +198,12 @@ function devicesApplyFilter() {
     setHidden(document.getElementById('devices-table-wrap'), filtered.length === 0);
 }
 
-function devicesShowModal(id) {
+async function devicesShowModal(id) {
     const overlay = document.getElementById('device-modal-overlay');
     const title = document.getElementById('device-modal-title');
     setHidden(document.getElementById('device-modal-error'), true);
     setHidden(document.getElementById('device-mac-status'), true);
+    await devicesEnsureCredentialsLoaded();
 
     if (id) {
         const d = devicesCache.find(x => x.id === id);
@@ -196,6 +212,7 @@ function devicesShowModal(id) {
         document.getElementById('device-edit-id').value = d.id;
         document.getElementById('device-field-name').value = d.name || '';
         document.getElementById('device-field-type').value = d.type || 'generic';
+        document.getElementById('device-field-protocol').value = d.protocol || 'ssh';
         document.getElementById('device-field-ip').value = d.ip_address || '';
         document.getElementById('device-field-port').value = d.port || 22;
         document.getElementById('device-field-username').value = d.username || '';
@@ -203,11 +220,13 @@ function devicesShowModal(id) {
         document.getElementById('device-field-mac').value = d.mac_address || '';
         document.getElementById('device-field-tags').value = (d.tags || []).join(', ');
         document.getElementById('device-field-vault').value = d.vault_secret_id || '';
+        devicesPopulateCredentialSelect(d.credential_id || '');
     } else {
         title.textContent = t('config.devices.new_device');
         document.getElementById('device-edit-id').value = '';
         document.getElementById('device-field-name').value = '';
         document.getElementById('device-field-type').value = 'server';
+        document.getElementById('device-field-protocol').value = 'ssh';
         document.getElementById('device-field-ip').value = '';
         document.getElementById('device-field-port').value = '22';
         document.getElementById('device-field-username').value = '';
@@ -215,7 +234,9 @@ function devicesShowModal(id) {
         document.getElementById('device-field-mac').value = '';
         document.getElementById('device-field-tags').value = '';
         document.getElementById('device-field-vault').value = '';
+        devicesPopulateCredentialSelect('');
     }
+    devicesUpdateCredentialMode();
     setHidden(overlay, false);
 }
 
@@ -283,17 +304,20 @@ async function devicesSave() {
 
     const tagsRaw = document.getElementById('device-field-tags').value.trim();
     const tags = tagsRaw ? tagsRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
+    const credentialId = (document.getElementById('device-field-credential').value || '').trim();
 
     const payload = {
         name: name,
         type: document.getElementById('device-field-type').value,
+        protocol: document.getElementById('device-field-protocol').value || 'ssh',
         ip_address: document.getElementById('device-field-ip').value.trim(),
         port: parseInt(document.getElementById('device-field-port').value) || 22,
-        username: document.getElementById('device-field-username').value.trim(),
+        username: credentialId ? '' : document.getElementById('device-field-username').value.trim(),
         description: document.getElementById('device-field-desc').value.trim(),
         mac_address: document.getElementById('device-field-mac').value.trim(),
         tags: tags,
-        vault_secret_id: document.getElementById('device-field-vault').value || ''
+        credential_id: credentialId,
+        vault_secret_id: credentialId ? '' : (document.getElementById('device-field-vault').value || '')
     };
 
     const editId = document.getElementById('device-edit-id').value;
@@ -320,6 +344,68 @@ async function devicesSave() {
         setHidden(errBox, false);
     } finally {
         btn.disabled = false;
+    }
+}
+
+async function devicesEnsureCredentialsLoaded() {
+    if (deviceCredentialsLoaded) return;
+    try {
+        const resp = await fetch('/api/credentials');
+        if (!resp.ok) throw new Error(await resp.text());
+        deviceCredentialsCache = await resp.json();
+        deviceCredentialsError = '';
+    } catch (e) {
+        deviceCredentialsCache = [];
+        deviceCredentialsError = e.message || t('config.devices.credential_unavailable');
+    } finally {
+        deviceCredentialsLoaded = true;
+    }
+}
+
+function devicesPopulateCredentialSelect(selectedId) {
+    const select = document.getElementById('device-field-credential');
+    if (!select) return;
+    const selected = selectedId || '';
+    select.innerHTML = `<option value="">${escapeHtml(t('config.devices.credential_none'))}</option>`;
+    let found = selected === '';
+    deviceCredentialsCache.forEach(cred => {
+        const option = document.createElement('option');
+        option.value = cred.id || '';
+        option.textContent = devicesCredentialLabel(cred);
+        if (option.value === selected) found = true;
+        select.appendChild(option);
+    });
+    if (selected && !found) {
+        const option = document.createElement('option');
+        option.value = selected;
+        option.textContent = selected;
+        select.appendChild(option);
+    }
+    if (deviceCredentialsError) {
+        const option = document.createElement('option');
+        option.value = '';
+        option.disabled = true;
+        option.textContent = t('config.devices.credential_unavailable');
+        select.appendChild(option);
+    }
+    select.value = selected;
+}
+
+function devicesCredentialLabel(cred) {
+    const name = cred.name || cred.id || t('config.devices.credential_none');
+    const userHost = [cred.username, cred.host].filter(Boolean).join('@');
+    const suffix = [cred.type, userHost].filter(Boolean).join(' · ');
+    return suffix ? `${name} (${suffix})` : name;
+}
+
+function devicesUpdateCredentialMode() {
+    const select = document.getElementById('device-field-credential');
+    const username = document.getElementById('device-field-username');
+    if (!select || !username) return;
+    const hasCredential = !!select.value;
+    username.disabled = hasCredential;
+    if (hasCredential) {
+        username.value = '';
     }
 }
 

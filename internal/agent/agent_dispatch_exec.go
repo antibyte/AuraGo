@@ -1949,6 +1949,11 @@ type resolvedDeviceSSHAccess struct {
 }
 
 func resolveDeviceSSHAccess(device inventory.DeviceRecord, inventoryDB *sql.DB, vault *security.Vault) (resolvedDeviceSSHAccess, error) {
+	protocol := strings.ToLower(strings.TrimSpace(device.Protocol))
+	if protocol != "" && protocol != inventory.ProtocolSSH {
+		return resolvedDeviceSSHAccess{}, fmt.Errorf("device protocol %q does not support SSH; set protocol to %q before using SSH tools", protocol, inventory.ProtocolSSH)
+	}
+
 	host := strings.TrimSpace(device.IPAddress)
 	if host == "" {
 		host = strings.TrimSpace(device.Name)

@@ -56,5 +56,12 @@
   "config.devices.mac_placeholder": "AA:BB:CC:DD:EE:FF",
   "config.devices.field_tags_label": "标签",
   "config.devices.field_vault_secret_id_label": "保险库密钥 ID",
-  "config.devices.delete_confirm_title": "要删除设备吗？"
+  "config.devices.delete_confirm_title": "要删除设备吗？",
+  "config.devices.protocol_label": "协议",
+  "config.devices.protocol_none": "无远程访问",
+  "config.devices.protocol_ssh": "SSH",
+  "config.devices.protocol_vnc": "VNC",
+  "config.devices.credential_label": "凭据",
+  "config.devices.credential_none": "未关联凭据",
+  "config.devices.credential_unavailable": "凭据列表不可用"
 }

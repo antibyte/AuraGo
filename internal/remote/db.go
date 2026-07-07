@@ -204,7 +204,7 @@ func ListDevices(db *sql.DB) ([]DeviceRecord, error) {
 
 // UpdateDevice updates a device record.
 func UpdateDevice(db *sql.DB, d DeviceRecord) error {
-	_, err := db.Exec(`
+	res, err := db.Exec(`
 		UPDATE remote_devices SET
 			name = ?, hostname = ?, os = ?, arch = ?, ip_address = ?,
 			status = ?, read_only = ?, allowed_paths = ?,
@@ -214,21 +214,51 @@ func UpdateDevice(db *sql.DB, d DeviceRecord) error {
 		d.Status, dbutil.BoolToInt(d.ReadOnly), jsonStrings(d.AllowedPaths),
 		d.SharedKeyHash, d.LastSeen, d.Version, jsonStrings(d.Tags), d.ID,
 	)
-	return err
+	if err != nil {
+		return err
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("check updated remote device rows: %w", err)
+	}
+	if rows == 0 {
+		return fmt.Errorf("remote device not found: %s", d.ID)
+	}
+	return nil
 }
 
 // UpdateDeviceStatus updates just the status and last_seen fields.
 func UpdateDeviceStatus(db *sql.DB, id, status string) error {
 	now := time.Now().UTC().Format(time.RFC3339)
-	_, err := db.Exec(`UPDATE remote_devices SET status = ?, last_seen = ? WHERE id = ?`,
+	res, err := db.Exec(`UPDATE remote_devices SET status = ?, last_seen = ? WHERE id = ?`,
 		status, now, id)
-	return err
+	if err != nil {
+		return err
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("check updated remote device status rows: %w", err)
+	}
+	if rows == 0 {
+		return fmt.Errorf("remote device not found: %s", id)
+	}
+	return nil
 }
 
 // DeleteDevice removes a device record.
 func DeleteDevice(db *sql.DB, id string) error {
-	_, err := db.Exec(`DELETE FROM remote_devices WHERE id = ?`, id)
-	return err
+	res, err := db.Exec(`DELETE FROM remote_devices WHERE id = ?`, id)
+	if err != nil {
+		return err
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("check deleted remote device rows: %w", err)
+	}
+	if rows == 0 {
+		return fmt.Errorf("remote device not found: %s", id)
+	}
+	return nil
 }
 
 func scanDevice(row *sql.Row) (DeviceRecord, error) {
@@ -313,9 +343,19 @@ func GetEnrollmentByTokenHash(db *sql.DB, tokenHash string) (EnrollmentRecord, e
 
 // MarkEnrollmentUsed marks an enrollment as consumed by a device.
 func MarkEnrollmentUsed(db *sql.DB, enrollmentID, deviceID string) error {
-	_, err := db.Exec(`UPDATE remote_enrollments SET used = 1, used_by_device = ? WHERE id = ?`,
+	res, err := db.Exec(`UPDATE remote_enrollments SET used = 1, used_by_device = ? WHERE id = ?`,
 		deviceID, enrollmentID)
-	return err
+	if err != nil {
+		return err
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("check updated remote enrollment rows: %w", err)
+	}
+	if rows == 0 {
+		return fmt.Errorf("remote enrollment not found: %s", enrollmentID)
+	}
+	return nil
 }
 
 // CleanExpiredEnrollments removes enrollments that have expired.

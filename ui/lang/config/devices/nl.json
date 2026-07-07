@@ -56,5 +56,12 @@
   "config.devices.mac_placeholder": "AA:BB:CC:DD:EE:FF",
   "config.devices.field_tags_label": "Labels",
   "config.devices.field_vault_secret_id_label": "Vault Secret-ID",
-  "config.devices.delete_confirm_title": "Apparaat verwijderen?"
+  "config.devices.delete_confirm_title": "Apparaat verwijderen?",
+  "config.devices.protocol_label": "Protocol",
+  "config.devices.protocol_none": "Geen externe toegang",
+  "config.devices.protocol_ssh": "SSH",
+  "config.devices.protocol_vnc": "VNC",
+  "config.devices.credential_label": "Referentie",
+  "config.devices.credential_none": "Geen gekoppelde referentie",
+  "config.devices.credential_unavailable": "Referentielijst niet beschikbaar"
 }

@@ -56,5 +56,12 @@
   "config.devices.mac_placeholder": "AA:BB:CC:DD:EE:FF",
   "config.devices.field_tags_label": "Taggar",
   "config.devices.field_vault_secret_id_label": "Vault-hemlighets-ID",
-  "config.devices.delete_confirm_title": "Ta bort enhet?"
+  "config.devices.delete_confirm_title": "Ta bort enhet?",
+  "config.devices.protocol_label": "Protokoll",
+  "config.devices.protocol_none": "Ingen fjärråtkomst",
+  "config.devices.protocol_ssh": "SSH",
+  "config.devices.protocol_vnc": "VNC",
+  "config.devices.credential_label": "Inloggningsuppgift",
+  "config.devices.credential_none": "Ingen länkad inloggningsuppgift",
+  "config.devices.credential_unavailable": "Listan med inloggningsuppgifter är inte tillgänglig"
 }
