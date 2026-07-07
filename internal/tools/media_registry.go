@@ -20,7 +20,7 @@ type MediaItem struct {
 	ID               int64    `json:"id"`
 	CreatedAt        string   `json:"created_at"`
 	UpdatedAt        string   `json:"updated_at"`
-	MediaType        string   `json:"media_type"`  // image, video, tts, audio, music
+	MediaType        string   `json:"media_type"`  // image, video, audio, music, document; tts is legacy/ephemeral
 	SourceTool       string   `json:"source_tool"` // generate_image, generate_video, send_video, tts, transcribe, manual
 	Filename         string   `json:"filename"`
 	FilePath         string   `json:"file_path"`
@@ -81,15 +81,26 @@ func InitMediaRegistryDB(dbPath string) (*sql.DB, error) {
 		voice_id           TEXT DEFAULT '',
 		hash               TEXT DEFAULT '',
 		deleted            INTEGER DEFAULT 0
-	);
-	CREATE INDEX IF NOT EXISTS idx_media_items_media_type ON media_items(media_type);
-	CREATE INDEX IF NOT EXISTS idx_media_items_created_at ON media_items(created_at);
-	CREATE INDEX IF NOT EXISTS idx_media_items_hash ON media_items(hash);
-	CREATE UNIQUE INDEX IF NOT EXISTS idx_media_items_hash_unique ON media_items(hash) WHERE hash != '';
-	CREATE INDEX IF NOT EXISTS idx_media_items_deleted ON media_items(deleted);`
+	);`
 	if _, err := db.Exec(schema); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("failed to create media registry schema: %w", err)
+	}
+	if err := migrateMediaRegistrySchema(db); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("failed to migrate media registry schema: %w", err)
+	}
+
+	indexes := `
+	DROP INDEX IF EXISTS idx_media_items_hash_unique;
+	CREATE INDEX IF NOT EXISTS idx_media_items_media_type ON media_items(media_type);
+	CREATE INDEX IF NOT EXISTS idx_media_items_created_at ON media_items(created_at);
+	CREATE INDEX IF NOT EXISTS idx_media_items_hash ON media_items(hash);
+	CREATE UNIQUE INDEX IF NOT EXISTS idx_media_items_hash_unique ON media_items(hash) WHERE hash != '' AND deleted = 0;
+	CREATE INDEX IF NOT EXISTS idx_media_items_deleted ON media_items(deleted);`
+	if _, err := db.Exec(indexes); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("failed to create media registry indexes: %w", err)
 	}
 	if err := repairLegacyMediaTypes(db); err != nil {
 		db.Close()
@@ -101,6 +112,87 @@ func InitMediaRegistryDB(dbPath string) (*sql.DB, error) {
 	}
 
 	return db, nil
+}
+
+type mediaRegistryColumnDef struct {
+	name string
+	sql  string
+}
+
+var mediaRegistryColumns = []mediaRegistryColumnDef{
+	{name: "created_at", sql: "created_at TEXT DEFAULT ''"},
+	{name: "updated_at", sql: "updated_at TEXT DEFAULT ''"},
+	{name: "media_type", sql: "media_type TEXT NOT NULL DEFAULT 'image'"},
+	{name: "source_tool", sql: "source_tool TEXT NOT NULL DEFAULT 'manual'"},
+	{name: "filename", sql: "filename TEXT NOT NULL DEFAULT ''"},
+	{name: "file_path", sql: "file_path TEXT NOT NULL DEFAULT ''"},
+	{name: "web_path", sql: "web_path TEXT NOT NULL DEFAULT ''"},
+	{name: "file_size", sql: "file_size INTEGER DEFAULT 0"},
+	{name: "format", sql: "format TEXT DEFAULT ''"},
+	{name: "provider", sql: "provider TEXT DEFAULT ''"},
+	{name: "model", sql: "model TEXT DEFAULT ''"},
+	{name: "prompt", sql: "prompt TEXT DEFAULT ''"},
+	{name: "description", sql: "description TEXT DEFAULT ''"},
+	{name: "tags", sql: "tags TEXT DEFAULT '[]'"},
+	{name: "duration_ms", sql: "duration_ms INTEGER DEFAULT 0"},
+	{name: "generation_time_ms", sql: "generation_time_ms INTEGER DEFAULT 0"},
+	{name: "cost_estimate", sql: "cost_estimate REAL DEFAULT 0"},
+	{name: "source_image", sql: "source_image TEXT DEFAULT ''"},
+	{name: "quality", sql: "quality TEXT DEFAULT ''"},
+	{name: "style", sql: "style TEXT DEFAULT ''"},
+	{name: "size", sql: "size TEXT DEFAULT ''"},
+	{name: "language", sql: "language TEXT DEFAULT ''"},
+	{name: "voice_id", sql: "voice_id TEXT DEFAULT ''"},
+	{name: "hash", sql: "hash TEXT DEFAULT ''"},
+	{name: "deleted", sql: "deleted INTEGER DEFAULT 0"},
+}
+
+func migrateMediaRegistrySchema(db *sql.DB) error {
+	rows, err := db.Query("PRAGMA table_info(media_items)")
+	if err != nil {
+		return fmt.Errorf("inspect media_items schema: %w", err)
+	}
+	defer rows.Close()
+
+	existing := map[string]bool{}
+	for rows.Next() {
+		var cid int
+		var name, colType string
+		var notNull int
+		var defaultValue interface{}
+		var pk int
+		if err := rows.Scan(&cid, &name, &colType, &notNull, &defaultValue, &pk); err != nil {
+			return fmt.Errorf("scan media_items schema: %w", err)
+		}
+		existing[name] = true
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("iterate media_items schema: %w", err)
+	}
+
+	for _, col := range mediaRegistryColumns {
+		if existing[col.name] {
+			continue
+		}
+		if _, err := db.Exec("ALTER TABLE media_items ADD COLUMN " + col.sql); err != nil {
+			return fmt.Errorf("add media_items.%s column: %w", col.name, err)
+		}
+	}
+
+	if _, err := db.Exec(`UPDATE media_items
+		SET created_at = CASE WHEN created_at IS NULL OR created_at = '' THEN CURRENT_TIMESTAMP ELSE created_at END,
+			updated_at = CASE WHEN updated_at IS NULL OR updated_at = '' THEN CURRENT_TIMESTAMP ELSE updated_at END,
+			tags = CASE WHEN tags IS NULL OR tags = '' THEN '[]' ELSE tags END,
+			source_tool = CASE WHEN source_tool IS NULL OR source_tool = '' THEN 'manual' ELSE source_tool END,
+			media_type = CASE WHEN media_type IS NULL OR media_type = '' THEN 'image' ELSE media_type END,
+			filename = CASE WHEN filename IS NULL THEN '' ELSE filename END,
+			file_path = CASE WHEN file_path IS NULL THEN '' ELSE file_path END,
+			web_path = CASE WHEN web_path IS NULL THEN '' ELSE web_path END,
+			hash = CASE WHEN hash IS NULL THEN '' ELSE hash END,
+			deleted = COALESCE(deleted, 0)`); err != nil {
+		return fmt.Errorf("backfill media_items defaults: %w", err)
+	}
+	return nil
 }
 
 func repairLegacyMediaTypes(db *sql.DB) error {
@@ -163,6 +255,7 @@ func RegisterMedia(db *sql.DB, item MediaItem) (int64, bool, error) {
 	if item.Tags == nil {
 		tagsJSON = []byte("[]")
 	}
+	now := time.Now().UTC().Format("2006-01-02 15:04:05")
 
 	// Use ON CONFLICT for hash-based deduplication - more efficient than transaction-based check.
 	// Only applies when hash is non-empty (partial deduplication for items without hash).
@@ -179,11 +272,11 @@ func RegisterMedia(db *sql.DB, item MediaItem) (int64, bool, error) {
 		}
 		// Not found — fall through to the plain INSERT below.
 		res, err = db.Exec(`INSERT INTO media_items
-			(media_type, source_tool, filename, file_path, web_path, file_size, format, provider, model,
+			(created_at, updated_at, media_type, source_tool, filename, file_path, web_path, file_size, format, provider, model,
 			 prompt, description, tags, duration_ms, generation_time_ms, cost_estimate, source_image,
 			 quality, style, size, language, voice_id, hash)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			item.MediaType, item.SourceTool, item.Filename, item.FilePath, item.WebPath, item.FileSize,
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			now, now, item.MediaType, item.SourceTool, item.Filename, item.FilePath, item.WebPath, item.FileSize,
 			item.Format, item.Provider, item.Model, item.Prompt, item.Description, string(tagsJSON),
 			item.DurationMs, item.GenerationTimeMs, item.CostEstimate, item.SourceImage,
 			item.Quality, item.Style, item.Size, item.Language, item.VoiceID, item.Hash,
@@ -191,11 +284,11 @@ func RegisterMedia(db *sql.DB, item MediaItem) (int64, bool, error) {
 	} else {
 		// Fall back to regular insert for items without hash (no deduplication)
 		res, err = db.Exec(`INSERT INTO media_items
-			(media_type, source_tool, filename, file_path, web_path, file_size, format, provider, model,
+			(created_at, updated_at, media_type, source_tool, filename, file_path, web_path, file_size, format, provider, model,
 			 prompt, description, tags, duration_ms, generation_time_ms, cost_estimate, source_image,
 			 quality, style, size, language, voice_id, hash)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			item.MediaType, item.SourceTool, item.Filename, item.FilePath, item.WebPath, item.FileSize,
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			now, now, item.MediaType, item.SourceTool, item.Filename, item.FilePath, item.WebPath, item.FileSize,
 			item.Format, item.Provider, item.Model, item.Prompt, item.Description, string(tagsJSON),
 			item.DurationMs, item.GenerationTimeMs, item.CostEstimate, item.SourceImage,
 			item.Quality, item.Style, item.Size, item.Language, item.VoiceID, item.Hash,
@@ -244,7 +337,33 @@ func SearchMedia(db *sql.DB, query, mediaType string, tags []string, limit, offs
 	if limit <= 0 {
 		limit = 20
 	}
+	if offset < 0 {
+		offset = 0
+	}
+	return searchMediaPage(db, query, mediaType, tags, limit, offset)
+}
 
+func searchAllMedia(db *sql.DB, query, mediaType string, tags []string) ([]MediaItem, int, error) {
+	const pageSize = 1000
+	var all []MediaItem
+	offset := 0
+	for {
+		page, total, err := SearchMedia(db, query, mediaType, tags, pageSize, offset)
+		if err != nil {
+			return nil, 0, err
+		}
+		if offset == 0 {
+			all = make([]MediaItem, 0, total)
+		}
+		all = append(all, page...)
+		if len(page) == 0 || len(all) >= total {
+			return all, total, nil
+		}
+		offset += len(page)
+	}
+}
+
+func searchMediaPage(db *sql.DB, query, mediaType string, tags []string, limit, offset int) ([]MediaItem, int, error) {
 	var conditions []string
 	var args []interface{}
 	conditions = append(conditions, "deleted = 0")
@@ -260,7 +379,7 @@ func SearchMedia(db *sql.DB, query, mediaType string, tags []string, limit, offs
 	}
 	if mediaType != "" {
 		// Map logical UI type groups to the actual media_type values stored in the DB.
-		// "audio"    covers manual audio (send_audio), TTS output, and generated music.
+		// "audio"    covers manual audio, legacy TTS entries, and generated music.
 		// "image"    covers generated images — kept as single type for compatibility.
 		// "document" covers manually sent documents.
 		switch mediaType {
@@ -366,7 +485,7 @@ func SearchMediaWithGallery(mediaDB, imageGalleryDB *sql.DB, query, mediaType st
 		offset = 0
 	}
 
-	registryItems, _, err := SearchMedia(mediaDB, query, mediaType, tags, 5000, 0)
+	registryItems, _, err := searchAllMedia(mediaDB, query, mediaType, tags)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -388,7 +507,7 @@ func SearchMediaWithGallery(mediaDB, imageGalleryDB *sql.DB, query, mediaType st
 		combined = append(combined, item)
 	}
 
-	galleryItems, _, err := ListGeneratedImages(imageGalleryDB, "", query, 5000, 0)
+	galleryItems, err := listAllGeneratedImages(imageGalleryDB, "", query)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -442,6 +561,26 @@ func ListMediaWithGallery(mediaDB, imageGalleryDB *sql.DB, mediaType string, lim
 	return SearchMediaWithGallery(mediaDB, imageGalleryDB, "", mediaType, nil, limit, offset)
 }
 
+func listAllGeneratedImages(db *sql.DB, provider, query string) ([]GeneratedImageRecord, error) {
+	const pageSize = 1000
+	var all []GeneratedImageRecord
+	offset := 0
+	for {
+		page, total, err := ListGeneratedImages(db, provider, query, pageSize, offset)
+		if err != nil {
+			return nil, err
+		}
+		if offset == 0 {
+			all = make([]GeneratedImageRecord, 0, total)
+		}
+		all = append(all, page...)
+		if len(page) == 0 || len(all) >= total {
+			return all, nil
+		}
+		offset += len(page)
+	}
+}
+
 // UpdateMedia updates description and/or tags for a media item.
 func UpdateMedia(db *sql.DB, id int64, description string, tags []string) error {
 	if db == nil {
@@ -454,11 +593,21 @@ func UpdateMedia(db *sql.DB, id int64, description string, tags []string) error 
 		if err != nil {
 			return fmt.Errorf("failed to marshal tags: %w", err)
 		}
-		_, err = db.Exec("UPDATE media_items SET description = ?, tags = ?, updated_at = ? WHERE id = ? AND deleted = 0", description, string(tagsJSON), now, id)
+		return execMediaUpdate(db, id, "UPDATE media_items SET description = ?, tags = ?, updated_at = ? WHERE id = ? AND deleted = 0", description, string(tagsJSON), now, id)
+	}
+	return execMediaUpdate(db, id, "UPDATE media_items SET description = ?, updated_at = ? WHERE id = ? AND deleted = 0", description, now, id)
+}
+
+func execMediaUpdate(db *sql.DB, id int64, query string, args ...interface{}) error {
+	res, err := db.Exec(query, args...)
+	if err != nil {
 		return err
 	}
-	_, err := db.Exec("UPDATE media_items SET description = ?, updated_at = ? WHERE id = ? AND deleted = 0", description, now, id)
-	return err
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("media item %d not found or already deleted", id)
+	}
+	return nil
 }
 
 // TagMedia modifies tags for a media item. mode: "add", "remove", or "set".

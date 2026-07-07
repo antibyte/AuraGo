@@ -1,11 +1,14 @@
 package tools
 
 import (
+	"database/sql"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	_ "modernc.org/sqlite"
 )
 
 func TestInitMediaRegistryDB(t *testing.T) {
@@ -91,6 +94,93 @@ func TestRegisterMediaDedup(t *testing.T) {
 
 	if id1 != id2 {
 		t.Errorf("expected dedup to return same ID: got %d and %d", id1, id2)
+	}
+}
+
+func TestRegisterMediaAllowsSameHashAfterSoftDelete(t *testing.T) {
+	db, err := InitMediaRegistryDB(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatalf("init db: %v", err)
+	}
+	defer db.Close()
+
+	id1, dup, err := RegisterMedia(db, MediaItem{MediaType: "image", Filename: "first.png", Hash: "same-hash"})
+	if err != nil {
+		t.Fatalf("first register: %v", err)
+	}
+	if dup {
+		t.Fatal("first register should not be duplicate")
+	}
+	if err := DeleteMedia(db, id1); err != nil {
+		t.Fatalf("delete first item: %v", err)
+	}
+
+	id2, dup, err := RegisterMedia(db, MediaItem{MediaType: "image", Filename: "second.png", Hash: "same-hash"})
+	if err != nil {
+		t.Fatalf("second register should succeed after soft delete: %v", err)
+	}
+	if dup {
+		t.Fatal("second register should create a fresh active item, not report duplicate")
+	}
+	if id2 == id1 {
+		t.Fatalf("second register id = %d, want a new id different from %d", id2, id1)
+	}
+}
+
+func TestInitMediaRegistryDBMigratesLegacySchemaAndUniqueHashIndex(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "legacy.db")
+	legacyDB, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatalf("open legacy db: %v", err)
+	}
+	if _, err := legacyDB.Exec(`CREATE TABLE media_items (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		media_type TEXT NOT NULL DEFAULT 'image',
+		filename TEXT NOT NULL,
+		file_path TEXT NOT NULL DEFAULT '',
+		web_path TEXT NOT NULL DEFAULT '',
+		deleted INTEGER DEFAULT 0,
+		hash TEXT DEFAULT ''
+	);
+	CREATE UNIQUE INDEX idx_media_items_hash_unique ON media_items(hash) WHERE hash != '';
+	INSERT INTO media_items(media_type, filename, deleted, hash) VALUES ('image', 'deleted.png', 1, 'legacy-hash');`); err != nil {
+		legacyDB.Close()
+		t.Fatalf("seed legacy db: %v", err)
+	}
+	if err := legacyDB.Close(); err != nil {
+		t.Fatalf("close legacy db: %v", err)
+	}
+
+	db, err := InitMediaRegistryDB(dbPath)
+	if err != nil {
+		t.Fatalf("InitMediaRegistryDB should migrate legacy schema: %v", err)
+	}
+	defer db.Close()
+
+	id, dup, err := RegisterMedia(db, MediaItem{
+		MediaType:   "image",
+		SourceTool:  "generate_image",
+		Filename:    "new.png",
+		Description: "new active image",
+		Tags:        []string{"migrated"},
+		Hash:        "legacy-hash",
+	})
+	if err != nil {
+		t.Fatalf("register with hash from deleted legacy row: %v", err)
+	}
+	if dup {
+		t.Fatal("register should not treat deleted legacy row as active duplicate")
+	}
+	item, err := GetMedia(db, id)
+	if err != nil {
+		t.Fatalf("get migrated item: %v", err)
+	}
+	if item.CreatedAt == "" || item.UpdatedAt == "" {
+		t.Fatalf("migrated item timestamps should be populated, got created=%q updated=%q", item.CreatedAt, item.UpdatedAt)
+	}
+	if item.SourceTool != "generate_image" || item.Description != "new active image" || len(item.Tags) != 1 {
+		t.Fatalf("migrated schema did not preserve inserted fields: %+v", item)
 	}
 }
 
@@ -235,6 +325,42 @@ func TestDispatchMediaRegistryWithGalleryFindsGalleryImages(t *testing.T) {
 	}
 }
 
+func TestSearchMediaWithGalleryIncludesRegistryItemsAfterFiveThousand(t *testing.T) {
+	mediaDB, err := InitMediaRegistryDB(filepath.Join(t.TempDir(), "media.db"))
+	if err != nil {
+		t.Fatalf("init media db: %v", err)
+	}
+	defer mediaDB.Close()
+
+	galleryDB, err := InitImageGalleryDB(filepath.Join(t.TempDir(), "gallery.db"))
+	if err != nil {
+		t.Fatalf("init gallery db: %v", err)
+	}
+	defer galleryDB.Close()
+
+	for i := 0; i < 5001; i++ {
+		if _, _, err := RegisterMedia(mediaDB, MediaItem{
+			MediaType:  "image",
+			SourceTool: "generate_image",
+			Filename:   fmt.Sprintf("image-%04d.png", i),
+			WebPath:    fmt.Sprintf("https://media.example.test/image-%04d.png", i),
+		}); err != nil {
+			t.Fatalf("register image %d: %v", i, err)
+		}
+	}
+
+	items, total, err := SearchMediaWithGallery(mediaDB, galleryDB, "", "image", nil, 1, 5000)
+	if err != nil {
+		t.Fatalf("SearchMediaWithGallery: %v", err)
+	}
+	if total != 5001 {
+		t.Fatalf("total = %d, want 5001", total)
+	}
+	if len(items) != 1 {
+		t.Fatalf("items len = %d, want 1", len(items))
+	}
+}
+
 func TestInferMediaType(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -275,6 +401,18 @@ func TestDispatchMediaRegistryRejectsEmptyRegister(t *testing.T) {
 	}
 	if !strings.Contains(resp, "filename") {
 		t.Fatalf("error should mention required media identity, got %s", resp)
+	}
+}
+
+func TestUpdateMediaReturnsErrorForMissingItem(t *testing.T) {
+	db, err := InitMediaRegistryDB(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatalf("init db: %v", err)
+	}
+	defer db.Close()
+
+	if err := UpdateMedia(db, 999999, "missing", []string{"tag"}); err == nil {
+		t.Fatal("UpdateMedia should return an error for a missing active item")
 	}
 }
 

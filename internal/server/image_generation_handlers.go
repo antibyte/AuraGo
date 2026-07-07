@@ -124,7 +124,6 @@ func (u unifiedImage) GetCreatedAt() string {
 
 func (s *Server) deleteImageGalleryItemByID(id int64, source, dataDir string) error {
 	var filename string
-	var filePath string
 
 	if source == "media_registry" && s.MediaRegistryDB != nil {
 		item, err := tools.GetMedia(s.MediaRegistryDB, id)
@@ -132,9 +131,15 @@ func (s *Server) deleteImageGalleryItemByID(id int64, source, dataDir string) er
 			return errImageGalleryItemNotFound
 		}
 		filename = item.Filename
-		filePath = item.FilePath
 		if err := tools.DeleteMedia(s.MediaRegistryDB, id); err != nil {
 			return fmt.Errorf("failed to delete image: %w", err)
+		}
+		removed, removeErr := removeMediaItemFileSafely(dataDir, *item)
+		if removeErr != nil {
+			s.Logger.Warn("Failed to remove media registry image file", "media_id", id, "file_path", item.FilePath, "web_path", item.WebPath, "error", removeErr)
+		}
+		if !removed && strings.TrimSpace(item.FilePath) != "" {
+			s.Logger.Warn("Skipped unsafe media registry image file removal", "media_id", id, "file_path", item.FilePath, "web_path", item.WebPath)
 		}
 		if _, err := tools.DeleteGeneratedImagesByFilename(s.ImageGalleryDB, filename); err != nil {
 			s.Logger.Warn("Failed to delete companion generated image record", "filename", filename, "error", err)
@@ -153,13 +158,6 @@ func (s *Server) deleteImageGalleryItemByID(id int64, source, dataDir string) er
 		}
 	}
 
-	if filename != "" {
-		if filePath != "" {
-			_ = os.Remove(filePath)
-		} else {
-			_ = os.Remove(filepath.Join(dataDir, "generated_images", filename))
-		}
-	}
 	return nil
 }
 
@@ -193,7 +191,7 @@ func handleImageGalleryList(s *Server) http.HandlerFunc {
 
 		// Primary source: Media Registry DB (has all images including agent-generated)
 		if s.MediaRegistryDB != nil {
-			items, _, err := tools.SearchMedia(s.MediaRegistryDB, query, "image", nil, 5000, 0)
+			items, err := searchAllMediaForServer(s.MediaRegistryDB, query, "image")
 			if err == nil {
 				for _, item := range items {
 					if provider != "" && item.Provider != provider {
@@ -232,7 +230,7 @@ func handleImageGalleryList(s *Server) http.HandlerFunc {
 
 		// Secondary source: Image Gallery DB for records not yet in Media Registry
 		if s.ImageGalleryDB != nil {
-			galleryImages, _, err := tools.ListGeneratedImages(s.ImageGalleryDB, provider, query, 5000, 0)
+			galleryImages, err := listAllGeneratedImagesForServer(s.ImageGalleryDB, provider, query)
 			if err == nil {
 				for _, img := range galleryImages {
 					if !generatedImageFileExists(dataDir, img.Filename) {

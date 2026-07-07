@@ -3,6 +3,7 @@ package server
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -215,6 +216,101 @@ func TestMediaListSkipsUnservableRegistryItems(t *testing.T) {
 	}
 	if body.Items[0].Filename != "existing.png" {
 		t.Fatalf("filename = %q, want existing.png", body.Items[0].Filename)
+	}
+}
+
+func TestMediaListPaginatesBeyondFiveThousandDisplayableItems(t *testing.T) {
+	tmpDir := t.TempDir()
+	db, err := tools.InitMediaRegistryDB(filepath.Join(tmpDir, "media_registry.db"))
+	if err != nil {
+		t.Fatalf("init media registry db: %v", err)
+	}
+	defer db.Close()
+
+	for i := 0; i < 5001; i++ {
+		if _, _, err := tools.RegisterMedia(db, tools.MediaItem{
+			MediaType: "audio",
+			Filename:  fmt.Sprintf("audio-%04d.mp3", i),
+			WebPath:   fmt.Sprintf("https://media.example.test/audio-%04d.mp3", i),
+		}); err != nil {
+			t.Fatalf("register audio %d: %v", i, err)
+		}
+	}
+
+	cfg := &config.Config{}
+	cfg.Directories.DataDir = tmpDir
+	s := &Server{
+		Cfg:             cfg,
+		Logger:          slog.New(slog.NewTextHandler(io.Discard, nil)),
+		MediaRegistryDB: db,
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/media?type=audio&limit=1&offset=5000", nil)
+	rr := httptest.NewRecorder()
+	handleMediaList(s).ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rr.Code, rr.Body.String())
+	}
+	var body struct {
+		Status string            `json:"status"`
+		Items  []tools.MediaItem `json:"items"`
+		Total  int               `json:"total"`
+	}
+	if err := json.Unmarshal(rr.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if body.Status != "ok" || body.Total != 5001 || len(body.Items) != 1 {
+		t.Fatalf("response = %+v", body)
+	}
+}
+
+func TestMediaDeleteDoesNotRemoveUnsafeFilePath(t *testing.T) {
+	tmpDir := t.TempDir()
+	privateDir := filepath.Join(tmpDir, "private")
+	if err := os.MkdirAll(privateDir, 0755); err != nil {
+		t.Fatalf("create private dir: %v", err)
+	}
+	privatePath := filepath.Join(privateDir, "keep.mp3")
+	if err := os.WriteFile(privatePath, []byte("keep"), 0644); err != nil {
+		t.Fatalf("write private file: %v", err)
+	}
+
+	db, err := tools.InitMediaRegistryDB(filepath.Join(tmpDir, "media_registry.db"))
+	if err != nil {
+		t.Fatalf("init media registry db: %v", err)
+	}
+	defer db.Close()
+	id, _, err := tools.RegisterMedia(db, tools.MediaItem{
+		MediaType: "audio",
+		Filename:  "keep.mp3",
+		FilePath:  privatePath,
+		WebPath:   "/files/audio/keep.mp3",
+	})
+	if err != nil {
+		t.Fatalf("register unsafe file path item: %v", err)
+	}
+
+	cfg := &config.Config{}
+	cfg.Directories.DataDir = tmpDir
+	s := &Server{
+		Cfg:             cfg,
+		Logger:          slog.New(slog.NewTextHandler(io.Discard, nil)),
+		MediaRegistryDB: db,
+	}
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/media/"+int64String(id), nil)
+	rr := httptest.NewRecorder()
+	handleMediaByID(s).ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rr.Code, rr.Body.String())
+	}
+	if _, err := os.Stat(privatePath); err != nil {
+		t.Fatalf("unsafe file_path should not be removed: %v", err)
+	}
+	if _, err := tools.GetMedia(db, id); err == nil {
+		t.Fatal("registry item should be soft-deleted")
 	}
 }
 

@@ -1494,7 +1494,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 					"description": "Operation to perform",
 					"enum":        []string{"register", "search", "get", "list", "update", "tag", "delete", "stats"},
 				},
-				"media_type":  prop("string", "Media type filter: image, video, tts, audio, music"),
+				"media_type":  prop("string", "Media type filter: image, video, audio, music, document. TTS output is ephemeral and not durable registry media."),
 				"filename":    prop("string", "Filename of the media file (required for register)"),
 				"file_path":   prop("string", "Absolute file path of the media file (required for register)"),
 				"web_path":    prop("string", "Web-accessible URL path for the media file (e.g. /files/documents/report.pdf)"),

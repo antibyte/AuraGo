@@ -3,6 +3,7 @@ package server
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -336,6 +337,103 @@ func TestImageGalleryListSkipsMediaRegistryImageWithUnservableWebPath(t *testing
 	}
 	if body.Images[0].Filename != "existing.png" {
 		t.Fatalf("filename = %q, want existing.png", body.Images[0].Filename)
+	}
+}
+
+func TestImageGalleryListPaginatesBeyondFiveThousandMediaRegistryImages(t *testing.T) {
+	tmpDir := t.TempDir()
+	mediaDB, err := tools.InitMediaRegistryDB(filepath.Join(tmpDir, "media_registry.db"))
+	if err != nil {
+		t.Fatalf("init media registry db: %v", err)
+	}
+	defer mediaDB.Close()
+
+	for i := 0; i < 5001; i++ {
+		if _, _, err := tools.RegisterMedia(mediaDB, tools.MediaItem{
+			MediaType: "image",
+			Filename:  fmt.Sprintf("image-%04d.png", i),
+			WebPath:   fmt.Sprintf("https://media.example.test/image-%04d.png", i),
+			Prompt:    "external displayable image",
+		}); err != nil {
+			t.Fatalf("register image %d: %v", i, err)
+		}
+	}
+
+	cfg := &config.Config{}
+	cfg.Directories.DataDir = tmpDir
+	s := &Server{
+		Cfg:             cfg,
+		Logger:          slog.New(slog.NewTextHandler(io.Discard, nil)),
+		MediaRegistryDB: mediaDB,
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/image-gallery?limit=1&offset=5000", nil)
+	rr := httptest.NewRecorder()
+	handleImageGalleryList(s).ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rr.Code, rr.Body.String())
+	}
+	var body struct {
+		Status string         `json:"status"`
+		Images []unifiedImage `json:"images"`
+		Total  int            `json:"total"`
+	}
+	if err := json.Unmarshal(rr.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if body.Status != "ok" || body.Total != 5001 || len(body.Images) != 1 {
+		t.Fatalf("response = %+v", body)
+	}
+}
+
+func TestImageGalleryDeleteMediaRegistryItemDoesNotRemoveUnsafeFilePath(t *testing.T) {
+	tmpDir := t.TempDir()
+	privateDir := filepath.Join(tmpDir, "private")
+	if err := os.MkdirAll(privateDir, 0755); err != nil {
+		t.Fatalf("create private dir: %v", err)
+	}
+	privatePath := filepath.Join(privateDir, "keep.png")
+	if err := os.WriteFile(privatePath, []byte("keep"), 0644); err != nil {
+		t.Fatalf("write private image: %v", err)
+	}
+
+	mediaDB, err := tools.InitMediaRegistryDB(filepath.Join(tmpDir, "media_registry.db"))
+	if err != nil {
+		t.Fatalf("init media registry db: %v", err)
+	}
+	defer mediaDB.Close()
+	mediaID, _, err := tools.RegisterMedia(mediaDB, tools.MediaItem{
+		MediaType: "image",
+		Filename:  "keep.png",
+		FilePath:  privatePath,
+		WebPath:   "/files/generated_images/keep.png",
+		Prompt:    "unsafe file path image",
+	})
+	if err != nil {
+		t.Fatalf("register unsafe image item: %v", err)
+	}
+
+	cfg := &config.Config{}
+	cfg.Directories.DataDir = tmpDir
+	s := &Server{
+		Cfg:             cfg,
+		Logger:          slog.New(slog.NewTextHandler(io.Discard, nil)),
+		MediaRegistryDB: mediaDB,
+	}
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/image-gallery/"+strconv.FormatInt(mediaID, 10)+"?source=media_registry", nil)
+	rr := httptest.NewRecorder()
+	handleImageGalleryByID(s).ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rr.Code, rr.Body.String())
+	}
+	if _, err := os.Stat(privatePath); err != nil {
+		t.Fatalf("unsafe file_path should not be removed: %v", err)
+	}
+	if _, err := tools.GetMedia(mediaDB, mediaID); err == nil {
+		t.Fatal("media registry image should be soft-deleted")
 	}
 }
 

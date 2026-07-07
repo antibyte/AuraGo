@@ -1,6 +1,7 @@
 package server
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -47,7 +48,7 @@ func handleMediaList(s *Server) http.HandlerFunc {
 		dataDir := s.Cfg.Directories.DataDir
 		s.CfgMu.RUnlock()
 
-		items, _, err := tools.SearchMedia(s.MediaRegistryDB, query, mediaType, nil, 5000, 0)
+		items, err := searchAllMediaForServer(s.MediaRegistryDB, query, mediaType)
 		if err != nil {
 			s.Logger.Error("Failed to search media", "query", query, "media_type", mediaType, "error", err)
 			json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "Failed to load media"})
@@ -96,32 +97,121 @@ func (s *Server) deleteMediaItemByID(id int64, dataDir string) error {
 	if err := tools.DeleteMedia(s.MediaRegistryDB, id); err != nil {
 		return fmt.Errorf("failed to delete media item: %w", err)
 	}
-
-	if item.FilePath != "" {
-		_ = os.Remove(item.FilePath)
-		return nil
+	removed, removeErr := removeMediaItemFileSafely(dataDir, *item)
+	if removeErr != nil {
+		s.Logger.Warn("Failed to remove media file", "media_id", id, "file_path", item.FilePath, "web_path", item.WebPath, "error", removeErr)
 	}
-	if item.Filename == "" {
-		return nil
-	}
-
-	var subDir string
-	switch item.MediaType {
-	case "audio", "music":
-		subDir = "audio"
-	case "tts":
-		subDir = "tts"
-	case "document":
-		subDir = "documents"
-	case "image":
-		subDir = "generated_images"
-	case "video":
-		subDir = "generated_videos"
-	}
-	if subDir != "" {
-		_ = os.Remove(filepath.Join(dataDir, subDir, item.Filename))
+	if !removed && strings.TrimSpace(item.FilePath) != "" {
+		s.Logger.Warn("Skipped unsafe media file removal", "media_id", id, "file_path", item.FilePath, "web_path", item.WebPath)
 	}
 	return nil
+}
+
+func searchAllMediaForServer(db *sql.DB, query, mediaType string) ([]tools.MediaItem, error) {
+	const pageSize = 1000
+	var all []tools.MediaItem
+	offset := 0
+	for {
+		page, total, err := tools.SearchMedia(db, query, mediaType, nil, pageSize, offset)
+		if err != nil {
+			return nil, err
+		}
+		if offset == 0 {
+			all = make([]tools.MediaItem, 0, total)
+		}
+		all = append(all, page...)
+		if len(page) == 0 || len(all) >= total {
+			return all, nil
+		}
+		offset += len(page)
+	}
+}
+
+func listAllGeneratedImagesForServer(db *sql.DB, provider, query string) ([]tools.GeneratedImageRecord, error) {
+	const pageSize = 1000
+	var all []tools.GeneratedImageRecord
+	offset := 0
+	for {
+		page, total, err := tools.ListGeneratedImages(db, provider, query, pageSize, offset)
+		if err != nil {
+			return nil, err
+		}
+		if offset == 0 {
+			all = make([]tools.GeneratedImageRecord, 0, total)
+		}
+		all = append(all, page...)
+		if len(page) == 0 || len(all) >= total {
+			return all, nil
+		}
+		offset += len(page)
+	}
+}
+
+func removeMediaItemFileSafely(dataDir string, item tools.MediaItem) (bool, error) {
+	candidates := []string{}
+	if strings.TrimSpace(item.FilePath) != "" {
+		candidates = append(candidates, item.FilePath)
+	}
+	if localPath, ok := mediaWebPathToLocalPath(dataDir, item.WebPath); ok {
+		candidates = append(candidates, localPath)
+	}
+	if defaultWebPath, ok := defaultMediaWebPathForFilename(dataDir, item.MediaType, item.Filename); ok {
+		if localPath, ok := mediaWebPathToLocalPath(dataDir, defaultWebPath); ok {
+			candidates = append(candidates, localPath)
+		}
+	}
+
+	seen := map[string]bool{}
+	for _, candidate := range candidates {
+		candidate = filepath.Clean(strings.TrimSpace(candidate))
+		if candidate == "" || seen[candidate] {
+			continue
+		}
+		seen[candidate] = true
+		localPath, ok := localMediaFilePathForRemoval(dataDir, candidate)
+		if !ok {
+			continue
+		}
+		if err := os.Remove(localPath); err != nil && !os.IsNotExist(err) {
+			return false, err
+		}
+		return true, nil
+	}
+	return false, nil
+}
+
+func localMediaFilePathForRemoval(dataDir, filePath string) (string, bool) {
+	if strings.TrimSpace(dataDir) == "" || strings.TrimSpace(filePath) == "" {
+		return "", false
+	}
+	cleanPath, err := filepath.Abs(filepath.Clean(filePath))
+	if err != nil {
+		return "", false
+	}
+	info, err := os.Lstat(cleanPath)
+	if err != nil || info.IsDir() {
+		return "", false
+	}
+	resolvedPath := cleanPath
+	if evalPath, evalErr := filepath.EvalSymlinks(cleanPath); evalErr == nil {
+		resolvedPath = filepath.Clean(evalPath)
+	}
+
+	for _, mapping := range mediaFileServerDataSubdirs {
+		root, err := filepath.Abs(filepath.Clean(filepath.Join(dataDir, mapping.subdir)))
+		if err != nil {
+			continue
+		}
+		resolvedRoot := root
+		if evalRoot, evalErr := filepath.EvalSymlinks(root); evalErr == nil {
+			resolvedRoot = filepath.Clean(evalRoot)
+		}
+		rel, relErr := filepath.Rel(resolvedRoot, resolvedPath)
+		if relErr == nil && rel != "." && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) && !filepath.IsAbs(rel) {
+			return cleanPath, true
+		}
+	}
+	return "", false
 }
 
 // handleMediaBulkDelete handles POST /api/media/bulk-delete for registry media

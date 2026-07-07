@@ -1,7 +1,7 @@
 # Media Registry Tool
 
-Track all generated media (images, TTS audio, transcriptions) with metadata, tags, and descriptions.
-Media is automatically registered when generated via `generate_image` or `tts`. Use this tool to search, describe, tag, and manage the registry.
+Track durable generated or uploaded media (images, videos, audio, music, documents) with metadata, tags, and descriptions.
+Media is automatically registered when generated via durable media tools such as `generate_image`, `generate_video`, `send_video`, and `document_creator`. TTS audio is ephemeral cache output and is not kept as durable registry media.
 
 ## Prerequisites
 - `media_registry.enabled: true` in config.yaml
@@ -25,7 +25,7 @@ Media is automatically registered when generated via `generate_image` or `tts`. 
 ### search — Search media by query (matches description, prompt, tags, filename)
 ```json
 {"action": "media_registry", "operation": "search", "query": "sunset", "limit": 10}
-{"action": "media_registry", "operation": "search", "query": "tts greeting", "media_type": "tts"}
+{"action": "media_registry", "operation": "search", "query": "intro music", "media_type": "music"}
 ```
 For `media_type: "image"`, results include both MediaRegistry entries and legacy ImageGallery entries. The `source_db` field tells whether the item came from `media_registry` or `image_gallery`.
 
@@ -72,14 +72,14 @@ For homepage projects, do not paste `web_path` directly into deployable source u
 
 ## Media Types
 - `image` — Generated images (auto-registered from `generate_image`)
-- `tts` — Text-to-speech audio (auto-registered from `tts`)
-- `audio` — Other audio files
-- `music` — Music files
+- `audio` — Durable audio files
+- `music` — Durable music files
 - `video` — Videos (auto-registered from `generate_video` and `send_video`)
 - `document` — Documents and PDFs (auto-registered from `document_creator`)
 
 ## Notes
-- Items are auto-registered when created via `generate_image`, `generate_video`, `send_video`, `tts`, or `document_creator`
+- Items are auto-registered when created via `generate_image`, `generate_video`, `send_video`, or `document_creator`
+- TTS output remains ephemeral and is cleaned up by the TTS cache lifecycle. Use `audio` or `music` for durable audio that should stay visible in the registry.
 - Image searches are unified with the older ImageGallery database, so images visible in the Media View can also be discovered by the agent.
 - Use `update` to add descriptions and better tags after auto-registration
 - `delete` is a soft-delete; items are hidden but not removed from the DB
