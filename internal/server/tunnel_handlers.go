@@ -77,32 +77,8 @@ func handleTunnelQuick(s *Server) http.HandlerFunc {
 // buildTunnelConfig creates a CloudflareTunnelConfig from the current server config.
 func (s *Server) buildTunnelConfig() tools.CloudflareTunnelConfig {
 	s.CfgMu.RLock()
-	defer s.CfgMu.RUnlock()
+	cfgSnapshot := *s.Cfg
+	s.CfgMu.RUnlock()
 
-	cfg := s.Cfg
-	tc := tools.CloudflareTunnelConfig{
-		Enabled:        cfg.CloudflareTunnel.Enabled,
-		ReadOnly:       cfg.CloudflareTunnel.ReadOnly,
-		Mode:           cfg.CloudflareTunnel.Mode,
-		AutoStart:      cfg.CloudflareTunnel.AutoStart,
-		AuthMethod:     cfg.CloudflareTunnel.AuthMethod,
-		TunnelName:     cfg.CloudflareTunnel.TunnelName,
-		AccountID:      cfg.CloudflareTunnel.AccountID,
-		ExposeWebUI:    cfg.CloudflareTunnel.ExposeWebUI,
-		ExposeHomepage: cfg.CloudflareTunnel.ExposeHomepage,
-		MetricsPort:    cfg.CloudflareTunnel.MetricsPort,
-		LogLevel:       cfg.CloudflareTunnel.LogLevel,
-		DockerHost:     cfg.Docker.Host,
-		WebUIPort:      cfg.Server.Port,
-		HomepagePort:   cfg.Homepage.WebServerPort,
-		DataDir:        cfg.Directories.DataDir,
-	}
-	for _, r := range cfg.CloudflareTunnel.CustomIngress {
-		tc.CustomIngress = append(tc.CustomIngress, tools.CloudflareIngress{
-			Hostname: r.Hostname,
-			Service:  r.Service,
-			Path:     r.Path,
-		})
-	}
-	return tc
+	return cloudflareTunnelRuntimeConfig(&cfgSnapshot)
 }

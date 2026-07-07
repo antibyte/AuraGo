@@ -220,6 +220,33 @@ func TestLoadAppliesSupertonicTTSDefaults(t *testing.T) {
 	}
 }
 
+func TestNormalizeCloudflareTunnelConfigDefaults(t *testing.T) {
+	cfg := &Config{}
+	cfg.CloudflareTunnel.Mode = "unexpected"
+	cfg.CloudflareTunnel.AuthMethod = ""
+	cfg.CloudflareTunnel.LogLevel = "verbose"
+	cfg.CloudflareTunnel.LoopbackPort = -8448
+	cfg.CloudflareTunnel.MetricsPort = -2000
+
+	NormalizeCloudflareTunnelConfig(cfg)
+
+	if cfg.CloudflareTunnel.Mode != "auto" {
+		t.Fatalf("cloudflare_tunnel.mode = %q, want auto", cfg.CloudflareTunnel.Mode)
+	}
+	if cfg.CloudflareTunnel.AuthMethod != "token" {
+		t.Fatalf("cloudflare_tunnel.auth_method = %q, want token", cfg.CloudflareTunnel.AuthMethod)
+	}
+	if cfg.CloudflareTunnel.LogLevel != "info" {
+		t.Fatalf("cloudflare_tunnel.log_level = %q, want info", cfg.CloudflareTunnel.LogLevel)
+	}
+	if cfg.CloudflareTunnel.LoopbackPort != 0 {
+		t.Fatalf("cloudflare_tunnel.loopback_port = %d, want 0", cfg.CloudflareTunnel.LoopbackPort)
+	}
+	if cfg.CloudflareTunnel.MetricsPort != 0 {
+		t.Fatalf("cloudflare_tunnel.metrics_port = %d, want 0", cfg.CloudflareTunnel.MetricsPort)
+	}
+}
+
 func TestSupertonicTTSYAMLRoundTrip(t *testing.T) {
 	configPath := filepath.Join(t.TempDir(), "config.yaml")
 	configContent := `

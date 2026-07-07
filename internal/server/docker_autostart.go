@@ -40,40 +40,5 @@ func cloudflareTunnelAutoStartAllowed(cfg *config.Config) bool {
 }
 
 func cloudflareTunnelRuntimeConfig(cfg *config.Config) tools.CloudflareTunnelConfig {
-	if cfg == nil {
-		return tools.CloudflareTunnelConfig{}
-	}
-	mode := strings.TrimSpace(cfg.CloudflareTunnel.Mode)
-	if !cfg.Docker.Enabled && (mode == "" || strings.EqualFold(mode, "auto")) {
-		mode = "native"
-	}
-	tunnelCfg := tools.CloudflareTunnelConfig{
-		Enabled:        cfg.CloudflareTunnel.Enabled,
-		ReadOnly:       cfg.CloudflareTunnel.ReadOnly,
-		Mode:           mode,
-		AutoStart:      cfg.CloudflareTunnel.AutoStart,
-		AuthMethod:     cfg.CloudflareTunnel.AuthMethod,
-		TunnelName:     cfg.CloudflareTunnel.TunnelName,
-		AccountID:      cfg.CloudflareTunnel.AccountID,
-		TunnelID:       cfg.CloudflareTunnel.TunnelID,
-		LoopbackPort:   cfg.CloudflareTunnel.LoopbackPort,
-		ExposeWebUI:    cfg.CloudflareTunnel.ExposeWebUI,
-		ExposeHomepage: cfg.CloudflareTunnel.ExposeHomepage,
-		MetricsPort:    cfg.CloudflareTunnel.MetricsPort,
-		LogLevel:       cfg.CloudflareTunnel.LogLevel,
-		DockerHost:     cfg.Docker.Host,
-		WebUIPort:      cfg.Server.Port,
-		HomepagePort:   cfg.Homepage.WebServerPort,
-		DataDir:        cfg.Directories.DataDir,
-		HTTPSEnabled:   cfg.Server.HTTPS.Enabled,
-		HTTPSPort:      cfg.Server.HTTPS.HTTPSPort,
-	}
-	for _, r := range cfg.CloudflareTunnel.CustomIngress {
-		tunnelCfg.CustomIngress = append(tunnelCfg.CustomIngress, tools.CloudflareIngress{
-			Hostname: r.Hostname,
-			Service:  r.Service,
-			Path:     r.Path,
-		})
-	}
-	return tunnelCfg
+	return tools.CloudflareTunnelConfigFromConfig(cfg)
 }

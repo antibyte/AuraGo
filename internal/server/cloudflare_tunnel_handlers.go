@@ -11,29 +11,11 @@ import (
 func handleCloudflareTunnelStatus(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		s.CfgMu.RLock()
-		cfg := tools.CloudflareTunnelConfig{
-			Enabled:        s.Cfg.CloudflareTunnel.Enabled,
-			ReadOnly:       s.Cfg.CloudflareTunnel.ReadOnly,
-			Mode:           s.Cfg.CloudflareTunnel.Mode,
-			AuthMethod:     s.Cfg.CloudflareTunnel.AuthMethod,
-			TunnelName:     s.Cfg.CloudflareTunnel.TunnelName,
-			AccountID:      s.Cfg.CloudflareTunnel.AccountID,
-			LoopbackPort:   s.Cfg.CloudflareTunnel.LoopbackPort,
-			ExposeWebUI:    s.Cfg.CloudflareTunnel.ExposeWebUI,
-			ExposeHomepage: s.Cfg.CloudflareTunnel.ExposeHomepage,
-			MetricsPort:    s.Cfg.CloudflareTunnel.MetricsPort,
-			LogLevel:       s.Cfg.CloudflareTunnel.LogLevel,
-			WebUIPort:      s.Cfg.Server.Port,
-			HTTPSEnabled:   s.Cfg.Server.HTTPS.Enabled,
-			HTTPSPort:      s.Cfg.Server.HTTPS.HTTPSPort,
-		}
-		enabled := s.Cfg.CloudflareTunnel.Enabled
-		s.CfgMu.RUnlock()
+		cfg := s.buildTunnelConfig()
 		status := tools.CloudflareTunnelStatus(cfg, s.Registry, s.Logger)
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"status":  "ok",
-			"enabled": enabled,
+			"enabled": cfg.Enabled,
 			"tunnel":  status,
 		})
 	}
@@ -48,7 +30,8 @@ func handleCloudflareTunnelRestart(s *Server) http.HandlerFunc {
 		}
 		w.Header().Set("Content-Type", "application/json")
 
-		if !s.Cfg.CloudflareTunnel.Enabled {
+		tunnelCfg := s.buildTunnelConfig()
+		if !tunnelCfg.Enabled {
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"status":  "error",
 				"message": "Cloudflare Tunnel is not enabled in config",
@@ -56,29 +39,6 @@ func handleCloudflareTunnelRestart(s *Server) http.HandlerFunc {
 			return
 		}
 
-		s.CfgMu.RLock()
-		tunnelCfg := tools.CloudflareTunnelConfig{
-			Enabled:        s.Cfg.CloudflareTunnel.Enabled,
-			ReadOnly:       s.Cfg.CloudflareTunnel.ReadOnly,
-			Mode:           s.Cfg.CloudflareTunnel.Mode,
-			AutoStart:      s.Cfg.CloudflareTunnel.AutoStart,
-			AuthMethod:     s.Cfg.CloudflareTunnel.AuthMethod,
-			TunnelName:     s.Cfg.CloudflareTunnel.TunnelName,
-			AccountID:      s.Cfg.CloudflareTunnel.AccountID,
-			TunnelID:       s.Cfg.CloudflareTunnel.TunnelID,
-			LoopbackPort:   s.Cfg.CloudflareTunnel.LoopbackPort,
-			ExposeWebUI:    s.Cfg.CloudflareTunnel.ExposeWebUI,
-			ExposeHomepage: s.Cfg.CloudflareTunnel.ExposeHomepage,
-			MetricsPort:    s.Cfg.CloudflareTunnel.MetricsPort,
-			LogLevel:       s.Cfg.CloudflareTunnel.LogLevel,
-			DockerHost:     s.Cfg.Docker.Host,
-			DataDir:        s.Cfg.Directories.DataDir,
-			WebUIPort:      s.Cfg.Server.Port,
-			HomepagePort:   s.Cfg.Homepage.WebServerPort,
-			HTTPSEnabled:   s.Cfg.Server.HTTPS.Enabled,
-			HTTPSPort:      s.Cfg.Server.HTTPS.HTTPSPort,
-		}
-		s.CfgMu.RUnlock()
 		result := tools.CloudflareTunnelRestart(
 			tunnelCfg,
 			s.Vault,
@@ -86,15 +46,29 @@ func handleCloudflareTunnelRestart(s *Server) http.HandlerFunc {
 			s.Logger,
 		)
 
-		var resp map[string]interface{}
-		if err := json.Unmarshal([]byte(result), &resp); err != nil {
-			json.NewEncoder(w).Encode(map[string]interface{}{
-				"status":  "ok",
-				"message": result,
-			})
-			return
-		}
-		resp["status"] = "ok"
-		json.NewEncoder(w).Encode(resp)
+		writeCloudflareTunnelToolResponse(w, result)
 	}
+}
+
+func writeCloudflareTunnelToolResponse(w http.ResponseWriter, result string) {
+	var resp map[string]interface{}
+	if err := json.Unmarshal([]byte(result), &resp); err != nil {
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"status":  "error",
+			"message": result,
+			"error":   result,
+		})
+		return
+	}
+	if status, _ := resp["status"].(string); status == "" {
+		resp["status"] = "ok"
+	}
+	if status, _ := resp["status"].(string); status != "" && status != "ok" {
+		if _, ok := resp["error"]; !ok {
+			if msg, _ := resp["message"].(string); msg != "" {
+				resp["error"] = msg
+			}
+		}
+	}
+	json.NewEncoder(w).Encode(resp)
 }

@@ -423,8 +423,6 @@ func aiGatewaySegment(providerType string) string {
 		return "openai"
 	case "anthropic":
 		return "anthropic"
-	case "google":
-		return "google-ai-studio"
 	case "workers-ai":
 		return "workers-ai"
 	case "openrouter":
@@ -504,9 +502,6 @@ func ResolveAIGatewayRoute(cfg *config.Config, providerType, providerAccountID s
 		return route
 	}
 	segment := aiGatewaySegment(provider)
-	if segment == "" && gw.Mode == "openai_compatible" && isOpenAICompatibleAIGatewayProvider(provider) {
-		segment = "openai"
-	}
 	if segment == "" {
 		route.Status = "unsupported_provider"
 		route.Message = "AI Gateway does not have a safe route for this provider in the selected mode"

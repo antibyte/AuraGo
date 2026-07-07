@@ -36,4 +36,6 @@ Manage a Cloudflare Tunnel to expose local services to the internet securely.
 ## Notes
 - Supports Docker and native binary modes
 - Token, named tunnel, and quick tunnel authentication
+- Token tunnels use the Cloudflare dashboard-managed connector token from the Vault key `cloudflared_token`; AuraGo starts `cloudflared tunnel run` and does not add a local `--url` for token mode
 - Quick tunnels are temporary and get a random subdomain
+- Quick tunnels use `--url` and respect an explicit `port` before falling back to loopback, HTTPS, Homepage, or Web UI runtime ports

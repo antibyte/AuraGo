@@ -300,8 +300,9 @@ function cloudflareTunnelRestart() {
     fetch('/api/cloudflare-tunnel/restart', { method: 'POST' })
     .then(r => r.json())
     .then(data => {
-        if (data.error) {
-            if (status) { status.textContent = data.error; status.className = 'cf-token-status is-error'; }
+        const errorMessage = data.error || data.message;
+        if ((data.status && data.status !== 'ok') || data.error) {
+            if (status) { status.textContent = errorMessage || t('config.cloudflare_tunnel.status_error'); status.className = 'cf-token-status is-error'; }
         } else {
             if (status) { status.textContent = t('config.cloudflare_tunnel.restart_success'); status.className = 'cf-token-status is-success'; }
         }

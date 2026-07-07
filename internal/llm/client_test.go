@@ -766,7 +766,6 @@ func TestAIGatewaySegmentNewProviders(t *testing.T) {
 	tests := map[string]string{
 		"openai":     "openai",
 		"anthropic":  "anthropic",
-		"google":     "google-ai-studio",
 		"openrouter": "openrouter",
 		"deepseek":   "deepseek",
 		"groq":       "groq",
@@ -781,9 +780,79 @@ func TestAIGatewaySegmentNewProviders(t *testing.T) {
 }
 
 func TestAIGatewaySegmentUnsupportedProvidersDoNotFallbackToOpenAI(t *testing.T) {
-	for _, providerType := range []string{"custom", "manifest", "omniroute", "yepapi", "moonshot", "qwen", "zai", "llamacpp", "lmstudio", "unknown"} {
+	for _, providerType := range []string{"google", "custom", "manifest", "omniroute", "yepapi", "moonshot", "qwen", "zai", "llamacpp", "lmstudio", "unknown"} {
 		if got := aiGatewaySegment(providerType); got != "" {
 			t.Fatalf("aiGatewaySegment(%q) = %q, want empty unsupported segment", providerType, got)
+		}
+	}
+}
+
+func TestResolveAIGatewayRouteGoogleUnsupportedUntilNativeTransportExists(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.AIGateway.Enabled = true
+	cfg.AIGateway.AccountID = "acct"
+	cfg.AIGateway.GatewayID = "gw"
+
+	route := ResolveAIGatewayRoute(cfg, "google", "")
+	if route.RouteSupported {
+		t.Fatalf("google route supported = true, want false; route=%+v", route)
+	}
+	if route.Status != "unsupported_provider" {
+		t.Fatalf("google route status = %q, want unsupported_provider; route=%+v", route.Status, route)
+	}
+	if route.Endpoint != "" || route.Segment != "" {
+		t.Fatalf("google route endpoint/segment = %q/%q, want empty", route.Endpoint, route.Segment)
+	}
+	if !strings.Contains(strings.Join(route.Warnings, " "), "google") {
+		t.Fatalf("google route warnings = %#v, want provider diagnostic", route.Warnings)
+	}
+}
+
+func TestResolveAIGatewayRouteSupportedProviderSegments(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.AIGateway.Enabled = true
+	cfg.AIGateway.AccountID = "acct"
+	cfg.AIGateway.GatewayID = "gw"
+
+	tests := map[string]string{
+		"openai":     "openai",
+		"openrouter": "openrouter",
+		"groq":       "groq",
+		"mistral":    "mistral",
+		"xai":        "xai",
+	}
+	for providerType, segment := range tests {
+		route := ResolveAIGatewayRoute(cfg, providerType, "")
+		if !route.RouteSupported {
+			t.Fatalf("%s route supported = false; route=%+v", providerType, route)
+		}
+		if route.Segment != segment {
+			t.Fatalf("%s segment = %q, want %q", providerType, route.Segment, segment)
+		}
+		wantEndpoint := "https://gateway.ai.cloudflare.com/v1/acct/gw/" + segment
+		if route.Endpoint != wantEndpoint {
+			t.Fatalf("%s endpoint = %q, want %q", providerType, route.Endpoint, wantEndpoint)
+		}
+	}
+}
+
+func TestResolveAIGatewayRouteOpenAICompatibleDoesNotFallbackCustomProviders(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.AIGateway.Enabled = true
+	cfg.AIGateway.AccountID = "acct"
+	cfg.AIGateway.GatewayID = "gw"
+	cfg.AIGateway.Mode = "openai_compatible"
+
+	for _, providerType := range []string{"custom", "manifest", "yepapi"} {
+		route := ResolveAIGatewayRoute(cfg, providerType, "")
+		if route.RouteSupported {
+			t.Fatalf("%s route supported = true, want false; route=%+v", providerType, route)
+		}
+		if route.Status != "unsupported_provider" {
+			t.Fatalf("%s route status = %q, want unsupported_provider; route=%+v", providerType, route.Status, route)
+		}
+		if route.Endpoint != "" || route.Segment != "" {
+			t.Fatalf("%s endpoint/segment = %q/%q, want empty", providerType, route.Endpoint, route.Segment)
 		}
 	}
 }

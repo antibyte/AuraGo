@@ -755,6 +755,7 @@ func Load(path string) (*Config, error) {
 	}
 
 	NormalizeAIGatewayConfig(&cfg)
+	NormalizeCloudflareTunnelConfig(&cfg)
 
 	switch strings.ToLower(strings.TrimSpace(cfg.WebDAV.AuthType)) {
 	case "", "basic":
@@ -2179,6 +2180,43 @@ func NormalizeAIGatewayConfig(c *Config) {
 		c.AIGateway.Backoff = strings.ToLower(strings.TrimSpace(c.AIGateway.Backoff))
 	default:
 		c.AIGateway.Backoff = ""
+	}
+}
+
+// NormalizeCloudflareTunnelConfig applies conservative runtime-safe defaults.
+func NormalizeCloudflareTunnelConfig(c *Config) {
+	if c == nil {
+		return
+	}
+	switch strings.ToLower(strings.TrimSpace(c.CloudflareTunnel.Mode)) {
+	case "", "auto":
+		c.CloudflareTunnel.Mode = "auto"
+	case "docker", "native":
+		c.CloudflareTunnel.Mode = strings.ToLower(strings.TrimSpace(c.CloudflareTunnel.Mode))
+	default:
+		c.CloudflareTunnel.Mode = "auto"
+	}
+	switch strings.ToLower(strings.TrimSpace(c.CloudflareTunnel.AuthMethod)) {
+	case "", "token":
+		c.CloudflareTunnel.AuthMethod = "token"
+	case "named", "quick":
+		c.CloudflareTunnel.AuthMethod = strings.ToLower(strings.TrimSpace(c.CloudflareTunnel.AuthMethod))
+	default:
+		c.CloudflareTunnel.AuthMethod = "token"
+	}
+	switch strings.ToLower(strings.TrimSpace(c.CloudflareTunnel.LogLevel)) {
+	case "", "info":
+		c.CloudflareTunnel.LogLevel = "info"
+	case "debug", "warn", "error":
+		c.CloudflareTunnel.LogLevel = strings.ToLower(strings.TrimSpace(c.CloudflareTunnel.LogLevel))
+	default:
+		c.CloudflareTunnel.LogLevel = "info"
+	}
+	if c.CloudflareTunnel.LoopbackPort < 0 {
+		c.CloudflareTunnel.LoopbackPort = 0
+	}
+	if c.CloudflareTunnel.MetricsPort < 0 {
+		c.CloudflareTunnel.MetricsPort = 0
 	}
 }
 

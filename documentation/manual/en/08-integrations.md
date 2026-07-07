@@ -1016,9 +1016,11 @@ Route supported AI traffic through Cloudflare AI Gateway without spending a toke
 3. Choose a routing mode. `auto` uses Cloudflare provider-native routes where safe and skips unsupported providers instead of falling back to `/openai`.
 4. Choose a logging mode. `metadata_only` is the privacy-safe default; `full` enables payload logging; `off` disables collection headers.
 5. Optionally add request timeout, retry, backoff, and non-secret metadata headers.
-6. Save, then use **Test Gateway** for a live `/models` probe.
+6. Save, then use **Test Gateway**. Workers AI uses Cloudflare's local models-search endpoint, OpenAI-compatible native routes use `/models`, and routes without a safe probe endpoint are reported as configured with `live_status: skipped`.
 
 Workers AI is routed through the Cloudflare REST endpoint (`https://api.cloudflare.com/client/v4/accounts/{account}/ai/v1`) with `cf-aig-gateway-id`. Provider-native gateway routes use `cf-aig-authorization` for the optional authenticated-gateway token. Keep secrets out of metadata.
+
+Google AI Gateway provider-native routing is intentionally not enabled yet. Cloudflare's Google provider route expects Gemini-native request shapes, while AuraGo currently sends Google traffic through OpenAI-compatible provider clients.
 
 ### YAML Reference
 ```yaml
@@ -1220,6 +1222,8 @@ Expose AuraGo securely via Cloudflare Tunnel.
 
 AuraGo can manage the `cloudflared` container automatically.
 
+Token tunnels use the dashboard-managed connector token and start `cloudflared tunnel run`; the token mode does not attach a local `--url`. Quick tunnels still use a local origin URL and respect an explicit quick-tunnel port before falling back to loopback, HTTPS, Homepage, or Web UI runtime ports.
+
 ### YAML Reference
 ```yaml
 cloudflare_tunnel:
@@ -1236,7 +1240,7 @@ cloudflare_tunnel:
     log_level: info
 ```
 
-> 🔒 The connector token is stored in the Vault as `cloudflare_tunnel_token`.
+> 🔒 The connector token is stored in the Vault as `cloudflared_token`.
 
 ---
 

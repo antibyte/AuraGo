@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -91,5 +92,71 @@ func TestCloudflareTunnelReadOnlyBlocksDirectMutations(t *testing.T) {
 				t.Fatalf("expected read-only error, got %s", got)
 			}
 		})
+	}
+}
+
+func TestTokenTunnelArgsUseRemoteManagedRun(t *testing.T) {
+	args := tokenTunnelArgs()
+	if want := []string{"tunnel", "run"}; !reflect.DeepEqual(args, want) {
+		t.Fatalf("tokenTunnelArgs() = %#v, want %#v", args, want)
+	}
+	for _, arg := range args {
+		if arg == "--url" {
+			t.Fatalf("token tunnel args must not include --url: %#v", args)
+		}
+	}
+}
+
+func TestQuickTunnelOriginURLRespectsExplicitPort(t *testing.T) {
+	cfg := CloudflareTunnelConfig{
+		WebUIPort:      8080,
+		HTTPSEnabled:   true,
+		HTTPSPort:      8443,
+		LoopbackPort:   18080,
+		HomepagePort:   3000,
+		ExposeWebUI:    true,
+		ExposeHomepage: true,
+	}
+
+	got, noTLS := quickTunnelOriginURL(cfg, "localhost", 9000)
+	if got != "http://localhost:9000" {
+		t.Fatalf("quickTunnelOriginURL explicit port = %q, want http://localhost:9000", got)
+	}
+	if noTLS {
+		t.Fatal("quickTunnelOriginURL explicit HTTP port noTLS = true, want false")
+	}
+}
+
+func TestQuickTunnelOriginURLPrefersLoopbackForDefaultPort(t *testing.T) {
+	cfg := CloudflareTunnelConfig{
+		WebUIPort:    8080,
+		LoopbackPort: 18080,
+	}
+
+	got, noTLS := quickTunnelOriginURL(cfg, "localhost", 0)
+	if got != "http://127.0.0.1:18080" {
+		t.Fatalf("quickTunnelOriginURL loopback = %q, want http://127.0.0.1:18080", got)
+	}
+	if noTLS {
+		t.Fatal("quickTunnelOriginURL loopback noTLS = true, want false")
+	}
+}
+
+func TestQuickTunnelOriginURLUsesHTTPSWithoutLoopback(t *testing.T) {
+	cfg := CloudflareTunnelConfig{
+		WebUIPort:      8080,
+		HTTPSEnabled:   true,
+		HTTPSPort:      8443,
+		LoopbackPort:   0,
+		ExposeWebUI:    true,
+		ExposeHomepage: false,
+	}
+
+	got, noTLS := quickTunnelOriginURL(cfg, "localhost", 0)
+	if got != "https://localhost:8443" {
+		t.Fatalf("quickTunnelOriginURL https = %q, want https://localhost:8443", got)
+	}
+	if !noTLS {
+		t.Fatal("quickTunnelOriginURL https noTLS = false, want true")
 	}
 }

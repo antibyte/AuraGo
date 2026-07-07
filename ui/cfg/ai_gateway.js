@@ -281,6 +281,10 @@ function aiGatewayTestConnection() {
                 result.className = 'adg-test-result is-success';
                 result.textContent = t('config.ai_gateway.status_success') + ' ' + t('config.ai_gateway.status_live_ok');
                 aiGatewayCheckStatus();
+            } else if (res.live_status === 'skipped' && res.status === 'configured') {
+                result.className = 'adg-test-result is-success';
+                result.textContent = t('config.ai_gateway.status_success') + ' ' + t('config.ai_gateway.status_configured');
+                aiGatewayCheckStatus();
             } else if (res.status === 'unsupported_provider') {
                 result.className = 'adg-test-result is-danger';
                 result.textContent = t('config.ai_gateway.status_error') + ' ' + t('config.ai_gateway.status_unsupported');

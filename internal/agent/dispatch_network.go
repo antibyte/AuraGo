@@ -114,34 +114,7 @@ func dispatchNetwork(ctx context.Context, tc ToolCall, dc *DispatchContext) (str
 					return `Tool Output: {"status":"error","message":"Cloudflare Tunnel is in read-only mode. Disable cloudflare_tunnel.readonly to allow changes."}`
 				}
 			}
-			tunnelCfg := tools.CloudflareTunnelConfig{
-				Enabled:        cfg.CloudflareTunnel.Enabled,
-				ReadOnly:       cfg.CloudflareTunnel.ReadOnly,
-				Mode:           cfg.CloudflareTunnel.Mode,
-				AutoStart:      cfg.CloudflareTunnel.AutoStart,
-				AuthMethod:     cfg.CloudflareTunnel.AuthMethod,
-				TunnelName:     cfg.CloudflareTunnel.TunnelName,
-				AccountID:      cfg.CloudflareTunnel.AccountID,
-				TunnelID:       cfg.CloudflareTunnel.TunnelID,
-				LoopbackPort:   cfg.CloudflareTunnel.LoopbackPort,
-				ExposeWebUI:    cfg.CloudflareTunnel.ExposeWebUI,
-				ExposeHomepage: cfg.CloudflareTunnel.ExposeHomepage,
-				MetricsPort:    cfg.CloudflareTunnel.MetricsPort,
-				LogLevel:       cfg.CloudflareTunnel.LogLevel,
-				DockerHost:     cfg.Docker.Host,
-				WebUIPort:      cfg.Server.Port,
-				HomepagePort:   cfg.Homepage.WebServerPort,
-				DataDir:        cfg.Directories.DataDir,
-				HTTPSEnabled:   cfg.Server.HTTPS.Enabled,
-				HTTPSPort:      cfg.Server.HTTPS.HTTPSPort,
-			}
-			for _, r := range cfg.CloudflareTunnel.CustomIngress {
-				tunnelCfg.CustomIngress = append(tunnelCfg.CustomIngress, tools.CloudflareIngress{
-					Hostname: r.Hostname,
-					Service:  r.Service,
-					Path:     r.Path,
-				})
-			}
+			tunnelCfg := tools.CloudflareTunnelConfigFromConfig(cfg)
 			switch req.Operation {
 			case "start":
 				logger.Info("LLM requested Cloudflare Tunnel start")

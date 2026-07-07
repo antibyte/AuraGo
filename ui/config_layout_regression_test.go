@@ -820,6 +820,20 @@ func TestConfigFieldDescriptionsAndDropdownUXCoverage(t *testing.T) {
 	}
 }
 
+func TestCloudflareTunnelRestartTreatsNonOKAsError(t *testing.T) {
+	t.Parallel()
+
+	content := normalizeAssetText(mustReadUIFile(t, "cfg/cloudflare_tunnel.js"))
+	for _, marker := range []string{
+		"data.status !== 'ok'",
+		"data.error || data.message",
+	} {
+		if !strings.Contains(content, marker) {
+			t.Fatalf("cloudflare tunnel restart UI missing error marker %q", marker)
+		}
+	}
+}
+
 func TestConfigManifestDograhAvoidEmbeddedFallbackTables(t *testing.T) {
 	t.Parallel()
 

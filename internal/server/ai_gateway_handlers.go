@@ -99,7 +99,13 @@ func writeAIGatewayProbeResult(w http.ResponseWriter, s *Server, test bool, prov
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 
-	probeURL := aiGatewayProbeURL(route, providerType)
+	probeURL, probeSafe := aiGatewayProbeURL(route, providerType)
+	if !probeSafe {
+		diagnostics["live_status"] = "skipped"
+		diagnostics["message"] = "AI Gateway route configured; live probe skipped for this provider"
+		json.NewEncoder(w).Encode(diagnostics)
+		return
+	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, probeURL, nil)
 	if err != nil {
 		if test {
@@ -180,15 +186,21 @@ func writeAIGatewayProbeResult(w http.ResponseWriter, s *Server, test bool, prov
 	})
 }
 
-func aiGatewayProbeURL(route llm.AIGatewayRoute, providerType string) string {
+func aiGatewayProbeURL(route llm.AIGatewayRoute, providerType string) (string, bool) {
 	endpoint := strings.TrimRight(route.Endpoint, "/")
 	if strings.EqualFold(providerType, "workers-ai") {
 		accountBase := strings.TrimSuffix(endpoint, "/ai/v1")
 		if accountBase != endpoint {
-			return accountBase + "/ai/models/search?per_page=1"
+			return accountBase + "/ai/models/search?per_page=1", true
 		}
+		return "", false
 	}
-	return endpoint + "/models"
+	switch strings.ToLower(strings.TrimSpace(providerType)) {
+	case "openai", "openrouter", "deepseek", "groq", "mistral", "xai":
+		return endpoint + "/models", true
+	default:
+		return "", false
+	}
 }
 
 func aiGatewayProbeProviderAPIKey(cfg config.Config, providerID string) string {

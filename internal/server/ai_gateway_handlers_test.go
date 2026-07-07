@@ -95,6 +95,40 @@ func TestHandleAIGatewayStatusReportsUnsupportedProviderWithoutLiveRequest(t *te
 	}
 }
 
+func TestHandleAIGatewayStatusReportsGoogleUnsupportedWithoutLiveRequest(t *testing.T) {
+	oldTransport := http.DefaultTransport
+	http.DefaultTransport = aiGatewayRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		t.Fatalf("google unsupported status must not perform a live request; got %s", req.URL.String())
+		return nil, nil
+	})
+	t.Cleanup(func() { http.DefaultTransport = oldTransport })
+
+	s := &Server{Cfg: &config.Config{}, Logger: slog.Default()}
+	s.Cfg.LLM.ProviderType = "google"
+	s.Cfg.LLM.BaseURL = "https://generativelanguage.googleapis.com/v1beta/openai"
+	s.Cfg.AIGateway.Enabled = true
+	s.Cfg.AIGateway.AccountID = "acct"
+	s.Cfg.AIGateway.GatewayID = "gw"
+
+	req := httptest.NewRequest(http.MethodGet, "/api/ai-gateway/status", nil)
+	rec := httptest.NewRecorder()
+	handleAIGatewayStatus(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+	var body map[string]interface{}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if body["status"] != "unsupported_provider" {
+		t.Fatalf("status field = %#v, want unsupported_provider; body=%#v", body["status"], body)
+	}
+	if body["route_supported"] != false {
+		t.Fatalf("route_supported = %#v, want false", body["route_supported"])
+	}
+}
+
 func TestHandleAIGatewayTestUsesProviderIDAndScrubsSecrets(t *testing.T) {
 	const gatewayToken = "cf-aig-secret-token"
 	oldTransport := http.DefaultTransport
@@ -190,5 +224,47 @@ func TestHandleAIGatewayTestWorkersAIUsesCloudflareAuthAndModelsSearch(t *testin
 	}
 	if body["live_status"] != "ok" {
 		t.Fatalf("live_status = %#v, want ok; body=%#v", body["live_status"], body)
+	}
+}
+
+func TestHandleAIGatewayTestSkipsUnsafeProviderNativeProbe(t *testing.T) {
+	oldTransport := http.DefaultTransport
+	http.DefaultTransport = aiGatewayRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		t.Fatalf("provider without a safe probe endpoint must not perform a live request; got %s", req.URL.String())
+		return nil, nil
+	})
+	t.Cleanup(func() { http.DefaultTransport = oldTransport })
+
+	s := &Server{Cfg: &config.Config{}, Logger: slog.Default()}
+	s.Cfg.LLM.Provider = "claude"
+	s.Cfg.AIGateway.Enabled = true
+	s.Cfg.AIGateway.AccountID = "acct"
+	s.Cfg.AIGateway.GatewayID = "gw"
+	s.Cfg.AIGateway.Token = "gateway-token"
+	s.Cfg.Providers = []config.ProviderEntry{{
+		ID:      "claude",
+		Type:    "anthropic",
+		BaseURL: "https://api.anthropic.com/v1",
+	}}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/ai-gateway/test", strings.NewReader(`{"provider_id":"claude"}`))
+	rec := httptest.NewRecorder()
+	handleAIGatewayTest(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+	var body map[string]interface{}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if body["status"] != "configured" {
+		t.Fatalf("status = %#v, want configured; body=%#v", body["status"], body)
+	}
+	if body["live_status"] != "skipped" {
+		t.Fatalf("live_status = %#v, want skipped; body=%#v", body["live_status"], body)
+	}
+	if body["route_supported"] != true {
+		t.Fatalf("route_supported = %#v, want true", body["route_supported"])
 	}
 }

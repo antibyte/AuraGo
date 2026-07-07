@@ -814,7 +814,7 @@ Sicherer Tunnel für Remote-Zugriff ohne öffentliche IP oder Port-Forwarding.
 ### Connector Token erhalten
 1. [Cloudflare Zero Trust](https://one.dash.cloudflare.com) → Networks → Tunnels.
 2. "Create a tunnel" → Cloudflared → Name vergeben.
-3. Kopiere den Token und speichere ihn im Vault unter `cloudflare_tunnel_token`.
+3. Kopiere den Token und speichere ihn im Vault unter `cloudflared_token`.
 
 ### YAML-Referenz
 ```yaml
@@ -823,6 +823,8 @@ cloudflare_tunnel:
   mode: auto
   auth_method: token
 ```
+
+Token-Tunnel verwenden den im Cloudflare-Dashboard verwalteten Connector-Token und starten `cloudflared tunnel run`; im Token-Modus hängt AuraGo keine lokale `--url` an. Quick-Tunnel nutzen weiterhin eine lokale Origin-URL und respektieren einen expliziten Quick-Tunnel-Port, bevor sie auf Loopback, HTTPS, Homepage oder Web-UI-Ports aus der Laufzeitkonfiguration zurückfallen.
 
 ## Cloudflare AI Gateway
 
@@ -834,9 +836,11 @@ Routing für unterstützten LLM-Traffic über Cloudflare AI Gateway, ohne dass S
 3. Wähle den Routing-Modus. `auto` nutzt sichere anbieter-native Cloudflare-Routen und überspringt nicht unterstützte Anbieter, statt still auf `/openai` zu fallen.
 4. Wähle den Logging-Modus. `metadata_only` ist der datenschutzfreundliche Standard; `full` aktiviert Payload-Logging; `off` deaktiviert Collection-Header.
 5. Optional: Setze Request-Timeout, Wiederholungen, Backoff und nicht geheime Metadaten-Header.
-6. Speichere und nutze danach **Gateway testen** für einen Live-`/models`-Probe.
+6. Speichere und nutze danach **Gateway testen**. Workers AI verwendet Cloudflares lokalen Models-Search-Endpunkt, OpenAI-kompatible native Routen verwenden `/models`, und Routen ohne sicheren Probe-Endpunkt werden als konfiguriert mit `live_status: skipped` gemeldet.
 
 Workers AI wird über den Cloudflare-REST-Endpunkt (`https://api.cloudflare.com/client/v4/accounts/{account}/ai/v1`) mit `cf-aig-gateway-id` geroutet. Anbieter-native Gateway-Routen nutzen `cf-aig-authorization` für das optionale Authenticated-Gateway-Token. Lege keine Secrets in Metadaten ab.
+
+Google AI Gateway provider-native Routing ist bewusst noch nicht aktiviert. Cloudflares Google-Provider-Route erwartet Gemini-native Requests, während AuraGo Google-Traffic aktuell über OpenAI-kompatible Provider-Clients sendet.
 
 ### YAML-Referenz
 ```yaml

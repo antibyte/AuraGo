@@ -22,8 +22,10 @@ conditions: ["cloudflare_tunnel_enabled"]
 **Parameters:** `operation` (required), `port` (integer, for quick_tunnel only)
 
 **Auth Methods:**
-- **token** — Connector token from Cloudflare dashboard (stored in vault as `cloudflared_token`)
+- **token** — Dashboard-managed connector token (stored in vault as `cloudflared_token`); starts `cloudflared tunnel run` without a local `--url`
 - **named** — Named tunnel with credentials.json (stored in vault as `cloudflared_credentials`)
 - **quick** — TryCloudflare quick tunnel, no Cloudflare account needed (temporary, random URL)
 
 **Modes:** `auto` (Docker preferred, native fallback), `docker`, `native`
+
+Quick tunnels accept an optional explicit `port`; when omitted AuraGo chooses loopback, HTTPS, Homepage, or Web UI runtime ports from the active config.
