@@ -236,17 +236,17 @@
 
             float mouseGlow = smoothstep(0.20, 0.0, length((uv - u_mouse) * vec2(u_res.x / max(u_res.y, 1.0), 1.0)));
 
-            vec3 sapphire = vec3(0.02, 0.15, 0.28);
-            vec3 neonAqua = vec3(0.18, 0.82, 0.94);
+            vec3 sapphire = vec3(0.02, 0.18, 0.34);
+            vec3 neonAqua = vec3(0.22, 0.86, 0.96);
             vec3 seafoam  = vec3(0.62, 0.95, 0.90);
-            vec3 indigo   = vec3(0.04, 0.08, 0.16);
-            vec3 glowColor = vec3(0.24, 0.90, 0.82);
+            vec3 indigo   = vec3(0.02, 0.06, 0.14);
+            vec3 glowColor = vec3(0.28, 0.92, 0.86);
 
-            vec3 color = indigo * 0.1;
-            color += sapphire * (0.4 + currentField * 0.08);
-            color += neonAqua * (0.05 + causticColor * 0.3);
-            color += seafoam * (shimmer * 0.06 + causticColor * 0.15);
-            color += glowColor * (shaftField * 0.48 + mouseGlow * 0.18 + bubbles * 0.4);
+            vec3 color = indigo * 0.12;
+            color += sapphire * (0.5 + currentField * 0.10);
+            color += neonAqua * (0.08 + causticColor * 0.38);
+            color += seafoam * (shimmer * 0.08 + causticColor * 0.18);
+            color += glowColor * (shaftField * 0.55 + mouseGlow * 0.22 + bubbles * 0.45);
             
             color += vec3(0.7, 0.95, 0.92) * snow * 0.6;
             color += glowColor * trailField * 0.85;
@@ -260,19 +260,19 @@
             vec3 seaweedColor = vec3(0.01, 0.06, 0.1) * (0.5 + 0.5 * uv.y);
             color = mix(color, seaweedColor, seaweedField * 0.85);
 
-            float alpha = 0.03 +
-                          causticColor.g * 0.22 +
-                          shaftField * 0.20 +
-                          mouseGlow * 0.14 +
-                          bubbles * 0.24 +
-                          snow * 0.30 +
-                          trailField * 0.35 +
+            float alpha = 0.04 +
+                          causticColor.g * 0.28 +
+                          shaftField * 0.24 +
+                          mouseGlow * 0.18 +
+                          bubbles * 0.28 +
+                          snow * 0.32 +
+                          trailField * 0.38 +
                           seaweedField * 0.85;
 
-            float horizon = smoothstep(0.0, 0.08, uv.y) * (1.0 - smoothstep(0.88, 1.00, uv.y));
-            float sideFade = smoothstep(0.0, 0.06, uv.x) * smoothstep(0.0, 0.06, 1.0 - uv.x);
+            float horizon = smoothstep(0.0, 0.06, uv.y) * (1.0 - smoothstep(0.86, 1.00, uv.y));
+            float sideFade = smoothstep(0.0, 0.04, uv.x) * smoothstep(0.0, 0.04, 1.0 - uv.x);
             alpha *= horizon * sideFade;
-            alpha = clamp(alpha, 0.0, 0.32);
+            alpha = clamp(alpha, 0.0, 0.38);
 
             gl_FragColor = vec4(color, alpha);
         }

@@ -11731,17 +11731,70 @@ pre,
     position: relative;
     z-index: 1;
     background:
-        url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.035'/%3E%3C/svg%3E"),
-        radial-gradient(circle at 18% 10%, rgba(61, 201, 232, 0.08), transparent 50%),
-        radial-gradient(circle at 82% 14%, rgba(40, 170, 210, 0.06), transparent 50%),
-        radial-gradient(circle at 50% 108%, rgba(30, 140, 180, 0.08), transparent 60%),
-        linear-gradient(180deg, #03141d 0%, #051c27 50%, #031118 100%);
-    background-size: auto, 112% 112%, 112% 112%, 112% 112%, 100% 100%;
-    animation: oceanBackdropDrift 20s ease-in-out infinite alternate;
+        /* Animated caustic light patterns (subtle, drifting) */
+        radial-gradient(ellipse at 22% 18%, rgba(61, 201, 232, 0.06), transparent 45%),
+        radial-gradient(ellipse at 68% 8%, rgba(40, 170, 210, 0.05), transparent 40%),
+        radial-gradient(ellipse at 85% 45%, rgba(30, 150, 190, 0.04), transparent 35%),
+        radial-gradient(ellipse at 12% 72%, rgba(50, 180, 220, 0.03), transparent 30%),
+        radial-gradient(ellipse at 55% 52%, rgba(61, 201, 232, 0.025), transparent 28%),
+        /* Mid-water depth glow */
+        radial-gradient(ellipse at 40% 32%, rgba(20, 100, 140, 0.12), transparent 55%),
+        radial-gradient(ellipse at 70% 78%, rgba(10, 60, 90, 0.10), transparent 50%),
+        /* Base water column gradient */
+        linear-gradient(180deg,
+            #020f16 0%,
+            #03141d 8%,
+            #051c27 25%,
+            #06222f 42%,
+            #06202b 58%,
+            #041a24 76%,
+            #021118 92%,
+            #010a0f 100%);
+    background-size:
+        120% 120%, 120% 120%, 120% 120%, 120% 120%, 120% 120%,
+        100% 100%, 100% 100%,
+        100% 100%;
+    background-repeat: no-repeat;
+    animation: oceanBackdropDrift 24s ease-in-out infinite alternate;
 }
 
 [data-theme="ocean"] #chat-box::before {
-    display: none;
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    /* Subtle horizontal ripple bands (water caustics / surface refraction lines) */
+    background:
+        repeating-linear-gradient(
+            178deg,
+            transparent 0px,
+            transparent 60px,
+            rgba(61, 201, 232, 0.018) 60px,
+            rgba(61, 201, 232, 0.018) 62px,
+            transparent 62px,
+            transparent 130px,
+            rgba(93, 216, 240, 0.012) 130px,
+            rgba(93, 216, 240, 0.012) 131px,
+            transparent 131px,
+            transparent 210px,
+            rgba(100, 220, 240, 0.01) 210px,
+            rgba(100, 220, 240, 0.01) 211px,
+            transparent 211px,
+            transparent 320px
+        ),
+        repeating-linear-gradient(
+            92deg,
+            transparent 0px,
+            transparent 180px,
+            rgba(40, 170, 210, 0.015) 180px,
+            rgba(40, 170, 210, 0.015) 181px,
+            transparent 181px,
+            transparent 380px
+        );
+    background-size: 200% 100%, 160% 100%;
+    animation: oceanRippleDrift 32s linear infinite;
+    opacity: 0.85;
 }
 
 [data-theme="ocean"] #chat-box::after {
@@ -12144,10 +12197,29 @@ pre,
 
 @keyframes oceanBackdropDrift {
     from {
-        background-position: 0px 0px, 0% 0%, 0% 0%, 0% 0%, 0% 0%;
+        background-position:
+            0% 0%, 0% 0%, 0% 0%, 0% 0%, 0% 0%,
+            0% 0%, 0% 0%,
+            0% 0%;
     }
     to {
-        background-position: 100px 50px, 3% -4%, -3% 3%, 2% 4%, 0% 0%;
+        background-position:
+            8% -6%, -10% 4%, 6% -8%, -4% 6%, 12% -4%,
+            3% -2%, -2% 3%,
+            0% 0%;
+    }
+}
+
+@keyframes oceanRippleDrift {
+    from {
+        background-position:
+            0% 0%,
+            0% 0%;
+    }
+    to {
+        background-position:
+            200% 0%,
+            -160% 0%;
     }
 }
 
@@ -12205,8 +12277,8 @@ pre,
 
 @media (max-width: 767px) {
     [data-theme="ocean"] #chat-box::before {
-        background-size: 180px 180px, auto, auto, auto, auto, auto, auto, 14px 14px;
-        opacity: 0.8;
+        background-size: 300% 100%, 240% 100%;
+        opacity: 0.5;
     }
 
     [data-theme="ocean"] .bubble {
