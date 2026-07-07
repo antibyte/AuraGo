@@ -154,7 +154,7 @@ func CloudflareTunnelStart(cfg CloudflareTunnelConfig, vault *security.Vault, re
 	case "named":
 		return startNamedTunnel(cfg, vault, registry, logger)
 	case "quick":
-		return startQuickTunnel(cfg, registry, logger, cfg.WebUIPort)
+		return startQuickTunnel(cfg, registry, logger, 0)
 	default:
 		return errJSON("Unknown auth_method: %q. Use: token, named, quick", cfg.AuthMethod)
 	}
@@ -308,10 +308,6 @@ func CloudflareTunnelQuickTunnel(cfg CloudflareTunnelConfig, registry *ProcessRe
 
 	if tunnelMode != "" {
 		return errJSON("A tunnel is already running (mode=%s). Stop it first to start a quick tunnel.", tunnelMode)
-	}
-
-	if port <= 0 {
-		port = cfg.WebUIPort
 	}
 
 	return startQuickTunnel(cfg, registry, logger, port)
