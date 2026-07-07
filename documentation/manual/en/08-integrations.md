@@ -1085,14 +1085,23 @@ Stream media and TTS to Chromecast devices.
 1. Open **Config → Integrations → Chromecast**.
 2. Enable the integration.
 3. Set the **TTS Port**.
-4. Save and restart.
+4. Optionally add private media hosts to **Allowed media hosts** for LAN video/audio sources.
+5. Save and restart.
+
+Use `operation: "play"` for direct HTTP(S) audio or video URLs. Direct videos should provide `content_type: "video/mp4"` or `content_type: "video/webm"`. Local workspace `.mp4` and `.webm` files are published through AuraGo's `/cast-media/` path automatically.
 
 ### YAML Reference
 ```yaml
 chromecast:
     enabled: true
     tts_port: 8090
+    media_host_allowlist:
+        - "192.168.1.10"
+        - "media.lan:8096"
+        - "192.168.1.0/24"
 ```
+
+Private media URLs are blocked by default. AuraGo-generated `/tts/` and `/cast-media/` URLs are allowed automatically; loopback, link-local, and metadata addresses remain blocked.
 
 ---
 

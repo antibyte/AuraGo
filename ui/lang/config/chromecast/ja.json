@@ -20,6 +20,7 @@
   "config.chromecast.edit_device": "デバイスを編集",
   "config.chromecast.edit_tooltip": "編集",
   "config.chromecast.enabled_label": "有効",
+  "config.chromecast.media_host_allowlist_label": "許可されたメディアホスト",
   "config.chromecast.field_desc": "説明",
   "config.chromecast.field_ip": "IPアドレス",
   "config.chromecast.field_name": "デバイス名",

@@ -20,6 +20,7 @@
   "config.chromecast.edit_device": "编辑设备",
   "config.chromecast.edit_tooltip": "编辑",
   "config.chromecast.enabled_label": "启用",
+  "config.chromecast.media_host_allowlist_label": "允许的媒体主机",
   "config.chromecast.field_desc": "描述",
   "config.chromecast.field_ip": "IP地址",
   "config.chromecast.field_name": "设备名称",

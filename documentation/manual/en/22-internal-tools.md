@@ -493,9 +493,9 @@ Cast media to Chromecast devices.
 | `device_name` | string | Friendly device name (resolved via device registry) |
 | `device_addr` | string | IP address of the Chromecast device |
 | `device_port` | integer | Port of the Chromecast device (default: 8009) |
-| `url` | string | Media URL to cast (for 'play' operation) |
-| `local_path` | string | Local workspace file to cast (for 'play') |
-| `content_type` | string | MIME type of the media (for 'play', e.g. 'video/mp4') |
+| `url` | string | Direct HTTP(S) media URL to cast (for 'play'); private LAN URLs require `chromecast.media_host_allowlist` unless AuraGo generated the `/tts/` or `/cast-media/` URL |
+| `local_path` | string | Local workspace audio/video/image file to cast (for 'play'); published under `/cast-media/` |
+| `content_type` | string | MIME type of the media (for 'play', e.g. 'audio/mpeg', 'video/mp4', 'video/webm'); default is `audio/mpeg` |
 | `text` | string | Text to speak aloud via TTS (for 'speak' operation) |
 | `language` | string | Language code for TTS speech (for 'speak') |
 | `volume` | number | Volume level 0.0–1.0 (for 'volume' operation) |

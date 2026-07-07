@@ -20,6 +20,7 @@
   "config.chromecast.edit_device": "डिवाइस संपादित करें",
   "config.chromecast.edit_tooltip": "संपादित करें",
   "config.chromecast.enabled_label": "सक्षम",
+  "config.chromecast.media_host_allowlist_label": "अनुमत मीडिया होस्ट",
   "config.chromecast.field_desc": "विवरण",
   "config.chromecast.field_ip": "IP पता",
   "config.chromecast.field_name": "डिवाइस का नाम",

@@ -20,6 +20,7 @@
   "config.chromecast.edit_device": "Upravit zařízení",
   "config.chromecast.edit_tooltip": "Upravit",
   "config.chromecast.enabled_label": "Povoleno",
+  "config.chromecast.media_host_allowlist_label": "Povolené mediální hosty",
   "config.chromecast.field_desc": "Popis",
   "config.chromecast.field_ip": "IP adresa",
   "config.chromecast.field_name": "Název zařízení",

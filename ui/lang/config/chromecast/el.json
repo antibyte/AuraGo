@@ -20,6 +20,7 @@
   "config.chromecast.edit_device": "Επεξεργασία συσκευής",
   "config.chromecast.edit_tooltip": "Επεξεργασία",
   "config.chromecast.enabled_label": "Ενεργοποιημένο",
+  "config.chromecast.media_host_allowlist_label": "Επιτρεπόμενοι media hosts",
   "config.chromecast.field_desc": "Περιγραφή",
   "config.chromecast.field_ip": "Διεύθυνση IP",
   "config.chromecast.field_name": "Όνομα συσκευής",

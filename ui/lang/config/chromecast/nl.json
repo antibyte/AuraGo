@@ -20,6 +20,7 @@
   "config.chromecast.edit_device": "Apparaat bewerken",
   "config.chromecast.edit_tooltip": "Bewerken",
   "config.chromecast.enabled_label": "Ingeschakeld",
+  "config.chromecast.media_host_allowlist_label": "Toegestane mediahosts",
   "config.chromecast.field_desc": "Beschrijving",
   "config.chromecast.field_ip": "IP-adres",
   "config.chromecast.field_name": "Apparaatnaam",

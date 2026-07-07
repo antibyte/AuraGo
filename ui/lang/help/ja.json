@@ -95,6 +95,7 @@
   "help.budget.warning_threshold": "警告がトリガーされる割合 (0.0 ～ 1.0)。",
   "help.chromecast.enabled": "オーディオ出力用の Chromecast 統合を有効にします。",
   "help.chromecast.tts_port": "Chromecast にストリーミングするための TTS ファイル サーバーのローカル ポート。",
+  "help.chromecast.media_host_allowlist": "AuraGo がキャストできるプライベートメディアホストをカンマ区切りで指定します。例: 192.168.1.10, media.lan:8096, 192.168.1.0/24。空のままにするとプライベートメディア URL をブロックします。",
   "help.circuit_breaker.llm_timeout_seconds": "LLM リクエストのタイムアウト (秒単位)。",
   "help.circuit_breaker.maintenance_timeout_minutes": "エージェントがメンテナンス モードから自動的に戻るまでの、ユーザー アクティビティがない時間 (分単位)。",
   "help.circuit_breaker.max_tool_calls": "リクエストごとに許可されるツール呼び出しの最大数。",

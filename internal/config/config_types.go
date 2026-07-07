@@ -1373,8 +1373,9 @@ type Config struct {
 		Enabled bool `yaml:"enabled"`
 	} `yaml:"media_registry"`
 	Chromecast struct {
-		Enabled bool `yaml:"enabled"`
-		TTSPort int  `yaml:"tts_port"`
+		Enabled            bool     `yaml:"enabled"`
+		TTSPort            int      `yaml:"tts_port"`
+		MediaHostAllowlist []string `yaml:"media_host_allowlist"`
 	} `yaml:"chromecast"`
 	Homepage struct {
 		Enabled                  bool `yaml:"enabled"`

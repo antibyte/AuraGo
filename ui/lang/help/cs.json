@@ -95,6 +95,7 @@
   "help.budget.warning_threshold": "Prahova hodnota pro budget.",
   "help.chromecast.enabled": "Povoluje Chromecast integraci.",
   "help.chromecast.tts_port": "Port pro chromecast.",
+  "help.chromecast.media_host_allowlist": "Čárkami oddělené privátní mediální hosty, ze kterých smí AuraGo castovat, např. 192.168.1.10, media.lan:8096, 192.168.1.0/24. Nech prázdné pro blokování privátních mediálních URL.",
   "help.circuit_breaker.llm_timeout_seconds": "Casovy limit pro circuit_breaker.",
   "help.circuit_breaker.maintenance_timeout_minutes": "Casovy limit pro circuit_breaker.",
   "help.circuit_breaker.max_tool_calls": "Limit pro circuit_breaker.",

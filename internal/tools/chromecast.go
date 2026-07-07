@@ -1,23 +1,25 @@
 package tools
 
 import (
+	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
 	"github.com/vishen/go-chromecast/application"
-
-	"aurago/internal/security"
 )
 
 // ChromecastConfig holds Chromecast integration settings.
 type ChromecastConfig struct {
-	ServerHost string // Hostname/IP of the AuraGo server (for TTS playback URLs)
-	ServerPort int    // Port of the AuraGo server
+	ServerHost         string   // Hostname/IP of the AuraGo server (for media playback URLs)
+	ServerPort         int      // Port of the AuraGo media server
+	MediaHostAllowlist []string // Explicit private media hosts/IPs/CIDRs allowed for Chromecast playback
 }
 
 type ChromecastDevice struct {
@@ -29,7 +31,9 @@ type ChromecastDevice struct {
 }
 
 var chromecastMDNSQuery = mdnsQueryServices
-var chromecastURLHTTPClient = security.NewSSRFProtectedHTTPClient(5 * time.Second)
+var chromecastHTTPClientFactory = func(cfg ChromecastConfig) *http.Client {
+	return newChromecastMediaHTTPClient(cfg, 5*time.Second)
+}
 
 // DiscoverChromecastDevices scans the local network for Chromecast devices via mDNS.
 func DiscoverChromecastDevices(logger *slog.Logger) ([]ChromecastDevice, error) {
@@ -124,7 +128,7 @@ func FindChromecastDeviceByName(devices []ChromecastDevice, requested string) (C
 }
 
 // ChromecastPlay plays a media URL on a Chromecast device.
-func ChromecastPlay(deviceAddr string, devicePort int, mediaURL, contentType string, logger *slog.Logger) string {
+func ChromecastPlay(deviceAddr string, devicePort int, mediaURL, contentType string, ccCfg ChromecastConfig, logger *slog.Logger) string {
 	if deviceAddr == "" {
 		return jsonErr("'device_addr' is required (use 'discover' first)")
 	}
@@ -134,7 +138,7 @@ func ChromecastPlay(deviceAddr string, devicePort int, mediaURL, contentType str
 	if contentType == "" {
 		contentType = "audio/mpeg"
 	}
-	if err := validateChromecastMediaURL(mediaURL); err != nil {
+	if err := validateChromecastMediaURL(mediaURL, ccCfg); err != nil {
 		return jsonErr("Media URL is not reachable: " + err.Error())
 	}
 
@@ -156,15 +160,15 @@ func ChromecastPlay(deviceAddr string, devicePort int, mediaURL, contentType str
 	})
 }
 
-func validateChromecastMediaURL(mediaURL string) error {
-	if err := security.ValidateSSRF(mediaURL); err != nil {
+func validateChromecastMediaURL(mediaURL string, ccCfg ChromecastConfig) error {
+	if err := validateChromecastMediaURLPolicy(mediaURL, ccCfg); err != nil {
 		return err
 	}
 	req, err := http.NewRequest(http.MethodHead, mediaURL, nil)
 	if err != nil {
 		return err
 	}
-	resp, err := chromecastURLHTTPClient.Do(req)
+	resp, err := chromecastHTTPClientFactory(ccCfg).Do(req)
 	if err != nil {
 		return err
 	}
@@ -177,6 +181,302 @@ func validateChromecastMediaURL(mediaURL string) error {
 		return fmt.Errorf("unexpected content type %q", contentType)
 	}
 	return nil
+}
+
+func validateChromecastMediaURLPolicy(rawURL string, ccCfg ChromecastConfig) error {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return fmt.Errorf("invalid URL: %w", err)
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return fmt.Errorf("disallowed URL scheme %q: only http and https are permitted", parsed.Scheme)
+	}
+	host := chromecastCanonicalHost(parsed.Hostname())
+	if host == "" {
+		return fmt.Errorf("URL has no host")
+	}
+	port := chromecastURLPort(parsed)
+	if chromecastForbiddenHost(host) {
+		return chromecastSSRFError(host)
+	}
+	if ip := net.ParseIP(host); ip != nil {
+		if chromecastForbiddenIP(ip) {
+			return chromecastSSRFError(ip.String())
+		}
+		if chromecastAuraGoMediaURL(parsed, ccCfg) {
+			return nil
+		}
+		if chromecastInternalIP(ip) && !chromecastAllowlistMatchesHost(host, port, ccCfg.MediaHostAllowlist) && !chromecastAllowlistMatchesIP(ip, port, ccCfg.MediaHostAllowlist) {
+			return chromecastSSRFError(ip.String())
+		}
+		return nil
+	}
+	if chromecastAuraGoMediaURL(parsed, ccCfg) {
+		return nil
+	}
+	if chromecastAllowlistMatchesHost(host, port, ccCfg.MediaHostAllowlist) {
+		return nil
+	}
+	return nil
+}
+
+func newChromecastMediaHTTPClient(ccCfg ChromecastConfig, timeout time.Duration) *http.Client {
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	dialer := &net.Dialer{Timeout: 15 * time.Second}
+
+	transport.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+		targetAddr, _, err := validatedChromecastDialTarget(ctx, addr, ccCfg)
+		if err != nil {
+			return nil, err
+		}
+		return dialer.DialContext(ctx, network, targetAddr)
+	}
+	transport.DialTLSContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+		targetAddr, serverName, err := validatedChromecastDialTarget(ctx, addr, ccCfg)
+		if err != nil {
+			return nil, err
+		}
+		rawConn, err := dialer.DialContext(ctx, network, targetAddr)
+		if err != nil {
+			return nil, err
+		}
+		tlsConn := tls.Client(rawConn, &tls.Config{
+			ServerName: serverName,
+			MinVersion: tls.VersionTLS12,
+		})
+		if err := tlsConn.HandshakeContext(ctx); err != nil {
+			rawConn.Close()
+			return nil, err
+		}
+		return tlsConn, nil
+	}
+
+	client := &http.Client{
+		Transport: transport,
+		Timeout:   timeout,
+	}
+	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		if len(via) >= 10 {
+			return fmt.Errorf("stopped after 10 redirects")
+		}
+		return validateChromecastMediaURLPolicy(req.URL.String(), ccCfg)
+	}
+	return client
+}
+
+func validatedChromecastDialTarget(ctx context.Context, addr string, ccCfg ChromecastConfig) (networkAddr string, serverName string, err error) {
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return "", "", fmt.Errorf("invalid target address %q: %w", addr, err)
+	}
+	host = chromecastCanonicalHost(host)
+	serverName = host
+	if chromecastForbiddenHost(host) {
+		return "", "", chromecastSSRFError(host)
+	}
+	if ip := net.ParseIP(host); ip != nil {
+		if err := validateChromecastDialIP(ip, host, port, ccCfg); err != nil {
+			return "", "", err
+		}
+		return net.JoinHostPort(ip.String(), port), serverName, nil
+	}
+
+	addrs, err := net.DefaultResolver.LookupIPAddr(ctx, host)
+	if err != nil {
+		return "", "", fmt.Errorf("hostname resolution failed for %q: %w", host, err)
+	}
+	if len(addrs) == 0 {
+		return "", "", fmt.Errorf("hostname resolution failed for %q: no A/AAAA records found", host)
+	}
+
+	var selected net.IP
+	for _, addr := range addrs {
+		ip := addr.IP
+		if err := validateChromecastDialIP(ip, host, port, ccCfg); err != nil {
+			return "", "", err
+		}
+		if selected == nil {
+			selected = ip
+		}
+	}
+	return net.JoinHostPort(selected.String(), port), serverName, nil
+}
+
+func validateChromecastDialIP(ip net.IP, host, port string, ccCfg ChromecastConfig) error {
+	if chromecastForbiddenIP(ip) {
+		return chromecastSSRFError(ip.String())
+	}
+	if !chromecastInternalIP(ip) {
+		return nil
+	}
+	if chromecastAuraGoHostPort(host, port, ccCfg) || chromecastAllowlistMatchesIP(ip, port, ccCfg.MediaHostAllowlist) || chromecastAllowlistMatchesHost(host, port, ccCfg.MediaHostAllowlist) {
+		return nil
+	}
+	return chromecastSSRFError(ip.String())
+}
+
+func chromecastAuraGoMediaURL(parsed *url.URL, ccCfg ChromecastConfig) bool {
+	if parsed == nil || !chromecastAuraGoHostPort(parsed.Hostname(), chromecastURLPort(parsed), ccCfg) {
+		return false
+	}
+	path := parsed.EscapedPath()
+	return strings.HasPrefix(path, "/tts/") || strings.HasPrefix(path, "/cast-media/")
+}
+
+func chromecastAuraGoHostPort(host, port string, ccCfg ChromecastConfig) bool {
+	configuredHost := chromecastCanonicalHost(ccCfg.ServerHost)
+	if configuredHost == "" || ccCfg.ServerPort <= 0 {
+		return false
+	}
+	if chromecastForbiddenHost(configuredHost) {
+		return false
+	}
+	if ip := net.ParseIP(configuredHost); ip != nil && chromecastForbiddenIP(ip) {
+		return false
+	}
+	return chromecastCanonicalHost(host) == configuredHost && port == fmt.Sprint(ccCfg.ServerPort)
+}
+
+func chromecastURLPort(parsed *url.URL) string {
+	if parsed == nil {
+		return ""
+	}
+	if port := parsed.Port(); port != "" {
+		return port
+	}
+	switch parsed.Scheme {
+	case "http":
+		return "80"
+	case "https":
+		return "443"
+	default:
+		return ""
+	}
+}
+
+func chromecastAllowlistMatchesHost(host, port string, allowlist []string) bool {
+	host = chromecastCanonicalHost(host)
+	for _, entry := range allowlist {
+		entry = strings.TrimSpace(entry)
+		if entry == "" || strings.Contains(entry, "/") {
+			continue
+		}
+		entryHost, entryPort, hasPort := chromecastSplitAllowlistHost(entry)
+		if entryHost == "" || entryHost != host {
+			continue
+		}
+		if hasPort && entryPort != port {
+			continue
+		}
+		return true
+	}
+	return false
+}
+
+func chromecastAllowlistMatchesIP(ip net.IP, port string, allowlist []string) bool {
+	for _, entry := range allowlist {
+		entry = strings.TrimSpace(entry)
+		if entry == "" {
+			continue
+		}
+		if strings.Contains(entry, "/") {
+			if _, ipNet, err := net.ParseCIDR(entry); err == nil && ipNet.Contains(ip) {
+				return true
+			}
+			continue
+		}
+		entryHost, entryPort, hasPort := chromecastSplitAllowlistHost(entry)
+		entryIP := net.ParseIP(entryHost)
+		if entryIP == nil || !entryIP.Equal(ip) {
+			continue
+		}
+		if hasPort && entryPort != port {
+			continue
+		}
+		return true
+	}
+	return false
+}
+
+func chromecastSplitAllowlistHost(entry string) (host, port string, hasPort bool) {
+	entry = strings.TrimSpace(entry)
+	if h, p, err := net.SplitHostPort(entry); err == nil {
+		return chromecastCanonicalHost(h), p, true
+	}
+	if i := strings.LastIndex(entry, ":"); i > 0 && !strings.Contains(entry[:i], ":") {
+		return chromecastCanonicalHost(entry[:i]), strings.TrimSpace(entry[i+1:]), true
+	}
+	return chromecastCanonicalHost(entry), "", false
+}
+
+func chromecastCanonicalHost(host string) string {
+	host = strings.TrimSpace(strings.ToLower(host))
+	host = strings.Trim(host, "[]")
+	return strings.TrimSuffix(host, ".")
+}
+
+func chromecastForbiddenHost(host string) bool {
+	host = chromecastCanonicalHost(host)
+	return host == "localhost"
+}
+
+func chromecastInternalIP(ip net.IP) bool {
+	if ip == nil {
+		return false
+	}
+	for _, cidr := range chromecastInternalCIDRs {
+		if cidr.Contains(ip) {
+			return true
+		}
+	}
+	return false
+}
+
+func chromecastForbiddenIP(ip net.IP) bool {
+	if ip == nil {
+		return false
+	}
+	for _, cidr := range chromecastForbiddenCIDRs {
+		if cidr.Contains(ip) {
+			return true
+		}
+	}
+	return false
+}
+
+func chromecastSSRFError(target string) error {
+	return fmt.Errorf("access to internal address %s is blocked (SSRF protection)", target)
+}
+
+func mustChromecastCIDR(cidr string) *net.IPNet {
+	_, ipNet, err := net.ParseCIDR(cidr)
+	if err != nil {
+		panic(err)
+	}
+	return ipNet
+}
+
+var chromecastForbiddenCIDRs = []*net.IPNet{
+	mustChromecastCIDR("0.0.0.0/8"),
+	mustChromecastCIDR("127.0.0.0/8"),
+	mustChromecastCIDR("169.254.0.0/16"),
+	mustChromecastCIDR("::/128"),
+	mustChromecastCIDR("::1/128"),
+	mustChromecastCIDR("fe80::/10"),
+}
+
+var chromecastInternalCIDRs = []*net.IPNet{
+	mustChromecastCIDR("0.0.0.0/8"),
+	mustChromecastCIDR("10.0.0.0/8"),
+	mustChromecastCIDR("100.64.0.0/10"),
+	mustChromecastCIDR("127.0.0.0/8"),
+	mustChromecastCIDR("169.254.0.0/16"),
+	mustChromecastCIDR("172.16.0.0/12"),
+	mustChromecastCIDR("192.168.0.0/16"),
+	mustChromecastCIDR("::/128"),
+	mustChromecastCIDR("::1/128"),
+	mustChromecastCIDR("fc00::/7"),
+	mustChromecastCIDR("fe80::/10"),
 }
 
 // ChromecastSpeak generates TTS audio and plays it on a Chromecast device.

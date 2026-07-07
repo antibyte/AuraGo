@@ -861,16 +861,24 @@ ai_gateway:
 
 Sende Text-to-Speech und Medien an Chromecast-Geräte.
 
-**Web-UI:** Config → Integrationen → Chromecast → TTS-Port konfigurieren.
+**Web-UI:** Config → Integrationen → Chromecast → TTS-Port konfigurieren. Für private LAN-Medienquellen kannst du erlaubte Medien-Hosts eintragen.
 
 > 💡 Voraussetzung: Chromecast-Gerät im gleichen Netzwerk und TTS konfiguriert.
+
+Nutze `operation: "play"` für direkte HTTP(S)-Audio- oder Video-URLs. Direkte Videos sollten `content_type: "video/mp4"` oder `content_type: "video/webm"` setzen. Lokale `.mp4`- und `.webm`-Dateien aus dem Workspace werden automatisch über AuraGos `/cast-media/`-Pfad bereitgestellt.
 
 ### YAML-Referenz
 ```yaml
 chromecast:
   enabled: true
   tts_port: 8090
+  media_host_allowlist:
+    - "192.168.1.10"
+    - "media.lan:8096"
+    - "192.168.1.0/24"
 ```
+
+Private Medien-URLs sind standardmäßig blockiert. Von AuraGo erzeugte `/tts/`- und `/cast-media/`-URLs sind automatisch erlaubt; Loopback-, Link-Local- und Metadaten-Adressen bleiben blockiert.
 
 ## Media Registry
 

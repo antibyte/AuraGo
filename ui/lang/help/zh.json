@@ -95,6 +95,7 @@
   "help.budget.warning_threshold": "触发警告的百分比（0.0 到 1.0）。",
   "help.chromecast.enabled": "启用音频输出的 Chromecast 集成。",
   "help.chromecast.tts_port": "TTS 文件服务器流式传输到 Chromecast 的本地端口。",
+  "help.chromecast.media_host_allowlist": "AuraGo 可投放的私有媒体主机，使用逗号分隔，例如 192.168.1.10, media.lan:8096, 192.168.1.0/24。留空会阻止私有媒体 URL。",
   "help.circuit_breaker.llm_timeout_seconds": "LLM 请求超时（以秒为单位）。",
   "help.circuit_breaker.maintenance_timeout_minutes": "代理自动从维护模式返回之前无用户活动的时间（以分钟为单位）。",
   "help.circuit_breaker.max_tool_calls": "每个请求允许的最大工具调用次数。",

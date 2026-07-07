@@ -1520,7 +1520,7 @@ Die meisten Tools nutzen `{tool_name}.md`. Ausnahmen und gruppierte Manuals:
 Text-to-Speech Synthese über konfigurierbare Provider (Google, ElevenLabs, MiniMax, Piper, Supertonic). Piper und Supertonic laufen lokal über Docker; Supertonic wird über den lokalen HTTP-Sidecar angesprochen und kann WAV, FLAC oder Ogg liefern. Immer verfügbar.
 
 ### `chromecast`
-Chromecast-Geräte im Netzwerk entdecken und steuern (Play, TTS, Discover).
+Chromecast-Geräte im Netzwerk entdecken und steuern (Play, TTS, Discover). Lokale Audio-/Video-/Bilddateien werden für `play` unter `/cast-media/` bereitgestellt; direkte private LAN-Medien-URLs brauchen `chromecast.media_host_allowlist`.
 
 ### `brave_search`
 Websuche über die Brave Search API.

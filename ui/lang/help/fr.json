@@ -95,6 +95,7 @@
   "help.budget.warning_threshold": "Pourcentage (0,0 à 1,0) auquel un avertissement est déclenché.",
   "help.chromecast.enabled": "Permet l'intégration de Chromecast pour la sortie audio.",
   "help.chromecast.tts_port": "Port local permettant au serveur de fichiers TTS de diffuser sur Chromecast.",
+  "help.chromecast.media_host_allowlist": "Hôtes média privés séparés par des virgules depuis lesquels AuraGo peut caster, par ex. 192.168.1.10, media.lan:8096, 192.168.1.0/24. Laisse vide pour bloquer les URL média privées.",
   "help.circuit_breaker.llm_timeout_seconds": "Délai d'expiration des requêtes LLM en secondes.",
   "help.circuit_breaker.maintenance_timeout_minutes": "Durée en minutes sans activité de l'utilisateur avant que l'agent ne quitte automatiquement le mode maintenance.",
   "help.circuit_breaker.max_tool_calls": "Nombre maximum d'appels d'outils autorisés par demande.",

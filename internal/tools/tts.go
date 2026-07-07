@@ -326,6 +326,43 @@ func TTSAudioDir(dataDir string) string {
 	return filepath.Join(dataDir, "tts")
 }
 
+// CastMediaDir returns the path to local media published for Chromecast playback.
+func CastMediaDir(dataDir string) string {
+	return filepath.Join(dataDir, "cast_media")
+}
+
+// CastMediaMIMEType returns a supported Chromecast media MIME type by extension.
+func CastMediaMIMEType(filename string) (string, bool) {
+	switch strings.ToLower(filepath.Ext(filename)) {
+	case ".mp3":
+		return "audio/mpeg", true
+	case ".wav":
+		return "audio/wav", true
+	case ".ogg":
+		return "audio/ogg", true
+	case ".flac":
+		return "audio/flac", true
+	case ".m4a", ".aac":
+		return "audio/mp4", true
+	case ".opus":
+		return "audio/opus", true
+	case ".mp4":
+		return "video/mp4", true
+	case ".webm":
+		return "video/webm", true
+	case ".jpg", ".jpeg":
+		return "image/jpeg", true
+	case ".png":
+		return "image/png", true
+	case ".gif":
+		return "image/gif", true
+	case ".webp":
+		return "image/webp", true
+	default:
+		return "", false
+	}
+}
+
 // ttsPiper uses a local Piper container via the Wyoming protocol.
 func ttsPiper(cfg TTSConfig, text string) ([]byte, error) {
 	port := cfg.Piper.Port

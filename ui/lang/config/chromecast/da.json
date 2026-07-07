@@ -20,6 +20,7 @@
   "config.chromecast.edit_device": "Rediger enhed",
   "config.chromecast.edit_tooltip": "Rediger",
   "config.chromecast.enabled_label": "Aktiveret",
+  "config.chromecast.media_host_allowlist_label": "Tilladte medieværter",
   "config.chromecast.field_desc": "Beskrivelse",
   "config.chromecast.field_ip": "IP-adresse",
   "config.chromecast.field_name": "Enhedsnavn",

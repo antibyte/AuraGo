@@ -5,7 +5,7 @@ priority: 50
 ---
 # Chromecast
 
-Control Chromecast speakers on the local network. Discover devices, play audio, speak via TTS, control volume.
+Control Chromecast and Google Cast devices on the local network. Discover devices, play audio/video/image media, speak via TTS, control volume.
 Chromecast devices can be registered in the device registry with friendly names (e.g. "Living Room", "Kitchen"). Use `device_name` to address devices by name instead of IP address.
 
 ## Operations
@@ -20,9 +20,18 @@ Chromecast devices can be registered in the device registry with friendly names 
 {"action": "chromecast", "operation": "play", "device_name": "Living Room", "url": "https://example.com/song.mp3"}
 ```
 
-### Play local audio file
+### Play direct video URL
+```json
+{"action": "chromecast", "operation": "play", "device_name": "Living Room", "url": "https://example.com/movie.mp4", "content_type": "video/mp4"}
+```
+
+### Play local media file
 ```json
 {"action": "chromecast", "operation": "play", "device_name": "Living Room", "local_path": "workdir/song.mp3"}
+```
+
+```json
+{"action": "chromecast", "operation": "play", "device_name": "Living Room", "local_path": "workdir/clip.webm"}
 ```
 
 ### Speak text (TTS → Chromecast)
@@ -53,11 +62,11 @@ Chromecast devices can be registered in the device registry with friendly names 
 | `device_name` | For all except discover | Friendly device name from device registry (e.g. "Living Room") — resolved to IP automatically |
 | `device_addr` | Alternative to device_name | Direct IP address (use device_name when possible) |
 | `device_port` | ❌ | Default: 8009 |
-| `url` | For play | Media URL |
-| `local_path` | For play | Local workspace audio file; AuraGo publishes it on the LAN automatically |
+| `url` | For play | Direct HTTP(S) media URL. Public URLs are SSRF-protected; private LAN URLs require `chromecast.media_host_allowlist` unless they are AuraGo-generated `/tts/` or `/cast-media/` URLs. |
+| `local_path` | For play | Local workspace audio/video/image file; AuraGo publishes it under `/cast-media/` on the LAN automatically |
 | `text` | For speak | Text to speak (max 200 chars) |
 | `volume` | For volume | 0.0 to 1.0 |
-| `content_type` | ❌ | MIME type (default: audio/mpeg) |
+| `content_type` | ❌ | MIME type (default: audio/mpeg). Direct video URLs should specify `video/mp4` or `video/webm`. Local `.mp4`/`.webm` files are detected automatically. Unsupported local extensions require this field. |
 | `language` | ❌ | TTS language override |
 
 ## Workflow

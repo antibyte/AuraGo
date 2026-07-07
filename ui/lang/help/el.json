@@ -95,6 +95,7 @@
   "help.budget.warning_threshold": "Περιγραφή: Percentage (0.0 to 1.0) at which a warning is triggered.",
   "help.chromecast.enabled": "Ενεργοποιεί Chromecast integration for audio output.",
   "help.chromecast.tts_port": "Τοπική θύρα για τον διακομιστή αρχείων TTS για ροή προς Chromecast.",
+  "help.chromecast.media_host_allowlist": "Ιδιωτικοί media hosts χωρισμένοι με κόμματα, από τους οποίους επιτρέπεται να κάνει cast το AuraGo, π.χ. 192.168.1.10, media.lan:8096, 192.168.1.0/24. Άφησέ το κενό για αποκλεισμό ιδιωτικών media URL.",
   "help.circuit_breaker.llm_timeout_seconds": "Μέγιστη τιμή: wait time for an LLM response in δευτερόλεπτα. Request is aborted if exceeded.",
   "help.circuit_breaker.maintenance_timeout_minutes": "Μέγιστη τιμή: duration for maintenance tasks in λεπτά. Also: time without user activity before the πράκτορας automatically returns from maintenance mode.",
   "help.circuit_breaker.max_tool_calls": "Περιγραφή: Aborts the task if more tool calls than this value occur. Prevents infinite loops and uncontrolled token consumption.",

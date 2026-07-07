@@ -43,6 +43,23 @@ func formatUIBuildVersion(now time.Time) string {
 	return now.Format("20060102T150405") + "a"
 }
 
+func castMediaContentType(filename string) string {
+	if contentType, ok := tools.CastMediaMIMEType(filename); ok {
+		return contentType
+	}
+	return "application/octet-stream"
+}
+
+func chromecastMediaServerBindHost(host string) string {
+	normalized := strings.TrimSpace(strings.ToLower(host))
+	switch normalized {
+	case "", "0.0.0.0", "127.0.0.1", "localhost", "::1", "[::1]":
+		return "0.0.0.0"
+	default:
+		return host
+	}
+}
+
 // uiTemplateData returns the common template data map shared by all HTML pages.
 func uiTemplateData(lang string) map[string]interface{} {
 	data := map[string]interface{}{
@@ -1089,25 +1106,35 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 		mainTTSHandler.ServeHTTP(w, r)
 	})
 
+	// Serve local media files prepared for Chromecast playback.
+	castMediaDir := tools.CastMediaDir(s.Cfg.Directories.DataDir)
+	os.MkdirAll(castMediaDir, 0755)
+	mainCastMediaHandler := http.StripPrefix("/cast-media/", http.FileServer(http.Dir(castMediaDir)))
+	mux.HandleFunc("/cast-media/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", castMediaContentType(r.URL.Path))
+		mainCastMediaHandler.ServeHTTP(w, r)
+	})
+
 	// Phase X: Dedicated TTS Server for Chromecast
 	// Declared outside the if-block so the graceful shutdown goroutine can close it.
 	var ttsServer *http.Server
 	if s.Cfg.Chromecast.Enabled && s.Cfg.Chromecast.TTSPort > 0 {
 		ccTTSDir := tools.TTSAudioDir(s.Cfg.Directories.DataDir)
+		ccCastMediaDir := tools.CastMediaDir(s.Cfg.Directories.DataDir)
+		os.MkdirAll(ccCastMediaDir, 0755)
 		ttsMux := http.NewServeMux()
 		ttsFsHandler := http.StripPrefix("/tts/", http.FileServer(http.Dir(ccTTSDir)))
 		ttsMux.HandleFunc("/tts/", func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", chatVoiceAudioMIMEType(r.URL.Path))
 			ttsFsHandler.ServeHTTP(w, r)
 		})
+		castMediaFsHandler := http.StripPrefix("/cast-media/", http.FileServer(http.Dir(ccCastMediaDir)))
+		ttsMux.HandleFunc("/cast-media/", func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", castMediaContentType(r.URL.Path))
+			castMediaFsHandler.ServeHTTP(w, r)
+		})
 
-		// Bind TTS to the configured server host so it doesn't accidentally
-		// listen on all interfaces when the server is internet-facing.
-		// Chromecasts reach it on the LAN IP the operator put in server.host.
-		ttsHost := s.Cfg.Server.Host
-		if ttsHost == "" {
-			ttsHost = "0.0.0.0"
-		}
+		ttsHost := chromecastMediaServerBindHost(s.Cfg.Server.Host)
 		ttsServer = &http.Server{
 			Addr:    fmt.Sprintf("%s:%d", ttsHost, s.Cfg.Chromecast.TTSPort),
 			Handler: ttsMux,

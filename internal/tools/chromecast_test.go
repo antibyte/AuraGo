@@ -1,10 +1,10 @@
 package tools
 
 import (
-	"aurago/internal/testutil"
 	"io"
 	"log/slog"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 )
@@ -61,10 +61,105 @@ func TestFindChromecastDeviceByNameMatchesFriendlyName(t *testing.T) {
 }
 
 func TestValidateChromecastMediaURLRejectsHTTP404(t *testing.T) {
-	srv := testutil.NewHTTPServer(t, http.NotFoundHandler())
-	defer srv.Close()
+	origFactory := chromecastHTTPClientFactory
+	chromecastHTTPClientFactory = func(cfg ChromecastConfig) *http.Client {
+		return &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusNotFound,
+				Header:     make(http.Header),
+				Body:       http.NoBody,
+				Request:    req,
+			}, nil
+		})}
+	}
+	defer func() {
+		chromecastHTTPClientFactory = origFactory
+	}()
 
-	if err := validateChromecastMediaURL(srv.URL + "/missing.mp3"); err == nil {
+	if err := validateChromecastMediaURL("https://media.example.test/missing.mp3", ChromecastConfig{}); err == nil {
 		t.Fatal("expected 404 media URL to be rejected")
+	}
+}
+
+func TestValidateChromecastMediaURLPolicyRejectsPrivateURLByDefault(t *testing.T) {
+	err := validateChromecastMediaURLPolicy("http://192.168.1.10/movie.mp4", ChromecastConfig{})
+	if err == nil || !strings.Contains(err.Error(), "SSRF protection") {
+		t.Fatalf("error = %v, want SSRF protection rejection", err)
+	}
+}
+
+func TestValidateChromecastMediaURLPolicyAllowsConfiguredPrivateHosts(t *testing.T) {
+	cfg := ChromecastConfig{
+		MediaHostAllowlist: []string{
+			"192.168.1.10",
+			"media.lan:8096",
+			"192.168.2.0/24",
+		},
+	}
+	tests := []string{
+		"http://192.168.1.10/movie.mp4",
+		"http://media.lan:8096/movie.mp4",
+		"http://192.168.2.42/movie.mp4",
+	}
+	for _, rawURL := range tests {
+		t.Run(rawURL, func(t *testing.T) {
+			if err := validateChromecastMediaURLPolicy(rawURL, cfg); err != nil {
+				t.Fatalf("validateChromecastMediaURLPolicy() error = %v", err)
+			}
+		})
+	}
+}
+
+func TestValidateChromecastMediaURLPolicyRejectsForbiddenInternalTargetsEvenWhenAllowlisted(t *testing.T) {
+	cfg := ChromecastConfig{
+		MediaHostAllowlist: []string{
+			"127.0.0.1",
+			"169.254.169.254",
+			"0.0.0.0/0",
+		},
+	}
+	tests := []string{
+		"http://127.0.0.1:8090/cast-media/movie.mp4",
+		"http://169.254.169.254/latest/meta-data",
+		"http://0.0.0.0:8090/cast-media/movie.mp4",
+	}
+	for _, rawURL := range tests {
+		t.Run(rawURL, func(t *testing.T) {
+			err := validateChromecastMediaURLPolicy(rawURL, cfg)
+			if err == nil || !strings.Contains(err.Error(), "SSRF protection") {
+				t.Fatalf("error = %v, want SSRF protection rejection", err)
+			}
+		})
+	}
+}
+
+func TestValidateChromecastMediaURLPolicyAllowsAuraGoOwnedMediaURLs(t *testing.T) {
+	cfg := ChromecastConfig{ServerHost: "192.168.1.20", ServerPort: 8090}
+	tests := []string{
+		"http://192.168.1.20:8090/tts/speech.mp3",
+		"http://192.168.1.20:8090/cast-media/movie.mp4",
+	}
+	for _, rawURL := range tests {
+		t.Run(rawURL, func(t *testing.T) {
+			if err := validateChromecastMediaURLPolicy(rawURL, cfg); err != nil {
+				t.Fatalf("validateChromecastMediaURLPolicy() error = %v", err)
+			}
+		})
+	}
+
+	if err := validateChromecastMediaURLPolicy("http://192.168.1.20:8090/admin", cfg); err == nil {
+		t.Fatal("expected non-media path on private AuraGo host to be rejected")
+	}
+}
+
+func TestChromecastMediaHTTPClientRevalidatesRedirectTargets(t *testing.T) {
+	client := newChromecastMediaHTTPClient(ChromecastConfig{}, time.Second)
+	req, err := http.NewRequest(http.MethodGet, "http://169.254.169.254/latest/meta-data", nil)
+	if err != nil {
+		t.Fatalf("NewRequest: %v", err)
+	}
+	err = client.CheckRedirect(req, nil)
+	if err == nil || !strings.Contains(err.Error(), "SSRF protection") {
+		t.Fatalf("redirect error = %v, want SSRF protection rejection", err)
 	}
 }

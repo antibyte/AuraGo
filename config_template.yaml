@@ -126,6 +126,7 @@ agent:
 chromecast:
     enabled: false
     tts_port: 8090
+    media_host_allowlist: []
 circuit_breaker:
     llm_timeout_seconds: 600
     llm_per_attempt_timeout_seconds: 60            # per API attempt timeout used inside retry loops

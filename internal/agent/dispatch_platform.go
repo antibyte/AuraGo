@@ -47,7 +47,16 @@ func prepareChromecastLocalMediaURL(cfg *config.Config, req *chromecastArgs) err
 
 	baseName := filepath.Base(resolved)
 	baseName = strings.ReplaceAll(baseName, " ", "_")
-	destDir := tools.TTSAudioDir(cfg.Directories.DataDir)
+	req.ContentType = strings.TrimSpace(req.ContentType)
+	if req.ContentType == "" {
+		contentType, ok := tools.CastMediaMIMEType(baseName)
+		if !ok {
+			return fmt.Errorf("unsupported cast media extension for %q; provide content_type explicitly", baseName)
+		}
+		req.ContentType = contentType
+	}
+
+	destDir := tools.CastMediaDir(cfg.Directories.DataDir)
 	if err := os.MkdirAll(destDir, 0o755); err != nil {
 		return fmt.Errorf("create cast media dir: %w", err)
 	}
@@ -68,10 +77,7 @@ func prepareChromecastLocalMediaURL(cfg *config.Config, req *chromecastArgs) err
 	if port == 0 {
 		port = cfg.Server.Port
 	}
-	req.URL = fmt.Sprintf("http://%s:%d/tts/%s", getLocalIP(cfg), port, baseName)
-	if req.ContentType == "" {
-		req.ContentType = audioMIMEType(baseName)
-	}
+	req.URL = fmt.Sprintf("http://%s:%d/cast-media/%s", getLocalIP(cfg), port, baseName)
 	return nil
 }
 
@@ -481,7 +487,16 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					data, _ := json.Marshal(map[string]string{"status": "error", "message": err.Error()})
 					return "Tool Output: " + string(data)
 				}
-				return "Tool Output: " + tools.ChromecastPlay(req.DeviceAddr, req.DevicePort, req.URL, req.ContentType, logger)
+				mediaPort := cfg.Chromecast.TTSPort
+				if mediaPort == 0 {
+					mediaPort = cfg.Server.Port
+				}
+				ccCfg := tools.ChromecastConfig{
+					ServerHost:         getLocalIP(cfg),
+					ServerPort:         mediaPort,
+					MediaHostAllowlist: cfg.Chromecast.MediaHostAllowlist,
+				}
+				return "Tool Output: " + tools.ChromecastPlay(req.DeviceAddr, req.DevicePort, req.URL, req.ContentType, ccCfg, logger)
 			case "speak":
 				ttsCfg := buildRuntimeTTSConfig(cfg, req.Language)
 				ttsPort := cfg.Chromecast.TTSPort
@@ -489,8 +504,9 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					ttsPort = cfg.Server.Port
 				}
 				ccCfg := tools.ChromecastConfig{
-					ServerHost: cfg.Server.Host,
-					ServerPort: ttsPort,
+					ServerHost:         cfg.Server.Host,
+					ServerPort:         ttsPort,
+					MediaHostAllowlist: cfg.Chromecast.MediaHostAllowlist,
 				}
 				return "Tool Output: " + tools.ChromecastSpeak(req.DeviceAddr, req.DevicePort, req.Text, ttsCfg, ccCfg, logger)
 			case "stop":

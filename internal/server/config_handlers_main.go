@@ -501,7 +501,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				needsRestart = true
 				restartReasons = append(restartReasons, "Embeddings / Langzeitgedächtnis")
 			}
-			if oldCfg.Chromecast != newCfg.Chromecast {
+			if !reflect.DeepEqual(oldCfg.Chromecast, newCfg.Chromecast) {
 				needsRestart = true
 				restartReasons = append(restartReasons, "Chromecast/TTS Server")
 			}

@@ -25,7 +25,7 @@ func TestFormAutomationRejectsPrivateURLBeforeBrowserLaunch(t *testing.T) {
 }
 
 func TestChromecastMediaURLRejectsPrivateURL(t *testing.T) {
-	err := validateChromecastMediaURL("http://169.254.169.254/latest/meta-data")
+	err := validateChromecastMediaURL("http://169.254.169.254/latest/meta-data", ChromecastConfig{})
 	if err == nil || !strings.Contains(err.Error(), "SSRF protection") {
 		t.Fatalf("validateChromecastMediaURL error = %v, want SSRF rejection", err)
 	}

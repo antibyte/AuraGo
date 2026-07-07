@@ -11,6 +11,19 @@ function ccNormalizeDiscoveryValue(value) {
     return String(value || '').trim().toLowerCase();
 }
 
+function ccDiscoveryDisplayName(device) {
+    return String((device && (device.friendly_name || device.name)) || '').trim();
+}
+
+function ccDiscoveryDescription(device) {
+    const friendlyName = ccDiscoveryDisplayName(device);
+    const serviceName = String((device && device.name) || '').trim();
+    if (serviceName && serviceName !== friendlyName) {
+        return serviceName;
+    }
+    return '';
+}
+
 function ccExistingChromecastIPs() {
     return new Set(
         ccDevicesCache
@@ -58,7 +71,7 @@ function ccRenderDiscoveryResults(area, devices) {
 
         const nameSpan = document.createElement('span');
         nameSpan.className = 'cc-discovery-name';
-        nameSpan.textContent = d.name || t('config.chromecast.unknown');
+        nameSpan.textContent = ccDiscoveryDisplayName(d) || t('config.chromecast.unknown');
 
         const metaSpan = document.createElement('span');
         metaSpan.className = 'cc-discovery-meta';
@@ -94,6 +107,9 @@ function renderChromecastSection(section) {
     const data = configData['chromecast'] || {};
     const enabledOn = data.enabled === true;
     const ttsPort = data.tts_port || 8090;
+    const mediaAllowlist = Array.isArray(data.media_host_allowlist)
+        ? data.media_host_allowlist.join(', ')
+        : String(data.media_host_allowlist || '');
 
     let html = '<div class="cfg-section active">';
     html += '<div class="section-header">' + section.label + '</div>';
@@ -120,6 +136,14 @@ function renderChromecastSection(section) {
     html += '<div class="field-label">' + t('config.chromecast.tts_port_label') + '</div>';
     if (helpPort) html += '<div class="field-help">' + helpPort + '</div>';
     html += '<input class="field-input cc-tts-port-input" type="number" data-path="chromecast.tts_port" value="' + ttsPort + '">';
+    html += '</div>';
+
+    // ── Media host allowlist ──
+    const helpMediaAllowlist = t('help.chromecast.media_host_allowlist');
+    html += '<div class="field-group">';
+    html += '<div class="field-label">' + t('config.chromecast.media_host_allowlist_label') + '</div>';
+    if (helpMediaAllowlist) html += '<div class="field-help">' + helpMediaAllowlist + '</div>';
+    html += '<input class="field-input" type="text" data-path="chromecast.media_host_allowlist" data-type="array" value="' + escapeAttr(mediaAllowlist) + '" placeholder="192.168.1.10, media.lan:8096, 192.168.1.0/24">';
     html += '</div>';
 
     // ── Devices section ──
@@ -300,10 +324,10 @@ async function ccAddDiscovered(index) {
 
     try {
         const payload = ccBuildDevicePayload({
-            name: d.name,
+            name: ccDiscoveryDisplayName(d),
             ip: d.addr,
             port: d.port,
-            description: ''
+            description: ccDiscoveryDescription(d)
         });
         const resp = await fetch('/api/devices', {
             method: 'POST',
@@ -352,10 +376,10 @@ function ccShowEditModal(id, prefill) {
         // Adding from discovery
         title.textContent = '＋ ' + t('config.chromecast.add_device');
         document.getElementById('cc-edit-id').value = '';
-        document.getElementById('cc-field-name').value = prefill.name || '';
+        document.getElementById('cc-field-name').value = ccDiscoveryDisplayName(prefill);
         document.getElementById('cc-field-ip').value = prefill.addr || '';
         document.getElementById('cc-field-port').value = prefill.port || 8009;
-        document.getElementById('cc-field-desc').value = '';
+        document.getElementById('cc-field-desc').value = ccDiscoveryDescription(prefill);
     } else {
         // Manual add
         title.textContent = '＋ ' + t('config.chromecast.add_device');

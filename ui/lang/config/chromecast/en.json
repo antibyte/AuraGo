@@ -20,6 +20,7 @@
   "config.chromecast.edit_device": "Edit Device",
   "config.chromecast.edit_tooltip": "Edit",
   "config.chromecast.enabled_label": "Enabled",
+  "config.chromecast.media_host_allowlist_label": "Allowed media hosts",
   "config.chromecast.field_desc": "Description",
   "config.chromecast.field_ip": "IP Address",
   "config.chromecast.field_name": "Device Name",

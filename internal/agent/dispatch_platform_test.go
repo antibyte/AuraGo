@@ -143,7 +143,7 @@ func TestResolveChromecastTargetFallsBackToDiscovery(t *testing.T) {
 	}
 }
 
-func TestPrepareChromecastLocalMediaURLCopiesWorkspaceFileToTTSDir(t *testing.T) {
+func TestPrepareChromecastLocalMediaURLCopiesWorkspaceFileToCastMediaDir(t *testing.T) {
 	root := t.TempDir()
 	workdir := filepath.Join(root, "agent_workspace", "workdir")
 	dataDir := filepath.Join(root, "data")
@@ -165,14 +165,106 @@ func TestPrepareChromecastLocalMediaURLCopiesWorkspaceFileToTTSDir(t *testing.T)
 	if err := prepareChromecastLocalMediaURL(cfg, &req); err != nil {
 		t.Fatalf("prepareChromecastLocalMediaURL: %v", err)
 	}
-	if req.URL != "http://192.168.6.238:8090/tts/ueberall_zuhause.mp3" {
+	if req.URL != "http://192.168.6.238:8090/cast-media/ueberall_zuhause.mp3" {
 		t.Fatalf("URL = %q", req.URL)
 	}
 	if req.ContentType != "audio/mpeg" {
 		t.Fatalf("ContentType = %q, want audio/mpeg", req.ContentType)
 	}
-	if _, err := os.Stat(filepath.Join(dataDir, "tts", "ueberall_zuhause.mp3")); err != nil {
-		t.Fatalf("expected published file in tts dir: %v", err)
+	if _, err := os.Stat(filepath.Join(dataDir, "cast_media", "ueberall_zuhause.mp3")); err != nil {
+		t.Fatalf("expected published file in cast media dir: %v", err)
+	}
+}
+
+func TestPrepareChromecastLocalMediaURLPublishesVideoWithDetectedMIME(t *testing.T) {
+	root := t.TempDir()
+	workdir := filepath.Join(root, "agent_workspace", "workdir")
+	dataDir := filepath.Join(root, "data")
+	if err := os.MkdirAll(workdir, 0o755); err != nil {
+		t.Fatalf("MkdirAll workdir: %v", err)
+	}
+
+	cfg := &config.Config{}
+	cfg.Directories.WorkspaceDir = workdir
+	cfg.Directories.DataDir = dataDir
+	cfg.Server.Host = "192.168.6.238"
+	cfg.Chromecast.TTSPort = 8090
+
+	tests := []struct {
+		filename    string
+		contentType string
+	}{
+		{filename: "clip.mp4", contentType: "video/mp4"},
+		{filename: "clip.webm", contentType: "video/webm"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.filename, func(t *testing.T) {
+			if err := os.WriteFile(filepath.Join(workdir, tt.filename), []byte("fake video"), 0o644); err != nil {
+				t.Fatalf("WriteFile src: %v", err)
+			}
+
+			req := chromecastArgs{LocalPath: "workdir/" + tt.filename}
+			if err := prepareChromecastLocalMediaURL(cfg, &req); err != nil {
+				t.Fatalf("prepareChromecastLocalMediaURL: %v", err)
+			}
+			if req.URL != "http://192.168.6.238:8090/cast-media/"+tt.filename {
+				t.Fatalf("URL = %q", req.URL)
+			}
+			if req.ContentType != tt.contentType {
+				t.Fatalf("ContentType = %q, want %s", req.ContentType, tt.contentType)
+			}
+			if _, err := os.Stat(filepath.Join(dataDir, "cast_media", tt.filename)); err != nil {
+				t.Fatalf("expected published video in cast media dir: %v", err)
+			}
+		})
+	}
+}
+
+func TestPrepareChromecastLocalMediaURLRejectsUnsupportedExtensionWithoutContentType(t *testing.T) {
+	root := t.TempDir()
+	workdir := filepath.Join(root, "agent_workspace", "workdir")
+	if err := os.MkdirAll(workdir, 0o755); err != nil {
+		t.Fatalf("MkdirAll workdir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(workdir, "clip.bin"), []byte("unknown"), 0o644); err != nil {
+		t.Fatalf("WriteFile src: %v", err)
+	}
+
+	cfg := &config.Config{}
+	cfg.Directories.WorkspaceDir = workdir
+	cfg.Directories.DataDir = filepath.Join(root, "data")
+
+	req := chromecastArgs{LocalPath: "workdir/clip.bin"}
+	if err := prepareChromecastLocalMediaURL(cfg, &req); err == nil {
+		t.Fatal("expected unsupported local media without content_type to fail")
+	}
+}
+
+func TestPrepareChromecastLocalMediaURLAllowsUnsupportedExtensionWithContentType(t *testing.T) {
+	root := t.TempDir()
+	workdir := filepath.Join(root, "agent_workspace", "workdir")
+	if err := os.MkdirAll(workdir, 0o755); err != nil {
+		t.Fatalf("MkdirAll workdir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(workdir, "camera-feed.bin"), []byte("custom"), 0o644); err != nil {
+		t.Fatalf("WriteFile src: %v", err)
+	}
+
+	cfg := &config.Config{}
+	cfg.Directories.WorkspaceDir = workdir
+	cfg.Directories.DataDir = filepath.Join(root, "data")
+	cfg.Server.Host = "192.168.6.238"
+	cfg.Chromecast.TTSPort = 8090
+
+	req := chromecastArgs{LocalPath: "workdir/camera-feed.bin", ContentType: "video/mp4"}
+	if err := prepareChromecastLocalMediaURL(cfg, &req); err != nil {
+		t.Fatalf("prepareChromecastLocalMediaURL: %v", err)
+	}
+	if req.URL != "http://192.168.6.238:8090/cast-media/camera-feed.bin" {
+		t.Fatalf("URL = %q", req.URL)
+	}
+	if req.ContentType != "video/mp4" {
+		t.Fatalf("ContentType = %q, want video/mp4", req.ContentType)
 	}
 }
 
