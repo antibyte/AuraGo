@@ -166,7 +166,7 @@ func formatToolOutputForModel(tc ToolCall, sanitized string) string {
 // getLocalIP returns a LAN-reachable IP address for the TTS audio server.
 func getLocalIP(cfg *config.Config) string {
 	host := cfg.Server.Host
-	if host == "" || host == "127.0.0.1" || host == "0.0.0.0" {
+	if serverHostNeedsLANIP(host) {
 		if cached, ok := localIPCache.Load(host); ok {
 			return cached.(string)
 		}
@@ -184,6 +184,18 @@ func getLocalIP(cfg *config.Config) string {
 		return "127.0.0.1"
 	}
 	return host
+}
+
+func serverHostNeedsLANIP(host string) bool {
+	normalized := strings.Trim(strings.ToLower(strings.TrimSpace(host)), "[]")
+	switch normalized {
+	case "", "0.0.0.0", "localhost":
+		return true
+	}
+	if ip := net.ParseIP(normalized); ip != nil {
+		return ip.IsLoopback() || ip.IsUnspecified()
+	}
+	return false
 }
 
 // runMemoryOrchestrator handles the Priority-Based Forgetting System across both RAG and Knowledge Graph.

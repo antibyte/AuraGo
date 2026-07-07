@@ -415,6 +415,18 @@ func chromecastCanonicalHost(host string) string {
 	return strings.TrimSuffix(host, ".")
 }
 
+func chromecastNeedsLANReachableHost(host string) bool {
+	normalized := chromecastCanonicalHost(host)
+	switch normalized {
+	case "", "0.0.0.0", "localhost":
+		return true
+	}
+	if ip := net.ParseIP(normalized); ip != nil {
+		return ip.IsLoopback() || ip.IsUnspecified()
+	}
+	return false
+}
+
 func chromecastForbiddenHost(host string) bool {
 	host = chromecastCanonicalHost(host)
 	return host == "localhost"
@@ -496,7 +508,7 @@ func ChromecastSpeak(deviceAddr string, devicePort int, text string, ttsCfg TTSC
 
 	// Build URL the Chromecast can reach
 	host := ccCfg.ServerHost
-	if host == "" || host == "127.0.0.1" || host == "0.0.0.0" {
+	if chromecastNeedsLANReachableHost(host) {
 		// Try to find the local LAN IP
 		if ip := getOutboundIP(); ip != "" {
 			host = ip

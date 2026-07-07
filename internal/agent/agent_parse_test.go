@@ -116,6 +116,35 @@ func TestGetLocalIPCachesResolverResult(t *testing.T) {
 	}
 }
 
+func TestGetLocalIPResolvesLoopbackHostAliases(t *testing.T) {
+	originalDial := localIPDial
+	defer func() {
+		localIPDial = originalDial
+		localIPCache = sync.Map{}
+	}()
+
+	tests := []string{"localhost", "::1", "[::1]"}
+	for _, host := range tests {
+		t.Run(host, func(t *testing.T) {
+			localIPCache = sync.Map{}
+			resolverCalls := 0
+			localIPDial = func(network, address string) (net.Conn, error) {
+				resolverCalls++
+				return &stubLocalIPConn{localAddr: &net.UDPAddr{IP: net.ParseIP("192.168.1.45"), Port: 12345}}, nil
+			}
+
+			cfg := &config.Config{}
+			cfg.Server.Host = host
+			if got := getLocalIP(cfg); got != "192.168.1.45" {
+				t.Fatalf("getLocalIP() = %q, want 192.168.1.45", got)
+			}
+			if resolverCalls != 1 {
+				t.Fatalf("resolverCalls = %d, want 1", resolverCalls)
+			}
+		})
+	}
+}
+
 func TestGetLocalIPFallsBackForNonUDPAddr(t *testing.T) {
 	localIPCache = sync.Map{}
 	originalDial := localIPDial

@@ -152,6 +152,27 @@ func TestValidateChromecastMediaURLPolicyAllowsAuraGoOwnedMediaURLs(t *testing.T
 	}
 }
 
+func TestChromecastNeedsLANReachableHost(t *testing.T) {
+	tests := map[string]bool{
+		"":             true,
+		"0.0.0.0":      true,
+		"127.0.0.1":    true,
+		"127.0.0.2":    true,
+		"localhost":    true,
+		"::1":          true,
+		"[::1]":        true,
+		"192.168.1.20": false,
+		"aurago.lan":   false,
+	}
+	for host, want := range tests {
+		t.Run(host, func(t *testing.T) {
+			if got := chromecastNeedsLANReachableHost(host); got != want {
+				t.Fatalf("chromecastNeedsLANReachableHost(%q) = %v, want %v", host, got, want)
+			}
+		})
+	}
+}
+
 func TestChromecastMediaHTTPClientRevalidatesRedirectTargets(t *testing.T) {
 	client := newChromecastMediaHTTPClient(ChromecastConfig{}, time.Second)
 	req, err := http.NewRequest(http.MethodGet, "http://169.254.169.254/latest/meta-data", nil)
