@@ -390,6 +390,32 @@ func TestBuildPromptContextFlagsAndToolFeatureFlagsShareResolvedCapabilities(t *
 	}
 }
 
+func TestBuildPromptContextFlagsIncludesComposioServicesContext(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Agent.SystemLanguage = "en"
+	cfg.Composio.Enabled = true
+	cfg.Composio.APIKey = "cmp-secret"
+	cfg.Composio.ReadOnly = true
+	cfg.Composio.AllowDestructive = false
+	cfg.Composio.Toolkits = []config.ComposioToolkitConfig{
+		{Slug: "gmail", Enabled: true},
+		{Slug: "slack", Enabled: false},
+	}
+
+	flags := buildPromptContextFlags(RunConfig{Config: cfg, SessionID: "default"}, buildToolingPolicy(cfg, "prüfe gmail"), promptContextOptions{})
+	ctx := flags.ComposioServicesContext
+	for _, want := range []string{"gmail", "composio_call", "read_only=true", "allow_destructive=false"} {
+		if !strings.Contains(ctx, want) {
+			t.Fatalf("ComposioServicesContext missing %q: %q", want, ctx)
+		}
+	}
+	for _, notWant := range []string{"cmp-secret", "slack"} {
+		if strings.Contains(ctx, notWant) {
+			t.Fatalf("ComposioServicesContext leaked %q: %q", notWant, ctx)
+		}
+	}
+}
+
 func TestBuildPromptContextFlagsInjectsReachableChatChannelsForAutonomousRuns(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Agent.SystemLanguage = "en"

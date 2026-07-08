@@ -127,6 +127,51 @@ func TestDiscoverToolsReturnsStructuredHiddenNativeResult(t *testing.T) {
 	}
 }
 
+func TestDiscoverToolsReturnsComposioServiceForSelectedToolkit(t *testing.T) {
+	resetToolCatalogForTest(t)
+	cfg := &config.Config{}
+	cfg.Composio.Enabled = true
+	cfg.Composio.APIKey = "cmp-secret"
+	cfg.Composio.Toolkits = []config.ComposioToolkitConfig{{Slug: "gmail", Enabled: true}}
+	schemas := BuildNativeToolSchemas("", nil, ToolFeatureFlags{ComposioEnabled: true}, nil)
+	SetDiscoverToolsState("sess-composio-service", schemas, nil, "")
+
+	out := handleDiscoverTools(ToolCall{
+		Params: map[string]interface{}{
+			"operation": "search",
+			"query":     "gmail",
+		},
+	}, cfg, slog.New(slog.NewTextHandler(io.Discard, nil)), "sess-composio-service")
+
+	var payload DiscoverToolsResponse
+	decodeToolOutputJSON(t, out, &payload)
+	if payload.Status != "success" || len(payload.Results) == 0 {
+		t.Fatalf("expected Composio service search result, got %+v raw=%s", payload, out)
+	}
+	got := payload.Results[0]
+	if got.Kind != "composio_service" || got.Name != "composio:gmail" || got.CallMethod != "composio_call" || !got.CallableNow {
+		t.Fatalf("unexpected Composio service result: %+v", got)
+	}
+	if !strings.Contains(got.Instruction, `"toolkit_slug":"gmail"`) || !strings.Contains(got.Instruction, "capabilities") {
+		t.Fatalf("Composio service instruction missing concrete routing: %+v", got)
+	}
+
+	infoOut := handleDiscoverTools(ToolCall{
+		Params: map[string]interface{}{
+			"operation": "get_tool_info",
+			"tool_name": "gmail",
+		},
+	}, cfg, slog.New(slog.NewTextHandler(io.Discard, nil)), "sess-composio-service")
+	var info DiscoverToolsResponse
+	decodeToolOutputJSON(t, infoOut, &info)
+	if info.Status != "success" || info.Tool == nil || info.Tool.Kind != "composio_service" {
+		t.Fatalf("expected Composio service tool info, got %+v raw=%s", info, infoOut)
+	}
+	if !strings.Contains(info.Manual, "composio_call") {
+		t.Fatalf("expected composio_call manual for service info, got %q", info.Manual)
+	}
+}
+
 func TestToolCatalogSearchMatchesTermsAcrossToolFields(t *testing.T) {
 	schemas := []openai.Tool{
 		testToolSchema("remote_control", "Manage remote devices and capture desktop screenshots"),

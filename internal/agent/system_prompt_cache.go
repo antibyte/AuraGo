@@ -61,6 +61,7 @@ type systemPromptCacheKey struct {
 	LearnedRulesContext      string   `json:"learned_rules_context"`
 	ReuseContext             string   `json:"reuse_context"`
 	ChatChannelsContext      string   `json:"chat_channels_context"`
+	ComposioServicesContext  string   `json:"composio_services_context"`
 	TaskRulesHash            string   `json:"task_rules_hash"`
 	TaskRuleIDs              []string `json:"task_rule_ids"`
 	HomepageDesignSystemHash string   `json:"homepage_design_system_hash"`
@@ -137,6 +138,7 @@ func buildSystemPromptCacheKey(promptsDir string, flags *prompts.ContextFlags, c
 		LearnedRulesContext:      flags.LearnedRulesContext,
 		ReuseContext:             flags.ReuseContext,
 		ChatChannelsContext:      flags.ChatChannelsContext,
+		ComposioServicesContext:  flags.ComposioServicesContext,
 		TaskRulesHash:            taskRulesHash,
 		TaskRuleIDs:              sortedStringCopy(flags.TaskRuleIDs),
 		HomepageDesignSystemHash: homepageDesignHash,

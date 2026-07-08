@@ -2,6 +2,7 @@ package agent
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"aurago/internal/config"
@@ -585,6 +586,7 @@ func buildPromptContextFlags(runCfg RunConfig, policy ToolingPolicy, opts prompt
 		MessageSource:            runCfg.MessageSource,
 		ReuseContext:             buildManagedSitesPromptContext(runCfg),
 		ChatChannelsContext:      buildReachableChatChannelsContext(runCfg),
+		ComposioServicesContext:  buildComposioServicesPromptContext(cfg),
 		ToolsDir:                 "",
 		SkillsDir:                "",
 		UnifiedMemoryBlock:       state.UnifiedMemoryBlock,
@@ -594,6 +596,56 @@ func buildPromptContextFlags(runCfg RunConfig, policy ToolingPolicy, opts prompt
 		NativeToolsEnabled:       policy.UseNativeFunctions,
 		IsTextModeModel:          !policy.UseNativeFunctions && policy.Capabilities.DisableNativeFunctionCalling,
 	}
+}
+
+func buildComposioServicesPromptContext(cfg *config.Config) string {
+	if cfg == nil || !cfg.Composio.Enabled || strings.TrimSpace(cfg.Composio.APIKey) == "" {
+		return ""
+	}
+	type serviceLine struct {
+		slug string
+		line string
+	}
+	seen := make(map[string]bool)
+	lines := make([]serviceLine, 0, len(cfg.Composio.Toolkits))
+	for _, tk := range cfg.Composio.Toolkits {
+		slug := strings.ToLower(strings.TrimSpace(tk.Slug))
+		if slug == "" || !tk.Enabled || seen[slug] {
+			continue
+		}
+		seen[slug] = true
+		readOnly := cfg.Composio.ReadOnly
+		if tk.ReadOnly != nil {
+			readOnly = *tk.ReadOnly
+		}
+		allowDestructive := cfg.Composio.AllowDestructive
+		if tk.AllowDestructive != nil {
+			allowDestructive = *tk.AllowDestructive
+		}
+		allowNL := cfg.Composio.AllowNaturalLanguageInput
+		if tk.AllowNaturalLanguageInput != nil {
+			allowNL = *tk.AllowNaturalLanguageInput
+		}
+		line := fmt.Sprintf("- %s: route=composio_call toolkit_slug=%q read_only=%t allow_destructive=%t natural_language_input=%t",
+			slug, slug, readOnly, allowDestructive, allowNL)
+		if len(tk.AllowedToolSlugs) > 0 {
+			line += fmt.Sprintf(" allowed_tool_count=%d", len(tk.AllowedToolSlugs))
+		}
+		if len(tk.BlockedToolSlugs) > 0 {
+			line += fmt.Sprintf(" blocked_tool_count=%d", len(tk.BlockedToolSlugs))
+		}
+		lines = append(lines, serviceLine{slug: slug, line: line})
+	}
+	if len(lines) == 0 {
+		return ""
+	}
+	sort.Slice(lines, func(i, j int) bool { return lines[i].slug < lines[j].slug })
+	out := make([]string, 0, len(lines)+1)
+	out = append(out, "Use operation=capabilities or list_connected_accounts to verify live account connection before execute_tool.")
+	for _, item := range lines {
+		out = append(out, item.line)
+	}
+	return strings.Join(out, "\n")
 }
 
 func buildManagedSitesPromptContext(runCfg RunConfig) string {

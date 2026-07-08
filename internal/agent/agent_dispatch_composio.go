@@ -31,6 +31,9 @@ func dispatchComposioCall(ctx context.Context, req composioCallArgs, cfg *config
 	}
 
 	switch op {
+	case "capabilities":
+		return dispatchComposioCapabilities(ctx, client, policy, req, cfg)
+
 	case "search_toolkits":
 		page, err := client.ListToolkits(ctx, tools.ComposioListQuery{Query: req.Query, Cursor: req.Cursor, Limit: limit})
 		if err != nil {
@@ -108,8 +111,96 @@ func dispatchComposioCall(ctx context.Context, req composioCallArgs, cfg *config
 		return dispatchComposioExecute(ctx, client, policy, req, cfg)
 
 	default:
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"unknown composio_call operation %q. Use search_toolkits, search_tools, get_tool, list_connected_accounts, or execute_tool."}`, op)
+		return fmt.Sprintf(`Tool Output: {"status":"error","message":"unknown composio_call operation %q. Use capabilities, search_toolkits, search_tools, get_tool, list_connected_accounts, or execute_tool."}`, op)
 	}
+}
+
+func dispatchComposioCapabilities(ctx context.Context, client *tools.ComposioClient, policy tools.ComposioPolicyConfig, req composioCallArgs, cfg *config.Config) string {
+	toolkitSlug := strings.ToLower(strings.TrimSpace(req.ToolkitSlug))
+	if toolkitSlug != "" && !composioToolkitEnabled(policy, toolkitSlug) {
+		return composioJSONOutput(map[string]interface{}{
+			"status":       "policy_denied",
+			"operation":    "capabilities",
+			"message":      fmt.Sprintf("Composio toolkit %q is not enabled by the user.", toolkitSlug),
+			"toolkit_slug": toolkitSlug,
+		})
+	}
+
+	toolkits := composioCapabilityToolkits(policy, toolkitSlug)
+	payload := map[string]interface{}{
+		"status":                "success",
+		"operation":             "capabilities",
+		"toolkits":              toolkits,
+		"enabled_toolkit_count": len(toolkits),
+		"read_only":             policy.ReadOnly,
+		"allow_destructive":     policy.AllowDestructive,
+	}
+	if toolkitSlug == "" {
+		return composioJSONOutput(payload)
+	}
+
+	payload["toolkit_slug"] = toolkitSlug
+	page, err := client.ListConnectedAccounts(ctx, toolkitSlug, cfg.Composio.UserID)
+	if err != nil {
+		payload["connection_status"] = "error"
+		payload["message"] = security.Scrub(err.Error())
+		return composioJSONOutput(payload)
+	}
+	activeCount := 0
+	for _, account := range page.Items {
+		if composioAccountIsActive(account) {
+			activeCount++
+		}
+	}
+	payload["connected_account_count"] = activeCount
+	if activeCount > 0 {
+		payload["connection_status"] = "connected"
+	} else {
+		payload["connection_status"] = "connect_required"
+		payload["message"] = "No connected Composio account is available for this toolkit. Connect it in the Composio configuration UI first."
+	}
+	return composioJSONOutput(payload)
+}
+
+func composioCapabilityToolkits(policy tools.ComposioPolicyConfig, onlySlug string) []map[string]interface{} {
+	items := make([]map[string]interface{}, 0, len(policy.Toolkits))
+	seen := make(map[string]bool, len(policy.Toolkits))
+	for _, tk := range policy.Toolkits {
+		slug := strings.ToLower(strings.TrimSpace(tk.Slug))
+		if slug == "" || !tk.Enabled || seen[slug] {
+			continue
+		}
+		if onlySlug != "" && slug != onlySlug {
+			continue
+		}
+		seen[slug] = true
+		readOnly := policy.ReadOnly
+		if tk.ReadOnly != nil {
+			readOnly = *tk.ReadOnly
+		}
+		allowDestructive := policy.AllowDestructive
+		if tk.AllowDestructive != nil {
+			allowDestructive = *tk.AllowDestructive
+		}
+		allowNL := policy.AllowNaturalLanguageInput
+		if tk.AllowNaturalLanguageInput != nil {
+			allowNL = *tk.AllowNaturalLanguageInput
+		}
+		items = append(items, map[string]interface{}{
+			"toolkit_slug":                 slug,
+			"read_only":                    readOnly,
+			"allow_destructive":            allowDestructive,
+			"allow_natural_language_input": allowNL,
+			"allowed_tool_count":           len(tk.AllowedToolSlugs),
+			"blocked_tool_count":           len(tk.BlockedToolSlugs),
+		})
+	}
+	return items
+}
+
+func composioAccountIsActive(account tools.ComposioConnectedAccount) bool {
+	status := strings.ToLower(strings.TrimSpace(account.Status))
+	return account.ID != "" && (status == "" || status == "active" || status == "connected" || status == "success")
 }
 
 func dispatchComposioExecute(ctx context.Context, client *tools.ComposioClient, policy tools.ComposioPolicyConfig, req composioCallArgs, cfg *config.Config) string {

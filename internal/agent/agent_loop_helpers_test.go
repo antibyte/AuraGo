@@ -1037,6 +1037,11 @@ func TestAdaptiveFamilySeedsForQueryIncludesBalancedProgressiveTools(t *testing.
 			query: "use composio integrations",
 			want:  []string{"composio_call"},
 		},
+		{
+			name:  "composio gmail service alias",
+			query: "prüfe gmail",
+			want:  []string{"composio_call"},
+		},
 	}
 
 	for _, tt := range tests {

@@ -71,17 +71,21 @@ func handleDiscoverTools(tc ToolCall, cfg *config.Config, logger *slog.Logger, s
 		}
 		resolvedQuery := resolveDiscoverToolName(query)
 		discoverToolsLogInfo(logger, "[DiscoverTools] search", "query", query)
+		serviceResults := discoverComposioServiceSearchResults(cfg, query)
 		results := catalog.Search(resolvedQuery)
-		if len(results) == 0 {
+		if len(results) == 0 && len(serviceResults) == 0 {
 			return discoverToolsJSON(DiscoverToolsResponse{
 				Status: "error",
 				Error:  fmt.Sprintf("No tools found matching '%s'. Use list_categories to browse all tools.", query),
 			})
 		}
+		combined := make([]DiscoverToolResult, 0, len(serviceResults)+len(results))
+		combined = append(combined, serviceResults...)
+		combined = append(combined, discoverResultsFromEntries(results, sessionID, false)...)
 		return discoverToolsJSON(DiscoverToolsResponse{
 			Status:  "success",
-			Summary: fmt.Sprintf("%d tools matching '%s'", len(results), query),
-			Results: discoverResultsFromEntries(results, sessionID, false),
+			Summary: fmt.Sprintf("%d tools matching '%s'", len(combined), query),
+			Results: combined,
 		})
 
 	case "get_tool_info":
@@ -91,6 +95,14 @@ func handleDiscoverTools(tc ToolCall, cfg *config.Config, logger *slog.Logger, s
 		}
 		resolvedToolName := resolveDiscoverToolName(toolName)
 		discoverToolsLogInfo(logger, "[DiscoverTools] get_tool_info", "tool", toolName)
+		if service, ok := discoverComposioServiceResult(cfg, resolvedToolName); ok {
+			MarkDiscoverRequestedTool(sessionID, "composio_call")
+			return discoverToolsJSON(DiscoverToolsResponse{
+				Status: "success",
+				Tool:   &service,
+				Manual: composioServiceManual(cfg),
+			})
+		}
 		if entry, ok := catalog.Get(resolvedToolName); ok {
 			guidePath := entry.ManualPath
 			guide, _ := prompts.ReadToolGuide(guidePath)
@@ -145,6 +157,95 @@ func handleDiscoverTools(tc ToolCall, cfg *config.Config, logger *slog.Logger, s
 	default:
 		return fmt.Sprintf("Tool Output: ERROR Unknown operation '%s'. Use list_categories, search, or get_tool_info.", op)
 	}
+}
+
+func discoverComposioServiceSearchResults(cfg *config.Config, query string) []DiscoverToolResult {
+	var results []DiscoverToolResult
+	for _, slug := range selectedComposioToolkitSlugs(cfg) {
+		if composioServiceMatchesQuery(slug, query) {
+			results = append(results, composioServiceResult(slug))
+		}
+	}
+	return results
+}
+
+func discoverComposioServiceResult(cfg *config.Config, name string) (DiscoverToolResult, bool) {
+	for _, slug := range selectedComposioToolkitSlugs(cfg) {
+		if composioServiceMatchesQuery(slug, name) {
+			return composioServiceResult(slug), true
+		}
+	}
+	return DiscoverToolResult{}, false
+}
+
+func selectedComposioToolkitSlugs(cfg *config.Config) []string {
+	if cfg == nil || !cfg.Composio.Enabled || strings.TrimSpace(cfg.Composio.APIKey) == "" {
+		return nil
+	}
+	seen := make(map[string]bool, len(cfg.Composio.Toolkits))
+	slugs := make([]string, 0, len(cfg.Composio.Toolkits))
+	for _, tk := range cfg.Composio.Toolkits {
+		slug := strings.ToLower(strings.TrimSpace(tk.Slug))
+		if slug == "" || !tk.Enabled || seen[slug] {
+			continue
+		}
+		seen[slug] = true
+		slugs = append(slugs, slug)
+	}
+	return slugs
+}
+
+func composioServiceMatchesQuery(slug, query string) bool {
+	slug = strings.ToLower(strings.TrimSpace(slug))
+	query = strings.ToLower(strings.TrimSpace(query))
+	if slug == "" || query == "" {
+		return false
+	}
+	if strings.HasPrefix(query, "composio:") {
+		query = strings.TrimSpace(strings.TrimPrefix(query, "composio:"))
+	}
+	if query == slug || strings.Contains(query, slug) {
+		return true
+	}
+	for _, alias := range composioServiceAliases(slug) {
+		if query == alias || strings.Contains(query, alias) {
+			return true
+		}
+	}
+	return false
+}
+
+func composioServiceAliases(slug string) []string {
+	switch slug {
+	case "gmail":
+		return []string{"google mail", "googlemail", "g mail"}
+	default:
+		return nil
+	}
+}
+
+func composioServiceResult(slug string) DiscoverToolResult {
+	return DiscoverToolResult{
+		Name:            "composio:" + slug,
+		Kind:            "composio_service",
+		ToolStatus:      string(ToolStatusActive),
+		Description:     fmt.Sprintf("Use the selected Composio %s toolkit through composio_call.", slug),
+		CallMethod:      "composio_call",
+		CallableNow:     true,
+		SchemaAvailable: false,
+		Category:        "data_apis",
+		Instruction: fmt.Sprintf("Use composio_call with {\"operation\":\"capabilities\",\"toolkit_slug\":\"%s\"} or {\"operation\":\"list_connected_accounts\",\"toolkit_slug\":\"%s\"}; then use search_tools, get_tool, and execute_tool with \"toolkit_slug\":\"%s\".",
+			slug, slug, slug),
+	}
+}
+
+func composioServiceManual(cfg *config.Config) string {
+	if cfg != nil && strings.TrimSpace(cfg.Directories.PromptsDir) != "" {
+		if guide, ok := prompts.ReadToolGuide(filepath.Join(cfg.Directories.PromptsDir, "tools_manuals", "composio_call.md")); ok && strings.TrimSpace(guide) != "" {
+			return guide
+		}
+	}
+	return "# composio_call\nUse composio_call to inspect capabilities, list connected accounts, search tools, get tool schemas, and execute user-approved Composio tools."
 }
 
 func discoverToolsJSON(resp DiscoverToolsResponse) string {

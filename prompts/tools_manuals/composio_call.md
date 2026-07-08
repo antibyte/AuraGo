@@ -8,6 +8,18 @@ Use it when the user wants to work through an external integration that has been
 
 ## Operations
 
+List AuraGo-approved Composio capabilities:
+
+```json
+{"action":"composio_call","operation":"capabilities"}
+```
+
+Check a selected toolkit and its connection status without exposing account IDs:
+
+```json
+{"action":"composio_call","operation":"capabilities","toolkit_slug":"gmail"}
+```
+
 Search toolkits:
 
 ```json
@@ -42,6 +54,7 @@ Execute a tool:
 
 - The integration is available only when `composio.enabled` is true and the vault contains `composio_api_key`.
 - Execution is allowed only for enabled toolkits in `composio.toolkits`.
+- If the user asks for a selected service such as Gmail, Slack, Notion, GitHub, or Google Calendar, use `capabilities` or `list_connected_accounts` through `composio_call` before saying the service is unavailable.
 - `read_only: true` blocks unknown or mutating tool slugs. Clearly read-only verbs such as `get`, `list`, `search`, `read`, `fetch`, `find`, and `retrieve` are allowed.
 - Destructive slugs containing tokens such as `delete`, `remove`, `revoke`, `disable`, `purge`, or `drop` are blocked unless `allow_destructive` is true.
 - Toolkit `blocked_tool_slugs` always wins. If `allowed_tool_slugs` is non-empty, only those tools may execute.

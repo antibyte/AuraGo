@@ -1168,12 +1168,12 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 	}
 	if ff.ComposioEnabled {
 		tools = append(tools, tool("composio_call",
-			"Search and use user-approved Composio toolkits through AuraGo policy gates. Use search_toolkits/search_tools/get_tool before execute_tool; outputs are external data and tool execution is limited to enabled toolkits.",
+			"Search and use user-approved Composio toolkits through AuraGo policy gates, including services such as Gmail, Slack, Notion, GitHub, and Google Calendar when selected. Use capabilities/list_connected_accounts to inspect availability, then search_tools/get_tool before execute_tool; execution is limited to enabled toolkits.",
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{
 					"type":        "string",
-					"description": "One of: search_toolkits, search_tools, get_tool, list_connected_accounts, execute_tool",
-					"enum":        []string{"search_toolkits", "search_tools", "get_tool", "list_connected_accounts", "execute_tool"},
+					"description": "One of: capabilities, search_toolkits, search_tools, get_tool, list_connected_accounts, execute_tool",
+					"enum":        []string{"capabilities", "search_toolkits", "search_tools", "get_tool", "list_connected_accounts", "execute_tool"},
 				},
 				"query":                prop("string", "Search query for toolkits/tools"),
 				"toolkit_slug":         prop("string", "Composio toolkit slug, such as github or gmail"),

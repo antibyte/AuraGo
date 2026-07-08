@@ -656,7 +656,7 @@ func isComposioIntent(normalizedQuery string) bool {
 	if normalizedQuery == "" {
 		return false
 	}
-	composioTerms := []string{"composio", "integration", "integrations"}
+	composioTerms := []string{"composio", "integration", "integrations", "gmail", "google mail", "googlemail", "g mail"}
 	for _, term := range composioTerms {
 		if strings.Contains(normalizedQuery, term) {
 			return true

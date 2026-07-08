@@ -199,6 +199,11 @@ func TestBuildSystemPromptCacheKey_DifferentFlags(t *testing.T) {
 			wantNewKey: true,
 		},
 		{
+			name:       "ComposioServicesContext changes cache key",
+			modify:     func(f *prompts.ContextFlags) { f.ComposioServicesContext = "- gmail: read_only=true" },
+			wantNewKey: true,
+		},
+		{
 			name:       "Unchanged flags produce same cache key",
 			modify:     func(f *prompts.ContextFlags) { /* no-op */ },
 			wantNewKey: false,
