@@ -626,8 +626,13 @@ func buildComposioServicesPromptContext(cfg *config.Config) string {
 		if tk.AllowNaturalLanguageInput != nil {
 			allowNL = *tk.AllowNaturalLanguageInput
 		}
-		line := fmt.Sprintf("- %s: route=composio_call toolkit_slug=%q read_only=%t allow_destructive=%t natural_language_input=%t",
-			slug, slug, readOnly, allowDestructive, allowNL)
+		allowlistEnabled := len(tk.AllowedToolSlugs) > 0
+		allowlistState := "disabled"
+		if allowlistEnabled {
+			allowlistState = "enabled"
+		}
+		line := fmt.Sprintf("- %s: route=composio_call toolkit_slug=%q read_only=%t allow_destructive=%t natural_language_input=%t tool_access=%s allowlist=%s",
+			slug, slug, readOnly, allowDestructive, allowNL, composioToolAccessMode(allowlistEnabled), allowlistState)
 		if len(tk.AllowedToolSlugs) > 0 {
 			line += fmt.Sprintf(" allowed_tool_count=%d", len(tk.AllowedToolSlugs))
 		}
@@ -641,7 +646,7 @@ func buildComposioServicesPromptContext(cfg *config.Config) string {
 	}
 	sort.Slice(lines, func(i, j int) bool { return lines[i].slug < lines[j].slug })
 	out := make([]string, 0, len(lines)+1)
-	out = append(out, "Use operation=capabilities or list_connected_accounts to verify live account connection before execute_tool.")
+	out = append(out, "Use operation=capabilities or list_connected_accounts to verify live account connection before execute_tool. allowlist=disabled means no explicit allowlist, not zero usable tools; use search_tools to discover policy-allowed tools.")
 	for _, item := range lines {
 		out = append(out, item.line)
 	}

@@ -234,7 +234,7 @@ func composioServiceResult(slug string) DiscoverToolResult {
 		CallableNow:     true,
 		SchemaAvailable: false,
 		Category:        "data_apis",
-		Instruction: fmt.Sprintf("Use composio_call with {\"operation\":\"capabilities\",\"toolkit_slug\":\"%s\"} or {\"operation\":\"list_connected_accounts\",\"toolkit_slug\":\"%s\"}; then use search_tools, get_tool, and execute_tool with \"toolkit_slug\":\"%s\".",
+		Instruction: fmt.Sprintf("Use composio_call with {\"operation\":\"capabilities\",\"toolkit_slug\":\"%s\"} or {\"operation\":\"list_connected_accounts\",\"toolkit_slug\":\"%s\"}; then use search_tools, get_tool, and execute_tool with \"toolkit_slug\":\"%s\". If a narrow search is empty, retry broadly through composio_call; do not switch to direct third-party APIs for this connected service.",
 			slug, slug, slug),
 	}
 }

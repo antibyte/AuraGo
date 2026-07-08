@@ -55,6 +55,9 @@ Execute a tool:
 - The integration is available only when `composio.enabled` is true and the vault contains `composio_api_key`.
 - Execution is allowed only for enabled toolkits in `composio.toolkits`.
 - If the user asks for a selected service such as Gmail, Slack, Notion, GitHub, or Google Calendar, use `capabilities` or `list_connected_accounts` through `composio_call` before saying the service is unavailable.
+- `allowlist_enabled: false` or `allowed_tool_count: 0` means no explicit allowlist is configured. It does **not** mean that zero tools are usable; use `search_tools` and then execute policy-allowed tools.
+- If `search_tools` returns no tools for a narrow query, retry with the same `toolkit_slug` and an empty or broader query before concluding that no tool exists.
+- Do not bypass a connected Composio service by calling the third-party API directly unless the user explicitly provides separate credentials for that API. `execute_tool` can auto-select an active connected account.
 - `read_only: true` blocks unknown or mutating tool slugs. Clearly read-only verbs such as `get`, `list`, `search`, `read`, `fetch`, `find`, and `retrieve` are allowed.
 - Destructive slugs containing tokens such as `delete`, `remove`, `revoke`, `disable`, `purge`, or `drop` are blocked unless `allow_destructive` is true.
 - Toolkit `blocked_tool_slugs` always wins. If `allowed_tool_slugs` is non-empty, only those tools may execute.

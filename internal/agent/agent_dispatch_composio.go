@@ -62,14 +62,30 @@ func dispatchComposioCall(ctx context.Context, req composioCallArgs, cfg *config
 		if err != nil {
 			return composioErrorOutput("search_tools", err)
 		}
+		queryRelaxed := false
+		if len(page.Items) == 0 && strings.TrimSpace(page.NextCursor) == "" && strings.TrimSpace(req.Query) != "" && strings.TrimSpace(req.Cursor) == "" {
+			page, err = client.ListTools(ctx, tools.ComposioToolQuery{
+				ComposioListQuery: tools.ComposioListQuery{Cursor: req.Cursor, Limit: limit},
+				ToolkitSlug:       req.ToolkitSlug,
+			})
+			if err != nil {
+				return composioErrorOutput("search_tools", err)
+			}
+			queryRelaxed = true
+		}
 		items := filterComposioToolsForPolicy(policy, page.Items, req.ToolkitSlug)
-		return composioExternalOutput(map[string]interface{}{
+		payload := map[string]interface{}{
 			"status":      "success",
 			"operation":   op,
 			"tools":       items,
 			"next_cursor": page.NextCursor,
 			"total":       page.Total,
-		})
+		}
+		if queryRelaxed {
+			payload["query_relaxed"] = true
+			payload["message"] = "The first Composio search returned no tools, so AuraGo retried once without the narrow query. Use these returned tools if policy_decision allows them."
+		}
+		return composioExternalOutput(payload)
 
 	case "get_tool":
 		if strings.TrimSpace(req.ToolSlug) == "" {
@@ -99,12 +115,19 @@ func dispatchComposioCall(ctx context.Context, req composioCallArgs, cfg *config
 		if err != nil {
 			return composioErrorOutput("list_connected_accounts", err)
 		}
-		return composioExternalOutput(map[string]interface{}{
-			"status":             "success",
-			"operation":          op,
-			"connected_accounts": page.Items,
-			"next_cursor":        page.NextCursor,
-			"total":              page.Total,
+		sanitizedAccounts, activeCount := composioSanitizedConnectedAccounts(page.Items)
+		connectionStatus := "connect_required"
+		if activeCount > 0 {
+			connectionStatus = "connected"
+		}
+		return composioJSONOutput(map[string]interface{}{
+			"status":                  "success",
+			"operation":               op,
+			"connected_accounts":      sanitizedAccounts,
+			"connected_account_count": activeCount,
+			"connection_status":       connectionStatus,
+			"next_cursor":             page.NextCursor,
+			"total":                   page.Total,
 		})
 
 	case "execute_tool":
@@ -188,6 +211,9 @@ func composioCapabilityToolkits(policy tools.ComposioPolicyConfig, onlySlug stri
 		}
 		items = append(items, map[string]interface{}{
 			"toolkit_slug":                 slug,
+			"tool_access":                  composioToolAccessMode(len(tk.AllowedToolSlugs) > 0),
+			"tool_access_note":             composioToolAccessNote(len(tk.AllowedToolSlugs) > 0),
+			"allowlist_enabled":            len(tk.AllowedToolSlugs) > 0,
 			"read_only":                    readOnly,
 			"allow_destructive":            allowDestructive,
 			"allow_natural_language_input": allowNL,
@@ -198,9 +224,41 @@ func composioCapabilityToolkits(policy tools.ComposioPolicyConfig, onlySlug stri
 	return items
 }
 
+func composioToolAccessMode(allowlistEnabled bool) string {
+	if allowlistEnabled {
+		return "allowlist_only"
+	}
+	return "policy_allowed_catalog"
+}
+
+func composioToolAccessNote(allowlistEnabled bool) string {
+	if allowlistEnabled {
+		return "Only configured allowed_tool_slugs are executable for this toolkit."
+	}
+	return "No explicit allowlist is configured; allowed_tool_count=0 does not mean zero usable tools. Use search_tools and then execute policy-allowed tools."
+}
+
 func composioAccountIsActive(account tools.ComposioConnectedAccount) bool {
 	status := strings.ToLower(strings.TrimSpace(account.Status))
 	return account.ID != "" && (status == "" || status == "active" || status == "connected" || status == "success")
+}
+
+func composioSanitizedConnectedAccounts(accounts []tools.ComposioConnectedAccount) ([]map[string]interface{}, int) {
+	sanitized := make([]map[string]interface{}, 0, len(accounts))
+	activeCount := 0
+	for _, account := range accounts {
+		active := composioAccountIsActive(account)
+		if active {
+			activeCount++
+		}
+		toolkitSlug := strings.ToLower(strings.TrimSpace(firstNonEmpty(account.ToolkitSlug, account.Toolkit.Slug)))
+		sanitized = append(sanitized, map[string]interface{}{
+			"toolkit_slug": toolkitSlug,
+			"status":       strings.ToLower(strings.TrimSpace(account.Status)),
+			"active":       active,
+		})
+	}
+	return sanitized, activeCount
 }
 
 func dispatchComposioExecute(ctx context.Context, client *tools.ComposioClient, policy tools.ComposioPolicyConfig, req composioCallArgs, cfg *config.Config) string {
