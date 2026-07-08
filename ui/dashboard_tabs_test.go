@@ -35,3 +35,17 @@ func TestDashboardTabButtonsHaveMatchingPanels(t *testing.T) {
 		t.Fatal("dashboard skip link should target the overview tab panel")
 	}
 }
+
+func TestDashboardIconSpriteLoadsAfterBodyExists(t *testing.T) {
+	t.Parallel()
+
+	html := readDesktopAssetText(t, "dashboard.html")
+	dashIconsRe := regexp.MustCompile(`<script[^>]*dash-icons\.js[^>]*></script>`)
+	tag := dashIconsRe.FindString(html)
+	if tag == "" {
+		t.Fatal("dashboard must load the dash-icons.js sprite helper")
+	}
+	if !strings.Contains(tag, " defer") {
+		t.Fatal("dashboard icon sprite script must load with defer so document.body exists before sprite injection")
+	}
+}
