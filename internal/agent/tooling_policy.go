@@ -626,19 +626,8 @@ func buildComposioServicesPromptContext(cfg *config.Config) string {
 		if tk.AllowNaturalLanguageInput != nil {
 			allowNL = *tk.AllowNaturalLanguageInput
 		}
-		allowlistEnabled := len(tk.AllowedToolSlugs) > 0
-		allowlistState := "disabled"
-		if allowlistEnabled {
-			allowlistState = "enabled"
-		}
-		line := fmt.Sprintf("- %s: route=composio_call toolkit_slug=%q read_only=%t allow_destructive=%t natural_language_input=%t tool_access=%s allowlist=%s",
-			slug, slug, readOnly, allowDestructive, allowNL, composioToolAccessMode(allowlistEnabled), allowlistState)
-		if len(tk.AllowedToolSlugs) > 0 {
-			line += fmt.Sprintf(" allowed_tool_count=%d", len(tk.AllowedToolSlugs))
-		}
-		if len(tk.BlockedToolSlugs) > 0 {
-			line += fmt.Sprintf(" blocked_tool_count=%d", len(tk.BlockedToolSlugs))
-		}
+		line := fmt.Sprintf("- %s: route=composio_call toolkit_slug=%q read_only=%t allow_destructive=%t natural_language_input=%t next=capabilities,search_tools,get_tool,execute_tool",
+			slug, slug, readOnly, allowDestructive, allowNL)
 		lines = append(lines, serviceLine{slug: slug, line: line})
 	}
 	if len(lines) == 0 {
@@ -646,7 +635,7 @@ func buildComposioServicesPromptContext(cfg *config.Config) string {
 	}
 	sort.Slice(lines, func(i, j int) bool { return lines[i].slug < lines[j].slug })
 	out := make([]string, 0, len(lines)+1)
-	out = append(out, "Use operation=capabilities or list_connected_accounts to verify live account connection before execute_tool. allowlist=disabled means no explicit allowlist, not zero usable tools; use search_tools to discover policy-allowed tools.")
+	out = append(out, "Use operation=capabilities with toolkit_slug to get live connection status and a small tool_preview. Then use search_tools, get_tool, and execute_tool through composio_call; do not reason from local tool counts.")
 	for _, item := range lines {
 		out = append(out, item.line)
 	}

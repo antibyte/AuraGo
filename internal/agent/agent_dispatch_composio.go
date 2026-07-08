@@ -151,12 +151,12 @@ func dispatchComposioCapabilities(ctx context.Context, client *tools.ComposioCli
 
 	toolkits := composioCapabilityToolkits(policy, toolkitSlug)
 	payload := map[string]interface{}{
-		"status":                "success",
-		"operation":             "capabilities",
-		"toolkits":              toolkits,
-		"enabled_toolkit_count": len(toolkits),
-		"read_only":             policy.ReadOnly,
-		"allow_destructive":     policy.AllowDestructive,
+		"status":               "success",
+		"operation":            "capabilities",
+		"toolkits":             toolkits,
+		"read_only":            policy.ReadOnly,
+		"allow_destructive":    policy.AllowDestructive,
+		"recommended_workflow": []string{"capabilities", "search_tools", "get_tool", "execute_tool"},
 	}
 	if toolkitSlug == "" {
 		return composioJSONOutput(payload)
@@ -182,7 +182,30 @@ func dispatchComposioCapabilities(ctx context.Context, client *tools.ComposioCli
 		payload["connection_status"] = "connect_required"
 		payload["message"] = "No connected Composio account is available for this toolkit. Connect it in the Composio configuration UI first."
 	}
-	return composioJSONOutput(payload)
+
+	toolPreview, previewErr := composioToolkitToolPreview(ctx, client, policy, toolkitSlug, req.Limit)
+	if previewErr != nil {
+		payload["tool_preview_status"] = "error"
+		payload["tool_preview_message"] = security.Scrub(previewErr.Error())
+		return composioJSONOutput(payload)
+	}
+	if len(toolPreview) == 0 {
+		payload["tool_preview_status"] = "empty"
+		payload["next_call"] = map[string]interface{}{
+			"operation":    "search_tools",
+			"toolkit_slug": toolkitSlug,
+			"query":        "",
+		}
+		return composioJSONOutput(payload)
+	}
+	payload["tool_preview_status"] = "available"
+	payload["tool_preview"] = toolPreview
+	payload["next_call"] = map[string]interface{}{
+		"operation":    "get_tool",
+		"toolkit_slug": toolkitSlug,
+		"tool_slug":    toolPreview[0]["tool_slug"],
+	}
+	return composioExternalOutput(payload)
 }
 
 func composioCapabilityToolkits(policy tools.ComposioPolicyConfig, onlySlug string) []map[string]interface{} {
@@ -211,36 +234,49 @@ func composioCapabilityToolkits(policy tools.ComposioPolicyConfig, onlySlug stri
 		}
 		items = append(items, map[string]interface{}{
 			"toolkit_slug":                 slug,
-			"tool_access":                  composioToolAccessMode(len(tk.AllowedToolSlugs) > 0),
-			"tool_access_note":             composioToolAccessNote(len(tk.AllowedToolSlugs) > 0),
-			"allowlist_enabled":            len(tk.AllowedToolSlugs) > 0,
 			"read_only":                    readOnly,
 			"allow_destructive":            allowDestructive,
 			"allow_natural_language_input": allowNL,
-			"allowed_tool_count":           len(tk.AllowedToolSlugs),
-			"blocked_tool_count":           len(tk.BlockedToolSlugs),
+			"next_operations":              []string{"capabilities", "search_tools", "get_tool", "execute_tool"},
 		})
 	}
 	return items
 }
 
-func composioToolAccessMode(allowlistEnabled bool) string {
-	if allowlistEnabled {
-		return "allowlist_only"
-	}
-	return "policy_allowed_catalog"
-}
-
-func composioToolAccessNote(allowlistEnabled bool) string {
-	if allowlistEnabled {
-		return "Only configured allowed_tool_slugs are executable for this toolkit."
-	}
-	return "No explicit allowlist is configured; allowed_tool_count=0 does not mean zero usable tools. Use search_tools and then execute policy-allowed tools."
-}
-
 func composioAccountIsActive(account tools.ComposioConnectedAccount) bool {
 	status := strings.ToLower(strings.TrimSpace(account.Status))
 	return account.ID != "" && (status == "" || status == "active" || status == "connected" || status == "success")
+}
+
+func composioToolkitToolPreview(ctx context.Context, client *tools.ComposioClient, policy tools.ComposioPolicyConfig, toolkitSlug string, limit int) ([]map[string]interface{}, error) {
+	previewLimit := limit
+	if previewLimit <= 0 || previewLimit > 10 {
+		previewLimit = 10
+	}
+	page, err := client.ListTools(ctx, tools.ComposioToolQuery{
+		ComposioListQuery: tools.ComposioListQuery{Limit: previewLimit},
+		ToolkitSlug:       toolkitSlug,
+	})
+	if err != nil {
+		return nil, err
+	}
+	items := filterComposioToolsForPolicy(policy, page.Items, toolkitSlug)
+	preview := make([]map[string]interface{}, 0, len(items))
+	for _, item := range items {
+		toolSlug := strings.TrimSpace(item.Slug)
+		if toolSlug == "" {
+			continue
+		}
+		preview = append(preview, map[string]interface{}{
+			"tool_slug":    toolSlug,
+			"toolkit_slug": strings.ToLower(strings.TrimSpace(firstNonEmpty(item.ToolkitSlug, item.Toolkit.Slug, toolkitSlug))),
+			"next_calls": []map[string]string{
+				{"operation": "get_tool", "tool_slug": toolSlug},
+				{"operation": "execute_tool", "tool_slug": toolSlug},
+			},
+		})
+	}
+	return preview, nil
 }
 
 func composioSanitizedConnectedAccounts(accounts []tools.ComposioConnectedAccount) ([]map[string]interface{}, int) {

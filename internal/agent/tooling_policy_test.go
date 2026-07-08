@@ -404,12 +404,12 @@ func TestBuildPromptContextFlagsIncludesComposioServicesContext(t *testing.T) {
 
 	flags := buildPromptContextFlags(RunConfig{Config: cfg, SessionID: "default"}, buildToolingPolicy(cfg, "prüfe gmail"), promptContextOptions{})
 	ctx := flags.ComposioServicesContext
-	for _, want := range []string{"gmail", "composio_call", "read_only=true", "allow_destructive=false", "tool_access=policy_allowed_catalog", "allowlist=disabled"} {
+	for _, want := range []string{"gmail", "composio_call", "read_only=true", "allow_destructive=false", "search_tools", "execute_tool"} {
 		if !strings.Contains(ctx, want) {
 			t.Fatalf("ComposioServicesContext missing %q: %q", want, ctx)
 		}
 	}
-	for _, notWant := range []string{"cmp-secret", "slack", "allowed_tool_count=0"} {
+	for _, notWant := range []string{"cmp-secret", "slack", "allowed_tool_count", "blocked_tool_count", "allowlist"} {
 		if strings.Contains(ctx, notWant) {
 			t.Fatalf("ComposioServicesContext leaked %q: %q", notWant, ctx)
 		}

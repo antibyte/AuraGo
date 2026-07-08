@@ -22,12 +22,12 @@ func TestDispatchComposioCapabilitiesListsConfiguredToolkits(t *testing.T) {
 	}
 
 	out := dispatchComposioCall(context.Background(), composioCallArgs{Operation: "capabilities"}, cfg)
-	for _, want := range []string{`"operation":"capabilities"`, `"toolkit_slug":"gmail"`, `"read_only":true`, `"allow_destructive":false`, `"allowlist_enabled":false`, `"tool_access":"policy_allowed_catalog"`} {
+	for _, want := range []string{`"operation":"capabilities"`, `"toolkit_slug":"gmail"`, `"read_only":true`, `"allow_destructive":false`, `"search_tools"`, `"execute_tool"`} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("capabilities output missing %q: %s", want, out)
 		}
 	}
-	for _, notWant := range []string{"cmp-secret", `"toolkit_slug":"slack"`} {
+	for _, notWant := range []string{"cmp-secret", `"toolkit_slug":"slack"`, "allowed_tool_count", "blocked_tool_count", "allowlist_enabled"} {
 		if strings.Contains(out, notWant) {
 			t.Fatalf("capabilities output leaked %q: %s", notWant, out)
 		}
@@ -72,14 +72,25 @@ func TestDispatchComposioSearchToolsRetriesWithoutNarrowQuery(t *testing.T) {
 
 func TestDispatchComposioCapabilitiesReportsToolkitConnection(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/connected_accounts" {
+		switch r.URL.Path {
+		case "/connected_accounts":
+			if got := r.URL.Query().Get("toolkit_slugs"); got != "gmail" {
+				t.Fatalf("toolkit_slugs = %q, want gmail", got)
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"items":[{"id":"acct_1","status":"ACTIVE","toolkit":{"slug":"gmail"}}]}`))
+		case "/tools":
+			if got := r.URL.Query().Get("toolkit_slug"); got != "gmail" {
+				t.Fatalf("toolkit_slug = %q, want gmail", got)
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"items":[
+				{"slug":"GMAIL_FETCH_EMAILS","description":"Fetches Gmail messages","toolkit":{"slug":"gmail"}},
+				{"slug":"GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID","description":"Fetches one Gmail message","toolkit":{"slug":"gmail"}}
+			]}`))
+		default:
 			t.Fatalf("unexpected path %s", r.URL.Path)
 		}
-		if got := r.URL.Query().Get("toolkit_slugs"); got != "gmail" {
-			t.Fatalf("toolkit_slugs = %q, want gmail", got)
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"items":[{"id":"acct_1","status":"ACTIVE","toolkit":{"slug":"gmail"}}]}`))
 	}))
 	defer upstream.Close()
 
@@ -93,13 +104,15 @@ func TestDispatchComposioCapabilitiesReportsToolkitConnection(t *testing.T) {
 	cfg.Composio.Toolkits = []config.ComposioToolkitConfig{{Slug: "gmail", Enabled: true}}
 
 	out := dispatchComposioCall(context.Background(), composioCallArgs{Operation: "capabilities", ToolkitSlug: "gmail"}, cfg)
-	for _, want := range []string{`"toolkit_slug":"gmail"`, `"connection_status":"connected"`, `"connected_account_count":1`} {
+	for _, want := range []string{"toolkit_slug", "gmail", "connection_status", "connected", "GMAIL_FETCH_EMAILS", "GMAIL_FETCH_MESSAGE_BY_MESSAGE_ID", "execute_tool"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("capabilities toolkit output missing %q: %s", want, out)
 		}
 	}
-	if strings.Contains(out, "acct_1") {
-		t.Fatalf("capabilities output must not expose account IDs: %s", out)
+	for _, notWant := range []string{"acct_1", "allowed_tool_count", "blocked_tool_count", "allowlist_enabled"} {
+		if strings.Contains(out, notWant) {
+			t.Fatalf("capabilities output must not expose %q: %s", notWant, out)
+		}
 	}
 }
 
