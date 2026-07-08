@@ -121,6 +121,7 @@ docs/superpowers/
 /mcps/
 .worktrees/
 #Agent files
+AGENTS.md
 .commandcode/
 .kilo/
 .kilocode/
