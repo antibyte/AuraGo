@@ -230,6 +230,28 @@ func TestPixelActionsUseRootAPIEndpoints(t *testing.T) {
 	}
 }
 
+func TestPixelLoadsDesktopPreviewAsImageSource(t *testing.T) {
+	actions := normalizePixelAsset(readDesktopAssetText(t, "js/desktop/apps/pixel-actions.js"))
+	shell := normalizePixelAsset(readDesktopAssetText(t, "js/desktop/apps/pixel.js"))
+
+	if strings.Contains(actions, "this.api('/api/desktop/preview?path='") {
+		t.Fatalf("Pixel desktop image loads must not parse /api/desktop/preview as JSON; it serves inline image bytes")
+	}
+	if strings.Contains(shell, "api('/api/desktop/preview?path='") {
+		t.Fatalf("Pixel shell image entry points must not parse /api/desktop/preview as JSON; it serves inline image bytes")
+	}
+	if !strings.Contains(actions, "loadDesktopImagePath: Pixel.bindRuntime(runtime, async function loadDesktopImagePath(") {
+		t.Fatalf("Pixel actions should expose a shared desktop image loader for dialog, recent, photo, drop, and launch paths")
+	}
+	loadBody := jsFunctionBodyInWindowMenuTest(t, actions, "loadDesktopImagePath: Pixel.bindRuntime(runtime, async function loadDesktopImagePath(")
+	if !strings.Contains(loadBody, "await this.loadImageToCanvas('/api/desktop/preview?path=' + encodeURIComponent(this.filePath));") {
+		t.Fatalf("Pixel desktop image loader should pass the inline preview URL directly to loadImageToCanvas: %s", loadBody)
+	}
+	if !strings.Contains(shell, "loadDesktopImagePath(filePath).catch(() => {});") {
+		t.Fatalf("Pixel initial launch with ctx.path should load that desktop image path")
+	}
+}
+
 func TestPixelGermanOpenLabelsUseUmlaut(t *testing.T) {
 	var values map[string]string
 	if err := json.Unmarshal([]byte(readDesktopAssetText(t, "lang/desktop/de.json")), &values); err != nil {

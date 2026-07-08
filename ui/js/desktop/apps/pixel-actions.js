@@ -49,6 +49,19 @@
                                 container.innerHTML = `<span class="pixel-label">${this.esc(this.t('pixel.recent_files'))}</span>` +
                                     recent.map(p => `<button class="pixel-recent-file-btn" type="button" data-recent-path="${this.esc(p)}" title="${this.esc(p)}">${this.esc(p.split('/').pop())}</button>`).join('');
             }),
+            loadDesktopImagePath: Pixel.bindRuntime(runtime, async function loadDesktopImagePath(path, options) {
+                                const nextPath = String(path || '').trim();
+                                if (!nextPath) return;
+                                this.filePath = nextPath;
+                                this.fileName = this.filePath.split('/').pop();
+                                this.isDirty = false;
+                                if (!options || options.saveRecent !== false) this.saveRecentFile(this.filePath);
+                                try {
+                                    await this.loadImageToCanvas('/api/desktop/preview?path=' + encodeURIComponent(this.filePath));
+                                } catch (_) {
+                                    this.notify({ type: 'error', message: this.t('pixel.error_load') });
+                                }
+            }),
             loadPhotos: Pixel.bindRuntime(runtime, async function loadPhotos() {
                                 const grid = this.host.querySelector('[data-photos-grid]');
                                 if (!grid) return;
@@ -68,20 +81,7 @@
                                 if (!this.ctx.openFileDialog) return;
                                 const result = await this.ctx.openFileDialog({ title: this.t('pixel.open'), initialPath: 'Photos', filters: [{ name: 'Images', extensions: this.IMAGE_EXTS }] });
                                 if (result && !result.canceled && result.path) {
-                                    this.filePath = result.path;
-                                    this.fileName = this.filePath.split('/').pop();
-                                    this.isDirty = false;
-                                    this.saveRecentFile(this.filePath);
-                                    try {
-                                        const preview = await this.api('/api/desktop/preview?path=' + encodeURIComponent(this.filePath));
-                                        if (preview && preview.url) {
-                                            await this.loadImageToCanvas(preview.url);
-                                        } else {
-                                            await this.loadImageToCanvas('/api/desktop/preview?path=' + encodeURIComponent(this.filePath) + '&raw=1');
-                                        }
-                                    } catch (_) {
-                                        this.notify({ type: 'error', message: this.t('pixel.error_load') });
-                                    }
+                                    await this.loadDesktopImagePath(result.path);
                                 }
             }),
             saveFile: Pixel.bindRuntime(runtime, async function saveFile() {

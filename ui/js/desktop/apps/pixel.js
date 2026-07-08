@@ -201,6 +201,7 @@
             loadRecentFiles,
             saveRecentFile,
             renderRecentFiles,
+            loadDesktopImagePath,
             loadPhotos,
             openFile,
             saveFile,
@@ -398,17 +399,12 @@
             const recentBtn = e.target.closest('[data-recent-path]');
             if (recentBtn) {
                 const path = recentBtn.dataset.recentPath;
-                filePath = path;
-                fileName = path.split('/').pop();
-                api('/api/desktop/preview?path=' + encodeURIComponent(path)).then(r => { if (r && r.url) loadImageToCanvas(r.url); }).catch(() => {});
+                loadDesktopImagePath(path).catch(() => {});
             }
             const photoBtn = e.target.closest('[data-photo-path]');
             if (photoBtn) {
                 const path = photoBtn.dataset.photoPath;
-                filePath = path;
-                fileName = path.split('/').pop();
-                saveRecentFile(filePath);
-                api('/api/desktop/preview?path=' + encodeURIComponent(path)).then(r => { if (r && r.url) loadImageToCanvas(r.url); }).catch(() => {});
+                loadDesktopImagePath(path).catch(() => {});
             }
         });
 
@@ -629,12 +625,9 @@
             const payload = fileOps && typeof fileOps.readDragPayload === 'function' ? fileOps.readDragPayload(e) : null;
             if (payload && Array.isArray(payload.paths)) paths = payload.paths;
             if (!paths.length) { const text = e.dataTransfer.getData('text/plain'); if (text) paths = [text]; }
-            const imgPath = paths.find(p => IMAGE_EXTS.some(ext => p.toLowerCase().endsWith('.' + ext)));
+            const imgPath = paths.find(p => runtime.IMAGE_EXTS.some(ext => p.toLowerCase().endsWith('.' + ext)));
             if (imgPath) {
-                filePath = imgPath;
-                fileName = imgPath.split('/').pop();
-                saveRecentFile(filePath);
-                api('/api/desktop/preview?path=' + encodeURIComponent(imgPath)).then(r => { if (r && r.url) loadImageToCanvas(r.url); }).catch(() => {});
+                loadDesktopImagePath(imgPath).catch(() => {});
             }
         });
 
@@ -686,9 +679,7 @@
 
         // Load initial image
         if (filePath) {
-            api('/api/desktop/preview?path=' + encodeURIComponent(filePath)).then(r => {
-                if (r && r.url) loadImageToCanvas(r.url);
-            }).catch(() => {});
+            loadDesktopImagePath(filePath).catch(() => {});
         }
 
         renderRecentFiles();
