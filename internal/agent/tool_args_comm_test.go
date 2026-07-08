@@ -128,9 +128,11 @@ func TestDecodeTelnyxAndAddressBookArgs(t *testing.T) {
 			"address":      "Main Street 1",
 			"relationship": "friend",
 			"notes":        "Met at meetup",
+			"birthday":     "1815-12-10",
+			"reminder":     "week",
 		},
 	})
-	if contactReq.Name != "Ada" || contactReq.ContactAddress != "Main Street 1" || contactReq.Relationship != "friend" {
+	if contactReq.Name != "Ada" || contactReq.ContactAddress != "Main Street 1" || contactReq.Relationship != "friend" || contactReq.Notes != "Met at meetup" || contactReq.Birthday != "1815-12-10" || contactReq.Reminder != "week" {
 		t.Fatalf("unexpected contact args: %+v", contactReq)
 	}
 }

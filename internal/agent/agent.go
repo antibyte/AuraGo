@@ -455,18 +455,19 @@ type ToolCall struct {
 	AudioURL      string   `json:"audio_url,omitempty"`
 	MediaURLs     []string `json:"media_urls,omitempty"`
 	// Notes / To-Do fields
-	Title              string `json:"title"`
-	Priority           int    `json:"priority"`
-	AcceptanceCriteria string `json:"acceptance_criteria"`
-	IncludeArchived    bool   `json:"include_archived,omitempty"`
-	DueDate            string `json:"due_date"`
-	Category           string `json:"category"`
-	Done               int    `json:"done"` // -1=all, 0=open, 1=done (filter for list)
-	TaskID             string `json:"task_id"`
-	MissionID          string `json:"mission_id"`
-	Status             string `json:"status"`
-	Result             string `json:"result"`
-	Error              string `json:"error"`
+	Title              string   `json:"title"`
+	Priority           int      `json:"priority"`
+	AcceptanceCriteria string   `json:"acceptance_criteria"`
+	IncludeArchived    bool     `json:"include_archived,omitempty"`
+	DueDate            string   `json:"due_date"`
+	Category           string   `json:"category"`
+	Done               int      `json:"done"` // -1=all, 0=open, 1=done (filter for list)
+	TaskID             string   `json:"task_id"`
+	MissionID          string   `json:"mission_id"`
+	Status             string   `json:"status"`
+	ContactIDs         []string `json:"contact_ids,omitempty"`
+	Result             string   `json:"result"`
+	Error              string   `json:"error"`
 	// Journal fields
 	EntryType  string `json:"entry_type"`
 	Importance int    `json:"importance"`
@@ -685,6 +686,8 @@ type ToolCall struct {
 	Mobile         string `json:"mobile,omitempty"`       // contact mobile number
 	ContactAddress string `json:"address,omitempty"`      // contact postal address
 	Relationship   string `json:"relationship,omitempty"` // contact relationship type
+	Birthday       string `json:"birthday,omitempty"`     // contact birthday in YYYY-MM-DD format
+	Reminder       string `json:"reminder,omitempty"`     // birthday reminder: none, day, week, month
 	// SQL Connections fields
 	ConnectionName   string `json:"connection_name,omitempty"`   // target database connection name
 	SQLQuery         string `json:"sql_query,omitempty"`         // SQL statement to execute

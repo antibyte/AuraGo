@@ -24,6 +24,9 @@ Add a new contact to the address book.
 - **mobile** (optional): Mobile phone number.
 - **address** (optional): Postal address.
 - **relationship** (optional): Relationship type (e.g., friend, colleague, family, client).
+- **notes** (optional): Freeform notes about the contact.
+- **birthday** (optional): Birthday in `YYYY-MM-DD` format.
+- **reminder** (optional): Birthday reminder timing: `none`, `day`, `week`, or `month`.
 
 ### `update`
 Update an existing contact. Only provided fields will be changed.
@@ -34,6 +37,9 @@ Update an existing contact. Only provided fields will be changed.
 - **mobile** (optional): Updated mobile.
 - **address** (optional): Updated postal address.
 - **relationship** (optional): Updated relationship.
+- **notes** (optional): Updated notes. Provide an empty string to clear.
+- **birthday** (optional): Updated birthday in `YYYY-MM-DD` format. Provide an empty string to clear.
+- **reminder** (optional): Birthday reminder timing: `none`, `day`, `week`, or `month`.
 
 ### `delete`
 Delete a contact from the address book.
@@ -42,4 +48,5 @@ Delete a contact from the address book.
 ## Notes
 - Contact data is stored locally in SQLite and never sent to external services.
 - The user can also manage contacts via the Knowledge Center in the Web UI.
+- On update, explicitly provided empty strings clear optional text fields.
 - Always confirm with the user before deleting contacts.

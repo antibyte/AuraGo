@@ -129,6 +129,13 @@ type addressBookArgs struct {
 	ContactAddress string
 	Relationship   string
 	Notes          string
+	Birthday       string
+	Reminder       string
+	provided       map[string]bool
+}
+
+func (a addressBookArgs) has(key string) bool {
+	return a.provided != nil && a.provided[key]
 }
 
 func toolArgItemMaps(args map[string]interface{}, keys ...string) []map[string]interface{} {
@@ -346,17 +353,36 @@ func decodeAgoDeskChatArgs(tc ToolCall) agoDeskChatArgs {
 }
 
 func decodeAddressBookArgs(tc ToolCall) addressBookArgs {
+	provided := map[string]bool{}
+	paramString := func(key string, topLevel string) string {
+		if raw, ok := tc.Params[key]; ok {
+			provided[key] = true
+			if value, ok := raw.(string); ok {
+				return value
+			}
+			return ""
+		}
+		if topLevel != "" {
+			provided[key] = true
+			return topLevel
+		}
+		return ""
+	}
+
 	return addressBookArgs{
 		Operation:      firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
 		ID:             firstNonEmptyToolString(tc.ID, toolArgString(tc.Params, "id")),
 		Query:          firstNonEmptyToolString(tc.Query, toolArgString(tc.Params, "query")),
-		Name:           firstNonEmptyToolString(tc.Name, toolArgString(tc.Params, "name")),
-		Email:          firstNonEmptyToolString(tc.Email, toolArgString(tc.Params, "email")),
-		Phone:          firstNonEmptyToolString(tc.Phone, toolArgString(tc.Params, "phone")),
-		Mobile:         firstNonEmptyToolString(tc.Mobile, toolArgString(tc.Params, "mobile")),
-		ContactAddress: firstNonEmptyToolString(tc.ContactAddress, toolArgString(tc.Params, "address")),
-		Relationship:   firstNonEmptyToolString(tc.Relationship, toolArgString(tc.Params, "relationship")),
-		Notes:          firstNonEmptyToolString(tc.Notes, toolArgString(tc.Params, "notes")),
+		Name:           paramString("name", tc.Name),
+		Email:          paramString("email", tc.Email),
+		Phone:          paramString("phone", tc.Phone),
+		Mobile:         paramString("mobile", tc.Mobile),
+		ContactAddress: paramString("address", tc.ContactAddress),
+		Relationship:   paramString("relationship", tc.Relationship),
+		Notes:          paramString("notes", tc.Notes),
+		Birthday:       paramString("birthday", tc.Birthday),
+		Reminder:       paramString("reminder", tc.Reminder),
+		provided:       provided,
 	}
 }
 

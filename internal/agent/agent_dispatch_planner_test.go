@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"aurago/internal/contacts"
 	"aurago/internal/planner"
 )
 
@@ -113,9 +114,10 @@ func TestDailyTodoReminderTextOnlyOnEligibleFirstContact(t *testing.T) {
 	defer db.Close()
 
 	if _, err := planner.CreateTodo(db, planner.Todo{
-		Title:    "Daily review",
-		Priority: "medium",
-		Status:   "open",
+		Title:       "Daily review",
+		Priority:    "medium",
+		Status:      "open",
+		RemindDaily: true,
 		Items: []planner.TodoItem{
 			{Title: "Inbox zero"},
 		},
@@ -139,6 +141,114 @@ func TestDailyTodoReminderTextOnlyOnEligibleFirstContact(t *testing.T) {
 	blocked := dailyTodoReminderText(RunConfig{PlannerDB: db, MessageSource: "mission", IsMission: true}, "hello", now.Add(24*time.Hour), slog.Default())
 	if blocked != "" {
 		t.Fatalf("mission reminder = %q, want empty", blocked)
+	}
+}
+
+func TestDispatchManageAppointmentsSupportsContactParticipants(t *testing.T) {
+	plannerDB := newPlannerTestDB(t)
+	defer plannerDB.Close()
+	contactsDB, err := contacts.InitDB(filepath.Join(t.TempDir(), "contacts.db"))
+	if err != nil {
+		t.Fatalf("contacts.InitDB() error = %v", err)
+	}
+	defer contactsDB.Close()
+
+	adaID, err := contacts.Create(contactsDB, contacts.Contact{
+		Name:         "Ada Lovelace",
+		Email:        "ada@example.com",
+		Relationship: "friend",
+	})
+	if err != nil {
+		t.Fatalf("contacts.Create(Ada) error = %v", err)
+	}
+	graceID, err := contacts.Create(contactsDB, contacts.Contact{
+		Name:         "Grace Hopper",
+		Email:        "grace@example.com",
+		Relationship: "colleague",
+	})
+	if err != nil {
+		t.Fatalf("contacts.Create(Grace) error = %v", err)
+	}
+
+	addResp := dispatchManageAppointments(ToolCall{
+		Operation: "add",
+		Params: map[string]interface{}{
+			"title":       "Planning sync",
+			"date_time":   "2099-05-01T10:00:00Z",
+			"contact_ids": []interface{}{adaID},
+		},
+	}, plannerDB, contactsDB, nil, slog.Default())
+	addPayload := decodeToolOutput(t, addResp)
+	appointmentID, _ := addPayload["id"].(string)
+	if appointmentID == "" {
+		t.Fatalf("add appointment response missing id: %#v", addPayload)
+	}
+	ids, err := planner.GetAppointmentContactIDs(plannerDB, appointmentID)
+	if err != nil {
+		t.Fatalf("planner.GetAppointmentContactIDs() error = %v", err)
+	}
+	if len(ids) != 1 || ids[0] != adaID {
+		t.Fatalf("contact ids after add = %#v, want [%s]", ids, adaID)
+	}
+
+	updateResp := dispatchManageAppointments(ToolCall{
+		Operation: "update",
+		Params: map[string]interface{}{
+			"id":          appointmentID,
+			"contact_ids": []interface{}{graceID},
+		},
+	}, plannerDB, contactsDB, nil, slog.Default())
+	updatePayload := decodeToolOutput(t, updateResp)
+	if status, _ := updatePayload["status"].(string); status != "success" {
+		t.Fatalf("update response = %#v, want success", updatePayload)
+	}
+	ids, err = planner.GetAppointmentContactIDs(plannerDB, appointmentID)
+	if err != nil {
+		t.Fatalf("planner.GetAppointmentContactIDs() after update error = %v", err)
+	}
+	if len(ids) != 1 || ids[0] != graceID {
+		t.Fatalf("contact ids after update = %#v, want [%s]", ids, graceID)
+	}
+
+	getResp := dispatchManageAppointments(ToolCall{
+		Operation: "get",
+		Params:    map[string]interface{}{"id": appointmentID},
+	}, plannerDB, contactsDB, nil, slog.Default())
+	getPayload := decodeToolOutput(t, getResp)
+	appointment, ok := getPayload["appointment"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("get appointment payload = %#v, want appointment object", getPayload)
+	}
+	contactIDs, _ := appointment["contact_ids"].([]interface{})
+	if len(contactIDs) != 1 || contactIDs[0] != graceID {
+		t.Fatalf("get contact_ids = %#v, want [%s]", contactIDs, graceID)
+	}
+	participants, _ := appointment["participants"].([]interface{})
+	if len(participants) != 1 {
+		t.Fatalf("get participants = %#v, want one participant", participants)
+	}
+	participant, _ := participants[0].(map[string]interface{})
+	if participant["name"] != "Grace Hopper" || participant["email"] != "grace@example.com" {
+		t.Fatalf("get participant = %#v, want Grace Hopper", participant)
+	}
+
+	listResp := dispatchManageAppointments(ToolCall{
+		Operation: "list",
+		Params:    map[string]interface{}{"status": "upcoming"},
+	}, plannerDB, contactsDB, nil, slog.Default())
+	listPayload := decodeToolOutput(t, listResp)
+	appointments, _ := listPayload["appointments"].([]interface{})
+	if len(appointments) != 1 {
+		t.Fatalf("list appointments = %#v, want one appointment", appointments)
+	}
+	listAppointment, _ := appointments[0].(map[string]interface{})
+	listParticipants, _ := listAppointment["participants"].([]interface{})
+	if len(listParticipants) != 1 {
+		t.Fatalf("list participants = %#v, want one participant", listParticipants)
+	}
+	listParticipant, _ := listParticipants[0].(map[string]interface{})
+	if listParticipant["name"] != "Grace Hopper" {
+		t.Fatalf("list participant = %#v, want Grace Hopper", listParticipant)
 	}
 }
 

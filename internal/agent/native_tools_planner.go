@@ -21,8 +21,13 @@ func appendPlannerToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai
 				"notification_at":   prop("string", "When to send notification in RFC3339 format"),
 				"wake_agent":        prop("boolean", "Whether to wake the agent at notification time"),
 				"agent_instruction": prop("string", "Optional instruction for the agent when woken up"),
-				"status":            prop("string", "Filter by status (upcoming, completed, cancelled) for list operation"),
-				"query":             prop("string", "Search query for list operation"),
+				"status":            prop("string", "Filter by status (upcoming, overdue, completed, cancelled) for list operation"),
+				"contact_ids": map[string]interface{}{
+					"type":        "array",
+					"description": "Contact IDs associated with the appointment. For update, an empty array clears participants.",
+					"items":       map[string]interface{}{"type": "string"},
+				},
+				"query": prop("string", "Search query for list operation"),
 			}, "operation"),
 		))
 

@@ -20,7 +20,7 @@ func plannerErrorMsg(msg string) string {
 }
 
 // dispatchManageAppointments handles the manage_appointments tool call.
-func dispatchManageAppointments(tc ToolCall, db *sql.DB, kg planner.KnowledgeGraph, logger *slog.Logger) string {
+func dispatchManageAppointments(tc ToolCall, db *sql.DB, contactsDB *sql.DB, kg planner.KnowledgeGraph, logger *slog.Logger) string {
 	op := strings.ToLower(tc.Operation)
 	if op == "" {
 		if v, ok := tc.Params["operation"].(string); ok {
@@ -38,6 +38,11 @@ func dispatchManageAppointments(tc ToolCall, db *sql.DB, kg planner.KnowledgeGra
 		if err != nil {
 			return plannerError(err)
 		}
+		if contactsDB != nil {
+			if err := planner.EnrichAppointmentsWithContacts(db, contactsDB, list); err != nil {
+				logger.Warn("Failed to enrich appointment contacts", "error", err)
+			}
+		}
 		return "Tool Output: " + planner.ToJSON(map[string]interface{}{"status": "success", "appointments": list, "count": len(list)})
 
 	case "get":
@@ -48,6 +53,11 @@ func dispatchManageAppointments(tc ToolCall, db *sql.DB, kg planner.KnowledgeGra
 		a, err := planner.GetAppointment(db, id)
 		if err != nil {
 			return plannerError(err)
+		}
+		if contactsDB != nil {
+			if err := planner.EnrichAppointmentWithContacts(db, contactsDB, a); err != nil {
+				logger.Warn("Failed to enrich appointment contacts", "appointment_id", id, "error", err)
+			}
 		}
 		return "Tool Output: " + planner.ToJSON(map[string]interface{}{"status": "success", "appointment": a})
 
@@ -67,6 +77,12 @@ func dispatchManageAppointments(tc ToolCall, db *sql.DB, kg planner.KnowledgeGra
 		id, err := planner.CreateAppointment(db, a)
 		if err != nil {
 			return plannerError(err)
+		}
+		contactIDs := toolCallContactIDs(tc)
+		if len(contactIDs) > 0 {
+			if err := planner.SetAppointmentContacts(db, id, contactIDs); err != nil {
+				return plannerError(err)
+			}
 		}
 		kgNote := syncAppointmentToKG(db, id, kg, logger)
 		return "Tool Output: " + planner.ToJSON(map[string]interface{}{"status": "success", "message": "Appointment created" + kgNote, "id": id})
@@ -107,6 +123,11 @@ func dispatchManageAppointments(tc ToolCall, db *sql.DB, kg planner.KnowledgeGra
 		}
 		if err := planner.UpdateAppointment(db, *existing); err != nil {
 			return plannerError(err)
+		}
+		if _, ok := tc.Params["contact_ids"]; ok || len(tc.ContactIDs) > 0 {
+			if err := planner.SetAppointmentContacts(db, id, toolCallContactIDs(tc)); err != nil {
+				return plannerError(err)
+			}
 		}
 		kgNote := syncAppointmentToKG(db, id, kg, logger)
 		return "Tool Output: " + planner.ToJSON(map[string]interface{}{"status": "success", "message": "Appointment updated" + kgNote, "id": id})
@@ -438,6 +459,16 @@ func syncTodoToKG(db *sql.DB, id string, kg planner.KnowledgeGraph, logger *slog
 		return "; knowledge graph sync failed"
 	}
 	return ""
+}
+
+func toolCallContactIDs(tc ToolCall) []string {
+	if _, ok := tc.Params["contact_ids"]; ok {
+		return stringSliceParam(tc.Params, "contact_ids")
+	}
+	if len(tc.ContactIDs) > 0 {
+		return append([]string(nil), tc.ContactIDs...)
+	}
+	return nil
 }
 
 // strParam extracts a string parameter from the tool call params map.

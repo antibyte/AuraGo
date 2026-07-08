@@ -386,6 +386,7 @@ func buildToolFlagsFromConfig(cfg *config.Config) ToolFeatureFlags {
 		MediaRegistryEnabled:         cfg.MediaRegistry.Enabled,
 		HomepageRegistryEnabled:      cfg.Homepage.Enabled,
 		ContactsEnabled:              cfg.Tools.Contacts.Enabled,
+		PlannerEnabled:               cfg.Tools.Planner.Enabled,
 		MemoryAnalysisEnabled:        cfg.MemoryAnalysis.Enabled,
 		DocumentCreatorEnabled:       cfg.Tools.DocumentCreator.Enabled,
 		MediaConversionEnabled:       cfg.Tools.MediaConversion.Enabled,
@@ -455,6 +456,7 @@ func resolveToolFeatureState(runCfg RunConfig, policy ToolingPolicy) resolvedToo
 	toolFlags.MediaRegistryEnabled = cfg.MediaRegistry.Enabled && runCfg.MediaRegistryDB != nil
 	toolFlags.HomepageRegistryEnabled = cfg.Homepage.Enabled && runCfg.HomepageRegistryDB != nil
 	toolFlags.ContactsEnabled = cfg.Tools.Contacts.Enabled && runCfg.ContactsDB != nil
+	toolFlags.PlannerEnabled = cfg.Tools.Planner.Enabled && runCfg.PlannerDB != nil
 	toolFlags.SQLConnectionsEnabled = cfg.SQLConnections.Enabled && runCfg.SQLConnectionsDB != nil && runCfg.SQLConnectionPool != nil
 	toolFlags.MemoryAnalysisEnabled = resolveMemoryAnalysisSettings(cfg, runCfg.ShortTermMem).Enabled
 

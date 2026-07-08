@@ -555,7 +555,7 @@ func GetDueNotifications(db *sql.DB) ([]Appointment, error) {
 	rows, err := db.Query(
 		`SELECT id, title, description, date_time, notification_at, wake_agent, agent_instruction, notified, status, kg_node_id, created_at, updated_at
 		 FROM appointments
-		 WHERE notification_at != '' AND notification_at <= ? AND notified = 0 AND status = 'upcoming'
+		 WHERE notification_at != '' AND notification_at <= ? AND notified = 0 AND status IN ('upcoming', 'overdue')
 		 ORDER BY notification_at ASC
 		 LIMIT 50`, now)
 	if err != nil {
@@ -963,7 +963,7 @@ func ClaimDailyReminderSnapshot(db *sql.DB, now time.Time) (DailyReminderSnapsho
 	rows, err := tx.Query(`
 		SELECT id, title, description, priority, status, due_date, remind_daily, completed_at, last_daily_reminder_at, kg_node_id, created_at, updated_at
 		FROM todos
-		WHERE status IN ('open', 'in_progress')
+		WHERE status IN ('open', 'in_progress') AND remind_daily = 1
 		ORDER BY CASE priority WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 ELSE 4 END, due_date ASC, created_at ASC`)
 	if err != nil {
 		return snapshot, fmt.Errorf("list daily reminder todos: %w", err)
@@ -1065,26 +1065,28 @@ func BuildDailyPlannerReminderText(snapshot DailyReminderSnapshot) string {
 		return ""
 	}
 	var builder strings.Builder
-	builder.WriteString(fmt.Sprintf("You currently have %d open todos", snapshot.OpenTodoCount))
-	if snapshot.OverdueTodoCount > 0 {
-		builder.WriteString(fmt.Sprintf(", %d of them overdue", snapshot.OverdueTodoCount))
-	}
-	builder.WriteString(".\n")
+	if snapshot.OpenTodoCount > 0 {
+		builder.WriteString(fmt.Sprintf("You currently have %d open todos", snapshot.OpenTodoCount))
+		if snapshot.OverdueTodoCount > 0 {
+			builder.WriteString(fmt.Sprintf(", %d of them overdue", snapshot.OverdueTodoCount))
+		}
+		builder.WriteString(".\n")
 
-	if len(snapshot.Todos) > 0 {
-		builder.WriteString("Top open todos:\n")
-		for _, todo := range snapshot.Todos {
-			builder.WriteString("- ")
-			builder.WriteString(strings.TrimSpace(todo.Title))
-			if todo.DueDate != "" {
-				builder.WriteString(" (due: ")
-				builder.WriteString(todo.DueDate)
-				builder.WriteString(")")
+		if len(snapshot.Todos) > 0 {
+			builder.WriteString("Top open todos:\n")
+			for _, todo := range snapshot.Todos {
+				builder.WriteString("- ")
+				builder.WriteString(strings.TrimSpace(todo.Title))
+				if todo.DueDate != "" {
+					builder.WriteString(" (due: ")
+					builder.WriteString(todo.DueDate)
+					builder.WriteString(")")
+				}
+				if todo.Status == "in_progress" {
+					builder.WriteString(" (in progress)")
+				}
+				builder.WriteString("\n")
 			}
-			if todo.Status == "in_progress" {
-				builder.WriteString(" (in progress)")
-			}
-			builder.WriteString("\n")
 		}
 	}
 

@@ -367,7 +367,7 @@ func appendMemoryToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai.
 
 	if ff.ContactsEnabled {
 		tools = append(tools, tool("address_book",
-			"Manage the address book / contacts. Search, list, add, update, and delete contacts with name, email, phone, mobile, address, and relationship.",
+			"Manage the address book / contacts. Search, list, add, update, and delete contacts with name, email, phone, mobile, address, relationship, notes, birthday, and birthday reminder settings.",
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{
 					"type":        "string",
@@ -381,7 +381,14 @@ func appendMemoryToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai.
 				"mobile":       prop("string", "Mobile phone number"),
 				"address":      prop("string", "Postal address"),
 				"relationship": prop("string", "Relationship (e.g. friend, colleague, family, client)"),
-				"query":        prop("string", "Search query for search operation"),
+				"notes":        prop("string", "Freeform notes about the contact. For update, an empty string clears notes."),
+				"birthday":     prop("string", "Birthday in YYYY-MM-DD format. For update, an empty string clears the birthday."),
+				"reminder": map[string]interface{}{
+					"type":        "string",
+					"description": "Birthday reminder timing: none, day, week, or month",
+					"enum":        []string{"none", "day", "week", "month"},
+				},
+				"query": prop("string", "Search query for search operation"),
 			}, "operation"),
 		))
 	}

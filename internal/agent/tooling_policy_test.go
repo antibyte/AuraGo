@@ -14,6 +14,7 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/memory"
+	"aurago/internal/planner"
 	"aurago/internal/prompts"
 	"aurago/internal/sqlconnections"
 	"aurago/internal/tools"
@@ -32,6 +33,36 @@ func TestBuildToolingPolicyAutoEnablesNativeFunctionsForDeepSeek(t *testing.T) {
 	}
 	if !policy.AutoEnabledNativeFunctions {
 		t.Fatal("expected DeepSeek native function calling to be marked as auto-enabled")
+	}
+}
+
+func TestPlannerNativeToolsRespectConfigAndRuntimeDB(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Tools.Planner.Enabled = true
+
+	configNames := ToolNamesFromConfig(cfg)
+	if !containsName(configNames, "manage_appointments") {
+		t.Fatalf("ToolNamesFromConfig missing manage_appointments: %v", configNames)
+	}
+	if !containsName(configNames, "manage_todos") {
+		t.Fatalf("ToolNamesFromConfig missing manage_todos: %v", configNames)
+	}
+
+	policy := buildToolingPolicy(cfg, "")
+	withoutDB := buildToolFeatureFlags(RunConfig{Config: cfg, SessionID: "planner-runtime"}, policy)
+	if withoutDB.PlannerEnabled {
+		t.Fatal("PlannerEnabled = true without PlannerDB, want false")
+	}
+
+	db, err := planner.InitDB(filepath.Join(t.TempDir(), "planner.db"))
+	if err != nil {
+		t.Fatalf("planner.InitDB: %v", err)
+	}
+	defer db.Close()
+
+	withDB := buildToolFeatureFlags(RunConfig{Config: cfg, PlannerDB: db, SessionID: "planner-runtime"}, policy)
+	if !withDB.PlannerEnabled {
+		t.Fatal("PlannerEnabled = false with PlannerDB, want true")
 	}
 }
 

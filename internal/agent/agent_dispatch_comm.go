@@ -1744,6 +1744,8 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 					Address:      req.ContactAddress,
 					Relationship: req.Relationship,
 					Notes:        req.Notes,
+					Birthday:     req.Birthday,
+					Reminder:     req.Reminder,
 				}
 				id, err := contacts.Create(contactsDB, c)
 				if err != nil {
@@ -1761,23 +1763,29 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				if req.Name != "" {
 					existing.Name = req.Name
 				}
-				if req.Email != "" {
+				if req.has("email") {
 					existing.Email = req.Email
 				}
-				if req.Phone != "" {
+				if req.has("phone") {
 					existing.Phone = req.Phone
 				}
-				if req.Mobile != "" {
+				if req.has("mobile") {
 					existing.Mobile = req.Mobile
 				}
-				if req.ContactAddress != "" {
+				if req.has("address") {
 					existing.Address = req.ContactAddress
 				}
-				if req.Relationship != "" {
+				if req.has("relationship") {
 					existing.Relationship = req.Relationship
 				}
-				if req.Notes != "" {
+				if req.has("notes") {
 					existing.Notes = req.Notes
+				}
+				if req.has("birthday") {
+					existing.Birthday = req.Birthday
+				}
+				if req.has("reminder") {
+					existing.Reminder = req.Reminder
 				}
 				if err := contacts.Update(contactsDB, *existing); err != nil {
 					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
@@ -1802,7 +1810,7 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			if plannerDB == nil {
 				return `Tool Output: {"status":"error","message":"Planner database not available."}`
 			}
-			return dispatchManageAppointments(tc, plannerDB, kg, logger)
+			return dispatchManageAppointments(tc, plannerDB, contactsDB, kg, logger)
 
 		case "manage_todos":
 			if !cfg.Tools.Planner.Enabled {

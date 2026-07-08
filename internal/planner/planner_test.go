@@ -1267,6 +1267,7 @@ func TestClaimDailyTodoReminderTodosOnlyOncePerDay(t *testing.T) {
 		Title:       "Morning routine",
 		Priority:    "high",
 		Status:      "open",
+		RemindDaily: true,
 		Description: "Daily check",
 		Items: []TodoItem{
 			{Title: "Check backups"},
@@ -1277,9 +1278,10 @@ func TestClaimDailyTodoReminderTodosOnlyOncePerDay(t *testing.T) {
 		t.Fatalf("CreateTodo() error = %v", err)
 	}
 	if _, err := CreateTodo(db, Todo{
-		Title:    "Silent task",
-		Priority: "medium",
-		Status:   "open",
+		Title:       "Second reminder task",
+		Priority:    "medium",
+		Status:      "open",
+		RemindDaily: true,
 	}); err != nil {
 		t.Fatalf("CreateTodo() second todo error = %v", err)
 	}
@@ -1345,14 +1347,121 @@ func TestClaimDailyTodoReminderTodosOnlyOncePerDay(t *testing.T) {
 	}
 }
 
+func TestClaimDailyReminderSnapshotOnlyIncludesRemindDailyTodos(t *testing.T) {
+	db := testDB(t)
+	defer db.Close()
+
+	remindedID, err := CreateTodo(db, Todo{
+		Title:       "Daily check",
+		Priority:    "high",
+		Status:      "open",
+		RemindDaily: true,
+	})
+	if err != nil {
+		t.Fatalf("CreateTodo reminded: %v", err)
+	}
+	silentID, err := CreateTodo(db, Todo{
+		Title:       "Silent backlog item",
+		Priority:    "high",
+		Status:      "open",
+		RemindDaily: false,
+	})
+	if err != nil {
+		t.Fatalf("CreateTodo silent: %v", err)
+	}
+
+	snapshot, err := ClaimDailyReminderSnapshot(db, time.Date(2026, 4, 19, 8, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatalf("ClaimDailyReminderSnapshot() error = %v", err)
+	}
+	if snapshot.OpenTodoCount != 1 || len(snapshot.Todos) != 1 {
+		t.Fatalf("snapshot todos = count:%d len:%d, want one reminded todo", snapshot.OpenTodoCount, len(snapshot.Todos))
+	}
+	if snapshot.Todos[0].ID != remindedID {
+		t.Fatalf("reminded todo id = %q, want %q", snapshot.Todos[0].ID, remindedID)
+	}
+
+	reminded, err := GetTodo(db, remindedID)
+	if err != nil {
+		t.Fatalf("GetTodo reminded: %v", err)
+	}
+	if reminded.LastDailyReminderAt == "" {
+		t.Fatal("reminded todo LastDailyReminderAt is empty")
+	}
+	silent, err := GetTodo(db, silentID)
+	if err != nil {
+		t.Fatalf("GetTodo silent: %v", err)
+	}
+	if silent.LastDailyReminderAt != "" {
+		t.Fatalf("silent todo LastDailyReminderAt = %q, want empty", silent.LastDailyReminderAt)
+	}
+}
+
+func TestBuildDailyPlannerReminderTextAppointmentOnlyOmitsZeroTodoSentence(t *testing.T) {
+	text := BuildDailyPlannerReminderText(DailyReminderSnapshot{
+		GeneratedAt:   time.Date(2026, 4, 19, 8, 0, 0, 0, time.UTC),
+		OpenTodoCount: 0,
+		NextAppointment: &Appointment{
+			Title:    "Dentist",
+			DateTime: "2026-04-19T09:00:00Z",
+			Status:   "upcoming",
+		},
+	})
+
+	if strings.Contains(text, "0 open todos") {
+		t.Fatalf("appointment-only reminder mentioned zero todos: %q", text)
+	}
+	if !strings.Contains(text, "Dentist") {
+		t.Fatalf("appointment-only reminder missing appointment: %q", text)
+	}
+}
+
+func TestNotifierTriggersOverdueUnnotifiedAppointment(t *testing.T) {
+	db := testDB(t)
+	defer db.Close()
+	now := time.Now().UTC()
+	id, err := CreateAppointment(db, Appointment{
+		Title:          "Late reminder",
+		DateTime:       now.Add(-time.Hour).Format(time.RFC3339),
+		NotificationAt: now.Add(-30 * time.Minute).Format(time.RFC3339),
+		WakeAgent:      false,
+	})
+	if err != nil {
+		t.Fatalf("CreateAppointment: %v", err)
+	}
+
+	var got Appointment
+	notifier := NewNotifier(db, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	notifier.SetMissionTrigger(func(a Appointment) {
+		got = a
+	})
+
+	notifier.checkDue()
+
+	if got.ID != id {
+		t.Fatalf("mission trigger got appointment %q, want %q", got.ID, id)
+	}
+	appointment, err := GetAppointment(db, id)
+	if err != nil {
+		t.Fatalf("GetAppointment: %v", err)
+	}
+	if appointment.Status != "overdue" {
+		t.Fatalf("appointment status = %q, want overdue", appointment.Status)
+	}
+	if !appointment.Notified {
+		t.Fatal("overdue appointment should be marked notified after trigger")
+	}
+}
+
 func TestClaimDailyTodoReminderTodosWithChecklistItemsDoesNotBlock(t *testing.T) {
 	db := testDB(t)
 	defer db.Close()
 
 	if _, err := CreateTodo(db, Todo{
-		Title:    "Reminder task",
-		Priority: "medium",
-		Status:   "open",
+		Title:       "Reminder task",
+		Priority:    "medium",
+		Status:      "open",
+		RemindDaily: true,
 		Items: []TodoItem{
 			{Title: "One"},
 			{Title: "Two", IsDone: true},

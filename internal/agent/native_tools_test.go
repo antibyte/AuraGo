@@ -208,6 +208,49 @@ func TestNativeToolCallToToolCall_ConvertsCustomToolShortcut(t *testing.T) {
 	}
 }
 
+func TestPlannerAndAddressBookSchemasExposeIntegrationFields(t *testing.T) {
+	schemas := builtinToolSchemas(ToolFeatureFlags{PlannerEnabled: true, ContactsEnabled: true})
+
+	appointmentProps := toolSchemaProperties(t, schemas, "manage_appointments")
+	if _, ok := appointmentProps["contact_ids"]; !ok {
+		t.Fatalf("manage_appointments schema missing contact_ids: %#v", appointmentProps)
+	}
+
+	contactProps := toolSchemaProperties(t, schemas, "address_book")
+	for _, key := range []string{"notes", "birthday", "reminder"} {
+		if _, ok := contactProps[key]; !ok {
+			t.Fatalf("address_book schema missing %s: %#v", key, contactProps)
+		}
+	}
+	reminder, ok := contactProps["reminder"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("address_book reminder schema = %#v, want object", contactProps["reminder"])
+	}
+	if got, want := reminder["enum"], []string{"none", "day", "week", "month"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("address_book reminder enum = %#v, want %#v", got, want)
+	}
+}
+
+func toolSchemaProperties(t *testing.T, schemas []openai.Tool, name string) map[string]interface{} {
+	t.Helper()
+	for _, s := range schemas {
+		if s.Function == nil || s.Function.Name != name {
+			continue
+		}
+		params, ok := s.Function.Parameters.(map[string]interface{})
+		if !ok {
+			t.Fatalf("%s parameters = %#v, want object schema", name, s.Function.Parameters)
+		}
+		props, ok := params["properties"].(map[string]interface{})
+		if !ok {
+			t.Fatalf("%s properties = %#v, want map", name, params["properties"])
+		}
+		return props
+	}
+	t.Fatalf("tool schema %q not found", name)
+	return nil
+}
+
 // TestToolSchemaManualSync verifies that every built-in tool has a corresponding
 // manual in the embedded prompts/tools_manuals/ directory.
 // Tools listed in knownNoManual are exempt (simple tools that don't need guides).

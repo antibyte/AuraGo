@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"aurago/internal/config"
+	"aurago/internal/contacts"
 	"aurago/internal/security"
 	"aurago/internal/tools"
 
@@ -194,6 +195,91 @@ func TestDispatchCommCallWebhookUsesWebhookNameFromParams(t *testing.T) {
 	}
 	if !strings.Contains(out, "Webhook 'Deploy Hook' not found") {
 		t.Fatalf("expected fallback webhook name in error, got %s", out)
+	}
+}
+
+func TestAddressBookDispatchSupportsBirthdayReminderNotesAndClearing(t *testing.T) {
+	db, err := contacts.InitDB(filepath.Join(t.TempDir(), "contacts.db"))
+	if err != nil {
+		t.Fatalf("contacts.InitDB() error = %v", err)
+	}
+	defer db.Close()
+
+	cfg := &config.Config{}
+	cfg.Tools.Contacts.Enabled = true
+	dc := &DispatchContext{
+		Cfg:        cfg,
+		Logger:     slog.New(slog.NewTextHandler(io.Discard, nil)),
+		ContactsDB: db,
+	}
+
+	addResp, ok := dispatchComm(context.Background(), ToolCall{
+		Action: "address_book",
+		Params: map[string]interface{}{
+			"operation":    "add",
+			"name":         "Ada Lovelace",
+			"email":        "ada@example.com",
+			"phone":        "+49123",
+			"mobile":       "+49456",
+			"address":      "Main Street 1",
+			"relationship": "friend",
+			"notes":        "Met at meetup",
+			"birthday":     "1815-12-10",
+			"reminder":     "week",
+		},
+	}, dc)
+	if !ok {
+		t.Fatal("expected dispatchComm to handle address_book add")
+	}
+	addPayload := decodeToolOutput(t, addResp)
+	contactID, _ := addPayload["id"].(string)
+	if contactID == "" {
+		t.Fatalf("add contact response missing id: %#v", addPayload)
+	}
+
+	stored, err := contacts.GetByID(db, contactID)
+	if err != nil {
+		t.Fatalf("contacts.GetByID() after add error = %v", err)
+	}
+	if stored.Notes != "Met at meetup" || stored.Birthday != "1815-12-10" || stored.Reminder != "week" {
+		t.Fatalf("stored contact after add = %+v, want notes/birthday/reminder", stored)
+	}
+
+	updateResp, ok := dispatchComm(context.Background(), ToolCall{
+		Action: "address_book",
+		Params: map[string]interface{}{
+			"operation":    "update",
+			"id":           contactID,
+			"email":        "",
+			"phone":        "",
+			"mobile":       "",
+			"address":      "",
+			"relationship": "",
+			"notes":        "",
+			"birthday":     "",
+			"reminder":     "none",
+		},
+	}, dc)
+	if !ok {
+		t.Fatal("expected dispatchComm to handle address_book update")
+	}
+	updatePayload := decodeToolOutput(t, updateResp)
+	if status, _ := updatePayload["status"].(string); status != "success" {
+		t.Fatalf("update contact response = %#v, want success", updatePayload)
+	}
+
+	stored, err = contacts.GetByID(db, contactID)
+	if err != nil {
+		t.Fatalf("contacts.GetByID() after update error = %v", err)
+	}
+	if stored.Name != "Ada Lovelace" {
+		t.Fatalf("stored name = %q, want unchanged Ada Lovelace", stored.Name)
+	}
+	if stored.Email != "" || stored.Phone != "" || stored.Mobile != "" || stored.Address != "" || stored.Relationship != "" || stored.Notes != "" || stored.Birthday != "" {
+		t.Fatalf("stored contact optional fields were not cleared: %+v", stored)
+	}
+	if stored.Reminder != "none" {
+		t.Fatalf("stored reminder = %q, want none", stored.Reminder)
 	}
 }
 

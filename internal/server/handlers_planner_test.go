@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"aurago/internal/contacts"
 	"aurago/internal/planner"
 )
 
@@ -55,6 +56,100 @@ func TestRunPlannerKGSyncAsyncReturnsImmediately(t *testing.T) {
 	case <-done:
 	case <-time.After(time.Second):
 		t.Fatal("async sync did not complete")
+	}
+}
+
+func TestHandleAppointmentsPersistsAndEnrichesContactParticipants(t *testing.T) {
+	t.Parallel()
+
+	server, plannerDB := testPlannerServer(t)
+	defer plannerDB.Close()
+	contactsDB, err := contacts.InitDB(filepath.Join(t.TempDir(), "contacts.db"))
+	if err != nil {
+		t.Fatalf("contacts.InitDB() error = %v", err)
+	}
+	defer contactsDB.Close()
+	server.ContactsDB = contactsDB
+
+	adaID, err := contacts.Create(contactsDB, contacts.Contact{Name: "Ada Lovelace", Email: "ada@example.com"})
+	if err != nil {
+		t.Fatalf("contacts.Create(Ada) error = %v", err)
+	}
+	graceID, err := contacts.Create(contactsDB, contacts.Contact{Name: "Grace Hopper", Email: "grace@example.com"})
+	if err != nil {
+		t.Fatalf("contacts.Create(Grace) error = %v", err)
+	}
+
+	createBody, err := json.Marshal(planner.Appointment{
+		Title:      "Planning sync",
+		DateTime:   "2099-05-01T10:00:00Z",
+		ContactIDs: []string{adaID},
+	})
+	if err != nil {
+		t.Fatalf("json.Marshal(create appointment) error = %v", err)
+	}
+	createReq := httptest.NewRequest(http.MethodPost, "/api/appointments", strings.NewReader(string(createBody)))
+	createRec := httptest.NewRecorder()
+	handleAppointments(server).ServeHTTP(createRec, createReq)
+	if createRec.Code != http.StatusCreated {
+		t.Fatalf("create status = %d, want %d; body=%s", createRec.Code, http.StatusCreated, createRec.Body.String())
+	}
+
+	var created map[string]string
+	if err := json.Unmarshal(createRec.Body.Bytes(), &created); err != nil {
+		t.Fatalf("json.Unmarshal(create response) error = %v", err)
+	}
+	appointmentID := created["id"]
+	if appointmentID == "" {
+		t.Fatalf("create response missing id: %#v", created)
+	}
+
+	getReq := httptest.NewRequest(http.MethodGet, "/api/appointments/"+appointmentID, nil)
+	getRec := httptest.NewRecorder()
+	handleAppointmentByID(server).ServeHTTP(getRec, getReq)
+	if getRec.Code != http.StatusOK {
+		t.Fatalf("get status = %d, want %d; body=%s", getRec.Code, http.StatusOK, getRec.Body.String())
+	}
+	var appointment planner.Appointment
+	if err := json.Unmarshal(getRec.Body.Bytes(), &appointment); err != nil {
+		t.Fatalf("json.Unmarshal(get response) error = %v", err)
+	}
+	if len(appointment.ContactIDs) != 1 || appointment.ContactIDs[0] != adaID {
+		t.Fatalf("get contact_ids = %#v, want [%s]", appointment.ContactIDs, adaID)
+	}
+	if len(appointment.Participants) != 1 || appointment.Participants[0].Name != "Ada Lovelace" {
+		t.Fatalf("get participants = %#v, want Ada Lovelace", appointment.Participants)
+	}
+
+	updateBody, err := json.Marshal(map[string]interface{}{"contact_ids": []string{graceID}})
+	if err != nil {
+		t.Fatalf("json.Marshal(update appointment) error = %v", err)
+	}
+	updateReq := httptest.NewRequest(http.MethodPut, "/api/appointments/"+appointmentID, strings.NewReader(string(updateBody)))
+	updateRec := httptest.NewRecorder()
+	handleAppointmentByID(server).ServeHTTP(updateRec, updateReq)
+	if updateRec.Code != http.StatusOK {
+		t.Fatalf("update status = %d, want %d; body=%s", updateRec.Code, http.StatusOK, updateRec.Body.String())
+	}
+
+	listReq := httptest.NewRequest(http.MethodGet, "/api/appointments", nil)
+	listRec := httptest.NewRecorder()
+	handleAppointments(server).ServeHTTP(listRec, listReq)
+	if listRec.Code != http.StatusOK {
+		t.Fatalf("list status = %d, want %d; body=%s", listRec.Code, http.StatusOK, listRec.Body.String())
+	}
+	var appointments []planner.Appointment
+	if err := json.Unmarshal(listRec.Body.Bytes(), &appointments); err != nil {
+		t.Fatalf("json.Unmarshal(list response) error = %v", err)
+	}
+	if len(appointments) != 1 {
+		t.Fatalf("list appointments = %#v, want one", appointments)
+	}
+	if len(appointments[0].ContactIDs) != 1 || appointments[0].ContactIDs[0] != graceID {
+		t.Fatalf("list contact_ids = %#v, want [%s]", appointments[0].ContactIDs, graceID)
+	}
+	if len(appointments[0].Participants) != 1 || appointments[0].Participants[0].Name != "Grace Hopper" {
+		t.Fatalf("list participants = %#v, want Grace Hopper", appointments[0].Participants)
 	}
 }
 

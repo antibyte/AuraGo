@@ -18,14 +18,16 @@ Use appointments for structured calendar entries. For quick notes without a fixe
 | `notification_at` | string | no | ISO 8601 datetime for notification |
 | `wake_agent` | boolean | no | Wake agent at notification time (default: false) |
 | `agent_instruction` | string | no | Instruction for the agent when woken up |
+| `contact_ids` | string array | no | Contact IDs linked to the appointment. For `update`, an empty array clears participants. |
 | `query` | string | no | Search query for `list` operation |
-| `status` | string | no | Filter by status for `list`: `upcoming`, `completed`, `cancelled` |
+| `status` | string | no | Filter by status for `list`: `upcoming`, `overdue`, `completed`, `cancelled` |
 
 ### Status Values
 
 | Status | Description |
 |--------|-------------|
 | `upcoming` | Future appointment (default for new) |
+| `overdue` | Past appointment that has not been completed or cancelled |
 | `completed` | Marked as completed |
 | `cancelled` | Cancelled appointment |
 
@@ -34,7 +36,7 @@ Use appointments for structured calendar entries. For quick notes without a fixe
 #### Create an appointment with agent wake-up
 
 ```json
-{"action": "manage_appointments", "operation": "add", "title": "Team Meeting", "description": "Weekly sync", "date_time": "2025-03-20T10:00:00Z", "notification_at": "2025-03-20T09:45:00Z", "wake_agent": true, "agent_instruction": "Send a reminder via Telegram"}
+{"action": "manage_appointments", "operation": "add", "title": "Team Meeting", "description": "Weekly sync", "date_time": "2025-03-20T10:00:00Z", "notification_at": "2025-03-20T09:45:00Z", "wake_agent": true, "agent_instruction": "Send a reminder via Telegram", "contact_ids": ["contact-uuid"]}
 ```
 
 #### List upcoming appointments
@@ -72,3 +74,4 @@ Use appointments for structured calendar entries. For quick notes without a fixe
 - For questions like "what is on today?" or "what is next?", inspect planner appointments before answering from memory.
 - Before scheduling something new, check whether a related appointment already exists to avoid duplicates.
 - If the user mentions a concrete time or date, prefer `manage_appointments` over a free-form note.
+- `list` and `get` include `contact_ids` and enriched `participants` when the contacts database is available.
