@@ -7942,13 +7942,14 @@ function handleSSEMessage(e) {
                 if (audioData && audioData.path && !seenSSEAudios.has(audioData.path)) {
                     seenSSEAudios.add(audioData.path);
                     const shouldAutoPlay = speakerMode || audioData.autoplay === true;
-                    const shouldShowPlayer = !speakerMode || audioData.show_player === true;
                     if (shouldAutoPlay) {
                         pendingAutoplayAudios.set(audioData.path, audioData);
                         window.setTimeout(() => pendingAutoplayAudios.delete(audioData.path), 300000);
                         enqueueAutoPlay(audioData.path);
                     }
-                    if (shouldShowPlayer) {
+                    if (!speakerMode) {
+                        appendChatAudioPlayer(audioData);
+                    } else if (audioData.show_player === true) {
                         appendChatAudioPlayer(audioData);
                     }
                 }
