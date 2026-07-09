@@ -103,9 +103,9 @@ llm_guardian:
   provider: ""                       # Provider-ID (Referenz auf providers-Eintrag)
   model: ""                          # Modell-Override (leer = Provider-Default)
   default_level: "medium"            # Standard-Prüfstufe
-  fail_safe: "quarantine"            # Verhalten bei Guardian-Fehler: "quarantine" | "allow"
+  fail_safe: "block"                 # Verhalten bei Guardian-Fehler: "block" | "quarantine" | "allow"
   cache_ttl: 300                     # Cache-Gültigkeit in Sekunden
-  max_checks_per_min: 60             # Max Prüfungen pro Minute
+  max_checks_per_minute: 60          # Max Prüfungen pro Minute
   tool_overrides: {}                 # Tool-spezifische Level-Overrides
   allow_clarification: false         # Rückfragen beim User erlauben
   scan_documents: false              # Hochgeladene Dokumente scannen
@@ -127,7 +127,8 @@ llm_guardian:
 
 | Wert | Beschreibung |
 |------|-------------|
-| `quarantine` | Bei Guardian-Fehler wird der Tool-Call blockiert (Default) |
+| `block` | Bei Guardian-Fehler wird der Tool-Call blockiert (Default) |
+| `quarantine` | Bei Guardian-Fehler wird der Tool-Call erlaubt, aber geloggt und gewarnt |
 | `allow` | Bei Guardian-Fehler wird der Tool-Call erlaubt |
 
 ### Best Practices

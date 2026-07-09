@@ -504,6 +504,17 @@ func CheckSecurity(cfg *config.Config) []SecurityHint {
 		})
 	}
 
+	if cfg.LLMGuardian.Enabled && strings.TrimSpace(cfg.LLMGuardian.Provider) != "" && cfg.FindProvider(strings.TrimSpace(cfg.LLMGuardian.Provider)) == nil {
+		hints = append(hints, SecurityHint{
+			ID:       "llm_guardian_provider_missing",
+			Severity: SevWarning,
+			Title:    "LLM Guardian provider not found",
+			Description: "llm_guardian.provider references a provider entry that does not exist. " +
+				"AuraGo will fallback to the main LLM for Guardian checks; fix the provider ID or clear the field intentionally.",
+			AutoFixable: false,
+		})
+	}
+
 	// 23. webhooks_no_rate_limit — public webhook endpoints without rate limiting
 	if cfg.Webhooks.Enabled && cfg.Webhooks.RateLimit == 0 && facing {
 		hints = append(hints, SecurityHint{

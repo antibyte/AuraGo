@@ -5,9 +5,12 @@ import (
 	"fmt"
 	"log/slog"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/danielthedm/promptsec"
 	openai "github.com/sashabaranov/go-openai"
@@ -80,7 +83,48 @@ type LLMGuardian struct {
 	model   string
 	cache   *GuardianCache
 	Metrics *GuardianMetrics
-	sem     chan struct{} // rate-limiting semaphore
+	limiter *guardianRateLimiter
+	sem     chan struct{} // in-flight limiter
+}
+
+type guardianRateLimiter struct {
+	mu     sync.Mutex
+	max    int
+	window time.Duration
+	events []time.Time
+}
+
+func newGuardianRateLimiter(max int, window time.Duration) *guardianRateLimiter {
+	if max <= 0 {
+		return nil
+	}
+	if window <= 0 {
+		window = time.Minute
+	}
+	return &guardianRateLimiter{max: max, window: window}
+}
+
+func (r *guardianRateLimiter) Allow(now time.Time) bool {
+	if r == nil || r.max <= 0 {
+		return true
+	}
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	cutoff := now.Add(-r.window)
+	kept := r.events[:0]
+	for _, event := range r.events {
+		if event.After(cutoff) {
+			kept = append(kept, event)
+		}
+	}
+	r.events = kept
+	if len(r.events) >= r.max {
+		return false
+	}
+	r.events = append(r.events, now)
+	return true
 }
 
 // NewLLMGuardian creates a new LLM Guardian from config.
@@ -90,9 +134,20 @@ func NewLLMGuardian(cfg *config.Config, logger *slog.Logger) *LLMGuardian {
 		return nil
 	}
 
-	if cfg.LLMGuardian.FailSafe == "allow" {
-		logger.Warn("[Guardian] fail_safe is set to 'allow': guardian errors will silently pass requests through. " +
-			"Consider setting fail_safe to 'quarantine' or 'block' for stronger security.")
+	failSafe := strings.ToLower(strings.TrimSpace(cfg.LLMGuardian.FailSafe))
+	if logger != nil {
+		switch failSafe {
+		case "allow":
+			logger.Warn("[Guardian] fail_safe is set to 'allow': guardian errors will silently pass requests through. " +
+				"Consider setting fail_safe to 'block' for stronger security.")
+		case "quarantine":
+			logger.Warn("[Guardian] fail_safe is set to 'quarantine': guardian errors will warn/log but still permit tool execution. " +
+				"Consider setting fail_safe to 'block' for stronger security.")
+		}
+		if provider := strings.TrimSpace(cfg.LLMGuardian.Provider); provider != "" && cfg.FindProvider(provider) == nil {
+			logger.Warn("[Guardian] llm_guardian.provider was not found; falling back to the main LLM for security checks",
+				"provider", provider)
+		}
 	}
 
 	client := llm.NewClientFromProviderWithConfig(
@@ -103,7 +158,6 @@ func NewLLMGuardian(cfg *config.Config, logger *slog.Logger) *LLMGuardian {
 		"",
 	)
 
-	// Rate limiter: buffer = max checks per minute
 	maxChecks := cfg.LLMGuardian.MaxChecksPerMin
 	if maxChecks <= 0 {
 		maxChecks = 60
@@ -116,6 +170,7 @@ func NewLLMGuardian(cfg *config.Config, logger *slog.Logger) *LLMGuardian {
 		model:   cfg.LLMGuardian.ResolvedModel,
 		cache:   NewGuardianCache(cfg.LLMGuardian.CacheTTL, 1000),
 		Metrics: &GuardianMetrics{},
+		limiter: newGuardianRateLimiter(maxChecks, time.Minute),
 		sem:     make(chan struct{}, maxChecks),
 	}
 }
@@ -149,7 +204,7 @@ func (g *LLMGuardian) ShouldCheck(check GuardianCheck) bool {
 	case GuardianHigh:
 		return true // check everything
 	case GuardianMedium:
-		return isRiskyTool(check.Operation)
+		return true // check every non-routine operation
 	case GuardianLow:
 		return isHighRiskTool(check.Operation)
 	default:
@@ -174,21 +229,46 @@ func (g *LLMGuardian) Evaluate(ctx context.Context, check GuardianCheck) Guardia
 		return result
 	}
 
-	// Rate limiting: try to acquire semaphore
-	select {
-	case g.sem <- struct{}{}:
-		defer func() { <-g.sem }()
-	default:
-		g.logger.Warn("[Guardian] Rate limit exceeded, applying fail-safe")
-		g.Metrics.RecordError()
-		return g.failSafeResult(start, "rate limit exceeded")
+	release, failSafe, ok := g.acquireCheckSlot(start, "evaluation")
+	if !ok {
+		return failSafe
 	}
+	defer release()
 
 	// Build prompt & call LLM
 	result := g.callLLM(ctx, check, start)
 	g.cache.Set(cacheKey, result)
 	g.Metrics.Record(result)
 	return result
+}
+
+func (g *LLMGuardian) acquireCheckSlot(start time.Time, phase string) (func(), GuardianResult, bool) {
+	if g.limiter != nil && !g.limiter.Allow(time.Now()) {
+		if g.logger != nil {
+			g.logger.Warn("[Guardian] Rolling-window rate limit exceeded, applying fail-safe", "phase", phase)
+		}
+		if g.Metrics != nil {
+			g.Metrics.RecordError()
+		}
+		return nil, g.failSafeResult(start, "rate limit exceeded"), false
+	}
+
+	if g.sem == nil {
+		return func() {}, GuardianResult{}, true
+	}
+
+	select {
+	case g.sem <- struct{}{}:
+		return func() { <-g.sem }, GuardianResult{}, true
+	default:
+		if g.logger != nil {
+			g.logger.Warn("[Guardian] In-flight limit exceeded, applying fail-safe", "phase", phase)
+		}
+		if g.Metrics != nil {
+			g.Metrics.RecordError()
+		}
+		return nil, g.failSafeResult(start, "rate limit exceeded"), false
+	}
 }
 
 // EvaluateWithFailSafe wraps Evaluate with timeout and error recovery.
@@ -289,7 +369,7 @@ func (g *LLMGuardian) callLLM(ctx context.Context, check GuardianCheck, start ti
 }
 
 func (g *LLMGuardian) failSafeResult(start time.Time, reason string) GuardianResult {
-	fs := g.cfg.LLMGuardian.FailSafe
+	fs := strings.ToLower(strings.TrimSpace(g.cfg.LLMGuardian.FailSafe))
 	var decision Decision
 	var risk float64
 	switch fs {
@@ -497,10 +577,11 @@ func buildGuardianPrompt(check GuardianCheck) string {
 
 	if len(check.Parameters) > 0 {
 		sb.WriteString("PARAMS: ")
-		for k, v := range check.Parameters {
+		for _, k := range sortedGuardianParamKeys(check.Parameters) {
+			v := check.Parameters[k]
 			sb.WriteString(k)
 			sb.WriteString("=")
-			sb.WriteString(sanitizeGuardianPromptValue(v, 200))
+			sb.WriteString(sanitizeGuardianPromptValue(v, guardianPromptParamLimit(k)))
 			sb.WriteString(" ")
 		}
 		sb.WriteString("\n")
@@ -642,7 +723,7 @@ func truncate(s string, maxLen int) string {
 
 func sanitizeGuardianPromptValue(value string, maxLen int) string {
 	if maxLen > 0 {
-		value = truncate(value, maxLen)
+		value = truncateHeadTail(value, maxLen)
 	}
 	value = strings.ReplaceAll(value, "\r", " ")
 	value = strings.ReplaceAll(value, "\n", " ")
@@ -650,6 +731,75 @@ func sanitizeGuardianPromptValue(value string, maxLen int) string {
 	value = decisionPattern.ReplaceAllString(value, "DECISION_")
 	value = classifyPattern.ReplaceAllString(value, "CLASSIFY_")
 	return value
+}
+
+func truncateHeadTail(s string, maxLen int) string {
+	if maxLen <= 0 || len(s) <= maxLen {
+		return s
+	}
+
+	marker := "\n[... omitted ...]\n"
+	if len(marker)+2 >= maxLen {
+		return truncate(s, maxLen)
+	}
+	remaining := maxLen - len(marker)
+	headLen := remaining / 2
+	tailLen := remaining - headLen
+	head := truncateUTF8Prefix(s, headLen)
+	tailStart := len(s) - tailLen
+	for tailStart > 0 && tailStart < len(s) && !utf8.RuneStart(s[tailStart]) {
+		tailStart++
+	}
+	if tailStart >= len(s) {
+		return head + marker
+	}
+	tail := s[tailStart:]
+	for !utf8.ValidString(tail) && tailStart < len(s) {
+		tailStart++
+		tail = s[tailStart:]
+	}
+	return head + marker + tail
+}
+
+func truncateUTF8Prefix(s string, maxLen int) string {
+	if maxLen <= 0 || s == "" {
+		return ""
+	}
+	if len(s) <= maxLen {
+		return s
+	}
+
+	cut := maxLen
+	for cut > 0 && cut < len(s) && !utf8.RuneStart(s[cut]) {
+		cut--
+	}
+	for cut > 0 && !utf8.ValidString(s[:cut]) {
+		cut--
+		for cut > 0 && cut < len(s) && !utf8.RuneStart(s[cut]) {
+			cut--
+		}
+	}
+	return s[:cut]
+}
+
+func sortedGuardianParamKeys(params map[string]string) []string {
+	keys := make([]string, 0, len(params))
+	for key := range params {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+func guardianPromptParamLimit(key string) int {
+	switch strings.ToLower(strings.TrimSpace(key)) {
+	case "command":
+		return 300
+	case "body", "code", "content", "items_summary", "payload":
+		return 1200
+	default:
+		return 200
+	}
 }
 
 // ── Clarification System ────────────────────────────────────────────────────
@@ -665,15 +815,11 @@ Example: safe 25 user explicitly requested file cleanup`
 func (g *LLMGuardian) EvaluateClarification(ctx context.Context, check GuardianCheck) GuardianResult {
 	start := time.Now()
 
-	// Rate limiting
-	select {
-	case g.sem <- struct{}{}:
-		defer func() { <-g.sem }()
-	default:
-		g.logger.Warn("[Guardian] Rate limit exceeded during clarification")
-		g.Metrics.RecordError()
-		return g.failSafeResult(start, "rate limit exceeded")
+	release, failSafe, ok := g.acquireCheckSlot(start, "clarification")
+	if !ok {
+		return failSafe
 	}
+	defer release()
 
 	prompt := buildClarificationPrompt(check)
 
@@ -720,10 +866,11 @@ func buildClarificationPrompt(check GuardianCheck) string {
 
 	if len(check.Parameters) > 0 {
 		sb.WriteString("PARAMS: ")
-		for k, v := range check.Parameters {
+		for _, k := range sortedGuardianParamKeys(check.Parameters) {
+			v := check.Parameters[k]
 			sb.WriteString(k)
 			sb.WriteString("=")
-			sb.WriteString(sanitizeGuardianPromptValue(v, 200))
+			sb.WriteString(sanitizeGuardianPromptValue(v, guardianPromptParamLimit(k)))
 			sb.WriteString(" ")
 		}
 		sb.WriteString("\n")
@@ -763,15 +910,11 @@ func (g *LLMGuardian) EvaluateContent(ctx context.Context, contentType string, c
 		return result
 	}
 
-	// Rate limiting
-	select {
-	case g.sem <- struct{}{}:
-		defer func() { <-g.sem }()
-	default:
-		g.logger.Warn("[Guardian] Rate limit exceeded during content scan")
-		g.Metrics.RecordError()
-		return g.failSafeResult(start, "rate limit exceeded")
+	release, failSafe, ok := g.acquireCheckSlot(start, "content_scan")
+	if !ok {
+		return failSafe
 	}
+	defer release()
 
 	chunks := selectContentScanChunks(
 		prepareContentScanChunks(content, contentScanChunkBytes, contentScanChunkOverlapBytes),

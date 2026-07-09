@@ -177,6 +177,36 @@ llm:
 	}
 }
 
+func TestLLMGuardianDefaultsFailSafeToBlock(t *testing.T) {
+	cfg := loadConfigFromTestYAML(t, `{}`)
+
+	if cfg.LLMGuardian.FailSafe != "block" {
+		t.Fatalf("llm_guardian.fail_safe default = %q, want block", cfg.LLMGuardian.FailSafe)
+	}
+}
+
+func TestLLMGuardianLoadsCanonicalMaxChecksPerMinute(t *testing.T) {
+	cfg := loadConfigFromTestYAML(t, `
+llm_guardian:
+  max_checks_per_minute: 9
+`)
+
+	if cfg.LLMGuardian.MaxChecksPerMin != 9 {
+		t.Fatalf("max_checks_per_minute = %d, want 9", cfg.LLMGuardian.MaxChecksPerMin)
+	}
+}
+
+func TestLLMGuardianLoadsLegacyMaxChecksPerMinAlias(t *testing.T) {
+	cfg := loadConfigFromTestYAML(t, `
+llm_guardian:
+  max_checks_per_min: 7
+`)
+
+	if cfg.LLMGuardian.MaxChecksPerMin != 7 {
+		t.Fatalf("legacy max_checks_per_min = %d, want 7", cfg.LLMGuardian.MaxChecksPerMin)
+	}
+}
+
 func TestAdaptiveToolsDefaultsAggressiveWhenOmitted(t *testing.T) {
 	cfg := loadConfigFromTestYAML(t, `{}`)
 

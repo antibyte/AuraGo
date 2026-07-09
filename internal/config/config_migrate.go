@@ -540,8 +540,8 @@ func (c *Config) ResolveProviders() {
 	}
 
 	// ── LLM Guardian ── (falls back to main LLM if provider empty)
-	if c.LLMGuardian.Provider != "" {
-		if p := c.FindProvider(c.LLMGuardian.Provider); p != nil {
+	if guardianProvider := strings.TrimSpace(c.LLMGuardian.Provider); guardianProvider != "" {
+		if p := c.FindProvider(guardianProvider); p != nil {
 			c.LLMGuardian.ProviderType = p.Type
 			c.LLMGuardian.BaseURL = p.BaseURL
 			c.LLMGuardian.APIKey = p.APIKey
@@ -550,6 +550,8 @@ func (c *Config) ResolveProviders() {
 			} else {
 				c.LLMGuardian.ResolvedModel = c.LLMGuardian.Model
 			}
+		} else {
+			slog.Warn("[Config] llm_guardian.provider not found; falling back to main LLM", "provider", guardianProvider)
 		}
 	}
 	if c.LLMGuardian.APIKey == "" {

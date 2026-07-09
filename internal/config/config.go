@@ -560,7 +560,7 @@ func Load(path string) (*Config, error) {
 
 	// LLM Guardian defaults: disabled by default, medium protection when enabled.
 	cfg.LLMGuardian.DefaultLevel = "medium"
-	cfg.LLMGuardian.FailSafe = "quarantine"
+	cfg.LLMGuardian.FailSafe = "block"
 	cfg.LLMGuardian.CacheTTL = 300
 	cfg.LLMGuardian.MaxChecksPerMin = 60
 	cfg.LLMGuardian.AllowClarification = false
@@ -790,6 +790,9 @@ func Load(path string) (*Config, error) {
 	}
 	if cfg.Evomap.MaxResultBytes <= 0 {
 		cfg.Evomap.MaxResultBytes = 262144
+	}
+	if !yamlHasPath(data, "llm_guardian", "max_checks_per_minute") && cfg.LLMGuardian.MaxChecksPerMinOld > 0 {
+		cfg.LLMGuardian.MaxChecksPerMin = cfg.LLMGuardian.MaxChecksPerMinOld
 	}
 
 	cfg.BrowserAutomation.URL = NormalizeLegacySidecarURL(cfg.BrowserAutomation.URL, runningInDocker, "browser-automation", 7331)

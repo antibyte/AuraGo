@@ -197,6 +197,41 @@ func TestBuildGuardianPromptSanitizesContextDelimiters(t *testing.T) {
 	}
 }
 
+func TestBuildGuardianPromptKeepsLongParameterTail(t *testing.T) {
+	check := GuardianCheck{
+		Operation: "execute_shell",
+		Parameters: map[string]string{
+			"command": strings.Repeat("A", 360) + " rm -rf /",
+		},
+	}
+
+	prompt := buildGuardianPrompt(check)
+	if !strings.Contains(prompt, "rm -rf /") {
+		t.Fatalf("guardian prompt should preserve suspicious tail content:\n%s", prompt)
+	}
+	if !strings.Contains(prompt, "[...") {
+		t.Fatalf("guardian prompt should mark omitted middle content:\n%s", prompt)
+	}
+}
+
+func TestBuildGuardianPromptSortsParameters(t *testing.T) {
+	check := GuardianCheck{
+		Operation:  "api_request",
+		Parameters: map[string]string{"url": "https://example.com", "method": "GET", "body": "{}"},
+	}
+
+	prompt := buildGuardianPrompt(check)
+	bodyIdx := strings.Index(prompt, "body=")
+	methodIdx := strings.Index(prompt, "method=")
+	urlIdx := strings.Index(prompt, "url=")
+	if bodyIdx < 0 || methodIdx < 0 || urlIdx < 0 {
+		t.Fatalf("guardian prompt missing params:\n%s", prompt)
+	}
+	if !(bodyIdx < methodIdx && methodIdx < urlIdx) {
+		t.Fatalf("guardian prompt parameters should be sorted:\n%s", prompt)
+	}
+}
+
 func TestBuildGuardianPromptTruncation(t *testing.T) {
 	longParam := make([]byte, 500)
 	for i := range longParam {
@@ -383,6 +418,34 @@ func TestShouldCheckSkipsLowRiskShellRoutineAtMedium(t *testing.T) {
 	}
 }
 
+func TestShouldCheckMediumChecksNonRoutineTools(t *testing.T) {
+	g := &LLMGuardian{cfg: &config.Config{}}
+	g.cfg.LLMGuardian.DefaultLevel = "medium"
+
+	for _, tc := range []GuardianCheck{
+		{Operation: "file_editor", Parameters: map[string]string{"operation": "apply_patch"}},
+		{Operation: "unknown_tool", Parameters: map[string]string{"operation": "mutate"}},
+	} {
+		if !g.ShouldCheck(tc) {
+			t.Fatalf("expected medium guardian level to check %s", tc.Operation)
+		}
+	}
+}
+
+func TestShouldCheckMediumSkipsRoutineFilesystemRead(t *testing.T) {
+	g := &LLMGuardian{cfg: &config.Config{}}
+	g.cfg.LLMGuardian.DefaultLevel = "medium"
+
+	check := GuardianCheck{
+		Operation:  "filesystem",
+		Parameters: map[string]string{"operation": "read_file", "file_path": "notes.txt"},
+		RegexLevel: ThreatNone,
+	}
+	if g.ShouldCheck(check) {
+		t.Fatal("expected routine filesystem read to bypass guardian at medium level")
+	}
+}
+
 func TestShouldCheckStillChecksLowRiskShellRoutineAtHigh(t *testing.T) {
 	g := &LLMGuardian{cfg: &config.Config{}}
 	g.cfg.LLMGuardian.DefaultLevel = "high"
@@ -394,6 +457,24 @@ func TestShouldCheckStillChecksLowRiskShellRoutineAtHigh(t *testing.T) {
 	}
 	if !g.ShouldCheck(check) {
 		t.Fatal("expected guardian high level to still check the tool call")
+	}
+}
+
+func TestGuardianRateLimiterEnforcesRollingWindow(t *testing.T) {
+	limiter := newGuardianRateLimiter(2, time.Minute)
+	now := time.Unix(100, 0)
+
+	if !limiter.Allow(now) {
+		t.Fatal("first check should be allowed")
+	}
+	if !limiter.Allow(now.Add(10 * time.Second)) {
+		t.Fatal("second check should be allowed")
+	}
+	if limiter.Allow(now.Add(20 * time.Second)) {
+		t.Fatal("third check inside the same rolling window should be rejected")
+	}
+	if !limiter.Allow(now.Add(time.Minute + time.Nanosecond)) {
+		t.Fatal("check after the rolling window should be allowed")
 	}
 }
 

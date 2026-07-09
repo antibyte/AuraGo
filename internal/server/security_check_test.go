@@ -65,6 +65,27 @@ func TestCheckSecurityNoPasswordTextSaysLocked(t *testing.T) {
 	}
 }
 
+func TestCheckSecurityWarnsWhenLLMGuardianProviderMissing(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{}
+	cfg.LLMGuardian.Enabled = true
+	cfg.LLMGuardian.Provider = "missing-guardian"
+	cfg.Providers = []config.ProviderEntry{{ID: "main", Type: "openai"}}
+
+	hints := CheckSecurity(cfg)
+	hint := findSecurityHint(hints, "llm_guardian_provider_missing")
+	if hint == nil {
+		t.Fatalf("expected llm_guardian_provider_missing hint, got %#v", hints)
+	}
+	if hint.Severity != SevWarning {
+		t.Fatalf("severity = %q, want %q", hint.Severity, SevWarning)
+	}
+	if !strings.Contains(strings.ToLower(hint.Description), "fallback") {
+		t.Fatalf("description should mention fallback behavior: %q", hint.Description)
+	}
+}
+
 func TestCheckSecurityDoesNotTreatLANHTTPSTailnetAsInternetFacing(t *testing.T) {
 	t.Parallel()
 

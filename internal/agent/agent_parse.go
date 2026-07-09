@@ -1563,6 +1563,37 @@ func truncateUTF8Prefix(s string, maxBytes int) string {
 	return s[:cut]
 }
 
+func truncateUTF8HeadTail(s string, maxBytes int) string {
+	if maxBytes <= 0 || s == "" {
+		return ""
+	}
+	if len(s) <= maxBytes {
+		return s
+	}
+
+	marker := "\n[... omitted ...]\n"
+	if len(marker)+2 >= maxBytes {
+		return truncateUTF8Prefix(s, maxBytes)
+	}
+	remaining := maxBytes - len(marker)
+	headBytes := remaining / 2
+	tailBytes := remaining - headBytes
+	head := truncateUTF8Prefix(s, headBytes)
+	tailStart := len(s) - tailBytes
+	for tailStart > 0 && tailStart < len(s) && !utf8.RuneStart(s[tailStart]) {
+		tailStart++
+	}
+	if tailStart >= len(s) {
+		return head + marker
+	}
+	tail := s[tailStart:]
+	for !utf8.ValidString(tail) && tailStart < len(s) {
+		tailStart++
+		tail = s[tailStart:]
+	}
+	return head + marker + tail
+}
+
 func truncateUTF8ToLimit(s string, limit int, suffix string) string {
 	if limit <= 0 {
 		return ""
@@ -1916,14 +1947,10 @@ func toolCallParams(tc ToolCall) map[string]string {
 		m["operation"] = tc.Operation
 	}
 	if tc.Command != "" {
-		m["command"] = tc.Command
+		m["command"] = truncateUTF8HeadTail(tc.Command, 600)
 	}
 	if tc.Code != "" {
-		if len(tc.Code) > 300 {
-			m["code"] = truncateUTF8Prefix(tc.Code, 300)
-		} else {
-			m["code"] = tc.Code
-		}
+		m["code"] = truncateUTF8HeadTail(tc.Code, 300)
 	}
 	if path := firstNonEmpty(tc.FilePath, tc.Path); path != "" {
 		m["file_path"] = guardianDisplayPath(tc, path)
@@ -1936,6 +1963,7 @@ func toolCallParams(tc ToolCall) map[string]string {
 	}
 	if len(tc.Items) > 0 {
 		m["item_count"] = strconv.Itoa(len(tc.Items))
+		m["items_summary"] = guardianItemsSummary(tc)
 		if path := firstNonEmpty(batchItemValue(tc.Items[0], "file_path", "path")); path != "" {
 			m["first_item_path"] = guardianDisplayPath(tc, path)
 		}
@@ -1953,6 +1981,61 @@ func toolCallParams(tc ToolCall) map[string]string {
 		m["name"] = tc.Name
 	}
 	return m
+}
+
+func guardianItemsSummary(tc ToolCall) string {
+	if len(tc.Items) == 0 {
+		return ""
+	}
+
+	indexes := guardianBatchSummaryIndexes(len(tc.Items))
+	parts := make([]string, 0, len(indexes)+1)
+	for _, index := range indexes {
+		item := tc.Items[index]
+		fields := []string{fmt.Sprintf("index=%d", index)}
+		if path := firstNonEmpty(batchItemValue(item, "file_path", "path")); path != "" {
+			fields = append(fields, "file_path="+guardianDisplayPath(tc, path))
+			if scope := guardianPathScope(tc, path); scope != "" {
+				fields = append(fields, "path_scope="+scope)
+			}
+		}
+		if dest := firstNonEmpty(batchItemValue(item, "destination", "dest")); dest != "" {
+			fields = append(fields, "destination="+guardianDisplayPath(tc, dest))
+			if scope := guardianPathScope(tc, dest); scope != "" {
+				fields = append(fields, "destination_scope="+scope)
+			}
+		}
+		parts = append(parts, strings.Join(fields, " "))
+	}
+	if omitted := len(tc.Items) - len(indexes); omitted > 0 {
+		parts = append(parts, fmt.Sprintf("omitted_items=%d", omitted))
+	}
+	return truncateUTF8HeadTail(strings.Join(parts, "; "), 1200)
+}
+
+func guardianBatchSummaryIndexes(count int) []int {
+	if count <= 0 {
+		return nil
+	}
+	const maxSummaryItems = 6
+	if count <= maxSummaryItems {
+		indexes := make([]int, count)
+		for i := range indexes {
+			indexes[i] = i
+		}
+		return indexes
+	}
+
+	headCount := maxSummaryItems / 2
+	tailCount := maxSummaryItems - headCount
+	indexes := make([]int, 0, maxSummaryItems)
+	for i := 0; i < headCount; i++ {
+		indexes = append(indexes, i)
+	}
+	for i := count - tailCount; i < count; i++ {
+		indexes = append(indexes, i)
+	}
+	return indexes
 }
 
 func firstNonEmpty(values ...string) string {

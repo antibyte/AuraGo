@@ -999,9 +999,10 @@ type Config struct {
 		Provider           string            `yaml:"provider"`              // provider entry ID (falls back to main LLM)
 		Model              string            `yaml:"model"`                 // model override (optional)
 		DefaultLevel       string            `yaml:"default_level"`         // off, low, medium, high (default "medium")
-		FailSafe           string            `yaml:"fail_safe"`             // block, allow, quarantine on guardian error (default "quarantine")
+		FailSafe           string            `yaml:"fail_safe"`             // block, allow, quarantine on guardian error (default "block")
 		CacheTTL           int               `yaml:"cache_ttl"`             // cache TTL in seconds (default 300)
 		MaxChecksPerMin    int               `yaml:"max_checks_per_minute"` // rate limit (default 60)
+		MaxChecksPerMinOld int               `yaml:"max_checks_per_min"`    // deprecated compatibility alias
 		ToolOverrides      map[string]string `yaml:"tool_overrides"`        // per-tool level overrides (e.g. execute_shell: high)
 		AllowClarification bool              `yaml:"allow_clarification"`   // agent can justify blocked actions (1 retry)
 		TimeoutSecs        int               `yaml:"timeout_secs"`          // timeout per guardian check in seconds (default 30)

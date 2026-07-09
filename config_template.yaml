@@ -1311,9 +1311,9 @@ llm_guardian:
     provider: ""
     model: ""
     default_level: "medium"
-    fail_safe: "quarantine"
+    fail_safe: "block"
     cache_ttl: 300
-    max_checks_per_min: 60
+    max_checks_per_minute: 60
     tool_overrides: {}
     allow_clarification: false
     scan_documents: false

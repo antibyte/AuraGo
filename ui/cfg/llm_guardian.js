@@ -70,7 +70,7 @@ async function renderLLMGuardianSection(section) {
     });
     html += `</select></div></div>`;
 
-    const curFailSafe = cfg.fail_safe || 'quarantine';
+    const curFailSafe = cfg.fail_safe || 'block';
     const failSafes = ['block', 'quarantine', 'allow'];
     html += `<div class="field-group">
         <div class="field-group-title">${t('config.llm_guardian.failsafe_title')}</div>

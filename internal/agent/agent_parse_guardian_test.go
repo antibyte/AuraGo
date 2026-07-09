@@ -55,6 +55,51 @@ func TestToolCallParamsLeavesWorkdirPathsUntouched(t *testing.T) {
 	}
 }
 
+func TestToolCallParamsSummarizesBatchItems(t *testing.T) {
+	params := toolCallParams(ToolCall{
+		Action:    "filesystem",
+		Operation: "delete_batch",
+		Items: []map[string]interface{}{
+			{"file_path": "tmp/one.log"},
+			{"file_path": "../../data/vault.bin"},
+			{"file_path": "tmp/three.log"},
+			{"file_path": "tmp/four.log"},
+		},
+	})
+
+	summary := params["items_summary"]
+	for _, want := range []string{
+		"index=0",
+		"tmp/one.log",
+		"index=1",
+		"project_root/data/vault.bin",
+		"index=3",
+		"tmp/four.log",
+	} {
+		if !strings.Contains(summary, want) {
+			t.Fatalf("items_summary missing %q: %q", want, summary)
+		}
+	}
+}
+
+func TestToolCallParamsKeepsLongCodeTail(t *testing.T) {
+	params := toolCallParams(ToolCall{
+		Action: "execute_python",
+		Code:   strings.Repeat("print('safe')\n", 80) + "open('/etc/shadow').read()",
+	})
+
+	code := params["code"]
+	if !strings.Contains(code, "print('safe')") {
+		t.Fatalf("code summary should keep the head: %q", code)
+	}
+	if !strings.Contains(code, "/etc/shadow") {
+		t.Fatalf("code summary should keep the tail: %q", code)
+	}
+	if !strings.Contains(code, "[...") {
+		t.Fatalf("code summary should mark omitted middle content: %q", code)
+	}
+}
+
 func TestParseToolCallCoercesNumericStringFields(t *testing.T) {
 	tc := ParseToolCall(`{"action":"fritzbox_network","operation":"get_wlan","wlan_index":"2"}`)
 	if !tc.IsTool {
