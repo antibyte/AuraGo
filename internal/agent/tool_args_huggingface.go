@@ -21,11 +21,13 @@ func decodeHuggingFaceArgs(tc ToolCall) tools.HuggingFaceRequest {
 		Where:          toolArgString(tc.Params, "where", "filter"),
 		PaperID:        firstNonEmptyToolString(tc.ID, toolArgString(tc.Params, "paper_id")),
 		JobID:          firstNonEmptyToolString(tc.ID, toolArgString(tc.Params, "job_id")),
+		Tail:           toolArgInt(tc.Params, 0, "tail"),
 		Hardware:       toolArgString(tc.Params, "hardware"),
 		TimeoutMinutes: toolArgInt(tc.Params, 0, "timeout_minutes", "timeout"),
 		Script:         toolArgString(tc.Params, "script"),
 		Image:          toolArgString(tc.Params, "image"),
-		Command:        toolArgString(tc.Params, "command"),
+		Command:        huggingFaceToolArgStringSlice(tc.Params, "command"),
+		Arguments:      huggingFaceToolArgStringSlice(tc.Params, "arguments"),
 		Title:          firstNonEmptyToolString(tc.Description, toolArgString(tc.Params, "title")),
 		Body:           firstNonEmptyToolString(tc.Content, toolArgString(tc.Params, "body")),
 		Number:         toolArgInt(tc.Params, 0, "number", "discussion_number"),
@@ -47,6 +49,26 @@ func decodeHuggingFaceArgs(tc ToolCall) tools.HuggingFaceRequest {
 			}
 		}
 	}
-	rows.Args = toolArgJSONInterfaceMap(tc.Params, "args")
 	return rows
+}
+
+func huggingFaceToolArgStringSlice(args map[string]interface{}, key string) []string {
+	raw, ok := args[key]
+	if !ok {
+		return nil
+	}
+	switch values := raw.(type) {
+	case []string:
+		return append([]string(nil), values...)
+	case []interface{}:
+		result := make([]string, 0, len(values))
+		for _, value := range values {
+			if text, ok := value.(string); ok {
+				result = append(result, text)
+			}
+		}
+		return result
+	default:
+		return nil
+	}
 }

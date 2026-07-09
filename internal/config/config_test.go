@@ -2556,6 +2556,9 @@ func TestLoadAppliesHuggingFaceDefaults(t *testing.T) {
 	if cfg.HuggingFace.MaxDownloadMB <= 0 || cfg.HuggingFace.MaxDatasetRows <= 0 {
 		t.Fatalf("unexpected Hugging Face limits: %+v", cfg.HuggingFace)
 	}
+	if cfg.HuggingFace.MaxUploadMB != 512 {
+		t.Fatalf("MaxUploadMB = %d, want 512", cfg.HuggingFace.MaxUploadMB)
+	}
 	if cfg.HuggingFace.JobDefaultTimeoutMinutes <= 0 || cfg.HuggingFace.JobMaxRuntimeMinutes <= 0 {
 		t.Fatalf("unexpected Hugging Face job timeouts: %+v", cfg.HuggingFace)
 	}

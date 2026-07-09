@@ -621,6 +621,7 @@ type HuggingFaceConfig struct {
 	AllowedRepos             []string `yaml:"allowed_repos" json:"allowed_repos"`
 	AllowedHardware          []string `yaml:"allowed_hardware" json:"allowed_hardware"`
 	MaxDownloadMB            int      `yaml:"max_download_mb" json:"max_download_mb"`
+	MaxUploadMB              int      `yaml:"max_upload_mb" json:"max_upload_mb"`
 	MaxDatasetRows           int      `yaml:"max_dataset_rows" json:"max_dataset_rows"`
 	JobDefaultTimeoutMinutes int      `yaml:"job_default_timeout_minutes" json:"job_default_timeout_minutes"`
 	JobMaxRuntimeMinutes     int      `yaml:"job_max_runtime_minutes" json:"job_max_runtime_minutes"`
@@ -1928,7 +1929,7 @@ type Config struct {
 	Composio    ComposioConfig    `yaml:"composio" json:"composio"`
 	HuggingFace HuggingFaceConfig `yaml:"huggingface" json:"huggingface"`
 	Evomap      EvomapConfig      `yaml:"evomap" json:"evomap"`
-	MCPServer struct {
+	MCPServer   struct {
 		Enabled           bool     `yaml:"enabled"`
 		AllowedTools      []string `yaml:"allowed_tools"`       // tool names to expose; empty = none
 		RequireAuth       bool     `yaml:"require_auth"`        // require Bearer token or session cookie

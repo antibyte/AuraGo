@@ -13,6 +13,7 @@ function huggingFaceConfig() {
     if (!Array.isArray(cfg.allowed_repos)) cfg.allowed_repos = [];
     if (!Array.isArray(cfg.allowed_hardware)) cfg.allowed_hardware = ['cpu-basic'];
     if (!cfg.max_download_mb) cfg.max_download_mb = 512;
+    if (!cfg.max_upload_mb) cfg.max_upload_mb = 512;
     if (!cfg.max_dataset_rows) cfg.max_dataset_rows = 100;
     if (!cfg.job_default_timeout_minutes) cfg.job_default_timeout_minutes = 30;
     if (!cfg.job_max_runtime_minutes) cfg.job_max_runtime_minutes = 120;
@@ -47,6 +48,7 @@ async function renderHuggingFaceSection(section) {
 
     html += '<div class="field-grid two-cols">';
     html += huggingFaceNumber('max_download_mb', 'config.huggingface.max_download_mb', 'help.huggingface.max_download_mb', cfg.max_download_mb);
+    html += huggingFaceNumber('max_upload_mb', 'config.huggingface.max_upload_mb', 'help.huggingface.max_upload_mb', cfg.max_upload_mb);
     html += huggingFaceNumber('max_dataset_rows', 'config.huggingface.max_dataset_rows', 'help.huggingface.max_dataset_rows', cfg.max_dataset_rows);
     html += huggingFaceNumber('job_default_timeout_minutes', 'config.huggingface.job_default_timeout', 'help.huggingface.job_default_timeout', cfg.job_default_timeout_minutes);
     html += huggingFaceNumber('job_max_runtime_minutes', 'config.huggingface.job_max_runtime', 'help.huggingface.job_max_runtime', cfg.job_max_runtime_minutes);

@@ -1,6 +1,7 @@
 package huggingface
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/base64"
@@ -26,6 +27,7 @@ type ClientConfig struct {
 	Token                 string
 	MaxDatasetRows        int
 	MaxDownloadMB         int
+	MaxUploadMB           int
 	MaxResultBytes        int
 	RequestTimeoutSeconds int
 	RequestUserAgent      string
@@ -110,16 +112,20 @@ type JobOptions struct {
 }
 
 type JobRunOptions struct {
-	Command        string                 `json:"command,omitempty"`
-	Image          string                 `json:"image,omitempty"`
-	Script         string                 `json:"script,omitempty"`
-	Hardware       string                 `json:"hardware,omitempty"`
-	TimeoutMinutes int                    `json:"timeout_minutes,omitempty"`
-	Env            map[string]string      `json:"env,omitempty"`
-	Secrets        map[string]string      `json:"secrets,omitempty"`
-	Args           map[string]interface{} `json:"args,omitempty"`
-	Scheduled      bool                   `json:"scheduled,omitempty"`
-	Schedule       string                 `json:"schedule,omitempty"`
+	Command        []string          `json:"command,omitempty"`
+	Arguments      []string          `json:"arguments,omitempty"`
+	Image          string            `json:"image,omitempty"`
+	Script         string            `json:"script,omitempty"`
+	Hardware       string            `json:"hardware,omitempty"`
+	TimeoutMinutes int               `json:"timeout_minutes,omitempty"`
+	Env            map[string]string `json:"env,omitempty"`
+	Secrets        map[string]string `json:"secrets,omitempty"`
+	Scheduled      bool              `json:"scheduled,omitempty"`
+	Schedule       string            `json:"schedule,omitempty"`
+}
+
+type JobLogsOptions struct {
+	Tail int
 }
 
 type CreateRepoOptions struct {
@@ -154,6 +160,9 @@ func NewClient(cfg ClientConfig) *Client {
 	}
 	if cfg.MaxDownloadMB <= 0 {
 		cfg.MaxDownloadMB = 512
+	}
+	if cfg.MaxUploadMB <= 0 {
+		cfg.MaxUploadMB = 512
 	}
 	if cfg.MaxResultBytes <= 0 {
 		cfg.MaxResultBytes = 524288
@@ -330,15 +339,50 @@ func (c *Client) JobGet(ctx context.Context, id string) (map[string]interface{},
 	return c.jobsMap(ctx, "/"+strings.Trim(id, "/"), nil, nil)
 }
 
-func (c *Client) JobLogs(ctx context.Context, id string) (map[string]interface{}, error) {
-	return c.jobsMap(ctx, "/"+strings.Trim(id, "/")+"/logs", nil, nil)
+func (c *Client) JobLogs(ctx context.Context, id string, opts JobLogsOptions) (map[string]interface{}, error) {
+	namespace, err := c.jobNamespace(ctx)
+	if err != nil {
+		return nil, err
+	}
+	path := "/" + neturl.PathEscape(namespace) + "/" + neturl.PathEscape(strings.Trim(id, "/")) + "/logs"
+	q := neturl.Values{}
+	if opts.Tail > 0 {
+		q.Set("tail", strconv.Itoa(opts.Tail))
+	}
+	u, err := buildURL(c.cfg.JobsBaseURL, path, q)
+	if err != nil {
+		return nil, err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+	if err != nil {
+		return nil, err
+	}
+	c.decorate(req)
+	req.Header.Set("Accept", "text/event-stream")
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, c.apiError(resp)
+	}
+	logs, truncated, err := c.readJobSSE(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	return map[string]interface{}{
+		"job_id":    strings.Trim(id, "/"),
+		"logs":      logs,
+		"truncated": truncated,
+	}, nil
 }
 
 func (c *Client) JobCancel(ctx context.Context, id string) (map[string]interface{}, error) {
 	return c.jobsMap(ctx, "/"+strings.Trim(id, "/")+"/cancel", nil, map[string]interface{}{})
 }
 
-func (c *Client) JobRunScript(ctx context.Context, opts JobRunOptions) (map[string]interface{}, error) {
+func (c *Client) JobRunPython(ctx context.Context, opts JobRunOptions) (map[string]interface{}, error) {
 	if strings.TrimSpace(opts.Script) == "" {
 		return nil, fmt.Errorf("huggingface script is required")
 	}
@@ -346,23 +390,39 @@ func (c *Client) JobRunScript(ctx context.Context, opts JobRunOptions) (map[stri
 		"dockerImage": "python:3.12",
 		"command":     []string{"python", "-c", opts.Script},
 	}
+	mergeJobPayload(payload, opts)
 	if opts.Scheduled {
 		return c.createScheduledJob(ctx, payload, opts)
 	}
+	return c.jobsMap(ctx, "", nil, payload)
+}
+
+func (c *Client) JobRunUVScript(ctx context.Context, opts JobRunOptions) (map[string]interface{}, error) {
+	if strings.TrimSpace(opts.Script) == "" {
+		return nil, fmt.Errorf("huggingface script is required")
+	}
+	encoded := base64.StdEncoding.EncodeToString([]byte(opts.Script))
+	bootstrap := fmt.Sprintf("printf '%%s' %s | base64 -d > /tmp/aurago_script.py && exec uv run /tmp/aurago_script.py \"$@\"", encoded)
+	payload := map[string]interface{}{
+		"dockerImage": "astral-sh/uv:python3.12-bookworm",
+		"command":     []string{"sh", "-c", bootstrap, "aurago-script"},
+	}
 	mergeJobPayload(payload, opts)
+	if opts.Scheduled {
+		return c.createScheduledJob(ctx, payload, opts)
+	}
 	return c.jobsMap(ctx, "", nil, payload)
 }
 
 func (c *Client) JobRunContainer(ctx context.Context, opts JobRunOptions) (map[string]interface{}, error) {
-	command := strings.Fields(opts.Command)
-	if len(command) == 0 {
+	if len(opts.Command) == 0 || strings.TrimSpace(opts.Command[0]) == "" {
 		return nil, fmt.Errorf("huggingface container command is required")
 	}
-	payload := map[string]interface{}{"dockerImage": opts.Image, "command": command}
+	payload := map[string]interface{}{"dockerImage": opts.Image, "command": opts.Command}
+	mergeJobPayload(payload, opts)
 	if opts.Scheduled {
 		return c.createScheduledJob(ctx, payload, opts)
 	}
-	mergeJobPayload(payload, opts)
 	return c.jobsMap(ctx, "", nil, payload)
 }
 
@@ -386,23 +446,51 @@ func (c *Client) createScheduledJob(ctx context.Context, jobSpec map[string]inte
 }
 
 func (c *Client) CreateRepo(ctx context.Context, opts CreateRepoOptions) (map[string]interface{}, error) {
-	payload := map[string]interface{}{"name": opts.RepoID, "type": defaultString(opts.Type, "model"), "private": opts.Private}
+	namespace, name, err := splitRepoID(opts.RepoID)
+	if err != nil {
+		return nil, err
+	}
+	payload := map[string]interface{}{"name": name, "type": defaultString(opts.Type, "model"), "private": opts.Private}
+	if namespace != "" {
+		payload["organization"] = namespace
+	}
 	return c.postHubMap(ctx, "/api/repos/create", payload)
 }
 
 func (c *Client) UploadFile(ctx context.Context, opts UploadFileOptions) (map[string]interface{}, error) {
-	data, err := os.ReadFile(opts.LocalPath)
+	maxBytes := int64(c.cfg.MaxUploadMB) * 1024 * 1024
+	if maxBytes <= 0 {
+		maxBytes = 512 * 1024 * 1024
+	}
+	file, err := os.Open(opts.LocalPath)
 	if err != nil {
 		return nil, err
+	}
+	defer file.Close()
+	info, err := file.Stat()
+	if err != nil {
+		return nil, err
+	}
+	if !info.Mode().IsRegular() {
+		return nil, fmt.Errorf("huggingface upload source must be a regular file")
+	}
+	if info.Size() > maxBytes {
+		return nil, fmt.Errorf("upload exceeds max_upload_mb (%d MB)", c.cfg.MaxUploadMB)
+	}
+	data, err := io.ReadAll(io.LimitReader(file, maxBytes+1))
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(data)) > maxBytes {
+		return nil, fmt.Errorf("upload exceeds max_upload_mb (%d MB)", c.cfg.MaxUploadMB)
 	}
 	revision := defaultString(opts.Revision, "main")
 	payload := map[string]interface{}{
 		"summary": defaultString(opts.Message, "Upload file via AuraGo"),
-		"operations": []map[string]interface{}{{
-			"operation":    "addOrUpdate",
-			"path_in_repo": strings.TrimLeft(opts.Path, "/"),
-			"content":      base64.StdEncoding.EncodeToString(data),
-			"encoding":     "base64",
+		"files": []map[string]interface{}{{
+			"path":     strings.TrimLeft(opts.Path, "/"),
+			"content":  base64.StdEncoding.EncodeToString(data),
+			"encoding": "base64",
 		}},
 	}
 	p := "/api/" + repoPlural(opts.RepoType) + "/" + strings.Trim(opts.RepoID, "/") + "/commit/" + revision
@@ -420,8 +508,17 @@ func (c *Client) CommentDiscussion(ctx context.Context, opts DiscussionOptions) 
 }
 
 func (c *Client) DeleteRepo(ctx context.Context, repoType, repoID string) (map[string]interface{}, error) {
-	p := "/api/repos/delete"
-	return c.postHubMap(ctx, p, map[string]interface{}{"name": repoID, "type": defaultString(repoType, "model")})
+	namespace, name, err := splitRepoID(repoID)
+	if err != nil {
+		return nil, err
+	}
+	payload := map[string]interface{}{"name": name, "type": defaultString(repoType, "model")}
+	if namespace != "" {
+		payload["organization"] = namespace
+	}
+	var out map[string]interface{}
+	err = c.doJSON(ctx, http.MethodDelete, c.cfg.HubBaseURL, "/api/repos/delete", nil, payload, &out)
+	return out, err
 }
 
 func (c *Client) searchHub(ctx context.Context, endpoint string, opts SearchOptions) ([]map[string]interface{}, error) {
@@ -474,6 +571,69 @@ func (c *Client) jobsJSON(ctx context.Context, endpoint string, q neturl.Values,
 	return c.doJSON(ctx, method, c.cfg.JobsBaseURL, path, q, payload, out)
 }
 
+func (c *Client) readJobSSE(body io.Reader) ([]string, bool, error) {
+	maxBytes := c.cfg.MaxResultBytes
+	if maxBytes <= 0 {
+		maxBytes = 524288
+	}
+	reader := bufio.NewReader(io.LimitReader(body, int64(maxBytes)+1))
+	var event []string
+	var logs []string
+	bytesRead := 0
+	truncated := false
+	flush := func() {
+		if len(event) == 0 {
+			return
+		}
+		message := strings.TrimSpace(strings.Join(event, "\n"))
+		event = nil
+		if message == "" || strings.HasPrefix(message, "===== Job started") {
+			return
+		}
+		logs = append(logs, message)
+	}
+	var line []byte
+	for {
+		part, isPrefix, err := reader.ReadLine()
+		line = append(line, part...)
+		bytesRead += len(part)
+		if bytesRead > maxBytes {
+			truncated = true
+			break
+		}
+		if isPrefix {
+			continue
+		}
+		if err != io.EOF {
+			bytesRead++
+		}
+		if bytesRead > maxBytes {
+			truncated = true
+			break
+		}
+		lineText := string(line)
+		line = nil
+		if lineText == "" {
+			flush()
+		} else if strings.HasPrefix(lineText, ":") {
+			continue
+		} else if strings.HasPrefix(lineText, "data:") {
+			event = append(event, strings.TrimSpace(strings.TrimPrefix(lineText, "data:")))
+		}
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, truncated, err
+		}
+	}
+	flush()
+	if bytesRead > maxBytes {
+		truncated = true
+	}
+	return logs, truncated, nil
+}
+
 func (c *Client) jobNamespace(ctx context.Context) (string, error) {
 	if namespace := strings.TrimSpace(c.cfg.JobNamespace); namespace != "" {
 		return namespace, nil
@@ -493,6 +653,21 @@ func (c *Client) postHubMap(ctx context.Context, endpoint string, payload interf
 	var out map[string]interface{}
 	err := c.doJSON(ctx, http.MethodPost, c.cfg.HubBaseURL, endpoint, nil, payload, &out)
 	return out, err
+}
+
+func splitRepoID(repoID string) (namespace, name string, err error) {
+	repoID = strings.Trim(strings.TrimSpace(repoID), "/")
+	if repoID == "" {
+		return "", "", fmt.Errorf("huggingface repository ID is required")
+	}
+	parts := strings.SplitN(repoID, "/", 2)
+	if len(parts) == 1 {
+		return "", parts[0], nil
+	}
+	if strings.TrimSpace(parts[0]) == "" || strings.TrimSpace(parts[1]) == "" {
+		return "", "", fmt.Errorf("invalid huggingface repository ID %q", repoID)
+	}
+	return parts[0], parts[1], nil
 }
 
 func (c *Client) datasetRowsQuery(dataset, configName, split string, offset, length int) neturl.Values {
@@ -615,8 +790,8 @@ func mergeJobPayload(payload map[string]interface{}, opts JobRunOptions) {
 	if len(opts.Secrets) > 0 {
 		payload["secrets"] = opts.Secrets
 	}
-	if len(opts.Args) > 0 {
-		payload["args"] = opts.Args
+	if len(opts.Arguments) > 0 {
+		payload["arguments"] = opts.Arguments
 	}
 }
 

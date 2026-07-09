@@ -1478,6 +1478,7 @@ huggingface:
     allowed_repos: []                                   # optional repo allowlist for remote mutations
     allowed_hardware: [cpu-basic]                       # explicit Job hardware allowlist
     max_download_mb: 512
+    max_upload_mb: 512
     max_dataset_rows: 100
     job_default_timeout_minutes: 30
     job_max_runtime_minutes: 120

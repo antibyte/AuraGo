@@ -709,6 +709,7 @@ func Load(path string) (*Config, error) {
 	cfg.HuggingFace.AllowScheduledJobs = false
 	cfg.HuggingFace.AllowedHardware = []string{"cpu-basic"}
 	cfg.HuggingFace.MaxDownloadMB = 512
+	cfg.HuggingFace.MaxUploadMB = 512
 	cfg.HuggingFace.MaxDatasetRows = 100
 	cfg.HuggingFace.JobDefaultTimeoutMinutes = 30
 	cfg.HuggingFace.JobMaxRuntimeMinutes = 120
@@ -818,6 +819,9 @@ func Load(path string) (*Config, error) {
 	cfg.HuggingFace.RouterBaseURL = strings.TrimRight(strings.TrimSpace(cfg.HuggingFace.RouterBaseURL), "/")
 	if cfg.HuggingFace.MaxDownloadMB <= 0 {
 		cfg.HuggingFace.MaxDownloadMB = 512
+	}
+	if cfg.HuggingFace.MaxUploadMB <= 0 {
+		cfg.HuggingFace.MaxUploadMB = 512
 	}
 	if cfg.HuggingFace.MaxDatasetRows <= 0 {
 		cfg.HuggingFace.MaxDatasetRows = 100
@@ -2377,6 +2381,7 @@ func (c *Config) Save(path string) error {
 		{[]string{"huggingface", "allowed_repos"}, c.HuggingFace.AllowedRepos},
 		{[]string{"huggingface", "allowed_hardware"}, c.HuggingFace.AllowedHardware},
 		{[]string{"huggingface", "max_download_mb"}, c.HuggingFace.MaxDownloadMB},
+		{[]string{"huggingface", "max_upload_mb"}, c.HuggingFace.MaxUploadMB},
 		{[]string{"huggingface", "max_dataset_rows"}, c.HuggingFace.MaxDatasetRows},
 		{[]string{"huggingface", "job_default_timeout_minutes"}, c.HuggingFace.JobDefaultTimeoutMinutes},
 		{[]string{"huggingface", "job_max_runtime_minutes"}, c.HuggingFace.JobMaxRuntimeMinutes},

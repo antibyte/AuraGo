@@ -36,6 +36,7 @@ func handleHuggingFaceStatus(s *Server) http.HandlerFunc {
 			"allow_jobs":                  cfg.AllowJobs,
 			"allow_scheduled_jobs":        cfg.AllowScheduledJobs,
 			"max_download_mb":             cfg.MaxDownloadMB,
+			"max_upload_mb":               cfg.MaxUploadMB,
 			"max_dataset_rows":            cfg.MaxDatasetRows,
 			"job_default_timeout_minutes": cfg.JobDefaultTimeoutMinutes,
 			"job_max_runtime_minutes":     cfg.JobMaxRuntimeMinutes,

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -14,38 +15,39 @@ import (
 )
 
 type HuggingFaceRequest struct {
-	Operation      string                 `json:"operation"`
-	Query          string                 `json:"query,omitempty"`
-	Limit          int                    `json:"limit,omitempty"`
-	RepoType       string                 `json:"repo_type,omitempty"`
-	RepoID         string                 `json:"repo_id,omitempty"`
-	Name           string                 `json:"name,omitempty"`
-	Revision       string                 `json:"revision,omitempty"`
-	Path           string                 `json:"path,omitempty"`
-	Destination    string                 `json:"destination,omitempty"`
-	Dataset        string                 `json:"dataset,omitempty"`
-	Config         string                 `json:"config,omitempty"`
-	Split          string                 `json:"split,omitempty"`
-	Offset         int                    `json:"offset,omitempty"`
-	Length         int                    `json:"length,omitempty"`
-	Where          string                 `json:"where,omitempty"`
-	PaperID        string                 `json:"paper_id,omitempty"`
-	JobID          string                 `json:"job_id,omitempty"`
-	Hardware       string                 `json:"hardware,omitempty"`
-	TimeoutMinutes int                    `json:"timeout_minutes,omitempty"`
-	Script         string                 `json:"script,omitempty"`
-	Image          string                 `json:"image,omitempty"`
-	Command        string                 `json:"command,omitempty"`
-	Title          string                 `json:"title,omitempty"`
-	Body           string                 `json:"body,omitempty"`
-	Number         int                    `json:"number,omitempty"`
-	Private        bool                   `json:"private,omitempty"`
-	LocalPath      string                 `json:"local_path,omitempty"`
-	Message        string                 `json:"message,omitempty"`
-	Scheduled      bool                   `json:"scheduled,omitempty"`
-	Schedule       string                 `json:"schedule,omitempty"`
-	Env            map[string]string      `json:"env,omitempty"`
-	Args           map[string]interface{} `json:"args,omitempty"`
+	Operation      string            `json:"operation"`
+	Query          string            `json:"query,omitempty"`
+	Limit          int               `json:"limit,omitempty"`
+	RepoType       string            `json:"repo_type,omitempty"`
+	RepoID         string            `json:"repo_id,omitempty"`
+	Name           string            `json:"name,omitempty"`
+	Revision       string            `json:"revision,omitempty"`
+	Path           string            `json:"path,omitempty"`
+	Destination    string            `json:"destination,omitempty"`
+	Dataset        string            `json:"dataset,omitempty"`
+	Config         string            `json:"config,omitempty"`
+	Split          string            `json:"split,omitempty"`
+	Offset         int               `json:"offset,omitempty"`
+	Length         int               `json:"length,omitempty"`
+	Where          string            `json:"where,omitempty"`
+	PaperID        string            `json:"paper_id,omitempty"`
+	JobID          string            `json:"job_id,omitempty"`
+	Tail           int               `json:"tail,omitempty"`
+	Hardware       string            `json:"hardware,omitempty"`
+	TimeoutMinutes int               `json:"timeout_minutes,omitempty"`
+	Script         string            `json:"script,omitempty"`
+	Image          string            `json:"image,omitempty"`
+	Command        []string          `json:"command,omitempty"`
+	Arguments      []string          `json:"arguments,omitempty"`
+	Title          string            `json:"title,omitempty"`
+	Body           string            `json:"body,omitempty"`
+	Number         int               `json:"number,omitempty"`
+	Private        bool              `json:"private,omitempty"`
+	LocalPath      string            `json:"local_path,omitempty"`
+	Message        string            `json:"message,omitempty"`
+	Scheduled      bool              `json:"scheduled,omitempty"`
+	Schedule       string            `json:"schedule,omitempty"`
+	Env            map[string]string `json:"env,omitempty"`
 }
 
 func EvaluateHuggingFacePolicy(cfg config.HuggingFaceConfig, req HuggingFaceRequest, token string) error {
@@ -125,6 +127,7 @@ func RunHuggingFace(ctx context.Context, cfg config.HuggingFaceConfig, token, wo
 		Token:                 token,
 		MaxDatasetRows:        cfg.MaxDatasetRows,
 		MaxDownloadMB:         cfg.MaxDownloadMB,
+		MaxUploadMB:           cfg.MaxUploadMB,
 		MaxResultBytes:        cfg.MaxResultBytes,
 		RequestTimeoutSeconds: cfg.RequestTimeoutSeconds,
 	})
@@ -184,12 +187,17 @@ func executeHuggingFaceOperation(ctx context.Context, client *hf.Client, cfg con
 	case "job_get":
 		return client.JobGet(ctx, req.JobID)
 	case "job_logs":
-		return client.JobLogs(ctx, req.JobID)
+		return client.JobLogs(ctx, req.JobID, hf.JobLogsOptions{Tail: req.Tail})
 	case "job_cancel":
 		return client.JobCancel(ctx, req.JobID)
-	case "job_run_script":
+	case "job_run_python":
 		opts := hfJobRunOptions(cfg, req, token)
-		result, err := client.JobRunScript(ctx, opts)
+		result, err := client.JobRunPython(ctx, opts)
+		recordHuggingFaceJob(ctx, dataDir, req.Operation, opts.Hardware, req, result, err)
+		return result, err
+	case "job_run_uv_script":
+		opts := hfJobRunOptions(cfg, req, token)
+		result, err := client.JobRunUVScript(ctx, opts)
 		recordHuggingFaceJob(ctx, dataDir, req.Operation, opts.Hardware, req, result, err)
 		return result, err
 	case "job_run_container":
@@ -200,7 +208,11 @@ func executeHuggingFaceOperation(ctx context.Context, client *hf.Client, cfg con
 	case "create_repo":
 		return client.CreateRepo(ctx, hf.CreateRepoOptions{RepoID: requestRepoID(req), Type: req.RepoType, Private: req.Private})
 	case "upload_file":
-		return client.UploadFile(ctx, hf.UploadFileOptions{RepoType: req.RepoType, RepoID: requestRepoID(req), Revision: req.Revision, Path: req.Path, LocalPath: req.LocalPath, Message: req.Message})
+		localPath, err := validateHuggingFaceUploadSource(workspaceDir, req.LocalPath, cfg.MaxUploadMB)
+		if err != nil {
+			return nil, err
+		}
+		return client.UploadFile(ctx, hf.UploadFileOptions{RepoType: req.RepoType, RepoID: requestRepoID(req), Revision: req.Revision, Path: req.Path, LocalPath: localPath, Message: req.Message})
 	case "create_discussion":
 		return client.CreateDiscussion(ctx, hf.DiscussionOptions{RepoType: req.RepoType, RepoID: requestRepoID(req), Title: req.Title, Body: req.Body})
 	case "comment_discussion":
@@ -227,13 +239,13 @@ func hfJobRunOptions(cfg config.HuggingFaceConfig, req HuggingFaceRequest, token
 	}
 	return hf.JobRunOptions{
 		Command:        req.Command,
+		Arguments:      req.Arguments,
 		Image:          req.Image,
 		Script:         req.Script,
 		Hardware:       hardware,
 		TimeoutMinutes: timeout,
 		Env:            req.Env,
 		Secrets:        secrets,
-		Args:           req.Args,
 		Scheduled:      req.Scheduled,
 		Schedule:       req.Schedule,
 	}
@@ -267,7 +279,8 @@ func recordHuggingFaceJob(ctx context.Context, dataDir, operation, hardware stri
 func huggingFaceLedgerRequest(req HuggingFaceRequest) string {
 	redacted := req
 	redacted.Script = ""
-	redacted.Command = ""
+	redacted.Command = nil
+	redacted.Arguments = nil
 	redacted.Body = ""
 	if len(req.Env) > 0 {
 		redacted.Env = make(map[string]string, len(req.Env))
@@ -275,7 +288,6 @@ func huggingFaceLedgerRequest(req HuggingFaceRequest) string {
 			redacted.Env[key] = "[redacted]"
 		}
 	}
-	redacted.Args = nil
 	return hf.EncodeLedgerPayload(redacted)
 }
 
@@ -283,29 +295,89 @@ func huggingFaceDownloadDestination(workspaceDir string, req HuggingFaceRequest)
 	if strings.TrimSpace(workspaceDir) == "" {
 		workspaceDir = filepath.Join("agent_workspace", "workdir")
 	}
-	absWorkspace, err := filepath.Abs(workspaceDir)
-	if err != nil {
-		return "", err
-	}
 	dest := strings.TrimSpace(req.Destination)
 	if dest == "" {
 		dest = filepath.Join("huggingface", safeHFPathSegment(req.RepoType), safeHFPathSegment(requestRepoID(req)), filepath.FromSlash(strings.TrimLeft(req.Path, "/")))
 	}
-	if !filepath.IsAbs(dest) {
-		dest = filepath.Join(absWorkspace, dest)
+	return resolveHuggingFaceWorkspaceFile(workspaceDir, dest)
+}
+
+func resolveHuggingFaceWorkspaceFile(workspaceDir, requestedPath string) (string, error) {
+	if strings.TrimSpace(workspaceDir) == "" {
+		workspaceDir = filepath.Join("agent_workspace", "workdir")
 	}
-	absDest, err := filepath.Abs(dest)
+	requestedPath = strings.TrimSpace(requestedPath)
+	if requestedPath == "" {
+		return "", fmt.Errorf("Hugging Face workspace path is required")
+	}
+	if filepath.IsAbs(requestedPath) || filepath.VolumeName(requestedPath) != "" {
+		return "", fmt.Errorf("Hugging Face paths must be relative to the AuraGo workspace")
+	}
+	for _, part := range strings.FieldsFunc(filepath.ToSlash(requestedPath), func(r rune) bool { return r == '/' }) {
+		if part == ".." {
+			return "", fmt.Errorf("Hugging Face paths must not contain traversal components")
+		}
+	}
+	workspaceRoot, err := filepath.EvalSymlinks(workspaceDir)
+	if err != nil {
+		workspaceRoot, err = filepath.Abs(workspaceDir)
+		if err != nil {
+			return "", fmt.Errorf("resolve Hugging Face workspace: %w", err)
+		}
+	}
+	workspaceRoot, err = filepath.Abs(workspaceRoot)
+	if err != nil {
+		return "", fmt.Errorf("resolve Hugging Face workspace: %w", err)
+	}
+	resolved, err := secureResolveFinalPath(filepath.Join(workspaceRoot, filepath.Clean(requestedPath)))
 	if err != nil {
 		return "", err
 	}
-	rel, err := filepath.Rel(absWorkspace, absDest)
+	inside, err := pathWithinDirectory(workspaceRoot, resolved)
 	if err != nil {
 		return "", err
 	}
-	if rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
-		return "", fmt.Errorf("download destination must stay inside the AuraGo workspace")
+	if !inside {
+		return "", fmt.Errorf("Hugging Face path must stay inside the AuraGo workspace")
 	}
-	return absDest, nil
+	return resolved, nil
+}
+
+func pathWithinDirectory(root, candidate string) (bool, error) {
+	root, err := filepath.Abs(root)
+	if err != nil {
+		return false, err
+	}
+	candidate, err = filepath.Abs(candidate)
+	if err != nil {
+		return false, err
+	}
+	rel, err := filepath.Rel(root, candidate)
+	if err != nil {
+		return false, err
+	}
+	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) && !filepath.IsAbs(rel), nil
+}
+
+func validateHuggingFaceUploadSource(workspaceDir, requestedPath string, maxUploadMB int) (string, error) {
+	resolved, err := resolveHuggingFaceWorkspaceFile(workspaceDir, requestedPath)
+	if err != nil {
+		return "", err
+	}
+	info, err := os.Stat(resolved)
+	if err != nil {
+		return "", fmt.Errorf("stat Hugging Face upload source: %w", err)
+	}
+	if !info.Mode().IsRegular() {
+		return "", fmt.Errorf("Hugging Face upload source must be a regular file")
+	}
+	if maxUploadMB <= 0 {
+		maxUploadMB = 512
+	}
+	if info.Size() > int64(maxUploadMB)*1024*1024 {
+		return "", fmt.Errorf("upload exceeds huggingface.max_upload_mb (%d MB)", maxUploadMB)
+	}
+	return resolved, nil
 }
 
 func checkHFRepoAllowlist(cfg config.HuggingFaceConfig, repoID string) error {
@@ -349,7 +421,7 @@ func normalizeHFOperation(op string) string {
 
 func isHFJobOperation(op string) bool {
 	switch op {
-	case "jobs_list", "job_get", "job_logs", "job_run_script", "job_run_container", "job_cancel":
+	case "jobs_list", "job_get", "job_logs", "job_run_python", "job_run_uv_script", "job_run_container", "job_cancel":
 		return true
 	default:
 		return false
