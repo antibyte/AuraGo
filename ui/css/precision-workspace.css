@@ -183,6 +183,7 @@
 
 .pw-page .pw-action-reason {
     display: block;
+    flex-basis: 100%;
     margin-top: 0.45rem;
     color: var(--pw-muted);
     font-size: var(--pw-meta-size);

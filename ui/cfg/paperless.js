@@ -55,8 +55,8 @@ function renderPaperlessSection(section) {
 
     // ── Test Connection ──
     html += '<div class="field-group">';
-    html += '<button class="btn-save" onclick="paperlessTestConnection()" style="margin-top:4px">🔌 ' + t('config.paperless.test_connection') + '</button>';
-    html += '<div id="paperless-test-status" class="pl-token-status is-hidden" style="margin-top:6px"></div>';
+    html += '<button class="btn-save pw-u-mt-4" onclick="paperlessTestConnection()">🔌 ' + t('config.paperless.test_connection') + '</button>';
+    html += '<div id="paperless-test-status" class="pl-token-status is-hidden pw-u-mt-6"></div>';
     html += '</div>';
 
     html += '</div>';

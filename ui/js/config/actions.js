@@ -10,6 +10,7 @@
         'button[onclick*="Test"]',
         'button[onclick*="testConnection"]'
     ].join(',');
+    const MODAL_SELECTOR = '.modal-overlay, .sec-modal-overlay, .mcp-modal-overlay, .prov-modal-overlay, .sql-modal-overlay';
 
     function text(key, fallback) {
         if (typeof t === 'function') {
@@ -30,14 +31,37 @@
         return value != null && String(value).trim() !== '';
     }
 
+    function controlSnapshot(container) {
+        if (!container) return '';
+        return [...container.querySelectorAll('input, select, textarea')].map(element => {
+            const value = element.type === 'checkbox' || element.type === 'radio' ? element.checked : element.value;
+            return [element.id || element.name || element.type, value];
+        }).map(entry => JSON.stringify(entry)).join('|');
+    }
+
+    function selectorHasValue(selector) {
+        const element = document.querySelector(selector);
+        if (!element) return false;
+        if (element.type === 'checkbox' || element.type === 'radio') return element.checked;
+        return hasValue(element.value);
+    }
+
     function lockReason(spec) {
         const state = window.AuraConfigState;
         if (!state) return '';
         if (spec.requiresSaved && state && state.isDirty()) {
             return text('config.precision.action_save_first', 'Save your changes before testing.');
         }
+        if (spec.requiresSaved && spec.container && controlSnapshot(spec.container) !== spec.containerSnapshot) {
+            return text('config.precision.action_save_first', 'Save your changes before testing.');
+        }
         const missing = (spec.requiredPaths || []).find(path => !hasValue(state ? state.get(path, { saved: true }) : undefined));
         if (missing) {
+            return text('config.precision.action_missing_fields', 'Complete and save the required fields first.');
+        }
+        const missingSelector = (spec.requiredSelectors || []).find(selector => !selectorHasValue(selector));
+        const missingSelectorGroup = (spec.requiredAnySelectors || []).find(group => !group.some(selectorHasValue));
+        if (missingSelector || missingSelectorGroup) {
             return text('config.precision.action_missing_fields', 'Complete and save the required fields first.');
         }
         const missingCredential = (spec.credentialPaths || []).find(path => !hasValue(state.get(path, { saved: true })));
@@ -98,12 +122,17 @@
     function automaticSpec(element) {
         const catalog = window.AuraConfigCatalog || {};
         const rules = (catalog.actionRules || {})[element.id] || {};
+        const container = element.closest(MODAL_SELECTOR);
         return Object.assign({
             id: element.id || '',
             element,
             requiresSaved: true,
             requiredPaths: [],
-            credentialPaths: []
+            credentialPaths: [],
+            requiredSelectors: [],
+            requiredAnySelectors: [],
+            container,
+            containerSnapshot: controlSnapshot(container)
         }, rules);
     }
 
@@ -160,13 +189,25 @@
     }, true);
 
     const observer = new MutationObserver(records => {
-        records.forEach(record => record.addedNodes.forEach(node => {
-            if (node.nodeType === Node.ELEMENT_NODE) autoEnhanceTestActions(node);
-        }));
+        records.forEach(record => {
+            record.addedNodes.forEach(node => {
+                if (node.nodeType === Node.ELEMENT_NODE) autoEnhanceTestActions(node);
+            });
+            if (record.type === 'attributes' && record.target.matches(MODAL_SELECTOR) && !record.target.classList.contains('is-hidden')) {
+                record.target.querySelectorAll(TEST_ACTION_SELECTOR).forEach(element => {
+                    autoEnhanceTestActions(element);
+                    const spec = automatic.get(element);
+                    if (spec) {
+                        spec.containerSnapshot = controlSnapshot(spec.container);
+                        apply(spec);
+                    }
+                });
+            }
+        });
     });
     const observe = () => {
         const content = document.getElementById('content');
-        if (content) observer.observe(content, { childList: true, subtree: true });
+        if (document.body) observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
         autoEnhanceTestActions(content || document);
     };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', observe, { once: true });

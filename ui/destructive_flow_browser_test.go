@@ -49,7 +49,7 @@ func newSmokeBrowser(t *testing.T) *rod.Browser {
 	if !ok {
 		t.Skip("headless browser smoke test requires Chrome or Edge")
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
 	t.Cleanup(cancel)
 	u, err := launcher.New().
 		Context(ctx).

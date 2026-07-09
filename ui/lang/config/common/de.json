@@ -55,5 +55,14 @@
   "config.precision.changed_fields": "{count} geänderte Felder",
   "config.precision.validation_ready": "Bereit zur Prüfung",
   "config.precision.validation_valid": "Prüfung erfolgreich",
-  "config.precision.validation_invalid": "Prüfe die markierten Felder"
+  "config.precision.validation_invalid": "Prüfe die markierten Felder",
+  "config.precision.advanced_title": "Erweitert",
+  "config.precision.advanced_desc": "Selten benötigte und technische Einstellungen",
+  "config.precision.validation_required": "Dieses Feld ist erforderlich.",
+  "config.precision.validation_number": "Gib eine gültige Zahl ein.",
+  "config.precision.validation_min": "Der Wert liegt unter dem erlaubten Minimum.",
+  "config.precision.validation_max": "Der Wert überschreitet das erlaubte Maximum.",
+  "config.precision.validation_pattern": "Der Wert entspricht nicht dem erwarteten Format.",
+  "config.precision.validation_option": "Wähle eine der verfügbaren Optionen.",
+  "config.precision.validation_url": "Gib eine gültige URL ein."
 }

@@ -55,5 +55,14 @@
   "config.precision.changed_fields": "已更改 {count} 个字段",
   "config.precision.validation_ready": "可以验证",
   "config.precision.validation_valid": "验证通过",
-  "config.precision.validation_invalid": "请检查突出显示的字段"
+  "config.precision.validation_invalid": "请检查突出显示的字段",
+  "config.precision.advanced_title": "高级",
+  "config.precision.advanced_desc": "不常用的技术设置",
+  "config.precision.validation_required": "此字段为必填项。",
+  "config.precision.validation_number": "请输入有效数字。",
+  "config.precision.validation_min": "该值低于允许的最小值。",
+  "config.precision.validation_max": "该值超过允许的最大值。",
+  "config.precision.validation_pattern": "该值不符合预期格式。",
+  "config.precision.validation_option": "请选择一个可用选项。",
+  "config.precision.validation_url": "请输入有效的网址。"
 }

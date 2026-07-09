@@ -90,7 +90,7 @@ function renderVirtualDesktopSection(section) {
 }
 
 function vdCfgHiddenToggle(path, enabled) {
-    return '<div class="toggle ' + (enabled ? 'on' : '') + '" data-path="' + path + '" style="display:none" aria-hidden="true"></div>';
+    return '<div class="toggle ' + (enabled ? 'on' : '') + ' pw-u-hidden" data-path="' + path + '" aria-hidden="true"></div>';
 }
 
 function vdCfgToggleRow(labelKey, helpKey, enabled, path, onclick) {

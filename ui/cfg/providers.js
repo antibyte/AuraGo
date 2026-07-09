@@ -1894,13 +1894,13 @@ let _providerCatalogPromise = null;
                             🔐 ${t('config.providers.copilot_start_auth')}
                         </button>
                     </div>
-                    <div id="copilot-device-code-area" class="is-hidden" style="margin-top:8px;">
+                    <div id="copilot-device-code-area" class="is-hidden pw-u-mt-8">
                         <div class="prov-field-hint">${t('config.providers.copilot_visit_code')}</div>
-                        <div style="margin:8px 0;">
-                            <a id="copilot-verification-link" href="#" target="_blank" style="color:var(--accent);">https://github.com/login/device</a>
+                        <div class="pw-u-my-8">
+                            <a id="copilot-verification-link" href="#" target="_blank" class="pw-u-accent-text">https://github.com/login/device</a>
                         </div>
-                        <div style="font-size:1.4rem;font-weight:bold;letter-spacing:2px;font-family:monospace;background:var(--input-bg);padding:8px 12px;border-radius:4px;text-align:center;" id="copilot-user-code">----</div>
-                        <button type="button" class="btn-save prov-btn-sm" id="copilot-check-status-btn" style="margin-top:8px;">
+                        <div class="pw-u-device-code" id="copilot-user-code">----</div>
+                        <button type="button" class="btn-save prov-btn-sm pw-u-mt-8" id="copilot-check-status-btn">
                             ⏳ ${t('config.providers.copilot_check_auth')}
                         </button>
                     </div>

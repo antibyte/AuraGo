@@ -55,5 +55,14 @@
   "config.precision.changed_fields": "{count} endrede felt",
   "config.precision.validation_ready": "Klar for kontroll",
   "config.precision.validation_valid": "Kontrollen var vellykket",
-  "config.precision.validation_invalid": "Kontroller de markerte feltene"
+  "config.precision.validation_invalid": "Kontroller de markerte feltene",
+  "config.precision.advanced_title": "Avansert",
+  "config.precision.advanced_desc": "Mindre vanlige og tekniske innstillinger",
+  "config.precision.validation_required": "Dette feltet er obligatorisk.",
+  "config.precision.validation_number": "Skriv inn et gyldig tall.",
+  "config.precision.validation_min": "Verdien er lavere enn tillatt minimum.",
+  "config.precision.validation_max": "Verdien overstiger tillatt maksimum.",
+  "config.precision.validation_pattern": "Verdien har ikke forventet format.",
+  "config.precision.validation_option": "Velg ett av de tilgjengelige alternativene.",
+  "config.precision.validation_url": "Skriv inn en gyldig URL."
 }

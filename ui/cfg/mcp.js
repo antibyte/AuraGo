@@ -54,7 +54,7 @@ async function renderMCPSection(section) {
         </div>`;
     }
 
-    html += `<div class="field-group" style="margin-top:1.5rem;">
+    html += `<div class="field-group pw-u-mt-150">
         <div class="field-group-title">🔌 ${t('config.mcp.server_title')}</div>
         <div class="field-group-desc">${t('config.mcp.server_desc')}</div>
         <div class="mcp-action-row cfg-actions-row">
@@ -67,7 +67,7 @@ async function renderMCPSection(section) {
             ${t('config.mcp.empty')}
         </div>
     </div>
-    <div class="field-group" style="margin-top:1.5rem;">
+    <div class="field-group pw-u-mt-150">
         <div class="field-group-title">🔐 ${t('config.mcp.secrets_title')}</div>
         <div class="field-group-desc">${t('config.mcp.secrets_desc')}</div>
         <div class="mcp-action-row cfg-actions-row">
@@ -80,7 +80,7 @@ async function renderMCPSection(section) {
             ${t('config.mcp.secrets_empty')}
         </div>
     </div>
-    <div class="field-group" style="margin-top:1.5rem;">
+    <div class="field-group pw-u-mt-150">
         <div class="field-group-title">🧭 ${t('config.mcp.routing_title')}</div>
         <div class="field-group-desc">${t('config.mcp.routing_desc')}</div>
         <div id="mcp-routing-list"></div>
@@ -194,7 +194,7 @@ function mcpSecretRenderCards() {
             ? `<span class="mcp-badge mcp-badge-active">✅ ${t('config.mcp.secret_status_set')}</span>`
             : `<span class="mcp-badge mcp-badge-inactive">⚠️ ${t('config.mcp.secret_status_missing')}</span>`;
         html += `
-        <div class="mcp-card" style="margin-top:1rem;">
+        <div class="mcp-card pw-u-mt-100">
             <div class="mcp-card-header">
                 <div class="mcp-card-title">
                     🔑 ${escapeAttr(secret.label || secret.alias || '—')}${statusBadge}
@@ -208,7 +208,7 @@ function mcpSecretRenderCards() {
                 <div><span class="mcp-grid-label">${t('config.mcp.secret_alias')}</span> <code>${escapeAttr(secret.alias || '—')}</code></div>
                 <div><span class="mcp-grid-label">${t('config.mcp.secret_usage')}</span> <code>{{${escapeAttr(secret.alias || '')}}}</code></div>
             </div>
-            ${secret.description ? `<div class="field-help" style="margin-top:.35rem;">${escapeAttr(secret.description)}</div>` : ''}
+            ${secret.description ? `<div class="field-help pw-u-mt-035">${escapeAttr(secret.description)}</div>` : ''}
         </div>`;
     });
     wrap.innerHTML = html;
@@ -239,17 +239,17 @@ async function mcpRenderRoutingCards() {
                 ).join('');
                 const selectedTool = tools.find(tool => tool.name === pref.tool);
                 if (selectedTool) {
-                    toolHelp = `<div class="field-help" style="margin-top:.35rem;">${escapeAttr(t('config.mcp.mapping_tool_selected', { capability: t(capability.titleKey) }))}</div>`;
+                    toolHelp = `<div class="field-help pw-u-mt-035">${escapeAttr(t('config.mcp.mapping_tool_selected', { capability: t(capability.titleKey) }))}</div>`;
                 }
             }
         }
 
         html += `
-        <div class="mcp-card" style="margin-top:1rem;">
+        <div class="mcp-card pw-u-mt-100">
             <div class="mcp-card-header">
                 <div class="mcp-card-title">${capability.icon} ${t(capability.titleKey)}</div>
             </div>
-            <div class="field-group-desc" style="margin-bottom:.9rem;">${t(capability.descKey)}</div>
+            <div class="field-group-desc pw-u-mb-090">${t(capability.descKey)}</div>
             <div class="mcp-card-grid">
                 <label>
                     <span class="mcp-grid-label">${t('config.mcp.mapping_server')}</span>
@@ -394,7 +394,7 @@ function mcpServerShowModal(data, idx) {
         <label class="mcp-modal-label mcp-network-fields">
             <span class="mcp-modal-label-text">${t('config.mcp.field_headers')} <small class="mcp-modal-hint">(KEY=VALUE, {{alias}})</small></span>
             <textarea id="mcp-m-headers" class="field-input mcp-modal-textarea" rows="4" placeholder="Authorization=Bearer {{remote-token}}">${escapeAttr(headersStr)}</textarea>
-            <div class="field-help" style="margin-top:.35rem;">${t('config.mcp.headers_hint')}</div>
+            <div class="field-help pw-u-mt-035">${t('config.mcp.headers_hint')}</div>
         </label>
         <label class="mcp-modal-label mcp-stdio-fields">
             <span class="mcp-modal-label-text">${t('config.mcp.field_runtime')}</span>
@@ -410,12 +410,12 @@ function mcpServerShowModal(data, idx) {
         <label class="mcp-modal-label mcp-stdio-fields">
             <span class="mcp-modal-label-text">${t('config.mcp.field_environment')} <small class="mcp-modal-hint">(KEY=VALUE, ${t('config.mcp.env_hint')}; {{alias}}, {{workdir}})</small></span>
             <textarea id="mcp-m-env" class="field-input mcp-modal-textarea" rows="4" placeholder="API_KEY={{api-token}}\nBASE_PATH={{workdir}}">${escapeAttr(envStr)}</textarea>
-            <div class="field-help" style="margin-top:.35rem;">${t('config.mcp.field_environment_secret_hint')}</div>
+            <div class="field-help pw-u-mt-035">${t('config.mcp.field_environment_secret_hint')}</div>
         </label>
         <label class="mcp-modal-label">
             <span class="mcp-modal-label-text">${t('config.mcp.field_allowed_tools')} <small class="mcp-modal-hint">(${t('config.mcp.args_hint')})</small></span>
             <textarea id="mcp-m-allowed-tools" class="field-input mcp-modal-textarea" rows="3" placeholder="understand_image\ntext_to_audio">${escapeAttr(allowedToolsStr)}</textarea>
-            <div class="field-help" style="margin-top:.35rem;">${t('config.mcp.field_allowed_tools_hint')}</div>
+            <div class="field-help pw-u-mt-035">${t('config.mcp.field_allowed_tools_hint')}</div>
         </label>
         <label class="mcp-modal-label mcp-stdio-fields">
             <span class="mcp-modal-label-text">${t('config.mcp.field_docker_image')}</span>

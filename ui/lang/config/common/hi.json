@@ -55,5 +55,14 @@
   "config.precision.changed_fields": "{count} बदले हुए फ़ील्ड",
   "config.precision.validation_ready": "जाँच के लिए तैयार",
   "config.precision.validation_valid": "जाँच सफल रही",
-  "config.precision.validation_invalid": "चिह्नित फ़ील्ड जाँचें"
+  "config.precision.validation_invalid": "चिह्नित फ़ील्ड जाँचें",
+  "config.precision.advanced_title": "उन्नत",
+  "config.precision.advanced_desc": "कम इस्तेमाल होने वाली तकनीकी सेटिंग",
+  "config.precision.validation_required": "यह फ़ील्ड ज़रूरी है।",
+  "config.precision.validation_number": "मान्य संख्या दर्ज करें।",
+  "config.precision.validation_min": "मान अनुमत न्यूनतम से कम है।",
+  "config.precision.validation_max": "मान अनुमत अधिकतम से ज़्यादा है।",
+  "config.precision.validation_pattern": "मान अपेक्षित प्रारूप से मेल नहीं खाता।",
+  "config.precision.validation_option": "उपलब्ध विकल्पों में से एक चुनें।",
+  "config.precision.validation_url": "मान्य URL दर्ज करें।"
 }

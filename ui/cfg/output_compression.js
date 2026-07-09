@@ -28,7 +28,7 @@
             }
 
             // Info banner
-            html += `<div class="wh-notice" style="border-left-color:var(--accent);">
+            html += `<div class="wh-notice pw-u-accent-border">
                 <span>📊</span>
                 <div>
                     <strong>${t('config.output_compression.info_title')}</strong><br>
@@ -51,7 +51,7 @@
                 <div class="cfg-toggle-row">
                     <div>
                         <span class="cfg-toggle-label">${t('config.output_compression.preserve_errors_label')}</span>
-                        <div class="field-help" style="margin-top:2px">${t('config.output_compression.preserve_errors_desc')}</div>
+                        <div class="field-help pw-u-mt-2">${t('config.output_compression.preserve_errors_desc')}</div>
                     </div>
                     <div class="toggle ${preserveErrors ? 'on' : ''}" data-path="agent.output_compression.preserve_errors" onclick="toggleBool(this)"></div>
                 </div>
@@ -67,7 +67,7 @@
             html += `<div class="cfg-toggle-row">
                 <div>
                     <span class="cfg-toggle-label">🐚 ${t('config.output_compression.shell_label')}</span>
-                    <div class="field-help" style="margin-top:2px">${t('config.output_compression.shell_desc')}</div>
+                    <div class="field-help pw-u-mt-2">${t('config.output_compression.shell_desc')}</div>
                 </div>
                 <div class="toggle ${shellOn ? 'on' : ''}" data-path="agent.output_compression.shell_compression" onclick="toggleBool(this)"></div>
             </div>`;
@@ -77,7 +77,7 @@
             html += `<div class="cfg-toggle-row">
                 <div>
                     <span class="cfg-toggle-label">🐍 ${t('config.output_compression.python_label')}</span>
-                    <div class="field-help" style="margin-top:2px">${t('config.output_compression.python_desc')}</div>
+                    <div class="field-help pw-u-mt-2">${t('config.output_compression.python_desc')}</div>
                 </div>
                 <div class="toggle ${pythonOn ? 'on' : ''}" data-path="agent.output_compression.python_compression" onclick="toggleBool(this)"></div>
             </div>`;
@@ -87,7 +87,7 @@
             html += `<div class="cfg-toggle-row">
                 <div>
                     <span class="cfg-toggle-label">🔌 ${t('config.output_compression.api_label')}</span>
-                    <div class="field-help" style="margin-top:2px">${t('config.output_compression.api_desc')}</div>
+                    <div class="field-help pw-u-mt-2">${t('config.output_compression.api_desc')}</div>
                 </div>
                 <div class="toggle ${apiOn ? 'on' : ''}" data-path="agent.output_compression.api_compression" onclick="toggleBool(this)"></div>
             </div>`;
@@ -105,22 +105,22 @@
                 <div class="cfg-toggle-row">
                     <div>
                         <span class="cfg-toggle-label">${t('config.output_compression.repetitive_label')}</span>
-                        <div class="field-help" style="margin-top:2px">${t('config.output_compression.repetitive_desc')}</div>
+                        <div class="field-help pw-u-mt-2">${t('config.output_compression.repetitive_desc')}</div>
                     </div>
                     <div class="toggle ${repetitiveOn ? 'on' : ''}" data-path="agent.output_compression.repetitive_substitution.enabled" onclick="toggleBool(this)"></div>
                 </div>
                 <div class="cfg-toggle-row">
                     <div>
                         <span class="cfg-toggle-label">${t('config.output_compression.toon_label')}</span>
-                        <div class="field-help" style="margin-top:2px">${t('config.output_compression.toon_desc')}</div>
+                        <div class="field-help pw-u-mt-2">${t('config.output_compression.toon_desc')}</div>
                     </div>
                     <div class="toggle ${toonOn ? 'on' : ''}" data-path="agent.output_compression.toon_json.enabled" onclick="toggleBool(this)"></div>
                 </div>
-                <div class="field-help" style="margin-top:.65rem">${t('config.output_compression.advanced_note')}</div>
+                <div class="field-help pw-u-mt-065">${t('config.output_compression.advanced_note')}</div>
             </div>`;
 
             // Relationship note
-            html += `<div class="wh-notice" style="margin-top:1rem;border-left-color:var(--text-secondary);">
+            html += `<div class="wh-notice pw-u-mt-100 pw-u-muted-border">
                 <span>💡</span>
                 <div>
                     <small>${t('config.output_compression.note_limit')}</small>

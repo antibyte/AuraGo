@@ -55,5 +55,14 @@
   "config.precision.changed_fields": "{count} champs modifiés",
   "config.precision.validation_ready": "Prêt à vérifier",
   "config.precision.validation_valid": "Vérification réussie",
-  "config.precision.validation_invalid": "Vérifie les champs signalés"
+  "config.precision.validation_invalid": "Vérifie les champs signalés",
+  "config.precision.advanced_title": "Avancé",
+  "config.precision.advanced_desc": "Réglages techniques et moins courants",
+  "config.precision.validation_required": "Ce champ est obligatoire.",
+  "config.precision.validation_number": "Saisis un nombre valide.",
+  "config.precision.validation_min": "La valeur est inférieure au minimum autorisé.",
+  "config.precision.validation_max": "La valeur dépasse le maximum autorisé.",
+  "config.precision.validation_pattern": "La valeur ne respecte pas le format attendu.",
+  "config.precision.validation_option": "Choisis l’une des options disponibles.",
+  "config.precision.validation_url": "Saisis une URL valide."
 }

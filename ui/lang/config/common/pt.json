@@ -55,5 +55,14 @@
   "config.precision.changed_fields": "{count} campos alterados",
   "config.precision.validation_ready": "Pronto para validar",
   "config.precision.validation_valid": "Validação concluída",
-  "config.precision.validation_invalid": "Verifique os campos destacados"
+  "config.precision.validation_invalid": "Verifique os campos destacados",
+  "config.precision.advanced_title": "Avançado",
+  "config.precision.advanced_desc": "Configurações técnicas e menos comuns",
+  "config.precision.validation_required": "Este campo é obrigatório.",
+  "config.precision.validation_number": "Insira um número válido.",
+  "config.precision.validation_min": "O valor está abaixo do mínimo permitido.",
+  "config.precision.validation_max": "O valor excede o máximo permitido.",
+  "config.precision.validation_pattern": "O valor não corresponde ao formato esperado.",
+  "config.precision.validation_option": "Escolha uma das opções disponíveis.",
+  "config.precision.validation_url": "Insira uma URL válida."
 }

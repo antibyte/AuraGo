@@ -79,10 +79,10 @@ async function renderYepAPISection(section) {
     services.forEach(svc => {
         const svcCfg = cfg[svc.key] || {};
         const svcEnabled = svcCfg.enabled === true;
-        html += '<div class="ig-toggle-row" style="padding:0.5rem 0;border-bottom:1px solid var(--border-subtle);">';
-        html += '<div style="flex:1;">';
-        html += '<div style="font-weight:500;">' + t('config.yepapi.' + svc.label) + '</div>';
-        html += '<div style="font-size:0.82rem;color:var(--text-secondary);">' + t('config.yepapi.' + svc.hint) + '</div>';
+        html += '<div class="ig-toggle-row pw-u-service-row">';
+        html += '<div class="pw-u-flex-1">';
+        html += '<div class="pw-u-medium">' + t('config.yepapi.' + svc.label) + '</div>';
+        html += '<div class="pw-u-meta">' + t('config.yepapi.' + svc.hint) + '</div>';
         html += '</div>';
         html += '<div class="toggle ' + (svcEnabled ? 'on' : '') + '" data-path="yepapi.' + svc.key + '.enabled" onclick="toggleBool(this)"></div>';
         html += '</div>';

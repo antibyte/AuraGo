@@ -33,15 +33,15 @@
             if (section.container) {
                 // Knowledge center context: render without cfg-specific wrapper
                 content.innerHTML = `
-                <div style="padding:0.5rem 0;">
-                    <div id="secrets-vault-status" style="margin-bottom:1rem;"></div>
+                <div class="secrets-panel-pad">
+                    <div id="secrets-vault-status" class="secrets-status"></div>
                     <div id="secrets-main"></div>
                 </div>`;
             } else {
                 content.innerHTML = `<div class="cfg-section active">
                 <div class="section-header">${section.label}</div>
                 <div class="section-desc">${section.desc}</div>
-                <div id="secrets-vault-status" style="margin-bottom:1rem;"></div>
+                <div id="secrets-vault-status" class="secrets-status"></div>
                 <div id="secrets-main"></div>
             </div>`;
             }
@@ -57,10 +57,10 @@
 
             if (!vaultReady) {
                 document.getElementById('secrets-vault-status').innerHTML = `
-                    <div style="text-align:center;padding:2rem;border:1px dashed var(--border-subtle);border-radius:12px;color:var(--warning);">
-                        <div style="font-size:1.5rem;margin-bottom:0.5rem;">⚠️</div>
-                        <div style="font-weight:600;">${t('config.secrets.no_vault')}</div>
-                        <div style="font-size:0.82rem;color:var(--text-secondary);margin-top:0.3rem;">
+                    <div class="secrets-empty secrets-empty-warning">
+                        <div class="secrets-empty-icon">⚠️</div>
+                        <div class="secrets-empty-title">${t('config.secrets.no_vault')}</div>
+                        <div class="secrets-meta secrets-empty-desc">
                             ${t('config.secrets.no_vault_desc')}
                         </div>
                     </div>`;
@@ -73,7 +73,7 @@
                 if (!resp.ok) {
                     const txt = await resp.text();
                     document.getElementById('secrets-main').innerHTML = `
-                        <div style="text-align:center;padding:2rem;color:var(--danger);">
+                        <div class="secrets-error">
                             ❌ ${t('config.secrets.load_error')}: ${txt}
                         </div>`;
                     return;
@@ -81,7 +81,7 @@
                 secretsCache = await resp.json();
             } catch (e) {
                 document.getElementById('secrets-main').innerHTML = `
-                    <div style="text-align:center;padding:2rem;color:var(--danger);">❌ ${e.message}</div>`;
+                    <div class="secrets-error">❌ ${e.message}</div>`;
                 return;
             }
             secretsRenderTable();
@@ -93,33 +93,33 @@
 
             let html = `<div class="kc-panel-header">
                 <div class="kc-search-row">
-                    <div style="font-size:0.82rem;color:var(--text-secondary);">
+                    <div class="secrets-meta">
                     ${secretsCache.length} ${t('config.secrets.count')}
                     </div>
-                    <button class="btn-save" style="padding:0.45rem 1.1rem;font-size:0.82rem;" onclick="secretsShowAddModal()">
+                    <button class="btn-save secrets-btn-small" onclick="secretsShowAddModal()">
                     ＋ ${t('config.secrets.new_secret')}
                     </button>
                 </div>
             </div>`;
 
             if (secretsCache.length === 0) {
-                html += `<div style="text-align:center;padding:2rem;color:var(--text-tertiary);font-size:0.85rem;border:1px dashed var(--border-subtle);border-radius:12px;">
+                html += `<div class="secrets-empty secrets-empty-neutral">
                     ${t('config.secrets.empty')}
                 </div>`;
             } else {
                 html += `<div class="kc-table-wrap"><table class="kc-table">
                     <thead><tr>
                         <th>Key</th>
-                        <th style="width:100px;text-align:right;">${t('config.secrets.actions')}</th>
+                        <th class="secrets-actions-column">${t('config.secrets.actions')}</th>
                     </tr></thead>
                     <tbody>`;
                 secretsCache.forEach((s, idx) => {
                     const isSystem = s.key.startsWith('egg_') || s.key.startsWith('nest_') || s.key.startsWith('dev-') || s.key.startsWith('egg_shared_');
-                    const badge = isSystem ? `<span style="display:inline-block;padding:0.1rem 0.4rem;border-radius:4px;font-size:0.65rem;font-weight:600;background:rgba(99,102,241,0.15);color:var(--accent);margin-left:0.5rem;">system</span>` : '';
+                    const badge = isSystem ? `<span class="secrets-system-badge">system</span>` : '';
                     html += `<tr>
                         <td class="kc-mono">${escapeAttr(s.key)}${badge}</td>
-                        <td style="text-align:right;white-space:nowrap;">
-                            <div class="kc-actions" style="justify-content:flex-end;">
+                        <td class="secrets-table-actions">
+                            <div class="kc-actions secrets-actions">
                                 <button class="btn btn-secondary btn-sm" onclick="secretsEdit(${idx})" title="${t('config.secrets.edit')}">✏️</button>
                                 <button class="btn btn-danger btn-sm" onclick="secretsDelete(${idx})" title="${t('config.secrets.delete')}">🗑️</button>
                             </div>
@@ -149,7 +149,7 @@
                 <div class="field-group">
                     <div class="field-label">Key</div>
                     <div class="field-help">${t('config.secrets.key_help')}</div>
-                    <input class="field-input" id="secret-key" value="${escapeAttr(keyVal)}" placeholder="my_secret_key" ${keyEditable ? '' : 'disabled class="field-input is-readonly"'}>
+                    <input class="field-input${keyEditable ? '' : ' is-readonly'}" id="secret-key" value="${escapeAttr(keyVal)}" placeholder="my_secret_key" ${keyEditable ? '' : 'disabled'}>
                 </div>
                 <div class="field-group">
                     <div class="field-label">Value</div>

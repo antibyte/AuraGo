@@ -55,5 +55,14 @@
   "config.precision.changed_fields": "Změněná pole: {count}",
   "config.precision.validation_ready": "Připraveno ke kontrole",
   "config.precision.validation_valid": "Kontrola proběhla úspěšně",
-  "config.precision.validation_invalid": "Zkontroluj označená pole"
+  "config.precision.validation_invalid": "Zkontroluj označená pole",
+  "config.precision.advanced_title": "Pokročilé",
+  "config.precision.advanced_desc": "Méně častá a technická nastavení",
+  "config.precision.validation_required": "Toto pole je povinné.",
+  "config.precision.validation_number": "Zadej platné číslo.",
+  "config.precision.validation_min": "Hodnota je nižší než povolené minimum.",
+  "config.precision.validation_max": "Hodnota překračuje povolené maximum.",
+  "config.precision.validation_pattern": "Hodnota nemá očekávaný formát.",
+  "config.precision.validation_option": "Vyber jednu z dostupných možností.",
+  "config.precision.validation_url": "Zadej platnou adresu URL."
 }

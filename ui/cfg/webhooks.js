@@ -480,10 +480,10 @@ async function _whPromptTokenName() {
         const titleText = (typeof t === 'function') ? t('config.tokens.name_prompt') : 'Token Name';
         const cancelText = (typeof t === 'function') ? t('common.btn_cancel') : 'Cancel';
         const okText = (typeof t === 'function') ? t('common.btn_ok') : 'OK';
-        overlay.innerHTML = '<div class="modal-card" style="max-width:400px;width:90%;">' +
-            '<div class="modal-title" style="font-size:1.1rem;font-weight:600;margin-bottom:16px;color:var(--text-primary);">' + titleText + '</div>' +
-            '<input type="text" id="wh-token-name-input" class="field-input" style="width:100%;margin-bottom:16px;" autofocus>' +
-            '<div class="modal-actions" style="display:flex;gap:10px;justify-content:flex-end;">' +
+        overlay.innerHTML = '<div class="modal-card pw-u-modal-narrow">' +
+            '<div class="modal-title pw-u-modal-title">' + titleText + '</div>' +
+            '<input type="text" id="wh-token-name-input" class="field-input pw-u-modal-input" autofocus>' +
+            '<div class="modal-actions pw-u-modal-actions">' +
             '<button class="btn btn-secondary" id="wh-token-cancel">' + cancelText + '</button>' +
             '<button class="btn btn-primary" id="wh-token-ok">' + okText + '</button>' +
             '</div></div>';

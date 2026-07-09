@@ -196,6 +196,211 @@
     border-color: var(--pw-line-strong);
 }
 
+.pw-page .pw-panel {
+    margin-block: 1rem;
+    border: 1px solid var(--pw-line);
+    border-radius: var(--pw-radius-lg);
+    background: color-mix(in srgb, var(--pw-surface) 72%, transparent);
+    overflow: clip;
+}
+
+.pw-page .pw-panel-heading {
+    padding: 1.25rem 1.35rem;
+    border-bottom: 1px solid var(--pw-line);
+}
+
+.pw-page .pw-panel-heading h2,
+.pw-page .pw-panel-heading p {
+    margin: 0;
+}
+
+.pw-page .pw-panel-heading h2 {
+    font-size: 1rem;
+}
+
+.pw-page .pw-panel-heading p {
+    margin-top: 0.35rem;
+    color: var(--pw-muted);
+    font-size: var(--pw-help-size);
+}
+
+.pw-page .pw-panel-body {
+    padding: 0.75rem;
+}
+
+.pw-page .pw-section-panel .field-group {
+    margin: 0;
+    border-width: 0 0 1px;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+.pw-page .pw-section-panel .field-group:last-child {
+    border-bottom: 0;
+}
+
+.pw-page .pw-disclosure,
+.pw-page .pw-advanced {
+    margin-block: 1.25rem;
+    border: 1px solid var(--pw-line);
+    border-radius: var(--pw-radius-md);
+    background: color-mix(in srgb, var(--pw-surface) 65%, transparent);
+}
+
+.pw-page .pw-disclosure > summary,
+.pw-page .pw-advanced > summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    min-height: 56px;
+    padding: 0.85rem 1rem;
+    cursor: pointer;
+    list-style: none;
+}
+
+.pw-page .pw-disclosure > summary::-webkit-details-marker,
+.pw-page .pw-advanced > summary::-webkit-details-marker {
+    display: none;
+}
+
+.pw-page .pw-disclosure > summary > span:first-child,
+.pw-page .pw-advanced > summary > span:first-child {
+    display: grid;
+    gap: 0.2rem;
+}
+
+.pw-page .pw-disclosure summary small,
+.pw-page .pw-advanced summary small {
+    color: var(--pw-muted);
+    font-size: var(--pw-meta-size);
+    font-weight: 450;
+}
+
+.pw-page .pw-disclosure-mark,
+.pw-page .pw-disclosure > summary > span:last-child {
+    color: var(--pw-accent);
+    font-size: 1.25rem;
+    transition: transform var(--pw-duration-fast) var(--pw-ease);
+}
+
+.pw-page .pw-disclosure[open] > summary > span:last-child,
+.pw-page .pw-advanced[open] .pw-disclosure-mark {
+    transform: rotate(45deg);
+}
+
+.pw-page .pw-disclosure-body,
+.pw-page .pw-advanced-body {
+    padding: 0 0.75rem 0.75rem;
+}
+
+.pw-page .pw-status {
+    min-height: 1.4em;
+    color: var(--pw-muted);
+    font-size: var(--pw-help-size);
+}
+
+.pw-page .pw-status.is-success {
+    color: var(--pw-success, #5ee0a0);
+}
+
+.pw-page .pw-status.is-error {
+    color: var(--pw-danger, #ef6a6a);
+}
+
+.pw-page .pw-empty-state {
+    display: grid;
+    place-items: start;
+    gap: 0.5rem;
+    padding: clamp(1.5rem, 4vw, 2.75rem);
+    color: var(--pw-muted);
+    border: 1px dashed var(--pw-line-strong);
+    border-radius: var(--pw-radius-md);
+}
+
+.pw-page .pw-empty-state strong {
+    color: var(--pw-text);
+}
+
+.pw-page .pw-empty-state p {
+    max-width: 58ch;
+    margin: 0;
+}
+
+.pw-page .pw-action-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+/* Config-local utility classes replacing legacy inline declarations. */
+.pw-page .pw-u-hidden { display: none !important; }
+.pw-page .pw-u-flex-1 { flex: 1 1 auto; }
+.pw-page .pw-u-wrap { flex-wrap: wrap; }
+.pw-page .pw-u-mt-2 { margin-top: 2px; }
+.pw-page .pw-u-mt-4 { margin-top: 4px; }
+.pw-page .pw-u-mt-6 { margin-top: 6px; }
+.pw-page .pw-u-mt-8 { margin-top: 8px; }
+.pw-page .pw-u-mt-035 { margin-top: 0.35rem; }
+.pw-page .pw-u-mt-065 { margin-top: 0.65rem; }
+.pw-page .pw-u-mt-075 { margin-top: 0.75rem; }
+.pw-page .pw-u-mt-100 { margin-top: 1rem; }
+.pw-page .pw-u-mt-150 { margin-top: 1.5rem; }
+.pw-page .pw-u-mb-050 { margin-bottom: 0.5rem; }
+.pw-page .pw-u-mb-075 { margin-bottom: 0.75rem; }
+.pw-page .pw-u-mb-090 { margin-bottom: 0.9rem; }
+.pw-page .pw-u-my-8 { margin-block: 8px; }
+.pw-page .pw-u-medium { font-weight: 500; }
+.pw-page .pw-u-meta,
+.pw-page .pw-u-muted { color: var(--pw-muted); font-size: var(--pw-meta-size); }
+.pw-page .pw-u-copy-success { margin-left: 8px; color: var(--pw-success, #5ee0a0); font-size: var(--pw-meta-size); }
+.pw-page .pw-u-inline-status { margin-left: 0.8rem; color: var(--pw-muted); font-size: var(--pw-meta-size); }
+.pw-page .pw-u-inline-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.pw-page .pw-u-modal-actions { display: flex; justify-content: flex-end; gap: 10px; }
+.pw-page .pw-u-grid-wide { grid-column: 1 / -1; }
+.pw-page .pw-u-badge-row { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.5rem 0 1rem; }
+.pw-page .pw-u-service-row { padding-block: 0.5rem; border-bottom: 1px solid var(--pw-line); }
+.pw-page .pw-u-accent-border { border-left-color: var(--pw-accent) !important; }
+.pw-page .pw-u-muted-border { border-left-color: var(--pw-muted) !important; }
+.pw-page .pw-u-accent-text { color: var(--pw-accent); }
+.pw-page .pw-u-btn-md { padding: 0.5rem 1.2rem; font-size: var(--pw-help-size); }
+.pw-page .pw-u-button-link { display: inline-flex; text-align: center; text-decoration: none; }
+.pw-page .pw-u-modal-narrow { width: min(400px, 90vw); }
+.pw-page .pw-u-modal-input { width: 100%; margin-bottom: 16px; }
+.pw-page .pw-u-modal-title { margin-bottom: 16px; color: var(--pw-text); font-size: 1.1rem; font-weight: 650; }
+.pw-page .pw-u-code-textarea { min-height: 220px; font-family: var(--font-mono, monospace); white-space: pre; }
+.pw-page .pw-u-token-code { display: block; padding: 6px 10px; overflow-wrap: anywhere; background: var(--input-bg); border-radius: 6px; font-size: var(--pw-meta-size); }
+.pw-page .pw-u-subsection-title { margin: 1.5rem 0 0.8rem; padding-bottom: 0.4rem; color: var(--pw-accent); border-bottom: 1px solid var(--pw-line); font-size: var(--pw-label-size); font-weight: 650; }
+.pw-page .pw-u-status-banner { margin-bottom: 1rem; padding: 0.8rem 1rem; color: var(--pw-muted); background: var(--pw-surface-elevated); border-radius: var(--pw-radius-sm); font-size: var(--pw-help-size); }
+.pw-page .ollama-managed-banner.is-success { color: var(--pw-success, #48c78e); background: color-mix(in srgb, #48c78e 10%, transparent); }
+.pw-page .ollama-managed-banner.is-warning { color: var(--pw-warning, #ffb74d); background: color-mix(in srgb, #ffb74d 10%, transparent); }
+.pw-page .ollama-managed-banner.is-error { color: var(--pw-danger, #ff5252); background: color-mix(in srgb, #ff5252 8%, transparent); }
+.pw-page .pw-u-device-code { padding: 8px 12px; color: var(--pw-text); background: var(--input-bg); border-radius: var(--pw-radius-sm); font-family: var(--font-mono, monospace); font-size: 1.4rem; font-weight: 700; letter-spacing: 2px; text-align: center; }
+
+.pw-page .ca-role-researcher { --ca-role-color: #4fc3f7; }
+.pw-page .ca-role-coder { --ca-role-color: #81c784; }
+.pw-page .ca-role-designer { --ca-role-color: #f48fb1; }
+.pw-page .ca-role-security { --ca-role-color: #ffb74d; }
+.pw-page .ca-role-writer { --ca-role-color: #ce93d8; }
+
+.pw-page .pw-skeleton-title { width: 35%; height: 1.4rem; margin-bottom: 1rem; }
+.pw-page .pw-skeleton-subtitle { width: 55%; height: 0.85rem; }
+.pw-page .pw-skeleton-label-20,
+.pw-page .pw-skeleton-label-25,
+.pw-page .pw-skeleton-label-30 { height: 1rem; margin-bottom: 1rem; }
+.pw-page .pw-skeleton-label-20 { width: 20%; }
+.pw-page .pw-skeleton-label-25 { width: 25%; }
+.pw-page .pw-skeleton-label-30 { width: 30%; }
+.pw-page .pw-skeleton-control,
+.pw-page .pw-skeleton-control-75,
+.pw-page .pw-skeleton-control-90 { height: 2.2rem; margin-bottom: 0.6rem; }
+.pw-page .pw-skeleton-control { width: 100%; }
+.pw-page .pw-skeleton-control-75 { width: 75%; }
+.pw-page .pw-skeleton-control-90 { width: 90%; }
+.pw-page .pw-skeleton-control-60 { width: 60%; height: 2.2rem; }
+
 .pw-page .pw-field-focus {
     border-color: var(--pw-accent) !important;
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--pw-accent) 18%, transparent) !important;
@@ -230,7 +435,7 @@
     grid-column: 1;
     max-width: 14ch;
     margin: 0.45rem 0 0;
-    font-size: clamp(2.4rem, 6vw, 5.2rem);
+    font-size: clamp(2.25rem, 5vw, 4.2rem);
     line-height: 0.96;
     letter-spacing: -0.055em;
     font-weight: 700;

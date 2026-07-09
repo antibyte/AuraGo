@@ -147,7 +147,7 @@ async function renderMCPServerSection(section) {
     html += `<div class="field-group">
         <div class="field-group-title">🛠️ ${t('config.mcp_server.allowed_tools')}</div>
         <div class="field-group-desc">${t('config.mcp_server.allowed_tools_desc')}</div>
-        <textarea class="field-input is-hidden" id="mcp-allowed-tools-state" data-path="mcp_server.allowed_tools" data-type="json" style="display:none;">${escapeHtml(JSON.stringify(effectiveAllowedTools))}</textarea>
+        <textarea class="field-input is-hidden pw-u-hidden" id="mcp-allowed-tools-state" data-path="mcp_server.allowed_tools" data-type="json">${escapeHtml(JSON.stringify(effectiveAllowedTools))}</textarea>
         <div id="mcp-tools-list" class="mcp-srv-tools-list"></div>
     </div>`;
 
@@ -294,15 +294,15 @@ async function mcpLoadVSCodeBridgeInfo() {
         container.innerHTML = `
             ${tokenHint}
             <div class="mcp-srv-tools-desc">${t('config.mcp_server.vscode_bridge_tools')}</div>
-            <div class="mcp-srv-tools-desc" style="display:flex; gap:.4rem; flex-wrap:wrap; margin:.5rem 0 1rem 0;">${toolBadges}</div>
-            <div class="mcp-srv-tools-desc" style="margin-bottom:.5rem;">${t('config.mcp_server.client_selector')}</div>
-            <div class="mcp-srv-action-row" style="margin-bottom:.75rem; flex-wrap:wrap;">
+            <div class="mcp-srv-tools-desc pw-u-badge-row">${toolBadges}</div>
+            <div class="mcp-srv-tools-desc pw-u-mb-050">${t('config.mcp_server.client_selector')}</div>
+            <div class="mcp-srv-action-row pw-u-mb-075 pw-u-wrap">
                 ${clientOptions.map(client => `<button class="btn mcp-client-btn" data-client="${client.key}" onclick="mcpSelectClientConfig('${client.key}', this)">${esc(client.label)}</button>`).join('')}
             </div>
-            <textarea class="field-input mcp-srv-endpoint-input" id="mcp-vscode-config" readonly style="min-height: 220px; font-family: var(--font-mono, monospace); white-space: pre;"></textarea>
-            <div class="mcp-srv-action-row" style="margin-top:.75rem;">
+            <textarea class="field-input mcp-srv-endpoint-input pw-u-code-textarea" id="mcp-vscode-config" readonly></textarea>
+            <div class="mcp-srv-action-row pw-u-mt-075">
                 <button class="btn" onclick="mcpCopyVSCodeConfig(this)">${t('config.mcp_server.copy_vscode_config')}</button>
-                <button class="btn" id="mcp-client-link-btn" style="display:none;" onclick="mcpOpenClientInstallLink()">${t('config.mcp_server.open_client_link')}</button>
+                <button class="btn pw-u-hidden" id="mcp-client-link-btn" onclick="mcpOpenClientInstallLink()">${t('config.mcp_server.open_client_link')}</button>
             </div>`;
         window.__auragoMcpClientConfigs = clients;
         const firstBtn = container.querySelector('.mcp-client-btn');
@@ -333,7 +333,7 @@ function mcpSelectClientConfig(clientKey, btn) {
     const linkBtn = document.getElementById('mcp-client-link-btn');
     if (linkBtn) {
         const hasLink = !!client.install_link;
-        linkBtn.style.display = hasLink ? '' : 'none';
+        linkBtn.classList.toggle('pw-u-hidden', !hasLink);
         linkBtn.dataset.href = client.install_link || '';
     }
 }

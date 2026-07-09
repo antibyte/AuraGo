@@ -55,5 +55,14 @@
   "config.precision.changed_fields": "変更された項目: {count}",
   "config.precision.validation_ready": "検証できます",
   "config.precision.validation_valid": "検証に合格しました",
-  "config.precision.validation_invalid": "強調表示された項目を確認してください"
+  "config.precision.validation_invalid": "強調表示された項目を確認してください",
+  "config.precision.advanced_title": "詳細設定",
+  "config.precision.advanced_desc": "使用頻度の低い技術的な設定",
+  "config.precision.validation_required": "この項目は必須です。",
+  "config.precision.validation_number": "有効な数値を入力してください。",
+  "config.precision.validation_min": "値が許容される最小値を下回っています。",
+  "config.precision.validation_max": "値が許容される最大値を超えています。",
+  "config.precision.validation_pattern": "値が想定された形式と一致しません。",
+  "config.precision.validation_option": "利用可能な選択肢から選んでください。",
+  "config.precision.validation_url": "有効なURLを入力してください。"
 }

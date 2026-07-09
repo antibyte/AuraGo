@@ -188,12 +188,12 @@ function renderPythonToolBridgeAllowedToolsPicker(currentAllowedTools) {
                 <button class="btn btn-sm" onclick="ptbSelectAll(false)">${t('config.skill_manager.tool_bridge_select_none')}</button>
             </div>
 
-            <textarea class="field-input is-hidden" id="ptb-allowed-tools-state"
-                data-path="tools.python_tool_bridge.allowed_tools" data-type="json" style="display:none;">${allowedJSON}</textarea>
+            <textarea class="field-input is-hidden pw-u-hidden" id="ptb-allowed-tools-state"
+                data-path="tools.python_tool_bridge.allowed_tools" data-type="json">${allowedJSON}</textarea>
 
             <div id="ptb-tools-status" class="ptb-tools-status">${t('config.skill_manager.tool_bridge_loading')}</div>
             <div id="ptb-tools-list" class="mcp-srv-tools-list"></div>
-            <div id="ptb-tools-warning" class="ptb-tools-warning" style="display:none;"></div>
+            <div id="ptb-tools-warning" class="ptb-tools-warning pw-u-hidden"></div>
         </div>
     `;
 }
@@ -212,8 +212,8 @@ function renderPythonToolBridgeSQLConnectionsPicker(currentAllowedSQL) {
                 </button>
                 <span id="ptb-sql-count" class="ptb-selected-count">${esc(countText)}</span>
             </div>
-            <textarea class="field-input is-hidden" id="ptb-allowed-sql-state"
-                data-path="tools.python_tool_bridge.allowed_sql_connections" data-type="json" style="display:none;">${allowedJSON}</textarea>
+            <textarea class="field-input is-hidden pw-u-hidden" id="ptb-allowed-sql-state"
+                data-path="tools.python_tool_bridge.allowed_sql_connections" data-type="json">${allowedJSON}</textarea>
         </div>
     `;
 }
@@ -274,7 +274,7 @@ function ptbRenderCatalog(catalog) {
                     ${desc ? `<div class="ptb-tool-desc">${esc(desc)}</div>` : ''}
                     <div class="ptb-tool-hint">${toolHint}</div>
                 </div>
-                <textarea class="is-hidden ptb-group-tools" style="display:none;">${escapeAttr(JSON.stringify(toolNames))}</textarea>
+                <textarea class="is-hidden ptb-group-tools pw-u-hidden">${escapeAttr(JSON.stringify(toolNames))}</textarea>
             </label>
         `;
     }
@@ -436,7 +436,7 @@ function ptbUpdateWarning() {
     if (!warnEl) return;
     const selected = ptbGetAllowedTools();
     if (!selected.length) {
-        warnEl.style.display = '';
+        warnEl.classList.remove('pw-u-hidden');
         warnEl.textContent = t('config.skill_manager.tool_bridge_none_selected');
         return;
     }
@@ -445,12 +445,12 @@ function ptbUpdateWarning() {
     if (selected.includes('sql_query')) {
         const dbs = ptbGetAllowedSQLConnections();
         if (!dbs.length) {
-            warnEl.style.display = '';
+            warnEl.classList.remove('pw-u-hidden');
             warnEl.textContent = t('config.skill_manager.tool_bridge_sql_none_selected');
             return;
         }
     }
-    warnEl.style.display = 'none';
+    warnEl.classList.add('pw-u-hidden');
     warnEl.textContent = '';
 }
 

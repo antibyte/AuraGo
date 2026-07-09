@@ -55,5 +55,14 @@
   "config.precision.changed_fields": "{count} gewijzigde velden",
   "config.precision.validation_ready": "Klaar voor controle",
   "config.precision.validation_valid": "Controle geslaagd",
-  "config.precision.validation_invalid": "Controleer de gemarkeerde velden"
+  "config.precision.validation_invalid": "Controleer de gemarkeerde velden",
+  "config.precision.advanced_title": "Geavanceerd",
+  "config.precision.advanced_desc": "Minder gebruikelijke en technische instellingen",
+  "config.precision.validation_required": "Dit veld is verplicht.",
+  "config.precision.validation_number": "Voer een geldig getal in.",
+  "config.precision.validation_min": "De waarde ligt onder het toegestane minimum.",
+  "config.precision.validation_max": "De waarde is hoger dan het toegestane maximum.",
+  "config.precision.validation_pattern": "De waarde heeft niet het verwachte formaat.",
+  "config.precision.validation_option": "Kies een van de beschikbare opties.",
+  "config.precision.validation_url": "Voer een geldige URL in."
 }

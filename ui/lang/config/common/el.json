@@ -55,5 +55,14 @@
   "config.precision.changed_fields": "{count} αλλαγμένα πεδία",
   "config.precision.validation_ready": "Έτοιμο για έλεγχο",
   "config.precision.validation_valid": "Ο έλεγχος ολοκληρώθηκε",
-  "config.precision.validation_invalid": "Έλεγξε τα επισημασμένα πεδία"
+  "config.precision.validation_invalid": "Έλεγξε τα επισημασμένα πεδία",
+  "config.precision.advanced_title": "Για προχωρημένους",
+  "config.precision.advanced_desc": "Λιγότερο συνηθισμένες και τεχνικές ρυθμίσεις",
+  "config.precision.validation_required": "Αυτό το πεδίο είναι υποχρεωτικό.",
+  "config.precision.validation_number": "Εισήγαγε έναν έγκυρο αριθμό.",
+  "config.precision.validation_min": "Η τιμή είναι μικρότερη από το επιτρεπόμενο ελάχιστο.",
+  "config.precision.validation_max": "Η τιμή υπερβαίνει το επιτρεπόμενο μέγιστο.",
+  "config.precision.validation_pattern": "Η τιμή δεν έχει την αναμενόμενη μορφή.",
+  "config.precision.validation_option": "Επίλεξε μία από τις διαθέσιμες επιλογές.",
+  "config.precision.validation_url": "Εισήγαγε μια έγκυρη διεύθυνση URL."
 }

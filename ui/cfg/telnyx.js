@@ -34,7 +34,7 @@ function renderTelnyxSection(section) {
     html += '<div class="field-label">' + t('config.telnyx.api_key_label') + '</div>';
     html += '<div class="field-help">' + t('help.telnyx.api_key') + '</div>';
     html += '<div class="telnyx-api-row">';
-        html += '<div class="password-wrap" style="flex:1;">';
+        html += '<div class="password-wrap pw-u-flex-1">';
         html += '<input class="field-input telnyx-api-input" type="password" id="telnyx-api-key" value="' + escapeAttr(cfgSecretValue(data.api_key)) + '" placeholder="' + escapeAttr(apiKeyPlaceholder) + '">';
         html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
         html += '</div>';

@@ -88,7 +88,7 @@ function renderJellyfinSection(section) {
     html += '<div class="field-label">' + t('config.jellyfin.apikey_label') + '</div>';
     if (helpKey) html += '<div class="field-help">' + helpKey + '</div>';
     html += '<div class="adg-password-row">';
-        html += '<div class="password-wrap" style="flex:1;">';
+        html += '<div class="password-wrap pw-u-flex-1">';
         html += '<input class="field-input adg-password-input" type="password" id="jellyfin-apikey" value="' + escapeAttr(cfgSecretValue(data.api_key)) + '" placeholder="' + escapeAttr(apiKeyPlaceholder) + '">';
         html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
         html += '</div>';

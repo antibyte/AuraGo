@@ -89,7 +89,7 @@ function _renderSpecialistCard(role, spec) {
     var specEnabled = spec.enabled === true;
     var basePath = 'co_agents.specialists.' + role.key;
 
-    var html = '<div class="ca-card' + (specEnabled ? '' : ' is-disabled') + '" style="--ca-role-color:' + role.color + '">';
+    var html = '<div class="ca-card ca-role-' + escapeAttr(role.key) + (specEnabled ? '' : ' is-disabled') + '">';
 
     html += '<div class="ca-card-header">';
     html += '<span class="ca-card-icon">' + role.icon + '</span>';

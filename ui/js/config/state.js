@@ -77,6 +77,14 @@
         if (!same(before, value)) notify();
     }
 
+    function markSaved(path, value) {
+        if (!path) return;
+        write(savedConfig, path, value);
+        write(draftConfig, path, value);
+        changed.delete(path);
+        notify();
+    }
+
     function dirtyPaths() {
         return Array.from(changed).sort();
     }
@@ -243,6 +251,7 @@
         beginSection: beginSection,
         get: get,
         set: set,
+        markSaved: markSaved,
         dirtyPaths: dirtyPaths,
         isDirty: isDirty,
         buildPatch: buildPatch,

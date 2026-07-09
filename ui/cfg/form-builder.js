@@ -22,7 +22,8 @@
     function fieldShell(options, controlHTML) {
         const help = helpText(options);
         const extraClass = options.groupClass ? ' ' + attr(options.groupClass) : '';
-        return '<div class="field-group' + extraClass + '">'
+        const tier = options.advanced ? ' data-tier="advanced"' : '';
+        return '<div class="field-group pw-field' + extraClass + '"' + tier + '>'
             + '<div class="field-label">' + html(labelText(options)) + '</div>'
             + (help ? '<div class="field-help">' + html(help) + '</div>' : '')
             + controlHTML
@@ -108,9 +109,56 @@
         return '<div class="cfg-note' + kind + '">' + html(text) + '</div>';
     }
 
+    function panel(options) {
+        options = options || {};
+        const title = options.title != null ? options.title : (options.titleKey ? t(options.titleKey) : '');
+        const desc = options.desc != null ? options.desc : (options.descKey ? t(options.descKey) : '');
+        const content = options.content != null ? options.content : (options.html || '');
+        return '<section class="pw-panel' + (options.className ? ' ' + attr(options.className) : '') + '">'
+            + (title ? '<div class="pw-panel-heading"><h2>' + html(title) + '</h2>' + (desc ? '<p>' + html(desc) + '</p>' : '') + '</div>' : '')
+            + '<div class="pw-panel-body">' + content + '</div>'
+            + '</section>';
+    }
+
+    function disclosure(options) {
+        options = options || {};
+        const title = options.title != null ? options.title : t(options.titleKey || 'config.precision.advanced_title');
+        const desc = options.desc != null ? options.desc : (options.descKey ? t(options.descKey) : '');
+        return '<details class="pw-disclosure' + (options.className ? ' ' + attr(options.className) : '') + '"' + (options.open ? ' open' : '') + '>'
+            + '<summary><span><strong>' + html(title) + '</strong>' + (desc ? '<small>' + html(desc) + '</small>' : '') + '</span><span aria-hidden="true">+</span></summary>'
+            + '<div class="pw-disclosure-body">' + (options.content || options.html || '') + '</div>'
+            + '</details>';
+    }
+
+    function status(options) {
+        options = options || {};
+        const kind = options.kind ? ' is-' + attr(options.kind) : '';
+        const message = options.text != null ? options.text : (options.textKey ? t(options.textKey) : '');
+        return '<div class="pw-status' + kind + '" role="status" aria-live="polite">' + html(message) + '</div>';
+    }
+
+    function emptyState(options) {
+        options = options || {};
+        const title = options.title != null ? options.title : (options.titleKey ? t(options.titleKey) : '');
+        const desc = options.desc != null ? options.desc : (options.descKey ? t(options.descKey) : '');
+        return '<div class="pw-empty-state"><strong>' + html(title) + '</strong>' + (desc ? '<p>' + html(desc) + '</p>' : '') + (options.actionHTML || '') + '</div>';
+    }
+
+    function modal(options) {
+        options = options || {};
+        const title = options.title != null ? options.title : (options.titleKey ? t(options.titleKey) : '');
+        const labelledBy = options.titleId || 'pw-modal-title';
+        return '<div class="modal-overlay pw-modal-overlay' + (options.open ? ' open active' : '') + '">'
+            + '<div class="modal-card pw-modal-card" role="dialog" aria-modal="true" aria-labelledby="' + attr(labelledBy) + '">'
+            + '<h2 class="modal-title" id="' + attr(labelledBy) + '">' + html(title) + '</h2>'
+            + '<div class="pw-modal-body">' + (options.content || options.html || '') + '</div>'
+            + (options.actionsHTML ? '<div class="modal-actions">' + options.actionsHTML + '</div>' : '')
+            + '</div></div>';
+    }
+
     function actions(items) {
         const row = (items || []).map(item => item.html || '').join('');
-        return '<div class="field-group cfg-actions-row">' + row + '</div>';
+        return '<div class="field-group cfg-actions-row pw-action-row">' + row + '</div>';
     }
 
     function section(spec) {
@@ -123,9 +171,11 @@
         out += '<div class="section-header">' + html(spec.label || '') + '</div>';
         if (spec.desc) out += '<div class="section-desc">' + html(spec.desc) + '</div>';
         if (spec.beforeHTML) out += spec.beforeHTML;
+        let fields = '';
         (spec.fields || []).forEach(item => {
-            out += typeof item === 'string' ? item : field(item);
+            fields += typeof item === 'string' ? item : field(item);
         });
+        if (fields) out += panel({ content: fields, className: 'pw-section-panel' });
         if (spec.afterHTML) out += spec.afterHTML;
         out += '</div>';
         return out;
@@ -140,6 +190,11 @@
         password,
         number,
         note,
+        panel,
+        disclosure,
+        status,
+        emptyState,
+        modal,
         actions,
         renderSpec
     };

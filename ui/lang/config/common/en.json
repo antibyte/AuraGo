@@ -55,5 +55,14 @@
   "config.precision.changed_fields": "{count} changed fields",
   "config.precision.validation_ready": "Ready to validate",
   "config.precision.validation_valid": "Validation passed",
-  "config.precision.validation_invalid": "Check the highlighted fields"
+  "config.precision.validation_invalid": "Check the highlighted fields",
+  "config.precision.advanced_title": "Advanced",
+  "config.precision.advanced_desc": "Less common and technical settings",
+  "config.precision.validation_required": "This field is required.",
+  "config.precision.validation_number": "Enter a valid number.",
+  "config.precision.validation_min": "The value is below the allowed minimum.",
+  "config.precision.validation_max": "The value exceeds the allowed maximum.",
+  "config.precision.validation_pattern": "The value does not match the expected format.",
+  "config.precision.validation_option": "Choose one of the available options.",
+  "config.precision.validation_url": "Enter a valid URL."
 }

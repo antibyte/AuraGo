@@ -90,7 +90,7 @@ function renderLDAPSection(section) {
     html += '<div class="field-label">' + t('config.ldap.bind_password_label') + '</div>';
     if (helpPass) html += '<div class="field-help">' + helpPass + '</div>';
     html += '<div class="ldap-password-row">';
-        html += '<div class="password-wrap" style="flex:1;">';
+        html += '<div class="password-wrap pw-u-flex-1">';
         html += '<input class="field-input ldap-password-input" type="password" id="ldap-password" value="' + escapeAttr(cfgSecretValue(data.bind_password)) + '" placeholder="' + escapeAttr(passwordPlaceholder) + '">';
         html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
         html += '</div>';

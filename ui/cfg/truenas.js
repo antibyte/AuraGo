@@ -80,7 +80,7 @@ function renderTrueNASSection(section) {
     html += '<div class="field-label">' + t('config.truenas.apikey_label') + '</div>';
     if (helpKey) html += '<div class="field-help">' + helpKey + '</div>';
     html += '<div class="adg-password-row">';
-        html += '<div class="password-wrap" style="flex:1;">';
+        html += '<div class="password-wrap pw-u-flex-1">';
         html += '<input class="field-input adg-password-input" type="password" id="truenas-apikey" value="' + escapeAttr(cfgSecretValue(data.api_key)) + '" placeholder="' + escapeAttr(apiKeyPlaceholder) + '">';
         html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
         html += '</div>';
@@ -95,7 +95,7 @@ function renderTrueNASSection(section) {
 
     // ── Link to full UI ──
     html += '<div class="field-group">';
-    html += '<a href="/truenas" class="btn-save" style="text-decoration: none; display: inline-block; text-align: center;">📊 ' + t('config.truenas.open_ui') + '</a>';
+    html += '<a href="/truenas" class="btn-save pw-u-button-link">📊 ' + t('config.truenas.open_ui') + '</a>';
     html += '</div>';
 
     html += '</div>';

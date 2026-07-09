@@ -35,7 +35,11 @@ if (typeof window.cfgMarkSecretStored !== 'function') {
         if (!configPath || typeof setNestedValue !== 'function') return;
         const paths = Array.isArray(configPath) ? configPath : [configPath];
         paths.forEach(path => {
-            if (path) setNestedValue(configData, path, cfgMaskedSecretFallback);
+            if (!path) return;
+            setNestedValue(configData, path, cfgMaskedSecretFallback);
+            if (window.AuraConfigState && typeof window.AuraConfigState.markSaved === 'function') {
+                window.AuraConfigState.markSaved(path, cfgMaskedSecretFallback);
+            }
         });
     };
 }
@@ -353,6 +357,7 @@ async function init() {
             window.AuraConfigState.subscribe(state => setDirty(state.dirty));
         }
         schema = await schemaResp.json();
+        if (window.AuraConfigState) window.AuraConfigState.setRules(configValidationRules());
         try { vaultExists = (await vaultResp.json()).exists === true; } catch (_) { }
         // Load providers (best-effort – endpoint only exists when web_config is enabled)
         await loadProviders();
@@ -609,6 +614,22 @@ function flattenConfigSchemaFields(fields, entries = []) {
 function configSearchEntriesForSection(sectionKey) {
     const sectionSchema = schema.find(entry => entry.yaml_key === sectionKey);
     return sectionSchema ? flattenConfigSchemaFields(sectionSchema.children || []) : [];
+}
+
+function configValidationRules() {
+    const result = {};
+    const collect = fields => (fields || []).forEach(field => {
+        if (field.type === 'object' && Array.isArray(field.children)) {
+            collect(field.children);
+            return;
+        }
+        if (field.type === 'int' || field.type === 'float') {
+            result[field.key] = { type: 'number' };
+        }
+    });
+    collect(schema);
+    const catalog = window.AuraConfigCatalog || {};
+    return Object.assign(result, catalog.validationRules || {});
 }
 
 function sidebarItemMatches(item, terms) {
@@ -1008,6 +1029,70 @@ function focusConfigField(path) {
     });
 }
 
+function loadAdvancedSectionState() {
+    try {
+        const value = JSON.parse(localStorage.getItem(CONFIG_ADVANCED_KEY) || '{}');
+        return value && typeof value === 'object' ? value : {};
+    } catch (_) {
+        return {};
+    }
+}
+
+function isAdvancedConfigPath(path) {
+    const catalog = window.AuraConfigCatalog || {};
+    const explicit = catalog.sectionTiers && catalog.sectionTiers[path];
+    if (explicit) return explicit === 'advanced';
+    const normalized = String(path || '').toLowerCase();
+    const fieldName = normalized.split('.').pop() || '';
+    return (catalog.advancedPathPatterns || []).some(pattern => fieldName.includes(pattern));
+}
+
+function enhanceConfigSectionLayout(key) {
+    if (!key || key === 'overview') return;
+    const section = document.querySelector('#content > .cfg-section.active');
+    if (!section || section.querySelector(':scope > .pw-advanced')) return;
+
+    section.querySelectorAll('.field-group').forEach(group => group.classList.add('pw-field'));
+    const advancedFields = [...section.querySelectorAll('.field-group')].filter(group => {
+        if (group.closest('.modal-overlay, .pw-modal-overlay, .pw-advanced')) return false;
+        if (group.parentElement !== section && !group.parentElement?.classList.contains('pw-panel-body')) return false;
+        if (group.dataset.tier === 'advanced') return true;
+        const control = group.querySelector('[data-path]');
+        return control ? isAdvancedConfigPath(control.dataset.path) : false;
+    });
+    if (!advancedFields.length) return;
+
+    const advancedState = loadAdvancedSectionState();
+    const details = document.createElement('details');
+    details.className = 'pw-advanced';
+    details.open = advancedState[key] === true;
+    const summary = document.createElement('summary');
+    summary.innerHTML = `<span><strong>${escapeHtml(t('config.precision.advanced_title'))}</strong><small>${escapeHtml(t('config.precision.advanced_desc'))}</small></span><span class="pw-disclosure-mark" aria-hidden="true">+</span>`;
+    const body = document.createElement('div');
+    body.className = 'pw-advanced-body';
+    advancedFields.forEach(field => body.appendChild(field));
+    details.append(summary, body);
+    details.addEventListener('toggle', () => {
+        const nextState = loadAdvancedSectionState();
+        nextState[key] = details.open;
+        localStorage.setItem(CONFIG_ADVANCED_KEY, JSON.stringify(nextState));
+    });
+    section.appendChild(details);
+}
+
+let configSectionObserverFrame = 0;
+const configSectionObserver = new MutationObserver(() => {
+    if (configSectionObserverFrame) return;
+    configSectionObserverFrame = requestAnimationFrame(() => {
+        configSectionObserverFrame = 0;
+        enhanceConfigSectionLayout(activeSection);
+    });
+});
+const configSectionObserverRoot = document.getElementById('content');
+if (configSectionObserverRoot) {
+    configSectionObserver.observe(configSectionObserverRoot, { childList: true, subtree: true });
+}
+
 async function selectSection(key, options = {}) {
     const { scrollBehavior = 'smooth', focusPath = '' } = options;
     key = normalizeSectionKey(key);
@@ -1038,6 +1123,7 @@ async function selectSection(key, options = {}) {
     scrollActiveSidebarItemIntoView(scrollBehavior, expandedTargetGroup ? 320 : 0);
     window.dispatchEvent(new CustomEvent('cfg:section-leave'));
     await renderSection(key);
+    enhanceConfigSectionLayout(key);
     attachChangeListeners();
     document.dispatchEvent(new CustomEvent('cfg:section-rendered', { detail: { key, root: document.getElementById('content') } }));
     focusConfigField(focusPath);
@@ -1307,16 +1393,16 @@ async function renderSection(key) {
         html += `
         <div class="cfg-action-block" id="ansible-token-block">
             <div class="cfg-action-block-title">⚙️ ${t('config.ansible.generate_token_btn')}</div>
-            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <div class="pw-u-inline-actions">
                 <button id="ansible-gen-token-btn" class="cfg-btn cfg-btn-primary" onclick="ansibleGenerateToken()">
                     🔑 ${t('config.ansible.generate_token_btn')}
                 </button>
-                <span id="ansible-gen-token-result" style="font-size:0.85em;color:var(--color-text-muted)"></span>
+                <span id="ansible-gen-token-result" class="pw-u-muted"></span>
             </div>
-            <div id="ansible-token-preview" style="display:none;margin-top:8px">
-                <code id="ansible-token-value" style="font-size:0.78em;word-break:break-all;background:var(--input-bg);padding:6px 10px;border-radius:6px;display:block"></code>
-                <button class="cfg-btn cfg-btn-sm" style="margin-top:6px" onclick="ansibleCopyToken()">${t('config.ansible.generate_token_copy')}</button>
-                <span id="ansible-copy-feedback" style="font-size:0.8em;margin-left:8px;color:var(--color-success)"></span>
+            <div id="ansible-token-preview" class="pw-u-hidden pw-u-mt-8">
+                <code id="ansible-token-value" class="pw-u-token-code"></code>
+                <button class="cfg-btn cfg-btn-sm pw-u-mt-6" onclick="ansibleCopyToken()">${t('config.ansible.generate_token_copy')}</button>
+                <span id="ansible-copy-feedback" class="pw-u-copy-success"></span>
             </div>
         </div>`;
     }
@@ -2498,7 +2584,7 @@ async function ansibleGenerateToken() {
     btn.disabled = true;
     btn.textContent = '⏳ ' + t('config.ansible.generate_token_generating');
     result.textContent = '';
-    preview.style.display = 'none';
+    preview.classList.add('pw-u-hidden');
 
     try {
         const resp = await fetch('/api/ansible/generate-token', { method: 'POST' });
@@ -2506,7 +2592,7 @@ async function ansibleGenerateToken() {
         if (resp.ok && data.status === 'ok') {
             _ansibleGeneratedToken = data.token;
             tokenVal.textContent = data.token;
-            preview.style.display = '';
+            preview.classList.remove('pw-u-hidden');
             result.textContent = t('config.ansible.generate_token_ok');
             result.style.color = 'var(--color-success)';
             // Show masked marker in the token config field if visible

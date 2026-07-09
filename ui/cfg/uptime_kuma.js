@@ -31,7 +31,7 @@ function renderUptimeKumaSection(section) {
     html += '<div class="field-label">' + t('config.uptime_kuma.api_key_label') + '</div>';
     html += '<div class="field-help">' + t('help.uptime_kuma.api_key') + '</div>';
     html += '<div class="adg-password-row">';
-    html += '<div class="password-wrap" style="flex:1;">';
+    html += '<div class="password-wrap pw-u-flex-1">';
     html += '<input class="field-input adg-password-input" type="password" id="uptime-kuma-api-key" value="' + escapeAttr(cfgSecretValue(data.api_key)) + '" placeholder="' + escapeAttr(apiKeyPlaceholder) + '" autocomplete="off">';
     html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
     html += '</div>';
@@ -150,7 +150,7 @@ function uptimeKumaRenderSummary(summary) {
     html += '<div><strong>' + t('config.uptime_kuma.summary_unknown') + '</strong><br>' + escapeHtml(String(summary.unknown || 0)) + '</div>';
     html += '<div><strong>' + t('config.uptime_kuma.summary_total') + '</strong><br>' + escapeHtml(String(summary.total || 0)) + '</div>';
     if (downNames.length > 0) {
-        html += '<div style="grid-column:1 / -1;"><strong>' + t('config.uptime_kuma.down_monitors') + '</strong><br>' + escapeHtml(downNames.join(', ')) + '</div>';
+        html += '<div class="pw-u-grid-wide"><strong>' + t('config.uptime_kuma.down_monitors') + '</strong><br>' + escapeHtml(downNames.join(', ')) + '</div>';
     }
     content.innerHTML = html || '<div class="adg-stats-loaded">' + t('config.uptime_kuma.summary_empty') + '</div>';
 }
