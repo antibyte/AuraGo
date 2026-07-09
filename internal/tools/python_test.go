@@ -204,36 +204,88 @@ func TestExecutePythonBackgroundDoesNotInheritSensitiveEnv(t *testing.T) {
 	assertCleanFakePythonOutput(t, output)
 }
 
+func TestCreateVenvDoesNotInheritSensitiveEnv(t *testing.T) {
+	workspaceDir := t.TempDir()
+	binDir := t.TempDir()
+	installFakeExecutable(t, filepath.Join(binDir, pythonExecutableName()))
+	setSensitiveEnvForSubprocessTest(t)
+	t.Setenv("AURAGO_FAKE_PYTHON", "1")
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	err := createVenv(workspaceDir, testBackgroundTaskLogger())
+	if err != nil {
+		t.Fatalf("createVenv() error = %v", err)
+	}
+}
+
+func TestInstallPackageDoesNotInheritSensitiveEnv(t *testing.T) {
+	workspaceDir := t.TempDir()
+	installFakePip(t, workspaceDir)
+	setSensitiveEnvForSubprocessTest(t)
+	t.Setenv("AURAGO_FAKE_PYTHON", "1")
+
+	stdout, stderr, err := InstallPackage("requests", workspaceDir)
+	if err != nil {
+		t.Fatalf("InstallPackage() error = %v, stdout = %q stderr = %q", err, stdout, stderr)
+	}
+	assertCleanFakePythonOutput(t, stdout)
+}
+
 func installFakePython(t *testing.T, workspaceDir string) {
 	t.Helper()
-	var pythonPath string
+	installFakeExecutable(t, fakePythonPath(workspaceDir))
+}
+
+func installFakePip(t *testing.T, workspaceDir string) {
+	t.Helper()
+	installFakeExecutable(t, fakePipPath(workspaceDir))
+}
+
+func fakePythonPath(workspaceDir string) string {
 	if runtime.GOOS == "windows" {
-		pythonPath = filepath.Join(workspaceDir, "venv", "Scripts", "python.exe")
-	} else {
-		pythonPath = filepath.Join(workspaceDir, "venv", "bin", "python")
+		return filepath.Join(workspaceDir, "venv", "Scripts", "python.exe")
 	}
-	if err := os.MkdirAll(filepath.Dir(pythonPath), 0o755); err != nil {
-		t.Fatalf("create fake python dir: %v", err)
+	return filepath.Join(workspaceDir, "venv", "bin", "python")
+}
+
+func fakePipPath(workspaceDir string) string {
+	if runtime.GOOS == "windows" {
+		return filepath.Join(workspaceDir, "venv", "Scripts", "pip.exe")
+	}
+	return filepath.Join(workspaceDir, "venv", "bin", "pip")
+}
+
+func pythonExecutableName() string {
+	if runtime.GOOS == "windows" {
+		return "python.exe"
+	}
+	return "python"
+}
+
+func installFakeExecutable(t *testing.T, path string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("create fake executable dir: %v", err)
 	}
 	src, err := os.Open(os.Args[0])
 	if err != nil {
-		t.Fatalf("open test binary: %v", err)
+		t.Fatalf("open test binary for fake executable: %v", err)
 	}
 	defer src.Close()
-	dst, err := os.OpenFile(pythonPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o755)
+	dst, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o755)
 	if err != nil {
-		t.Fatalf("create fake python: %v", err)
+		t.Fatalf("create fake executable: %v", err)
 	}
 	if _, err := io.Copy(dst, src); err != nil {
 		dst.Close()
-		t.Fatalf("copy fake python: %v", err)
+		t.Fatalf("copy fake executable: %v", err)
 	}
 	if err := dst.Close(); err != nil {
-		t.Fatalf("close fake python: %v", err)
+		t.Fatalf("close fake executable: %v", err)
 	}
 	if runtime.GOOS != "windows" {
-		if err := os.Chmod(pythonPath, 0o755); err != nil {
-			t.Fatalf("chmod fake python: %v", err)
+		if err := os.Chmod(path, 0o755); err != nil {
+			t.Fatalf("chmod fake executable: %v", err)
 		}
 	}
 }

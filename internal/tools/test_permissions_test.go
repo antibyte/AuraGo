@@ -42,6 +42,7 @@ func runFakePythonForEnvTests() {
 	}
 	if len(leaked) > 0 {
 		fmt.Printf("leaked:%v\n", leaked)
+		os.Exit(42)
 	} else {
 		fmt.Println("env-clean")
 	}

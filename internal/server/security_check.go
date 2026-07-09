@@ -8,9 +8,12 @@ import (
 	"strings"
 
 	"aurago/internal/config"
+	"aurago/internal/sandbox"
 
 	"gopkg.in/yaml.v3"
 )
+
+var runtimeGOOS = runtime.GOOS
 
 // Severity levels for security hints.
 const (
@@ -704,11 +707,12 @@ func shellSandboxReady(cfg *config.Config) bool {
 	if !cfg.ShellSandbox.Enabled {
 		return false
 	}
-	if runtime.GOOS != "linux" {
+	if runtimeGOOS != "linux" {
 		return false
 	}
 	if cfg.Runtime.IsDocker {
 		return false
 	}
-	return true
+	sb := sandbox.Get()
+	return sb != nil && sb.Available()
 }

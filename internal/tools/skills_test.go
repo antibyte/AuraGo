@@ -13,6 +13,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 )
 
 // setupDummySkill creates a minimal skill in skillsDir so that
@@ -296,6 +297,17 @@ func TestMissingPythonPackagesUsesCaseInsensitiveComparison(t *testing.T) {
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("missing = %v, want %v", got, want)
 	}
+}
+
+func TestRunTimedCommandDoesNotInheritSensitiveEnv(t *testing.T) {
+	setSensitiveEnvForSubprocessTest(t)
+	t.Setenv("AURAGO_FAKE_PYTHON", "1")
+
+	output, err := runTimedCommand(t.TempDir(), 5*time.Second, os.Args[0])
+	if err != nil {
+		t.Fatalf("runTimedCommand() error = %v, output = %q", err, output)
+	}
+	assertCleanFakePythonOutput(t, string(output))
 }
 
 func TestBuildSandboxSkillExecCode_RejectsMissingFunction(t *testing.T) {

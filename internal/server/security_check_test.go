@@ -2,6 +2,8 @@ package server
 
 import (
 	"aurago/internal/config"
+	"aurago/internal/sandbox"
+	"os/exec"
 	"runtime"
 	"strings"
 	"testing"
@@ -83,8 +85,6 @@ func TestCheckSecurityShellNoSandboxCriticalWhenPublic(t *testing.T) {
 }
 
 func TestCheckSecuritySkipsShellNoSandboxWhenShellDisabledOrSandboxReady(t *testing.T) {
-	t.Parallel()
-
 	disabled := &config.Config{}
 	if hasSecurityHint(CheckSecurity(disabled), "shell_no_sandbox") {
 		t.Fatal("did not expect shell_no_sandbox when shell is disabled")
@@ -94,11 +94,50 @@ func TestCheckSecuritySkipsShellNoSandboxWhenShellDisabledOrSandboxReady(t *test
 	ready.Agent.AllowShell = true
 	ready.ShellSandbox.Enabled = true
 	ready.Runtime.IsDocker = false
+	if runtime.GOOS == "linux" {
+		restore := sandbox.SetForTest(testReadyShellSandbox{})
+		t.Cleanup(restore)
+	}
 	if runtime.GOOS == "linux" && hasSecurityHint(CheckSecurity(ready), "shell_no_sandbox") {
-		t.Fatal("did not expect shell_no_sandbox when shell sandbox is configured as ready")
+		t.Fatal("did not expect shell_no_sandbox when shell sandbox backend is ready")
 	}
 	if runtime.GOOS != "linux" && !hasSecurityHint(CheckSecurity(ready), "shell_no_sandbox") {
 		t.Fatal("expected shell_no_sandbox on non-Linux even when shell sandbox is configured")
+	}
+}
+
+func TestCheckSecurityWarnsWhenShellSandboxFallsBackUnsandboxed(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Agent.AllowShell = true
+	cfg.ShellSandbox.Enabled = true
+	cfg.Runtime.IsDocker = false
+
+	oldGOOS := runtimeGOOS
+	runtimeGOOS = "linux"
+	t.Cleanup(func() { runtimeGOOS = oldGOOS })
+	restore := sandbox.SetForTest(&sandbox.FallbackSandbox{})
+	t.Cleanup(restore)
+
+	hints := CheckSecurity(cfg)
+	if !hasSecurityHint(hints, "shell_no_sandbox") {
+		t.Fatalf("expected shell_no_sandbox when shell sandbox falls back to unsandboxed backend, got %#v", hints)
+	}
+}
+
+func TestCheckSecuritySkipsShellNoSandboxWhenEffectiveSandboxActive(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Agent.AllowShell = true
+	cfg.ShellSandbox.Enabled = true
+	cfg.Runtime.IsDocker = false
+
+	oldGOOS := runtimeGOOS
+	runtimeGOOS = "linux"
+	t.Cleanup(func() { runtimeGOOS = oldGOOS })
+	restore := sandbox.SetForTest(testReadyShellSandbox{})
+	t.Cleanup(restore)
+
+	if hasSecurityHint(CheckSecurity(cfg), "shell_no_sandbox") {
+		t.Fatal("did not expect shell_no_sandbox when effective shell sandbox backend is active")
 	}
 }
 
@@ -242,4 +281,19 @@ func findSecurityHint(hints []SecurityHint, id string) *SecurityHint {
 		}
 	}
 	return nil
+}
+
+type testReadyShellSandbox struct{}
+
+func (testReadyShellSandbox) Available() bool { return true }
+func (testReadyShellSandbox) Name() string    { return "landlock" }
+func (testReadyShellSandbox) PrepareCommand(command, workDir string) *exec.Cmd {
+	cmd := exec.Command("echo", "unused")
+	cmd.Dir = workDir
+	return cmd
+}
+func (testReadyShellSandbox) PrepareExecCommand(binary string, args []string, workDir string) *exec.Cmd {
+	cmd := exec.Command("echo", "unused")
+	cmd.Dir = workDir
+	return cmd
 }

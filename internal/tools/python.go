@@ -250,6 +250,7 @@ func createVenv(workspaceDir string, logger *slog.Logger) error {
 	for _, pyCmd := range candidates {
 		cmd := exec.Command(pyCmd, "-m", "venv", "venv")
 		cmd.Dir = workspaceDir
+		ensureFilteredEnv(cmd)
 		if out, err := cmd.CombinedOutput(); err == nil {
 			logger.Info("Python virtual environment created", "python", pyCmd)
 			return nil
