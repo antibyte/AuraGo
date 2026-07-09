@@ -199,6 +199,7 @@ const SECTIONS = [
         items: [
             { key: 'ai_gateway', icon: '🌩️', label: t('config.section.ai_gateway.label'), desc: t('config.section.ai_gateway.desc') },
             { key: 'composio', icon: '◇', label: t('config.section.composio.label'), desc: t('config.section.composio.desc') },
+            { key: 'huggingface', icon: 'HF', label: t('config.section.huggingface.label'), desc: t('config.section.huggingface.desc') },
             { key: 'evomap', icon: '◇', label: t('config.section.evomap.label'), desc: t('config.section.evomap.desc') },
             { key: 'mcp', icon: '🔌', label: t('config.section.mcp.label'), desc: t('config.section.mcp.desc') },
             { key: 'mcp_server', icon: '🔗', label: t('config.section.mcp_server.label'), desc: t('config.section.mcp_server.desc') },
@@ -2070,6 +2071,7 @@ const SECTION_MODULES = {
     google_workspace: { m: 'google_workspace', fn: 'renderGoogleWorkspaceSection' },
     ai_gateway: { m: 'ai_gateway', fn: 'renderAIGatewaySection' },
     composio: { m: 'composio', fn: 'renderComposioSection' },
+    huggingface: { m: 'huggingface', fn: 'renderHuggingFaceSection' },
     evomap: { m: 'evomap', fn: 'renderEvomapSection' },
     cloudflare_tunnel: { m: 'cloudflare_tunnel', fn: 'renderCloudflareTunnelSection' },
     mcp_server: { m: 'mcp_server', fn: 'renderMCPServerSection' },

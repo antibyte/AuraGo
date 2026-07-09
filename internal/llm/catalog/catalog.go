@@ -368,6 +368,7 @@ var runtimeProviderTypes = map[string]bool{
 	"minimax":     true,
 	"glm":         true,
 	"yepapi":      true,
+	"huggingface": true,
 	"manifest":    true,
 	"omniroute":   true,
 	"deepseek":    true,

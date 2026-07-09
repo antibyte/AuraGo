@@ -235,6 +235,7 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 	},
 	"data_apis": {
 		{"composio_call", "Search and call user-approved Composio integration tools"},
+		{"huggingface", "Discover Hugging Face Hub, datasets, Spaces, Papers, and gated Jobs"},
 		{"virustotal_scan", "Scan URLs, files, domains, and hashes with VirusTotal"},
 		{"yepapi_seo", "SEO data via YepAPI: domain overviews, keywords, competitors, and backlinks"},
 		{"yepapi_serp", "Search engine results via YepAPI: Google, Google Maps, News, Images, and autocomplete"},

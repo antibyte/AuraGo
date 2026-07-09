@@ -69,6 +69,7 @@ func TestIsPythonAccessibleSecret_BlocksSystemVaultKeysAddedByIntegrations(t *te
 		"egg_shared_key",
 		"truenas_api_key",
 		"composio_api_key",
+		"huggingface_token",
 	} {
 		if IsPythonAccessibleSecret(key) {
 			t.Errorf("expected system-managed key %q to be blocked, but it was allowed", key)
@@ -116,6 +117,7 @@ func TestIsPythonAccessibleSecret_BlocksPrefixedKeys(t *testing.T) {
 		"omniroute_api_key_secret",
 		"omniroute_ws_bridge_secret",
 		"nest_refresh_token",
+		"huggingface_org_token",
 	}
 	for _, k := range prefixed {
 		if IsPythonAccessibleSecret(k) {

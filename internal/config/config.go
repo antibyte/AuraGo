@@ -700,6 +700,25 @@ func Load(path string) (*Config, error) {
 	cfg.Composio.CacheTTLSeconds = 300
 	cfg.Composio.MaxResultBytes = 262144
 
+	// Hugging Face defaults: disabled, read-only, and CPU-only unless explicitly expanded.
+	cfg.HuggingFace.Enabled = false
+	cfg.HuggingFace.ReadOnly = true
+	cfg.HuggingFace.AllowWrites = false
+	cfg.HuggingFace.AllowDelete = false
+	cfg.HuggingFace.AllowJobs = false
+	cfg.HuggingFace.AllowScheduledJobs = false
+	cfg.HuggingFace.AllowedHardware = []string{"cpu-basic"}
+	cfg.HuggingFace.MaxDownloadMB = 512
+	cfg.HuggingFace.MaxDatasetRows = 100
+	cfg.HuggingFace.JobDefaultTimeoutMinutes = 30
+	cfg.HuggingFace.JobMaxRuntimeMinutes = 120
+	cfg.HuggingFace.RequestTimeoutSeconds = 60
+	cfg.HuggingFace.MaxResultBytes = 524288
+	cfg.HuggingFace.HubBaseURL = "https://huggingface.co"
+	cfg.HuggingFace.DatasetBaseURL = "https://datasets-server.huggingface.co"
+	cfg.HuggingFace.JobsBaseURL = "https://huggingface.co/api/jobs"
+	cfg.HuggingFace.RouterBaseURL = "https://router.huggingface.co/v1"
+
 	// EvoMap defaults: disabled by default and read-only once enabled.
 	cfg.Evomap.Enabled = false
 	cfg.Evomap.ReadOnly = true
@@ -780,6 +799,43 @@ func Load(path string) (*Config, error) {
 	}
 	if cfg.Composio.MaxResultBytes <= 0 {
 		cfg.Composio.MaxResultBytes = 262144
+	}
+	if strings.TrimSpace(cfg.HuggingFace.HubBaseURL) == "" {
+		cfg.HuggingFace.HubBaseURL = "https://huggingface.co"
+	}
+	cfg.HuggingFace.HubBaseURL = strings.TrimRight(strings.TrimSpace(cfg.HuggingFace.HubBaseURL), "/")
+	if strings.TrimSpace(cfg.HuggingFace.DatasetBaseURL) == "" {
+		cfg.HuggingFace.DatasetBaseURL = "https://datasets-server.huggingface.co"
+	}
+	cfg.HuggingFace.DatasetBaseURL = strings.TrimRight(strings.TrimSpace(cfg.HuggingFace.DatasetBaseURL), "/")
+	if strings.TrimSpace(cfg.HuggingFace.JobsBaseURL) == "" {
+		cfg.HuggingFace.JobsBaseURL = "https://huggingface.co/api/jobs"
+	}
+	cfg.HuggingFace.JobsBaseURL = strings.TrimRight(strings.TrimSpace(cfg.HuggingFace.JobsBaseURL), "/")
+	if strings.TrimSpace(cfg.HuggingFace.RouterBaseURL) == "" {
+		cfg.HuggingFace.RouterBaseURL = "https://router.huggingface.co/v1"
+	}
+	cfg.HuggingFace.RouterBaseURL = strings.TrimRight(strings.TrimSpace(cfg.HuggingFace.RouterBaseURL), "/")
+	if cfg.HuggingFace.MaxDownloadMB <= 0 {
+		cfg.HuggingFace.MaxDownloadMB = 512
+	}
+	if cfg.HuggingFace.MaxDatasetRows <= 0 {
+		cfg.HuggingFace.MaxDatasetRows = 100
+	}
+	if cfg.HuggingFace.JobDefaultTimeoutMinutes <= 0 {
+		cfg.HuggingFace.JobDefaultTimeoutMinutes = 30
+	}
+	if cfg.HuggingFace.JobMaxRuntimeMinutes <= 0 {
+		cfg.HuggingFace.JobMaxRuntimeMinutes = 120
+	}
+	if cfg.HuggingFace.RequestTimeoutSeconds <= 0 {
+		cfg.HuggingFace.RequestTimeoutSeconds = 60
+	}
+	if cfg.HuggingFace.MaxResultBytes <= 0 {
+		cfg.HuggingFace.MaxResultBytes = 524288
+	}
+	if len(cfg.HuggingFace.AllowedHardware) == 0 {
+		cfg.HuggingFace.AllowedHardware = []string{"cpu-basic"}
 	}
 	if strings.TrimSpace(cfg.Evomap.BaseURL) == "" {
 		cfg.Evomap.BaseURL = "https://evomap.ai"
@@ -2311,6 +2367,25 @@ func (c *Config) Save(path string) error {
 		{[]string{"evomap", "allow_publish"}, c.Evomap.AllowPublish},
 		{[]string{"evomap", "allow_report"}, c.Evomap.AllowReport},
 		{[]string{"evomap", "allow_bounties"}, c.Evomap.AllowBounties},
+		{[]string{"huggingface", "enabled"}, c.HuggingFace.Enabled},
+		{[]string{"huggingface", "read_only"}, c.HuggingFace.ReadOnly},
+		{[]string{"huggingface", "allow_writes"}, c.HuggingFace.AllowWrites},
+		{[]string{"huggingface", "allow_delete"}, c.HuggingFace.AllowDelete},
+		{[]string{"huggingface", "allow_jobs"}, c.HuggingFace.AllowJobs},
+		{[]string{"huggingface", "allow_scheduled_jobs"}, c.HuggingFace.AllowScheduledJobs},
+		{[]string{"huggingface", "allowed_namespaces"}, c.HuggingFace.AllowedNamespaces},
+		{[]string{"huggingface", "allowed_repos"}, c.HuggingFace.AllowedRepos},
+		{[]string{"huggingface", "allowed_hardware"}, c.HuggingFace.AllowedHardware},
+		{[]string{"huggingface", "max_download_mb"}, c.HuggingFace.MaxDownloadMB},
+		{[]string{"huggingface", "max_dataset_rows"}, c.HuggingFace.MaxDatasetRows},
+		{[]string{"huggingface", "job_default_timeout_minutes"}, c.HuggingFace.JobDefaultTimeoutMinutes},
+		{[]string{"huggingface", "job_max_runtime_minutes"}, c.HuggingFace.JobMaxRuntimeMinutes},
+		{[]string{"huggingface", "request_timeout_seconds"}, c.HuggingFace.RequestTimeoutSeconds},
+		{[]string{"huggingface", "max_result_bytes"}, c.HuggingFace.MaxResultBytes},
+		{[]string{"huggingface", "hub_base_url"}, c.HuggingFace.HubBaseURL},
+		{[]string{"huggingface", "dataset_base_url"}, c.HuggingFace.DatasetBaseURL},
+		{[]string{"huggingface", "jobs_base_url"}, c.HuggingFace.JobsBaseURL},
+		{[]string{"huggingface", "router_base_url"}, c.HuggingFace.RouterBaseURL},
 		{[]string{"frigate", "enabled"}, c.Frigate.Enabled},
 		{[]string{"frigate", "readonly"}, c.Frigate.ReadOnly},
 		{[]string{"frigate", "url"}, c.Frigate.URL},

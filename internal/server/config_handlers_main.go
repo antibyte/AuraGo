@@ -1813,6 +1813,7 @@ var vaultKeyMap = map[string]string{
 	"omniroute.api_key_secret":         "omniroute_api_key_secret",
 	"omniroute.ws_bridge_secret":       "omniroute_ws_bridge_secret",
 	"composio.api_key":                 "composio_api_key",
+	"huggingface.token":                "huggingface_token",
 	"evomap.node_secret":               "evomap_node_secret",
 	"evomap.api_key":                   "evomap_api_key",
 	"dograh.api_key":                   "dograh_api_key",

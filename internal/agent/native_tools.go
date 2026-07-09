@@ -121,6 +121,7 @@ type ToolFeatureFlags struct {
 	AnsibleEnabled          bool
 	InvasionControlEnabled  bool
 	GitHubEnabled           bool
+	HuggingFaceEnabled      bool
 	MQTTEnabled             bool
 	AdGuardEnabled          bool
 	UptimeKumaEnabled       bool

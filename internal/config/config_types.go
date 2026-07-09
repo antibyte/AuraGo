@@ -609,6 +609,30 @@ type ComposioConfig struct {
 	APIKey                    string                  `yaml:"-" json:"-" vault:"composio_api_key"`
 }
 
+// HuggingFaceConfig controls Hugging Face Hub, Dataset Viewer, Papers, and Jobs access.
+type HuggingFaceConfig struct {
+	Enabled                  bool     `yaml:"enabled" json:"enabled"`
+	ReadOnly                 bool     `yaml:"read_only" json:"read_only"`
+	AllowWrites              bool     `yaml:"allow_writes" json:"allow_writes"`
+	AllowDelete              bool     `yaml:"allow_delete" json:"allow_delete"`
+	AllowJobs                bool     `yaml:"allow_jobs" json:"allow_jobs"`
+	AllowScheduledJobs       bool     `yaml:"allow_scheduled_jobs" json:"allow_scheduled_jobs"`
+	AllowedNamespaces        []string `yaml:"allowed_namespaces" json:"allowed_namespaces"`
+	AllowedRepos             []string `yaml:"allowed_repos" json:"allowed_repos"`
+	AllowedHardware          []string `yaml:"allowed_hardware" json:"allowed_hardware"`
+	MaxDownloadMB            int      `yaml:"max_download_mb" json:"max_download_mb"`
+	MaxDatasetRows           int      `yaml:"max_dataset_rows" json:"max_dataset_rows"`
+	JobDefaultTimeoutMinutes int      `yaml:"job_default_timeout_minutes" json:"job_default_timeout_minutes"`
+	JobMaxRuntimeMinutes     int      `yaml:"job_max_runtime_minutes" json:"job_max_runtime_minutes"`
+	RequestTimeoutSeconds    int      `yaml:"request_timeout_seconds" json:"request_timeout_seconds"`
+	MaxResultBytes           int      `yaml:"max_result_bytes" json:"max_result_bytes"`
+	HubBaseURL               string   `yaml:"hub_base_url" json:"hub_base_url"`
+	DatasetBaseURL           string   `yaml:"dataset_base_url" json:"dataset_base_url"`
+	JobsBaseURL              string   `yaml:"jobs_base_url" json:"jobs_base_url"`
+	RouterBaseURL            string   `yaml:"router_base_url" json:"router_base_url"`
+	Token                    string   `yaml:"-" json:"-" vault:"huggingface_token"`
+}
+
 // EvomapConfig controls the optional evomap.ai integration.
 type EvomapConfig struct {
 	Enabled               bool   `yaml:"enabled" json:"enabled"`
@@ -1901,8 +1925,9 @@ type Config struct {
 		Backoff          string            `yaml:"backoff" json:"backoff"`                       // "constant", "linear", or "exponential"
 		Token            string            `yaml:"-" vault:"token" json:"-"`                     // optional Cloudflare AI Gateway token (vault-only)
 	} `yaml:"ai_gateway"`
-	Composio  ComposioConfig `yaml:"composio" json:"composio"`
-	Evomap    EvomapConfig   `yaml:"evomap" json:"evomap"`
+	Composio    ComposioConfig    `yaml:"composio" json:"composio"`
+	HuggingFace HuggingFaceConfig `yaml:"huggingface" json:"huggingface"`
+	Evomap      EvomapConfig      `yaml:"evomap" json:"evomap"`
 	MCPServer struct {
 		Enabled           bool     `yaml:"enabled"`
 		AllowedTools      []string `yaml:"allowed_tools"`       // tool names to expose; empty = none

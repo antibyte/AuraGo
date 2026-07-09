@@ -33,6 +33,7 @@ var registry = map[string]Metadata{
 	"kubernetes":           {Name: "kubernetes", Family: "infra", CompressionClass: CompressionClassAPI},
 	"api_request":          {Name: "api_request", Family: "network", CompressionClass: CompressionClassAPI},
 	"github":               {Name: "github", Family: "dev", CompressionClass: CompressionClassAPI},
+	"huggingface":          {Name: "huggingface", Family: "data", CompressionClass: CompressionClassAPI},
 	"sql_query":            {Name: "sql_query", Family: "data", CompressionClass: CompressionClassAPI},
 	"koofr":                {Name: "koofr", Family: "storage", CompressionClass: CompressionClassAPI},
 	"koofr_api":            {Name: "koofr_api", Family: "storage", CompressionClass: CompressionClassAPI},

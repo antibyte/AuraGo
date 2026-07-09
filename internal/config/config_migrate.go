@@ -172,7 +172,7 @@ var knownProviderTypes = map[string]bool{
 	"anthropic": true, "google": true, "workers-ai": true,
 	"custom": true, "stability": true, "ideogram": true,
 	"vision": true, "minimax": true, "glm": true,
-	"yepapi": true, "manifest": true, "omniroute": true,
+	"yepapi": true, "manifest": true, "omniroute": true, "huggingface": true,
 	// Providers from Manifest (Phase 1 — OpenAI-compatible)
 	"deepseek": true, "groq": true, "mistral": true,
 	"xai": true, "moonshot": true, "qwen": true,
@@ -887,6 +887,7 @@ func (c *Config) ApplyVaultSecrets(vault SecretReader) {
 	apply("omniroute_api_key_secret", &c.OmniRoute.APIKeySecret)
 	apply("omniroute_ws_bridge_secret", &c.OmniRoute.WSBridgeSecret)
 	apply("composio_api_key", &c.Composio.APIKey)
+	apply("huggingface_token", &c.HuggingFace.Token)
 	if strings.TrimSpace(c.Composio.APIKey) == "" {
 		apply("composio.api_key", &c.Composio.APIKey)
 	}

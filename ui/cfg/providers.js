@@ -936,6 +936,7 @@ let _providerCatalogPromise = null;
             ollama: 'http://localhost:11434',
             anthropic: 'https://api.anthropic.com/v1',
             google: 'https://generativelanguage.googleapis.com/v1beta/openai',
+            huggingface: 'https://router.huggingface.co/v1',
             minimax: 'https://api.minimax.io/v1',
             'workers-ai': '',
             manifest: '',
@@ -984,7 +985,7 @@ let _providerCatalogPromise = null;
             'opencode-go': 'config.providers.hint.opencode_go'
         };
 
-        const PROVIDER_TYPE_FALLBACKS = ['openai','openrouter','ollama','anthropic','google','minimax','workers-ai','manifest','omniroute','yepapi','custom','deepseek','groq','mistral','xai','moonshot','qwen','zai','llamacpp','lmstudio','copilot','opencode-go'];
+        const PROVIDER_TYPE_FALLBACKS = ['openai','openrouter','ollama','anthropic','google','huggingface','minimax','workers-ai','manifest','omniroute','yepapi','custom','deepseek','groq','mistral','xai','moonshot','qwen','zai','llamacpp','lmstudio','copilot','opencode-go'];
 
         const PROVIDER_OAUTH_PRESETS = {
             google: {

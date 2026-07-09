@@ -68,7 +68,7 @@ func allBuiltinToolFeatureFlags() ToolFeatureFlags {
 	return ToolFeatureFlags{
 		HomeAssistantEnabled: true, DockerEnabled: true, CoAgentEnabled: true, SudoEnabled: true,
 		WebhooksEnabled: true, ProxmoxEnabled: true, FrigateEnabled: true, ThreeDPrinterEnabled: true, OllamaEnabled: true, TailscaleEnabled: true,
-		AnsibleEnabled: true, InvasionControlEnabled: true, GitHubEnabled: true, MQTTEnabled: true,
+		AnsibleEnabled: true, InvasionControlEnabled: true, GitHubEnabled: true, HuggingFaceEnabled: true, MQTTEnabled: true,
 		AdGuardEnabled: true, UptimeKumaEnabled: true, GrafanaEnabled: true, MCPEnabled: true, ComposioEnabled: true, EvomapEnabled: true, SandboxEnabled: true, MeshCentralEnabled: true,
 		HomepageEnabled: true, NetlifyEnabled: true, VercelEnabled: true, FirewallEnabled: true, EmailEnabled: true, AgentMailEnabled: true,
 		CloudflareTunnelEnabled: true, GoogleWorkspaceEnabled: true, OneDriveEnabled: true, WebDAVEnabled: true,
@@ -129,6 +129,7 @@ func (ff ToolFeatureFlags) Key() string {
 	appendToolFeatureKeyPart("ansible", ff.AnsibleEnabled)
 	appendToolFeatureKeyPart("invasion_control", ff.InvasionControlEnabled)
 	appendToolFeatureKeyPart("github", ff.GitHubEnabled)
+	appendToolFeatureKeyPart("huggingface", ff.HuggingFaceEnabled)
 	appendToolFeatureKeyPart("mqtt", ff.MQTTEnabled)
 	appendToolFeatureKeyPart("adguard", ff.AdGuardEnabled)
 	appendToolFeatureKeyPart("uptime_kuma", ff.UptimeKumaEnabled)

@@ -131,6 +131,17 @@ func dispatchCloud(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 				return `Tool Output: {"status":"error","message":"Unknown github operation. Use: list_repos, create_repo, delete_repo, get_repo, list_issues, create_issue, close_issue, list_pull_requests, list_branches, get_file, create_or_update_file, list_commits, list_workflow_runs, search_repos, list_projects, track_project, untrack_project"}`
 			}
 
+		case "huggingface":
+			req := decodeHuggingFaceArgs(tc)
+			token := tools.ResolveHuggingFaceToken(cfg.HuggingFace)
+			if token == "" && vault != nil {
+				if stored, err := vault.ReadSecret("huggingface_token"); err == nil {
+					token = stored
+				}
+			}
+			logger.Info("LLM requested Hugging Face operation", "operation", req.Operation)
+			return "Tool Output: " + tools.RunHuggingFace(ctx, cfg.HuggingFace, token, cfg.Directories.WorkspaceDir, cfg.Directories.DataDir, req)
+
 		case "netlify":
 			if !cfg.Netlify.Enabled {
 				return `Tool Output: {"status":"error","message":"Netlify integration is not enabled. Set netlify.enabled=true in config.yaml."}`

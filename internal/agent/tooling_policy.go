@@ -345,6 +345,7 @@ func buildToolFlagsFromConfig(cfg *config.Config) ToolFeatureFlags {
 		AnsibleEnabled:               cfg.Ansible.Enabled,
 		InvasionControlEnabled:       cfg.InvasionControl.Enabled,
 		GitHubEnabled:                cfg.GitHub.Enabled,
+		HuggingFaceEnabled:           cfg.HuggingFace.Enabled,
 		MQTTEnabled:                  cfg.MQTT.Enabled,
 		AdGuardEnabled:               cfg.AdGuard.Enabled,
 		UptimeKumaEnabled:            cfg.UptimeKuma.Enabled,

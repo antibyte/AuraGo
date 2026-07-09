@@ -2437,6 +2437,47 @@ func TestApplyVaultSecretsLoadsComposioAPIKey(t *testing.T) {
 	}
 }
 
+func TestApplyVaultSecretsLoadsHuggingFaceToken(t *testing.T) {
+	cfg := &Config{}
+	vault := &testSecretVault{data: map[string]string{
+		"huggingface_token": "hf-secret",
+	}}
+
+	cfg.ApplyVaultSecrets(vault)
+
+	if cfg.HuggingFace.Token != "hf-secret" {
+		t.Fatalf("huggingface token = %q, want hf-secret", cfg.HuggingFace.Token)
+	}
+}
+
+func TestConfigSaveOmitsHuggingFaceToken(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(configPath, []byte("server:\n  ui_language: en\n"), 0o644); err != nil {
+		t.Fatalf("failed to seed config file: %v", err)
+	}
+	cfg := &Config{}
+	cfg.HuggingFace.Enabled = true
+	cfg.HuggingFace.ReadOnly = true
+	cfg.HuggingFace.Token = "hf_should_not_be_serialized"
+	cfg.HuggingFace.AllowedHardware = []string{"cpu-basic"}
+
+	if err := cfg.Save(configPath); err != nil {
+		t.Fatalf("Save() error = %v", err)
+	}
+
+	raw, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("os.ReadFile() error = %v", err)
+	}
+	got := string(raw)
+	if strings.Contains(got, "hf_should_not_be_serialized") || strings.Contains(got, "token:") {
+		t.Fatalf("expected Hugging Face token to stay out of YAML, got:\n%s", got)
+	}
+	if !strings.Contains(got, "huggingface:") || !strings.Contains(got, "cpu-basic") {
+		t.Fatalf("expected non-secret Hugging Face settings to be serialized, got:\n%s", got)
+	}
+}
+
 func TestApplyVaultSecretsLoadsLegacyComposioDottedAPIKey(t *testing.T) {
 	cfg := &Config{}
 	vault := &testSecretVault{data: map[string]string{
@@ -2479,6 +2520,53 @@ func TestLoadAppliesComposioDefaults(t *testing.T) {
 	}
 	if cfg.Composio.RequestTimeoutSeconds <= 0 || cfg.Composio.CacheTTLSeconds <= 0 || cfg.Composio.MaxResultBytes <= 0 {
 		t.Fatalf("unexpected Composio timeout/cache/result defaults: %+v", cfg.Composio)
+	}
+}
+
+func TestLoadAppliesHuggingFaceDefaults(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	if err := os.WriteFile(configPath, []byte("providers: []\n"), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if cfg.HuggingFace.Enabled {
+		t.Fatal("expected HuggingFace.Enabled default false")
+	}
+	if !cfg.HuggingFace.ReadOnly {
+		t.Fatal("expected HuggingFace.ReadOnly default true")
+	}
+	if cfg.HuggingFace.AllowWrites || cfg.HuggingFace.AllowDelete || cfg.HuggingFace.AllowJobs || cfg.HuggingFace.AllowScheduledJobs {
+		t.Fatalf("expected mutating/cost gates default false: %+v", cfg.HuggingFace)
+	}
+	if cfg.HuggingFace.HubBaseURL != "https://huggingface.co" {
+		t.Fatalf("HubBaseURL = %q", cfg.HuggingFace.HubBaseURL)
+	}
+	if cfg.HuggingFace.DatasetBaseURL != "https://datasets-server.huggingface.co" {
+		t.Fatalf("DatasetBaseURL = %q", cfg.HuggingFace.DatasetBaseURL)
+	}
+	if cfg.HuggingFace.RouterBaseURL != "https://router.huggingface.co/v1" {
+		t.Fatalf("RouterBaseURL = %q", cfg.HuggingFace.RouterBaseURL)
+	}
+	if cfg.HuggingFace.MaxDownloadMB <= 0 || cfg.HuggingFace.MaxDatasetRows <= 0 {
+		t.Fatalf("unexpected Hugging Face limits: %+v", cfg.HuggingFace)
+	}
+	if cfg.HuggingFace.JobDefaultTimeoutMinutes <= 0 || cfg.HuggingFace.JobMaxRuntimeMinutes <= 0 {
+		t.Fatalf("unexpected Hugging Face job timeouts: %+v", cfg.HuggingFace)
+	}
+	if len(cfg.HuggingFace.AllowedHardware) == 0 || cfg.HuggingFace.AllowedHardware[0] != "cpu-basic" {
+		t.Fatalf("AllowedHardware = %#v, want cpu-basic default", cfg.HuggingFace.AllowedHardware)
+	}
+}
+
+func TestKnownProviderTypesIncludesHuggingFace(t *testing.T) {
+	if !knownProviderTypes["huggingface"] {
+		t.Fatal("knownProviderTypes must include huggingface for provider config validation")
 	}
 }
 

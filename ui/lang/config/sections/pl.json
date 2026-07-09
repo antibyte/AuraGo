@@ -592,6 +592,8 @@
   "help.omniroute.ws_bridge_secret": "Generated secret for OmniRoute websocket bridge traffic. Keep it in the Vault.",
   "config.section.evomap.label": "EvoMap",
   "config.section.evomap.desc": "Opcjonalna integracja kapsuł evomap.ai i KG",
+  "config.section.huggingface.label": "Hugging Face",
+  "config.section.huggingface.desc": "Odkrywanie Hub, datasety, Papers, Spaces, pobieranie i kontrolowane Jobs",
   "config.evomap.checking": "Sprawdzanie statusu EvoMap...",
   "config.evomap.enabled_label": "Włącz EvoMap",
   "config.evomap.readonly_label": "Tryb tylko do odczytu",

@@ -215,7 +215,7 @@
       "HUGGINGFACE_HUB_TOKEN",
       "HF_TOKEN"
     ],
-    "catalog_only": true,
+    "catalog_only": false,
     "source": "oh-my-pi"
   },
   {

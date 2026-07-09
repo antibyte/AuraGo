@@ -44,6 +44,7 @@ var blockedSecretPrefixes = []string{
 	"omniroute_",
 	"dograh_",
 	"evomap_",
+	"huggingface_",
 	"desktop_store_",
 	"oauth_",
 	"mcp_secret_",
