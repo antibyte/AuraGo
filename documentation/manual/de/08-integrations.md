@@ -477,6 +477,66 @@ ollama:
     volume_path: ""
 ```
 
+## HuggingFace Plattform Integration
+
+Zugang zum Hugging Face Hub für Modelle, Datasets, Papers und Jobs. Ermöglicht Suche, Download und Verwaltung von KI-Ressourcen direkt aus AuraGo.
+
+### Einrichtung in der Web-UI
+1. Öffne **Config → Integrationen → HuggingFace** (falls verfügbar).
+2. Aktiviere die Integration.
+3. Konfiguriere Berechtigungen (Read-Only, Schreibzugriff, Jobs, geplante Jobs).
+4. Optional: Definiere erlaubte Namespaces und Repositorys für zusätzliche Sicherheit.
+5. Speichere und starte neu.
+
+### Fähigkeiten
+
+| Kategorie | Beschreibung | Voraussetzungen |
+|-----------|--------------|----------------|
+| **Modelle** | Suche und Abruf von Modellen aus dem Hub | `enabled: true` |
+| **Datasets** | Durchsuchen und Herunterladen von Datasets | `enabled: true` |
+| **Papers** | Zugriff auf wissenschaftliche Paper und tägliche Updates | `enabled: true` |
+| **Jobs** | Ausführung von HuggingFace Jobs und Skripten | `allow_jobs: true` |
+| **Repositories** | Erstellen und Verwalten von Hub-Repositories | `allow_writes: true` |
+| **Spaces** | Zugriff auf HuggingFace Spaces | `enabled: true` |
+
+### YAML-Referenz
+```yaml
+huggingface:
+  enabled: false                 # Integration aktivieren
+  read_only: true                # Standard: Nur Lesen erlaubt
+  allow_writes: false            # Repository-Erstellung und Uploads
+  allow_delete: false            # Löschen von Ressourcen
+  allow_jobs: false              # Job-Ausführung
+  allow_scheduled_jobs: false    # Geplante Jobs
+  allowed_namespaces: []         # Explizite Namespaces
+  allowed_repos: []             # Explizite Repositorys
+  allowed_hardware: []           # Erlaubte Hardware-Typen
+  max_download_mb: 100           # Max. Download-Größe in MB
+  max_dataset_rows: 10000        # Max. Dataset-Zeilen
+  job_default_timeout_minutes: 60
+  job_max_runtime_minutes: 300
+  request_timeout_seconds: 120
+  max_result_bytes: 1048576     # 1MB
+  hub_base_url: "https://huggingface.co"
+```
+
+### Agent-Tool: `huggingface`
+
+| Operation | Beschreibung | Beispiel |
+|-----------|--------------|----------|
+| `search_models` | Suche nach Modellen | `{"action": "huggingface", "operation": "search_models", "query": "llama"}` |
+| `get_model` | Details zu einem Modell | `{"action": "huggingface", "operation": "get_model", "repo_id": "user/model"}` |
+| `search_datasets` | Suche nach Datasets | `{"action": "huggingface", "operation": "search_datasets", "query": "datasets"}` |
+| `get_dataset` | Dataset-Details | `{"action": "huggingface", "operation": "get_dataset", "repo_id": "user/dataset"}` |
+| `dataset_rows` | Dataset-Inhalte abrufen | `{"action": "huggingface", "operation": "dataset_rows", "dataset": "user/dataset", "config": "default", "split": "train", "offset": 0, "length": 100}` |
+| `search_papers` | Suche nach Papers | `{"action": "huggingface", "operation": "search_papers", "query": "transformers"}` |
+| `daily_papers` | Tägliche Paper-Updates | `{"action": "huggingface", "operation": "daily_papers"}` |
+| `get_paper` | Paper-Details | `{"action": "huggingface", "operation": "get_paper", "id": "paper_id"}` |
+| `jobs_list` | Liste aller Jobs | `{"action": "huggingface", "operation": "jobs_list"}` |
+| `job_run_script` | Skript ausführen | `{"action": "huggingface", "operation": "job_run_script", "space": "user/space", "payload": {}}` |
+
+> 🔒 **Sicherheit:** Standardmäßig ist HuggingFace deaktiviert. Schreiboperationen erfordern explizite Freigabe. Geplante Jobs und Hardware-spezifische Operationen benötigen zusätzliche Berechtigungen.
+
 ## MeshCentral
 
 Remote-Desktop und Geräteverwaltung über MeshCentral.
@@ -702,6 +762,20 @@ composio:
 > 🔒 Der API-Key wird im Vault als `composio_api_key` gespeichert, nicht in der `config.yaml`.
 
 Standardmäßig blockiert `readonly: true` mutierende Aktionen. Setze `allow_destructive: true` nur, wenn Delete/Remove/Revoke-Operationen explizit benötigt werden. Pro Toolkit steuern `allowed_tool_slugs` und `blocked_tool_slugs` die Feingranularität.
+
+### Tool Preview Funktion
+
+Der `capabilities`-Aufruf mit einem `toolkit_slug`-Parameter liefert nicht nur den Verbindungsstatus, sondern auch eine **`tool_preview`** mit konkreten Composio-Tool-Slugs. Diese Slugs können direkt mit `get_tool` oder `execute_tool` verwendet werden, ohne eine separate Suche durchführen zu müssen.
+
+```json
+{
+  "action": "composio_call",
+  "operation": "capabilities",
+  "toolkit_slug": "github"
+}
+```
+
+Dies ermöglicht schnellere und präzisere Tool-Auswahl, besonders für häufig verwendete Integrationen wie GitHub, Gmail, Slack, Notion oder Google Calendar.
 
 ## SQL Connections – Externe Datenbanken
 

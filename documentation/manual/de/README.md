@@ -2,9 +2,9 @@
 
 Willkommen zum AuraGo Benutzerhandbuch – deiner umfassenden Anleitung für den persönlichen KI-Agenten.
 
-> 📅 **Stand:** 27. Mai 2026
+> 📅 **Stand:** 9. Juli 2026
 > 🔄 **Version:** 2.x kompatibel  
-> 📝 **Letzte Aktualisierung:** Dokumentations-Sync mit aktuellem Code-Stand (Desktop-Apps, Virtual Desktop, Output Compression, APIs)
+> 📝 **Letzte Aktualisierung:** Dokumentations-Sync mit aktuellem Code-Stand (Composio Tool Previews, Sandbox Härtung, LLM Guardian Updates, Cloudflare Gateway, Chromecast Media Security)
 
 ---
 
@@ -22,7 +22,7 @@ AuraGo ist ein vollständig autonomer KI-Agent, der als einzelne portable Binary
 | **📄 Document AI** | PDF-Erstellung und -Analyse |
 | **🎬 Video Generation** | KI-Text-zu-Video und Bild-zu-Video-Generierung |
 | **🔐 AES-256 Vault** | Sichere Speicherung aller Secrets |
-| **🌐 50+ Integrationen** | Von S3 über OneDrive bis TrueNAS |
+| **🌐 50+ Integrationen** | Von S3 über OneDrive bis TrueNAS, inkl. HuggingFace Hub |
 | **☁️ Cloudflare Tunnel** | Sicherer Remote-Zugriff ohne öffentliche IP |
 | **🗄️ SQL Connections** | Direkte Datenbank-Abfragen (PostgreSQL, MySQL) |
 | **📱 Chromecast** | TTS und Medien an Cast-Geräte senden |

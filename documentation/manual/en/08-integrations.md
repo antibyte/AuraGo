@@ -709,6 +709,20 @@ composio:
 
 By default, `readonly: true` blocks mutating actions. Set `allow_destructive: true` only when delete/remove/revoke operations are explicitly required. Per-toolkit `allowed_tool_slugs` and `blocked_tool_slugs` provide fine-grained control.
 
+### Tool Preview Function
+
+The `capabilities` call with a `toolkit_slug` parameter not only returns connection status but also provides a **`tool_preview`** with concrete Composio tool slugs. These slugs can be used directly with `get_tool` or `execute_tool` without needing a separate search.
+
+```json
+{
+  "action": "composio_call",
+  "operation": "capabilities",
+  "toolkit_slug": "github"
+}
+```
+
+This enables faster and more precise tool selection, especially for frequently used integrations like GitHub, Gmail, Slack, Notion, or Google Calendar.
+
 ---
 
 ## Jellyfin Integration
@@ -1402,6 +1416,68 @@ ollama:
       memory_limit: ""
       volume_path: ""
 ```
+
+---
+
+## HuggingFace Platform Integration
+
+Access the Hugging Face Hub for models, datasets, papers, and jobs. Enables search, download, and management of AI resources directly from AuraGo.
+
+### Web UI Setup
+1. Open **Config → Integrations → HuggingFace** (if available).
+2. Enable the integration.
+3. Configure permissions (read-only, write access, jobs, scheduled jobs).
+4. Optionally define allowed namespaces and repositories for additional security.
+5. Save and restart.
+
+### Capabilities
+
+| Category | Description | Requirements |
+|----------|-------------|--------------|
+| **Models** | Search and retrieve models from the Hub | `enabled: true` |
+| **Datasets** | Browse and download datasets | `enabled: true` |
+| **Papers** | Access scientific papers and daily updates | `enabled: true` |
+| **Jobs** | Execute HuggingFace jobs and scripts | `allow_jobs: true` |
+| **Repositories** | Create and manage Hub repositories | `allow_writes: true` |
+| **Spaces** | Access HuggingFace Spaces | `enabled: true` |
+
+### YAML Reference
+```yaml
+huggingface:
+  enabled: false                 # Enable integration
+  read_only: true                # Default: read-only access
+  allow_writes: false            # Repository creation and uploads
+  allow_delete: false            # Delete resources
+  allow_jobs: false              # Job execution
+  allow_scheduled_jobs: false    # Scheduled jobs
+  allowed_namespaces: []         # Explicit namespaces
+  allowed_repos: []             # Explicit repositories
+  allowed_hardware: []           # Allowed hardware types
+  max_download_mb: 100           # Max download size in MB
+  max_dataset_rows: 10000        # Max dataset rows
+  job_default_timeout_minutes: 60
+  job_max_runtime_minutes: 300
+  request_timeout_seconds: 120
+  max_result_bytes: 1048576     # 1MB
+  hub_base_url: "https://huggingface.co"
+```
+
+### Agent Tool: `huggingface`
+
+| Operation | Description | Example |
+|-----------|-------------|---------|
+| `search_models` | Search for models | `{"action": "huggingface", "operation": "search_models", "query": "llama"}` |
+| `get_model` | Get model details | `{"action": "huggingface", "operation": "get_model", "repo_id": "user/model"}` |
+| `search_datasets` | Search for datasets | `{"action": "huggingface", "operation": "search_datasets", "query": "datasets"}` |
+| `get_dataset` | Get dataset details | `{"action": "huggingface", "operation": "get_dataset", "repo_id": "user/dataset"}` |
+| `dataset_rows` | Retrieve dataset contents | `{"action": "huggingface", "operation": "dataset_rows", "dataset": "user/dataset", "config": "default", "split": "train", "offset": 0, "length": 100}` |
+| `search_papers` | Search for papers | `{"action": "huggingface", "operation": "search_papers", "query": "transformers"}` |
+| `daily_papers` | Daily paper updates | `{"action": "huggingface", "operation": "daily_papers"}` |
+| `get_paper` | Get paper details | `{"action": "huggingface", "operation": "get_paper", "id": "paper_id"}` |
+| `jobs_list` | List all jobs | `{"action": "huggingface", "operation": "jobs_list"}` |
+| `job_run_script` | Execute script | `{"action": "huggingface", "operation": "job_run_script", "space": "user/space", "payload": {}}` |
+
+> 🔒 **Security:** HuggingFace integration is disabled by default. Write operations require explicit permissions. Scheduled jobs and hardware-specific operations require additional permissions.
 
 ---
 

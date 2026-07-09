@@ -2,9 +2,9 @@
 
 Welcome to the AuraGo User Manual – your comprehensive guide to the personal AI agent.
 
-> 📅 **Updated:** May 27, 2026
+> 📅 **Updated:** July 9, 2026
 > 🔄 **Version:** 2.x compatible  
-> 📝 **Last Update:** Documentation sync with current codebase (desktop apps, virtual desktop, output compression, APIs)
+> 📝 **Last Update:** Documentation sync with current codebase (Composio Tool Previews, Sandbox Hardening, LLM Guardian Updates, Cloudflare Gateway, Chromecast Media Security)
 
 ---
 
@@ -22,7 +22,7 @@ AuraGo is a fully autonomous AI agent shipped as a single portable binary with a
 | **📄 Document AI** | PDF creation and analysis |
 | **🎬 Video Generation** | AI text-to-video and image-to-video generation |
 | **🔐 AES-256 Vault** | Secure storage of all secrets |
-| **🌐 50+ Integrations** | From S3 to OneDrive to TrueNAS |
+| **🌐 50+ Integrations** | From S3 to OneDrive to TrueNAS, including HuggingFace Hub |
 | **☁️ Cloudflare Tunnel** | Secure remote access without public IP |
 | **🗄️ SQL Connections** | Direct database queries (PostgreSQL, MySQL) |
 | **📱 Chromecast** | Send TTS and media to Cast devices |

@@ -45,7 +45,7 @@
 
 ---
 
-> 💡 **Hinweis:** Die Handbücher werden fortlaufend aktualisiert und erweitert, um neue Funktionen und Integrationen abzubilden. Zuletzt abgeglichen mit dem Code: Juni 2026.
+> 💡 **Hinweis:** Die Handbücher werden fortlaufend aktualisiert und erweitert, um neue Funktionen und Integrationen abzubilden. Zuletzt abgeglichen mit dem Code: Juli 2026.
 
 ## Weitere Guides im Repository
 
