@@ -89,7 +89,7 @@ async function renderLLMGuardianSection(section) {
         <div class="field-group-desc">${t('config.llm_guardian.perf_desc')}</div>`;
 
     const curTTL = cfg.cache_ttl != null ? cfg.cache_ttl : 300;
-    const curRate = cfg.max_checks_per_minute != null ? cfg.max_checks_per_minute : 60;
+    const curRate = cfg.max_checks_per_minute != null ? cfg.max_checks_per_minute : (cfg.max_checks_per_min != null ? cfg.max_checks_per_min : 60);
     html += `<div class="field-grid two-cols">
         <div class="field-group">
             <div class="field-label">${t('config.llm_guardian.cache_ttl_label')}</div>

@@ -611,6 +611,7 @@ func TestConfigPhase3RemoteControlLLMGuardian(t *testing.T) {
 		"llm_guardian.provider",
 		"llm_guardian.default_level",
 		"llm_guardian.fail_safe",
+		"cfg.max_checks_per_min != null",
 	} {
 		if !strings.Contains(llmGuardianJS, marker) {
 			t.Fatalf("llm_guardian.js missing marker %q", marker)
