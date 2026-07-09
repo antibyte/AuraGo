@@ -769,7 +769,7 @@ ode --check <file> is the cheapest syntax check** for JS/JSON edits; run it afte
 ## Child DOX Index
 
 Current child AGENTS.md files:
-- `ui/js/desktop/apps/AGENTS.md` — Built-in desktop app modules (lazy app assets, per-window lifecycle, and app-specific contracts such as Cheater tags and attachments).
+- `ui/AGENTS.md` — Embedded Web UI ownership, Precision Workspace opt-in rules, protected Chat/Desktop surfaces, translations, and UI verification. Its child index owns deeper UI contracts.
 
 The root AGENTS.md owns the whole repository except where a subtree has its own local contract.
 

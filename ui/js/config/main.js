@@ -6,6 +6,10 @@ const EYE_OPEN_SVG = '<svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8
 const EYE_CLOSED_SVG = '<svg viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
 const cfgMaskedSecretFallback = '••••••••';
 const CONFIG_ASSET_VERSION = (typeof window !== 'undefined' && window.AURAGO_BUILD_VERSION) ? window.AURAGO_BUILD_VERSION : 'config-dev';
+const CONFIG_DENSITY_KEY = 'aurago.config.density.v1';
+const CONFIG_RECENT_KEY = 'aurago.config.recent.v1';
+const CONFIG_ADVANCED_KEY = 'aurago.config.advanced.v1';
+const CONFIG_RECENT_LIMIT = 6;
 
 if (typeof window.cfgIsMaskedSecret !== 'function') {
     window.cfgIsMaskedSecret = function (value) {
@@ -234,7 +238,7 @@ const helpTexts = new Proxy({}, {
     }
 });
 let schema = [];
-let activeSection = (window.location.hash || '').replace(/^#/, '') || localStorage.getItem('aurago-cfg-section') || 'server';
+let activeSection = (window.location.hash || '').replace(/^#/, '') || localStorage.getItem('aurago-cfg-section') || 'overview';
 let isDirty = false;
 let configSaveInFlight = false;
 let restartInFlight = false;
@@ -252,7 +256,30 @@ const SENSITIVE_KEYS = ['api_key', 'bot_token', 'password', 'app_password', 'acc
 const CFG_TEXT_AUTOFILL_ATTRS = ' autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" data-form-type="other"';
 const CFG_SENSITIVE_AUTOFILL_ATTRS = ' autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" data-form-type="other"';
 
+function applyConfigDensity(value, persist = false) {
+    const density = value === 'compact' ? 'compact' : 'comfortable';
+    document.body.dataset.density = density;
+    const button = document.getElementById('cfg-density-toggle');
+    if (button) {
+        const compact = density === 'compact';
+        button.setAttribute('aria-pressed', compact ? 'true' : 'false');
+        const label = button.querySelector('span');
+        if (label) label.textContent = t(compact ? 'config.precision.density_compact' : 'config.precision.density_comfortable');
+    }
+    if (persist) localStorage.setItem(CONFIG_DENSITY_KEY, density);
+    return density;
+}
+
+const configDensityButton = document.getElementById('cfg-density-toggle');
+if (configDensityButton) {
+    configDensityButton.addEventListener('click', () => {
+        applyConfigDensity(document.body.dataset.density === 'compact' ? 'comfortable' : 'compact', true);
+    });
+}
+applyConfigDensity(localStorage.getItem(CONFIG_DENSITY_KEY) || 'comfortable');
+
 function hasVisibleSection(key) {
+    if (key === 'overview') return true;
     return SECTIONS.some(group => group.items.some(item => item.key === key));
 }
 
@@ -320,6 +347,11 @@ async function init() {
             return;
         }
         configData = await cfgResp.json();
+        if (window.AuraConfigState) {
+            window.AuraConfigState.init(configData);
+            window.AuraConfigState.bind(document);
+            window.AuraConfigState.subscribe(state => setDirty(state.dirty));
+        }
         schema = await schemaResp.json();
         try { vaultExists = (await vaultResp.json()).exists === true; } catch (_) { }
         // Load providers (best-effort – endpoint only exists when web_config is enabled)
@@ -342,7 +374,7 @@ async function init() {
         return;
     }
     if (!hasVisibleSection(activeSection)) {
-        activeSection = 'server';
+        activeSection = 'overview';
         localStorage.setItem('aurago-cfg-section', activeSection);
     }
     installConfigEditIntentTracking();
@@ -437,10 +469,21 @@ function buildSidebar() {
             placeholder="${escapeHtml(t('config.sidebar.search_placeholder'))}"
             data-i18n-placeholder="config.sidebar.search_placeholder"
             autocomplete="off" spellcheck="false" value="${escapeHtml(sidebarSearchQuery)}">
-        <button type="button" class="cfg-sidebar-search-clear" id="sidebarSearchClear"
-            title="Clear" aria-label="Clear search" style="display:${sidebarSearchQuery ? 'flex' : 'none'};">✕</button>
+        <button type="button" class="cfg-sidebar-search-clear${sidebarSearchQuery ? '' : ' hidden'}" id="sidebarSearchClear"
+            title="${escapeHtml(t('config.common.clear'))}" aria-label="${escapeHtml(t('config.common.clear'))}">✕</button>
     `;
     sb.appendChild(search);
+
+    const overviewItem = document.createElement('button');
+    overviewItem.type = 'button';
+    overviewItem.className = 'sidebar-item pw-overview-nav' + (activeSection === 'overview' ? ' active' : '');
+    overviewItem.dataset.section = 'overview';
+    overviewItem.dataset.searchLabel = t('config.precision.overview_title');
+    overviewItem.dataset.searchDesc = t('config.precision.overview_desc');
+    overviewItem.dataset.searchGroup = t('config.precision.workspace_label');
+    overviewItem.innerHTML = `<span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"/></svg></span><span class="sidebar-item-label">${escapeHtml(t('config.precision.overview_title'))}</span>`;
+    overviewItem.onclick = () => navigateToConfigSection('overview');
+    sb.appendChild(overviewItem);
 
     SECTIONS.forEach((group, groupIndex) => {
         const groupName = group.group;
@@ -496,6 +539,7 @@ function buildSidebar() {
             item.dataset.searchLabel = s.label;
             item.dataset.searchDesc = s.desc || '';
             item.dataset.searchGroup = groupName;
+            item.dataset.searchFields = JSON.stringify(configSearchEntriesForSection(s.key));
             if (isBlocked) {
                 item.title = blockedReason;
                 item.disabled = true;
@@ -503,7 +547,8 @@ function buildSidebar() {
             item.innerHTML = '<span class="icon">' + s.icon + '</span><span class="sidebar-item-label">' + escapeHtml(s.label) + '</span>';
             item.onclick = () => {
                 if (shouldBlockUnavailableSection(s.key) && sectionBlockedReason(s.key)) return;
-                navigateToConfigSection(s.key);
+                if (item.dataset.searchTarget) navigateToConfigSection(s.key, { focusPath: item.dataset.searchTarget });
+                else navigateToConfigSection(s.key);
             };
             content.appendChild(item);
         });
@@ -531,7 +576,7 @@ function initSidebarSearch() {
 
     input.addEventListener('input', () => {
         sidebarSearchQuery = input.value;
-        clear.style.display = sidebarSearchQuery ? 'flex' : 'none';
+        clear.classList.toggle('hidden', !sidebarSearchQuery);
         clearTimeout(sidebarSearchDebounceTimer);
         sidebarSearchDebounceTimer = setTimeout(() => applySidebarSearch(sidebarSearchQuery), 150);
     });
@@ -543,13 +588,49 @@ function getSidebarSearchTerms(query) {
     return (query || '').trim().toLowerCase().split(/\s+/).filter(Boolean);
 }
 
+function flattenConfigSchemaFields(fields, entries = []) {
+    (fields || []).forEach(field => {
+        if (field.type === 'object' && Array.isArray(field.children)) {
+            flattenConfigSchemaFields(field.children, entries);
+            return;
+        }
+        const path = field.key || field.yaml_key || '';
+        const help = helpTexts[path];
+        const helpText = help ? (help[lang] || help.en || '') : '';
+        entries.push({
+            path,
+            label: fieldLabelText(path, field.yaml_key || path.split('.').pop()),
+            help: helpText
+        });
+    });
+    return entries;
+}
+
+function configSearchEntriesForSection(sectionKey) {
+    const sectionSchema = schema.find(entry => entry.yaml_key === sectionKey);
+    return sectionSchema ? flattenConfigSchemaFields(sectionSchema.children || []) : [];
+}
+
 function sidebarItemMatches(item, terms) {
+    let searchFields = [];
+    try { searchFields = JSON.parse(item.dataset.searchFields || '[]'); } catch (_) { }
     const haystack = [
         item.dataset.searchLabel || '',
         item.dataset.searchDesc || '',
-        item.dataset.searchGroup || ''
+        item.dataset.searchGroup || '',
+        ...searchFields.flatMap(entry => [entry.label || '', entry.help || '', entry.path || ''])
     ].join(' ').toLowerCase();
     return terms.every(term => haystack.includes(term));
+}
+
+function matchingConfigFieldPath(item, terms) {
+    let entries = [];
+    try { entries = JSON.parse(item.dataset.searchFields || '[]'); } catch (_) { }
+    const match = entries.find(entry => {
+        const haystack = [entry.label || '', entry.help || '', entry.path || ''].join(' ').toLowerCase();
+        return terms.every(term => haystack.includes(term));
+    });
+    return match ? match.path : '';
 }
 
 function highlightSidebarLabel(label, terms) {
@@ -566,7 +647,7 @@ function applySidebarSearch(query) {
     const noResults = document.getElementById('sidebarSearchNoResults');
     let visibleItems = 0;
 
-    if (clear) clear.style.display = terms.length ? 'flex' : 'none';
+    if (clear) clear.classList.toggle('hidden', !terms.length);
     if (!terms.length) {
         clearSidebarSearch(false);
         return;
@@ -583,6 +664,7 @@ function applySidebarSearch(query) {
 
         groupEl.querySelectorAll('.sidebar-item').forEach(itemEl => {
             const isMatch = groupMatches || sidebarItemMatches(itemEl, terms);
+            itemEl.dataset.searchTarget = isMatch ? matchingConfigFieldPath(itemEl, terms) : '';
             itemEl.classList.toggle('hidden', !isMatch);
             itemEl.classList.remove('search-focused');
             const labelEl = itemEl.querySelector('.sidebar-item-label');
@@ -611,7 +693,7 @@ function clearSidebarSearch(focusInput) {
     const clear = document.getElementById('sidebarSearchClear');
     const noResults = document.getElementById('sidebarSearchNoResults');
     if (input) input.value = '';
-    if (clear) clear.style.display = 'none';
+    if (clear) clear.classList.add('hidden');
     if (noResults) noResults.classList.add('hidden');
 
     document.querySelectorAll('.sidebar-group').forEach(groupEl => {
@@ -627,6 +709,7 @@ function clearSidebarSearch(focusInput) {
 
     document.querySelectorAll('.sidebar-item').forEach(itemEl => {
         itemEl.classList.remove('hidden', 'search-focused');
+        itemEl.dataset.searchTarget = '';
         const labelEl = itemEl.querySelector('.sidebar-item-label');
         if (labelEl) labelEl.textContent = itemEl.dataset.searchLabel || '';
     });
@@ -676,7 +759,10 @@ function handleSidebarSearchKeys(event) {
         focusSidebarSearchItem(sidebarSearchFocusedIndex - 1);
     } else if (event.key === 'Enter') {
         const item = items[sidebarSearchFocusedIndex >= 0 ? sidebarSearchFocusedIndex : 0];
-        if (item && item.dataset.section) navigateToConfigSection(item.dataset.section);
+        if (item && item.dataset.section) {
+            if (item.dataset.searchTarget) navigateToConfigSection(item.dataset.section, { focusPath: item.dataset.searchTarget });
+            else navigateToConfigSection(item.dataset.section);
+        }
     }
 }
 
@@ -703,6 +789,7 @@ function toggleGroup(groupName, groupDiv) {
 
 
 function hasUnsavedConfigChanges() {
+    if (window.AuraConfigState) return window.AuraConfigState.isDirty();
     return isDirty && collectSnapshot() !== initialSnapshot;
 }
 
@@ -725,6 +812,46 @@ async function confirmDiscardUnsavedChanges() {
     );
 }
 
+function showUnsavedChangesDecision() {
+    return new Promise(resolve => {
+        const previous = document.getElementById('cfg-unsaved-decision');
+        if (previous) previous.remove();
+
+        const overlay = document.createElement('div');
+        overlay.id = 'cfg-unsaved-decision';
+        overlay.className = 'modal-overlay open active pw-unsaved-overlay';
+        overlay.innerHTML = `<div class="modal-card pw-unsaved-card" role="dialog" aria-modal="true" aria-labelledby="cfg-unsaved-title">
+            <div class="pw-unsaved-eyebrow">${escapeHtml(t('config.save_bar.unsaved_changes'))}</div>
+            <h2 id="cfg-unsaved-title" class="modal-title">${escapeHtml(t('config.unsaved_changes.title'))}</h2>
+            <p class="modal-desc">${escapeHtml(t('config.unsaved_changes.message'))}</p>
+            <div class="modal-actions pw-unsaved-actions">
+                <button type="button" class="btn btn-secondary" data-decision="stay">${escapeHtml(t('config.unsaved_changes.stay'))}</button>
+                <button type="button" class="btn btn-secondary" data-decision="discard">${escapeHtml(t('config.unsaved_changes.discard'))}</button>
+                <button type="button" class="btn-save" data-decision="save">${escapeHtml(t('config.unsaved_changes.save_and_continue'))}</button>
+            </div>
+        </div>`;
+
+        function close(decision) {
+            document.removeEventListener('keydown', onKeyDown);
+            overlay.remove();
+            resolve(decision);
+        }
+
+        function onKeyDown(event) {
+            if (event.key === 'Escape') close('stay');
+        }
+
+        overlay.addEventListener('click', event => {
+            if (event.target === overlay) close('stay');
+            const button = event.target.closest('[data-decision]');
+            if (button) close(button.dataset.decision);
+        });
+        document.addEventListener('keydown', onKeyDown);
+        document.body.appendChild(overlay);
+        overlay.querySelector('[data-decision="save"]').focus();
+    });
+}
+
 async function navigateToConfigSection(key, options = {}) {
     const target = normalizeSectionKey(key);
     if (target === activeSection && !hasUnsavedConfigChanges()) {
@@ -732,11 +859,18 @@ async function navigateToConfigSection(key, options = {}) {
         resetDirtySnapshot();
         return true;
     }
-    if (!await confirmDiscardUnsavedChanges()) {
-        if (window.location.hash !== '#' + activeSection) {
-            history.replaceState(null, '', '#' + activeSection);
+    if (hasUnsavedConfigChanges()) {
+        const decision = await showUnsavedChangesDecision();
+        if (decision === 'save') {
+            if (!await saveConfig()) return false;
+        } else if (decision === 'discard') {
+            if (window.AuraConfigState) configData = window.AuraConfigState.discard();
+        } else {
+            if (window.location.hash !== '#' + activeSection) {
+                history.replaceState(null, '', '#' + activeSection);
+            }
+            return false;
         }
-        return false;
     }
     await selectSection(target, options);
     resetDirtySnapshot();
@@ -751,7 +885,7 @@ function handleConfigBeforeUnload(event) {
 }
 
 function handleConfigHashChange() {
-    const key = (window.location.hash || '').replace(/^#/, '') || 'server';
+    const key = (window.location.hash || '').replace(/^#/, '') || 'overview';
     if (key === activeSection) return;
     navigateToConfigSection(key, { scrollBehavior: 'auto' });
 }
@@ -790,10 +924,97 @@ function enhanceConfigControls(root = document) {
     });
 }
 
+function loadRecentSections() {
+    try {
+        const value = JSON.parse(localStorage.getItem(CONFIG_RECENT_KEY) || '[]');
+        return Array.isArray(value) ? value.filter(hasVisibleSection).filter(key => key !== 'overview').slice(0, CONFIG_RECENT_LIMIT) : [];
+    } catch (_) {
+        return [];
+    }
+}
+
+function recordRecentSection(key) {
+    if (!key || key === 'overview') return;
+    const recent = loadRecentSections().filter(value => value !== key);
+    recent.unshift(key);
+    localStorage.setItem(CONFIG_RECENT_KEY, JSON.stringify(recent.slice(0, CONFIG_RECENT_LIMIT)));
+}
+
+function sectionMetadata(key) {
+    for (const group of SECTIONS) {
+        const section = group.items.find(item => item.key === key);
+        if (section) return { ...section, group: group.group };
+    }
+    return null;
+}
+
+function renderConfigOverview() {
+    const content = document.getElementById('content');
+    const recent = loadRecentSections().map(sectionMetadata).filter(Boolean);
+    const sectionCount = SECTIONS.reduce((total, group) => total + group.items.length, 0);
+    const recentMarkup = recent.length
+        ? recent.map(section => `<button type="button" class="pw-recent-card" data-overview-section="${escapeAttr(section.key)}">
+            <span class="pw-overview-card-kicker">${escapeHtml(section.group)}</span>
+            <strong>${escapeHtml(section.label)}</strong>
+            <span>${escapeHtml(section.desc || '')}</span>
+        </button>`).join('')
+        : `<div class="pw-overview-empty">${escapeHtml(t('config.precision.recent_empty'))}</div>`;
+    const groupMarkup = SECTIONS.map(group => `<section class="pw-overview-card${group.dangerGroup ? ' pw-overview-card-danger' : ''}">
+        <div class="pw-overview-card-heading">
+            <h2>${escapeHtml(group.group)}</h2>
+            <span>${group.items.length}</span>
+        </div>
+        <div class="pw-overview-links">
+            ${group.items.map(section => `<button type="button" data-overview-section="${escapeAttr(section.key)}">${escapeHtml(section.label)}<span aria-hidden="true">→</span></button>`).join('')}
+        </div>
+    </section>`).join('');
+
+    content.innerHTML = `<div class="cfg-section active pw-overview">
+        <div class="pw-overview-hero">
+            <span class="pw-overview-eyebrow">${escapeHtml(t('config.precision.workspace_label'))}</span>
+            <h1>${escapeHtml(t('config.precision.overview_title'))}</h1>
+            <p>${escapeHtml(t('config.precision.overview_desc'))}</p>
+            <div class="pw-overview-stat"><strong>${sectionCount}</strong><span>${escapeHtml(t('config.precision.overview_sections'))}</span></div>
+        </div>
+        <section class="pw-overview-recent" aria-labelledby="pw-recent-title">
+            <h2 id="pw-recent-title">${escapeHtml(t('config.precision.recent_title'))}</h2>
+            <div class="pw-recent-grid">${recentMarkup}</div>
+        </section>
+        <section class="pw-overview-groups" aria-labelledby="pw-groups-title">
+            <h2 id="pw-groups-title">${escapeHtml(t('config.precision.groups_title'))}</h2>
+            <div class="pw-overview-grid">${groupMarkup}</div>
+        </section>
+    </div>`;
+    content.querySelectorAll('[data-overview-section]').forEach(button => {
+        button.addEventListener('click', () => navigateToConfigSection(button.dataset.overviewSection));
+    });
+}
+
+function focusConfigField(path) {
+    if (!path) return;
+    requestAnimationFrame(() => {
+        const field = document.querySelector('[data-path="' + CSS.escape(path) + '"]');
+        if (!field) return;
+        let disclosure = field.closest('details');
+        while (disclosure) {
+            disclosure.open = true;
+            disclosure = disclosure.parentElement ? disclosure.parentElement.closest('details') : null;
+        }
+        const target = field.closest('.field-group, .pw-field') || field;
+        target.classList.add('pw-field-focus');
+        target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        if (typeof field.focus === 'function') field.focus({ preventScroll: true });
+        window.setTimeout(() => target.classList.remove('pw-field-focus'), 1800);
+    });
+}
+
 async function selectSection(key, options = {}) {
-    const { scrollBehavior = 'smooth' } = options;
+    const { scrollBehavior = 'smooth', focusPath = '' } = options;
     key = normalizeSectionKey(key);
     activeSection = key;
+    recordRecentSection(key);
+    updateSaveDockSection(key);
+    if (window.AuraConfigState) window.AuraConfigState.beginSection(key);
     localStorage.setItem('aurago-cfg-section', key);
     if (window.location.hash !== '#' + key) {
         history.replaceState(null, '', '#' + key);
@@ -818,6 +1039,8 @@ async function selectSection(key, options = {}) {
     window.dispatchEvent(new CustomEvent('cfg:section-leave'));
     await renderSection(key);
     attachChangeListeners();
+    document.dispatchEvent(new CustomEvent('cfg:section-rendered', { detail: { key, root: document.getElementById('content') } }));
+    focusConfigField(focusPath);
     closeSidebar();
 }
 
@@ -875,6 +1098,10 @@ function renderOptimizations() {
 }
 
 async function renderSection(key) {
+    if (key === 'overview') {
+        renderConfigOverview();
+        return;
+    }
     let section = null;
     for (const group of SECTIONS) {
         const found = group.items.find(s => s.key === key);
@@ -1738,11 +1965,79 @@ function markDirty(event) {
 }
 
 function setDirty(dirty) {
+    if (dirty && window.AuraConfigState) {
+        window.AuraConfigState.syncFromDOM();
+        dirty = window.AuraConfigState.isDirty();
+    }
     isDirty = dirty;
     const btn = document.getElementById('btnSave');
     const pill = document.getElementById('changesPill');
+    const restartBtn = document.getElementById('cfg-restart-btn');
+    const changeCount = document.getElementById('saveChangeCount');
+    const validation = document.getElementById('saveValidation');
+    const count = window.AuraConfigState ? window.AuraConfigState.dirtyPaths().length : (dirty ? 1 : 0);
     btn.disabled = !dirty || configSaveInFlight;
     pill.classList.toggle('visible', dirty);
+    if (changeCount) {
+        changeCount.textContent = t('config.precision.changed_fields').replace('{count}', String(count));
+        changeCount.classList.toggle('visible', dirty);
+    }
+    if (validation) {
+        validation.textContent = dirty ? t('config.precision.validation_ready') : '';
+        validation.className = 'pw-save-validation' + (dirty ? ' visible' : '');
+    }
+    if (restartBtn) {
+        restartBtn.setAttribute('aria-disabled', dirty ? 'true' : 'false');
+        restartBtn.title = dirty ? t('config.precision.restart_save_first') : t('config.header.restart_tooltip');
+    }
+}
+
+function updateSaveDockSection(key) {
+    const element = document.getElementById('saveSection');
+    if (!element) return;
+    const section = sectionMetadata(key);
+    element.textContent = section ? section.label : t('config.precision.overview_title');
+}
+
+function updateSaveDockValidation(valid) {
+    const element = document.getElementById('saveValidation');
+    if (!element) return;
+    element.textContent = t(valid ? 'config.precision.validation_valid' : 'config.precision.validation_invalid');
+    element.className = 'pw-save-validation visible ' + (valid ? 'is-valid' : 'is-invalid');
+}
+
+function clearConfigValidation() {
+    document.querySelectorAll('.pw-field-error[data-config-validation]').forEach(element => element.remove());
+    document.querySelectorAll('[aria-invalid="true"][data-path]').forEach(element => {
+        element.removeAttribute('aria-invalid');
+        const describedBy = (element.getAttribute('aria-describedby') || '').split(/\s+/).filter(id => id && !id.endsWith('-validation'));
+        if (describedBy.length) element.setAttribute('aria-describedby', describedBy.join(' '));
+        else element.removeAttribute('aria-describedby');
+    });
+}
+
+function showConfigValidationErrors(errors) {
+    clearConfigValidation();
+    let first = null;
+    (errors || []).forEach(error => {
+        const selector = '[data-path="' + CSS.escape(error.path || '') + '"]';
+        const control = document.querySelector(selector);
+        if (!control) return;
+        const id = (control.id || 'cfg-' + (error.path || '').replace(/[^a-z0-9_-]/gi, '-')) + '-validation';
+        const message = document.createElement('div');
+        message.id = id;
+        message.className = 'pw-field-error';
+        message.dataset.configValidation = 'true';
+        const translated = t('config.precision.validation_' + error.code);
+        message.textContent = translated && translated !== 'config.precision.validation_' + error.code ? translated : error.message;
+        control.setAttribute('aria-invalid', 'true');
+        const describedBy = new Set((control.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean));
+        describedBy.add(id);
+        control.setAttribute('aria-describedby', Array.from(describedBy).join(' '));
+        control.insertAdjacentElement('afterend', message);
+        if (!first) first = control;
+    });
+    if (first) first.focus();
 }
 
 function setConfigSaveBusy(busy) {
@@ -1761,14 +2056,26 @@ function attachChangeListeners() {
 // ── Save ────────────────────────────────────────────
 async function saveConfig() {
     if (configSaveInFlight) return;
+    if (window.AuraConfigState) {
+        window.AuraConfigState.syncFromDOM();
+        const validation = window.AuraConfigState.validate();
+        if (!validation.valid) {
+            showConfigValidationErrors(validation.errors);
+            updateSaveDockValidation(false);
+            return false;
+        }
+        updateSaveDockValidation(true);
+    }
     configSaveInFlight = true;
+    let saveSucceeded = false;
     const status = document.getElementById('saveStatus');
     setConfigSaveBusy(true);
     status.className = 'save-status';
     status.textContent = t('config.save_bar.saving');
 
     try {
-        const patch = buildConfigPatchFromForm();
+        clearConfigValidation();
+        const patch = window.AuraConfigState ? window.AuraConfigState.buildPatch() : buildConfigPatchFromForm();
         const likelyEmbeddingsChange = embeddingsConfigWillLikelyChange(patch);
         let scheduleResetAfterSave = false;
 
@@ -1778,13 +2085,13 @@ async function saveConfig() {
                 status.className = 'save-status warning';
                 status.textContent = '⚠ ' + t('config.embeddings.reset_cancelled');
                 setTimeout(() => { status.textContent = ''; }, 5000);
-                return;
+                return false;
             }
             if (!await showConfirm(t('config.embeddings.reset_confirm_final'))) {
                 status.className = 'save-status warning';
                 status.textContent = '⚠ ' + t('config.embeddings.reset_cancelled');
                 setTimeout(() => { status.textContent = ''; }, 5000);
-                return;
+                return false;
             }
             scheduleResetAfterSave = true;
         }
@@ -1812,7 +2119,7 @@ async function saveConfig() {
                     status.className = 'save-status error';
                     status.textContent = '✗ ' + (resetResult.data.message || t('config.embeddings.reset_error'));
                     setTimeout(() => { status.textContent = ''; }, 7000);
-                    return;
+                    return false;
                 }
             }
 
@@ -1839,20 +2146,26 @@ async function saveConfig() {
                 } catch (_) { /* tunnel restarting, retry */ }
                 await new Promise(r => setTimeout(r, 800));
             }
+            if (window.AuraConfigState) window.AuraConfigState.commit(configData);
             resetDirtySnapshot();
+            saveSucceeded = true;
             // Check for security issues introduced by this save
             checkSecurityAfterSave();
             if (shouldScheduleResetNow) {
                 status.className = 'save-status warning';
                 status.textContent = '⚠ ' + t('config.embeddings.reset_restarting');
                 await restartAuraGo(true);
-                return;
+                return true;
             }
             if (embeddingsChanged) {
                 status.className = 'save-status warning';
                 status.textContent = '⚠ ' + t('config.embeddings.reset_pending_warning');
             }
         } else {
+            if (Array.isArray(result.field_errors) && result.field_errors.length) {
+                showConfigValidationErrors(result.field_errors);
+                updateSaveDockValidation(false);
+            }
             status.className = 'save-status error';
             status.textContent = '✗ ' + (result.message || t('config.save_bar.error'));
         }
@@ -1865,6 +2178,7 @@ async function saveConfig() {
         configSaveInFlight = false;
         setConfigSaveBusy(false);
     }
+    return saveSucceeded;
 }
 
 // ── Post-save security check ────────────────────────────────────────────────
@@ -1966,6 +2280,10 @@ function showRestartDisconnected(message) {
 
 async function restartAuraGo(skipConfirm = false) {
     if (restartInFlight) return;
+    if (hasUnsavedConfigChanges()) {
+        await showAlert(t('config.precision.restart_save_first'));
+        return;
+    }
     restartInFlight = true;
 
     try {

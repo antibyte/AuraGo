@@ -34,9 +34,11 @@
     <link rel="stylesheet" href="/css/tokens.css">
     <link rel="stylesheet" href="/css/config.css?v=20260520a">
     <link rel="stylesheet" href="/css/enhancements.css?v=20260430a">
+    <link rel="stylesheet" href="/css/precision-workspace.css?v={{.BuildVersion}}">
+    <link rel="stylesheet" href="/css/config-workspace.css?v={{.BuildVersion}}">
 </head>
 
-<body>
+<body class="pw-page" data-density="comfortable">
     <a href="#main-content" class="skip-link" data-i18n="common.skip_to_content"></a>
     <!-- Header -->
     <div class="cfg-header">
@@ -50,6 +52,13 @@
             </a>
         </div>
         <div class="header-actions">
+            <button id="cfg-density-toggle" type="button" class="pw-density-toggle" aria-pressed="false"
+                data-i18n-title="config.precision.density_toggle" data-i18n-aria-label="config.precision.density_toggle">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M5 7h14M5 12h14M5 17h14" />
+                </svg>
+                <span data-i18n="config.precision.density_comfortable"></span>
+            </button>
             <button id="cfg-restart-btn" class="btn-header cfg-restart-btn cfg-restart-danger" onclick="restartAuraGo()">
                 <span class="cfg-restart-full" data-i18n="config.header.restart_full"></span>
                 <span class="cfg-restart-short">↻</span>
@@ -97,11 +106,19 @@
 
     <!-- Save bar -->
     <div class="save-bar">
+        <div class="pw-save-context">
+            <strong id="saveSection"></strong>
+            <span id="saveChangeCount"></span>
+            <span id="saveValidation"></span>
+        </div>
         <span class="changes-pill" id="changesPill" data-i18n="config.save_bar.unsaved_changes"></span>
         <span class="save-status" id="saveStatus" role="status" aria-live="polite" aria-atomic="true"></span>
         <button type="button" class="btn-save" id="btnSave" onclick="saveConfig()" disabled data-i18n="config.save_bar.save_button"></button>
     </div>
 
+    <script src="/js/config/catalog.js?v={{.BuildVersion}}"></script>
+    <script src="/js/config/state.js?v={{.BuildVersion}}"></script>
+    <script src="/js/config/actions.js?v={{.BuildVersion}}"></script>
     <script src="/cfg/form-builder.js?v={{.BuildVersion}}"></script>
     <script src="/js/config/main.js?v={{.BuildVersion}}"></script>
 

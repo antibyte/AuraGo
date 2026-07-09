@@ -1,0 +1,222 @@
+/* AuraGo Precision Workspace: opt-in design foundation. */
+.pw-page {
+    --pw-canvas: #0b0f0e;
+    --pw-surface: #121816;
+    --pw-surface-elevated: #18201d;
+    --pw-surface-soft: #202925;
+    --pw-text: #f2f5f3;
+    --pw-muted: #a8b2ae;
+    --pw-subtle: #7f8d87;
+    --pw-accent: #2dd4bf;
+    --pw-accent-strong: #5eead4;
+    --pw-danger: #fb7185;
+    --pw-warning: #f6c453;
+    --pw-success: #4ade80;
+    --pw-line: color-mix(in srgb, var(--pw-text) 10%, transparent);
+    --pw-line-strong: color-mix(in srgb, var(--pw-text) 16%, transparent);
+    --pw-shell: color-mix(in srgb, var(--pw-surface-elevated) 72%, transparent);
+    --pw-control-size: 1rem;
+    --pw-label-size: 0.9375rem;
+    --pw-help-size: 0.875rem;
+    --pw-meta-size: 0.8125rem;
+    --pw-radius-sm: 10px;
+    --pw-radius-md: 14px;
+    --pw-radius-lg: 20px;
+    --pw-radius-xl: 28px;
+    --pw-ease: cubic-bezier(0.32, 0.72, 0, 1);
+    --pw-duration-fast: 180ms;
+    --pw-duration-base: 260ms;
+    --pw-duration-slow: 320ms;
+    --pw-shadow-soft: 0 22px 60px color-mix(in srgb, #020806 24%, transparent);
+    --bg-primary: var(--pw-canvas);
+    --bg-secondary: var(--pw-surface);
+    --bg-tertiary: var(--pw-surface-elevated);
+    --header-bg: color-mix(in srgb, var(--pw-canvas) 88%, transparent);
+    --sidebar-bg: color-mix(in srgb, var(--pw-surface) 94%, transparent);
+    --card-bg: var(--pw-surface);
+    --input-bg: color-mix(in srgb, var(--pw-surface-elevated) 82%, var(--pw-canvas));
+    --input-border: var(--pw-line-strong);
+    --text-primary: var(--pw-text);
+    --text-secondary: var(--pw-muted);
+    --text-tertiary: var(--pw-subtle);
+    --accent: var(--pw-accent);
+    --accent-dim: color-mix(in srgb, var(--pw-accent) 14%, transparent);
+    --border-subtle: var(--pw-line);
+    --border-accent: color-mix(in srgb, var(--pw-accent) 34%, transparent);
+    --surface-shadow: none;
+    min-height: 100dvh;
+    background: var(--pw-canvas);
+    color: var(--pw-text);
+    font-family: 'Geist', system-ui, -apple-system, sans-serif;
+}
+
+[data-theme="light"] .pw-page,
+.pw-page[data-theme="light"] {
+    --pw-canvas: #eef1ef;
+    --pw-surface: #fafbfa;
+    --pw-surface-elevated: #f3f6f4;
+    --pw-surface-soft: #e6ece8;
+    --pw-text: #14201d;
+    --pw-muted: #586761;
+    --pw-subtle: #6e7c76;
+    --pw-accent: #0f766e;
+    --pw-accent-strong: #0d9488;
+    --pw-danger: #be123c;
+    --pw-warning: #a16207;
+    --pw-success: #15803d;
+    --pw-shadow-soft: 0 24px 62px color-mix(in srgb, #355148 13%, transparent);
+}
+
+.pw-page[data-density="compact"] {
+    --pw-control-size: 0.875rem;
+    --pw-label-size: 0.875rem;
+    --pw-help-size: 0.8125rem;
+    --pw-meta-size: 0.8125rem;
+}
+
+.pw-page .pw-bezel {
+    padding: 6px;
+    border: 1px solid var(--pw-line);
+    border-radius: var(--pw-radius-xl);
+    background: color-mix(in srgb, var(--pw-surface-elevated) 52%, transparent);
+}
+
+.pw-page .pw-bezel-core {
+    border-radius: calc(var(--pw-radius-xl) - 6px);
+    background: var(--pw-surface);
+    box-shadow: inset 0 1px 0 color-mix(in srgb, var(--pw-text) 7%, transparent);
+}
+
+.pw-page .field-label,
+.pw-page .field-group-title,
+.pw-page .cfg-toggle-title {
+    font-size: var(--pw-label-size);
+    line-height: 1.4;
+}
+
+.pw-page .field-help,
+.pw-page .field-group-desc,
+.pw-page .section-desc,
+.pw-page .cfg-toggle-description {
+    font-size: var(--pw-help-size);
+    line-height: 1.58;
+    color: var(--pw-muted);
+}
+
+.pw-page .field-input,
+.pw-page .field-select,
+.pw-page .cfg-input,
+.pw-page button,
+.pw-page .btn {
+    font-size: var(--pw-control-size);
+}
+
+.pw-page .save-status,
+.pw-page .changes-pill,
+.pw-page .adg-test-result,
+.pw-page .cfg-status-text {
+    font-size: var(--pw-meta-size);
+}
+
+.pw-page .field-input,
+.pw-page .field-select,
+.pw-page .cfg-input {
+    min-height: 46px;
+    border: 1px solid var(--pw-line-strong);
+    border-radius: var(--pw-radius-sm);
+    background: var(--input-bg);
+    transition:
+        border-color var(--pw-duration-fast) var(--pw-ease),
+        box-shadow var(--pw-duration-fast) var(--pw-ease),
+        transform var(--pw-duration-fast) var(--pw-ease);
+}
+
+.pw-page[data-density="compact"] .field-input,
+.pw-page[data-density="compact"] .field-select,
+.pw-page[data-density="compact"] .cfg-input {
+    min-height: 40px;
+}
+
+.pw-page .field-input:focus,
+.pw-page .field-select:focus,
+.pw-page .cfg-input:focus,
+.pw-page button:focus-visible,
+.pw-page [tabindex]:focus-visible {
+    outline: none;
+    border-color: var(--pw-accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--pw-accent) 22%, transparent);
+}
+
+.pw-page .btn-save,
+.pw-page .btn-primary {
+    min-height: 44px;
+    border-radius: 999px;
+    padding: 0.65rem 1.15rem;
+    font-weight: 650;
+    background: var(--pw-accent);
+    color: #07110e;
+    box-shadow: inset 0 1px 0 color-mix(in srgb, #ffffff 24%, transparent);
+    transition:
+        transform var(--pw-duration-fast) var(--pw-ease),
+        background var(--pw-duration-fast) var(--pw-ease),
+        box-shadow var(--pw-duration-fast) var(--pw-ease);
+}
+
+.pw-page .btn-save:hover,
+.pw-page .btn-primary:hover {
+    background: var(--pw-accent-strong);
+    transform: translateY(-1px);
+    box-shadow:
+        inset 0 1px 0 color-mix(in srgb, #ffffff 28%, transparent),
+        0 10px 28px color-mix(in srgb, var(--pw-accent) 18%, transparent);
+}
+
+.pw-page .btn-save:active,
+.pw-page .btn-primary:active {
+    transform: scale(0.98);
+}
+
+.pw-page [aria-disabled="true"] {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.pw-page .pw-action-reason {
+    display: block;
+    margin-top: 0.45rem;
+    color: var(--pw-muted);
+    font-size: var(--pw-meta-size);
+    line-height: 1.45;
+}
+
+.pw-page .pw-field-error {
+    margin-top: 0.45rem;
+    color: var(--pw-danger);
+    font-size: var(--pw-meta-size);
+    line-height: 1.45;
+}
+
+.pw-page [aria-invalid="true"] {
+    border-color: var(--pw-danger);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--pw-danger) 18%, transparent);
+}
+
+@media (max-width: 640px) {
+    .pw-page .field-input,
+    .pw-page .field-select,
+    .pw-page .cfg-input {
+        min-height: 44px;
+        font-size: 1rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .pw-page *,
+    .pw-page *::before,
+    .pw-page *::after {
+        scroll-behavior: auto !important;
+        transition-duration: 1ms !important;
+        animation-duration: 1ms !important;
+        animation-iteration-count: 1 !important;
+    }
+}
