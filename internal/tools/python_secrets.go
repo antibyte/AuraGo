@@ -4,13 +4,11 @@ import (
 	"database/sql"
 	"fmt"
 	"log/slog"
-	"os"
 	"os/exec"
 	"strings"
 
 	"aurago/internal/config"
 	"aurago/internal/credentials"
-	"aurago/internal/sandbox"
 	"aurago/internal/security"
 )
 
@@ -157,9 +155,7 @@ func InjectSecretsEnv(cmd *exec.Cmd, secrets map[string]string) {
 	}
 	// Start from filtered parent env if not already set — strips sensitive
 	// vars (AURAGO_MASTER_KEY, API keys, etc.) before passing to subprocess.
-	if cmd.Env == nil {
-		cmd.Env = sandbox.FilterEnv(os.Environ())
-	}
+	ensureFilteredEnv(cmd)
 	for key, val := range secrets {
 		envKey := "AURAGO_SECRET_" + sanitizeEnvKey(key)
 		cmd.Env = append(cmd.Env, envKey+"="+val)
@@ -277,9 +273,7 @@ func InjectCredentialEnv(cmd *exec.Cmd, creds []CredentialFields) {
 		return
 	}
 	// Start from filtered parent env if not already set — strips sensitive vars.
-	if cmd.Env == nil {
-		cmd.Env = sandbox.FilterEnv(os.Environ())
-	}
+	ensureFilteredEnv(cmd)
 	for _, cf := range creds {
 		prefix := "AURAGO_CRED_" + cf.Name + "_"
 		for field, val := range cf.Fields {
@@ -323,9 +317,7 @@ func InjectToolBridgeEnv(cmd *exec.Cmd, bridgeURL, bridgeToken string, allowedTo
 	if bridgeURL == "" || bridgeToken == "" {
 		return
 	}
-	if cmd.Env == nil {
-		cmd.Env = sandbox.FilterEnv(os.Environ())
-	}
+	ensureFilteredEnv(cmd)
 	cmd.Env = append(cmd.Env,
 		"AURAGO_TOOL_BRIDGE_URL="+bridgeURL,
 		"AURAGO_TOOL_BRIDGE_TOKEN="+bridgeToken,

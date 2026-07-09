@@ -12,6 +12,8 @@ import (
 	"strings"
 )
 
+var executablePath = os.Executable
+
 // defaultReadOnlyPaths are always mounted read-only in the sandbox.
 var defaultReadOnlyPaths = []string{
 	"/bin",
@@ -69,11 +71,10 @@ func (s *LandlockSandbox) Name() string    { return "landlock" }
 // sandbox-exec mode. The helper process applies Landlock restrictions and
 // resource limits to itself before exec'ing the actual shell command.
 func (s *LandlockSandbox) PrepareCommand(command, workDir string) *exec.Cmd {
-	selfBin, err := os.Executable()
+	selfBin, err := executablePath()
 	if err != nil {
 		s.logger.Error("Cannot determine own executable path for sandbox", "error", err)
-		// Fallback to direct execution
-		cmd := exec.Command("/bin/sh", "-c", command)
+		cmd := blockedCommand("shell sandbox could not determine AuraGo executable: " + err.Error())
 		cmd.Dir = workDir
 		return cmd
 	}
@@ -91,10 +92,10 @@ func (s *LandlockSandbox) PrepareCommand(command, workDir string) *exec.Cmd {
 // PrepareExecCommand returns an exec.Cmd that re-invokes the AuraGo binary in
 // sandbox-exec-bin mode and then execs the target binary directly.
 func (s *LandlockSandbox) PrepareExecCommand(binary string, args []string, workDir string) *exec.Cmd {
-	selfBin, err := os.Executable()
+	selfBin, err := executablePath()
 	if err != nil {
 		s.logger.Error("Cannot determine own executable path for sandbox", "error", err)
-		cmd := exec.Command(binary, args...)
+		cmd := blockedCommand("shell sandbox could not determine AuraGo executable: " + err.Error())
 		cmd.Dir = workDir
 		return cmd
 	}
@@ -102,7 +103,7 @@ func (s *LandlockSandbox) PrepareExecCommand(binary string, args []string, workD
 	argsJSON, err := json.Marshal(args)
 	if err != nil {
 		s.logger.Error("Cannot encode sandbox exec args", "error", err)
-		cmd := exec.Command(binary, args...)
+		cmd := blockedCommand("shell sandbox could not encode exec args: " + err.Error())
 		cmd.Dir = workDir
 		return cmd
 	}
@@ -132,6 +133,7 @@ func (s *LandlockSandbox) buildEnv(workDir string, extra []string) []string {
 	env = append(env, "AURAGO_SBX_CPU="+strconv.Itoa(s.cfg.MaxCPUSeconds))
 	env = append(env, "AURAGO_SBX_PROCS="+strconv.Itoa(s.cfg.MaxProcesses))
 	env = append(env, "AURAGO_SBX_FSIZE="+strconv.Itoa(s.cfg.MaxFileSizeMB))
+	env = append(env, "AURAGO_SBX_ABI="+strconv.Itoa(s.caps.LandlockABI))
 
 	// Build allowed paths: rw and ro separated
 	var rwPaths, roPaths []string

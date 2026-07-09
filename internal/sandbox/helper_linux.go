@@ -106,23 +106,7 @@ func applyLandlock() error {
 		return fmt.Errorf("prctl(NO_NEW_PRIVS): %w", err)
 	}
 
-	// Filesystem access flags handled by the ruleset.
-	// Anything not explicitly allowed is denied.
-	handledAccess := uint64(
-		unix.LANDLOCK_ACCESS_FS_EXECUTE |
-			unix.LANDLOCK_ACCESS_FS_WRITE_FILE |
-			unix.LANDLOCK_ACCESS_FS_READ_FILE |
-			unix.LANDLOCK_ACCESS_FS_READ_DIR |
-			unix.LANDLOCK_ACCESS_FS_REMOVE_DIR |
-			unix.LANDLOCK_ACCESS_FS_REMOVE_FILE |
-			unix.LANDLOCK_ACCESS_FS_MAKE_CHAR |
-			unix.LANDLOCK_ACCESS_FS_MAKE_DIR |
-			unix.LANDLOCK_ACCESS_FS_MAKE_REG |
-			unix.LANDLOCK_ACCESS_FS_MAKE_SOCK |
-			unix.LANDLOCK_ACCESS_FS_MAKE_FIFO |
-			unix.LANDLOCK_ACCESS_FS_MAKE_BLOCK |
-			unix.LANDLOCK_ACCESS_FS_MAKE_SYM,
-	)
+	handledAccess := landlockHandledAccessForABI(envInt("AURAGO_SBX_ABI"))
 
 	attr := unix.LandlockRulesetAttr{
 		Access_fs: handledAccess,
@@ -176,6 +160,36 @@ func applyLandlock() error {
 	}
 
 	return nil
+}
+
+func landlockHandledAccessForABI(abi int) uint64 {
+	// Filesystem access flags handled by the ruleset.
+	// Anything not explicitly handled is not mediated by Landlock.
+	access := uint64(
+		unix.LANDLOCK_ACCESS_FS_EXECUTE |
+			unix.LANDLOCK_ACCESS_FS_WRITE_FILE |
+			unix.LANDLOCK_ACCESS_FS_READ_FILE |
+			unix.LANDLOCK_ACCESS_FS_READ_DIR |
+			unix.LANDLOCK_ACCESS_FS_REMOVE_DIR |
+			unix.LANDLOCK_ACCESS_FS_REMOVE_FILE |
+			unix.LANDLOCK_ACCESS_FS_MAKE_CHAR |
+			unix.LANDLOCK_ACCESS_FS_MAKE_DIR |
+			unix.LANDLOCK_ACCESS_FS_MAKE_REG |
+			unix.LANDLOCK_ACCESS_FS_MAKE_SOCK |
+			unix.LANDLOCK_ACCESS_FS_MAKE_FIFO |
+			unix.LANDLOCK_ACCESS_FS_MAKE_BLOCK |
+			unix.LANDLOCK_ACCESS_FS_MAKE_SYM,
+	)
+	if abi >= 2 {
+		access |= unix.LANDLOCK_ACCESS_FS_REFER
+	}
+	if abi >= 3 {
+		access |= unix.LANDLOCK_ACCESS_FS_TRUNCATE
+	}
+	if abi >= 5 {
+		access |= unix.LANDLOCK_ACCESS_FS_IOCTL_DEV
+	}
+	return access
 }
 
 // landlockAddPath adds a path-beneath rule to the ruleset.

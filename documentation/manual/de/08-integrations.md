@@ -1820,11 +1820,13 @@ virtual_desktop:
 
 ## Shell Sandbox Integration
 
-Linux-Landlock-basierte Sandbox für Shell-Befehle. Einschränkung von Dateisystemzugriffen, CPU-Zeit und Speicher für Shell-Operationen.
+Linux-Landlock-basierte Sandbox für Shell-Befehle. Sie schränkt Dateisystemzugriffe, CPU-Zeit und Speicher für Shell-Operationen ein, wenn sie explizit aktiviert und verfügbar ist.
 
 **Web-UI:** **Config → Tools → Sandkasten** — Shell-Sandbox aktivieren und Limits konfigurieren (unterhalb der Docker-Sandbox-Einstellungen).
 
-> 💡 Nur auf Linux verfügbar. Bei Fehlschlag kann ein unsicherer Fallback erlaubt werden (`allow_unsafe_fallback`).
+> 💡 Nur auf Linux verfügbar. `shell_sandbox.enabled` bleibt aus Kompatibilitätsgründen standardmäßig `false`. Wenn Shell-Ausführung ohne wirksame Shell-Sandbox aktiviert ist, zeigt AuraGo einen Sicherheitshinweis. Bei Fehlschlag kann ein unsicherer Fallback erlaubt werden (`allow_unsafe_fallback`).
+
+Shell- und Python-Kindprozesse erhalten standardmäßig eine gefilterte Umgebung, damit Host-Secrets wie Master-Keys, API-Keys, Tokens und Passwörter nicht an agentengesteuerte Subprozesse vererbt werden.
 
 ### YAML-Referenz
 ```yaml

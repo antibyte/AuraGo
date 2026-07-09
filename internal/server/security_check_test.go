@@ -2,6 +2,7 @@ package server
 
 import (
 	"aurago/internal/config"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -43,6 +44,61 @@ func TestCheckSecuritySkipsPythonNoSandboxWhenSandboxReady(t *testing.T) {
 	hints := CheckSecurity(cfg)
 	if hasSecurityHint(hints, "python_no_sandbox") {
 		t.Fatalf("did not expect python_no_sandbox hint, got %#v", hints)
+	}
+}
+
+func TestCheckSecurityWarnsWhenShellEnabledWithoutSandbox(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{}
+	cfg.Agent.AllowShell = true
+
+	hints := CheckSecurity(cfg)
+	hint := findSecurityHint(hints, "shell_no_sandbox")
+	if hint == nil {
+		t.Fatalf("expected shell_no_sandbox hint, got %#v", hints)
+	}
+	if hint.Severity != SevWarning {
+		t.Fatalf("severity = %q, want %q", hint.Severity, SevWarning)
+	}
+}
+
+func TestCheckSecurityShellNoSandboxCriticalWhenPublic(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{}
+	cfg.Agent.AllowShell = true
+	cfg.Server.Host = "0.0.0.0"
+	cfg.CloudflareTunnel.Enabled = true
+	cfg.CloudflareTunnel.ExposeWebUI = true
+
+	hints := CheckSecurity(cfg)
+	hint := findSecurityHint(hints, "shell_no_sandbox")
+	if hint == nil {
+		t.Fatalf("expected shell_no_sandbox hint, got %#v", hints)
+	}
+	if hint.Severity != SevCritical {
+		t.Fatalf("severity = %q, want %q", hint.Severity, SevCritical)
+	}
+}
+
+func TestCheckSecuritySkipsShellNoSandboxWhenShellDisabledOrSandboxReady(t *testing.T) {
+	t.Parallel()
+
+	disabled := &config.Config{}
+	if hasSecurityHint(CheckSecurity(disabled), "shell_no_sandbox") {
+		t.Fatal("did not expect shell_no_sandbox when shell is disabled")
+	}
+
+	ready := &config.Config{}
+	ready.Agent.AllowShell = true
+	ready.ShellSandbox.Enabled = true
+	ready.Runtime.IsDocker = false
+	if runtime.GOOS == "linux" && hasSecurityHint(CheckSecurity(ready), "shell_no_sandbox") {
+		t.Fatal("did not expect shell_no_sandbox when shell sandbox is configured as ready")
+	}
+	if runtime.GOOS != "linux" && !hasSecurityHint(CheckSecurity(ready), "shell_no_sandbox") {
+		t.Fatal("expected shell_no_sandbox on non-Linux even when shell sandbox is configured")
 	}
 }
 

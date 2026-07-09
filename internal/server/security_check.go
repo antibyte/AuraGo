@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"runtime"
 	"strings"
 
 	"aurago/internal/config"
@@ -303,7 +304,22 @@ func CheckSecurity(cfg *config.Config) []SecurityHint {
 		})
 	}
 
-	// 7c. mcp_public — MCP exposed on an internet-facing instance
+	// 7c. shell_no_sandbox — Shell is enabled without an effective shell sandbox
+	if cfg.Agent.AllowShell && !shellSandboxReady(cfg) {
+		sev := SevWarning
+		if facing {
+			sev = SevCritical
+		}
+		hints = append(hints, SecurityHint{
+			ID: "shell_no_sandbox", Severity: sev,
+			Title: "Shell execution without effective sandbox",
+			Description: "Shell execution is enabled, but the Landlock shell sandbox is not effectively available. " +
+				"Enable shell_sandbox on a supported Linux host, or disable shell execution for this environment.",
+			AutoFixable: false,
+		})
+	}
+
+	// 7d. mcp_public — MCP exposed on an internet-facing instance
 	if facing && cfg.Agent.AllowMCP && cfg.MCP.Enabled {
 		hints = append(hints, SecurityHint{
 			ID: "mcp_public", Severity: SevWarning,
@@ -679,6 +695,19 @@ func pythonSandboxReady(cfg *config.Config) bool {
 		return false
 	}
 	if cfg.Runtime.IsDocker && !cfg.Runtime.DockerSocketOK {
+		return false
+	}
+	return true
+}
+
+func shellSandboxReady(cfg *config.Config) bool {
+	if !cfg.ShellSandbox.Enabled {
+		return false
+	}
+	if runtime.GOOS != "linux" {
+		return false
+	}
+	if cfg.Runtime.IsDocker {
 		return false
 	}
 	return true

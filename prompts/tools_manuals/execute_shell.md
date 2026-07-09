@@ -37,4 +37,5 @@ Execute arbitrary shell commands on the host system. Uses PowerShell (`powershel
 - **Shell flags:** PowerShell runs with `-NoProfile -NonInteractive` for speed.
 - **Working directory:** `agent_workspace`
 - **Piping and redirection:** Standard shell operators (`|`, `>`, `>>`, `&&`, `||`) are supported.
-- **Security:** This tool provides full shell access. Avoid destructive commands unless absolutely necessary.
+- **Environment:** Child processes receive a filtered environment; AuraGo master keys, API keys, tokens, passwords, and similar host secrets are not inherited.
+- **Security:** This tool provides host shell access. Landlock isolation is used only when `shell_sandbox.enabled` is explicitly enabled and available on Linux; otherwise commands run with the AuraGo process user. Avoid destructive commands unless absolutely necessary.

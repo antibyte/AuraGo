@@ -784,6 +784,7 @@ func runTimedCommand(workdir string, timeout time.Duration, command string, args
 	defer cancel()
 	cmd := exec.CommandContext(ctx, command, args...)
 	cmd.Dir = workdir
+	ensureFilteredEnv(cmd)
 	output, err := cmd.CombinedOutput()
 	if ctx.Err() == context.DeadlineExceeded {
 		return output, fmt.Errorf("command timed out after %s", timeout)

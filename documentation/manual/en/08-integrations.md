@@ -2219,11 +2219,13 @@ virtual_desktop:
 
 ## Shell Sandbox Integration
 
-Linux Landlock-based sandbox for shell commands. Restricts filesystem access, CPU time, and memory for shell operations.
+Linux Landlock-based sandbox for shell commands. Restricts filesystem access, CPU time, and memory for shell operations when explicitly enabled and available.
 
 **Web UI:** Config → Integrations → Shell Sandbox → Enable and configure limits.
 
-> 💡 Linux only. On failure, an unsafe fallback can be allowed via `allow_unsafe_fallback`.
+> 💡 Linux only. `shell_sandbox.enabled` defaults to `false` for compatibility. If shell execution is enabled without an effective shell sandbox, AuraGo warns in the security hints. On failure, an unsafe fallback can be allowed via `allow_unsafe_fallback`.
+
+Shell and Python child processes receive a filtered environment by default, so host secrets such as master keys, API keys, tokens, and passwords are not inherited by agent-controlled subprocesses.
 
 ### YAML Reference
 ```yaml

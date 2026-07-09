@@ -1,9 +1,13 @@
 package tools
 
 import (
+	"io"
 	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestWriteScript_SizeLimitRejected(t *testing.T) {
@@ -148,4 +152,122 @@ func TestSandboxExecuteCode_ManagerNil(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error when sandbox manager is nil")
 	}
+}
+
+func TestExecutePythonDoesNotInheritSensitiveEnv(t *testing.T) {
+	workspaceDir := t.TempDir()
+	toolsDir := t.TempDir()
+	installFakePython(t, workspaceDir)
+	setSensitiveEnvForSubprocessTest(t)
+	t.Setenv("AURAGO_FAKE_PYTHON", "1")
+
+	stdout, stderr, err := ExecutePython(`print("unused")`, workspaceDir, toolsDir)
+	if err != nil {
+		t.Fatalf("ExecutePython() error = %v, stderr = %q", err, stderr)
+	}
+	assertCleanFakePythonOutput(t, stdout)
+}
+
+func TestRunToolDoesNotInheritSensitiveEnv(t *testing.T) {
+	workspaceDir := t.TempDir()
+	toolsDir := t.TempDir()
+	installFakePython(t, workspaceDir)
+	setSensitiveEnvForSubprocessTest(t)
+	t.Setenv("AURAGO_FAKE_PYTHON", "1")
+	if err := os.WriteFile(filepath.Join(toolsDir, "tool.py"), []byte(`print("unused")`), 0o600); err != nil {
+		t.Fatalf("write fake tool: %v", err)
+	}
+
+	stdout, stderr, err := RunTool("tool.py", nil, workspaceDir, toolsDir)
+	if err != nil {
+		t.Fatalf("RunTool() error = %v, stderr = %q", err, stderr)
+	}
+	assertCleanFakePythonOutput(t, stdout)
+}
+
+func TestExecutePythonBackgroundDoesNotInheritSensitiveEnv(t *testing.T) {
+	workspaceDir := t.TempDir()
+	toolsDir := t.TempDir()
+	installFakePython(t, workspaceDir)
+	setSensitiveEnvForSubprocessTest(t)
+	t.Setenv("AURAGO_FAKE_PYTHON", "1")
+	t.Setenv("AURAGO_FAKE_PYTHON_SLEEP_MS", "500")
+	registry := NewProcessRegistry(testBackgroundTaskLogger())
+
+	pid, err := ExecutePythonBackground(`print("unused")`, workspaceDir, toolsDir, registry)
+	if err != nil {
+		t.Fatalf("ExecutePythonBackground() error = %v", err)
+	}
+	defer registry.Terminate(pid)
+
+	output := waitForProcessOutput(t, registry, pid)
+	assertCleanFakePythonOutput(t, output)
+}
+
+func installFakePython(t *testing.T, workspaceDir string) {
+	t.Helper()
+	var pythonPath string
+	if runtime.GOOS == "windows" {
+		pythonPath = filepath.Join(workspaceDir, "venv", "Scripts", "python.exe")
+	} else {
+		pythonPath = filepath.Join(workspaceDir, "venv", "bin", "python")
+	}
+	if err := os.MkdirAll(filepath.Dir(pythonPath), 0o755); err != nil {
+		t.Fatalf("create fake python dir: %v", err)
+	}
+	src, err := os.Open(os.Args[0])
+	if err != nil {
+		t.Fatalf("open test binary: %v", err)
+	}
+	defer src.Close()
+	dst, err := os.OpenFile(pythonPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o755)
+	if err != nil {
+		t.Fatalf("create fake python: %v", err)
+	}
+	if _, err := io.Copy(dst, src); err != nil {
+		dst.Close()
+		t.Fatalf("copy fake python: %v", err)
+	}
+	if err := dst.Close(); err != nil {
+		t.Fatalf("close fake python: %v", err)
+	}
+	if runtime.GOOS != "windows" {
+		if err := os.Chmod(pythonPath, 0o755); err != nil {
+			t.Fatalf("chmod fake python: %v", err)
+		}
+	}
+}
+
+func setSensitiveEnvForSubprocessTest(t *testing.T) {
+	t.Helper()
+	t.Setenv("AURAGO_MASTER_KEY", strings.Repeat("a", 64))
+	t.Setenv("OPENAI_API_KEY", "sk-test-should-not-leak")
+	t.Setenv("CUSTOM_PASSWORD", "password-should-not-leak")
+}
+
+func assertCleanFakePythonOutput(t *testing.T, output string) {
+	t.Helper()
+	if strings.Contains(output, "leaked:") {
+		t.Fatalf("subprocess inherited sensitive environment: %q", output)
+	}
+	if !strings.Contains(output, "env-clean") {
+		t.Fatalf("expected fake python clean-env marker, got %q", output)
+	}
+}
+
+func waitForProcessOutput(t *testing.T, registry *ProcessRegistry, pid int) string {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	var last string
+	for time.Now().Before(deadline) {
+		if info, ok := registry.Get(pid); ok {
+			last = info.ReadOutput()
+			if strings.TrimSpace(last) != "" {
+				return last
+			}
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("timed out waiting for process %d output, last=%q", pid, last)
+	return ""
 }

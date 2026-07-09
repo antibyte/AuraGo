@@ -78,6 +78,7 @@ func ExecuteShell(command, workspaceDir string) (string, string, error) {
 	}
 
 	cmd.Dir = absWorkDir
+	ensureFilteredEnv(cmd)
 	SetupCmd(cmd)
 
 	slog.Debug("[ExecuteShell]", "command", command, "dir", cmd.Dir)
@@ -121,6 +122,7 @@ func ExecuteShellBackground(command, workspaceDir string, registry *ProcessRegis
 	}
 
 	cmd.Dir = absWorkDir
+	ensureFilteredEnv(cmd)
 	SetupCmd(cmd)
 
 	slog.Debug("[ExecuteShellBackground]", "command", command, "dir", cmd.Dir)
@@ -161,6 +163,7 @@ func ExecuteSudo(command, workspaceDir, password string) (string, string, error)
 	cmd := exec.Command("sudo", "-S", "-p", "", "/bin/sh", "-c", command)
 	cmd.Dir = getAbsWorkspace(workspaceDir)
 	cmd.Stdin = strings.NewReader(password + "\n")
+	ensureFilteredEnv(cmd)
 	SetupCmd(cmd)
 
 	slog.Debug("[ExecuteSudo]", "command", command, "dir", cmd.Dir)

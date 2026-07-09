@@ -132,3 +132,51 @@ func TestExecuteSudoBlockedWhenShellSandboxActive(t *testing.T) {
 		t.Fatalf("ExecuteSudo() error = %v, want sandbox block", err)
 	}
 }
+
+func TestExecuteShellDoesNotInheritSensitiveEnv(t *testing.T) {
+	skipIfWindowsPowerShellUnavailable(t)
+	restore := sandbox.SetForTest(&sandbox.FallbackSandbox{})
+	t.Cleanup(restore)
+	setSensitiveEnvForSubprocessTest(t)
+
+	stdout, stderr, err := ExecuteShell(shellPrintSensitiveEnvCommand(), t.TempDir())
+	if err != nil {
+		t.Fatalf("ExecuteShell() error = %v, stderr = %q", err, stderr)
+	}
+	if strings.Contains(stdout, "should-not-leak") || strings.Contains(stdout, strings.Repeat("a", 64)) {
+		t.Fatalf("shell inherited sensitive environment: %q", stdout)
+	}
+}
+
+func TestExecuteShellBackgroundDoesNotInheritSensitiveEnv(t *testing.T) {
+	skipIfWindowsPowerShellUnavailable(t)
+	restore := sandbox.SetForTest(&sandbox.FallbackSandbox{})
+	t.Cleanup(restore)
+	setSensitiveEnvForSubprocessTest(t)
+	registry := NewProcessRegistry(slog.Default())
+
+	pid, err := ExecuteShellBackground(shellPrintSensitiveEnvAndSleepCommand(), t.TempDir(), registry)
+	if err != nil {
+		t.Fatalf("ExecuteShellBackground() error = %v", err)
+	}
+	defer registry.Terminate(pid)
+
+	output := waitForProcessOutput(t, registry, pid)
+	if strings.Contains(output, "should-not-leak") || strings.Contains(output, strings.Repeat("a", 64)) {
+		t.Fatalf("background shell inherited sensitive environment: %q", output)
+	}
+}
+
+func shellPrintSensitiveEnvCommand() string {
+	if runtime.GOOS == "windows" {
+		return "Write-Output $env:AURAGO_MASTER_KEY; Write-Output $env:OPENAI_API_KEY; Write-Output $env:CUSTOM_PASSWORD; Write-Output env-check-done"
+	}
+	return `printf '%s\n' "$AURAGO_MASTER_KEY" "$OPENAI_API_KEY" "$CUSTOM_PASSWORD" "env-check-done"`
+}
+
+func shellPrintSensitiveEnvAndSleepCommand() string {
+	if runtime.GOOS == "windows" {
+		return shellPrintSensitiveEnvCommand() + "; Start-Sleep -Milliseconds 500"
+	}
+	return shellPrintSensitiveEnvCommand() + "; sleep 0.5"
+}
