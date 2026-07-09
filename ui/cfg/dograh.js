@@ -66,16 +66,16 @@ async function renderDograhSection(section) {
     html += '<div class="cfg-note-banner cfg-note-banner-info">▧ ' + dograhText('config.dograh.sidecar_note') + '</div>';
     html += '<div id="dograh-status-box" class="adg-status-banner">' + escapeHtml(dograhText('config.dograh.status_prefix')) + ' ...</div>';
     html += '<div class="cfg-actions-row">';
-    html += dograhActionButton('dograh-test-btn', 'config.dograh.test_button', 'dograhAction(\\'test\\')', 'adg-test-btn', '🔌 ');
-    html += dograhActionButton('dograh-start-btn', 'config.dograh.start_button', 'dograhAction(\\'start\\')', 'btn-secondary', '▶ ');
-    html += dograhActionButton('dograh-stop-btn', 'config.dograh.stop_button', 'dograhAction(\\'stop\\')', 'btn-secondary', '⏹ ');
-    html += dograhActionButton('dograh-recreate-btn', 'config.dograh.recreate_button', 'dograhAction(\\'recreate\\')', 'btn-secondary', '🔄 ');
+    html += dograhActionButton('dograh-test-btn', 'config.dograh.test_button', 'dograhAction(\'test\')', 'adg-test-btn', '🔌 ');
+    html += dograhActionButton('dograh-start-btn', 'config.dograh.start_button', 'dograhAction(\'start\')', 'btn-secondary', '▶ ');
+    html += dograhActionButton('dograh-stop-btn', 'config.dograh.stop_button', 'dograhAction(\'stop\')', 'btn-secondary', '⏹ ');
+    html += dograhActionButton('dograh-recreate-btn', 'config.dograh.recreate_button', 'dograhAction(\'recreate\')', 'btn-secondary', '🔄 ');
     html += '<span id="dograh-test-result" class="adg-test-result"></span>';
     html += '</div>';
 
     html += '<div class="field-grid two-cols">';
     html += dograhField('config.dograh.mode_label', 'help.dograh.mode',
-        '<select class="field-select" data-path="dograh.mode" onchange="setNestedValue(configData,\\'dograh.mode\\',this.value);setDirty(true);renderDograhSection(null)">' +
+        '<select class="field-select" data-path="dograh.mode" onchange="setNestedValue(configData,\'dograh.mode\',this.value);setDirty(true);renderDograhSection(null)">' +
         '<option value="managed"' + (managed ? ' selected' : '') + '>' + dograhText('config.dograh.mode_managed') + '</option>' +
         '<option value="external"' + (!managed ? ' selected' : '') + '>' + dograhText('config.dograh.mode_external') + '</option>' +
         '</select>');
@@ -110,13 +110,13 @@ async function renderDograhSection(section) {
     html += dograhInput('config.dograh.credential_uuid_label', 'help.dograh.credential_uuid', 'dograh.aurago_mcp_credential_uuid', data.aurago_mcp_credential_uuid || '');
     html += dograhInput('config.dograh.allowed_tools_label', 'help.dograh.allowed_tools', 'dograh.aurago_mcp_allowed_tools', Array.isArray(data.aurago_mcp_allowed_tools) ? data.aurago_mcp_allowed_tools.join(', ') : '');
     html += '</div><div class="cfg-actions-row">';
-    html += dograhButton('dograh-mcp-btn', 'config.dograh.mcp_register_button', 'dograhAction(\\'registerMCP\\')');
+    html += dograhButton('dograh-mcp-btn', 'config.dograh.mcp_register_button', 'dograhAction(\'registerMCP\')');
     html += '</div></div>';
 
     html += '<div class="field-group">';
     html += '<div class="field-group-title">' + escapeHtml(dograhText('config.dograh.webhook_section_title')) + '</div>';
     html += dograhInput('config.dograh.webhook_slug_label', 'help.dograh.webhook_slug', 'dograh.callback_webhook_slug', data.callback_webhook_slug || 'dograh-callback');
-    html += '<div class="cfg-actions-row">' + dograhButton('dograh-webhook-btn', 'config.dograh.webhook_button', 'dograhAction(\\'provisionWebhook\\')') + '</div>';
+    html += '<div class="cfg-actions-row">' + dograhButton('dograh-webhook-btn', 'config.dograh.webhook_button', 'dograhAction(\'provisionWebhook\')') + '</div>';
     html += '</div>';
 
     html += '</div>';
