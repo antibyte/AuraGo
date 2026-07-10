@@ -30,9 +30,11 @@
     <link rel="stylesheet" href="/css/knowledge.css?v=20260622a">
     <link rel="stylesheet" href="/css/secrets-shared.css?v={{.BuildVersion}}">
     <link rel="stylesheet" href="/css/enhancements.css?v=20260425a">
+    <link rel="stylesheet" href="/css/precision-workspace.css?v={{.BuildVersion}}">
+    <link rel="stylesheet" href="/css/precision-pages.css?v={{.BuildVersion}}">
     <link href="/fonts/fonts.css" rel="stylesheet">
 </head>
-<body>
+<body class="pw-page pw-operational-page" data-workspace-page="knowledge" data-density="comfortable">
     <a href="#main-content" class="skip-link" data-i18n="common.skip_to_content"></a>
     <header class="app-header">
         <div class="header-left">
@@ -191,7 +193,7 @@
                     <tbody id="devices-tbody"></tbody>
                 </table>
             </div>
-            <div class="empty-state" id="devices-empty" style="display:none;">
+            <div class="empty-state is-hidden" id="devices-empty">
                 <div class="empty-icon">📱</div>
                 <h3 data-i18n="knowledge.devices_empty_title"></h3>
                 <p data-i18n="knowledge.devices_empty_desc"></p>
@@ -688,6 +690,7 @@
         </div>
     </div>
 
+    <script src="/js/precision/workspace.js?v={{.BuildVersion}}"></script>
     <script src="/js/knowledge/main.js?v=7"></script>
     <script src="/js/knowledge/appointments.js?v=7"></script>
     <script src="/js/knowledge/todos.js?v=7"></script>

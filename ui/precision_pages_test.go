@@ -752,6 +752,264 @@ func TestPrecisionWorkspaceMissionsCompactListActionsStayTouchSizedOnMobile(t *t
 	}
 }
 
+func TestPrecisionWorkspaceKnowledgeSkillsIntegration(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name           string
+		template       string
+		page           string
+		pageStylesheet string
+		pageScript     string
+		hiddenHooks    []string
+		hooks          []string
+	}{
+		{
+			name:           "Knowledge",
+			template:       "knowledge.html",
+			page:           "knowledge",
+			pageStylesheet: `/css/knowledge.css`,
+			pageScript:     `/js/knowledge/main.js`,
+			hiddenHooks: []string{
+				`class="empty-state is-hidden" id="devices-empty"`,
+				`id="file-preview-frame" class="kc-preview-frame is-hidden"`,
+			},
+			hooks: []string{
+				`id="tab-files"`,
+				`id="panel-files"`,
+				`id="credentials-table"`,
+				`id="file-preview-modal"`,
+				`id="file-preview-text"`,
+				`id="credential-modal"`,
+			},
+		},
+		{
+			name:           "Skills",
+			template:       "skills.html",
+			page:           "skills",
+			pageStylesheet: `/css/skills.css`,
+			pageScript:     `/js/skills/main.js`,
+			hiddenHooks: []string{
+				`class="sk-toolbar-actions is-hidden" id="agent-toolbar-actions"`,
+				`id="agent-file-upload-input" class="is-hidden"`,
+				`class="modal-overlay is-hidden" id="agent-resource-path-modal"`,
+				`id="upload-file" accept=".py" class="is-hidden"`,
+			},
+			hooks: []string{
+				`id="sk-tab-python"`,
+				`id="sk-tab-agent"`,
+				`id="sk-grid"`,
+				`id="agent-resource-browser"`,
+				`id="code-editor-container"`,
+				`id="upload-modal"`,
+				`id="agent-skill-modal"`,
+			},
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			html := normalizeAssetText(mustReadUIFile(t, test.template))
+			bodyMarker := `<body class="pw-page pw-operational-page" data-workspace-page="` + test.page + `" data-density="comfortable">`
+			if !strings.Contains(html, bodyMarker) {
+				t.Errorf("%s missing exact Precision opt-in body marker %q", test.template, bodyMarker)
+			}
+
+			pageAt := strings.Index(html, test.pageStylesheet)
+			enhancementsAt := strings.Index(html, `/css/enhancements.css`)
+			foundationAt := strings.Index(html, `/css/precision-workspace.css?v={{.BuildVersion}}`)
+			componentsAt := strings.Index(html, `/css/precision-pages.css?v={{.BuildVersion}}`)
+			if pageAt < 0 || foundationAt < 0 || componentsAt < 0 || !(pageAt < foundationAt && foundationAt < componentsAt) {
+				t.Errorf("%s Precision CSS order = page:%d enhancements:%d foundation:%d components:%d", test.template, pageAt, enhancementsAt, foundationAt, componentsAt)
+			}
+			if enhancementsAt >= 0 && enhancementsAt >= foundationAt {
+				t.Errorf("%s enhancements stylesheet must load before Precision foundation: enhancements=%d foundation=%d", test.template, enhancementsAt, foundationAt)
+			}
+
+			workspaceAt := strings.Index(html, `/js/precision/workspace.js?v={{.BuildVersion}}`)
+			mainAt := strings.Index(html, test.pageScript)
+			if workspaceAt < 0 || mainAt < 0 || workspaceAt >= mainAt {
+				t.Errorf("%s script order = workspace:%d main:%d", test.template, workspaceAt, mainAt)
+			}
+
+			if regexp.MustCompile(`(?i)\sstyle\s*=`).MatchString(html) {
+				t.Errorf("%s must not contain inline style attributes", test.template)
+			}
+			for _, hook := range append(test.hooks, test.hiddenHooks...) {
+				if !strings.Contains(html, hook) {
+					t.Errorf("%s lost or failed to preserve functional hook %q", test.template, hook)
+				}
+			}
+		})
+	}
+}
+
+func TestPrecisionWorkspaceKnowledgeSkillsAdaptersAreScopedAndResponsive(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name          string
+		stylesheet    string
+		page          string
+		layoutMarkers []string
+	}{
+		{
+			name:       "Knowledge",
+			stylesheet: "css/knowledge.css",
+			page:       "knowledge",
+			layoutMarkers: []string{
+				`.kc-tabs`,
+				`.kc-panel`,
+				`.kc-table-wrap`,
+				`.kc-preview-body`,
+				`.modal`,
+				`overflow-wrap: anywhere;`,
+			},
+		},
+		{
+			name:       "Skills",
+			stylesheet: "css/skills.css",
+			page:       "skills",
+			layoutMarkers: []string{
+				`.sk-tabs`,
+				`.sk-toolbar`,
+				`.sk-grid`,
+				`.sk-code-editor-container`,
+				`.sk-resource-list`,
+				`.modal`,
+				`overflow-wrap: anywhere;`,
+			},
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			css := normalizeAssetText(mustReadUIFile(t, test.stylesheet))
+			startMarker := `/* === Precision Workspace ` + test.name + ` Adapter: start === */`
+			endMarker := `/* === Precision Workspace ` + test.name + ` Adapter: end === */`
+			start := strings.Index(css, startMarker)
+			end := strings.Index(css, endMarker)
+			if start < 0 || end <= start {
+				t.Fatalf("%s missing delimited Precision adapter: start=%d end=%d", test.stylesheet, start, end)
+			}
+			adapter := css[start:end]
+			prefix := `.pw-page[data-workspace-page="` + test.page + `"]`
+
+			for _, marker := range append([]string{
+				prefix + ` {`,
+				`overflow-x: clip;`,
+				`background-image: none;`,
+				`box-shadow: none;`,
+				`filter: none;`,
+				prefix + `[data-density="compact"]`,
+				`:root[data-theme="light"] *`,
+				`@media (max-width: 1024px)`,
+				`@media (max-width: 640px)`,
+				`min-height: 44px;`,
+				`min-height: 100dvh;`,
+				`max-height: calc(100dvh - 1rem);`,
+				`border-radius: 20px 20px 0 0;`,
+				`@media (prefers-reduced-motion: reduce)`,
+			}, test.layoutMarkers...) {
+				if !strings.Contains(adapter, marker) {
+					t.Errorf("%s Precision adapter missing marker %q", test.name, marker)
+				}
+			}
+			if strings.Contains(strings.ToLower(adapter), "gradient(") {
+				t.Fatalf("%s Precision adapter must not introduce gradient expressions", test.name)
+			}
+			assertPrecisionAdapterSelectorsScoped(t, adapter, prefix)
+		})
+	}
+}
+
+func TestPrecisionWorkspaceKnowledgeSkillsAdaptersSuppressLegacyDecoration(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		stylesheet string
+		page       string
+		selectors  []string
+	}{
+		{
+			name:       "Knowledge",
+			stylesheet: "css/knowledge.css",
+			page:       "knowledge",
+			selectors: []string{
+				`.kc-skeleton-cell::after`,
+				`.kc-tabs-wrap::before`,
+				`.kc-tabs-wrap::after`,
+				`.kc-preview-pdf-wrap canvas`,
+				`.kc-preview-fallback`,
+				`.kc-sync-card`,
+				`.kc-picker-dropdown`,
+				`.kc-todo-progress-fill`,
+			},
+		},
+		{
+			name:       "Skills",
+			stylesheet: "css/skills.css",
+			page:       "skills",
+			selectors: []string{
+				`.sk-daemon-settings-section`,
+				`.sk-dropzone:hover`,
+				`.empty-state .icon`,
+				`.sk-toast`,
+			},
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			css := normalizeAssetText(mustReadUIFile(t, test.stylesheet))
+			start := strings.Index(css, `/* === Precision Workspace `+test.name+` Adapter: start === */`)
+			end := strings.Index(css, `/* === Precision Workspace `+test.name+` Adapter: end === */`)
+			if start < 0 || end <= start {
+				t.Fatalf("%s missing delimited Precision adapter", test.stylesheet)
+			}
+			adapter := css[start:end]
+			prefix := `.pw-page[data-workspace-page="` + test.page + `"]`
+			for _, selector := range test.selectors {
+				if !strings.Contains(adapter, prefix+` `+selector) {
+					t.Errorf("%s adapter does not explicitly suppress legacy decoration for %s", test.name, selector)
+				}
+			}
+		})
+	}
+}
+
+func TestPrecisionWorkspaceKnowledgeSkillsHiddenStateRemainsInlineOverridable(t *testing.T) {
+	t.Parallel()
+
+	for _, test := range []struct {
+		stylesheet string
+		page       string
+	}{
+		{stylesheet: "css/knowledge.css", page: "knowledge"},
+		{stylesheet: "css/skills.css", page: "skills"},
+	} {
+		css := normalizeAssetText(mustReadUIFile(t, test.stylesheet))
+		prefix := `.pw-page[data-workspace-page="` + test.page + `"]`
+		hiddenRule := regexp.MustCompile(`(?s)` + regexp.QuoteMeta(prefix+` .is-hidden`) + `\s*\{([^}]*)\}`).FindStringSubmatch(css)
+		if len(hiddenRule) != 2 || !strings.Contains(hiddenRule[1], `display: none;`) {
+			t.Errorf("%s needs a page-scoped baseline is-hidden rule", test.stylesheet)
+			continue
+		}
+		if strings.Contains(hiddenRule[1], `!important`) {
+			t.Errorf("%s is-hidden rule must remain overridable by normal inline display values", test.stylesheet)
+		}
+	}
+}
+
 func TestPrecisionWorkspaceTranslations(t *testing.T) {
 	t.Parallel()
 

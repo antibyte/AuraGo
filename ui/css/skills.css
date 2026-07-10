@@ -1441,3 +1441,502 @@
 [data-theme="light"] .sk-dropzone-active {
     background: color-mix(in srgb, var(--accent) 4%, transparent);
 }
+
+/* === Precision Workspace Skills Adapter: start === */
+.pw-page[data-workspace-page="skills"] {
+    overflow-x: clip;
+}
+
+.pw-page[data-workspace-page="skills"] .is-hidden {
+    display: none;
+}
+
+.pw-page[data-workspace-page="skills"] .sk-container:has(#sk-tab-agent.active) #agent-toolbar-actions.is-hidden,
+.pw-page[data-workspace-page="skills"] #agent-skill-modal.active:has(#agent-create-fields[style*="display: none"]) #agent-resource-browser.is-hidden,
+.pw-page[data-workspace-page="skills"] .sk-form-group:has(#agent-resource-list .sk-resource-chip.is-selected) #agent-file-editor.is-hidden,
+.pw-page[data-workspace-page="skills"] #agent-file-editor.is-hidden:has(#agent-resource-content[style*="display: none"]) #agent-binary-download.is-hidden,
+.pw-page[data-workspace-page="skills"] #agent-nonpython-warning.is-hidden:has(+ .sk-code-meta-grid #agent-test-script option:checked[value$=".sh"]),
+.pw-page[data-workspace-page="skills"] #agent-nonpython-warning.is-hidden:has(+ .sk-code-meta-grid #agent-test-script option:checked[value$=".js"]),
+.pw-page[data-workspace-page="skills"] #agent-resource-path-error.is-hidden:not(:empty),
+.pw-page[data-workspace-page="skills"] #sk-dropzone[style*="display: none"] + #sk-selected-file.is-hidden,
+.pw-page[data-workspace-page="skills"] #template-description.is-hidden:not(:empty),
+.pw-page[data-workspace-page="skills"] #vault-key-list:empty + #vault-key-empty.is-hidden,
+.pw-page[data-workspace-page="skills"] #internal-tools-list:empty + #internal-tools-bridge-off.is-hidden {
+    display: block;
+}
+
+.pw-page[data-workspace-page="skills"] .sk-container:has(#sk-grid[style*="display: none"]) #sk-empty.is-hidden {
+    display: block;
+}
+
+.pw-page[data-workspace-page="skills"] .sk-container:has(#sk-status-bar[style*="display: none"]) #sk-disabled.is-hidden {
+    display: block;
+}
+
+.pw-page[data-workspace-page="skills"] #code-modal.active #code-draft-meta.is-hidden[style=""],
+.pw-page[data-workspace-page="skills"] #agent-resource-browser.is-hidden[style=""],
+.pw-page[data-workspace-page="skills"] #agent-file-editor.is-hidden[style=""],
+.pw-page[data-workspace-page="skills"] #agent-binary-download.is-hidden[style=""],
+.pw-page[data-workspace-page="skills"] #agent-nonpython-warning.is-hidden[style=""],
+.pw-page[data-workspace-page="skills"] #sk-selected-file.is-hidden[style=""],
+.pw-page[data-workspace-page="skills"] #template-description.is-hidden[style=""],
+.pw-page[data-workspace-page="skills"] #vault-key-empty.is-hidden[style=""],
+.pw-page[data-workspace-page="skills"] #internal-tools-bridge-off.is-hidden[style=""] {
+    display: block;
+}
+
+.pw-page[data-workspace-page="skills"] #agent-toolbar-actions.is-hidden[style=""],
+.pw-page[data-workspace-page="skills"] #agent-nonpython-warning.is-hidden[style=""],
+.pw-page[data-workspace-page="skills"] #sk-selected-file.is-hidden[style=""] {
+    display: flex;
+}
+
+.pw-page[data-workspace-page="skills"] .app-header {
+    min-height: var(--pw-header-height);
+    padding: var(--pw-space-3) clamp(1rem, 2.5vw, 2rem);
+    border-bottom: 1px solid var(--pw-line);
+    background: color-mix(in srgb, var(--pw-canvas) 92%, transparent);
+    background-image: none;
+    box-shadow: none;
+    backdrop-filter: blur(18px);
+}
+
+.pw-page[data-workspace-page="skills"] .sk-container {
+    width: min(calc(100% - 2rem), 1380px);
+    min-width: 0;
+    margin: clamp(1rem, 2.5vw, 2rem) auto;
+    padding: var(--pw-space-5);
+}
+
+.pw-page[data-workspace-page="skills"] .sk-tabs {
+    gap: var(--pw-space-2);
+    width: fit-content;
+    margin-bottom: var(--pw-space-5);
+    padding: var(--pw-space-1);
+    border: 1px solid var(--pw-line);
+    border-radius: 999px;
+    background: var(--pw-surface);
+    background-image: none;
+    box-shadow: none;
+}
+
+.pw-page[data-workspace-page="skills"] .sk-tab {
+    min-height: 42px;
+    padding: var(--pw-space-2) var(--pw-space-4);
+    border: 1px solid transparent;
+    border-radius: 999px;
+    color: var(--pw-muted);
+    background: transparent;
+    background-image: none;
+    box-shadow: none;
+    transform: none;
+}
+
+.pw-page[data-workspace-page="skills"] .sk-tab:hover {
+    color: var(--pw-text);
+    background: var(--pw-surface-elevated);
+    box-shadow: none;
+    transform: none;
+}
+
+.pw-page[data-workspace-page="skills"] .sk-tab.active {
+    border-color: color-mix(in srgb, var(--pw-accent) 38%, var(--pw-line));
+    color: var(--pw-accent-strong);
+    background: color-mix(in srgb, var(--pw-accent) 9%, var(--pw-surface));
+    box-shadow: none;
+}
+
+.pw-page[data-workspace-page="skills"] .sk-status-bar {
+    gap: var(--pw-space-3);
+    margin-bottom: var(--pw-space-4);
+}
+
+.pw-page[data-workspace-page="skills"] .sk-stat {
+    min-width: 0;
+    padding: var(--pw-space-4);
+    border: 1px solid var(--pw-line);
+    border-radius: var(--pw-radius-md);
+    background: var(--pw-surface);
+    background-image: none;
+    box-shadow: none;
+    filter: none;
+    transform: none;
+}
+
+.pw-page[data-workspace-page="skills"] .sk-stat::before,
+.pw-page[data-workspace-page="skills"] .sk-card::before,
+.pw-page[data-workspace-page="skills"] .sk-card::after,
+.pw-page[data-workspace-page="skills"] .modal::before {
+    display: none;
+    background-image: none;
+    box-shadow: none;
+    filter: none;
+}
+
+.pw-page[data-workspace-page="skills"] .sk-stat:hover {
+    border-color: var(--pw-line-strong);
+    background: var(--pw-surface-elevated);
+    box-shadow: none;
+    transform: none;
+}
+
+.pw-page[data-workspace-page="skills"] .sk-toolbar {
+    align-items: center;
+    gap: var(--pw-space-3);
+    margin-bottom: var(--pw-space-3);
+    padding: var(--pw-space-4);
+    border: 1px solid var(--pw-line);
+    border-radius: var(--pw-radius-md);
+    background: var(--pw-surface);
+    background-image: none;
+    box-shadow: none;
+}
+
+.pw-page[data-workspace-page="skills"] .sk-search,
+.pw-page[data-workspace-page="skills"] .sk-input,
+.pw-page[data-workspace-page="skills"] .sk-select {
+    min-height: 44px;
+    min-width: 0;
+    border: 1px solid var(--pw-line-strong);
+    border-radius: var(--pw-radius-sm);
+    background: var(--input-bg);
+    background-image: none;
+    color: var(--pw-text);
+    box-shadow: none;
+}
+
+.pw-page[data-workspace-page="skills"] .sk-search:focus,
+.pw-page[data-workspace-page="skills"] .sk-input:focus,
+.pw-page[data-workspace-page="skills"] .sk-select:focus {
+    outline: none;
+    border-color: var(--pw-accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--pw-accent) 20%, transparent);
+}
+
+.pw-page[data-workspace-page="skills"] .sk-filter-group,
+.pw-page[data-workspace-page="skills"] .sk-security-filters {
+    gap: var(--pw-space-2);
+    border-color: var(--pw-line);
+    background: transparent;
+    background-image: none;
+    box-shadow: none;
+}
+
+.pw-page[data-workspace-page="skills"] .sk-filter-btn,
+.pw-page[data-workspace-page="skills"] .sk-pill,
+.pw-page[data-workspace-page="skills"] .btn,
+.pw-page[data-workspace-page="skills"] .modal-close {
+    min-height: 40px;
+    border-radius: 999px;
+    background-image: none;
+    box-shadow: none;
+    filter: none;
+    transform: none;
+}
+
+.pw-page[data-workspace-page="skills"] .sk-filter-btn:hover,
+.pw-page[data-workspace-page="skills"] .sk-pill:hover,
+.pw-page[data-workspace-page="skills"] .btn:hover,
+.pw-page[data-workspace-page="skills"] .modal-close:hover {
+    box-shadow: none;
+    filter: none;
+    transform: none;
+}
+
+.pw-page[data-workspace-page="skills"] .sk-filter-btn.active,
+.pw-page[data-workspace-page="skills"] .sk-pill.active {
+    border-color: color-mix(in srgb, var(--pw-accent) 38%, var(--pw-line));
+    color: var(--pw-accent-strong);
+    background: color-mix(in srgb, var(--pw-accent) 9%, var(--pw-surface));
+    background-image: none;
+    box-shadow: none;
+}
+
+.pw-page[data-workspace-page="skills"] .sk-badge,
+.pw-page[data-workspace-page="skills"] .sk-sec-badge,
+.pw-page[data-workspace-page="skills"] .sk-daemon-badge {
+    box-shadow: none;
+    filter: none;
+    animation: none;
+}
+
+.pw-page[data-workspace-page="skills"] .sk-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+    gap: var(--pw-space-4);
+}
+
+.pw-page[data-workspace-page="skills"] .sk-card {
+    min-width: 0;
+    padding: var(--pw-space-4);
+    border: 1px solid var(--pw-line);
+    border-radius: var(--pw-radius-md);
+    background: var(--pw-surface);
+    background-image: none;
+    box-shadow: none;
+    filter: none;
+    animation: none;
+    transform: none;
+}
+
+.pw-page[data-workspace-page="skills"] .sk-card:hover {
+    border-color: var(--pw-line-strong);
+    background: var(--pw-surface-elevated);
+    box-shadow: none;
+    filter: none;
+    transform: none;
+}
+
+.pw-page[data-workspace-page="skills"] .sk-card-name,
+.pw-page[data-workspace-page="skills"] .sk-card-desc,
+.pw-page[data-workspace-page="skills"] .sk-card-deps,
+.pw-page[data-workspace-page="skills"] .sk-vault-keys,
+.pw-page[data-workspace-page="skills"] .sk-card-internal-tools,
+.pw-page[data-workspace-page="skills"] .sk-resource-name,
+.pw-page[data-workspace-page="skills"] .sk-inline-help,
+.pw-page[data-workspace-page="skills"] .sk-audit-details {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.pw-page[data-workspace-page="skills"] .sk-resource-list,
+.pw-page[data-workspace-page="skills"] .sk-file-tree,
+.pw-page[data-workspace-page="skills"] .sk-history-list,
+.pw-page[data-workspace-page="skills"] .sk-audit-list,
+.pw-page[data-workspace-page="skills"] .sk-vault-key-list {
+    max-width: 100%;
+    overflow: auto;
+}
+
+.pw-page[data-workspace-page="skills"] .sk-resource-chip,
+.pw-page[data-workspace-page="skills"] .sk-history-item,
+.pw-page[data-workspace-page="skills"] .sk-audit-item,
+.pw-page[data-workspace-page="skills"] .sk-selected-file,
+.pw-page[data-workspace-page="skills"] .sk-template-desc,
+.pw-page[data-workspace-page="skills"] .sk-generate-status,
+.pw-page[data-workspace-page="skills"] .empty-state {
+    min-width: 0;
+    border-color: var(--pw-line);
+    border-radius: var(--pw-radius-sm);
+    background: var(--pw-surface-elevated);
+    background-image: none;
+    box-shadow: none;
+    filter: none;
+    transform: none;
+}
+
+.pw-page[data-workspace-page="skills"] .sk-code-editor-container,
+.pw-page[data-workspace-page="skills"] .sk-test-output-wrap,
+.pw-page[data-workspace-page="skills"] .sk-editor-fallback {
+    max-width: 100%;
+    overflow: auto;
+    border-color: var(--pw-line);
+    background: var(--pw-canvas);
+    background-image: none;
+    box-shadow: none;
+}
+
+.pw-page[data-workspace-page="skills"] .sk-code-editor-container .cm-scroller,
+.pw-page[data-workspace-page="skills"] .sk-test-output,
+.pw-page[data-workspace-page="skills"] pre,
+.pw-page[data-workspace-page="skills"] code,
+.pw-page[data-workspace-page="skills"] textarea {
+    max-width: 100%;
+    overflow: auto;
+    overflow-wrap: anywhere;
+}
+
+.pw-page[data-workspace-page="skills"] .modal-overlay {
+    min-height: 100dvh;
+    padding: var(--pw-space-4);
+    background: color-mix(in srgb, var(--pw-canvas) 76%, transparent);
+    background-image: none;
+    backdrop-filter: blur(8px);
+}
+
+.pw-page[data-workspace-page="skills"] .modal {
+    width: min(680px, calc(100vw - 2rem));
+    max-height: calc(100dvh - 1rem);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid var(--pw-line-strong);
+    border-radius: var(--pw-radius-lg);
+    background: var(--pw-surface);
+    background-image: none;
+    box-shadow: none;
+    filter: none;
+    transform: none;
+}
+
+.pw-page[data-workspace-page="skills"] .modal-wide {
+    width: min(980px, calc(100vw - 2rem));
+}
+
+.pw-page[data-workspace-page="skills"] .modal-body {
+    min-width: 0;
+    overflow-y: auto;
+}
+
+.pw-page[data-workspace-page="skills"] .modal-header,
+.pw-page[data-workspace-page="skills"] .modal-actions {
+    flex: 0 0 auto;
+    border-color: var(--pw-line);
+    background: var(--pw-surface);
+    background-image: none;
+}
+
+.pw-page[data-workspace-page="skills"] .sk-toast {
+    border: 1px solid var(--pw-line-strong);
+    background: var(--pw-surface-elevated);
+    background-image: none;
+    color: var(--pw-text);
+    box-shadow: none;
+}
+
+.pw-page[data-workspace-page="skills"] .sk-daemon-settings-section {
+    border-color: var(--pw-line);
+    background: var(--pw-surface-elevated);
+    background-image: none;
+    box-shadow: none;
+    filter: none;
+}
+
+.pw-page[data-workspace-page="skills"] .sk-dropzone:hover {
+    border-color: var(--pw-line-strong);
+    background: var(--pw-surface-soft);
+    background-image: none;
+    box-shadow: none;
+    filter: none;
+    transform: none;
+}
+
+.pw-page[data-workspace-page="skills"] .empty-state .icon {
+    box-shadow: none;
+    filter: none;
+    animation: none;
+}
+
+.pw-page[data-workspace-page="skills"]:where(:root[data-theme="light"] *) .sk-stat,
+.pw-page[data-workspace-page="skills"]:where(:root[data-theme="light"] *) .sk-toolbar,
+.pw-page[data-workspace-page="skills"]:where(:root[data-theme="light"] *) .sk-card,
+.pw-page[data-workspace-page="skills"]:where(:root[data-theme="light"] *) .modal,
+.pw-page[data-workspace-page="skills"]:where(:root[data-theme="light"] *) .sk-code-editor-container {
+    border-color: var(--pw-line-strong);
+    background: var(--pw-surface);
+    background-image: none;
+    box-shadow: none;
+}
+
+.pw-page[data-workspace-page="skills"][data-density="compact"] .sk-container {
+    padding-block: var(--pw-space-3);
+}
+
+.pw-page[data-workspace-page="skills"][data-density="compact"] .sk-toolbar,
+.pw-page[data-workspace-page="skills"][data-density="compact"] .sk-stat,
+.pw-page[data-workspace-page="skills"][data-density="compact"] .sk-card,
+.pw-page[data-workspace-page="skills"][data-density="compact"] .modal-body,
+.pw-page[data-workspace-page="skills"][data-density="compact"] .modal-header,
+.pw-page[data-workspace-page="skills"][data-density="compact"] .modal-actions {
+    padding: var(--pw-space-3);
+}
+
+.pw-page[data-workspace-page="skills"][data-density="compact"] .sk-tab,
+.pw-page[data-workspace-page="skills"][data-density="compact"] .sk-search,
+.pw-page[data-workspace-page="skills"][data-density="compact"] .sk-input,
+.pw-page[data-workspace-page="skills"][data-density="compact"] .sk-select,
+.pw-page[data-workspace-page="skills"][data-density="compact"] .btn {
+    min-height: 36px;
+}
+
+@media (max-width: 1024px) {
+    .pw-page[data-workspace-page="skills"] .sk-container {
+        width: min(calc(100% - 1.5rem), 1380px);
+        padding: var(--pw-space-4);
+    }
+
+    .pw-page[data-workspace-page="skills"] .sk-toolbar {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .pw-page[data-workspace-page="skills"] .sk-toolbar-actions,
+    .pw-page[data-workspace-page="skills"] .sk-filter-group {
+        flex-wrap: wrap;
+    }
+}
+
+@media (max-width: 640px) {
+    .pw-page[data-workspace-page="skills"] .app-header {
+        min-height: 56px;
+        padding-inline: var(--pw-space-4);
+    }
+
+    .pw-page[data-workspace-page="skills"] .sk-container {
+        width: 100%;
+        margin-block: var(--pw-space-2);
+        padding: var(--pw-space-3);
+    }
+
+    .pw-page[data-workspace-page="skills"] .sk-tabs {
+        width: 100%;
+    }
+
+    .pw-page[data-workspace-page="skills"] .sk-tab {
+        flex: 1;
+    }
+
+    .pw-page[data-workspace-page="skills"] .sk-status-bar,
+    .pw-page[data-workspace-page="skills"] .sk-grid,
+    .pw-page[data-workspace-page="skills"] .sk-code-meta-grid,
+    .pw-page[data-workspace-page="skills"] .sk-detail-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .pw-page[data-workspace-page="skills"] input,
+    .pw-page[data-workspace-page="skills"] select,
+    .pw-page[data-workspace-page="skills"] textarea,
+    .pw-page[data-workspace-page="skills"] button,
+    .pw-page[data-workspace-page="skills"] .btn,
+    .pw-page[data-workspace-page="skills"][data-density="compact"] input,
+    .pw-page[data-workspace-page="skills"][data-density="compact"] select,
+    .pw-page[data-workspace-page="skills"][data-density="compact"] textarea,
+    .pw-page[data-workspace-page="skills"][data-density="compact"] button,
+    .pw-page[data-workspace-page="skills"][data-density="compact"] .btn {
+        min-height: 44px;
+    }
+
+    .pw-page[data-workspace-page="skills"] .modal-overlay {
+        align-items: flex-end;
+        padding: var(--pw-space-2);
+    }
+
+    .pw-page[data-workspace-page="skills"] .modal,
+    .pw-page[data-workspace-page="skills"] .modal-wide {
+        width: 100%;
+        max-height: calc(100dvh - 1rem);
+        border-radius: 20px 20px 0 0;
+    }
+
+    .pw-page[data-workspace-page="skills"] .modal-actions,
+    .pw-page[data-workspace-page="skills"] .sk-file-manager-header,
+    .pw-page[data-workspace-page="skills"] .sk-file-editor-actions {
+        flex-wrap: wrap;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .pw-page[data-workspace-page="skills"] *,
+    .pw-page[data-workspace-page="skills"] *::before,
+    .pw-page[data-workspace-page="skills"] *::after {
+        scroll-behavior: auto !important;
+        animation: none !important;
+        transition-duration: 1ms !important;
+    }
+
+    .pw-page[data-workspace-page="skills"] .sk-card:hover,
+    .pw-page[data-workspace-page="skills"] .sk-stat:hover,
+    .pw-page[data-workspace-page="skills"] .btn:hover {
+        transform: none !important;
+    }
+}
+/* === Precision Workspace Skills Adapter: end === */
