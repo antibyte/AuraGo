@@ -328,3 +328,338 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+/* === Precision Workspace Plans Adapter: start === */
+.pw-page[data-workspace-page="plans"] {
+  --plans-surface: var(--pw-surface);
+  --plans-surface-soft: var(--pw-surface-elevated);
+  --plans-border: var(--pw-line);
+  --plans-accent: var(--pw-accent);
+  --plans-text-soft: var(--pw-muted);
+  overflow-x: clip;
+}
+
+.pw-page[data-workspace-page="plans"] .app-header {
+  min-height: var(--pw-header-height);
+  padding: var(--pw-space-3) clamp(1rem, 2.5vw, 2rem);
+  border-bottom: 1px solid var(--pw-line);
+  background: color-mix(in srgb, var(--pw-canvas) 92%, transparent);
+  background-image: none;
+  box-shadow: none;
+  backdrop-filter: blur(18px);
+}
+
+.pw-page[data-workspace-page="plans"] .plans-page {
+  width: min(100%, 1320px);
+  max-width: none;
+  margin-inline: auto;
+  padding: clamp(1rem, 2.5vw, 2rem);
+}
+
+.pw-page[data-workspace-page="plans"] .plans-toolbar {
+  align-items: end;
+  gap: var(--pw-space-3);
+  margin-bottom: var(--pw-space-4);
+  padding: var(--pw-space-4);
+  border: 1px solid var(--pw-line);
+  border-radius: var(--pw-radius-md);
+  background: var(--pw-surface);
+  background-image: none;
+  box-shadow: none;
+}
+
+.pw-page[data-workspace-page="plans"] .plans-toolbar-group {
+  min-width: min(190px, 100%);
+  gap: var(--pw-space-2);
+}
+
+.pw-page[data-workspace-page="plans"] .plans-toolbar-group label {
+  color: var(--pw-muted);
+  font-size: var(--pw-meta-size);
+  font-variant: normal;
+  font-weight: 650;
+  letter-spacing: 0;
+}
+
+.pw-page[data-workspace-page="plans"] .plans-toolbar-group input,
+.pw-page[data-workspace-page="plans"] .plans-toolbar-group select,
+.pw-page[data-workspace-page="plans"] .inline-note {
+  min-height: 44px;
+  border: 1px solid var(--pw-line-strong);
+  border-radius: var(--pw-radius-sm);
+  background: var(--input-bg);
+  background-image: none;
+  color: var(--pw-text);
+  box-shadow: none;
+}
+
+.pw-page[data-workspace-page="plans"] .plans-toolbar-group input:focus,
+.pw-page[data-workspace-page="plans"] .plans-toolbar-group select:focus,
+.pw-page[data-workspace-page="plans"] .inline-note:focus {
+  outline: none;
+  border-color: var(--pw-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--pw-accent) 20%, transparent);
+}
+
+.pw-page[data-workspace-page="plans"] .plans-check {
+  min-height: 44px;
+  padding: 0 var(--pw-space-2);
+  color: var(--pw-muted);
+}
+
+.pw-page[data-workspace-page="plans"] .plans-layout {
+  grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
+  gap: var(--pw-space-4);
+}
+
+.pw-page[data-workspace-page="plans"] .plans-page .panel,
+.pw-page[data-workspace-page="plans"] .plans-page .card,
+.pw-page[data-workspace-page="plans"] .task-item,
+.pw-page[data-workspace-page="plans"] .event-item {
+  min-width: 0;
+  border: 1px solid var(--pw-line);
+  border-radius: var(--pw-radius-lg);
+  background: var(--pw-surface);
+  background-image: none;
+  box-shadow: none;
+}
+
+.pw-page[data-workspace-page="plans"] .plans-page .panel-header {
+  padding: var(--pw-space-4) var(--pw-space-5);
+  border-bottom-color: var(--pw-line);
+  background: var(--pw-surface-elevated);
+}
+
+.pw-page[data-workspace-page="plans"] .plan-list {
+  max-height: calc(100dvh - 240px);
+  overflow-y: auto;
+}
+
+.pw-page[data-workspace-page="plans"] .plan-row {
+  min-width: 0;
+  padding: var(--pw-space-4);
+  border-bottom-color: var(--pw-line);
+  transition: background var(--pw-duration-fast) var(--pw-ease);
+}
+
+.pw-page[data-workspace-page="plans"] .plan-row:hover,
+.pw-page[data-workspace-page="plans"] .plan-row.active {
+  background: color-mix(in srgb, var(--pw-accent) 7%, var(--pw-surface));
+  transform: none;
+}
+
+.pw-page[data-workspace-page="plans"] .plan-row-title,
+.pw-page[data-workspace-page="plans"] .plan-detail,
+.pw-page[data-workspace-page="plans"] .plan-detail h2,
+.pw-page[data-workspace-page="plans"] .task-title,
+.pw-page[data-workspace-page="plans"] .task-meta,
+.pw-page[data-workspace-page="plans"] .task-artifacts,
+.pw-page[data-workspace-page="plans"] .event-item {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.pw-page[data-workspace-page="plans"] .plan-detail {
+  padding: var(--pw-space-5);
+}
+
+.pw-page[data-workspace-page="plans"] .plan-grid {
+  grid-template-columns: minmax(0, 1.4fr) minmax(260px, 0.8fr);
+  gap: var(--pw-space-4);
+}
+
+.pw-page[data-workspace-page="plans"] .plans-page .card,
+.pw-page[data-workspace-page="plans"] .task-item,
+.pw-page[data-workspace-page="plans"] .event-item {
+  padding: var(--pw-space-4);
+  border-radius: var(--pw-radius-md);
+}
+
+.pw-page[data-workspace-page="plans"] .plans-page .empty-state {
+  min-height: 180px;
+  display: grid;
+  place-items: center;
+  padding: var(--pw-space-6);
+  color: var(--pw-muted);
+  text-align: center;
+}
+
+.pw-page[data-workspace-page="plans"] .plans-page .btn,
+.pw-page[data-workspace-page="plans"] .plan-modal .btn {
+  min-height: 40px;
+  border-color: var(--pw-line-strong);
+  border-radius: 999px;
+  background: var(--pw-surface-elevated);
+  background-image: none;
+  color: var(--pw-text);
+  box-shadow: none;
+}
+
+.pw-page[data-workspace-page="plans"] .plans-page .btn:hover,
+.pw-page[data-workspace-page="plans"] .plan-modal .btn:hover {
+  border-color: var(--pw-line-strong);
+  background: var(--pw-surface-soft);
+  box-shadow: none;
+  transform: none;
+}
+
+.pw-page[data-workspace-page="plans"] .plans-page .btn-primary,
+.pw-page[data-workspace-page="plans"] .plan-modal .btn-primary {
+  border-color: var(--pw-accent);
+  background: var(--pw-accent);
+  color: #07110e;
+}
+
+.pw-page[data-workspace-page="plans"] .plans-page .badge.status-active,
+.pw-page[data-workspace-page="plans"] .plans-page .badge.status-completed {
+  border-color: color-mix(in srgb, var(--pw-success) 38%, var(--pw-line));
+  background: color-mix(in srgb, var(--pw-success) 12%, var(--pw-surface));
+  color: var(--pw-success);
+}
+
+.pw-page[data-workspace-page="plans"] .plans-page .badge.status-paused {
+  border-color: color-mix(in srgb, var(--pw-warning) 38%, var(--pw-line));
+  background: color-mix(in srgb, var(--pw-warning) 12%, var(--pw-surface));
+  color: var(--pw-warning);
+}
+
+.pw-page[data-workspace-page="plans"] .plans-page .badge.status-blocked,
+.pw-page[data-workspace-page="plans"] .plans-page .badge.status-failed,
+.pw-page[data-workspace-page="plans"] .plans-page .badge.status-cancelled {
+  border-color: color-mix(in srgb, var(--pw-danger) 38%, var(--pw-line));
+  background: color-mix(in srgb, var(--pw-danger) 11%, var(--pw-surface));
+  color: var(--pw-danger);
+}
+
+.pw-page[data-workspace-page="plans"] .modal-overlay {
+  min-height: 100dvh;
+  padding: var(--pw-space-4);
+  background: color-mix(in srgb, var(--pw-canvas) 76%, transparent);
+  background-image: none;
+  backdrop-filter: blur(8px);
+}
+
+.pw-page[data-workspace-page="plans"] .plan-modal {
+  width: min(560px, calc(100vw - 2rem));
+  max-height: calc(100dvh - 1rem);
+  overflow-y: auto;
+  border: 1px solid var(--pw-line-strong);
+  border-radius: var(--pw-radius-lg);
+  background: var(--pw-surface);
+  background-image: none;
+  box-shadow: none;
+}
+
+.pw-page[data-workspace-page="plans"] .plan-modal .modal-header,
+.pw-page[data-workspace-page="plans"] .plan-modal .modal-footer {
+  border-color: var(--pw-line);
+}
+
+.pw-page[data-workspace-page="plans"]:where(:root[data-theme="light"] *) .plans-page .panel,
+.pw-page[data-workspace-page="plans"]:where(:root[data-theme="light"] *) .plans-toolbar,
+.pw-page[data-workspace-page="plans"]:where(:root[data-theme="light"] *) .plan-modal {
+  border-color: var(--pw-line-strong);
+  background: var(--pw-surface);
+  box-shadow: none;
+}
+
+.pw-page[data-workspace-page="plans"][data-density="compact"] .plans-page {
+  padding-block: var(--pw-space-4);
+}
+
+.pw-page[data-workspace-page="plans"][data-density="compact"] .plans-toolbar,
+.pw-page[data-workspace-page="plans"][data-density="compact"] .plans-page .panel-header,
+.pw-page[data-workspace-page="plans"][data-density="compact"] .plan-detail,
+.pw-page[data-workspace-page="plans"][data-density="compact"] .plans-page .card,
+.pw-page[data-workspace-page="plans"][data-density="compact"] .task-item,
+.pw-page[data-workspace-page="plans"][data-density="compact"] .event-item {
+  padding: var(--pw-space-3);
+}
+
+.pw-page[data-workspace-page="plans"][data-density="compact"] .plan-row {
+  padding: var(--pw-space-3);
+}
+
+.pw-page[data-workspace-page="plans"][data-density="compact"] .plans-page .btn,
+.pw-page[data-workspace-page="plans"][data-density="compact"] .plan-modal .btn,
+.pw-page[data-workspace-page="plans"][data-density="compact"] .plans-toolbar-group input,
+.pw-page[data-workspace-page="plans"][data-density="compact"] .plans-toolbar-group select {
+  min-height: 36px;
+}
+
+@media (max-width: 1024px) {
+  .pw-page[data-workspace-page="plans"] .plans-layout,
+  .pw-page[data-workspace-page="plans"] .plan-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .pw-page[data-workspace-page="plans"] .plan-list {
+    max-height: 340px;
+  }
+}
+
+@media (max-width: 640px) {
+  .pw-page[data-workspace-page="plans"] .app-header {
+    min-height: 56px;
+    padding-inline: var(--pw-space-4);
+  }
+
+  .pw-page[data-workspace-page="plans"] .plans-page {
+    padding: var(--pw-space-3);
+  }
+
+  .pw-page[data-workspace-page="plans"] .plans-toolbar {
+    align-items: stretch;
+    padding: var(--pw-space-3);
+  }
+
+  .pw-page[data-workspace-page="plans"] .plans-toolbar-group {
+    width: 100%;
+  }
+
+  .pw-page[data-workspace-page="plans"] input,
+  .pw-page[data-workspace-page="plans"] select,
+  .pw-page[data-workspace-page="plans"] textarea,
+  .pw-page[data-workspace-page="plans"] button,
+  .pw-page[data-workspace-page="plans"] .btn,
+  .pw-page[data-workspace-page="plans"][data-density="compact"] input,
+  .pw-page[data-workspace-page="plans"][data-density="compact"] select,
+  .pw-page[data-workspace-page="plans"][data-density="compact"] textarea,
+  .pw-page[data-workspace-page="plans"][data-density="compact"] button,
+  .pw-page[data-workspace-page="plans"][data-density="compact"] .btn {
+    min-height: 44px;
+  }
+
+  .pw-page[data-workspace-page="plans"] .modal-overlay {
+    align-items: flex-end;
+    padding: var(--pw-space-2);
+  }
+
+  .pw-page[data-workspace-page="plans"] .plan-modal {
+    width: 100%;
+    max-height: calc(100dvh - 1rem);
+    border-radius: 20px 20px 0 0;
+  }
+
+  .pw-page[data-workspace-page="plans"] .plan-modal .modal-header,
+  .pw-page[data-workspace-page="plans"] .plan-modal .modal-body,
+  .pw-page[data-workspace-page="plans"] .plan-modal .modal-footer {
+    padding: var(--pw-space-4);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pw-page[data-workspace-page="plans"] *,
+  .pw-page[data-workspace-page="plans"] *::before,
+  .pw-page[data-workspace-page="plans"] *::after {
+    scroll-behavior: auto !important;
+    animation: none !important;
+    transition-duration: 1ms !important;
+  }
+
+  .pw-page[data-workspace-page="plans"] .plan-row:hover,
+  .pw-page[data-workspace-page="plans"] .plans-page .btn:hover {
+    transform: none !important;
+  }
+}
+/* === Precision Workspace Plans Adapter: end === */

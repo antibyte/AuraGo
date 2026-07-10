@@ -1700,3 +1700,504 @@
         .mc-cta-run { width: 40px; padding: 0; }
     }
 }
+
+/* === Precision Workspace Missions Adapter: start === */
+.pw-page[data-workspace-page="missions"] {
+    overflow-x: clip;
+}
+
+.pw-page[data-workspace-page="missions"] .app-header {
+    min-height: var(--pw-header-height);
+    padding: var(--pw-space-3) clamp(1rem, 2.5vw, 2rem);
+    border-bottom: 1px solid var(--pw-line);
+    background: color-mix(in srgb, var(--pw-canvas) 92%, transparent);
+    background-image: none;
+    box-shadow: none;
+    backdrop-filter: blur(18px);
+}
+
+.pw-page[data-workspace-page="missions"] .container {
+    width: min(100%, 1380px);
+    max-width: none;
+    margin-inline: auto;
+    padding: clamp(1rem, 2.5vw, 2rem);
+}
+
+.pw-page[data-workspace-page="missions"] .page-header {
+    align-items: center;
+    gap: var(--pw-space-4);
+    margin-bottom: var(--pw-space-5);
+}
+
+.pw-page[data-workspace-page="missions"] .page-header h1 {
+    margin: 0;
+    color: var(--pw-text);
+    font-size: var(--pw-title-size);
+    font-weight: 720;
+    letter-spacing: -0.035em;
+}
+
+.pw-page[data-workspace-page="missions"] .status-bar {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1px;
+    overflow: hidden;
+    margin-bottom: var(--pw-space-5);
+    border: 1px solid var(--pw-line);
+    border-radius: var(--pw-radius-md);
+    background: var(--pw-line);
+}
+
+.pw-page[data-workspace-page="missions"] .status-card,
+.pw-page[data-workspace-page="missions"] .queue-section,
+.pw-page[data-workspace-page="missions"] .mission-card,
+.pw-page[data-workspace-page="missions"] .mc-card,
+.pw-page[data-workspace-page="missions"] .mc-log-block,
+.pw-page[data-workspace-page="missions"] .prep-context-content {
+    min-width: 0;
+    border-color: var(--pw-line);
+    background: var(--pw-surface);
+    background-image: none;
+    box-shadow: none;
+}
+
+.pw-page[data-workspace-page="missions"] .status-card {
+    min-height: 116px;
+    padding: var(--pw-space-4);
+    border: 0;
+    border-radius: 0;
+    transform: none;
+}
+
+.pw-page[data-workspace-page="missions"] .status-card::before,
+.pw-page[data-workspace-page="missions"] .status-card::after,
+.pw-page[data-workspace-page="missions"] .queue-section::before,
+.pw-page[data-workspace-page="missions"] .queue-section::after {
+    content: none;
+    background: none;
+    background-image: none;
+    box-shadow: none;
+}
+
+.pw-page[data-workspace-page="missions"] .status-card:hover,
+.pw-page[data-workspace-page="missions"] .queue-section:hover,
+.pw-page[data-workspace-page="missions"] .mission-card:hover,
+.pw-page[data-workspace-page="missions"] .mc-card:hover {
+    border-color: var(--pw-line-strong);
+    background: var(--pw-surface-elevated);
+    box-shadow: none;
+    transform: none;
+}
+
+.pw-page[data-workspace-page="missions"] .status-card.running,
+.pw-page[data-workspace-page="missions"] .mission-card.running,
+.pw-page[data-workspace-page="missions"] .mc-card.running {
+    border-color: color-mix(in srgb, var(--pw-accent) 48%, var(--pw-line));
+    background: color-mix(in srgb, var(--pw-accent) 7%, var(--pw-surface));
+    box-shadow: none;
+}
+
+.pw-page[data-workspace-page="missions"] .status-value {
+    color: var(--pw-text);
+    font-size: clamp(1.25rem, 2.4vw, 1.8rem);
+}
+
+.pw-page[data-workspace-page="missions"] .status-label,
+.pw-page[data-workspace-page="missions"] .queue-meta,
+.pw-page[data-workspace-page="missions"] .mission-meta,
+.pw-page[data-workspace-page="missions"] .mc-meta {
+    color: var(--pw-muted);
+    font-size: var(--pw-meta-size);
+}
+
+.pw-page[data-workspace-page="missions"] .queue-section {
+    margin-bottom: var(--pw-space-5);
+    padding: var(--pw-space-4);
+    border: 1px solid var(--pw-line);
+    border-radius: var(--pw-radius-md);
+}
+
+.pw-page[data-workspace-page="missions"] .queue-item {
+    min-width: 0;
+    padding: var(--pw-space-3) var(--pw-space-4);
+    border: 1px solid var(--pw-line);
+    border-radius: var(--pw-radius-sm);
+    background: var(--pw-surface-elevated);
+    background-image: none;
+    box-shadow: none;
+}
+
+.pw-page[data-workspace-page="missions"] .queue-name,
+.pw-page[data-workspace-page="missions"] .mission-name,
+.pw-page[data-workspace-page="missions"] .mission-prompt,
+.pw-page[data-workspace-page="missions"] .mc-name,
+.pw-page[data-workspace-page="missions"] .mc-prompt,
+.pw-page[data-workspace-page="missions"] .mc-prompt-full,
+.pw-page[data-workspace-page="missions"] .mc-log-body {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.pw-page[data-workspace-page="missions"] .tabs {
+    gap: var(--pw-space-1);
+    margin-bottom: var(--pw-space-5);
+    padding: var(--pw-space-1);
+    border: 1px solid var(--pw-line);
+    border-radius: var(--pw-radius-md);
+    background: var(--pw-surface-elevated);
+    background-image: none;
+    box-shadow: none;
+}
+
+.pw-page[data-workspace-page="missions"] .tabs::before,
+.pw-page[data-workspace-page="missions"] .tab::before {
+    content: none;
+    background: none;
+}
+
+.pw-page[data-workspace-page="missions"] .tab {
+    min-height: 40px;
+    padding: var(--pw-space-2) var(--pw-space-3);
+    border: 1px solid transparent;
+    border-radius: var(--pw-radius-sm);
+    background: transparent;
+    background-image: none;
+    color: var(--pw-muted);
+    box-shadow: none;
+}
+
+.pw-page[data-workspace-page="missions"] .tab:hover:not(.active) {
+    border-color: transparent;
+    background: color-mix(in srgb, var(--pw-text) 4%, transparent);
+    color: var(--pw-text);
+}
+
+.pw-page[data-workspace-page="missions"] .tab.active {
+    border-color: var(--pw-line-strong);
+    background: var(--pw-surface);
+    color: var(--pw-text);
+    box-shadow: none;
+}
+
+.pw-page[data-workspace-page="missions"] .view-toggle {
+    border-color: var(--pw-line);
+    background: var(--pw-surface-elevated);
+    background-image: none;
+    box-shadow: none;
+}
+
+.pw-page[data-workspace-page="missions"] .view-toggle button {
+    min-height: 40px;
+    min-width: 40px;
+    background-image: none;
+    box-shadow: none;
+}
+
+.pw-page[data-workspace-page="missions"] .missions-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr));
+    gap: var(--pw-space-4);
+}
+
+.pw-page[data-workspace-page="missions"] .missions-grid.list-view {
+    grid-template-columns: 1fr;
+}
+
+.pw-page[data-workspace-page="missions"] .mission-card,
+.pw-page[data-workspace-page="missions"] .mc-card {
+    border: 1px solid var(--pw-line);
+    border-radius: var(--pw-radius-md);
+}
+
+.pw-page[data-workspace-page="missions"] .mission-header,
+.pw-page[data-workspace-page="missions"] .mission-body,
+.pw-page[data-workspace-page="missions"] .mission-footer,
+.pw-page[data-workspace-page="missions"] .mc-header,
+.pw-page[data-workspace-page="missions"] .mc-body,
+.pw-page[data-workspace-page="missions"] .mc-card.expanded .mc-expand-inner {
+    padding: var(--pw-space-4);
+}
+
+.pw-page[data-workspace-page="missions"] .mc-header {
+    border-bottom-color: var(--pw-line);
+    background: var(--pw-surface-elevated);
+    background-image: none;
+}
+
+.pw-page[data-workspace-page="missions"] .mc-prompt-full,
+.pw-page[data-workspace-page="missions"] .mc-log-block,
+.pw-page[data-workspace-page="missions"] .mc-log-body,
+.pw-page[data-workspace-page="missions"] .mission-log-content {
+    max-width: 100%;
+    overflow-x: auto;
+    border-color: var(--pw-line);
+    background: var(--pw-surface-elevated);
+    background-image: none;
+    box-shadow: none;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.pw-page[data-workspace-page="missions"] .mc-status-chip,
+.pw-page[data-workspace-page="missions"] .mc-trigger-pill,
+.pw-page[data-workspace-page="missions"] .mc-remote-badge,
+.pw-page[data-workspace-page="missions"] .mission-badges .badge {
+    border-color: var(--pw-line-strong);
+    background-image: none;
+    box-shadow: none;
+}
+
+.pw-page[data-workspace-page="missions"] .badge-prep-preparing,
+.pw-page[data-workspace-page="missions"] .mc-status-chip--running {
+    animation: none;
+    box-shadow: none;
+}
+
+.pw-page[data-workspace-page="missions"] .mc-status-chip__priority[data-priority="high"],
+.pw-page[data-workspace-page="missions"] .badge-priority-high {
+    background: var(--pw-danger);
+    color: #ffffff;
+    box-shadow: none;
+}
+
+.pw-page[data-workspace-page="missions"] .mc-status-chip__priority[data-priority="medium"],
+.pw-page[data-workspace-page="missions"] .badge-priority-medium {
+    background: var(--pw-warning);
+    color: #17120a;
+}
+
+.pw-page[data-workspace-page="missions"] .mc-status-chip__priority[data-priority="low"],
+.pw-page[data-workspace-page="missions"] .badge-priority-low {
+    background: var(--pw-success);
+    color: #07110e;
+}
+
+.pw-page[data-workspace-page="missions"] .btn,
+.pw-page[data-workspace-page="missions"] .mc-btn,
+.pw-page[data-workspace-page="missions"] .mc-cta-run,
+.pw-page[data-workspace-page="missions"] .mc-overflow-btn,
+.pw-page[data-workspace-page="missions"] .trigger-type-btn,
+.pw-page[data-workspace-page="missions"] .exec-type-option,
+.pw-page[data-workspace-page="missions"] .mission-runner-option {
+    background-image: none;
+    box-shadow: none;
+}
+
+.pw-page[data-workspace-page="missions"] .btn-primary,
+.pw-page[data-workspace-page="missions"] .mc-btn.mc-btn-run,
+.pw-page[data-workspace-page="missions"] .mc-cta-run {
+    border-color: var(--pw-accent);
+    background: var(--pw-accent);
+    color: #07110e;
+}
+
+.pw-page[data-workspace-page="missions"] .btn:hover,
+.pw-page[data-workspace-page="missions"] .mc-btn:hover:not(:disabled),
+.pw-page[data-workspace-page="missions"] .mc-cta-run:hover:not(:disabled),
+.pw-page[data-workspace-page="missions"] .mc-overflow-btn:hover {
+    box-shadow: none;
+    transform: none;
+}
+
+.pw-page[data-workspace-page="missions"] input:not([type="checkbox"]):not([type="radio"]),
+.pw-page[data-workspace-page="missions"] select,
+.pw-page[data-workspace-page="missions"] textarea,
+.pw-page[data-workspace-page="missions"] .cheatsheet-picker,
+.pw-page[data-workspace-page="missions"] .mission-selector {
+    max-width: 100%;
+    border-color: var(--pw-line-strong);
+    border-radius: var(--pw-radius-sm);
+    background: var(--input-bg);
+    background-image: none;
+    color: var(--pw-text);
+    box-shadow: none;
+}
+
+.pw-page[data-workspace-page="missions"] .exec-type-option,
+.pw-page[data-workspace-page="missions"] .mission-runner-option,
+.pw-page[data-workspace-page="missions"] .trigger-type-btn,
+.pw-page[data-workspace-page="missions"] .mission-option,
+.pw-page[data-workspace-page="missions"] .cheatsheet-picker-item {
+    border-color: var(--pw-line);
+    background: var(--pw-surface-elevated);
+    background-image: none;
+    box-shadow: none;
+}
+
+.pw-page[data-workspace-page="missions"] .exec-type-option:has(input:checked),
+.pw-page[data-workspace-page="missions"] .mission-runner-option.active,
+.pw-page[data-workspace-page="missions"] .trigger-type-btn.active,
+.pw-page[data-workspace-page="missions"] .mission-option:has(input:checked),
+.pw-page[data-workspace-page="missions"] .cheatsheet-picker-item:has(input:checked) {
+    border-color: var(--pw-accent);
+    background: color-mix(in srgb, var(--pw-accent) 9%, var(--pw-surface));
+    box-shadow: none;
+}
+
+.pw-page[data-workspace-page="missions"] .missions-grid > .empty-state,
+.pw-page[data-workspace-page="missions"] .mission-trigger-empty,
+.pw-page[data-workspace-page="missions"] .cheatsheet-picker-empty {
+    min-height: 180px;
+    padding: var(--pw-space-6);
+    border: 1px dashed var(--pw-line-strong);
+    border-radius: var(--pw-radius-md);
+    background: var(--pw-surface);
+    color: var(--pw-muted);
+    text-align: center;
+}
+
+.pw-page[data-workspace-page="missions"] .modal-overlay {
+    min-height: 100dvh;
+    padding: var(--pw-space-4);
+    background: color-mix(in srgb, var(--pw-canvas) 76%, transparent);
+    background-image: none;
+    backdrop-filter: blur(8px);
+}
+
+.pw-page[data-workspace-page="missions"] .modal {
+    width: min(100%, 700px);
+    max-width: min(700px, calc(100vw - 1rem)) !important;
+    max-height: calc(100dvh - 1rem);
+    overflow-y: auto;
+    border: 1px solid var(--pw-line-strong);
+    border-radius: var(--pw-radius-lg);
+    background: var(--pw-surface);
+    background-image: none;
+    box-shadow: none;
+}
+
+.pw-page[data-workspace-page="missions"] .modal-header,
+.pw-page[data-workspace-page="missions"] .modal-actions {
+    border-color: var(--pw-line);
+    background: var(--pw-surface);
+    background-image: none;
+}
+
+.pw-page[data-workspace-page="missions"]:where(:root[data-theme="light"] *) .status-card,
+.pw-page[data-workspace-page="missions"]:where(:root[data-theme="light"] *) .queue-section,
+.pw-page[data-workspace-page="missions"]:where(:root[data-theme="light"] *) .mission-card,
+.pw-page[data-workspace-page="missions"]:where(:root[data-theme="light"] *) .mc-card,
+.pw-page[data-workspace-page="missions"]:where(:root[data-theme="light"] *) .modal {
+    border-color: var(--pw-line-strong);
+    background: var(--pw-surface);
+    box-shadow: none;
+}
+
+.pw-page[data-workspace-page="missions"][data-density="compact"] .container {
+    padding-block: var(--pw-space-4);
+}
+
+.pw-page[data-workspace-page="missions"][data-density="compact"] .status-card,
+.pw-page[data-workspace-page="missions"][data-density="compact"] .queue-section,
+.pw-page[data-workspace-page="missions"][data-density="compact"] .mission-header,
+.pw-page[data-workspace-page="missions"][data-density="compact"] .mission-body,
+.pw-page[data-workspace-page="missions"][data-density="compact"] .mission-footer,
+.pw-page[data-workspace-page="missions"][data-density="compact"] .mc-header,
+.pw-page[data-workspace-page="missions"][data-density="compact"] .mc-body,
+.pw-page[data-workspace-page="missions"][data-density="compact"] .mc-card.expanded .mc-expand-inner {
+    padding: var(--pw-space-3);
+}
+
+.pw-page[data-workspace-page="missions"][data-density="compact"] .status-card {
+    min-height: 92px;
+}
+
+.pw-page[data-workspace-page="missions"][data-density="compact"] .missions-grid,
+.pw-page[data-workspace-page="missions"][data-density="compact"] .status-bar {
+    gap: var(--pw-space-2);
+}
+
+.pw-page[data-workspace-page="missions"][data-density="compact"] button,
+.pw-page[data-workspace-page="missions"][data-density="compact"] input,
+.pw-page[data-workspace-page="missions"][data-density="compact"] select {
+    min-height: 36px;
+}
+
+@media (max-width: 1024px) {
+    .pw-page[data-workspace-page="missions"] .status-bar {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1px;
+    }
+
+    .pw-page[data-workspace-page="missions"] .missions-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 640px) {
+    .pw-page[data-workspace-page="missions"] .app-header {
+        min-height: 56px;
+        padding-inline: var(--pw-space-4);
+    }
+
+    .pw-page[data-workspace-page="missions"] .container {
+        padding: var(--pw-space-3);
+    }
+
+    .pw-page[data-workspace-page="missions"] .page-header {
+        align-items: stretch;
+    }
+
+    .pw-page[data-workspace-page="missions"] .page-header .header-actions {
+        width: 100%;
+    }
+
+    .pw-page[data-workspace-page="missions"] .status-bar,
+    .pw-page[data-workspace-page="missions"] .missions-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .pw-page[data-workspace-page="missions"] input,
+    .pw-page[data-workspace-page="missions"] select,
+    .pw-page[data-workspace-page="missions"] textarea,
+    .pw-page[data-workspace-page="missions"] button,
+    .pw-page[data-workspace-page="missions"] .btn,
+    .pw-page[data-workspace-page="missions"] .tab,
+    .pw-page[data-workspace-page="missions"] .mc-btn,
+    .pw-page[data-workspace-page="missions"] .mc-cta-run,
+    .pw-page[data-workspace-page="missions"][data-density="compact"] input,
+    .pw-page[data-workspace-page="missions"][data-density="compact"] select,
+    .pw-page[data-workspace-page="missions"][data-density="compact"] textarea,
+    .pw-page[data-workspace-page="missions"][data-density="compact"] button,
+    .pw-page[data-workspace-page="missions"][data-density="compact"] .btn,
+    .pw-page[data-workspace-page="missions"][data-density="compact"] .tab,
+    .pw-page[data-workspace-page="missions"][data-density="compact"] .mc-btn,
+    .pw-page[data-workspace-page="missions"][data-density="compact"] .mc-cta-run {
+        min-height: 44px;
+    }
+
+    .pw-page[data-workspace-page="missions"] .modal-overlay {
+        align-items: flex-end;
+        padding: var(--pw-space-2);
+    }
+
+    .pw-page[data-workspace-page="missions"] .modal {
+        width: 100%;
+        max-width: 100% !important;
+        max-height: calc(100dvh - 1rem);
+        border-radius: 20px 20px 0 0;
+    }
+
+    .pw-page[data-workspace-page="missions"] .modal-header,
+    .pw-page[data-workspace-page="missions"] .modal-body,
+    .pw-page[data-workspace-page="missions"] .modal-actions {
+        padding: var(--pw-space-4);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .pw-page[data-workspace-page="missions"] *,
+    .pw-page[data-workspace-page="missions"] *::before,
+    .pw-page[data-workspace-page="missions"] *::after {
+        scroll-behavior: auto !important;
+        animation: none !important;
+        transition-duration: 1ms !important;
+    }
+
+    .pw-page[data-workspace-page="missions"] .status-card:hover,
+    .pw-page[data-workspace-page="missions"] .queue-section:hover,
+    .pw-page[data-workspace-page="missions"] .mission-card:hover,
+    .pw-page[data-workspace-page="missions"] .mc-card:hover,
+    .pw-page[data-workspace-page="missions"] .mc-cta-run:hover {
+        transform: none !important;
+    }
+}
+/* === Precision Workspace Missions Adapter: end === */

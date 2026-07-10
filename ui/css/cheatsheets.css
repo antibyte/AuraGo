@@ -707,3 +707,438 @@
         flex: 0 0 auto;
     }
 }
+
+/* === Precision Workspace Cheatsheets Adapter: start === */
+.pw-page[data-workspace-page="cheatsheets"] {
+    overflow-x: clip;
+}
+
+.pw-page[data-workspace-page="cheatsheets"] .app-header {
+    min-height: var(--pw-header-height);
+    padding: var(--pw-space-3) clamp(1rem, 2.5vw, 2rem);
+    border-bottom: 1px solid var(--pw-line);
+    background: color-mix(in srgb, var(--pw-canvas) 92%, transparent);
+    background-image: none;
+    box-shadow: none;
+    backdrop-filter: blur(18px);
+}
+
+.pw-page[data-workspace-page="cheatsheets"] .container {
+    width: min(100%, 1320px);
+    max-width: none;
+    margin-inline: auto;
+    padding: clamp(1rem, 2.5vw, 2rem);
+}
+
+.pw-page[data-workspace-page="cheatsheets"] .page-header {
+    align-items: center;
+    gap: var(--pw-space-4);
+    margin-bottom: var(--pw-space-5);
+}
+
+.pw-page[data-workspace-page="cheatsheets"] .page-title-row {
+    min-width: 0;
+}
+
+.pw-page[data-workspace-page="cheatsheets"] .page-title-row h1 {
+    min-width: 0;
+    margin: 0;
+    color: var(--pw-text);
+    font-size: var(--pw-title-size);
+    font-weight: 720;
+    letter-spacing: -0.035em;
+    overflow-wrap: anywhere;
+}
+
+.pw-page[data-workspace-page="cheatsheets"] .page-title-badge {
+    border: 1px solid var(--pw-line);
+    border-radius: var(--pw-radius-md);
+    background: var(--pw-surface-elevated);
+    background-image: none;
+    box-shadow: none;
+}
+
+.pw-page[data-workspace-page="cheatsheets"] .view-toggle {
+    border-color: var(--pw-line);
+    background: var(--pw-surface-elevated);
+    background-image: none;
+    box-shadow: none;
+}
+
+.pw-page[data-workspace-page="cheatsheets"] .view-toggle button {
+    min-width: 40px;
+    min-height: 40px;
+    background-image: none;
+    box-shadow: none;
+}
+
+.pw-page[data-workspace-page="cheatsheets"] .btn,
+.pw-page[data-workspace-page="cheatsheets"] .modal-close {
+    background-image: none;
+    box-shadow: none;
+}
+
+.pw-page[data-workspace-page="cheatsheets"] .btn:hover,
+.pw-page[data-workspace-page="cheatsheets"] .modal-close:hover {
+    box-shadow: none;
+    transform: none;
+}
+
+.pw-page[data-workspace-page="cheatsheets"] .btn-primary {
+    border-color: var(--pw-accent);
+    background: var(--pw-accent);
+    color: #07110e;
+}
+
+.pw-page[data-workspace-page="cheatsheets"] .cheatsheet-tabs,
+.pw-page[data-workspace-page="cheatsheets"] .editor-tabs {
+    max-width: 100%;
+    gap: var(--pw-space-1);
+    overflow-x: auto;
+    padding: var(--pw-space-1);
+    border: 1px solid var(--pw-line);
+    border-radius: var(--pw-radius-md);
+    background: var(--pw-surface-elevated);
+    background-image: none;
+    box-shadow: none;
+}
+
+.pw-page[data-workspace-page="cheatsheets"] .cheatsheet-tab,
+.pw-page[data-workspace-page="cheatsheets"] .editor-tab {
+    min-height: 40px;
+    flex: 0 0 auto;
+    padding: var(--pw-space-2) var(--pw-space-3);
+    border: 1px solid transparent;
+    border-radius: var(--pw-radius-sm);
+    background: transparent;
+    background-image: none;
+    color: var(--pw-muted);
+    box-shadow: none;
+}
+
+.pw-page[data-workspace-page="cheatsheets"] .cheatsheet-tab::after {
+    content: none;
+    background: none;
+    box-shadow: none;
+}
+
+.pw-page[data-workspace-page="cheatsheets"] .cheatsheet-tab:hover,
+.pw-page[data-workspace-page="cheatsheets"] .editor-tab:hover {
+    background: color-mix(in srgb, var(--pw-text) 4%, transparent);
+    color: var(--pw-text);
+    box-shadow: none;
+}
+
+.pw-page[data-workspace-page="cheatsheets"] .cheatsheet-tab.active,
+.pw-page[data-workspace-page="cheatsheets"] .editor-tab.active {
+    border-color: var(--pw-line-strong);
+    background: var(--pw-surface);
+    color: var(--pw-text);
+    box-shadow: none;
+}
+
+.pw-page[data-workspace-page="cheatsheets"] .cheatsheet-tab-count {
+    border: 1px solid var(--pw-line);
+    background: var(--pw-surface-soft);
+    color: var(--pw-muted);
+}
+
+.pw-page[data-workspace-page="cheatsheets"] .cards-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
+    gap: var(--pw-space-4);
+}
+
+.pw-page[data-workspace-page="cheatsheets"] .cards-grid.list-view {
+    grid-template-columns: 1fr;
+}
+
+.pw-page[data-workspace-page="cheatsheets"] .cards-grid .card,
+.pw-page[data-workspace-page="cheatsheets"] .metadata-panel,
+.pw-page[data-workspace-page="cheatsheets"] .attachments-section,
+.pw-page[data-workspace-page="cheatsheets"] .attachment-item,
+.pw-page[data-workspace-page="cheatsheets"] .knowledge-picker-item {
+    min-width: 0;
+    border-color: var(--pw-line);
+    border-radius: var(--pw-radius-md);
+    background: var(--pw-surface);
+    background-image: none;
+    box-shadow: none;
+}
+
+.pw-page[data-workspace-page="cheatsheets"] .cards-grid .card:hover,
+.pw-page[data-workspace-page="cheatsheets"] .attachment-item:hover,
+.pw-page[data-workspace-page="cheatsheets"] .knowledge-picker-item:hover {
+    border-color: var(--pw-line-strong);
+    background: var(--pw-surface-elevated);
+    box-shadow: none;
+    transform: none;
+}
+
+.pw-page[data-workspace-page="cheatsheets"] .card-header,
+.pw-page[data-workspace-page="cheatsheets"] .card-body,
+.pw-page[data-workspace-page="cheatsheets"] .card-footer {
+    padding: var(--pw-space-4);
+}
+
+.pw-page[data-workspace-page="cheatsheets"] .card-title,
+.pw-page[data-workspace-page="cheatsheets"] .card-abstract,
+.pw-page[data-workspace-page="cheatsheets"] .card-preview,
+.pw-page[data-workspace-page="cheatsheets"] .attachment-name,
+.pw-page[data-workspace-page="cheatsheets"] .knowledge-picker-name {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.pw-page[data-workspace-page="cheatsheets"] .card-preview,
+.pw-page[data-workspace-page="cheatsheets"] .md-preview,
+.pw-page[data-workspace-page="cheatsheets"] .md-preview pre,
+.pw-page[data-workspace-page="cheatsheets"] .md-preview code,
+.pw-page[data-workspace-page="cheatsheets"] pre,
+.pw-page[data-workspace-page="cheatsheets"] code {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+}
+
+.pw-page[data-workspace-page="cheatsheets"] .md-preview pre,
+.pw-page[data-workspace-page="cheatsheets"] pre {
+    overflow-x: auto;
+    border: 1px solid var(--pw-line);
+    border-radius: var(--pw-radius-sm);
+    background: var(--pw-surface-elevated);
+    background-image: none;
+    box-shadow: none;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.pw-page[data-workspace-page="cheatsheets"] input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+.pw-page[data-workspace-page="cheatsheets"] select,
+.pw-page[data-workspace-page="cheatsheets"] textarea {
+    max-width: 100%;
+    min-height: 44px;
+    border-color: var(--pw-line-strong);
+    border-radius: var(--pw-radius-sm);
+    background: var(--input-bg);
+    background-image: none;
+    color: var(--pw-text);
+    box-shadow: none;
+}
+
+.pw-page[data-workspace-page="cheatsheets"] input:focus,
+.pw-page[data-workspace-page="cheatsheets"] select:focus,
+.pw-page[data-workspace-page="cheatsheets"] textarea:focus,
+.pw-page[data-workspace-page="cheatsheets"] #sheet-content:focus {
+    outline: none;
+    border-color: var(--pw-accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--pw-accent) 20%, transparent);
+}
+
+.pw-page[data-workspace-page="cheatsheets"] #sheet-content {
+    width: 100%;
+    min-height: 300px;
+    resize: vertical;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.pw-page[data-workspace-page="cheatsheets"] .metadata-panel {
+    gap: 1px;
+    padding: 1px;
+    background: var(--pw-line);
+}
+
+.pw-page[data-workspace-page="cheatsheets"] .metadata-row {
+    min-width: 0;
+    padding: var(--pw-space-3);
+    background: var(--pw-surface-elevated);
+}
+
+.pw-page[data-workspace-page="cheatsheets"] .attachments-section {
+    padding: var(--pw-space-4);
+}
+
+.pw-page[data-workspace-page="cheatsheets"] .attachments-list,
+.pw-page[data-workspace-page="cheatsheets"] .knowledge-picker-list {
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+.pw-page[data-workspace-page="cheatsheets"] .attachment-item,
+.pw-page[data-workspace-page="cheatsheets"] .knowledge-picker-item {
+    padding: var(--pw-space-3);
+}
+
+.pw-page[data-workspace-page="cheatsheets"] .attachment-pending {
+    border-left-color: var(--pw-warning);
+}
+
+.pw-page[data-workspace-page="cheatsheets"] .badge-attachment {
+    border: 1px solid color-mix(in srgb, var(--pw-accent) 35%, var(--pw-line));
+    background: color-mix(in srgb, var(--pw-accent) 10%, var(--pw-surface));
+    color: var(--pw-accent-strong);
+}
+
+.pw-page[data-workspace-page="cheatsheets"] .cheatsheets-danger-title,
+.pw-page[data-workspace-page="cheatsheets"] .char-counter.over-limit {
+    color: var(--pw-danger);
+}
+
+.pw-page[data-workspace-page="cheatsheets"] .empty-state,
+.pw-page[data-workspace-page="cheatsheets"] .empty-state-inline,
+.pw-page[data-workspace-page="cheatsheets"] .knowledge-picker-loading,
+.pw-page[data-workspace-page="cheatsheets"] .knowledge-picker-empty,
+.pw-page[data-workspace-page="cheatsheets"] .attachments-empty {
+    min-height: 160px;
+    padding: var(--pw-space-6);
+    border: 1px dashed var(--pw-line-strong);
+    border-radius: var(--pw-radius-md);
+    background: var(--pw-surface);
+    background-image: none;
+    color: var(--pw-muted);
+    text-align: center;
+    box-shadow: none;
+}
+
+.pw-page[data-workspace-page="cheatsheets"] .modal-overlay {
+    min-height: 100dvh;
+    padding: var(--pw-space-4);
+    background: color-mix(in srgb, var(--pw-canvas) 76%, transparent);
+    background-image: none;
+    backdrop-filter: blur(8px);
+}
+
+.pw-page[data-workspace-page="cheatsheets"] .modal {
+    width: min(100%, 620px);
+    max-width: calc(100vw - 1rem);
+    max-height: calc(100dvh - 1rem);
+    overflow-y: auto;
+    border: 1px solid var(--pw-line-strong);
+    border-radius: var(--pw-radius-lg);
+    background: var(--pw-surface);
+    background-image: none;
+    box-shadow: none;
+}
+
+.pw-page[data-workspace-page="cheatsheets"] .modal-wide {
+    width: min(100%, 820px);
+}
+
+.pw-page[data-workspace-page="cheatsheets"] .modal-header,
+.pw-page[data-workspace-page="cheatsheets"] .modal-actions {
+    border-color: var(--pw-line);
+    background: var(--pw-surface);
+    background-image: none;
+}
+
+.pw-page[data-workspace-page="cheatsheets"]:where(:root[data-theme="light"] *) .cards-grid .card,
+.pw-page[data-workspace-page="cheatsheets"]:where(:root[data-theme="light"] *) .metadata-panel,
+.pw-page[data-workspace-page="cheatsheets"]:where(:root[data-theme="light"] *) .attachments-section,
+.pw-page[data-workspace-page="cheatsheets"]:where(:root[data-theme="light"] *) .modal {
+    border-color: var(--pw-line-strong);
+    background: var(--pw-surface);
+    box-shadow: none;
+}
+
+.pw-page[data-workspace-page="cheatsheets"][data-density="compact"] .container {
+    padding-block: var(--pw-space-4);
+}
+
+.pw-page[data-workspace-page="cheatsheets"][data-density="compact"] .card-header,
+.pw-page[data-workspace-page="cheatsheets"][data-density="compact"] .card-body,
+.pw-page[data-workspace-page="cheatsheets"][data-density="compact"] .card-footer,
+.pw-page[data-workspace-page="cheatsheets"][data-density="compact"] .attachments-section,
+.pw-page[data-workspace-page="cheatsheets"][data-density="compact"] .attachment-item,
+.pw-page[data-workspace-page="cheatsheets"][data-density="compact"] .knowledge-picker-item {
+    padding: var(--pw-space-3);
+}
+
+.pw-page[data-workspace-page="cheatsheets"][data-density="compact"] .cheatsheet-tab,
+.pw-page[data-workspace-page="cheatsheets"][data-density="compact"] .editor-tab,
+.pw-page[data-workspace-page="cheatsheets"][data-density="compact"] button,
+.pw-page[data-workspace-page="cheatsheets"][data-density="compact"] input,
+.pw-page[data-workspace-page="cheatsheets"][data-density="compact"] select {
+    min-height: 36px;
+}
+
+@media (max-width: 1024px) {
+    .pw-page[data-workspace-page="cheatsheets"] .cards-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .pw-page[data-workspace-page="cheatsheets"] .modal-wide {
+        width: min(100%, 760px);
+    }
+}
+
+@media (max-width: 640px) {
+    .pw-page[data-workspace-page="cheatsheets"] .app-header {
+        min-height: 56px;
+        padding-inline: var(--pw-space-4);
+    }
+
+    .pw-page[data-workspace-page="cheatsheets"] .container {
+        padding: var(--pw-space-3);
+    }
+
+    .pw-page[data-workspace-page="cheatsheets"] .page-header,
+    .pw-page[data-workspace-page="cheatsheets"] .page-header .header-actions {
+        align-items: stretch;
+        grid-template-columns: 1fr;
+    }
+
+    .pw-page[data-workspace-page="cheatsheets"] .cards-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .pw-page[data-workspace-page="cheatsheets"] input,
+    .pw-page[data-workspace-page="cheatsheets"] select,
+    .pw-page[data-workspace-page="cheatsheets"] textarea,
+    .pw-page[data-workspace-page="cheatsheets"] button,
+    .pw-page[data-workspace-page="cheatsheets"] .btn,
+    .pw-page[data-workspace-page="cheatsheets"] .cheatsheet-tab,
+    .pw-page[data-workspace-page="cheatsheets"] .editor-tab,
+    .pw-page[data-workspace-page="cheatsheets"][data-density="compact"] input,
+    .pw-page[data-workspace-page="cheatsheets"][data-density="compact"] select,
+    .pw-page[data-workspace-page="cheatsheets"][data-density="compact"] textarea,
+    .pw-page[data-workspace-page="cheatsheets"][data-density="compact"] button,
+    .pw-page[data-workspace-page="cheatsheets"][data-density="compact"] .btn,
+    .pw-page[data-workspace-page="cheatsheets"][data-density="compact"] .cheatsheet-tab,
+    .pw-page[data-workspace-page="cheatsheets"][data-density="compact"] .editor-tab {
+        min-height: 44px;
+    }
+
+    .pw-page[data-workspace-page="cheatsheets"] .modal-overlay {
+        align-items: flex-end;
+        padding: var(--pw-space-2);
+    }
+
+    .pw-page[data-workspace-page="cheatsheets"] .modal,
+    .pw-page[data-workspace-page="cheatsheets"] .modal-wide {
+        width: 100%;
+        max-width: 100%;
+        max-height: calc(100dvh - 1rem);
+        border-radius: 20px 20px 0 0;
+    }
+
+    .pw-page[data-workspace-page="cheatsheets"] .modal-header,
+    .pw-page[data-workspace-page="cheatsheets"] .modal-body,
+    .pw-page[data-workspace-page="cheatsheets"] .modal-actions {
+        padding: var(--pw-space-4);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .pw-page[data-workspace-page="cheatsheets"] *,
+    .pw-page[data-workspace-page="cheatsheets"] *::before,
+    .pw-page[data-workspace-page="cheatsheets"] *::after {
+        scroll-behavior: auto !important;
+        animation: none !important;
+        transition-duration: 1ms !important;
+    }
+
+    .pw-page[data-workspace-page="cheatsheets"] .cards-grid .card:hover,
+    .pw-page[data-workspace-page="cheatsheets"] .btn:hover,
+    .pw-page[data-workspace-page="cheatsheets"] .attachment-item:hover {
+        transform: none !important;
+    }
+}
+/* === Precision Workspace Cheatsheets Adapter: end === */

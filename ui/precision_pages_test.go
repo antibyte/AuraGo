@@ -373,6 +373,257 @@ func TestPrecisionWorkspaceDashboardAdapterStopsStatusPulseGlows(t *testing.T) {
 	}
 }
 
+func TestPrecisionWorkspacePlansMissionsCheatsheetsIntegration(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name             string
+		template         string
+		page             string
+		pageStylesheet   string
+		pageScript       string
+		inlineStyleCount int
+		hooks            []string
+	}{
+		{
+			name:             "Plans",
+			template:         "plans.html",
+			page:             "plans",
+			pageStylesheet:   `/css/plans.css`,
+			pageScript:       `/js/plans/main.js`,
+			inlineStyleCount: 0,
+			hooks: []string{
+				`id="status-filter"`,
+				`id="include-archived"`,
+				`id="refresh-btn"`,
+				`id="plan-list"`,
+				`id="plan-detail"`,
+				`id="blocker-modal"`,
+				`id="split-modal"`,
+			},
+		},
+		{
+			name:             "Missions",
+			template:         "missions_v2.html",
+			page:             "missions",
+			pageStylesheet:   `/css/missions.css`,
+			pageScript:       `/js/missions/main.js`,
+			inlineStyleCount: 1,
+			hooks: []string{
+				`id="view-toggle"`,
+				`data-view-mode="grid"`,
+				`data-view-mode="list"`,
+				`id="queue-section"`,
+				`data-filter="scheduled"`,
+				`id="missions-grid"`,
+				`id="mission-form"`,
+				`id="prep-modal"`,
+			},
+		},
+		{
+			name:             "Cheatsheets",
+			template:         "cheatsheets.html",
+			page:             "cheatsheets",
+			pageStylesheet:   `/css/cheatsheets.css`,
+			pageScript:       `/js/cheatsheets/main.js`,
+			inlineStyleCount: 1,
+			hooks: []string{
+				`id="view-toggle"`,
+				`onclick="setViewMode('grid')"`,
+				`id="tab-user"`,
+				`id="tab-agent"`,
+				`id="panel-user"`,
+				`id="panel-agent"`,
+				`id="sheet-content"`,
+				`id="attachments-list"`,
+				`id="knowledge-picker-modal"`,
+			},
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			html := normalizeAssetText(mustReadUIFile(t, test.template))
+			bodyMarker := `<body class="pw-page pw-operational-page" data-workspace-page="` + test.page + `" data-density="comfortable">`
+			if !strings.Contains(html, bodyMarker) {
+				t.Errorf("%s missing exact Precision opt-in body marker %q", test.template, bodyMarker)
+			}
+
+			pageAt := strings.Index(html, test.pageStylesheet)
+			enhancementsAt := strings.Index(html, `/css/enhancements.css`)
+			foundationAt := strings.Index(html, `/css/precision-workspace.css?v={{.BuildVersion}}`)
+			componentsAt := strings.Index(html, `/css/precision-pages.css?v={{.BuildVersion}}`)
+			if pageAt < 0 || foundationAt < 0 || componentsAt < 0 || !(pageAt < foundationAt && foundationAt < componentsAt) {
+				t.Errorf("%s Precision CSS order = page:%d enhancements:%d foundation:%d components:%d", test.template, pageAt, enhancementsAt, foundationAt, componentsAt)
+			}
+			if enhancementsAt >= 0 && enhancementsAt >= foundationAt {
+				t.Errorf("%s enhancements stylesheet must load before Precision foundation: enhancements=%d foundation=%d", test.template, enhancementsAt, foundationAt)
+			}
+
+			workspaceAt := strings.Index(html, `/js/precision/workspace.js?v={{.BuildVersion}}`)
+			mainAt := strings.Index(html, test.pageScript)
+			if workspaceAt < 0 || mainAt < 0 || workspaceAt >= mainAt {
+				t.Errorf("%s script order = workspace:%d main:%d", test.template, workspaceAt, mainAt)
+			}
+
+			for _, hook := range test.hooks {
+				if !strings.Contains(html, hook) {
+					t.Errorf("%s lost functional hook %q", test.template, hook)
+				}
+			}
+			if got := len(regexp.MustCompile(`(?i)\sstyle\s*=`).FindAllString(html, -1)); got != test.inlineStyleCount {
+				t.Errorf("%s inline style count = %d, want preserved baseline count %d", test.template, got, test.inlineStyleCount)
+			}
+		})
+	}
+}
+
+func TestPrecisionWorkspacePlansMissionsCheatsheetsAdaptersAreScopedAndResponsive(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name          string
+		stylesheet    string
+		page          string
+		layoutMarkers []string
+	}{
+		{
+			name:       "Plans",
+			stylesheet: "css/plans.css",
+			page:       "plans",
+			layoutMarkers: []string{
+				`.plans-layout`,
+				`.plan-list`,
+				`.plan-detail`,
+				`.plan-modal`,
+				`overflow-wrap: anywhere;`,
+			},
+		},
+		{
+			name:       "Missions",
+			stylesheet: "css/missions.css",
+			page:       "missions",
+			layoutMarkers: []string{
+				`.status-bar`,
+				`.queue-section`,
+				`.missions-grid`,
+				`.mc-log-body`,
+				`.modal`,
+			},
+		},
+		{
+			name:       "Cheatsheets",
+			stylesheet: "css/cheatsheets.css",
+			page:       "cheatsheets",
+			layoutMarkers: []string{
+				`.cheatsheet-tabs`,
+				`.cards-grid`,
+				`.editor-tabs`,
+				`.attachments-section`,
+				`pre`,
+				`overflow-wrap: anywhere;`,
+			},
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			css := normalizeAssetText(mustReadUIFile(t, test.stylesheet))
+			startMarker := `/* === Precision Workspace ` + test.name + ` Adapter: start === */`
+			endMarker := `/* === Precision Workspace ` + test.name + ` Adapter: end === */`
+			start := strings.Index(css, startMarker)
+			end := strings.Index(css, endMarker)
+			if start < 0 || end <= start {
+				t.Fatalf("%s missing delimited Precision adapter: start=%d end=%d", test.stylesheet, start, end)
+			}
+			adapter := css[start:end]
+			prefix := `.pw-page[data-workspace-page="` + test.page + `"]`
+
+			for _, marker := range append([]string{
+				prefix + ` {`,
+				`overflow-x: clip;`,
+				`background-image: none;`,
+				`box-shadow: none;`,
+				prefix + `[data-density="compact"]`,
+				`:root[data-theme="light"] *`,
+				`@media (max-width: 1024px)`,
+				`@media (max-width: 640px)`,
+				`min-height: 44px;`,
+				`min-height: 100dvh;`,
+				`max-height: calc(100dvh - 1rem);`,
+				`border-radius: 20px 20px 0 0;`,
+				`@media (prefers-reduced-motion: reduce)`,
+			}, test.layoutMarkers...) {
+				if !strings.Contains(adapter, marker) {
+					t.Errorf("%s Precision adapter missing marker %q", test.name, marker)
+				}
+			}
+			if strings.Contains(strings.ToLower(adapter), "gradient(") {
+				t.Fatalf("%s Precision adapter must not introduce gradient expressions", test.name)
+			}
+			assertPrecisionAdapterSelectorsScoped(t, adapter, prefix)
+		})
+	}
+}
+
+func assertPrecisionAdapterSelectorsScoped(t *testing.T, adapter, prefix string) {
+	t.Helper()
+
+	comments := regexp.MustCompile(`(?s)/\*.*?\*/`)
+	uncommented := comments.ReplaceAllString(adapter, "")
+	segmentStart := 0
+	for index, char := range uncommented {
+		switch char {
+		case '{':
+			header := strings.TrimSpace(uncommented[segmentStart:index])
+			segmentStart = index + 1
+			if header == "" || strings.HasPrefix(header, "@") {
+				continue
+			}
+			for _, selector := range strings.Split(header, ",") {
+				selector = strings.TrimSpace(selector)
+				if selector != "" && !strings.HasPrefix(selector, prefix) {
+					t.Errorf("Precision adapter selector must start with %q: %q", prefix, selector)
+				}
+			}
+		case '}':
+			segmentStart = index + 1
+		}
+	}
+}
+
+func TestPrecisionWorkspaceMissionsAdapterStopsDecorativeStatusGlows(t *testing.T) {
+	t.Parallel()
+
+	css := normalizeAssetText(mustReadUIFile(t, "css/missions.css"))
+	const (
+		adapterStart = `/* === Precision Workspace Missions Adapter: start === */`
+		adapterEnd   = `/* === Precision Workspace Missions Adapter: end === */`
+		prefix       = `.pw-page[data-workspace-page="missions"]`
+	)
+	start := strings.Index(css, adapterStart)
+	end := strings.Index(css, adapterEnd)
+	if start < 0 || end <= start {
+		t.Fatalf("missions.css missing delimited Precision adapter: start=%d end=%d", start, end)
+	}
+	adapter := css[start:end]
+	pulseSuppression := regexp.MustCompile(
+		`(?s)` +
+			regexp.QuoteMeta(prefix+` .badge-prep-preparing`) + `\s*,\s*` +
+			regexp.QuoteMeta(prefix+` .mc-status-chip--running`) +
+			`\s*\{[^}]*animation:\s*none;[^}]*box-shadow:\s*none;`,
+	)
+	if !pulseSuppression.MatchString(adapter) {
+		t.Error("Missions Precision adapter must disable preparation and running-chip pulse glows")
+	}
+}
+
 func TestPrecisionWorkspaceTranslations(t *testing.T) {
 	t.Parallel()
 

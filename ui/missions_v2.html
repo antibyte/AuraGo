@@ -28,10 +28,12 @@
     <meta property="og:type" content="website">
     <link rel="stylesheet" href="/css/missions.css">
     <link rel="stylesheet" href="/css/enhancements.css?v=20260425a">
+    <link rel="stylesheet" href="/css/precision-workspace.css?v={{.BuildVersion}}">
+    <link rel="stylesheet" href="/css/precision-pages.css?v={{.BuildVersion}}">
     <link href="/fonts/fonts.css" rel="stylesheet">
 </head>
 
-<body>
+<body class="pw-page pw-operational-page" data-workspace-page="missions" data-density="comfortable">
     <a href="#main-content" class="skip-link" data-i18n="common.skip_to_content"></a>
     <!-- App Header -->
     <header class="app-header">
@@ -534,8 +536,8 @@
         </div>
     </div>
 
+    <script src="/js/precision/workspace.js?v={{.BuildVersion}}"></script>
     <script src="/js/missions/main.js"></script>
 </body>
 
 </html>
-
