@@ -1,14 +1,14 @@
 /* AuraGo Precision Workspace: opt-in design foundation. */
 .pw-page {
-    --pw-canvas: #0b0f0e;
-    --pw-surface: #121816;
-    --pw-surface-elevated: #18201d;
-    --pw-surface-soft: #202925;
-    --pw-text: #f2f5f3;
-    --pw-muted: #a8b2ae;
-    --pw-subtle: #7f8d87;
-    --pw-accent: #2dd4bf;
-    --pw-accent-strong: #5eead4;
+    --pw-canvas: #10161e;
+    --pw-surface: #151f2b;
+    --pw-surface-elevated: #1b2938;
+    --pw-surface-soft: #26384c;
+    --pw-text: #edf2f7;
+    --pw-muted: #aab7c4;
+    --pw-subtle: #7d8b99;
+    --pw-accent: #6f98bd;
+    --pw-accent-strong: #91b5d6;
     --pw-danger: #fb7185;
     --pw-warning: #f6c453;
     --pw-success: #4ade80;
@@ -27,7 +27,7 @@
     --pw-duration-fast: 180ms;
     --pw-duration-base: 260ms;
     --pw-duration-slow: 320ms;
-    --pw-shadow-soft: 0 22px 60px color-mix(in srgb, #020806 24%, transparent);
+    --pw-shadow-soft: 0 22px 60px color-mix(in srgb, #10161e 24%, transparent);
     --bg-primary: var(--pw-canvas);
     --bg-secondary: var(--pw-surface);
     --bg-tertiary: var(--pw-surface-elevated);
@@ -50,21 +50,67 @@
     font-family: 'Geist', system-ui, -apple-system, sans-serif;
 }
 
+.pw-page {
+    --pw-content-max: 1440px;
+    --pw-reading-max: 760px;
+    --pw-header-height: 64px;
+    --pw-space-1: 0.25rem;
+    --pw-space-2: 0.5rem;
+    --pw-space-3: 0.75rem;
+    --pw-space-4: 1rem;
+    --pw-space-5: 1.25rem;
+    --pw-space-6: 1.5rem;
+    --pw-space-8: 2rem;
+    --pw-space-10: 2.5rem;
+    --pw-title-size: clamp(1.65rem, 2.4vw, 2.35rem);
+    --pw-heading-size: clamp(1.125rem, 1.4vw, 1.35rem);
+    --pw-body-size: 0.9375rem;
+    --pw-row-height: 52px;
+    color-scheme: dark;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+}
+
+.pw-page *,
+.pw-page *::before,
+.pw-page *::after {
+    box-sizing: border-box;
+}
+
+.pw-page ::selection {
+    background: color-mix(in srgb, var(--pw-accent) 28%, transparent);
+    color: var(--pw-text);
+}
+
+.pw-page a {
+    color: inherit;
+    text-decoration-color: color-mix(in srgb, var(--pw-accent) 52%, transparent);
+    text-underline-offset: 0.2em;
+}
+
+.pw-page h1,
+.pw-page h2,
+.pw-page h3,
+.pw-page p {
+    margin-block-start: 0;
+}
+
 [data-theme="light"] .pw-page,
 .pw-page[data-theme="light"] {
-    --pw-canvas: #eef1ef;
-    --pw-surface: #fafbfa;
-    --pw-surface-elevated: #f3f6f4;
-    --pw-surface-soft: #e6ece8;
-    --pw-text: #14201d;
-    --pw-muted: #586761;
-    --pw-subtle: #6e7c76;
-    --pw-accent: #0f766e;
-    --pw-accent-strong: #0d9488;
+    --pw-canvas: #eef2f6;
+    --pw-surface: #fbfcfe;
+    --pw-surface-elevated: #f1f5f9;
+    --pw-surface-soft: #e3eaf1;
+    --pw-text: #182431;
+    --pw-muted: #5f6f7f;
+    --pw-subtle: #7b8997;
+    --pw-accent: #426d93;
+    --pw-accent-strong: #5d87aa;
     --pw-danger: #be123c;
     --pw-warning: #a16207;
     --pw-success: #15803d;
-    --pw-shadow-soft: 0 24px 62px color-mix(in srgb, #355148 13%, transparent);
+    --pw-shadow-soft: 0 24px 62px color-mix(in srgb, #182431 13%, transparent);
+    color-scheme: light;
 }
 
 .pw-page[data-density="compact"] {
@@ -72,6 +118,8 @@
     --pw-label-size: 0.875rem;
     --pw-help-size: 0.8125rem;
     --pw-meta-size: 0.8125rem;
+    --pw-header-height: 56px;
+    --pw-row-height: 44px;
 }
 
 .pw-page .pw-bezel {
@@ -154,7 +202,7 @@
     padding: 0.65rem 1.15rem;
     font-weight: 650;
     background: var(--pw-accent);
-    color: #07110e;
+    color: var(--pw-canvas);
     box-shadow: inset 0 1px 0 color-mix(in srgb, #ffffff 24%, transparent);
     transition:
         transform var(--pw-duration-fast) var(--pw-ease),

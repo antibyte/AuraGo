@@ -77,5 +77,8 @@
   "notfound.title": "पृष्ठ नहीं मिला",
   "notfound.description": "आप जो पृष्ठ खोज रहे हैं वह मौजूद नहीं है या स्थानांतरित कर दिया गया है।",
   "notfound.go_home": "चैट पर जाएं",
-  "notfound.go_dashboard": "डैशबोर्ड"
+  "notfound.go_dashboard": "डैशबोर्ड",
+  "common.workspace_density_toggle": "कार्यस्थान का घनत्व बदलें",
+  "common.workspace_density_comfortable": "आरामदायक",
+  "common.workspace_density_compact": "सघन"
 }

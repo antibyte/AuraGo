@@ -3,7 +3,6 @@
 
 const cfgMaskedSecretFallback = '••••••••';
 const CONFIG_ASSET_VERSION = (typeof window !== 'undefined' && window.AURAGO_BUILD_VERSION) ? window.AURAGO_BUILD_VERSION : 'config-dev';
-const CONFIG_DENSITY_KEY = 'aurago.config.density.v1';
 const CONFIG_RECENT_KEY = 'aurago.config.recent.v1';
 const CONFIG_ADVANCED_KEY = 'aurago.config.advanced.v1';
 const CONFIG_RECENT_LIMIT = 6;
@@ -257,26 +256,14 @@ const SENSITIVE_KEYS = ['api_key', 'bot_token', 'password', 'app_password', 'acc
 
 
 function applyConfigDensity(value, persist = false) {
-    const density = value === 'compact' ? 'compact' : 'comfortable';
-    document.body.dataset.density = density;
-    const button = document.getElementById('cfg-density-toggle');
-    if (button) {
-        const compact = density === 'compact';
-        button.setAttribute('aria-pressed', compact ? 'true' : 'false');
-        const label = button.querySelector('span');
-        if (label) label.textContent = t(compact ? 'config.precision.density_compact' : 'config.precision.density_comfortable');
-    }
-    if (persist) localStorage.setItem(CONFIG_DENSITY_KEY, density);
-    return density;
+    const workspace = window.AuraPrecisionWorkspace;
+    if (!workspace) return document.body.dataset.density || 'comfortable';
+    workspace.init();
+    if (persist) return workspace.setDensity(value);
+    return workspace.getDensity();
 }
 
-const configDensityButton = document.getElementById('cfg-density-toggle');
-if (configDensityButton) {
-    configDensityButton.addEventListener('click', () => {
-        applyConfigDensity(document.body.dataset.density === 'compact' ? 'comfortable' : 'compact', true);
-    });
-}
-applyConfigDensity(localStorage.getItem(CONFIG_DENSITY_KEY) || 'comfortable');
+applyConfigDensity();
 
 function hasVisibleSection(key) {
     if (key === 'overview') return true;
@@ -1144,6 +1131,8 @@ async function selectSection(key, options = {}) {
     scrollActiveSidebarItemIntoView(scrollBehavior, expandedTargetGroup ? 320 : 0);
     window.dispatchEvent(new CustomEvent('cfg:section-leave'));
     await renderSection(key);
+    const content = document.getElementById('content');
+    if (content) content.scrollTop = 0;
     enhanceConfigSectionLayout(key);
     attachChangeListeners();
     document.dispatchEvent(new CustomEvent('cfg:section-rendered', { detail: { key, root: document.getElementById('content') } }));

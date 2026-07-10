@@ -77,5 +77,8 @@
   "notfound.title": "Side ikke fundet",
   "notfound.description": "Siden du leder efter findes ikke eller er blevet flyttet.",
   "notfound.go_home": "Gå til chat",
-  "notfound.go_dashboard": "Dashboard"
+  "notfound.go_dashboard": "Dashboard",
+  "common.workspace_density_toggle": "Skift arbejdsområdets tæthed",
+  "common.workspace_density_comfortable": "Komfortabel",
+  "common.workspace_density_compact": "Kompakt"
 }

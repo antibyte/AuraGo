@@ -43,9 +43,9 @@ func TestConfigPrecisionWorkspaceTypographyAndDensityContract(t *testing.T) {
 	foundation := normalizeAssetText(mustReadUIFile(t, "css/precision-workspace.css"))
 	for _, marker := range []string{
 		`.pw-page {`,
-		`--pw-canvas: #0b0f0e;`,
-		`--pw-surface: #121816;`,
-		`--pw-accent: #2dd4bf;`,
+		`--pw-canvas: #10161e;`,
+		`--pw-surface: #151f2b;`,
+		`--pw-accent: #6f98bd;`,
 		`--pw-control-size: 1rem;`,
 		`--pw-label-size: 0.9375rem;`,
 		`--pw-help-size: 0.875rem;`,
@@ -69,6 +69,27 @@ func TestConfigPrecisionWorkspaceTypographyAndDensityContract(t *testing.T) {
 	} {
 		if !strings.Contains(shell, marker) {
 			t.Fatalf("config-workspace.css missing %q", marker)
+		}
+	}
+}
+
+func TestConfigPrecisionWorkspaceKeepsShellFixedWhileContentScrolls(t *testing.T) {
+	t.Parallel()
+
+	workspace := normalizeAssetText(mustReadUIFile(t, "css/config-workspace.css"))
+	for _, marker := range []string{
+		`.pw-page {`,
+		`height: 100dvh;`,
+		`overflow: hidden;`,
+		`.pw-page .cfg-layout {`,
+		`min-height: 0;`,
+		`.pw-page .cfg-sidebar {`,
+		`overflow-y: auto;`,
+		`.pw-page .cfg-content {`,
+		`overflow-y: auto;`,
+	} {
+		if !strings.Contains(workspace, marker) {
+			t.Fatalf("config workspace shell missing %q", marker)
 		}
 	}
 }
@@ -199,13 +220,17 @@ func TestConfigPrecisionWorkspaceBrowserMatrix(t *testing.T) {
 		t.Fatalf("marshal config translations: %v", err)
 	}
 	css := strings.Join([]string{
+		normalizeAssetText(mustReadUIFile(t, "shared-variables.css")),
+		normalizeAssetText(mustReadUIFile(t, "css/tokens.css")),
+		normalizeAssetText(mustReadUIFile(t, "css/enhancements.css")),
 		normalizeAssetText(mustReadUIFile(t, "css/config.css")),
 		normalizeAssetText(mustReadUIFile(t, "css/precision-workspace.css")),
+		normalizeAssetText(mustReadUIFile(t, "css/precision-pages.css")),
 		normalizeAssetText(mustReadUIFile(t, "css/config-workspace.css")),
 	}, "\n")
 	html := fmt.Sprintf(`<!doctype html><html lang="en" data-theme="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>%s</style></head>
 	<body class="pw-page" data-density="comfortable">
-	<div class="cfg-header"><div class="cfg-logo-wrap"><button id="cfg-hamburger" class="hamburger-btn cfg-hamburger">☰</button><a class="logo"><div class="logo-icon">⚡</div><span class="logo-wordmark-accent">AURA</span><span class="logo-wordmark-base">GO</span><span class="logo-subtitle">Configuration</span></a></div><div class="header-actions"><button id="cfg-density-toggle" class="pw-density-toggle" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M5 7h14M5 12h14M5 17h14"/></svg><span>Comfortable</span></button><button id="cfg-restart-btn" class="btn-header cfg-restart-btn">Restart</button></div></div>
+	<div class="cfg-header"><div class="cfg-logo-wrap"><button id="cfg-hamburger" class="hamburger-btn cfg-hamburger">☰</button><a class="logo"><div class="logo-icon">⚡</div><span class="logo-wordmark-accent">AURA</span><span class="logo-wordmark-base">GO</span><span class="logo-subtitle">Configuration</span></a></div><div class="header-actions"><button id="cfg-density-toggle" class="pw-density-toggle" aria-pressed="false" data-pw-density-toggle><svg viewBox="0 0 24 24"><path d="M5 7h14M5 12h14M5 17h14"/></svg><span data-pw-density-label>Comfortable</span></button><button id="cfg-restart-btn" class="btn-header cfg-restart-btn">Restart</button></div></div>
 	<div class="cfg-layout" id="main-content"><div id="sidebar-backdrop" class="sidebar-backdrop"></div><div class="cfg-sidebar" id="sidebar"></div><main class="cfg-content" id="content"></main></div>
 	<div class="save-bar"><div class="pw-save-context"><strong id="saveSection"></strong><span id="saveChangeCount"></span><span id="saveValidation"></span></div><span id="changesPill" class="changes-pill">Unsaved</span><span id="saveStatus"></span><button id="btnSave" class="btn-save" disabled>Save</button></div>
 	<script>window.I18N=%s;window.I18N_META={};window.SYSTEM_LANG='en';window.AURAGO_BUILD_VERSION='test';window.t=(key)=>window.I18N[key]||key;
@@ -220,7 +245,7 @@ func TestConfigPrecisionWorkspaceBrowserMatrix(t *testing.T) {
 	page := browser.MustPage(server.URL)
 	defer page.MustClose()
 	page.MustSetDocumentContent(html)
-	for _, script := range []string{"js/config/catalog.js", "js/config/state.js", "js/config/actions.js", "cfg/form-builder.js", "js/config/main.js"} {
+	for _, script := range []string{"js/config/catalog.js", "js/config/state.js", "js/config/actions.js", "cfg/form-builder.js", "js/config/utils.js", "js/precision/workspace.js", "js/config/main.js"} {
 		if err := page.AddScriptTag("", normalizeAssetText(mustReadUIFile(t, script))); err != nil {
 			t.Fatalf("load %s: %v", script, err)
 		}
@@ -232,9 +257,30 @@ func TestConfigPrecisionWorkspaceBrowserMatrix(t *testing.T) {
 		for _, viewport := range viewports {
 			page.MustSetViewport(viewport.width, viewport.height, 1, viewport.width <= 390)
 			page.MustEval(`theme => { document.documentElement.dataset.theme = theme === 'system' ? 'dark' : theme; document.body.dataset.theme = theme === 'system' ? 'dark' : theme; }`, theme)
-			layout := page.MustEval(`() => ({overflow: document.documentElement.scrollWidth > window.innerWidth + 1, font: parseFloat(getComputedStyle(document.querySelector('.sidebar-item')).fontSize)})`).Map()
+			layout := page.MustEval(`() => {
+				const content = document.querySelector('.cfg-content');
+				const header = document.querySelector('.cfg-header');
+				const sidebar = document.querySelector('.cfg-sidebar');
+				const filler = document.createElement('div');
+				filler.style.height = '2000px';
+				content.append(filler);
+				const before = {header: header.getBoundingClientRect().top, sidebar: sidebar.getBoundingClientRect().top};
+				content.scrollTop = 240;
+				return {
+					overflow: document.documentElement.scrollWidth > window.innerWidth + 1,
+					pageScroll: document.scrollingElement.scrollHeight > window.innerHeight + 1,
+					contentScroll: content.scrollTop > 0,
+					documentScroll: document.scrollingElement.scrollTop,
+					headerMoved: Math.abs(header.getBoundingClientRect().top - before.header) > 1,
+					sidebarMoved: Math.abs(sidebar.getBoundingClientRect().top - before.sidebar) > 1,
+					font: parseFloat(getComputedStyle(document.querySelector('.sidebar-item')).fontSize),
+				};
+			}`).Map()
 			if layout["overflow"].Bool() {
 				t.Fatalf("horizontal overflow at %s %dx%d", theme, viewport.width, viewport.height)
+			}
+			if layout["pageScroll"].Bool() || !layout["contentScroll"].Bool() || layout["documentScroll"].Num() != 0 || layout["headerMoved"].Bool() || layout["sidebarMoved"].Bool() {
+				t.Fatalf("workspace shell scrolled at %s %dx%d", theme, viewport.width, viewport.height)
 			}
 			if layout["font"].Num() < 13 {
 				t.Fatalf("sidebar font too small at %s %dx%d: %v", theme, viewport.width, viewport.height, layout["font"])
@@ -259,8 +305,17 @@ func TestConfigPrecisionWorkspaceBrowserMatrix(t *testing.T) {
 	}
 	page.MustElement("#sidebarSearchInput").MustInput("port")
 	waitForJSBool(t, page, `() => document.querySelector('[data-section="server"]').dataset.searchTarget === 'server.port'`)
+	page.MustEval(`() => {
+		const style = document.createElement('style');
+		style.textContent = '#content > .cfg-section { min-height: 2000px; }';
+		document.head.append(style);
+		document.getElementById('content').scrollTop = 240;
+	}`)
 	page.MustEval(`() => document.querySelector('[data-section="server"]').click()`)
 	waitForJSBool(t, page, `() => location.hash === '#server' && !!document.querySelector('[data-path="server.port"]')`)
+	if got := page.MustEval(`() => document.getElementById('content').scrollTop`).Int(); got != 0 {
+		t.Fatalf("section navigation scrollTop = %d, want 0", got)
+	}
 	if !page.MustEval(`() => !!document.querySelector('.pw-advanced [data-path="server.debug_mode"]')`).Bool() {
 		t.Fatal("advanced server field was not moved into the disclosure")
 	}
@@ -300,7 +355,8 @@ func TestConfigPrecisionWorkspaceNavigationAndDensityMarkers(t *testing.T) {
 	html := normalizeAssetText(mustReadUIFile(t, "config.html"))
 	for _, marker := range []string{
 		`id="cfg-density-toggle"`,
-		`data-i18n-title="config.precision.density_toggle"`,
+		`data-pw-density-toggle`,
+		`data-i18n-title="common.workspace_density_toggle"`,
 		`aria-pressed="false"`,
 	} {
 		if !strings.Contains(html, marker) {
@@ -310,7 +366,6 @@ func TestConfigPrecisionWorkspaceNavigationAndDensityMarkers(t *testing.T) {
 
 	mainJS := normalizeAssetText(mustReadUIFile(t, "js/config/main.js"))
 	for _, marker := range []string{
-		`const CONFIG_DENSITY_KEY = 'aurago.config.density.v1'`,
 		`const CONFIG_RECENT_KEY = 'aurago.config.recent.v1'`,
 		`const CONFIG_ADVANCED_KEY = 'aurago.config.advanced.v1'`,
 		`const CONFIG_RECENT_LIMIT = 6`,
@@ -325,6 +380,15 @@ func TestConfigPrecisionWorkspaceNavigationAndDensityMarkers(t *testing.T) {
 	} {
 		if !strings.Contains(mainJS, marker) {
 			t.Fatalf("config main.js missing Precision navigation marker %q", marker)
+		}
+	}
+	if strings.Contains(mainJS, `CONFIG_DENSITY_KEY`) || strings.Contains(mainJS, `aurago.config.density.v1`) {
+		t.Fatal("Config main.js must delegate all density-storage ownership to AuraPrecisionWorkspace")
+	}
+	workspaceJS := normalizeAssetText(mustReadUIFile(t, "js/precision/workspace.js"))
+	for _, key := range []string{`aurago.workspace.density.v1`, `aurago.config.density.v1`} {
+		if !strings.Contains(workspaceJS, key) {
+			t.Errorf("workspace.js missing density ownership key %q", key)
 		}
 	}
 }

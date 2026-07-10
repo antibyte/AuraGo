@@ -77,5 +77,8 @@
   "notfound.title": "Página no encontrada",
   "notfound.description": "La página que buscas no existe o ha sido movida.",
   "notfound.go_home": "Ir al chat",
-  "notfound.go_dashboard": "Panel"
+  "notfound.go_dashboard": "Panel",
+  "common.workspace_density_toggle": "Cambiar la densidad del espacio de trabajo",
+  "common.workspace_density_comfortable": "Cómoda",
+  "common.workspace_density_compact": "Compacta"
 }

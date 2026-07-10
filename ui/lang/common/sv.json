@@ -77,5 +77,8 @@
   "notfound.title": "Sidan hittades inte",
   "notfound.description": "Sidan du letar efter finns inte eller har flyttats.",
   "notfound.go_home": "Gå till chatten",
-  "notfound.go_dashboard": "Instrumentpanel"
+  "notfound.go_dashboard": "Instrumentpanel",
+  "common.workspace_density_toggle": "Växla arbetsytans täthet",
+  "common.workspace_density_comfortable": "Bekväm",
+  "common.workspace_density_compact": "Kompakt"
 }

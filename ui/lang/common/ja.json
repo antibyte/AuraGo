@@ -77,5 +77,8 @@
   "notfound.title": "ページが見つかりません",
   "notfound.description": "お探しのページは存在しないか、移動された可能性があります。",
   "notfound.go_home": "チャットへ",
-  "notfound.go_dashboard": "ダッシュボード"
+  "notfound.go_dashboard": "ダッシュボード",
+  "common.workspace_density_toggle": "ワークスペースの表示密度を切り替え",
+  "common.workspace_density_comfortable": "ゆったり",
+  "common.workspace_density_compact": "コンパクト"
 }

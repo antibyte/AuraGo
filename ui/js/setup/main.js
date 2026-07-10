@@ -193,7 +193,7 @@ async function loadProfiles() {
         renderProfileCards(profiles);
     } catch (e) {
         const loading = document.getElementById('profile-loading');
-        if (loading) loading.innerHTML = `<p style="color:var(--text-secondary);font-size:0.85rem;">${escapeHtml(t('setup.plan_load_error'))}</p>`;
+        if (loading) loading.innerHTML = `<p class="profile-state-message profile-load-error">${escapeHtml(t('setup.plan_load_error'))}</p>`;
     }
 }
 
@@ -223,7 +223,7 @@ function renderProfileCards(list) {
     const grid = document.getElementById('profile-grid');
     if (!grid) return;
     if (!list || list.length === 0) {
-        grid.innerHTML = `<p style="color:var(--text-secondary);font-size:0.85rem;grid-column:1/-1;text-align:center;padding:2rem;">${escapeHtml(t('setup.plan_no_profiles'))}</p>`;
+        grid.innerHTML = `<p class="profile-state-message profile-empty-state">${escapeHtml(t('setup.plan_no_profiles'))}</p>`;
         return;
     }
     grid.innerHTML = list.map(p => {
@@ -621,20 +621,27 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
 
 async function openOpenRouterBrowser(onSelect) {
 
+    const previouslyFocused = document.activeElement;
     const existing = document.getElementById('or-browser-overlay');
     if (existing) existing.remove();
 
     const overlay = document.createElement('div');
     overlay.id = 'or-browser-overlay';
     overlay.className = 'or-browser-overlay';
-    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+    const closeBrowser = () => {
+        overlay.remove();
+        if (previouslyFocused && typeof previouslyFocused.focus === 'function') {
+            previouslyFocused.focus();
+        }
+    };
+    overlay.onclick = (e) => { if (e.target === overlay) closeBrowser(); };
 
     overlay.innerHTML = `
-            <div class="or-browser-modal" onclick="event.stopPropagation()">
+            <div class="or-browser-modal" role="dialog" aria-modal="true" aria-labelledby="or-browser-title" tabindex="-1">
                 <div class="or-browser-header">
                     <div class="or-browser-title-row">
-                        <div class="or-browser-title">${t('setup.or_browser_title')}</div>
-                        <button onclick="document.getElementById('or-browser-overlay').remove()" class="or-browser-close-btn">✕</button>
+                        <div class="or-browser-title" id="or-browser-title">${t('setup.or_browser_title')}</div>
+                        <button type="button" id="or-browser-close" class="or-browser-close-btn" aria-label="${escapeAttr(t('common.close'))}">✕</button>
                     </div>
                     <div class="or-browser-controls">
                         <input id="or-search" class="field-input or-search-input" type="text" placeholder="${t('setup.or_browser_search_placeholder')}">
@@ -663,6 +670,37 @@ async function openOpenRouterBrowser(onSelect) {
     const countDiv = document.getElementById('or-count');
     const loadingDiv = document.getElementById('or-loading');
     const listWrap = document.getElementById('or-list-wrap');
+    const modal = overlay.querySelector('.or-browser-modal');
+    const closeButton = document.getElementById('or-browser-close');
+
+    modal.onclick = (event) => event.stopPropagation();
+    closeButton.onclick = closeBrowser;
+    overlay.onkeydown = (event) => {
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            closeBrowser();
+            return;
+        }
+        if (event.key !== 'Tab') return;
+
+        const focusable = Array.from(overlay.querySelectorAll(
+            'button:not([disabled]), input:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'
+        )).filter(element => element.getAttribute('aria-hidden') !== 'true');
+        if (focusable.length === 0) {
+            event.preventDefault();
+            modal.focus();
+            return;
+        }
+
+        if (event.shiftKey && document.activeElement === focusable[0]) {
+            event.preventDefault();
+            focusable[focusable.length - 1].focus();
+        } else if (!event.shiftKey && document.activeElement === focusable[focusable.length - 1]) {
+            event.preventDefault();
+            focusable[0].focus();
+        }
+    };
+    searchInput.focus();
 
     let allModels = [];
     let freeOnly = false;
@@ -786,7 +824,7 @@ async function openOpenRouterBrowser(onSelect) {
                 inputPerMillion: parseFloat(m.pricing.prompt || '0') * 1000000,
                 outputPerMillion: parseFloat(m.pricing.completion || '0') * 1000000,
             });
-            overlay.remove();
+            closeBrowser();
         };
     }
 
@@ -801,7 +839,6 @@ async function openOpenRouterBrowser(onSelect) {
         renderList();
     };
     renderList();
-    searchInput.focus();
 }
 
 // ── Provider Change Handler ──────────────────
@@ -1094,8 +1131,13 @@ function renderStepIndicator() {
         const clickable = isReachable || isCompleted;
         const raw = t(labels[i]);
         const label = (raw && raw !== labels[i]) ? raw : labels[i].split('.').pop();
+        const stepContent = isCompleted ? '✓' : i + 1;
         html += `<div class="step-group">`;
-        html += `<div class="${classes}"${clickable ? ` onclick="goToStep(${i})" style="cursor:pointer"` : ''}>${isCompleted ? '✓' : i + 1}</div>`;
+        if (clickable) {
+            html += `<button type="button" class="${classes}" aria-label="${escapeAttr(label)}" onclick="goToStep(${i})">${stepContent}</button>`;
+        } else {
+            html += `<div class="${classes}" aria-label="${escapeAttr(label)}"${isActive ? ' aria-current="step"' : ''}>${stepContent}</div>`;
+        }
         html += `<span class="step-label">${escapeHtml(label)}</span>`;
         html += `</div>`;
         if (i < flow.length - 1) {

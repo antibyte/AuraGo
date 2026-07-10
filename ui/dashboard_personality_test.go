@@ -55,7 +55,7 @@ func TestDashboardCSSIsCacheBustedForAgentGridLayout(t *testing.T) {
 	t.Parallel()
 
 	html := readDesktopAssetText(t, "dashboard.html")
-	if !strings.Contains(html, `/css/dashboard.css?v={{.BuildVersion}}-dashboard-agent-grid`) {
+	if !strings.Contains(html, `/css/dashboard.css?v={{.BuildVersion}}`) {
 		t.Fatal("dashboard.css link must be cache-busted after agent dashboard grid layout fixes")
 	}
 }

@@ -593,3 +593,182 @@
                 font-size: var(--text-base);
             }
         }
+
+/* === Precision Entry Login Adapter: start === */
+.pw-page.pw-entry-page[data-entry-page="login"] {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    min-height: 100dvh;
+    padding: clamp(4.75rem, 10vh, 7rem) max(1rem, env(safe-area-inset-right, 0px)) max(1.5rem, env(safe-area-inset-bottom, 0px));
+    overflow-x: clip;
+    background: var(--pw-canvas);
+    background-image: none;
+    color: var(--pw-text);
+}
+
+.pw-page.pw-entry-page[data-entry-page="login"]:where(:root[data-theme="light"] *) {
+    background: var(--pw-canvas);
+    color: var(--pw-text);
+}
+
+.pw-page.pw-entry-page[data-entry-page="login"] #bg-canvas {
+    position: fixed;
+    inset: 0;
+    max-width: none;
+    opacity: 0.34;
+    filter: none;
+    box-shadow: none;
+}
+
+.pw-page.pw-entry-page[data-entry-page="login"] .corner-theme {
+    top: max(1rem, env(safe-area-inset-top, 0px));
+    right: max(1rem, env(safe-area-inset-right, 0px));
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+    border: 1px solid var(--pw-line-strong);
+    border-radius: var(--pw-radius-sm);
+    background: var(--pw-surface);
+    color: var(--pw-muted);
+    box-shadow: none;
+    backdrop-filter: none;
+}
+
+.pw-page.pw-entry-page[data-entry-page="login"] .login-card {
+    z-index: 1;
+    width: min(100%, 420px);
+    max-width: 420px;
+    padding: clamp(1.5rem, 5vw, 2.5rem);
+    border: 1px solid var(--pw-line-strong);
+    border-radius: var(--pw-radius-lg);
+    background: var(--pw-surface);
+    background-image: none;
+    box-shadow: none;
+    backdrop-filter: none;
+    overflow-wrap: anywhere;
+}
+
+.pw-page.pw-entry-page[data-entry-page="login"] .login-card::before,
+.pw-page.pw-entry-page[data-entry-page="login"] .login-card::after {
+    display: none;
+    background-image: none;
+    box-shadow: none;
+}
+
+.pw-page.pw-entry-page[data-entry-page="login"] .login-logo-icon {
+    border: 1px solid color-mix(in srgb, var(--pw-accent) 42%, var(--pw-line));
+    background: color-mix(in srgb, var(--pw-accent) 12%, var(--pw-surface));
+    background-image: none;
+    color: var(--pw-accent);
+    box-shadow: none;
+}
+
+.pw-page.pw-entry-page[data-entry-page="login"] .login-title {
+    background: none;
+    background-image: none;
+    color: var(--pw-text);
+    -webkit-text-fill-color: currentColor;
+    text-shadow: none;
+}
+
+.pw-page.pw-entry-page[data-entry-page="login"] .login-subtitle,
+.pw-page.pw-entry-page[data-entry-page="login"] .login-label {
+    color: var(--pw-muted);
+}
+
+.pw-page.pw-entry-page[data-entry-page="login"] .login-input {
+    min-height: 46px;
+    border: 1px solid var(--pw-line-strong);
+    border-radius: var(--pw-radius-sm);
+    background: var(--input-bg);
+    background-image: none;
+    color: var(--pw-text);
+    box-shadow: none;
+}
+
+.pw-page.pw-entry-page[data-entry-page="login"] .login-input:hover,
+.pw-page.pw-entry-page[data-entry-page="login"] .login-input:focus {
+    border-color: var(--pw-accent);
+    background: var(--input-bg);
+    box-shadow: none;
+}
+
+.pw-page.pw-entry-page[data-entry-page="login"] .eye-btn {
+    min-width: 44px;
+    min-height: 44px;
+    color: var(--pw-muted);
+}
+
+.pw-page.pw-entry-page[data-entry-page="login"] .btn-login {
+    min-height: 46px;
+    border: 1px solid var(--pw-accent);
+    border-radius: var(--pw-radius-sm);
+    background: var(--pw-accent);
+    background-image: none;
+    color: var(--pw-canvas);
+    box-shadow: none;
+}
+
+.pw-page.pw-entry-page[data-entry-page="login"] .btn-login:hover,
+.pw-page.pw-entry-page[data-entry-page="login"] .btn-login:active {
+    background: var(--pw-accent-strong);
+    box-shadow: none;
+    transform: none;
+}
+
+.pw-page.pw-entry-page[data-entry-page="login"] .login-error {
+    border: 1px solid color-mix(in srgb, var(--pw-danger) 38%, var(--pw-line));
+    border-radius: var(--pw-radius-sm);
+    background: color-mix(in srgb, var(--pw-danger) 10%, var(--pw-surface));
+    color: var(--pw-danger);
+    box-shadow: none;
+}
+
+.pw-page.pw-entry-page[data-entry-page="login"]:where(:root[data-theme="light"] *) .login-card,
+.pw-page.pw-entry-page[data-entry-page="login"]:where(:root[data-theme="light"] *) .corner-theme {
+    background: var(--pw-surface);
+    border-color: var(--pw-line-strong);
+    box-shadow: none;
+}
+
+@media (max-width: 768px) {
+    .pw-page.pw-entry-page[data-entry-page="login"] {
+        align-items: flex-start;
+        padding: calc(4.75rem + env(safe-area-inset-top, 0px)) 1rem calc(1rem + env(safe-area-inset-bottom, 0px));
+    }
+}
+
+@media (max-width: 640px) {
+    .pw-page.pw-entry-page[data-entry-page="login"] .login-card {
+        width: 100%;
+        max-width: 100%;
+        padding: 1.5rem 1.25rem;
+        border-radius: var(--pw-radius-md);
+    }
+
+    .pw-page.pw-entry-page[data-entry-page="login"] .login-input,
+    .pw-page.pw-entry-page[data-entry-page="login"] .btn-login,
+    .pw-page.pw-entry-page[data-entry-page="login"] .eye-btn,
+    .pw-page.pw-entry-page[data-entry-page="login"] .corner-theme {
+        min-width: 44px;
+        min-height: 44px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .pw-page.pw-entry-page[data-entry-page="login"] #bg-canvas {
+        display: none !important;
+    }
+
+    .pw-page.pw-entry-page[data-entry-page="login"] .css-fallback-bg,
+    .pw-page.pw-entry-page[data-entry-page="login"] .login-card,
+    .pw-page.pw-entry-page[data-entry-page="login"] .login-card::before,
+    .pw-page.pw-entry-page[data-entry-page="login"] .login-card::after {
+        animation: none;
+        transition: none;
+    }
+}
+/* === Precision Entry Login Adapter: end === */

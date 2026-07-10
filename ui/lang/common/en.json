@@ -77,5 +77,8 @@
   "notfound.title": "Page not found",
   "notfound.description": "The page you are looking for does not exist or has been moved.",
   "notfound.go_home": "Go to Chat",
-  "notfound.go_dashboard": "Dashboard"
+  "notfound.go_dashboard": "Dashboard",
+  "common.workspace_density_toggle": "Toggle workspace density",
+  "common.workspace_density_comfortable": "Comfortable",
+  "common.workspace_density_compact": "Compact"
 }

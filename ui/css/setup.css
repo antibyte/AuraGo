@@ -962,6 +962,401 @@
     }
 }
 
+/* === Precision Entry Setup Adapter: start === */
+.pw-page.pw-entry-page[data-entry-page="setup"] {
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow-x: clip;
+    background: var(--pw-canvas);
+    background-image: none;
+    color: var(--pw-text);
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"]:where(:root[data-theme="light"] *) {
+    background: var(--pw-canvas);
+    color: var(--pw-text);
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .setup-header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    min-height: 64px;
+    border-bottom: 1px solid var(--pw-line);
+    background: color-mix(in srgb, var(--pw-canvas) 94%, transparent);
+    background-image: none;
+    box-shadow: none;
+    backdrop-filter: blur(12px);
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .setup-header .logo-icon {
+    background: none;
+    background-image: none;
+    color: var(--pw-accent);
+    box-shadow: none;
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .setup-header-nav {
+    min-width: 0;
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .setup-container {
+    width: 100%;
+    min-height: calc(100dvh - 64px);
+    padding: clamp(1rem, 3vw, 2rem);
+    overflow-x: clip;
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .setup-card {
+    width: min(100%, 1080px);
+    max-width: 1080px;
+    border: 1px solid var(--pw-line-strong);
+    border-radius: var(--pw-radius-lg);
+    background: var(--pw-surface);
+    background-image: none;
+    box-shadow: none;
+    backdrop-filter: none;
+    overflow: clip;
+    overflow-wrap: anywhere;
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .setup-card::before {
+    background: none;
+    background-image: none;
+    box-shadow: none;
+    filter: none;
+    opacity: 0;
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .step-indicator {
+    border-bottom: 1px solid var(--pw-line);
+    background: var(--pw-surface);
+    background-image: none;
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .step-dot,
+.pw-page.pw-entry-page[data-entry-page="setup"] .step-dot.active,
+.pw-page.pw-entry-page[data-entry-page="setup"] .step-dot.completed {
+    background-image: none;
+    box-shadow: none;
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .step-dot.active {
+    border-color: var(--pw-accent);
+    background: var(--pw-accent);
+    color: var(--pw-canvas);
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .setup-section {
+    padding: clamp(1.25rem, 4vw, 2.5rem);
+    background: var(--pw-surface);
+    background-image: none;
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .setup-inner-card,
+.pw-page.pw-entry-page[data-entry-page="setup"] .profile-card,
+.pw-page.pw-entry-page[data-entry-page="setup"] .trust-card-inner,
+.pw-page.pw-entry-page[data-entry-page="setup"] .success-config-links {
+    border: 1px solid var(--pw-line);
+    border-radius: var(--pw-radius-md);
+    background: var(--pw-surface-elevated);
+    background-image: none;
+    box-shadow: none;
+    filter: none;
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .profile-card:hover,
+.pw-page.pw-entry-page[data-entry-page="setup"] .profile-card.selected,
+.pw-page.pw-entry-page[data-entry-page="setup"] .trust-level-card:hover .trust-card-inner,
+.pw-page.pw-entry-page[data-entry-page="setup"] .trust-level-card input[type="radio"]:checked ~ .trust-card-inner {
+    border-color: var(--pw-accent);
+    background: color-mix(in srgb, var(--pw-accent) 7%, var(--pw-surface-elevated));
+    box-shadow: none;
+    transform: none;
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .profile-card::before {
+    background: none;
+    background-image: none;
+    box-shadow: none;
+    filter: none;
+    opacity: 0;
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .profile-recommended-bubble {
+    background: var(--pw-accent);
+    background-image: none;
+    color: var(--pw-canvas);
+    box-shadow: none;
+    text-shadow: none;
+    filter: none;
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .profile-state-message {
+    margin: 0;
+    color: var(--pw-muted);
+    font-size: var(--pw-meta-size);
+    line-height: 1.55;
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .profile-load-error {
+    color: var(--pw-danger);
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .profile-empty-state {
+    grid-column: 1 / -1;
+    padding: 2rem;
+    text-align: center;
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .field-input,
+.pw-page.pw-entry-page[data-entry-page="setup"] .field-select,
+.pw-page.pw-entry-page[data-entry-page="setup"] textarea {
+    width: 100%;
+    min-height: 46px;
+    border: 1px solid var(--pw-line-strong);
+    border-radius: var(--pw-radius-sm);
+    background: var(--input-bg);
+    background-image: none;
+    color: var(--pw-text);
+    box-shadow: none;
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .field-input:hover,
+.pw-page.pw-entry-page[data-entry-page="setup"] .field-input:focus,
+.pw-page.pw-entry-page[data-entry-page="setup"] .field-select:hover,
+.pw-page.pw-entry-page[data-entry-page="setup"] .field-select:focus,
+.pw-page.pw-entry-page[data-entry-page="setup"] textarea:hover,
+.pw-page.pw-entry-page[data-entry-page="setup"] textarea:focus {
+    border-color: var(--pw-accent);
+    background: var(--input-bg);
+    box-shadow: none;
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .btn-setup,
+.pw-page.pw-entry-page[data-entry-page="setup"] .btn-header,
+.pw-page.pw-entry-page[data-entry-page="setup"] .btn-skip,
+.pw-page.pw-entry-page[data-entry-page="setup"] .btn-theme,
+.pw-page.pw-entry-page[data-entry-page="setup"] .or-free-btn,
+.pw-page.pw-entry-page[data-entry-page="setup"] .or-apply-btn,
+.pw-page.pw-entry-page[data-entry-page="setup"] .or-browser-close-btn {
+    min-height: 44px;
+    border-radius: var(--pw-radius-sm);
+    background-image: none;
+    box-shadow: none;
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .btn-next,
+.pw-page.pw-entry-page[data-entry-page="setup"] .or-apply-btn {
+    border-color: var(--pw-accent);
+    background: var(--pw-accent);
+    color: var(--pw-canvas);
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .btn-next:hover,
+.pw-page.pw-entry-page[data-entry-page="setup"] .or-apply-btn:hover {
+    background: var(--pw-accent-strong);
+    box-shadow: none;
+    transform: none;
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .profile-loading-spinner {
+    margin: 0 auto 0.5rem;
+    box-shadow: none;
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .setup-footer {
+    border-top: 1px solid var(--pw-line);
+    background: var(--pw-surface);
+    background-image: none;
+    box-shadow: none;
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .https-warning {
+    border: 1px solid color-mix(in srgb, var(--pw-warning) 34%, var(--pw-line));
+    background: color-mix(in srgb, var(--pw-warning) 9%, var(--pw-surface));
+    background-image: none;
+    color: var(--pw-text);
+    box-shadow: none;
+    filter: none;
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] #step-indicator .step-dot {
+    appearance: none;
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+    padding: 0;
+    border: 1px solid var(--pw-line-strong);
+    border-radius: 50%;
+    background: var(--pw-surface-elevated);
+    background-image: none;
+    color: var(--pw-muted);
+    font: inherit;
+    line-height: 1;
+    box-shadow: none;
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] #step-indicator button.step-dot {
+    cursor: pointer;
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] #step-indicator .step-dot.active {
+    border-color: var(--pw-accent);
+    background: var(--pw-accent);
+    background-image: none;
+    color: var(--pw-canvas);
+    box-shadow: none;
+    text-shadow: none;
+    filter: none;
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] #step-indicator .step-dot.completed,
+.pw-page.pw-entry-page[data-entry-page="setup"] #step-indicator .step-dot.reachable {
+    border-color: color-mix(in srgb, var(--pw-accent) 58%, var(--pw-line));
+    background: color-mix(in srgb, var(--pw-accent) 10%, var(--pw-surface-elevated));
+    background-image: none;
+    color: var(--pw-accent-strong);
+    box-shadow: none;
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .or-browser-overlay {
+    padding: 1rem;
+    background: color-mix(in srgb, var(--pw-canvas) 78%, transparent);
+    background-image: none;
+    backdrop-filter: none;
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .or-browser-modal {
+    width: min(100%, 920px);
+    max-height: calc(100dvh - 2rem);
+    border: 1px solid var(--pw-line-strong);
+    border-radius: var(--pw-radius-lg);
+    background: var(--pw-surface);
+    background-image: none;
+    box-shadow: none;
+    filter: none;
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .or-browser-header,
+.pw-page.pw-entry-page[data-entry-page="setup"] .or-browser-body,
+.pw-page.pw-entry-page[data-entry-page="setup"] .or-detail,
+.pw-page.pw-entry-page[data-entry-page="setup"] .or-list-wrap {
+    min-width: 0;
+    background: var(--pw-surface);
+    background-image: none;
+    box-shadow: none;
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .or-model-row,
+.pw-page.pw-entry-page[data-entry-page="setup"] .or-detail {
+    overflow-wrap: anywhere;
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .or-model-row:hover,
+.pw-page.pw-entry-page[data-entry-page="setup"] .or-model-row.is-selected {
+    background: color-mix(in srgb, var(--pw-accent) 8%, var(--pw-surface));
+    background-image: none;
+    box-shadow: none;
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"]:where(:root[data-theme="light"] *) .setup-header,
+.pw-page.pw-entry-page[data-entry-page="setup"]:where(:root[data-theme="light"] *) .setup-card,
+.pw-page.pw-entry-page[data-entry-page="setup"]:where(:root[data-theme="light"] *) .or-browser-modal {
+    background: var(--pw-surface);
+    border-color: var(--pw-line-strong);
+    box-shadow: none;
+}
+
+@media (max-width: 1100px) {
+    .pw-page.pw-entry-page[data-entry-page="setup"] .cfg-header .header-actions {
+        padding-right: 0;
+    }
+
+    .pw-page.pw-entry-page[data-entry-page="setup"] .cfg-header .header-actions::after {
+        content: none;
+        display: none;
+        min-width: 0;
+    }
+}
+
+@media (max-width: 768px) {
+    .pw-page.pw-entry-page[data-entry-page="setup"] .setup-header {
+        position: relative;
+        grid-template-columns: minmax(0, 1fr) auto;
+        min-height: 0;
+    }
+
+    .pw-page.pw-entry-page[data-entry-page="setup"] .setup-header-nav {
+        width: 100%;
+        overflow-x: auto;
+    }
+
+    .pw-page.pw-entry-page[data-entry-page="setup"] .setup-container {
+        min-height: auto;
+        padding: 1rem 0.75rem calc(1.25rem + env(safe-area-inset-bottom, 0px));
+    }
+
+    .pw-page.pw-entry-page[data-entry-page="setup"] .setup-card {
+        border-radius: var(--pw-radius-md);
+    }
+}
+
+@media (max-width: 640px) {
+    .pw-page.pw-entry-page[data-entry-page="setup"] .setup-header .logo-subtitle {
+        display: none;
+    }
+
+    .pw-page.pw-entry-page[data-entry-page="setup"] .setup-section {
+        padding: 1.25rem 1rem;
+    }
+
+    .pw-page.pw-entry-page[data-entry-page="setup"] .btn-setup,
+    .pw-page.pw-entry-page[data-entry-page="setup"] .btn-header,
+    .pw-page.pw-entry-page[data-entry-page="setup"] .btn-skip,
+    .pw-page.pw-entry-page[data-entry-page="setup"] .btn-theme,
+    .pw-page.pw-entry-page[data-entry-page="setup"] .field-input,
+    .pw-page.pw-entry-page[data-entry-page="setup"] .field-select,
+    .pw-page.pw-entry-page[data-entry-page="setup"] .or-free-btn,
+    .pw-page.pw-entry-page[data-entry-page="setup"] .or-apply-btn,
+    .pw-page.pw-entry-page[data-entry-page="setup"] .or-browser-close-btn {
+        min-width: 44px;
+        min-height: 44px;
+    }
+
+    .pw-page.pw-entry-page[data-entry-page="setup"] #step-indicator .step-dot {
+        width: 44px;
+        min-width: 44px;
+        height: 44px;
+        min-height: 44px;
+    }
+
+    .pw-page.pw-entry-page[data-entry-page="setup"] .or-browser-overlay {
+        align-items: flex-end;
+        padding: 0;
+    }
+
+    .pw-page.pw-entry-page[data-entry-page="setup"] .or-browser-modal {
+        width: 100%;
+        max-width: none;
+        height: min(92dvh, 760px);
+        max-height: 92dvh;
+        border-radius: var(--pw-radius-lg) var(--pw-radius-lg) 0 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .pw-page.pw-entry-page[data-entry-page="setup"] .spinner,
+    .pw-page.pw-entry-page[data-entry-page="setup"] .step-dot,
+    .pw-page.pw-entry-page[data-entry-page="setup"] .setup-card,
+    .pw-page.pw-entry-page[data-entry-page="setup"] .or-browser-modal {
+        animation: none;
+        transition: none;
+    }
+}
+/* === Precision Entry Setup Adapter: end === */
+
 /* ── HTTPS Warning Banner ──────────────────── */
 .https-warning {
     position: fixed;

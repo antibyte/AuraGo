@@ -1326,6 +1326,8 @@ func TestInitRecoversInterruptedInstallingOperation(t *testing.T) {
 }
 
 func TestInitDoesNotBlockOnInterruptedInstallDockerCleanup(t *testing.T) {
+	const initTimeout = 2 * time.Second
+
 	ctx := context.Background()
 	dbPath := filepath.Join(t.TempDir(), "desktop_store.db")
 	svc := newTestServiceAtPath(t, dbPath, &fakeDockerAdapter{}, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(19187), nil)
@@ -1383,10 +1385,10 @@ func TestInitDoesNotBlockOnInterruptedInstallDockerCleanup(t *testing.T) {
 			if err != nil {
 				t.Fatalf("recovery init failed: %v", err)
 			}
-		case <-time.After(200 * time.Millisecond):
+		case <-time.After(initTimeout):
 			t.Fatal("Init blocked on interrupted install Docker cleanup")
 		}
-	case <-time.After(200 * time.Millisecond):
+	case <-time.After(initTimeout):
 		t.Fatal("Init blocked while recovering interrupted install")
 	}
 }

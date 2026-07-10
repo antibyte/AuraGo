@@ -77,5 +77,8 @@
   "notfound.title": "Stránka nenalezena",
   "notfound.description": "Stránka, kterou hledáte, neexistuje nebo byla přesunuta.",
   "notfound.go_home": "Přejít na chat",
-  "notfound.go_dashboard": "Nástěnka"
+  "notfound.go_dashboard": "Nástěnka",
+  "common.workspace_density_toggle": "Přepnout hustotu pracovního prostoru",
+  "common.workspace_density_comfortable": "Pohodlné",
+  "common.workspace_density_compact": "Kompaktní"
 }

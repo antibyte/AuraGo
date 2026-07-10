@@ -25,11 +25,13 @@
     <script src="/js/shared/template-data.js?v={{.BuildVersion}}"></script>
     <script src="/js/shared/shared-core.js?v={{.BuildVersion}}"></script>
     <script src="/js/shared/shared-chat.js?v={{.BuildVersion}}"></script>
-    <link rel="stylesheet" href="/css/cheatsheets.css">
+    <link rel="stylesheet" href="/css/cheatsheets.css?v={{.BuildVersion}}">
     <link rel="stylesheet" href="/css/enhancements.css?v=20260425a">
+    <link rel="stylesheet" href="/css/precision-workspace.css?v={{.BuildVersion}}">
+    <link rel="stylesheet" href="/css/precision-pages.css?v={{.BuildVersion}}">
     <link href="/fonts/fonts.css" rel="stylesheet">
 </head>
-<body>
+<body class="pw-page pw-operational-page" data-workspace-page="cheatsheets" data-density="comfortable">
     <a href="#main-content" class="skip-link" data-i18n="common.skip_to_content"></a>
     <header class="app-header">
         <div class="header-left">
@@ -161,7 +163,7 @@
                 <div class="attachments-actions">
                     <label class="btn btn-secondary btn-sm attachment-upload-btn">
                         <span>📎</span> <span data-i18n="cheatsheets.upload_file"></span>
-                        <input type="file" id="attachment-file-input" accept=".txt,.md" style="display:none" onchange="uploadAttachment(this)">
+                        <input type="file" id="attachment-file-input" accept=".txt,.md" class="is-hidden" onchange="uploadAttachment(this)">
                     </label>
                     <button class="btn btn-secondary btn-sm" onclick="openKnowledgePicker()">
                         <span>📚</span> <span data-i18n="cheatsheets.from_knowledge"></span>
@@ -212,7 +214,7 @@
     <!-- Toast -->
     <div class="toast" id="toast"></div>
 
+    <script src="/js/precision/workspace.js?v={{.BuildVersion}}"></script>
     <script src="/js/cheatsheets/main.js"></script>
 </body>
 </html>
-

@@ -10,7 +10,7 @@
     <meta name="apple-mobile-web-app-title" content="AuraGo" />
     <link rel="manifest" href="/site.webmanifest" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
-    <title></title>
+    <title>AuraGo – Configuration</title>
     <meta name="description" data-i18n="config.page_description" data-i18n-attr="content"
         content="">
     <meta property="og:title" data-i18n="config.page_title" data-i18n-attr="content" content="">
@@ -35,11 +35,12 @@
     <link rel="stylesheet" href="/css/config.css?v=20260520a">
     <link rel="stylesheet" href="/css/enhancements.css?v=20260430a">
     <link rel="stylesheet" href="/css/precision-workspace.css?v={{.BuildVersion}}">
+    <link rel="stylesheet" href="/css/precision-pages.css?v={{.BuildVersion}}">
     <link rel="stylesheet" href="/css/config-workspace.css?v={{.BuildVersion}}">
     <link rel="stylesheet" href="/css/secrets-shared.css?v={{.BuildVersion}}">
 </head>
 
-<body class="pw-page" data-density="comfortable">
+<body class="pw-page" data-workspace-page="config" data-density="comfortable">
     <a href="#main-content" class="skip-link" data-i18n="common.skip_to_content"></a>
     <!-- Header -->
     <div class="cfg-header">
@@ -54,11 +55,12 @@
         </div>
         <div class="header-actions">
             <button id="cfg-density-toggle" type="button" class="pw-density-toggle" aria-pressed="false"
-                data-i18n-title="config.precision.density_toggle" data-i18n-aria-label="config.precision.density_toggle">
+                data-pw-density-toggle data-i18n-title="common.workspace_density_toggle"
+                data-i18n-aria-label="common.workspace_density_toggle">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M5 7h14M5 12h14M5 17h14" />
                 </svg>
-                <span data-i18n="config.precision.density_comfortable"></span>
+                <span data-pw-density-label data-i18n="common.workspace_density_comfortable"></span>
             </button>
             <button id="cfg-restart-btn" class="btn-header cfg-restart-btn cfg-restart-danger" onclick="restartAuraGo()">
                 <span class="cfg-restart-full" data-i18n="config.header.restart_full"></span>
@@ -122,6 +124,7 @@
     <script src="/js/config/actions.js?v={{.BuildVersion}}"></script>
     <script src="/cfg/form-builder.js?v={{.BuildVersion}}"></script>
     <script src="/js/config/utils.js?v={{.BuildVersion}}"></script>
+    <script src="/js/precision/workspace.js?v={{.BuildVersion}}"></script>
     <script src="/js/config/main.js?v={{.BuildVersion}}"></script>
 
     <!-- Vault delete confirmation modal -->
@@ -149,4 +152,3 @@
 </body>
 
 </html>
-

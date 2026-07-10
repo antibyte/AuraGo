@@ -1,88 +1,102 @@
-/* ══════════════════════════════════════════════════════════════
-   AuraGo – Invasion Control page styles (Premium Redesign)
-   Aligned with dashboard.css glassmorphism & interaction language
-   ══════════════════════════════════════════════════════════════ */
-
 /* Page-specific overrides only — base components live in shared-components.css */
 
-.container {
-    max-width: 1320px;
-    margin: 0 auto;
-    padding: var(--space-6) var(--space-5) 60px;
-    overflow-x: hidden;
+.pw-page[data-workspace-page="invasion"][data-density="compact"] .container {
+    padding-block: 1.25rem;
 }
 
-.page-header {
+.pw-page[data-workspace-page="invasion"] .container {
+    max-width: 1320px;
+    margin: 0 auto;
+    overflow-x: hidden;
+    width: min(100%, var(--pw-content-max));
+    margin-inline: auto;
+    padding: clamp(1rem, 3vw, 2.5rem);
+}
+
+.pw-page[data-workspace-page="invasion"] .page-header {
     margin-top: var(--space-2);
 }
 
 /* ── Cards Grid ── */
-.cards-grid {
+
+.pw-page[data-workspace-page="invasion"] .cards-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
-    gap: var(--space-5);
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+    gap: 1rem;
 }
 
 /* Card enter animation — page-specific stagger */
-.cards-grid .card {
-    animation: invCardEnter 0.55s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+
+.pw-page[data-workspace-page="invasion"] .cards-grid .card {
     position: relative;
     overflow: hidden;
     border-radius: calc(var(--radius) * 0.7);
     transition: all var(--transition-slow) cubic-bezier(0.2, 1, 0.22, 1);
 }
 
-.cards-grid .card::before {
-    content: '';
+.pw-page[data-workspace-page="invasion"] .cards-grid .card::before {
     position: absolute;
-    top: 0; left: 12%; right: 12%; height: 1px;
-    background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent) 50%, transparent), transparent);
+    top: 0;
+    left: 12%;
+    right: 12%;
+    height: 1px;
     opacity: 0;
     transition: opacity var(--transition-slow) ease;
 }
 
-.cards-grid .card::after {
-    content: '';
+.pw-page[data-workspace-page="invasion"] .cards-grid .card::after {
     position: absolute;
     inset: 0;
-    background: radial-gradient(ellipse 75% 35% at 50% 0%, color-mix(in srgb, var(--accent) 5%, transparent), transparent 70%);
     opacity: 0;
     transition: opacity var(--transition-slow) ease;
     pointer-events: none;
     border-radius: inherit;
 }
 
-.cards-grid .card:hover {
-    border-color: color-mix(in srgb, var(--accent) 45%, var(--border-subtle));
+.pw-page[data-workspace-page="invasion"] .cards-grid .card:hover {
+    border-color: color-mix(in srgb, var(--pw-accent) 45%, var(--pw-line));
     transform: translateY(-4px);
-    box-shadow:
-        var(--surface-shadow-strong),
-        0 0 0 1px color-mix(in srgb, var(--accent) 15%, transparent),
-        inset 0 1px 0 rgba(255,255,255,0.06),
-        0 20px 40px rgba(0,0,0,0.16);
 }
 
-.cards-grid .card:hover::before,
-.cards-grid .card:hover::after {
+.pw-page[data-workspace-page="invasion"] .cards-grid .card:hover::before, .pw-page[data-workspace-page="invasion"] .cards-grid .card:hover::after {
     opacity: 1;
 }
 
-.cards-grid .card:nth-child(1) { animation-delay: 0ms; }
-.cards-grid .card:nth-child(2) { animation-delay: 60ms; }
-.cards-grid .card:nth-child(3) { animation-delay: 120ms; }
-.cards-grid .card:nth-child(4) { animation-delay: 180ms; }
-.cards-grid .card:nth-child(5) { animation-delay: 240ms; }
-.cards-grid .card:nth-child(6) { animation-delay: 300ms; }
-.cards-grid .card:nth-child(7) { animation-delay: 360ms; }
-.cards-grid .card:nth-child(8) { animation-delay: 420ms; }
+.pw-page[data-workspace-page="invasion"] .cards-grid .card:nth-child(1) {
+    animation-delay: 0ms;
+}
 
-@keyframes invCardEnter {
-    from { opacity: 0; transform: translateY(14px) scale(0.985); }
-    to   { opacity: 1; transform: translateY(0) scale(1); }
+.pw-page[data-workspace-page="invasion"] .cards-grid .card:nth-child(2) {
+    animation-delay: 60ms;
+}
+
+.pw-page[data-workspace-page="invasion"] .cards-grid .card:nth-child(3) {
+    animation-delay: 120ms;
+}
+
+.pw-page[data-workspace-page="invasion"] .cards-grid .card:nth-child(4) {
+    animation-delay: 180ms;
+}
+
+.pw-page[data-workspace-page="invasion"] .cards-grid .card:nth-child(5) {
+    animation-delay: 240ms;
+}
+
+.pw-page[data-workspace-page="invasion"] .cards-grid .card:nth-child(6) {
+    animation-delay: 300ms;
+}
+
+.pw-page[data-workspace-page="invasion"] .cards-grid .card:nth-child(7) {
+    animation-delay: 360ms;
+}
+
+.pw-page[data-workspace-page="invasion"] .cards-grid .card:nth-child(8) {
+    animation-delay: 420ms;
 }
 
 /* Card content specific to invasion */
-.card-header {
+
+.pw-page[data-workspace-page="invasion"] .card-header {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
@@ -90,41 +104,57 @@
     gap: var(--space-3);
 }
 
-.card-meta {
+.pw-page[data-workspace-page="invasion"] .card-title, .pw-page[data-workspace-page="invasion"] .card-meta span, .pw-page[data-workspace-page="invasion"] .inv-note-text, .pw-page[data-workspace-page="invasion"] .inv-hatch-error, .pw-page[data-workspace-page="invasion"] .rev-field, .pw-page[data-workspace-page="invasion"] .rev-error, .pw-page[data-workspace-page="invasion"] .rev-source {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.pw-page[data-workspace-page="invasion"] .card-meta {
     display: flex;
     flex-direction: column;
     gap: var(--space-2);
     margin-bottom: var(--space-3);
     font-size: var(--text-sm);
-    color: var(--text-secondary);
+    color: var(--pw-muted);
     line-height: 1.4;
 }
 
-.card-meta span {
+.pw-page[data-workspace-page="invasion"] .card-meta span {
     display: flex;
     align-items: center;
     gap: var(--space-2);
 }
 
-.card-actions {
+.pw-page[data-workspace-page="invasion"][data-density="compact"] .card, .pw-page[data-workspace-page="invasion"][data-density="compact"] .config-history-item {
+    padding: 0.75rem;
+}
+
+.pw-page[data-workspace-page="invasion"]:where(:root[data-theme="light"] *) .card, .pw-page[data-workspace-page="invasion"]:where(:root[data-theme="light"] *) .invasion-tabs, .pw-page[data-workspace-page="invasion"]:where(:root[data-theme="light"] *) .config-history-item, .pw-page[data-workspace-page="invasion"]:where(:root[data-theme="light"] *) .modal {
+    background: var(--pw-surface);
+}
+
+.pw-page[data-workspace-page="invasion"] .card:hover, .pw-page[data-workspace-page="invasion"] .config-history-item:hover, .pw-page[data-workspace-page="invasion"] .card-actions .btn:hover {
+    border-color: var(--pw-line-strong);
+    box-shadow: none;
+    transform: none;
+}
+
+.pw-page[data-workspace-page="invasion"] .card-actions {
     display: flex;
     gap: var(--space-2);
     flex-wrap: wrap;
     padding-top: var(--space-3);
-    border-top: 1px solid var(--border-subtle);
+    border-top: 1px solid var(--pw-line);
     margin-top: auto;
 }
 
-.card-actions .btn {
+.pw-page[data-workspace-page="invasion"] .card-actions .btn {
     transition: all var(--transition-base) cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.card-actions .btn:hover {
-    transform: translateY(-1px);
-}
-
 /* ── Validation Result ── */
-.validate-result {
+
+.pw-page[data-workspace-page="invasion"] .validate-result {
     margin-top: var(--space-3);
     padding: var(--space-3) var(--space-4);
     border-radius: var(--radius-xl);
@@ -133,14 +163,30 @@
     line-height: 1.4;
 }
 
-.validate-result.success {
+.pw-page[data-workspace-page="invasion"] .toast.error {
+    border-color: var(--pw-danger);
+    background: color-mix(in srgb, var(--pw-danger) 18%, var(--pw-surface));
+    background-image: none;
+    color: var(--pw-danger);
+    box-shadow: none;
+}
+
+.pw-page[data-workspace-page="invasion"] .toast.success {
+    border-color: var(--pw-success);
+    background: color-mix(in srgb, var(--pw-success) 18%, var(--pw-surface));
+    background-image: none;
+    color: var(--pw-success);
+    box-shadow: none;
+}
+
+.pw-page[data-workspace-page="invasion"] .validate-result.success {
     display: block;
     background: color-mix(in srgb, var(--success) 10%, transparent);
     color: var(--success);
     border: 1px solid color-mix(in srgb, var(--success) 25%, transparent);
 }
 
-.validate-result.error {
+.pw-page[data-workspace-page="invasion"] .validate-result.error {
     display: block;
     background: color-mix(in srgb, var(--danger) 10%, transparent);
     color: var(--danger);
@@ -148,54 +194,54 @@
 }
 
 /* ── Delete Confirm ── */
-.delete-confirm-input {
+
+.pw-page[data-workspace-page="invasion"] .delete-confirm-input {
     width: 100%;
     padding: var(--space-3) var(--space-4);
     margin-top: var(--space-3);
-    border: 1.5px solid color-mix(in srgb, var(--danger) 60%, var(--border-subtle));
+    border: 1.5px solid color-mix(in srgb, var(--danger) 60%, var(--pw-line));
     border-radius: var(--radius-xl);
-    background: color-mix(in srgb, var(--danger) 6%, var(--input-bg));
-    color: var(--text-primary);
+    background: color-mix(in srgb, var(--danger) 6%, var(--pw-surface-elevated));
+    color: var(--pw-text);
     font-size: var(--text-sm);
     font-family: inherit;
     transition: all var(--transition-slow) cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.delete-confirm-input:focus {
+.pw-page[data-workspace-page="invasion"] .delete-confirm-input:focus {
     outline: none;
     border-color: var(--danger);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 12%, transparent);
 }
 
-.resize-vertical {
+.pw-page[data-workspace-page="invasion"] .resize-vertical {
     resize: vertical;
 }
 
-.delete-modal-title {
+.pw-page[data-workspace-page="invasion"] .delete-modal-title {
     color: var(--danger);
     letter-spacing: -0.01em;
 }
 
-.delete-message {
+.pw-page[data-workspace-page="invasion"] .delete-message {
     margin: var(--space-3) 0;
     line-height: 1.5;
 }
 
-.delete-modal-hint {
+.pw-page[data-workspace-page="invasion"] .delete-modal-hint {
     font-size: var(--text-sm);
-    color: var(--text-secondary);
+    color: var(--pw-muted);
     line-height: 1.4;
 }
 
-.hint-subtle {
-    color: var(--text-secondary);
+.pw-page[data-workspace-page="invasion"] .hint-subtle {
+    color: var(--pw-muted);
     font-size: var(--text-sm);
     line-height: 1.4;
     margin-top: var(--space-1);
     display: block;
 }
 
-.inv-telemetry-row {
+.pw-page[data-workspace-page="invasion"] .inv-telemetry-row {
     display: flex;
     gap: var(--space-2);
     margin-top: var(--space-2);
@@ -203,62 +249,71 @@
     font-size: var(--text-xs);
 }
 
-.inv-hatch-error {
+.pw-page[data-workspace-page="invasion"] .inv-hatch-error {
     color: var(--danger);
     font-weight: 500;
 }
 
-.inv-note-text {
+.pw-page[data-workspace-page="invasion"] .inv-note-text {
     opacity: 0.7;
     font-style: italic;
 }
 
 /* Conditional fields */
-.hidden {
+
+.pw-page[data-workspace-page="invasion"] .hidden {
     display: none !important;
 }
 
 /* ── Invasion Tabs ── */
-.invasion-tabs {
+
+.pw-page[data-workspace-page="invasion"] .invasion-tabs {
     display: flex;
-    gap: var(--space-1);
     flex-wrap: nowrap;
-    overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
     margin-bottom: 22px;
-    padding: 0 0 2px;
-    background: none;
-    border: none;
-    border-bottom: 1px solid var(--border-subtle);
-    border-radius: 0;
+    border-bottom: 1px solid var(--pw-line);
     position: relative;
+    gap: 0.25rem;
+    overflow-x: auto;
+    padding: 0.25rem;
+    border: 1px solid var(--pw-line);
+    border-radius: var(--pw-radius-md);
+    background: var(--pw-surface);
+    background-image: none;
+    box-shadow: none;
 }
 
-.invasion-tabs::after {
-    content: '';
+.pw-page[data-workspace-page="invasion"] .invasion-tabs::after {
     position: absolute;
     bottom: -1px;
     left: 0;
     width: 100%;
     height: 1px;
-    background: linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--accent) 30%, transparent) 50%, transparent 100%);
     opacity: 0.4;
 }
 
-.invasion-tabs::-webkit-scrollbar {
+.pw-page[data-workspace-page="invasion"] .invasion-tabs::-webkit-scrollbar {
     display: none;
 }
 
-.invasion-tab {
+.pw-page[data-workspace-page="invasion"][data-density="compact"] .invasion-tab, .pw-page[data-workspace-page="invasion"][data-density="compact"] .btn, .pw-page[data-workspace-page="invasion"][data-density="compact"] input, .pw-page[data-workspace-page="invasion"][data-density="compact"] select {
+    min-height: 34px;
+}
+
+.pw-page[data-workspace-page="invasion"] .invasion-tab:focus-visible, .pw-page[data-workspace-page="invasion"] .btn:focus-visible, .pw-page[data-workspace-page="invasion"] .modal-close:focus-visible, .pw-page[data-workspace-page="invasion"] input:focus-visible, .pw-page[data-workspace-page="invasion"] select:focus-visible, .pw-page[data-workspace-page="invasion"] textarea:focus-visible {
+    outline: 2px solid var(--pw-accent);
+    outline-offset: 2px;
+    box-shadow: none;
+}
+
+.pw-page[data-workspace-page="invasion"] .invasion-tab {
     flex: 0 0 auto;
     padding: var(--space-3) var(--space-5);
     margin-bottom: -1px;
-    border: none;
     border-bottom: 2px solid transparent;
-    border-radius: 0;
-    background: none;
-    color: var(--text-secondary);
+    color: var(--pw-muted);
     font-size: var(--text-sm);
     font-weight: 500;
     cursor: pointer;
@@ -267,94 +322,109 @@
     transition: all var(--transition-slow) cubic-bezier(0.4, 0, 0.2, 1);
     font-family: inherit;
     position: relative;
+    min-height: 40px;
+    border: 1px solid transparent;
+    border-radius: var(--pw-radius-sm);
+    background: transparent;
+    background-image: none;
+    box-shadow: none;
 }
 
-.invasion-tab:hover:not(.active) {
-    color: var(--text-primary);
-    background: linear-gradient(180deg, transparent 60%, color-mix(in srgb, var(--accent) 5%, transparent) 100%);
+.pw-page[data-workspace-page="invasion"] .invasion-tabs::after, .pw-page[data-workspace-page="invasion"] .invasion-tab.active::after, .pw-page[data-workspace-page="invasion"] .cards-grid .card::before, .pw-page[data-workspace-page="invasion"] .cards-grid .card::after, .pw-page[data-workspace-page="invasion"] .modal::before {
+    content: none;
 }
 
-.invasion-tab.active {
-    color: var(--accent);
-    border-bottom-color: var(--accent);
+.pw-page[data-workspace-page="invasion"] .invasion-tab:hover:not(.active) {
+    color: var(--pw-text);
+}
+
+.pw-page[data-workspace-page="invasion"] .invasion-tab.active {
+    border-bottom-color: var(--pw-accent);
     font-weight: 600;
-    background: linear-gradient(180deg, transparent 60%, color-mix(in srgb, var(--accent) 10%, transparent) 100%);
+    border-color: var(--pw-line-strong);
+    background: var(--pw-surface-elevated);
+    color: var(--pw-accent-strong);
 }
 
-.invasion-tab.active::after {
-    content: '';
+.pw-page[data-workspace-page="invasion"] .invasion-tab.active::after {
     position: absolute;
     bottom: -1px;
     left: 20%;
     right: 20%;
     height: 1px;
-    background: linear-gradient(90deg, transparent, var(--accent), transparent);
     opacity: 0.7;
 }
 
 /* ── Modal Overrides ── */
-.modal-overlay {
-    background: rgba(0,0,0,0.55);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+
+.pw-page[data-workspace-page="invasion"] .modal-overlay {
     transition: opacity var(--transition-slow) ease;
+    align-items: center;
+    padding: 0.5rem;
+    background: color-mix(in srgb, var(--pw-canvas) 78%, transparent);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
 }
 
-.modal-overlay.open,
-.modal-overlay.active {
+.pw-page[data-workspace-page="invasion"] .modal-overlay.open, .pw-page[data-workspace-page="invasion"] .modal-overlay.active {
     opacity: 1;
     pointer-events: all;
 }
 
-.modal {
-    background: var(--card-bg);
-    border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--border-subtle));
-    border-radius: var(--radius-3xl);
-    box-shadow:
-        0 28px 72px rgba(0,0,0,0.45),
-        0 0 0 1px color-mix(in srgb, var(--accent) 8%, transparent),
-        inset 0 1px 0 rgba(255,255,255,0.04);
-    transform: scale(0.96) translateY(12px);
+.pw-page[data-workspace-page="invasion"] .modal {
     opacity: 0;
     transition: all var(--transition-slow) cubic-bezier(0.22, 1, 0.36, 1);
     position: relative;
-    overflow: hidden;
-    backdrop-filter: blur(24px) saturate(1.2);
-    -webkit-backdrop-filter: blur(24px) saturate(1.2);
+    width: min(100%, 680px);
+    max-height: calc(100dvh - 1rem);
+    overflow: auto;
+    border: 1px solid var(--pw-line-strong);
+    border-radius: var(--pw-radius-lg);
+    background: var(--pw-surface);
+    background-image: none;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    transform: none;
 }
 
-.modal-overlay.open .modal,
-.modal-overlay.active .modal {
+.pw-page[data-workspace-page="invasion"] .modal-overlay.open .modal, .pw-page[data-workspace-page="invasion"] .modal-overlay.active .modal {
     transform: scale(1) translateY(0);
     opacity: 1;
 }
 
-.modal::before {
-    content: '';
+.pw-page[data-workspace-page="invasion"] .modal::before {
     position: absolute;
-    top: 0; left: 15%; right: 15%; height: 1px;
-    background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent) 45%, transparent), transparent);
+    top: 0;
+    left: 15%;
+    right: 15%;
+    height: 1px;
     opacity: 0.7;
 }
 
-.modal-header {
-    padding: 1.05rem 1.25rem 0.75rem;
-    border-bottom: 1px solid var(--border-subtle);
-    background: linear-gradient(180deg, rgba(255,255,255,0.02) 0%, transparent 100%);
+.pw-page[data-workspace-page="invasion"] .modal-header, .pw-page[data-workspace-page="invasion"] .modal-actions {
+    border-color: var(--pw-line);
+    background: var(--pw-surface);
+    background-image: none;
 }
 
-.modal-header h2 {
+.pw-page[data-workspace-page="invasion"] .modal-header {
+    padding: 1.05rem 1.25rem 0.75rem;
+    border-bottom: 1px solid var(--pw-line);
+}
+
+.pw-page[data-workspace-page="invasion"] .modal-header h2 {
     font-size: var(--text-lg);
     font-weight: 700;
-    color: var(--text-primary);
+    color: var(--pw-text);
     margin: 0;
     letter-spacing: -0.01em;
 }
 
-.modal-close {
+.pw-page[data-workspace-page="invasion"] .modal-close {
     background: none;
     border: none;
-    color: var(--text-secondary);
+    color: var(--pw-muted);
     font-size: var(--text-xl);
     cursor: pointer;
     line-height: 1;
@@ -363,33 +433,32 @@
     transition: all var(--transition-base) cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.modal-close:hover {
-    color: var(--text-primary);
-    background: var(--bg-glass);
+.pw-page[data-workspace-page="invasion"] .modal-close:hover {
+    color: var(--pw-text);
+    background: var(--pw-surface);
     transform: scale(1.08);
 }
 
-.modal-body {
+.pw-page[data-workspace-page="invasion"] .modal-body {
     padding: 0.85rem 1.25rem 1.1rem;
 }
 
-.modal-actions {
+.pw-page[data-workspace-page="invasion"] .modal-actions {
     display: flex;
     gap: var(--space-3);
     justify-content: flex-end;
     padding: 0.75rem 1.25rem 1rem;
-    border-top: 1px solid var(--border-subtle);
-    background: linear-gradient(0deg, rgba(255,255,255,0.02) 0%, transparent 100%);
+    border-top: 1px solid var(--pw-line);
 }
 
-.modal-lg {
+.pw-page[data-workspace-page="invasion"] .modal-lg {
     max-width: 640px;
-    width: min(640px, 92vw);
+    width: min(100%, 920px);
 }
 
 /* ── Reconfigure ── */
-.reconfigure-warning {
-    background: color-mix(in srgb, var(--warning) 10%, transparent);
+
+.pw-page[data-workspace-page="invasion"] .reconfigure-warning {
     color: var(--warning, #f59e0b);
     border: 1px solid color-mix(in srgb, var(--warning) 25%, transparent);
     border-radius: var(--radius-xl);
@@ -400,53 +469,52 @@
     line-height: 1.4;
 }
 
-.reconfigure-fieldset {
-    border: 1px solid var(--border-subtle);
+.pw-page[data-workspace-page="invasion"] .reconfigure-fieldset {
+    border: 1px solid var(--pw-line);
     border-radius: var(--radius-xl);
     padding: var(--space-4);
     margin-bottom: var(--space-4);
-    background: linear-gradient(180deg, rgba(255,255,255,0.01) 0%, transparent 100%);
 }
 
-.reconfigure-fieldset legend {
+.pw-page[data-workspace-page="invasion"] .reconfigure-fieldset legend {
     font-size: var(--text-sm);
     font-weight: 600;
-    color: var(--text-secondary);
+    color: var(--pw-muted);
     padding: 0 var(--space-2);
     letter-spacing: 0.02em;
 }
 
-.reconfigure-toggles {
+.pw-page[data-workspace-page="invasion"] .reconfigure-toggles {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: var(--space-3);
 }
 
 /* ── Config Drift Badges ── */
-.badge-drift {
+
+.pw-page[data-workspace-page="invasion"] .badge-drift, .pw-page[data-workspace-page="invasion"] .badge-synced, .pw-page[data-workspace-page="invasion"] .rev-status {
+    animation: none;
+    box-shadow: none;
+    backdrop-filter: none;
+}
+
+.pw-page[data-workspace-page="invasion"] .badge-drift {
     background: color-mix(in srgb, var(--warning) 12%, transparent);
     color: var(--warning, #f59e0b);
     border: 1px solid color-mix(in srgb, var(--warning) 25%, transparent);
-    animation: driftPulse 2.5s ease-in-out infinite;
-    backdrop-filter: blur(4px);
     font-weight: 600;
 }
 
-.badge-synced {
+.pw-page[data-workspace-page="invasion"] .badge-synced {
     background: color-mix(in srgb, var(--success) 10%, transparent);
     color: var(--success, #22c55e);
     border: 1px solid color-mix(in srgb, var(--success) 20%, transparent);
-    backdrop-filter: blur(4px);
     font-weight: 600;
 }
 
-@keyframes driftPulse {
-    0%, 100% { opacity: 1; box-shadow: 0 0 6px color-mix(in srgb, var(--warning) 12%, transparent); }
-    50% { opacity: 0.75; box-shadow: 0 0 12px color-mix(in srgb, var(--warning) 18%, transparent); }
-}
-
 /* ── Config History List ── */
-.config-history-list {
+
+.pw-page[data-workspace-page="invasion"] .config-history-list {
     max-height: 480px;
     overflow-y: auto;
     display: flex;
@@ -455,55 +523,73 @@
     padding: 4px 0;
 }
 
-.config-history-empty,
-.config-history-loading {
+.pw-page[data-workspace-page="invasion"] .card, .pw-page[data-workspace-page="invasion"] .empty-state, .pw-page[data-workspace-page="invasion"] .inv-telemetry-row, .pw-page[data-workspace-page="invasion"] .config-history-item, .pw-page[data-workspace-page="invasion"] .config-history-empty, .pw-page[data-workspace-page="invasion"] .config-history-loading, .pw-page[data-workspace-page="invasion"] .config-history-error, .pw-page[data-workspace-page="invasion"] .reconfigure-warning, .pw-page[data-workspace-page="invasion"] .reconfigure-fieldset {
+    min-width: 0;
+    border-color: var(--pw-line);
+    background: var(--pw-surface);
+    background-image: none;
+    box-shadow: none;
+    backdrop-filter: none;
+    filter: none;
+}
+
+.pw-page[data-workspace-page="invasion"] .config-history-empty, .pw-page[data-workspace-page="invasion"] .config-history-loading {
     text-align: center;
     padding: 2.5rem 1rem;
-    color: var(--text-secondary);
+    color: var(--pw-muted);
     font-size: var(--text-sm);
     line-height: 1.5;
 }
 
-.config-history-error {
+.pw-page[data-workspace-page="invasion"] .config-history-error {
     text-align: center;
     padding: var(--space-4);
-    color: var(--danger);
     font-size: var(--text-sm);
+    border: 1px solid color-mix(in srgb, var(--pw-danger) 45%, var(--pw-line));
+    border-radius: var(--pw-radius-md);
+    color: var(--pw-danger);
 }
 
-.config-history-item {
-    border: 1px solid var(--border-subtle);
+.pw-page[data-workspace-page="invasion"] .config-history-item {
+    border: 1px solid var(--pw-line);
     border-radius: var(--radius-xl);
     padding: var(--space-3) var(--space-4);
     transition: all var(--transition-slow) cubic-bezier(0.4, 0, 0.2, 1);
-    background: color-mix(in srgb, var(--card-bg) 40%, transparent);
     position: relative;
     overflow: hidden;
 }
 
-.config-history-item:hover {
-    border-color: color-mix(in srgb, var(--accent) 30%, var(--border-subtle));
-    transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(0,0,0,0.1);
-}
-
-.config-history-item::before {
+.pw-page[data-workspace-page="invasion"] .config-history-item::before {
     content: '';
     position: absolute;
-    top: 0; left: 0; width: 3px; height: 100%;
+    top: 0;
+    left: 0;
+    width: 3px;
+    height: 100%;
     border-radius: 3px 0 0 3px;
 }
 
-.config-history-item.rev-applied::before { background: var(--success); }
-.config-history-item.rev-failed::before { background: var(--danger); }
-.config-history-item.rev-pending::before { background: var(--warning); }
-.config-history-item.rev-rolled-back::before { background: var(--text-secondary); }
+.pw-page[data-workspace-page="invasion"] .config-history-item.rev-applied::before {
+    background: var(--success);
+}
 
-.config-history-item.rev-rolled-back {
+.pw-page[data-workspace-page="invasion"] .config-history-item.rev-failed::before {
+    background: var(--danger);
+}
+
+.pw-page[data-workspace-page="invasion"] .config-history-item.rev-pending::before {
+    background: var(--warning);
+}
+
+.pw-page[data-workspace-page="invasion"] .config-history-item.rev-rolled-back::before {
+    background: var(--pw-muted);
+}
+
+.pw-page[data-workspace-page="invasion"] .config-history-item.rev-rolled-back {
     opacity: 0.7;
 }
 
-.rev-header {
+.pw-page[data-workspace-page="invasion"] .rev-header {
     display: flex;
     align-items: center;
     gap: var(--space-2);
@@ -511,148 +597,143 @@
     font-size: var(--text-sm);
 }
 
-.rev-revision {
+.pw-page[data-workspace-page="invasion"] .rev-revision {
     font-weight: 700;
-    color: var(--text-primary);
+    color: var(--pw-text);
     letter-spacing: -0.01em;
 }
 
-.rev-status {
+.pw-page[data-workspace-page="invasion"] .rev-status {
     font-size: var(--text-xs);
     font-weight: 600;
     padding: 2px var(--space-2);
     border-radius: var(--radius-full);
-    backdrop-filter: blur(4px);
     border: 1px solid transparent;
 }
 
-.rev-status.rev-applied {
+.pw-page[data-workspace-page="invasion"] .rev-status.rev-applied {
     background: color-mix(in srgb, var(--success) 12%, transparent);
     color: var(--success, #22c55e);
     border-color: color-mix(in srgb, var(--success) 22%, transparent);
 }
 
-.rev-status.rev-failed {
+.pw-page[data-workspace-page="invasion"] .rev-status.rev-failed {
     background: color-mix(in srgb, var(--danger) 12%, transparent);
     color: var(--danger);
     border-color: color-mix(in srgb, var(--danger) 22%, transparent);
 }
 
-.rev-status.rev-pending {
+.pw-page[data-workspace-page="invasion"] .rev-status.rev-pending {
     background: color-mix(in srgb, var(--warning) 12%, transparent);
     color: var(--warning, #f59e0b);
     border-color: color-mix(in srgb, var(--warning) 22%, transparent);
 }
 
-.rev-status.rev-rolled-back {
-    background: color-mix(in srgb, var(--text-secondary) 10%, transparent);
-    color: var(--text-secondary);
-    border-color: color-mix(in srgb, var(--text-secondary) 18%, transparent);
+.pw-page[data-workspace-page="invasion"] .rev-status.rev-rolled-back {
+    background: color-mix(in srgb, var(--pw-muted) 10%, transparent);
+    color: var(--pw-muted);
+    border-color: color-mix(in srgb, var(--pw-muted) 18%, transparent);
 }
 
-.rev-date {
-    color: var(--text-secondary);
+.pw-page[data-workspace-page="invasion"] .rev-date {
+    color: var(--pw-muted);
     font-size: var(--text-xs);
     margin-left: auto;
     font-variant-numeric: tabular-nums;
 }
 
-.rev-fields {
+.pw-page[data-workspace-page="invasion"] .rev-fields {
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-2);
     margin-bottom: var(--space-2);
 }
 
-.rev-field {
-    background: var(--bg-glass);
-    color: var(--text-secondary);
+.pw-page[data-workspace-page="invasion"] .rev-field {
+    background: var(--pw-surface);
+    color: var(--pw-muted);
     padding: 2px var(--space-2);
     border-radius: var(--radius-md);
     font-size: var(--text-xs);
     font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
-    border: 1px solid var(--border-subtle);
+    border: 1px solid var(--pw-line);
 }
 
-.rev-error {
+.pw-page[data-workspace-page="invasion"] .rev-error {
     color: var(--danger);
     font-size: var(--text-xs);
     margin-bottom: var(--space-2);
     line-height: 1.4;
 }
 
-.rev-actions {
+.pw-page[data-workspace-page="invasion"] .rev-actions {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: var(--space-2);
 }
 
-.rev-source {
+.pw-page[data-workspace-page="invasion"] .rev-source {
     font-size: var(--text-xs);
-    color: var(--text-secondary);
+    color: var(--pw-muted);
     opacity: 0.7;
 }
 
 /* ── Empty States ── */
-.empty-state {
+
+.pw-page[data-workspace-page="invasion"] .empty-state {
     text-align: center;
     padding: 3rem 1.5rem;
-    color: var(--text-secondary);
+    color: var(--pw-muted);
     position: relative;
 }
 
-.empty-state .icon {
+.pw-page[data-workspace-page="invasion"] .empty-state .icon {
     font-size: var(--text-2xl);
     margin-bottom: 0.75rem;
     line-height: 1;
     filter: grayscale(0.2);
     opacity: 0.8;
-    animation: invFloat 3.5s ease-in-out infinite;
 }
 
-.empty-state p {
+.pw-page[data-workspace-page="invasion"] .empty-state p {
     font-size: var(--text-sm);
     margin: 0 0 1rem;
     line-height: 1.5;
 }
 
-.empty-state .btn {
+.pw-page[data-workspace-page="invasion"] .empty-state .btn {
     margin-top: var(--space-2);
 }
 
-@keyframes invFloat {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-6px); }
+/* ── Form enhancements ── */
+
+.pw-page[data-workspace-page="invasion"] input, .pw-page[data-workspace-page="invasion"] select, .pw-page[data-workspace-page="invasion"] textarea, .pw-page[data-workspace-page="invasion"] .form-select {
+    border-color: var(--pw-line-strong);
+    border-radius: var(--pw-radius-sm);
+    background: var(--pw-surface-elevated);
+    background-image: none;
+    color: var(--pw-text);
+    box-shadow: none;
 }
 
-/* ── Form enhancements ── */
-.form-group input,
-.form-group textarea,
-.form-group select,
-.form-select {
+.pw-page[data-workspace-page="invasion"] .form-group input, .pw-page[data-workspace-page="invasion"] .form-group textarea, .pw-page[data-workspace-page="invasion"] .form-group select, .pw-page[data-workspace-page="invasion"] .form-select {
     transition: all var(--transition-slow) cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.form-group input:hover,
-.form-group textarea:hover,
-.form-group select:hover,
-.form-select:hover {
-    border-color: color-mix(in srgb, var(--accent) 30%, var(--border-subtle));
+.pw-page[data-workspace-page="invasion"] .form-group input:hover, .pw-page[data-workspace-page="invasion"] .form-group textarea:hover, .pw-page[data-workspace-page="invasion"] .form-group select:hover, .pw-page[data-workspace-page="invasion"] .form-select:hover {
+    border-color: color-mix(in srgb, var(--pw-accent) 30%, var(--pw-line));
 }
 
-.form-group input:focus,
-.form-group textarea:focus,
-.form-group select:focus,
-.form-select:focus {
+.pw-page[data-workspace-page="invasion"] .form-group input:focus, .pw-page[data-workspace-page="invasion"] .form-group textarea:focus, .pw-page[data-workspace-page="invasion"] .form-group select:focus, .pw-page[data-workspace-page="invasion"] .form-select:focus {
     outline: none;
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent);
-    background: var(--card-bg);
+    border-color: var(--pw-accent);
+    background: var(--pw-surface);
 }
 
 /* ── Toast ── */
-.toast {
+
+.pw-page[data-workspace-page="invasion"] .toast {
     position: fixed;
     bottom: var(--space-6);
     right: var(--space-6);
@@ -664,82 +745,155 @@
     animation: invToastIn 0.35s cubic-bezier(0.22, 1, 0.36, 1), invToastOut 0.3s ease 2.7s;
     pointer-events: none;
     font-weight: 500;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+    border: 1px solid currentColor;
+    background-image: none;
+    box-shadow: none;
 }
 
-.toast.success {
-    background: linear-gradient(135deg, var(--success), color-mix(in srgb, var(--success) 80%, #059669));
+.pw-page[data-workspace-page="invasion"] {
+    min-height: 100dvh;
+    overflow-x: clip;
+    background: var(--pw-canvas);
+    background-image: none;
 }
 
-.toast.error {
-    background: linear-gradient(135deg, var(--danger), color-mix(in srgb, var(--danger) 80%, #b91c1c));
+.pw-page[data-workspace-page="invasion"] .app-header {
+    min-height: var(--pw-header-height);
+    border-bottom: 1px solid var(--pw-line);
+    background: color-mix(in srgb, var(--pw-canvas) 94%, transparent);
+    box-shadow: none;
+}
+
+.pw-page[data-workspace-page="invasion"] .card {
+    border: 1px solid var(--pw-line);
+    border-radius: var(--pw-radius-lg);
+    padding: 1.25rem;
+    animation: none;
+    transform: none;
 }
 
 @keyframes invToastIn {
     from { transform: translateY(20px) scale(0.96); opacity: 0; }
-    to   { transform: translateY(0) scale(1); opacity: 1; }
+        to   { transform: translateY(0) scale(1); opacity: 1; }
 }
 
 @keyframes invToastOut {
     from { opacity: 1; transform: translateY(0); }
-    to   { opacity: 0; transform: translateY(-10px); }
+        to   { opacity: 0; transform: translateY(-10px); }
 }
 
 /* ── Responsive ── */
+
+/* ── Light Theme Overrides ── */
+
+.pw-page[data-workspace-page="invasion"]:where(:root[data-theme="light"] *) .invasion-tabs {
+    border-bottom-color: color-mix(in srgb, var(--pw-line) 70%, transparent);
+}
+
 @media (max-width: 768px) {
-    .cards-grid {
+    .pw-page[data-workspace-page="invasion"] .cards-grid {
         grid-template-columns: 1fr;
         gap: var(--space-4);
     }
-    .form-row {
+
+    .pw-page[data-workspace-page="invasion"] .form-row {
         grid-template-columns: 1fr;
     }
-    .page-header {
+
+    .pw-page[data-workspace-page="invasion"] .page-header {
         flex-direction: column;
         gap: var(--space-3);
         align-items: flex-start;
     }
-    .container {
+
+    .pw-page[data-workspace-page="invasion"] .container {
         padding: var(--space-5) var(--space-4) 48px;
     }
-    .invasion-tab {
+
+    .pw-page[data-workspace-page="invasion"] .invasion-tab {
         padding: var(--space-2) var(--space-4);
         font-size: var(--text-sm);
     }
-    .reconfigure-toggles {
+
+    .pw-page[data-workspace-page="invasion"] .reconfigure-toggles {
         grid-template-columns: 1fr;
     }
-    .modal-lg {
+
+    .pw-page[data-workspace-page="invasion"] .modal-lg {
         max-width: 100%;
     }
-    .modal {
+
+    .pw-page[data-workspace-page="invasion"] .modal {
         border-radius: 0.9rem;
     }
-    .modal-header {
+
+    .pw-page[data-workspace-page="invasion"] .modal-header {
         padding: 0.9rem 1rem 0.65rem;
     }
-    .modal-body {
+
+    .pw-page[data-workspace-page="invasion"] .modal-body {
         padding: 0.7rem 1rem 1rem;
     }
-    .modal-actions {
+
+    .pw-page[data-workspace-page="invasion"] .modal-actions {
         padding: 0.65rem 1rem 0.85rem;
     }
 }
 
-/* ── Light Theme Overrides ── */
-[data-theme="light"] .invasion-tabs {
-    border-bottom-color: color-mix(in srgb, var(--border-subtle) 70%, transparent);
+@media (max-width: 1024px) {
+    .pw-page[data-workspace-page="invasion"] .cards-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .pw-page[data-workspace-page="invasion"] .reconfigure-toggles {
+        grid-template-columns: 1fr;
+    }
 }
 
-[data-theme="light"] .invasion-tab.active {
-    background: linear-gradient(180deg, transparent 60%, color-mix(in srgb, var(--accent) 8%, transparent) 100%);
+@media (max-width: 640px) {
+    .pw-page[data-workspace-page="invasion"] .container {
+        padding: 1rem;
+    }
+
+    .pw-page[data-workspace-page="invasion"] .cards-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .pw-page[data-workspace-page="invasion"] .card-actions, .pw-page[data-workspace-page="invasion"] .modal-actions, .pw-page[data-workspace-page="invasion"] .rev-header, .pw-page[data-workspace-page="invasion"] .rev-actions {
+        align-items: stretch;
+    }
+
+    .pw-page[data-workspace-page="invasion"] .modal-overlay {
+        align-items: flex-end;
+        padding: 0;
+    }
+
+    .pw-page[data-workspace-page="invasion"] .modal {
+        width: 100%;
+        max-height: calc(100dvh - 1rem);
+        border-radius: 20px 20px 0 0;
+    }
+
+    .pw-page[data-workspace-page="invasion"] .btn-theme, .pw-page[data-workspace-page="invasion"] .invasion-tab, .pw-page[data-workspace-page="invasion"] .btn, .pw-page[data-workspace-page="invasion"] input, .pw-page[data-workspace-page="invasion"] select, .pw-page[data-workspace-page="invasion"] textarea, .pw-page[data-workspace-page="invasion"] .card-actions .btn, .pw-page[data-workspace-page="invasion"] .modal-actions .btn, .pw-page[data-workspace-page="invasion"] .modal-close, .pw-page[data-workspace-page="invasion"] .rev-actions .btn {
+        min-width: 44px;
+        min-height: 44px;
+    }
+
+    .pw-page[data-workspace-page="invasion"][data-density="compact"] .btn-theme, .pw-page[data-workspace-page="invasion"][data-density="compact"] .invasion-tab, .pw-page[data-workspace-page="invasion"][data-density="compact"] .btn, .pw-page[data-workspace-page="invasion"][data-density="compact"] input, .pw-page[data-workspace-page="invasion"][data-density="compact"] select, .pw-page[data-workspace-page="invasion"][data-density="compact"] textarea {
+        min-width: 44px;
+        min-height: 44px;
+    }
+
+    .pw-page[data-workspace-page="invasion"][data-density="compact"] .card-actions .btn, .pw-page[data-workspace-page="invasion"][data-density="compact"] .modal-actions .btn, .pw-page[data-workspace-page="invasion"][data-density="compact"] .modal-close, .pw-page[data-workspace-page="invasion"][data-density="compact"] .rev-actions .btn {
+        min-width: 44px;
+        min-height: 44px;
+    }
 }
 
-[data-theme="light"] .config-history-item {
-    background: color-mix(in srgb, var(--card-bg) 60%, transparent);
+@media (prefers-reduced-motion: reduce) {
+    .pw-page[data-workspace-page="invasion"] .card, .pw-page[data-workspace-page="invasion"] .badge, .pw-page[data-workspace-page="invasion"] .config-history-item, .pw-page[data-workspace-page="invasion"] .modal, .pw-page[data-workspace-page="invasion"] .toast {
+        animation: none;
+        transition: none;
+        transform: none;
+    }
 }
-
-[data-theme="light"] .reconfigure-fieldset {
-    background: linear-gradient(180deg, rgba(255,255,255,0.3) 0%, transparent 100%);
-}
-

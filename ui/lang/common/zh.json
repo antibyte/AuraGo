@@ -77,5 +77,8 @@
   "notfound.title": "页面未找到",
   "notfound.description": "您查找的页面不存在或已被移动。",
   "notfound.go_home": "前往聊天",
-  "notfound.go_dashboard": "仪表板"
+  "notfound.go_dashboard": "仪表板",
+  "common.workspace_density_toggle": "切换工作区密度",
+  "common.workspace_density_comfortable": "宽松",
+  "common.workspace_density_compact": "紧凑"
 }

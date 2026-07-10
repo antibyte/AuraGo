@@ -28,11 +28,13 @@
     <script src="/js/shared/shared-core.js?v={{.BuildVersion}}"></script>
     <script src="/js/shared/shared-chat.js?v={{.BuildVersion}}"></script>
     <link rel="stylesheet" href="/css/tokens.css">
-    <link rel="stylesheet" href="/css/setup.css">
+    <link rel="stylesheet" href="/css/setup.css?v={{.BuildVersion}}">
     <link rel="stylesheet" href="/css/enhancements.css?v=20260425a">
+    <link rel="stylesheet" href="/css/precision-workspace.css?v={{.BuildVersion}}">
+    <link rel="stylesheet" href="/css/precision-entry.css?v={{.BuildVersion}}">
 </head>
 
-<body>
+<body class="pw-page pw-entry-page" data-entry-page="setup">
     <a href="#main-content" class="skip-link" data-i18n="common.skip_to_content"></a>
     <!-- ── Header ─────────────────────────────────── -->
     <header class="cfg-header setup-header">
@@ -100,7 +102,7 @@
                 <div class="profile-grid" id="profile-grid">
                     <!-- Filled dynamically by JS -->
                     <div class="profile-grid-loading" id="profile-loading">
-                        <div class="spinner" style="margin: 0 auto 0.5rem;"></div>
+                        <div class="spinner profile-loading-spinner"></div>
                     </div>
                 </div>
             </div>
@@ -531,8 +533,7 @@
         </div>
     </div>
 
-    <script src="/js/setup/main.js"></script>
+    <script src="/js/setup/main.js?v={{.BuildVersion}}"></script>
 </body>
 
 </html>
-

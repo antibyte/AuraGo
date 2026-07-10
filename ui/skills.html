@@ -27,9 +27,11 @@
     <script src="/js/shared/shared-chat.js?v={{.BuildVersion}}"></script>
     <link rel="stylesheet" href="/css/skills.css?v={{.BuildVersion}}">
     <link rel="stylesheet" href="/css/enhancements.css?v=20260425a">
+    <link rel="stylesheet" href="/css/precision-workspace.css?v={{.BuildVersion}}">
+    <link rel="stylesheet" href="/css/precision-pages.css?v={{.BuildVersion}}">
     <link href="/fonts/fonts.css" rel="stylesheet">
 </head>
-<body>
+<body class="pw-page pw-operational-page" data-workspace-page="skills" data-density="comfortable">
     <a href="#main-content" class="skip-link" data-i18n="common.skip_to_content"></a>
     <header class="app-header">
         <div class="header-left">
@@ -89,7 +91,7 @@
                 <button class="btn btn-secondary btn-sm" onclick="showImportModal()" data-i18n="skills.btn_import"></button>
                 <button class="btn btn-secondary btn-sm" onclick="showGenerateModal()" data-i18n="skills.btn_generate"></button>
             </div>
-            <div class="sk-toolbar-actions sk-hidden" id="agent-toolbar-actions">
+            <div class="sk-toolbar-actions is-hidden" id="agent-toolbar-actions">
                 <button class="btn btn-primary btn-sm" onclick="showAgentSkillCreateModal()" data-i18n="skills.agent_btn_create"></button>
                 <button class="btn btn-secondary btn-sm" onclick="showAgentSkillImportModal()" data-i18n="skills.agent_btn_import"></button>
             </div>
@@ -108,14 +110,14 @@
         <div class="sk-grid" id="sk-grid"></div>
 
         <!-- Empty state -->
-        <div class="empty-state sk-hidden" id="sk-empty">
+        <div class="empty-state is-hidden" id="sk-empty">
             <div class="empty-icon">🧩</div>
             <h3 data-i18n="skills.empty_title"></h3>
             <p data-i18n="skills.empty_desc"></p>
         </div>
 
         <!-- Disabled state -->
-        <div class="empty-state sk-hidden" id="sk-disabled">
+        <div class="empty-state is-hidden" id="sk-disabled">
             <div class="empty-icon">⚠️</div>
             <h3 data-i18n="skills.disabled_title"></h3>
             <p data-i18n="skills.disabled_desc"></p>
@@ -123,7 +125,7 @@
     </div>
 
     <!-- AGENT SKILL CREATE / EDIT MODAL -->
-    <div class="modal-overlay" id="agent-skill-modal">
+    <div class="modal-overlay" id="agent-skill-modal" role="dialog" aria-modal="true" aria-labelledby="agent-skill-modal-title">
         <div class="modal modal-wide">
             <div class="modal-header">
                 <h2 id="agent-skill-modal-title" data-i18n="skills.agent_create_title"></h2>
@@ -144,7 +146,7 @@
                     <label data-i18n="skills.agent_skill_md"></label>
                     <textarea id="agent-skill-content" class="sk-input sk-textarea sk-agent-editor" rows="18" spellcheck="false"></textarea>
                 </div>
-                <div class="sk-form-group sk-hidden" id="agent-resource-browser">
+                <div class="sk-form-group is-hidden" id="agent-resource-browser">
                     <div class="sk-file-manager-header">
                         <label data-i18n="skills.agent_resources"></label>
                         <div class="sk-file-manager-actions">
@@ -153,8 +155,8 @@
                         </div>
                     </div>
                     <div id="agent-resource-list" class="sk-resource-list sk-file-tree"></div>
-                    <input type="file" id="agent-file-upload-input" class="sk-hidden" onchange="handleAgentFileUpload(event)">
-                    <div id="agent-file-editor" class="sk-hidden">
+                    <input type="file" id="agent-file-upload-input" class="is-hidden" onchange="handleAgentFileUpload(event)">
+                    <div id="agent-file-editor" class="is-hidden">
                         <div class="sk-code-meta-grid">
                             <input type="text" id="agent-resource-path" class="sk-input" placeholder="" data-i18n-placeholder="skills.agent_resource_path_placeholder" readonly>
                             <div class="sk-file-editor-actions">
@@ -164,7 +166,7 @@
                             </div>
                         </div>
                         <textarea id="agent-resource-content" class="sk-input sk-textarea" rows="8" spellcheck="false"></textarea>
-                        <div id="agent-binary-download" class="sk-hidden">
+                        <div id="agent-binary-download" class="is-hidden">
                             <p class="sk-inline-help" data-i18n="skills.agent_file_binary"></p>
                             <button class="btn btn-sm btn-secondary" type="button" onclick="downloadAgentSkillFile()" data-i18n="skills.agent_btn_download_file"></button>
                         </div>
@@ -179,10 +181,10 @@
     </div>
 
     <!-- AGENT SKILL IMPORT MODAL -->
-    <div class="modal-overlay" id="agent-import-modal">
+    <div class="modal-overlay" id="agent-import-modal" role="dialog" aria-modal="true" aria-labelledby="agent-import-modal-title">
         <div class="modal">
             <div class="modal-header">
-                <h2 data-i18n="skills.agent_import_title"></h2>
+                <h2 id="agent-import-modal-title" data-i18n="skills.agent_import_title"></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeAgentSkillImportModal()">&times;</button>
             </div>
             <div class="modal-body">
@@ -207,14 +209,14 @@
     </div>
 
     <!-- AGENT SKILL TEST MODAL -->
-    <div class="modal-overlay" id="agent-test-modal">
+    <div class="modal-overlay" id="agent-test-modal" role="dialog" aria-modal="true" aria-labelledby="agent-test-modal-title">
         <div class="modal modal-wide">
             <div class="modal-header">
-                <h2 data-i18n="skills.agent_test_title"></h2>
+                <h2 id="agent-test-modal-title" data-i18n="skills.agent_test_title"></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeAgentSkillTestModal()">&times;</button>
             </div>
             <div class="modal-body">
-                <div id="agent-nonpython-warning" class="sk-upload-warning sk-hidden">
+                <div id="agent-nonpython-warning" class="sk-upload-warning is-hidden">
                     <span data-i18n="skills.agent_nonpython_warning"></span>
                 </div>
                 <div class="sk-code-meta-grid">
@@ -237,7 +239,7 @@
     </div>
 
     <!-- AGENT RESOURCE PATH MODAL -->
-    <div class="modal-overlay sk-hidden" id="agent-resource-path-modal" role="dialog" aria-modal="true" aria-labelledby="agent-resource-path-title" aria-describedby="agent-resource-path-description" onkeydown="onAgentResourcePathKeydown(event)">
+    <div class="modal-overlay is-hidden" id="agent-resource-path-modal" role="dialog" aria-modal="true" aria-labelledby="agent-resource-path-title" aria-describedby="agent-resource-path-description" onkeydown="onAgentResourcePathKeydown(event)">
         <div class="modal">
             <div class="modal-header">
                 <h2 id="agent-resource-path-title"></h2>
@@ -249,7 +251,7 @@
                     <label for="agent-resource-path-input" data-i18n="skills.agent_resource_path_label"></label>
                     <input type="text" id="agent-resource-path-input" class="sk-input" data-i18n-placeholder="skills.agent_resource_path_placeholder" placeholder="" oninput="onAgentResourcePathInput()" onkeydown="onAgentResourcePathKeydown(event)">
                     <p id="agent-resource-path-help" class="sk-inline-help" data-i18n="skills.agent_resource_path_help"></p>
-                    <p id="agent-resource-path-error" class="sk-inline-error sk-hidden" role="alert"></p>
+                    <p id="agent-resource-path-error" class="sk-inline-error is-hidden" role="alert"></p>
                 </div>
             </div>
             <div class="modal-actions">
@@ -260,7 +262,7 @@
     </div>
 
     <!-- AGENT RESOURCE DELETE CONFIRM MODAL -->
-    <div class="modal-overlay sk-hidden" id="agent-file-delete-modal" role="dialog" aria-modal="true" aria-labelledby="agent-file-delete-title" aria-describedby="agent-file-delete-message" onkeydown="onAgentFileDeleteKeydown(event)">
+    <div class="modal-overlay is-hidden" id="agent-file-delete-modal" role="dialog" aria-modal="true" aria-labelledby="agent-file-delete-title" aria-describedby="agent-file-delete-message" onkeydown="onAgentFileDeleteKeydown(event)">
         <div class="modal">
             <div class="modal-header">
                 <h2 id="agent-file-delete-title" data-i18n="skills.agent_delete_file_title"></h2>
@@ -277,7 +279,7 @@
     </div>
 
     <!-- DETAIL MODAL -->
-    <div class="modal-overlay" id="detail-modal">
+    <div class="modal-overlay" id="detail-modal" role="dialog" aria-modal="true" aria-labelledby="detail-modal-title">
         <div class="modal modal-wide">
             <div class="modal-header">
                 <h2 id="detail-modal-title" data-i18n="skills.detail_title"></h2>
@@ -296,7 +298,7 @@
     </div>
 
     <!-- CODE EDITOR MODAL -->
-    <div class="modal-overlay" id="code-modal">
+    <div class="modal-overlay" id="code-modal" role="dialog" aria-modal="true" aria-labelledby="code-modal-title">
         <div class="modal modal-wide">
             <div class="modal-header">
                 <h2 id="code-modal-title" data-i18n="skills.code_title"></h2>
@@ -304,7 +306,7 @@
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeCodeModal()">&times;</button>
             </div>
             <div class="modal-body">
-                <div id="code-draft-meta" class="sk-code-meta sk-hidden">
+                <div id="code-draft-meta" class="sk-code-meta is-hidden">
                     <div class="sk-form-group">
                         <label data-i18n="skills.template_skill_name"></label>
                         <input type="text" id="code-draft-name" class="sk-input" data-i18n-placeholder="skills.placeholder_skill_name" placeholder="">
@@ -339,10 +341,10 @@
     </div>
 
     <!-- UPLOAD MODAL -->
-    <div class="modal-overlay" id="upload-modal">
+    <div class="modal-overlay" id="upload-modal" role="dialog" aria-modal="true" aria-labelledby="upload-modal-title">
         <div class="modal">
             <div class="modal-header">
-                <h2 data-i18n="skills.upload_title"></h2>
+                <h2 id="upload-modal-title" data-i18n="skills.upload_title"></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeUploadModal()">&times;</button>
             </div>
             <div class="modal-body">
@@ -371,9 +373,9 @@
                 <div class="sk-dropzone" id="sk-dropzone">
                     <div class="sk-dropzone-icon">📁</div>
                     <p data-i18n="skills.upload_drop"></p>
-                    <input type="file" id="upload-file" accept=".py" class="sk-hidden" onchange="handleFileSelect(event)">
+                    <input type="file" id="upload-file" accept=".py" class="is-hidden" onchange="handleFileSelect(event)">
                 </div>
-                <div class="sk-selected-file sk-hidden" id="sk-selected-file">
+                <div class="sk-selected-file is-hidden" id="sk-selected-file">
                     <span id="sk-selected-name"></span>
                     <button class="btn btn-sm btn-secondary" onclick="clearFileSelection()" data-i18n="skills.upload_clear"></button>
                 </div>
@@ -391,10 +393,10 @@
     </div>
 
     <!-- TEMPLATE MODAL -->
-    <div class="modal-overlay" id="template-modal">
+    <div class="modal-overlay" id="template-modal" role="dialog" aria-modal="true" aria-labelledby="template-modal-title">
         <div class="modal">
             <div class="modal-header">
-                <h2 data-i18n="skills.template_title"></h2>
+                <h2 id="template-modal-title" data-i18n="skills.template_title"></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeTemplateModal()">&times;</button>
             </div>
             <div class="modal-body">
@@ -404,7 +406,7 @@
                         <option value="" data-i18n="skills.template_choose"></option>
                     </select>
                 </div>
-                <div id="template-description" class="sk-template-desc sk-hidden"></div>
+                <div id="template-description" class="sk-template-desc is-hidden"></div>
                 <div class="sk-form-group">
                     <label data-i18n="skills.template_skill_name"></label>
                     <input type="text" id="template-skill-name" class="sk-input" placeholder="" data-i18n-placeholder="skills.template_name_hint">
@@ -445,10 +447,10 @@
     </div>
 
     <!-- DELETE CONFIRM MODAL -->
-    <div class="modal-overlay" id="delete-skill-modal">
+    <div class="modal-overlay" id="delete-skill-modal" role="dialog" aria-modal="true" aria-labelledby="delete-skill-modal-title">
         <div class="modal">
             <div class="modal-header">
-                <h2 data-i18n="skills.delete_title"></h2>
+                <h2 id="delete-skill-modal-title" data-i18n="skills.delete_title"></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeDeleteSkillModal()">&times;</button>
             </div>
             <div class="modal-body">
@@ -466,10 +468,10 @@
     </div>
 
     <!-- VAULT KEY ASSIGNMENT MODAL -->
-    <div class="modal-overlay" id="vault-key-modal">
+    <div class="modal-overlay" id="vault-key-modal" role="dialog" aria-modal="true" aria-labelledby="vault-key-modal-title">
         <div class="modal modal--sm">
             <div class="modal-header">
-                <h2 data-i18n="skills.vault_modal_title"></h2>
+                <h2 id="vault-key-modal-title" data-i18n="skills.vault_modal_title"></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeVaultKeyModal()">&times;</button>
             </div>
             <div class="modal-body">
@@ -477,7 +479,7 @@
                 <div id="vault-key-list" class="sk-vault-key-list">
                     <!-- Populated by JS -->
                 </div>
-                <p id="vault-key-empty" class="sk-vault-empty sk-hidden" data-i18n="skills.vault_modal_empty"></p>
+                <p id="vault-key-empty" class="sk-vault-empty is-hidden" data-i18n="skills.vault_modal_empty"></p>
             </div>
             <div class="modal-actions">
                 <button class="btn btn-secondary" onclick="closeVaultKeyModal()" data-i18n="common.btn_cancel"></button>
@@ -487,10 +489,10 @@
     </div>
 
     <!-- INTERNAL TOOLS ASSIGNMENT MODAL -->
-    <div class="modal-overlay" id="internal-tools-modal">
+    <div class="modal-overlay" id="internal-tools-modal" role="dialog" aria-modal="true" aria-labelledby="internal-tools-modal-title">
         <div class="modal modal--sm">
             <div class="modal-header">
-                <h2 data-i18n="skills.internal_tools_modal_title"></h2>
+                <h2 id="internal-tools-modal-title" data-i18n="skills.internal_tools_modal_title"></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeInternalToolsModal()">&times;</button>
             </div>
             <div class="modal-body">
@@ -498,7 +500,7 @@
                 <div id="internal-tools-list" class="sk-vault-key-list">
                     <!-- Populated by JS -->
                 </div>
-                <p id="internal-tools-bridge-off" class="sk-vault-empty sk-hidden" data-i18n="skills.internal_tools_bridge_disabled">The Python Tool Bridge is not enabled or no tools are configured. Enable it in Settings → Agent.</p>
+                <p id="internal-tools-bridge-off" class="sk-vault-empty is-hidden" data-i18n="skills.internal_tools_bridge_disabled">The Python Tool Bridge is not enabled or no tools are configured. Enable it in Settings → Agent.</p>
             </div>
             <div class="modal-actions">
                 <button class="btn btn-secondary" onclick="closeInternalToolsModal()" data-i18n="common.btn_cancel"></button>
@@ -508,10 +510,10 @@
     </div>
 
     <!-- TEST MODAL -->
-    <div class="modal-overlay" id="test-modal">
+    <div class="modal-overlay" id="test-modal" role="dialog" aria-modal="true" aria-labelledby="test-modal-title">
         <div class="modal modal-wide">
             <div class="modal-header">
-                <h2 data-i18n="skills.test_title"></h2>
+                <h2 id="test-modal-title" data-i18n="skills.test_title"></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeTestModal()">&times;</button>
             </div>
             <div class="modal-body">
@@ -535,10 +537,10 @@
     </div>
 
     <!-- IMPORT MODAL -->
-    <div class="modal-overlay" id="import-modal">
+    <div class="modal-overlay" id="import-modal" role="dialog" aria-modal="true" aria-labelledby="import-modal-title">
         <div class="modal">
             <div class="modal-header">
-                <h2 data-i18n="skills.import_title"></h2>
+                <h2 id="import-modal-title" data-i18n="skills.import_title"></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeImportModal()">&times;</button>
             </div>
             <div class="modal-body">
@@ -556,10 +558,10 @@
     </div>
 
     <!-- GENERATE MODAL -->
-    <div class="modal-overlay" id="generate-modal">
+    <div class="modal-overlay" id="generate-modal" role="dialog" aria-modal="true" aria-labelledby="generate-modal-title">
         <div class="modal modal-wide">
             <div class="modal-header">
-                <h2 data-i18n="skills.generate_title"></h2>
+                <h2 id="generate-modal-title" data-i18n="skills.generate_title"></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeGenerateModal()">&times;</button>
             </div>
             <div class="modal-body">
@@ -567,7 +569,7 @@
                     <label data-i18n="skills.generate_prompt_label"></label>
                     <textarea id="generate-prompt" class="sk-input sk-textarea" rows="6" data-i18n-placeholder="skills.placeholder_prompt" placeholder=""></textarea>
                 </div>
-                <div id="generate-status" class="sk-generate-status sk-hidden"></div>
+                <div id="generate-status" class="sk-generate-status is-hidden"></div>
                 <div class="sk-code-meta-grid">
                     <div class="sk-form-group">
                         <label data-i18n="skills.template_skill_name"></label>
@@ -600,7 +602,7 @@
 
     <script src="/js/vendor/marked.min.js?v={{.BuildVersion}}"></script>
     <script src="/js/vendor/purify.min.js?v={{.BuildVersion}}"></script>
+    <script src="/js/precision/workspace.js?v={{.BuildVersion}}"></script>
     <script src="/js/skills/main.js?v={{.BuildVersion}}"></script>
 </body>
 </html>
-
