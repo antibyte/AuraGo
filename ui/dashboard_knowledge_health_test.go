@@ -10,7 +10,8 @@ func TestDashboardKnowledgeGraphHealthContract(t *testing.T) {
 
 	html := readDesktopAssetText(t, "dashboard.html")
 	mainJS := readDesktopAssetText(t, "js/dashboard/main.js")
-	widgetsJS := readDesktopAssetText(t, "js/dashboard/dashboard-widgets.js")
+	widgetsJS := readDesktopAssetText(t, "js/dashboard/widgets-knowledge.js")
+	coreJS := readDesktopAssetText(t, "js/dashboard/dashboard-widgets.js")
 	css := readDesktopAssetText(t, "css/dashboard.css")
 
 	for _, marker := range []string{
@@ -42,10 +43,16 @@ func TestDashboardKnowledgeGraphHealthContract(t *testing.T) {
 		"renderKnowledgeGraphDuplicateCandidates",
 		"knowledge_quality_id_duplicates",
 		"knowledge_health_needs_reindex",
-		"memory_graph_dirty_hint",
 	} {
 		if !strings.Contains(widgetsJS, marker) {
-			t.Fatalf("dashboard widgets JS missing health marker %q", marker)
+			t.Fatalf("dashboard knowledge widgets JS missing health marker %q", marker)
+		}
+	}
+	for _, marker := range []string{
+		"memory_graph_dirty_hint",
+	} {
+		if !strings.Contains(coreJS, marker) {
+			t.Fatalf("dashboard core widgets JS missing health marker %q", marker)
 		}
 	}
 	if !strings.Contains(css, ".knowledge-health-status") {

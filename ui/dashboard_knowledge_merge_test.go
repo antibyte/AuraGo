@@ -8,7 +8,7 @@ import (
 func TestDashboardKnowledgeGraphMergeContract(t *testing.T) {
 	t.Parallel()
 
-	widgetsJS := readDesktopAssetText(t, "js/dashboard/dashboard-widgets.js")
+	widgetsJS := readDesktopAssetText(t, "js/dashboard/widgets-knowledge.js")
 	mainJS := readDesktopAssetText(t, "js/dashboard/main.js")
 	for _, marker := range []string{
 		"function mergeKnowledgeGraphNodes",
