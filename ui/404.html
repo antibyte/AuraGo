@@ -26,113 +26,12 @@
     <script type="application/json" id="aurago-template-data">{{.TemplateDataJSON}}</script>
     <script src="/js/shared/template-data.js?v={{.BuildVersion}}"></script>
     <link rel="stylesheet" href="/css/tokens.css">
-    <style>
-        .not-found-page {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            min-height: 100dvh;
-            padding: var(--space-8);
-            text-align: center;
-            position: relative;
-            isolation: isolate;
-        }
-
-        .not-found-code {
-            font-size: clamp(5rem, 12vw, 9rem);
-            font-weight: 700;
-            letter-spacing: -0.04em;
-            line-height: 1;
-            background: linear-gradient(135deg, var(--accent), #0d9488);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            margin-bottom: var(--space-2);
-            animation: float 3s ease-in-out infinite;
-        }
-
-        .not-found-title {
-            font-size: var(--text-xl);
-            font-weight: 600;
-            color: var(--text-primary);
-            margin-bottom: var(--space-3);
-            text-wrap: balance;
-        }
-
-        .not-found-desc {
-            font-size: var(--text-sm);
-            color: var(--text-secondary);
-            max-width: 40ch;
-            margin-bottom: var(--space-8);
-            text-wrap: pretty;
-        }
-
-        .not-found-actions {
-            display: flex;
-            gap: var(--space-3);
-            flex-wrap: wrap;
-            justify-content: center;
-        }
-
-        .not-found-link {
-            display: inline-flex;
-            align-items: center;
-            gap: var(--space-2);
-            padding: var(--space-3) var(--space-6);
-            border-radius: var(--radius-xl);
-            font-size: var(--text-sm);
-            font-weight: 600;
-            text-decoration: none;
-            transition: all var(--transition-base) ease;
-        }
-
-        .not-found-link-primary {
-            background: var(--accent);
-            color: var(--bg-primary);
-        }
-
-        .not-found-link-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 16px var(--accent-glow);
-        }
-
-        .not-found-link-secondary {
-            background: var(--bg-glass);
-            color: var(--text-primary);
-            border: 1px solid var(--border-subtle);
-        }
-
-        .not-found-link-secondary:hover {
-            border-color: var(--border-accent);
-            transform: translateY(-2px);
-        }
-
-        .not-found-logo {
-            position: absolute;
-            top: var(--space-6);
-            left: var(--space-6);
-            text-decoration: none;
-            color: inherit;
-            display: inline-flex;
-            align-items: center;
-            gap: var(--space-2);
-            font-weight: 700;
-            font-size: var(--text-sm);
-        }
-
-        .not-found-logo .logo-wordmark-accent {
-            color: var(--accent);
-        }
-
-        .not-found-logo .logo-wordmark-base {
-            color: var(--text-secondary);
-        }
-    </style>
+    <link rel="stylesheet" href="/css/not-found.css?v={{.BuildVersion}}">
+    <link rel="stylesheet" href="/css/precision-workspace.css?v={{.BuildVersion}}">
+    <link rel="stylesheet" href="/css/precision-entry.css?v={{.BuildVersion}}">
 </head>
 
-<body>
+<body class="pw-page pw-entry-page" data-entry-page="not-found">
     <a href="#main-content" class="skip-link" data-i18n="common.skip_to_content"></a>
 
     <a href="/" class="not-found-logo">

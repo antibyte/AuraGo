@@ -1874,6 +1874,196 @@ func TestPrecisionWorkspaceProtectedPagesStayOptedOut(t *testing.T) {
 	}
 }
 
+func TestPrecisionEntryPagesOptInWithoutOperationalWorkspace(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		template   string
+		entryPage  string
+		pageCSS    string
+		pageCSSPos string
+	}{
+		{name: "Login", template: "login.html", entryPage: "login", pageCSS: `/css/login.css`, pageCSSPos: `/css/enhancements.css?v=20260425a`},
+		{name: "Setup", template: "setup.html", entryPage: "setup", pageCSS: `/css/setup.css`, pageCSSPos: `/css/enhancements.css?v=20260425a`},
+		{name: "NotFound", template: "404.html", entryPage: "not-found", pageCSS: `/css/not-found.css?v={{.BuildVersion}}`, pageCSSPos: `/css/precision-workspace.css?v={{.BuildVersion}}`},
+	}
+
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			html := normalizeAssetText(mustReadUIFile(t, test.template))
+			body := `<body class="pw-page pw-entry-page" data-entry-page="` + test.entryPage + `">`
+			if !strings.Contains(html, body) {
+				t.Errorf("%s missing exact entry body marker %q", test.template, body)
+			}
+
+			foundationAt := strings.Index(html, `/css/precision-workspace.css?v={{.BuildVersion}}`)
+			entryAt := strings.Index(html, `/css/precision-entry.css?v={{.BuildVersion}}`)
+			pageAt := strings.Index(html, test.pageCSS)
+			pageBoundaryAt := strings.Index(html, test.pageCSSPos)
+			if foundationAt < 0 || entryAt < 0 || pageAt < 0 || pageBoundaryAt < 0 || foundationAt >= entryAt {
+				t.Errorf("%s missing ordered entry assets: page=%d boundary=%d foundation=%d entry=%d", test.template, pageAt, pageBoundaryAt, foundationAt, entryAt)
+			}
+			if test.template == "404.html" {
+				if !(pageAt < foundationAt && foundationAt < entryAt) {
+					t.Errorf("404 stylesheet order = not-found:%d foundation:%d entry:%d", pageAt, foundationAt, entryAt)
+				}
+			} else if !(pageAt < pageBoundaryAt && pageBoundaryAt < foundationAt && foundationAt < entryAt) {
+				t.Errorf("%s stylesheet order = page:%d enhancements:%d foundation:%d entry:%d", test.template, pageAt, pageBoundaryAt, foundationAt, entryAt)
+			}
+
+			for _, forbidden := range []string{
+				`precision-pages.css`, `js/precision/workspace.js`, `data-density=`, `data-workspace-page=`,
+				`data-pw-density-toggle`, `radialMenuAnchor`,
+			} {
+				if strings.Contains(html, forbidden) {
+					t.Errorf("entry template %s must not include operational marker %q", test.template, forbidden)
+				}
+			}
+		})
+	}
+}
+
+func TestPrecisionEntryTemplatesPreserveHooksWithoutInlineStyles(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		template string
+		hooks    []string
+	}{
+		{template: "login.html", hooks: []string{
+			`id="bg-canvas"`, `id="css-bg"`, `id="password"`, `id="totpSection"`, `id="totpCode"`,
+			`id="btnLogin"`, `id="loginError"`, `/js/vendor/three.min.js`, `/js/login/main.js`, `submitLogin()`,
+		}},
+		{template: "setup.html", hooks: []string{
+			`id="step-indicator"`, `id="btn-back"`, `id="btn-skip-step"`, `id="btn-next"`, `id="btn-skip-setup"`,
+			`id="plan-select"`, `id="plan-quick"`, `id="llm-provider"`, `id="llm-model"`, `openOpenRouterBrowser`,
+			`id="success-screen"`, `id="btn-go-to-chat"`, `/js/setup/main.js`,
+		}},
+		{template: "404.html", hooks: []string{
+			`id="main-content"`, `href="/"`, `href="/dashboard"`, `data-i18n="notfound.title"`,
+			`data-i18n="notfound.description"`, `data-i18n="notfound.go_home"`, `data-i18n="notfound.go_dashboard"`,
+		}},
+	}
+
+	for _, test := range tests {
+		html := normalizeAssetText(mustReadUIFile(t, test.template))
+		if regexp.MustCompile(`(?i)\sstyle\s*=`).MatchString(html) {
+			t.Errorf("%s must not contain style attributes", test.template)
+		}
+		if regexp.MustCompile(`(?i)<style\b`).MatchString(html) {
+			t.Errorf("%s must not contain style elements", test.template)
+		}
+		for _, hook := range test.hooks {
+			if !strings.Contains(html, hook) {
+				t.Errorf("%s lost functional hook %q", test.template, hook)
+			}
+		}
+	}
+
+	setup := normalizeAssetText(mustReadUIFile(t, "setup.html"))
+	if !strings.Contains(setup, `class="spinner profile-loading-spinner"`) {
+		t.Error("setup loading spinner must use the scoped semantic spacing class")
+	}
+}
+
+func TestPrecisionEntryStylesAreScopedResponsiveAndFlat(t *testing.T) {
+	t.Parallel()
+
+	shared := normalizeAssetText(mustReadUIFile(t, "css/precision-entry.css"))
+	sharedPrefix := `.pw-page.pw-entry-page`
+	for _, marker := range []string{
+		sharedPrefix + ` {`, `min-height: 100dvh;`, `overflow-x: clip;`, `background-image: none;`,
+		sharedPrefix + `:where(:root[data-theme="light"] *)`, `min-height: 44px;`, `min-width: 44px;`,
+		`@media (max-width: 1024px)`, `@media (max-width: 768px)`, `@media (max-width: 640px)`,
+		`@media (prefers-reduced-motion: reduce)`, `outline: 2px solid var(--pw-accent);`,
+	} {
+		if !strings.Contains(shared, marker) {
+			t.Errorf("precision-entry.css missing %q", marker)
+		}
+	}
+	if strings.Contains(strings.ToLower(shared), "gradient(") || strings.Contains(strings.ToLower(shared), "glow") {
+		t.Error("precision-entry.css must not introduce gradients or glow")
+	}
+	assertPrecisionAdapterSelectorsScoped(t, shared, sharedPrefix)
+
+	tests := []struct {
+		name       string
+		stylesheet string
+		page       string
+		selectors  []string
+	}{
+		{name: "Login", stylesheet: "css/login.css", page: "login", selectors: []string{`.login-card`, `.login-input`, `.btn-login`, `#bg-canvas`, `.css-fallback-bg`}},
+		{name: "Setup", stylesheet: "css/setup.css", page: "setup", selectors: []string{`.setup-header`, `.setup-card`, `.setup-section`, `.btn-setup`, `.profile-loading-spinner`, `.or-browser-modal`}},
+		{name: "NotFound", stylesheet: "css/not-found.css", page: "not-found", selectors: []string{`.not-found-page`, `.not-found-code`, `.not-found-actions`, `.not-found-link`, `.not-found-logo`}},
+	}
+	for _, test := range tests {
+		css := normalizeAssetText(mustReadUIFile(t, test.stylesheet))
+		startMarker := `/* === Precision Entry ` + test.name + ` Adapter: start === */`
+		endMarker := `/* === Precision Entry ` + test.name + ` Adapter: end === */`
+		start, end := strings.Index(css, startMarker), strings.Index(css, endMarker)
+		if start < 0 || end <= start {
+			t.Fatalf("%s missing delimited Precision entry adapter", test.stylesheet)
+		}
+		adapter := css[start:end]
+		prefix := `.pw-page.pw-entry-page[data-entry-page="` + test.page + `"]`
+		for _, marker := range append([]string{
+			prefix + ` {`, `background-image: none;`, `box-shadow: none;`, `overflow-wrap: anywhere;`,
+			prefix + `:where(:root[data-theme="light"] *)`, `@media (max-width: 768px)`, `@media (max-width: 640px)`,
+			`min-height: 44px;`, `@media (prefers-reduced-motion: reduce)`,
+		}, test.selectors...) {
+			if !strings.Contains(adapter, marker) {
+				t.Errorf("%s entry adapter missing %q", test.name, marker)
+			}
+		}
+		if strings.Contains(strings.ToLower(adapter), "gradient(") || strings.Contains(strings.ToLower(adapter), "glow") {
+			t.Errorf("%s entry adapter must remain flat", test.name)
+		}
+		assertPrecisionAdapterSelectorsScoped(t, adapter, prefix)
+	}
+}
+
+func TestPrecisionEntrySetupOpenRouterDialogContract(t *testing.T) {
+	t.Parallel()
+
+	script := normalizeAssetText(mustReadUIFile(t, "js/setup/main.js"))
+	start := strings.Index(script, `async function openOpenRouterBrowser(onSelect) {`)
+	if start < 0 {
+		t.Fatal("cannot locate openOpenRouterBrowser source block")
+	}
+	end := strings.Index(script[start:], `// ── Provider Change Handler`)
+	if end < 0 {
+		t.Fatal("cannot locate openOpenRouterBrowser source block")
+	}
+	block := script[start : start+end]
+	for _, marker := range []string{
+		`role="dialog"`, `aria-modal="true"`, `aria-labelledby="or-browser-title"`, `id="or-browser-title"`,
+		`aria-label="${escapeAttr(t('common.close'))}"`, `const previouslyFocused = document.activeElement;`,
+		`event.key !== 'Tab'`, `event.key === 'Escape'`, `focusable[0].focus();`,
+		`focusable[focusable.length - 1].focus();`, `previouslyFocused.focus();`,
+	} {
+		if !strings.Contains(block, marker) {
+			t.Errorf("OpenRouter dialog contract missing %q", marker)
+		}
+	}
+	if regexp.MustCompile(`(?i)\sstyle\s*=`).MatchString(block) {
+		t.Error("OpenRouter dialog markup must not create inline styles")
+	}
+}
+
+func TestPrecisionEntryNotFoundExternalStylesPreserveActionSpacing(t *testing.T) {
+	t.Parallel()
+
+	css := normalizeAssetText(mustReadUIFile(t, "css/not-found.css"))
+	selector := `.pw-page.pw-entry-page[data-entry-page="not-found"] .not-found-link`
+	rule := regexp.MustCompile(`(?s)` + regexp.QuoteMeta(selector) + `\s*\{([^}]*)\}`).FindStringSubmatch(css)
+	if len(rule) != 2 || !strings.Contains(rule[1], `gap: var(--pw-space-2);`) {
+		t.Error("external 404 link styles must preserve the original icon/text spacing")
+	}
+}
+
 func assertPrecisionCSSScoped(t *testing.T, css string) {
 	t.Helper()
 

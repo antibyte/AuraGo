@@ -1,0 +1,104 @@
+/* AuraGo Precision Entry: shared navigation-free shell for authentication and onboarding pages. */
+.pw-page.pw-entry-page {
+    min-height: 100vh;
+    min-height: 100dvh;
+    width: 100%;
+    overflow-x: clip;
+    background: var(--pw-canvas);
+    background-image: none;
+    color: var(--pw-text);
+    color-scheme: dark;
+}
+
+.pw-page.pw-entry-page:where(:root[data-theme="light"] *) {
+    color-scheme: light;
+}
+
+.pw-page.pw-entry-page .skip-link {
+    position: fixed;
+    z-index: 10000;
+    top: max(0.75rem, env(safe-area-inset-top, 0px));
+    left: max(0.75rem, env(safe-area-inset-left, 0px));
+    min-height: 44px;
+    padding: 0.7rem 1rem;
+    border: 1px solid var(--pw-line-strong);
+    border-radius: var(--pw-radius-sm);
+    background: var(--pw-surface-elevated);
+    color: var(--pw-text);
+    box-shadow: none;
+}
+
+.pw-page.pw-entry-page button,
+.pw-page.pw-entry-page input,
+.pw-page.pw-entry-page select,
+.pw-page.pw-entry-page textarea,
+.pw-page.pw-entry-page a {
+    max-width: 100%;
+}
+
+.pw-page.pw-entry-page button,
+.pw-page.pw-entry-page input,
+.pw-page.pw-entry-page select,
+.pw-page.pw-entry-page textarea {
+    min-height: 44px;
+}
+
+.pw-page.pw-entry-page button,
+.pw-page.pw-entry-page a {
+    min-width: 44px;
+}
+
+.pw-page.pw-entry-page h1,
+.pw-page.pw-entry-page h2,
+.pw-page.pw-entry-page h3,
+.pw-page.pw-entry-page p,
+.pw-page.pw-entry-page label,
+.pw-page.pw-entry-page a,
+.pw-page.pw-entry-page button {
+    overflow-wrap: anywhere;
+}
+
+.pw-page.pw-entry-page button:focus-visible,
+.pw-page.pw-entry-page input:focus-visible,
+.pw-page.pw-entry-page select:focus-visible,
+.pw-page.pw-entry-page textarea:focus-visible,
+.pw-page.pw-entry-page a:focus-visible {
+    outline: 2px solid var(--pw-accent);
+    outline-offset: 2px;
+    box-shadow: none;
+}
+
+@media (max-width: 1024px) {
+    .pw-page.pw-entry-page {
+        --pw-entry-inline: 1.25rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .pw-page.pw-entry-page {
+        --pw-entry-inline: 1rem;
+    }
+}
+
+@media (max-width: 640px) {
+    .pw-page.pw-entry-page button,
+    .pw-page.pw-entry-page input,
+    .pw-page.pw-entry-page select,
+    .pw-page.pw-entry-page textarea,
+    .pw-page.pw-entry-page a {
+        min-height: 44px;
+        min-width: 44px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .pw-page.pw-entry-page,
+    .pw-page.pw-entry-page *,
+    .pw-page.pw-entry-page *::before,
+    .pw-page.pw-entry-page *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
