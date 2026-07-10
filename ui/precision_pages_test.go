@@ -408,7 +408,7 @@ func TestPrecisionWorkspacePlansMissionsCheatsheetsIntegration(t *testing.T) {
 			page:             "missions",
 			pageStylesheet:   `/css/missions.css`,
 			pageScript:       `/js/missions/main.js`,
-			inlineStyleCount: 1,
+			inlineStyleCount: 0,
 			hooks: []string{
 				`id="view-toggle"`,
 				`data-view-mode="grid"`,
@@ -426,7 +426,7 @@ func TestPrecisionWorkspacePlansMissionsCheatsheetsIntegration(t *testing.T) {
 			page:             "cheatsheets",
 			pageStylesheet:   `/css/cheatsheets.css`,
 			pageScript:       `/js/cheatsheets/main.js`,
-			inlineStyleCount: 1,
+			inlineStyleCount: 0,
 			hooks: []string{
 				`id="view-toggle"`,
 				`onclick="setViewMode('grid')"`,
@@ -478,6 +478,33 @@ func TestPrecisionWorkspacePlansMissionsCheatsheetsIntegration(t *testing.T) {
 				t.Errorf("%s inline style count = %d, want preserved baseline count %d", test.template, got, test.inlineStyleCount)
 			}
 		})
+	}
+}
+
+func TestPrecisionWorkspacePlanningPagesUseSemanticClassesInsteadOfInlineStyles(t *testing.T) {
+	t.Parallel()
+
+	for _, template := range []string{"plans.html", "missions_v2.html", "cheatsheets.html"} {
+		html := normalizeAssetText(mustReadUIFile(t, template))
+		if regexp.MustCompile(`(?i)\sstyle\s*=`).MatchString(html) {
+			t.Errorf("%s must not contain inline style attributes", template)
+		}
+	}
+
+	missions := normalizeAssetText(mustReadUIFile(t, "missions_v2.html"))
+	if !strings.Contains(missions, `<div class="modal modal-prep-context">`) {
+		t.Error("missions_v2.html prepared-context dialog must use the semantic modal-prep-context class")
+	}
+
+	cheatsheets := normalizeAssetText(mustReadUIFile(t, "cheatsheets.html"))
+	if !strings.Contains(cheatsheets, `id="attachment-file-input" accept=".txt,.md" class="is-hidden"`) {
+		t.Error("cheatsheets.html file input must use the existing is-hidden utility class")
+	}
+
+	utilities := normalizeAssetText(mustReadUIFile(t, "shared-utilities.css"))
+	isHidden := regexp.MustCompile(`(?s)\.is-hidden\s*\{([^}]*)\}`).FindStringSubmatch(utilities)
+	if len(isHidden) != 2 || !strings.Contains(isHidden[1], "display: none;") || strings.Contains(isHidden[1], "!important") {
+		t.Error("is-hidden must remain a non-important class rule so an inline display state can override it")
 	}
 }
 
@@ -621,6 +648,66 @@ func TestPrecisionWorkspaceMissionsAdapterStopsDecorativeStatusGlows(t *testing.
 	)
 	if !pulseSuppression.MatchString(adapter) {
 		t.Error("Missions Precision adapter must disable preparation and running-chip pulse glows")
+	}
+
+	statusPulseSuppression := regexp.MustCompile(
+		`(?s)` + regexp.QuoteMeta(prefix+` .status-card.running`) +
+			`\s*\{[^}]*animation:\s*none;[^}]*box-shadow:\s*none;`,
+	)
+	if !statusPulseSuppression.MatchString(adapter) {
+		t.Error("Missions Precision adapter must disable the running summary-card pulse while keeping its semantic styling")
+	}
+
+	preparedGlowSuppression := regexp.MustCompile(
+		`(?s)` + regexp.QuoteMeta(prefix+` .badge-prep-prepared`) +
+			`\s*\{[^}]*box-shadow:\s*none;`,
+	)
+	if !preparedGlowSuppression.MatchString(adapter) {
+		t.Error("Missions Precision adapter must remove the prepared badge decorative glow")
+	}
+}
+
+func TestPrecisionWorkspaceMissionsAdapterStylesActualCompactRendererContract(t *testing.T) {
+	t.Parallel()
+
+	client := normalizeAssetText(mustReadUIFile(t, "js/missions/main.js"))
+	for _, rendererClass := range []string{
+		`class="card-compact"`,
+		`class="card-badges"`,
+		`class="card-actions"`,
+	} {
+		if !strings.Contains(client, rendererClass) {
+			t.Fatalf("missions renderer no longer emits expected compact-list hook %q", rendererClass)
+		}
+	}
+
+	css := normalizeAssetText(mustReadUIFile(t, "css/missions.css"))
+	const (
+		adapterStart = `/* === Precision Workspace Missions Adapter: start === */`
+		adapterEnd   = `/* === Precision Workspace Missions Adapter: end === */`
+		prefix       = `.pw-page[data-workspace-page="missions"]`
+	)
+	start := strings.Index(css, adapterStart)
+	end := strings.Index(css, adapterEnd)
+	if start < 0 || end <= start {
+		t.Fatalf("missions.css missing delimited Precision adapter: start=%d end=%d", start, end)
+	}
+	adapter := css[start:end]
+
+	for _, marker := range []string{
+		prefix + ` .card-compact {`,
+		`grid-template-columns: auto minmax(0, 1fr) auto auto;`,
+		prefix + ` .card-badges {`,
+		prefix + ` .card-actions {`,
+		prefix + `[data-density="compact"] .card-compact`,
+		`@media (max-width: 1024px)`,
+		`@media (max-width: 640px)`,
+		`grid-template-columns: auto minmax(0, 1fr);`,
+		`grid-column: 1 / -1;`,
+	} {
+		if !strings.Contains(adapter, marker) {
+			t.Errorf("Missions compact renderer adapter missing marker %q", marker)
+		}
 	}
 }
 

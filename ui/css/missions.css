@@ -1796,6 +1796,11 @@
     box-shadow: none;
 }
 
+.pw-page[data-workspace-page="missions"] .status-card.running {
+    animation: none;
+    box-shadow: none;
+}
+
 .pw-page[data-workspace-page="missions"] .status-value {
     color: var(--pw-text);
     font-size: clamp(1.25rem, 2.4vw, 1.8rem);
@@ -1901,6 +1906,68 @@
     grid-template-columns: 1fr;
 }
 
+.pw-page[data-workspace-page="missions"] .card-compact {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: var(--pw-space-3);
+    min-width: 0;
+    padding: var(--pw-space-3) var(--pw-space-4);
+    border: 1px solid var(--pw-line);
+    border-radius: var(--pw-radius-md);
+    background: var(--pw-surface);
+    background-image: none;
+    box-shadow: none;
+}
+
+.pw-page[data-workspace-page="missions"] .card-compact:hover {
+    border-color: var(--pw-line-strong);
+    background: var(--pw-surface-elevated);
+    box-shadow: none;
+    transform: none;
+}
+
+.pw-page[data-workspace-page="missions"] .card-compact .card-icon {
+    display: inline-flex;
+    min-width: 24px;
+    align-items: center;
+    justify-content: center;
+    color: var(--pw-muted);
+}
+
+.pw-page[data-workspace-page="missions"] .card-compact .card-name {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--pw-text);
+    font-weight: 650;
+    overflow-wrap: anywhere;
+    text-overflow: ellipsis;
+}
+
+.pw-page[data-workspace-page="missions"] .card-badges {
+    display: flex;
+    min-width: 0;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--pw-space-2);
+}
+
+.pw-page[data-workspace-page="missions"] .card-actions {
+    display: flex;
+    min-width: 0;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--pw-space-2);
+    opacity: 1;
+    visibility: visible;
+}
+
+.pw-page[data-workspace-page="missions"] .card-actions .mc-btn {
+    flex: 0 0 auto;
+}
+
 .pw-page[data-workspace-page="missions"] .mission-card,
 .pw-page[data-workspace-page="missions"] .mc-card {
     border: 1px solid var(--pw-line);
@@ -1948,6 +2015,10 @@
 .pw-page[data-workspace-page="missions"] .badge-prep-preparing,
 .pw-page[data-workspace-page="missions"] .mc-status-chip--running {
     animation: none;
+    box-shadow: none;
+}
+
+.pw-page[data-workspace-page="missions"] .badge-prep-prepared {
     box-shadow: none;
 }
 
@@ -2064,6 +2135,11 @@
     box-shadow: none;
 }
 
+.pw-page[data-workspace-page="missions"] .modal-prep-context {
+    width: min(100%, 700px);
+    max-width: min(700px, calc(100vw - 1rem)) !important;
+}
+
 .pw-page[data-workspace-page="missions"] .modal-header,
 .pw-page[data-workspace-page="missions"] .modal-actions {
     border-color: var(--pw-line);
@@ -2100,6 +2176,17 @@
     min-height: 92px;
 }
 
+.pw-page[data-workspace-page="missions"][data-density="compact"] .card-compact {
+    gap: var(--pw-space-2);
+    padding: var(--pw-space-2) var(--pw-space-3);
+}
+
+.pw-page[data-workspace-page="missions"][data-density="compact"] .card-actions .mc-btn {
+    width: 36px;
+    height: 36px;
+    min-height: 36px;
+}
+
 .pw-page[data-workspace-page="missions"][data-density="compact"] .missions-grid,
 .pw-page[data-workspace-page="missions"][data-density="compact"] .status-bar {
     gap: var(--pw-space-2);
@@ -2119,6 +2206,14 @@
 
     .pw-page[data-workspace-page="missions"] .missions-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .pw-page[data-workspace-page="missions"] .card-compact {
+        grid-template-columns: auto minmax(0, 1fr) auto;
+    }
+
+    .pw-page[data-workspace-page="missions"] .card-actions {
+        grid-column: 1 / -1;
     }
 }
 
@@ -2143,6 +2238,17 @@
     .pw-page[data-workspace-page="missions"] .status-bar,
     .pw-page[data-workspace-page="missions"] .missions-grid {
         grid-template-columns: 1fr;
+    }
+
+    .pw-page[data-workspace-page="missions"] .card-compact {
+        grid-template-columns: auto minmax(0, 1fr);
+        align-items: start;
+    }
+
+    .pw-page[data-workspace-page="missions"] .card-badges,
+    .pw-page[data-workspace-page="missions"] .card-actions {
+        grid-column: 1 / -1;
+        justify-content: flex-start;
     }
 
     .pw-page[data-workspace-page="missions"] input,
