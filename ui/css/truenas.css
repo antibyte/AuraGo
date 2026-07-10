@@ -501,6 +501,16 @@
     box-shadow: none;
 }
 
+.pw-page[data-workspace-page="truenas"] .nav-btn:focus-visible,
+.pw-page[data-workspace-page="truenas"] .btn:focus-visible,
+.pw-page[data-workspace-page="truenas"] input:focus-visible,
+.pw-page[data-workspace-page="truenas"] select:focus-visible,
+.pw-page[data-workspace-page="truenas"] textarea:focus-visible {
+    outline: 2px solid var(--pw-accent);
+    outline-offset: 2px;
+    box-shadow: none;
+}
+
 .pw-page[data-workspace-page="truenas"]:where(:root[data-theme="light"] *) .stat-card,
 .pw-page[data-workspace-page="truenas"]:where(:root[data-theme="light"] *) .pool-card,
 .pw-page[data-workspace-page="truenas"]:where(:root[data-theme="light"] *) .dataset-item,
@@ -569,6 +579,15 @@
     .pw-page[data-workspace-page="truenas"][data-density="compact"] .btn,
     .pw-page[data-workspace-page="truenas"][data-density="compact"] input,
     .pw-page[data-workspace-page="truenas"][data-density="compact"] select {
+        min-height: 44px;
+    }
+
+    .pw-page[data-workspace-page="truenas"][data-density="compact"] .pool-actions .btn,
+    .pw-page[data-workspace-page="truenas"][data-density="compact"] .dataset-actions .btn,
+    .pw-page[data-workspace-page="truenas"][data-density="compact"] .snapshot-actions .btn,
+    .pw-page[data-workspace-page="truenas"][data-density="compact"] .share-actions .btn,
+    .pw-page[data-workspace-page="truenas"][data-density="compact"] .form-actions .btn {
+        min-width: 44px;
         min-height: 44px;
     }
 }

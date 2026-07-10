@@ -929,6 +929,17 @@
     box-shadow: none;
 }
 
+.pw-page[data-workspace-page="invasion"] .invasion-tab:focus-visible,
+.pw-page[data-workspace-page="invasion"] .btn:focus-visible,
+.pw-page[data-workspace-page="invasion"] .modal-close:focus-visible,
+.pw-page[data-workspace-page="invasion"] input:focus-visible,
+.pw-page[data-workspace-page="invasion"] select:focus-visible,
+.pw-page[data-workspace-page="invasion"] textarea:focus-visible {
+    outline: 2px solid var(--pw-accent);
+    outline-offset: 2px;
+    box-shadow: none;
+}
+
 .pw-page[data-workspace-page="invasion"]:where(:root[data-theme="light"] *) .card,
 .pw-page[data-workspace-page="invasion"]:where(:root[data-theme="light"] *) .invasion-tabs,
 .pw-page[data-workspace-page="invasion"]:where(:root[data-theme="light"] *) .config-history-item,
@@ -993,6 +1004,14 @@
     .pw-page[data-workspace-page="invasion"][data-density="compact"] .btn,
     .pw-page[data-workspace-page="invasion"][data-density="compact"] input,
     .pw-page[data-workspace-page="invasion"][data-density="compact"] select {
+        min-height: 44px;
+    }
+
+    .pw-page[data-workspace-page="invasion"][data-density="compact"] .card-actions .btn,
+    .pw-page[data-workspace-page="invasion"][data-density="compact"] .modal-actions .btn,
+    .pw-page[data-workspace-page="invasion"][data-density="compact"] .modal-close,
+    .pw-page[data-workspace-page="invasion"][data-density="compact"] .rev-actions .btn {
+        min-width: 44px;
         min-height: 44px;
     }
 }

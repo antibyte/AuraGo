@@ -1196,7 +1196,8 @@ func TestPrecisionWorkspaceModalFocusContractIsGenericAndIdempotent(t *testing.T
 		`const activeModalOverlays = new Set();`,
 		`let modalObserver = null;`,
 		`function enhanceModalOverlay(overlay)`,
-		`!overlay.matches(MODAL_SELECTOR)`,
+		`function isModalBoundary(element)`,
+		`!isModalBoundary(overlay)`,
 		`syncModalSemantics(overlay);`,
 		`overlay.dataset.pwModalBound === 'true'`,
 		`overlay.dataset.pwModalBound = 'true'`,
@@ -1210,7 +1211,7 @@ func TestPrecisionWorkspaceModalFocusContractIsGenericAndIdempotent(t *testing.T
 		`event.key !== 'Tab'`,
 		`window.requestAnimationFrame`,
 		`new MutationObserver`,
-		`attributeFilter: ['class', 'style']`,
+		`attributeFilter: ['class', 'style', 'hidden']`,
 		`removedNodes`,
 		`observeModalOverlays();`,
 	} {
@@ -1238,7 +1239,7 @@ func TestPrecisionWorkspaceModalSemanticsHandleNestedAndLateDialogContent(t *tes
 		`dialogTarget.querySelector('.modal-title')`,
 		`dialogTarget.querySelector('.modal-header h1, .modal-header h2, .modal-header h3')`,
 		`dialogTarget.querySelector('h1, h2, h3')`,
-		`record.target.closest(MODAL_SELECTOR)`,
+		`modalBoundaryForElement(record.target)`,
 	} {
 		if !strings.Contains(client, marker) {
 			t.Errorf("Precision nested/late modal semantic contract missing %q", marker)
@@ -1266,6 +1267,47 @@ func TestPrecisionWorkspaceModalSemanticsHandleNestedAndLateDialogContent(t *tes
 			t.Errorf("Precision modal title resolution order is wrong at %q", marker)
 		}
 		previous = at
+	}
+}
+
+func TestPrecisionWorkspaceModalFocusContractSupportsStandaloneDialogs(t *testing.T) {
+	t.Parallel()
+
+	client := normalizeAssetText(mustReadUIFile(t, "js/precision/workspace.js"))
+	for _, marker := range []string{
+		`const MODAL_OVERLAY_SELECTOR = '.modal-overlay';`,
+		`const STANDALONE_DIALOG_SELECTOR = '[role="dialog"][aria-modal="true"]';`,
+		`const MODAL_BOUNDARY_SELECTOR = MODAL_OVERLAY_SELECTOR + ', ' + STANDALONE_DIALOG_SELECTOR;`,
+		`function isModalBoundary(element)`,
+		`element.matches(MODAL_BOUNDARY_SELECTOR)`,
+		`element.parentElement && element.parentElement.closest(MODAL_BOUNDARY_SELECTOR)`,
+		`function modalBoundaryForElement(element)`,
+		`function modalBoundariesWithin(node)`,
+		`.filter(isModalBoundary)`,
+		`document.querySelectorAll(MODAL_BOUNDARY_SELECTOR)`,
+		`overlay.matches(STANDALONE_DIALOG_SELECTOR) ? overlay`,
+		`overlay.hidden`,
+		`overlay.classList.contains('is-hidden')`,
+		`window.getComputedStyle(overlay)`,
+		`computed.display !== 'none'`,
+		`computed.visibility !== 'hidden'`,
+	} {
+		if !strings.Contains(client, marker) {
+			t.Errorf("Precision standalone modal focus contract missing %q", marker)
+		}
+	}
+
+	isOpenStart := strings.Index(client, `function isModalOpen(overlay)`)
+	isOpenEnd := strings.Index(client, `function focusModal(overlay)`)
+	if isOpenStart < 0 || isOpenEnd <= isOpenStart {
+		t.Fatal("cannot locate isModalOpen")
+	}
+	isOpen := client[isOpenStart:isOpenEnd]
+	hiddenAt := strings.Index(isOpen, `overlay.hidden`)
+	activeAt := strings.Index(isOpen, `overlay.classList.contains('active')`)
+	computedAt := strings.Index(isOpen, `window.getComputedStyle(overlay)`)
+	if hiddenAt < 0 || activeAt <= hiddenAt || computedAt <= activeAt {
+		t.Error("isModalOpen must reject hidden state before active/open and use computed visibility as fallback")
 	}
 }
 
@@ -1613,6 +1655,122 @@ func TestPrecisionWorkspaceOperationsSemanticStatesStayFlat(t *testing.T) {
 	rule := regexp.MustCompile(`(?s)` + regexp.QuoteMeta(selector) + `\s*\{([^}]*)\}`).FindStringSubmatch(media)
 	if len(rule) != 2 || !strings.Contains(rule[1], `box-shadow: none;`) {
 		t.Error("Media active tab must suppress the inherited light-theme glow")
+	}
+}
+
+func TestPrecisionWorkspaceOperationsFocusVisibleRulesArePageScoped(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name, stylesheet, page string
+		controls               []string
+	}{
+		{name: "Containers", stylesheet: "css/containers.css", page: "containers", controls: []string{".ct-search", ".ct-filter-btn", ".ct-card-actions .btn", ".modal-actions .btn", ".modal-close", `.ct-checkbox-label input[type="checkbox"]`}},
+		{name: "Media", stylesheet: "css/media.css", page: "media", controls: []string{".gallery-search", ".gallery-filter", ".media-tab", ".btn-gallery-nav", ".btn-gallery-action", ".lightbox-close", ".audio-play-btn", ".audio-speed-btn", ".audio-download-btn", ".media-doc-row-actions a", ".media-doc-row-actions button"}},
+		{name: "TrueNAS", stylesheet: "css/truenas.css", page: "truenas", controls: []string{".nav-btn", ".btn", "input", "select", "textarea"}},
+		{name: "Invasion", stylesheet: "css/invasion.css", page: "invasion", controls: []string{".invasion-tab", ".btn", ".modal-close", "input", "select", "textarea"}},
+	}
+
+	for _, test := range tests {
+		css := normalizeAssetText(mustReadUIFile(t, test.stylesheet))
+		start := strings.Index(css, `/* === Precision Workspace `+test.name+` Adapter: start === */`)
+		end := strings.Index(css, `/* === Precision Workspace `+test.name+` Adapter: end === */`)
+		if start < 0 || end <= start {
+			t.Fatalf("%s missing adapter", test.stylesheet)
+		}
+		adapter := css[start:end]
+		prefix := `.pw-page[data-workspace-page="` + test.page + `"] `
+		for _, control := range test.controls {
+			selector := prefix + control + `:focus-visible`
+			rule := regexp.MustCompile(`(?s)` + regexp.QuoteMeta(selector) + `[^{}]*\{([^}]*)\}`).FindStringSubmatch(adapter)
+			if len(rule) != 2 {
+				t.Errorf("%s missing scoped focus rule for %s", test.name, control)
+				continue
+			}
+			for _, declaration := range []string{`outline: 2px solid var(--pw-accent);`, `outline-offset: 2px;`, `box-shadow: none;`} {
+				if !strings.Contains(rule[1], declaration) {
+					t.Errorf("%s focus rule for %s missing %q", test.name, control, declaration)
+				}
+			}
+		}
+	}
+}
+
+func TestPrecisionWorkspaceOperationsCompactMobileActionTargetsWinCascade(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name, stylesheet, page string
+		controls               []string
+		sources                []string
+		renderedClasses        []string
+	}{
+		{
+			name: "Containers", stylesheet: "css/containers.css", page: "containers",
+			controls: []string{".ct-card-actions .btn", ".modal-actions .btn", ".modal-close", `.ct-checkbox-label input[type="checkbox"]`},
+			sources: []string{"containers.html", "js/containers/main.js"}, renderedClasses: []string{"ct-card-actions", "modal-actions", "modal-close", "ct-checkbox-label"},
+		},
+		{
+			name: "Media", stylesheet: "css/media.css", page: "media",
+			controls: []string{".lightbox-close", ".lightbox-actions .btn-gallery-action", ".audio-play-btn", ".audio-speed-btn", ".audio-download-btn", ".media-doc-row-actions a", ".media-doc-row-actions button"},
+			sources: []string{"media.html", "js/media/main.js", "js/chat/audio-player.js"}, renderedClasses: []string{"lightbox-close", "lightbox-actions", "audio-play-btn", "audio-speed-btn", "audio-download-btn", "media-doc-row-actions"},
+		},
+		{
+			name: "TrueNAS", stylesheet: "css/truenas.css", page: "truenas",
+			controls: []string{".pool-actions .btn", ".dataset-actions .btn", ".snapshot-actions .btn", ".share-actions .btn", ".form-actions .btn"},
+			sources: []string{"truenas.html", "js/truenas.js"}, renderedClasses: []string{"pool-actions", "dataset-actions", "snapshot-actions", "share-actions", "form-actions"},
+		},
+		{
+			name: "Invasion", stylesheet: "css/invasion.css", page: "invasion",
+			controls: []string{".card-actions .btn", ".modal-actions .btn", ".modal-close", ".rev-actions .btn"},
+			sources: []string{"invasion_control.html", "js/invasion/main.js"}, renderedClasses: []string{"card-actions", "modal-actions", "modal-close", "rev-actions"},
+		},
+	}
+
+	for _, test := range tests {
+		css := normalizeAssetText(mustReadUIFile(t, test.stylesheet))
+		start := strings.Index(css, `/* === Precision Workspace `+test.name+` Adapter: start === */`)
+		end := strings.Index(css, `/* === Precision Workspace `+test.name+` Adapter: end === */`)
+		adapter := css[start:end]
+		mobileAt := strings.LastIndex(adapter, `@media (max-width: 640px)`)
+		reducedAt := strings.Index(adapter, `@media (prefers-reduced-motion: reduce)`)
+		if start < 0 || end <= start || mobileAt < 0 || reducedAt <= mobileAt {
+			t.Fatalf("%s missing ordered adapter/mobile contract", test.name)
+		}
+		mobile := adapter[mobileAt:reducedAt]
+		prefix := `.pw-page[data-workspace-page="` + test.page + `"][data-density="compact"] `
+		for _, control := range test.controls {
+			rule := regexp.MustCompile(`(?s)` + regexp.QuoteMeta(prefix+control) + `[^{}]*\{([^}]*)\}`).FindStringSubmatch(mobile)
+			if len(rule) != 2 {
+				t.Errorf("%s missing cascade-safe compact mobile rule for %s", test.name, control)
+				continue
+			}
+			for _, declaration := range []string{`min-height: 44px;`, `min-width: 44px;`} {
+				if !strings.Contains(rule[1], declaration) {
+					t.Errorf("%s compact mobile %s missing %q", test.name, control, declaration)
+				}
+			}
+		}
+		var source string
+		for _, path := range test.sources {
+			source += normalizeAssetText(mustReadUIFile(t, path))
+		}
+		for _, className := range test.renderedClasses {
+			if !strings.Contains(source, className) {
+				t.Errorf("%s target class %s is not present in its template/renderer", test.name, className)
+			}
+		}
+	}
+}
+
+func TestPrecisionWorkspaceMediaSelectionGlowOverrideWinsImportantLegacyRule(t *testing.T) {
+	t.Parallel()
+
+	css := normalizeAssetText(mustReadUIFile(t, "css/media.css"))
+	selector := `.pw-page[data-workspace-page="media"] .media-card-selected`
+	rule := regexp.MustCompile(`(?s)` + regexp.QuoteMeta(selector) + `\s*\{([^}]*)\}`).FindStringSubmatch(css)
+	if len(rule) != 2 || !strings.Contains(rule[1], `box-shadow: none !important;`) {
+		t.Error("Media selected cards must override the legacy important glow with a scoped important flat rule")
 	}
 }
 

@@ -35,7 +35,9 @@
         '/invasion': '<path d="M7 18c-2-2-2-6 0-9s3-5 5-5 3 2 5 5 2 7 0 9-3 2-5 2-3 0-5-2Z"/><path d="M9 12h.01M15 12h.01M10 16c1 .7 3 .7 4 0"/>',
         logout: '<path d="M10 5H5v14h5M14 8l4 4-4 4M8 12h10"/>'
     };
-    const MODAL_SELECTOR = '.modal-overlay';
+    const MODAL_OVERLAY_SELECTOR = '.modal-overlay';
+    const STANDALONE_DIALOG_SELECTOR = '[role="dialog"][aria-modal="true"]';
+    const MODAL_BOUNDARY_SELECTOR = MODAL_OVERLAY_SELECTOR + ', ' + STANDALONE_DIALOG_SELECTOR;
     const MODAL_FOCUSABLE_SELECTOR = [
         '[autofocus]',
         'a[href]',
@@ -218,11 +220,20 @@
         });
     }
 
+    function isModalBoundary(element) {
+        if (!(element instanceof Element) || !element.matches(MODAL_BOUNDARY_SELECTOR)) return false;
+        return !(element.parentElement && element.parentElement.closest(MODAL_BOUNDARY_SELECTOR));
+    }
+
     function isModalOpen(overlay) {
         if (!overlay || !overlay.isConnected) return false;
+        if (overlay.hidden || overlay.classList.contains('is-hidden')) return false;
         if (overlay.classList.contains('active') || overlay.classList.contains('open')) return true;
         const inlineDisplay = overlay.style.display;
-        return Boolean(inlineDisplay && inlineDisplay !== 'none');
+        if (inlineDisplay === 'none') return false;
+        if (inlineDisplay) return true;
+        const computed = window.getComputedStyle(overlay);
+        return computed.display !== 'none' && computed.visibility !== 'hidden';
     }
 
     function focusModal(overlay) {
@@ -286,7 +297,8 @@
     }
 
     function dialogTargetForOverlay(overlay) {
-        return overlay.querySelector('[role="dialog"]') || overlay;
+        return overlay.matches(STANDALONE_DIALOG_SELECTOR) ? overlay :
+            (overlay.querySelector('[role="dialog"]') || overlay);
     }
 
     function syncModalSemantics(overlay) {
@@ -318,7 +330,7 @@
     }
 
     function enhanceModalOverlay(overlay) {
-        if (!overlay || !overlay.matches(MODAL_SELECTOR)) return;
+        if (!isModalBoundary(overlay)) return;
         syncModalSemantics(overlay);
         if (overlay.dataset.pwModalBound === 'true') {
             syncModalOverlay(overlay);
@@ -330,26 +342,38 @@
         syncModalOverlay(overlay);
     }
 
-    function modalOverlaysWithin(node) {
+    function modalBoundaryForElement(element) {
+        let current = element instanceof Element ? element : null;
+        while (current) {
+            if (isModalBoundary(current)) return current;
+            current = current.parentElement;
+        }
+        return null;
+    }
+
+    function modalBoundariesWithin(node) {
         if (!(node instanceof Element)) return [];
-        const overlays = Array.from(node.querySelectorAll(MODAL_SELECTOR));
-        if (node.matches(MODAL_SELECTOR)) overlays.unshift(node);
-        return overlays;
+        const boundaries = Array.from(node.querySelectorAll(MODAL_BOUNDARY_SELECTOR)).filter(isModalBoundary);
+        if (isModalBoundary(node)) boundaries.unshift(node);
+        return boundaries;
     }
 
     function observeModalOverlays() {
         if (!document.body || modalObserver) return;
-        document.querySelectorAll(MODAL_SELECTOR).forEach(enhanceModalOverlay);
+        document.querySelectorAll(MODAL_BOUNDARY_SELECTOR).forEach((element) => {
+            if (isModalBoundary(element)) enhanceModalOverlay(element);
+        });
 
         modalObserver = new MutationObserver((records) => {
             records.forEach((record) => {
                 if (record.type === 'attributes') {
-                    if (record.target.matches(MODAL_SELECTOR)) enhanceModalOverlay(record.target);
+                    const boundary = modalBoundaryForElement(record.target);
+                    if (boundary) enhanceModalOverlay(boundary);
                     return;
                 }
-                record.addedNodes.forEach((node) => modalOverlaysWithin(node).forEach(enhanceModalOverlay));
-                record.removedNodes.forEach((node) => modalOverlaysWithin(node).forEach(deactivateModal));
-                const containingOverlay = record.target.closest(MODAL_SELECTOR);
+                record.addedNodes.forEach((node) => modalBoundariesWithin(node).forEach(enhanceModalOverlay));
+                record.removedNodes.forEach((node) => modalBoundariesWithin(node).forEach(deactivateModal));
+                const containingOverlay = modalBoundaryForElement(record.target);
                 if (containingOverlay) enhanceModalOverlay(containingOverlay);
             });
         });
@@ -357,7 +381,7 @@
             childList: true,
             subtree: true,
             attributes: true,
-            attributeFilter: ['class', 'style']
+            attributeFilter: ['class', 'style', 'hidden']
         });
     }
 

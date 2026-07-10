@@ -985,7 +985,7 @@
 .pw-page[data-workspace-page="media"] .media-card-selected {
     border-color: var(--pw-accent);
     background: color-mix(in srgb, var(--pw-accent) 10%, var(--pw-surface));
-    box-shadow: none;
+    box-shadow: none !important;
 }
 
 .pw-page[data-workspace-page="media"] .media-audio-card-title,
@@ -1048,6 +1048,22 @@
 .pw-page[data-workspace-page="media"] .lightbox-meta,
 .pw-page[data-workspace-page="media"] .media-modal-meta {
     overflow-wrap: anywhere;
+}
+
+.pw-page[data-workspace-page="media"] .gallery-search:focus-visible,
+.pw-page[data-workspace-page="media"] .gallery-filter:focus-visible,
+.pw-page[data-workspace-page="media"] .media-tab:focus-visible,
+.pw-page[data-workspace-page="media"] .btn-gallery-nav:focus-visible,
+.pw-page[data-workspace-page="media"] .btn-gallery-action:focus-visible,
+.pw-page[data-workspace-page="media"] .lightbox-close:focus-visible,
+.pw-page[data-workspace-page="media"] .audio-play-btn:focus-visible,
+.pw-page[data-workspace-page="media"] .audio-speed-btn:focus-visible,
+.pw-page[data-workspace-page="media"] .audio-download-btn:focus-visible,
+.pw-page[data-workspace-page="media"] .media-doc-row-actions a:focus-visible,
+.pw-page[data-workspace-page="media"] .media-doc-row-actions button:focus-visible {
+    outline: 2px solid var(--pw-accent);
+    outline-offset: 2px;
+    box-shadow: none;
 }
 
 .pw-page[data-workspace-page="media"]:where(:root[data-theme="light"] *) .gallery-card,
@@ -1115,6 +1131,17 @@
     .pw-page[data-workspace-page="media"][data-density="compact"] .media-tab,
     .pw-page[data-workspace-page="media"][data-density="compact"] .btn-gallery-nav,
     .pw-page[data-workspace-page="media"][data-density="compact"] .btn-gallery-action {
+        min-height: 44px;
+    }
+
+    .pw-page[data-workspace-page="media"][data-density="compact"] .lightbox-close,
+    .pw-page[data-workspace-page="media"][data-density="compact"] .lightbox-actions .btn-gallery-action,
+    .pw-page[data-workspace-page="media"][data-density="compact"] .audio-play-btn,
+    .pw-page[data-workspace-page="media"][data-density="compact"] .audio-speed-btn,
+    .pw-page[data-workspace-page="media"][data-density="compact"] .audio-download-btn,
+    .pw-page[data-workspace-page="media"][data-density="compact"] .media-doc-row-actions a,
+    .pw-page[data-workspace-page="media"][data-density="compact"] .media-doc-row-actions button {
+        min-width: 44px;
         min-height: 44px;
     }
 }
