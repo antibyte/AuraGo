@@ -3,6 +3,11 @@
    Aligned with dashboard.css glassmorphism & interaction language
    ══════════════════════════════════════════════════════════════ */
 
+/* Utility: hide elements initially instead of inline styles */
+.sk-hidden {
+    display: none !important;
+}
+
 /* Container */
 .sk-container {
     max-width: 1320px;

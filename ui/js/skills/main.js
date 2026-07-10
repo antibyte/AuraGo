@@ -32,6 +32,9 @@ let agentFileDeleteInFlight = false;
 let agentFileDeleteDialogResolve = null;
 let agentFileDeleteBusy = false;
 
+function skShow(el) { if (el) el.classList.remove('sk-hidden'); }
+function skHide(el) { if (el) el.classList.add('sk-hidden'); }
+
 // ── Initialization ──────────────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -138,13 +141,13 @@ async function loadTemplates() {
 }
 
 function showDisabledState() {
-    document.getElementById('sk-grid').style.display = 'none';
-    document.getElementById('sk-empty').style.display = 'none';
-    document.getElementById('sk-disabled').style.display = '';
-    document.getElementById('sk-status-bar').style.display = 'none';
-    document.getElementById('sk-toolbar-actions').style.display = 'none';
-    document.getElementById('agent-toolbar-actions').style.display = 'none';
-    document.getElementById('sk-security-filters').style.display = 'none';
+    skHide(document.getElementById('sk-grid'));
+    skHide(document.getElementById('sk-empty'));
+    skShow(document.getElementById('sk-disabled'));
+    skHide(document.getElementById('sk-status-bar'));
+    skHide(document.getElementById('sk-toolbar-actions'));
+    skHide(document.getElementById('agent-toolbar-actions'));
+    skHide(document.getElementById('sk-security-filters'));
 }
 
 // ── Daemon Data ─────────────────────────────────────────────────────────────
@@ -359,13 +362,13 @@ function showDisabledState() {
         document.getElementById('sk-tab-agent').classList.toggle('active', currentSkillMode === 'agent');
         document.getElementById('sk-tab-python').setAttribute('aria-selected', currentSkillMode === 'python' ? 'true' : 'false');
         document.getElementById('sk-tab-agent').setAttribute('aria-selected', currentSkillMode === 'agent' ? 'true' : 'false');
-        document.getElementById('sk-toolbar-actions').style.display = currentSkillMode === 'python' ? '' : 'none';
-        document.getElementById('agent-toolbar-actions').style.display = currentSkillMode === 'agent' ? '' : 'none';
+        document.getElementById('sk-toolbar-actions').classList.toggle('sk-hidden', currentSkillMode !== 'python');
+        document.getElementById('agent-toolbar-actions').classList.toggle('sk-hidden', currentSkillMode !== 'agent');
         const typeFilter = document.querySelector('.sk-filter-group');
-        if (typeFilter) typeFilter.style.display = currentSkillMode === 'python' ? '' : 'none';
-        document.getElementById('sk-disabled').style.display = 'none';
-        document.getElementById('sk-status-bar').style.display = '';
-        document.getElementById('sk-security-filters').style.display = '';
+        if (typeFilter) typeFilter.classList.toggle('sk-hidden', currentSkillMode !== 'python');
+        skHide(document.getElementById('sk-disabled'));
+        skShow(document.getElementById('sk-status-bar'));
+        skShow(document.getElementById('sk-security-filters'));
         if (currentSkillMode === 'agent') {
             updateAgentSkillStats();
             renderAgentSkills();
@@ -382,17 +385,17 @@ function showDisabledState() {
         const grid = document.getElementById('sk-grid');
         const empty = document.getElementById('sk-empty');
         const disabled = document.getElementById('sk-disabled');
-        disabled.style.display = 'none';
+        skHide(disabled);
 
         const filtered = getFilteredSkills();
 
         if (filtered.length === 0) {
-            grid.style.display = 'none';
-            empty.style.display = '';
+            skHide(grid);
+            skShow(empty);
             return;
         }
-        empty.style.display = 'none';
-        grid.style.display = '';
+        skHide(empty);
+        skShow(grid);
 
         grid.innerHTML = filtered.map(s => renderCard(s)).join('');
         if (typeof applyI18n === 'function') applyI18n();
@@ -477,15 +480,15 @@ function showDisabledState() {
         const grid = document.getElementById('sk-grid');
         const empty = document.getElementById('sk-empty');
         const disabled = document.getElementById('sk-disabled');
-        disabled.style.display = 'none';
+        skHide(disabled);
         const filtered = getFilteredAgentSkills();
         if (filtered.length === 0) {
-            grid.style.display = 'none';
-            empty.style.display = '';
+            skHide(grid);
+            skShow(empty);
             return;
         }
-        empty.style.display = 'none';
-        grid.style.display = '';
+        skHide(empty);
+        skShow(grid);
         grid.innerHTML = filtered.map(s => renderAgentSkillCard(s)).join('');
         if (typeof applyI18n === 'function') applyI18n();
     }
@@ -689,7 +692,7 @@ function showDisabledState() {
             const secHTML = renderSkillSpectorReport(s.security_report);
             document.getElementById('detail-modal-title').textContent = s.name || t('skills.tab_agent');
             const actions = document.querySelector('#detail-modal .modal-actions');
-            if (actions) actions.style.display = 'none';
+            if (actions) skHide(actions);
             document.getElementById('detail-modal-body').innerHTML = `
                 <div class="sk-detail-grid">
                     <div class="sk-detail-row"><span class="sk-detail-label">${t('skills.agent_field_name')}:</span><code>${esc(s.name || '')}</code></div>
@@ -731,9 +734,9 @@ function showDisabledState() {
             return;
         }
         document.getElementById('agent-skill-modal-title').textContent = data.skill.name || t('skills.agent_edit_title');
-        document.getElementById('agent-create-fields').style.display = 'none';
+        skHide(document.getElementById('agent-create-fields'));
         document.getElementById('agent-skill-content').value = data.content || '';
-        document.getElementById('agent-resource-browser').style.display = '';
+        skShow(document.getElementById('agent-resource-browser'));
         renderAgentResourceList(data.skill.resources || []);
         document.getElementById('agent-skill-modal').classList.add('active');
     }
@@ -835,7 +838,7 @@ function showDisabledState() {
         const overlay = document.getElementById('agent-resource-path-modal');
         if (overlay) {
             overlay.classList.remove('active');
-            overlay.style.display = 'none';
+            skHide(overlay);
             overlay.onclick = null;
         }
         const resolve = agentResourcePathDialogResolve;
@@ -891,17 +894,17 @@ function showDisabledState() {
     // eslint-disable-next-line no-unused-vars
     async function loadAgentSkillResource(path) {
         if (!currentAgentSkillId) return;
-        document.getElementById('agent-file-editor').style.display = '';
+        skShow(document.getElementById('agent-file-editor'));
         document.getElementById('agent-resource-path').value = path;
         setAgentResourceSelection(path);
         const ext = path.split('.').pop().toLowerCase();
         const binaryExts = ['png','jpg','jpeg','gif','svg','pdf','zip','tar','gz','bin','exe','dll','so','dylib'];
         if (binaryExts.includes(ext)) {
-            document.getElementById('agent-resource-content').style.display = 'none';
-            document.getElementById('agent-binary-download').style.display = '';
+            skHide(document.getElementById('agent-resource-content'));
+            skShow(document.getElementById('agent-binary-download'));
         } else {
-            document.getElementById('agent-resource-content').style.display = '';
-            document.getElementById('agent-binary-download').style.display = 'none';
+            skShow(document.getElementById('agent-resource-content'));
+            skHide(document.getElementById('agent-binary-download'));
             const resp = await fetch(`/api/agent-skills/${encodeURIComponent(currentAgentSkillId)}/files?path=${encodeURIComponent(path)}`);
             const data = await resp.json();
             if (data.status === 'ok') {
@@ -981,7 +984,7 @@ function showDisabledState() {
         const overlay = document.getElementById('agent-file-delete-modal');
         if (overlay) {
             overlay.classList.remove('active');
-            overlay.style.display = 'none';
+            skHide(overlay);
             overlay.onclick = null;
         }
         setAgentFileDeleteBusy(false);
@@ -1042,7 +1045,7 @@ function showDisabledState() {
             const data = await resp.json();
             if (data.status === 'deleted') {
                 showToast(t('skills.delete_success'), 'success');
-                document.getElementById('agent-file-editor').style.display = 'none';
+                skHide(document.getElementById('agent-file-editor'));
                 renderAgentResourceList((data.skill && data.skill.resources) || []);
                 await loadAgentSkills();
             } else {
@@ -1144,8 +1147,8 @@ function showDisabledState() {
     function showAgentSkillCreateModal() {
         currentAgentSkillId = '';
         document.getElementById('agent-skill-modal-title').textContent = t('skills.agent_create_title');
-        document.getElementById('agent-create-fields').style.display = '';
-        document.getElementById('agent-resource-browser').style.display = 'none';
+        skShow(document.getElementById('agent-create-fields'));
+        skHide(document.getElementById('agent-resource-browser'));
         document.getElementById('agent-skill-name').value = '';
         document.getElementById('agent-skill-description').value = '';
         document.getElementById('agent-skill-content').value = '# Instructions\n\nUse this skill when the task matches the package description.\n';
@@ -1362,7 +1365,7 @@ function showDisabledState() {
         currentDetailId = id;
         currentAgentSkillId = '';
         const actions = document.querySelector('#detail-modal .modal-actions');
-        if (actions) actions.style.display = '';
+        if (actions) skShow(actions);
         const body = document.getElementById('detail-modal-body');
         body.innerHTML = `<p>${t('common.loading')}</p>`;
         document.getElementById('detail-modal').classList.add('active');
@@ -1454,7 +1457,7 @@ function showDisabledState() {
         currentDetailId = '';
         currentAgentSkillId = '';
         const actions = document.querySelector('#detail-modal .modal-actions');
-        if (actions) actions.style.display = '';
+        if (actions) skShow(actions);
     }
 
     // eslint-disable-next-line no-unused-vars
@@ -1540,11 +1543,11 @@ function showDisabledState() {
         const metaWrap = document.getElementById('code-draft-meta');
         const saveBtn = document.getElementById('code-save-btn');
         if (!meta) {
-            metaWrap.style.display = 'none';
+            skHide(metaWrap);
             saveBtn.textContent = t('skills.btn_save_code');
             return;
         }
-        metaWrap.style.display = '';
+        skShow(metaWrap);
         document.getElementById('code-draft-name').value = meta.name || '';
         document.getElementById('code-draft-description').value = meta.description || '';
         document.getElementById('code-draft-category').value = meta.category || '';
@@ -1666,7 +1669,7 @@ function showDisabledState() {
         }
         codeEditorSkillId = '';
         codeEditorDraft = null;
-        document.getElementById('code-draft-meta').style.display = 'none';
+        skHide(document.getElementById('code-draft-meta'));
     }
 
     // eslint-disable-next-line no-unused-vars
@@ -1705,8 +1708,8 @@ function showDisabledState() {
             return;
         }
         selectedFile = file;
-        document.getElementById('sk-dropzone').style.display = 'none';
-        document.getElementById('sk-selected-file').style.display = '';
+        skHide(document.getElementById('sk-dropzone'));
+        skShow(document.getElementById('sk-selected-file'));
         document.getElementById('sk-selected-name').textContent = file.name;
         document.getElementById('upload-submit-btn').disabled = false;
     }
@@ -1714,8 +1717,8 @@ function showDisabledState() {
     // eslint-disable-next-line no-unused-vars
     function clearFileSelection() {
         selectedFile = null;
-        document.getElementById('sk-dropzone').style.display = '';
-        document.getElementById('sk-selected-file').style.display = 'none';
+        skShow(document.getElementById('sk-dropzone'));
+        skHide(document.getElementById('sk-selected-file'));
         document.getElementById('upload-submit-btn').disabled = true;
         document.getElementById('upload-file').value = '';
     }
@@ -1813,10 +1816,10 @@ function showDisabledState() {
 
         if (tmpl) {
             descDiv.textContent = tmpl.Description || tmpl.description || '';
-            descDiv.style.display = '';
+            skShow(descDiv);
             btn.disabled = false;
         } else {
-            descDiv.style.display = 'none';
+            skHide(descDiv);
             btn.disabled = true;
         }
     }
@@ -1830,7 +1833,7 @@ function showDisabledState() {
         document.getElementById('template-base-url-input').value = '';
         document.getElementById('template-dependencies-input').value = '';
         document.getElementById('template-select').selectedIndex = 0;
-        document.getElementById('template-description').style.display = 'none';
+        skHide(document.getElementById('template-description'));
         document.getElementById('template-submit-btn').disabled = true;
         document.getElementById('template-modal').classList.add('active');
     }
@@ -2296,12 +2299,12 @@ function showDisabledState() {
         if (!message) {
             el.textContent = '';
             el.className = 'sk-generate-status';
-            el.style.display = 'none';
+            skHide(el);
             return;
         }
         el.textContent = message;
         el.className = `sk-generate-status sk-generate-status-${type}`;
-        el.style.display = '';
+        skShow(el);
     }
 
     function clearGenerateStatus() {
@@ -2394,7 +2397,7 @@ function showDisabledState() {
         const listEl = document.getElementById('vault-key-list');
         const emptyEl = document.getElementById('vault-key-empty');
         listEl.innerHTML = `<p>${t('common.loading')}</p>`;
-        emptyEl.style.display = 'none';
+        skHide(emptyEl);
         document.getElementById('vault-key-modal').classList.add('active');
 
         try {
@@ -2418,7 +2421,7 @@ function showDisabledState() {
 
             if (allVaultSecrets.length === 0 && credList.length === 0) {
                 listEl.innerHTML = '';
-                emptyEl.style.display = '';
+                skShow(emptyEl);
                 return;
             }
 
@@ -2496,7 +2499,7 @@ function showDisabledState() {
         const listEl = document.getElementById('internal-tools-list');
         const bridgeOffEl = document.getElementById('internal-tools-bridge-off');
         listEl.innerHTML = `<p>${t('common.loading')}</p>`;
-        if (bridgeOffEl) bridgeOffEl.style.display = 'none';
+        if (bridgeOffEl) skHide(bridgeOffEl);
         document.getElementById('internal-tools-modal').classList.add('active');
 
         try {
@@ -2512,7 +2515,7 @@ function showDisabledState() {
 
             if (availableTools.length === 0) {
                 listEl.innerHTML = '';
-                if (bridgeOffEl) bridgeOffEl.style.display = '';
+                if (bridgeOffEl) skShow(bridgeOffEl);
                 return;
             }
 
