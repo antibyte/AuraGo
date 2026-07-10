@@ -1135,6 +1135,8 @@ async function selectSection(key, options = {}) {
     scrollActiveSidebarItemIntoView(scrollBehavior, expandedTargetGroup ? 320 : 0);
     window.dispatchEvent(new CustomEvent('cfg:section-leave'));
     await renderSection(key);
+    const content = document.getElementById('content');
+    if (content) content.scrollTop = 0;
     enhanceConfigSectionLayout(key);
     attachChangeListeners();
     document.dispatchEvent(new CustomEvent('cfg:section-rendered', { detail: { key, root: document.getElementById('content') } }));

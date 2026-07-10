@@ -305,8 +305,17 @@ func TestConfigPrecisionWorkspaceBrowserMatrix(t *testing.T) {
 	}
 	page.MustElement("#sidebarSearchInput").MustInput("port")
 	waitForJSBool(t, page, `() => document.querySelector('[data-section="server"]').dataset.searchTarget === 'server.port'`)
+	page.MustEval(`() => {
+		const style = document.createElement('style');
+		style.textContent = '#content > .cfg-section { min-height: 2000px; }';
+		document.head.append(style);
+		document.getElementById('content').scrollTop = 240;
+	}`)
 	page.MustEval(`() => document.querySelector('[data-section="server"]').click()`)
 	waitForJSBool(t, page, `() => location.hash === '#server' && !!document.querySelector('[data-path="server.port"]')`)
+	if got := page.MustEval(`() => document.getElementById('content').scrollTop`).Int(); got != 0 {
+		t.Fatalf("section navigation scrollTop = %d, want 0", got)
+	}
 	if !page.MustEval(`() => !!document.querySelector('.pw-advanced [data-path="server.debug_mode"]')`).Bool() {
 		t.Fatal("advanced server field was not moved into the disclosure")
 	}
