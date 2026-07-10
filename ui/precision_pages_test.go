@@ -102,9 +102,14 @@ func TestPrecisionWorkspaceSlatePaletteTokens(t *testing.T) {
 			t.Errorf("compatibility alias must keep using Precision tokens: %q", alias)
 		}
 	}
+	primaryButtonRule := regexp.MustCompile(`(?s)\.pw-page \.btn-save,\s*\.pw-page \.btn-primary\s*\{([^}]*)\}`).FindStringSubmatch(foundation)
+	if len(primaryButtonRule) != 2 || !strings.Contains(primaryButtonRule[1], `color: var(--pw-canvas);`) {
+		t.Error("Precision primary buttons must use the canvas token for text")
+	}
 	if strings.Contains(foundation, `#2dd4bf`) || strings.Contains(foundation, `#5eead4`) ||
-		strings.Contains(foundation, `#0f766e`) || strings.Contains(foundation, `#0d9488`) {
-		t.Fatal("Precision foundation must not retain the teal accent")
+		strings.Contains(foundation, `#0f766e`) || strings.Contains(foundation, `#0d9488`) ||
+		strings.Contains(foundation, `#07110e`) {
+		t.Fatal("Precision foundation must not retain retired teal or green values")
 	}
 }
 
