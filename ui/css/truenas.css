@@ -575,10 +575,21 @@
         border-radius: 20px 20px 0 0;
     }
 
+    .pw-page[data-workspace-page="truenas"] .nav-btn,
+    .pw-page[data-workspace-page="truenas"] .pool-actions .btn,
+    .pw-page[data-workspace-page="truenas"] .dataset-actions .btn,
+    .pw-page[data-workspace-page="truenas"] .snapshot-actions .btn,
+    .pw-page[data-workspace-page="truenas"] .share-actions .btn,
+    .pw-page[data-workspace-page="truenas"] .form-actions .btn {
+        min-width: 44px;
+        min-height: 44px;
+    }
+
     .pw-page[data-workspace-page="truenas"][data-density="compact"] .nav-btn,
     .pw-page[data-workspace-page="truenas"][data-density="compact"] .btn,
     .pw-page[data-workspace-page="truenas"][data-density="compact"] input,
     .pw-page[data-workspace-page="truenas"][data-density="compact"] select {
+        min-width: 44px;
         min-height: 44px;
     }
 

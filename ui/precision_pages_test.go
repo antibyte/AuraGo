@@ -1288,6 +1288,7 @@ func TestPrecisionWorkspaceModalFocusContractSupportsStandaloneDialogs(t *testin
 		`overlay.matches(STANDALONE_DIALOG_SELECTOR) ? overlay`,
 		`overlay.hidden`,
 		`overlay.classList.contains('is-hidden')`,
+		`overlay.matches(MODAL_OVERLAY_SELECTOR)`,
 		`window.getComputedStyle(overlay)`,
 		`computed.display !== 'none'`,
 		`computed.visibility !== 'hidden'`,
@@ -1305,9 +1306,11 @@ func TestPrecisionWorkspaceModalFocusContractSupportsStandaloneDialogs(t *testin
 	isOpen := client[isOpenStart:isOpenEnd]
 	hiddenAt := strings.Index(isOpen, `overlay.hidden`)
 	activeAt := strings.Index(isOpen, `overlay.classList.contains('active')`)
+	inlineAt := strings.Index(isOpen, `if (inlineDisplay) return true;`)
+	classicClosedAt := strings.Index(isOpen, `if (overlay.matches(MODAL_OVERLAY_SELECTOR)) return false;`)
 	computedAt := strings.Index(isOpen, `window.getComputedStyle(overlay)`)
-	if hiddenAt < 0 || activeAt <= hiddenAt || computedAt <= activeAt {
-		t.Error("isModalOpen must reject hidden state before active/open and use computed visibility as fallback")
+	if hiddenAt < 0 || activeAt <= hiddenAt || inlineAt <= activeAt || classicClosedAt <= inlineAt || computedAt <= classicClosedAt {
+		t.Error("isModalOpen must support explicit display, then keep classic overlays closed before standalone computed visibility fallback")
 	}
 }
 
@@ -1389,7 +1392,7 @@ func TestPrecisionWorkspaceOperationsIntegration(t *testing.T) {
 	tests := []struct {
 		name        string
 		template    string
-		stylesheet string
+		stylesheet  string
 		page        string
 		mainScript  string
 		hooks       []string
@@ -1397,22 +1400,22 @@ func TestPrecisionWorkspaceOperationsIntegration(t *testing.T) {
 	}{
 		{
 			name: "Containers", template: "containers.html", stylesheet: "/css/containers.css", page: "containers", mainScript: "/js/containers/main.js",
-			hooks: []string{`id="ct-status-bar"`, `id="ct-search"`, `id="ct-grid"`, `id="terminal-output"`, `id="terminal-status"`},
+			hooks:       []string{`id="ct-status-bar"`, `id="ct-search"`, `id="ct-grid"`, `id="terminal-output"`, `id="terminal-status"`},
 			hiddenHooks: []string{`id="ct-empty"`, `id="ct-disabled"`},
 		},
 		{
 			name: "Media", template: "media.html", stylesheet: "/css/media.css", page: "media", mainScript: "/js/media/main.js",
-			hooks: []string{`id="media-search"`, `id="gallery-grid"`, `id="audio-grid"`, `id="video-grid"`, `id="doc-list"`},
+			hooks:       []string{`id="media-search"`, `id="gallery-grid"`, `id="audio-grid"`, `id="video-grid"`, `id="doc-list"`},
 			hiddenHooks: []string{`id="gallery-pagination"`, `id="audio-pagination"`},
 		},
 		{
 			name: "TrueNAS", template: "truenas.html", stylesheet: "/css/truenas.css", page: "truenas", mainScript: "/js/truenas.js",
-			hooks: []string{`id="status-indicator"`, `id="pools-container"`, `id="datasets-container"`, `id="snapshots-container"`, `id="shares-container"`},
+			hooks:       []string{`id="status-indicator"`, `id="pools-container"`, `id="datasets-container"`, `id="snapshots-container"`, `id="shares-container"`},
 			hiddenHooks: []string{`id="nfs-share-fields"`},
 		},
 		{
 			name: "Invasion", template: "invasion_control.html", stylesheet: "/css/invasion.css", page: "invasion", mainScript: "/js/invasion/main.js",
-			hooks: []string{`id="nests-grid"`, `id="eggs-grid"`, `id="nest-save-btn"`, `id="egg-save-btn"`, `id="config-history-list"`},
+			hooks:       []string{`id="nests-grid"`, `id="eggs-grid"`, `id="nest-save-btn"`, `id="egg-save-btn"`, `id="config-history-list"`},
 			hiddenHooks: []string{`id="nests-empty"`, `id="eggs-empty"`},
 		},
 	}
@@ -1696,7 +1699,7 @@ func TestPrecisionWorkspaceOperationsFocusVisibleRulesArePageScoped(t *testing.T
 	}
 }
 
-func TestPrecisionWorkspaceOperationsCompactMobileActionTargetsWinCascade(t *testing.T) {
+func TestPrecisionWorkspaceOperationsMobileActionTargetsCoverBothDensities(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -1707,23 +1710,23 @@ func TestPrecisionWorkspaceOperationsCompactMobileActionTargetsWinCascade(t *tes
 	}{
 		{
 			name: "Containers", stylesheet: "css/containers.css", page: "containers",
-			controls: []string{".ct-card-actions .btn", ".modal-actions .btn", ".modal-close", `.ct-checkbox-label input[type="checkbox"]`},
-			sources: []string{"containers.html", "js/containers/main.js"}, renderedClasses: []string{"ct-card-actions", "modal-actions", "modal-close", "ct-checkbox-label"},
+			controls: []string{".ct-filter-btn", ".ct-card-actions .btn", ".modal-actions .btn", ".modal-close", `.ct-checkbox-label input[type="checkbox"]`},
+			sources:  []string{"containers.html", "js/containers/main.js"}, renderedClasses: []string{"ct-filter-btn", "ct-card-actions", "modal-actions", "modal-close", "ct-checkbox-label"},
 		},
 		{
 			name: "Media", stylesheet: "css/media.css", page: "media",
-			controls: []string{".lightbox-close", ".lightbox-actions .btn-gallery-action", ".audio-play-btn", ".audio-speed-btn", ".audio-download-btn", ".media-doc-row-actions a", ".media-doc-row-actions button"},
-			sources: []string{"media.html", "js/media/main.js", "js/chat/audio-player.js"}, renderedClasses: []string{"lightbox-close", "lightbox-actions", "audio-play-btn", "audio-speed-btn", "audio-download-btn", "media-doc-row-actions"},
+			controls: []string{".media-tab", ".btn-gallery-nav", ".btn-gallery-action", ".lightbox-close", ".lightbox-actions .btn-gallery-action", ".audio-play-btn", ".audio-speed-btn", ".audio-download-btn", ".media-doc-row-actions a", ".media-doc-row-actions button"},
+			sources:  []string{"media.html", "js/media/main.js", "js/chat/audio-player.js"}, renderedClasses: []string{"media-tab", "btn-gallery-nav", "btn-gallery-action", "lightbox-close", "lightbox-actions", "audio-play-btn", "audio-speed-btn", "audio-download-btn", "media-doc-row-actions"},
 		},
 		{
 			name: "TrueNAS", stylesheet: "css/truenas.css", page: "truenas",
-			controls: []string{".pool-actions .btn", ".dataset-actions .btn", ".snapshot-actions .btn", ".share-actions .btn", ".form-actions .btn"},
-			sources: []string{"truenas.html", "js/truenas.js"}, renderedClasses: []string{"pool-actions", "dataset-actions", "snapshot-actions", "share-actions", "form-actions"},
+			controls: []string{".nav-btn", ".pool-actions .btn", ".dataset-actions .btn", ".snapshot-actions .btn", ".share-actions .btn", ".form-actions .btn"},
+			sources:  []string{"truenas.html", "js/truenas.js"}, renderedClasses: []string{"nav-btn", "pool-actions", "dataset-actions", "snapshot-actions", "share-actions", "form-actions"},
 		},
 		{
 			name: "Invasion", stylesheet: "css/invasion.css", page: "invasion",
-			controls: []string{".card-actions .btn", ".modal-actions .btn", ".modal-close", ".rev-actions .btn"},
-			sources: []string{"invasion_control.html", "js/invasion/main.js"}, renderedClasses: []string{"card-actions", "modal-actions", "modal-close", "rev-actions"},
+			controls: []string{".invasion-tab", ".card-actions .btn", ".modal-actions .btn", ".modal-close", ".rev-actions .btn"},
+			sources:  []string{"invasion_control.html", "js/invasion/main.js"}, renderedClasses: []string{"invasion-tab", "card-actions", "modal-actions", "modal-close", "rev-actions"},
 		},
 	}
 
@@ -1738,16 +1741,21 @@ func TestPrecisionWorkspaceOperationsCompactMobileActionTargetsWinCascade(t *tes
 			t.Fatalf("%s missing ordered adapter/mobile contract", test.name)
 		}
 		mobile := adapter[mobileAt:reducedAt]
-		prefix := `.pw-page[data-workspace-page="` + test.page + `"][data-density="compact"] `
-		for _, control := range test.controls {
-			rule := regexp.MustCompile(`(?s)` + regexp.QuoteMeta(prefix+control) + `[^{}]*\{([^}]*)\}`).FindStringSubmatch(mobile)
-			if len(rule) != 2 {
-				t.Errorf("%s missing cascade-safe compact mobile rule for %s", test.name, control)
-				continue
-			}
-			for _, declaration := range []string{`min-height: 44px;`, `min-width: 44px;`} {
-				if !strings.Contains(rule[1], declaration) {
-					t.Errorf("%s compact mobile %s missing %q", test.name, control, declaration)
+		prefixes := map[string]string{
+			"comfortable": `.pw-page[data-workspace-page="` + test.page + `"] `,
+			"compact":     `.pw-page[data-workspace-page="` + test.page + `"][data-density="compact"] `,
+		}
+		for density, prefix := range prefixes {
+			for _, control := range test.controls {
+				rule := regexp.MustCompile(`(?s)` + regexp.QuoteMeta(prefix+control) + `[^{}]*\{([^}]*)\}`).FindStringSubmatch(mobile)
+				if len(rule) != 2 {
+					t.Errorf("%s missing cascade-safe %s mobile rule for %s", test.name, density, control)
+					continue
+				}
+				for _, declaration := range []string{`min-height: 44px;`, `min-width: 44px;`} {
+					if !strings.Contains(rule[1], declaration) {
+						t.Errorf("%s %s mobile %s missing %q", test.name, density, control, declaration)
+					}
 				}
 			}
 		}

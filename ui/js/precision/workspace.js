@@ -232,6 +232,7 @@
         const inlineDisplay = overlay.style.display;
         if (inlineDisplay === 'none') return false;
         if (inlineDisplay) return true;
+        if (overlay.matches(MODAL_OVERLAY_SELECTOR)) return false;
         const computed = window.getComputedStyle(overlay);
         return computed.display !== 'none' && computed.visibility !== 'hidden';
     }

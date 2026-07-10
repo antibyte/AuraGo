@@ -1127,10 +1127,25 @@
         border-radius: 20px 20px 0 0;
     }
 
+    .pw-page[data-workspace-page="media"] .media-tab,
+    .pw-page[data-workspace-page="media"] .btn-gallery-nav,
+    .pw-page[data-workspace-page="media"] .btn-gallery-action,
+    .pw-page[data-workspace-page="media"] .lightbox-close,
+    .pw-page[data-workspace-page="media"] .lightbox-actions .btn-gallery-action,
+    .pw-page[data-workspace-page="media"] .audio-play-btn,
+    .pw-page[data-workspace-page="media"] .audio-speed-btn,
+    .pw-page[data-workspace-page="media"] .audio-download-btn,
+    .pw-page[data-workspace-page="media"] .media-doc-row-actions a,
+    .pw-page[data-workspace-page="media"] .media-doc-row-actions button {
+        min-width: 44px;
+        min-height: 44px;
+    }
+
     .pw-page[data-workspace-page="media"][data-density="compact"] .gallery-search,
     .pw-page[data-workspace-page="media"][data-density="compact"] .media-tab,
     .pw-page[data-workspace-page="media"][data-density="compact"] .btn-gallery-nav,
     .pw-page[data-workspace-page="media"][data-density="compact"] .btn-gallery-action {
+        min-width: 44px;
         min-height: 44px;
     }
 
