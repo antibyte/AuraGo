@@ -193,7 +193,7 @@ async function loadProfiles() {
         renderProfileCards(profiles);
     } catch (e) {
         const loading = document.getElementById('profile-loading');
-        if (loading) loading.innerHTML = `<p style="color:var(--text-secondary);font-size:0.85rem;">${escapeHtml(t('setup.plan_load_error'))}</p>`;
+        if (loading) loading.innerHTML = `<p class="profile-state-message profile-load-error">${escapeHtml(t('setup.plan_load_error'))}</p>`;
     }
 }
 
@@ -223,7 +223,7 @@ function renderProfileCards(list) {
     const grid = document.getElementById('profile-grid');
     if (!grid) return;
     if (!list || list.length === 0) {
-        grid.innerHTML = `<p style="color:var(--text-secondary);font-size:0.85rem;grid-column:1/-1;text-align:center;padding:2rem;">${escapeHtml(t('setup.plan_no_profiles'))}</p>`;
+        grid.innerHTML = `<p class="profile-state-message profile-empty-state">${escapeHtml(t('setup.plan_no_profiles'))}</p>`;
         return;
     }
     grid.innerHTML = list.map(p => {
@@ -1131,8 +1131,13 @@ function renderStepIndicator() {
         const clickable = isReachable || isCompleted;
         const raw = t(labels[i]);
         const label = (raw && raw !== labels[i]) ? raw : labels[i].split('.').pop();
+        const stepContent = isCompleted ? '✓' : i + 1;
         html += `<div class="step-group">`;
-        html += `<div class="${classes}"${clickable ? ` onclick="goToStep(${i})" style="cursor:pointer"` : ''}>${isCompleted ? '✓' : i + 1}</div>`;
+        if (clickable) {
+            html += `<button type="button" class="${classes}" aria-label="${escapeAttr(label)}" onclick="goToStep(${i})">${stepContent}</button>`;
+        } else {
+            html += `<div class="${classes}" aria-label="${escapeAttr(label)}"${isActive ? ' aria-current="step"' : ''}>${stepContent}</div>`;
+        }
         html += `<span class="step-label">${escapeHtml(label)}</span>`;
         html += `</div>`;
         if (i < flow.length - 1) {

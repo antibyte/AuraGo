@@ -1020,6 +1020,14 @@
     overflow-wrap: anywhere;
 }
 
+.pw-page.pw-entry-page[data-entry-page="setup"] .setup-card::before {
+    background: none;
+    background-image: none;
+    box-shadow: none;
+    filter: none;
+    opacity: 0;
+}
+
 .pw-page.pw-entry-page[data-entry-page="setup"] .step-indicator {
     border-bottom: 1px solid var(--pw-line);
     background: var(--pw-surface);
@@ -1065,6 +1073,40 @@
     background: color-mix(in srgb, var(--pw-accent) 7%, var(--pw-surface-elevated));
     box-shadow: none;
     transform: none;
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .profile-card::before {
+    background: none;
+    background-image: none;
+    box-shadow: none;
+    filter: none;
+    opacity: 0;
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .profile-recommended-bubble {
+    background: var(--pw-accent);
+    background-image: none;
+    color: var(--pw-canvas);
+    box-shadow: none;
+    text-shadow: none;
+    filter: none;
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .profile-state-message {
+    margin: 0;
+    color: var(--pw-muted);
+    font-size: var(--pw-meta-size);
+    line-height: 1.55;
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .profile-load-error {
+    color: var(--pw-danger);
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] .profile-empty-state {
+    grid-column: 1 / -1;
+    padding: 2rem;
+    text-align: center;
 }
 
 .pw-page.pw-entry-page[data-entry-page="setup"] .field-input,
@@ -1130,6 +1172,55 @@
     box-shadow: none;
 }
 
+.pw-page.pw-entry-page[data-entry-page="setup"] .https-warning {
+    border: 1px solid color-mix(in srgb, var(--pw-warning) 34%, var(--pw-line));
+    background: color-mix(in srgb, var(--pw-warning) 9%, var(--pw-surface));
+    background-image: none;
+    color: var(--pw-text);
+    box-shadow: none;
+    filter: none;
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] #step-indicator .step-dot {
+    appearance: none;
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+    padding: 0;
+    border: 1px solid var(--pw-line-strong);
+    border-radius: 50%;
+    background: var(--pw-surface-elevated);
+    background-image: none;
+    color: var(--pw-muted);
+    font: inherit;
+    line-height: 1;
+    box-shadow: none;
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] #step-indicator button.step-dot {
+    cursor: pointer;
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] #step-indicator .step-dot.active {
+    border-color: var(--pw-accent);
+    background: var(--pw-accent);
+    background-image: none;
+    color: var(--pw-canvas);
+    box-shadow: none;
+    text-shadow: none;
+    filter: none;
+}
+
+.pw-page.pw-entry-page[data-entry-page="setup"] #step-indicator .step-dot.completed,
+.pw-page.pw-entry-page[data-entry-page="setup"] #step-indicator .step-dot.reachable {
+    border-color: color-mix(in srgb, var(--pw-accent) 58%, var(--pw-line));
+    background: color-mix(in srgb, var(--pw-accent) 10%, var(--pw-surface-elevated));
+    background-image: none;
+    color: var(--pw-accent-strong);
+    box-shadow: none;
+}
+
 .pw-page.pw-entry-page[data-entry-page="setup"] .or-browser-overlay {
     padding: 1rem;
     background: color-mix(in srgb, var(--pw-canvas) 78%, transparent);
@@ -1178,6 +1269,18 @@
     box-shadow: none;
 }
 
+@media (max-width: 1100px) {
+    .pw-page.pw-entry-page[data-entry-page="setup"] .cfg-header .header-actions {
+        padding-right: 0;
+    }
+
+    .pw-page.pw-entry-page[data-entry-page="setup"] .cfg-header .header-actions::after {
+        content: none;
+        display: none;
+        min-width: 0;
+    }
+}
+
 @media (max-width: 768px) {
     .pw-page.pw-entry-page[data-entry-page="setup"] .setup-header {
         position: relative;
@@ -1219,6 +1322,13 @@
     .pw-page.pw-entry-page[data-entry-page="setup"] .or-apply-btn,
     .pw-page.pw-entry-page[data-entry-page="setup"] .or-browser-close-btn {
         min-width: 44px;
+        min-height: 44px;
+    }
+
+    .pw-page.pw-entry-page[data-entry-page="setup"] #step-indicator .step-dot {
+        width: 44px;
+        min-width: 44px;
+        height: 44px;
         min-height: 44px;
     }
 

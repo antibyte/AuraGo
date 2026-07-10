@@ -2064,6 +2064,168 @@ func TestPrecisionEntryNotFoundExternalStylesPreserveActionSpacing(t *testing.T)
 	}
 }
 
+func TestPrecisionEntrySetupOverridesWinLegacyDecorativeEffects(t *testing.T) {
+	t.Parallel()
+
+	css := normalizeAssetText(mustReadUIFile(t, "css/setup.css"))
+	start := strings.Index(css, `/* === Precision Entry Setup Adapter: start === */`)
+	end := strings.Index(css, `/* === Precision Entry Setup Adapter: end === */`)
+	if start < 0 || end <= start {
+		t.Fatal("setup Precision Entry adapter is missing")
+	}
+	adapter := css[start:end]
+	prefix := `.pw-page.pw-entry-page[data-entry-page="setup"]`
+	tests := []struct {
+		selector     string
+		declarations []string
+	}{
+		{selector: prefix + ` .setup-card::before`, declarations: []string{`background: none;`, `background-image: none;`, `box-shadow: none;`}},
+		{selector: prefix + ` .profile-card::before`, declarations: []string{`background: none;`, `background-image: none;`, `box-shadow: none;`}},
+		{selector: prefix + ` .profile-recommended-bubble`, declarations: []string{`background: var(--pw-accent);`, `background-image: none;`, `box-shadow: none;`, `text-shadow: none;`}},
+		{selector: prefix + ` .https-warning`, declarations: []string{`background-image: none;`, `box-shadow: none;`, `filter: none;`}},
+		{selector: prefix + ` #step-indicator .step-dot.active`, declarations: []string{`background-image: none;`, `box-shadow: none;`, `text-shadow: none;`, `filter: none;`}},
+	}
+	for _, test := range tests {
+		rule := regexp.MustCompile(`(?s)` + regexp.QuoteMeta(test.selector) + `\s*\{([^}]*)\}`).FindStringSubmatch(adapter)
+		if len(rule) != 2 {
+			t.Errorf("Setup adapter missing cascade-safe rule %s", test.selector)
+			continue
+		}
+		for _, declaration := range test.declarations {
+			if !strings.Contains(rule[1], declaration) {
+				t.Errorf("Setup rule %s missing %q", test.selector, declaration)
+			}
+		}
+	}
+}
+
+func TestPrecisionEntrySetupDynamicStatesAvoidInlineStyles(t *testing.T) {
+	t.Parallel()
+
+	script := normalizeAssetText(mustReadUIFile(t, "js/setup/main.js"))
+	blocks := []struct {
+		name, start, end string
+		markers          []string
+	}{
+		{name: "loadProfiles", start: `async function loadProfiles() {`, end: `function getFeatureBadges`, markers: []string{`class="profile-state-message profile-load-error"`}},
+		{name: "renderProfileCards", start: `function renderProfileCards(list) {`, end: `function isMiniMaxQuickProfile`, markers: []string{`class="profile-state-message profile-empty-state"`}},
+		{name: "renderStepIndicator", start: `function renderStepIndicator() {`, end: `function updateNextButtonState`, markers: []string{`<button type="button"`, `aria-label="${escapeAttr(label)}"`, `onclick="goToStep(${i})"`, `aria-current="step"`}},
+	}
+	for _, test := range blocks {
+		start := strings.Index(script, test.start)
+		if start < 0 {
+			t.Fatalf("cannot locate %s", test.name)
+		}
+		end := strings.Index(script[start:], test.end)
+		if end < 0 {
+			t.Fatalf("cannot find end of %s", test.name)
+		}
+		block := script[start : start+end]
+		if regexp.MustCompile(`(?i)\sstyle\s*=`).MatchString(block) {
+			t.Errorf("%s must not render style attributes", test.name)
+		}
+		for _, marker := range test.markers {
+			if !strings.Contains(block, marker) {
+				t.Errorf("%s missing semantic renderer marker %q", test.name, marker)
+			}
+		}
+	}
+	if regexp.MustCompile(`(?i)\sstyle\s*=`).MatchString(script) {
+		t.Error("Setup JavaScript must not generate style attributes")
+	}
+}
+
+func TestPrecisionEntrySetupStepButtonsKeepNativeKeyboardAndTargetContract(t *testing.T) {
+	t.Parallel()
+
+	script := normalizeAssetText(mustReadUIFile(t, "js/setup/main.js"))
+	start := strings.Index(script, `function renderStepIndicator() {`)
+	if start < 0 {
+		t.Fatal("cannot locate renderStepIndicator")
+	}
+	end := strings.Index(script[start:], `function updateNextButtonState`)
+	if end < 0 {
+		t.Fatal("cannot locate renderStepIndicator")
+	}
+	block := script[start : start+end]
+	for _, forbidden := range []string{`role="button"`, `tabindex="0"`, `onkeydown=`} {
+		if strings.Contains(block, forbidden) {
+			t.Errorf("step renderer must rely on native button keyboard behavior, found %q", forbidden)
+		}
+	}
+
+	css := normalizeAssetText(mustReadUIFile(t, "css/setup.css"))
+	adapterStart := strings.Index(css, `/* === Precision Entry Setup Adapter: start === */`)
+	adapterEnd := strings.Index(css, `/* === Precision Entry Setup Adapter: end === */`)
+	if adapterStart < 0 || adapterEnd <= adapterStart {
+		t.Fatal("Setup adapter is missing")
+	}
+	adapter := css[adapterStart:adapterEnd]
+	prefix := `.pw-page.pw-entry-page[data-entry-page="setup"] #step-indicator .step-dot`
+	rule := regexp.MustCompile(`(?s)` + regexp.QuoteMeta(prefix) + `\s*\{([^}]*)\}`).FindStringSubmatch(adapter)
+	if len(rule) != 2 {
+		t.Fatalf("Setup adapter missing desktop step target rule")
+	}
+	for _, declaration := range []string{`width: 44px;`, `height: 44px;`, `min-width: 44px;`, `min-height: 44px;`, `appearance: none;`} {
+		if !strings.Contains(rule[1], declaration) {
+			t.Errorf("desktop step target missing %q", declaration)
+		}
+	}
+	mobileAt := strings.LastIndex(adapter, `@media (max-width: 640px)`)
+	if mobileAt < 0 {
+		t.Fatal("Setup adapter missing ordered mobile/reduced-motion blocks")
+	}
+	reducedAt := strings.Index(adapter[mobileAt:], `@media (prefers-reduced-motion: reduce)`)
+	if reducedAt < 0 {
+		t.Fatal("Setup adapter missing ordered mobile/reduced-motion blocks")
+	}
+	mobile := adapter[mobileAt : mobileAt+reducedAt]
+	mobileRule := regexp.MustCompile(`(?s)` + regexp.QuoteMeta(prefix) + `\s*\{([^}]*)\}`).FindStringSubmatch(mobile)
+	if len(mobileRule) != 2 || !strings.Contains(mobileRule[1], `width: 44px;`) || !strings.Contains(mobileRule[1], `height: 44px;`) {
+		t.Error("mobile step buttons must retain a 44x44 target")
+	}
+}
+
+func TestPrecisionEntrySetupNarrowHeaderRemovesRadialClearance(t *testing.T) {
+	t.Parallel()
+
+	css := normalizeAssetText(mustReadUIFile(t, "css/setup.css"))
+	start := strings.Index(css, `/* === Precision Entry Setup Adapter: start === */`)
+	end := strings.Index(css, `/* === Precision Entry Setup Adapter: end === */`)
+	if start < 0 || end <= start {
+		t.Fatal("Setup adapter is missing")
+	}
+	adapter := css[start:end]
+	mediaAt := strings.Index(adapter, `@media (max-width: 1100px)`)
+	if mediaAt < 0 {
+		t.Fatal("Setup adapter missing narrow-header block before tablet rules")
+	}
+	mediaEnd := strings.Index(adapter[mediaAt:], `@media (max-width: 768px)`)
+	if mediaEnd < 0 {
+		t.Fatal("Setup adapter missing narrow-header block before tablet rules")
+	}
+	narrow := adapter[mediaAt : mediaAt+mediaEnd]
+	prefix := `.pw-page.pw-entry-page[data-entry-page="setup"] .cfg-header .header-actions`
+	for _, test := range []struct {
+		selector     string
+		declarations []string
+	}{
+		{selector: prefix, declarations: []string{`padding-right: 0;`}},
+		{selector: prefix + `::after`, declarations: []string{`content: none;`, `display: none;`, `min-width: 0;`}},
+	} {
+		rule := regexp.MustCompile(`(?s)` + regexp.QuoteMeta(test.selector) + `\s*\{([^}]*)\}`).FindStringSubmatch(narrow)
+		if len(rule) != 2 {
+			t.Errorf("narrow Setup header missing %s", test.selector)
+			continue
+		}
+		for _, declaration := range test.declarations {
+			if !strings.Contains(rule[1], declaration) {
+				t.Errorf("narrow Setup header %s missing %q", test.selector, declaration)
+			}
+		}
+	}
+}
+
 func assertPrecisionCSSScoped(t *testing.T, css string) {
 	t.Helper()
 
