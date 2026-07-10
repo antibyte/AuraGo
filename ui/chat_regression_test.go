@@ -525,8 +525,9 @@ func TestMobileMenuAndKnowledgeTabsStayLinear(t *testing.T) {
 	}
 
 	for _, marker := range []string{
-		"padding: clamp(var(--space-3), 2vw, var(--space-5)) var(--space-4) 60px;",
-		"gap: clamp(4px, 0.7vw, var(--space-2));",
+		`.pw-page[data-workspace-page="knowledge"][data-density="compact"] .kc-container {`,
+		"padding: var(--pw-space-3);",
+		"gap: var(--pw-space-2);",
 		"font-size: clamp(var(--text-sm), 1.1vw, var(--text-base));",
 		"min-height: 42px;",
 		"font-size: max(0.78rem, var(--text-sm));",

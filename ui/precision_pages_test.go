@@ -245,7 +245,7 @@ func TestPrecisionWorkspaceDashboardAdapterIsScopedAndResponsive(t *testing.T) {
 	const (
 		prefix = `.pw-page[data-workspace-page="dashboard"]`
 	)
-	styles := precisionIntegratedStyles(t, css)
+	styles := css
 
 	for _, marker := range []string{
 		prefix + ` {`,
@@ -315,7 +315,7 @@ func TestPrecisionWorkspaceDashboardCompactMobileControlsStayTouchSized(t *testi
 		mobileEnd   = `@media (prefers-reduced-motion: reduce)`
 		prefix      = `.pw-page[data-workspace-page="dashboard"][data-density="compact"]`
 	)
-	styles := precisionIntegratedStyles(t, css)
+	styles := css
 	mobileAt := strings.Index(styles, mobileStart)
 	reducedMotionAt := strings.Index(styles, mobileEnd)
 	if mobileAt < 0 || reducedMotionAt <= mobileAt {
@@ -354,7 +354,7 @@ func TestPrecisionWorkspaceDashboardAdapterNeutralizesResidualGlows(t *testing.T
 	const (
 		prefix = `.pw-page[data-workspace-page="dashboard"]`
 	)
-	styles := precisionIntegratedStyles(t, css)
+	styles := css
 	ruleAt := strings.Index(styles, prefix+` .dash-card:hover canvas,`)
 	if ruleAt < 0 {
 		t.Fatal("Dashboard Precision styles missing residual-glow suppression rule")
@@ -385,7 +385,7 @@ func TestPrecisionWorkspaceDashboardAdapterStopsStatusPulseGlows(t *testing.T) {
 	const (
 		prefix = `.pw-page[data-workspace-page="dashboard"]`
 	)
-	styles := precisionIntegratedStyles(t, css)
+	styles := css
 	pulseSuppression := regexp.MustCompile(
 		`(?s)` +
 			regexp.QuoteMeta(prefix+` .pill-running`) + `\s*,\s*` +
@@ -586,7 +586,7 @@ func TestPrecisionWorkspacePlansMissionsCheatsheetsAdaptersAreScopedAndResponsiv
 			t.Parallel()
 
 			css := normalizeAssetText(mustReadUIFile(t, test.stylesheet))
-			styles := precisionIntegratedStyles(t, css)
+			styles := css
 			prefix := `.pw-page[data-workspace-page="` + test.page + `"]`
 
 			for _, marker := range append([]string{
@@ -612,11 +612,6 @@ func TestPrecisionWorkspacePlansMissionsCheatsheetsAdaptersAreScopedAndResponsiv
 			assertPrecisionAdapterSelectorsScoped(t, styles, prefix)
 		})
 	}
-}
-
-func precisionIntegratedStyles(t *testing.T, css string) string {
-	t.Helper()
-	return css
 }
 
 func assertPrecisionIntegratedRulesFlat(t *testing.T, css, prefix string) {
@@ -663,7 +658,7 @@ func TestPrecisionWorkspaceMissionsAdapterStopsDecorativeStatusGlows(t *testing.
 	const (
 		prefix = `.pw-page[data-workspace-page="missions"]`
 	)
-	styles := precisionIntegratedStyles(t, css)
+	styles := css
 	pulseSuppression := regexp.MustCompile(
 		`(?s)` +
 			regexp.QuoteMeta(prefix+` .badge-prep-preparing`) + `\s*,\s*` +
@@ -709,7 +704,7 @@ func TestPrecisionWorkspaceMissionsAdapterStylesActualCompactRendererContract(t 
 	const (
 		prefix = `.pw-page[data-workspace-page="missions"]`
 	)
-	styles := precisionIntegratedStyles(t, css)
+	styles := css
 
 	for _, marker := range []string{
 		prefix + ` .card-compact {`,
@@ -737,7 +732,7 @@ func TestPrecisionWorkspaceMissionsCompactListActionsStayTouchSizedOnMobile(t *t
 		mobileEnd   = `@media (prefers-reduced-motion: reduce)`
 		prefix      = `.pw-page[data-workspace-page="missions"][data-density="compact"] .card-actions .mc-btn`
 	)
-	styles := precisionIntegratedStyles(t, css)
+	styles := css
 
 	desktopCompact := regexp.MustCompile(
 		`(?s)` + regexp.QuoteMeta(prefix) +
@@ -901,7 +896,7 @@ func TestPrecisionWorkspaceKnowledgeSkillsAdaptersAreScopedAndResponsive(t *test
 			t.Parallel()
 
 			css := normalizeAssetText(mustReadUIFile(t, test.stylesheet))
-			styles := precisionIntegratedStyles(t, css)
+			styles := css
 			prefix := `.pw-page[data-workspace-page="` + test.page + `"]`
 
 			for _, marker := range append([]string{
@@ -972,7 +967,7 @@ func TestPrecisionWorkspaceKnowledgeSkillsAdaptersSuppressLegacyDecoration(t *te
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 			css := normalizeAssetText(mustReadUIFile(t, test.stylesheet))
-			styles := precisionIntegratedStyles(t, css)
+			styles := css
 			prefix := `.pw-page[data-workspace-page="` + test.page + `"]`
 			for _, selector := range test.selectors {
 				if !strings.Contains(styles, prefix+` `+selector) {
@@ -1034,7 +1029,7 @@ func TestPrecisionWorkspaceKnowledgeSkillsCompactMobileControlsWinCascade(t *tes
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 			css := normalizeAssetText(mustReadUIFile(t, test.stylesheet))
-			styles := precisionIntegratedStyles(t, css)
+			styles := css
 			mobileAt := strings.Index(styles, `@media (max-width: 640px)`)
 			reducedAt := strings.Index(styles, `@media (prefers-reduced-motion: reduce)`)
 			if mobileAt < 0 || reducedAt <= mobileAt {
@@ -1056,7 +1051,7 @@ func TestPrecisionWorkspaceSkillsFullscreenAndSemanticToasts(t *testing.T) {
 	t.Parallel()
 
 	css := normalizeAssetText(mustReadUIFile(t, "css/skills.css"))
-	styles := precisionIntegratedStyles(t, css)
+	styles := css
 	prefix := `.pw-page[data-workspace-page="skills"]`
 
 	for _, marker := range []string{
@@ -1377,7 +1372,7 @@ func TestPrecisionWorkspaceHiddenRevealUsesExplicitDisplayValues(t *testing.T) {
 		{stylesheet: "css/skills.css", name: "Skills"},
 	} {
 		css := normalizeAssetText(mustReadUIFile(t, test.stylesheet))
-		styles := precisionIntegratedStyles(t, css)
+		styles := css
 		for _, fragile := range []string{`:has(`, `.is-hidden[style`} {
 			if strings.Contains(styles, fragile) {
 				t.Errorf("%s styles must not depend on fragile hidden reveal selector %q", test.name, fragile)
@@ -1539,7 +1534,7 @@ func TestPrecisionWorkspaceOperationsAdaptersAreScopedAndResponsive(t *testing.T
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 			css := normalizeAssetText(mustReadUIFile(t, test.stylesheet))
-			styles := precisionIntegratedStyles(t, css)
+			styles := css
 			prefix := `.pw-page[data-workspace-page="` + test.page + `"]`
 			for _, marker := range append([]string{
 				prefix + ` {`, `overflow-x: clip;`, `background-image: none;`, `box-shadow: none;`, `filter: none;`,
@@ -1602,7 +1597,7 @@ func TestPrecisionWorkspaceOperationsCompactMobileControlsWinCascade(t *testing.
 	}
 	for _, test := range tests {
 		css := normalizeAssetText(mustReadUIFile(t, test.stylesheet))
-		styles := precisionIntegratedStyles(t, css)
+		styles := css
 		mobileAt := strings.Index(styles, `@media (max-width: 640px)`)
 		reducedAt := strings.Index(styles, `@media (prefers-reduced-motion: reduce)`)
 		if mobileAt < 0 || reducedAt <= mobileAt {
@@ -1689,7 +1684,7 @@ func TestPrecisionWorkspaceOperationsFocusVisibleRulesArePageScoped(t *testing.T
 
 	for _, test := range tests {
 		css := normalizeAssetText(mustReadUIFile(t, test.stylesheet))
-		styles := precisionIntegratedStyles(t, css)
+		styles := css
 		prefix := `.pw-page[data-workspace-page="` + test.page + `"] `
 		for _, control := range test.controls {
 			selector := prefix + control + `:focus-visible`
@@ -1740,7 +1735,7 @@ func TestPrecisionWorkspaceOperationsMobileActionTargetsCoverBothDensities(t *te
 
 	for _, test := range tests {
 		css := normalizeAssetText(mustReadUIFile(t, test.stylesheet))
-		styles := precisionIntegratedStyles(t, css)
+		styles := css
 		mobileAt := strings.Index(styles, `@media (max-width: 640px)`)
 		reducedAt := strings.Index(styles, `@media (prefers-reduced-motion: reduce)`)
 		if mobileAt < 0 || reducedAt <= mobileAt {
@@ -2253,6 +2248,19 @@ func TestPrecisionOperationalStylesAreIntegratedAndPageScoped(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 			css := normalizeAssetText(mustReadUIFile(t, test.stylesheet))
+			for _, forbidden := range []string{
+				`Precision Workspace page foundation and component rules`,
+				`Premium Redesign`,
+				`glassmorphism`,
+				`gradient(`,
+				`var(--bg-glass`,
+				`var(--card-bg`,
+				`var(--input-bg`,
+			} {
+				if strings.Contains(css, forbidden) {
+					t.Errorf("%s retains a separate Precision/legacy layer marker %q", test.stylesheet, forbidden)
+				}
+			}
 			if strings.Contains(css, `Precision Workspace `+test.name+` Adapter`) {
 				t.Errorf("%s must integrate Precision declarations instead of retaining an adapter block", test.stylesheet)
 			}
@@ -2260,7 +2268,43 @@ func TestPrecisionOperationalStylesAreIntegratedAndPageScoped(t *testing.T) {
 			if !strings.Contains(css, prefix+` {`) {
 				t.Errorf("%s must retain its integrated page-scoped Precision root %q", test.stylesheet, prefix)
 			}
+			assertOperationalStylesheetFullyScoped(t, css, prefix)
 		})
+	}
+}
+
+func assertOperationalStylesheetFullyScoped(t *testing.T, css, prefix string) {
+	t.Helper()
+
+	comments := regexp.MustCompile(`(?s)/\*.*?\*/`)
+	css = comments.ReplaceAllString(css, "")
+	keyframeStack := make([]bool, 0, 8)
+	segmentStart := 0
+	for index, char := range css {
+		switch char {
+		case '{':
+			header := strings.TrimSpace(css[segmentStart:index])
+			insideKeyframes := len(keyframeStack) > 0 && keyframeStack[len(keyframeStack)-1]
+			lowerHeader := strings.ToLower(header)
+			startsKeyframes := strings.HasPrefix(lowerHeader, "@keyframes") || strings.HasPrefix(lowerHeader, "@-webkit-keyframes")
+			if header != "" && !strings.HasPrefix(header, "@") && !insideKeyframes {
+				for _, selector := range strings.Split(header, ",") {
+					selector = strings.TrimSpace(selector)
+					if selector != "" && !strings.HasPrefix(selector, prefix) {
+						t.Errorf("operational selector must be integrated under %q: %q", prefix, selector)
+					}
+				}
+			}
+			keyframeStack = append(keyframeStack, insideKeyframes || startsKeyframes)
+			segmentStart = index + 1
+		case '}':
+			if len(keyframeStack) > 0 {
+				keyframeStack = keyframeStack[:len(keyframeStack)-1]
+			}
+			segmentStart = index + 1
+		case ';':
+			segmentStart = index + 1
+		}
 	}
 }
 

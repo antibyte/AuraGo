@@ -34,10 +34,13 @@ images, and browser-oriented regression tests.
   `precision-workspace.css`, and `precision-entry.css` only.
 - Migrated templates must not contain `style` attributes or `<style>` blocks.
   Put page-specific rules in the owning stylesheet. Operational Precision
-  declarations must be integrated into that stylesheet's normal rule
-  structure, scoped with the page's `data-workspace-page`, and must not remain
-  in a permanently appended or delimited adapter block. Entry-page additions
-  remain scoped with `data-entry-page`.
+  declarations must be consolidated selector-by-selector with functional page
+  rules in that stylesheet's normal rule structure. Every operational selector
+  must be scoped with the page's `data-workspace-page`; do not keep separate
+  Precision and legacy layers, permanently appended/delimited adapter blocks,
+  superseded legacy surface tokens, gradients, glassmorphism, glows, shadows,
+  or decorative animations. Entry-page additions remain scoped with
+  `data-entry-page`.
 - `window.AuraPrecisionWorkspace` owns the browser-local
   `aurago.workspace.density.v1` preference and exposes `init()`,
   `getDensity()`, and `setDensity("comfortable"|"compact")`. It migrates the
