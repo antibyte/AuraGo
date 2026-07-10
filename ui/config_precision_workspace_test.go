@@ -374,8 +374,8 @@ func TestConfigPrecisionWorkspaceNavigationAndDensityMarkers(t *testing.T) {
 		`function recordRecentSection(`,
 		`function configSearchEntriesForSection(`,
 		`function focusConfigField(`,
-		`function configSectionIcon(`,
-		`configSectionIcon(s.key)`,
+		`function configSidebarSpriteIcon(`,
+		`configSidebarSpriteIcon(s.key)`,
 		`key === 'overview'`,
 	} {
 		if !strings.Contains(mainJS, marker) {

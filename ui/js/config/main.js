@@ -6,6 +6,51 @@ const CONFIG_ASSET_VERSION = (typeof window !== 'undefined' && window.AURAGO_BUI
 const CONFIG_RECENT_KEY = 'aurago.config.recent.v1';
 const CONFIG_ADVANCED_KEY = 'aurago.config.advanced.v1';
 const CONFIG_RECENT_LIMIT = 6;
+// Coordinates mirror ui/img/config-sidebar-icons-sprite.json. Keep the overview
+// first so every rendered Config navigation item has one stable, unique cell.
+const CONFIG_SIDEBAR_ICON_KEYS = Object.freeze([
+    'overview', 'agent', 'heartbeat', 'optimizations', 'providers', 'manifest', 'omniroute', 'dograh', 'llm', 'fallback_llm', 'embeddings',
+    'budget', 'memory_analysis', 'co_agents', 'prompts_editor', 'rules', 'personality', 'vision', 'output_compression', 'server', 'directories', 'sqlite',
+    'sql_connections', 'web_config', 'logging', 'maintenance', 'backup_restore', 'updates', 'indexing', 'firewall', 'tools', 'web_scraper', 'browser_automation',
+    'space_agent', 'virtual_desktop', 'sandbox', 'info_tools', 'network_tools', 'brave_search', 'skill_manager', 'daemon_skills', 'mission_preparation', 'whisper',
+    'tts', 'image_generation', 'music_generation', 'video_generation', 'media_conversion', 'video_download', 'document_creator', 'docker', 's3', 'webdav', 'koofr',
+    'netlify', 'vercel', 'cloudflare_tunnel', 'homepage', 'telegram', 'discord', 'rocketchat', 'telnyx', 'email', 'agentmail', 'webhooks', 'notifications', 'github',
+    'google_workspace', 'paperless_ngx', 'obsidian', 'yepapi', 'home_assistant', 'mqtt', 'chromecast', 'adguard', 'fritzbox', 'ldap', 'truenas', 'uptime_kuma',
+    'jellyfin', 'tailscale', 'proxmox', 'frigate', 'three_d_printers', 'remote_control', 'grafana', 'meshcentral', 'ansible', 'security_proxy', 'guardian',
+    'llm_guardian', 'virustotal', 'ai_gateway', 'composio', 'huggingface', 'evomap', 'mcp', 'mcp_server', 'a2a', 'ollama', 'danger_zone'
+]);
+const CONFIG_SIDEBAR_ICON_INDEX = Object.freeze((() => {
+    const index = CONFIG_SIDEBAR_ICON_KEYS.reduce((entries, key, position) => {
+        entries[key] = position;
+        return entries;
+    }, Object.create(null));
+    // Put the recognisable official-brand references in their dedicated cells
+    // while preserving a one-to-one assignment for every non-brand section.
+    const brandCells = {
+        docker: 51,
+        github: 52,
+        cloudflare_tunnel: 53,
+        huggingface: 54,
+        google_workspace: 55,
+        telegram: 56,
+        discord: 57,
+        grafana: 59,
+        netlify: 60,
+        vercel: 61,
+        truenas: 63,
+        ollama: 65,
+        tailscale: 66,
+        home_assistant: 73,
+        jellyfin: 64,
+    };
+    Object.entries(brandCells).forEach(([key, target]) => {
+        const displaced = CONFIG_SIDEBAR_ICON_KEYS.find(candidate => index[candidate] === target);
+        const current = index[key];
+        index[key] = target;
+        index[displaced] = current;
+    });
+    return index;
+})());
 
 if (typeof window.cfgIsMaskedSecret !== 'function') {
     window.cfgIsMaskedSecret = function (value) {
@@ -442,29 +487,12 @@ function scrollActiveSidebarItemIntoView(behavior = 'smooth', delay = 0) {
     requestAnimationFrame(scrollFn);
 }
 
-function configSectionIcon(key) {
-    const name = String(key || '').toLowerCase();
-    let paths = '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6l-.04.08h-4l-.04-.08a1.7 1.7 0 0 0-1-.6 1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1l-.08-.04v-4L4 9.92a1.7 1.7 0 0 0 .6-1 1.7 1.7 0 0 0-.34-1.88L4.2 6.98l2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6l.04-.08h4l.04.08a1.7 1.7 0 0 0 1 .6 1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9c.08.38.3.72.6 1l.08.04v4L20 14a1.7 1.7 0 0 0-.6 1z"/>';
-    if (/(guardian|security|firewall|danger|virus|auth|proxy)/.test(name)) {
-        paths = '<path d="M12 3 5 6v5c0 4.6 2.8 8 7 10 4.2-2 7-5.4 7-10V6l-7-3z"/><path d="m9.5 12 1.7 1.7 3.6-4"/>';
-    } else if (/(sqlite|sql|memory|index|grafana)/.test(name)) {
-        paths = '<ellipse cx="12" cy="5" rx="7" ry="3"/><path d="M5 5v6c0 1.7 3.1 3 7 3s7-1.3 7-3V5M5 11v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6"/>';
-    } else if (/(image|music|video|media|tts|whisper|document|vision)/.test(name)) {
-        paths = '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m8 15 2.5-3 2 2 2.5-3 3 4M9 9h.01"/>';
-    } else if (/(email|telegram|discord|chat|telnyx|notification|webhook)/.test(name)) {
-        paths = '<path d="M5 5h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-8l-4 3v-3H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/><path d="M7 9h10M7 13h6"/>';
-    } else if (/(s3|webdav|koofr|backup|cloud|netlify|vercel)/.test(name)) {
-        paths = '<path d="M7 18h10a4 4 0 0 0 .5-8A6 6 0 0 0 6 8.5 4.5 4.5 0 0 0 7 18z"/><path d="m9 14 3-3 3 3M12 11v7"/>';
-    } else if (/(docker|sandbox|server|proxmox|ollama|container)/.test(name)) {
-        paths = '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 12h8M8 17h5"/>';
-    } else if (/(network|remote|tailscale|fritz|mqtt|home|chromecast|mesh|uptime)/.test(name)) {
-        paths = '<circle cx="12" cy="12" r="2"/><path d="M5.6 18.4a9 9 0 0 1 0-12.8M18.4 5.6a9 9 0 0 1 0 12.8M8.5 15.5a5 5 0 0 1 0-7M15.5 8.5a5 5 0 0 1 0 7"/>';
-    } else if (/(agent|llm|provider|embedding|ai_|generation|personality|prompt|co_)/.test(name)) {
-        paths = '<path d="m12 3 1.4 4.1L17.5 8.5l-4.1 1.4L12 14l-1.4-4.1-4.1-1.4 4.1-1.4L12 3zM18 14l.8 2.2L21 17l-2.2.8L18 20l-.8-2.2L15 17l2.2-.8L18 14z"/>';
-    } else if (/(tool|browser|skill|automation|mission|ansible)/.test(name)) {
-        paths = '<path d="M14.7 6.3a4 4 0 0 0-5 5L4 17l3 3 5.7-5.7a4 4 0 0 0 5-5l-2.4 2.4-3-3 2.4-2.4z"/>';
-    }
-    return `<svg viewBox="0 0 24 24" aria-hidden="true">${paths}</svg>`;
+function configSidebarSpriteIcon(key) {
+    const index = CONFIG_SIDEBAR_ICON_INDEX[key];
+    if (!Number.isInteger(index)) return '<span class="icon cfg-sprite-icon" aria-hidden="true"></span>';
+    const column = index % 11;
+    const row = Math.floor(index / 11);
+    return `<span class="icon cfg-sprite-icon cfg-sprite-column-${column} cfg-sprite-row-${row}" aria-hidden="true"></span>`;
 }
 
 function buildSidebar() {
@@ -494,7 +522,7 @@ function buildSidebar() {
     overviewItem.dataset.searchLabel = t('config.precision.overview_title');
     overviewItem.dataset.searchDesc = t('config.precision.overview_desc');
     overviewItem.dataset.searchGroup = t('config.precision.workspace_label');
-    overviewItem.innerHTML = `<span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"/></svg></span><span class="sidebar-item-label">${escapeHtml(t('config.precision.overview_title'))}</span>`;
+    overviewItem.innerHTML = `${configSidebarSpriteIcon('overview')}<span class="sidebar-item-label">${escapeHtml(t('config.precision.overview_title'))}</span>`;
     overviewItem.onclick = () => navigateToConfigSection('overview');
     sb.appendChild(overviewItem);
 
@@ -557,7 +585,7 @@ function buildSidebar() {
                 item.title = blockedReason;
                 item.disabled = true;
             }
-            item.innerHTML = '<span class="icon">' + configSectionIcon(s.key) + '</span><span class="sidebar-item-label">' + escapeHtml(s.label) + '</span>';
+            item.innerHTML = configSidebarSpriteIcon(s.key) + '<span class="sidebar-item-label">' + escapeHtml(s.label) + '</span>';
             item.onclick = () => {
                 if (shouldBlockUnavailableSection(s.key) && sectionBlockedReason(s.key)) return;
                 if (item.dataset.searchTarget) navigateToConfigSection(s.key, { focusPath: item.dataset.searchTarget });
