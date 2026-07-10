@@ -622,24 +622,6 @@
     box-shadow: none;
 }
 
-.pw-page.pw-entry-page[data-entry-page="login"] .css-fallback-bg,
-.pw-page.pw-entry-page[data-entry-page="login"] .particle-grid,
-.pw-page.pw-entry-page[data-entry-page="login"] .vignette,
-.pw-page.pw-entry-page[data-entry-page="login"] .scan-line,
-.pw-page.pw-entry-page[data-entry-page="login"] .orb {
-    background: transparent;
-    background-image: none;
-    box-shadow: none;
-    filter: none;
-}
-
-.pw-page.pw-entry-page[data-entry-page="login"] .particle-grid,
-.pw-page.pw-entry-page[data-entry-page="login"] .vignette,
-.pw-page.pw-entry-page[data-entry-page="login"] .scan-line,
-.pw-page.pw-entry-page[data-entry-page="login"] .orb {
-    display: none;
-}
-
 .pw-page.pw-entry-page[data-entry-page="login"] .corner-theme {
     top: max(1rem, env(safe-area-inset-top, 0px));
     right: max(1rem, env(safe-area-inset-right, 0px));

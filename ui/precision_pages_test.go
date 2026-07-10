@@ -181,9 +181,6 @@ func TestConfigPrecisionWorkspaceSharedIntegration(t *testing.T) {
 	mainJS := normalizeAssetText(mustReadUIFile(t, "js/config/main.js"))
 	start := strings.Index(mainJS, "function applyConfigDensity(")
 	end := strings.Index(mainJS, "function hasVisibleSection(")
-	if start < 0 || end <= start {
-		t.Fatal("cannot locate the applyConfigDensity integration block")
-	}
 	densityBlock := mainJS[start:end]
 	for _, marker := range []string{`window.AuraPrecisionWorkspace`, `.init()`, `.getDensity()`, `.setDensity(`} {
 		if !strings.Contains(densityBlock, marker) {
@@ -202,7 +199,7 @@ func TestPrecisionWorkspaceDashboardIntegration(t *testing.T) {
 	for _, marker := range []string{
 		`<body class="pw-page pw-operational-page" data-workspace-page="dashboard" data-density="comfortable">`,
 		`href="#tab-overview"`,
-		`/css/dashboard.css?v={{.BuildVersion}}-dashboard-agent-grid`,
+		`/css/dashboard.css?v={{.BuildVersion}}`,
 		`data-tab="overview" id="dash-tab-overview"`,
 		`data-tab="agent" id="dash-tab-agent"`,
 		`id="tab-overview" role="tabpanel"`,
@@ -222,7 +219,7 @@ func TestPrecisionWorkspaceDashboardIntegration(t *testing.T) {
 		}
 	}
 
-	dashboardAt := strings.Index(html, `/css/dashboard.css?v={{.BuildVersion}}-dashboard-agent-grid`)
+	dashboardAt := strings.Index(html, `/css/dashboard.css?v={{.BuildVersion}}`)
 	enhancementsAt := strings.Index(html, `/css/enhancements.css?v=20260425a`)
 	foundationAt := strings.Index(html, `/css/precision-workspace.css?v={{.BuildVersion}}`)
 	componentsAt := strings.Index(html, `/css/precision-pages.css?v={{.BuildVersion}}`)
@@ -246,16 +243,9 @@ func TestPrecisionWorkspaceDashboardAdapterIsScopedAndResponsive(t *testing.T) {
 
 	css := normalizeAssetText(mustReadUIFile(t, "css/dashboard.css"))
 	const (
-		adapterStart = `/* === Precision Workspace Dashboard Adapter: start === */`
-		adapterEnd   = `/* === Precision Workspace Dashboard Adapter: end === */`
-		prefix       = `.pw-page[data-workspace-page="dashboard"]`
+		prefix = `.pw-page[data-workspace-page="dashboard"]`
 	)
-	start := strings.Index(css, adapterStart)
-	end := strings.Index(css, adapterEnd)
-	if start < 0 || end <= start {
-		t.Fatalf("dashboard.css missing delimited Precision adapter: start=%d end=%d", start, end)
-	}
-	adapter := css[start:end]
+	styles := precisionIntegratedStyles(t, css)
 
 	for _, marker := range []string{
 		prefix + ` {`,
@@ -276,16 +266,14 @@ func TestPrecisionWorkspaceDashboardAdapterIsScopedAndResponsive(t *testing.T) {
 		prefix + ` #tab-agent .dash-grid`,
 		`grid-template-columns: repeat(2, minmax(0, 1fr));`,
 	} {
-		if !strings.Contains(adapter, marker) {
-			t.Errorf("Dashboard Precision adapter missing marker %q", marker)
+		if !strings.Contains(styles, marker) {
+			t.Errorf("Dashboard Precision styles missing marker %q", marker)
 		}
 	}
-	if strings.Contains(strings.ToLower(adapter), "gradient(") {
-		t.Fatal("Dashboard Precision adapter must not introduce visible gradients")
-	}
+	assertPrecisionIntegratedRulesFlat(t, styles, prefix)
 
 	comments := regexp.MustCompile(`(?s)/\*.*?\*/`)
-	uncommented := comments.ReplaceAllString(adapter, "")
+	uncommented := comments.ReplaceAllString(styles, "")
 	segmentStart := 0
 	for index, char := range uncommented {
 		switch char {
@@ -297,8 +285,8 @@ func TestPrecisionWorkspaceDashboardAdapterIsScopedAndResponsive(t *testing.T) {
 			}
 			for _, selector := range strings.Split(header, ",") {
 				selector = strings.TrimSpace(selector)
-				if selector != "" && !strings.HasPrefix(selector, prefix) {
-					t.Errorf("Dashboard Precision adapter selector must start with %q: %q", prefix, selector)
+				if strings.Contains(selector, ".pw-page") && !strings.HasPrefix(selector, prefix) {
+					t.Errorf("Dashboard Precision styles selector must start with %q: %q", prefix, selector)
 				}
 			}
 		case '}':
@@ -323,24 +311,17 @@ func TestPrecisionWorkspaceDashboardCompactMobileControlsStayTouchSized(t *testi
 
 	css := normalizeAssetText(mustReadUIFile(t, "css/dashboard.css"))
 	const (
-		adapterStart = `/* === Precision Workspace Dashboard Adapter: start === */`
-		adapterEnd   = `/* === Precision Workspace Dashboard Adapter: end === */`
-		mobileStart  = `@media (max-width: 640px)`
-		mobileEnd    = `@media (prefers-reduced-motion: reduce)`
-		prefix       = `.pw-page[data-workspace-page="dashboard"][data-density="compact"]`
+		mobileStart = `@media (max-width: 640px)`
+		mobileEnd   = `@media (prefers-reduced-motion: reduce)`
+		prefix      = `.pw-page[data-workspace-page="dashboard"][data-density="compact"]`
 	)
-	start := strings.Index(css, adapterStart)
-	end := strings.Index(css, adapterEnd)
-	if start < 0 || end <= start {
-		t.Fatalf("dashboard.css missing delimited Precision adapter: start=%d end=%d", start, end)
-	}
-	adapter := css[start:end]
-	mobileAt := strings.Index(adapter, mobileStart)
-	reducedMotionAt := strings.Index(adapter, mobileEnd)
+	styles := precisionIntegratedStyles(t, css)
+	mobileAt := strings.Index(styles, mobileStart)
+	reducedMotionAt := strings.Index(styles, mobileEnd)
 	if mobileAt < 0 || reducedMotionAt <= mobileAt {
-		t.Fatalf("Dashboard Precision adapter missing ordered mobile block: mobile=%d reduced-motion=%d", mobileAt, reducedMotionAt)
+		t.Fatalf("Dashboard Precision styles missing ordered mobile block: mobile=%d reduced-motion=%d", mobileAt, reducedMotionAt)
 	}
-	mobile := adapter[mobileAt:reducedMotionAt]
+	mobile := styles[mobileAt:reducedMotionAt]
 
 	for _, marker := range []string{
 		prefix + ` .dash-tab {`,
@@ -371,25 +352,18 @@ func TestPrecisionWorkspaceDashboardAdapterNeutralizesResidualGlows(t *testing.T
 
 	css := normalizeAssetText(mustReadUIFile(t, "css/dashboard.css"))
 	const (
-		adapterStart = `/* === Precision Workspace Dashboard Adapter: start === */`
-		adapterEnd   = `/* === Precision Workspace Dashboard Adapter: end === */`
-		prefix       = `.pw-page[data-workspace-page="dashboard"]`
+		prefix = `.pw-page[data-workspace-page="dashboard"]`
 	)
-	start := strings.Index(css, adapterStart)
-	end := strings.Index(css, adapterEnd)
-	if start < 0 || end <= start {
-		t.Fatalf("dashboard.css missing delimited Precision adapter: start=%d end=%d", start, end)
-	}
-	adapter := css[start:end]
-	ruleAt := strings.Index(adapter, prefix+` .dash-card:hover canvas,`)
+	styles := precisionIntegratedStyles(t, css)
+	ruleAt := strings.Index(styles, prefix+` .dash-card:hover canvas,`)
 	if ruleAt < 0 {
-		t.Fatal("Dashboard Precision adapter missing residual-glow suppression rule")
+		t.Fatal("Dashboard Precision styles missing residual-glow suppression rule")
 	}
-	ruleEnd := strings.Index(adapter[ruleAt:], "}")
+	ruleEnd := strings.Index(styles[ruleAt:], "}")
 	if ruleEnd < 0 {
 		t.Fatal("Dashboard residual-glow suppression rule is not closed")
 	}
-	rule := adapter[ruleAt : ruleAt+ruleEnd]
+	rule := styles[ruleAt : ruleAt+ruleEnd]
 	for _, marker := range []string{
 		prefix + ` .dash-card:hover canvas`,
 		prefix + ` .conf-3`,
@@ -409,24 +383,17 @@ func TestPrecisionWorkspaceDashboardAdapterStopsStatusPulseGlows(t *testing.T) {
 
 	css := normalizeAssetText(mustReadUIFile(t, "css/dashboard.css"))
 	const (
-		adapterStart = `/* === Precision Workspace Dashboard Adapter: start === */`
-		adapterEnd   = `/* === Precision Workspace Dashboard Adapter: end === */`
-		prefix       = `.pw-page[data-workspace-page="dashboard"]`
+		prefix = `.pw-page[data-workspace-page="dashboard"]`
 	)
-	start := strings.Index(css, adapterStart)
-	end := strings.Index(css, adapterEnd)
-	if start < 0 || end <= start {
-		t.Fatalf("dashboard.css missing delimited Precision adapter: start=%d end=%d", start, end)
-	}
-	adapter := css[start:end]
+	styles := precisionIntegratedStyles(t, css)
 	pulseSuppression := regexp.MustCompile(
 		`(?s)` +
 			regexp.QuoteMeta(prefix+` .pill-running`) + `\s*,\s*` +
 			regexp.QuoteMeta(prefix+` .status-dot.green`) +
 			`\s*\{[^}]*animation:\s*none;`,
 	)
-	if !pulseSuppression.MatchString(adapter) {
-		t.Error("Dashboard Precision adapter must disable pulse-glow animation for running pills and green status dots")
+	if !pulseSuppression.MatchString(styles) {
+		t.Error("Dashboard Precision styles must disable pulse-glow animation for running pills and green status dots")
 	}
 }
 
@@ -619,14 +586,7 @@ func TestPrecisionWorkspacePlansMissionsCheatsheetsAdaptersAreScopedAndResponsiv
 			t.Parallel()
 
 			css := normalizeAssetText(mustReadUIFile(t, test.stylesheet))
-			startMarker := `/* === Precision Workspace ` + test.name + ` Adapter: start === */`
-			endMarker := `/* === Precision Workspace ` + test.name + ` Adapter: end === */`
-			start := strings.Index(css, startMarker)
-			end := strings.Index(css, endMarker)
-			if start < 0 || end <= start {
-				t.Fatalf("%s missing delimited Precision adapter: start=%d end=%d", test.stylesheet, start, end)
-			}
-			adapter := css[start:end]
+			styles := precisionIntegratedStyles(t, css)
 			prefix := `.pw-page[data-workspace-page="` + test.page + `"]`
 
 			for _, marker := range append([]string{
@@ -644,23 +604,37 @@ func TestPrecisionWorkspacePlansMissionsCheatsheetsAdaptersAreScopedAndResponsiv
 				`border-radius: 20px 20px 0 0;`,
 				`@media (prefers-reduced-motion: reduce)`,
 			}, test.layoutMarkers...) {
-				if !strings.Contains(adapter, marker) {
-					t.Errorf("%s Precision adapter missing marker %q", test.name, marker)
+				if !strings.Contains(styles, marker) {
+					t.Errorf("%s Precision styles missing marker %q", test.name, marker)
 				}
 			}
-			if strings.Contains(strings.ToLower(adapter), "gradient(") {
-				t.Fatalf("%s Precision adapter must not introduce gradient expressions", test.name)
-			}
-			assertPrecisionAdapterSelectorsScoped(t, adapter, prefix)
+			assertPrecisionIntegratedRulesFlat(t, styles, prefix)
+			assertPrecisionAdapterSelectorsScoped(t, styles, prefix)
 		})
 	}
 }
 
-func assertPrecisionAdapterSelectorsScoped(t *testing.T, adapter, prefix string) {
+func precisionIntegratedStyles(t *testing.T, css string) string {
+	t.Helper()
+	return css
+}
+
+func assertPrecisionIntegratedRulesFlat(t *testing.T, css, prefix string) {
+	t.Helper()
+
+	rules := regexp.MustCompile(`(?s)([^{}]+)\{([^{}]*)\}`)
+	for _, rule := range rules.FindAllStringSubmatch(css, -1) {
+		if strings.Contains(rule[1], prefix) && strings.Contains(strings.ToLower(rule[2]), "gradient(") {
+			t.Errorf("integrated Precision rule %q must not introduce gradients", strings.TrimSpace(rule[1]))
+		}
+	}
+}
+
+func assertPrecisionAdapterSelectorsScoped(t *testing.T, styles, prefix string) {
 	t.Helper()
 
 	comments := regexp.MustCompile(`(?s)/\*.*?\*/`)
-	uncommented := comments.ReplaceAllString(adapter, "")
+	uncommented := comments.ReplaceAllString(styles, "")
 	segmentStart := 0
 	for index, char := range uncommented {
 		switch char {
@@ -672,8 +646,8 @@ func assertPrecisionAdapterSelectorsScoped(t *testing.T, adapter, prefix string)
 			}
 			for _, selector := range strings.Split(header, ",") {
 				selector = strings.TrimSpace(selector)
-				if selector != "" && !strings.HasPrefix(selector, prefix) {
-					t.Errorf("Precision adapter selector must start with %q: %q", prefix, selector)
+				if strings.Contains(selector, ".pw-page") && !strings.HasPrefix(selector, prefix) {
+					t.Errorf("Precision styles selector must start with %q: %q", prefix, selector)
 				}
 			}
 		case '}':
@@ -687,40 +661,33 @@ func TestPrecisionWorkspaceMissionsAdapterStopsDecorativeStatusGlows(t *testing.
 
 	css := normalizeAssetText(mustReadUIFile(t, "css/missions.css"))
 	const (
-		adapterStart = `/* === Precision Workspace Missions Adapter: start === */`
-		adapterEnd   = `/* === Precision Workspace Missions Adapter: end === */`
-		prefix       = `.pw-page[data-workspace-page="missions"]`
+		prefix = `.pw-page[data-workspace-page="missions"]`
 	)
-	start := strings.Index(css, adapterStart)
-	end := strings.Index(css, adapterEnd)
-	if start < 0 || end <= start {
-		t.Fatalf("missions.css missing delimited Precision adapter: start=%d end=%d", start, end)
-	}
-	adapter := css[start:end]
+	styles := precisionIntegratedStyles(t, css)
 	pulseSuppression := regexp.MustCompile(
 		`(?s)` +
 			regexp.QuoteMeta(prefix+` .badge-prep-preparing`) + `\s*,\s*` +
 			regexp.QuoteMeta(prefix+` .mc-status-chip--running`) +
 			`\s*\{[^}]*animation:\s*none;[^}]*box-shadow:\s*none;`,
 	)
-	if !pulseSuppression.MatchString(adapter) {
-		t.Error("Missions Precision adapter must disable preparation and running-chip pulse glows")
+	if !pulseSuppression.MatchString(styles) {
+		t.Error("Missions Precision styles must disable preparation and running-chip pulse glows")
 	}
 
 	statusPulseSuppression := regexp.MustCompile(
 		`(?s)` + regexp.QuoteMeta(prefix+` .status-card.running`) +
 			`\s*\{[^}]*animation:\s*none;[^}]*box-shadow:\s*none;`,
 	)
-	if !statusPulseSuppression.MatchString(adapter) {
-		t.Error("Missions Precision adapter must disable the running summary-card pulse while keeping its semantic styling")
+	if !statusPulseSuppression.MatchString(styles) {
+		t.Error("Missions Precision styles must disable the running summary-card pulse while keeping its semantic styling")
 	}
 
 	preparedGlowSuppression := regexp.MustCompile(
 		`(?s)` + regexp.QuoteMeta(prefix+` .badge-prep-prepared`) +
 			`\s*\{[^}]*box-shadow:\s*none;`,
 	)
-	if !preparedGlowSuppression.MatchString(adapter) {
-		t.Error("Missions Precision adapter must remove the prepared badge decorative glow")
+	if !preparedGlowSuppression.MatchString(styles) {
+		t.Error("Missions Precision styles must remove the prepared badge decorative glow")
 	}
 }
 
@@ -740,16 +707,9 @@ func TestPrecisionWorkspaceMissionsAdapterStylesActualCompactRendererContract(t 
 
 	css := normalizeAssetText(mustReadUIFile(t, "css/missions.css"))
 	const (
-		adapterStart = `/* === Precision Workspace Missions Adapter: start === */`
-		adapterEnd   = `/* === Precision Workspace Missions Adapter: end === */`
-		prefix       = `.pw-page[data-workspace-page="missions"]`
+		prefix = `.pw-page[data-workspace-page="missions"]`
 	)
-	start := strings.Index(css, adapterStart)
-	end := strings.Index(css, adapterEnd)
-	if start < 0 || end <= start {
-		t.Fatalf("missions.css missing delimited Precision adapter: start=%d end=%d", start, end)
-	}
-	adapter := css[start:end]
+	styles := precisionIntegratedStyles(t, css)
 
 	for _, marker := range []string{
 		prefix + ` .card-compact {`,
@@ -762,8 +722,8 @@ func TestPrecisionWorkspaceMissionsAdapterStylesActualCompactRendererContract(t 
 		`grid-template-columns: auto minmax(0, 1fr);`,
 		`grid-column: 1 / -1;`,
 	} {
-		if !strings.Contains(adapter, marker) {
-			t.Errorf("Missions compact renderer adapter missing marker %q", marker)
+		if !strings.Contains(styles, marker) {
+			t.Errorf("Missions compact renderer styles missing marker %q", marker)
 		}
 	}
 }
@@ -773,33 +733,26 @@ func TestPrecisionWorkspaceMissionsCompactListActionsStayTouchSizedOnMobile(t *t
 
 	css := normalizeAssetText(mustReadUIFile(t, "css/missions.css"))
 	const (
-		adapterStart = `/* === Precision Workspace Missions Adapter: start === */`
-		adapterEnd   = `/* === Precision Workspace Missions Adapter: end === */`
-		mobileStart  = `@media (max-width: 640px)`
-		mobileEnd    = `@media (prefers-reduced-motion: reduce)`
-		prefix       = `.pw-page[data-workspace-page="missions"][data-density="compact"] .card-actions .mc-btn`
+		mobileStart = `@media (max-width: 640px)`
+		mobileEnd   = `@media (prefers-reduced-motion: reduce)`
+		prefix      = `.pw-page[data-workspace-page="missions"][data-density="compact"] .card-actions .mc-btn`
 	)
-	start := strings.Index(css, adapterStart)
-	end := strings.Index(css, adapterEnd)
-	if start < 0 || end <= start {
-		t.Fatalf("missions.css missing delimited Precision adapter: start=%d end=%d", start, end)
-	}
-	adapter := css[start:end]
+	styles := precisionIntegratedStyles(t, css)
 
 	desktopCompact := regexp.MustCompile(
 		`(?s)` + regexp.QuoteMeta(prefix) +
 			`\s*\{[^}]*width:\s*36px;[^}]*height:\s*36px;[^}]*min-height:\s*36px;`,
 	)
-	if !desktopCompact.MatchString(adapter) {
+	if !desktopCompact.MatchString(styles) {
 		t.Error("Missions compact list actions must preserve the 36px desktop density contract")
 	}
 
-	mobileAt := strings.LastIndex(adapter, mobileStart)
-	reducedMotionAt := strings.Index(adapter, mobileEnd)
+	mobileAt := strings.Index(styles, mobileStart)
+	reducedMotionAt := strings.Index(styles, mobileEnd)
 	if mobileAt < 0 || reducedMotionAt <= mobileAt {
-		t.Fatalf("Missions adapter missing ordered mobile block: mobile=%d reduced-motion=%d", mobileAt, reducedMotionAt)
+		t.Fatalf("Missions styles missing ordered mobile block: mobile=%d reduced-motion=%d", mobileAt, reducedMotionAt)
 	}
-	mobile := adapter[mobileAt:reducedMotionAt]
+	mobile := styles[mobileAt:reducedMotionAt]
 	mobileTouchTarget := regexp.MustCompile(
 		`(?s)` + regexp.QuoteMeta(prefix) +
 			`\s*\{[^}]*width:\s*44px;[^}]*height:\s*44px;[^}]*min-width:\s*44px;[^}]*min-height:\s*44px;`,
@@ -948,14 +901,7 @@ func TestPrecisionWorkspaceKnowledgeSkillsAdaptersAreScopedAndResponsive(t *test
 			t.Parallel()
 
 			css := normalizeAssetText(mustReadUIFile(t, test.stylesheet))
-			startMarker := `/* === Precision Workspace ` + test.name + ` Adapter: start === */`
-			endMarker := `/* === Precision Workspace ` + test.name + ` Adapter: end === */`
-			start := strings.Index(css, startMarker)
-			end := strings.Index(css, endMarker)
-			if start < 0 || end <= start {
-				t.Fatalf("%s missing delimited Precision adapter: start=%d end=%d", test.stylesheet, start, end)
-			}
-			adapter := css[start:end]
+			styles := precisionIntegratedStyles(t, css)
 			prefix := `.pw-page[data-workspace-page="` + test.page + `"]`
 
 			for _, marker := range append([]string{
@@ -974,14 +920,12 @@ func TestPrecisionWorkspaceKnowledgeSkillsAdaptersAreScopedAndResponsive(t *test
 				`border-radius: 20px 20px 0 0;`,
 				`@media (prefers-reduced-motion: reduce)`,
 			}, test.layoutMarkers...) {
-				if !strings.Contains(adapter, marker) {
-					t.Errorf("%s Precision adapter missing marker %q", test.name, marker)
+				if !strings.Contains(styles, marker) {
+					t.Errorf("%s Precision styles missing marker %q", test.name, marker)
 				}
 			}
-			if strings.Contains(strings.ToLower(adapter), "gradient(") {
-				t.Fatalf("%s Precision adapter must not introduce gradient expressions", test.name)
-			}
-			assertPrecisionAdapterSelectorsScoped(t, adapter, prefix)
+			assertPrecisionIntegratedRulesFlat(t, styles, prefix)
+			assertPrecisionAdapterSelectorsScoped(t, styles, prefix)
 		})
 	}
 }
@@ -1028,16 +972,11 @@ func TestPrecisionWorkspaceKnowledgeSkillsAdaptersSuppressLegacyDecoration(t *te
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 			css := normalizeAssetText(mustReadUIFile(t, test.stylesheet))
-			start := strings.Index(css, `/* === Precision Workspace `+test.name+` Adapter: start === */`)
-			end := strings.Index(css, `/* === Precision Workspace `+test.name+` Adapter: end === */`)
-			if start < 0 || end <= start {
-				t.Fatalf("%s missing delimited Precision adapter", test.stylesheet)
-			}
-			adapter := css[start:end]
+			styles := precisionIntegratedStyles(t, css)
 			prefix := `.pw-page[data-workspace-page="` + test.page + `"]`
 			for _, selector := range test.selectors {
-				if !strings.Contains(adapter, prefix+` `+selector) {
-					t.Errorf("%s adapter does not explicitly suppress legacy decoration for %s", test.name, selector)
+				if !strings.Contains(styles, prefix+` `+selector) {
+					t.Errorf("%s styles does not explicitly suppress legacy decoration for %s", test.name, selector)
 				}
 			}
 		})
@@ -1095,18 +1034,13 @@ func TestPrecisionWorkspaceKnowledgeSkillsCompactMobileControlsWinCascade(t *tes
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 			css := normalizeAssetText(mustReadUIFile(t, test.stylesheet))
-			start := strings.Index(css, `/* === Precision Workspace `+test.name+` Adapter: start === */`)
-			end := strings.Index(css, `/* === Precision Workspace `+test.name+` Adapter: end === */`)
-			if start < 0 || end <= start {
-				t.Fatalf("%s missing delimited Precision adapter", test.stylesheet)
-			}
-			adapter := css[start:end]
-			mobileAt := strings.LastIndex(adapter, `@media (max-width: 640px)`)
-			reducedAt := strings.Index(adapter, `@media (prefers-reduced-motion: reduce)`)
+			styles := precisionIntegratedStyles(t, css)
+			mobileAt := strings.Index(styles, `@media (max-width: 640px)`)
+			reducedAt := strings.Index(styles, `@media (prefers-reduced-motion: reduce)`)
 			if mobileAt < 0 || reducedAt <= mobileAt {
 				t.Fatalf("%s missing ordered mobile and reduced-motion blocks", test.stylesheet)
 			}
-			mobile := adapter[mobileAt:reducedAt]
+			mobile := styles[mobileAt:reducedAt]
 			prefix := `.pw-page[data-workspace-page="` + test.page + `"][data-density="compact"] `
 			for _, control := range test.controls {
 				rule := regexp.MustCompile(`(?s)` + regexp.QuoteMeta(prefix+control) + `[^{}]*\{[^}]*min-height:\s*44px;`)
@@ -1122,12 +1056,7 @@ func TestPrecisionWorkspaceSkillsFullscreenAndSemanticToasts(t *testing.T) {
 	t.Parallel()
 
 	css := normalizeAssetText(mustReadUIFile(t, "css/skills.css"))
-	start := strings.Index(css, `/* === Precision Workspace Skills Adapter: start === */`)
-	end := strings.Index(css, `/* === Precision Workspace Skills Adapter: end === */`)
-	if start < 0 || end <= start {
-		t.Fatal("skills.css missing delimited Precision adapter")
-	}
-	adapter := css[start:end]
+	styles := precisionIntegratedStyles(t, css)
 	prefix := `.pw-page[data-workspace-page="skills"]`
 
 	for _, marker := range []string{
@@ -1139,7 +1068,7 @@ func TestPrecisionWorkspaceSkillsFullscreenAndSemanticToasts(t *testing.T) {
 		prefix + ` .modal-overlay.sk-code-overlay-fullscreen .modal-body {`,
 		prefix + ` .modal-overlay.sk-code-overlay-fullscreen .sk-code-editor-container`,
 	} {
-		if !strings.Contains(adapter, marker) {
+		if !strings.Contains(styles, marker) {
 			t.Errorf("Skills fullscreen contract missing %q", marker)
 		}
 	}
@@ -1150,7 +1079,7 @@ func TestPrecisionWorkspaceSkillsFullscreenAndSemanticToasts(t *testing.T) {
 		`.sk-toast-info`:    `var(--pw-accent)`,
 	}
 	for selector, color := range toastColors {
-		rule := regexp.MustCompile(`(?s)` + regexp.QuoteMeta(prefix+` `+selector) + `\s*\{([^}]*)\}`).FindStringSubmatch(adapter)
+		rule := regexp.MustCompile(`(?s)` + regexp.QuoteMeta(prefix+` `+selector) + `\s*\{([^}]*)\}`).FindStringSubmatch(styles)
 		if len(rule) != 2 {
 			t.Errorf("Skills semantic toast rule missing for %s", selector)
 			continue
@@ -1448,12 +1377,10 @@ func TestPrecisionWorkspaceHiddenRevealUsesExplicitDisplayValues(t *testing.T) {
 		{stylesheet: "css/skills.css", name: "Skills"},
 	} {
 		css := normalizeAssetText(mustReadUIFile(t, test.stylesheet))
-		start := strings.Index(css, `/* === Precision Workspace `+test.name+` Adapter: start === */`)
-		end := strings.Index(css, `/* === Precision Workspace `+test.name+` Adapter: end === */`)
-		adapter := css[start:end]
+		styles := precisionIntegratedStyles(t, css)
 		for _, fragile := range []string{`:has(`, `.is-hidden[style`} {
-			if strings.Contains(adapter, fragile) {
-				t.Errorf("%s adapter must not depend on fragile hidden reveal selector %q", test.name, fragile)
+			if strings.Contains(styles, fragile) {
+				t.Errorf("%s styles must not depend on fragile hidden reveal selector %q", test.name, fragile)
 			}
 		}
 	}
@@ -1612,13 +1539,7 @@ func TestPrecisionWorkspaceOperationsAdaptersAreScopedAndResponsive(t *testing.T
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 			css := normalizeAssetText(mustReadUIFile(t, test.stylesheet))
-			startMarker := `/* === Precision Workspace ` + test.name + ` Adapter: start === */`
-			endMarker := `/* === Precision Workspace ` + test.name + ` Adapter: end === */`
-			start, end := strings.Index(css, startMarker), strings.Index(css, endMarker)
-			if start < 0 || end <= start {
-				t.Fatalf("%s missing delimited Precision adapter", test.stylesheet)
-			}
-			adapter := css[start:end]
+			styles := precisionIntegratedStyles(t, css)
 			prefix := `.pw-page[data-workspace-page="` + test.page + `"]`
 			for _, marker := range append([]string{
 				prefix + ` {`, `overflow-x: clip;`, `background-image: none;`, `box-shadow: none;`, `filter: none;`,
@@ -1626,14 +1547,12 @@ func TestPrecisionWorkspaceOperationsAdaptersAreScopedAndResponsive(t *testing.T
 				`min-height: 44px;`, `min-height: 100dvh;`, `max-height: calc(100dvh - 1rem);`, `border-radius: 20px 20px 0 0;`,
 				`overflow-wrap: anywhere;`, `@media (prefers-reduced-motion: reduce)`,
 			}, test.markers...) {
-				if !strings.Contains(adapter, marker) {
-					t.Errorf("%s adapter missing %q", test.name, marker)
+				if !strings.Contains(styles, marker) {
+					t.Errorf("%s styles missing %q", test.name, marker)
 				}
 			}
-			if strings.Contains(strings.ToLower(adapter), "gradient(") {
-				t.Errorf("%s adapter must remain flat", test.name)
-			}
-			assertPrecisionAdapterSelectorsScoped(t, adapter, prefix)
+			assertPrecisionIntegratedRulesFlat(t, styles, prefix)
+			assertPrecisionAdapterSelectorsScoped(t, styles, prefix)
 		})
 	}
 }
@@ -1663,7 +1582,7 @@ func TestPrecisionWorkspaceOperationsAdaptersCoverRenderedStates(t *testing.T) {
 				t.Errorf("%s test selector %s is not derived from rendered JS", test.name, selector)
 			}
 			if !strings.Contains(css, prefix+selector) {
-				t.Errorf("%s adapter misses rendered state %s", test.name, selector)
+				t.Errorf("%s styles misses rendered state %s", test.name, selector)
 			}
 		}
 	}
@@ -1683,18 +1602,13 @@ func TestPrecisionWorkspaceOperationsCompactMobileControlsWinCascade(t *testing.
 	}
 	for _, test := range tests {
 		css := normalizeAssetText(mustReadUIFile(t, test.stylesheet))
-		start := strings.Index(css, `/* === Precision Workspace `+test.name+` Adapter: start === */`)
-		end := strings.Index(css, `/* === Precision Workspace `+test.name+` Adapter: end === */`)
-		if start < 0 || end <= start {
-			t.Fatalf("%s missing adapter", test.stylesheet)
-		}
-		adapter := css[start:end]
-		mobileAt := strings.LastIndex(adapter, `@media (max-width: 640px)`)
-		reducedAt := strings.Index(adapter, `@media (prefers-reduced-motion: reduce)`)
+		styles := precisionIntegratedStyles(t, css)
+		mobileAt := strings.Index(styles, `@media (max-width: 640px)`)
+		reducedAt := strings.Index(styles, `@media (prefers-reduced-motion: reduce)`)
 		if mobileAt < 0 || reducedAt <= mobileAt {
 			t.Fatalf("%s mobile block must precede reduced motion", test.name)
 		}
-		mobile := adapter[mobileAt:reducedAt]
+		mobile := styles[mobileAt:reducedAt]
 		prefix := `.pw-page[data-workspace-page="` + test.page + `"][data-density="compact"] `
 		for _, control := range test.controls {
 			if !regexp.MustCompile(`(?s)` + regexp.QuoteMeta(prefix+control) + `[^{}]*\{[^}]*min-height:\s*44px;`).MatchString(mobile) {
@@ -1775,16 +1689,11 @@ func TestPrecisionWorkspaceOperationsFocusVisibleRulesArePageScoped(t *testing.T
 
 	for _, test := range tests {
 		css := normalizeAssetText(mustReadUIFile(t, test.stylesheet))
-		start := strings.Index(css, `/* === Precision Workspace `+test.name+` Adapter: start === */`)
-		end := strings.Index(css, `/* === Precision Workspace `+test.name+` Adapter: end === */`)
-		if start < 0 || end <= start {
-			t.Fatalf("%s missing adapter", test.stylesheet)
-		}
-		adapter := css[start:end]
+		styles := precisionIntegratedStyles(t, css)
 		prefix := `.pw-page[data-workspace-page="` + test.page + `"] `
 		for _, control := range test.controls {
 			selector := prefix + control + `:focus-visible`
-			rule := regexp.MustCompile(`(?s)` + regexp.QuoteMeta(selector) + `[^{}]*\{([^}]*)\}`).FindStringSubmatch(adapter)
+			rule := regexp.MustCompile(`(?s)` + regexp.QuoteMeta(selector) + `[^{}]*\{([^}]*)\}`).FindStringSubmatch(styles)
 			if len(rule) != 2 {
 				t.Errorf("%s missing scoped focus rule for %s", test.name, control)
 				continue
@@ -1831,15 +1740,13 @@ func TestPrecisionWorkspaceOperationsMobileActionTargetsCoverBothDensities(t *te
 
 	for _, test := range tests {
 		css := normalizeAssetText(mustReadUIFile(t, test.stylesheet))
-		start := strings.Index(css, `/* === Precision Workspace `+test.name+` Adapter: start === */`)
-		end := strings.Index(css, `/* === Precision Workspace `+test.name+` Adapter: end === */`)
-		adapter := css[start:end]
-		mobileAt := strings.LastIndex(adapter, `@media (max-width: 640px)`)
-		reducedAt := strings.Index(adapter, `@media (prefers-reduced-motion: reduce)`)
-		if start < 0 || end <= start || mobileAt < 0 || reducedAt <= mobileAt {
-			t.Fatalf("%s missing ordered adapter/mobile contract", test.name)
+		styles := precisionIntegratedStyles(t, css)
+		mobileAt := strings.Index(styles, `@media (max-width: 640px)`)
+		reducedAt := strings.Index(styles, `@media (prefers-reduced-motion: reduce)`)
+		if mobileAt < 0 || reducedAt <= mobileAt {
+			t.Fatalf("%s missing ordered styles/mobile contract", test.name)
 		}
-		mobile := adapter[mobileAt:reducedAt]
+		mobile := styles[mobileAt:reducedAt]
 		prefixes := map[string]string{
 			"comfortable": `.pw-page[data-workspace-page="` + test.page + `"] `,
 			"compact":     `.pw-page[data-workspace-page="` + test.page + `"][data-density="compact"] `,
@@ -2280,6 +2187,101 @@ func TestPrecisionEntrySetupNarrowHeaderRemovesRadialClearance(t *testing.T) {
 				t.Errorf("narrow Setup header %s missing %q", test.selector, declaration)
 			}
 		}
+	}
+}
+
+func TestPrecisionChangedPageAssetsUseReleaseBuildVersion(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		template string
+		assets   []string
+	}{
+		{template: "config.html", assets: []string{`/css/precision-workspace.css?v={{.BuildVersion}}`, `/css/precision-pages.css?v={{.BuildVersion}}`, `/js/precision/workspace.js?v={{.BuildVersion}}`, `/js/config/main.js?v={{.BuildVersion}}`}},
+		{template: "dashboard.html", assets: []string{`/css/dashboard.css?v={{.BuildVersion}}`, `/css/precision-workspace.css?v={{.BuildVersion}}`, `/css/precision-pages.css?v={{.BuildVersion}}`, `/js/precision/workspace.js?v={{.BuildVersion}}`}},
+		{template: "plans.html", assets: []string{`/css/plans.css?v={{.BuildVersion}}`, `/css/precision-workspace.css?v={{.BuildVersion}}`, `/css/precision-pages.css?v={{.BuildVersion}}`, `/js/precision/workspace.js?v={{.BuildVersion}}`}},
+		{template: "missions_v2.html", assets: []string{`/css/missions.css?v={{.BuildVersion}}`, `/css/precision-workspace.css?v={{.BuildVersion}}`, `/css/precision-pages.css?v={{.BuildVersion}}`, `/js/precision/workspace.js?v={{.BuildVersion}}`}},
+		{template: "cheatsheets.html", assets: []string{`/css/cheatsheets.css?v={{.BuildVersion}}`, `/css/precision-workspace.css?v={{.BuildVersion}}`, `/css/precision-pages.css?v={{.BuildVersion}}`, `/js/precision/workspace.js?v={{.BuildVersion}}`}},
+		{template: "knowledge.html", assets: []string{`/css/knowledge.css?v={{.BuildVersion}}`, `/css/precision-workspace.css?v={{.BuildVersion}}`, `/css/precision-pages.css?v={{.BuildVersion}}`, `/js/precision/workspace.js?v={{.BuildVersion}}`, `/js/knowledge/main.js?v={{.BuildVersion}}`}},
+		{template: "skills.html", assets: []string{`/css/skills.css?v={{.BuildVersion}}`, `/css/precision-workspace.css?v={{.BuildVersion}}`, `/css/precision-pages.css?v={{.BuildVersion}}`, `/js/precision/workspace.js?v={{.BuildVersion}}`, `/js/skills/main.js?v={{.BuildVersion}}`}},
+		{template: "containers.html", assets: []string{`/css/containers.css?v={{.BuildVersion}}`, `/css/precision-workspace.css?v={{.BuildVersion}}`, `/css/precision-pages.css?v={{.BuildVersion}}`, `/js/precision/workspace.js?v={{.BuildVersion}}`, `/js/containers/main.js?v={{.BuildVersion}}`}},
+		{template: "media.html", assets: []string{`/css/media.css?v={{.BuildVersion}}`, `/css/precision-workspace.css?v={{.BuildVersion}}`, `/css/precision-pages.css?v={{.BuildVersion}}`, `/js/precision/workspace.js?v={{.BuildVersion}}`}},
+		{template: "truenas.html", assets: []string{`/css/truenas.css?v={{.BuildVersion}}`, `/css/precision-workspace.css?v={{.BuildVersion}}`, `/css/precision-pages.css?v={{.BuildVersion}}`, `/js/precision/workspace.js?v={{.BuildVersion}}`, `/js/truenas.js?v={{.BuildVersion}}`}},
+		{template: "invasion_control.html", assets: []string{`/css/invasion.css?v={{.BuildVersion}}`, `/css/precision-workspace.css?v={{.BuildVersion}}`, `/css/precision-pages.css?v={{.BuildVersion}}`, `/js/precision/workspace.js?v={{.BuildVersion}}`}},
+		{template: "login.html", assets: []string{`/css/login.css?v={{.BuildVersion}}`, `/css/precision-workspace.css?v={{.BuildVersion}}`, `/css/precision-entry.css?v={{.BuildVersion}}`}},
+		{template: "setup.html", assets: []string{`/css/setup.css?v={{.BuildVersion}}`, `/css/precision-workspace.css?v={{.BuildVersion}}`, `/css/precision-entry.css?v={{.BuildVersion}}`, `/js/setup/main.js?v={{.BuildVersion}}`}},
+		{template: "404.html", assets: []string{`/css/not-found.css?v={{.BuildVersion}}`, `/css/precision-workspace.css?v={{.BuildVersion}}`, `/css/precision-entry.css?v={{.BuildVersion}}`}},
+	}
+
+	for _, test := range tests {
+		test := test
+		t.Run(test.template, func(t *testing.T) {
+			t.Parallel()
+			html := normalizeAssetText(mustReadUIFile(t, test.template))
+			for _, asset := range test.assets {
+				assetRef := regexp.MustCompile(`(?:href|src)=["']` + regexp.QuoteMeta(asset) + `["']`)
+				if !assetRef.MatchString(html) {
+					t.Errorf("%s must load changed asset with release BuildVersion: %s", test.template, asset)
+				}
+			}
+		})
+	}
+}
+
+func TestPrecisionOperationalStylesAreIntegratedAndPageScoped(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		stylesheet string
+		page       string
+	}{
+		{name: "Dashboard", stylesheet: "css/dashboard.css", page: "dashboard"},
+		{name: "Plans", stylesheet: "css/plans.css", page: "plans"},
+		{name: "Missions", stylesheet: "css/missions.css", page: "missions"},
+		{name: "Cheatsheets", stylesheet: "css/cheatsheets.css", page: "cheatsheets"},
+		{name: "Knowledge", stylesheet: "css/knowledge.css", page: "knowledge"},
+		{name: "Skills", stylesheet: "css/skills.css", page: "skills"},
+		{name: "Containers", stylesheet: "css/containers.css", page: "containers"},
+		{name: "Media", stylesheet: "css/media.css", page: "media"},
+		{name: "TrueNAS", stylesheet: "css/truenas.css", page: "truenas"},
+		{name: "Invasion", stylesheet: "css/invasion.css", page: "invasion"},
+	}
+
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			css := normalizeAssetText(mustReadUIFile(t, test.stylesheet))
+			if strings.Contains(css, `Precision Workspace `+test.name+` Adapter`) {
+				t.Errorf("%s must integrate Precision declarations instead of retaining an adapter block", test.stylesheet)
+			}
+			prefix := `.pw-page[data-workspace-page="` + test.page + `"]`
+			if !strings.Contains(css, prefix+` {`) {
+				t.Errorf("%s must retain its integrated page-scoped Precision root %q", test.stylesheet, prefix)
+			}
+		})
+	}
+}
+
+func TestPrecisionEntryLoginCSSFallbackRemainsAvailable(t *testing.T) {
+	t.Parallel()
+
+	css := normalizeAssetText(mustReadUIFile(t, "css/login.css"))
+	prefix := `.pw-page.pw-entry-page[data-entry-page="login"]`
+	for _, selector := range []string{`.css-fallback-bg`, `.particle-grid`, `.scan-line`, `.orb`} {
+		pattern := regexp.MustCompile(`(?s)` + regexp.QuoteMeta(prefix) + `[^{}]*` + regexp.QuoteMeta(selector) + `[^{}]*\{([^}]*)\}`)
+		for _, match := range pattern.FindAllStringSubmatch(css, -1) {
+			declarations := match[1]
+			for _, forbidden := range []string{`display: none;`, `background: transparent;`, `background-image: none;`} {
+				if strings.Contains(declarations, forbidden) {
+					t.Errorf("Login CSS fallback selector %s must remain available; found %q", selector, forbidden)
+				}
+			}
+		}
+	}
+	if !strings.Contains(css, `@media (prefers-reduced-motion: reduce)`) {
+		t.Error("login.css must preserve reduced-motion behavior")
 	}
 }
 

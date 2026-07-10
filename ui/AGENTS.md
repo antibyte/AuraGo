@@ -33,8 +33,11 @@ images, and browser-oriented regression tests.
   `js/precision/workspace.js`. Entry templates use `.pw-page.pw-entry-page`,
   `precision-workspace.css`, and `precision-entry.css` only.
 - Migrated templates must not contain `style` attributes or `<style>` blocks.
-  Put page-specific rules in the owning stylesheet and scope Precision
-  adapters with the page's `data-workspace-page` or `data-entry-page`.
+  Put page-specific rules in the owning stylesheet. Operational Precision
+  declarations must be integrated into that stylesheet's normal rule
+  structure, scoped with the page's `data-workspace-page`, and must not remain
+  in a permanently appended or delimited adapter block. Entry-page additions
+  remain scoped with `data-entry-page`.
 - `window.AuraPrecisionWorkspace` owns the browser-local
   `aurago.workspace.density.v1` preference and exposes `init()`,
   `getDensity()`, and `setDensity("comfortable"|"compact")`. It migrates the
@@ -61,6 +64,8 @@ images, and browser-oriented regression tests.
 - Syntax for every rollout JavaScript change:
   `$files = git diff --name-only 0773dfa52e3d21f420f9009c480bdd817e761882 -- '*.js'; foreach ($file in $files) { node --check $file; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE } }`.
 - Static contracts: `go test -count=1 ./ui/... -run 'Precision|Config|I18N'`.
+- Operational stylesheet integration and cache release keys:
+  `go test -count=1 ./ui/... -run 'TestPrecisionOperationalStylesAreIntegratedAndPageScoped|TestPrecisionChangedPageAssetsUseReleaseBuildVersion'`.
 - Browser contracts (Chrome or Edge):
   `$env:AURAGO_RUN_BROWSER_SMOKE='1'; $env:AURAGO_BROWSER_ARTIFACT_DIR='disposable/browser-artifacts'; go test -count=1 ./ui/... -run 'Precision.*Browser|ConfigPrecisionWorkspaceBrowserMatrix'`.
 - Full UI: `go test -count=1 ./ui/...`.
