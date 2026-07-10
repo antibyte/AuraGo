@@ -1,0 +1,818 @@
+{
+  "asset": "ui/img/config-sidebar-icons.svg",
+  "grid": {
+    "columns": 11,
+    "rows": 10,
+    "cell_size": 128
+  },
+  "icons": [
+    {
+      "key": "overview",
+      "slot": 0,
+      "column": 0,
+      "row": 0,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "agent",
+      "slot": 1,
+      "column": 1,
+      "row": 0,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "heartbeat",
+      "slot": 2,
+      "column": 2,
+      "row": 0,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "optimizations",
+      "slot": 3,
+      "column": 3,
+      "row": 0,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "providers",
+      "slot": 4,
+      "column": 4,
+      "row": 0,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "manifest",
+      "slot": 5,
+      "column": 5,
+      "row": 0,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "omniroute",
+      "slot": 6,
+      "column": 6,
+      "row": 0,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "dograh",
+      "slot": 7,
+      "column": 7,
+      "row": 0,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "llm",
+      "slot": 8,
+      "column": 8,
+      "row": 0,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "fallback_llm",
+      "slot": 9,
+      "column": 9,
+      "row": 0,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "embeddings",
+      "slot": 10,
+      "column": 10,
+      "row": 0,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "budget",
+      "slot": 11,
+      "column": 0,
+      "row": 1,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "memory_analysis",
+      "slot": 12,
+      "column": 1,
+      "row": 1,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "co_agents",
+      "slot": 13,
+      "column": 2,
+      "row": 1,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "prompts_editor",
+      "slot": 14,
+      "column": 3,
+      "row": 1,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "rules",
+      "slot": 15,
+      "column": 4,
+      "row": 1,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "personality",
+      "slot": 16,
+      "column": 5,
+      "row": 1,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "vision",
+      "slot": 17,
+      "column": 6,
+      "row": 1,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "output_compression",
+      "slot": 18,
+      "column": 7,
+      "row": 1,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "server",
+      "slot": 19,
+      "column": 8,
+      "row": 1,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "directories",
+      "slot": 20,
+      "column": 9,
+      "row": 1,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "sqlite",
+      "slot": 21,
+      "column": 10,
+      "row": 1,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "sql_connections",
+      "slot": 22,
+      "column": 0,
+      "row": 2,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "web_config",
+      "slot": 23,
+      "column": 1,
+      "row": 2,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "logging",
+      "slot": 24,
+      "column": 2,
+      "row": 2,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "maintenance",
+      "slot": 25,
+      "column": 3,
+      "row": 2,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "backup_restore",
+      "slot": 26,
+      "column": 4,
+      "row": 2,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "updates",
+      "slot": 27,
+      "column": 5,
+      "row": 2,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "indexing",
+      "slot": 28,
+      "column": 6,
+      "row": 2,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "firewall",
+      "slot": 29,
+      "column": 7,
+      "row": 2,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "tools",
+      "slot": 30,
+      "column": 8,
+      "row": 2,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "web_scraper",
+      "slot": 31,
+      "column": 9,
+      "row": 2,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "browser_automation",
+      "slot": 32,
+      "column": 10,
+      "row": 2,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "space_agent",
+      "slot": 33,
+      "column": 0,
+      "row": 3,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "virtual_desktop",
+      "slot": 34,
+      "column": 1,
+      "row": 3,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "sandbox",
+      "slot": 35,
+      "column": 2,
+      "row": 3,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "info_tools",
+      "slot": 36,
+      "column": 3,
+      "row": 3,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "network_tools",
+      "slot": 37,
+      "column": 4,
+      "row": 3,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "brave_search",
+      "slot": 38,
+      "column": 5,
+      "row": 3,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "skill_manager",
+      "slot": 39,
+      "column": 6,
+      "row": 3,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "daemon_skills",
+      "slot": 40,
+      "column": 7,
+      "row": 3,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "mission_preparation",
+      "slot": 41,
+      "column": 8,
+      "row": 3,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "whisper",
+      "slot": 42,
+      "column": 9,
+      "row": 3,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "tts",
+      "slot": 43,
+      "column": 10,
+      "row": 3,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "image_generation",
+      "slot": 44,
+      "column": 0,
+      "row": 4,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "music_generation",
+      "slot": 45,
+      "column": 1,
+      "row": 4,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "video_generation",
+      "slot": 46,
+      "column": 2,
+      "row": 4,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "media_conversion",
+      "slot": 47,
+      "column": 3,
+      "row": 4,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "video_download",
+      "slot": 48,
+      "column": 4,
+      "row": 4,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "document_creator",
+      "slot": 49,
+      "column": 5,
+      "row": 4,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "docker",
+      "slot": 50,
+      "column": 6,
+      "row": 4,
+      "source_type": "brand",
+      "source": "https://www.docker.com/company/newsroom/media-resources/"
+    },
+    {
+      "key": "s3",
+      "slot": 51,
+      "column": 7,
+      "row": 4,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "webdav",
+      "slot": 52,
+      "column": 8,
+      "row": 4,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "koofr",
+      "slot": 53,
+      "column": 9,
+      "row": 4,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "netlify",
+      "slot": 54,
+      "column": 10,
+      "row": 4,
+      "source_type": "brand",
+      "source": "https://www.netlify.com/press/"
+    },
+    {
+      "key": "vercel",
+      "slot": 55,
+      "column": 0,
+      "row": 5,
+      "source_type": "brand",
+      "source": "https://vercel.com/geist/brands"
+    },
+    {
+      "key": "cloudflare_tunnel",
+      "slot": 56,
+      "column": 1,
+      "row": 5,
+      "source_type": "brand",
+      "source": "https://www.cloudflare.com/logo/"
+    },
+    {
+      "key": "homepage",
+      "slot": 57,
+      "column": 2,
+      "row": 5,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "telegram",
+      "slot": 58,
+      "column": 3,
+      "row": 5,
+      "source_type": "brand",
+      "source": "https://telegram.org/tour/screenshots"
+    },
+    {
+      "key": "discord",
+      "slot": 59,
+      "column": 4,
+      "row": 5,
+      "source_type": "brand",
+      "source": "https://discord.com/branding"
+    },
+    {
+      "key": "rocketchat",
+      "slot": 60,
+      "column": 5,
+      "row": 5,
+      "source_type": "brand",
+      "source": "https://www.rocket.chat/press"
+    },
+    {
+      "key": "telnyx",
+      "slot": 61,
+      "column": 6,
+      "row": 5,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "email",
+      "slot": 62,
+      "column": 7,
+      "row": 5,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "agentmail",
+      "slot": 63,
+      "column": 8,
+      "row": 5,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "webhooks",
+      "slot": 64,
+      "column": 9,
+      "row": 5,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "notifications",
+      "slot": 65,
+      "column": 10,
+      "row": 5,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "github",
+      "slot": 66,
+      "column": 0,
+      "row": 6,
+      "source_type": "brand",
+      "source": "https://github.com/logos"
+    },
+    {
+      "key": "google_workspace",
+      "slot": 67,
+      "column": 1,
+      "row": 6,
+      "source_type": "brand",
+      "source": "https://about.google/brand-resource-center/logos-list/"
+    },
+    {
+      "key": "paperless_ngx",
+      "slot": 68,
+      "column": 2,
+      "row": 6,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "obsidian",
+      "slot": 69,
+      "column": 3,
+      "row": 6,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "yepapi",
+      "slot": 70,
+      "column": 4,
+      "row": 6,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "home_assistant",
+      "slot": 71,
+      "column": 5,
+      "row": 6,
+      "source_type": "brand",
+      "source": "https://www.home-assistant.io/blog/2015/07/23/introducing-home-assistant/"
+    },
+    {
+      "key": "mqtt",
+      "slot": 72,
+      "column": 6,
+      "row": 6,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "chromecast",
+      "slot": 73,
+      "column": 7,
+      "row": 6,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "adguard",
+      "slot": 74,
+      "column": 8,
+      "row": 6,
+      "source_type": "brand",
+      "source": "https://adguard.com/en/media-materials.html"
+    },
+    {
+      "key": "fritzbox",
+      "slot": 75,
+      "column": 9,
+      "row": 6,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "ldap",
+      "slot": 76,
+      "column": 10,
+      "row": 6,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "truenas",
+      "slot": 77,
+      "column": 0,
+      "row": 7,
+      "source_type": "brand",
+      "source": "https://www.truenas.com/logos/"
+    },
+    {
+      "key": "uptime_kuma",
+      "slot": 78,
+      "column": 1,
+      "row": 7,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "jellyfin",
+      "slot": 79,
+      "column": 2,
+      "row": 7,
+      "source_type": "brand",
+      "source": "https://jellyfin.org/docs/general/community-standards/branding/"
+    },
+    {
+      "key": "tailscale",
+      "slot": 80,
+      "column": 3,
+      "row": 7,
+      "source_type": "brand",
+      "source": "https://tailscale.com/press"
+    },
+    {
+      "key": "proxmox",
+      "slot": 81,
+      "column": 4,
+      "row": 7,
+      "source_type": "brand",
+      "source": "https://www.proxmox.com/en/about/media-kit"
+    },
+    {
+      "key": "frigate",
+      "slot": 82,
+      "column": 5,
+      "row": 7,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "three_d_printers",
+      "slot": 83,
+      "column": 6,
+      "row": 7,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "remote_control",
+      "slot": 84,
+      "column": 7,
+      "row": 7,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "grafana",
+      "slot": 85,
+      "column": 8,
+      "row": 7,
+      "source_type": "brand",
+      "source": "https://grafana.com/about/media-kit/"
+    },
+    {
+      "key": "meshcentral",
+      "slot": 86,
+      "column": 9,
+      "row": 7,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "ansible",
+      "slot": 87,
+      "column": 10,
+      "row": 7,
+      "source_type": "brand",
+      "source": "https://www.redhat.com/en/about/brand/standards/logo"
+    },
+    {
+      "key": "security_proxy",
+      "slot": 88,
+      "column": 0,
+      "row": 8,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "guardian",
+      "slot": 89,
+      "column": 1,
+      "row": 8,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "llm_guardian",
+      "slot": 90,
+      "column": 2,
+      "row": 8,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "virustotal",
+      "slot": 91,
+      "column": 3,
+      "row": 8,
+      "source_type": "brand",
+      "source": "https://www.virustotal.com/gui/home/upload"
+    },
+    {
+      "key": "ai_gateway",
+      "slot": 92,
+      "column": 4,
+      "row": 8,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "composio",
+      "slot": 93,
+      "column": 5,
+      "row": 8,
+      "source_type": "brand",
+      "source": "https://composio.dev/brand"
+    },
+    {
+      "key": "huggingface",
+      "slot": 94,
+      "column": 6,
+      "row": 8,
+      "source_type": "brand",
+      "source": "https://huggingface.co/brand"
+    },
+    {
+      "key": "evomap",
+      "slot": 95,
+      "column": 7,
+      "row": 8,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "mcp",
+      "slot": 96,
+      "column": 8,
+      "row": 8,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "mcp_server",
+      "slot": 97,
+      "column": 9,
+      "row": 8,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "a2a",
+      "slot": 98,
+      "column": 10,
+      "row": 8,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "ollama",
+      "slot": 99,
+      "column": 0,
+      "row": 9,
+      "source_type": "brand",
+      "source": "https://ollama.com/"
+    },
+    {
+      "key": "danger_zone",
+      "slot": 100,
+      "column": 1,
+      "row": 9,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    }
+  ]
+}

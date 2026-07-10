@@ -3,10 +3,13 @@ package ui
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -374,8 +377,10 @@ func TestConfigPrecisionWorkspaceNavigationAndDensityMarkers(t *testing.T) {
 		`function recordRecentSection(`,
 		`function configSearchEntriesForSection(`,
 		`function focusConfigField(`,
-		`function configSectionIcon(`,
-		`configSectionIcon(s.key)`,
+		`const CONFIG_SIDEBAR_ICON_SLOTS = Object.freeze({`,
+		`function createConfigSidebarIcon(`,
+		`createConfigSidebarIcon('overview')`,
+		`createConfigSidebarIcon(s.key)`,
 		`key === 'overview'`,
 	} {
 		if !strings.Contains(mainJS, marker) {
@@ -391,6 +396,234 @@ func TestConfigPrecisionWorkspaceNavigationAndDensityMarkers(t *testing.T) {
 			t.Errorf("workspace.js missing density ownership key %q", key)
 		}
 	}
+}
+
+func TestConfigSidebarIconSpriteContract(t *testing.T) {
+	t.Parallel()
+
+	mainJS := normalizeAssetText(mustReadUIFile(t, "js/config/main.js"))
+	css := normalizeAssetText(mustReadUIFile(t, "css/config-workspace.css"))
+	sprite := normalizeAssetText(mustReadUIFile(t, "img/config-sidebar-icons.svg"))
+	metadataBytes := mustReadUIFile(t, "img/config-sidebar-icons.json")
+
+	for _, forbidden := range []string{
+		`function configSectionIcon(`,
+		`configSectionIcon(s.key)`,
+		`<span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24">`,
+	} {
+		if strings.Contains(mainJS, forbidden) {
+			t.Fatalf("config sidebar must not use old generic inline SVG renderer %q", forbidden)
+		}
+	}
+
+	for _, marker := range []string{
+		`const CONFIG_SIDEBAR_ICON_GRID = Object.freeze({ columns: 11, rows: 10, cell: 128 });`,
+		`const CONFIG_SIDEBAR_ICON_SLOTS = Object.freeze({`,
+		`function createConfigSidebarIcon(`,
+		`config-sidebar-icon-sprite config-icon-slot-`,
+		`createConfigSidebarIcon('overview')`,
+		`createConfigSidebarIcon(s.key)`,
+	} {
+		if !strings.Contains(mainJS, marker) {
+			t.Fatalf("config main.js missing sidebar sprite marker %q", marker)
+		}
+	}
+
+	expectedKeys := expectedConfigSidebarIconKeys(t, mainJS)
+	if got, want := len(expectedKeys), 101; got != want {
+		t.Fatalf("expected config sidebar key count = %d, want %d", got, want)
+	}
+
+	slotByKey := parseConfigSidebarIconSlots(t, mainJS)
+	assertConfigIconCoverage(t, expectedKeys, slotByKey)
+	for _, key := range expectedKeys {
+		slot := slotByKey[key]
+		column := slot % 11
+		row := slot / 11
+		svgMarker := fmt.Sprintf(`data-key="%s" data-slot="%d" transform="translate(%d %d)"`, key, slot, column*128, row*128)
+		if !strings.Contains(sprite, svgMarker) {
+			t.Fatalf("config sidebar SVG sprite missing exact cell marker %q", svgMarker)
+		}
+		x := configIconSpritePercent(float64(column) * 100 / 10)
+		y := configIconSpritePercent(float64(row) * 100 / 9)
+		cssMarker := fmt.Sprintf(`.pw-page .config-icon-slot-%d { background-position: %s %s; }`, slot, x, y)
+		if !strings.Contains(css, cssMarker) {
+			t.Fatalf("config workspace CSS missing exact slot marker %q", cssMarker)
+		}
+	}
+
+	for _, marker := range []string{
+		`.config-sidebar-icon-sprite`,
+		`background-image: url('/img/config-sidebar-icons.svg')`,
+		`background-size: 1100% 1000%`,
+		`.pw-page .config-icon-slot-0 { background-position: 0% 0%; }`,
+		`.pw-page .config-icon-slot-100 { background-position: 10% 100%; }`,
+	} {
+		if !strings.Contains(css, marker) {
+			t.Fatalf("config workspace CSS missing sidebar sprite marker %q", marker)
+		}
+	}
+
+	for _, marker := range []string{
+		`<svg xmlns="http://www.w3.org/2000/svg" width="1408" height="1280" viewBox="0 0 1408 1280" role="img" aria-label="AuraGo config sidebar icon sprite">`,
+		`class="cfg-icon-cell"`,
+		`data-key="overview"`,
+		`data-key="danger_zone"`,
+	} {
+		if !strings.Contains(sprite, marker) {
+			t.Fatalf("config sidebar SVG sprite missing marker %q", marker)
+		}
+	}
+	if got := strings.Count(sprite, `class="cfg-icon-cell"`); got != 101 {
+		t.Fatalf("config sidebar SVG sprite has %d icon cells, want 101", got)
+	}
+
+	var metadata struct {
+		Grid struct {
+			Columns  int `json:"columns"`
+			Rows     int `json:"rows"`
+			CellSize int `json:"cell_size"`
+		} `json:"grid"`
+		Icons []struct {
+			Key        string `json:"key"`
+			Slot       int    `json:"slot"`
+			Column     int    `json:"column"`
+			Row        int    `json:"row"`
+			SourceType string `json:"source_type"`
+			Source     string `json:"source"`
+		} `json:"icons"`
+	}
+	if err := json.Unmarshal(metadataBytes, &metadata); err != nil {
+		t.Fatalf("decode config sidebar sprite metadata: %v", err)
+	}
+	if metadata.Grid.Columns != 11 || metadata.Grid.Rows != 10 || metadata.Grid.CellSize != 128 {
+		t.Fatalf("metadata grid = %+v, want 11x10 cells of 128", metadata.Grid)
+	}
+	if got := len(metadata.Icons); got != 101 {
+		t.Fatalf("metadata has %d icons, want 101", got)
+	}
+
+	metaByKey := make(map[string]struct {
+		slot       int
+		column     int
+		row        int
+		sourceType string
+		source     string
+	}, len(metadata.Icons))
+	for _, icon := range metadata.Icons {
+		if icon.Key == "" || icon.SourceType == "" || icon.Source == "" {
+			t.Fatalf("metadata icon has incomplete attribution: %+v", icon)
+		}
+		if previous, exists := metaByKey[icon.Key]; exists {
+			t.Fatalf("metadata key %q appears twice: %+v and %+v", icon.Key, previous, icon)
+		}
+		metaByKey[icon.Key] = struct {
+			slot       int
+			column     int
+			row        int
+			sourceType string
+			source     string
+		}{slot: icon.Slot, column: icon.Column, row: icon.Row, sourceType: icon.SourceType, source: icon.Source}
+	}
+	for _, key := range expectedKeys {
+		slot := slotByKey[key]
+		meta, ok := metaByKey[key]
+		if !ok {
+			t.Fatalf("metadata missing icon key %q", key)
+		}
+		if meta.slot != slot || meta.column != slot%11 || meta.row != slot/11 {
+			t.Fatalf("metadata for %q = slot %d column %d row %d, want slot %d column %d row %d", key, meta.slot, meta.column, meta.row, slot, slot%11, slot/11)
+		}
+	}
+	for _, key := range []string{"docker", "github", "cloudflare_tunnel", "huggingface", "google_workspace", "telegram", "discord", "truenas", "grafana"} {
+		if metaByKey[key].sourceType != "brand" {
+			t.Fatalf("metadata source_type for brand icon %q = %q, want brand", key, metaByKey[key].sourceType)
+		}
+	}
+}
+
+func expectedConfigSidebarIconKeys(t *testing.T, mainJS string) []string {
+	t.Helper()
+	start := strings.Index(mainJS, "const SECTIONS = [")
+	end := strings.Index(mainJS, "const lang =")
+	if start < 0 || end < 0 || end <= start {
+		t.Fatal("config main.js missing parseable SECTIONS block")
+	}
+	sectionBlock := mainJS[start:end]
+	keyPattern := regexp.MustCompile(`key:\s*'([a-z0-9_]+)'`)
+	matches := keyPattern.FindAllStringSubmatch(sectionBlock, -1)
+	keys := []string{"overview"}
+	seen := map[string]bool{"overview": true}
+	for _, match := range matches {
+		key := match[1]
+		if seen[key] {
+			t.Fatalf("duplicate config section key %q in SECTIONS block", key)
+		}
+		seen[key] = true
+		keys = append(keys, key)
+	}
+	return keys
+}
+
+func parseConfigSidebarIconSlots(t *testing.T, mainJS string) map[string]int {
+	t.Helper()
+	startMarker := "const CONFIG_SIDEBAR_ICON_SLOTS = Object.freeze({"
+	start := strings.Index(mainJS, startMarker)
+	if start < 0 {
+		t.Fatal("config main.js missing CONFIG_SIDEBAR_ICON_SLOTS")
+	}
+	start += len(startMarker)
+	end := strings.Index(mainJS[start:], "});")
+	if end < 0 {
+		t.Fatal("config main.js has unterminated CONFIG_SIDEBAR_ICON_SLOTS")
+	}
+	block := mainJS[start : start+end]
+	slotPattern := regexp.MustCompile(`([a-z0-9_]+):\s*(\d+)`)
+	matches := slotPattern.FindAllStringSubmatch(block, -1)
+	if len(matches) == 0 {
+		t.Fatal("config sidebar icon slot map is empty")
+	}
+	slotByKey := make(map[string]int, len(matches))
+	for _, match := range matches {
+		key := match[1]
+		slot, err := strconv.Atoi(match[2])
+		if err != nil {
+			t.Fatalf("parse slot for %q: %v", key, err)
+		}
+		if previous, exists := slotByKey[key]; exists {
+			t.Fatalf("icon key %q appears twice in slot map (%d and %d)", key, previous, slot)
+		}
+		slotByKey[key] = slot
+	}
+	return slotByKey
+}
+
+func assertConfigIconCoverage(t *testing.T, expectedKeys []string, slotByKey map[string]int) {
+	t.Helper()
+	if got, want := len(slotByKey), len(expectedKeys); got != want {
+		t.Fatalf("slot map has %d icons, want %d", got, want)
+	}
+	usedSlots := make(map[int]string, len(slotByKey))
+	for _, key := range expectedKeys {
+		slot, ok := slotByKey[key]
+		if !ok {
+			t.Fatalf("slot map missing key %q", key)
+		}
+		if slot < 0 || slot >= 101 {
+			t.Fatalf("slot for %q = %d, want 0..100", key, slot)
+		}
+		if previous, exists := usedSlots[slot]; exists {
+			t.Fatalf("slot %d is reused by %q and %q", slot, previous, key)
+		}
+		usedSlots[slot] = key
+	}
+}
+
+func configIconSpritePercent(value float64) string {
+	rounded := math.Round(value*1000000) / 1000000
+	text := strconv.FormatFloat(rounded, 'f', 6, 64)
+	text = strings.TrimRight(strings.TrimRight(text, "0"), ".")
+	return text + "%"
 }
 
 func TestConfigWorkspaceDoesNotRestoreTabletIconRail(t *testing.T) {

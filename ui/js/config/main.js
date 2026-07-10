@@ -442,29 +442,118 @@ function scrollActiveSidebarItemIntoView(behavior = 'smooth', delay = 0) {
     requestAnimationFrame(scrollFn);
 }
 
-function configSectionIcon(key) {
-    const name = String(key || '').toLowerCase();
-    let paths = '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6l-.04.08h-4l-.04-.08a1.7 1.7 0 0 0-1-.6 1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1l-.08-.04v-4L4 9.92a1.7 1.7 0 0 0 .6-1 1.7 1.7 0 0 0-.34-1.88L4.2 6.98l2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6l.04-.08h4l.04.08a1.7 1.7 0 0 0 1 .6 1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9c.08.38.3.72.6 1l.08.04v4L20 14a1.7 1.7 0 0 0-.6 1z"/>';
-    if (/(guardian|security|firewall|danger|virus|auth|proxy)/.test(name)) {
-        paths = '<path d="M12 3 5 6v5c0 4.6 2.8 8 7 10 4.2-2 7-5.4 7-10V6l-7-3z"/><path d="m9.5 12 1.7 1.7 3.6-4"/>';
-    } else if (/(sqlite|sql|memory|index|grafana)/.test(name)) {
-        paths = '<ellipse cx="12" cy="5" rx="7" ry="3"/><path d="M5 5v6c0 1.7 3.1 3 7 3s7-1.3 7-3V5M5 11v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6"/>';
-    } else if (/(image|music|video|media|tts|whisper|document|vision)/.test(name)) {
-        paths = '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m8 15 2.5-3 2 2 2.5-3 3 4M9 9h.01"/>';
-    } else if (/(email|telegram|discord|chat|telnyx|notification|webhook)/.test(name)) {
-        paths = '<path d="M5 5h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-8l-4 3v-3H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/><path d="M7 9h10M7 13h6"/>';
-    } else if (/(s3|webdav|koofr|backup|cloud|netlify|vercel)/.test(name)) {
-        paths = '<path d="M7 18h10a4 4 0 0 0 .5-8A6 6 0 0 0 6 8.5 4.5 4.5 0 0 0 7 18z"/><path d="m9 14 3-3 3 3M12 11v7"/>';
-    } else if (/(docker|sandbox|server|proxmox|ollama|container)/.test(name)) {
-        paths = '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 12h8M8 17h5"/>';
-    } else if (/(network|remote|tailscale|fritz|mqtt|home|chromecast|mesh|uptime)/.test(name)) {
-        paths = '<circle cx="12" cy="12" r="2"/><path d="M5.6 18.4a9 9 0 0 1 0-12.8M18.4 5.6a9 9 0 0 1 0 12.8M8.5 15.5a5 5 0 0 1 0-7M15.5 8.5a5 5 0 0 1 0 7"/>';
-    } else if (/(agent|llm|provider|embedding|ai_|generation|personality|prompt|co_)/.test(name)) {
-        paths = '<path d="m12 3 1.4 4.1L17.5 8.5l-4.1 1.4L12 14l-1.4-4.1-4.1-1.4 4.1-1.4L12 3zM18 14l.8 2.2L21 17l-2.2.8L18 20l-.8-2.2L15 17l2.2-.8L18 14z"/>';
-    } else if (/(tool|browser|skill|automation|mission|ansible)/.test(name)) {
-        paths = '<path d="M14.7 6.3a4 4 0 0 0-5 5L4 17l3 3 5.7-5.7a4 4 0 0 0 5-5l-2.4 2.4-3-3 2.4-2.4z"/>';
-    }
-    return `<svg viewBox="0 0 24 24" aria-hidden="true">${paths}</svg>`;
+const CONFIG_SIDEBAR_ICON_GRID = Object.freeze({ columns: 11, rows: 10, cell: 128 });
+const CONFIG_SIDEBAR_ICON_SLOTS = Object.freeze({
+    overview: 0,
+    agent: 1,
+    heartbeat: 2,
+    optimizations: 3,
+    providers: 4,
+    manifest: 5,
+    omniroute: 6,
+    dograh: 7,
+    llm: 8,
+    fallback_llm: 9,
+    embeddings: 10,
+    budget: 11,
+    memory_analysis: 12,
+    co_agents: 13,
+    prompts_editor: 14,
+    rules: 15,
+    personality: 16,
+    vision: 17,
+    output_compression: 18,
+    server: 19,
+    directories: 20,
+    sqlite: 21,
+    sql_connections: 22,
+    web_config: 23,
+    logging: 24,
+    maintenance: 25,
+    backup_restore: 26,
+    updates: 27,
+    indexing: 28,
+    firewall: 29,
+    tools: 30,
+    web_scraper: 31,
+    browser_automation: 32,
+    space_agent: 33,
+    virtual_desktop: 34,
+    sandbox: 35,
+    info_tools: 36,
+    network_tools: 37,
+    brave_search: 38,
+    skill_manager: 39,
+    daemon_skills: 40,
+    mission_preparation: 41,
+    whisper: 42,
+    tts: 43,
+    image_generation: 44,
+    music_generation: 45,
+    video_generation: 46,
+    media_conversion: 47,
+    video_download: 48,
+    document_creator: 49,
+    docker: 50,
+    s3: 51,
+    webdav: 52,
+    koofr: 53,
+    netlify: 54,
+    vercel: 55,
+    cloudflare_tunnel: 56,
+    homepage: 57,
+    telegram: 58,
+    discord: 59,
+    rocketchat: 60,
+    telnyx: 61,
+    email: 62,
+    agentmail: 63,
+    webhooks: 64,
+    notifications: 65,
+    github: 66,
+    google_workspace: 67,
+    paperless_ngx: 68,
+    obsidian: 69,
+    yepapi: 70,
+    home_assistant: 71,
+    mqtt: 72,
+    chromecast: 73,
+    adguard: 74,
+    fritzbox: 75,
+    ldap: 76,
+    truenas: 77,
+    uptime_kuma: 78,
+    jellyfin: 79,
+    tailscale: 80,
+    proxmox: 81,
+    frigate: 82,
+    three_d_printers: 83,
+    remote_control: 84,
+    grafana: 85,
+    meshcentral: 86,
+    ansible: 87,
+    security_proxy: 88,
+    guardian: 89,
+    llm_guardian: 90,
+    virustotal: 91,
+    ai_gateway: 92,
+    composio: 93,
+    huggingface: 94,
+    evomap: 95,
+    mcp: 96,
+    mcp_server: 97,
+    a2a: 98,
+    ollama: 99,
+    danger_zone: 100,
+});
+
+function createConfigSidebarIcon(key) {
+    const slot = Object.prototype.hasOwnProperty.call(CONFIG_SIDEBAR_ICON_SLOTS, key)
+        ? CONFIG_SIDEBAR_ICON_SLOTS[key]
+        : CONFIG_SIDEBAR_ICON_SLOTS.overview;
+    const maxSlot = CONFIG_SIDEBAR_ICON_GRID.columns * CONFIG_SIDEBAR_ICON_GRID.rows;
+    const safeSlot = Number.isInteger(slot) && slot >= 0 && slot < maxSlot ? slot : CONFIG_SIDEBAR_ICON_SLOTS.overview;
+    return `<span class="config-sidebar-icon-sprite config-icon-slot-${safeSlot}" aria-hidden="true"></span>`;
 }
 
 function buildSidebar() {
@@ -494,7 +583,7 @@ function buildSidebar() {
     overviewItem.dataset.searchLabel = t('config.precision.overview_title');
     overviewItem.dataset.searchDesc = t('config.precision.overview_desc');
     overviewItem.dataset.searchGroup = t('config.precision.workspace_label');
-    overviewItem.innerHTML = `<span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"/></svg></span><span class="sidebar-item-label">${escapeHtml(t('config.precision.overview_title'))}</span>`;
+    overviewItem.innerHTML = `<span class="icon" aria-hidden="true">${createConfigSidebarIcon('overview')}</span><span class="sidebar-item-label">${escapeHtml(t('config.precision.overview_title'))}</span>`;
     overviewItem.onclick = () => navigateToConfigSection('overview');
     sb.appendChild(overviewItem);
 
@@ -557,7 +646,7 @@ function buildSidebar() {
                 item.title = blockedReason;
                 item.disabled = true;
             }
-            item.innerHTML = '<span class="icon">' + configSectionIcon(s.key) + '</span><span class="sidebar-item-label">' + escapeHtml(s.label) + '</span>';
+            item.innerHTML = '<span class="icon" aria-hidden="true">' + createConfigSidebarIcon(s.key) + '</span><span class="sidebar-item-label">' + escapeHtml(s.label) + '</span>';
             item.onclick = () => {
                 if (shouldBlockUnavailableSection(s.key) && sectionBlockedReason(s.key)) return;
                 if (item.dataset.searchTarget) navigateToConfigSection(s.key, { focusPath: item.dataset.searchTarget });

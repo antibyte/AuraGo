@@ -113,35 +113,144 @@
 }
 
 .pw-page .sidebar-item .icon {
-    width: 22px;
+    flex: 0 0 28px;
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     font-size: 0;
 }
 
-.pw-page .sidebar-item .icon svg {
+.pw-page .config-sidebar-icon-sprite {
     display: block;
-    width: 19px;
-    height: 19px;
-    margin: auto;
-    fill: none;
-    stroke: currentColor;
-    stroke-width: 1.5;
-    stroke-linecap: round;
-    stroke-linejoin: round;
+    width: 24px;
+    height: 24px;
+    background-image: url('/img/config-sidebar-icons.svg');
+    background-repeat: no-repeat;
+    background-size: 1100% 1000%;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.28));
+    transition:
+        filter var(--pw-duration-fast) var(--pw-ease),
+        transform var(--pw-duration-fast) var(--pw-ease);
+}
+
+.pw-page .sidebar-item:hover .config-sidebar-icon-sprite,
+.pw-page .sidebar-item.search-focused .config-sidebar-icon-sprite {
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.32)) saturate(1.08);
+    transform: scale(1.06);
+}
+
+.pw-page .sidebar-item.active .config-sidebar-icon-sprite {
+    filter: drop-shadow(0 2px 5px rgba(53, 199, 211, 0.22)) saturate(1.15);
+    transform: scale(1.1);
 }
 
 .pw-page .pw-overview-nav {
     margin-block: 0.4rem 0.85rem;
 }
 
-.pw-page .pw-overview-nav .icon svg {
-    display: block;
-    width: 19px;
-    height: 19px;
-    margin: auto;
-    fill: none;
-    stroke: currentColor;
-    stroke-width: 1.5;
-}
+.pw-page .config-icon-slot-0 { background-position: 0% 0%; }
+.pw-page .config-icon-slot-1 { background-position: 10% 0%; }
+.pw-page .config-icon-slot-2 { background-position: 20% 0%; }
+.pw-page .config-icon-slot-3 { background-position: 30% 0%; }
+.pw-page .config-icon-slot-4 { background-position: 40% 0%; }
+.pw-page .config-icon-slot-5 { background-position: 50% 0%; }
+.pw-page .config-icon-slot-6 { background-position: 60% 0%; }
+.pw-page .config-icon-slot-7 { background-position: 70% 0%; }
+.pw-page .config-icon-slot-8 { background-position: 80% 0%; }
+.pw-page .config-icon-slot-9 { background-position: 90% 0%; }
+.pw-page .config-icon-slot-10 { background-position: 100% 0%; }
+.pw-page .config-icon-slot-11 { background-position: 0% 11.111111%; }
+.pw-page .config-icon-slot-12 { background-position: 10% 11.111111%; }
+.pw-page .config-icon-slot-13 { background-position: 20% 11.111111%; }
+.pw-page .config-icon-slot-14 { background-position: 30% 11.111111%; }
+.pw-page .config-icon-slot-15 { background-position: 40% 11.111111%; }
+.pw-page .config-icon-slot-16 { background-position: 50% 11.111111%; }
+.pw-page .config-icon-slot-17 { background-position: 60% 11.111111%; }
+.pw-page .config-icon-slot-18 { background-position: 70% 11.111111%; }
+.pw-page .config-icon-slot-19 { background-position: 80% 11.111111%; }
+.pw-page .config-icon-slot-20 { background-position: 90% 11.111111%; }
+.pw-page .config-icon-slot-21 { background-position: 100% 11.111111%; }
+.pw-page .config-icon-slot-22 { background-position: 0% 22.222222%; }
+.pw-page .config-icon-slot-23 { background-position: 10% 22.222222%; }
+.pw-page .config-icon-slot-24 { background-position: 20% 22.222222%; }
+.pw-page .config-icon-slot-25 { background-position: 30% 22.222222%; }
+.pw-page .config-icon-slot-26 { background-position: 40% 22.222222%; }
+.pw-page .config-icon-slot-27 { background-position: 50% 22.222222%; }
+.pw-page .config-icon-slot-28 { background-position: 60% 22.222222%; }
+.pw-page .config-icon-slot-29 { background-position: 70% 22.222222%; }
+.pw-page .config-icon-slot-30 { background-position: 80% 22.222222%; }
+.pw-page .config-icon-slot-31 { background-position: 90% 22.222222%; }
+.pw-page .config-icon-slot-32 { background-position: 100% 22.222222%; }
+.pw-page .config-icon-slot-33 { background-position: 0% 33.333333%; }
+.pw-page .config-icon-slot-34 { background-position: 10% 33.333333%; }
+.pw-page .config-icon-slot-35 { background-position: 20% 33.333333%; }
+.pw-page .config-icon-slot-36 { background-position: 30% 33.333333%; }
+.pw-page .config-icon-slot-37 { background-position: 40% 33.333333%; }
+.pw-page .config-icon-slot-38 { background-position: 50% 33.333333%; }
+.pw-page .config-icon-slot-39 { background-position: 60% 33.333333%; }
+.pw-page .config-icon-slot-40 { background-position: 70% 33.333333%; }
+.pw-page .config-icon-slot-41 { background-position: 80% 33.333333%; }
+.pw-page .config-icon-slot-42 { background-position: 90% 33.333333%; }
+.pw-page .config-icon-slot-43 { background-position: 100% 33.333333%; }
+.pw-page .config-icon-slot-44 { background-position: 0% 44.444444%; }
+.pw-page .config-icon-slot-45 { background-position: 10% 44.444444%; }
+.pw-page .config-icon-slot-46 { background-position: 20% 44.444444%; }
+.pw-page .config-icon-slot-47 { background-position: 30% 44.444444%; }
+.pw-page .config-icon-slot-48 { background-position: 40% 44.444444%; }
+.pw-page .config-icon-slot-49 { background-position: 50% 44.444444%; }
+.pw-page .config-icon-slot-50 { background-position: 60% 44.444444%; }
+.pw-page .config-icon-slot-51 { background-position: 70% 44.444444%; }
+.pw-page .config-icon-slot-52 { background-position: 80% 44.444444%; }
+.pw-page .config-icon-slot-53 { background-position: 90% 44.444444%; }
+.pw-page .config-icon-slot-54 { background-position: 100% 44.444444%; }
+.pw-page .config-icon-slot-55 { background-position: 0% 55.555556%; }
+.pw-page .config-icon-slot-56 { background-position: 10% 55.555556%; }
+.pw-page .config-icon-slot-57 { background-position: 20% 55.555556%; }
+.pw-page .config-icon-slot-58 { background-position: 30% 55.555556%; }
+.pw-page .config-icon-slot-59 { background-position: 40% 55.555556%; }
+.pw-page .config-icon-slot-60 { background-position: 50% 55.555556%; }
+.pw-page .config-icon-slot-61 { background-position: 60% 55.555556%; }
+.pw-page .config-icon-slot-62 { background-position: 70% 55.555556%; }
+.pw-page .config-icon-slot-63 { background-position: 80% 55.555556%; }
+.pw-page .config-icon-slot-64 { background-position: 90% 55.555556%; }
+.pw-page .config-icon-slot-65 { background-position: 100% 55.555556%; }
+.pw-page .config-icon-slot-66 { background-position: 0% 66.666667%; }
+.pw-page .config-icon-slot-67 { background-position: 10% 66.666667%; }
+.pw-page .config-icon-slot-68 { background-position: 20% 66.666667%; }
+.pw-page .config-icon-slot-69 { background-position: 30% 66.666667%; }
+.pw-page .config-icon-slot-70 { background-position: 40% 66.666667%; }
+.pw-page .config-icon-slot-71 { background-position: 50% 66.666667%; }
+.pw-page .config-icon-slot-72 { background-position: 60% 66.666667%; }
+.pw-page .config-icon-slot-73 { background-position: 70% 66.666667%; }
+.pw-page .config-icon-slot-74 { background-position: 80% 66.666667%; }
+.pw-page .config-icon-slot-75 { background-position: 90% 66.666667%; }
+.pw-page .config-icon-slot-76 { background-position: 100% 66.666667%; }
+.pw-page .config-icon-slot-77 { background-position: 0% 77.777778%; }
+.pw-page .config-icon-slot-78 { background-position: 10% 77.777778%; }
+.pw-page .config-icon-slot-79 { background-position: 20% 77.777778%; }
+.pw-page .config-icon-slot-80 { background-position: 30% 77.777778%; }
+.pw-page .config-icon-slot-81 { background-position: 40% 77.777778%; }
+.pw-page .config-icon-slot-82 { background-position: 50% 77.777778%; }
+.pw-page .config-icon-slot-83 { background-position: 60% 77.777778%; }
+.pw-page .config-icon-slot-84 { background-position: 70% 77.777778%; }
+.pw-page .config-icon-slot-85 { background-position: 80% 77.777778%; }
+.pw-page .config-icon-slot-86 { background-position: 90% 77.777778%; }
+.pw-page .config-icon-slot-87 { background-position: 100% 77.777778%; }
+.pw-page .config-icon-slot-88 { background-position: 0% 88.888889%; }
+.pw-page .config-icon-slot-89 { background-position: 10% 88.888889%; }
+.pw-page .config-icon-slot-90 { background-position: 20% 88.888889%; }
+.pw-page .config-icon-slot-91 { background-position: 30% 88.888889%; }
+.pw-page .config-icon-slot-92 { background-position: 40% 88.888889%; }
+.pw-page .config-icon-slot-93 { background-position: 50% 88.888889%; }
+.pw-page .config-icon-slot-94 { background-position: 60% 88.888889%; }
+.pw-page .config-icon-slot-95 { background-position: 70% 88.888889%; }
+.pw-page .config-icon-slot-96 { background-position: 80% 88.888889%; }
+.pw-page .config-icon-slot-97 { background-position: 90% 88.888889%; }
+.pw-page .config-icon-slot-98 { background-position: 100% 88.888889%; }
+.pw-page .config-icon-slot-99 { background-position: 0% 100%; }
+.pw-page .config-icon-slot-100 { background-position: 10% 100%; }
 
 .pw-page .cfg-content {
     flex: 1;
