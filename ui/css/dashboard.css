@@ -5577,6 +5577,14 @@ button .dash-ic { width: 0.9rem; height: 0.9rem; }
     filter: none;
 }
 
+.pw-page[data-workspace-page="dashboard"] .dash-card:hover canvas,
+.pw-page[data-workspace-page="dashboard"] .conf-3,
+.pw-page[data-workspace-page="dashboard"] .pill-completed,
+.pw-page[data-workspace-page="dashboard"] .gh-badge-tracked {
+    filter: none;
+    box-shadow: none;
+}
+
 .pw-page[data-workspace-page="dashboard"] .dash-card-body {
     min-width: 0;
     padding: var(--pw-space-5);
@@ -6019,6 +6027,17 @@ button .dash-ic { width: 0.9rem; height: 0.9rem; }
     .pw-page[data-workspace-page="dashboard"] .mood-btn,
     .pw-page[data-workspace-page="dashboard"] .dash-error-retry,
     .pw-page[data-workspace-page="dashboard"] .knowledge-search-button {
+        min-height: 44px;
+    }
+
+    .pw-page[data-workspace-page="dashboard"][data-density="compact"] .dash-tab {
+        min-height: 44px;
+    }
+
+    .pw-page[data-workspace-page="dashboard"][data-density="compact"] input,
+    .pw-page[data-workspace-page="dashboard"][data-density="compact"] select,
+    .pw-page[data-workspace-page="dashboard"][data-density="compact"] textarea,
+    .pw-page[data-workspace-page="dashboard"][data-density="compact"] button {
         min-height: 44px;
     }
 

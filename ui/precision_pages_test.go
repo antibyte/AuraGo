@@ -261,6 +261,92 @@ func TestPrecisionWorkspaceDashboardAdapterIsScopedAndResponsive(t *testing.T) {
 	}
 }
 
+func TestPrecisionWorkspaceDashboardCompactMobileControlsStayTouchSized(t *testing.T) {
+	t.Parallel()
+
+	css := normalizeAssetText(mustReadUIFile(t, "css/dashboard.css"))
+	const (
+		adapterStart = `/* === Precision Workspace Dashboard Adapter: start === */`
+		adapterEnd   = `/* === Precision Workspace Dashboard Adapter: end === */`
+		mobileStart  = `@media (max-width: 640px)`
+		mobileEnd    = `@media (prefers-reduced-motion: reduce)`
+		prefix       = `.pw-page[data-workspace-page="dashboard"][data-density="compact"]`
+	)
+	start := strings.Index(css, adapterStart)
+	end := strings.Index(css, adapterEnd)
+	if start < 0 || end <= start {
+		t.Fatalf("dashboard.css missing delimited Precision adapter: start=%d end=%d", start, end)
+	}
+	adapter := css[start:end]
+	mobileAt := strings.Index(adapter, mobileStart)
+	reducedMotionAt := strings.Index(adapter, mobileEnd)
+	if mobileAt < 0 || reducedMotionAt <= mobileAt {
+		t.Fatalf("Dashboard Precision adapter missing ordered mobile block: mobile=%d reduced-motion=%d", mobileAt, reducedMotionAt)
+	}
+	mobile := adapter[mobileAt:reducedMotionAt]
+
+	for _, marker := range []string{
+		prefix + ` .dash-tab {`,
+		prefix + ` input,`,
+		prefix + ` select,`,
+		prefix + ` textarea,`,
+		prefix + ` button {`,
+	} {
+		if !strings.Contains(mobile, marker) {
+			t.Errorf("Dashboard compact mobile block missing touch-target selector %q", marker)
+		}
+	}
+	if matches := regexp.MustCompile(`(?s)` + regexp.QuoteMeta(prefix+` .dash-tab`) + `\s*\{[^}]*min-height:\s*44px;`).FindString(mobile); matches == "" {
+		t.Error("Dashboard compact mobile tab rule must explicitly restore min-height: 44px")
+	}
+	controlsAt := strings.Index(mobile, prefix+` input,`)
+	if controlsAt < 0 {
+		t.Fatal("Dashboard compact mobile controls rule not found")
+	}
+	controlsEnd := strings.Index(mobile[controlsAt:], "}")
+	if controlsEnd < 0 || !strings.Contains(mobile[controlsAt:controlsAt+controlsEnd], `min-height: 44px;`) {
+		t.Error("Dashboard compact mobile controls rule must explicitly restore min-height: 44px")
+	}
+}
+
+func TestPrecisionWorkspaceDashboardAdapterNeutralizesResidualGlows(t *testing.T) {
+	t.Parallel()
+
+	css := normalizeAssetText(mustReadUIFile(t, "css/dashboard.css"))
+	const (
+		adapterStart = `/* === Precision Workspace Dashboard Adapter: start === */`
+		adapterEnd   = `/* === Precision Workspace Dashboard Adapter: end === */`
+		prefix       = `.pw-page[data-workspace-page="dashboard"]`
+	)
+	start := strings.Index(css, adapterStart)
+	end := strings.Index(css, adapterEnd)
+	if start < 0 || end <= start {
+		t.Fatalf("dashboard.css missing delimited Precision adapter: start=%d end=%d", start, end)
+	}
+	adapter := css[start:end]
+	ruleAt := strings.Index(adapter, prefix+` .dash-card:hover canvas,`)
+	if ruleAt < 0 {
+		t.Fatal("Dashboard Precision adapter missing residual-glow suppression rule")
+	}
+	ruleEnd := strings.Index(adapter[ruleAt:], "}")
+	if ruleEnd < 0 {
+		t.Fatal("Dashboard residual-glow suppression rule is not closed")
+	}
+	rule := adapter[ruleAt : ruleAt+ruleEnd]
+	for _, marker := range []string{
+		prefix + ` .dash-card:hover canvas`,
+		prefix + ` .conf-3`,
+		prefix + ` .pill-completed`,
+		prefix + ` .gh-badge-tracked`,
+		`filter: none;`,
+		`box-shadow: none;`,
+	} {
+		if !strings.Contains(rule, marker) {
+			t.Errorf("Dashboard residual-glow suppression rule missing %q", marker)
+		}
+	}
+}
+
 func TestPrecisionWorkspaceTranslations(t *testing.T) {
 	t.Parallel()
 
