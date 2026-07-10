@@ -51,13 +51,15 @@ func TestConfigPhase1HelpMarkersPresent(t *testing.T) {
 	}
 
 	mainJS := normalizeAssetText(mustReadUIFile(t, "js/config/main.js"))
+	utilsJS := normalizeAssetText(mustReadUIFile(t, "js/config/utils.js"))
+	configJS := mainJS + "\n" + utilsJS
 	for _, marker := range []string{
 		"cfgFieldOptionLabel",
 		"config.field.disabled_option",
 		"config.field.other_custom_option",
 	} {
-		if !strings.Contains(mainJS, marker) {
-			t.Fatalf("config main.js missing marker %q", marker)
+		if !strings.Contains(configJS, marker) {
+			t.Fatalf("config main.js / utils.js missing marker %q", marker)
 		}
 	}
 
@@ -929,6 +931,8 @@ func TestConfigDirtyGuardAndHashNavigationMarkers(t *testing.T) {
 	t.Parallel()
 
 	mainJS := normalizeAssetText(mustReadUIFile(t, "js/config/main.js"))
+	utilsJS := normalizeAssetText(mustReadUIFile(t, "js/config/utils.js"))
+	configJS := mainJS + "\n" + utilsJS
 	for _, marker := range []string{
 		"function hasUnsavedConfigChanges()",
 		"let suppressDirtyTracking = false",
@@ -958,8 +962,8 @@ func TestConfigDirtyGuardAndHashNavigationMarkers(t *testing.T) {
 		"navigateToConfigSection(s.key);",
 		"navigateToConfigSection(item.dataset.section);",
 	} {
-		if !strings.Contains(mainJS, marker) {
-			t.Fatalf("config main.js missing dirty guard marker %q", marker)
+		if !strings.Contains(configJS, marker) {
+			t.Fatalf("config main.js / utils.js missing dirty guard marker %q", marker)
 		}
 	}
 	if strings.Contains(mainJS, "setTimeout(() => { initialSnapshot = collectSnapshot(); setDirty(false); }, 100);") {
