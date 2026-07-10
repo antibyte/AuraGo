@@ -2270,6 +2270,13 @@
         min-height: 44px;
     }
 
+    .pw-page[data-workspace-page="missions"][data-density="compact"] .card-actions .mc-btn {
+        width: 44px;
+        height: 44px;
+        min-width: 44px;
+        min-height: 44px;
+    }
+
     .pw-page[data-workspace-page="missions"] .modal-overlay {
         align-items: flex-end;
         padding: var(--pw-space-2);

@@ -711,6 +711,47 @@ func TestPrecisionWorkspaceMissionsAdapterStylesActualCompactRendererContract(t 
 	}
 }
 
+func TestPrecisionWorkspaceMissionsCompactListActionsStayTouchSizedOnMobile(t *testing.T) {
+	t.Parallel()
+
+	css := normalizeAssetText(mustReadUIFile(t, "css/missions.css"))
+	const (
+		adapterStart = `/* === Precision Workspace Missions Adapter: start === */`
+		adapterEnd   = `/* === Precision Workspace Missions Adapter: end === */`
+		mobileStart  = `@media (max-width: 640px)`
+		mobileEnd    = `@media (prefers-reduced-motion: reduce)`
+		prefix       = `.pw-page[data-workspace-page="missions"][data-density="compact"] .card-actions .mc-btn`
+	)
+	start := strings.Index(css, adapterStart)
+	end := strings.Index(css, adapterEnd)
+	if start < 0 || end <= start {
+		t.Fatalf("missions.css missing delimited Precision adapter: start=%d end=%d", start, end)
+	}
+	adapter := css[start:end]
+
+	desktopCompact := regexp.MustCompile(
+		`(?s)` + regexp.QuoteMeta(prefix) +
+			`\s*\{[^}]*width:\s*36px;[^}]*height:\s*36px;[^}]*min-height:\s*36px;`,
+	)
+	if !desktopCompact.MatchString(adapter) {
+		t.Error("Missions compact list actions must preserve the 36px desktop density contract")
+	}
+
+	mobileAt := strings.LastIndex(adapter, mobileStart)
+	reducedMotionAt := strings.Index(adapter, mobileEnd)
+	if mobileAt < 0 || reducedMotionAt <= mobileAt {
+		t.Fatalf("Missions adapter missing ordered mobile block: mobile=%d reduced-motion=%d", mobileAt, reducedMotionAt)
+	}
+	mobile := adapter[mobileAt:reducedMotionAt]
+	mobileTouchTarget := regexp.MustCompile(
+		`(?s)` + regexp.QuoteMeta(prefix) +
+			`\s*\{[^}]*width:\s*44px;[^}]*height:\s*44px;[^}]*min-width:\s*44px;[^}]*min-height:\s*44px;`,
+	)
+	if !mobileTouchTarget.MatchString(mobile) {
+		t.Error("Missions compact list action buttons need an equal-specificity 44px mobile override")
+	}
+}
+
 func TestPrecisionWorkspaceTranslations(t *testing.T) {
 	t.Parallel()
 
