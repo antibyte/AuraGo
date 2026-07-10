@@ -1321,7 +1321,6 @@
         .activity-item:hover {
             background: rgba(255,255,255,0.07);
         }
-        }
 
         .activity-item-name {
             color: var(--text-primary);
