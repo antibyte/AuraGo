@@ -270,7 +270,7 @@
 
 .pw-page .pw-table th,
 .pw-page .pw-table td {
-    min-height: var(--pw-row-height);
+    height: var(--pw-row-height);
     padding: 0.75rem 1rem;
     border-bottom: 1px solid var(--pw-line);
     vertical-align: middle;

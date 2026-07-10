@@ -312,7 +312,6 @@ func TestConfigPrecisionWorkspaceNavigationAndDensityMarkers(t *testing.T) {
 
 	mainJS := normalizeAssetText(mustReadUIFile(t, "js/config/main.js"))
 	for _, marker := range []string{
-		`const CONFIG_DENSITY_KEY = 'aurago.config.density.v1'`,
 		`const CONFIG_RECENT_KEY = 'aurago.config.recent.v1'`,
 		`const CONFIG_ADVANCED_KEY = 'aurago.config.advanced.v1'`,
 		`const CONFIG_RECENT_LIMIT = 6`,
@@ -327,6 +326,15 @@ func TestConfigPrecisionWorkspaceNavigationAndDensityMarkers(t *testing.T) {
 	} {
 		if !strings.Contains(mainJS, marker) {
 			t.Fatalf("config main.js missing Precision navigation marker %q", marker)
+		}
+	}
+	if strings.Contains(mainJS, `CONFIG_DENSITY_KEY`) || strings.Contains(mainJS, `aurago.config.density.v1`) {
+		t.Fatal("Config main.js must delegate all density-storage ownership to AuraPrecisionWorkspace")
+	}
+	workspaceJS := normalizeAssetText(mustReadUIFile(t, "js/precision/workspace.js"))
+	for _, key := range []string{`aurago.workspace.density.v1`, `aurago.config.density.v1`} {
+		if !strings.Contains(workspaceJS, key) {
+			t.Errorf("workspace.js missing density ownership key %q", key)
 		}
 	}
 }

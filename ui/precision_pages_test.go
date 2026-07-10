@@ -56,6 +56,27 @@ func TestPrecisionWorkspaceFoundationComponentsAreScoped(t *testing.T) {
 	assertPrecisionCSSScoped(t, components)
 }
 
+func TestPrecisionWorkspaceTableDensityUsesTableCompatibleHeight(t *testing.T) {
+	t.Parallel()
+
+	components := normalizeAssetText(mustReadUIFile(t, "css/precision-pages.css"))
+	start := strings.Index(components, `.pw-page .pw-table th,`)
+	if start < 0 {
+		t.Fatal("Precision table cell rule not found")
+	}
+	end := strings.Index(components[start:], `}`)
+	if end < 0 {
+		t.Fatal("Precision table cell rule is not closed")
+	}
+	rule := components[start : start+end]
+	if !regexp.MustCompile(`(?m)^\s*height:\s*var\(--pw-row-height\);`).MatchString(rule) {
+		t.Error("Precision table cells must use table-compatible height for density rows")
+	}
+	if strings.Contains(rule, `min-height:`) {
+		t.Error("min-height does not control table-cell row density")
+	}
+}
+
 func TestPrecisionWorkspaceClientContract(t *testing.T) {
 	t.Parallel()
 

@@ -7,21 +7,39 @@ images, and browser-oriented regression tests.
 
 ## Ownership
 
-- Precision Workspace is an opt-in design system for operational web pages.
-- `/config` is its first consumer and activates it with `.pw-page` plus the
-  dedicated Precision Workspace and Config Workspace assets.
+- Precision Workspace is an opt-in design system. Operational consumers are
+  `config.html`, `dashboard.html`, `plans.html`, `missions_v2.html`,
+  `cheatsheets.html`, `knowledge.html`, `skills.html`, `containers.html`,
+  `media.html`, `truenas.html`, and `invasion_control.html`.
+- Entry consumers are `login.html`, `setup.html`, and `404.html`. They use the
+  navigation-free `.pw-entry-page` layer without density controls or the
+  operational client.
 - Web Chat (`index.html`) and Virtual Desktop (`desktop.html`) retain their own
-  established visual systems and are not Precision Workspace consumers.
+  established visual systems. `gallery.html` is also protected because the
+  `/gallery` route redirects to `/media`.
 
 ## Local Contracts
 
-- Never load Precision Workspace assets from `index.html` or `desktop.html`.
+- Never load Precision Workspace assets from `index.html`, `desktop.html`, or
+  `gallery.html`.
 - Do not change Chat, Virtual Desktop, or an asset they share as a side effect
   of Precision Workspace work. This includes `shared-variables.css`,
   `shared-utilities.css`, `shared-components.css`, `shared-animations.css`,
   `fonts/fonts.css`, `js/shared/`, Chat bundles, and Desktop bundles/modules.
 - Precision Workspace CSS must remain scoped under `.pw-page`; no unscoped
   reset, token, component, or motion rule may leak to another page.
+- Operational templates opt in with `.pw-page`, a unique
+  `data-workspace-page`, `precision-workspace.css`, `precision-pages.css`, and
+  `js/precision/workspace.js`. Entry templates use `.pw-page.pw-entry-page`,
+  `precision-workspace.css`, and `precision-entry.css` only.
+- Migrated templates must not contain `style` attributes or `<style>` blocks.
+  Put page-specific rules in the owning stylesheet and scope Precision
+  adapters with the page's `data-workspace-page` or `data-entry-page`.
+- `window.AuraPrecisionWorkspace` owns the browser-local
+  `aurago.workspace.density.v1` preference and exposes `init()`,
+  `getDensity()`, and `setDensity("comfortable"|"compact")`. It migrates the
+  legacy `aurago.config.density.v1` key once; Config must not access either key
+  directly.
 - Configuration connection tests operate only on saved configuration. Dirty,
   incomplete, or credential-missing sections expose a visible locked reason.
 - Configuration density is a browser-local presentation preference and never
@@ -40,12 +58,15 @@ images, and browser-oriented regression tests.
 
 ## Verification
 
-- `node --check ui/js/config/main.js`
-- `node --check ui/js/config/state.js`
-- `node --check ui/js/config/actions.js`
-- `go test ./ui/... -run 'Config|I18N'`
-- `go test ./ui/...`
-- Compare protected-surface hashes and confirm their diff is empty.
+- Syntax: `node --check ui/js/precision/workspace.js`,
+  `node --check ui/js/config/main.js`, and `node --check ui/js/setup/main.js`.
+- Static contracts: `go test -count=1 ./ui/... -run 'Precision|Config|I18N'`.
+- Browser contracts (Chrome or Edge):
+  `$env:AURAGO_RUN_BROWSER_SMOKE='1'; $env:AURAGO_BROWSER_ARTIFACT_DIR='disposable/browser-artifacts'; go test -count=1 ./ui/... -run 'Precision.*Browser|ConfigPrecisionWorkspaceBrowserMatrix'`.
+- Full UI: `go test -count=1 ./ui/...`.
+- Full repository: `go test -count=1 ./...`.
+- Protected surfaces from the rollout base:
+  `git diff --exit-code 0773dfa52e3d21f420f9009c480bdd817e761882 -- ui/index.html ui/desktop.html ui/gallery.html ui/js/shared ui/js/chat ui/js/desktop ui/fonts ui/shared-variables.css ui/shared-utilities.css ui/shared-components.css ui/shared-animations.css`.
 
 ## Child DOX Index
 
