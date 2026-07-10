@@ -1,14 +1,14 @@
 /* AuraGo Precision Workspace: opt-in design foundation. */
 .pw-page {
-    --pw-canvas: #0b0f0e;
-    --pw-surface: #121816;
-    --pw-surface-elevated: #18201d;
-    --pw-surface-soft: #202925;
-    --pw-text: #f2f5f3;
-    --pw-muted: #a8b2ae;
-    --pw-subtle: #7f8d87;
-    --pw-accent: #2dd4bf;
-    --pw-accent-strong: #5eead4;
+    --pw-canvas: #10161e;
+    --pw-surface: #18212b;
+    --pw-surface-elevated: #202b37;
+    --pw-surface-soft: #2a3745;
+    --pw-text: #edf2f7;
+    --pw-muted: #aab7c4;
+    --pw-subtle: #7d8b99;
+    --pw-accent: #6f98bd;
+    --pw-accent-strong: #91b5d6;
     --pw-danger: #fb7185;
     --pw-warning: #f6c453;
     --pw-success: #4ade80;
@@ -27,7 +27,7 @@
     --pw-duration-fast: 180ms;
     --pw-duration-base: 260ms;
     --pw-duration-slow: 320ms;
-    --pw-shadow-soft: 0 22px 60px color-mix(in srgb, #020806 24%, transparent);
+    --pw-shadow-soft: 0 22px 60px color-mix(in srgb, #10161e 24%, transparent);
     --bg-primary: var(--pw-canvas);
     --bg-secondary: var(--pw-surface);
     --bg-tertiary: var(--pw-surface-elevated);
@@ -97,19 +97,19 @@
 
 [data-theme="light"] .pw-page,
 .pw-page[data-theme="light"] {
-    --pw-canvas: #eef1ef;
-    --pw-surface: #fafbfa;
-    --pw-surface-elevated: #f3f6f4;
-    --pw-surface-soft: #e6ece8;
-    --pw-text: #14201d;
-    --pw-muted: #586761;
-    --pw-subtle: #6e7c76;
-    --pw-accent: #0f766e;
-    --pw-accent-strong: #0d9488;
+    --pw-canvas: #eef2f6;
+    --pw-surface: #fbfcfe;
+    --pw-surface-elevated: #f1f5f9;
+    --pw-surface-soft: #e3eaf1;
+    --pw-text: #182431;
+    --pw-muted: #5f6f7f;
+    --pw-subtle: #7b8997;
+    --pw-accent: #426d93;
+    --pw-accent-strong: #5d87aa;
     --pw-danger: #be123c;
     --pw-warning: #a16207;
     --pw-success: #15803d;
-    --pw-shadow-soft: 0 24px 62px color-mix(in srgb, #355148 13%, transparent);
+    --pw-shadow-soft: 0 24px 62px color-mix(in srgb, #182431 13%, transparent);
     color-scheme: light;
 }
 

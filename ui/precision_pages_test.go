@@ -14,7 +14,7 @@ func TestPrecisionWorkspaceFoundationComponentsAreScoped(t *testing.T) {
 	for _, marker := range []string{
 		`.pw-page {`,
 		`font-family: 'Geist'`,
-		`--pw-accent: #2dd4bf;`,
+		`--pw-accent: #6f98bd;`,
 		`[data-theme="light"] .pw-page`,
 		`.pw-page[data-density="compact"]`,
 		`@media (prefers-reduced-motion: reduce)`,
@@ -54,6 +54,58 @@ func TestPrecisionWorkspaceFoundationComponentsAreScoped(t *testing.T) {
 	}
 	assertPrecisionCSSScoped(t, foundation)
 	assertPrecisionCSSScoped(t, components)
+}
+
+func TestPrecisionWorkspaceSlatePaletteTokens(t *testing.T) {
+	t.Parallel()
+
+	foundation := normalizeAssetText(mustReadUIFile(t, "css/precision-workspace.css"))
+	for _, token := range []string{
+		`--pw-canvas: #10161e;`, `--pw-surface: #18212b;`,
+		`--pw-surface-elevated: #202b37;`, `--pw-surface-soft: #2a3745;`,
+		`--pw-text: #edf2f7;`, `--pw-muted: #aab7c4;`,
+		`--pw-subtle: #7d8b99;`, `--pw-accent: #6f98bd;`,
+		`--pw-accent-strong: #91b5d6;`,
+	} {
+		if !strings.Contains(foundation, token) {
+			t.Errorf("missing dark slate token %q", token)
+		}
+	}
+	for _, token := range []string{
+		`--pw-canvas: #eef2f6;`, `--pw-surface: #fbfcfe;`,
+		`--pw-surface-elevated: #f1f5f9;`, `--pw-surface-soft: #e3eaf1;`,
+		`--pw-text: #182431;`, `--pw-muted: #5f6f7f;`,
+		`--pw-subtle: #7b8997;`, `--pw-accent: #426d93;`,
+		`--pw-accent-strong: #5d87aa;`,
+	} {
+		if !strings.Contains(foundation, token) {
+			t.Errorf("missing light slate token %q", token)
+		}
+	}
+	for _, alias := range []string{
+		`--bg-primary: var(--pw-canvas);`,
+		`--bg-secondary: var(--pw-surface);`,
+		`--bg-tertiary: var(--pw-surface-elevated);`,
+		`--header-bg: color-mix(in srgb, var(--pw-canvas) 88%, transparent);`,
+		`--sidebar-bg: color-mix(in srgb, var(--pw-surface) 94%, transparent);`,
+		`--card-bg: var(--pw-surface);`,
+		`--input-bg: color-mix(in srgb, var(--pw-surface-elevated) 82%, var(--pw-canvas));`,
+		`--text-primary: var(--pw-text);`,
+		`--text-secondary: var(--pw-muted);`,
+		`--text-tertiary: var(--pw-subtle);`,
+		`--accent: var(--pw-accent);`,
+		`--accent-dim: color-mix(in srgb, var(--pw-accent) 14%, transparent);`,
+		`--border-subtle: var(--pw-line);`,
+		`--border-accent: color-mix(in srgb, var(--pw-accent) 34%, transparent);`,
+	} {
+		if !strings.Contains(foundation, alias) {
+			t.Errorf("compatibility alias must keep using Precision tokens: %q", alias)
+		}
+	}
+	if strings.Contains(foundation, `#2dd4bf`) || strings.Contains(foundation, `#5eead4`) ||
+		strings.Contains(foundation, `#0f766e`) || strings.Contains(foundation, `#0d9488`) {
+		t.Fatal("Precision foundation must not retain the teal accent")
+	}
 }
 
 func TestPrecisionWorkspaceTableDensityUsesTableCompatibleHeight(t *testing.T) {
