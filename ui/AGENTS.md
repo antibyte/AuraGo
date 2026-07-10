@@ -58,8 +58,8 @@ images, and browser-oriented regression tests.
 
 ## Verification
 
-- Syntax: `node --check ui/js/precision/workspace.js`,
-  `node --check ui/js/config/main.js`, and `node --check ui/js/setup/main.js`.
+- Syntax for every rollout JavaScript change:
+  `$files = git diff --name-only 0773dfa52e3d21f420f9009c480bdd817e761882 -- '*.js'; foreach ($file in $files) { node --check $file; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE } }`.
 - Static contracts: `go test -count=1 ./ui/... -run 'Precision|Config|I18N'`.
 - Browser contracts (Chrome or Edge):
   `$env:AURAGO_RUN_BROWSER_SMOKE='1'; $env:AURAGO_BROWSER_ARTIFACT_DIR='disposable/browser-artifacts'; go test -count=1 ./ui/... -run 'Precision.*Browser|ConfigPrecisionWorkspaceBrowserMatrix'`.
