@@ -285,26 +285,47 @@
         }
     }
 
+    function dialogTargetForOverlay(overlay) {
+        return overlay.querySelector('[role="dialog"]') || overlay;
+    }
+
+    function syncModalSemantics(overlay) {
+        const dialogTarget = dialogTargetForOverlay(overlay);
+        if (dialogTarget !== overlay) {
+            overlay.removeAttribute('role');
+            overlay.removeAttribute('aria-modal');
+            overlay.removeAttribute('aria-labelledby');
+        } else if (!dialogTarget.hasAttribute('role')) {
+            dialogTarget.setAttribute('role', 'dialog');
+        }
+        dialogTarget.setAttribute('aria-modal', 'true');
+
+        const labelledIds = (dialogTarget.getAttribute('aria-labelledby') || '').trim().split(/\s+/).filter(Boolean);
+        if (labelledIds.length && labelledIds.every((labelledBy) => document.getElementById(labelledBy))) return;
+        if (dialogTarget.hasAttribute('aria-label') && dialogTarget.getAttribute('aria-label').trim()) return;
+
+        let heading = dialogTarget.querySelector('.modal-title[id]');
+        if (!heading) heading = dialogTarget.querySelector('.modal-title');
+        if (!heading) heading = dialogTarget.querySelector('.modal-header h1, .modal-header h2, .modal-header h3');
+        if (!heading) heading = dialogTarget.querySelector('h1, h2, h3');
+        if (!heading) return;
+
+        if (!heading.id) {
+            generatedModalTitle += 1;
+            heading.id = 'pw-modal-title-' + generatedModalTitle;
+        }
+        dialogTarget.setAttribute('aria-labelledby', heading.id);
+    }
+
     function enhanceModalOverlay(overlay) {
         if (!overlay || !overlay.matches(MODAL_SELECTOR)) return;
+        syncModalSemantics(overlay);
         if (overlay.dataset.pwModalBound === 'true') {
             syncModalOverlay(overlay);
             return;
         }
 
         overlay.dataset.pwModalBound = 'true';
-        if (!overlay.hasAttribute('role')) overlay.setAttribute('role', 'dialog');
-        if (!overlay.hasAttribute('aria-modal')) overlay.setAttribute('aria-modal', 'true');
-        if (!overlay.hasAttribute('aria-labelledby')) {
-            const heading = overlay.querySelector('.modal-header h1, .modal-header h2, .modal-header h3');
-            if (heading) {
-                if (!heading.id) {
-                    generatedModalTitle += 1;
-                    heading.id = 'pw-modal-title-' + generatedModalTitle;
-                }
-                overlay.setAttribute('aria-labelledby', heading.id);
-            }
-        }
         overlay.addEventListener('keydown', (event) => handleModalKeydown(overlay, event));
         syncModalOverlay(overlay);
     }
@@ -323,11 +344,13 @@
         modalObserver = new MutationObserver((records) => {
             records.forEach((record) => {
                 if (record.type === 'attributes') {
-                    enhanceModalOverlay(record.target);
+                    if (record.target.matches(MODAL_SELECTOR)) enhanceModalOverlay(record.target);
                     return;
                 }
                 record.addedNodes.forEach((node) => modalOverlaysWithin(node).forEach(enhanceModalOverlay));
                 record.removedNodes.forEach((node) => modalOverlaysWithin(node).forEach(deactivateModal));
+                const containingOverlay = record.target.closest(MODAL_SELECTOR);
+                if (containingOverlay) enhanceModalOverlay(containingOverlay);
             });
         });
         modalObserver.observe(document.body, {

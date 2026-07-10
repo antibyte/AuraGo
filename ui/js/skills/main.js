@@ -2027,7 +2027,7 @@ function showDisabledState() {
         overlay.innerHTML = `<div class="modal modal-wide">
             <div class="modal-header">
                 <h2 id="sk-doc-editor-title">${t('skills.documentation_title')}</h2>
-                <button class="modal-close" onclick="closeSkillDocumentationEditor()">&times;</button>
+                <button type="button" class="modal-close" onclick="closeSkillDocumentationEditor()" aria-label="${esc(t('common.close'))}">&times;</button>
             </div>
             <div class="modal-body">
                 <p class="sk-inline-help">${esc(t('skills.documentation_hint'))}</p>

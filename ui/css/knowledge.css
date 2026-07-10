@@ -2364,6 +2364,22 @@
     transform: none;
 }
 
+.pw-page[data-workspace-page="knowledge"] .modal-header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--pw-surface);
+    background-image: none;
+}
+
+.pw-page[data-workspace-page="knowledge"] .modal-actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    background: var(--pw-surface);
+    background-image: none;
+}
+
 .pw-page[data-workspace-page="knowledge"] .kc-preview-modal {
     width: min(1100px, calc(100vw - 2rem));
     overflow: hidden;

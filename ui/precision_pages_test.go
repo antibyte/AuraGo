@@ -1180,6 +1180,7 @@ func TestPrecisionWorkspaceKnowledgeSkillsModalARIAContract(t *testing.T) {
 		`<h2 id="sk-doc-editor-title">`,
 		`class="sk-input sk-textarea sk-doc-editor-textarea"`,
 		`class="sk-form-group sk-doc-editor-upload"`,
+		`aria-label="${esc(t('common.close'))}"`,
 	} {
 		if !strings.Contains(client, marker) {
 			t.Errorf("Dynamic Skills documentation modal missing %q", marker)
@@ -1196,6 +1197,7 @@ func TestPrecisionWorkspaceModalFocusContractIsGenericAndIdempotent(t *testing.T
 		`let modalObserver = null;`,
 		`function enhanceModalOverlay(overlay)`,
 		`!overlay.matches(MODAL_SELECTOR)`,
+		`syncModalSemantics(overlay);`,
 		`overlay.dataset.pwModalBound === 'true'`,
 		`overlay.dataset.pwModalBound = 'true'`,
 		`function isModalOpen(overlay)`,
@@ -1214,6 +1216,79 @@ func TestPrecisionWorkspaceModalFocusContractIsGenericAndIdempotent(t *testing.T
 	} {
 		if !strings.Contains(client, marker) {
 			t.Errorf("Precision modal focus contract missing %q", marker)
+		}
+	}
+}
+
+func TestPrecisionWorkspaceModalSemanticsHandleNestedAndLateDialogContent(t *testing.T) {
+	t.Parallel()
+
+	client := normalizeAssetText(mustReadUIFile(t, "js/precision/workspace.js"))
+	for _, marker := range []string{
+		`function dialogTargetForOverlay(overlay)`,
+		`overlay.querySelector('[role="dialog"]') || overlay`,
+		`function syncModalSemantics(overlay)`,
+		`dialogTarget !== overlay`,
+		`overlay.removeAttribute('role');`,
+		`overlay.removeAttribute('aria-modal');`,
+		`dialogTarget.setAttribute('aria-modal', 'true');`,
+		`document.getElementById(labelledBy)`,
+		`dialogTarget.hasAttribute('aria-label')`,
+		`dialogTarget.querySelector('.modal-title[id]')`,
+		`dialogTarget.querySelector('.modal-title')`,
+		`dialogTarget.querySelector('.modal-header h1, .modal-header h2, .modal-header h3')`,
+		`dialogTarget.querySelector('h1, h2, h3')`,
+		`record.target.closest(MODAL_SELECTOR)`,
+	} {
+		if !strings.Contains(client, marker) {
+			t.Errorf("Precision nested/late modal semantic contract missing %q", marker)
+		}
+	}
+
+	semanticsAt := strings.Index(client, `syncModalSemantics(overlay);`)
+	boundAt := strings.Index(client, `overlay.dataset.pwModalBound === 'true'`)
+	if semanticsAt < 0 || boundAt < 0 || semanticsAt >= boundAt {
+		t.Error("Precision modal semantics must resync before the idempotent binding early return")
+	}
+
+	titleMarkers := []string{
+		`document.getElementById(labelledBy)`,
+		`dialogTarget.hasAttribute('aria-label')`,
+		`dialogTarget.querySelector('.modal-title[id]')`,
+		`dialogTarget.querySelector('.modal-title')`,
+		`dialogTarget.querySelector('.modal-header h1, .modal-header h2, .modal-header h3')`,
+		`dialogTarget.querySelector('h1, h2, h3')`,
+	}
+	previous := -1
+	for _, marker := range titleMarkers {
+		at := strings.Index(client, marker)
+		if at <= previous {
+			t.Errorf("Precision modal title resolution order is wrong at %q", marker)
+		}
+		previous = at
+	}
+}
+
+func TestPrecisionWorkspaceKnowledgeModalChromeStaysPinned(t *testing.T) {
+	t.Parallel()
+
+	css := normalizeAssetText(mustReadUIFile(t, "css/knowledge.css"))
+	for _, test := range []struct {
+		selector string
+		edge     string
+	}{
+		{selector: `.pw-page[data-workspace-page="knowledge"] .modal-header`, edge: `top: 0;`},
+		{selector: `.pw-page[data-workspace-page="knowledge"] .modal-actions`, edge: `bottom: 0;`},
+	} {
+		rule := regexp.MustCompile(`(?s)` + regexp.QuoteMeta(test.selector) + `\s*\{([^}]*)\}`).FindStringSubmatch(css)
+		if len(rule) != 2 {
+			t.Errorf("Knowledge modal chrome rule missing for %s", test.selector)
+			continue
+		}
+		for _, declaration := range []string{`position: sticky;`, test.edge, `z-index: 2;`} {
+			if !strings.Contains(rule[1], declaration) {
+				t.Errorf("Knowledge modal chrome %s missing %q", test.selector, declaration)
+			}
 		}
 	}
 }
