@@ -5448,6 +5448,11 @@ button .dash-ic { width: 0.9rem; height: 0.9rem; }
 }
 
 .pw-page[data-workspace-page="dashboard"] .pill-running,
+.pw-page[data-workspace-page="dashboard"] .status-dot.green {
+    animation: none;
+}
+
+.pw-page[data-workspace-page="dashboard"] .pill-running,
 .pw-page[data-workspace-page="dashboard"] .activity-status.running,
 .pw-page[data-workspace-page="dashboard"] .int-badge,
 .pw-page[data-workspace-page="dashboard"] .budget-badge,

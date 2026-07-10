@@ -347,6 +347,32 @@ func TestPrecisionWorkspaceDashboardAdapterNeutralizesResidualGlows(t *testing.T
 	}
 }
 
+func TestPrecisionWorkspaceDashboardAdapterStopsStatusPulseGlows(t *testing.T) {
+	t.Parallel()
+
+	css := normalizeAssetText(mustReadUIFile(t, "css/dashboard.css"))
+	const (
+		adapterStart = `/* === Precision Workspace Dashboard Adapter: start === */`
+		adapterEnd   = `/* === Precision Workspace Dashboard Adapter: end === */`
+		prefix       = `.pw-page[data-workspace-page="dashboard"]`
+	)
+	start := strings.Index(css, adapterStart)
+	end := strings.Index(css, adapterEnd)
+	if start < 0 || end <= start {
+		t.Fatalf("dashboard.css missing delimited Precision adapter: start=%d end=%d", start, end)
+	}
+	adapter := css[start:end]
+	pulseSuppression := regexp.MustCompile(
+		`(?s)` +
+			regexp.QuoteMeta(prefix+` .pill-running`) + `\s*,\s*` +
+			regexp.QuoteMeta(prefix+` .status-dot.green`) +
+			`\s*\{[^}]*animation:\s*none;`,
+	)
+	if !pulseSuppression.MatchString(adapter) {
+		t.Error("Dashboard Precision adapter must disable pulse-glow animation for running pills and green status dots")
+	}
+}
+
 func TestPrecisionWorkspaceTranslations(t *testing.T) {
 	t.Parallel()
 
