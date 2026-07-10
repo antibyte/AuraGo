@@ -350,3 +350,237 @@
     .stats-grid { grid-template-columns: repeat(2, 1fr); }
     .pool-stats { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* === Precision Workspace TrueNAS Adapter: start === */
+.pw-page[data-workspace-page="truenas"] {
+    min-height: 100dvh;
+    overflow-x: clip;
+    background: var(--pw-canvas);
+    background-image: none;
+}
+
+.pw-page[data-workspace-page="truenas"] .app-header {
+    min-height: var(--pw-header-height);
+    border-bottom: 1px solid var(--pw-line);
+    background: color-mix(in srgb, var(--pw-canvas) 94%, transparent);
+    box-shadow: none;
+}
+
+.pw-page[data-workspace-page="truenas"] .truenas-container {
+    width: min(100%, var(--pw-content-max));
+    margin-inline: auto;
+    padding: clamp(1rem, 3vw, 2.5rem);
+}
+
+.pw-page[data-workspace-page="truenas"] .connection-status,
+.pw-page[data-workspace-page="truenas"] .truenas-nav,
+.pw-page[data-workspace-page="truenas"] .stat-card,
+.pw-page[data-workspace-page="truenas"] .pool-card,
+.pw-page[data-workspace-page="truenas"] .dataset-item,
+.pw-page[data-workspace-page="truenas"] .snapshot-item,
+.pw-page[data-workspace-page="truenas"] .share-item,
+.pw-page[data-workspace-page="truenas"] .settings-form,
+.pw-page[data-workspace-page="truenas"] .alert-item {
+    border-color: var(--pw-line);
+    background: var(--pw-surface);
+    background-image: none;
+    box-shadow: none;
+}
+
+.pw-page[data-workspace-page="truenas"] .truenas-nav {
+    display: flex;
+    gap: 0.25rem;
+    overflow-x: auto;
+    padding: 0.25rem;
+    border: 1px solid var(--pw-line);
+    border-radius: var(--pw-radius-md);
+}
+
+.pw-page[data-workspace-page="truenas"] .nav-btn {
+    flex: 0 0 auto;
+    min-height: 40px;
+    border: 1px solid transparent;
+    border-radius: var(--pw-radius-sm);
+    background: transparent;
+    background-image: none;
+    box-shadow: none;
+}
+
+.pw-page[data-workspace-page="truenas"] .nav-btn.active {
+    border-color: var(--pw-line-strong);
+    background: var(--pw-surface-elevated);
+    color: var(--pw-accent-strong);
+}
+
+.pw-page[data-workspace-page="truenas"] .stats-grid,
+.pw-page[data-workspace-page="truenas"] .pools-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+    gap: 1rem;
+}
+
+.pw-page[data-workspace-page="truenas"] .stat-card,
+.pw-page[data-workspace-page="truenas"] .pool-card {
+    min-width: 0;
+    border: 1px solid var(--pw-line);
+    border-radius: var(--pw-radius-lg);
+    padding: 1.25rem;
+}
+
+.pw-page[data-workspace-page="truenas"] .datasets-list,
+.pw-page[data-workspace-page="truenas"] .snapshots-list,
+.pw-page[data-workspace-page="truenas"] .shares-list {
+    min-width: 0;
+    border-color: var(--pw-line);
+    background: var(--pw-surface);
+}
+
+.pw-page[data-workspace-page="truenas"] .dataset-item,
+.pw-page[data-workspace-page="truenas"] .snapshot-item,
+.pw-page[data-workspace-page="truenas"] .share-item {
+    min-width: 0;
+    border: 1px solid var(--pw-line);
+    border-radius: var(--pw-radius-md);
+}
+
+.pw-page[data-workspace-page="truenas"] .dataset-info,
+.pw-page[data-workspace-page="truenas"] .snapshot-info,
+.pw-page[data-workspace-page="truenas"] .share-info,
+.pw-page[data-workspace-page="truenas"] .pool-header h3,
+.pw-page[data-workspace-page="truenas"] .alert-item {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.pw-page[data-workspace-page="truenas"] .loading,
+.pw-page[data-workspace-page="truenas"] .empty-state,
+.pw-page[data-workspace-page="truenas"] .alert.error,
+.pw-page[data-workspace-page="truenas"] .alert.success {
+    border: 1px solid var(--pw-line);
+    border-radius: var(--pw-radius-md);
+    background: var(--pw-surface);
+    background-image: none;
+    box-shadow: none;
+    filter: none;
+}
+
+.pw-page[data-workspace-page="truenas"] .alert.error {
+    border-color: color-mix(in srgb, var(--pw-danger) 45%, var(--pw-line));
+    color: var(--pw-danger);
+}
+
+.pw-page[data-workspace-page="truenas"] .alert.success {
+    border-color: color-mix(in srgb, var(--pw-success) 45%, var(--pw-line));
+    color: var(--pw-success);
+}
+
+.pw-page[data-workspace-page="truenas"] input,
+.pw-page[data-workspace-page="truenas"] select,
+.pw-page[data-workspace-page="truenas"] textarea {
+    border-color: var(--pw-line-strong);
+    border-radius: var(--pw-radius-sm);
+    background: var(--pw-surface-elevated);
+    color: var(--pw-text);
+    box-shadow: none;
+}
+
+.pw-page[data-workspace-page="truenas"] .truenas-modal {
+    align-items: center;
+    padding: 0.5rem;
+    background: color-mix(in srgb, var(--pw-canvas) 78%, transparent);
+    backdrop-filter: none;
+}
+
+.pw-page[data-workspace-page="truenas"] .modal-content {
+    width: min(100%, 680px);
+    max-height: calc(100dvh - 1rem);
+    overflow: auto;
+    border: 1px solid var(--pw-line-strong);
+    border-radius: var(--pw-radius-lg);
+    background: var(--pw-surface);
+    background-image: none;
+    box-shadow: none;
+}
+
+.pw-page[data-workspace-page="truenas"]:where(:root[data-theme="light"] *) .stat-card,
+.pw-page[data-workspace-page="truenas"]:where(:root[data-theme="light"] *) .pool-card,
+.pw-page[data-workspace-page="truenas"]:where(:root[data-theme="light"] *) .dataset-item,
+.pw-page[data-workspace-page="truenas"]:where(:root[data-theme="light"] *) .snapshot-item,
+.pw-page[data-workspace-page="truenas"]:where(:root[data-theme="light"] *) .share-item,
+.pw-page[data-workspace-page="truenas"]:where(:root[data-theme="light"] *) .modal-content {
+    background: var(--pw-surface);
+}
+
+.pw-page[data-workspace-page="truenas"][data-density="compact"] .truenas-container {
+    padding-block: 1.25rem;
+}
+
+.pw-page[data-workspace-page="truenas"][data-density="compact"] .stat-card,
+.pw-page[data-workspace-page="truenas"][data-density="compact"] .pool-card,
+.pw-page[data-workspace-page="truenas"][data-density="compact"] .dataset-item,
+.pw-page[data-workspace-page="truenas"][data-density="compact"] .snapshot-item,
+.pw-page[data-workspace-page="truenas"][data-density="compact"] .share-item {
+    padding: 0.75rem;
+}
+
+.pw-page[data-workspace-page="truenas"][data-density="compact"] .nav-btn,
+.pw-page[data-workspace-page="truenas"][data-density="compact"] .btn,
+.pw-page[data-workspace-page="truenas"][data-density="compact"] input,
+.pw-page[data-workspace-page="truenas"][data-density="compact"] select {
+    min-height: 34px;
+}
+
+@media (max-width: 1024px) {
+    .pw-page[data-workspace-page="truenas"] .stats-grid,
+    .pw-page[data-workspace-page="truenas"] .pools-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 640px) {
+    .pw-page[data-workspace-page="truenas"] .truenas-container {
+        padding: 1rem;
+    }
+
+    .pw-page[data-workspace-page="truenas"] .stats-grid,
+    .pw-page[data-workspace-page="truenas"] .pools-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .pw-page[data-workspace-page="truenas"] .section-header,
+    .pw-page[data-workspace-page="truenas"] .dataset-item,
+    .pw-page[data-workspace-page="truenas"] .snapshot-item,
+    .pw-page[data-workspace-page="truenas"] .share-item,
+    .pw-page[data-workspace-page="truenas"] .pool-actions {
+        align-items: stretch;
+    }
+
+    .pw-page[data-workspace-page="truenas"] .truenas-modal {
+        align-items: flex-end;
+        padding: 0;
+    }
+
+    .pw-page[data-workspace-page="truenas"] .modal-content {
+        width: 100%;
+        max-height: calc(100dvh - 1rem);
+        border-radius: 20px 20px 0 0;
+    }
+
+    .pw-page[data-workspace-page="truenas"][data-density="compact"] .nav-btn,
+    .pw-page[data-workspace-page="truenas"][data-density="compact"] .btn,
+    .pw-page[data-workspace-page="truenas"][data-density="compact"] input,
+    .pw-page[data-workspace-page="truenas"][data-density="compact"] select {
+        min-height: 44px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .pw-page[data-workspace-page="truenas"] .spinner,
+    .pw-page[data-workspace-page="truenas"] .stat-card,
+    .pw-page[data-workspace-page="truenas"] .pool-card,
+    .pw-page[data-workspace-page="truenas"] .modal-content {
+        animation: none;
+        transition: none;
+        transform: none;
+    }
+}
+/* === Precision Workspace TrueNAS Adapter: end === */

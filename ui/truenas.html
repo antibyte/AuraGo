@@ -27,9 +27,11 @@
     <script src="/js/shared/shared-chat.js?v={{.BuildVersion}}"></script>
     <link rel="stylesheet" href="/css/truenas.css">
     <link rel="stylesheet" href="/css/enhancements.css?v=20260425a">
+    <link rel="stylesheet" href="/css/precision-workspace.css?v={{.BuildVersion}}">
+    <link rel="stylesheet" href="/css/precision-pages.css?v={{.BuildVersion}}">
     <link href="/fonts/fonts.css" rel="stylesheet">
 </head>
-<body>
+<body class="pw-page pw-operational-page" data-workspace-page="truenas" data-density="comfortable">
     <a href="#main-content" class="skip-link" data-i18n="common.skip_to_content"></a>
     <header class="app-header">
         <div class="header-left">
@@ -194,9 +196,9 @@
     </div>
 
     <!-- Modal: Create Dataset -->
-    <div id="modal-dataset" class="truenas-modal">
+    <div id="modal-dataset" class="truenas-modal" role="dialog" aria-modal="true" aria-labelledby="modal-dataset-title">
         <div class="modal-content">
-            <h3 data-i18n="truenas.modal_dataset_title"></h3>
+            <h3 id="modal-dataset-title" data-i18n="truenas.modal_dataset_title"></h3>
             <div id="dataset-error"></div>
             <form id="dataset-form">
                 <div class="form-group">
@@ -225,9 +227,9 @@
     </div>
 
     <!-- Modal: Create Snapshot -->
-    <div id="modal-snapshot" class="truenas-modal">
+    <div id="modal-snapshot" class="truenas-modal" role="dialog" aria-modal="true" aria-labelledby="modal-snapshot-title">
         <div class="modal-content">
-            <h3 data-i18n="truenas.modal_snapshot_title"></h3>
+            <h3 id="modal-snapshot-title" data-i18n="truenas.modal_snapshot_title"></h3>
             <div id="snapshot-error"></div>
             <form id="snapshot-form">
                 <div class="form-group">
@@ -257,9 +259,9 @@
     </div>
 
     <!-- Modal: Create Share -->
-    <div id="modal-share" class="truenas-modal">
+    <div id="modal-share" class="truenas-modal" role="dialog" aria-modal="true" aria-labelledby="modal-share-title">
         <div class="modal-content">
-            <h3 data-i18n="truenas.modal_share_title"></h3>
+            <h3 id="modal-share-title" data-i18n="truenas.modal_share_title"></h3>
             <div id="share-error"></div>
             <form id="share-form">
                 <div class="form-group">
@@ -287,7 +289,7 @@
                         <label for="share-timemachine" data-i18n="truenas.label_timemachine"></label>
                     </div>
                 </div>
-                <div id="nfs-share-fields" style="display: none;">
+                <div id="nfs-share-fields" class="is-hidden">
                     <div class="form-group">
                         <label data-i18n="truenas.label_networks_optional"></label>
                         <input type="text" id="nfs-networks" placeholder="192.168.1.0/24">
@@ -311,7 +313,7 @@
         </div>
     </div>
 
+    <script src="/js/precision/workspace.js?v={{.BuildVersion}}"></script>
     <script src="/js/truenas.js"></script>
 </body>
 </html>
-

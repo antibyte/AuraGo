@@ -728,7 +728,7 @@ class TrueNASUI {
         const nfsFields = document.getElementById('nfs-share-fields');
         if (nameField) nameField.style.display = type === 'smb' ? '' : 'none';
         if (smbFields) smbFields.style.display = type === 'smb' ? '' : 'none';
-        if (nfsFields) nfsFields.style.display = type === 'nfs' ? '' : 'none';
+        if (nfsFields) nfsFields.classList.toggle('is-hidden', type !== 'nfs');
     }
     
     // UI Helpers
@@ -840,4 +840,3 @@ const truenasUI = new TrueNASUI();
 
 // Clean up interval on page unload
 window.addEventListener('pagehide', () => truenasUI.destroy());
-

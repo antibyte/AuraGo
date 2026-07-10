@@ -28,9 +28,11 @@
     <link rel="stylesheet" href="/css/gallery.css">
     <link rel="stylesheet" href="/css/media.css">
     <link rel="stylesheet" href="/css/enhancements.css?v=20260425a">
+    <link rel="stylesheet" href="/css/precision-workspace.css?v={{.BuildVersion}}">
+    <link rel="stylesheet" href="/css/precision-pages.css?v={{.BuildVersion}}">
     <link href="/fonts/fonts.css" rel="stylesheet">
 </head>
-<body>
+<body class="pw-page pw-operational-page" data-workspace-page="media" data-density="comfortable">
     <a href="#main-content" class="skip-link" data-i18n="common.skip_to_content"></a>
     <header class="app-header">
         <div class="header-left">
@@ -155,7 +157,7 @@
     </div>
 
     <!-- Image lightbox -->
-    <div id="lightbox" class="lightbox is-hidden" onclick="closeLightbox(event)">
+    <div id="lightbox" class="lightbox is-hidden" role="dialog" aria-modal="true" aria-labelledby="lightbox-meta" onclick="closeLightbox(event)">
         <div class="lightbox-content" onclick="event.stopPropagation()">
             <button type="button" class="lightbox-close" data-i18n-aria-label="common.close" onclick="closeLightbox()">&times;</button>
             <img id="lightbox-img" src="" alt="">
@@ -168,7 +170,7 @@
     </div>
 
     <!-- Audio lightbox overlay with full player -->
-    <div id="audio-modal" class="media-modal is-hidden" onclick="closeAudioModal(event)">
+    <div id="audio-modal" class="media-modal is-hidden" role="dialog" aria-modal="true" aria-labelledby="audio-modal-body" onclick="closeAudioModal(event)">
         <div class="media-modal-content" onclick="event.stopPropagation()">
             <button type="button" class="lightbox-close" data-i18n-aria-label="common.close" onclick="closeAudioModal()">&times;</button>
             <div id="audio-modal-body"></div>
@@ -179,10 +181,10 @@
         </div>
     </div>
 
+    <script src="/js/precision/workspace.js?v={{.BuildVersion}}"></script>
     <script src="/js/gallery/main.js"></script>
     <script src="/js/chat/ui-icons.js?v=20260501a"></script>
     <script src="/js/chat/audio-player.js"></script>
     <script src="/js/media/main.js"></script>
 </body>
 </html>
-

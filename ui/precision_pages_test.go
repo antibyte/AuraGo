@@ -1341,6 +1341,281 @@ func TestPrecisionWorkspaceHiddenRevealUsesExplicitDisplayValues(t *testing.T) {
 	}
 }
 
+func TestPrecisionWorkspaceOperationsIntegration(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name        string
+		template    string
+		stylesheet string
+		page        string
+		mainScript  string
+		hooks       []string
+		hiddenHooks []string
+	}{
+		{
+			name: "Containers", template: "containers.html", stylesheet: "/css/containers.css", page: "containers", mainScript: "/js/containers/main.js",
+			hooks: []string{`id="ct-status-bar"`, `id="ct-search"`, `id="ct-grid"`, `id="terminal-output"`, `id="terminal-status"`},
+			hiddenHooks: []string{`id="ct-empty"`, `id="ct-disabled"`},
+		},
+		{
+			name: "Media", template: "media.html", stylesheet: "/css/media.css", page: "media", mainScript: "/js/media/main.js",
+			hooks: []string{`id="media-search"`, `id="gallery-grid"`, `id="audio-grid"`, `id="video-grid"`, `id="doc-list"`},
+			hiddenHooks: []string{`id="gallery-pagination"`, `id="audio-pagination"`},
+		},
+		{
+			name: "TrueNAS", template: "truenas.html", stylesheet: "/css/truenas.css", page: "truenas", mainScript: "/js/truenas.js",
+			hooks: []string{`id="status-indicator"`, `id="pools-container"`, `id="datasets-container"`, `id="snapshots-container"`, `id="shares-container"`},
+			hiddenHooks: []string{`id="nfs-share-fields"`},
+		},
+		{
+			name: "Invasion", template: "invasion_control.html", stylesheet: "/css/invasion.css", page: "invasion", mainScript: "/js/invasion/main.js",
+			hooks: []string{`id="nests-grid"`, `id="eggs-grid"`, `id="nest-save-btn"`, `id="egg-save-btn"`, `id="config-history-list"`},
+			hiddenHooks: []string{`id="nests-empty"`, `id="eggs-empty"`},
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			html := normalizeAssetText(mustReadUIFile(t, test.template))
+			body := `<body class="pw-page pw-operational-page" data-workspace-page="` + test.page + `" data-density="comfortable">`
+			if !strings.Contains(html, body) {
+				t.Errorf("%s missing Precision body opt-in", test.template)
+			}
+			pageCSSAt := strings.Index(html, test.stylesheet)
+			enhancementsAt := strings.Index(html, `/css/enhancements.css?v=20260425a`)
+			foundationAt := strings.Index(html, `/css/precision-workspace.css?v={{.BuildVersion}}`)
+			componentsAt := strings.Index(html, `/css/precision-pages.css?v={{.BuildVersion}}`)
+			if pageCSSAt < 0 || enhancementsAt < 0 || foundationAt < 0 || componentsAt < 0 ||
+				!(pageCSSAt < enhancementsAt && enhancementsAt < foundationAt && foundationAt < componentsAt) {
+				t.Errorf("%s Precision CSS order = page:%d enhancements:%d foundation:%d components:%d", test.name, pageCSSAt, enhancementsAt, foundationAt, componentsAt)
+			}
+			workspaceAt := strings.Index(html, `/js/precision/workspace.js?v={{.BuildVersion}}`)
+			mainAt := strings.Index(html, test.mainScript)
+			if workspaceAt < 0 || mainAt < 0 || workspaceAt >= mainAt {
+				t.Errorf("%s script order = workspace:%d main:%d", test.name, workspaceAt, mainAt)
+			}
+			if regexp.MustCompile(`(?i)\sstyle\s*=`).MatchString(html) {
+				t.Errorf("%s must not retain template inline styles", test.template)
+			}
+			for _, hook := range append(test.hooks, test.hiddenHooks...) {
+				if !strings.Contains(html, hook) {
+					t.Errorf("%s lost functional hook %q", test.template, hook)
+				}
+			}
+			for _, hook := range test.hiddenHooks {
+				at := strings.Index(html, hook)
+				start := strings.LastIndex(html[:at], `<`)
+				end := strings.Index(html[at:], `>`)
+				if at < 0 || start < 0 || end < 0 || !strings.Contains(html[start:at+end], `is-hidden`) {
+					t.Errorf("%s hidden hook %q must use is-hidden", test.template, hook)
+				}
+			}
+		})
+	}
+}
+
+func TestPrecisionWorkspaceOperationsModalARIAContract(t *testing.T) {
+	t.Parallel()
+
+	modals := map[string][]string{
+		"containers.html":       {"log-modal", "inspect-modal", "terminal-modal", "update-modal", "delete-modal"},
+		"media.html":            {"lightbox", "audio-modal"},
+		"truenas.html":          {"modal-dataset", "modal-snapshot", "modal-share"},
+		"invasion_control.html": {"nest-modal", "egg-modal", "reconfigure-modal", "config-history-modal", "delete-modal"},
+	}
+	for template, ids := range modals {
+		html := normalizeAssetText(mustReadUIFile(t, template))
+		for _, id := range ids {
+			tag := regexp.MustCompile(`<div[^>]*id="` + regexp.QuoteMeta(id) + `"[^>]*>`).FindString(html)
+			if tag == "" {
+				t.Errorf("%s missing modal %s", template, id)
+				continue
+			}
+			if !strings.Contains(tag, `role="dialog"`) || !strings.Contains(tag, `aria-modal="true"`) {
+				t.Errorf("%s modal %s lacks dialog semantics: %s", template, id, tag)
+			}
+			label := regexp.MustCompile(`aria-labelledby="([^"]+)"`).FindStringSubmatch(tag)
+			if len(label) != 2 {
+				t.Errorf("%s modal %s lacks aria-labelledby", template, id)
+				continue
+			}
+			if !strings.Contains(html, `id="`+label[1]+`"`) {
+				t.Errorf("%s modal %s references missing title %q", template, id, label[1])
+			}
+		}
+	}
+}
+
+func TestPrecisionWorkspaceOperationsAdaptersAreScopedAndResponsive(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		stylesheet string
+		page       string
+		markers    []string
+	}{
+		{name: "Containers", stylesheet: "css/containers.css", page: "containers", markers: []string{`.ct-status-bar`, `.ct-grid`, `.ct-card`, `.ct-log-output`, `.ct-terminal-output`, `.ct-terminal-output .xterm`}},
+		{name: "Media", stylesheet: "css/media.css", page: "media", markers: []string{`.media-tabs`, `.gallery-grid`, `.media-audio-card`, `.media-video-card`, `.media-doc-row`, `.lightbox-content`, `.media-modal-content`}},
+		{name: "TrueNAS", stylesheet: "css/truenas.css", page: "truenas", markers: []string{`.connection-status`, `.stats-grid`, `.pool-card`, `.dataset-item`, `.snapshot-item`, `.share-item`, `.truenas-modal`}},
+		{name: "Invasion", stylesheet: "css/invasion.css", page: "invasion", markers: []string{`.invasion-tabs`, `.cards-grid`, `.card`, `.inv-telemetry-row`, `.config-history-item`, `.modal-overlay`}},
+	}
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			css := normalizeAssetText(mustReadUIFile(t, test.stylesheet))
+			startMarker := `/* === Precision Workspace ` + test.name + ` Adapter: start === */`
+			endMarker := `/* === Precision Workspace ` + test.name + ` Adapter: end === */`
+			start, end := strings.Index(css, startMarker), strings.Index(css, endMarker)
+			if start < 0 || end <= start {
+				t.Fatalf("%s missing delimited Precision adapter", test.stylesheet)
+			}
+			adapter := css[start:end]
+			prefix := `.pw-page[data-workspace-page="` + test.page + `"]`
+			for _, marker := range append([]string{
+				prefix + ` {`, `overflow-x: clip;`, `background-image: none;`, `box-shadow: none;`, `filter: none;`,
+				prefix + `[data-density="compact"]`, `:root[data-theme="light"] *`, `@media (max-width: 1024px)`, `@media (max-width: 640px)`,
+				`min-height: 44px;`, `min-height: 100dvh;`, `max-height: calc(100dvh - 1rem);`, `border-radius: 20px 20px 0 0;`,
+				`overflow-wrap: anywhere;`, `@media (prefers-reduced-motion: reduce)`,
+			}, test.markers...) {
+				if !strings.Contains(adapter, marker) {
+					t.Errorf("%s adapter missing %q", test.name, marker)
+				}
+			}
+			if strings.Contains(strings.ToLower(adapter), "gradient(") {
+				t.Errorf("%s adapter must remain flat", test.name)
+			}
+			assertPrecisionAdapterSelectorsScoped(t, adapter, prefix)
+		})
+	}
+}
+
+func TestPrecisionWorkspaceOperationsAdaptersCoverRenderedStates(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		stylesheet string
+		script     string
+		page       string
+		selectors  []string
+	}{
+		{name: "Containers", stylesheet: "css/containers.css", script: "js/containers/main.js", page: "containers", selectors: []string{".ct-card", ".ct-card-actions", ".ct-card-status.running", ".ct-card-state.running"}},
+		{name: "Media", stylesheet: "css/media.css", script: "js/media/main.js", page: "media", selectors: []string{".media-audio-card", ".media-video-card", ".media-doc-row", ".gallery-empty"}},
+		{name: "TrueNAS", stylesheet: "css/truenas.css", script: "js/truenas.js", page: "truenas", selectors: []string{".pool-card", ".dataset-item", ".snapshot-item", ".share-item", ".alert.error"}},
+		{name: "Invasion", stylesheet: "css/invasion.css", script: "js/invasion/main.js", page: "invasion", selectors: []string{".card", ".inv-telemetry-row", ".config-history-item", ".config-history-error"}},
+	}
+	for _, test := range tests {
+		css := normalizeAssetText(mustReadUIFile(t, test.stylesheet))
+		script := normalizeAssetText(mustReadUIFile(t, test.script))
+		prefix := `.pw-page[data-workspace-page="` + test.page + `"] `
+		for _, selector := range test.selectors {
+			className := strings.TrimPrefix(strings.Split(selector, ".")[1], "")
+			if !strings.Contains(script, className) {
+				t.Errorf("%s test selector %s is not derived from rendered JS", test.name, selector)
+			}
+			if !strings.Contains(css, prefix+selector) {
+				t.Errorf("%s adapter misses rendered state %s", test.name, selector)
+			}
+		}
+	}
+}
+
+func TestPrecisionWorkspaceOperationsCompactMobileControlsWinCascade(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name, stylesheet, page string
+		controls               []string
+	}{
+		{name: "Containers", stylesheet: "css/containers.css", page: "containers", controls: []string{".ct-search", ".ct-filter-btn", ".btn", ".modal-close"}},
+		{name: "Media", stylesheet: "css/media.css", page: "media", controls: []string{".gallery-search", ".media-tab", ".btn-gallery-nav", ".btn-gallery-action"}},
+		{name: "TrueNAS", stylesheet: "css/truenas.css", page: "truenas", controls: []string{".nav-btn", ".btn", "input", "select"}},
+		{name: "Invasion", stylesheet: "css/invasion.css", page: "invasion", controls: []string{".invasion-tab", ".btn", "input", "select"}},
+	}
+	for _, test := range tests {
+		css := normalizeAssetText(mustReadUIFile(t, test.stylesheet))
+		start := strings.Index(css, `/* === Precision Workspace `+test.name+` Adapter: start === */`)
+		end := strings.Index(css, `/* === Precision Workspace `+test.name+` Adapter: end === */`)
+		if start < 0 || end <= start {
+			t.Fatalf("%s missing adapter", test.stylesheet)
+		}
+		adapter := css[start:end]
+		mobileAt := strings.LastIndex(adapter, `@media (max-width: 640px)`)
+		reducedAt := strings.Index(adapter, `@media (prefers-reduced-motion: reduce)`)
+		if mobileAt < 0 || reducedAt <= mobileAt {
+			t.Fatalf("%s mobile block must precede reduced motion", test.name)
+		}
+		mobile := adapter[mobileAt:reducedAt]
+		prefix := `.pw-page[data-workspace-page="` + test.page + `"][data-density="compact"] `
+		for _, control := range test.controls {
+			if !regexp.MustCompile(`(?s)` + regexp.QuoteMeta(prefix+control) + `[^{}]*\{[^}]*min-height:\s*44px;`).MatchString(mobile) {
+				t.Errorf("%s compact mobile %s needs 44px override", test.name, control)
+			}
+		}
+	}
+}
+
+func TestPrecisionWorkspaceOperationsHiddenStatesRemainRevealable(t *testing.T) {
+	t.Parallel()
+
+	containers := normalizeAssetText(mustReadUIFile(t, "js/containers/main.js"))
+	for _, marker := range []string{
+		`document.getElementById('ct-disabled').classList.remove('is-hidden');`,
+		`disabled.classList.add('is-hidden');`,
+	} {
+		if !strings.Contains(containers, marker) {
+			t.Errorf("Containers hidden-state migration missing %q", marker)
+		}
+	}
+
+	truenas := normalizeAssetText(mustReadUIFile(t, "js/truenas.js"))
+	if !strings.Contains(truenas, `nfsFields.classList.toggle('is-hidden', type !== 'nfs');`) {
+		t.Error("TrueNAS NFS fields must toggle the migrated is-hidden class")
+	}
+}
+
+func TestPrecisionWorkspaceOperationsSemanticStatesStayFlat(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		stylesheet string
+		page       string
+		selector   string
+		color      string
+	}{
+		{stylesheet: "css/containers.css", page: "containers", selector: ".ct-toast.success", color: "var(--pw-success)"},
+		{stylesheet: "css/containers.css", page: "containers", selector: ".ct-toast.error", color: "var(--pw-danger)"},
+		{stylesheet: "css/invasion.css", page: "invasion", selector: ".toast.success", color: "var(--pw-success)"},
+		{stylesheet: "css/invasion.css", page: "invasion", selector: ".toast.error", color: "var(--pw-danger)"},
+	}
+	for _, test := range tests {
+		css := normalizeAssetText(mustReadUIFile(t, test.stylesheet))
+		selector := `.pw-page[data-workspace-page="` + test.page + `"] ` + test.selector
+		rule := regexp.MustCompile(`(?s)` + regexp.QuoteMeta(selector) + `\s*\{([^}]*)\}`).FindStringSubmatch(css)
+		if len(rule) != 2 {
+			t.Errorf("%s missing flat semantic state %s", test.stylesheet, test.selector)
+			continue
+		}
+		for _, marker := range []string{test.color, `background-image: none;`, `box-shadow: none;`} {
+			if !strings.Contains(rule[1], marker) {
+				t.Errorf("%s %s missing %q", test.stylesheet, test.selector, marker)
+			}
+		}
+	}
+
+	media := normalizeAssetText(mustReadUIFile(t, "css/media.css"))
+	selector := `.pw-page[data-workspace-page="media"] .media-tab.active::after`
+	rule := regexp.MustCompile(`(?s)` + regexp.QuoteMeta(selector) + `\s*\{([^}]*)\}`).FindStringSubmatch(media)
+	if len(rule) != 2 || !strings.Contains(rule[1], `box-shadow: none;`) {
+		t.Error("Media active tab must suppress the inherited light-theme glow")
+	}
+}
+
 func TestPrecisionWorkspaceTranslations(t *testing.T) {
 	t.Parallel()
 

@@ -67,7 +67,7 @@ async function loadContainers() {
 function showDisabledState() {
     document.getElementById('ct-grid').style.display = 'none';
     document.getElementById('ct-empty').style.display = 'none';
-    document.getElementById('ct-disabled').style.display = '';
+    document.getElementById('ct-disabled').classList.remove('is-hidden');
     document.getElementById('ct-status-bar').style.display = 'none';
     if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
 }
@@ -96,7 +96,7 @@ function renderContainers() {
     const grid = document.getElementById('ct-grid');
     const empty = document.getElementById('ct-empty');
     const disabled = document.getElementById('ct-disabled');
-    disabled.style.display = 'none';
+    disabled.classList.add('is-hidden');
     document.getElementById('ct-status-bar').style.display = '';
 
     const filtered = getFilteredContainers();

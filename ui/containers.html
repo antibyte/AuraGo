@@ -28,11 +28,13 @@
     <link rel="stylesheet" href="/css/xterm.css">
     <link rel="stylesheet" href="/css/containers.css">
     <link rel="stylesheet" href="/css/enhancements.css?v=20260425a">
+    <link rel="stylesheet" href="/css/precision-workspace.css?v={{.BuildVersion}}">
+    <link rel="stylesheet" href="/css/precision-pages.css?v={{.BuildVersion}}">
     <link href="/fonts/fonts.css" rel="stylesheet">
     <script defer src="/js/vendor/xterm.min.js"></script>
     <script defer src="/js/vendor/xterm-addon-fit.min.js"></script>
 </head>
-<body>
+<body class="pw-page pw-operational-page" data-workspace-page="containers" data-density="comfortable">
     <a href="#main-content" class="skip-link" data-i18n="common.skip_to_content"></a>
     <header class="app-header">
         <div class="header-left">
@@ -89,7 +91,7 @@
         </div>
 
         <!-- Error state (Docker disabled) -->
-        <div class="empty-state" id="ct-disabled" style="display:none;">
+        <div class="empty-state is-hidden" id="ct-disabled">
             <div class="empty-icon">⚠️</div>
             <h3 data-i18n="containers.disabled_title"></h3>
             <p data-i18n="containers.disabled_desc"></p>
@@ -97,7 +99,7 @@
     </div>
 
     <!-- ═══════ LOG MODAL ═══════ -->
-    <div class="modal-overlay" id="log-modal">
+    <div class="modal-overlay" id="log-modal" role="dialog" aria-modal="true" aria-labelledby="log-modal-title">
         <div class="modal modal-wide">
             <div class="modal-header">
                 <h2 id="log-modal-title" data-i18n="containers.logs_title"></h2>
@@ -114,7 +116,7 @@
     </div>
 
     <!-- ═══════ INSPECT MODAL ═══════ -->
-    <div class="modal-overlay" id="inspect-modal">
+    <div class="modal-overlay" id="inspect-modal" role="dialog" aria-modal="true" aria-labelledby="inspect-modal-title">
         <div class="modal modal-wide">
             <div class="modal-header">
                 <h2 id="inspect-modal-title" data-i18n="containers.inspect_title"></h2>
@@ -130,10 +132,10 @@
     </div>
 
     <!-- ═══════ TERMINAL MODAL ═══════ -->
-    <div class="modal-overlay" id="terminal-modal">
+    <div class="modal-overlay" id="terminal-modal" role="dialog" aria-modal="true" aria-labelledby="terminal-modal-title">
         <div class="modal modal-wide ct-terminal-modal">
             <div class="modal-header">
-                <h2><span data-i18n="containers.terminal_title"></span> <span id="terminal-container-name"></span></h2>
+                <h2 id="terminal-modal-title"><span data-i18n="containers.terminal_title"></span> <span id="terminal-container-name"></span></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeTerminalModal()">&times;</button>
             </div>
             <div class="modal-body ct-terminal-body">
@@ -147,10 +149,10 @@
     </div>
 
     <!-- ═══════ CONFIRM UPDATE MODAL ═══════ -->
-    <div class="modal-overlay" id="update-modal">
+    <div class="modal-overlay" id="update-modal" role="dialog" aria-modal="true" aria-labelledby="update-modal-title">
         <div class="modal">
             <div class="modal-header">
-                <h2 data-i18n="containers.update_title"></h2>
+                <h2 id="update-modal-title" data-i18n="containers.update_title"></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeUpdateModal()">&times;</button>
             </div>
             <div class="modal-body">
@@ -166,10 +168,10 @@
     </div>
 
     <!-- ═══════ CONFIRM DELETE MODAL ═══════ -->
-    <div class="modal-overlay" id="delete-modal">
+    <div class="modal-overlay" id="delete-modal" role="dialog" aria-modal="true" aria-labelledby="delete-modal-title">
         <div class="modal">
             <div class="modal-header">
-                <h2 data-i18n="containers.delete_title"></h2>
+                <h2 id="delete-modal-title" data-i18n="containers.delete_title"></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeDeleteModal()">&times;</button>
             </div>
             <div class="modal-body">
@@ -186,7 +188,7 @@
         </div>
     </div>
 
+    <script src="/js/precision/workspace.js?v={{.BuildVersion}}"></script>
     <script src="/js/containers/main.js"></script>
 </body>
 </html>
-
