@@ -73,6 +73,27 @@ func TestConfigPrecisionWorkspaceTypographyAndDensityContract(t *testing.T) {
 	}
 }
 
+func TestConfigPrecisionWorkspaceKeepsShellFixedWhileContentScrolls(t *testing.T) {
+	t.Parallel()
+
+	workspace := normalizeAssetText(mustReadUIFile(t, "css/config-workspace.css"))
+	for _, marker := range []string{
+		`.pw-page {`,
+		`height: 100dvh;`,
+		`overflow: hidden;`,
+		`.pw-page .cfg-layout {`,
+		`min-height: 0;`,
+		`.pw-page .cfg-sidebar {`,
+		`overflow-y: auto;`,
+		`.pw-page .cfg-content {`,
+		`overflow-y: auto;`,
+	} {
+		if !strings.Contains(workspace, marker) {
+			t.Fatalf("config workspace shell missing %q", marker)
+		}
+	}
+}
+
 func TestConfigStateAndActionContractsAreLoaded(t *testing.T) {
 	t.Parallel()
 
@@ -199,6 +220,9 @@ func TestConfigPrecisionWorkspaceBrowserMatrix(t *testing.T) {
 		t.Fatalf("marshal config translations: %v", err)
 	}
 	css := strings.Join([]string{
+		normalizeAssetText(mustReadUIFile(t, "shared-variables.css")),
+		normalizeAssetText(mustReadUIFile(t, "css/tokens.css")),
+		normalizeAssetText(mustReadUIFile(t, "css/enhancements.css")),
 		normalizeAssetText(mustReadUIFile(t, "css/config.css")),
 		normalizeAssetText(mustReadUIFile(t, "css/precision-workspace.css")),
 		normalizeAssetText(mustReadUIFile(t, "css/precision-pages.css")),
@@ -233,9 +257,30 @@ func TestConfigPrecisionWorkspaceBrowserMatrix(t *testing.T) {
 		for _, viewport := range viewports {
 			page.MustSetViewport(viewport.width, viewport.height, 1, viewport.width <= 390)
 			page.MustEval(`theme => { document.documentElement.dataset.theme = theme === 'system' ? 'dark' : theme; document.body.dataset.theme = theme === 'system' ? 'dark' : theme; }`, theme)
-			layout := page.MustEval(`() => ({overflow: document.documentElement.scrollWidth > window.innerWidth + 1, font: parseFloat(getComputedStyle(document.querySelector('.sidebar-item')).fontSize)})`).Map()
+			layout := page.MustEval(`() => {
+				const content = document.querySelector('.cfg-content');
+				const header = document.querySelector('.cfg-header');
+				const sidebar = document.querySelector('.cfg-sidebar');
+				const filler = document.createElement('div');
+				filler.style.height = '2000px';
+				content.append(filler);
+				const before = {header: header.getBoundingClientRect().top, sidebar: sidebar.getBoundingClientRect().top};
+				content.scrollTop = 240;
+				return {
+					overflow: document.documentElement.scrollWidth > window.innerWidth + 1,
+					pageScroll: document.scrollingElement.scrollHeight > window.innerHeight + 1,
+					contentScroll: content.scrollTop > 0,
+					documentScroll: document.scrollingElement.scrollTop,
+					headerMoved: Math.abs(header.getBoundingClientRect().top - before.header) > 1,
+					sidebarMoved: Math.abs(sidebar.getBoundingClientRect().top - before.sidebar) > 1,
+					font: parseFloat(getComputedStyle(document.querySelector('.sidebar-item')).fontSize),
+				};
+			}`).Map()
 			if layout["overflow"].Bool() {
 				t.Fatalf("horizontal overflow at %s %dx%d", theme, viewport.width, viewport.height)
+			}
+			if layout["pageScroll"].Bool() || !layout["contentScroll"].Bool() || layout["documentScroll"].Num() != 0 || layout["headerMoved"].Bool() || layout["sidebarMoved"].Bool() {
+				t.Fatalf("workspace shell scrolled at %s %dx%d", theme, viewport.width, viewport.height)
 			}
 			if layout["font"].Num() < 13 {
 				t.Fatalf("sidebar font too small at %s %dx%d: %v", theme, viewport.width, viewport.height, layout["font"])
