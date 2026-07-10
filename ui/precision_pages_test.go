@@ -1010,6 +1010,262 @@ func TestPrecisionWorkspaceKnowledgeSkillsHiddenStateRemainsInlineOverridable(t 
 	}
 }
 
+func TestPrecisionWorkspaceKnowledgeSkillsCompactMobileControlsWinCascade(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		stylesheet string
+		page       string
+		controls   []string
+	}{
+		{
+			name:       "Knowledge",
+			stylesheet: "css/knowledge.css",
+			page:       "knowledge",
+			controls:   []string{".kc-tab", ".kc-search", ".kc-filter-select", ".btn", ".kc-icon-btn"},
+		},
+		{
+			name:       "Skills",
+			stylesheet: "css/skills.css",
+			page:       "skills",
+			controls:   []string{".sk-tab", ".sk-search", ".sk-input", ".sk-select", ".btn"},
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			css := normalizeAssetText(mustReadUIFile(t, test.stylesheet))
+			start := strings.Index(css, `/* === Precision Workspace `+test.name+` Adapter: start === */`)
+			end := strings.Index(css, `/* === Precision Workspace `+test.name+` Adapter: end === */`)
+			if start < 0 || end <= start {
+				t.Fatalf("%s missing delimited Precision adapter", test.stylesheet)
+			}
+			adapter := css[start:end]
+			mobileAt := strings.LastIndex(adapter, `@media (max-width: 640px)`)
+			reducedAt := strings.Index(adapter, `@media (prefers-reduced-motion: reduce)`)
+			if mobileAt < 0 || reducedAt <= mobileAt {
+				t.Fatalf("%s missing ordered mobile and reduced-motion blocks", test.stylesheet)
+			}
+			mobile := adapter[mobileAt:reducedAt]
+			prefix := `.pw-page[data-workspace-page="` + test.page + `"][data-density="compact"] `
+			for _, control := range test.controls {
+				rule := regexp.MustCompile(`(?s)` + regexp.QuoteMeta(prefix+control) + `[^{}]*\{[^}]*min-height:\s*44px;`)
+				if !rule.MatchString(mobile) {
+					t.Errorf("%s compact mobile %s needs an equal-or-higher-specificity 44px override", test.name, control)
+				}
+			}
+		})
+	}
+}
+
+func TestPrecisionWorkspaceSkillsFullscreenAndSemanticToasts(t *testing.T) {
+	t.Parallel()
+
+	css := normalizeAssetText(mustReadUIFile(t, "css/skills.css"))
+	start := strings.Index(css, `/* === Precision Workspace Skills Adapter: start === */`)
+	end := strings.Index(css, `/* === Precision Workspace Skills Adapter: end === */`)
+	if start < 0 || end <= start {
+		t.Fatal("skills.css missing delimited Precision adapter")
+	}
+	adapter := css[start:end]
+	prefix := `.pw-page[data-workspace-page="skills"]`
+
+	for _, marker := range []string{
+		prefix + ` .modal-overlay.sk-code-overlay-fullscreen .modal {`,
+		`width: 100vw;`,
+		`height: 100dvh;`,
+		`max-height: none;`,
+		`border-radius: 0;`,
+		prefix + ` .modal-overlay.sk-code-overlay-fullscreen .modal-body {`,
+		prefix + ` .modal-overlay.sk-code-overlay-fullscreen .sk-code-editor-container`,
+	} {
+		if !strings.Contains(adapter, marker) {
+			t.Errorf("Skills fullscreen contract missing %q", marker)
+		}
+	}
+
+	toastColors := map[string]string{
+		`.sk-toast-success`: `var(--pw-success)`,
+		`.sk-toast-error`:   `var(--pw-danger)`,
+		`.sk-toast-info`:    `var(--pw-accent)`,
+	}
+	for selector, color := range toastColors {
+		rule := regexp.MustCompile(`(?s)` + regexp.QuoteMeta(prefix+` `+selector) + `\s*\{([^}]*)\}`).FindStringSubmatch(adapter)
+		if len(rule) != 2 {
+			t.Errorf("Skills semantic toast rule missing for %s", selector)
+			continue
+		}
+		for _, declaration := range []string{color, `background-image: none;`, `box-shadow: none;`} {
+			if !strings.Contains(rule[1], declaration) {
+				t.Errorf("Skills %s toast rule missing %q", selector, declaration)
+			}
+		}
+	}
+}
+
+func TestPrecisionWorkspaceKnowledgeSkillsActiveDecorationsStayFlat(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name         string
+		stylesheet   string
+		page         string
+		selector     string
+		declarations []string
+	}{
+		{
+			name:         "Knowledge upload progress",
+			stylesheet:   "css/knowledge.css",
+			page:         "knowledge",
+			selector:     ".kc-upload-progress-fill",
+			declarations: []string{"background: var(--pw-accent);", "background-image: none;", "box-shadow: none;"},
+		},
+		{
+			name:         "Skills active dropzone",
+			stylesheet:   "css/skills.css",
+			page:         "skills",
+			selector:     ".sk-dropzone-active",
+			declarations: []string{"background-image: none;", "box-shadow: none;", "transform: none;"},
+		},
+	}
+
+	for _, test := range tests {
+		css := normalizeAssetText(mustReadUIFile(t, test.stylesheet))
+		prefix := `.pw-page[data-workspace-page="` + test.page + `"] `
+		rule := regexp.MustCompile(`(?s)` + regexp.QuoteMeta(prefix+test.selector) + `\s*\{([^}]*)\}`).FindStringSubmatch(css)
+		if len(rule) != 2 {
+			t.Errorf("%s rule is missing", test.name)
+			continue
+		}
+		for _, declaration := range test.declarations {
+			if !strings.Contains(rule[1], declaration) {
+				t.Errorf("%s rule missing %q", test.name, declaration)
+			}
+		}
+	}
+}
+
+func TestPrecisionWorkspaceKnowledgeSkillsModalARIAContract(t *testing.T) {
+	t.Parallel()
+
+	for _, template := range []string{"knowledge.html", "skills.html"} {
+		html := normalizeAssetText(mustReadUIFile(t, template))
+		overlays := regexp.MustCompile(`<div class="modal-overlay[^"]*"[^>]*>`).FindAllString(html, -1)
+		if len(overlays) == 0 {
+			t.Fatalf("%s has no modal overlays", template)
+		}
+		for _, overlay := range overlays {
+			if !strings.Contains(overlay, `role="dialog"`) || !strings.Contains(overlay, `aria-modal="true"`) {
+				t.Errorf("%s modal overlay lacks dialog semantics: %s", template, overlay)
+			}
+			label := regexp.MustCompile(`aria-labelledby="([^"]+)"`).FindStringSubmatch(overlay)
+			if len(label) != 2 {
+				t.Errorf("%s modal overlay lacks aria-labelledby: %s", template, overlay)
+				continue
+			}
+			if !strings.Contains(html, `id="`+label[1]+`"`) {
+				t.Errorf("%s modal references missing label id %q", template, label[1])
+			}
+		}
+	}
+
+	client := normalizeAssetText(mustReadUIFile(t, "js/skills/main.js"))
+	for _, marker := range []string{
+		`overlay.setAttribute('role', 'dialog');`,
+		`overlay.setAttribute('aria-modal', 'true');`,
+		`overlay.setAttribute('aria-labelledby', 'sk-doc-editor-title');`,
+		`<h2 id="sk-doc-editor-title">`,
+		`class="sk-input sk-textarea sk-doc-editor-textarea"`,
+		`class="sk-form-group sk-doc-editor-upload"`,
+	} {
+		if !strings.Contains(client, marker) {
+			t.Errorf("Dynamic Skills documentation modal missing %q", marker)
+		}
+	}
+}
+
+func TestPrecisionWorkspaceModalFocusContractIsGenericAndIdempotent(t *testing.T) {
+	t.Parallel()
+
+	client := normalizeAssetText(mustReadUIFile(t, "js/precision/workspace.js"))
+	for _, marker := range []string{
+		`const activeModalOverlays = new Set();`,
+		`let modalObserver = null;`,
+		`function enhanceModalOverlay(overlay)`,
+		`!overlay.matches(MODAL_SELECTOR)`,
+		`overlay.dataset.pwModalBound === 'true'`,
+		`overlay.dataset.pwModalBound = 'true'`,
+		`function isModalOpen(overlay)`,
+		`overlay.classList.contains('active')`,
+		`overlay.classList.contains('open')`,
+		`overlay.style.display`,
+		`function activateModal(overlay)`,
+		`function deactivateModal(overlay)`,
+		`previousFocus`,
+		`event.key !== 'Tab'`,
+		`window.requestAnimationFrame`,
+		`new MutationObserver`,
+		`attributeFilter: ['class', 'style']`,
+		`removedNodes`,
+		`observeModalOverlays();`,
+	} {
+		if !strings.Contains(client, marker) {
+			t.Errorf("Precision modal focus contract missing %q", marker)
+		}
+	}
+}
+
+func TestPrecisionWorkspaceHiddenRevealUsesExplicitDisplayValues(t *testing.T) {
+	t.Parallel()
+
+	for _, test := range []struct {
+		stylesheet string
+		name       string
+	}{
+		{stylesheet: "css/knowledge.css", name: "Knowledge"},
+		{stylesheet: "css/skills.css", name: "Skills"},
+	} {
+		css := normalizeAssetText(mustReadUIFile(t, test.stylesheet))
+		start := strings.Index(css, `/* === Precision Workspace `+test.name+` Adapter: start === */`)
+		end := strings.Index(css, `/* === Precision Workspace `+test.name+` Adapter: end === */`)
+		adapter := css[start:end]
+		for _, fragile := range []string{`:has(`, `.is-hidden[style`} {
+			if strings.Contains(adapter, fragile) {
+				t.Errorf("%s adapter must not depend on fragile hidden reveal selector %q", test.name, fragile)
+			}
+		}
+	}
+
+	skills := normalizeAssetText(mustReadUIFile(t, "js/skills/main.js"))
+	for _, marker := range []string{
+		`document.getElementById('sk-disabled').style.display = 'block';`,
+		`document.getElementById('agent-toolbar-actions').style.display = currentSkillMode === 'agent' ? 'flex' : 'none';`,
+		`empty.style.display = 'block';`,
+		`document.getElementById('agent-resource-browser').style.display = 'block';`,
+		`document.getElementById('agent-file-editor').style.display = 'block';`,
+		`document.getElementById('agent-binary-download').style.display = 'block';`,
+		`errorEl.style.display = message ? 'block' : 'none';`,
+		`warn.style.display = (ext === 'sh' || ext === 'js') ? 'flex' : 'none';`,
+		`metaWrap.style.display = 'block';`,
+		`document.getElementById('sk-selected-file').style.display = 'flex';`,
+		`descDiv.style.display = 'block';`,
+		`emptyEl.style.display = 'block';`,
+		`if (bridgeOffEl) bridgeOffEl.style.display = 'block';`,
+	} {
+		if !strings.Contains(skills, marker) {
+			t.Errorf("Skills explicit hidden reveal contract missing %q", marker)
+		}
+	}
+
+	knowledge := normalizeAssetText(mustReadUIFile(t, "js/knowledge/main.js"))
+	if !strings.Contains(knowledge, `empty.style.display = 'block';`) {
+		t.Error("Knowledge device empty state must reveal with an explicit block display value")
+	}
+}
+
 func TestPrecisionWorkspaceTranslations(t *testing.T) {
 	t.Parallel()
 

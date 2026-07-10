@@ -125,7 +125,7 @@
     </div>
 
     <!-- AGENT SKILL CREATE / EDIT MODAL -->
-    <div class="modal-overlay" id="agent-skill-modal">
+    <div class="modal-overlay" id="agent-skill-modal" role="dialog" aria-modal="true" aria-labelledby="agent-skill-modal-title">
         <div class="modal modal-wide">
             <div class="modal-header">
                 <h2 id="agent-skill-modal-title" data-i18n="skills.agent_create_title"></h2>
@@ -181,10 +181,10 @@
     </div>
 
     <!-- AGENT SKILL IMPORT MODAL -->
-    <div class="modal-overlay" id="agent-import-modal">
+    <div class="modal-overlay" id="agent-import-modal" role="dialog" aria-modal="true" aria-labelledby="agent-import-modal-title">
         <div class="modal">
             <div class="modal-header">
-                <h2 data-i18n="skills.agent_import_title"></h2>
+                <h2 id="agent-import-modal-title" data-i18n="skills.agent_import_title"></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeAgentSkillImportModal()">&times;</button>
             </div>
             <div class="modal-body">
@@ -209,10 +209,10 @@
     </div>
 
     <!-- AGENT SKILL TEST MODAL -->
-    <div class="modal-overlay" id="agent-test-modal">
+    <div class="modal-overlay" id="agent-test-modal" role="dialog" aria-modal="true" aria-labelledby="agent-test-modal-title">
         <div class="modal modal-wide">
             <div class="modal-header">
-                <h2 data-i18n="skills.agent_test_title"></h2>
+                <h2 id="agent-test-modal-title" data-i18n="skills.agent_test_title"></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeAgentSkillTestModal()">&times;</button>
             </div>
             <div class="modal-body">
@@ -279,7 +279,7 @@
     </div>
 
     <!-- DETAIL MODAL -->
-    <div class="modal-overlay" id="detail-modal">
+    <div class="modal-overlay" id="detail-modal" role="dialog" aria-modal="true" aria-labelledby="detail-modal-title">
         <div class="modal modal-wide">
             <div class="modal-header">
                 <h2 id="detail-modal-title" data-i18n="skills.detail_title"></h2>
@@ -298,7 +298,7 @@
     </div>
 
     <!-- CODE EDITOR MODAL -->
-    <div class="modal-overlay" id="code-modal">
+    <div class="modal-overlay" id="code-modal" role="dialog" aria-modal="true" aria-labelledby="code-modal-title">
         <div class="modal modal-wide">
             <div class="modal-header">
                 <h2 id="code-modal-title" data-i18n="skills.code_title"></h2>
@@ -341,10 +341,10 @@
     </div>
 
     <!-- UPLOAD MODAL -->
-    <div class="modal-overlay" id="upload-modal">
+    <div class="modal-overlay" id="upload-modal" role="dialog" aria-modal="true" aria-labelledby="upload-modal-title">
         <div class="modal">
             <div class="modal-header">
-                <h2 data-i18n="skills.upload_title"></h2>
+                <h2 id="upload-modal-title" data-i18n="skills.upload_title"></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeUploadModal()">&times;</button>
             </div>
             <div class="modal-body">
@@ -393,10 +393,10 @@
     </div>
 
     <!-- TEMPLATE MODAL -->
-    <div class="modal-overlay" id="template-modal">
+    <div class="modal-overlay" id="template-modal" role="dialog" aria-modal="true" aria-labelledby="template-modal-title">
         <div class="modal">
             <div class="modal-header">
-                <h2 data-i18n="skills.template_title"></h2>
+                <h2 id="template-modal-title" data-i18n="skills.template_title"></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeTemplateModal()">&times;</button>
             </div>
             <div class="modal-body">
@@ -447,10 +447,10 @@
     </div>
 
     <!-- DELETE CONFIRM MODAL -->
-    <div class="modal-overlay" id="delete-skill-modal">
+    <div class="modal-overlay" id="delete-skill-modal" role="dialog" aria-modal="true" aria-labelledby="delete-skill-modal-title">
         <div class="modal">
             <div class="modal-header">
-                <h2 data-i18n="skills.delete_title"></h2>
+                <h2 id="delete-skill-modal-title" data-i18n="skills.delete_title"></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeDeleteSkillModal()">&times;</button>
             </div>
             <div class="modal-body">
@@ -468,10 +468,10 @@
     </div>
 
     <!-- VAULT KEY ASSIGNMENT MODAL -->
-    <div class="modal-overlay" id="vault-key-modal">
+    <div class="modal-overlay" id="vault-key-modal" role="dialog" aria-modal="true" aria-labelledby="vault-key-modal-title">
         <div class="modal modal--sm">
             <div class="modal-header">
-                <h2 data-i18n="skills.vault_modal_title"></h2>
+                <h2 id="vault-key-modal-title" data-i18n="skills.vault_modal_title"></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeVaultKeyModal()">&times;</button>
             </div>
             <div class="modal-body">
@@ -489,10 +489,10 @@
     </div>
 
     <!-- INTERNAL TOOLS ASSIGNMENT MODAL -->
-    <div class="modal-overlay" id="internal-tools-modal">
+    <div class="modal-overlay" id="internal-tools-modal" role="dialog" aria-modal="true" aria-labelledby="internal-tools-modal-title">
         <div class="modal modal--sm">
             <div class="modal-header">
-                <h2 data-i18n="skills.internal_tools_modal_title"></h2>
+                <h2 id="internal-tools-modal-title" data-i18n="skills.internal_tools_modal_title"></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeInternalToolsModal()">&times;</button>
             </div>
             <div class="modal-body">
@@ -510,10 +510,10 @@
     </div>
 
     <!-- TEST MODAL -->
-    <div class="modal-overlay" id="test-modal">
+    <div class="modal-overlay" id="test-modal" role="dialog" aria-modal="true" aria-labelledby="test-modal-title">
         <div class="modal modal-wide">
             <div class="modal-header">
-                <h2 data-i18n="skills.test_title"></h2>
+                <h2 id="test-modal-title" data-i18n="skills.test_title"></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeTestModal()">&times;</button>
             </div>
             <div class="modal-body">
@@ -537,10 +537,10 @@
     </div>
 
     <!-- IMPORT MODAL -->
-    <div class="modal-overlay" id="import-modal">
+    <div class="modal-overlay" id="import-modal" role="dialog" aria-modal="true" aria-labelledby="import-modal-title">
         <div class="modal">
             <div class="modal-header">
-                <h2 data-i18n="skills.import_title"></h2>
+                <h2 id="import-modal-title" data-i18n="skills.import_title"></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeImportModal()">&times;</button>
             </div>
             <div class="modal-body">
@@ -558,10 +558,10 @@
     </div>
 
     <!-- GENERATE MODAL -->
-    <div class="modal-overlay" id="generate-modal">
+    <div class="modal-overlay" id="generate-modal" role="dialog" aria-modal="true" aria-labelledby="generate-modal-title">
         <div class="modal modal-wide">
             <div class="modal-header">
-                <h2 data-i18n="skills.generate_title"></h2>
+                <h2 id="generate-modal-title" data-i18n="skills.generate_title"></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeGenerateModal()">&times;</button>
             </div>
             <div class="modal-body">

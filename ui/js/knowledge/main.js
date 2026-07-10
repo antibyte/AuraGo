@@ -710,7 +710,7 @@ function renderDevices() {
     if (!filtered.length) {
         tbody.innerHTML = '';
         tableWrap.style.display = 'none';
-        empty.style.display = '';
+        empty.style.display = 'block';
         return;
     }
     tableWrap.style.display = '';

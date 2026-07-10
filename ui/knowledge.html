@@ -301,7 +301,7 @@
     </div>
 
     <!-- ═══════ DEVICE MODAL ═══════ -->
-    <div class="modal-overlay" id="device-modal">
+    <div class="modal-overlay" id="device-modal" role="dialog" aria-modal="true" aria-labelledby="device-modal-title">
         <div class="modal">
             <div class="modal-header">
                 <h2 id="device-modal-title" data-i18n="knowledge.devices_add"></h2>
@@ -367,7 +367,7 @@
     </div>
 
     <!-- ═══════ CONTACT MODAL ═══════ -->
-    <div class="modal-overlay" id="contact-modal">
+    <div class="modal-overlay" id="contact-modal" role="dialog" aria-modal="true" aria-labelledby="contact-modal-title">
         <div class="modal">
             <div class="modal-header">
                 <h2 id="contact-modal-title" data-i18n="knowledge.contacts_add"></h2>
@@ -415,7 +415,7 @@
     </div>
 
     <!-- ═══════ CREDENTIAL MODAL ═══════ -->
-    <div class="modal-overlay" id="credential-modal">
+    <div class="modal-overlay" id="credential-modal" role="dialog" aria-modal="true" aria-labelledby="credential-modal-title">
         <div class="modal">
             <div class="modal-header">
                 <h2 id="credential-modal-title" data-i18n="knowledge.credentials_add"></h2>
@@ -505,7 +505,7 @@
     </div>
 
     <!-- ═══════ APPOINTMENT MODAL ═══════ -->
-    <div class="modal-overlay" id="appointment-modal">
+    <div class="modal-overlay" id="appointment-modal" role="dialog" aria-modal="true" aria-labelledby="appointment-modal-title">
         <div class="modal">
             <div class="modal-header">
                 <h2 id="appointment-modal-title" data-i18n="knowledge.appointments_add"></h2>
@@ -569,7 +569,7 @@
     </div>
 
     <!-- ═══════ TODO MODAL ═══════ -->
-    <div class="modal-overlay" id="todo-modal">
+    <div class="modal-overlay" id="todo-modal" role="dialog" aria-modal="true" aria-labelledby="todo-modal-title">
         <div class="modal">
             <div class="modal-header">
                 <h2 id="todo-modal-title" data-i18n="knowledge.todos_add"></h2>
@@ -632,10 +632,10 @@
     </div>
 
     <!-- ═══════ DELETE CONFIRM MODAL ═══════ -->
-    <div class="modal-overlay" id="delete-modal">
+    <div class="modal-overlay" id="delete-modal" role="dialog" aria-modal="true" aria-labelledby="knowledge-delete-modal-title">
         <div class="modal modal-small">
             <div class="modal-header">
-                <h2 data-i18n="knowledge.delete_confirm_title"></h2>
+                <h2 id="knowledge-delete-modal-title" data-i18n="knowledge.delete_confirm_title"></h2>
                 <button type="button" class="modal-close" data-i18n-aria-label="common.close" onclick="closeModal('delete-modal')">&times;</button>
             </div>
             <p id="delete-confirm-text" data-i18n="knowledge.delete_confirm_text"></p>
@@ -649,7 +649,7 @@
     </div>
 
     <!-- ═══════ FILE PREVIEW MODAL ═══════ -->
-    <div class="modal-overlay" id="file-preview-modal">
+    <div class="modal-overlay" id="file-preview-modal" role="dialog" aria-modal="true" aria-labelledby="file-preview-title">
         <div class="modal kc-preview-modal">
             <div class="modal-header">
                 <div class="kc-preview-heading">

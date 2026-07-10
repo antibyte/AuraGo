@@ -1451,46 +1451,6 @@
     display: none;
 }
 
-.pw-page[data-workspace-page="skills"] .sk-container:has(#sk-tab-agent.active) #agent-toolbar-actions.is-hidden,
-.pw-page[data-workspace-page="skills"] #agent-skill-modal.active:has(#agent-create-fields[style*="display: none"]) #agent-resource-browser.is-hidden,
-.pw-page[data-workspace-page="skills"] .sk-form-group:has(#agent-resource-list .sk-resource-chip.is-selected) #agent-file-editor.is-hidden,
-.pw-page[data-workspace-page="skills"] #agent-file-editor.is-hidden:has(#agent-resource-content[style*="display: none"]) #agent-binary-download.is-hidden,
-.pw-page[data-workspace-page="skills"] #agent-nonpython-warning.is-hidden:has(+ .sk-code-meta-grid #agent-test-script option:checked[value$=".sh"]),
-.pw-page[data-workspace-page="skills"] #agent-nonpython-warning.is-hidden:has(+ .sk-code-meta-grid #agent-test-script option:checked[value$=".js"]),
-.pw-page[data-workspace-page="skills"] #agent-resource-path-error.is-hidden:not(:empty),
-.pw-page[data-workspace-page="skills"] #sk-dropzone[style*="display: none"] + #sk-selected-file.is-hidden,
-.pw-page[data-workspace-page="skills"] #template-description.is-hidden:not(:empty),
-.pw-page[data-workspace-page="skills"] #vault-key-list:empty + #vault-key-empty.is-hidden,
-.pw-page[data-workspace-page="skills"] #internal-tools-list:empty + #internal-tools-bridge-off.is-hidden {
-    display: block;
-}
-
-.pw-page[data-workspace-page="skills"] .sk-container:has(#sk-grid[style*="display: none"]) #sk-empty.is-hidden {
-    display: block;
-}
-
-.pw-page[data-workspace-page="skills"] .sk-container:has(#sk-status-bar[style*="display: none"]) #sk-disabled.is-hidden {
-    display: block;
-}
-
-.pw-page[data-workspace-page="skills"] #code-modal.active #code-draft-meta.is-hidden[style=""],
-.pw-page[data-workspace-page="skills"] #agent-resource-browser.is-hidden[style=""],
-.pw-page[data-workspace-page="skills"] #agent-file-editor.is-hidden[style=""],
-.pw-page[data-workspace-page="skills"] #agent-binary-download.is-hidden[style=""],
-.pw-page[data-workspace-page="skills"] #agent-nonpython-warning.is-hidden[style=""],
-.pw-page[data-workspace-page="skills"] #sk-selected-file.is-hidden[style=""],
-.pw-page[data-workspace-page="skills"] #template-description.is-hidden[style=""],
-.pw-page[data-workspace-page="skills"] #vault-key-empty.is-hidden[style=""],
-.pw-page[data-workspace-page="skills"] #internal-tools-bridge-off.is-hidden[style=""] {
-    display: block;
-}
-
-.pw-page[data-workspace-page="skills"] #agent-toolbar-actions.is-hidden[style=""],
-.pw-page[data-workspace-page="skills"] #agent-nonpython-warning.is-hidden[style=""],
-.pw-page[data-workspace-page="skills"] #sk-selected-file.is-hidden[style=""] {
-    display: flex;
-}
-
 .pw-page[data-workspace-page="skills"] .app-header {
     min-height: var(--pw-header-height);
     padding: var(--pw-space-3) clamp(1rem, 2.5vw, 2rem);
@@ -1777,6 +1737,25 @@
     overflow-y: auto;
 }
 
+.pw-page[data-workspace-page="skills"] .modal-overlay.sk-code-overlay-fullscreen .modal {
+    width: 100vw;
+    max-width: none;
+    height: 100dvh;
+    max-height: none;
+    border-radius: 0;
+}
+
+.pw-page[data-workspace-page="skills"] .modal-overlay.sk-code-overlay-fullscreen .modal-body {
+    flex: 1;
+    overflow: auto;
+}
+
+.pw-page[data-workspace-page="skills"] .modal-overlay.sk-code-overlay-fullscreen .sk-code-editor-container,
+.pw-page[data-workspace-page="skills"] .modal-overlay.sk-code-overlay-fullscreen .sk-code-editor-container .cm-editor {
+    min-height: calc(100dvh - 260px);
+    max-height: calc(100dvh - 240px);
+}
+
 .pw-page[data-workspace-page="skills"] .modal-header,
 .pw-page[data-workspace-page="skills"] .modal-actions {
     flex: 0 0 auto;
@@ -1793,6 +1772,30 @@
     box-shadow: none;
 }
 
+.pw-page[data-workspace-page="skills"] .sk-toast-success {
+    border-color: color-mix(in srgb, var(--pw-success) 38%, var(--pw-line));
+    background: color-mix(in srgb, var(--pw-success) 12%, var(--pw-surface-elevated));
+    background-image: none;
+    color: var(--pw-success);
+    box-shadow: none;
+}
+
+.pw-page[data-workspace-page="skills"] .sk-toast-error {
+    border-color: color-mix(in srgb, var(--pw-danger) 38%, var(--pw-line));
+    background: color-mix(in srgb, var(--pw-danger) 11%, var(--pw-surface-elevated));
+    background-image: none;
+    color: var(--pw-danger);
+    box-shadow: none;
+}
+
+.pw-page[data-workspace-page="skills"] .sk-toast-info {
+    border-color: color-mix(in srgb, var(--pw-accent) 38%, var(--pw-line));
+    background: color-mix(in srgb, var(--pw-accent) 10%, var(--pw-surface-elevated));
+    background-image: none;
+    color: var(--pw-accent-strong);
+    box-shadow: none;
+}
+
 .pw-page[data-workspace-page="skills"] .sk-daemon-settings-section {
     border-color: var(--pw-line);
     background: var(--pw-surface-elevated);
@@ -1801,13 +1804,22 @@
     filter: none;
 }
 
-.pw-page[data-workspace-page="skills"] .sk-dropzone:hover {
+.pw-page[data-workspace-page="skills"] .sk-dropzone:hover,
+.pw-page[data-workspace-page="skills"] .sk-dropzone-active {
     border-color: var(--pw-line-strong);
     background: var(--pw-surface-soft);
     background-image: none;
     box-shadow: none;
     filter: none;
     transform: none;
+}
+
+.pw-page[data-workspace-page="skills"] .sk-doc-editor-textarea {
+    font-family: var(--font-mono, monospace);
+}
+
+.pw-page[data-workspace-page="skills"] .sk-doc-editor-upload {
+    margin-top: var(--pw-space-2);
 }
 
 .pw-page[data-workspace-page="skills"] .empty-state .icon {
@@ -1901,6 +1913,14 @@
     .pw-page[data-workspace-page="skills"][data-density="compact"] select,
     .pw-page[data-workspace-page="skills"][data-density="compact"] textarea,
     .pw-page[data-workspace-page="skills"][data-density="compact"] button,
+    .pw-page[data-workspace-page="skills"][data-density="compact"] .btn {
+        min-height: 44px;
+    }
+
+    .pw-page[data-workspace-page="skills"][data-density="compact"] .sk-tab,
+    .pw-page[data-workspace-page="skills"][data-density="compact"] .sk-search,
+    .pw-page[data-workspace-page="skills"][data-density="compact"] .sk-input,
+    .pw-page[data-workspace-page="skills"][data-density="compact"] .sk-select,
     .pw-page[data-workspace-page="skills"][data-density="compact"] .btn {
         min-height: 44px;
     }

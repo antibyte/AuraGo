@@ -35,10 +35,24 @@
         '/invasion': '<path d="M7 18c-2-2-2-6 0-9s3-5 5-5 3 2 5 5 2 7 0 9-3 2-5 2-3 0-5-2Z"/><path d="M9 12h.01M15 12h.01M10 16c1 .7 3 .7 4 0"/>',
         logout: '<path d="M10 5H5v14h5M14 8l4 4-4 4M8 12h10"/>'
     };
+    const MODAL_SELECTOR = '.modal-overlay';
+    const MODAL_FOCUSABLE_SELECTOR = [
+        '[autofocus]',
+        'a[href]',
+        'button:not([disabled])',
+        'input:not([disabled]):not([type="hidden"])',
+        'select:not([disabled])',
+        'textarea:not([disabled])',
+        '[tabindex]:not([tabindex="-1"])'
+    ].join(',');
 
     let currentDensity = DEFAULT_DENSITY;
     let initialized = false;
     let radialObserver = null;
+    let modalObserver = null;
+    let generatedModalTitle = 0;
+    const activeModalOverlays = new Set();
+    const modalPreviousFocus = new WeakMap();
 
     function normalizeDensity(value) {
         return DENSITIES.has(value) ? value : DEFAULT_DENSITY;
@@ -197,6 +211,133 @@
         enhanceRadialMenu();
     }
 
+    function modalFocusableElements(overlay) {
+        return Array.from(overlay.querySelectorAll(MODAL_FOCUSABLE_SELECTOR)).filter((element) => {
+            if (element.getAttribute('aria-hidden') === 'true') return false;
+            return element.getClientRects().length > 0;
+        });
+    }
+
+    function isModalOpen(overlay) {
+        if (!overlay || !overlay.isConnected) return false;
+        if (overlay.classList.contains('active') || overlay.classList.contains('open')) return true;
+        const inlineDisplay = overlay.style.display;
+        return Boolean(inlineDisplay && inlineDisplay !== 'none');
+    }
+
+    function focusModal(overlay) {
+        const focusable = modalFocusableElements(overlay);
+        const target = focusable[0] || overlay;
+        if (target === overlay && !overlay.hasAttribute('tabindex')) {
+            overlay.setAttribute('tabindex', '-1');
+        }
+        target.focus({ preventScroll: true });
+    }
+
+    function activateModal(overlay) {
+        if (activeModalOverlays.has(overlay)) return;
+        activeModalOverlays.add(overlay);
+        const previousFocus = document.activeElement;
+        if (previousFocus && previousFocus !== document.body) {
+            modalPreviousFocus.set(overlay, previousFocus);
+        }
+        overlay.dataset.pwModalActive = 'true';
+        window.requestAnimationFrame(() => {
+            if (!isModalOpen(overlay)) return;
+            if (!overlay.contains(document.activeElement)) focusModal(overlay);
+        });
+    }
+
+    function deactivateModal(overlay) {
+        if (!activeModalOverlays.delete(overlay)) return;
+        delete overlay.dataset.pwModalActive;
+        const previousFocus = modalPreviousFocus.get(overlay);
+        modalPreviousFocus.delete(overlay);
+        if (!previousFocus || !previousFocus.isConnected || typeof previousFocus.focus !== 'function') return;
+        window.requestAnimationFrame(() => previousFocus.focus({ preventScroll: true }));
+    }
+
+    function handleModalKeydown(overlay, event) {
+        if (event.key !== 'Tab' || !isModalOpen(overlay)) return;
+        const focusable = modalFocusableElements(overlay);
+        if (focusable.length === 0) {
+            event.preventDefault();
+            focusModal(overlay);
+            return;
+        }
+
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && (document.activeElement === first || !overlay.contains(document.activeElement))) {
+            event.preventDefault();
+            last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault();
+            first.focus();
+        }
+    }
+
+    function syncModalOverlay(overlay) {
+        if (isModalOpen(overlay)) {
+            activateModal(overlay);
+        } else {
+            deactivateModal(overlay);
+        }
+    }
+
+    function enhanceModalOverlay(overlay) {
+        if (!overlay || !overlay.matches(MODAL_SELECTOR)) return;
+        if (overlay.dataset.pwModalBound === 'true') {
+            syncModalOverlay(overlay);
+            return;
+        }
+
+        overlay.dataset.pwModalBound = 'true';
+        if (!overlay.hasAttribute('role')) overlay.setAttribute('role', 'dialog');
+        if (!overlay.hasAttribute('aria-modal')) overlay.setAttribute('aria-modal', 'true');
+        if (!overlay.hasAttribute('aria-labelledby')) {
+            const heading = overlay.querySelector('.modal-header h1, .modal-header h2, .modal-header h3');
+            if (heading) {
+                if (!heading.id) {
+                    generatedModalTitle += 1;
+                    heading.id = 'pw-modal-title-' + generatedModalTitle;
+                }
+                overlay.setAttribute('aria-labelledby', heading.id);
+            }
+        }
+        overlay.addEventListener('keydown', (event) => handleModalKeydown(overlay, event));
+        syncModalOverlay(overlay);
+    }
+
+    function modalOverlaysWithin(node) {
+        if (!(node instanceof Element)) return [];
+        const overlays = Array.from(node.querySelectorAll(MODAL_SELECTOR));
+        if (node.matches(MODAL_SELECTOR)) overlays.unshift(node);
+        return overlays;
+    }
+
+    function observeModalOverlays() {
+        if (!document.body || modalObserver) return;
+        document.querySelectorAll(MODAL_SELECTOR).forEach(enhanceModalOverlay);
+
+        modalObserver = new MutationObserver((records) => {
+            records.forEach((record) => {
+                if (record.type === 'attributes') {
+                    enhanceModalOverlay(record.target);
+                    return;
+                }
+                record.addedNodes.forEach((node) => modalOverlaysWithin(node).forEach(enhanceModalOverlay));
+                record.removedNodes.forEach((node) => modalOverlaysWithin(node).forEach(deactivateModal));
+            });
+        });
+        modalObserver.observe(document.body, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            attributeFilter: ['class', 'style']
+        });
+    }
+
     function init() {
         if (!document.body || !document.body.classList.contains('pw-page')) return currentDensity;
 
@@ -207,6 +348,7 @@
         bindDensityControls();
         syncDensityControls();
         observeRadialMenu();
+        observeModalOverlays();
         return currentDensity;
     }
 
