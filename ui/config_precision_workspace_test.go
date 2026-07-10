@@ -44,7 +44,7 @@ func TestConfigPrecisionWorkspaceTypographyAndDensityContract(t *testing.T) {
 	for _, marker := range []string{
 		`.pw-page {`,
 		`--pw-canvas: #10161e;`,
-		`--pw-surface: #18212b;`,
+		`--pw-surface: #151f2b;`,
 		`--pw-accent: #6f98bd;`,
 		`--pw-control-size: 1rem;`,
 		`--pw-label-size: 0.9375rem;`,

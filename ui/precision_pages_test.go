@@ -61,8 +61,8 @@ func TestPrecisionWorkspaceSlatePaletteTokens(t *testing.T) {
 
 	foundation := normalizeAssetText(mustReadUIFile(t, "css/precision-workspace.css"))
 	for _, token := range []string{
-		`--pw-canvas: #10161e;`, `--pw-surface: #18212b;`,
-		`--pw-surface-elevated: #202b37;`, `--pw-surface-soft: #2a3745;`,
+		`--pw-canvas: #10161e;`, `--pw-surface: #151f2b;`,
+		`--pw-surface-elevated: #1b2938;`, `--pw-surface-soft: #26384c;`,
 		`--pw-text: #edf2f7;`, `--pw-muted: #aab7c4;`,
 		`--pw-subtle: #7d8b99;`, `--pw-accent: #6f98bd;`,
 		`--pw-accent-strong: #91b5d6;`,
