@@ -29,12 +29,14 @@
   <link rel="stylesheet" href="/css/tokens.css">
   <link rel="stylesheet" href="/css/dashboard.css?v={{.BuildVersion}}-dashboard-agent-grid">
   <link rel="stylesheet" href="/css/enhancements.css?v=20260425a">
+  <link rel="stylesheet" href="/css/precision-workspace.css?v={{.BuildVersion}}">
+  <link rel="stylesheet" href="/css/precision-pages.css?v={{.BuildVersion}}">
   <script src="/chart.min.js" defer></script>
   <script src="/js/vendor/force-graph.min.js" defer></script>
   <script src="/js/dashboard/dash-icons.js?v={{.BuildVersion}}" defer></script>
 </head>
 
-<body>
+<body class="pw-page pw-operational-page" data-workspace-page="dashboard" data-density="comfortable">
   <a href="#tab-overview" class="skip-link" data-i18n="common.skip_to_content"></a>
 
   <!-- Header -->
@@ -834,6 +836,7 @@
   </div><!-- .dash-grid tab-system -->
   </div><!-- #tab-system -->
 
+  <script src="/js/precision/workspace.js?v={{.BuildVersion}}"></script>
   <script src="/js/dashboard/main.js" defer></script>
   <script src="/js/dashboard/dashboard-charts.js" defer></script>
   <script src="/js/dashboard/dashboard-widgets.js" defer></script>

@@ -138,6 +138,129 @@ func TestConfigPrecisionWorkspaceSharedIntegration(t *testing.T) {
 	}
 }
 
+func TestPrecisionWorkspaceDashboardIntegration(t *testing.T) {
+	t.Parallel()
+
+	html := normalizeAssetText(mustReadUIFile(t, "dashboard.html"))
+	for _, marker := range []string{
+		`<body class="pw-page pw-operational-page" data-workspace-page="dashboard" data-density="comfortable">`,
+		`href="#tab-overview"`,
+		`/css/dashboard.css?v={{.BuildVersion}}-dashboard-agent-grid`,
+		`data-tab="overview" id="dash-tab-overview"`,
+		`data-tab="agent" id="dash-tab-agent"`,
+		`id="tab-overview" role="tabpanel"`,
+		`id="tab-agent" role="tabpanel"`,
+		`id="card-agent-banner"`,
+		`id="agent-banner"`,
+		`id="card-system"`,
+		`data-card="card-system"`,
+		`id="cpu-chart"`,
+		`id="card-personality"`,
+		`id="card-knowledge-graph-visual"`,
+		`id="knowledge-graph-visual" class="knowledge-visual-wrap"`,
+		`id="log-viewer"`,
+	} {
+		if !strings.Contains(html, marker) {
+			t.Errorf("dashboard.html missing Precision or preserved hook marker %q", marker)
+		}
+	}
+
+	dashboardAt := strings.Index(html, `/css/dashboard.css?v={{.BuildVersion}}-dashboard-agent-grid`)
+	enhancementsAt := strings.Index(html, `/css/enhancements.css?v=20260425a`)
+	foundationAt := strings.Index(html, `/css/precision-workspace.css?v={{.BuildVersion}}`)
+	componentsAt := strings.Index(html, `/css/precision-pages.css?v={{.BuildVersion}}`)
+	if dashboardAt < 0 || enhancementsAt < 0 || foundationAt < 0 || componentsAt < 0 ||
+		!(dashboardAt < enhancementsAt && enhancementsAt < foundationAt && foundationAt < componentsAt) {
+		t.Errorf("Dashboard Precision CSS order = dashboard:%d enhancements:%d foundation:%d components:%d", dashboardAt, enhancementsAt, foundationAt, componentsAt)
+	}
+
+	workspaceAt := strings.Index(html, `/js/precision/workspace.js?v={{.BuildVersion}}`)
+	mainAt := strings.Index(html, `/js/dashboard/main.js`)
+	if workspaceAt < 0 || mainAt < 0 || workspaceAt >= mainAt {
+		t.Errorf("Dashboard script order = workspace:%d main:%d", workspaceAt, mainAt)
+	}
+	if regexp.MustCompile(`(?i)\sstyle\s*=`).MatchString(html) {
+		t.Fatal("dashboard.html must not add inline style attributes during Precision migration")
+	}
+}
+
+func TestPrecisionWorkspaceDashboardAdapterIsScopedAndResponsive(t *testing.T) {
+	t.Parallel()
+
+	css := normalizeAssetText(mustReadUIFile(t, "css/dashboard.css"))
+	const (
+		adapterStart = `/* === Precision Workspace Dashboard Adapter: start === */`
+		adapterEnd   = `/* === Precision Workspace Dashboard Adapter: end === */`
+		prefix       = `.pw-page[data-workspace-page="dashboard"]`
+	)
+	start := strings.Index(css, adapterStart)
+	end := strings.Index(css, adapterEnd)
+	if start < 0 || end <= start {
+		t.Fatalf("dashboard.css missing delimited Precision adapter: start=%d end=%d", start, end)
+	}
+	adapter := css[start:end]
+
+	for _, marker := range []string{
+		prefix + ` {`,
+		`--pw-dashboard-frame: 1440px;`,
+		`overflow-x: clip;`,
+		`var(--pw-line)`,
+		`border-radius: 14px;`,
+		`border-radius: 20px;`,
+		`background-image: none;`,
+		`box-shadow: none;`,
+		`content: none;`,
+		prefix + `[data-density="compact"]`,
+		`:root[data-theme="light"] *`,
+		`@media (max-width: 1024px)`,
+		`@media (max-width: 640px)`,
+		`min-height: 44px;`,
+		`@media (prefers-reduced-motion: reduce)`,
+		prefix + ` #tab-agent .dash-grid`,
+		`grid-template-columns: repeat(2, minmax(0, 1fr));`,
+	} {
+		if !strings.Contains(adapter, marker) {
+			t.Errorf("Dashboard Precision adapter missing marker %q", marker)
+		}
+	}
+	if strings.Contains(strings.ToLower(adapter), "gradient(") {
+		t.Fatal("Dashboard Precision adapter must not introduce visible gradients")
+	}
+
+	comments := regexp.MustCompile(`(?s)/\*.*?\*/`)
+	uncommented := comments.ReplaceAllString(adapter, "")
+	segmentStart := 0
+	for index, char := range uncommented {
+		switch char {
+		case '{':
+			header := strings.TrimSpace(uncommented[segmentStart:index])
+			segmentStart = index + 1
+			if header == "" || strings.HasPrefix(header, "@") {
+				continue
+			}
+			for _, selector := range strings.Split(header, ",") {
+				selector = strings.TrimSpace(selector)
+				if selector != "" && !strings.HasPrefix(selector, prefix) {
+					t.Errorf("Dashboard Precision adapter selector must start with %q: %q", prefix, selector)
+				}
+			}
+		case '}':
+			segmentStart = index + 1
+		}
+	}
+
+	for _, preserved := range []string{
+		`.chart-wrap-sm`,
+		`.log-viewer`,
+		`.knowledge-visual-wrap`,
+		`min-height: 360px;`,
+	} {
+		if !strings.Contains(css, preserved) {
+			t.Errorf("dashboard.css lost chart/log/KG layout contract %q", preserved)
+		}
+	}
+}
+
 func TestPrecisionWorkspaceTranslations(t *testing.T) {
 	t.Parallel()
 
