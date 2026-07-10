@@ -113,45 +113,45 @@
 }
 
 .pw-page .sidebar-item .icon {
-    width: 22px;
+    width: 26px;
     font-size: 0;
 }
 
 .pw-page .sidebar-item .cfg-sprite-icon {
     display: block;
-    width: 20px;
-    height: 20px;
+    width: 24px;
+    height: 24px;
     margin: auto;
     background-image: url('../img/config-sidebar-icons-sprite.png');
     background-position: var(--cfg-icon-x, 0) var(--cfg-icon-y, 0);
     background-repeat: no-repeat;
-    background-size: 220px 200px;
-    filter: saturate(0.92) brightness(0.95);
+    background-size: 264px 240px;
+    filter: none;
     transition: filter 140ms ease, transform 140ms ease;
 }
 
 .pw-page .cfg-sprite-column-0 { --cfg-icon-x: 0; }
-.pw-page .cfg-sprite-column-1 { --cfg-icon-x: -20px; }
-.pw-page .cfg-sprite-column-2 { --cfg-icon-x: -40px; }
-.pw-page .cfg-sprite-column-3 { --cfg-icon-x: -60px; }
-.pw-page .cfg-sprite-column-4 { --cfg-icon-x: -80px; }
-.pw-page .cfg-sprite-column-5 { --cfg-icon-x: -100px; }
-.pw-page .cfg-sprite-column-6 { --cfg-icon-x: -120px; }
-.pw-page .cfg-sprite-column-7 { --cfg-icon-x: -140px; }
-.pw-page .cfg-sprite-column-8 { --cfg-icon-x: -160px; }
-.pw-page .cfg-sprite-column-9 { --cfg-icon-x: -180px; }
-.pw-page .cfg-sprite-column-10 { --cfg-icon-x: -200px; }
+.pw-page .cfg-sprite-column-1 { --cfg-icon-x: -24px; }
+.pw-page .cfg-sprite-column-2 { --cfg-icon-x: -48px; }
+.pw-page .cfg-sprite-column-3 { --cfg-icon-x: -72px; }
+.pw-page .cfg-sprite-column-4 { --cfg-icon-x: -96px; }
+.pw-page .cfg-sprite-column-5 { --cfg-icon-x: -120px; }
+.pw-page .cfg-sprite-column-6 { --cfg-icon-x: -144px; }
+.pw-page .cfg-sprite-column-7 { --cfg-icon-x: -168px; }
+.pw-page .cfg-sprite-column-8 { --cfg-icon-x: -192px; }
+.pw-page .cfg-sprite-column-9 { --cfg-icon-x: -216px; }
+.pw-page .cfg-sprite-column-10 { --cfg-icon-x: -240px; }
 
 .pw-page .cfg-sprite-row-0 { --cfg-icon-y: 0; }
-.pw-page .cfg-sprite-row-1 { --cfg-icon-y: -20px; }
-.pw-page .cfg-sprite-row-2 { --cfg-icon-y: -40px; }
-.pw-page .cfg-sprite-row-3 { --cfg-icon-y: -60px; }
-.pw-page .cfg-sprite-row-4 { --cfg-icon-y: -80px; }
-.pw-page .cfg-sprite-row-5 { --cfg-icon-y: -100px; }
-.pw-page .cfg-sprite-row-6 { --cfg-icon-y: -120px; }
-.pw-page .cfg-sprite-row-7 { --cfg-icon-y: -140px; }
-.pw-page .cfg-sprite-row-8 { --cfg-icon-y: -160px; }
-.pw-page .cfg-sprite-row-9 { --cfg-icon-y: -180px; }
+.pw-page .cfg-sprite-row-1 { --cfg-icon-y: -24px; }
+.pw-page .cfg-sprite-row-2 { --cfg-icon-y: -48px; }
+.pw-page .cfg-sprite-row-3 { --cfg-icon-y: -72px; }
+.pw-page .cfg-sprite-row-4 { --cfg-icon-y: -96px; }
+.pw-page .cfg-sprite-row-5 { --cfg-icon-y: -120px; }
+.pw-page .cfg-sprite-row-6 { --cfg-icon-y: -144px; }
+.pw-page .cfg-sprite-row-7 { --cfg-icon-y: -168px; }
+.pw-page .cfg-sprite-row-8 { --cfg-icon-y: -192px; }
+.pw-page .cfg-sprite-row-9 { --cfg-icon-y: -216px; }
 
 .pw-page .sidebar-item:hover .cfg-sprite-icon,
 .pw-page .sidebar-item.active .cfg-sprite-icon {
