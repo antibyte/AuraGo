@@ -117,56 +117,30 @@
     font-size: 0;
 }
 
-.pw-page .sidebar-item .cfg-sprite-icon {
+.pw-page .sidebar-item .icon svg {
     display: block;
-    width: 20px;
-    height: 20px;
+    width: 19px;
+    height: 19px;
     margin: auto;
-    background-image: url('../img/config-sidebar-icons-sprite.png');
-    background-position: var(--cfg-icon-x, 0) var(--cfg-icon-y, 0);
-    background-repeat: no-repeat;
-    background-size: 220px 200px;
-    filter: saturate(0.92) brightness(0.95);
-    transition: filter 140ms ease, transform 140ms ease;
-}
-
-.pw-page .cfg-sprite-column-0 { --cfg-icon-x: 0; }
-.pw-page .cfg-sprite-column-1 { --cfg-icon-x: -20px; }
-.pw-page .cfg-sprite-column-2 { --cfg-icon-x: -40px; }
-.pw-page .cfg-sprite-column-3 { --cfg-icon-x: -60px; }
-.pw-page .cfg-sprite-column-4 { --cfg-icon-x: -80px; }
-.pw-page .cfg-sprite-column-5 { --cfg-icon-x: -100px; }
-.pw-page .cfg-sprite-column-6 { --cfg-icon-x: -120px; }
-.pw-page .cfg-sprite-column-7 { --cfg-icon-x: -140px; }
-.pw-page .cfg-sprite-column-8 { --cfg-icon-x: -160px; }
-.pw-page .cfg-sprite-column-9 { --cfg-icon-x: -180px; }
-.pw-page .cfg-sprite-column-10 { --cfg-icon-x: -200px; }
-
-.pw-page .cfg-sprite-row-0 { --cfg-icon-y: 0; }
-.pw-page .cfg-sprite-row-1 { --cfg-icon-y: -20px; }
-.pw-page .cfg-sprite-row-2 { --cfg-icon-y: -40px; }
-.pw-page .cfg-sprite-row-3 { --cfg-icon-y: -60px; }
-.pw-page .cfg-sprite-row-4 { --cfg-icon-y: -80px; }
-.pw-page .cfg-sprite-row-5 { --cfg-icon-y: -100px; }
-.pw-page .cfg-sprite-row-6 { --cfg-icon-y: -120px; }
-.pw-page .cfg-sprite-row-7 { --cfg-icon-y: -140px; }
-.pw-page .cfg-sprite-row-8 { --cfg-icon-y: -160px; }
-.pw-page .cfg-sprite-row-9 { --cfg-icon-y: -180px; }
-
-.pw-page .sidebar-item:hover .cfg-sprite-icon,
-.pw-page .sidebar-item.active .cfg-sprite-icon {
-    filter: saturate(1.08) brightness(1.1);
-    transform: scale(1.06);
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
 }
 
 .pw-page .pw-overview-nav {
     margin-block: 0.4rem 0.85rem;
 }
 
-@media (prefers-reduced-motion: reduce) {
-    .pw-page .sidebar-item .cfg-sprite-icon {
-        transition: none;
-    }
+.pw-page .pw-overview-nav .icon svg {
+    display: block;
+    width: 19px;
+    height: 19px;
+    margin: auto;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.5;
 }
 
 .pw-page .cfg-content {
