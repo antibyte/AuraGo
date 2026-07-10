@@ -234,7 +234,10 @@
         if (inlineDisplay) return true;
         if (overlay.matches(MODAL_OVERLAY_SELECTOR)) return false;
         const computed = window.getComputedStyle(overlay);
-        return computed.display !== 'none' && computed.visibility !== 'hidden';
+        return computed.display !== 'none' &&
+            computed.visibility !== 'hidden' &&
+            computed.opacity !== '0' &&
+            computed.pointerEvents !== 'none';
     }
 
     function focusModal(overlay) {

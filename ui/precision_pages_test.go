@@ -1292,6 +1292,8 @@ func TestPrecisionWorkspaceModalFocusContractSupportsStandaloneDialogs(t *testin
 		`window.getComputedStyle(overlay)`,
 		`computed.display !== 'none'`,
 		`computed.visibility !== 'hidden'`,
+		`computed.opacity !== '0'`,
+		`computed.pointerEvents !== 'none'`,
 	} {
 		if !strings.Contains(client, marker) {
 			t.Errorf("Precision standalone modal focus contract missing %q", marker)
@@ -1311,6 +1313,46 @@ func TestPrecisionWorkspaceModalFocusContractSupportsStandaloneDialogs(t *testin
 	computedAt := strings.Index(isOpen, `window.getComputedStyle(overlay)`)
 	if hiddenAt < 0 || activeAt <= hiddenAt || inlineAt <= activeAt || classicClosedAt <= inlineAt || computedAt <= classicClosedAt {
 		t.Error("isModalOpen must support explicit display, then keep classic overlays closed before standalone computed visibility fallback")
+	}
+}
+
+func TestPrecisionWorkspaceStandaloneModalVisibilityMatchesOperationsOpenPaths(t *testing.T) {
+	t.Parallel()
+
+	client := normalizeAssetText(mustReadUIFile(t, "js/precision/workspace.js"))
+	isOpenStart := strings.Index(client, `function isModalOpen(overlay)`)
+	isOpenEnd := strings.Index(client, `function focusModal(overlay)`)
+	if isOpenStart < 0 || isOpenEnd <= isOpenStart {
+		t.Fatal("cannot locate isModalOpen")
+	}
+	isOpen := client[isOpenStart:isOpenEnd]
+	for _, marker := range []string{
+		`computed.display !== 'none'`,
+		`computed.visibility !== 'hidden'`,
+		`computed.opacity !== '0'`,
+		`computed.pointerEvents !== 'none'`,
+	} {
+		if !strings.Contains(isOpen, marker) {
+			t.Errorf("standalone computed visibility must reject hidden Dashboard-style state via %q", marker)
+		}
+	}
+	activeAt := strings.Index(isOpen, `overlay.classList.contains('active')`)
+	computedAt := strings.Index(isOpen, `window.getComputedStyle(overlay)`)
+	if activeAt < 0 || computedAt <= activeAt {
+		t.Error("active/open modal state must remain accepted before standalone computed checks")
+	}
+
+	media := normalizeAssetText(mustReadUIFile(t, "media.html")) + normalizeAssetText(mustReadUIFile(t, "js/media/main.js"))
+	for _, marker := range []string{`id="lightbox" class="lightbox is-hidden" role="dialog"`, `modal.classList.remove('is-hidden');`} {
+		if !strings.Contains(media, marker) {
+			t.Errorf("Media standalone dialog open path missing %q", marker)
+		}
+	}
+	truenas := normalizeAssetText(mustReadUIFile(t, "truenas.html")) + normalizeAssetText(mustReadUIFile(t, "js/truenas.js"))
+	for _, marker := range []string{`class="truenas-modal" role="dialog"`, `classList.add('active')`} {
+		if !strings.Contains(truenas, marker) {
+			t.Errorf("TrueNAS standalone dialog open path missing %q", marker)
+		}
 	}
 }
 
@@ -1710,23 +1752,23 @@ func TestPrecisionWorkspaceOperationsMobileActionTargetsCoverBothDensities(t *te
 	}{
 		{
 			name: "Containers", stylesheet: "css/containers.css", page: "containers",
-			controls: []string{".ct-filter-btn", ".ct-card-actions .btn", ".modal-actions .btn", ".modal-close", `.ct-checkbox-label input[type="checkbox"]`},
-			sources:  []string{"containers.html", "js/containers/main.js"}, renderedClasses: []string{"ct-filter-btn", "ct-card-actions", "modal-actions", "modal-close", "ct-checkbox-label"},
+			controls: []string{".btn-theme", ".ct-search", ".ct-filter-btn", ".btn", ".ct-card-actions .btn", ".modal-actions .btn", ".modal-close", `.ct-checkbox-label input[type="checkbox"]`},
+			sources:  []string{"containers.html", "js/containers/main.js"}, renderedClasses: []string{"btn-theme", "ct-search", "ct-filter-btn", "ct-card-actions", "modal-actions", "modal-close", "ct-checkbox-label"},
 		},
 		{
 			name: "Media", stylesheet: "css/media.css", page: "media",
-			controls: []string{".media-tab", ".btn-gallery-nav", ".btn-gallery-action", ".lightbox-close", ".lightbox-actions .btn-gallery-action", ".audio-play-btn", ".audio-speed-btn", ".audio-download-btn", ".media-doc-row-actions a", ".media-doc-row-actions button"},
-			sources:  []string{"media.html", "js/media/main.js", "js/chat/audio-player.js"}, renderedClasses: []string{"media-tab", "btn-gallery-nav", "btn-gallery-action", "lightbox-close", "lightbox-actions", "audio-play-btn", "audio-speed-btn", "audio-download-btn", "media-doc-row-actions"},
+			controls: []string{".btn-theme", ".gallery-search", ".gallery-filter", ".media-tab", ".btn-gallery-nav", ".btn-gallery-action", ".media-select-check-wrap", ".lightbox-close", ".lightbox-actions .btn-gallery-action", ".audio-play-btn", ".audio-speed-btn", ".audio-download-btn", ".media-doc-row-actions a", ".media-doc-row-actions button"},
+			sources:  []string{"media.html", "js/media/main.js", "js/gallery/main.js", "js/chat/audio-player.js"}, renderedClasses: []string{"btn-theme", "gallery-search", "gallery-filter", "media-tab", "btn-gallery-nav", "btn-gallery-action", "media-select-check-wrap", "lightbox-close", "lightbox-actions", "audio-play-btn", "audio-speed-btn", "audio-download-btn", "media-doc-row-actions"},
 		},
 		{
 			name: "TrueNAS", stylesheet: "css/truenas.css", page: "truenas",
-			controls: []string{".nav-btn", ".pool-actions .btn", ".dataset-actions .btn", ".snapshot-actions .btn", ".share-actions .btn", ".form-actions .btn"},
-			sources:  []string{"truenas.html", "js/truenas.js"}, renderedClasses: []string{"nav-btn", "pool-actions", "dataset-actions", "snapshot-actions", "share-actions", "form-actions"},
+			controls: []string{".btn-theme", ".nav-btn", ".btn", "input", "select", "textarea", ".pool-actions .btn", ".dataset-actions .btn", ".snapshot-actions .btn", ".share-actions .btn", ".form-actions .btn"},
+			sources:  []string{"truenas.html", "js/truenas.js"}, renderedClasses: []string{"btn-theme", "nav-btn", "pool-actions", "dataset-actions", "snapshot-actions", "share-actions", "form-actions"},
 		},
 		{
 			name: "Invasion", stylesheet: "css/invasion.css", page: "invasion",
-			controls: []string{".invasion-tab", ".card-actions .btn", ".modal-actions .btn", ".modal-close", ".rev-actions .btn"},
-			sources:  []string{"invasion_control.html", "js/invasion/main.js"}, renderedClasses: []string{"invasion-tab", "card-actions", "modal-actions", "modal-close", "rev-actions"},
+			controls: []string{".btn-theme", ".invasion-tab", ".btn", "input", "select", "textarea", ".card-actions .btn", ".modal-actions .btn", ".modal-close", ".rev-actions .btn"},
+			sources:  []string{"invasion_control.html", "js/invasion/main.js"}, renderedClasses: []string{"btn-theme", "invasion-tab", "card-actions", "modal-actions", "modal-close", "rev-actions"},
 		},
 	}
 

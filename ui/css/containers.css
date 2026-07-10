@@ -1039,7 +1039,10 @@
         border-radius: 20px 20px 0 0;
     }
 
+    .pw-page[data-workspace-page="containers"] .btn-theme,
+    .pw-page[data-workspace-page="containers"] .ct-search,
     .pw-page[data-workspace-page="containers"] .ct-filter-btn,
+    .pw-page[data-workspace-page="containers"] .btn,
     .pw-page[data-workspace-page="containers"] .ct-card-actions .btn,
     .pw-page[data-workspace-page="containers"] .modal-actions .btn,
     .pw-page[data-workspace-page="containers"] .modal-close,
@@ -1048,6 +1051,7 @@
         min-height: 44px;
     }
 
+    .pw-page[data-workspace-page="containers"][data-density="compact"] .btn-theme,
     .pw-page[data-workspace-page="containers"][data-density="compact"] .ct-search,
     .pw-page[data-workspace-page="containers"][data-density="compact"] .ct-filter-btn,
     .pw-page[data-workspace-page="containers"][data-density="compact"] .btn,

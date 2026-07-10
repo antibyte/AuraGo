@@ -575,7 +575,12 @@
         border-radius: 20px 20px 0 0;
     }
 
+    .pw-page[data-workspace-page="truenas"] .btn-theme,
     .pw-page[data-workspace-page="truenas"] .nav-btn,
+    .pw-page[data-workspace-page="truenas"] .btn,
+    .pw-page[data-workspace-page="truenas"] input,
+    .pw-page[data-workspace-page="truenas"] select,
+    .pw-page[data-workspace-page="truenas"] textarea,
     .pw-page[data-workspace-page="truenas"] .pool-actions .btn,
     .pw-page[data-workspace-page="truenas"] .dataset-actions .btn,
     .pw-page[data-workspace-page="truenas"] .snapshot-actions .btn,
@@ -585,10 +590,12 @@
         min-height: 44px;
     }
 
+    .pw-page[data-workspace-page="truenas"][data-density="compact"] .btn-theme,
     .pw-page[data-workspace-page="truenas"][data-density="compact"] .nav-btn,
     .pw-page[data-workspace-page="truenas"][data-density="compact"] .btn,
     .pw-page[data-workspace-page="truenas"][data-density="compact"] input,
-    .pw-page[data-workspace-page="truenas"][data-density="compact"] select {
+    .pw-page[data-workspace-page="truenas"][data-density="compact"] select,
+    .pw-page[data-workspace-page="truenas"][data-density="compact"] textarea {
         min-width: 44px;
         min-height: 44px;
     }

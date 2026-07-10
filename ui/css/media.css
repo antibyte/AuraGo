@@ -1127,9 +1127,13 @@
         border-radius: 20px 20px 0 0;
     }
 
+    .pw-page[data-workspace-page="media"] .btn-theme,
+    .pw-page[data-workspace-page="media"] .gallery-search,
+    .pw-page[data-workspace-page="media"] .gallery-filter,
     .pw-page[data-workspace-page="media"] .media-tab,
     .pw-page[data-workspace-page="media"] .btn-gallery-nav,
     .pw-page[data-workspace-page="media"] .btn-gallery-action,
+    .pw-page[data-workspace-page="media"] .media-select-check-wrap,
     .pw-page[data-workspace-page="media"] .lightbox-close,
     .pw-page[data-workspace-page="media"] .lightbox-actions .btn-gallery-action,
     .pw-page[data-workspace-page="media"] .audio-play-btn,
@@ -1141,10 +1145,13 @@
         min-height: 44px;
     }
 
+    .pw-page[data-workspace-page="media"][data-density="compact"] .btn-theme,
     .pw-page[data-workspace-page="media"][data-density="compact"] .gallery-search,
+    .pw-page[data-workspace-page="media"][data-density="compact"] .gallery-filter,
     .pw-page[data-workspace-page="media"][data-density="compact"] .media-tab,
     .pw-page[data-workspace-page="media"][data-density="compact"] .btn-gallery-nav,
-    .pw-page[data-workspace-page="media"][data-density="compact"] .btn-gallery-action {
+    .pw-page[data-workspace-page="media"][data-density="compact"] .btn-gallery-action,
+    .pw-page[data-workspace-page="media"][data-density="compact"] .media-select-check-wrap {
         min-width: 44px;
         min-height: 44px;
     }

@@ -1000,7 +1000,12 @@
         border-radius: 20px 20px 0 0;
     }
 
+    .pw-page[data-workspace-page="invasion"] .btn-theme,
     .pw-page[data-workspace-page="invasion"] .invasion-tab,
+    .pw-page[data-workspace-page="invasion"] .btn,
+    .pw-page[data-workspace-page="invasion"] input,
+    .pw-page[data-workspace-page="invasion"] select,
+    .pw-page[data-workspace-page="invasion"] textarea,
     .pw-page[data-workspace-page="invasion"] .card-actions .btn,
     .pw-page[data-workspace-page="invasion"] .modal-actions .btn,
     .pw-page[data-workspace-page="invasion"] .modal-close,
@@ -1009,10 +1014,12 @@
         min-height: 44px;
     }
 
+    .pw-page[data-workspace-page="invasion"][data-density="compact"] .btn-theme,
     .pw-page[data-workspace-page="invasion"][data-density="compact"] .invasion-tab,
     .pw-page[data-workspace-page="invasion"][data-density="compact"] .btn,
     .pw-page[data-workspace-page="invasion"][data-density="compact"] input,
-    .pw-page[data-workspace-page="invasion"][data-density="compact"] select {
+    .pw-page[data-workspace-page="invasion"][data-density="compact"] select,
+    .pw-page[data-workspace-page="invasion"][data-density="compact"] textarea {
         min-width: 44px;
         min-height: 44px;
     }
