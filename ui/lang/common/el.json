@@ -77,5 +77,8 @@
   "notfound.title": "Η σελίδα δεν βρέθηκε",
   "notfound.description": "Η σελίδα που αναζητάτε δεν υπάρχει ή έχει μεταφερθεί.",
   "notfound.go_home": "Μετάβαση στη συνομιλία",
-  "notfound.go_dashboard": "Ταμπλό"
+  "notfound.go_dashboard": "Ταμπλό",
+  "common.workspace_density_toggle": "Εναλλαγή πυκνότητας χώρου εργασίας",
+  "common.workspace_density_comfortable": "Άνετη",
+  "common.workspace_density_compact": "Συμπαγής"
 }

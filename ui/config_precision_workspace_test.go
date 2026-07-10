@@ -201,11 +201,12 @@ func TestConfigPrecisionWorkspaceBrowserMatrix(t *testing.T) {
 	css := strings.Join([]string{
 		normalizeAssetText(mustReadUIFile(t, "css/config.css")),
 		normalizeAssetText(mustReadUIFile(t, "css/precision-workspace.css")),
+		normalizeAssetText(mustReadUIFile(t, "css/precision-pages.css")),
 		normalizeAssetText(mustReadUIFile(t, "css/config-workspace.css")),
 	}, "\n")
 	html := fmt.Sprintf(`<!doctype html><html lang="en" data-theme="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>%s</style></head>
 	<body class="pw-page" data-density="comfortable">
-	<div class="cfg-header"><div class="cfg-logo-wrap"><button id="cfg-hamburger" class="hamburger-btn cfg-hamburger">☰</button><a class="logo"><div class="logo-icon">⚡</div><span class="logo-wordmark-accent">AURA</span><span class="logo-wordmark-base">GO</span><span class="logo-subtitle">Configuration</span></a></div><div class="header-actions"><button id="cfg-density-toggle" class="pw-density-toggle" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M5 7h14M5 12h14M5 17h14"/></svg><span>Comfortable</span></button><button id="cfg-restart-btn" class="btn-header cfg-restart-btn">Restart</button></div></div>
+	<div class="cfg-header"><div class="cfg-logo-wrap"><button id="cfg-hamburger" class="hamburger-btn cfg-hamburger">☰</button><a class="logo"><div class="logo-icon">⚡</div><span class="logo-wordmark-accent">AURA</span><span class="logo-wordmark-base">GO</span><span class="logo-subtitle">Configuration</span></a></div><div class="header-actions"><button id="cfg-density-toggle" class="pw-density-toggle" aria-pressed="false" data-pw-density-toggle><svg viewBox="0 0 24 24"><path d="M5 7h14M5 12h14M5 17h14"/></svg><span data-pw-density-label>Comfortable</span></button><button id="cfg-restart-btn" class="btn-header cfg-restart-btn">Restart</button></div></div>
 	<div class="cfg-layout" id="main-content"><div id="sidebar-backdrop" class="sidebar-backdrop"></div><div class="cfg-sidebar" id="sidebar"></div><main class="cfg-content" id="content"></main></div>
 	<div class="save-bar"><div class="pw-save-context"><strong id="saveSection"></strong><span id="saveChangeCount"></span><span id="saveValidation"></span></div><span id="changesPill" class="changes-pill">Unsaved</span><span id="saveStatus"></span><button id="btnSave" class="btn-save" disabled>Save</button></div>
 	<script>window.I18N=%s;window.I18N_META={};window.SYSTEM_LANG='en';window.AURAGO_BUILD_VERSION='test';window.t=(key)=>window.I18N[key]||key;
@@ -220,7 +221,7 @@ func TestConfigPrecisionWorkspaceBrowserMatrix(t *testing.T) {
 	page := browser.MustPage(server.URL)
 	defer page.MustClose()
 	page.MustSetDocumentContent(html)
-	for _, script := range []string{"js/config/catalog.js", "js/config/state.js", "js/config/actions.js", "cfg/form-builder.js", "js/config/main.js"} {
+	for _, script := range []string{"js/config/catalog.js", "js/config/state.js", "js/config/actions.js", "cfg/form-builder.js", "js/precision/workspace.js", "js/config/main.js"} {
 		if err := page.AddScriptTag("", normalizeAssetText(mustReadUIFile(t, script))); err != nil {
 			t.Fatalf("load %s: %v", script, err)
 		}
@@ -300,7 +301,8 @@ func TestConfigPrecisionWorkspaceNavigationAndDensityMarkers(t *testing.T) {
 	html := normalizeAssetText(mustReadUIFile(t, "config.html"))
 	for _, marker := range []string{
 		`id="cfg-density-toggle"`,
-		`data-i18n-title="config.precision.density_toggle"`,
+		`data-pw-density-toggle`,
+		`data-i18n-title="common.workspace_density_toggle"`,
 		`aria-pressed="false"`,
 	} {
 		if !strings.Contains(html, marker) {

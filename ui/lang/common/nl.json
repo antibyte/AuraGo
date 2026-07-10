@@ -77,5 +77,8 @@
   "notfound.title": "Pagina niet gevonden",
   "notfound.description": "De pagina die je zoekt bestaat niet of is verplaatst.",
   "notfound.go_home": "Ga naar chat",
-  "notfound.go_dashboard": "Dashboard"
+  "notfound.go_dashboard": "Dashboard",
+  "common.workspace_density_toggle": "Dichtheid van de werkruimte wijzigen",
+  "common.workspace_density_comfortable": "Ruim",
+  "common.workspace_density_compact": "Dicht"
 }

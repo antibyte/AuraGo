@@ -50,6 +50,51 @@
     font-family: 'Geist', system-ui, -apple-system, sans-serif;
 }
 
+.pw-page {
+    --pw-content-max: 1440px;
+    --pw-reading-max: 760px;
+    --pw-header-height: 64px;
+    --pw-space-1: 0.25rem;
+    --pw-space-2: 0.5rem;
+    --pw-space-3: 0.75rem;
+    --pw-space-4: 1rem;
+    --pw-space-5: 1.25rem;
+    --pw-space-6: 1.5rem;
+    --pw-space-8: 2rem;
+    --pw-space-10: 2.5rem;
+    --pw-title-size: clamp(1.65rem, 2.4vw, 2.35rem);
+    --pw-heading-size: clamp(1.125rem, 1.4vw, 1.35rem);
+    --pw-body-size: 0.9375rem;
+    --pw-row-height: 52px;
+    color-scheme: dark;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+}
+
+.pw-page *,
+.pw-page *::before,
+.pw-page *::after {
+    box-sizing: border-box;
+}
+
+.pw-page ::selection {
+    background: color-mix(in srgb, var(--pw-accent) 28%, transparent);
+    color: var(--pw-text);
+}
+
+.pw-page a {
+    color: inherit;
+    text-decoration-color: color-mix(in srgb, var(--pw-accent) 52%, transparent);
+    text-underline-offset: 0.2em;
+}
+
+.pw-page h1,
+.pw-page h2,
+.pw-page h3,
+.pw-page p {
+    margin-block-start: 0;
+}
+
 [data-theme="light"] .pw-page,
 .pw-page[data-theme="light"] {
     --pw-canvas: #eef1ef;
@@ -65,6 +110,7 @@
     --pw-warning: #a16207;
     --pw-success: #15803d;
     --pw-shadow-soft: 0 24px 62px color-mix(in srgb, #355148 13%, transparent);
+    color-scheme: light;
 }
 
 .pw-page[data-density="compact"] {
@@ -72,6 +118,8 @@
     --pw-label-size: 0.875rem;
     --pw-help-size: 0.8125rem;
     --pw-meta-size: 0.8125rem;
+    --pw-header-height: 56px;
+    --pw-row-height: 44px;
 }
 
 .pw-page .pw-bezel {

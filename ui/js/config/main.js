@@ -261,26 +261,14 @@ const CFG_TEXT_AUTOFILL_ATTRS = ' autocomplete="off" autocapitalize="off" autoco
 const CFG_SENSITIVE_AUTOFILL_ATTRS = ' autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" data-form-type="other"';
 
 function applyConfigDensity(value, persist = false) {
-    const density = value === 'compact' ? 'compact' : 'comfortable';
-    document.body.dataset.density = density;
-    const button = document.getElementById('cfg-density-toggle');
-    if (button) {
-        const compact = density === 'compact';
-        button.setAttribute('aria-pressed', compact ? 'true' : 'false');
-        const label = button.querySelector('span');
-        if (label) label.textContent = t(compact ? 'config.precision.density_compact' : 'config.precision.density_comfortable');
-    }
-    if (persist) localStorage.setItem(CONFIG_DENSITY_KEY, density);
-    return density;
+    const workspace = window.AuraPrecisionWorkspace;
+    if (!workspace) return document.body.dataset.density || 'comfortable';
+    workspace.init();
+    if (persist) return workspace.setDensity(value);
+    return workspace.getDensity();
 }
 
-const configDensityButton = document.getElementById('cfg-density-toggle');
-if (configDensityButton) {
-    configDensityButton.addEventListener('click', () => {
-        applyConfigDensity(document.body.dataset.density === 'compact' ? 'comfortable' : 'compact', true);
-    });
-}
-applyConfigDensity(localStorage.getItem(CONFIG_DENSITY_KEY) || 'comfortable');
+applyConfigDensity();
 
 function hasVisibleSection(key) {
     if (key === 'overview') return true;
