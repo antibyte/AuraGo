@@ -239,6 +239,61 @@ func TestPrecisionWorkspaceModalFocusBrowserSmoke(t *testing.T) {
 	})
 }
 
+func TestPrecisionWorkspaceOperationalMobileTouchTargetsBrowserSmoke(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+	browser := newSmokeBrowser(t)
+	origin := newPrecisionSmokeOrigin(t)
+	page := browser.MustPage(origin + "/dashboard")
+	defer page.MustClose()
+	page.MustSetViewport(390, 844, 1, true)
+
+	css := normalizeAssetText(mustReadUIFile(t, "css/precision-pages.css"))
+	page.MustSetDocumentContent(`<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><style>` + css + `</style></head>
+		<body class="pw-page pw-operational-page" data-density="comfortable">
+			<button id="small-button" style="width:32px;height:32px;padding:0">A</button>
+			<a id="small-link" href="#" role="button" style="display:inline-flex;width:36px;height:36px">B</a>
+			<input id="small-input" type="text" style="width:40px;height:40px">
+			<input id="checkbox" type="checkbox" style="width:18px;height:18px">
+			<input id="radio" type="radio" style="width:18px;height:18px">
+			<input id="range" type="range" style="width:40px;height:18px">
+			<textarea id="xterm-helper" class="xterm-helper-textarea" style="width:20px;height:20px"></textarea>
+		</body></html>`)
+
+	assertTargets := func(density string) {
+		t.Helper()
+		page.MustEval(`density => { document.body.className = 'pw-page pw-operational-page'; document.body.dataset.density = density; }`, density)
+		state := page.MustEval(`() => {
+			const size = id => { const rect = document.getElementById(id).getBoundingClientRect(); return {width: rect.width, height: rect.height}; };
+			return {button: size('small-button'), link: size('small-link'), input: size('small-input')};
+		}`).Map()
+		for _, control := range []string{"button", "link", "input"} {
+			size := state[control].Map()
+			if size["width"].Num() < 44 || size["height"].Num() < 44 {
+				t.Fatalf("%s %s target = %.1fx%.1f, want at least 44x44", density, control, size["width"].Num(), size["height"].Num())
+			}
+		}
+	}
+	assertTargets("comfortable")
+	assertTargets("compact")
+
+	excluded := page.MustEval(`() => {
+		const size = id => { const rect = document.getElementById(id).getBoundingClientRect(); return {width: rect.width, height: rect.height}; };
+		return {checkbox: size('checkbox'), radio: size('radio'), range: size('range'), xterm: size('xterm-helper')};
+	}`).Map()
+	for _, control := range []string{"checkbox", "radio", "range", "xterm"} {
+		size := excluded[control].Map()
+		if size["width"].Num() >= 44 && size["height"].Num() >= 44 {
+			t.Fatalf("excluded %s control was expanded to %.1fx%.1f", control, size["width"].Num(), size["height"].Num())
+		}
+	}
+
+	page.MustEval(`() => { document.body.className = 'pw-page pw-entry-page'; delete document.body.dataset.density; }`)
+	entrySize := page.MustEval(`() => { const rect = document.getElementById('small-button').getBoundingClientRect(); return {width: rect.width, height: rect.height}; }`).Map()
+	if entrySize["width"].Num() >= 44 || entrySize["height"].Num() >= 44 {
+		t.Fatalf("entry-page button inherited operational sizing: %.1fx%.1f", entrySize["width"].Num(), entrySize["height"].Num())
+	}
+}
+
 func TestPrecisionSetupOpenRouterKeyboardBrowserSmoke(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
 	browser := newSmokeBrowser(t)

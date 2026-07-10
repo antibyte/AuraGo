@@ -77,6 +77,42 @@ func TestPrecisionWorkspaceTableDensityUsesTableCompatibleHeight(t *testing.T) {
 	}
 }
 
+func TestPrecisionWorkspaceOperationalMobileTargetsAreCentralAndEntrySafe(t *testing.T) {
+	t.Parallel()
+
+	components := normalizeAssetText(mustReadUIFile(t, "css/precision-pages.css"))
+	mobileAt := strings.LastIndex(components, `@media (max-width: 639px)`)
+	if mobileAt < 0 {
+		t.Fatal("Precision operational mobile layer not found")
+	}
+	mobile := components[mobileAt:]
+	for _, selector := range []string{
+		`.pw-page.pw-operational-page button`,
+		`.pw-page.pw-operational-page a[href]`,
+		`.pw-page.pw-operational-page [role="button"]`,
+		`.pw-page.pw-operational-page [role="tab"]`,
+		`.pw-page.pw-operational-page input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="hidden"])`,
+		`.pw-page.pw-operational-page select`,
+		`.pw-page.pw-operational-page textarea:not(.xterm-helper-textarea)`,
+	} {
+		if !strings.Contains(mobile, selector) {
+			t.Errorf("Precision mobile target layer missing %q", selector)
+		}
+	}
+	rule := regexp.MustCompile(`(?s)\.pw-page\.pw-operational-page button\s*,.*?\{([^}]*)\}`).FindStringSubmatch(mobile)
+	if len(rule) != 2 {
+		t.Fatal("Precision operational mobile target rule not found")
+	}
+	for _, declaration := range []string{`min-width: 44px !important;`, `min-height: 44px !important;`} {
+		if !strings.Contains(rule[1], declaration) {
+			t.Errorf("Precision operational mobile target rule missing cascade-safe %q", declaration)
+		}
+	}
+	if strings.Contains(mobile, `.pw-page.pw-entry-page button`) {
+		t.Error("operational mobile target rule must not opt entry pages into workspace sizing")
+	}
+}
+
 func TestPrecisionWorkspaceClientContract(t *testing.T) {
 	t.Parallel()
 

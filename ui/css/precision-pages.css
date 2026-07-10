@@ -510,6 +510,17 @@
 }
 
 @media (max-width: 639px) {
+    .pw-page.pw-operational-page button,
+    .pw-page.pw-operational-page a[href],
+    .pw-page.pw-operational-page [role="button"],
+    .pw-page.pw-operational-page [role="tab"],
+    .pw-page.pw-operational-page input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="hidden"]),
+    .pw-page.pw-operational-page select,
+    .pw-page.pw-operational-page textarea:not(.xterm-helper-textarea) {
+        min-width: 44px !important;
+        min-height: 44px !important;
+    }
+
     .pw-page .pw-app-header {
         min-height: 56px;
         padding-inline: var(--pw-space-4);
