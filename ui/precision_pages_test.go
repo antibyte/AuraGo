@@ -2314,9 +2314,17 @@ func TestPrecisionEntryLoginCSSFallbackRemainsAvailable(t *testing.T) {
 	css := normalizeAssetText(mustReadUIFile(t, "css/login.css"))
 	prefix := `.pw-page.pw-entry-page[data-entry-page="login"]`
 	for _, selector := range []string{`.css-fallback-bg`, `.particle-grid`, `.scan-line`, `.orb`} {
-		pattern := regexp.MustCompile(`(?s)` + regexp.QuoteMeta(prefix) + `[^{}]*` + regexp.QuoteMeta(selector) + `[^{}]*\{([^}]*)\}`)
-		for _, match := range pattern.FindAllStringSubmatch(css, -1) {
-			declarations := match[1]
+		pattern := regexp.MustCompile(`(?s)([^{}]*` + regexp.QuoteMeta(selector) + `[^{}]*)\{([^}]*)\}`)
+		matches := pattern.FindAllStringSubmatch(css, -1)
+		if len(matches) == 0 {
+			t.Errorf("login.css missing expected CSS fallback selector %s", selector)
+			continue
+		}
+		for _, match := range matches {
+			if !strings.Contains(match[1], prefix) {
+				continue
+			}
+			declarations := match[2]
 			for _, forbidden := range []string{`display: none;`, `background: transparent;`, `background-image: none;`} {
 				if strings.Contains(declarations, forbidden) {
 					t.Errorf("Login CSS fallback selector %s must remain available; found %q", selector, forbidden)

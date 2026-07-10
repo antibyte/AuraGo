@@ -1,7 +1,5 @@
 .pw-page[data-workspace-page="plans"] {
     font-family: var(--font-sans);
-    --plans-surface: var(--pw-surface);
-    --plans-surface-soft: var(--pw-surface-elevated);
     --plans-border: var(--pw-line);
     --plans-accent: var(--pw-accent);
     --plans-text-soft: var(--pw-muted);

@@ -222,7 +222,6 @@
     --success: var(--pw-success);
     --warning: var(--pw-warning);
     --danger: var(--pw-danger);
-    --info: var(--pw-accent);
     overflow-x: clip;
     background: var(--pw-canvas);
     color: var(--pw-text);
