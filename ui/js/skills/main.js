@@ -447,11 +447,11 @@ function showDisabledState() {
         const secStatus = (skill.SecurityStatus || skill.security_status || 'pending').toLowerCase();
         const enabled = skill.Enabled !== undefined ? skill.Enabled : skill.enabled;
         const id = esc(skill.ID || skill.id || '');
-        const deps = skill.Dependencies || skill.dependencies || [];
-        const tags = skill.Tags || skill.tags || [];
+        const deps = sortedSnapshotArray(skill.Dependencies || skill.dependencies);
+        const tags = sortedSnapshotArray(skill.Tags || skill.tags);
         const category = skill.Category || skill.category || '';
-        const vaultKeys = skill.VaultKeys || skill.vault_keys || [];
-        const internalTools = skill.InternalTools || skill.internal_tools || [];
+        const vaultKeys = sortedSnapshotArray(skill.VaultKeys || skill.vault_keys);
+        const internalTools = sortedSnapshotArray(skill.InternalTools || skill.internal_tools);
 
         const typeLabel = type.charAt(0).toUpperCase() + type.slice(1);
         const secBadge = renderSecurityBadge(secStatus);
@@ -569,7 +569,11 @@ function showDisabledState() {
         const secStatus = (skill.security_status || 'pending').toLowerCase();
         const enabled = !!skill.enabled;
         const warningApproved = !!skill.warning_approved;
-        const scripts = skill.scripts || [];
+        const scripts = (Array.isArray(skill.scripts) ? skill.scripts.slice() : []).sort(function (a, b) {
+            const aPath = a.path || a.Path || '';
+            const bPath = b.path || b.Path || '';
+            return aPath < bPath ? -1 : (aPath > bPath ? 1 : 0);
+        });
         const canEnable = secStatus === 'clean' || (secStatus === 'warning' && warningApproved);
         const toggleDisabled = (!enabled && !canEnable) ? 'disabled' : '';
         const toggleTitle = !enabled && !canEnable ? t('skills.agent_enable_blocked') : '';

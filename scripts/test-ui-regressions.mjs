@@ -102,6 +102,89 @@ function testSkillSnapshotDifferences() {
   assert.notEqual(autoDisabled, running, 'daemon status and auto-disabled state must invalidate badges and actions');
 }
 
+function loadSkillCardRuntime() {
+  const skills = read('ui/js/skills/main.js');
+  const snapshotSource = sourceBetween(skills, 'function sortedSnapshotArray', 'function shouldUpdateSkill');
+  const renderCardSource = sourceBetween(skills, 'function renderCard', 'function agentSkillStateHash');
+  const agentSnapshotSource = sourceBetween(skills, 'function agentSkillStateHash', 'function shouldUpdateAgentSkill');
+  const renderAgentCardSource = sourceBetween(skills, 'function renderAgentSkillCard', 'function renderSecurityBadge');
+  const context = {
+    Array,
+    JSON,
+    String,
+    daemonSystemEnabled: true,
+    daemonStates: {},
+    credentialMap: {},
+    esc: value => String(value),
+    t: key => key,
+    renderSecurityBadge: () => '',
+    renderDaemonBadge: () => '',
+    renderDaemonActions: () => ''
+  };
+  context.getDaemonState = skillID => context.daemonStates[skillID] || null;
+  vm.createContext(context);
+  vm.runInContext(
+    `${snapshotSource}\n${renderCardSource}\n${agentSnapshotSource}\n${renderAgentCardSource}\n` +
+    'globalThis.renderPythonCard = renderCard; globalThis.renderAgentCard = renderAgentSkillCard;',
+    context
+  );
+  return context;
+}
+
+function testSkillCardOrderingMatchesSnapshots() {
+  const context = loadSkillCardRuntime();
+  const pythonSkill = {
+    ID: 'ordered',
+    Name: 'Ordered',
+    Description: 'Stable order',
+    Dependencies: ['zeta', 'alpha'],
+    Tags: ['zeta', 'alpha'],
+    VaultKeys: ['zeta', 'alpha'],
+    InternalTools: ['zeta', 'alpha']
+  };
+  const reorderedPythonSkill = {
+    ...pythonSkill,
+    Dependencies: ['alpha', 'zeta'],
+    Tags: ['alpha', 'zeta'],
+    VaultKeys: ['alpha', 'zeta'],
+    InternalTools: ['alpha', 'zeta']
+  };
+  assert.equal(
+    context.skillStateHash(pythonSkill),
+    context.skillStateHash(reorderedPythonSkill),
+    'equivalent Python arrays must keep the same snapshot'
+  );
+  assert.equal(
+    context.renderPythonCard(pythonSkill),
+    context.renderPythonCard(reorderedPythonSkill),
+    'equivalent Python arrays must render in the same visible order'
+  );
+}
+
+function testAgentSkillCardOrderingMatchesSnapshot() {
+  const context = loadSkillCardRuntime();
+  const agentSkill = {
+    id: 'agent-order',
+    name: 'Agent order',
+    description: 'Stable script order',
+    scripts: [{ path: 'zeta.js' }, { path: 'alpha.js' }]
+  };
+  const reorderedAgentSkill = {
+    ...agentSkill,
+    scripts: [{ path: 'alpha.js' }, { path: 'zeta.js' }]
+  };
+  assert.equal(
+    context.agentSkillStateHash(agentSkill),
+    context.agentSkillStateHash(reorderedAgentSkill),
+    'equivalent Agent scripts must keep the same snapshot'
+  );
+  assert.equal(
+    context.renderAgentCard(agentSkill),
+    context.renderAgentCard(reorderedAgentSkill),
+    'equivalent Agent scripts must render in the same visible order'
+  );
+}
+
 function testBundleCheckRejectsNonCanonicalBytesWithoutWriting() {
   const relativeBundle = 'ui/js/chat/bundles/chat-vendor.bundle.js';
   const bundlePath = path.join(root, relativeBundle);
@@ -125,6 +208,8 @@ function testBundleCheckRejectsNonCanonicalBytesWithoutWriting() {
 const tests = [
   ['versioned service-worker registration', testVersionedServiceWorkerRegistration],
   ['real skill snapshot differences', testSkillSnapshotDifferences],
+  ['Python skill card ordering matches snapshots', testSkillCardOrderingMatchesSnapshots],
+  ['Agent skill card ordering matches snapshots', testAgentSkillCardOrderingMatchesSnapshot],
   ['byte-exact read-only bundle check', testBundleCheckRejectsNonCanonicalBytesWithoutWriting]
 ];
 

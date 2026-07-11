@@ -51,6 +51,8 @@ images, and browser-oriented regression tests.
 - Configuration density is a browser-local presentation preference and never
   belongs in `config.yaml`.
 - Every visible UI string must use translations in all supported locales.
+- Skill-card list fields must render in deterministic sorted order matching
+  their DOM-diff snapshots so API-only reordering cannot leave stale cards.
 - The service worker caches only same-origin static assets, retains full
   versioned request URLs, and keeps HTML, API, event, and auth traffic network-only.
 - `scripts/build-ui-bundles.js` is the source of truth for generated Chat and
