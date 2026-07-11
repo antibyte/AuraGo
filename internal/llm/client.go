@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"aurago/internal/config"
@@ -537,7 +538,8 @@ type miniMaxTransport struct {
 }
 
 type openAIPromptCacheTransport struct {
-	base http.RoundTripper
+	base      http.RoundTripper
+	bodyCache sync.Map // sha256(body) -> []byte modified body
 }
 
 type aiGatewayAuthTransport struct {
@@ -564,7 +566,18 @@ func (t *openAIPromptCacheTransport) RoundTrip(req *http.Request) (*http.Respons
 	if err != nil {
 		return nil, fmt.Errorf("openai prompt cache transport: read body: %w", err)
 	}
-	body = openAIPromptCacheRequestBody(body)
+
+	// Cache the prompt-cache transformation by the original body hash. Repeated
+	// identical requests (e.g. retries or deterministic prompts) skip the JSON
+	// parse/marshal work.
+	sum := sha256.Sum256(body)
+	key := string(sum[:])
+	if cached, ok := t.bodyCache.Load(key); ok {
+		body = cached.([]byte)
+	} else {
+		body = openAIPromptCacheRequestBody(body)
+		t.bodyCache.Store(key, body)
+	}
 
 	clone := req.Clone(req.Context())
 	clone.Header = req.Header.Clone()
@@ -789,24 +802,30 @@ func (t *miniMaxTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 }
 
 func miniMaxPrepareRequestBody(body []byte) ([]byte, bool) {
-	var stream bool
 	var payload map[string]json.RawMessage
-	if err := json.Unmarshal(body, &payload); err == nil {
-		if streamRaw, ok := payload["stream"]; ok {
-			_ = json.Unmarshal(streamRaw, &stream)
-		}
+	if err := json.Unmarshal(body, &payload); err != nil {
+		// If we cannot parse the body at all, fall back to the legacy chain
+		// without modifying anything else.
+		body = miniMaxConvertSystemMessages(body)
+		body = miniMaxMapReasoningContentToDetails(body)
+		body = miniMaxEnableReasoningSplit(body)
+		return body, false
 	}
+
+	var stream bool
+	if streamRaw, ok := payload["stream"]; ok {
+		_ = json.Unmarshal(streamRaw, &stream)
+	}
+
 	body = miniMaxConvertSystemMessages(body)
-	body = miniMaxMapReasoningContentToDetails(body)
+	body = miniMaxMapReasoningContentToDetailsRaw(payload, body)
 	body = miniMaxEnableReasoningSplit(body)
 	return body, stream
 }
 
-func miniMaxMapReasoningContentToDetails(body []byte) []byte {
-	var payload map[string]json.RawMessage
-	if err := json.Unmarshal(body, &payload); err != nil {
-		return body
-	}
+// miniMaxMapReasoningContentToDetailsRaw works on an already-parsed payload so
+// the transport does not pay for a second JSON parse.
+func miniMaxMapReasoningContentToDetailsRaw(payload map[string]json.RawMessage, body []byte) []byte {
 	msgsRaw, ok := payload["messages"]
 	if !ok {
 		return body
@@ -842,12 +861,20 @@ func miniMaxMapReasoningContentToDetails(body []byte) []byte {
 	if err != nil {
 		return body
 	}
-	payload["messages"] = newMsgs
+	payload["messages"] = json.RawMessage(newMsgs)
 	result, err := json.Marshal(payload)
 	if err != nil {
 		return body
 	}
 	return result
+}
+
+func miniMaxMapReasoningContentToDetails(body []byte) []byte {
+	var payload map[string]json.RawMessage
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return body
+	}
+	return miniMaxMapReasoningContentToDetailsRaw(payload, body)
 }
 
 func miniMaxEnableReasoningSplit(body []byte) []byte {

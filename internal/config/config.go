@@ -1331,6 +1331,9 @@ func Load(path string) (*Config, error) {
 	if cfg.Agent.StepDelaySeconds < 0 {
 		cfg.Agent.StepDelaySeconds = 0
 	}
+	if cfg.Agent.MaxConcurrentLoops <= 0 {
+		cfg.Agent.MaxConcurrentLoops = 16
+	}
 	if !yamlHasPath(data, "maintenance", "enabled") {
 		cfg.Maintenance.Enabled = true
 	}

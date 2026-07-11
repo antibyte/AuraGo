@@ -23,9 +23,28 @@ import (
 
 // Memory and telemetry helpers moved to agent_memory_helpers.go
 
-const maxConcurrentAgentLoops = 8
+const defaultMaxConcurrentAgentLoops = 16
 
-var agentLoopLimiter = make(chan struct{}, maxConcurrentAgentLoops)
+var agentLoopLimiter = make(chan struct{}, defaultMaxConcurrentAgentLoops)
+
+// ConfigureAgentLoopLimiter sets the maximum number of concurrent agent loop
+// executions. It must be called before any agent loop starts; calling it while
+// loops are running is a no-op.
+func ConfigureAgentLoopLimiter(n int) {
+	if n <= 0 {
+		n = defaultMaxConcurrentAgentLoops
+	}
+	// Only replace the limiter if it is currently empty, i.e. before any loop
+	// has acquired a slot.
+	select {
+	case agentLoopLimiter <- struct{}{}:
+		<-agentLoopLimiter
+		// Empty: safe to replace.
+		agentLoopLimiter = make(chan struct{}, n)
+	default:
+		// Already in use; leave it alone to avoid changing limits mid-flight.
+	}
+}
 
 func acquireAgentLoopSlot(ctx context.Context) (func(), error) {
 	select {
@@ -1142,7 +1161,11 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		if maxHistoryTokens < 4096 {
 			maxHistoryTokens = 4096
 		}
-		if cfg.Agent.HistoryCompaction.Enabled {
+		// Only run expensive history compaction/compression at loop entry. Tool-call
+		// iterations are typically short-lived; re-compressing between them adds
+		// latency without meaningful budget savings.
+		atLoopEntry := loopIterationCount == 1
+		if atLoopEntry && cfg.Agent.HistoryCompaction.Enabled {
 			compactedMessages, historyCompaction := CompactHistoryToolRounds(req.Messages, HistoryCompactionOptions{
 				KeepRecentToolRoundsFull: cfg.Agent.HistoryCompaction.KeepRecentToolRoundsFull,
 			})
@@ -1163,7 +1186,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 		compressionClient, compressionModel := s.cachedCompressionClient, s.cachedCompressionModel
 		var compRes CompressHistoryResult
-		if compressionClient != nil && compressionModel != "" {
+		if atLoopEntry && compressionClient != nil && compressionModel != "" {
 			// Pre-check threshold: use a cheap cached count to show UI feedback
 			// before the potentially slow synchronous LLM call inside CompressHistory.
 			compressionTokens := 0
