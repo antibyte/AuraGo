@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"regexp"
@@ -42,7 +43,7 @@ func detectMemoryConflictsForDocIDs(logger *slog.Logger, stm *memory.SQLiteMemor
 		}
 		signals := deriveConflictSignals(text)
 		for _, signal := range signals {
-			ranked, err := searchRankedMemoriesOnly(ltm, stm, signal.Key, 8, nil, time.Now())
+			ranked, err := searchRankedMemoriesOnly(context.Background(), ltm, stm, signal.Key, 8, nil, time.Now())
 			if err != nil {
 				continue
 			}

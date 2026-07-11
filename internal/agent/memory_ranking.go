@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"context"
 	"sort"
 	"strings"
 	"sync"
@@ -63,13 +64,27 @@ func rankMemoryCandidatesWithScores(memories []string, docIDs []string, similari
 	return results
 }
 
-func searchSimilarWithScores(vdb memory.VectorDB, query string, topK int, excludeCollections ...string) ([]string, []string, []float64, error) {
+func searchSimilarWithScores(ctx context.Context, vdb memory.VectorDB, query string, topK int, excludeCollections ...string) ([]string, []string, []float64, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if scored, ok := vdb.(memory.ContextScoredVectorDB); ok {
+		results, err := scored.SearchSimilarScoredContext(ctx, query, topK, excludeCollections...)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		return splitScoredMemoryResults(results)
+	}
 	if scored, ok := vdb.(memory.ScoredVectorDB); ok {
 		results, err := scored.SearchSimilarScored(query, topK, excludeCollections...)
 		if err != nil {
 			return nil, nil, nil, err
 		}
 		return splitScoredMemoryResults(results)
+	}
+	if ctxVdb, ok := vdb.(memory.ContextVectorDB); ok {
+		memories, docIDs, err := ctxVdb.SearchSimilarContext(ctx, query, topK, excludeCollections...)
+		return memories, docIDs, nil, err
 	}
 	memories, docIDs, err := vdb.SearchSimilar(query, topK, excludeCollections...)
 	return memories, docIDs, nil, err
@@ -78,6 +93,7 @@ func searchSimilarWithScores(vdb memory.VectorDB, query string, topK int, exclud
 // searchRankedMemoriesOnly searches aurago_memories and applies the shared ranking
 // pipeline, including archived-memory filtering via memory_meta.
 func searchRankedMemoriesOnly(
+	ctx context.Context,
 	vdb memory.VectorDB,
 	stm *memory.SQLiteMemory,
 	query string,
@@ -92,7 +108,7 @@ func searchRankedMemoriesOnly(
 	if searchLimit > 0 {
 		searchLimit *= 3
 	}
-	memories, docIDs, similarities, err := searchMemoriesOnlyWithScores(vdb, query, searchLimit)
+	memories, docIDs, similarities, err := searchMemoriesOnlyWithScores(ctx, vdb, query, searchLimit)
 	if err != nil {
 		return nil, err
 	}
@@ -106,13 +122,27 @@ func searchRankedMemoriesOnly(
 	return ranked, nil
 }
 
-func searchMemoriesOnlyWithScores(vdb memory.VectorDB, query string, topK int) ([]string, []string, []float64, error) {
+func searchMemoriesOnlyWithScores(ctx context.Context, vdb memory.VectorDB, query string, topK int) ([]string, []string, []float64, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if scored, ok := vdb.(memory.ContextScoredVectorDB); ok {
+		results, err := scored.SearchMemoriesOnlyScoredContext(ctx, query, topK)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		return splitScoredMemoryResults(results)
+	}
 	if scored, ok := vdb.(memory.ScoredVectorDB); ok {
 		results, err := scored.SearchMemoriesOnlyScored(query, topK)
 		if err != nil {
 			return nil, nil, nil, err
 		}
 		return splitScoredMemoryResults(results)
+	}
+	if ctxVdb, ok := vdb.(memory.ContextVectorDB); ok {
+		memories, docIDs, err := ctxVdb.SearchMemoriesOnlyContext(ctx, query, topK)
+		return memories, docIDs, nil, err
 	}
 	memories, docIDs, err := vdb.SearchMemoriesOnly(query, topK)
 	return memories, docIDs, nil, err

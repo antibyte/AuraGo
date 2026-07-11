@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"context"
 	"log/slog"
 	"regexp"
 	"strings"
@@ -63,7 +64,7 @@ func applyRetrievalFusion(
 		if len(labels) > 0 {
 			var extraMemories []string
 			for _, label := range labels {
-				ranked, err := searchRankedMemoriesOnly(longTermMem, stm, label, 1, nil, time.Now())
+				ranked, err := searchRankedMemoriesOnly(context.Background(), longTermMem, stm, label, 1, nil, time.Now())
 				if err != nil || len(ranked) == 0 {
 					continue
 				}

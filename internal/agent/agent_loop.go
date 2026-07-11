@@ -518,7 +518,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			if useHelperRAGBatch {
 				searchLimit = 8
 			}
-			memories, docIDs, similarities, err := searchSimilarWithScores(longTermMem, ragQuery, searchLimit, "tool_guides", "documentation")
+			memories, docIDs, similarities, err := searchSimilarWithScores(ctx, longTermMem, ragQuery, searchLimit, "tool_guides", "documentation")
 			RecordRetrievalEventForScope(telemetryScope, "rag_auto_latency:"+retrievalLatencyBucket(time.Since(autoRetrievalStart)))
 			if err != nil {
 				RecordRetrievalEventForScope(telemetryScope, "rag_auto_error")
@@ -532,7 +532,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					if batchErr != nil {
 						helperManager.ObserveFallback("rag_batch", batchErr.Error())
 						ragQuery = expandQueryForRAG(ctx, cfg, s.currentLogger, lastUserMsg, shortTermMem)
-						memories, docIDs, similarities, err = searchSimilarWithScores(longTermMem, ragQuery, 6, "tool_guides", "documentation")
+						memories, docIDs, similarities, err = searchSimilarWithScores(ctx, longTermMem, ragQuery, 6, "tool_guides", "documentation")
 						if err == nil {
 							ranked = rankMemoryCandidatesWithScores(memories, docIDs, similarities, shortTermMem, usedMemoryDocIDs, time.Now())
 							ranked = rerankWithLLM(ctx, cfg, s.currentLogger, ranked, lastUserMsg, shortTermMem)
@@ -542,7 +542,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					} else {
 						if helperQuery := strings.TrimSpace(batchResult.SearchQuery); helperQuery != "" && !strings.EqualFold(helperQuery, strings.TrimSpace(lastUserMsg)) {
 							ragQuery = helperQuery
-							extraMemories, extraDocIDs, extraSimilarities, extraErr := searchSimilarWithScores(longTermMem, ragQuery, 4, "tool_guides", "documentation")
+							extraMemories, extraDocIDs, extraSimilarities, extraErr := searchSimilarWithScores(ctx, longTermMem, ragQuery, 4, "tool_guides", "documentation")
 							if extraErr == nil && len(extraMemories) > 0 {
 								extraRanked := rankMemoryCandidatesWithScores(extraMemories, extraDocIDs, extraSimilarities, shortTermMem, usedMemoryDocIDs, time.Now())
 								existing := make(map[string]struct{}, len(ranked))
@@ -669,7 +669,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					for i, pred := range predictions {
 						i, pred := i, pred
 						g.Go(func() error {
-							ranked, pErr := searchRankedMemoriesOnly(longTermMem, shortTermMem, pred, 1, usedMemoryDocIDs, time.Now())
+							ranked, pErr := searchRankedMemoriesOnly(ctx, longTermMem, shortTermMem, pred, 1, usedMemoryDocIDs, time.Now())
 							if pErr != nil {
 								fetches[i].err = pErr
 								return nil

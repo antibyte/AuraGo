@@ -77,6 +77,13 @@ type ScoredVectorDB interface {
 	SearchMemoriesOnlyScored(query string, topK int) ([]SearchResult, error)
 }
 
+// ContextVectorDB is an optional extension for callers that already have a
+// request or shutdown context. VectorDB stays unchanged for compatibility.
+type ContextVectorDB interface {
+	SearchSimilarContext(ctx context.Context, query string, topK int, excludeCollections ...string) ([]string, []string, error)
+	SearchMemoriesOnlyContext(ctx context.Context, query string, topK int) ([]string, []string, error)
+}
+
 // ContextScoredVectorDB is an optional extension for callers that already have
 // a request or shutdown context. VectorDB stays unchanged for compatibility.
 type ContextScoredVectorDB interface {
@@ -1181,7 +1188,13 @@ func (cv *ChromemVectorDB) storeBatchConcurrency(itemCount int) int {
 }
 
 func (cv *ChromemVectorDB) SearchSimilar(query string, topK int, excludeCollections ...string) ([]string, []string, error) {
-	results, err := cv.SearchSimilarScored(query, topK, excludeCollections...)
+	return cv.SearchSimilarContext(context.Background(), query, topK, excludeCollections...)
+}
+
+// SearchSimilarContext finds the topK most semantically similar documents across
+// all relevant collections and honors caller cancellation.
+func (cv *ChromemVectorDB) SearchSimilarContext(ctx context.Context, query string, topK int, excludeCollections ...string) ([]string, []string, error) {
+	results, err := cv.SearchSimilarScoredContext(ctx, query, topK, excludeCollections...)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -1371,7 +1384,12 @@ finalizeResults:
 // Intended for use cases like predictive pre-fetch where documentation hits add no value.
 // Uses the query embedding cache to avoid redundant API calls.
 func (cv *ChromemVectorDB) SearchMemoriesOnly(query string, topK int) ([]string, []string, error) {
-	results, err := cv.SearchMemoriesOnlyScored(query, topK)
+	return cv.SearchMemoriesOnlyContext(context.Background(), query, topK)
+}
+
+// SearchMemoriesOnlyContext searches only aurago_memories and honors caller cancellation.
+func (cv *ChromemVectorDB) SearchMemoriesOnlyContext(ctx context.Context, query string, topK int) ([]string, []string, error) {
+	results, err := cv.SearchMemoriesOnlyScoredContext(ctx, query, topK)
 	if err != nil {
 		return nil, nil, err
 	}
