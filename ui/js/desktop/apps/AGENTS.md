@@ -150,6 +150,9 @@ registration lives in `internal/desktop/types.go`.
 - Keep Code Studio split across `core.js`, `sidebar.js`, `editor.js`,
   `terminal.js`, `search.js`, `agent.js`, `git.js`, `panels.js`, `shortcuts.js`,
   and `command-palette.js`; do not fold domain modules into core.js.
+- Keep OpenSCAD split across `openscad.js`, `openscad-editor.js`, and
+  `openscad-defines.js`; do not fold the CodeMirror editor or defines slider
+  logic into the main app file.
 - Keep Writer self-contained in `writer.js` below the 1100-line budget;
   if find/replace grows unwieldy, extract into `writer-search.js` and register
   in `module-loader.js` and `DESKTOP_APP_ASSETS`.
@@ -246,3 +249,12 @@ registration lives in `internal/desktop/types.go`.
   file needed.
 - `code-studio/command-palette.js` - Command palette overlay with fuzzy search,
   keyboard navigation. Separate IIFE. No child DOX file needed.
+- `openscad-editor.js` - CodeMirror editor integration for SCAD source with
+  syntax highlighting (using javascript()), error line highlighting, and
+  fallback textarea. Exposes `window.OpenSCADEditor { create, parse }`. The
+  `parse` function extracts line-numbered errors from OpenSCAD stderr output.
+  No child DOX file needed.
+- `openscad-defines.js` - Parametric define slider panel: parses name=value
+  pairs, renders numeric values as range sliders with number inputs, and text
+  values as plain inputs. Exposes `window.OpenSCADDefines { parse, render, toText }`.
+  No child DOX file needed.

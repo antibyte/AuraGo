@@ -18,6 +18,8 @@ func TestDesktopOpenSCADLazyAssetsRoutingAndWindowRuntime(t *testing.T) {
 		"'/js/vendor/three.min.js'",
 		"'/js/vendor/STLLoader.min.js'",
 		"'/js/vendor/OrbitControls.min.js'",
+		"'/js/desktop/apps/openscad-defines.js'",
+		"'/js/desktop/apps/openscad-editor.js'",
 		"'/js/desktop/apps/openscad.js'",
 	} {
 		if !strings.Contains(loader, want) {
@@ -122,6 +124,12 @@ func TestDesktopOpenSCADAppMarkers(t *testing.T) {
 		"data-oscad-file-download",
 		"saved_path",
 		"desktop.openscad.download_hint",
+		"parseOpenSCADErrors",
+		"mountDefinesPanel",
+		"state.editor",
+		"state.sourceEditorReady",
+		"window.OpenSCADDefines",
+		"window.OpenSCADEditor",
 	} {
 		if !strings.Contains(app, want) {
 			t.Fatalf("OpenSCAD app missing implementation marker %q", want)
@@ -143,12 +151,17 @@ func TestDesktopOpenSCADAppMarkers(t *testing.T) {
 		".oscad-workbench",
 		".oscad-agent-panel",
 		"flex-direction: column",
-		".oscad-defines",
+		".oscad-defines-panel",
 		".oscad-more-exports[open]",
 		".oscad-preview-zone",
 		".oscad-inspector",
 		"grid-template-columns: minmax(260px, 320px) minmax(420px, 1fr) minmax(320px, 380px);",
 		".oscad-source",
+		".oscad-define-row",
+		".oscad-define-slider",
+		".oscad-error-line",
+		".oscad-warning-line",
+		".tok-keyword",
 		"white-space: normal",
 		"flex-wrap: wrap",
 		".oscad-viewport-toolbar",
@@ -302,6 +315,56 @@ func TestDesktopOpenSCADIconsExistInBothThemes(t *testing.T) {
 			}
 		}
 		rawDesktopAssetText(t, "img/"+theme+"/icons/openscad.svg")
+	}
+}
+
+func TestDesktopOpenSCADEditorModule(t *testing.T) {
+	t.Parallel()
+
+	editor := readDesktopAssetText(t, "js/desktop/apps/openscad-editor.js")
+	for _, want := range []string{
+		"window.OpenSCADEditor",
+		"OpenSCADEditor = { create: create",
+		"codemirror-bundle.esm.js",
+		"EditorView",
+		"EditorState",
+		"oscad-error-line",
+		"oscad-warning-line",
+		"createFallback",
+		"setErrors",
+		"clearErrors",
+		"dispose",
+		"getValue",
+		"setValue",
+		"parseOpenSCADErrors",
+	} {
+		if !strings.Contains(editor, want) {
+			t.Fatalf("OpenSCAD editor module missing marker %q", want)
+		}
+	}
+}
+
+func TestDesktopOpenSCADDefinesModule(t *testing.T) {
+	t.Parallel()
+
+	defines := readDesktopAssetText(t, "js/desktop/apps/openscad-defines.js")
+	for _, want := range []string{
+		"window.OpenSCADDefines",
+		"OpenSCADDefines = { parse: parse, render: render, toText: toText }",
+		"parse",
+		"render",
+		"toText",
+		"oscad-defines-panel",
+		"oscad-define-row",
+		"oscad-define-slider",
+		"oscad-define-number",
+		"oscad-define-text",
+		"type=\"range\"",
+		"sliderRange",
+	} {
+		if !strings.Contains(defines, want) {
+			t.Fatalf("OpenSCAD defines module missing marker %q", want)
+		}
 	}
 }
 

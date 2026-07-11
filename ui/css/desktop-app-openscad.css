@@ -689,3 +689,176 @@
         transform: rotate(360deg);
     }
 }
+
+.oscad-source {
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.oscad-source .cm-editor {
+    height: 100%;
+}
+
+.oscad-source .cm-scroller {
+    overflow: auto;
+}
+
+.oscad-defines-panel {
+    display: grid;
+    gap: 10px;
+    padding: 10px;
+    background: rgba(5, 11, 18, 0.68);
+    border-radius: 10px;
+    max-height: 280px;
+    overflow-y: auto;
+}
+
+.oscad-defines-empty {
+    color: var(--oscad-muted);
+    font-size: 12px;
+    padding: 8px;
+}
+
+.oscad-define-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.oscad-define-label {
+    flex: 0 0 auto;
+    min-width: 80px;
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12px;
+    font-weight: 780;
+    color: var(--oscad-text);
+}
+
+.oscad-define-slider-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.oscad-define-slider {
+    flex: 1 1 auto;
+    min-width: 60px;
+    height: 6px;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.08);
+    appearance: none;
+    cursor: pointer;
+}
+
+.oscad-define-slider::-webkit-slider-thumb {
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--oscad-accent), #65c7ff);
+    border: none;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.22);
+    cursor: pointer;
+}
+
+.oscad-define-slider::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--oscad-accent), #65c7ff);
+    border: none;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.22);
+    cursor: pointer;
+}
+
+.oscad-define-number {
+    width: 64px;
+    min-width: 0;
+    padding: 4px 6px;
+    border: 1px solid var(--oscad-border);
+    border-radius: 6px;
+    background: rgba(7, 16, 24, 0.55);
+    color: var(--oscad-text);
+    font-size: 12px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.oscad-define-text {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 6px 8px;
+    border: 1px solid var(--oscad-border);
+    border-radius: 6px;
+    background: rgba(7, 16, 24, 0.55);
+    color: var(--oscad-text);
+    font-size: 12px;
+}
+
+.oscad-error-line {
+    background: rgba(255, 113, 128, 0.12) !important;
+    border-bottom: 1px dashed rgba(255, 113, 128, 0.35);
+}
+
+.oscad-warning-line {
+    background: rgba(255, 184, 92, 0.10) !important;
+    border-bottom: 1px dashed rgba(255, 184, 92, 0.30);
+}
+
+.oscad-source .tok-keyword {
+    color: #ff8aa0;
+    font-weight: bold;
+}
+
+.oscad-source .tok-string {
+    color: #b5e687;
+}
+
+.oscad-source .tok-number {
+    color: #ffd07a;
+}
+
+.oscad-source .tok-bool {
+    color: #a4d8ff;
+    font-weight: bold;
+}
+
+.oscad-source .tok-special {
+    color: #c084fc;
+    font-weight: bold;
+}
+
+.oscad-source .tok-comment {
+    color: #7a8b9c;
+    font-style: italic;
+}
+
+.oscad-source .tok-function {
+    color: #42d7c8;
+}
+
+.oscad-source .tok-operator {
+    color: #ff8aa0;
+}
+
+.oscad-source-fallback {
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    padding: 14px;
+    border: none;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--oscad-text);
+    font: 13px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    resize: none;
+    box-sizing: border-box;
+    outline: none;
+}

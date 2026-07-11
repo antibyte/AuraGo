@@ -41,6 +41,11 @@ model();`;
         return !!(ctx && ctx.readonly);
     }
 
+    function parseOpenSCADErrors(stderr) {
+        return window.OpenSCADEditor && typeof window.OpenSCADEditor.parse === 'function'
+            ? window.OpenSCADEditor.parse(stderr) : [];
+    }
+
     function parseDefinesText(text) {
         const defines = [];
         String(text || '').split(/\r?\n/).forEach(line => {
@@ -54,6 +59,26 @@ model();`;
             defines.push({ name, value });
         });
         return defines;
+    }
+
+    function mountDefinesPanel(state) {
+        if (state.definesMounted) return;
+        if (!window.OpenSCADDefines || typeof window.OpenSCADDefines.render !== 'function') return;
+        const mountEl = state.host.querySelector('[data-oscad-defines]');
+        if (!mountEl) return;
+        try {
+            const defines = parseDefinesText(state.definesText || '');
+            window.OpenSCADDefines.render(mountEl, defines, function(text) {
+                state.definesText = text;
+                scheduleOpenSCADDraftSave(state);
+                updateWindowContext(state);
+            });
+            state.definesMounted = true;
+        } catch (_) {}
+    }
+
+    function wireDefinesPanel(state) {
+        mountDefinesPanel(state);
     }
 
     function readOpenSCADDraft() {
@@ -130,12 +155,6 @@ model();`;
         return merged;
     }
 
-    function definesTextFromRows(rows) {
-        if (!Array.isArray(rows) || !rows.length) return '';
-        return rows.map(row => `${String(row.name || '').trim()}=${String(row.value ?? '').trim()}`).join('\n');
-    }
-
-
     function render(host, windowId, ctx) {
         const launchCtx = ctx || {};
         const draft = readOpenSCADDraft();
@@ -174,7 +193,10 @@ model();`;
             statusMessage: '',
             statusError: false,
             listeners: [],
-            eventsAttached: false
+            eventsAttached: false,
+            editor: null,
+            definesMounted: false,
+            sourceEditorReady: false
         };
         applyOpenSCADDraftToState(state, draft, { skipSource: explicitSource });
         stateByWindow.set(windowId, state);
@@ -214,7 +236,7 @@ model();`;
                             <div class="oscad-chips" data-oscad-more-exports></div>
                         </details>
                         <label class="oscad-label">${esc(t(ctx, 'desktop.openscad.defines', 'Custom -D defines'))}</label>
-                        <textarea class="oscad-defines" data-oscad-defines rows="3" spellcheck="false" placeholder="${esc(t(ctx, 'desktop.openscad.defines_placeholder', 'name=value'))}" ${ro ? 'readonly' : ''}></textarea>
+                        <div class="oscad-defines" data-oscad-defines></div>
                         <label class="oscad-label">${esc(t(ctx, 'desktop.openscad.mode', 'Mode'))}</label>
                         <select class="oscad-select" data-oscad-mode ${ro ? 'disabled' : ''}>
                             <option value="render">${esc(t(ctx, 'desktop.openscad.mode_render', 'Render'))}</option>
@@ -281,8 +303,7 @@ model();`;
         }
         const promptEl = host.querySelector('[data-oscad-prompt]');
         if (promptEl && document.activeElement !== promptEl) promptEl.value = state.prompt;
-        const definesEl = host.querySelector('[data-oscad-defines]');
-        if (definesEl && document.activeElement !== definesEl) definesEl.value = state.definesText || '';
+        mountDefinesPanel(state);
         const modeEl = host.querySelector('[data-oscad-mode]');
         if (modeEl) modeEl.value = state.renderMode || 'render';
         const timeoutEl = host.querySelector('[data-oscad-timeout]');
@@ -348,8 +369,7 @@ model();`;
         const host = state.host;
         const promptEl = host.querySelector('[data-oscad-prompt]');
         if (promptEl) promptEl.addEventListener('input', e => { state.prompt = e.target.value; scheduleOpenSCADDraftSave(state); });
-        const definesEl = host.querySelector('[data-oscad-defines]');
-        if (definesEl) definesEl.addEventListener('input', e => { state.definesText = e.target.value; scheduleOpenSCADDraftSave(state); });
+        wireDefinesPanel(state);
         const modeEl = host.querySelector('[data-oscad-mode]');
         if (modeEl) modeEl.addEventListener('change', e => { state.renderMode = e.target.value || 'render'; scheduleOpenSCADDraftSave(state); });
         const timeoutEl = host.querySelector('[data-oscad-timeout]');
@@ -380,6 +400,7 @@ model();`;
             scheduleOpenSCADDraftSave(state);
         }));
     }
+
     function attachResultListeners(state) {
         if (state.eventsAttached) return;
         state.eventsAttached = true;
@@ -415,6 +436,19 @@ model();`;
         state.result = payload;
         if (payload && typeof payload.source_scad === 'string' && payload.source_scad.length) {
             state.source = payload.source_scad;
+            if (state.editor && typeof state.editor.setValue === 'function') {
+                state.editor.setValue(payload.source_scad);
+            }
+        }
+        if (state.editor && payload && payload.stderr) {
+            const errors = parseOpenSCADErrors(payload.stderr);
+            if (errors.length) {
+                state.editor.setErrors(errors);
+            } else {
+                state.editor.clearErrors();
+            }
+        } else if (state.editor) {
+            state.editor.clearErrors();
         }
         state.sourceDirty = false;
         state.activeTab = 'files';
@@ -471,6 +505,10 @@ model();`;
             if (body && body.status === 'error') {
                 const hasFiles = hasOpenSCADResultFiles(state.result);
                 warnOpenSCAD(state, 'render failed', { exports: previewExports, elapsed_ms: Math.round(openSCADNowMS() - startedAt), error: body.error || '', result: openSCADResultSummary(state.result) });
+                if (state.editor && state.result && state.result.stderr) {
+                    const errors = parseOpenSCADErrors(state.result.stderr);
+                    if (errors.length) state.editor.setErrors(errors);
+                }
                 state.activeTab = hasFiles ? 'files' : (state.result ? 'log' : state.activeTab);
                 setOpenSCADBusy(state, false);
                 draw(state);
@@ -633,6 +671,7 @@ model();`;
             });
         }
     }
+
     async function saveJob(state) {
         if (!state.result || !state.result.job_id || isOpenSCADReadOnly(state.ctx)) return;
         setStatus(state, t(state.ctx, 'desktop.openscad.saving', 'Saving...'));
@@ -671,24 +710,25 @@ model();`;
         const panel = state.host.querySelector('[data-oscad-inspector-panel]');
         if (!panel) return;
         if (state.activeTab === 'source') {
-            const ro = isOpenSCADReadOnly(state.ctx);
-            panel.innerHTML = `<textarea class="oscad-source" data-oscad-source spellcheck="false" inputmode="text" ${ro ? 'readonly' : ''}>${esc(state.source)}</textarea>`;
-            const sourceEl = panel.querySelector('[data-oscad-source]');
-            if (sourceEl && !sourceEl.dataset.oscadBound) {
-                sourceEl.dataset.oscadBound = '1';
-                sourceEl.addEventListener('input', e => {
-                    if (isOpenSCADReadOnly(state.ctx)) return;
-                    state.source = e.target.value;
-                    state.sourceDirty = true;
-                    updateWindowContext(state);
-                    setStatus(state, t(state.ctx, 'desktop.openscad.render_required', 'Render required'));
-                    const meta = state.host.querySelector('[data-oscad-run-meta]');
-                    if (meta) {
-                        meta.innerHTML = jobMetaHTML(state) + `<span class="oscad-dirty">${esc(t(state.ctx, 'desktop.openscad.render_required', 'Render required'))}</span>`;
-                    }
-                    setWindowMenus(state);
-                    scheduleOpenSCADDraftSave(state);
-                });
+            if (!state.sourceEditorReady) {
+                panel.innerHTML = '<div class="oscad-source" data-oscad-source></div>';
+                const mountEl = panel.querySelector('[data-oscad-source]');
+                if (mountEl && window.OpenSCADEditor && typeof window.OpenSCADEditor.create === 'function') {
+                    state.editor = window.OpenSCADEditor.create(state, mountEl, function(text) {
+                        if (isOpenSCADReadOnly(state.ctx)) return;
+                        state.source = text;
+                        state.sourceDirty = true;
+                        updateWindowContext(state);
+                        setStatus(state, t(state.ctx, 'desktop.openscad.render_required', 'Render required'));
+                        const meta = state.host.querySelector('[data-oscad-run-meta]');
+                        if (meta) {
+                            meta.innerHTML = jobMetaHTML(state) + '<span class="oscad-dirty">' + esc(t(state.ctx, 'desktop.openscad.render_required', 'Render required')) + '</span>';
+                        }
+                        setWindowMenus(state);
+                        scheduleOpenSCADDraftSave(state);
+                    });
+                }
+                state.sourceEditorReady = true;
             }
             return;
         }
@@ -944,142 +984,170 @@ model();`;
     }
 
     function clearWindowMenus(state) {
-        if (state && state.ctx && typeof state.ctx.clearWindowMenus === 'function') {
-            state.ctx.clearWindowMenus(state.windowId);
-        }
+        if (!state.ctx || typeof state.ctx.setWindowMenus !== 'function') return;
+        state.ctx.setWindowMenus(state.windowId, []);
     }
 
-    function renderSTL(state, mount, url) {
-        cleanupPreview(state);
-        if (!mount) return;
-        if (!window.THREE || !THREE.STLLoader) {
-            mount.innerHTML = `<div class="oscad-empty"><strong>${esc(t(state.ctx, 'desktop.openscad.no_preview', 'Render a model to see the preview.'))}</strong><span>${esc(t(state.ctx, 'desktop.openscad.download_hint', 'Preview is not interactive for this format. Download or save the file.'))}</span></div>`;
-            setStatus(state, t(state.ctx, 'desktop.openscad.download_hint', 'Preview is not interactive for this format. Download or save the file.'), true);
-            return;
-        }
-        const STLLoader = THREE.STLLoader;
-        const OrbitControls = THREE.OrbitControls;
-        const width = mount.clientWidth || 640;
-        const height = mount.clientHeight || 420;
-        const scene = new THREE.Scene();
-        scene.background = new THREE.Color(state.lightPreview ? 0xf2f6f8 : 0x071018);
-        const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 5000);
-        camera.position.set(80, 70, 90);
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(width, height);
-        mount.innerHTML = '';
-        mount.appendChild(renderer.domElement);
-        scene.add(new THREE.HemisphereLight(0xffffff, state.lightPreview ? 0xd8e1ea : 0x243447, 1.2));
-        const light = new THREE.DirectionalLight(0xffffff, 0.9);
-        light.position.set(40, 80, 60);
-        scene.add(light);
-        const helpers = [];
-        if (state.showAxes) {
-            const grid = new THREE.GridHelper(160, 16, 0x42d7c8, state.lightPreview ? 0xc4d1db : 0x1a3441);
-            const axes = new THREE.AxesHelper(70);
-            helpers.push(grid, axes);
-            scene.add(grid);
-            scene.add(axes);
-        }
-        const controls = OrbitControls ? new OrbitControls(camera, renderer.domElement) : null;
-        let disposed = false;
-        let frameID = 0;
-        let mesh = null;
-        state.previewCleanup = () => {
-            disposed = true;
-            if (frameID) cancelAnimationFrame(frameID);
-            if (controls && typeof controls.dispose === 'function') controls.dispose();
-            if (mesh) {
-                if (mesh.geometry && typeof mesh.geometry.dispose === 'function') mesh.geometry.dispose();
-                if (mesh.material && typeof mesh.material.dispose === 'function') mesh.material.dispose();
-                scene.remove(mesh);
-            }
-            helpers.forEach(helper => scene.remove(helper));
-            if (renderer && typeof renderer.dispose === 'function') renderer.dispose();
-            if (renderer && typeof renderer.forceContextLoss === 'function') renderer.forceContextLoss();
-            state.preview3D = null;
-            state.previewCleanup = null;
-        };
-        new STLLoader().load(url, geometry => {
-            if (disposed) {
-                if (geometry && typeof geometry.dispose === 'function') geometry.dispose();
-                return;
-            }
-            geometry.computeBoundingBox();
-            geometry.center();
-            // OpenSCAD/STL is Z-up; Three.js preview uses Y-up (same as other desktop CAD viewers).
-            mesh = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color: 0x42d7c8, roughness: 0.42, metalness: 0.12 }));
-            mesh.rotation.x = -Math.PI / 2;
-            scene.add(mesh);
-            const box = new THREE.Box3().setFromObject(mesh);
-            const size = box.getSize(new THREE.Vector3()).length() || 80;
-            camera.position.set(size, size * 0.75, size);
-            camera.lookAt(0, 0, 0);
-            if (controls && controls.target) controls.target.set(0, 0, 0);
-            state.preview3D = { scene, camera, controls, mesh, renderer, helpers, animate };
-            animate();
-        }, undefined, err => {
-            mount.innerHTML = `<div class="oscad-empty"><strong>${esc(t(state.ctx, 'desktop.openscad.no_preview', 'Render a model to see the preview.'))}</strong><span>${esc(err && err.message ? err.message : String(err))}</span></div>`;
-            setStatus(state, err && err.message ? err.message : String(err), true);
-        });
-        function animate() {
-            if (!stateByWindow.has(state.windowId)) return;
-            frameID = requestAnimationFrame(animate);
-            if (controls) controls.update();
-            renderer.render(scene, camera);
-        }
-    }
-
-    function cleanupPreview(state) { if (state && typeof state.previewCleanup === 'function') state.previewCleanup(); }
-
-    function previewURL(file) { return (file && (file.preview_url || file.download_url)) || ''; }
-
-    function primaryFile(state) {
-        const files = resultFiles(state);
-        return files.find(file => file.format === 'png') || files.find(file => file.format === 'stl') || files[0] || null;
-    }
-
-    function emptyPanel(state, key, fallback) { return `<div class="oscad-empty">${esc(t(state.ctx, key, fallback))}</div>`; }
-
-    function setStatus(state, message, error) {
+    function setStatus(state, message, isError) {
         state.statusMessage = message || '';
-        state.statusError = !!error;
-        const el = state.host.querySelector('[data-oscad-status]');
-        if (el) {
-            el.textContent = message || '';
-            el.classList.toggle('error', !!error);
+        state.statusError = !!isError;
+        const statusEl = state.host ? state.host.querySelector('[data-oscad-status]') : null;
+        if (statusEl) {
+            statusEl.textContent = state.statusMessage;
+            statusEl.classList.toggle('error', state.statusError);
         }
     }
 
     function updateWindowContext(state) {
-        if (state.ctx && typeof state.ctx.updateWindowContext === 'function') {
-            state.ctx.updateWindowContext(state.windowId, {
-                source: 'openscad',
-                app_id: 'openscad',
-                label: 'OpenSCAD',
-                purpose: 'Create and render OpenSCAD CAD models.',
-                resources: state.result && state.result.job_id ? [{ kind: 'openscad_job', label: state.result.job_id }] : []
-            });
+        if (!state.ctx || typeof state.ctx.updateWindowContext !== 'function') return;
+        state.ctx.updateWindowContext(state.windowId, { source: state.source });
+    }
+
+    function previewURL(file) {
+        return file.preview_url || file.download_url || '';
+    }
+
+    function primaryFile(state) {
+        const files = resultFiles(state);
+        if (!files.length) return null;
+        const png = files.find(f => f.format === 'png');
+        if (png) return png;
+        const stl = files.find(f => f.format === 'stl');
+        if (stl) return stl;
+        const svg = files.find(f => f.format === 'svg');
+        if (svg) return svg;
+        return files[0];
+    }
+
+    function formatSize(bytes) {
+        if (bytes == null || isNaN(bytes) || bytes < 1) return '0 B';
+        const units = ['B', 'KB', 'MB', 'GB'];
+        let i = 0;
+        let size = Number(bytes);
+        while (size >= 1024 && i < units.length - 1) { size /= 1024; i++; }
+        return `${size.toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
+    }
+
+    function emptyPanel(state, key, fallback) {
+        return `<div class="oscad-empty">${esc(t(state.ctx, key, fallback))}</div>`;
+    }
+
+    function normalizeEventData(value) {
+        if (!value) return null;
+        if (typeof value === 'string') {
+            try { return JSON.parse(value); } catch (_) { return null; }
+        }
+        return value;
+    }
+
+    function cleanupPreview(state) {
+        if (state.previewCleanup) {
+            try { state.previewCleanup(); } catch (_) {}
+            state.previewCleanup = null;
+        }
+        if (state.preview3D) {
+            if (state.preview3D.animId) {
+                try { cancelAnimationFrame(state.preview3D.animId); } catch (_) {}
+                state.preview3D.animId = null;
+            }
+            if (state.preview3D.renderer && !state.preview3D.renderer.disposed) {
+                try { state.preview3D.renderer.dispose(); } catch (_) {}
+            }
+            if (state.stl) {
+                try { state.stl.dispose && state.stl.dispose(); } catch (_) {}
+                state.stl = null;
+            }
+            state.preview3D = null;
         }
     }
 
-    function normalizeEventData(raw) {
-        if (!raw) return null;
-        if (typeof raw === 'object') return raw;
-        try { return JSON.parse(raw); } catch (_) { return null; }
+    function renderSTL(state, mount, url) {
+        if (!state.ctx || typeof state.ctx.api !== 'function') return;
+        if (!window.THREE || !window.THREE.STLLoader) return;
+        cleanupPreview(state);
+        const width = mount.clientWidth || 400;
+        const height = mount.clientHeight || 400;
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(state.lightPreview ? 0xf2f6f8 : 0x071018);
+        const camera = new THREE.PerspectiveCamera(30, width / height, 1, 8000);
+        camera.position.set(80, 60, 80);
+        camera.lookAt(0, 0, 0);
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+        renderer.setSize(width, height);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+        mount.appendChild(renderer.domElement);
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.target.set(0, 0, 0);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.09;
+        controls.autoRotate = true;
+        controls.autoRotateSpeed = 2.2;
+        controls.update();
+        const ambient = new THREE.AmbientLight(0x404060, 1.4);
+        scene.add(ambient);
+        const directional = new THREE.DirectionalLight(0xffeedd, 2.4);
+        directional.position.set(60, 90, 40);
+        scene.add(directional);
+        const fill = new THREE.DirectionalLight(0xaaccff, 1.0);
+        fill.position.set(-50, 30, -40);
+        scene.add(fill);
+        const hemi = new THREE.HemisphereLight(0x8888ff, 0x444422, 0.6);
+        scene.add(hemi);
+        const gridHelper = new THREE.GridHelper(400, 20, 0x42d7c8, 0x42d7c840);
+        gridHelper.material.transparent = true;
+        gridHelper.material.opacity = 0.28;
+        scene.add(gridHelper);
+        if (!state.showAxes) gridHelper.visible = false;
+        state.preview3D = { scene, camera, renderer, controls, gridHelper, mesh: null };
+        const loader = new THREE.STLLoader();
+        state.stl = loader;
+        fetch(url).then(res => {
+            if (!res.ok) throw new Error(res.statusText);
+            return res.arrayBuffer();
+        }).then(buffer => {
+            if (!state.preview3D) return;
+            const geometry = loader.parse(buffer);
+            if (!geometry) return;
+            geometry.computeVertexNormals();
+            const material = new THREE.MeshStandardMaterial({
+                color: state.lightPreview ? 0x6a8cab : 0x42d7c8,
+                roughness: 0.38,
+                metalness: 0.22,
+                flatShading: false,
+                transparent: false
+            });
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.rotation.x = -Math.PI / 2;
+            scene.add(mesh);
+            state.preview3D.mesh = mesh;
+            const box = new THREE.Box3().setFromObject(mesh);
+            const size = box.getSize(new THREE.Vector3()).length() || 80;
+            camera.position.set(size, size * 0.75, size);
+            controls.target.set(0, 0, 0);
+            controls.update();
+            animatePreview(state);
+        }).catch(() => {});
     }
 
-    function formatSize(size) {
-        const n = Number(size || 0);
-        if (n > 1024 * 1024) return (n / 1024 / 1024).toFixed(1) + ' MB';
-        if (n > 1024) return (n / 1024).toFixed(1) + ' KB';
-        return n + ' B';
+    function animatePreview(state) {
+        const p3d = state.preview3D;
+        if (!p3d || !p3d.renderer || !p3d.scene || !p3d.camera) return;
+        p3d.controls.update();
+        p3d.renderer.render(p3d.scene, p3d.camera);
+        if (!p3d.renderer.disposed) {
+            p3d.animId = requestAnimationFrame(() => animatePreview(state));
+        }
     }
 
     function dispose(windowId) {
         const state = stateByWindow.get(windowId);
         if (!state) return;
         persistOpenSCADDraft(state);
+        if (state.editor && typeof state.editor.dispose === 'function') {
+            try { state.editor.dispose(); } catch (_) {}
+            state.editor = null;
+        }
         if (state.renderAbort) { state.renderAbort.abort(); state.renderAbort = null; }
         if (state.exportAbort) { state.exportAbort.abort(); state.exportAbort = null; }
         if (state.agentAbort) { state.agentAbort.abort(); state.agentAbort = null; }

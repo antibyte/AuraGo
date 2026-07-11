@@ -164,6 +164,8 @@
                 '/js/vendor/three.min.js',
                 '/js/vendor/STLLoader.min.js',
                 '/js/vendor/OrbitControls.min.js',
+                '/js/desktop/apps/openscad-defines.js',
+                '/js/desktop/apps/openscad-editor.js',
                 '/js/desktop/apps/openscad.js'
             ]
         },
