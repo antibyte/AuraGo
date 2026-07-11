@@ -54,6 +54,24 @@ func shouldRunHistoryCompression(loopIteration, messageTokens, maxHistoryTokens 
 	return messageTokens > compressionThreshold
 }
 
+func countMessageTokens(messages []openai.ChatCompletionMessage, model string, tokenCache *tokenCountCache) int {
+	total := 0
+	for _, message := range messages {
+		total += tokenCache.Count(messageTextWithReasoningForAccounting(message), model) + 4
+	}
+	return total
+}
+
+func contextGuardMessageTokens(cachedMessageTokens int, messages []openai.ChatCompletionMessage, model string, tokenCache *tokenCountCache, compression CompressHistoryResult, historyCompacted bool, sysPromptTokens int) int {
+	if compression.TotalTokens > 0 {
+		return compression.TotalTokens + sysPromptTokens + 4
+	}
+	if historyCompacted {
+		return countMessageTokens(messages, model, tokenCache)
+	}
+	return cachedMessageTokens
+}
+
 func acquireAgentLoopSlot(ctx context.Context) (func(), error) {
 	select {
 	case agentLoopLimiter <- struct{}{}:
@@ -1171,17 +1189,16 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 		// Count message tokens once per iteration. The same cached total drives the
 		// later-iteration compaction/compression policy and the hard-trim fallback.
-		messageTokens := 0
-		for _, m := range req.Messages {
-			messageTokens += tokenCache.Count(messageTextWithReasoningForAccounting(m), req.Model) + 4
-		}
+		messageTokens := countMessageTokens(req.Messages, req.Model, tokenCache)
 		runHistoryCompression := shouldRunHistoryCompression(loopIterationCount, messageTokens, maxHistoryTokens)
+		historyCompacted := false
 		if runHistoryCompression && cfg.Agent.HistoryCompaction.Enabled {
 			compactedMessages, historyCompaction := CompactHistoryToolRounds(req.Messages, HistoryCompactionOptions{
 				KeepRecentToolRoundsFull: cfg.Agent.HistoryCompaction.KeepRecentToolRoundsFull,
 			})
 			if historyCompaction.Compacted {
 				req.Messages = compactedMessages
+				historyCompacted = true
 				if lastCompressionMsg > len(req.Messages) {
 					lastCompressionMsg = 0
 				}
@@ -1213,15 +1230,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 
 		// ── Context window guard ──
-		// Use TotalTokens from CompressHistory when available (avoids re-counting
-		// all messages). Otherwise count from scratch for the fallback path.
-		totalMsgTokens := compRes.TotalTokens
-		if totalMsgTokens == 0 {
-			totalMsgTokens = messageTokens
-		} else {
-			// compRes.TotalTokens excludes system prompt — add it back
-			totalMsgTokens += sysPromptTokens + 4
-		}
+		// Use TotalTokens from CompressHistory when available. Only re-count when
+		// compaction rewrote the message slice but compression skipped accounting.
+		totalMsgTokens := contextGuardMessageTokens(messageTokens, req.Messages, req.Model, tokenCache, compRes, historyCompacted, sysPromptTokens)
 		if len(req.Tools) > 0 {
 			toolSchemaJSON, _ := json.Marshal(req.Tools)
 			totalMsgTokens += tokenCache.Count(string(toolSchemaJSON), req.Model)
