@@ -96,6 +96,24 @@ async function loadGallery() {
     }
 }
 
+function galleryCardSnapshot(img) {
+    const sourceDB = img.source_db || '';
+    const selectionKey = sourceDB + ':' + img.id;
+    const selectionActive = typeof isMediaSelectionModeActive === 'function' && isMediaSelectionModeActive();
+    const isSelected = selectionActive && typeof isMediaItemSelected === 'function' && isMediaItemSelected('images', selectionKey);
+    return [
+        img.id,
+        sourceDB,
+        img.web_path || '',
+        img.filename || '',
+        img.prompt || '',
+        img.provider || '',
+        img.created_at || '',
+        selectionActive ? '1' : '0',
+        isSelected ? '1' : '0'
+    ].join('|');
+}
+
 function renderGalleryCard(img) {
     const webPath = img.web_path || ('/files/generated_images/' + img.filename);
     const promptDisplay = escapeHtml((img.prompt || '').substring(0, 100));
@@ -110,8 +128,7 @@ function renderGalleryCard(img) {
     card.className = 'gallery-card' + (isSelected ? ' media-card-selected' : '');
     card.dataset.source = sourceDB;
     card.dataset.mediaId = String(img.id);
-    card.dataset.selectionMode = selectionActive ? '1' : '0';
-    card.dataset.selected = isSelected ? '1' : '0';
+    card.dataset.snapshot = galleryCardSnapshot(img);
 
     if (selectionActive) {
         const label = document.createElement('label');
@@ -152,11 +169,7 @@ function renderGalleryCard(img) {
 }
 
 function shouldUpdateGalleryCard(img, el) {
-    const sourceDB = img.source_db || '';
-    const selectionKey = sourceDB + ':' + img.id;
-    const selectionActive = typeof isMediaSelectionModeActive === 'function' && isMediaSelectionModeActive();
-    const isSelected = selectionActive && typeof isMediaItemSelected === 'function' && isMediaItemSelected('images', selectionKey);
-    return el.dataset.selectionMode !== (selectionActive ? '1' : '0') || el.dataset.selected !== (isSelected ? '1' : '0');
+    return el.dataset.snapshot !== galleryCardSnapshot(img);
 }
 
 function handleGalleryGridClick(e) {

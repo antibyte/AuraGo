@@ -193,6 +193,21 @@ async function loadAudio() {
     }
 }
 
+function audioCardSnapshot(item) {
+    const selectionKey = mediaSelectionKey('audio', item);
+    return [
+        item.id,
+        item.description || '',
+        item.filename || '',
+        item.format || '',
+        item.media_type || '',
+        item.created_at || '',
+        item.web_path || '',
+        mediaSelectionMode ? '1' : '0',
+        isMediaItemSelected('audio', selectionKey) ? '1' : '0'
+    ].join('|');
+}
+
 function renderAudioCard(item) {
     const title = item.description || item.filename || t('media.audio_type_audio');
     const fmt = (item.format || '').toUpperCase();
@@ -207,8 +222,7 @@ function renderAudioCard(item) {
 
     const card = document.createElement('div');
     card.className = 'media-audio-card' + (hasFile ? '' : ' media-audio-card--unavailable') + (selected ? ' media-card-selected' : '');
-    card.dataset.selectionMode = mediaSelectionMode ? '1' : '0';
-    card.dataset.selected = selected ? '1' : '0';
+    card.dataset.snapshot = audioCardSnapshot(item);
     if (mediaSelectionMode) {
         card.appendChild(createMediaSelectionCheckbox('audio', selectionKey, { id: item.id }));
     }
@@ -278,9 +292,7 @@ function renderAudioCard(item) {
 }
 
 function shouldUpdateAudioCard(item, el) {
-    const selectionKey = mediaSelectionKey('audio', item);
-    const selected = isMediaItemSelected('audio', selectionKey) ? '1' : '0';
-    return el.dataset.selectionMode !== (mediaSelectionMode ? '1' : '0') || el.dataset.selected !== selected;
+    return el.dataset.snapshot !== audioCardSnapshot(item);
 }
 
 function renderAudioGrid(items) {
@@ -693,6 +705,22 @@ async function loadVideos() {
     }
 }
 
+function videoCardSnapshot(item) {
+    const selectionKey = mediaSelectionKey('videos', item);
+    return [
+        item.id,
+        item.description || '',
+        item.prompt || '',
+        item.filename || '',
+        item.format || '',
+        item.duration_ms || '',
+        item.created_at || '',
+        item.web_path || '',
+        mediaSelectionMode ? '1' : '0',
+        isMediaItemSelected('videos', selectionKey) ? '1' : '0'
+    ].join('|');
+}
+
 function renderVideoCard(item) {
     const title = item.description || item.prompt || item.filename || t('media.video_type_video');
     const fmt = (item.format || fileExtension(item.filename) || '').toUpperCase();
@@ -705,8 +733,7 @@ function renderVideoCard(item) {
 
     const card = document.createElement('div');
     card.className = 'media-video-card' + (hasFile ? '' : ' media-video-card--unavailable') + (selected ? ' media-card-selected' : '');
-    card.dataset.selectionMode = mediaSelectionMode ? '1' : '0';
-    card.dataset.selected = selected ? '1' : '0';
+    card.dataset.snapshot = videoCardSnapshot(item);
     if (mediaSelectionMode) {
         card.appendChild(createMediaSelectionCheckbox('videos', selectionKey, { id: item.id }));
     }
@@ -777,9 +804,7 @@ function renderVideoCard(item) {
 }
 
 function shouldUpdateVideoCard(item, el) {
-    const selectionKey = mediaSelectionKey('videos', item);
-    const selected = isMediaItemSelected('videos', selectionKey) ? '1' : '0';
-    return el.dataset.selectionMode !== (mediaSelectionMode ? '1' : '0') || el.dataset.selected !== selected;
+    return el.dataset.snapshot !== videoCardSnapshot(item);
 }
 
 function renderVideoGrid(items) {
@@ -957,9 +982,7 @@ function renderDocItemHTML(item) {
 }
 
 function shouldUpdateDocItem(item, el) {
-    const selectionKey = mediaSelectionKey('documents', item);
-    const selected = (mediaSelectionMode && isMediaItemSelected('documents', selectionKey)) ? '1' : '0';
-    return el.dataset.selectionMode !== (mediaSelectionMode ? '1' : '0') || el.dataset.selected !== selected;
+    return el.dataset.diffHtml !== renderDocItemHTML(item);
 }
 
 function renderDocList(items) {
@@ -969,9 +992,10 @@ function renderDocList(items) {
             keyFn: function (item) { return String(item.id); },
             renderFn: function (item) {
                 var wrap = document.createElement('div');
-                wrap.innerHTML = renderDocItemHTML(item);
+                var html = renderDocItemHTML(item);
+                wrap.innerHTML = html;
                 var el = wrap.firstElementChild;
-                if (el) el.dataset.diffHtml = '1';
+                if (el) el.dataset.diffHtml = html;
                 return el;
             },
             shouldUpdate: shouldUpdateDocItem
