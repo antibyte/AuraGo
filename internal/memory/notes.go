@@ -112,19 +112,7 @@ END;
 	if _, err := s.db.Exec(schema); err != nil {
 		return fmt.Errorf("notes fts5 schema: %w", err)
 	}
-	var count int
-	if err := s.db.QueryRow("SELECT count(*) FROM notes_fts").Scan(&count); err != nil {
-		return fmt.Errorf("count notes_fts: %w", err)
-	}
-	if count == 0 {
-		if _, err := s.db.Exec(`
-			INSERT INTO notes_fts(rowid, title, content)
-			SELECT id, title, content FROM notes
-		`); err != nil {
-			return fmt.Errorf("backfill notes_fts: %w", err)
-		}
-	}
-	return nil
+	return s.rebuildFTS5IfNeeded("fts.notes", "notes_fts", "notes")
 }
 
 // maxNoteContentLen is the maximum rune count for note content.

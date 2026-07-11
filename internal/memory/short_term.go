@@ -998,8 +998,21 @@ func (s *SQLiteMemory) CleanupDeletedVectorDocumentReferencesBatch(docIDs []stri
 	if s == nil || len(docIDs) == 0 {
 		return nil
 	}
-	for i, id := range docIDs {
-		docIDs[i] = strings.TrimSpace(id)
+	normalizedIDs := make([]string, 0, len(docIDs))
+	seen := make(map[string]struct{}, len(docIDs))
+	for _, id := range docIDs {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			continue
+		}
+		if _, exists := seen[id]; exists {
+			continue
+		}
+		seen[id] = struct{}{}
+		normalizedIDs = append(normalizedIDs, id)
+	}
+	if len(normalizedIDs) == 0 {
+		return nil
 	}
 
 	tx, err := s.db.Begin()
@@ -1008,7 +1021,7 @@ func (s *SQLiteMemory) CleanupDeletedVectorDocumentReferencesBatch(docIDs []stri
 	}
 	defer tx.Rollback()
 
-	if err := execChunkedInDeleteStrings(tx, "file_embedding_docs", "doc_id", docIDs, defaultInClauseChunkSize); err != nil {
+	if err := execChunkedInDeleteStrings(tx, "file_embedding_docs", "doc_id", normalizedIDs, defaultInClauseChunkSize); err != nil {
 		return fmt.Errorf("cleanup file_embedding_docs: %w", err)
 	}
 
@@ -1016,17 +1029,22 @@ func (s *SQLiteMemory) CleanupDeletedVectorDocumentReferencesBatch(docIDs []stri
 	if chunkSize < 1 {
 		chunkSize = 1
 	}
-	for start := 0; start < len(docIDs); start += chunkSize {
+	for start := 0; start < len(normalizedIDs); start += chunkSize {
 		end := start + chunkSize
-		if end > len(docIDs) {
-			end = len(docIDs)
+		if end > len(normalizedIDs) {
+			end = len(normalizedIDs)
 		}
-		chunk := docIDs[start:end]
+		chunk := normalizedIDs[start:end]
 		placeholders := make([]string, len(chunk))
 		args := make([]interface{}, 0, len(chunk)*2)
-		for i, id := range chunk {
+		for i := range chunk {
 			placeholders[i] = "?"
-			args = append(args, id, id)
+		}
+		for _, id := range chunk {
+			args = append(args, id)
+		}
+		for _, id := range chunk {
+			args = append(args, id)
 		}
 		if _, err := tx.Exec(fmt.Sprintf(`
 			DELETE FROM memory_conflicts

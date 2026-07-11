@@ -1347,32 +1347,12 @@ END;
 		return fmt.Errorf("journal fts5 schema: %w", err)
 	}
 
-	// Backfill existing rows if the FTS table is empty.
-	var journalFTSCount int
-	if err := s.db.QueryRow("SELECT count(*) FROM journal_entries_fts").Scan(&journalFTSCount); err != nil {
-		return fmt.Errorf("count journal_entries_fts: %w", err)
+	if err := s.rebuildFTS5IfNeeded(
+		"fts.journal_entries", "journal_entries_fts", "journal_entries",
+	); err != nil {
+		return err
 	}
-	if journalFTSCount == 0 {
-		if _, err := s.db.Exec(`
-			INSERT INTO journal_entries_fts(rowid, title, content, tags)
-			SELECT id, title, content, tags FROM journal_entries
-		`); err != nil {
-			return fmt.Errorf("backfill journal_entries_fts: %w", err)
-		}
-	}
-
-	var episodicFTSCount int
-	if err := s.db.QueryRow("SELECT count(*) FROM episodic_memories_fts").Scan(&episodicFTSCount); err != nil {
-		return fmt.Errorf("count episodic_memories_fts: %w", err)
-	}
-	if episodicFTSCount == 0 {
-		if _, err := s.db.Exec(`
-			INSERT INTO episodic_memories_fts(rowid, title, summary, details_json)
-			SELECT id, title, summary, details_json FROM episodic_memories
-		`); err != nil {
-			return fmt.Errorf("backfill episodic_memories_fts: %w", err)
-		}
-	}
-
-	return nil
+	return s.rebuildFTS5IfNeeded(
+		"fts.episodic_memories", "episodic_memories_fts", "episodic_memories",
+	)
 }

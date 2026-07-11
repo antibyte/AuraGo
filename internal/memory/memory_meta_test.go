@@ -1,8 +1,10 @@
 package memory
 
 import (
+	"fmt"
 	"io"
 	"log/slog"
+	"reflect"
 	"sync"
 	"testing"
 )
@@ -165,6 +167,80 @@ func TestCleanupDeletedVectorDocumentReferencesPreservesMemoryMeta(t *testing.T)
 	}
 	if conflictRows != 0 {
 		t.Fatalf("memory_conflicts rows = %d, want 0", conflictRows)
+	}
+}
+
+func TestCleanupDeletedVectorDocumentReferencesBatchNormalizesWithoutMutatingInput(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	t.Cleanup(func() { _ = stm.Close() })
+
+	docIDs := []string{" left-id ", "", "right-id", "left-id", " right-id "}
+	wantInput := append([]string(nil), docIDs...)
+	for _, docID := range []string{"left-id", "right-id"} {
+		if _, err := stm.db.Exec(
+			`INSERT INTO file_embedding_docs (file_path, collection, doc_id) VALUES (?, ?, ?)`,
+			docID+".md", "docs", docID,
+		); err != nil {
+			t.Fatalf("insert file_embedding_docs %s: %v", docID, err)
+		}
+	}
+	for i, pair := range [][2]string{
+		{"left-id", "outside-a"},
+		{"outside-b", "left-id"},
+		{"right-id", "outside-c"},
+		{"outside-d", "right-id"},
+		{"keep-left", "keep-right"},
+	} {
+		if _, err := stm.db.Exec(`
+			INSERT INTO memory_conflicts (doc_id_left, doc_id_right, conflict_key, status)
+			VALUES (?, ?, ?, 'open')
+		`, pair[0], pair[1], fmt.Sprintf("conflict-%d", i)); err != nil {
+			t.Fatalf("insert memory_conflicts %d: %v", i, err)
+		}
+	}
+
+	if err := stm.CleanupDeletedVectorDocumentReferencesBatch(docIDs); err != nil {
+		t.Fatalf("CleanupDeletedVectorDocumentReferencesBatch: %v", err)
+	}
+	if !reflect.DeepEqual(docIDs, wantInput) {
+		t.Fatalf("input mutated: got %#v, want %#v", docIDs, wantInput)
+	}
+
+	var fileRows int
+	if err := stm.db.QueryRow(`
+		SELECT COUNT(*) FROM file_embedding_docs WHERE doc_id IN ('left-id', 'right-id')
+	`).Scan(&fileRows); err != nil {
+		t.Fatalf("count file_embedding_docs: %v", err)
+	}
+	if fileRows != 0 {
+		t.Fatalf("file_embedding_docs rows = %d, want 0", fileRows)
+	}
+
+	var matchingConflicts int
+	if err := stm.db.QueryRow(`
+		SELECT COUNT(*) FROM memory_conflicts
+		WHERE doc_id_left IN ('left-id', 'right-id')
+		   OR doc_id_right IN ('left-id', 'right-id')
+	`).Scan(&matchingConflicts); err != nil {
+		t.Fatalf("count matching memory_conflicts: %v", err)
+	}
+	if matchingConflicts != 0 {
+		t.Fatalf("matching memory_conflicts rows = %d, want 0", matchingConflicts)
+	}
+
+	var keptConflicts int
+	if err := stm.db.QueryRow(`
+		SELECT COUNT(*) FROM memory_conflicts
+		WHERE doc_id_left = 'keep-left' AND doc_id_right = 'keep-right'
+	`).Scan(&keptConflicts); err != nil {
+		t.Fatalf("count kept memory_conflicts: %v", err)
+	}
+	if keptConflicts != 1 {
+		t.Fatalf("kept memory_conflicts rows = %d, want 1", keptConflicts)
 	}
 }
 

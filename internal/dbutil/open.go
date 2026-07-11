@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"os"
 	"strings"
 )
@@ -53,11 +54,9 @@ func Open(dbPath string, opts ...Option) (*sql.DB, error) {
 // and runs an integrity check. Returns an error if any step fails.
 func openAndConfigure(dbPath string, cfg config) (*sql.DB, error) {
 	// Open database.
-	// Embed _busy_timeout in the DSN so modernc.org/sqlite applies it to every
-	// new connection opened from the pool — not just the first one.  Without
-	// this, connections #2..N created lazily by MaxOpenConns>1 never get the
-	// PRAGMA, causing immediate SQLITE_BUSY (5) errors under write concurrency.
-	dsn := buildDSN(dbPath, cfg.busyTimeout)
+	// Embed connection-local PRAGMAs in the DSN so modernc.org/sqlite applies
+	// them to every connection opened from the pool, including lazy connections.
+	dsn := buildDSN(dbPath, cfg)
 	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
@@ -92,41 +91,70 @@ func openAndConfigure(dbPath string, cfg config) (*sql.DB, error) {
 	return db, nil
 }
 
-// buildDSN builds the SQLite DSN, embedding _busy_timeout so that every new
-// connection opened from the pool inherits the timeout automatically.
-// For in-memory databases we add cache=shared so multiple pooled connections
-// see the same database; otherwise each connection gets its own empty DB.
-func buildDSN(path string, busyTimeoutMs int) string {
-	param := fmt.Sprintf("_busy_timeout=%d", busyTimeoutMs)
-	if path == ":memory:" {
-		param += "&cache=shared"
+// buildDSN builds the SQLite DSN with connection-local settings configured as
+// repeated modernc _pragma parameters. Unrelated caller parameters, including
+// unrelated pragmas, are retained while managed settings are replaced.
+func buildDSN(path string, cfg config) string {
+	base, rawQuery, _ := strings.Cut(path, "?")
+	params := make([]string, 0, 8)
+	hasCache := false
+	for _, param := range strings.Split(rawQuery, "&") {
+		if param == "" {
+			continue
+		}
+		rawKey, rawValue, _ := strings.Cut(param, "=")
+		key, err := url.QueryUnescape(rawKey)
+		if err != nil {
+			params = append(params, param)
+			continue
+		}
+		if strings.EqualFold(key, "cache") {
+			hasCache = true
+		}
+		if strings.EqualFold(key, "_busy_timeout") {
+			continue
+		}
+		if strings.EqualFold(key, "_pragma") {
+			value, err := url.QueryUnescape(rawValue)
+			if err == nil && isManagedPragma(value) {
+				continue
+			}
+		}
+		params = append(params, param)
 	}
-	if strings.Contains(path, "?") {
-		return path + "&" + param
+
+	for _, pragma := range []string{
+		"foreign_keys(1)",
+		fmt.Sprintf("synchronous(%s)", cfg.synchronous),
+		fmt.Sprintf("busy_timeout(%d)", cfg.busyTimeout),
+	} {
+		params = append(params, "_pragma="+url.QueryEscape(pragma))
 	}
-	return path + "?" + param
+	if path == ":memory:" && !hasCache {
+		params = append(params, "cache=shared")
+	}
+	return base + "?" + strings.Join(params, "&")
 }
 
-// applyPragmas applies the standard SQLite PRAGMAs.
-func applyPragmas(db *sql.DB, cfg config) error {
+func isManagedPragma(value string) bool {
+	value = strings.ToLower(strings.TrimSpace(value))
+	if separator := strings.IndexAny(value, "(= \t"); separator >= 0 {
+		value = value[:separator]
+	}
+	switch value {
+	case "foreign_keys", "synchronous", "busy_timeout", "journal_mode":
+		return true
+	default:
+		return false
+	}
+}
+
+// applyPragmas applies the persistent SQLite settings that only need to be set
+// once. Connection-local settings are embedded in the DSN by buildDSN.
+func applyPragmas(db *sql.DB, _ config) error {
 	// journal_mode=WAL
 	if _, err := db.Exec("PRAGMA journal_mode=WAL"); err != nil {
 		return fmt.Errorf("failed to set journal_mode=WAL: %w", err)
-	}
-
-	// synchronous=NORMAL (or as configured)
-	if _, err := db.Exec(fmt.Sprintf("PRAGMA synchronous=%s", cfg.synchronous)); err != nil {
-		return fmt.Errorf("failed to set synchronous=%s: %w", cfg.synchronous, err)
-	}
-
-	// foreign_keys=ON
-	if _, err := db.Exec("PRAGMA foreign_keys=ON"); err != nil {
-		return fmt.Errorf("failed to set foreign_keys=ON: %w", err)
-	}
-
-	// busy_timeout=5000 (or as configured)
-	if _, err := db.Exec(fmt.Sprintf("PRAGMA busy_timeout=%d", cfg.busyTimeout)); err != nil {
-		return fmt.Errorf("failed to set busy_timeout=%d: %w", cfg.busyTimeout, err)
 	}
 
 	return nil

@@ -386,6 +386,7 @@ The core agent loop (`internal/agent/agent_loop.go`) implements:
 - **Native Chunking**: File, documentation, and tool-guide indexing use the Go `internal/chunking` package. `indexing.chunking` defaults to recursive chunking with 3,500 chars, 200 overlap, and 200 chunks per file; chunking parameters are part of index fingerprints so config changes trigger clean reindexing.
 - **On-Demand Context**: Auto-RAG and KG prompt injection keep only essential context in the prompt and expose additional `[memory:<id>]` / `[kg:<id>]` teasers for `recall_memory` and `explore_kg`.
 - **Memory Hygiene**: Dashboard and nightly maintenance can safely consolidate exact auto-generated journal error duplicates, archive stale low-priority notes with per-run limits and repeated-failure tracking, repair tracked canonical VectorDB names, and raise review issues for KG/Core Memory health. Notes marked `protected` or `keep_forever` are excluded from auto-archive. Review-only/high-risk memory findings must not be auto-deleted.
+- **FTS Migration State**: External-content FTS5 indexes for notes, journal entries, episodic memories, and activity turns use version `1` markers in `memory_schema_meta` (`fts.notes`, `fts.journal_entries`, `fts.episodic_memories`, `fts.activity_turns`). Missing or outdated markers require an FTS5 `rebuild`; write the marker only after a successful rebuild.
 
 ### Tool System
 Tools are defined in `internal/tools/`:

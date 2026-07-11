@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"sort"
@@ -123,56 +124,80 @@ func (s *SQLiteMemory) InitActivityTables() error {
 		return fmt.Errorf("activity schema: %w", err)
 	}
 
+	return s.migrateActivityFTS5()
+}
+
+func (s *SQLiteMemory) migrateActivityFTS5() error {
+	if err := s.ensureMemorySchemaMeta(); err != nil {
+		return err
+	}
+
+	var objectType, existingSchema string
+	err := s.db.QueryRow(`
+		SELECT type, sql FROM sqlite_master WHERE name = 'activity_turns_fts'
+	`).Scan(&objectType, &existingSchema)
+	if err != nil && err != sql.ErrNoRows {
+		return fmt.Errorf("inspect activity FTS5 schema: %w", err)
+	}
+	if err == nil && objectType != "table" {
+		return fmt.Errorf("activity_turns_fts has unexpected object type %q", objectType)
+	}
+	legacySchema := strings.ToLower(existingSchema)
+	if err == nil && (!strings.Contains(legacySchema, "outcomes_text") ||
+		!strings.Contains(legacySchema, "important_points_text")) {
+		for _, trigger := range []string{"activity_turns_ai", "activity_turns_ad", "activity_turns_au"} {
+			if _, err := s.db.Exec("DROP TRIGGER IF EXISTS " + trigger); err != nil {
+				return fmt.Errorf("drop legacy activity FTS5 trigger %s: %w", trigger, err)
+			}
+		}
+		if _, err := s.db.Exec("DROP TABLE activity_turns_fts"); err != nil {
+			return fmt.Errorf("drop legacy activity FTS5 table: %w", err)
+		}
+		if _, err := s.db.Exec(
+			"DELETE FROM memory_schema_meta WHERE key = 'fts.activity_turns'",
+		); err != nil {
+			return fmt.Errorf("clear legacy activity FTS5 marker: %w", err)
+		}
+	}
+
 	if _, err := s.db.Exec(`
 		CREATE VIRTUAL TABLE IF NOT EXISTS activity_turns_fts USING fts5(
 			intent,
 			user_request,
 			user_goal,
-			outcomes,
-			important_points,
+			outcomes_text,
+			important_points_text,
 			content='activity_turns',
 			content_rowid='id'
-		);
-	`); err != nil && s.logger != nil {
-		s.logger.Warn("Failed to initialize activity FTS index", "error", err)
+		)
+	`); err != nil {
+		return fmt.Errorf("activity FTS5 schema: %w", err)
 	}
 
 	for _, trigger := range []string{
 		`CREATE TRIGGER IF NOT EXISTS activity_turns_ai AFTER INSERT ON activity_turns BEGIN
-			INSERT INTO activity_turns_fts(rowid, intent, user_request, user_goal, outcomes, important_points)
+			INSERT INTO activity_turns_fts(rowid, intent, user_request, user_goal, outcomes_text, important_points_text)
 			VALUES (new.id, new.intent, new.user_request, new.user_goal, new.outcomes_text, new.important_points_text);
 		END;`,
 		`CREATE TRIGGER IF NOT EXISTS activity_turns_ad AFTER DELETE ON activity_turns BEGIN
-			INSERT INTO activity_turns_fts(activity_turns_fts, rowid, intent, user_request, user_goal, outcomes, important_points)
+			INSERT INTO activity_turns_fts(activity_turns_fts, rowid, intent, user_request, user_goal, outcomes_text, important_points_text)
 			VALUES('delete', old.id, old.intent, old.user_request, old.user_goal, old.outcomes_text, old.important_points_text);
 		END;`,
 		`CREATE TRIGGER IF NOT EXISTS activity_turns_au AFTER UPDATE ON activity_turns BEGIN
-			INSERT INTO activity_turns_fts(activity_turns_fts, rowid, intent, user_request, user_goal, outcomes, important_points)
+			INSERT INTO activity_turns_fts(activity_turns_fts, rowid, intent, user_request, user_goal, outcomes_text, important_points_text)
 			VALUES('delete', old.id, old.intent, old.user_request, old.user_goal, old.outcomes_text, old.important_points_text);
-			INSERT INTO activity_turns_fts(rowid, intent, user_request, user_goal, outcomes, important_points)
+			INSERT INTO activity_turns_fts(rowid, intent, user_request, user_goal, outcomes_text, important_points_text)
 			VALUES (new.id, new.intent, new.user_request, new.user_goal, new.outcomes_text, new.important_points_text);
 		END;`,
 	} {
-		if _, err := s.db.Exec(trigger); err != nil && s.logger != nil {
-			s.logger.Warn("Failed to initialize activity trigger", "error", err)
+		if _, err := s.db.Exec(trigger); err != nil {
+			return fmt.Errorf("activity FTS5 trigger: %w", err)
 		}
 	}
 
-	// Backfill existing activity turns into the FTS index if it is empty.
-	var ftsCount int
-	if err := s.db.QueryRow("SELECT count(*) FROM activity_turns_fts").Scan(&ftsCount); err != nil && s.logger != nil {
-		s.logger.Warn("Failed to count activity FTS index", "error", err)
-	}
-	if ftsCount == 0 {
-		if _, err := s.db.Exec(`
-			INSERT INTO activity_turns_fts(rowid, intent, user_request, user_goal, outcomes, important_points)
-			SELECT id, intent, user_request, user_goal, outcomes_text, important_points_text FROM activity_turns
-		`); err != nil && s.logger != nil {
-			s.logger.Warn("Failed to backfill activity FTS index", "error", err)
-		}
-	}
-
-	return nil
+	return s.rebuildFTS5IfNeeded(
+		"fts.activity_turns", "activity_turns_fts", "activity_turns",
+	)
 }
 
 // InsertActivityTurn stores one handled user-visible turn.
