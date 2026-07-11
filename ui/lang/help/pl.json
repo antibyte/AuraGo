@@ -417,5 +417,8 @@
   "help.ai_gateway.max_attempts": "Opcjonalna liczba ponowień Cloudflare. 0 pozostawia ponowienia wyłączone lub domyślne.",
   "help.ai_gateway.retry_delay_ms": "Opóźnienie przed ponowieniem żądania przez Cloudflare. 0 pozostawia wartość domyślną.",
   "help.ai_gateway.backoff": "Opcjonalna strategia backoff Cloudflare dla ponowień gateway.",
-  "help.ai_gateway.metadata": "Opcjonalne metadane klucz-wartość wysyłane jako cf-aig-metadata. Nie umieszczaj tu sekretów."
+  "help.ai_gateway.metadata": "Opcjonalne metadane klucz-wartość wysyłane jako cf-aig-metadata. Nie umieszczaj tu sekretów.",
+  "help.agent.max_concurrent_loops": "Maksymalna liczba pętli agenta, które mogą działać jednocześnie. Domyślnie: 8.",
+  "help.circuit_breaker.final_retry_interval": "Opóźnienie przed kolejną próbą po wyczerpaniu skonfigurowanych odstępów ponawiania. Domyślnie: 30 sekund.",
+  "help.server.debug_pprof": "Udostępnia punkty profilowania Go pod /debug/pprof. Pozostaw wyłączone, chyba że profilujesz zaufaną lokalną instancję."
 }

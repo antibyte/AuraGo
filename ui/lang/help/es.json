@@ -417,5 +417,8 @@
   "help.ai_gateway.max_attempts": "Número opcional de reintentos de Cloudflare. 0 deja los reintentos desactivados o en el valor predeterminado.",
   "help.ai_gateway.retry_delay_ms": "Retraso antes de que Cloudflare reintente una solicitud. 0 mantiene el valor predeterminado.",
   "help.ai_gateway.backoff": "Estrategia opcional de retroceso de Cloudflare para reintentos del gateway.",
-  "help.ai_gateway.metadata": "Metadatos opcionales de clave y valor enviados como cf-aig-metadata. No pongas secretos aquí."
+  "help.ai_gateway.metadata": "Metadatos opcionales de clave y valor enviados como cf-aig-metadata. No pongas secretos aquí.",
+  "help.agent.max_concurrent_loops": "Número máximo de bucles del agente que pueden ejecutarse a la vez. Predeterminado: 8.",
+  "help.circuit_breaker.final_retry_interval": "Espera antes de volver a intentarlo cuando se agotan los intervalos de reintento configurados. Predeterminado: 30 segundos.",
+  "help.server.debug_pprof": "Expone endpoints de perfilado de Go en /debug/pprof. Déjalo desactivado salvo que estés perfilando una instancia local de confianza."
 }

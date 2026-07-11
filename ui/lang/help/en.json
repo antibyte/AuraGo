@@ -417,5 +417,8 @@
   "help.ai_gateway.max_attempts": "Optional Cloudflare retry attempt count. Use 0 to leave retries disabled or defaulted.",
   "help.ai_gateway.retry_delay_ms": "Delay before Cloudflare retries a request. Use 0 to leave the default.",
   "help.ai_gateway.backoff": "Optional Cloudflare retry backoff strategy for gateway retries.",
-  "help.ai_gateway.metadata": "Optional key-value metadata sent as cf-aig-metadata. Do not put secrets here."
+  "help.ai_gateway.metadata": "Optional key-value metadata sent as cf-aig-metadata. Do not put secrets here.",
+  "help.agent.max_concurrent_loops": "Maximum number of agent loops that may run at the same time. Default: 8.",
+  "help.circuit_breaker.final_retry_interval": "Delay before retrying after the configured retry intervals are exhausted. Default: 30 seconds.",
+  "help.server.debug_pprof": "Exposes Go profiling endpoints under /debug/pprof. Keep disabled unless you are profiling a trusted local instance."
 }

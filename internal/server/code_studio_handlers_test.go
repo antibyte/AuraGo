@@ -254,8 +254,16 @@ func TestReleaseScriptsPreserveCodeStudioDockerfile(t *testing.T) {
 	if strings.Contains(makeDeployText, `rm -rf "$DEPLOY_DIR"`) {
 		t.Fatal("make_deploy.sh must not delete the whole deploy directory because deploy/docker is versioned source")
 	}
-	if !strings.Contains(makeDeployText, `! -name docker`) {
-		t.Fatal("make_deploy.sh must preserve deploy/docker while cleaning generated deploy artifacts")
+	for _, marker := range []string{
+		`for asset in "${CLEANUP_DEPLOY_ASSETS[@]}"; do`,
+		`rm -f "$DEPLOY_DIR/$asset"`,
+	} {
+		if !strings.Contains(makeDeployText, marker) {
+			t.Fatalf("make_deploy.sh must clean generated deploy files without deleting deploy/docker; missing %q", marker)
+		}
+	}
+	if strings.Contains(makeDeployText, "CLEANUP_DEPLOY_ASSETS+=(docker)") {
+		t.Fatal("make_deploy.sh must not add deploy/docker to generated cleanup artifacts")
 	}
 
 	makeRelease, err := os.ReadFile(filepath.Join(root, "make_release.bat"))

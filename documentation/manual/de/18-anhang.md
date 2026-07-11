@@ -92,7 +92,7 @@ agent:
 circuit_breaker:
   max_tool_calls: 20
   llm_timeout_seconds: 600
-  llm_per_attempt_timeout_seconds: 60
+  llm_per_attempt_timeout_seconds: 120
   llm_stream_chunk_timeout_seconds: 30
   maintenance_timeout_minutes: 10
   retry_intervals: ["10s", "2m", "10m"]

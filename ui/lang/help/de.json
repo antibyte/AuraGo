@@ -417,5 +417,8 @@
   "help.ai_gateway.max_attempts": "Optionale Anzahl von Cloudflare-Wiederholungsversuchen. 0 lässt Wiederholungen deaktiviert oder auf Standard.",
   "help.ai_gateway.retry_delay_ms": "Verzögerung, bevor Cloudflare eine Anfrage wiederholt. 0 lässt den Standardwert aktiv.",
   "help.ai_gateway.backoff": "Optionale Cloudflare-Backoff-Strategie für Gateway-Wiederholungen.",
-  "help.ai_gateway.metadata": "Optionale Schlüssel-Wert-Metadaten für cf-aig-metadata. Lege hier keine Secrets ab."
+  "help.ai_gateway.metadata": "Optionale Schlüssel-Wert-Metadaten für cf-aig-metadata. Lege hier keine Secrets ab.",
+  "help.agent.max_concurrent_loops": "Maximale Anzahl an Agent-Schleifen, die gleichzeitig laufen dürfen. Standard: 8.",
+  "help.circuit_breaker.final_retry_interval": "Wartezeit vor einem erneuten Versuch, nachdem die konfigurierten Wiederholungsintervalle ausgeschöpft sind. Standard: 30 Sekunden.",
+  "help.server.debug_pprof": "Aktiviert Go-Profiling-Endpunkte unter /debug/pprof. Lass dies deaktiviert, außer du profilierst eine vertrauenswürdige lokale Instanz."
 }

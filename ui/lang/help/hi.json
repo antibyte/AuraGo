@@ -417,5 +417,8 @@
   "help.ai_gateway.max_attempts": "Cloudflare पुनः प्रयासों की वैकल्पिक संख्या। 0 पुनः प्रयास बंद या डिफ़ॉल्ट रखता है।",
   "help.ai_gateway.retry_delay_ms": "Cloudflare द्वारा अनुरोध दोबारा करने से पहले का विलंब। 0 डिफ़ॉल्ट रखता है।",
   "help.ai_gateway.backoff": "Gateway पुनः प्रयासों के लिए वैकल्पिक Cloudflare बैकऑफ रणनीति।",
-  "help.ai_gateway.metadata": "cf-aig-metadata के रूप में भेजे गए वैकल्पिक key-value मेटाडेटा। यहाँ secrets न रखें।"
+  "help.ai_gateway.metadata": "cf-aig-metadata के रूप में भेजे गए वैकल्पिक key-value मेटाडेटा। यहाँ secrets न रखें।",
+  "help.agent.max_concurrent_loops": "एक साथ चल सकने वाले एजेंट लूप की अधिकतम संख्या। डिफ़ॉल्ट: 8।",
+  "help.circuit_breaker.final_retry_interval": "कॉन्फ़िगर किए गए पुनःप्रयास अंतराल समाप्त होने पर फिर से प्रयास करने से पहले की देरी। डिफ़ॉल्ट: 30 सेकंड।",
+  "help.server.debug_pprof": "Go प्रोफाइलिंग एंडपॉइंट को /debug/pprof के अंतर्गत उपलब्ध कराता है। विश्वसनीय स्थानीय इंस्टेंस की प्रोफाइलिंग के अलावा इसे बंद रखें।"
 }

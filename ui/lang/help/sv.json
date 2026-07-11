@@ -417,5 +417,8 @@
   "help.ai_gateway.max_attempts": "Valfritt antal Cloudflare-omförsök. 0 lämnar omförsök avstängda eller standard.",
   "help.ai_gateway.retry_delay_ms": "Fördröjning innan Cloudflare försöker en begäran igen. 0 behåller standardvärdet.",
   "help.ai_gateway.backoff": "Valfri Cloudflare-backoffstrategi för gateway-omförsök.",
-  "help.ai_gateway.metadata": "Valfri nyckel-värde-metadata som skickas som cf-aig-metadata. Lägg inga hemligheter här."
+  "help.ai_gateway.metadata": "Valfri nyckel-värde-metadata som skickas som cf-aig-metadata. Lägg inga hemligheter här.",
+  "help.agent.max_concurrent_loops": "Maximalt antal agentloopar som får köras samtidigt. Standard: 8.",
+  "help.circuit_breaker.final_retry_interval": "Väntetid före ett nytt försök när de konfigurerade återförsöksintervallen är slut. Standard: 30 sekunder.",
+  "help.server.debug_pprof": "Exponerar Go-profileringsändpunkter under /debug/pprof. Låt detta vara avstängt om du inte profilerar en betrodd lokal instans."
 }

@@ -417,5 +417,8 @@
   "help.ai_gateway.max_attempts": "Número opcional de novas tentativas da Cloudflare. 0 deixa as tentativas desativadas ou no padrão.",
   "help.ai_gateway.retry_delay_ms": "Atraso antes de a Cloudflare tentar uma solicitação novamente. 0 mantém o padrão.",
   "help.ai_gateway.backoff": "Estratégia opcional de recuo da Cloudflare para novas tentativas do gateway.",
-  "help.ai_gateway.metadata": "Metadados opcionais de chave e valor enviados como cf-aig-metadata. Não coloque segredos aqui."
+  "help.ai_gateway.metadata": "Metadados opcionais de chave e valor enviados como cf-aig-metadata. Não coloque segredos aqui.",
+  "help.agent.max_concurrent_loops": "Número máximo de loops do agente que podem ser executados ao mesmo tempo. Padrão: 8.",
+  "help.circuit_breaker.final_retry_interval": "Espera antes de tentar novamente após esgotar os intervalos de repetição configurados. Padrão: 30 segundos.",
+  "help.server.debug_pprof": "Expõe endpoints de criação de perfil do Go em /debug/pprof. Deixe desativado, exceto ao criar perfil de uma instância local confiável."
 }

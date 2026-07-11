@@ -14,6 +14,7 @@ All settings live in a single `config.yaml` file in the project root directory. 
 |---|---|---|
 | `host` | `"127.0.0.1"` | Bind address. Use `"0.0.0.0"` to allow LAN/network access. **Never expose 0.0.0.0 to the internet without a reverse proxy + authentication.** |
 | `port` | `8088` | HTTP port for the Web UI and REST API. |
+| `debug_pprof` | `false` | Expose Go's `/debug/pprof` profiling endpoints. Keep disabled unless actively profiling a trusted local instance. |
 
 ---
 
@@ -90,6 +91,7 @@ Core agent behaviour settings.
 |---|---|---|
 | `system_language` | `"English"` | Language for system prompts and agent responses. Any natural language name works (e.g. `"German"`, `"French"`). |
 | `max_tool_calls` | `15` | Maximum consecutive tool calls the agent can make per user request before aborting. Prevents runaway loops. |
+| `max_concurrent_loops` | `8` | Maximum agent loops that may run at the same time. |
 | `step_delay_seconds` | `0` | Pause (seconds) between tool calls. Useful to avoid rate-limiting (HTTP 429) errors with slow providers. |
 | `memory_compression_char_limit` | `60000` | Character threshold at which the agent compresses older messages in the prompt. |
 | `tool_output_limit` | `50000` | Max characters of a single tool result fed into context (`0` = unlimited). |
@@ -259,8 +261,10 @@ Safeguards against infinite loops, hangs, and runaway tool calls.
 |---|---|---|
 | `max_tool_calls` | `20` | Hard limit on tool calls per request (overrides `agent.max_tool_calls` if lower). |
 | `llm_timeout_seconds` | `600` | Timeout for a single LLM API call. |
+| `llm_per_attempt_timeout_seconds` | `120` | Timeout for one API attempt within a retry loop. |
 | `maintenance_timeout_minutes` | `10` | Maximum duration for a nightly maintenance run. |
 | `retry_intervals` | `["10s","2m","10m"]` | Backoff intervals for LLM API errors before giving up. |
+| `final_retry_interval` | `"30s"` | Retry delay used after the configured backoff intervals are exhausted. |
 
 ---
 

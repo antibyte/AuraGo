@@ -417,5 +417,8 @@
   "help.ai_gateway.max_attempts": "Numero opzionale di tentativi Cloudflare. 0 lascia i tentativi disattivati o predefiniti.",
   "help.ai_gateway.retry_delay_ms": "Ritardo prima che Cloudflare ritenti una richiesta. 0 mantiene il valore predefinito.",
   "help.ai_gateway.backoff": "Strategia backoff Cloudflare opzionale per i tentativi del gateway.",
-  "help.ai_gateway.metadata": "Metadati chiave-valore opzionali inviati come cf-aig-metadata. Non inserire segreti qui."
+  "help.ai_gateway.metadata": "Metadati chiave-valore opzionali inviati come cf-aig-metadata. Non inserire segreti qui.",
+  "help.agent.max_concurrent_loops": "Numero massimo di cicli dell'agente che possono essere eseguiti contemporaneamente. Predefinito: 8.",
+  "help.circuit_breaker.final_retry_interval": "Attesa prima di un nuovo tentativo dopo l'esaurimento degli intervalli di ripetizione configurati. Predefinito: 30 secondi.",
+  "help.server.debug_pprof": "Espone gli endpoint di profilazione Go in /debug/pprof. Lascialo disattivato a meno che tu non stia profilando un'istanza locale attendibile."
 }

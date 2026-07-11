@@ -417,5 +417,8 @@
   "help.ai_gateway.max_attempts": "Nombre facultatif de nouvelles tentatives Cloudflare. 0 laisse les tentatives désactivées ou par défaut.",
   "help.ai_gateway.retry_delay_ms": "Délai avant qu’une requête soit réessayée par Cloudflare. 0 conserve la valeur par défaut.",
   "help.ai_gateway.backoff": "Stratégie facultative de temporisation Cloudflare pour les nouvelles tentatives gateway.",
-  "help.ai_gateway.metadata": "Métadonnées clé-valeur facultatives envoyées comme cf-aig-metadata. N’y mettez aucun secret."
+  "help.ai_gateway.metadata": "Métadonnées clé-valeur facultatives envoyées comme cf-aig-metadata. N’y mettez aucun secret.",
+  "help.agent.max_concurrent_loops": "Nombre maximal de boucles d’agent pouvant s’exécuter simultanément. Valeur par défaut : 8.",
+  "help.circuit_breaker.final_retry_interval": "Délai avant une nouvelle tentative une fois les intervalles configurés épuisés. Valeur par défaut : 30 secondes.",
+  "help.server.debug_pprof": "Expose les points de terminaison de profilage Go sous /debug/pprof. Laisse cette option désactivée sauf pour profiler une instance locale fiable."
 }

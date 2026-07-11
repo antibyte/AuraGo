@@ -417,5 +417,8 @@
   "help.ai_gateway.max_attempts": "Valgfrit antal Cloudflare-gentagelsesforsøg. 0 lader gentagelser være deaktiveret eller standard.",
   "help.ai_gateway.retry_delay_ms": "Forsinkelse før Cloudflare gentager en anmodning. 0 beholder standarden.",
   "help.ai_gateway.backoff": "Valgfri Cloudflare-backoff-strategi for gateway-gentagelser.",
-  "help.ai_gateway.metadata": "Valgfri nøgle-værdi-metadata sendt som cf-aig-metadata. Læg ikke hemmeligheder her."
+  "help.ai_gateway.metadata": "Valgfri nøgle-værdi-metadata sendt som cf-aig-metadata. Læg ikke hemmeligheder her.",
+  "help.agent.max_concurrent_loops": "Maksimalt antal agentløkker, der må køre samtidigt. Standard: 8.",
+  "help.circuit_breaker.final_retry_interval": "Ventetid før et nyt forsøg, når de konfigurerede genforsøgsintervaller er opbrugt. Standard: 30 sekunder.",
+  "help.server.debug_pprof": "Gør Go-profileringsendepunkter tilgængelige under /debug/pprof. Lad det være slået fra, medmindre du profilerer en lokal instans, du stoler på."
 }

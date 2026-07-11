@@ -417,5 +417,8 @@
   "help.ai_gateway.max_attempts": "可选的 Cloudflare 重试次数。0 表示禁用重试或保留默认值。",
   "help.ai_gateway.retry_delay_ms": "Cloudflare 重试请求前的延迟。0 保留默认值。",
   "help.ai_gateway.backoff": "网关重试使用的可选 Cloudflare 退避策略。",
-  "help.ai_gateway.metadata": "作为 cf-aig-metadata 发送的可选键值元数据。不要在这里放入密钥。"
+  "help.ai_gateway.metadata": "作为 cf-aig-metadata 发送的可选键值元数据。不要在这里放入密钥。",
+  "help.agent.max_concurrent_loops": "可同时运行的代理循环的最大数量。默认值：8。",
+  "help.circuit_breaker.final_retry_interval": "配置的重试间隔用尽后，再次重试前的等待时间。默认值：30 秒。",
+  "help.server.debug_pprof": "在 /debug/pprof 下公开 Go 性能分析端点。除非你正在分析受信任的本地实例，否则请保持关闭。"
 }

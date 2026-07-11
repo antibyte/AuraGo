@@ -417,5 +417,8 @@
   "help.ai_gateway.max_attempts": "Optioneel aantal Cloudflare-retrypogingen. 0 laat retries uitgeschakeld of standaard.",
   "help.ai_gateway.retry_delay_ms": "Vertraging voordat Cloudflare een request opnieuw probeert. 0 laat de standaardwaarde staan.",
   "help.ai_gateway.backoff": "Optionele Cloudflare-backoffstrategie voor gatewayretries.",
-  "help.ai_gateway.metadata": "Optionele sleutel-waardemetadata verzonden als cf-aig-metadata. Plaats hier geen secrets."
+  "help.ai_gateway.metadata": "Optionele sleutel-waardemetadata verzonden als cf-aig-metadata. Plaats hier geen secrets.",
+  "help.agent.max_concurrent_loops": "Maximumaantal agentlussen dat tegelijk mag draaien. Standaard: 8.",
+  "help.circuit_breaker.final_retry_interval": "Wachttijd vóór een nieuwe poging nadat de geconfigureerde herhaalintervallen zijn uitgeput. Standaard: 30 seconden.",
+  "help.server.debug_pprof": "Stelt Go-profileringsendpoints beschikbaar onder /debug/pprof. Laat dit uitgeschakeld tenzij je een vertrouwde lokale instantie profileert."
 }

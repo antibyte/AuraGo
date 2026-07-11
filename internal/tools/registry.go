@@ -53,7 +53,7 @@ type ProcessInfo struct {
 	TimedOut     bool         // Whether process was killed due to timeout
 	ErrorReason  string       // Error description (if process crashed or was killed)
 	mu           sync.Mutex   // Protects output ring and state fields
-	outputRing   []byte       // fixed-size ring buffer for stdout/stderr
+	outputRing   []byte       // lazily grown ring buffer for stdout/stderr
 	ringStart    int          // logical start index inside outputRing
 	ringLen      int          // number of bytes currently stored
 }
@@ -79,9 +79,9 @@ func (s ProcessState) String() string {
 }
 
 // Write implements io.Writer so ProcessInfo can be used as cmd.Stdout/Stderr.
-// It stores output in a fixed-size ring buffer; once the buffer is full the
-// oldest bytes are overwritten by the newest data. This avoids repeated large
-// allocations and keeps memory bounded.
+// It stores output in a lazily grown ring buffer; once the buffer reaches its
+// maximum size, the oldest bytes are overwritten by the newest data. This
+// avoids repeated large allocations and keeps memory bounded.
 func (p *ProcessInfo) Write(data []byte) (int, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
