@@ -662,6 +662,7 @@ type Config struct {
 		MaxBodyBytes         int64  `yaml:"max_body_bytes"`
 		UILanguage           string `yaml:"ui_language"`
 		OAuthRedirectBaseURL string `yaml:"oauth_redirect_base_url"` // override for OAuth callback (e.g. http://localhost:8088)
+		DebugPProf           bool   `yaml:"debug_pprof"`             // expose /debug/pprof endpoints (default false)
 		MasterKey            string `yaml:"-"`                       // ENV-only (AURAGO_MASTER_KEY)
 		HTTPS                struct {
 			Enabled     bool   `yaml:"enabled"`
@@ -773,6 +774,7 @@ type Config struct {
 		CoreMemoryCapMode               string `yaml:"core_memory_cap_mode"`                // "hard" (default) | "soft"
 		ToolOutputLimit                 int    `yaml:"tool_output_limit"`                   // max characters of a single tool result added to context (0 = unlimited, default: 50000)
 		DiscoverToolsSnapshotTTLMinutes int    `yaml:"discover_tools_snapshot_ttl_minutes"` // minutes to retain discover_tools snapshots (<=0 = default 5)
+		MaxConcurrentLoops              int    `yaml:"max_concurrent_loops"`                  // maximum concurrent agent loop executions (0 = default 16)
 		SudoEnabled                     bool   `yaml:"sudo_enabled"`                        // allow execute_sudo tool (password must be stored in vault as "sudo_password")
 		SudoUnrestricted                bool   `yaml:"sudo_unrestricted"`                   // allow sudo to write outside the install directory (requires removing ProtectSystem=strict from systemd unit)
 		// ── Danger Zone: tool capability gates (all default true) ──

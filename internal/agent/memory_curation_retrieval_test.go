@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"context"
 	"io"
 	"log/slog"
 	"testing"
@@ -132,7 +133,7 @@ func TestSearchRankedMemoriesOnlyFiltersArchivedMemories(t *testing.T) {
 		},
 	}}
 
-	ranked, err := searchRankedMemoriesOnly(vdb, stm, "nas backup", 2, nil, time.Date(2026, 5, 16, 12, 0, 0, 0, time.UTC))
+	ranked, err := searchRankedMemoriesOnly(context.Background(), vdb, stm, "nas backup", 2, nil, time.Date(2026, 5, 16, 12, 0, 0, 0, time.UTC))
 	if err != nil {
 		t.Fatalf("searchRankedMemoriesOnly: %v", err)
 	}
@@ -170,7 +171,7 @@ func TestSearchRankedMemoriesOnlyBackfillsArchivedTopHit(t *testing.T) {
 		},
 	}}
 
-	ranked, err := searchRankedMemoriesOnly(vdb, stm, "nas backup", 1, nil, time.Date(2026, 5, 16, 12, 0, 0, 0, time.UTC))
+	ranked, err := searchRankedMemoriesOnly(context.Background(), vdb, stm, "nas backup", 1, nil, time.Date(2026, 5, 16, 12, 0, 0, 0, time.UTC))
 	if err != nil {
 		t.Fatalf("searchRankedMemoriesOnly: %v", err)
 	}

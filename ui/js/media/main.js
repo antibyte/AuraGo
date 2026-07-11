@@ -20,6 +20,13 @@ let currentAudioModalId = null;
 let isLoadingAudio = false;
 const MEDIA_LIMIT = 30;
 
+function mediaStatusNode(icon, message) {
+    const wrap = document.createElement('div');
+    wrap.className = 'gallery-empty';
+    wrap.innerHTML = '<div class="gallery-empty-icon">' + icon + '</div><div>' + escapeHtml(message) + '</div>';
+    return wrap;
+}
+
 function lastMediaOffset(total) {
     return Math.max(0, (Math.ceil(total / MEDIA_LIMIT) - 1) * MEDIA_LIMIT);
 }
@@ -78,6 +85,19 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     updateMediaBulkToolbar();
+
+    // Delegated change listener for document selection checkboxes so diff-rendered
+    // rows do not need to be re-wired after every render.
+    const docList = document.getElementById('doc-list');
+    if (docList) {
+        docList.addEventListener('change', function (event) {
+            const input = event.target.closest('.media-select-check[data-tab="documents"]');
+            if (!input) return;
+            event.stopPropagation();
+            toggleMediaItemSelection('documents', input.dataset.selectionKey, { id: parseInt(input.dataset.id, 10) }, input.checked);
+            rerenderCurrentMediaTab();
+        });
+    }
 });
 
 // ── Tab switching ─────────────────────────────────────────────────────────────
@@ -143,7 +163,7 @@ async function loadAudio() {
     if (isLoadingAudio) return;
     isLoadingAudio = true;
     const grid = document.getElementById('audio-grid');
-    grid.innerHTML = '<div class="gallery-loading">' + t('common.loading') + '</div>';
+    grid.replaceChildren(mediaStatusNode('', t('common.loading')));
 
     const params = new URLSearchParams({
         type: 'audio',
@@ -158,7 +178,7 @@ async function loadAudio() {
         const data = await resp.json();
 
         if (data.status !== 'ok') {
-            grid.innerHTML = '<div class="gallery-empty"><div class="gallery-empty-icon">⚠️</div>' + escapeHtml(data.message || t('common.error')) + '</div>';
+            grid.replaceChildren(mediaStatusNode('⚠️', data.message || t('common.error')));
             return;
         }
 
@@ -166,7 +186,7 @@ async function loadAudio() {
         audioTotal = data.total || 0;
 
         if (audioItems.length === 0) {
-            grid.innerHTML = '<div class="gallery-empty"><div class="gallery-empty-icon">🎵</div><div>' + t('media.empty_audio') + '</div></div>';
+            grid.replaceChildren(mediaStatusNode('🎵', t('media.empty_audio')));
             document.getElementById('audio-pagination').classList.add('is-hidden');
             return;
         }
@@ -174,97 +194,126 @@ async function loadAudio() {
         renderAudioGrid(audioItems);
         updateAudioPagination();
     } catch (e) {
-        grid.innerHTML = '<div class="gallery-empty"><div class="gallery-empty-icon">⚠️</div>' + escapeHtml(e.message || t('common.error')) + '</div>';
+        grid.replaceChildren(mediaStatusNode('⚠️', e.message || t('common.error')));
     } finally {
         isLoadingAudio = false;
     }
 }
 
+function audioCardSnapshot(item) {
+    const selectionKey = mediaSelectionKey('audio', item);
+    return [
+        item.id,
+        item.description || '',
+        item.filename || '',
+        item.format || '',
+        item.media_type || '',
+        item.created_at || '',
+        item.web_path || '',
+        mediaSelectionMode ? '1' : '0',
+        isMediaItemSelected('audio', selectionKey) ? '1' : '0'
+    ].join('|');
+}
+
+function renderAudioCard(item) {
+    const title = item.description || item.filename || t('media.audio_type_audio');
+    const fmt = (item.format || '').toUpperCase();
+    const date = item.created_at ? new Date(item.created_at).toLocaleDateString() : '';
+    const typeIconMap = { tts: '🗣️', music: '🎶', audio: '🎵' };
+    const typeIcon = typeIconMap[item.media_type] || '🎵';
+    const typeLbl = ({ tts: t('media.audio_type_tts'), music: t('media.audio_type_music'), audio: t('media.audio_type_audio') })[item.media_type] || item.media_type;
+    const audioPath = item.web_path || (item.filename ? '/files/audio/' + item.filename : '');
+    const hasFile = !!audioPath;
+    const selectionKey = mediaSelectionKey('audio', item);
+    const selected = isMediaItemSelected('audio', selectionKey);
+
+    const card = document.createElement('div');
+    card.className = 'media-audio-card' + (hasFile ? '' : ' media-audio-card--unavailable') + (selected ? ' media-card-selected' : '');
+    card.dataset.snapshot = audioCardSnapshot(item);
+    if (mediaSelectionMode) {
+        card.appendChild(createMediaSelectionCheckbox('audio', selectionKey, { id: item.id }));
+    }
+
+    // Title
+    const titleEl = document.createElement('div');
+    titleEl.className = 'media-audio-card-title';
+    titleEl.textContent = typeIcon + ' ' + title;
+    if (!hasFile) {
+        const warn = document.createElement('span');
+        warn.className = 'media-inline-warning-icon';
+        warn.textContent = ' ⚠️';
+        titleEl.appendChild(warn);
+    }
+    card.appendChild(titleEl);
+
+    // Meta
+    const metaEl = document.createElement('div');
+    metaEl.className = 'media-audio-card-meta';
+    const badge = document.createElement('span');
+    badge.className = 'media-type-badge';
+    badge.textContent = typeLbl;
+    metaEl.appendChild(badge);
+    const fmtSpan = document.createElement('span');
+    fmtSpan.textContent = fmt;
+    metaEl.appendChild(fmtSpan);
+    const dateSpan = document.createElement('span');
+    dateSpan.textContent = date;
+    metaEl.appendChild(dateSpan);
+    card.appendChild(metaEl);
+
+    if (hasFile) {
+        // Inline player
+        const player = new ChatAudioPlayer(audioPath);
+        const playerDlBtn = player.element.querySelector('.audio-download-btn');
+        if (playerDlBtn) playerDlBtn.classList.add('is-hidden');
+        card.appendChild(player.element);
+
+        // Actions: download + delete
+        const actionsEl = document.createElement('div');
+        actionsEl.className = 'media-audio-card-actions';
+
+        const dlBtn = document.createElement('a');
+        dlBtn.href = audioPath;
+        dlBtn.download = item.filename || 'audio';
+        dlBtn.className = 'btn-gallery-action';
+        dlBtn.textContent = '⬇ ' + t('gallery.download');
+        actionsEl.appendChild(dlBtn);
+
+        const delBtn = document.createElement('button');
+        delBtn.className = 'btn-gallery-action btn-danger';
+        delBtn.textContent = '🗑 ' + t('gallery.delete');
+        delBtn.addEventListener('click', (function (id) {
+            return function () { deleteAudioItem(id); };
+        }(item.id)));
+        actionsEl.appendChild(delBtn);
+
+        card.appendChild(actionsEl);
+    } else {
+        const unavailEl = document.createElement('div');
+        unavailEl.className = 'audio-error media-audio-unavailable';
+        unavailEl.textContent = '⚠️ ' + t('media.file_not_available');
+        card.appendChild(unavailEl);
+    }
+
+    return card;
+}
+
+function shouldUpdateAudioCard(item, el) {
+    return el.dataset.snapshot !== audioCardSnapshot(item);
+}
+
 function renderAudioGrid(items) {
     const grid = document.getElementById('audio-grid');
-    grid.innerHTML = '';
-
-    items.forEach(function (item) {
-        const title = item.description || item.filename || t('media.audio_type_audio');
-        const fmt = (item.format || '').toUpperCase();
-        const date = item.created_at ? new Date(item.created_at).toLocaleDateString() : '';
-        const typeIconMap = { tts: '🗣️', music: '🎶', audio: '🎵' };
-        const typeIcon = typeIconMap[item.media_type] || '🎵';
-        const typeLbl = ({ tts: t('media.audio_type_tts'), music: t('media.audio_type_music'), audio: t('media.audio_type_audio') })[item.media_type] || item.media_type;
-        const audioPath = item.web_path || (item.filename ? '/files/audio/' + item.filename : '');
-        const hasFile = !!audioPath;
-
-        const card = document.createElement('div');
-        card.className = 'media-audio-card' + (hasFile ? '' : ' media-audio-card--unavailable');
-        const selectionKey = mediaSelectionKey('audio', item);
-        if (mediaSelectionMode) {
-            if (isMediaItemSelected('audio', selectionKey)) card.classList.add('media-card-selected');
-            card.appendChild(createMediaSelectionCheckbox('audio', selectionKey, { id: item.id }));
-        }
-
-        // Title
-        const titleEl = document.createElement('div');
-        titleEl.className = 'media-audio-card-title';
-        titleEl.textContent = typeIcon + ' ' + title;
-        if (!hasFile) {
-            const warn = document.createElement('span');
-            warn.className = 'media-inline-warning-icon';
-            warn.textContent = ' ⚠️';
-            titleEl.appendChild(warn);
-        }
-        card.appendChild(titleEl);
-
-        // Meta
-        const metaEl = document.createElement('div');
-        metaEl.className = 'media-audio-card-meta';
-        const badge = document.createElement('span');
-        badge.className = 'media-type-badge';
-        badge.textContent = typeLbl;
-        metaEl.appendChild(badge);
-        const fmtSpan = document.createElement('span');
-        fmtSpan.textContent = fmt;
-        metaEl.appendChild(fmtSpan);
-        const dateSpan = document.createElement('span');
-        dateSpan.textContent = date;
-        metaEl.appendChild(dateSpan);
-        card.appendChild(metaEl);
-
-        if (hasFile) {
-            // Inline player
-            const player = new ChatAudioPlayer(audioPath);
-            const playerDlBtn = player.element.querySelector('.audio-download-btn');
-            if (playerDlBtn) playerDlBtn.classList.add('is-hidden');
-            card.appendChild(player.element);
-
-            // Actions: download + delete
-            const actionsEl = document.createElement('div');
-            actionsEl.className = 'media-audio-card-actions';
-
-            const dlBtn = document.createElement('a');
-            dlBtn.href = audioPath;
-            dlBtn.download = item.filename || 'audio';
-            dlBtn.className = 'btn-gallery-action';
-            dlBtn.textContent = '⬇ ' + t('gallery.download');
-            actionsEl.appendChild(dlBtn);
-
-            const delBtn = document.createElement('button');
-            delBtn.className = 'btn-gallery-action btn-danger';
-            delBtn.textContent = '🗑 ' + t('gallery.delete');
-            delBtn.addEventListener('click', (function (id) {
-                return function () { deleteAudioItem(id); };
-            }(item.id)));
-            actionsEl.appendChild(delBtn);
-
-            card.appendChild(actionsEl);
-        } else {
-            const unavailEl = document.createElement('div');
-            unavailEl.className = 'audio-error media-audio-unavailable';
-            unavailEl.textContent = '⚠️ ' + t('media.file_not_available');
-            card.appendChild(unavailEl);
-        }
-
-        grid.appendChild(card);
-    });
+    if (window.AuraDiff) {
+        window.AuraDiff.render(grid, items, {
+            keyFn: function (item) { return String(item.id); },
+            renderFn: renderAudioCard,
+            shouldUpdate: shouldUpdateAudioCard
+        });
+    } else {
+        grid.replaceChildren();
+        items.forEach(function (item) { grid.appendChild(renderAudioCard(item)); });
+    }
 }
 
 function updateAudioPagination() {
@@ -607,33 +656,6 @@ function createMediaSelectionCheckbox(tab, key, payload) {
     return label;
 }
 
-function wireGalleryMediaSelectionChecks(root) {
-    root.querySelectorAll('.media-select-check[data-tab="images"]').forEach(function (input) {
-        input.addEventListener('click', function (event) {
-            event.stopPropagation();
-        });
-        input.addEventListener('change', function (event) {
-            event.stopPropagation();
-            const payload = { id: parseInt(input.dataset.id, 10), source: input.dataset.source || '' };
-            toggleMediaItemSelection('images', input.dataset.selectionKey, payload, input.checked);
-            rerenderCurrentMediaTab();
-        });
-    });
-}
-
-function wireDocumentMediaSelectionChecks(root) {
-    root.querySelectorAll('.media-select-check[data-tab="documents"]').forEach(function (input) {
-        input.addEventListener('click', function (event) {
-            event.stopPropagation();
-        });
-        input.addEventListener('change', function (event) {
-            event.stopPropagation();
-            toggleMediaItemSelection('documents', input.dataset.selectionKey, { id: parseInt(input.dataset.id, 10) }, input.checked);
-            rerenderCurrentMediaTab();
-        });
-    });
-}
-
 function handleMediaGalleryCardClick(event, id, source) {
     if (!mediaSelectionMode) return false;
     if (event) {
@@ -653,7 +675,7 @@ async function loadVideos() {
     if (isLoadingVideos) return;
     isLoadingVideos = true;
     const grid = document.getElementById('video-grid');
-    grid.innerHTML = '<div class="gallery-loading">' + t('common.loading') + '</div>';
+    grid.replaceChildren(mediaStatusNode('', t('common.loading')));
 
     const params = new URLSearchParams({
         type: 'video',
@@ -668,7 +690,7 @@ async function loadVideos() {
         const data = await resp.json();
 
         if (data.status !== 'ok') {
-            grid.innerHTML = '<div class="gallery-empty"><div class="gallery-empty-icon">⚠️</div>' + escapeHtml(data.message || t('common.error')) + '</div>';
+            grid.replaceChildren(mediaStatusNode('⚠️', data.message || t('common.error')));
             return;
         }
 
@@ -676,7 +698,7 @@ async function loadVideos() {
         videoTotal = data.total || 0;
 
         if (videoItems.length === 0) {
-            grid.innerHTML = '<div class="gallery-empty"><div class="gallery-empty-icon">🎬</div><div>' + t('media.empty_videos') + '</div></div>';
+            grid.replaceChildren(mediaStatusNode('🎬', t('media.empty_videos')));
             document.getElementById('video-pagination').classList.add('is-hidden');
             return;
         }
@@ -684,96 +706,126 @@ async function loadVideos() {
         renderVideoGrid(videoItems);
         updateVideoPagination();
     } catch (e) {
-        grid.innerHTML = '<div class="gallery-empty"><div class="gallery-empty-icon">⚠️</div>' + escapeHtml(e.message || t('common.error')) + '</div>';
+        grid.replaceChildren(mediaStatusNode('⚠️', e.message || t('common.error')));
     } finally {
         isLoadingVideos = false;
     }
 }
 
+function videoCardSnapshot(item) {
+    const selectionKey = mediaSelectionKey('videos', item);
+    return [
+        item.id,
+        item.description || '',
+        item.prompt || '',
+        item.filename || '',
+        item.format || '',
+        item.duration_ms || '',
+        item.created_at || '',
+        item.web_path || '',
+        mediaSelectionMode ? '1' : '0',
+        isMediaItemSelected('videos', selectionKey) ? '1' : '0'
+    ].join('|');
+}
+
+function renderVideoCard(item) {
+    const title = item.description || item.prompt || item.filename || t('media.video_type_video');
+    const fmt = (item.format || fileExtension(item.filename) || '').toUpperCase();
+    const date = item.created_at ? new Date(item.created_at).toLocaleDateString() : '';
+    const durationLabel = formatVideoDuration(item.duration_ms);
+    const videoPath = item.web_path || (item.filename ? '/files/generated_videos/' + item.filename : '');
+    const hasFile = !!videoPath;
+    const selectionKey = mediaSelectionKey('videos', item);
+    const selected = isMediaItemSelected('videos', selectionKey);
+
+    const card = document.createElement('div');
+    card.className = 'media-video-card' + (hasFile ? '' : ' media-video-card--unavailable') + (selected ? ' media-card-selected' : '');
+    card.dataset.snapshot = videoCardSnapshot(item);
+    if (mediaSelectionMode) {
+        card.appendChild(createMediaSelectionCheckbox('videos', selectionKey, { id: item.id }));
+    }
+
+    const titleEl = document.createElement('div');
+    titleEl.className = 'media-video-card-title';
+    titleEl.textContent = '🎬 ' + title;
+    if (!hasFile) {
+        const warn = document.createElement('span');
+        warn.className = 'media-inline-warning-icon';
+        warn.textContent = ' ⚠️';
+        titleEl.appendChild(warn);
+    }
+    card.appendChild(titleEl);
+
+    const metaEl = document.createElement('div');
+    metaEl.className = 'media-video-card-meta';
+    const badge = document.createElement('span');
+    badge.className = 'media-type-badge';
+    badge.textContent = t('media.video_type_video');
+    metaEl.appendChild(badge);
+    [fmt, durationLabel, date].filter(Boolean).forEach(function (value) {
+        const span = document.createElement('span');
+        span.textContent = value;
+        metaEl.appendChild(span);
+    });
+    card.appendChild(metaEl);
+
+    if (hasFile) {
+        const video = document.createElement('video');
+        video.className = 'media-video-player';
+        video.controls = true;
+        video.preload = 'metadata';
+        video.playsInline = true;
+        const source = document.createElement('source');
+        source.src = videoPath;
+        source.type = videoMimeType(item.filename || videoPath);
+        video.appendChild(source);
+        card.appendChild(video);
+
+        const actionsEl = document.createElement('div');
+        actionsEl.className = 'media-video-card-actions';
+
+        const dlBtn = document.createElement('a');
+        dlBtn.href = videoPath;
+        dlBtn.download = item.filename || 'video';
+        dlBtn.className = 'btn-gallery-action';
+        dlBtn.textContent = '⬇ ' + t('gallery.download');
+        actionsEl.appendChild(dlBtn);
+
+        const delBtn = document.createElement('button');
+        delBtn.className = 'btn-gallery-action btn-danger';
+        delBtn.textContent = '🗑 ' + t('gallery.delete');
+        delBtn.addEventListener('click', (function (id) {
+            return function () { deleteVideoItem(id); };
+        }(item.id)));
+        actionsEl.appendChild(delBtn);
+
+        card.appendChild(actionsEl);
+    } else {
+        const unavailEl = document.createElement('div');
+        unavailEl.className = 'audio-error media-video-unavailable';
+        unavailEl.textContent = '⚠️ ' + t('media.file_not_available');
+        card.appendChild(unavailEl);
+    }
+
+    return card;
+}
+
+function shouldUpdateVideoCard(item, el) {
+    return el.dataset.snapshot !== videoCardSnapshot(item);
+}
+
 function renderVideoGrid(items) {
     const grid = document.getElementById('video-grid');
-    grid.innerHTML = '';
-
-    items.forEach(function (item) {
-        const title = item.description || item.prompt || item.filename || t('media.video_type_video');
-        const fmt = (item.format || fileExtension(item.filename) || '').toUpperCase();
-        const date = item.created_at ? new Date(item.created_at).toLocaleDateString() : '';
-        const durationLabel = formatVideoDuration(item.duration_ms);
-        const videoPath = item.web_path || (item.filename ? '/files/generated_videos/' + item.filename : '');
-        const hasFile = !!videoPath;
-
-        const card = document.createElement('div');
-        card.className = 'media-video-card' + (hasFile ? '' : ' media-video-card--unavailable');
-        const selectionKey = mediaSelectionKey('videos', item);
-        if (mediaSelectionMode) {
-            if (isMediaItemSelected('videos', selectionKey)) card.classList.add('media-card-selected');
-            card.appendChild(createMediaSelectionCheckbox('videos', selectionKey, { id: item.id }));
-        }
-
-        const titleEl = document.createElement('div');
-        titleEl.className = 'media-video-card-title';
-        titleEl.textContent = '🎬 ' + title;
-        if (!hasFile) {
-            const warn = document.createElement('span');
-            warn.className = 'media-inline-warning-icon';
-            warn.textContent = ' ⚠️';
-            titleEl.appendChild(warn);
-        }
-        card.appendChild(titleEl);
-
-        const metaEl = document.createElement('div');
-        metaEl.className = 'media-video-card-meta';
-        const badge = document.createElement('span');
-        badge.className = 'media-type-badge';
-        badge.textContent = t('media.video_type_video');
-        metaEl.appendChild(badge);
-        [fmt, durationLabel, date].filter(Boolean).forEach(function (value) {
-            const span = document.createElement('span');
-            span.textContent = value;
-            metaEl.appendChild(span);
+    if (window.AuraDiff) {
+        window.AuraDiff.render(grid, items, {
+            keyFn: function (item) { return String(item.id); },
+            renderFn: renderVideoCard,
+            shouldUpdate: shouldUpdateVideoCard
         });
-        card.appendChild(metaEl);
-
-        if (hasFile) {
-            const video = document.createElement('video');
-            video.className = 'media-video-player';
-            video.controls = true;
-            video.preload = 'metadata';
-            video.playsInline = true;
-            const source = document.createElement('source');
-            source.src = videoPath;
-            source.type = videoMimeType(item.filename || videoPath);
-            video.appendChild(source);
-            card.appendChild(video);
-
-            const actionsEl = document.createElement('div');
-            actionsEl.className = 'media-video-card-actions';
-
-            const dlBtn = document.createElement('a');
-            dlBtn.href = videoPath;
-            dlBtn.download = item.filename || 'video';
-            dlBtn.className = 'btn-gallery-action';
-            dlBtn.textContent = '⬇ ' + t('gallery.download');
-            actionsEl.appendChild(dlBtn);
-
-            const delBtn = document.createElement('button');
-            delBtn.className = 'btn-gallery-action btn-danger';
-            delBtn.textContent = '🗑 ' + t('gallery.delete');
-            delBtn.addEventListener('click', (function (id) {
-                return function () { deleteVideoItem(id); };
-            }(item.id)));
-            actionsEl.appendChild(delBtn);
-
-            card.appendChild(actionsEl);
-        } else {
-            const unavailEl = document.createElement('div');
-            unavailEl.className = 'audio-error media-video-unavailable';
-            unavailEl.textContent = '⚠️ ' + t('media.file_not_available');
-            card.appendChild(unavailEl);
-        }
-
-        grid.appendChild(card);
-    });
+    } else {
+        grid.replaceChildren();
+        items.forEach(function (item) { grid.appendChild(renderVideoCard(item)); });
+    }
 }
 
 function updateVideoPagination() {
@@ -843,7 +895,7 @@ async function loadDocuments() {
     if (isLoadingDocs) return;
     isLoadingDocs = true;
     const list = document.getElementById('doc-list');
-    list.innerHTML = '<div class="gallery-loading">' + t('common.loading') + '</div>';
+    list.replaceChildren(mediaStatusNode('', t('common.loading')));
 
     const params = new URLSearchParams({
         type: 'document',
@@ -858,7 +910,7 @@ async function loadDocuments() {
         const data = await resp.json();
 
         if (data.status !== 'ok') {
-            list.innerHTML = '<div class="gallery-empty"><div class="gallery-empty-icon">⚠️</div>' + escapeHtml(data.message || t('common.error')) + '</div>';
+            list.replaceChildren(mediaStatusNode('⚠️', data.message || t('common.error')));
             return;
         }
 
@@ -866,7 +918,7 @@ async function loadDocuments() {
         docTotal = data.total || 0;
 
         if (docItems.length === 0) {
-            list.innerHTML = '<div class="gallery-empty"><div class="gallery-empty-icon">📄</div><div>' + t('media.empty_documents') + '</div></div>';
+            list.replaceChildren(mediaStatusNode('📄', t('media.empty_documents')));
             document.getElementById('doc-pagination').classList.add('is-hidden');
             return;
         }
@@ -874,7 +926,7 @@ async function loadDocuments() {
         renderDocList(docItems);
         updateDocPagination();
     } catch (e) {
-        list.innerHTML = '<div class="gallery-empty"><div class="gallery-empty-icon">⚠️</div>' + escapeHtml(e.message || t('common.error')) + '</div>';
+        list.replaceChildren(mediaStatusNode('⚠️', e.message || t('common.error')));
     } finally {
         isLoadingDocs = false;
     }
@@ -900,45 +952,64 @@ function isInlineDocFmt(fmt) {
     return ['pdf', 'txt', 'md', 'csv', 'json', 'xml', 'html', 'htm'].indexOf((fmt || '').toLowerCase()) >= 0;
 }
 
+function renderDocItemHTML(item) {
+    const title = escapeHtml(item.description || item.filename || t('media.tab_documents'));
+    // Fall back to file extension when format field is empty (agent may not always set it)
+    const fmt = item.format || (item.filename ? item.filename.split('.').pop() : '') || '';
+    const icon = docFormatIconMedia(fmt);
+    const fmtLabel = escapeHtml(fmt.toUpperCase());
+    const date = item.created_at ? new Date(item.created_at).toLocaleDateString() : '';
+    const webPath = item.web_path || ('/files/documents/' + item.filename);
+    const previewHref = isInlineDocFmt(fmt) ? escapeHtml(webPath + '?inline=1') : '';
+    const dlHref = escapeHtml(webPath);
+    const filename = escapeHtml(item.filename || 'document');
+    const selectionKey = mediaSelectionKey('documents', item);
+    const selectedClass = mediaSelectionMode && isMediaItemSelected('documents', selectionKey) ? ' media-card-selected' : '';
+
+    let html = '<div class="media-doc-row' + selectedClass + '" data-selection-mode="' + (mediaSelectionMode ? '1' : '0') + '" data-selected="' + (selectedClass ? '1' : '0') + '">';
+    if (mediaSelectionMode) {
+        html += '<label class="media-select-check-wrap" onclick="event.stopPropagation()">';
+        html += '<input type="checkbox" class="media-select-check" data-tab="documents" data-selection-key="' + escapeHtml(selectionKey) + '" data-id="' + item.id + '"' + (selectedClass ? ' checked' : '') + ' aria-label="' + escapeHtml(t('media.bulk_select_item')) + '">';
+        html += '</label>';
+    }
+    html += '<div class="media-doc-row-icon">' + icon + '</div>';
+    html += '<div class="media-doc-row-info">';
+    html += '<div class="media-doc-row-title">' + title + '</div>';
+    html += '<div class="media-doc-row-meta">' + fmtLabel + (date ? ' · ' + escapeHtml(date) : '') + '</div>';
+    html += '</div>';
+    html += '<div class="media-doc-row-actions">';
+    if (previewHref) {
+        html += '<a href="' + previewHref + '" target="_blank" title="' + t('media.doc_open') + '">🔍</a>';
+    }
+    html += '<a href="' + dlHref + '" download="' + filename + '" title="' + t('gallery.download') + '">⬇</a>';
+    html += '<button class="btn-danger" onclick="docDelete(' + item.id + ')" title="' + t('gallery.delete') + '">🗑</button>';
+    html += '</div>';
+    html += '</div>';
+    return html;
+}
+
+function shouldUpdateDocItem(item, el) {
+    return el.dataset.diffHtml !== renderDocItemHTML(item);
+}
+
 function renderDocList(items) {
     const list = document.getElementById('doc-list');
-    let html = '';
-    items.forEach(function (item) {
-        const title = escapeHtml(item.description || item.filename || t('media.tab_documents'));
-        // Fall back to file extension when format field is empty (agent may not always set it)
-        const fmt = item.format || (item.filename ? item.filename.split('.').pop() : '') || '';
-        const icon = docFormatIconMedia(fmt);
-        const fmtLabel = escapeHtml(fmt.toUpperCase());
-        const date = item.created_at ? new Date(item.created_at).toLocaleDateString() : '';
-        const webPath = item.web_path || ('/files/documents/' + item.filename);
-        const previewHref = isInlineDocFmt(fmt) ? escapeHtml(webPath + '?inline=1') : '';
-        const dlHref = escapeHtml(webPath);
-        const filename = escapeHtml(item.filename || 'document');
-        const selectionKey = mediaSelectionKey('documents', item);
-        const selectedClass = mediaSelectionMode && isMediaItemSelected('documents', selectionKey) ? ' media-card-selected' : '';
-
-        html += '<div class="media-doc-row' + selectedClass + '">';
-        if (mediaSelectionMode) {
-            html += '<label class="media-select-check-wrap" onclick="event.stopPropagation()">';
-            html += '<input type="checkbox" class="media-select-check" data-tab="documents" data-selection-key="' + escapeHtml(selectionKey) + '" data-id="' + item.id + '"' + (selectedClass ? ' checked' : '') + ' aria-label="' + escapeHtml(t('media.bulk_select_item')) + '">';
-            html += '</label>';
-        }
-        html += '<div class="media-doc-row-icon">' + icon + '</div>';
-        html += '<div class="media-doc-row-info">';
-        html += '<div class="media-doc-row-title">' + title + '</div>';
-        html += '<div class="media-doc-row-meta">' + fmtLabel + (date ? ' · ' + escapeHtml(date) : '') + '</div>';
-        html += '</div>';
-        html += '<div class="media-doc-row-actions">';
-        if (previewHref) {
-            html += '<a href="' + previewHref + '" target="_blank" title="' + t('media.doc_open') + '">🔍</a>';
-        }
-        html += '<a href="' + dlHref + '" download="' + filename + '" title="' + t('gallery.download') + '">⬇</a>';
-        html += '<button class="btn-danger" onclick="docDelete(' + item.id + ')" title="' + t('gallery.delete') + '">🗑</button>';
-        html += '</div>';
-        html += '</div>';
-    });
-    list.innerHTML = html;
-    wireDocumentMediaSelectionChecks(list);
+    if (window.AuraDiff) {
+        window.AuraDiff.render(list, items, {
+            keyFn: function (item) { return String(item.id); },
+            renderFn: function (item) {
+                var wrap = document.createElement('div');
+                var html = renderDocItemHTML(item);
+                wrap.innerHTML = html;
+                var el = wrap.firstElementChild;
+                if (el) el.dataset.diffHtml = html;
+                return el;
+            },
+            shouldUpdate: shouldUpdateDocItem
+        });
+    } else {
+        list.innerHTML = items.map(renderDocItemHTML).join('');
+    }
 }
 
 function updateDocPagination() {

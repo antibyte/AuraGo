@@ -63,8 +63,13 @@ func openAndConfigure(dbPath string, cfg config) (*sql.DB, error) {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
 
-	// Set max open connections
-	db.SetMaxOpenConns(cfg.maxOpenConns)
+	// Set max open connections. In-memory databases must keep a single
+	// connection even with cache=shared to avoid schema visibility races.
+	if dbPath == ":memory:" {
+		db.SetMaxOpenConns(1)
+	} else {
+		db.SetMaxOpenConns(cfg.maxOpenConns)
+	}
 
 	// Apply PRAGMAs
 	if err := applyPragmas(db, cfg); err != nil {
@@ -89,8 +94,13 @@ func openAndConfigure(dbPath string, cfg config) (*sql.DB, error) {
 
 // buildDSN builds the SQLite DSN, embedding _busy_timeout so that every new
 // connection opened from the pool inherits the timeout automatically.
+// For in-memory databases we add cache=shared so multiple pooled connections
+// see the same database; otherwise each connection gets its own empty DB.
 func buildDSN(path string, busyTimeoutMs int) string {
 	param := fmt.Sprintf("_busy_timeout=%d", busyTimeoutMs)
+	if path == ":memory:" {
+		param += "&cache=shared"
+	}
 	if strings.Contains(path, "?") {
 		return path + "&" + param
 	}

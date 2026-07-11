@@ -399,32 +399,39 @@ func (s *SQLiteMemory) ApplyMemoryBudgetEnforcement(budget int, ltm VectorDB) (i
 	if err != nil {
 		return 0, err
 	}
-	evicted := 0
-	var joinedErr error
-	for _, docID := range toEvict {
-		if err := ltm.DeleteDocument(docID); err != nil {
-			s.logger.Warn("Failed to evict memory from LTM for budget enforcement", "doc_id", docID, "error", err)
-			joinedErr = errors.Join(joinedErr, fmt.Errorf("delete vector doc %s: %w", docID, err))
-			continue
-		}
-		if err := s.CleanupDeletedVectorDocumentReferences(docID); err != nil {
-			joinedErr = errors.Join(joinedErr, fmt.Errorf("cleanup vector doc references %s: %w", docID, err))
-			continue
-		}
-		if err := s.ApplyMemoryCurationAction(MemoryCurationAction{
-			DocID:  docID,
-			Action: MemoryCurationActionArchive,
-			Reason: "memory_meta budget enforcement",
-		}, "system", false); err != nil {
-			joinedErr = errors.Join(joinedErr, fmt.Errorf("archive memory meta %s: %w", docID, err))
-			continue
-		}
-		evicted++
+	if len(toEvict) == 0 {
+		return 0, nil
 	}
-	if evicted > 0 {
-		s.logger.Info("Enforced memory_meta budget", "budget", budget, "evicted", evicted)
+
+	// Batch-delete vector documents when the implementation supports it.
+	if batcher, ok := ltm.(interface{ DeleteDocuments([]string) error }); ok {
+		if err := batcher.DeleteDocuments(toEvict); err != nil {
+			s.logger.Warn("Failed to batch evict memories from LTM for budget enforcement", "count", len(toEvict), "error", err)
+			return 0, fmt.Errorf("batch delete vector docs: %w", err)
+		}
+	} else {
+		var joinedErr error
+		for _, docID := range toEvict {
+			if err := ltm.DeleteDocument(docID); err != nil {
+				s.logger.Warn("Failed to evict memory from LTM for budget enforcement", "doc_id", docID, "error", err)
+				joinedErr = errors.Join(joinedErr, fmt.Errorf("delete vector doc %s: %w", docID, err))
+			}
+		}
+		if joinedErr != nil {
+			return 0, joinedErr
+		}
 	}
-	return evicted, joinedErr
+
+	// Batch cleanup SQLite references and archive metadata.
+	if err := s.CleanupDeletedVectorDocumentReferencesBatch(toEvict); err != nil {
+		return 0, fmt.Errorf("cleanup deleted vector document references: %w", err)
+	}
+	if err := s.ArchiveMemoryMetaBatch(toEvict, "memory_meta budget enforcement", "system"); err != nil {
+		return 0, fmt.Errorf("archive evicted memory metadata: %w", err)
+	}
+
+	s.logger.Info("Enforced memory_meta budget", "budget", budget, "evicted", len(toEvict))
+	return len(toEvict), nil
 }
 
 // GetMemoryBudgetStats returns current budget utilization statistics.

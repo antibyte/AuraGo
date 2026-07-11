@@ -17,10 +17,11 @@ import (
 // Store holds the parsed translations, keyed by language code.
 // Each language maps to a flat key-value pairs.
 type Store struct {
-	mu       sync.RWMutex
-	langData map[string]map[string]string // lang -> key -> translation
-	metaJSON string                       // raw JSON for field metadata
-	langJSON map[string]string            // lang -> marshaled JSON string
+	mu              sync.RWMutex
+	langData        map[string]map[string]string // lang -> key -> translation
+	metaJSON        string                       // raw JSON for field metadata
+	langJSON        map[string]string            // lang -> marshaled JSON string
+	langSectionJSON map[string]string            // "lang:section" -> marshaled JSON string
 }
 
 // Global store instance used by the Load, GetJSON, GetMetaJSON functions.
@@ -28,8 +29,9 @@ type Store struct {
 // creating separate Store instances to avoid duplication.
 var (
 	globalStore = &Store{
-		langData: make(map[string]map[string]string),
-		langJSON: make(map[string]string),
+		langData:        make(map[string]map[string]string),
+		langJSON:        make(map[string]string),
+		langSectionJSON: make(map[string]string),
 	}
 )
 
@@ -167,10 +169,34 @@ func (s *Store) load(uiFS fs.FS, logger *slog.Logger) {
 		}
 	}
 
+	// Build per-section JSON so pages can load only the translations they need.
+	newLangSectionJSON := make(map[string]string)
+	for lang, translations := range langData {
+		sections := make(map[string]map[string]string)
+		for key, value := range translations {
+			section := ""
+			if idx := strings.Index(key, "."); idx > 0 {
+				section = key[:idx]
+			}
+			if sections[section] == nil {
+				sections[section] = make(map[string]string)
+			}
+			sections[section][key] = value
+		}
+		for section, secTranslations := range sections {
+			jsonBytes, err := json.Marshal(secTranslations)
+			if err != nil {
+				continue
+			}
+			newLangSectionJSON[lang+":"+section] = string(jsonBytes)
+		}
+	}
+
 	s.mu.Lock()
 	s.langData = langData
 	s.langJSON = newLangJSON
 	s.metaJSON = newMetaJSON
+	s.langSectionJSON = newLangSectionJSON
 	s.mu.Unlock()
 
 	logger.Info("i18n loaded", "languages", len(newLangJSON))
@@ -218,6 +244,59 @@ func (s *Store) GetJSON(lang string) string {
 		return j
 	}
 	return "{}"
+}
+
+// GetJSONForSection returns a JSON object containing only the requested
+// sections (plus the "common" section) for the given language. When no
+// sections are requested it falls back to the full language blob.
+func GetJSONForSection(lang string, sections ...string) string {
+	return globalStore.GetJSONForSection(lang, sections...)
+}
+
+// GetJSONForSection returns a JSON object containing only the requested
+// sections (plus the "common" section) for the given language.
+func (s *Store) GetJSONForSection(lang string, sections ...string) string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if len(sections) == 0 {
+		if j, ok := s.langJSON[lang]; ok {
+			return j
+		}
+		if j, ok := s.langJSON["en"]; ok {
+			return j
+		}
+		return "{}"
+	}
+
+	merged := make(map[string]string)
+	mergeSection := func(section string) {
+		key := lang + ":" + section
+		if j, ok := s.langSectionJSON[key]; ok {
+			var parsed map[string]string
+			_ = json.Unmarshal([]byte(j), &parsed)
+			for k, v := range parsed {
+				merged[k] = v
+			}
+		}
+	}
+
+	// Always include the common section.
+	mergeSection("common")
+	for _, section := range sections {
+		if section != "common" {
+			mergeSection(section)
+		}
+	}
+
+	if len(merged) == 0 {
+		return "{}"
+	}
+	out, err := json.Marshal(merged)
+	if err != nil {
+		return "{}"
+	}
+	return string(out)
 }
 
 // GetMetaJSON returns the _meta section JSON for config_help metadata.

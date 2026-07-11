@@ -1,7 +1,6 @@
 package tools
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -19,7 +18,6 @@ func TestProcessRegistryTerminateReturnsKillFallbackError(t *testing.T) {
 	registry.Register(&ProcessInfo{
 		PID:       4242,
 		Process:   &os.Process{Pid: 4242},
-		Output:    &bytes.Buffer{},
 		StartedAt: time.Now(),
 		Alive:     true,
 	})
@@ -54,7 +52,6 @@ func TestProcessRegistryKillAllLogsKillFailures(t *testing.T) {
 	registry.Register(&ProcessInfo{
 		PID:       5151,
 		Process:   &os.Process{Pid: 5151},
-		Output:    &bytes.Buffer{},
 		StartedAt: time.Now(),
 		Alive:     true,
 	})
@@ -74,7 +71,6 @@ func TestProcessRegistryKillAllLogsKillFailures(t *testing.T) {
 func TestProcessInfoWriteTruncatesWhenBufferExceedsMaxSize(t *testing.T) {
 	info := &ProcessInfo{
 		PID:       2001,
-		Output:    &bytes.Buffer{},
 		StartedAt: time.Now(),
 		Alive:     true,
 	}
@@ -101,16 +97,15 @@ func TestProcessInfoWriteTruncatesWhenBufferExceedsMaxSize(t *testing.T) {
 		t.Fatalf("Write() reported n=%d, expected %d", n, len(extraData))
 	}
 
-	// Buffer should be truncated to less than maxOutputSize
-	if info.Output.Len() >= maxOutputSize {
-		t.Fatalf("buffer len=%d, expected < %d after truncation", info.Output.Len(), maxOutputSize)
+	// Buffer should be truncated to at most maxOutputSize.
+	if info.OutputLen() > maxOutputSize {
+		t.Fatalf("buffer len=%d, expected <= %d after truncation", info.OutputLen(), maxOutputSize)
 	}
 }
 
 func TestProcessInfoWriteSystemMessageAppliesTruncation(t *testing.T) {
 	info := &ProcessInfo{
 		PID:       2002,
-		Output:    &bytes.Buffer{},
 		StartedAt: time.Now(),
 		Alive:     true,
 	}
@@ -129,16 +124,15 @@ func TestProcessInfoWriteSystemMessageAppliesTruncation(t *testing.T) {
 		t.Fatalf("WriteSystemMessage() returned error: %v", err)
 	}
 
-	// Buffer should be truncated
-	if info.Output.Len() >= maxOutputSize {
-		t.Fatalf("buffer len=%d after system message, expected < %d", info.Output.Len(), maxOutputSize)
+	// Buffer should be truncated to at most maxOutputSize.
+	if info.OutputLen() > maxOutputSize {
+		t.Fatalf("buffer len=%d after system message, expected <= %d", info.OutputLen(), maxOutputSize)
 	}
 }
 
 func TestProcessInfoConcurrentWriteRead(t *testing.T) {
 	info := &ProcessInfo{
 		PID:       2003,
-		Output:    &bytes.Buffer{},
 		StartedAt: time.Now(),
 		Alive:     true,
 	}
@@ -181,7 +175,6 @@ func TestProcessInfoConcurrentWriteRead(t *testing.T) {
 func TestProcessInfoWriteAndReadOutput(t *testing.T) {
 	info := &ProcessInfo{
 		PID:       2004,
-		Output:    &bytes.Buffer{},
 		StartedAt: time.Now(),
 		Alive:     true,
 	}
@@ -204,7 +197,6 @@ func TestProcessInfoWriteAndReadOutput(t *testing.T) {
 func TestProcessInfoWriteSystemMessagePrefixesWithNewline(t *testing.T) {
 	info := &ProcessInfo{
 		PID:       2005,
-		Output:    &bytes.Buffer{},
 		StartedAt: time.Now(),
 		Alive:     true,
 	}
@@ -221,7 +213,6 @@ func TestProcessInfoWriteSystemMessagePrefixesWithNewline(t *testing.T) {
 func TestProcessInfoWriteSystemMessageBytesNoNewline(t *testing.T) {
 	info := &ProcessInfo{
 		PID:       2006,
-		Output:    &bytes.Buffer{},
 		StartedAt: time.Now(),
 		Alive:     true,
 	}
@@ -238,8 +229,8 @@ func TestProcessInfoWriteSystemMessageBytesNoNewline(t *testing.T) {
 func TestProcessRegistryListDoesNotHoldRegistryLockWhileWaitingOnProcessInfo(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	registry := NewProcessRegistry(logger)
-	blocked := &ProcessInfo{PID: 1001, Output: &bytes.Buffer{}, StartedAt: time.Now(), Alive: true}
-	other := &ProcessInfo{PID: 1002, Output: &bytes.Buffer{}, StartedAt: time.Now(), Alive: true}
+	blocked := &ProcessInfo{PID: 1001, StartedAt: time.Now(), Alive: true}
+	other := &ProcessInfo{PID: 1002, StartedAt: time.Now(), Alive: true}
 	registry.Register(blocked)
 	registry.Register(other)
 

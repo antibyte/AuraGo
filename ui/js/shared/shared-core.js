@@ -1409,6 +1409,14 @@ window.AuraSSE = (function () {
         _checkAuthAfterSSEError();
     });
 
+    if (window.AuraDisposer) {
+        window.AuraDisposer.add(function () {
+            if (_retryTimer) { clearTimeout(_retryTimer); _retryTimer = null; }
+            if (_es) { _es.close(); _es = null; }
+            _connected = false;
+        });
+    }
+
     return {
         connect: _connect,
         isConnected: function () { return _connected; },
@@ -1873,6 +1881,102 @@ async function cfgFetch(url, options = {}) {
     }
     return resp.json();
 }
+
+// ═══════════════════════════════════════════════════════════════
+// PAGE LIFECYCLE DISPOSER
+// Register callbacks that run on pagehide/beforeunload to avoid leaking
+// timers, intervals, event listeners, and SSE connections across navigations.
+// ═══════════════════════════════════════════════════════════════
+window.AuraDisposer = (function () {
+    'use strict';
+    var disposers = [];
+    var installed = false;
+
+    function install() {
+        if (installed) return;
+        installed = true;
+        var runner = function () {
+            var fns = disposers.slice();
+            disposers = [];
+            fns.forEach(function (fn) { try { fn(); } catch (e) { console.warn('[AuraDisposer] dispose error:', e); } });
+        };
+        window.addEventListener('pagehide', runner);
+        window.addEventListener('beforeunload', runner);
+    }
+
+    return {
+        add: function (fn) {
+            if (typeof fn !== 'function') return function () {};
+            install();
+            disposers.push(fn);
+            return function () {
+                var i = disposers.indexOf(fn);
+                if (i >= 0) disposers.splice(i, 1);
+            };
+        }
+    };
+}());
+
+// ═══════════════════════════════════════════════════════════════
+// DOM DIFF HELPERS
+// Reuse existing DOM nodes instead of replacing innerHTML on every update.
+// ═══════════════════════════════════════════════════════════════
+window.AuraDiff = (function () {
+    'use strict';
+
+    /**
+     * Render a list of items into a container, reusing existing keyed nodes.
+     * @param {HTMLElement} container
+     * @param {Array} items
+     * @param {Object} options
+     * @param {Function} options.keyFn - returns a unique string key per item
+     * @param {Function} options.renderFn - returns a new HTMLElement for an item
+     * @param {Function} [options.shouldUpdate] - returns true if an existing keyed element should be re-rendered
+     */
+    function render(container, items, options) {
+        if (!container) return;
+        var keyFn = options.keyFn;
+        var renderFn = options.renderFn;
+        var shouldUpdate = options.shouldUpdate;
+        var oldMap = new Map();
+        Array.prototype.forEach.call(container.children, function (el) {
+            var k = el.dataset.diffKey;
+            if (k) oldMap.set(k, el);
+        });
+
+        var newKeys = new Set();
+        var prevEl = null;
+        items.forEach(function (item) {
+            var key = String(keyFn(item));
+            newKeys.add(key);
+            var el = oldMap.get(key);
+            if (!el) {
+                el = renderFn(item);
+                if (el) el.dataset.diffKey = key;
+            } else if (shouldUpdate && shouldUpdate(item, el)) {
+                var newEl = renderFn(item);
+                if (newEl) {
+                    newEl.dataset.diffKey = key;
+                    el.replaceWith(newEl);
+                    el = newEl;
+                }
+            }
+            if (!el) return;
+            if (prevEl && prevEl.nextElementSibling !== el) {
+                prevEl.after(el);
+            } else if (!prevEl && container.firstElementChild !== el) {
+                container.prepend(el);
+            }
+            prevEl = el;
+        });
+
+        oldMap.forEach(function (el, key) {
+            if (!newKeys.has(key)) el.remove();
+        });
+    }
+
+    return { render: render };
+}());
 
 // Auto-initialize on DOM ready - simple and reliable approach
 function scheduleInit() {

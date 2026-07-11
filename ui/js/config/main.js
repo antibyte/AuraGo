@@ -1306,8 +1306,10 @@ const configSectionObserver = new MutationObserver(() => {
     });
 });
 const configSectionObserverRoot = document.getElementById('content');
+// Only watch direct children of #content. Watching subtree causes a feedback
+// loop because enhanceConfigSectionLayout mutates the active section itself.
 if (configSectionObserverRoot) {
-    configSectionObserver.observe(configSectionObserverRoot, { childList: true, subtree: true });
+    configSectionObserver.observe(configSectionObserverRoot, { childList: true });
 }
 
 async function selectSection(key, options = {}) {

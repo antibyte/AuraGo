@@ -961,7 +961,6 @@ func startNativeTunnel(cfg CloudflareTunnelConfig, registry *ProcessRegistry, ar
 
 	cmd := exec.Command(binPath, args...)
 	info := &ProcessInfo{
-		Output:    &bytes.Buffer{},
 		StartedAt: time.Now(),
 		Alive:     true,
 	}

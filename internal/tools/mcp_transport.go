@@ -29,6 +29,7 @@ type stdioMCPTransport struct {
 	stderrBuf *safeBuffer
 	mu        sync.Mutex
 	nextID    int64
+	closed    chan struct{}
 	closeOnce sync.Once
 }
 
@@ -38,6 +39,7 @@ func newStdioMCPTransport(cmd *exec.Cmd, stdin io.WriteCloser, stdout io.Reader,
 		stdin:     stdin,
 		stdout:    bufio.NewReaderSize(stdout, 1024*1024),
 		stderrBuf: stderrBuf,
+		closed:    make(chan struct{}),
 	}
 }
 
@@ -61,6 +63,28 @@ func (t *stdioMCPTransport) Send(method string, params interface{}) (*jsonRPCRes
 		return nil, fmt.Errorf("write to stdin: %w", err)
 	}
 
+	type readResult struct {
+		resp *jsonRPCResponse
+		err  error
+	}
+	done := make(chan readResult, 1)
+	go func() {
+		resp, err := t.readResponse(id)
+		done <- readResult{resp: resp, err: err}
+	}()
+
+	select {
+	case res := <-done:
+		return res.resp, res.err
+	case <-time.After(mcpNetworkRequestTimeout):
+		t.Close()
+		return nil, fmt.Errorf("stdio MCP request timed out")
+	case <-t.closed:
+		return nil, fmt.Errorf("stdio MCP connection closed")
+	}
+}
+
+func (t *stdioMCPTransport) readResponse(id int64) (*jsonRPCResponse, error) {
 	for {
 		line, err := t.stdout.ReadBytes('\n')
 		if err != nil {
@@ -107,6 +131,9 @@ func (t *stdioMCPTransport) Close() {
 	t.closeOnce.Do(func() {
 		if t.stdin != nil {
 			_ = t.stdin.Close()
+		}
+		if t.closed != nil {
+			close(t.closed)
 		}
 		if t.cmd == nil {
 			return

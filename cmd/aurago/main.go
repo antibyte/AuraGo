@@ -22,6 +22,7 @@ import (
 	"syscall"
 	"time"
 
+	"aurago/internal/agent"
 	"aurago/internal/config"
 	"aurago/internal/contacts"
 	"aurago/internal/credentials"
@@ -185,6 +186,12 @@ func main() {
 			// If we can't load config and we're not in setup, we can't safely proceed
 			log.Fatalf("CONFIG ERROR: %v", err)
 		}
+	}
+
+	// Configure the agent loop concurrency limit early, before any request can
+	// acquire a slot. A value of 0 falls back to the package default.
+	if cfg != nil {
+		agent.ConfigureAgentLoopLimiter(cfg.Agent.MaxConcurrentLoops)
 	}
 
 	// -- Apply CLI flags for HTTPS -----------------------------------------

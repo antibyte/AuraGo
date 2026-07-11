@@ -77,6 +77,13 @@ type ScoredVectorDB interface {
 	SearchMemoriesOnlyScored(query string, topK int) ([]SearchResult, error)
 }
 
+// ContextVectorDB is an optional extension for callers that already have a
+// request or shutdown context. VectorDB stays unchanged for compatibility.
+type ContextVectorDB interface {
+	SearchSimilarContext(ctx context.Context, query string, topK int, excludeCollections ...string) ([]string, []string, error)
+	SearchMemoriesOnlyContext(ctx context.Context, query string, topK int) ([]string, []string, error)
+}
+
 // ContextScoredVectorDB is an optional extension for callers that already have
 // a request or shutdown context. VectorDB stays unchanged for compatibility.
 type ContextScoredVectorDB interface {
@@ -1181,7 +1188,13 @@ func (cv *ChromemVectorDB) storeBatchConcurrency(itemCount int) int {
 }
 
 func (cv *ChromemVectorDB) SearchSimilar(query string, topK int, excludeCollections ...string) ([]string, []string, error) {
-	results, err := cv.SearchSimilarScored(query, topK, excludeCollections...)
+	return cv.SearchSimilarContext(context.Background(), query, topK, excludeCollections...)
+}
+
+// SearchSimilarContext finds the topK most semantically similar documents across
+// all relevant collections and honors caller cancellation.
+func (cv *ChromemVectorDB) SearchSimilarContext(ctx context.Context, query string, topK int, excludeCollections ...string) ([]string, []string, error) {
+	results, err := cv.SearchSimilarScoredContext(ctx, query, topK, excludeCollections...)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -1371,7 +1384,12 @@ finalizeResults:
 // Intended for use cases like predictive pre-fetch where documentation hits add no value.
 // Uses the query embedding cache to avoid redundant API calls.
 func (cv *ChromemVectorDB) SearchMemoriesOnly(query string, topK int) ([]string, []string, error) {
-	results, err := cv.SearchMemoriesOnlyScored(query, topK)
+	return cv.SearchMemoriesOnlyContext(context.Background(), query, topK)
+}
+
+// SearchMemoriesOnlyContext searches only aurago_memories and honors caller cancellation.
+func (cv *ChromemVectorDB) SearchMemoriesOnlyContext(ctx context.Context, query string, topK int) ([]string, []string, error) {
+	results, err := cv.SearchMemoriesOnlyScoredContext(ctx, query, topK)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -1652,8 +1670,11 @@ func (cv *ChromemVectorDB) DeleteDocumentWithCleanup(id string) error {
 	return nil
 }
 
-// DeleteDocumentFromCollection removes a specific document from a named collection.
-func (cv *ChromemVectorDB) DeleteDocumentFromCollection(id, collection string) error {
+// DeleteDocuments removes multiple documents from the default collection in one call.
+func (cv *ChromemVectorDB) DeleteDocuments(ids []string) error {
+	if len(ids) == 0 {
+		return nil
+	}
 	doneStore, err := cv.beginTrackedOperation(&cv.storeWg)
 	if err != nil {
 		return err
@@ -1665,13 +1686,39 @@ func (cv *ChromemVectorDB) DeleteDocumentFromCollection(id, collection string) e
 	}
 	cv.mu.Lock()
 	defer cv.mu.Unlock()
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	return cv.collection.Delete(ctx, nil, nil, ids...)
+}
+
+// DeleteDocumentFromCollection removes a specific document from a named collection.
+func (cv *ChromemVectorDB) DeleteDocumentFromCollection(id, collection string) error {
+	return cv.DeleteDocumentsFromCollection([]string{id}, collection)
+}
+
+// DeleteDocumentsFromCollection removes multiple documents from a named collection in one call.
+func (cv *ChromemVectorDB) DeleteDocumentsFromCollection(ids []string, collection string) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	doneStore, err := cv.beginTrackedOperation(&cv.storeWg)
+	if err != nil {
+		return err
+	}
+	defer doneStore()
+
+	if err := cv.requireReadyForStore(); err != nil {
+		return err
+	}
+	cv.mu.Lock()
+	defer cv.mu.Unlock()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	col, err := cv.db.GetOrCreateCollection(collection, nil, cv.embeddingFunc)
 	if err != nil {
 		return fmt.Errorf("get collection %s: %w", collection, err)
 	}
-	return col.Delete(ctx, nil, nil, id)
+	return col.Delete(ctx, nil, nil, ids...)
 }
 
 // getQueryEmbedding returns a cached embedding for the query string, or computes a new one.

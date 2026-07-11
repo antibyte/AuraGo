@@ -29,11 +29,34 @@ document.addEventListener('DOMContentLoaded', function () {
     document.addEventListener('keydown', function (e) {
         if (e.key === 'Escape') closeLightbox();
     });
+
+    // Delegated change listener for image selection checkboxes so diff-rendered
+    // cards do not need to be re-wired after every render.
+    const grid = document.getElementById('gallery-grid');
+    if (grid) {
+        grid.addEventListener('change', function (event) {
+            const input = event.target.closest('.media-select-check[data-tab="images"]');
+            if (!input) return;
+            event.stopPropagation();
+            if (typeof toggleMediaItemSelection === 'function') {
+                const payload = { id: parseInt(input.dataset.id, 10), source: input.dataset.source || '' };
+                toggleMediaItemSelection('images', input.dataset.selectionKey, payload, input.checked);
+            }
+            if (typeof rerenderCurrentMediaTab === 'function') rerenderCurrentMediaTab();
+        });
+    }
 });
+
+function makeStatusNode(icon, message) {
+    const wrap = document.createElement('div');
+    wrap.className = 'gallery-empty';
+    wrap.innerHTML = '<div class="gallery-empty-icon">' + icon + '</div><div>' + escapeHtml(message) + '</div>';
+    return wrap;
+}
 
 async function loadGallery() {
     const grid = document.getElementById('gallery-grid');
-    grid.innerHTML = '<div class="gallery-loading">' + t('gallery.loading') + '</div>';
+    grid.replaceChildren(makeStatusNode('', t('gallery.loading')));
 
     const q = (document.getElementById('gallery-search') || document.getElementById('media-search') || {value: ''}).value;
     const provider = document.getElementById('gallery-provider-filter').value;
@@ -50,7 +73,7 @@ async function loadGallery() {
         const data = await resp.json();
 
         if (data.status !== 'ok') {
-            grid.innerHTML = '<div class="gallery-empty"><div class="gallery-empty-icon">⚠️</div>' + escapeHtml(data.message || t('common.error')) + '</div>';
+            grid.replaceChildren(makeStatusNode('⚠️', data.message || t('common.error')));
             return;
         }
 
@@ -61,7 +84,7 @@ async function loadGallery() {
         populateProviderFilter(galleryImages);
 
         if (galleryImages.length === 0) {
-            grid.innerHTML = '<div class="gallery-empty"><div class="gallery-empty-icon">🎨</div><div>' + t('gallery.empty') + '</div></div>';
+            grid.replaceChildren(makeStatusNode('🎨', t('gallery.empty')));
             document.getElementById('gallery-pagination').classList.add('is-hidden');
             return;
         }
@@ -69,37 +92,70 @@ async function loadGallery() {
         renderGrid(galleryImages);
         updatePagination();
     } catch (e) {
-        grid.innerHTML = '<div class="gallery-empty"><div class="gallery-empty-icon">⚠️</div>' + escapeHtml(e.message || t('common.error')) + '</div>';
+        grid.replaceChildren(makeStatusNode('⚠️', e.message || t('common.error')));
     }
+}
+
+function galleryCardSnapshot(img) {
+    const sourceDB = img.source_db || '';
+    const selectionKey = sourceDB + ':' + img.id;
+    const selectionActive = typeof isMediaSelectionModeActive === 'function' && isMediaSelectionModeActive();
+    const isSelected = selectionActive && typeof isMediaItemSelected === 'function' && isMediaItemSelected('images', selectionKey);
+    return [
+        img.id,
+        sourceDB,
+        img.web_path || '',
+        img.filename || '',
+        img.prompt || '',
+        img.provider || '',
+        img.created_at || '',
+        selectionActive ? '1' : '0',
+        isSelected ? '1' : '0'
+    ].join('|');
+}
+
+function renderGalleryCard(img) {
+    const webPath = img.web_path || ('/files/generated_images/' + img.filename);
+    const promptDisplay = escapeHtml((img.prompt || '').substring(0, 100));
+    const date = img.created_at ? new Date(img.created_at).toLocaleDateString() : '';
+    const providerBadge = escapeHtml(img.provider || '');
+    const sourceDB = img.source_db || '';
+    const selectionKey = sourceDB + ':' + img.id;
+    const selectionActive = typeof isMediaSelectionModeActive === 'function' && isMediaSelectionModeActive();
+    const isSelected = selectionActive && typeof isMediaItemSelected === 'function' && isMediaItemSelected('images', selectionKey);
+    const selectedClass = isSelected ? ' media-card-selected' : '';
+
+    let html = '<div class="gallery-card' + selectedClass + '" data-source="' + escapeHtml(sourceDB) + '" data-media-id="' + img.id + '" data-snapshot="' + esc(galleryCardSnapshot(img)) + '" onclick="handleGalleryCardClick(event, this.dataset.mediaId, this.dataset.source)">';
+    if (selectionActive) {
+        html += '<label class="media-select-check-wrap" onclick="event.stopPropagation()">';
+        html += '<input type="checkbox" class="media-select-check" data-tab="images" data-selection-key="' + escapeHtml(selectionKey) + '" data-id="' + img.id + '" data-source="' + escapeHtml(sourceDB) + '"' + (isSelected ? ' checked' : '') + ' aria-label="' + escapeHtml(t('media.bulk_select_item')) + '">';
+        html += '</label>';
+    }
+    html += '<img src="' + escapeHtml(webPath) + '" loading="lazy" alt="' + escapeHtml(img.prompt || '') + '">';
+    html += '<div class="gallery-card-info">';
+    html += '<div class="gallery-card-prompt">' + promptDisplay + '</div>';
+    html += '<div class="gallery-card-meta"><span>' + providerBadge + '</span><span>' + escapeHtml(date) + '</span></div>';
+    html += '</div></div>';
+
+    const tpl = document.createElement('template');
+    tpl.innerHTML = html;
+    return tpl.content.firstElementChild;
+}
+
+function shouldUpdateGalleryCard(img, el) {
+    return el.dataset.snapshot !== galleryCardSnapshot(img);
 }
 
 function renderGrid(images) {
     const grid = document.getElementById('gallery-grid');
-    let html = '';
-    const selectionActive = typeof isMediaSelectionModeActive === 'function' && isMediaSelectionModeActive();
-    images.forEach(function (img) {
-        const webPath = img.web_path || ('/files/generated_images/' + img.filename);
-        const promptDisplay = escapeHtml(img.prompt || '').substring(0, 100);
-        const date = img.created_at ? new Date(img.created_at).toLocaleDateString() : '';
-        const providerBadge = img.provider || '';
-        const sourceDB = img.source_db || '';
-        const selectionKey = sourceDB + ':' + img.id;
-        const selectedClass = selectionActive && typeof isMediaItemSelected === 'function' && isMediaItemSelected('images', selectionKey) ? ' media-card-selected' : '';
-        html += '<div class="gallery-card' + selectedClass + '" data-source="' + escapeHtml(sourceDB) + '" data-media-id="' + img.id + '" onclick="handleGalleryCardClick(event, this.dataset.mediaId, this.dataset.source)">';
-        if (selectionActive) {
-            html += '<label class="media-select-check-wrap" onclick="event.stopPropagation()">';
-            html += '<input type="checkbox" class="media-select-check" data-tab="images" data-selection-key="' + escapeHtml(selectionKey) + '" data-id="' + img.id + '" data-source="' + escapeHtml(sourceDB) + '"' + (selectedClass ? ' checked' : '') + ' aria-label="' + escapeHtml(t('media.bulk_select_item')) + '">';
-            html += '</label>';
-        }
-        html += '<img src="' + escapeHtml(webPath) + '" loading="lazy" alt="' + escapeHtml(img.prompt || '') + '">';
-        html += '<div class="gallery-card-info">';
-        html += '<div class="gallery-card-prompt">' + promptDisplay + '</div>';
-        html += '<div class="gallery-card-meta"><span>' + escapeHtml(providerBadge) + '</span><span>' + escapeHtml(date) + '</span></div>';
-        html += '</div></div>';
-    });
-    grid.innerHTML = html;
-    if (typeof wireGalleryMediaSelectionChecks === 'function') {
-        wireGalleryMediaSelectionChecks(grid);
+    if (window.AuraDiff) {
+        window.AuraDiff.render(grid, images, {
+            keyFn: function (img) { return (img.source_db || '') + ':' + img.id; },
+            renderFn: renderGalleryCard,
+            shouldUpdate: shouldUpdateGalleryCard
+        });
+    } else {
+        grid.replaceChildren(...images.map(renderGalleryCard));
     }
 }
 

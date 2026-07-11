@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"strings"
 
 	"aurago/internal/security"
 )
@@ -32,8 +33,23 @@ func (b *SSEBrokerAdapter) Send(event, message string) {
 	}
 }
 
+// SendPreparedJSON forwards a JSON string that is already final (e.g. already
+// contains a session_id). It avoids the expensive unmarshal/marshal round-trip
+// performed by SendJSON. Prefer this for hot paths that construct payloads
+// with the session_id baked in.
+func (b *SSEBrokerAdapter) SendPreparedJSON(jsonStr string) {
+	b.sse.SendJSON(jsonStr)
+}
+
 func (b *SSEBrokerAdapter) SendJSON(jsonStr string) {
 	if b.sessionID == "" {
+		b.sse.SendJSON(jsonStr)
+		return
+	}
+	// Fast path: payload already carries a session_id, skip expensive marshal
+	// round-trip. This catches payloads produced by SendTyped/SendLLMStreamDelta
+	// and any caller that already embeds the session.
+	if strings.Contains(jsonStr, "\"session_id\"") {
 		b.sse.SendJSON(jsonStr)
 		return
 	}

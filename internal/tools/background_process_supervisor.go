@@ -1,7 +1,6 @@
 package tools
 
 import (
-	"bytes"
 	"fmt"
 	"os/exec"
 	"sync"
@@ -11,7 +10,6 @@ import (
 
 func registerManagedBackgroundProcess(cmd *exec.Cmd, registry *ProcessRegistry, cleanup func()) (int, error) {
 	info := &ProcessInfo{
-		Output:    &bytes.Buffer{},
 		StartedAt: time.Now(),
 		Alive:     true,
 		State:     ProcessStateStarting,

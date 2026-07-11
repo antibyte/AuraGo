@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"os"
 	"strings"
 	"testing"
 )
@@ -81,7 +82,11 @@ func TestCheatsheetEditorTabsUseStableDataAttributes(t *testing.T) {
 func TestSharedModalStackReactivatesNestedModal(t *testing.T) {
 	t.Parallel()
 
-	sharedJS := readDesktopAssetText(t, "shared.js")
+	sharedJSBytes, err := os.ReadFile("shared.js")
+	if err != nil {
+		t.Fatalf("read shared.js: %v", err)
+	}
+	sharedJS := string(sharedJSBytes)
 	for _, marker := range []string{
 		"function liftModalFromBackgroundInert(modal)",
 		"const selfRestore = liftModalFromBackgroundInert(modal);",
