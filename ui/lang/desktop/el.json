@@ -716,6 +716,7 @@
   "desktop.openscad.cancelled": "Ακυρώθηκε",
   "desktop.openscad.defines": "Προσαρμοσμένες -D",
   "desktop.openscad.defines_placeholder": "όνομα=τιμή",
+  "desktop.openscad.no_defines": "Χωρίς defines",
   "desktop.openscad.download": "Λήψη",
   "desktop.openscad.download_hint": "Η προεπισκόπηση δεν είναι διαδραστική για αυτή τη μορφή. Κατέβασε ή αποθήκευσε το αρχείο.",
   "desktop.openscad.duration": "Διάρκεια",

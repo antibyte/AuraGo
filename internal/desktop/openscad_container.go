@@ -89,6 +89,7 @@ type OpenSCADRenderRequest struct {
 	RenderMode     string           `json:"render_mode,omitempty"`
 	TimeoutSeconds int              `json:"timeout_seconds,omitempty"`
 	SaveToDesktop  bool             `json:"save_to_desktop,omitempty"`
+	WindowID       string           `json:"window_id,omitempty"`
 }
 
 type OpenSCADFile struct {

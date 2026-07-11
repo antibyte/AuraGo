@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"aurago/internal/config"
@@ -44,18 +45,21 @@ func ExecuteOpenSCADRender(ctx context.Context, cfg *config.Config, args map[str
 		}
 	}
 	payload := map[string]interface{}{
-		"job_id":      result.JobID,
-		"model_name":  result.ModelName,
-		"files":       result.Files,
-		"source_path": result.SourcePath,
-		"source_scad": req.SourceSCAD,
-		"exit_code":   result.ExitCode,
-		"duration_ms": result.DurationMS,
-		"stdout":      result.Stdout,
-		"stderr":      result.Stderr,
-		"saved_paths": result.SavedPaths,
+		"job_id":        result.JobID,
+		"model_name":    result.ModelName,
+		"files":         result.Files,
+		"source_path":   result.SourcePath,
+		"source_scad":   req.SourceSCAD,
+		"exit_code":     result.ExitCode,
+		"duration_ms":   result.DurationMS,
+		"stdout":        result.Stdout,
+		"stderr":        result.Stderr,
+		"saved_paths":   result.SavedPaths,
 		"download_base": result.DownloadBase,
-		"created_at":  result.CreatedAt,
+		"created_at":    result.CreatedAt,
+	}
+	if windowID := strings.TrimSpace(req.WindowID); windowID != "" {
+		payload["window_id"] = windowID
 	}
 	event := &desktop.Event{
 		Type:      "openscad_result",

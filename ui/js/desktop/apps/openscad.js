@@ -16,7 +16,6 @@ model();`;
     const OPENSCAD_DRAFT_KEY = 'aurago.desktop.openscad.draft';
     const OPENSCAD_DRAFT_MAX_SOURCE = 480 * 1024;
     const OPENSCAD_DRAFT_VERSION = 1;
-    let openSCADDraftSaveTimer = null;
 
     const stateByWindow = new Map();
 
@@ -41,12 +40,19 @@ model();`;
         return !!(ctx && ctx.readonly);
     }
 
+    function openSCADDraftStorageKey(windowId) {
+        return OPENSCAD_DRAFT_KEY + '.' + String(windowId || 'default');
+    }
+
     function parseOpenSCADErrors(stderr) {
         return window.OpenSCADEditor && typeof window.OpenSCADEditor.parse === 'function'
             ? window.OpenSCADEditor.parse(stderr) : [];
     }
 
     function parseDefinesText(text) {
+        if (window.OpenSCADDefines && typeof window.OpenSCADDefines.parse === 'function') {
+            return window.OpenSCADDefines.parse(text);
+        }
         const defines = [];
         String(text || '').split(/\r?\n/).forEach(line => {
             const trimmed = line.trim();
@@ -61,33 +67,70 @@ model();`;
         return defines;
     }
 
-    function mountDefinesPanel(state) {
-        if (state.definesMounted) return;
+    function mountDefinesPanel(state, force) {
         if (!window.OpenSCADDefines || typeof window.OpenSCADDefines.render !== 'function') return;
         const mountEl = state.host.querySelector('[data-oscad-defines]');
         if (!mountEl) return;
+        const signature = [
+            isOpenSCADReadOnly(state.ctx) ? '1' : '0',
+            state.definesMode === 'text' ? 'text' : 'sliders',
+            String(state.definesText || '')
+        ].join('|');
+        if (!force && state.definesMounted && state.definesRenderSignature === signature) return;
+        const active = document.activeElement;
+        const keepFocus = !!(active && mountEl.contains(active) && active.getAttribute && (
+            active.hasAttribute('data-oscad-slider') ||
+            active.hasAttribute('data-oscad-number') ||
+            active.hasAttribute('data-oscad-text') ||
+            active.hasAttribute('data-oscad-defines-text')
+        ));
+        if (keepFocus && !force) return;
         try {
             const defines = parseDefinesText(state.definesText || '');
             window.OpenSCADDefines.render(mountEl, defines, function(text) {
+                if (isOpenSCADReadOnly(state.ctx)) return;
                 state.definesText = text;
+                state.definesRenderSignature = [
+                    isOpenSCADReadOnly(state.ctx) ? '1' : '0',
+                    state.definesMode === 'text' ? 'text' : 'sliders',
+                    String(state.definesText || '')
+                ].join('|');
                 scheduleOpenSCADDraftSave(state);
                 updateWindowContext(state);
+            }, {
+                ctx: state.ctx,
+                readonly: isOpenSCADReadOnly(state.ctx),
+                mode: state.definesMode === 'text' ? 'text' : 'sliders',
+                onModeChange: function(mode) {
+                    if (isOpenSCADReadOnly(state.ctx)) return;
+                    state.definesMode = mode === 'text' ? 'text' : 'sliders';
+                    state.definesRenderSignature = '';
+                    mountDefinesPanel(state, true);
+                    scheduleOpenSCADDraftSave(state);
+                }
             });
             state.definesMounted = true;
-        } catch (_) {}
+            state.definesRenderSignature = signature;
+        } catch (err) {
+            warnOpenSCAD(state, 'defines panel failed', { error: err && err.message ? err.message : String(err) });
+        }
     }
 
     function wireDefinesPanel(state) {
         mountDefinesPanel(state);
     }
 
-    function readOpenSCADDraft() {
+    function readOpenSCADDraft(windowId) {
         try {
-            const raw = localStorage.getItem(OPENSCAD_DRAFT_KEY);
-            if (!raw) return null;
-            const data = JSON.parse(raw);
-            if (!data || typeof data !== 'object' || data.v !== OPENSCAD_DRAFT_VERSION) return null;
-            return data;
+            const keys = [openSCADDraftStorageKey(windowId), OPENSCAD_DRAFT_KEY];
+            for (const key of keys) {
+                const raw = localStorage.getItem(key);
+                if (!raw) continue;
+                const data = JSON.parse(raw);
+                if (!data || typeof data !== 'object' || data.v !== OPENSCAD_DRAFT_VERSION) continue;
+                return data;
+            }
+            return null;
         } catch (_) {
             return null;
         }
@@ -100,6 +143,7 @@ model();`;
             v: OPENSCAD_DRAFT_VERSION,
             source,
             definesText: String(state.definesText || ''),
+            definesMode: state.definesMode === 'text' ? 'text' : 'sliders',
             prompt: String(state.prompt || ''),
             renderMode: state.renderMode === 'preview' ? 'preview' : 'render',
             timeout: Math.min(600, Math.max(10, Number(state.timeout) || 120)),
@@ -116,15 +160,15 @@ model();`;
         const payload = openSCADDraftFromState(state);
         if (!payload) return;
         try {
-            localStorage.setItem(OPENSCAD_DRAFT_KEY, JSON.stringify(payload));
+            localStorage.setItem(openSCADDraftStorageKey(state.windowId), JSON.stringify(payload));
         } catch (_) {}
     }
 
     function scheduleOpenSCADDraftSave(state) {
         if (!state || isOpenSCADReadOnly(state.ctx)) return;
-        if (openSCADDraftSaveTimer) window.clearTimeout(openSCADDraftSaveTimer);
-        openSCADDraftSaveTimer = window.setTimeout(() => {
-            openSCADDraftSaveTimer = null;
+        if (state.draftSaveTimer) window.clearTimeout(state.draftSaveTimer);
+        state.draftSaveTimer = window.setTimeout(() => {
+            state.draftSaveTimer = null;
             persistOpenSCADDraft(state);
         }, 400);
     }
@@ -136,6 +180,7 @@ model();`;
             state.source = draft.source;
         }
         if (typeof draft.definesText === 'string') state.definesText = draft.definesText;
+        if (draft.definesMode === 'text' || draft.definesMode === 'sliders') state.definesMode = draft.definesMode;
         if (typeof draft.prompt === 'string') state.prompt = draft.prompt;
         if (draft.renderMode === 'preview' || draft.renderMode === 'render') state.renderMode = draft.renderMode;
         if (Number.isFinite(Number(draft.timeout))) state.timeout = Math.min(600, Math.max(10, Number(draft.timeout)));
@@ -157,7 +202,7 @@ model();`;
 
     function render(host, windowId, ctx) {
         const launchCtx = ctx || {};
-        const draft = readOpenSCADDraft();
+        const draft = readOpenSCADDraft(windowId);
         const mergedCtx = mergeOpenSCADLaunchContext(launchCtx, draft);
         const explicitSource = launchCtx.source != null && String(launchCtx.source).trim() !== '';
         const source = explicitSource
@@ -173,6 +218,7 @@ model();`;
             renderMode: 'render',
             timeout: 120,
             definesText: '',
+            definesMode: 'sliders',
             activeTab: 'source',
             result: null,
             sourceDirty: false,
@@ -196,7 +242,9 @@ model();`;
             eventsAttached: false,
             editor: null,
             definesMounted: false,
-            sourceEditorReady: false
+            sourceEditorReady: false,
+            draftSaveTimer: null,
+            definesRenderSignature: ''
         };
         applyOpenSCADDraftToState(state, draft, { skipSource: explicitSource });
         stateByWindow.set(windowId, state);
@@ -302,7 +350,10 @@ model();`;
             meta.innerHTML = jobMetaHTML(state) + (state.sourceDirty ? `<span class="oscad-dirty">${esc(t(state.ctx, 'desktop.openscad.render_required', 'Render required'))}</span>` : '');
         }
         const promptEl = host.querySelector('[data-oscad-prompt]');
-        if (promptEl && document.activeElement !== promptEl) promptEl.value = state.prompt;
+        if (promptEl) {
+            if (document.activeElement !== promptEl) promptEl.value = state.prompt;
+            promptEl.readOnly = ro;
+        }
         mountDefinesPanel(state);
         const modeEl = host.querySelector('[data-oscad-mode]');
         if (modeEl) modeEl.value = state.renderMode || 'render';
@@ -433,6 +484,14 @@ model();`;
             payload = data;
         }
         if (!payload) return;
+        const targetWindowId = String(
+            payload.window_id ||
+            payload.windowId ||
+            (data && (data.window_id || data.windowId)) ||
+            ''
+        ).trim();
+        if (targetWindowId && targetWindowId !== String(state.windowId || '')) return;
+        if (!targetWindowId && stateByWindow.size > 1 && !state.busy) return;
         state.result = payload;
         if (payload && typeof payload.source_scad === 'string' && payload.source_scad.length) {
             state.source = payload.source_scad;
@@ -527,7 +586,7 @@ model();`;
         } catch (err) {
             setOpenSCADBusy(state, false);
             const partial = err && err.body && err.body.result ? err.body.result : null;
-            if (partial) {
+            if (partial && !state.cancelRequested && renderSerial === state.renderSerial) {
                 state.result = partial;
                 state.activeTab = 'log';
                 draw(state);
@@ -540,7 +599,7 @@ model();`;
         } finally {
             window.clearTimeout(timeout);
             if (state.renderAbort === controller) state.renderAbort = null;
-            state.cancelRequested = false;
+            if (renderSerial === state.renderSerial) state.cancelRequested = false;
         }
     }
 
@@ -555,7 +614,8 @@ model();`;
                 exports,
                 defines: parseDefinesText(state.definesText),
                 render_mode: state.renderMode,
-                timeout_seconds: state.timeout
+                timeout_seconds: state.timeout,
+                window_id: state.windowId
             })
         });
     }
@@ -588,7 +648,7 @@ model();`;
         } catch (err) {
             if (renderSerial !== state.renderSerial) return;
             const partial = err && err.body && err.body.result ? err.body.result : null;
-            if (partial) {
+            if (partial && !state.cancelRequested) {
                 state.result = mergeOpenSCADResults(state.result, partial);
                 state.activeTab = 'files';
                 draw(state);
@@ -602,7 +662,7 @@ model();`;
         } finally {
             window.clearTimeout(timeout);
             if (state.exportAbort === controller) state.exportAbort = null;
-            state.cancelRequested = false;
+            if (renderSerial === state.renderSerial) state.cancelRequested = false;
         }
     }
 
@@ -711,9 +771,10 @@ model();`;
         if (!panel) return;
         if (state.activeTab === 'source') {
             if (!state.sourceEditorReady) {
-                panel.innerHTML = '<div class="oscad-source" data-oscad-source></div>';
+                panel.innerHTML = '<div class="oscad-source oscad-source-loading" data-oscad-source>' + esc(t(state.ctx, 'desktop.openscad.editor_loading', 'Loading editor...')) + '</div>';
                 const mountEl = panel.querySelector('[data-oscad-source]');
                 if (mountEl && window.OpenSCADEditor && typeof window.OpenSCADEditor.create === 'function') {
+                    mountEl.textContent = '';
                     state.editor = window.OpenSCADEditor.create(state, mountEl, function(text) {
                         if (isOpenSCADReadOnly(state.ctx)) return;
                         state.source = text;
@@ -727,8 +788,15 @@ model();`;
                         setWindowMenus(state);
                         scheduleOpenSCADDraftSave(state);
                     });
+                    if (state.editor && typeof state.editor.setReadOnly === 'function') {
+                        state.editor.setReadOnly(isOpenSCADReadOnly(state.ctx));
+                    }
+                    state.sourceEditorReady = true;
+                } else {
+                    warnOpenSCAD(state, 'editor module unavailable');
                 }
-                state.sourceEditorReady = true;
+            } else if (state.editor && typeof state.editor.setReadOnly === 'function') {
+                state.editor.setReadOnly(isOpenSCADReadOnly(state.ctx));
             }
             return;
         }
@@ -930,6 +998,9 @@ model();`;
         const p3d = state.preview3D;
         if (p3d && p3d.scene && window.THREE) {
             p3d.scene.background = new THREE.Color(state.lightPreview ? 0xf2f6f8 : 0x071018);
+            if (p3d.mesh && p3d.mesh.material && p3d.mesh.material.color) {
+                p3d.mesh.material.color.set(state.lightPreview ? 0x6a8cab : 0x42d7c8);
+            }
         }
         syncShellControls(state);
         if (!p3d) renderViewport(state);
@@ -938,7 +1009,12 @@ model();`;
 
     function togglePreviewAxes(state) {
         state.showAxes = !state.showAxes;
-        renderViewport(state);
+        const p3d = state.preview3D;
+        if (p3d && p3d.gridHelper) {
+            p3d.gridHelper.visible = state.showAxes !== false;
+        } else {
+            renderViewport(state);
+        }
         syncShellControls(state);
         scheduleOpenSCADDraftSave(state);
     }
@@ -1103,7 +1179,7 @@ model();`;
         const loader = new THREE.STLLoader();
         state.stl = loader;
         fetch(url).then(res => {
-            if (!res.ok) throw new Error(res.statusText);
+            if (!res.ok) throw new Error(res.statusText || String(res.status));
             return res.arrayBuffer();
         }).then(buffer => {
             if (!state.preview3D) return;
@@ -1127,7 +1203,12 @@ model();`;
             controls.target.set(0, 0, 0);
             controls.update();
             animatePreview(state);
-        }).catch(() => {});
+        }).catch(err => {
+            if (mount) {
+                mount.innerHTML = `<div class="oscad-empty"><strong>${esc(t(state.ctx, 'desktop.openscad.no_preview', 'Render a model to see the preview.'))}</strong><span>${esc((err && err.message) || String(err))}</span></div>`;
+            }
+            setStatus(state, (err && err.message) || t(state.ctx, 'desktop.openscad.no_preview', 'Render a model to see the preview.'), true);
+        });
     }
 
     function animatePreview(state) {
@@ -1144,6 +1225,10 @@ model();`;
         const state = stateByWindow.get(windowId);
         if (!state) return;
         persistOpenSCADDraft(state);
+        if (state.draftSaveTimer) {
+            window.clearTimeout(state.draftSaveTimer);
+            state.draftSaveTimer = null;
+        }
         if (state.editor && typeof state.editor.dispose === 'function') {
             try { state.editor.dispose(); } catch (_) {}
             state.editor = null;

@@ -716,6 +716,7 @@
   "desktop.openscad.cancelled": "Geannuleerd",
   "desktop.openscad.defines": "Aangepaste -D-defines",
   "desktop.openscad.defines_placeholder": "naam=waarde",
+  "desktop.openscad.no_defines": "Geen defines",
   "desktop.openscad.download": "Downloaden",
   "desktop.openscad.download_hint": "Voor dit formaat is het voorbeeld niet interactief. Download of sla het bestand op.",
   "desktop.openscad.duration": "Duur",

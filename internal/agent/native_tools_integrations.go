@@ -1853,6 +1853,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 				"render_mode":     map[string]interface{}{"type": "string", "description": "Use render for final geometry or preview for faster image output.", "enum": []string{"render", "preview"}},
 				"timeout_seconds": prop("integer", "Per-export timeout; capped by config."),
 				"save_to_desktop": prop("boolean", "Save generated files under Documents/OpenSCAD."),
+				"window_id":       prop("string", "Virtual Desktop OpenSCAD window id so the result event updates only that window."),
 			}, "source_scad"),
 		))
 	}

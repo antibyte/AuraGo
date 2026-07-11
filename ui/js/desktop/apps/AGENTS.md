@@ -153,6 +153,16 @@ registration lives in `internal/desktop/types.go`.
 - Keep OpenSCAD split across `openscad.js`, `openscad-editor.js`, and
   `openscad-defines.js`; do not fold the CodeMirror editor or defines slider
   logic into the main app file.
+- OpenSCAD exposes `window.OpenSCADApp = { render, dispose }`. Every window
+  instance owns its draft timer, SSE listeners, editor, and preview resources.
+- OpenSCAD drafts persist per `windowId` under
+  `aurago.desktop.openscad.draft.<windowId>`.
+- OpenSCAD result events must filter on `window_id` when present; without it,
+  idle multi-window instances must ignore global `openscad_result` events.
+- OpenSCAD readonly mode disables CodeMirror/`textarea` editing, defines
+  inputs, and the agent prompt.
+- OpenSCAD visible UI strings use `desktop.openscad.*` keys in all
+  `ui/lang/desktop/*.json` files.
 - Keep Writer self-contained in `writer.js` below the 1100-line budget;
   if find/replace grows unwieldy, extract into `writer-search.js` and register
   in `module-loader.js` and `DESKTOP_APP_ASSETS`.

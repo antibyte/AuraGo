@@ -716,6 +716,7 @@
   "desktop.openscad.cancelled": "已取消",
   "desktop.openscad.defines": "自定义 -D 定义",
   "desktop.openscad.defines_placeholder": "name=value",
+  "desktop.openscad.no_defines": "无参数定义",
   "desktop.openscad.download": "下载",
   "desktop.openscad.download_hint": "此格式的预览不可交互。请下载或保存文件。",
   "desktop.openscad.duration": "时长",

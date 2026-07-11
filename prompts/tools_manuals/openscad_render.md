@@ -9,6 +9,7 @@ Render OpenSCAD source in the managed Virtual Desktop OpenSCAD container. Use it
 - Use `defines` for deterministic `-D name=value` parameters instead of concatenating shell strings.
 - Set `render_mode` to `preview` for faster preview-style renders or `render` for final geometry.
 - Set `save_to_desktop` when the user asks to keep the outputs in the Virtual Desktop.
+- When the user is in an OpenSCAD desktop window, always pass `window_id` from that window context so the result event updates only that instance.
 
 ## Safety
 

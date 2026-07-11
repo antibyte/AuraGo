@@ -716,6 +716,7 @@
   "desktop.openscad.cancelled": "Avbrutet",
   "desktop.openscad.defines": "Anpassade -D",
   "desktop.openscad.defines_placeholder": "namn=värde",
+  "desktop.openscad.no_defines": "Inga defines",
   "desktop.openscad.download": "Ladda ner",
   "desktop.openscad.download_hint": "Förhandsvisningen är inte interaktiv för detta format. Ladda ner eller spara filen.",
   "desktop.openscad.duration": "Varaktighet",

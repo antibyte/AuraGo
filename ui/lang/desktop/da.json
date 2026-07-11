@@ -716,6 +716,7 @@
   "desktop.openscad.cancelled": "Annulleret",
   "desktop.openscad.defines": "Brugerdefinerede -D",
   "desktop.openscad.defines_placeholder": "navn=værdi",
+  "desktop.openscad.no_defines": "Ingen defines",
   "desktop.openscad.download": "Download",
   "desktop.openscad.download_hint": "Forhåndsvisningen er ikke interaktiv for dette format. Download eller gem filen.",
   "desktop.openscad.duration": "Varighed",

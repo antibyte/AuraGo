@@ -716,6 +716,7 @@
   "desktop.openscad.cancelled": "Annulé",
   "desktop.openscad.defines": "Définitions -D",
   "desktop.openscad.defines_placeholder": "nom=valeur",
+  "desktop.openscad.no_defines": "Aucune définition",
   "desktop.openscad.download": "Télécharger",
   "desktop.openscad.download_hint": "L’aperçu n’est pas interactif pour ce format. Télécharge ou enregistre le fichier.",
   "desktop.openscad.duration": "Durée",

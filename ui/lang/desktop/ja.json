@@ -716,6 +716,7 @@
   "desktop.openscad.cancelled": "キャンセル済み",
   "desktop.openscad.defines": "カスタム -D",
   "desktop.openscad.defines_placeholder": "name=value",
+  "desktop.openscad.no_defines": "定義なし",
   "desktop.openscad.download": "ダウンロード",
   "desktop.openscad.download_hint": "この形式のプレビューはインタラクティブではありません。ダウンロードまたは保存してください。",
   "desktop.openscad.duration": "時間",

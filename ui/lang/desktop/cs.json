@@ -716,6 +716,7 @@
   "desktop.openscad.cancelled": "Zrušeno",
   "desktop.openscad.defines": "Vlastní -D definice",
   "desktop.openscad.defines_placeholder": "název=hodnota",
+  "desktop.openscad.no_defines": "Žádné defines",
   "desktop.openscad.download": "Stáhnout",
   "desktop.openscad.download_hint": "Náhled pro tento formát není interaktivní. Stáhni nebo ulož soubor.",
   "desktop.openscad.duration": "Doba",

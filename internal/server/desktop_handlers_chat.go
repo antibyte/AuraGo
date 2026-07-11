@@ -846,7 +846,7 @@ func buildDesktopAgentContext(chatContext desktopChatContext) string {
 		}
 	}
 	if chatContext.Source == "openscad" {
-		b.WriteString("\n\nThe user is working in the OpenSCAD desktop app. For model creation or preview/export requests, generate complete OpenSCAD source and call the native openscad_render tool. Do not use generic filesystem paths or remote.files for the render path; the OpenSCAD tool writes model.scad, renders preview/export files, and emits an openscad_result event for the app.")
+		b.WriteString("\n\nThe user is working in the OpenSCAD desktop app. For model creation or preview/export requests, generate complete OpenSCAD source and call the native openscad_render tool. Always pass window_id from the Window ID in the desktop window context so the result updates the correct OpenSCAD window. Do not use generic filesystem paths or remote.files for the render path; the OpenSCAD tool writes model.scad, renders preview/export files, and emits an openscad_result event for the app.")
 		if strings.TrimSpace(chatContext.CurrentContent) != "" {
 			b.WriteString("\nCurrent OpenSCAD source:\n")
 			b.WriteString(desktopExternalData("desktop_openscad_source", chatContext.CurrentContent, 48000))

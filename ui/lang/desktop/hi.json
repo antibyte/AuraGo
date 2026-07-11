@@ -716,6 +716,7 @@
   "desktop.openscad.cancelled": "रद्द किया गया",
   "desktop.openscad.defines": "कस्टम -D",
   "desktop.openscad.defines_placeholder": "name=value",
+  "desktop.openscad.no_defines": "कोई define नहीं",
   "desktop.openscad.download": "डाउनलोड",
   "desktop.openscad.download_hint": "इस फॉर्मेट के लिए प्रीव्यू इंटरैक्टिव नहीं है। फाइल डाउनलोड या सेव करें।",
   "desktop.openscad.duration": "अवधि",

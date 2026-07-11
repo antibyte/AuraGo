@@ -254,6 +254,13 @@
     box-sizing: border-box;
 }
 
+.oscad-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    min-width: 0;
+}
+
 .oscad-chips {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -712,6 +719,26 @@
     border-radius: 10px;
     max-height: 280px;
     overflow-y: auto;
+}
+
+.oscad-defines-mode-toggle {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.oscad-defines-text {
+    width: 100%;
+    min-height: 110px;
+    resize: vertical;
+    font: inherit;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px;
+    color: var(--oscad-text);
+    background: rgba(0, 0, 0, 0.22);
+    border: 1px solid var(--oscad-border);
+    border-radius: 8px;
+    padding: 8px 10px;
 }
 
 .oscad-defines-empty {
