@@ -129,4 +129,22 @@ func TestDesktopChessUsesThemeIcons(t *testing.T) {
 			t.Fatalf("chess theme icon must stay recognizable as a chess piece: %s", path)
 		}
 	}
+
+	app := readEmbeddedText(t, "js/desktop/apps/chess.js")
+	for _, want := range []string{
+		"data-flip>${ctx.iconMarkup('refresh'",
+		"{ id: 'flip', labelKey: 'desktop.chess_flip', icon: 'refresh'",
+	} {
+		if !strings.Contains(app, want) {
+			t.Fatalf("desktop chess flip control must use a bundled theme icon marker %q", want)
+		}
+	}
+	for _, unwanted := range []string{
+		"iconMarkup('rotate'",
+		"icon: 'rotate'",
+	} {
+		if strings.Contains(app, unwanted) {
+			t.Fatalf("desktop chess must not use unavailable rotate icon key %q", unwanted)
+		}
+	}
 }

@@ -61,9 +61,9 @@ func chromecastMediaServerBindHost(host string) string {
 }
 
 var uiI18NSections = map[string][]string{
-	"config":      {"config", "chat", "shared"},
+	"config":      {"config", "chat", "help", "shared"},
 	"dashboard":   {"dashboard", "chat", "config", "knowledge", "shared"},
-	"desktop":     {"desktop", "config", "shared"},
+	"desktop":     {"desktop", "chat", "cheater", "codeStudio", "config", "galaxa", "homepage_studio", "missions", "pixel", "shared", "viewer", "zipper"},
 	"plans":       {"plans", "chat", "config", "shared"},
 	"missions":    {"missions", "chat", "config", "shared"},
 	"cheatsheets": {"cheatsheets", "chat", "config", "shared"},

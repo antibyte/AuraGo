@@ -128,7 +128,7 @@
                         <div class="vd-chess-actions">
                             <button type="button" class="vd-chess-primary" data-new-game>${ctx.iconMarkup('refresh', 'N', 'vd-chess-action-icon', 15)}<span>${esc(t('desktop.chess_new_game'))}</span></button>
                             <button type="button" data-undo>${ctx.iconMarkup('undo', 'U', 'vd-chess-action-icon', 15)}<span>${esc(t('desktop.chess_undo'))}</span></button>
-                            <button type="button" data-flip>${ctx.iconMarkup('rotate', 'F', 'vd-chess-action-icon', 15)}<span>${esc(t('desktop.chess_flip'))}</span></button>
+                            <button type="button" data-flip>${ctx.iconMarkup('refresh', 'F', 'vd-chess-action-icon', 15)}<span>${esc(t('desktop.chess_flip'))}</span></button>
                         </div>
                     </div>
                     <div class="vd-chess-moves">
@@ -473,7 +473,7 @@
                 id: 'view',
                 labelKey: 'desktop.menu_view',
                 items: [
-                    { id: 'flip', labelKey: 'desktop.chess_flip', icon: 'rotate', action: () => flipBoard(state) }
+                    { id: 'flip', labelKey: 'desktop.chess_flip', icon: 'refresh', action: () => flipBoard(state) }
                 ]
             }
         ]);

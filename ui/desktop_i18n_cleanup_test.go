@@ -133,7 +133,8 @@ func TestDesktopAuditedI18nUsageHasNoEnglishInlineFallbacks(t *testing.T) {
 func TestDesktopUsedI18nKeysExistInAllLanguages(t *testing.T) {
 	t.Parallel()
 
-	keyPattern := regexp.MustCompile(`(?s)(?:\b(?:dt|desktopT|t)\s*\(\s*['"]((?:desktop|common|chat|config|help|codeStudio|viewer)\.[^'"]+)['"]|data-i18n(?:-[a-z-]+)?\s*=\s*['"]((?:desktop|common|chat|config|help|codeStudio|viewer)\.[^'"]+)['"]|(?:labelKey|titleKey|messageKey|placeholderKey)\s*:\s*['"]((?:desktop|common|chat|config|help|codeStudio|viewer)\.[^'"]+)['"])`)
+	keyPrefixes := `desktop|common|chat|config|help|cheater|codeStudio|galaxa|homepage_studio|missions|pixel|viewer|zipper`
+	keyPattern := regexp.MustCompile(`(?s)(?:\b(?:dt|desktopT|t|tr|translate)\s*\(\s*['"]((?:` + keyPrefixes + `)\.[^'"]+)['"]|data-i18n(?:-[a-z-]+)?\s*=\s*['"]((?:` + keyPrefixes + `)\.[^'"]+)['"]|(?:labelKey|titleKey|messageKey|placeholderKey)\s*:\s*['"]((?:` + keyPrefixes + `)\.[^'"]+)['"])`)
 	used := map[string]bool{}
 	for _, asset := range desktopI18nAssets(t) {
 		content := readDesktopAssetText(t, asset)
