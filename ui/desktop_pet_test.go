@@ -17,7 +17,7 @@ func TestDesktopPetRuntimeSynchronizesBootstrapChanges(t *testing.T) {
 		"case 'pet_changed':\n                syncPetBootstrap(event.payload);\n                loadPet();",
 		"syncBootstrap: syncPetBootstrap",
 	} {
-		if !strings.Contains(runtime, marker) {
+		if !containsAssetStructure(runtime, marker) {
 			t.Fatalf("desktop pet runtime is missing bootstrap sync marker %q", marker)
 		}
 	}
@@ -39,7 +39,7 @@ func TestDesktopPetRuntimeSynchronizesBootstrapChanges(t *testing.T) {
 		"const body = await api('/api/desktop/settings'",
 		"syncPetBootstrap({ settings: body.settings || { [key]: value } });",
 	} {
-		if !strings.Contains(picker, marker) {
+		if !containsAssetStructure(picker, marker) {
 			t.Fatalf("desktop pet picker is missing runtime sync marker %q", marker)
 		}
 	}
@@ -131,7 +131,7 @@ func TestDesktopPetRuntimeHydratesMissingBootstrapPets(t *testing.T) {
 	}
 
 	picker := readDesktopAssetText(t, "js/desktop/apps/pet-picker.js")
-	if !strings.Contains(picker, "syncPetBootstrap({ pets, active_pet_id: activeId, settings });\n                if (window.PetRuntime && typeof window.PetRuntime.load === 'function') window.PetRuntime.load();") {
+	if !containsAssetStructure(picker, "syncPetBootstrap({ pets, active_pet_id: activeId, settings }); if (window.PetRuntime && typeof window.PetRuntime.load === 'function') window.PetRuntime.load();") {
 		t.Fatal("desktop pet picker must re-render the runtime after loading pets/settings")
 	}
 
@@ -302,7 +302,7 @@ func TestDesktopPetBubbleRemainsVisibleUntilHideTimer(t *testing.T) {
 			"opacity: 1;",
 			"transform: translateX(-50%) translateY(0);",
 		} {
-			if !strings.Contains(source, marker) {
+			if !containsAssetStructure(source, marker) {
 				t.Fatalf("%s is missing persistent pet bubble CSS marker %q", path, marker)
 			}
 		}
@@ -390,15 +390,15 @@ func TestDesktopPetSayLoadsLayerBeforeBubbleNoop(t *testing.T) {
 			t.Fatalf("%s is missing showBubble", path)
 		}
 		body := source[showIdx:]
-		loadIdx := strings.Index(body, "if (!bubbleEl) {\n            loadPet();\n        }")
+		loadIdx := assetStructureIndex(body, "if (!bubbleEl) { loadPet(); }")
 		if loadIdx < 0 {
 			t.Fatalf("%s must try to load the pet layer before showing a bubble", path)
 		}
-		deferIdx := strings.Index(body, "if (allowDeferred) queuePendingBubble(text, type);")
+		deferIdx := assetStructureIndex(body, "if (allowDeferred) queuePendingBubble(text, type);")
 		if deferIdx < 0 {
 			t.Fatalf("%s must defer the pet bubble while the pet catalog hydrates", path)
 		}
-		returnIdx := strings.Index(body[deferIdx:], "return;")
+		returnIdx := assetStructureIndex(body, "if (allowDeferred) queuePendingBubble(text, type); return;")
 		if returnIdx < 0 {
 			t.Fatalf("%s is missing the disabled/unavailable pet bubble no-op", path)
 		}
@@ -556,13 +556,13 @@ func TestDesktopPetReloadsAfterBootstrapRefresh(t *testing.T) {
 		"window.PetRuntime.load();",
 		"renderDesktop();\n            refreshPetRuntime();",
 	} {
-		if !strings.Contains(foundation, marker) {
+		if !containsAssetStructure(foundation, marker) {
 			t.Fatalf("desktop foundation is missing pet refresh marker %q", marker)
 		}
 	}
 
 	events := readDesktopAssetText(t, "js/desktop/core/sdk-events-bootstrap.js")
-	if !strings.Contains(events, "renderDesktop();\n            refreshPetRuntime();\n            return;") {
+	if !containsAssetStructure(events, "renderDesktop(); refreshPetRuntime(); return;") {
 		t.Fatal("desktop welcome event must refresh pet runtime after replacing bootstrap state")
 	}
 
@@ -572,7 +572,7 @@ func TestDesktopPetReloadsAfterBootstrapRefresh(t *testing.T) {
 		"renderDesktop();\n            refreshPetRuntime();",
 		"renderDesktop();\n            refreshPetRuntime();\n            return;",
 	} {
-		if !strings.Contains(bundle, marker) {
+		if !containsAssetStructure(bundle, marker) {
 			t.Fatalf("desktop main bundle is missing pet bootstrap refresh marker %q", marker)
 		}
 	}

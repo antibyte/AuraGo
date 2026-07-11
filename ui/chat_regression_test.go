@@ -402,7 +402,7 @@ func TestChatFrontend_MainScrollerKeepsChatBoxId(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read css/chat.css: %v", err)
 	}
-	if !strings.Contains(string(chatCSS), "#chat-box {\n            flex: 1;\n            min-height: 0;") {
+	if !containsAssetStructure(normalizeAssetText(chatCSS), "#chat-box { flex: 1; min-height: 0;") {
 		t.Fatal("css/chat.css must keep #chat-box flex scroller rules for mobile layout")
 	}
 }

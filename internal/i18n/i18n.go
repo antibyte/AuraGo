@@ -270,8 +270,8 @@ func (s *Store) GetJSONForSection(lang string, sections ...string) string {
 	}
 
 	merged := make(map[string]string)
-	mergeSection := func(section string) {
-		key := lang + ":" + section
+	mergeSection := func(sectionLang, section string) {
+		key := sectionLang + ":" + section
 		if j, ok := s.langSectionJSON[key]; ok {
 			var parsed map[string]string
 			_ = json.Unmarshal([]byte(j), &parsed)
@@ -281,11 +281,18 @@ func (s *Store) GetJSONForSection(lang string, sections ...string) string {
 		}
 	}
 
-	// Always include the common section.
-	mergeSection("common")
-	for _, section := range sections {
-		if section != "common" {
-			mergeSection(section)
+	// Merge English first so missing locale keys fall back individually, then
+	// overlay the selected locale. Common remains automatic for both languages.
+	languages := []string{"en"}
+	if lang != "en" {
+		languages = append(languages, lang)
+	}
+	for _, sectionLang := range languages {
+		mergeSection(sectionLang, "common")
+		for _, section := range sections {
+			if section != "common" {
+				mergeSection(sectionLang, section)
+			}
 		}
 	}
 

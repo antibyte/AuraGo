@@ -39,6 +39,9 @@ jobs:
           node --check scripts/build-codemirror.js
           node --check scripts/build-ui-bundles.js
 
+      - name: Test UI delivery regressions
+        run: npm run test:ui-regressions
+
       - name: Install browser sidecar dependencies
         working-directory: browser_automation_sidecar
         run: npm ci

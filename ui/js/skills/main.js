@@ -374,19 +374,30 @@ function showDisabledState() {
         }
     }
 
+    function sortedSnapshotArray(value, mapFn) {
+        if (!Array.isArray(value)) return [];
+        return value.map(mapFn || function (item) { return String(item); }).sort();
+    }
+
     function skillStateHash(s) {
         const ds = getDaemonState(s.name || s.Name || s.id || s.ID || '');
-        const parts = [
-            s.ID || s.id || '',
-            s.Enabled !== undefined ? s.Enabled : s.enabled,
-            (s.SecurityStatus || s.security_status || 'pending').toLowerCase(),
-            (s.Tags || s.tags || []).slice().sort().join(','),
-            (s.Dependencies || s.dependencies || []).slice().sort().join(','),
-            (s.VaultKeys || s.vault_keys || []).slice().sort().join(','),
-            ds ? (ds.status || ds.Status || '') : '',
-            ds ? (ds.auto_disabled || ds.AutoDisabled || false) : false
-        ];
-        return parts.join('|');
+        return JSON.stringify({
+            id: s.ID || s.id || '',
+            name: s.Name || s.name || '',
+            description: s.Description || s.description || '',
+            type: (s.Type || s.type || 'user').toLowerCase(),
+            category: s.Category || s.category || '',
+            enabled: s.Enabled !== undefined ? !!s.Enabled : !!s.enabled,
+            securityStatus: (s.SecurityStatus || s.security_status || 'pending').toLowerCase(),
+            tags: sortedSnapshotArray(s.Tags || s.tags),
+            dependencies: sortedSnapshotArray(s.Dependencies || s.dependencies),
+            vaultKeys: sortedSnapshotArray(s.VaultKeys || s.vault_keys),
+            internalTools: sortedSnapshotArray(s.InternalTools || s.internal_tools),
+            isDaemon: !!(s.IsDaemon || s.is_daemon),
+            daemonSystemEnabled: !!daemonSystemEnabled,
+            daemonStatus: ds ? String(ds.status || ds.Status || '').toLowerCase() : '',
+            daemonAutoDisabled: !!(ds && (ds.auto_disabled || ds.AutoDisabled))
+        });
     }
 
     function shouldUpdateSkill(s, el) {
@@ -505,14 +516,17 @@ function showDisabledState() {
     }
 
     function agentSkillStateHash(s) {
-        const parts = [
-            s.id || '',
-            !!s.enabled,
-            (s.security_status || 'pending').toLowerCase(),
-            !!s.warning_approved,
-            (s.scripts || []).map(x => x.path || x.Path || '').slice().sort().join(',')
-        ];
-        return parts.join('|');
+        return JSON.stringify({
+            id: s.id || '',
+            name: s.name || '',
+            description: s.description || '',
+            enabled: !!s.enabled,
+            securityStatus: (s.security_status || 'pending').toLowerCase(),
+            warningApproved: !!s.warning_approved,
+            scripts: sortedSnapshotArray(s.scripts, function (script) {
+                return script.path || script.Path || '';
+            })
+        });
     }
 
     function shouldUpdateAgentSkill(s, el) {

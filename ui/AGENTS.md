@@ -51,6 +51,10 @@ images, and browser-oriented regression tests.
 - Configuration density is a browser-local presentation preference and never
   belongs in `config.yaml`.
 - Every visible UI string must use translations in all supported locales.
+- The service worker caches only same-origin static assets, retains full
+  versioned request URLs, and keeps HTML, API, event, and auth traffic network-only.
+- `scripts/build-ui-bundles.js` is the source of truth for generated Chat and
+  Desktop bundles; `npm run build:ui -- --check` must be read-only and pass.
 
 ## Work Guidance
 
@@ -72,6 +76,8 @@ images, and browser-oriented regression tests.
 - Browser contracts (Chrome or Edge):
   `$env:AURAGO_RUN_BROWSER_SMOKE='1'; $env:AURAGO_BROWSER_ARTIFACT_DIR='disposable/browser-artifacts'; go test -count=1 ./ui/... -run 'Precision.*Browser|ConfigPrecisionWorkspaceBrowserMatrix'`.
 - Full UI: `go test -count=1 ./ui/...`.
+- Generated bundles: `npm run build:ui -- --check`.
+- UI delivery regressions: `npm run test:ui-regressions`.
 - Full repository: `go test -count=1 ./...`.
 - Protected surfaces from the rollout base:
   `git diff --exit-code 0773dfa52e3d21f420f9009c480bdd817e761882 -- ui/index.html ui/desktop.html ui/gallery.html ui/js/shared ui/js/chat ui/js/desktop ui/fonts ui/shared-variables.css ui/shared-utilities.css ui/shared-components.css ui/shared-animations.css`.

@@ -1187,6 +1187,20 @@ function injectLanguageSwitcher() {
  * but does NOT prompt the user — that must be triggered by a user gesture
  * (e.g. the bell button in the chat UI).
  */
+function serviceWorkerURL() {
+    var version = window.AURAGO_BUILD_VERSION || window.BUILD_VERSION || '';
+    if (!version) {
+        var sharedCoreScript = document.querySelector('script[src*="/js/shared/shared-core.js"]');
+        if (sharedCoreScript) {
+            try {
+                var scriptURL = new URL(sharedCoreScript.src || sharedCoreScript.getAttribute('src'), window.location.href);
+                version = scriptURL.searchParams.get('v') || '';
+            } catch (_) { }
+        }
+    }
+    return '/sw.js?v=' + encodeURIComponent(version || 'dev');
+}
+
 async function initPWA() {
     // 1. Ensure the manifest and favicon set is present for all pages.
     ensureBrandIcons();
@@ -1211,7 +1225,7 @@ async function initPWA() {
     // 2. Register Service Worker
     let registration;
     try {
-        registration = await navigator.serviceWorker.register('/sw.js');
+        registration = await navigator.serviceWorker.register(serviceWorkerURL());
         console.log('[PWA] Service Worker registered, scope:', registration.scope);
     } catch (err) {
         console.error('[PWA] Service Worker registration failed:', err);
@@ -1308,6 +1322,58 @@ function urlBase64ToUint8Array(base64String) {
     }
     return outputArray;
 }
+
+// ═══════════════════════════════════════════════════════════════
+// PAGE LIFECYCLE DISPOSER
+// Register callbacks before shared singletons initialize. BFCache page hides
+// preserve registrations; final navigations dispose them exactly once.
+// ═══════════════════════════════════════════════════════════════
+window.AuraDisposer = (function () {
+    'use strict';
+    var disposers = [];
+    var installed = false;
+    var disposed = false;
+
+    function run() {
+        if (disposed) return;
+        disposed = true;
+        var fns = disposers.slice();
+        disposers = [];
+        fns.forEach(function (fn) {
+            try { fn(); } catch (e) { console.warn('[AuraDisposer] dispose error:', e); }
+        });
+    }
+
+    function install() {
+        if (installed) return;
+        installed = true;
+        window.addEventListener('pagehide', function (event) {
+            if (event.persisted) return;
+            run();
+        });
+        window.addEventListener('beforeunload', run);
+    }
+
+    return {
+        add: function (fn) {
+            if (typeof fn !== 'function') return function () {};
+            install();
+            disposers.push(fn);
+            return function () {
+                var i = disposers.indexOf(fn);
+                if (i >= 0) disposers.splice(i, 1);
+            };
+        }
+    };
+}());
+
+window.addEventListener('pageshow', function (event) {
+    if (!event.persisted) return;
+    if (window.AuraSSE && typeof window.AuraSSE.isConnected === 'function' &&
+        typeof window.AuraSSE.connect === 'function' && !window.AuraSSE.isConnected()) {
+        window.AuraSSE.connect();
+    }
+});
 
 // ═══════════════════════════════════════════════════════════════
 // AURA SSE — Shared single EventSource connection
@@ -1881,41 +1947,6 @@ async function cfgFetch(url, options = {}) {
     }
     return resp.json();
 }
-
-// ═══════════════════════════════════════════════════════════════
-// PAGE LIFECYCLE DISPOSER
-// Register callbacks that run on pagehide/beforeunload to avoid leaking
-// timers, intervals, event listeners, and SSE connections across navigations.
-// ═══════════════════════════════════════════════════════════════
-window.AuraDisposer = (function () {
-    'use strict';
-    var disposers = [];
-    var installed = false;
-
-    function install() {
-        if (installed) return;
-        installed = true;
-        var runner = function () {
-            var fns = disposers.slice();
-            disposers = [];
-            fns.forEach(function (fn) { try { fn(); } catch (e) { console.warn('[AuraDisposer] dispose error:', e); } });
-        };
-        window.addEventListener('pagehide', runner);
-        window.addEventListener('beforeunload', runner);
-    }
-
-    return {
-        add: function (fn) {
-            if (typeof fn !== 'function') return function () {};
-            install();
-            disposers.push(fn);
-            return function () {
-                var i = disposers.indexOf(fn);
-                if (i >= 0) disposers.splice(i, 1);
-            };
-        }
-    };
-}());
 
 // ═══════════════════════════════════════════════════════════════
 // DOM DIFF HELPERS

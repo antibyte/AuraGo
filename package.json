@@ -5,7 +5,9 @@
   "scripts": {
     "build:codemirror": "node scripts/build-codemirror.js",
     "build:chess-vendor": "node scripts/build-chess-vendor.js",
-    "build:ui": "node scripts/build-ui-bundles.js"
+    "build:ui": "node scripts/build-ui-bundles.js",
+    "check:ui": "node scripts/build-ui-bundles.js --check",
+    "test:ui-regressions": "node scripts/test-ui-regressions.mjs"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.18.6",

@@ -7589,6 +7589,28 @@ let _chatSSERegistered = false;
 const pendingAutoplayAudios = new Map();
 const seenSSEAudioPlayers = new Set();
 
+function scrollChatToBottom(force) {
+    if (window.SmartScroller && window.SmartScroller.isInitialized) {
+        if (force) window.SmartScroller.scrollToBottom(false);
+        else window.SmartScroller.onNewMessage();
+    } else if (chatBox) {
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
+}
+
+if (typeof window !== 'undefined' && window.AuraDisposer) {
+    window.AuraDisposer.add(function () {
+        clearTimeout(sseReconnectTimer);
+        sseReconnectTimer = null;
+        clearTimeout(toolStackIdleTimer);
+        toolStackIdleTimer = null;
+        clearTimeout(toolStackFadeTimer);
+        toolStackFadeTimer = null;
+        pendingAutoplayAudios.clear();
+        seenSSEAudioPlayers.clear();
+    });
+}
+
 function appendChatAudioPlayer(audioData) {
     if (!audioData || !audioData.path || seenSSEAudioPlayers.has(audioData.path)) return;
     seenSSEAudioPlayers.add(audioData.path);
@@ -7609,7 +7631,7 @@ function appendChatAudioPlayer(audioData) {
     row.querySelector('.bubble').appendChild(wrapper);
     if (typeof appendMessageTimestamp === 'function') appendMessageTimestamp(row, 'bot');
     chatContent.appendChild(row);
-    chatBox.scrollTop = chatBox.scrollHeight;
+    scrollChatToBottom();
 }
 
 if (typeof window !== 'undefined') {
@@ -7672,13 +7694,7 @@ function connectSSE() {
     }
 
     function scheduleStreamingScroll() {
-        if (_streamingScrollTimer) return;
-        _streamingScrollTimer = setTimeout(() => {
-            _streamingScrollTimer = 0;
-            if (!chatBox) return;
-            if (window.SmartScroller && window.SmartScroller.isUserScrolledUp) return;
-            chatBox.scrollTop = chatBox.scrollHeight;
-        }, 100);
+        scrollChatToBottom();
     }
 
     function flushStreamingBubble() {
@@ -7772,7 +7788,7 @@ function connectSSE() {
         } else if (payload.state === 'delta' && _thinkingDiv) {
             _thinkingContent += payload.content || '';
             _thinkingDiv.textContent = _thinkingContent;
-            chatBox.scrollTop = chatBox.scrollHeight;
+            scrollChatToBottom();
         } else if (payload.state === 'stop') {
             _inThinkingBlock = false;
             _thinkingDiv = null;
@@ -7932,7 +7948,7 @@ function handleSSEMessage(e) {
                                 \u003c/div\u003e`;
                     chatContent.insertAdjacentHTML('beforeend', imgHTML);
                     if (typeof appendMessageTimestamp === 'function') appendMessageTimestamp(chatContent.lastElementChild, 'bot');
-                    chatBox.scrollTop = chatBox.scrollHeight;
+                    scrollChatToBottom();
                 }
             } catch (e) { }
             return;
@@ -8027,7 +8043,7 @@ function handleSSEMessage(e) {
                     row.querySelector('.bubble').insertAdjacentHTML('beforeend', cardHTML);
                     if (typeof appendMessageTimestamp === 'function') appendMessageTimestamp(row, 'bot');
                     chatContent.appendChild(row);
-                    chatBox.scrollTop = chatBox.scrollHeight;
+                    scrollChatToBottom();
                 }
             } catch (e) { }
             return;

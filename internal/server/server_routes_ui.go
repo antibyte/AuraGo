@@ -60,20 +60,50 @@ func chromecastMediaServerBindHost(host string) string {
 	}
 }
 
+var uiI18NSections = map[string][]string{
+	"config":      {"config", "chat", "shared"},
+	"dashboard":   {"dashboard", "chat", "config", "knowledge", "shared"},
+	"desktop":     {"desktop", "config", "shared"},
+	"plans":       {"plans", "chat", "config", "shared"},
+	"missions":    {"missions", "chat", "config", "shared"},
+	"cheatsheets": {"cheatsheets", "chat", "config", "shared"},
+	"media":       {"media", "gallery", "chat", "config", "shared"},
+	"knowledge":   {"knowledge", "chat", "config", "shared"},
+	"containers":  {"containers", "chat", "config", "shared"},
+	"truenas":     {"truenas", "chat", "config", "shared"},
+	"skills":      {"skills", "chat", "config", "shared"},
+	"invasion":    {"invasion", "chat", "config", "shared"},
+	"setup":       {"setup", "chat", "config", "shared"},
+	"chat":        {"chat", "config", "plans", "pwa", "shared", "viewer"},
+	"404":         {"notfound"},
+}
+
+const uiI18NSectionsDataKey = "_I18NSections"
+
 // uiTemplateData returns the common template data map shared by all HTML pages.
-// Pass the i18n sections the page needs; if none are passed the full language
-// blob is included for backward compatibility.
-func uiTemplateData(lang string, sections ...string) map[string]interface{} {
+// The optional page key selects sections through the centralized manifest. With
+// no page key, the full language blob remains available for compatibility.
+func uiTemplateData(lang string, pages ...string) map[string]interface{} {
 	data := map[string]interface{}{
 		"Lang":         lang,
 		"BuildVersion": uiBuildVersion,
 	}
-	setTemplateDataJSON(data, nil, sections...)
+	if len(pages) == 1 {
+		if sections, ok := uiI18NSections[pages[0]]; ok {
+			data[uiI18NSectionsDataKey] = append([]string(nil), sections...)
+		}
+	}
+	setTemplateDataJSON(data, nil)
 	return data
 }
 
 func setTemplateDataJSON(data map[string]interface{}, extra map[string]any, sections ...string) {
 	lang, _ := data["Lang"].(string)
+	if len(sections) == 0 {
+		if stored, ok := data[uiI18NSectionsDataKey].([]string); ok {
+			sections = stored
+		}
+	}
 	payload := map[string]any{
 		"systemLang":   lang,
 		"buildVersion": uiBuildVersion,

@@ -1,12 +1,12 @@
-// AuraGo Service Worker — cache-first for static assets, network-first for HTML/API.
-const CACHE_VERSION = 'aurago-v1';
+// AuraGo Service Worker — versioned static assets and Web Push delivery.
+const CACHE_SCHEMA_VERSION = '2';
+const SERVICE_WORKER_BUILD = new URL(self.location.href).searchParams.get('v') || 'dev';
+const CACHE_VERSION = `aurago-${CACHE_SCHEMA_VERSION}-${SERVICE_WORKER_BUILD}`;
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
-const HTML_CACHE = `${CACHE_VERSION}-html`;
 
-// Core shell files to cache immediately on install.
+// Keep the install shell static-only. The cache namespace changes with every
+// service-worker build, while request query strings remain part of cache keys.
 const CORE_ASSETS = [
-    '/',
-    '/index.html',
     '/site.webmanifest',
     '/favicon.ico',
     '/favicon.svg',
@@ -15,44 +15,48 @@ const CORE_ASSETS = [
     '/aurago_logo_dark.png'
 ];
 
-const API_PATH_PREFIXES = ['/api/', '/v1/', '/auth/', '/events'];
-const STATIC_EXTENSIONS = ['.js', '.css', '.woff', '.woff2', '.ttf', '.otf', '.png', '.jpg', '.jpeg', '.svg', '.gif', '.webp', '.ico', '.webmanifest', '.json'];
+const NETWORK_ONLY_PATH_PREFIXES = ['/api/', '/v1/', '/auth/', '/events'];
+const STATIC_EXTENSIONS = ['.js', '.css', '.woff', '.woff2', '.ttf', '.otf', '.png', '.jpg', '.jpeg', '.svg', '.gif', '.webp', '.ico', '.webmanifest', '.json', '.wasm', '.glb'];
 
 function isApiRequest(url) {
-    const path = url.pathname;
-    return API_PATH_PREFIXES.some(prefix => path.startsWith(prefix));
+    return NETWORK_ONLY_PATH_PREFIXES.some(prefix => url.pathname.startsWith(prefix));
 }
 
 function isStaticAsset(url) {
-    const path = url.pathname;
+    const path = url.pathname.toLowerCase();
     if (STATIC_EXTENSIONS.some(ext => path.endsWith(ext))) return true;
-    if (path.startsWith('/fonts/') || path.startsWith('/img/') || path.startsWith('/css/') || path.startsWith('/js/')) return true;
-    return false;
+    return path.startsWith('/fonts/') || path.startsWith('/img/') || path.startsWith('/css/') || path.startsWith('/js/');
 }
 
 function cacheKeyFor(request) {
-    // Strip query string for static assets so ?v=... does not fragment the cache.
-    const url = new URL(request.url);
-    if (isStaticAsset(url)) {
-        return `${url.origin}${url.pathname}`;
-    }
+    // Preserve the complete versioned URL. Stripping ?v= would serve stale
+    // assets when two builds share a service-worker lifecycle.
     return request.url;
+}
+
+function normalizeNotificationTarget(rawTarget) {
+    try {
+        const target = new URL(rawTarget, self.location.origin);
+        if (target.origin === self.location.origin) return target;
+    } catch (_) { }
+    return new URL('/', self.location.origin);
 }
 
 self.addEventListener('install', event => {
     event.waitUntil(
-        caches.open(STATIC_CACHE).then(cache => cache.addAll(CORE_ASSETS)).then(() => self.skipWaiting())
+        caches.open(STATIC_CACHE)
+            .then(cache => cache.addAll(CORE_ASSETS))
+            .then(() => self.skipWaiting())
     );
 });
 
 self.addEventListener('activate', event => {
     event.waitUntil(
-        caches.keys().then(keys =>
-            Promise.all(
-                keys.filter(key => key.startsWith('aurago-') && key !== STATIC_CACHE && key !== HTML_CACHE)
-                    .map(key => caches.delete(key))
-            )
-        ).then(() => self.clients.claim())
+        caches.keys().then(keys => Promise.all(
+            keys
+                .filter(key => key.startsWith('aurago-') && key !== STATIC_CACHE)
+                .map(key => caches.delete(key))
+        )).then(() => self.clients.claim())
     );
 });
 
@@ -61,52 +65,66 @@ self.addEventListener('fetch', event => {
     if (request.method !== 'GET') return;
 
     const url = new URL(request.url);
-    if (isApiRequest(url)) {
-        return; // network only
-    }
-
-    if (isStaticAsset(url)) {
-        event.respondWith(
-            caches.open(STATIC_CACHE).then(async cache => {
-                const key = cacheKeyFor(request);
-                const cached = await cache.match(key);
-                if (cached) {
-                    // Stale-while-revalidate: return cached version, then update in background.
-                    fetch(request).then(response => {
-                        if (response && response.ok) {
-                            cache.put(key, response.clone());
-                        }
-                    }).catch(() => {});
-                    return cached;
-                }
-                try {
-                    const response = await fetch(request);
-                    if (response && response.ok) {
-                        cache.put(key, response.clone());
-                    }
-                    return response;
-                } catch (err) {
-                    return new Response('Offline', { status: 503, statusText: 'Service Unavailable' });
-                }
-            })
-        );
+    if (url.origin !== self.location.origin || isApiRequest(url) || !isStaticAsset(url)) {
         return;
     }
 
-    // HTML and everything else: network-first with cache fallback.
     event.respondWith(
-        caches.open(HTML_CACHE).then(async cache => {
+        caches.open(STATIC_CACHE).then(async cache => {
+            const key = cacheKeyFor(request);
+            const cached = await cache.match(key);
+            if (cached) return cached;
             try {
-                const networkResponse = await fetch(request);
-                if (networkResponse && networkResponse.ok) {
-                    cache.put(request.url, networkResponse.clone());
+                const response = await fetch(request);
+                if (response && response.ok) {
+                    await cache.put(key, response.clone());
                 }
-                return networkResponse;
-            } catch (err) {
-                const cached = await cache.match(request.url);
-                if (cached) return cached;
+                return response;
+            } catch (_) {
                 return new Response('Offline', { status: 503, statusText: 'Service Unavailable' });
             }
         })
     );
+});
+
+self.addEventListener('push', event => {
+    let data = {};
+    if (event.data) {
+        try {
+            data = event.data.json();
+        } catch (_) {
+            data = { title: 'AuraGo', body: event.data.text() };
+        }
+    }
+
+    const target = normalizeNotificationTarget(data.url || '/');
+    const options = {
+        body: data.message || data.body || 'You have a new message.',
+        icon: data.icon || '/web-app-manifest-192x192.png',
+        badge: '/web-app-manifest-192x192.png',
+        tag: data.tag || 'aurago-notification',
+        renotify: true,
+        data: { url: target.href },
+        actions: [{ action: 'open', title: 'Open' }]
+    };
+    event.waitUntil(self.registration.showNotification(data.title || 'AuraGo', options));
+});
+
+self.addEventListener('notificationclick', event => {
+    event.notification.close();
+    const rawTarget = event.notification.data && event.notification.data.url;
+    const target = normalizeNotificationTarget(rawTarget || '/');
+
+    event.waitUntil(
+        self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(windowClients => {
+            for (const client of windowClients) {
+                if (client.url === target.href && 'focus' in client) return client.focus();
+            }
+            if (self.clients.openWindow) return self.clients.openWindow(target.href);
+        })
+    );
+});
+
+self.addEventListener('notificationclose', event => {
+    console.log('[AuraGo SW] Notification dismissed:', event.notification.tag);
 });
