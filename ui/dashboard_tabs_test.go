@@ -49,3 +49,24 @@ func TestDashboardIconSpriteLoadsAfterBodyExists(t *testing.T) {
 		t.Fatal("dashboard icon sprite script must load with defer so document.body exists before sprite injection")
 	}
 }
+
+func TestDashboardUserPanelSpacingAndJournalContrast(t *testing.T) {
+	t.Parallel()
+
+	css := readDesktopAssetText(t, "css/dashboard.css")
+	for _, want := range []string{
+		"grid-template-columns: minmax(7rem, 0.85fr) minmax(0, 1.45fr) auto auto;",
+		"padding: 0.55rem 0.75rem;",
+		"grid-template-columns: minmax(0, 1fr) auto auto;",
+		"background: color-mix(in srgb, var(--pw-surface-elevated) 88%, var(--pw-accent) 12%);",
+		"color: color-mix(in srgb, var(--pw-text) 86%, var(--pw-muted) 14%);",
+		"font-weight: 650;",
+	} {
+		if !strings.Contains(css, want) {
+			t.Fatalf("dashboard user/protocol polish CSS missing marker %q", want)
+		}
+	}
+	if strings.Contains(css, "padding-left: 0.5rem;") {
+		t.Fatal("dashboard profile hover must not shift text toward the card edge")
+	}
+}
