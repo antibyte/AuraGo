@@ -1318,6 +1318,7 @@ func Load(path string) (*Config, error) {
 	if cfg.Server.Host == "" {
 		cfg.Server.Host = "127.0.0.1"
 	}
+	// DebugPProf defaults to false for security; must be explicitly enabled.
 	if cfg.Server.HTTPS.HTTPSPort <= 0 {
 		cfg.Server.HTTPS.HTTPSPort = 443
 	}

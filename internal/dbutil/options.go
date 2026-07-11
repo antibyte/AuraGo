@@ -17,7 +17,10 @@ type config struct {
 // defaultConfig returns the default configuration.
 func defaultConfig() config {
 	return config{
-		maxOpenConns:       1,
+		// Allow a small pool of SQLite connections so reads and writes can
+		// overlap under WAL mode. Value was 1 historically and serialized
+		// almost all DB access.
+		maxOpenConns:       4,
 		busyTimeout:        5000,
 		synchronous:        "NORMAL",
 		corruptionRecovery: false,

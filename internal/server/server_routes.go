@@ -445,6 +445,12 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		sse.ServeHTTP(w, r)
 	})
 
+	// Expose pprof endpoints when debug_pprof is enabled. This is opt-in and
+	// intended for local profiling; do not enable on untrusted networks.
+	if s.Cfg.Server.DebugPProf {
+		registerPProfRoutes(mux)
+	}
+
 	mux.HandleFunc("/api/space-agent/status", handleSpaceAgentStatus(s))
 	mux.HandleFunc("/api/space-agent/recreate", handleSpaceAgentRecreate(s))
 	mux.HandleFunc("/api/space-agent/send", handleSpaceAgentSend(s))

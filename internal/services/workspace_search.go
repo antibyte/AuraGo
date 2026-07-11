@@ -22,6 +22,7 @@ import (
 	"unicode/utf8"
 
 	"aurago/internal/config"
+	"aurago/internal/dbutil"
 
 	_ "modernc.org/sqlite"
 )
@@ -175,13 +176,12 @@ func NewWorkspaceSearchService(cfg *config.Config, cfgMu *sync.RWMutex, logger *
 		return nil, fmt.Errorf("create data dir: %w", err)
 	}
 	dbPath := filepath.Join(dataDir, workspaceSearchDBName)
-	db, err := sql.Open("sqlite", dbPath)
+	// Use dbutil.Open so the workspace-search metadata DB gets the same WAL,
+	// synchronous=NORMAL, foreign_keys and connection-pool tuning as the rest
+	// of the SQLite databases.
+	db, err := dbutil.Open(dbPath, dbutil.WithMaxOpenConns(4))
 	if err != nil {
 		return nil, fmt.Errorf("open workspace search db: %w", err)
-	}
-	if _, err := db.Exec(`PRAGMA busy_timeout = 5000`); err != nil {
-		_ = db.Close()
-		return nil, fmt.Errorf("configure workspace search db: %w", err)
 	}
 	if err := initWorkspaceSearchDB(db); err != nil {
 		_ = db.Close()

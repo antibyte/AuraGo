@@ -617,7 +617,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				}
 				flags.RetrievedMemories = strings.Join(topMemories, "\n---\n")
 				if flags.RetrievedMemories != "" {
-					retrievalPromptTokens += prompts.CountTokensForModel(flags.RetrievedMemories, req.Model)
+					retrievalPromptTokens += tokenCache.Count(flags.RetrievedMemories, req.Model)
 					RecordRetrievalEventForScope(telemetryScope, "rag_auto_hit")
 					RecordRetrievalEventForScope(telemetryScope, "rag_auto_source:ltm")
 				} else {
@@ -719,7 +719,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					}
 					if len(predictedResults) > 0 {
 						flags.PredictedMemories = strings.Join(predictedResults, "\n---\n")
-						retrievalPromptTokens += prompts.CountTokensForModel(flags.PredictedMemories, req.Model)
+						retrievalPromptTokens += tokenCache.Count(flags.PredictedMemories, req.Model)
 						RecordRetrievalEventForScope(telemetryScope, "rag_predictive_hit")
 						RecordRetrievalEventForScope(telemetryScope, "rag_predictive_source:ltm_predicted")
 						s.currentLogger.Debug("[Sync] Predictive RAG: Pre-fetched memories", "count", len(predictedResults), "predictions", predictions, "temporal_predictions", temporalPredictions)
@@ -1082,7 +1082,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			sysPrompt, sysPromptTokens = prompts.BuildSystemPromptContext(ctx, cfg.Directories.PromptsDir, &flags, coreMemCache, s.currentLogger)
 			if budgetHint != "" {
 				sysPrompt += "\n\n" + budgetHint
-				sysPromptTokens += prompts.CountTokensForModel(budgetHint, req.Model) + 2
+				sysPromptTokens += tokenCache.Count(budgetHint, req.Model) + 2
 			}
 
 			if cacheKeyErr == nil && cacheKey != "" {
@@ -1188,7 +1188,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		totalMsgTokens := compRes.TotalTokens
 		if totalMsgTokens == 0 && len(req.Messages) > 1 {
 			for _, m := range req.Messages {
-				totalMsgTokens += prompts.CountTokensForModel(messageTextWithReasoningForAccounting(m), req.Model) + 4
+				totalMsgTokens += tokenCache.Count(messageTextWithReasoningForAccounting(m), req.Model) + 4
 			}
 		} else {
 			// compRes.TotalTokens excludes system prompt — add it back
@@ -1196,7 +1196,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 		if len(req.Tools) > 0 {
 			toolSchemaJSON, _ := json.Marshal(req.Tools)
-			totalMsgTokens += prompts.CountTokensForModel(string(toolSchemaJSON), req.Model)
+			totalMsgTokens += tokenCache.Count(string(toolSchemaJSON), req.Model)
 		}
 		if totalMsgTokens > maxHistoryTokens && len(req.Messages) > 2 {
 			broker.Send("thinking", "Trimming context window...")
@@ -1239,7 +1239,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					dropped := mid[0]
 					droppedMessages = append(droppedMessages, dropped)
 					mid = mid[1:]
-					totalMsgTokens -= prompts.CountTokensForModel(messageTextWithReasoningForAccounting(dropped), req.Model) + 4
+					totalMsgTokens -= tokenCache.Count(messageTextWithReasoningForAccounting(dropped), req.Model) + 4
 				}
 				req.Messages = append([]openai.ChatCompletionMessage{req.Messages[0]}, append(mid, req.Messages[len(req.Messages)-1])...)
 			}
@@ -1255,7 +1255,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					Role:    openai.ChatMessageRoleSystem,
 					Content: recap,
 				})
-				totalMsgTokens += prompts.CountTokensForModel(recap, req.Model) + 4
+				totalMsgTokens += tokenCache.Count(recap, req.Model) + 4
 			}
 			if useImportance {
 				req.Messages = append(trimmedMessages, mid...)
