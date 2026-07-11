@@ -2,10 +2,12 @@ package memory
 
 import (
 	"aurago/internal/dbutil"
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 	"sync"
 	"time"
 
@@ -154,6 +156,8 @@ func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) 
 	CREATE INDEX IF NOT EXISTS idx_messages_session_ts ON messages(session_id, timestamp);
 	CREATE INDEX IF NOT EXISTS idx_messages_session_role_internal_ts ON messages(session_id, role, is_internal, timestamp);
 	CREATE INDEX IF NOT EXISTS idx_memory_meta_accessed ON memory_meta(last_accessed);
+CREATE INDEX IF NOT EXISTS idx_memory_meta_status_archived ON memory_meta(verification_status, archived_at);
+CREATE INDEX IF NOT EXISTS idx_memory_meta_status_source ON memory_meta(source_type, verification_status);
 	CREATE INDEX IF NOT EXISTS idx_interaction_patterns_last_seen ON interaction_patterns(last_seen);
 	CREATE INDEX IF NOT EXISTS idx_archive_events_session_ts ON archive_events(session_id, timestamp);
 	CREATE INDEX IF NOT EXISTS idx_file_embedding_docs_path ON file_embedding_docs(file_path, collection);
@@ -192,6 +196,7 @@ func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) 
 	);
 	CREATE INDEX IF NOT EXISTS idx_memory_usage_log_memory ON memory_usage_log(memory_id, used_at DESC);
 	CREATE INDEX IF NOT EXISTS idx_memory_usage_log_session ON memory_usage_log(session_id, used_at DESC);
+CREATE INDEX IF NOT EXISTS idx_memory_usage_log_used_at ON memory_usage_log(used_at);
 
 	CREATE TABLE IF NOT EXISTS agent_telemetry (
 		event_type TEXT NOT NULL,
@@ -486,6 +491,29 @@ func applySQLiteMemoryMigrations(db *sql.DB, logger *slog.Logger) error {
 	var errs []error
 	errs = append(errs, migrateAddColumn(db, logger, "messages", "is_pinned", "BOOLEAN DEFAULT 0"))
 	errs = append(errs, migrateAddColumn(db, logger, "messages", "is_internal", "BOOLEAN DEFAULT 0"))
+	errs = append(errs, migrateAddColumn(db, logger, "messages", "is_tool_output", `BOOLEAN GENERATED ALWAYS AS (
+		is_internal = 1 AND (
+			role = 'tool'
+			OR content LIKE 'Tool Output:%'
+			OR content LIKE '[Tool Output]%'
+		)
+	) VIRTUAL`))
+	if _, err := db.Exec("CREATE INDEX IF NOT EXISTS idx_messages_tool_output ON messages(session_id, is_tool_output) WHERE is_tool_output = 1"); err != nil {
+		logger.Warn("Failed to create idx_messages_tool_output", "error", err)
+		errs = append(errs, err)
+	}
+	if _, err := db.Exec("CREATE INDEX IF NOT EXISTS idx_memory_meta_status_archived ON memory_meta(verification_status, archived_at)"); err != nil {
+		logger.Warn("Failed to create idx_memory_meta_status_archived", "error", err)
+		errs = append(errs, err)
+	}
+	if _, err := db.Exec("CREATE INDEX IF NOT EXISTS idx_memory_meta_status_source ON memory_meta(source_type, verification_status)"); err != nil {
+		logger.Warn("Failed to create idx_memory_meta_status_source", "error", err)
+		errs = append(errs, err)
+	}
+	if _, err := db.Exec("CREATE INDEX IF NOT EXISTS idx_memory_usage_log_used_at ON memory_usage_log(used_at)"); err != nil {
+		logger.Warn("Failed to create idx_memory_usage_log_used_at", "error", err)
+		errs = append(errs, err)
+	}
 	errs = append(errs, migrateAddColumn(db, logger, "user_profile", "first_seen", "DATETIME DEFAULT NULL"))
 	errs = append(errs, migrateAddColumn(db, logger, "tool_usage_adaptive", "success_count", "INTEGER DEFAULT 0"))
 	errs = append(errs, migrateAddColumn(db, logger, "memory_meta", "last_event_at", "DATETIME DEFAULT CURRENT_TIMESTAMP"))
@@ -600,19 +628,36 @@ func migrateAddColumn(db *sql.DB, logger *slog.Logger, table, column, definition
 	if !validIdentifier(column) {
 		return fmt.Errorf("invalid column identifier %q", column)
 	}
+
+	// Use a single dedicated connection so the column-existence check and the
+	// ALTER TABLE run on the same SQLite connection. This avoids races when
+	// multiple connections from the pool try to add the same column concurrently.
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	conn, err := db.Conn(ctx)
+	if err != nil {
+		return fmt.Errorf("acquire connection to migrate %s.%s: %w", table, column, err)
+	}
+	defer conn.Close()
+
 	query := fmt.Sprintf("SELECT count(*) > 0 FROM pragma_table_info('%s') WHERE name=?", table)
 	var hasColumn bool
-	if err := db.QueryRow(query, column).Scan(&hasColumn); err != nil {
+	if err := conn.QueryRowContext(ctx, query, column).Scan(&hasColumn); err != nil {
 		logger.Warn("Failed to check for column", "table", table, "column", column, "error", err)
-		// Return error instead of swallowing it
-		return fmt.Errorf("check column %s in %s: %w", column, table, err)
+		return fmt.Errorf("check column %s in %s: %w", table, column, err)
 	}
 	if hasColumn {
 		return nil
 	}
 	logger.Info("Migrating SQLite: adding column", "table", table, "column", column)
 	stmt := fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", quoteIdentifier(table), quoteIdentifier(column), definition)
-	if _, err := db.Exec(stmt); err != nil {
+	if _, err := conn.ExecContext(ctx, stmt); err != nil {
+		// pragma_table_info does not report generated/virtual columns, so the
+		// existence check above can miss them and the ADD COLUMN fails with a
+		// duplicate-column error. Treat that as a success.
+		if strings.Contains(err.Error(), "duplicate column name") {
+			return nil
+		}
 		logger.Error("Failed to add column", "table", table, "column", column, "error", err)
 		return fmt.Errorf("add column %s.%s: %w", table, column, err)
 	}

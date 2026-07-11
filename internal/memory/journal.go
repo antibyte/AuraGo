@@ -244,6 +244,10 @@ func (s *SQLiteMemory) InitJournalTables() error {
 		}
 	}
 
+	if err := s.migrateJournalFTS5(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -665,13 +669,7 @@ func (s *SQLiteMemory) applyJournalConsolidationItem(item JournalConsolidationIt
 	}
 	defer tx.Rollback()
 
-	placeholders := make([]string, len(item.RemovedIDs))
-	args := make([]interface{}, 0, len(item.RemovedIDs))
-	for i, id := range item.RemovedIDs {
-		placeholders[i] = "?"
-		args = append(args, id)
-	}
-	if _, err := tx.Exec(`DELETE FROM journal_entries WHERE id IN (`+strings.Join(placeholders, ",")+`)`, args...); err != nil {
+	if err := execChunkedInDelete(tx, "journal_entries", "id", item.RemovedIDs, defaultInClauseChunkSize); err != nil {
 		return fmt.Errorf("delete duplicate journal entries: %w", err)
 	}
 	if _, err := tx.Exec(`
@@ -807,6 +805,7 @@ func (s *SQLiteMemory) SearchJournalEntries(keyword string, limit int) ([]Journa
 
 // SearchJournalEntriesInRange searches journal entries by keyword in title/content,
 // optionally restricted to an inclusive YYYY-MM-DD date window.
+// Uses the FTS5 virtual table when a keyword is supplied for fast full-text search.
 func (s *SQLiteMemory) SearchJournalEntriesInRange(keyword, fromDate, toDate string, limit int) ([]JournalEntry, error) {
 	if keyword == "" {
 		return s.GetJournalEntries(fromDate, toDate, nil, limit)
@@ -815,20 +814,20 @@ func (s *SQLiteMemory) SearchJournalEntriesInRange(keyword, fromDate, toDate str
 		limit = 20
 	}
 
-	pattern := "%" + escapeLike(keyword) + "%"
-	query := `SELECT id, entry_type, title, content, tags, importance, date, session_id, auto_generated, created_at
-	          FROM journal_entries
-	          WHERE (title LIKE ? ESCAPE '\' OR content LIKE ? ESCAPE '\')`
-	args := []interface{}{pattern, pattern}
+	query := `SELECT je.id, je.entry_type, je.title, je.content, je.tags, je.importance, je.date, je.session_id, je.auto_generated, je.created_at
+	          FROM journal_entries_fts fts
+	          JOIN journal_entries je ON je.id = fts.rowid
+	          WHERE journal_entries_fts MATCH ?`
+	args := []interface{}{escapeFTS5(keyword)}
 	if fromDate != "" {
-		query += ` AND date >= ?`
+		query += ` AND je.date >= ?`
 		args = append(args, fromDate)
 	}
 	if toDate != "" {
-		query += ` AND date <= ?`
+		query += ` AND je.date <= ?`
 		args = append(args, toDate)
 	}
-	query += ` ORDER BY date DESC, created_at DESC LIMIT ?`
+	query += ` ORDER BY je.date DESC, je.created_at DESC LIMIT ?`
 	args = append(args, limit)
 
 	rows, err := s.db.Query(query, args...)
@@ -851,30 +850,31 @@ func (s *SQLiteMemory) SearchJournalEntriesInRange(keyword, fromDate, toDate str
 }
 
 // SearchEpisodicMemoriesInRange searches episodic memories by summary/title and optional date range.
+// Uses the FTS5 virtual table when a keyword is supplied for fast full-text search.
 func (s *SQLiteMemory) SearchEpisodicMemoriesInRange(keyword, fromDate, toDate string, limit int) ([]EpisodicMemory, error) {
 	if limit <= 0 {
 		limit = 10
 	}
 
 	query := `
-		SELECT id, event_date, title, summary, details_json, importance, source, session_id, hierarchy_level, action_status, trigger_query, COALESCE(resolved_at, ''), participants_json, related_doc_ids, emotional_valence, created_at
-		FROM episodic_memories
+		SELECT em.id, em.event_date, em.title, em.summary, em.details_json, em.importance, em.source, em.session_id, em.hierarchy_level, em.action_status, em.trigger_query, COALESCE(em.resolved_at, ''), em.participants_json, em.related_doc_ids, em.emotional_valence, em.created_at
+		FROM episodic_memories_fts fts
+		JOIN episodic_memories em ON em.id = fts.rowid
 		WHERE 1=1`
 	args := make([]interface{}, 0, 4)
 	if keyword != "" {
-		pattern := "%" + escapeLike(keyword) + "%"
-		query += ` AND (title LIKE ? ESCAPE '\' OR summary LIKE ? ESCAPE '\')`
-		args = append(args, pattern, pattern)
+		query += ` AND episodic_memories_fts MATCH ?`
+		args = append(args, escapeFTS5(keyword))
 	}
 	if fromDate != "" {
-		query += ` AND event_date >= ?`
+		query += ` AND em.event_date >= ?`
 		args = append(args, fromDate)
 	}
 	if toDate != "" {
-		query += ` AND event_date <= ?`
+		query += ` AND em.event_date <= ?`
 		args = append(args, toDate)
 	}
-	query += ` ORDER BY event_date DESC, created_at DESC, importance DESC LIMIT ?`
+	query += ` ORDER BY em.event_date DESC, em.created_at DESC, em.importance DESC LIMIT ?`
 	args = append(args, limit)
 
 	rows, err := s.db.Query(query, args...)
@@ -1283,4 +1283,96 @@ func uniqueSortedStrings(values []string) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+// migrateJournalFTS5 creates and populates FTS5 virtual tables for fast
+// full-text search over journal entries and episodic memories.
+func (s *SQLiteMemory) migrateJournalFTS5() error {
+	if s == nil {
+		return nil
+	}
+
+	schema := `
+CREATE VIRTUAL TABLE IF NOT EXISTS journal_entries_fts USING fts5(
+	title,
+	content,
+	tags,
+	content='journal_entries',
+	content_rowid='id'
+);
+
+CREATE VIRTUAL TABLE IF NOT EXISTS episodic_memories_fts USING fts5(
+	title,
+	summary,
+	details_json,
+	content='episodic_memories',
+	content_rowid='id'
+);
+
+CREATE TRIGGER IF NOT EXISTS journal_entries_fts_insert AFTER INSERT ON journal_entries BEGIN
+	INSERT INTO journal_entries_fts(rowid, title, content, tags)
+	VALUES (new.rowid, new.title, new.content, new.tags);
+END;
+
+CREATE TRIGGER IF NOT EXISTS journal_entries_fts_delete AFTER DELETE ON journal_entries BEGIN
+	INSERT INTO journal_entries_fts(journal_entries_fts, rowid, title, content, tags)
+	VALUES ('delete', old.rowid, old.title, old.content, old.tags);
+END;
+
+CREATE TRIGGER IF NOT EXISTS journal_entries_fts_update AFTER UPDATE ON journal_entries BEGIN
+	INSERT INTO journal_entries_fts(journal_entries_fts, rowid, title, content, tags)
+	VALUES ('delete', old.rowid, old.title, old.content, old.tags);
+	INSERT INTO journal_entries_fts(rowid, title, content, tags)
+	VALUES (new.rowid, new.title, new.content, new.tags);
+END;
+
+CREATE TRIGGER IF NOT EXISTS episodic_memories_fts_insert AFTER INSERT ON episodic_memories BEGIN
+	INSERT INTO episodic_memories_fts(rowid, title, summary, details_json)
+	VALUES (new.rowid, new.title, new.summary, new.details_json);
+END;
+
+CREATE TRIGGER IF NOT EXISTS episodic_memories_fts_delete AFTER DELETE ON episodic_memories BEGIN
+	INSERT INTO episodic_memories_fts(episodic_memories_fts, rowid, title, summary, details_json)
+	VALUES ('delete', old.rowid, old.title, old.summary, old.details_json);
+END;
+
+CREATE TRIGGER IF NOT EXISTS episodic_memories_fts_update AFTER UPDATE ON episodic_memories BEGIN
+	INSERT INTO episodic_memories_fts(episodic_memories_fts, rowid, title, summary, details_json)
+	VALUES ('delete', old.rowid, old.title, old.summary, old.details_json);
+	INSERT INTO episodic_memories_fts(rowid, title, summary, details_json)
+	VALUES (new.rowid, new.title, new.summary, new.details_json);
+END;
+`
+	if _, err := s.db.Exec(schema); err != nil {
+		return fmt.Errorf("journal fts5 schema: %w", err)
+	}
+
+	// Backfill existing rows if the FTS table is empty.
+	var journalFTSCount int
+	if err := s.db.QueryRow("SELECT count(*) FROM journal_entries_fts").Scan(&journalFTSCount); err != nil {
+		return fmt.Errorf("count journal_entries_fts: %w", err)
+	}
+	if journalFTSCount == 0 {
+		if _, err := s.db.Exec(`
+			INSERT INTO journal_entries_fts(rowid, title, content, tags)
+			SELECT id, title, content, tags FROM journal_entries
+		`); err != nil {
+			return fmt.Errorf("backfill journal_entries_fts: %w", err)
+		}
+	}
+
+	var episodicFTSCount int
+	if err := s.db.QueryRow("SELECT count(*) FROM episodic_memories_fts").Scan(&episodicFTSCount); err != nil {
+		return fmt.Errorf("count episodic_memories_fts: %w", err)
+	}
+	if episodicFTSCount == 0 {
+		if _, err := s.db.Exec(`
+			INSERT INTO episodic_memories_fts(rowid, title, summary, details_json)
+			SELECT id, title, summary, details_json FROM episodic_memories
+		`); err != nil {
+			return fmt.Errorf("backfill episodic_memories_fts: %w", err)
+		}
+	}
+
+	return nil
 }

@@ -158,6 +158,20 @@ func (s *SQLiteMemory) InitActivityTables() error {
 		}
 	}
 
+	// Backfill existing activity turns into the FTS index if it is empty.
+	var ftsCount int
+	if err := s.db.QueryRow("SELECT count(*) FROM activity_turns_fts").Scan(&ftsCount); err != nil && s.logger != nil {
+		s.logger.Warn("Failed to count activity FTS index", "error", err)
+	}
+	if ftsCount == 0 {
+		if _, err := s.db.Exec(`
+			INSERT INTO activity_turns_fts(rowid, intent, user_request, user_goal, outcomes, important_points)
+			SELECT id, intent, user_request, user_goal, outcomes_text, important_points_text FROM activity_turns
+		`); err != nil && s.logger != nil {
+			s.logger.Warn("Failed to backfill activity FTS index", "error", err)
+		}
+	}
+
 	return nil
 }
 
@@ -227,23 +241,20 @@ func (s *SQLiteMemory) SearchActivityTurnsInRange(keyword, fromDate, toDate stri
 		err error
 	)
 	if trimmedKeyword != "" {
-		pattern := "%" + escapeLike(trimmedKeyword) + "%"
 		rows, err = s.db.Query(`
-			SELECT id, timestamp, date, session_id, channel, is_autonomous, user_relevant, status,
-				importance, intent, user_request, user_goal,
-				actions_taken_json, outcomes_json, important_points_json, pending_items_json,
-				tool_names_json, linked_journal_ids_json, linked_note_ids_json, linked_memory_ids_json, source
-			FROM activity_turns
-			WHERE (? = '' OR date >= ?)
-			  AND (? = '' OR date <= ?)
-			  AND (
-				intent LIKE ? ESCAPE '\' OR user_request LIKE ? ESCAPE '\' OR user_goal LIKE ? ESCAPE '\' OR
-				outcomes_text LIKE ? ESCAPE '\' OR important_points_text LIKE ? ESCAPE '\' OR actions_taken_text LIKE ? ESCAPE '\' OR pending_items_text LIKE ? ESCAPE '\'
-			  )
-			ORDER BY date DESC, timestamp DESC
+			SELECT at.id, at.timestamp, at.date, at.session_id, at.channel, at.is_autonomous, at.user_relevant, at.status,
+				at.importance, at.intent, at.user_request, at.user_goal,
+				at.actions_taken_json, at.outcomes_json, at.important_points_json, at.pending_items_json,
+				at.tool_names_json, at.linked_journal_ids_json, at.linked_note_ids_json, at.linked_memory_ids_json, at.source
+			FROM activity_turns_fts fts
+			JOIN activity_turns at ON at.id = fts.rowid
+			WHERE (? = '' OR at.date >= ?)
+			  AND (? = '' OR at.date <= ?)
+			  AND activity_turns_fts MATCH ?
+			ORDER BY at.date DESC, at.timestamp DESC
 			LIMIT ?`,
 			fromDate, fromDate, toDate, toDate,
-			pattern, pattern, pattern, pattern, pattern, pattern, pattern,
+			escapeFTS5(trimmedKeyword),
 			limit,
 		)
 	} else {

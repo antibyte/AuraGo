@@ -683,6 +683,23 @@ func (kg *KnowledgeGraph) removeSemanticEdgeIndex(source, target, relation strin
 	return idx.Collection.Delete(ctx, nil, nil, edgeDocID)
 }
 
+func (kg *KnowledgeGraph) removeSemanticEdgeIndexBatch(source string, targets []string, relation string) error {
+	idx := kg.semanticIndex()
+	if idx == nil || len(targets) == 0 {
+		return nil
+	}
+	idx.Mu.Lock()
+	defer idx.Mu.Unlock()
+
+	ids := make([]string, 0, len(targets))
+	for _, target := range targets {
+		ids = append(ids, "edge://"+source+"\x00"+target+"\x00"+relation)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	return idx.Collection.Delete(ctx, nil, nil, ids...)
+}
+
 func (kg *KnowledgeGraph) semanticSearchNodes(query string, minSim float32, maxNodes int) []Node {
 	return kg.semanticSearchNodesWithQueryer(kg.db, query, minSim, maxNodes)
 }

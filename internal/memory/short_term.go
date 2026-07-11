@@ -72,17 +72,7 @@ func (s *SQLiteMemory) CountInternalToolResultMessages(sessionID string) (int, e
 		SELECT COUNT(*)
 		FROM messages
 		WHERE session_id = ?
-		  AND is_internal = 1
-		  AND (
-			role = 'tool'
-			OR (
-				role = 'user'
-				AND (
-					content LIKE 'Tool Output:%'
-					OR content LIKE '[Tool Output]%'
-				)
-			)
-		  )`,
+		  AND is_tool_output = 1`,
 		sessionID,
 	).Scan(&count)
 	if err != nil {
@@ -949,9 +939,24 @@ func (s *SQLiteMemory) GetRecentMemoryUsage(sessionID string, limit int) ([]Memo
 
 // DeleteMemoryMeta removes tracking for a vector DB chunk.
 func (s *SQLiteMemory) DeleteMemoryMeta(docID string) error {
-	stmt := `DELETE FROM memory_meta WHERE doc_id = ?;`
-	_, err := s.db.Exec(stmt, docID)
-	return err
+	return s.DeleteMemoryMetaBatch([]string{docID})
+}
+
+// DeleteMemoryMetaBatch removes tracking for multiple vector DB chunks in chunked
+// DELETE statements.
+func (s *SQLiteMemory) DeleteMemoryMetaBatch(docIDs []string) error {
+	if s == nil || len(docIDs) == 0 {
+		return nil
+	}
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if err := execChunkedInDeleteStrings(tx, "memory_meta", "doc_id", docIDs, defaultInClauseChunkSize); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 // DeleteDocumentCleanup removes all SQLite tracking data for a deleted vector DB document.
@@ -983,21 +988,52 @@ func (s *SQLiteMemory) DeleteDocumentCleanup(docID string) error {
 // a vector document which no longer exists while preserving memory_meta for
 // archived-memory review and curation history.
 func (s *SQLiteMemory) CleanupDeletedVectorDocumentReferences(docID string) error {
-	docID = strings.TrimSpace(docID)
-	if s == nil || docID == "" {
+	return s.CleanupDeletedVectorDocumentReferencesBatch([]string{docID})
+}
+
+// CleanupDeletedVectorDocumentReferencesBatch is the batched variant of
+// CleanupDeletedVectorDocumentReferences. It removes references for all given
+// docIDs in chunked DELETE statements to avoid N+1 overhead.
+func (s *SQLiteMemory) CleanupDeletedVectorDocumentReferencesBatch(docIDs []string) error {
+	if s == nil || len(docIDs) == 0 {
 		return nil
 	}
+	for i, id := range docIDs {
+		docIDs[i] = strings.TrimSpace(id)
+	}
+
 	tx, err := s.db.Begin()
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 
-	if _, err := tx.Exec(`DELETE FROM file_embedding_docs WHERE doc_id = ?`, docID); err != nil {
+	if err := execChunkedInDeleteStrings(tx, "file_embedding_docs", "doc_id", docIDs, defaultInClauseChunkSize); err != nil {
 		return fmt.Errorf("cleanup file_embedding_docs: %w", err)
 	}
-	if _, err := tx.Exec(`DELETE FROM memory_conflicts WHERE doc_id_left = ? OR doc_id_right = ?`, docID, docID); err != nil {
-		return fmt.Errorf("cleanup memory_conflicts: %w", err)
+
+	chunkSize := defaultInClauseChunkSize / 2
+	if chunkSize < 1 {
+		chunkSize = 1
+	}
+	for start := 0; start < len(docIDs); start += chunkSize {
+		end := start + chunkSize
+		if end > len(docIDs) {
+			end = len(docIDs)
+		}
+		chunk := docIDs[start:end]
+		placeholders := make([]string, len(chunk))
+		args := make([]interface{}, 0, len(chunk)*2)
+		for i, id := range chunk {
+			placeholders[i] = "?"
+			args = append(args, id, id)
+		}
+		if _, err := tx.Exec(fmt.Sprintf(`
+			DELETE FROM memory_conflicts
+			WHERE doc_id_left IN (%s) OR doc_id_right IN (%s)
+		`, strings.Join(placeholders, ","), strings.Join(placeholders, ",")), args...); err != nil {
+			return fmt.Errorf("cleanup memory_conflicts chunk %d-%d: %w", start, end-1, err)
+		}
 	}
 
 	return tx.Commit()

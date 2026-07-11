@@ -1652,8 +1652,11 @@ func (cv *ChromemVectorDB) DeleteDocumentWithCleanup(id string) error {
 	return nil
 }
 
-// DeleteDocumentFromCollection removes a specific document from a named collection.
-func (cv *ChromemVectorDB) DeleteDocumentFromCollection(id, collection string) error {
+// DeleteDocuments removes multiple documents from the default collection in one call.
+func (cv *ChromemVectorDB) DeleteDocuments(ids []string) error {
+	if len(ids) == 0 {
+		return nil
+	}
 	doneStore, err := cv.beginTrackedOperation(&cv.storeWg)
 	if err != nil {
 		return err
@@ -1665,13 +1668,39 @@ func (cv *ChromemVectorDB) DeleteDocumentFromCollection(id, collection string) e
 	}
 	cv.mu.Lock()
 	defer cv.mu.Unlock()
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	return cv.collection.Delete(ctx, nil, nil, ids...)
+}
+
+// DeleteDocumentFromCollection removes a specific document from a named collection.
+func (cv *ChromemVectorDB) DeleteDocumentFromCollection(id, collection string) error {
+	return cv.DeleteDocumentsFromCollection([]string{id}, collection)
+}
+
+// DeleteDocumentsFromCollection removes multiple documents from a named collection in one call.
+func (cv *ChromemVectorDB) DeleteDocumentsFromCollection(ids []string, collection string) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	doneStore, err := cv.beginTrackedOperation(&cv.storeWg)
+	if err != nil {
+		return err
+	}
+	defer doneStore()
+
+	if err := cv.requireReadyForStore(); err != nil {
+		return err
+	}
+	cv.mu.Lock()
+	defer cv.mu.Unlock()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	col, err := cv.db.GetOrCreateCollection(collection, nil, cv.embeddingFunc)
 	if err != nil {
 		return fmt.Errorf("get collection %s: %w", collection, err)
 	}
-	return col.Delete(ctx, nil, nil, id)
+	return col.Delete(ctx, nil, nil, ids...)
 }
 
 // getQueryEmbedding returns a cached embedding for the query string, or computes a new one.

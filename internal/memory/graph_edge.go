@@ -51,14 +51,65 @@ func (kg *KnowledgeGraph) PruneOutgoingRelationEdges(source, relation string, ke
 		return 0, fmt.Errorf("iterate outgoing relation edges for prune: %w", err)
 	}
 
-	removed := 0
-	for _, target := range staleTargets {
-		if err := kg.DeleteEdge(source, target, relation); err != nil {
-			return removed, fmt.Errorf("delete stale relation edge %s->%s/%s: %w", source, target, relation, err)
-		}
-		removed++
+	removed, err := kg.deleteEdgesBySourceRelationTargets(source, relation, staleTargets)
+	if err != nil {
+		return removed, fmt.Errorf("batch delete stale relation edges: %w", err)
 	}
 	return removed, nil
+}
+
+// deleteEdgesBySourceRelationTargets removes all edges matching the given source,
+// relation, and target list in a single chunked DELETE. It also cleans up the
+// optional semantic edge index for the removed edges.
+func (kg *KnowledgeGraph) deleteEdgesBySourceRelationTargets(source, relation string, targets []string) (int, error) {
+	if len(targets) == 0 {
+		return 0, nil
+	}
+
+	tx, err := kg.db.Begin()
+	if err != nil {
+		return 0, fmt.Errorf("begin batch edge delete: %w", err)
+	}
+	defer tx.Rollback()
+
+	var removed int64
+	chunkSize := defaultInClauseChunkSize
+	for start := 0; start < len(targets); start += chunkSize {
+		end := start + chunkSize
+		if end > len(targets) {
+			end = len(targets)
+		}
+		chunk := targets[start:end]
+		placeholders := make([]string, len(chunk))
+		args := make([]interface{}, 0, len(chunk)+2)
+		for i, t := range chunk {
+			placeholders[i] = "?"
+			args = append(args, t)
+		}
+		args = append([]interface{}{source, relation}, args...)
+
+		res, err := tx.Exec(fmt.Sprintf(`
+			DELETE FROM kg_edges
+			WHERE source = ? AND relation = ? AND target IN (%s)
+		`, strings.Join(placeholders, ",")), args...)
+		if err != nil {
+			return 0, fmt.Errorf("delete edges chunk %d-%d: %w", start, end-1, err)
+		}
+		n, _ := res.RowsAffected()
+		removed += n
+	}
+
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("commit batch edge delete: %w", err)
+	}
+
+	if removed > 0 {
+		if err := kg.removeSemanticEdgeIndexBatch(source, targets, relation); err != nil && kg.logger != nil {
+			kg.logger.Warn("deleteEdgesBySourceRelationTargets: failed to remove semantic edge index batch", "source", source, "relation", relation, "targets", len(targets), "error", err)
+		}
+	}
+
+	return int(removed), nil
 }
 
 func (kg *KnowledgeGraph) DeleteEdge(source, target, relation string) error {
@@ -183,6 +234,15 @@ func (kg *KnowledgeGraph) GetImportantEdges(limit int, nodeIDs []string) ([]Edge
 	}
 	if limit > 1000 {
 		limit = 1000
+	}
+
+	// Cap node IDs to stay within SQLite parameter limits. The query uses the
+	// list twice (source + target), so keep the effective IN clause manageable.
+	if len(nodeIDs) > defaultInClauseChunkSize {
+		if kg.logger != nil {
+			kg.logger.Warn("GetImportantEdges: node ID list truncated to parameter limit", "original", len(nodeIDs), "limit", defaultInClauseChunkSize)
+		}
+		nodeIDs = nodeIDs[:defaultInClauseChunkSize]
 	}
 
 	var rows *sql.Rows

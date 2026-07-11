@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS mood_log (
 );
 
 CREATE INDEX IF NOT EXISTS idx_mood_log_time ON mood_log(timestamp);
+CREATE INDEX IF NOT EXISTS idx_mood_log_time_id ON mood_log(timestamp, id);
 
 CREATE TABLE IF NOT EXISTS character_milestones (
 	id INTEGER PRIMARY KEY AUTOINCREMENT,

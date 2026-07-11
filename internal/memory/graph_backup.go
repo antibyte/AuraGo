@@ -203,12 +203,7 @@ func (kg *KnowledgeGraph) ReplaceExtractedEntitiesBySourceFile(path string, node
 	}
 
 	if len(deleteIDs) > 0 {
-		placeholders := knowledgeGraphSQLInPlaceholders(len(deleteIDs))
-		args := make([]interface{}, len(deleteIDs))
-		for i, id := range deleteIDs {
-			args[i] = id
-		}
-		if _, err := tx.Exec(fmt.Sprintf("DELETE FROM kg_nodes WHERE id IN (%s)", placeholders), args...); err != nil {
+		if _, err := execChunkedInDeleteStringsResult(tx, "kg_nodes", "id", deleteIDs, defaultInClauseChunkSize); err != nil {
 			return fmt.Errorf("delete stale source-file nodes: %w", err)
 		}
 	}

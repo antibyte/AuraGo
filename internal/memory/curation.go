@@ -327,6 +327,87 @@ func (s *SQLiteMemory) ApplyMemoryCurationAction(action MemoryCurationAction, ac
 	return tx.Commit()
 }
 
+// ArchiveMemoryMetaBatch archives a batch of memory_meta rows for budget
+// enforcement or bulk curation. It updates verification_status and records a
+// single curation event per docID in one transaction.
+func (s *SQLiteMemory) ArchiveMemoryMetaBatch(docIDs []string, reason, actor string) error {
+	if s == nil || len(docIDs) == 0 {
+		return nil
+	}
+	reason = strings.TrimSpace(reason)
+	if reason == "" {
+		reason = "bulk archive"
+	}
+	if len(reason) > 500 {
+		reason = reason[:500]
+	}
+	actor = strings.TrimSpace(actor)
+	if actor == "" {
+		actor = "system"
+	}
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("begin archive batch: %w", err)
+	}
+	defer tx.Rollback()
+
+	chunkSize := defaultInClauseChunkSize
+	for start := 0; start < len(docIDs); start += chunkSize {
+		end := start + chunkSize
+		if end > len(docIDs) {
+			end = len(docIDs)
+		}
+		chunk := docIDs[start:end]
+		placeholders := make([]string, len(chunk))
+		args := make([]interface{}, 0, len(chunk)+5)
+		for i, id := range chunk {
+			placeholders[i] = "?"
+			args = append(args, id)
+		}
+		args = append([]interface{}{MemoryVerificationArchived, reason, reason}, args...)
+		if _, err := tx.Exec(fmt.Sprintf(`
+			UPDATE memory_meta
+			SET verification_status = ?,
+			    archived_at = CURRENT_TIMESTAMP,
+			    archived_reason = ?,
+			    last_reviewed_at = CURRENT_TIMESTAMP,
+			    review_note = ?,
+			    last_event_at = CURRENT_TIMESTAMP
+			WHERE doc_id IN (%s)
+		`, strings.Join(placeholders, ",")), args...); err != nil {
+			return fmt.Errorf("archive memory_meta chunk %d-%d: %w", start, end-1, err)
+		}
+	}
+
+	// Record curation events. Batch INSERT with chunks to stay within parameter limits.
+	const valuesPerRow = 7
+	chunkSize = defaultInClauseChunkSize / valuesPerRow
+	if chunkSize < 1 {
+		chunkSize = 1
+	}
+	for start := 0; start < len(docIDs); start += chunkSize {
+		end := start + chunkSize
+		if end > len(docIDs) {
+			end = len(docIDs)
+		}
+		chunk := docIDs[start:end]
+		placeholders := make([]string, len(chunk))
+		args := make([]interface{}, 0, len(chunk)*valuesPerRow)
+		for i, id := range chunk {
+			placeholders[i] = "(?, ?, ?, ?, ?, ?, ?)"
+			args = append(args, id, MemoryCurationActionArchive, actor, MemoryVerificationUnverified, MemoryVerificationArchived, reason, false)
+		}
+		if _, err := tx.Exec(fmt.Sprintf(`
+			INSERT INTO memory_curation_events (doc_id, action, actor, previous_status, new_status, reason, dry_run)
+			VALUES %s`, strings.Join(placeholders, ",")), args...); err != nil {
+			return fmt.Errorf("record curation events chunk %d-%d: %w", start, end-1, err)
+		}
+	}
+
+	return tx.Commit()
+}
+
 func (s *SQLiteMemory) ListMemoryCurationEvents(limit int) ([]MemoryCurationEvent, error) {
 	if s == nil {
 		return nil, nil

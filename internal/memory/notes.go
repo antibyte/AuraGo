@@ -76,6 +76,54 @@ func (s *SQLiteMemory) InitNotesTables() error {
 	if _, err := s.db.Exec(`CREATE INDEX IF NOT EXISTS idx_notes_archived ON notes(archived, done, priority, updated_at)`); err != nil {
 		return fmt.Errorf("notes archived index: %w", err)
 	}
+	return s.migrateNotesFTS5()
+}
+
+// migrateNotesFTS5 creates and populates the FTS5 virtual table for notes.
+func (s *SQLiteMemory) migrateNotesFTS5() error {
+	if s == nil {
+		return nil
+	}
+	schema := `
+CREATE VIRTUAL TABLE IF NOT EXISTS notes_fts USING fts5(
+	title,
+	content,
+	content='notes',
+	content_rowid='id'
+);
+
+CREATE TRIGGER IF NOT EXISTS notes_fts_insert AFTER INSERT ON notes BEGIN
+	INSERT INTO notes_fts(rowid, title, content)
+	VALUES (new.rowid, new.title, new.content);
+END;
+
+CREATE TRIGGER IF NOT EXISTS notes_fts_delete AFTER DELETE ON notes BEGIN
+	INSERT INTO notes_fts(notes_fts, rowid, title, content)
+	VALUES ('delete', old.rowid, old.title, old.content);
+END;
+
+CREATE TRIGGER IF NOT EXISTS notes_fts_update AFTER UPDATE ON notes BEGIN
+	INSERT INTO notes_fts(notes_fts, rowid, title, content)
+	VALUES ('delete', old.rowid, old.title, old.content);
+	INSERT INTO notes_fts(rowid, title, content)
+	VALUES (new.rowid, new.title, new.content);
+END;
+`
+	if _, err := s.db.Exec(schema); err != nil {
+		return fmt.Errorf("notes fts5 schema: %w", err)
+	}
+	var count int
+	if err := s.db.QueryRow("SELECT count(*) FROM notes_fts").Scan(&count); err != nil {
+		return fmt.Errorf("count notes_fts: %w", err)
+	}
+	if count == 0 {
+		if _, err := s.db.Exec(`
+			INSERT INTO notes_fts(rowid, title, content)
+			SELECT id, title, content FROM notes
+		`); err != nil {
+			return fmt.Errorf("backfill notes_fts: %w", err)
+		}
+	}
 	return nil
 }
 
@@ -168,6 +216,7 @@ func (s *SQLiteMemory) ListNotesWithOptions(opts NotesListOptions) ([]Note, erro
 }
 
 // SearchNotes returns notes whose title or content contain the search term (case-insensitive).
+// Uses the FTS5 virtual table for fast full-text search.
 func (s *SQLiteMemory) SearchNotes(query string, limit int) ([]Note, error) {
 	if query == "" {
 		return nil, nil
@@ -176,14 +225,14 @@ func (s *SQLiteMemory) SearchNotes(query string, limit int) ([]Note, error) {
 		limit = 20
 	}
 
-	pattern := "%" + escapeLike(query) + "%"
 	rows, err := s.db.Query(
-		`SELECT id, category, title, content, priority, done, due_date, COALESCE(protected, 0), COALESCE(keep_forever, 0), archived, COALESCE(archived_at, ''), COALESCE(archived_reason, ''), COALESCE(last_reviewed_at, ''), created_at, updated_at
-		 FROM notes
-		 WHERE archived = 0 AND (title LIKE ? ESCAPE '\' OR content LIKE ? ESCAPE '\')
-		 ORDER BY priority DESC, created_at DESC
+		`SELECT n.id, n.category, n.title, n.content, n.priority, n.done, n.due_date, COALESCE(n.protected, 0), COALESCE(n.keep_forever, 0), n.archived, COALESCE(n.archived_at, ''), COALESCE(n.archived_reason, ''), COALESCE(n.last_reviewed_at, ''), n.created_at, n.updated_at
+		 FROM notes_fts fts
+		 JOIN notes n ON n.id = fts.rowid
+		 WHERE n.archived = 0 AND notes_fts MATCH ?
+		 ORDER BY n.priority DESC, n.created_at DESC
 		 LIMIT ?`,
-		pattern, pattern, limit,
+		escapeFTS5(query), limit,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("search notes: %w", err)

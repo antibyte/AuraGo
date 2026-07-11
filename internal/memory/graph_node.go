@@ -700,12 +700,7 @@ func (kg *KnowledgeGraph) DeleteNodesBySourceFile(path string) (int, error) {
 
 	var deleted int
 	if len(toDelete) > 0 {
-		inPlaceholders := knowledgeGraphSQLInPlaceholders(len(toDelete))
-		inArgs := make([]interface{}, len(toDelete))
-		for i, id := range toDelete {
-			inArgs[i] = id
-		}
-		deleteRes, err := tx.Exec(fmt.Sprintf("DELETE FROM kg_nodes WHERE id IN (%s)", inPlaceholders), inArgs...)
+		deleteRes, err := execChunkedInDeleteStringsResult(tx, "kg_nodes", "id", toDelete, defaultInClauseChunkSize)
 		if err != nil {
 			return 0, fmt.Errorf("batch delete nodes by source file: %w", err)
 		}
@@ -764,34 +759,43 @@ func loadNodesByIDs(q knowledgeGraphQueryer, ids []string, logger *slog.Logger, 
 	if len(ids) == 0 {
 		return nil, nil
 	}
-	placeholders := knowledgeGraphSQLInPlaceholders(len(ids))
-	args := make([]interface{}, len(ids))
-	for i, id := range ids {
-		args[i] = id
-	}
-	rows, err := q.Query(fmt.Sprintf(
-		"SELECT id, label, properties, protected FROM kg_nodes WHERE id IN (%s) ORDER BY id",
-		placeholders,
-	), args...)
-	if err != nil {
-		return nil, fmt.Errorf("query nodes by ids: %w", err)
-	}
-	defer rows.Close()
-
+	chunkSize := defaultInClauseChunkSize
 	nodes := make([]Node, 0, len(ids))
-	for rows.Next() {
-		var n Node
-		var propsJSON string
-		var protected int
-		if err := rows.Scan(&n.ID, &n.Label, &propsJSON, &protected); err != nil {
-			return nil, fmt.Errorf("scan node by id: %w", err)
+	for start := 0; start < len(ids); start += chunkSize {
+		end := start + chunkSize
+		if end > len(ids) {
+			end = len(ids)
 		}
-		n.Properties = decodeKnowledgeGraphNodeProperties(logger, op, n.ID, propsJSON, protected)
-		n.Protected = protected != 0
-		nodes = append(nodes, n)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate nodes by ids: %w", err)
+		chunk := ids[start:end]
+		placeholders := knowledgeGraphSQLInPlaceholders(len(chunk))
+		args := make([]interface{}, len(chunk))
+		for i, id := range chunk {
+			args[i] = id
+		}
+		rows, err := q.Query(fmt.Sprintf(
+			"SELECT id, label, properties, protected FROM kg_nodes WHERE id IN (%s) ORDER BY id",
+			placeholders,
+		), args...)
+		if err != nil {
+			return nil, fmt.Errorf("query nodes by ids chunk %d-%d: %w", start, end-1, err)
+		}
+		for rows.Next() {
+			var n Node
+			var propsJSON string
+			var protected int
+			if err := rows.Scan(&n.ID, &n.Label, &propsJSON, &protected); err != nil {
+				rows.Close()
+				return nil, fmt.Errorf("scan node by id: %w", err)
+			}
+			n.Properties = decodeKnowledgeGraphNodeProperties(logger, op, n.ID, propsJSON, protected)
+			n.Protected = protected != 0
+			nodes = append(nodes, n)
+		}
+		if err := rows.Err(); err != nil {
+			rows.Close()
+			return nil, fmt.Errorf("iterate nodes by id chunk %d-%d: %w", start, end-1, err)
+		}
+		rows.Close()
 	}
 	return nodes, nil
 }

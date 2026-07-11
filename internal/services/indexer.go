@@ -835,12 +835,20 @@ func (fi *FileIndexer) removeTrackedFile(path, collection string) error {
 	if err != nil {
 		return fmt.Errorf("load tracked doc ids: %w", err)
 	}
-	for _, docID := range docIDs {
-		if err := fi.vectorDB.DeleteDocumentFromCollection(docID, collection); err != nil {
-			return fmt.Errorf("delete vector doc %s from collection %s: %w", docID, collection, err)
+	if len(docIDs) > 0 {
+		if batcher, ok := fi.vectorDB.(interface{ DeleteDocumentsFromCollection([]string, string) error }); ok {
+			if err := batcher.DeleteDocumentsFromCollection(docIDs, collection); err != nil {
+				return fmt.Errorf("batch delete vector docs from collection %s: %w", collection, err)
+			}
+		} else {
+			for _, docID := range docIDs {
+				if err := fi.vectorDB.DeleteDocumentFromCollection(docID, collection); err != nil {
+					return fmt.Errorf("delete vector doc %s from collection %s: %w", docID, collection, err)
+				}
+			}
 		}
-		if err := fi.stm.DeleteMemoryMeta(docID); err != nil {
-			return fmt.Errorf("delete memory meta %s: %w", docID, err)
+		if err := fi.stm.DeleteMemoryMetaBatch(docIDs); err != nil {
+			return fmt.Errorf("delete memory meta batch: %w", err)
 		}
 	}
 	if err := fi.stm.DeleteFileIndex(path, collection); err != nil {
