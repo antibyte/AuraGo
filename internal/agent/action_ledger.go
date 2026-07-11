@@ -40,6 +40,7 @@ type AgentActionEvent struct {
 	TurnID        string   `json:"turn_id,omitempty"`
 	ToolName      string   `json:"tool_name"`
 	Operation     string   `json:"operation,omitempty"`
+	Subject       string   `json:"subject,omitempty"`
 	State         string   `json:"state"`
 	Status        string   `json:"status"`
 	Outcome       string   `json:"outcome,omitempty"`
@@ -106,6 +107,7 @@ func (l *agentActionLedger) ProposeTool(turnID string, tc ToolCall) (AgentAction
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	argsHash := hashToolCallArgs(trackingTC)
 	operation := strings.TrimSpace(firstNonEmpty(trackingTC.Operation, trackingTC.SubOperation))
+	subject := agentActionSubject(trackingTC)
 	stateHistory := []string{string(AgentActionStateProposed)}
 	id := newAgentActionID(l.sessionID, turnID, toolName, trackingTC.NativeCallID, argsHash)
 	action := AgentActionEvent{
@@ -114,6 +116,7 @@ func (l *agentActionLedger) ProposeTool(turnID string, tc ToolCall) (AgentAction
 		TurnID:        strings.TrimSpace(turnID),
 		ToolName:      toolName,
 		Operation:     operation,
+		Subject:       subject,
 		State:         string(AgentActionStateProposed),
 		Status:        memory.AuditStatusRunning,
 		Summary:       fmt.Sprintf("%s proposed", toolName),
@@ -128,6 +131,23 @@ func (l *agentActionLedger) ProposeTool(turnID string, tc ToolCall) (AgentAction
 		toolCall:      trackingTC,
 	}
 	return l.persist(action, trackingTC, 0)
+}
+
+func agentActionSubject(tc ToolCall) string {
+	switch strings.TrimSpace(tc.Action) {
+	case "activate_agent_skill", "agent_skills", "skill_manager":
+		return strings.TrimSpace(firstNonEmpty(
+			tc.Name,
+			tc.Skill,
+			toolArgString(tc.Params, "name", "skill", "skill_name", "skill_id"),
+		))
+	}
+	return strings.TrimSpace(firstNonEmpty(
+		tc.Name,
+		tc.Path,
+		tc.FilePath,
+		toolArgString(tc.Params, "name", "path", "file_path"),
+	))
 }
 
 func (l *agentActionLedger) Accept(action AgentActionEvent, summary string) (AgentActionEvent, error) {

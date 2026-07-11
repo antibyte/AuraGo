@@ -62,6 +62,7 @@ AuraGo accepts AgoDesk WebSocket messages up to 16 MiB. Desktop screenshot resul
 - `config.provider.oauth.start` / `config.provider.oauth.started`: start desktop-assisted OAuth with a local AgoDesk loopback redirect URI.
 - `config.provider.oauth.complete` / `config.provider.oauth.status`: complete OAuth and return sanitized authorization status.
 - `config.provider.oauth.revoke`: delete stored OAuth tokens and return sanitized authorization status.
+- `agent.activity`: optional server-to-client activity timeline events for agent turns and tool lifecycle updates.
 - `desktop.command` / `desktop.result`: server-to-client command transport for screenshots, discovery, UI automation, browser CDP, permission requests, locally approved input/actions, locally approved file access, and locally enabled remote shell commands.
 
 ## Client Capabilities
@@ -91,6 +92,7 @@ Desktop commands are dispatched only when the matching client capability is pres
 - `chat.full_response`: required for server-initiated AgoChat messages.
 - `chat.agent_metadata`: enables `metadata.agent_mood` on chat responses for voice-model tone selection.
 - `chat.plan_updates`: enables live `chat.plan_update` frames and final `metadata.plan` snapshots.
+- `chat.agent_activity`: enables live `agent.activity` frames for transparent run/tool timelines.
 - `chat.sessions`: enables shared AuraGo chat history, New Chat, and loading old conversations.
 - `chat.cancel`: enables Stop for active AgoDesk agent turns.
 - `chat.audio_events`: enables `chat.audio` frames for server-generated TTS playback.
@@ -109,8 +111,9 @@ Desktop commands are dispatched only when the matching client capability is pres
 - `remote.desktop.ui_automation`: required for `desktop_ui_tree` and `desktop_ui_action`
 - `remote.desktop.browser`: required for `desktop_browser_connect`, `desktop_browser_snapshot`, `desktop_browser_action`, and `desktop_browser_disconnect`
 - `remote.files.read`: required for `file_list`, `file_read`, and `file_search`
-- `remote.files.write`: required for `file_write`
+- `remote.files.write`: required for `file_write` and `file_patch`
 - `remote.shell.exec`: required for `shell_exec`; AgoDesk must advertise it only when remote shell is enabled in the local AgoDesk config, and AuraGo must offer/dispatch it only when its own `agent.allow_remote_shell` policy permits remote shell usage.
+- `remote.shell.session`: required for `shell_session_start`, `shell_session_read`, `shell_session_input`, `shell_session_stop`, and `shell_session_list`; AgoDesk must advertise it only when persistent local shell sessions are enabled, and AuraGo offers it only when `agent.allow_remote_shell=true`.
 
 If a client omits these capabilities, pairing, heartbeat, persona assets, and chat can still work, but remote commands return `UNSUPPORTED_CAPABILITY` immediately instead of waiting for a `desktop.result` timeout. A client that sends keepalives but does not advertise the desktop, file, or shell capabilities is connected, but only capable of the features it advertised.
 
@@ -150,7 +153,7 @@ Rules:
 - `root_id` is stable for the local AgoDesk configuration and is used in later commands.
 - `path_display` is UI/debug metadata. AuraGo must not treat it as an authorization boundary.
 - AuraGo stores only sanitized session metadata from `file_access` and includes available `root_id`, display labels, permissions, and inline byte limits in the AgoDesk agent context.
-- AuraGo caps `file_read` / `file_write` inline command limits to 8 MiB or the smaller negotiated `max_read_bytes` / `max_write_bytes`, rejects known disabled or denied `root_id` cases for `file_list`, `file_read`, `file_search`, and `file_write`, and still requires AgoDesk to enforce canonical path checks and permissions locally for every command.
+- AuraGo caps `file_read` / `file_write` / `file_patch` inline command limits to 8 MiB or the smaller negotiated `max_read_bytes` / `max_write_bytes`, rejects known disabled or denied `root_id` cases for `file_list`, `file_read`, `file_search`, `file_write`, and `file_patch`, and still requires AgoDesk to enforce canonical path checks and permissions locally for every command.
 
 ## Pairing
 
@@ -299,6 +302,28 @@ When `chat.plan_updates` is negotiated, AuraGo can send:
 ```
 
 `plan` is either `null` or the same plan JSON shape used by AuraGo's web chat plan panel. `null` clears the local plan display. The final `chat.response.payload.metadata.plan` may include the latest snapshot for reconciliation.
+
+When `chat.agent_activity` is negotiated, AuraGo can send transparent run and tool lifecycle events:
+
+```json
+{
+  "type": "agent.activity",
+  "payload": {
+    "activity_id": "act-123",
+    "parent_activity_id": "agent:req-1",
+    "session_id": "agodesk:device-123",
+    "conversation_id": "sess-abc",
+    "request_id": "req-1",
+    "kind": "shell",
+    "phase": "started",
+    "title": "remote_control_shell",
+    "summary": "remote_control_shell started",
+    "risk": "write"
+  }
+}
+```
+
+Run-level activities use `activity_id="agent:<request_id>"` and phases `started`, `completed`, `failed`, or `cancelled`. Tool activities use the stable AuraGo agent-action id and map action states to `queued`, `started`, `waiting_approval`, `completed`, `failed`, or `cancelled`. Summaries are deliberately short and scrubbed; AgoDesk must not expect full shell output, tool arguments, secrets, or file contents in these events.
 
 For the concrete AgoDesk client implementation checklist, see [`agodesk_coding_agent_mood_plan.md`](./agodesk_coding_agent_mood_plan.md).
 
@@ -1306,18 +1331,51 @@ Successful result:
 
 If `root_id` is present, `path` is relative to that root. If `root_id` is omitted, AgoDesk may accept an absolute path only when the canonical path resolves inside a configured root.
 
-File command errors use `ok=false` and a stable error code in `error`, for example `FILE_ACCESS_DISABLED`, `FILE_ACCESS_DENIED`, `FILE_TOO_LARGE`, or `FILE_CONFLICT`. Do not include file contents in error messages or logs.
+### Patch file (`file_patch`)
+
+Requires `remote.files.write`.
+
+`file_patch` is the preferred precise edit primitive for AgoDesk file access. AuraGo forwards exact replacements and policy metadata; AgoDesk owns the local diff preview, user approval when required, hash validation, and atomic write.
+
+```json
+{
+  "command_id": "cmd-patch-1",
+  "operation": "file_patch",
+  "params": {
+    "root_id": "workspace",
+    "path": "src/main.go",
+    "expected_sha256": "b1946ac92492d2347c6235b4d2611184...",
+    "dry_run": true,
+    "patches": [
+      {
+        "old_text": "socket.connect();",
+        "new_text": "await socket.connect();",
+        "expected_occurrences": 1
+      }
+    ]
+  }
+}
+```
+
+Rules:
+
+- `expected_sha256` is required. Return `FILE_HASH_MISMATCH` if the current file hash differs.
+- `dry_run` defaults to `true`; only apply changes when AuraGo explicitly sends `dry_run:false`.
+- `patches` is an ordered array of exact `{old_text,new_text,expected_occurrences}` replacements. Return `FILE_PATCH_MISMATCH` if an expected occurrence count does not match.
+- Return structured mismatch details in `data` when safe, but do not include full file contents or secrets in `message`.
+
+File command errors use `ok=false` and a stable error code in `error`, for example `FILE_ACCESS_DISABLED`, `FILE_ACCESS_DENIED`, `FILE_TOO_LARGE`, `FILE_CONFLICT`, `FILE_PATCH_MISMATCH`, or `FILE_HASH_MISMATCH`. Do not include file contents in error messages or logs.
 
 Inline file payloads are limited to 8 MiB in v1 or the smaller value from `file_access.max_read_bytes` / `file_access.max_write_bytes`. Larger transfers should return `FILE_TOO_LARGE`; chunked transfer is reserved for a later protocol version.
 
 ## Remote Shell Access Metadata
 
-AgoDesk owns local shell execution permissions. If local remote shell access is available, include `payload.shell_access` in `session.start` and advertise `remote.shell.exec` only when `shell_access.enabled=true`:
+AgoDesk owns local shell execution permissions. If local remote shell access is available, include `payload.shell_access` in `session.start` and advertise `remote.shell.exec` / `remote.shell.session` only when `shell_access.enabled=true` and the matching local shell mode is enabled:
 
 ```json
 {
   "client_version": "agodesk-1.3.0",
-  "client_capabilities": ["chat.full_response", "remote.shell.exec"],
+  "client_capabilities": ["chat.full_response", "remote.shell.exec", "remote.shell.session"],
   "shell_access": {
     "enabled": true,
     "requires_approval": true,
@@ -1341,8 +1399,8 @@ AgoDesk owns local shell execution permissions. If local remote shell access is 
 Rules:
 
 - `shell_access` is optional for backward compatibility.
-- `enabled=false` means AgoDesk must not advertise `remote.shell.exec`.
-- AuraGo must not dispatch `shell_exec` unless both sides allow it: AgoDesk advertises `remote.shell.exec`, and AuraGo server policy has remote shell enabled (`agent.allow_remote_shell=true`).
+- `enabled=false` means AgoDesk must not advertise `remote.shell.exec` or `remote.shell.session`.
+- AuraGo must not dispatch `shell_exec` or `shell_session_*` unless both sides allow it: AgoDesk advertises the matching shell capability, and AuraGo server policy has remote shell enabled (`agent.allow_remote_shell=true`).
 - `requires_approval=true` means AgoDesk must show a local approval prompt before running each command. If the user denies or the prompt expires, return `SHELL_APPROVAL_DENIED`.
 - `default_cwd` and `allowed_cwds.path_display` are UI/debug metadata. AuraGo must not treat them as authorization boundaries.
 - `cwd_id` is stable for the local AgoDesk configuration and is used in later commands.
@@ -1413,6 +1471,51 @@ Stable shell error codes:
 
 `shell_exec_stream` remains reserved for a later protocol version and is not available in v1.
 
+### Persistent shell sessions (`shell_session_*`)
+
+Requires `remote.shell.session`.
+
+Use `shell_exec` for one-shot commands. Use shell sessions only for interactive or long-running processes where the agent needs to poll output or send input.
+
+Start a session:
+
+```json
+{
+  "command_id": "cmd-session-start-1",
+  "operation": "shell_session_start",
+  "params": {
+    "command": "npm run dev",
+    "cwd_id": "workspace",
+    "initial_wait_ms": 1000
+  }
+}
+```
+
+Read output:
+
+```json
+{
+  "command_id": "cmd-session-read-1",
+  "operation": "shell_session_read",
+  "params": {
+    "session_id": "sh-abc",
+    "offset": -2000,
+    "limit": 2000,
+    "wait_ms": 250
+  }
+}
+```
+
+Send input, stop, or list sessions:
+
+```json
+{"command_id":"cmd-session-input-1","operation":"shell_session_input","params":{"session_id":"sh-abc","input":"q"}}
+{"command_id":"cmd-session-stop-1","operation":"shell_session_stop","params":{"session_id":"sh-abc"}}
+{"command_id":"cmd-session-list-1","operation":"shell_session_list","params":{"limit":10}}
+```
+
+`initial_wait_ms` is only the initial read wait after process start. It is not a session lifetime. AgoDesk owns process storage, reconnect behavior, output buffering, approval, timeout, and cleanup. AuraGo does not persist session processes; after reconnect, it may only send `shell_session_list`, `shell_session_read`, `shell_session_input`, or `shell_session_stop` after normal capability and policy checks.
+
 ## RemoteHub Operations
 
 The existing RemoteHub command protocol supports these agodesk-capable operations in this backend version:
@@ -1434,9 +1537,15 @@ The existing RemoteHub command protocol supports these agodesk-capable operation
 - `file_read`
 - `file_search`
 - `file_write`
+- `file_patch`
 - `shell_exec`
+- `shell_session_start`
+- `shell_session_read`
+- `shell_session_input`
+- `shell_session_stop`
+- `shell_session_list`
 
-Read-only policy permits screenshot, permission status requests, discovery, UI tree reads, browser connect/snapshot/disconnect, file listing, file reading, and file search. It denies desktop input, `desktop_ui_action`, `desktop_browser_action`, file writing, and `shell_exec` before dispatch.
+Read-only policy permits screenshot, permission status requests, discovery, UI tree reads, browser connect/snapshot/disconnect, file listing, file reading, and file search. It denies desktop input, `desktop_ui_action`, `desktop_browser_action`, file writing, `file_patch`, `shell_exec`, and every `shell_session_*` operation before dispatch.
 
 `desktop_stream_start`, `desktop_stream_stop`, and `shell_exec_stream` remain reserved for a later backend version and are not available in v1.
 

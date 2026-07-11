@@ -218,6 +218,7 @@ func TestDefaultCapabilitiesIncludeComputerUseFeatures(t *testing.T) {
 	}
 	for _, want := range []string{
 		"chat.agent_metadata",
+		"chat.agent_activity",
 		"chat.plan_updates",
 		"chat.sessions",
 		"chat.cancel",
@@ -236,6 +237,43 @@ func TestDefaultCapabilitiesIncludeComputerUseFeatures(t *testing.T) {
 		if !containsAgodeskTestString(DefaultCapabilities, want) {
 			t.Fatalf("DefaultCapabilities missing %s: %v", want, DefaultCapabilities)
 		}
+	}
+}
+
+func TestAgentActivityPayloadRoundTrips(t *testing.T) {
+	env, err := NewEnvelope(TypeAgentActivity, AgentActivityPayload{
+		ActivityID:       "act-1",
+		ParentActivityID: "agent:req-1",
+		SessionID:        "agodesk:dev-1",
+		ConversationID:   "sess-1",
+		RequestID:        "req-1",
+		CommandID:        "cmd-1",
+		Kind:             "tool",
+		Phase:            "progress",
+		Title:            "Search files",
+		Summary:          "12 matches",
+		Risk:             "read",
+		Progress: &AgentActivityProgressPayload{
+			Current: 12,
+			Total:   20,
+			Unit:    "hits",
+		},
+	})
+	if err != nil {
+		t.Fatalf("NewEnvelope agent.activity: %v", err)
+	}
+	var payload AgentActivityPayload
+	if err := json.Unmarshal(env.Payload, &payload); err != nil {
+		t.Fatalf("unmarshal agent.activity: %v", err)
+	}
+	if payload.ActivityID != "act-1" || payload.ParentActivityID != "agent:req-1" || payload.SessionID != "agodesk:dev-1" || payload.ConversationID != "sess-1" || payload.RequestID != "req-1" || payload.CommandID != "cmd-1" {
+		t.Fatalf("identity payload = %+v", payload)
+	}
+	if payload.Kind != "tool" || payload.Phase != "progress" || payload.Title != "Search files" || payload.Summary != "12 matches" || payload.Risk != "read" {
+		t.Fatalf("activity payload = %+v", payload)
+	}
+	if payload.Progress == nil || payload.Progress.Current != 12 || payload.Progress.Total != 20 || payload.Progress.Unit != "hits" {
+		t.Fatalf("progress payload = %+v", payload.Progress)
 	}
 }
 

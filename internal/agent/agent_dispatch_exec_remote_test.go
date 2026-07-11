@@ -405,6 +405,144 @@ func TestRemoteDesktopInputBlockedByGlobalReadOnly(t *testing.T) {
 	}
 }
 
+func TestRemoteControlShellSessionOpsDispatchToRemoteHub(t *testing.T) {
+	t.Parallel()
+
+	db, err := remote.InitDB(filepath.Join(t.TempDir(), "remote.db"))
+	if err != nil {
+		t.Fatalf("init remote db: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	deviceID, err := remote.CreateDevice(db, remote.DeviceRecord{Name: "agodesk", Status: "approved", Tags: []string{"agodesk", "desktop-client"}})
+	if err != nil {
+		t.Fatalf("create device: %v", err)
+	}
+	transport := &agentRecordingTransport{connected: map[string]bool{deviceID: true}, output: `{"session_id":"sh-1"}`}
+	hub := remote.NewRemoteHub(db, nil, slog.Default())
+	hub.RegisterCommandTransport("agodesk", transport)
+	cfg := &config.Config{}
+	cfg.RemoteControl.Enabled = true
+
+	calls := []struct {
+		operation string
+		params    map[string]interface{}
+		wantOp    string
+	}{
+		{"shell_session_start", map[string]interface{}{"command": "npm run dev", "cwd_id": "workspace", "initial_wait_ms": float64(1000)}, remote.OpShellSessionStart},
+		{"shell_session_read", map[string]interface{}{"session_id": "sh-1", "offset": float64(-2000), "limit": float64(2000), "wait_ms": float64(250)}, remote.OpShellSessionRead},
+		{"shell_session_input", map[string]interface{}{"session_id": "sh-1", "input": "q"}, remote.OpShellSessionInput},
+		{"shell_session_stop", map[string]interface{}{"session_id": "sh-1"}, remote.OpShellSessionStop},
+		{"shell_session_list", map[string]interface{}{"limit": float64(10)}, remote.OpShellSessionList},
+	}
+	for _, tc := range calls {
+		out := handleRemoteControl(ToolCall{
+			Action:    "remote_control_shell",
+			Operation: tc.operation,
+			DeviceID:  deviceID,
+			Params:    tc.params,
+		}, cfg, hub, slog.Default())
+		if !strings.Contains(out, `"status":"ok"`) {
+			t.Fatalf("%s expected ok output, got %s", tc.operation, out)
+		}
+	}
+	if len(transport.calls) != len(calls) {
+		t.Fatalf("transport calls = %d, want %d", len(transport.calls), len(calls))
+	}
+	for i, tc := range calls {
+		if got := transport.calls[i].Operation; got != tc.wantOp {
+			t.Fatalf("call %d operation = %q, want %q", i, got, tc.wantOp)
+		}
+	}
+	if got := transport.calls[0].Args["initial_wait_ms"]; got != float64(1000) {
+		t.Fatalf("initial_wait_ms = %#v, want 1000", got)
+	}
+	if got := transport.calls[1].Args["offset"]; got != float64(-2000) {
+		t.Fatalf("offset = %#v, want -2000", got)
+	}
+	if got := transport.calls[2].Args["input"]; got != "q" {
+		t.Fatalf("input = %#v, want q", got)
+	}
+}
+
+func TestRemoteControlFilePatchDefaultsDryRunAndPreservesErrorCode(t *testing.T) {
+	t.Parallel()
+
+	db, err := remote.InitDB(filepath.Join(t.TempDir(), "remote.db"))
+	if err != nil {
+		t.Fatalf("init remote db: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	deviceID, err := remote.CreateDevice(db, remote.DeviceRecord{Name: "agodesk", Status: "approved", Tags: []string{"agodesk", "desktop-client"}})
+	if err != nil {
+		t.Fatalf("create device: %v", err)
+	}
+	transport := &agentRecordingTransport{
+		connected: map[string]bool{deviceID: true},
+		status:    "error",
+		errorCode: "FILE_PATCH_MISMATCH",
+		errText:   "FILE_PATCH_MISMATCH: old_text did not match",
+	}
+	hub := remote.NewRemoteHub(db, nil, slog.Default())
+	hub.RegisterCommandTransport("agodesk", transport)
+	cfg := &config.Config{}
+	cfg.RemoteControl.Enabled = true
+
+	out := handleRemoteControl(ToolCall{
+		Action:    "remote_control_files",
+		Operation: "file_patch",
+		DeviceID:  deviceID,
+		Params: map[string]interface{}{
+			"root_id":         "workspace",
+			"path":            "src/main.go",
+			"expected_sha256": strings.Repeat("a", 64),
+			"patches": []interface{}{
+				map[string]interface{}{"old_text": "socket.connect();", "new_text": "await socket.connect();", "expected_occurrences": float64(1)},
+			},
+		},
+	}, cfg, hub, slog.Default())
+	if !strings.Contains(out, `"status":"error"`) || !strings.Contains(out, `"error_code":"FILE_PATCH_MISMATCH"`) {
+		t.Fatalf("expected preserved FILE_PATCH_MISMATCH output, got %s", out)
+	}
+	if len(transport.calls) != 1 {
+		t.Fatalf("transport calls = %d, want 1", len(transport.calls))
+	}
+	call := transport.calls[0]
+	if call.Operation != remote.OpFilePatch {
+		t.Fatalf("operation = %q, want %q", call.Operation, remote.OpFilePatch)
+	}
+	if got := call.Args["dry_run"]; got != true {
+		t.Fatalf("dry_run = %#v, want true", got)
+	}
+	if got := call.Args["expected_sha256"]; got != strings.Repeat("a", 64) {
+		t.Fatalf("expected_sha256 = %#v", got)
+	}
+	if _, ok := call.Args["patches"].([]interface{}); !ok {
+		t.Fatalf("patches = %#v, want []interface{}", call.Args["patches"])
+	}
+}
+
+func TestRemoteControlFilePatchRequiresExpectedSHA256(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{}
+	cfg.RemoteControl.Enabled = true
+	hub := remote.NewRemoteHub(nil, nil, slog.Default())
+	out := handleRemoteControl(ToolCall{
+		Action:    "remote_control_files",
+		Operation: "file_patch",
+		DeviceID:  "agodesk-1",
+		Params: map[string]interface{}{
+			"path": "src/main.go",
+			"patches": []interface{}{
+				map[string]interface{}{"old_text": "a", "new_text": "b", "expected_occurrences": float64(1)},
+			},
+		},
+	}, cfg, hub, slog.Default())
+	if !strings.Contains(out, `"status":"error"`) || !strings.Contains(out, "expected_sha256") {
+		t.Fatalf("expected expected_sha256 error, got %s", out)
+	}
+}
+
 func TestRemoteControlComputerUseReadOnlyPolicy(t *testing.T) {
 	t.Parallel()
 
@@ -782,6 +920,9 @@ func TestRemoteFileSearchUsesNestedAgoDeskSearchOperation(t *testing.T) {
 type agentRecordingTransport struct {
 	connected map[string]bool
 	output    string
+	status    string
+	errorCode string
+	errText   string
 	calls     []remote.CommandPayload
 }
 
@@ -791,7 +932,11 @@ func (t *agentRecordingTransport) IsConnected(deviceID string) bool {
 
 func (t *agentRecordingTransport) SendCommand(deviceID string, cmd remote.CommandPayload, timeout time.Duration) (remote.ResultPayload, error) {
 	t.calls = append(t.calls, cmd)
-	return remote.ResultPayload{CommandID: cmd.CommandID, Status: "ok", Output: t.output}, nil
+	status := t.status
+	if status == "" {
+		status = "ok"
+	}
+	return remote.ResultPayload{CommandID: cmd.CommandID, Status: status, Output: t.output, ErrorCode: t.errorCode, Error: t.errText}, nil
 }
 
 func decodeToolOutputJSONForRemoteTest(t *testing.T, out string, target interface{}) {

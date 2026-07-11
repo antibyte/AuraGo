@@ -480,6 +480,9 @@ func handleAgodeskChatCancel(s *Server, conn *websocket.Conn, state *agodeskConn
 		RequestID:      activeRequestID,
 		Status:         status,
 	})
+	if found {
+		emitAgodeskRunActivity(conn, state, sessionID, conversationID, activeRequestID, "cancelled", "Agent cancelled", s.Logger)
+	}
 }
 
 func handleAgodeskVoiceOutputStatus(s *Server, conn *websocket.Conn, state *agodeskConnectionState, requestID string, payload agodesk.ChatVoiceOutputStatusPayload) {
@@ -839,6 +842,9 @@ func currentAgodeskDesktopBroker(s *Server) *agodeskDesktopBroker {
 
 func agodeskServerCapabilities(s *Server) []string {
 	capabilities := append([]string(nil), agodesk.DefaultCapabilities...)
+	if agodeskRemoteShellEnabled(s) {
+		capabilities = append(capabilities, "remote.shell.exec", "remote.shell.session")
+	}
 	if agodeskServerTTSConfigured(s) {
 		capabilities = append(capabilities, "chat.voice_output")
 	}
@@ -852,6 +858,16 @@ func agodeskServerCapabilities(s *Server) []string {
 		}
 	}
 	return capabilities
+}
+
+func agodeskRemoteShellEnabled(s *Server) bool {
+	if s == nil || s.Cfg == nil {
+		return false
+	}
+	s.CfgMu.RLock()
+	enabled := s.Cfg.Agent.AllowRemoteShell
+	s.CfgMu.RUnlock()
+	return enabled
 }
 
 func agodeskServerTTSConfigured(s *Server) bool {
@@ -1536,6 +1552,213 @@ func (b *agodeskChatBroker) Send(event, message string) {
 	}
 }
 
+func (b *agodeskChatBroker) SendTyped(eventType string, payload interface{}) bool {
+	forwarded := false
+	if b != nil && b.FeedbackBroker != nil {
+		if typed, ok := b.FeedbackBroker.(agent.TypedFeedbackBroker); ok {
+			forwarded = typed.SendTyped(eventType, payload)
+		} else if raw, err := json.Marshal(struct {
+			Type    string      `json:"type"`
+			Payload interface{} `json:"payload"`
+		}{
+			Type:    eventType,
+			Payload: payload,
+		}); err == nil {
+			b.FeedbackBroker.SendJSON(string(raw))
+			forwarded = true
+		}
+	}
+	if eventType != "agent_action" {
+		return forwarded
+	}
+	action, ok := agodeskAgentActionFromTypedPayload(payload)
+	if !ok {
+		return forwarded
+	}
+	_ = b.emitAgentActionActivity(action)
+	return true
+}
+
+func agodeskAgentActionFromTypedPayload(payload interface{}) (agent.AgentActionEvent, bool) {
+	switch value := payload.(type) {
+	case agent.AgentActionEvent:
+		return value, true
+	case *agent.AgentActionEvent:
+		if value != nil {
+			return *value, true
+		}
+	}
+	return agent.AgentActionEvent{}, false
+}
+
+func (b *agodeskChatBroker) emitAgentActionActivity(action agent.AgentActionEvent) bool {
+	if b == nil || !agodeskStateHasCapability(b.state, "chat.agent_activity") {
+		return false
+	}
+	payload := b.agentActionActivityPayload(action)
+	if strings.TrimSpace(payload.ActivityID) == "" {
+		return false
+	}
+	if err := writeAgodeskEnvelopeLocked(b.conn, b.state, agodesk.TypeAgentActivity, payload); err != nil {
+		if b.logger != nil {
+			b.logger.Warn("Failed to emit agodesk agent activity", "session_id", b.sessionID, "activity_id", payload.ActivityID, "error", err)
+		}
+		return false
+	}
+	return true
+}
+
+func (b *agodeskChatBroker) agentActionActivityPayload(action agent.AgentActionEvent) agodesk.AgentActivityPayload {
+	requestID := strings.TrimSpace(b.requestID)
+	parentID := ""
+	if requestID != "" {
+		parentID = "agent:" + requestID
+	}
+	title := agodeskAgentActivityTitle(action)
+	phase := agodeskAgentActivityPhase(action.State)
+	return agodesk.AgentActivityPayload{
+		ActivityID:       strings.TrimSpace(action.ID),
+		ParentActivityID: parentID,
+		SessionID:        strings.TrimSpace(b.sessionID),
+		ConversationID:   strings.TrimSpace(b.conversationID),
+		RequestID:        requestID,
+		CommandID:        strings.TrimSpace(action.CorrelationID),
+		Kind:             agodeskAgentActivityKind(action),
+		Phase:            phase,
+		Title:            title,
+		Summary:          agodeskAgentActivitySummary(title, phase, action),
+		Risk:             agodeskAgentActivityRisk(action),
+	}
+}
+
+func agodeskAgentActivityPhase(state string) string {
+	switch strings.TrimSpace(state) {
+	case string(agent.AgentActionStateProposed), string(agent.AgentActionStateAccepted):
+		return "queued"
+	case string(agent.AgentActionStateStarted):
+		return "started"
+	case string(agent.AgentActionStateNeedsHumanApproval):
+		return "waiting_approval"
+	case string(agent.AgentActionStateSucceeded), string(agent.AgentActionStateSanitized):
+		return "completed"
+	case string(agent.AgentActionStateFailed), string(agent.AgentActionStateBlocked):
+		return "failed"
+	case string(agent.AgentActionStateCancelled):
+		return "cancelled"
+	default:
+		return "queued"
+	}
+}
+
+func agodeskAgentActivityKind(action agent.AgentActionEvent) string {
+	text := strings.ToLower(strings.TrimSpace(action.ToolName + " " + action.Operation))
+	switch {
+	case strings.Contains(text, "shell") || strings.Contains(text, "execute_command"):
+		return "shell"
+	case strings.Contains(text, "browser"):
+		return "browser"
+	case strings.Contains(text, "desktop"):
+		return "desktop"
+	case strings.Contains(text, "file_search") || strings.Contains(text, "workspace_search") || strings.Contains(text, "search"):
+		return "search"
+	case strings.Contains(text, "file") && (strings.Contains(text, "write") || strings.Contains(text, "edit") || strings.Contains(text, "patch")):
+		return "file_edit"
+	case strings.Contains(text, "file") || strings.Contains(text, "read"):
+		return "file_read"
+	default:
+		return "tool"
+	}
+}
+
+func agodeskAgentActivityTitle(action agent.AgentActionEvent) string {
+	tool := strings.TrimSpace(action.ToolName)
+	subject := strings.TrimSpace(action.Subject)
+	if tool == "" {
+		tool = "tool"
+	}
+	if strings.EqualFold(tool, "activate_agent_skill") && subject != "" {
+		return "Skill: " + subject
+	}
+	return tool
+}
+
+func agodeskAgentActivitySummary(title, phase string, action agent.AgentActionEvent) string {
+	state := phase
+	switch phase {
+	case "queued":
+		state = "queued"
+	case "started":
+		state = "started"
+	case "waiting_approval":
+		state = "waiting for approval"
+	case "completed":
+		state = "completed"
+	case "failed":
+		state = "failed"
+	case "cancelled":
+		state = "cancelled"
+	}
+	summary := fmt.Sprintf("%s %s", title, state)
+	if action.DurationMS > 0 && (phase == "completed" || phase == "failed" || phase == "cancelled") {
+		summary = fmt.Sprintf("%s in %d ms", summary, action.DurationMS)
+	}
+	return agodeskTruncateActivityText(security.Scrub(summary), 240)
+}
+
+func agodeskAgentActivityRisk(action agent.AgentActionEvent) string {
+	text := strings.ToLower(strings.TrimSpace(action.ToolName + " " + action.Operation))
+	switch {
+	case strings.Contains(text, "delete") || strings.Contains(text, "revoke"):
+		return "dangerous"
+	case strings.Contains(text, "shell") || strings.Contains(text, "write") || strings.Contains(text, "edit") || strings.Contains(text, "patch") || strings.Contains(text, "input") || strings.Contains(text, "action"):
+		return "write"
+	default:
+		return "read"
+	}
+}
+
+func agodeskTruncateActivityText(value string, limit int) string {
+	value = strings.TrimSpace(value)
+	if limit <= 0 || len(value) <= limit {
+		return value
+	}
+	if limit <= 3 {
+		return value[:limit]
+	}
+	return strings.TrimSpace(value[:limit-3]) + "..."
+}
+
+func emitAgodeskRunActivity(conn *websocket.Conn, state *agodeskConnectionState, sessionID, conversationID, requestID, phase, summary string, logger *slog.Logger) bool {
+	requestID = strings.TrimSpace(requestID)
+	if conn == nil || requestID == "" || !agodeskStateHasCapability(state, "chat.agent_activity") {
+		return false
+	}
+	payload := agodesk.AgentActivityPayload{
+		ActivityID:     "agent:" + requestID,
+		SessionID:      strings.TrimSpace(sessionID),
+		ConversationID: strings.TrimSpace(conversationID),
+		RequestID:      requestID,
+		Kind:           "agent",
+		Phase:          strings.TrimSpace(phase),
+		Title:          "Agent",
+		Summary:        agodeskTruncateActivityText(security.Scrub(summary), 240),
+		Risk:           "read",
+	}
+	if payload.Phase == "" {
+		payload.Phase = "started"
+	}
+	if strings.TrimSpace(payload.Summary) == "" {
+		payload.Summary = "Agent " + payload.Phase
+	}
+	if err := writeAgodeskEnvelopeLocked(conn, state, agodesk.TypeAgentActivity, payload); err != nil {
+		if logger != nil {
+			logger.Warn("Failed to emit agodesk run activity", "session_id", sessionID, "request_id", requestID, "phase", phase, "error", err)
+		}
+		return false
+	}
+	return true
+}
+
 func (b *agodeskChatBroker) capturePlanUpdate(message string) {
 	if b == nil {
 		return
@@ -1874,6 +2097,7 @@ func runAgodeskAgentChat(s *Server, r *http.Request, conn *websocket.Conn, state
 		requestID:      requestID,
 		logger:         s.Logger,
 	}
+	emitAgodeskRunActivity(conn, state, transportSessionID, conversationID, requestID, "started", "Agent started", s.Logger)
 	ctx, cancel := context.WithTimeout(r.Context(), desktopChatAgentTurnTimeout)
 	defer cancel()
 	var resp openai.ChatCompletionResponse
@@ -1889,7 +2113,13 @@ func runAgodeskAgentChat(s *Server, r *http.Request, conn *websocket.Conn, state
 	select {
 	case <-done:
 	case <-ctx.Done():
+		emitAgodeskRunActivity(conn, state, transportSessionID, conversationID, requestID, "failed", "Agent timed out", s.Logger)
 		return agodeskChatResult{}, errAgodeskAgentTimeout
+	}
+	if loopErr != nil {
+		emitAgodeskRunActivity(conn, state, transportSessionID, conversationID, requestID, "failed", "Agent failed", s.Logger)
+	} else {
+		emitAgodeskRunActivity(conn, state, transportSessionID, conversationID, requestID, "completed", "Agent completed", s.Logger)
 	}
 	answer := strings.TrimSpace(replyBroker.finalResponse)
 	if answer == "" && len(resp.Choices) > 0 {
@@ -2263,7 +2493,7 @@ func (b *agodeskDesktopBroker) SendCommand(deviceID string, cmd remote.CommandPa
 
 func applyAgodeskFileAccessLimits(state *agodeskConnectionState, cmd remote.CommandPayload) (remote.CommandPayload, *remote.ResultPayload) {
 	switch cmd.Operation {
-	case remote.OpFileRead, remote.OpFileList, remote.OpFileWrite, remote.OpFileSearch:
+	case remote.OpFileRead, remote.OpFileList, remote.OpFileWrite, remote.OpFilePatch, remote.OpFileSearch:
 	default:
 		return cmd, nil
 	}
@@ -2287,13 +2517,21 @@ func applyAgodeskFileAccessLimits(state *agodeskConnectionState, cmd remote.Comm
 	switch cmd.Operation {
 	case remote.OpFileRead:
 		applyAgodeskCommandByteLimit(limited.Args, fileAccess.MaxReadBytes)
-	case remote.OpFileWrite:
+	case remote.OpFileWrite, remote.OpFilePatch:
 		applyAgodeskCommandByteLimit(limited.Args, fileAccess.MaxWriteBytes)
-		if exceedsAgodeskWriteLimit(limited.Args["content"], fileAccess.MaxWriteBytes) {
+		if cmd.Operation == remote.OpFileWrite && exceedsAgodeskWriteLimit(limited.Args["content"], fileAccess.MaxWriteBytes) {
 			return cmd, &remote.ResultPayload{
 				CommandID: cmd.CommandID,
 				Status:    "error",
 				Error:     "FILE_TOO_LARGE: content exceeds agodesk file_access.max_write_bytes",
+				ErrorCode: "FILE_TOO_LARGE",
+			}
+		}
+		if cmd.Operation == remote.OpFilePatch && exceedsAgodeskPatchLimit(limited.Args["patches"], fileAccess.MaxWriteBytes) {
+			return cmd, &remote.ResultPayload{
+				CommandID: cmd.CommandID,
+				Status:    "error",
+				Error:     "FILE_TOO_LARGE: patches exceed agodesk file_access.max_write_bytes",
 				ErrorCode: "FILE_TOO_LARGE",
 			}
 		}
@@ -2307,7 +2545,7 @@ func validateAgodeskFileAccessRoot(cmd remote.CommandPayload, fileAccess *agodes
 		return nil
 	}
 	wantPermission := "read"
-	if cmd.Operation == remote.OpFileWrite {
+	if cmd.Operation == remote.OpFileWrite || cmd.Operation == remote.OpFilePatch {
 		wantPermission = "write"
 	}
 	for _, root := range fileAccess.Roots {
@@ -2360,6 +2598,17 @@ func exceedsAgodeskWriteLimit(content interface{}, limit int64) bool {
 		return false
 	}
 	return int64(len([]byte(fmt.Sprint(content)))) > limit
+}
+
+func exceedsAgodeskPatchLimit(patches interface{}, limit int64) bool {
+	if limit <= 0 || patches == nil {
+		return false
+	}
+	raw, err := json.Marshal(patches)
+	if err != nil {
+		return int64(len([]byte(fmt.Sprint(patches)))) > limit
+	}
+	return int64(len(raw)) > limit
 }
 
 func (b *agodeskDesktopBroker) HandleResult(deviceID string, payload agodesk.DesktopResultPayload) bool {
@@ -2486,8 +2735,12 @@ func agodeskDesktopCapabilityForOperation(operation string) string {
 		return "remote.desktop.browser"
 	case remote.OpFileRead, remote.OpFileList, remote.OpFileSearch:
 		return "remote.files.read"
-	case remote.OpFileWrite:
+	case remote.OpFileWrite, remote.OpFilePatch:
 		return "remote.files.write"
+	case remote.OpShellExec:
+		return "remote.shell.exec"
+	case remote.OpShellSessionStart, remote.OpShellSessionRead, remote.OpShellSessionInput, remote.OpShellSessionStop, remote.OpShellSessionList:
+		return "remote.shell.session"
 	default:
 		return ""
 	}

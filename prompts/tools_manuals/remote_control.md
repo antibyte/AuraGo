@@ -11,8 +11,14 @@ Prefer `remote_control_devices`, `remote_control_shell`, `remote_control_files`,
 | `list_devices` | List all registered devices with status |
 | `device_status` | Get detailed device info including telemetry |
 | `execute_command` | Run a shell command on the remote device |
+| `shell_session_start` | Start a persistent shell session for interactive or long-running work |
+| `shell_session_read` | Poll output from a persistent shell session |
+| `shell_session_input` | Send input to a persistent shell session |
+| `shell_session_stop` | Stop a persistent shell session |
+| `shell_session_list` | List client-owned persistent shell sessions |
 | `read_file` | Read a file from the remote device |
 | `write_file` | Write content to a file on the remote device |
+| `file_patch` | Dry-run or apply exact text patches guarded by `expected_sha256` |
 | `list_files` | List files in a directory on the remote device |
 | `sysinfo` | Collect system metrics from the remote device |
 | `revoke_device` | Revoke a device's access |
@@ -39,10 +45,18 @@ AgoDesk desktop commands require the client to advertise matching `session.start
 | `operation` | string | yes | One of the operations above |
 | `device_name` | string | for most operations | Name of the remote device |
 | `device_id` | string | for most operations | Alternative to device_name |
-| `command` | string | for execute_command | Shell command to execute |
-| `path` | string | for read_file, write_file, list_files, file_search | File/directory path |
+| `command` | string | for execute_command, shell_session_start | Shell command to execute |
+| `cwd_id` | string | optional for shell_session_start | AgoDesk working-directory root id |
+| `initial_wait_ms` | integer | optional for shell_session_start | Initial read wait after start; not the session lifetime |
+| `session_id` | string | for shell_session_read/input/stop | Shell session id |
+| `offset`, `limit`, `wait_ms` | integer | optional for shell_session_read/list | Output offset, bounded read/list size, and long-poll wait |
+| `input` | string | for shell_session_input | Text or control input to send |
+| `path` | string | for read_file, write_file, file_patch, list_files, file_search | File/directory path |
 | `root_id` | string | optional for AgoDesk file access | Stable AgoDesk file-access root id; when set, `path` is relative to that root |
 | `content` | string | for write_file | File content to write |
+| `expected_sha256` | string | for file_patch | Current SHA-256 of the target file |
+| `dry_run` | boolean | optional for file_patch | Defaults to true; set false only to apply after a successful dry run |
+| `patches` | array | for file_patch | Exact `{old_text,new_text,expected_occurrences}` replacements |
 | `recursive` | boolean | for list_files | List recursively (default: false) |
 | `display_id` | string | optional for desktop_screenshot | Monitor id such as `display-0`; omitted captures the primary display |
 | `window_id` | string | optional for desktop_screenshot | Window id to capture a single window |
@@ -80,6 +94,15 @@ AgoDesk desktop commands require the client to advertise matching `session.start
 {"action": "remote_control", "operation": "execute_command", "device_name": "webserver-01", "command": "df -h"}
 ```
 
+**Start and poll a shell session:**
+```json
+{"action": "remote_control", "operation": "shell_session_start", "device_name": "office-pc", "command": "npm run dev", "cwd_id": "workspace", "initial_wait_ms": 1000}
+```
+
+```json
+{"action": "remote_control", "operation": "shell_session_read", "device_name": "office-pc", "session_id": "sh-abc", "offset": -2000, "limit": 2000, "wait_ms": 250}
+```
+
 **Read a file:**
 ```json
 {"action": "remote_control", "operation": "read_file", "device_name": "webserver-01", "path": "/etc/hostname"}
@@ -88,6 +111,11 @@ AgoDesk desktop commands require the client to advertise matching `session.start
 **Write a file:**
 ```json
 {"action": "remote_control", "operation": "write_file", "device_name": "webserver-01", "path": "/tmp/config.txt", "content": "key=value"}
+```
+
+**Patch a file through AgoDesk file access:**
+```json
+{"action": "remote_control", "operation": "file_patch", "device_name": "office-pc", "root_id": "workspace", "path": "src/main.go", "expected_sha256": "<sha256-from-read>", "dry_run": true, "patches": [{"old_text": "socket.connect();", "new_text": "await socket.connect();", "expected_occurrences": 1}]}
 ```
 
 **Capture an agodesk display:**
@@ -143,7 +171,9 @@ AgoDesk desktop commands require the client to advertise matching `session.start
 ## Notes
 
 - **Timeouts**: Command execution has 60s timeout, file operations have 30s timeout, sysinfo has 15s timeout
-- **Read-only mode**: execute_command, write_file, revoke_device, edit operations, desktop_input, desktop_ui_action, and desktop_browser_action are blocked when read-only mode is enabled. Discovery, UI tree reads, browser connect/snapshot/disconnect, screenshots, and permission probes remain allowed.
+- **Read-only mode**: execute_command, all shell_session operations, write_file, file_patch, revoke_device, edit operations, desktop_input, desktop_ui_action, and desktop_browser_action are blocked when read-only mode is enabled. Discovery, UI tree reads, browser connect/snapshot/disconnect, screenshots, and permission probes remain allowed.
+- **Shell sessions**: Use one-shot `execute_command` unless the command is interactive or long-running. Poll after `shell_session_start`; AuraGo does not persist processes, so reconnect recovery is `shell_session_list` plus read/input/stop against client-owned sessions.
+- **File patching**: Dry-run first. If AgoDesk returns `FILE_PATCH_MISMATCH` or `FILE_HASH_MISMATCH`, read the file again and build a fresh exact patch.
 - **Path restrictions**: Classic remote-agent file operations only access paths within the device's configured `allowed_paths`. AgoDesk file operations should use the `root_id`s reported in the active AgoDesk chat context; AuraGo forwards only known roots and AgoDesk enforces canonical local path boundaries.
 - **Platform support**: Uses `sh -c` on Linux/macOS, `cmd /C` on Windows
 - **Connection route**: Personalized `aurago-remote` downloads can embed an automatic, Tailscale, or manual supervisor WebSocket URL via `remote_control.connection_mode`.

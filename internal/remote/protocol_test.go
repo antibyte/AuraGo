@@ -19,7 +19,11 @@ func TestReadOnlySafe(t *testing.T) {
 			t.Errorf("ReadOnlySafe(%q) = false; want true", op)
 		}
 	}
-	unsafe := []string{OpFileWrite, OpFileDelete, OpShellExec, OpShellExecStream, OpDesktopInput, OpDesktopUIAction, OpDesktopBrowserAction}
+	unsafe := []string{
+		OpFileWrite, OpFileDelete, OpFilePatch,
+		OpShellExec, OpShellExecStream, OpShellSessionStart, OpShellSessionRead, OpShellSessionInput, OpShellSessionStop, OpShellSessionList,
+		OpDesktopInput, OpDesktopUIAction, OpDesktopBrowserAction,
+	}
 	for _, op := range unsafe {
 		if ReadOnlySafe(op) {
 			t.Errorf("ReadOnlySafe(%q) = true; want false", op)

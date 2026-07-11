@@ -20,7 +20,7 @@ func handleRemoteControl(tc ToolCall, cfg *config.Config, hub *remote.RemoteHub,
 	}
 	if cfg.RemoteControl.ReadOnly {
 		switch tc.Operation {
-		case "execute_command", "write_file", "revoke_device", "edit_file", "json_edit", "yaml_edit", "xml_edit", "desktop_input", "desktop_ui_action", "desktop_browser_action":
+		case "execute_command", "shell_session_start", "shell_session_read", "shell_session_input", "shell_session_stop", "shell_session_list", "write_file", "file_patch", "revoke_device", "edit_file", "json_edit", "yaml_edit", "xml_edit", "desktop_input", "desktop_ui_action", "desktop_browser_action":
 			return `Tool Output: {"status":"error","message":"Remote Control is in read-only mode. Disable remote_control.read_only to allow changes."}`
 		}
 	}
@@ -32,10 +32,14 @@ func handleRemoteControl(tc ToolCall, cfg *config.Config, hub *remote.RemoteHub,
 		return remoteDeviceStatus(hub, tc, logger)
 	case "execute_command":
 		return remoteExecuteCommand(hub, tc, logger)
+	case "shell_session_start", "shell_session_read", "shell_session_input", "shell_session_stop", "shell_session_list":
+		return remoteShellSessionCommand(hub, tc, logger)
 	case "read_file":
 		return remoteReadFile(hub, tc, logger)
 	case "write_file":
 		return remoteWriteFile(cfg, hub, tc, logger)
+	case "file_patch":
+		return remoteFilePatch(cfg, hub, tc, logger)
 	case "list_files":
 		return remoteListFiles(hub, tc, logger)
 	case "sysinfo":
@@ -81,7 +85,7 @@ func handleRemoteControl(tc ToolCall, cfg *config.Config, hub *remote.RemoteHub,
 	case "desktop_browser_disconnect":
 		return remoteDesktopJSONCommand(hub, tc, remote.OpDesktopBrowserDisconnect, 15*time.Second, false)
 	default:
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"Unknown remote_control operation '%s'. Use: list_devices, device_status, execute_command, read_file, write_file, list_files, sysinfo, revoke_device, edit_file, json_edit, yaml_edit, xml_edit, file_search, file_read_advanced, desktop_screenshot, desktop_permission_request, desktop_input, desktop_list_displays, desktop_list_windows, desktop_active_window, desktop_host_info, desktop_ui_tree, desktop_ui_action, desktop_browser_connect, desktop_browser_snapshot, desktop_browser_action, desktop_browser_disconnect"}`, tc.Operation)
+		return fmt.Sprintf(`Tool Output: {"status":"error","message":"Unknown remote_control operation '%s'. Use: list_devices, device_status, execute_command, shell_session_start, shell_session_read, shell_session_input, shell_session_stop, shell_session_list, read_file, write_file, file_patch, list_files, sysinfo, revoke_device, edit_file, json_edit, yaml_edit, xml_edit, file_search, file_read_advanced, desktop_screenshot, desktop_permission_request, desktop_input, desktop_list_displays, desktop_list_windows, desktop_active_window, desktop_host_info, desktop_ui_tree, desktop_ui_action, desktop_browser_connect, desktop_browser_snapshot, desktop_browser_action, desktop_browser_disconnect"}`, tc.Operation)
 	}
 }
 
@@ -227,6 +231,135 @@ func remoteExecuteCommand(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logge
 	return "Tool Output: " + string(data)
 }
 
+func remoteShellSessionCommand(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) string {
+	deviceID, err := resolveRemoteDevice(hub, tc)
+	if err != nil {
+		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+	}
+	if !hub.IsConnected(deviceID) {
+		return fmt.Sprintf(`Tool Output: {"status":"error","message":"device %s is not connected"}`, deviceID)
+	}
+	params := nestedRemoteToolParams(tc.Params)
+	operation := strings.TrimSpace(firstNonEmptyToolString(tc.Operation, toolArgString(params, "operation")))
+	remoteOp := ""
+	args := map[string]interface{}{}
+	switch operation {
+	case "shell_session_start":
+		remoteOp = remote.OpShellSessionStart
+		command := firstNonEmptyToolString(toolArgString(params, "command"), tc.Command, tc.Content)
+		if command == "" {
+			return `Tool Output: {"status":"error","message":"'command' is required for shell_session_start"}`
+		}
+		args["command"] = command
+		copyRemoteArgIfPresent(args, params, "cwd_id")
+		copyRemoteArgIfPresent(args, params, "initial_wait_ms")
+	case "shell_session_read":
+		remoteOp = remote.OpShellSessionRead
+		if !copyRequiredRemoteStringArg(args, params, "session_id") {
+			return `Tool Output: {"status":"error","message":"'session_id' is required for shell_session_read"}`
+		}
+		copyRemoteArgIfPresent(args, params, "offset")
+		copyRemoteArgIfPresent(args, params, "limit")
+		copyRemoteArgIfPresent(args, params, "wait_ms")
+	case "shell_session_input":
+		remoteOp = remote.OpShellSessionInput
+		if !copyRequiredRemoteStringArg(args, params, "session_id") {
+			return `Tool Output: {"status":"error","message":"'session_id' is required for shell_session_input"}`
+		}
+		input := firstNonEmptyToolString(toolArgString(params, "input"), tc.Content, tc.Value)
+		if input == "" {
+			return `Tool Output: {"status":"error","message":"'input' is required for shell_session_input"}`
+		}
+		args["input"] = input
+	case "shell_session_stop":
+		remoteOp = remote.OpShellSessionStop
+		if !copyRequiredRemoteStringArg(args, params, "session_id") {
+			return `Tool Output: {"status":"error","message":"'session_id' is required for shell_session_stop"}`
+		}
+	case "shell_session_list":
+		remoteOp = remote.OpShellSessionList
+		copyRemoteArgIfPresent(args, params, "limit")
+	default:
+		return fmt.Sprintf(`Tool Output: {"status":"error","message":"unsupported shell session operation %q"}`, operation)
+	}
+	result, err := hub.SendCommand(deviceID, remote.CommandPayload{
+		Operation: remoteOp,
+		Args:      args,
+	}, remoteShellSessionTimeout(params))
+	if err != nil {
+		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+	}
+	return remoteCommandResultOutput(result, "result")
+}
+
+func copyRemoteArgIfPresent(args map[string]interface{}, params map[string]interface{}, key string) {
+	if raw, ok := toolArgRaw(params, key); ok {
+		args[key] = raw
+	}
+}
+
+func copyRequiredRemoteStringArg(args map[string]interface{}, params map[string]interface{}, key string) bool {
+	value := strings.TrimSpace(toolArgString(params, key))
+	if value == "" {
+		return false
+	}
+	args[key] = value
+	return true
+}
+
+func remoteShellSessionTimeout(params map[string]interface{}) time.Duration {
+	waitMS := toolArgInt(params, 0, "wait_ms")
+	if waitMS <= 0 {
+		waitMS = toolArgInt(params, 0, "initial_wait_ms")
+	}
+	if waitMS <= 0 {
+		return 60 * time.Second
+	}
+	timeout := time.Duration(waitMS+5000) * time.Millisecond
+	if timeout < 10*time.Second {
+		return 10 * time.Second
+	}
+	if timeout > 120*time.Second {
+		return 120 * time.Second
+	}
+	return timeout
+}
+
+func remoteCommandResultOutput(result remote.ResultPayload, resultKey string) string {
+	status := strings.TrimSpace(result.Status)
+	if status == "" {
+		status = "ok"
+	}
+	if result.Error != "" || !strings.EqualFold(status, "ok") {
+		if status == "" || strings.EqualFold(status, "ok") {
+			status = "error"
+		}
+		data := map[string]interface{}{
+			"status":  status,
+			"message": result.Error,
+		}
+		if result.ErrorCode != "" {
+			data["error_code"] = result.ErrorCode
+		}
+		if result.Output != "" {
+			data[resultKey] = result.Output
+		}
+		raw, _ := json.Marshal(data)
+		return "Tool Output: " + string(raw)
+	}
+	data := map[string]interface{}{
+		"status": status,
+	}
+	if result.Output != "" {
+		data[resultKey] = result.Output
+	}
+	if result.DurationMs > 0 {
+		data["duration_ms"] = result.DurationMs
+	}
+	raw, _ := json.Marshal(data)
+	return "Tool Output: " + string(raw)
+}
+
 func remoteReadFile(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) string {
 	deviceID, err := resolveRemoteDevice(hub, tc)
 	if err != nil {
@@ -311,6 +444,53 @@ func remoteWriteFile(cfg *config.Config, hub *remote.RemoteHub, tc ToolCall, log
 	return "Tool Output: " + string(data)
 }
 
+func remoteFilePatch(cfg *config.Config, hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) string {
+	params := nestedRemoteToolParams(tc.Params)
+	path := firstNonEmptyToolString(toolArgString(params, "path", "file_path"), tc.Path, tc.FilePath)
+	if path == "" {
+		return `Tool Output: {"status":"error","message":"'path' is required for file_patch"}`
+	}
+	expectedSHA := strings.TrimSpace(toolArgString(params, "expected_sha256"))
+	if expectedSHA == "" {
+		return `Tool Output: {"status":"error","message":"'expected_sha256' is required for file_patch"}`
+	}
+	patches, ok := toolArgRaw(params, "patches")
+	if !ok || patches == nil {
+		return `Tool Output: {"status":"error","message":"'patches' is required for file_patch"}`
+	}
+	if err := validateRemotePatchPayloadSize(cfg, patches); err != nil {
+		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+	}
+	deviceID, err := resolveRemoteDevice(hub, tc)
+	if err != nil {
+		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+	}
+	if !hub.IsConnected(deviceID) {
+		return fmt.Sprintf(`Tool Output: {"status":"error","message":"device %s is not connected"}`, deviceID)
+	}
+	dryRun := true
+	if value, ok := toolArgBool(params, "dry_run"); ok {
+		dryRun = value
+	}
+	args := map[string]interface{}{
+		"path":            path,
+		"expected_sha256": expectedSHA,
+		"patches":         patches,
+		"dry_run":         dryRun,
+	}
+	if rootID := strings.TrimSpace(toolArgString(params, "root_id")); rootID != "" {
+		args["root_id"] = rootID
+	}
+	result, err := hub.SendCommand(deviceID, remote.CommandPayload{
+		Operation: remote.OpFilePatch,
+		Args:      args,
+	}, 30*time.Second)
+	if err != nil {
+		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+	}
+	return remoteCommandResultOutput(result, "result")
+}
+
 func validateRemoteWriteContentSize(cfg *config.Config, content string) error {
 	maxMB := cfg.RemoteControl.MaxFileSizeMB
 	if maxMB <= 0 {
@@ -319,6 +499,25 @@ func validateRemoteWriteContentSize(cfg *config.Config, content string) error {
 	maxBytes := int64(maxMB) * 1024 * 1024
 	if int64(base64.StdEncoding.DecodedLen(len(content))) > maxBytes {
 		return fmt.Errorf("file exceeds remote_control.max_file_size_mb limit")
+	}
+	return nil
+}
+
+func validateRemotePatchPayloadSize(cfg *config.Config, patches interface{}) error {
+	if cfg == nil {
+		return nil
+	}
+	maxMB := cfg.RemoteControl.MaxFileSizeMB
+	if maxMB <= 0 {
+		maxMB = remote.DefaultMaxFileSizeMB
+	}
+	maxBytes := int64(maxMB) * 1024 * 1024
+	raw, err := json.Marshal(patches)
+	if err != nil {
+		return fmt.Errorf("invalid patches payload: %w", err)
+	}
+	if int64(len(raw)) > maxBytes {
+		return fmt.Errorf("patches exceed remote_control.max_file_size_mb limit")
 	}
 	return nil
 }

@@ -26,6 +26,7 @@ const (
 	TypeChatError                        MessageType = "chat.error"
 	TypeChatChunk                        MessageType = "chat.response.chunk"
 	TypeChatPlanUpdate                   MessageType = "chat.plan_update"
+	TypeAgentActivity                    MessageType = "agent.activity"
 	TypeChatSessionsList                 MessageType = "chat.sessions.list"
 	TypeChatSessions                     MessageType = "chat.sessions"
 	TypeChatSessionCreate                MessageType = "chat.session.create"
@@ -94,6 +95,7 @@ var DefaultCapabilities = []string{
 	"chat.server_push",
 	"chat.agent_metadata",
 	"chat.plan_updates",
+	"chat.agent_activity",
 	"chat.sessions",
 	"chat.cancel",
 	"chat.audio_events",
@@ -240,6 +242,27 @@ type ChatPlanUpdatePayload struct {
 	ConversationID string          `json:"conversation_id,omitempty"`
 	RequestID      string          `json:"request_id,omitempty"`
 	Plan           json.RawMessage `json:"plan"`
+}
+
+type AgentActivityPayload struct {
+	ActivityID       string                        `json:"activity_id"`
+	ParentActivityID string                        `json:"parent_activity_id,omitempty"`
+	SessionID        string                        `json:"session_id"`
+	ConversationID   string                        `json:"conversation_id,omitempty"`
+	RequestID        string                        `json:"request_id,omitempty"`
+	CommandID        string                        `json:"command_id,omitempty"`
+	Kind             string                        `json:"kind"`
+	Phase            string                        `json:"phase"`
+	Title            string                        `json:"title,omitempty"`
+	Summary          string                        `json:"summary,omitempty"`
+	Risk             string                        `json:"risk,omitempty"`
+	Progress         *AgentActivityProgressPayload `json:"progress,omitempty"`
+}
+
+type AgentActivityProgressPayload struct {
+	Current int64  `json:"current,omitempty"`
+	Total   int64  `json:"total,omitempty"`
+	Unit    string `json:"unit,omitempty"`
 }
 
 type ChatSessionSummary struct {

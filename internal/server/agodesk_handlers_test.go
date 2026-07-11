@@ -1945,6 +1945,7 @@ func TestAgodeskSessionAcceptedAdvertisesNegotiatedClientCapabilities(t *testing
 		PairingToken:  token,
 		ClientCapabilities: []string{
 			"chat.full_response",
+			"chat.agent_activity",
 			"remote.desktop.capture",
 			"remote.desktop.discovery",
 			"remote.desktop.browser",
@@ -1961,7 +1962,7 @@ func TestAgodeskSessionAcceptedAdvertisesNegotiatedClientCapabilities(t *testing
 	resp := readAgodeskTestEnvelope(t, conn)
 	var accepted agodesk.SessionAcceptedPayload
 	decodeAgodeskTestPayload(t, resp, &accepted)
-	for _, want := range []string{"chat.full_response", "remote.desktop.capture", "remote.desktop.discovery", "remote.desktop.browser"} {
+	for _, want := range []string{"chat.full_response", "chat.agent_activity", "remote.desktop.capture", "remote.desktop.discovery", "remote.desktop.browser"} {
 		if !agodeskTestContainsString(accepted.AdvertisedCapabilities, want) {
 			t.Fatalf("advertised_capabilities = %v, missing %s", accepted.AdvertisedCapabilities, want)
 		}
@@ -1971,6 +1972,83 @@ func TestAgodeskSessionAcceptedAdvertisesNegotiatedClientCapabilities(t *testing
 	}
 	if len(accepted.Capabilities) == 0 {
 		t.Fatal("legacy capabilities should still be populated for old clients")
+	}
+}
+
+func TestAgodeskServerCapabilitiesGateRemoteShellCapabilities(t *testing.T) {
+	s := newAgodeskPairingTestServer(t)
+	s.Cfg.Agent.AllowRemoteShell = false
+	withoutShell := agodeskServerCapabilities(s)
+	for _, denied := range []string{"remote.shell.exec", "remote.shell.session"} {
+		if agodeskTestContainsString(withoutShell, denied) {
+			t.Fatalf("capabilities should not include %s when allow_remote_shell=false: %v", denied, withoutShell)
+		}
+	}
+
+	s.Cfg.Agent.AllowRemoteShell = true
+	withShell := agodeskServerCapabilities(s)
+	for _, want := range []string{"remote.shell.exec", "remote.shell.session"} {
+		if !agodeskTestContainsString(withShell, want) {
+			t.Fatalf("capabilities missing %s when allow_remote_shell=true: %v", want, withShell)
+		}
+	}
+}
+
+func TestAgodeskChatBrokerEmitsAgentActivityOnlyWithCapability(t *testing.T) {
+	state := &agodeskConnectionState{
+		sessionID:    "agodesk:dev-1",
+		paired:       true,
+		capabilities: normalizeAgodeskCapabilities([]string{"chat.agent_activity"}),
+	}
+	envs := readAgodeskBrokerTypedEventEnvelopes(t, state, agentActionEventForAgodeskActivity("started"))
+	if len(envs) != 1 {
+		t.Fatalf("activity envelope count = %d, want 1", len(envs))
+	}
+	if envs[0].Type != agodesk.TypeAgentActivity {
+		t.Fatalf("activity envelope type = %q, want %q", envs[0].Type, agodesk.TypeAgentActivity)
+	}
+	var payload agodesk.AgentActivityPayload
+	decodeAgodeskTestPayload(t, envs[0], &payload)
+	if payload.ActivityID != "act-1" || payload.ParentActivityID != "agent:req-1" || payload.SessionID != "agodesk:dev-1" || payload.ConversationID != "sess-1" || payload.RequestID != "req-1" {
+		t.Fatalf("activity identity = %+v", payload)
+	}
+	if payload.Kind != "shell" || payload.Phase != "started" || payload.Title != "remote_control_shell" || strings.Contains(payload.Summary, "secret-token") {
+		t.Fatalf("activity payload = %+v", payload)
+	}
+
+	withoutCapability := &agodeskConnectionState{
+		sessionID:    "agodesk:dev-1",
+		paired:       true,
+		capabilities: normalizeAgodeskCapabilities([]string{"chat.full_response"}),
+	}
+	envs = readAgodeskBrokerTypedEventEnvelopes(t, withoutCapability, agentActionEventForAgodeskActivity("started"))
+	if len(envs) != 0 {
+		t.Fatalf("unexpected activity envelopes without capability: %+v", envs)
+	}
+}
+
+func TestAgodeskChatBrokerMapsAgentActionStatesToActivityPhases(t *testing.T) {
+	state := &agodeskConnectionState{
+		sessionID:    "agodesk:dev-1",
+		paired:       true,
+		capabilities: normalizeAgodeskCapabilities([]string{"chat.agent_activity"}),
+	}
+	for actionState, wantPhase := range map[string]string{
+		string(agent.AgentActionStateAccepted):           "queued",
+		string(agent.AgentActionStateNeedsHumanApproval): "waiting_approval",
+		string(agent.AgentActionStateSucceeded):          "completed",
+		string(agent.AgentActionStateBlocked):            "failed",
+		string(agent.AgentActionStateCancelled):          "cancelled",
+	} {
+		envs := readAgodeskBrokerTypedEventEnvelopes(t, state, agentActionEventForAgodeskActivity(actionState))
+		if len(envs) != 1 {
+			t.Fatalf("%s envelope count = %d, want 1", actionState, len(envs))
+		}
+		var payload agodesk.AgentActivityPayload
+		decodeAgodeskTestPayload(t, envs[0], &payload)
+		if payload.Phase != wantPhase {
+			t.Fatalf("%s mapped to phase %q, want %q", actionState, payload.Phase, wantPhase)
+		}
 	}
 }
 
@@ -2540,6 +2618,69 @@ func TestAgodeskFileAccessLimitsApplyToFileCommands(t *testing.T) {
 		t.Fatalf("large write denied = %+v, want FILE_TOO_LARGE", denied)
 	}
 
+	patchState := &agodeskConnectionState{
+		fileAccess: normalizeAgodeskFileAccessPayload(&agodesk.FileAccessPayload{
+			Enabled:       true,
+			MaxReadBytes:  1024,
+			MaxWriteBytes: 128,
+			Roots: []agodesk.FileAccessRoot{
+				{RootID: "workspace", Permissions: []string{"read", "write"}},
+				{RootID: "readonly", Permissions: []string{"read"}},
+			},
+		}),
+	}
+
+	patch, denied := applyAgodeskFileAccessLimits(patchState, remote.CommandPayload{
+		CommandID: "patch-1",
+		Operation: remote.OpFilePatch,
+		Args: map[string]interface{}{
+			"path":            "notes.txt",
+			"root_id":         "workspace",
+			"expected_sha256": strings.Repeat("a", 64),
+			"patches": []interface{}{
+				map[string]interface{}{"old_text": "a", "new_text": "bb", "expected_occurrences": float64(1)},
+			},
+		},
+	})
+	if denied != nil {
+		t.Fatalf("file_patch denied: %+v", denied)
+	}
+	if got := patch.Args["max_bytes"]; got != int64(128) {
+		t.Fatalf("file_patch max_bytes = %#v, want 128", got)
+	}
+
+	_, denied = applyAgodeskFileAccessLimits(patchState, remote.CommandPayload{
+		CommandID: "patch-2",
+		Operation: remote.OpFilePatch,
+		Args: map[string]interface{}{
+			"path":            "notes.txt",
+			"root_id":         "readonly",
+			"expected_sha256": strings.Repeat("a", 64),
+			"patches": []interface{}{
+				map[string]interface{}{"old_text": "a", "new_text": "b", "expected_occurrences": float64(1)},
+			},
+		},
+	})
+	if denied == nil || denied.ErrorCode != "FILE_ACCESS_DENIED" {
+		t.Fatalf("readonly file_patch denied = %+v, want FILE_ACCESS_DENIED", denied)
+	}
+
+	_, denied = applyAgodeskFileAccessLimits(patchState, remote.CommandPayload{
+		CommandID: "patch-3",
+		Operation: remote.OpFilePatch,
+		Args: map[string]interface{}{
+			"path":            "notes.txt",
+			"root_id":         "workspace",
+			"expected_sha256": strings.Repeat("a", 64),
+			"patches": []interface{}{
+				map[string]interface{}{"old_text": "a", "new_text": strings.Repeat("x", 200), "expected_occurrences": float64(1)},
+			},
+		},
+	})
+	if denied == nil || denied.ErrorCode != "FILE_TOO_LARGE" {
+		t.Fatalf("large file_patch denied = %+v, want FILE_TOO_LARGE", denied)
+	}
+
 	disabledState := &agodeskConnectionState{fileAccess: &agodesk.FileAccessPayload{Enabled: false}}
 	_, denied = applyAgodeskFileAccessLimits(disabledState, remote.CommandPayload{CommandID: "list-1", Operation: remote.OpFileList, Args: map[string]interface{}{"path": "."}})
 	if denied == nil || denied.ErrorCode != "FILE_ACCESS_DISABLED" {
@@ -2606,6 +2747,23 @@ func TestAgodeskComputerUseDesktopResultAcceptsSuccessField(t *testing.T) {
 		}
 	case <-time.After(3 * time.Second):
 		t.Fatal("timed out waiting for routed desktop result")
+	}
+}
+
+func agentActionEventForAgodeskActivity(state string) agent.AgentActionEvent {
+	return agent.AgentActionEvent{
+		ID:            "act-1",
+		SessionID:     "sess-1",
+		TurnID:        "turn-1",
+		ToolName:      "remote_control_shell",
+		Operation:     "execute_command",
+		State:         state,
+		Status:        "running",
+		Summary:       "ran command with secret-token",
+		Result:        "Tool Output: redacted please",
+		Subject:       "",
+		MessageSource: "agodesk_chat",
+		CorrelationID: "agent_action:act-1",
 	}
 }
 
@@ -2987,6 +3145,52 @@ func readAgodeskBrokerEventEnvelopes(t *testing.T, state *agodeskConnectionState
 		}
 		for _, event := range events {
 			broker.Send(event.event, event.message)
+		}
+	}))
+	defer srv.Close()
+	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http")
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	if err != nil {
+		t.Fatalf("dial broker websocket: %v", err)
+	}
+	defer conn.Close()
+	select {
+	case <-ready:
+	case <-time.After(time.Second):
+		t.Fatal("broker websocket did not become ready")
+	}
+	var envs []agodesk.Envelope
+	for {
+		_ = conn.SetReadDeadline(time.Now().Add(200 * time.Millisecond))
+		var env agodesk.Envelope
+		if err := conn.ReadJSON(&env); err != nil {
+			return envs
+		}
+		envs = append(envs, env)
+	}
+}
+
+func readAgodeskBrokerTypedEventEnvelopes(t *testing.T, state *agodeskConnectionState, events ...agent.AgentActionEvent) []agodesk.Envelope {
+	t.Helper()
+	ready := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := agodeskUpgrader.Upgrade(w, r, nil)
+		if err != nil {
+			t.Errorf("upgrade broker websocket: %v", err)
+			return
+		}
+		defer conn.Close()
+		close(ready)
+		broker := &agodeskChatBroker{
+			conn:           conn,
+			state:          state,
+			sessionID:      "agodesk:dev-1",
+			conversationID: "sess-1",
+			requestID:      "req-1",
+			logger:         slog.Default(),
+		}
+		for _, event := range events {
+			_ = broker.SendTyped("agent_action", event)
 		}
 	}))
 	defer srv.Close()
