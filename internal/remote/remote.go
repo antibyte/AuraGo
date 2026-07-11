@@ -9,6 +9,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/pkg/sftp"
@@ -20,6 +21,49 @@ import (
 // Set at startup based on config (remote_control.ssh_insecure_host_key).
 // When false (default) AuraGo uses the user's known_hosts file if available.
 var InsecureHostKey bool
+
+// knownHostsCache caches the parsed known_hosts callback so every SSH
+// connection does not re-parse the file. The callback is refreshed every
+// 5 minutes to pick up newly added host keys.
+var knownHostsCache = struct {
+	mu        sync.RWMutex
+	path      string
+	callback  ssh.HostKeyCallback
+	expiresAt time.Time
+}{}
+
+const knownHostsCacheTTL = 5 * time.Minute
+
+func getKnownHostsCallback() (ssh.HostKeyCallback, error) {
+	knownHostsCache.mu.RLock()
+	if knownHostsCache.callback != nil && knownHostsCache.path != "" && time.Now().Before(knownHostsCache.expiresAt) {
+		cb := knownHostsCache.callback
+		knownHostsCache.mu.RUnlock()
+		return cb, nil
+	}
+	knownHostsCache.mu.RUnlock()
+
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return nil, fmt.Errorf("user home dir: %w", err)
+	}
+	knownHostsFile := filepath.Join(homeDir, ".ssh", "known_hosts")
+	if _, statErr := os.Stat(knownHostsFile); statErr != nil {
+		return nil, fmt.Errorf("known_hosts file not found at %s", knownHostsFile)
+	}
+
+	cb, err := knownhosts.New(knownHostsFile)
+	if err != nil {
+		return nil, fmt.Errorf("parse known_hosts: %w", err)
+	}
+
+	knownHostsCache.mu.Lock()
+	knownHostsCache.path = knownHostsFile
+	knownHostsCache.callback = cb
+	knownHostsCache.expiresAt = time.Now().Add(knownHostsCacheTTL)
+	knownHostsCache.mu.Unlock()
+	return cb, nil
+}
 
 // GetSSHConfig creates an ssh.ClientConfig from a username and a secret (password or private key).
 func GetSSHConfig(user string, secret []byte) (*ssh.ClientConfig, error) {
@@ -41,22 +85,13 @@ func GetSSHConfig(user string, secret []byte) (*ssh.ClientConfig, error) {
 	if InsecureHostKey {
 		hostKeyCallback = ssh.InsecureIgnoreHostKey() //nolint:gosec
 	} else {
-		usingKnownHosts := false
-		homeDir, err := os.UserHomeDir()
-		if err == nil {
-			knownHostsFile := filepath.Join(homeDir, ".ssh", "known_hosts")
-			if _, statErr := os.Stat(knownHostsFile); statErr == nil {
-				if cb, khErr := knownhosts.New(knownHostsFile); khErr == nil {
-					hostKeyCallback = cb
-					usingKnownHosts = true
-				}
-			}
+		cb, err := getKnownHostsCallback()
+		if err != nil {
+			return nil, fmt.Errorf("SSH host key verification failed: %w. "+
+				"Add the host key with 'ssh-keyscan <host> >> ~/.ssh/known_hosts' or enable "+
+				"'ssh.insecure_host_key: true' in config to disable host verification (not recommended)", err)
 		}
-		if !usingKnownHosts {
-			return nil, fmt.Errorf("SSH host key verification failed: no known_hosts file found at ~/.ssh/known_hosts. " +
-				"Add the host key with 'ssh-keyscan <host> >> ~/.ssh/known_hosts' or enable " +
-				"'ssh.insecure_host_key: true' in config to disable host verification (not recommended)")
-		}
+		hostKeyCallback = cb
 	}
 
 	return &ssh.ClientConfig{

@@ -1,7 +1,6 @@
 package tools
 
 import (
-	"bytes"
 	"fmt"
 	"log/slog"
 	"os"
@@ -42,7 +41,6 @@ const (
 type ProcessInfo struct {
 	PID          int
 	Process      *os.Process
-	Output       *bytes.Buffer
 	StartedAt    time.Time
 	Alive        bool
 	State        ProcessState // Current lifecycle state
@@ -50,7 +48,10 @@ type ProcessInfo struct {
 	TerminatedAt time.Time    // When the process ended
 	TimedOut     bool         // Whether process was killed due to timeout
 	ErrorReason  string       // Error description (if process crashed or was killed)
-	mu           sync.Mutex   // Protects Output writes and state fields
+	mu           sync.Mutex   // Protects output ring and state fields
+	outputRing   []byte       // fixed-size ring buffer for stdout/stderr
+	ringStart    int          // logical start index inside outputRing
+	ringLen      int          // number of bytes currently stored
 }
 
 // String returns a human-readable representation of the process state.
@@ -74,25 +75,59 @@ func (s ProcessState) String() string {
 }
 
 // Write implements io.Writer so ProcessInfo can be used as cmd.Stdout/Stderr.
-// Drops data silently once the buffer exceeds maxOutputSize to prevent OOM.
+// It stores output in a fixed-size ring buffer; once the buffer is full the
+// oldest bytes are overwritten by the newest data. This avoids repeated large
+// allocations and keeps memory bounded.
 func (p *ProcessInfo) Write(data []byte) (int, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	if p.Output.Len()+len(data) > maxOutputSize {
-		// Discard oldest half to make room, keeping the tail
-		b := p.Output.Bytes()
-		half := len(b) / 2
-		p.Output.Reset()
-		p.Output.Write(b[half:])
+
+	if len(data) > maxOutputSize {
+		// A single write larger than the buffer: keep only the tail.
+		data = data[len(data)-maxOutputSize:]
 	}
-	return p.Output.Write(data)
+	if p.outputRing == nil {
+		p.outputRing = make([]byte, maxOutputSize)
+	}
+
+	// If necessary, discard oldest data to make room.
+	if free := maxOutputSize - p.ringLen; len(data) > free {
+		discard := len(data) - free
+		p.ringStart = (p.ringStart + discard) % maxOutputSize
+		p.ringLen -= discard
+	}
+
+	for i, b := range data {
+		pos := (p.ringStart + p.ringLen + i) % maxOutputSize
+		p.outputRing[pos] = b
+	}
+	p.ringLen += len(data)
+	return len(data), nil
 }
 
 // ReadOutput returns the current contents of the output buffer.
 func (p *ProcessInfo) ReadOutput() string {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	return p.Output.String()
+	if p.ringLen == 0 {
+		return ""
+	}
+	out := make([]byte, p.ringLen)
+	if p.ringStart+p.ringLen <= maxOutputSize {
+		copy(out, p.outputRing[p.ringStart:p.ringStart+p.ringLen])
+	} else {
+		tail := maxOutputSize - p.ringStart
+		copy(out, p.outputRing[p.ringStart:])
+		copy(out[tail:], p.outputRing[:p.ringLen-tail])
+	}
+	return string(out)
+}
+
+// OutputLen returns the number of bytes currently stored in the output ring.
+func (p *ProcessInfo) OutputLen() int {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.ringLen
 }
 
 // WriteSystemMessage writes a system/supervisor message to the output buffer.

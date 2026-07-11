@@ -289,6 +289,18 @@ func Start(opts StartOptions) error {
 	shutdownCh := opts.ShutdownCh
 	installDir := opts.InstallDir
 
+	// Central server context: cancelled when shutdown is requested.
+	serverCtx, serverCancel := context.WithCancel(context.Background())
+	go func() {
+		<-shutdownCh
+		serverCancel()
+	}()
+
+	// Limit concurrent internal loopback callbacks fired by background services
+	// (firewall guard, Fritz!Box poller, etc.) to avoid thundering-herd LLM runs.
+	const loopbackCallbackConcurrency = 4
+	loopbackSem := make(chan struct{}, loopbackCallbackConcurrency)
+
 	startLoginRecordCleaner(shutdownCh)
 	s := newServerFromOptions(opts)
 	startHomepageLedgerReconciler(shutdownCh, s)
@@ -298,7 +310,7 @@ func Start(opts StartOptions) error {
 			logger.Warn("Failed to initialize workspace search service", "error", err)
 		} else {
 			s.WorkspaceSearch = workspaceSearch
-			if err := s.WorkspaceSearch.Start(context.Background()); err != nil {
+			if err := s.WorkspaceSearch.Start(serverCtx); err != nil {
 				logger.Warn("Failed to start workspace search service", "error", err)
 			} else {
 				tools.SetFileAccessTracker(func(workspaceDir, path, kind string) {
@@ -378,7 +390,7 @@ func Start(opts StartOptions) error {
 	s.restartUptimeKumaPoller()
 
 	// Initialize Skill Manager and Agent Skills (classic manager gated by config)
-	s.initSkillManagers(context.Background(), installDir)
+	s.initSkillManagers(serverCtx, installDir)
 
 	// Initialize Remote Control Hub
 	remote.InsecureHostKey = cfg.RemoteControl.SSHInsecureHostKey
@@ -593,7 +605,7 @@ func Start(opts StartOptions) error {
 			headers.Set("X-Internal-Token", s.internalToken)
 			headers.Set("X-Mission-ID", missionID)
 			client := NewInternalHTTPClient(35 * time.Minute) // Must exceed the 30-minute agent loop timeout
-			resp, err := DoInternalRequestWithStartupRetry(context.Background(), client, http.MethodPost, url, body, headers, 15*time.Second)
+			resp, err := DoInternalRequestWithStartupRetry(serverCtx, client, http.MethodPost, url, body, headers, 15*time.Second)
 			if err != nil {
 				logger.Error("[MissionV2] Execution failed", "error", err, "mission_id", missionID)
 				setMissionError("", err.Error())
@@ -690,7 +702,7 @@ func Start(opts StartOptions) error {
 				cfg, &s.CfgMu, prepDB, s.MissionManagerV2, logger,
 			)
 			s.PreparationService.SetAvailableTools(agent.ToolSummariesFromConfig(cfg))
-			s.PreparationService.Start(context.Background())
+			s.PreparationService.Start(serverCtx)
 			logger.Info("Mission preparation service initialized")
 		}
 	}
@@ -749,7 +761,7 @@ func Start(opts StartOptions) error {
 			AccessToken: cfg.HomeAssistant.AccessToken,
 		}
 		// Context from server could be passed, but Background is safe for background daemon
-		go tools.StartHomeAssistantPoller(context.Background(), haCfg, s.MissionManagerV2, logger)
+		go tools.StartHomeAssistantPoller(serverCtx, haCfg, s.MissionManagerV2, logger)
 	}
 
 	// Initialize Notes schema in SQLite (idempotent: CREATE TABLE IF NOT EXISTS)
@@ -776,7 +788,7 @@ func Start(opts StartOptions) error {
 	if cfg.Indexing.Enabled {
 		s.FileIndexer = services.NewFileIndexer(cfg, &s.CfgMu, longTermMem, shortTermMem, logger)
 		s.attachFileKGSyncer()
-		s.FileIndexer.Start(context.Background())
+		s.FileIndexer.Start(serverCtx)
 		logger.Info("File indexer started", "directories", cfg.Indexing.Directories)
 	}
 
@@ -786,8 +798,13 @@ func Start(opts StartOptions) error {
 		if cfg.Agent.SudoEnabled {
 			firewallSudoPass, _ = vault.ReadSecret("sudo_password")
 		}
-		go tools.StartFirewallGuard(context.Background(), cfg, logger, firewallSudoPass, func(prompt string) {
+		go tools.StartFirewallGuard(serverCtx, cfg, logger, firewallSudoPass, func(prompt string) {
 			go func() {
+				if err := acquireLoopbackSem(serverCtx, loopbackSem); err != nil {
+					return
+				}
+				defer releaseLoopbackSem(loopbackSem)
+
 				url := InternalAPIURL(cfg) + "/v1/chat/completions"
 				payload := map[string]interface{}{
 					"model":  "aurago",
@@ -943,6 +960,11 @@ func Start(opts StartOptions) error {
 			// Fire mission triggers for Fritz!Box events
 			s.MissionManagerV2.NotifyFritzBoxEvent(kind, summary)
 			go func() {
+				if err := acquireLoopbackSem(serverCtx, loopbackSem); err != nil {
+					return
+				}
+				defer releaseLoopbackSem(loopbackSem)
+
 				url := InternalAPIURL(cfg) + "/v1/chat/completions"
 				prompt := fmt.Sprintf("[FRITZ!BOX EVENT: %s] %s", kind, summary)
 				payload := map[string]interface{}{
@@ -979,12 +1001,6 @@ func Start(opts StartOptions) error {
 
 	// Initialize A2A Protocol support
 	if cfg.A2A.Server.Enabled || cfg.A2A.Client.Enabled {
-		serverCtx, serverCancel := context.WithCancel(context.Background())
-		go func() {
-			<-shutdownCh
-			serverCancel()
-		}()
-
 		if cfg.A2A.Server.Enabled {
 			a2aDeps := &a2apkg.ExecutorDeps{
 				Config:       cfg,
@@ -1041,6 +1057,19 @@ func Start(opts StartOptions) error {
 	}
 
 	return s.run(shutdownCh)
+}
+
+func acquireLoopbackSem(ctx context.Context, sem chan struct{}) error {
+	select {
+	case sem <- struct{}{}:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func releaseLoopbackSem(sem chan struct{}) {
+	<-sem
 }
 
 func newServerFromOptions(opts StartOptions) *Server {

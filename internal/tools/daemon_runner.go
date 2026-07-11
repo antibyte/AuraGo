@@ -2,7 +2,6 @@ package tools
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -259,7 +258,6 @@ func (r *DaemonRunner) startLocked() error {
 	procInfo := &ProcessInfo{
 		PID:       pid,
 		Process:   cmd.Process,
-		Output:    &bytes.Buffer{},
 		StartedAt: r.startedAt,
 		Alive:     true,
 	}
