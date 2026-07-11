@@ -161,6 +161,36 @@ func TestAgentActionLedgerRecordsLifecycleInAudit(t *testing.T) {
 	}
 }
 
+func TestAgentActionSubjectOnlyLabelsSkills(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	ledger := newAgentActionLedger(nil, logger, NoopBroker{}, "sess-1", "web_chat")
+
+	skillAction, err := ledger.ProposeTool("turn-skill", ToolCall{
+		Action: "activate_agent_skill",
+		Skill:  "review-helper",
+	})
+	if err != nil {
+		t.Fatalf("ProposeTool skill: %v", err)
+	}
+	if skillAction.Subject != "review-helper" {
+		t.Fatalf("skill subject = %q, want review-helper", skillAction.Subject)
+	}
+
+	fileAction, err := ledger.ProposeTool("turn-file", ToolCall{
+		Action: "remote_control_files",
+		Path:   `C:\Users\Andi\Documents\private.txt`,
+		Params: map[string]interface{}{
+			"path": `C:\Users\Andi\Documents\private.txt`,
+		},
+	})
+	if err != nil {
+		t.Fatalf("ProposeTool file: %v", err)
+	}
+	if fileAction.Subject != "" {
+		t.Fatalf("non-skill subject = %q, want empty", fileAction.Subject)
+	}
+}
+
 func TestAgentActionLedgerUsesTypedBrokerWhenAvailable(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	stm, err := memory.NewSQLiteMemory(":memory:", logger)

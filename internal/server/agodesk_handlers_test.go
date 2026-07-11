@@ -2027,6 +2027,38 @@ func TestAgodeskChatBrokerEmitsAgentActivityOnlyWithCapability(t *testing.T) {
 	}
 }
 
+func TestAgodeskChatBrokerSendTypedFallsBackToJSONWhenTypedBrokerDeclines(t *testing.T) {
+	feedback := &agodeskDecliningTypedCaptureBroker{}
+	broker := &agodeskChatBroker{
+		state:          &agodeskConnectionState{capabilities: normalizeAgodeskCapabilities([]string{"chat.full_response"})},
+		sessionID:      "agodesk:dev-1",
+		conversationID: "sess-1",
+		requestID:      "req-1",
+		logger:         slog.Default(),
+		FeedbackBroker: feedback,
+	}
+
+	if !broker.SendTyped("agent_action", agentActionEventForAgodeskActivity("started")) {
+		t.Fatal("SendTyped returned false")
+	}
+	if len(feedback.typedEvents) != 1 {
+		t.Fatalf("typed events = %d, want 1", len(feedback.typedEvents))
+	}
+	if len(feedback.jsonMessages) != 1 {
+		t.Fatalf("json fallback events = %d, want 1", len(feedback.jsonMessages))
+	}
+	var wire struct {
+		Type    string                 `json:"type"`
+		Payload agent.AgentActionEvent `json:"payload"`
+	}
+	if err := json.Unmarshal([]byte(feedback.jsonMessages[0]), &wire); err != nil {
+		t.Fatalf("unmarshal json fallback: %v", err)
+	}
+	if wire.Type != "agent_action" || wire.Payload.ID != "act-1" {
+		t.Fatalf("json fallback payload = %+v", wire)
+	}
+}
+
 func TestAgodeskChatBrokerMapsAgentActionStatesToActivityPhases(t *testing.T) {
 	state := &agodeskConnectionState{
 		sessionID:    "agodesk:dev-1",
@@ -3244,6 +3276,32 @@ func (b *agodeskForwardCaptureBroker) SendTokenUpdate(int, int, int, int, int, b
 func (b *agodeskForwardCaptureBroker) SendThinkingBlock(string, string, string) {}
 
 func (b *agodeskForwardCaptureBroker) Scrub(s string) string { return s }
+
+type agodeskDecliningTypedCaptureBroker struct {
+	jsonMessages []string
+	typedEvents  []string
+}
+
+func (b *agodeskDecliningTypedCaptureBroker) Send(event, message string) {}
+
+func (b *agodeskDecliningTypedCaptureBroker) SendJSON(jsonStr string) {
+	b.jsonMessages = append(b.jsonMessages, jsonStr)
+}
+
+func (b *agodeskDecliningTypedCaptureBroker) SendLLMStreamDelta(string, string, string, int, string) {
+}
+
+func (b *agodeskDecliningTypedCaptureBroker) SendLLMStreamDone(string) {}
+
+func (b *agodeskDecliningTypedCaptureBroker) SendTokenUpdate(int, int, int, int, int, bool, bool, string) {
+}
+
+func (b *agodeskDecliningTypedCaptureBroker) SendThinkingBlock(string, string, string) {}
+
+func (b *agodeskDecliningTypedCaptureBroker) SendTyped(eventType string, payload interface{}) bool {
+	b.typedEvents = append(b.typedEvents, eventType)
+	return false
+}
 
 func readAgodeskTestEnvelope(t *testing.T, conn *websocket.Conn) agodesk.Envelope {
 	t.Helper()

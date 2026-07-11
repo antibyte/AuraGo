@@ -134,19 +134,13 @@ func (l *agentActionLedger) ProposeTool(turnID string, tc ToolCall) (AgentAction
 }
 
 func agentActionSubject(tc ToolCall) string {
-	switch strings.TrimSpace(tc.Action) {
-	case "activate_agent_skill", "agent_skills", "skill_manager":
-		return strings.TrimSpace(firstNonEmpty(
-			tc.Name,
-			tc.Skill,
-			toolArgString(tc.Params, "name", "skill", "skill_name", "skill_id"),
-		))
+	if strings.TrimSpace(tc.Action) != "activate_agent_skill" {
+		return ""
 	}
 	return strings.TrimSpace(firstNonEmpty(
 		tc.Name,
-		tc.Path,
-		tc.FilePath,
-		toolArgString(tc.Params, "name", "path", "file_path"),
+		tc.Skill,
+		toolArgString(tc.Params, "name", "skill", "skill_name", "skill_id"),
 	))
 }
 

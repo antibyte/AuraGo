@@ -1557,15 +1557,18 @@ func (b *agodeskChatBroker) SendTyped(eventType string, payload interface{}) boo
 	if b != nil && b.FeedbackBroker != nil {
 		if typed, ok := b.FeedbackBroker.(agent.TypedFeedbackBroker); ok {
 			forwarded = typed.SendTyped(eventType, payload)
-		} else if raw, err := json.Marshal(struct {
-			Type    string      `json:"type"`
-			Payload interface{} `json:"payload"`
-		}{
-			Type:    eventType,
-			Payload: payload,
-		}); err == nil {
-			b.FeedbackBroker.SendJSON(string(raw))
-			forwarded = true
+		}
+		if !forwarded {
+			if raw, err := json.Marshal(struct {
+				Type    string      `json:"type"`
+				Payload interface{} `json:"payload"`
+			}{
+				Type:    eventType,
+				Payload: payload,
+			}); err == nil {
+				b.FeedbackBroker.SendJSON(string(raw))
+				forwarded = true
+			}
 		}
 	}
 	if eventType != "agent_action" {
