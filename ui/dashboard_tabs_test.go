@@ -70,3 +70,21 @@ func TestDashboardUserPanelSpacingAndJournalContrast(t *testing.T) {
 		t.Fatal("dashboard profile hover must not shift text toward the card edge")
 	}
 }
+
+func TestDashboardMissionHistoryContrast(t *testing.T) {
+	t.Parallel()
+
+	css := readDesktopAssetText(t, "css/dashboard.css")
+	for _, marker := range []string{
+		".mh-table th {\n    color: color-mix(in srgb, var(--pw-text) 72%, var(--pw-muted) 28%);",
+		".mh-table td {\n    color: color-mix(in srgb, var(--pw-text) 82%, var(--pw-muted) 18%);",
+		".mh-table td:first-child {\n    color: var(--pw-text);",
+		".mh-status-success {\n    color: color-mix(in srgb, var(--success) 84%, white 16%);",
+		".mh-trigger {\n    font-size: 0.75rem;",
+		"color: color-mix(in srgb, var(--pw-text) 76%, var(--pw-muted) 24%);",
+	} {
+		if !strings.Contains(css, marker) {
+			t.Fatalf("dashboard mission history contrast CSS missing marker %q", marker)
+		}
+	}
+}

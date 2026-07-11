@@ -783,6 +783,16 @@
             };
         }
 
+        function knowledgeGraphVisualSize(wrap) {
+            const rect = wrap.getBoundingClientRect ? wrap.getBoundingClientRect() : { width: 0 };
+            const style = window.getComputedStyle ? window.getComputedStyle(wrap) : null;
+            const cssHeight = style ? parseFloat(style.height) : 0;
+            return {
+                width: Math.max(320, Math.floor(rect.width || wrap.clientWidth || 720)),
+                height: Math.max(260, Math.floor(cssHeight || 360)),
+            };
+        }
+
         function renderKnowledgeGraphVisual() {
             const wrap = document.getElementById('knowledge-graph-visual');
             const mode = document.getElementById('knowledge-graph-mode');
@@ -832,9 +842,8 @@
                 if (typeof ResizeObserver === 'function') {
                     const ro = new ResizeObserver(() => {
                         if (wrap._forceGraph && typeof wrap._forceGraph.width === 'function') {
-                            const w = wrap.clientWidth || 720;
-                            const h = wrap.clientHeight || 360;
-                            wrap._forceGraph.width(w).height(h);
+                            const size = knowledgeGraphVisualSize(wrap);
+                            wrap._forceGraph.width(size.width).height(size.height);
                         }
                     });
                     ro.observe(wrap);
@@ -842,9 +851,10 @@
                 }
             }
 
+            const graphSize = knowledgeGraphVisualSize(wrap);
             wrap._forceGraph
-                .width(wrap.clientWidth || 720)
-                .height(wrap.clientHeight || 360)
+                .width(graphSize.width)
+                .height(graphSize.height)
                 .backgroundColor('transparent')
                 .graphData({
                     nodes: model.nodes.map(n => {

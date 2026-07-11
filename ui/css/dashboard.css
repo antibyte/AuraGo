@@ -3728,9 +3728,17 @@
 
 .pw-page[data-workspace-page="dashboard"] .knowledge-visual-wrap {
     padding: 0.75rem;
-    overflow: auto;
+    overflow: hidden;
     transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    box-sizing: border-box;
+    height: clamp(360px, 42vh, 460px);
     min-height: 360px;
+    max-height: 460px;
+}
+
+.pw-page[data-workspace-page="dashboard"] .knowledge-visual-wrap canvas {
+    display: block;
+    max-width: 100%;
 }
 
 .pw-page[data-workspace-page="dashboard"] .knowledge-visual-wrap:hover {
@@ -4445,9 +4453,9 @@
     font-size: 0.75rem;
     padding: 0.12rem 0.45rem;
     border-radius: 6px;
-    background: var(--pw-surface);
-    color: var(--pw-muted);
-    border: 1px solid var(--pw-line);
+    background: color-mix(in srgb, var(--pw-surface-elevated) 82%, var(--pw-accent) 18%);
+    color: color-mix(in srgb, var(--pw-text) 76%, var(--pw-muted) 24%);
+    border: 1px solid color-mix(in srgb, var(--pw-line) 76%, var(--pw-accent) 24%);
 }
 
 .pw-page[data-workspace-page="dashboard"] .mh-more-btn {
@@ -5209,6 +5217,27 @@
     width: 100%;
     border-collapse: collapse;
     color: var(--pw-text);
+}
+
+.pw-page[data-workspace-page="dashboard"] .mh-table th {
+    color: color-mix(in srgb, var(--pw-text) 72%, var(--pw-muted) 28%);
+    font-weight: 700;
+}
+
+.pw-page[data-workspace-page="dashboard"] .mh-table td {
+    color: color-mix(in srgb, var(--pw-text) 82%, var(--pw-muted) 18%);
+    background: color-mix(in srgb, var(--pw-surface-elevated) 82%, var(--pw-surface) 18%);
+}
+
+.pw-page[data-workspace-page="dashboard"] .mh-table td:first-child {
+    color: var(--pw-text);
+    font-weight: 620;
+}
+
+.pw-page[data-workspace-page="dashboard"] .mh-status-success {
+    color: color-mix(in srgb, var(--success) 84%, white 16%);
+    background: color-mix(in srgb, var(--success) 20%, transparent);
+    border-color: color-mix(in srgb, var(--success) 38%, transparent);
 }
 
 .pw-page[data-workspace-page="dashboard"]:where(:root[data-theme="light"] *) .audit-table td, .pw-page[data-workspace-page="dashboard"]:where(:root[data-theme="light"] *) .cronjobs-table td, .pw-page[data-workspace-page="dashboard"]:where(:root[data-theme="light"] *) .mh-table td {

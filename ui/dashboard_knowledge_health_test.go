@@ -59,3 +59,35 @@ func TestDashboardKnowledgeGraphHealthContract(t *testing.T) {
 		t.Fatal("dashboard CSS missing .knowledge-health-status")
 	}
 }
+
+func TestDashboardKnowledgeGraphVisualUsesBoundedCanvasSize(t *testing.T) {
+	t.Parallel()
+
+	widgetsJS := readDesktopAssetText(t, "js/dashboard/widgets-knowledge.js")
+	css := readDesktopAssetText(t, "css/dashboard.css")
+
+	for _, marker := range []string{
+		"function knowledgeGraphVisualSize(wrap)",
+		"parseFloat(style.height)",
+		"wrap._forceGraph.width(size.width).height(size.height)",
+		"wrap._forceGraph\n                .width(graphSize.width)\n                .height(graphSize.height)",
+	} {
+		if !strings.Contains(widgetsJS, marker) {
+			t.Fatalf("dashboard knowledge graph visual sizing missing JS marker %q", marker)
+		}
+	}
+	if strings.Contains(widgetsJS, "wrap.clientHeight || 360") {
+		t.Fatal("dashboard knowledge graph visual must not size itself from content-driven clientHeight")
+	}
+	for _, marker := range []string{
+		"height: clamp(360px, 42vh, 460px);",
+		"min-height: 360px;",
+		"max-height: 460px;",
+		"overflow: hidden;",
+		".knowledge-visual-wrap canvas",
+	} {
+		if !strings.Contains(css, marker) {
+			t.Fatalf("dashboard knowledge graph visual sizing missing CSS marker %q", marker)
+		}
+	}
+}
