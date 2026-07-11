@@ -3,9 +3,12 @@ package ui
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 )
+
+var nasscadExternalScriptTagPattern = regexp.MustCompile(`(?is)<script\b[^>]*\bsrc=["'][^"']+["'][^>]*>\s*</script>`)
 
 func TestNasscadDesktopAppAssets(t *testing.T) {
 	t.Parallel()
@@ -60,20 +63,17 @@ func TestNasscadDesktopAppAssets(t *testing.T) {
 	}
 
 	bundledDir := filepath.Join("..", "internal", "desktop", "bundled_apps", "nasscad")
-	for _, name := range []string{"index.html", "three.js", "nasscad_logs.js", "manifold.js"} {
-		bundled, err := os.ReadFile(filepath.Join(bundledDir, name))
-		if err != nil {
-			t.Fatalf("read bundled nasscad asset %s: %v", name, err)
-		}
-		if len(bundled) == 0 {
-			t.Fatalf("bundled nasscad asset %s is empty", name)
-		}
-	}
 	bundledHTML, err := os.ReadFile(filepath.Join(bundledDir, "index.html"))
 	if err != nil {
 		t.Fatalf("read bundled nasscad html: %v", err)
 	}
-	if len(bundledHTML) < 100000 {
+	if len(bundledHTML) < 20*1024*1024 {
 		t.Fatalf("bundled nasscad html looks too small: %d bytes", len(bundledHTML))
+	}
+	if !strings.Contains(string(bundledHTML[:2048]), "NASSCAD V4.3.0") {
+		t.Fatal("bundled nasscad AIO should identify itself as NASSCAD V4.3.0")
+	}
+	if nasscadExternalScriptTagPattern.Match(bundledHTML) {
+		t.Fatal("bundled nasscad AIO must not depend on sibling script files")
 	}
 }
