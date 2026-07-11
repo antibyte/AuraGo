@@ -1950,7 +1950,6 @@ window.AuraDiff = (function () {
             var key = String(keyFn(item));
             newKeys.add(key);
             var el = oldMap.get(key);
-            var needsUpdate = false;
             if (!el) {
                 el = renderFn(item);
                 if (el) el.dataset.diffKey = key;
