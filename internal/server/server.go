@@ -78,6 +78,12 @@ func getI18NJSON(lang string) string {
 	return i18n.GetJSON(lang)
 }
 
+// getI18NJSONForSections returns a JSON object with only the requested i18n
+// sections (plus common) for the given language.
+func getI18NJSONForSections(lang string, sections ...string) string {
+	return i18n.GetJSONForSection(lang, sections...)
+}
+
 // getI18NMetaJSON returns the _meta section JSON for config_help metadata.
 // Deprecated: Use i18n.GetMetaJSON instead. This wrapper exists for backward compatibility.
 func getI18NMetaJSON() string {

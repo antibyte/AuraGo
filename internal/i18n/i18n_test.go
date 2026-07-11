@@ -325,3 +325,50 @@ func TestTWithInterpolation(t *testing.T) {
 		})
 	}
 }
+
+
+// TestGetJSONForSection verifies that per-section translation delivery only
+// returns the requested sections plus the common section.
+func TestGetJSONForSection(t *testing.T) {
+	store := &Store{
+		langData: map[string]map[string]string{
+			"en": {
+				"common.ok":     "OK",
+				"common.cancel": "Cancel",
+				"chat.send":     "Send",
+				"chat.title":    "Chat",
+				"config.save":   "Save",
+			},
+		},
+		langJSON: map[string]string{
+			"en": `{"common.ok":"OK","common.cancel":"Cancel","chat.send":"Send","chat.title":"Chat","config.save":"Save"}`,
+		},
+	}
+	// Build section cache manually to match load() behavior.
+	store.langSectionJSON = map[string]string{
+		"en:common": `{"common.ok":"OK","common.cancel":"Cancel"}`,
+		"en:chat":   `{"chat.send":"Send","chat.title":"Chat"}`,
+		"en:config": `{"config.save":"Save"}`,
+	}
+
+	got := store.GetJSONForSection("en", "chat")
+	var parsed map[string]string
+	if err := json.Unmarshal([]byte(got), &parsed); err != nil {
+		t.Fatalf("failed to unmarshal section JSON: %v", err)
+	}
+	if _, ok := parsed["common.ok"]; !ok {
+		t.Errorf("expected common section to be included")
+	}
+	if _, ok := parsed["chat.send"]; !ok {
+		t.Errorf("expected chat section to be included")
+	}
+	if _, ok := parsed["config.save"]; ok {
+		t.Errorf("config section should not be included when only chat is requested")
+	}
+
+	// Empty sections falls back to full blob.
+	full := store.GetJSONForSection("en")
+	if full != store.langJSON["en"] {
+		t.Errorf("empty sections should return full JSON")
+	}
+}

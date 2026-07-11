@@ -61,21 +61,23 @@ func chromecastMediaServerBindHost(host string) string {
 }
 
 // uiTemplateData returns the common template data map shared by all HTML pages.
-func uiTemplateData(lang string) map[string]interface{} {
+// Pass the i18n sections the page needs; if none are passed the full language
+// blob is included for backward compatibility.
+func uiTemplateData(lang string, sections ...string) map[string]interface{} {
 	data := map[string]interface{}{
 		"Lang":         lang,
 		"BuildVersion": uiBuildVersion,
 	}
-	setTemplateDataJSON(data, nil)
+	setTemplateDataJSON(data, nil, sections...)
 	return data
 }
 
-func setTemplateDataJSON(data map[string]interface{}, extra map[string]any) {
+func setTemplateDataJSON(data map[string]interface{}, extra map[string]any, sections ...string) {
 	lang, _ := data["Lang"].(string)
 	payload := map[string]any{
 		"systemLang":   lang,
 		"buildVersion": uiBuildVersion,
-		"i18n":         json.RawMessage(getI18NJSON(lang)),
+		"i18n":         json.RawMessage(getI18NJSONForSections(lang, sections...)),
 	}
 	for key, value := range extra {
 		payload[key] = value
@@ -624,7 +626,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 				return
 			}
 			lang := normalizeLang(s.Cfg.Server.UILanguage)
-			data := uiTemplateData(lang)
+			data := uiTemplateData(lang, "config")
 			setTemplateDataJSON(data, map[string]any{
 				"i18nMeta": json.RawMessage(getI18NMetaJSON()),
 			})
@@ -656,7 +658,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 				return
 			}
 			lang := normalizeLang(s.Cfg.Server.UILanguage)
-			data := uiTemplateData(lang)
+			data := uiTemplateData(lang, "dashboard")
 			if err := dashTmpl.Execute(w, data); err != nil {
 				s.Logger.Error("Failed to execute dashboard template", "error", err)
 				http.Error(w, "Template render error", http.StatusInternalServerError)
@@ -674,7 +676,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 				return
 			}
 			lang := normalizeLang(s.Cfg.Server.UILanguage)
-			data := uiTemplateData(lang)
+			data := uiTemplateData(lang, "desktop")
 			if err := desktopTmpl.Execute(w, data); err != nil {
 				s.Logger.Error("Failed to execute desktop template", "error", err)
 				http.Error(w, "Template render error", http.StatusInternalServerError)
@@ -692,7 +694,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 				return
 			}
 			lang := normalizeLang(s.Cfg.Server.UILanguage)
-			data := uiTemplateData(lang)
+			data := uiTemplateData(lang, "plans")
 			if err := plansTmpl.Execute(w, data); err != nil {
 				s.Logger.Error("Failed to execute plans template", "error", err)
 				http.Error(w, "Template render error", http.StatusInternalServerError)
@@ -717,7 +719,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 				return
 			}
 			lang := normalizeLang(s.Cfg.Server.UILanguage)
-			data := uiTemplateData(lang)
+			data := uiTemplateData(lang, "missions")
 			if err := missionV2Tmpl.Execute(w, data); err != nil {
 				s.Logger.Error("Failed to execute mission V2 template", "error", err)
 				http.Error(w, "Template render error", http.StatusInternalServerError)
@@ -736,7 +738,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 				return
 			}
 			lang := normalizeLang(s.Cfg.Server.UILanguage)
-			data := uiTemplateData(lang)
+			data := uiTemplateData(lang, "cheatsheets")
 			if err := cheatsheetTmpl.Execute(w, data); err != nil {
 				s.Logger.Error("Failed to execute cheatsheet template", "error", err)
 				http.Error(w, "Template render error", http.StatusInternalServerError)
@@ -755,7 +757,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 				return
 			}
 			lang := normalizeLang(s.Cfg.Server.UILanguage)
-			data := uiTemplateData(lang)
+			data := uiTemplateData(lang, "media")
 			if err := mediaTmpl.Execute(w, data); err != nil {
 				s.Logger.Error("Failed to execute media template", "error", err)
 				http.Error(w, "Template render error", http.StatusInternalServerError)
@@ -779,7 +781,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 				return
 			}
 			lang := normalizeLang(s.Cfg.Server.UILanguage)
-			data := uiTemplateData(lang)
+			data := uiTemplateData(lang, "knowledge")
 			if err := knowledgeTmpl.Execute(w, data); err != nil {
 				s.Logger.Error("Failed to execute knowledge template", "error", err)
 				http.Error(w, "Template render error", http.StatusInternalServerError)
@@ -798,7 +800,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 				return
 			}
 			lang := normalizeLang(s.Cfg.Server.UILanguage)
-			data := uiTemplateData(lang)
+			data := uiTemplateData(lang, "containers")
 			if err := containersTmpl.Execute(w, data); err != nil {
 				s.Logger.Error("Failed to execute containers template", "error", err)
 				http.Error(w, "Template render error", http.StatusInternalServerError)
@@ -817,7 +819,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 				return
 			}
 			lang := normalizeLang(s.Cfg.Server.UILanguage)
-			data := uiTemplateData(lang)
+			data := uiTemplateData(lang, "truenas")
 			if err := truenasTmpl.Execute(w, data); err != nil {
 				s.Logger.Error("Failed to execute TrueNAS template", "error", err)
 				http.Error(w, "Template render error", http.StatusInternalServerError)
@@ -836,7 +838,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 				return
 			}
 			lang := normalizeLang(s.Cfg.Server.UILanguage)
-			data := uiTemplateData(lang)
+			data := uiTemplateData(lang, "skills")
 			if err := skillsTmpl.Execute(w, data); err != nil {
 				s.Logger.Error("Failed to execute Skills template", "error", err)
 				http.Error(w, "Template render error", http.StatusInternalServerError)
@@ -856,7 +858,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 			return
 		}
 		lang := normalizeLang(s.Cfg.Server.UILanguage)
-		data := uiTemplateData(lang)
+		data := uiTemplateData(lang, "invasion")
 		if err := invasionTmpl.Execute(w, data); err != nil {
 			s.Logger.Error("Failed to execute invasion control template", "error", err)
 			http.Error(w, "Template render error", http.StatusInternalServerError)
@@ -875,7 +877,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 			return
 		}
 		lang := normalizeLang(s.Cfg.Server.UILanguage)
-		data := uiTemplateData(lang)
+		data := uiTemplateData(lang, "setup")
 		if err := setupTmpl.Execute(w, data); err != nil {
 			s.Logger.Error("Failed to execute setup template", "error", err)
 			http.Error(w, "Template render error", http.StatusInternalServerError)
@@ -916,7 +918,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 
 			if tmpl != nil {
 				lang := normalizeLang(s.Cfg.Server.UILanguage)
-				data := uiTemplateData(lang)
+				data := uiTemplateData(lang, "chat")
 				setTemplateDataJSON(data, map[string]any{
 					"showToolResults":    s.Cfg.Agent.ShowToolResults,
 					"debugMode":          agent.GetDebugMode(),
@@ -942,7 +944,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 				w.Header().Set("Content-Type", "text/html; charset=utf-8")
 				w.WriteHeader(http.StatusNotFound)
 				lang := normalizeLang(s.Cfg.Server.UILanguage)
-				data := uiTemplateData(lang)
+				data := uiTemplateData(lang, "404")
 				if err := notFoundTmpl.Execute(w, data); err != nil {
 					s.Logger.Error("Failed to execute 404 template", "error", err)
 				}
