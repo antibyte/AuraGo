@@ -76,15 +76,33 @@ func TestDashboardMissionHistoryContrast(t *testing.T) {
 
 	css := readDesktopAssetText(t, "css/dashboard.css")
 	for _, marker := range []string{
+		".mh-table {\n    min-width: 640px;",
 		".mh-table th {\n    color: color-mix(in srgb, var(--pw-text) 72%, var(--pw-muted) 28%);",
 		".mh-table td {\n    color: color-mix(in srgb, var(--pw-text) 82%, var(--pw-muted) 18%);",
 		".mh-table td:first-child {\n    color: var(--pw-text);",
+		".mh-status {\n    display: inline-flex;",
+		".mh-trigger {\n    display: inline-flex;",
 		".mh-status-success {\n    color: color-mix(in srgb, var(--success) 84%, white 16%);",
-		".mh-trigger {\n    font-size: 0.75rem;",
+		"white-space: nowrap;",
 		"color: color-mix(in srgb, var(--pw-text) 76%, var(--pw-muted) 24%);",
 	} {
 		if !strings.Contains(css, marker) {
 			t.Fatalf("dashboard mission history contrast CSS missing marker %q", marker)
+		}
+	}
+}
+
+func TestDashboardMissionHistoryClearsLoadingState(t *testing.T) {
+	t.Parallel()
+
+	js := readDesktopAssetText(t, "js/dashboard/dashboard-widgets.js")
+	for _, marker := range []string{
+		"window.CardState.setLoaded('card-mission-history')",
+		"window.CardState.setError('card-mission-history', () => loadMissionHistory(false), { status: resp.status })",
+		"window.CardState.setError('card-mission-history', () => loadMissionHistory(false), { status: 0 })",
+	} {
+		if !strings.Contains(js, marker) {
+			t.Fatalf("dashboard mission history loader missing marker %q", marker)
 		}
 	}
 }

@@ -1974,11 +1974,22 @@
             try {
                 const url = `/api/dashboard/mission-history?limit=${MH_PAGE_SIZE}&offset=${mhOffset}`;
                 const resp = await fetch(url, { credentials: 'same-origin' });
-                if (!resp.ok) return;
+                if (!resp.ok) {
+                    if (!append && window.CardState) {
+                        window.CardState.setError('card-mission-history', () => loadMissionHistory(false), { status: resp.status });
+                    }
+                    return;
+                }
                 const data = await resp.json();
                 renderMissionHistory(data, append);
+                if (!append && window.CardState) {
+                    window.CardState.setLoaded('card-mission-history');
+                }
             } catch (e) {
                 console.warn('Mission history load failed', e);
+                if (!append && window.CardState) {
+                    window.CardState.setError('card-mission-history', () => loadMissionHistory(false), { status: 0 });
+                }
             }
         }
 
