@@ -95,6 +95,19 @@ let _chatSSERegistered = false;
 const pendingAutoplayAudios = new Map();
 const seenSSEAudioPlayers = new Set();
 
+if (typeof window !== 'undefined' && window.AuraDisposer) {
+    window.AuraDisposer.add(function () {
+        clearTimeout(sseReconnectTimer);
+        sseReconnectTimer = null;
+        clearTimeout(toolStackIdleTimer);
+        toolStackIdleTimer = null;
+        clearTimeout(toolStackFadeTimer);
+        toolStackFadeTimer = null;
+        pendingAutoplayAudios.clear();
+        seenSSEAudioPlayers.clear();
+    });
+}
+
 function appendChatAudioPlayer(audioData) {
     if (!audioData || !audioData.path || seenSSEAudioPlayers.has(audioData.path)) return;
     seenSSEAudioPlayers.add(audioData.path);

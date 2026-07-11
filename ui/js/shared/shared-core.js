@@ -1409,6 +1409,14 @@ window.AuraSSE = (function () {
         _checkAuthAfterSSEError();
     });
 
+    if (window.AuraDisposer) {
+        window.AuraDisposer.add(function () {
+            if (_retryTimer) { clearTimeout(_retryTimer); _retryTimer = null; }
+            if (_es) { _es.close(); _es = null; }
+            _connected = false;
+        });
+    }
+
     return {
         connect: _connect,
         isConnected: function () { return _connected; },
@@ -1873,6 +1881,41 @@ async function cfgFetch(url, options = {}) {
     }
     return resp.json();
 }
+
+// ═══════════════════════════════════════════════════════════════
+// PAGE LIFECYCLE DISPOSER
+// Register callbacks that run on pagehide/beforeunload to avoid leaking
+// timers, intervals, event listeners, and SSE connections across navigations.
+// ═══════════════════════════════════════════════════════════════
+window.AuraDisposer = (function () {
+    'use strict';
+    var disposers = [];
+    var installed = false;
+
+    function install() {
+        if (installed) return;
+        installed = true;
+        var runner = function () {
+            var fns = disposers.slice();
+            disposers = [];
+            fns.forEach(function (fn) { try { fn(); } catch (e) { console.warn('[AuraDisposer] dispose error:', e); } });
+        };
+        window.addEventListener('pagehide', runner);
+        window.addEventListener('beforeunload', runner);
+    }
+
+    return {
+        add: function (fn) {
+            if (typeof fn !== 'function') return function () {};
+            install();
+            disposers.push(fn);
+            return function () {
+                var i = disposers.indexOf(fn);
+                if (i >= 0) disposers.splice(i, 1);
+            };
+        }
+    };
+}());
 
 // Auto-initialize on DOM ready - simple and reliable approach
 function scheduleInit() {
