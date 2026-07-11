@@ -1917,6 +1917,68 @@ window.AuraDisposer = (function () {
     };
 }());
 
+// ═══════════════════════════════════════════════════════════════
+// DOM DIFF HELPERS
+// Reuse existing DOM nodes instead of replacing innerHTML on every update.
+// ═══════════════════════════════════════════════════════════════
+window.AuraDiff = (function () {
+    'use strict';
+
+    /**
+     * Render a list of items into a container, reusing existing keyed nodes.
+     * @param {HTMLElement} container
+     * @param {Array} items
+     * @param {Object} options
+     * @param {Function} options.keyFn - returns a unique string key per item
+     * @param {Function} options.renderFn - returns a new HTMLElement for an item
+     * @param {Function} [options.shouldUpdate] - returns true if an existing keyed element should be re-rendered
+     */
+    function render(container, items, options) {
+        if (!container) return;
+        var keyFn = options.keyFn;
+        var renderFn = options.renderFn;
+        var shouldUpdate = options.shouldUpdate;
+        var oldMap = new Map();
+        Array.prototype.forEach.call(container.children, function (el) {
+            var k = el.dataset.diffKey;
+            if (k) oldMap.set(k, el);
+        });
+
+        var newKeys = new Set();
+        var prevEl = null;
+        items.forEach(function (item) {
+            var key = String(keyFn(item));
+            newKeys.add(key);
+            var el = oldMap.get(key);
+            var needsUpdate = false;
+            if (!el) {
+                el = renderFn(item);
+                if (el) el.dataset.diffKey = key;
+            } else if (shouldUpdate && shouldUpdate(item, el)) {
+                var newEl = renderFn(item);
+                if (newEl) {
+                    newEl.dataset.diffKey = key;
+                    el.replaceWith(newEl);
+                    el = newEl;
+                }
+            }
+            if (!el) return;
+            if (prevEl && prevEl.nextElementSibling !== el) {
+                prevEl.after(el);
+            } else if (!prevEl && container.firstElementChild !== el) {
+                container.prepend(el);
+            }
+            prevEl = el;
+        });
+
+        oldMap.forEach(function (el, key) {
+            if (!newKeys.has(key)) el.remove();
+        });
+    }
+
+    return { render: render };
+}());
+
 // Auto-initialize on DOM ready - simple and reliable approach
 function scheduleInit() {
     if (document.readyState === 'loading') {

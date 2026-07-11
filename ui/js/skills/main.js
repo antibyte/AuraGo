@@ -374,6 +374,25 @@ function showDisabledState() {
         }
     }
 
+    function skillStateHash(s) {
+        const ds = getDaemonState(s.name || s.Name || s.id || s.ID || '');
+        const parts = [
+            s.ID || s.id || '',
+            s.Enabled !== undefined ? s.Enabled : s.enabled,
+            (s.SecurityStatus || s.security_status || 'pending').toLowerCase(),
+            (s.Tags || s.tags || []).slice().sort().join(','),
+            (s.Dependencies || s.dependencies || []).slice().sort().join(','),
+            (s.VaultKeys || s.vault_keys || []).slice().sort().join(','),
+            ds ? (ds.status || ds.Status || '') : '',
+            ds ? (ds.auto_disabled || ds.AutoDisabled || false) : false
+        ];
+        return parts.join('|');
+    }
+
+    function shouldUpdateSkill(s, el) {
+        return el.dataset.snapshot !== skillStateHash(s);
+    }
+
     function renderSkills() {
         if (currentSkillMode === 'agent') {
             renderAgentSkills();
@@ -394,7 +413,19 @@ function showDisabledState() {
         empty.style.display = 'none';
         grid.style.display = '';
 
-        grid.innerHTML = filtered.map(s => renderCard(s)).join('');
+        if (window.AuraDiff) {
+            window.AuraDiff.render(grid, filtered, {
+                keyFn: function (s) { return String(s.ID || s.id || ''); },
+                renderFn: function (s) {
+                    const tpl = document.createElement('template');
+                    tpl.innerHTML = renderCard(s).trim();
+                    return tpl.content.firstElementChild;
+                },
+                shouldUpdate: shouldUpdateSkill
+            });
+        } else {
+            grid.innerHTML = filtered.map(s => renderCard(s)).join('');
+        }
         if (typeof applyI18n === 'function') applyI18n();
     }
 
@@ -449,7 +480,7 @@ function showDisabledState() {
             : '';
 
         return `
-    <div class="sk-card ${enabledClass}" data-id="${id}" data-type="${type}" data-sec="${secStatus}">
+    <div class="sk-card ${enabledClass}" data-id="${id}" data-type="${type}" data-sec="${secStatus}" data-snapshot="${esc(skillStateHash(skill))}">
         <div class="sk-card-header">
             <div class="sk-card-name" title="${name}">${name}</div>
             <div class="sk-card-badges">
@@ -473,6 +504,21 @@ function showDisabledState() {
     </div>`;
     }
 
+    function agentSkillStateHash(s) {
+        const parts = [
+            s.id || '',
+            !!s.enabled,
+            (s.security_status || 'pending').toLowerCase(),
+            !!s.warning_approved,
+            (s.scripts || []).map(x => x.path || x.Path || '').slice().sort().join(',')
+        ];
+        return parts.join('|');
+    }
+
+    function shouldUpdateAgentSkill(s, el) {
+        return el.dataset.snapshot !== agentSkillStateHash(s);
+    }
+
     function renderAgentSkills() {
         const grid = document.getElementById('sk-grid');
         const empty = document.getElementById('sk-empty');
@@ -486,7 +532,19 @@ function showDisabledState() {
         }
         empty.style.display = 'none';
         grid.style.display = '';
-        grid.innerHTML = filtered.map(s => renderAgentSkillCard(s)).join('');
+        if (window.AuraDiff) {
+            window.AuraDiff.render(grid, filtered, {
+                keyFn: function (s) { return String(s.id || ''); },
+                renderFn: function (s) {
+                    const tpl = document.createElement('template');
+                    tpl.innerHTML = renderAgentSkillCard(s).trim();
+                    return tpl.content.firstElementChild;
+                },
+                shouldUpdate: shouldUpdateAgentSkill
+            });
+        } else {
+            grid.innerHTML = filtered.map(s => renderAgentSkillCard(s)).join('');
+        }
         if (typeof applyI18n === 'function') applyI18n();
     }
 
@@ -509,7 +567,7 @@ function showDisabledState() {
             ? `<button class="btn btn-sm btn-warning" onclick="approveAgentSkillWarning('${id}')" data-i18n="skills.agent_btn_approve">${t('skills.agent_btn_approve')}</button>`
             : '';
         return `
-    <div class="sk-card ${enabled ? 'sk-enabled' : 'sk-disabled-card'}" data-id="${id}" data-sec="${secStatus}">
+    <div class="sk-card ${enabled ? 'sk-enabled' : 'sk-disabled-card'}" data-id="${id}" data-sec="${secStatus}" data-snapshot="${esc(agentSkillStateHash(skill))}">
         <div class="sk-card-header">
             <div class="sk-card-name" title="${name}">${name}</div>
             <div class="sk-card-badges">
