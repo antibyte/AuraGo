@@ -123,69 +123,31 @@ function renderGalleryCard(img) {
     const selectionKey = sourceDB + ':' + img.id;
     const selectionActive = typeof isMediaSelectionModeActive === 'function' && isMediaSelectionModeActive();
     const isSelected = selectionActive && typeof isMediaItemSelected === 'function' && isMediaItemSelected('images', selectionKey);
+    const selectedClass = isSelected ? ' media-card-selected' : '';
 
-    const card = document.createElement('div');
-    card.className = 'gallery-card' + (isSelected ? ' media-card-selected' : '');
-    card.dataset.source = sourceDB;
-    card.dataset.mediaId = String(img.id);
-    card.dataset.snapshot = galleryCardSnapshot(img);
-
+    let html = '<div class="gallery-card' + selectedClass + '" data-source="' + escapeHtml(sourceDB) + '" data-media-id="' + img.id + '" data-snapshot="' + esc(galleryCardSnapshot(img)) + '" onclick="handleGalleryCardClick(event, this.dataset.mediaId, this.dataset.source)">';
     if (selectionActive) {
-        const label = document.createElement('label');
-        label.className = 'media-select-check-wrap';
-        label.addEventListener('click', function (e) { e.stopPropagation(); });
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.className = 'media-select-check';
-        checkbox.dataset.tab = 'images';
-        checkbox.dataset.selectionKey = selectionKey;
-        checkbox.dataset.id = String(img.id);
-        checkbox.dataset.source = sourceDB;
-        checkbox.checked = !!isSelected;
-        checkbox.setAttribute('aria-label', t('media.bulk_select_item'));
-        label.appendChild(checkbox);
-        card.appendChild(label);
+        html += '<label class="media-select-check-wrap" onclick="event.stopPropagation()">';
+        html += '<input type="checkbox" class="media-select-check" data-tab="images" data-selection-key="' + escapeHtml(selectionKey) + '" data-id="' + img.id + '" data-source="' + escapeHtml(sourceDB) + '"' + (isSelected ? ' checked' : '') + ' aria-label="' + escapeHtml(t('media.bulk_select_item')) + '">';
+        html += '</label>';
     }
+    html += '<img src="' + escapeHtml(webPath) + '" loading="lazy" alt="' + escapeHtml(img.prompt || '') + '">';
+    html += '<div class="gallery-card-info">';
+    html += '<div class="gallery-card-prompt">' + promptDisplay + '</div>';
+    html += '<div class="gallery-card-meta"><span>' + providerBadge + '</span><span>' + escapeHtml(date) + '</span></div>';
+    html += '</div></div>';
 
-    const image = document.createElement('img');
-    image.src = webPath;
-    image.loading = 'lazy';
-    image.alt = img.prompt || '';
-    card.appendChild(image);
-
-    const info = document.createElement('div');
-    info.className = 'gallery-card-info';
-    const promptEl = document.createElement('div');
-    promptEl.className = 'gallery-card-prompt';
-    promptEl.textContent = promptDisplay;
-    const meta = document.createElement('div');
-    meta.className = 'gallery-card-meta';
-    meta.innerHTML = '<span>' + providerBadge + '</span><span>' + escapeHtml(date) + '</span>';
-    info.appendChild(promptEl);
-    info.appendChild(meta);
-    card.appendChild(info);
-
-    return card;
+    const tpl = document.createElement('template');
+    tpl.innerHTML = html;
+    return tpl.content.firstElementChild;
 }
 
 function shouldUpdateGalleryCard(img, el) {
     return el.dataset.snapshot !== galleryCardSnapshot(img);
 }
 
-function handleGalleryGridClick(e) {
-    const card = e.target.closest('.gallery-card');
-    if (!card) return;
-    const checkbox = e.target.closest('.media-select-check-wrap');
-    if (checkbox) return;
-    handleGalleryCardClick(e, card.dataset.mediaId, card.dataset.source);
-}
-
 function renderGrid(images) {
     const grid = document.getElementById('gallery-grid');
-    if (!grid._galleryClickBound) {
-        grid.addEventListener('click', handleGalleryGridClick);
-        grid._galleryClickBound = true;
-    }
     if (window.AuraDiff) {
         window.AuraDiff.render(grid, images, {
             keyFn: function (img) { return (img.source_db || '') + ':' + img.id; },

@@ -20,12 +20,7 @@
     <script src="/js/shared/prepaint-theme.js?v={{.BuildVersion}}"></script>
     <script type="application/json" id="aurago-template-data">{{.TemplateDataJSON}}</script>
     <script src="/js/shared/template-data.js?v={{.BuildVersion}}"></script>
-    <script>
-        if ('serviceWorker' in navigator && location.protocol !== 'file:') {
-            navigator.serviceWorker.register('/sw.js?v={{.BuildVersion}}')
-                .catch(err => console.warn('Service Worker registration failed:', err));
-        }
-    </script>
+    <script src="/js/shared/register-sw.js?v={{.BuildVersion}}" data-sw-url="/sw.js?v={{.BuildVersion}}"></script>
     <link href="/fonts/fonts.css?v=20260502a" rel="stylesheet">
     <link rel="stylesheet" href="/css/tailwind-compat.css">
     <link rel="stylesheet" href="/shared-variables.css">

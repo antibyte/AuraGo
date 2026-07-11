@@ -20,6 +20,13 @@ let currentAudioModalId = null;
 let isLoadingAudio = false;
 const MEDIA_LIMIT = 30;
 
+function mediaStatusNode(icon, message) {
+    const wrap = document.createElement('div');
+    wrap.className = 'gallery-empty';
+    wrap.innerHTML = '<div class="gallery-empty-icon">' + icon + '</div><div>' + escapeHtml(message) + '</div>';
+    return wrap;
+}
+
 function lastMediaOffset(total) {
     return Math.max(0, (Math.ceil(total / MEDIA_LIMIT) - 1) * MEDIA_LIMIT);
 }
@@ -156,7 +163,7 @@ async function loadAudio() {
     if (isLoadingAudio) return;
     isLoadingAudio = true;
     const grid = document.getElementById('audio-grid');
-    grid.replaceChildren(makeStatusNode('', t('common.loading')));
+    grid.replaceChildren(mediaStatusNode('', t('common.loading')));
 
     const params = new URLSearchParams({
         type: 'audio',
@@ -171,7 +178,7 @@ async function loadAudio() {
         const data = await resp.json();
 
         if (data.status !== 'ok') {
-            grid.replaceChildren(makeStatusNode('⚠️', data.message || t('common.error')));
+            grid.replaceChildren(mediaStatusNode('⚠️', data.message || t('common.error')));
             return;
         }
 
@@ -179,7 +186,7 @@ async function loadAudio() {
         audioTotal = data.total || 0;
 
         if (audioItems.length === 0) {
-            grid.replaceChildren(makeStatusNode('🎵', t('media.empty_audio')));
+            grid.replaceChildren(mediaStatusNode('🎵', t('media.empty_audio')));
             document.getElementById('audio-pagination').classList.add('is-hidden');
             return;
         }
@@ -187,7 +194,7 @@ async function loadAudio() {
         renderAudioGrid(audioItems);
         updateAudioPagination();
     } catch (e) {
-        grid.replaceChildren(makeStatusNode('⚠️', e.message || t('common.error')));
+        grid.replaceChildren(mediaStatusNode('⚠️', e.message || t('common.error')));
     } finally {
         isLoadingAudio = false;
     }
@@ -668,7 +675,7 @@ async function loadVideos() {
     if (isLoadingVideos) return;
     isLoadingVideos = true;
     const grid = document.getElementById('video-grid');
-    grid.replaceChildren(makeStatusNode('', t('common.loading')));
+    grid.replaceChildren(mediaStatusNode('', t('common.loading')));
 
     const params = new URLSearchParams({
         type: 'video',
@@ -683,7 +690,7 @@ async function loadVideos() {
         const data = await resp.json();
 
         if (data.status !== 'ok') {
-            grid.replaceChildren(makeStatusNode('⚠️', data.message || t('common.error')));
+            grid.replaceChildren(mediaStatusNode('⚠️', data.message || t('common.error')));
             return;
         }
 
@@ -691,7 +698,7 @@ async function loadVideos() {
         videoTotal = data.total || 0;
 
         if (videoItems.length === 0) {
-            grid.replaceChildren(makeStatusNode('🎬', t('media.empty_videos')));
+            grid.replaceChildren(mediaStatusNode('🎬', t('media.empty_videos')));
             document.getElementById('video-pagination').classList.add('is-hidden');
             return;
         }
@@ -699,7 +706,7 @@ async function loadVideos() {
         renderVideoGrid(videoItems);
         updateVideoPagination();
     } catch (e) {
-        grid.replaceChildren(makeStatusNode('⚠️', e.message || t('common.error')));
+        grid.replaceChildren(mediaStatusNode('⚠️', e.message || t('common.error')));
     } finally {
         isLoadingVideos = false;
     }
@@ -888,7 +895,7 @@ async function loadDocuments() {
     if (isLoadingDocs) return;
     isLoadingDocs = true;
     const list = document.getElementById('doc-list');
-    list.replaceChildren(makeStatusNode('', t('common.loading')));
+    list.replaceChildren(mediaStatusNode('', t('common.loading')));
 
     const params = new URLSearchParams({
         type: 'document',
@@ -903,7 +910,7 @@ async function loadDocuments() {
         const data = await resp.json();
 
         if (data.status !== 'ok') {
-            list.replaceChildren(makeStatusNode('⚠️', data.message || t('common.error')));
+            list.replaceChildren(mediaStatusNode('⚠️', data.message || t('common.error')));
             return;
         }
 
@@ -911,7 +918,7 @@ async function loadDocuments() {
         docTotal = data.total || 0;
 
         if (docItems.length === 0) {
-            list.replaceChildren(makeStatusNode('📄', t('media.empty_documents')));
+            list.replaceChildren(mediaStatusNode('📄', t('media.empty_documents')));
             document.getElementById('doc-pagination').classList.add('is-hidden');
             return;
         }
@@ -919,7 +926,7 @@ async function loadDocuments() {
         renderDocList(docItems);
         updateDocPagination();
     } catch (e) {
-        list.replaceChildren(makeStatusNode('⚠️', e.message || t('common.error')));
+        list.replaceChildren(mediaStatusNode('⚠️', e.message || t('common.error')));
     } finally {
         isLoadingDocs = false;
     }
