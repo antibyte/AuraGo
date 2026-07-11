@@ -29,6 +29,8 @@ services:
       # Connect to Docker via the docker-proxy service (recommended).
       # If you prefer direct socket access (less secure), see the alternative below.
       - DOCKER_HOST=tcp://docker-proxy:2375
+      # Soft memory limit for the Go runtime (leaves headroom for sidecars).
+      - GOMEMLIMIT=1600MiB
       # Master key: prefer ./secrets/aurago_master.key mounted below or your
       # stack manager's Docker secret support. If no key exists, AuraGo
       # auto-generates one on first start and stores it in the persistent volume.

@@ -91,14 +91,7 @@ echo "    → resources.dat ($(du -h "$DEPLOY_DIR/$RESOURCES" | cut -f1))"
 # ── Step 2: Cross-compile binaries ───────────────────────────────────────
 echo "[2/5] Compiling AuraGo binaries ..."
 
-TARGETS=(
-  "linux/amd64"
-  "linux/arm64"
-  "darwin/amd64"
-  "darwin/arm64"
-  "windows/amd64"
-  "windows/arm64"
-)
+read -ra TARGETS <<< "${AURAGO_TARGETS:-linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64}"
 
 for target in "${TARGETS[@]}"; do
   OS="${target%/*}"
@@ -138,14 +131,7 @@ done
 # ── Step 3: Cross-compile AuraGo Remote binaries ────────────────────────
 echo "[3/5] Compiling AuraGo Remote binaries ..."
 
-REMOTE_TARGETS=(
-  "linux/amd64"
-  "linux/arm64"
-  "darwin/amd64"
-  "darwin/arm64"
-  "windows/amd64"
-  "windows/arm64"
-)
+read -ra REMOTE_TARGETS <<< "${AURAGO_REMOTE_TARGETS:-linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64}"
 
 for target in "${REMOTE_TARGETS[@]}"; do
   OS="${target%/*}"

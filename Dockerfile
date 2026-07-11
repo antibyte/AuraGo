@@ -29,10 +29,12 @@ RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
 RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
     go build -trimpath -ldflags="-s -w" -o /aurago-remote ./cmd/remote
 
-# Build aurago-remote client binaries for all supported platforms so the
-# server can serve them via /api/remote/download/{os}/{arch}.
+# Build aurago-remote client binaries. By default all supported platforms are
+# built so the server can serve them via /api/remote/download/{os}/{arch}.
+# Override AURAGO_REMOTE_TARGETS to build only the platforms you need.
+ARG AURAGO_REMOTE_TARGETS="linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64"
 RUN mkdir -p /deploy && \
-    for target in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64; do \
+    for target in ${AURAGO_REMOTE_TARGETS}; do \
         os=$(echo "$target" | cut -d/ -f1); \
         arch=$(echo "$target" | cut -d/ -f2); \
         ext=""; \
