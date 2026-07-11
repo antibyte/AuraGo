@@ -32,7 +32,7 @@ func TestMakeDeployUsesExactReleaseArtifactManifests(t *testing.T) {
 	}
 }
 
-func TestMakeDeployValidatesTargetsAndCanSkipPublishing(t *testing.T) {
+func TestMakeDeployNormalizesTargetsAndCanSkipPublishing(t *testing.T) {
 	t.Parallel()
 
 	data, err := os.ReadFile(filepath.Join("..", "..", "make_deploy.sh"))
@@ -41,9 +41,15 @@ func TestMakeDeployValidatesTargetsAndCanSkipPublishing(t *testing.T) {
 	}
 	script := string(data)
 	for _, marker := range []string{
-		"validate_targets",
+		"normalize_targets",
 		"go tool dist list",
-		"duplicate target",
+		"continue",
+		"NORMALIZED_TARGETS+=(\"$target\")",
+		"TARGETS=(\"${NORMALIZED_TARGETS[@]}\")",
+		"REMOTE_TARGETS=(\"${NORMALIZED_TARGETS[@]}\")",
+		"$target_set must contain at least one os/arch target.",
+		"${AURAGO_TARGETS+x}",
+		"${AURAGO_REMOTE_TARGETS+x}",
 		"--no-publish",
 		"PUBLISH_RELEASE=false",
 		"Skipping publish (--no-publish).",
@@ -53,6 +59,9 @@ func TestMakeDeployValidatesTargetsAndCanSkipPublishing(t *testing.T) {
 		if !strings.Contains(script, marker) {
 			t.Fatalf("make_deploy.sh missing build safety contract %q", marker)
 		}
+	}
+	if strings.Contains(script, "duplicate target in") {
+		t.Fatal("make_deploy.sh must deduplicate repeated targets instead of rejecting them")
 	}
 }
 

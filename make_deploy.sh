@@ -38,14 +38,23 @@ while [ "$#" -gt 0 ]; do
   shift
 done
 
-read -ra TARGETS <<< "${AURAGO_TARGETS:-linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64}"
-read -ra REMOTE_TARGETS <<< "${AURAGO_REMOTE_TARGETS:-linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64}"
+if [ "${AURAGO_TARGETS+x}" = "x" ]; then
+  read -ra TARGETS <<< "$AURAGO_TARGETS"
+else
+  read -ra TARGETS <<< "linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64"
+fi
+if [ "${AURAGO_REMOTE_TARGETS+x}" = "x" ]; then
+  read -ra REMOTE_TARGETS <<< "$AURAGO_REMOTE_TARGETS"
+else
+  read -ra REMOTE_TARGETS <<< "linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64"
+fi
 GO_DIST_TARGETS="$(go tool dist list)"
 
-validate_targets() {
+normalize_targets() {
   local target_set="$1"
   shift
   local target seen=" "
+  NORMALIZED_TARGETS=()
   if [ "$#" -eq 0 ]; then
     echo "$target_set must contain at least one os/arch target." >&2
     exit 2
@@ -56,19 +65,25 @@ validate_targets() {
       exit 2
     fi
     if [[ "$seen" == *" $target "* ]]; then
-      echo "duplicate target in $target_set: $target" >&2
-      exit 2
+      continue
     fi
     if ! printf '%s\n' "$GO_DIST_TARGETS" | grep -Fqx -- "$target"; then
       echo "Unsupported $target_set target: $target." >&2
       exit 2
     fi
     seen+="$target "
+    NORMALIZED_TARGETS+=("$target")
   done
+  if [ "${#NORMALIZED_TARGETS[@]}" -eq 0 ]; then
+    echo "$target_set must contain at least one os/arch target." >&2
+    exit 2
+  fi
 }
 
-validate_targets "AURAGO_TARGETS" "${TARGETS[@]}"
-validate_targets "AURAGO_REMOTE_TARGETS" "${REMOTE_TARGETS[@]}"
+normalize_targets "AURAGO_TARGETS" "${TARGETS[@]}"
+TARGETS=("${NORMALIZED_TARGETS[@]}")
+normalize_targets "AURAGO_REMOTE_TARGETS" "${REMOTE_TARGETS[@]}"
+REMOTE_TARGETS=("${NORMALIZED_TARGETS[@]}")
 
 derive_release_artifact_lists() {
   RELEASE_DEPLOY_ASSETS=("$RESOURCES" install.sh update.sh)
