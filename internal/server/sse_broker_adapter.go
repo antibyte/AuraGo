@@ -2,7 +2,6 @@ package server
 
 import (
 	"encoding/json"
-	"strings"
 
 	"aurago/internal/security"
 )
@@ -46,15 +45,14 @@ func (b *SSEBrokerAdapter) SendJSON(jsonStr string) {
 		b.sse.SendJSON(jsonStr)
 		return
 	}
-	// Fast path: payload already carries a session_id, skip expensive marshal
-	// round-trip. This catches payloads produced by SendTyped/SendLLMStreamDelta
-	// and any caller that already embeds the session.
-	if strings.Contains(jsonStr, "\"session_id\"") {
-		b.sse.SendJSON(jsonStr)
-		return
-	}
 	var raw map[string]json.RawMessage
 	if err := json.Unmarshal([]byte(jsonStr), &raw); err == nil {
+		// Only a structurally present top-level session_id makes this payload
+		// final. Nested IDs and text fragments still require enrichment.
+		if _, exists := raw["session_id"]; exists {
+			b.sse.SendJSON(jsonStr)
+			return
+		}
 		changed := false
 		if _, exists := raw["session_id"]; !exists {
 			sid, _ := json.Marshal(b.sessionID)

@@ -17,6 +17,7 @@ agent:
     debug_mode: false
     max_tool_calls: 15
     memory_compression_char_limit: 60000
+    max_concurrent_loops: 8       # maximum concurrent agent loop executions
     tool_output_limit: 50000  # max characters of a single tool result fed into context (0 = unlimited)
     discover_tools_snapshot_ttl_minutes: 5  # minutes to retain discover_tools snapshots (<=0 = default 5)
     show_tool_results: false
@@ -137,6 +138,7 @@ circuit_breaker:
         - 10s
         - 2m
         - 10m
+    final_retry_interval: 30s                   # retry delay after configured intervals are exhausted
 co_agents:
     circuit_breaker:
         max_tokens: 0

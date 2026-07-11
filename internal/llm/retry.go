@@ -20,6 +20,8 @@ var defaultRetryIntervals = []time.Duration{
 
 var finalRetryInterval = 30 * time.Second
 
+const fallbackFinalRetryInterval = 30 * time.Second
+
 var finalRetryIntervalMu sync.RWMutex
 
 // FinalRetryInterval returns the current final retry backoff cap.
@@ -39,6 +41,20 @@ func ConfigureFinalRetryInterval(d time.Duration) {
 	finalRetryIntervalMu.Lock()
 	defer finalRetryIntervalMu.Unlock()
 	finalRetryInterval = d
+}
+
+func configureFinalRetryInterval(spec string, logger *slog.Logger) string {
+	trimmed := strings.TrimSpace(spec)
+	interval, err := time.ParseDuration(trimmed)
+	if err != nil || interval <= 0 {
+		if logger != nil {
+			logger.Warn("[LLM Retry] Invalid final retry interval; using 30s", "interval", spec, "error", err)
+		}
+		ConfigureFinalRetryInterval(fallbackFinalRetryInterval)
+		return fallbackFinalRetryInterval.String()
+	}
+	ConfigureFinalRetryInterval(interval)
+	return trimmed
 }
 
 const maxRetryAttempts = 10

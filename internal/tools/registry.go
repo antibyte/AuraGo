@@ -25,6 +25,10 @@ var killProcess = func(process *os.Process) error {
 // maxOutputSize is the maximum bytes kept in a background process output buffer (1 MB).
 const maxOutputSize = 1 << 20
 
+// initialOutputSize keeps idle and low-output processes cheap while leaving
+// enough room for typical command startup output.
+const initialOutputSize = 4 << 10
+
 // ProcessState represents the lifecycle state of a background process.
 type ProcessState int
 
@@ -82,27 +86,56 @@ func (p *ProcessInfo) Write(data []byte) (int, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
+	originalLen := len(data)
+	if originalLen == 0 {
+		return 0, nil
+	}
 	if len(data) > maxOutputSize {
 		// A single write larger than the buffer: keep only the tail.
 		data = data[len(data)-maxOutputSize:]
 	}
-	if p.outputRing == nil {
-		p.outputRing = make([]byte, maxOutputSize)
+
+	required := p.ringLen + len(data)
+	if required > maxOutputSize {
+		required = maxOutputSize
 	}
+	if len(p.outputRing) < required {
+		capacity := initialOutputSize
+		for capacity < required && capacity < maxOutputSize {
+			capacity <<= 1
+		}
+		if capacity > maxOutputSize {
+			capacity = maxOutputSize
+		}
+		grown := make([]byte, capacity)
+		if p.ringLen > 0 {
+			oldCapacity := len(p.outputRing)
+			if p.ringStart+p.ringLen <= oldCapacity {
+				copy(grown, p.outputRing[p.ringStart:p.ringStart+p.ringLen])
+			} else {
+				tail := oldCapacity - p.ringStart
+				copy(grown, p.outputRing[p.ringStart:])
+				copy(grown[tail:], p.outputRing[:p.ringLen-tail])
+			}
+		}
+		p.outputRing = grown
+		p.ringStart = 0
+	}
+	capacity := len(p.outputRing)
 
 	// If necessary, discard oldest data to make room.
-	if free := maxOutputSize - p.ringLen; len(data) > free {
+	if free := capacity - p.ringLen; len(data) > free {
 		discard := len(data) - free
-		p.ringStart = (p.ringStart + discard) % maxOutputSize
+		p.ringStart = (p.ringStart + discard) % capacity
 		p.ringLen -= discard
 	}
 
 	for i, b := range data {
-		pos := (p.ringStart + p.ringLen + i) % maxOutputSize
+		pos := (p.ringStart + p.ringLen + i) % capacity
 		p.outputRing[pos] = b
 	}
 	p.ringLen += len(data)
-	return len(data), nil
+	return originalLen, nil
 }
 
 // ReadOutput returns the current contents of the output buffer.
@@ -112,11 +145,12 @@ func (p *ProcessInfo) ReadOutput() string {
 	if p.ringLen == 0 {
 		return ""
 	}
+	capacity := len(p.outputRing)
 	out := make([]byte, p.ringLen)
-	if p.ringStart+p.ringLen <= maxOutputSize {
+	if p.ringStart+p.ringLen <= capacity {
 		copy(out, p.outputRing[p.ringStart:p.ringStart+p.ringLen])
 	} else {
-		tail := maxOutputSize - p.ringStart
+		tail := capacity - p.ringStart
 		copy(out, p.outputRing[p.ringStart:])
 		copy(out[tail:], p.outputRing[:p.ringLen-tail])
 	}

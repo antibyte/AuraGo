@@ -1314,6 +1314,9 @@ func Load(path string) (*Config, error) {
 	if len(cfg.CircuitBreaker.RetryIntervals) == 0 {
 		cfg.CircuitBreaker.RetryIntervals = []string{"10s", "2m", "10m"}
 	}
+	if strings.TrimSpace(cfg.CircuitBreaker.FinalRetryInterval) == "" {
+		cfg.CircuitBreaker.FinalRetryInterval = "30s"
+	}
 
 	if cfg.Server.Host == "" {
 		cfg.Server.Host = "127.0.0.1"
@@ -1332,7 +1335,7 @@ func Load(path string) (*Config, error) {
 		cfg.Agent.StepDelaySeconds = 0
 	}
 	if cfg.Agent.MaxConcurrentLoops <= 0 {
-		cfg.Agent.MaxConcurrentLoops = 16
+		cfg.Agent.MaxConcurrentLoops = 8
 	}
 	if !yamlHasPath(data, "maintenance", "enabled") {
 		cfg.Maintenance.Enabled = true

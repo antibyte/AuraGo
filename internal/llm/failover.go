@@ -14,10 +14,10 @@ import (
 type FailoverManager struct {
 	mu sync.RWMutex
 
-	primary       *openai.Client
-	fallback      *openai.Client
-	primaryType   string
-	fallbackType  string
+	primary        *openai.Client
+	fallback       *openai.Client
+	primaryType    string
+	fallbackType   string
 	primaryModel   string
 	fallbackModel  string
 	primaryBaseURL string
@@ -57,6 +57,7 @@ func NewFailoverManager(cfg *config.Config, logger *slog.Logger) *FailoverManage
 			SetPerAttemptTimeout(timeout)
 		}
 		ConfigureDefaultRetryIntervals(cfg.CircuitBreaker.RetryIntervals, logger)
+		cfg.CircuitBreaker.FinalRetryInterval = configureFinalRetryInterval(cfg.CircuitBreaker.FinalRetryInterval, logger)
 	}
 	primary := NewClient(cfg)
 
@@ -110,6 +111,7 @@ func (fm *FailoverManager) Reconfigure(cfg *config.Config) {
 			SetPerAttemptTimeout(timeout)
 		}
 		ConfigureDefaultRetryIntervals(cfg.CircuitBreaker.RetryIntervals, fm.logger)
+		cfg.CircuitBreaker.FinalRetryInterval = configureFinalRetryInterval(cfg.CircuitBreaker.FinalRetryInterval, fm.logger)
 	}
 	fm.Stop()
 

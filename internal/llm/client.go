@@ -14,7 +14,6 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"aurago/internal/config"
@@ -538,8 +537,7 @@ type miniMaxTransport struct {
 }
 
 type openAIPromptCacheTransport struct {
-	base      http.RoundTripper
-	bodyCache sync.Map // sha256(body) -> []byte modified body
+	base http.RoundTripper
 }
 
 type aiGatewayAuthTransport struct {
@@ -567,17 +565,7 @@ func (t *openAIPromptCacheTransport) RoundTrip(req *http.Request) (*http.Respons
 		return nil, fmt.Errorf("openai prompt cache transport: read body: %w", err)
 	}
 
-	// Cache the prompt-cache transformation by the original body hash. Repeated
-	// identical requests (e.g. retries or deterministic prompts) skip the JSON
-	// parse/marshal work.
-	sum := sha256.Sum256(body)
-	key := string(sum[:])
-	if cached, ok := t.bodyCache.Load(key); ok {
-		body = cached.([]byte)
-	} else {
-		body = openAIPromptCacheRequestBody(body)
-		t.bodyCache.Store(key, body)
-	}
+	body = openAIPromptCacheRequestBody(body)
 
 	clone := req.Clone(req.Context())
 	clone.Header = req.Header.Clone()
@@ -802,25 +790,96 @@ func (t *miniMaxTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 }
 
 func miniMaxPrepareRequestBody(body []byte) ([]byte, bool) {
-	var payload map[string]json.RawMessage
+	var payload map[string]interface{}
 	if err := json.Unmarshal(body, &payload); err != nil {
-		// If we cannot parse the body at all, fall back to the legacy chain
-		// without modifying anything else.
-		body = miniMaxConvertSystemMessages(body)
-		body = miniMaxMapReasoningContentToDetails(body)
-		body = miniMaxEnableReasoningSplit(body)
 		return body, false
 	}
 
-	var stream bool
-	if streamRaw, ok := payload["stream"]; ok {
-		_ = json.Unmarshal(streamRaw, &stream)
+	stream, _ := payload["stream"].(bool)
+	miniMaxMapReasoningContentToDetailsPayload(payload)
+	miniMaxConvertSystemMessagesPayload(payload)
+	payload["reasoning_split"] = true
+
+	result, err := json.Marshal(payload)
+	if err != nil {
+		return body, stream
+	}
+	return result, stream
+}
+
+func miniMaxMapReasoningContentToDetailsPayload(payload map[string]interface{}) {
+	messages, ok := payload["messages"].([]interface{})
+	if !ok {
+		return
+	}
+	for _, rawMessage := range messages {
+		message, ok := rawMessage.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		reasoning, _ := message["reasoning_content"].(string)
+		if strings.TrimSpace(reasoning) == "" {
+			continue
+		}
+		if _, exists := message["reasoning_details"]; !exists {
+			message["reasoning_details"] = []map[string]interface{}{{
+				"type":   "reasoning.text",
+				"id":     "reasoning-text-1",
+				"format": "MiniMax-response-v1",
+				"index":  0,
+				"text":   reasoning,
+			}}
+		}
+		delete(message, "reasoning_content")
+	}
+}
+
+func miniMaxConvertSystemMessagesPayload(payload map[string]interface{}) {
+	rawMessages, ok := payload["messages"].([]interface{})
+	if !ok {
+		return
+	}
+	messages := make([]map[string]interface{}, 0, len(rawMessages))
+	for _, rawMessage := range rawMessages {
+		message, ok := rawMessage.(map[string]interface{})
+		if !ok {
+			return
+		}
+		messages = append(messages, message)
 	}
 
-	body = miniMaxConvertSystemMessages(body)
-	body = miniMaxMapReasoningContentToDetailsRaw(payload, body)
-	body = miniMaxEnableReasoningSplit(body)
-	return body, stream
+	var system strings.Builder
+	filtered := make([]map[string]interface{}, 0, len(messages))
+	for _, message := range messages {
+		if role, _ := message["role"].(string); role == "system" {
+			text := extractTextContent(message["content"])
+			if text != "" {
+				if system.Len() > 0 {
+					system.WriteString("\n\n")
+				}
+				system.WriteString(text)
+			}
+			continue
+		}
+		filtered = append(filtered, message)
+	}
+	if system.Len() == 0 {
+		return
+	}
+
+	prepended := false
+	for _, message := range filtered {
+		if role, _ := message["role"].(string); role == "user" {
+			if err := prependToUserContent(message, system.String()); err == nil {
+				prepended = true
+				break
+			}
+		}
+	}
+	if !prepended {
+		filtered = append([]map[string]interface{}{{"role": "user", "content": system.String()}}, filtered...)
+	}
+	payload["messages"] = filtered
 }
 
 // miniMaxMapReasoningContentToDetailsRaw works on an already-parsed payload so
