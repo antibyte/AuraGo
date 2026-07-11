@@ -254,6 +254,25 @@ func TestConfigPrecisionWorkspaceBrowserMatrix(t *testing.T) {
 		}
 	}
 	waitForJSBool(t, page, `() => document.querySelectorAll('.pw-overview-card').length >= 10`)
+	iconState := page.MustEval(`() => {
+		const icons = [...document.querySelectorAll('.sidebar-item .config-sidebar-icon-sprite')];
+		const inlineIcons = [...document.querySelectorAll('.sidebar-item .config-sidebar-icon-svg use')];
+		const symbolSprite = document.getElementById('config-sidebar-icon-symbols');
+		const firstBox = icons[0] ? icons[0].getBoundingClientRect() : null;
+		return {
+			icons: icons.length,
+			inlineIcons: inlineIcons.length,
+			hasSymbolSprite: !!symbolSprite,
+			firstIconVisible: !!firstBox && firstBox.width >= 20 && firstBox.height >= 20,
+			firstUseTarget: inlineIcons[0] ? inlineIcons[0].getAttribute('href') : '',
+		};
+	}`).Map()
+	if iconState["icons"].Int() != 101 || iconState["inlineIcons"].Int() != 101 || !iconState["hasSymbolSprite"].Bool() || !iconState["firstIconVisible"].Bool() {
+		t.Fatalf("config sidebar icons are not render-safe: %+v", iconState)
+	}
+	if got := iconState["firstUseTarget"].String(); got != "#config-sidebar-icon-overview" {
+		t.Fatalf("first config sidebar icon target = %q, want overview symbol", got)
+	}
 
 	viewports := []struct{ width, height int }{{1920, 1080}, {1440, 900}, {1024, 768}, {768, 1024}, {390, 844}}
 	for _, theme := range []string{"dark", "light", "system"} {
@@ -419,8 +438,11 @@ func TestConfigSidebarIconSpriteContract(t *testing.T) {
 	for _, marker := range []string{
 		`const CONFIG_SIDEBAR_ICON_GRID = Object.freeze({ columns: 11, rows: 10, cell: 128 });`,
 		`const CONFIG_SIDEBAR_ICON_SLOTS = Object.freeze({`,
+		`const CONFIG_SIDEBAR_ICON_SYMBOLS = Object.freeze({`,
+		`function ensureConfigSidebarIconSymbols(`,
 		`function createConfigSidebarIcon(`,
 		`config-sidebar-icon-sprite config-icon-slot-`,
+		`config-sidebar-icon-svg`,
 		`createConfigSidebarIcon('overview')`,
 		`createConfigSidebarIcon(s.key)`,
 	} {
@@ -454,6 +476,9 @@ func TestConfigSidebarIconSpriteContract(t *testing.T) {
 
 	for _, marker := range []string{
 		`.config-sidebar-icon-sprite`,
+		`.config-sidebar-icon-symbols`,
+		`.config-sidebar-icon-svg`,
+		`.config-sidebar-icon-sprite:empty`,
 		`background-image: url('/img/config-sidebar-icons.svg')`,
 		`background-size: 1100% 1000%`,
 		`.pw-page .config-icon-slot-0 { background-position: 0% 0%; }`,
