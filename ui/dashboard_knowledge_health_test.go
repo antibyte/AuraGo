@@ -67,8 +67,12 @@ func TestDashboardKnowledgeGraphVisualUsesBoundedCanvasSize(t *testing.T) {
 	css := readDesktopAssetText(t, "css/dashboard.css")
 
 	for _, marker := range []string{
+		"const KG_VISUAL_MAX_HEIGHT = 460;",
 		"function knowledgeGraphVisualSize(wrap)",
 		"parseFloat(style.height)",
+		"height: Math.min(KG_VISUAL_MAX_HEIGHT, Math.max(KG_VISUAL_MIN_HEIGHT, height))",
+		"window.requestAnimationFrame(() => {",
+		"if (wrap._forceGraphSize && wrap._forceGraphSize.width === size.width && wrap._forceGraphSize.height === size.height) return;",
 		"wrap._forceGraph.width(size.width).height(size.height)",
 		"wrap._forceGraph\n                .width(graphSize.width)\n                .height(graphSize.height)",
 	} {
@@ -83,8 +87,11 @@ func TestDashboardKnowledgeGraphVisualUsesBoundedCanvasSize(t *testing.T) {
 		"height: clamp(360px, 42vh, 460px);",
 		"min-height: 360px;",
 		"max-height: 460px;",
+		"contain: layout paint;",
 		"overflow: hidden;",
+		".knowledge-visual-wrap > div",
 		".knowledge-visual-wrap canvas",
+		"height: 100% !important;",
 	} {
 		if !strings.Contains(css, marker) {
 			t.Fatalf("dashboard knowledge graph visual sizing missing CSS marker %q", marker)

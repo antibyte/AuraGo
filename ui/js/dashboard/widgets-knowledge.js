@@ -783,13 +783,20 @@
             };
         }
 
+        const KG_VISUAL_MIN_WIDTH = 320;
+        const KG_VISUAL_MAX_WIDTH = 1600;
+        const KG_VISUAL_MIN_HEIGHT = 360;
+        const KG_VISUAL_MAX_HEIGHT = 460;
+
         function knowledgeGraphVisualSize(wrap) {
             const rect = wrap.getBoundingClientRect ? wrap.getBoundingClientRect() : { width: 0 };
             const style = window.getComputedStyle ? window.getComputedStyle(wrap) : null;
             const cssHeight = style ? parseFloat(style.height) : 0;
+            const width = Math.floor(rect.width || wrap.clientWidth || 720);
+            const height = Math.floor(cssHeight || rect.height || KG_VISUAL_MIN_HEIGHT);
             return {
-                width: Math.max(320, Math.floor(rect.width || wrap.clientWidth || 720)),
-                height: Math.max(260, Math.floor(cssHeight || 360)),
+                width: Math.min(KG_VISUAL_MAX_WIDTH, Math.max(KG_VISUAL_MIN_WIDTH, width)),
+                height: Math.min(KG_VISUAL_MAX_HEIGHT, Math.max(KG_VISUAL_MIN_HEIGHT, height)),
             };
         }
 
@@ -817,6 +824,11 @@
                     wrap._forceGraphResizeObserver.disconnect();
                     delete wrap._forceGraphResizeObserver;
                 }
+                if (wrap._forceGraphResizeFrame) {
+                    window.cancelAnimationFrame(wrap._forceGraphResizeFrame);
+                    delete wrap._forceGraphResizeFrame;
+                }
+                delete wrap._forceGraphSize;
                 wrap.innerHTML = `<div class="empty-state">${t('dashboard.knowledge_visual_empty')}</div>`;
                 return;
             }
@@ -841,10 +853,15 @@
                 // knowledge tab and is also rendered into the focused-detail modal.
                 if (typeof ResizeObserver === 'function') {
                     const ro = new ResizeObserver(() => {
-                        if (wrap._forceGraph && typeof wrap._forceGraph.width === 'function') {
+                        if (wrap._forceGraphResizeFrame) return;
+                        wrap._forceGraphResizeFrame = window.requestAnimationFrame(() => {
+                            wrap._forceGraphResizeFrame = 0;
+                            if (!wrap._forceGraph || typeof wrap._forceGraph.width !== 'function') return;
                             const size = knowledgeGraphVisualSize(wrap);
+                            if (wrap._forceGraphSize && wrap._forceGraphSize.width === size.width && wrap._forceGraphSize.height === size.height) return;
+                            wrap._forceGraphSize = size;
                             wrap._forceGraph.width(size.width).height(size.height);
-                        }
+                        });
                     });
                     ro.observe(wrap);
                     wrap._forceGraphResizeObserver = ro;
@@ -852,6 +869,7 @@
             }
 
             const graphSize = knowledgeGraphVisualSize(wrap);
+            wrap._forceGraphSize = graphSize;
             wrap._forceGraph
                 .width(graphSize.width)
                 .height(graphSize.height)

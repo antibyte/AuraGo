@@ -77,14 +77,14 @@ func TestDashboardMissionHistoryContrast(t *testing.T) {
 	css := readDesktopAssetText(t, "css/dashboard.css")
 	for _, marker := range []string{
 		".mh-table {\n    min-width: 640px;",
-		".mh-table th {\n    color: color-mix(in srgb, var(--pw-text) 72%, var(--pw-muted) 28%);",
-		".mh-table td {\n    color: color-mix(in srgb, var(--pw-text) 82%, var(--pw-muted) 18%);",
+		".mh-table th {\n    color: color-mix(in srgb, var(--pw-text) 88%, var(--pw-muted) 12%);",
+		".mh-table td {\n    color: color-mix(in srgb, var(--pw-text) 94%, white 6%);",
 		".mh-table td:first-child {\n    color: var(--pw-text);",
 		".mh-status {\n    display: inline-flex;",
 		".mh-trigger {\n    display: inline-flex;",
-		".mh-status-success {\n    color: color-mix(in srgb, var(--success) 84%, white 16%);",
+		".mh-status-success {\n    color: color-mix(in srgb, var(--success) 76%, white 24%);",
 		"white-space: nowrap;",
-		"color: color-mix(in srgb, var(--pw-text) 76%, var(--pw-muted) 24%);",
+		"color: color-mix(in srgb, var(--pw-text) 90%, white 10%);",
 	} {
 		if !strings.Contains(css, marker) {
 			t.Fatalf("dashboard mission history contrast CSS missing marker %q", marker)

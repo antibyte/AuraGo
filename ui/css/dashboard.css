@@ -3727,8 +3727,12 @@
 }
 
 .pw-page[data-workspace-page="dashboard"] .knowledge-visual-wrap {
+    width: 100%;
+    max-width: 100%;
     padding: 0.75rem;
     overflow: hidden;
+    contain: layout paint;
+    isolation: isolate;
     transition: border-color 0.3s ease, box-shadow 0.3s ease;
     box-sizing: border-box;
     height: clamp(360px, 42vh, 460px);
@@ -3736,9 +3740,20 @@
     max-height: 460px;
 }
 
+.pw-page[data-workspace-page="dashboard"] .knowledge-visual-wrap > div {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100%;
+    max-height: 100%;
+    overflow: hidden;
+}
+
 .pw-page[data-workspace-page="dashboard"] .knowledge-visual-wrap canvas {
     display: block;
+    width: 100% !important;
+    height: 100% !important;
     max-width: 100%;
+    max-height: 100%;
 }
 
 .pw-page[data-workspace-page="dashboard"] .knowledge-visual-wrap:hover {
@@ -5238,13 +5253,13 @@
 }
 
 .pw-page[data-workspace-page="dashboard"] .mh-table th {
-    color: color-mix(in srgb, var(--pw-text) 72%, var(--pw-muted) 28%);
+    color: color-mix(in srgb, var(--pw-text) 88%, var(--pw-muted) 12%);
     font-weight: 700;
 }
 
 .pw-page[data-workspace-page="dashboard"] .mh-table td {
-    color: color-mix(in srgb, var(--pw-text) 82%, var(--pw-muted) 18%);
-    background: color-mix(in srgb, var(--pw-surface-elevated) 82%, var(--pw-surface) 18%);
+    color: color-mix(in srgb, var(--pw-text) 94%, white 6%);
+    background: color-mix(in srgb, var(--pw-surface-elevated) 92%, var(--pw-surface) 8%);
 }
 
 .pw-page[data-workspace-page="dashboard"] .mh-table td:first-child {
@@ -5253,9 +5268,15 @@
 }
 
 .pw-page[data-workspace-page="dashboard"] .mh-status-success {
-    color: color-mix(in srgb, var(--success) 84%, white 16%);
-    background: color-mix(in srgb, var(--success) 20%, transparent);
-    border-color: color-mix(in srgb, var(--success) 38%, transparent);
+    color: color-mix(in srgb, var(--success) 76%, white 24%);
+    background: color-mix(in srgb, var(--success) 28%, var(--pw-surface) 72%);
+    border-color: color-mix(in srgb, var(--success) 55%, transparent);
+}
+
+.pw-page[data-workspace-page="dashboard"] .mh-trigger {
+    color: color-mix(in srgb, var(--pw-text) 90%, white 10%);
+    background: color-mix(in srgb, var(--pw-surface-elevated) 68%, var(--pw-accent) 32%);
+    border-color: color-mix(in srgb, var(--pw-accent) 42%, var(--pw-line) 58%);
 }
 
 .pw-page[data-workspace-page="dashboard"]:where(:root[data-theme="light"] *) .audit-table td, .pw-page[data-workspace-page="dashboard"]:where(:root[data-theme="light"] *) .cronjobs-table td, .pw-page[data-workspace-page="dashboard"]:where(:root[data-theme="light"] *) .mh-table td {
