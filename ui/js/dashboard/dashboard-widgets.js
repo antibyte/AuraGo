@@ -1751,6 +1751,7 @@
                     <td data-label="${esc(t('dashboard.cronjobs_col_status'))}"><span class="cronjobs-status cronjobs-status-${status}" title="${esc(statusTitle)}">${esc(cronjobStatusLabel(status))}</span></td>
                     <td data-label="${esc(t('dashboard.cronjobs_col_prompt'))}" title="${esc(promptTitle)}">${esc(truncate(job.task_prompt || '', 120) || '—')}</td>
                     <td data-label="${esc(t('dashboard.cronjobs_col_actions'))}">
+                        <div class="cronjobs-row-actions">
                         <button type="button" class="cronjobs-row-btn"
                             data-cron-id="${esc(job.id || '')}"
                             data-cron-expr="${esc(job.cron_expr || '')}"
@@ -1763,6 +1764,7 @@
                             data-cron-id="${esc(job.id || '')}"
                             onclick="deleteCronJob(this.dataset.cronId)"
                             title="${esc(t('dashboard.cron_btn_delete'))}">${esc(t('dashboard.btn_delete'))}</button>
+                        </div>
                     </td>`;
                 tbody.appendChild(tr);
             });

@@ -112,10 +112,15 @@ func TestDashboardAuditRemediationContracts(t *testing.T) {
 		".dash-tab-group-sep",
 		"max-height: 148px",
 		"width: var(--bar-width, 4%)",
+		".cronjobs-row-actions",
+		"width: auto;\n    min-width: 0;\n    height: auto;\n    min-height: 1.75rem;",
 	} {
 		if !strings.Contains(css, marker) {
 			t.Fatalf("dashboard CSS missing remediation marker %q", marker)
 		}
+	}
+	if strings.Contains(css, ".cronjobs-row-btn {\n    width: 2rem;") {
+		t.Fatal("cronjobs row buttons must not stay icon-sized")
 	}
 
 	en := readDesktopAssetText(t, "lang/dashboard/en.json")
