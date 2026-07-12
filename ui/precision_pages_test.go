@@ -321,7 +321,7 @@ func TestPrecisionWorkspaceDashboardAdapterIsScopedAndResponsive(t *testing.T) {
 		`min-height: 44px;`,
 		`@media (prefers-reduced-motion: reduce)`,
 		prefix + ` #tab-agent .dash-grid`,
-		`grid-template-columns: repeat(2, minmax(0, 1fr));`,
+		`columns: 2;`,
 	} {
 		if !strings.Contains(styles, marker) {
 			t.Errorf("Dashboard Precision styles missing marker %q", marker)

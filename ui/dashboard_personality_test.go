@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -15,23 +16,21 @@ func TestDashboardPersonalityDisabledStateIsNotVisibleByDefault(t *testing.T) {
 	}
 }
 
-func TestDashboardAgentCardsUseNonOverlappingGridTracks(t *testing.T) {
+func TestDashboardAgentCardsUseMasonryColumnLayout(t *testing.T) {
 	t.Parallel()
 
 	css := strings.ReplaceAll(readDesktopAssetText(t, "css/dashboard.css"), "\r\n", "\n")
 	agentGrid := dashboardCSSRuleBody(t, css, "#tab-agent .dash-grid")
 	for _, marker := range []string{
-		"grid-template-columns: repeat(2, minmax(0, 1fr));",
-		"row-gap: clamp(1.25rem, 2vw, 1.6rem);",
+		"columns: 2;",
 		"column-gap: clamp(1.25rem, 2vw, 1.6rem);",
-		"align-items: start;",
 	} {
 		if !strings.Contains(agentGrid, marker) {
-			t.Fatalf("agent dashboard grid missing non-overlap marker %q in block:\n%s", marker, agentGrid)
+			t.Fatalf("agent dashboard masonry grid missing marker %q in block:\n%s", marker, agentGrid)
 		}
 	}
-	if strings.Contains(agentGrid, "column-gap: unset;") {
-		t.Fatalf("agent dashboard grid must not reset the grid column gap after setting it; block:\n%s", agentGrid)
+	if strings.Contains(agentGrid, "grid-template-columns:") {
+		t.Fatalf("agent dashboard grid must not use CSS grid columns; block:\n%s", agentGrid)
 	}
 
 	cardRule := dashboardCSSRuleBody(t, css, "#tab-agent .dash-grid > .dash-card")
@@ -41,8 +40,31 @@ func TestDashboardAgentCardsUseNonOverlappingGridTracks(t *testing.T) {
 		"box-sizing: border-box;",
 	} {
 		if !strings.Contains(cardRule, marker) {
-			t.Fatalf("agent dashboard cards missing non-overlap marker %q in block:\n%s", marker, cardRule)
+			t.Fatalf("agent dashboard cards missing masonry marker %q in block:\n%s", marker, cardRule)
 		}
+	}
+
+	baseGrid := regexp.MustCompile(`(?s)\.pw-page\[data-workspace-page="dashboard"\] \.dash-grid\s*\{[^}]*columns:\s*3;`)
+	if !baseGrid.MatchString(css) {
+		t.Fatal("dashboard base masonry grid must define columns: 3")
+	}
+	if !strings.Contains(css, "column-gap: var(--pw-space-5);") {
+		t.Fatal("dashboard base masonry grid must keep the desktop column gap")
+	}
+
+	baseCardRule := dashboardCSSRuleBody(t, css, ".dash-grid > .dash-card")
+	for _, marker := range []string{
+		"break-inside: avoid;",
+		"margin-bottom: var(--pw-space-5);",
+	} {
+		if !strings.Contains(baseCardRule, marker) {
+			t.Fatalf("dashboard cards missing masonry marker %q in block:\n%s", marker, baseCardRule)
+		}
+	}
+
+	fullWidthRule := dashboardCSSRuleBody(t, css, ".dash-grid > .dash-card.dash-full-width")
+	if !strings.Contains(fullWidthRule, "column-span: all;") {
+		t.Fatalf("full-width dashboard cards must span all masonry columns; block:\n%s", fullWidthRule)
 	}
 
 	bodyRule := dashboardCSSRuleBody(t, css, "#tab-agent .dash-card-body")
@@ -63,20 +85,33 @@ func TestDashboardCSSIsCacheBustedForAgentGridLayout(t *testing.T) {
 func dashboardCSSRuleBody(t *testing.T, source, selector string) string {
 	t.Helper()
 
-	needle := selector + " {"
-	start := strings.Index(source, needle)
-	if start < 0 {
+	rules := regexp.MustCompile(`(?s)([^{}]+)\{([^{}]*)\}`)
+	target := strings.TrimSpace(selector)
+	prefixed := `.pw-page[data-workspace-page="dashboard"] ` + target
+	var matches []string
+	for _, match := range rules.FindAllStringSubmatch(source, -1) {
+		header := strings.TrimSpace(match[1])
+		if strings.HasPrefix(header, "@") {
+			continue
+		}
+		for _, part := range strings.Split(header, ",") {
+			part = strings.TrimSpace(part)
+			if part == prefixed || part == target {
+				matches = append(matches, match[2])
+				break
+			}
+		}
+	}
+	if len(matches) == 0 {
 		t.Fatalf("dashboard CSS missing selector %q", selector)
 	}
-	start++
-	open := strings.Index(source[start:], "{")
-	if open < 0 {
-		t.Fatalf("dashboard CSS selector %q is missing opening brace", selector)
+	if len(matches) == 1 {
+		return matches[0]
 	}
-	bodyStart := start + open + 1
-	close := strings.Index(source[bodyStart:], "}")
-	if close < 0 {
-		t.Fatalf("dashboard CSS selector %q is missing closing brace", selector)
+	for _, body := range matches {
+		if strings.Contains(body, "columns:") || strings.Contains(body, "break-inside:") || strings.Contains(body, "column-gap:") {
+			return body
+		}
 	}
-	return source[bodyStart : bodyStart+close]
+	return matches[0]
 }

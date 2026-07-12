@@ -52,8 +52,16 @@
     padding-block: var(--pw-space-3);
 }
 
-.pw-page[data-workspace-page="dashboard"][data-density="compact"] .agent-banner, .pw-page[data-workspace-page="dashboard"][data-density="compact"] .dash-tabs, .pw-page[data-workspace-page="dashboard"][data-density="compact"] .dash-grid, .pw-page[data-workspace-page="dashboard"][data-density="compact"] .stats-grid, .pw-page[data-workspace-page="dashboard"][data-density="compact"] .ops-grid, .pw-page[data-workspace-page="dashboard"][data-density="compact"] .prompt-kpi-grid {
+.pw-page[data-workspace-page="dashboard"][data-density="compact"] .agent-banner, .pw-page[data-workspace-page="dashboard"][data-density="compact"] .dash-tabs, .pw-page[data-workspace-page="dashboard"][data-density="compact"] .stats-grid, .pw-page[data-workspace-page="dashboard"][data-density="compact"] .ops-grid, .pw-page[data-workspace-page="dashboard"][data-density="compact"] .prompt-kpi-grid {
     gap: var(--pw-space-2);
+}
+
+.pw-page[data-workspace-page="dashboard"][data-density="compact"] .dash-grid {
+    column-gap: var(--pw-space-2);
+}
+
+.pw-page[data-workspace-page="dashboard"][data-density="compact"] .dash-grid > .dash-card {
+    margin-bottom: var(--pw-space-2);
 }
 
 .pw-page[data-workspace-page="dashboard"] .dash-banner-always, .pw-page[data-workspace-page="dashboard"] .dash-tabs, .pw-page[data-workspace-page="dashboard"] .dash-grid {
@@ -271,11 +279,9 @@
 /* ── Dashboard Layout ────────────────────────────────── */
 
 .pw-page[data-workspace-page="dashboard"] .dash-grid {
-    display: grid;
+    columns: 3;
+    column-gap: var(--pw-space-5);
     margin: 0 auto;
-    align-items: start;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: var(--pw-space-5);
     padding: var(--pw-space-5) 0;
 }
 
@@ -303,15 +309,20 @@
 }
 
 .pw-page[data-workspace-page="dashboard"] .dash-grid > .dash-card {
+    break-inside: avoid;
+    -webkit-column-break-inside: avoid;
+    page-break-inside: avoid;
+    margin-bottom: var(--pw-space-5);
     min-height: 180px;
     display: flex;
     flex-direction: column;
     min-width: 0;
     width: 100%;
+    box-sizing: border-box;
 }
 
 .pw-page[data-workspace-page="dashboard"] .dash-grid > .dash-card.dash-full-width {
-    grid-column: 1 / -1;
+    column-span: all;
 }
 
 .pw-page[data-workspace-page="dashboard"] .dash-card::before {
@@ -375,20 +386,17 @@
 }
 
 .pw-page[data-workspace-page="dashboard"] .dash-full-width {
-    grid-column: 1 / -1;
+    column-span: all;
 }
 
 .pw-page[data-workspace-page="dashboard"] #tab-agent .dash-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    row-gap: clamp(1.25rem, 2vw, 1.6rem);
+    columns: 2;
     column-gap: clamp(1.25rem, 2vw, 1.6rem);
-    align-items: start;
 }
 
 .pw-page[data-workspace-page="dashboard"] #tab-agent .dash-grid > .dash-card {
     display: flex;
-    margin-bottom: 0;
+    margin-bottom: clamp(1.25rem, 2vw, 1.6rem);
     min-width: 0;
     max-width: 100%;
     box-sizing: border-box;
@@ -6097,11 +6105,11 @@
     }
 
     .pw-page[data-workspace-page="dashboard"] #tab-agent .dash-grid {
-        grid-template-columns: 1fr;
+        columns: 1;
     }
 
     .pw-page[data-workspace-page="dashboard"] .dash-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        columns: 2;
     }
 }
 
@@ -6123,8 +6131,8 @@
     }
 
     .pw-page[data-workspace-page="dashboard"] .dash-grid, .pw-page[data-workspace-page="dashboard"] #tab-agent .dash-grid {
-        grid-template-columns: 1fr;
-        gap: var(--pw-space-3);
+        columns: 1;
+        column-gap: var(--pw-space-3);
         padding-block: var(--pw-space-3);
     }
 
@@ -6347,7 +6355,7 @@
 
 @media (max-width: 1200px) {
     .pw-page[data-workspace-page="dashboard"] .dash-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        columns: 2;
     }
 
     .pw-page[data-workspace-page="dashboard"] .fs-dash-grid {
@@ -6362,12 +6370,12 @@
 
     .pw-page[data-workspace-page="dashboard"] .dash-grid {
         padding: var(--space-4) 0.875rem 1.25rem;
-        grid-template-columns: 1fr;
-        gap: var(--space-4);
+        columns: 1;
+        column-gap: var(--space-4);
     }
 
     .pw-page[data-workspace-page="dashboard"] .dash-grid > .dash-card {
-        margin-bottom: 0;
+        margin-bottom: var(--space-4);
     }
 
     .pw-page[data-workspace-page="dashboard"] .dash-card-header, .pw-page[data-workspace-page="dashboard"] .dash-card-body {
@@ -6428,7 +6436,7 @@
 
 @media (max-width: 1024px) and (min-width: 769px) {
     .pw-page[data-workspace-page="dashboard"] .dash-grid {
-        columns: 1;
+        columns: 2;
         padding: 1rem;
         column-gap: 1rem;
     }
