@@ -654,7 +654,7 @@ func (s *SQLiteMemory) AddNotification(content string) error {
 
 // GetUnreadNotifications returns all unread notifications.
 func (s *SQLiteMemory) GetUnreadNotifications() ([]string, error) {
-	query := `SELECT content FROM system_notifications WHERE is_read = 0 ORDER BY timestamp ASC;`
+	query := `SELECT id, content FROM system_notifications WHERE is_read = 0 ORDER BY timestamp ASC;`
 	rows, err := s.db.Query(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get unread notifications: %w", err)
@@ -662,17 +662,33 @@ func (s *SQLiteMemory) GetUnreadNotifications() ([]string, error) {
 	defer rows.Close()
 
 	var notes []string
+	var internalIDs []int64
 	for rows.Next() {
+		var id int64
 		var content string
-		if err := rows.Scan(&content); err != nil {
+		if err := rows.Scan(&id, &content); err != nil {
 			return nil, fmt.Errorf("scan notification: %w", err)
+		}
+		if isInternalSystemNotification(content) {
+			internalIDs = append(internalIDs, id)
+			continue
 		}
 		notes = append(notes, content)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("rows iteration: %w", err)
 	}
+	for _, id := range internalIDs {
+		if _, err := s.db.Exec(`UPDATE system_notifications SET is_read = 1 WHERE id = ?`, id); err != nil {
+			return nil, fmt.Errorf("mark internal notification read: %w", err)
+		}
+	}
 	return notes, nil
+}
+
+func isInternalSystemNotification(content string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(content))
+	return strings.HasPrefix(normalized, "weekly memory reflection:")
 }
 
 // MarkNotificationsRead marks all system notifications as read.

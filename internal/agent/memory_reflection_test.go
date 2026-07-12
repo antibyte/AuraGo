@@ -230,7 +230,7 @@ func TestBuildMemoryReflectionActionIssuesPrioritizesCoreMemoryFollowUpBeforeCap
 	}
 }
 
-func TestRunWeeklyReflectionJobRetriesLowQualityStoresJournalAndNotification(t *testing.T) {
+func TestRunWeeklyReflectionJobRetriesLowQualityStoresJournalWithoutUserNotification(t *testing.T) {
 	releaseWeeklyReflectionClaim()
 	t.Cleanup(releaseWeeklyReflectionClaim)
 
@@ -282,8 +282,8 @@ func TestRunWeeklyReflectionJobRetriesLowQualityStoresJournalAndNotification(t *
 	if err != nil {
 		t.Fatalf("GetUnreadNotifications: %v", err)
 	}
-	if len(notifications) != 1 || !strings.Contains(notifications[0], "Weekly memory reflection") {
-		t.Fatalf("notifications = %#v, want weekly reflection notification", notifications)
+	if len(notifications) != 0 {
+		t.Fatalf("notifications = %#v, want weekly reflection hidden from user-facing notifications", notifications)
 	}
 
 	ranAgain, err := runWeeklyReflectionJob(context.Background(), cfg, slog.New(slog.NewTextHandler(io.Discard, nil)), client, stm, nil, nil, nil)

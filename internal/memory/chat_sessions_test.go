@@ -20,6 +20,37 @@ func newTestSTM(t *testing.T) *SQLiteMemory {
 	return stm
 }
 
+func TestGetUnreadNotificationsHidesWeeklyMemoryReflection(t *testing.T) {
+	stm := newTestSTM(t)
+
+	if err := stm.AddNotification("Morning briefing: coffee and tasks"); err != nil {
+		t.Fatalf("AddNotification normal: %v", err)
+	}
+	if err := stm.AddNotification("Weekly memory reflection: internal curator backlog details"); err != nil {
+		t.Fatalf("AddNotification weekly reflection: %v", err)
+	}
+
+	notifications, err := stm.GetUnreadNotifications()
+	if err != nil {
+		t.Fatalf("GetUnreadNotifications: %v", err)
+	}
+	if len(notifications) != 1 {
+		t.Fatalf("notifications = %#v, want only user-facing notification", notifications)
+	}
+	if notifications[0] != "Morning briefing: coffee and tasks" {
+		t.Fatalf("notification = %q, want morning briefing", notifications[0])
+	}
+
+	var hiddenUnread int
+	err = stm.db.QueryRow(`SELECT COUNT(*) FROM system_notifications WHERE is_read = 0 AND content LIKE 'Weekly memory reflection:%'`).Scan(&hiddenUnread)
+	if err != nil {
+		t.Fatalf("count hidden unread notifications: %v", err)
+	}
+	if hiddenUnread != 0 {
+		t.Fatalf("hidden unread weekly reflection notifications = %d, want 0", hiddenUnread)
+	}
+}
+
 func TestCreateChatSession(t *testing.T) {
 	stm := newTestSTM(t)
 
