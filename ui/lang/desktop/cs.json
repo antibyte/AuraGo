@@ -1642,5 +1642,17 @@
   "zipper.open": "Otevřít archiv",
   "zipper.size": "Velikost",
   "zipper.title": "Zipper",
-  "zipper.total_size": "{{size}} celkem"
+  "zipper.total_size": "{{size}} celkem",
+  "desktop.virtual_computers_title": "Virtuální počítače",
+  "desktop.virtual_computers_status": "Vyber počítač nebo spusť snímek obrazovky.",
+  "desktop.virtual_computers_refresh": "Obnovit",
+  "desktop.virtual_computers_open_config": "Nastavení",
+  "desktop.virtual_computers_launch": "Spustit",
+  "desktop.virtual_computers_empty": "Zatím neběží žádné virtuální počítače.",
+  "desktop.virtual_computers_error": "Virtuální počítače:",
+  "desktop.virtual_computers_destroy": "Ukončit",
+  "desktop.virtual_computers_screenshot": "Snímek",
+  "desktop.virtual_computers_state_enabled": "Zapnuto",
+  "desktop.virtual_computers_state_disabled": "Vypnuto",
+  "desktop.app_virtual_computers": "Virtuální počítače"
 }

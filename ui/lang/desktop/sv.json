@@ -1642,5 +1642,17 @@
   "zipper.open": "Öppna arkiv",
   "zipper.size": "Storlek",
   "zipper.title": "Zipper",
-  "zipper.total_size": "{{size}} totalt"
+  "zipper.total_size": "{{size}} totalt",
+  "desktop.virtual_computers_title": "Virtuella datorer",
+  "desktop.virtual_computers_status": "Välj en dator eller ta en skärmbild.",
+  "desktop.virtual_computers_refresh": "Uppdatera",
+  "desktop.virtual_computers_open_config": "Inställningar",
+  "desktop.virtual_computers_launch": "Starta",
+  "desktop.virtual_computers_empty": "Inga virtuella datorer körs ännu.",
+  "desktop.virtual_computers_error": "Virtuella datorer:",
+  "desktop.virtual_computers_destroy": "Avsluta",
+  "desktop.virtual_computers_screenshot": "Skärmbild",
+  "desktop.virtual_computers_state_enabled": "Aktiverad",
+  "desktop.virtual_computers_state_disabled": "Inaktiverad",
+  "desktop.app_virtual_computers": "Virtuella datorer"
 }

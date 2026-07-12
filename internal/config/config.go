@@ -495,6 +495,17 @@ func Load(path string) (*Config, error) {
 	cfg.VirtualDesktop.OpenSCAD.MaxRenderTimeoutSeconds = 600
 	cfg.VirtualDesktop.OpenSCAD.JobRetentionDays = 7
 
+	cfg.VirtualComputers.Provider = "boring_computers"
+	cfg.VirtualComputers.ControlPlane.Mode = "ssh_host"
+	cfg.VirtualComputers.ControlPlane.SSHPort = 22
+	cfg.VirtualComputers.ControlPlane.InstallDir = "/opt/boring-computers"
+	cfg.VirtualComputers.ControlPlane.BoringdURL = "http://127.0.0.1:8080"
+	cfg.VirtualComputers.DefaultTemplate = "python"
+	cfg.VirtualComputers.DefaultTTLSeconds = 600
+	cfg.VirtualComputers.MaxTTLSeconds = 900
+	cfg.VirtualComputers.MaxRunningMachines = 3
+	cfg.VirtualComputers.MaxForks = 3
+
 	cfg.Tools.PythonTimeoutSeconds = 30
 	cfg.Tools.SkillTimeoutSeconds = 120
 	cfg.Tools.BackgroundTimeoutSeconds = 3600
@@ -1141,6 +1152,42 @@ func Load(path string) (*Config, error) {
 	if cfg.VirtualDesktop.OpenSCAD.JobRetentionDays <= 0 {
 		cfg.VirtualDesktop.OpenSCAD.JobRetentionDays = 7
 	}
+	if strings.TrimSpace(cfg.VirtualComputers.Provider) == "" {
+		cfg.VirtualComputers.Provider = "boring_computers"
+	}
+	if strings.TrimSpace(cfg.VirtualComputers.ControlPlane.Mode) == "" {
+		cfg.VirtualComputers.ControlPlane.Mode = "ssh_host"
+	}
+	if cfg.VirtualComputers.ControlPlane.SSHPort <= 0 {
+		cfg.VirtualComputers.ControlPlane.SSHPort = 22
+	}
+	if strings.TrimSpace(cfg.VirtualComputers.ControlPlane.InstallDir) == "" {
+		cfg.VirtualComputers.ControlPlane.InstallDir = "/opt/boring-computers"
+	}
+	if strings.TrimSpace(cfg.VirtualComputers.ControlPlane.BoringdURL) == "" {
+		cfg.VirtualComputers.ControlPlane.BoringdURL = "http://127.0.0.1:8080"
+	}
+	if strings.TrimSpace(cfg.VirtualComputers.DefaultTemplate) == "" {
+		cfg.VirtualComputers.DefaultTemplate = "python"
+	}
+	if cfg.VirtualComputers.DefaultTTLSeconds <= 0 {
+		cfg.VirtualComputers.DefaultTTLSeconds = 600
+	}
+	if cfg.VirtualComputers.DefaultTTLSeconds < 15 {
+		cfg.VirtualComputers.DefaultTTLSeconds = 15
+	}
+	if cfg.VirtualComputers.MaxTTLSeconds <= 0 || cfg.VirtualComputers.MaxTTLSeconds > 900 {
+		cfg.VirtualComputers.MaxTTLSeconds = 900
+	}
+	if cfg.VirtualComputers.DefaultTTLSeconds > cfg.VirtualComputers.MaxTTLSeconds {
+		cfg.VirtualComputers.DefaultTTLSeconds = cfg.VirtualComputers.MaxTTLSeconds
+	}
+	if cfg.VirtualComputers.MaxRunningMachines <= 0 {
+		cfg.VirtualComputers.MaxRunningMachines = 3
+	}
+	if cfg.VirtualComputers.MaxForks <= 0 {
+		cfg.VirtualComputers.MaxForks = 3
+	}
 	cfg.Directories.WorkspaceDir = normalizeDockerWorkspaceDir(configDir, cfg.Directories.WorkspaceDir, runningInDocker)
 	if strings.TrimSpace(cfg.Docker.Host) == "" {
 		cfg.Docker.Host = strings.TrimSpace(os.Getenv("DOCKER_HOST"))
@@ -1197,6 +1244,10 @@ func Load(path string) (*Config, error) {
 		cfg.SQLite.VirtualDesktopPath = "./data/virtual_desktop.db"
 	}
 	cfg.SQLite.VirtualDesktopPath = resolvePath(configDir, cfg.SQLite.VirtualDesktopPath)
+	if cfg.SQLite.VirtualComputersPath == "" {
+		cfg.SQLite.VirtualComputersPath = "./data/virtual_computers.db"
+	}
+	cfg.SQLite.VirtualComputersPath = resolvePath(configDir, cfg.SQLite.VirtualComputersPath)
 	if cfg.SQLite.RemoteControlPath == "" {
 		cfg.SQLite.RemoteControlPath = "./data/remote_control.db"
 	}

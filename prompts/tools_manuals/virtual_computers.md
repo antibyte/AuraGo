@@ -1,0 +1,21 @@
+# virtual_computers
+
+Manage short-lived boring-computers microVMs through AuraGo's private Virtual Computers subsystem.
+
+## Safety
+
+- Requires `virtual_computers.enabled=true` and `tools.virtual_computers.enabled=true`.
+- `virtual_computers.readonly=true` allows only status/list/get/screenshot/download operations.
+- The boringd token is stored in the Vault and is never returned to the agent or browser.
+- Preview and live channels must use AuraGo routes such as `/api/virtual-computers/machines/{id}/web/{port}/`; do not expose boringd directly.
+- Tailscale access should expose AuraGo via `tailscale.tsnet.serve_http`, not boringd.
+
+## Operations
+
+- `status`, `list_machines`, `get_machine`, `list_templates`
+- `launch`, `destroy`, `extend`, `fork`, `exec`
+- `screenshot`, `upload`, `download`
+- `publish`, `list_volumes`, `create_volume`, `save_machine`
+- `run_shell_task`, `run_desktop_task` when `virtual_computers.allow_agent_tasks=true`
+
+TTL values are clamped to boringd's 15-900 second range and to `virtual_computers.max_ttl_seconds`.

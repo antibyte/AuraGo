@@ -820,6 +820,14 @@ func (c *Config) ApplyVaultSecrets(vault SecretReader) {
 	apply("tailscale_tsnet_authkey", &c.Tailscale.TsNet.AuthKey)
 	apply("ansible_token", &c.Ansible.Token)
 
+	// ── Virtual Computers ──
+	apply("virtual_computers_boring_token", &c.VirtualComputers.BoringToken)
+	apply("virtual_computers_ssh_secret", &c.VirtualComputers.ControlPlane.SSHSecret)
+	apply("virtual_computers_anthropic_key", &c.VirtualComputers.BoringAnthropicKey)
+	apply("virtual_computers_openrouter_key", &c.VirtualComputers.BoringOpenRouterKey)
+	apply("virtual_computers_s3_access_key_id", &c.VirtualComputers.S3AccessKeyID)
+	apply("virtual_computers_s3_secret_key", &c.VirtualComputers.S3SecretKey)
+
 	// ── API keys ──
 	apply("virustotal_api_key", &c.VirusTotal.APIKey)
 	apply("brave_search_api_key", &c.BraveSearch.APIKey)

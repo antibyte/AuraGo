@@ -69,6 +69,27 @@ func TestAuthMiddlewareLetsScopedDesktopBearerReachHandler(t *testing.T) {
 	}
 }
 
+func TestAuthMiddlewareLetsScopedDesktopBearerReachVirtualComputers(t *testing.T) {
+	t.Parallel()
+
+	srv, readToken, _ := testDesktopPermissionServer(t)
+	handler := authMiddleware(srv, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !requireDesktopPermission(srv, w, r, desktopScopeRead) {
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/api/virtual-computers/machines", nil)
+	req.Header.Set("Authorization", "Bearer "+readToken)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusNoContent, rec.Body.String())
+	}
+}
+
 func TestBuildDesktopAgentPromptWrapsAllExternalInputs(t *testing.T) {
 	t.Parallel()
 

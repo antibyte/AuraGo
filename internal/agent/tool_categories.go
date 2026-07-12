@@ -218,6 +218,7 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"virtual_desktop_files", "Manage files in the browser desktop workspace"},
 		{"virtual_desktop_apps", "Install, open, inspect, and diagnose browser desktop apps"},
 		{"virtual_desktop_widgets", "Manage browser desktop widgets and notifications"},
+		{"virtual_computers", "Launch and operate short-lived private virtual computers through AuraGo"},
 		{"office_document", "Create, read, patch, and export virtual desktop Writer documents"},
 		{"office_workbook", "Create, read, edit, evaluate, and export virtual desktop spreadsheets"},
 		{"openscad_render", "Render OpenSCAD CAD source to preview and export files"},

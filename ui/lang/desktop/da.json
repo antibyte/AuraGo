@@ -1642,5 +1642,17 @@
   "zipper.open": "Åbn arkiv",
   "zipper.size": "Størrelse",
   "zipper.title": "Zipper",
-  "zipper.total_size": "{{size}} i alt"
+  "zipper.total_size": "{{size}} i alt",
+  "desktop.virtual_computers_title": "Virtuelle computere",
+  "desktop.virtual_computers_status": "Vælg en computer eller hent et skærmbillede.",
+  "desktop.virtual_computers_refresh": "Opdater",
+  "desktop.virtual_computers_open_config": "Indstillinger",
+  "desktop.virtual_computers_launch": "Start",
+  "desktop.virtual_computers_empty": "Der kører ingen virtuelle computere endnu.",
+  "desktop.virtual_computers_error": "Virtuelle computere:",
+  "desktop.virtual_computers_destroy": "Stop",
+  "desktop.virtual_computers_screenshot": "Skærmbillede",
+  "desktop.virtual_computers_state_enabled": "Aktiveret",
+  "desktop.virtual_computers_state_disabled": "Deaktiveret",
+  "desktop.app_virtual_computers": "Virtuelle computere"
 }

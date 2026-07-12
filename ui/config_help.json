@@ -1058,6 +1058,92 @@
       "description": "How long an inactive SSH/VNC session may stay open."
     }
   },
+  "virtual_computers": {
+    "enabled": {
+      "title": "Enable Virtual Computers",
+      "description": "Enables AuraGo-managed short-lived virtual computers through a private boringd control plane."
+    },
+    "provider": {
+      "title": "Provider",
+      "description": "Backend provider for virtual computers. Version 1 supports boring_computers."
+    },
+    "auto_setup": {
+      "title": "Automatic Setup",
+      "description": "Allows AuraGo to run idempotent preflight, install, repair, and health checks over SSH."
+    },
+    "readonly": {
+      "title": "Read-Only Mode",
+      "description": "Allows status, listing, screenshots, and downloads while blocking creation, exec, publish, volume, and destroy actions."
+    },
+    "boring_token": {
+      "title": "boringd Token",
+      "description": "Token for boringd REST and WebSocket access. It is stored only in the vault and never sent to the browser."
+    },
+    "control_plane.mode": {
+      "title": "Control Plane Mode",
+      "description": "Where AuraGo manages boringd. Version 1 targets an external Ubuntu/KVM x86_64 host over SSH."
+    },
+    "control_plane.host": {
+      "title": "Host",
+      "description": "Hostname or IP address of the SSH host that runs boringd."
+    },
+    "control_plane.ssh_port": {
+      "title": "SSH Port",
+      "description": "SSH port for automatic setup and health checks. Default is 22."
+    },
+    "control_plane.credential_id": {
+      "title": "Credential",
+      "description": "Credential ID from AuraGo's credential store. The secret itself stays in the vault."
+    },
+    "control_plane.install_dir": {
+      "title": "Install Directory",
+      "description": "Directory on the SSH host where boring-computers should be installed."
+    },
+    "control_plane.boringd_url": {
+      "title": "Private boringd URL",
+      "description": "AuraGo's private boringd endpoint, usually reached through a managed SSH tunnel to 127.0.0.1:8080."
+    },
+    "default_template": {
+      "title": "Default Template",
+      "description": "Template used when the agent or UI launches a virtual computer without specifying one."
+    },
+    "default_ttl_seconds": {
+      "title": "Default TTL",
+      "description": "Default lifetime for new virtual computers. boringd supports 15 to 900 seconds."
+    },
+    "max_ttl_seconds": {
+      "title": "Max TTL",
+      "description": "Upper limit AuraGo will allow for a virtual computer lifetime."
+    },
+    "max_running_machines": {
+      "title": "Max Running Machines",
+      "description": "Maximum number of simultaneously running virtual computers."
+    },
+    "max_forks": {
+      "title": "Max Forks",
+      "description": "Maximum fork operations allowed from a single machine lineage."
+    },
+    "allow_internet": {
+      "title": "Allow Internet",
+      "description": "Allows launched machines to request internet access when supported by the provider."
+    },
+    "allow_persistent": {
+      "title": "Allow Persistent Machines",
+      "description": "Allows machines or volumes that can outlive the short TTL window."
+    },
+    "allow_publish": {
+      "title": "Allow Publish",
+      "description": "Allows publishing machine state or templates from AuraGo."
+    },
+    "allow_volumes": {
+      "title": "Allow Volumes",
+      "description": "Allows persistent volume listing and creation."
+    },
+    "allow_agent_tasks": {
+      "title": "Allow Agent Tasks",
+      "description": "Allows the agent to use boringd task channels for shell or desktop tasks."
+    }
+  },
   "heartbeat": {
     "enabled": {
       "title": "Enable Heartbeat",

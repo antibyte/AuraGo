@@ -133,6 +133,7 @@ func RouteContractManifest() []RouteContract {
 		{Pattern: "/api/truenas/", Methods: []string{"GET", "POST", "DELETE"}, Auth: "session", Category: "integration", ContentTypes: []string{"application/json"}},
 		{Pattern: "/api/containers", Methods: []string{"GET", "POST", "DELETE"}, Auth: "session", Category: "integration", ContentTypes: []string{"application/json", "websocket"}},
 		{Pattern: "/api/desktop/", Methods: []string{"GET", "POST", "PUT"}, Auth: "session", Category: "desktop", ContentTypes: []string{"application/json", "websocket"}},
+		{Pattern: "/api/virtual-computers/", Methods: []string{"GET", "POST", "DELETE"}, Auth: "session-or-desktop-token", Category: "desktop", ContentTypes: []string{"application/json", "websocket", "proxy"}},
 		{Pattern: "/api/daemons", Methods: []string{"GET", "POST"}, Auth: "session", Category: "skills"},
 		{Pattern: "/api/sql-connections", Methods: []string{"GET", "POST", "PUT", "DELETE"}, Auth: "session", Category: "integration", ContentTypes: []string{"application/json"}},
 		{Pattern: "/api/dograh/", Methods: []string{"GET", "POST"}, Auth: "session", Category: "integration", ContentTypes: []string{"application/json"}},
@@ -187,6 +188,7 @@ func NetworkClientInventory() []NetworkClientUse {
 		{Path: "internal/tools/", Classification: "tool-specific-network-policy", RequiresSSRF: true, AllowsLocalNet: true, Credentialed: true},
 		{Path: "internal/truenas/", Classification: "configured-home-lab", AllowsLocalNet: true, Credentialed: true},
 		{Path: "internal/updater/", Classification: "github-release-check", Credentialed: false},
+		{Path: "internal/virtualcomputers/", Classification: "configured-private-boringd-control-plane", AllowsLocalNet: true, Credentialed: true},
 		{Path: "internal/webhooks/", Classification: "user-configured-outgoing-webhook", RequiresSSRF: true, Credentialed: true},
 		{Path: "scripts/", Classification: "developer-helper-download", RequiresSSRF: true},
 	}
@@ -214,6 +216,7 @@ func DBMigrationManifest() []DBMigrationDomain {
 		{Domain: "skills-registry", PackagePath: "internal/tools", SchemaVersioned: false, OwnsRuntimeData: true},
 		{Domain: "system-tasks", PackagePath: "internal/tools", SchemaVersioned: false, OwnsRuntimeData: true},
 		{Domain: "virtual-desktop", PackagePath: "internal/desktop", SchemaVersioned: true, OwnsRuntimeData: true},
+		{Domain: "virtual-computers", PackagePath: "internal/virtualcomputers", SchemaVersioned: true, OwnsRuntimeData: true},
 		{Domain: "workspace-search", PackagePath: "internal/services", SchemaVersioned: false, OwnsRuntimeData: true},
 	}
 }

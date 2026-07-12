@@ -1720,6 +1720,38 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 		))
 	}
 
+	if ff.VirtualComputersEnabled {
+		tools = append(tools, tool("virtual_computers",
+			"Manage short-lived boring-computers microVMs through AuraGo's private proxy. "+
+				"Use this for disposable Python or desktop computers, command execution, screenshots, file transfer, templates, volumes, and optional agent tasks. "+
+				"boringd tokens stay server-side; preview and live channels are exposed through authenticated AuraGo routes.",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "Virtual computer operation to perform.",
+					"enum":        []string{"status", "list_machines", "get_machine", "launch", "destroy", "exec", "extend", "fork", "screenshot", "upload", "download", "list_templates", "publish", "list_volumes", "create_volume", "save_machine", "run_shell_task", "run_desktop_task"},
+				},
+				"machine_id":      prop("string", "Machine ID for machine-scoped operations."),
+				"id":              prop("string", "Alias for machine_id."),
+				"template":        prop("string", "Template for launch, e.g. python or desktop."),
+				"name":            prop("string", "Optional machine, volume, or saved template name."),
+				"ttl_seconds":     map[string]interface{}{"type": "integer", "description": "TTL in seconds. AuraGo clamps to boringd's 15-900 second range and config max_ttl_seconds."},
+				"allow_internet":  map[string]interface{}{"type": "boolean", "description": "Request internet-enabled machine launch. Requires virtual_computers.allow_internet."},
+				"persistent":      map[string]interface{}{"type": "boolean", "description": "Request a persistent machine. Requires virtual_computers.allow_persistent."},
+				"volumes":         map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Volume IDs/names to attach on launch. Requires virtual_computers.allow_volumes."},
+				"command":         prop("string", "Command for exec or run_shell_task."),
+				"args":            map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Optional command arguments for exec."},
+				"instruction":     prop("string", "Instruction for run_shell_task or run_desktop_task. Requires virtual_computers.allow_agent_tasks."),
+				"path":            prop("string", "Remote file path for upload/download."),
+				"remote_path":     prop("string", "Alias for path."),
+				"content":         prop("string", "Text content for upload."),
+				"content_base64":  prop("string", "Base64 file content for upload."),
+				"size_bytes":      map[string]interface{}{"type": "integer", "description": "Volume size for create_volume."},
+				"timeout_seconds": map[string]interface{}{"type": "integer", "description": "Command timeout for exec."},
+			}, "operation"),
+		))
+	}
+
 	if ff.VirtualDesktopEnabled {
 		tools = append(tools, tool("virtual_desktop",
 			"Control AuraGo's first-party browser virtual desktop. Use this to create or update desktop files, install generated JavaScript apps, pin widgets, open apps, and notify the user inside the desktop. "+

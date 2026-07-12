@@ -526,6 +526,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/api/desktop/pets", handleDesktopPets(s))
 	registerCodeStudioRoutes(mux, s)
 	registerOpenSCADRoutes(mux, s)
+	registerVirtualComputersRoutes(mux, s)
 
 	// Pixel image editor endpoints
 	mux.HandleFunc("/api/pixel/config", handlePixelConfig(s))

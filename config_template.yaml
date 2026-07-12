@@ -490,6 +490,8 @@ tools:
         enabled: false                                     # enable browser_automation tool (CloakBrowser stealth browser sidecar)
     virtual_desktop:
         enabled: false                                     # enable virtual_desktop tool; also requires virtual_desktop.allow_agent_control
+    virtual_computers:
+        enabled: false                                     # enable virtual_computers tool; also requires virtual_computers.enabled
     office_document:
         enabled: false                                     # enable office_document tool; also requires virtual_desktop.enabled and allow_agent_control
         readonly: false                                    # read-only mode: allow read only; block write, patch, and export
@@ -656,6 +658,7 @@ sqlite:
     contacts_path: ./data/contacts.db
     planner_path: ./data/planner.db
     virtual_desktop_path: ./data/virtual_desktop.db
+    virtual_computers_path: ./data/virtual_computers.db
     site_monitor_path: ./data/site_monitor.db
     sql_connections_path: ./data/sql_connections.db
     skills_path: ./data/skills.db
@@ -915,6 +918,34 @@ virtual_desktop:
         render_timeout_seconds: 120                        # default compiler timeout
         max_render_timeout_seconds: 600                    # hard timeout cap
         job_retention_days: 7                              # cached render job retention
+virtual_computers:
+    enabled: false                                         # enable Virtual Computers UI/API; boringd stays private behind AuraGo
+    provider: boring_computers                             # v1 provider
+    auto_setup: false                                      # allow AuraGo to install/update boring-computers over SSH
+    readonly: false                                        # true = status/list/get/screenshot/download only
+    control_plane:
+        mode: ssh_host                                     # v1: external Ubuntu/KVM x86_64 host over SSH
+        host: ""                                           # SSH host used by setup wizard
+        ssh_port: 22
+        credential_id: ""                                  # AuraGo credential ID for SSH setup
+        install_dir: /opt/boring-computers
+        boringd_url: http://127.0.0.1:8080                 # private AuraGo-side URL, usually an SSH tunnel endpoint
+    default_template: python
+    default_ttl_seconds: 600                               # boringd supports 15-900 seconds
+    max_ttl_seconds: 900
+    max_running_machines: 3
+    max_forks: 3
+    allow_internet: false
+    allow_persistent: false
+    allow_publish: false
+    allow_volumes: false
+    allow_agent_tasks: false
+    # Vault-only fields saved via UI, never config.yaml:
+    # boring_token: BORING_TOKEN for boringd
+    # ssh_secret: optional SSH secret material
+    # boring_anthropic_key: optional boring agent provider key
+    # boring_openrouter_key: optional boring agent provider key
+    # s3_access_key_id / s3_secret_key: optional boring volume/template storage
 indexing:
     enabled: true
     directories:

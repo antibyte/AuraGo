@@ -12,7 +12,9 @@ const (
 )
 
 func isDesktopScopedAPIPath(path string) bool {
-	return strings.HasPrefix(path, "/api/desktop/") || strings.HasPrefix(path, "/api/code-studio/")
+	return strings.HasPrefix(path, "/api/desktop/") ||
+		strings.HasPrefix(path, "/api/code-studio/") ||
+		strings.HasPrefix(path, "/api/virtual-computers/")
 }
 
 func requireDesktopPermission(s *Server, w http.ResponseWriter, r *http.Request, requiredScope string) bool {

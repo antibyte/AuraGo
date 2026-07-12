@@ -950,6 +950,14 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			}
 			return "Tool Output: " + exec.Output
 
+		case "virtual_computers":
+			logger.Info("LLM requested virtual computers operation",
+				"operation", tc.Operation,
+				"machine_id", firstNonEmptyToolString(toolArgString(tc.Params, "machine_id"), toolArgString(tc.Params, "id")),
+				"template", toolArgString(tc.Params, "template"),
+			)
+			return "Tool Output: " + tools.ExecuteVirtualComputers(ctx, cfg, tc.Params)
+
 		case "openscad_render":
 			logger.Info("LLM requested OpenSCAD render",
 				"model_name", toolArgString(tc.Params, "model_name"),

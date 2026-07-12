@@ -1642,5 +1642,17 @@
   "zipper.open": "Åpne arkiv",
   "zipper.size": "Størrelse",
   "zipper.title": "Zipper",
-  "zipper.total_size": "{{size}} totalt"
+  "zipper.total_size": "{{size}} totalt",
+  "desktop.virtual_computers_title": "Virtuelle datamaskiner",
+  "desktop.virtual_computers_status": "Velg en datamaskin eller ta et skjermbilde.",
+  "desktop.virtual_computers_refresh": "Oppdater",
+  "desktop.virtual_computers_open_config": "Innstillinger",
+  "desktop.virtual_computers_launch": "Start",
+  "desktop.virtual_computers_empty": "Ingen virtuelle datamaskiner kjører ennå.",
+  "desktop.virtual_computers_error": "Virtuelle datamaskiner:",
+  "desktop.virtual_computers_destroy": "Avslutt",
+  "desktop.virtual_computers_screenshot": "Skjermbilde",
+  "desktop.virtual_computers_state_enabled": "Aktivert",
+  "desktop.virtual_computers_state_disabled": "Deaktivert",
+  "desktop.app_virtual_computers": "Virtuelle datamaskiner"
 }

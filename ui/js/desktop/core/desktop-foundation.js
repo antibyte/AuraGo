@@ -145,6 +145,7 @@
         'store-commandcode': 'commandcode',
         looper: 'looper',
         'system-info': 'monitor',
+        'virtual-computers': 'terminal',
         zipper: 'zipper',
         pixel: 'pixel',
         'galaxa-deluxe': 'galaxa-deluxe',
@@ -525,6 +526,7 @@
             'homepage-studio': 'HomepageStudioApp',
             cheater: 'CheaterApp',
             'agent-chat': 'AgentChatApp',
+            'virtual-computers': 'VirtualComputersApp',
             'viewer-3d': 'Viewer3DApp',
             'mission-control': 'MissionControlApp',
             settings: 'SettingsApp',
@@ -1120,6 +1122,14 @@
         renderStartApps();
         renderTaskbar();
         if (!state._startMenuDragWired) { state._startMenuDragWired = true; wireStartMenuDrag(); }
+    }
+
+    function openInitialDesktopApp() {
+        if (state._initialAppOpened) return;
+        state._initialAppOpened = true;
+        const params = new URLSearchParams(window.location.search || '');
+        const appId = (params.get('app') || '').trim();
+        if (appId && isBuiltinApp(appId)) openApp(appId);
     }
 
     function refreshPetRuntime() {
