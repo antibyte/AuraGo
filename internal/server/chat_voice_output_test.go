@@ -9,7 +9,9 @@ import (
 
 	"aurago/internal/agent"
 	"aurago/internal/config"
+	"aurago/internal/i18n"
 	"aurago/internal/tools"
+	"aurago/ui"
 )
 
 type chatVoiceOutputCaptureBroker struct {
@@ -149,5 +151,18 @@ Container llama-cpp-vulkan wird erstellt mit Port 9999, OpenAI-kompatibler API, 
 		if strings.Contains(got, forbidden) {
 			t.Fatalf("spoken summary should not include detail %q: %q", forbidden, got)
 		}
+	}
+}
+
+func TestChatVoiceOutputTextUsesConfiguredLanguageForLongFallback(t *testing.T) {
+	i18n.Load(ui.Content, slog.Default())
+	input := strings.Repeat("Dies ist ein langer Antwortabschnitt mit neutralem Inhalt. ", 8)
+
+	got := chatVoiceOutputText(input, "de")
+	if !strings.Contains(got, "Details stehen im Chat.") {
+		t.Fatalf("expected German details suffix for German UI language, got %q", got)
+	}
+	if strings.Contains(got, "Details are in the chat.") {
+		t.Fatalf("expected no English details suffix for German UI language, got %q", got)
 	}
 }

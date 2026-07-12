@@ -22,6 +22,7 @@
   "backend.cmd_voice_enabled": "🔊 **वॉइस मोड सक्षम।** छोटे उत्तर TTS द्वारा बोले जाएंगे।",
   "backend.cmd_voice_disabled": "🔇 **वॉइस मोड अक्षम।** ऑडियो स्वतः चलेगा नहीं।",
   "backend.cmd_voice_help": "वॉइस आउटपुट मोड टॉगल करता है — चालू होने पर, एजेंट छोटे उत्तरों के लिए TTS का उपयोग करता है (/voice on|off)।",
+  "backend.chat_voice_details_in_chat": "विवरण चैट में हैं।",
   "backend.budget_disabled": "💰 बजट प्रणाली अक्षम है।",
   "backend.budget_help": "वर्तमान बजट स्थिति दिखाता है (दैनिक लागत, सीमा, मॉडल)।",
   "backend.budget_exceeded": "⛔ **बजट पार हो गया!**",

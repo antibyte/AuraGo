@@ -22,6 +22,7 @@
   "backend.cmd_voice_enabled": "🔊 **Hlasový režim aktivován.** Krátké odpovědi budou přečteny přes TTS.",
   "backend.cmd_voice_disabled": "🔇 **Hlasový režim deaktivován.** Zvuk se nepřehraje automaticky.",
   "backend.cmd_voice_help": "Přepíná režim hlasového výstupu — když je zapnutý, agent používá TTS pro krátké odpovědi (/voice on|off).",
+  "backend.chat_voice_details_in_chat": "Podrobnosti jsou v chatu.",
   "backend.budget_disabled": "💰 Systém rozpočtu je zakázán.",
   "backend.budget_help": "Zobrazí aktuální stav rozpočtu (denní náklady, limit, modely).",
   "backend.budget_exceeded": "⛔ **Rozpočet překročen!**",

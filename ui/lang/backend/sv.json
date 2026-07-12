@@ -22,6 +22,7 @@
   "backend.cmd_voice_enabled": "🔊 **Röstläge aktiverat.** Korta svar läses upp via TTS.",
   "backend.cmd_voice_disabled": "🔇 **Röstläge inaktiverat.** Ljud spelas inte upp automatiskt.",
   "backend.cmd_voice_help": "Växlar röstutmatningsläge — när aktiverat, använder agenten TTS för korta svar (/voice on|off).",
+  "backend.chat_voice_details_in_chat": "Detaljerna finns i chatten.",
   "backend.budget_disabled": "💰 Budgetsystemet är inaktiverat.",
   "backend.budget_help": "Visar aktuell budgetstatus (dagliga kostnader, gräns, modeller).",
   "backend.budget_exceeded": "⛔ **Budget överskriden!**",

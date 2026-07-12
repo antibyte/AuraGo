@@ -22,6 +22,7 @@
   "backend.cmd_voice_enabled": "🔊 **Tryb głosowy włączony.** Krótkie odpowiedzi będą odczytywane przez TTS.",
   "backend.cmd_voice_disabled": "🔇 **Tryb głosowy wyłączony.** Dźwięk nie będzie odtwarzany automatycznie.",
   "backend.cmd_voice_help": "Przełącza tryb wyjścia głosowego — gdy włączony, agent używa TTS dla krótkich odpowiedzi (/voice on|off).",
+  "backend.chat_voice_details_in_chat": "Szczegóły są na czacie.",
   "backend.budget_disabled": "💰 System budżetu jest wyłączony.",
   "backend.budget_help": "Wyświetla bieżący status budżetu (koszty dzienne, limit, modele).",
   "backend.budget_exceeded": "⛔ **Budżet przekroczony!**",

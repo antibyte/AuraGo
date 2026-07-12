@@ -22,6 +22,7 @@
   "backend.cmd_voice_enabled": "🔊 **音声モード有効。** 短い返信はTTSで読み上げられます。",
   "backend.cmd_voice_disabled": "🔇 **音声モード無効。** 音声は自動再生されません。",
   "backend.cmd_voice_help": "音声出力モードを切り替え — オン時、エージェントは短い返答にTTSを使用します (/voice on|off)。",
+  "backend.chat_voice_details_in_chat": "詳細はチャットにあります。",
   "backend.budget_disabled": "💰 予算システムは無効です。",
   "backend.budget_help": "現在の予算ステータスを表示します（日次コスト、制限、モデル）。",
   "backend.budget_exceeded": "⛔ **予算超過！**",

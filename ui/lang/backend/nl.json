@@ -22,6 +22,7 @@
   "backend.cmd_voice_enabled": "🔊 **Spraakmodus ingeschakeld.** Korte antwoorden worden via TTS voorgelezen.",
   "backend.cmd_voice_disabled": "🔇 **Spraakmodus uitgeschakeld.** Audio wordt niet automatisch afgespeeld.",
   "backend.cmd_voice_help": "Schakelt spraakuitvoermodus — indien aan, gebruikt de agent TTS voor korte antwoorden (/voice on|off).",
+  "backend.chat_voice_details_in_chat": "Details staan in de chat.",
   "backend.budget_disabled": "💰 Budgetsysteem is uitgeschakeld.",
   "backend.budget_help": "Toont de huidige budgetstatus (dagelijkse kosten, limiet, modellen).",
   "backend.budget_exceeded": "⛔ **Budget overschreden!**",

@@ -22,6 +22,7 @@
   "backend.cmd_voice_enabled": "🔊 **语音模式已启用。** 简短回复将通过 TTS 朗读。",
   "backend.cmd_voice_disabled": "🔇 **语音模式已禁用。** 音频不会自动播放。",
   "backend.cmd_voice_help": "切换语音输出模式 — 开启时，代理使用 TTS 进行简短回复（/voice on|off）。",
+  "backend.chat_voice_details_in_chat": "详细信息在聊天中。",
   "backend.budget_disabled": "💰 预算系统已禁用。",
   "backend.budget_help": "显示当前预算状态（每日成本、限额、模型）。",
   "backend.budget_exceeded": "⛔ **预算已超支！**",

@@ -11,6 +11,7 @@ import (
 
 	"aurago/internal/agent"
 	"aurago/internal/config"
+	"aurago/internal/i18n"
 	"aurago/internal/security"
 	"aurago/internal/tools"
 )
@@ -86,7 +87,7 @@ func maybeEmitChatVoiceOutputFallback(cfg *config.Config, logger *slog.Logger, r
 		return
 	}
 
-	text := chatVoiceOutputText(content)
+	text := chatVoiceOutputText(content, chatVoiceOutputLanguage(cfg))
 	if text == "" {
 		return
 	}
@@ -120,20 +121,21 @@ func maybeEmitChatVoiceOutputFallback(cfg *config.Config, logger *slog.Logger, r
 	broker.Send("audio", string(payload))
 }
 
-func chatVoiceOutputText(content string) string {
+func chatVoiceOutputText(content string, language ...string) string {
 	text := chatVoiceCleanText(content)
 	if text == "" {
 		return ""
 	}
 
+	lang := chatVoiceOutputPreferredLanguage(language...)
 	spoken := chatVoiceCollapseSpeech(text)
 	if len([]rune(spoken)) <= chatVoiceDirectRuneLimit {
 		return spoken
 	}
-	if summary := chatVoiceStructuredStatusSummary(text); summary != "" {
+	if summary := chatVoiceStructuredStatusSummary(text, lang); summary != "" {
 		return chatVoiceLimitRunes(summary, chatVoiceSummaryRuneLimit)
 	}
-	return chatVoiceLimitRunes(chatVoiceFallbackSummary(spoken), chatVoiceSummaryRuneLimit)
+	return chatVoiceLimitRunes(chatVoiceFallbackSummary(spoken, lang), chatVoiceSummaryRuneLimit)
 }
 
 func chatVoiceCleanText(content string) string {
@@ -172,7 +174,7 @@ func chatVoiceCollapseSpeech(text string) string {
 	return strings.Join(strings.Fields(text), " ")
 }
 
-func chatVoiceStructuredStatusSummary(text string) string {
+func chatVoiceStructuredStatusSummary(text, language string) string {
 	spoken := chatVoiceCollapseSpeech(text)
 	lower := strings.ToLower(spoken)
 	if !chatVoiceLooksLikeStatus(lower) {
@@ -198,7 +200,7 @@ func chatVoiceStructuredStatusSummary(text string) string {
 	if chatVoiceContainsAny(lower, "stand jetzt", "status", "stand:") {
 		prefix = "Stand jetzt: "
 	}
-	return prefix + strings.Join(parts, "; ") + ". " + chatVoiceDetailsSuffix(lower)
+	return prefix + strings.Join(parts, "; ") + ". " + chatVoiceDetailsSuffix(lower, language)
 }
 
 func chatVoiceLooksLikeStatus(lower string) bool {
@@ -213,7 +215,7 @@ func chatVoiceBuildStillRunning(lower string) bool {
 		chatVoiceContainsAny(lower, "l\u00e4uft", "laeuft", "gerade", "hintergrund", "in arbeit", "running", "still")
 }
 
-func chatVoiceFallbackSummary(spoken string) string {
+func chatVoiceFallbackSummary(spoken, language string) string {
 	lower := strings.ToLower(spoken)
 	cut := len(spoken)
 	for _, sep := range []string{". ", "! ", "? "} {
@@ -226,16 +228,62 @@ func chatVoiceFallbackSummary(spoken string) string {
 		first = chatVoiceLimitRunes(first, 180)
 	}
 	if first == "" {
-		return chatVoiceDetailsSuffix(lower)
+		return chatVoiceDetailsSuffix(lower, language)
 	}
-	return strings.TrimRight(first, ".!?") + ". " + chatVoiceDetailsSuffix(lower)
+	return strings.TrimRight(first, ".!?") + ". " + chatVoiceDetailsSuffix(lower, language)
 }
 
-func chatVoiceDetailsSuffix(lower string) string {
-	if chatVoiceLooksGerman(lower) {
-		return "Details stehen im Chat."
+func chatVoiceDetailsSuffix(lower, language string) string {
+	lang := chatVoiceNormalizeDetailsLanguage(language)
+	if lang == "" && chatVoiceLooksGerman(lower) {
+		lang = "de"
 	}
-	return "Details are in the chat."
+	suffix := i18n.T(lang, "backend.chat_voice_details_in_chat")
+	if suffix == "backend.chat_voice_details_in_chat" {
+		if lang == "de" || chatVoiceLooksGerman(lower) {
+			return "Details stehen im Chat."
+		}
+		return "Details are in the chat."
+	}
+	return suffix
+}
+
+func chatVoiceOutputLanguage(cfg *config.Config) string {
+	if cfg == nil {
+		return ""
+	}
+	for _, lang := range []string{cfg.Server.UILanguage, cfg.TTS.Language, cfg.Agent.SystemLanguage} {
+		if strings.TrimSpace(lang) != "" {
+			return lang
+		}
+	}
+	return ""
+}
+
+func chatVoiceOutputPreferredLanguage(language ...string) string {
+	for _, lang := range language {
+		if strings.TrimSpace(lang) != "" {
+			return lang
+		}
+	}
+	return ""
+}
+
+func chatVoiceNormalizeDetailsLanguage(language string) string {
+	lang := strings.ToLower(strings.TrimSpace(language))
+	if lang == "" {
+		return ""
+	}
+	lang = strings.ReplaceAll(lang, "_", "-")
+	if idx := strings.Index(lang, "-"); idx > 0 {
+		lang = lang[:idx]
+	}
+	switch lang {
+	case "cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh":
+		return lang
+	default:
+		return i18n.NormalizeLang(language)
+	}
 }
 
 func chatVoiceLooksGerman(lower string) bool {

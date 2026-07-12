@@ -22,6 +22,7 @@
   "backend.cmd_voice_enabled": "🔊 **Modo de voz ativado.** Respostas curtas serão faladas através de TTS.",
   "backend.cmd_voice_disabled": "🔇 **Modo de voz desativado.** O áudio não será reproduzido automaticamente.",
   "backend.cmd_voice_help": "Alterna o modo de saída de voz — quando ativado, o agente usa TTS para respostas curtas (/voice on|off).",
+  "backend.chat_voice_details_in_chat": "Os detalhes estão no chat.",
   "backend.budget_disabled": "💰 O sistema de orçamento está desativado.",
   "backend.budget_help": "Mostra o estado atual do orçamento (custos diários, limite, modelos).",
   "backend.budget_exceeded": "⛔ **Orçamento excedido!**",

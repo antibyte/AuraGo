@@ -22,6 +22,7 @@
   "backend.cmd_voice_enabled": "🔊 **Stemmetilstand aktiveret.** Korte svar læses op via TTS.",
   "backend.cmd_voice_disabled": "🔇 **Stemmetilstand deaktiveret.** Lyd afspilles ikke automatisk.",
   "backend.cmd_voice_help": "Skifter taleoutput-tilstand — når aktiveret, bruger agenten TTS til korte svar (/voice on|off).",
+  "backend.chat_voice_details_in_chat": "Detaljerne står i chatten.",
   "backend.budget_disabled": "💰 Budgetsystemet er deaktiveret.",
   "backend.budget_help": "Viser den aktuelle budgetstatus (daglige omkostninger, grænse, modeller).",
   "backend.budget_exceeded": "⛔ **Budget overskredet!**",

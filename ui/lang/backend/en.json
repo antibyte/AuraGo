@@ -22,6 +22,7 @@
   "backend.cmd_voice_enabled": "🔊 **Voice mode enabled.** Short replies will be spoken via TTS.",
   "backend.cmd_voice_disabled": "🔇 **Voice mode disabled.** Audio will not auto-play.",
   "backend.cmd_voice_help": "Toggles voice output mode — when on, the agent uses TTS for short replies (/voice on|off).",
+  "backend.chat_voice_details_in_chat": "Details are in the chat.",
   "backend.budget_disabled": "💰 Budget system is disabled.",
   "backend.budget_help": "Shows the current budget status (daily costs, limit, models).",
   "backend.budget_mode_warn_de": " (nur Warnung)",
