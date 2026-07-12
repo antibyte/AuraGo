@@ -145,11 +145,15 @@ function vcCfgField(labelKey, helpKey, inputHtml) {
 }
 
 function vcCfgToggleEnabled(isOn) {
+    const nextEnabled = !isOn;
     const data = vcCfgEnsureData();
-    data.enabled = !isOn;
+    data.enabled = nextEnabled;
     setNestedValue(configData, 'virtual_computers.enabled', data.enabled);
-    setDirty(true);
+    if (window.AuraConfigState) {
+        window.AuraConfigState.set('virtual_computers.enabled', nextEnabled);
+    }
     renderVirtualComputersSection(null);
+    setDirty(window.AuraConfigState ? window.AuraConfigState.isDirty() : true);
 }
 
 function vcCfgSetResult(text, state) {
