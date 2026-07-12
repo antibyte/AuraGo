@@ -55,6 +55,27 @@ func TestSetupPreflightAllowsArm64UbuntuKVM(t *testing.T) {
 	}
 }
 
+func TestSetupPreflightSSHFallbackRequestsFullHostMetadata(t *testing.T) {
+	executor := &fakeSSHExecutor{output: "HOST_OS=linux\nARCH=x86_64\nHAS_KVM=1\nOS_ID=ubuntu\nRUNNING_IN_DOCKER=0\nHAS_SYSTEMD=1\nHAS_SUDO_OR_ROOT=1\n"}
+	manager := SetupManager{Executor: executor}
+	result, err := manager.Preflight(context.Background())
+	if err != nil {
+		t.Fatalf("Preflight: %v", err)
+	}
+	if !result.Supported {
+		t.Fatalf("expected supported result, got issues=%v", result.Issues)
+	}
+	if len(executor.runs) != 1 {
+		t.Fatalf("expected one fallback command, got %d", len(executor.runs))
+	}
+	command := executor.runs[0]
+	for _, want := range []string{"HOST_OS", "RUNNING_IN_DOCKER", "HAS_SYSTEMD", "HAS_SUDO_OR_ROOT"} {
+		if !strings.Contains(command, want) {
+			t.Fatalf("fallback preflight command missing %q: %s", want, command)
+		}
+	}
+}
+
 func TestSetupInstallRunsScriptAndHealthCheck(t *testing.T) {
 	executor := &fakeSSHExecutor{output: "ARCH=x86_64\nHAS_KVM=1\nOS_ID=ubuntu\n"}
 	manager := SetupManager{

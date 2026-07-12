@@ -194,6 +194,35 @@ func TestVirtualComputersSetupStatusIncludesLocalModeMetadata(t *testing.T) {
 	}
 }
 
+func TestVirtualComputersSetupStatusLeavesRemoteChecksUnknownWithoutPreflight(t *testing.T) {
+	cfg := virtualComputersTestConfig("http://127.0.0.1:8080")
+	cfg.VirtualComputers.ControlPlane.Mode = "ssh_host"
+	s := &Server{Cfg: cfg}
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/virtual-computers/setup/status", nil)
+	handleVirtualComputersSetupStatus(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%s", rec.Code, rec.Body.String())
+	}
+	var body map[string]interface{}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode body: %v", err)
+	}
+	if body["mode"] != "ssh_host" {
+		t.Fatalf("mode = %#v, body=%v", body["mode"], body)
+	}
+	for _, key := range []string{"running_in_docker", "has_kvm", "has_systemd", "has_sudo_or_root"} {
+		if _, ok := body[key]; !ok {
+			t.Fatalf("status response missing %q: %v", key, body)
+		}
+		if body[key] != nil {
+			t.Fatalf("%s = %#v, want null until preflight has run; body=%v", key, body[key], body)
+		}
+	}
+}
+
 func virtualComputersTestConfig(upstreamURL string) *config.Config {
 	cfg := &config.Config{}
 	cfg.VirtualComputers.Enabled = true

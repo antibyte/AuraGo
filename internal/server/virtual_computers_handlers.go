@@ -923,23 +923,23 @@ func virtualComputersSetupMetadata(s *Server, cfg virtualcomputers.ToolConfig, c
 		"mode":              mode,
 		"host_os":           hostOS,
 		"arch":              arch,
-		"running_in_docker": virtualComputersCheckBool(s, checks, "RUNNING_IN_DOCKER"),
-		"has_kvm":           checks["HAS_KVM"] == "1",
-		"has_systemd":       checks["HAS_SYSTEMD"] == "1",
-		"has_sudo_or_root":  checks["HAS_SUDO_OR_ROOT"] == "1",
+		"running_in_docker": virtualComputersCheckBool(s, mode, checks, "RUNNING_IN_DOCKER"),
+		"has_kvm":           virtualComputersCheckBool(s, mode, checks, "HAS_KVM"),
+		"has_systemd":       virtualComputersCheckBool(s, mode, checks, "HAS_SYSTEMD"),
+		"has_sudo_or_root":  virtualComputersCheckBool(s, mode, checks, "HAS_SUDO_OR_ROOT"),
 	}
 }
 
-func virtualComputersCheckBool(s *Server, checks map[string]string, key string) bool {
-	if checks[key] == "1" {
-		return true
+func virtualComputersCheckBool(s *Server, mode string, checks map[string]string, key string) interface{} {
+	if value, ok := checks[key]; ok && strings.TrimSpace(value) != "" {
+		return value == "1"
 	}
-	if key == "RUNNING_IN_DOCKER" && checks[key] == "" && s != nil && s.Cfg != nil {
+	if key == "RUNNING_IN_DOCKER" && mode == virtualcomputers.ControlPlaneLocalHost && s != nil && s.Cfg != nil {
 		s.CfgMu.RLock()
 		defer s.CfgMu.RUnlock()
 		return s.Cfg.Runtime.IsDocker
 	}
-	return false
+	return nil
 }
 
 func virtualComputersIsWSChannel(tail string) bool {
