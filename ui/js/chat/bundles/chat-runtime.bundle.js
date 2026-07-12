@@ -5093,10 +5093,12 @@ async function handleOutgoingMessage(inputMessage, displayMessageOverride = '') 
         const data = await response.json();
         const assistantMessage = data.choices[0].message;
 
-        appendMessage('assistant', assistantMessage.content);
+        if (!_httpResponseRendered) {
+            appendMessage('assistant', assistantMessage.content);
+            conversation.push(assistantMessage);
+        }
         _httpResponseRendered = true;
         resetSSEDedupSets(); // reset after final response is rendered
-        conversation.push(assistantMessage);
         // Cap to last 200 messages to prevent unbounded memory growth
         if (conversation.length > 200) { conversation = conversation.slice(-200); }
 
