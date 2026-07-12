@@ -793,5 +793,15 @@
   "dashboard.tablist_label": "Dashboard-sektioner",
   "dashboard.status_label": "Status",
   "dashboard.integration_supertonic_tts": "Supertonic TTS",
-  "dashboard.integration_evomap": "EvoMap"
+  "dashboard.integration_evomap": "EvoMap",
+  "dashboard.page_heading": "Instrumentpanel",
+  "dashboard.page_heading_sub": "Systemhälsa och agentstatus i en överblick",
+  "dashboard.btn_edit": "Redigera",
+  "dashboard.btn_delete": "Ta bort",
+  "dashboard.profile_save_error": "Kunde inte spara profilpost",
+  "dashboard.profile_delete_error": "Kunde inte ta bort profilpost",
+  "dashboard.gauge_used": "Använt",
+  "dashboard.gauge_free": "Ledigt",
+  "dashboard.quickstatus_n_auto_disabled": "{{n}} auto-inaktiverade",
+  "dashboard.quickstatus_n_pending": "{{n}} väntande"
 }

@@ -31,7 +31,35 @@
         function applyTranslations() {
             document.querySelectorAll('[data-i18n]').forEach(el => {
                 const key = el.getAttribute('data-i18n');
-                if (key) el.textContent = t(key);
+                if (!key) return;
+                const value = t(key);
+                // Keep nested markup (SVG icons inside buttons). Prefer an explicit
+                // text child when present; otherwise update only non-empty text nodes.
+                if (el.children.length > 0) {
+                    const textTarget = el.querySelector(':scope > [data-i18n-text], :scope > .i18n-text');
+                    if (textTarget) {
+                        textTarget.textContent = value;
+                        return;
+                    }
+                    let updated = false;
+                    el.childNodes.forEach(node => {
+                        if (node.nodeType === Node.TEXT_NODE && node.textContent && node.textContent.trim()) {
+                            const lead = (node.textContent.match(/^\s*/) || [''])[0];
+                            const trail = (node.textContent.match(/\s*$/) || [''])[0];
+                            node.textContent = lead + value + trail;
+                            updated = true;
+                        }
+                    });
+                    if (!updated) {
+                        const span = document.createElement('span');
+                        span.className = 'i18n-text';
+                        span.textContent = value;
+                        el.appendChild(document.createTextNode(' '));
+                        el.appendChild(span);
+                    }
+                    return;
+                }
+                el.textContent = value;
             });
             document.querySelectorAll('[data-i18n-title]').forEach(el => {
                 const key = el.getAttribute('data-i18n-title');
@@ -245,25 +273,8 @@
                 dashSetHidden(panel, panel.id !== 'tab-' + tabId);
             });
             TabState.active = tabId;
-            if (tabId === 'system' && TabState.loaded[tabId]) {
-                loadGuardianCard();
-                loadHelperLLMCard();
-            }
-            if (tabId === 'knowledge' && TabState.loaded[tabId]) {
-                loadTabKnowledge();
-            }
-            if (tabId === 'filesync' && TabState.loaded[tabId]) {
-                loadFileSyncStatus();
-            }
-            if (tabId === 'audit' && TabState.loaded[tabId]) {
-                loadTabAudit();
-            }
-            if (tabId === 'cronjobs' && TabState.loaded[tabId]) {
-                loadTabCronjobs();
-            }
-            if (!TabState.loaded[tabId]) {
-                loadTabContent(tabId);
-            }
+            // Always refresh the active tab so Overview/Agent/User stay current (M7).
+            loadTabContent(tabId);
         }
 
         // ── Tab keyboard navigation (ARIA tablist pattern) ─────────────────────────
@@ -291,16 +302,20 @@
         }
 
         async function loadTabContent(tabId) {
-            TabState.loaded[tabId] = true;
-            switch (tabId) {
-                case 'overview': return loadTabOverview();
-                case 'agent':    return loadTabAgent();
-                case 'user':     return loadTabUser();
-                case 'knowledge': return loadTabKnowledge();
-                case 'filesync':  return loadFileSyncStatus();
-                case 'audit':     return loadTabAudit();
-                case 'cronjobs':  return loadTabCronjobs();
-                case 'system':   return loadTabSystem();
+            try {
+                switch (tabId) {
+                    case 'overview': await loadTabOverview(); break;
+                    case 'agent':    await loadTabAgent(); break;
+                    case 'user':     await loadTabUser(); break;
+                    case 'knowledge': await loadTabKnowledge(); break;
+                    case 'filesync':  await loadFileSyncStatus(); break;
+                    case 'audit':     await loadTabAudit(); break;
+                    case 'cronjobs':  await loadTabCronjobs(); break;
+                    case 'system':   await loadTabSystem(); break;
+                }
+                TabState.loaded[tabId] = true;
+            } catch (err) {
+                console.warn('loadTabContent failed', tabId, err);
             }
         }
 
@@ -433,12 +448,33 @@
         }
 
         async function loadTabKnowledge() {
-            const [important, stats, quality, health] = await Promise.all([
-                API.get('/api/knowledge-graph/important?limit=30&min_score=15'),
-                API.get('/api/knowledge-graph/stats'),
-                API.get('/api/knowledge-graph/quality?limit=6'),
-                API.get('/api/knowledge-graph/health'),
+            const kgCards = [
+                'card-knowledge-graph-summary',
+                'card-knowledge-graph-health',
+                'card-knowledge-graph-quality',
+                'card-knowledge-graph-results',
+                'card-knowledge-graph-visual',
+            ];
+            kgCards.forEach((id) => CardState.setLoading(id));
+
+            const results = await Promise.all([
+                API.getWithStatus('/api/knowledge-graph/important?limit=30&min_score=15'),
+                API.getWithStatus('/api/knowledge-graph/stats'),
+                API.getWithStatus('/api/knowledge-graph/quality?limit=6'),
+                API.getWithStatus('/api/knowledge-graph/health'),
             ]);
+            const [importantR, statsR, qualityR, healthR] = results;
+            const anyOk = results.some((r) => r.ok);
+            if (!anyOk) {
+                const status = importantR.status || statsR.status || 0;
+                kgCards.forEach((id) => CardState.setError(id, loadTabKnowledge, { status }));
+                return;
+            }
+
+            const important = importantR.ok ? importantR.data : null;
+            const stats = statsR.ok ? statsR.data : null;
+            const quality = qualityR.ok ? qualityR.data : null;
+            const health = healthR.ok ? healthR.data : null;
 
             KnowledgeGraphState.importantNodes = Array.isArray(important) ? important : [];
             const importantIDs = new Set(KnowledgeGraphState.importantNodes.map(n => n.id));
@@ -478,6 +514,8 @@
             } else {
                 renderKnowledgeGraphSearchState('');
             }
+
+            kgCards.forEach((id) => CardState.setLoaded(id));
         }
 
         async function loadAllNodes() {
@@ -622,9 +660,18 @@
             if (logFilter) logFilter.addEventListener('input', applyLogFilter);
             if (logScrollBtn) logScrollBtn.addEventListener('click', scrollLogsToBottom);
             if (logRefreshBtn) logRefreshBtn.addEventListener('click', async () => {
-                const data = await API.get('/api/dashboard/logs?lines=100');
-                renderLogs(data);
-                scrollLogsToBottom();
+                logRefreshBtn.classList.add('is-busy');
+                logRefreshBtn.disabled = true;
+                logRefreshBtn.setAttribute('aria-busy', 'true');
+                try {
+                    const data = await API.get('/api/dashboard/logs?lines=100');
+                    renderLogs(data);
+                    scrollLogsToBottom();
+                } finally {
+                    logRefreshBtn.classList.remove('is-busy');
+                    logRefreshBtn.disabled = false;
+                    logRefreshBtn.removeAttribute('aria-busy');
+                }
             });
             const knowledgeSearchInput = document.getElementById('knowledge-search-input');
             const knowledgeSearchButton = document.getElementById('knowledge-search-button');

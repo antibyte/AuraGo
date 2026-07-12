@@ -793,5 +793,15 @@
   "dashboard.tablist_label": "Secciones del panel",
   "dashboard.status_label": "Estado",
   "dashboard.integration_supertonic_tts": "Supertonic TTS",
-  "dashboard.integration_evomap": "EvoMap"
+  "dashboard.integration_evomap": "EvoMap",
+  "dashboard.page_heading": "Panel",
+  "dashboard.page_heading_sub": "Estado del sistema y del agente de un vistazo",
+  "dashboard.btn_edit": "Editar",
+  "dashboard.btn_delete": "Eliminar",
+  "dashboard.profile_save_error": "No se pudo guardar la entrada del perfil",
+  "dashboard.profile_delete_error": "No se pudo eliminar la entrada del perfil",
+  "dashboard.gauge_used": "Usado",
+  "dashboard.gauge_free": "Libre",
+  "dashboard.quickstatus_n_auto_disabled": "{{n}} auto-desactivados",
+  "dashboard.quickstatus_n_pending": "{{n}} pendientes"
 }

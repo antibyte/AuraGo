@@ -793,5 +793,15 @@
   "dashboard.tablist_label": "Dashboard-deler",
   "dashboard.status_label": "Status",
   "dashboard.integration_supertonic_tts": "Supertonic TTS",
-  "dashboard.integration_evomap": "EvoMap"
+  "dashboard.integration_evomap": "EvoMap",
+  "dashboard.page_heading": "Dashbord",
+  "dashboard.page_heading_sub": "Systemhelse og agentstatus på et blikk",
+  "dashboard.btn_edit": "Rediger",
+  "dashboard.btn_delete": "Slett",
+  "dashboard.profile_save_error": "Kunne ikke lagre profiloppføring",
+  "dashboard.profile_delete_error": "Kunne ikke slette profiloppføring",
+  "dashboard.gauge_used": "Brukt",
+  "dashboard.gauge_free": "Ledig",
+  "dashboard.quickstatus_n_auto_disabled": "{{n}} auto-deaktivert",
+  "dashboard.quickstatus_n_pending": "{{n}} venter"
 }

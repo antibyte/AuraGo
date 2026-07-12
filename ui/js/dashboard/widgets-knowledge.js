@@ -32,10 +32,11 @@
                 .slice(0, 6)
                 .map(([type, count]) => {
                     const color = knowledgeGraphTypeColor(type);
-                    return `<span class="knowledge-type-badge" style="--badge-color: ${color}">${esc(type)} (${count})</span>`;
+                    return `<span class="knowledge-type-badge" data-badge-color="${esc(color)}">${esc(type)} (${count})</span>`;
                 }).join('');
 
             grid.innerHTML = statsHTML + (typeBadges ? `<div class="knowledge-type-badges">${typeBadges}</div>` : '');
+            applyDynamicSurfaceVars(grid);
         }
 
         function renderKnowledgeGraphHealth(health) {
@@ -195,7 +196,7 @@
             nodes.forEach(node => {
                 const typeColor = node?.properties?.type ? knowledgeGraphTypeColor(node.properties.type) : '';
                 const typeCell = typeColor
-                    ? `<td><span class="kg-type-badge" style="--badge-color:${typeColor}">${esc(node.properties.type)}</span></td>`
+                    ? `<td><span class="kg-type-badge" data-badge-color="${esc(typeColor)}">${esc(node.properties.type)}</span></td>`
                     : '<td class="text-secondary">—</td>';
                 const score = typeof node.importance_score === 'number' ? node.importance_score : '—';
                 const flags = node.protected ? '<span class="kg-flag-protected" title="Protected">🔒</span>' : '';
@@ -210,6 +211,7 @@
             });
             html += '</tbody></table>';
             container.innerHTML = html;
+            applyDynamicSurfaceVars(container);
         }
 
         function renderKnowledgeEdgeTable(container, edges) {
@@ -297,6 +299,25 @@
             renderKnowledgeGraphSearchState(query, payload || { nodes: [], edges: [] });
         }
 
+        function applyDynamicSurfaceVars(root) {
+            const scope = root || document;
+            scope.querySelectorAll('[data-badge-color]').forEach((el) => {
+                const color = el.getAttribute('data-badge-color');
+                if (color) el.style.setProperty('--badge-color', color);
+            });
+            scope.querySelectorAll('[data-dot-color]').forEach((el) => {
+                const color = el.getAttribute('data-dot-color');
+                if (color) el.style.setProperty('--dot-color', color);
+            });
+            scope.querySelectorAll('[data-bar-width]').forEach((el) => {
+                const width = el.getAttribute('data-bar-width');
+                if (width) el.style.setProperty('--bar-width', width + '%');
+            });
+        }
+
+        let _kgDetailSeq = 0;
+        let _kgDetailAbort = null;
+
         function renderKnowledgeGraphDetailEmpty() {
         }
 
@@ -318,6 +339,10 @@
             KnowledgeGraphState.modalNodeId = '';
             KnowledgeGraphState.editingNodeId = '';
             KnowledgeGraphState.editingEdgeKey = '';
+            if (_kgDetailAbort) {
+                _kgDetailAbort.abort();
+                _kgDetailAbort = null;
+            }
             const trigger = KnowledgeGraphState.modalTriggerEl;
             if (trigger && typeof trigger.focus === 'function') {
                 setTimeout(() => trigger.focus(), 100);
@@ -329,8 +354,28 @@
             const body = document.getElementById('kgDetailBody');
             if (!body || !nodeID) return;
 
+            const seq = ++_kgDetailSeq;
+            if (_kgDetailAbort) _kgDetailAbort.abort();
+            _kgDetailAbort = new AbortController();
+            const signal = _kgDetailAbort.signal;
+
             body.innerHTML = `<div class="empty-state">${t('dashboard.knowledge_detail_loading')}</div>`;
-            const payload = await API.get('/api/knowledge-graph/node?id=' + encodeURIComponent(nodeID) + '&limit=20');
+            let payload = null;
+            try {
+                const resp = await fetch('/api/knowledge-graph/node?id=' + encodeURIComponent(nodeID) + '&limit=20', {
+                    credentials: 'same-origin',
+                    signal,
+                });
+                if (!resp.ok) throw new Error('detail fetch failed');
+                payload = await resp.json();
+            } catch (err) {
+                if (err && err.name === 'AbortError') return;
+                if (seq !== _kgDetailSeq) return;
+                body.innerHTML = `<div class="empty-state">${t('dashboard.knowledge_detail_missing')}</div>`;
+                return;
+            }
+            if (seq !== _kgDetailSeq) return;
+
             const node = payload?.node;
             const neighbors = Array.isArray(payload?.neighbors) ? payload.neighbors : [];
             const edges = Array.isArray(payload?.edges) ? payload.edges : [];
@@ -370,6 +415,8 @@
                     </div>
                 </div>
             `).join('') || `<div class="knowledge-detail-row">${t('dashboard.knowledge_detail_no_edges')}</div>`;
+
+            if (seq !== _kgDetailSeq) return;
 
             body.innerHTML = `
                 <div class="knowledge-detail-panel">
@@ -1015,10 +1062,11 @@
             const entries = Array.from(typesInGraph).sort().map(type => {
                 const color = knowledgeGraphTypeColor(type);
                 const count = allNodes.filter(n => n?.properties?.type === type).length;
-                return `<span class="kg-legend-entry"><span class="kg-legend-dot" style="background:${color}"></span>${esc(type)} (${count})</span>`;
+                return `<span class="kg-legend-entry"><span class="kg-legend-dot" data-dot-color="${esc(color)}"></span>${esc(type)} (${count})</span>`;
             }).join('');
 
             legend.innerHTML = `<div class="kg-legend-row">${entries}</div>`;
+            applyDynamicSurfaceVars(legend);
         }
 
         function renderKnowledgeGraphFilters() {

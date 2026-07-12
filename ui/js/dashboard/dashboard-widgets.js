@@ -25,7 +25,7 @@
             else if (data.is_warning) badges += '<span class="budget-badge warning">⚡ ' + t('dashboard.budget_warning') + '</span>';
             if (data.enforcement) {
                 const enfMap = { warn: t('dashboard.budget_enforcement_warn'), partial: t('dashboard.budget_enforcement_partial'), full: t('dashboard.budget_enforcement_full') };
-                badges += `<span class="budget-badge info">🛡️ ${enfMap[data.enforcement] || data.enforcement}</span>`;
+                badges += `<span class="budget-badge info">🛡️ ${esc(enfMap[data.enforcement] || String(data.enforcement))}</span>`;
             }
             badgesEl.innerHTML = badges;
 
@@ -424,8 +424,8 @@
                 <span class="profile-val">${esc(e.value)}</span>
                 <span class="confidence-badge ${confClass}" title="${t('dashboard.profile_confidence')} ${e.confidence}">${e.confidence}</span>
                 <span class="profile-actions">
-                    <button class="profile-btn-edit" data-cat="${esc(cat)}" data-key="${esc(e.key)}" onclick="editProfileEntry(this)" title="${t('dashboard.profile_edit_save')}">✏️</button>
-                    <button class="profile-btn-delete" data-cat="${esc(cat)}" data-key="${esc(e.key)}" onclick="deleteProfileEntry(this)" title="${t('dashboard.profile_delete_confirm')}">🗑️</button>
+                    <button type="button" class="profile-btn-edit" data-cat="${esc(cat)}" data-key="${esc(e.key)}" onclick="editProfileEntry(this)" title="${t('dashboard.btn_edit')}">${t('dashboard.btn_edit')}</button>
+                    <button type="button" class="profile-btn-delete" data-cat="${esc(cat)}" data-key="${esc(e.key)}" onclick="deleteProfileEntry(this)" title="${t('dashboard.btn_delete')}">${t('dashboard.btn_delete')}</button>
                 </span>
                 <span class="profile-edit-form is-hidden">
                     <input type="text" class="profile-edit-input" value="${esc(e.value)}">
@@ -458,9 +458,15 @@
             const cat = btn.dataset.cat;
             const key = btn.dataset.key;
             if (!await showConfirm(t('dashboard.profile_delete_confirm') + ' "' + key + '"?')) return;
-            fetch('/api/dashboard/profile/entry?' + new URLSearchParams({ category: cat, key: key }), {
-                method: 'DELETE', credentials: 'same-origin'
-            }).then(r => { if (r.ok) loadTabUser(); }).catch(() => {});
+            try {
+                const r = await fetch('/api/dashboard/profile/entry?' + new URLSearchParams({ category: cat, key: key }), {
+                    method: 'DELETE', credentials: 'same-origin'
+                });
+                if (!r.ok) throw new Error('delete failed');
+                loadTabUser();
+            } catch (_) {
+                if (typeof showToast === 'function') showToast(t('dashboard.profile_delete_error'), 'error', 4000);
+            }
         }
 
         function editProfileEntry(btn) {
@@ -482,17 +488,23 @@
             editForm.classList.add('is-hidden');
         }
 
-        function saveProfileEntry(btn) {
+        async function saveProfileEntry(btn) {
             const entry = btn.closest('.profile-entry');
             const cat = entry.closest('.profile-category').dataset.cat;
             const key = entry.querySelector('.profile-key').textContent;
             const newVal = entry.querySelector('.profile-edit-input').value.trim();
             if (!newVal) return;
-            fetch('/api/dashboard/profile/entry', {
-                method: 'PUT', credentials: 'same-origin',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ category: cat, key: key, value: newVal })
-            }).then(r => { if (r.ok) loadTabUser(); }).catch(() => {});
+            try {
+                const r = await fetch('/api/dashboard/profile/entry', {
+                    method: 'PUT', credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ category: cat, key: key, value: newVal })
+                });
+                if (!r.ok) throw new Error('save failed');
+                loadTabUser();
+            } catch (_) {
+                if (typeof showToast === 'function') showToast(t('dashboard.profile_save_error'), 'error', 4000);
+            }
         }
 
         function renderActivity(data) {
@@ -545,11 +557,11 @@
                             data-cron-source="${safeSource}"
                             data-cron-disabled="${safeDisabled}"
                             onclick="openCronEditModal(this)"
-                            title="${t('dashboard.cron_edit_title')}">✏️</button>
+                            title="${t('dashboard.cron_edit_title')}">${t('dashboard.btn_edit')}</button>
                         <button class="cf-fact-btn danger"
                             data-cron-id="${safeId}"
                             onclick="deleteCronJob(this.dataset.cronId)"
-                            title="${t('dashboard.cron_btn_delete')}">🗑️</button>
+                            title="${t('dashboard.cron_btn_delete')}">${t('dashboard.btn_delete')}</button>
                     </span>
                 </div>
             </div>`;
@@ -587,7 +599,7 @@
                         ca.state === 'completed' ? 'pill-completed' :
                             ca.state === 'failed' ? 'pill-failed' : 'pill-idle';
                     const specIcons = { researcher: '\uD83D\uDD0D', coder: '\uD83D\uDCBB', designer: '\uD83C\uDFA8', security: '\uD83D\uDEE1\uFE0F', writer: '\u270D\uFE0F' };
-                    const specBadge = ca.specialist && specIcons[ca.specialist] ? '<span title="' + esc(ca.specialist) + '" style="margin-right:0.3rem;">' + specIcons[ca.specialist] + '</span>' : '';
+                    const specBadge = ca.specialist && specIcons[ca.specialist] ? '<span class="ca-spec-icon" title="' + esc(ca.specialist) + '">' + specIcons[ca.specialist] + '</span>' : '';
                     const extra = [];
                     if (ca.queue_position) extra.push('Q' + esc(String(ca.queue_position)));
                     if (ca.retry_count) extra.push('R' + esc(String(ca.retry_count)));
@@ -1429,14 +1441,17 @@
         let cronjobsSearchTimer = null;
 
         async function loadTabCronjobs() {
+            CardState.setLoading('card-cronjobs');
             const params = cronjobsQueryParams();
             try {
                 const resp = await fetch('/api/dashboard/cronjobs?' + params.toString(), { credentials: 'same-origin' });
                 if (!resp.ok) throw new Error('Cronjobs load failed');
                 const data = await resp.json();
                 renderCronjobs(data);
+                CardState.setLoaded('card-cronjobs');
             } catch (e) {
                 console.warn('Cronjobs load failed', e);
+                CardState.setError('card-cronjobs', loadTabCronjobs, { status: 0 });
                 if (typeof showToast === 'function') showToast(t('dashboard.cronjobs_error_load'), 'error', 5000);
             }
         }
@@ -1659,7 +1674,20 @@
                 const el = document.getElementById(id);
                 if (el) el.addEventListener('change', loadTabCronjobs);
             });
-            if (refresh) refresh.addEventListener('click', loadTabCronjobs);
+            if (refresh) {
+                refresh.addEventListener('click', async () => {
+                    refresh.classList.add('is-busy');
+                    refresh.disabled = true;
+                    refresh.setAttribute('aria-busy', 'true');
+                    try {
+                        await loadTabCronjobs();
+                    } finally {
+                        refresh.classList.remove('is-busy');
+                        refresh.disabled = false;
+                        refresh.removeAttribute('aria-busy');
+                    }
+                });
+            }
         }
 
         function cronjobsQueryParams() {
@@ -1730,11 +1758,11 @@
                             data-cron-source="${esc(job.source || 'agent')}"
                             data-cron-disabled="${disabled ? 'true' : 'false'}"
                             onclick="openCronEditModal(this)"
-                            title="${esc(t('dashboard.cron_edit_title'))}">✏️</button>
+                            title="${esc(t('dashboard.cron_edit_title'))}">${esc(t('dashboard.btn_edit'))}</button>
                         <button type="button" class="cronjobs-row-btn danger"
                             data-cron-id="${esc(job.id || '')}"
                             onclick="deleteCronJob(this.dataset.cronId)"
-                            title="${esc(t('dashboard.cron_btn_delete'))}">🗑</button>
+                            title="${esc(t('dashboard.cron_btn_delete'))}">${esc(t('dashboard.btn_delete'))}</button>
                     </td>`;
                 tbody.appendChild(tr);
             });
@@ -1783,6 +1811,7 @@
 
         async function loadAuditPage(offset) {
             auditOffset = Math.max(0, offset || 0);
+            CardState.setLoading('card-audit-log');
             const params = auditQueryParams();
             params.set('limit', String(AUDIT_PAGE_SIZE));
             params.set('offset', String(auditOffset));
@@ -1791,8 +1820,10 @@
                 if (!resp.ok) throw new Error('Audit load failed');
                 const page = await resp.json();
                 renderAuditEvents(page);
+                CardState.setLoaded('card-audit-log');
             } catch (e) {
                 console.warn('Audit load failed', e);
+                CardState.setError('card-audit-log', () => loadAuditPage(auditOffset), { status: 0 });
                 if (typeof showToast === 'function') showToast(t('dashboard.audit_error_load'), 'error', 5000);
             }
         }
@@ -1821,7 +1852,20 @@
                 const el = document.getElementById(id);
                 if (el) el.addEventListener('change', () => loadTabAudit());
             });
-            if (refresh) refresh.addEventListener('click', () => loadTabAudit());
+            if (refresh) {
+                refresh.addEventListener('click', async () => {
+                    refresh.classList.add('is-busy');
+                    refresh.disabled = true;
+                    refresh.setAttribute('aria-busy', 'true');
+                    try {
+                        await loadTabAudit();
+                    } finally {
+                        refresh.classList.remove('is-busy');
+                        refresh.disabled = false;
+                        refresh.removeAttribute('aria-busy');
+                    }
+                });
+            }
             if (clear) clear.addEventListener('click', clearFilteredAuditEvents);
             if (prev) prev.addEventListener('click', () => loadAuditPage(Math.max(0, auditOffset - AUDIT_PAGE_SIZE)));
             if (next) next.addEventListener('click', () => loadAuditPage(auditOffset + AUDIT_PAGE_SIZE));
@@ -1883,7 +1927,7 @@
                     <td class="audit-cell-status" data-label="${esc(t('dashboard.audit_col_status'))}"><span class="audit-status audit-status-${esc(status)}">${esc(auditStatusLabel(status))}</span></td>
                     <td class="audit-cell-summary" data-label="${esc(t('dashboard.audit_col_summary'))}" title="${esc(detail)}"><span class="audit-summary-text">${esc(event.summary || '—')}</span></td>
                     <td class="audit-cell-duration" data-label="${esc(t('dashboard.audit_col_duration'))}">${esc(duration)}</td>
-                    <td class="audit-cell-actions" data-label="${esc(t('dashboard.audit_col_actions'))}"><button type="button" class="audit-row-delete" onclick="deleteAuditEvent(${Number(event.id || 0)})" title="${esc(t('dashboard.audit_delete'))}">🗑</button></td>`;
+                    <td class="audit-cell-actions" data-label="${esc(t('dashboard.audit_col_actions'))}"><button type="button" class="audit-row-delete" onclick="deleteAuditEvent(${Number(event.id || 0)})" title="${esc(t('dashboard.audit_delete'))}">${esc(t('dashboard.btn_delete'))}</button></td>`;
                 tbody.appendChild(tr);
             });
             const end = Math.min(auditOffset + entries.length, auditTotal);
@@ -1934,7 +1978,7 @@
                 if (typeof showToast === 'function') showToast(t('dashboard.audit_deleted'), 'success', 2500);
                 await loadAuditPage(auditOffset);
             } catch (e) {
-                await showAlert('Error', t('dashboard.audit_error_delete'));
+                await showAlert(t('dashboard.error_title'), t('dashboard.audit_error_delete'));
             }
         }
 
@@ -1960,7 +2004,7 @@
                 if (typeof showToast === 'function') showToast(t('dashboard.audit_cleared', { count: data.deleted || 0 }), 'success', 3500);
                 await loadTabAudit();
             } catch (e) {
-                await showAlert('Error', t('dashboard.audit_error_clear'));
+                await showAlert(t('dashboard.error_title'), t('dashboard.audit_error_clear'));
             }
         }
 
@@ -2071,9 +2115,9 @@
             grid.innerHTML = items.map(s =>
                 `<div class="ops-stat">
                     <div class="ops-stat-icon">${s.icon}</div>
-                    <div class="ops-stat-val">${s.val}</div>
-                    <div class="ops-stat-lbl">${s.lbl}</div>
-                    <div class="ops-stat-sub">${s.sub}</div>
+                    <div class="ops-stat-val">${esc(String(s.val))}</div>
+                    <div class="ops-stat-lbl">${esc(s.lbl)}</div>
+                    <div class="ops-stat-sub">${esc(s.sub)}</div>
                 </div>`
             ).join('');
         }
@@ -2109,7 +2153,7 @@
                     lbl: t('dashboard.integration_mqtt'),
                     val: mqtt.enabled ? (mqtt.connected ? t('dashboard.quickstatus_connected') : t('dashboard.quickstatus_not_connected')) : t('dashboard.operations_disabled'),
                     status: mqtt.enabled ? (mqtt.connected ? 'ok' : 'warning') : 'neutral',
-                    info: (mqtt.enabled && mqtt.buffer) ? `${mqtt.buffer} buffered` : ''
+                    info: (mqtt.enabled && mqtt.buffer) ? t('dashboard.operations_buffered', {n: mqtt.buffer}) : ''
                 },
                 {
                     icon: '🔗',
@@ -2123,14 +2167,14 @@
                     lbl: t('dashboard.operations_missions'),
                     val: `${m.running || 0} / ${m.total || 0}`,
                     status: (m.running || 0) > 0 ? 'ok' : 'neutral',
-                    info: m.queued ? `${m.queued} queued` : ''
+                    info: m.queued ? t('dashboard.operations_missions_queued', {n: m.queued}) : ''
                 },
                 {
                     icon: '🔐',
                     lbl: t('dashboard.operations_vault_keys'),
                     val: sec.vault_keys || 0,
                     status: 'neutral',
-                    info: sec.tokens ? `${sec.tokens} tokens` : ''
+                    info: sec.tokens ? t('dashboard.operations_api_tokens', {n: sec.tokens}) : ''
                 },
                 {
                     icon: '📱',
@@ -2144,7 +2188,7 @@
                     lbl: t('dashboard.quickstatus_skills'),
                     val: sk.total || 0,
                     status: sk.pending > 0 ? 'warning' : 'neutral',
-                    info: sk.pending > 0 ? `${sk.pending} pending` : ''
+                    info: sk.pending > 0 ? t('dashboard.quickstatus_n_pending', {n: sk.pending}) : ''
                 },
                 {
                     icon: '🪶',
@@ -2190,18 +2234,18 @@
                     lbl: t('dashboard.quickstatus_daemons'),
                     val: `${running} / ${total}`,
                     status: autoDisabled > 0 ? 'warning' : (running > 0 ? 'ok' : 'neutral'),
-                    info: autoDisabled > 0 ? `${autoDisabled} auto-disabled` : ''
+                    info: autoDisabled > 0 ? t('dashboard.quickstatus_n_auto_disabled', {n: autoDisabled}) : ''
                 });
             }
 
             el.innerHTML = items.map(s => {
                 const tag = s.href ? 'a' : 'div';
-                const href = s.href ? ` href="${s.href}"` : '';
-                return `<${tag} class="qs-item ${s.status}"${href}>
+                const href = s.href ? ` href="${esc(s.href)}"` : '';
+                return `<${tag} class="qs-item ${esc(s.status || '')}"${href}>
                     <div class="qs-icon">${s.icon}</div>
-                    <div class="qs-label">${s.lbl}</div>
-                    <div class="qs-val">${s.val}</div>
-                    ${s.info ? `<div class="qs-info">${esc(s.info)}</div>` : ''}
+                    <div class="qs-label">${esc(s.lbl)}</div>
+                    <div class="qs-val">${esc(String(s.val))}</div>
+                    ${s.info ? `<div class="qs-info" title="${esc(s.info)}">${esc(s.info)}</div>` : ''}
                 </${tag}>`;
             }).join('');
         }
@@ -2314,10 +2358,11 @@
                 toolsList.innerHTML = topTools.map(e =>
                     `<div class="compression-rank-item">
                         <span class="compression-rank-name">${esc(e.tool)}</span>
-                        <span class="compression-rank-bar" style="width:${Math.max(4, (e.savings_ratio || 0) * 100)}%"></span>
+                        <span class="compression-rank-bar" data-bar-width="${Math.max(4, (e.savings_ratio || 0) * 100)}"></span>
                         <span class="compression-rank-val">${formatChars(e.saved_chars)} (${(e.savings_ratio * 100).toFixed(0)}%)</span>
                     </div>`
                 ).join('');
+                if (typeof applyDynamicSurfaceVars === 'function') applyDynamicSurfaceVars(toolsList);
             }
 
             // Top filters
@@ -2330,10 +2375,11 @@
                 filtersList.innerHTML = topFilters.map(e =>
                     `<div class="compression-rank-item">
                         <span class="compression-rank-name">${esc(e.filter)}</span>
-                        <span class="compression-rank-bar" style="width:${Math.max(4, ((e.saved_chars || 0) / maxSaved) * 100)}%"></span>
+                        <span class="compression-rank-bar" data-bar-width="${Math.max(4, ((e.saved_chars || 0) / maxSaved) * 100)}"></span>
                         <span class="compression-rank-val">${formatChars(e.saved_chars)} ×${e.count || 0}</span>
                     </div>`
                 ).join('');
+                if (typeof applyDynamicSurfaceVars === 'function') applyDynamicSurfaceVars(filtersList);
             }
         }
 
@@ -2404,7 +2450,7 @@
                 let cls = active ? 'active' : 'inactive';
                 // MQTT: distinguish "enabled but disconnected" from "enabled and connected"
                 if (key === 'mqtt' && active && overview.mqtt && overview.mqtt.connected === false) cls = 'active-warning';
-                return `<span class="int-badge ${cls}">${icons[key] || '•'} ${names[key] || key}</span>`;
+                return `<span class="int-badge ${cls}">${icons[key] || '•'} ${esc(names[key] || key)}</span>`;
             }).join('');
         }
         // ── LLM Guardian Card ───────────────────────────────────────────────────────
@@ -2421,8 +2467,17 @@
         }
 
         async function loadHelperLLMCard() {
-            const data = await API.get('/api/dashboard/helper-llm');
-            renderHelperLLMCard(data);
+            try {
+                const data = await API.get('/api/dashboard/helper-llm');
+                renderHelperLLMCard(data);
+                if (typeof CardState !== 'undefined' && CardState.setLoaded) {
+                    CardState.setLoaded('card-helper-llm');
+                }
+            } catch (_) {
+                if (typeof CardState !== 'undefined' && CardState.setError) {
+                    CardState.setError('card-helper-llm', loadHelperLLMCard);
+                }
+            }
         }
 
         // ── Daemon Skills Card ──────────────────────────────────────────────
@@ -2885,10 +2940,18 @@
         }
 
         async function loadJournal() {
-            const [entries, summaries] = await Promise.all([
-                API.get('/api/dashboard/journal?limit=15'),
-                API.get('/api/dashboard/journal/summaries?days=7')
+            const results = await Promise.all([
+                API.getWithStatus('/api/dashboard/journal?limit=15'),
+                API.getWithStatus('/api/dashboard/journal/summaries?days=7')
             ]);
+            const [entriesR, summariesR] = results;
+            if (!entriesR.ok && !summariesR.ok) {
+                CardState.setError('card-journal', loadJournal, { status: entriesR.status || summariesR.status || 0 });
+                return;
+            }
+            CardState.setLoaded('card-journal');
+            const entries = entriesR.ok ? entriesR.data : null;
+            const summaries = summariesR.ok ? summariesR.data : null;
             renderJournalTimeline(entries?.entries);
             renderJournalSummary(summaries?.summaries);
         }

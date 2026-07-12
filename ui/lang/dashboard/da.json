@@ -793,5 +793,15 @@
   "dashboard.tablist_label": "Dashboard-sektioner",
   "dashboard.status_label": "Status",
   "dashboard.integration_supertonic_tts": "Supertonic TTS",
-  "dashboard.integration_evomap": "EvoMap"
+  "dashboard.integration_evomap": "EvoMap",
+  "dashboard.page_heading": "Dashboard",
+  "dashboard.page_heading_sub": "Systemtilstand og agentstatus på et øjeblik",
+  "dashboard.btn_edit": "Rediger",
+  "dashboard.btn_delete": "Slet",
+  "dashboard.profile_save_error": "Profilpost kunne ikke gemmes",
+  "dashboard.profile_delete_error": "Profilpost kunne ikke slettes",
+  "dashboard.gauge_used": "Brugt",
+  "dashboard.gauge_free": "Ledig",
+  "dashboard.quickstatus_n_auto_disabled": "{{n}} auto-deaktiveret",
+  "dashboard.quickstatus_n_pending": "{{n}} afventer"
 }

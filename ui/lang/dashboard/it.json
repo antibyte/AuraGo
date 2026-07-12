@@ -793,5 +793,15 @@
   "dashboard.tablist_label": "Sezioni della dashboard",
   "dashboard.status_label": "Stato",
   "dashboard.integration_supertonic_tts": "Supertonic TTS",
-  "dashboard.integration_evomap": "EvoMap"
+  "dashboard.integration_evomap": "EvoMap",
+  "dashboard.page_heading": "Dashboard",
+  "dashboard.page_heading_sub": "Stato di sistema e agent a colpo d'occhio",
+  "dashboard.btn_edit": "Modifica",
+  "dashboard.btn_delete": "Elimina",
+  "dashboard.profile_save_error": "Impossibile salvare la voce del profilo",
+  "dashboard.profile_delete_error": "Impossibile eliminare la voce del profilo",
+  "dashboard.gauge_used": "Usato",
+  "dashboard.gauge_free": "Libero",
+  "dashboard.quickstatus_n_auto_disabled": "{{n}} auto-disabilitati",
+  "dashboard.quickstatus_n_pending": "{{n}} in sospeso"
 }

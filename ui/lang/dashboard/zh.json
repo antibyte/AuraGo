@@ -793,5 +793,15 @@
   "dashboard.tablist_label": "仪表板分区",
   "dashboard.status_label": "状态",
   "dashboard.integration_supertonic_tts": "Supertonic TTS",
-  "dashboard.integration_evomap": "EvoMap"
+  "dashboard.integration_evomap": "EvoMap",
+  "dashboard.page_heading": "仪表盘",
+  "dashboard.page_heading_sub": "系统健康与代理状态一览",
+  "dashboard.btn_edit": "编辑",
+  "dashboard.btn_delete": "删除",
+  "dashboard.profile_save_error": "无法保存个人资料条目",
+  "dashboard.profile_delete_error": "无法删除个人资料条目",
+  "dashboard.gauge_used": "已用",
+  "dashboard.gauge_free": "空闲",
+  "dashboard.quickstatus_n_auto_disabled": "{{n}} 已自动禁用",
+  "dashboard.quickstatus_n_pending": "{{n}} 待处理"
 }

@@ -74,17 +74,21 @@ func TestDashboardUserPanelSpacingAndJournalContrast(t *testing.T) {
 func TestDashboardMissionHistoryContrast(t *testing.T) {
 	t.Parallel()
 
-	css := readDesktopAssetText(t, "css/dashboard.css")
+	css := strings.ReplaceAll(readDesktopAssetText(t, "css/dashboard.css"), "\r\n", "\n")
 	for _, marker := range []string{
-		".mh-table {\n    min-width: 640px;",
-		".mh-table th {\n    color: color-mix(in srgb, var(--pw-text) 88%, var(--pw-muted) 12%);",
-		".mh-table td {\n    color: color-mix(in srgb, var(--pw-text) 94%, white 6%);",
-		".mh-table td:first-child {\n    color: var(--pw-text);",
-		".mh-status {\n    display: inline-flex;",
-		".mh-trigger {\n    display: inline-flex;",
-		".mh-status-success {\n    color: color-mix(in srgb, var(--success) 76%, white 24%);",
+		`.pw-page[data-workspace-page="dashboard"] .mh-table {
+    min-width: 640px;`,
+		`color: color-mix(in srgb, var(--pw-text) 88%, var(--pw-muted) 12%);`,
+		`color: color-mix(in srgb, var(--pw-text) 94%, white 6%);`,
+		`.pw-page[data-workspace-page="dashboard"] .mh-table td:first-child {
+    color: var(--pw-text);`,
+		`.pw-page[data-workspace-page="dashboard"] .mh-status {
+    display: inline-flex;`,
+		`.pw-page[data-workspace-page="dashboard"] .mh-trigger {
+    display: inline-flex;`,
+		`color: color-mix(in srgb, var(--success) 76%, white 24%);`,
 		"white-space: nowrap;",
-		"color: color-mix(in srgb, var(--pw-text) 90%, white 10%);",
+		`color: color-mix(in srgb, var(--pw-text) 90%, white 10%);`,
 	} {
 		if !strings.Contains(css, marker) {
 			t.Fatalf("dashboard mission history contrast CSS missing marker %q", marker)

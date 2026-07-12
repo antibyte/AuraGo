@@ -793,5 +793,15 @@
   "dashboard.tablist_label": "Sections du tableau de bord",
   "dashboard.status_label": "Statut",
   "dashboard.integration_supertonic_tts": "Supertonic TTS",
-  "dashboard.integration_evomap": "EvoMap"
+  "dashboard.integration_evomap": "EvoMap",
+  "dashboard.page_heading": "Tableau de bord",
+  "dashboard.page_heading_sub": "État du système et de l'agent en un coup d'œil",
+  "dashboard.btn_edit": "Modifier",
+  "dashboard.btn_delete": "Supprimer",
+  "dashboard.profile_save_error": "Impossible d'enregistrer l'entrée du profil",
+  "dashboard.profile_delete_error": "Impossible de supprimer l'entrée du profil",
+  "dashboard.gauge_used": "Utilisé",
+  "dashboard.gauge_free": "Libre",
+  "dashboard.quickstatus_n_auto_disabled": "{{n}} auto-désactivé(s)",
+  "dashboard.quickstatus_n_pending": "{{n}} en attente"
 }

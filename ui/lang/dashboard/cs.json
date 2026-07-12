@@ -793,5 +793,15 @@
   "dashboard.tablist_label": "Sekce řídicího panelu",
   "dashboard.status_label": "Stav",
   "dashboard.integration_supertonic_tts": "Supertonic TTS",
-  "dashboard.integration_evomap": "EvoMap"
+  "dashboard.integration_evomap": "EvoMap",
+  "dashboard.page_heading": "Dashboard",
+  "dashboard.page_heading_sub": "Stav systému a agenta na první pohled",
+  "dashboard.btn_edit": "Upravit",
+  "dashboard.btn_delete": "Smazat",
+  "dashboard.profile_save_error": "Položku profilu se nepodařilo uložit",
+  "dashboard.profile_delete_error": "Položku profilu se nepodařilo smazat",
+  "dashboard.gauge_used": "Využito",
+  "dashboard.gauge_free": "Volné",
+  "dashboard.quickstatus_n_auto_disabled": "{{n}} auto-vypnuto",
+  "dashboard.quickstatus_n_pending": "{{n}} čeká"
 }

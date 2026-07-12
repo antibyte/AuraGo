@@ -793,5 +793,15 @@
   "dashboard.tablist_label": "डैशबोर्ड अनुभाग",
   "dashboard.status_label": "स्थिति",
   "dashboard.integration_supertonic_tts": "Supertonic TTS",
-  "dashboard.integration_evomap": "EvoMap"
+  "dashboard.integration_evomap": "EvoMap",
+  "dashboard.page_heading": "डैशबोर्ड",
+  "dashboard.page_heading_sub": "सिस्टम स्वास्थ्य और एजेंट स्थिति एक नज़र में",
+  "dashboard.btn_edit": "संपादित करें",
+  "dashboard.btn_delete": "हटाएँ",
+  "dashboard.profile_save_error": "प्रोफ़ाइल प्रविष्टि सहेजी नहीं जा सकी",
+  "dashboard.profile_delete_error": "प्रोफ़ाइल प्रविष्टि हटाई नहीं जा सकी",
+  "dashboard.gauge_used": "उपयोग में",
+  "dashboard.gauge_free": "खाली",
+  "dashboard.quickstatus_n_auto_disabled": "{{n}} स्वतः अक्षम",
+  "dashboard.quickstatus_n_pending": "{{n}} लंबित"
 }

@@ -63,8 +63,8 @@ func TestDashboardKnowledgeGraphHealthContract(t *testing.T) {
 func TestDashboardKnowledgeGraphVisualUsesBoundedCanvasSize(t *testing.T) {
 	t.Parallel()
 
-	widgetsJS := readDesktopAssetText(t, "js/dashboard/widgets-knowledge.js")
-	css := readDesktopAssetText(t, "css/dashboard.css")
+	widgetsJS := strings.ReplaceAll(readDesktopAssetText(t, "js/dashboard/widgets-knowledge.js"), "\r\n", "\n")
+	css := strings.ReplaceAll(readDesktopAssetText(t, "css/dashboard.css"), "\r\n", "\n")
 
 	for _, marker := range []string{
 		"const KG_VISUAL_MAX_HEIGHT = 460;",

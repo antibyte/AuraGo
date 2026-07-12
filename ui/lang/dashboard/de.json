@@ -793,5 +793,15 @@
   "dashboard.tablist_label": "Dashboard-Bereiche",
   "dashboard.status_label": "Status",
   "dashboard.integration_supertonic_tts": "Supertonic TTS",
-  "dashboard.integration_evomap": "EvoMap"
+  "dashboard.integration_evomap": "EvoMap",
+  "dashboard.page_heading": "Dashboard",
+  "dashboard.page_heading_sub": "Systemzustand und Agent-Status auf einen Blick",
+  "dashboard.btn_edit": "Bearbeiten",
+  "dashboard.btn_delete": "Löschen",
+  "dashboard.profile_save_error": "Profileintrag konnte nicht gespeichert werden",
+  "dashboard.profile_delete_error": "Profileintrag konnte nicht gelöscht werden",
+  "dashboard.gauge_used": "Belegt",
+  "dashboard.gauge_free": "Frei",
+  "dashboard.quickstatus_n_auto_disabled": "{{n}} auto-deaktiviert",
+  "dashboard.quickstatus_n_pending": "{{n}} ausstehend"
 }

@@ -793,5 +793,15 @@
   "dashboard.tablist_label": "Dashboardsecties",
   "dashboard.status_label": "Status",
   "dashboard.integration_supertonic_tts": "Supertonic TTS",
-  "dashboard.integration_evomap": "EvoMap"
+  "dashboard.integration_evomap": "EvoMap",
+  "dashboard.page_heading": "Dashboard",
+  "dashboard.page_heading_sub": "Systeemstatus en agentstatus in één oogopslag",
+  "dashboard.btn_edit": "Bewerken",
+  "dashboard.btn_delete": "Verwijderen",
+  "dashboard.profile_save_error": "Profielitem kon niet worden opgeslagen",
+  "dashboard.profile_delete_error": "Profielitem kon niet worden verwijderd",
+  "dashboard.gauge_used": "Gebruikt",
+  "dashboard.gauge_free": "Vrij",
+  "dashboard.quickstatus_n_auto_disabled": "{{n}} auto-uitgeschakeld",
+  "dashboard.quickstatus_n_pending": "{{n}} in behandeling"
 }

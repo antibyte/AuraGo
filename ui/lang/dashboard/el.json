@@ -793,5 +793,15 @@
   "dashboard.tablist_label": "Ενότητες πίνακα ελέγχου",
   "dashboard.status_label": "Κατάσταση",
   "dashboard.integration_supertonic_tts": "Supertonic TTS",
-  "dashboard.integration_evomap": "EvoMap"
+  "dashboard.integration_evomap": "EvoMap",
+  "dashboard.page_heading": "Πίνακας ελέγχου",
+  "dashboard.page_heading_sub": "Κατάσταση συστήματος και agent με μια ματιά",
+  "dashboard.btn_edit": "Επεξεργασία",
+  "dashboard.btn_delete": "Διαγραφή",
+  "dashboard.profile_save_error": "Δεν ήταν δυνατή η αποθήκευση της καταχώρισης προφίλ",
+  "dashboard.profile_delete_error": "Δεν ήταν δυνατή η διαγραφή της καταχώρισης προφίλ",
+  "dashboard.gauge_used": "Χρησιμοποιείται",
+  "dashboard.gauge_free": "Ελεύθερο",
+  "dashboard.quickstatus_n_auto_disabled": "{{n}} αυτόματα απενεργοποιημένα",
+  "dashboard.quickstatus_n_pending": "{{n}} εκκρεμεί"
 }

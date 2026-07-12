@@ -793,5 +793,15 @@
   "dashboard.tablist_label": "ダッシュボードセクション",
   "dashboard.status_label": "ステータス",
   "dashboard.integration_supertonic_tts": "Supertonic TTS",
-  "dashboard.integration_evomap": "EvoMap"
+  "dashboard.integration_evomap": "EvoMap",
+  "dashboard.page_heading": "ダッシュボード",
+  "dashboard.page_heading_sub": "システムの状態とエージェント状況を一覧",
+  "dashboard.btn_edit": "編集",
+  "dashboard.btn_delete": "削除",
+  "dashboard.profile_save_error": "プロフィール項目を保存できませんでした",
+  "dashboard.profile_delete_error": "プロフィール項目を削除できませんでした",
+  "dashboard.gauge_used": "使用中",
+  "dashboard.gauge_free": "空き",
+  "dashboard.quickstatus_n_auto_disabled": "{{n}}件自動無効",
+  "dashboard.quickstatus_n_pending": "{{n}}件保留"
 }

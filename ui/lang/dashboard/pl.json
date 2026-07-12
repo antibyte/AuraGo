@@ -793,5 +793,15 @@
   "dashboard.tablist_label": "Sekcje pulpitu",
   "dashboard.status_label": "Status",
   "dashboard.integration_supertonic_tts": "Supertonic TTS",
-  "dashboard.integration_evomap": "EvoMap"
+  "dashboard.integration_evomap": "EvoMap",
+  "dashboard.page_heading": "Panel",
+  "dashboard.page_heading_sub": "Stan systemu i agenta w skrócie",
+  "dashboard.btn_edit": "Edytuj",
+  "dashboard.btn_delete": "Usuń",
+  "dashboard.profile_save_error": "Nie udało się zapisać wpisu profilu",
+  "dashboard.profile_delete_error": "Nie udało się usunąć wpisu profilu",
+  "dashboard.gauge_used": "Użyte",
+  "dashboard.gauge_free": "Wolne",
+  "dashboard.quickstatus_n_auto_disabled": "{{n}} auto-wyłączonych",
+  "dashboard.quickstatus_n_pending": "{{n}} oczekujących"
 }

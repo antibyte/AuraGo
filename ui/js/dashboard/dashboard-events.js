@@ -53,6 +53,7 @@
             Object.keys(TabState.loaded).forEach(k => { TabState.loaded[k] = false; });
             loadTabContent(TabState.active);
         }
+        window.addEventListener('aurago:themechange', updateChartColors);
 
         // ── SSE Live Updates ────────────────────────────────────────────────────────
         let _sseBanner = null;
@@ -292,7 +293,7 @@
                 if (typeof showToast === 'function') showToast(t('dashboard.cronjobs_updated'), 'success', 2500);
                 await refreshCronViews();
             } catch (e) {
-                await showAlert('Error', t('dashboard.cronjobs_error_update'));
+                await showAlert(t('dashboard.error_title'), t('dashboard.cronjobs_error_update'));
             } finally {
                 if (saveBtn) saveBtn.disabled = false;
             }
@@ -309,7 +310,7 @@
                 if (typeof showToast === 'function') showToast(t('dashboard.cronjobs_deleted'), 'success', 2500);
                 await refreshCronViews();
             } catch (e) {
-                await showAlert('Error', t('dashboard.cronjobs_error_delete'));
+                await showAlert(t('dashboard.error_title'), t('dashboard.cronjobs_error_delete'));
             }
         }
 
@@ -364,7 +365,7 @@
                             <span class="cf-id">[${f.id}]</span>
                             <span class="cf-fact-text" id="cf-text-${f.id}">${esc(f.fact)}</span>
                             <span class="cf-fact-actions">
-                                <button class="cf-fact-btn danger" onclick="cfDeleteFact(${f.id})" title="${t('dashboard.core_facts_modal_delete')}">🗑️</button>
+                                <button type="button" class="cf-fact-btn danger" onclick="cfDeleteFact(${f.id})" title="${t('dashboard.core_facts_modal_delete')}">${t('dashboard.btn_delete')}</button>
                             </span>
                         </div>`
                     ).join('');
@@ -387,7 +388,7 @@
                 if (!resp.ok) throw new Error(t('dashboard.core_facts_modal_error_delete'));
                 await openCoreFactsModal(); // reload
             } catch (e) {
-                await showAlert('Error', '❌ ' + e.message);
+                await showAlert(t('dashboard.error_title'), e.message || t('dashboard.core_facts_modal_error_delete'));
             }
         }
 
@@ -410,7 +411,7 @@
                 if (!resp.ok) throw new Error(t('dashboard.core_facts_modal_error_delete_all'));
                 await openCoreFactsModal(); // reload
             } catch (e) {
-                await showAlert('Error', '❌ ' + e.message);
+                await showAlert(t('dashboard.error_title'), e.message || t('dashboard.core_facts_modal_error_delete_all'));
             }
         }
 
@@ -445,17 +446,24 @@
                 if (!cardId) return;
                 // Restore state from localStorage
                 const stored = localStorage.getItem('dash-collapse-' + cardId);
-                if (stored === 'true') {
+                const collapsed = stored === 'true';
+                if (collapsed) {
                     toggle.classList.add('collapsed');
-                    const body = toggle.closest('.dash-card').querySelector('.dash-card-body');
+                    const body = toggle.closest('.dash-card')?.querySelector('.dash-card-body');
                     if (body) body.classList.add('collapsed');
+                }
+                toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+                if (!toggle.getAttribute('type') && toggle.tagName === 'BUTTON') {
+                    toggle.setAttribute('type', 'button');
                 }
                 toggle.addEventListener('click', (e) => {
                     e.stopPropagation();
                     toggle.classList.toggle('collapsed');
-                    const body = toggle.closest('.dash-card').querySelector('.dash-card-body');
-                    if (body) body.classList.toggle('collapsed');
-                    localStorage.setItem('dash-collapse-' + cardId, toggle.classList.contains('collapsed'));
+                    const isCollapsed = toggle.classList.contains('collapsed');
+                    const body = toggle.closest('.dash-card')?.querySelector('.dash-card-body');
+                    if (body) body.classList.toggle('collapsed', isCollapsed);
+                    toggle.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
+                    localStorage.setItem('dash-collapse-' + cardId, String(isCollapsed));
                 });
             });
         })();

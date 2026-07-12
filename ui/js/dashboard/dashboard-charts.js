@@ -6,6 +6,7 @@
             return new Chart(ctx, {
                 type: 'doughnut',
                 data: {
+                    labels: [t('dashboard.gauge_used'), t('dashboard.gauge_free')],
                     datasets: [{
                         data: [value, 100 - value],
                         backgroundColor: [accent, dim],
@@ -15,7 +16,18 @@
                 },
                 options: {
                     responsive: true, maintainAspectRatio: true,
-                    plugins: { tooltip: { enabled: false } },
+                    plugins: {
+                        tooltip: {
+                            enabled: true,
+                            callbacks: {
+                                label(ctx) {
+                                    const v = ctx.parsed;
+                                    return `${ctx.label}: ${Math.round(v)}%`;
+                                }
+                            }
+                        },
+                        legend: { display: false },
+                    },
                     rotation: -90, circumference: 180,
                 }
             });
