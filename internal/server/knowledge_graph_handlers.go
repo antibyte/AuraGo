@@ -144,7 +144,7 @@ func handleKnowledgeGraphHealth(s *Server) http.HandlerFunc {
 			return
 		}
 		if s.KG == nil {
-			writeJSON(w, &memory.KnowledgeGraphHealthReport{})
+			jsonError(w, "Knowledge graph is unavailable", http.StatusServiceUnavailable)
 			return
 		}
 

@@ -31,10 +31,11 @@ func quoteIdentifier(name string) string {
 }
 
 type Node struct {
-	ID         string            `json:"id"`
-	Label      string            `json:"label"`
-	Properties map[string]string `json:"properties"`
-	Protected  bool              `json:"protected,omitempty"`
+	ID          string            `json:"id"`
+	Label       string            `json:"label"`
+	Properties  map[string]string `json:"properties"`
+	Protected   bool              `json:"protected,omitempty"`
+	AccessCount int               `json:"access_count,omitempty"`
 }
 
 type Edge struct {
@@ -45,10 +46,11 @@ type Edge struct {
 }
 
 type KnowledgeGraphDuplicateCandidate struct {
-	Label           string   `json:"label"`
-	NormalizedLabel string   `json:"normalized_label"`
-	Count           int      `json:"count"`
-	IDs             []string `json:"ids"`
+	Label               string   `json:"label"`
+	NormalizedLabel     string   `json:"normalized_label"`
+	Count               int      `json:"count"`
+	IDs                 []string `json:"ids"`
+	RecommendedTargetID string   `json:"recommended_target_id,omitempty"`
 }
 
 type KnowledgeGraphQualityReport struct {
@@ -243,6 +245,7 @@ func (kg *KnowledgeGraph) drainAccessQueue() {
 			}
 			cancel()
 			if execErr != nil {
+				kg.droppedHits.Add(1)
 				kg.logger.Warn("KG access count update failed during drain", "hit", hit, "error", execErr)
 			}
 		default:
@@ -265,26 +268,55 @@ func (kg *KnowledgeGraph) accessCountWorker() {
 		if len(nodeHits) == 0 && len(edgeHits) == 0 {
 			return
 		}
+		pendingHitCount := func() int64 {
+			var total int64
+			for _, count := range nodeHits {
+				total += int64(count)
+			}
+			for _, count := range edgeHits {
+				total += int64(count)
+			}
+			return total
+		}
+		dropPendingHits := func(count int64) {
+			if count > 0 {
+				kg.droppedHits.Add(count)
+			}
+		}
 		ctx, cancel := context.WithTimeout(context.Background(), knowledgeGraphWriteTimeout)
 		defer cancel()
 
 		tx, err := kg.db.BeginTx(ctx, nil)
 		if err != nil {
 			kg.logger.Warn("KG access count batch begin failed", "error", err)
+			dropPendingHits(pendingHitCount())
 			nodeHits = make(map[string]int)
 			edgeHits = make(map[edgeKey]int)
 			return
 		}
+		committed := false
+		defer func() {
+			if !committed {
+				_ = tx.Rollback()
+			}
+		}()
 
+		var failedHits int64
 		if len(nodeHits) > 0 {
 			stmt, err := tx.PrepareContext(ctx, "UPDATE kg_nodes SET access_count = access_count + ? WHERE id = ?")
 			if err == nil {
 				for id, count := range nodeHits {
 					if _, execErr := stmt.ExecContext(ctx, count, id); execErr != nil {
+						failedHits += int64(count)
 						kg.logger.Warn("KG access count update failed for node", "id", id, "count", count, "error", execErr)
 					}
 				}
 				stmt.Close()
+			} else {
+				for _, count := range nodeHits {
+					failedHits += int64(count)
+				}
+				kg.logger.Warn("KG access count node statement prepare failed", "error", err)
 			}
 		}
 
@@ -293,16 +325,28 @@ func (kg *KnowledgeGraph) accessCountWorker() {
 			if err == nil {
 				for e, count := range edgeHits {
 					if _, execErr := stmt.ExecContext(ctx, count, e.source, e.target, e.relation); execErr != nil {
+						failedHits += int64(count)
 						kg.logger.Warn("KG access count update failed for edge", "source", e.source, "target", e.target, "relation", e.relation, "error", execErr)
 					}
 				}
 				stmt.Close()
+			} else {
+				for _, count := range edgeHits {
+					failedHits += int64(count)
+				}
+				kg.logger.Warn("KG access count edge statement prepare failed", "error", err)
 			}
 		}
 
 		if err := tx.Commit(); err != nil {
 			kg.logger.Warn("KG access count batch commit failed", "error", err)
+			dropPendingHits(pendingHitCount())
+			nodeHits = make(map[string]int)
+			edgeHits = make(map[edgeKey]int)
+			return
 		}
+		committed = true
+		dropPendingHits(failedHits)
 
 		nodeHits = make(map[string]int)
 		edgeHits = make(map[edgeKey]int)
@@ -424,7 +468,7 @@ func (kg *KnowledgeGraph) enqueueAccessHit(hit knowledgeGraphAccessHit) {
 }
 
 // DroppedAccessHits returns the total number of access-counter updates that were
-// discarded because the async queue was full. Useful for diagnostics and health checks.
+// discarded because the async queue was full or persistence failed. Useful for diagnostics and health checks.
 func (kg *KnowledgeGraph) DroppedAccessHits() int64 {
 	return kg.droppedHits.Load()
 }

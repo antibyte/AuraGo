@@ -219,6 +219,25 @@ func TestHandleKnowledgeGraphHealth(t *testing.T) {
 	}
 }
 
+func TestHandleKnowledgeGraphHealthUnavailable(t *testing.T) {
+	s := &Server{}
+	req := httptest.NewRequest(http.MethodGet, "/api/knowledge-graph/health", nil)
+	rec := httptest.NewRecorder()
+
+	handleKnowledgeGraphHealth(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("expected 503 Service Unavailable, got %d, body=%s", rec.Code, rec.Body.String())
+	}
+	var payload map[string]interface{}
+	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("decode payload: %v", err)
+	}
+	if payload["error"] == "" {
+		t.Fatalf("payload error = %#v, want non-empty error message", payload["error"])
+	}
+}
+
 func TestHandleKnowledgeGraphHealthIncludesLifecycleCounts(t *testing.T) {
 	s := newTestKnowledgeGraphServer(t)
 	if _, err := s.KG.AddEdgeWithProvenance("user", "german", "primary_language", nil, memory.KGProvenanceInput{SourceKind: "user"}); err != nil {

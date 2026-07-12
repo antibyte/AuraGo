@@ -42,7 +42,8 @@
         function renderKnowledgeGraphHealth(health) {
             const metrics = document.getElementById('knowledge-health-metrics');
             const status = document.getElementById('knowledge-health-status');
-            if (!metrics || !status) return;
+            const consistency = document.getElementById('knowledge-health-consistency');
+            if (!metrics || !status || !consistency) return;
 
             const semanticEnabled = !!health?.semantic_enabled;
             const stats = [
@@ -78,6 +79,28 @@
                 pills.push(`<span class="pill-status pill-warning">${t('dashboard.knowledge_health_reindex_backlog')}</span>`);
             }
             status.innerHTML = pills.join('');
+            renderKnowledgeGraphConsistency(consistency, health?.consistency);
+        }
+
+        function renderKnowledgeGraphConsistency(container, consistency) {
+            if (!container) return;
+            container.setAttribute('aria-label', t('dashboard.knowledge_health_consistency_title'));
+            const rows = [
+                { key: 'nodes_missing_from_index', val: Number(consistency?.nodes_missing_from_index || 0), lbl: t('dashboard.knowledge_health_consistency_nodes_missing') },
+                { key: 'edges_missing_from_index', val: Number(consistency?.edges_missing_from_index || 0), lbl: t('dashboard.knowledge_health_consistency_edges_missing') },
+                { key: 'stale_nodes', val: Number(consistency?.stale_nodes || 0), lbl: t('dashboard.knowledge_health_consistency_stale_nodes') },
+                { key: 'index_orphans', val: Number(consistency?.index_orphans || 0), lbl: t('dashboard.knowledge_health_consistency_index_orphans') },
+            ].filter(row => row.val > 0);
+            if (!rows.length) {
+                container.innerHTML = `<div class="empty-state">${t('dashboard.knowledge_health_consistency_ok')}</div>`;
+                return;
+            }
+            container.innerHTML = rows.map(row => `
+                <div class="kg-health-row" data-consistency-key="${esc(row.key)}">
+                    <span>${esc(row.lbl)}</span>
+                    <strong>${esc(String(row.val))}</strong>
+                </div>
+            `).join('');
         }
 
         function renderKnowledgeGraphDuplicateCandidates(container, candidates, emptyKey) {
@@ -95,11 +118,12 @@
                 '</tr></thead><tbody>';
             rows.forEach(candidate => {
                 const rawIDs = Array.isArray(candidate.ids) ? candidate.ids.filter(id => String(id || '').trim()) : [];
-                const targetID = rawIDs[0] || '';
+                const recommendedTargetID = String(candidate.recommended_target_id || '').trim();
+                const targetID = rawIDs.includes(recommendedTargetID) ? recommendedTargetID : (rawIDs[0] || '');
                 const idLinks = rawIDs.map(id =>
                     `<span class="kg-cell-link" data-kg-open-node="${esc(id)}">${esc(id)}</span>`
                 ).join(', ');
-                const mergeButtons = rawIDs.slice(1).map(sourceID => `
+                const mergeButtons = rawIDs.filter(id => id !== targetID).map(sourceID => `
                     <button type="button" class="btn btn-secondary btn-sm"
                         data-kg-merge-source="${esc(sourceID)}"
                         data-kg-merge-target="${esc(targetID)}"
@@ -121,9 +145,10 @@
             const metrics = document.getElementById('knowledge-quality-metrics');
             const isolated = document.getElementById('knowledge-quality-isolated');
             const untyped = document.getElementById('knowledge-quality-untyped');
+            const generic = document.getElementById('knowledge-quality-generic');
             const duplicates = document.getElementById('knowledge-quality-duplicates');
             const idDuplicates = document.getElementById('knowledge-quality-id-duplicates');
-            if (!metrics || !isolated || !untyped || !duplicates || !idDuplicates) return;
+            if (!metrics || !isolated || !untyped || !generic || !duplicates || !idDuplicates) return;
 
             const stats = [
                 { val: Number(report?.protected_nodes || 0), lbl: t('dashboard.knowledge_quality_protected') },
@@ -148,6 +173,7 @@
 
             renderKnowledgeGraphQualityNodeList(isolated, report?.isolated_sample, 'dashboard.knowledge_quality_empty_isolated');
             renderKnowledgeGraphQualityNodeList(untyped, report?.untyped_sample, 'dashboard.knowledge_quality_empty_untyped');
+            renderKnowledgeGraphQualityNodeList(generic, report?.generic_sample, 'dashboard.knowledge_quality_empty_generic');
             renderKnowledgeGraphDuplicateCandidates(duplicates, report?.duplicate_candidates, 'dashboard.knowledge_quality_empty_duplicates');
             renderKnowledgeGraphDuplicateCandidates(idDuplicates, report?.id_duplicate_candidates, 'dashboard.knowledge_quality_empty_id_duplicates');
         }

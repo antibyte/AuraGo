@@ -18,9 +18,13 @@ func TestDashboardKnowledgeGraphHealthContract(t *testing.T) {
 		`id="card-knowledge-graph-health"`,
 		`id="knowledge-health-metrics"`,
 		`id="knowledge-health-status"`,
+		`id="knowledge-health-consistency"`,
 		`id="knowledge-quality-id-duplicates"`,
+		`id="knowledge-quality-generic"`,
 		`dashboard.knowledge_health_title`,
+		`dashboard.knowledge_health_consistency_title`,
 		`dashboard.knowledge_quality_id_duplicates_title`,
+		`dashboard.knowledge_quality_generic_title`,
 	} {
 		if !strings.Contains(html, marker) {
 			t.Fatalf("dashboard HTML missing health marker %q", marker)
@@ -29,6 +33,9 @@ func TestDashboardKnowledgeGraphHealthContract(t *testing.T) {
 	for _, marker := range []string{
 		"/api/knowledge-graph/health",
 		"renderKnowledgeGraphHealth",
+		"markKnowledgeCard('card-knowledge-graph-health', healthR.ok, healthR.status);",
+		"markKnowledgeCard('card-knowledge-graph-quality', qualityR.ok, qualityR.status);",
+		"markKnowledgeCard('card-knowledge-graph-summary', importantR.ok && statsR.ok, firstKnowledgeStatus(importantR, statsR));",
 	} {
 		if !strings.Contains(mainJS, marker) {
 			t.Fatalf("dashboard main JS missing health marker %q", marker)
@@ -40,8 +47,13 @@ func TestDashboardKnowledgeGraphHealthContract(t *testing.T) {
 		"knowledge_health_isolated_nodes",
 		"knowledge_health_label_duplicate_groups",
 		"knowledge_health_id_duplicate_groups",
+		"function renderKnowledgeGraphConsistency",
+		"knowledge_health_consistency_title",
+		"nodes_missing_from_index",
 		"renderKnowledgeGraphDuplicateCandidates",
 		"knowledge_quality_id_duplicates",
+		"knowledge_quality_empty_generic",
+		"recommended_target_id",
 		"knowledge_health_needs_reindex",
 	} {
 		if !strings.Contains(widgetsJS, marker) {
@@ -57,6 +69,34 @@ func TestDashboardKnowledgeGraphHealthContract(t *testing.T) {
 	}
 	if !strings.Contains(css, ".knowledge-health-status") {
 		t.Fatal("dashboard CSS missing .knowledge-health-status")
+	}
+}
+
+func TestDashboardKnowledgeGraphHealthTranslations(t *testing.T) {
+	t.Parallel()
+
+	langs := []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"}
+	keys := []string{
+		"dashboard.knowledge_health_consistency_title",
+		"dashboard.knowledge_health_consistency_ok",
+		"dashboard.knowledge_health_consistency_nodes_missing",
+		"dashboard.knowledge_health_consistency_edges_missing",
+		"dashboard.knowledge_health_consistency_stale_nodes",
+		"dashboard.knowledge_health_consistency_index_orphans",
+		"dashboard.knowledge_quality_generic_title",
+		"dashboard.knowledge_quality_empty_generic",
+	}
+	for _, lang := range langs {
+		lang := lang
+		t.Run(lang, func(t *testing.T) {
+			t.Parallel()
+			content := readDesktopAssetText(t, "lang/dashboard/"+lang+".json")
+			for _, key := range keys {
+				if !strings.Contains(content, `"`+key+`"`) {
+					t.Fatalf("dashboard %s translations missing %s", lang, key)
+				}
+			}
+		})
 	}
 }
 

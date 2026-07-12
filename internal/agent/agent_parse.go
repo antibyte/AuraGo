@@ -312,7 +312,12 @@ func runMemoryOrchestrator(req memoryOrchestratorArgs, cfg *config.Config, logge
 
 		// 3. Process Graph Low Priority
 		if shouldOptimizeKnowledgeGraph(cfg, kg) {
-			graphRemoved, _ = kg.OptimizeGraph(thresholdLow)
+			removed, err := kg.OptimizeGraph(thresholdLow)
+			if err != nil {
+				logger.Warn("[MemoryMaintenance] Knowledge graph optimization failed", "error", err)
+			} else {
+				graphRemoved = removed
+			}
 		}
 		if len(lowDocs) > 0 || len(mediumDocs) > 0 {
 			InvalidateMemoryMetaCache()

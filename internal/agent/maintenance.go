@@ -356,7 +356,10 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 	if cfg.Consolidation.Enabled && shortTermMem != nil && longTermMem != nil && longTermMem.IsReady() && !longTermMem.IsDisabled() {
 		totalStored, _ := consolidateSTMtoLTMWithContext(taskCtx, cfg, logger, client, shortTermMem, longTermMem, kg)
 		ledger.phaseResults.ConsolidationFacts = totalStored
-		runNightlyMemoryMaintenanceWithContext(taskCtx, cfg, logger, client, shortTermMem, longTermMem, kg, totalStored)
+		memoryMaintenanceResult := runNightlyMemoryMaintenanceWithContext(taskCtx, cfg, logger, client, shortTermMem, longTermMem, kg, totalStored)
+		if memoryMaintenanceResult.KGOptimizeErr != nil {
+			ledger.addError("kg_optimize: " + memoryMaintenanceResult.KGOptimizeErr.Error())
+		}
 		if maintenanceContextDone(taskCtx, ledger, logger, "memory_maintenance") {
 			return
 		}
@@ -1191,20 +1194,24 @@ func resolveMaintenanceRetention(cfg *config.Config) maintenanceRetentionDays {
 const nightlyMemoryMetaFetchLimit = 50000
 const nightlyMemoryConflictScanLimit = 250
 
-func runNightlyMemoryMaintenance(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, stm *memory.SQLiteMemory, ltm memory.VectorDB, kg *memory.KnowledgeGraph, totalStored int) {
-	runNightlyMemoryMaintenanceWithContext(context.Background(), cfg, logger, client, stm, ltm, kg, totalStored)
+type nightlyMemoryMaintenanceResult struct {
+	KGOptimizeErr error
 }
 
-func runNightlyMemoryMaintenanceWithContext(ctx context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, stm *memory.SQLiteMemory, ltm memory.VectorDB, kg *memory.KnowledgeGraph, totalStored int) {
+func runNightlyMemoryMaintenance(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, stm *memory.SQLiteMemory, ltm memory.VectorDB, kg *memory.KnowledgeGraph, totalStored int) nightlyMemoryMaintenanceResult {
+	return runNightlyMemoryMaintenanceWithContext(context.Background(), cfg, logger, client, stm, ltm, kg, totalStored)
+}
+
+func runNightlyMemoryMaintenanceWithContext(ctx context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, stm *memory.SQLiteMemory, ltm memory.VectorDB, kg *memory.KnowledgeGraph, totalStored int) (result nightlyMemoryMaintenanceResult) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
 	if err := ctx.Err(); err != nil {
 		logger.Warn("[Maintenance] Nightly memory maintenance skipped: maintenance context canceled", "error", err)
-		return
+		return result
 	}
 	if stm == nil {
-		return
+		return result
 	}
 	metas, err := stm.GetAllMemoryMeta(nightlyMemoryMetaFetchLimit, 0)
 	if err != nil {
@@ -1226,18 +1233,20 @@ func runNightlyMemoryMaintenanceWithContext(ctx context.Context, cfg *config.Con
 		}
 	}
 	if cfg != nil && cfg.Consolidation.AutoOptimize && totalStored > 0 {
-		autoOptimizeMemoryWithContext(ctx, cfg, logger, client, ltm, stm, kg, metas)
+		optimizeResult := autoOptimizeMemoryWithContext(ctx, cfg, logger, client, ltm, stm, kg, metas)
+		result.KGOptimizeErr = optimizeResult.KGOptimizeErr
 	}
 	if err := ctx.Err(); err != nil {
 		logger.Warn("[Maintenance] Stopping nightly memory maintenance: maintenance context canceled", "error", err)
-		return
+		return result
 	}
 	autoCurateMemory(cfg, logger, stm, metas)
 	if err := ctx.Err(); err != nil {
 		logger.Warn("[Maintenance] Stopping memory conflict scan: maintenance context canceled", "error", err)
-		return
+		return result
 	}
 	detectMemoryConflictsAcrossLTM(logger, stm, ltm, metas)
+	return result
 }
 
 func runPostConsolidationMemoryMaintenance(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, stm *memory.SQLiteMemory, ltm memory.VectorDB, kg *memory.KnowledgeGraph, totalStored int) {
@@ -1600,18 +1609,22 @@ func truncateHierarchySummary(value string, maxLen int) string {
 	return value[:maxLen-3] + "..."
 }
 
-// autoOptimizeMemory runs priority-based forgetting on VectorDB and Knowledge Graph.
-func autoOptimizeMemory(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, ltm memory.VectorDB, stm *memory.SQLiteMemory, kg *memory.KnowledgeGraph, prefetchedMetas []memory.MemoryMeta) {
-	autoOptimizeMemoryWithContext(context.Background(), cfg, logger, client, ltm, stm, kg, prefetchedMetas)
+type autoOptimizeMemoryResult struct {
+	KGOptimizeErr error
 }
 
-func autoOptimizeMemoryWithContext(ctx context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, ltm memory.VectorDB, stm *memory.SQLiteMemory, kg *memory.KnowledgeGraph, prefetchedMetas []memory.MemoryMeta) {
+// autoOptimizeMemory runs priority-based forgetting on VectorDB and Knowledge Graph.
+func autoOptimizeMemory(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, ltm memory.VectorDB, stm *memory.SQLiteMemory, kg *memory.KnowledgeGraph, prefetchedMetas []memory.MemoryMeta) autoOptimizeMemoryResult {
+	return autoOptimizeMemoryWithContext(context.Background(), cfg, logger, client, ltm, stm, kg, prefetchedMetas)
+}
+
+func autoOptimizeMemoryWithContext(ctx context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, ltm memory.VectorDB, stm *memory.SQLiteMemory, kg *memory.KnowledgeGraph, prefetchedMetas []memory.MemoryMeta) (result autoOptimizeMemoryResult) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
 	if err := ctx.Err(); err != nil {
 		logger.Warn("[AutoOptimize] Memory optimization skipped: maintenance context canceled", "error", err)
-		return
+		return result
 	}
 	threshold := cfg.Consolidation.OptimizeThreshold
 
@@ -1621,7 +1634,7 @@ func autoOptimizeMemoryWithContext(ctx context.Context, cfg *config.Config, logg
 		metas, err = stm.GetAllMemoryMeta(nightlyMemoryMetaFetchLimit, 0)
 		if err != nil {
 			logger.Error("[AutoOptimize] Failed to fetch memory metadata", "error", err)
-			return
+			return result
 		}
 	}
 
@@ -1654,7 +1667,7 @@ func autoOptimizeMemoryWithContext(ctx context.Context, cfg *config.Config, logg
 	optimizeClient, optimizeModel := resolveHelperBackedLLM(cfg, client, cfg.LLM.Model)
 	if optimizeClient == nil || optimizeModel == "" {
 		logger.Warn("[AutoOptimize] Compression skipped: no helper/main LLM available")
-		return
+		return result
 	}
 	helperManager := newHelperLLMManager(cfg, logger)
 	type compressionWorkItem struct {
@@ -1801,7 +1814,13 @@ func autoOptimizeMemoryWithContext(ctx context.Context, cfg *config.Config, logg
 		if dropped := kg.DroppedAccessHits(); dropped > 0 {
 			logger.Warn("[AutoOptimize] Dropped knowledge graph access hits under load", "dropped", dropped)
 		}
-		graphRemoved, _ = kg.OptimizeGraph(threshold)
+		removed, err := kg.OptimizeGraph(threshold)
+		if err != nil {
+			logger.Warn("[AutoOptimize] Knowledge graph optimization failed", "error", err)
+			result.KGOptimizeErr = err
+		} else {
+			graphRemoved = removed
+		}
 	}
 
 	if len(lowDocs) > 0 || len(mediumDocs) > 0 || graphRemoved > 0 {
@@ -1810,6 +1829,7 @@ func autoOptimizeMemoryWithContext(ctx context.Context, cfg *config.Config, logg
 			"medium_compressed", len(mediumDocs),
 			"graph_nodes_removed", graphRemoved)
 	}
+	return result
 }
 
 func autoCurateMemory(cfg *config.Config, logger *slog.Logger, stm *memory.SQLiteMemory, prefetchedMetas []memory.MemoryMeta) {

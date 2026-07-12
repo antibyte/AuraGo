@@ -471,6 +471,19 @@
                 return;
             }
 
+            const firstKnowledgeStatus = (...responses) => {
+                const failed = responses.find((r) => !r.ok);
+                return failed ? failed.status : 0;
+            };
+            const markKnowledgeCard = (cardId, ok, status) => {
+                ok ? CardState.setLoaded(cardId) : CardState.setError(cardId, loadTabKnowledge, { status });
+            };
+            markKnowledgeCard('card-knowledge-graph-summary', importantR.ok && statsR.ok, firstKnowledgeStatus(importantR, statsR));
+            markKnowledgeCard('card-knowledge-graph-health', healthR.ok, healthR.status);
+            markKnowledgeCard('card-knowledge-graph-quality', qualityR.ok, qualityR.status);
+            markKnowledgeCard('card-knowledge-graph-results', importantR.ok, importantR.status);
+            markKnowledgeCard('card-knowledge-graph-visual', importantR.ok, importantR.status);
+
             const important = importantR.ok ? importantR.data : null;
             const stats = statsR.ok ? statsR.data : null;
             const quality = qualityR.ok ? qualityR.data : null;
@@ -494,28 +507,36 @@
             KnowledgeGraphState.nodes = displayNodes;
             KnowledgeGraphState.edges = filterEdgesForDisplay(allEdges, displayNodes);
 
-            renderKnowledgeGraphSummary(KnowledgeGraphState.importantNodes, KnowledgeGraphState.importantEdges, KnowledgeGraphState.stats);
-            renderKnowledgeGraphHealth(health || {});
-            renderKnowledgeGraphQuality(quality || {});
-            renderKnowledgeGraphLists(KnowledgeGraphState.nodes, KnowledgeGraphState.edges);
-            renderKnowledgeGraphVisual();
-            renderKnowledgeGraphFilters();
+            if (importantR.ok && statsR.ok) {
+                renderKnowledgeGraphSummary(KnowledgeGraphState.importantNodes, KnowledgeGraphState.importantEdges, KnowledgeGraphState.stats);
+            }
+            if (healthR.ok) {
+                renderKnowledgeGraphHealth(health);
+            }
+            if (qualityR.ok) {
+                renderKnowledgeGraphQuality(quality);
+            }
+            if (importantR.ok) {
+                renderKnowledgeGraphLists(KnowledgeGraphState.nodes, KnowledgeGraphState.edges);
+                renderKnowledgeGraphVisual();
+                renderKnowledgeGraphFilters();
+            }
 
-            if (KnowledgeGraphState.focusNodeId) {
-                await loadKnowledgeGraphNodeDetail(KnowledgeGraphState.focusNodeId);
-            } else {
-                renderKnowledgeGraphDetailEmpty();
+            if (importantR.ok) {
+                if (KnowledgeGraphState.focusNodeId) {
+                    await loadKnowledgeGraphNodeDetail(KnowledgeGraphState.focusNodeId);
+                } else {
+                    renderKnowledgeGraphDetailEmpty();
+                }
             }
 
             const searchInput = document.getElementById('knowledge-search-input');
             const query = searchInput ? searchInput.value.trim() : '';
-            if (query) {
+            if (importantR.ok && query) {
                 await executeKnowledgeGraphSearch(query);
-            } else {
+            } else if (importantR.ok) {
                 renderKnowledgeGraphSearchState('');
             }
-
-            kgCards.forEach((id) => CardState.setLoaded(id));
         }
 
         async function loadAllNodes() {
@@ -740,4 +761,3 @@
 
         // Note: live system, mission, memory, personality, daemon, and audit updates flow through
         // SSE handlers registered in dashboard-events.js#connectSSE; no client-side polling is needed.
-

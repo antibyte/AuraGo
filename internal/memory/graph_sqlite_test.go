@@ -386,6 +386,40 @@ func TestKGFlushAccessHitsPersistsQueuedNodeAccess(t *testing.T) {
 	}
 }
 
+func TestKGAccessBatchFlushFailureCountsDroppedHits(t *testing.T) {
+	kg := newTestKG(t)
+	if err := kg.AddNode("accessed", "Accessed", nil); err != nil {
+		t.Fatalf("AddNode: %v", err)
+	}
+
+	kg.enqueueAccessHit(knowledgeGraphAccessHit{nodeID: "accessed"})
+	deadline := time.Now().Add(200 * time.Millisecond)
+	for len(kg.accessQueue) > 0 && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if len(kg.accessQueue) > 0 {
+		t.Fatal("access worker did not consume queued hit")
+	}
+
+	if err := kg.db.Close(); err != nil {
+		t.Fatalf("close db before batch flush: %v", err)
+	}
+	ack := make(chan struct{})
+	kg.flushAccessHits <- ack
+	select {
+	case <-ack:
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for access batch flush")
+	}
+
+	if dropped := kg.DroppedAccessHits(); dropped != 1 {
+		t.Fatalf("DroppedAccessHits = %d, want 1 after failed batch flush", dropped)
+	}
+	if kg.accessCountReliable() {
+		t.Fatal("access counts should be unreliable after failed batch flush")
+	}
+}
+
 func TestKGAccessCountReliableNilGraphIsFalse(t *testing.T) {
 	var kg *KnowledgeGraph
 	if kg.accessCountReliable() {
@@ -842,7 +876,7 @@ func TestKGQualityReport(t *testing.T) {
 	if err := kg.AddNode("router", "Router", map[string]string{"type": "device", "protected": "true"}); err != nil {
 		t.Fatalf("AddNode router: %v", err)
 	}
-	if err := kg.AddNode("nas_primary", "NAS", map[string]string{"type": "device"}); err != nil {
+	if err := kg.AddNode("nas_primary", "NAS", map[string]string{"type": "device", "protected": "true"}); err != nil {
 		t.Fatalf("AddNode nas_primary: %v", err)
 	}
 	// Force a duplicate by bypassing AddNode which would otherwise merge it.
@@ -867,8 +901,8 @@ func TestKGQualityReport(t *testing.T) {
 	if report.Edges != 1 {
 		t.Fatalf("Edges = %d, want 1", report.Edges)
 	}
-	if report.ProtectedNodes != 1 {
-		t.Fatalf("ProtectedNodes = %d, want 1", report.ProtectedNodes)
+	if report.ProtectedNodes != 2 {
+		t.Fatalf("ProtectedNodes = %d, want 2", report.ProtectedNodes)
 	}
 	if report.IsolatedNodes != 2 {
 		t.Fatalf("IsolatedNodes = %d, want 2", report.IsolatedNodes)
@@ -888,6 +922,9 @@ func TestKGQualityReport(t *testing.T) {
 	gotIDs := strings.Join(report.DuplicateCandidates[0].IDs, ",")
 	if gotIDs != "nas_primary,nas_secondary" {
 		t.Fatalf("duplicate IDs = %q, want nas_primary,nas_secondary", gotIDs)
+	}
+	if got := report.DuplicateCandidates[0].RecommendedTargetID; got != "nas_primary" {
+		t.Fatalf("duplicate recommended target = %q, want nas_primary", got)
 	}
 }
 
@@ -917,6 +954,9 @@ func TestKGQualityReportDetectsIDDuplicateVariants(t *testing.T) {
 	gotIDs := strings.Join(report.IDDuplicateCandidates[0].IDs, ",")
 	if gotIDs != "truenas,true_nas" {
 		t.Fatalf("id duplicate IDs = %q, want truenas,true_nas", gotIDs)
+	}
+	if got := report.IDDuplicateCandidates[0].RecommendedTargetID; got != "truenas" {
+		t.Fatalf("id duplicate recommended target = %q, want truenas", got)
 	}
 }
 

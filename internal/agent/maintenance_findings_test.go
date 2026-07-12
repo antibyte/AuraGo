@@ -143,6 +143,7 @@ func TestMaintenanceTaskRecordsDeterministicPhaseErrorsInLedger(t *testing.T) {
 		"kg_cleanup:",
 		"kg_semantic_reindex:",
 		"kg_semantic_backlog:",
+		"kg_optimize:",
 		"operational_issue_cleanup:",
 		"daily_summary:",
 	} {

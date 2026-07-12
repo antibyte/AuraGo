@@ -1121,7 +1121,7 @@ func (kg *KnowledgeGraph) QualityReport(sampleLimit int) (*KnowledgeGraphQuality
 			labelArgs[i] = l
 		}
 		nodesRows, err := tx.Query(fmt.Sprintf(`
-			SELECT id, label, properties, protected, LOWER(TRIM(label))
+			SELECT id, label, properties, protected, access_count, LOWER(TRIM(label))
 			FROM kg_nodes
 			WHERE label != '' AND LOWER(TRIM(label)) IN (%s)
 			ORDER BY LOWER(TRIM(label)), id
@@ -1136,12 +1136,13 @@ func (kg *KnowledgeGraph) QualityReport(sampleLimit int) (*KnowledgeGraphQuality
 				NormalizedLabel: kgquery.NormalizeDuplicateLabel(l),
 			}
 		}
+		targetInfoByLabel := make(map[string][]knowledgeGraphDuplicateTargetInfo, len(labels))
 		for nodesRows.Next() {
 			var n Node
 			var propsJSON string
 			var protected int
 			var normLabel string
-			if err := nodesRows.Scan(&n.ID, &n.Label, &propsJSON, &protected, &normLabel); err != nil {
+			if err := nodesRows.Scan(&n.ID, &n.Label, &propsJSON, &protected, &n.AccessCount, &normLabel); err != nil {
 				nodesRows.Close()
 				return nil, fmt.Errorf("scan duplicate knowledge graph node batch: %w", err)
 			}
@@ -1149,8 +1150,17 @@ func (kg *KnowledgeGraph) QualityReport(sampleLimit int) (*KnowledgeGraphQuality
 			if !ok {
 				continue
 			}
+			n.Properties = decodeKnowledgeGraphNodeProperties(kg.logger, "QualityReportDuplicate", n.ID, propsJSON, protected)
+			n.Protected = protected != 0
 			cand.IDs = append(cand.IDs, n.ID)
 			cand.Count++
+			targetInfoByLabel[normLabel] = append(targetInfoByLabel[normLabel], knowledgeGraphDuplicateTargetInfo{
+				ID:          n.ID,
+				Label:       n.Label,
+				Properties:  n.Properties,
+				Protected:   n.Protected,
+				AccessCount: n.AccessCount,
+			})
 		}
 		if err := nodesRows.Err(); err != nil {
 			nodesRows.Close()
@@ -1159,6 +1169,7 @@ func (kg *KnowledgeGraph) QualityReport(sampleLimit int) (*KnowledgeGraphQuality
 		nodesRows.Close()
 		for _, l := range labels {
 			if cand := candByLabel[l]; cand != nil && cand.Count > 0 {
+				cand.RecommendedTargetID = recommendKnowledgeGraphDuplicateTarget(targetInfoByLabel[l])
 				report.DuplicateCandidates = append(report.DuplicateCandidates, *cand)
 			}
 		}

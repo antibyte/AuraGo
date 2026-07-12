@@ -462,6 +462,21 @@ func nativeToolProperties(t *testing.T, schemas []openai.Tool, name string) map[
 	return nil
 }
 
+func TestKnowledgeGraphToolSchemaIncludesOptimizeGraphOperation(t *testing.T) {
+	props := nativeToolProperties(t, builtinToolSchemas(ToolFeatureFlags{KnowledgeGraphEnabled: true}), "knowledge_graph")
+	operation, ok := props["operation"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("knowledge_graph operation schema type = %T", props["operation"])
+	}
+	if !containsInterfaceString(operation["enum"], "optimize_graph") {
+		t.Fatalf("knowledge_graph operation enum missing optimize_graph: %#v", operation["enum"])
+	}
+	description, _ := operation["description"].(string)
+	if !strings.Contains(description, "optimize_graph") {
+		t.Fatalf("knowledge_graph operation description missing optimize_graph: %q", description)
+	}
+}
+
 func TestRegisterDeviceNativeSchemaDoesNotAdvertisePrivateKeyPath(t *testing.T) {
 	schemas := builtinToolSchemas(ToolFeatureFlags{InventoryEnabled: true})
 	props := nativeToolProperties(t, schemas, "register_device")

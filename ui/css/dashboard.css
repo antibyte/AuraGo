@@ -3742,6 +3742,22 @@
     display: flex;
     flex-wrap: wrap;
     gap: 0.5rem;
+    margin-bottom: 0.9rem;
+}
+
+.pw-page[data-workspace-page="dashboard"] .kg-health-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.55rem 0.65rem;
+    border: 1px solid var(--pw-border);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--pw-surface-2) 82%, transparent);
+    color: var(--pw-text);
+}
+
+.pw-page[data-workspace-page="dashboard"] .kg-health-row strong {
+    color: var(--pw-accent);
 }
 
 .pw-page[data-workspace-page="dashboard"] .knowledge-quality-grid {

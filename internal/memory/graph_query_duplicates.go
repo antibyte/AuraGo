@@ -4,9 +4,19 @@ import (
 	"database/sql"
 	"fmt"
 	"log/slog"
+	"sort"
+	"strings"
 
 	"aurago/internal/memory/kgquery"
 )
+
+type knowledgeGraphDuplicateTargetInfo struct {
+	ID          string
+	Label       string
+	Properties  map[string]string
+	Protected   bool
+	AccessCount int
+}
 
 func duplicateNodesForKGQuery(nodes []Node) []kgquery.DuplicateNode {
 	out := make([]kgquery.DuplicateNode, len(nodes))
@@ -20,14 +30,70 @@ func duplicateNodesForKGQuery(nodes []Node) []kgquery.DuplicateNode {
 	return out
 }
 
-func duplicateCandidatesFromKGQuery(candidates []kgquery.DuplicateCandidate) []KnowledgeGraphDuplicateCandidate {
+func knowledgeGraphDuplicateTargetCompleteness(node knowledgeGraphDuplicateTargetInfo) int {
+	score := 0
+	if strings.TrimSpace(node.Label) != "" {
+		score++
+	}
+	if strings.TrimSpace(node.Properties["type"]) != "" {
+		score += 2
+	}
+	if strings.TrimSpace(node.Properties["source"]) != "" {
+		score++
+	}
+	return score
+}
+
+func recommendKnowledgeGraphDuplicateTarget(nodes []knowledgeGraphDuplicateTargetInfo) string {
+	if len(nodes) == 0 {
+		return ""
+	}
+	sorted := append([]knowledgeGraphDuplicateTargetInfo(nil), nodes...)
+	sort.SliceStable(sorted, func(i, j int) bool {
+		a, b := sorted[i], sorted[j]
+		if a.Protected != b.Protected {
+			return a.Protected
+		}
+		if a.AccessCount != b.AccessCount {
+			return a.AccessCount > b.AccessCount
+		}
+		if ai, bi := knowledgeGraphDuplicateTargetCompleteness(a), knowledgeGraphDuplicateTargetCompleteness(b); ai != bi {
+			return ai > bi
+		}
+		return a.ID < b.ID
+	})
+	return sorted[0].ID
+}
+
+func duplicateCandidateTargetInfoByID(nodes []Node) map[string]knowledgeGraphDuplicateTargetInfo {
+	info := make(map[string]knowledgeGraphDuplicateTargetInfo, len(nodes))
+	for _, node := range nodes {
+		info[node.ID] = knowledgeGraphDuplicateTargetInfo{
+			ID:          node.ID,
+			Label:       node.Label,
+			Properties:  node.Properties,
+			Protected:   node.Protected,
+			AccessCount: node.AccessCount,
+		}
+	}
+	return info
+}
+
+func duplicateCandidatesFromKGQuery(candidates []kgquery.DuplicateCandidate, targetInfoByID map[string]knowledgeGraphDuplicateTargetInfo) []KnowledgeGraphDuplicateCandidate {
 	out := make([]KnowledgeGraphDuplicateCandidate, len(candidates))
 	for i, candidate := range candidates {
+		targetOptions := make([]knowledgeGraphDuplicateTargetInfo, 0, len(candidate.IDs))
+		for _, id := range candidate.IDs {
+			if info, ok := targetInfoByID[id]; ok {
+				targetOptions = append(targetOptions, info)
+			}
+		}
 		out[i] = KnowledgeGraphDuplicateCandidate{
-			Label:           candidate.Label,
-			NormalizedLabel: candidate.NormalizedLabel,
-			Count:           candidate.Count,
-			IDs:             candidate.IDs,
+			Label:               candidate.Label,
+			NormalizedLabel:     candidate.NormalizedLabel,
+			Count:               candidate.Count,
+			IDs:                 candidate.IDs,
+			RecommendedTargetID: recommendKnowledgeGraphDuplicateTarget(targetOptions),
 		}
 	}
 	return out
@@ -74,7 +140,7 @@ func countKnowledgeGraphIsolatedNodes(querier interface {
 
 const knowledgeGraphIDDuplicateCandidateSQL = `
 	WITH normalized AS (
-		SELECT id, label, properties, protected,
+		SELECT id, label, properties, protected, access_count,
 			REPLACE(REPLACE(LOWER(TRIM(id)), '_', ''), '-', '') AS norm_id
 		FROM kg_nodes
 	),
@@ -85,7 +151,7 @@ const knowledgeGraphIDDuplicateCandidateSQL = `
 		GROUP BY norm_id
 		HAVING COUNT(*) > 1
 	)
-	SELECT n.id, n.label, n.properties, n.protected
+	SELECT n.id, n.label, n.properties, n.protected, n.access_count
 	FROM normalized n
 	INNER JOIN dup_groups g ON g.norm_id = n.norm_id
 	ORDER BY n.norm_id, n.id`
@@ -104,7 +170,7 @@ func knowledgeGraphLoadNodesForIDDuplicateCheck(querier interface {
 		var node Node
 		var propsJSON string
 		var protected int
-		if err := rows.Scan(&node.ID, &node.Label, &propsJSON, &protected); err != nil {
+		if err := rows.Scan(&node.ID, &node.Label, &propsJSON, &protected, &node.AccessCount); err != nil {
 			return nil, fmt.Errorf("scan knowledge graph node for id duplicates: %w", err)
 		}
 		node.Properties = decodeKnowledgeGraphNodeProperties(logger, "IDDuplicateCheck", node.ID, propsJSON, protected)
@@ -124,7 +190,7 @@ func knowledgeGraphIDDuplicateSummary(logger *slog.Logger, tx *sql.Tx, sampleLim
 	}
 
 	grouped := kgquery.FilterQualifiedIDDuplicateGroups(kgquery.GroupNodesByNormalizedID(duplicateNodesForKGQuery(nodesLoaded)))
-	allCandidates := duplicateCandidatesFromKGQuery(kgquery.BuildDuplicateCandidates(grouped))
+	allCandidates := duplicateCandidatesFromKGQuery(kgquery.BuildDuplicateCandidates(grouped), duplicateCandidateTargetInfoByID(nodesLoaded))
 	for _, candidate := range allCandidates {
 		nodes += candidate.Count
 	}

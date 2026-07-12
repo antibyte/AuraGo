@@ -160,6 +160,7 @@ func TestDispatchExecKnowledgeGraphHealth(t *testing.T) {
 		Status  string                             `json:"status"`
 		Stats   memory.KnowledgeGraphStats         `json:"stats"`
 		Quality memory.KnowledgeGraphQualityReport `json:"quality"`
+		Health  memory.KnowledgeGraphHealthReport  `json:"health"`
 	}
 	if err := json.Unmarshal([]byte(payloadJSON), &payload); err != nil {
 		t.Fatalf("unmarshal graph_health payload: %v\n%s", err, out)
@@ -169,6 +170,9 @@ func TestDispatchExecKnowledgeGraphHealth(t *testing.T) {
 	}
 	if payload.Stats.PendingCoMentionEdges != 1 || payload.Quality.LowConfidenceEdges != 1 {
 		t.Fatalf("unexpected graph_health payload: %+v", payload)
+	}
+	if payload.Health.TotalNodes != 2 || payload.Health.TotalEdges != 1 {
+		t.Fatalf("graph_health health report = %+v, want totals 2 nodes / 1 edge", payload.Health)
 	}
 }
 

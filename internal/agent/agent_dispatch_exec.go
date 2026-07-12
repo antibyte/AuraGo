@@ -653,10 +653,15 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
 				}
+				health, err := kg.HealthReport()
+				if err != nil {
+					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
+				}
 				data, _ := json.Marshal(map[string]interface{}{
 					"status":  "success",
 					"stats":   stats,
 					"quality": quality,
+					"health":  health,
 				})
 				return "Tool Output: " + string(data)
 
