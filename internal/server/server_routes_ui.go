@@ -712,6 +712,9 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 				http.Error(w, "Template render error", http.StatusInternalServerError)
 			}
 		})
+		mux.HandleFunc("/virtual-computers", func(w http.ResponseWriter, r *http.Request) {
+			http.Redirect(w, r, "/desktop?app=virtual-computers", http.StatusFound)
+		})
 		s.Logger.Info("Virtual Desktop UI enabled at /desktop")
 
 		plansTmpl, plansErr := template.ParseFS(uiFS, "plans.html")

@@ -70,6 +70,13 @@ func TestIsPythonAccessibleSecret_BlocksSystemVaultKeysAddedByIntegrations(t *te
 		"truenas_api_key",
 		"composio_api_key",
 		"huggingface_token",
+		"virtual_computers_boring_token",
+		"virtual_computers_ssh_secret",
+		"virtual_computers_anthropic_key",
+		"virtual_computers_openrouter_key",
+		"boring_token",
+		"boring_anthropic_key",
+		"boring_openrouter_key",
 	} {
 		if IsPythonAccessibleSecret(key) {
 			t.Errorf("expected system-managed key %q to be blocked, but it was allowed", key)

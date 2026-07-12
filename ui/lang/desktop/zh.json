@@ -1642,5 +1642,17 @@
   "zipper.open": "打开压缩包",
   "zipper.size": "大小",
   "zipper.title": "Zipper",
-  "zipper.total_size": "{{size}} 总计"
+  "zipper.total_size": "{{size}} 总计",
+  "desktop.virtual_computers_title": "虚拟电脑",
+  "desktop.virtual_computers_status": "选择一台电脑或截取屏幕截图。",
+  "desktop.virtual_computers_refresh": "刷新",
+  "desktop.virtual_computers_open_config": "设置",
+  "desktop.virtual_computers_launch": "启动",
+  "desktop.virtual_computers_empty": "还没有正在运行的虚拟电脑。",
+  "desktop.virtual_computers_error": "虚拟电脑:",
+  "desktop.virtual_computers_destroy": "销毁",
+  "desktop.virtual_computers_screenshot": "截图",
+  "desktop.virtual_computers_state_enabled": "已启用",
+  "desktop.virtual_computers_state_disabled": "已禁用",
+  "desktop.app_virtual_computers": "虚拟电脑"
 }

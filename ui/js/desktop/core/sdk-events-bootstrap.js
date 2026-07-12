@@ -1012,6 +1012,7 @@
         state._clockTimer = setInterval(updateClock, 15000);
         window.addEventListener('beforeunload', cleanupDesktopShellRuntime);
         await loadBootstrap();
+        openInitialDesktopApp();
         if (state.bootstrap && state.bootstrap.enabled) connectWS();
         if (window.PetRuntime && typeof window.PetRuntime.init === 'function') {
             window.PetRuntime.init();

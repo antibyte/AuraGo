@@ -81,7 +81,8 @@ func allBuiltinToolFeatureFlags() ToolFeatureFlags {
 		MediaRegistryEnabled: true, HomepageRegistryEnabled: true, ContactsEnabled: true,
 		PlannerEnabled: true, JournalEnabled: true, MemoryAnalysisEnabled: true, DocumentCreatorEnabled: true, MediaConversionEnabled: true, VideoDownloadEnabled: true, VideoDownloadAllowDownload: true, VideoDownloadAllowTranscribe: true, SendYouTubeVideoEnabled: true,
 		WorkspaceSearchEnabled: true,
-		WebCaptureEnabled:      true, BrowserAutomationEnabled: true, SpaceAgentEnabled: true, VirtualDesktopEnabled: true, OpenSCADEnabled: true, OfficeDocumentEnabled: true, OfficeWorkbookEnabled: true, NetworkPingEnabled: true, WebScraperEnabled: true,
+		WebCaptureEnabled:      true, BrowserAutomationEnabled: true, SpaceAgentEnabled: true, VirtualDesktopEnabled: true, VirtualComputersEnabled: true,
+		OpenSCADEnabled: true, OfficeDocumentEnabled: true, OfficeWorkbookEnabled: true, NetworkPingEnabled: true, WebScraperEnabled: true,
 		S3Enabled: true, NetworkScanEnabled: true, FormAutomationEnabled: true, UPnPScanEnabled: true,
 		JellyfinEnabled: true, ChromecastEnabled: true, DiscordEnabled: true, TelegramEnabled: true, AgoDeskChatEnabled: true, TrueNASEnabled: true,
 		KoofrEnabled: true, FritzBoxSystemEnabled: true, FritzBoxNetworkEnabled: true,
@@ -191,6 +192,7 @@ func (ff ToolFeatureFlags) Key() string {
 	appendToolFeatureKeyPart("browser_automation", ff.BrowserAutomationEnabled)
 	appendToolFeatureKeyPart("space_agent", ff.SpaceAgentEnabled)
 	appendToolFeatureKeyPart("virtual_desktop", ff.VirtualDesktopEnabled)
+	appendToolFeatureKeyPart("virtual_computers", ff.VirtualComputersEnabled)
 	appendToolFeatureKeyPart("openscad", ff.OpenSCADEnabled)
 	appendToolFeatureKeyPart("office_document", ff.OfficeDocumentEnabled)
 	appendToolFeatureKeyPart("office_workbook", ff.OfficeWorkbookEnabled)

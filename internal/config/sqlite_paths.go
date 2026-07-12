@@ -34,6 +34,7 @@ func SQLiteDatabasePaths(cfg *Config) []string {
 		cfg.SQLite.ContactsPath,
 		cfg.SQLite.PlannerPath,
 		cfg.SQLite.VirtualDesktopPath,
+		cfg.SQLite.VirtualComputersPath,
 		cfg.SQLite.SiteMonitorPath,
 		cfg.SQLite.SQLConnectionsPath,
 		cfg.SQLite.SkillsPath,

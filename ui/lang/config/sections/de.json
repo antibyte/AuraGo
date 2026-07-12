@@ -636,5 +636,7 @@
   "help.evomap.node_secret": "Vault-only Node-Secret aus der Registrierung.",
   "help.evomap.kg_enabled": "Erlaubt kg_query, wenn ein EvoMap-API-Schlüssel im Vault liegt.",
   "help.evomap.timeout": "Maximale Sekunden, die AuraGo auf EvoMap-HTTP-Requests wartet.",
-  "help.evomap.max_result": "Maximale Antwortbytes von EvoMap, bevor der Request gestoppt wird."
+  "help.evomap.max_result": "Maximale Antwortbytes von EvoMap, bevor der Request gestoppt wird.",
+  "config.section.virtual_computers.label": "Virtuelle Computer",
+  "config.section.virtual_computers.desc": "Kurzlebige microVM-Computer mit Terminal, Desktop, Previews und Agentenzugriff."
 }

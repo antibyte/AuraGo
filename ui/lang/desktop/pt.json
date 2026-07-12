@@ -1642,5 +1642,17 @@
   "zipper.open": "Abrir arquivo",
   "zipper.size": "Tamanho",
   "zipper.title": "Zipper",
-  "zipper.total_size": "{{size}} no total"
+  "zipper.total_size": "{{size}} no total",
+  "desktop.virtual_computers_title": "Computadores virtuais",
+  "desktop.virtual_computers_status": "Seleciona um computador ou captura uma imagem.",
+  "desktop.virtual_computers_refresh": "Atualizar",
+  "desktop.virtual_computers_open_config": "Definições",
+  "desktop.virtual_computers_launch": "Iniciar",
+  "desktop.virtual_computers_empty": "Ainda não há computadores virtuais em execução.",
+  "desktop.virtual_computers_error": "Computadores virtuais:",
+  "desktop.virtual_computers_destroy": "Destruir",
+  "desktop.virtual_computers_screenshot": "Captura",
+  "desktop.virtual_computers_state_enabled": "Ativado",
+  "desktop.virtual_computers_state_disabled": "Desativado",
+  "desktop.app_virtual_computers": "Computadores virtuais"
 }

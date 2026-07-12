@@ -1642,5 +1642,17 @@
   "zipper.open": "आर्काइव खोलें",
   "zipper.size": "आकार",
   "zipper.title": "ज़िपर",
-  "zipper.total_size": "{{size}} कुल"
+  "zipper.total_size": "{{size}} कुल",
+  "desktop.virtual_computers_title": "वर्चुअल कंप्यूटर",
+  "desktop.virtual_computers_status": "कोई कंप्यूटर चुनो या स्क्रीनशॉट लो।",
+  "desktop.virtual_computers_refresh": "रीफ्रेश",
+  "desktop.virtual_computers_open_config": "सेटिंग्स",
+  "desktop.virtual_computers_launch": "लॉन्च",
+  "desktop.virtual_computers_empty": "अभी कोई वर्चुअल कंप्यूटर नहीं चल रहा है।",
+  "desktop.virtual_computers_error": "वर्चुअल कंप्यूटर:",
+  "desktop.virtual_computers_destroy": "समाप्त करें",
+  "desktop.virtual_computers_screenshot": "स्क्रीनशॉट",
+  "desktop.virtual_computers_state_enabled": "सक्षम",
+  "desktop.virtual_computers_state_disabled": "अक्षम",
+  "desktop.app_virtual_computers": "वर्चुअल कंप्यूटर"
 }

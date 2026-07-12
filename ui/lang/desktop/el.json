@@ -1642,5 +1642,17 @@
   "zipper.open": "Άνοιγμα αρχείου",
   "zipper.size": "Μέγεθος",
   "zipper.title": "Zipper",
-  "zipper.total_size": "{{size}} σύνολο"
+  "zipper.total_size": "{{size}} σύνολο",
+  "desktop.virtual_computers_title": "Εικονικοί υπολογιστές",
+  "desktop.virtual_computers_status": "Επίλεξε υπολογιστή ή τράβηξε στιγμιότυπο.",
+  "desktop.virtual_computers_refresh": "Ανανέωση",
+  "desktop.virtual_computers_open_config": "Ρυθμίσεις",
+  "desktop.virtual_computers_launch": "Εκκίνηση",
+  "desktop.virtual_computers_empty": "Δεν εκτελούνται ακόμη εικονικοί υπολογιστές.",
+  "desktop.virtual_computers_error": "Εικονικοί υπολογιστές:",
+  "desktop.virtual_computers_destroy": "Τερματισμός",
+  "desktop.virtual_computers_screenshot": "Στιγμιότυπο",
+  "desktop.virtual_computers_state_enabled": "Ενεργό",
+  "desktop.virtual_computers_state_disabled": "Ανενεργό",
+  "desktop.app_virtual_computers": "Εικονικοί υπολογιστές"
 }

@@ -1642,5 +1642,17 @@
   "zipper.open": "アーカイブを開く",
   "zipper.size": "サイズ",
   "zipper.title": "Zipper",
-  "zipper.total_size": "{{size}} 合計"
+  "zipper.total_size": "{{size}} 合計",
+  "desktop.virtual_computers_title": "仮想コンピューター",
+  "desktop.virtual_computers_status": "コンピューターを選択するか、スクリーンショットを撮影します。",
+  "desktop.virtual_computers_refresh": "更新",
+  "desktop.virtual_computers_open_config": "設定",
+  "desktop.virtual_computers_launch": "起動",
+  "desktop.virtual_computers_empty": "実行中の仮想コンピューターはまだありません。",
+  "desktop.virtual_computers_error": "仮想コンピューター:",
+  "desktop.virtual_computers_destroy": "破棄",
+  "desktop.virtual_computers_screenshot": "スクリーンショット",
+  "desktop.virtual_computers_state_enabled": "有効",
+  "desktop.virtual_computers_state_disabled": "無効",
+  "desktop.app_virtual_computers": "仮想コンピューター"
 }

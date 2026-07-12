@@ -150,6 +150,7 @@
         'store-commandcode': 'commandcode',
         looper: 'looper',
         'system-info': 'monitor',
+        'virtual-computers': 'terminal',
         zipper: 'zipper',
         pixel: 'pixel',
         'galaxa-deluxe': 'galaxa-deluxe',
@@ -530,6 +531,7 @@
             'homepage-studio': 'HomepageStudioApp',
             cheater: 'CheaterApp',
             'agent-chat': 'AgentChatApp',
+            'virtual-computers': 'VirtualComputersApp',
             'viewer-3d': 'Viewer3DApp',
             'mission-control': 'MissionControlApp',
             settings: 'SettingsApp',
@@ -1125,6 +1127,14 @@
         renderStartApps();
         renderTaskbar();
         if (!state._startMenuDragWired) { state._startMenuDragWired = true; wireStartMenuDrag(); }
+    }
+
+    function openInitialDesktopApp() {
+        if (state._initialAppOpened) return;
+        state._initialAppOpened = true;
+        const params = new URLSearchParams(window.location.search || '');
+        const appId = (params.get('app') || '').trim();
+        if (appId && isBuiltinApp(appId)) openApp(appId);
     }
 
     function refreshPetRuntime() {
@@ -3507,6 +3517,7 @@
 
     function windowTitle(appId) {
         if (appId === 'system-info') return t('desktop.system_info_title');
+        if (appId === 'virtual-computers') return t('desktop.virtual_computers_title');
         if (appId === 'people') return t('desktop.app_people');
         const app = allApps().find(item => item.id === appId);
         return app ? appName(app) : appId;
@@ -3529,6 +3540,7 @@
             'code-studio': { width: 1280, height: 850 },
             launchpad: { width: 1100, height: 700 },
             'system-info': { width: 800, height: 600 },
+            'virtual-computers': { width: 980, height: 680 },
             'agent-chat': { width: 800, height: 620 },
             'looper': { width: 900, height: 750 },
             camera: { width: 720, height: 600 },
@@ -3546,10 +3558,10 @@
         return defaultWindowSize();
     }
 
-    function shouldUseMobileWideWindow(appId) { return !!{ files: true, writer: true, sheets: true, todo: true, radio: true, openscad: true, teevee: true, gallery: true, calendar: true, 'quick-connect': true, 'code-studio': true, launchpad: true, looper: true, viewer: true, 'viewer-3d': true, chess: true, nasscad: true, 'mission-control': true }[appId]; }
+    function shouldUseMobileWideWindow(appId) { return !!{ files: true, writer: true, sheets: true, todo: true, radio: true, openscad: true, teevee: true, gallery: true, calendar: true, 'quick-connect': true, 'virtual-computers': true, 'code-studio': true, launchpad: true, looper: true, viewer: true, 'viewer-3d': true, chess: true, nasscad: true, 'mission-control': true }[appId]; }
 
     function appWindowMinSize(appId) {
-        const mins = { 'system-info': { width: 560, height: 460 }, calculator: { width: 280, height: 420 }, gallery: { width: 640, height: 480 }, pixel: { width: 700, height: 500 }, chess: { width: 720, height: 520 } };
+        const mins = { 'system-info': { width: 560, height: 460 }, 'virtual-computers': { width: 640, height: 480 }, calculator: { width: 280, height: 420 }, gallery: { width: 640, height: 480 }, pixel: { width: 700, height: 500 }, chess: { width: 720, height: 520 } };
         return mins[appId] || { width: WINDOW_MIN_W, height: WINDOW_MIN_H };
     }
 
@@ -6970,6 +6982,13 @@ if (appId === 'system-info') {
                 return;
             }
             if (typeof window.SystemInfoApp.render === 'function') return window.SystemInfoApp.render(contentEl(id), id, Object.assign({}, context || {}, {esc, t, iconMarkup}));
+        }
+        if (appId === 'virtual-computers') {
+            if (!window.VirtualComputersApp) {
+                window.AuraDesktopModules.loadAppScript('virtual-computers').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            if (typeof window.VirtualComputersApp.render === 'function') return window.VirtualComputersApp.render(contentEl(id), id, Object.assign({}, context || {}, {esc, t, api, iconMarkup, notify: showDesktopNotification, readonly: desktopReadonly(), openApp}));
         }
         if (appId === 'agent-chat') return window.AgentChatApp && typeof window.AgentChatApp.render === 'function' ? window.AgentChatApp.render(id, Object.assign({}, context || {}, { __desktopRuntime: { contentEl, esc, desktopText, iconMarkup, api, loadBootstrap, showDesktopNotification } })) : renderAppError(id, appId, new Error('Agent chat renderer is not loaded'));
         if (appId === 'viewer') {
@@ -10914,6 +10933,7 @@ if (appId === 'pixel') {
         state._clockTimer = setInterval(updateClock, 15000);
         window.addEventListener('beforeunload', cleanupDesktopShellRuntime);
         await loadBootstrap();
+        openInitialDesktopApp();
         if (state.bootstrap && state.bootstrap.enabled) connectWS();
         if (window.PetRuntime && typeof window.PetRuntime.init === 'function') {
             window.PetRuntime.init();

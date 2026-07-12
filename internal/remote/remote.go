@@ -156,6 +156,67 @@ func ExecuteRemoteCommand(ctx context.Context, host string, port int, user strin
 	return string(output), nil
 }
 
+// ExecuteRemoteScript runs a bash script on a remote host via SSH.
+// The script is sent over stdin so secret material does not appear in the
+// local process arguments. If the SSH user is not root, passwordless sudo is
+// required.
+func ExecuteRemoteScript(ctx context.Context, host string, port int, user string, secret []byte, script string) (string, error) {
+	config, err := GetSSHConfig(user, secret)
+	if err != nil {
+		return "", fmt.Errorf("failed to get ssh config: %w", err)
+	}
+
+	addr := fmt.Sprintf("%s:%d", host, port)
+	var d net.Dialer
+	conn, err := d.DialContext(ctx, "tcp", addr)
+	if err != nil {
+		return "", fmt.Errorf("failed to dial: %w", err)
+	}
+
+	sshConn, chans, reqs, err := ssh.NewClientConn(conn, addr, config)
+	if err != nil {
+		conn.Close()
+		return "", fmt.Errorf("ssh handshake failed: %w", err)
+	}
+	client := ssh.NewClient(sshConn, chans, reqs)
+	defer client.Close()
+
+	session, err := client.NewSession()
+	if err != nil {
+		return "", fmt.Errorf("failed to create session: %w", err)
+	}
+	defer session.Close()
+
+	stdin, err := session.StdinPipe()
+	if err != nil {
+		return "", fmt.Errorf("failed to open stdin pipe: %w", err)
+	}
+	go func() {
+		_, _ = io.WriteString(stdin, script)
+		_ = stdin.Close()
+	}()
+
+	done := make(chan struct{})
+	defer close(done)
+	go func() {
+		select {
+		case <-ctx.Done():
+			_ = session.Signal(ssh.SIGKILL)
+			_ = session.Close()
+		case <-done:
+		}
+	}()
+
+	output, err := session.CombinedOutput(`if [ "$(id -u)" -eq 0 ]; then bash -s; else sudo -n bash -s; fi`)
+	if ctx.Err() != nil {
+		return string(output), fmt.Errorf("script cancelled: %w", ctx.Err())
+	}
+	if err != nil {
+		return string(output), fmt.Errorf("script execution failed: %w", err)
+	}
+	return string(output), nil
+}
+
 // TransferFile handles file uploads and downloads via SFTP.
 func TransferFile(ctx context.Context, host string, port int, user string, secret []byte, localPath, remotePath, direction string) error {
 	config, err := GetSSHConfig(user, secret)

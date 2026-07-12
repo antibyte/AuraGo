@@ -424,6 +424,40 @@ type VirtualDesktopConfig struct {
 	OpenSCAD                 OpenSCADConfig   `yaml:"openscad" json:"openscad"`                                       // built-in OpenSCAD compiler container
 }
 
+// VirtualComputersConfig holds settings for external microVM-backed computers.
+type VirtualComputersConfig struct {
+	Enabled             bool                         `yaml:"enabled" json:"enabled"`                           // enable Virtual Computers APIs and UI
+	Provider            string                       `yaml:"provider" json:"provider"`                         // currently "boring_computers"
+	AutoSetup           bool                         `yaml:"auto_setup" json:"auto_setup"`                     // allow AuraGo to install/update the control plane over SSH
+	ReadOnly            bool                         `yaml:"readonly" json:"readonly"`                         // block mutating machine operations
+	ControlPlane        VirtualComputersControlPlane `yaml:"control_plane" json:"control_plane"`               // boringd connection/install target
+	DefaultTemplate     string                       `yaml:"default_template" json:"default_template"`         // launch template used when omitted
+	DefaultTTLSeconds   int                          `yaml:"default_ttl_seconds" json:"default_ttl_seconds"`   // default machine TTL
+	MaxTTLSeconds       int                          `yaml:"max_ttl_seconds" json:"max_ttl_seconds"`           // max machine TTL; boringd caps at 900
+	MaxRunningMachines  int                          `yaml:"max_running_machines" json:"max_running_machines"` // local policy hint
+	MaxForks            int                          `yaml:"max_forks" json:"max_forks"`                       // local policy hint
+	AllowInternet       bool                         `yaml:"allow_internet" json:"allow_internet"`             // allow internet-enabled launches
+	AllowPersistent     bool                         `yaml:"allow_persistent" json:"allow_persistent"`         // allow persistent machines
+	AllowPublish        bool                         `yaml:"allow_publish" json:"allow_publish"`               // allow publishing templates/previews
+	AllowVolumes        bool                         `yaml:"allow_volumes" json:"allow_volumes"`               // allow volume creation/attachment
+	AllowAgentTasks     bool                         `yaml:"allow_agent_tasks" json:"allow_agent_tasks"`       // allow boringd agent task channels
+	BoringToken         string                       `yaml:"-" json:"-" vault:"virtual_computers_boring_token"`
+	BoringAnthropicKey  string                       `yaml:"-" json:"-" vault:"virtual_computers_anthropic_key"`
+	BoringOpenRouterKey string                       `yaml:"-" json:"-" vault:"virtual_computers_openrouter_key"`
+	S3AccessKeyID       string                       `yaml:"-" json:"-" vault:"virtual_computers_s3_access_key_id"`
+	S3SecretKey         string                       `yaml:"-" json:"-" vault:"virtual_computers_s3_secret_key"`
+}
+
+type VirtualComputersControlPlane struct {
+	Mode         string `yaml:"mode" json:"mode"`                   // "ssh_host" in v1
+	Host         string `yaml:"host" json:"host"`                   // remote Ubuntu/KVM host
+	SSHPort      int    `yaml:"ssh_port" json:"ssh_port"`           // SSH port
+	CredentialID string `yaml:"credential_id" json:"credential_id"` // AuraGo credential ID for SSH setup
+	InstallDir   string `yaml:"install_dir" json:"install_dir"`     // remote install directory
+	BoringdURL   string `yaml:"boringd_url" json:"boringd_url"`     // AuraGo-side boringd URL, usually tunnel localhost
+	SSHSecret    string `yaml:"-" json:"-" vault:"virtual_computers_ssh_secret"`
+}
+
 // CodeStudioConfig holds settings for the lazy Code Studio dev container.
 type CodeStudioConfig struct {
 	Enabled         bool   `yaml:"enabled" json:"enabled"`
@@ -728,6 +762,7 @@ type Config struct {
 		ContactsPath         string `yaml:"contacts_path"`
 		PlannerPath          string `yaml:"planner_path"`
 		VirtualDesktopPath   string `yaml:"virtual_desktop_path"`
+		VirtualComputersPath string `yaml:"virtual_computers_path"`
 		SiteMonitorPath      string `yaml:"site_monitor_path"`
 		SQLConnectionsPath   string `yaml:"sql_connections_path"`
 		SkillsPath           string `yaml:"skills_path"`
@@ -1598,6 +1633,7 @@ type Config struct {
 	OmniRoute         OmniRouteConfig         `yaml:"omniroute"`
 	Dograh            DograhConfig            `yaml:"dograh"`
 	VirtualDesktop    VirtualDesktopConfig    `yaml:"virtual_desktop"`
+	VirtualComputers  VirtualComputersConfig  `yaml:"virtual_computers"`
 	SecurityProxy     struct {
 		Enabled      bool   `yaml:"enabled"`
 		Domain       string `yaml:"domain"`      // primary domain for TLS (e.g. "aurago.example.com")
@@ -1813,6 +1849,9 @@ type Config struct {
 		VirtualDesktop struct {
 			Enabled bool `yaml:"enabled"` // enable virtual_desktop tool (browser desktop workspace control)
 		} `yaml:"virtual_desktop"`
+		VirtualComputers struct {
+			Enabled bool `yaml:"enabled"` // enable virtual_computers tool (microVM control plane)
+		} `yaml:"virtual_computers"`
 		OfficeDocument struct {
 			Enabled  bool `yaml:"enabled"`  // enable office_document tool (agent-safe Writer document operations)
 			ReadOnly bool `yaml:"readonly"` // true = only read documents, block write/patch/export

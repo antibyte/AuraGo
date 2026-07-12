@@ -1642,5 +1642,17 @@
   "zipper.open": "Archief openen",
   "zipper.size": "Grootte",
   "zipper.title": "Zipper",
-  "zipper.total_size": "{{size}} totaal"
+  "zipper.total_size": "{{size}} totaal",
+  "desktop.virtual_computers_title": "Virtuele computers",
+  "desktop.virtual_computers_status": "Selecteer een computer of maak een screenshot.",
+  "desktop.virtual_computers_refresh": "Vernieuwen",
+  "desktop.virtual_computers_open_config": "Instellingen",
+  "desktop.virtual_computers_launch": "Starten",
+  "desktop.virtual_computers_empty": "Er draaien nog geen virtuele computers.",
+  "desktop.virtual_computers_error": "Virtuele computers:",
+  "desktop.virtual_computers_destroy": "Verwijderen",
+  "desktop.virtual_computers_screenshot": "Screenshot",
+  "desktop.virtual_computers_state_enabled": "Ingeschakeld",
+  "desktop.virtual_computers_state_disabled": "Uitgeschakeld",
+  "desktop.app_virtual_computers": "Virtuele computers"
 }
