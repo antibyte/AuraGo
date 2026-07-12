@@ -85,7 +85,8 @@ type launchMachineRequest struct {
 	Template      string                 `json:"template,omitempty"`
 	Name          string                 `json:"name,omitempty"`
 	TTLSeconds    int                    `json:"ttl_seconds,omitempty"`
-	AllowInternet bool                   `json:"allow_internet,omitempty"`
+	AllowInternet bool                   `json:"net,omitempty"`
+	Volume        string                 `json:"volume,omitempty"`
 	Persistent    bool                   `json:"persistent,omitempty"`
 	Volumes       []string               `json:"volumes,omitempty"`
 	Metadata      map[string]interface{} `json:"metadata,omitempty"`

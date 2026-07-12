@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"mime/multipart"
 	"net/http"
 	"net/url"
 	pathpkg "path"
@@ -70,7 +69,7 @@ func NewClient(cfg ClientConfig) (*Client, error) {
 
 func (c *Client) Status(ctx context.Context) (map[string]interface{}, error) {
 	var payload map[string]interface{}
-	if err := c.doJSON(ctx, http.MethodGet, "/v1/status", nil, &payload); err != nil {
+	if err := c.doJSON(ctx, http.MethodGet, "/healthz", nil, &payload); err != nil {
 		return nil, err
 	}
 	return payload, nil
@@ -98,6 +97,7 @@ func (c *Client) LaunchMachine(ctx context.Context, req LaunchMachineRequest) (M
 		Name:          req.Name,
 		TTLSeconds:    clampTTL(req.TTLSeconds, MaxTTLSeconds),
 		AllowInternet: req.AllowInternet,
+		Volume:        firstString(req.Volumes),
 		Persistent:    req.Persistent,
 		Volumes:       req.Volumes,
 		Metadata:      req.Metadata,
@@ -123,9 +123,9 @@ func (c *Client) ExtendMachine(ctx context.Context, id string, ttlSeconds int) (
 }
 
 func (c *Client) ForkMachine(ctx context.Context, id string, ttlSeconds int) (Machine, error) {
+	_ = ttlSeconds
 	var machine Machine
-	payload := map[string]int{"ttl_seconds": clampTTL(ttlSeconds, MaxTTLSeconds)}
-	if err := c.doJSON(ctx, http.MethodPost, "/v1/machines/"+pathEscapeID(id)+"/fork", payload, &machine); err != nil {
+	if err := c.doJSON(ctx, http.MethodPost, "/v1/machines/"+pathEscapeID(id)+"/branch", nil, &machine); err != nil {
 		return Machine{}, err
 	}
 	return machine, nil
@@ -153,30 +153,27 @@ func (c *Client) Screenshot(ctx context.Context, id string) (Screenshot, error) 
 }
 
 func (c *Client) Upload(ctx context.Context, id, remotePath string, content []byte) (map[string]interface{}, error) {
-	var body bytes.Buffer
-	writer := multipart.NewWriter(&body)
-	_ = writer.WriteField("path", remotePath)
-	part, err := writer.CreateFormFile("file", pathpkg.Base(remotePath))
-	if err != nil {
-		return nil, fmt.Errorf("create upload part: %w", err)
-	}
-	if _, err := part.Write(content); err != nil {
-		return nil, fmt.Errorf("write upload part: %w", err)
-	}
-	if err := writer.Close(); err != nil {
-		return nil, fmt.Errorf("close upload body: %w", err)
-	}
 	var payload map[string]interface{}
-	headers := map[string]string{"Content-Type": writer.FormDataContentType()}
-	if err := c.do(ctx, http.MethodPost, "/v1/machines/"+pathEscapeID(id)+"/files/upload", &body, headers, &payload); err != nil {
+	headers := map[string]string{
+		"Content-Type": "application/octet-stream",
+		"X-Filename":   pathpkg.Base(remotePath),
+	}
+	if err := c.do(ctx, http.MethodPost, "/v1/machines/"+pathEscapeID(id)+"/upload", bytes.NewReader(content), headers, &payload); err != nil {
 		return nil, err
 	}
 	return payload, nil
 }
 
 func (c *Client) Download(ctx context.Context, id, remotePath string) ([]byte, string, error) {
-	path := "/v1/machines/" + pathEscapeID(id) + "/files/download?path=" + url.QueryEscape(remotePath)
-	req, err := c.newRequest(ctx, http.MethodGet, path, nil, nil)
+	if c == nil || c.baseURL == nil {
+		return nil, "", fmt.Errorf("client is not configured")
+	}
+	u := *c.baseURL
+	u.Path = joinURLPath(u.Path, "/v1/machines/"+pathEscapeID(id)+"/download")
+	query := u.Query()
+	query.Set("path", remotePath)
+	u.RawQuery = query.Encode()
+	req, err := c.newRequest(ctx, http.MethodGet, u.String(), nil, nil)
 	if err != nil {
 		return nil, "", err
 	}
@@ -186,7 +183,7 @@ func (c *Client) Download(ctx context.Context, id, remotePath string) ([]byte, s
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, "", c.responseError(req.Method, path, resp)
+		return nil, "", c.responseError(req.Method, req.URL.RequestURI(), resp)
 	}
 	data, err := io.ReadAll(io.LimitReader(resp.Body, 64*1024*1024))
 	if err != nil {
@@ -308,8 +305,13 @@ func (c *Client) do(ctx context.Context, method, apiPath string, body io.Reader,
 		_, _ = io.Copy(io.Discard, resp.Body)
 		return nil
 	}
-	if err := json.NewDecoder(resp.Body).Decode(out); err != nil {
-		return fmt.Errorf("decode boringd response: %w", err)
+	prefix, err := io.ReadAll(io.LimitReader(resp.Body, 512))
+	if err != nil {
+		return fmt.Errorf("read boringd response: %w", err)
+	}
+	reader := io.MultiReader(bytes.NewReader(prefix), resp.Body)
+	if err := json.NewDecoder(reader).Decode(out); err != nil {
+		return c.decodeError(method, apiPath, resp, prefix, err)
 	}
 	return nil
 }
@@ -368,6 +370,32 @@ func (c *Client) responseError(method, apiPath string, resp *http.Response) erro
 	return RESTError{Method: method, Path: apiPath, StatusCode: resp.StatusCode, Body: body}
 }
 
+func (c *Client) decodeError(method, apiPath string, resp *http.Response, prefix []byte, err error) error {
+	contentType := resp.Header.Get("Content-Type")
+	sample := compactBodySample(redactSecrets(string(prefix), c.token))
+	if looksNonJSONResponse(contentType, prefix) {
+		return fmt.Errorf("decode boringd response: non-JSON response from boringd %s %s (status %d, content-type %q, body starts %q); check virtual_computers.control_plane.boringd_url points to boringd, not AuraGo UI or a redirect: %w", method, apiPath, resp.StatusCode, contentType, sample, err)
+	}
+	return fmt.Errorf("decode boringd response: %w", err)
+}
+
+func looksNonJSONResponse(contentType string, prefix []byte) bool {
+	trimmed := bytes.TrimSpace(prefix)
+	if len(trimmed) > 0 && trimmed[0] == '<' {
+		return true
+	}
+	contentType = strings.ToLower(contentType)
+	return contentType != "" && !strings.Contains(contentType, "json")
+}
+
+func compactBodySample(sample string) string {
+	sample = strings.Join(strings.Fields(sample), " ")
+	if len(sample) > 200 {
+		return sample[:200] + "..."
+	}
+	return sample
+}
+
 func clampTTL(ttl, maxTTL int) int {
 	if maxTTL <= 0 || maxTTL > MaxTTLSeconds {
 		maxTTL = MaxTTLSeconds
@@ -382,6 +410,15 @@ func clampTTL(ttl, maxTTL int) int {
 		return maxTTL
 	}
 	return ttl
+}
+
+func firstString(values []string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 func pathEscapeID(id string) string {
