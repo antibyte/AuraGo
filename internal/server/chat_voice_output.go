@@ -16,9 +16,16 @@ import (
 )
 
 var (
-	chatVoiceOutputSynthesize = tools.TTSSynthesize
-	chatVoiceDoneTagPattern   = regexp.MustCompile(`(?i)<done\s*/?>`)
-	chatVoiceFencePattern     = regexp.MustCompile("(?s)```.*?```")
+	chatVoiceOutputSynthesize       = tools.TTSSynthesize
+	chatVoiceDoneTagPattern         = regexp.MustCompile(`(?i)<done\s*/?>`)
+	chatVoiceFencePattern           = regexp.MustCompile("(?s)```.*?```")
+	chatVoiceMarkdownLinkPattern    = regexp.MustCompile(`\[([^\]]+)\]\([^)]+\)`)
+	chatVoiceLeadingListItemPattern = regexp.MustCompile(`^\s*(?:[-*+]\s+|\d+[.)]\s+)`)
+)
+
+const (
+	chatVoiceDirectRuneLimit  = 220
+	chatVoiceSummaryRuneLimit = 260
 )
 
 type chatVoiceOutputTrackingBroker struct {
@@ -114,14 +121,28 @@ func maybeEmitChatVoiceOutputFallback(cfg *config.Config, logger *slog.Logger, r
 }
 
 func chatVoiceOutputText(content string) string {
-	text := security.StripThinkingTags(security.Scrub(content))
-	text = chatVoiceDoneTagPattern.ReplaceAllString(text, "")
-	text = chatVoiceFencePattern.ReplaceAllString(text, " ")
-	text = strings.TrimSpace(text)
+	text := chatVoiceCleanText(content)
 	if text == "" {
 		return ""
 	}
 
+	spoken := chatVoiceCollapseSpeech(text)
+	if len([]rune(spoken)) <= chatVoiceDirectRuneLimit {
+		return spoken
+	}
+	if summary := chatVoiceStructuredStatusSummary(text); summary != "" {
+		return chatVoiceLimitRunes(summary, chatVoiceSummaryRuneLimit)
+	}
+	return chatVoiceLimitRunes(chatVoiceFallbackSummary(spoken), chatVoiceSummaryRuneLimit)
+}
+
+func chatVoiceCleanText(content string) string {
+	text := security.StripThinkingTags(security.Scrub(content))
+	text = chatVoiceDoneTagPattern.ReplaceAllString(text, "")
+	text = chatVoiceFencePattern.ReplaceAllString(text, " ")
+	text = chatVoiceMarkdownLinkPattern.ReplaceAllString(text, "$1")
+	text = strings.ReplaceAll(text, "\r\n", "\n")
+	text = strings.ReplaceAll(text, "\r", "\n")
 	replacements := []struct {
 		old string
 		new string
@@ -131,20 +152,114 @@ func chatVoiceOutputText(content string) string {
 		{"`", ""},
 		{"#", ""},
 		{">", ""},
+		{"*", ""},
 	}
 	for _, r := range replacements {
 		text = strings.ReplaceAll(text, r.old, r.new)
 	}
-	text = strings.Join(strings.Fields(text), " ")
-	if text == "" {
+	lines := strings.Split(text, "\n")
+	cleaned := make([]string, 0, len(lines))
+	for _, line := range lines {
+		line = strings.TrimSpace(chatVoiceLeadingListItemPattern.ReplaceAllString(line, ""))
+		if line != "" {
+			cleaned = append(cleaned, line)
+		}
+	}
+	return strings.TrimSpace(strings.Join(cleaned, "\n"))
+}
+
+func chatVoiceCollapseSpeech(text string) string {
+	return strings.Join(strings.Fields(text), " ")
+}
+
+func chatVoiceStructuredStatusSummary(text string) string {
+	spoken := chatVoiceCollapseSpeech(text)
+	lower := strings.ToLower(spoken)
+	if !chatVoiceLooksLikeStatus(lower) {
 		return ""
 	}
 
-	runes := []rune(text)
-	if len(runes) > 500 {
-		return string(runes[:500])
+	parts := make([]string, 0, 3)
+	if chatVoiceContainsAny(lower, "erledigt", "fertig", "completed", "done") {
+		parts = append(parts, "Ein Teil ist erledigt")
 	}
-	return text
+	if chatVoiceBuildStillRunning(lower) {
+		parts = append(parts, "der Build l\u00e4uft noch und dauert einen Moment")
+	} else if chatVoiceContainsAny(lower, "blockiert", "blocked") {
+		parts = append(parts, "ein Punkt ist noch blockiert")
+	} else if chatVoiceContainsAny(lower, "in arbeit", "l\u00e4uft", "laeuft", "running", "in progress") {
+		parts = append(parts, "es l\u00e4uft noch etwas")
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+
+	prefix := ""
+	if chatVoiceContainsAny(lower, "stand jetzt", "status", "stand:") {
+		prefix = "Stand jetzt: "
+	}
+	return prefix + strings.Join(parts, "; ") + ". " + chatVoiceDetailsSuffix(lower)
+}
+
+func chatVoiceLooksLikeStatus(lower string) bool {
+	return chatVoiceContainsAny(lower,
+		"stand jetzt", "status", "erledigt", "fertig", "completed", "done",
+		"in arbeit", "blockiert", "blocked", "build", "gebaut", "running", "in progress",
+	)
+}
+
+func chatVoiceBuildStillRunning(lower string) bool {
+	return chatVoiceContainsAny(lower, "build", "gebaut", "docker-image") &&
+		chatVoiceContainsAny(lower, "l\u00e4uft", "laeuft", "gerade", "hintergrund", "in arbeit", "running", "still")
+}
+
+func chatVoiceFallbackSummary(spoken string) string {
+	lower := strings.ToLower(spoken)
+	cut := len(spoken)
+	for _, sep := range []string{". ", "! ", "? "} {
+		if idx := strings.Index(spoken, sep); idx >= 0 && idx+1 < cut {
+			cut = idx + 1
+		}
+	}
+	first := strings.TrimSpace(spoken[:cut])
+	if len([]rune(first)) > 180 {
+		first = chatVoiceLimitRunes(first, 180)
+	}
+	if first == "" {
+		return chatVoiceDetailsSuffix(lower)
+	}
+	return strings.TrimRight(first, ".!?") + ". " + chatVoiceDetailsSuffix(lower)
+}
+
+func chatVoiceDetailsSuffix(lower string) string {
+	if chatVoiceLooksGerman(lower) {
+		return "Details stehen im Chat."
+	}
+	return "Details are in the chat."
+}
+
+func chatVoiceLooksGerman(lower string) bool {
+	return chatVoiceContainsAny(lower,
+		"erledigt", "fertig", "in arbeit", "blockiert", "l\u00e4uft", "laeuft",
+		"gepr\u00fcft", "geprueft", "n\u00e4chstes", "naechstes", "sobald", "wenn du",
+	)
+}
+
+func chatVoiceContainsAny(haystack string, needles ...string) bool {
+	for _, needle := range needles {
+		if strings.Contains(haystack, needle) {
+			return true
+		}
+	}
+	return false
+}
+
+func chatVoiceLimitRunes(text string, limit int) string {
+	runes := []rune(strings.TrimSpace(text))
+	if limit <= 0 || len(runes) <= limit {
+		return string(runes)
+	}
+	return strings.TrimSpace(string(runes[:limit]))
 }
 
 func buildChatVoiceOutputTTSConfig(cfg *config.Config, language string) tools.TTSConfig {

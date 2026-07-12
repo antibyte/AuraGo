@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io"
 	"log/slog"
+	"strings"
 	"testing"
 
 	"aurago/internal/agent"
@@ -105,5 +106,48 @@ func TestMaybeEmitChatVoiceOutputFallbackSkipsWhenModelAlreadyEmittedTTS(t *test
 
 	if len(base.events) != 1 {
 		t.Fatalf("expected only the original audio event, got %+v", base.events)
+	}
+}
+
+func TestChatVoiceOutputTextSummarizesLongStructuredStatus(t *testing.T) {
+	input := `Stand jetzt:
+
+**Erledigt:**
+
+Vulkan/iGPU geprueft: AMD Lucienne mit Mesa-Vulkan-Treibern vorhanden
+Modell heruntergeladen: gemma-4-E2B-it-qat-q4_0-unquantized-heretic.i1-Q4_K_M.gguf (~2,9 GB) liegt unter /home/aurago/aurago/agent_workspace/models/llama/
+Docker-Volume llama-models angelegt und mit Modell befuellt
+
+**In Arbeit / Blockiert:**
+
+Das Docker-Image llama-cpp-vulkan:latest wird gerade im Hintergrund gebaut. Der erste Build-Versuch ist wegen fehlendem Shader-Compiler (glslc) gefloppt. Der zweite Versuch laeuft jetzt mit spirv-tools und glslang-tools, aber ich kann den aktuellen Build-Status gerade nicht abfragen, ohne denselben Tool-Call zu wiederholen.
+
+**Was als Naechstes passiert, sobald das Image fertig ist:**
+
+Container llama-cpp-vulkan wird erstellt mit Port 9999, OpenAI-kompatibler API, Vulkan-Backend und Restart-Policy.`
+
+	got := chatVoiceOutputText(input)
+	if len([]rune(got)) > 180 {
+		t.Fatalf("spoken summary is too long (%d runes): %q", len([]rune(got)), got)
+	}
+	for _, want := range []string{
+		"Ein Teil ist erledigt",
+		"Build l\u00e4uft noch",
+		"Details stehen im Chat",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("spoken summary missing %q: %q", want, got)
+		}
+	}
+	for _, forbidden := range []string{
+		"gemma-4",
+		"/home/aurago",
+		"Docker-Volume",
+		"glslc",
+		"spirv-tools",
+	} {
+		if strings.Contains(got, forbidden) {
+			t.Fatalf("spoken summary should not include detail %q: %q", forbidden, got)
+		}
 	}
 }
