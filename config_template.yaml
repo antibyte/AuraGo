@@ -921,15 +921,15 @@ virtual_desktop:
 virtual_computers:
     enabled: false                                         # enable Virtual Computers UI/API; boringd stays private behind AuraGo
     provider: boring_computers                             # v1 provider
-    auto_setup: false                                      # allow AuraGo to install/update boring-computers over SSH
+    auto_setup: false                                      # allow AuraGo to install/update boring-computers locally or over SSH
     readonly: false                                        # true = status/list/get/screenshot/download only
     control_plane:
-        mode: ssh_host                                     # v1: external Ubuntu/KVM x86_64 host over SSH
-        host: ""                                           # SSH host used by setup wizard
+        mode: ssh_host                                     # ssh_host or local_host; local_host requires AuraGo on Ubuntu/Linux with /dev/kvm and systemd
+        host: ""                                           # SSH host used by setup wizard; ignored for local_host
         ssh_port: 22
-        credential_id: ""                                  # AuraGo credential ID for SSH setup
-        install_dir: /opt/boring-computers
-        boringd_url: http://127.0.0.1:8080                 # private AuraGo-side URL, usually an SSH tunnel endpoint
+        credential_id: ""                                  # AuraGo credential ID for SSH setup; ignored for local_host
+        install_dir: /opt/boring-computers                 # target install dir on the selected host
+        boringd_url: http://127.0.0.1:8080                 # private AuraGo-side URL; local_host binds boringd here directly
     default_template: python
     default_ttl_seconds: 600                               # boringd supports 15-900 seconds
     max_ttl_seconds: 900

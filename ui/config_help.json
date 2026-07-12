@@ -1069,7 +1069,7 @@
     },
     "auto_setup": {
       "title": "Automatic Setup",
-      "description": "Allows AuraGo to run idempotent preflight, install, repair, and health checks over SSH."
+      "description": "Allows AuraGo to run idempotent preflight, install, repair, and health checks on the selected local or SSH host."
     },
     "readonly": {
       "title": "Read-Only Mode",
@@ -1081,11 +1081,11 @@
     },
     "control_plane.mode": {
       "title": "Control Plane Mode",
-      "description": "Where AuraGo manages boringd. Version 1 targets an external Ubuntu/KVM x86_64 host over SSH."
+      "description": "Where AuraGo manages boringd. Use ssh_host for an external Ubuntu/KVM host over SSH, or local_host when AuraGo runs directly on an Ubuntu/Linux KVM host."
     },
     "control_plane.host": {
       "title": "Host",
-      "description": "Hostname or IP address of the SSH host that runs boringd."
+      "description": "Hostname or IP address of the SSH host that runs boringd. Ignored when mode is local_host."
     },
     "control_plane.ssh_port": {
       "title": "SSH Port",
@@ -1097,11 +1097,11 @@
     },
     "control_plane.install_dir": {
       "title": "Install Directory",
-      "description": "Directory on the SSH host where boring-computers should be installed."
+      "description": "Directory on the selected host where boring-computers should be installed."
     },
     "control_plane.boringd_url": {
       "title": "Private boringd URL",
-      "description": "AuraGo's private boringd endpoint, usually reached through a managed SSH tunnel to 127.0.0.1:8080."
+      "description": "AuraGo's private boringd endpoint. In local_host mode boringd binds here directly; in ssh_host mode this is usually reached through a managed SSH tunnel."
     },
     "default_template": {
       "title": "Default Template",

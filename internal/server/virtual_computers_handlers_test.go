@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -147,6 +148,49 @@ func TestVirtualComputersLoopbackListenAddr(t *testing.T) {
 	}
 	if addr, ok := virtualComputersLoopbackListenAddr("https://example.test:8443"); ok || addr != "" {
 		t.Fatalf("public addr should not tunnel, got %q ok=%v", addr, ok)
+	}
+}
+
+func TestVirtualComputersSetupManagerLocalHostDoesNotRequireSSHSecret(t *testing.T) {
+	cfg := virtualcomputers.ToolConfig{
+		ControlPlane: virtualcomputers.ControlPlaneConfig{
+			Mode:       "local_host",
+			InstallDir: "/opt/boring-computers",
+			BoringdURL: "http://127.0.0.1:8080",
+		},
+	}
+	manager, err := virtualComputersSetupManager(&Server{}, cfg, "boring-token")
+	if err != nil {
+		t.Fatalf("setup manager should not require SSH for local_host: %v", err)
+	}
+	if _, ok := manager.Executor.(virtualcomputers.LocalCommandExecutor); !ok {
+		t.Fatalf("executor = %T, want virtualcomputers.LocalCommandExecutor", manager.Executor)
+	}
+}
+
+func TestVirtualComputersSetupStatusIncludesLocalModeMetadata(t *testing.T) {
+	cfg := virtualComputersTestConfig("http://127.0.0.1:8080")
+	cfg.VirtualComputers.ControlPlane.Mode = "local_host"
+	s := &Server{Cfg: cfg}
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/virtual-computers/setup/status", nil)
+	handleVirtualComputersSetupStatus(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%s", rec.Code, rec.Body.String())
+	}
+	var body map[string]interface{}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode body: %v", err)
+	}
+	if body["mode"] != "local_host" {
+		t.Fatalf("mode = %#v, body=%v", body["mode"], body)
+	}
+	for _, key := range []string{"host_os", "arch", "running_in_docker", "has_kvm", "has_systemd", "has_sudo_or_root"} {
+		if _, ok := body[key]; !ok {
+			t.Fatalf("status response missing %q: %v", key, body)
+		}
 	}
 }
 

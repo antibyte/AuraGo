@@ -4,6 +4,8 @@ import "time"
 
 const (
 	ProviderBoringComputers = "boring_computers"
+	ControlPlaneSSHHost     = "ssh_host"
+	ControlPlaneLocalHost   = "local_host"
 	MinTTLSeconds           = 15
 	MaxTTLSeconds           = 900
 	DefaultTTLSeconds       = 600
@@ -109,9 +111,10 @@ type Screenshot struct {
 }
 
 type SetupStatus struct {
-	Configured bool   `json:"configured"`
-	Healthy    bool   `json:"healthy"`
-	Message    string `json:"message,omitempty"`
+	Configured bool            `json:"configured"`
+	Healthy    bool            `json:"healthy"`
+	Message    string          `json:"message,omitempty"`
+	Preflight  PreflightResult `json:"preflight,omitempty"`
 }
 
 type SetupInstallOptions struct {

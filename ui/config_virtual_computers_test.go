@@ -22,3 +22,21 @@ func TestVirtualComputersEnabledToggleSyncsPrecisionDraftState(t *testing.T) {
 		t.Fatal("virtual computers enabled toggle must not mark dirty before re-rendering; the old DOM state overwrites the draft")
 	}
 }
+
+func TestVirtualComputersModeSelectOffersLocalHostAndHidesSSHFields(t *testing.T) {
+	t.Parallel()
+
+	vcJS := normalizeAssetText(mustReadUIFile(t, "cfg/virtual_computers.js"))
+	if !strings.Contains(vcJS, `value="local_host"`) {
+		t.Fatal("virtual computers setup mode select must offer local_host")
+	}
+	if !strings.Contains(vcJS, `config.virtual_computers.mode_local_host`) {
+		t.Fatal("virtual computers setup mode select must use translated local_host label")
+	}
+	if !strings.Contains(vcJS, `config.virtual_computers.local_host_note`) {
+		t.Fatal("virtual computers UI must show local host requirements")
+	}
+	if !strings.Contains(vcJS, `vcCfgOnModeChange(this)`) {
+		t.Fatal("virtual computers mode select must re-render when switching between local and SSH modes")
+	}
+}

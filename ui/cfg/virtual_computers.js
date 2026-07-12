@@ -27,6 +27,8 @@ function renderVirtualComputersSection(section) {
     const data = vcCfgEnsureData();
     const cp = data.control_plane || {};
     const enabled = data.enabled === true;
+    const mode = cp.mode || 'ssh_host';
+    const isLocalHost = mode === 'local_host';
 
     let html = '<div class="cfg-section active">';
     html += '<div class="section-header">' + section.label + '</div>';
@@ -56,13 +58,22 @@ function renderVirtualComputersSection(section) {
     html += vcCfgField('config.virtual_computers.provider_label', 'help.virtual_computers.provider',
         '<select class="field-input" data-path="virtual_computers.provider"><option value="boring_computers" selected>boring_computers</option></select>');
     html += vcCfgField('config.virtual_computers.mode_label', 'help.virtual_computers.mode',
-        '<select class="field-input" data-path="virtual_computers.control_plane.mode"><option value="ssh_host"' + ((cp.mode || 'ssh_host') === 'ssh_host' ? ' selected' : '') + '>' + t('config.virtual_computers.mode_ssh_host') + '</option></select>');
-    html += vcCfgField('config.virtual_computers.host_label', 'help.virtual_computers.host',
-        '<input class="field-input" type="text" data-path="virtual_computers.control_plane.host" value="' + escapeAttr(cp.host || '') + '" placeholder="vm-host.local">');
-    html += vcCfgField('config.virtual_computers.ssh_port_label', 'help.virtual_computers.ssh_port',
-        '<input class="field-input" type="number" min="1" max="65535" data-path="virtual_computers.control_plane.ssh_port" value="' + escapeAttr(cp.ssh_port || 22) + '">');
-    html += vcCfgField('config.virtual_computers.credential_id_label', 'help.virtual_computers.credential_id',
-        '<input class="field-input" type="text" data-path="virtual_computers.control_plane.credential_id" value="' + escapeAttr(cp.credential_id || '') + '" placeholder="credential-id">');
+        '<select class="field-input" data-path="virtual_computers.control_plane.mode" onchange="vcCfgOnModeChange(this)">' +
+        '<option value="ssh_host"' + (mode === 'ssh_host' ? ' selected' : '') + '>' + t('config.virtual_computers.mode_ssh_host') + '</option>' +
+        '<option value="local_host"' + (isLocalHost ? ' selected' : '') + '>' + t('config.virtual_computers.mode_local_host') + '</option>' +
+        '</select>');
+    if (isLocalHost) {
+        html += '</div>';
+        html += '<div class="cfg-note-banner cfg-note-banner-info">' + t('config.virtual_computers.local_host_note') + '</div>';
+        html += '<div class="field-grid two-cols">';
+    } else {
+        html += vcCfgField('config.virtual_computers.host_label', 'help.virtual_computers.host',
+            '<input class="field-input" type="text" data-path="virtual_computers.control_plane.host" value="' + escapeAttr(cp.host || '') + '" placeholder="vm-host.local">');
+        html += vcCfgField('config.virtual_computers.ssh_port_label', 'help.virtual_computers.ssh_port',
+            '<input class="field-input" type="number" min="1" max="65535" data-path="virtual_computers.control_plane.ssh_port" value="' + escapeAttr(cp.ssh_port || 22) + '">');
+        html += vcCfgField('config.virtual_computers.credential_id_label', 'help.virtual_computers.credential_id',
+            '<input class="field-input" type="text" data-path="virtual_computers.control_plane.credential_id" value="' + escapeAttr(cp.credential_id || '') + '" placeholder="credential-id">');
+    }
     html += vcCfgField('config.virtual_computers.install_dir_label', 'help.virtual_computers.install_dir',
         '<input class="field-input" type="text" data-path="virtual_computers.control_plane.install_dir" value="' + escapeAttr(cp.install_dir || '/opt/boring-computers') + '">');
     html += vcCfgField('config.virtual_computers.boringd_url_label', 'help.virtual_computers.boringd_url',
@@ -122,6 +133,18 @@ function renderVirtualComputersSection(section) {
 
     document.getElementById('content').innerHTML = html;
     attachChangeListeners();
+}
+
+function vcCfgOnModeChange(el) {
+    const value = el && el.value ? el.value : 'ssh_host';
+    const data = vcCfgEnsureData();
+    data.control_plane.mode = value;
+    setNestedValue(configData, 'virtual_computers.control_plane.mode', value);
+    if (window.AuraConfigState) {
+        window.AuraConfigState.set('virtual_computers.control_plane.mode', value);
+    }
+    renderVirtualComputersSection(null);
+    setDirty(window.AuraConfigState ? window.AuraConfigState.isDirty() : true);
 }
 
 function vcCfgToggleRow(labelKey, helpKey, enabled, path, onclick) {

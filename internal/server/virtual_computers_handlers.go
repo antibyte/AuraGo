@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -76,7 +77,7 @@ func handleVirtualComputersSetupStatus(s *Server) http.HandlerFunc {
 			return
 		}
 		cfg := virtualComputersConfigSnapshot(s)
-		writeJSON(w, map[string]interface{}{
+		payload := map[string]interface{}{
 			"status":        "ok",
 			"enabled":       cfg.Enabled,
 			"configured":    strings.TrimSpace(cfg.BoringdURL) != "",
@@ -84,7 +85,11 @@ func handleVirtualComputersSetupStatus(s *Server) http.HandlerFunc {
 			"provider":      cfg.Provider,
 			"control_plane": cfg.ControlPlane,
 			"tailscale":     virtualComputersTailscaleStatus(s),
-		})
+		}
+		for key, value := range virtualComputersSetupMetadata(s, cfg, nil) {
+			payload[key] = value
+		}
+		writeJSON(w, payload)
 	}
 }
 
@@ -122,12 +127,16 @@ func handleVirtualComputersSetupPreflight(s *Server) http.HandlerFunc {
 		}
 		virtualComputersRecordSetupState(s, r, "preflight", state)
 		virtualComputersRecordAction(s, r, "preflight", "setup", "", map[string]interface{}{"supported": result.Supported})
-		writeJSON(w, map[string]interface{}{
+		payload := map[string]interface{}{
 			"status":   state,
 			"result":   result,
-			"message":  "boring-computers setup requires Ubuntu with /dev/kvm and x86_64/amd64 or arm64/aarch64.",
+			"message":  virtualComputersSetupMessage(cfg),
 			"ssh_host": cfg.ControlPlane.Host,
-		})
+		}
+		for key, value := range virtualComputersSetupMetadata(s, cfg, result.Checks) {
+			payload[key] = value
+		}
+		writeJSON(w, payload)
 	}
 }
 
@@ -178,14 +187,18 @@ func handleVirtualComputersSetupInstall(s *Server) http.HandlerFunc {
 		}
 		virtualComputersRecordSetupState(s, r, "install", state)
 		virtualComputersRecordAction(s, r, "install", "setup", "", map[string]interface{}{"healthy": status.Healthy, "token_generated": generatedToken})
-		writeJSON(w, map[string]interface{}{
+		payload := map[string]interface{}{
 			"status":           state,
 			"setup":            status,
 			"token_configured": true,
 			"token_generated":  generatedToken,
 			"boringd_url":      cfg.BoringdURL,
-			"message":          "boringd is installed bound to 127.0.0.1:8080 on the control-plane host; AuraGo keeps the token server-side.",
-		})
+			"message":          virtualComputersInstalledMessage(cfg),
+		}
+		for key, value := range virtualComputersSetupMetadata(s, cfg, status.Preflight.Checks) {
+			payload[key] = value
+		}
+		writeJSON(w, payload)
 	}
 }
 
@@ -671,7 +684,17 @@ func virtualComputersClient(s *Server) (*virtualcomputers.Client, error) {
 }
 
 func virtualComputersEnsureControlPlaneAccess(s *Server, cfg virtualcomputers.ToolConfig) error {
-	if !strings.EqualFold(strings.TrimSpace(cfg.ControlPlane.Mode), "ssh_host") {
+	mode := virtualComputersControlPlaneMode(cfg)
+	if mode == virtualcomputers.ControlPlaneLocalHost {
+		if strings.TrimSpace(cfg.BoringdURL) == "" {
+			return nil
+		}
+		if !virtualComputersHealthOK(cfg.BoringdURL) {
+			return fmt.Errorf("local boringd is not reachable at %s; run Virtual Computers setup install or repair", cfg.BoringdURL)
+		}
+		return nil
+	}
+	if mode != virtualcomputers.ControlPlaneSSHHost {
 		return nil
 	}
 	if strings.TrimSpace(cfg.ControlPlane.Host) == "" && strings.TrimSpace(cfg.ControlPlane.CredentialID) == "" {
@@ -684,7 +707,7 @@ func virtualComputersEnsureControlPlaneAccess(s *Server, cfg virtualcomputers.To
 	if virtualComputersHealthOK(cfg.BoringdURL) {
 		return nil
 	}
-	executor, err := virtualComputersSetupExecutor(s, cfg)
+	executor, err := virtualComputersSSHSetupExecutor(s, cfg)
 	if err != nil {
 		return fmt.Errorf("virtual computer SSH tunnel setup failed: %w", err)
 	}
@@ -855,6 +878,70 @@ func virtualComputersTailscaleStatus(s *Server) map[string]interface{} {
 	return out
 }
 
+func virtualComputersControlPlaneMode(cfg virtualcomputers.ToolConfig) string {
+	mode := strings.ToLower(strings.TrimSpace(cfg.ControlPlane.Mode))
+	if mode == "" {
+		return virtualcomputers.ControlPlaneSSHHost
+	}
+	return mode
+}
+
+func virtualComputersSetupMessage(cfg virtualcomputers.ToolConfig) string {
+	if virtualComputersControlPlaneMode(cfg) == virtualcomputers.ControlPlaneLocalHost {
+		return "Local boring-computers setup requires Ubuntu/Linux with /dev/kvm, systemd, and root or passwordless sudo."
+	}
+	return "boring-computers setup requires Ubuntu with /dev/kvm and x86_64/amd64 or arm64/aarch64."
+}
+
+func virtualComputersInstalledMessage(cfg virtualcomputers.ToolConfig) string {
+	if virtualComputersControlPlaneMode(cfg) == virtualcomputers.ControlPlaneLocalHost {
+		return "boringd is installed locally and bound to 127.0.0.1:8080; AuraGo keeps the token server-side."
+	}
+	return "boringd is installed bound to 127.0.0.1:8080 on the control-plane host; AuraGo keeps the token server-side."
+}
+
+func virtualComputersSetupMetadata(s *Server, cfg virtualcomputers.ToolConfig, checks map[string]string) map[string]interface{} {
+	mode := virtualComputersControlPlaneMode(cfg)
+	if len(checks) == 0 && mode == virtualcomputers.ControlPlaneLocalHost {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		if out, err := (virtualcomputers.LocalCommandExecutor{}).Preflight(ctx); err == nil {
+			checks = virtualcomputers.ParsePreflightOutput(out).Checks
+		}
+	}
+	hostOS := strings.ToLower(strings.TrimSpace(checks["HOST_OS"]))
+	arch := strings.TrimSpace(checks["ARCH"])
+	if mode == virtualcomputers.ControlPlaneLocalHost {
+		if hostOS == "" {
+			hostOS = runtime.GOOS
+		}
+		if arch == "" {
+			arch = runtime.GOARCH
+		}
+	}
+	return map[string]interface{}{
+		"mode":              mode,
+		"host_os":           hostOS,
+		"arch":              arch,
+		"running_in_docker": virtualComputersCheckBool(s, checks, "RUNNING_IN_DOCKER"),
+		"has_kvm":           checks["HAS_KVM"] == "1",
+		"has_systemd":       checks["HAS_SYSTEMD"] == "1",
+		"has_sudo_or_root":  checks["HAS_SUDO_OR_ROOT"] == "1",
+	}
+}
+
+func virtualComputersCheckBool(s *Server, checks map[string]string, key string) bool {
+	if checks[key] == "1" {
+		return true
+	}
+	if key == "RUNNING_IN_DOCKER" && checks[key] == "" && s != nil && s.Cfg != nil {
+		s.CfgMu.RLock()
+		defer s.CfgMu.RUnlock()
+		return s.Cfg.Runtime.IsDocker
+	}
+	return false
+}
+
 func virtualComputersIsWSChannel(tail string) bool {
 	switch strings.Trim(tail, "/") {
 	case "tty", "vnc", "agent", "shell-agent":
@@ -956,7 +1043,18 @@ func virtualComputersSetupOptions(cfg virtualcomputers.ToolConfig, token string,
 	}
 }
 
-func virtualComputersSetupExecutor(s *Server, cfg virtualcomputers.ToolConfig) (virtualComputersSSHExecutor, error) {
+func virtualComputersSetupExecutor(s *Server, cfg virtualcomputers.ToolConfig) (virtualcomputers.CommandExecutor, error) {
+	switch virtualComputersControlPlaneMode(cfg) {
+	case virtualcomputers.ControlPlaneLocalHost:
+		return virtualcomputers.LocalCommandExecutor{}, nil
+	case virtualcomputers.ControlPlaneSSHHost:
+		return virtualComputersSSHSetupExecutor(s, cfg)
+	default:
+		return nil, fmt.Errorf("unsupported virtual computer control-plane mode %q", cfg.ControlPlane.Mode)
+	}
+}
+
+func virtualComputersSSHSetupExecutor(s *Server, cfg virtualcomputers.ToolConfig) (virtualComputersSSHExecutor, error) {
 	cp := cfg.ControlPlane
 	port := cp.SSHPort
 	if port <= 0 {

@@ -428,7 +428,7 @@ type VirtualDesktopConfig struct {
 type VirtualComputersConfig struct {
 	Enabled             bool                         `yaml:"enabled" json:"enabled"`                           // enable Virtual Computers APIs and UI
 	Provider            string                       `yaml:"provider" json:"provider"`                         // currently "boring_computers"
-	AutoSetup           bool                         `yaml:"auto_setup" json:"auto_setup"`                     // allow AuraGo to install/update the control plane over SSH
+	AutoSetup           bool                         `yaml:"auto_setup" json:"auto_setup"`                     // allow AuraGo to install/update the control plane locally or over SSH
 	ReadOnly            bool                         `yaml:"readonly" json:"readonly"`                         // block mutating machine operations
 	ControlPlane        VirtualComputersControlPlane `yaml:"control_plane" json:"control_plane"`               // boringd connection/install target
 	DefaultTemplate     string                       `yaml:"default_template" json:"default_template"`         // launch template used when omitted
@@ -449,12 +449,12 @@ type VirtualComputersConfig struct {
 }
 
 type VirtualComputersControlPlane struct {
-	Mode         string `yaml:"mode" json:"mode"`                   // "ssh_host" in v1
-	Host         string `yaml:"host" json:"host"`                   // remote Ubuntu/KVM host
+	Mode         string `yaml:"mode" json:"mode"`                   // "ssh_host" or "local_host"
+	Host         string `yaml:"host" json:"host"`                   // remote Ubuntu/KVM host; ignored for local_host
 	SSHPort      int    `yaml:"ssh_port" json:"ssh_port"`           // SSH port
-	CredentialID string `yaml:"credential_id" json:"credential_id"` // AuraGo credential ID for SSH setup
-	InstallDir   string `yaml:"install_dir" json:"install_dir"`     // remote install directory
-	BoringdURL   string `yaml:"boringd_url" json:"boringd_url"`     // AuraGo-side boringd URL, usually tunnel localhost
+	CredentialID string `yaml:"credential_id" json:"credential_id"` // AuraGo credential ID for SSH setup; ignored for local_host
+	InstallDir   string `yaml:"install_dir" json:"install_dir"`     // selected host install directory
+	BoringdURL   string `yaml:"boringd_url" json:"boringd_url"`     // AuraGo-side boringd URL, usually localhost
 	SSHSecret    string `yaml:"-" json:"-" vault:"virtual_computers_ssh_secret"`
 }
 

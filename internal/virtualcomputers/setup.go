@@ -7,16 +7,23 @@ import (
 	"strings"
 )
 
-type SSHExecutor interface {
+type CommandExecutor interface {
 	Run(ctx context.Context, command string) (string, error)
 }
 
-type ScriptSSHExecutor interface {
+type ScriptExecutor interface {
 	RunScript(ctx context.Context, script string) (string, error)
 }
 
+type PreflightExecutor interface {
+	Preflight(ctx context.Context) (string, error)
+}
+
+type SSHExecutor = CommandExecutor
+type ScriptSSHExecutor = ScriptExecutor
+
 type SetupManager struct {
-	Executor       SSHExecutor
+	Executor       CommandExecutor
 	Token          string
 	InstallOptions SetupInstallOptions
 }
@@ -29,9 +36,15 @@ type PreflightResult struct {
 
 func (m SetupManager) Preflight(ctx context.Context) (PreflightResult, error) {
 	if m.Executor == nil {
-		return PreflightResult{}, fmt.Errorf("ssh executor is not configured")
+		return PreflightResult{}, fmt.Errorf("setup executor is not configured")
 	}
-	out, err := m.Executor.Run(ctx, "printf 'ARCH='; uname -m; printf 'HAS_KVM='; test -e /dev/kvm && echo 1 || echo 0; . /etc/os-release 2>/dev/null; printf 'OS_ID=%s\\n' \"$ID\"; printf 'OS_VERSION=%s\\n' \"$VERSION_ID\"")
+	var out string
+	var err error
+	if preflight, ok := m.Executor.(PreflightExecutor); ok {
+		out, err = preflight.Preflight(ctx)
+	} else {
+		out, err = m.Executor.Run(ctx, "printf 'ARCH='; uname -m; printf 'HAS_KVM='; test -e /dev/kvm && echo 1 || echo 0; . /etc/os-release 2>/dev/null; printf 'OS_ID=%s\\n' \"$ID\"; printf 'OS_VERSION=%s\\n' \"$VERSION_ID\"")
+	}
 	if err != nil {
 		return PreflightResult{}, err
 	}
@@ -52,11 +65,23 @@ func ParsePreflightOutput(out string) PreflightResult {
 	if arch := checks["ARCH"]; arch != "" && arch != "x86_64" && arch != "amd64" && arch != "aarch64" && arch != "arm64" {
 		issues = append(issues, "unsupported architecture: boring-computers setup currently expects x86_64/amd64 or aarch64/arm64")
 	}
+	if hostOS := strings.ToLower(checks["HOST_OS"]); hostOS != "" && hostOS != "linux" {
+		issues = append(issues, "local boring-computers setup requires Linux; found "+hostOS)
+	}
 	if checks["HAS_KVM"] != "1" {
 		issues = append(issues, "KVM is not available on the host")
 	}
 	if osID := strings.ToLower(checks["OS_ID"]); osID != "" && osID != "ubuntu" {
 		issues = append(issues, "Ubuntu is required by the upstream setup script")
+	}
+	if checks["RUNNING_IN_DOCKER"] == "1" {
+		issues = append(issues, "Docker container runtime is not supported for local boring-computers setup")
+	}
+	if hasSystemd := checks["HAS_SYSTEMD"]; hasSystemd != "" && hasSystemd != "1" {
+		issues = append(issues, "systemd is required for local boring-computers setup")
+	}
+	if hasSudoOrRoot := checks["HAS_SUDO_OR_ROOT"]; hasSudoOrRoot != "" && hasSudoOrRoot != "1" {
+		issues = append(issues, "root or passwordless sudo is required for local boring-computers setup")
 	}
 	return PreflightResult{
 		Supported: len(issues) == 0,
@@ -67,14 +92,14 @@ func ParsePreflightOutput(out string) PreflightResult {
 
 func (m SetupManager) Install(ctx context.Context) (SetupStatus, error) {
 	if m.Executor == nil {
-		return SetupStatus{}, fmt.Errorf("ssh executor is not configured")
+		return SetupStatus{}, fmt.Errorf("setup executor is not configured")
 	}
 	preflight, err := m.Preflight(ctx)
 	if err != nil {
 		return SetupStatus{}, err
 	}
 	if !preflight.Supported {
-		return SetupStatus{Configured: false, Healthy: false, Message: strings.Join(preflight.Issues, "; ")}, nil
+		return SetupStatus{Configured: false, Healthy: false, Message: strings.Join(preflight.Issues, "; "), Preflight: preflight}, nil
 	}
 	out, err := m.runInstall(ctx)
 	if err != nil {
@@ -82,7 +107,7 @@ func (m SetupManager) Install(ctx context.Context) (SetupStatus, error) {
 		if msg == "" {
 			msg = m.RedactInstallLog(err.Error())
 		}
-		return SetupStatus{Configured: false, Healthy: false, Message: msg}, fmt.Errorf("boringd install failed: %w", err)
+		return SetupStatus{Configured: false, Healthy: false, Message: msg, Preflight: preflight}, fmt.Errorf("boringd install failed: %w", err)
 	}
 	health, err := m.Executor.Run(ctx, "curl -fsS --max-time 8 http://127.0.0.1:8080/healthz")
 	if err != nil {
@@ -90,12 +115,14 @@ func (m SetupManager) Install(ctx context.Context) (SetupStatus, error) {
 			Configured: true,
 			Healthy:    false,
 			Message:    strings.TrimSpace(m.RedactInstallLog(out + "\nhealth check failed: " + err.Error())),
+			Preflight:  preflight,
 		}, nil
 	}
 	return SetupStatus{
 		Configured: true,
 		Healthy:    true,
 		Message:    "boringd installed and healthy: " + strings.TrimSpace(health),
+		Preflight:  preflight,
 	}, nil
 }
 
@@ -105,7 +132,7 @@ func (m SetupManager) RedactInstallLog(log string) string {
 
 func (m SetupManager) runInstall(ctx context.Context) (string, error) {
 	script := m.installScript()
-	if runner, ok := m.Executor.(ScriptSSHExecutor); ok {
+	if runner, ok := m.Executor.(ScriptExecutor); ok {
 		return runner.RunScript(ctx, script)
 	}
 	return m.Executor.Run(ctx, heredocCommand("/tmp/aurago-boring-setup.sh", script))
