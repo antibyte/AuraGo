@@ -140,6 +140,16 @@ func TestParseVirtualComputersSSHTarget(t *testing.T) {
 	}
 }
 
+func TestVirtualComputersLoopbackListenAddr(t *testing.T) {
+	addr, ok := virtualComputersLoopbackListenAddr("http://localhost:18080")
+	if !ok || addr != "127.0.0.1:18080" {
+		t.Fatalf("loopback addr = %q ok=%v", addr, ok)
+	}
+	if addr, ok := virtualComputersLoopbackListenAddr("https://example.test:8443"); ok || addr != "" {
+		t.Fatalf("public addr should not tunnel, got %q ok=%v", addr, ok)
+	}
+}
+
 func virtualComputersTestConfig(upstreamURL string) *config.Config {
 	cfg := &config.Config{}
 	cfg.VirtualComputers.Enabled = true

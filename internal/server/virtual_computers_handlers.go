@@ -9,8 +9,10 @@ import (
 	"net"
 	"net/http"
 	"net/http/httputil"
+	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"aurago/internal/credentials"
@@ -18,6 +20,7 @@ import (
 	"aurago/internal/virtualcomputers"
 
 	"github.com/gorilla/websocket"
+	"golang.org/x/crypto/ssh"
 )
 
 var virtualComputersWSUpgrader = websocket.Upgrader{
@@ -25,6 +28,12 @@ var virtualComputersWSUpgrader = websocket.Upgrader{
 		return desktopWSUpgrader.CheckOrigin(r)
 	},
 }
+
+var virtualComputersTunnel = struct {
+	sync.Mutex
+	key   string
+	close func()
+}{}
 
 type virtualComputersSetupRequest struct {
 	SkipDesktop bool `json:"skip_desktop"`
@@ -651,11 +660,159 @@ func virtualComputersClient(s *Server) (*virtualcomputers.Client, error) {
 	if strings.TrimSpace(cfg.BoringdURL) == "" {
 		return nil, fmt.Errorf("boringd URL is not configured")
 	}
+	if err := virtualComputersEnsureControlPlaneAccess(s, cfg); err != nil {
+		return nil, err
+	}
 	return virtualcomputers.NewClient(virtualcomputers.ClientConfig{
 		BaseURL: cfg.BoringdURL,
 		Token:   cfg.BoringToken,
 		Timeout: 30 * time.Second,
 	})
+}
+
+func virtualComputersEnsureControlPlaneAccess(s *Server, cfg virtualcomputers.ToolConfig) error {
+	if !strings.EqualFold(strings.TrimSpace(cfg.ControlPlane.Mode), "ssh_host") {
+		return nil
+	}
+	if strings.TrimSpace(cfg.ControlPlane.Host) == "" && strings.TrimSpace(cfg.ControlPlane.CredentialID) == "" {
+		return nil
+	}
+	localAddr, ok := virtualComputersLoopbackListenAddr(cfg.BoringdURL)
+	if !ok {
+		return nil
+	}
+	if virtualComputersHealthOK(cfg.BoringdURL) {
+		return nil
+	}
+	executor, err := virtualComputersSetupExecutor(s, cfg)
+	if err != nil {
+		return fmt.Errorf("virtual computer SSH tunnel setup failed: %w", err)
+	}
+	key := fmt.Sprintf("%s:%d>%s", executor.Host, executor.Port, localAddr)
+
+	virtualComputersTunnel.Lock()
+	defer virtualComputersTunnel.Unlock()
+	if virtualComputersTunnel.key == key && virtualComputersTunnel.close != nil {
+		if virtualComputersHealthOK(cfg.BoringdURL) {
+			return nil
+		}
+		virtualComputersTunnel.close()
+		virtualComputersTunnel.key = ""
+		virtualComputersTunnel.close = nil
+	}
+	if virtualComputersTunnel.close != nil {
+		virtualComputersTunnel.close()
+		virtualComputersTunnel.key = ""
+		virtualComputersTunnel.close = nil
+	}
+	closeFn, err := startVirtualComputersSSHTunnel(executor, localAddr, "127.0.0.1:8080", s)
+	if err != nil {
+		return fmt.Errorf("start virtual computer SSH tunnel: %w", err)
+	}
+	virtualComputersTunnel.key = key
+	virtualComputersTunnel.close = closeFn
+	return nil
+}
+
+func virtualComputersLoopbackListenAddr(rawURL string) (string, bool) {
+	parsed, err := url.Parse(strings.TrimSpace(rawURL))
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+		return "", false
+	}
+	host := strings.ToLower(parsed.Hostname())
+	switch host {
+	case "localhost", "127.0.0.1":
+		host = "127.0.0.1"
+	case "::1":
+	default:
+		return "", false
+	}
+	port := parsed.Port()
+	if port == "" {
+		switch parsed.Scheme {
+		case "http":
+			port = "80"
+		case "https":
+			port = "443"
+		default:
+			return "", false
+		}
+	}
+	return net.JoinHostPort(host, port), true
+}
+
+func virtualComputersHealthOK(baseURL string) bool {
+	parsed, err := url.Parse(strings.TrimRight(strings.TrimSpace(baseURL), "/") + "/healthz")
+	if err != nil {
+		return false
+	}
+	client := http.Client{Timeout: 1200 * time.Millisecond}
+	resp, err := client.Get(parsed.String())
+	if err != nil {
+		return false
+	}
+	defer resp.Body.Close()
+	return resp.StatusCode >= 200 && resp.StatusCode < 300
+}
+
+func startVirtualComputersSSHTunnel(executor virtualComputersSSHExecutor, localAddr, remoteAddr string, s *Server) (func(), error) {
+	sshCfg, err := remote.GetSSHConfig(executor.User, executor.Secret)
+	if err != nil {
+		return nil, err
+	}
+	client, err := ssh.Dial("tcp", fmt.Sprintf("%s:%d", executor.Host, executor.Port), sshCfg)
+	if err != nil {
+		return nil, err
+	}
+	listener, err := net.Listen("tcp", localAddr)
+	if err != nil {
+		client.Close()
+		return nil, err
+	}
+	var once sync.Once
+	closeFn := func() {
+		once.Do(func() {
+			_ = listener.Close()
+			_ = client.Close()
+		})
+	}
+	go serveVirtualComputersSSHTunnel(listener, client, remoteAddr, s)
+	return closeFn, nil
+}
+
+func serveVirtualComputersSSHTunnel(listener net.Listener, client *ssh.Client, remoteAddr string, s *Server) {
+	for {
+		localConn, err := listener.Accept()
+		if err != nil {
+			return
+		}
+		go proxyVirtualComputersTunnelConn(localConn, client, remoteAddr, s)
+	}
+}
+
+func proxyVirtualComputersTunnelConn(localConn net.Conn, client *ssh.Client, remoteAddr string, s *Server) {
+	remoteConn, err := client.Dial("tcp", remoteAddr)
+	if err != nil {
+		if s != nil && s.Logger != nil {
+			s.Logger.Warn("[VirtualComputers] SSH tunnel dial failed", "error", err)
+		}
+		_ = localConn.Close()
+		return
+	}
+	done := make(chan struct{}, 2)
+	go func() {
+		_, _ = io.Copy(remoteConn, localConn)
+		_ = remoteConn.Close()
+		_ = localConn.Close()
+		done <- struct{}{}
+	}()
+	go func() {
+		_, _ = io.Copy(localConn, remoteConn)
+		_ = remoteConn.Close()
+		_ = localConn.Close()
+		done <- struct{}{}
+	}()
+	<-done
 }
 
 func virtualComputersConfigSnapshot(s *Server) virtualcomputers.ToolConfig {
