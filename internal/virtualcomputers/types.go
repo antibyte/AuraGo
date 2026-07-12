@@ -19,24 +19,28 @@ type ControlPlaneConfig struct {
 }
 
 type ToolConfig struct {
-	Enabled            bool
-	Provider           string
-	AutoSetup          bool
-	ReadOnly           bool
-	ToolGate           bool
-	ControlPlane       ControlPlaneConfig
-	BoringdURL         string
-	BoringToken        string
-	DefaultTemplate    string
-	DefaultTTLSeconds  int
-	MaxTTLSeconds      int
-	MaxRunningMachines int
-	MaxForks           int
-	AllowInternet      bool
-	AllowPersistent    bool
-	AllowPublish       bool
-	AllowVolumes       bool
-	AllowAgentTasks    bool
+	Enabled             bool
+	Provider            string
+	AutoSetup           bool
+	ReadOnly            bool
+	ToolGate            bool
+	ControlPlane        ControlPlaneConfig
+	BoringdURL          string
+	BoringToken         string
+	BoringAnthropicKey  string
+	BoringOpenRouterKey string
+	S3AccessKeyID       string
+	S3SecretKey         string
+	DefaultTemplate     string
+	DefaultTTLSeconds   int
+	MaxTTLSeconds       int
+	MaxRunningMachines  int
+	MaxForks            int
+	AllowInternet       bool
+	AllowPersistent     bool
+	AllowPublish        bool
+	AllowVolumes        bool
+	AllowAgentTasks     bool
 }
 
 type Machine struct {
@@ -108,4 +112,20 @@ type SetupStatus struct {
 	Configured bool   `json:"configured"`
 	Healthy    bool   `json:"healthy"`
 	Message    string `json:"message,omitempty"`
+}
+
+type SetupInstallOptions struct {
+	InstallDir         string
+	Token              string
+	AnthropicKey       string
+	OpenRouterKey      string
+	S3AccessKeyID      string
+	S3SecretKey        string
+	MaxRunningMachines int
+	MaxForks           int
+	AllowInternet      bool
+	AllowPersistent    bool
+	AllowPublish       bool
+	AllowVolumes       bool
+	SkipDesktop        bool
 }

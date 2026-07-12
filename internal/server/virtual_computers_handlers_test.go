@@ -3,10 +3,13 @@ package server
 import (
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"aurago/internal/config"
+	"aurago/internal/security"
+	"aurago/internal/virtualcomputers"
 
 	"github.com/gorilla/websocket"
 )
@@ -92,6 +95,48 @@ func TestVirtualComputersWebSocketProxyPassesBinary(t *testing.T) {
 	}
 	if upstreamAuth != "Bearer boring-token" {
 		t.Fatalf("upstream auth = %q", upstreamAuth)
+	}
+}
+
+func TestVirtualComputersEnsureBoringTokenStoresVaultOnly(t *testing.T) {
+	vault, err := security.NewVault(strings.Repeat("a", 64), filepath.Join(t.TempDir(), "vault.bin"))
+	if err != nil {
+		t.Fatalf("NewVault: %v", err)
+	}
+	cfg := virtualComputersTestConfig("http://127.0.0.1:8080")
+	cfg.VirtualComputers.BoringToken = ""
+	s := &Server{Cfg: cfg, Vault: vault}
+
+	token, generated, err := virtualComputersEnsureBoringToken(s, virtualcomputers.FromAuraConfig(cfg))
+	if err != nil {
+		t.Fatalf("ensure token: %v", err)
+	}
+	if !generated {
+		t.Fatal("expected generated token")
+	}
+	if !strings.HasPrefix(token, "boring_") {
+		t.Fatalf("token prefix = %q", token)
+	}
+	stored, err := vault.ReadSecret("virtual_computers_boring_token")
+	if err != nil {
+		t.Fatalf("read vault token: %v", err)
+	}
+	if stored != token {
+		t.Fatalf("stored token mismatch")
+	}
+	if s.Cfg.VirtualComputers.BoringToken != token {
+		t.Fatalf("runtime config token was not updated")
+	}
+}
+
+func TestParseVirtualComputersSSHTarget(t *testing.T) {
+	user, host, port := parseVirtualComputersSSHTarget("root@example.test:2222", 22)
+	if user != "root" || host != "example.test" || port != 2222 {
+		t.Fatalf("parsed = user=%q host=%q port=%d", user, host, port)
+	}
+	user, host, port = parseVirtualComputersSSHTarget("[2001:db8::1]:2200", 22)
+	if user != "" || host != "2001:db8::1" || port != 2200 {
+		t.Fatalf("parsed ipv6 = user=%q host=%q port=%d", user, host, port)
 	}
 }
 

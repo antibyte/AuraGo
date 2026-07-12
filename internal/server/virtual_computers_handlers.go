@@ -1,15 +1,20 @@
 package server
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"strconv"
 	"strings"
 	"time"
 
+	"aurago/internal/credentials"
+	"aurago/internal/remote"
 	"aurago/internal/virtualcomputers"
 
 	"github.com/gorilla/websocket"
@@ -19,6 +24,25 @@ var virtualComputersWSUpgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
 		return desktopWSUpgrader.CheckOrigin(r)
 	},
+}
+
+type virtualComputersSetupRequest struct {
+	SkipDesktop bool `json:"skip_desktop"`
+}
+
+type virtualComputersSSHExecutor struct {
+	Host   string
+	Port   int
+	User   string
+	Secret []byte
+}
+
+func (e virtualComputersSSHExecutor) Run(ctx context.Context, command string) (string, error) {
+	return remote.ExecuteRemoteCommand(ctx, e.Host, e.Port, e.User, e.Secret, command)
+}
+
+func (e virtualComputersSSHExecutor) RunScript(ctx context.Context, script string) (string, error) {
+	return remote.ExecuteRemoteScript(ctx, e.Host, e.Port, e.User, e.Secret, script)
 }
 
 func registerVirtualComputersRoutes(mux *http.ServeMux, s *Server) {
@@ -69,17 +93,31 @@ func handleVirtualComputersSetupPreflight(s *Server) http.HandlerFunc {
 			jsonError(w, "virtual computer auto-setup is disabled", http.StatusForbidden)
 			return
 		}
-		virtualComputersRecordSetupState(s, r, "preflight", "pending")
-		virtualComputersRecordAction(s, r, "preflight", "setup", "", nil)
+		manager, err := virtualComputersSetupManager(s, cfg, "")
+		if err != nil {
+			virtualComputersRecordSetupState(s, r, "preflight", "failed")
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
+		defer cancel()
+		result, err := manager.Preflight(ctx)
+		if err != nil {
+			virtualComputersRecordSetupState(s, r, "preflight", "failed")
+			jsonError(w, manager.RedactInstallLog(err.Error()), http.StatusBadGateway)
+			return
+		}
+		state := "unsupported"
+		if result.Supported {
+			state = "supported"
+		}
+		virtualComputersRecordSetupState(s, r, "preflight", state)
+		virtualComputersRecordAction(s, r, "preflight", "setup", "", map[string]interface{}{"supported": result.Supported})
 		writeJSON(w, map[string]interface{}{
-			"status":  "pending",
-			"message": "SSH preflight requires the configured credential executor; this build keeps boringd private and validates host requirements before install.",
-			"requirements": []string{
-				"Ubuntu host",
-				"x86_64 architecture",
-				"/dev/kvm available",
-				"SSH credential stored in AuraGo vault",
-			},
+			"status":   state,
+			"result":   result,
+			"message":  "boring-computers setup requires Ubuntu with /dev/kvm and x86_64/amd64 or arm64/aarch64.",
+			"ssh_host": cfg.ControlPlane.Host,
 		})
 	}
 }
@@ -98,11 +136,46 @@ func handleVirtualComputersSetupInstall(s *Server) http.HandlerFunc {
 			jsonError(w, "virtual computer auto-setup is disabled", http.StatusForbidden)
 			return
 		}
-		virtualComputersRecordSetupState(s, r, "install", "accepted")
-		virtualComputersRecordAction(s, r, "install", "setup", "", nil)
+		var req virtualComputersSetupRequest
+		if err := decodeOptionalJSON(r, &req); err != nil {
+			jsonError(w, "invalid setup request", http.StatusBadRequest)
+			return
+		}
+		token, generatedToken, err := virtualComputersEnsureBoringToken(s, cfg)
+		if err != nil {
+			virtualComputersRecordSetupState(s, r, "install", "failed")
+			jsonError(w, err.Error(), http.StatusServiceUnavailable)
+			return
+		}
+		manager, err := virtualComputersSetupManager(s, cfg, token)
+		if err != nil {
+			virtualComputersRecordSetupState(s, r, "install", "failed")
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		manager.InstallOptions = virtualComputersSetupOptions(cfg, token, req)
+		ctx, cancel := context.WithTimeout(r.Context(), 90*time.Minute)
+		defer cancel()
+		status, err := manager.Install(ctx)
+		if err != nil {
+			virtualComputersRecordSetupState(s, r, "install", "failed")
+			virtualComputersRecordAction(s, r, "install_failed", "setup", "", map[string]interface{}{"message": status.Message})
+			jsonError(w, status.Message, http.StatusBadGateway)
+			return
+		}
+		state := "installed"
+		if !status.Healthy {
+			state = "unhealthy"
+		}
+		virtualComputersRecordSetupState(s, r, "install", state)
+		virtualComputersRecordAction(s, r, "install", "setup", "", map[string]interface{}{"healthy": status.Healthy, "token_generated": generatedToken})
 		writeJSON(w, map[string]interface{}{
-			"status":  "accepted",
-			"message": "install/repair orchestration is configured for idempotent SSH execution; boringd remains private behind AuraGo routes",
+			"status":           state,
+			"setup":            status,
+			"token_configured": true,
+			"token_generated":  generatedToken,
+			"boringd_url":      cfg.BoringdURL,
+			"message":          "boringd is installed bound to 127.0.0.1:8080 on the control-plane host; AuraGo keeps the token server-side.",
 		})
 	}
 }
@@ -680,6 +753,187 @@ func virtualComputersLogLedgerError(s *Server, err error) {
 		return
 	}
 	s.Logger.Warn("[VirtualComputers] ledger update failed", "error", err)
+}
+
+func decodeOptionalJSON(r *http.Request, dst interface{}) error {
+	if r == nil || r.Body == nil || dst == nil {
+		return nil
+	}
+	if r.ContentLength == 0 {
+		return nil
+	}
+	err := json.NewDecoder(r.Body).Decode(dst)
+	if err == nil || err == io.EOF {
+		return nil
+	}
+	return err
+}
+
+func virtualComputersSetupManager(s *Server, cfg virtualcomputers.ToolConfig, token string) (virtualcomputers.SetupManager, error) {
+	executor, err := virtualComputersSetupExecutor(s, cfg)
+	if err != nil {
+		return virtualcomputers.SetupManager{}, err
+	}
+	return virtualcomputers.SetupManager{
+		Executor:       executor,
+		Token:          token,
+		InstallOptions: virtualComputersSetupOptions(cfg, token, virtualComputersSetupRequest{}),
+	}, nil
+}
+
+func virtualComputersSetupOptions(cfg virtualcomputers.ToolConfig, token string, req virtualComputersSetupRequest) virtualcomputers.SetupInstallOptions {
+	return virtualcomputers.SetupInstallOptions{
+		InstallDir:         cfg.ControlPlane.InstallDir,
+		Token:              token,
+		AnthropicKey:       cfg.BoringAnthropicKey,
+		OpenRouterKey:      cfg.BoringOpenRouterKey,
+		S3AccessKeyID:      cfg.S3AccessKeyID,
+		S3SecretKey:        cfg.S3SecretKey,
+		MaxRunningMachines: cfg.MaxRunningMachines,
+		MaxForks:           cfg.MaxForks,
+		AllowInternet:      cfg.AllowInternet,
+		AllowPersistent:    cfg.AllowPersistent,
+		AllowPublish:       cfg.AllowPublish,
+		AllowVolumes:       cfg.AllowVolumes,
+		SkipDesktop:        req.SkipDesktop,
+	}
+}
+
+func virtualComputersSetupExecutor(s *Server, cfg virtualcomputers.ToolConfig) (virtualComputersSSHExecutor, error) {
+	cp := cfg.ControlPlane
+	port := cp.SSHPort
+	if port <= 0 {
+		port = 22
+	}
+	if strings.TrimSpace(cp.CredentialID) != "" {
+		return virtualComputersSetupExecutorFromCredential(s, cp.CredentialID, cp.Host, port)
+	}
+
+	user, host, parsedPort := parseVirtualComputersSSHTarget(cp.Host, port)
+	if host == "" {
+		return virtualComputersSSHExecutor{}, fmt.Errorf("virtual computer control-plane host is required")
+	}
+	if user == "" {
+		user = "root"
+	}
+	secret := strings.TrimSpace(safeConfigSSHSecret(s))
+	if secret == "" && s != nil && s.Vault != nil {
+		secret, _ = s.Vault.ReadSecret("virtual_computers_ssh_secret")
+	}
+	if strings.TrimSpace(secret) == "" {
+		return virtualComputersSSHExecutor{}, fmt.Errorf("virtual computer SSH secret is missing; store virtual_computers_ssh_secret in the vault or select an SSH credential")
+	}
+	return virtualComputersSSHExecutor{Host: host, Port: parsedPort, User: user, Secret: []byte(secret)}, nil
+}
+
+func virtualComputersSetupExecutorFromCredential(s *Server, credentialID, fallbackHost string, fallbackPort int) (virtualComputersSSHExecutor, error) {
+	if s == nil || s.InventoryDB == nil {
+		return virtualComputersSSHExecutor{}, fmt.Errorf("inventory database is not available for SSH credential lookup")
+	}
+	if s.Vault == nil {
+		return virtualComputersSSHExecutor{}, fmt.Errorf("vault is not available for SSH credential lookup")
+	}
+	cred, err := credentials.GetByID(s.InventoryDB, strings.TrimSpace(credentialID))
+	if err != nil {
+		return virtualComputersSSHExecutor{}, fmt.Errorf("load SSH credential: %w", err)
+	}
+	if cred.Type != "" && !strings.EqualFold(cred.Type, "ssh") {
+		return virtualComputersSSHExecutor{}, fmt.Errorf("credential %q is type %q, not ssh", cred.Name, cred.Type)
+	}
+	user := strings.TrimSpace(cred.Username)
+	host := strings.TrimSpace(cred.Host)
+	if host == "" {
+		host = strings.TrimSpace(fallbackHost)
+	}
+	parsedUser, parsedHost, parsedPort := parseVirtualComputersSSHTarget(host, fallbackPort)
+	if parsedUser != "" {
+		user = parsedUser
+	}
+	if parsedHost != "" {
+		host = parsedHost
+	}
+	if user == "" {
+		user = "root"
+	}
+	secretID := strings.TrimSpace(cred.CertificateVaultID)
+	if secretID == "" {
+		secretID = strings.TrimSpace(cred.PasswordVaultID)
+	}
+	if secretID == "" {
+		return virtualComputersSSHExecutor{}, fmt.Errorf("credential %q has no SSH password or private key stored in the vault", cred.Name)
+	}
+	secret, err := s.Vault.ReadSecret(secretID)
+	if err != nil {
+		return virtualComputersSSHExecutor{}, fmt.Errorf("read SSH credential secret: %w", err)
+	}
+	if strings.TrimSpace(host) == "" {
+		return virtualComputersSSHExecutor{}, fmt.Errorf("virtual computer SSH credential has no host")
+	}
+	return virtualComputersSSHExecutor{Host: host, Port: parsedPort, User: user, Secret: []byte(secret)}, nil
+}
+
+func parseVirtualComputersSSHTarget(target string, defaultPort int) (user, host string, port int) {
+	port = defaultPort
+	if port <= 0 {
+		port = 22
+	}
+	target = strings.TrimSpace(target)
+	if target == "" {
+		return "", "", port
+	}
+	if before, after, ok := strings.Cut(target, "@"); ok {
+		user = strings.TrimSpace(before)
+		target = strings.TrimSpace(after)
+	}
+	if h, p, err := net.SplitHostPort(target); err == nil {
+		host = strings.Trim(h, "[]")
+		if parsed, parseErr := strconv.Atoi(p); parseErr == nil && parsed > 0 {
+			port = parsed
+		}
+		return user, host, port
+	}
+	if strings.Count(target, ":") == 1 {
+		if h, p, ok := strings.Cut(target, ":"); ok {
+			if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
+				return user, strings.TrimSpace(h), parsed
+			}
+		}
+	}
+	return user, strings.Trim(target, "[]"), port
+}
+
+func safeConfigSSHSecret(s *Server) string {
+	if s == nil || s.Cfg == nil {
+		return ""
+	}
+	s.CfgMu.RLock()
+	defer s.CfgMu.RUnlock()
+	return s.Cfg.VirtualComputers.ControlPlane.SSHSecret
+}
+
+func virtualComputersEnsureBoringToken(s *Server, cfg virtualcomputers.ToolConfig) (string, bool, error) {
+	if token := strings.TrimSpace(cfg.BoringToken); token != "" {
+		return token, false, nil
+	}
+	if s == nil || s.Vault == nil {
+		return "", false, fmt.Errorf("vault is required to create the boringd token")
+	}
+	raw, err := GenerateRandomHex(32)
+	if err != nil {
+		return "", false, fmt.Errorf("generate boringd token: %w", err)
+	}
+	token := "boring_" + raw
+	if err := s.Vault.WriteSecret("virtual_computers_boring_token", token); err != nil {
+		return "", false, fmt.Errorf("store boringd token in vault: %w", err)
+	}
+	s.CfgMu.Lock()
+	if s.Cfg != nil {
+		newCfg := *s.Cfg
+		newCfg.VirtualComputers.BoringToken = token
+		s.replaceConfigSnapshot(&newCfg)
+	}
+	s.CfgMu.Unlock()
+	return token, true, nil
 }
 
 func virtualComputersActor(r *http.Request) string {
