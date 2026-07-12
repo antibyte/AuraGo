@@ -125,7 +125,7 @@ func dispatchShell(tc ToolCall, dc *DispatchContext) string {
 			if err != nil {
 				return fmt.Sprintf("Tool Output: [EXECUTION ERROR] starting background shell process: %v", err)
 			}
-			return fmt.Sprintf("Tool Output: Shell process started in background. PID=%d. Use {\"action\": \"read_process_logs\", \"pid\": %d} to check output.", pid, pid)
+			return backgroundProcessStartedOutput("Shell process", pid)
 		}
 		stdout, stderr, err := tools.ExecuteShell(req.Command, cfg.Directories.WorkspaceDir)
 		stdout = security.Scrub(stdout)

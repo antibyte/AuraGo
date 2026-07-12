@@ -549,10 +549,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		if !runCfg.IsMission && !isAutonomousRun && longTermMem != nil && shouldUseRAGForMessage(lastUserMsg) && shouldRefreshRAG(lastUserMsg, ragLastUserMsg, ragToolIterationsSinceLastRefresh, lastResponseWasTool) {
 			ragSettings := resolveMemoryAnalysisSettings(cfg, shortTermMem)
 			useHelperRAGBatch := helperManager != nil && ragSettings.Enabled && ragSettings.QueryExpansion && ragSettings.LLMReranking
-			ragQuery := lastUserMsg
-			if useHelperRAGBatch {
-				ragQuery = expandQueryForRAG(ctx, cfg, s.currentLogger, lastUserMsg, shortTermMem)
-			}
+			ragQuery := resolveInitialRAGQuery(lastUserMsg, useHelperRAGBatch, func(query string) string {
+				return expandQueryForRAG(ctx, cfg, s.currentLogger, query, shortTermMem)
+			})
 			ragLastUserMsg = lastUserMsg
 			ragToolIterationsSinceLastRefresh = 0
 

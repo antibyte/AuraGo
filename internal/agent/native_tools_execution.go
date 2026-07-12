@@ -179,20 +179,20 @@ func appendExecutionToolSchemas(tools []openai.Tool, ff ToolFeatureFlags, execut
 
 	if ff.AllowShell {
 		tools = append(tools, tool("execute_shell",
-			"Run a shell command on the local system. Use for system info and commands that truly need a shell. Do not use for Virtual Desktop paths such as Apps/, Widgets/, agent_workspace/virtual_desktop, or Code Studio /workspace paths; use virtual_desktop instead. Do not use for homepage project files; use homepage instead.",
+			"Run a shell command on the local system. Use for system info and commands that truly need a shell. For background work, do not pipe through tail because that masks the command exit code; AuraGo already keeps bounded logs. Wait with wait_for_event(process_exited), not sleep polling. Do not use for Virtual Desktop paths such as Apps/, Widgets/, agent_workspace/virtual_desktop, or Code Studio /workspace paths; use virtual_desktop instead. Do not use for homepage project files; use homepage instead.",
 			schema(map[string]interface{}{
 				"command":    prop("string", "The shell command to execute"),
-				"background": prop("boolean", "Run as background process (default false)"),
+				"background": prop("boolean", "Run as background process (default false); then use wait_for_event with event_type process_exited before reporting success"),
 			}, "command"),
 		))
 	}
 
 	if ff.AllowPython {
 		execPythonProps := map[string]interface{}{
-			"code":        prop("string", "The complete Python code to execute"),
-			"description": prop("string", "Brief description of what this script does"),
-			"background":  prop("boolean", "Run as background process (default false)"),
-			"enable_tool_bridge": prop("boolean", "Allow this foreground Python run to import aurago and call allowlisted AuraGo tools through aurago.call_tool. Requires tools.python_tool_bridge.enabled and allowed_tools in config. Not supported with background=true."),
+			"code":                   prop("string", "The complete Python code to execute"),
+			"description":            prop("string", "Brief description of what this script does"),
+			"background":             prop("boolean", "Run as background process (default false)"),
+			"enable_tool_bridge":     prop("boolean", "Allow this foreground Python run to import aurago and call allowlisted AuraGo tools through aurago.call_tool. Requires tools.python_tool_bridge.enabled and allowed_tools in config. Not supported with background=true."),
 			"tool_bridge_call_limit": prop("integer", "Optional per-run limit for aurago.call_tool calls when enable_tool_bridge=true. Default 10, maximum 50."),
 		}
 		if ff.PythonSecretInjectionEnabled {

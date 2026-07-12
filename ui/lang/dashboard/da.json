@@ -352,6 +352,7 @@
   "dashboard.memory_chart_messages": "Beskeder",
   "dashboard.memory_conflicts_empty": "Ingen åbne hukommelseskonflikter",
   "dashboard.memory_conflicts_title": "Åbne konflikter",
+  "dashboard.memory_pending_writes": "Hukommelsesskrivninger afventer nyt forsøg",
   "dashboard.memory_core_facts": "Kerne fakta",
   "dashboard.memory_curator_empty": "Ingen kurator forslag endnu",
   "dashboard.memory_curator_fact_contradictions": "{{count}}modsigende minded",

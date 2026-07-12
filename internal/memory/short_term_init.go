@@ -307,6 +307,10 @@ CREATE INDEX IF NOT EXISTS idx_memory_usage_log_used_at ON memory_usage_log(used
 
 	logger.Info("Initialized SQLite Short-Term Memory", "path", dbPath)
 	stm := &SQLiteMemory{db: db, logger: logger}
+	if err := stm.InitPendingMemoryWritesTable(); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
 
 	if err := stm.InitPersonalityTables(); err != nil {
 		logger.Warn("Failed to initialize personality tables", "error", err)

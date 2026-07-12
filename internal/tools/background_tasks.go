@@ -512,8 +512,22 @@ func (m *BackgroundTaskManager) checkWaitCondition(payload WaitForEventTaskPaylo
 		if registry == nil {
 			return false, "", fmt.Errorf("process registry is unavailable")
 		}
-		if info, ok := registry.Get(payload.PID); ok && info != nil && info.IsAlive() {
-			return false, fmt.Sprintf("process %d is still running", payload.PID), nil
+		if info, ok := registry.Get(payload.PID); ok && info != nil {
+			if info.IsAlive() {
+				return false, fmt.Sprintf("process %d is still running", payload.PID), nil
+			}
+			output := strings.TrimSpace(info.ReadOutput())
+			if len(output) > 2000 {
+				output = output[len(output)-2000:]
+			}
+			details := fmt.Sprintf("process %d exited state=%s exit_code=%d", payload.PID, info.GetState(), info.GetExitCode())
+			if reason := strings.TrimSpace(info.GetErrorReason()); reason != "" {
+				details += " error=" + reason
+			}
+			if output != "" {
+				details += " logs:\n" + output
+			}
+			return true, details, nil
 		}
 		return true, fmt.Sprintf("process %d exited", payload.PID), nil
 	case "http_available":

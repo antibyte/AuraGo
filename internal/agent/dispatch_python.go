@@ -58,7 +58,7 @@ func dispatchPython(tc ToolCall, dc *DispatchContext) string {
 			if bgErr != nil {
 				return fmt.Sprintf("Tool Output: [EXECUTION ERROR] starting background process: %v", bgErr)
 			}
-			msg := fmt.Sprintf("Tool Output: Process started in background. PID=%d. Use {\"action\": \"read_process_logs\", \"pid\": %d} to check output.", pid, pid)
+			msg := backgroundProcessStartedOutput("Process", pid)
 			if rejectedInfo != "" {
 				msg = rejectedInfo + "\n" + msg
 			}
@@ -225,7 +225,7 @@ func dispatchPython(tc ToolCall, dc *DispatchContext) string {
 			if bgErr != nil {
 				return fmt.Sprintf("Tool Output: ERROR starting background tool: %v", bgErr)
 			}
-			msg := fmt.Sprintf("Tool Output: Tool started in background. PID=%d. Use {\"action\": \"read_process_logs\", \"pid\": %d} to check output.", pid, pid)
+			msg := backgroundProcessStartedOutput("Tool", pid)
 			if rejInfo != "" {
 				msg = rejInfo + "\n" + msg
 			}

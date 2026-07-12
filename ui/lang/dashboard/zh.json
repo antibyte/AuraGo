@@ -352,6 +352,7 @@
   "dashboard.memory_chart_messages": "消息",
   "dashboard.memory_conflicts_empty": "无开放记忆冲突",
   "dashboard.memory_conflicts_title": "开放冲突",
+  "dashboard.memory_pending_writes": "等待重试的记忆写入",
   "dashboard.memory_core_facts": "核心事实",
   "dashboard.memory_curator_empty": "暂无策展建议",
   "dashboard.memory_curator_fact_contradictions": "{{count}} 条矛盾记忆",

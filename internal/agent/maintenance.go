@@ -27,6 +27,7 @@ import (
 
 // StartMaintenanceLoop spawns a background goroutine that runs daily at the configured time.
 func StartMaintenanceLoop(ctx context.Context, cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, historyMgr *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, contactsDB *sql.DB, plannerDB *sql.DB, cheatsheetDB *sql.DB, missionManagerV2 *tools.MissionManagerV2) {
+	startPendingMemoryWriteRetryLoop(ctx, logger, shortTermMem, longTermMem)
 	if !cfg.Maintenance.Enabled {
 		logger.Info("Daily maintenance is disabled in config")
 		return

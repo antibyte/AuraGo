@@ -304,18 +304,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 
 		case "list_processes":
 			logger.Info("LLM requested process list")
-			list := registry.List()
-			if len(list) == 0 {
-				return "Tool Output: No active background processes."
-			}
-			var sb strings.Builder
-			sb.WriteString("Tool Output: Active processes:\n")
-			for _, p := range list {
-				pid, _ := p["pid"].(int)
-				started, _ := p["started"].(string)
-				sb.WriteString(fmt.Sprintf("- PID: %d, Started: %s\n", pid, started))
-			}
-			return sb.String()
+			return formatManagedProcessList(registry.List())
 
 		case "stop_process":
 			if !cfg.Tools.StopProcess.Enabled {

@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -252,5 +253,33 @@ func TestBackgroundTaskManagerCheckWaitConditionReadsRegistryWithoutManagerLock(
 		}
 	case <-time.After(200 * time.Millisecond):
 		t.Fatal("expected checkWaitCondition to read process registry without waiting on manager mutex")
+	}
+}
+
+func TestBackgroundTaskManagerProcessExitedIncludesStatusAndLogTail(t *testing.T) {
+	mgr := NewBackgroundTaskManager(tempSystemTaskDir(t), testBackgroundTaskLogger())
+	t.Cleanup(func() { _ = mgr.Close() })
+	registry := NewProcessRegistry(testBackgroundTaskLogger())
+	info := &ProcessInfo{
+		PID:          5678,
+		StartedAt:    time.Now().Add(-time.Second),
+		Alive:        false,
+		State:        ProcessStateCrashed,
+		ExitCode:     2,
+		TerminatedAt: time.Now(),
+		ErrorReason:  "exit status 2",
+	}
+	_, _ = info.Write([]byte("compiler error: missing header"))
+	registry.Register(info)
+	mgr.SetProcessRegistry(registry)
+
+	met, details, err := mgr.checkWaitCondition(WaitForEventTaskPayload{EventType: "process_exited", PID: 5678})
+	if err != nil || !met {
+		t.Fatalf("met=%v err=%v", met, err)
+	}
+	for _, want := range []string{"state=crashed", "exit_code=2", "compiler error: missing header"} {
+		if !strings.Contains(details, want) {
+			t.Fatalf("details %q missing %q", details, want)
+		}
 	}
 }

@@ -352,6 +352,7 @@
   "dashboard.memory_chart_messages": "Wiadomości",
   "dashboard.memory_conflicts_empty": "Brak otwartych konfliktów pamięci",
   "dashboard.memory_conflicts_title": "Otwarte konflikty",
+  "dashboard.memory_pending_writes": "Zapisy pamięci oczekujące na ponowienie",
   "dashboard.memory_core_facts": "Podstawowe fakty",
   "dashboard.memory_curator_empty": "Brak sugestii kuratora",
   "dashboard.memory_curator_fact_contradictions": "{{count}} sprzecznych wspomnień",

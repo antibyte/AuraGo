@@ -3,8 +3,6 @@ package tools
 import (
 	"fmt"
 	"os/exec"
-	"sync"
-	"syscall"
 	"time"
 )
 
@@ -33,15 +31,7 @@ func registerManagedBackgroundProcess(cmd *exec.Cmd, registry *ProcessRegistry, 
 }
 
 func superviseBackgroundProcess(cmd *exec.Cmd, info *ProcessInfo, registry *ProcessRegistry, cleanup func(), timeout time.Duration) {
-	var removeOnce sync.Once
-	removeFromRegistry := func() {
-		removeOnce.Do(func() {
-			registry.Remove(info.PID)
-		})
-	}
-
 	defer func() {
-		removeFromRegistry()
 		if cleanup != nil {
 			cleanup()
 		}
@@ -65,7 +55,6 @@ func superviseBackgroundProcess(cmd *exec.Cmd, info *ProcessInfo, registry *Proc
 			if info.Process != nil {
 				_ = killProcess(info.Process)
 			}
-			removeFromRegistry()
 			select {
 			case err = <-waitDone:
 			case <-time.After(10 * time.Second):
@@ -76,33 +65,31 @@ func superviseBackgroundProcess(cmd *exec.Cmd, info *ProcessInfo, registry *Proc
 		err = <-waitDone
 	}
 
+	var systemMessage string
 	info.mu.Lock()
-	defer info.mu.Unlock()
 	info.Alive = false
 	info.TerminatedAt = time.Now()
 
-	if timedOut {
+	if info.State == ProcessStateTerminated {
+		// Terminate already recorded the authoritative state.
+	} else if timedOut {
 		info.State = ProcessStateTimedOut
 		info.TimedOut = true
 		info.ErrorReason = fmt.Sprintf("process exceeded background timeout of %s", timeout)
-		info.WriteSystemMessage(fmt.Sprintf("[process terminated after exceeding background timeout of %s]", timeout))
+		systemMessage = fmt.Sprintf("[process terminated after exceeding background timeout of %s]", timeout)
 	} else if err != nil {
-		// Extract exit code if available
 		if exitErr, ok := err.(*exec.ExitError); ok {
-			if status, ok := exitErr.Sys().(syscall.WaitStatus); ok {
-				info.ExitCode = status.ExitStatus()
-			}
+			info.ExitCode = exitErr.ExitCode()
 		}
 		info.State = ProcessStateCrashed
 		info.ErrorReason = err.Error()
-		info.WriteSystemMessage(fmt.Sprintf("[process exited with error: %v]", err))
+		systemMessage = fmt.Sprintf("[process exited with error: %v]", err)
 	} else {
-		// Normal exit
 		info.State = ProcessStateExited
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			if status, ok := exitErr.Sys().(syscall.WaitStatus); ok {
-				info.ExitCode = status.ExitStatus()
-			}
-		}
 	}
+	info.mu.Unlock()
+	if systemMessage != "" {
+		_ = info.WriteSystemMessage(systemMessage)
+	}
+	registry.pruneCompleted(time.Now())
 }

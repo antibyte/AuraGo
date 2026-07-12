@@ -27,6 +27,23 @@ func TestInferRuleFromResolution_ShellPermissionDenied(t *testing.T) {
 	}
 }
 
+func TestInferRuleFromResolution_ShellExecutionTimeoutIsNotNetworkTimeout(t *testing.T) {
+	rule := inferRuleFromResolution("execute_shell", "TIMEOUT: shell command exceeded 30s limit", "")
+	if !containsIgnoreCase(rule, "background") || !containsIgnoreCase(rule, "wait_for_event") {
+		t.Fatalf("expected local execution timeout guidance, got %q", rule)
+	}
+	if containsIgnoreCase(rule, "network") || containsIgnoreCase(rule, "firewall") {
+		t.Fatalf("local execution timeout was misclassified as network failure: %q", rule)
+	}
+}
+
+func TestInferRuleFromResolution_NetworkTimeoutKeepsConnectivityGuidance(t *testing.T) {
+	rule := inferRuleFromResolution("execute_shell", "ssh: connect to host node port 22: connection timed out", "")
+	if !containsIgnoreCase(rule, "connectivity") || !containsIgnoreCase(rule, "firewall") {
+		t.Fatalf("expected network timeout guidance, got %q", rule)
+	}
+}
+
 func TestInferRuleFromResolution_NoMatch(t *testing.T) {
 	rule := inferRuleFromResolution("unknown_tool", "some random error", "")
 	if rule != "" {

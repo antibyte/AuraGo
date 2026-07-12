@@ -253,8 +253,10 @@ func applyMemoryAnalysisResult(cfg *config.Config, logger *slog.Logger, stm *mem
 		if f.Confidence >= minThreshold && f.Content != "" && shouldStoreExtractedMemory(f.Content, f.Category) {
 			if ltm != nil {
 				concept := fmt.Sprintf("[%s] %s", f.Category, f.Content)
-				if ids, err := ltm.StoreDocument(concept, "source:memory_analysis session:"+sessionID); err != nil {
+				content := "source:memory_analysis session:" + sessionID
+				if ids, err := ltm.StoreDocument(concept, content); err != nil {
 					logger.Warn("[Memory Analysis] Failed to store fact in LTM", "error", err)
+					queuePendingMemoryAnalysisWrite(logger, stm, concept, content, err)
 				} else {
 					if stm != nil {
 						for _, id := range ids {
@@ -295,8 +297,10 @@ func applyMemoryAnalysisResult(cfg *config.Config, logger *slog.Logger, stm *mem
 		if p.Confidence >= minThreshold && p.Content != "" && shouldStoreExtractedMemory(p.Content, p.Category) {
 			if ltm != nil {
 				concept := fmt.Sprintf("[preference:%s] %s", p.Category, p.Content)
-				if ids, err := ltm.StoreDocument(concept, "source:memory_analysis session:"+sessionID); err != nil {
+				content := "source:memory_analysis session:" + sessionID
+				if ids, err := ltm.StoreDocument(concept, content); err != nil {
 					logger.Warn("[Memory Analysis] Failed to store preference in LTM", "error", err)
+					queuePendingMemoryAnalysisWrite(logger, stm, concept, content, err)
 				} else {
 					if stm != nil {
 						for _, id := range ids {
@@ -321,8 +325,10 @@ func applyMemoryAnalysisResult(cfg *config.Config, logger *slog.Logger, stm *mem
 		if c.Confidence >= minThreshold && c.Content != "" && shouldStoreExtractedMemory(c.Content, c.Category) {
 			if ltm != nil {
 				concept := fmt.Sprintf("[correction:%s] %s", c.Category, c.Content)
-				if ids, err := ltm.StoreDocument(concept, "source:memory_analysis session:"+sessionID); err != nil {
+				content := "source:memory_analysis session:" + sessionID
+				if ids, err := ltm.StoreDocument(concept, content); err != nil {
 					logger.Warn("[Memory Analysis] Failed to store correction in LTM", "error", err)
+					queuePendingMemoryAnalysisWrite(logger, stm, concept, content, err)
 				} else {
 					if stm != nil {
 						for _, id := range ids {
@@ -371,6 +377,19 @@ func applyMemoryAnalysisResult(cfg *config.Config, logger *slog.Logger, stm *mem
 		}
 	}
 	return stored
+}
+
+func queuePendingMemoryAnalysisWrite(logger *slog.Logger, stm *memory.SQLiteMemory, concept, content string, cause error) {
+	if stm == nil {
+		return
+	}
+	if err := stm.EnqueuePendingMemoryWrite(memory.PendingMemoryWrite{
+		Concept: concept,
+		Content: content,
+		Domain:  "memory_analysis",
+	}, cause); err != nil && logger != nil {
+		logger.Warn("[Memory Analysis] Failed to queue pending LTM write", "error", err)
+	}
 }
 
 func thresholdForMemoryCategory(defaultThreshold float64, category string) float64 {
@@ -776,6 +795,13 @@ func expandQueryForRAG(ctx context.Context, cfg *config.Config, logger *slog.Log
 	combined := userMsg + " " + expanded
 	logger.Debug("[RAG Query Expansion] Expanded query", "original_len", len(userMsg), "keywords", expanded)
 	return combined
+}
+
+func resolveInitialRAGQuery(userMsg string, useHelperBatch bool, legacyExpand func(string) string) string {
+	if useHelperBatch || legacyExpand == nil {
+		return userMsg
+	}
+	return legacyExpand(userMsg)
 }
 
 // rerankWithLLM uses the MemoryAnalysis LLM to score the relevance of RAG candidates

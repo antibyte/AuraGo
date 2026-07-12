@@ -352,6 +352,7 @@
   "dashboard.memory_chart_messages": "Meldinger",
   "dashboard.memory_conflicts_empty": "Ingen åpne minnekonflikter",
   "dashboard.memory_conflicts_title": "Åpne konflikter",
+  "dashboard.memory_pending_writes": "Minneskrivinger venter på nytt forsøk",
   "dashboard.memory_core_facts": "Kjernefakta",
   "dashboard.memory_curator_empty": "Ingen kuratorforslag ennå",
   "dashboard.memory_curator_fact_contradictions": "{{count}} motstridende minner",

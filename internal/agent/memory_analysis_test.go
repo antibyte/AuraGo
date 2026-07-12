@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"errors"
 	"io"
 	"log/slog"
 	"os"
@@ -132,6 +133,73 @@ func TestResolveMemoryAnalysisLLMConfigPrefersHelperLLM(t *testing.T) {
 	}
 	if got.model != "helper-model" {
 		t.Fatalf("model = %q, want helper-model", got.model)
+	}
+}
+
+func TestResolveInitialRAGQuerySkipsLegacyExpansionForHelperBatch(t *testing.T) {
+	calls := 0
+	expand := func(query string) string {
+		calls++
+		return query + " expanded"
+	}
+
+	if got := resolveInitialRAGQuery("original query", true, expand); got != "original query" {
+		t.Fatalf("helper initial query = %q, want original query", got)
+	}
+	if calls != 0 {
+		t.Fatalf("legacy expansion calls with helper batch = %d, want 0", calls)
+	}
+	if got := resolveInitialRAGQuery("legacy query", false, expand); got != "legacy query expanded" {
+		t.Fatalf("legacy initial query = %q", got)
+	}
+	if calls != 1 {
+		t.Fatalf("legacy expansion calls = %d, want 1", calls)
+	}
+}
+
+func TestApplyMemoryAnalysisResultQueuesFailedVectorWrite(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = stm.Close() })
+	vdb := &fakeVectorDB{storeErr: errors.New("embedding timeout")}
+	cfg := &config.Config{}
+
+	stored := applyMemoryAnalysisResult(cfg, logger, stm, vdb, "session-1", memoryAnalysisResult{
+		Facts: []extractedFact{{Content: "The build failed", Category: "fact", Confidence: 1}},
+	})
+	if stored != 0 {
+		t.Fatalf("stored = %d, want 0 while queued", stored)
+	}
+	count, err := stm.CountPendingMemoryWrites()
+	if err != nil || count != 1 {
+		t.Fatalf("pending count=%d err=%v, want 1", count, err)
+	}
+}
+
+func TestRetryPendingMemoryWritesCompletesRecoveredWrite(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = stm.Close() })
+	if err := stm.EnqueuePendingMemoryWrite(memory.PendingMemoryWrite{Concept: "fact", Content: "content", Domain: "memory_analysis"}, errors.New("down")); err != nil {
+		t.Fatal(err)
+	}
+	vdb := &fakeVectorDB{}
+
+	succeeded, failed := retryPendingMemoryWrites(context.Background(), logger, stm, vdb)
+	if succeeded != 1 || failed != 0 {
+		t.Fatalf("succeeded=%d failed=%d", succeeded, failed)
+	}
+	if count, _ := stm.CountPendingMemoryWrites(); count != 0 {
+		t.Fatalf("pending count after retry = %d", count)
+	}
+	if len(vdb.storedConcepts) != 1 || vdb.storedConcepts[0] != "fact" {
+		t.Fatalf("stored concepts = %v", vdb.storedConcepts)
 	}
 }
 

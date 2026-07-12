@@ -7,6 +7,8 @@ import (
 	"unicode/utf8"
 )
 
+const LocalShellTimeoutLearnedRule = "shell command timeout: avoid blocking sleep/poll loops; run long work in background and use wait_for_event"
+
 // LearnedRule represents a concrete action rule learned from recurring errors
 // or successful recovery patterns.
 type LearnedRule struct {
@@ -49,7 +51,21 @@ func (s *SQLiteMemory) InitLearnedRulesTable() error {
 	if err := s.migrateLearnedRulesUpdatedAt(); err != nil {
 		return fmt.Errorf("learned_rules migration: %w", err)
 	}
+	if err := s.repairMisclassifiedShellTimeoutRules(); err != nil {
+		return fmt.Errorf("learned_rules timeout repair: %w", err)
+	}
 	return nil
+}
+
+func (s *SQLiteMemory) repairMisclassifiedShellTimeoutRules() error {
+	_, err := s.db.Exec(`
+		UPDATE learned_rules
+		SET rule = ?, updated_at = CURRENT_TIMESTAMP
+		WHERE tool_name = 'execute_shell'
+		  AND lower(pattern) LIKE '%shell command exceeded%'
+		  AND rule = 'network timeout: check connectivity (ping) and firewall rules before retrying'
+	`, LocalShellTimeoutLearnedRule)
+	return err
 }
 
 // migrateLearnedRulesUpdatedAt adds the updated_at column to older tables.

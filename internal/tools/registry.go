@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"sort"
 	"sync"
 	"time"
 )
@@ -28,6 +29,11 @@ const maxOutputSize = 1 << 20
 // initialOutputSize keeps idle and low-output processes cheap while leaving
 // enough room for typical command startup output.
 const initialOutputSize = 4 << 10
+
+const (
+	defaultCompletedProcessRetention = 10 * time.Minute
+	defaultMaxCompletedProcesses     = 100
+)
 
 // ProcessState represents the lifecycle state of a background process.
 type ProcessState int
@@ -219,29 +225,35 @@ func (p *ProcessInfo) GetErrorReason() string {
 
 // ProcessRegistry is a thread-safe registry for background processes.
 type ProcessRegistry struct {
-	mu        sync.RWMutex
-	processes map[int]*ProcessInfo
-	logger    *slog.Logger
+	mu                 sync.RWMutex
+	processes          map[int]*ProcessInfo
+	logger             *slog.Logger
+	completedRetention time.Duration
+	maxCompleted       int
 }
 
 // NewProcessRegistry creates a new empty process registry.
 func NewProcessRegistry(logger *slog.Logger) *ProcessRegistry {
 	return &ProcessRegistry{
-		processes: make(map[int]*ProcessInfo),
-		logger:    logger,
+		processes:          make(map[int]*ProcessInfo),
+		logger:             logger,
+		completedRetention: defaultCompletedProcessRetention,
+		maxCompleted:       defaultMaxCompletedProcesses,
 	}
 }
 
 // Register adds a process to the registry.
 func (r *ProcessRegistry) Register(info *ProcessInfo) {
 	r.mu.Lock()
-	defer r.mu.Unlock()
 	r.processes[info.PID] = info
+	r.mu.Unlock()
 	r.logger.Info("Registered background process", "pid", info.PID)
+	r.pruneCompleted(time.Now())
 }
 
 // Get retrieves a process by PID.
 func (r *ProcessRegistry) Get(pid int) (*ProcessInfo, bool) {
+	r.pruneCompleted(time.Now())
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	info, ok := r.processes[pid]
@@ -293,38 +305,85 @@ func (r *ProcessRegistry) Terminate(pid int) error {
 	}
 	info.mu.Unlock()
 
-	// Remove from registry under r.mu after signal is sent.
-	// Check if process is still in registry before deleting (superviseBackgroundProcess
-	// may have already removed it).
-	r.mu.Lock()
-	_, stillRegistered := r.processes[pid]
-	if stillRegistered {
-		delete(r.processes, pid)
-		r.logger.Info("Terminated and removed process", "pid", pid)
-	} else {
-		r.logger.Info("Process already removed by supervisor", "pid", pid)
-	}
-	r.mu.Unlock()
+	r.logger.Info("Terminated background process", "pid", pid)
+	r.pruneCompleted(time.Now())
 	return terminateErr
 }
 
 // List returns a summary of all registered processes.
 func (r *ProcessRegistry) List() []map[string]interface{} {
+	r.pruneCompleted(time.Now())
 	snapshots := r.snapshotProcesses()
 	var result []map[string]interface{}
 	for _, snapshot := range snapshots {
-		alive := snapshot.info.IsAlive()
+		info := snapshot.info
+		info.mu.Lock()
+		alive := info.Alive
+		state := info.State.String()
+		exitCode := info.ExitCode
+		terminatedAt := info.TerminatedAt
+		errorReason := info.ErrorReason
+		info.mu.Unlock()
+		finishedAt := ""
+		if !terminatedAt.IsZero() {
+			finishedAt = terminatedAt.Format(time.RFC3339)
+		}
 		result = append(result, map[string]interface{}{
-			"pid":     snapshot.pid,
-			"alive":   alive,
-			"uptime":  fmt.Sprintf("%.0fs", time.Since(snapshot.startedAt).Seconds()),
-			"started": snapshot.startedAt.Format(time.RFC3339),
+			"pid":          snapshot.pid,
+			"alive":        alive,
+			"state":        state,
+			"exit_code":    exitCode,
+			"finished_at":  finishedAt,
+			"error_reason": errorReason,
+			"uptime":       fmt.Sprintf("%.0fs", time.Since(snapshot.startedAt).Seconds()),
+			"started":      snapshot.startedAt.Format(time.RFC3339),
 		})
 	}
 	if result == nil {
 		result = []map[string]interface{}{}
 	}
 	return result
+}
+
+func (r *ProcessRegistry) pruneCompleted(now time.Time) {
+	type completedProcess struct {
+		pid        int
+		finishedAt time.Time
+		info       *ProcessInfo
+	}
+	completed := make([]completedProcess, 0)
+	for _, snapshot := range r.snapshotProcesses() {
+		info := snapshot.info
+		info.mu.Lock()
+		alive := info.Alive
+		finishedAt := info.TerminatedAt
+		info.mu.Unlock()
+		if alive || finishedAt.IsZero() {
+			continue
+		}
+		completed = append(completed, completedProcess{pid: snapshot.pid, finishedAt: finishedAt, info: info})
+	}
+	if len(completed) == 0 {
+		return
+	}
+	sort.Slice(completed, func(i, j int) bool {
+		return completed[i].finishedAt.Before(completed[j].finishedAt)
+	})
+	removeCount := 0
+	if r.maxCompleted > 0 && len(completed) > r.maxCompleted {
+		removeCount = len(completed) - r.maxCompleted
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for index, item := range completed {
+		expired := r.completedRetention > 0 && now.Sub(item.finishedAt) > r.completedRetention
+		if !expired && index >= removeCount {
+			continue
+		}
+		if current, ok := r.processes[item.pid]; ok && current == item.info {
+			delete(r.processes, item.pid)
+		}
+	}
 }
 
 func (r *ProcessRegistry) snapshotProcesses() []processSnapshot {

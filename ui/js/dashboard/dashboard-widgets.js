@@ -267,6 +267,7 @@
                     { value: Number(episodic.recent_count || 0).toLocaleString(), label: t('dashboard.memory_health_recent_episodes') },
                     { value: Number(pendingActions.length || 0).toLocaleString(), label: t('dashboard.memory_pending_title') },
                     { value: Number(conflicts.length || 0).toLocaleString(), label: t('dashboard.memory_conflicts_title') },
+                    { value: Number(data.pending_memory_writes || 0).toLocaleString(), label: t('dashboard.memory_pending_writes') },
                     { value: reflectionActionables.toLocaleString(), label: t('dashboard.memory_reflection_actionables') },
                 ];
                 summaryEl.innerHTML = `

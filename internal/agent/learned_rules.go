@@ -93,7 +93,13 @@ func inferRuleFromResolution(toolName, errorPattern, resolution string) string {
 		if strings.Contains(lowerErr, "port") && strings.Contains(lowerErr, "refused") {
 			return "connection refused: verify the service is running and listening on the expected port"
 		}
-		if strings.Contains(lowerErr, "timeout") || strings.Contains(lowerErr, "timed out") {
+		if strings.Contains(lowerErr, "shell command exceeded") || strings.Contains(lowerErr, "sudo command exceeded") {
+			return memory.LocalShellTimeoutLearnedRule
+		}
+		if strings.Contains(lowerErr, "connection timed out") ||
+			strings.Contains(lowerErr, "connect timeout") ||
+			strings.Contains(lowerErr, "network timeout") ||
+			strings.Contains(lowerErr, "i/o timeout") {
 			return "network timeout: check connectivity (ping) and firewall rules before retrying"
 		}
 	}

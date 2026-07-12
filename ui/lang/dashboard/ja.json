@@ -352,6 +352,7 @@
   "dashboard.memory_chart_messages": "メッセージ",
   "dashboard.memory_conflicts_empty": "開いているメモリ競合はありません",
   "dashboard.memory_conflicts_title": "開いている競合",
+  "dashboard.memory_pending_writes": "再試行待ちのメモリ書き込み",
   "dashboard.memory_core_facts": "コアファクト",
   "dashboard.memory_curator_empty": "キュレーターの提案はまだありません",
   "dashboard.memory_curator_fact_contradictions": "{{count}}件の矛盾するメモリ",

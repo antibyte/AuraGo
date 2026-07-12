@@ -40,6 +40,27 @@ func TestDispatchExecManageScheduleBlocksEnableInReadOnlyMode(t *testing.T) {
 	}
 }
 
+func TestFormatManagedProcessListIncludesCompletionDetails(t *testing.T) {
+	out := formatManagedProcessList([]map[string]interface{}{{
+		"pid": 42, "started": "2026-07-12T12:00:00Z", "state": "crashed", "exit_code": 7,
+		"finished_at": "2026-07-12T12:00:05Z", "error_reason": "exit status 7",
+	}})
+	for _, want := range []string{"PID: 42", "State: crashed", "Exit code: 7", "Finished: 2026-07-12T12:00:05Z", "Error: exit status 7"} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("output %q missing %q", out, want)
+		}
+	}
+}
+
+func TestBackgroundProcessStartedOutputDirectsAgentToWaitForEvent(t *testing.T) {
+	out := backgroundProcessStartedOutput("Shell process", 123)
+	for _, want := range []string{"PID=123", `"action":"wait_for_event"`, `"event_type":"process_exited"`, "Do not poll with sleep", "read_process_logs"} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("output %q missing %q", out, want)
+		}
+	}
+}
+
 func TestDispatchExecOptimizeMemorySkipsKnowledgeGraphWhenReadOnly(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Tools.MemoryMaintenance.Enabled = true

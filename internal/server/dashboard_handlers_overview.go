@@ -878,6 +878,16 @@ func handleDashboardOverview(s *Server) http.HandlerFunc {
 
 		plannerSummary := buildPlannerOverview(s)
 		maintenanceSummary := buildMaintenanceStatusSummary(s, cfg)
+		memoryHealth := map[string]interface{}{
+			"pending_writes": 0,
+			"write_warning":  false,
+		}
+		if s.ShortTermMem != nil {
+			if count, err := s.ShortTermMem.CountPendingMemoryWrites(); err == nil {
+				memoryHealth["pending_writes"] = count
+				memoryHealth["write_warning"] = count > 0
+			}
+		}
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
@@ -898,6 +908,7 @@ func handleDashboardOverview(s *Server) http.HandlerFunc {
 			"daemons":             daemonsSummary,
 			"planner":             plannerSummary,
 			"maintenance":         maintenanceSummary,
+			"memory":              memoryHealth,
 		})
 	}
 }

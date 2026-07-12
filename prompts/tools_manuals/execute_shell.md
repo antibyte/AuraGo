@@ -34,6 +34,9 @@ Execute arbitrary shell commands on the host system. Uses PowerShell (`powershel
 ## Notes
 
 - **Foreground timeout:** 30 seconds. Use `background: true` for longer tasks.
+- **Background completion:** Call `wait_for_event` with `event_type: "process_exited"`, then inspect its exit code and log summary before reporting success. Do not poll with `sleep`.
+- **Preserve exit codes:** Do not append `| tail` to background commands. AuraGo already bounds captured output with its ring buffer, while a pipeline can hide the actual command's failure.
+- **Exact process/container names:** Use exact names or anchored patterns, for example `grep -x 'llama-cpp-vulkan'` or `^llama-cpp-vulkan:`. A name such as `ollama` must not count as a `llama` match.
 - **Shell flags:** PowerShell runs with `-NoProfile -NonInteractive` for speed.
 - **Working directory:** `agent_workspace`
 - **Piping and redirection:** Standard shell operators (`|`, `>`, `>>`, `&&`, `||`) are supported.

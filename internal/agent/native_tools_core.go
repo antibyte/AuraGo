@@ -207,7 +207,7 @@ func buildCoreToolSchemas(ff ToolFeatureFlags, execSkillProps map[string]interfa
 			}, "operation"),
 		),
 		tool("process_management",
-			"List, kill, or inspect running background processes managed by AuraGo.",
+			"List, kill, or inspect background processes managed by AuraGo. Completed process status and logs remain available for up to 10 minutes.",
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{
 					"type":        "string",
@@ -260,7 +260,7 @@ func buildCoreToolSchemas(ff ToolFeatureFlags, execSkillProps map[string]interfa
 		),
 		tool("wait_for_event",
 			"Wait asynchronously for a concrete event, then continue autonomously in the background. "+
-				"Use this for safe polling of AuraGo-managed processes, HTTP endpoints, or workspace files without blocking the current response.",
+				"Use this for AuraGo-managed processes, HTTP endpoints, or workspace files without blocking the current response. For process_exited, the continuation receives final status, exit code, error reason, and a bounded log tail.",
 			schema(map[string]interface{}{
 				"event_type":           map[string]interface{}{"type": "string", "enum": []string{"process_exited", "http_available", "file_changed"}, "description": "Which event to wait for."},
 				"task_prompt":          prop("string", "Task to continue with once the event has completed."),

@@ -60,6 +60,8 @@ Use this when the next step depends on:
 
 - **Timeout**: Default timeout is 1 hour. Set `timeout_secs` to limit wait time.
 - **Poll interval**: Default is 2 seconds. Use `interval_seconds` to adjust frequency.
-- **PID lookup**: Use `process_analyzer` tool to find background process IDs.
+- **Process result**: `process_exited` passes the final state, exit code, error reason, and a bounded log tail to the continuation task. Check these before reporting success.
+- **PID lookup**: Use the PID returned by the background tool or `list_processes`. Completed managed processes and logs remain available for up to 10 minutes.
+- **No sleep polling**: Do not repeatedly call shell commands with `sleep`; register one `process_exited` wait instead.
 - **URL probing**: For `http_available`, the agent waits until HTTP returns 2xx or 3xx.
 - **File watching**: For `file_changed`, the agent watches for file creation or modification.

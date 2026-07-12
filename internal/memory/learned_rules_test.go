@@ -29,6 +29,43 @@ func TestInitLearnedRulesTable_Idempotent(t *testing.T) {
 	}
 }
 
+func TestInitLearnedRulesTableRepairsMisclassifiedShellTimeoutRule(t *testing.T) {
+	stm := setupLearnedRulesTest(t)
+	const pattern = "TIMEOUT: shell command exceeded 30s limit"
+	const wrongRule = "network timeout: check connectivity (ping) and firewall rules before retrying"
+	if _, err := stm.db.Exec(`
+		INSERT INTO learned_rules (tool_name, pattern, rule, confidence, active)
+		VALUES ('execute_shell', ?, ?, 0.5, 1)
+	`, pattern, wrongRule); err != nil {
+		t.Fatalf("insert misclassified rule: %v", err)
+	}
+	if _, err := stm.db.Exec(`
+		INSERT INTO learned_rules (tool_name, pattern, rule, confidence, active)
+		VALUES ('execute_shell', 'ssh connection timed out', ?, 0.5, 1)
+	`, wrongRule); err != nil {
+		t.Fatalf("insert legitimate network rule: %v", err)
+	}
+
+	if err := stm.InitLearnedRulesTable(); err != nil {
+		t.Fatalf("InitLearnedRulesTable repair: %v", err)
+	}
+
+	var repaired string
+	if err := stm.db.QueryRow(`SELECT rule FROM learned_rules WHERE pattern = ?`, pattern).Scan(&repaired); err != nil {
+		t.Fatalf("read repaired rule: %v", err)
+	}
+	if strings.Contains(strings.ToLower(repaired), "network") || !strings.Contains(repaired, "wait_for_event") {
+		t.Fatalf("unexpected repaired rule: %q", repaired)
+	}
+	var untouched string
+	if err := stm.db.QueryRow(`SELECT rule FROM learned_rules WHERE pattern = 'ssh connection timed out'`).Scan(&untouched); err != nil {
+		t.Fatalf("read network rule: %v", err)
+	}
+	if untouched != wrongRule {
+		t.Fatalf("legitimate network timeout rule changed: %q", untouched)
+	}
+}
+
 func TestInitLearnedRulesTable_MigratesLegacyUpdatedAt(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
 	stm, err := NewSQLiteMemory(":memory:", logger)

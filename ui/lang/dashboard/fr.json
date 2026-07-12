@@ -352,6 +352,7 @@
   "dashboard.memory_chart_messages": "Messages",
   "dashboard.memory_conflicts_empty": "Pas de conflits de mémoire ouverts",
   "dashboard.memory_conflicts_title": "Conflits ouverts",
+  "dashboard.memory_pending_writes": "Écritures mémoire en attente d'une nouvelle tentative",
   "dashboard.memory_core_facts": "Faits Principaux",
   "dashboard.memory_curator_empty": "Pas encore de suggestions du curateur",
   "dashboard.memory_curator_fact_contradictions": "{{count}} mémoires contredites",

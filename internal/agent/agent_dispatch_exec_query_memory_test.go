@@ -22,10 +22,16 @@ type fakeVectorDB struct {
 	excludeCollections       []string
 	totalCount               int
 	documents                map[string]string
+	storeErr                 error
+	storedConcepts           []string
 }
 
 func (f *fakeVectorDB) StoreDocument(concept, content string) ([]string, error) {
-	return nil, nil
+	f.storedConcepts = append(f.storedConcepts, concept)
+	if f.storeErr != nil {
+		return nil, f.storeErr
+	}
+	return []string{"stored-doc"}, nil
 }
 
 func (f *fakeVectorDB) StoreDocumentWithEmbedding(concept, content string, embedding []float32) (string, error) {

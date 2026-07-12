@@ -3,6 +3,8 @@ package server
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -986,6 +988,33 @@ func TestHandleDashboardOverviewContract(t *testing.T) {
 		if _, ok := integrations[key]; !ok {
 			t.Fatalf("integrations missing key %q", key)
 		}
+	}
+}
+
+func TestHandleDashboardOverviewReportsPendingMemoryWrites(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = stm.Close() })
+	if err := stm.EnqueuePendingMemoryWrite(memory.PendingMemoryWrite{Concept: "fact", Content: "content"}, errors.New("embedding timeout")); err != nil {
+		t.Fatal(err)
+	}
+	s := &Server{Cfg: &config.Config{}, ShortTermMem: stm}
+	rec := httptest.NewRecorder()
+	handleDashboardOverview(s).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/dashboard/overview", nil))
+
+	var body map[string]interface{}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	memoryHealth, ok := body["memory"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("memory health missing: %#v", body["memory"])
+	}
+	if memoryHealth["pending_writes"] != float64(1) || memoryHealth["write_warning"] != true {
+		t.Fatalf("memory health = %#v", memoryHealth)
 	}
 }
 

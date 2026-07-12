@@ -273,3 +273,51 @@ func TestProcessRegistryListDoesNotHoldRegistryLockWhileWaitingOnProcessInfo(t *
 		t.Fatal("expected List to finish after blocked process mutex was released")
 	}
 }
+
+func TestProcessRegistryListIncludesCompletionDetails(t *testing.T) {
+	registry := NewProcessRegistry(slog.New(slog.NewTextHandler(io.Discard, nil)))
+	finished := time.Now().Add(-time.Minute)
+	registry.Register(&ProcessInfo{
+		PID:          3001,
+		StartedAt:    finished.Add(-time.Second),
+		Alive:        false,
+		State:        ProcessStateCrashed,
+		ExitCode:     9,
+		TerminatedAt: finished,
+		ErrorReason:  "exit status 9",
+	})
+
+	list := registry.List()
+	if len(list) != 1 {
+		t.Fatalf("list length = %d, want 1", len(list))
+	}
+	if list[0]["state"] != "crashed" || list[0]["exit_code"] != 9 {
+		t.Fatalf("missing completion details: %#v", list[0])
+	}
+	if list[0]["finished_at"] == "" || list[0]["error_reason"] != "exit status 9" {
+		t.Fatalf("missing finish metadata: %#v", list[0])
+	}
+}
+
+func TestProcessRegistryPrunesExpiredAndExcessCompletedProcesses(t *testing.T) {
+	registry := NewProcessRegistry(slog.New(slog.NewTextHandler(io.Discard, nil)))
+	registry.completedRetention = time.Minute
+	registry.maxCompleted = 2
+	now := time.Now()
+
+	registry.Register(&ProcessInfo{PID: 4000, StartedAt: now.Add(-3 * time.Minute), Alive: false, State: ProcessStateExited, TerminatedAt: now.Add(-2 * time.Minute)})
+	for i := 1; i <= 3; i++ {
+		registry.Register(&ProcessInfo{PID: 4000 + i, StartedAt: now.Add(time.Duration(i) * time.Second), Alive: false, State: ProcessStateExited, TerminatedAt: now.Add(time.Duration(i) * time.Second)})
+	}
+
+	list := registry.List()
+	if len(list) != 2 {
+		t.Fatalf("list length = %d, want newest 2 completed processes: %#v", len(list), list)
+	}
+	if _, ok := registry.Get(4000); ok {
+		t.Fatal("expired completed process was not pruned")
+	}
+	if _, ok := registry.Get(4001); ok {
+		t.Fatal("oldest excess completed process was not pruned")
+	}
+}

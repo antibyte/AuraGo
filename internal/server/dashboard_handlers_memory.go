@@ -65,6 +65,7 @@ func handleDashboardMemory(s *Server) http.HandlerFunc {
 			memoryHealth = memory.BuildMemoryHealthReport(metas, usageStats)
 		}
 		memoryStrategy := agent.BuildMemoryAnalysisDashboardState(s.Cfg, s.ShortTermMem)
+		pendingWriteCount, _ := s.ShortTermMem.CountPendingMemoryWrites()
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
@@ -82,6 +83,7 @@ func handleDashboardMemory(s *Server) http.HandlerFunc {
 			"memory_conflicts":            memoryConflicts,
 			"latest_reflection":           latestReflection,
 			"reflection_actionable_count": reflectionActionableCount,
+			"pending_memory_writes":       pendingWriteCount,
 			"memory_health": map[string]interface{}{
 				"usage":         memoryHealth.Usage,
 				"confidence":    memoryHealth.Confidence,
