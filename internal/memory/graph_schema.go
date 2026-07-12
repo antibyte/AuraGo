@@ -138,7 +138,9 @@ func (kg *KnowledgeGraph) initTables() error {
 	}
 
 	var hasNodeType bool
-	kg.db.QueryRow("SELECT count(*)>0 FROM pragma_table_xinfo('kg_nodes') WHERE name='node_type'").Scan(&hasNodeType)
+	if err := kg.db.QueryRow("SELECT count(*)>0 FROM pragma_table_xinfo('kg_nodes') WHERE name='node_type'").Scan(&hasNodeType); err != nil {
+		return fmt.Errorf("KG migration inspect kg_nodes.node_type: %w", err)
+	}
 	if !hasNodeType {
 		kg.logger.Info("KG migration: rebuilding kg_nodes to add generated columns")
 		rebuild := []string{

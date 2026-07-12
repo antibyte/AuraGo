@@ -192,6 +192,40 @@ func TestKGCleanupStaleGraphWithOptionsSeparatesPendingEdgeAndNodeTTLs(t *testin
 	}
 }
 
+func TestKGCleanupStalePlaceholderRespectsCustomTTL(t *testing.T) {
+	kg := newTestKG(t)
+
+	if err := kg.AddNode("placeholder", knowledgeGraphPlaceholderLabel, knowledgeGraphPlaceholderNodeProperties()); err != nil {
+		t.Fatalf("AddNode placeholder: %v", err)
+	}
+	if _, err := kg.db.Exec(`
+		UPDATE kg_nodes
+		SET updated_at = datetime('now', '-10 days'), access_count = 0
+		WHERE id = 'placeholder'
+	`); err != nil {
+		t.Fatalf("age placeholder: %v", err)
+	}
+
+	_, nodesRemoved, err := kg.CleanupStaleGraphWithOptions(KnowledgeGraphCleanupOptions{
+		PendingCoMentionDays: 7,
+		StaleNodeDays:        365,
+		PlaceholderDays:      30,
+	})
+	if err != nil {
+		t.Fatalf("CleanupStaleGraphWithOptions: %v", err)
+	}
+	if nodesRemoved != 0 {
+		t.Fatalf("nodesRemoved = %d, want 0 because caller-supplied placeholder TTL is 30 days", nodesRemoved)
+	}
+	node, err := kg.GetNode("placeholder")
+	if err != nil {
+		t.Fatalf("GetNode placeholder: %v", err)
+	}
+	if node == nil {
+		t.Fatal("placeholder should survive custom TTL")
+	}
+}
+
 func TestKGCleanupStaleGraphPrunesOnlyLowConfidencePendingCoMentions(t *testing.T) {
 	kg := newTestKG(t)
 

@@ -225,3 +225,45 @@ func TestEnforceMemoryBudgetDoesNotEvictContradictedReviewRows(t *testing.T) {
 		t.Fatalf("Evictable = %d, want 1", stats.Evictable)
 	}
 }
+
+func TestMemoryBudgetStatsBucketsAreConsistent(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	t.Cleanup(func() { _ = stm.Close() })
+
+	updates := map[string]MemoryMetaUpdate{
+		"doc-keep":      {VerificationStatus: MemoryVerificationUnverified},
+		"doc-protected": {VerificationStatus: MemoryVerificationUnverified},
+		"doc-review":    {VerificationStatus: MemoryVerificationContradicted},
+		"doc-evictable": {VerificationStatus: MemoryVerificationUnverified},
+		"doc-archived":  {VerificationStatus: MemoryVerificationArchived},
+	}
+	for docID, update := range updates {
+		if err := stm.UpsertMemoryMetaWithDetails(docID, update); err != nil {
+			t.Fatalf("UpsertMemoryMetaWithDetails(%s): %v", docID, err)
+		}
+	}
+	if err := stm.SetMemoryMetaProtection("doc-keep", false, true); err != nil {
+		t.Fatalf("SetMemoryMetaProtection keep: %v", err)
+	}
+	if err := stm.SetMemoryMetaProtection("doc-protected", true, false); err != nil {
+		t.Fatalf("SetMemoryMetaProtection protected: %v", err)
+	}
+
+	stats, err := stm.GetMemoryBudgetStats(10)
+	if err != nil {
+		t.Fatalf("GetMemoryBudgetStats: %v", err)
+	}
+	if stats.TotalTracked != 4 {
+		t.Fatalf("TotalTracked = %d, want 4", stats.TotalTracked)
+	}
+	if stats.KeepForever != 1 || stats.Protected != 1 || stats.ReviewOnly != 1 || stats.Evictable != 1 {
+		t.Fatalf("stats buckets = %+v, want one keep, protected, review_only, and evictable", stats)
+	}
+	if got := stats.KeepForever + stats.Protected + stats.ReviewOnly + stats.Evictable; got != stats.TotalTracked {
+		t.Fatalf("bucket sum = %d, want TotalTracked %d; stats=%+v", got, stats.TotalTracked, stats)
+	}
+}

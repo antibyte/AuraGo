@@ -410,6 +410,7 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	mux.HandleFunc("/api/dashboard/memory/hygiene", handleDashboardMemoryHygiene(s))
 	mux.HandleFunc("/api/dashboard/memory/hygiene/dry-run", handleDashboardMemoryHygiene(s))
 	mux.Handle("/api/dashboard/memory/hygiene/apply", requireAdmin(s, handleDashboardMemoryHygiene(s)))
+	mux.Handle("/api/memory/conflicts/resolve", requireAdmin(s, handleMemoryConflictResolve(s)))
 	mux.HandleFunc("/api/dashboard/core-memory", handleDashboardCoreMemory(s))
 	mux.HandleFunc("/api/dashboard/core-memory/mutate", handleDashboardCoreMemoryMutate(s, sse))
 	mux.HandleFunc("/api/dashboard/profile", handleDashboardProfile(s))

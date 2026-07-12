@@ -330,11 +330,14 @@ func buildMemoryCuratorDryRun(metas []MemoryMeta, usage MemoryUsageStats) Memory
 }
 
 // MemoryBudgetStats reports the current memory budget utilization.
+// KeepForever, Protected, ReviewOnly, and Evictable are mutually exclusive
+// buckets over non-archived tracked rows.
 type MemoryBudgetStats struct {
 	TotalTracked int  `json:"total_tracked"`
 	KeepForever  int  `json:"keep_forever"`
 	Evictable    int  `json:"evictable"`
 	Protected    int  `json:"protected"`
+	ReviewOnly   int  `json:"review_only"`
 	OverBudget   bool `json:"over_budget"`
 	BudgetLimit  int  `json:"budget_limit"`
 }
@@ -445,11 +448,14 @@ func (s *SQLiteMemory) GetMemoryBudgetStats(budget int) (MemoryBudgetStats, erro
 		SELECT
 			COUNT(*),
 			COALESCE(SUM(CASE WHEN keep_forever != 0 THEN 1 ELSE 0 END), 0),
-			COALESCE(SUM(CASE WHEN protected != 0 THEN 1 ELSE 0 END), 0),
+			COALESCE(SUM(CASE WHEN keep_forever = 0 AND protected != 0 THEN 1 ELSE 0 END), 0),
+			COALESCE(SUM(CASE WHEN keep_forever = 0 AND protected = 0 AND COALESCE(verification_status, 'unverified') = ? THEN 1 ELSE 0 END), 0),
 			COALESCE(SUM(CASE WHEN keep_forever = 0 AND protected = 0 AND COALESCE(verification_status, 'unverified') != ? THEN 1 ELSE 0 END), 0)
 		FROM memory_meta
 		WHERE COALESCE(verification_status, 'unverified') != ?
-	`, MemoryVerificationContradicted, MemoryVerificationArchived).Scan(&stats.TotalTracked, &stats.KeepForever, &stats.Protected, &stats.Evictable)
+	`, MemoryVerificationContradicted, MemoryVerificationContradicted, MemoryVerificationArchived).Scan(
+		&stats.TotalTracked, &stats.KeepForever, &stats.Protected, &stats.ReviewOnly, &stats.Evictable,
+	)
 	if err != nil {
 		return stats, fmt.Errorf("memory budget stats: %w", err)
 	}

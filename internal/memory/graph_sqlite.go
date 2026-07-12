@@ -106,7 +106,7 @@ type KnowledgeGraph struct {
 const knowledgeGraphWriteTimeout = 5 * time.Second
 const knowledgeGraphPropertyValueLimit = 500
 const knowledgeGraphAccessQueueSize = 2500
-const knowledgeGraphDroppedAccessHitsThreshold = 1
+const knowledgeGraphDroppedAccessHitsThreshold = 100
 const coOccurrenceThreshold = 15
 
 var ErrKnowledgeGraphProtectedNode = errors.New("knowledge graph node is protected")

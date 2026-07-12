@@ -315,6 +315,9 @@ func (kg *KnowledgeGraph) DeleteNode(id string) error {
 		edgeRows.Close()
 	}
 
+	if err := cleanupKGClaimsForDeletedNodeTx(tx, id); err != nil {
+		return fmt.Errorf("cleanup kg provenance for node %s: %w", id, err)
+	}
 	if _, err := tx.Exec("DELETE FROM kg_edges WHERE source = ? OR target = ?", id, id); err != nil {
 		return fmt.Errorf("delete edges for node %s: %w", id, err)
 	}
@@ -564,8 +567,14 @@ func (kg *KnowledgeGraph) MergeNodes(targetID, sourceID string) error {
 		}
 	}
 
+	if err := cleanupKGSelfClaimFactsTx(tx, targetID); err != nil {
+		return fmt.Errorf("cleanup target self-edge provenance before merge: %w", err)
+	}
 	if _, err := tx.Exec("DELETE FROM kg_edges WHERE source = ? AND target = ?", targetID, targetID); err != nil {
 		return fmt.Errorf("delete pre-existing self edges: %w", err)
+	}
+	if err := cleanupMergedCollisionClaimsTx(tx, targetID, sourceID); err != nil {
+		return fmt.Errorf("cleanup merge collision claims: %w", err)
 	}
 	if _, err := tx.Exec(`
 		DELETE FROM kg_edges
@@ -596,6 +605,15 @@ func (kg *KnowledgeGraph) MergeNodes(targetID, sourceID string) error {
 	}
 	if _, err := tx.Exec("UPDATE kg_edges SET source = ? WHERE source = ?", targetID, sourceID); err != nil {
 		return fmt.Errorf("update edges source: %w", err)
+	}
+	if _, err := tx.Exec("UPDATE kg_claims SET object_id = ? WHERE object_id = ?", targetID, sourceID); err != nil {
+		return fmt.Errorf("update claim objects during merge: %w", err)
+	}
+	if _, err := tx.Exec("UPDATE kg_claims SET subject_id = ? WHERE subject_id = ?", targetID, sourceID); err != nil {
+		return fmt.Errorf("update claim subjects during merge: %w", err)
+	}
+	if err := cleanupKGSelfClaimFactsTx(tx, targetID); err != nil {
+		return fmt.Errorf("cleanup merged self-claim facts: %w", err)
 	}
 	if _, err := tx.Exec("DELETE FROM kg_edges WHERE source = ? AND target = ?", targetID, targetID); err != nil {
 		return fmt.Errorf("delete merged self edges: %w", err)
@@ -647,6 +665,9 @@ func (kg *KnowledgeGraph) DeleteNodesBySourceFile(path string) (int, error) {
 		WHERE json_valid(properties)
 		  AND json_extract(properties, '$.source_file') = ?
 	`, path)
+	if err := cleanupKGClaimsForDeletedSemanticEdgesTx(tx, sourceFileEdges); err != nil {
+		return 0, fmt.Errorf("cleanup source-file edge provenance: %w", err)
+	}
 	if _, err := tx.Exec(`
 		DELETE FROM kg_edges
 		WHERE json_valid(properties)
@@ -700,6 +721,11 @@ func (kg *KnowledgeGraph) DeleteNodesBySourceFile(path string) (int, error) {
 
 	var deleted int
 	if len(toDelete) > 0 {
+		for _, id := range toDelete {
+			if err := cleanupKGClaimsForDeletedNodeTx(tx, id); err != nil {
+				return 0, fmt.Errorf("cleanup source-file node provenance %s: %w", id, err)
+			}
+		}
 		deleteRes, err := execChunkedInDeleteStringsResult(tx, "kg_nodes", "id", toDelete, defaultInClauseChunkSize)
 		if err != nil {
 			return 0, fmt.Errorf("batch delete nodes by source file: %w", err)

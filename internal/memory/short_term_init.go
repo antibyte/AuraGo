@@ -243,6 +243,8 @@ CREATE INDEX IF NOT EXISTS idx_memory_usage_log_used_at ON memory_usage_log(used
 		right_value TEXT DEFAULT '',
 		reason TEXT DEFAULT '',
 		status TEXT DEFAULT 'open',
+		winning_doc_id TEXT DEFAULT '',
+		superseded_doc_id TEXT DEFAULT '',
 		detected_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		resolved_at DATETIME DEFAULT '',
 		UNIQUE(doc_id_left, doc_id_right, conflict_key)
@@ -528,6 +530,8 @@ func applySQLiteMemoryMigrations(db *sql.DB, logger *slog.Logger) error {
 	errs = append(errs, migrateAddColumn(db, logger, "memory_meta", "archived_reason", "TEXT DEFAULT ''"))
 	errs = append(errs, migrateAddColumn(db, logger, "memory_meta", "last_reviewed_at", "DATETIME"))
 	errs = append(errs, migrateAddColumn(db, logger, "memory_meta", "review_note", "TEXT DEFAULT ''"))
+	errs = append(errs, migrateAddColumn(db, logger, "memory_conflicts", "winning_doc_id", "TEXT DEFAULT ''"))
+	errs = append(errs, migrateAddColumn(db, logger, "memory_conflicts", "superseded_doc_id", "TEXT DEFAULT ''"))
 	if _, err := db.Exec(`
 		CREATE TABLE IF NOT EXISTS memory_curation_events (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,

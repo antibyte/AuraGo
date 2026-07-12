@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strconv"
 	"testing"
 	"time"
 
@@ -188,6 +189,134 @@ func TestHandleDashboardMemoryHygieneDryRunAndApply(t *testing.T) {
 	}
 	if len(activeNotes) != 0 {
 		t.Fatalf("active notes after apply = %+v, want none", activeNotes)
+	}
+}
+
+func TestHandleDashboardMemoryHygieneKGRequiresDedicatedConfirmation(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	t.Cleanup(func() { _ = stm.Close() })
+	if err := stm.InitJournalTables(); err != nil {
+		t.Fatalf("InitJournalTables: %v", err)
+	}
+	if err := stm.InitNotesTables(); err != nil {
+		t.Fatalf("InitNotesTables: %v", err)
+	}
+	kgPath := filepath.Join(t.TempDir(), "kg.db")
+	kg, err := memory.NewKnowledgeGraph(kgPath, "", logger)
+	if err != nil {
+		t.Fatalf("NewKnowledgeGraph: %v", err)
+	}
+	t.Cleanup(func() { _ = kg.Close() })
+
+	for _, id := range []string{"pending-a", "pending-b"} {
+		if err := kg.AddNode(id, id, map[string]string{"type": "concept"}); err != nil {
+			t.Fatalf("AddNode %s: %v", id, err)
+		}
+	}
+	if err := kg.AddEdge("pending-a", "pending-b", "co_mentioned_with", map[string]string{"source": "pending", "weight": "1"}); err != nil {
+		t.Fatalf("AddEdge pending: %v", err)
+	}
+	rawKGDB, err := dbutil.Open(kgPath)
+	if err != nil {
+		t.Fatalf("open raw kg db: %v", err)
+	}
+	if _, err := rawKGDB.Exec(`
+		UPDATE kg_edges
+		SET created_at = datetime('now', '-10 days'), updated_at = datetime('now', '-10 days')
+		WHERE source = 'pending-a' AND target = 'pending-b' AND relation = 'co_mentioned_with'
+	`); err != nil {
+		rawKGDB.Close()
+		t.Fatalf("age pending edge: %v", err)
+	}
+	rawKGDB.Close()
+
+	cfg := &config.Config{}
+	cfg.Tools.KnowledgeGraph.PendingCoMentionTTLDays = 7
+	s := &Server{ShortTermMem: stm, KG: kg, Cfg: cfg, Logger: logger}
+
+	dryReq := httptest.NewRequest(http.MethodPost, "/api/dashboard/memory/hygiene/dry-run", bytes.NewReader([]byte(`{"limit":100,"include_kg":true}`)))
+	dryRec := httptest.NewRecorder()
+	handleDashboardMemoryHygiene(s).ServeHTTP(dryRec, dryReq)
+	if dryRec.Code != http.StatusOK {
+		t.Fatalf("dry-run status = %d, want 200; body=%s", dryRec.Code, dryRec.Body.String())
+	}
+	var dryBody map[string]interface{}
+	if err := json.Unmarshal(dryRec.Body.Bytes(), &dryBody); err != nil {
+		t.Fatalf("decode dry-run: %v", err)
+	}
+	plan := dryBody["plan"].(map[string]interface{})
+	if _, ok := plan["kg"]; !ok {
+		t.Fatalf("dry-run plan missing kg section: %#v", plan)
+	}
+
+	badApply := httptest.NewRequest(http.MethodPost, "/api/dashboard/memory/hygiene/apply", bytes.NewReader([]byte(`{"limit":100,"confirm":"APPLY_MEMORY_HYGIENE","include_kg":true}`)))
+	badRec := httptest.NewRecorder()
+	handleDashboardMemoryHygiene(s).ServeHTTP(badRec, badApply)
+	if badRec.Code != http.StatusBadRequest {
+		t.Fatalf("apply without kg_confirm status = %d, want 400", badRec.Code)
+	}
+
+	applyReq := httptest.NewRequest(http.MethodPost, "/api/dashboard/memory/hygiene/apply", bytes.NewReader([]byte(`{"limit":100,"confirm":"APPLY_MEMORY_HYGIENE","include_kg":true,"kg_confirm":"APPLY_KG_HYGIENE"}`)))
+	applyRec := httptest.NewRecorder()
+	handleDashboardMemoryHygiene(s).ServeHTTP(applyRec, applyReq)
+	if applyRec.Code != http.StatusOK {
+		t.Fatalf("apply status = %d, want 200; body=%s", applyRec.Code, applyRec.Body.String())
+	}
+	_, edgeCount, err := kg.Stats()
+	if err != nil {
+		t.Fatalf("Stats: %v", err)
+	}
+	if edgeCount != 0 {
+		t.Fatalf("edgeCount = %d, want stale KG edge removed", edgeCount)
+	}
+}
+
+func TestHandleMemoryConflictResolve(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	t.Cleanup(func() { _ = stm.Close() })
+	for _, docID := range []string{"doc-a", "doc-b"} {
+		if err := stm.UpsertMemoryMeta(docID); err != nil {
+			t.Fatalf("UpsertMemoryMeta(%s): %v", docID, err)
+		}
+	}
+	if err := stm.RegisterMemoryConflict("doc-a", "doc-b", "user|language", "english", "german", "conflicting language"); err != nil {
+		t.Fatalf("RegisterMemoryConflict: %v", err)
+	}
+	conflicts, err := stm.GetOpenMemoryConflicts(10)
+	if err != nil {
+		t.Fatalf("GetOpenMemoryConflicts: %v", err)
+	}
+	if len(conflicts) != 1 {
+		t.Fatalf("conflicts len = %d, want 1", len(conflicts))
+	}
+	s := &Server{ShortTermMem: stm, Logger: logger}
+
+	body := bytes.NewBufferString(`{"conflict_id":` + strconv.FormatInt(conflicts[0].ID, 10) + `,"winning_doc_id":"doc-a","reason":"doc-a wins"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/memory/conflicts/resolve", body)
+	rec := httptest.NewRecorder()
+	handleMemoryConflictResolve(s).ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("resolve status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+	var payload struct {
+		Status          string `json:"status"`
+		ConflictID      int64  `json:"conflict_id"`
+		WinningDocID    string `json:"winning_doc_id"`
+		SupersededDocID string `json:"superseded_doc_id"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if payload.Status != "ok" || payload.ConflictID != conflicts[0].ID || payload.WinningDocID != "doc-a" || payload.SupersededDocID != "doc-b" {
+		t.Fatalf("unexpected resolve payload: %+v", payload)
 	}
 }
 

@@ -907,9 +907,8 @@ func (kg *KnowledgeGraph) GetSubgraph(centerNodeID string, maxDepth int) ([]Node
 				}
 				if strings.TrimSpace(propsJSON) != "" {
 					if err := json.Unmarshal([]byte(propsJSON), &e.Properties); err != nil {
-						batchRows.Close()
 						kg.logger.Warn("GetSubgraph: corrupt edge properties JSON", "source", e.Source, "target", e.Target, "relation", e.Relation, "error", err)
-						return nil, nil
+						continue
 					}
 				}
 				if e.Properties == nil {
@@ -1250,6 +1249,11 @@ func (kg *KnowledgeGraph) OptimizeGraph(threshold int) (int, error) {
 		edgeArgs...,
 	)
 
+	for _, id := range toRemove {
+		if err := cleanupKGClaimsForDeletedNodeTx(tx, id); err != nil {
+			return 0, fmt.Errorf("cleanup optimized node provenance %s: %w", id, err)
+		}
+	}
 	deleteRes, execErr := tx.Exec(
 		fmt.Sprintf("DELETE FROM kg_nodes WHERE id IN (%s)", inPlaceholders),
 		inArgs...,
@@ -1377,7 +1381,6 @@ func (kg *KnowledgeGraph) CleanupStaleGraph(thresholdDays int) (int, int, error)
 	return kg.CleanupStaleGraphWithOptions(KnowledgeGraphCleanupOptions{
 		PendingCoMentionDays: thresholdDays,
 		StaleNodeDays:        thresholdDays,
-		PlaceholderDays:      thresholdDays,
 	})
 }
 
@@ -1408,6 +1411,9 @@ func (kg *KnowledgeGraph) CleanupStaleGraphWithOptions(options KnowledgeGraphCle
 		  AND e.updated_at <= datetime('now', '-' || ? || ' days')
 	`, policy.LowConfidenceCoMentionMinWeight, options.PendingCoMentionDays)
 
+	if err := cleanupKGClaimsForDeletedSemanticEdgesTx(tx, staleEdges); err != nil {
+		return 0, 0, fmt.Errorf("cleanup stale pending edge provenance: %w", err)
+	}
 	edgeRes, err := tx.Exec(`
 		DELETE FROM kg_edges
 		WHERE rowid IN (
@@ -1431,9 +1437,6 @@ func (kg *KnowledgeGraph) CleanupStaleGraphWithOptions(options KnowledgeGraphCle
 	var toRemove []string
 
 	placeholderGrace := options.PlaceholderDays
-	if placeholderGrace > knowledgeGraphPlaceholderGraceDays {
-		placeholderGrace = knowledgeGraphPlaceholderGraceDays
-	}
 
 	placeholderRows, err := tx.Query(`
 		SELECT id FROM kg_nodes n
@@ -1500,6 +1503,9 @@ func (kg *KnowledgeGraph) CleanupStaleGraphWithOptions(options KnowledgeGraphCle
 	removedEdges := append([]semanticEdgeIdentity(nil), staleEdges...)
 	for _, id := range toRemove {
 		removedEdges = append(removedEdges, kg.collectSemanticEdgeIdentities(tx, "SELECT source, target, relation FROM kg_edges WHERE "+activeKGEdgePredicate("")+" AND (source = ? OR target = ?)", id, id)...)
+		if err := cleanupKGClaimsForDeletedNodeTx(tx, id); err != nil {
+			return 0, 0, fmt.Errorf("cleanup stale node provenance %s: %w", id, err)
+		}
 		if _, execErr := tx.Exec("DELETE FROM kg_edges WHERE source = ? OR target = ?", id, id); execErr != nil {
 			kg.logger.Warn("CleanupStaleGraph: failed to delete edges for node", "id", id, "error", execErr)
 		}
@@ -1525,15 +1531,12 @@ func (kg *KnowledgeGraph) normalizeCleanupOptions(options KnowledgeGraphCleanupO
 		options.StaleNodeDays = 30
 	}
 	if options.PlaceholderDays <= 0 {
-		options.PlaceholderDays = options.StaleNodeDays
+		options.PlaceholderDays = knowledgeGraphPlaceholderGraceDays
 	}
 	return options
 }
 
 func (kg *KnowledgeGraph) collectSemanticEdgeIdentities(tx *sql.Tx, query string, args ...interface{}) []semanticEdgeIdentity {
-	if kg.semanticIndex() == nil {
-		return nil
-	}
 	rows, err := tx.Query(query, args...)
 	if err != nil {
 		if kg.logger != nil {

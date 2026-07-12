@@ -355,6 +355,107 @@ func TestKGConflictDetectionSkipsMultiValuedPredicates(t *testing.T) {
 	}
 }
 
+func TestKGConflictDetectedForNonExclusivePredicate(t *testing.T) {
+	kg := newTestKG(t)
+
+	if _, err := kg.AddEdgeWithProvenance("server", "rack-a", "located_in", nil, KGProvenanceInput{SourceKind: "inventory"}); err != nil {
+		t.Fatalf("add rack-a claim: %v", err)
+	}
+	if _, err := kg.AddEdgeWithProvenance("server", "rack-b", "located_in", nil, KGProvenanceInput{SourceKind: "inventory"}); err != nil {
+		t.Fatalf("add rack-b claim: %v", err)
+	}
+
+	conflicts, err := kg.GetOpenKGConflicts(10)
+	if err != nil {
+		t.Fatalf("GetOpenKGConflicts: %v", err)
+	}
+	if len(conflicts) != 1 {
+		t.Fatalf("conflicts len = %d, want 1: %#v", len(conflicts), conflicts)
+	}
+	if conflicts[0].Predicate != "located_in" || conflicts[0].LeftClaimStatus != string(KGClaimAccepted) || conflicts[0].RightClaimStatus != string(KGClaimAccepted) {
+		t.Fatalf("unexpected conflict payload: %#v", conflicts[0])
+	}
+}
+
+func TestKGConflictDetectionSkipsKnownMultiValuedPredicate(t *testing.T) {
+	kg := newTestKG(t)
+
+	if _, err := kg.AddEdgeWithProvenance("service", "postgres", "uses", nil, KGProvenanceInput{SourceKind: "manual"}); err != nil {
+		t.Fatalf("add postgres use: %v", err)
+	}
+	if _, err := kg.AddEdgeWithProvenance("service", "redis", "uses", nil, KGProvenanceInput{SourceKind: "manual"}); err != nil {
+		t.Fatalf("add redis use: %v", err)
+	}
+
+	conflicts, err := kg.GetOpenKGConflicts(10)
+	if err != nil {
+		t.Fatalf("GetOpenKGConflicts: %v", err)
+	}
+	if len(conflicts) != 0 {
+		t.Fatalf("known multi-valued predicate should not create conflicts: %#v", conflicts)
+	}
+}
+
+func TestKGOpenConflictsIncludesInactiveClaims(t *testing.T) {
+	kg := newTestKG(t)
+
+	if _, err := kg.AddEdgeWithProvenance("user", "german", "primary_language", nil, KGProvenanceInput{SourceKind: "user"}); err != nil {
+		t.Fatalf("add german claim: %v", err)
+	}
+	englishClaim, err := kg.AddEdgeWithProvenance("user", "english", "primary_language", nil, KGProvenanceInput{SourceKind: "user"})
+	if err != nil {
+		t.Fatalf("add english claim: %v", err)
+	}
+	if _, err := kg.db.Exec(`UPDATE kg_claims SET status = ? WHERE id = ?`, string(KGClaimRetracted), englishClaim.ID); err != nil {
+		t.Fatalf("force inactive claim: %v", err)
+	}
+
+	conflicts, err := kg.GetOpenKGConflicts(10)
+	if err != nil {
+		t.Fatalf("GetOpenKGConflicts: %v", err)
+	}
+	if len(conflicts) != 1 {
+		t.Fatalf("open conflict with inactive claim should remain visible, got %#v", conflicts)
+	}
+	if conflicts[0].LeftClaimStatus == "" || conflicts[0].RightClaimStatus == "" {
+		t.Fatalf("expected claim statuses in conflict payload: %#v", conflicts[0])
+	}
+}
+
+func TestKGResolveConflictUpdatesExistingWinnerRegression(t *testing.T) {
+	kg := newTestKG(t)
+
+	if _, err := kg.AddEdgeWithProvenance("user", "german", "primary_language", nil, KGProvenanceInput{SourceKind: "user"}); err != nil {
+		t.Fatalf("add german claim: %v", err)
+	}
+	englishClaim, err := kg.AddEdgeWithProvenance("user", "english", "primary_language", nil, KGProvenanceInput{SourceKind: "user"})
+	if err != nil {
+		t.Fatalf("add english claim: %v", err)
+	}
+	conflicts, err := kg.GetOpenKGConflicts(10)
+	if err != nil {
+		t.Fatalf("GetOpenKGConflicts: %v", err)
+	}
+	if len(conflicts) != 1 {
+		t.Fatalf("conflicts len = %d, want 1", len(conflicts))
+	}
+	if _, err := kg.db.Exec(`UPDATE kg_conflicts SET winning_claim_id = ? WHERE id = ?`, "old-winner", conflicts[0].ID); err != nil {
+		t.Fatalf("seed stale winning claim: %v", err)
+	}
+
+	if err := kg.ResolveKGConflict(conflicts[0].ID, englishClaim.ID, "new winner should replace stale winner"); err != nil {
+		t.Fatalf("ResolveKGConflict: %v", err)
+	}
+
+	var winner string
+	if err := kg.db.QueryRow(`SELECT COALESCE(winning_claim_id, '') FROM kg_conflicts WHERE id = ?`, conflicts[0].ID).Scan(&winner); err != nil {
+		t.Fatalf("query winning claim: %v", err)
+	}
+	if winner != englishClaim.ID {
+		t.Fatalf("winning_claim_id = %q, want %q", winner, englishClaim.ID)
+	}
+}
+
 func containsTestEdge(edges []Edge, source, target, relation string) bool {
 	for _, edge := range edges {
 		if edge.Source == source && edge.Target == target && edge.Relation == relation {

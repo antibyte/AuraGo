@@ -601,6 +601,82 @@ func TestKGRunSemanticReindexChunksDirtyEdgeEmbeddings(t *testing.T) {
 	}
 }
 
+func TestKGSemanticReindexDoesNotMissConcurrentNodeOrEdgeUpdates(t *testing.T) {
+	kg := newTestKG(t)
+
+	var nodeUpdated atomic.Bool
+	var edgeUpdated atomic.Bool
+	var raceHookEnabled atomic.Bool
+	embeddingFunc := func(_ context.Context, text string) ([]float32, error) {
+		if !raceHookEnabled.Load() {
+			return []float32{float32(len(text)), 1}, nil
+		}
+		if strings.Contains(text, "old node marker") && nodeUpdated.CompareAndSwap(false, true) {
+			if _, err := kg.db.Exec(`
+				UPDATE kg_nodes
+				SET properties = '{"type":"device","notes":"new node marker"}',
+				    updated_at = '2001-01-01 00:00:00'
+				WHERE id = 'race-node'
+			`); err != nil {
+				return nil, err
+			}
+		}
+		if strings.Contains(text, "old edge marker") && edgeUpdated.CompareAndSwap(false, true) {
+			if _, err := kg.db.Exec(`
+				UPDATE kg_edges
+				SET properties = '{"notes":"new edge marker"}',
+				    updated_at = '2001-01-01 00:00:00'
+				WHERE source = 'race-node' AND target = 'race-peer' AND relation = 'connects_to'
+			`); err != nil {
+				return nil, err
+			}
+		}
+		return []float32{float32(len(text)), 1}, nil
+	}
+	db := chromem.NewDB()
+	if err := kg.enableSemanticSearchWithCollection(db, embeddingFunc, nil); err != nil {
+		t.Fatalf("enableSemanticSearchWithCollection: %v", err)
+	}
+	waitForSemanticReindexIdle(t, kg)
+
+	if err := kg.AddNode("race-node", "Race Node", map[string]string{"type": "device", "notes": "old node marker"}); err != nil {
+		t.Fatalf("AddNode race-node: %v", err)
+	}
+	if err := kg.AddNode("race-peer", "Race Peer", map[string]string{"type": "device"}); err != nil {
+		t.Fatalf("AddNode race-peer: %v", err)
+	}
+	if err := kg.AddEdge("race-node", "race-peer", "connects_to", map[string]string{"notes": "old edge marker"}); err != nil {
+		t.Fatalf("AddEdge: %v", err)
+	}
+	if _, err := kg.db.Exec(`
+		UPDATE kg_nodes
+		SET semantic_indexed_at = NULL, updated_at = '2000-01-01 00:00:00'
+		WHERE id = 'race-node';
+		UPDATE kg_edges
+		SET semantic_indexed_at = NULL, updated_at = '2000-01-01 00:00:00'
+		WHERE source = 'race-node' AND target = 'race-peer' AND relation = 'connects_to';
+	`); err != nil {
+		t.Fatalf("mark dirty with stable timestamp: %v", err)
+	}
+	nodeUpdated.Store(false)
+	edgeUpdated.Store(false)
+	raceHookEnabled.Store(true)
+
+	if err := kg.RunSemanticReindex(); err != nil {
+		t.Fatalf("RunSemanticReindex: %v", err)
+	}
+	if !nodeUpdated.Load() || !edgeUpdated.Load() {
+		t.Fatalf("expected embedding hook to update node and edge, node=%v edge=%v", nodeUpdated.Load(), edgeUpdated.Load())
+	}
+	dirtyNodes, dirtyEdges, err := kg.DirtySemanticCounts()
+	if err != nil {
+		t.Fatalf("DirtySemanticCounts: %v", err)
+	}
+	if dirtyNodes != 1 || dirtyEdges != 1 {
+		t.Fatalf("dirty nodes/edges = %d/%d, want 1/1 after concurrent updates", dirtyNodes, dirtyEdges)
+	}
+}
+
 func TestKGConsistencyCheckDetectsMissingIndexedNodeDocument(t *testing.T) {
 	kg := newTestKG(t)
 

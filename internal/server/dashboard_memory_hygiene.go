@@ -12,10 +12,13 @@ import (
 )
 
 const memoryHygieneConfirmToken = "APPLY_MEMORY_HYGIENE"
+const kgHygieneConfirmToken = "APPLY_KG_HYGIENE"
 
 type dashboardMemoryHygieneRequest struct {
-	Limit   int    `json:"limit"`
-	Confirm string `json:"confirm"`
+	Limit     int    `json:"limit"`
+	Confirm   string `json:"confirm"`
+	IncludeKG bool   `json:"include_kg"`
+	KGConfirm string `json:"kg_confirm"`
 }
 
 type dashboardHygieneFailure struct {
@@ -30,7 +33,20 @@ type dashboardMemoryHygienePlan struct {
 	Journal   memory.JournalConsolidationReport `json:"journal"`
 	Notes     memory.NotesCurationPlan          `json:"notes"`
 	Canonical memory.CanonicalRepairReport      `json:"canonical"`
+	KG        dashboardKGHygienePlan            `json:"kg"`
 	Totals    map[string]int                    `json:"totals"`
+}
+
+type dashboardKGHygienePlan struct {
+	Available             bool                                    `json:"available"`
+	DryRun                bool                                    `json:"dry_run"`
+	OpenConflicts         int                                     `json:"open_conflicts"`
+	ConflictSuggestions   []memory.KGConflictResolutionSuggestion `json:"conflict_suggestions,omitempty"`
+	DuplicateGroups       int                                     `json:"duplicate_groups"`
+	IDDuplicateGroups     int                                     `json:"id_duplicate_groups"`
+	StaleEdgesRemoved     int                                     `json:"stale_edges_removed,omitempty"`
+	StaleNodesRemoved     int                                     `json:"stale_nodes_removed,omitempty"`
+	OptimizedNodesRemoved int                                     `json:"optimized_nodes_removed,omitempty"`
 }
 
 func handleDashboardMemoryHygiene(s *Server) http.HandlerFunc {
@@ -89,6 +105,10 @@ func handleDashboardMemoryHygieneApply(s *Server, w http.ResponseWriter, r *http
 	req := decodeDashboardMemoryHygieneRequest(r)
 	if strings.TrimSpace(req.Confirm) != memoryHygieneConfirmToken {
 		jsonError(w, "confirmation token is required", http.StatusBadRequest)
+		return
+	}
+	if req.IncludeKG && strings.TrimSpace(req.KGConfirm) != kgHygieneConfirmToken {
+		jsonError(w, "kg confirmation token is required", http.StatusBadRequest)
 		return
 	}
 	plan, err := buildDashboardMemoryHygienePlan(s, req.Limit, true)
@@ -165,6 +185,29 @@ func handleDashboardMemoryHygieneApply(s *Server, w http.ResponseWriter, r *http
 	} else {
 		plan.Canonical = canonicalReport
 	}
+	kgApplied := 0
+	if req.IncludeKG {
+		if s.KG == nil {
+			failedActions = append(failedActions, dashboardHygieneFailure{
+				Domain: "kg",
+				Action: "cleanup",
+				Error:  "knowledge graph is unavailable",
+			})
+		} else {
+			kgPlan, kgErr := applyDashboardKGHygiene(s, req.Limit)
+			if kgErr != nil {
+				s.Logger.Warn("Failed to apply KG hygiene", "error", kgErr)
+				failedActions = append(failedActions, dashboardHygieneFailure{
+					Domain: "kg",
+					Action: "cleanup",
+					Error:  kgErr.Error(),
+				})
+			} else {
+				plan.KG = kgPlan
+				kgApplied = kgPlan.StaleEdgesRemoved + kgPlan.StaleNodesRemoved + kgPlan.OptimizedNodesRemoved
+			}
+		}
+	}
 	plan.Totals = dashboardMemoryHygieneTotals(plan)
 	if memoryApplied > 0 || plan.Canonical.RepairedCount > 0 {
 		agent.InvalidateMemoryMetaCache()
@@ -176,6 +219,7 @@ func handleDashboardMemoryHygieneApply(s *Server, w http.ResponseWriter, r *http
 			"journal":   plan.Journal.RemovedEntries,
 			"notes":     noteApplied,
 			"canonical": plan.Canonical.RepairedCount,
+			"kg":        kgApplied,
 		},
 		"plan":   plan,
 		"totals": plan.Totals,
@@ -231,6 +275,7 @@ func buildDashboardMemoryHygienePlan(s *Server, limit int, dryRun bool) (dashboa
 		Notes:     notesPlan,
 		Canonical: canonicalReport,
 	}
+	plan.KG = buildDashboardKGHygienePlan(s, limit, dryRun)
 	plan.Totals = dashboardMemoryHygieneTotals(plan)
 	return plan, nil
 }
@@ -246,7 +291,55 @@ func dashboardMemoryHygieneTotals(plan dashboardMemoryHygienePlan) map[string]in
 		"notes_review":        plan.Notes.ReviewRequiredCount,
 		"canonical_repairs":   plan.Canonical.RepairedCount,
 		"canonical_skipped":   plan.Canonical.SkippedCount,
+		"kg_open_conflicts":   plan.KG.OpenConflicts,
+		"kg_duplicates":       plan.KG.DuplicateGroups + plan.KG.IDDuplicateGroups,
+		"kg_removed":          plan.KG.StaleEdgesRemoved + plan.KG.StaleNodesRemoved + plan.KG.OptimizedNodesRemoved,
 	}
+}
+
+func buildDashboardKGHygienePlan(s *Server, limit int, dryRun bool) dashboardKGHygienePlan {
+	plan := dashboardKGHygienePlan{DryRun: dryRun}
+	if s == nil || s.KG == nil {
+		return plan
+	}
+	plan.Available = true
+	if conflicts, err := s.KG.GetOpenKGConflicts(limit); err == nil {
+		plan.OpenConflicts = len(conflicts)
+	}
+	if suggestions, err := s.KG.SuggestKGConflictResolutions(limit); err == nil {
+		plan.ConflictSuggestions = suggestions
+	}
+	if quality, err := s.KG.QualityReport(limit); err == nil && quality != nil {
+		plan.DuplicateGroups = quality.DuplicateGroups
+		plan.IDDuplicateGroups = quality.IDDuplicateGroups
+	}
+	return plan
+}
+
+func applyDashboardKGHygiene(s *Server, limit int) (dashboardKGHygienePlan, error) {
+	plan := buildDashboardKGHygienePlan(s, limit, false)
+	if s == nil || s.KG == nil {
+		return plan, nil
+	}
+	pendingDays := 7
+	if s.Cfg != nil && s.Cfg.Tools.KnowledgeGraph.PendingCoMentionTTLDays > 0 {
+		pendingDays = s.Cfg.Tools.KnowledgeGraph.PendingCoMentionTTLDays
+	}
+	edgesRemoved, nodesRemoved, err := s.KG.CleanupStaleGraphWithOptions(memory.KnowledgeGraphCleanupOptions{
+		PendingCoMentionDays: pendingDays,
+		StaleNodeDays:        30,
+	})
+	if err != nil {
+		return plan, err
+	}
+	plan.StaleEdgesRemoved = edgesRemoved
+	plan.StaleNodesRemoved = nodesRemoved
+	optimized, err := s.KG.OptimizeGraph(1)
+	if err != nil {
+		return plan, err
+	}
+	plan.OptimizedNodesRemoved = optimized
+	return plan, nil
 }
 
 func decodeDashboardMemoryHygieneRequest(r *http.Request) dashboardMemoryHygieneRequest {

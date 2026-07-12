@@ -415,8 +415,12 @@ func TestKGAccessBatchFlushFailureCountsDroppedHits(t *testing.T) {
 	if dropped := kg.DroppedAccessHits(); dropped != 1 {
 		t.Fatalf("DroppedAccessHits = %d, want 1 after failed batch flush", dropped)
 	}
+	if !kg.accessCountReliable() {
+		t.Fatal("access counts should remain reliable after a single failed batch flush")
+	}
+	kg.droppedHits.Store(knowledgeGraphDroppedAccessHitsThreshold)
 	if kg.accessCountReliable() {
-		t.Fatal("access counts should be unreliable after failed batch flush")
+		t.Fatal("access counts should be unreliable after reaching dropped-hit threshold")
 	}
 }
 
@@ -702,6 +706,34 @@ func TestKGDeleteNode(t *testing.T) {
 	}
 }
 
+func TestKGDeleteNodeRemovesClaimsEvidenceAndConflicts(t *testing.T) {
+	kg := newTestKG(t)
+
+	if _, err := kg.AddEdgeWithProvenance("server", "rack-a", "located_in", nil, KGProvenanceInput{
+		SourceKind: "manual",
+		RawText:    "server located in rack-a",
+	}); err != nil {
+		t.Fatalf("add rack-a claim: %v", err)
+	}
+	if _, err := kg.AddEdgeWithProvenance("server", "rack-b", "located_in", nil, KGProvenanceInput{
+		SourceKind: "manual",
+		RawText:    "server located in rack-b",
+	}); err != nil {
+		t.Fatalf("add rack-b claim: %v", err)
+	}
+	if conflicts, err := kg.GetOpenKGConflicts(10); err != nil || len(conflicts) != 1 {
+		t.Fatalf("expected one conflict before delete, conflicts=%#v err=%v", conflicts, err)
+	}
+
+	if err := kg.DeleteNode("server"); err != nil {
+		t.Fatalf("DeleteNode: %v", err)
+	}
+
+	assertNoKGClaimsForNode(t, kg, "server")
+	assertNoKGConflicts(t, kg)
+	assertKGEvidenceRows(t, kg, 0)
+}
+
 func TestKGEdgesCascadeWhenNodeDeletedDirectly(t *testing.T) {
 	kg := newTestKG(t)
 
@@ -774,6 +806,37 @@ func TestKGDeleteEdge(t *testing.T) {
 	if edges != 1 {
 		t.Errorf("expected 1 edge after delete, got %d", edges)
 	}
+}
+
+func TestKGDeleteEdgeRemovesClaimsEvidenceAndConflicts(t *testing.T) {
+	kg := newTestKG(t)
+
+	deletedClaim, err := kg.AddEdgeWithProvenance("server", "rack-a", "located_in", nil, KGProvenanceInput{
+		SourceKind: "manual",
+		RawText:    "server located in rack-a",
+	})
+	if err != nil {
+		t.Fatalf("add rack-a claim: %v", err)
+	}
+	keptClaim, err := kg.AddEdgeWithProvenance("server", "rack-b", "located_in", nil, KGProvenanceInput{
+		SourceKind: "manual",
+		RawText:    "server located in rack-b",
+	})
+	if err != nil {
+		t.Fatalf("add rack-b claim: %v", err)
+	}
+	if conflicts, err := kg.GetOpenKGConflicts(10); err != nil || len(conflicts) != 1 {
+		t.Fatalf("expected one conflict before delete, conflicts=%#v err=%v", conflicts, err)
+	}
+
+	if err := kg.DeleteEdge("server", "rack-a", "located_in"); err != nil {
+		t.Fatalf("DeleteEdge: %v", err)
+	}
+
+	assertKGClaimMissing(t, kg, deletedClaim.ID)
+	assertKGClaimExists(t, kg, keptClaim.ID)
+	assertNoKGConflicts(t, kg)
+	assertKGEvidenceRows(t, kg, 1)
 }
 
 func TestKGMergeNodesMovesEdgesAndMergesProperties(t *testing.T) {
@@ -1194,6 +1257,43 @@ func TestKGMergeNodesScopedDedupPreservesUnrelatedEdges(t *testing.T) {
 	}
 	if merged != 1 {
 		t.Fatalf("expected merged duplicate edges to collapse to 1 row, got %d", merged)
+	}
+}
+
+func TestKGMergeNodesRewritesClaims(t *testing.T) {
+	kg := newTestKG(t)
+
+	if err := kg.AddNode("target", "Target", map[string]string{"type": "service"}); err != nil {
+		t.Fatalf("AddNode target: %v", err)
+	}
+	if err := kg.AddNode("source", "Source", map[string]string{"type": "service"}); err != nil {
+		t.Fatalf("AddNode source: %v", err)
+	}
+	if _, err := kg.AddEdgeWithProvenance("source", "peer", "connects_to", nil, KGProvenanceInput{SourceKind: "manual"}); err != nil {
+		t.Fatalf("add outgoing claim: %v", err)
+	}
+	if _, err := kg.AddEdgeWithProvenance("client", "source", "uses", nil, KGProvenanceInput{SourceKind: "manual"}); err != nil {
+		t.Fatalf("add incoming claim: %v", err)
+	}
+
+	if err := kg.MergeNodes("target", "source"); err != nil {
+		t.Fatalf("MergeNodes: %v", err)
+	}
+
+	assertNoKGClaimsForNode(t, kg, "source")
+	outgoing, err := kg.GetClaimsForEdge("target", "peer", "connects_to", false, 10)
+	if err != nil {
+		t.Fatalf("GetClaimsForEdge outgoing: %v", err)
+	}
+	if len(outgoing) != 1 || outgoing[0].SubjectID != "target" || outgoing[0].ObjectID != "peer" {
+		t.Fatalf("outgoing claim not rewritten to target: %#v", outgoing)
+	}
+	incoming, err := kg.GetClaimsForEdge("client", "target", "uses", false, 10)
+	if err != nil {
+		t.Fatalf("GetClaimsForEdge incoming: %v", err)
+	}
+	if len(incoming) != 1 || incoming[0].SubjectID != "client" || incoming[0].ObjectID != "target" {
+		t.Fatalf("incoming claim not rewritten to target: %#v", incoming)
 	}
 }
 
@@ -2426,6 +2526,40 @@ func TestKGGetSubgraphBranchingBFSDoesNotLeakPastMaxDepth(t *testing.T) {
 	}
 }
 
+func TestKGSubgraphSkipsCorruptEdgeJSON(t *testing.T) {
+	kg := newTestKG(t)
+
+	for _, id := range []string{"a", "b", "c"} {
+		if err := kg.AddNode(id, id, nil); err != nil {
+			t.Fatalf("AddNode %s: %v", id, err)
+		}
+	}
+	if err := kg.AddEdge("a", "b", "rel", map[string]string{"notes": "valid"}); err != nil {
+		t.Fatalf("AddEdge a-b: %v", err)
+	}
+	if err := kg.AddEdge("a", "c", "rel", map[string]string{"notes": "corrupt later"}); err != nil {
+		t.Fatalf("AddEdge a-c: %v", err)
+	}
+	if _, err := kg.db.Exec(`UPDATE kg_edges SET properties = '{' WHERE source = 'a' AND target = 'c' AND relation = 'rel'`); err != nil {
+		t.Fatalf("corrupt edge properties: %v", err)
+	}
+
+	nodes, edges := kg.GetSubgraph("a", 1)
+	nodeIDs := make(map[string]bool)
+	for _, node := range nodes {
+		nodeIDs[node.ID] = true
+	}
+	if !nodeIDs["a"] || !nodeIDs["b"] {
+		t.Fatalf("expected valid portion of subgraph to remain, nodes=%#v edges=%#v", nodes, edges)
+	}
+	if nodeIDs["c"] {
+		t.Fatalf("corrupt edge endpoint should be skipped, nodes=%#v", nodes)
+	}
+	if len(edges) != 1 || edges[0].Target != "b" {
+		t.Fatalf("expected only valid edge to remain, edges=%#v", edges)
+	}
+}
+
 // TestKGGetSubgraphCycle verifies that GetSubgraph terminates and does not loop
 // when the graph contains cycles.
 func TestKGGetSubgraphCycle(t *testing.T) {
@@ -2449,6 +2583,61 @@ func TestKGGetSubgraphCycle(t *testing.T) {
 		// ok
 	case <-time.After(5 * time.Second):
 		t.Fatal("GetSubgraph did not terminate within 5s on cyclic graph")
+	}
+}
+
+func assertNoKGClaimsForNode(t *testing.T, kg *KnowledgeGraph, nodeID string) {
+	t.Helper()
+	var count int
+	if err := kg.db.QueryRow(`SELECT COUNT(*) FROM kg_claims WHERE subject_id = ? OR object_id = ?`, nodeID, nodeID).Scan(&count); err != nil {
+		t.Fatalf("count claims for node %s: %v", nodeID, err)
+	}
+	if count != 0 {
+		t.Fatalf("claims referencing node %s = %d, want 0", nodeID, count)
+	}
+}
+
+func assertKGClaimMissing(t *testing.T, kg *KnowledgeGraph, claimID string) {
+	t.Helper()
+	var count int
+	if err := kg.db.QueryRow(`SELECT COUNT(*) FROM kg_claims WHERE id = ?`, claimID).Scan(&count); err != nil {
+		t.Fatalf("count claim %s: %v", claimID, err)
+	}
+	if count != 0 {
+		t.Fatalf("claim %s still exists", claimID)
+	}
+}
+
+func assertKGClaimExists(t *testing.T, kg *KnowledgeGraph, claimID string) {
+	t.Helper()
+	var count int
+	if err := kg.db.QueryRow(`SELECT COUNT(*) FROM kg_claims WHERE id = ?`, claimID).Scan(&count); err != nil {
+		t.Fatalf("count claim %s: %v", claimID, err)
+	}
+	if count != 1 {
+		t.Fatalf("claim %s rows = %d, want 1", claimID, count)
+	}
+}
+
+func assertNoKGConflicts(t *testing.T, kg *KnowledgeGraph) {
+	t.Helper()
+	var count int
+	if err := kg.db.QueryRow(`SELECT COUNT(*) FROM kg_conflicts`).Scan(&count); err != nil {
+		t.Fatalf("count kg_conflicts: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("kg_conflicts rows = %d, want 0", count)
+	}
+}
+
+func assertKGEvidenceRows(t *testing.T, kg *KnowledgeGraph, want int) {
+	t.Helper()
+	var count int
+	if err := kg.db.QueryRow(`SELECT COUNT(*) FROM kg_evidence`).Scan(&count); err != nil {
+		t.Fatalf("count kg_evidence: %v", err)
+	}
+	if count != want {
+		t.Fatalf("kg_evidence rows = %d, want %d", count, want)
 	}
 }
 

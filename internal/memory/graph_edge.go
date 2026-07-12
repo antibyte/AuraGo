@@ -80,6 +80,13 @@ func (kg *KnowledgeGraph) deleteEdgesBySourceRelationTargets(source, relation st
 			end = len(targets)
 		}
 		chunk := targets[start:end]
+		edges := make([]Edge, 0, len(chunk))
+		for _, target := range chunk {
+			edges = append(edges, Edge{Source: source, Target: target, Relation: relation})
+		}
+		if err := cleanupKGClaimsForDeletedEdgesTx(tx, edges); err != nil {
+			return 0, fmt.Errorf("cleanup edge claims chunk %d-%d: %w", start, end-1, err)
+		}
 		placeholders := make([]string, len(chunk))
 		args := make([]interface{}, 0, len(chunk)+2)
 		for i, t := range chunk {
@@ -113,10 +120,21 @@ func (kg *KnowledgeGraph) deleteEdgesBySourceRelationTargets(source, relation st
 }
 
 func (kg *KnowledgeGraph) DeleteEdge(source, target, relation string) error {
-	_, err := kg.db.Exec("DELETE FROM kg_edges WHERE source = ? AND target = ? AND relation = ?",
-		source, target, relation)
+	tx, err := kg.db.Begin()
 	if err != nil {
+		return fmt.Errorf("begin delete edge: %w", err)
+	}
+	defer tx.Rollback()
+
+	if err := cleanupKGClaimsForDeletedEdgeTx(tx, source, target, relation); err != nil {
+		return fmt.Errorf("cleanup edge provenance: %w", err)
+	}
+	if _, err := tx.Exec("DELETE FROM kg_edges WHERE source = ? AND target = ? AND relation = ?",
+		source, target, relation); err != nil {
 		return fmt.Errorf("delete edge: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return err
 	}
 	if err := kg.removeSemanticEdgeIndex(source, target, relation); err != nil && kg.logger != nil {
 		kg.logger.Warn("DeleteEdge: failed to remove semantic edge index", "source", source, "target", target, "relation", relation, "error", err)
@@ -160,6 +178,9 @@ func (kg *KnowledgeGraph) UpdateEdge(source, target, relation, newRelation strin
 	}
 
 	if relation != newRelation {
+		if err := cleanupKGClaimsForDeletedEdgeTx(tx, source, target, relation); err != nil {
+			return nil, fmt.Errorf("cleanup old edge claims for update: %w", err)
+		}
 		if _, err := tx.Exec("DELETE FROM kg_edges WHERE source = ? AND target = ? AND relation = ?", source, target, relation); err != nil {
 			return nil, fmt.Errorf("delete old edge for update: %w", err)
 		}
@@ -311,7 +332,13 @@ func (kg *KnowledgeGraph) GetImportantEdges(limit int, nodeIDs []string) ([]Edge
 }
 
 func (kg *KnowledgeGraph) DeleteEdgesBySourceFile(path string) (int, error) {
-	rows, err := kg.db.Query(`
+	tx, err := kg.db.Begin()
+	if err != nil {
+		return 0, fmt.Errorf("begin delete edges by source file: %w", err)
+	}
+	defer tx.Rollback()
+
+	rows, err := tx.Query(`
 		SELECT source, target, relation FROM kg_edges
 		WHERE json_valid(properties)
 		  AND json_extract(properties, '$.source_file') = ?
@@ -328,7 +355,11 @@ func (kg *KnowledgeGraph) DeleteEdgesBySourceFile(path string) (int, error) {
 	}
 	rows.Close()
 
-	res, err := kg.db.Exec(`
+	if err := cleanupKGClaimsForDeletedEdgesTx(tx, edges); err != nil {
+		return 0, fmt.Errorf("cleanup source-file edge claims: %w", err)
+	}
+
+	res, err := tx.Exec(`
 		DELETE FROM kg_edges
 		WHERE json_valid(properties)
 		  AND json_extract(properties, '$.source_file') = ?
@@ -337,6 +368,9 @@ func (kg *KnowledgeGraph) DeleteEdgesBySourceFile(path string) (int, error) {
 		return 0, fmt.Errorf("delete edges by source file: %w", err)
 	}
 	n, _ := res.RowsAffected()
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("commit delete edges by source file: %w", err)
+	}
 	for _, edge := range edges {
 		if err := kg.removeSemanticEdgeIndex(edge.Source, edge.Target, edge.Relation); err != nil && kg.logger != nil {
 			kg.logger.Warn("DeleteEdgesBySourceFile: failed to remove semantic edge index",

@@ -65,12 +65,22 @@ type KGConflict struct {
 	Predicate         string `json:"predicate"`
 	LeftClaimID       string `json:"left_claim_id"`
 	RightClaimID      string `json:"right_claim_id"`
+	LeftClaimStatus   string `json:"left_claim_status,omitempty"`
+	RightClaimStatus  string `json:"right_claim_status,omitempty"`
 	WinningClaimID    string `json:"winning_claim_id,omitempty"`
 	SupersededClaimID string `json:"superseded_claim_id,omitempty"`
 	Reason            string `json:"reason,omitempty"`
 	Status            string `json:"status"`
 	DetectedAt        string `json:"detected_at"`
 	ResolvedAt        string `json:"resolved_at,omitempty"`
+}
+
+type KGConflictResolutionSuggestion struct {
+	ConflictID     int64   `json:"conflict_id"`
+	WinningClaimID string  `json:"winning_claim_id"`
+	LosingClaimID  string  `json:"losing_claim_id"`
+	Reason         string  `json:"reason"`
+	Score          float64 `json:"score"`
 }
 
 type KGProvenanceInput struct {
@@ -306,15 +316,16 @@ func (kg *KnowledgeGraph) GetOpenKGConflicts(limit int) ([]KGConflict, error) {
 	}
 	rows, err := kg.db.Query(`
 		SELECT c.id, c.subject_id, c.predicate, c.left_claim_id, c.right_claim_id,
+		       COALESCE(left_claim.status, ''), COALESCE(right_claim.status, ''),
 		       COALESCE(c.winning_claim_id, ''), COALESCE(c.superseded_claim_id, ''),
 		       c.reason, c.status, COALESCE(c.detected_at, ''), COALESCE(c.resolved_at, '')
 		FROM kg_conflicts c
-		JOIN kg_claims left_claim ON left_claim.id = c.left_claim_id AND left_claim.status = ?
-		JOIN kg_claims right_claim ON right_claim.id = c.right_claim_id AND right_claim.status = ?
+		LEFT JOIN kg_claims left_claim ON left_claim.id = c.left_claim_id
+		LEFT JOIN kg_claims right_claim ON right_claim.id = c.right_claim_id
 		WHERE c.status = 'open'
 		ORDER BY c.detected_at DESC, c.id DESC
 		LIMIT ?
-	`, string(KGClaimAccepted), string(KGClaimAccepted), limit)
+	`, limit)
 	if err != nil {
 		return nil, fmt.Errorf("query open kg conflicts: %w", err)
 	}
@@ -397,6 +408,76 @@ func (kg *KnowledgeGraph) ResolveKGConflict(id int64, winningClaimID, reason str
 	return nil
 }
 
+func (kg *KnowledgeGraph) SuggestKGConflictResolutions(limit int) ([]KGConflictResolutionSuggestion, error) {
+	conflicts, err := kg.GetOpenKGConflicts(limit)
+	if err != nil {
+		return nil, err
+	}
+	suggestions := make([]KGConflictResolutionSuggestion, 0, len(conflicts))
+	for _, conflict := range conflicts {
+		left, err := kg.getKGClaimResolutionSignals(conflict.LeftClaimID)
+		if err != nil {
+			continue
+		}
+		right, err := kg.getKGClaimResolutionSignals(conflict.RightClaimID)
+		if err != nil {
+			continue
+		}
+		leftScore := kgConflictResolutionScore(left)
+		rightScore := kgConflictResolutionScore(right)
+		if leftScore == rightScore {
+			continue
+		}
+		winner := left
+		loser := right
+		score := leftScore
+		if rightScore > leftScore {
+			winner = right
+			loser = left
+			score = rightScore
+		}
+		suggestions = append(suggestions, KGConflictResolutionSuggestion{
+			ConflictID:     conflict.ID,
+			WinningClaimID: winner.id,
+			LosingClaimID:  loser.id,
+			Reason:         "read-only suggestion based on confidence, source kind, and recency",
+			Score:          score,
+		})
+	}
+	return suggestions, nil
+}
+
+type kgClaimResolutionSignals struct {
+	id         string
+	confidence float64
+	sourceKind string
+	learnedAt  string
+}
+
+func (kg *KnowledgeGraph) getKGClaimResolutionSignals(claimID string) (kgClaimResolutionSignals, error) {
+	var signal kgClaimResolutionSignals
+	err := kg.db.QueryRow(`
+		SELECT id, confidence, source_kind, COALESCE(learned_at, '')
+		FROM kg_claims
+		WHERE id = ?
+	`, claimID).Scan(&signal.id, &signal.confidence, &signal.sourceKind, &signal.learnedAt)
+	return signal, err
+}
+
+func kgConflictResolutionScore(signal kgClaimResolutionSignals) float64 {
+	score := signal.confidence
+	switch strings.ToLower(strings.TrimSpace(signal.sourceKind)) {
+	case "manual", "user":
+		score += 0.2
+	case "inventory", "planner", "system":
+		score += 0.1
+	}
+	if strings.TrimSpace(signal.learnedAt) != "" {
+		score += 0.01
+	}
+	return score
+}
+
 func (kg *KnowledgeGraph) GetClaimsForEdge(source, target, relation string, includeInactive bool, limit int) ([]KGClaim, error) {
 	source = strings.TrimSpace(source)
 	target = strings.TrimSpace(target)
@@ -433,8 +514,12 @@ func activeKGEdgePredicate(alias string) string {
 }
 
 func (kg *KnowledgeGraph) detectKGConflictsTx(tx *sql.Tx, claimID, subjectID, objectID, predicate string, properties map[string]string) error {
-	if !isExclusiveKGPredicate(predicate, properties) {
+	if isMultiValuedKGPredicate(predicate, properties) {
 		return nil
+	}
+	reason := "accepted predicate has multiple objects"
+	if isExclusiveKGPredicate(predicate, properties) {
+		reason = "exclusive predicate has multiple accepted objects"
 	}
 	rows, err := tx.Query(`
 		SELECT id
@@ -452,7 +537,7 @@ func (kg *KnowledgeGraph) detectKGConflictsTx(tx *sql.Tx, claimID, subjectID, ob
 		if err := rows.Scan(&otherClaimID); err != nil {
 			return fmt.Errorf("scan exclusive kg claim conflict: %w", err)
 		}
-		if err := registerKGConflictTx(tx, subjectID, predicate, otherClaimID, claimID, "exclusive predicate has multiple accepted objects"); err != nil {
+		if err := registerKGConflictTx(tx, subjectID, predicate, otherClaimID, claimID, reason); err != nil {
 			return err
 		}
 	}
@@ -508,6 +593,198 @@ func listAcceptedKGClaimIDsForEdgeTx(tx *sql.Tx, source, target, relation string
 	return claimIDs, nil
 }
 
+func listKGClaimIDsForEdgeTx(tx *sql.Tx, source, target, relation string) ([]string, error) {
+	rows, err := tx.Query(`
+		SELECT id
+		FROM kg_claims
+		WHERE subject_id = ? AND object_id = ? AND predicate = ?
+	`, source, target, relation)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanKGClaimIDRows(rows)
+}
+
+func listKGClaimIDsForNodeTx(tx *sql.Tx, nodeID string) ([]string, error) {
+	rows, err := tx.Query(`
+		SELECT id
+		FROM kg_claims
+		WHERE subject_id = ? OR object_id = ?
+	`, nodeID, nodeID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanKGClaimIDRows(rows)
+}
+
+func scanKGClaimIDRows(rows *sql.Rows) ([]string, error) {
+	var claimIDs []string
+	for rows.Next() {
+		var claimID string
+		if err := rows.Scan(&claimID); err != nil {
+			return nil, err
+		}
+		claimIDs = append(claimIDs, claimID)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return claimIDs, nil
+}
+
+func cleanupKGClaimsForDeletedNodeTx(tx *sql.Tx, nodeID string) error {
+	claimIDs, err := listKGClaimIDsForNodeTx(tx, nodeID)
+	if err != nil {
+		return fmt.Errorf("list kg claims for deleted node %s: %w", nodeID, err)
+	}
+	return cleanupKGClaimsByIDTx(tx, claimIDs)
+}
+
+func cleanupKGClaimsForDeletedEdgeTx(tx *sql.Tx, source, target, relation string) error {
+	claimIDs, err := listKGClaimIDsForEdgeTx(tx, source, target, relation)
+	if err != nil {
+		return fmt.Errorf("list kg claims for deleted edge %s -> %s (%s): %w", source, target, relation, err)
+	}
+	return cleanupKGClaimsByIDTx(tx, claimIDs)
+}
+
+func cleanupKGClaimsForDeletedEdgesTx(tx *sql.Tx, edges []Edge) error {
+	for _, edge := range edges {
+		if err := cleanupKGClaimsForDeletedEdgeTx(tx, edge.Source, edge.Target, edge.Relation); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func cleanupKGClaimsForDeletedSemanticEdgesTx(tx *sql.Tx, edges []semanticEdgeIdentity) error {
+	for _, edge := range edges {
+		if err := cleanupKGClaimsForDeletedEdgeTx(tx, edge.source, edge.target, edge.relation); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func cleanupKGSelfClaimFactsTx(tx *sql.Tx, nodeID string) error {
+	rows, err := tx.Query(`
+		SELECT id
+		FROM kg_claims
+		WHERE subject_id = ? AND object_id = ?
+	`, nodeID, nodeID)
+	if err != nil {
+		return fmt.Errorf("list self kg claims for node %s: %w", nodeID, err)
+	}
+	defer rows.Close()
+	claimIDs, err := scanKGClaimIDRows(rows)
+	if err != nil {
+		return fmt.Errorf("scan self kg claims for node %s: %w", nodeID, err)
+	}
+	return cleanupKGClaimsByIDTx(tx, claimIDs)
+}
+
+func cleanupMergedCollisionClaimsTx(tx *sql.Tx, targetID, sourceID string) error {
+	rows, err := tx.Query(`
+		SELECT c.id
+		FROM kg_claims c
+		WHERE c.subject_id = ?
+		  AND EXISTS (
+			SELECT 1 FROM kg_edges e
+			WHERE e.source = ?
+			  AND e.target = c.object_id
+			  AND e.relation = c.predicate
+		  )
+		UNION
+		SELECT c.id
+		FROM kg_claims c
+		WHERE c.object_id = ?
+		  AND EXISTS (
+			SELECT 1 FROM kg_edges e
+			WHERE e.target = ?
+			  AND e.source = c.subject_id
+			  AND e.relation = c.predicate
+		  )
+	`, sourceID, targetID, sourceID, targetID)
+	if err != nil {
+		return fmt.Errorf("list merged collision kg claims: %w", err)
+	}
+	defer rows.Close()
+	claimIDs, err := scanKGClaimIDRows(rows)
+	if err != nil {
+		return fmt.Errorf("scan merged collision kg claims: %w", err)
+	}
+	return cleanupKGClaimsByIDTx(tx, claimIDs)
+}
+
+func cleanupKGClaimsByIDTx(tx *sql.Tx, claimIDs []string) error {
+	claimIDs = uniqueNonEmptyStrings(claimIDs)
+	if len(claimIDs) == 0 {
+		return nil
+	}
+	for start := 0; start < len(claimIDs); start += defaultInClauseChunkSize {
+		end := start + defaultInClauseChunkSize
+		if end > len(claimIDs) {
+			end = len(claimIDs)
+		}
+		chunk := claimIDs[start:end]
+		placeholders := knowledgeGraphSQLInPlaceholders(len(chunk))
+
+		conflictArgs := make([]interface{}, 0, len(chunk)*2)
+		for _, id := range chunk {
+			conflictArgs = append(conflictArgs, id)
+		}
+		for _, id := range chunk {
+			conflictArgs = append(conflictArgs, id)
+		}
+		if _, err := tx.Exec(fmt.Sprintf(`
+			DELETE FROM kg_conflicts
+			WHERE left_claim_id IN (%s) OR right_claim_id IN (%s)
+		`, placeholders, placeholders), conflictArgs...); err != nil {
+			return fmt.Errorf("delete kg conflicts for claims: %w", err)
+		}
+
+		claimArgs := make([]interface{}, 0, len(chunk))
+		for _, id := range chunk {
+			claimArgs = append(claimArgs, id)
+		}
+		if _, err := tx.Exec(fmt.Sprintf(`DELETE FROM kg_claims WHERE id IN (%s)`, placeholders), claimArgs...); err != nil {
+			return fmt.Errorf("delete kg claims: %w", err)
+		}
+	}
+	return cleanupOrphanKGEvidenceTx(tx)
+}
+
+func cleanupOrphanKGEvidenceTx(tx *sql.Tx) error {
+	if _, err := tx.Exec(`
+		DELETE FROM kg_evidence
+		WHERE id NOT IN (
+			SELECT evidence_id FROM kg_claims WHERE evidence_id IS NOT NULL AND evidence_id != ''
+		)
+	`); err != nil {
+		return fmt.Errorf("delete orphan kg evidence: %w", err)
+	}
+	return nil
+}
+
+func uniqueNonEmptyStrings(values []string) []string {
+	seen := make(map[string]struct{}, len(values))
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		out = append(out, value)
+	}
+	return out
+}
+
 func resolveOpenKGConflictsForInactiveClaimsTx(tx *sql.Tx, claimIDs []string, winningClaimID, reason string) error {
 	winningClaimID = strings.TrimSpace(winningClaimID)
 	reason = strings.TrimSpace(reason)
@@ -556,6 +833,34 @@ func isExclusiveKGPredicate(predicate string, properties map[string]string) bool
 	}
 }
 
+func isMultiValuedKGPredicate(predicate string, properties map[string]string) bool {
+	predicate = strings.ToLower(strings.TrimSpace(predicate))
+	if predicate == "" {
+		return false
+	}
+	props := normalizeKnowledgeGraphProperties(properties)
+	switch strings.ToLower(strings.TrimSpace(props["cardinality"])) {
+	case "multi", "many", "list", "set":
+		return true
+	}
+	switch strings.ToLower(strings.TrimSpace(props["multi_value"])) {
+	case "true", "yes", "1":
+		return true
+	}
+	switch strings.ToLower(strings.TrimSpace(props["exclusive"])) {
+	case "false", "no", "0":
+		return true
+	}
+	switch predicate {
+	case "uses", "uses_tool", "likes", "mentions", "related_to", "co_mentioned_with",
+		"depends_on", "connects_to", "connected_to", "knows", "involves", "part_of",
+		"appears_in_memory_synthesis":
+		return true
+	default:
+		return false
+	}
+}
+
 func scanKGConflictRows(rows *sql.Rows) ([]KGConflict, error) {
 	var conflicts []KGConflict
 	for rows.Next() {
@@ -563,6 +868,7 @@ func scanKGConflictRows(rows *sql.Rows) ([]KGConflict, error) {
 		if err := rows.Scan(
 			&conflict.ID, &conflict.SubjectID, &conflict.Predicate,
 			&conflict.LeftClaimID, &conflict.RightClaimID,
+			&conflict.LeftClaimStatus, &conflict.RightClaimStatus,
 			&conflict.WinningClaimID, &conflict.SupersededClaimID,
 			&conflict.Reason, &conflict.Status, &conflict.DetectedAt, &conflict.ResolvedAt,
 		); err != nil {
@@ -578,11 +884,14 @@ func scanKGConflictRows(rows *sql.Rows) ([]KGConflict, error) {
 
 func getKGConflictByIDTx(tx *sql.Tx, id int64) (*KGConflict, error) {
 	rows, err := tx.Query(`
-		SELECT id, subject_id, predicate, left_claim_id, right_claim_id,
-		       COALESCE(winning_claim_id, ''), COALESCE(superseded_claim_id, ''),
-		       reason, status, COALESCE(detected_at, ''), COALESCE(resolved_at, '')
-		FROM kg_conflicts
-		WHERE id = ?
+		SELECT c.id, c.subject_id, c.predicate, c.left_claim_id, c.right_claim_id,
+		       COALESCE(left_claim.status, ''), COALESCE(right_claim.status, ''),
+		       COALESCE(c.winning_claim_id, ''), COALESCE(c.superseded_claim_id, ''),
+		       c.reason, c.status, COALESCE(c.detected_at, ''), COALESCE(c.resolved_at, '')
+		FROM kg_conflicts c
+		LEFT JOIN kg_claims left_claim ON left_claim.id = c.left_claim_id
+		LEFT JOIN kg_claims right_claim ON right_claim.id = c.right_claim_id
+		WHERE c.id = ?
 		LIMIT 1
 	`, id)
 	if err != nil {

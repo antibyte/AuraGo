@@ -217,17 +217,20 @@ func (kg *KnowledgeGraph) reindexSemanticNodes() error {
 	// Load dirty nodes under reindexMu, then release before expensive embedding I/O.
 	idx.ReindexMu.Lock()
 	rows, err := kg.db.Query(`
-		SELECT id, label, properties, protected FROM kg_nodes
+		SELECT id, label, properties, protected, COALESCE(updated_at, '')
+		FROM kg_nodes
 		WHERE semantic_indexed_at IS NULL OR semantic_indexed_at < updated_at
 		LIMIT 5000
 	`)
 	var nodes []Node
+	nodeUpdatedAt := make(map[string]string)
 	if err == nil {
 		for rows.Next() {
 			var n Node
 			var propsJSON string
+			var updatedAt string
 			var protected int
-			if scanErr := rows.Scan(&n.ID, &n.Label, &propsJSON, &protected); scanErr != nil {
+			if scanErr := rows.Scan(&n.ID, &n.Label, &propsJSON, &protected, &updatedAt); scanErr != nil {
 				rows.Close()
 				idx.ReindexMu.Unlock()
 				return fmt.Errorf("scan dirty node for semantic reindex: %w", scanErr)
@@ -235,6 +238,7 @@ func (kg *KnowledgeGraph) reindexSemanticNodes() error {
 			n.Properties = decodeKnowledgeGraphNodeProperties(idx.Logger, "reindex", n.ID, propsJSON, protected)
 			n.Protected = protected != 0
 			nodes = append(nodes, n)
+			nodeUpdatedAt[n.ID] = updatedAt
 		}
 		if rowErr := rows.Err(); rowErr != nil {
 			rows.Close()
@@ -257,31 +261,32 @@ func (kg *KnowledgeGraph) reindexSemanticNodes() error {
 	}
 	if len(indexedNodeIDs) > 0 {
 		idx.ReindexMu.Lock()
-		placeholders := strings.Repeat("?,", len(indexedNodeIDs))
-		placeholders = placeholders[:len(placeholders)-1]
-		args := make([]interface{}, 0, len(indexedNodeIDs)+1)
-		args = append(args, now)
 		for _, id := range indexedNodeIDs {
-			args = append(args, id)
+			loadedUpdatedAt := nodeUpdatedAt[id]
+			if strings.TrimSpace(loadedUpdatedAt) == "" {
+				continue
+			}
+			_, _ = kg.db.Exec(`UPDATE kg_nodes SET semantic_indexed_at = ? WHERE id = ? AND updated_at <= ?`, now, id, loadedUpdatedAt)
 		}
-		_, _ = kg.db.Exec(`UPDATE kg_nodes SET semantic_indexed_at = ? WHERE id IN (`+placeholders+`)`, args...)
 		idx.ReindexMu.Unlock()
 	}
 
 	// Load dirty edges under reindexMu, then release before expensive embedding I/O.
 	idx.ReindexMu.Lock()
 	edgeRows, err := kg.db.Query(`
-		SELECT e.source, e.target, e.relation, e.properties
+		SELECT e.source, e.target, e.relation, e.properties, COALESCE(e.updated_at, '')
 		FROM kg_edges e
 		WHERE ` + kgsemantic.EdgeDirtyCondition("e") + `
 		LIMIT 5000
 	`)
 	var edges []Edge
+	edgeUpdatedAt := make(map[string]string)
 	if err == nil {
 		for edgeRows.Next() {
 			var e Edge
 			var propsJSON string
-			if scanErr := edgeRows.Scan(&e.Source, &e.Target, &e.Relation, &propsJSON); scanErr != nil {
+			var updatedAt string
+			if scanErr := edgeRows.Scan(&e.Source, &e.Target, &e.Relation, &propsJSON, &updatedAt); scanErr != nil {
 				edgeRows.Close()
 				idx.ReindexMu.Unlock()
 				return fmt.Errorf("scan dirty edge for semantic reindex: %w", scanErr)
@@ -297,6 +302,7 @@ func (kg *KnowledgeGraph) reindexSemanticNodes() error {
 				e.Properties = make(map[string]string)
 			}
 			edges = append(edges, e)
+			edgeUpdatedAt[knowledgeGraphEdgeKey(e.Source, e.Target, e.Relation)] = updatedAt
 		}
 		if rowErr := edgeRows.Err(); rowErr != nil {
 			edgeRows.Close()
@@ -317,7 +323,7 @@ func (kg *KnowledgeGraph) reindexSemanticNodes() error {
 		}
 		if len(indexedEdges) > 0 {
 			idx.ReindexMu.Lock()
-			if err := kg.markSemanticEdgesIndexedAt(indexedEdges, now); err != nil && idx.Logger != nil {
+			if err := kg.markSemanticEdgesIndexedAt(indexedEdges, edgeUpdatedAt, now); err != nil && idx.Logger != nil {
 				idx.Logger.Warn("reindexSemanticNodes: failed to mark edges indexed", "error", err)
 			}
 			idx.ReindexMu.Unlock()
@@ -432,65 +438,29 @@ func (kg *KnowledgeGraph) upsertSemanticEdgeReindexBatch(idx *kgsemantic.Index, 
 	return indexedEdges, nil
 }
 
-func (kg *KnowledgeGraph) markSemanticEdgesIndexedAt(edges []Edge, indexedAt string) error {
+func (kg *KnowledgeGraph) markSemanticEdgesIndexedAt(edges []Edge, loadedUpdatedAtByKey map[string]string, indexedAt string) error {
 	if kg == nil || kg.db == nil || len(edges) == 0 {
 		return nil
 	}
-	for start := 0; start < len(edges); start += kgsemantic.EdgeReindexBatchSize {
-		end := start + kgsemantic.EdgeReindexBatchSize
-		if end > len(edges) {
-			end = len(edges)
+	tx, err := kg.db.Begin()
+	if err != nil {
+		return fmt.Errorf("begin semantic edge timestamp update: %w", err)
+	}
+	defer tx.Rollback()
+	for _, edge := range edges {
+		loadedUpdatedAt := loadedUpdatedAtByKey[knowledgeGraphEdgeKey(edge.Source, edge.Target, edge.Relation)]
+		if strings.TrimSpace(loadedUpdatedAt) == "" {
+			continue
 		}
-		chunk := edges[start:end]
-		tx, err := kg.db.Begin()
-		if err != nil {
-			return fmt.Errorf("begin semantic edge batch update: %w", err)
-		}
-		if _, err := tx.Exec(`CREATE TEMP TABLE IF NOT EXISTS kg_semantic_edge_batch (
-			source TEXT NOT NULL,
-			target TEXT NOT NULL,
-			relation TEXT NOT NULL,
-			PRIMARY KEY (source, target, relation)
-		)`); err != nil {
-			tx.Rollback()
-			return fmt.Errorf("create semantic edge batch table: %w", err)
-		}
-		if _, err := tx.Exec(`DELETE FROM kg_semantic_edge_batch`); err != nil {
-			tx.Rollback()
-			return fmt.Errorf("reset semantic edge batch table: %w", err)
-		}
-		stmt, err := tx.Prepare(`INSERT INTO kg_semantic_edge_batch (source, target, relation) VALUES (?, ?, ?)`)
-		if err != nil {
-			tx.Rollback()
-			return fmt.Errorf("prepare semantic edge batch insert: %w", err)
-		}
-		for _, edge := range chunk {
-			if _, err := stmt.Exec(edge.Source, edge.Target, edge.Relation); err != nil {
-				stmt.Close()
-				tx.Rollback()
-				return fmt.Errorf("insert semantic edge batch row: %w", err)
-			}
-		}
-		stmt.Close()
 		if _, err := tx.Exec(`
 			UPDATE kg_edges
 			SET semantic_indexed_at = ?
-			WHERE EXISTS (
-				SELECT 1
-				FROM kg_semantic_edge_batch b
-				WHERE b.source = kg_edges.source
-				  AND b.target = kg_edges.target
-				  AND b.relation = kg_edges.relation
-			)
-		`, indexedAt); err != nil {
-			tx.Rollback()
-			return fmt.Errorf("update semantic edge batch timestamps: %w", err)
-		}
-		if err := tx.Commit(); err != nil {
-			return fmt.Errorf("commit semantic edge batch update: %w", err)
+			WHERE source = ? AND target = ? AND relation = ? AND updated_at <= ?
+		`, indexedAt, edge.Source, edge.Target, edge.Relation, loadedUpdatedAt); err != nil {
+			return fmt.Errorf("update semantic edge timestamp: %w", err)
 		}
 	}
-	return nil
+	return tx.Commit()
 }
 
 func (kg *KnowledgeGraph) upsertSemanticNodeIndex(node Node) bool {

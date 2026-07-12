@@ -79,7 +79,7 @@ func TestKnowledgeGraphMemoryQualityEvalH3H6(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetClaimsForEdge delete history: %v", err)
 	}
-	if len(deleteHistory) != 1 || deleteHistory[0].ID != deleteClaim.ID {
-		t.Fatalf("delete should preserve claim/evidence history, got %#v", deleteHistory)
+	if len(deleteHistory) != 0 {
+		t.Fatalf("physical delete should remove claim/evidence history for %s, got %#v", deleteClaim.ID, deleteHistory)
 	}
 }
