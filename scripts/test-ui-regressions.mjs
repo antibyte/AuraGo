@@ -205,11 +205,39 @@ function testBundleCheckRejectsNonCanonicalBytesWithoutWriting() {
   }
 }
 
+function testRedactedMarkerDoesNotConsumeFollowingContent() {
+  const chatCore = read('ui/js/shared/chat-core.js');
+  const helperSource = sourceBetween(
+    chatCore,
+    'function replaceRedactedMarkers(html, label = \'[removed]\')',
+    'function isDebugOnlyHistoryMessage(msg)'
+  );
+  const context = {
+    String,
+    escapeAttr: value => String(value),
+    escapeHtml: value => String(value)
+  };
+  vm.createContext(context);
+  vm.runInContext(
+    `${helperSource}; globalThis.replaceMarker = replaceRedactedMarkers;`,
+    context
+  );
+
+  const rendered = context.replaceMarker(
+    '<p>Source liegt unter [redacted] /tmp/llama.cpp, aber der Build fehlt.</p>',
+    '[removed]'
+  );
+  assert.match(rendered, /<span class="redacted-badge">\[removed\]<\/span>/);
+  assert.match(rendered, / \/tmp\/llama\.cpp, aber der Build fehlt\./);
+  assert.doesNotMatch(rendered, /redacted-reason/);
+}
+
 const tests = [
   ['versioned service-worker registration', testVersionedServiceWorkerRegistration],
   ['real skill snapshot differences', testSkillSnapshotDifferences],
   ['Python skill card ordering matches snapshots', testSkillCardOrderingMatchesSnapshots],
   ['Agent skill card ordering matches snapshots', testAgentSkillCardOrderingMatchesSnapshot],
+  ['redacted marker preserves following content', testRedactedMarkerDoesNotConsumeFollowingContent],
   ['byte-exact read-only bundle check', testBundleCheckRejectsNonCanonicalBytesWithoutWriting]
 ];
 
