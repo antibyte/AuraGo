@@ -31,7 +31,7 @@ function renderVirtualComputersSection(section) {
     let html = '<div class="cfg-section active">';
     html += '<div class="section-header">' + section.label + '</div>';
     html += '<div class="section-desc">' + section.desc + '</div>';
-    html += vcCfgToggleRow('config.virtual_computers.enabled_label', 'help.virtual_computers.enabled', enabled, 'virtual_computers.enabled', 'vcCfgToggleEnabled(this.classList.contains("on"))');
+    html += vcCfgToggleRow('config.virtual_computers.enabled_label', 'help.virtual_computers.enabled', enabled, 'virtual_computers.enabled', 'vcCfgToggleEnabled(this)');
 
     if (!enabled) {
         html += '<div class="wh-notice"><span>i</span><div>';
@@ -144,7 +144,8 @@ function vcCfgField(labelKey, helpKey, inputHtml) {
     return html;
 }
 
-function vcCfgToggleEnabled(isOn) {
+function vcCfgToggleEnabled(el) {
+    const isOn = el && el.classList ? el.classList.contains('on') : false;
     const nextEnabled = !isOn;
     const data = vcCfgEnsureData();
     data.enabled = nextEnabled;
