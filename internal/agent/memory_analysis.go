@@ -1473,6 +1473,34 @@ func generateMemoryReflectionWithRequest(
 	return reflectionResultToMap(result), nil
 }
 
+// GenerateManualMemoryReflection runs an on-demand memory reflection for dashboard users.
+func GenerateManualMemoryReflection(
+	ctx context.Context,
+	cfg *config.Config,
+	logger *slog.Logger,
+	stm *memory.SQLiteMemory,
+	kg *memory.KnowledgeGraph,
+	ltm memory.VectorDB,
+	mainClient llm.ChatClient,
+	plannerDB *sql.DB,
+	scope string,
+	focus string,
+	outputFormat string,
+) (map[string]interface{}, error) {
+	if !resolveMemoryAnalysisSettings(cfg, stm).Enabled {
+		return nil, fmt.Errorf("memory analysis is disabled")
+	}
+	result, err := runMemoryReflection(ctx, cfg, logger, stm, kg, ltm, mainClient, plannerDB, memoryReflectionRequest{
+		Scope:        scope,
+		Focus:        focus,
+		OutputFormat: outputFormat,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return reflectionResultToMap(result), nil
+}
+
 func runMemoryReflection(
 	ctx context.Context,
 	cfg *config.Config,

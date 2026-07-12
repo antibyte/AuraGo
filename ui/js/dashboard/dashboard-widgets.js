@@ -243,6 +243,7 @@
             const conflicts = Array.isArray(data.memory_conflicts) ? data.memory_conflicts : [];
             const latestReflection = data.latest_reflection || null;
             const reflectionActionables = Number(data.reflection_actionable_count || latestReflection?.actionable_count || 0);
+            renderWeeklyReflection(latestReflection, reflectionActionables);
 
             const summaryEl = document.getElementById('memory-health-summary');
             if (summaryEl) {
@@ -268,7 +269,6 @@
                     { value: Number(conflicts.length || 0).toLocaleString(), label: t('dashboard.memory_conflicts_title') },
                     { value: reflectionActionables.toLocaleString(), label: t('dashboard.memory_reflection_actionables') },
                 ];
-                const reflectionSummary = latestReflection && latestReflection.summary ? latestReflection.summary : t('dashboard.memory_latest_reflection_empty');
                 summaryEl.innerHTML = `
                     <div class="memory-health-strategy">
                         <div class="memory-health-strategy-head">
@@ -278,15 +278,6 @@
                         <div class="memory-health-strategy-reason-wrap">
                             <span class="memory-health-strategy-label">${esc(t('dashboard.memory_strategy_reason'))}</span>
                             <span class="memory-health-strategy-reason">${esc(reason)}</span>
-                        </div>
-                    </div>
-                    <div class="memory-health-strategy">
-                        <div class="memory-health-strategy-head">
-                            <span class="memory-health-strategy-label">${esc(t('dashboard.memory_latest_reflection'))}</span>
-                            <span class="memory-health-strategy-chip">${esc(latestReflection?.date || '')}</span>
-                        </div>
-                        <div class="memory-health-strategy-reason-wrap">
-                            <span class="memory-health-strategy-reason">${esc(reflectionSummary)}</span>
                         </div>
                     </div>
                     <div class="memory-health-summary">` + items.map(item => `
@@ -370,6 +361,85 @@
                     const recentHtml = '<div class="memory-episodic-subsection"><div class="memory-subsection-title">' + esc(t('dashboard.memory_episodic_title')) + '</div>' + (cards.length ? renderCollapsibleList(cards, renderRecentCard, 4) : `<div class="empty-state dash-empty-tight">${t('dashboard.memory_episodic_empty')}</div>`) + '</div>';
                     episodicEl.innerHTML = '<div class="memory-episodic-list">' + pendingHtml + recentHtml + '</div>';
                 }
+            }
+        }
+
+        function renderWeeklyReflection(latestReflection, reflectionActionables) {
+            const cardEl = document.querySelector('.memory-reflection-card');
+            const summaryEl = document.getElementById('memory-reflection-summary');
+            const dateEl = document.getElementById('memory-reflection-date');
+            const actionablesEl = document.getElementById('memory-reflection-actionables');
+            const reflection = latestReflection && typeof latestReflection === 'object' ? latestReflection : null;
+            const summary = reflection?.summary || t('dashboard.memory_latest_reflection_empty');
+            const date = reflection?.date || formatMemoryReflectionDate(reflection?.created_at) || t('dashboard.memory_reflection_date_empty');
+            const actionables = Number(reflectionActionables || reflection?.actionable_count || 0);
+
+            if (summaryEl) {
+                summaryEl.textContent = summary;
+                summaryEl.classList.toggle('is-empty', !reflection?.summary);
+            }
+            if (cardEl) {
+                cardEl.classList.toggle('has-reflection', Boolean(reflection?.summary));
+            }
+            if (dateEl) {
+                dateEl.textContent = date;
+            }
+            if (actionablesEl) {
+                actionablesEl.textContent = t('dashboard.memory_reflection_actionables') + ': ' + actionables.toLocaleString();
+            }
+        }
+
+        function formatMemoryReflectionDate(raw) {
+            if (!raw) return '';
+            const date = new Date(raw);
+            if (Number.isNaN(date.getTime())) return String(raw);
+            return date.toLocaleString(document.documentElement.lang || LANG, { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+        }
+
+        function setWeeklyReflectionRunState(isRunning) {
+            const btn = document.getElementById('memory-reflection-run');
+            if (!btn) return;
+            btn.disabled = Boolean(isRunning);
+            btn.classList.toggle('is-busy', Boolean(isRunning));
+            if (isRunning) {
+                btn.setAttribute('aria-busy', 'true');
+            } else {
+                btn.removeAttribute('aria-busy');
+            }
+            const label = btn.querySelector('[data-i18n="dashboard.memory_reflection_run"]');
+            if (label) {
+                label.textContent = t(isRunning ? 'dashboard.memory_reflection_running' : 'dashboard.memory_reflection_run');
+            }
+        }
+
+        async function runWeeklyReflectionNow() {
+            const confirmed = typeof showConfirm === 'function'
+                ? await showConfirm(t('dashboard.memory_reflection_run_confirm_title'), t('dashboard.memory_reflection_run_confirm'))
+                : true;
+            if (!confirmed) return;
+
+            setWeeklyReflectionRunState(true);
+            try {
+                const resp = await fetch('/api/dashboard/memory/reflection/run', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({})
+                });
+                let data = {};
+                try {
+                    data = await resp.json();
+                } catch (e) {
+                    data = {};
+                }
+                if (!resp.ok) throw new Error(data.error || data.message || 'memory reflection run failed');
+                renderWeeklyReflection(data.latest_reflection || null, Number(data.reflection_actionable_count || data.latest_reflection?.actionable_count || 0));
+                if (typeof showToast === 'function') showToast(t('dashboard.memory_reflection_run_success'), 'success', 3500);
+                if (typeof loadTabAgent === 'function') await loadTabAgent();
+            } catch (e) {
+                if (typeof showToast === 'function') showToast(t('dashboard.memory_reflection_run_error'), 'error', 5000);
+            } finally {
+                setWeeklyReflectionRunState(false);
             }
         }
 

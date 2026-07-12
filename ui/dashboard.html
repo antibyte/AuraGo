@@ -47,8 +47,8 @@
       <span class="logo-subtitle" data-i18n="dashboard.logo_subtitle"></span>
     </a>
     <div class="dash-header-title">
-      <h1 class="dash-page-heading" data-i18n="dashboard.page_heading">Dashboard</h1>
-      <p class="dash-page-subheading" data-i18n="dashboard.page_heading_sub">System health at a glance</p>
+      <h1 class="dash-page-heading" data-i18n="dashboard.page_heading"></h1>
+      <p class="dash-page-subheading" data-i18n="dashboard.page_heading_sub"></p>
     </div>
     <div class="header-actions">
       <button id="dash-density-toggle" type="button" class="pw-density-toggle" aria-pressed="false"
@@ -145,11 +145,11 @@
         <div class="stats-grid" id="system-stats">
           <div class="stat-item">
             <div class="stat-value" id="net-sent">—</div>
-            <div class="stat-label" data-i18n="dashboard.system_net_sent">Netz ↑</div>
+            <div class="stat-label" data-i18n="dashboard.system_net_sent"></div>
           </div>
           <div class="stat-item">
             <div class="stat-value" id="net-recv">—</div>
-            <div class="stat-label" data-i18n="dashboard.system_net_recv">Netz ↓</div>
+            <div class="stat-label" data-i18n="dashboard.system_net_recv"></div>
           </div>
           <div class="stat-item">
             <div class="stat-value" id="sse-clients">—</div>
@@ -175,7 +175,7 @@
 
     <!-- 3. Budget & Tokens -->
     <div class="dash-card" id="card-budget">
-      <div class="dash-card-header"><svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M2 10h20"/><circle cx="17" cy="15" r="1.5" fill="currentColor" stroke="none"/></svg> <span data-i18n="dashboard.budget_title">Budget & Tokens</span> <button type="button" class="collapse-toggle" data-card="card-budget" data-i18n-title="dashboard.activity_collapse" title="" aria-expanded="true">▼</button></div>
+      <div class="dash-card-header"><svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M2 10h20"/><circle cx="17" cy="15" r="1.5" fill="currentColor" stroke="none"/></svg> <span data-i18n="dashboard.budget_title"></span> <button type="button" class="collapse-toggle" data-card="card-budget" data-i18n-title="dashboard.activity_collapse" title="" aria-expanded="true">▼</button></div>
       <div class="dash-card-body">
         <div id="budget-content">
           <div class="budget-badges" id="budget-badges"></div>
@@ -349,6 +349,27 @@
       </div>
     </div>
 
+    <div class="dash-card" id="card-memory-reflection">
+      <div class="dash-card-header">
+        <svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v4"/><path d="M5.6 5.6l2.8 2.8"/><path d="M3 12h4"/><path d="M5.6 18.4l2.8-2.8"/><path d="M12 21v-4"/><path d="M18.4 18.4l-2.8-2.8"/><path d="M21 12h-4"/><path d="M18.4 5.6l-2.8 2.8"/><circle cx="12" cy="12" r="3"/></svg>
+        <span data-i18n="dashboard.memory_latest_reflection"></span>
+        <button type="button" id="memory-reflection-run" class="mh-more-btn memory-reflection-run-btn" onclick="runWeeklyReflectionNow()" data-i18n-title="dashboard.memory_reflection_run" title="">
+          <svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><polyline points="21 3 21 8 16 8"/></svg>
+          <span data-i18n="dashboard.memory_reflection_run"></span>
+        </button>
+        <button type="button" class="collapse-toggle" data-card="card-memory-reflection" data-i18n-title="dashboard.activity_collapse" title="" aria-expanded="true">▼</button>
+      </div>
+      <div class="dash-card-body">
+        <div class="memory-reflection-card">
+          <div class="memory-reflection-meta">
+            <span id="memory-reflection-date" class="memory-health-strategy-chip" data-i18n="dashboard.memory_reflection_date_empty"></span>
+            <span id="memory-reflection-actionables" class="memory-reflection-actionables"></span>
+          </div>
+          <div id="memory-reflection-summary" class="memory-reflection-summary" data-i18n="dashboard.memory_latest_reflection_empty"></div>
+        </div>
+      </div>
+    </div>
+
     </div><!-- .dash-grid tab-agent -->
   </div><!-- #tab-agent -->
 
@@ -513,8 +534,8 @@
         <div class="fs-dash-toolbar-actions">
           <span class="kc-sync-status-dot fs-dash-toolbar-dot" id="fs-indexer-dot"></span>
           <span class="kc-sync-status-label" id="fs-indexer-status">—</span>
-          <button class="btn btn-secondary btn-sm" onclick="loadFileSyncStatus()" id="btn-fs-refresh-dash"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8" fill="none"/><polyline points="21 3 21 8 16 8"/></svg> <span data-i18n="knowledge.filesync_refresh">Refresh</span></button>
-          <button class="btn btn-primary btn-sm" onclick="triggerFileSyncRescan()" id="btn-fs-rescan-dash"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="16" y1="16" x2="21" y2="21"/></svg> <span data-i18n="knowledge.filesync_rescan">Rescan</span></button>
+          <button class="btn btn-secondary btn-sm" onclick="loadFileSyncStatus()" id="btn-fs-refresh-dash"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8" fill="none"/><polyline points="21 3 21 8 16 8"/></svg> <span data-i18n="knowledge.filesync_refresh"></span></button>
+          <button class="btn btn-primary btn-sm" onclick="triggerFileSyncRescan()" id="btn-fs-rescan-dash"><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="16" y1="16" x2="21" y2="21"/></svg> <span data-i18n="knowledge.filesync_rescan"></span></button>
         </div>
       </div>
       <div class="dash-card-body">
@@ -675,7 +696,7 @@
 
     <!-- 7. Operations Overview -->
     <div class="dash-card" id="card-operations">
-      <div class="dash-card-header"><svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1" stroke-linecap="round"/></svg> <span data-i18n="dashboard.operations_title">Betrieb & Dienste</span> <button type="button" class="collapse-toggle" data-card="card-operations" data-i18n-title="dashboard.activity_collapse" title="" aria-expanded="true">▼</button></div>
+      <div class="dash-card-header"><svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1" stroke-linecap="round"/></svg> <span data-i18n="dashboard.operations_title"></span> <button type="button" class="collapse-toggle" data-card="card-operations" data-i18n-title="dashboard.activity_collapse" title="" aria-expanded="true">▼</button></div>
       <div class="dash-card-body">
         <div class="ops-grid" id="ops-grid"></div>
         <div class="integration-grid" id="integration-grid"></div>
@@ -837,8 +858,8 @@
       <div class="dash-card-body">
         <div class="log-controls">
           <input type="text" id="log-filter" data-i18n-placeholder="dashboard.logs_filter_placeholder" placeholder="">
-          <button class="log-btn" id="log-scroll-btn" data-i18n-title="dashboard.logs_scroll_to_bottom_title" title=""><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="6 13 12 19 18 13"/></svg> <span data-i18n="dashboard.logs_scroll_to_bottom">Aktuell</span></button>
-          <button class="log-btn" id="log-refresh-btn" data-i18n-title="dashboard.logs_refresh_title" title=""><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8" fill="none"/><polyline points="21 3 21 8 16 8"/></svg> <span data-i18n="dashboard.logs_refresh">Aktualisieren</span></button>
+          <button class="log-btn" id="log-scroll-btn" data-i18n-title="dashboard.logs_scroll_to_bottom_title" title=""><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="6 13 12 19 18 13"/></svg> <span data-i18n="dashboard.logs_scroll_to_bottom"></span></button>
+          <button class="log-btn" id="log-refresh-btn" data-i18n-title="dashboard.logs_refresh_title" title=""><svg class="dash-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8" fill="none"/><polyline points="21 3 21 8 16 8"/></svg> <span data-i18n="dashboard.logs_refresh"></span></button>
         </div>
         <div class="log-viewer" id="log-viewer">
           <div class="log-line text-secondary" data-i18n="dashboard.logs_loading"></div>
@@ -866,7 +887,7 @@
         <button class="cf-close" id="cfClose" data-i18n-title="common.btn_close" title="">&times;</button>
       </div>
       <div class="cf-body" id="cfBody">
-        <div class="empty-state" data-i18n="dashboard.core_facts_modal_loading">Wird geladen…</div>
+        <div class="empty-state" data-i18n="dashboard.core_facts_modal_loading"></div>
       </div>
     </div>
   </div>
@@ -920,7 +941,7 @@
         <button class="cf-close" id="kgDetailClose">&times;</button>
       </div>
       <div class="cf-body" id="kgDetailBody">
-        <div class="empty-state" data-i18n="dashboard.knowledge_detail_loading">Wird geladen…</div>
+        <div class="empty-state" data-i18n="dashboard.knowledge_detail_loading"></div>
       </div>
     </div>
   </div>

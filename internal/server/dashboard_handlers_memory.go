@@ -1,11 +1,13 @@
 package server
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"aurago/internal/agent"
 	"aurago/internal/memory"
@@ -87,6 +89,62 @@ func handleDashboardMemory(s *Server) http.HandlerFunc {
 				"curator":       memoryHealth.Curator,
 				"strategy":      memoryStrategy,
 			},
+		})
+	}
+}
+
+func handleDashboardMemoryReflectionRun(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if s == nil || s.ShortTermMem == nil {
+			jsonError(w, "Memory subsystem not available", http.StatusServiceUnavailable)
+			return
+		}
+		if s.Cfg == nil {
+			jsonError(w, "Configuration not available", http.StatusServiceUnavailable)
+			return
+		}
+		if s.LLMClient == nil {
+			jsonError(w, "Reflection LLM client not available", http.StatusServiceUnavailable)
+			return
+		}
+
+		ctx, cancel := context.WithTimeout(r.Context(), 150*time.Second)
+		defer cancel()
+
+		result, err := agent.GenerateManualMemoryReflection(
+			ctx,
+			s.Cfg,
+			s.Logger,
+			s.ShortTermMem,
+			s.KG,
+			s.LongTermMem,
+			s.LLMClient,
+			s.PlannerDB,
+			"week",
+			"all",
+			"summary",
+		)
+		if err != nil {
+			if s.Logger != nil {
+				s.Logger.Warn("Dashboard memory reflection run failed", "error", err)
+			}
+			jsonError(w, "Reflection failed: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		reflectionActionableCount := countOpenReflectionOperationalIssues(s.PlannerDB)
+		latestReflection := latestReflectionDashboardPayload(s.ShortTermMem, reflectionActionableCount)
+
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"status":                      "ok",
+			"result":                      result,
+			"latest_reflection":           latestReflection,
+			"reflection_actionable_count": reflectionActionableCount,
 		})
 	}
 }

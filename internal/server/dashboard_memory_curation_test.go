@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"log/slog"
@@ -14,7 +15,26 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/dbutil"
 	"aurago/internal/memory"
+
+	openai "github.com/sashabaranov/go-openai"
 )
+
+type dashboardReflectionTestClient struct{}
+
+func (dashboardReflectionTestClient) CreateChatCompletion(_ context.Context, _ openai.ChatCompletionRequest) (openai.ChatCompletionResponse, error) {
+	return openai.ChatCompletionResponse{
+		Choices: []openai.ChatCompletionChoice{{
+			Message: openai.ChatCompletionMessage{
+				Role:    openai.ChatMessageRoleAssistant,
+				Content: `{"summary":"Weekly memory reflection found stale tool loops and memory review work.","action_items":["Review unverified memory backlog"],"contradictions":["Core memory and journal disagree"],"error_patterns":["filesystem retries repeated without adaptation"]}`,
+			},
+		}},
+	}, nil
+}
+
+func (dashboardReflectionTestClient) CreateChatCompletionStream(_ context.Context, _ openai.ChatCompletionRequest) (*openai.ChatCompletionStream, error) {
+	return nil, nil
+}
 
 func TestHandleDashboardMemoryCurationDryRunAndApply(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
@@ -168,5 +188,54 @@ func TestHandleDashboardMemoryHygieneDryRunAndApply(t *testing.T) {
 	}
 	if len(activeNotes) != 0 {
 		t.Fatalf("active notes after apply = %+v, want none", activeNotes)
+	}
+}
+
+func TestHandleDashboardMemoryReflectionRunCreatesLatestReflection(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	t.Cleanup(func() { _ = stm.Close() })
+	if err := stm.InitJournalTables(); err != nil {
+		t.Fatalf("InitJournalTables: %v", err)
+	}
+
+	cfg := &config.Config{}
+	cfg.MemoryAnalysis.Enabled = true
+	cfg.LLM.Model = "test-model"
+	s := &Server{
+		Cfg:          cfg,
+		Logger:       logger,
+		ShortTermMem: stm,
+		LLMClient:    dashboardReflectionTestClient{},
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/dashboard/memory/reflection/run", bytes.NewReader([]byte(`{}`)))
+	rec := httptest.NewRecorder()
+	handleDashboardMemoryReflectionRun(s).ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("reflection run status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+
+	var body map[string]interface{}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode reflection run: %v", err)
+	}
+	latest, ok := body["latest_reflection"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("latest_reflection has type %T", body["latest_reflection"])
+	}
+	if got := latest["summary"].(string); got != "Weekly memory reflection found stale tool loops and memory review work." {
+		t.Fatalf("latest_reflection.summary = %q", got)
+	}
+
+	entries, err := stm.GetJournalEntries("", "", []string{"reflection"}, 5)
+	if err != nil {
+		t.Fatalf("GetJournalEntries: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("journal reflection entries = %d, want 1", len(entries))
 	}
 }

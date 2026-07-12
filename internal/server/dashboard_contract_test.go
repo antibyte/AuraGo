@@ -217,6 +217,13 @@ func TestDashboardTranslationsIncludeLatestReflectionKeys(t *testing.T) {
 		"dashboard.memory_latest_reflection",
 		"dashboard.memory_latest_reflection_empty",
 		"dashboard.memory_reflection_actionables",
+		"dashboard.memory_reflection_run",
+		"dashboard.memory_reflection_running",
+		"dashboard.memory_reflection_run_confirm_title",
+		"dashboard.memory_reflection_run_confirm",
+		"dashboard.memory_reflection_run_success",
+		"dashboard.memory_reflection_run_error",
+		"dashboard.memory_reflection_date_empty",
 	}
 	langs := []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"}
 	for _, lang := range langs {

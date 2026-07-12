@@ -457,6 +457,7 @@ func isAdminProtectedPath(path string) bool {
 		path == "/api/cron" || strings.HasPrefix(path, "/api/cron/") ||
 		path == "/api/dashboard/memory/curation/apply" ||
 		path == "/api/dashboard/memory/hygiene/apply" ||
+		path == "/api/dashboard/memory/reflection/run" ||
 		(strings.HasPrefix(path, "/api/dashboard/memory/curation/") && path != "/api/dashboard/memory/curation/dry-run") {
 		return true
 	}

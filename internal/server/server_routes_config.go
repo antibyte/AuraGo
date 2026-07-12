@@ -406,6 +406,7 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	mux.HandleFunc("/api/dashboard/memory/curation/dry-run", handleDashboardMemoryCuration(s))
 	mux.Handle("/api/dashboard/memory/curation/apply", requireAdmin(s, handleDashboardMemoryCuration(s)))
 	mux.Handle("/api/dashboard/memory/curation/", requireAdmin(s, handleDashboardMemoryCuration(s)))
+	mux.Handle("/api/dashboard/memory/reflection/run", requireAdmin(s, handleDashboardMemoryReflectionRun(s)))
 	mux.HandleFunc("/api/dashboard/memory/hygiene", handleDashboardMemoryHygiene(s))
 	mux.HandleFunc("/api/dashboard/memory/hygiene/dry-run", handleDashboardMemoryHygiene(s))
 	mux.Handle("/api/dashboard/memory/hygiene/apply", requireAdmin(s, handleDashboardMemoryHygiene(s)))
