@@ -299,6 +299,24 @@ func TestProcessRegistryListIncludesCompletionDetails(t *testing.T) {
 	}
 }
 
+func TestProcessRegistryListOmitsExitCodeWhileRunning(t *testing.T) {
+	registry := NewProcessRegistry(slog.New(slog.NewTextHandler(io.Discard, nil)))
+	registry.Register(&ProcessInfo{
+		PID:       84,
+		StartedAt: time.Now(),
+		Alive:     true,
+		State:     ProcessStateRunning,
+	})
+
+	list := registry.List()
+	if len(list) != 1 {
+		t.Fatalf("process list length = %d, want 1", len(list))
+	}
+	if _, ok := list[0]["exit_code"]; ok {
+		t.Fatalf("running process must not expose an exit code: %#v", list[0])
+	}
+}
+
 func TestProcessRegistryPrunesExpiredAndExcessCompletedProcesses(t *testing.T) {
 	registry := NewProcessRegistry(slog.New(slog.NewTextHandler(io.Discard, nil)))
 	registry.completedRetention = time.Minute

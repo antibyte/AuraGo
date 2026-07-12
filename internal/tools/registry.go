@@ -328,16 +328,19 @@ func (r *ProcessRegistry) List() []map[string]interface{} {
 		if !terminatedAt.IsZero() {
 			finishedAt = terminatedAt.Format(time.RFC3339)
 		}
-		result = append(result, map[string]interface{}{
+		item := map[string]interface{}{
 			"pid":          snapshot.pid,
 			"alive":        alive,
 			"state":        state,
-			"exit_code":    exitCode,
 			"finished_at":  finishedAt,
 			"error_reason": errorReason,
 			"uptime":       fmt.Sprintf("%.0fs", time.Since(snapshot.startedAt).Seconds()),
 			"started":      snapshot.startedAt.Format(time.RFC3339),
-		})
+		}
+		if !alive {
+			item["exit_code"] = exitCode
+		}
+		result = append(result, item)
 	}
 	if result == nil {
 		result = []map[string]interface{}{}

@@ -797,11 +797,8 @@ func expandQueryForRAG(ctx context.Context, cfg *config.Config, logger *slog.Log
 	return combined
 }
 
-func resolveInitialRAGQuery(userMsg string, useHelperBatch bool, legacyExpand func(string) string) string {
-	if useHelperBatch || legacyExpand == nil {
-		return userMsg
-	}
-	return legacyExpand(userMsg)
+func resolveInitialRAGQuery(userMsg string, _ bool, _ func(string) string) string {
+	return userMsg
 }
 
 // rerankWithLLM uses the MemoryAnalysis LLM to score the relevance of RAG candidates

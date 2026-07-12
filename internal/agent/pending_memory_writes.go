@@ -2,7 +2,9 @@ package agent
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	"aurago/internal/memory"
@@ -43,13 +45,41 @@ func retryPendingMemoryWrites(ctx context.Context, logger *slog.Logger, stm *mem
 		if err := ctx.Err(); err != nil {
 			break
 		}
-		if _, err := ltm.StoreDocument(write.Concept, write.Content); err != nil {
+		ids, err := ltm.StoreDocument(write.Concept, write.Content)
+		if err != nil {
 			failed++
 			if markErr := stm.MarkPendingMemoryWriteFailed(write.ID, err, time.Now().UTC()); markErr != nil && logger != nil {
 				logger.Warn("[Memory Retry] Failed to update pending write", "id", write.ID, "error", markErr)
 			}
 			continue
 		}
+		sourceType := strings.TrimSpace(write.Domain)
+		if sourceType == "" {
+			sourceType = "system"
+		}
+		reliability := 0.85
+		if strings.HasPrefix(strings.ToLower(strings.TrimSpace(write.Concept)), "[correction:") {
+			reliability = 0.90
+		}
+		metadataErr := error(nil)
+		for _, id := range ids {
+			if err := stm.UpsertMemoryMetaWithDetails(id, memory.MemoryMetaUpdate{
+				VerificationStatus: "unverified",
+				SourceType:         sourceType,
+				SourceReliability:  reliability,
+			}); err != nil {
+				metadataErr = fmt.Errorf("upsert metadata for %s: %w", id, err)
+				break
+			}
+		}
+		if metadataErr != nil {
+			failed++
+			if markErr := stm.MarkPendingMemoryWriteFailed(write.ID, metadataErr, time.Now().UTC()); markErr != nil && logger != nil {
+				logger.Warn("[Memory Retry] Failed to update pending write metadata", "id", write.ID, "error", markErr)
+			}
+			continue
+		}
+		detectMemoryConflictsForDocIDs(logger, stm, ltm, ids, write.Concept)
 		if err := stm.CompletePendingMemoryWrite(write.ID); err != nil {
 			failed++
 			if logger != nil {

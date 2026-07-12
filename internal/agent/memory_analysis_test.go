@@ -149,11 +149,19 @@ func TestResolveInitialRAGQuerySkipsLegacyExpansionForHelperBatch(t *testing.T) 
 	if calls != 0 {
 		t.Fatalf("legacy expansion calls with helper batch = %d, want 0", calls)
 	}
-	if got := resolveInitialRAGQuery("legacy query", false, expand); got != "legacy query expanded" {
-		t.Fatalf("legacy initial query = %q", got)
+}
+
+func TestResolveInitialRAGQuerySkipsLegacyExpansionWithoutHelperBatch(t *testing.T) {
+	called := false
+	got := resolveInitialRAGQuery("original query", false, func(query string) string {
+		called = true
+		return query + " expanded"
+	})
+	if called {
+		t.Fatal("legacy expansion must only run after an explicit helper failure")
 	}
-	if calls != 1 {
-		t.Fatalf("legacy expansion calls = %d, want 1", calls)
+	if got != "original query" {
+		t.Fatalf("query = %q, want original query", got)
 	}
 }
 
@@ -200,6 +208,13 @@ func TestRetryPendingMemoryWritesCompletesRecoveredWrite(t *testing.T) {
 	}
 	if len(vdb.storedConcepts) != 1 || vdb.storedConcepts[0] != "fact" {
 		t.Fatalf("stored concepts = %v", vdb.storedConcepts)
+	}
+	metas, err := stm.GetAllMemoryMeta(10, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(metas) != 1 || metas[0].DocID != "stored-doc" || metas[0].SourceType != "memory_analysis" || metas[0].VerificationStatus != "unverified" {
+		t.Fatalf("retried memory metadata = %+v", metas)
 	}
 }
 
