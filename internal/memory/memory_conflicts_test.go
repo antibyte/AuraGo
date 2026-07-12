@@ -150,6 +150,102 @@ func TestMemoryConflictResolutionKeepsWinnerContradictedWhenOtherOpenConflictsRe
 	}
 }
 
+func TestMemoryConflictResolutionConfirmsAutoClosedSurvivors(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	t.Cleanup(func() { _ = stm.Close() })
+
+	for _, docID := range []string{"doc-a", "doc-b", "doc-c"} {
+		if err := stm.UpsertMemoryMeta(docID); err != nil {
+			t.Fatalf("UpsertMemoryMeta(%s): %v", docID, err)
+		}
+	}
+	if err := stm.RegisterMemoryConflict("doc-a", "doc-b", "user|language", "english", "german", "conflicting language preference"); err != nil {
+		t.Fatalf("RegisterMemoryConflict doc-b: %v", err)
+	}
+	if err := stm.RegisterMemoryConflict("doc-b", "doc-c", "user|timezone", "cet", "utc", "conflicting timezone preference"); err != nil {
+		t.Fatalf("RegisterMemoryConflict doc-c: %v", err)
+	}
+	conflicts, err := stm.GetOpenMemoryConflicts(10)
+	if err != nil {
+		t.Fatalf("GetOpenMemoryConflicts: %v", err)
+	}
+	var languageConflictID int64
+	for _, conflict := range conflicts {
+		if conflict.ConflictKey == "user|language" {
+			languageConflictID = conflict.ID
+			break
+		}
+	}
+	if languageConflictID == 0 {
+		t.Fatalf("language conflict not found: %#v", conflicts)
+	}
+
+	if err := stm.ResolveMemoryConflict(languageConflictID, "doc-a", "doc-a wins and doc-b is archived"); err != nil {
+		t.Fatalf("ResolveMemoryConflict: %v", err)
+	}
+
+	statuses := memoryStatusesByDocID(t, stm)
+	if statuses["doc-a"] != MemoryVerificationConfirmed || statuses["doc-c"] != MemoryVerificationConfirmed {
+		t.Fatalf("survivors should be confirmed when no open conflicts remain, statuses=%+v", statuses)
+	}
+	if statuses["doc-b"] != MemoryVerificationArchived {
+		t.Fatalf("loser status = %q, want archived; statuses=%+v", statuses["doc-b"], statuses)
+	}
+	openConflicts, err := stm.GetOpenMemoryConflicts(10)
+	if err != nil {
+		t.Fatalf("GetOpenMemoryConflicts after resolve: %v", err)
+	}
+	if len(openConflicts) != 0 {
+		t.Fatalf("open conflicts after resolve = %#v, want none", openConflicts)
+	}
+}
+
+func TestRegisterMemoryConflictReopenClearsResolutionMetadata(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	t.Cleanup(func() { _ = stm.Close() })
+
+	for _, docID := range []string{"doc-a", "doc-b"} {
+		if err := stm.UpsertMemoryMeta(docID); err != nil {
+			t.Fatalf("UpsertMemoryMeta(%s): %v", docID, err)
+		}
+	}
+	if err := stm.RegisterMemoryConflict("doc-a", "doc-b", "user|language", "english", "german", "initial conflict"); err != nil {
+		t.Fatalf("RegisterMemoryConflict initial: %v", err)
+	}
+	conflicts, err := stm.GetOpenMemoryConflicts(10)
+	if err != nil {
+		t.Fatalf("GetOpenMemoryConflicts: %v", err)
+	}
+	if len(conflicts) != 1 {
+		t.Fatalf("conflicts len = %d, want 1", len(conflicts))
+	}
+	if err := stm.ResolveMemoryConflict(conflicts[0].ID, "doc-a", "doc-a wins"); err != nil {
+		t.Fatalf("ResolveMemoryConflict: %v", err)
+	}
+
+	if err := stm.RegisterMemoryConflict("doc-a", "doc-b", "user|language", "english", "german", "reopened conflict"); err != nil {
+		t.Fatalf("RegisterMemoryConflict reopen: %v", err)
+	}
+	conflicts, err = stm.GetOpenMemoryConflicts(10)
+	if err != nil {
+		t.Fatalf("GetOpenMemoryConflicts reopened: %v", err)
+	}
+	if len(conflicts) != 1 {
+		t.Fatalf("reopened conflicts len = %d, want 1", len(conflicts))
+	}
+	if conflicts[0].WinningDocID != "" || conflicts[0].SupersededDocID != "" {
+		t.Fatalf("reopened conflict kept stale resolution metadata: %#v", conflicts[0])
+	}
+}
+
 func memoryStatusesByDocID(t *testing.T, stm *SQLiteMemory) map[string]string {
 	t.Helper()
 	metas, err := stm.GetAllMemoryMeta(100, 0)

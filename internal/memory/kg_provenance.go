@@ -423,6 +423,9 @@ func (kg *KnowledgeGraph) SuggestKGConflictResolutions(limit int) ([]KGConflictR
 		if err != nil {
 			continue
 		}
+		if left.status != KGClaimAccepted || right.status != KGClaimAccepted {
+			continue
+		}
 		leftScore := kgConflictResolutionScore(left)
 		rightScore := kgConflictResolutionScore(right)
 		if leftScore == rightScore {
@@ -449,6 +452,7 @@ func (kg *KnowledgeGraph) SuggestKGConflictResolutions(limit int) ([]KGConflictR
 
 type kgClaimResolutionSignals struct {
 	id         string
+	status     KGClaimStatus
 	confidence float64
 	sourceKind string
 	learnedAt  string
@@ -457,10 +461,10 @@ type kgClaimResolutionSignals struct {
 func (kg *KnowledgeGraph) getKGClaimResolutionSignals(claimID string) (kgClaimResolutionSignals, error) {
 	var signal kgClaimResolutionSignals
 	err := kg.db.QueryRow(`
-		SELECT id, confidence, source_kind, COALESCE(learned_at, '')
+		SELECT id, status, confidence, source_kind, COALESCE(learned_at, '')
 		FROM kg_claims
 		WHERE id = ?
-	`, claimID).Scan(&signal.id, &signal.confidence, &signal.sourceKind, &signal.learnedAt)
+	`, claimID).Scan(&signal.id, &signal.status, &signal.confidence, &signal.sourceKind, &signal.learnedAt)
 	return signal, err
 }
 

@@ -612,6 +612,9 @@ func (kg *KnowledgeGraph) MergeNodes(targetID, sourceID string) error {
 	if _, err := tx.Exec("UPDATE kg_claims SET subject_id = ? WHERE subject_id = ?", targetID, sourceID); err != nil {
 		return fmt.Errorf("update claim subjects during merge: %w", err)
 	}
+	if _, err := tx.Exec("UPDATE kg_conflicts SET subject_id = ? WHERE subject_id = ?", targetID, sourceID); err != nil {
+		return fmt.Errorf("update conflict subjects during merge: %w", err)
+	}
 	if err := cleanupKGSelfClaimFactsTx(tx, targetID); err != nil {
 		return fmt.Errorf("cleanup merged self-claim facts: %w", err)
 	}

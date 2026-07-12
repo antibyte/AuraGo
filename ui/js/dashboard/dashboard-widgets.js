@@ -1629,6 +1629,7 @@
             }
             const failures = Array.isArray(failedActions) ? failedActions : [];
             const totals = plan.totals || {};
+            const kgPlan = plan.kg || {};
             const cards = [
                 { count: Number(totals.journal_removed || 0), label: t('dashboard.memory_hygiene_journal_removed') },
                 { count: Number(totals.notes_auto_archive || 0), label: t('dashboard.memory_hygiene_notes_archive') },
@@ -1636,6 +1637,13 @@
                 { count: Number(totals.memory_auto_confirm || 0) + Number(totals.memory_auto_archive || 0), label: t('dashboard.memory_hygiene_vector') },
                 { count: Number(totals.notes_review || 0) + Number(totals.memory_review || 0), label: t('dashboard.memory_hygiene_review') },
             ];
+            if (kgPlan.available || Number(totals.kg_open_conflicts || 0) || Number(totals.kg_duplicates || 0) || Number(totals.kg_removed || 0)) {
+                cards.push(
+                    { count: Number(totals.kg_open_conflicts || 0), label: t('dashboard.memory_hygiene_kg_conflicts') },
+                    { count: Number(totals.kg_duplicates || 0), label: t('dashboard.memory_hygiene_kg_duplicates') },
+                    { count: Number(totals.kg_removed || 0), label: t('dashboard.memory_hygiene_kg_removed') },
+                );
+            }
             const samples = [];
             const journalItems = plan.journal && Array.isArray(plan.journal.items) ? plan.journal.items : [];
             journalItems.slice(0, 2).forEach(item => samples.push({
@@ -1651,6 +1659,11 @@
             canonicalItems.slice(0, 2).forEach(item => samples.push({
                 id: item.old_doc_id || '',
                 reason: item.reason || t('dashboard.memory_hygiene_canonical')
+            }));
+            const kgSuggestions = kgPlan && Array.isArray(kgPlan.conflict_suggestions) ? kgPlan.conflict_suggestions : [];
+            kgSuggestions.slice(0, 2).forEach(item => samples.push({
+                id: item.winning_claim_id || String(item.conflict_id || ''),
+                reason: t('dashboard.memory_hygiene_kg_suggestion')
             }));
             const renderCard = card => `
                 <div class="memory-curator-preview-card">
@@ -1682,7 +1695,7 @@
                     method: 'POST',
                     credentials: 'same-origin',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ limit: 100 })
+                    body: JSON.stringify({ limit: 100, include_kg: true })
                 });
                 if (!resp.ok) throw new Error('memory hygiene dry-run failed');
                 const data = await resp.json();
@@ -1710,7 +1723,7 @@
                 const data = await resp.json();
                 renderMemoryHygienePreview(data.plan, data.failed_actions || []);
                 const applied = data.applied || {};
-                const count = Number(applied.memory || 0) + Number(applied.journal || 0) + Number(applied.notes || 0) + Number(applied.canonical || 0);
+                const count = Number(applied.memory || 0) + Number(applied.journal || 0) + Number(applied.notes || 0) + Number(applied.canonical || 0) + Number(applied.kg || 0);
                 const failed = Array.isArray(data.failed_actions) ? data.failed_actions.length : 0;
                 if (failed > 0 && typeof showToast === 'function') {
                     showToast(t('dashboard.memory_hygiene_partial_failures', { count: failed }), 'warning', 5000);

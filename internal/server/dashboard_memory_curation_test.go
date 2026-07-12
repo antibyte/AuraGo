@@ -299,6 +299,14 @@ func TestHandleMemoryConflictResolve(t *testing.T) {
 	}
 	s := &Server{ShortTermMem: stm, Logger: logger}
 
+	badWinner := bytes.NewBufferString(`{"conflict_id":` + strconv.FormatInt(conflicts[0].ID, 10) + `,"winning_doc_id":"doc-x"}`)
+	badReq := httptest.NewRequest(http.MethodPost, "/api/memory/conflicts/resolve", badWinner)
+	badRec := httptest.NewRecorder()
+	handleMemoryConflictResolve(s).ServeHTTP(badRec, badReq)
+	if badRec.Code != http.StatusBadRequest {
+		t.Fatalf("bad winner status = %d, want 400; body=%s", badRec.Code, badRec.Body.String())
+	}
+
 	body := bytes.NewBufferString(`{"conflict_id":` + strconv.FormatInt(conflicts[0].ID, 10) + `,"winning_doc_id":"doc-a","reason":"doc-a wins"}`)
 	req := httptest.NewRequest(http.MethodPost, "/api/memory/conflicts/resolve", body)
 	rec := httptest.NewRecorder()

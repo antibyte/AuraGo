@@ -33,7 +33,14 @@ func handleMemoryConflictResolve(s *Server) http.HandlerFunc {
 		}
 
 		if err := s.ShortTermMem.ResolveMemoryConflict(req.ConflictID, req.WinningDocID, req.Reason); err != nil {
-			jsonError(w, "Failed to resolve memory conflict", http.StatusInternalServerError)
+			status := http.StatusInternalServerError
+			errText := err.Error()
+			if strings.Contains(errText, "does not belong") {
+				status = http.StatusBadRequest
+			} else if strings.Contains(errText, "is not open") {
+				status = http.StatusConflict
+			}
+			jsonError(w, "Failed to resolve memory conflict", status)
 			return
 		}
 

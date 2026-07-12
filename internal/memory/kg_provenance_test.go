@@ -422,6 +422,58 @@ func TestKGOpenConflictsIncludesInactiveClaims(t *testing.T) {
 	}
 }
 
+func TestKGLifecycleCountsOpenConflictsIncludeInactiveClaims(t *testing.T) {
+	kg := newTestKG(t)
+
+	if _, err := kg.AddEdgeWithProvenance("user", "german", "primary_language", nil, KGProvenanceInput{SourceKind: "user"}); err != nil {
+		t.Fatalf("add german claim: %v", err)
+	}
+	englishClaim, err := kg.AddEdgeWithProvenance("user", "english", "primary_language", nil, KGProvenanceInput{SourceKind: "user"})
+	if err != nil {
+		t.Fatalf("add english claim: %v", err)
+	}
+	if _, err := kg.db.Exec(`UPDATE kg_claims SET status = ? WHERE id = ?`, string(KGClaimRetracted), englishClaim.ID); err != nil {
+		t.Fatalf("force inactive claim: %v", err)
+	}
+
+	counts, err := kg.GetLifecycleCounts()
+	if err != nil {
+		t.Fatalf("GetLifecycleCounts: %v", err)
+	}
+	if counts.OpenConflicts != 1 {
+		t.Fatalf("OpenConflicts = %d, want 1 for visible inactive-claim conflict", counts.OpenConflicts)
+	}
+}
+
+func TestKGSuggestConflictResolutionsSkipsInactiveClaims(t *testing.T) {
+	kg := newTestKG(t)
+
+	if _, err := kg.AddEdgeWithProvenance("user", "german", "primary_language", nil, KGProvenanceInput{
+		SourceKind: "manual",
+		Confidence: 0.4,
+	}); err != nil {
+		t.Fatalf("add german claim: %v", err)
+	}
+	englishClaim, err := kg.AddEdgeWithProvenance("user", "english", "primary_language", nil, KGProvenanceInput{
+		SourceKind: "manual",
+		Confidence: 0.95,
+	})
+	if err != nil {
+		t.Fatalf("add english claim: %v", err)
+	}
+	if _, err := kg.db.Exec(`UPDATE kg_claims SET status = ? WHERE id = ?`, string(KGClaimRetracted), englishClaim.ID); err != nil {
+		t.Fatalf("force inactive claim: %v", err)
+	}
+
+	suggestions, err := kg.SuggestKGConflictResolutions(10)
+	if err != nil {
+		t.Fatalf("SuggestKGConflictResolutions: %v", err)
+	}
+	if len(suggestions) != 0 {
+		t.Fatalf("inactive-claim conflict should require manual review, suggestions=%#v", suggestions)
+	}
+}
+
 func TestKGResolveConflictUpdatesExistingWinnerRegression(t *testing.T) {
 	kg := newTestKG(t)
 

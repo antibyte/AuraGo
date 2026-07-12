@@ -1297,6 +1297,38 @@ func TestKGMergeNodesRewritesClaims(t *testing.T) {
 	}
 }
 
+func TestKGMergeNodesRewritesConflictSubjects(t *testing.T) {
+	kg := newTestKG(t)
+
+	if err := kg.AddNode("target", "Target", map[string]string{"type": "service"}); err != nil {
+		t.Fatalf("AddNode target: %v", err)
+	}
+	if _, err := kg.AddEdgeWithProvenance("source", "rack-a", "located_in", nil, KGProvenanceInput{SourceKind: "manual"}); err != nil {
+		t.Fatalf("add rack-a claim: %v", err)
+	}
+	if _, err := kg.AddEdgeWithProvenance("source", "rack-b", "located_in", nil, KGProvenanceInput{SourceKind: "manual"}); err != nil {
+		t.Fatalf("add rack-b claim: %v", err)
+	}
+	if conflicts, err := kg.GetOpenKGConflicts(10); err != nil || len(conflicts) != 1 {
+		t.Fatalf("expected one conflict before merge, conflicts=%#v err=%v", conflicts, err)
+	}
+
+	if err := kg.MergeNodes("target", "source"); err != nil {
+		t.Fatalf("MergeNodes: %v", err)
+	}
+
+	conflicts, err := kg.GetOpenKGConflicts(10)
+	if err != nil {
+		t.Fatalf("GetOpenKGConflicts: %v", err)
+	}
+	if len(conflicts) != 1 {
+		t.Fatalf("conflicts len = %d, want 1: %#v", len(conflicts), conflicts)
+	}
+	if conflicts[0].SubjectID != "target" {
+		t.Fatalf("conflict subject_id = %q, want target after merge", conflicts[0].SubjectID)
+	}
+}
+
 func TestKGSetMinSemanticSimilarityConcurrent(t *testing.T) {
 	kg := newTestKG(t)
 	var wg sync.WaitGroup

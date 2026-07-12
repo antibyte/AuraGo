@@ -46,11 +46,9 @@ func (kg *KnowledgeGraph) GetLifecycleCounts() (KGLifecycleCounts, error) {
 
 	if err := kg.db.QueryRow(`
 		SELECT COUNT(*)
-		FROM kg_conflicts c
-		JOIN kg_claims left_claim ON left_claim.id = c.left_claim_id AND left_claim.status = ?
-		JOIN kg_claims right_claim ON right_claim.id = c.right_claim_id AND right_claim.status = ?
-		WHERE c.status = 'open'
-	`, string(KGClaimAccepted), string(KGClaimAccepted)).Scan(&counts.OpenConflicts); err != nil {
+		FROM kg_conflicts
+		WHERE status = 'open'
+	`).Scan(&counts.OpenConflicts); err != nil {
 		return counts, fmt.Errorf("query open kg conflict count: %w", err)
 	}
 

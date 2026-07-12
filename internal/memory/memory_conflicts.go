@@ -50,6 +50,8 @@ func (s *SQLiteMemory) RegisterMemoryConflict(leftDocID, rightDocID, conflictKey
 			right_value = excluded.right_value,
 			reason = excluded.reason,
 			status = 'open',
+			winning_doc_id = '',
+			superseded_doc_id = '',
 			detected_at = CURRENT_TIMESTAMP,
 			resolved_at = ''
 	`, leftDocID, rightDocID, conflictKey, leftValue, rightValue, reason)
@@ -146,6 +148,11 @@ func (s *SQLiteMemory) ResolveMemoryConflict(conflictID int64, winningDocID, rea
 	default:
 		return fmt.Errorf("winning doc %s does not belong to conflict %d", winningDocID, conflictID)
 	}
+	survivorDocIDs, err := memoryConflictSurvivorDocIDsForLoserTx(tx, losingDocID, conflictID)
+	if err != nil {
+		return err
+	}
+	survivorDocIDs = append(survivorDocIDs, winningDocID)
 
 	if _, err := tx.Exec(`
 		UPDATE memory_conflicts
@@ -184,30 +191,67 @@ func (s *SQLiteMemory) ResolveMemoryConflict(conflictID int64, winningDocID, rea
 		return fmt.Errorf("archive losing memory meta: %w", err)
 	}
 
+	for _, survivorDocID := range uniqueNonEmptyStrings(survivorDocIDs) {
+		if err := confirmMemoryDocIfNoOpenConflictsTx(tx, survivorDocID, reason); err != nil {
+			return err
+		}
+	}
+
+	return tx.Commit()
+}
+
+func memoryConflictSurvivorDocIDsForLoserTx(tx *sql.Tx, losingDocID string, excludeConflictID int64) ([]string, error) {
+	rows, err := tx.Query(`
+		SELECT CASE WHEN doc_id_left = ? THEN doc_id_right ELSE doc_id_left END
+		FROM memory_conflicts
+		WHERE status = 'open'
+		  AND id != ?
+		  AND (doc_id_left = ? OR doc_id_right = ?)
+	`, losingDocID, excludeConflictID, losingDocID, losingDocID)
+	if err != nil {
+		return nil, fmt.Errorf("load loser conflict survivor docs: %w", err)
+	}
+	defer rows.Close()
+
+	var docIDs []string
+	for rows.Next() {
+		var docID string
+		if err := rows.Scan(&docID); err != nil {
+			return nil, fmt.Errorf("scan loser conflict survivor doc: %w", err)
+		}
+		docIDs = append(docIDs, docID)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate loser conflict survivor docs: %w", err)
+	}
+	return docIDs, nil
+}
+
+func confirmMemoryDocIfNoOpenConflictsTx(tx *sql.Tx, docID, reason string) error {
 	var remainingOpen int
 	if err := tx.QueryRow(`
 		SELECT COUNT(*)
 		FROM memory_conflicts
 		WHERE status = 'open' AND (doc_id_left = ? OR doc_id_right = ?)
-	`, winningDocID, winningDocID).Scan(&remainingOpen); err != nil {
-		return fmt.Errorf("count remaining winner conflicts: %w", err)
+	`, docID, docID).Scan(&remainingOpen); err != nil {
+		return fmt.Errorf("count remaining memory conflicts for %s: %w", docID, err)
 	}
-	if remainingOpen == 0 {
-		if _, err := tx.Exec(`
-			UPDATE memory_meta
-			SET verification_status = ?,
-			    archived_at = NULL,
-			    archived_reason = '',
-			    last_reviewed_at = CURRENT_TIMESTAMP,
-			    review_note = ?,
-			    last_event_at = CURRENT_TIMESTAMP
-			WHERE doc_id = ?
-		`, MemoryVerificationConfirmed, reason, winningDocID); err != nil {
-			return fmt.Errorf("confirm winning memory meta: %w", err)
-		}
+	if remainingOpen != 0 {
+		return nil
 	}
-
-	return tx.Commit()
+	if _, err := tx.Exec(`
+		UPDATE memory_meta
+		SET verification_status = ?,
+		    archived_at = NULL,
+		    archived_reason = '',
+		    last_reviewed_at = CURRENT_TIMESTAMP,
+		    review_note = ?,
+		    last_event_at = CURRENT_TIMESTAMP
+		WHERE doc_id = ?
+	`, MemoryVerificationConfirmed, reason, docID); err != nil {
+		return fmt.Errorf("confirm memory meta %s: %w", docID, err)
+	}
+	return nil
 }
 
 func getMemoryConflictByIDTx(tx *sql.Tx, id int64) (MemoryConflict, error) {
