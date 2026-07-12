@@ -658,6 +658,7 @@ func buildSystemPromptInnerContext(ctx context.Context, promptsDir string, flags
 	if flags.OperationalIssueReminder != "" {
 		finalPrompt.WriteString("### OPERATIONAL ISSUE REMINDER ###\n")
 		finalPrompt.WriteString("Use these issues as diagnostic context; mention them only if relevant to the current request or urgent. Do not repeat the reminder if you already mentioned it in this conversation.\n")
+		finalPrompt.WriteString("When a memory reflection issue is safe, concrete, and relevant, resolve it with the appropriate memory or learned-rule tool before your final reply; if it needs verification, say exactly what is missing.\n")
 		finalPrompt.WriteString(isolatePromptExternalData(flags.OperationalIssueReminder))
 		finalPrompt.WriteString("\n\n")
 	}

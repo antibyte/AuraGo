@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -175,8 +176,12 @@ func BuildOperationalIssueReminderText(todos []Todo) string {
 		return ""
 	}
 	const maxPromptOperationalIssues = 2
+	todos = prioritizeOperationalIssueReminderTodos(todos)
 	var b strings.Builder
 	b.WriteString("Unresolved operational issues detected in background contexts:\n")
+	if hasMemoryReflectionIssue(todos) {
+		b.WriteString("Memory reflection follow-ups are actionable when safe and concrete: resolve core-memory follow-ups with memory tooling after verifying they match the user, and create Learned Rules for specific recurring tool loops.\n")
+	}
 	for i, todo := range todos {
 		if i >= maxPromptOperationalIssues {
 			remaining := len(todos) - maxPromptOperationalIssues
@@ -199,6 +204,44 @@ func BuildOperationalIssueReminderText(todos []Todo) string {
 		b.WriteString("\n")
 	}
 	return strings.TrimSpace(b.String())
+}
+
+func prioritizeOperationalIssueReminderTodos(todos []Todo) []Todo {
+	if len(todos) < 2 {
+		return todos
+	}
+	out := append([]Todo(nil), todos...)
+	sort.SliceStable(out, func(i, j int) bool {
+		return operationalIssueReminderRank(out[i]) < operationalIssueReminderRank(out[j])
+	})
+	return out
+}
+
+func operationalIssueReminderRank(todo Todo) int {
+	source := strings.ToLower(strings.TrimSpace(operationalIssueField(todo.Description, "Source")))
+	if source != "memory_reflect" {
+		return 10
+	}
+	text := strings.ToLower(todo.Title + "\n" + operationalIssueField(todo.Description, "Latest detail"))
+	switch {
+	case strings.Contains(text, "core memory") || strings.Contains(text, "core_memory") ||
+		strings.Contains(text, "location") || strings.Contains(text, "wohnort"):
+		return 0
+	case strings.Contains(text, "learned rule") || strings.Contains(text, "recurring error pattern") ||
+		strings.Contains(text, "circuit breaker"):
+		return 1
+	default:
+		return 2
+	}
+}
+
+func hasMemoryReflectionIssue(todos []Todo) bool {
+	for _, todo := range todos {
+		if strings.EqualFold(strings.TrimSpace(operationalIssueField(todo.Description, "Source")), "memory_reflect") {
+			return true
+		}
+	}
+	return false
 }
 
 // ClaimOperationalIssueReminderForDay marks the operational issue reminder as

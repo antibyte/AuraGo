@@ -100,6 +100,7 @@ func classifyMemoryTarget(tc ToolCall, content string) string {
 	preferencePatterns := []string{
 		"prefer ", "preference", "preferred", "usually uses", "normally uses",
 		"spricht", "antwortet auf", "likes ", "dislikes ", "language", "timezone",
+		"location", "lives in", "home city", "city is", "wohnort", "wohnt in", "standort",
 		"setup preference", "installation preference", "communication style", "hard constraint",
 		"always ", "never ", "immer ", "nie ",
 	}

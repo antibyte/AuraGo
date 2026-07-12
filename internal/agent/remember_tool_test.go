@@ -39,6 +39,18 @@ func TestClassifyMemoryTargetTreatsInstallationPreferencesAsFact(t *testing.T) {
 	}
 }
 
+func TestClassifyMemoryTargetTreatsStableUserLocationAsFact(t *testing.T) {
+	for _, content := range []string{
+		"Andi wohnt in Pforzheim.",
+		"User location is Pforzheim.",
+		"Der Wohnort des Nutzers ist Pforzheim.",
+	} {
+		if got := classifyMemoryTarget(ToolCall{}, content); got != "fact" {
+			t.Fatalf("classifyMemoryTarget(%q) = %q, want fact", content, got)
+		}
+	}
+}
+
 func TestClassifyMemoryTargetTreatsDebuggingTipAsEvent(t *testing.T) {
 	content := "Python debugging tip: run pytest -k failing_test before touching the implementation"
 	if got := classifyMemoryTarget(ToolCall{}, content); got != "event" {
@@ -98,6 +110,31 @@ func TestRememberAmbiguousContentUsesJournal(t *testing.T) {
 
 	if !strings.Contains(out, `"stored_as":"journal"`) {
 		t.Fatalf("handleRemember output = %q, want journal storage", out)
+	}
+}
+
+func TestRememberStableUserLocationUsesCoreMemory(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	t.Cleanup(func() { _ = stm.Close() })
+
+	out := handleRemember(
+		ToolCall{Content: "Andi wohnt in Pforzheim."},
+		&config.Config{},
+		logger,
+		stm,
+		nil,
+		"session-test",
+	)
+
+	if !strings.Contains(out, `"stored_as":"core_memory"`) {
+		t.Fatalf("handleRemember output = %q, want core memory storage", out)
+	}
+	if !stm.CoreMemoryFactExists("Andi wohnt in Pforzheim.") {
+		t.Fatal("expected stable location fact in core memory")
 	}
 }
 

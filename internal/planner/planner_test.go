@@ -1561,6 +1561,46 @@ func TestBuildOperationalIssueReminderTextCompactsDetailsAndLimitsItems(t *testi
 	}
 }
 
+func TestBuildOperationalIssueReminderTextPrioritizesMemoryReflectionFollowUps(t *testing.T) {
+	now := time.Date(2026, 7, 12, 10, 0, 0, 0, time.UTC)
+	memoryIssue := OperationalIssue{
+		Source:      "memory_reflect",
+		Context:     "recent",
+		Title:       "Memory reflection suggested a core memory follow-up",
+		Detail:      "Store user location (Pforzheim) in core memory immediately.",
+		Severity:    "warning",
+		Reference:   "memory_reflect",
+		Fingerprint: "memory_reflect|recent|action_item|0",
+		OccurredAt:  now,
+	}
+	genericIssue := OperationalIssue{
+		Source:      "maintenance",
+		Context:     "maintenance",
+		Title:       "Maintenance agent loop failed",
+		Detail:      "A background maintenance run timed out.",
+		Severity:    "warning",
+		Reference:   "maintenance",
+		Fingerprint: "maintenance|loop",
+		OccurredAt:  now.Add(time.Minute),
+	}
+	todos := []Todo{
+		{Title: genericIssue.Title, Description: buildOperationalIssueDescription(genericIssue, now.Format(time.RFC3339), 1)},
+		{Title: memoryIssue.Title, Description: buildOperationalIssueDescription(memoryIssue, now.Format(time.RFC3339), 2)},
+	}
+
+	got := BuildOperationalIssueReminderText(todos)
+
+	if !strings.Contains(got, "Memory reflection follow-ups are actionable") {
+		t.Fatalf("reminder missing actionable memory-reflection instruction:\n%s", got)
+	}
+	if strings.Index(got, "Memory reflection suggested a core memory follow-up") > strings.Index(got, "Maintenance agent loop failed") {
+		t.Fatalf("memory reflection follow-up should be prioritized:\n%s", got)
+	}
+	if !strings.Contains(got, "Store user location (Pforzheim) in core memory immediately.") {
+		t.Fatalf("reminder missing core-memory follow-up detail:\n%s", got)
+	}
+}
+
 func TestListTodosEmpty(t *testing.T) {
 	db := testDB(t)
 	defer db.Close()

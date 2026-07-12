@@ -910,18 +910,21 @@ func TestDetermineTierAdaptiveNilFlagsDefaultsFull(t *testing.T) {
 func TestBuildSystemPromptIncludesOperationalIssueReminder(t *testing.T) {
 	flags := ContextFlags{
 		SystemLanguage:           "en",
-		OperationalIssueReminder: "Unresolved operational issues detected in background contexts:\n- System issue: Maintenance failed",
+		OperationalIssueReminder: "Unresolved operational issues detected in background contexts:\nMemory reflection follow-ups are actionable when safe and concrete.\n- System issue: Memory reflection suggested a core memory follow-up\n  Detail: Store user location (Pforzheim) in core memory immediately.",
 	}
 
 	prompt, _ := buildSystemPromptInner("", &flags, "", slog.Default())
 	if !strings.Contains(prompt, "### OPERATIONAL ISSUE REMINDER ###") {
 		t.Fatalf("prompt = %q, want operational issue reminder header", prompt)
 	}
-	if !strings.Contains(prompt, "Maintenance failed") {
+	if !strings.Contains(prompt, "Store user location (Pforzheim) in core memory immediately.") {
 		t.Fatalf("prompt = %q, want operational issue content", prompt)
 	}
 	if !strings.Contains(prompt, "Use these issues as diagnostic context; mention them only if relevant to the current request or urgent.") {
 		t.Fatalf("prompt = %q, want relevance-gated operational issue instruction", prompt)
+	}
+	if !strings.Contains(prompt, "When a memory reflection issue is safe, concrete, and relevant, resolve it with the appropriate memory or learned-rule tool before your final reply") {
+		t.Fatalf("prompt = %q, want actionable memory reflection instruction", prompt)
 	}
 }
 
