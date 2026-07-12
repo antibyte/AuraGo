@@ -46,7 +46,7 @@ func (e RESTError) Error() string {
 func NewClient(cfg ClientConfig) (*Client, error) {
 	rawURL := strings.TrimSpace(cfg.BaseURL)
 	if rawURL == "" {
-		rawURL = "http://127.0.0.1:8080"
+		rawURL = "http://127.0.0.1:18080"
 	}
 	parsed, err := url.Parse(rawURL)
 	if err != nil {

@@ -10,7 +10,7 @@ Manage short-lived boring-computers microVMs through AuraGo's private Virtual Co
 - Preview and live channels must use AuraGo routes such as `/api/virtual-computers/machines/{id}/web/{port}/`; do not expose boringd directly.
 - Tailscale access should expose AuraGo via `tailscale.tsnet.serve_http`, not boringd.
 - `control_plane.mode=local_host` installs boring-computers on the same Ubuntu/Linux KVM host that runs AuraGo. It requires `/dev/kvm`, systemd, and root or passwordless sudo; Docker, macOS/Lima, and Windows/WSL are not automated in v1.
-- If an upstream error says boringd returned a non-JSON response, check that `virtual_computers.control_plane.boringd_url` points to boringd itself (normally `http://127.0.0.1:8080` behind AuraGo), not the AuraGo UI, a login page, or a redirect.
+- If an upstream error says boringd returned a non-JSON response, check that `virtual_computers.control_plane.boringd_url` points to boringd itself (normally `http://127.0.0.1:18080` behind AuraGo), not the AuraGo UI, a login page, or a redirect.
 
 ## Operations
 

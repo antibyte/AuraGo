@@ -120,6 +120,7 @@ type SetupStatus struct {
 
 type SetupInstallOptions struct {
 	InstallDir         string
+	BoringdURL         string
 	Token              string
 	AnthropicKey       string
 	OpenRouterKey      string

@@ -728,7 +728,7 @@ func virtualComputersEnsureControlPlaneAccess(s *Server, cfg virtualcomputers.To
 		virtualComputersTunnel.key = ""
 		virtualComputersTunnel.close = nil
 	}
-	closeFn, err := startVirtualComputersSSHTunnel(executor, localAddr, "127.0.0.1:8080", s)
+	closeFn, err := startVirtualComputersSSHTunnel(executor, localAddr, localAddr, s)
 	if err != nil {
 		return fmt.Errorf("start virtual computer SSH tunnel: %w", err)
 	}
@@ -894,10 +894,17 @@ func virtualComputersSetupMessage(cfg virtualcomputers.ToolConfig) string {
 }
 
 func virtualComputersInstalledMessage(cfg virtualcomputers.ToolConfig) string {
-	if virtualComputersControlPlaneMode(cfg) == virtualcomputers.ControlPlaneLocalHost {
-		return "boringd is installed locally and bound to 127.0.0.1:8080; AuraGo keeps the token server-side."
+	boringdURL := strings.TrimSpace(cfg.BoringdURL)
+	if boringdURL == "" {
+		boringdURL = strings.TrimSpace(cfg.ControlPlane.BoringdURL)
 	}
-	return "boringd is installed bound to 127.0.0.1:8080 on the control-plane host; AuraGo keeps the token server-side."
+	if boringdURL == "" {
+		boringdURL = "http://127.0.0.1:18080"
+	}
+	if virtualComputersControlPlaneMode(cfg) == virtualcomputers.ControlPlaneLocalHost {
+		return "boringd is installed locally at " + boringdURL + "; AuraGo keeps the token server-side."
+	}
+	return "boringd is installed at " + boringdURL + " through the control-plane connection; AuraGo keeps the token server-side."
 }
 
 func virtualComputersSetupMetadata(s *Server, cfg virtualcomputers.ToolConfig, checks map[string]string) map[string]interface{} {
@@ -1026,8 +1033,13 @@ func virtualComputersSetupManager(s *Server, cfg virtualcomputers.ToolConfig, to
 }
 
 func virtualComputersSetupOptions(cfg virtualcomputers.ToolConfig, token string, req virtualComputersSetupRequest) virtualcomputers.SetupInstallOptions {
+	boringdURL := strings.TrimSpace(cfg.BoringdURL)
+	if boringdURL == "" {
+		boringdURL = strings.TrimSpace(cfg.ControlPlane.BoringdURL)
+	}
 	return virtualcomputers.SetupInstallOptions{
 		InstallDir:         cfg.ControlPlane.InstallDir,
+		BoringdURL:         boringdURL,
 		Token:              token,
 		AnthropicKey:       cfg.BoringAnthropicKey,
 		OpenRouterKey:      cfg.BoringOpenRouterKey,

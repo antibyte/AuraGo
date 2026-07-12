@@ -168,6 +168,18 @@ func TestVirtualComputersSetupManagerLocalHostDoesNotRequireSSHSecret(t *testing
 	}
 }
 
+func TestVirtualComputersSetupOptionsCarriesConfiguredBoringdURL(t *testing.T) {
+	cfg := virtualcomputers.ToolConfig{
+		ControlPlane: virtualcomputers.ControlPlaneConfig{
+			BoringdURL: "http://127.0.0.1:18080",
+		},
+	}
+	opts := virtualComputersSetupOptions(cfg, "boring-token", virtualComputersSetupRequest{})
+	if opts.BoringdURL != "http://127.0.0.1:18080" {
+		t.Fatalf("BoringdURL = %q", opts.BoringdURL)
+	}
+}
+
 func TestVirtualComputersSetupStatusIncludesLocalModeMetadata(t *testing.T) {
 	cfg := virtualComputersTestConfig("http://127.0.0.1:8080")
 	cfg.VirtualComputers.ControlPlane.Mode = "local_host"

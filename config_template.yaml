@@ -929,7 +929,7 @@ virtual_computers:
         ssh_port: 22
         credential_id: ""                                  # AuraGo credential ID for SSH setup; ignored for local_host
         install_dir: /opt/boring-computers                 # target install dir on the selected host
-        boringd_url: http://127.0.0.1:8080                 # private AuraGo-side URL; local_host binds boringd here directly
+        boringd_url: http://127.0.0.1:18080                # private AuraGo-side URL; local_host binds boringd here directly
     default_template: python
     default_ttl_seconds: 600                               # boringd supports 15-900 seconds
     max_ttl_seconds: 900

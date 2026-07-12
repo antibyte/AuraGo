@@ -3,6 +3,8 @@ package virtualcomputers
 import (
 	"context"
 	"fmt"
+	"net"
+	"net/url"
 	"regexp"
 	"strings"
 )
@@ -23,6 +25,7 @@ type SSHExecutor = CommandExecutor
 type ScriptSSHExecutor = ScriptExecutor
 
 const remotePreflightCommand = "printf 'HOST_OS='; uname -s | tr '[:upper:]' '[:lower:]'; printf 'ARCH='; uname -m; printf 'HAS_KVM='; test -e /dev/kvm && echo 1 || echo 0; . /etc/os-release 2>/dev/null; printf 'OS_ID=%s\\n' \"$ID\"; printf 'OS_VERSION=%s\\n' \"$VERSION_ID\"; printf 'RUNNING_IN_DOCKER='; if [ -f /.dockerenv ] || { [ -r /proc/self/cgroup ] && grep -qiE 'docker|containerd|kubepods' /proc/self/cgroup; }; then echo 1; else echo 0; fi; printf 'HAS_SYSTEMD='; if [ -d /run/systemd/system ] && command -v systemctl >/dev/null 2>&1; then echo 1; else echo 0; fi; printf 'HAS_SUDO_OR_ROOT='; if [ \"$(id -u)\" -eq 0 ] || sudo -n true >/dev/null 2>&1; then echo 1; else echo 0; fi"
+const defaultBoringdURL = "http://127.0.0.1:18080"
 
 type SetupManager struct {
 	Executor       CommandExecutor
@@ -111,7 +114,8 @@ func (m SetupManager) Install(ctx context.Context) (SetupStatus, error) {
 		}
 		return SetupStatus{Configured: false, Healthy: false, Message: msg, Preflight: preflight}, fmt.Errorf("boringd install failed: %w", err)
 	}
-	health, err := m.Executor.Run(ctx, "curl -fsS --max-time 8 http://127.0.0.1:8080/healthz")
+	healthURL := boringdHealthURL(m.InstallOptions.BoringdURL)
+	health, err := m.Executor.Run(ctx, "curl -fsS --max-time 8 "+shellQuote(healthURL))
 	if err != nil {
 		return SetupStatus{
 			Configured: true,
@@ -150,6 +154,8 @@ func (m SetupManager) installScript() string {
 	if token == "" {
 		token = strings.TrimSpace(m.Token)
 	}
+	boringdAddr := boringdListenAddr(opts.BoringdURL)
+	healthURL := boringdHealthURL(opts.BoringdURL)
 	maxMachines := opts.MaxRunningMachines
 	if maxMachines <= 0 {
 		maxMachines = 20
@@ -185,6 +191,8 @@ BORING_ANTHROPIC_KEY_VALUE=%s
 BORING_OPENROUTER_KEY_VALUE=%s
 BORING_S3_KEY_VALUE=%s
 BORING_S3_SECRET_VALUE=%s
+BORING_ADDR_VALUE=%s
+BORING_HEALTH_URL_VALUE=%s
 BORING_MAX_VALUE=%d
 BORING_MAX_FORKS_VALUE=%d
 BORING_MAX_TEMPLATES_VALUE=%d
@@ -264,7 +272,7 @@ log "writing boringd environment"
 install -d -m0755 /etc/boring
 umask 077
 cat > /etc/boring/boringd.env <<EOF
-BORING_ADDR=127.0.0.1:8080
+BORING_ADDR=${BORING_ADDR_VALUE}
 BORING_ALLOW_PERSISTENT=${BORING_ALLOW_PERSISTENT_VALUE}
 BORING_JAILER=1
 BORING_NET=${BORING_NET_VALUE}
@@ -282,11 +290,54 @@ EOF
 log "starting boringd"
 systemctl daemon-reload
 systemctl enable boring-net.service 2>/dev/null || true
-systemctl enable --now boringd
+systemctl enable boringd
+systemctl restart boringd
 sleep 2
 systemctl is-active boringd
-curl -fsS --max-time 8 http://127.0.0.1:8080/healthz
-`, shellQuote(installDir), shellQuote(envLine(token)), shellQuote(envLine(opts.AnthropicKey)), shellQuote(envLine(opts.OpenRouterKey)), shellQuote(envLine(opts.S3AccessKeyID)), shellQuote(envLine(opts.S3SecretKey)), maxMachines, maxForks, maxTemplates, allowPersistent, guestNet, skipDesktop)
+curl -fsS --max-time 8 "${BORING_HEALTH_URL_VALUE}"
+`, shellQuote(installDir), shellQuote(envLine(token)), shellQuote(envLine(opts.AnthropicKey)), shellQuote(envLine(opts.OpenRouterKey)), shellQuote(envLine(opts.S3AccessKeyID)), shellQuote(envLine(opts.S3SecretKey)), shellQuote(boringdAddr), shellQuote(healthURL), maxMachines, maxForks, maxTemplates, allowPersistent, guestNet, skipDesktop)
+}
+
+func boringdListenAddr(rawURL string) string {
+	parsed, ok := parseBoringdURL(rawURL)
+	if !ok {
+		return "127.0.0.1:18080"
+	}
+	port := parsed.Port()
+	if port == "" {
+		switch parsed.Scheme {
+		case "https":
+			port = "443"
+		case "http":
+			port = "80"
+		default:
+			port = "8080"
+		}
+	}
+	return net.JoinHostPort("127.0.0.1", port)
+}
+
+func boringdHealthURL(rawURL string) string {
+	parsed, ok := parseBoringdURL(rawURL)
+	if !ok {
+		parsed, _ = url.Parse(defaultBoringdURL)
+	}
+	parsed.Path = strings.TrimRight(parsed.Path, "/") + "/healthz"
+	parsed.RawQuery = ""
+	parsed.Fragment = ""
+	return parsed.String()
+}
+
+func parseBoringdURL(rawURL string) (*url.URL, bool) {
+	rawURL = strings.TrimSpace(rawURL)
+	if rawURL == "" {
+		rawURL = defaultBoringdURL
+	}
+	parsed, err := url.Parse(rawURL)
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+		return nil, false
+	}
+	return parsed, true
 }
 
 func heredocCommand(path, script string) string {

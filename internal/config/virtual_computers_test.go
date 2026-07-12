@@ -27,7 +27,7 @@ func TestVirtualComputersDefaults(t *testing.T) {
 	if cfg.VirtualComputers.ControlPlane.Mode != "ssh_host" {
 		t.Fatalf("control plane mode = %q", cfg.VirtualComputers.ControlPlane.Mode)
 	}
-	if cfg.VirtualComputers.ControlPlane.BoringdURL != "http://127.0.0.1:8080" {
+	if cfg.VirtualComputers.ControlPlane.BoringdURL != "http://127.0.0.1:18080" {
 		t.Fatalf("boringd url = %q", cfg.VirtualComputers.ControlPlane.BoringdURL)
 	}
 	wantDB := filepath.Join(filepath.Dir(configPath), "data", "virtual_computers.db")

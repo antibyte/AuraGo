@@ -102,7 +102,7 @@ func TestSetupInstallRunsScriptAndHealthCheck(t *testing.T) {
 		t.Fatalf("expected one install script, got %d", len(executor.scripts))
 	}
 	script := executor.scripts[0]
-	for _, want := range []string{"BORING_ADDR=127.0.0.1:8080", "BORING_MAX_VALUE=3", "BORING_MAX_FORKS_VALUE=2", "SKIP_DESKTOP_VALUE=1"} {
+	for _, want := range []string{"BORING_ADDR_VALUE='127.0.0.1:18080'", "BORING_ADDR=${BORING_ADDR_VALUE}", "BORING_MAX_VALUE=3", "BORING_MAX_FORKS_VALUE=2", "SKIP_DESKTOP_VALUE=1"} {
 		if !strings.Contains(script, want) {
 			t.Fatalf("install script missing %q", want)
 		}
@@ -112,6 +112,36 @@ func TestSetupInstallRunsScriptAndHealthCheck(t *testing.T) {
 	}
 	if !strings.Contains(executor.runs[1], "healthz") {
 		t.Fatalf("healthcheck command not run: %v", executor.runs)
+	}
+}
+
+func TestSetupInstallUsesConfiguredBoringdURL(t *testing.T) {
+	executor := &fakeSSHExecutor{output: "ARCH=x86_64\nHAS_KVM=1\nOS_ID=ubuntu\n"}
+	manager := SetupManager{
+		Executor: executor,
+		InstallOptions: SetupInstallOptions{
+			BoringdURL: "http://127.0.0.1:18080",
+			Token:      "boring-secret",
+		},
+	}
+	status, err := manager.Install(context.Background())
+	if err != nil {
+		t.Fatalf("Install: %v status=%+v", err, status)
+	}
+	if len(executor.scripts) != 1 {
+		t.Fatalf("expected one install script, got %d", len(executor.scripts))
+	}
+	script := executor.scripts[0]
+	for _, want := range []string{"BORING_ADDR_VALUE='127.0.0.1:18080'", "BORING_ADDR=${BORING_ADDR_VALUE}", "http://127.0.0.1:18080/healthz"} {
+		if !strings.Contains(script, want) {
+			t.Fatalf("install script missing %q", want)
+		}
+	}
+	if len(executor.runs) != 2 {
+		t.Fatalf("expected preflight and healthcheck commands, got %d", len(executor.runs))
+	}
+	if !strings.Contains(executor.runs[1], "http://127.0.0.1:18080/healthz") {
+		t.Fatalf("healthcheck command uses wrong URL: %v", executor.runs)
 	}
 }
 
