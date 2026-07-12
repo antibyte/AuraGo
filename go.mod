@@ -9,6 +9,7 @@ require github.com/sashabaranov/go-openai v1.41.2
 require (
 	github.com/BurntSushi/toml v1.6.0
 	github.com/JohannesKaufmann/html-to-markdown/v2 v2.5.2
+	github.com/PuerkitoBio/goquery v1.12.0
 	github.com/SherClockHolmes/webpush-go v1.4.0
 	github.com/a2aproject/a2a-go/v2 v2.3.1
 	github.com/beevik/etree v1.6.0
@@ -56,7 +57,6 @@ require (
 	filippo.io/edwards25519 v1.2.0 // indirect
 	github.com/Azure/go-ntlmssp v0.1.1 // indirect
 	github.com/JohannesKaufmann/dom v0.3.1 // indirect
-	github.com/PuerkitoBio/goquery v1.12.0 // indirect
 	github.com/akutz/memconn v0.1.0 // indirect
 	github.com/alexbrainman/sspi v0.0.0-20250919150558-7d374ff0d59e // indirect
 	github.com/andybalholm/cascadia v1.3.4 // indirect

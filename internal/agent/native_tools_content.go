@@ -56,11 +56,12 @@ func appendContentToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai
 	}
 
 	if ff.WebScraperEnabled {
-		// Web Scraper — fetch and extract plain text from any URL (gated with web_scraper)
+		// Web Scraper — fetch and extract plain text or structured content from any URL (gated with web_scraper)
 		tools = append(tools, tool("web_scraper",
-			"Extract plain text content from a web page by removing HTML tags, scripts, and styles. "+
-				"Use to read web pages, documentation, articles, or any public URL. "+
-				"Returns clean, readable text without HTML markup.",
+			"Extract plain text or structured content from a web page. "+
+				"Without a selector it returns the readable article as Markdown. "+
+				"With a CSS selector you can extract text, HTML, attributes, rows, or tables. "+
+				"Use to read web pages, documentation, articles, or extract structured data like product lists.",
 			schema(map[string]interface{}{
 				"url":          prop("string", "Full URL of the page to scrape (must start with http:// or https://)"),
 				"search_query": prop("string", "Optional: tell the summariser what specific information to extract from the page when summary mode is enabled. Be specific (e.g. 'pricing, release date, system requirements'). Ignored if summary mode is disabled."),
@@ -70,6 +71,19 @@ func appendContentToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai
 					"enum":        []string{"auto", "static", "dynamic", "rss"},
 				},
 				"wait_for_selector": prop("string", "Optional CSS selector to wait for in dynamic mode or auto dynamic fallback."),
+				"selector":          prop("string", "Optional CSS selector to extract matching element(s). When omitted, the full readable page is returned as Markdown."),
+				"fields": map[string]interface{}{
+					"type":                 "object",
+					"description":          "Optional field mapping for output_format=rows. Keys are field names; values are CSS selectors relative to selector. Append @attr to read an attribute (e.g. 'a@href').",
+					"additionalProperties": map[string]interface{}{"type": "string"},
+				},
+				"output_format": map[string]interface{}{
+					"type":        "string",
+					"description": "Output shape when selector is set. auto picks rows if fields is set, list if attribute is set, otherwise text.",
+					"enum":        []string{"auto", "text", "html", "rows", "table"},
+				},
+				"attribute": prop("string", "Attribute to extract when output_format is list (e.g. 'href', 'src')."),
+				"limit":     map[string]interface{}{"type": "integer", "description": "Maximum matches to return when selector is set (1-1000, default: 50)"},
 			}, "url"),
 		))
 

@@ -5,6 +5,11 @@ type webScraperArgs struct {
 	SearchQuery     string
 	Mode            string
 	WaitForSelector string
+	Selector        string
+	Fields          map[string]string
+	OutputFormat    string
+	Attribute       string
+	Limit           int
 }
 
 type wikipediaSearchArgs struct {
@@ -98,6 +103,11 @@ func decodeWebScraperArgs(args map[string]interface{}) webScraperArgs {
 		SearchQuery:     toolArgString(args, "search_query"),
 		Mode:            toolArgString(args, "mode"),
 		WaitForSelector: toolArgString(args, "wait_for_selector"),
+		Selector:        toolArgString(args, "selector"),
+		Fields:          toolArgStringMap(args, "fields"),
+		OutputFormat:    toolArgString(args, "output_format"),
+		Attribute:       toolArgString(args, "attribute"),
+		Limit:           toolArgInt(args, 50, "limit"),
 	}
 }
 

@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"aurago/internal/i18n"
 	"aurago/internal/security"
@@ -29,8 +30,13 @@ func handleBuiltinSkillAction(ctx context.Context, dc *DispatchContext, action s
 		scraped := tools.ExecuteWebScraperWithOptions(req.URL, tools.WebScraperOptions{
 			Mode:            req.Mode,
 			WaitForSelector: req.WaitForSelector,
+			Selector:        req.Selector,
+			Fields:          req.Fields,
+			OutputFormat:    req.OutputFormat,
+			Attribute:       req.Attribute,
+			Limit:           req.Limit,
 		})
-		if cfg.Tools.WebScraper.SummaryMode {
+		if cfg.Tools.WebScraper.SummaryMode && strings.TrimSpace(req.Selector) == "" {
 			searchQuery := req.SearchQuery
 			if searchQuery == "" {
 				searchQuery = "general summary of the page content"

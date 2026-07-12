@@ -392,6 +392,11 @@ func TestBuiltinToolSchemasExposeWebScraperModes(t *testing.T) {
 		if _, ok := properties["wait_for_selector"]; !ok {
 			t.Fatalf("expected web_scraper wait_for_selector property, got properties: %#v", properties)
 		}
+		for _, want := range []string{"selector", "fields", "output_format", "attribute", "limit"} {
+			if _, ok := properties[want]; !ok {
+				t.Fatalf("expected web_scraper %q property, got properties: %#v", want, properties)
+			}
+		}
 		return
 	}
 	t.Fatal("expected web_scraper schema when WebScraperEnabled is true")

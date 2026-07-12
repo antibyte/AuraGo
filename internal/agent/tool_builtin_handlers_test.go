@@ -51,6 +51,14 @@ func TestDecodeWebScraperArgsIncludesModeAndWaitSelector(t *testing.T) {
 		"search_query":      "latest AI headlines",
 		"mode":              "rss",
 		"wait_for_selector": "article",
+		"selector":          ".product",
+		"fields": map[string]interface{}{
+			"name":  "h2",
+			"price": ".price",
+		},
+		"output_format": "rows",
+		"attribute":     "href",
+		"limit":         25,
 	})
 	if req.URL != "https://example.com/feed.xml" {
 		t.Fatalf("URL = %q", req.URL)
@@ -63,6 +71,21 @@ func TestDecodeWebScraperArgsIncludesModeAndWaitSelector(t *testing.T) {
 	}
 	if req.WaitForSelector != "article" {
 		t.Fatalf("WaitForSelector = %q, want article", req.WaitForSelector)
+	}
+	if req.Selector != ".product" {
+		t.Fatalf("Selector = %q, want .product", req.Selector)
+	}
+	if len(req.Fields) != 2 || req.Fields["name"] != "h2" || req.Fields["price"] != ".price" {
+		t.Fatalf("Fields = %+v", req.Fields)
+	}
+	if req.OutputFormat != "rows" {
+		t.Fatalf("OutputFormat = %q, want rows", req.OutputFormat)
+	}
+	if req.Attribute != "href" {
+		t.Fatalf("Attribute = %q, want href", req.Attribute)
+	}
+	if req.Limit != 25 {
+		t.Fatalf("Limit = %d, want 25", req.Limit)
 	}
 }
 

@@ -432,7 +432,7 @@ func TestBuiltinSkillManifestParametersStayInSync(t *testing.T) {
 		"paperless":          {"category", "content", "document_id", "limit", "name", "operation", "query", "tags", "title"},
 		"pdf_extractor":      {"filepath", "search_query"},
 		"virustotal_scan":    {"file_path", "mode", "path", "resource"},
-		"web_scraper":        {"mode", "search_query", "url", "wait_for_selector"},
+		"web_scraper":        {"attribute", "fields", "limit", "mode", "output_format", "search_query", "selector", "url", "wait_for_selector"},
 		"wikipedia_search":   {"language", "query", "search_query"},
 	}
 

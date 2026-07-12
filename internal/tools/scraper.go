@@ -11,8 +11,11 @@ import (
 	"net/http"
 	"path"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
+
+	"github.com/PuerkitoBio/goquery"
 )
 
 // Pre-compiled regexps for HTML cleaning (used by shared helpers in this package).
@@ -32,6 +35,11 @@ var scraperGuardian = security.NewGuardian(nil)
 type WebScraperOptions struct {
 	Mode            string
 	WaitForSelector string
+	Selector        string
+	Fields          map[string]string
+	OutputFormat    string
+	Attribute       string
+	Limit           int
 }
 
 type webScraperRSSItem struct {
@@ -55,14 +63,29 @@ func ExecuteWebScraperWithOptions(rawURL string, options WebScraperOptions) stri
 	if mode == "" {
 		mode = "auto"
 	}
+
+	hasSelector := strings.TrimSpace(options.Selector) != ""
+
 	switch mode {
 	case "rss":
+		if hasSelector {
+			return formatError("selector is not supported in rss mode")
+		}
 		return executeWebScraperRSS(rawURL)
 	case "dynamic":
+		if hasSelector {
+			return executeWebScraperStructured(rawURL, options, true)
+		}
 		return executeWebScraperDynamic(rawURL, options.WaitForSelector)
 	case "static":
+		if hasSelector {
+			return executeWebScraperStructured(rawURL, options, false)
+		}
 		return executeWebScraperStatic(rawURL, "static")
 	case "auto":
+		if hasSelector {
+			return executeWebScraperStructuredAuto(rawURL, options)
+		}
 		return executeWebScraperAuto(rawURL, options.WaitForSelector)
 	default:
 		return formatError("invalid web_scraper mode: use auto, static, dynamic, or rss")
@@ -354,6 +377,294 @@ func scrapeResultLooksThin(result *scraper.ScrapeResult) bool {
 	content := strings.TrimSpace(result.Markdown)
 	raw := strings.ToLower(result.RawHTML)
 	return len(content) < 200 && strings.Contains(raw, "<script")
+}
+
+func executeWebScraperStructured(rawURL string, options WebScraperOptions, dynamic bool) string {
+	s := scraper.New(scraperGuardian)
+	var result *scraper.ScrapeResult
+	var err error
+	if dynamic {
+		result, err = s.FetchDynamic(rawURL, options.WaitForSelector)
+	} else {
+		result, err = s.FetchStatic(rawURL)
+	}
+	if err != nil {
+		return formatError(fmt.Sprintf("scrape failed: %v", err))
+	}
+	mode := "static"
+	if dynamic {
+		mode = "dynamic"
+	}
+	return extractStructuredHTML(result.RawHTML, rawURL, options, mode)
+}
+
+func executeWebScraperStructuredAuto(rawURL string, options WebScraperOptions) string {
+	s := scraper.New(scraperGuardian)
+	result, err := s.FetchStatic(rawURL)
+	if err != nil {
+		return formatError(fmt.Sprintf("scrape failed: %v", err))
+	}
+	if scrapeResultLooksThin(result) {
+		dynamic, dynErr := s.FetchDynamic(rawURL, options.WaitForSelector)
+		if dynErr == nil && !scrapeResultLooksThin(dynamic) {
+			return extractStructuredHTML(dynamic.RawHTML, rawURL, options, "dynamic")
+		}
+		if dynErr != nil {
+			structured := extractStructuredHTML(result.RawHTML, rawURL, options, "static")
+			return withWarning(structured, fmt.Sprintf("Dynamic fallback failed: %v", dynErr))
+		}
+	}
+	return extractStructuredHTML(result.RawHTML, rawURL, options, "static")
+}
+
+func extractStructuredHTML(rawHTML, rawURL string, options WebScraperOptions, mode string) string {
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(rawHTML))
+	if err != nil {
+		return formatError(fmt.Sprintf("failed to parse HTML: %v", err))
+	}
+
+	selector := strings.TrimSpace(options.Selector)
+	outputFormat := strings.ToLower(strings.TrimSpace(options.OutputFormat))
+	if outputFormat == "" {
+		outputFormat = "auto"
+	}
+
+	switch outputFormat {
+	case "auto":
+		if len(options.Fields) > 0 {
+			outputFormat = "rows"
+		} else if strings.TrimSpace(options.Attribute) != "" {
+			outputFormat = "list"
+		} else {
+			outputFormat = "text"
+		}
+	}
+
+	limit := options.Limit
+	if limit <= 0 {
+		limit = 50
+	}
+	if limit > 1000 {
+		limit = 1000
+	}
+
+	out := map[string]interface{}{
+		"status":        "success",
+		"mode":          mode,
+		"selector":      selector,
+		"output_format": outputFormat,
+	}
+
+	switch outputFormat {
+	case "text":
+		matches := isolateStrings(rawURL, extractTextList(doc, selector, limit))
+		out["count"] = len(matches)
+		out["matches"] = matches
+	case "html":
+		matches := isolateStrings(rawURL, extractHTMLList(doc, selector, limit))
+		out["count"] = len(matches)
+		out["matches"] = matches
+	case "list":
+		attribute := strings.TrimSpace(options.Attribute)
+		matches := isolateStrings(rawURL, extractAttributeList(doc, selector, attribute, limit))
+		out["count"] = len(matches)
+		out["attribute"] = attribute
+		out["matches"] = matches
+	case "rows":
+		fields := normalizeFields(options.Fields)
+		matches := isolateRows(rawURL, extractRows(doc, selector, fields, limit))
+		out["count"] = len(matches)
+		out["fields"] = fieldKeys(fields)
+		out["matches"] = matches
+	case "table":
+		headers, rows := extractTable(doc, selector, limit)
+		out["count"] = len(rows)
+		out["headers"] = isolateStrings(rawURL, headers)
+		out["rows"] = isolateTableRows(rawURL, rows)
+	default:
+		return formatError(fmt.Sprintf("unsupported output_format: %s", outputFormat))
+	}
+
+	b, _ := json.Marshal(out)
+	return string(b)
+}
+
+func extractTextList(doc *goquery.Document, selector string, limit int) []string {
+	var out []string
+	doc.Find(selector).EachWithBreak(func(i int, s *goquery.Selection) bool {
+		if len(out) >= limit {
+			return false
+		}
+		out = append(out, strings.TrimSpace(s.Text()))
+		return true
+	})
+	return out
+}
+
+func extractHTMLList(doc *goquery.Document, selector string, limit int) []string {
+	var out []string
+	doc.Find(selector).EachWithBreak(func(i int, s *goquery.Selection) bool {
+		if len(out) >= limit {
+			return false
+		}
+		html, _ := s.Html()
+		out = append(out, strings.TrimSpace(html))
+		return true
+	})
+	return out
+}
+
+func extractAttributeList(doc *goquery.Document, selector, attribute string, limit int) []string {
+	var out []string
+	doc.Find(selector).EachWithBreak(func(i int, s *goquery.Selection) bool {
+		if len(out) >= limit {
+			return false
+		}
+		val, _ := s.Attr(attribute)
+		out = append(out, val)
+		return true
+	})
+	return out
+}
+
+func extractRows(doc *goquery.Document, selector string, fields map[string]string, limit int) []map[string]string {
+	var out []map[string]string
+	doc.Find(selector).EachWithBreak(func(i int, s *goquery.Selection) bool {
+		if len(out) >= limit {
+			return false
+		}
+		row := make(map[string]string, len(fields))
+		for name, fieldSelector := range fields {
+			sel, attr := parseFieldSelector(fieldSelector)
+			var val string
+			if sel == "" {
+				if attr != "" {
+					val, _ = s.Attr(attr)
+				} else {
+					val = strings.TrimSpace(s.Text())
+				}
+			} else {
+				found := s.Find(sel).First()
+				if attr != "" {
+					val, _ = found.Attr(attr)
+				} else {
+					val = strings.TrimSpace(found.Text())
+				}
+			}
+			row[name] = val
+		}
+		out = append(out, row)
+		return true
+	})
+	return out
+}
+
+func extractTable(doc *goquery.Document, selector string, limit int) ([]string, [][]string) {
+	table := doc.Find(selector).First()
+
+	var headers []string
+	table.Find("thead tr th").Each(func(i int, s *goquery.Selection) {
+		headers = append(headers, strings.TrimSpace(s.Text()))
+	})
+
+	var rows [][]string
+	rowSelector := "tbody tr"
+	if table.Find(rowSelector).Length() == 0 {
+		rowSelector = "tr"
+	}
+
+	table.Find(rowSelector).EachWithBreak(func(i int, s *goquery.Selection) bool {
+		if len(rows) >= limit {
+			return false
+		}
+		var cells []string
+		s.Find("th, td").Each(func(j int, c *goquery.Selection) {
+			cells = append(cells, strings.TrimSpace(c.Text()))
+		})
+		if len(cells) == 0 {
+			return true
+		}
+		if len(headers) == 0 && i == 0 {
+			headers = cells
+			return true
+		}
+		rows = append(rows, cells)
+		return true
+	})
+
+	return headers, rows
+}
+
+func parseFieldSelector(field string) (selector, attribute string) {
+	if idx := strings.LastIndex(field, "@"); idx >= 0 {
+		return strings.TrimSpace(field[:idx]), strings.TrimSpace(field[idx+1:])
+	}
+	return strings.TrimSpace(field), ""
+}
+
+func normalizeFields(fields map[string]string) map[string]string {
+	if len(fields) == 0 {
+		return nil
+	}
+	out := make(map[string]string, len(fields))
+	for k, v := range fields {
+		key := strings.TrimSpace(k)
+		if key == "" {
+			continue
+		}
+		out[key] = strings.TrimSpace(v)
+	}
+	return out
+}
+
+func fieldKeys(fields map[string]string) []string {
+	keys := make([]string, 0, len(fields))
+	for k := range fields {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+func withWarning(resultJSON, warning string) string {
+	var payload map[string]interface{}
+	if err := json.Unmarshal([]byte(resultJSON), &payload); err != nil {
+		return resultJSON
+	}
+	payload["warning"] = warning
+	b, _ := json.Marshal(payload)
+	return string(b)
+}
+
+func isolateValue(rawURL, value string) string {
+	if value == "" {
+		return ""
+	}
+	return scraperGuardian.ScanExternalContent(rawURL, value)
+}
+
+func isolateStrings(rawURL string, values []string) []string {
+	for i, v := range values {
+		values[i] = isolateValue(rawURL, v)
+	}
+	return values
+}
+
+func isolateRows(rawURL string, rows []map[string]string) []map[string]string {
+	for i, row := range rows {
+		for k, v := range row {
+			row[k] = isolateValue(rawURL, v)
+		}
+		rows[i] = row
+	}
+	return rows
+}
+
+func isolateTableRows(rawURL string, rows [][]string) [][]string {
+	for i, row := range rows {
+		rows[i] = isolateStrings(rawURL, row)
+	}
+	return rows
 }
 
 func formatError(msg string) string {

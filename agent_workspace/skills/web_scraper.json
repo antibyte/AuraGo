@@ -1,12 +1,17 @@
 {
   "name": "web_scraper",
-  "description": "Fetches and extracts readable text content from a webpage. Returns the page title, main text, and links. Use this to read web pages, documentation, articles or any URL.",
+  "description": "Fetches and extracts readable text or structured content from a webpage. Without a selector it returns the page title, main text, and links. With a CSS selector it can extract text, attributes, rows, or tables. Use this to read web pages, documentation, articles, or extract structured data like product lists.",
   "executable": "__builtin__",
   "parameters": {
     "url": "The full URL of the webpage to scrape (must start with http:// or https://)",
     "mode": "Optional scraping mode: auto, static, dynamic, or rss. Use rss for RSS/Atom feeds and dynamic for JavaScript-rendered pages.",
     "wait_for_selector": "Optional CSS selector to wait for in dynamic mode or auto dynamic fallback.",
-    "search_query": "When summary mode is active, tell the summariser what specific information to extract from the page. Be specific."
+    "selector": "Optional CSS selector to extract matching element(s). When omitted, the full readable page is returned.",
+    "fields": "Optional object mapping field names to CSS selectors (relative to selector) for structured row extraction. Append @attr to read an attribute, e.g. {\"link\": \"a@href\"}.",
+    "output_format": "Optional output shape when selector is set: auto (default), text, html, rows, table. Auto picks rows if fields is set, list if attribute is set, otherwise text.",
+    "attribute": "Optional attribute name to extract when output_format is list, e.g. href or src.",
+    "limit": "Optional maximum number of matches to return when selector is set (1-1000, default: 50).",
+    "search_query": "When summary mode is active and no selector is set, tell the summariser what specific information to extract from the page. Be specific."
   },
-  "returns": "Extracted text content of the page, suitable for reading and referencing"
+  "returns": "Extracted text content of the page, or structured matches/rows/table when a selector is used"
 }
