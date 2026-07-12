@@ -395,7 +395,7 @@ func (h *ConsolidatedRecoveryHandler) HandleRecovery(
 }
 
 // buildFeedbackMessage generates the feedback message for a given problem.
-// Messages are preserved verbatim from the original feedback loops to maintain compatibility.
+// Native sessions must never be nudged back into legacy raw-JSON tool syntax.
 func (h *ConsolidatedRecoveryHandler) buildFeedbackMessage(
 	problem ToolCallProblem,
 	tc ToolCall,
@@ -449,10 +449,18 @@ func (h *ConsolidatedRecoveryHandler) buildFeedbackMessage(
 			recoveryTool)
 
 	case "tool_in_fence":
+		if useNativeFunctions {
+			return "ERROR: Your response tried to call a tool with plain text/JSON or a markdown fence while native function-calling is enabled. Emit the tool call again using the native function-calling API only. Do not write raw JSON, markdown fences, or prose for tool invocation."
+		}
 		return "ERROR: Your response contained explanation text and/or markdown fences (```json). Tool calls MUST be a raw JSON object ONLY - no explanation before or after, no markdown, no fences. Output ONLY the JSON object, starting with { and ending with }. Example: {\"action\": \"co_agent\", \"operation\": \"spawn\", \"task\": \"...\"}"
 
 	case "announcement_only":
-		msg := "ERROR: You announced what you were going to do but did not output a tool call. When executing a task, your ENTIRE response must be ONLY the raw JSON tool call — no explanation before it. Output the JSON tool call NOW."
+		msg := ""
+		if useNativeFunctions {
+			msg = "ERROR: You announced what you were going to do but did not output a tool call. When executing a task, use the native function-calling API now. Do not write raw JSON, markdown fences, or prose for tool invocation."
+		} else {
+			msg = "ERROR: You announced what you were going to do but did not output a tool call. When executing a task, your ENTIRE response must be ONLY the raw JSON tool call — no explanation before it. Output the JSON tool call NOW."
+		}
 		if lastResponseWasTool && len(recentTools) > 0 {
 			lastTool := recentTools[len(recentTools)-1]
 			msg += fmt.Sprintf(" IMPORTANT: '%s' already completed successfully in this turn. Do NOT call it again. Your next action must be a DIFFERENT tool that continues your plan.", lastTool)

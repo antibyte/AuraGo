@@ -332,7 +332,11 @@ func handleAgentLoopRecoveries(s *agentLoopState, content string, tc ToolCall, p
 		(strings.Contains(content, `"action"`) || strings.Contains(content, `'action'`)) {
 		s.missedToolCount++
 		currentLogger.Warn("[Sync] Missed tool call in fence, sending corrective feedback", "attempt", s.missedToolCount, "content_preview", Truncate(content, 150))
-		feedbackMsg := applyEmotionRecoveryNudge(FormatMissedToolInFenceFeedback(), emotionPolicy)
+		missedToolFeedback := FormatMissedToolInFenceFeedback()
+		if s.useNativeFunctions {
+			missedToolFeedback = FormatNonNativeToolCallFeedback("")
+		}
+		feedbackMsg := applyEmotionRecoveryNudge(missedToolFeedback, emotionPolicy)
 		msgs := s.recoverySession.PersistRecoveryMessages(PersistRecoveryParams{
 			SessionID:        sessionID,
 			AssistantContent: content,

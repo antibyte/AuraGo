@@ -208,6 +208,51 @@ func TestDesktopAnnouncementRecoveryRejectsDoneWithoutToolAfterPromise(t *testin
 	}
 }
 
+func TestNativeMissedJSONToolFeedbackDoesNotRequestRawJSON(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Agent.AnnouncementDetector.Enabled = true
+	cfg.Agent.AnnouncementDetector.MaxRetries = 2
+	logger := slog.New(slog.NewTextHandler(testDiscardWriter{}, &slog.HandlerOptions{Level: slog.LevelError}))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	t.Cleanup(func() { _ = stm.Close() })
+	s := &agentLoopState{
+		ctx:                context.Background(),
+		broker:             NoopBroker{},
+		currentLogger:      logger,
+		useNativeFunctions: true,
+		recoverySession:    NewRecoverySessionState(logger, NoopBroker{}, cfg),
+		runCfg: RunConfig{
+			Config:       cfg,
+			SessionID:    "mission-test",
+			ShortTermMem: stm,
+		},
+	}
+
+	content := `{"action": "filesystem", "operation": "read_file", "file_path": "/tmp/test.txt"}`
+	parsed := ParsedToolResponse{
+		Content:          content,
+		SanitizedContent: content,
+	}
+
+	_, _, shouldContinue, _ := handleAgentLoopRecoveries(s, content, ToolCall{}, parsed, true, emotionBehaviorPolicy{})
+	if !shouldContinue {
+		t.Fatal("expected native missed JSON tool response to trigger recovery")
+	}
+	if len(s.req.Messages) == 0 {
+		t.Fatal("expected recovery feedback message")
+	}
+	msg := s.req.Messages[len(s.req.Messages)-1].Content
+	if !strings.Contains(msg, "native function-calling") {
+		t.Fatalf("native missed JSON feedback should require native tool calls: %q", msg)
+	}
+	if strings.Contains(msg, "raw JSON object") || strings.Contains(msg, "Output ONLY the JSON") {
+		t.Fatalf("native missed JSON feedback must not request legacy JSON tool calls: %q", msg)
+	}
+}
+
 func TestDesktopEmptyResponseAfterToolUsesNormalEmptyResponseHandling(t *testing.T) {
 	runCfg := RunConfig{MessageSource: "virtual_desktop_chat"}
 
