@@ -6035,9 +6035,9 @@ select.cfg-input option {
     font-size: 0.78rem; color: var(--text-secondary);
 }
 .prov-cap-row input { accent-color: var(--accent); }
-.prov-model-pricing-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
-.prov-model-pricing-title { margin-bottom: 0; }
-.prov-model-pricing-actions { display: flex; gap: 0.4rem; }
+.prov-model-pricing-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem 0.75rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
+.prov-model-pricing-title { flex: 1 1 12rem; min-width: 0; margin-bottom: 0; }
+.prov-model-pricing-actions { display: flex; gap: 0.4rem; flex-wrap: wrap; justify-content: flex-end; max-width: 100%; margin-left: auto; }
 .prov-fetch-pricing-btn {
     padding: 0.25rem 0.65rem; font-size: 0.72rem; background: color-mix(in srgb, #48c78e 12%, transparent);
     color: #48c78e; border: 1px solid color-mix(in srgb, #48c78e 25%, transparent);

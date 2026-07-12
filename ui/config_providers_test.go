@@ -101,6 +101,42 @@ func TestConfigProvidersPricingRequiresSavedNonOpenRouterProvider(t *testing.T) 
 	}
 }
 
+func TestConfigProvidersModelPricingActionsStayInsidePanel(t *testing.T) {
+	t.Parallel()
+
+	css := readDesktopAssetText(t, "css/config.css")
+	head := configProviderCSSRuleBody(t, css, ".prov-model-pricing-head")
+	for _, want := range []string{
+		"gap: 0.5rem 0.75rem;",
+		"flex-wrap: wrap;",
+	} {
+		if !strings.Contains(head, want) {
+			t.Fatalf("provider model pricing header must allow wrapping; missing %q in block:\n%s", want, head)
+		}
+	}
+
+	title := configProviderCSSRuleBody(t, css, ".prov-model-pricing-title")
+	for _, want := range []string{
+		"flex: 1 1 12rem;",
+		"min-width: 0;",
+	} {
+		if !strings.Contains(title, want) {
+			t.Fatalf("provider model pricing title must yield space to actions; missing %q in block:\n%s", want, title)
+		}
+	}
+
+	actions := configProviderCSSRuleBody(t, css, ".prov-model-pricing-actions")
+	for _, want := range []string{
+		"flex-wrap: wrap;",
+		"max-width: 100%;",
+		"margin-left: auto;",
+	} {
+		if !strings.Contains(actions, want) {
+			t.Fatalf("provider model pricing actions must wrap inside the panel; missing %q in block:\n%s", want, actions)
+		}
+	}
+}
+
 func TestConfigProvidersWarnBeforeRiskyModalAndDeleteActions(t *testing.T) {
 	t.Parallel()
 
