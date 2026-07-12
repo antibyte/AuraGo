@@ -1076,8 +1076,8 @@
       "description": "Allows status, listing, screenshots, and downloads while blocking creation, exec, publish, volume, and destroy actions."
     },
     "boring_token": {
-      "title": "boringd Token",
-      "description": "Token for boringd REST and WebSocket access. It is stored only in the vault and never sent to the browser."
+      "title": "boringd Token (optional)",
+      "description": "Leave empty when AuraGo installs boringd; AuraGo generates this token and stores it in the vault. Only enter a value when connecting to an existing boringd; it must match that host's BORING_TOKEN."
     },
     "control_plane.mode": {
       "title": "Control Plane Mode",

@@ -30,7 +30,7 @@
   "config.virtual_computers.allow_publish_label": "Allow publishing",
   "config.virtual_computers.allow_volumes_label": "Allow volumes",
   "config.virtual_computers.allow_agent_tasks_label": "Allow machine agent tasks",
-  "config.virtual_computers.boring_token_label": "boringd token",
+  "config.virtual_computers.boring_token_label": "boringd Token (optional)",
   "config.virtual_computers.save_vault": "Im Vault speichern",
   "config.virtual_computers.tailscale_note": "For Tailscale access, expose AuraGo with tsnet serve_http. Do not expose boringd directly.",
   "config.virtual_computers.open_tailscale_settings": "Open Tailscale settings",
@@ -65,5 +65,5 @@
   "help.virtual_computers.allow_publish": "Allows publish/save operations exposed by boringd.",
   "help.virtual_computers.allow_volumes": "Allows volume creation and attachment.",
   "help.virtual_computers.allow_agent_tasks": "Allows boringd agent and shell-agent task channels.",
-  "help.virtual_computers.boring_token": "Bearer token for boringd. Stored only in the encrypted Vault."
+  "help.virtual_computers.boring_token": "Leer lassen, wenn AuraGo boringd installiert; AuraGo erzeugt den Token automatisch und speichert ihn im Vault. Trage nur etwas ein, wenn du einen bestehenden boringd verbindest; der Wert muss dort mit BORING_TOKEN übereinstimmen."
 }

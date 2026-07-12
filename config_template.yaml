@@ -941,7 +941,7 @@ virtual_computers:
     allow_volumes: false
     allow_agent_tasks: false
     # Vault-only fields saved via UI, never config.yaml:
-    # boring_token: BORING_TOKEN for boringd
+    # boring_token: optional; AuraGo auto-generates this for managed setup. For an existing boringd, it must match BORING_TOKEN.
     # ssh_secret: optional SSH secret material
     # boring_anthropic_key: optional boring agent provider key
     # boring_openrouter_key: optional boring agent provider key
