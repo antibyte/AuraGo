@@ -269,6 +269,9 @@ func TestHandleSpaceAgentSendRequiresPost(t *testing.T) {
 }
 
 func TestHandleIntegrationWebhostsIncludesEnabledBoringComputers(t *testing.T) {
+	restore := setVirtualComputersManagementTestHooks(t, "http://127.0.0.1:0")
+	defer restore()
+
 	cfg := &config.Config{}
 	cfg.VirtualComputers.Enabled = true
 	s := &Server{Cfg: cfg, Logger: slog.Default()}

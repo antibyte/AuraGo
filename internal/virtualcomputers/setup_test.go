@@ -305,6 +305,7 @@ func TestLocalCommandExecutorRunScriptUsesVaultSudoPasswordViaStdin(t *testing.T
 	executor := LocalCommandExecutor{
 		RuntimeGOOS: "linux",
 		TempDir:     tempDir,
+		PathExists:  func(string) bool { return false },
 		EffectiveUID: func() int {
 			return 1000
 		},
@@ -352,6 +353,7 @@ func TestLocalCommandExecutorRunScriptUsesSudoAndRemovesTempScript(t *testing.T)
 	executor := LocalCommandExecutor{
 		RuntimeGOOS: "linux",
 		TempDir:     tempDir,
+		PathExists:  func(string) bool { return false },
 		EffectiveUID: func() int {
 			return 1000
 		},
