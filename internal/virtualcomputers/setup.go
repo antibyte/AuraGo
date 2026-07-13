@@ -30,6 +30,7 @@ const defaultBoringdURL = "http://127.0.0.1:18080"
 type SetupManager struct {
 	Executor       CommandExecutor
 	Token          string
+	SudoPassword   string
 	InstallOptions SetupInstallOptions
 }
 
@@ -149,7 +150,7 @@ func (m SetupManager) Install(ctx context.Context) (SetupStatus, error) {
 }
 
 func (m SetupManager) RedactInstallLog(log string) string {
-	return redactInstallLog(log, m.Token, m.InstallOptions.Token, m.InstallOptions.AnthropicKey, m.InstallOptions.OpenRouterKey, m.InstallOptions.S3AccessKeyID, m.InstallOptions.S3SecretKey)
+	return redactInstallLog(log, m.Token, m.SudoPassword, m.InstallOptions.Token, m.InstallOptions.AnthropicKey, m.InstallOptions.OpenRouterKey, m.InstallOptions.S3AccessKeyID, m.InstallOptions.S3SecretKey)
 }
 
 func (m SetupManager) runInstall(ctx context.Context) (string, error) {

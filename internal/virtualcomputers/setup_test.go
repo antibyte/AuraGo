@@ -2,7 +2,9 @@ package virtualcomputers
 
 import (
 	"context"
+	"errors"
 	"os"
+	"reflect"
 	"runtime"
 	"strings"
 	"testing"
@@ -176,6 +178,14 @@ func TestSetupInstallLogRedactsSecrets(t *testing.T) {
 	}
 }
 
+func TestSetupManagerRedactsSudoPassword(t *testing.T) {
+	manager := SetupManager{SudoPassword: "vault-sudo-secret"}
+	log := manager.RedactInstallLog("sudo failed for vault-sudo-secret")
+	if strings.Contains(log, "vault-sudo-secret") {
+		t.Fatalf("redacted log leaked sudo password: %s", log)
+	}
+}
+
 func TestParsePreflightOutputBlocksLocalUnsupportedChecks(t *testing.T) {
 	result := ParsePreflightOutput("HOST_OS=windows\nARCH=amd64\nHAS_KVM=0\nOS_ID=ubuntu\nRUNNING_IN_DOCKER=1\nHAS_SYSTEMD=0\nHAS_SUDO_OR_ROOT=0\n")
 	if result.Supported {
@@ -227,6 +237,79 @@ func TestLocalCommandExecutorPreflightReportsSupportedLinuxHost(t *testing.T) {
 		if got := result.Checks[key]; got != want {
 			t.Fatalf("check %s = %q, want %q; all checks=%v", key, got, want, result.Checks)
 		}
+	}
+}
+
+func TestLocalCommandExecutorPreflightAcceptsVaultSudoPassword(t *testing.T) {
+	var stdin string
+	executor := LocalCommandExecutor{
+		RuntimeGOOS: "linux",
+		EffectiveUID: func() int {
+			return 1000
+		},
+		SudoPassword: "vault-sudo-secret",
+		CommandRunner: func(context.Context, string, ...string) (string, error) {
+			return "", errors.New("passwordless sudo denied")
+		},
+		InputCommandRunner: func(_ context.Context, name, input string, args ...string) (string, error) {
+			stdin = input
+			if name != "sudo" || !reflect.DeepEqual(args, []string{"-S", "-p", "", "true"}) {
+				t.Fatalf("command=%q args=%v", name, args)
+			}
+			return "", nil
+		},
+	}
+
+	if !executor.hasSudoOrRoot(context.Background()) {
+		t.Fatal("Vault sudo password should satisfy preflight")
+	}
+	if stdin != "vault-sudo-secret\n" {
+		t.Fatalf("sudo stdin = %q", stdin)
+	}
+}
+
+func TestLocalCommandExecutorRunScriptUsesVaultSudoPasswordViaStdin(t *testing.T) {
+	tempDir := t.TempDir()
+	var scriptPath string
+	executor := LocalCommandExecutor{
+		RuntimeGOOS: "linux",
+		TempDir:     tempDir,
+		EffectiveUID: func() int {
+			return 1000
+		},
+		SudoPassword: "vault-sudo-secret",
+		CommandRunner: func(_ context.Context, name string, args ...string) (string, error) {
+			if name != "sudo" || !reflect.DeepEqual(args, []string{"-n", "true"}) {
+				t.Fatalf("passwordless probe command=%q args=%v", name, args)
+			}
+			return "", errors.New("password required")
+		},
+		InputCommandRunner: func(_ context.Context, name, input string, args ...string) (string, error) {
+			if name != "sudo" || input != "vault-sudo-secret\n" {
+				t.Fatalf("command=%q stdin=%q", name, input)
+			}
+			if len(args) != 5 || !reflect.DeepEqual(args[:4], []string{"-S", "-p", "", "bash"}) {
+				t.Fatalf("password sudo args=%v", args)
+			}
+			for _, arg := range args {
+				if strings.Contains(arg, "vault-sudo-secret") {
+					t.Fatalf("sudo argument leaked password: %v", args)
+				}
+			}
+			scriptPath = args[4]
+			if _, err := os.Stat(scriptPath); err != nil {
+				t.Fatalf("script should exist during execution: %v", err)
+			}
+			return "ok", nil
+		},
+	}
+
+	out, err := executor.RunScript(context.Background(), "echo local setup")
+	if err != nil || strings.TrimSpace(out) != "ok" {
+		t.Fatalf("RunScript output=%q err=%v", out, err)
+	}
+	if _, err := os.Stat(scriptPath); !os.IsNotExist(err) {
+		t.Fatalf("temporary script should be removed, stat err=%v", err)
 	}
 }
 

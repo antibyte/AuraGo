@@ -11,17 +11,20 @@ import (
 )
 
 type CommandRunner func(ctx context.Context, name string, args ...string) (string, error)
+type InputCommandRunner func(ctx context.Context, name, input string, args ...string) (string, error)
 
 type LocalCommandExecutor struct {
-	RuntimeGOOS    string
-	RuntimeArch    string
-	TempDir        string
-	OSReleaseData  string
-	OSReleasePath  string
-	PathExists     func(path string) bool
-	EffectiveUID   func() int
-	DockerDetected func() bool
-	CommandRunner  CommandRunner
+	RuntimeGOOS        string
+	RuntimeArch        string
+	TempDir            string
+	OSReleaseData      string
+	OSReleasePath      string
+	PathExists         func(path string) bool
+	EffectiveUID       func() int
+	DockerDetected     func() bool
+	CommandRunner      CommandRunner
+	SudoPassword       string
+	InputCommandRunner InputCommandRunner
 }
 
 func (e LocalCommandExecutor) Preflight(ctx context.Context) (string, error) {
@@ -69,6 +72,11 @@ func (e LocalCommandExecutor) RunScript(ctx context.Context, script string) (str
 	if e.euid() == 0 {
 		return e.runner()(ctx, "bash", path)
 	}
+	if e.SudoPassword != "" {
+		if _, err := e.runner()(ctx, "sudo", "-n", "true"); err != nil {
+			return e.inputRunner()(ctx, "sudo", e.SudoPassword+"\n", "-S", "-p", "", "bash", path)
+		}
+	}
 	return e.runner()(ctx, "sudo", "-n", "bash", path)
 }
 
@@ -107,6 +115,21 @@ func (e LocalCommandExecutor) runner() CommandRunner {
 	}
 	return func(ctx context.Context, name string, args ...string) (string, error) {
 		cmd := exec.CommandContext(ctx, name, args...)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			return string(out), fmt.Errorf("%s %s: %w", name, strings.Join(args, " "), err)
+		}
+		return string(out), nil
+	}
+}
+
+func (e LocalCommandExecutor) inputRunner() InputCommandRunner {
+	if e.InputCommandRunner != nil {
+		return e.InputCommandRunner
+	}
+	return func(ctx context.Context, name, input string, args ...string) (string, error) {
+		cmd := exec.CommandContext(ctx, name, args...)
+		cmd.Stdin = strings.NewReader(input)
 		out, err := cmd.CombinedOutput()
 		if err != nil {
 			return string(out), fmt.Errorf("%s %s: %w", name, strings.Join(args, " "), err)
@@ -168,6 +191,13 @@ func (e LocalCommandExecutor) hasSudoOrRoot(ctx context.Context) bool {
 		return true
 	}
 	_, err := e.runner()(ctx, "sudo", "-n", "true")
+	if err == nil {
+		return true
+	}
+	if e.SudoPassword == "" {
+		return false
+	}
+	_, err = e.inputRunner()(ctx, "sudo", e.SudoPassword+"\n", "-S", "-p", "", "true")
 	return err == nil
 }
 
