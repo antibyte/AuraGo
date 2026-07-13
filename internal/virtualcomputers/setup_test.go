@@ -355,3 +355,118 @@ func TestLocalCommandExecutorRunScriptUsesSudoAndRemovesTempScript(t *testing.T)
 		t.Fatalf("temporary script should be removed, stat err=%v", err)
 	}
 }
+
+func TestLocalCommandExecutorRunScriptEscapesSystemdSandboxWithVaultPassword(t *testing.T) {
+	const script = "echo local setup"
+	executor := LocalCommandExecutor{
+		RuntimeGOOS: "linux",
+		PathExists: func(path string) bool {
+			return path == "/run/systemd/system"
+		},
+		EffectiveUID: func() int { return 1000 },
+		SudoPassword: "vault-sudo-secret",
+		CommandRunner: func(_ context.Context, name string, args ...string) (string, error) {
+			if name != "sudo" || !reflect.DeepEqual(args, []string{"-n", "true"}) {
+				t.Fatalf("passwordless probe command=%q args=%v", name, args)
+			}
+			return "", errors.New("password required")
+		},
+		InputCommandRunner: func(_ context.Context, name, input string, args ...string) (string, error) {
+			if name != "sudo" {
+				t.Fatalf("command=%q, want sudo", name)
+			}
+			wantArgs := append([]string{"-S", "-p", "", "systemd-run"}, expectedTransientSystemdScriptArgs()...)
+			if !reflect.DeepEqual(args, wantArgs) {
+				t.Fatalf("sudo args=%v, want %v", args, wantArgs)
+			}
+			if input != "vault-sudo-secret\n"+script {
+				t.Fatalf("sudo stdin=%q", input)
+			}
+			for _, arg := range args {
+				if strings.Contains(arg, "vault-sudo-secret") || strings.Contains(arg, script) {
+					t.Fatalf("sudo argument leaked secret or script: %v", args)
+				}
+			}
+			return "ok", nil
+		},
+	}
+
+	out, err := executor.RunScript(context.Background(), script)
+	if err != nil || strings.TrimSpace(out) != "ok" {
+		t.Fatalf("RunScript output=%q err=%v", out, err)
+	}
+}
+
+func TestLocalCommandExecutorRunScriptEscapesSystemdSandboxWithPasswordlessSudo(t *testing.T) {
+	const script = "echo local setup"
+	executor := LocalCommandExecutor{
+		RuntimeGOOS: "linux",
+		PathExists: func(path string) bool {
+			return path == "/run/systemd/system"
+		},
+		EffectiveUID: func() int { return 1000 },
+		CommandRunner: func(_ context.Context, name string, args ...string) (string, error) {
+			t.Fatalf("unexpected direct command=%q args=%v", name, args)
+			return "", nil
+		},
+		InputCommandRunner: func(_ context.Context, name, input string, args ...string) (string, error) {
+			if name != "sudo" || input != script {
+				t.Fatalf("command=%q stdin=%q", name, input)
+			}
+			wantArgs := append([]string{"-n", "systemd-run"}, expectedTransientSystemdScriptArgs()...)
+			if !reflect.DeepEqual(args, wantArgs) {
+				t.Fatalf("sudo args=%v, want %v", args, wantArgs)
+			}
+			return "ok", nil
+		},
+	}
+
+	out, err := executor.RunScript(context.Background(), script)
+	if err != nil || strings.TrimSpace(out) != "ok" {
+		t.Fatalf("RunScript output=%q err=%v", out, err)
+	}
+}
+
+func TestLocalCommandExecutorRunScriptEscapesSystemdSandboxAsRoot(t *testing.T) {
+	const script = "echo local setup"
+	executor := LocalCommandExecutor{
+		RuntimeGOOS: "linux",
+		PathExists: func(path string) bool {
+			return path == "/run/systemd/system"
+		},
+		EffectiveUID: func() int { return 0 },
+		CommandRunner: func(_ context.Context, name string, args ...string) (string, error) {
+			t.Fatalf("unexpected direct command=%q args=%v", name, args)
+			return "", nil
+		},
+		InputCommandRunner: func(_ context.Context, name, input string, args ...string) (string, error) {
+			if name != "systemd-run" || input != script {
+				t.Fatalf("command=%q stdin=%q", name, input)
+			}
+			if want := expectedTransientSystemdScriptArgs(); !reflect.DeepEqual(args, want) {
+				t.Fatalf("systemd-run args=%v, want %v", args, want)
+			}
+			return "ok", nil
+		},
+	}
+
+	out, err := executor.RunScript(context.Background(), script)
+	if err != nil || strings.TrimSpace(out) != "ok" {
+		t.Fatalf("RunScript output=%q err=%v", out, err)
+	}
+}
+
+func expectedTransientSystemdScriptArgs() []string {
+	return []string{
+		"--quiet",
+		"--pipe",
+		"--wait",
+		"--collect",
+		"--service-type=exec",
+		"--property=ProtectSystem=no",
+		"--property=PrivateTmp=no",
+		"--property=NoNewPrivileges=no",
+		"/bin/bash",
+		"-s",
+	}
+}

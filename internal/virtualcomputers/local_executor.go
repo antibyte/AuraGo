@@ -53,6 +53,9 @@ func (e LocalCommandExecutor) RunScript(ctx context.Context, script string) (str
 	if e.goos() != "linux" {
 		return "", fmt.Errorf("local boring-computers setup requires Linux")
 	}
+	if e.hasSystemd() {
+		return e.runScriptInTransientSystemdService(ctx, script)
+	}
 	tmp, err := os.CreateTemp(e.TempDir, "aurago-boring-setup-*.sh")
 	if err != nil {
 		return "", fmt.Errorf("create local setup script: %w", err)
@@ -78,6 +81,36 @@ func (e LocalCommandExecutor) RunScript(ctx context.Context, script string) (str
 		}
 	}
 	return e.runner()(ctx, "sudo", "-n", "bash", path)
+}
+
+func (e LocalCommandExecutor) runScriptInTransientSystemdService(ctx context.Context, script string) (string, error) {
+	args := transientSystemdScriptArgs()
+	if e.euid() == 0 {
+		return e.inputRunner()(ctx, "systemd-run", script, args...)
+	}
+	if e.SudoPassword != "" {
+		if _, err := e.runner()(ctx, "sudo", "-n", "true"); err != nil {
+			sudoArgs := append([]string{"-S", "-p", "", "systemd-run"}, args...)
+			return e.inputRunner()(ctx, "sudo", e.SudoPassword+"\n"+script, sudoArgs...)
+		}
+	}
+	sudoArgs := append([]string{"-n", "systemd-run"}, args...)
+	return e.inputRunner()(ctx, "sudo", script, sudoArgs...)
+}
+
+func transientSystemdScriptArgs() []string {
+	return []string{
+		"--quiet",
+		"--pipe",
+		"--wait",
+		"--collect",
+		"--service-type=exec",
+		"--property=ProtectSystem=no",
+		"--property=PrivateTmp=no",
+		"--property=NoNewPrivileges=no",
+		"/bin/bash",
+		"-s",
+	}
 }
 
 func (e LocalCommandExecutor) goos() string {
