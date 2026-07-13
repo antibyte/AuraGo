@@ -1,13 +1,180 @@
 package server
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
+	"aurago/internal/config"
 	"aurago/internal/virtualcomputers"
+
+	"github.com/gorilla/websocket"
 )
+
+func TestVirtualComputersManagementProxyDisabled(t *testing.T) {
+	s := &Server{Cfg: &config.Config{}}
+	mux := http.NewServeMux()
+	registerVirtualComputersRoutes(mux, s)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, virtualcomputers.ManagementBasePath+"/", nil))
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("disabled status = %d body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestVirtualComputersManagementProxyUnavailableIsSafe(t *testing.T) {
+	restore := setVirtualComputersManagementTestHooks(t, "http://127.0.0.1:18081")
+	defer restore()
+	virtualComputersManagementHealthProbe = func(string) bool { return false }
+
+	cfg := virtualComputersTestConfig("http://127.0.0.1:18080")
+	cfg.VirtualComputers.ControlPlane.Mode = virtualcomputers.ControlPlaneLocalHost
+	mux := http.NewServeMux()
+	registerVirtualComputersRoutes(mux, &Server{Cfg: cfg})
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, virtualcomputers.ManagementBasePath+"/", nil))
+
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("unavailable status = %d body=%s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "run setup install or repair") || strings.Contains(rec.Body.String(), "127.0.0.1") {
+		t.Fatalf("unsafe unavailable response: %s", rec.Body.String())
+	}
+}
+
+func TestVirtualComputersManagementProxyRequiresAuthenticatedSession(t *testing.T) {
+	cfg := virtualComputersTestConfig("http://127.0.0.1:18080")
+	cfg.VirtualComputers.ControlPlane.Mode = virtualcomputers.ControlPlaneLocalHost
+	cfg.Auth.Enabled = true
+	cfg.Auth.SessionSecret = "0123456789abcdef0123456789abcdef"
+	mux := http.NewServeMux()
+	registerVirtualComputersRoutes(mux, &Server{Cfg: cfg})
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, virtualcomputers.ManagementBasePath+"/", nil))
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("unauthenticated status = %d body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestVirtualComputersManagementProxyPreservesBasePath(t *testing.T) {
+	var upstreamPath, forwardedHost, forwardedProto string
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		upstreamPath = r.URL.RequestURI()
+		forwardedHost = r.Header.Get("X-Forwarded-Host")
+		forwardedProto = r.Header.Get("X-Forwarded-Proto")
+		_, _ = w.Write([]byte("management ok"))
+	}))
+	defer upstream.Close()
+	restore := setVirtualComputersManagementTestHooks(t, upstream.URL)
+	defer restore()
+
+	cfg := virtualComputersTestConfig("http://127.0.0.1:18080")
+	cfg.VirtualComputers.ControlPlane.Mode = virtualcomputers.ControlPlaneLocalHost
+	s := &Server{Cfg: cfg}
+	mux := http.NewServeMux()
+	registerVirtualComputersRoutes(mux, s)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "https://aurago.test/boring-computers/docs?tab=api", nil)
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK || rec.Body.String() != "management ok" {
+		t.Fatalf("proxy status = %d body=%q", rec.Code, rec.Body.String())
+	}
+	if upstreamPath != "/boring-computers/docs?tab=api" {
+		t.Fatalf("upstream request URI = %q", upstreamPath)
+	}
+	if forwardedHost != "aurago.test" || forwardedProto != "https" {
+		t.Fatalf("forwarded host=%q proto=%q", forwardedHost, forwardedProto)
+	}
+}
+
+func TestVirtualComputersManagementProxyRelaysWebSocket(t *testing.T) {
+	upgrader := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == virtualcomputers.ManagementBasePath+"/" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		if r.URL.Path != "/boring-computers/socket" {
+			t.Errorf("upstream websocket path = %q", r.URL.Path)
+			return
+		}
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			t.Errorf("upgrade upstream: %v", err)
+			return
+		}
+		defer conn.Close()
+		messageType, message, err := conn.ReadMessage()
+		if err != nil {
+			t.Errorf("read upstream: %v", err)
+			return
+		}
+		_ = conn.WriteMessage(messageType, append([]byte("echo:"), message...))
+	}))
+	defer upstream.Close()
+	restore := setVirtualComputersManagementTestHooks(t, upstream.URL)
+	defer restore()
+
+	cfg := virtualComputersTestConfig("http://127.0.0.1:18080")
+	cfg.VirtualComputers.ControlPlane.Mode = virtualcomputers.ControlPlaneLocalHost
+	mux := http.NewServeMux()
+	registerVirtualComputersRoutes(mux, &Server{Cfg: cfg})
+	proxy := httptest.NewServer(mux)
+	defer proxy.Close()
+
+	conn, _, err := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(proxy.URL, "http")+"/boring-computers/socket", nil)
+	if err != nil {
+		t.Fatalf("dial proxy: %v", err)
+	}
+	defer conn.Close()
+	if err := conn.WriteMessage(websocket.TextMessage, []byte("hello")); err != nil {
+		t.Fatalf("write proxy: %v", err)
+	}
+	_, message, err := conn.ReadMessage()
+	if err != nil {
+		t.Fatalf("read proxy: %v", err)
+	}
+	if string(message) != "echo:hello" {
+		t.Fatalf("websocket response = %q", message)
+	}
+}
+
+func TestVirtualComputersSetupStatusIncludesManagementHealth(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer upstream.Close()
+	restore := setVirtualComputersManagementTestHooks(t, upstream.URL)
+	defer restore()
+
+	cfg := virtualComputersTestConfig(upstream.URL)
+	cfg.VirtualComputers.ControlPlane.Mode = virtualcomputers.ControlPlaneLocalHost
+	rec := httptest.NewRecorder()
+	handleVirtualComputersSetupStatus(&Server{Cfg: cfg}).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/virtual-computers/setup/status", nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%s", rec.Code, rec.Body.String())
+	}
+	var body map[string]interface{}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := body["control_plane"].(map[string]interface{}); !ok {
+		t.Fatalf("existing control_plane config changed: %#v", body["control_plane"])
+	}
+	for _, key := range []string{"control_plane_status", "management"} {
+		component, ok := body[key].(map[string]interface{})
+		if !ok || component["configured"] != true || component["healthy"] != true {
+			t.Fatalf("%s = %#v", key, body[key])
+		}
+	}
+	if strings.Contains(rec.Body.String(), "boring-token") {
+		t.Fatalf("status leaked token: %s", rec.Body.String())
+	}
+}
 
 func TestVirtualComputersManagementLocalAccess(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

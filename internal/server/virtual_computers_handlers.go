@@ -56,6 +56,8 @@ func (e virtualComputersSSHExecutor) RunScript(ctx context.Context, script strin
 }
 
 func registerVirtualComputersRoutes(mux *http.ServeMux, s *Server) {
+	mux.HandleFunc(virtualcomputers.ManagementBasePath, handleVirtualComputersManagementRedirect(s))
+	mux.HandleFunc(virtualcomputers.ManagementBasePath+"/", handleVirtualComputersManagement(s))
 	mux.HandleFunc("/api/virtual-computers/setup/status", handleVirtualComputersSetupStatus(s))
 	mux.HandleFunc("/api/virtual-computers/setup/preflight", handleVirtualComputersSetupPreflight(s))
 	mux.HandleFunc("/api/virtual-computers/setup/install", handleVirtualComputersSetupInstall(s))
@@ -77,14 +79,19 @@ func handleVirtualComputersSetupStatus(s *Server) http.HandlerFunc {
 			return
 		}
 		cfg := virtualComputersConfigSnapshot(s)
+		configured := strings.TrimSpace(cfg.BoringdURL) != ""
+		controlPlaneHealthy := configured && virtualComputersEnsureControlPlaneAccess(s, cfg) == nil
+		managementHealthy := configured && virtualComputersManagementHealthy(s, cfg)
 		payload := map[string]interface{}{
-			"status":        "ok",
-			"enabled":       cfg.Enabled,
-			"configured":    strings.TrimSpace(cfg.BoringdURL) != "",
-			"auto_setup":    cfg.AutoSetup,
-			"provider":      cfg.Provider,
-			"control_plane": cfg.ControlPlane,
-			"tailscale":     virtualComputersTailscaleStatus(s),
+			"status":               "ok",
+			"enabled":              cfg.Enabled,
+			"configured":           configured,
+			"auto_setup":           cfg.AutoSetup,
+			"provider":             cfg.Provider,
+			"control_plane":        cfg.ControlPlane,
+			"control_plane_status": virtualcomputers.ComponentStatus{Configured: configured, Healthy: controlPlaneHealthy},
+			"management":           virtualcomputers.ComponentStatus{Configured: configured, Healthy: managementHealthy},
+			"tailscale":            virtualComputersTailscaleStatus(s),
 		}
 		for key, value := range virtualComputersSetupMetadata(s, cfg, nil) {
 			payload[key] = value

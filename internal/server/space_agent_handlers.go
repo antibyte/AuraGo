@@ -19,6 +19,7 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/security"
 	"aurago/internal/tools"
+	"aurago/internal/virtualcomputers"
 )
 
 const (
@@ -418,11 +419,15 @@ func integrationWebhostsForRequest(s *Server, r *http.Request) []webhostIntegrat
 	cfg := s.currentSpaceAgentConfig()
 	webhosts := make([]webhostIntegration, 0, 5)
 	if cfg.VirtualComputers.Enabled {
+		status := "starting"
+		if virtualComputersManagementHealthy(s, virtualcomputers.FromAuraConfig(&cfg)) {
+			status = "running"
+		}
 		webhosts = append(webhosts, webhostIntegration{
 			ID:          "boring_computers",
 			Name:        "Boring Computers",
 			Description: "Managed virtual computer control center",
-			Status:      "starting",
+			Status:      status,
 			URL:         "/boring-computers/",
 			Icon:        "terminal",
 		})

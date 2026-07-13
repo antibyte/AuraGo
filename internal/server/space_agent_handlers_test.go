@@ -11,6 +11,7 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/tsnetnode"
+	"aurago/internal/virtualcomputers"
 )
 
 func TestHandleSpaceAgentStatusDisabled(t *testing.T) {
@@ -303,6 +304,24 @@ func TestHandleIntegrationWebhostsOmitsDisabledBoringComputers(t *testing.T) {
 
 	if len(got) != 0 {
 		t.Fatalf("webhosts = %#v, want no disabled Boring Computers entry", got)
+	}
+}
+
+func TestHandleIntegrationWebhostsMarksHealthyBoringComputersRunning(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer upstream.Close()
+	restore := setVirtualComputersManagementTestHooks(t, upstream.URL)
+	defer restore()
+
+	cfg := &config.Config{}
+	cfg.VirtualComputers.Enabled = true
+	cfg.VirtualComputers.ControlPlane.Mode = virtualcomputers.ControlPlaneLocalHost
+	clearWebhostsCache()
+	got := integrationWebhostsForRequest(&Server{Cfg: cfg, Logger: slog.Default()}, httptest.NewRequest(http.MethodGet, "/api/integrations/webhosts", nil))
+	if len(got) != 1 || got[0].ID != "boring_computers" || got[0].Status != "running" {
+		t.Fatalf("webhosts = %#v", got)
 	}
 }
 

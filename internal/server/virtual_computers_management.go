@@ -1,8 +1,10 @@
 package server
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
+	"net/http/httputil"
 	"net/url"
 	"strings"
 	"sync"
@@ -32,11 +34,11 @@ func virtualComputersEnsureManagementAccess(s *Server, cfg virtualcomputers.Tool
 		if virtualComputersManagementHealthProbe(virtualComputersManagementURL) {
 			return nil
 		}
-		return fmt.Errorf(virtualComputersManagementUnavailable)
+		return errors.New(virtualComputersManagementUnavailable)
 	case virtualcomputers.ControlPlaneSSHHost:
 		return virtualComputersEnsureRemoteManagementAccess(s, cfg)
 	default:
-		return fmt.Errorf(virtualComputersManagementUnavailable)
+		return errors.New(virtualComputersManagementUnavailable)
 	}
 }
 
@@ -44,12 +46,12 @@ func virtualComputersEnsureRemoteManagementAccess(s *Server, cfg virtualcomputer
 	executor, err := virtualComputersManagementSSHExecutor(s, cfg)
 	if err != nil {
 		virtualComputersLogManagementError(s, "SSH setup failed", err)
-		return fmt.Errorf(virtualComputersManagementUnavailable)
+		return errors.New(virtualComputersManagementUnavailable)
 	}
 	localAddr, ok := virtualComputersLoopbackListenAddr(virtualComputersManagementURL)
 	if !ok {
 		virtualComputersLogManagementError(s, "invalid loopback management URL", fmt.Errorf("URL %q is not loopback HTTP(S)", virtualComputersManagementURL))
-		return fmt.Errorf(virtualComputersManagementUnavailable)
+		return errors.New(virtualComputersManagementUnavailable)
 	}
 	key := fmt.Sprintf("%s:%d>%s", executor.Host, executor.Port, virtualcomputers.ManagementListenAddr)
 
@@ -72,16 +74,71 @@ func virtualComputersEnsureRemoteManagementAccess(s *Server, cfg virtualcomputer
 	closeFn, err := virtualComputersManagementTunnelStarter(executor, localAddr, virtualcomputers.ManagementListenAddr, s)
 	if err != nil {
 		virtualComputersLogManagementError(s, "SSH tunnel start failed", err)
-		return fmt.Errorf(virtualComputersManagementUnavailable)
+		return errors.New(virtualComputersManagementUnavailable)
 	}
 	if !virtualComputersManagementHealthProbe(virtualComputersManagementURL) {
 		closeFn()
 		virtualComputersLogManagementError(s, "management health probe failed after SSH tunnel start", fmt.Errorf("health URL %s", virtualcomputers.ManagementHealthURL(virtualComputersManagementURL)))
-		return fmt.Errorf(virtualComputersManagementUnavailable)
+		return errors.New(virtualComputersManagementUnavailable)
 	}
 	virtualComputersManagementTunnel.key = key
 	virtualComputersManagementTunnel.close = closeFn
 	return nil
+}
+
+func handleVirtualComputersManagementRedirect(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		cfg := virtualComputersConfigSnapshot(s)
+		if !cfg.Enabled {
+			http.NotFound(w, r)
+			return
+		}
+		if !requireDesktopPermission(s, w, r, desktopScopeRead) {
+			return
+		}
+		http.Redirect(w, r, virtualcomputers.ManagementBasePath+"/", http.StatusTemporaryRedirect)
+	}
+}
+
+func handleVirtualComputersManagement(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		cfg := virtualComputersConfigSnapshot(s)
+		if !cfg.Enabled {
+			http.NotFound(w, r)
+			return
+		}
+		if !requireDesktopPermission(s, w, r, desktopScopeRead) {
+			return
+		}
+		if err := virtualComputersEnsureManagementAccess(s, cfg); err != nil {
+			jsonError(w, virtualComputersManagementUnavailable, http.StatusServiceUnavailable)
+			return
+		}
+		target, err := url.Parse(virtualComputersManagementURL)
+		if err != nil {
+			virtualComputersLogManagementError(s, "invalid proxy target", err)
+			jsonError(w, virtualComputersManagementUnavailable, http.StatusServiceUnavailable)
+			return
+		}
+		forwardedHost := r.Host
+		forwardedProto := "http"
+		if r.TLS != nil || strings.EqualFold(r.URL.Scheme, "https") {
+			forwardedProto = "https"
+		}
+		proxy := httputil.NewSingleHostReverseProxy(target)
+		director := proxy.Director
+		proxy.Director = func(req *http.Request) {
+			director(req)
+			req.Host = target.Host
+			req.Header.Set("X-Forwarded-Host", forwardedHost)
+			req.Header.Set("X-Forwarded-Proto", forwardedProto)
+		}
+		proxy.ErrorHandler = func(w http.ResponseWriter, _ *http.Request, err error) {
+			virtualComputersLogManagementError(s, "management proxy failed", err)
+			jsonError(w, virtualComputersManagementUnavailable, http.StatusServiceUnavailable)
+		}
+		proxy.ServeHTTP(w, r)
+	}
 }
 
 func virtualComputersManagementHealthy(s *Server, cfg virtualcomputers.ToolConfig) bool {
