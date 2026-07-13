@@ -2,14 +2,18 @@ package server
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/security"
 	"aurago/internal/virtualcomputers"
 )
 
@@ -240,6 +244,125 @@ func TestVirtualComputersConfigChangeTriggersAutoSetupWhenEnabled(t *testing.T) 
 		t.Fatal("enabling integration did not trigger automatic provisioning")
 	}
 	waitForVirtualComputersAutoSetupIdle(t)
+}
+
+func TestSavingSudoPasswordRetriesLocalAutoSetupDuringCooldown(t *testing.T) {
+	restore := setVirtualComputersAutoSetupTestHooks(t)
+	defer restore()
+	started := make(chan struct{}, 1)
+	virtualComputersAutoSetupNeeded = func(*Server, virtualcomputers.ToolConfig) bool { return true }
+	virtualComputersAutoSetupRunner = func(context.Context, *Server, virtualcomputers.ToolConfig) error {
+		started <- struct{}{}
+		return nil
+	}
+	s, cfg := virtualComputersAutoSetupVaultTestServer(t)
+	toolCfg := virtualcomputers.FromAuraConfig(cfg)
+	virtualComputersAutoSetupState.Lock()
+	virtualComputersAutoSetupState.desiredServer = s
+	virtualComputersAutoSetupState.desiredConfig = toolCfg
+	virtualComputersAutoSetupState.retryAfter = time.Now().Add(time.Hour)
+	virtualComputersAutoSetupState.Unlock()
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/vault/secrets", strings.NewReader(`{"key":"sudo_password","value":"vault-sudo-secret"}`))
+	handleSetVaultSecret(s, rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%s", rec.Code, rec.Body.String())
+	}
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatal("saving sudo_password did not bypass the failed auto-setup cooldown")
+	}
+	waitForVirtualComputersAutoSetupIdle(t)
+}
+
+func TestSavingSudoPasswordSupersedesRunningLocalAutoSetup(t *testing.T) {
+	restore := setVirtualComputersAutoSetupTestHooks(t)
+	defer restore()
+	firstStarted := make(chan struct{})
+	firstCancelled := make(chan struct{})
+	secondStarted := make(chan struct{})
+	var runs atomic.Int32
+	virtualComputersAutoSetupNeeded = func(*Server, virtualcomputers.ToolConfig) bool { return true }
+	virtualComputersAutoSetupRunner = func(ctx context.Context, _ *Server, _ virtualcomputers.ToolConfig) error {
+		if runs.Add(1) == 1 {
+			close(firstStarted)
+			<-ctx.Done()
+			close(firstCancelled)
+			return ctx.Err()
+		}
+		close(secondStarted)
+		return nil
+	}
+	s, cfg := virtualComputersAutoSetupVaultTestServer(t)
+	if !virtualComputersTriggerAutoSetup(s, virtualcomputers.FromAuraConfig(cfg)) {
+		t.Fatal("initial auto setup was not started")
+	}
+	select {
+	case <-firstStarted:
+	case <-time.After(time.Second):
+		t.Fatal("initial auto setup did not run")
+	}
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/vault/secrets", strings.NewReader(`{"key":"sudo_password","value":"replacement-secret"}`))
+	handleSetVaultSecret(s, rec, req)
+
+	select {
+	case <-firstCancelled:
+	case <-time.After(time.Second):
+		t.Fatal("saving sudo_password did not cancel the stale setup attempt")
+	}
+	select {
+	case <-secondStarted:
+	case <-time.After(time.Second):
+		t.Fatal("saving sudo_password did not start a fresh setup attempt")
+	}
+	waitForVirtualComputersAutoSetupIdle(t)
+}
+
+func TestSavingSudoPasswordDoesNotResetManualLocalIntegration(t *testing.T) {
+	restore := setVirtualComputersAutoSetupTestHooks(t)
+	defer restore()
+	s, cfg := virtualComputersAutoSetupVaultTestServer(t)
+	cfg.VirtualComputers.AutoSetup = false
+	var tunnelCloses atomic.Int32
+	virtualComputersManagementTunnel.Lock()
+	virtualComputersManagementTunnel.key = "manual-local"
+	virtualComputersManagementTunnel.close = func() { tunnelCloses.Add(1) }
+	virtualComputersManagementTunnel.Unlock()
+	defer func() {
+		virtualComputersManagementTunnel.Lock()
+		virtualComputersManagementTunnel.key = ""
+		virtualComputersManagementTunnel.close = nil
+		virtualComputersManagementTunnel.Unlock()
+	}()
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/vault/secrets", strings.NewReader(`{"key":"sudo_password","value":"manual-secret"}`))
+	handleSetVaultSecret(s, rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%s", rec.Code, rec.Body.String())
+	}
+	if got := tunnelCloses.Load(); got != 0 {
+		t.Fatalf("manual management tunnel closed %d time(s)", got)
+	}
+}
+
+func virtualComputersAutoSetupVaultTestServer(t *testing.T) (*Server, *config.Config) {
+	t.Helper()
+	vault, err := security.NewVault(strings.Repeat("d", 64), filepath.Join(t.TempDir(), "vault.bin"))
+	if err != nil {
+		t.Fatalf("NewVault: %v", err)
+	}
+	cfg := &config.Config{}
+	cfg.VirtualComputers.Enabled = true
+	cfg.VirtualComputers.AutoSetup = true
+	cfg.VirtualComputers.ControlPlane.Mode = virtualcomputers.ControlPlaneLocalHost
+	return &Server{Cfg: cfg, Vault: vault, Logger: slog.Default()}, cfg
 }
 
 func setVirtualComputersAutoSetupTestHooks(t *testing.T) func() {

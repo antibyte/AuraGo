@@ -76,5 +76,5 @@
   "config.virtual_computers.sudo_password_clear": "Usuń",
   "config.virtual_computers.sudo_password_clear_confirm": "Czy na pewno chcesz usunąć centralnie zapisane hasło sudo?",
   "config.virtual_computers.sudo_password_save_failed": "Nie udało się zaktualizować hasła sudo.",
-  "help.virtual_computers.sudo_password": "AuraGo ponownie używa centralnego hasła sudo z Vault do lokalnej instalacji i naprawy. Pozostaw puste, jeśli hasło jest już zapisane lub działa sudo bez hasła."
+  "help.virtual_computers.sudo_password": "AuraGo ponownie używa centralnego hasła sudo z Vault do lokalnej instalacji i naprawy. To samo hasło jest współdzielone z execute_sudo i zarządzaniem pakietami. Pozostaw puste, jeśli hasło jest już zapisane lub działa sudo bez hasła."
 }

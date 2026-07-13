@@ -76,5 +76,5 @@
   "config.virtual_computers.sudo_password_clear": "Supprimer",
   "config.virtual_computers.sudo_password_clear_confirm": "Veux-tu vraiment supprimer le mot de passe sudo enregistré de manière centrale ?",
   "config.virtual_computers.sudo_password_save_failed": "Impossible de mettre à jour le mot de passe sudo.",
-  "help.virtual_computers.sudo_password": "AuraGo réutilise le mot de passe sudo central du Vault pour l’installation et la réparation locales. Laisse ce champ vide s’il est déjà enregistré ou si sudo sans mot de passe fonctionne."
+  "help.virtual_computers.sudo_password": "AuraGo réutilise le mot de passe sudo central du Vault pour l’installation et la réparation locales. Le même mot de passe est partagé avec execute_sudo et la gestion des paquets. Laisse ce champ vide s’il est déjà enregistré ou si sudo sans mot de passe fonctionne."
 }

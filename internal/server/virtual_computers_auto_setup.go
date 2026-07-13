@@ -33,6 +33,10 @@ var virtualComputersAutoSetupState = struct {
 }{}
 
 func virtualComputersTriggerAutoSetup(s *Server, cfg virtualcomputers.ToolConfig) bool {
+	return virtualComputersTriggerAutoSetupWithForce(s, cfg, false)
+}
+
+func virtualComputersTriggerAutoSetupWithForce(s *Server, cfg virtualcomputers.ToolConfig, force bool) bool {
 	enabled := cfg.Enabled && cfg.AutoSetup
 	virtualComputersAutoSetupState.Lock()
 	configChanged := virtualComputersAutoSetupState.desiredConfig != cfg
@@ -51,7 +55,7 @@ func virtualComputersTriggerAutoSetup(s *Server, cfg virtualcomputers.ToolConfig
 		return false
 	}
 	if virtualComputersAutoSetupState.running {
-		if !configChanged {
+		if !configChanged && !force {
 			virtualComputersAutoSetupState.Unlock()
 			return false
 		}
@@ -65,7 +69,7 @@ func virtualComputersTriggerAutoSetup(s *Server, cfg virtualcomputers.ToolConfig
 		}
 		return false
 	}
-	if !configChanged && time.Now().Before(virtualComputersAutoSetupState.retryAfter) {
+	if !force && !configChanged && time.Now().Before(virtualComputersAutoSetupState.retryAfter) {
 		virtualComputersAutoSetupState.Unlock()
 		return false
 	}
@@ -77,6 +81,14 @@ func virtualComputersTriggerAutoSetup(s *Server, cfg virtualcomputers.ToolConfig
 
 	go reconcileVirtualComputersAutoSetup()
 	return true
+}
+
+func virtualComputersRetryAutoSetupAfterSudoCredentialChange(s *Server) bool {
+	cfg := virtualComputersConfigSnapshot(s)
+	if !cfg.Enabled || !cfg.AutoSetup || virtualComputersControlPlaneMode(cfg) != virtualcomputers.ControlPlaneLocalHost {
+		return false
+	}
+	return virtualComputersTriggerAutoSetupWithForce(s, cfg, true)
 }
 
 func reconcileVirtualComputersAutoSetup() {

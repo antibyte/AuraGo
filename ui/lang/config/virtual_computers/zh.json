@@ -76,5 +76,5 @@
   "config.virtual_computers.sudo_password_clear": "移除",
   "config.virtual_computers.sudo_password_clear_confirm": "确定要移除集中存储的 sudo 密码吗？",
   "config.virtual_computers.sudo_password_save_failed": "无法更新 sudo 密码。",
-  "help.virtual_computers.sudo_password": "AuraGo 会重复使用 Vault 中的中央 sudo 密码进行本地安装和修复。如果已存储密码或免密码 sudo 可用，请留空。"
+  "help.virtual_computers.sudo_password": "AuraGo 会重复使用 Vault 中的中央 sudo 密码进行本地安装和修复。同一密码也由 execute_sudo 和软件包管理共享。如果已存储密码或免密码 sudo 可用，请留空。"
 }

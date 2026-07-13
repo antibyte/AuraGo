@@ -76,5 +76,5 @@
   "config.virtual_computers.sudo_password_clear": "Αφαίρεση",
   "config.virtual_computers.sudo_password_clear_confirm": "Θέλεις πραγματικά να αφαιρέσεις τον κεντρικά αποθηκευμένο κωδικό sudo;",
   "config.virtual_computers.sudo_password_save_failed": "Δεν ήταν δυνατή η ενημέρωση του κωδικού sudo.",
-  "help.virtual_computers.sudo_password": "Το AuraGo χρησιμοποιεί τον κεντρικό κωδικό sudo από το Vault για τοπική εγκατάσταση και επισκευή. Άφησέ το κενό αν υπάρχει ήδη αποθηκευμένος κωδικός ή λειτουργεί sudo χωρίς κωδικό."
+  "help.virtual_computers.sudo_password": "Το AuraGo χρησιμοποιεί τον κεντρικό κωδικό sudo από το Vault για τοπική εγκατάσταση και επισκευή. Ο ίδιος κωδικός χρησιμοποιείται από το execute_sudo και τη διαχείριση πακέτων. Άφησέ το κενό αν υπάρχει ήδη αποθηκευμένος κωδικός ή λειτουργεί sudo χωρίς κωδικό."
 }

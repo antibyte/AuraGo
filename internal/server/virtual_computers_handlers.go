@@ -935,6 +935,12 @@ func virtualComputersSetupMetadata(s *Server, cfg virtualcomputers.ToolConfig, c
 			arch = runtime.GOARCH
 		}
 	}
+	hasSudoOrRoot := virtualComputersCheckBool(s, mode, checks, "HAS_SUDO_OR_ROOT")
+	if mode == virtualcomputers.ControlPlaneLocalHost && virtualComputersSudoPassword(s) != "" {
+		if available, ok := hasSudoOrRoot.(bool); ok && !available {
+			hasSudoOrRoot = nil
+		}
+	}
 	return map[string]interface{}{
 		"mode":              mode,
 		"host_os":           hostOS,
@@ -942,7 +948,7 @@ func virtualComputersSetupMetadata(s *Server, cfg virtualcomputers.ToolConfig, c
 		"running_in_docker": virtualComputersCheckBool(s, mode, checks, "RUNNING_IN_DOCKER"),
 		"has_kvm":           virtualComputersCheckBool(s, mode, checks, "HAS_KVM"),
 		"has_systemd":       virtualComputersCheckBool(s, mode, checks, "HAS_SYSTEMD"),
-		"has_sudo_or_root":  virtualComputersCheckBool(s, mode, checks, "HAS_SUDO_OR_ROOT"),
+		"has_sudo_or_root":  hasSudoOrRoot,
 	}
 }
 

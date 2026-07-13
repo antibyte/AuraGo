@@ -76,5 +76,5 @@
   "config.virtual_computers.sudo_password_clear": "Verwijderen",
   "config.virtual_computers.sudo_password_clear_confirm": "Wil je het centraal opgeslagen sudo-wachtwoord echt verwijderen?",
   "config.virtual_computers.sudo_password_save_failed": "Het sudo-wachtwoord kon niet worden bijgewerkt.",
-  "help.virtual_computers.sudo_password": "AuraGo hergebruikt het centrale sudo-wachtwoord uit de Vault voor lokale installatie en reparatie. Laat dit leeg als er al een is opgeslagen of sudo zonder wachtwoord werkt."
+  "help.virtual_computers.sudo_password": "AuraGo hergebruikt het centrale sudo-wachtwoord uit de Vault voor lokale installatie en reparatie. Hetzelfde wachtwoord wordt gedeeld met execute_sudo en pakketbeheer. Laat dit leeg als er al een is opgeslagen of sudo zonder wachtwoord werkt."
 }

@@ -76,5 +76,5 @@
   "config.virtual_computers.sudo_password_clear": "Entfernen",
   "config.virtual_computers.sudo_password_clear_confirm": "Möchtest du das zentral hinterlegte Sudo-Passwort wirklich entfernen?",
   "config.virtual_computers.sudo_password_save_failed": "Das Sudo-Passwort konnte nicht aktualisiert werden.",
-  "help.virtual_computers.sudo_password": "AuraGo verwendet das zentrale Sudo-Passwort aus dem Vault für lokale Installation und Reparatur. Lass das Feld leer, wenn bereits eines hinterlegt ist oder passwortloses sudo funktioniert."
+  "help.virtual_computers.sudo_password": "AuraGo verwendet das zentrale Sudo-Passwort aus dem Vault für lokale Installation und Reparatur. Dasselbe Passwort wird auch mit execute_sudo und der Paketverwaltung geteilt. Lass das Feld leer, wenn bereits eines hinterlegt ist oder passwortloses sudo funktioniert."
 }

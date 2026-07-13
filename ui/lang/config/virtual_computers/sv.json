@@ -76,5 +76,5 @@
   "config.virtual_computers.sudo_password_clear": "Ta bort",
   "config.virtual_computers.sudo_password_clear_confirm": "Vill du verkligen ta bort det centralt lagrade sudo-lösenordet?",
   "config.virtual_computers.sudo_password_save_failed": "Det gick inte att uppdatera sudo-lösenordet.",
-  "help.virtual_computers.sudo_password": "AuraGo återanvänder det centrala sudo-lösenordet från Vault för lokal installation och reparation. Lämna tomt om ett redan är lagrat eller lösenordsfri sudo fungerar."
+  "help.virtual_computers.sudo_password": "AuraGo återanvänder det centrala sudo-lösenordet från Vault för lokal installation och reparation. Samma lösenord delas med execute_sudo och pakethanteringen. Lämna tomt om ett redan är lagrat eller lösenordsfri sudo fungerar."
 }

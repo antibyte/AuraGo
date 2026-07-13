@@ -76,5 +76,5 @@
   "config.virtual_computers.sudo_password_clear": "Remover",
   "config.virtual_computers.sudo_password_clear_confirm": "Queres mesmo remover a senha do sudo guardada centralmente?",
   "config.virtual_computers.sudo_password_save_failed": "Não foi possível atualizar a senha do sudo.",
-  "help.virtual_computers.sudo_password": "O AuraGo reutiliza a senha do sudo central do Vault para instalação e reparação locais. Deixa vazio se já existir uma senha guardada ou se o sudo sem senha funcionar."
+  "help.virtual_computers.sudo_password": "O AuraGo reutiliza a senha do sudo central do Vault para instalação e reparação locais. A mesma senha é partilhada com execute_sudo e a gestão de pacotes. Deixa vazio se já existir uma senha guardada ou se o sudo sem senha funcionar."
 }

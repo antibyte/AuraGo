@@ -76,5 +76,5 @@
   "config.virtual_computers.sudo_password_clear": "削除",
   "config.virtual_computers.sudo_password_clear_confirm": "中央に保存された sudo パスワードを本当に削除しますか？",
   "config.virtual_computers.sudo_password_save_failed": "sudo パスワードを更新できませんでした。",
-  "help.virtual_computers.sudo_password": "AuraGo はローカルのインストールと修復に Vault の中央 sudo パスワードを再利用します。すでに保存済みか、パスワードなしの sudo が動作する場合は空欄にしてください。"
+  "help.virtual_computers.sudo_password": "AuraGo はローカルのインストールと修復に Vault の中央 sudo パスワードを再利用します。同じパスワードが execute_sudo とパッケージ管理でも共有されます。すでに保存済みか、パスワードなしの sudo が動作する場合は空欄にしてください。"
 }

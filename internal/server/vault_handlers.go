@@ -146,6 +146,9 @@ func handleSetVaultSecret(s *Server, w http.ResponseWriter, r *http.Request) {
 		s.Cfg.ApplyVaultSecrets(s.Vault)
 		s.CfgMu.Unlock()
 	}
+	if req.Key == "sudo_password" {
+		virtualComputersRetryAutoSetupAfterSudoCredentialChange(s)
+	}
 
 	s.Logger.Info("[Vault] Secret written via Web UI", "key", req.Key)
 	w.Header().Set("Content-Type", "application/json")

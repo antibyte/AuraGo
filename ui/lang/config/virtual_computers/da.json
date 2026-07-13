@@ -76,5 +76,5 @@
   "config.virtual_computers.sudo_password_clear": "Fjern",
   "config.virtual_computers.sudo_password_clear_confirm": "Vil du virkelig fjerne den centralt gemte sudo-adgangskode?",
   "config.virtual_computers.sudo_password_save_failed": "Sudo-adgangskoden kunne ikke opdateres.",
-  "help.virtual_computers.sudo_password": "AuraGo genbruger den centrale sudo-adgangskode fra Vault til lokal installation og reparation. Lad feltet være tomt, hvis en allerede er gemt, eller sudo uden adgangskode virker."
+  "help.virtual_computers.sudo_password": "AuraGo genbruger den centrale sudo-adgangskode fra Vault til lokal installation og reparation. Den samme adgangskode deles med execute_sudo og pakkehåndtering. Lad feltet være tomt, hvis en allerede er gemt, eller sudo uden adgangskode virker."
 }

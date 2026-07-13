@@ -81,18 +81,45 @@ func TestVirtualComputersLocalSetupUsesCentralSudoPasswordVaultField(t *testing.
 	}
 }
 
-func TestVirtualComputersSudoPasswordCanBeClearedSafely(t *testing.T) {
+func TestVirtualComputersDoesNotDeleteSharedSudoPassword(t *testing.T) {
 	t.Parallel()
 
 	vcJS := normalizeAssetText(mustReadUIFile(t, "cfg/virtual_computers.js"))
-	if !strings.Contains(vcJS, `await showConfirm(`) {
-		t.Fatal("clearing the sudo password must use the shared confirmation modal")
-	}
-	if !strings.Contains(vcJS, `method: 'DELETE'`) || !strings.Contains(vcJS, `encodeURIComponent('sudo_password')`) {
-		t.Fatal("clear action must delete only the central sudo_password Vault key")
+	if strings.Contains(vcJS, `vcCfgClearSudoPassword`) || strings.Contains(vcJS, `method: 'DELETE'`) {
+		t.Fatal("Virtual Computers must not delete the globally shared sudo_password")
 	}
 	if strings.Contains(vcJS, "confirm(") || strings.Contains(vcJS, "alert(") {
 		t.Fatal("virtual computers config must not use native confirm or alert dialogs")
+	}
+}
+
+func TestVirtualComputersSudoStatusRefreshCannotOverwriteMutation(t *testing.T) {
+	t.Parallel()
+
+	vcJS := normalizeAssetText(mustReadUIFile(t, "cfg/virtual_computers.js"))
+	if !strings.Contains(vcJS, `const requestGeneration = ++_vcSudoPasswordStatusGeneration`) {
+		t.Fatal("sudo status refresh must capture a request generation")
+	}
+	if !strings.Contains(vcJS, `requestGeneration !== _vcSudoPasswordStatusGeneration`) {
+		t.Fatal("stale sudo status responses must be ignored")
+	}
+	if !strings.Contains(vcJS, `++_vcSudoPasswordStatusGeneration;`) {
+		t.Fatal("sudo password mutations must invalidate in-flight status requests")
+	}
+}
+
+func TestVirtualComputersSudoPasswordDisablesLoginAutofillAndWrapsActions(t *testing.T) {
+	t.Parallel()
+
+	vcJS := normalizeAssetText(mustReadUIFile(t, "cfg/virtual_computers.js"))
+	if !strings.Contains(vcJS, `id="vc-sudo-password-input" value="" autocomplete="off"`) {
+		t.Fatal("sudo password field must disable login-password autofill")
+	}
+	if !strings.Contains(vcJS, `<div class="cfg-password-row">`) {
+		t.Fatal("sudo password actions must use the responsive wrapping row")
+	}
+	if strings.Contains(vcJS, `autocomplete="current-password"`) {
+		t.Fatal("sudo password field must not request the AuraGo login password")
 	}
 }
 
@@ -132,6 +159,9 @@ func TestVirtualComputersSudoPasswordTranslationsExist(t *testing.T) {
 				if strings.TrimSpace(translations[key]) == "" {
 					t.Errorf("%s is missing translation %s", path, key)
 				}
+			}
+			if !strings.Contains(translations["help.virtual_computers.sudo_password"], "execute_sudo") {
+				t.Errorf("%s must explain that sudo_password is shared with execute_sudo", path)
 			}
 		})
 	}

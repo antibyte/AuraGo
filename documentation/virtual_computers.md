@@ -35,7 +35,9 @@ Both HTTP and WebSocket traffic stay on the AuraGo origin. The browser never rec
 
 ## Local and SSH-host modes
 
-In `local_host` mode, AuraGo installs and probes both services on the same supported Linux/KVM host. If installation needs authenticated sudo, store the password on the Virtual Computers configuration page. AuraGo reuses the central `sudo_password` Vault secret, including a value previously stored through `/sudopwd` or the Secrets page. The password is never written to `config.yaml`, command arguments, setup logs, or API responses. Root and passwordless-sudo hosts do not need a stored password.
+In `local_host` mode, AuraGo installs and probes both services on the same supported Linux/KVM host. If installation needs authenticated sudo, store the password on the Virtual Computers configuration page. AuraGo reuses the central `sudo_password` Vault secret, including a value previously stored through `/sudopwd` or the Secrets page. Saving it automatically retries an enabled local auto-setup, even after a failed-attempt cooldown, and supersedes an in-flight attempt so the new credential is used. The password is never written to `config.yaml`, command arguments, setup logs, or API responses. Root and passwordless-sudo hosts do not need a stored password.
+
+The `sudo_password` secret is shared with `execute_sudo`, package management, and other privileged host features. Virtual Computers therefore does not offer a delete action for it. Manage removal centrally on the Secrets page, where the system-wide effect is explicit.
 
 In `ssh_host` mode, AuraGo installs both services on the selected remote Linux/KVM host. It maintains separate loopback SSH tunnels for boringd and the management application, reuses healthy tunnels, replaces them when the SSH target changes, and closes partially established tunnels after failed health checks.
 
@@ -48,6 +50,8 @@ Do not publish ports `18080` or `18081`. Remote browser access should expose the
 - `control_plane_status`: configured and healthy state for boringd
 - `management`: configured and healthy state for the Boring Computers web application
 - `sudo_password_stored`: safe boolean indicating whether the central Vault secret is available; the value itself is never returned
+
+The passive status request never submits the stored password to sudo. When passwordless sudo is unavailable but a Vault credential exists, `has_sudo_or_root` remains `null` until the explicit Preflight action validates the credential.
 
 If `/boring-computers/` returns `503`:
 

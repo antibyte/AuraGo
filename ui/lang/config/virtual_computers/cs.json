@@ -76,5 +76,5 @@
   "config.virtual_computers.sudo_password_clear": "Odstranit",
   "config.virtual_computers.sudo_password_clear_confirm": "Opravdu chceš odstranit centrálně uložené heslo sudo?",
   "config.virtual_computers.sudo_password_save_failed": "Heslo sudo se nepodařilo aktualizovat.",
-  "help.virtual_computers.sudo_password": "AuraGo používá centrální heslo sudo z trezoru pro místní instalaci a opravu. Pokud je již uložené nebo funguje sudo bez hesla, nech pole prázdné."
+  "help.virtual_computers.sudo_password": "AuraGo používá centrální heslo sudo z trezoru pro místní instalaci a opravu. Stejné heslo sdílí execute_sudo a správa balíčků. Pokud je již uložené nebo funguje sudo bez hesla, nech pole prázdné."
 }

@@ -76,5 +76,5 @@
   "config.virtual_computers.sudo_password_clear": "Eliminar",
   "config.virtual_computers.sudo_password_clear_confirm": "¿De verdad quieres eliminar la contraseña de sudo guardada de forma central?",
   "config.virtual_computers.sudo_password_save_failed": "No se pudo actualizar la contraseña de sudo.",
-  "help.virtual_computers.sudo_password": "AuraGo reutiliza la contraseña de sudo central del Vault para la instalación y reparación locales. Déjalo vacío si ya hay una guardada o funciona sudo sin contraseña."
+  "help.virtual_computers.sudo_password": "AuraGo reutiliza la contraseña de sudo central del Vault para la instalación y reparación locales. La misma contraseña se comparte con execute_sudo y la gestión de paquetes. Déjalo vacío si ya hay una guardada o funciona sudo sin contraseña."
 }

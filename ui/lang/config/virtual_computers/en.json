@@ -76,5 +76,5 @@
   "config.virtual_computers.sudo_password_clear": "Remove",
   "config.virtual_computers.sudo_password_clear_confirm": "Do you really want to remove the centrally stored sudo password?",
   "config.virtual_computers.sudo_password_save_failed": "Could not update the sudo password.",
-  "help.virtual_computers.sudo_password": "AuraGo reuses the central sudo password from the Vault for local installation and repair. Leave this empty when one is already stored or passwordless sudo works."
+  "help.virtual_computers.sudo_password": "AuraGo reuses the central sudo password from the Vault for local installation and repair. The same password is shared with execute_sudo and package management. Leave this empty when one is already stored or passwordless sudo works."
 }
