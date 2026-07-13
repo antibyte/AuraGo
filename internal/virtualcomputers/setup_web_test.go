@@ -57,3 +57,15 @@ func TestManagementInstallScriptPinsUpstreamInsteadOfFollowingMain(t *testing.T)
 		t.Fatal("management deployment must detach at the reviewed revision")
 	}
 }
+
+func TestManagementInstallScriptPinsReviewedSourceHashes(t *testing.T) {
+	script := managementInstallScript(SetupInstallOptions{})
+	for _, want := range []string{
+		"50cddca87651ac11e4b525f13fc60572b63b29e65ba2aa60c6b84d1e610e8832",
+		"1cc5f7e2f766f36c07a86a1d5fb8ad0aa22f80a1bf968b7ac87bea5fee0ae6ba",
+	} {
+		if !strings.Contains(script, want) {
+			t.Fatalf("management install script missing reviewed source hash %q", want)
+		}
+	}
+}

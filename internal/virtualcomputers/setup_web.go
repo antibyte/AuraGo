@@ -3,8 +3,8 @@ package virtualcomputers
 import "fmt"
 
 const (
-	boringWebSourceSHA256 = "5d7eaef9b20cb4aa0c7ff5fdd49e380b9ddd476c28144efdd387ddcd365f9ae2"
-	boringWebViteSHA256   = "5c8f17bcf8b5e84b8b79029ffba370af3e932c4078cc29c53c30d2b124ddafcf"
+	boringWebSourceSHA256 = "50cddca87651ac11e4b525f13fc60572b63b29e65ba2aa60c6b84d1e610e8832"
+	boringWebViteSHA256   = "1cc5f7e2f766f36c07a86a1d5fb8ad0aa22f80a1bf968b7ac87bea5fee0ae6ba"
 	managedNodeVersion    = "24.11.1"
 )
 
