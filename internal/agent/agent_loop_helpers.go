@@ -601,6 +601,9 @@ func adaptiveFamilySeedsForQuery(userQuery string) []string {
 	if isComposioIntent(q) {
 		add("composio_call")
 	}
+	if isManusIntent(q) {
+		add("manus")
+	}
 
 	if len(out) == 0 {
 		return nil
@@ -663,6 +666,21 @@ func isComposioIntent(normalizedQuery string) bool {
 		}
 	}
 	return false
+}
+
+func isManusIntent(normalizedQuery string) bool {
+	if normalizedQuery == "" {
+		return false
+	}
+	if strings.Contains(" "+normalizedQuery+" ", " manus ") {
+		return true
+	}
+	for _, term := range []string{"manus ai", "manus task", "manus aufgabe", "delegate to manus", "an manus delegieren"} {
+		if strings.Contains(normalizedQuery, term) {
+			return true
+		}
+	}
+	return normalizedQuery == "manus"
 }
 
 func cacheAwareAdaptiveAlwaysInclude(userQuery string, alwaysInclude []string, schemas []openai.Tool) []string {

@@ -352,6 +352,7 @@ func buildToolFlagsFromConfig(cfg *config.Config) ToolFeatureFlags {
 		GrafanaEnabled:               cfg.Grafana.Enabled,
 		MCPEnabled:                   cfg.MCP.Enabled && cfg.Agent.AllowMCP,
 		ComposioEnabled:              cfg.Composio.Enabled && strings.TrimSpace(cfg.Composio.APIKey) != "",
+		ManusEnabled:                 cfg.Manus.Enabled && strings.TrimSpace(cfg.Manus.APIKey) != "",
 		EvomapEnabled:                cfg.Evomap.Enabled,
 		SandboxEnabled:               sandboxEnabled,
 		MeshCentralEnabled:           cfg.MeshCentral.Enabled,

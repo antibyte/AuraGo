@@ -956,6 +956,10 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			req := decodeComposioCallArgs(tc)
 			return dispatchComposioCall(ctx, req, cfg)
 
+		case "manus":
+			req := decodeManusCallArgs(tc)
+			return dispatchManusCall(ctx, req, cfg)
+
 		case "evomap":
 			req := decodeEvomapArgs(tc)
 			if vault != nil {

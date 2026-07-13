@@ -19,6 +19,9 @@ var discoverToolAliases = map[string]string{
 	"composio tools":         "composio_call",
 	"composio integrations":  "composio_call",
 	"integrations":           "composio_call",
+	"manus":                  "manus",
+	"manus ai":               "manus",
+	"manus tasks":            "manus",
 	"evomap":                 "evomap",
 	"evomap ai":              "evomap",
 	"evo map":                "evomap",
@@ -236,6 +239,7 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 	},
 	"data_apis": {
 		{"composio_call", "Search and call user-approved Composio integration tools"},
+		{"manus", "Delegate and track private asynchronous tasks through Manus v2"},
 		{"huggingface", "Discover Hugging Face Hub, datasets, Spaces, Papers, and gated Jobs"},
 		{"virustotal_scan", "Scan URLs, files, domains, and hashes with VirusTotal"},
 		{"yepapi_seo", "SEO data via YepAPI: domain overviews, keywords, competitors, and backlinks"},

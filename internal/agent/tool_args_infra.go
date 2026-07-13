@@ -190,6 +190,27 @@ type composioCallArgs struct {
 	Limit              int
 }
 
+type manusCallArgs struct {
+	Operation              string
+	TaskID                 string
+	Message                string
+	Title                  string
+	ProjectID              string
+	Locale                 string
+	AgentProfile           string
+	InteractiveMode        bool
+	ConnectorIDs           []string
+	EnableSkillIDs         []string
+	ForceSkillIDs          []string
+	StructuredOutputSchema map[string]interface{}
+	SchemaError            string
+	LocalFilePaths         []string
+	Cursor                 string
+	Limit                  int
+	WaitSeconds            int
+	EventID                string
+}
+
 type evomapArgs struct {
 	Operation string
 	Query     string
@@ -912,6 +933,39 @@ func decodeComposioCallArgs(tc ToolCall) composioCallArgs {
 	req.Arguments = toolArgInterfaceMap(tc.Params, "arguments", "args", "parameters", "tool_args")
 	if req.Arguments == nil {
 		req.Arguments = map[string]interface{}{}
+	}
+	return req
+}
+
+func decodeManusCallArgs(tc ToolCall) manusCallArgs {
+	req := manusCallArgs{
+		Operation:      firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
+		TaskID:         firstNonEmptyToolString(tc.ID, toolArgString(tc.Params, "task_id", "id")),
+		Message:        firstNonEmptyToolString(tc.Content, toolArgString(tc.Params, "message", "content")),
+		Title:          firstNonEmptyToolString(tc.Name, toolArgString(tc.Params, "title")),
+		ProjectID:      toolArgString(tc.Params, "project_id"),
+		Locale:         toolArgString(tc.Params, "locale"),
+		AgentProfile:   toolArgString(tc.Params, "agent_profile"),
+		ConnectorIDs:   toolArgStringSlice(tc.Params, "connector_ids"),
+		EnableSkillIDs: toolArgStringSlice(tc.Params, "enable_skill_ids"),
+		ForceSkillIDs:  toolArgStringSlice(tc.Params, "force_skill_ids"),
+		LocalFilePaths: toolArgStringSlice(tc.Params, "local_file_paths"),
+		Cursor:         toolArgString(tc.Params, "cursor"),
+		Limit:          toolArgInt(tc.Params, 0, "limit"),
+		WaitSeconds:    toolArgInt(tc.Params, 0, "wait_seconds"),
+		EventID:        toolArgString(tc.Params, "event_id"),
+	}
+	if interactive, ok := toolArgBool(tc.Params, "interactive_mode"); ok {
+		req.InteractiveMode = interactive
+	}
+	req.StructuredOutputSchema = toolArgInterfaceMap(tc.Params, "structured_output_schema")
+	if req.StructuredOutputSchema == nil {
+		raw := strings.TrimSpace(toolArgString(tc.Params, "structured_output_schema"))
+		if raw != "" {
+			if err := json.Unmarshal([]byte(raw), &req.StructuredOutputSchema); err != nil {
+				req.SchemaError = err.Error()
+			}
+		}
 	}
 	return req
 }
