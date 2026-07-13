@@ -88,6 +88,7 @@ func handleVirtualComputersSetupStatus(s *Server) http.HandlerFunc {
 			"enabled":              cfg.Enabled,
 			"configured":           configured,
 			"auto_setup":           cfg.AutoSetup,
+			"sudo_password_stored": virtualComputersSudoPassword(s) != "",
 			"provider":             cfg.Provider,
 			"control_plane":        cfg.ControlPlane,
 			"control_plane_status": virtualcomputers.ComponentStatus{Configured: configured, Healthy: controlPlaneHealthy},
@@ -1033,11 +1034,30 @@ func virtualComputersSetupManager(s *Server, cfg virtualcomputers.ToolConfig, to
 	if err != nil {
 		return virtualcomputers.SetupManager{}, err
 	}
+	sudoPassword := ""
+	if virtualComputersControlPlaneMode(cfg) == virtualcomputers.ControlPlaneLocalHost {
+		sudoPassword = virtualComputersSudoPassword(s)
+		localExecutor := executor.(virtualcomputers.LocalCommandExecutor)
+		localExecutor.SudoPassword = sudoPassword
+		executor = localExecutor
+	}
 	return virtualcomputers.SetupManager{
 		Executor:       executor,
 		Token:          token,
+		SudoPassword:   sudoPassword,
 		InstallOptions: virtualComputersSetupOptions(cfg, token, virtualComputersSetupRequest{}),
 	}, nil
+}
+
+func virtualComputersSudoPassword(s *Server) string {
+	if s == nil || s.Vault == nil {
+		return ""
+	}
+	password, err := s.Vault.ReadSecret("sudo_password")
+	if err != nil || strings.TrimSpace(password) == "" {
+		return ""
+	}
+	return password
 }
 
 func virtualComputersSetupOptions(cfg virtualcomputers.ToolConfig, token string, req virtualComputersSetupRequest) virtualcomputers.SetupInstallOptions {

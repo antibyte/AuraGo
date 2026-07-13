@@ -168,6 +168,73 @@ func TestVirtualComputersSetupManagerLocalHostDoesNotRequireSSHSecret(t *testing
 	}
 }
 
+func TestVirtualComputersSetupManagerUsesStoredSudoPasswordForLocalHost(t *testing.T) {
+	vault, err := security.NewVault(strings.Repeat("b", 64), filepath.Join(t.TempDir(), "vault.bin"))
+	if err != nil {
+		t.Fatalf("NewVault: %v", err)
+	}
+	if err := vault.WriteSecret("sudo_password", "vault-sudo-secret"); err != nil {
+		t.Fatalf("WriteSecret: %v", err)
+	}
+	cfg := virtualcomputers.ToolConfig{ControlPlane: virtualcomputers.ControlPlaneConfig{Mode: virtualcomputers.ControlPlaneLocalHost}}
+
+	manager, err := virtualComputersSetupManager(&Server{Vault: vault}, cfg, "boring-token")
+	if err != nil {
+		t.Fatalf("virtualComputersSetupManager: %v", err)
+	}
+	executor, ok := manager.Executor.(virtualcomputers.LocalCommandExecutor)
+	if !ok {
+		t.Fatalf("executor = %T", manager.Executor)
+	}
+	if executor.SudoPassword != "vault-sudo-secret" || manager.SudoPassword != "vault-sudo-secret" {
+		t.Fatal("local setup did not reuse central sudo_password")
+	}
+}
+
+func TestVirtualComputersSetupStatusReportsStoredSudoPasswordWithoutLeakingIt(t *testing.T) {
+	vault, err := security.NewVault(strings.Repeat("c", 64), filepath.Join(t.TempDir(), "vault.bin"))
+	if err != nil {
+		t.Fatalf("NewVault: %v", err)
+	}
+	if err := vault.WriteSecret("sudo_password", "vault-sudo-secret"); err != nil {
+		t.Fatalf("WriteSecret: %v", err)
+	}
+	cfg := virtualComputersTestConfig("http://127.0.0.1:1")
+	cfg.VirtualComputers.ControlPlane.Mode = virtualcomputers.ControlPlaneLocalHost
+	rec := httptest.NewRecorder()
+
+	handleVirtualComputersSetupStatus(&Server{Cfg: cfg, Vault: vault}).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/virtual-computers/setup/status", nil))
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%s", rec.Code, rec.Body.String())
+	}
+	var body map[string]interface{}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode body: %v", err)
+	}
+	if body["sudo_password_stored"] != true {
+		t.Fatalf("sudo_password_stored = %#v", body["sudo_password_stored"])
+	}
+	if strings.Contains(rec.Body.String(), "vault-sudo-secret") {
+		t.Fatalf("status leaked sudo password: %s", rec.Body.String())
+	}
+}
+
+func TestVirtualComputersSetupStatusReportsMissingSudoPassword(t *testing.T) {
+	cfg := virtualComputersTestConfig("http://127.0.0.1:1")
+	cfg.VirtualComputers.ControlPlane.Mode = virtualcomputers.ControlPlaneLocalHost
+	rec := httptest.NewRecorder()
+	handleVirtualComputersSetupStatus(&Server{Cfg: cfg}).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/virtual-computers/setup/status", nil))
+
+	var body map[string]interface{}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode body: %v", err)
+	}
+	if body["sudo_password_stored"] != false {
+		t.Fatalf("sudo_password_stored = %#v", body["sudo_password_stored"])
+	}
+}
+
 func TestVirtualComputersSetupOptionsCarriesConfiguredBoringdURL(t *testing.T) {
 	cfg := virtualcomputers.ToolConfig{
 		ControlPlane: virtualcomputers.ControlPlaneConfig{
