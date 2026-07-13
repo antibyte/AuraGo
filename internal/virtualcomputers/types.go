@@ -112,10 +112,19 @@ type Screenshot struct {
 }
 
 type SetupStatus struct {
-	Configured bool            `json:"configured"`
-	Healthy    bool            `json:"healthy"`
-	Message    string          `json:"message,omitempty"`
-	Preflight  PreflightResult `json:"preflight,omitempty"`
+	Configured   bool            `json:"configured"`
+	Healthy      bool            `json:"healthy"`
+	Message      string          `json:"message,omitempty"`
+	Preflight    PreflightResult `json:"preflight,omitempty"`
+	ControlPlane ComponentStatus `json:"control_plane"`
+	Management   ComponentStatus `json:"management"`
+}
+
+// ComponentStatus reports the health of one managed Virtual Computers component.
+type ComponentStatus struct {
+	Configured bool   `json:"configured"`
+	Healthy    bool   `json:"healthy"`
+	Message    string `json:"message,omitempty"`
 }
 
 type SetupInstallOptions struct {
