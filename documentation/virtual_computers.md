@@ -12,14 +12,14 @@ virtual_computers:
   auto_setup: true
 ```
 
-AuraGo then provisions the reviewed upstream revision automatically at server startup. Enabling or changing the integration through the configuration UI triggers the same idempotent setup through hot reload. A single-flight guard prevents overlapping installations, and failed background attempts wait five minutes before retrying.
+AuraGo then provisions the reviewed upstream revision automatically at server startup. Enabling or changing the integration through the configuration UI triggers the same idempotent setup through hot reload. A generation-aware reconciler prevents overlapping installations, cancels a superseded attempt, and continues with the newest configuration. Failed background attempts wait five minutes before retrying. Disabling the integration cancels pending setup, closes its management tunnel, and removes the drawer's cached state.
 
 Install and Repair manage two components as one deployment:
 
 - `boringd`, the private control plane on `127.0.0.1:18080`
 - the Boring Computers management application on `127.0.0.1:18081`
 
-The installer verifies the pinned upstream source, applies AuraGo's reviewed base-path overlay, performs a locked npm build, stages a release, and switches the active release only after a successful build. The `boring-web.service` systemd unit runs with filesystem and privilege hardening. If activation fails, the previous web release is restored.
+The installer verifies the pinned upstream source, applies AuraGo's reviewed base-path overlay, performs a locked npm build, and writes a revision marker used during startup reconciliation. Every run creates a unique immutable release and switches the `current` link atomically only after a successful build. The `boring-web.service` systemd unit runs with filesystem and privilege hardening. If activation fails, the distinct previous web release is restored. AuraGo installs Node.js privately below the configured Boring Computers install directory and does not replace the host's global `node`, `npm`, or `npx` commands.
 
 ## Chat drawer and access
 
@@ -29,7 +29,7 @@ When Virtual Computers is enabled, the right-hand integrations drawer in Chat co
 /boring-computers/
 ```
 
-The link is shown only while the integration is enabled. Its status changes from `starting` to `running` after the management health probe succeeds. AuraGo requires the normal authenticated session or a Desktop read-scoped bearer token before proxying the management application.
+The link is shown only while the integration is enabled. Its status changes from `starting` to `running` after a bounded, passive management health probe succeeds; opening the drawer or status page never initiates an SSH connection. AuraGo requires the normal authenticated session or a method-appropriate Desktop bearer token before proxying the management application. Read-scoped tokens can browse, while mutating requests require write scope. `virtual_computers.readonly=true` blocks mutations at the AuraGo proxy boundary as well as in native tools.
 
 Both HTTP and WebSocket traffic stay on the AuraGo origin. The browser never receives `BORING_TOKEN`, the private boringd URL, or an authorization header for boringd. The management application injects the token only in its server-side proxy.
 
