@@ -3,7 +3,10 @@ package server
 import (
 	"context"
 	"errors"
+	"io"
+	"net/http"
 	"reflect"
+	"strings"
 	"sync"
 	"time"
 
@@ -20,58 +23,135 @@ var (
 
 var virtualComputersAutoSetupState = struct {
 	sync.Mutex
-	running    bool
-	retryAfter time.Time
+	running          bool
+	retryAfter       time.Time
+	generation       uint64
+	desiredServer    *Server
+	desiredConfig    virtualcomputers.ToolConfig
+	cancel           context.CancelFunc
+	cancelGeneration uint64
 }{}
 
 func virtualComputersTriggerAutoSetup(s *Server, cfg virtualcomputers.ToolConfig) bool {
-	if !cfg.Enabled || !cfg.AutoSetup {
+	enabled := cfg.Enabled && cfg.AutoSetup
+	virtualComputersAutoSetupState.Lock()
+	configChanged := virtualComputersAutoSetupState.desiredConfig != cfg
+	if !enabled {
+		virtualComputersAutoSetupState.generation++
+		virtualComputersAutoSetupState.desiredServer = s
+		virtualComputersAutoSetupState.desiredConfig = cfg
+		virtualComputersAutoSetupState.retryAfter = time.Time{}
+		cancel := virtualComputersAutoSetupState.cancel
+		virtualComputersAutoSetupState.Unlock()
+		if cancel != nil {
+			cancel()
+		}
+		resetVirtualComputersManagementTunnel()
+		clearWebhostsCache()
 		return false
 	}
-	virtualComputersAutoSetupState.Lock()
-	if virtualComputersAutoSetupState.running || time.Now().Before(virtualComputersAutoSetupState.retryAfter) {
+	if virtualComputersAutoSetupState.running {
+		if !configChanged {
+			virtualComputersAutoSetupState.Unlock()
+			return false
+		}
+		virtualComputersAutoSetupState.generation++
+		virtualComputersAutoSetupState.desiredServer = s
+		virtualComputersAutoSetupState.desiredConfig = cfg
+		cancel := virtualComputersAutoSetupState.cancel
+		virtualComputersAutoSetupState.Unlock()
+		if cancel != nil {
+			cancel()
+		}
+		return false
+	}
+	if !configChanged && time.Now().Before(virtualComputersAutoSetupState.retryAfter) {
 		virtualComputersAutoSetupState.Unlock()
 		return false
 	}
+	virtualComputersAutoSetupState.generation++
+	virtualComputersAutoSetupState.desiredServer = s
+	virtualComputersAutoSetupState.desiredConfig = cfg
 	virtualComputersAutoSetupState.running = true
 	virtualComputersAutoSetupState.Unlock()
 
-	go func() {
-		attempted := false
-		var runErr error
-		defer func() {
-			virtualComputersAutoSetupState.Lock()
+	go reconcileVirtualComputersAutoSetup()
+	return true
+}
+
+func reconcileVirtualComputersAutoSetup() {
+	for {
+		virtualComputersAutoSetupState.Lock()
+		generation := virtualComputersAutoSetupState.generation
+		s := virtualComputersAutoSetupState.desiredServer
+		cfg := virtualComputersAutoSetupState.desiredConfig
+		if !cfg.Enabled || !cfg.AutoSetup {
 			virtualComputersAutoSetupState.running = false
-			if attempted && runErr != nil {
-				virtualComputersAutoSetupState.retryAfter = time.Now().Add(virtualComputersAutoSetupRetryCooldown)
-			} else {
-				virtualComputersAutoSetupState.retryAfter = time.Time{}
-			}
+			virtualComputersAutoSetupState.cancel = nil
+			virtualComputersAutoSetupState.cancelGeneration = 0
 			virtualComputersAutoSetupState.Unlock()
-		}()
-		if !virtualComputersAutoSetupNeeded(s, cfg) {
 			return
 		}
-		attempted = true
 		ctx, cancel := context.WithTimeout(context.Background(), 90*time.Minute)
-		defer cancel()
-		runErr = virtualComputersAutoSetupRunner(ctx, s, cfg)
+		virtualComputersAutoSetupState.cancel = cancel
+		virtualComputersAutoSetupState.cancelGeneration = generation
+		virtualComputersAutoSetupState.Unlock()
+
+		attempted := virtualComputersAutoSetupNeeded(s, cfg)
+		var runErr error
+		if attempted {
+			runErr = virtualComputersAutoSetupRunner(ctx, s, cfg)
+		}
+		cancel()
+
+		virtualComputersAutoSetupState.Lock()
+		if virtualComputersAutoSetupState.cancelGeneration == generation {
+			virtualComputersAutoSetupState.cancel = nil
+			virtualComputersAutoSetupState.cancelGeneration = 0
+		}
+		if virtualComputersAutoSetupState.generation != generation {
+			virtualComputersAutoSetupState.Unlock()
+			continue
+		}
+		virtualComputersAutoSetupState.running = false
+		if attempted && runErr != nil {
+			virtualComputersAutoSetupState.retryAfter = time.Now().Add(virtualComputersAutoSetupRetryCooldown)
+		} else {
+			virtualComputersAutoSetupState.retryAfter = time.Time{}
+		}
+		virtualComputersAutoSetupState.Unlock()
+
 		if runErr != nil {
 			virtualComputersLogManagementError(s, "automatic setup failed", runErr)
-			return
-		}
-		if s != nil && s.Logger != nil {
+		} else if attempted && s != nil && s.Logger != nil {
 			s.Logger.Info("[VirtualComputers] Automatic Boring Computers provisioning completed")
 		}
-	}()
-	return true
+		return
+	}
 }
 
 func defaultVirtualComputersAutoSetupNeeded(s *Server, cfg virtualcomputers.ToolConfig) bool {
 	if virtualComputersEnsureControlPlaneAccess(s, cfg) != nil {
 		return true
 	}
-	return !virtualComputersManagementHealthy(s, cfg)
+	if virtualComputersEnsureManagementAccess(s, cfg) != nil {
+		return true
+	}
+	return !virtualComputersManagementRevisionMatches(virtualComputersManagementURL)
+}
+
+func virtualComputersManagementRevisionMatches(baseURL string) bool {
+	client := http.Client{Timeout: 1200 * time.Millisecond}
+	resp, err := client.Get(virtualcomputers.ManagementRevisionURL(baseURL))
+	if err != nil {
+		return false
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		return false
+	}
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 128))
+	return err == nil && strings.TrimSpace(string(body)) == virtualcomputers.PinnedUpstreamRevision
 }
 
 func runVirtualComputersAutoSetup(ctx context.Context, s *Server, cfg virtualcomputers.ToolConfig) error {
@@ -105,7 +185,16 @@ func virtualComputersAutoSetupAfterConfigChange(s *Server, oldCfg, newCfg config
 
 func resetVirtualComputersAutoSetupState() {
 	virtualComputersAutoSetupState.Lock()
+	cancel := virtualComputersAutoSetupState.cancel
 	virtualComputersAutoSetupState.running = false
 	virtualComputersAutoSetupState.retryAfter = time.Time{}
+	virtualComputersAutoSetupState.generation++
+	virtualComputersAutoSetupState.desiredServer = nil
+	virtualComputersAutoSetupState.desiredConfig = virtualcomputers.ToolConfig{}
+	virtualComputersAutoSetupState.cancel = nil
+	virtualComputersAutoSetupState.cancelGeneration = 0
 	virtualComputersAutoSetupState.Unlock()
+	if cancel != nil {
+		cancel()
+	}
 }
