@@ -26,34 +26,37 @@ BORING_WEB_BORING_URL=%s
 BORING_TOKEN_VALUE=%s
 NODE_VERSION=%s
 RELEASE_ROOT="${INSTALL_DIR}/releases"
-RELEASE_DIR="${INSTALL_DIR}/releases/${BORING_WEB_REVISION}"
+RELEASE_ID="${BORING_WEB_REVISION}-$(date -u +%%Y%%m%%dT%%H%%M%%SZ)-$$"
+RELEASE_DIR="${INSTALL_DIR}/releases/${RELEASE_ID}"
+STAGING_DIR="${RELEASE_DIR}.staging"
 CURRENT_LINK="${INSTALL_DIR}/current"
 
 git -C "${REPO_DIR}" fetch --depth=1 origin ${BORING_WEB_REVISION}
 git -C "${REPO_DIR}" checkout --detach ${BORING_WEB_REVISION}
 
-apt-get install -y nodejs npm xz-utils python3
+apt-get install -y xz-utils python3
 case "${GOARCH}" in
 	amd64) NODE_ARCH="x64" ;;
 	arm64) NODE_ARCH="arm64" ;;
 esac
-if ! /usr/local/bin/node --version 2>/dev/null | grep -qx "v${NODE_VERSION}"; then
+NODE_ROOT="${INSTALL_DIR}/runtime/node-v${NODE_VERSION}-linux-${NODE_ARCH}"
+NODE_BIN="${NODE_ROOT}/bin"
+if ! "${NODE_BIN}/node" --version 2>/dev/null | grep -qx "v${NODE_VERSION}"; then
 	log "installing managed Node.js ${NODE_VERSION}"
-	curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${NODE_ARCH}.tar.xz" -o /tmp/aurago-node.tar.xz
-	rm -rf "/usr/local/lib/nodejs/node-v${NODE_VERSION}-linux-${NODE_ARCH}"
-	mkdir -p /usr/local/lib/nodejs
-	tar -C /usr/local/lib/nodejs -xJf /tmp/aurago-node.tar.xz
-	ln -sfn "/usr/local/lib/nodejs/node-v${NODE_VERSION}-linux-${NODE_ARCH}/bin/node" /usr/local/bin/node
-	ln -sfn "/usr/local/lib/nodejs/node-v${NODE_VERSION}-linux-${NODE_ARCH}/bin/npm" /usr/local/bin/npm
-	ln -sfn "/usr/local/lib/nodejs/node-v${NODE_VERSION}-linux-${NODE_ARCH}/bin/npx" /usr/local/bin/npx
-	rm -f /tmp/aurago-node.tar.xz
+	NODE_ARCHIVE="/tmp/aurago-node-${NODE_VERSION}-${NODE_ARCH}-$$.tar.xz"
+	curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${NODE_ARCH}.tar.xz" -o "${NODE_ARCHIVE}"
+	rm -rf "${NODE_ROOT}"
+	mkdir -p "${INSTALL_DIR}/runtime"
+	tar -C "${INSTALL_DIR}/runtime" -xJf "${NODE_ARCHIVE}"
+	rm -f "${NODE_ARCHIVE}"
 fi
+export PATH="${NODE_BIN}:${PATH}"
 
 mkdir -p "${RELEASE_ROOT}"
-rm -rf "${RELEASE_DIR}.staging"
-mkdir -p "${RELEASE_DIR}.staging"
-rsync -az --delete --exclude .git --exclude node_modules "${REPO_DIR}/" "${RELEASE_DIR}.staging/"
-cd "${RELEASE_DIR}.staging"
+rm -rf "${STAGING_DIR}"
+mkdir -p "${STAGING_DIR}"
+rsync -az --delete --exclude .git --exclude node_modules "${REPO_DIR}/" "${STAGING_DIR}/"
+cd "${STAGING_DIR}"
 
 printf '%%s  %%s\n' %s apps/web/src/lib/boring.ts | sha256sum -c -
 printf '%%s  %%s\n' %s apps/web/vite.config.ts | sha256sum -c -
@@ -92,10 +95,11 @@ text = text.replace("\n\t\ttest: {", "\n" + preview_block + "\n\t\ttest: {", 1)
 vite.write_text(text)
 AURAGO_BORING_WEB_OVERLAY
 
-/usr/local/bin/npm ci --include=dev
-PUBLIC_BORING_URL= /usr/local/bin/npm run build -w web
-rm -rf "${RELEASE_DIR}"
-mv "${RELEASE_DIR}.staging" "${RELEASE_DIR}"
+install -d -m0755 apps/web/static
+printf '%%s\n' "${BORING_WEB_REVISION}" > apps/web/static/.aurago-revision
+"${NODE_BIN}/npm" ci --include=dev
+PUBLIC_BORING_URL= "${NODE_BIN}/npm" run build -w web
+mv "${STAGING_DIR}" "${RELEASE_DIR}"
 
 install -d -m0755 /etc/boring
 umask 077
@@ -115,8 +119,9 @@ Requires=boringd.service
 [Service]
 Type=simple
 EnvironmentFile=/etc/boring/boring-web.env
+Environment=PATH=${NODE_BIN}:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 WorkingDirectory=${CURRENT_LINK}/apps/web
-ExecStart=/usr/local/bin/npm exec vite -- preview --host 127.0.0.1 --port 18081 --strictPort
+ExecStart=${NODE_BIN}/npm exec vite -- preview --host 127.0.0.1 --port 18081 --strictPort
 Restart=on-failure
 RestartSec=2
 NoNewPrivileges=true
@@ -130,12 +135,12 @@ WantedBy=multi-user.target
 EOF
 
 PREVIOUS_RELEASE="$(readlink -f "${CURRENT_LINK}" 2>/dev/null || true)"
-ln -sfn "${RELEASE_DIR}" "${CURRENT_LINK}"
+ln -sfnT "${RELEASE_DIR}" "${CURRENT_LINK}"
 systemctl daemon-reload
 systemctl enable boring-web.service
 if ! systemctl restart boring-web.service; then
 	if [ -n "${PREVIOUS_RELEASE}" ] && [ -d "${PREVIOUS_RELEASE}" ]; then
-		ln -sfn "${PREVIOUS_RELEASE}" "${CURRENT_LINK}"
+		ln -sfnT "${PREVIOUS_RELEASE}" "${CURRENT_LINK}"
 		systemctl restart boring-web.service || true
 	fi
 	exit 1
@@ -143,5 +148,6 @@ fi
 sleep 2
 systemctl is-active boring-web.service
 curl -fsS --max-time 8 "http://${BORING_WEB_LISTEN}/boring-computers/" >/dev/null
+find "${RELEASE_ROOT}" -mindepth 1 -maxdepth 1 -type d ! -path "${RELEASE_DIR}" ! -path "${PREVIOUS_RELEASE}" -mtime +7 -exec rm -rf -- {} +
 `, shellQuote(PinnedUpstreamRevision), shellQuote(ManagementListenAddr), shellQuote(boringdURL), shellQuote(envLine(opts.Token)), shellQuote(managedNodeVersion), shellQuote(boringWebSourceSHA256), shellQuote(boringWebViteSHA256))
 }

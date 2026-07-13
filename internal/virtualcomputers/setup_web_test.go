@@ -14,11 +14,14 @@ func TestManagementInstallScriptContainsManagedDeploymentContract(t *testing.T) 
 
 	for _, want := range []string{
 		PinnedUpstreamRevision,
-		"nodejs",
-		"npm ci",
-		"npm run build -w web",
-		"releases/${BORING_WEB_REVISION}",
-		"ln -sfn",
+		"runtime/node-v${NODE_VERSION}-linux-${NODE_ARCH}",
+		"export PATH=\"${NODE_BIN}:${PATH}\"",
+		"\"${NODE_BIN}/npm\" ci",
+		"\"${NODE_BIN}/npm\" run build -w web",
+		"RELEASE_ID=\"${BORING_WEB_REVISION}-$(date -u +%Y%m%dT%H%M%SZ)-$$\"",
+		"releases/${RELEASE_ID}",
+		"ln -sfnT",
+		".aurago-revision",
 		"/etc/boring/boring-web.env",
 		"chmod 0600 /etc/boring/boring-web.env",
 		"BORING_URL=${BORING_WEB_BORING_URL}",
@@ -37,6 +40,11 @@ func TestManagementInstallScriptContainsManagedDeploymentContract(t *testing.T) 
 
 	if strings.Contains(script, "PUBLIC_BORING_URL=http://127.0.0.1:18080") {
 		t.Fatal("management build must not expose the private boringd URL to browser assets")
+	}
+	for _, forbidden := range []string{"/usr/local/bin/node", "/usr/local/bin/npm", "/usr/local/bin/npx", "rm -rf \"${RELEASE_DIR}\""} {
+		if strings.Contains(script, forbidden) {
+			t.Fatalf("management install script must not contain %q", forbidden)
+		}
 	}
 }
 

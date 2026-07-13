@@ -170,6 +170,7 @@ func (m SetupManager) installScript() string {
 	if token == "" {
 		token = strings.TrimSpace(m.Token)
 	}
+	opts.Token = token
 	boringdAddr := boringdListenAddr(opts.BoringdURL)
 	healthURL := boringdHealthURL(opts.BoringdURL)
 	maxMachines := opts.MaxRunningMachines

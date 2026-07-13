@@ -151,6 +151,18 @@ func TestSetupInstallUsesConfiguredBoringdURL(t *testing.T) {
 	}
 }
 
+func TestSetupInstallUsesManagerTokenForManagementFallback(t *testing.T) {
+	manager := SetupManager{Token: "manager-token"}
+	script := manager.installScript()
+	managementStart := strings.LastIndex(script, "installing Boring Computers management web application")
+	if managementStart < 0 {
+		t.Fatal("management installation section is missing")
+	}
+	if !strings.Contains(script[managementStart:], "BORING_TOKEN_VALUE='manager-token'") {
+		t.Fatal("management installation did not inherit SetupManager.Token")
+	}
+}
+
 func TestSetupInstallLogRedactsSecrets(t *testing.T) {
 	manager := SetupManager{}
 	log := manager.RedactInstallLog("export BORING_TOKEN=super-secret\nANTHROPIC_API_KEY=abc\nok")
