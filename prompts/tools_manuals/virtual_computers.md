@@ -13,7 +13,7 @@ Manage short-lived boring-computers microVMs through AuraGo's private Virtual Co
 - Managed releases are immutable and use a private Node.js runtime below the integration install directory. Do not replace host-global Node.js commands or modify the active release in place.
 - Preview and live channels must use AuraGo routes such as `/api/virtual-computers/machines/{id}/web/{port}/`; do not expose boringd directly.
 - Tailscale access should expose AuraGo via `tailscale.tsnet.serve_http`, not boringd.
-- `control_plane.mode=local_host` installs boring-computers on the same Ubuntu/Linux KVM host that runs AuraGo. It requires `/dev/kvm`, systemd, and root or passwordless sudo; Docker, macOS/Lima, and Windows/WSL are not automated in v1.
+- `control_plane.mode=local_host` installs boring-computers on the same Ubuntu/Linux KVM host that runs AuraGo. It requires `/dev/kvm`, systemd, and root, passwordless sudo, or the central `sudo_password` secret in the Vault. AuraGo supplies that secret only through sudo standard input and redacts it from setup output; Docker, macOS/Lima, and Windows/WSL are not automated in v1.
 - If an upstream error says boringd returned a non-JSON response, check that `virtual_computers.control_plane.boringd_url` points to boringd itself (normally `http://127.0.0.1:18080` behind AuraGo), not the AuraGo UI, a login page, or a redirect.
 - A `503` from `/boring-computers/` means that the private management service or its SSH tunnel is not healthy. Check `/api/virtual-computers/setup/status`, then use the setup repair action; never expose ports `18080` or `18081` as a workaround.
 

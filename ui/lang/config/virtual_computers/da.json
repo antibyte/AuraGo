@@ -67,5 +67,14 @@
   "help.virtual_computers.allow_agent_tasks": "Allows boringd agent and shell-agent task channels.",
   "help.virtual_computers.boring_token": "Lad feltet være tomt, når AuraGo installerer boringd; AuraGo opretter tokenet automatisk og gemmer det i Vault. Angiv kun en værdi, når du forbinder til en eksisterende boringd; den skal matche BORING_TOKEN på den host.",
   "config.virtual_computers.mode_local_host": "Lokalt på denne vært",
-  "config.virtual_computers.local_host_note": "Lokal installation kræver Ubuntu/Linux med /dev/kvm, systemd og root eller adgangskodefri sudo. boringd forbliver på 127.0.0.1:8080."
+  "config.virtual_computers.local_host_note": "Lokal installation kræver Ubuntu/Linux med /dev/kvm, systemd og root eller adgangskodefri sudo. boringd forbliver på 127.0.0.1:8080.",
+  "config.virtual_computers.sudo_password_label": "Sudo-adgangskode",
+  "config.virtual_computers.sudo_password_stored": "En sudo-adgangskode er sikkert gemt i Vault.",
+  "config.virtual_computers.sudo_password_missing": "Ingen sudo-adgangskode er gemt. Den kræves kun, hvis sudo uden adgangskode ikke er tilgængelig.",
+  "config.virtual_computers.sudo_password_saved": "Sudo-adgangskoden er gemt i Vault.",
+  "config.virtual_computers.sudo_password_cleared": "Sudo-adgangskoden er fjernet fra Vault.",
+  "config.virtual_computers.sudo_password_clear": "Fjern",
+  "config.virtual_computers.sudo_password_clear_confirm": "Vil du virkelig fjerne den centralt gemte sudo-adgangskode?",
+  "config.virtual_computers.sudo_password_save_failed": "Sudo-adgangskoden kunne ikke opdateres.",
+  "help.virtual_computers.sudo_password": "AuraGo genbruger den centrale sudo-adgangskode fra Vault til lokal installation og reparation. Lad feltet være tomt, hvis en allerede er gemt, eller sudo uden adgangskode virker."
 }

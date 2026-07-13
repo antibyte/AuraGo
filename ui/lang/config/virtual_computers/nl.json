@@ -67,5 +67,14 @@
   "help.virtual_computers.allow_agent_tasks": "Allows boringd agent and shell-agent task channels.",
   "help.virtual_computers.boring_token": "Laat leeg wanneer AuraGo boringd installeert; AuraGo maakt de token automatisch aan en bewaart die in de Vault. Vul alleen een waarde in wanneer je een bestaande boringd koppelt; die moet overeenkomen met BORING_TOKEN op die host.",
   "config.virtual_computers.mode_local_host": "Lokaal op deze host",
-  "config.virtual_computers.local_host_note": "Lokale installatie vereist Ubuntu/Linux met /dev/kvm, systemd en root of wachtwoordloze sudo. boringd blijft op 127.0.0.1:8080."
+  "config.virtual_computers.local_host_note": "Lokale installatie vereist Ubuntu/Linux met /dev/kvm, systemd en root of wachtwoordloze sudo. boringd blijft op 127.0.0.1:8080.",
+  "config.virtual_computers.sudo_password_label": "Sudo-wachtwoord",
+  "config.virtual_computers.sudo_password_stored": "Er is veilig een sudo-wachtwoord in de Vault opgeslagen.",
+  "config.virtual_computers.sudo_password_missing": "Er is geen sudo-wachtwoord opgeslagen. Dit is alleen nodig als sudo zonder wachtwoord niet beschikbaar is.",
+  "config.virtual_computers.sudo_password_saved": "Sudo-wachtwoord opgeslagen in de Vault.",
+  "config.virtual_computers.sudo_password_cleared": "Sudo-wachtwoord uit de Vault verwijderd.",
+  "config.virtual_computers.sudo_password_clear": "Verwijderen",
+  "config.virtual_computers.sudo_password_clear_confirm": "Wil je het centraal opgeslagen sudo-wachtwoord echt verwijderen?",
+  "config.virtual_computers.sudo_password_save_failed": "Het sudo-wachtwoord kon niet worden bijgewerkt.",
+  "help.virtual_computers.sudo_password": "AuraGo hergebruikt het centrale sudo-wachtwoord uit de Vault voor lokale installatie en reparatie. Laat dit leeg als er al een is opgeslagen of sudo zonder wachtwoord werkt."
 }

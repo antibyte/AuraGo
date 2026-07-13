@@ -1,6 +1,7 @@
 // cfg/virtual_computers.js - Virtual Computers config section module
 
 let _virtualComputersSection = null;
+let _vcSudoPasswordStored = null;
 
 function vcCfgEnsureData() {
     if (!configData.virtual_computers) configData.virtual_computers = {};
@@ -65,6 +66,20 @@ function renderVirtualComputersSection(section) {
     if (isLocalHost) {
         html += '</div>';
         html += '<div class="cfg-note-banner cfg-note-banner-info">' + t('config.virtual_computers.local_host_note') + '</div>';
+        html += '<div class="field-group">';
+        html += '<div class="field-label">' + t('config.virtual_computers.sudo_password_label') + '</div>';
+        html += '<div class="field-help">' + t('help.virtual_computers.sudo_password') + '</div>';
+        html += '<div class="adg-password-row">';
+        html += '<div class="password-wrap cfg-password-input">';
+        html += '<input class="field-input adg-password-input" type="password" id="vc-sudo-password-input" value="" autocomplete="current-password">';
+        html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
+        html += '</div>';
+        html += '<button type="button" class="btn-save adg-save-btn" onclick="vcCfgSaveSudoPassword()">' + t('config.virtual_computers.save_vault') + '</button>';
+        html += '<button type="button" class="btn-save adg-save-btn" id="vc-sudo-password-clear" onclick="vcCfgClearSudoPassword()"' + (_vcSudoPasswordStored === true ? '' : ' disabled') + '>' + t('config.virtual_computers.sudo_password_clear') + '</button>';
+        html += '</div>';
+        html += '<div id="vc-sudo-password-status" class="adg-test-result' + (_vcSudoPasswordStored === true ? ' is-success' : '') + '">' +
+            (_vcSudoPasswordStored === true ? t('config.virtual_computers.sudo_password_stored') : (_vcSudoPasswordStored === false ? t('config.virtual_computers.sudo_password_missing') : t('config.virtual_computers.status_loading'))) + '</div>';
+        html += '</div>';
         html += '<div class="field-grid two-cols">';
     } else {
         html += vcCfgField('config.virtual_computers.host_label', 'help.virtual_computers.host',
@@ -133,6 +148,7 @@ function renderVirtualComputersSection(section) {
 
     document.getElementById('content').innerHTML = html;
     attachChangeListeners();
+    if (isLocalHost) void vcCfgRefreshSudoPasswordStatus();
 }
 
 function vcCfgOnModeChange(el) {
@@ -195,11 +211,77 @@ async function vcCfgCheckStatus() {
         const resp = await fetch('/api/virtual-computers/setup/status');
         const body = await resp.json();
         if (!resp.ok || body.error) throw new Error(body.error || resp.statusText);
+        vcCfgSetSudoPasswordStatus(body.sudo_password_stored === true);
         vcCfgSetResult(body.enabled ? t('config.virtual_computers.status_ok') : t('config.virtual_computers.status_disabled'), body.enabled ? 'success' : '');
     } catch (e) {
         vcCfgSetResult(t('config.virtual_computers.status_error') + ' ' + e.message, 'danger');
     } finally {
         if (btn) btn.disabled = false;
+    }
+}
+
+function vcCfgSetSudoPasswordStatus(stored, messageKey, state) {
+    _vcSudoPasswordStored = stored === true;
+    const statusEl = document.getElementById('vc-sudo-password-status');
+    const clearButton = document.getElementById('vc-sudo-password-clear');
+    if (clearButton) clearButton.disabled = !_vcSudoPasswordStored;
+    if (!statusEl) return;
+    statusEl.className = 'adg-test-result' + (state ? ' is-' + state : (_vcSudoPasswordStored ? ' is-success' : ''));
+    statusEl.textContent = t(messageKey || (_vcSudoPasswordStored ? 'config.virtual_computers.sudo_password_stored' : 'config.virtual_computers.sudo_password_missing'));
+}
+
+async function vcCfgRefreshSudoPasswordStatus() {
+    try {
+        const resp = await fetch('/api/virtual-computers/setup/status');
+        const body = await resp.json();
+        if (!resp.ok || body.error) throw new Error(body.error || resp.statusText);
+        vcCfgSetSudoPasswordStatus(body.sudo_password_stored === true);
+    } catch (_) {
+        const statusEl = document.getElementById('vc-sudo-password-status');
+        if (statusEl) {
+            statusEl.className = 'adg-test-result is-danger';
+            statusEl.textContent = t('config.virtual_computers.status_error');
+        }
+    }
+}
+
+async function vcCfgSaveSudoPassword() {
+    const input = document.getElementById('vc-sudo-password-input');
+    const value = input ? input.value : '';
+    if (!value) {
+        vcCfgSetSudoPasswordStatus(
+            _vcSudoPasswordStored,
+            _vcSudoPasswordStored ? 'config.virtual_computers.sudo_password_stored' : 'config.virtual_computers.sudo_password_missing',
+            _vcSudoPasswordStored ? 'success' : 'danger'
+        );
+        return;
+    }
+    try {
+        const resp = await fetch('/api/vault/secrets', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ key: 'sudo_password', value })
+        });
+        const body = await resp.json().catch(() => ({}));
+        if (!resp.ok || body.error || (body.status && body.status !== 'ok')) {
+            throw new Error(body.error || body.message || resp.statusText);
+        }
+        input.value = '';
+        vcCfgSetSudoPasswordStatus(true, 'config.virtual_computers.sudo_password_saved', 'success');
+    } catch (_) {
+        vcCfgSetSudoPasswordStatus(_vcSudoPasswordStored, 'config.virtual_computers.sudo_password_save_failed', 'danger');
+    }
+}
+
+async function vcCfgClearSudoPassword() {
+    if (!(await showConfirm(t('config.virtual_computers.sudo_password_clear_confirm')))) return;
+    try {
+        const resp = await fetch('/api/vault/secrets?key=' + encodeURIComponent('sudo_password'), { method: 'DELETE' });
+        const body = await resp.json().catch(() => ({}));
+        if (!resp.ok || body.error) throw new Error(body.error || body.message || resp.statusText);
+        vcCfgSetSudoPasswordStatus(false, 'config.virtual_computers.sudo_password_cleared', 'success');
+    } catch (_) {
+        vcCfgSetSudoPasswordStatus(_vcSudoPasswordStored, 'config.virtual_computers.sudo_password_save_failed', 'danger');
     }
 }
 

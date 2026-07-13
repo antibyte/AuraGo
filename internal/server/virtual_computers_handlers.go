@@ -1036,10 +1036,9 @@ func virtualComputersSetupManager(s *Server, cfg virtualcomputers.ToolConfig, to
 	}
 	sudoPassword := ""
 	if virtualComputersControlPlaneMode(cfg) == virtualcomputers.ControlPlaneLocalHost {
-		sudoPassword = virtualComputersSudoPassword(s)
-		localExecutor := executor.(virtualcomputers.LocalCommandExecutor)
-		localExecutor.SudoPassword = sudoPassword
-		executor = localExecutor
+		if localExecutor, ok := executor.(virtualcomputers.LocalCommandExecutor); ok {
+			sudoPassword = localExecutor.SudoPassword
+		}
 	}
 	return virtualcomputers.SetupManager{
 		Executor:       executor,
@@ -1086,7 +1085,7 @@ func virtualComputersSetupOptions(cfg virtualcomputers.ToolConfig, token string,
 func virtualComputersSetupExecutor(s *Server, cfg virtualcomputers.ToolConfig) (virtualcomputers.CommandExecutor, error) {
 	switch virtualComputersControlPlaneMode(cfg) {
 	case virtualcomputers.ControlPlaneLocalHost:
-		return virtualcomputers.LocalCommandExecutor{}, nil
+		return virtualcomputers.LocalCommandExecutor{SudoPassword: virtualComputersSudoPassword(s)}, nil
 	case virtualcomputers.ControlPlaneSSHHost:
 		return virtualComputersSSHSetupExecutor(s, cfg)
 	default:

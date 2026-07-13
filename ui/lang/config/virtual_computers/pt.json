@@ -67,5 +67,14 @@
   "help.virtual_computers.allow_agent_tasks": "Allows boringd agent and shell-agent task channels.",
   "help.virtual_computers.boring_token": "Deixa em branco quando o AuraGo instala o boringd; o AuraGo cria o token automaticamente e guarda-o no Vault. Só introduz um valor ao ligar a um boringd existente; tem de corresponder ao BORING_TOKEN nesse host.",
   "config.virtual_computers.mode_local_host": "Local neste host",
-  "config.virtual_computers.local_host_note": "A instalação local exige Ubuntu/Linux com /dev/kvm, systemd e root ou sudo sem senha. boringd permanece em 127.0.0.1:8080."
+  "config.virtual_computers.local_host_note": "A instalação local exige Ubuntu/Linux com /dev/kvm, systemd e root ou sudo sem senha. boringd permanece em 127.0.0.1:8080.",
+  "config.virtual_computers.sudo_password_label": "Senha do sudo",
+  "config.virtual_computers.sudo_password_stored": "Uma senha do sudo está guardada com segurança no Vault.",
+  "config.virtual_computers.sudo_password_missing": "Nenhuma senha do sudo está guardada. Ela só é necessária quando o sudo sem senha não está disponível.",
+  "config.virtual_computers.sudo_password_saved": "Senha do sudo guardada no Vault.",
+  "config.virtual_computers.sudo_password_cleared": "Senha do sudo removida do Vault.",
+  "config.virtual_computers.sudo_password_clear": "Remover",
+  "config.virtual_computers.sudo_password_clear_confirm": "Queres mesmo remover a senha do sudo guardada centralmente?",
+  "config.virtual_computers.sudo_password_save_failed": "Não foi possível atualizar a senha do sudo.",
+  "help.virtual_computers.sudo_password": "O AuraGo reutiliza a senha do sudo central do Vault para instalação e reparação locais. Deixa vazio se já existir uma senha guardada ou se o sudo sem senha funcionar."
 }

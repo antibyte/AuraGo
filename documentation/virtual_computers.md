@@ -35,7 +35,7 @@ Both HTTP and WebSocket traffic stay on the AuraGo origin. The browser never rec
 
 ## Local and SSH-host modes
 
-In `local_host` mode, AuraGo installs and probes both services on the same supported Linux/KVM host.
+In `local_host` mode, AuraGo installs and probes both services on the same supported Linux/KVM host. If installation needs authenticated sudo, store the password on the Virtual Computers configuration page. AuraGo reuses the central `sudo_password` Vault secret, including a value previously stored through `/sudopwd` or the Secrets page. The password is never written to `config.yaml`, command arguments, setup logs, or API responses. Root and passwordless-sudo hosts do not need a stored password.
 
 In `ssh_host` mode, AuraGo installs both services on the selected remote Linux/KVM host. It maintains separate loopback SSH tunnels for boringd and the management application, reuses healthy tunnels, replaces them when the SSH target changes, and closes partially established tunnels after failed health checks.
 
@@ -47,6 +47,7 @@ Do not publish ports `18080` or `18081`. Remote browser access should expose the
 
 - `control_plane_status`: configured and healthy state for boringd
 - `management`: configured and healthy state for the Boring Computers web application
+- `sudo_password_stored`: safe boolean indicating whether the central Vault secret is available; the value itself is never returned
 
 If `/boring-computers/` returns `503`:
 

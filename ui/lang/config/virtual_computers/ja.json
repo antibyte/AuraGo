@@ -67,5 +67,14 @@
   "help.virtual_computers.allow_agent_tasks": "Allows boringd agent and shell-agent task channels.",
   "help.virtual_computers.boring_token": "AuraGo が boringd をインストールする場合は空のままにしてください。AuraGo が token を自動生成して Vault に保存します。既存の boringd に接続する場合だけ値を入力し、そのホストの BORING_TOKEN と一致させてください。",
   "config.virtual_computers.mode_local_host": "このホストでローカル",
-  "config.virtual_computers.local_host_note": "ローカルインストールには /dev/kvm、systemd、root またはパスワードなし sudo を備えた Ubuntu/Linux が必要です。boringd は 127.0.0.1:8080 に留まります。"
+  "config.virtual_computers.local_host_note": "ローカルインストールには /dev/kvm、systemd、root またはパスワードなし sudo を備えた Ubuntu/Linux が必要です。boringd は 127.0.0.1:8080 に留まります。",
+  "config.virtual_computers.sudo_password_label": "sudo パスワード",
+  "config.virtual_computers.sudo_password_stored": "sudo パスワードは Vault に安全に保存されています。",
+  "config.virtual_computers.sudo_password_missing": "sudo パスワードは保存されていません。パスワードなしの sudo が利用できない場合にのみ必要です。",
+  "config.virtual_computers.sudo_password_saved": "sudo パスワードを Vault に保存しました。",
+  "config.virtual_computers.sudo_password_cleared": "sudo パスワードを Vault から削除しました。",
+  "config.virtual_computers.sudo_password_clear": "削除",
+  "config.virtual_computers.sudo_password_clear_confirm": "中央に保存された sudo パスワードを本当に削除しますか？",
+  "config.virtual_computers.sudo_password_save_failed": "sudo パスワードを更新できませんでした。",
+  "help.virtual_computers.sudo_password": "AuraGo はローカルのインストールと修復に Vault の中央 sudo パスワードを再利用します。すでに保存済みか、パスワードなしの sudo が動作する場合は空欄にしてください。"
 }

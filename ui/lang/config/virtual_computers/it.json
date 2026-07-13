@@ -67,5 +67,14 @@
   "help.virtual_computers.allow_agent_tasks": "Allows boringd agent and shell-agent task channels.",
   "help.virtual_computers.boring_token": "Lascialo vuoto quando AuraGo installa boringd; AuraGo genera automaticamente il token e lo salva nel Vault. Inserisci un valore solo quando colleghi un boringd esistente; deve corrispondere a BORING_TOKEN su quell'host.",
   "config.virtual_computers.mode_local_host": "Locale su questo host",
-  "config.virtual_computers.local_host_note": "L'installazione locale richiede Ubuntu/Linux con /dev/kvm, systemd e root o sudo senza password. boringd resta su 127.0.0.1:8080."
+  "config.virtual_computers.local_host_note": "L'installazione locale richiede Ubuntu/Linux con /dev/kvm, systemd e root o sudo senza password. boringd resta su 127.0.0.1:8080.",
+  "config.virtual_computers.sudo_password_label": "Password sudo",
+  "config.virtual_computers.sudo_password_stored": "Una password sudo è conservata in modo sicuro nel Vault.",
+  "config.virtual_computers.sudo_password_missing": "Nessuna password sudo è salvata. Serve solo quando sudo senza password non è disponibile.",
+  "config.virtual_computers.sudo_password_saved": "Password sudo salvata nel Vault.",
+  "config.virtual_computers.sudo_password_cleared": "Password sudo rimossa dal Vault.",
+  "config.virtual_computers.sudo_password_clear": "Rimuovi",
+  "config.virtual_computers.sudo_password_clear_confirm": "Vuoi davvero rimuovere la password sudo salvata centralmente?",
+  "config.virtual_computers.sudo_password_save_failed": "Impossibile aggiornare la password sudo.",
+  "help.virtual_computers.sudo_password": "AuraGo riutilizza la password sudo centrale del Vault per l’installazione e la riparazione locali. Lascia vuoto se è già salvata o se sudo senza password funziona."
 }

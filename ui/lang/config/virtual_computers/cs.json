@@ -67,5 +67,14 @@
   "help.virtual_computers.allow_agent_tasks": "Allows boringd agent and shell-agent task channels.",
   "help.virtual_computers.boring_token": "Při instalaci boringd přes AuraGo nech prázdné; AuraGo token automaticky vytvoří a uloží do Vaultu. Hodnotu vyplň jen při připojení k existujícímu boringd; musí odpovídat BORING_TOKEN na daném hostu.",
   "config.virtual_computers.mode_local_host": "Místně na tomto hostu",
-  "config.virtual_computers.local_host_note": "Místní instalace vyžaduje Ubuntu/Linux s /dev/kvm, systemd a root nebo sudo bez hesla. boringd zůstává na 127.0.0.1:8080."
+  "config.virtual_computers.local_host_note": "Místní instalace vyžaduje Ubuntu/Linux s /dev/kvm, systemd a root nebo sudo bez hesla. boringd zůstává na 127.0.0.1:8080.",
+  "config.virtual_computers.sudo_password_label": "Heslo sudo",
+  "config.virtual_computers.sudo_password_stored": "Heslo sudo je bezpečně uloženo v trezoru.",
+  "config.virtual_computers.sudo_password_missing": "Není uloženo žádné heslo sudo. Je potřeba jen tehdy, když sudo bez hesla není dostupné.",
+  "config.virtual_computers.sudo_password_saved": "Heslo sudo bylo uloženo do trezoru.",
+  "config.virtual_computers.sudo_password_cleared": "Heslo sudo bylo z trezoru odstraněno.",
+  "config.virtual_computers.sudo_password_clear": "Odstranit",
+  "config.virtual_computers.sudo_password_clear_confirm": "Opravdu chceš odstranit centrálně uložené heslo sudo?",
+  "config.virtual_computers.sudo_password_save_failed": "Heslo sudo se nepodařilo aktualizovat.",
+  "help.virtual_computers.sudo_password": "AuraGo používá centrální heslo sudo z trezoru pro místní instalaci a opravu. Pokud je již uložené nebo funguje sudo bez hesla, nech pole prázdné."
 }

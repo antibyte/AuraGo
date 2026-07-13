@@ -67,5 +67,14 @@
   "help.virtual_computers.allow_agent_tasks": "Allows boringd agent and shell-agent task channels.",
   "help.virtual_computers.boring_token": "Lämna tomt när AuraGo installerar boringd; AuraGo skapar token automatiskt och sparar det i Vault. Ange bara ett värde när du ansluter en befintlig boringd; det måste matcha BORING_TOKEN på den värden.",
   "config.virtual_computers.mode_local_host": "Lokalt på denna värd",
-  "config.virtual_computers.local_host_note": "Lokal installation kräver Ubuntu/Linux med /dev/kvm, systemd och root eller lösenordsfri sudo. boringd ligger kvar på 127.0.0.1:8080."
+  "config.virtual_computers.local_host_note": "Lokal installation kräver Ubuntu/Linux med /dev/kvm, systemd och root eller lösenordsfri sudo. boringd ligger kvar på 127.0.0.1:8080.",
+  "config.virtual_computers.sudo_password_label": "Sudo-lösenord",
+  "config.virtual_computers.sudo_password_stored": "Ett sudo-lösenord är säkert lagrat i Vault.",
+  "config.virtual_computers.sudo_password_missing": "Inget sudo-lösenord är lagrat. Det behövs bara när lösenordsfri sudo inte är tillgänglig.",
+  "config.virtual_computers.sudo_password_saved": "Sudo-lösenordet sparades i Vault.",
+  "config.virtual_computers.sudo_password_cleared": "Sudo-lösenordet togs bort från Vault.",
+  "config.virtual_computers.sudo_password_clear": "Ta bort",
+  "config.virtual_computers.sudo_password_clear_confirm": "Vill du verkligen ta bort det centralt lagrade sudo-lösenordet?",
+  "config.virtual_computers.sudo_password_save_failed": "Det gick inte att uppdatera sudo-lösenordet.",
+  "help.virtual_computers.sudo_password": "AuraGo återanvänder det centrala sudo-lösenordet från Vault för lokal installation och reparation. Lämna tomt om ett redan är lagrat eller lösenordsfri sudo fungerar."
 }

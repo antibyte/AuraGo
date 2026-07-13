@@ -67,5 +67,14 @@
   "help.virtual_computers.allow_agent_tasks": "Allows boringd agent and shell-agent task channels.",
   "help.virtual_computers.boring_token": "Άφησέ το κενό όταν το AuraGo εγκαθιστά το boringd· το AuraGo δημιουργεί αυτόματα το token και το αποθηκεύει στο Vault. Συμπλήρωσε τιμή μόνο όταν συνδέεις υπάρχον boringd· πρέπει να ταιριάζει με το BORING_TOKEN σε εκείνον τον host.",
   "config.virtual_computers.mode_local_host": "Τοπικά σε αυτόν τον host",
-  "config.virtual_computers.local_host_note": "Η τοπική εγκατάσταση απαιτεί Ubuntu/Linux με /dev/kvm, systemd και root ή sudo χωρίς κωδικό. Το boringd μένει στο 127.0.0.1:8080."
+  "config.virtual_computers.local_host_note": "Η τοπική εγκατάσταση απαιτεί Ubuntu/Linux με /dev/kvm, systemd και root ή sudo χωρίς κωδικό. Το boringd μένει στο 127.0.0.1:8080.",
+  "config.virtual_computers.sudo_password_label": "Κωδικός sudo",
+  "config.virtual_computers.sudo_password_stored": "Ένας κωδικός sudo είναι αποθηκευμένος με ασφάλεια στο Vault.",
+  "config.virtual_computers.sudo_password_missing": "Δεν έχει αποθηκευτεί κωδικός sudo. Χρειάζεται μόνο όταν δεν είναι διαθέσιμο sudo χωρίς κωδικό.",
+  "config.virtual_computers.sudo_password_saved": "Ο κωδικός sudo αποθηκεύτηκε στο Vault.",
+  "config.virtual_computers.sudo_password_cleared": "Ο κωδικός sudo αφαιρέθηκε από το Vault.",
+  "config.virtual_computers.sudo_password_clear": "Αφαίρεση",
+  "config.virtual_computers.sudo_password_clear_confirm": "Θέλεις πραγματικά να αφαιρέσεις τον κεντρικά αποθηκευμένο κωδικό sudo;",
+  "config.virtual_computers.sudo_password_save_failed": "Δεν ήταν δυνατή η ενημέρωση του κωδικού sudo.",
+  "help.virtual_computers.sudo_password": "Το AuraGo χρησιμοποιεί τον κεντρικό κωδικό sudo από το Vault για τοπική εγκατάσταση και επισκευή. Άφησέ το κενό αν υπάρχει ήδη αποθηκευμένος κωδικός ή λειτουργεί sudo χωρίς κωδικό."
 }

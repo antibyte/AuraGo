@@ -67,5 +67,14 @@
   "help.virtual_computers.allow_agent_tasks": "Allows boringd agent and shell-agent task channels.",
   "help.virtual_computers.boring_token": "如果由 AuraGo 安装 boringd，请留空；AuraGo 会自动生成 token 并存入 Vault。只有连接已有 boringd 时才填写，且必须与该主机上的 BORING_TOKEN 一致。",
   "config.virtual_computers.mode_local_host": "本机安装",
-  "config.virtual_computers.local_host_note": "本地安装需要带 /dev/kvm、systemd、root 或免密码 sudo 的 Ubuntu/Linux。boringd 保持在 127.0.0.1:8080。"
+  "config.virtual_computers.local_host_note": "本地安装需要带 /dev/kvm、systemd、root 或免密码 sudo 的 Ubuntu/Linux。boringd 保持在 127.0.0.1:8080。",
+  "config.virtual_computers.sudo_password_label": "sudo 密码",
+  "config.virtual_computers.sudo_password_stored": "sudo 密码已安全存储在 Vault 中。",
+  "config.virtual_computers.sudo_password_missing": "未存储 sudo 密码。仅在免密码 sudo 不可用时才需要。",
+  "config.virtual_computers.sudo_password_saved": "sudo 密码已保存到 Vault。",
+  "config.virtual_computers.sudo_password_cleared": "sudo 密码已从 Vault 中移除。",
+  "config.virtual_computers.sudo_password_clear": "移除",
+  "config.virtual_computers.sudo_password_clear_confirm": "确定要移除集中存储的 sudo 密码吗？",
+  "config.virtual_computers.sudo_password_save_failed": "无法更新 sudo 密码。",
+  "help.virtual_computers.sudo_password": "AuraGo 会重复使用 Vault 中的中央 sudo 密码进行本地安装和修复。如果已存储密码或免密码 sudo 可用，请留空。"
 }
