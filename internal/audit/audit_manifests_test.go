@@ -22,7 +22,7 @@ func TestToolPermissionMatrixCoversHighRiskBuiltins(t *testing.T) {
 		"api_request", "call_webhook", "chromecast", "docker", "execute_python",
 		"composio_call", "execute_shell", "execute_sudo", "file_editor", "filesystem",
 		"home_assistant", "homepage", "invasion_control", "json_editor", "manage_outgoing_webhooks",
-		"meshcentral", "netlify", "remote_execution", "secrets_vault",
+		"manus", "meshcentral", "netlify", "remote_execution", "secrets_vault",
 		"transfer_remote_file", "truenas", "vercel", "video_download", "virtual_desktop", "xml_editor", "yaml_editor",
 	}
 	matrix := ToolPermissionMatrix()
@@ -98,6 +98,9 @@ func TestRouteContractManifestCoversRegisteredServerRoutes(t *testing.T) {
 	if !routeContractExists(contracts, "/api/cron", "session-admin") {
 		t.Fatal("/api/cron must have an explicit session-admin route contract")
 	}
+	if !routeContractExists(contracts, "/api/manus/", "session") {
+		t.Fatal("/api/manus/ must have an explicit session route contract")
+	}
 
 	routes := extractLiteralRoutes(t, repoPath("internal/server"))
 	for _, route := range routes {
@@ -120,10 +123,17 @@ func TestNetworkClientInventoryCoversProductionHTTPClients(t *testing.T) {
 	t.Parallel()
 
 	entries := NetworkClientInventory()
+	foundManus := false
 	for _, entry := range entries {
 		if entry.Path == "" || entry.Classification == "" {
 			t.Fatalf("invalid network client inventory entry: %+v", entry)
 		}
+		if entry.Path == "internal/manus/" {
+			foundManus = entry.Credentialed && !entry.AllowsLocalNet
+		}
+	}
+	if !foundManus {
+		t.Fatal("Manus network client must be classified as credentialed and internet-only")
 	}
 
 	clientPattern := regexp.MustCompile(`(&http\.Client\s*\{|http\.DefaultClient|http\.(Get|Post|Head)\s*\()`)
@@ -171,6 +181,9 @@ func TestDBMigrationManifestTracksRuntimeSQLiteDomains(t *testing.T) {
 	}
 	if !seen["planner"] {
 		t.Fatal("planner migration domain with legacy fixture tests is missing")
+	}
+	if !seen["manus"] {
+		t.Fatal("Manus ledger migration domain is missing")
 	}
 }
 

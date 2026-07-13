@@ -102,6 +102,7 @@ var blockedSecretExact = map[string]struct{}{
 	"egg_shared_key":              {},
 	"truenas_api_key":             {},
 	"composio_api_key":            {},
+	"manus_api_key":               {},
 	"evomap_node_secret":          {},
 	"evomap_api_key":              {},
 	"boring_token":                {},

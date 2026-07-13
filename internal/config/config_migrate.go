@@ -895,6 +895,7 @@ func (c *Config) ApplyVaultSecrets(vault SecretReader) {
 	apply("omniroute_api_key_secret", &c.OmniRoute.APIKeySecret)
 	apply("omniroute_ws_bridge_secret", &c.OmniRoute.WSBridgeSecret)
 	apply("composio_api_key", &c.Composio.APIKey)
+	apply("manus_api_key", &c.Manus.APIKey)
 	apply("huggingface_token", &c.HuggingFace.Token)
 	if strings.TrimSpace(c.Composio.APIKey) == "" {
 		apply("composio.api_key", &c.Composio.APIKey)

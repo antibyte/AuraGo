@@ -643,6 +643,28 @@ type ComposioConfig struct {
 	APIKey                    string                  `yaml:"-" json:"-" vault:"composio_api_key"`
 }
 
+// ManusConfig controls the direct Manus v2 task delegation integration.
+type ManusConfig struct {
+	Enabled               bool     `yaml:"enabled" json:"enabled"`
+	ReadOnly              bool     `yaml:"read_only" json:"read_only"`
+	AllowCreateTasks      bool     `yaml:"allow_create_tasks" json:"allow_create_tasks"`
+	AllowSendMessages     bool     `yaml:"allow_send_messages" json:"allow_send_messages"`
+	AllowStopTasks        bool     `yaml:"allow_stop_tasks" json:"allow_stop_tasks"`
+	AllowFileUploads      bool     `yaml:"allow_file_uploads" json:"allow_file_uploads"`
+	AllowFileDownloads    bool     `yaml:"allow_file_downloads" json:"allow_file_downloads"`
+	AllowedProjectIDs     []string `yaml:"allowed_project_ids" json:"allowed_project_ids"`
+	AllowedConnectorIDs   []string `yaml:"allowed_connector_ids" json:"allowed_connector_ids"`
+	AllowedSkillIDs       []string `yaml:"allowed_skill_ids" json:"allowed_skill_ids"`
+	DefaultAgentProfile   string   `yaml:"default_agent_profile" json:"default_agent_profile"`
+	DefaultLocale         string   `yaml:"default_locale" json:"default_locale"`
+	RequestTimeoutSeconds int      `yaml:"request_timeout_seconds" json:"request_timeout_seconds"`
+	PollIntervalSeconds   int      `yaml:"poll_interval_seconds" json:"poll_interval_seconds"`
+	MaxWaitSeconds        int      `yaml:"max_wait_seconds" json:"max_wait_seconds"`
+	MaxResultBytes        int      `yaml:"max_result_bytes" json:"max_result_bytes"`
+	MaxFileSizeMB         int      `yaml:"max_file_size_mb" json:"max_file_size_mb"`
+	APIKey                string   `yaml:"-" json:"-" vault:"manus_api_key"`
+}
+
 // HuggingFaceConfig controls Hugging Face Hub, Dataset Viewer, Papers, and Jobs access.
 type HuggingFaceConfig struct {
 	Enabled                  bool     `yaml:"enabled" json:"enabled"`
@@ -1969,6 +1991,7 @@ type Config struct {
 		Token            string            `yaml:"-" vault:"token" json:"-"`                     // optional Cloudflare AI Gateway token (vault-only)
 	} `yaml:"ai_gateway"`
 	Composio    ComposioConfig    `yaml:"composio" json:"composio"`
+	Manus       ManusConfig       `yaml:"manus" json:"manus"`
 	HuggingFace HuggingFaceConfig `yaml:"huggingface" json:"huggingface"`
 	Evomap      EvomapConfig      `yaml:"evomap" json:"evomap"`
 	MCPServer   struct {

@@ -711,6 +711,21 @@ func Load(path string) (*Config, error) {
 	cfg.Composio.CacheTTLSeconds = 300
 	cfg.Composio.MaxResultBytes = 262144
 
+	// Manus defaults: disabled, read-only, and deny all mutating operations.
+	cfg.Manus.Enabled = false
+	cfg.Manus.ReadOnly = true
+	cfg.Manus.AllowCreateTasks = false
+	cfg.Manus.AllowSendMessages = false
+	cfg.Manus.AllowStopTasks = false
+	cfg.Manus.AllowFileUploads = false
+	cfg.Manus.AllowFileDownloads = false
+	cfg.Manus.DefaultAgentProfile = "manus-1.6"
+	cfg.Manus.RequestTimeoutSeconds = 60
+	cfg.Manus.PollIntervalSeconds = 5
+	cfg.Manus.MaxWaitSeconds = 60
+	cfg.Manus.MaxResultBytes = 262144
+	cfg.Manus.MaxFileSizeMB = 20
+
 	// Hugging Face defaults: disabled, read-only, and CPU-only unless explicitly expanded.
 	cfg.HuggingFace.Enabled = false
 	cfg.HuggingFace.ReadOnly = true
