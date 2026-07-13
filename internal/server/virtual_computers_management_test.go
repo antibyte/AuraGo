@@ -59,6 +59,64 @@ func TestVirtualComputersManagementProxyRequiresAuthenticatedSession(t *testing.
 	}
 }
 
+func TestVirtualComputersManagementProxyRejectsReadTokenMutation(t *testing.T) {
+	mutations := 0
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			mutations++
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer upstream.Close()
+	restore := setVirtualComputersManagementTestHooks(t, upstream.URL)
+	defer restore()
+
+	s, readToken, _ := testDesktopPermissionServer(t)
+	s.Cfg.VirtualComputers = virtualComputersTestConfig(upstream.URL).VirtualComputers
+	s.Cfg.VirtualComputers.ControlPlane.Mode = virtualcomputers.ControlPlaneLocalHost
+	mux := http.NewServeMux()
+	registerVirtualComputersRoutes(mux, s)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, virtualcomputers.ManagementBasePath+"/boring/v1/machines", strings.NewReader(`{}`))
+	req.Header.Set("Authorization", "Bearer "+readToken)
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("read-token mutation status = %d body=%s", rec.Code, rec.Body.String())
+	}
+	if mutations != 0 {
+		t.Fatalf("upstream received %d mutations", mutations)
+	}
+}
+
+func TestVirtualComputersManagementProxyHonorsReadOnly(t *testing.T) {
+	mutations := 0
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			mutations++
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer upstream.Close()
+	restore := setVirtualComputersManagementTestHooks(t, upstream.URL)
+	defer restore()
+
+	cfg := virtualComputersTestConfig(upstream.URL)
+	cfg.VirtualComputers.ControlPlane.Mode = virtualcomputers.ControlPlaneLocalHost
+	cfg.VirtualComputers.ReadOnly = true
+	mux := http.NewServeMux()
+	registerVirtualComputersRoutes(mux, &Server{Cfg: cfg})
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, virtualcomputers.ManagementBasePath+"/boring/v1/machines", strings.NewReader(`{}`)))
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("read-only mutation status = %d body=%s", rec.Code, rec.Body.String())
+	}
+	if mutations != 0 {
+		t.Fatalf("upstream received %d mutations", mutations)
+	}
+}
+
 func TestVirtualComputersManagementProxyPreservesBasePath(t *testing.T) {
 	var upstreamPath, forwardedHost, forwardedProto string
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -194,6 +252,26 @@ func TestVirtualComputersManagementLocalAccess(t *testing.T) {
 	}
 	if !virtualComputersManagementHealthy(&Server{}, cfg) {
 		t.Fatal("local management service should be healthy")
+	}
+}
+
+func TestVirtualComputersManagementHealthyDoesNotStartSSHTunnel(t *testing.T) {
+	restore := setVirtualComputersManagementTestHooks(t, "http://127.0.0.1:18081")
+	defer restore()
+
+	executorCalls := 0
+	virtualComputersManagementHealthProbe = func(string) bool { return false }
+	virtualComputersManagementSSHExecutor = func(_ *Server, _ virtualcomputers.ToolConfig) (virtualComputersSSHExecutor, error) {
+		executorCalls++
+		return virtualComputersSSHExecutor{Host: "remote.example", Port: 22}, nil
+	}
+	cfg := virtualcomputers.ToolConfig{ControlPlane: virtualcomputers.ControlPlaneConfig{Mode: virtualcomputers.ControlPlaneSSHHost, Host: "remote.example"}}
+
+	if virtualComputersManagementHealthy(&Server{}, cfg) {
+		t.Fatal("unreachable management service reported healthy")
+	}
+	if executorCalls != 0 {
+		t.Fatalf("passive health check requested SSH executor %d times", executorCalls)
 	}
 }
 

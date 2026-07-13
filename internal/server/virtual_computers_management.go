@@ -93,7 +93,11 @@ func handleVirtualComputersManagementRedirect(s *Server) http.HandlerFunc {
 			http.NotFound(w, r)
 			return
 		}
-		if !requireDesktopPermission(s, w, r, desktopScopeRead) {
+		if !requireDesktopPermission(s, w, r, desktopMethodScope(r.Method)) {
+			return
+		}
+		if cfg.ReadOnly && desktopMethodScope(r.Method) == desktopScopeWrite {
+			jsonError(w, "Virtual computers are configured as read-only", http.StatusForbidden)
 			return
 		}
 		http.Redirect(w, r, virtualcomputers.ManagementBasePath+"/", http.StatusTemporaryRedirect)
@@ -107,7 +111,11 @@ func handleVirtualComputersManagement(s *Server) http.HandlerFunc {
 			http.NotFound(w, r)
 			return
 		}
-		if !requireDesktopPermission(s, w, r, desktopScopeRead) {
+		if !requireDesktopPermission(s, w, r, desktopMethodScope(r.Method)) {
+			return
+		}
+		if cfg.ReadOnly && desktopMethodScope(r.Method) == desktopScopeWrite {
+			jsonError(w, "Virtual computers are configured as read-only", http.StatusForbidden)
 			return
 		}
 		if err := virtualComputersEnsureManagementAccess(s, cfg); err != nil {
@@ -142,7 +150,7 @@ func handleVirtualComputersManagement(s *Server) http.HandlerFunc {
 }
 
 func virtualComputersManagementHealthy(s *Server, cfg virtualcomputers.ToolConfig) bool {
-	return virtualComputersEnsureManagementAccess(s, cfg) == nil
+	return virtualComputersManagementHealthProbe(virtualComputersManagementURL)
 }
 
 func defaultVirtualComputersManagementHealthProbe(baseURL string) bool {

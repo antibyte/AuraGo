@@ -81,7 +81,7 @@ func handleVirtualComputersSetupStatus(s *Server) http.HandlerFunc {
 		}
 		cfg := virtualComputersConfigSnapshot(s)
 		configured := strings.TrimSpace(cfg.BoringdURL) != ""
-		controlPlaneHealthy := configured && virtualComputersEnsureControlPlaneAccess(s, cfg) == nil
+		controlPlaneHealthy := configured && virtualComputersHealthOK(cfg.BoringdURL)
 		managementHealthy := configured && virtualComputersManagementHealthy(s, cfg)
 		payload := map[string]interface{}{
 			"status":               "ok",
