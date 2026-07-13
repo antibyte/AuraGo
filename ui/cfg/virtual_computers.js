@@ -20,7 +20,7 @@ function vcCfgEnsureData() {
     if (!cp.mode) cp.mode = 'ssh_host';
     if (!cp.ssh_port) cp.ssh_port = 22;
     if (!cp.install_dir) cp.install_dir = '/opt/boring-computers';
-    if (!cp.boringd_url) cp.boringd_url = 'http://127.0.0.1:18080';
+    if (!cp.boringd_url) cp.boringd_url = 'http://127.0.0.1:18082';
     return data;
 }
 
@@ -92,7 +92,7 @@ function renderVirtualComputersSection(section) {
     html += vcCfgField('config.virtual_computers.install_dir_label', 'help.virtual_computers.install_dir',
         '<input class="field-input" type="text" data-path="virtual_computers.control_plane.install_dir" value="' + escapeAttr(cp.install_dir || '/opt/boring-computers') + '">');
     html += vcCfgField('config.virtual_computers.boringd_url_label', 'help.virtual_computers.boringd_url',
-        '<input class="field-input" type="url" data-path="virtual_computers.control_plane.boringd_url" value="' + escapeAttr(cp.boringd_url || 'http://127.0.0.1:18080') + '">');
+        '<input class="field-input" type="url" data-path="virtual_computers.control_plane.boringd_url" value="' + escapeAttr(cp.boringd_url || 'http://127.0.0.1:18082') + '">');
     html += '</div>';
     html += '</div>';
 

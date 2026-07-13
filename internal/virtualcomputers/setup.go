@@ -1,6 +1,7 @@
 package virtualcomputers
 
 import (
+	"aurago/internal/config"
 	"context"
 	"fmt"
 	"net"
@@ -25,7 +26,7 @@ type SSHExecutor = CommandExecutor
 type ScriptSSHExecutor = ScriptExecutor
 
 const remotePreflightCommand = "printf 'HOST_OS='; uname -s | tr '[:upper:]' '[:lower:]'; printf 'ARCH='; uname -m; printf 'HAS_KVM='; test -e /dev/kvm && echo 1 || echo 0; . /etc/os-release 2>/dev/null; printf 'OS_ID=%s\\n' \"$ID\"; printf 'OS_VERSION=%s\\n' \"$VERSION_ID\"; printf 'RUNNING_IN_DOCKER='; if [ -f /.dockerenv ] || { [ -r /proc/self/cgroup ] && grep -qiE 'docker|containerd|kubepods' /proc/self/cgroup; }; then echo 1; else echo 0; fi; printf 'HAS_SYSTEMD='; if [ -d /run/systemd/system ] && command -v systemctl >/dev/null 2>&1; then echo 1; else echo 0; fi; printf 'HAS_SUDO_OR_ROOT='; if [ \"$(id -u)\" -eq 0 ] || sudo -n true >/dev/null 2>&1; then echo 1; else echo 0; fi"
-const defaultBoringdURL = "http://127.0.0.1:18080"
+const defaultBoringdURL = config.DefaultVirtualComputersBoringdURL
 
 type SetupManager struct {
 	Executor       CommandExecutor
@@ -327,7 +328,7 @@ curl -fsS --max-time 8 "${BORING_HEALTH_URL_VALUE}"
 func boringdListenAddr(rawURL string) string {
 	parsed, ok := parseBoringdURL(rawURL)
 	if !ok {
-		return "127.0.0.1:18080"
+		parsed, _ = url.Parse(defaultBoringdURL)
 	}
 	port := parsed.Port()
 	if port == "" {

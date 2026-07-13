@@ -16,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	"aurago/internal/config"
 	"aurago/internal/credentials"
 	"aurago/internal/remote"
 	"aurago/internal/virtualcomputers"
@@ -908,7 +909,7 @@ func virtualComputersInstalledMessage(cfg virtualcomputers.ToolConfig) string {
 		boringdURL = strings.TrimSpace(cfg.ControlPlane.BoringdURL)
 	}
 	if boringdURL == "" {
-		boringdURL = "http://127.0.0.1:18080"
+		boringdURL = config.DefaultVirtualComputersBoringdURL
 	}
 	if virtualComputersControlPlaneMode(cfg) == virtualcomputers.ControlPlaneLocalHost {
 		return "boringd is installed locally at " + boringdURL + "; AuraGo keeps the token server-side."

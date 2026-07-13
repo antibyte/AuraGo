@@ -16,7 +16,7 @@ AuraGo then provisions the reviewed upstream revision automatically at server st
 
 Install and Repair manage two components as one deployment:
 
-- `boringd`, the private control plane on `127.0.0.1:18080`
+- `boringd`, the private control plane on `127.0.0.1:18082`
 - the Boring Computers management application on `127.0.0.1:18081`
 
 The installer verifies the pinned upstream source, applies AuraGo's reviewed base-path overlay, performs a locked npm build, and writes a revision marker used during startup reconciliation. Every run creates a unique immutable release and switches the `current` link atomically only after a successful build. The `boring-web.service` systemd unit runs with filesystem and privilege hardening. If activation fails, the distinct previous web release is restored. AuraGo installs Node.js privately below the configured Boring Computers install directory and does not replace the host's global `node`, `npm`, or `npx` commands.
@@ -41,7 +41,7 @@ The `sudo_password` secret is shared with `execute_sudo`, package management, an
 
 In `ssh_host` mode, AuraGo installs both services on the selected remote Linux/KVM host. It maintains separate loopback SSH tunnels for boringd and the management application, reuses healthy tunnels, replaces them when the SSH target changes, and closes partially established tunnels after failed health checks.
 
-Do not publish ports `18080` or `18081`. Remote browser access should expose the authenticated AuraGo server, for example through the existing Tailscale integration.
+Do not publish ports `18081` or `18082`. Remote browser access should expose the authenticated AuraGo server, for example through the existing Tailscale integration.
 
 ## Status and troubleshooting
 

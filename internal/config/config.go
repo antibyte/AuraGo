@@ -19,6 +19,18 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+const DefaultVirtualComputersBoringdURL = "http://127.0.0.1:18082"
+
+func normalizeVirtualComputersBoringdURL(rawURL string) string {
+	trimmed := strings.TrimSpace(rawURL)
+	switch strings.ToLower(strings.TrimRight(trimmed, "/")) {
+	case "", "http://127.0.0.1:8080", "http://localhost:8080", "http://127.0.0.1:18080", "http://localhost:18080":
+		return DefaultVirtualComputersBoringdURL
+	default:
+		return trimmed
+	}
+}
+
 // WriteFileAtomic writes a file via temp file + rename to avoid partial writes.
 func WriteFileAtomic(path string, data []byte, perm os.FileMode) error {
 	dir := filepath.Dir(path)
@@ -499,7 +511,7 @@ func Load(path string) (*Config, error) {
 	cfg.VirtualComputers.ControlPlane.Mode = "ssh_host"
 	cfg.VirtualComputers.ControlPlane.SSHPort = 22
 	cfg.VirtualComputers.ControlPlane.InstallDir = "/opt/boring-computers"
-	cfg.VirtualComputers.ControlPlane.BoringdURL = "http://127.0.0.1:18080"
+	cfg.VirtualComputers.ControlPlane.BoringdURL = DefaultVirtualComputersBoringdURL
 	cfg.VirtualComputers.DefaultTemplate = "python"
 	cfg.VirtualComputers.DefaultTTLSeconds = 600
 	cfg.VirtualComputers.MaxTTLSeconds = 900
@@ -1179,9 +1191,7 @@ func Load(path string) (*Config, error) {
 	if strings.TrimSpace(cfg.VirtualComputers.ControlPlane.InstallDir) == "" {
 		cfg.VirtualComputers.ControlPlane.InstallDir = "/opt/boring-computers"
 	}
-	if strings.TrimSpace(cfg.VirtualComputers.ControlPlane.BoringdURL) == "" {
-		cfg.VirtualComputers.ControlPlane.BoringdURL = "http://127.0.0.1:18080"
-	}
+	cfg.VirtualComputers.ControlPlane.BoringdURL = normalizeVirtualComputersBoringdURL(cfg.VirtualComputers.ControlPlane.BoringdURL)
 	if strings.TrimSpace(cfg.VirtualComputers.DefaultTemplate) == "" {
 		cfg.VirtualComputers.DefaultTemplate = "python"
 	}

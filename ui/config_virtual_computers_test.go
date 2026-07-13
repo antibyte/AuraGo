@@ -47,11 +47,14 @@ func TestVirtualComputersBoringdURLDefaultAvoidsCommonCaddyPort(t *testing.T) {
 	t.Parallel()
 
 	vcJS := normalizeAssetText(mustReadUIFile(t, "cfg/virtual_computers.js"))
-	if !strings.Contains(vcJS, `http://127.0.0.1:18080`) {
-		t.Fatal("virtual computers UI must default boringd_url to the private boringd port 18080")
+	if !strings.Contains(vcJS, `http://127.0.0.1:18082`) {
+		t.Fatal("virtual computers UI must default boringd_url to the private boringd port 18082")
 	}
 	if strings.Contains(vcJS, `http://127.0.0.1:8080`) {
 		t.Fatal("virtual computers UI must not default boringd_url to 8080 because local Caddy/AuraGo sites commonly use it")
+	}
+	if strings.Contains(vcJS, `http://127.0.0.1:18080`) {
+		t.Fatal("virtual computers UI must not default boringd_url to AuraGo's internal loopback port 18080")
 	}
 }
 

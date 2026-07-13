@@ -11,6 +11,16 @@ import (
 	"time"
 )
 
+func TestNewClientUsesDedicatedBoringdDefaultPort(t *testing.T) {
+	client, err := NewClient(ClientConfig{})
+	if err != nil {
+		t.Fatalf("NewClient: %v", err)
+	}
+	if got := client.baseURL.String(); got != "http://127.0.0.1:18082" {
+		t.Fatalf("base URL = %q", got)
+	}
+}
+
 func TestClientStatusUsesHealthz(t *testing.T) {
 	var gotPath string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

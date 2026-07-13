@@ -27,12 +27,40 @@ func TestVirtualComputersDefaults(t *testing.T) {
 	if cfg.VirtualComputers.ControlPlane.Mode != "ssh_host" {
 		t.Fatalf("control plane mode = %q", cfg.VirtualComputers.ControlPlane.Mode)
 	}
-	if cfg.VirtualComputers.ControlPlane.BoringdURL != "http://127.0.0.1:18080" {
+	if cfg.VirtualComputers.ControlPlane.BoringdURL != "http://127.0.0.1:18082" {
 		t.Fatalf("boringd url = %q", cfg.VirtualComputers.ControlPlane.BoringdURL)
 	}
 	wantDB := filepath.Join(filepath.Dir(configPath), "data", "virtual_computers.db")
 	if cfg.SQLite.VirtualComputersPath != wantDB {
 		t.Fatalf("virtual computers db = %q, want %q", cfg.SQLite.VirtualComputersPath, wantDB)
+	}
+}
+
+func TestVirtualComputersLegacyBoringdURLsMigrate(t *testing.T) {
+	tests := []struct {
+		name string
+		url  string
+		want string
+	}{
+		{name: "homepage port", url: "http://127.0.0.1:8080", want: "http://127.0.0.1:18082"},
+		{name: "internal loopback port", url: "http://127.0.0.1:18080", want: "http://127.0.0.1:18082"},
+		{name: "custom port", url: "http://127.0.0.1:19000", want: "http://127.0.0.1:19000"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			configPath := filepath.Join(t.TempDir(), "config.yaml")
+			data := []byte("virtual_computers:\n  control_plane:\n    boringd_url: " + tt.url + "\n")
+			if err := os.WriteFile(configPath, data, 0o644); err != nil {
+				t.Fatalf("write config: %v", err)
+			}
+			cfg, err := Load(configPath)
+			if err != nil {
+				t.Fatalf("Load: %v", err)
+			}
+			if got := cfg.VirtualComputers.ControlPlane.BoringdURL; got != tt.want {
+				t.Fatalf("boringd url = %q, want %q", got, tt.want)
+			}
+		})
 	}
 }
 
