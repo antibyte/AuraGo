@@ -1,7 +1,9 @@
 package manus
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"net"
 	"net/url"
 	"os"
@@ -13,8 +15,14 @@ import (
 var unsafeFilenameChars = regexp.MustCompile(`[^A-Za-z0-9._() -]+`)
 
 var blockedUploadExtensions = map[string]struct{}{
-	".bat": {}, ".cmd": {}, ".com": {}, ".dll": {}, ".exe": {}, ".js": {}, ".msi": {},
-	".ps1": {}, ".py": {}, ".scr": {}, ".sh": {}, ".ts": {},
+	".apk": {}, ".app": {}, ".bat": {}, ".bin": {}, ".class": {}, ".cmd": {}, ".com": {}, ".deb": {},
+	".dll": {}, ".dmg": {}, ".dylib": {}, ".elf": {}, ".exe": {}, ".hta": {}, ".ipa": {}, ".jar": {},
+	".js": {}, ".jse": {}, ".msi": {}, ".msp": {}, ".out": {}, ".rpm": {}, ".run": {}, ".scr": {},
+	".so": {}, ".vb": {}, ".vbe": {}, ".vbs": {}, ".wsf": {}, ".wsh": {},
+	".bash": {}, ".csh": {}, ".fish": {}, ".ksh": {}, ".lua": {}, ".php": {}, ".pl": {}, ".ps1": {},
+	".py": {}, ".pyc": {}, ".pyo": {}, ".rb": {}, ".sh": {}, ".ts": {}, ".zsh": {},
+	".cfg": {}, ".conf": {}, ".ini": {}, ".toml": {}, ".yaml": {}, ".yml": {},
+	".cer": {}, ".crt": {}, ".der": {}, ".key": {}, ".p12": {}, ".pfx": {}, ".pem": {},
 	".db": {}, ".db3": {}, ".sqlite": {}, ".sqlite3": {},
 }
 
@@ -27,6 +35,7 @@ type LocalFile struct {
 	Path     string
 	Filename string
 	Size     int64
+	handle   *os.File
 }
 
 // ResolveUploadPath resolves symlinks and enforces the AuraGo workspace boundary.
@@ -40,9 +49,12 @@ func ResolveUploadPath(workspaceDir, requestedPath string, maxBytes int64) (Loca
 	if err != nil {
 		return LocalFile{}, fmt.Errorf("resolve Manus workspace: %w", err)
 	}
-	workspaceResolved, err := filepath.EvalSymlinks(workspaceAbs)
+	workspaceInfo, err := os.Lstat(workspaceAbs)
 	if err != nil {
-		return LocalFile{}, fmt.Errorf("resolve Manus workspace symlinks: %w", err)
+		return LocalFile{}, fmt.Errorf("inspect Manus workspace: %w", err)
+	}
+	if workspaceInfo.Mode()&os.ModeSymlink != 0 {
+		return LocalFile{}, fmt.Errorf("Manus upload blocks a symlinked workspace root")
 	}
 	candidate := requestedPath
 	if !filepath.IsAbs(candidate) {
@@ -58,27 +70,45 @@ func ResolveUploadPath(workspaceDir, requestedPath string, maxBytes int64) (Loca
 	if err := rejectSymlinkComponents(workspaceAbs, candidateAbs); err != nil {
 		return LocalFile{}, err
 	}
-	candidateResolved, err := filepath.EvalSymlinks(candidateAbs)
+	relative, err := filepath.Rel(workspaceAbs, candidateAbs)
 	if err != nil {
-		return LocalFile{}, fmt.Errorf("resolve Manus upload symlinks: %w", err)
+		return LocalFile{}, fmt.Errorf("resolve Manus upload relative path: %w", err)
 	}
-	if !pathWithin(workspaceResolved, candidateResolved) {
-		return LocalFile{}, fmt.Errorf("Manus upload path leaves the agent workspace")
-	}
-	info, err := os.Stat(candidateResolved)
+	root, err := os.OpenRoot(workspaceAbs)
 	if err != nil {
+		return LocalFile{}, fmt.Errorf("open Manus workspace root: %w", err)
+	}
+	defer root.Close()
+	file, err := root.Open(relative)
+	if err != nil {
+		return LocalFile{}, fmt.Errorf("open Manus upload file within workspace root: %w", err)
+	}
+	info, err := file.Stat()
+	if err != nil {
+		_ = file.Close()
 		return LocalFile{}, fmt.Errorf("stat Manus upload file: %w", err)
 	}
 	if !info.Mode().IsRegular() {
+		_ = file.Close()
 		return LocalFile{}, fmt.Errorf("Manus upload path is not a regular file")
 	}
 	if maxBytes <= 0 || info.Size() > maxBytes {
+		_ = file.Close()
 		return LocalFile{}, fmt.Errorf("Manus upload file exceeds the configured size limit")
 	}
-	if err := validateUploadName(candidateResolved); err != nil {
+	if info.Mode().Perm()&0o111 != 0 || info.Mode()&(os.ModeSetuid|os.ModeSetgid) != 0 {
+		_ = file.Close()
+		return LocalFile{}, fmt.Errorf("Manus upload blocks executable file modes")
+	}
+	if err := validateUploadName(candidateAbs); err != nil {
+		_ = file.Close()
 		return LocalFile{}, err
 	}
-	return LocalFile{Path: candidateResolved, Filename: filepath.Base(candidateResolved), Size: info.Size()}, nil
+	if err := validateUploadContent(file); err != nil {
+		_ = file.Close()
+		return LocalFile{}, err
+	}
+	return LocalFile{Path: candidateAbs, Filename: filepath.Base(candidateAbs), Size: info.Size(), handle: file}, nil
 }
 
 func rejectSymlinkComponents(root, candidate string) error {
@@ -116,6 +146,33 @@ func validateUploadName(path string) error {
 	}) {
 		if part == ".git" || part == ".ssh" || part == "vault" {
 			return fmt.Errorf("Manus upload blocks sensitive directory %q", part)
+		}
+	}
+	return nil
+}
+
+func validateUploadContent(file *os.File) error {
+	header := make([]byte, 8)
+	read, err := file.Read(header)
+	if err != nil && err != io.EOF {
+		return fmt.Errorf("inspect Manus upload content: %w", err)
+	}
+	if _, err := file.Seek(0, io.SeekStart); err != nil {
+		return fmt.Errorf("reset Manus upload file: %w", err)
+	}
+	header = header[:read]
+	if bytes.HasPrefix(header, []byte("#!")) || bytes.HasPrefix(header, []byte{0xef, 0xbb, 0xbf, '#', '!'}) {
+		return fmt.Errorf("Manus upload blocks script shebangs")
+	}
+	blockedMagic := [][]byte{
+		{'M', 'Z'}, {0x7f, 'E', 'L', 'F'},
+		{0xfe, 0xed, 0xfa, 0xce}, {0xce, 0xfa, 0xed, 0xfe},
+		{0xfe, 0xed, 0xfa, 0xcf}, {0xcf, 0xfa, 0xed, 0xfe},
+		{0xca, 0xfe, 0xba, 0xbe}, {0xbe, 0xba, 0xfe, 0xca},
+	}
+	for _, magic := range blockedMagic {
+		if bytes.HasPrefix(header, magic) {
+			return fmt.Errorf("Manus upload blocks executable file content")
 		}
 	}
 	return nil

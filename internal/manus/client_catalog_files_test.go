@@ -96,7 +96,7 @@ func TestClientUploadsValidatedLocalFileWithoutLeakingAPIKey(t *testing.T) {
 	}
 }
 
-func TestClientDownloadsAttachmentIntoTaskDirectory(t *testing.T) {
+func TestClientDownloadsAttachmentBytes(t *testing.T) {
 	t.Parallel()
 
 	fileClient := &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
@@ -108,18 +108,13 @@ func TestClientDownloadsAttachmentIntoTaskDirectory(t *testing.T) {
 		}, nil
 	})}
 	client, _ := NewClient("secret", ClientConfig{BaseURL: "https://api.manus.ai", FileHTTPClient: fileClient})
-	root := t.TempDir()
-	path, err := client.DownloadAttachment(context.Background(), TaskAttachment{
+	payload, err := client.DownloadAttachment(context.Background(), TaskAttachment{
 		Filename: `../result?.txt`, URL: "https://203.0.113.11/download",
-	}, root, "task-1", 1024)
+	}, 1024)
 	if err != nil {
 		t.Fatalf("DownloadAttachment() error = %v", err)
 	}
-	if !strings.HasSuffix(filepath.ToSlash(path), "/task-1/result_.txt") {
-		t.Fatalf("download path = %q", path)
-	}
-	content, err := os.ReadFile(path)
-	if err != nil || string(content) != "downloaded" {
-		t.Fatalf("downloaded content = %q, %v", content, err)
+	if string(payload) != "downloaded" {
+		t.Fatalf("downloaded content = %q", payload)
 	}
 }

@@ -238,9 +238,10 @@ func TestRuntimeDownloadsOnlyAttachmentsFromTrackedTaskEvent(t *testing.T) {
 	ledger, _ := OpenLedger(filepath.Join(t.TempDir(), "manus.db"))
 	defer ledger.Close()
 	_ = ledger.Upsert(context.Background(), TaskRecord{TaskID: "task-1"})
-	downloadRoot := filepath.Join(t.TempDir(), "manus")
+	workspace := t.TempDir()
+	downloadRoot := filepath.Join(workspace, "workdir", "manus")
 	runtime := NewRuntime(client, ledger, RuntimeConfig{
-		Policy: Policy{AllowFileDownloads: true}, DownloadRoot: downloadRoot, MaxFileBytes: 1024,
+		Policy: Policy{AllowFileDownloads: true}, WorkspaceDir: workspace, DownloadRoot: downloadRoot, MaxFileBytes: 1024,
 	})
 	paths, err := runtime.DownloadAttachments(context.Background(), "task-1", "")
 	if err != nil {

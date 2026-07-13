@@ -3,6 +3,7 @@ package manus
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -363,13 +364,75 @@ func (r *Runtime) DownloadAttachments(ctx context.Context, taskID, eventID strin
 	}
 	paths := make([]string, 0, len(attachments))
 	for _, attachment := range attachments {
-		path, err := r.client.DownloadAttachment(ctx, attachment, r.downloadRoot, taskID, r.maxFileBytes)
+		payload, err := r.client.DownloadAttachment(ctx, attachment, r.maxFileBytes)
+		if err != nil {
+			return nil, err
+		}
+		path, err := r.writeAttachment(taskID, attachment.Filename, payload)
 		if err != nil {
 			return nil, err
 		}
 		paths = append(paths, path)
 	}
 	return paths, nil
+}
+
+func (r *Runtime) writeAttachment(taskID, filename string, payload []byte) (string, error) {
+	workspaceAbs, err := filepath.Abs(strings.TrimSpace(r.workspaceDir))
+	if err != nil || strings.TrimSpace(r.workspaceDir) == "" {
+		return "", fmt.Errorf("resolve Manus workspace root")
+	}
+	workspaceInfo, err := os.Lstat(workspaceAbs)
+	if err != nil {
+		return "", fmt.Errorf("inspect Manus workspace root: %w", err)
+	}
+	if workspaceInfo.Mode()&os.ModeSymlink != 0 {
+		return "", fmt.Errorf("Manus download blocks a symlinked workspace root")
+	}
+	downloadRoot := strings.TrimSpace(r.downloadRoot)
+	if downloadRoot == "" {
+		downloadRoot = filepath.Join(workspaceAbs, "workdir", "manus")
+	}
+	downloadAbs, err := filepath.Abs(downloadRoot)
+	if err != nil || !pathWithin(workspaceAbs, downloadAbs) {
+		return "", fmt.Errorf("Manus download root leaves the agent workspace")
+	}
+	downloadRelative, err := filepath.Rel(workspaceAbs, downloadAbs)
+	if err != nil {
+		return "", fmt.Errorf("resolve Manus download root: %w", err)
+	}
+	root, err := os.OpenRoot(workspaceAbs)
+	if err != nil {
+		return "", fmt.Errorf("open Manus workspace root: %w", err)
+	}
+	defer root.Close()
+	if err := root.MkdirAll(downloadRelative, 0o750); err != nil {
+		return "", fmt.Errorf("create Manus download root: %w", err)
+	}
+	if info, err := root.Lstat(downloadRelative); err != nil || info.Mode()&os.ModeSymlink != 0 {
+		return "", fmt.Errorf("Manus download root must be a real workspace directory")
+	}
+	taskDir := filepath.Join(downloadRelative, SafeAttachmentFilename(taskID))
+	if err := root.MkdirAll(taskDir, 0o750); err != nil {
+		return "", fmt.Errorf("create Manus task download directory: %w", err)
+	}
+	if info, err := root.Lstat(taskDir); err != nil || info.Mode()&os.ModeSymlink != 0 {
+		return "", fmt.Errorf("Manus task download directory must not be a symlink")
+	}
+	relativePath, file, err := createUniqueAttachment(root, taskDir, SafeAttachmentFilename(filename))
+	if err != nil {
+		return "", err
+	}
+	if _, err := file.Write(payload); err != nil {
+		_ = file.Close()
+		_ = root.Remove(relativePath)
+		return "", fmt.Errorf("write Manus attachment: %w", err)
+	}
+	if err := file.Close(); err != nil {
+		_ = root.Remove(relativePath)
+		return "", fmt.Errorf("close Manus attachment: %w", err)
+	}
+	return filepath.Join(workspaceAbs, relativePath), nil
 }
 
 func (r *Runtime) requireTracked(ctx context.Context, taskID string) (TaskRecord, error) {

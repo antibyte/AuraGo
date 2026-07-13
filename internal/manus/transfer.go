@@ -32,6 +32,10 @@ type uploadTicket struct {
 
 // UploadLocalFile creates a Manus file record and completes its presigned PUT.
 func (c *Client) UploadLocalFile(ctx context.Context, local LocalFile) (File, error) {
+	if local.handle == nil {
+		return File{}, fmt.Errorf("Manus upload file is not backed by a validated workspace handle")
+	}
+	defer local.handle.Close()
 	var ticket uploadTicket
 	if err := c.doJSON(ctx, http.MethodPost, "/v2/file.upload", nil, map[string]string{"filename": local.Filename}, &ticket); err != nil {
 		return File{}, err
@@ -43,12 +47,10 @@ func (c *Client) UploadLocalFile(ctx context.Context, local LocalFile) (File, er
 	if err := validatePublicResolution(ctx, remoteURL); err != nil {
 		return File{}, err
 	}
-	file, err := os.Open(local.Path)
-	if err != nil {
-		return File{}, fmt.Errorf("open Manus upload file: %w", err)
+	if _, err := local.handle.Seek(0, io.SeekStart); err != nil {
+		return File{}, fmt.Errorf("reset Manus upload file: %w", err)
 	}
-	defer file.Close()
-	req, err := http.NewRequestWithContext(ctx, http.MethodPut, remoteURL.String(), file)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, remoteURL.String(), local.handle)
 	if err != nil {
 		return File{}, fmt.Errorf("create Manus presigned upload request: %w", err)
 	}
@@ -66,74 +68,43 @@ func (c *Client) UploadLocalFile(ctx context.Context, local LocalFile) (File, er
 	return ticket.File, nil
 }
 
-// DownloadAttachment writes one tracked-task attachment to its controlled directory.
-func (c *Client) DownloadAttachment(ctx context.Context, attachment TaskAttachment, rootDir, taskID string, maxBytes int64) (string, error) {
+// DownloadAttachment retrieves one tracked-task attachment into bounded memory.
+// The runtime is solely responsible for writing the bytes into the workspace.
+func (c *Client) DownloadAttachment(ctx context.Context, attachment TaskAttachment, maxBytes int64) ([]byte, error) {
 	remoteURL, err := ValidateRemoteFileURL(attachment.URL)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	if err := validatePublicResolution(ctx, remoteURL); err != nil {
-		return "", err
+		return nil, err
 	}
 	if maxBytes <= 0 {
-		return "", fmt.Errorf("Manus download size limit must be positive")
-	}
-	rootAbs, err := filepath.Abs(rootDir)
-	if err != nil {
-		return "", fmt.Errorf("resolve Manus download root: %w", err)
-	}
-	if err := os.MkdirAll(rootAbs, 0o750); err != nil {
-		return "", fmt.Errorf("create Manus download root: %w", err)
-	}
-	rootResolved, err := filepath.EvalSymlinks(rootAbs)
-	if err != nil {
-		return "", fmt.Errorf("resolve Manus download root: %w", err)
-	}
-	taskDir := filepath.Join(rootResolved, SafeAttachmentFilename(taskID))
-	if err := os.MkdirAll(taskDir, 0o750); err != nil {
-		return "", fmt.Errorf("create Manus task download directory: %w", err)
-	}
-	taskResolved, err := filepath.EvalSymlinks(taskDir)
-	if err != nil || !pathWithin(rootResolved, taskResolved) {
-		return "", fmt.Errorf("Manus task download directory leaves the configured root")
+		return nil, fmt.Errorf("Manus download size limit must be positive")
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, remoteURL.String(), nil)
 	if err != nil {
-		return "", fmt.Errorf("create Manus attachment request: %w", err)
+		return nil, fmt.Errorf("create Manus attachment request: %w", err)
 	}
 	resp, err := c.fileHTTPClient.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("download Manus attachment: %w", err)
+		return nil, fmt.Errorf("download Manus attachment: %w", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return "", fmt.Errorf("Manus attachment download returned HTTP %d", resp.StatusCode)
+		return nil, fmt.Errorf("Manus attachment download returned HTTP %d", resp.StatusCode)
 	}
 	if resp.ContentLength > maxBytes {
-		return "", fmt.Errorf("Manus attachment exceeds the configured size limit")
+		return nil, fmt.Errorf("Manus attachment exceeds the configured size limit")
 	}
 	payload, err := readBounded(resp.Body, maxBytes)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	destination, file, err := createUniqueAttachment(taskResolved, SafeAttachmentFilename(attachment.Filename))
-	if err != nil {
-		return "", err
-	}
-	if _, err := file.Write(payload); err != nil {
-		_ = file.Close()
-		_ = os.Remove(destination)
-		return "", fmt.Errorf("write Manus attachment: %w", err)
-	}
-	if err := file.Close(); err != nil {
-		_ = os.Remove(destination)
-		return "", fmt.Errorf("close Manus attachment: %w", err)
-	}
-	return destination, nil
+	return payload, nil
 }
 
-func createUniqueAttachment(dir, name string) (string, *os.File, error) {
+func createUniqueAttachment(root *os.Root, dir, name string) (string, *os.File, error) {
 	ext := filepath.Ext(name)
 	stem := strings.TrimSuffix(name, ext)
 	for index := 0; index < 1000; index++ {
@@ -142,7 +113,7 @@ func createUniqueAttachment(dir, name string) (string, *os.File, error) {
 			candidateName = stem + "-" + strconv.Itoa(index) + ext
 		}
 		candidate := filepath.Join(dir, candidateName)
-		file, err := os.OpenFile(candidate, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+		file, err := root.OpenFile(candidate, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
 		if err == nil {
 			return candidate, file, nil
 		}
