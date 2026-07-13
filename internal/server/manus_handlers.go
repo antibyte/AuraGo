@@ -124,11 +124,17 @@ func handleManusSkills(s *Server) http.HandlerFunc {
 		if !ok {
 			return
 		}
-		projectID := strings.TrimSpace(r.URL.Query().Get("project_id"))
-		if projectID != "" && !manusAllowedID(cfg.AllowedProjectIDs, projectID) {
-			writeManusJSON(w, http.StatusForbidden, map[string]interface{}{"status": "error", "message": "Project is not allowlisted"})
+		handleManusSkillsWithClient(client, cfg.AllowedSkillIDs)(w, r)
+	}
+}
+
+func handleManusSkillsWithClient(client *manus.Client, allowedSkills []string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
+		projectID := strings.TrimSpace(r.URL.Query().Get("project_id"))
 		items, err := client.ListSkills(r.Context(), projectID)
 		if err != nil {
 			writeManusJSON(w, http.StatusBadGateway, map[string]interface{}{"status": "error", "message": security.Scrub(err.Error())})
@@ -136,7 +142,7 @@ func handleManusSkills(s *Server) http.HandlerFunc {
 		}
 		result := make([]map[string]interface{}, 0, len(items))
 		for _, item := range items {
-			result = append(result, map[string]interface{}{"id": item.ID, "name": item.Name, "description": item.Description, "owner_type": item.OwnerType, "allowed": manusAllowedID(cfg.AllowedSkillIDs, item.ID)})
+			result = append(result, map[string]interface{}{"id": item.ID, "name": item.Name, "description": item.Description, "owner_type": item.OwnerType, "allowed": manusAllowedID(allowedSkills, item.ID)})
 		}
 		writeManusJSON(w, http.StatusOK, map[string]interface{}{"items": result})
 	}

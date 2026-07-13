@@ -4,6 +4,8 @@ const manusCatalogState = {
     projects: [],
     connectors: [],
     skills: [],
+    globalSkills: [],
+    projectSkills: {},
     loading: false
 };
 
@@ -79,9 +81,19 @@ async function renderManusSection(section) {
 }
 
 function manusToggle(path, enabled, labelKey, helpKey, dangerous) {
-    const handler = dangerous ? 'manusTogglePolicy(this)' : 'toggleBool(this)';
+    const handler = path === 'manus.read_only' ? 'manusToggleReadOnly(this)' : (dangerous ? 'manusTogglePolicy(this)' : 'toggleBool(this)');
     return '<div class="field-group"><div class="field-label">' + t(labelKey) + '</div><div class="field-help">' + t(helpKey) + '</div>' +
         '<div class="toggle-wrap"><div class="toggle' + (enabled ? ' on' : '') + '" data-path="' + path + '" onclick="' + handler + '"></div><span class="toggle-label">' + (enabled ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span></div></div>';
+}
+
+async function manusToggleReadOnly(el) {
+    if (!el) return;
+    if (!el.classList.contains('on')) {
+        toggleBool(el);
+        return;
+    }
+    const allowed = await showConfirm(t('config.manus.read_only_disable_confirm_title'), t('config.manus.read_only_disable_confirm'));
+    if (allowed) toggleBool(el);
 }
 
 async function manusTogglePolicy(el) {
@@ -180,13 +192,57 @@ async function manusLoadCatalogs(showErrors) {
         if (failed >= 0) throw new Error(payloads[failed].error || payloads[failed].message || t('config.manus.catalog_load_failed'));
         manusCatalogState.projects = payloads[0].items || [];
         manusCatalogState.connectors = payloads[1].items || [];
-        manusCatalogState.skills = payloads[2].items || [];
+        manusCatalogState.globalSkills = payloads[2].items || [];
+        manusCatalogState.projectSkills = {};
+        manusRefreshSkillCatalog();
+        const cfg = manusConfig();
+        await manusLoadProjectSkills(cfg.allowed_project_ids, showErrors);
         manusRenderCatalogs();
     } catch (error) {
         if (showErrors) showToast(t('config.manus.catalog_load_failed') + ': ' + (error.message || t('config.common.error')), 'error');
     } finally {
         manusCatalogState.loading = false;
     }
+}
+
+async function manusLoadProjectSkills(projectIDs, showErrors) {
+    const pending = Array.from(new Set((projectIDs || []).map(String).map(id => id.trim()).filter(Boolean)))
+        .filter(projectID => !Object.prototype.hasOwnProperty.call(manusCatalogState.projectSkills, projectID));
+    if (!pending.length) return;
+    const results = await Promise.all(pending.map(async projectID => {
+        try {
+            const resp = await fetch('/api/manus/skills?project_id=' + encodeURIComponent(projectID));
+            const payload = await resp.json().catch(() => ({}));
+            if (!resp.ok) throw new Error(payload.error || payload.message || t('config.manus.catalog_load_failed'));
+            return { projectID, items: payload.items || [] };
+        } catch (error) {
+            return { projectID, error };
+        }
+    }));
+    let firstError = null;
+    results.forEach(result => {
+        if (result.error) {
+            if (!firstError) firstError = result.error;
+            return;
+        }
+        manusCatalogState.projectSkills[result.projectID] = result.items;
+    });
+    manusRefreshSkillCatalog();
+    manusRenderCatalog('skills', 'allowed_skill_ids', manusConfig().allowed_skill_ids);
+    if (firstError && showErrors) {
+        showToast(t('config.manus.catalog_load_failed') + ': ' + (firstError.message || t('config.common.error')), 'error');
+    }
+}
+
+function manusRefreshSkillCatalog() {
+    const byID = new Map();
+    const addItems = items => (items || []).forEach(item => {
+        const id = String(item && item.id || '').trim();
+        if (id && !byID.has(id)) byID.set(id, item);
+    });
+    addItems(manusCatalogState.globalSkills);
+    Object.values(manusCatalogState.projectSkills).forEach(addItems);
+    manusCatalogState.skills = Array.from(byID.values());
 }
 
 function manusRenderCatalogs() {
@@ -215,13 +271,17 @@ function manusJSArg(value) {
     return escapeAttr(JSON.stringify(String(value || '')));
 }
 
-function manusToggleCatalogItem(kind, configKey, id) {
+async function manusToggleCatalogItem(kind, configKey, id) {
     const cfg = manusConfig();
     const current = new Set((cfg[configKey] || []).map(String));
-    if (current.has(id)) current.delete(id); else current.add(id);
+    const wasSelected = current.has(id);
+    if (wasSelected) current.delete(id); else current.add(id);
     cfg[configKey] = Array.from(current);
     const input = document.querySelector('[data-path="manus.' + configKey + '"]');
     if (input) input.value = cfg[configKey].join(', ');
     markDirty();
     manusRenderCatalog(kind, configKey, cfg[configKey]);
+    if (kind === 'projects' && !wasSelected) {
+        await manusLoadProjectSkills([id], true);
+    }
 }

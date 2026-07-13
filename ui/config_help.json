@@ -1,9 +1,9 @@
 {
   "manus": {
     "title": "Manus v2",
-    "description": "Runs asynchronous private Manus tasks through the native agent tool. The API key remains in the encrypted vault, only AuraGo-tracked tasks are accessible, and read-only mode overrides every modifying permission.",
-    "security": "Manus API keys have full account access. Keep resource allowlists narrow and enable write or file permissions only when needed.",
-    "skills": "If no explicit skill selection is sent, Manus may also load account-default skills. Explicit selections always remain restricted to allowed_skill_ids."
+    "description": "Runs asynchronous private Manus tasks through the native agent tool. Normal completion, explicit user stops, errors, and approval states are normalized from non-verbose events; only AuraGo-tracked tasks are accessible.",
+    "security": "Manus API keys have full account access. Read-only mode overrides every modifying permission, and turning it off always requires confirmation. Keep resource allowlists narrow.",
+    "skills": "The setup view combines account skills with cached skills from selected projects and deduplicates them by ID. The agent can only request explicitly selected allowed_skill_ids; Manus may still load account-default skills when no explicit selection is sent."
   },
   "server": {
     "host": {
