@@ -280,11 +280,18 @@ func (c *Client) doJSON(ctx context.Context, method, path string, query url.Valu
 
 		resp, err := c.httpClient.Do(req)
 		if err != nil {
-			return fmt.Errorf("call Manus API (request outcome may be unknown): %w", err)
+			callErr := fmt.Errorf("call Manus API: %w", err)
+			if method != http.MethodGet {
+				return &OutcomeUnknownError{Operation: path, Err: callErr}
+			}
+			return callErr
 		}
 		payload, readErr := readBounded(resp.Body, c.maxResultBytes)
 		_ = resp.Body.Close()
 		if readErr != nil {
+			if method != http.MethodGet {
+				return &OutcomeUnknownError{Operation: path, Err: readErr}
+			}
 			return readErr
 		}
 
@@ -295,14 +302,22 @@ func (c *Client) doJSON(ctx context.Context, method, path string, query url.Valu
 			continue
 		}
 		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-			return decodeAPIError(resp.StatusCode, payload)
+			apiErr := decodeAPIError(resp.StatusCode, payload)
+			if method != http.MethodGet && resp.StatusCode >= http.StatusInternalServerError {
+				return &OutcomeUnknownError{Operation: path, Err: apiErr}
+			}
+			return apiErr
 		}
 		var envelope apiErrorEnvelope
 		if err := json.Unmarshal(payload, &envelope); err == nil && envelope.OK != nil && !*envelope.OK {
 			return decodeAPIError(resp.StatusCode, payload)
 		}
 		if err := json.Unmarshal(payload, out); err != nil {
-			return fmt.Errorf("decode Manus response: %w", err)
+			decodeErr := fmt.Errorf("decode Manus response: %w", err)
+			if method != http.MethodGet {
+				return &OutcomeUnknownError{Operation: path, Err: decodeErr}
+			}
+			return decodeErr
 		}
 		return nil
 	}

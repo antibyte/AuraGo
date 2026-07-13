@@ -21,7 +21,7 @@ type RuntimeConfig struct {
 // Runtime safely coordinates the remote API and local task ledger.
 type Runtime struct {
 	client       *Client
-	ledger       *Ledger
+	ledger       TaskStore
 	policy       Policy
 	workspaceDir string
 	downloadRoot string
@@ -43,7 +43,7 @@ type TaskState struct {
 }
 
 // NewRuntime constructs the local policy boundary around an authenticated client.
-func NewRuntime(client *Client, ledger *Ledger, cfg RuntimeConfig) *Runtime {
+func NewRuntime(client *Client, ledger TaskStore, cfg RuntimeConfig) *Runtime {
 	pollInterval := cfg.PollInterval
 	if pollInterval <= 0 {
 		pollInterval = 5 * time.Second
@@ -73,6 +73,9 @@ func (r *Runtime) CreateTask(ctx context.Context, request CreateTaskRequest, loc
 	if err := ValidateStructuredOutputSchema(request.StructuredOutputSchema); err != nil {
 		return CreateTaskResult{}, err
 	}
+	if err := r.ledger.PreflightWrite(ctx); err != nil {
+		return CreateTaskResult{}, fmt.Errorf("preflight Manus task persistence: %w", err)
+	}
 	content, err := r.contentWithUploads(ctx, request.Content, localPaths)
 	if err != nil {
 		return CreateTaskResult{}, err
@@ -83,13 +86,13 @@ func (r *Runtime) CreateTask(ctx context.Context, request CreateTaskRequest, loc
 		return CreateTaskResult{}, err
 	}
 	if strings.TrimSpace(result.TaskID) == "" {
-		return CreateTaskResult{}, fmt.Errorf("Manus task creation returned no task ID")
+		return result, &OutcomeUnknownError{Operation: "/v2/task.create", Err: fmt.Errorf("Manus task creation returned no task ID")}
 	}
-	if err := r.ledger.Upsert(ctx, TaskRecord{
+	if err := r.persistMutation(ctx, TaskRecord{
 		TaskID: result.TaskID, Title: result.TaskTitle, TaskURL: result.TaskURL,
 		Status: "running", AgentProfile: request.AgentProfile,
 	}); err != nil {
-		return CreateTaskResult{}, err
+		return result, &RemoteAppliedError{Operation: "create_task", TaskID: result.TaskID, TaskURL: result.TaskURL, Err: err}
 	}
 	return result, nil
 }
@@ -171,9 +174,24 @@ func (r *Runtime) WaitForTask(ctx context.Context, taskID string, requested time
 		case "completed", "success", "finished":
 			return TaskState{State: "completed", Task: task, TaskURL: task.TaskURL}, nil
 		case "stopped":
-			return TaskState{State: "stopped", Task: task, TaskURL: task.TaskURL}, nil
+			page, err := r.ListMessages(ctx, ListMessagesOptions{TaskID: taskID, Limit: 50, Order: "desc"})
+			if err != nil {
+				return TaskState{}, err
+			}
+			state := "completed"
+			for _, event := range page.Messages {
+				if event.Type == "user_stop" {
+					state = "stopped"
+					break
+				}
+			}
+			return TaskState{State: state, Task: task, TaskURL: task.TaskURL, Messages: page.Messages}, nil
 		case "error", "failed":
-			return TaskState{State: "error", Task: task, TaskURL: task.TaskURL}, nil
+			page, err := r.ListMessages(ctx, ListMessagesOptions{TaskID: taskID, Limit: 50, Order: "desc"})
+			if err != nil {
+				return TaskState{}, err
+			}
+			return TaskState{State: "error", Task: task, TaskURL: task.TaskURL, Messages: page.Messages}, nil
 		}
 		if time.Now().Add(r.pollInterval).After(deadline) {
 			return TaskState{State: "running", Task: task, TaskURL: task.TaskURL, PollAfterSeconds: max(1, int(r.pollInterval.Seconds()))}, nil
@@ -208,6 +226,9 @@ func (r *Runtime) SendMessage(ctx context.Context, request SendMessageRequest, l
 	if err := ValidateStructuredOutputSchema(request.StructuredOutputSchema); err != nil {
 		return SendMessageResult{}, err
 	}
+	if err := r.ledger.PreflightWrite(ctx); err != nil {
+		return SendMessageResult{}, fmt.Errorf("preflight Manus task persistence: %w", err)
+	}
 	content, err := r.contentWithUploads(ctx, request.Content, localPaths)
 	if err != nil {
 		return SendMessageResult{}, err
@@ -222,8 +243,8 @@ func (r *Runtime) SendMessage(ctx context.Context, request SendMessageRequest, l
 	if request.AgentProfile != "" {
 		record.AgentProfile = request.AgentProfile
 	}
-	if err := r.ledger.Upsert(ctx, record); err != nil {
-		return SendMessageResult{}, err
+	if err := r.persistMutation(ctx, record); err != nil {
+		return result, &RemoteAppliedError{Operation: "send_message", TaskID: record.TaskID, TaskURL: record.TaskURL, Err: err}
 	}
 	return result, nil
 }
@@ -266,12 +287,48 @@ func (r *Runtime) StopTask(ctx context.Context, taskID string) error {
 	if err != nil {
 		return err
 	}
+	if err := r.ledger.PreflightWrite(ctx); err != nil {
+		return fmt.Errorf("preflight Manus task persistence: %w", err)
+	}
 	if err := r.client.StopTask(ctx, taskID); err != nil {
 		return err
 	}
 	record.Status = "stopped"
 	record.UpdatedAt = time.Now().UTC()
-	return r.ledger.Upsert(ctx, record)
+	if err := r.persistMutation(ctx, record); err != nil {
+		return &RemoteAppliedError{Operation: "stop_task", TaskID: record.TaskID, TaskURL: record.TaskURL, Err: err}
+	}
+	return nil
+}
+
+func (r *Runtime) persistMutation(ctx context.Context, record TaskRecord) error {
+	const attempts = 3
+	for attempt := 0; attempt < attempts; attempt++ {
+		err := r.ledger.Upsert(ctx, record)
+		if err == nil {
+			return nil
+		}
+		if !isSQLiteBusy(err) || attempt+1 == attempts {
+			return err
+		}
+		delay := 50 * time.Millisecond * time.Duration(1<<attempt)
+		timer := time.NewTimer(delay)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return fmt.Errorf("retry Manus ledger persistence: %w", ctx.Err())
+		case <-timer.C:
+		}
+	}
+	return fmt.Errorf("persist Manus task metadata: retry attempts exhausted")
+}
+
+func isSQLiteBusy(err error) bool {
+	if err == nil {
+		return false
+	}
+	message := strings.ToUpper(err.Error())
+	return strings.Contains(message, "SQLITE_BUSY") || strings.Contains(message, "SQLITE_LOCKED") || strings.Contains(message, "DATABASE IS LOCKED")
 }
 
 // ListTrackedTasks returns only the local AuraGo task inventory.

@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -121,7 +122,7 @@ func dispatchManusCallWithClient(ctx context.Context, req manusCallArgs, cfg *co
 			StructuredOutputSchema: req.StructuredOutputSchema,
 		}, req.LocalFilePaths)
 		if err != nil {
-			return manusErrorOutput(err.Error())
+			return manusOperationErrorOutput(op, err, map[string]interface{}{"task": result})
 		}
 		return manusExternalOutput(map[string]interface{}{"status": "success", "operation": op, "task": result})
 	case "list_tracked_tasks":
@@ -129,7 +130,7 @@ func dispatchManusCallWithClient(ctx context.Context, req manusCallArgs, cfg *co
 		if err != nil {
 			return manusErrorOutput(err.Error())
 		}
-		return manusJSONOutput(map[string]interface{}{"status": "success", "operation": op, "tasks": items})
+		return manusExternalOutput(map[string]interface{}{"status": "success", "operation": op, "tasks": items})
 	case "get_task":
 		task, err := runtime.GetTask(ctx, req.TaskID)
 		if err != nil {
@@ -158,12 +159,12 @@ func dispatchManusCallWithClient(ctx context.Context, req manusCallArgs, cfg *co
 			AgentProfile: req.AgentProfile, StructuredOutputSchema: req.StructuredOutputSchema,
 		}, req.LocalFilePaths)
 		if err != nil {
-			return manusErrorOutput(err.Error())
+			return manusOperationErrorOutput(op, err, map[string]interface{}{"task": result})
 		}
 		return manusExternalOutput(map[string]interface{}{"status": "success", "operation": op, "task": result})
 	case "stop_task":
 		if err := runtime.StopTask(ctx, req.TaskID); err != nil {
-			return manusErrorOutput(err.Error())
+			return manusOperationErrorOutput(op, err, map[string]interface{}{"task_id": req.TaskID})
 		}
 		return manusJSONOutput(map[string]interface{}{"status": "success", "operation": op, "task_id": req.TaskID})
 	case "download_attachments":
@@ -228,6 +229,34 @@ func manusJSONOutput(payload map[string]interface{}) string {
 func manusExternalOutput(payload map[string]interface{}) string {
 	raw, _ := json.Marshal(payload)
 	return "Tool Output: " + security.IsolateExternalData(security.Scrub(string(raw)))
+}
+
+func manusOperationErrorOutput(operation string, err error, payload map[string]interface{}) string {
+	var applied *manus.RemoteAppliedError
+	if errors.As(err, &applied) {
+		result := make(map[string]interface{}, len(payload)+8)
+		for key, value := range payload {
+			result[key] = value
+		}
+		result["status"] = "partial_success"
+		result["operation"] = operation
+		result["remote_applied"] = true
+		result["retry_safe"] = false
+		result["task_id"] = applied.TaskID
+		if applied.TaskURL != "" {
+			result["task_url"] = applied.TaskURL
+		}
+		result["message"] = security.Scrub(applied.Error())
+		return manusExternalOutput(result)
+	}
+	var unknown *manus.OutcomeUnknownError
+	if errors.As(err, &unknown) {
+		return manusExternalOutput(map[string]interface{}{
+			"status": "error", "operation": operation, "outcome": "unknown",
+			"retry_safe": false, "message": security.Scrub(unknown.Error()),
+		})
+	}
+	return manusErrorOutput(err.Error())
 }
 
 func manusErrorOutput(message string) string {

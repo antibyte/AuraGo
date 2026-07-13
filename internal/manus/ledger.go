@@ -21,6 +21,15 @@ type Ledger struct {
 	db *sql.DB
 }
 
+// TaskStore is the minimal local persistence boundary used by the Manus
+// runtime. The interface keeps remote mutation outcomes independently testable.
+type TaskStore interface {
+	PreflightWrite(context.Context) error
+	Upsert(context.Context, TaskRecord) error
+	Get(context.Context, string) (TaskRecord, bool, error)
+	List(context.Context, int) ([]TaskRecord, error)
+}
+
 // TaskRecord is deliberately limited to non-content task metadata.
 type TaskRecord struct {
 	TaskID       string    `json:"task_id"`
@@ -88,6 +97,22 @@ func (l *Ledger) Close() error {
 		return nil
 	}
 	return l.db.Close()
+}
+
+// PreflightWrite verifies ledger writability using a real SQLite transaction.
+func (l *Ledger) PreflightWrite(ctx context.Context) error {
+	tx, err := l.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin Manus ledger write preflight: %w", err)
+	}
+	defer tx.Rollback()
+	if _, err := tx.ExecContext(ctx, `UPDATE schema_meta SET value = value WHERE key = 'schema_version'`); err != nil {
+		return fmt.Errorf("write Manus ledger preflight: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit Manus ledger write preflight: %w", err)
+	}
+	return nil
 }
 
 // Upsert records safe task metadata and makes the task available to the agent.

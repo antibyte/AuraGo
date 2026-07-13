@@ -167,7 +167,7 @@ func TestRuntimeNormalizesRunningAndTerminalTaskStatuses(t *testing.T) {
 		{remoteStatus: "running", wantState: "running"},
 		{remoteStatus: "completed", wantState: "completed"},
 		{remoteStatus: "success", wantState: "completed"},
-		{remoteStatus: "stopped", wantState: "stopped"},
+		{remoteStatus: "stopped", wantState: "completed"},
 		{remoteStatus: "error", wantState: "error"},
 		{remoteStatus: "failed", wantState: "error"},
 	}
