@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -10,15 +11,30 @@ import (
 )
 
 type questionCaptureBroker struct {
+	mu           sync.RWMutex
 	jsonMessages []string
 	events       []string
 }
 
 func (b *questionCaptureBroker) Send(event, message string) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
 	b.events = append(b.events, event+":"+message)
 }
 func (b *questionCaptureBroker) SendJSON(jsonStr string) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
 	b.jsonMessages = append(b.jsonMessages, jsonStr)
+}
+func (b *questionCaptureBroker) jsonMessagesSnapshot() []string {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	return append([]string(nil), b.jsonMessages...)
+}
+func (b *questionCaptureBroker) eventsSnapshot() []string {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	return append([]string(nil), b.events...)
 }
 func (b *questionCaptureBroker) SendLLMStreamDelta(content, toolName, toolID string, index int, finishReason string) {
 }
@@ -67,7 +83,7 @@ func TestDispatchQuestionUserCompletes(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("dispatch did not complete")
 	}
-	if len(broker.jsonMessages) == 0 {
+	if len(broker.jsonMessagesSnapshot()) == 0 {
 		t.Fatal("expected webchat question SSE payload")
 	}
 }
@@ -101,19 +117,21 @@ func TestDispatchQuestionUserUsesInteractiveUIForVirtualDesktop(t *testing.T) {
 		t.Fatalf("desktop question timeout = %d, want 120", pending.TimeoutSecs)
 	}
 	jsonDeadline := time.After(time.Second)
-	for len(broker.jsonMessages) == 0 {
+	var jsonMessages []string
+	for len(jsonMessages) == 0 {
+		jsonMessages = broker.jsonMessagesSnapshot()
 		select {
 		case <-jsonDeadline:
-			t.Fatalf("expected desktop question to use interactive JSON payload, got %#v", broker.jsonMessages)
+			t.Fatalf("expected desktop question to use interactive JSON payload, got %#v", jsonMessages)
 		default:
 			time.Sleep(10 * time.Millisecond)
 		}
 	}
-	if !strings.Contains(broker.jsonMessages[0], `"type":"question_user"`) {
-		t.Fatalf("expected desktop question JSON payload, got %#v", broker.jsonMessages)
+	if !strings.Contains(jsonMessages[0], `"type":"question_user"`) {
+		t.Fatalf("expected desktop question JSON payload, got %#v", jsonMessages)
 	}
-	if len(broker.events) != 0 {
-		t.Fatalf("did not expect text-channel question event for desktop, got %#v", broker.events)
+	if events := broker.eventsSnapshot(); len(events) != 0 {
+		t.Fatalf("did not expect text-channel question event for desktop, got %#v", events)
 	}
 	tools.CompleteQuestion(sessionID, tools.QuestionResponse{Selected: "a"})
 	select {
