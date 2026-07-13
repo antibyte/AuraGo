@@ -508,6 +508,8 @@
   "config.section.rules.desc": "Zarządzaj zasadami agenta dla zadań",
   "config.section.composio.label": "Composio",
   "config.section.composio.desc": "Zewnetrzny katalog integracji i zrodlo narzedzi dla agenta",
+  "config.section.manus.label": "Manus",
+  "config.section.manus.desc": "Asynchroniczne zadania Manus ze ścisłymi uprawnieniami lokalnymi",
   "config.section.virtual_desktop.label": "Wirtualny pulpit",
   "config.section.virtual_desktop.desc": "Pulpit w przeglądarce z aplikacjami, plikami i widżetami sterowanymi przez agenta.",
   "config.github.test_btn": "Testuj połączenie",

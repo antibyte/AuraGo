@@ -403,6 +403,10 @@
     <title>danger_zone</title>
     <path d="m64 24 42 76H22z" fill="#ef6f78" opacity=".26"/><path d="m64 24 42 76H22zM64 50v25M64 90h.1" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="6" stroke="#ef6f78"/>
   </g>
+  <g class="cfg-icon-cell" data-key="manus" data-slot="102" transform="translate(384 1152)">
+    <title>manus</title>
+    <circle cx="64" cy="64" r="38" fill="#1f2937"/><path d="M39 88V40l25 25 25-25v48" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="7" stroke="#35c7d3"/><circle cx="64" cy="64" r="7" fill="#9b7cf0"/>
+  </g>
   <g class="cfg-icon-cell" data-key="virtual_computers" data-slot="35" transform="translate(256 384)">
     <title>virtual_computers</title>
     <rect x="24" y="28" width="80" height="52" rx="9" fill="#7da3c8" opacity=".18"/><path d="M24 28h80v52H24zM44 96h40M64 80v16M43 52l10 10-10 10M61 72h24" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="6" stroke="#7da3c8"/><circle cx="92" cy="36" r="10" fill="#35c7d3"/>

@@ -508,6 +508,8 @@
   "config.section.rules.desc": "Manage task-specific agent guardrails",
   "config.section.composio.label": "Composio",
   "config.section.composio.desc": "External integration catalog and agent tool source",
+  "config.section.manus.label": "Manus",
+  "config.section.manus.desc": "Asynchronous Manus tasks with strict local permissions",
   "config.section.virtual_desktop.label": "Virtual Desktop",
   "config.section.virtual_desktop.desc": "Browser desktop workspace with agent-controlled apps, files, and widgets.",
   "config.github.test_btn": "Test Connection",

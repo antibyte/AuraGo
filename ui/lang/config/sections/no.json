@@ -508,6 +508,8 @@
   "config.section.rules.desc": "Administrer oppgavespesifikke agentregler",
   "config.section.composio.label": "Composio",
   "config.section.composio.desc": "Ekstern integrasjonskatalog og verktoykilde for agenten",
+  "config.section.manus.label": "Manus",
+  "config.section.manus.desc": "Asynkrone Manus-oppgaver med strenge lokale tillatelser",
   "config.section.virtual_desktop.label": "Virtuelt skrivebord",
   "config.section.virtual_desktop.desc": "Nettleserskrivebord med agentstyrte apper, filer og widgeter.",
   "config.github.test_btn": "Test tilkobling",

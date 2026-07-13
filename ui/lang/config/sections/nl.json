@@ -508,6 +508,8 @@
   "config.section.rules.desc": "Taakspecifieke agentregels beheren",
   "config.section.composio.label": "Composio-integratie",
   "config.section.composio.desc": "Externe integratiecatalogus en toolbron voor de agent",
+  "config.section.manus.label": "Manus",
+  "config.section.manus.desc": "Asynchrone Manus-taken met strikte lokale rechten",
   "config.section.virtual_desktop.label": "Virtueel bureaublad",
   "config.section.virtual_desktop.desc": "Browserbureaublad met agentgestuurde apps, bestanden en widgets.",
   "config.github.test_btn": "Verbinding testen",

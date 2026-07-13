@@ -508,6 +508,8 @@
   "config.section.rules.desc": "タスク別のエージェント規則を管理",
   "config.section.composio.label": "Composio",
   "config.section.composio.desc": "エージェント向けの外部連携カタログとツールソース",
+  "config.section.manus.label": "Manus",
+  "config.section.manus.desc": "厳格なローカル権限で非同期 Manus タスクを実行",
   "config.section.virtual_desktop.label": "仮想デスクトップ",
   "config.section.virtual_desktop.desc": "エージェントがアプリ、ファイル、ウィジェットを制御できるブラウザーデスクトップ。",
   "config.github.test_btn": "接続をテスト",

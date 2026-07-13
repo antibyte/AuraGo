@@ -256,6 +256,57 @@ body {
     flex-direction: column;
 }
 
+/* Manus resource allowlists */
+.manus-catalog-group {
+    margin-top: 1rem;
+}
+
+.manus-catalog-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 0.65rem;
+    margin-top: 0.75rem;
+}
+
+.manus-catalog-item {
+    min-width: 0;
+    padding: 0.8rem 0.9rem;
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    text-align: left;
+    cursor: pointer;
+    transition: border-color 0.16s ease, background 0.16s ease, transform 0.16s ease;
+}
+
+.manus-catalog-item:hover {
+    border-color: var(--accent-primary);
+    transform: translateY(-1px);
+}
+
+.manus-catalog-item.is-selected {
+    border-color: var(--accent-primary);
+    background: color-mix(in srgb, var(--accent-primary) 12%, var(--bg-secondary));
+}
+
+.manus-catalog-item strong,
+.manus-catalog-item small {
+    display: block;
+    overflow-wrap: anywhere;
+}
+
+.manus-catalog-item small,
+.manus-catalog-empty {
+    margin-top: 0.25rem;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+}
+
+.manus-default-skills-note {
+    margin-top: 1rem;
+}
+
 /* Layout */
 .cfg-layout {
     flex: 1;

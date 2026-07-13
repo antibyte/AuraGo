@@ -1489,6 +1489,25 @@ composio:
         vision:
             server: ""
             tool: ""
+manus:
+    enabled: false                                      # exposes the native manus tool only when a vault key is configured
+    read_only: true                                     # overrides every modifying permission below
+    allow_create_tasks: false
+    allow_send_messages: false
+    allow_stop_tasks: false
+    allow_file_uploads: false
+    allow_file_downloads: false
+    allowed_project_ids: []                            # empty blocks project-specific tasks
+    allowed_connector_ids: []                          # connectors must always be selected explicitly
+    allowed_skill_ids: []                              # explicit skill requests must match this list
+    default_agent_profile: manus-1.6                   # manus-1.6, manus-1.6-lite, or manus-1.6-max
+    default_locale: ""                                  # empty uses the Manus account default
+    request_timeout_seconds: 60
+    poll_interval_seconds: 5
+    max_wait_seconds: 60                               # wait_for_task never exceeds 60 seconds
+    max_result_bytes: 262144
+    max_file_size_mb: 20
+    # Store the API key in the encrypted vault as manus_api_key, never in config.yaml.
 evomap:
     enabled: false                                      # exposes the native evomap tool only when explicitly enabled
     readonly: true                                      # foreign capsules/assets are never executed automatically

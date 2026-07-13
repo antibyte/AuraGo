@@ -508,6 +508,8 @@
   "config.section.rules.desc": "Aufgabenbezogene Agent-Leitplanken verwalten",
   "config.section.composio.label": "Composio",
   "config.section.composio.desc": "Externer Integrationskatalog und Toolquelle für den Agenten",
+  "config.section.manus.label": "Manus",
+  "config.section.manus.desc": "Asynchrone Manus-Aufgaben mit strengen lokalen Berechtigungen",
   "config.section.virtual_desktop.label": "Virtueller Desktop",
   "config.section.virtual_desktop.desc": "Browser-Desktop-Arbeitsbereich mit agentengesteuerten Apps, Dateien und Widgets.",
   "config.github.test_btn": "Verbindung testen",

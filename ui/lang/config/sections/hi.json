@@ -508,6 +508,8 @@
   "config.section.rules.desc": "कार्य-विशिष्ट एजेंट दिशानिर्देश प्रबंधित करें",
   "config.section.composio.label": "Composio",
   "config.section.composio.desc": "एजेंट के लिए बाहरी इंटीग्रेशन catalog और tool source",
+  "config.section.manus.label": "Manus",
+  "config.section.manus.desc": "कड़े स्थानीय अधिकारों के साथ एसिंक्रोनस Manus कार्य",
   "config.section.virtual_desktop.label": "वर्चुअल डेस्कटॉप",
   "config.section.virtual_desktop.desc": "एजेंट नियंत्रित ऐप, फ़ाइल और विजेट वाला ब्राउज़र डेस्कटॉप।",
   "config.github.test_btn": "कनेक्शन परीक्षण",

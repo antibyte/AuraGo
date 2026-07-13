@@ -508,6 +508,8 @@
   "config.section.rules.desc": "管理按任务匹配的代理护栏",
   "config.section.composio.label": "Composio",
   "config.section.composio.desc": "面向代理的外部集成目录和工具来源",
+  "config.section.manus.label": "Manus",
+  "config.section.manus.desc": "使用严格本地权限的异步 Manus 任务",
   "config.section.virtual_desktop.label": "虚拟桌面",
   "config.section.virtual_desktop.desc": "由智能体控制应用、文件和小组件的浏览器桌面。",
   "config.github.test_btn": "测试连接",

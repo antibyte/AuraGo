@@ -204,6 +204,7 @@ const SECTIONS = [
         items: [
             { key: 'ai_gateway', icon: '🌩️', label: t('config.section.ai_gateway.label'), desc: t('config.section.ai_gateway.desc') },
             { key: 'composio', icon: '◇', label: t('config.section.composio.label'), desc: t('config.section.composio.desc') },
+            { key: 'manus', icon: 'M', label: t('config.section.manus.label'), desc: t('config.section.manus.desc') },
             { key: 'huggingface', icon: 'HF', label: t('config.section.huggingface.label'), desc: t('config.section.huggingface.desc') },
             { key: 'evomap', icon: '◇', label: t('config.section.evomap.label'), desc: t('config.section.evomap.desc') },
             { key: 'mcp', icon: '🔌', label: t('config.section.mcp.label'), desc: t('config.section.mcp.desc') },
@@ -547,6 +548,7 @@ const CONFIG_SIDEBAR_ICON_SLOTS = Object.freeze({
     a2a: 99,
     ollama: 100,
     danger_zone: 101,
+    manus: 102,
 });
 
 const CONFIG_SIDEBAR_ICON_SYMBOL_PREFIX = 'config-sidebar-icon-';
@@ -646,6 +648,7 @@ const CONFIG_SIDEBAR_ICON_SYMBOLS = Object.freeze({
     virustotal: "<circle cx=\"64\" cy=\"64\" r=\"34\" fill=\"#394eff\" opacity=\".9\"/><path d=\"M64 29v70M29 64h70M39 39l50 50M89 39 39 89\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"6\" stroke=\"#35c7d3\" stroke-width=\"5\"/>",
     ai_gateway: "<path d=\"M28 64h25M75 64h25M64 53v-25M64 75v25\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"6\" stroke=\"#4f8ee8\"/><rect x=\"53\" y=\"53\" width=\"22\" height=\"22\" rx=\"6\" fill=\"#35c7d3\"/><circle cx=\"28\" cy=\"64\" r=\"8\" fill=\"#4f8ee8\"/><circle cx=\"100\" cy=\"64\" r=\"8\" fill=\"#4f8ee8\"/><text x=\"64\" y=\"105\" text-anchor=\"middle\" dominant-baseline=\"middle\" font-family=\"Geist, Inter, Segoe UI, Arial, sans-serif\" font-size=\"17\" font-weight=\"800\" fill=\"#35c7d3\">AI</text>",
     composio: "<path d=\"m64 22 38 42-38 42-38-42z\" fill=\"#6d5dfc\" opacity=\".24\"/><path d=\"m64 22 38 42-38 42-38-42zM26 64h76M64 22l-16 42 16 42 16-42z\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"6\" stroke=\"#6d5dfc\"/><text x=\"64\" y=\"65\" text-anchor=\"middle\" dominant-baseline=\"middle\" font-family=\"Geist, Inter, Segoe UI, Arial, sans-serif\" font-size=\"19\" font-weight=\"800\" fill=\"#35c7d3\">C</text>",
+    manus: "<circle cx=\"64\" cy=\"64\" r=\"38\" fill=\"#1f2937\"/><path d=\"M39 88V40l25 25 25-25v48\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"7\" stroke=\"#35c7d3\"/><circle cx=\"64\" cy=\"64\" r=\"7\" fill=\"#9b7cf0\"/>",
     huggingface: "<circle cx=\"64\" cy=\"64\" r=\"38\" fill=\"#ffd21e\"/><circle cx=\"51\" cy=\"57\" r=\"5\" fill=\"#111827\"/><circle cx=\"77\" cy=\"57\" r=\"5\" fill=\"#111827\"/><path d=\"M48 76c9 9 23 9 32 0\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"6\" stroke=\"#111827\" stroke-width=\"5\"/><text x=\"64\" y=\"95\" text-anchor=\"middle\" dominant-baseline=\"middle\" font-family=\"Geist, Inter, Segoe UI, Arial, sans-serif\" font-size=\"17\" font-weight=\"800\" fill=\"#111827\">HF</text>",
     evomap: "<path d=\"M26 36 52 26l24 10 26-10v66l-26 10-24-10-26 10z\" fill=\"#6fca8f\" opacity=\".18\"/><path d=\"M52 26v66M76 36v66M38 78c16-28 37-31 52-11\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"6\" stroke=\"#6fca8f\"/>",
     mcp: "<path d=\"M48 29v24M80 29v24M42 53h44v15c0 12-10 22-22 22S42 80 42 68zM64 90v14\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"6\" stroke=\"#9b7cf0\"/><path d=\"M48 68h32\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"6\" stroke=\"#35c7d3\"/><text x=\"64\" y=\"64\" text-anchor=\"middle\" dominant-baseline=\"middle\" font-family=\"Geist, Inter, Segoe UI, Arial, sans-serif\" font-size=\"18\" font-weight=\"800\" fill=\"#35c7d3\">M</text>",
@@ -2667,6 +2670,7 @@ const SECTION_MODULES = {
     google_workspace: { m: 'google_workspace', fn: 'renderGoogleWorkspaceSection' },
     ai_gateway: { m: 'ai_gateway', fn: 'renderAIGatewaySection' },
     composio: { m: 'composio', fn: 'renderComposioSection' },
+    manus: { m: 'manus', fn: 'renderManusSection' },
     huggingface: { m: 'huggingface', fn: 'renderHuggingFaceSection' },
     evomap: { m: 'evomap', fn: 'renderEvomapSection' },
     cloudflare_tunnel: { m: 'cloudflare_tunnel', fn: 'renderCloudflareTunnelSection' },

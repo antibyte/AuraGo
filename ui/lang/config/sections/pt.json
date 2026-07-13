@@ -508,6 +508,8 @@
   "config.section.rules.desc": "Gerir diretrizes do agente por tarefa",
   "config.section.composio.label": "Composio",
   "config.section.composio.desc": "Catalogo externo de integracoes e fonte de ferramentas para o agente",
+  "config.section.manus.label": "Manus",
+  "config.section.manus.desc": "Tarefas assíncronas do Manus com permissões locais rigorosas",
   "config.section.virtual_desktop.label": "Desktop virtual",
   "config.section.virtual_desktop.desc": "Desktop no navegador com apps, arquivos e widgets controlados pelo agente.",
   "config.github.test_btn": "Testar conexão",

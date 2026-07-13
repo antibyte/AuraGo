@@ -508,6 +508,8 @@
   "config.section.rules.desc": "Gérer les garde-fous de l agent par tâche",
   "config.section.composio.label": "Composio",
   "config.section.composio.desc": "Catalogue externe d integrations et source d outils pour l agent",
+  "config.section.manus.label": "Manus",
+  "config.section.manus.desc": "Tâches Manus asynchrones avec des autorisations locales strictes",
   "config.section.virtual_desktop.label": "Bureau virtuel",
   "config.section.virtual_desktop.desc": "Bureau dans le navigateur avec apps, fichiers et widgets contrôlés par l'agent.",
   "config.github.test_btn": "Tester la connexion",

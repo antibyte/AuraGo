@@ -508,6 +508,8 @@
   "config.section.rules.desc": "Spravovat úkolová pravidla agenta",
   "config.section.composio.label": "Composio",
   "config.section.composio.desc": "Externi katalog integraci a zdroj nastroju pro agenta",
+  "config.section.manus.label": "Manus",
+  "config.section.manus.desc": "Asynchronní úlohy Manus s přísnými místními oprávněními",
   "config.section.virtual_desktop.label": "Virtuální plocha",
   "config.section.virtual_desktop.desc": "Pracovní plocha v prohlížeči s aplikacemi, soubory a widgety řízenými agentem.",
   "config.github.test_btn": "Otestovat připojení",

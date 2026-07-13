@@ -508,6 +508,8 @@
   "config.section.rules.desc": "Διαχείριση κανόνων πράκτορα ανά εργασία",
   "config.section.composio.label": "Composio",
   "config.section.composio.desc": "Eksoterikos katalogos ensomatoseon kai pege ergaleion gia ton agent",
+  "config.section.manus.label": "Manus",
+  "config.section.manus.desc": "Ασύγχρονες εργασίες Manus με αυστηρά τοπικά δικαιώματα",
   "config.section.virtual_desktop.label": "Εικονική επιφάνεια εργασίας",
   "config.section.virtual_desktop.desc": "Επιφάνεια εργασίας στο πρόγραμμα περιήγησης με εφαρμογές, αρχεία και widget που ελέγχει ο agent.",
   "config.github.test_btn": "Δοκιμή σύνδεσης",

@@ -9,6 +9,7 @@
         'a2a-test-btn': { requiredPaths: ['a2a.server.agent_name'] },
         'ba-test-btn': { requiredPaths: ['browser_automation.url'] },
         'composio-test-btn': { credentialPaths: ['composio.api_key'] },
+        'manus-test-btn': { credentialPaths: ['manus.api_key'] },
         'dc-test-btn': { requiredPaths: ['tools.document_creator.gotenberg.url'] },
         'dograh-test-btn': { requiredPaths: ['dograh.mode'] },
         'ea-test-btn': { requiredSelectors: ['#ea-imap-host', '#ea-smtp-host', '#ea-username'] },

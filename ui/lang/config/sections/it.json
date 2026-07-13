@@ -508,6 +508,8 @@
   "config.section.rules.desc": "Gestisci le linee guida agent per attività",
   "config.section.composio.label": "Composio",
   "config.section.composio.desc": "Catalogo esterno di integrazioni e fonte di strumenti per l agente",
+  "config.section.manus.label": "Manus",
+  "config.section.manus.desc": "Attività Manus asincrone con autorizzazioni locali rigorose",
   "config.section.virtual_desktop.label": "Desktop virtuale",
   "config.section.virtual_desktop.desc": "Desktop nel browser con app, file e widget controllati dall'agente.",
   "config.github.test_btn": "Testa connessione",
