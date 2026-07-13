@@ -96,7 +96,7 @@ vite.write_text(text)
 AURAGO_BORING_WEB_OVERLAY
 
 install -d -m0755 apps/web/static
-printf '%%s\n' "${BORING_WEB_REVISION}" > apps/web/static/.aurago-revision
+printf '%%s\n' "${BORING_WEB_REVISION}" > apps/web/static/aurago-revision
 "${NODE_BIN}/npm" ci --include=dev
 PUBLIC_BORING_URL= "${NODE_BIN}/npm" run build -w web
 mv "${STAGING_DIR}" "${RELEASE_DIR}"

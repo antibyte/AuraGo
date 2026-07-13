@@ -174,7 +174,7 @@ func TestDefaultVirtualComputersAutoSetupNeededChecksPinnedRevision(t *testing.T
 		switch r.URL.Path {
 		case "/healthz", virtualcomputers.ManagementBasePath + "/":
 			w.WriteHeader(http.StatusOK)
-		case virtualcomputers.ManagementBasePath + "/.aurago-revision":
+		case virtualcomputers.ManagementBasePath + "/aurago-revision":
 			_, _ = w.Write([]byte(revision))
 		default:
 			http.NotFound(w, r)

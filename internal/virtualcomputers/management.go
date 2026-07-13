@@ -8,7 +8,7 @@ const (
 	ManagementURL          = "http://" + ManagementListenAddr
 	PinnedUpstreamRevision = "9752ac7e4d902e425ab0f4047a975ea5bfba7579"
 	managementHealthPath   = ManagementBasePath + "/"
-	managementRevisionPath = ManagementBasePath + "/.aurago-revision"
+	managementRevisionPath = ManagementBasePath + "/aurago-revision"
 )
 
 // ManagementHealthURL returns the upstream management page used for health checks.
