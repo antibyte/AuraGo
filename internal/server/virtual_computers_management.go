@@ -93,10 +93,11 @@ func handleVirtualComputersManagementRedirect(s *Server) http.HandlerFunc {
 			http.NotFound(w, r)
 			return
 		}
-		if !requireDesktopPermission(s, w, r, desktopMethodScope(r.Method)) {
+		scope := virtualComputersManagementRequestScope(r)
+		if !requireDesktopPermission(s, w, r, scope) {
 			return
 		}
-		if cfg.ReadOnly && desktopMethodScope(r.Method) == desktopScopeWrite {
+		if cfg.ReadOnly && scope == desktopScopeWrite {
 			jsonError(w, "Virtual computers are configured as read-only", http.StatusForbidden)
 			return
 		}
@@ -111,10 +112,11 @@ func handleVirtualComputersManagement(s *Server) http.HandlerFunc {
 			http.NotFound(w, r)
 			return
 		}
-		if !requireDesktopPermission(s, w, r, desktopMethodScope(r.Method)) {
+		scope := virtualComputersManagementRequestScope(r)
+		if !requireDesktopPermission(s, w, r, scope) {
 			return
 		}
-		if cfg.ReadOnly && desktopMethodScope(r.Method) == desktopScopeWrite {
+		if cfg.ReadOnly && scope == desktopScopeWrite {
 			jsonError(w, "Virtual computers are configured as read-only", http.StatusForbidden)
 			return
 		}
@@ -147,6 +149,16 @@ func handleVirtualComputersManagement(s *Server) http.HandlerFunc {
 		}
 		proxy.ServeHTTP(w, r)
 	}
+}
+
+func virtualComputersManagementRequestScope(r *http.Request) string {
+	if r != nil && strings.EqualFold(strings.TrimSpace(r.Header.Get("Upgrade")), "websocket") {
+		return desktopScopeWrite
+	}
+	if r == nil {
+		return desktopScopeRead
+	}
+	return desktopMethodScope(r.Method)
 }
 
 func virtualComputersManagementHealthy(s *Server, cfg virtualcomputers.ToolConfig) bool {

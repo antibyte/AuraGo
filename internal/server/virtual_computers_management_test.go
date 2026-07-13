@@ -89,6 +89,38 @@ func TestVirtualComputersManagementProxyRejectsReadTokenMutation(t *testing.T) {
 	}
 }
 
+func TestVirtualComputersManagementProxyRejectsReadTokenWebSocket(t *testing.T) {
+	webSocketRequests := 0
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.EqualFold(r.Header.Get("Upgrade"), "websocket") {
+			webSocketRequests++
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer upstream.Close()
+	restore := setVirtualComputersManagementTestHooks(t, upstream.URL)
+	defer restore()
+
+	s, readToken, _ := testDesktopPermissionServer(t)
+	s.Cfg.VirtualComputers = virtualComputersTestConfig(upstream.URL).VirtualComputers
+	s.Cfg.VirtualComputers.ControlPlane.Mode = virtualcomputers.ControlPlaneLocalHost
+	mux := http.NewServeMux()
+	registerVirtualComputersRoutes(mux, s)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, virtualcomputers.ManagementBasePath+"/socket", nil)
+	req.Header.Set("Authorization", "Bearer "+readToken)
+	req.Header.Set("Connection", "Upgrade")
+	req.Header.Set("Upgrade", "websocket")
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("read-token websocket status = %d body=%s", rec.Code, rec.Body.String())
+	}
+	if webSocketRequests != 0 {
+		t.Fatalf("upstream received %d websocket requests", webSocketRequests)
+	}
+}
+
 func TestVirtualComputersManagementProxyHonorsReadOnly(t *testing.T) {
 	mutations := 0
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
