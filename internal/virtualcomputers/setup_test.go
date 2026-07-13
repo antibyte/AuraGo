@@ -17,6 +17,16 @@ type fakeSSHExecutor struct {
 	scripts []string
 }
 
+type failingSetupExecutor struct{}
+
+func (failingSetupExecutor) Run(context.Context, string) (string, error) {
+	return "HOST_OS=linux\nARCH=amd64\nHAS_KVM=1\nOS_ID=ubuntu\nRUNNING_IN_DOCKER=0\nHAS_SYSTEMD=1\nHAS_SUDO_OR_ROOT=1\n", nil
+}
+
+func (failingSetupExecutor) RunScript(context.Context, string) (string, error) {
+	return "[aurago-boring-setup] cloning source\nfatal: clone failed\nBORING_TOKEN=super-secret", errors.New("exit status 128")
+}
+
 func (f *fakeSSHExecutor) Run(ctx context.Context, command string) (string, error) {
 	f.runs = append(f.runs, command)
 	return f.output, f.err
@@ -183,6 +193,27 @@ func TestSetupManagerRedactsSudoPassword(t *testing.T) {
 	log := manager.RedactInstallLog("sudo failed for vault-sudo-secret")
 	if strings.Contains(log, "vault-sudo-secret") {
 		t.Fatalf("redacted log leaked sudo password: %s", log)
+	}
+}
+
+func TestSetupInstallErrorIncludesRedactedScriptOutput(t *testing.T) {
+	manager := SetupManager{Executor: failingSetupExecutor{}, Token: "super-secret"}
+	status, err := manager.Install(context.Background())
+	if err == nil {
+		t.Fatal("expected setup failure")
+	}
+	for _, want := range []string{"cloning source", "fatal: clone failed", "exit status 128"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("error %q missing %q", err, want)
+		}
+	}
+	for _, want := range []string{"cloning source", "fatal: clone failed", "<redacted>"} {
+		if !strings.Contains(status.Message, want) {
+			t.Fatalf("status message %q missing %q", status.Message, want)
+		}
+	}
+	if strings.Contains(err.Error(), "super-secret") || strings.Contains(status.Message, "super-secret") {
+		t.Fatalf("setup failure leaked token: err=%q status=%q", err, status.Message)
 	}
 }
 

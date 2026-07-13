@@ -109,11 +109,16 @@ func (m SetupManager) Install(ctx context.Context) (SetupStatus, error) {
 	}
 	out, err := m.runInstall(ctx)
 	if err != nil {
-		msg := strings.TrimSpace(m.RedactInstallLog(out))
+		detail := strings.TrimSpace(m.RedactInstallLog(out))
+		msg := detail
 		if msg == "" {
 			msg = m.RedactInstallLog(err.Error())
 		}
-		return SetupStatus{Configured: false, Healthy: false, Message: msg, Preflight: preflight}, fmt.Errorf("boring computers install failed: %w", err)
+		installErr := fmt.Errorf("boring computers install failed: %w", err)
+		if detail != "" {
+			installErr = fmt.Errorf("boring computers install failed: %s: %w", detail, err)
+		}
+		return SetupStatus{Configured: false, Healthy: false, Message: msg, Preflight: preflight}, installErr
 	}
 	healthURL := boringdHealthURL(m.InstallOptions.BoringdURL)
 	health, err := m.Executor.Run(ctx, "curl -fsS --max-time 8 "+shellQuote(healthURL))
