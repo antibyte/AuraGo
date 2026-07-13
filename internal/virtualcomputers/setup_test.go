@@ -98,20 +98,26 @@ func TestSetupInstallRunsScriptAndHealthCheck(t *testing.T) {
 	if !status.Configured || !status.Healthy {
 		t.Fatalf("status = %+v", status)
 	}
+	if !status.ControlPlane.Healthy || !status.Management.Healthy {
+		t.Fatalf("component status = %+v", status)
+	}
 	if len(executor.scripts) != 1 {
 		t.Fatalf("expected one install script, got %d", len(executor.scripts))
 	}
 	script := executor.scripts[0]
-	for _, want := range []string{"BORING_ADDR_VALUE='127.0.0.1:18080'", "BORING_ADDR=${BORING_ADDR_VALUE}", "BORING_MAX_VALUE=3", "BORING_MAX_FORKS_VALUE=2", "SKIP_DESKTOP_VALUE=1"} {
+	for _, want := range []string{"BORING_ADDR_VALUE='127.0.0.1:18080'", "BORING_ADDR=${BORING_ADDR_VALUE}", "BORING_MAX_VALUE=3", "BORING_MAX_FORKS_VALUE=2", "SKIP_DESKTOP_VALUE=1", PinnedUpstreamRevision, "boring-web.service"} {
 		if !strings.Contains(script, want) {
 			t.Fatalf("install script missing %q", want)
 		}
 	}
-	if len(executor.runs) != 2 {
-		t.Fatalf("expected preflight and healthcheck commands, got %d", len(executor.runs))
+	if len(executor.runs) != 3 {
+		t.Fatalf("expected preflight and two component healthcheck commands, got %d", len(executor.runs))
 	}
 	if !strings.Contains(executor.runs[1], "healthz") {
 		t.Fatalf("healthcheck command not run: %v", executor.runs)
+	}
+	if !strings.Contains(executor.runs[2], "/boring-computers/") {
+		t.Fatalf("management healthcheck command not run: %v", executor.runs)
 	}
 }
 
@@ -137,8 +143,8 @@ func TestSetupInstallUsesConfiguredBoringdURL(t *testing.T) {
 			t.Fatalf("install script missing %q", want)
 		}
 	}
-	if len(executor.runs) != 2 {
-		t.Fatalf("expected preflight and healthcheck commands, got %d", len(executor.runs))
+	if len(executor.runs) != 3 {
+		t.Fatalf("expected preflight and two component healthcheck commands, got %d", len(executor.runs))
 	}
 	if !strings.Contains(executor.runs[1], "http://127.0.0.1:18080/healthz") {
 		t.Fatalf("healthcheck command uses wrong URL: %v", executor.runs)

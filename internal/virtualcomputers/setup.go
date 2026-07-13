@@ -112,23 +112,39 @@ func (m SetupManager) Install(ctx context.Context) (SetupStatus, error) {
 		if msg == "" {
 			msg = m.RedactInstallLog(err.Error())
 		}
-		return SetupStatus{Configured: false, Healthy: false, Message: msg, Preflight: preflight}, fmt.Errorf("boringd install failed: %w", err)
+		return SetupStatus{Configured: false, Healthy: false, Message: msg, Preflight: preflight}, fmt.Errorf("boring computers install failed: %w", err)
 	}
 	healthURL := boringdHealthURL(m.InstallOptions.BoringdURL)
 	health, err := m.Executor.Run(ctx, "curl -fsS --max-time 8 "+shellQuote(healthURL))
 	if err != nil {
 		return SetupStatus{
-			Configured: true,
-			Healthy:    false,
-			Message:    strings.TrimSpace(m.RedactInstallLog(out + "\nhealth check failed: " + err.Error())),
-			Preflight:  preflight,
+			Configured:   true,
+			Healthy:      false,
+			Message:      strings.TrimSpace(m.RedactInstallLog(out + "\ncontrol-plane health check failed: " + err.Error())),
+			Preflight:    preflight,
+			ControlPlane: ComponentStatus{Configured: true, Healthy: false, Message: "boringd health check failed"},
+			Management:   ComponentStatus{Configured: true, Healthy: false, Message: "management health was not checked"},
+		}, nil
+	}
+	managementHealthURL := ManagementHealthURL(ManagementURL)
+	managementHealth, err := m.Executor.Run(ctx, "curl -fsS --max-time 8 "+shellQuote(managementHealthURL))
+	if err != nil {
+		return SetupStatus{
+			Configured:   true,
+			Healthy:      false,
+			Message:      strings.TrimSpace(m.RedactInstallLog(out + "\nmanagement health check failed: " + err.Error())),
+			Preflight:    preflight,
+			ControlPlane: ComponentStatus{Configured: true, Healthy: true},
+			Management:   ComponentStatus{Configured: true, Healthy: false, Message: "management health check failed"},
 		}, nil
 	}
 	return SetupStatus{
-		Configured: true,
-		Healthy:    true,
-		Message:    "boringd installed and healthy: " + strings.TrimSpace(health),
-		Preflight:  preflight,
+		Configured:   true,
+		Healthy:      true,
+		Message:      "boringd and management application installed and healthy: " + strings.TrimSpace(health) + " " + strings.TrimSpace(managementHealth),
+		Preflight:    preflight,
+		ControlPlane: ComponentStatus{Configured: true, Healthy: true},
+		Management:   ComponentStatus{Configured: true, Healthy: true},
 	}, nil
 }
 
@@ -181,10 +197,11 @@ func (m SetupManager) installScript() string {
 		skipDesktop = "1"
 	}
 
-	return fmt.Sprintf(`set -euo pipefail
+	script := fmt.Sprintf(`set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
 INSTALL_DIR=%s
 REPO_URL="https://github.com/michaelshimeles/boring-computers.git"
+BORING_REVISION=%s
 GO_VERSION="1.25.0"
 BORING_TOKEN_VALUE=%s
 BORING_ANTHROPIC_KEY_VALUE=%s
@@ -226,13 +243,14 @@ REPO_DIR="${INSTALL_DIR}/boring-computers"
 mkdir -p "${INSTALL_DIR}" /root/infra /opt/boring/src
 if [ -d "${REPO_DIR}/.git" ]; then
 	log "updating boring-computers source"
-	git -C "${REPO_DIR}" fetch --depth=1 origin main
-	git -C "${REPO_DIR}" reset --hard origin/main
+	git -C "${REPO_DIR}" fetch --depth=1 origin "${BORING_REVISION}"
 else
 	log "cloning boring-computers source"
 	rm -rf "${REPO_DIR}"
-	git clone --depth=1 --branch main "${REPO_URL}" "${REPO_DIR}"
+	git clone --filter=blob:none --no-checkout "${REPO_URL}" "${REPO_DIR}"
+	git -C "${REPO_DIR}" fetch --depth=1 origin "${BORING_REVISION}"
 fi
+git -C "${REPO_DIR}" checkout --detach "${BORING_REVISION}"
 
 log "copying boring-computers infra"
 cp "${REPO_DIR}"/infra/latitude/*.sh "${REPO_DIR}"/infra/latitude/*.service /root/infra/
@@ -295,7 +313,8 @@ systemctl restart boringd
 sleep 2
 systemctl is-active boringd
 curl -fsS --max-time 8 "${BORING_HEALTH_URL_VALUE}"
-`, shellQuote(installDir), shellQuote(envLine(token)), shellQuote(envLine(opts.AnthropicKey)), shellQuote(envLine(opts.OpenRouterKey)), shellQuote(envLine(opts.S3AccessKeyID)), shellQuote(envLine(opts.S3SecretKey)), shellQuote(boringdAddr), shellQuote(healthURL), maxMachines, maxForks, maxTemplates, allowPersistent, guestNet, skipDesktop)
+`, shellQuote(installDir), shellQuote(PinnedUpstreamRevision), shellQuote(envLine(token)), shellQuote(envLine(opts.AnthropicKey)), shellQuote(envLine(opts.OpenRouterKey)), shellQuote(envLine(opts.S3AccessKeyID)), shellQuote(envLine(opts.S3SecretKey)), shellQuote(boringdAddr), shellQuote(healthURL), maxMachines, maxForks, maxTemplates, allowPersistent, guestNet, skipDesktop)
+	return script + managementInstallScript(opts)
 }
 
 func boringdListenAddr(rawURL string) string {
