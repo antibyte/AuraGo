@@ -67,6 +67,7 @@ func registerVirtualComputersRoutes(mux *http.ServeMux, s *Server) {
 	mux.HandleFunc("/api/virtual-computers/volumes", handleVirtualComputersVolumes(s))
 	mux.HandleFunc("/api/virtual-computers/machines", handleVirtualComputersMachines(s))
 	mux.HandleFunc("/api/virtual-computers/machines/", handleVirtualComputersMachine(s))
+	virtualComputersTriggerAutoSetup(s, virtualComputersConfigSnapshot(s))
 }
 
 func handleVirtualComputersSetupStatus(s *Server) http.HandlerFunc {

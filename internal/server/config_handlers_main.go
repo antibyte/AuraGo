@@ -1129,6 +1129,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 		}
 		if loadErr == nil && newCfg != nil {
 			cleanupRemovedKlipperPrinterSecrets(oldCfg.ThreeDPrinters.Klipper.Printers, newCfg.ThreeDPrinters.Klipper.Printers, s.Vault, s.Logger)
+			virtualComputersAutoSetupAfterConfigChange(s, oldCfg, *newCfg)
 		}
 		if loadErr == nil && embeddingsChanged && newCfg != nil {
 			if err := WriteEmbeddingsResetMarker(newCfg, s.Logger, "config_ui_embedding_change"); err != nil {
