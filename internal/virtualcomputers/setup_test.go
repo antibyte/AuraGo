@@ -497,6 +497,7 @@ func expectedTransientSystemdScriptArgs() []string {
 		"--property=ProtectSystem=no",
 		"--property=PrivateTmp=no",
 		"--property=NoNewPrivileges=no",
+		"--setenv=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
 		"/bin/bash",
 		"-s",
 	}
