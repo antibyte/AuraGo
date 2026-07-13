@@ -267,6 +267,45 @@ func TestHandleSpaceAgentSendRequiresPost(t *testing.T) {
 	}
 }
 
+func TestHandleIntegrationWebhostsIncludesEnabledBoringComputers(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.VirtualComputers.Enabled = true
+	s := &Server{Cfg: cfg, Logger: slog.Default()}
+	req := httptest.NewRequest(http.MethodGet, "/api/integrations/webhosts", nil)
+	rec := httptest.NewRecorder()
+
+	clearWebhostsCache()
+	handleIntegrationWebhosts(s).ServeHTTP(rec, req)
+
+	var payload struct {
+		Webhosts []webhostIntegration `json:"webhosts"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+		t.Fatal(err)
+	}
+	if len(payload.Webhosts) != 1 {
+		t.Fatalf("webhosts = %#v, want one Boring Computers entry", payload.Webhosts)
+	}
+	got := payload.Webhosts[0]
+	if got.ID != "boring_computers" || got.Name != "Boring Computers" || got.URL != "/boring-computers/" {
+		t.Fatalf("unexpected Boring Computers webhost: %#v", got)
+	}
+	if got.Description == "" || got.Icon == "" || got.Status != "starting" {
+		t.Fatalf("Boring Computers webhost metadata = %#v", got)
+	}
+}
+
+func TestHandleIntegrationWebhostsOmitsDisabledBoringComputers(t *testing.T) {
+	s := &Server{Cfg: &config.Config{}, Logger: slog.Default()}
+	clearWebhostsCache()
+
+	got := integrationWebhostsForRequest(s, httptest.NewRequest(http.MethodGet, "/api/integrations/webhosts", nil))
+
+	if len(got) != 0 {
+		t.Fatalf("webhosts = %#v, want no disabled Boring Computers entry", got)
+	}
+}
+
 func TestHandleIntegrationWebhostsIncludesRunningSpaceAgentDirectURL(t *testing.T) {
 	s := &Server{Cfg: &config.Config{}, Logger: slog.Default()}
 	s.Cfg.SpaceAgent.Enabled = true

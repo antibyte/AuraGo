@@ -417,6 +417,16 @@ func integrationWebhostsForRequest(s *Server, r *http.Request) []webhostIntegrat
 
 	cfg := s.currentSpaceAgentConfig()
 	webhosts := make([]webhostIntegration, 0, 5)
+	if cfg.VirtualComputers.Enabled {
+		webhosts = append(webhosts, webhostIntegration{
+			ID:          "boring_computers",
+			Name:        "Boring Computers",
+			Description: "Managed virtual computer control center",
+			Status:      "starting",
+			URL:         "/boring-computers/",
+			Icon:        "terminal",
+		})
+	}
 
 	var mu sync.Mutex
 	var wg sync.WaitGroup
