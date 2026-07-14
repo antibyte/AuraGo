@@ -1654,5 +1654,18 @@
   "desktop.virtual_computers_screenshot": "截图",
   "desktop.virtual_computers_state_enabled": "已启用",
   "desktop.virtual_computers_state_disabled": "已禁用",
-  "desktop.app_virtual_computers": "虚拟电脑"
+  "desktop.app_virtual_computers": "虚拟电脑",
+  "desktop.virtual_computers_headless": "无显示器，无法截图",
+  "desktop.virtual_computers_task_start": "启动代理任务",
+  "desktop.virtual_computers_task_cancel": "取消任务",
+  "desktop.virtual_computers_tasks": "代理任务",
+  "desktop.virtual_computers_tasks_empty": "暂无代理任务。",
+  "desktop.virtual_computers_volumes": "卷",
+  "desktop.virtual_computers_volumes_empty": "没有已跟踪的卷。",
+  "desktop.virtual_computers_volume_create": "创建卷",
+  "desktop.virtual_computers_volume_import": "导入 ID",
+  "desktop.virtual_computers_volume_delete": "删除",
+  "desktop.virtual_computers_volume_none": "不使用卷",
+  "desktop.virtual_computers_modal_cancel_task": "取消代理任务？",
+  "desktop.virtual_computers_modal_cancel_task_desc": "连接将关闭。已经执行的操作不会回滚。"
 }

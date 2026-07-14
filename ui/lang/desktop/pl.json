@@ -1654,5 +1654,18 @@
   "desktop.virtual_computers_screenshot": "Zrzut ekranu",
   "desktop.virtual_computers_state_enabled": "Włączone",
   "desktop.virtual_computers_state_disabled": "Wyłączone",
-  "desktop.app_virtual_computers": "Komputery wirtualne"
+  "desktop.app_virtual_computers": "Komputery wirtualne",
+  "desktop.virtual_computers_headless": "Bez ekranu – zrzut niedostępny",
+  "desktop.virtual_computers_task_start": "Uruchom zadanie agenta",
+  "desktop.virtual_computers_task_cancel": "Anuluj zadanie",
+  "desktop.virtual_computers_tasks": "Zadania agentów",
+  "desktop.virtual_computers_tasks_empty": "Brak zadań agentów.",
+  "desktop.virtual_computers_volumes": "Woluminy",
+  "desktop.virtual_computers_volumes_empty": "Brak śledzonych woluminów.",
+  "desktop.virtual_computers_volume_create": "Utwórz wolumin",
+  "desktop.virtual_computers_volume_import": "Importuj ID",
+  "desktop.virtual_computers_volume_delete": "Usuń",
+  "desktop.virtual_computers_volume_none": "Bez woluminu",
+  "desktop.virtual_computers_modal_cancel_task": "Anulować zadanie agenta?",
+  "desktop.virtual_computers_modal_cancel_task_desc": "Połączenie zostanie zamknięte. Wykonane działania nie zostaną cofnięte."
 }

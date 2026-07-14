@@ -76,5 +76,22 @@
   "config.virtual_computers.sudo_password_clear": "Remove",
   "config.virtual_computers.sudo_password_clear_confirm": "Do you really want to remove the centrally stored sudo password?",
   "config.virtual_computers.sudo_password_save_failed": "Could not update the sudo password.",
-  "help.virtual_computers.sudo_password": "AuraGo reuses the central sudo password from the Vault for local installation and repair. The same password is shared with execute_sudo and package management. Leave this empty when one is already stored or passwordless sudo works."
+  "help.virtual_computers.sudo_password": "AuraGo reuses the central sudo password from the Vault for local installation and repair. The same password is shared with execute_sudo and package management. Leave this empty when one is already stored or passwordless sudo works.",
+  "config.virtual_computers.storage_title": "Volume storage",
+  "config.virtual_computers.storage_desc": "S3-compatible storage for persistent boringd volumes.",
+  "config.virtual_computers.storage_endpoint_label": "S3 endpoint",
+  "config.virtual_computers.storage_bucket_label": "S3 bucket",
+  "config.virtual_computers.storage_region_label": "S3 region",
+  "config.virtual_computers.storage_ssl_label": "Use SSL",
+  "config.virtual_computers.s3_access_key_label": "S3 access key",
+  "config.virtual_computers.s3_secret_key_label": "S3 secret key",
+  "config.virtual_computers.storage_test_button": "Test storage",
+  "config.virtual_computers.storage_test_ok": "The S3 bucket is reachable.",
+  "config.virtual_computers.storage_test_failed": "Storage test failed:",
+  "help.virtual_computers.storage_endpoint": "Host and port without a scheme, for example minio.local:9000.",
+  "help.virtual_computers.storage_bucket": "Existing bucket used for boringd volumes.",
+  "help.virtual_computers.storage_region": "Optional S3 region; blank uses us-east-1.",
+  "help.virtual_computers.storage_ssl": "Uses HTTPS for the S3 connection.",
+  "help.virtual_computers.s3_access_key": "Stores the access key only in the Vault.",
+  "help.virtual_computers.s3_secret_key": "Stores the secret key only in the Vault."
 }

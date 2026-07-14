@@ -1654,5 +1654,18 @@
   "desktop.virtual_computers_screenshot": "स्क्रीनशॉट",
   "desktop.virtual_computers_state_enabled": "सक्षम",
   "desktop.virtual_computers_state_disabled": "अक्षम",
-  "desktop.app_virtual_computers": "वर्चुअल कंप्यूटर"
+  "desktop.app_virtual_computers": "वर्चुअल कंप्यूटर",
+  "desktop.virtual_computers_headless": "डिस्प्ले नहीं है – स्क्रीनशॉट उपलब्ध नहीं",
+  "desktop.virtual_computers_task_start": "एजेंट कार्य शुरू करो",
+  "desktop.virtual_computers_task_cancel": "कार्य रद्द करो",
+  "desktop.virtual_computers_tasks": "एजेंट कार्य",
+  "desktop.virtual_computers_tasks_empty": "अभी कोई एजेंट कार्य नहीं है।",
+  "desktop.virtual_computers_volumes": "वॉल्यूम",
+  "desktop.virtual_computers_volumes_empty": "कोई ट्रैक किया वॉल्यूम नहीं।",
+  "desktop.virtual_computers_volume_create": "वॉल्यूम बनाओ",
+  "desktop.virtual_computers_volume_import": "ID आयात करो",
+  "desktop.virtual_computers_volume_delete": "हटाओ",
+  "desktop.virtual_computers_volume_none": "कोई वॉल्यूम नहीं",
+  "desktop.virtual_computers_modal_cancel_task": "एजेंट कार्य रद्द करें?",
+  "desktop.virtual_computers_modal_cancel_task_desc": "कनेक्शन बंद होगा। पहले की गई कार्रवाइयाँ वापस नहीं होंगी।"
 }

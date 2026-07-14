@@ -1654,5 +1654,18 @@
   "desktop.virtual_computers_screenshot": "Captura",
   "desktop.virtual_computers_state_enabled": "Activado",
   "desktop.virtual_computers_state_disabled": "Desactivado",
-  "desktop.app_virtual_computers": "Ordenadores virtuales"
+  "desktop.app_virtual_computers": "Ordenadores virtuales",
+  "desktop.virtual_computers_headless": "Sin pantalla: captura no disponible",
+  "desktop.virtual_computers_task_start": "Iniciar tarea de agente",
+  "desktop.virtual_computers_task_cancel": "Cancelar tarea",
+  "desktop.virtual_computers_tasks": "Tareas de agentes",
+  "desktop.virtual_computers_tasks_empty": "Aún no hay tareas de agentes.",
+  "desktop.virtual_computers_volumes": "Volúmenes",
+  "desktop.virtual_computers_volumes_empty": "No hay volúmenes registrados.",
+  "desktop.virtual_computers_volume_create": "Crear volumen",
+  "desktop.virtual_computers_volume_import": "Importar ID",
+  "desktop.virtual_computers_volume_delete": "Eliminar",
+  "desktop.virtual_computers_volume_none": "Sin volumen",
+  "desktop.virtual_computers_modal_cancel_task": "¿Cancelar la tarea del agente?",
+  "desktop.virtual_computers_modal_cancel_task_desc": "Se cerrará la conexión. Las acciones ya realizadas no se deshacen."
 }

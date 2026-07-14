@@ -1654,5 +1654,18 @@
   "desktop.virtual_computers_screenshot": "Snímek",
   "desktop.virtual_computers_state_enabled": "Zapnuto",
   "desktop.virtual_computers_state_disabled": "Vypnuto",
-  "desktop.app_virtual_computers": "Virtuální počítače"
+  "desktop.app_virtual_computers": "Virtuální počítače",
+  "desktop.virtual_computers_headless": "Bez displeje – snímek obrazovky není k dispozici",
+  "desktop.virtual_computers_task_start": "Spustit úlohu agenta",
+  "desktop.virtual_computers_task_cancel": "Zrušit úlohu",
+  "desktop.virtual_computers_tasks": "Úlohy agentů",
+  "desktop.virtual_computers_tasks_empty": "Zatím žádné úlohy agentů.",
+  "desktop.virtual_computers_volumes": "Svazky",
+  "desktop.virtual_computers_volumes_empty": "Žádné sledované svazky.",
+  "desktop.virtual_computers_volume_create": "Vytvořit svazek",
+  "desktop.virtual_computers_volume_import": "Importovat ID",
+  "desktop.virtual_computers_volume_delete": "Smazat",
+  "desktop.virtual_computers_volume_none": "Bez svazku",
+  "desktop.virtual_computers_modal_cancel_task": "Zrušit úlohu agenta?",
+  "desktop.virtual_computers_modal_cancel_task_desc": "Připojení se zavře. Již provedené akce se nevrátí zpět."
 }

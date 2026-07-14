@@ -922,7 +922,7 @@ virtual_computers:
     enabled: false                                         # enable Virtual Computers UI/API; boringd stays private behind AuraGo
     provider: boring_computers                             # v1 provider
     auto_setup: false                                      # allow AuraGo to install/update boring-computers locally or over SSH
-    readonly: false                                        # true = status/list/get/screenshot/download only
+    readonly: false                                        # true = read status/inventory/history only; blocks all mutations and new/canceled agent tasks
     control_plane:
         mode: ssh_host                                     # ssh_host or local_host; local_host requires AuraGo on Ubuntu/Linux with /dev/kvm and systemd
         host: ""                                           # SSH host used by setup wizard; ignored for local_host
@@ -940,6 +940,11 @@ virtual_computers:
     allow_publish: false
     allow_volumes: false
     allow_agent_tasks: false
+    storage:
+        endpoint: ""                                       # S3-compatible host:port without a URL scheme
+        bucket: boring-volumes
+        region: ""                                         # optional; blank uses us-east-1 for the read-only connection test
+        use_ssl: true
     # Vault-only fields saved via UI, never config.yaml:
     # boring_token: optional; AuraGo auto-generates this for managed setup. For an existing boringd, it must match BORING_TOKEN.
     # ssh_secret: optional SSH secret material

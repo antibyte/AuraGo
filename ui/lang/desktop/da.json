@@ -1654,5 +1654,18 @@
   "desktop.virtual_computers_screenshot": "Skærmbillede",
   "desktop.virtual_computers_state_enabled": "Aktiveret",
   "desktop.virtual_computers_state_disabled": "Deaktiveret",
-  "desktop.app_virtual_computers": "Virtuelle computere"
+  "desktop.app_virtual_computers": "Virtuelle computere",
+  "desktop.virtual_computers_headless": "Uden skærm – skærmbillede er ikke tilgængeligt",
+  "desktop.virtual_computers_task_start": "Start agentopgave",
+  "desktop.virtual_computers_task_cancel": "Annuller opgave",
+  "desktop.virtual_computers_tasks": "Agentopgaver",
+  "desktop.virtual_computers_tasks_empty": "Ingen agentopgaver endnu.",
+  "desktop.virtual_computers_volumes": "Diskenheder",
+  "desktop.virtual_computers_volumes_empty": "Ingen sporede diskenheder.",
+  "desktop.virtual_computers_volume_create": "Opret diskenhed",
+  "desktop.virtual_computers_volume_import": "Importér ID",
+  "desktop.virtual_computers_volume_delete": "Slet",
+  "desktop.virtual_computers_volume_none": "Ingen diskenhed",
+  "desktop.virtual_computers_modal_cancel_task": "Annuller agentopgaven?",
+  "desktop.virtual_computers_modal_cancel_task_desc": "Forbindelsen lukkes. Allerede udførte handlinger rulles ikke tilbage."
 }

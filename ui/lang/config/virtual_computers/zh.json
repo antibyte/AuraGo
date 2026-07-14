@@ -76,5 +76,22 @@
   "config.virtual_computers.sudo_password_clear": "移除",
   "config.virtual_computers.sudo_password_clear_confirm": "确定要移除集中存储的 sudo 密码吗？",
   "config.virtual_computers.sudo_password_save_failed": "无法更新 sudo 密码。",
-  "help.virtual_computers.sudo_password": "AuraGo 会重复使用 Vault 中的中央 sudo 密码进行本地安装和修复。同一密码也由 execute_sudo 和软件包管理共享。如果已存储密码或免密码 sudo 可用，请留空。"
+  "help.virtual_computers.sudo_password": "AuraGo 会重复使用 Vault 中的中央 sudo 密码进行本地安装和修复。同一密码也由 execute_sudo 和软件包管理共享。如果已存储密码或免密码 sudo 可用，请留空。",
+  "config.virtual_computers.storage_title": "卷存储",
+  "config.virtual_computers.storage_desc": "用于 boringd 持久卷的 S3 兼容存储。",
+  "config.virtual_computers.storage_endpoint_label": "S3 端点",
+  "config.virtual_computers.storage_bucket_label": "S3 存储桶",
+  "config.virtual_computers.storage_region_label": "S3 区域",
+  "config.virtual_computers.storage_ssl_label": "使用 SSL",
+  "config.virtual_computers.s3_access_key_label": "S3 访问密钥",
+  "config.virtual_computers.s3_secret_key_label": "S3 私密密钥",
+  "config.virtual_computers.storage_test_button": "测试存储",
+  "config.virtual_computers.storage_test_ok": "S3 存储桶可访问。",
+  "config.virtual_computers.storage_test_failed": "存储测试失败：",
+  "help.virtual_computers.storage_endpoint": "不带协议的主机和端口，例如 minio.local:9000。",
+  "help.virtual_computers.storage_bucket": "用于 boringd 卷的现有存储桶。",
+  "help.virtual_computers.storage_region": "可选 S3 区域；留空时使用 us-east-1。",
+  "help.virtual_computers.storage_ssl": "S3 连接使用 HTTPS。",
+  "help.virtual_computers.s3_access_key": "访问密钥仅存入 Vault。",
+  "help.virtual_computers.s3_secret_key": "私密密钥仅存入 Vault。"
 }

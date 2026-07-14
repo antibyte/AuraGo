@@ -1654,5 +1654,18 @@
   "desktop.virtual_computers_screenshot": "Screenshot",
   "desktop.virtual_computers_state_enabled": "Enabled",
   "desktop.virtual_computers_state_disabled": "Disabled",
-  "desktop.app_virtual_computers": "Virtual Computers"
+  "desktop.app_virtual_computers": "Virtual Computers",
+  "desktop.virtual_computers_headless": "Headless – screenshot unavailable",
+  "desktop.virtual_computers_task_start": "Start agent task",
+  "desktop.virtual_computers_task_cancel": "Cancel task",
+  "desktop.virtual_computers_tasks": "Agent tasks",
+  "desktop.virtual_computers_tasks_empty": "No agent tasks yet.",
+  "desktop.virtual_computers_volumes": "Volumes",
+  "desktop.virtual_computers_volumes_empty": "No tracked volumes.",
+  "desktop.virtual_computers_volume_create": "Create volume",
+  "desktop.virtual_computers_volume_import": "Import ID",
+  "desktop.virtual_computers_volume_delete": "Delete",
+  "desktop.virtual_computers_volume_none": "No volume",
+  "desktop.virtual_computers_modal_cancel_task": "Cancel agent task?",
+  "desktop.virtual_computers_modal_cancel_task_desc": "The connection will close. Actions already performed are not rolled back."
 }

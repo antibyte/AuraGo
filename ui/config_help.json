@@ -1148,6 +1148,26 @@
     "allow_agent_tasks": {
       "title": "Allow Agent Tasks",
       "description": "Allows the agent to use boringd task channels for shell or desktop tasks."
+    },
+    "storage": {
+      "title": "Volume Storage",
+      "description": "S3-compatible storage used by boringd for persistent volumes. The endpoint, bucket, region, and SSL mode are non-secret configuration; credentials remain Vault-only."
+    },
+    "storage.endpoint": {
+      "title": "S3 Endpoint",
+      "description": "S3-compatible host and port without a scheme, for example minio.local:9000."
+    },
+    "storage.bucket": {
+      "title": "S3 Bucket",
+      "description": "Existing bucket used for boringd volumes. AuraGo's connection test never creates objects or buckets."
+    },
+    "storage.region": {
+      "title": "S3 Region",
+      "description": "Optional S3 region. The read-only connection test uses us-east-1 when blank."
+    },
+    "storage.use_ssl": {
+      "title": "Use SSL",
+      "description": "Use HTTPS for the S3 connection."
     }
   },
   "heartbeat": {

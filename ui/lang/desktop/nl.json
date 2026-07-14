@@ -1654,5 +1654,18 @@
   "desktop.virtual_computers_screenshot": "Screenshot",
   "desktop.virtual_computers_state_enabled": "Ingeschakeld",
   "desktop.virtual_computers_state_disabled": "Uitgeschakeld",
-  "desktop.app_virtual_computers": "Virtuele computers"
+  "desktop.app_virtual_computers": "Virtuele computers",
+  "desktop.virtual_computers_headless": "Zonder scherm – schermafbeelding niet beschikbaar",
+  "desktop.virtual_computers_task_start": "Agenttaak starten",
+  "desktop.virtual_computers_task_cancel": "Taak annuleren",
+  "desktop.virtual_computers_tasks": "Agenttaken",
+  "desktop.virtual_computers_tasks_empty": "Nog geen agenttaken.",
+  "desktop.virtual_computers_volumes": "Volumes",
+  "desktop.virtual_computers_volumes_empty": "Geen gevolgde volumes.",
+  "desktop.virtual_computers_volume_create": "Volume maken",
+  "desktop.virtual_computers_volume_import": "ID importeren",
+  "desktop.virtual_computers_volume_delete": "Verwijderen",
+  "desktop.virtual_computers_volume_none": "Geen volume",
+  "desktop.virtual_computers_modal_cancel_task": "Agenttaak annuleren?",
+  "desktop.virtual_computers_modal_cancel_task_desc": "De verbinding wordt gesloten. Reeds uitgevoerde acties worden niet teruggedraaid."
 }

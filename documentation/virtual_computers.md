@@ -61,3 +61,33 @@ If `/boring-computers/` returns `503`:
 4. Check AuraGo's structured server log for the detailed setup or tunnel error. Browser responses intentionally contain only a safe summary.
 
 Never solve a `503` by opening either loopback port, copying the Vault token into browser configuration, or setting `PUBLIC_BORING_URL` to the private control plane.
+
+## Machines, screenshots, and files
+
+AuraGo follows the pinned boringd API contract. Desktop screenshots are read as bounded `image/png` data and exposed as `{mime_type,data_base64}`. The UI offers screenshots only for machines reporting `display=true`; a direct request for a headless machine returns `capability_unavailable`. Uploads accept a filename, send only its safe basename, and report the actual `/root/<filename>` destination. File operations on a disconnected machine return `machine_not_connected`.
+
+Publishing requires a template name. Forking uses `count`; command execution accepts one complete command string rather than a separate argument array. Persistent machines may return an empty expiry timestamp, which AuraGo treats as no expiry.
+
+## Persistent agent tasks
+
+Shell and desktop agent tasks use boringd's authenticated WebSocket channels with a URL-encoded `goal`. Starting a task returns its ID immediately. AuraGo stores task state and ordered `say`, `action`, `preview`, `done`, and `error` events in `virtual_computers.db`. At restart, unfinished tasks become `interrupted` and are not retried. Canceling closes the task context without rolling back already executed actions. Native-tool output wraps event text as untrusted external data.
+
+The REST API provides `GET|POST /api/virtual-computers/tasks` and `GET|DELETE /api/virtual-computers/tasks/{id}`. Read-only mode keeps task history readable but blocks starting and canceling tasks.
+
+## Volume storage
+
+boringd intentionally has no global volume discovery endpoint. AuraGo keeps a local ledger of known unguessable volume IDs, verifies them with `GET /v1/volumes/{id}`, removes confirmed missing entries, and marks temporarily unreachable entries stale. `GET /api/virtual-computers/volumes/{id}` imports a known ID. Creation uses a TTL, save attaches a machine snapshot to a selected volume, and launch accepts at most one `volume_id`.
+
+Managed volume storage uses:
+
+```yaml
+virtual_computers:
+  allow_volumes: true
+  storage:
+    endpoint: minio.local:9000
+    bucket: boring-volumes
+    region: ""
+    use_ssl: true
+```
+
+Store the S3 access and secret keys through the Virtual Computers Vault fields. AuraGo writes the corresponding `BORING_S3_*` environment values during managed setup and never serializes credentials into `config.yaml`. The Storage Test performs an authenticated, read-only bucket HEAD request and does not create buckets or objects.

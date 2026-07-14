@@ -1,4 +1,5 @@
 .vc-app {
+    position: relative;
     display: flex;
     flex-direction: column;
     height: 100%;
@@ -49,7 +50,10 @@
 }
 
 .vc-launch select,
-.vc-launch input {
+.vc-launch input,
+.vc-ledger input,
+.vc-modal select,
+.vc-modal textarea {
     min-height: 34px;
     border: 1px solid rgba(255,255,255,0.16);
     border-radius: 6px;
@@ -57,6 +61,75 @@
     color: inherit;
     padding: 0 10px;
 }
+
+.vc-detail-stack {
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    display: grid;
+    align-content: start;
+    gap: 14px;
+}
+
+.vc-capability-note {
+    color: var(--vd-muted, #aab4c2);
+    font-size: 12px;
+    max-width: 180px;
+}
+
+.vc-ledger {
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    padding: 12px;
+    background: rgba(255,255,255,0.025);
+}
+
+.vc-ledger h3 {
+    margin: 0 0 10px;
+    font-size: 14px;
+}
+
+.vc-ledger-row,
+.vc-ledger-controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 7px 0;
+}
+
+.vc-ledger-controls {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+}
+
+.vc-empty.compact { padding: 10px 0; }
+
+.vc-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    display: grid;
+    place-items: center;
+    padding: 20px;
+    background: rgba(2, 6, 12, 0.72);
+}
+
+.vc-modal {
+    width: min(440px, 100%);
+    display: grid;
+    gap: 12px;
+    padding: 18px;
+    border: 1px solid rgba(255,255,255,0.16);
+    border-radius: 10px;
+    background: var(--vd-panel, #151b24);
+    box-shadow: 0 18px 60px rgba(0,0,0,0.4);
+}
+
+.vc-modal h3,
+.vc-modal p { margin: 0; }
+.vc-modal textarea { min-height: 110px; padding: 10px; resize: vertical; }
+.vc-modal .vc-actions { justify-content: flex-end; }
 
 .vc-layout {
     display: grid;

@@ -76,5 +76,22 @@
   "config.virtual_computers.sudo_password_clear": "Rimuovi",
   "config.virtual_computers.sudo_password_clear_confirm": "Vuoi davvero rimuovere la password sudo salvata centralmente?",
   "config.virtual_computers.sudo_password_save_failed": "Impossibile aggiornare la password sudo.",
-  "help.virtual_computers.sudo_password": "AuraGo riutilizza la password sudo centrale del Vault per l’installazione e la riparazione locali. La stessa password è condivisa con execute_sudo e la gestione dei pacchetti. Lascia vuoto se è già salvata o se sudo senza password funziona."
+  "help.virtual_computers.sudo_password": "AuraGo riutilizza la password sudo centrale del Vault per l’installazione e la riparazione locali. La stessa password è condivisa con execute_sudo e la gestione dei pacchetti. Lascia vuoto se è già salvata o se sudo senza password funziona.",
+  "config.virtual_computers.storage_title": "Archiviazione volumi",
+  "config.virtual_computers.storage_desc": "Archiviazione compatibile S3 per i volumi persistenti di boringd.",
+  "config.virtual_computers.storage_endpoint_label": "Endpoint S3",
+  "config.virtual_computers.storage_bucket_label": "Bucket S3",
+  "config.virtual_computers.storage_region_label": "Regione S3",
+  "config.virtual_computers.storage_ssl_label": "Usa SSL",
+  "config.virtual_computers.s3_access_key_label": "Chiave di accesso S3",
+  "config.virtual_computers.s3_secret_key_label": "Chiave segreta S3",
+  "config.virtual_computers.storage_test_button": "Verifica archiviazione",
+  "config.virtual_computers.storage_test_ok": "Il bucket S3 è raggiungibile.",
+  "config.virtual_computers.storage_test_failed": "Verifica archiviazione non riuscita:",
+  "help.virtual_computers.storage_endpoint": "Host e porta senza schema, ad esempio minio.local:9000.",
+  "help.virtual_computers.storage_bucket": "Bucket esistente usato per i volumi boringd.",
+  "help.virtual_computers.storage_region": "Regione S3 facoltativa; vuoto usa us-east-1.",
+  "help.virtual_computers.storage_ssl": "Usa HTTPS per la connessione S3.",
+  "help.virtual_computers.s3_access_key": "Salva la chiave di accesso solo nel Vault.",
+  "help.virtual_computers.s3_secret_key": "Salva la chiave segreta solo nel Vault."
 }

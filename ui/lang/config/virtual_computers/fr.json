@@ -76,5 +76,22 @@
   "config.virtual_computers.sudo_password_clear": "Supprimer",
   "config.virtual_computers.sudo_password_clear_confirm": "Veux-tu vraiment supprimer le mot de passe sudo enregistré de manière centrale ?",
   "config.virtual_computers.sudo_password_save_failed": "Impossible de mettre à jour le mot de passe sudo.",
-  "help.virtual_computers.sudo_password": "AuraGo réutilise le mot de passe sudo central du Vault pour l’installation et la réparation locales. Le même mot de passe est partagé avec execute_sudo et la gestion des paquets. Laisse ce champ vide s’il est déjà enregistré ou si sudo sans mot de passe fonctionne."
+  "help.virtual_computers.sudo_password": "AuraGo réutilise le mot de passe sudo central du Vault pour l’installation et la réparation locales. Le même mot de passe est partagé avec execute_sudo et la gestion des paquets. Laisse ce champ vide s’il est déjà enregistré ou si sudo sans mot de passe fonctionne.",
+  "config.virtual_computers.storage_title": "Stockage des volumes",
+  "config.virtual_computers.storage_desc": "Stockage compatible S3 pour les volumes persistants de boringd.",
+  "config.virtual_computers.storage_endpoint_label": "Point de terminaison S3",
+  "config.virtual_computers.storage_bucket_label": "Bucket S3",
+  "config.virtual_computers.storage_region_label": "Région S3",
+  "config.virtual_computers.storage_ssl_label": "Utiliser SSL",
+  "config.virtual_computers.s3_access_key_label": "Clé d’accès S3",
+  "config.virtual_computers.s3_secret_key_label": "Clé secrète S3",
+  "config.virtual_computers.storage_test_button": "Tester le stockage",
+  "config.virtual_computers.storage_test_ok": "Le bucket S3 est accessible.",
+  "config.virtual_computers.storage_test_failed": "Échec du test de stockage :",
+  "help.virtual_computers.storage_endpoint": "Hôte et port sans schéma, par exemple minio.local:9000.",
+  "help.virtual_computers.storage_bucket": "Bucket existant utilisé pour les volumes boringd.",
+  "help.virtual_computers.storage_region": "Région S3 facultative ; vide utilise us-east-1.",
+  "help.virtual_computers.storage_ssl": "Utilise HTTPS pour la connexion S3.",
+  "help.virtual_computers.s3_access_key": "Enregistre la clé d’accès uniquement dans le Vault.",
+  "help.virtual_computers.s3_secret_key": "Enregistre la clé secrète uniquement dans le Vault."
 }

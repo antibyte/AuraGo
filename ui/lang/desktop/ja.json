@@ -1654,5 +1654,18 @@
   "desktop.virtual_computers_screenshot": "スクリーンショット",
   "desktop.virtual_computers_state_enabled": "有効",
   "desktop.virtual_computers_state_disabled": "無効",
-  "desktop.app_virtual_computers": "仮想コンピューター"
+  "desktop.app_virtual_computers": "仮想コンピューター",
+  "desktop.virtual_computers_headless": "画面なし — スクリーンショットは利用できません",
+  "desktop.virtual_computers_task_start": "エージェントタスクを開始",
+  "desktop.virtual_computers_task_cancel": "タスクをキャンセル",
+  "desktop.virtual_computers_tasks": "エージェントタスク",
+  "desktop.virtual_computers_tasks_empty": "エージェントタスクはまだありません。",
+  "desktop.virtual_computers_volumes": "ボリューム",
+  "desktop.virtual_computers_volumes_empty": "追跡中のボリュームはありません。",
+  "desktop.virtual_computers_volume_create": "ボリュームを作成",
+  "desktop.virtual_computers_volume_import": "ID をインポート",
+  "desktop.virtual_computers_volume_delete": "削除",
+  "desktop.virtual_computers_volume_none": "ボリュームなし",
+  "desktop.virtual_computers_modal_cancel_task": "エージェントタスクをキャンセルしますか？",
+  "desktop.virtual_computers_modal_cancel_task_desc": "接続を閉じます。すでに実行された操作は元に戻りません。"
 }

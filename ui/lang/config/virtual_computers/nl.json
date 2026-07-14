@@ -76,5 +76,22 @@
   "config.virtual_computers.sudo_password_clear": "Verwijderen",
   "config.virtual_computers.sudo_password_clear_confirm": "Wil je het centraal opgeslagen sudo-wachtwoord echt verwijderen?",
   "config.virtual_computers.sudo_password_save_failed": "Het sudo-wachtwoord kon niet worden bijgewerkt.",
-  "help.virtual_computers.sudo_password": "AuraGo hergebruikt het centrale sudo-wachtwoord uit de Vault voor lokale installatie en reparatie. Hetzelfde wachtwoord wordt gedeeld met execute_sudo en pakketbeheer. Laat dit leeg als er al een is opgeslagen of sudo zonder wachtwoord werkt."
+  "help.virtual_computers.sudo_password": "AuraGo hergebruikt het centrale sudo-wachtwoord uit de Vault voor lokale installatie en reparatie. Hetzelfde wachtwoord wordt gedeeld met execute_sudo en pakketbeheer. Laat dit leeg als er al een is opgeslagen of sudo zonder wachtwoord werkt.",
+  "config.virtual_computers.storage_title": "Volumeopslag",
+  "config.virtual_computers.storage_desc": "S3-compatibele opslag voor blijvende boringd-volumes.",
+  "config.virtual_computers.storage_endpoint_label": "S3-eindpunt",
+  "config.virtual_computers.storage_bucket_label": "S3-bucket",
+  "config.virtual_computers.storage_region_label": "S3-regio",
+  "config.virtual_computers.storage_ssl_label": "SSL gebruiken",
+  "config.virtual_computers.s3_access_key_label": "S3-toegangssleutel",
+  "config.virtual_computers.s3_secret_key_label": "Geheime S3-sleutel",
+  "config.virtual_computers.storage_test_button": "Opslag testen",
+  "config.virtual_computers.storage_test_ok": "De S3-bucket is bereikbaar.",
+  "config.virtual_computers.storage_test_failed": "Opslagtest mislukt:",
+  "help.virtual_computers.storage_endpoint": "Host en poort zonder schema, bijvoorbeeld minio.local:9000.",
+  "help.virtual_computers.storage_bucket": "Bestaande bucket voor boringd-volumes.",
+  "help.virtual_computers.storage_region": "Optionele S3-regio; leeg gebruikt us-east-1.",
+  "help.virtual_computers.storage_ssl": "Gebruikt HTTPS voor de S3-verbinding.",
+  "help.virtual_computers.s3_access_key": "Slaat de toegangssleutel alleen in de Vault op.",
+  "help.virtual_computers.s3_secret_key": "Slaat de geheime sleutel alleen in de Vault op."
 }

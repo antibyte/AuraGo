@@ -1654,5 +1654,18 @@
   "desktop.virtual_computers_screenshot": "Screenshot",
   "desktop.virtual_computers_state_enabled": "Attivo",
   "desktop.virtual_computers_state_disabled": "Disattivo",
-  "desktop.app_virtual_computers": "Computer virtuali"
+  "desktop.app_virtual_computers": "Computer virtuali",
+  "desktop.virtual_computers_headless": "Senza schermo: screenshot non disponibile",
+  "desktop.virtual_computers_task_start": "Avvia attività agente",
+  "desktop.virtual_computers_task_cancel": "Annulla attività",
+  "desktop.virtual_computers_tasks": "Attività agenti",
+  "desktop.virtual_computers_tasks_empty": "Nessuna attività agente.",
+  "desktop.virtual_computers_volumes": "Volumi",
+  "desktop.virtual_computers_volumes_empty": "Nessun volume registrato.",
+  "desktop.virtual_computers_volume_create": "Crea volume",
+  "desktop.virtual_computers_volume_import": "Importa ID",
+  "desktop.virtual_computers_volume_delete": "Elimina",
+  "desktop.virtual_computers_volume_none": "Nessun volume",
+  "desktop.virtual_computers_modal_cancel_task": "Annullare l’attività dell’agente?",
+  "desktop.virtual_computers_modal_cancel_task_desc": "La connessione verrà chiusa. Le azioni già eseguite non saranno annullate."
 }

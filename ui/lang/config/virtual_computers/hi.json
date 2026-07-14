@@ -76,5 +76,22 @@
   "config.virtual_computers.sudo_password_clear": "हटाएँ",
   "config.virtual_computers.sudo_password_clear_confirm": "क्या तुम केंद्रीय रूप से संग्रहीत sudo पासवर्ड वाकई हटाना चाहते हो?",
   "config.virtual_computers.sudo_password_save_failed": "Sudo पासवर्ड अपडेट नहीं किया जा सका।",
-  "help.virtual_computers.sudo_password": "AuraGo स्थानीय इंस्टॉलेशन और मरम्मत के लिए Vault का केंद्रीय sudo पासवर्ड दोबारा उपयोग करता है। यही पासवर्ड execute_sudo और पैकेज प्रबंधन के साथ साझा होता है। यदि पासवर्ड पहले से संग्रहीत है या पासवर्ड-रहित sudo काम करता है, तो इसे खाली छोड़ो।"
+  "help.virtual_computers.sudo_password": "AuraGo स्थानीय इंस्टॉलेशन और मरम्मत के लिए Vault का केंद्रीय sudo पासवर्ड दोबारा उपयोग करता है। यही पासवर्ड execute_sudo और पैकेज प्रबंधन के साथ साझा होता है। यदि पासवर्ड पहले से संग्रहीत है या पासवर्ड-रहित sudo काम करता है, तो इसे खाली छोड़ो।",
+  "config.virtual_computers.storage_title": "वॉल्यूम स्टोरेज",
+  "config.virtual_computers.storage_desc": "स्थायी boringd वॉल्यूम के लिए S3-संगत स्टोरेज।",
+  "config.virtual_computers.storage_endpoint_label": "S3 एंडपॉइंट",
+  "config.virtual_computers.storage_bucket_label": "S3 बकेट",
+  "config.virtual_computers.storage_region_label": "S3 क्षेत्र",
+  "config.virtual_computers.storage_ssl_label": "SSL उपयोग करो",
+  "config.virtual_computers.s3_access_key_label": "S3 एक्सेस कुंजी",
+  "config.virtual_computers.s3_secret_key_label": "S3 गुप्त कुंजी",
+  "config.virtual_computers.storage_test_button": "स्टोरेज जाँचो",
+  "config.virtual_computers.storage_test_ok": "S3 बकेट उपलब्ध है।",
+  "config.virtual_computers.storage_test_failed": "स्टोरेज जाँच विफल हुई:",
+  "help.virtual_computers.storage_endpoint": "स्कीम के बिना होस्ट और पोर्ट, जैसे minio.local:9000।",
+  "help.virtual_computers.storage_bucket": "boringd वॉल्यूम के लिए मौजूदा बकेट।",
+  "help.virtual_computers.storage_region": "वैकल्पिक S3 क्षेत्र; खाली होने पर us-east-1।",
+  "help.virtual_computers.storage_ssl": "S3 कनेक्शन के लिए HTTPS उपयोग करता है।",
+  "help.virtual_computers.s3_access_key": "एक्सेस कुंजी केवल Vault में रखता है।",
+  "help.virtual_computers.s3_secret_key": "गुप्त कुंजी केवल Vault में रखता है।"
 }

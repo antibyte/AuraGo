@@ -76,5 +76,22 @@
   "config.virtual_computers.sudo_password_clear": "Ta bort",
   "config.virtual_computers.sudo_password_clear_confirm": "Vill du verkligen ta bort det centralt lagrade sudo-lösenordet?",
   "config.virtual_computers.sudo_password_save_failed": "Det gick inte att uppdatera sudo-lösenordet.",
-  "help.virtual_computers.sudo_password": "AuraGo återanvänder det centrala sudo-lösenordet från Vault för lokal installation och reparation. Samma lösenord delas med execute_sudo och pakethanteringen. Lämna tomt om ett redan är lagrat eller lösenordsfri sudo fungerar."
+  "help.virtual_computers.sudo_password": "AuraGo återanvänder det centrala sudo-lösenordet från Vault för lokal installation och reparation. Samma lösenord delas med execute_sudo och pakethanteringen. Lämna tomt om ett redan är lagrat eller lösenordsfri sudo fungerar.",
+  "config.virtual_computers.storage_title": "Volymlagring",
+  "config.virtual_computers.storage_desc": "S3-kompatibel lagring för beständiga boringd-volymer.",
+  "config.virtual_computers.storage_endpoint_label": "S3-slutpunkt",
+  "config.virtual_computers.storage_bucket_label": "S3-bucket",
+  "config.virtual_computers.storage_region_label": "S3-region",
+  "config.virtual_computers.storage_ssl_label": "Använd SSL",
+  "config.virtual_computers.s3_access_key_label": "S3-åtkomstnyckel",
+  "config.virtual_computers.s3_secret_key_label": "Hemlig S3-nyckel",
+  "config.virtual_computers.storage_test_button": "Testa lagring",
+  "config.virtual_computers.storage_test_ok": "S3-bucketen kan nås.",
+  "config.virtual_computers.storage_test_failed": "Lagringstestet misslyckades:",
+  "help.virtual_computers.storage_endpoint": "Värd och port utan schema, till exempel minio.local:9000.",
+  "help.virtual_computers.storage_bucket": "Befintlig bucket för boringd-volymer.",
+  "help.virtual_computers.storage_region": "Valfri S3-region; tomt använder us-east-1.",
+  "help.virtual_computers.storage_ssl": "Använder HTTPS för S3-anslutningen.",
+  "help.virtual_computers.s3_access_key": "Sparar åtkomstnyckeln endast i Vault.",
+  "help.virtual_computers.s3_secret_key": "Sparar den hemliga nyckeln endast i Vault."
 }

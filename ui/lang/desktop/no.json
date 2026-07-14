@@ -1654,5 +1654,18 @@
   "desktop.virtual_computers_screenshot": "Skjermbilde",
   "desktop.virtual_computers_state_enabled": "Aktivert",
   "desktop.virtual_computers_state_disabled": "Deaktivert",
-  "desktop.app_virtual_computers": "Virtuelle datamaskiner"
+  "desktop.app_virtual_computers": "Virtuelle datamaskiner",
+  "desktop.virtual_computers_headless": "Uten skjerm – skjermbilde er ikke tilgjengelig",
+  "desktop.virtual_computers_task_start": "Start agentoppgave",
+  "desktop.virtual_computers_task_cancel": "Avbryt oppgave",
+  "desktop.virtual_computers_tasks": "Agentoppgaver",
+  "desktop.virtual_computers_tasks_empty": "Ingen agentoppgaver ennå.",
+  "desktop.virtual_computers_volumes": "Volumer",
+  "desktop.virtual_computers_volumes_empty": "Ingen sporede volumer.",
+  "desktop.virtual_computers_volume_create": "Opprett volum",
+  "desktop.virtual_computers_volume_import": "Importer ID",
+  "desktop.virtual_computers_volume_delete": "Slett",
+  "desktop.virtual_computers_volume_none": "Ingen volum",
+  "desktop.virtual_computers_modal_cancel_task": "Avbryte agentoppgaven?",
+  "desktop.virtual_computers_modal_cancel_task_desc": "Tilkoblingen lukkes. Handlinger som allerede er utført, rulles ikke tilbake."
 }

@@ -76,5 +76,22 @@
   "config.virtual_computers.sudo_password_clear": "Αφαίρεση",
   "config.virtual_computers.sudo_password_clear_confirm": "Θέλεις πραγματικά να αφαιρέσεις τον κεντρικά αποθηκευμένο κωδικό sudo;",
   "config.virtual_computers.sudo_password_save_failed": "Δεν ήταν δυνατή η ενημέρωση του κωδικού sudo.",
-  "help.virtual_computers.sudo_password": "Το AuraGo χρησιμοποιεί τον κεντρικό κωδικό sudo από το Vault για τοπική εγκατάσταση και επισκευή. Ο ίδιος κωδικός χρησιμοποιείται από το execute_sudo και τη διαχείριση πακέτων. Άφησέ το κενό αν υπάρχει ήδη αποθηκευμένος κωδικός ή λειτουργεί sudo χωρίς κωδικό."
+  "help.virtual_computers.sudo_password": "Το AuraGo χρησιμοποιεί τον κεντρικό κωδικό sudo από το Vault για τοπική εγκατάσταση και επισκευή. Ο ίδιος κωδικός χρησιμοποιείται από το execute_sudo και τη διαχείριση πακέτων. Άφησέ το κενό αν υπάρχει ήδη αποθηκευμένος κωδικός ή λειτουργεί sudo χωρίς κωδικό.",
+  "config.virtual_computers.storage_title": "Αποθήκευση τόμων",
+  "config.virtual_computers.storage_desc": "Αποθήκευση συμβατή με S3 για μόνιμους τόμους boringd.",
+  "config.virtual_computers.storage_endpoint_label": "Τερματικό S3",
+  "config.virtual_computers.storage_bucket_label": "Bucket S3",
+  "config.virtual_computers.storage_region_label": "Περιοχή S3",
+  "config.virtual_computers.storage_ssl_label": "Χρήση SSL",
+  "config.virtual_computers.s3_access_key_label": "Κλειδί πρόσβασης S3",
+  "config.virtual_computers.s3_secret_key_label": "Μυστικό κλειδί S3",
+  "config.virtual_computers.storage_test_button": "Δοκιμή αποθήκευσης",
+  "config.virtual_computers.storage_test_ok": "Το bucket S3 είναι προσβάσιμο.",
+  "config.virtual_computers.storage_test_failed": "Η δοκιμή αποθήκευσης απέτυχε:",
+  "help.virtual_computers.storage_endpoint": "Κεντρικός υπολογιστής και θύρα χωρίς σχήμα, π.χ. minio.local:9000.",
+  "help.virtual_computers.storage_bucket": "Υπάρχον bucket για τους τόμους boringd.",
+  "help.virtual_computers.storage_region": "Προαιρετική περιοχή S3· κενό χρησιμοποιεί us-east-1.",
+  "help.virtual_computers.storage_ssl": "Χρησιμοποιεί HTTPS για τη σύνδεση S3.",
+  "help.virtual_computers.s3_access_key": "Αποθηκεύει το κλειδί πρόσβασης μόνο στο Vault.",
+  "help.virtual_computers.s3_secret_key": "Αποθηκεύει το μυστικό κλειδί μόνο στο Vault."
 }

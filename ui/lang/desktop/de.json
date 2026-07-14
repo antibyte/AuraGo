@@ -1654,5 +1654,18 @@
   "desktop.virtual_computers_screenshot": "Screenshot",
   "desktop.virtual_computers_state_enabled": "Aktiviert",
   "desktop.virtual_computers_state_disabled": "Deaktiviert",
-  "desktop.app_virtual_computers": "Virtuelle Computer"
+  "desktop.app_virtual_computers": "Virtuelle Computer",
+  "desktop.virtual_computers_headless": "Ohne Display – Screenshot nicht verfügbar",
+  "desktop.virtual_computers_task_start": "Agentenjob starten",
+  "desktop.virtual_computers_task_cancel": "Job abbrechen",
+  "desktop.virtual_computers_tasks": "Agentenjobs",
+  "desktop.virtual_computers_tasks_empty": "Noch keine Agentenjobs.",
+  "desktop.virtual_computers_volumes": "Volumes",
+  "desktop.virtual_computers_volumes_empty": "Keine bekannten Volumes.",
+  "desktop.virtual_computers_volume_create": "Volume erstellen",
+  "desktop.virtual_computers_volume_import": "ID importieren",
+  "desktop.virtual_computers_volume_delete": "Löschen",
+  "desktop.virtual_computers_volume_none": "Kein Volume",
+  "desktop.virtual_computers_modal_cancel_task": "Agentenjob abbrechen?",
+  "desktop.virtual_computers_modal_cancel_task_desc": "Die Verbindung wird geschlossen. Bereits ausgeführte Aktionen werden nicht zurückgerollt."
 }

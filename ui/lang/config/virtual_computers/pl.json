@@ -76,5 +76,22 @@
   "config.virtual_computers.sudo_password_clear": "Usuń",
   "config.virtual_computers.sudo_password_clear_confirm": "Czy na pewno chcesz usunąć centralnie zapisane hasło sudo?",
   "config.virtual_computers.sudo_password_save_failed": "Nie udało się zaktualizować hasła sudo.",
-  "help.virtual_computers.sudo_password": "AuraGo ponownie używa centralnego hasła sudo z Vault do lokalnej instalacji i naprawy. To samo hasło jest współdzielone z execute_sudo i zarządzaniem pakietami. Pozostaw puste, jeśli hasło jest już zapisane lub działa sudo bez hasła."
+  "help.virtual_computers.sudo_password": "AuraGo ponownie używa centralnego hasła sudo z Vault do lokalnej instalacji i naprawy. To samo hasło jest współdzielone z execute_sudo i zarządzaniem pakietami. Pozostaw puste, jeśli hasło jest już zapisane lub działa sudo bez hasła.",
+  "config.virtual_computers.storage_title": "Magazyn woluminów",
+  "config.virtual_computers.storage_desc": "Magazyn zgodny z S3 dla trwałych woluminów boringd.",
+  "config.virtual_computers.storage_endpoint_label": "Punkt końcowy S3",
+  "config.virtual_computers.storage_bucket_label": "Bucket S3",
+  "config.virtual_computers.storage_region_label": "Region S3",
+  "config.virtual_computers.storage_ssl_label": "Użyj SSL",
+  "config.virtual_computers.s3_access_key_label": "Klucz dostępu S3",
+  "config.virtual_computers.s3_secret_key_label": "Tajny klucz S3",
+  "config.virtual_computers.storage_test_button": "Sprawdź magazyn",
+  "config.virtual_computers.storage_test_ok": "Bucket S3 jest dostępny.",
+  "config.virtual_computers.storage_test_failed": "Test magazynu nie powiódł się:",
+  "help.virtual_computers.storage_endpoint": "Host i port bez schematu, np. minio.local:9000.",
+  "help.virtual_computers.storage_bucket": "Istniejący bucket dla woluminów boringd.",
+  "help.virtual_computers.storage_region": "Opcjonalny region S3; puste używa us-east-1.",
+  "help.virtual_computers.storage_ssl": "Używa HTTPS do połączenia S3.",
+  "help.virtual_computers.s3_access_key": "Zapisuje klucz dostępu tylko w Vault.",
+  "help.virtual_computers.s3_secret_key": "Zapisuje tajny klucz tylko w Vault."
 }

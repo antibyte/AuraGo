@@ -76,5 +76,22 @@
   "config.virtual_computers.sudo_password_clear": "Entfernen",
   "config.virtual_computers.sudo_password_clear_confirm": "Möchtest du das zentral hinterlegte Sudo-Passwort wirklich entfernen?",
   "config.virtual_computers.sudo_password_save_failed": "Das Sudo-Passwort konnte nicht aktualisiert werden.",
-  "help.virtual_computers.sudo_password": "AuraGo verwendet das zentrale Sudo-Passwort aus dem Vault für lokale Installation und Reparatur. Dasselbe Passwort wird auch mit execute_sudo und der Paketverwaltung geteilt. Lass das Feld leer, wenn bereits eines hinterlegt ist oder passwortloses sudo funktioniert."
+  "help.virtual_computers.sudo_password": "AuraGo verwendet das zentrale Sudo-Passwort aus dem Vault für lokale Installation und Reparatur. Dasselbe Passwort wird auch mit execute_sudo und der Paketverwaltung geteilt. Lass das Feld leer, wenn bereits eines hinterlegt ist oder passwortloses sudo funktioniert.",
+  "config.virtual_computers.storage_title": "Volume-Speicher",
+  "config.virtual_computers.storage_desc": "S3-kompatibler Speicher für persistente boringd-Volumes.",
+  "config.virtual_computers.storage_endpoint_label": "S3-Endpunkt",
+  "config.virtual_computers.storage_bucket_label": "S3-Bucket",
+  "config.virtual_computers.storage_region_label": "S3-Region",
+  "config.virtual_computers.storage_ssl_label": "SSL verwenden",
+  "config.virtual_computers.s3_access_key_label": "S3-Zugriffsschlüssel",
+  "config.virtual_computers.s3_secret_key_label": "Geheimer S3-Schlüssel",
+  "config.virtual_computers.storage_test_button": "Speicher testen",
+  "config.virtual_computers.storage_test_ok": "Der S3-Bucket ist erreichbar.",
+  "config.virtual_computers.storage_test_failed": "Speichertest fehlgeschlagen:",
+  "help.virtual_computers.storage_endpoint": "Host und Port ohne Schema, zum Beispiel minio.local:9000.",
+  "help.virtual_computers.storage_bucket": "Vorhandener Bucket für boringd-Volumes.",
+  "help.virtual_computers.storage_region": "Optionale S3-Region; leer verwendet us-east-1.",
+  "help.virtual_computers.storage_ssl": "Verwendet HTTPS für die S3-Verbindung.",
+  "help.virtual_computers.s3_access_key": "Speichert den Zugriffsschlüssel ausschließlich im Vault.",
+  "help.virtual_computers.s3_secret_key": "Speichert den geheimen Schlüssel ausschließlich im Vault."
 }

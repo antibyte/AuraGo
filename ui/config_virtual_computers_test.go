@@ -169,3 +169,76 @@ func TestVirtualComputersSudoPasswordTranslationsExist(t *testing.T) {
 		})
 	}
 }
+
+func TestVirtualComputersStorageUsesVaultFieldsAndReadOnlyConnectionTest(t *testing.T) {
+	t.Parallel()
+	vcJS := normalizeAssetText(mustReadUIFile(t, "cfg/virtual_computers.js"))
+	for _, want := range []string{
+		`data-path="virtual_computers.storage.endpoint"`,
+		`data-path="virtual_computers.storage.bucket"`,
+		`data-path="virtual_computers.storage.region"`,
+		`'virtual_computers.storage.use_ssl'`,
+		`virtual_computers_s3_access_key_id`,
+		`virtual_computers_s3_secret_key`,
+		`/api/virtual-computers/storage/test`,
+	} {
+		if !strings.Contains(vcJS, want) {
+			t.Fatalf("virtual computer storage UI missing %q", want)
+		}
+	}
+	if strings.Contains(vcJS, `data-path="virtual_computers.s3_secret_key"`) || strings.Contains(vcJS, `data-path="virtual_computers.s3_access_key_id"`) {
+		t.Fatal("S3 credentials must never be serialized into config data")
+	}
+}
+
+func TestVirtualComputersDesktopUsesCapabilitiesTasksVolumesAndModal(t *testing.T) {
+	t.Parallel()
+	app := normalizeAssetText(mustReadUIFile(t, "js/desktop/apps/virtual-computers.js"))
+	for _, want := range []string{
+		`machine.display === true`, `/api/virtual-computers/tasks`, `/api/virtual-computers/volumes`,
+		`volume_id`, `ttl_seconds`, `data-role="modal"`, `cancel_agent_task`,
+	} {
+		if !strings.Contains(app, want) {
+			t.Fatalf("virtual computer desktop app missing %q", want)
+		}
+	}
+	if strings.Contains(app, "alert(") || strings.Contains(app, "confirm(") {
+		t.Fatal("virtual computer desktop app must use its modal instead of native alert/confirm")
+	}
+}
+
+func TestVirtualComputersNewTranslationsExist(t *testing.T) {
+	t.Parallel()
+	languages := []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"}
+	configKeys := []string{
+		"config.virtual_computers.storage_title", "config.virtual_computers.storage_endpoint_label",
+		"config.virtual_computers.storage_bucket_label", "config.virtual_computers.storage_region_label",
+		"config.virtual_computers.storage_ssl_label", "config.virtual_computers.storage_test_button",
+		"config.virtual_computers.s3_access_key_label", "config.virtual_computers.s3_secret_key_label",
+	}
+	desktopKeys := []string{
+		"desktop.virtual_computers_headless", "desktop.virtual_computers_task_start",
+		"desktop.virtual_computers_task_cancel", "desktop.virtual_computers_tasks",
+		"desktop.virtual_computers_volumes", "desktop.virtual_computers_volume_create",
+		"desktop.virtual_computers_volume_import", "desktop.virtual_computers_modal_cancel_task",
+	}
+	for _, language := range languages {
+		for _, item := range []struct {
+			path string
+			keys []string
+		}{
+			{fmt.Sprintf("lang/config/virtual_computers/%s.json", language), configKeys},
+			{fmt.Sprintf("lang/desktop/%s.json", language), desktopKeys},
+		} {
+			var translations map[string]string
+			if err := json.Unmarshal([]byte(mustReadUIFile(t, item.path)), &translations); err != nil {
+				t.Fatalf("decode %s: %v", item.path, err)
+			}
+			for _, key := range item.keys {
+				if strings.TrimSpace(translations[key]) == "" {
+					t.Errorf("%s is missing translation %s", item.path, key)
+				}
+			}
+		}
+	}
+}

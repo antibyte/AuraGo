@@ -1654,5 +1654,18 @@
   "desktop.virtual_computers_screenshot": "Στιγμιότυπο",
   "desktop.virtual_computers_state_enabled": "Ενεργό",
   "desktop.virtual_computers_state_disabled": "Ανενεργό",
-  "desktop.app_virtual_computers": "Εικονικοί υπολογιστές"
+  "desktop.app_virtual_computers": "Εικονικοί υπολογιστές",
+  "desktop.virtual_computers_headless": "Χωρίς οθόνη – δεν υπάρχει στιγμιότυπο",
+  "desktop.virtual_computers_task_start": "Έναρξη εργασίας πράκτορα",
+  "desktop.virtual_computers_task_cancel": "Ακύρωση εργασίας",
+  "desktop.virtual_computers_tasks": "Εργασίες πρακτόρων",
+  "desktop.virtual_computers_tasks_empty": "Δεν υπάρχουν ακόμη εργασίες πρακτόρων.",
+  "desktop.virtual_computers_volumes": "Τόμοι",
+  "desktop.virtual_computers_volumes_empty": "Δεν υπάρχουν καταγεγραμμένοι τόμοι.",
+  "desktop.virtual_computers_volume_create": "Δημιουργία τόμου",
+  "desktop.virtual_computers_volume_import": "Εισαγωγή ID",
+  "desktop.virtual_computers_volume_delete": "Διαγραφή",
+  "desktop.virtual_computers_volume_none": "Χωρίς τόμο",
+  "desktop.virtual_computers_modal_cancel_task": "Ακύρωση εργασίας πράκτορα;",
+  "desktop.virtual_computers_modal_cancel_task_desc": "Η σύνδεση θα κλείσει. Οι ενέργειες που εκτελέστηκαν δεν αναιρούνται."
 }

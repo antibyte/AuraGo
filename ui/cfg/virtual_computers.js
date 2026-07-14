@@ -7,10 +7,12 @@ let _vcSudoPasswordStatusGeneration = 0;
 function vcCfgEnsureData() {
     if (!configData.virtual_computers) configData.virtual_computers = {};
     if (!configData.virtual_computers.control_plane) configData.virtual_computers.control_plane = {};
+	if (!configData.virtual_computers.storage) configData.virtual_computers.storage = {};
     if (!configData.tools) configData.tools = {};
     if (!configData.tools.virtual_computers) configData.tools.virtual_computers = {};
     const data = configData.virtual_computers;
     const cp = data.control_plane;
+	const storage = data.storage;
     if (!data.provider) data.provider = 'boring_computers';
     if (!data.default_template) data.default_template = 'python';
     if (!data.default_ttl_seconds) data.default_ttl_seconds = 600;
@@ -21,6 +23,8 @@ function vcCfgEnsureData() {
     if (!cp.ssh_port) cp.ssh_port = 22;
     if (!cp.install_dir) cp.install_dir = '/opt/boring-computers';
     if (!cp.boringd_url) cp.boringd_url = 'http://127.0.0.1:18082';
+	if (!storage.bucket) storage.bucket = 'boring-volumes';
+	if (typeof storage.use_ssl !== 'boolean') storage.use_ssl = true;
     return data;
 }
 
@@ -95,6 +99,34 @@ function renderVirtualComputersSection(section) {
         '<input class="field-input" type="url" data-path="virtual_computers.control_plane.boringd_url" value="' + escapeAttr(cp.boringd_url || 'http://127.0.0.1:18082') + '">');
     html += '</div>';
     html += '</div>';
+
+	const storage = data.storage || {};
+	html += '<div class="field-group">';
+	html += '<div class="field-group-title">' + t('config.virtual_computers.storage_title') + '</div>';
+	html += '<div class="field-group-desc">' + t('config.virtual_computers.storage_desc') + '</div>';
+	html += '<div class="field-grid two-cols">';
+	html += vcCfgField('config.virtual_computers.storage_endpoint_label', 'help.virtual_computers.storage_endpoint',
+		'<input class="field-input" type="text" data-path="virtual_computers.storage.endpoint" value="' + escapeAttr(storage.endpoint || '') + '" placeholder="minio.local:9000">');
+	html += vcCfgField('config.virtual_computers.storage_bucket_label', 'help.virtual_computers.storage_bucket',
+		'<input class="field-input" type="text" data-path="virtual_computers.storage.bucket" value="' + escapeAttr(storage.bucket || 'boring-volumes') + '">');
+	html += vcCfgField('config.virtual_computers.storage_region_label', 'help.virtual_computers.storage_region',
+		'<input class="field-input" type="text" data-path="virtual_computers.storage.region" value="' + escapeAttr(storage.region || '') + '">');
+	html += vcCfgToggleRow('config.virtual_computers.storage_ssl_label', 'help.virtual_computers.storage_ssl', storage.use_ssl !== false, 'virtual_computers.storage.use_ssl');
+	html += '</div>';
+	html += '<div class="field-label">' + t('config.virtual_computers.s3_access_key_label') + '</div>';
+	html += '<div class="field-help">' + t('help.virtual_computers.s3_access_key') + '</div>';
+	html += '<div class="adg-password-row"><div class="password-wrap cfg-password-input">';
+	html += '<input class="field-input adg-password-input" type="password" id="vc-s3-access-input" value="' + escapeAttr(cfgSecretValue(data.s3_access_key_id)) + '" placeholder="' + escapeAttr(cfgSecretPlaceholder(data.s3_access_key_id, 'access-key')) + '" autocomplete="off">';
+	html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button></div>';
+	html += '<button class="btn-save adg-save-btn" onclick="vcCfgSaveSecret(\'vc-s3-access-input\', \'virtual_computers_s3_access_key_id\', \'virtual_computers.s3_access_key_id\', \'vc-s3-access-status\')">' + t('config.virtual_computers.save_vault') + '</button></div><div id="vc-s3-access-status" class="adg-test-result"></div>';
+	html += '<div class="field-label">' + t('config.virtual_computers.s3_secret_key_label') + '</div>';
+	html += '<div class="field-help">' + t('help.virtual_computers.s3_secret_key') + '</div>';
+	html += '<div class="adg-password-row"><div class="password-wrap cfg-password-input">';
+	html += '<input class="field-input adg-password-input" type="password" id="vc-s3-secret-input" value="' + escapeAttr(cfgSecretValue(data.s3_secret_key)) + '" placeholder="' + escapeAttr(cfgSecretPlaceholder(data.s3_secret_key, 'secret-key')) + '" autocomplete="off">';
+	html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button></div>';
+	html += '<button class="btn-save adg-save-btn" onclick="vcCfgSaveSecret(\'vc-s3-secret-input\', \'virtual_computers_s3_secret_key\', \'virtual_computers.s3_secret_key\', \'vc-s3-secret-status\')">' + t('config.virtual_computers.save_vault') + '</button></div><div id="vc-s3-secret-status" class="adg-test-result"></div>';
+	html += '<button class="btn-save dc-test-btn" onclick="vcCfgTestStorage()" id="vc-storage-test-btn">' + t('config.virtual_computers.storage_test_button') + '</button>';
+	html += '<span id="vc-storage-test-result" class="dc-test-result"></span></div>';
 
     html += '<div class="field-group">';
     html += '<div class="field-group-title">' + t('config.virtual_computers.limits_title') + '</div>';
@@ -281,6 +313,22 @@ async function vcCfgPreflight() {
 
 async function vcCfgInstall() {
     await vcCfgPostSetup('/api/virtual-computers/setup/install', 'vc-install-btn');
+}
+
+async function vcCfgTestStorage() {
+	const btn = document.getElementById('vc-storage-test-btn');
+	const result = document.getElementById('vc-storage-test-result');
+	if (btn) btn.disabled = true;
+	try {
+		const resp = await fetch('/api/virtual-computers/storage/test', { method: 'POST' });
+		const body = await resp.json().catch(() => ({}));
+		if (!resp.ok || body.error) throw new Error(body.error || resp.statusText);
+		if (result) { result.className = 'dc-test-result is-success'; result.textContent = t('config.virtual_computers.storage_test_ok'); }
+	} catch (e) {
+		if (result) { result.className = 'dc-test-result is-danger'; result.textContent = t('config.virtual_computers.storage_test_failed') + ' ' + e.message; }
+	} finally {
+		if (btn) btn.disabled = false;
+	}
 }
 
 async function vcCfgPostSetup(url, buttonID) {

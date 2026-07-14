@@ -76,5 +76,22 @@
   "config.virtual_computers.sudo_password_clear": "Odstranit",
   "config.virtual_computers.sudo_password_clear_confirm": "Opravdu chceš odstranit centrálně uložené heslo sudo?",
   "config.virtual_computers.sudo_password_save_failed": "Heslo sudo se nepodařilo aktualizovat.",
-  "help.virtual_computers.sudo_password": "AuraGo používá centrální heslo sudo z trezoru pro místní instalaci a opravu. Stejné heslo sdílí execute_sudo a správa balíčků. Pokud je již uložené nebo funguje sudo bez hesla, nech pole prázdné."
+  "help.virtual_computers.sudo_password": "AuraGo používá centrální heslo sudo z trezoru pro místní instalaci a opravu. Stejné heslo sdílí execute_sudo a správa balíčků. Pokud je již uložené nebo funguje sudo bez hesla, nech pole prázdné.",
+  "config.virtual_computers.storage_title": "Úložiště svazků",
+  "config.virtual_computers.storage_desc": "S3 kompatibilní úložiště pro trvalé svazky boringd.",
+  "config.virtual_computers.storage_endpoint_label": "Koncový bod S3",
+  "config.virtual_computers.storage_bucket_label": "S3 bucket",
+  "config.virtual_computers.storage_region_label": "Region S3",
+  "config.virtual_computers.storage_ssl_label": "Použít SSL",
+  "config.virtual_computers.s3_access_key_label": "Přístupový klíč S3",
+  "config.virtual_computers.s3_secret_key_label": "Tajný klíč S3",
+  "config.virtual_computers.storage_test_button": "Otestovat úložiště",
+  "config.virtual_computers.storage_test_ok": "S3 bucket je dostupný.",
+  "config.virtual_computers.storage_test_failed": "Test úložiště selhal:",
+  "help.virtual_computers.storage_endpoint": "Hostitel a port bez schématu, například minio.local:9000.",
+  "help.virtual_computers.storage_bucket": "Existující bucket používaný pro svazky boringd.",
+  "help.virtual_computers.storage_region": "Volitelný region S3; prázdná hodnota použije us-east-1.",
+  "help.virtual_computers.storage_ssl": "Použije HTTPS pro připojení k S3.",
+  "help.virtual_computers.s3_access_key": "Uloží přístupový klíč pouze do Vaultu.",
+  "help.virtual_computers.s3_secret_key": "Uloží tajný klíč pouze do Vaultu."
 }

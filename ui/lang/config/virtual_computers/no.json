@@ -76,5 +76,22 @@
   "config.virtual_computers.sudo_password_clear": "Fjern",
   "config.virtual_computers.sudo_password_clear_confirm": "Vil du virkelig fjerne det sentralt lagrede sudo-passordet?",
   "config.virtual_computers.sudo_password_save_failed": "Sudo-passordet kunne ikke oppdateres.",
-  "help.virtual_computers.sudo_password": "AuraGo bruker det sentrale sudo-passordet fra Vault på nytt for lokal installasjon og reparasjon. Det samme passordet deles med execute_sudo og pakkebehandling. La feltet stå tomt hvis et allerede er lagret, eller passordløs sudo fungerer."
+  "help.virtual_computers.sudo_password": "AuraGo bruker det sentrale sudo-passordet fra Vault på nytt for lokal installasjon og reparasjon. Det samme passordet deles med execute_sudo og pakkebehandling. La feltet stå tomt hvis et allerede er lagret, eller passordløs sudo fungerer.",
+  "config.virtual_computers.storage_title": "Volumlagring",
+  "config.virtual_computers.storage_desc": "S3-kompatibel lagring for varige boringd-volumer.",
+  "config.virtual_computers.storage_endpoint_label": "S3-endepunkt",
+  "config.virtual_computers.storage_bucket_label": "S3-bucket",
+  "config.virtual_computers.storage_region_label": "S3-region",
+  "config.virtual_computers.storage_ssl_label": "Bruk SSL",
+  "config.virtual_computers.s3_access_key_label": "S3-tilgangsnøkkel",
+  "config.virtual_computers.s3_secret_key_label": "Hemmelig S3-nøkkel",
+  "config.virtual_computers.storage_test_button": "Test lagring",
+  "config.virtual_computers.storage_test_ok": "S3-bucketen er tilgjengelig.",
+  "config.virtual_computers.storage_test_failed": "Lagringstesten mislyktes:",
+  "help.virtual_computers.storage_endpoint": "Vert og port uten skjema, for eksempel minio.local:9000.",
+  "help.virtual_computers.storage_bucket": "Eksisterende bucket for boringd-volumer.",
+  "help.virtual_computers.storage_region": "Valgfri S3-region; tom bruker us-east-1.",
+  "help.virtual_computers.storage_ssl": "Bruker HTTPS for S3-tilkoblingen.",
+  "help.virtual_computers.s3_access_key": "Lagrer tilgangsnøkkelen bare i Vault.",
+  "help.virtual_computers.s3_secret_key": "Lagrer den hemmelige nøkkelen bare i Vault."
 }

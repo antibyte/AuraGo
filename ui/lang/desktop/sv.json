@@ -1654,5 +1654,18 @@
   "desktop.virtual_computers_screenshot": "Skärmbild",
   "desktop.virtual_computers_state_enabled": "Aktiverad",
   "desktop.virtual_computers_state_disabled": "Inaktiverad",
-  "desktop.app_virtual_computers": "Virtuella datorer"
+  "desktop.app_virtual_computers": "Virtuella datorer",
+  "desktop.virtual_computers_headless": "Utan skärm – skärmbild är inte tillgänglig",
+  "desktop.virtual_computers_task_start": "Starta agentuppgift",
+  "desktop.virtual_computers_task_cancel": "Avbryt uppgift",
+  "desktop.virtual_computers_tasks": "Agentuppgifter",
+  "desktop.virtual_computers_tasks_empty": "Inga agentuppgifter ännu.",
+  "desktop.virtual_computers_volumes": "Volymer",
+  "desktop.virtual_computers_volumes_empty": "Inga spårade volymer.",
+  "desktop.virtual_computers_volume_create": "Skapa volym",
+  "desktop.virtual_computers_volume_import": "Importera ID",
+  "desktop.virtual_computers_volume_delete": "Ta bort",
+  "desktop.virtual_computers_volume_none": "Ingen volym",
+  "desktop.virtual_computers_modal_cancel_task": "Avbryta agentuppgiften?",
+  "desktop.virtual_computers_modal_cancel_task_desc": "Anslutningen stängs. Redan utförda åtgärder återställs inte."
 }

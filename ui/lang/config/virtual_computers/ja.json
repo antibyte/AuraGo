@@ -76,5 +76,22 @@
   "config.virtual_computers.sudo_password_clear": "削除",
   "config.virtual_computers.sudo_password_clear_confirm": "中央に保存された sudo パスワードを本当に削除しますか？",
   "config.virtual_computers.sudo_password_save_failed": "sudo パスワードを更新できませんでした。",
-  "help.virtual_computers.sudo_password": "AuraGo はローカルのインストールと修復に Vault の中央 sudo パスワードを再利用します。同じパスワードが execute_sudo とパッケージ管理でも共有されます。すでに保存済みか、パスワードなしの sudo が動作する場合は空欄にしてください。"
+  "help.virtual_computers.sudo_password": "AuraGo はローカルのインストールと修復に Vault の中央 sudo パスワードを再利用します。同じパスワードが execute_sudo とパッケージ管理でも共有されます。すでに保存済みか、パスワードなしの sudo が動作する場合は空欄にしてください。",
+  "config.virtual_computers.storage_title": "ボリュームストレージ",
+  "config.virtual_computers.storage_desc": "boringd の永続ボリューム用 S3 互換ストレージです。",
+  "config.virtual_computers.storage_endpoint_label": "S3 エンドポイント",
+  "config.virtual_computers.storage_bucket_label": "S3 バケット",
+  "config.virtual_computers.storage_region_label": "S3 リージョン",
+  "config.virtual_computers.storage_ssl_label": "SSL を使用",
+  "config.virtual_computers.s3_access_key_label": "S3 アクセスキー",
+  "config.virtual_computers.s3_secret_key_label": "S3 シークレットキー",
+  "config.virtual_computers.storage_test_button": "ストレージをテスト",
+  "config.virtual_computers.storage_test_ok": "S3 バケットに接続できました。",
+  "config.virtual_computers.storage_test_failed": "ストレージテストに失敗しました:",
+  "help.virtual_computers.storage_endpoint": "スキームなしのホストとポート。例: minio.local:9000。",
+  "help.virtual_computers.storage_bucket": "boringd ボリュームに使用する既存のバケットです。",
+  "help.virtual_computers.storage_region": "任意の S3 リージョン。空欄では us-east-1 を使用します。",
+  "help.virtual_computers.storage_ssl": "S3 接続に HTTPS を使用します。",
+  "help.virtual_computers.s3_access_key": "アクセスキーは Vault のみに保存します。",
+  "help.virtual_computers.s3_secret_key": "シークレットキーは Vault のみに保存します。"
 }
