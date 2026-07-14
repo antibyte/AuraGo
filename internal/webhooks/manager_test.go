@@ -140,3 +140,30 @@ func TestManagerUpdateWithOptionsAllowsExplicitDisableAndSignatureClear(t *testi
 		t.Fatalf("signature fields were not cleared: %+v", updated.Format)
 	}
 }
+
+func TestManagerNormalizesNewDeliveryPriorityToAsyncQueue(t *testing.T) {
+	t.Parallel()
+
+	mgr, err := NewManager(filepath.Join(t.TempDir(), "webhooks.json"), filepath.Join(t.TempDir(), "webhooks.log"))
+	if err != nil {
+		t.Fatalf("NewManager() error = %v", err)
+	}
+	created, err := mgr.Create(Webhook{
+		Name:     "Priority",
+		Slug:     "priority-hook",
+		Delivery: DeliveryConfig{Mode: DeliveryModeSilent, Priority: "immediate"},
+	})
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	if created.Delivery.Priority != "queue" {
+		t.Fatalf("created priority = %q, want queue", created.Delivery.Priority)
+	}
+	updated, err := mgr.UpdateWithOptions(created.ID, Webhook{Delivery: DeliveryConfig{Priority: "immediate"}}, UpdateOptions{})
+	if err != nil {
+		t.Fatalf("UpdateWithOptions() error = %v", err)
+	}
+	if updated.Delivery.Priority != "queue" {
+		t.Fatalf("updated priority = %q, want queue", updated.Delivery.Priority)
+	}
+}

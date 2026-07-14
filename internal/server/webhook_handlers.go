@@ -393,7 +393,7 @@ func handleWebhookLog(mgr *webhooks.Manager) http.HandlerFunc {
 	}
 }
 
-func handleTestWebhook(mgr *webhooks.Manager, handler *webhooks.Handler) http.HandlerFunc {
+func handleTestWebhook(mgr *webhooks.Manager, _ *webhooks.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -413,10 +413,14 @@ func handleTestWebhook(mgr *webhooks.Manager, handler *webhooks.Handler) http.Ha
 		}
 		// Return what the rendered prompt would look like with test data
 		testPayload := `{"test":true,"message":"This is a test webhook event","timestamp":"` + time.Now().UTC().Format(time.RFC3339) + `"}`
-		fields := webhooks.ExtractFieldsPublic([]byte(testPayload), wh.Format.Fields)
-		prompt, err := webhooks.RenderPromptPublic(wh, testPayload, fields, map[string]string{"Content-Type": "application/json"})
+		prepared, err := webhooks.PreparePayload([]byte(testPayload), "application/json", wh.Format.Fields, 4000)
 		if err != nil {
-			jsonError(w, "Failed to render test prompt", http.StatusInternalServerError)
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		prompt, err := webhooks.RenderPromptPublic(wh, prepared.PromptPayload, prepared.Fields, map[string]string{"Content-Type": "application/json"})
+		if err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")

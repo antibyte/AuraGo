@@ -1139,7 +1139,9 @@ webhooks:
     enabled: false
     readonly: false
     max_payload_size: 65536
-    rate_limit: 0
+    rate_limit: 0                         # per-token token bucket (requests/minute and burst capacity; 0 = unlimited)
+    # Outgoing webhook URLs, sensitive headers, and custom body templates are Vault-only.
+    # Configure outgoing webhooks through the Web UI/API; do not add those secrets here.
 proxmox:
     enabled: false
     readonly: false

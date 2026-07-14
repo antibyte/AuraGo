@@ -281,13 +281,6 @@ function whShowEditor(id) {
                     <label>${t('config.webhooks.prompt_template_label')}</label>
                     <textarea id="wh-f-prompt" class="field-input wh-textarea" rows="5" placeholder="${t('config.webhooks.prompt_placeholder')}">${esc(delivery.prompt_template || '')}</textarea>
                 </div>
-                <div class="wh-form-row">
-                    <label>${t('config.webhooks.priority_label')}</label>
-                    <select id="wh-f-priority" class="field-select">
-                        <option value="queue" ${delivery.priority !== 'immediate' ? 'selected' : ''}>${t('config.webhooks.priority_queue')}</option>
-                        <option value="immediate" ${delivery.priority === 'immediate' ? 'selected' : ''}>${t('config.webhooks.priority_immediate')}</option>
-                    </select>
-                </div>
             </div>
             <div class="wh-editor-footer">
                 <button class="wh-btn" onclick="whHideEditor()">${t('config.webhooks.cancel')}</button>
@@ -365,7 +358,6 @@ function whCollectEditor() {
         delivery: {
             mode: document.getElementById('wh-f-mode').value,
             prompt_template: document.getElementById('wh-f-prompt').value,
-            priority: document.getElementById('wh-f-priority').value,
         }
     };
 }
@@ -702,13 +694,17 @@ function ogShowModal(idx) {
                         <option value="GET" ${method === 'GET' ? 'selected' : ''}>${t('config.webhooks.method_get')}</option>
                         <option value="POST" ${method === 'POST' ? 'selected' : ''}>${t('config.webhooks.method_post')}</option>
                         <option value="PUT" ${method === 'PUT' ? 'selected' : ''}>${t('config.webhooks.method_put')}</option>
+                        <option value="PATCH" ${method === 'PATCH' ? 'selected' : ''}>PATCH</option>
                         <option value="DELETE" ${method === 'DELETE' ? 'selected' : ''}>${t('config.webhooks.method_delete')}</option>
+                        <option value="HEAD" ${method === 'HEAD' ? 'selected' : ''}>HEAD</option>
+                        <option value="OPTIONS" ${method === 'OPTIONS' ? 'selected' : ''}>OPTIONS</option>
                     </select>
                 </div>
                 <div class="og-col-url"><label>${t('config.webhooks.og_url')}</label>
-                    <input id="og-f-url" class="field-input" value="${esc(url)}" placeholder="${t('config.webhooks.og_url_placeholder')}">
+                    <input id="og-f-url" class="field-input" type="password" data-has-secret="${cfgIsMaskedSecret(url) ? '1' : '0'}" value="${esc(cfgSecretValue(url))}" placeholder="${esc(cfgSecretPlaceholder(url, t('config.webhooks.og_url_placeholder')))}">
                 </div>
             </div>
+            <small class="wh-field-hint">${t('config.webhooks.og_vault_hint')}</small>
             <div class="wh-form-row">
                 <label>${t('config.webhooks.og_headers')} <small>${t('config.webhooks.og_headers_hint')}</small></label>
                 <textarea id="og-f-headers" class="field-input wh-textarea" rows="3" placeholder="${t('config.webhooks.og_headers_placeholder')}">${esc(headersStr)}</textarea>
@@ -790,12 +786,14 @@ function ogCollectModal() {
         const i = l.indexOf(':');
         if (i > 0) headers[l.substring(0, i).trim()] = l.substring(i + 1).trim();
     });
+    const urlInput = document.getElementById('og-f-url');
+    const urlValue = urlInput?.value?.trim() || '';
     return {
         id: ogEditingIdx >= 0 ? ogWebhooks[ogEditingIdx].id : 'hook_' + Date.now(),
         name: document.getElementById('og-f-name').value.trim(),
         description: document.getElementById('og-f-desc').value.trim(),
         method: document.getElementById('og-f-method').value,
-        url: document.getElementById('og-f-url').value.trim(),
+        url: !urlValue && urlInput?.dataset.hasSecret === '1' ? CFG_MASKED_SECRET : urlValue,
         headers, parameters: params,
         payload_type: document.getElementById('og-f-ptype').value,
         body_template: document.getElementById('og-f-body').value

@@ -186,9 +186,8 @@ func (m *Manager) Create(w Webhook) (Webhook, error) {
 	if w.Delivery.Mode == "" {
 		w.Delivery.Mode = DeliveryModeMessage
 	}
-	if w.Delivery.Priority == "" {
-		w.Delivery.Priority = "queue"
-	}
+	// Priority is deprecated; every new delivery is asynchronous.
+	w.Delivery.Priority = "queue"
 	if w.Delivery.PromptTemplate == "" {
 		w.Delivery.PromptTemplate = DefaultPromptTemplate
 	}
@@ -280,7 +279,7 @@ func (m *Manager) UpdateWithOptions(id string, patch Webhook, opts UpdateOptions
 			m.webhooks[i].Delivery.PromptTemplate = patch.Delivery.PromptTemplate
 		}
 		if patch.Delivery.Priority != "" {
-			m.webhooks[i].Delivery.Priority = patch.Delivery.Priority
+			m.webhooks[i].Delivery.Priority = "queue"
 		}
 
 		if err := m.save(); err != nil {

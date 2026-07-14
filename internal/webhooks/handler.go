@@ -534,45 +534,64 @@ func (h *Handler) logEvent(webhookID, webhookName string, statusCode int, source
 	})
 }
 
-// RateLimiter provides simple per-token rate limiting using a sliding window.
+// RateLimiter provides per-token rate limiting using a token bucket.
 type RateLimiter struct {
 	mu       gosync.Mutex
-	limit    int
-	counters map[string]*rateBucket
+	capacity float64
+	refill   float64
+	now      func() time.Time
+	buckets  map[string]*rateBucket
 }
 
 type rateBucket struct {
-	count    int
-	windowAt time.Time
+	tokens    float64
+	updatedAt time.Time
 }
 
 // NewRateLimiter creates a rate limiter. limit=0 means unlimited.
 func NewRateLimiter(limit int) *RateLimiter {
+	return newRateLimiterWithClock(limit, time.Now)
+}
+
+func newRateLimiterWithClock(limit int, now func() time.Time) *RateLimiter {
 	if limit <= 0 {
 		return nil
 	}
+	if now == nil {
+		now = time.Now
+	}
 	return &RateLimiter{
-		limit:    limit,
-		counters: make(map[string]*rateBucket),
+		capacity: float64(limit),
+		refill:   float64(limit) / time.Minute.Seconds(),
+		now:      now,
+		buckets:  make(map[string]*rateBucket),
 	}
 }
 
 // Allow checks if a request from the given token ID is within rate limits.
 func (rl *RateLimiter) Allow(tokenID string) bool {
-	if rl == nil || rl.limit <= 0 {
+	if rl == nil || rl.capacity <= 0 {
 		return true
 	}
 	rl.mu.Lock()
 	defer rl.mu.Unlock()
 
-	now := time.Now()
-	b, ok := rl.counters[tokenID]
-	if !ok || now.Sub(b.windowAt) > time.Minute {
-		rl.counters[tokenID] = &rateBucket{count: 1, windowAt: now}
+	now := rl.now()
+	bucket, ok := rl.buckets[tokenID]
+	if !ok {
+		rl.buckets[tokenID] = &rateBucket{tokens: rl.capacity - 1, updatedAt: now}
 		return true
 	}
-	b.count++
-	return b.count <= rl.limit
+	elapsed := now.Sub(bucket.updatedAt).Seconds()
+	if elapsed > 0 {
+		bucket.tokens = min(rl.capacity, bucket.tokens+elapsed*rl.refill)
+		bucket.updatedAt = now
+	}
+	if bucket.tokens < 1 {
+		return false
+	}
+	bucket.tokens--
+	return true
 }
 
 // --- Public helpers for use by admin handlers (test endpoint) ---

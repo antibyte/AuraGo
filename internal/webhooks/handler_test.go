@@ -454,3 +454,28 @@ func waitForWebhookLogEntry(t *testing.T, manager *Manager) {
 	}
 	t.Fatal("timed out waiting for webhook delivery log entry")
 }
+
+func TestRateLimiterTokenBucketRefillsContinuously(t *testing.T) {
+	t.Parallel()
+
+	now := time.Unix(1_700_000_000, 0)
+	limiter := newRateLimiterWithClock(2, func() time.Time { return now })
+	if !limiter.Allow("token") || !limiter.Allow("token") {
+		t.Fatal("initial burst should allow two requests")
+	}
+	if limiter.Allow("token") {
+		t.Fatal("third immediate request should be limited")
+	}
+	now = now.Add(29 * time.Second)
+	if limiter.Allow("token") {
+		t.Fatal("bucket refilled a full token too early")
+	}
+	now = now.Add(time.Second)
+	if !limiter.Allow("token") {
+		t.Fatal("bucket should refill one token after 30 seconds")
+	}
+	now = now.Add(time.Minute)
+	if !limiter.Allow("token") || !limiter.Allow("token") || limiter.Allow("token") {
+		t.Fatal("bucket should refill to, but not beyond, burst capacity")
+	}
+}

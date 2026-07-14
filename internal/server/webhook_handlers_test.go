@@ -407,3 +407,68 @@ func TestHandlePutOutgoingWebhooksReadOnlyRejectsMutation(t *testing.T) {
 		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusForbidden, rec.Body.String())
 	}
 }
+
+func TestHandleTestWebhookUsesIncomingPayloadPipeline(t *testing.T) {
+	t.Parallel()
+
+	mgr, err := webhooks.NewManager(filepath.Join(t.TempDir(), "webhooks.json"), filepath.Join(t.TempDir(), "webhooks.log"))
+	if err != nil {
+		t.Fatalf("NewManager() error = %v", err)
+	}
+	created, err := mgr.Create(webhooks.Webhook{
+		Name:     "Preview",
+		Slug:     "preview-hook",
+		Format:   webhooks.WebhookFormat{AcceptedContentTypes: []string{"application/json"}},
+		Delivery: webhooks.DeliveryConfig{Mode: webhooks.DeliveryModeSilent},
+	})
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/webhooks/"+created.ID+"/test", nil)
+	rec := httptest.NewRecorder()
+
+	handleTestWebhook(mgr, nil).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	var response map[string]string
+	if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v", err)
+	}
+	if !strings.Contains(response["rendered_prompt"], "<external_data>") || strings.Contains(response["rendered_prompt"], "&quot;") {
+		t.Fatalf("preview did not use isolated JSON pipeline: %s", rec.Body.String())
+	}
+}
+
+func TestHandleTestWebhookReturnsBadRequestForLegacyInvalidTemplate(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	webhooksPath := filepath.Join(dir, "webhooks.json")
+	legacy := `[{
+		"id":"legacy-id",
+		"name":"Legacy",
+		"slug":"legacy-hook",
+		"format":{"accepted_content_types":["application/json"]},
+		"delivery":{"mode":"silent","prompt_template":"{{unsupported}}"}
+	}]`
+	if err := os.WriteFile(webhooksPath, []byte(legacy), 0o600); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+	mgr, err := webhooks.NewManager(webhooksPath, filepath.Join(dir, "webhooks.log"))
+	if err != nil {
+		t.Fatalf("NewManager() error = %v", err)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/webhooks/legacy-id/test", nil)
+	rec := httptest.NewRecorder()
+
+	handleTestWebhook(mgr, nil).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusBadRequest, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "unsupported placeholder") {
+		t.Fatalf("response lacks actionable template error: %s", rec.Body.String())
+	}
+}

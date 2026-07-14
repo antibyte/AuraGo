@@ -369,12 +369,16 @@ Receive HTTP events from external services.
 3. Create a new webhook in the Web UI, choose a preset (generic, GitHub, GitLab, etc.), and copy the generated URL.
 4. Paste the URL into the external service (e.g., GitHub repository settings).
 
+Prefer `Authorization: Bearer <token>` for incoming authentication. The `?token=<token>` query form remains compatible with providers that cannot set headers, but it can appear in access logs, intermediary logs, and browser history. Incoming delivery is asynchronous. The rate limit is enforced per token as a token bucket, so the configured requests-per-minute value is also the burst capacity.
+
+Outgoing webhook URLs, sensitive headers, and custom body templates are encrypted in the Vault and are only shown as masks in the API and Web UI. They must not be added to `config.yaml`.
+
 ### YAML Reference
 ```yaml
 webhooks:
     enabled: true
     max_payload_size: 65536
-    rate_limit: 60
+    rate_limit: 60 # per-token token bucket: refill/minute and burst capacity
 ```
 
 ---
