@@ -599,7 +599,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 					"id":            prop("string", "Webhook ID (required for update/delete)"),
 					"name":          prop("string", "Friendly name of the webhook (required for create)"),
 					"description":   prop("string", "Description of what it does and parameters needed (required for create)"),
-					"method":        map[string]interface{}{"type": "string", "enum": []string{"GET", "POST", "PUT", "DELETE"}},
+					"method":        map[string]interface{}{"type": "string", "enum": []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"}},
 					"url":           prop("string", "URL endpoint. Can contain {{variables}}"),
 					"payload_type":  map[string]interface{}{"type": "string", "enum": []string{"json", "form", "custom"}},
 					"body_template": prop("string", "Custom request body template. Applies only if payload_type is custom."),

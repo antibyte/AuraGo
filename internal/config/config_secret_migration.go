@@ -1,6 +1,11 @@
 package config
 
 import (
+	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
 	"log/slog"
 	"os"
 	"strings"
@@ -271,6 +276,13 @@ func MigratePlaintextSecretsToVault(configPath string, vault SecretReadWriter, l
 		return
 	}
 
+	if _, err := migrateOutgoingWebhookSecretsToVault(configPath, vault); err != nil {
+		if log != nil {
+			log.Error("[Config] Failed to migrate outgoing webhook secrets", "error", err)
+		}
+		return
+	}
+
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		return
@@ -316,6 +328,160 @@ func MigratePlaintextSecretsToVault(configPath string, vault SecretReadWriter, l
 	if err := WriteFileAtomic(configPath, out, 0o600); err != nil {
 		log.Error("[Config] Failed to write cleaned config after secret migration", "error", err)
 	}
+}
+
+func migrateOutgoingWebhookSecretsToVault(configPath string, vault SecretReadWriter) (bool, error) {
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return false, err
+	}
+	var document yaml.Node
+	if err := yaml.Unmarshal(data, &document); err != nil {
+		return false, err
+	}
+	root := yamlDocumentRoot(&document)
+	webhooksNode := mappingNodeValue(root, "webhooks")
+	outgoingNode := mappingNodeValue(webhooksNode, "outgoing")
+	if outgoingNode == nil || outgoingNode.Kind != yaml.SequenceNode {
+		return false, nil
+	}
+
+	type pendingBundle struct {
+		key      string
+		encoded  string
+		previous string
+		existed  bool
+	}
+	pending := make([]pendingBundle, 0, len(outgoingNode.Content))
+	changed := false
+	for index, hookNode := range outgoingNode.Content {
+		if hookNode.Kind != yaml.MappingNode {
+			continue
+		}
+		urlNode := mappingNodeValue(hookNode, "url")
+		bodyNode := mappingNodeValue(hookNode, "body_template")
+		headersNode := mappingNodeValue(hookNode, "headers")
+		hasSensitiveHeader := false
+		if headersNode != nil && headersNode.Kind == yaml.MappingNode {
+			for i := 0; i+1 < len(headersNode.Content); i += 2 {
+				if IsSensitiveOutgoingWebhookHeader(headersNode.Content[i].Value) {
+					hasSensitiveHeader = true
+					break
+				}
+			}
+		}
+		if urlNode == nil && bodyNode == nil && !hasSensitiveHeader {
+			continue
+		}
+
+		id := strings.TrimSpace(yamlScalarValue(mappingNodeValue(hookNode, "id")))
+		if id == "" {
+			seed := fmt.Sprintf("%d|%s|%s", index, yamlScalarValue(mappingNodeValue(hookNode, "name")), yamlScalarValue(urlNode))
+			sum := sha256.Sum256([]byte(seed))
+			id = "legacy_" + hex.EncodeToString(sum[:6])
+			yamlAppendMapping(hookNode, "id", &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: id})
+		}
+		key := OutgoingWebhookSecretsVaultKey(id)
+		previous, readErr := vault.ReadSecret(key)
+		secrets := OutgoingWebhookSecrets{}
+		if readErr == nil && strings.TrimSpace(previous) != "" {
+			_ = json.Unmarshal([]byte(previous), &secrets)
+		}
+		if secrets.URL == "" && urlNode != nil {
+			secrets.URL = yamlScalarValue(urlNode)
+		}
+		if secrets.BodyTemplate == "" && bodyNode != nil {
+			secrets.BodyTemplate = yamlScalarValue(bodyNode)
+		}
+		if secrets.Headers == nil {
+			secrets.Headers = make(map[string]string)
+		}
+		if headersNode != nil && headersNode.Kind == yaml.MappingNode {
+			kept := make([]*yaml.Node, 0, len(headersNode.Content))
+			for i := 0; i+1 < len(headersNode.Content); i += 2 {
+				nameNode := headersNode.Content[i]
+				valueNode := headersNode.Content[i+1]
+				if IsSensitiveOutgoingWebhookHeader(nameNode.Value) {
+					if _, exists := secrets.Headers[nameNode.Value]; !exists {
+						secrets.Headers[nameNode.Value] = yamlScalarValue(valueNode)
+					}
+					continue
+				}
+				kept = append(kept, nameNode, valueNode)
+			}
+			headersNode.Content = kept
+		}
+		removeYAMLMappingKeys(hookNode, "url", "body_template")
+		encoded, err := json.Marshal(secrets)
+		if err != nil {
+			return false, err
+		}
+		pending = append(pending, pendingBundle{key: key, encoded: string(encoded), previous: previous, existed: readErr == nil})
+		changed = true
+	}
+	if !changed {
+		return false, nil
+	}
+
+	rollback := func(written int) {
+		deleter, _ := vault.(interface{ DeleteSecret(string) error })
+		for i := written - 1; i >= 0; i-- {
+			if pending[i].existed {
+				_ = vault.WriteSecret(pending[i].key, pending[i].previous)
+			} else if deleter != nil {
+				_ = deleter.DeleteSecret(pending[i].key)
+			}
+		}
+	}
+	for i, item := range pending {
+		if err := vault.WriteSecret(item.key, item.encoded); err != nil {
+			rollback(i)
+			return false, err
+		}
+	}
+
+	var output bytes.Buffer
+	encoder := yaml.NewEncoder(&output)
+	encoder.SetIndent(2)
+	if err := encoder.Encode(&document); err != nil {
+		_ = encoder.Close()
+		rollback(len(pending))
+		return false, err
+	}
+	if err := encoder.Close(); err != nil {
+		rollback(len(pending))
+		return false, err
+	}
+	if err := WriteFileAtomic(configPath, output.Bytes(), 0o600); err != nil {
+		rollback(len(pending))
+		return false, err
+	}
+	return true, nil
+}
+
+func yamlScalarValue(node *yaml.Node) string {
+	if node == nil {
+		return ""
+	}
+	return node.Value
+}
+
+func removeYAMLMappingKeys(node *yaml.Node, keys ...string) {
+	if node == nil || node.Kind != yaml.MappingNode {
+		return
+	}
+	remove := make(map[string]struct{}, len(keys))
+	for _, key := range keys {
+		remove[key] = struct{}{}
+	}
+	kept := make([]*yaml.Node, 0, len(node.Content))
+	for i := 0; i+1 < len(node.Content); i += 2 {
+		if _, ok := remove[node.Content[i].Value]; ok {
+			continue
+		}
+		kept = append(kept, node.Content[i], node.Content[i+1])
+	}
+	node.Content = kept
 }
 
 // MigrateAuthSecretsToVault is a one-time startup migration for deployments that

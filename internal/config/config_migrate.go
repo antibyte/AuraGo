@@ -953,6 +953,22 @@ func (c *Config) ApplyVaultSecrets(vault SecretReader) {
 		a := &c.EmailAccounts[i]
 		apply("email_"+a.ID+"_password", &a.Password)
 	}
+
+	// ── Outgoing webhook vault bundles ──
+	for i := range c.Webhooks.Outgoing {
+		hook := &c.Webhooks.Outgoing[i]
+		raw, err := vault.ReadSecret(OutgoingWebhookSecretsVaultKey(hook.ID))
+		if err != nil || strings.TrimSpace(raw) == "" {
+			continue
+		}
+		var secrets OutgoingWebhookSecrets
+		if err := json.Unmarshal([]byte(raw), &secrets); err != nil {
+			continue
+		}
+		hook.URL = secrets.URL
+		hook.BodyTemplate = secrets.BodyTemplate
+		hook.SecretHeaders = cloneStringMap(secrets.Headers)
+	}
 }
 
 // migrateInlineProviders auto-creates provider entries from old-format config

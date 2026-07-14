@@ -237,8 +237,12 @@ func TestHandlePutOutgoingWebhooksReloadsVaultBackedAuthSecrets(t *testing.T) {
 		t.Fatalf("vault.WriteSecret() error = %v", err)
 	}
 
+	loadedCfg, err := config.Load(configPath)
+	if err != nil {
+		t.Fatalf("config.Load() error = %v", err)
+	}
 	server := &Server{
-		Cfg:    &config.Config{ConfigPath: configPath},
+		Cfg:    loadedCfg,
 		Vault:  vault,
 		Logger: logger,
 	}
@@ -285,31 +289,34 @@ webhooks:
       name: Alert
       description: demo
       method: POST
-      url: https://example.com/hook
       headers:
-        Authorization: Bearer original-secret
         X-Plain: visible
       parameters: []
       payload_type: custom
-      body_template: '{"token":"original-secret"}'
 `
 	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
 		t.Fatalf("write config: %v", err)
 	}
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	vault, err := security.NewVault(strings.Repeat("e", 64), filepath.Join(tmpDir, "vault.bin"))
+	if err != nil {
+		t.Fatalf("NewVault() error = %v", err)
+	}
 	server := &Server{
 		Cfg:    &config.Config{ConfigPath: configPath},
+		Vault:  vault,
 		Logger: logger,
 	}
 	server.Cfg.Webhooks.Outgoing = []config.OutgoingWebhook{{
-		ID:           "hook_1",
-		Name:         "Alert",
-		Description:  "demo",
-		Method:       http.MethodPost,
-		URL:          "https://example.com/hook",
-		Headers:      map[string]string{"Authorization": "Bearer original-secret", "X-Plain": "visible"},
-		PayloadType:  "custom",
-		BodyTemplate: `{"token":"original-secret"}`,
+		ID:            "hook_1",
+		Name:          "Alert",
+		Description:   "demo",
+		Method:        http.MethodPost,
+		URL:           "https://example.com/hook",
+		Headers:       map[string]string{"X-Plain": "visible"},
+		SecretHeaders: map[string]string{"Authorization": "Bearer original-secret"},
+		PayloadType:   "custom",
+		BodyTemplate:  `{"token":"original-secret"}`,
 	}}
 
 	getReq := httptest.NewRequest(http.MethodGet, "/api/outgoing-webhooks", nil)
@@ -321,6 +328,9 @@ webhooks:
 	}
 	if strings.Contains(getRec.Body.String(), "original-secret") {
 		t.Fatalf("GET response leaked secret: %s", getRec.Body.String())
+	}
+	if !strings.Contains(getRec.Body.String(), `"url":"`+config.OutgoingWebhookMaskedValue+`"`) {
+		t.Fatalf("GET response did not mask URL: %s", getRec.Body.String())
 	}
 
 	putReq := httptest.NewRequest(http.MethodPut, "/api/outgoing-webhooks", strings.NewReader(`[
@@ -342,11 +352,44 @@ webhooks:
 	if putRec.Code != http.StatusOK {
 		t.Fatalf("PUT status = %d, want %d; body=%s", putRec.Code, http.StatusOK, putRec.Body.String())
 	}
-	if got := server.Cfg.Webhooks.Outgoing[0].Headers["Authorization"]; got != "Bearer original-secret" {
+	if got := server.Cfg.Webhooks.Outgoing[0].SecretHeaders["Authorization"]; got != "Bearer original-secret" {
 		t.Fatalf("Authorization header = %q, want original secret preserved", got)
 	}
 	if got := server.Cfg.Webhooks.Outgoing[0].BodyTemplate; !strings.Contains(got, "original-secret") {
 		t.Fatalf("BodyTemplate = %q, want original secret preserved", got)
+	}
+	storedYAML, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("ReadFile() error = %v", err)
+	}
+	if strings.Contains(string(storedYAML), "example.com/hook") || strings.Contains(string(storedYAML), "original-secret") || strings.Contains(string(storedYAML), "body_template") {
+		t.Fatalf("config leaked outgoing secrets:\n%s", storedYAML)
+	}
+}
+
+func TestHandlePutOutgoingWebhooksRejectsInvalidMethod(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	if err := os.WriteFile(configPath, []byte("webhooks:\n  outgoing: []\n"), 0o600); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+	vault, err := security.NewVault(strings.Repeat("f", 64), filepath.Join(tmpDir, "vault.bin"))
+	if err != nil {
+		t.Fatalf("NewVault() error = %v", err)
+	}
+	server := &Server{Cfg: &config.Config{ConfigPath: configPath}, Vault: vault, Logger: slog.Default()}
+	req := httptest.NewRequest(http.MethodPut, "/api/outgoing-webhooks", strings.NewReader(`[{"id":"hook_1","name":"Bad","method":"TRACE","url":"https://example.test/hook"}]`))
+	rec := httptest.NewRecorder()
+
+	handlePutOutgoingWebhooks(server, rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusBadRequest, rec.Body.String())
+	}
+	if len(server.Cfg.Webhooks.Outgoing) != 0 {
+		t.Fatalf("runtime config changed: %#v", server.Cfg.Webhooks.Outgoing)
 	}
 }
 

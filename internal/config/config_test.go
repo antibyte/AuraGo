@@ -29,6 +29,11 @@ func (v *testSecretVault) WriteSecret(key, value string) error {
 	return nil
 }
 
+func (v *testSecretVault) DeleteSecret(key string) error {
+	delete(v.data, key)
+	return nil
+}
+
 func TestMigratePlaintextSecretsToVaultMovesKlipperPrinterAPIKeys(t *testing.T) {
 	configPath := filepath.Join(t.TempDir(), "config.yaml")
 	legacy := `
@@ -3048,7 +3053,7 @@ auth:
 	}
 }
 
-func TestConfigSavePersistsOutgoingWebhooks(t *testing.T) {
+func TestConfigSavePersistsOnlyNonSensitiveOutgoingWebhookFields(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.yaml")
 	configContent := `
@@ -3098,8 +3103,15 @@ webhooks:
 	if len(reloaded.Webhooks.Outgoing) != 1 {
 		t.Fatalf("outgoing webhook count = %d, want 1", len(reloaded.Webhooks.Outgoing))
 	}
-	if reloaded.Webhooks.Outgoing[0].URL != "https://example.test/deploy" {
-		t.Fatalf("saved webhook url = %q", reloaded.Webhooks.Outgoing[0].URL)
+	if reloaded.Webhooks.Outgoing[0].URL != "" {
+		t.Fatalf("saved webhook url = %q, want vault-only empty value", reloaded.Webhooks.Outgoing[0].URL)
+	}
+	raw, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("ReadFile() error = %v", err)
+	}
+	if strings.Contains(string(raw), "example.test/deploy") {
+		t.Fatalf("config leaked outgoing URL:\n%s", raw)
 	}
 }
 

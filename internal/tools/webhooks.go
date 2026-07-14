@@ -16,10 +16,15 @@ import (
 
 var outgoingWebhookHTTPClient = security.NewSSRFProtectedHTTPClient(30 * time.Second)
 
-const outgoingWebhookMaskedValue = "••••••••"
+const outgoingWebhookMaskedValue = config.OutgoingWebhookMaskedValue
 
 // ExecuteOutgoingWebhook resolves variables and sends an HTTP request
 func ExecuteOutgoingWebhook(ctx context.Context, hook config.OutgoingWebhook, params map[string]interface{}) (string, int, error) {
+	method, err := config.NormalizeOutgoingWebhookMethod(hook.Method)
+	if err != nil {
+		return "", 0, err
+	}
+	hook.Method = method
 	// Resolve URL parameters — values are URL-encoded to prevent injection of
 	// additional query parameters or path components.
 	urlStr := hook.URL
@@ -84,6 +89,13 @@ func ExecuteOutgoingWebhook(ctx context.Context, hook config.OutgoingWebhook, pa
 		}
 		req.Header.Set(k, resolvedV)
 	}
+	for k, v := range hook.SecretHeaders {
+		resolvedV := v
+		for pk, pv := range params {
+			resolvedV = strings.ReplaceAll(resolvedV, "{{"+pk+"}}", fmt.Sprintf("%v", pv))
+		}
+		req.Header.Set(k, resolvedV)
+	}
 
 	resp, err := outgoingWebhookHTTPClient.Do(req)
 	if err != nil {
@@ -101,12 +113,12 @@ func ExecuteOutgoingWebhook(ctx context.Context, hook config.OutgoingWebhook, pa
 }
 
 // ManageOutgoingWebhooks provides a way for the LLM to CRUD outgoing webhooks
-func ManageOutgoingWebhooks(tcOperation, webhookID, name, description, method, url, payloadType, bodyTemplate string, headers map[string]string, rawParameters []interface{}, cfg *config.Config) string {
+func ManageOutgoingWebhooks(tcOperation, webhookID, name, description, method, url, payloadType, bodyTemplate string, headers map[string]string, rawParameters []interface{}, cfg *config.Config, vault *security.Vault) string {
 	if tcOperation == "list" {
 		if len(cfg.Webhooks.Outgoing) == 0 {
 			return `Tool Output: {"status":"success", "message":"No outgoing webhooks configured."}`
 		}
-		b, err := json.MarshalIndent(maskOutgoingWebhooksForTool(cfg.Webhooks.Outgoing), "", "  ")
+		b, err := json.MarshalIndent(config.MaskOutgoingWebhooks(cfg.Webhooks.Outgoing), "", "  ")
 		if err != nil {
 			return fmt.Sprintf(`Tool Output: {"status":"error", "message":"Failed to list webhooks: %v"}`, err)
 		}
@@ -190,45 +202,25 @@ func ManageOutgoingWebhooks(tcOperation, webhookID, name, description, method, u
 		return fmt.Sprintf(`Tool Output: {"status":"error", "message":"Unknown operation: %s"}`, tcOperation)
 	}
 
-	cfg.Webhooks.Outgoing = outgoing
 	if strings.TrimSpace(cfg.ConfigPath) == "" {
-		return fmt.Sprintf(`Tool Output: {"status":"success", "message":"Webhook %sd in memory. Config path is unavailable, so the change could not be persisted.", "persisted": false}`, tcOperation)
+		return `Tool Output: {"status":"error", "message":"Config path is unavailable; outgoing webhook changes were not applied."}`
 	}
-	if err := cfg.Save(cfg.ConfigPath); err != nil {
-		return fmt.Sprintf(`Tool Output: {"status":"error", "message":"Webhook %sd in memory, but failed to persist config: %s"}`, tcOperation, err.Error())
+	if vault == nil {
+		return `Tool Output: {"status":"error", "message":"Vault is unavailable; outgoing webhook changes were not applied."}`
 	}
+	newCfg, err := config.PersistOutgoingWebhooks(cfg.ConfigPath, cfg, outgoing, vault)
+	if err != nil {
+		return fmt.Sprintf(`Tool Output: {"status":"error", "message":"Failed to persist outgoing webhook: %s"}`, err.Error())
+	}
+	*cfg = *newCfg
 
 	return fmt.Sprintf(`Tool Output: {"status":"success", "message":"Webhook %sd successfully.", "persisted": true}`, tcOperation)
 }
 
 func maskOutgoingWebhooksForTool(outgoing []config.OutgoingWebhook) []config.OutgoingWebhook {
-	masked := make([]config.OutgoingWebhook, len(outgoing))
-	for i, hook := range outgoing {
-		masked[i] = hook
-		if hook.Headers != nil {
-			masked[i].Headers = make(map[string]string, len(hook.Headers))
-			for key, value := range hook.Headers {
-				if value != "" && isSensitiveOutgoingWebhookHeader(key) {
-					masked[i].Headers[key] = outgoingWebhookMaskedValue
-					continue
-				}
-				masked[i].Headers[key] = value
-			}
-		}
-		if strings.TrimSpace(hook.BodyTemplate) != "" {
-			masked[i].BodyTemplate = outgoingWebhookMaskedValue
-		}
-	}
-	return masked
+	return config.MaskOutgoingWebhooks(outgoing)
 }
 
 func isSensitiveOutgoingWebhookHeader(name string) bool {
-	lower := strings.ToLower(strings.TrimSpace(name))
-	if lower == "" {
-		return false
-	}
-	if lower == "authorization" || lower == "proxy-authorization" || lower == "cookie" || lower == "set-cookie" {
-		return true
-	}
-	return strings.Contains(lower, "token") || strings.Contains(lower, "secret") || strings.Contains(lower, "api-key") || strings.Contains(lower, "apikey") || strings.Contains(lower, "password") || strings.Contains(lower, "credential")
+	return config.IsSensitiveOutgoingWebhookHeader(name)
 }

@@ -330,7 +330,7 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			if cfg.Webhooks.ReadOnly && req.Operation != "list" {
 				return `Tool Output: {"status":"error","message":"Webhooks tool is set to Read-Only mode. Cannot modify."}`
 			}
-			return tools.ManageOutgoingWebhooks(req.Operation, req.ID, req.Name, req.Description, req.Method, req.URL, req.PayloadType, req.BodyTemplate, req.Headers, req.rawParameters(), cfg)
+			return tools.ManageOutgoingWebhooks(req.Operation, req.ID, req.Name, req.Description, req.Method, req.URL, req.PayloadType, req.BodyTemplate, req.Headers, req.rawParameters(), cfg, dc.Vault)
 
 		case "list_skill_templates":
 			logger.Info("LLM requested to list skill templates")

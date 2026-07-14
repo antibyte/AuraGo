@@ -191,15 +191,16 @@ type WebhookParameter struct {
 }
 
 type OutgoingWebhook struct {
-	ID           string             `yaml:"id" json:"id"`
-	Name         string             `yaml:"name" json:"name"`               // Agent uses this name
-	Description  string             `yaml:"description" json:"description"` // Tells agent when to use it
-	Method       string             `yaml:"method" json:"method"`           // GET, POST, PUT, DELETE
-	URL          string             `yaml:"url" json:"url"`                 // Can contain {{variables}}
-	Headers      map[string]string  `yaml:"headers" json:"headers"`
-	Parameters   []WebhookParameter `yaml:"parameters" json:"parameters"`
-	PayloadType  string             `yaml:"payload_type" json:"payload_type"`   // "json", "form", "custom"
-	BodyTemplate string             `yaml:"body_template" json:"body_template"` // Context for custom templating
+	ID            string             `yaml:"id" json:"id"`
+	Name          string             `yaml:"name" json:"name"`               // Agent uses this name
+	Description   string             `yaml:"description" json:"description"` // Tells agent when to use it
+	Method        string             `yaml:"method" json:"method"`           // GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS
+	URL           string             `yaml:"-" json:"url"`                   // Vault-only; can contain {{variables}}
+	Headers       map[string]string  `yaml:"headers,omitempty" json:"headers"`
+	SecretHeaders map[string]string  `yaml:"-" json:"-"` // Runtime-only sensitive headers hydrated from the vault.
+	Parameters    []WebhookParameter `yaml:"parameters" json:"parameters"`
+	PayloadType   string             `yaml:"payload_type" json:"payload_type"` // "json", "form", "custom"
+	BodyTemplate  string             `yaml:"-" json:"body_template"`           // Vault-only custom template.
 }
 
 // GotenbergConfig holds connection parameters for the Gotenberg Docker sidecar.

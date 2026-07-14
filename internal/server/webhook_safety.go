@@ -3,7 +3,6 @@ package server
 import (
 	"encoding/json"
 	"net/http"
-	"strings"
 
 	"aurago/internal/config"
 	"aurago/internal/webhooks"
@@ -56,60 +55,17 @@ func webhookUpdateOptions(body []byte) webhooks.UpdateOptions {
 }
 
 func maskOutgoingWebhooksForDisplay(outgoing []config.OutgoingWebhook) []config.OutgoingWebhook {
-	masked := make([]config.OutgoingWebhook, len(outgoing))
-	for i, hook := range outgoing {
-		masked[i] = hook
-		if hook.Headers != nil {
-			masked[i].Headers = make(map[string]string, len(hook.Headers))
-			for key, value := range hook.Headers {
-				if value != "" && isSensitiveOutgoingHeader(key) {
-					masked[i].Headers[key] = maskedKey
-					continue
-				}
-				masked[i].Headers[key] = value
-			}
-		}
-		if strings.TrimSpace(hook.BodyTemplate) != "" {
-			masked[i].BodyTemplate = maskedKey
-		}
-	}
-	return masked
+	return config.MaskOutgoingWebhooks(outgoing)
 }
 
 func restoreMaskedOutgoingWebhooks(incoming, existing []config.OutgoingWebhook) []config.OutgoingWebhook {
-	existingByID := make(map[string]config.OutgoingWebhook, len(existing))
-	for _, hook := range existing {
-		existingByID[hook.ID] = hook
+	prepared, err := config.PrepareOutgoingWebhooks(incoming, existing)
+	if err != nil {
+		return incoming
 	}
-	result := make([]config.OutgoingWebhook, len(incoming))
-	copy(result, incoming)
-	for i := range result {
-		oldHook, ok := existingByID[result[i].ID]
-		if !ok {
-			continue
-		}
-		if result[i].BodyTemplate == maskedKey {
-			result[i].BodyTemplate = oldHook.BodyTemplate
-		}
-		if result[i].Headers == nil {
-			continue
-		}
-		for key, value := range result[i].Headers {
-			if value == maskedKey {
-				result[i].Headers[key] = oldHook.Headers[key]
-			}
-		}
-	}
-	return result
+	return prepared
 }
 
 func isSensitiveOutgoingHeader(name string) bool {
-	lower := strings.ToLower(strings.TrimSpace(name))
-	if lower == "" {
-		return false
-	}
-	if lower == "authorization" || lower == "proxy-authorization" || lower == "cookie" || lower == "set-cookie" {
-		return true
-	}
-	return strings.Contains(lower, "token") || strings.Contains(lower, "secret") || strings.Contains(lower, "api-key") || strings.Contains(lower, "apikey") || strings.Contains(lower, "password") || strings.Contains(lower, "credential")
+	return config.IsSensitiveOutgoingWebhookHeader(name)
 }

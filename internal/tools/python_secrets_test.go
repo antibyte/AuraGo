@@ -77,6 +77,7 @@ func TestIsPythonAccessibleSecret_BlocksSystemVaultKeysAddedByIntegrations(t *te
 		"boring_token",
 		"boring_anthropic_key",
 		"boring_openrouter_key",
+		"webhook_outgoing_hook_1_0123456789ab_secrets",
 	} {
 		if IsPythonAccessibleSecret(key) {
 			t.Errorf("expected system-managed key %q to be blocked, but it was allowed", key)
