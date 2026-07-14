@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -12,6 +13,8 @@ import (
 	"aurago/internal/security"
 	"aurago/internal/webhooks"
 )
+
+var errWebhookSignatureSecretUnavailable = errors.New("webhook signature secret unavailable")
 
 func webhookMaskSecrets(wh webhooks.Webhook, vault *security.Vault) webhooks.Webhook {
 	if strings.TrimSpace(wh.Format.SignatureSecret) != "" {
@@ -250,6 +253,10 @@ func handleUpdateWebhook(s *Server, mgr *webhooks.Manager) http.HandlerFunc {
 		keepExistingSecret := signatureSecret == maskedKey
 		effectiveFormat, err := effectiveWebhookSignatureFormat(existing.Format, patch.Format, updateOpts, s.Vault, id)
 		if err != nil {
+			if errors.Is(err, errWebhookSignatureSecretUnavailable) {
+				jsonError(w, "Vault unavailable for webhook signature secret", http.StatusServiceUnavailable)
+				return
+			}
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
@@ -319,6 +326,8 @@ func effectiveWebhookSignatureFormat(existing, patch webhooks.WebhookFormat, opt
 	if secret == "" && vault != nil {
 		if value, err := vault.ReadSecret(webhooks.SignatureSecretVaultKey(webhookID)); err == nil {
 			secret = strings.TrimSpace(value)
+		} else if !isMissingVaultSecretError(err) {
+			return webhooks.WebhookFormat{}, fmt.Errorf("%w: %v", errWebhookSignatureSecretUnavailable, err)
 		}
 	}
 	if opts.SignatureSecretSet {
@@ -362,12 +371,38 @@ func handleDeleteWebhook(s *Server, mgr *webhooks.Manager) http.HandlerFunc {
 			jsonError(w, `{"error":"missing webhook id"}`, http.StatusBadRequest)
 			return
 		}
-		if err := mgr.Delete(id); err != nil {
+		if _, err := mgr.Get(id); err != nil {
 			jsonError(w, "Webhook not found", http.StatusNotFound)
 			return
 		}
+		vaultKey := webhooks.SignatureSecretVaultKey(id)
+		var previousSecret string
+		previousSecretExists := false
 		if s.Vault != nil {
-			_ = s.Vault.DeleteSecret(webhooks.SignatureSecretVaultKey(id))
+			var readErr error
+			previousSecret, readErr = s.Vault.ReadSecret(vaultKey)
+			if readErr != nil && !isMissingVaultSecretError(readErr) {
+				jsonError(w, "Vault unavailable for webhook signature secret", http.StatusServiceUnavailable)
+				return
+			}
+			previousSecretExists = readErr == nil
+			if err := s.Vault.DeleteSecret(vaultKey); err != nil {
+				jsonError(w, "Failed to delete webhook signature secret", http.StatusServiceUnavailable)
+				return
+			}
+		}
+		if err := mgr.Delete(id); err != nil {
+			if previousSecretExists {
+				if restoreErr := s.Vault.WriteSecret(vaultKey, previousSecret); restoreErr != nil {
+					if s.Logger != nil {
+						s.Logger.Error("Failed to restore webhook signature secret after delete rollback", "webhook_id", id, "error", restoreErr)
+					}
+					jsonError(w, "Failed to delete webhook and restore its signature secret", http.StatusInternalServerError)
+					return
+				}
+			}
+			jsonError(w, "Failed to delete webhook", http.StatusInternalServerError)
+			return
 		}
 		w.WriteHeader(http.StatusNoContent)
 	}
@@ -491,6 +526,8 @@ func handlePutOutgoingWebhooks(s *Server, w http.ResponseWriter, r *http.Request
 		jsonError(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
+	s.CfgSaveMu.Lock()
+	defer s.CfgSaveMu.Unlock()
 
 	s.CfgMu.RLock()
 	current := *s.Cfg
@@ -534,4 +571,8 @@ func handlePutOutgoingWebhooks(s *Server, w http.ResponseWriter, r *http.Request
 		"status": "ok",
 		"count":  len(prepared),
 	})
+}
+
+func isMissingVaultSecretError(err error) bool {
+	return err != nil && strings.EqualFold(strings.TrimSpace(err.Error()), "secret not found")
 }

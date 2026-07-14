@@ -4,18 +4,24 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 	"os"
 	"regexp"
 	"strings"
+	"sync"
 )
 
 // OutgoingWebhookMaskedValue is the stable mask accepted by API and tool updates.
 const OutgoingWebhookMaskedValue = "••••••••"
 
 var outgoingWebhookIDSanitizer = regexp.MustCompile(`[^a-z0-9]+`)
+
+// outgoingWebhookPersistMu keeps the vault, YAML and reload phases of every
+// outgoing-webhook update in one process-wide transaction.
+var outgoingWebhookPersistMu sync.Mutex
 
 // OutgoingWebhookSecrets is the encrypted vault payload for one outgoing webhook.
 type OutgoingWebhookSecrets struct {
@@ -138,9 +144,9 @@ func PrepareOutgoingWebhooks(incoming, existing []OutgoingWebhook) ([]OutgoingWe
 		for key, value := range hook.Headers {
 			if IsSensitiveOutgoingWebhookHeader(key) {
 				if value == OutgoingWebhookMaskedValue {
-					value = old.SecretHeaders[key]
+					value = lookupHeaderValueFold(old.SecretHeaders, key)
 					if value == "" {
-						value = old.Headers[key]
+						value = lookupHeaderValueFold(old.Headers, key)
 					}
 					if value == "" {
 						return nil, fmt.Errorf("masked header %q for webhook %q cannot be resolved", key, hook.ID)
@@ -165,6 +171,9 @@ func PrepareOutgoingWebhooks(incoming, existing []OutgoingWebhook) ([]OutgoingWe
 
 // PersistOutgoingWebhooks updates vault bundles first, patches YAML, and returns a hydrated snapshot.
 func PersistOutgoingWebhooks(configPath string, current *Config, incoming []OutgoingWebhook, vault OutgoingWebhookSecretStore) (*Config, error) {
+	outgoingWebhookPersistMu.Lock()
+	defer outgoingWebhookPersistMu.Unlock()
+
 	if current == nil {
 		return nil, fmt.Errorf("current config is required")
 	}
@@ -234,12 +243,57 @@ func PersistOutgoingWebhooks(configPath string, current *Config, incoming []Outg
 	for _, hook := range prepared {
 		kept[hook.ID] = struct{}{}
 	}
+	removedSnapshots := make([]snapshot, 0)
 	for _, old := range current.Webhooks.Outgoing {
 		if _, ok := kept[old.ID]; !ok {
-			_ = vault.DeleteSecret(OutgoingWebhookSecretsVaultKey(old.ID))
+			key := OutgoingWebhookSecretsVaultKey(old.ID)
+			bundle, readErr := vault.ReadSecret(key)
+			if readErr != nil || strings.TrimSpace(bundle) == "" {
+				encoded, marshalErr := json.Marshal(OutgoingWebhookSecrets{
+					URL:          old.URL,
+					BodyTemplate: old.BodyTemplate,
+					Headers:      old.SecretHeaders,
+				})
+				if marshalErr != nil {
+					_ = WriteFileAtomic(configPath, originalYAML, 0o600)
+					rollbackVault()
+					return nil, fmt.Errorf("snapshot removed outgoing webhook secrets for %q: %w", old.ID, marshalErr)
+				}
+				bundle = string(encoded)
+			}
+			if deleteErr := vault.DeleteSecret(key); deleteErr != nil {
+				restoreErr := WriteFileAtomic(configPath, originalYAML, 0o600)
+				rollbackVault()
+				restoreErrors := []error{
+					fmt.Errorf("delete outgoing webhook secrets for %q: %w", old.ID, deleteErr),
+					wrapOptionalError("restore config after outgoing webhook delete failure", restoreErr),
+					wrapOptionalError("restore outgoing webhook vault bundle", vault.WriteSecret(key, bundle)),
+				}
+				for _, removed := range removedSnapshots {
+					restoreErrors = append(restoreErrors, wrapOptionalError("restore previously removed outgoing webhook vault bundle", vault.WriteSecret(removed.key, removed.value)))
+				}
+				return nil, errors.Join(restoreErrors...)
+			}
+			removedSnapshots = append(removedSnapshots, snapshot{key: key, value: bundle, exists: true})
 		}
 	}
 	return loaded, nil
+}
+
+func lookupHeaderValueFold(headers map[string]string, name string) string {
+	for key, value := range headers {
+		if strings.EqualFold(strings.TrimSpace(key), strings.TrimSpace(name)) {
+			return value
+		}
+	}
+	return ""
+}
+
+func wrapOptionalError(context string, err error) error {
+	if err == nil {
+		return nil
+	}
+	return fmt.Errorf("%s: %w", context, err)
 }
 
 func cloneStringMap(values map[string]string) map[string]string {

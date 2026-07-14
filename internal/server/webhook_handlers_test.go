@@ -472,3 +472,93 @@ func TestHandleTestWebhookReturnsBadRequestForLegacyInvalidTemplate(t *testing.T
 		t.Fatalf("response lacks actionable template error: %s", rec.Body.String())
 	}
 }
+
+func TestHandleUpdateWebhookReturnsServiceUnavailableForVaultReadFailure(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	vaultPath := filepath.Join(dir, "vault.bin")
+	vault, err := security.NewVault("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", vaultPath)
+	if err != nil {
+		t.Fatalf("NewVault() error = %v", err)
+	}
+	mgr, err := webhooks.NewManager(filepath.Join(dir, "webhooks.json"), filepath.Join(dir, "webhooks.log"))
+	if err != nil {
+		t.Fatalf("NewManager() error = %v", err)
+	}
+	created, err := mgr.Create(webhooks.Webhook{
+		Name:    "Signed",
+		Slug:    "signed-vault-failure",
+		Enabled: true,
+		Format: webhooks.WebhookFormat{
+			SignatureHeader: "X-Signature",
+			SignatureAlgo:   "sha256",
+		},
+		Delivery: webhooks.DeliveryConfig{Mode: webhooks.DeliveryModeSilent},
+	})
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	if err := vault.WriteSecret(webhooks.SignatureSecretVaultKey(created.ID), "signature-secret"); err != nil {
+		t.Fatalf("WriteSecret() error = %v", err)
+	}
+	if err := os.WriteFile(vaultPath, []byte("corrupt vault"), 0o600); err != nil {
+		t.Fatalf("corrupt vault: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPut, "/api/webhooks/"+created.ID, strings.NewReader(`{"name":"Renamed"}`))
+	rec := httptest.NewRecorder()
+	handleUpdateWebhook(&Server{Vault: vault, Logger: slog.Default()}, mgr).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusServiceUnavailable, rec.Body.String())
+	}
+	stored, err := mgr.Get(created.ID)
+	if err != nil {
+		t.Fatalf("mgr.Get() error = %v", err)
+	}
+	if stored.Name != "Signed" {
+		t.Fatalf("webhook mutated despite vault failure: name=%q", stored.Name)
+	}
+}
+
+func TestHandleDeleteWebhookKeepsWebhookWhenVaultDeletionIsUnavailable(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	vaultPath := filepath.Join(dir, "vault.bin")
+	vault, err := security.NewVault("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", vaultPath)
+	if err != nil {
+		t.Fatalf("NewVault() error = %v", err)
+	}
+	mgr, err := webhooks.NewManager(filepath.Join(dir, "webhooks.json"), filepath.Join(dir, "webhooks.log"))
+	if err != nil {
+		t.Fatalf("NewManager() error = %v", err)
+	}
+	created, err := mgr.Create(webhooks.Webhook{
+		Name:     "Delete safely",
+		Slug:     "delete-safely",
+		Enabled:  true,
+		Delivery: webhooks.DeliveryConfig{Mode: webhooks.DeliveryModeSilent},
+	})
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	if err := vault.WriteSecret(webhooks.SignatureSecretVaultKey(created.ID), "signature-secret"); err != nil {
+		t.Fatalf("WriteSecret() error = %v", err)
+	}
+	if err := os.WriteFile(vaultPath, []byte("corrupt vault"), 0o600); err != nil {
+		t.Fatalf("corrupt vault: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/webhooks/"+created.ID, nil)
+	rec := httptest.NewRecorder()
+	handleDeleteWebhook(&Server{Vault: vault, Logger: slog.Default()}, mgr).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusServiceUnavailable, rec.Body.String())
+	}
+	if _, err := mgr.Get(created.ID); err != nil {
+		t.Fatalf("webhook was deleted despite vault failure: %v", err)
+	}
+}

@@ -58,6 +58,17 @@ func (m *Manager) MigrateSignatureSecrets(vault *security.Vault) error {
 		}
 		key := SignatureSecretVaultKey(m.webhooks[i].ID)
 		previous, err := vault.ReadSecret(key)
+		if err == nil && strings.TrimSpace(previous) != "" {
+			// A vault value may have been rotated after a partially completed legacy
+			// migration. The vault is authoritative; only remove the stale plaintext.
+			m.webhooks[i].Format.SignatureSecret = ""
+			changed = true
+			continue
+		}
+		if err != nil && !isMissingVaultSecretError(err) {
+			rollback()
+			return fmt.Errorf("read existing signature secret for webhook %s: %w", m.webhooks[i].ID, err)
+		}
 		snapshot := vaultSnapshot{key: key, value: previous, exists: err == nil}
 		snapshots = append(snapshots, snapshot)
 		if err := vault.WriteSecret(key, secret); err != nil {
@@ -76,6 +87,10 @@ func (m *Manager) MigrateSignatureSecrets(vault *security.Vault) error {
 		return fmt.Errorf("persist migrated webhook signature secrets: %w", err)
 	}
 	return nil
+}
+
+func isMissingVaultSecretError(err error) bool {
+	return err != nil && strings.EqualFold(strings.TrimSpace(err.Error()), "secret not found")
 }
 
 // UpdateOptions records which zero-value fields were explicitly provided by the caller.

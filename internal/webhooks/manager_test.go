@@ -100,6 +100,49 @@ func TestManagerMigratesPlaintextSignatureSecretsToVaultIdempotently(t *testing.
 	}
 }
 
+func TestManagerMigrationPreservesNewerVaultSignatureSecret(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	mgr, err := NewManager(filepath.Join(dir, "webhooks.json"), filepath.Join(dir, "webhooks.log"))
+	if err != nil {
+		t.Fatalf("NewManager() error = %v", err)
+	}
+	created, err := mgr.Create(Webhook{
+		Name:    "Legacy",
+		Slug:    "legacy-newer-vault",
+		Enabled: true,
+		Format: WebhookFormat{
+			SignatureHeader: "X-Signature",
+			SignatureAlgo:   "sha256",
+			SignatureSecret: "stale-plaintext-secret",
+		},
+		Delivery: DeliveryConfig{Mode: DeliveryModeSilent},
+	})
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	vault, err := security.NewVault("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", filepath.Join(dir, "vault.bin"))
+	if err != nil {
+		t.Fatalf("NewVault() error = %v", err)
+	}
+	key := SignatureSecretVaultKey(created.ID)
+	if err := vault.WriteSecret(key, "newer-rotated-secret"); err != nil {
+		t.Fatalf("WriteSecret() error = %v", err)
+	}
+
+	if err := mgr.MigrateSignatureSecrets(vault); err != nil {
+		t.Fatalf("MigrateSignatureSecrets() error = %v", err)
+	}
+	got, err := vault.ReadSecret(key)
+	if err != nil {
+		t.Fatalf("ReadSecret() error = %v", err)
+	}
+	if got != "newer-rotated-secret" {
+		t.Fatalf("vault secret = %q, want newer rotated value", got)
+	}
+}
+
 func TestManagerUpdateWithOptionsAllowsExplicitDisableAndSignatureClear(t *testing.T) {
 	t.Parallel()
 
