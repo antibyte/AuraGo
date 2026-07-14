@@ -302,17 +302,17 @@ func TestInvokeToolAcceptsFlattenedArguments(t *testing.T) {
 	}
 }
 
-func TestInvokeToolRejectsActiveNativeTool(t *testing.T) {
+func TestInvokeToolRoutesActiveVirtualComputersWhenDirectCallIsUnavailable(t *testing.T) {
 	resetToolCatalogForTest(t)
-	schemas := []openai.Tool{testToolSchema("discover_tools", "Browse tools")}
+	schemas := []openai.Tool{testToolSchema("virtual_computers", "Manage virtual computers")}
 	SetDiscoverToolsState("sess-active-invoke", schemas, schemas, "")
 
 	out, ok := dispatchComm(context.Background(), ToolCall{
 		Action: "invoke_tool",
 		Params: map[string]interface{}{
-			"tool_name": "discover_tools",
+			"tool_name": "virtual_computers",
 			"arguments": map[string]interface{}{
-				"operation": "list_categories",
+				"operation": "status",
 			},
 		},
 	}, &DispatchContext{
@@ -323,8 +323,8 @@ func TestInvokeToolRejectsActiveNativeTool(t *testing.T) {
 	if !ok {
 		t.Fatal("expected dispatchComm to handle invoke_tool")
 	}
-	if !strings.Contains(out, "is active; call it directly") {
-		t.Fatalf("expected active-tool rejection, got %s", out)
+	if !strings.Contains(out, "virtual computers are disabled in config") {
+		t.Fatalf("expected invoke_tool to route active virtual_computers to its native handler, got %s", out)
 	}
 }
 

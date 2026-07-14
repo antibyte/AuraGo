@@ -45,11 +45,6 @@ func dispatchInvokeTool(ctx context.Context, tc ToolCall, dc *DispatchContext) s
 		logInvalidToolCommand(dc.Logger, entry.Name, stringValueFromMap(args, "operation"), "self_invocation", args)
 		return `Tool Output: {"status":"error","message":"invoke_tool cannot invoke itself"}`
 	}
-	if entry.Status == ToolStatusActive {
-		logInvalidToolCommand(dc.Logger, entry.Name, stringValueFromMap(args, "operation"), "tool_active", args)
-		b, _ := json.Marshal(fmt.Sprintf("Tool '%s' is active; call it directly instead of using invoke_tool", entry.Name))
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":%s}`, b)
-	}
 	if strings.HasPrefix(entry.Name, "yepapi_") && stringValueFromMap(args, "operation") == "" {
 		logInvalidToolCommand(dc.Logger, entry.Name, "", "missing_operation", args)
 	}

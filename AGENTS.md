@@ -394,6 +394,7 @@ Tools are defined in `internal/tools/`:
 - Tools are registered in the tool registry
 - Native OpenAI function calling format
 - Dynamic tool creation supported (agent writes Python tools)
+- `invoke_tool` may route any enabled native tool through its real handler, including an active catalog entry when the current model/runtime cannot emit the direct structured call. It must continue to reject disabled tools and self-invocation.
 
 ### 3D Printer Integration Contract
 - Klipper/Moonraker API keys are vault-only. Store them under per-printer keys derived from the printer ID (`three_d_printer_klipper_<sanitized-id>_api_key`); never serialize them into `config.yaml`, API config responses, or tool output.

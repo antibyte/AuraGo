@@ -58,6 +58,6 @@ Get the full parameter schema, usage guide, status, and call method for a specif
    - `disabled`: stop and tell the user the tool must be enabled first
 
 ## Important
-- Hidden native tools are enabled but absent from your current schema due to adaptive filtering. Use `invoke_tool` only as the recovery path after `discover_tools` tells you to.
+- Hidden native tools are enabled but absent from your current schema due to adaptive filtering. Use `invoke_tool` after `discover_tools` tells you to, or as a fallback when an enabled active tool cannot be called directly by the current model/runtime.
 - Disabled tools (✗) cannot be called — they must be enabled in the config first
 - Native AuraGo tools are not skills. Never use `execute_skill` for a `kind: native` result.

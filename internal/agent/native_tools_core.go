@@ -340,7 +340,7 @@ func buildCoreToolSchemas(ff ToolFeatureFlags, execSkillProps map[string]interfa
 			}, "names"),
 		),
 		tool("invoke_tool",
-			"Invoke an enabled native tool hidden by adaptive filtering after discover_tools returns call_method=invoke_tool.",
+			"Invoke an enabled native tool through its native handler when discover_tools returns call_method=invoke_tool or a direct call is unavailable.",
 			schema(map[string]interface{}{
 				"tool_name": prop("string", "Exact tool name returned by discover_tools"),
 				"arguments": map[string]interface{}{
