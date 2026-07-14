@@ -811,7 +811,9 @@ async function ogSave() {
             method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newList)
         });
         if (!resp.ok) { const r = await resp.json(); showToast(r.error || t('config.webhooks.error'), 'error'); return; }
-        ogWebhooks = newList;
+        const maskedResp = await fetch('/api/outgoing-webhooks');
+        if (!maskedResp.ok) throw new Error(t('config.webhooks.error'));
+        ogWebhooks = await maskedResp.json();
         ogCloseModal();
         showToast(t('config.webhooks.og_saved'), 'success');
         const panel = document.getElementById('wh-panel-outgoing');
