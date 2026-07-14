@@ -1047,7 +1047,7 @@ if (appId === 'system-info') {
                 window.AuraDesktopModules.loadAppScript('virtual-computers').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
                 return;
             }
-            if (typeof window.VirtualComputersApp.render === 'function') return window.VirtualComputersApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, t, api, iconMarkup, notify: showDesktopNotification, readonly: desktopReadonly(), openApp }));
+            if (typeof window.VirtualComputersApp.render === 'function') return window.VirtualComputersApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, t, api, iconMarkup, notify: showDesktopNotification, readonly: desktopReadonly(), openApp, toggleMaximize: () => toggleMaximizeWindow(id) }));
         }
         if (appId === 'agent-chat') return window.AgentChatApp && typeof window.AgentChatApp.render === 'function' ? window.AgentChatApp.render(id, Object.assign({}, context || {}, { __desktopRuntime: { contentEl, esc, desktopText, iconMarkup, api, loadBootstrap, showDesktopNotification } })) : renderAppError(id, appId, new Error('Agent chat renderer is not loaded'));
         if (appId === 'viewer') {

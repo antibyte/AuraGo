@@ -1079,7 +1079,7 @@
     },
     "readonly": {
       "title": "Read-Only Mode",
-      "description": "Allows status, listing, screenshots, and downloads while blocking creation, exec, publish, volume, and destroy actions."
+      "description": "Allows status, listing, screenshots, and downloads while blocking Live VNC, creation, exec, publish, volume, and destroy actions."
     },
     "boring_token": {
       "title": "boringd Token (optional)",

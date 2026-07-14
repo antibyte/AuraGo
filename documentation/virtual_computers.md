@@ -68,6 +68,16 @@ AuraGo follows the pinned boringd API contract. Desktop screenshots are read as 
 
 Publishing requires a template name. Forking uses `count`; command execution accepts one complete command string rather than a separate argument array. Persistent machines may return an empty expiry timestamp, which AuraGo treats as no expiry.
 
+## Live VNC in Virtual Computers
+
+Display-capable machines expose **Live VNC** in the Virtual Computers app on the virtual desktop. The session opens in the right-hand detail area and provides controls for fitting the remote desktop, 1:1 display, view-only mode, Ctrl+Alt+Del, reconnecting, disconnecting, maximizing the app window, and browser fullscreen. Browser fullscreen includes both the remote display and its toolbar; pressing Esc exits fullscreen without disconnecting the VNC session.
+
+An app window keeps at most one visible VNC session. Selecting a screenshot or another machine, destroying the active machine, or closing the app disconnects it. Normal data refreshes preserve a visible session while its machine still exists, reports `display=true`, and remains writable. Tasks, volumes, and screenshots remain available in the overview and screenshot views, outside the live session. Separate Virtual Computers windows may each maintain their own session.
+
+Live VNC is an interactive desktop channel and therefore requires Desktop write permission. `virtual_computers.readonly=true` disables the Live VNC action and the server rejects direct VNC WebSocket requests with HTTP 403 before opening an upstream connection. Screenshots remain available with read permission. Headless machines never offer VNC.
+
+The browser connects only to AuraGo's existing same-origin `/api/virtual-computers/machines/{id}/vnc` WebSocket endpoint. boringd tokens, private upstream URLs, and authorization headers stay on the server and are never included in browser URLs or UI output. If a VNC server requests browser-side credentials, AuraGo shows a localized authentication error and safely disconnects instead of prompting for a password.
+
 ## Persistent agent tasks
 
 Shell and desktop agent tasks use boringd's authenticated WebSocket channels with a URL-encoded `goal`. Starting a task returns its ID immediately. AuraGo stores task state and ordered `say`, `action`, `preview`, `done`, and `error` events in `virtual_computers.db`. At restart, unfinished tasks become `interrupted` and are not retried. Canceling closes the task context without rolling back already executed actions. Native-tool output wraps event text as untrusted external data.

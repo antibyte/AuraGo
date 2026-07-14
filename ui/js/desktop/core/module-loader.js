@@ -192,7 +192,11 @@
         },
         'virtual-computers': {
             styles: appStyles('/css/desktop-app-virtual-computers.css'),
-            scripts: ['/js/desktop/apps/virtual-computers.js']
+            scripts: [
+                '/js/vendor/novnc.min.js',
+                '/js/desktop/apps/virtual-computers-vnc.js',
+                '/js/desktop/apps/virtual-computers.js'
+            ]
         },
         'launchpad': {
             styles: appStyles('/css/desktop-app-launchpad.css')

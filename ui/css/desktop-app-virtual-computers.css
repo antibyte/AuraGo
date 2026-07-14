@@ -71,6 +71,27 @@
     gap: 14px;
 }
 
+.vc-detail-nav,
+.vc-detail-content {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.vc-detail-nav {
+    justify-content: space-between;
+}
+
+.vc-detail-content {
+    min-height: 180px;
+    justify-content: center;
+}
+
+.vc-detail-label {
+    color: var(--vd-muted, #aab4c2);
+    font-size: 12px;
+}
+
 .vc-capability-note {
     color: var(--vd-muted, #aab4c2);
     font-size: 12px;
@@ -153,6 +174,108 @@
     padding: 16px;
 }
 
+.vc-vnc-mount,
+.vc-vnc-session {
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+}
+
+.vc-vnc-session {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 8px;
+    background: #080b10;
+}
+
+.vc-vnc-session:fullscreen {
+    width: 100vw;
+    height: 100vh;
+    border: 0;
+    border-radius: 0;
+    background: #080b10;
+}
+
+.vc-vnc-toolbar {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 8px;
+    border-bottom: 1px solid rgba(255,255,255,0.12);
+    background: rgba(17,23,32,0.98);
+}
+
+.vc-vnc-toolbar-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.vc-vnc-status {
+    min-width: 110px;
+    color: var(--vd-muted, #aab4c2);
+    font-size: 12px;
+}
+
+.vc-vnc-status[data-state="connected"] { color: var(--vd-accent, #27c7a6); }
+.vc-vnc-status[data-state="error"] { color: #ff8066; }
+
+.vc-vnc-tool {
+    min-height: 44px;
+    border: 1px solid rgba(255,255,255,0.14);
+    border-radius: 6px;
+    padding: 0 12px;
+    background: rgba(255,255,255,0.06);
+    color: inherit;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+.vc-vnc-tool:hover,
+.vc-vnc-tool.active {
+    border-color: rgba(39,199,166,0.5);
+    background: rgba(39,199,166,0.18);
+}
+
+.vc-vnc-stage {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    background: #000;
+}
+
+.vc-vnc-canvas {
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+}
+
+.vc-vnc-canvas canvas {
+    display: block;
+    margin: auto;
+}
+
+.vc-vnc-message {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    color: #ffe7e1;
+    text-align: center;
+    background: rgba(8,11,16,0.86);
+}
+
+.vc-vnc-message[hidden] { display: none; }
+
 .vc-machine {
     justify-content: space-between;
     align-items: flex-start;
@@ -161,6 +284,11 @@
     border-radius: 8px;
     background: rgba(255,255,255,0.035);
     margin-bottom: 10px;
+}
+
+.vc-machine.is-active {
+    border-color: rgba(39,199,166,0.5);
+    background: rgba(39,199,166,0.08);
 }
 
 .vc-machine-main {
@@ -229,5 +357,22 @@
     .vc-machine {
         align-items: stretch;
         flex-direction: column;
+    }
+    .vc-preview {
+        min-height: 56vh;
+        padding: 10px;
+    }
+    .vc-vnc-toolbar,
+    .vc-vnc-toolbar-group {
+        align-items: stretch;
+    }
+    .vc-vnc-status {
+        flex: 1 0 100%;
+    }
+    .vc-vnc-toolbar-group {
+        flex: 1 1 100%;
+    }
+    .vc-vnc-tool {
+        flex: 1 1 auto;
     }
 }
