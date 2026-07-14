@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/security"
 	"aurago/internal/uid"
 )
 
@@ -22,6 +23,59 @@ type Manager struct {
 	webhooks        []Webhook
 	log             *Log
 	missionTriggers map[string][]func(payload []byte) // webhookID → callbacks
+}
+
+// MigrateSignatureSecrets atomically moves legacy plaintext signature secrets into the vault.
+func (m *Manager) MigrateSignatureSecrets(vault *security.Vault) error {
+	if vault == nil {
+		return fmt.Errorf("vault is required to migrate webhook signature secrets")
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	original := append([]Webhook(nil), m.webhooks...)
+	type vaultSnapshot struct {
+		key    string
+		value  string
+		exists bool
+	}
+	snapshots := make([]vaultSnapshot, 0)
+	rollback := func() {
+		for i := len(snapshots) - 1; i >= 0; i-- {
+			if snapshots[i].exists {
+				_ = vault.WriteSecret(snapshots[i].key, snapshots[i].value)
+			} else {
+				_ = vault.DeleteSecret(snapshots[i].key)
+			}
+		}
+	}
+
+	changed := false
+	for i := range m.webhooks {
+		secret := strings.TrimSpace(m.webhooks[i].Format.SignatureSecret)
+		if secret == "" {
+			continue
+		}
+		key := SignatureSecretVaultKey(m.webhooks[i].ID)
+		previous, err := vault.ReadSecret(key)
+		snapshot := vaultSnapshot{key: key, value: previous, exists: err == nil}
+		snapshots = append(snapshots, snapshot)
+		if err := vault.WriteSecret(key, secret); err != nil {
+			rollback()
+			return fmt.Errorf("migrate signature secret for webhook %s: %w", m.webhooks[i].ID, err)
+		}
+		m.webhooks[i].Format.SignatureSecret = ""
+		changed = true
+	}
+	if !changed {
+		return nil
+	}
+	if err := m.save(); err != nil {
+		m.webhooks = original
+		rollback()
+		return fmt.Errorf("persist migrated webhook signature secrets: %w", err)
+	}
+	return nil
 }
 
 // UpdateOptions records which zero-value fields were explicitly provided by the caller.

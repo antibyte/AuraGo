@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -177,7 +178,19 @@ func handleCreateWebhook(s *Server, mgr *webhooks.Manager) http.HandlerFunc {
 			return
 		}
 		signatureSecret := strings.TrimSpace(wh.Format.SignatureSecret)
-		if signatureSecret != "" && s.Vault != nil {
+		if signatureSecret == maskedKey {
+			jsonError(w, "A new webhook requires the actual signature secret", http.StatusBadRequest)
+			return
+		}
+		if err := webhooks.ValidateSignatureConfiguration(wh.Format); err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if signatureSecret != "" && s.Vault == nil {
+			jsonError(w, "Vault unavailable for webhook signature secret", http.StatusServiceUnavailable)
+			return
+		}
+		if signatureSecret != "" {
 			wh.Format.SignatureSecret = ""
 		}
 		created, err := mgr.Create(wh)
@@ -189,7 +202,7 @@ func handleCreateWebhook(s *Server, mgr *webhooks.Manager) http.HandlerFunc {
 			jsonError(w, "Failed to create webhook", http.StatusBadRequest)
 			return
 		}
-		if signatureSecret != "" && s.Vault != nil {
+		if signatureSecret != "" {
 			if err := s.Vault.WriteSecret(webhooks.SignatureSecretVaultKey(created.ID), signatureSecret); err != nil {
 				_ = mgr.Delete(created.ID)
 				jsonError(w, "Failed to store webhook secret", http.StatusInternalServerError)
@@ -238,6 +251,38 @@ func handleUpdateWebhook(s *Server, mgr *webhooks.Manager) http.HandlerFunc {
 		updateOpts := webhookUpdateOptions(body)
 		signatureSecret := strings.TrimSpace(patch.Format.SignatureSecret)
 		keepExistingSecret := signatureSecret == maskedKey
+		effectiveFormat, err := effectiveWebhookSignatureFormat(existing.Format, patch.Format, updateOpts, s.Vault, id)
+		if err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if err := webhooks.ValidateSignatureConfiguration(effectiveFormat); err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if updateOpts.SignatureSecretSet && signatureSecret != "" && !keepExistingSecret && s.Vault == nil {
+			jsonError(w, "Vault unavailable for webhook signature secret", http.StatusServiceUnavailable)
+			return
+		}
+
+		var previousVaultSecret string
+		previousVaultSecretExists := false
+		vaultChanged := false
+		vaultKey := webhooks.SignatureSecretVaultKey(id)
+		if s.Vault != nil && updateOpts.SignatureSecretSet && !keepExistingSecret {
+			previousVaultSecret, err = s.Vault.ReadSecret(vaultKey)
+			previousVaultSecretExists = err == nil
+			if signatureSecret != "" {
+				err = s.Vault.WriteSecret(vaultKey, signatureSecret)
+			} else {
+				err = s.Vault.DeleteSecret(vaultKey)
+			}
+			if err != nil {
+				jsonError(w, "Failed to update webhook secret", http.StatusInternalServerError)
+				return
+			}
+			vaultChanged = true
+		}
 		if s.Vault != nil {
 			patch.Format.SignatureSecret = ""
 		} else if keepExistingSecret {
@@ -245,6 +290,9 @@ func handleUpdateWebhook(s *Server, mgr *webhooks.Manager) http.HandlerFunc {
 		}
 		updated, err := mgr.UpdateWithOptions(id, patch, updateOpts)
 		if err != nil {
+			if vaultChanged {
+				restoreWebhookVaultSecret(s.Vault, vaultKey, previousVaultSecret, previousVaultSecretExists)
+			}
 			if strings.Contains(strings.ToLower(err.Error()), "not found") {
 				jsonError(w, "Webhook not found", http.StatusNotFound)
 				return
@@ -256,31 +304,51 @@ func handleUpdateWebhook(s *Server, mgr *webhooks.Manager) http.HandlerFunc {
 			jsonError(w, "Failed to update webhook", http.StatusBadRequest)
 			return
 		}
-		if s.Vault != nil && updateOpts.SignatureSecretSet {
-			vaultKey := webhooks.SignatureSecretVaultKey(id)
-			switch {
-			case keepExistingSecret:
-				if strings.TrimSpace(existing.Format.SignatureSecret) != "" {
-					if err := s.Vault.WriteSecret(vaultKey, existing.Format.SignatureSecret); err != nil {
-						jsonError(w, "Failed to store webhook secret", http.StatusInternalServerError)
-						return
-					}
-				}
-			case signatureSecret != "":
-				if err := s.Vault.WriteSecret(vaultKey, signatureSecret); err != nil {
-					jsonError(w, "Failed to store webhook secret", http.StatusInternalServerError)
-					return
-				}
-			default:
-				if err := s.Vault.DeleteSecret(vaultKey); err != nil {
-					jsonError(w, "Failed to delete webhook secret", http.StatusInternalServerError)
-					return
-				}
-			}
-		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(webhookMaskSecrets(updated, s.Vault))
 	}
+}
+
+func effectiveWebhookSignatureFormat(existing, patch webhooks.WebhookFormat, opts webhooks.UpdateOptions, vault *security.Vault, webhookID string) (webhooks.WebhookFormat, error) {
+	effective := existing
+	if opts.SignatureHeaderSet {
+		effective.SignatureHeader = patch.SignatureHeader
+	}
+	if opts.SignatureAlgoSet {
+		effective.SignatureAlgo = patch.SignatureAlgo
+	}
+
+	secret := strings.TrimSpace(existing.SignatureSecret)
+	if secret == "" && vault != nil {
+		if value, err := vault.ReadSecret(webhooks.SignatureSecretVaultKey(webhookID)); err == nil {
+			secret = strings.TrimSpace(value)
+		}
+	}
+	if opts.SignatureSecretSet {
+		switch strings.TrimSpace(patch.SignatureSecret) {
+		case maskedKey:
+			if secret == "" {
+				return webhooks.WebhookFormat{}, fmt.Errorf("masked signature secret cannot be resolved")
+			}
+		case "":
+			secret = ""
+		default:
+			secret = strings.TrimSpace(patch.SignatureSecret)
+		}
+	}
+	effective.SignatureSecret = secret
+	return effective, nil
+}
+
+func restoreWebhookVaultSecret(vault *security.Vault, key, value string, existed bool) {
+	if vault == nil {
+		return
+	}
+	if existed {
+		_ = vault.WriteSecret(key, value)
+		return
+	}
+	_ = vault.DeleteSecret(key)
 }
 
 func handleDeleteWebhook(s *Server, mgr *webhooks.Manager) http.HandlerFunc {

@@ -55,7 +55,7 @@ func TestHandleCreateWebhookStoresSignatureSecretInVault(t *testing.T) {
 		"slug":"github-hook",
 		"enabled":true,
 		"token_id":"tok-1",
-		"format":{"accepted_content_types":["application/json"],"signature_secret":"super-secret"},
+		"format":{"accepted_content_types":["application/json"],"signature_header":"X-Signature","signature_algo":"sha256","signature_secret":"super-secret"},
 		"delivery":{"mode":"message","priority":"queue"}
 	}`))
 	rec := httptest.NewRecorder()
@@ -88,6 +88,58 @@ func TestHandleCreateWebhookStoresSignatureSecretInVault(t *testing.T) {
 	}
 	if secret != "super-secret" {
 		t.Fatalf("vault secret = %q, want super-secret", secret)
+	}
+}
+
+func TestHandleCreateWebhookRejectsSignatureSecretWithoutVaultBeforePersistence(t *testing.T) {
+	t.Parallel()
+
+	mgr, err := webhooks.NewManager(filepath.Join(t.TempDir(), "webhooks.json"), filepath.Join(t.TempDir(), "webhooks.log"))
+	if err != nil {
+		t.Fatalf("NewManager() error = %v", err)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/webhooks", strings.NewReader(`{
+		"name":"Signed Hook",
+		"slug":"signed-hook",
+		"format":{"signature_header":"X-Signature","signature_algo":"sha256","signature_secret":"secret"}
+	}`))
+	rec := httptest.NewRecorder()
+
+	handleCreateWebhook(&Server{}, mgr).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusServiceUnavailable, rec.Body.String())
+	}
+	if got := len(mgr.List()); got != 0 {
+		t.Fatalf("manager persisted %d webhook(s), want 0", got)
+	}
+}
+
+func TestHandleCreateWebhookRejectsIncompleteSignatureConfiguration(t *testing.T) {
+	t.Parallel()
+
+	vault, err := security.NewVault(strings.Repeat("a", 64), filepath.Join(t.TempDir(), "vault.bin"))
+	if err != nil {
+		t.Fatalf("NewVault() error = %v", err)
+	}
+	mgr, err := webhooks.NewManager(filepath.Join(t.TempDir(), "webhooks.json"), filepath.Join(t.TempDir(), "webhooks.log"))
+	if err != nil {
+		t.Fatalf("NewManager() error = %v", err)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/webhooks", strings.NewReader(`{
+		"name":"Signed Hook",
+		"slug":"signed-hook",
+		"format":{"signature_header":"X-Signature","signature_secret":"secret"}
+	}`))
+	rec := httptest.NewRecorder()
+
+	handleCreateWebhook(&Server{Vault: vault}, mgr).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusBadRequest, rec.Body.String())
+	}
+	if got := len(mgr.List()); got != 0 {
+		t.Fatalf("manager persisted %d webhook(s), want 0", got)
 	}
 }
 

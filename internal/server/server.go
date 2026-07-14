@@ -539,6 +539,8 @@ func Start(opts StartOptions) error {
 		whMgr, whErr := webhooks.NewManager(whFilePath, whLogPath)
 		if whErr != nil {
 			logger.Error("Failed to initialize WebhookManager", "error", whErr)
+		} else if err := whMgr.MigrateSignatureSecrets(vault); err != nil {
+			logger.Error("Failed to migrate webhook signature secrets; public webhook handler disabled", "error", err)
 		} else {
 			s.WebhookManager = whMgr
 			s.WebhookHandler = webhooks.NewHandler(whMgr, tm, vault, s.Guardian, s.LLMGuardian, cfg, logger, cfg.Server.Port, int64(cfg.Webhooks.MaxPayloadSize), cfg.Webhooks.RateLimit)

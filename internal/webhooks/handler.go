@@ -8,9 +8,11 @@ import (
 	"crypto/tls"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"strings"
 	gosync "sync"
@@ -111,7 +113,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sourceIP := r.RemoteAddr
+	sourceIP := requestSourceIP(r, h.cfg != nil && h.cfg.Server.HTTPS.BehindProxy)
 
 	// 1. Lookup webhook by slug
 	wh, err := h.manager.GetBySlug(slug)
@@ -130,6 +132,11 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if secret, err := h.vault.ReadSecret(SignatureSecretVaultKey(wh.ID)); err == nil && strings.TrimSpace(secret) != "" {
 			wh.Format.SignatureSecret = secret
 		}
+	}
+	if err := validateSignatureConfiguration(wh.Format); err != nil {
+		h.logEvent(wh.ID, wh.Name, http.StatusServiceUnavailable, sourceIP, 0, false, err.Error())
+		http.Error(w, `{"error":"webhook signature configuration unavailable"}`, http.StatusServiceUnavailable)
+		return
 	}
 
 	// 2. Token validation
@@ -188,7 +195,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 6. HMAC signature validation (optional)
-	if wh.Format.SignatureHeader != "" && wh.Format.SignatureSecret != "" {
+	if wh.Format.SignatureHeader != "" {
 		sigHeader := r.Header.Get(wh.Format.SignatureHeader)
 		if !verifySignature(body, sigHeader, wh.Format.SignatureSecret, wh.Format.SignatureAlgo) {
 			h.logEvent(wh.ID, wh.Name, 403, sourceIP, len(body), false, "signature verification failed")
@@ -197,8 +204,19 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// 7. Parse payload and extract fields
-	fields := extractFields(body, wh.Format.Fields)
+	// 7. Validate and prepare the payload while preserving the original body for callbacks.
+	prepared, err := PreparePayload(body, ct, wh.Format.Fields, defaultPromptPayloadRunes)
+	if err != nil {
+		status := http.StatusBadRequest
+		var payloadErr *PayloadError
+		if errors.As(err, &payloadErr) {
+			status = payloadErr.StatusCode
+		}
+		h.logEvent(wh.ID, wh.Name, status, sourceIP, rawPayloadSize, false, err.Error())
+		http.Error(w, fmt.Sprintf(`{"error":%q}`, err.Error()), status)
+		return
+	}
+	fields := prepared.Fields
 	headers := extractHeaders(r)
 
 	// 8. Scan raw payload for injection attempts before rendering.
@@ -221,14 +239,11 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	// Always wrap in isolation tags — webhook payloads are external content.
-	body = []byte(security.IsolateExternalData(string(body)))
-
 	// 9. Render prompt
-	prompt, err := renderPrompt(wh, string(body), fields, headers)
+	prompt, err := renderPrompt(wh, prepared.PromptPayload, fields, headers)
 	if err != nil {
 		h.log().Error("Failed to render webhook prompt", "error", err, "webhook", wh.Name)
-		prompt = fmt.Sprintf("[Webhook: %s]\nPayload:\n%s", wh.Name, string(body))
+		prompt = fmt.Sprintf("[Webhook: %s]\nPayload:\n%s", wh.Name, prepared.PromptPayload)
 	}
 
 	releaseDelivery, ok := h.acquireDeliverySlot()
@@ -270,7 +285,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		case DeliveryModeNotify:
 			if h.sse != nil {
-				sendSSEJSON(h.sse, "webhook_received", map[string]interface{}{"name": wh.Name, "slug": wh.Slug, "payload": truncateStr(string(body), 500)})
+				sendSSEJSON(h.sse, "webhook_received", map[string]interface{}{"name": wh.Name, "slug": wh.Slug, "payload": prepared.RawPreview})
 			}
 			delivered = true
 
@@ -279,7 +294,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 
 		h.manager.RecordFire(wh.ID)
-		h.manager.NotifyWebhookFired(wh.ID, body)
+		h.manager.NotifyWebhookFired(wh.ID, prepared.RawPayload)
 		h.logEvent(wh.ID, wh.Name, 200, sourceIP, rawPayloadSize, delivered, deliveryErr)
 	}
 	if wh.Delivery.Mode == DeliveryModeSilent {
@@ -397,6 +412,19 @@ func extractToken(r *http.Request) string {
 	return r.URL.Query().Get("token")
 }
 
+func requestSourceIP(r *http.Request, behindProxy bool) string {
+	if behindProxy {
+		if forwarded := strings.TrimSpace(strings.Split(r.Header.Get("X-Forwarded-For"), ",")[0]); forwarded != "" {
+			return forwarded
+		}
+	}
+	host, _, err := net.SplitHostPort(strings.TrimSpace(r.RemoteAddr))
+	if err == nil {
+		return host
+	}
+	return strings.TrimSpace(r.RemoteAddr)
+}
+
 func isAcceptedContentType(ct string, accepted []string) bool {
 	if len(accepted) == 0 {
 		return true
@@ -441,15 +469,7 @@ func extractFields(body []byte, mappings []FieldMapping) map[string]interface{} 
 	if err := json.Unmarshal(body, &raw); err != nil {
 		return nil
 	}
-	result := make(map[string]interface{})
-	for _, m := range mappings {
-		alias := m.Alias
-		if alias == "" {
-			alias = strings.ReplaceAll(m.Source, ".", "_")
-		}
-		result[alias] = getNestedValue(raw, m.Source)
-	}
-	return result
+	return extractMappedFields(raw, mappings)
 }
 
 func getNestedValue(data map[string]interface{}, path string) interface{} {
@@ -481,7 +501,7 @@ func renderPrompt(wh Webhook, rawPayload string, fields map[string]interface{}, 
 	data := PromptData{
 		WebhookName: wh.Name,
 		Slug:        wh.Slug,
-		Payload:     truncateStr(rawPayload, 4000),
+		Payload:     rawPayload,
 		Fields:      fields,
 		Headers:     headers,
 		Timestamp:   time.Now().UTC().Format(time.RFC3339),
@@ -490,10 +510,7 @@ func renderPrompt(wh Webhook, rawPayload string, fields map[string]interface{}, 
 }
 
 func truncateStr(s string, maxLen int) string {
-	if len(s) <= maxLen {
-		return s
-	}
-	return s[:maxLen] + "... (truncated)"
+	return truncateRunes(s, maxLen)
 }
 
 func sendSSEJSON(sse SSEBroadcaster, event string, detail map[string]interface{}) {

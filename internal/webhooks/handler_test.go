@@ -79,6 +79,169 @@ func TestHandlerUsesVaultBackedSignatureSecret(t *testing.T) {
 	}
 }
 
+func TestHandlerFailsClosedWhenSignatureSecretIsUnavailable(t *testing.T) {
+	t.Parallel()
+
+	handler, rawToken, manager := newSilentWebhookHandler(t, WebhookFormat{
+		AcceptedContentTypes: []string{"application/json"},
+		SignatureHeader:      "X-Signature",
+		SignatureAlgo:        "sha256",
+	})
+	req := httptest.NewRequest(http.MethodPost, "/webhook/test-hook", strings.NewReader(`{"ok":true}`))
+	req.Header.Set("Authorization", "Bearer "+rawToken)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Signature", "sha256=deadbeef")
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusServiceUnavailable, rec.Body.String())
+	}
+	if got := manager.GetLog().Recent(1); len(got) != 1 || got[0].Delivered {
+		t.Fatalf("delivery log = %#v, want one undelivered entry", got)
+	}
+}
+
+func TestVerifySignatureSupportsConfiguredAlgorithms(t *testing.T) {
+	t.Parallel()
+
+	body := []byte(`{"ok":true}`)
+	mac := hmac.New(sha256.New, []byte("secret"))
+	_, _ = mac.Write(body)
+	validSHA256 := "sha256=" + hex.EncodeToString(mac.Sum(nil))
+	tests := []struct {
+		name      string
+		header    string
+		secret    string
+		algorithm string
+		want      bool
+	}{
+		{name: "valid sha256", header: validSHA256, secret: "secret", algorithm: "sha256", want: true},
+		{name: "invalid sha256", header: "sha256=deadbeef", secret: "secret", algorithm: "sha256"},
+		{name: "valid plain", header: "secret", secret: "secret", algorithm: "plain", want: true},
+		{name: "invalid plain", header: "wrong", secret: "secret", algorithm: "plain"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := verifySignature(body, tt.header, tt.secret, tt.algorithm); got != tt.want {
+				t.Fatalf("verifySignature() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestHandlerRejectsInvalidJSON(t *testing.T) {
+	t.Parallel()
+
+	handler, rawToken, _ := newSilentWebhookHandler(t, WebhookFormat{AcceptedContentTypes: []string{"application/json"}})
+	req := httptest.NewRequest(http.MethodPost, "/webhook/test-hook", strings.NewReader(`{`))
+	req.Header.Set("Authorization", "Bearer "+rawToken)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusBadRequest, rec.Body.String())
+	}
+}
+
+func TestHandlerMissionCallbackReceivesOriginalPayload(t *testing.T) {
+	t.Parallel()
+
+	handler, rawToken, manager := newSilentWebhookHandler(t, WebhookFormat{AcceptedContentTypes: []string{"application/json"}})
+	wh, err := manager.GetBySlug("test-hook")
+	if err != nil {
+		t.Fatalf("GetBySlug() error = %v", err)
+	}
+	received := make(chan []byte, 1)
+	manager.RegisterMissionTrigger(wh.ID, func(payload []byte) {
+		received <- append([]byte(nil), payload...)
+	})
+	body := []byte(`{"html":"<tag>&\"quoted\""}`)
+	req := httptest.NewRequest(http.MethodPost, "/webhook/test-hook", bytes.NewReader(body))
+	req.Header.Set("Authorization", "Bearer "+rawToken)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	select {
+	case got := <-received:
+		if !bytes.Equal(got, body) {
+			t.Fatalf("callback payload = %q, want byte-identical %q", got, body)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for mission callback")
+	}
+}
+
+func TestHandlerUsesForwardedIPOnlyBehindProxy(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range []struct {
+		name        string
+		behindProxy bool
+		wantIP      string
+	}{
+		{name: "direct", wantIP: "192.0.2.10"},
+		{name: "trusted proxy", behindProxy: true, wantIP: "203.0.113.7"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			handler, rawToken, manager := newSilentWebhookHandler(t, WebhookFormat{AcceptedContentTypes: []string{"application/json"}})
+			handler.cfg.Server.HTTPS.BehindProxy = tt.behindProxy
+			req := httptest.NewRequest(http.MethodPost, "/webhook/test-hook", strings.NewReader(`{"ok":true}`))
+			req.RemoteAddr = "192.0.2.10:1234"
+			req.Header.Set("X-Forwarded-For", "203.0.113.7, 10.0.0.2")
+			req.Header.Set("Authorization", "Bearer "+rawToken)
+			req.Header.Set("Content-Type", "application/json")
+			rec := httptest.NewRecorder()
+
+			handler.ServeHTTP(rec, req)
+
+			entries := manager.GetLog().Recent(1)
+			if len(entries) != 1 || entries[0].SourceIP != tt.wantIP {
+				t.Fatalf("log entries = %#v, want source IP %q", entries, tt.wantIP)
+			}
+		})
+	}
+}
+
+func newSilentWebhookHandler(t *testing.T, format WebhookFormat) (*Handler, string, *Manager) {
+	t.Helper()
+	vault, err := security.NewVault("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", filepath.Join(t.TempDir(), "vault.bin"))
+	if err != nil {
+		t.Fatalf("NewVault() error = %v", err)
+	}
+	tokenManager, err := security.NewTokenManager(vault, filepath.Join(t.TempDir(), "tokens.bin"))
+	if err != nil {
+		t.Fatalf("NewTokenManager() error = %v", err)
+	}
+	rawToken, tokenMeta, err := tokenManager.Create("webhook test", []string{"webhook"}, nil)
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	manager, err := NewManager(filepath.Join(t.TempDir(), "webhooks.json"), filepath.Join(t.TempDir(), "webhooks.log"))
+	if err != nil {
+		t.Fatalf("NewManager() error = %v", err)
+	}
+	if _, err := manager.Create(Webhook{
+		Name:     "Test Hook",
+		Slug:     "test-hook",
+		Enabled:  true,
+		TokenID:  tokenMeta.ID,
+		Format:   format,
+		Delivery: DeliveryConfig{Mode: DeliveryModeSilent},
+	}); err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	return NewHandler(manager, tokenManager, vault, nil, nil, &config.Config{}, slog.Default(), 8080, 4096, 0), rawToken, manager
+}
+
 func TestHandlerRejectsTokenNotBoundToWebhook(t *testing.T) {
 	t.Parallel()
 
