@@ -108,6 +108,59 @@ func TestVirtualComputersWebSocketProxyPassesBinary(t *testing.T) {
 	}
 }
 
+func TestVirtualComputersVNCRejectsReadOnlyBeforeUpstreamDial(t *testing.T) {
+	upstreamRequests := 0
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		upstreamRequests++
+		w.WriteHeader(http.StatusSwitchingProtocols)
+	}))
+	defer upstream.Close()
+
+	cfg := virtualComputersTestConfig(upstream.URL)
+	cfg.VirtualComputers.ReadOnly = true
+	mux := http.NewServeMux()
+	registerVirtualComputersRoutes(mux, &Server{Cfg: cfg})
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/virtual-computers/machines/vm-1/vnc", nil)
+	req.Header.Set("Connection", "Upgrade")
+	req.Header.Set("Upgrade", "websocket")
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusForbidden, rec.Body.String())
+	}
+	if upstreamRequests != 0 {
+		t.Fatalf("upstream received %d VNC requests in read-only mode", upstreamRequests)
+	}
+}
+
+func TestVirtualComputersVNCRejectsDesktopReadTokenBeforeUpstreamDial(t *testing.T) {
+	upstreamRequests := 0
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		upstreamRequests++
+		w.WriteHeader(http.StatusSwitchingProtocols)
+	}))
+	defer upstream.Close()
+
+	s, readToken, _ := testDesktopPermissionServer(t)
+	s.Cfg.VirtualComputers = virtualComputersTestConfig(upstream.URL).VirtualComputers
+	mux := http.NewServeMux()
+	registerVirtualComputersRoutes(mux, s)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/virtual-computers/machines/vm-1/vnc", nil)
+	req.Header.Set("Authorization", "Bearer "+readToken)
+	req.Header.Set("Connection", "Upgrade")
+	req.Header.Set("Upgrade", "websocket")
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusForbidden, rec.Body.String())
+	}
+	if upstreamRequests != 0 {
+		t.Fatalf("upstream received %d VNC requests for desktop:read token", upstreamRequests)
+	}
+}
+
 func TestVirtualComputersAgentWebSocketHonorsTaskAndReadonlyGates(t *testing.T) {
 	for _, tc := range []struct {
 		name      string
