@@ -1,12 +1,18 @@
 package virtualcomputers
 
-import "aurago/internal/config"
+import (
+	"aurago/internal/config"
+	"aurago/internal/security"
+)
 
 func FromAuraConfig(cfg *config.Config) ToolConfig {
 	if cfg == nil {
 		return ToolConfig{}
 	}
 	vc := cfg.VirtualComputers
+	for _, value := range []string{vc.S3AccessKeyID, vc.S3SecretKey} {
+		security.RegisterSensitive(value)
+	}
 	return ToolConfig{
 		Enabled:   vc.Enabled,
 		Provider:  vc.Provider,
@@ -21,6 +27,13 @@ func FromAuraConfig(cfg *config.Config) ToolConfig {
 			InstallDir:   vc.ControlPlane.InstallDir,
 			BoringdURL:   vc.ControlPlane.BoringdURL,
 		},
+		Storage: StorageConfig{
+			Endpoint: vc.Storage.Endpoint,
+			Bucket:   vc.Storage.Bucket,
+			Region:   vc.Storage.Region,
+			UseSSL:   vc.Storage.UseSSL,
+		},
+		LedgerPath:          cfg.SQLite.VirtualComputersPath,
 		BoringdURL:          vc.ControlPlane.BoringdURL,
 		BoringToken:         vc.BoringToken,
 		BoringAnthropicKey:  vc.BoringAnthropicKey,

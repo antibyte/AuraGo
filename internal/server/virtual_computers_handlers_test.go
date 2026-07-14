@@ -1,12 +1,16 @@
 package server
 
 import (
+	"bytes"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"aurago/internal/config"
 	"aurago/internal/security"
@@ -47,9 +51,11 @@ func TestVirtualComputersPreviewProxyKeepsTokenServerSide(t *testing.T) {
 
 func TestVirtualComputersWebSocketProxyPassesBinary(t *testing.T) {
 	var upstreamAuth string
+	var upstreamGoal string
 	upgrader := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		upstreamAuth = r.Header.Get("Authorization")
+		upstreamGoal = r.URL.Query().Get("goal")
 		if r.URL.Path != "/v1/machines/vm-1/vnc" {
 			t.Fatalf("upstream path = %s", r.URL.Path)
 		}
@@ -78,7 +84,7 @@ func TestVirtualComputersWebSocketProxyPassesBinary(t *testing.T) {
 	proxy := httptest.NewServer(mux)
 	defer proxy.Close()
 
-	wsURL := "ws" + strings.TrimPrefix(proxy.URL, "http") + "/api/virtual-computers/machines/vm-1/vnc"
+	wsURL := "ws" + strings.TrimPrefix(proxy.URL, "http") + "/api/virtual-computers/machines/vm-1/vnc?goal=" + url.QueryEscape("open docs & report")
 	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
 	if err != nil {
 		t.Fatalf("dial proxy: %v", err)
@@ -96,6 +102,214 @@ func TestVirtualComputersWebSocketProxyPassesBinary(t *testing.T) {
 	}
 	if upstreamAuth != "Bearer boring-token" {
 		t.Fatalf("upstream auth = %q", upstreamAuth)
+	}
+	if upstreamGoal != "open docs & report" {
+		t.Fatalf("upstream goal = %q", upstreamGoal)
+	}
+}
+
+func TestVirtualComputersAgentWebSocketHonorsTaskAndReadonlyGates(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		readonly  bool
+		allowTask bool
+	}{
+		{name: "read only", readonly: true, allowTask: true},
+		{name: "disabled", allowTask: false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := virtualComputersTestConfig("http://127.0.0.1:1")
+			cfg.VirtualComputers.ReadOnly = tc.readonly
+			cfg.VirtualComputers.AllowAgentTasks = tc.allowTask
+			mux := http.NewServeMux()
+			registerVirtualComputersRoutes(mux, &Server{Cfg: cfg})
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/virtual-computers/machines/vm-1/agent?goal=work", nil))
+			if rec.Code != http.StatusForbidden {
+				t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+			}
+		})
+	}
+}
+
+func TestVirtualComputersRESTUsesPinnedBoringdContracts(t *testing.T) {
+	requests := make(chan *http.Request, 8)
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests <- r.Clone(r.Context())
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case r.URL.Path == "/v1/machines/vm-1/publish":
+			var body map[string]interface{}
+			_ = json.NewDecoder(r.Body).Decode(&body)
+			if body["name"] != "desktop-template" {
+				t.Errorf("publish body = %#v", body)
+			}
+			_, _ = w.Write([]byte(`{"name":"desktop-template"}`))
+		case r.URL.Path == "/v1/machines/vm-1/branch":
+			if r.URL.Query().Get("count") != "2" {
+				t.Errorf("fork count = %q", r.URL.Query().Get("count"))
+			}
+			_, _ = w.Write([]byte(`{"machines":[{"id":"vm-2"},{"id":"vm-3"}]}`))
+		case r.URL.Path == "/v1/machines/vm-1/save":
+			if r.URL.Query().Get("volume") != "vol-1" {
+				t.Errorf("save volume = %q", r.URL.Query().Get("volume"))
+			}
+			_, _ = w.Write([]byte(`{"ok":true}`))
+		default:
+			t.Errorf("unexpected upstream request %s", r.URL.RequestURI())
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer upstream.Close()
+	cfg := virtualComputersTestConfig(upstream.URL)
+	cfg.VirtualComputers.AllowPublish = true
+	cfg.VirtualComputers.AllowVolumes = true
+	s := &Server{Cfg: cfg}
+	mux := http.NewServeMux()
+	registerVirtualComputersRoutes(mux, s)
+
+	cases := []struct {
+		path string
+		body string
+	}{
+		{"/api/virtual-computers/machines/vm-1/publish", `{"name":"desktop-template"}`},
+		{"/api/virtual-computers/machines/vm-1/fork", `{"count":2}`},
+		{"/api/virtual-computers/machines/vm-1/save", `{"volume_id":"vol-1"}`},
+	}
+	for _, tc := range cases {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, tc.path, strings.NewReader(tc.body)))
+		if rec.Code != http.StatusOK {
+			t.Fatalf("%s status=%d body=%s", tc.path, rec.Code, rec.Body.String())
+		}
+	}
+	if got := len(requests); got != len(cases) {
+		t.Fatalf("upstream request count = %d", got)
+	}
+}
+
+func TestVirtualComputersRESTRejectsLegacyForkTTL(t *testing.T) {
+	calls := 0
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer upstream.Close()
+	mux := http.NewServeMux()
+	registerVirtualComputersRoutes(mux, &Server{Cfg: virtualComputersTestConfig(upstream.URL)})
+
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/virtual-computers/machines/vm-1/fork", strings.NewReader(`{"count":1,"ttl_seconds":300}`)))
+	if rec.Code != http.StatusBadRequest || !strings.Contains(rec.Body.String(), "invalid_argument") {
+		t.Fatalf("fork status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	if calls != 0 {
+		t.Fatalf("legacy fork reached upstream %d times", calls)
+	}
+}
+
+func TestVirtualComputersRESTRejectsExecArgsAndClassifiesCapabilityErrors(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadGateway)
+		_, _ = w.Write([]byte(`{"error":"machine has no vsock device"}`))
+	}))
+	defer upstream.Close()
+	s := &Server{Cfg: virtualComputersTestConfig(upstream.URL)}
+	mux := http.NewServeMux()
+	registerVirtualComputersRoutes(mux, s)
+
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/virtual-computers/machines/vm-1/exec", strings.NewReader(`{"command":"echo","args":["hello"]}`)))
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("exec args status=%d body=%s", rec.Code, rec.Body.String())
+	}
+
+	rec = httptest.NewRecorder()
+	mux.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/virtual-computers/machines/vm-1/screenshot", nil))
+	if rec.Code != http.StatusConflict || !strings.Contains(rec.Body.String(), "capability_unavailable") {
+		t.Fatalf("screenshot status=%d body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestVirtualComputersRESTAgentTaskHistoryRemainsReadable(t *testing.T) {
+	upgrader := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			t.Errorf("upgrade: %v", err)
+			return
+		}
+		defer conn.Close()
+		_ = conn.WriteJSON(map[string]string{"type": "done", "text": "complete"})
+	}))
+	defer upstream.Close()
+	mgr, err := virtualcomputers.OpenTaskManager(filepath.Join(t.TempDir(), "virtual_computers.db"), slog.Default(), virtualcomputers.TaskManagerOptions{Timeout: time.Second})
+	if err != nil {
+		t.Fatalf("OpenTaskManager: %v", err)
+	}
+	defer mgr.Close()
+	virtualcomputers.SetDefaultTaskManager(mgr)
+	defer virtualcomputers.SetDefaultTaskManager(nil)
+	cfg := virtualComputersTestConfig(upstream.URL)
+	cfg.VirtualComputers.AllowAgentTasks = true
+	s := &Server{Cfg: cfg}
+	mux := http.NewServeMux()
+	registerVirtualComputersRoutes(mux, s)
+
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/virtual-computers/tasks", bytes.NewBufferString(`{"machine_id":"vm-1","kind":"shell","instruction":"check disk"}`)))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("start status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	var started struct {
+		TaskID string `json:"task_id"`
+		Status string `json:"status"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &started); err != nil {
+		t.Fatalf("decode task: %v", err)
+	}
+	if started.TaskID == "" || started.Status != virtualcomputers.AgentTaskStatusQueued {
+		t.Fatalf("start response = %+v body=%s", started, rec.Body.String())
+	}
+
+	cfg.VirtualComputers.ReadOnly = true
+	rec = httptest.NewRecorder()
+	mux.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/virtual-computers/tasks/"+started.TaskID, nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("history status=%d body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestVirtualComputersStorageTestUsesConfiguredVaultCredentialsReadOnly(t *testing.T) {
+	var method string
+	storage := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		method = r.Method
+		if r.Method != http.MethodHead || r.URL.Path != "/boring-volumes/" {
+			t.Errorf("storage request = %s %s", r.Method, r.URL.Path)
+		}
+		if !strings.Contains(r.Header.Get("Authorization"), "Credential=storage-access/") {
+			t.Errorf("storage authorization missing configured access key")
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer storage.Close()
+	cfg := virtualComputersTestConfig("http://127.0.0.1:1")
+	cfg.VirtualComputers.AllowVolumes = true
+	cfg.VirtualComputers.Storage.Endpoint = strings.TrimPrefix(storage.URL, "http://")
+	cfg.VirtualComputers.Storage.Bucket = "boring-volumes"
+	cfg.VirtualComputers.Storage.UseSSL = false
+	cfg.VirtualComputers.S3AccessKeyID = "storage-access"
+	cfg.VirtualComputers.S3SecretKey = "storage-secret"
+	mux := http.NewServeMux()
+	registerVirtualComputersRoutes(mux, &Server{Cfg: cfg})
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/virtual-computers/storage/test", nil))
+	if rec.Code != http.StatusOK || method != http.MethodHead {
+		t.Fatalf("status=%d method=%s body=%s", rec.Code, method, rec.Body.String())
+	}
+	if strings.Contains(rec.Body.String(), "storage-secret") {
+		t.Fatalf("storage test leaked secret: %s", rec.Body.String())
 	}
 }
 
@@ -243,10 +457,16 @@ func TestVirtualComputersSetupOptionsCarriesConfiguredBoringdURL(t *testing.T) {
 		ControlPlane: virtualcomputers.ControlPlaneConfig{
 			BoringdURL: "http://127.0.0.1:18080",
 		},
+		Storage:       virtualcomputers.StorageConfig{Endpoint: "minio.local:9000", Bucket: "vc", Region: "home-1", UseSSL: true},
+		S3AccessKeyID: "access",
+		S3SecretKey:   "secret",
 	}
 	opts := virtualComputersSetupOptions(cfg, "boring-token", virtualComputersSetupRequest{})
 	if opts.BoringdURL != "http://127.0.0.1:18080" {
 		t.Fatalf("BoringdURL = %q", opts.BoringdURL)
+	}
+	if opts.S3Endpoint != "minio.local:9000" || opts.S3Bucket != "vc" || opts.S3Region != "home-1" || !opts.S3UseSSL || opts.S3AccessKeyID != "access" || opts.S3SecretKey != "secret" {
+		t.Fatalf("storage options = %+v", opts)
 	}
 }
 

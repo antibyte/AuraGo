@@ -8,33 +8,40 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"aurago/internal/security"
 )
 
 var readonlyOperations = map[string]bool{
-	"status":         true,
-	"list_machines":  true,
-	"get":            true,
-	"get_machine":    true,
-	"screenshot":     true,
-	"download":       true,
-	"list_templates": true,
-	"list_volumes":   true,
+	"status":           true,
+	"list_machines":    true,
+	"get":              true,
+	"get_machine":      true,
+	"screenshot":       true,
+	"download":         true,
+	"list_templates":   true,
+	"list_volumes":     true,
+	"get_volume":       true,
+	"list_agent_tasks": true,
+	"get_agent_task":   true,
 }
 
 var mutatingOperations = map[string]bool{
-	"launch":           true,
-	"create":           true,
-	"destroy":          true,
-	"delete":           true,
-	"exec":             true,
-	"extend":           true,
-	"fork":             true,
-	"upload":           true,
-	"publish":          true,
-	"create_volume":    true,
-	"save_machine":     true,
-	"run_shell_task":   true,
-	"run_desktop_task": true,
+	"launch":            true,
+	"create":            true,
+	"destroy":           true,
+	"delete":            true,
+	"exec":              true,
+	"extend":            true,
+	"fork":              true,
+	"upload":            true,
+	"publish":           true,
+	"create_volume":     true,
+	"delete_volume":     true,
+	"save_machine":      true,
+	"run_shell_task":    true,
+	"run_desktop_task":  true,
+	"cancel_agent_task": true,
 }
 
 func ExecuteTool(ctx context.Context, cfg ToolConfig, args map[string]interface{}) string {
@@ -55,11 +62,18 @@ func ExecuteTool(ctx context.Context, cfg ToolConfig, args map[string]interface{
 	if cfg.ReadOnly && !readonlyOperations[op] {
 		return toolJSON("error", "readonly", "virtual computers are in read-only mode", map[string]interface{}{"operation": op})
 	}
-	if mutatingOperations[op] && cfg.BoringdURL == "" && cfg.ControlPlane.BoringdURL == "" {
+	if err := validateLegacyArguments(op, args); err != nil {
+		return toolJSON("error", err.code, err.message, nil)
+	}
+	if mutatingOperations[op] && op != "cancel_agent_task" && cfg.BoringdURL == "" && cfg.ControlPlane.BoringdURL == "" {
 		return toolJSON("error", "not_configured", "boringd URL is not configured", nil)
 	}
 	if err := enforceOperationGates(cfg, op, args); err != nil {
 		return toolJSON("error", err.code, err.message, nil)
+	}
+
+	if op == "list_agent_tasks" || op == "get_agent_task" || op == "cancel_agent_task" {
+		return executeAgentTaskLedgerOperation(op, args)
 	}
 
 	client, err := NewClient(ClientConfig{
@@ -75,19 +89,19 @@ func ExecuteTool(ctx context.Context, cfg ToolConfig, args map[string]interface{
 	case "status":
 		payload, err := client.Status(ctx)
 		if err != nil {
-			return toolJSON("error", "upstream_error", err.Error(), nil)
+			return toolErrorJSON(err)
 		}
 		return toolJSON("ok", "", "virtual computers status", payload)
 	case "list_machines", "list":
 		machines, err := client.ListMachines(ctx)
 		if err != nil {
-			return toolJSON("error", "upstream_error", err.Error(), nil)
+			return toolErrorJSON(err)
 		}
 		return toolJSON("ok", "", "machines listed", map[string]interface{}{"machines": machines})
 	case "get", "get_machine":
 		machine, err := client.GetMachine(ctx, requiredMachineID(args))
 		if err != nil {
-			return toolJSON("error", "upstream_error", err.Error(), nil)
+			return toolErrorJSON(err)
 		}
 		return toolJSON("ok", "", "machine loaded", map[string]interface{}{"machine": machine})
 	case "launch", "create":
@@ -97,44 +111,51 @@ func ExecuteTool(ctx context.Context, cfg ToolConfig, args map[string]interface{
 			TTLSeconds:    clampTTL(toolInt(args, cfg.DefaultTTLSeconds, "ttl_seconds", "ttl"), cfg.maxTTL()),
 			AllowInternet: toolBool(args, "allow_internet", "internet"),
 			Persistent:    toolBool(args, "persistent"),
-			Volumes:       toolStringSlice(args, "volumes"),
+			VolumeID:      launchVolumeID(args),
 		}
 		machine, err := client.LaunchMachine(ctx, req)
 		if err != nil {
-			return toolJSON("error", "upstream_error", err.Error(), nil)
+			return toolErrorJSON(err)
 		}
 		return toolJSON("ok", "", "machine launched", map[string]interface{}{"machine": machine})
 	case "destroy", "delete":
 		if err := client.DestroyMachine(ctx, requiredMachineID(args)); err != nil {
-			return toolJSON("error", "upstream_error", err.Error(), nil)
+			return toolErrorJSON(err)
 		}
 		return toolJSON("ok", "", "machine destroyed", nil)
 	case "extend":
 		machine, err := client.ExtendMachine(ctx, requiredMachineID(args), clampTTL(toolInt(args, cfg.DefaultTTLSeconds, "ttl_seconds", "ttl"), cfg.maxTTL()))
 		if err != nil {
-			return toolJSON("error", "upstream_error", err.Error(), nil)
+			return toolErrorJSON(err)
 		}
 		return toolJSON("ok", "", "machine extended", map[string]interface{}{"machine": machine})
 	case "fork":
-		machine, err := client.ForkMachine(ctx, requiredMachineID(args), clampTTL(toolInt(args, cfg.DefaultTTLSeconds, "ttl_seconds", "ttl"), cfg.maxTTL()))
-		if err != nil {
-			return toolJSON("error", "upstream_error", err.Error(), nil)
+		count := toolInt(args, 1, "count")
+		if count < 1 || (cfg.MaxForks > 0 && count > cfg.MaxForks) {
+			return toolJSON("error", "invalid_argument", "count must be within the configured fork limit", nil)
 		}
-		return toolJSON("ok", "", "machine forked", map[string]interface{}{"machine": machine})
+		machines, err := client.ForkMachines(ctx, requiredMachineID(args), count)
+		if err != nil {
+			return toolErrorJSON(err)
+		}
+		payload := map[string]interface{}{"machines": machines}
+		if len(machines) == 1 {
+			payload["machine"] = machines[0]
+		}
+		return toolJSON("ok", "", "machine forked", payload)
 	case "exec":
 		result, err := client.Exec(ctx, requiredMachineID(args), ExecRequest{
 			Command: toolString(args, "command"),
-			Args:    toolStringSlice(args, "args"),
 			Timeout: toolInt(args, 60, "timeout_seconds", "timeout"),
 		})
 		if err != nil {
-			return toolJSON("error", "upstream_error", err.Error(), nil)
+			return toolErrorJSON(err)
 		}
 		return toolJSON("ok", "", "command executed", map[string]interface{}{"result": result})
 	case "screenshot":
 		shot, err := client.Screenshot(ctx, requiredMachineID(args))
 		if err != nil {
-			return toolJSON("error", "upstream_error", err.Error(), nil)
+			return toolErrorJSON(err)
 		}
 		return toolJSON("ok", "", "screenshot captured", map[string]interface{}{"screenshot": shot})
 	case "upload":
@@ -146,15 +167,15 @@ func ExecuteTool(ctx context.Context, cfg ToolConfig, args map[string]interface{
 			}
 			content = decoded
 		}
-		payload, err := client.Upload(ctx, requiredMachineID(args), toolString(args, "path", "remote_path"), content)
+		payload, err := client.Upload(ctx, requiredMachineID(args), toolString(args, "filename", "path", "remote_path"), content)
 		if err != nil {
-			return toolJSON("error", "upstream_error", err.Error(), nil)
+			return toolErrorJSON(err)
 		}
 		return toolJSON("ok", "", "file uploaded", payload)
 	case "download":
 		data, contentType, err := client.Download(ctx, requiredMachineID(args), toolString(args, "path", "remote_path"))
 		if err != nil {
-			return toolJSON("error", "upstream_error", err.Error(), nil)
+			return toolErrorJSON(err)
 		}
 		return toolJSON("ok", "", "file downloaded", map[string]interface{}{
 			"content_type":   contentType,
@@ -163,45 +184,100 @@ func ExecuteTool(ctx context.Context, cfg ToolConfig, args map[string]interface{
 	case "list_templates":
 		templates, err := client.ListTemplates(ctx)
 		if err != nil {
-			return toolJSON("error", "upstream_error", err.Error(), nil)
+			return toolErrorJSON(err)
 		}
 		return toolJSON("ok", "", "templates listed", map[string]interface{}{"templates": templates})
 	case "publish":
-		payload, err := client.Publish(ctx, requiredMachineID(args))
+		payload, err := client.Publish(ctx, requiredMachineID(args), toolString(args, "name"))
 		if err != nil {
-			return toolJSON("error", "upstream_error", err.Error(), nil)
+			return toolErrorJSON(err)
 		}
 		return toolJSON("ok", "", "machine published", payload)
 	case "list_volumes":
-		volumes, err := client.ListVolumes(ctx)
+		ledger, err := openToolLedger(cfg)
 		if err != nil {
-			return toolJSON("error", "upstream_error", err.Error(), nil)
+			return toolJSON("error", "storage_unavailable", err.Error(), nil)
+		}
+		defer ledger.Close()
+		volumes, err := ListTrackedVolumes(ctx, ledger, client)
+		if err != nil {
+			return toolErrorJSON(err)
 		}
 		return toolJSON("ok", "", "volumes listed", map[string]interface{}{"volumes": volumes})
-	case "create_volume":
-		volume, err := client.CreateVolume(ctx, toolString(args, "name"), int64(toolInt(args, 0, "size_bytes")))
+	case "get_volume":
+		volume, err := client.GetVolume(ctx, toolString(args, "volume_id", "id"))
 		if err != nil {
-			return toolJSON("error", "upstream_error", err.Error(), nil)
+			return toolErrorJSON(err)
+		}
+		now := time.Now().UTC()
+		volume.LastVerifiedAt = &now
+		volume.VerificationStatus = "verified"
+		ledger, err := openToolLedger(cfg)
+		if err != nil {
+			return toolJSON("error", "storage_unavailable", err.Error(), nil)
+		}
+		defer ledger.Close()
+		if err := ledger.UpsertVolume(ctx, volume); err != nil {
+			return toolJSON("error", "storage_unavailable", err.Error(), nil)
+		}
+		return toolJSON("ok", "", "volume loaded", map[string]interface{}{"volume": volume})
+	case "create_volume":
+		volume, err := client.CreateVolume(ctx, toolInt(args, 86400, "ttl_seconds"))
+		if err != nil {
+			return toolErrorJSON(err)
+		}
+		now := time.Now().UTC()
+		volume.LastVerifiedAt = &now
+		volume.VerificationStatus = "verified"
+		ledger, err := openToolLedger(cfg)
+		if err != nil {
+			return toolJSON("error", "storage_unavailable", err.Error(), nil)
+		}
+		defer ledger.Close()
+		if err := ledger.UpsertVolume(ctx, volume); err != nil {
+			return toolJSON("error", "storage_unavailable", err.Error(), nil)
 		}
 		return toolJSON("ok", "", "volume created", map[string]interface{}{"volume": volume})
-	case "save_machine":
-		payload, err := client.SaveMachine(ctx, requiredMachineID(args), toolString(args, "name"))
+	case "delete_volume":
+		volumeID := toolString(args, "volume_id", "id")
+		if err := client.DeleteVolume(ctx, volumeID); err != nil {
+			return toolErrorJSON(err)
+		}
+		ledger, err := openToolLedger(cfg)
 		if err != nil {
-			return toolJSON("error", "upstream_error", err.Error(), nil)
+			return toolJSON("error", "storage_unavailable", err.Error(), nil)
+		}
+		defer ledger.Close()
+		if err := ledger.DeleteVolume(ctx, volumeID); err != nil {
+			return toolJSON("error", "storage_unavailable", err.Error(), nil)
+		}
+		return toolJSON("ok", "", "volume deleted", nil)
+	case "save_machine":
+		payload, err := client.SaveMachine(ctx, requiredMachineID(args), toolString(args, "volume_id"))
+		if err != nil {
+			return toolErrorJSON(err)
 		}
 		return toolJSON("ok", "", "machine saved", payload)
 	case "run_shell_task":
-		payload, err := client.RunAgentTask(ctx, requiredMachineID(args), "shell-agent", firstNonEmpty(toolString(args, "instruction"), toolString(args, "command")))
-		if err != nil {
-			return toolJSON("error", "upstream_error", err.Error(), nil)
+		manager := DefaultTaskManager()
+		if manager == nil {
+			return toolJSON("error", "storage_unavailable", "virtual computer task manager is unavailable", nil)
 		}
-		return toolJSON("ok", "", "shell task started", payload)
+		task, err := manager.Submit(client, requiredMachineID(args), AgentTaskKindShell, firstNonEmpty(toolString(args, "instruction"), toolString(args, "command")))
+		if err != nil {
+			return toolJSON("error", "invalid_argument", err.Error(), nil)
+		}
+		return toolJSON("ok", "", "shell task queued", map[string]interface{}{"task_id": task.ID, "status": task.Status})
 	case "run_desktop_task":
-		payload, err := client.RunAgentTask(ctx, requiredMachineID(args), "agent", toolString(args, "instruction"))
-		if err != nil {
-			return toolJSON("error", "upstream_error", err.Error(), nil)
+		manager := DefaultTaskManager()
+		if manager == nil {
+			return toolJSON("error", "storage_unavailable", "virtual computer task manager is unavailable", nil)
 		}
-		return toolJSON("ok", "", "desktop task started", payload)
+		task, err := manager.Submit(client, requiredMachineID(args), AgentTaskKindDesktop, toolString(args, "instruction"))
+		if err != nil {
+			return toolJSON("error", "invalid_argument", err.Error(), nil)
+		}
+		return toolJSON("ok", "", "desktop task queued", map[string]interface{}{"task_id": task.ID, "status": task.Status})
 	default:
 		return toolJSON("error", "unsupported_operation", "unsupported virtual_computers operation", map[string]interface{}{"operation": op})
 	}
@@ -224,13 +300,99 @@ func enforceOperationGates(cfg ToolConfig, op string, args map[string]interface{
 	if op == "publish" && !cfg.AllowPublish {
 		return &gateError{code: "publish_disabled", message: "publishing virtual computers is disabled"}
 	}
-	if (op == "create_volume" || (op == "launch" && len(toolStringSlice(args, "volumes")) > 0)) && !cfg.AllowVolumes {
+	volumeOperation := op == "list_volumes" || op == "get_volume" || op == "create_volume" || op == "delete_volume" || op == "save_machine"
+	launchWithVolume := (op == "launch" || op == "create") && launchVolumeID(args) != ""
+	if (volumeOperation || launchWithVolume) && !cfg.AllowVolumes {
 		return &gateError{code: "volumes_disabled", message: "virtual computer volumes are disabled"}
 	}
-	if (op == "run_shell_task" || op == "run_desktop_task") && !cfg.AllowAgentTasks {
+	if (op == "run_shell_task" || op == "run_desktop_task" || op == "cancel_agent_task") && !cfg.AllowAgentTasks {
 		return &gateError{code: "agent_tasks_disabled", message: "virtual computer agent tasks are disabled"}
 	}
 	return nil
+}
+
+func validateLegacyArguments(op string, args map[string]interface{}) *gateError {
+	if op == "exec" && len(toolStringSlice(args, "args")) > 0 {
+		return &gateError{code: "invalid_argument", message: "exec.args is not supported by boringd; include arguments in command"}
+	}
+	if (op == "launch" || op == "create") && len(toolStringSlice(args, "volumes")) > 1 {
+		return &gateError{code: "invalid_argument", message: "boringd supports at most one volume_id per machine"}
+	}
+	if op == "create_volume" && (toolHasValue(args, "size_bytes") || toolHasValue(args, "name")) {
+		return &gateError{code: "invalid_argument", message: "create_volume only supports ttl_seconds"}
+	}
+	if op == "fork" && (toolHasValue(args, "ttl_seconds") || toolHasValue(args, "ttl")) {
+		return &gateError{code: "invalid_argument", message: "fork TTL is not supported by boringd; use count"}
+	}
+	return nil
+}
+
+func executeAgentTaskLedgerOperation(op string, args map[string]interface{}) string {
+	manager := DefaultTaskManager()
+	if manager == nil {
+		return toolJSON("error", "storage_unavailable", "virtual computer task manager is unavailable", nil)
+	}
+	switch op {
+	case "list_agent_tasks":
+		tasks, err := manager.ListTasks(toolString(args, "machine_id"), toolInt(args, 50, "limit"))
+		if err != nil {
+			return toolJSON("error", "storage_unavailable", err.Error(), nil)
+		}
+		isolated := make([]AgentTask, 0, len(tasks))
+		for _, task := range tasks {
+			isolated = append(isolated, isolateAgentTask(task))
+		}
+		return toolJSON("ok", "", "agent tasks listed", map[string]interface{}{"tasks": isolated})
+	case "get_agent_task":
+		task, ok := manager.GetTask(toolString(args, "task_id", "id"))
+		if !ok {
+			return toolJSON("error", "not_found", "agent task was not found", nil)
+		}
+		return toolJSON("ok", "", "agent task loaded", map[string]interface{}{"task": isolateAgentTask(task)})
+	case "cancel_agent_task":
+		if !manager.CancelTask(toolString(args, "task_id", "id")) {
+			return toolJSON("error", "not_found", "running agent task was not found", nil)
+		}
+		return toolJSON("ok", "", "agent task canceled", nil)
+	default:
+		return toolJSON("error", "unsupported_operation", "unsupported agent task operation", nil)
+	}
+}
+
+func isolateAgentTask(task AgentTask) AgentTask {
+	task.Instruction = ""
+	for i := range task.Events {
+		if task.Events[i].Text != "" {
+			task.Events[i].Text = security.IsolateExternalData(task.Events[i].Text)
+		}
+	}
+	return task
+}
+
+func openToolLedger(cfg ToolConfig) (*Ledger, error) {
+	if strings.TrimSpace(cfg.LedgerPath) == "" {
+		return nil, fmt.Errorf("virtual computer ledger path is not configured")
+	}
+	return OpenLedger(cfg.LedgerPath)
+}
+
+func launchVolumeID(args map[string]interface{}) string {
+	if id := toolString(args, "volume_id"); id != "" {
+		return id
+	}
+	volumes := toolStringSlice(args, "volumes")
+	if len(volumes) == 1 {
+		return volumes[0]
+	}
+	return ""
+}
+
+func toolHasValue(args map[string]interface{}, key string) bool {
+	if args == nil {
+		return false
+	}
+	value, ok := args[key]
+	return ok && value != nil && strings.TrimSpace(fmt.Sprint(value)) != ""
 }
 
 func (cfg ToolConfig) maxTTL() int {
@@ -263,6 +425,11 @@ func toolJSON(status, code, message string, payload interface{}) string {
 		return fmt.Sprintf(`{"status":"error","code":"encode_error","message":%q}`, err.Error())
 	}
 	return string(data)
+}
+
+func toolErrorJSON(err error) string {
+	classified := ClassifyError(err)
+	return toolJSON("error", classified.Code, classified.Message, nil)
 }
 
 func toolString(args map[string]interface{}, keys ...string) string {

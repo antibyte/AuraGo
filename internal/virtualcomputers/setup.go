@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -55,7 +56,12 @@ func (m SetupManager) Preflight(ctx context.Context) (PreflightResult, error) {
 	if err != nil {
 		return PreflightResult{}, err
 	}
-	return ParsePreflightOutput(out), nil
+	result := ParsePreflightOutput(out)
+	if m.InstallOptions.AllowVolumes {
+		result.Issues = append(result.Issues, validateManagedStorage(m.InstallOptions)...)
+		result.Supported = len(result.Issues) == 0
+	}
+	return result, nil
 }
 
 func ParsePreflightOutput(out string) PreflightResult {
@@ -159,6 +165,26 @@ func (m SetupManager) RedactInstallLog(log string) string {
 	return redactInstallLog(log, m.Token, m.SudoPassword, m.InstallOptions.Token, m.InstallOptions.AnthropicKey, m.InstallOptions.OpenRouterKey, m.InstallOptions.S3AccessKeyID, m.InstallOptions.S3SecretKey)
 }
 
+func validateManagedStorage(opts SetupInstallOptions) []string {
+	var issues []string
+	endpoint := strings.TrimSpace(opts.S3Endpoint)
+	if endpoint == "" {
+		issues = append(issues, "S3 endpoint is required when virtual computer volumes are enabled")
+	} else if strings.Contains(endpoint, "://") {
+		issues = append(issues, "S3 endpoint must be a host and optional port without a URL scheme")
+	}
+	if strings.TrimSpace(opts.S3Bucket) == "" {
+		issues = append(issues, "S3 bucket is required when virtual computer volumes are enabled")
+	}
+	if strings.TrimSpace(opts.S3AccessKeyID) == "" {
+		issues = append(issues, "S3 access key is required when virtual computer volumes are enabled")
+	}
+	if strings.TrimSpace(opts.S3SecretKey) == "" {
+		issues = append(issues, "S3 secret key is required when virtual computer volumes are enabled")
+	}
+	return issues
+}
+
 func (m SetupManager) runInstall(ctx context.Context) (string, error) {
 	script := m.installScript()
 	if runner, ok := m.Executor.(ScriptExecutor); ok {
@@ -178,6 +204,9 @@ func (m SetupManager) installScript() string {
 		token = strings.TrimSpace(m.Token)
 	}
 	opts.Token = token
+	if strings.TrimSpace(opts.S3Bucket) == "" {
+		opts.S3Bucket = "boring-volumes"
+	}
 	boringdAddr := boringdListenAddr(opts.BoringdURL)
 	healthURL := boringdHealthURL(opts.BoringdURL)
 	maxMachines := opts.MaxRunningMachines
@@ -214,9 +243,13 @@ GO_VERSION="1.25.0"
 BORING_TOKEN_VALUE=%s
 BORING_ANTHROPIC_KEY_VALUE=%s
 BORING_OPENROUTER_KEY_VALUE=%s
-BORING_S3_KEY_VALUE=%s
-BORING_S3_SECRET_VALUE=%s
-BORING_ADDR_VALUE=%s
+	BORING_S3_KEY_VALUE=%s
+	BORING_S3_SECRET_VALUE=%s
+	BORING_S3_ENDPOINT_VALUE=%s
+	BORING_S3_BUCKET_VALUE=%s
+	BORING_S3_REGION_VALUE=%s
+	BORING_S3_SSL_VALUE=%s
+	BORING_ADDR_VALUE=%s
 BORING_HEALTH_URL_VALUE=%s
 BORING_MAX_VALUE=%d
 BORING_MAX_FORKS_VALUE=%d
@@ -310,7 +343,10 @@ BORING_MAX_FORKS=${BORING_MAX_FORKS_VALUE}
 BORING_MAX_TEMPLATES=${BORING_MAX_TEMPLATES_VALUE}
 BORING_S3_KEY=${BORING_S3_KEY_VALUE}
 BORING_S3_SECRET=${BORING_S3_SECRET_VALUE}
-BORING_S3_BUCKET=boring-volumes
+BORING_S3_ENDPOINT=${BORING_S3_ENDPOINT_VALUE}
+BORING_S3_BUCKET=${BORING_S3_BUCKET_VALUE}
+BORING_S3_REGION=${BORING_S3_REGION_VALUE}
+BORING_S3_SSL=${BORING_S3_SSL_VALUE}
 EOF
 
 log "starting boringd"
@@ -321,7 +357,7 @@ systemctl restart boringd
 sleep 2
 systemctl is-active boringd
 curl -fsS --max-time 8 "${BORING_HEALTH_URL_VALUE}"
-`, shellQuote(installDir), shellQuote(PinnedUpstreamRevision), shellQuote(envLine(token)), shellQuote(envLine(opts.AnthropicKey)), shellQuote(envLine(opts.OpenRouterKey)), shellQuote(envLine(opts.S3AccessKeyID)), shellQuote(envLine(opts.S3SecretKey)), shellQuote(boringdAddr), shellQuote(healthURL), maxMachines, maxForks, maxTemplates, allowPersistent, guestNet, skipDesktop)
+`, shellQuote(installDir), shellQuote(PinnedUpstreamRevision), shellQuote(envLine(token)), shellQuote(envLine(opts.AnthropicKey)), shellQuote(envLine(opts.OpenRouterKey)), shellQuote(envLine(opts.S3AccessKeyID)), shellQuote(envLine(opts.S3SecretKey)), shellQuote(envLine(opts.S3Endpoint)), shellQuote(envLine(opts.S3Bucket)), shellQuote(envLine(opts.S3Region)), shellQuote(strconv.FormatBool(opts.S3UseSSL)), shellQuote(boringdAddr), shellQuote(healthURL), maxMachines, maxForks, maxTemplates, allowPersistent, guestNet, skipDesktop)
 	return script + managementInstallScript(opts)
 }
 

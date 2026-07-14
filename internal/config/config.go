@@ -512,6 +512,8 @@ func Load(path string) (*Config, error) {
 	cfg.VirtualComputers.ControlPlane.SSHPort = 22
 	cfg.VirtualComputers.ControlPlane.InstallDir = "/opt/boring-computers"
 	cfg.VirtualComputers.ControlPlane.BoringdURL = DefaultVirtualComputersBoringdURL
+	cfg.VirtualComputers.Storage.Bucket = "boring-volumes"
+	cfg.VirtualComputers.Storage.UseSSL = true
 	cfg.VirtualComputers.DefaultTemplate = "python"
 	cfg.VirtualComputers.DefaultTTLSeconds = 600
 	cfg.VirtualComputers.MaxTTLSeconds = 900
@@ -1192,6 +1194,9 @@ func Load(path string) (*Config, error) {
 		cfg.VirtualComputers.ControlPlane.InstallDir = "/opt/boring-computers"
 	}
 	cfg.VirtualComputers.ControlPlane.BoringdURL = normalizeVirtualComputersBoringdURL(cfg.VirtualComputers.ControlPlane.BoringdURL)
+	if strings.TrimSpace(cfg.VirtualComputers.Storage.Bucket) == "" {
+		cfg.VirtualComputers.Storage.Bucket = "boring-volumes"
+	}
 	if strings.TrimSpace(cfg.VirtualComputers.DefaultTemplate) == "" {
 		cfg.VirtualComputers.DefaultTemplate = "python"
 	}

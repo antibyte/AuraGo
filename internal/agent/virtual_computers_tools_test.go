@@ -23,9 +23,19 @@ func TestVirtualComputersToolSchemaGated(t *testing.T) {
 	if !ok {
 		t.Fatalf("operation enum missing or wrong type: %#v", op["enum"])
 	}
-	for _, want := range []string{"status", "list_machines", "launch", "destroy", "exec", "screenshot", "run_desktop_task"} {
+	for _, want := range []string{"status", "list_machines", "launch", "destroy", "exec", "screenshot", "get_volume", "delete_volume", "run_desktop_task", "list_agent_tasks", "get_agent_task", "cancel_agent_task"} {
 		if !containsString(enum, want) {
 			t.Fatalf("operation enum missing %q: %#v", want, enum)
+		}
+	}
+	for _, unsupported := range []string{"args", "size_bytes", "volumes"} {
+		if _, ok := props[unsupported]; ok {
+			t.Fatalf("unsupported property %q is still exposed", unsupported)
+		}
+	}
+	for _, supported := range []string{"volume_id", "filename", "count", "task_id", "limit"} {
+		if _, ok := props[supported]; !ok {
+			t.Fatalf("supported property %q is missing", supported)
 		}
 	}
 }

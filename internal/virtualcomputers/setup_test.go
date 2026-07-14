@@ -196,6 +196,65 @@ func TestSetupManagerRedactsSudoPassword(t *testing.T) {
 	}
 }
 
+func TestSetupInstallConfiguresManagedVolumeStorage(t *testing.T) {
+	manager := SetupManager{InstallOptions: SetupInstallOptions{
+		AllowVolumes: true,
+		S3Endpoint:   "minio.internal:9000", S3Bucket: "boring-test", S3Region: "eu-central-1", S3UseSSL: true,
+		S3AccessKeyID: "storage-access", S3SecretKey: "storage-secret",
+	}}
+	script := manager.installScript()
+	for _, want := range []string{
+		"BORING_S3_ENDPOINT=${BORING_S3_ENDPOINT_VALUE}",
+		"BORING_S3_KEY=${BORING_S3_KEY_VALUE}",
+		"BORING_S3_SECRET=${BORING_S3_SECRET_VALUE}",
+		"BORING_S3_BUCKET=${BORING_S3_BUCKET_VALUE}",
+		"BORING_S3_REGION=${BORING_S3_REGION_VALUE}",
+		"BORING_S3_SSL=${BORING_S3_SSL_VALUE}",
+	} {
+		if !strings.Contains(script, want) {
+			t.Fatalf("install script missing %q", want)
+		}
+	}
+	redacted := manager.RedactInstallLog("storage-access storage-secret")
+	if strings.Contains(redacted, "storage-access") || strings.Contains(redacted, "storage-secret") {
+		t.Fatalf("storage credentials leaked after redaction: %s", redacted)
+	}
+}
+
+func TestSetupPreflightReportsMissingManagedVolumeStorage(t *testing.T) {
+	manager := SetupManager{
+		Executor:       &fakeSSHExecutor{output: "HOST_OS=linux\nARCH=amd64\nHAS_KVM=1\nOS_ID=ubuntu\nRUNNING_IN_DOCKER=0\nHAS_SYSTEMD=1\nHAS_SUDO_OR_ROOT=1\n"},
+		InstallOptions: SetupInstallOptions{AllowVolumes: true, S3Bucket: "boring-volumes"},
+	}
+	result, err := manager.Preflight(context.Background())
+	if err != nil {
+		t.Fatalf("Preflight: %v", err)
+	}
+	if result.Supported || !strings.Contains(strings.Join(result.Issues, " "), "S3 endpoint") || !strings.Contains(strings.Join(result.Issues, " "), "access key") {
+		t.Fatalf("preflight result = %+v", result)
+	}
+}
+
+func TestSetupPreflightRejectsStorageEndpointURLScheme(t *testing.T) {
+	manager := SetupManager{
+		Executor: &fakeSSHExecutor{output: "HOST_OS=linux\nARCH=amd64\nHAS_KVM=1\nOS_ID=ubuntu\nRUNNING_IN_DOCKER=0\nHAS_SYSTEMD=1\nHAS_SUDO_OR_ROOT=1\n"},
+		InstallOptions: SetupInstallOptions{
+			AllowVolumes:  true,
+			S3Endpoint:    "https://storage.example.test",
+			S3Bucket:      "boring-volumes",
+			S3AccessKeyID: "access",
+			S3SecretKey:   "secret",
+		},
+	}
+	result, err := manager.Preflight(context.Background())
+	if err != nil {
+		t.Fatalf("Preflight: %v", err)
+	}
+	if result.Supported || !strings.Contains(strings.Join(result.Issues, " "), "without a URL scheme") {
+		t.Fatalf("preflight result = %+v", result)
+	}
+}
+
 func TestSetupInstallErrorIncludesRedactedScriptOutput(t *testing.T) {
 	manager := SetupManager{Executor: failingSetupExecutor{}, Token: "super-secret"}
 	status, err := manager.Install(context.Background())

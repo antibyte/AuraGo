@@ -432,6 +432,7 @@ type VirtualComputersConfig struct {
 	AutoSetup           bool                         `yaml:"auto_setup" json:"auto_setup"`                     // allow AuraGo to install/update the control plane locally or over SSH
 	ReadOnly            bool                         `yaml:"readonly" json:"readonly"`                         // block mutating machine operations
 	ControlPlane        VirtualComputersControlPlane `yaml:"control_plane" json:"control_plane"`               // boringd connection/install target
+	Storage             VirtualComputersStorage      `yaml:"storage" json:"storage"`                           // managed boringd S3-compatible storage
 	DefaultTemplate     string                       `yaml:"default_template" json:"default_template"`         // launch template used when omitted
 	DefaultTTLSeconds   int                          `yaml:"default_ttl_seconds" json:"default_ttl_seconds"`   // default machine TTL
 	MaxTTLSeconds       int                          `yaml:"max_ttl_seconds" json:"max_ttl_seconds"`           // max machine TTL; boringd caps at 900
@@ -447,6 +448,13 @@ type VirtualComputersConfig struct {
 	BoringOpenRouterKey string                       `yaml:"-" json:"-" vault:"virtual_computers_openrouter_key"`
 	S3AccessKeyID       string                       `yaml:"-" json:"-" vault:"virtual_computers_s3_access_key_id"`
 	S3SecretKey         string                       `yaml:"-" json:"-" vault:"virtual_computers_s3_secret_key"`
+}
+
+type VirtualComputersStorage struct {
+	Endpoint string `yaml:"endpoint" json:"endpoint"` // S3-compatible host:port without scheme
+	Bucket   string `yaml:"bucket" json:"bucket"`
+	Region   string `yaml:"region" json:"region"`
+	UseSSL   bool   `yaml:"use_ssl" json:"use_ssl"`
 }
 
 type VirtualComputersControlPlane struct {

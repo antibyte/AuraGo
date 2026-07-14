@@ -46,6 +46,7 @@ import (
 	"aurago/internal/setup"
 	"aurago/internal/sqlconnections"
 	"aurago/internal/tools"
+	"aurago/internal/virtualcomputers"
 	"aurago/internal/warnings"
 
 	"github.com/gofrs/flock"
@@ -1074,6 +1075,19 @@ func main() {
 
 	// Register built-in warning producers (token budget fallback, vectordb, etc.).
 	warnings.RegisterBuiltinProducers(warningsRegistry, cfg, longTermMem, appLog)
+
+	virtualComputerTasks, err := virtualcomputers.OpenTaskManager(cfg.SQLite.VirtualComputersPath, appLog, virtualcomputers.TaskManagerOptions{})
+	if err != nil {
+		appLog.Warn("Virtual computer agent task history is unavailable", "error", err)
+	} else {
+		virtualcomputers.SetDefaultTaskManager(virtualComputerTasks)
+		defer func() {
+			virtualcomputers.SetDefaultTaskManager(nil)
+			if closeErr := virtualComputerTasks.Close(); closeErr != nil {
+				appLog.Warn("Failed to close virtual computer agent task history", "error", closeErr)
+			}
+		}()
+	}
 
 	if err := server.Start(server.StartOptions{
 		Cfg:                  cfg,

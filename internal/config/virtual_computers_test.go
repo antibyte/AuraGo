@@ -30,9 +30,28 @@ func TestVirtualComputersDefaults(t *testing.T) {
 	if cfg.VirtualComputers.ControlPlane.BoringdURL != "http://127.0.0.1:18082" {
 		t.Fatalf("boringd url = %q", cfg.VirtualComputers.ControlPlane.BoringdURL)
 	}
+	if cfg.VirtualComputers.Storage.Bucket != "boring-volumes" || !cfg.VirtualComputers.Storage.UseSSL {
+		t.Fatalf("storage defaults = %+v", cfg.VirtualComputers.Storage)
+	}
 	wantDB := filepath.Join(filepath.Dir(configPath), "data", "virtual_computers.db")
 	if cfg.SQLite.VirtualComputersPath != wantDB {
 		t.Fatalf("virtual computers db = %q, want %q", cfg.SQLite.VirtualComputersPath, wantDB)
+	}
+}
+
+func TestVirtualComputersStorageConfigLoadsNonSecrets(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	data := []byte("virtual_computers:\n  storage:\n    endpoint: minio.home:9000\n    bucket: vc-data\n    region: home-1\n    use_ssl: false\n")
+	if err := os.WriteFile(configPath, data, 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	storage := cfg.VirtualComputers.Storage
+	if storage.Endpoint != "minio.home:9000" || storage.Bucket != "vc-data" || storage.Region != "home-1" || storage.UseSSL {
+		t.Fatalf("storage = %+v", storage)
 	}
 }
 

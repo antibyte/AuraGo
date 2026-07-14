@@ -74,6 +74,8 @@ func TestIsPythonAccessibleSecret_BlocksSystemVaultKeysAddedByIntegrations(t *te
 		"virtual_computers_ssh_secret",
 		"virtual_computers_anthropic_key",
 		"virtual_computers_openrouter_key",
+		"virtual_computers_s3_access_key_id",
+		"virtual_computers_s3_secret_key",
 		"boring_token",
 		"boring_anthropic_key",
 		"boring_openrouter_key",

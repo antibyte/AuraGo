@@ -19,6 +19,7 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/credentials"
 	"aurago/internal/remote"
+	"aurago/internal/security"
 	"aurago/internal/virtualcomputers"
 
 	"github.com/gorilla/websocket"
@@ -63,9 +64,13 @@ func registerVirtualComputersRoutes(mux *http.ServeMux, s *Server) {
 	mux.HandleFunc("/api/virtual-computers/setup/preflight", handleVirtualComputersSetupPreflight(s))
 	mux.HandleFunc("/api/virtual-computers/setup/install", handleVirtualComputersSetupInstall(s))
 	mux.HandleFunc("/api/virtual-computers/setup/repair", handleVirtualComputersSetupInstall(s))
+	mux.HandleFunc("/api/virtual-computers/storage/test", handleVirtualComputersStorageTest(s))
 	mux.HandleFunc("/api/virtual-computers/status", handleVirtualComputersStatus(s))
 	mux.HandleFunc("/api/virtual-computers/templates", handleVirtualComputersTemplates(s))
 	mux.HandleFunc("/api/virtual-computers/volumes", handleVirtualComputersVolumes(s))
+	mux.HandleFunc("/api/virtual-computers/volumes/", handleVirtualComputersVolume(s))
+	mux.HandleFunc("/api/virtual-computers/tasks", handleVirtualComputersTasks(s))
+	mux.HandleFunc("/api/virtual-computers/tasks/", handleVirtualComputersTask(s))
 	mux.HandleFunc("/api/virtual-computers/machines", handleVirtualComputersMachines(s))
 	mux.HandleFunc("/api/virtual-computers/machines/", handleVirtualComputersMachine(s))
 	virtualComputersTriggerAutoSetup(s, virtualComputersConfigSnapshot(s))
@@ -87,6 +92,7 @@ func handleVirtualComputersSetupStatus(s *Server) http.HandlerFunc {
 		payload := map[string]interface{}{
 			"status":               "ok",
 			"enabled":              cfg.Enabled,
+			"readonly":             cfg.ReadOnly,
 			"configured":           configured,
 			"auto_setup":           cfg.AutoSetup,
 			"sudo_password_stored": virtualComputersSudoPassword(s) != "",
@@ -95,6 +101,10 @@ func handleVirtualComputersSetupStatus(s *Server) http.HandlerFunc {
 			"control_plane_status": virtualcomputers.ComponentStatus{Configured: configured, Healthy: controlPlaneHealthy},
 			"management":           virtualcomputers.ComponentStatus{Configured: configured, Healthy: managementHealthy},
 			"tailscale":            virtualComputersTailscaleStatus(s),
+			"capabilities": map[string]bool{
+				"volumes": cfg.AllowVolumes, "agent_tasks": cfg.AllowAgentTasks,
+				"publish": cfg.AllowPublish, "persistent": cfg.AllowPersistent,
+			},
 		}
 		for key, value := range virtualComputersSetupMetadata(s, cfg, nil) {
 			payload[key] = value
@@ -212,6 +222,34 @@ func handleVirtualComputersSetupInstall(s *Server) http.HandlerFunc {
 	}
 }
 
+func handleVirtualComputersStorageTest(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !requireDesktopPermission(s, w, r, desktopScopeAdmin) {
+			return
+		}
+		if r.Method != http.MethodPost {
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		cfg := virtualComputersConfigSnapshot(s)
+		if !cfg.AllowVolumes {
+			jsonError(w, "virtual computer volumes are disabled", http.StatusForbidden)
+			return
+		}
+		ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
+		defer cancel()
+		err := virtualcomputers.TestStorageConnection(ctx, virtualcomputers.StorageTestConfig{
+			Endpoint: cfg.Storage.Endpoint, Bucket: cfg.Storage.Bucket, Region: cfg.Storage.Region,
+			AccessKeyID: cfg.S3AccessKeyID, SecretKey: cfg.S3SecretKey, UseSSL: cfg.Storage.UseSSL,
+		})
+		if err != nil {
+			writeVirtualComputersAPIError(w, "storage_unavailable", security.Scrub(err.Error()), http.StatusServiceUnavailable)
+			return
+		}
+		writeJSON(w, map[string]interface{}{"status": "ok", "message": "S3 bucket is reachable"})
+	}
+}
+
 func handleVirtualComputersStatus(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !requireDesktopPermission(s, w, r, desktopScopeRead) {
@@ -228,7 +266,7 @@ func handleVirtualComputersStatus(s *Server) http.HandlerFunc {
 		}
 		payload, err := client.Status(r.Context())
 		if err != nil {
-			jsonError(w, err.Error(), http.StatusBadGateway)
+			writeVirtualComputersError(w, err)
 			return
 		}
 		writeJSON(w, map[string]interface{}{"status": "ok", "boringd": payload, "tailscale": virtualComputersTailscaleStatus(s)})
@@ -250,7 +288,7 @@ func handleVirtualComputersMachines(s *Server) http.HandlerFunc {
 		case http.MethodGet:
 			machines, err := client.ListMachines(r.Context())
 			if err != nil {
-				jsonError(w, err.Error(), http.StatusBadGateway)
+				writeVirtualComputersError(w, err)
 				return
 			}
 			virtualComputersSyncMachines(s, r, machines)
@@ -264,9 +302,21 @@ func handleVirtualComputersMachines(s *Server) http.HandlerFunc {
 				jsonError(w, "Invalid JSON body", http.StatusBadRequest)
 				return
 			}
+			if len(req.Volumes) > 1 {
+				writeVirtualComputersAPIError(w, "invalid_argument", "boringd supports at most one volume_id per machine", http.StatusBadRequest)
+				return
+			}
+			if req.VolumeID == "" && len(req.Volumes) == 1 {
+				req.VolumeID = req.Volumes[0]
+			}
+			cfg := virtualComputersConfigSnapshot(s)
+			if req.VolumeID != "" && !cfg.AllowVolumes {
+				jsonError(w, "virtual computer volumes are disabled", http.StatusForbidden)
+				return
+			}
 			machine, err := client.LaunchMachine(r.Context(), req)
 			if err != nil {
-				jsonError(w, err.Error(), http.StatusBadGateway)
+				writeVirtualComputersError(w, err)
 				return
 			}
 			virtualComputersUpsertMachine(s, r, machine)
@@ -310,7 +360,7 @@ func handleVirtualComputersMachine(s *Server) http.HandlerFunc {
 			case http.MethodGet:
 				machine, err := client.GetMachine(r.Context(), machineID)
 				if err != nil {
-					jsonError(w, err.Error(), http.StatusBadGateway)
+					writeVirtualComputersError(w, err)
 					return
 				}
 				writeJSON(w, map[string]interface{}{"status": "ok", "machine": machine})
@@ -319,7 +369,7 @@ func handleVirtualComputersMachine(s *Server) http.HandlerFunc {
 					return
 				}
 				if err := client.DestroyMachine(r.Context(), machineID); err != nil {
-					jsonError(w, err.Error(), http.StatusBadGateway)
+					writeVirtualComputersError(w, err)
 					return
 				}
 				virtualComputersDeleteMachine(s, r, machineID)
@@ -342,7 +392,7 @@ func handleVirtualComputersMachine(s *Server) http.HandlerFunc {
 			_ = decodeVirtualComputersJSON(w, r, &req)
 			machine, err := client.ExtendMachine(r.Context(), machineID, req.TTLSeconds)
 			if err != nil {
-				jsonError(w, err.Error(), http.StatusBadGateway)
+				writeVirtualComputersError(w, err)
 				return
 			}
 			virtualComputersUpsertMachine(s, r, machine)
@@ -357,17 +407,39 @@ func handleVirtualComputersMachine(s *Server) http.HandlerFunc {
 				return
 			}
 			var req struct {
-				TTLSeconds int `json:"ttl_seconds"`
+				Count      int  `json:"count"`
+				TTLSeconds *int `json:"ttl_seconds"`
 			}
-			_ = decodeVirtualComputersJSON(w, r, &req)
-			machine, err := client.ForkMachine(r.Context(), machineID, req.TTLSeconds)
-			if err != nil {
-				jsonError(w, err.Error(), http.StatusBadGateway)
+			if err := decodeVirtualComputersJSON(w, r, &req); err != nil && err != io.EOF {
+				jsonError(w, "Invalid JSON body", http.StatusBadRequest)
 				return
 			}
-			virtualComputersUpsertMachine(s, r, machine)
-			virtualComputersRecordAction(s, r, "fork", "machine", machine.ID, map[string]interface{}{"source_machine_id": machineID})
-			writeJSON(w, map[string]interface{}{"status": "ok", "machine": machine})
+			if req.TTLSeconds != nil {
+				writeVirtualComputersAPIError(w, "invalid_argument", "fork ttl_seconds is not supported by boringd", http.StatusBadRequest)
+				return
+			}
+			if req.Count == 0 {
+				req.Count = 1
+			}
+			cfg := virtualComputersConfigSnapshot(s)
+			if req.Count < 1 || (cfg.MaxForks > 0 && req.Count > cfg.MaxForks) {
+				writeVirtualComputersAPIError(w, "invalid_argument", "count must be within the configured fork limit", http.StatusBadRequest)
+				return
+			}
+			machines, err := client.ForkMachines(r.Context(), machineID, req.Count)
+			if err != nil {
+				writeVirtualComputersError(w, err)
+				return
+			}
+			for _, machine := range machines {
+				virtualComputersUpsertMachine(s, r, machine)
+			}
+			virtualComputersRecordAction(s, r, "fork", "machine", machineID, map[string]interface{}{"count": len(machines)})
+			payload := map[string]interface{}{"status": "ok", "machines": machines}
+			if len(machines) == 1 {
+				payload["machine"] = machines[0]
+			}
+			writeJSON(w, payload)
 		case "exec":
 			if r.Method != http.MethodPost {
 				jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -376,14 +448,23 @@ func handleVirtualComputersMachine(s *Server) http.HandlerFunc {
 			if !virtualComputersMutationAllowed(s, w) {
 				return
 			}
-			var req virtualcomputers.ExecRequest
-			if err := decodeVirtualComputersJSON(w, r, &req); err != nil {
+			var body struct {
+				Command string        `json:"command"`
+				Args    []interface{} `json:"args"`
+				Timeout int           `json:"timeout_seconds"`
+			}
+			if err := decodeVirtualComputersJSON(w, r, &body); err != nil {
 				jsonError(w, "Invalid JSON body", http.StatusBadRequest)
 				return
 			}
+			if len(body.Args) > 0 {
+				writeVirtualComputersAPIError(w, "invalid_argument", "exec.args is not supported by boringd; include arguments in command", http.StatusBadRequest)
+				return
+			}
+			req := virtualcomputers.ExecRequest{Command: body.Command, Timeout: body.Timeout}
 			result, err := client.Exec(r.Context(), machineID, req)
 			if err != nil {
-				jsonError(w, err.Error(), http.StatusBadGateway)
+				writeVirtualComputersError(w, err)
 				return
 			}
 			virtualComputersRecordAction(s, r, "exec", "machine", machineID, nil)
@@ -395,7 +476,7 @@ func handleVirtualComputersMachine(s *Server) http.HandlerFunc {
 			}
 			shot, err := client.Screenshot(r.Context(), machineID)
 			if err != nil {
-				jsonError(w, err.Error(), http.StatusBadGateway)
+				writeVirtualComputersError(w, err)
 				return
 			}
 			writeJSON(w, map[string]interface{}{"status": "ok", "screenshot": shot})
@@ -408,7 +489,7 @@ func handleVirtualComputersMachine(s *Server) http.HandlerFunc {
 				return
 			}
 			var req struct {
-				Path          string `json:"path"`
+				Filename      string `json:"filename"`
 				Content       string `json:"content"`
 				ContentBase64 string `json:"content_base64"`
 			}
@@ -425,12 +506,12 @@ func handleVirtualComputersMachine(s *Server) http.HandlerFunc {
 				}
 				content = decoded
 			}
-			payload, err := client.Upload(r.Context(), machineID, req.Path, content)
+			payload, err := client.Upload(r.Context(), machineID, req.Filename, content)
 			if err != nil {
-				jsonError(w, err.Error(), http.StatusBadGateway)
+				writeVirtualComputersError(w, err)
 				return
 			}
-			virtualComputersRecordAction(s, r, "upload", "machine", machineID, map[string]interface{}{"path": req.Path})
+			virtualComputersRecordAction(s, r, "upload", "machine", machineID, map[string]interface{}{"filename": req.Filename})
 			writeJSON(w, map[string]interface{}{"status": "ok", "result": payload})
 		case "download":
 			if r.Method != http.MethodGet {
@@ -439,7 +520,7 @@ func handleVirtualComputersMachine(s *Server) http.HandlerFunc {
 			}
 			data, contentType, err := client.Download(r.Context(), machineID, r.URL.Query().Get("path"))
 			if err != nil {
-				jsonError(w, err.Error(), http.StatusBadGateway)
+				writeVirtualComputersError(w, err)
 				return
 			}
 			if contentType != "" {
@@ -459,9 +540,16 @@ func handleVirtualComputersMachine(s *Server) http.HandlerFunc {
 			if !virtualComputersMutationAllowed(s, w) {
 				return
 			}
-			payload, err := client.Publish(r.Context(), machineID)
+			var req struct {
+				Name string `json:"name"`
+			}
+			if err := decodeVirtualComputersJSON(w, r, &req); err != nil {
+				jsonError(w, "Invalid JSON body", http.StatusBadRequest)
+				return
+			}
+			payload, err := client.Publish(r.Context(), machineID, req.Name)
 			if err != nil {
-				jsonError(w, err.Error(), http.StatusBadGateway)
+				writeVirtualComputersError(w, err)
 				return
 			}
 			virtualComputersRecordAction(s, r, "publish", "machine", machineID, nil)
@@ -474,13 +562,21 @@ func handleVirtualComputersMachine(s *Server) http.HandlerFunc {
 			if !virtualComputersMutationAllowed(s, w) {
 				return
 			}
-			var req struct {
-				Name string `json:"name"`
+			cfg := virtualComputersConfigSnapshot(s)
+			if !cfg.AllowVolumes {
+				jsonError(w, "virtual computer volumes are disabled", http.StatusForbidden)
+				return
 			}
-			_ = decodeVirtualComputersJSON(w, r, &req)
-			payload, err := client.SaveMachine(r.Context(), machineID, req.Name)
+			var req struct {
+				VolumeID string `json:"volume_id"`
+			}
+			if err := decodeVirtualComputersJSON(w, r, &req); err != nil {
+				jsonError(w, "Invalid JSON body", http.StatusBadRequest)
+				return
+			}
+			payload, err := client.SaveMachine(r.Context(), machineID, req.VolumeID)
 			if err != nil {
-				jsonError(w, err.Error(), http.StatusBadGateway)
+				writeVirtualComputersError(w, err)
 				return
 			}
 			virtualComputersRecordAction(s, r, "save", "machine", machineID, nil)
@@ -507,7 +603,7 @@ func handleVirtualComputersTemplates(s *Server) http.HandlerFunc {
 		}
 		templates, err := client.ListTemplates(r.Context())
 		if err != nil {
-			jsonError(w, err.Error(), http.StatusBadGateway)
+			writeVirtualComputersError(w, err)
 			return
 		}
 		virtualComputersSyncTemplates(s, r, templates)
@@ -521,6 +617,10 @@ func handleVirtualComputersVolumes(s *Server) http.HandlerFunc {
 			return
 		}
 		cfg := virtualComputersConfigSnapshot(s)
+		if !cfg.AllowVolumes {
+			jsonError(w, "virtual computer volumes are disabled", http.StatusForbidden)
+			return
+		}
 		client, err := virtualComputersClient(s)
 		if err != nil {
 			jsonError(w, err.Error(), http.StatusServiceUnavailable)
@@ -528,12 +628,17 @@ func handleVirtualComputersVolumes(s *Server) http.HandlerFunc {
 		}
 		switch r.Method {
 		case http.MethodGet:
-			volumes, err := client.ListVolumes(r.Context())
-			if err != nil {
-				jsonError(w, err.Error(), http.StatusBadGateway)
+			ledger, err := virtualComputersLedger(s)
+			if err != nil || ledger == nil {
+				writeVirtualComputersAPIError(w, "storage_unavailable", "virtual computer ledger is unavailable", http.StatusServiceUnavailable)
 				return
 			}
-			virtualComputersSyncVolumes(s, r, volumes)
+			defer ledger.Close()
+			volumes, err := virtualcomputers.ListTrackedVolumes(r.Context(), ledger, client)
+			if err != nil {
+				writeVirtualComputersError(w, err)
+				return
+			}
 			writeJSON(w, map[string]interface{}{"status": "ok", "volumes": volumes})
 		case http.MethodPost:
 			if cfg.ReadOnly {
@@ -545,21 +650,169 @@ func handleVirtualComputersVolumes(s *Server) http.HandlerFunc {
 				return
 			}
 			var req struct {
-				Name      string `json:"name"`
-				SizeBytes int64  `json:"size_bytes"`
+				TTLSeconds int `json:"ttl_seconds"`
 			}
 			if err := decodeVirtualComputersJSON(w, r, &req); err != nil {
 				jsonError(w, "Invalid JSON body", http.StatusBadRequest)
 				return
 			}
-			volume, err := client.CreateVolume(r.Context(), req.Name, req.SizeBytes)
+			volume, err := client.CreateVolume(r.Context(), req.TTLSeconds)
 			if err != nil {
-				jsonError(w, err.Error(), http.StatusBadGateway)
+				writeVirtualComputersError(w, err)
 				return
 			}
+			now := time.Now().UTC()
+			volume.LastVerifiedAt = &now
+			volume.VerificationStatus = "verified"
 			virtualComputersUpsertVolume(s, r, volume)
 			virtualComputersRecordAction(s, r, "create_volume", "volume", volume.ID, nil)
 			writeJSON(w, map[string]interface{}{"status": "ok", "volume": volume})
+		default:
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	}
+}
+
+func handleVirtualComputersVolume(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !requireDesktopPermission(s, w, r, desktopMethodScope(r.Method)) {
+			return
+		}
+		cfg := virtualComputersConfigSnapshot(s)
+		if !cfg.AllowVolumes {
+			jsonError(w, "virtual computer volumes are disabled", http.StatusForbidden)
+			return
+		}
+		volumeID := strings.Trim(strings.TrimPrefix(r.URL.Path, "/api/virtual-computers/volumes/"), "/")
+		if volumeID == "" {
+			writeVirtualComputersAPIError(w, "invalid_argument", "volume id is required", http.StatusBadRequest)
+			return
+		}
+		client, err := virtualComputersClient(s)
+		if err != nil {
+			jsonError(w, err.Error(), http.StatusServiceUnavailable)
+			return
+		}
+		switch r.Method {
+		case http.MethodGet:
+			volume, err := client.GetVolume(r.Context(), volumeID)
+			if err != nil {
+				writeVirtualComputersError(w, err)
+				return
+			}
+			now := time.Now().UTC()
+			volume.LastVerifiedAt = &now
+			volume.VerificationStatus = "verified"
+			virtualComputersUpsertVolume(s, r, volume)
+			writeJSON(w, map[string]interface{}{"status": "ok", "volume": volume})
+		case http.MethodDelete:
+			if !virtualComputersMutationAllowed(s, w) {
+				return
+			}
+			if err := client.DeleteVolume(r.Context(), volumeID); err != nil {
+				writeVirtualComputersError(w, err)
+				return
+			}
+			virtualComputersWithLedger(s, r, func(ledger *virtualcomputers.Ledger) error {
+				return ledger.DeleteVolume(r.Context(), volumeID)
+			})
+			virtualComputersRecordAction(s, r, "delete_volume", "volume", volumeID, nil)
+			writeJSON(w, map[string]interface{}{"status": "ok"})
+		default:
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	}
+}
+
+func handleVirtualComputersTasks(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !requireDesktopPermission(s, w, r, desktopMethodScope(r.Method)) {
+			return
+		}
+		manager := virtualcomputers.DefaultTaskManager()
+		if manager == nil {
+			writeVirtualComputersAPIError(w, "storage_unavailable", "virtual computer task manager is unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		switch r.Method {
+		case http.MethodGet:
+			limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+			tasks, err := manager.ListTasks(r.URL.Query().Get("machine_id"), limit)
+			if err != nil {
+				writeVirtualComputersAPIError(w, "storage_unavailable", err.Error(), http.StatusServiceUnavailable)
+				return
+			}
+			writeJSON(w, map[string]interface{}{"status": "ok", "tasks": tasks})
+		case http.MethodPost:
+			cfg := virtualComputersConfigSnapshot(s)
+			if !virtualComputersMutationAllowed(s, w) {
+				return
+			}
+			if !cfg.AllowAgentTasks {
+				jsonError(w, "virtual computer agent tasks are disabled", http.StatusForbidden)
+				return
+			}
+			var req struct {
+				MachineID   string `json:"machine_id"`
+				Kind        string `json:"kind"`
+				Instruction string `json:"instruction"`
+			}
+			if err := decodeVirtualComputersJSON(w, r, &req); err != nil {
+				jsonError(w, "Invalid JSON body", http.StatusBadRequest)
+				return
+			}
+			client, err := virtualComputersClient(s)
+			if err != nil {
+				jsonError(w, err.Error(), http.StatusServiceUnavailable)
+				return
+			}
+			task, err := manager.Submit(client, req.MachineID, req.Kind, req.Instruction)
+			if err != nil {
+				writeVirtualComputersAPIError(w, "invalid_argument", err.Error(), http.StatusBadRequest)
+				return
+			}
+			virtualComputersRecordAction(s, r, "run_agent_task", "task", task.ID, map[string]interface{}{"machine_id": task.MachineID, "kind": task.Kind})
+			writeJSON(w, map[string]interface{}{"task_id": task.ID, "status": task.Status})
+		default:
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	}
+}
+
+func handleVirtualComputersTask(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !requireDesktopPermission(s, w, r, desktopMethodScope(r.Method)) {
+			return
+		}
+		manager := virtualcomputers.DefaultTaskManager()
+		if manager == nil {
+			writeVirtualComputersAPIError(w, "storage_unavailable", "virtual computer task manager is unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		taskID := strings.Trim(strings.TrimPrefix(r.URL.Path, "/api/virtual-computers/tasks/"), "/")
+		switch r.Method {
+		case http.MethodGet:
+			task, ok := manager.GetTask(taskID)
+			if !ok {
+				writeVirtualComputersAPIError(w, "not_found", "agent task was not found", http.StatusNotFound)
+				return
+			}
+			writeJSON(w, map[string]interface{}{"status": "ok", "task": task})
+		case http.MethodDelete:
+			cfg := virtualComputersConfigSnapshot(s)
+			if !virtualComputersMutationAllowed(s, w) {
+				return
+			}
+			if !cfg.AllowAgentTasks {
+				jsonError(w, "virtual computer agent tasks are disabled", http.StatusForbidden)
+				return
+			}
+			if !manager.CancelTask(taskID) {
+				writeVirtualComputersAPIError(w, "not_found", "running agent task was not found", http.StatusNotFound)
+				return
+			}
+			virtualComputersRecordAction(s, r, "cancel_agent_task", "task", taskID, nil)
+			writeJSON(w, map[string]interface{}{"status": "ok"})
 		default:
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
@@ -625,12 +878,23 @@ func handleVirtualComputerWSProxy(s *Server, machineID, channel string) http.Han
 		if !requireDesktopPermission(s, w, r, scope) {
 			return
 		}
+		if channel == "agent" || channel == "shell-agent" {
+			cfg := virtualComputersConfigSnapshot(s)
+			if cfg.ReadOnly {
+				jsonError(w, "virtual computers are read-only", http.StatusForbidden)
+				return
+			}
+			if !cfg.AllowAgentTasks {
+				jsonError(w, "virtual computer agent tasks are disabled", http.StatusForbidden)
+				return
+			}
+		}
 		client, err := virtualComputersClient(s)
 		if err != nil {
 			jsonError(w, err.Error(), http.StatusServiceUnavailable)
 			return
 		}
-		upstreamURL, header, err := client.WebSocketURL(machineID, channel)
+		upstreamURL, header, err := client.WebSocketURL(machineID, channel, r.URL.Query().Get("goal"))
 		if err != nil {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
@@ -691,6 +955,17 @@ func virtualComputersClient(s *Server) (*virtualcomputers.Client, error) {
 		Token:   cfg.BoringToken,
 		Timeout: 30 * time.Second,
 	})
+}
+
+func writeVirtualComputersError(w http.ResponseWriter, err error) {
+	classified := virtualcomputers.ClassifyError(err)
+	writeVirtualComputersAPIError(w, classified.Code, classified.Message, classified.HTTPStatus)
+}
+
+func writeVirtualComputersAPIError(w http.ResponseWriter, code, message string, status int) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(map[string]string{"status": "error", "code": code, "error": message})
 }
 
 func virtualComputersEnsureControlPlaneAccess(s *Server, cfg virtualcomputers.ToolConfig) error {
@@ -1079,6 +1354,10 @@ func virtualComputersSetupOptions(cfg virtualcomputers.ToolConfig, token string,
 		OpenRouterKey:      cfg.BoringOpenRouterKey,
 		S3AccessKeyID:      cfg.S3AccessKeyID,
 		S3SecretKey:        cfg.S3SecretKey,
+		S3Endpoint:         cfg.Storage.Endpoint,
+		S3Bucket:           cfg.Storage.Bucket,
+		S3Region:           cfg.Storage.Region,
+		S3UseSSL:           cfg.Storage.UseSSL,
 		MaxRunningMachines: cfg.MaxRunningMachines,
 		MaxForks:           cfg.MaxForks,
 		AllowInternet:      cfg.AllowInternet,

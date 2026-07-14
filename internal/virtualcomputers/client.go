@@ -92,15 +92,19 @@ func (c *Client) GetMachine(ctx context.Context, id string) (Machine, error) {
 }
 
 func (c *Client) LaunchMachine(ctx context.Context, req LaunchMachineRequest) (Machine, error) {
+	if len(req.Volumes) > 1 {
+		return Machine{}, fmt.Errorf("boringd supports at most one volume_id per machine")
+	}
+	volumeID := strings.TrimSpace(req.VolumeID)
+	if volumeID == "" {
+		volumeID = firstString(req.Volumes)
+	}
 	payload := launchMachineRequest{
 		Template:      req.Template,
-		Name:          req.Name,
 		TTLSeconds:    clampTTL(req.TTLSeconds, MaxTTLSeconds),
 		AllowInternet: req.AllowInternet,
-		Volume:        firstString(req.Volumes),
+		Volume:        volumeID,
 		Persistent:    req.Persistent,
-		Volumes:       req.Volumes,
-		Metadata:      req.Metadata,
 	}
 	var machine Machine
 	if err := c.doJSON(ctx, http.MethodPost, "/v1/machines", payload, &machine); err != nil {
@@ -124,11 +128,49 @@ func (c *Client) ExtendMachine(ctx context.Context, id string, ttlSeconds int) (
 
 func (c *Client) ForkMachine(ctx context.Context, id string, ttlSeconds int) (Machine, error) {
 	_ = ttlSeconds
-	var machine Machine
-	if err := c.doJSON(ctx, http.MethodPost, "/v1/machines/"+pathEscapeID(id)+"/branch", nil, &machine); err != nil {
+	machines, err := c.ForkMachines(ctx, id, 1)
+	if err != nil {
 		return Machine{}, err
 	}
-	return machine, nil
+	if len(machines) == 0 {
+		return Machine{}, fmt.Errorf("boringd branch returned no machines")
+	}
+	return machines[0], nil
+}
+
+func (c *Client) ForkMachines(ctx context.Context, id string, count int) ([]Machine, error) {
+	if count < 1 {
+		return nil, fmt.Errorf("fork count must be at least 1")
+	}
+	u := *c.baseURL
+	u.Path = joinURLPath(u.Path, "/v1/machines/"+pathEscapeID(id)+"/branch")
+	if count > 1 {
+		query := u.Query()
+		query.Set("count", strconv.Itoa(count))
+		u.RawQuery = query.Encode()
+	}
+	var raw json.RawMessage
+	if err := c.doJSON(ctx, http.MethodPost, u.String(), nil, &raw); err != nil {
+		return nil, err
+	}
+	trimmed := bytes.TrimSpace(raw)
+	if len(trimmed) == 0 {
+		return nil, fmt.Errorf("boringd branch returned an empty response")
+	}
+	if trimmed[0] != '{' {
+		return nil, fmt.Errorf("decode boringd branch response: expected object")
+	}
+	var wrapped struct {
+		Machines []Machine `json:"machines"`
+	}
+	if err := json.Unmarshal(trimmed, &wrapped); err == nil && len(wrapped.Machines) > 0 {
+		return wrapped.Machines, nil
+	}
+	var machine Machine
+	if err := json.Unmarshal(trimmed, &machine); err != nil {
+		return nil, fmt.Errorf("decode boringd branch response: %w", err)
+	}
+	return []Machine{machine}, nil
 }
 
 func (c *Client) Exec(ctx context.Context, id string, req ExecRequest) (ExecResult, error) {
@@ -140,27 +182,51 @@ func (c *Client) Exec(ctx context.Context, id string, req ExecRequest) (ExecResu
 }
 
 func (c *Client) Screenshot(ctx context.Context, id string) (Screenshot, error) {
-	var shot Screenshot
-	if err := c.doJSON(ctx, http.MethodGet, "/v1/machines/"+pathEscapeID(id)+"/screenshot", nil, &shot); err != nil {
+	apiPath := "/v1/machines/" + pathEscapeID(id) + "/screenshot"
+	req, err := c.newRequest(ctx, http.MethodGet, apiPath, nil, nil)
+	if err != nil {
 		return Screenshot{}, err
 	}
-	if shot.Base64 != "" && len(shot.Data) == 0 {
-		if decoded, err := base64.StdEncoding.DecodeString(shot.Base64); err == nil {
-			shot.Data = decoded
-		}
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return Screenshot{}, fmt.Errorf("boringd screenshot request: %w", err)
 	}
-	return shot, nil
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return Screenshot{}, c.responseError(req.Method, apiPath, resp)
+	}
+	contentType := strings.ToLower(strings.TrimSpace(strings.Split(resp.Header.Get("Content-Type"), ";")[0]))
+	if contentType != "image/png" {
+		return Screenshot{}, fmt.Errorf("boringd screenshot returned unexpected content type %q", resp.Header.Get("Content-Type"))
+	}
+	data, err := io.ReadAll(io.LimitReader(resp.Body, 16*1024*1024+1))
+	if err != nil {
+		return Screenshot{}, fmt.Errorf("read boringd screenshot: %w", err)
+	}
+	if len(data) > 16*1024*1024 {
+		return Screenshot{}, fmt.Errorf("boringd screenshot exceeds 16 MiB limit")
+	}
+	return Screenshot{MimeType: "image/png", Data: data, Base64: base64.StdEncoding.EncodeToString(data)}, nil
 }
 
-func (c *Client) Upload(ctx context.Context, id, remotePath string, content []byte) (map[string]interface{}, error) {
+func (c *Client) Upload(ctx context.Context, id, filename string, content []byte) (map[string]interface{}, error) {
+	filename = strings.ReplaceAll(strings.TrimSpace(filename), "\\", "/")
+	filename = pathpkg.Base(filename)
+	if filename == "" || filename == "." || filename == ".." || filename == "/" {
+		return nil, fmt.Errorf("upload filename is required")
+	}
 	var payload map[string]interface{}
 	headers := map[string]string{
 		"Content-Type": "application/octet-stream",
-		"X-Filename":   pathpkg.Base(remotePath),
+		"X-Filename":   filename,
 	}
 	if err := c.do(ctx, http.MethodPost, "/v1/machines/"+pathEscapeID(id)+"/upload", bytes.NewReader(content), headers, &payload); err != nil {
 		return nil, err
 	}
+	if payload == nil {
+		payload = make(map[string]interface{})
+	}
+	payload["path"] = "/root/" + filename
 	return payload, nil
 }
 
@@ -200,52 +266,60 @@ func (c *Client) ListTemplates(ctx context.Context) ([]Template, error) {
 	return templates, nil
 }
 
-func (c *Client) Publish(ctx context.Context, id string) (map[string]interface{}, error) {
+func (c *Client) Publish(ctx context.Context, id, name string) (map[string]interface{}, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return nil, fmt.Errorf("publish name is required")
+	}
 	var payload map[string]interface{}
-	if err := c.doJSON(ctx, http.MethodPost, "/v1/machines/"+pathEscapeID(id)+"/publish", nil, &payload); err != nil {
+	if err := c.doJSON(ctx, http.MethodPost, "/v1/machines/"+pathEscapeID(id)+"/publish", map[string]string{"name": name}, &payload); err != nil {
 		return nil, err
 	}
 	return payload, nil
 }
 
-func (c *Client) ListVolumes(ctx context.Context) ([]Volume, error) {
-	var volumes []Volume
-	if err := c.doJSONFlexibleList(ctx, http.MethodGet, "/v1/volumes", nil, "volumes", &volumes); err != nil {
-		return nil, err
+func (c *Client) CreateVolume(ctx context.Context, ttlSeconds int) (Volume, error) {
+	if ttlSeconds <= 0 {
+		return Volume{}, fmt.Errorf("volume ttl_seconds must be positive")
 	}
-	return volumes, nil
-}
-
-func (c *Client) CreateVolume(ctx context.Context, name string, sizeBytes int64) (Volume, error) {
 	var volume Volume
-	payload := map[string]interface{}{"name": name, "size_bytes": sizeBytes}
+	payload := map[string]interface{}{"ttl_seconds": ttlSeconds}
 	if err := c.doJSON(ctx, http.MethodPost, "/v1/volumes", payload, &volume); err != nil {
 		return Volume{}, err
 	}
 	return volume, nil
 }
 
-func (c *Client) SaveMachine(ctx context.Context, id, name string) (map[string]interface{}, error) {
+func (c *Client) GetVolume(ctx context.Context, id string) (Volume, error) {
+	var volume Volume
+	if err := c.doJSON(ctx, http.MethodGet, "/v1/volumes/"+pathEscapeID(id), nil, &volume); err != nil {
+		return Volume{}, err
+	}
+	return volume, nil
+}
+
+func (c *Client) DeleteVolume(ctx context.Context, id string) error {
+	return c.doJSON(ctx, http.MethodDelete, "/v1/volumes/"+pathEscapeID(id), nil, nil)
+}
+
+func (c *Client) SaveMachine(ctx context.Context, id, volumeID string) (map[string]interface{}, error) {
+	volumeID = strings.TrimSpace(volumeID)
+	if volumeID == "" {
+		return nil, fmt.Errorf("volume_id is required")
+	}
+	u := *c.baseURL
+	u.Path = joinURLPath(u.Path, "/v1/machines/"+pathEscapeID(id)+"/save")
+	query := u.Query()
+	query.Set("volume", volumeID)
+	u.RawQuery = query.Encode()
 	var payload map[string]interface{}
-	if err := c.doJSON(ctx, http.MethodPost, "/v1/machines/"+pathEscapeID(id)+"/save", map[string]string{"name": name}, &payload); err != nil {
+	if err := c.doJSON(ctx, http.MethodPost, u.String(), nil, &payload); err != nil {
 		return nil, err
 	}
 	return payload, nil
 }
 
-func (c *Client) RunAgentTask(ctx context.Context, id, channel, instruction string) (map[string]interface{}, error) {
-	channel = strings.Trim(channel, "/")
-	if channel == "" {
-		channel = "agent"
-	}
-	var payload map[string]interface{}
-	if err := c.doJSON(ctx, http.MethodPost, "/v1/machines/"+pathEscapeID(id)+"/"+channel, map[string]string{"instruction": instruction}, &payload); err != nil {
-		return nil, err
-	}
-	return payload, nil
-}
-
-func (c *Client) WebSocketURL(machineID, channel string) (string, http.Header, error) {
+func (c *Client) WebSocketURL(machineID, channel string, goal ...string) (string, http.Header, error) {
 	if c == nil || c.baseURL == nil {
 		return "", nil, fmt.Errorf("client is not configured")
 	}
@@ -257,6 +331,11 @@ func (c *Client) WebSocketURL(machineID, channel string) (string, http.Header, e
 		u.Scheme = "ws"
 	}
 	u.Path = joinURLPath(u.Path, "/v1/machines/"+pathEscapeID(machineID)+"/"+strings.Trim(channel, "/"))
+	if len(goal) > 0 && strings.TrimSpace(goal[0]) != "" {
+		query := u.Query()
+		query.Set("goal", strings.TrimSpace(goal[0]))
+		u.RawQuery = query.Encode()
+	}
 	header := http.Header{}
 	if c.token != "" {
 		header.Set("Authorization", "Bearer "+c.token)
