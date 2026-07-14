@@ -29,3 +29,21 @@ func TestManusManualUsesNativeArgumentsAndNormalizedTerminalStates(t *testing.T)
 		}
 	}
 }
+
+func TestManusManualDocumentsStructuredOutputObjectAndWaitCap(t *testing.T) {
+	t.Parallel()
+
+	manual, err := os.ReadFile(filepath.Join("..", "..", "prompts", "tools_manuals", "manus.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(manual)
+	for _, marker := range []string{
+		`"structured_output_schema":{"type":"object"`,
+		"lower configured maximum",
+	} {
+		if !strings.Contains(text, marker) {
+			t.Fatalf("Manus manual missing %q", marker)
+		}
+	}
+}

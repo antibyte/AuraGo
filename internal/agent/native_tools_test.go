@@ -1902,6 +1902,12 @@ func TestBuildNativeToolSchemasDoesNotExposeFreeObjectArguments(t *testing.T) {
 }
 
 func collectFreeObjectSchemaViolations(path string, node map[string]interface{}, isRoot bool, violations *[]string) {
+	// Manus' API requires structured_output_schema to be a native JSON object.
+	// Its strict-schema snapshot is converted to the legacy string fallback and
+	// is covered separately by TestManusStrictToolSchemaUsesLegacyStringFallback.
+	if path == "manus.parameters.structured_output_schema" {
+		return
+	}
 	if node["type"] == "object" {
 		props, _ := node["properties"].(map[string]interface{})
 		if !isRoot {

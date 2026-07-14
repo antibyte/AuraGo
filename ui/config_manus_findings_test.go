@@ -41,6 +41,25 @@ func TestConfigManusLoadsCachesAndDeduplicatesProjectSkills(t *testing.T) {
 	}
 }
 
+func TestConfigManusDisablesRemoteActionsUntilStatusConfirmsEnabled(t *testing.T) {
+	t.Parallel()
+
+	manusJS := readDesktopAssetText(t, "cfg/manus.js")
+	for _, marker := range []string{
+		"actionsEnabled: false",
+		"const actionsDisabled = manusCatalogState.actionsEnabled ? '' : ' disabled'",
+		`id="manus-load-catalogs-btn"`,
+		"function manusSetActionAvailability",
+		"manusSetActionAvailability(data.enabled === true)",
+		"manusSetActionAvailability(false)",
+		"btn.disabled = !manusCatalogState.actionsEnabled",
+	} {
+		if !strings.Contains(manusJS, marker) {
+			t.Fatalf("Manus disabled-action contract missing %q", marker)
+		}
+	}
+}
+
 func TestConfigManusFindingTranslationsAreComplete(t *testing.T) {
 	t.Parallel()
 

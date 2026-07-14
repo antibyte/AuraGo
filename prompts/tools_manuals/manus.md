@@ -7,11 +7,11 @@ Use `manus` to create and monitor asynchronous Manus v2 tasks when the user want
 - `capabilities`: show local permissions and limits without calling Manus.
 - `get_credits`: return the available Manus credits.
 - `list_projects`, `list_connectors`, `list_skills`: inspect Manus resources. `list_skills` accepts an optional allowlisted `project_id`. The returned `allowed` field shows whether the agent may use a resource.
-- `create_task`: create a private task and add it to AuraGo's local ledger.
+- `create_task`: create a private task and add it to AuraGo's local ledger. Pass `structured_output_schema` as a JSON object when structured output is required.
 - `list_tracked_tasks`: list only tasks created through AuraGo.
 - `get_task`: refresh one tracked task.
 - `list_messages`: read messages for one tracked task. Use `cursor` for pagination.
-- `wait_for_task`: poll one tracked task for at most 60 seconds.
+- `wait_for_task`: poll one tracked task for at most 60 seconds and no longer than any lower configured maximum.
 - `send_message`: continue one tracked task.
 - `stop_task`: stop one tracked task.
 - `download_attachments`: save attachments belonging to a tracked task under `agent_workspace/workdir/manus/<task-id>/`.
@@ -20,6 +20,12 @@ Example:
 
 ```json
 {"action":"manus","operation":"create_task","title":"Research heat-pump grants","message":"Find the current grant programs and summarize their eligibility rules.","connector_ids":[],"enable_skill_ids":[],"force_skill_ids":[]}
+```
+
+For structured output, provide the schema as an object rather than a JSON-encoded string:
+
+```json
+{"action":"manus","operation":"create_task","message":"Summarize the current grant programs.","structured_output_schema":{"type":"object","properties":{"summary":{"type":"string"}},"required":["summary"],"additionalProperties":false}}
 ```
 
 Then poll the returned task ID:

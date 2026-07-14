@@ -6,7 +6,8 @@ const manusCatalogState = {
     skills: [],
     globalSkills: [],
     projectSkills: {},
-    loading: false
+    loading: false,
+    actionsEnabled: false
 };
 
 function manusConfig() {
@@ -32,12 +33,14 @@ function manusConfig() {
 
 async function renderManusSection(section) {
     const cfg = manusConfig();
+    manusCatalogState.actionsEnabled = cfg.enabled === true;
+    const actionsDisabled = manusCatalogState.actionsEnabled ? '' : ' disabled';
     let html = '<div class="cfg-section active">';
     html += '<div class="section-header">' + section.label + '</div>';
     html += '<div class="section-desc">' + section.desc + '</div>';
     html += '<div id="manus-status-banner" class="adg-status-banner">' + t('config.manus.status_loading') + '</div>';
-    html += '<div class="cfg-actions-row"><button class="btn-save adg-test-btn" id="manus-test-btn" onclick="manusTestConnection()">' + t('config.manus.test_connection') + '</button>';
-    html += '<button class="btn-save btn-secondary" onclick="manusLoadCatalogs(true)">' + t('config.manus.load_catalogs') + '</button>';
+    html += '<div class="cfg-actions-row"><button class="btn-save adg-test-btn" id="manus-test-btn" onclick="manusTestConnection()"' + actionsDisabled + '>' + t('config.manus.test_connection') + '</button>';
+    html += '<button class="btn-save btn-secondary" id="manus-load-catalogs-btn" onclick="manusLoadCatalogs(true)"' + actionsDisabled + '>' + t('config.manus.load_catalogs') + '</button>';
     html += '<span id="manus-test-result" class="adg-test-result"></span></div>';
 
     html += manusToggle('manus.enabled', cfg.enabled, 'config.manus.enabled', 'help.manus.enabled', false);
@@ -78,6 +81,14 @@ async function renderManusSection(section) {
     document.getElementById('content').innerHTML = html;
     attachChangeListeners();
     await manusRefreshStatus();
+}
+
+function manusSetActionAvailability(enabled) {
+    manusCatalogState.actionsEnabled = enabled === true;
+    ['manus-test-btn', 'manus-load-catalogs-btn'].forEach(id => {
+        const button = document.getElementById(id);
+        if (button) button.disabled = !manusCatalogState.actionsEnabled;
+    });
 }
 
 function manusToggle(path, enabled, labelKey, helpKey, dangerous) {
@@ -130,12 +141,14 @@ async function manusRefreshStatus() {
         if (!resp.ok) throw new Error(data.error || data.message || t('config.manus.status_error'));
         const cfg = manusConfig();
         cfg.configured = !!data.configured;
+        manusSetActionAvailability(data.enabled === true);
         const state = data.status || 'error';
         if (banner) {
             banner.className = 'adg-status-banner' + (state === 'ready' ? ' is-success' : (state === 'disabled' ? '' : ' is-warning'));
             banner.textContent = t('config.manus.status_' + state);
         }
     } catch (_) {
+        manusSetActionAvailability(false);
         if (banner) { banner.className = 'adg-status-banner is-danger'; banner.textContent = t('config.manus.status_error'); }
     }
 }
@@ -174,7 +187,7 @@ async function manusTestConnection() {
     } catch (error) {
         if (result) { result.className = 'adg-test-result is-danger'; result.textContent = t('config.manus.test_failed') + ': ' + (error.message || t('config.common.error')); }
     } finally {
-        if (btn) btn.disabled = false;
+        if (btn) btn.disabled = !manusCatalogState.actionsEnabled;
     }
 }
 

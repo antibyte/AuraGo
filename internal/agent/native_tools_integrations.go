@@ -1272,11 +1272,11 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 				"connector_ids":            map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Explicit allowlisted connector IDs"},
 				"enable_skill_ids":         map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Explicit allowlisted skill IDs"},
 				"force_skill_ids":          map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Allowlisted skills Manus must invoke"},
-				"structured_output_schema": prop("string", "Optional JSON-encoded Manus structured-output schema"),
+				"structured_output_schema": map[string]interface{}{"type": "object", "description": "Optional Manus structured-output JSON schema", "additionalProperties": true},
 				"local_file_paths":         map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Workspace-relative files to upload when file uploads are enabled"},
 				"cursor":                   prop("string", "Pagination cursor"),
 				"limit":                    map[string]interface{}{"type": "integer", "description": "Maximum result count (1-200)"},
-				"wait_seconds":             map[string]interface{}{"type": "integer", "description": "Bounded wait duration, capped by configuration at 60 seconds"},
+				"wait_seconds":             map[string]interface{}{"type": "integer", "description": "Bounded wait duration, capped at 60 seconds and by any lower configured maximum"},
 				"event_id":                 prop("string", "Optional assistant event ID for attachment download; defaults to the newest assistant event"),
 			}, "operation"),
 		))

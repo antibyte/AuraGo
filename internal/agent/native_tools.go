@@ -330,8 +330,12 @@ func normalizeStrictSchemaRequiredRecWithVisited(m map[string]interface{}, visit
 		}
 	}
 	if props, ok := m["properties"].(map[string]interface{}); ok {
-		for _, raw := range props {
+		for name, raw := range props {
 			if child, ok := raw.(map[string]interface{}); ok {
+				if name == "structured_output_schema" && schemaObjectNeedsJSONString(child, false) {
+					props[name] = jsonObjectStringSchema(name, child)
+					continue
+				}
 				normalizeStrictSchemaRequiredRecWithVisited(child, visited)
 			}
 		}
@@ -431,7 +435,10 @@ func normalizeProviderFragileObjectSchemasWithVisited(m map[string]interface{}, 
 			if !ok {
 				continue
 			}
-			if schemaObjectNeedsJSONString(child, false) {
+			// Manus accepts its structured-output schema as a JSON object. Keep this
+			// one API-defined object field native while retaining the compatibility
+			// string fallback for every other provider-fragile free object.
+			if name != "structured_output_schema" && schemaObjectNeedsJSONString(child, false) {
 				props[name] = jsonObjectStringSchema(name, child)
 				continue
 			}
