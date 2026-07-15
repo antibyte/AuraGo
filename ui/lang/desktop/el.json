@@ -1652,6 +1652,7 @@
   "desktop.virtual_computers_select_machine": "Επιλέξτε υπολογιστή",
   "desktop.virtual_computers_template": "Πρότυπο",
   "desktop.virtual_computers_runtime": "Χρόνος λειτουργίας",
+  "desktop.virtual_computers_unlimited": "Χωρίς όριο",
   "desktop.virtual_computers_expires": "Λήγει",
   "desktop.virtual_computers_display": "Οθόνη",
   "desktop.virtual_computers_web_ports": "Θύρες web",

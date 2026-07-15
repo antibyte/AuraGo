@@ -1652,6 +1652,7 @@
   "desktop.virtual_computers_select_machine": "Seleziona un computer",
   "desktop.virtual_computers_template": "Modello",
   "desktop.virtual_computers_runtime": "Durata",
+  "desktop.virtual_computers_unlimited": "Illimitata",
   "desktop.virtual_computers_expires": "Scadenza",
   "desktop.virtual_computers_display": "Schermo",
   "desktop.virtual_computers_web_ports": "Porte web",

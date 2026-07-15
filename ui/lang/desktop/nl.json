@@ -1652,6 +1652,7 @@
   "desktop.virtual_computers_select_machine": "Selecteer een computer",
   "desktop.virtual_computers_template": "Sjabloon",
   "desktop.virtual_computers_runtime": "Looptijd",
+  "desktop.virtual_computers_unlimited": "Onbeperkt",
   "desktop.virtual_computers_expires": "Verloopt",
   "desktop.virtual_computers_display": "Scherm",
   "desktop.virtual_computers_web_ports": "Webpoorten",

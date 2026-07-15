@@ -1652,6 +1652,7 @@
   "desktop.virtual_computers_select_machine": "コンピューターを選択",
   "desktop.virtual_computers_template": "テンプレート",
   "desktop.virtual_computers_runtime": "実行時間",
+  "desktop.virtual_computers_unlimited": "無制限",
   "desktop.virtual_computers_expires": "有効期限",
   "desktop.virtual_computers_display": "画面",
   "desktop.virtual_computers_web_ports": "Webポート",

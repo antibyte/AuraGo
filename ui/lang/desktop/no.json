@@ -1652,6 +1652,7 @@
   "desktop.virtual_computers_select_machine": "Velg en datamaskin",
   "desktop.virtual_computers_template": "Mal",
   "desktop.virtual_computers_runtime": "Kjøretid",
+  "desktop.virtual_computers_unlimited": "Ubegrenset",
   "desktop.virtual_computers_expires": "Utløper",
   "desktop.virtual_computers_display": "Skjerm",
   "desktop.virtual_computers_web_ports": "Webporter",

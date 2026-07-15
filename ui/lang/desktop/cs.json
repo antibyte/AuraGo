@@ -1652,6 +1652,7 @@
   "desktop.virtual_computers_select_machine": "Vyberte počítač",
   "desktop.virtual_computers_template": "Šablona",
   "desktop.virtual_computers_runtime": "Doba běhu",
+  "desktop.virtual_computers_unlimited": "Neomezeně",
   "desktop.virtual_computers_expires": "Platnost vyprší",
   "desktop.virtual_computers_display": "Obrazovka",
   "desktop.virtual_computers_web_ports": "Webové porty",

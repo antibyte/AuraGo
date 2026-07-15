@@ -1652,6 +1652,7 @@
   "desktop.virtual_computers_select_machine": "Välj en dator",
   "desktop.virtual_computers_template": "Mall",
   "desktop.virtual_computers_runtime": "Körtid",
+  "desktop.virtual_computers_unlimited": "Obegränsad",
   "desktop.virtual_computers_expires": "Upphör",
   "desktop.virtual_computers_display": "Skärm",
   "desktop.virtual_computers_web_ports": "Webbportar",

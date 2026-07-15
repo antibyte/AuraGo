@@ -1652,6 +1652,7 @@
   "desktop.virtual_computers_select_machine": "选择一台电脑",
   "desktop.virtual_computers_template": "模板",
   "desktop.virtual_computers_runtime": "运行时长",
+  "desktop.virtual_computers_unlimited": "无限制",
   "desktop.virtual_computers_expires": "到期时间",
   "desktop.virtual_computers_display": "显示器",
   "desktop.virtual_computers_web_ports": "Web 端口",

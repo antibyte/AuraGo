@@ -1652,6 +1652,7 @@
   "desktop.virtual_computers_select_machine": "Wybierz komputer",
   "desktop.virtual_computers_template": "Szablon",
   "desktop.virtual_computers_runtime": "Czas działania",
+  "desktop.virtual_computers_unlimited": "Bez ograniczeń",
   "desktop.virtual_computers_expires": "Wygasa",
   "desktop.virtual_computers_display": "Ekran",
   "desktop.virtual_computers_web_ports": "Porty WWW",

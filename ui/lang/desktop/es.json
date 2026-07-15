@@ -1652,6 +1652,7 @@
   "desktop.virtual_computers_select_machine": "Selecciona un ordenador",
   "desktop.virtual_computers_template": "Plantilla",
   "desktop.virtual_computers_runtime": "Tiempo de ejecución",
+  "desktop.virtual_computers_unlimited": "Ilimitado",
   "desktop.virtual_computers_expires": "Caduca",
   "desktop.virtual_computers_display": "Pantalla",
   "desktop.virtual_computers_web_ports": "Puertos web",

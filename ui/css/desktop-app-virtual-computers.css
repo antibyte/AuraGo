@@ -155,12 +155,16 @@ button:disabled { opacity: .52; cursor: wait; }
 .vc-section-page { height: 100%; overflow: auto; padding: 18px; }
 .vc-section-header { justify-content: space-between; gap: 16px; margin-bottom: 14px; }
 .vc-section-header h3 { font-size: 20px; }
+.vc-task-filter { display: grid; gap: 6px; min-width: 180px; color: var(--vd-theme-muted, var(--ds-color-fg-muted)); font-size: 12px; font-weight: 600; }
+.vc-task-filter select { min-height: 44px; border: 1px solid var(--vd-theme-border); border-radius: var(--ds-radius-md, 9px); padding: 0 34px 0 11px; color: var(--ds-color-fg-primary); background: var(--vd-theme-control-bg); }
 .vc-ledger { overflow: hidden; margin-bottom: 14px; border: 1px solid var(--vd-theme-border); border-radius: 12px; background: var(--vd-theme-panel-bg); }
-.vc-ledger-title { margin: 0; padding: 12px 14px; border-bottom: 1px solid var(--vd-theme-border); color: var(--vd-theme-muted, var(--ds-color-fg-muted)); font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.vc-ledger-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0; padding: 12px 14px; border-bottom: 1px solid var(--vd-theme-border); color: var(--vd-theme-muted, var(--ds-color-fg-muted)); font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.vc-ledger-count { min-width: 22px; padding: 2px 7px; border-radius: 999px; color: var(--ds-color-fg-primary); background: var(--vd-theme-control-bg); font-size: 11px; line-height: 18px; text-align: center; }
 .vc-ledger-row { justify-content: space-between; gap: 12px; min-height: 58px; padding: 10px 14px; border-bottom: 1px solid var(--vd-theme-border); }
 .vc-ledger-row:last-child { border-bottom: 0; }
 .vc-task-summary, .vc-volume-summary { display: grid; gap: 4px; min-width: 0; }
-.vc-task-title { display: flex; align-items: center; gap: 8px; }
+.vc-task-title, .vc-volume-title { display: flex; align-items: center; gap: 8px; }
+.vc-task-title .vc-state-chip, .vc-volume-title .vc-state-chip { margin-top: 0; }
 .vc-task-summary span, .vc-volume-summary span { color: var(--vd-theme-muted, var(--ds-color-fg-muted)); font-size: 12px; overflow-wrap: anywhere; }
 .vc-task-error { color: var(--vc-danger); overflow-wrap: anywhere; }
 .vc-volume-tools { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) minmax(120px, .5fr) auto; gap: 8px; margin-bottom: 14px; }

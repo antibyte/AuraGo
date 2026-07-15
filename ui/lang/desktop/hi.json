@@ -1652,6 +1652,7 @@
   "desktop.virtual_computers_select_machine": "एक कंप्यूटर चुनें",
   "desktop.virtual_computers_template": "टेम्पलेट",
   "desktop.virtual_computers_runtime": "चलने की अवधि",
+  "desktop.virtual_computers_unlimited": "असीमित",
   "desktop.virtual_computers_expires": "समाप्ति",
   "desktop.virtual_computers_display": "डिस्प्ले",
   "desktop.virtual_computers_web_ports": "वेब पोर्ट",

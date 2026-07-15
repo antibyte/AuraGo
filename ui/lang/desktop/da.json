@@ -1652,6 +1652,7 @@
   "desktop.virtual_computers_select_machine": "Vælg en computer",
   "desktop.virtual_computers_template": "Skabelon",
   "desktop.virtual_computers_runtime": "Køretid",
+  "desktop.virtual_computers_unlimited": "Ubegrænset",
   "desktop.virtual_computers_expires": "Udløber",
   "desktop.virtual_computers_display": "Skærm",
   "desktop.virtual_computers_web_ports": "Webporte",
