@@ -48,7 +48,7 @@ func TestVirtualComputersVNCControllerProvidesSafeInteractiveControls(t *testing
 		`data-vnc-action="ctrl-alt-del"`,
 		`data-vnc-action="reconnect"`,
 		`data-vnc-action="disconnect"`,
-		`data-vnc-action="maximize"`,
+		`data-vnc-action="expand"`,
 		`data-vnc-action="fullscreen"`,
 		`credentialsrequired`,
 		`securityfailure`,
@@ -59,7 +59,7 @@ func TestVirtualComputersVNCControllerProvidesSafeInteractiveControls(t *testing
 		`viewOnly =`,
 		`requestFullscreen`,
 		`document.fullscreenElement`,
-		`toggleMaximize`,
+		`onExpandedChange`,
 		`disconnect`,
 		`reconnect`,
 	} {
@@ -72,6 +72,11 @@ func TestVirtualComputersVNCControllerProvidesSafeInteractiveControls(t *testing
 	}
 	if strings.Contains(controller, "wsProtocols") {
 		t.Fatal("virtual computers VNC must use boringd's native WebSocket handshake without Quick Connect subprotocols")
+	}
+	for _, forbidden := range []string{`toggleMaximize`, `data-vnc-action="maximize"`, `.closest('.vd-window')`, `.classList.contains('maximized')`} {
+		if strings.Contains(controller, forbidden) {
+			t.Errorf("virtual computers VNC controller must not resize the outer desktop window via %q", forbidden)
+		}
 	}
 	quickConnect := normalizeAssetText(mustReadUIFile(t, "js/desktop/apps/quickconnect-launchpad-chat.js"))
 	if !strings.Contains(quickConnect, `wsProtocols: ['binary']`) {
@@ -104,6 +109,9 @@ func TestVirtualComputersVNCLifecycleAndPermissionGating(t *testing.T) {
 		`if (state.clickHandler) state.host.removeEventListener('click', state.clickHandler);`,
 		`state.vncMachineId`,
 		`state.detailMode === 'vnc'`,
+		`function setVNCExpanded(state, expanded)`,
+		`onExpandedChange: expanded => setVNCExpanded(state, expanded)`,
+		`classList.toggle('is-vnc-expanded', state.vncExpanded)`,
 	} {
 		if !strings.Contains(app, want) {
 			t.Errorf("virtual computers app missing VNC lifecycle contract %q", want)
@@ -111,6 +119,9 @@ func TestVirtualComputersVNCLifecycleAndPermissionGating(t *testing.T) {
 	}
 	if strings.Contains(app, "boringd") || strings.Contains(app, "token=") {
 		t.Fatal("virtual computers browser code must not expose boringd credentials or tokens")
+	}
+	if strings.Contains(app, `toggleMaximize: state.context.toggleMaximize`) {
+		t.Fatal("live VNC must not receive the outer app-window maximize callback")
 	}
 }
 
@@ -129,8 +140,8 @@ func TestVirtualComputersVNCTranslations(t *testing.T) {
 		"virtual_computers_vnc_ctrl_alt_del",
 		"virtual_computers_vnc_reconnect",
 		"virtual_computers_vnc_disconnect",
-		"virtual_computers_vnc_maximize",
-		"virtual_computers_vnc_restore",
+		"virtual_computers_vnc_expand",
+		"virtual_computers_vnc_collapse",
 		"virtual_computers_vnc_fullscreen",
 		"virtual_computers_vnc_exit_fullscreen",
 		"virtual_computers_vnc_credentials_error",

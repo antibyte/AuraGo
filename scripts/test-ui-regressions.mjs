@@ -251,6 +251,35 @@ function testVirtualComputersVNCPreferencesSurviveReconnect() {
   assert.equal(rfb.resizeSession, true);
 }
 
+function testVirtualComputersVNCExpansionUsesAppContentOnly() {
+  const app = read('ui/js/desktop/apps/virtual-computers.js');
+  const helperSource = sourceBetween(app, 'function setVNCExpanded', 'function openVNC');
+  const classes = new Set();
+  const root = {
+    classList: {
+      toggle(name, active) {
+        if (active) classes.add(name);
+        else classes.delete(name);
+      }
+    }
+  };
+  const state = {
+    host: { querySelector: selector => selector === '.vc-app' ? root : null },
+    vncExpanded: false
+  };
+  const context = {};
+  vm.createContext(context);
+  vm.runInContext(`${helperSource}; globalThis.setExpanded = setVNCExpanded;`, context);
+
+  context.setExpanded(state, true);
+  assert.equal(state.vncExpanded, true);
+  assert.equal(classes.has('is-vnc-expanded'), true);
+  context.setExpanded(state, false);
+  assert.equal(state.vncExpanded, false);
+  assert.equal(classes.has('is-vnc-expanded'), false);
+  assert.doesNotMatch(helperSource, /vd-window|maximized|toggleMaximize/);
+}
+
 function testVirtualComputersScreenshotSettlementIgnoresStaleRequests() {
   const app = read('ui/js/desktop/apps/virtual-computers.js');
   const helperSource = sourceBetween(app, 'function isCurrentScreenshotRequest', 'async function screenshot');
@@ -273,6 +302,97 @@ function testVirtualComputersScreenshotSettlementIgnoresStaleRequests() {
   assert.equal(context.settleScreenshot(state, 'vm-new', 2, shot), true);
   assert.equal(state.screenshotLoading, false);
   assert.equal(state.selectedShot, shot);
+}
+
+function testVirtualComputersResourceFailuresStayIsolated() {
+  const app = read('ui/js/desktop/apps/virtual-computers.js');
+  const helperSource = sourceBetween(app, 'function applyResourceResult', 'async function refresh');
+  const context = {};
+  vm.createContext(context);
+  vm.runInContext(`${helperSource}; globalThis.applyResult = applyResourceResult;`, context);
+
+  const state = {
+    machines: [{ id: 'vm-existing' }],
+    templates: [],
+    templatesFallback: false,
+    resourceErrors: { machines: '', templates: '' },
+    resourceLoading: { machines: true, templates: true }
+  };
+  context.applyResult(state, 'machines', {
+    status: 'fulfilled',
+    value: { machines: [{ id: 'vm-current' }] }
+  });
+  context.applyResult(state, 'templates', {
+    status: 'rejected',
+    reason: new Error('template service unavailable')
+  });
+
+  assert.equal(state.machines[0].id, 'vm-current', 'a template failure must not discard loaded machines');
+  assert.equal(state.resourceErrors.machines, '');
+  assert.equal(state.resourceErrors.templates, 'template service unavailable');
+  assert.equal(state.templatesFallback, true, 'template failures must enable the labeled fallback');
+}
+
+function testVirtualComputersSelectionSurvivesRefresh() {
+  const app = read('ui/js/desktop/apps/virtual-computers.js');
+  const helperSource = sourceBetween(app, 'function reconcileSelection', 'function showOverview');
+  const context = {};
+  vm.createContext(context);
+  vm.runInContext(`${helperSource}; globalThis.reconcile = reconcileSelection;`, context);
+
+  const state = {
+    machines: [{ id: 'vm-one' }, { id: 'vm-two' }],
+    selectedMachineId: 'vm-two',
+    selectedShot: { data_base64: 'shot' },
+    screenshotLoading: false,
+    detailMode: 'screenshot'
+  };
+  context.reconcile(state);
+  assert.equal(state.selectedMachineId, 'vm-two');
+  assert.equal(state.detailMode, 'screenshot', 'refresh must preserve the selected machine workspace');
+
+  state.machines = [{ id: 'vm-one' }];
+  context.reconcile(state);
+  assert.equal(state.selectedMachineId, 'vm-one');
+  assert.equal(state.detailMode, 'overview');
+  assert.equal(state.selectedShot, null);
+}
+
+function testVirtualComputersHidesUnavailableCapabilitySections() {
+  const app = read('ui/js/desktop/apps/virtual-computers.js');
+  const helperSource = sourceBetween(app, 'function reconcileSection', 'function showOverview');
+  let disconnected = 0;
+  const context = {
+    capabilities: state => state.status.capabilities,
+    disconnectVNC() { disconnected += 1; }
+  };
+  vm.createContext(context);
+  vm.runInContext(`${helperSource}; globalThis.reconcileSection = reconcileSection;`, context);
+
+  const state = { activeSection: 'volumes', status: { capabilities: { volumes: false, agent_tasks: true } } };
+  context.reconcileSection(state);
+  assert.equal(state.activeSection, 'machines');
+  assert.equal(disconnected, 1, 'removing an active capability must close its live workspace');
+
+  state.activeSection = 'tasks';
+  context.reconcileSection(state);
+  assert.equal(state.activeSection, 'tasks', 'available capability sections must stay selected');
+}
+
+function testVirtualComputersMutationLocksAreIdempotent() {
+  const app = read('ui/js/desktop/apps/virtual-computers.js');
+  const helperSource = sourceBetween(app, 'function isPending', 'function formatDate');
+  const context = {};
+  vm.createContext(context);
+  vm.runInContext(`${helperSource}; globalThis.isPending = isPending; globalThis.setPending = setPending;`, context);
+
+  const state = { pendingActions: new Set() };
+  context.setPending(state, 'destroy', true);
+  context.setPending(state, 'destroy', true);
+  assert.equal(context.isPending(state, 'destroy'), true);
+  assert.equal(state.pendingActions.size, 1, 'double clicks must share one mutation lock');
+  context.setPending(state, 'destroy', false);
+  assert.equal(context.isPending(state, 'destroy'), false);
 }
 
 function testVirtualComputersCanOpenIndependentWindows() {
@@ -354,7 +474,12 @@ const tests = [
   ['Agent skill card ordering matches snapshots', testAgentSkillCardOrderingMatchesSnapshot],
   ['redacted marker preserves following content', testRedactedMarkerDoesNotConsumeFollowingContent],
   ['Virtual Computers VNC preferences survive reconnect', testVirtualComputersVNCPreferencesSurviveReconnect],
+  ['Virtual Computers VNC expansion stays inside app content', testVirtualComputersVNCExpansionUsesAppContentOnly],
   ['Virtual Computers ignores stale screenshot settlement', testVirtualComputersScreenshotSettlementIgnoresStaleRequests],
+  ['Virtual Computers isolates resource failures', testVirtualComputersResourceFailuresStayIsolated],
+  ['Virtual Computers preserves machine selection on refresh', testVirtualComputersSelectionSurvivesRefresh],
+  ['Virtual Computers hides unavailable capability sections', testVirtualComputersHidesUnavailableCapabilitySections],
+  ['Virtual Computers locks duplicate mutations', testVirtualComputersMutationLocksAreIdempotent],
   ['Virtual Computers allows independent windows', testVirtualComputersCanOpenIndependentWindows],
   ['Virtual Computers mobile layout uses available height', testVirtualComputersMobileLayoutUsesAvailableWindowHeight],
   ['Virtual Computers agent tasks report errors and poll active jobs', testVirtualComputersAgentTaskFeedbackAndPolling],

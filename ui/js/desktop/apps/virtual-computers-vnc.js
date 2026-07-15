@@ -19,11 +19,11 @@
         const settings = options || {};
         const t = typeof settings.t === 'function' ? settings.t : key => key;
         const notify = typeof settings.notify === 'function' ? settings.notify : function () {};
-        const toggleMaximize = typeof settings.toggleMaximize === 'function' ? settings.toggleMaximize : null;
+        const onExpandedChange = typeof settings.onExpandedChange === 'function' ? settings.onExpandedChange : function () {};
         const onClose = typeof settings.onClose === 'function' ? settings.onClose : function () {};
         let rfb = null;
         let lastError = '';
-        let appMaximized = false;
+        let expanded = false;
         let fullscreenListening = false;
         const preferences = { viewOnly: false, scaleMode: 'fit' };
 
@@ -41,7 +41,7 @@
                 <div class="vc-vnc-toolbar-group vc-vnc-session-actions">
                     <button type="button" class="vc-vnc-tool" data-vnc-action="reconnect">${esc(t('desktop.virtual_computers_vnc_reconnect'))}</button>
                     <button type="button" class="vc-vnc-tool" data-vnc-action="disconnect">${esc(t('desktop.virtual_computers_vnc_disconnect'))}</button>
-                    ${toggleMaximize ? `<button type="button" class="vc-vnc-tool" data-vnc-action="maximize" aria-pressed="false">${esc(t('desktop.virtual_computers_vnc_maximize'))}</button>` : ''}
+                    <button type="button" class="vc-vnc-tool" data-vnc-action="expand" aria-pressed="false">${esc(t('desktop.virtual_computers_vnc_expand'))}</button>
                     <button type="button" class="vc-vnc-tool" data-vnc-action="fullscreen" aria-pressed="false">${esc(t('desktop.virtual_computers_vnc_fullscreen'))}</button>
                 </div>
             </div>
@@ -53,16 +53,14 @@
         const canvas = container.querySelector('[data-role="vnc-canvas"]');
         const status = container.querySelector('[data-role="vnc-status"]');
         const message = container.querySelector('[data-role="vnc-message"]');
-        const maximizeButton = container.querySelector('[data-vnc-action="maximize"]');
+        const expandButton = container.querySelector('[data-vnc-action="expand"]');
         const fullscreenButton = container.querySelector('[data-vnc-action="fullscreen"]');
 
-        function updateMaximizeButton() {
-            if (!maximizeButton) return;
-            const appWindow = container.closest('.vd-window');
-            if (appWindow) appMaximized = appWindow.classList.contains('maximized');
-            maximizeButton.classList.toggle('active', appMaximized);
-            maximizeButton.setAttribute('aria-pressed', appMaximized ? 'true' : 'false');
-            maximizeButton.textContent = t(appMaximized ? 'desktop.virtual_computers_vnc_restore' : 'desktop.virtual_computers_vnc_maximize');
+        function updateExpandButton() {
+            if (!expandButton) return;
+            expandButton.classList.toggle('active', expanded);
+            expandButton.setAttribute('aria-pressed', expanded ? 'true' : 'false');
+            expandButton.textContent = t(expanded ? 'desktop.virtual_computers_vnc_collapse' : 'desktop.virtual_computers_vnc_expand');
         }
 
         function setStatus(key, type, detail) {
@@ -183,12 +181,14 @@
         container.querySelector('[data-vnc-action="disconnect"]')?.addEventListener('click', () => {
             disconnectConnection();
             setStatus('desktop.virtual_computers_vnc_disconnected', 'disconnected');
+            expanded = false;
+            onExpandedChange(false);
             onClose();
         });
-        maximizeButton?.addEventListener('click', () => {
-            toggleMaximize();
-            appMaximized = !appMaximized;
-            updateMaximizeButton();
+        expandButton?.addEventListener('click', () => {
+            expanded = !expanded;
+            updateExpandButton();
+            onExpandedChange(expanded);
         });
         fullscreenButton?.addEventListener('click', () => {
             if (document.fullscreenElement === container) {
@@ -207,6 +207,8 @@
         function disconnect() {
             disconnectConnection();
             stopListeningForFullscreen();
+            expanded = false;
+            onExpandedChange(false);
             if (document.fullscreenElement === container && typeof document.exitFullscreen === 'function') {
                 const exiting = document.exitFullscreen();
                 if (exiting && typeof exiting.catch === 'function') exiting.catch(function () {});
@@ -217,7 +219,7 @@
             connect();
         }
 
-        updateMaximizeButton();
+        updateExpandButton();
         connect();
         return { disconnect, reconnect };
     }
