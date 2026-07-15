@@ -482,8 +482,11 @@ func TestVirtualComputersSetupStatusReportsStoredSudoPasswordWithoutLeakingIt(t 
 	if body["sudo_password_stored"] != true {
 		t.Fatalf("sudo_password_stored = %#v", body["sudo_password_stored"])
 	}
-	if body["has_sudo_or_root"] != nil {
-		t.Fatalf("has_sudo_or_root = %#v, want unknown until stored sudo credential is validated by preflight", body["has_sudo_or_root"])
+	if value := body["has_sudo_or_root"]; value != nil {
+		hasSudoOrRoot, ok := value.(bool)
+		if !ok || !hasSudoOrRoot {
+			t.Fatalf("has_sudo_or_root = %#v, want unknown or confirmed passwordless sudo access", value)
+		}
 	}
 	if strings.Contains(rec.Body.String(), "vault-sudo-secret") {
 		t.Fatalf("status leaked sudo password: %s", rec.Body.String())

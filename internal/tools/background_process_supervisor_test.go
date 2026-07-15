@@ -60,12 +60,21 @@ func TestRegisterManagedBackgroundProcessKillsTimedOutProcess(t *testing.T) {
 
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
-		if _, ok := registry.Get(pid); !ok {
+		if info, ok := registry.Get(pid); ok && !info.IsAlive() {
+			if info.GetState() != ProcessStateTimedOut {
+				t.Fatalf("state = %s, want timed_out", info.GetState())
+			}
+			if reason := info.GetErrorReason(); !strings.Contains(reason, "exceeded background timeout") {
+				t.Fatalf("missing timeout reason: %q", reason)
+			}
+			if output := info.ReadOutput(); !strings.Contains(output, "terminated after exceeding background timeout") {
+				t.Fatalf("missing timeout detail in retained output: %q", output)
+			}
 			return
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
-	t.Fatalf("expected timed-out background process %d to be removed from registry", pid)
+	t.Fatalf("expected timed-out background process %d to remain readable in a terminal state", pid)
 }
 
 func TestBackgroundProcessSupervisorHelper(t *testing.T) {
