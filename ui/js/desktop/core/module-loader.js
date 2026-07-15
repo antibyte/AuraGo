@@ -191,9 +191,12 @@
             ]
         },
         'virtual-computers': {
-            styles: appStyles('/css/desktop-app-virtual-computers.css'),
+            styles: appStyles('/css/xterm.css', '/css/desktop-app-virtual-computers.css'),
             scripts: [
+                '/js/vendor/xterm.min.js',
+                '/js/vendor/xterm-addon-fit.min.js',
                 '/js/vendor/novnc.min.js',
+                '/js/desktop/apps/virtual-computers-terminal.js',
                 '/js/desktop/apps/virtual-computers-vnc.js',
                 '/js/desktop/apps/virtual-computers.js'
             ]

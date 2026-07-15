@@ -280,6 +280,225 @@ function testVirtualComputersVNCExpansionUsesAppContentOnly() {
   assert.doesNotMatch(helperSource, /vd-window|maximized|toggleMaximize/);
 }
 
+function testVirtualComputersTerminalBinaryLifecycle() {
+  const controller = read('ui/js/desktop/apps/virtual-computers-terminal.js');
+  const sent = [];
+  const written = [];
+  const copied = [];
+  const sockets = [];
+  const clearedTimers = [];
+  let terminalDisposed = 0;
+  let terminalInstance = null;
+  let observerDisconnected = 0;
+  let onCloseCalls = 0;
+
+  class MockNode {
+    constructor() {
+      this.dataset = {};
+      this.hidden = false;
+      this.textContent = '';
+      this.listeners = new Map();
+      this.classList = { add() {}, toggle() {} };
+    }
+    addEventListener(type, callback) { this.listeners.set(type, callback); }
+    click() { this.listeners.get('click')?.({ currentTarget: this }); }
+    focus() {}
+  }
+  const nodes = new Map([
+    ['[data-role="terminal-stage"]', new MockNode()],
+    ['[data-role="terminal-status"]', new MockNode()],
+    ['[data-terminal-action="reconnect"]', new MockNode()],
+    ['[data-terminal-action="disconnect"]', new MockNode()]
+  ]);
+  const container = new MockNode();
+  container.querySelector = selector => nodes.get(selector) || null;
+
+  class MockFitAddon {
+    fit() { this.fitCalls = (this.fitCalls || 0) + 1; }
+  }
+  class MockTerminal {
+    constructor(options) { this.options = options; terminalInstance = this; }
+    loadAddon(addon) { this.addon = addon; }
+    open(node) { this.node = node; }
+    onData(callback) { this.dataCallback = callback; return { dispose() { terminalDisposed += 1; } }; }
+    attachCustomKeyEventHandler(callback) { this.keyCallback = callback; }
+    write(data) { written.push(data); }
+    focus() { this.focused = true; }
+    hasSelection() { return true; }
+    getSelection() { return 'selected terminal text'; }
+    dispose() { terminalDisposed += 1; }
+  }
+  class MockWebSocket {
+    static OPEN = 1;
+    constructor(url) {
+      this.url = url;
+      this.readyState = 0;
+      this.listeners = new Map();
+      sockets.push(this);
+    }
+    addEventListener(type, callback) { this.listeners.set(type, callback); }
+    emit(type, event = {}) { this.listeners.get(type)?.(event); }
+    send(data) { sent.push(data); }
+    close() { this.closed = true; this.readyState = 3; }
+  }
+  class MockResizeObserver {
+    constructor(callback) { this.callback = callback; }
+    observe(node) { this.node = node; }
+    disconnect() { observerDisconnected += 1; }
+  }
+
+  let timerID = 0;
+  const context = {
+    ArrayBuffer,
+    Uint8Array,
+    TextDecoder,
+    TextEncoder,
+    ResizeObserver: MockResizeObserver,
+    navigator: { clipboard: { writeText(value) { copied.push(value); return Promise.resolve(); } } },
+    setTimeout(callback) { timerID += 1; callback(); return timerID; },
+    clearTimeout(id) { clearedTimers.push(id); },
+    window: {
+      Terminal: MockTerminal,
+      FitAddon: { FitAddon: MockFitAddon },
+      WebSocket: MockWebSocket
+    }
+  };
+  context.window.window = context.window;
+  vm.createContext(context);
+  vm.runInContext(controller, context);
+
+  const session = context.window.VirtualComputersTerminal.mount(container, {
+    url: 'wss://example.test/api/virtual-computers/machines/vm-1/tty',
+    machineId: 'vm-1',
+    t: key => key,
+    notify() {},
+    onClose() { onCloseCalls += 1; }
+  });
+  assert.deepEqual(Object.keys(session).sort(), ['disconnect', 'fit', 'reconnect']);
+  assert.equal(sockets.length, 1);
+  assert.equal(sockets[0].binaryType, 'arraybuffer');
+
+  sockets[0].readyState = MockWebSocket.OPEN;
+  sockets[0].emit('open');
+  const terminal = terminalInstance;
+  terminal.dataCallback('ä');
+  assert.equal(Buffer.from(sent[0]).toString('utf8'), 'ä', 'terminal input must use UTF-8 binary frames');
+  sockets[0].emit('message', { data: new Uint8Array([111, 107]).buffer });
+  assert.equal(Buffer.from(written[0]).toString('utf8'), 'ok', 'binary TTY output must be written unchanged');
+
+  assert.equal(terminal.keyCallback({ key: 'c', ctrlKey: true, shiftKey: true, metaKey: false }), false);
+  assert.deepEqual(copied, ['selected terminal text']);
+  session.fit();
+  session.reconnect();
+  assert.equal(sockets.length, 2);
+  assert.equal(sockets[0].closed, true);
+  session.disconnect();
+  assert.equal(sockets[1].closed, true);
+  assert.equal(observerDisconnected, 1);
+  assert.ok(terminalDisposed >= 2, 'terminal data subscription and terminal must be disposed');
+  assert.ok(clearedTimers.length >= 1, 'pending terminal timers must be cleared');
+  assert.equal(onCloseCalls, 0, 'programmatic cleanup must not recursively close the app view');
+
+  const disposedBeforeFailedMount = terminalDisposed;
+  context.ResizeObserver = class FailingResizeObserver {
+    constructor() { throw new Error('resize unavailable'); }
+  };
+  assert.throws(() => context.window.VirtualComputersTerminal.mount(container, {
+    url: 'wss://example.test/api/virtual-computers/machines/vm-2/tty',
+    machineId: 'vm-2'
+  }), /resize unavailable/);
+  assert.ok(terminalDisposed >= disposedBeforeFailedMount + 2, 'partial terminal mounts must dispose subscriptions and xterm');
+}
+
+function testVirtualComputersTerminalSessionReconciliation() {
+  const app = read('ui/js/desktop/apps/virtual-computers.js');
+  const permissionSource = sourceBetween(app, 'function canUseVNC', 'function isHealthy');
+  const lifecycleSource = sourceBetween(app, 'function disconnectVNC', 'async function launch');
+  let terminalDisconnects = 0;
+  let vncDisconnects = 0;
+  const context = { setVNCExpanded() {} };
+  vm.createContext(context);
+  vm.runInContext(
+    `${permissionSource}\n${lifecycleSource}\n` +
+    'globalThis.reconcileTerminalSession = reconcileTerminal; globalThis.disconnectSessions = disconnectRemoteSessions;',
+    context
+  );
+
+  const state = {
+    status: { enabled: true, readonly: false },
+    context: { readonly: false },
+    machines: [{ id: 'vm-headless', display: false }],
+    detailMode: 'terminal',
+    terminalMachineId: 'vm-headless',
+    terminalSession: { disconnect() { terminalDisconnects += 1; } },
+    vncMachineId: null,
+    vncSession: null,
+    selectedShot: null
+  };
+  context.reconcileTerminalSession(state);
+  assert.equal(terminalDisconnects, 0, 'refresh must preserve an eligible active terminal');
+  assert.equal(state.detailMode, 'terminal');
+
+  state.machines = [{ id: 'vm-headless', display: true }];
+  context.reconcileTerminalSession(state);
+  assert.equal(terminalDisconnects, 1, 'display changes must close the headless terminal');
+  assert.equal(state.detailMode, 'overview');
+
+  const both = {
+    vncSession: { disconnect() { vncDisconnects += 1; } },
+    vncMachineId: 'vm-display',
+    vncExpanded: false,
+    terminalSession: { disconnect() { terminalDisconnects += 1; } },
+    terminalMachineId: 'vm-headless'
+  };
+  context.disconnectSessions(both);
+  assert.equal(vncDisconnects, 1);
+  assert.equal(terminalDisconnects, 2);
+  assert.equal(both.vncSession, null);
+  assert.equal(both.terminalSession, null);
+}
+
+function testVirtualComputersTerminalActionGating() {
+  const app = read('ui/js/desktop/apps/virtual-computers.js');
+  const detailSource = sourceBetween(app, 'function detailPane', 'function taskRows');
+  const context = {
+    Array,
+    Number,
+    encodeURIComponent,
+    esc: value => String(value == null ? '' : value),
+    tx: (_ctx, key) => key,
+    icon: () => '',
+    isMutable: () => true,
+    capabilities: () => ({ agent_tasks: false }),
+    canUseVNC: (_state, machine) => machine?.display === true,
+    canUseTerminal: (_state, machine) => machine?.display === false,
+    formatDuration: value => String(value || 0),
+    formatDate: value => String(value || '')
+  };
+  vm.createContext(context);
+  vm.runInContext(`${detailSource}; globalThis.renderDetail = detailPane;`, context);
+
+  const state = {
+    context: {},
+    resourceLoading: { machines: false },
+    selectedMachineId: 'vm-1',
+    detailMode: 'overview',
+    selectedShot: null,
+    screenshotLoading: false,
+    status: { enabled: true, readonly: false }
+  };
+  state.machines = [{ id: 'vm-1', name: 'Headless', display: false, web_ports: [] }];
+  const headless = context.renderDetail(state);
+  assert.match(headless, /data-action="terminal"/);
+  assert.doesNotMatch(headless, /data-action="vnc"|data-action="screenshot"/);
+
+  state.machines = [{ id: 'vm-1', name: 'Desktop', display: true, web_ports: [] }];
+  const display = context.renderDetail(state);
+  assert.match(display, /data-action="vnc"/);
+  assert.match(display, /data-action="screenshot"/);
+  assert.doesNotMatch(display, /data-action="terminal"/);
+}
+
 function testVirtualComputersScreenshotSettlementIgnoresStaleRequests() {
   const app = read('ui/js/desktop/apps/virtual-computers.js');
   const helperSource = sourceBetween(app, 'function isCurrentScreenshotRequest', 'async function screenshot');
@@ -475,6 +694,9 @@ const tests = [
   ['redacted marker preserves following content', testRedactedMarkerDoesNotConsumeFollowingContent],
   ['Virtual Computers VNC preferences survive reconnect', testVirtualComputersVNCPreferencesSurviveReconnect],
   ['Virtual Computers VNC expansion stays inside app content', testVirtualComputersVNCExpansionUsesAppContentOnly],
+  ['Virtual Computers terminal uses binary I/O and cleans up', testVirtualComputersTerminalBinaryLifecycle],
+  ['Virtual Computers terminal survives refresh and reconciles safely', testVirtualComputersTerminalSessionReconciliation],
+  ['Virtual Computers gates terminal and display actions by machine type', testVirtualComputersTerminalActionGating],
   ['Virtual Computers ignores stale screenshot settlement', testVirtualComputersScreenshotSettlementIgnoresStaleRequests],
   ['Virtual Computers isolates resource failures', testVirtualComputersResourceFailuresStayIsolated],
   ['Virtual Computers preserves machine selection on refresh', testVirtualComputersSelectionSurvivesRefresh],

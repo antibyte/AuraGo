@@ -108,6 +108,136 @@ func TestVirtualComputersWebSocketProxyPassesBinary(t *testing.T) {
 	}
 }
 
+func TestVirtualComputersTTYWebSocketPassesBinaryWithWriteAndAdminAccess(t *testing.T) {
+	var upstreamAuth string
+	upgrader := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		upstreamAuth = r.Header.Get("Authorization")
+		if r.URL.Path != "/v1/machines/vm-1/tty" {
+			t.Errorf("upstream path = %s", r.URL.Path)
+			return
+		}
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			t.Errorf("upgrade upstream: %v", err)
+			return
+		}
+		defer conn.Close()
+		mt, msg, err := conn.ReadMessage()
+		if err != nil {
+			t.Errorf("read upstream: %v", err)
+			return
+		}
+		if mt != websocket.BinaryMessage || string(msg) != "printf terminal" {
+			t.Errorf("upstream got mt=%d msg=%q", mt, msg)
+			return
+		}
+		if err := conn.WriteMessage(websocket.BinaryMessage, []byte("terminal output")); err != nil {
+			t.Errorf("write upstream: %v", err)
+		}
+	}))
+	defer upstream.Close()
+
+	s, _, writeToken := testDesktopPermissionServer(t)
+	adminToken, _, err := s.TokenManager.Create("desktop admin", []string{desktopScopeAdmin}, nil)
+	if err != nil {
+		t.Fatalf("create admin token: %v", err)
+	}
+	s.Cfg.VirtualComputers = virtualComputersTestConfig(upstream.URL).VirtualComputers
+	s.Cfg.VirtualComputers.AllowAgentTasks = false
+	mux := http.NewServeMux()
+	registerVirtualComputersRoutes(mux, s)
+	proxy := httptest.NewServer(mux)
+	defer proxy.Close()
+
+	wsURL := "ws" + strings.TrimPrefix(proxy.URL, "http") + "/api/virtual-computers/machines/vm-1/tty"
+	for _, tc := range []struct {
+		name, token string
+	}{
+		{name: "write", token: writeToken},
+		{name: "admin", token: adminToken},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			header := http.Header{"Authorization": []string{"Bearer " + tc.token}}
+			conn, resp, err := websocket.DefaultDialer.Dial(wsURL, header)
+			if err != nil {
+				t.Fatalf("dial proxy: %v", err)
+			}
+			defer conn.Close()
+			if resp.Header.Get("Authorization") != "" {
+				t.Fatalf("downstream response leaked authorization header")
+			}
+			if err := conn.WriteMessage(websocket.BinaryMessage, []byte("printf terminal")); err != nil {
+				t.Fatalf("write proxy: %v", err)
+			}
+			mt, msg, err := conn.ReadMessage()
+			if err != nil {
+				t.Fatalf("read proxy: %v", err)
+			}
+			if mt != websocket.BinaryMessage || string(msg) != "terminal output" {
+				t.Fatalf("proxy returned mt=%d msg=%q", mt, msg)
+			}
+		})
+	}
+	if upstreamAuth != "Bearer boring-token" {
+		t.Fatalf("upstream auth = %q", upstreamAuth)
+	}
+}
+
+func TestVirtualComputersTTYRejectsReadOnlyAndReadAccessBeforeUpstreamDial(t *testing.T) {
+	tests := []struct {
+		name  string
+		setup func(t *testing.T, upstreamURL string) (*Server, string)
+	}{
+		{
+			name: "read only configuration",
+			setup: func(t *testing.T, upstreamURL string) (*Server, string) {
+				cfg := virtualComputersTestConfig(upstreamURL)
+				cfg.VirtualComputers.ReadOnly = true
+				return &Server{Cfg: cfg}, ""
+			},
+		},
+		{
+			name: "desktop read token",
+			setup: func(t *testing.T, upstreamURL string) (*Server, string) {
+				s, readToken, _ := testDesktopPermissionServer(t)
+				s.Cfg.VirtualComputers = virtualComputersTestConfig(upstreamURL).VirtualComputers
+				return s, readToken
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			upstreamRequests := 0
+			upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				upstreamRequests++
+				w.WriteHeader(http.StatusSwitchingProtocols)
+			}))
+			defer upstream.Close()
+
+			s, token := tc.setup(t, upstream.URL)
+			mux := http.NewServeMux()
+			registerVirtualComputersRoutes(mux, s)
+			rec := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodGet, "/api/virtual-computers/machines/vm-1/tty", nil)
+			if token != "" {
+				req.Header.Set("Authorization", "Bearer "+token)
+			}
+			req.Header.Set("Connection", "Upgrade")
+			req.Header.Set("Upgrade", "websocket")
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusForbidden {
+				t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusForbidden, rec.Body.String())
+			}
+			if upstreamRequests != 0 {
+				t.Fatalf("upstream received %d TTY requests", upstreamRequests)
+			}
+		})
+	}
+}
+
 func TestVirtualComputersVNCRejectsReadOnlyBeforeUpstreamDial(t *testing.T) {
 	upstreamRequests := 0
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

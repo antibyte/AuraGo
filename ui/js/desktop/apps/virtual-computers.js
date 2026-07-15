@@ -59,6 +59,8 @@
             vncSession: null,
             vncMachineId: null,
             vncExpanded: false,
+            terminalSession: null,
+            terminalMachineId: null,
             resourceErrors: { status: '', machines: '', templates: '', tasks: '', volumes: '' },
             resourceLoading: { status: true, machines: true, templates: true, tasks: false, volumes: false },
             pendingActions: new Set(),
@@ -92,6 +94,10 @@
 
     function canUseVNC(state, machine) {
         return !!(machine && machine.display === true && state.status && state.status.enabled === true && state.status.readonly !== true && state.context.readonly !== true);
+    }
+
+    function canUseTerminal(state, machine) {
+        return !!(machine && machine.display === false && state.status && state.status.enabled === true && state.status.readonly !== true && state.context.readonly !== true);
     }
 
     function isHealthy(state) {
@@ -145,9 +151,12 @@
         statusRegion.innerHTML = statusPane(state);
         statusRegion.hidden = statusRegion.innerHTML.trim() === '';
 
-        const liveMount = state.activeSection === 'machines' && state.detailMode === 'vnc'
-            ? content.querySelector('[data-role="vnc-mount"]')
-            : null;
+        let liveMount = null;
+        if (state.activeSection === 'machines' && state.detailMode === 'vnc') {
+            liveMount = content.querySelector('[data-role="vnc-mount"]');
+        } else if (state.activeSection === 'machines' && state.detailMode === 'terminal') {
+            liveMount = content.querySelector('[data-role="terminal-mount"]');
+        }
         if (liveMount) {
             const list = content.querySelector('[data-role="machine-list"]');
             if (list) list.innerHTML = machineList(state);
@@ -276,12 +285,15 @@
             else if (state.selectedShot) viewer = `<img class="vc-shot" src="data:${esc(state.selectedShot.mime_type || 'image/png')};base64,${esc(state.selectedShot.data_base64 || '')}" alt="${esc(tx(c, 'desktop.virtual_computers_screenshot'))}">`;
         } else if (state.detailMode === 'vnc') {
             viewer = `<div class="vc-vnc-placeholder">${esc(tx(c, 'desktop.virtual_computers_vnc_connecting'))}</div>`;
+        } else if (state.detailMode === 'terminal') {
+            viewer = `<div class="vc-terminal-placeholder">${esc(tx(c, 'desktop.virtual_computers_terminal_connecting'))}</div>`;
         }
         return `<article class="vc-machine-detail">
             <header class="vc-detail-header"><div><span class="vc-eyebrow">${esc(machine.template || '—')}</span><h3>${esc(machine.name || machine.id)}</h3><span class="vc-detail-status"><span class="vc-state-dot" data-state="${esc(machine.status || '')}"></span>${esc(machine.status || '—')}</span></div>
             <div class="vc-actions vc-detail-actions">
-                ${machine.display ? `<button type="button" class="vc-btn vc-icon-label" data-action="screenshot" data-id="${esc(machine.id)}">${icon(state, 'image', '▧')}<span>${esc(tx(c, 'desktop.virtual_computers_screenshot'))}</span></button>` : ''}
+                ${machine.display === true ? `<button type="button" class="vc-btn vc-icon-label" data-action="screenshot" data-id="${esc(machine.id)}">${icon(state, 'image', '▧')}<span>${esc(tx(c, 'desktop.virtual_computers_screenshot'))}</span></button>` : ''}
                 ${canUseVNC(state, machine) ? `<button type="button" class="vc-btn vc-primary vc-icon-label" data-action="vnc" data-id="${esc(machine.id)}">${icon(state, 'monitor', '▣')}<span>${esc(tx(c, 'desktop.virtual_computers_vnc_live'))}</span></button>` : ''}
+                ${canUseTerminal(state, machine) ? `<button type="button" class="vc-btn vc-primary vc-icon-label" data-action="terminal" data-id="${esc(machine.id)}">${icon(state, 'terminal', '>_')}<span>${esc(tx(c, 'desktop.virtual_computers_terminal'))}</span></button>` : ''}
                 ${allowTasks ? `<button type="button" class="vc-btn vc-icon-label" data-action="start-task" data-id="${esc(machine.id)}">${icon(state, 'run', '▶')}<span>${esc(tx(c, 'desktop.virtual_computers_task_start'))}</span></button>` : ''}
                 ${mutable ? `<button type="button" class="vc-btn danger vc-icon-label" data-action="destroy" data-id="${esc(machine.id)}">${icon(state, 'stop', '■')}<span>${esc(tx(c, 'desktop.virtual_computers_destroy'))}</span></button>` : ''}
             </div></header>
@@ -372,6 +384,7 @@
             else if (action === 'confirm-destroy') destroyMachine(state, state.modal && state.modal.id);
             else if (action === 'screenshot') screenshot(state, id);
             else if (action === 'vnc') openVNC(state, id);
+            else if (action === 'terminal') openTerminal(state, id);
             else if (action === 'start-task') openModal(state, { type: 'start', machineId: id }, target);
             else if (action === 'cancel_agent_task') openModal(state, { type: 'cancel', id, label: id }, target);
             else if (action === 'confirm-cancel-task') cancelTask(state);
@@ -433,7 +446,7 @@
 
     function selectMachine(state, id) {
         if (!id || state.selectedMachineId === id) return;
-        disconnectVNC(state);
+        disconnectRemoteSessions(state);
         state.selectedMachineId = id;
         state.selectedShot = null;
         state.screenshotLoading = false;
@@ -443,7 +456,7 @@
 
     function switchSection(state, section) {
         if (!['machines', 'tasks', 'volumes'].includes(section) || state.activeSection === section) return;
-        disconnectVNC(state);
+        disconnectRemoteSessions(state);
         state.activeSection = section;
         state.modal = null;
         draw(state);
@@ -489,6 +502,7 @@
                 state.resourceLoading.templates = false;
                 reconcileSection(state);
                 reconcileVNC(state);
+                reconcileTerminal(state);
                 draw(state);
                 return;
             }
@@ -518,6 +532,7 @@
         reconcileSection(state);
         reconcileSelection(state);
         reconcileVNC(state);
+        reconcileTerminal(state);
         draw(state);
         scheduleTaskRefresh(state);
     }
@@ -544,6 +559,8 @@
 
     function reconcileSelection(state) {
         if (state.selectedMachineId && state.machines.some(item => item.id === state.selectedMachineId)) return;
+        if (state.vncSession) disconnectVNC(state);
+        if (state.terminalSession) disconnectTerminal(state);
         state.selectedMachineId = state.machines.length ? state.machines[0].id : null;
         state.selectedShot = null;
         state.screenshotLoading = false;
@@ -556,11 +573,12 @@
             || (state.activeSection === 'volumes' && capabilities(state).volumes);
         if (available) return;
         disconnectVNC(state);
+        if (state.terminalSession) disconnectTerminal(state);
         state.activeSection = 'machines';
     }
 
     function showOverview(state) {
-        disconnectVNC(state);
+        disconnectRemoteSessions(state);
         state.detailMode = 'overview';
         state.selectedShot = null;
         state.screenshotLoading = false;
@@ -584,7 +602,7 @@
             notify(state, tx(state.context, 'desktop.virtual_computers_vnc_unavailable'), 'error');
             return;
         }
-        disconnectVNC(state);
+        disconnectRemoteSessions(state);
         state.activeSection = 'machines';
         state.detailMode = 'vnc';
         state.selectedMachineId = id;
@@ -638,6 +656,68 @@
         state.selectedShot = null;
     }
 
+    function openTerminal(state, id) {
+        const machine = state.machines.find(item => item.id === id);
+        if (!canUseTerminal(state, machine) || !window.VirtualComputersTerminal || typeof window.VirtualComputersTerminal.mount !== 'function') {
+            notify(state, tx(state.context, 'desktop.virtual_computers_terminal_unavailable'), 'error');
+            return;
+        }
+        disconnectRemoteSessions(state);
+        state.activeSection = 'machines';
+        state.detailMode = 'terminal';
+        state.selectedMachineId = id;
+        state.selectedShot = null;
+        state.screenshotLoading = false;
+        state.terminalMachineId = id;
+        draw(state);
+        const preview = state.host.querySelector('[data-role="preview"]');
+        if (!preview) return;
+        preview.innerHTML = '<div class="vc-terminal-mount" data-role="terminal-mount"></div>';
+        const mountPoint = preview.querySelector('[data-role="terminal-mount"]');
+        const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const url = proto + '//' + window.location.host + '/api/virtual-computers/machines/' + encodeURIComponent(machine.id) + '/tty';
+        try {
+            state.terminalSession = window.VirtualComputersTerminal.mount(mountPoint, {
+                url,
+                machineId: machine.id,
+                t: key => tx(state.context, key),
+                notify: (message, type) => notify(state, message, type),
+                onClose: () => {
+                    if (state.detailMode === 'terminal' && state.terminalMachineId === machine.id) showOverview(state);
+                }
+            });
+        } catch (_) {
+            state.terminalSession = null;
+            state.terminalMachineId = null;
+            state.detailMode = 'overview';
+            notify(state, tx(state.context, 'desktop.virtual_computers_terminal_unavailable'), 'error');
+            draw(state);
+        }
+    }
+
+    function disconnectTerminal(state) {
+        const session = state.terminalSession;
+        state.terminalSession = null;
+        state.terminalMachineId = null;
+        if (session && typeof session.disconnect === 'function') {
+            try { session.disconnect(); } catch (_) {}
+        }
+    }
+
+    function reconcileTerminal(state) {
+        if (state.detailMode !== 'terminal') return;
+        const machine = state.machines.find(item => item.id === state.terminalMachineId);
+        if (state.terminalSession && canUseTerminal(state, machine)) return;
+        disconnectTerminal(state);
+        state.detailMode = 'overview';
+        state.selectedShot = null;
+    }
+
+    function disconnectRemoteSessions(state) {
+        disconnectVNC(state);
+        disconnectTerminal(state);
+    }
+
     async function launch(state) {
         if (!state.modal || state.modal.type !== 'launch' || isPending(state, 'launch')) return;
         const runtime = state.host.querySelector('[data-role="ttl"]')?.value || '600';
@@ -657,6 +737,7 @@
     async function destroyMachine(state, id) {
         if (!id || isPending(state, 'destroy')) return;
         if (state.vncMachineId === id) showOverview(state);
+        if (state.terminalMachineId === id) showOverview(state);
         const ok = await mutate(state, 'destroy', 'machines', '/api/virtual-computers/machines/' + encodeURIComponent(id), { method: 'DELETE' });
         if (ok) closeModal(state, false);
     }
@@ -673,9 +754,10 @@
     }
 
     async function screenshot(state, id) {
-        if (!id) return;
+        const machine = state.machines.find(item => item.id === id);
+        if (!id || !machine || machine.display !== true) return;
         const requestID = ++state.screenshotRequestID;
-        disconnectVNC(state);
+        disconnectRemoteSessions(state);
         state.activeSection = 'machines';
         state.detailMode = 'screenshot';
         state.selectedMachineId = id;
@@ -808,7 +890,7 @@
         state.disposed = true;
         state.refreshGeneration++;
         if (state.taskRefreshTimer) clearTimeout(state.taskRefreshTimer);
-        disconnectVNC(state);
+        disconnectRemoteSessions(state);
         if (state.clickHandler) state.host.removeEventListener('click', state.clickHandler);
         if (state.changeHandler) state.host.removeEventListener('change', state.changeHandler);
         if (state.keyHandler) state.host.removeEventListener('keydown', state.keyHandler);

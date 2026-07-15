@@ -872,19 +872,19 @@ func handleVirtualComputerPreviewProxy(s *Server, machineID, tail string) http.H
 func handleVirtualComputerWSProxy(s *Server, machineID, channel string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		scope := desktopScopeRead
-		if channel == "vnc" || channel == "agent" || channel == "shell-agent" {
+		if channel == "tty" || channel == "vnc" || channel == "agent" || channel == "shell-agent" {
 			scope = desktopScopeWrite
 		}
 		if !requireDesktopPermission(s, w, r, scope) {
 			return
 		}
-		if channel == "vnc" || channel == "agent" || channel == "shell-agent" {
+		if channel == "tty" || channel == "vnc" || channel == "agent" || channel == "shell-agent" {
 			cfg := virtualComputersConfigSnapshot(s)
 			if cfg.ReadOnly {
 				jsonError(w, "virtual computers are read-only", http.StatusForbidden)
 				return
 			}
-			if channel != "vnc" && !cfg.AllowAgentTasks {
+			if (channel == "agent" || channel == "shell-agent") && !cfg.AllowAgentTasks {
 				jsonError(w, "virtual computer agent tasks are disabled", http.StatusForbidden)
 				return
 			}
