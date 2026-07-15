@@ -7,6 +7,13 @@
         }[ch]));
     }
 
+    function applyVNCPreferences(rfb, preferences) {
+        const fit = preferences.scaleMode === 'fit';
+        rfb.viewOnly = preferences.viewOnly === true;
+        rfb.scaleViewport = fit;
+        rfb.resizeSession = fit;
+    }
+
     function mount(container, options) {
         if (!container) throw new Error('VNC container is required');
         const settings = options || {};
@@ -18,6 +25,7 @@
         let lastError = '';
         let appMaximized = false;
         let fullscreenListening = false;
+        const preferences = { viewOnly: false, scaleMode: 'fit' };
 
         container.classList.add('vc-vnc-session');
         container.dataset.machineId = String(settings.machineId || '');
@@ -119,9 +127,7 @@
             try {
                 const nextRFB = new window.RFB(canvas, settings.url, { wsProtocols: ['binary'] });
                 rfb = nextRFB;
-                nextRFB.viewOnly = false;
-                nextRFB.scaleViewport = true;
-                nextRFB.resizeSession = true;
+                applyVNCPreferences(nextRFB, preferences);
                 nextRFB.addEventListener('connect', () => {
                     if (rfb !== nextRFB) return;
                     lastError = '';
@@ -153,13 +159,8 @@
             button.addEventListener('click', () => {
                 if (!rfb) return;
                 const fit = button.dataset.vncScale === 'fit';
-                if (fit) {
-                    rfb.scaleViewport = true;
-                    rfb.resizeSession = true;
-                } else {
-                    rfb.scaleViewport = false;
-                    rfb.resizeSession = false;
-                }
+                preferences.scaleMode = fit ? 'fit' : 'one-to-one';
+                applyVNCPreferences(rfb, preferences);
                 container.querySelectorAll('[data-vnc-scale]').forEach(item => {
                     const active = item === button;
                     item.classList.toggle('active', active);
@@ -170,9 +171,10 @@
 
         container.querySelector('[data-vnc-action="view-only"]')?.addEventListener('click', event => {
             if (!rfb) return;
-            rfb.viewOnly = !rfb.viewOnly;
-            event.currentTarget.classList.toggle('active', rfb.viewOnly);
-            event.currentTarget.setAttribute('aria-pressed', rfb.viewOnly ? 'true' : 'false');
+            preferences.viewOnly = !preferences.viewOnly;
+            applyVNCPreferences(rfb, preferences);
+            event.currentTarget.classList.toggle('active', preferences.viewOnly);
+            event.currentTarget.setAttribute('aria-pressed', preferences.viewOnly ? 'true' : 'false');
         });
         container.querySelector('[data-vnc-action="ctrl-alt-del"]')?.addEventListener('click', () => {
             if (rfb && typeof rfb.sendCtrlAltDel === 'function') rfb.sendCtrlAltDel();

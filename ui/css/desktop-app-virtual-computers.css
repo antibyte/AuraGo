@@ -346,11 +346,14 @@
 @media (max-width: 760px) {
     .vc-layout {
         grid-template-columns: 1fr;
+        grid-template-rows: minmax(112px, 38%) minmax(0, 1fr);
+        overflow: hidden;
     }
     .vc-list {
         border-right: 0;
         border-bottom: 1px solid rgba(255,255,255,0.08);
-        max-height: 45vh;
+        max-height: none;
+        min-height: 0;
     }
     .vc-app-toolbar,
     .vc-launch,
@@ -359,7 +362,8 @@
         flex-direction: column;
     }
     .vc-preview {
-        min-height: 56vh;
+        min-height: 0;
+        overflow: hidden;
         padding: 10px;
     }
     .vc-vnc-toolbar,

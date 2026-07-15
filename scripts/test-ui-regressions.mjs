@@ -232,12 +232,85 @@ function testRedactedMarkerDoesNotConsumeFollowingContent() {
   assert.doesNotMatch(rendered, /redacted-reason/);
 }
 
+function testVirtualComputersVNCPreferencesSurviveReconnect() {
+  const controller = read('ui/js/desktop/apps/virtual-computers-vnc.js');
+  const helperSource = sourceBetween(controller, 'function applyVNCPreferences', 'function mount');
+  const context = {};
+  vm.createContext(context);
+  vm.runInContext(`${helperSource}; globalThis.applyPreferences = applyVNCPreferences;`, context);
+
+  const rfb = {};
+  context.applyPreferences(rfb, { viewOnly: true, scaleMode: 'one-to-one' });
+  assert.equal(rfb.viewOnly, true, 'reconnect must preserve view-only input protection');
+  assert.equal(rfb.scaleViewport, false, 'reconnect must preserve 1:1 scaling');
+  assert.equal(rfb.resizeSession, false, '1:1 scaling must not resize the remote session');
+
+  context.applyPreferences(rfb, { viewOnly: false, scaleMode: 'fit' });
+  assert.equal(rfb.viewOnly, false);
+  assert.equal(rfb.scaleViewport, true);
+  assert.equal(rfb.resizeSession, true);
+}
+
+function testVirtualComputersScreenshotSettlementIgnoresStaleRequests() {
+  const app = read('ui/js/desktop/apps/virtual-computers.js');
+  const helperSource = sourceBetween(app, 'function isCurrentScreenshotRequest', 'async function screenshot');
+  const context = {};
+  vm.createContext(context);
+  vm.runInContext(`${helperSource}; globalThis.settleScreenshot = settleScreenshot;`, context);
+
+  const state = {
+    detailMode: 'screenshot',
+    selectedMachineId: 'vm-new',
+    screenshotRequestID: 2,
+    screenshotLoading: true,
+    selectedShot: null
+  };
+  assert.equal(context.settleScreenshot(state, 'vm-old', 1, { data_base64: 'old' }), false);
+  assert.equal(state.screenshotLoading, true, 'stale response must not end the active loading state');
+  assert.equal(state.selectedShot, null, 'stale response must not replace the active screenshot');
+
+  const shot = { data_base64: 'new' };
+  assert.equal(context.settleScreenshot(state, 'vm-new', 2, shot), true);
+  assert.equal(state.screenshotLoading, false);
+  assert.equal(state.selectedShot, shot);
+}
+
+function testVirtualComputersCanOpenIndependentWindows() {
+  const shell = read('ui/js/desktop/core/window-shell-runtime.js');
+  const helperSource = sourceBetween(shell, 'function findExistingAppWindow', 'function isStandaloneWidgetPath');
+  const virtualWindow = { id: 'vc-1', appId: 'virtual-computers', element: { isConnected: true }, context: {} };
+  const regularWindow = { id: 'settings-1', appId: 'settings', element: { isConnected: true }, context: {} };
+  const context = {
+    state: { windows: new Map([[virtualWindow.id, virtualWindow], [regularWindow.id, regularWindow]]), activeWindowId: '' },
+    clearWindowMenus() {},
+    disposeAppWindow() {},
+    normalizeDesktopPath: value => String(value || '')
+  };
+  vm.createContext(context);
+  vm.runInContext(`${helperSource}; globalThis.findExisting = findExistingAppWindow;`, context);
+
+  assert.equal(context.findExisting('virtual-computers', {}), undefined, 'Virtual Computers must allow a new independent window');
+  assert.equal(context.findExisting('settings', {}), regularWindow, 'other single-instance apps must keep their existing behavior');
+}
+
+function testVirtualComputersMobileLayoutUsesAvailableWindowHeight() {
+  const css = read('ui/css/desktop-app-virtual-computers.css');
+  const mobile = css.slice(css.indexOf('@media (max-width: 760px)'));
+  assert.doesNotMatch(mobile, /min-height:\s*56vh/, 'mobile preview must not overflow the clipped desktop window');
+  assert.match(mobile, /grid-template-rows:\s*minmax\(/, 'mobile rows must divide the available app height');
+  assert.match(mobile, /\.vc-list\s*\{[^}]*max-height:\s*none;/s, 'mobile list must use its grid row instead of viewport height');
+}
+
 const tests = [
   ['versioned service-worker registration', testVersionedServiceWorkerRegistration],
   ['real skill snapshot differences', testSkillSnapshotDifferences],
   ['Python skill card ordering matches snapshots', testSkillCardOrderingMatchesSnapshots],
   ['Agent skill card ordering matches snapshots', testAgentSkillCardOrderingMatchesSnapshot],
   ['redacted marker preserves following content', testRedactedMarkerDoesNotConsumeFollowingContent],
+  ['Virtual Computers VNC preferences survive reconnect', testVirtualComputersVNCPreferencesSurviveReconnect],
+  ['Virtual Computers ignores stale screenshot settlement', testVirtualComputersScreenshotSettlementIgnoresStaleRequests],
+  ['Virtual Computers allows independent windows', testVirtualComputersCanOpenIndependentWindows],
+  ['Virtual Computers mobile layout uses available height', testVirtualComputersMobileLayoutUsesAvailableWindowHeight],
   ['byte-exact read-only bundle check', testBundleCheckRejectsNonCanonicalBytesWithoutWriting]
 ];
 

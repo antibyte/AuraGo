@@ -34,6 +34,7 @@
             selectedShot: null,
             selectedMachineId: null,
             screenshotLoading: false,
+            screenshotRequestID: 0,
             detailMode: 'overview',
             modal: null,
             vncSession: null,
@@ -314,8 +315,20 @@
         await mutate(state, '/api/virtual-computers/machines/' + encodeURIComponent(id), { method: 'DELETE' });
     }
 
+    function isCurrentScreenshotRequest(state, id, requestID) {
+        return state.detailMode === 'screenshot' && state.selectedMachineId === id && state.screenshotRequestID === requestID;
+    }
+
+    function settleScreenshot(state, id, requestID, shot) {
+        if (!isCurrentScreenshotRequest(state, id, requestID)) return false;
+        state.selectedShot = shot || null;
+        state.screenshotLoading = false;
+        return true;
+    }
+
     async function screenshot(state, id) {
         if (!id) return;
+        const requestID = ++state.screenshotRequestID;
         disconnectVNC(state);
         state.detailMode = 'screenshot';
         state.selectedMachineId = id;
@@ -324,13 +337,9 @@
         draw(state);
         try {
             const body = await request('/api/virtual-computers/machines/' + encodeURIComponent(id) + '/screenshot');
-            if (state.detailMode === 'screenshot' && state.selectedMachineId === id) {
-                state.selectedShot = body.screenshot || null;
-                state.screenshotLoading = false;
-                draw(state);
-            }
+            if (settleScreenshot(state, id, requestID, body.screenshot)) draw(state);
         } catch (e) {
-            state.screenshotLoading = false;
+            if (!settleScreenshot(state, id, requestID, null)) return;
             notify(state, tx(state.context, 'desktop.virtual_computers_error') + ' ' + e.message, 'error');
             draw(state);
         }

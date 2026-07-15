@@ -3627,6 +3627,7 @@
             state.windows.delete(id);
             if (state.activeWindowId === id) state.activeWindowId = '';
         });
+        if (appId === 'virtual-computers') return undefined;
         return [...state.windows.values()].find(win => {
             if (win.appId !== appId) return false;
             if ((appId === 'editor' || appId === 'writer' || appId === 'sheets') && context && context.path != null) {
