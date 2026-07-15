@@ -156,6 +156,43 @@ func TestTaskManagerCancelKeepsCanceledTerminalState(t *testing.T) {
 	}
 }
 
+func TestTaskManagerCancelsOrphanedActiveState(t *testing.T) {
+	mgr, err := OpenTaskManager(t.TempDir()+"/virtual_computers.db", slog.Default(), TaskManagerOptions{})
+	if err != nil {
+		t.Fatalf("OpenTaskManager: %v", err)
+	}
+	defer mgr.Close()
+
+	now := time.Now().UTC()
+	for _, status := range []string{AgentTaskStatusQueued, AgentTaskStatusRunning} {
+		id := "orphan-" + status
+		if err := mgr.ledger.InsertAgentTask(context.Background(), AgentTask{
+			ID: id, MachineID: "vm-gone", Kind: AgentTaskKindShell,
+			Instruction: "do work", Status: status, CreatedAt: now, UpdatedAt: now,
+		}); err != nil {
+			t.Fatalf("InsertAgentTask(%s): %v", status, err)
+		}
+		if !mgr.CancelTask(id) {
+			t.Fatalf("CancelTask(%s) returned false", id)
+		}
+		task, ok := mgr.GetTask(id)
+		if !ok || task.Status != AgentTaskStatusCanceled {
+			t.Fatalf("canceled orphan %s = %+v, ok=%v", id, task, ok)
+		}
+	}
+
+	terminal := AgentTask{
+		ID: "already-complete", MachineID: "vm-gone", Kind: AgentTaskKindShell,
+		Instruction: "done", Status: AgentTaskStatusCompleted, CreatedAt: now, UpdatedAt: now,
+	}
+	if err := mgr.ledger.InsertAgentTask(context.Background(), terminal); err != nil {
+		t.Fatalf("InsertAgentTask(terminal): %v", err)
+	}
+	if mgr.CancelTask(terminal.ID) {
+		t.Fatal("CancelTask accepted a terminal task")
+	}
+}
+
 func TestTaskManagerPersistsErrorAndTimeoutTerminalStates(t *testing.T) {
 	upgrader := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

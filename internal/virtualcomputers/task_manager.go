@@ -258,15 +258,27 @@ func (m *TaskManager) ListTasks(machineID string, limit int) ([]AgentTask, error
 }
 
 func (m *TaskManager) CancelTask(id string) bool {
+	if m == nil || m.ledger == nil {
+		return false
+	}
 	id = strings.TrimSpace(id)
+	if id == "" {
+		return false
+	}
 	m.mu.Lock()
 	active := m.active[id]
 	m.mu.Unlock()
 	if active == nil {
-		return false
+		task, ok := m.GetTask(id)
+		if !ok || (task.Status != AgentTaskStatusQueued && task.Status != AgentTaskStatusRunning) {
+			return false
+		}
 	}
 	if err := m.ledger.FinishAgentTask(context.Background(), id, AgentTaskStatusCanceled, "task canceled"); err != nil {
 		return false
+	}
+	if active == nil {
+		return true
 	}
 	active.cancel()
 	m.mu.Lock()

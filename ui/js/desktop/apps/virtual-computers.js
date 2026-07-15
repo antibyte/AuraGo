@@ -39,7 +39,9 @@
             modal: null,
             vncSession: null,
             vncMachineId: null,
-            clickHandler: null
+            clickHandler: null,
+            taskRefreshTimer: null,
+            disposed: false
         };
         instances.set(windowId, state);
         state.host.innerHTML = `<div class="vc-app">
@@ -178,7 +180,8 @@
         const c = state.context;
         const rows = state.tasks.length ? state.tasks.map(task => {
             const running = task.status === 'queued' || task.status === 'running';
-            return `<div class="vc-ledger-row"><span><strong>${esc(task.kind)}</strong> · ${esc(task.machine_id)} · ${esc(task.status)}</span>${running && isMutable(state) ? `<button type="button" class="vc-icon-btn danger" data-action="cancel_agent_task" data-id="${esc(task.id)}">${esc(tx(c, 'desktop.virtual_computers_task_cancel'))}</button>` : ''}</div>`;
+            const error = task.error ? `<small class="vc-task-error">${esc(task.error)}</small>` : '';
+            return `<div class="vc-ledger-row"><span class="vc-task-summary"><span><strong>${esc(task.kind)}</strong> · ${esc(task.machine_id)} · ${esc(task.status)}</span>${error}</span>${running && isMutable(state) ? `<button type="button" class="vc-icon-btn danger" data-action="cancel_agent_task" data-id="${esc(task.id)}">${esc(tx(c, 'desktop.virtual_computers_task_cancel'))}</button>` : ''}</div>`;
         }).join('') : `<div class="vc-empty compact">${esc(tx(c, 'desktop.virtual_computers_tasks_empty'))}</div>`;
         return `<section class="vc-ledger"><h3>${esc(tx(c, 'desktop.virtual_computers_tasks'))}</h3>${rows}</section>`;
     }
@@ -232,6 +235,7 @@
         }
         reconcileVNC(state);
         draw(state);
+        scheduleTaskRefresh(state);
     }
 
     function showOverview(state) {
@@ -354,12 +358,14 @@
         const instruction = state.host.querySelector('[data-role="task-instruction"]')?.value.trim() || '';
         if (!instruction) return;
         state.modal = null;
+        draw(state);
         await mutate(state, '/api/virtual-computers/tasks', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ machine_id: modal.machineId, kind, instruction }) });
     }
 
     async function cancelTask(state) {
         const taskId = state.modal && state.modal.taskId;
         state.modal = null;
+        draw(state);
         if (taskId) await mutate(state, '/api/virtual-computers/tasks/' + encodeURIComponent(taskId), { method: 'DELETE' });
     }
 
@@ -383,12 +389,36 @@
     }
 
     function notify(state, message, type) {
-        if (state.context && typeof state.context.notify === 'function') state.context.notify(message, { type: type || 'info' });
+        if (state.context && typeof state.context.notify === 'function') {
+            state.context.notify({
+                title: tx(state.context, 'desktop.notification'),
+                message,
+                type: type || 'info'
+            });
+        }
+    }
+
+    function hasActiveTasks(tasks) {
+        return Array.isArray(tasks) && tasks.some(task => task && (task.status === 'queued' || task.status === 'running'));
+    }
+
+    function scheduleTaskRefresh(state) {
+        if (state.taskRefreshTimer) {
+            clearTimeout(state.taskRefreshTimer);
+            state.taskRefreshTimer = null;
+        }
+        if (state.disposed || !hasActiveTasks(state.tasks)) return;
+        state.taskRefreshTimer = setTimeout(() => {
+            state.taskRefreshTimer = null;
+            refresh(state);
+        }, 2000);
     }
 
     function dispose(windowId) {
         const state = instances.get(windowId);
         if (!state) return;
+        state.disposed = true;
+        if (state.taskRefreshTimer) clearTimeout(state.taskRefreshTimer);
         disconnectVNC(state);
         if (state.clickHandler) state.host.removeEventListener('click', state.clickHandler);
         instances.delete(windowId);

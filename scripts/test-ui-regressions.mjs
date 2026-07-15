@@ -301,6 +301,52 @@ function testVirtualComputersMobileLayoutUsesAvailableWindowHeight() {
   assert.match(mobile, /\.vc-list\s*\{[^}]*max-height:\s*none;/s, 'mobile list must use its grid row instead of viewport height');
 }
 
+function testVirtualComputersAgentTaskFeedbackAndPolling() {
+  const app = read('ui/js/desktop/apps/virtual-computers.js');
+  const helperSource = sourceBetween(app, 'function notify', 'function dispose');
+  const notifications = [];
+  const scheduled = [];
+  const context = {
+    clearTimeout() {},
+    setTimeout(callback, delay) {
+      scheduled.push({ callback, delay });
+      return scheduled.length;
+    },
+    refresh() {},
+    tx(_ctx, key) { return key; }
+  };
+  vm.createContext(context);
+  vm.runInContext(
+    `${helperSource}; globalThis.hasActiveTasks = hasActiveTasks; ` +
+    'globalThis.scheduleTaskRefresh = scheduleTaskRefresh; globalThis.notify = notify;',
+    context
+  );
+
+  assert.equal(context.hasActiveTasks([{ status: 'queued' }]), true);
+  assert.equal(context.hasActiveTasks([{ status: 'running' }]), true);
+  assert.equal(context.hasActiveTasks([{ status: 'failed' }, { status: 'completed' }]), false);
+
+  const state = {
+    context: { notify(payload) { notifications.push(payload); } },
+    tasks: [{ status: 'running' }],
+    disposed: false,
+    taskRefreshTimer: null
+  };
+  context.notify(state, 'Cannot cancel task', 'error');
+  assert.equal(JSON.stringify(notifications), JSON.stringify([{
+    title: 'desktop.notification',
+    message: 'Cannot cancel task',
+    type: 'error'
+  }]));
+
+  context.scheduleTaskRefresh(state);
+  assert.equal(scheduled.length, 1);
+  assert.equal(scheduled[0].delay, 2000);
+  state.tasks = [{ status: 'canceled' }];
+  context.scheduleTaskRefresh(state);
+  assert.equal(scheduled.length, 1, 'terminal tasks must stop polling');
+}
+
 const tests = [
   ['versioned service-worker registration', testVersionedServiceWorkerRegistration],
   ['real skill snapshot differences', testSkillSnapshotDifferences],
@@ -311,6 +357,7 @@ const tests = [
   ['Virtual Computers ignores stale screenshot settlement', testVirtualComputersScreenshotSettlementIgnoresStaleRequests],
   ['Virtual Computers allows independent windows', testVirtualComputersCanOpenIndependentWindows],
   ['Virtual Computers mobile layout uses available height', testVirtualComputersMobileLayoutUsesAvailableWindowHeight],
+  ['Virtual Computers agent tasks report errors and poll active jobs', testVirtualComputersAgentTaskFeedbackAndPolling],
   ['byte-exact read-only bundle check', testBundleCheckRejectsNonCanonicalBytesWithoutWriting]
 ];
 
