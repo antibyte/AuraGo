@@ -125,7 +125,7 @@
                 return;
             }
             try {
-                const nextRFB = new window.RFB(canvas, settings.url, { wsProtocols: ['binary'] });
+                const nextRFB = new window.RFB(canvas, settings.url);
                 rfb = nextRFB;
                 applyVNCPreferences(nextRFB, preferences);
                 nextRFB.addEventListener('connect', () => {

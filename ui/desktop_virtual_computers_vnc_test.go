@@ -70,6 +70,13 @@ func TestVirtualComputersVNCControllerProvidesSafeInteractiveControls(t *testing
 	if strings.Contains(controller, "RFB.credentials(") || strings.Contains(controller, "prompt(") {
 		t.Fatal("virtual computers VNC must never collect credentials in the browser")
 	}
+	if strings.Contains(controller, "wsProtocols") {
+		t.Fatal("virtual computers VNC must use boringd's native WebSocket handshake without Quick Connect subprotocols")
+	}
+	quickConnect := normalizeAssetText(mustReadUIFile(t, "js/desktop/apps/quickconnect-launchpad-chat.js"))
+	if !strings.Contains(quickConnect, `wsProtocols: ['binary']`) {
+		t.Fatal("Quick Connect must retain its binary WebSocket subprotocol")
+	}
 
 	css := normalizeAssetText(mustReadUIFile(t, "css/desktop-app-virtual-computers.css"))
 	if !strings.Contains(css, ".vc-vnc-toolbar") || !strings.Contains(css, "min-height: 44px;") {
