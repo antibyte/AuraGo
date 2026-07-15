@@ -38,6 +38,54 @@ func TestVirtualComputersDesktopRendersControlCenter(t *testing.T) {
 	}
 }
 
+func TestVirtualComputersMachineListPollingContract(t *testing.T) {
+	t.Parallel()
+
+	app := normalizeAssetText(mustReadUIFile(t, "js/desktop/apps/virtual-computers.js"))
+	for _, marker := range []string{
+		`const machinePollIntervalMs = 5000;`,
+		`machineSnapshot: JSON.stringify([])`,
+		`machinePollTimer: null`,
+		`machinePollInFlight: false`,
+		`function normalizeMachineList(body)`,
+		`function storeMachines(state, machines)`,
+		`function isMachinePollingVisible(state)`,
+		`async function pollMachines(state)`,
+		`function scheduleMachineRefresh(state)`,
+		`request('/api/virtual-computers/machines')`,
+		`document.visibilityState`,
+		`closest('.vd-window')`,
+		`scheduleMachineRefresh(state);`,
+		`clearTimeout(state.machinePollTimer)`,
+	} {
+		if !strings.Contains(app, marker) {
+			t.Errorf("virtual computers machine polling missing %q", marker)
+		}
+	}
+
+	applyStart := strings.Index(app, `function applyResourceResult`)
+	applyEnd := -1
+	if applyStart >= 0 {
+		if offset := strings.Index(app[applyStart:], `async function refresh`); offset >= 0 {
+			applyEnd = applyStart + offset
+		}
+	}
+	if applyStart < 0 || applyEnd <= applyStart || !strings.Contains(app[applyStart:applyEnd], `storeMachines(state, normalizeMachineList(body));`) {
+		t.Fatal("normal machine refresh must update the polling snapshot")
+	}
+
+	disposeStart := strings.Index(app, `function dispose(windowId)`)
+	disposeEnd := -1
+	if disposeStart >= 0 {
+		if offset := strings.Index(app[disposeStart:], `window.VirtualComputersApp`); offset >= 0 {
+			disposeEnd = disposeStart + offset
+		}
+	}
+	if disposeStart < 0 || disposeEnd <= disposeStart || !strings.Contains(app[disposeStart:disposeEnd], `clearTimeout(state.machinePollTimer)`) {
+		t.Fatal("disposing a Virtual Computers window must clear machine polling")
+	}
+}
+
 func TestVirtualComputersDesktopUsesThemeAndContainerContracts(t *testing.T) {
 	t.Parallel()
 

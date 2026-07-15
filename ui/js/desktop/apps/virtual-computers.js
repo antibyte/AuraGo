@@ -2,6 +2,7 @@
     'use strict';
 
     const instances = new Map();
+    const machinePollIntervalMs = 5000;
 
     function esc(value) {
         return String(value == null ? '' : value).replace(/[&<>'"]/g, ch => ({
@@ -69,6 +70,9 @@
             changeHandler: null,
             keyHandler: null,
             taskRefreshTimer: null,
+            machineSnapshot: JSON.stringify([]),
+            machinePollTimer: null,
+            machinePollInFlight: false,
             disposed: false
         };
         instances.set(windowId, state);
@@ -82,6 +86,7 @@
         bindActions(state);
         draw(state);
         refresh(state);
+        scheduleMachineRefresh(state);
     }
 
     function capabilities(state) {
@@ -469,7 +474,7 @@
         if (result.status === 'fulfilled') {
             state.resourceErrors[resource] = '';
             const body = result.value || {};
-            if (resource === 'machines') state.machines = Array.isArray(body.machines) ? body.machines : [];
+            if (resource === 'machines') storeMachines(state, normalizeMachineList(body));
             else if (resource === 'templates') {
                 state.templates = Array.isArray(body.templates) ? body.templates : [];
                 state.templatesFallback = state.templates.length === 0;
@@ -494,7 +499,7 @@
             state.resourceErrors.status = '';
             state.resourceLoading.status = false;
             if (!status.enabled) {
-                state.machines = [];
+                storeMachines(state, []);
                 state.templates = [];
                 state.tasks = [];
                 state.volumes = [];
@@ -868,6 +873,61 @@
         }
     }
 
+    function normalizeMachineList(body) {
+        return body && Array.isArray(body.machines) ? body.machines : [];
+    }
+
+    function storeMachines(state, machines) {
+        const normalized = Array.isArray(machines) ? machines : [];
+        state.machines = normalized;
+        state.machineSnapshot = JSON.stringify(normalized);
+    }
+
+    function isMachinePollingVisible(state) {
+        if (!state.host) return false;
+        const document = state.host.ownerDocument;
+        if (document && document.visibilityState === 'hidden') return false;
+        const appWindow = typeof state.host.closest === 'function' ? state.host.closest('.vd-window') : null;
+        if (appWindow && (appWindow.hidden || (appWindow.style && appWindow.style.display === 'none'))) return false;
+        return typeof state.host.getClientRects !== 'function' || state.host.getClientRects().length > 0;
+    }
+
+    async function pollMachines(state) {
+        if (state.disposed || state.machinePollInFlight || state.resourceLoading.machines || !isMachinePollingVisible(state)) return;
+        const generation = state.refreshGeneration;
+        state.machinePollInFlight = true;
+        try {
+            const body = await request('/api/virtual-computers/machines');
+            if (state.disposed || generation !== state.refreshGeneration) return;
+            const machines = normalizeMachineList(body);
+            const snapshot = JSON.stringify(machines);
+            if (snapshot === state.machineSnapshot) return;
+            storeMachines(state, machines);
+            state.resourceErrors.machines = '';
+            reconcileSelection(state);
+            reconcileVNC(state);
+            reconcileTerminal(state);
+            draw(state);
+        } catch (_) {
+            // Background polling is best-effort; explicit refresh reports errors.
+        } finally {
+            state.machinePollInFlight = false;
+        }
+    }
+
+    function scheduleMachineRefresh(state) {
+        if (state.machinePollTimer) {
+            clearTimeout(state.machinePollTimer);
+            state.machinePollTimer = null;
+        }
+        if (state.disposed) return;
+        state.machinePollTimer = setTimeout(async () => {
+            state.machinePollTimer = null;
+            await pollMachines(state);
+            scheduleMachineRefresh(state);
+        }, machinePollIntervalMs);
+    }
+
     function hasActiveTasks(tasks) {
         return Array.isArray(tasks) && tasks.some(task => task && (task.status === 'queued' || task.status === 'running'));
     }
@@ -890,6 +950,8 @@
         state.disposed = true;
         state.refreshGeneration++;
         if (state.taskRefreshTimer) clearTimeout(state.taskRefreshTimer);
+        if (state.machinePollTimer) clearTimeout(state.machinePollTimer);
+        state.machinePollTimer = null;
         disconnectRemoteSessions(state);
         if (state.clickHandler) state.host.removeEventListener('click', state.clickHandler);
         if (state.changeHandler) state.host.removeEventListener('change', state.changeHandler);

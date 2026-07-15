@@ -525,10 +525,11 @@ function testVirtualComputersScreenshotSettlementIgnoresStaleRequests() {
 
 function testVirtualComputersResourceFailuresStayIsolated() {
   const app = read('ui/js/desktop/apps/virtual-computers.js');
+  const machineHelpers = sourceBetween(app, 'function normalizeMachineList', 'function isMachinePollingVisible');
   const helperSource = sourceBetween(app, 'function applyResourceResult', 'async function refresh');
   const context = {};
   vm.createContext(context);
-  vm.runInContext(`${helperSource}; globalThis.applyResult = applyResourceResult;`, context);
+  vm.runInContext(`${machineHelpers}; ${helperSource}; globalThis.applyResult = applyResourceResult;`, context);
 
   const state = {
     machines: [{ id: 'vm-existing' }],
@@ -640,6 +641,173 @@ function testVirtualComputersMobileLayoutUsesAvailableWindowHeight() {
   assert.match(mobile, /\.vc-list\s*\{[^}]*max-height:\s*none;/s, 'mobile list must use its grid row instead of viewport height');
 }
 
+function loadVirtualComputersMachinePollingRuntime() {
+  const app = read('ui/js/desktop/apps/virtual-computers.js');
+  const helperSource = sourceBetween(app, 'function normalizeMachineList', 'function hasActiveTasks');
+  const requests = [];
+  const scheduled = [];
+  const cleared = [];
+  const draws = [];
+  const reconciled = [];
+  let requestImpl = () => Promise.resolve({ machines: [] });
+  const context = {
+    Array,
+    JSON,
+    request(path) {
+      requests.push(path);
+      return requestImpl(path);
+    },
+    setTimeout(callback, delay) {
+      scheduled.push({ callback, delay });
+      return scheduled.length;
+    },
+    clearTimeout(id) { cleared.push(id); },
+    reconcileSelection() { reconciled.push('selection'); },
+    reconcileVNC() { reconciled.push('vnc'); },
+    reconcileTerminal() { reconciled.push('terminal'); },
+    draw(state) { draws.push(state.machines.map(machine => machine.id)); }
+  };
+  vm.createContext(context);
+  vm.runInContext(
+    `const machinePollIntervalMs = 5000; ${helperSource}; globalThis.storeMachines = storeMachines; ` +
+    'globalThis.pollMachines = pollMachines; globalThis.scheduleMachineRefresh = scheduleMachineRefresh;',
+    context
+  );
+  return {
+    context,
+    requests,
+    scheduled,
+    cleared,
+    draws,
+    reconciled,
+    setRequestImpl(impl) { requestImpl = impl; }
+  };
+}
+
+function newVirtualComputersPollingState() {
+  const appWindow = { hidden: false, style: { display: '' } };
+  const ownerDocument = { visibilityState: 'visible' };
+  const host = {
+    ownerDocument,
+    closest(selector) { return selector === '.vd-window' ? appWindow : null; },
+    getClientRects() { return [{}]; }
+  };
+  return {
+    state: {
+      host,
+      machines: [],
+      machineSnapshot: JSON.stringify([]),
+      machinePollTimer: null,
+      machinePollInFlight: false,
+      resourceLoading: { machines: false },
+      resourceErrors: { machines: 'old error' },
+      refreshGeneration: 1,
+      disposed: false
+    },
+    appWindow,
+    ownerDocument
+  };
+}
+
+async function testVirtualComputersMachinePollingLifecycle() {
+  const runtime = loadVirtualComputersMachinePollingRuntime();
+  const { state, appWindow, ownerDocument } = newVirtualComputersPollingState();
+
+  runtime.context.scheduleMachineRefresh(state);
+  assert.equal(runtime.scheduled.length, 1);
+  assert.equal(runtime.scheduled[0].delay, 5000);
+
+  runtime.setRequestImpl(() => Promise.resolve({ machines: [] }));
+  await runtime.scheduled.shift().callback();
+  assert.deepEqual(runtime.requests, ['/api/virtual-computers/machines']);
+  assert.equal(runtime.draws.length, 0, 'unchanged machines must not redraw');
+  assert.equal(runtime.scheduled.length, 1, 'each completed poll must schedule its successor');
+
+  ownerDocument.visibilityState = 'hidden';
+  await runtime.scheduled.shift().callback();
+  assert.equal(runtime.requests.length, 1, 'hidden tabs must not request machines');
+  assert.equal(runtime.scheduled.length, 1);
+
+  ownerDocument.visibilityState = 'visible';
+  appWindow.style.display = 'none';
+  await runtime.scheduled.shift().callback();
+  assert.equal(runtime.requests.length, 1, 'minimized app windows must not request machines');
+  assert.equal(runtime.scheduled.length, 1);
+
+  appWindow.style.display = '';
+  state.host.getClientRects = () => [];
+  await runtime.scheduled.shift().callback();
+  assert.equal(runtime.requests.length, 1, 'invisible app hosts must not request machines');
+  assert.equal(runtime.scheduled.length, 1);
+
+  state.host.getClientRects = () => [{}];
+  runtime.setRequestImpl(() => Promise.resolve({ machines: [{ id: 'vm-1', display: false }] }));
+  await runtime.scheduled.shift().callback();
+  assert.equal(runtime.requests.length, 2);
+  assert.deepEqual(runtime.draws, [['vm-1']]);
+  assert.deepEqual(runtime.reconciled, ['selection', 'vnc', 'terminal']);
+  assert.equal(state.resourceErrors.machines, '');
+  assert.equal(runtime.scheduled.length, 1);
+
+  runtime.setRequestImpl(() => Promise.reject(new Error('offline')));
+  await runtime.scheduled.shift().callback();
+  assert.equal(runtime.draws.length, 1, 'background failures must retain the rendered list');
+  assert.equal(runtime.scheduled.length, 1, 'background failures must retry on the next cycle');
+
+  runtime.context.storeMachines(state, [{ id: 'vm-1', display: false }]);
+  runtime.setRequestImpl(() => Promise.resolve({ machines: [{ id: 'vm-1', display: false }] }));
+  await runtime.context.pollMachines(state);
+  assert.equal(runtime.draws.length, 1, 'a full-refresh baseline must prevent a redundant redraw');
+
+  let releaseSlowRequest;
+  runtime.setRequestImpl(() => new Promise(resolve => { releaseSlowRequest = resolve; }));
+  const firstPoll = runtime.context.pollMachines(state);
+  const secondPoll = runtime.context.pollMachines(state);
+  assert.equal(runtime.requests.length, 5, 'an in-flight poll must suppress overlap');
+  releaseSlowRequest({ machines: [{ id: 'vm-2', display: false }] });
+  await Promise.all([firstPoll, secondPoll]);
+  assert.deepEqual(state.machines.map(machine => machine.id), ['vm-2']);
+
+  let releaseLateRequest;
+  runtime.setRequestImpl(() => new Promise(resolve => { releaseLateRequest = resolve; }));
+  const latePoll = runtime.context.pollMachines(state);
+  state.disposed = true;
+  releaseLateRequest({ machines: [{ id: 'vm-late', display: false }] });
+  await latePoll;
+  assert.deepEqual(state.machines.map(machine => machine.id), ['vm-2'], 'late responses after dispose must be ignored');
+}
+
+function testVirtualComputersMachinePollingDisposeClearsTimer() {
+  const app = read('ui/js/desktop/apps/virtual-computers.js');
+  const disposeSource = sourceBetween(app, 'function dispose(windowId)', 'window.VirtualComputersApp');
+  const cleared = [];
+  const state = {
+    disposed: false,
+    refreshGeneration: 2,
+    taskRefreshTimer: 7,
+    machinePollTimer: 8,
+    clickHandler: null,
+    changeHandler: null,
+    keyHandler: null,
+    host: {}
+  };
+  const context = {
+    instanceMap: new Map([['vc-1', state]]),
+    clearTimeout(id) { cleared.push(id); },
+    disconnectRemoteSessions() {}
+  };
+  vm.createContext(context);
+  vm.runInContext(
+    `const instances = globalThis.instanceMap; ${disposeSource}; globalThis.disposeApp = dispose;`,
+    context
+  );
+  context.disposeApp('vc-1');
+  assert.deepEqual(cleared, [7, 8]);
+  assert.equal(state.disposed, true);
+  assert.equal(state.refreshGeneration, 3);
+  assert.equal(context.instanceMap.has('vc-1'), false);
+}
+
 function testVirtualComputersAgentTaskFeedbackAndPolling() {
   const app = read('ui/js/desktop/apps/virtual-computers.js');
   const helperSource = sourceBetween(app, 'function notify', 'function dispose');
@@ -704,6 +872,8 @@ const tests = [
   ['Virtual Computers locks duplicate mutations', testVirtualComputersMutationLocksAreIdempotent],
   ['Virtual Computers allows independent windows', testVirtualComputersCanOpenIndependentWindows],
   ['Virtual Computers mobile layout uses available height', testVirtualComputersMobileLayoutUsesAvailableWindowHeight],
+  ['Virtual Computers polls machines only when visible and changed', testVirtualComputersMachinePollingLifecycle],
+  ['Virtual Computers clears machine polling on dispose', testVirtualComputersMachinePollingDisposeClearsTimer],
   ['Virtual Computers agent tasks report errors and poll active jobs', testVirtualComputersAgentTaskFeedbackAndPolling],
   ['byte-exact read-only bundle check', testBundleCheckRejectsNonCanonicalBytesWithoutWriting]
 ];
@@ -711,7 +881,7 @@ const tests = [
 let failures = 0;
 for (const [name, test] of tests) {
   try {
-    test();
+    await test();
     console.log(`PASS ${name}`);
   } catch (error) {
     failures += 1;
