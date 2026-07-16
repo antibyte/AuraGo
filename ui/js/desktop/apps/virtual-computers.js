@@ -3,6 +3,7 @@
 
     const instances = new Map();
     const machinePollIntervalMs = 5000;
+    const expiryCountdownIntervalMs = 1000;
 
     function esc(value) {
         return String(value == null ? '' : value).replace(/[&<>'"]/g, ch => ({
@@ -73,6 +74,7 @@
             machineSnapshot: JSON.stringify([]),
             machinePollTimer: null,
             machinePollInFlight: false,
+            expiryCountdownTimer: null,
             disposed: false
         };
         instances.set(windowId, state);
@@ -87,6 +89,7 @@
         draw(state);
         refresh(state);
         scheduleMachineRefresh(state);
+        scheduleExpiryCountdown(state);
     }
 
     function capabilities(state) {
@@ -133,6 +136,56 @@
         if (value < 3600) return `${Math.round(value / 60)} min`;
         if (value < 86400) return `${Math.round(value / 3600)} h`;
         return `${Math.round(value / 86400)} d`;
+    }
+
+    function formatExpiryCountdown(expiresAt, nowMs) {
+        const expiry = new Date(expiresAt).getTime();
+        if (!Number.isFinite(expiry)) return '—';
+        const parsedNow = Number(nowMs);
+        const now = Number.isFinite(parsedNow) ? parsedNow : Date.now();
+        let remaining = Math.max(0, Math.ceil((expiry - now) / 1000));
+        const days = Math.floor(remaining / 86400);
+        remaining %= 86400;
+        const hours = Math.floor(remaining / 3600);
+        remaining %= 3600;
+        const minutes = Math.floor(remaining / 60);
+        const seconds = remaining % 60;
+        const clock = [hours, minutes, seconds].map(value => String(value).padStart(2, '0')).join(':');
+        if (days > 0) return `${days}d ${clock}`;
+        return hours > 0 ? clock : `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    }
+
+    function expiryCountdownMarkup(state, machine, className) {
+        const c = state.context;
+        const classes = className ? ` ${className}` : '';
+        if (machine.persistent) return `<span class="vc-expiry-countdown${classes}">${esc(tx(c, 'desktop.virtual_computers_unlimited'))}</span>`;
+        const expiresAt = machine.expires_at || '';
+        const value = formatExpiryCountdown(expiresAt);
+        const label = tx(c, 'desktop.virtual_computers_expires');
+        return `<span class="vc-expiry-countdown${classes}" data-expiry-countdown data-expires-at="${esc(expiresAt)}" data-expiry-label="${esc(label)}" title="${esc(formatDate(expiresAt))}" aria-label="${esc(label)}: ${esc(value)}">${esc(value)}</span>`;
+    }
+
+    function updateExpiryCountdowns(state) {
+        if (!state.host || state.disposed) return;
+        const now = Date.now();
+        state.host.querySelectorAll('[data-expiry-countdown]').forEach(node => {
+            const value = formatExpiryCountdown(node.dataset.expiresAt, now);
+            node.textContent = value;
+            node.setAttribute('aria-label', `${node.dataset.expiryLabel || ''}: ${value}`);
+        });
+    }
+
+    function scheduleExpiryCountdown(state) {
+        if (state.expiryCountdownTimer) {
+            clearTimeout(state.expiryCountdownTimer);
+            state.expiryCountdownTimer = null;
+        }
+        if (state.disposed) return;
+        state.expiryCountdownTimer = setTimeout(() => {
+            state.expiryCountdownTimer = null;
+            if (isMachinePollingVisible(state)) updateExpiryCountdowns(state);
+            scheduleExpiryCountdown(state);
+        }, expiryCountdownIntervalMs);
     }
 
     function formatBytes(value) {
@@ -268,7 +321,7 @@
             return `<button type="button" class="vc-machine ${active ? 'is-active' : ''}" data-action="select-machine" data-id="${esc(id)}" aria-current="${active ? 'true' : 'false'}">
                 <span class="vc-machine-icon" aria-hidden="true">${icon(state, machine.display ? 'monitor' : 'server', '▣')}</span>
                 <span class="vc-machine-main"><strong>${esc(machine.name || id || machine.template || 'machine')}</strong><span>${esc(machine.template || '—')}</span></span>
-                <span class="vc-machine-state"><span class="vc-state-dot" data-state="${esc(machine.status || '')}"></span>${esc(machine.status || '—')}</span>
+                <span class="vc-machine-state"><span class="vc-machine-status"><span class="vc-state-dot" data-state="${esc(machine.status || '')}"></span>${esc(machine.status || '—')}</span>${expiryCountdownMarkup(state, machine, 'vc-machine-expiry')}</span>
             </button>`;
         }).join('');
     }
@@ -305,7 +358,7 @@
             <dl class="vc-meta-grid">
                 <div><dt>${esc(tx(c, 'desktop.virtual_computers_template'))}</dt><dd>${esc(machine.template || '—')}</dd></div>
                 <div><dt>${esc(tx(c, 'desktop.virtual_computers_runtime'))}</dt><dd>${esc(machine.persistent ? tx(c, 'desktop.virtual_computers_unlimited') : formatDuration(machine.ttl_seconds))}</dd></div>
-                <div><dt>${esc(tx(c, 'desktop.virtual_computers_expires'))}</dt><dd>${esc(formatDate(machine.expires_at))}</dd></div>
+                <div><dt>${esc(tx(c, 'desktop.virtual_computers_expires'))}</dt><dd class="vc-expiry-detail">${expiryCountdownMarkup(state, machine, 'vc-expiry-detail-countdown')}${machine.persistent ? '' : `<span>${esc(formatDate(machine.expires_at))}</span>`}</dd></div>
                 <div><dt>${esc(tx(c, 'desktop.virtual_computers_display'))}</dt><dd>${esc(machine.display ? tx(c, 'desktop.on') : tx(c, 'desktop.off'))}</dd></div>
                 <div class="vc-meta-wide"><dt>${esc(tx(c, 'desktop.virtual_computers_web_ports'))}</dt><dd class="vc-machine-links">${portLinks}</dd></div>
             </dl>
@@ -951,7 +1004,9 @@
         state.refreshGeneration++;
         if (state.taskRefreshTimer) clearTimeout(state.taskRefreshTimer);
         if (state.machinePollTimer) clearTimeout(state.machinePollTimer);
+        if (state.expiryCountdownTimer) clearTimeout(state.expiryCountdownTimer);
         state.machinePollTimer = null;
+        state.expiryCountdownTimer = null;
         disconnectRemoteSessions(state);
         if (state.clickHandler) state.host.removeEventListener('click', state.clickHandler);
         if (state.changeHandler) state.host.removeEventListener('change', state.changeHandler);

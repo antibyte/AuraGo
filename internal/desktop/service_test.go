@@ -153,6 +153,13 @@ func TestBuiltinAppsExposeCheaterAndMissionControlMetadata(t *testing.T) {
 	}
 }
 
+func TestBuiltinVirtualComputersOpensMaximized(t *testing.T) {
+	virtualComputers := testFindApp(t, BuiltinApps(), "virtual-computers")
+	if virtualComputers.Metadata["open_maximized"] != "true" {
+		t.Fatalf("virtual computers must open maximized: %#v", virtualComputers.Metadata)
+	}
+}
+
 func TestBuiltinAppsExposeTeeVeeMetadata(t *testing.T) {
 	apps := BuiltinApps()
 

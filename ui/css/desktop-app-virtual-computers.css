@@ -134,7 +134,10 @@ button:disabled { opacity: .52; cursor: wait; }
 .vc-machine-main { display: grid; gap: 4px; min-width: 0; }
 .vc-machine-main strong, .vc-machine-main span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vc-machine-main span { color: var(--vd-theme-muted, var(--ds-color-fg-muted)); font-size: 12px; }
-.vc-machine-state { margin-left: auto; align-self: flex-start; color: var(--vd-theme-muted, var(--ds-color-fg-muted)); font-size: 11px; }
+.vc-machine-state { display: grid; justify-items: end; gap: 5px; margin-left: auto; align-self: flex-start; color: var(--vd-theme-muted, var(--ds-color-fg-muted)); font-size: 11px; }
+.vc-machine-status { display: flex; align-items: center; gap: 5px; }
+.vc-expiry-countdown { color: var(--ds-color-fg-primary); font-variant-numeric: tabular-nums; font-weight: 700; letter-spacing: .01em; white-space: nowrap; }
+.vc-machine-expiry { padding: 2px 6px; border-radius: 999px; background: var(--vd-theme-control-bg); font-size: 11px; }
 
 .vc-preview { min-width: 0; min-height: 0; overflow: auto; padding: 18px; }
 .vc-machine-detail { display: grid; align-content: start; gap: 16px; min-height: 100%; }
@@ -147,6 +150,9 @@ button:disabled { opacity: .52; cursor: wait; }
 .vc-meta-grid > div { min-width: 0; padding: 12px; background: var(--vd-theme-panel-bg); }
 .vc-meta-grid span { display: block; margin-bottom: 5px; color: var(--vd-theme-muted, var(--ds-color-fg-muted)); font-size: 11px; }
 .vc-meta-grid strong { display: block; overflow-wrap: anywhere; font-size: 13px; }
+.vc-expiry-detail { display: grid; gap: 4px; margin: 0; }
+.vc-meta-grid .vc-expiry-detail-countdown { margin: 0; color: var(--ds-color-fg-primary); font-size: 15px; }
+.vc-expiry-detail > span:last-child:not(:first-child) { margin: 0; }
 .vc-meta-wide { grid-column: span 3; }
 .vc-detail-viewer { display: grid; place-items: center; min-height: 220px; overflow: hidden; border: 1px solid var(--vd-theme-border); border-radius: 12px; background: var(--vd-theme-panel-bg); }
 .vc-vnc-placeholder, .vc-terminal-placeholder { display: grid; place-items: center; gap: 10px; padding: 28px; color: var(--vd-theme-muted, var(--ds-color-fg-muted)); text-align: center; }

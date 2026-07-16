@@ -473,7 +473,8 @@ function testVirtualComputersTerminalActionGating() {
     canUseVNC: (_state, machine) => machine?.display === true,
     canUseTerminal: (_state, machine) => machine?.display === false,
     formatDuration: value => String(value || 0),
-    formatDate: value => String(value || '')
+    formatDate: value => String(value || ''),
+    expiryCountdownMarkup: () => '<span>00:30</span>'
   };
   vm.createContext(context);
   vm.runInContext(`${detailSource}; globalThis.renderDetail = detailPane;`, context);
@@ -497,6 +498,21 @@ function testVirtualComputersTerminalActionGating() {
   assert.match(display, /data-action="vnc"/);
   assert.match(display, /data-action="screenshot"/);
   assert.doesNotMatch(display, /data-action="terminal"/);
+}
+
+function testVirtualComputersExpiryCountdownFormatting() {
+  const app = read('ui/js/desktop/apps/virtual-computers.js');
+  const helperSource = sourceBetween(app, 'function formatExpiryCountdown', 'function expiryCountdownMarkup');
+  const context = { Date, Number, Math, String };
+  vm.createContext(context);
+  vm.runInContext(`${helperSource}; globalThis.formatCountdown = formatExpiryCountdown;`, context);
+
+  const now = Date.parse('2026-07-16T18:00:00Z');
+  assert.equal(context.formatCountdown('2026-07-16T18:01:05Z', now), '01:05');
+  assert.equal(context.formatCountdown('2026-07-16T19:01:01Z', now), '01:01:01');
+  assert.equal(context.formatCountdown('2026-07-17T19:01:01Z', now), '1d 01:01:01');
+  assert.equal(context.formatCountdown('2026-07-16T17:59:59Z', now), '00:00');
+  assert.equal(context.formatCountdown('', now), '—');
 }
 
 function testVirtualComputersScreenshotSettlementIgnoresStaleRequests() {
@@ -786,6 +802,7 @@ function testVirtualComputersMachinePollingDisposeClearsTimer() {
     refreshGeneration: 2,
     taskRefreshTimer: 7,
     machinePollTimer: 8,
+    expiryCountdownTimer: 9,
     clickHandler: null,
     changeHandler: null,
     keyHandler: null,
@@ -802,7 +819,7 @@ function testVirtualComputersMachinePollingDisposeClearsTimer() {
     context
   );
   context.disposeApp('vc-1');
-  assert.deepEqual(cleared, [7, 8]);
+  assert.deepEqual(cleared, [7, 8, 9]);
   assert.equal(state.disposed, true);
   assert.equal(state.refreshGeneration, 3);
   assert.equal(context.instanceMap.has('vc-1'), false);
@@ -865,6 +882,7 @@ const tests = [
   ['Virtual Computers terminal uses binary I/O and cleans up', testVirtualComputersTerminalBinaryLifecycle],
   ['Virtual Computers terminal survives refresh and reconciles safely', testVirtualComputersTerminalSessionReconciliation],
   ['Virtual Computers gates terminal and display actions by machine type', testVirtualComputersTerminalActionGating],
+  ['Virtual Computers formats live expiry countdowns', testVirtualComputersExpiryCountdownFormatting],
   ['Virtual Computers ignores stale screenshot settlement', testVirtualComputersScreenshotSettlementIgnoresStaleRequests],
   ['Virtual Computers isolates resource failures', testVirtualComputersResourceFailuresStayIsolated],
   ['Virtual Computers preserves machine selection on refresh', testVirtualComputersSelectionSurvivesRefresh],

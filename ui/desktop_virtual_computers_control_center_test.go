@@ -86,6 +86,27 @@ func TestVirtualComputersMachineListPollingContract(t *testing.T) {
 	}
 }
 
+func TestVirtualComputersExpiryCountdownContract(t *testing.T) {
+	t.Parallel()
+
+	app := normalizeAssetText(mustReadUIFile(t, "js/desktop/apps/virtual-computers.js"))
+	for _, marker := range []string{
+		`const expiryCountdownIntervalMs = 1000;`,
+		`expiryCountdownTimer: null`,
+		`function formatExpiryCountdown(expiresAt, nowMs)`,
+		`function expiryCountdownMarkup(state, machine, className)`,
+		`function updateExpiryCountdowns(state)`,
+		`function scheduleExpiryCountdown(state)`,
+		`data-expiry-countdown`,
+		`scheduleExpiryCountdown(state);`,
+		`clearTimeout(state.expiryCountdownTimer)`,
+	} {
+		if !strings.Contains(app, marker) {
+			t.Errorf("virtual computers expiry countdown missing %q", marker)
+		}
+	}
+}
+
 func TestVirtualComputersDesktopUsesThemeAndContainerContracts(t *testing.T) {
 	t.Parallel()
 
