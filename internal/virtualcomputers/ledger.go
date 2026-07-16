@@ -46,7 +46,7 @@ func OpenLedger(path string) (*Ledger, error) {
 			return nil, fmt.Errorf("create virtual computers ledger dir: %w", err)
 		}
 	}
-	db, err := dbutil.Open(path)
+	db, err := dbutil.Open(path, dbutil.WithMaxOpenConns(1))
 	if err != nil {
 		return nil, fmt.Errorf("open virtual computers ledger: %w", err)
 	}

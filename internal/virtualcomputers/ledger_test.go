@@ -154,6 +154,18 @@ func TestOpenLedgersWaitForConcurrentWriter(t *testing.T) {
 	}
 }
 
+func TestOpenLedgerSerializesSharedHandleWrites(t *testing.T) {
+	ledger, err := OpenLedger(filepath.Join(t.TempDir(), "virtual_computers.db"))
+	if err != nil {
+		t.Fatalf("OpenLedger: %v", err)
+	}
+	defer ledger.Close()
+
+	if got := ledger.db.Stats().MaxOpenConnections; got != 1 {
+		t.Fatalf("MaxOpenConnections = %d, want 1", got)
+	}
+}
+
 func TestListTrackedVolumesVerifiesKnownCapabilities(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
