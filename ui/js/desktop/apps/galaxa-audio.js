@@ -212,7 +212,49 @@
             // NEW: Ambient loops (one-shot, called by biome system)
             ambientStormWind() { noise(1.5, 0.04, 400); beep('sine', 30, 30, 1.5, 0.02); },
             ambientBlackholeDrone() { beep('sine', 40, 40, 2, 0.04); beep('sine', 55, 55, 2, 0.03); },
-            ambientCrystalSparkle() { beep('sine', 2400, 2000, 0.3, 0.02); }
+            ambientCrystalSparkle() { beep('sine', 2400, 2000, 0.3, 0.02); },
+            // NEW: Deep sub-bass thump layered under boss/big explosions (paired with fxBossShockwave)
+            subThump(panX) { const _p = pv(), _v = vv(); beep('sine', 48 * _p, 26 * _p, 0.5, 0.55 * _v, panX); beep('triangle', 36 * _p, 20 * _p, 0.4, 0.3 * _v, panX); noise(0.35, 0.3 * _v, 250, panX); },
+            // NEW: Bright powerup chime with convolver reverb send (rare/legendary pickups)
+            powerupChime(panX) {
+                const a = audio(); if (!a || ctx.G.muted) return;
+                const _v = vv();
+                const notes = [1760, 2637, 5274];
+                for (let i = 0; i < notes.length; i++) {
+                    const o = a.createOscillator(), g = a.createGain();
+                    o.type = 'sine'; o.frequency.setValueAtTime(notes[i] * pv(), a.currentTime + i * 0.05);
+                    const peak = ctx.G.vol * (0.22 - i * 0.05) * _v;
+                    g.gain.setValueAtTime(0.0001, a.currentTime + i * 0.05);
+                    g.gain.exponentialRampToValueAtTime(Math.max(0.001, peak), a.currentTime + i * 0.05 + 0.015);
+                    g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + i * 0.05 + 0.35);
+                    let tail = g;
+                    if (panX !== undefined && a.createStereoPanner) { const p = a.createStereoPanner(); p.pan.value = Math.max(-1, Math.min(1, (panX / (ctx.W / 2)) - 1)); g.connect(p); tail = p; }
+                    o.connect(g); tail.connect(a.destination);
+                    if (ctx.reverbNode) { const rvbSend = a.createGain(); rvbSend.gain.value = 0.25; g.connect(rvbSend); rvbSend.connect(ctx.reverbNode); }
+                    o.start(a.currentTime + i * 0.05); o.stop(a.currentTime + i * 0.05 + 0.4);
+                }
+            },
+            // NEW: Warp whoosh — long bandpass-filtered noise sweep for stage transitions (paired with warp streaks)
+            warpWhoosh() {
+                const a = audio(); if (!a || ctx.G.muted) return;
+                const dur = 0.7, _v = vv();
+                const buf = a.createBuffer(1, Math.floor(a.sampleRate * dur), a.sampleRate), d = buf.getChannelData(0);
+                for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.sin((i / d.length) * Math.PI);
+                const s = a.createBufferSource(), f = a.createBiquadFilter(), g = a.createGain();
+                s.buffer = buf; f.type = 'bandpass'; f.Q.value = 1.2;
+                f.frequency.setValueAtTime(250, a.currentTime);
+                f.frequency.exponentialRampToValueAtTime(3200, a.currentTime + dur * 0.55);
+                f.frequency.exponentialRampToValueAtTime(900, a.currentTime + dur);
+                g.gain.setValueAtTime(ctx.G.vol * 0.28 * _v, a.currentTime);
+                g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + dur);
+                s.connect(f).connect(g).connect(a.destination);
+                if (ctx.reverbNode) { const rvbSend = a.createGain(); rvbSend.gain.value = 0.3; g.connect(rvbSend); rvbSend.connect(ctx.reverbNode); }
+                s.start(); s.stop(a.currentTime + dur + 0.01);
+            },
+            // NEW: Combo milestone arpeggio — base pitch rises a minor third per combo level
+            comboRiser(level, panX) { const base = 440 * Math.pow(1.1892, Math.min(level, 8)); [1, 1.26, 1.5, 2, 2.52].forEach((iv, i) => { setTimeout(() => beep('sine', base * iv, base * iv, 0.09, (0.2 + level * 0.02) * vv(), panX), i * 45); }); },
+            // NEW: Short high sparkle twinkle for precision score bonuses (headshots)
+            sparkleTwinkle(panX) { const _p = pv(); beep('sine', 2400 * _p, 2400 * _p, 0.05, 0.16, panX); setTimeout(() => beep('sine', 3600 * _p, 3600 * _p, 0.06, 0.14, panX), 55); }
         };
 
         const MusicEngine = {

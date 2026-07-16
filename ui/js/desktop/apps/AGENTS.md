@@ -185,6 +185,14 @@ registration lives in `internal/desktop/types.go`.
 
 ## Child DOX Index
 
+- `galaxa-fx.js` - Supplementary Galaxa visual-effects package: chromatic boss
+  shockwave rings, warp speed-line streaks, powerup sparkle bursts + rising
+  glints, directional bullet-impact spark cones, combo screen-edge pulses, and
+  ship afterimage ghosts. Attaches `ctx.fxBossShockwave()`, `ctx.fxWarpStart()`,
+  `ctx.fxPowerupSparkle()`, `ctx.fxSparkCone()`, `ctx.fxComboPulse()`,
+  `ctx.updateFX(dt)` and `ctx.fxDraw{Back,Mid,Ghosts,Overlay}(c)` via
+  `GC.createFx(ctx)`; caps scale with `ctx.settings.particles` via `GC.FX_CAPS`.
+  No child DOX file needed.
 - `writer.js` - Word-processing editor: Quill rich-text, auto-save with 800 ms
   debounce, dirty-state tracking, word/character/page status bar, find &
   replace overlay with match highlighting, enhanced formatting toolbar (font,

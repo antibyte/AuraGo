@@ -58,6 +58,8 @@
             }
             c.translate(sx, sy); c.fillStyle = '#000'; c.fillRect(-5, -5, W + 10, H + 10);
             ctx.drawNebula(c); ctx.drawStars(c);
+            // NEW: Warp speed-line streaks behind the game layer (galaxa-fx)
+            if (ctx.fxDrawBack) ctx.fxDrawBack(c);
             // NEW: Foreground parallax layer (debris, dust, ice shards)
             const _fgOff = (tick * 1.5) % H;
             c.globalAlpha = 0.4;
@@ -180,6 +182,8 @@
             else if (G.st === 'PAUSED') { ctx.renderGame(); ctx.renderPause(); }
             else if (G.st === 'SHOP') ctx.renderShop();
             else ctx.renderGame();
+            // NEW: Combo screen-edge pulse over the game layer (galaxa-fx)
+            if (ctx.fxDrawOverlay) ctx.fxDrawOverlay(c);
             if (G.demoMode) {
                 c.save();
                 c.fillStyle = 'rgba(0,0,0,0.55)';
@@ -311,6 +315,8 @@
                 ctx.c.globalAlpha = 1;
             }
 
+            // NEW: Ship afterimage ghosts under the live ship (galaxa-fx)
+            if (ctx.fxDrawGhosts) ctx.fxDrawGhosts(c);
             if (p.alive) {
                 ctx.c.save(); ctx.c.translate(p.x, p.y); ctx.c.rotate(ctx.G.shipTilt); ctx.c.transform(1, ctx.G.shipPitch || 0, 0, 1 - Math.abs(ctx.G.shipPitch || 0) * 0.35, 0, 0); ctx.c.translate(-p.x, -p.y);
                 const _egGlow = ctx.G.activePU && ctx.PU_COL[ctx.G.activePU.type] ? ctx.PU_COL[ctx.G.activePU.type] : '#ff6600';
@@ -957,6 +963,8 @@
                     ctx.c.shadowBlur = 0; ctx.c.globalAlpha = 1;
                 }
             }
+            // NEW: Boss shockwave rings + powerup glints above explosions (galaxa-fx)
+            if (ctx.fxDrawMid) ctx.fxDrawMid(c);
             for (const pt of ctx.G.part) {
                 const alpha = Math.max(0, 1 - pt.t / pt.life);
                 if (pt.smoke) {

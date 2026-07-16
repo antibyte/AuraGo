@@ -252,6 +252,18 @@
         miniboss: { flashR: 26, shockR: 70, debris: 14, smoke: 12, sparks: 24, cols: ['#ffcc00', '#ff8800', '#ff4444'] }
     };
 
+    // NEW: FX module tuning (galaxa-fx.js) — per-particle-setting caps so every
+    // new effect scales with the PARTICLES setting (low/medium/high).
+    GC.FX_CAPS = {
+        low: { sparkCone: 4, sparkle: 8, glint: 3, ghost: 4, streak: 10, ring: 2 },
+        medium: { sparkCone: 7, sparkle: 14, glint: 5, ghost: 6, streak: 18, ring: 3 },
+        high: { sparkCone: 10, sparkle: 20, glint: 8, ghost: 8, streak: 26, ring: 3 }
+    };
+    GC.FX_WARP_DUR = 1400;      // ms warp speed-line streaks stay active after a stage advance
+    GC.FX_GHOST_INTERVAL = 90;  // ms between ship afterimage snapshots
+    GC.FX_GHOST_LIFE = 260;     // ms afterimage fade time
+    GC.FX_GHOST_COL = '#66ddff'; // afterimage tint while speed-boosted (parry uses white)
+
     // NEW: Bonus sub-stage schedule (every 4 stages before boss)
     GC.BONUS_STAGE_EVERY = 4;
     GC.BONUS_STAGE_DURATION = 20000; // 20s

@@ -105,6 +105,9 @@
             ctx.G.intensityScore = Math.max(0, Math.min(10, (ctx.G.intensityScore || 5) + _intAdj));
             ctx.MusicEngine.setIntensity(ctx.G.intensityScore);
             ctx.SFX.warpJump();
+            // NEW: Warp speed-line streaks + filtered whoosh for the stage transition (galaxa-fx)
+            if (ctx.fxWarpStart) ctx.fxWarpStart();
+            if (ctx.SFX.warpWhoosh) ctx.SFX.warpWhoosh();
             if (!ctx.G.chal && !fromSkip) {
                 ctx.MusicEngine.play('victory');
                 setTimeout(() => { if (!ctx.state.disposed && ctx.MusicEngine.playing === 'victory') ctx.MusicEngine.play('gameplay'); }, 3500);
@@ -292,6 +295,8 @@
             if (Math.random() < 0.008) {
                 ctx.G.trails.push({ x: Math.random() * ctx.W, y: 0, vx: -30 - Math.random() * 50, vy: 100 + Math.random() * 80, life: 400, t: 0, col: '#ffffff', size: 1, spark: true });
             }
+            // NEW: Supplementary FX state update (rings, glints, ghosts, warp streaks, edge pulse)
+            if (ctx.updateFX) ctx.updateFX(dt);
         }
 
         function update(dt, now) {

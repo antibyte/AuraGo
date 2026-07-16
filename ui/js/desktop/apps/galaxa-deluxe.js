@@ -140,6 +140,7 @@
         GC.createRenderEffects(gameCtx);
         GC.createRenderStage(gameCtx);
         GC.createRenderHUD(gameCtx);
+        GC.createFx(gameCtx);
         GC.createSupers(gameCtx);
         GC.createBiomeTransitions(gameCtx);
         GC.createComboLadder(gameCtx);

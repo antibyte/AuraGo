@@ -338,13 +338,18 @@
                 ctx.G.plasmaRings.push({ x, y, r: 0, maxR: 100, t: 0, dur: 550, col: '#ff8800' });
                 ctx.G.plasmaRings.push({ x, y, r: 0, maxR: 60, t: 0, dur: 320, col: '#ffcc00' });
                 ctx.G.plasmaRings.push({ x, y, r: 0, maxR: 30, t: 0, dur: 200, col: '#ffffff' });
+                // NEW: Chromatic multi-ring shockwave + sub-bass thump (galaxa-fx)
+                if (ctx.fxBossShockwave) ctx.fxBossShockwave(x, y);
+                if (ctx.SFX.subThump) ctx.SFX.subThump(x);
             }
         }
-        function bulletImpact(x, y, col) {
+        function bulletImpact(x, y, col, dirX, dirY) {
             for (let i = 0; i < 4; i++) {
                 const a = Math.random() * Math.PI * 2, sp = 30 + Math.random() * 50;
                 ctx.G.part.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 80 + Math.random() * 60, t: 0, col: col || '#ffff88', size: 1, spark: true });
             }
+            // NEW: Optional directional spark cone along the bullet travel direction (galaxa-fx)
+            if (dirX !== undefined && dirY !== undefined && ctx.fxSparkCone) ctx.fxSparkCone(x, y, col, dirX, dirY);
         }
         function addScore(pts, x, y, col) {
             const prev = ctx.G.score;
@@ -383,6 +388,9 @@
                 ctx.G.comboBanner = { text: ctx.COMBO_TEXT[level], mult: ctx.G.comboMult, t: 0, dur: 1200 };
                 ctx.SFX.combo(level);
                 if (level >= 4) ctx.SFX.killStreak();
+                // NEW: Screen-edge pulse + rising pitch arpeggio on combo milestones (galaxa-fx)
+                if (ctx.fxComboPulse) ctx.fxComboPulse(level);
+                if (level >= 3 && ctx.SFX.comboRiser) ctx.SFX.comboRiser(level, ctx.W / 2);
             }
             if (ctx.G.combo === 10) {
                 for (const e of ctx.G.enemies) { if (e.st !== 'DEAD' && e.type !== 'boss' && e.type !== 'miniboss') { ctx.addScore(50, e.x, e.y, '#ff4444'); ctx.boom(e.x, e.y, false, e.type); e.st = 'DEAD'; } }
@@ -548,6 +556,13 @@
             for (let i = 0; i < 12; i++) {
                 const a = (i / 12) * Math.PI * 2, sp = 60 + Math.random() * 40;
                 ctx.G.part.push({ x: pu.x, y: pu.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 200 + Math.random() * 100, t: 0, col: puCol, size: 2, spark: true });
+            }
+            // NEW: Rarity-scaled sparkle burst + rising glints (galaxa-fx); rare/legendary get a reverb chime
+            if (ctx.fxPowerupSparkle) {
+                let _puRarity = 'common';
+                for (const _rk in ctx.PU_RARITY) { if (ctx.PU_RARITY[_rk].indexOf(pu.type) >= 0) { _puRarity = _rk; break; } }
+                ctx.fxPowerupSparkle(pu.x, pu.y, puCol || '#ffffff', _puRarity);
+                if ((_puRarity === 'rare' || _puRarity === 'legendary') && ctx.SFX.powerupChime) ctx.SFX.powerupChime(pu.x);
             }
         }
         function killP() {
@@ -887,6 +902,7 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                             if (e.st === 'DIVING') {
                                 ctx.G.scorePopups.push({ x: e.x, y: e.y - 16, text: 'HEADSHOT!', t: 0, dur: 800, col: '#ff8844', big: true });
                                 ctx.addScore(100, e.x, e.y - 10, '#ff8844');
+                                if (ctx.SFX.sparkleTwinkle) ctx.SFX.sparkleTwinkle(e.x);
                             }
                             if (ctx.G.combo > 0 && ctx.G.combo % 5 === 0) {
                                 ctx.G.scorePopups.push({ x: e.x + 15, y: e.y - 16, text: 'CHAIN x' + ctx.G.combo + '!', t: 0, dur: 800, col: '#44ff88', big: false });
@@ -939,7 +955,7 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                             const _remainingAlive = ctx.G.enemies.filter(_en => _en.st !== 'DEAD' && _en !== e).length;
                             if (_remainingAlive === 0 && e.type !== 'boss' && e.type !== 'miniboss') { ctx.G.timeScale = 0.2; ctx.G.slowMoT = 600; }
                             if (ctx.G.killCount % 10 === 0 && ctx.G.weaponLv < 4) { ctx.G.weaponLv++; ctx.SFX.weaponUp(); }
-                        }                         else e.hitF = 100;
+                        }                         else { e.hitF = 100; ctx.bulletImpact(b.x, b.y, '#ffee88', b.vx || 0, b.vy || -ctx.PB_SPEED); }
                         if (!b.laser && !b.pierce) { removed = true; break; }
                         if (b.laser) {
                             for (let li = 0; li < 4; li++) { const la = Math.random() * Math.PI * 2; ctx.G.part.push(getParticle({ x: e.x, y: e.y, vx: Math.cos(la) * 60, vy: Math.sin(la) * 60, life: 100 + Math.random() * 80, t: 0, col: '#aaccff', size: 1, spark: true })); }
