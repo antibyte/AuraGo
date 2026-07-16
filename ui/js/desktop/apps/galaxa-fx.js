@@ -121,6 +121,7 @@
                     maxR: 60 + i * 30, w: 4 - i * 0.6
                 });
             }
+            if (ctx.SFX && ctx.SFX.bossDeathRumble) ctx.SFX.bossDeathRumble(x);
         }
 
         // --- Graze particle flare near player --------------------------------
@@ -137,6 +138,7 @@
                     size: 1, spark: true, shape: 'diamond'
                 }));
             }
+            if (ctx.SFX && ctx.SFX.graze) ctx.SFX.graze(x);
         }
 
         // --- Combo fire trail behind player ----------------------------------
@@ -164,6 +166,7 @@
                     spark: true, shape: 'circle', fireTrail: true
                 }));
             }
+            if (ctx.SFX && ctx.SFX.fireTrailCrackle) ctx.SFX.fireTrailCrackle(p.x);
         }
 
         // --- Stage-clear confetti burst --------------------------------------
@@ -187,6 +190,7 @@
                     rotSpd: (Math.random() - 0.5) * 8
                 });
             }
+            if (ctx.SFX && ctx.SFX.stageFanfare) ctx.SFX.stageFanfare(x);
         }
 
         // --- Magnet pull-line visual -----------------------------------------
@@ -199,6 +203,7 @@
                 targetX: ctx.G.p.x, targetY: ctx.G.p.y,
                 lines: n
             });
+            if (ctx.SFX && ctx.SFX.magnetPull) ctx.SFX.magnetPull(powerupX);
         }
 
         // --- Player death screen flash (directional) -------------------------
@@ -211,6 +216,7 @@
                     delay: i * 60, maxR: 40 + i * 20, dur: 300 + i * 60
                 });
             }
+            if (ctx.SFX && ctx.SFX.playerDeathWhoosh) ctx.SFX.playerDeathWhoosh(x);
         }
 
         // --- Boss entrance rumble --------------------------------------------
@@ -221,6 +227,7 @@
             ctx.G.shkY = y;
             ctx.G.fxBossEnter = { x, y, t: 0, dur: 800 };
             if (!ctx.G.fxRings) ctx.G.fxRings = [];
+            if (ctx.SFX && ctx.SFX.bossEntrance) ctx.SFX.bossEntrance(x);
             ctx.G.fxRings.push({ x, y, t: 0, delay: 0, dur: 600, maxR: 100, w: 4 });
             ctx.G.fxRings.push({ x, y, t: 0, delay: 120, dur: 450, maxR: 70, w: 3 });
         }

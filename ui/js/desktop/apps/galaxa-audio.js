@@ -254,7 +254,44 @@
             // NEW: Combo milestone arpeggio — base pitch rises a minor third per combo level
             comboRiser(level, panX) { const base = 440 * Math.pow(1.1892, Math.min(level, 8)); [1, 1.26, 1.5, 2, 2.52].forEach((iv, i) => { setTimeout(() => beep('sine', base * iv, base * iv, 0.09, (0.2 + level * 0.02) * vv(), panX), i * 45); }); },
             // NEW: Short high sparkle twinkle for precision score bonuses (headshots)
-            sparkleTwinkle(panX) { const _p = pv(); beep('sine', 2400 * _p, 2400 * _p, 0.05, 0.16, panX); setTimeout(() => beep('sine', 3600 * _p, 3600 * _p, 0.06, 0.14, panX), 55); }
+            sparkleTwinkle(panX) { const _p = pv(); beep('sine', 2400 * _p, 2400 * _p, 0.05, 0.16, panX); setTimeout(() => beep('sine', 3600 * _p, 3600 * _p, 0.06, 0.14, panX), 55); },
+            // NEW: Graze — brief high-pitched "zip" when bullets skim the player
+            graze(panX) { const _p = pv(), _v = vv(); beep('triangle', 2800 * _p, 3600 * _p, 0.04, 0.12 * _v, panX); noise(0.03, 0.06 * _v, 8000, panX); },
+            // NEW: Boss entrance rumble — deep ominous stinger + sub-bass growl
+            bossEntrance(panX) { const _p = pv(), _v = vv(); beep('sawtooth', 60 * _p, 30 * _p, 0.8, 0.45 * _v, panX); beep('triangle', 40 * _p, 20 * _p, 0.6, 0.3 * _v, panX); noise(0.6, 0.25 * _v, 120, panX); setTimeout(() => { beep('sawtooth', 120 * _p, 80 * _p, 0.3, 0.3 * _v, panX); noise(0.2, 0.15 * _v, 300, panX); }, 300); },
+            // NEW: Stage clear fanfare — triumphant ascending arpeggio with reverb tail
+            stageFanfare(panX) {
+                const _v = vv();
+                [523, 659, 784, 1047, 1319, 1568, 2093, 2637].forEach((f, i) => {
+                    setTimeout(() => { beep('triangle', f, f, 0.12, 0.25 * _v, panX); if (i >= 4) beep('sine', f * 0.5, f * 0.5, 0.1, 0.1 * _v, panX); }, i * 60);
+                });
+                setTimeout(() => { beep('sine', 1047, 1047, 0.4, 0.2 * _v, panX); beep('triangle', 1568, 1568, 0.4, 0.15 * _v, panX); }, 560);
+            },
+            // NEW: Magnet pull — subtle electronic hum that rises in pitch
+            magnetPull(panX) { const _p = pv(); beep('sine', 400 * _p, 700 * _p, 0.15, 0.08, panX); beep('triangle', 600 * _p, 900 * _p, 0.12, 0.05, panX); },
+            // NEW: Player death whoosh — dramatic downward air-rush before explosion
+            playerDeathWhoosh(panX) {
+                const _v = vv(), _p = pv(); const a = audio(); if (!a || ctx.G.muted) return;
+                const dur = 0.4; const buf = a.createBuffer(1, Math.floor(a.sampleRate * dur), a.sampleRate), d = buf.getChannelData(0);
+                for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+                const s = a.createBufferSource(), f = a.createBiquadFilter(), g = a.createGain();
+                s.buffer = buf; f.type = 'bandpass'; f.frequency.setValueAtTime(3000 * _p, a.currentTime); f.frequency.exponentialRampToValueAtTime(200 * _p, a.currentTime + dur);
+                g.gain.setValueAtTime(ctx.G.vol * 0.35 * _v, a.currentTime); g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + dur);
+                if (panX !== undefined && a.createStereoPanner) { const p = a.createStereoPanner(); p.pan.value = Math.max(-1, Math.min(1, (panX / (ctx.W / 2)) - 1)); s.connect(f).connect(g).connect(p).connect(a.destination); } else { s.connect(f).connect(g).connect(a.destination); }
+                s.start(); s.stop(a.currentTime + dur + 0.01);
+                beep('sawtooth', 200 * _p, 50 * _p, 0.3, 0.3 * _v, panX);
+            },
+            // NEW: Combo fire trail — subtle crackle at high combo (throttled by caller)
+            fireTrailCrackle(panX) { const _v = vv(); noise(0.04, 0.04 * _v, 6000, panX); if (Math.random() < 0.3) beep('sawtooth', 150 + Math.random() * 100, 80, 0.03, 0.03 * _v, panX); },
+            // NEW: Boss death rumble — extended deep rumble + debris fade after boss kill
+            bossDeathRumble(panX) {
+                const _p = pv(), _v = vv();
+                beep('sine', 36 * _p, 18 * _p, 1.2, 0.5 * _v, panX);
+                beep('triangle', 24 * _p, 12 * _p, 1.0, 0.3 * _v, panX);
+                noise(0.8, 0.25 * _v, 100, panX);
+                setTimeout(() => { noise(0.4, 0.15 * _v, 200, panX); beep('sawtooth', 50 * _p, 25 * _p, 0.4, 0.2 * _v, panX); }, 400);
+                setTimeout(() => { noise(0.2, 0.08 * _v, 300, panX); }, 800);
+            }
         };
 
         const MusicEngine = {
