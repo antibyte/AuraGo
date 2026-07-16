@@ -1055,6 +1055,34 @@ func TestInjectVaultIndicatorsAddsAdditionalVaultBackedFields(t *testing.T) {
 	}
 }
 
+func TestInjectVaultIndicatorsAddsVirtualComputerSecrets(t *testing.T) {
+	const masterKey = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+	vault, err := security.NewVault(masterKey, filepath.Join(t.TempDir(), "vault.bin"))
+	if err != nil {
+		t.Fatalf("NewVault() error = %v", err)
+	}
+	for _, key := range []string{
+		"virtual_computers_boring_token",
+		"virtual_computers_anthropic_key",
+		"virtual_computers_openrouter_key",
+		"virtual_computers_s3_access_key_id",
+		"virtual_computers_s3_secret_key",
+	} {
+		if err := vault.WriteSecret(key, "configured-secret"); err != nil {
+			t.Fatalf("WriteSecret(%q) error = %v", key, err)
+		}
+	}
+
+	rawCfg := map[string]interface{}{"virtual_computers": map[string]interface{}{}}
+	injectVaultIndicators(rawCfg, vault)
+	section := rawCfg["virtual_computers"].(map[string]interface{})
+	for _, key := range []string{"boring_token", "boring_anthropic_key", "boring_openrouter_key", "s3_access_key_id", "s3_secret_key"} {
+		if section[key] != "••••••••" {
+			t.Errorf("virtual_computers.%s = %#v, want masked secret", key, section[key])
+		}
+	}
+}
+
 // TestConfigSaveLoadNoDuplicateKeys verifies that saving and loading a config
 // does not produce duplicate YAML keys (which would cause parse errors).
 func TestConfigSaveLoadNoDuplicateKeys(t *testing.T) {

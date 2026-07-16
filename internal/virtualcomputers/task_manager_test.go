@@ -1,6 +1,7 @@
 package virtualcomputers
 
 import (
+	"bytes"
 	"context"
 	"log/slog"
 	"net/http"
@@ -257,6 +258,60 @@ func TestTaskManagerPersistsErrorAndTimeoutTerminalStates(t *testing.T) {
 	timedOut := waitForAgentTask(t, timingOut, task.ID, AgentTaskStatusFailed)
 	if !strings.Contains(timedOut.Error, "timed out") {
 		t.Fatalf("timed out task = %+v", timedOut)
+	}
+}
+
+func TestTaskManagerLogsFailedTask(t *testing.T) {
+	var logs bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&logs, nil))
+	mgr, err := OpenTaskManager(t.TempDir()+"/failure-log.db", logger, TaskManagerOptions{})
+	if err != nil {
+		t.Fatalf("OpenTaskManager: %v", err)
+	}
+	defer mgr.Close()
+
+	now := time.Now().UTC()
+	task := AgentTask{
+		ID: "failed-log", MachineID: "vm-1", Kind: AgentTaskKindShell,
+		Instruction: "work", Status: AgentTaskStatusRunning, CreatedAt: now, UpdatedAt: now,
+	}
+	if err := mgr.ledger.InsertAgentTask(context.Background(), task); err != nil {
+		t.Fatalf("InsertAgentTask: %v", err)
+	}
+	mgr.finish(task.ID, AgentTaskStatusFailed, "the agent isn't configured on this server")
+
+	output := logs.String()
+	for _, want := range []string{"Virtual computer agent task failed", `task_id=failed-log`, `machine_id=vm-1`, `the agent isn't configured on this server`} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("failure log missing %q: %s", want, output)
+		}
+	}
+}
+
+func TestTaskManagerPreservesBoringdHandshakeError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusServiceUnavailable)
+		_, _ = w.Write([]byte(`{"error":"the agent isn't configured on this server"}`))
+	}))
+	defer server.Close()
+
+	client, err := NewClient(ClientConfig{BaseURL: server.URL, Timeout: time.Second})
+	if err != nil {
+		t.Fatalf("NewClient: %v", err)
+	}
+	mgr, err := OpenTaskManager(t.TempDir()+"/handshake-error.db", slog.Default(), TaskManagerOptions{Timeout: time.Second})
+	if err != nil {
+		t.Fatalf("OpenTaskManager: %v", err)
+	}
+	defer mgr.Close()
+	task, err := mgr.Submit(client, "vm-1", AgentTaskKindShell, "do work")
+	if err != nil {
+		t.Fatalf("Submit: %v", err)
+	}
+	failed := waitForAgentTask(t, mgr, task.ID, AgentTaskStatusFailed)
+	if !strings.Contains(failed.Error, "the agent isn't configured on this server") {
+		t.Fatalf("failed task error = %q", failed.Error)
 	}
 }
 

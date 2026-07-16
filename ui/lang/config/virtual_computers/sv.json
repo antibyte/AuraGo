@@ -93,5 +93,10 @@
   "help.virtual_computers.storage_region": "Valfri S3-region; tomt använder us-east-1.",
   "help.virtual_computers.storage_ssl": "Använder HTTPS för S3-anslutningen.",
   "help.virtual_computers.s3_access_key": "Sparar åtkomstnyckeln endast i Vault.",
-  "help.virtual_computers.s3_secret_key": "Sparar den hemliga nyckeln endast i Vault."
+  "help.virtual_computers.s3_secret_key": "Sparar den hemliga nyckeln endast i Vault.",
+  "config.virtual_computers.agent_provider_title": "Agentleverantör",
+  "config.virtual_computers.anthropic_key_label": "Anthropic API-nyckel",
+  "config.virtual_computers.openrouter_key_label": "OpenRouter API-nyckel",
+  "help.virtual_computers.anthropic_key": "Krävs för boringd-agentjobb. Sparas endast i Vault; kör Installera / Reparera efter en ändring.",
+  "help.virtual_computers.openrouter_key": "Valfri nyckel för boringds inferensgateway med andra modeller än Claude. Den konfigurerar inte agentjobb."
 }

@@ -93,5 +93,10 @@
   "help.virtual_computers.storage_region": "Volitelný region S3; prázdná hodnota použije us-east-1.",
   "help.virtual_computers.storage_ssl": "Použije HTTPS pro připojení k S3.",
   "help.virtual_computers.s3_access_key": "Uloží přístupový klíč pouze do Vaultu.",
-  "help.virtual_computers.s3_secret_key": "Uloží tajný klíč pouze do Vaultu."
+  "help.virtual_computers.s3_secret_key": "Uloží tajný klíč pouze do Vaultu.",
+  "config.virtual_computers.agent_provider_title": "Poskytovatel agenta",
+  "config.virtual_computers.anthropic_key_label": "Klíč API Anthropic",
+  "config.virtual_computers.openrouter_key_label": "Klíč API OpenRouter",
+  "help.virtual_computers.anthropic_key": "Je vyžadován pro úlohy agenta boringd. Ukládá se pouze do Vaultu; po změně spusť Instalovat / Opravit.",
+  "help.virtual_computers.openrouter_key": "Volitelný klíč pro inference bránu boringd pro jiné modely než Claude. Úlohy agenta nekonfiguruje."
 }

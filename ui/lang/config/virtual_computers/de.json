@@ -93,5 +93,10 @@
   "help.virtual_computers.storage_region": "Optionale S3-Region; leer verwendet us-east-1.",
   "help.virtual_computers.storage_ssl": "Verwendet HTTPS für die S3-Verbindung.",
   "help.virtual_computers.s3_access_key": "Speichert den Zugriffsschlüssel ausschließlich im Vault.",
-  "help.virtual_computers.s3_secret_key": "Speichert den geheimen Schlüssel ausschließlich im Vault."
+  "help.virtual_computers.s3_secret_key": "Speichert den geheimen Schlüssel ausschließlich im Vault.",
+  "config.virtual_computers.agent_provider_title": "Agent-Provider",
+  "config.virtual_computers.anthropic_key_label": "Anthropic-API-Schlüssel",
+  "config.virtual_computers.openrouter_key_label": "OpenRouter-API-Schlüssel",
+  "help.virtual_computers.anthropic_key": "Für boringd-Agentenjobs erforderlich. Wird nur im Vault gespeichert; führe nach einer Änderung Installieren / Reparieren aus.",
+  "help.virtual_computers.openrouter_key": "Optionaler Schlüssel für boringds Inferenz-Gateway mit Nicht-Claude-Modellen. Er konfiguriert keine Agentenjobs."
 }

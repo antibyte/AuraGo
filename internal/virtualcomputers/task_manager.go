@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
 	"strings"
 	"sync"
@@ -188,11 +189,25 @@ func (m *TaskManager) run(ctx context.Context, client *Client, task AgentTask) {
 		return
 	}
 	conn, resp, err := websocket.DefaultDialer.DialContext(ctx, wsURL, headers)
+	upstreamError := ""
 	if resp != nil && resp.Body != nil {
+		body, readErr := io.ReadAll(io.LimitReader(resp.Body, 8*1024))
 		_ = resp.Body.Close()
+		if readErr == nil {
+			var payload struct {
+				Error string `json:"error"`
+			}
+			if json.Unmarshal(body, &payload) == nil {
+				upstreamError = strings.TrimSpace(payload.Error)
+			}
+		}
 	}
 	if err != nil {
-		m.finish(task.ID, AgentTaskStatusFailed, fmt.Sprintf("connect boringd agent websocket: %v", err))
+		message := fmt.Sprintf("connect boringd agent websocket: %v", err)
+		if upstreamError != "" {
+			message += ": " + upstreamError
+		}
+		m.finish(task.ID, AgentTaskStatusFailed, message)
 		return
 	}
 	defer conn.Close()
@@ -309,8 +324,18 @@ func (m *TaskManager) CancelTask(id string) bool {
 }
 
 func (m *TaskManager) finish(id, status, errText string) {
-	if err := m.ledger.FinishAgentTask(context.Background(), id, status, errText); err != nil && m.logger != nil {
-		m.logger.Warn("Failed to finish virtual computer agent task", "task_id", id, "status", status, "error", err)
+	if err := m.ledger.FinishAgentTask(context.Background(), id, status, errText); err != nil {
+		if m.logger != nil {
+			m.logger.Warn("Failed to finish virtual computer agent task", "task_id", id, "status", status, "error", err)
+		}
+		return
+	}
+	if status == AgentTaskStatusFailed && m.logger != nil {
+		machineID := ""
+		if task, ok, err := m.ledger.GetAgentTask(context.Background(), id); err == nil && ok {
+			machineID = task.MachineID
+		}
+		m.logger.Warn("Virtual computer agent task failed", "task_id", id, "machine_id", machineID, "error", errText)
 	}
 }
 

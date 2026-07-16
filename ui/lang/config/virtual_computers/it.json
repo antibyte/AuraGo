@@ -93,5 +93,10 @@
   "help.virtual_computers.storage_region": "Regione S3 facoltativa; vuoto usa us-east-1.",
   "help.virtual_computers.storage_ssl": "Usa HTTPS per la connessione S3.",
   "help.virtual_computers.s3_access_key": "Salva la chiave di accesso solo nel Vault.",
-  "help.virtual_computers.s3_secret_key": "Salva la chiave segreta solo nel Vault."
+  "help.virtual_computers.s3_secret_key": "Salva la chiave segreta solo nel Vault.",
+  "config.virtual_computers.agent_provider_title": "Provider dell’agente",
+  "config.virtual_computers.anthropic_key_label": "Chiave API Anthropic",
+  "config.virtual_computers.openrouter_key_label": "Chiave API OpenRouter",
+  "help.virtual_computers.anthropic_key": "Necessaria per i processi agente di boringd. Viene salvata solo nel Vault; dopo una modifica esegui Installa / Ripara.",
+  "help.virtual_computers.openrouter_key": "Chiave facoltativa per il gateway di inferenza di boringd con modelli diversi da Claude. Non configura i processi agente."
 }

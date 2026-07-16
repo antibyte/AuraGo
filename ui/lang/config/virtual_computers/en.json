@@ -93,5 +93,10 @@
   "help.virtual_computers.storage_region": "Optional S3 region; blank uses us-east-1.",
   "help.virtual_computers.storage_ssl": "Uses HTTPS for the S3 connection.",
   "help.virtual_computers.s3_access_key": "Stores the access key only in the Vault.",
-  "help.virtual_computers.s3_secret_key": "Stores the secret key only in the Vault."
+  "help.virtual_computers.s3_secret_key": "Stores the secret key only in the Vault.",
+  "config.virtual_computers.agent_provider_title": "Agent provider",
+  "config.virtual_computers.anthropic_key_label": "Anthropic API key",
+  "config.virtual_computers.openrouter_key_label": "OpenRouter API key",
+  "help.virtual_computers.anthropic_key": "Required for boringd agent jobs. Stored only in the Vault; run Install / Repair after changing it.",
+  "help.virtual_computers.openrouter_key": "Optional key for boringd’s non-Claude inference gateway. It does not configure agent jobs."
 }

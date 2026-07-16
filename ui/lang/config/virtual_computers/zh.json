@@ -93,5 +93,10 @@
   "help.virtual_computers.storage_region": "可选 S3 区域；留空时使用 us-east-1。",
   "help.virtual_computers.storage_ssl": "S3 连接使用 HTTPS。",
   "help.virtual_computers.s3_access_key": "访问密钥仅存入 Vault。",
-  "help.virtual_computers.s3_secret_key": "私密密钥仅存入 Vault。"
+  "help.virtual_computers.s3_secret_key": "私密密钥仅存入 Vault。",
+  "config.virtual_computers.agent_provider_title": "智能体提供商",
+  "config.virtual_computers.anthropic_key_label": "Anthropic API 密钥",
+  "config.virtual_computers.openrouter_key_label": "OpenRouter API 密钥",
+  "help.virtual_computers.anthropic_key": "boringd 智能体任务需要此密钥。密钥仅保存在 Vault 中；更改后请运行“安装 / 修复”。",
+  "help.virtual_computers.openrouter_key": "用于 boringd 非 Claude 模型推理网关的可选密钥。它不会配置智能体任务。"
 }

@@ -92,6 +92,8 @@ TTY access is an interactive write channel. It requires Desktop write or admin a
 
 Shell and desktop agent tasks use boringd's authenticated WebSocket channels with a URL-encoded `goal`. Starting a task returns its ID immediately. AuraGo stores task state and ordered `say`, `action`, `preview`, `done`, and `error` events in `virtual_computers.db`. At restart, unfinished tasks become `interrupted` and are not retried. Canceling closes the task context without rolling back already executed actions. Native-tool output wraps event text as untrusted external data.
 
+Agent jobs require a dedicated Anthropic API key because the pinned boringd agent channels use Anthropic directly. Store it in the Virtual Computers settings under **Agent provider**, enable agent jobs, and run **Install / Repair** so AuraGo writes `BORING_ANTHROPIC_KEY` to the private boringd service. The optional OpenRouter key powers boringd's non-Claude inference gateway; it does not replace the Anthropic key for agent jobs. Both credentials remain Vault-only and are never serialized into `config.yaml` or returned to the browser. Failed asynchronous jobs are retained in task history and written to AuraGo's structured log without their instruction text.
+
 The REST API provides `GET|POST /api/virtual-computers/tasks` and `GET|DELETE /api/virtual-computers/tasks/{id}`. Read-only mode keeps task history readable but blocks starting and canceling tasks.
 
 ## Volume storage

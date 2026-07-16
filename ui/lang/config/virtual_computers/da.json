@@ -93,5 +93,10 @@
   "help.virtual_computers.storage_region": "Valgfri S3-region; tom bruger us-east-1.",
   "help.virtual_computers.storage_ssl": "Bruger HTTPS til S3-forbindelsen.",
   "help.virtual_computers.s3_access_key": "Gemmer kun adgangsnøglen i Vault.",
-  "help.virtual_computers.s3_secret_key": "Gemmer kun den hemmelige nøgle i Vault."
+  "help.virtual_computers.s3_secret_key": "Gemmer kun den hemmelige nøgle i Vault.",
+  "config.virtual_computers.agent_provider_title": "Agentudbyder",
+  "config.virtual_computers.anthropic_key_label": "Anthropic API-nøgle",
+  "config.virtual_computers.openrouter_key_label": "OpenRouter API-nøgle",
+  "help.virtual_computers.anthropic_key": "Kræves til boringd-agentjob. Gemmes kun i Vault; kør Installer / Reparer efter en ændring.",
+  "help.virtual_computers.openrouter_key": "Valgfri nøgle til boringds inferensgateway for modeller, der ikke er Claude. Den konfigurerer ikke agentjob."
 }

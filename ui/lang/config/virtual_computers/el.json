@@ -93,5 +93,10 @@
   "help.virtual_computers.storage_region": "Προαιρετική περιοχή S3· κενό χρησιμοποιεί us-east-1.",
   "help.virtual_computers.storage_ssl": "Χρησιμοποιεί HTTPS για τη σύνδεση S3.",
   "help.virtual_computers.s3_access_key": "Αποθηκεύει το κλειδί πρόσβασης μόνο στο Vault.",
-  "help.virtual_computers.s3_secret_key": "Αποθηκεύει το μυστικό κλειδί μόνο στο Vault."
+  "help.virtual_computers.s3_secret_key": "Αποθηκεύει το μυστικό κλειδί μόνο στο Vault.",
+  "config.virtual_computers.agent_provider_title": "Πάροχος πράκτορα",
+  "config.virtual_computers.anthropic_key_label": "Κλειδί API Anthropic",
+  "config.virtual_computers.openrouter_key_label": "Κλειδί API OpenRouter",
+  "help.virtual_computers.anthropic_key": "Απαιτείται για εργασίες πράκτορα boringd. Αποθηκεύεται μόνο στο Vault· μετά από αλλαγή εκτέλεσε Εγκατάσταση / Επιδιόρθωση.",
+  "help.virtual_computers.openrouter_key": "Προαιρετικό κλειδί για την πύλη συμπερασμού του boringd με μοντέλα εκτός Claude. Δεν ρυθμίζει εργασίες πράκτορα."
 }

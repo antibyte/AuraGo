@@ -93,5 +93,10 @@
   "help.virtual_computers.storage_region": "वैकल्पिक S3 क्षेत्र; खाली होने पर us-east-1।",
   "help.virtual_computers.storage_ssl": "S3 कनेक्शन के लिए HTTPS उपयोग करता है।",
   "help.virtual_computers.s3_access_key": "एक्सेस कुंजी केवल Vault में रखता है।",
-  "help.virtual_computers.s3_secret_key": "गुप्त कुंजी केवल Vault में रखता है।"
+  "help.virtual_computers.s3_secret_key": "गुप्त कुंजी केवल Vault में रखता है।",
+  "config.virtual_computers.agent_provider_title": "एजेंट प्रदाता",
+  "config.virtual_computers.anthropic_key_label": "Anthropic API कुंजी",
+  "config.virtual_computers.openrouter_key_label": "OpenRouter API कुंजी",
+  "help.virtual_computers.anthropic_key": "boringd एजेंट जॉब के लिए आवश्यक। इसे केवल Vault में सहेजा जाता है; बदलाव के बाद इंस्टॉल / रिपेयर चलाओ।",
+  "help.virtual_computers.openrouter_key": "Claude के अलावा अन्य मॉडलों के लिए boringd इन्फ़रेंस गेटवे की वैकल्पिक कुंजी। यह एजेंट जॉब कॉन्फ़िगर नहीं करती।"
 }

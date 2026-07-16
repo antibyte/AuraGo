@@ -93,5 +93,10 @@
   "help.virtual_computers.storage_region": "任意の S3 リージョン。空欄では us-east-1 を使用します。",
   "help.virtual_computers.storage_ssl": "S3 接続に HTTPS を使用します。",
   "help.virtual_computers.s3_access_key": "アクセスキーは Vault のみに保存します。",
-  "help.virtual_computers.s3_secret_key": "シークレットキーは Vault のみに保存します。"
+  "help.virtual_computers.s3_secret_key": "シークレットキーは Vault のみに保存します。",
+  "config.virtual_computers.agent_provider_title": "エージェントプロバイダー",
+  "config.virtual_computers.anthropic_key_label": "Anthropic APIキー",
+  "config.virtual_computers.openrouter_key_label": "OpenRouter APIキー",
+  "help.virtual_computers.anthropic_key": "boringdのエージェントジョブに必要です。Vaultにのみ保存されます。変更後に「インストール / 修復」を実行してください。",
+  "help.virtual_computers.openrouter_key": "Claude以外のモデル向けboringd推論ゲートウェイ用の任意キーです。エージェントジョブは設定されません。"
 }

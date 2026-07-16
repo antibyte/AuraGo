@@ -159,6 +159,22 @@ function renderVirtualComputersSection(section) {
     html += '</div>';
 
     html += '<div class="field-group">';
+    html += '<div class="field-group-title">' + t('config.virtual_computers.agent_provider_title') + '</div>';
+    html += '<div class="field-label">' + t('config.virtual_computers.anthropic_key_label') + '</div>';
+    html += '<div class="field-help">' + t('help.virtual_computers.anthropic_key') + '</div>';
+    html += '<div class="adg-password-row"><div class="password-wrap cfg-password-input">';
+    html += '<input class="field-input adg-password-input" type="password" id="vc-anthropic-key-input" value="' + escapeAttr(cfgSecretValue(data.boring_anthropic_key)) + '" placeholder="' + escapeAttr(cfgSecretPlaceholder(data.boring_anthropic_key, 'Anthropic API key')) + '" autocomplete="off">';
+    html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button></div>';
+    html += '<button class="btn-save adg-save-btn" onclick="vcCfgSaveSecret(\'vc-anthropic-key-input\', \'virtual_computers_anthropic_key\', \'virtual_computers.boring_anthropic_key\', \'vc-anthropic-key-status\')">' + t('config.virtual_computers.save_vault') + '</button></div><div id="vc-anthropic-key-status" class="adg-test-result"></div>';
+    html += '<div class="field-label">' + t('config.virtual_computers.openrouter_key_label') + '</div>';
+    html += '<div class="field-help">' + t('help.virtual_computers.openrouter_key') + '</div>';
+    html += '<div class="adg-password-row"><div class="password-wrap cfg-password-input">';
+    html += '<input class="field-input adg-password-input" type="password" id="vc-openrouter-key-input" value="' + escapeAttr(cfgSecretValue(data.boring_openrouter_key)) + '" placeholder="' + escapeAttr(cfgSecretPlaceholder(data.boring_openrouter_key, 'OpenRouter API key')) + '" autocomplete="off">';
+    html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button></div>';
+    html += '<button class="btn-save adg-save-btn" onclick="vcCfgSaveSecret(\'vc-openrouter-key-input\', \'virtual_computers_openrouter_key\', \'virtual_computers.boring_openrouter_key\', \'vc-openrouter-key-status\')">' + t('config.virtual_computers.save_vault') + '</button></div><div id="vc-openrouter-key-status" class="adg-test-result"></div>';
+    html += '</div>';
+
+    html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.virtual_computers.boring_token_label') + '</div>';
     html += '<div class="field-help">' + t('help.virtual_computers.boring_token') + '</div>';
     html += '<div class="adg-password-row">';

@@ -93,5 +93,10 @@
   "help.virtual_computers.storage_region": "Optionele S3-regio; leeg gebruikt us-east-1.",
   "help.virtual_computers.storage_ssl": "Gebruikt HTTPS voor de S3-verbinding.",
   "help.virtual_computers.s3_access_key": "Slaat de toegangssleutel alleen in de Vault op.",
-  "help.virtual_computers.s3_secret_key": "Slaat de geheime sleutel alleen in de Vault op."
+  "help.virtual_computers.s3_secret_key": "Slaat de geheime sleutel alleen in de Vault op.",
+  "config.virtual_computers.agent_provider_title": "Agentprovider",
+  "config.virtual_computers.anthropic_key_label": "Anthropic-API-sleutel",
+  "config.virtual_computers.openrouter_key_label": "OpenRouter-API-sleutel",
+  "help.virtual_computers.anthropic_key": "Vereist voor boringd-agenttaken. Wordt alleen in de Vault opgeslagen; voer na een wijziging Installeren / Herstellen uit.",
+  "help.virtual_computers.openrouter_key": "Optionele sleutel voor de boringd-inferentiegateway met niet-Claude-modellen. Hiermee worden agenttaken niet geconfigureerd."
 }
