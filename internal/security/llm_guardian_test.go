@@ -1,17 +1,72 @@
 package security
 
 import (
+	"bytes"
 	"context"
 	"log/slog"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/danielthedm/promptsec"
 	openai "github.com/sashabaranov/go-openai"
 
 	"aurago/internal/config"
 )
+
+func TestLLMGuardianJudgeDeadlineRespectsFailSafe(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(100 * time.Millisecond)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"role":"assistant","content":"safe 0 delayed"}}]}`))
+	}))
+	defer server.Close()
+
+	tests := []struct {
+		failSafe string
+		want     promptsec.LLMJudgeVerdict
+	}{
+		{failSafe: "allow", want: promptsec.LLMJudgeVerdictSafe},
+		{failSafe: "quarantine", want: promptsec.LLMJudgeVerdictUnknown},
+		{failSafe: "block", want: promptsec.LLMJudgeVerdictUnsafe},
+	}
+	for _, tt := range tests {
+		t.Run(tt.failSafe, func(t *testing.T) {
+			var logs bytes.Buffer
+			logger := slog.New(slog.NewTextHandler(&logs, nil))
+			cfg := &config.Config{}
+			cfg.LLMGuardian.FailSafe = tt.failSafe
+			cfg.LLMGuardian.TimeoutSecs = 30
+			clientCfg := openai.DefaultConfig("test-key")
+			clientCfg.BaseURL = server.URL + "/v1"
+			guardian := &LLMGuardian{
+				cfg: cfg, logger: logger, client: openai.NewClientWithConfig(clientCfg), model: "test-model",
+				cache: NewGuardianCache(60, 10), Metrics: &GuardianMetrics{}, sem: make(chan struct{}, 1),
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+			defer cancel()
+
+			decision, err := guardian.Judge(ctx, promptsec.LLMJudgeRequest{Input: "routine heartbeat status", Policy: "status"})
+			if err != nil {
+				t.Fatalf("Judge: %v", err)
+			}
+			if decision.Verdict != tt.want {
+				t.Fatalf("verdict = %q, want %q", decision.Verdict, tt.want)
+			}
+			output := logs.String()
+			if count := strings.Count(output, "level=WARN"); count != 1 {
+				t.Fatalf("warning count = %d, want 1; logs=%s", count, output)
+			}
+			for _, marker := range []string{"LLM check timed out", "operation=promptsec_judge", "latency_ms="} {
+				if !strings.Contains(output, marker) {
+					t.Fatalf("timeout log missing %q: %s", marker, output)
+				}
+			}
+		})
+	}
+}
 
 func TestParseGuardianResponse(t *testing.T) {
 	tests := []struct {

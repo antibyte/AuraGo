@@ -1,10 +1,25 @@
 package llm
 
 import (
+	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 	"time"
 )
+
+type expectedDeadlineContextKey struct{}
+
+// WithExpectedDeadline marks a request whose deadline is an expected bounded
+// degradation path. The marker contains no prompt or credential data.
+func WithExpectedDeadline(ctx context.Context) context.Context {
+	return context.WithValue(ctx, expectedDeadlineContextKey{}, true)
+}
+
+func hasExpectedDeadline(ctx context.Context) bool {
+	expected, _ := ctx.Value(expectedDeadlineContextKey{}).(bool)
+	return expected
+}
 
 // loggingTransport wraps an http.RoundTripper and records precise timing for
 // every LLM request so operators can tell where time is spent:
@@ -42,6 +57,14 @@ func (t *loggingTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 	resp, err := t.base.RoundTrip(req)
 	elapsed := time.Since(start)
 
+	if err != nil && hasExpectedDeadline(req.Context()) && errors.Is(err, context.DeadlineExceeded) {
+		t.logger.Debug("[LLM Transport] roundtrip_done (expected deadline)",
+			"method", method,
+			"url", url,
+			"elapsed_ms", elapsed.Milliseconds(),
+		)
+		return nil, err
+	}
 	if err != nil {
 		t.logger.Error("[LLM Transport] roundtrip_done (error)",
 			"method", method,

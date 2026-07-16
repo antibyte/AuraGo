@@ -2,6 +2,7 @@ package security
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"regexp"
@@ -277,6 +278,7 @@ func (g *LLMGuardian) EvaluateWithFailSafe(ctx context.Context, check GuardianCh
 	if timeout <= 0 {
 		timeout = 30 * time.Second
 	}
+	ctx = llm.WithExpectedDeadline(ctx)
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	return g.Evaluate(ctx, check)
@@ -335,7 +337,13 @@ func (g *LLMGuardian) callLLM(ctx context.Context, check GuardianCheck, start ti
 
 	resp, err := g.client.CreateChatCompletion(ctx, req)
 	if err != nil {
-		g.logger.Warn("[Guardian] LLM call failed", "error", err, "operation", check.Operation)
+		if errors.Is(err, context.DeadlineExceeded) {
+			g.logger.Warn("[Guardian] LLM check timed out; applying fail-safe",
+				"operation", check.Operation,
+				"latency_ms", time.Since(start).Milliseconds())
+		} else {
+			g.logger.Warn("[Guardian] LLM call failed", "error", err, "operation", check.Operation)
+		}
 		g.Metrics.RecordError()
 		return g.failSafeResult(start, fmt.Sprintf("LLM error: %v", err))
 	}
