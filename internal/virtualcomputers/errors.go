@@ -40,6 +40,7 @@ func ClassifyError(err error) ClassifiedError {
 		classified.Code, classified.HTTPStatus = "machine_busy", http.StatusConflict
 	case restErr.StatusCode == http.StatusNotFound && strings.Contains(restErr.Path, "/v1/volumes") && !looksLikeJSON(restErr.Body):
 		classified.Code, classified.HTTPStatus = "storage_unavailable", http.StatusServiceUnavailable
+		classified.Message = "boringd volume storage is unavailable because its S3 routes are not active; verify the Virtual Computers S3 settings and run Install / Repair"
 	case restErr.StatusCode == http.StatusNotFound:
 		classified.Code, classified.HTTPStatus = "not_found", http.StatusNotFound
 	case restErr.StatusCode == http.StatusTooManyRequests:

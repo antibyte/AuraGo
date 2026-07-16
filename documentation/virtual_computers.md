@@ -113,3 +113,5 @@ virtual_computers:
 ```
 
 Store the S3 access and secret keys through the Virtual Computers Vault fields. AuraGo writes the corresponding `BORING_S3_*` environment values during managed setup and never serializes credentials into `config.yaml`. The Storage Test performs an authenticated, read-only bucket HEAD request and does not create buckets or objects.
+
+The managed installer writes `BORING_S3_SSL` using boringd's required `1`/`0` contract. If boringd cannot initialize S3 at startup, it deliberately does not register its volume routes; AuraGo reports this as unavailable storage with instructions to verify the S3 settings and run **Install / Repair** instead of exposing the upstream `404 page not found` response.

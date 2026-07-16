@@ -7,7 +7,6 @@ import (
 	"net"
 	"net/url"
 	"regexp"
-	"strconv"
 	"strings"
 )
 
@@ -233,6 +232,10 @@ func (m SetupManager) installScript() string {
 	if opts.SkipDesktop {
 		skipDesktop = "1"
 	}
+	s3UseSSL := "0"
+	if opts.S3UseSSL {
+		s3UseSSL = "1"
+	}
 
 	script := fmt.Sprintf(`set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
@@ -357,7 +360,7 @@ systemctl restart boringd
 sleep 2
 systemctl is-active boringd
 curl -fsS --max-time 8 "${BORING_HEALTH_URL_VALUE}"
-`, shellQuote(installDir), shellQuote(PinnedUpstreamRevision), shellQuote(envLine(token)), shellQuote(envLine(opts.AnthropicKey)), shellQuote(envLine(opts.OpenRouterKey)), shellQuote(envLine(opts.S3AccessKeyID)), shellQuote(envLine(opts.S3SecretKey)), shellQuote(envLine(opts.S3Endpoint)), shellQuote(envLine(opts.S3Bucket)), shellQuote(envLine(opts.S3Region)), shellQuote(strconv.FormatBool(opts.S3UseSSL)), shellQuote(boringdAddr), shellQuote(healthURL), maxMachines, maxForks, maxTemplates, allowPersistent, guestNet, skipDesktop)
+`, shellQuote(installDir), shellQuote(PinnedUpstreamRevision), shellQuote(envLine(token)), shellQuote(envLine(opts.AnthropicKey)), shellQuote(envLine(opts.OpenRouterKey)), shellQuote(envLine(opts.S3AccessKeyID)), shellQuote(envLine(opts.S3SecretKey)), shellQuote(envLine(opts.S3Endpoint)), shellQuote(envLine(opts.S3Bucket)), shellQuote(envLine(opts.S3Region)), shellQuote(s3UseSSL), shellQuote(boringdAddr), shellQuote(healthURL), maxMachines, maxForks, maxTemplates, allowPersistent, guestNet, skipDesktop)
 	return script + managementInstallScript(opts)
 }
 

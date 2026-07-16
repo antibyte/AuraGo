@@ -221,6 +221,25 @@ func TestSetupInstallConfiguresManagedVolumeStorage(t *testing.T) {
 	}
 }
 
+func TestSetupInstallUsesBoringdS3SSLFlagContract(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		useSSL bool
+		want   string
+	}{
+		{name: "enabled", useSSL: true, want: "BORING_S3_SSL_VALUE='1'"},
+		{name: "disabled", useSSL: false, want: "BORING_S3_SSL_VALUE='0'"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			manager := SetupManager{InstallOptions: SetupInstallOptions{S3UseSSL: tc.useSSL}}
+			script := manager.installScript()
+			if !strings.Contains(script, tc.want) {
+				t.Fatalf("install script missing %q", tc.want)
+			}
+		})
+	}
+}
+
 func TestSetupPreflightReportsMissingManagedVolumeStorage(t *testing.T) {
 	manager := SetupManager{
 		Executor:       &fakeSSHExecutor{output: "HOST_OS=linux\nARCH=amd64\nHAS_KVM=1\nOS_ID=ubuntu\nRUNNING_IN_DOCKER=0\nHAS_SYSTEMD=1\nHAS_SUDO_OR_ROOT=1\n"},
