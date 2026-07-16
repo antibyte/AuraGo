@@ -341,6 +341,10 @@
                 // NEW: Chromatic multi-ring shockwave + sub-bass thump (galaxa-fx)
                 if (ctx.fxBossShockwave) ctx.fxBossShockwave(x, y);
                 if (ctx.SFX.subThump) ctx.SFX.subThump(x);
+                // NEW: Boss death rumble — extended screen shake + vignette (galaxa-fx)
+                if (ctx.fxBossDeathRumble) ctx.fxBossDeathRumble(x, y);
+                // NEW: Stage-clear confetti burst (galaxa-fx)
+                if (ctx.fxStageClearConfetti) ctx.fxStageClearConfetti(x, y);
             }
         }
         function bulletImpact(x, y, col, dirX, dirY) {
@@ -588,6 +592,8 @@
 ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.pExplode(ctx.G.p.x); ctx.G.shkT = 300; ctx.G.shkM = 4; ctx.G.lives--; ctx.G.stageDamageTaken = (ctx.G.stageDamageTaken || 0) + 1;
             ctx.wrapEl.classList.add('galaxa-desaturate'); setTimeout(() => { if (!ctx.state.disposed) ctx.wrapEl.classList.remove('galaxa-desaturate'); }, 800);
             ctx.G.flashT = 50; ctx.G.chromAb = 300; ctx.G.damageVignetteT = 800; ctx.G.activePU = null; ctx.G.shieldHits = 0; ctx.G.timeScale = 1; ctx.G.timeSlowTimer = 0; ctx.G.puUpgrade = null;
+            // NEW: Player death flash rings (galaxa-fx)
+            if (ctx.fxPlayerDeathFlash) ctx.fxPlayerDeathFlash(ctx.G.p.x, ctx.G.p.y);
             ctx.G.weaponLv = Math.max(1, ctx.G.weaponLv - 1);
             let savedCombo = 0;
             for (let i = ctx.COMBO_THRESH.length - 1; i >= 0; i--) { if (ctx.G.combo >= ctx.COMBO_THRESH[i]) { savedCombo = ctx.COMBO_THRESH[i]; break; } }
@@ -760,7 +766,7 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                 for (const pu of ctx.G.powerups) {
                     const dx = ctx.G.p.x - pu.x, dy = ctx.G.p.y - pu.y;
                     const dist = Math.sqrt(dx * dx + dy * dy);
-                    if (dist < 80 && dist > 5) { pu.x += dx / dist * 120 * dt; pu.y += dy / dist * 120 * dt; }
+                    if (dist < 80 && dist > 5) { pu.x += dx / dist * 120 * dt; pu.y += dy / dist * 120 * dt; if (ctx.fxMagnetPull && Math.random() < 0.04) ctx.fxMagnetPull(pu.x, pu.y); }
                 }
             }
             // NEW: Overcharge timer decay
@@ -1284,7 +1290,7 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                             e.st = 'FORM';
                             e.spawnAnim = e.spawnDur;
                             for (let _ei = 0; _ei < 2; _ei++) { const _ea = Math.random() * Math.PI * 2; ctx.G.part.push({ x: e.x, y: e.y, vx: Math.cos(_ea)*25, vy: Math.sin(_ea)*25, life: 200, t: 0, col: e.type === 'bee' ? '#ffcc00' : e.type === 'butterfly' ? '#ff3366' : e.type === 'hunter' ? '#ff6600' : e.type === 'spinner' ? '#44ffff' : e.type === 'bomber' ? '#cc66ff' : e.type === 'lasher' ? '#44ff88' : '#44cc44', size: 1, spark: true }); }
-                            if ((e.type === 'boss' || e.type === 'miniboss') && !ctx.G.bossWarningShown) { ctx.G.bossWarningT = 2000; ctx.G.bossWarningShown = true; if (e.type === 'miniboss') ctx.SFX.miniBossWarning(); else ctx.SFX.bossWarning(); }
+                            if ((e.type === 'boss' || e.type === 'miniboss') && !ctx.G.bossWarningShown) { ctx.G.bossWarningT = 2000; ctx.G.bossWarningShown = true; if (e.type === 'miniboss') ctx.SFX.miniBossWarning(); else ctx.SFX.bossWarning(); if (ctx.fxBossEntrance) ctx.fxBossEntrance(e.x, e.y); }
                             if (e.type === 'hunter') { ctx.G.bossWarningT = Math.max(ctx.G.bossWarningT || 0, 1000); ctx.SFX.hunterDive(e.x); }
                         }
                     }

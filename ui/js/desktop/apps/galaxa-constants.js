@@ -255,14 +255,22 @@
     // NEW: FX module tuning (galaxa-fx.js) — per-particle-setting caps so every
     // new effect scales with the PARTICLES setting (low/medium/high).
     GC.FX_CAPS = {
-        low: { sparkCone: 4, sparkle: 8, glint: 3, ghost: 4, streak: 10, ring: 2 },
-        medium: { sparkCone: 7, sparkle: 14, glint: 5, ghost: 6, streak: 18, ring: 3 },
-        high: { sparkCone: 10, sparkle: 20, glint: 8, ghost: 8, streak: 26, ring: 3 }
+        low: { sparkCone: 4, sparkle: 8, glint: 3, ghost: 4, streak: 10, ring: 2, graze: 2, fireTrail: 4, confetti: 8, deathFlash: 2 },
+        medium: { sparkCone: 7, sparkle: 14, glint: 5, ghost: 6, streak: 18, ring: 3, graze: 4, fireTrail: 8, confetti: 16, deathFlash: 3 },
+        high: { sparkCone: 10, sparkle: 20, glint: 8, ghost: 8, streak: 26, ring: 3, graze: 6, fireTrail: 12, confetti: 28, deathFlash: 5 }
     };
     GC.FX_WARP_DUR = 1400;      // ms warp speed-line streaks stay active after a stage advance
     GC.FX_GHOST_INTERVAL = 90;  // ms between ship afterimage snapshots
     GC.FX_GHOST_LIFE = 260;     // ms afterimage fade time
     GC.FX_GHOST_COL = '#66ddff'; // afterimage tint while speed-boosted (parry uses white)
+    GC.FX_GRAZE_RADIUS = 16;    // px — graze trigger distance from player center to bullet edge
+    GC.FX_GRAZE_PART_COUNT = 3; // particles per graze tick
+    GC.FX_GRAZE_COOLDOWN = 80;  // ms between graze triggers
+    GC.FX_FIRE_TRAIL_COMBO = 5; // combo threshold for fire trail activation
+    GC.FX_FIRE_TRAIL_INTERVAL = 45; // ms between fire trail drops
+    GC.FX_FIRE_TRAIL_LIFE = 500; // ms fire trail particle lifetime
+    GC.FX_MAGNET_PULL_COL = '#ff44ff'; // magnet pull-line color
+    GC.FX_MAGNET_PULL_LINES = 6; // pull-lines drawn
 
     // NEW: Bonus sub-stage schedule (every 4 stages before boss)
     GC.BONUS_STAGE_EVERY = 4;

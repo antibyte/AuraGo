@@ -60,6 +60,8 @@
             ctx.drawNebula(c); ctx.drawStars(c);
             // NEW: Warp speed-line streaks behind the game layer (galaxa-fx)
             if (ctx.fxDrawBack) ctx.fxDrawBack(c);
+            // NEW: Boss entrance shockwave (galaxa-fx)
+            if (ctx.fxDrawBossEnter) ctx.fxDrawBossEnter(c);
             // NEW: Foreground parallax layer (debris, dust, ice shards)
             const _fgOff = (tick * 1.5) % H;
             c.globalAlpha = 0.4;
@@ -184,6 +186,12 @@
             else ctx.renderGame();
             // NEW: Combo screen-edge pulse over the game layer (galaxa-fx)
             if (ctx.fxDrawOverlay) ctx.fxDrawOverlay(c);
+            // NEW: Confetti over the game layer (galaxa-fx)
+            if (ctx.fxDrawConfetti) ctx.fxDrawConfetti(c);
+            // NEW: Magnet pull-lines (galaxa-fx)
+            if (ctx.fxDrawPullLines) ctx.fxDrawPullLines(c);
+            // NEW: Boss death rumble overlay (galaxa-fx)
+            if (ctx.fxDrawRumbleOverlay) ctx.fxDrawRumbleOverlay(c);
             if (G.demoMode) {
                 c.save();
                 c.fillStyle = 'rgba(0,0,0,0.55)';
@@ -317,6 +325,8 @@
 
             // NEW: Ship afterimage ghosts under the live ship (galaxa-fx)
             if (ctx.fxDrawGhosts) ctx.fxDrawGhosts(c);
+            // NEW: Combo fire trail (galaxa-fx)
+            if (ctx.fxDrawFireTrail) ctx.fxDrawFireTrail(c);
             if (p.alive) {
                 ctx.c.save(); ctx.c.translate(p.x, p.y); ctx.c.rotate(ctx.G.shipTilt); ctx.c.transform(1, ctx.G.shipPitch || 0, 0, 1 - Math.abs(ctx.G.shipPitch || 0) * 0.35, 0, 0); ctx.c.translate(-p.x, -p.y);
                 const _egGlow = ctx.G.activePU && ctx.PU_COL[ctx.G.activePU.type] ? ctx.PU_COL[ctx.G.activePU.type] : '#ff6600';
