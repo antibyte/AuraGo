@@ -628,12 +628,14 @@ func handleVirtualComputersVolumes(s *Server) http.HandlerFunc {
 		}
 		switch r.Method {
 		case http.MethodGet:
-			ledger, err := virtualComputersLedger(s)
+			ledger, owned, err := virtualComputersLedger(s)
 			if err != nil || ledger == nil {
 				writeVirtualComputersAPIError(w, "storage_unavailable", "virtual computer ledger is unavailable", http.StatusServiceUnavailable)
 				return
 			}
-			defer ledger.Close()
+			if owned {
+				defer ledger.Close()
+			}
 			volumes, err := virtualcomputers.ListTrackedVolumes(r.Context(), ledger, client)
 			if err != nil {
 				writeVirtualComputersError(w, err)
@@ -1259,24 +1261,28 @@ func splitVirtualComputerMachinePath(path string) (string, string) {
 	return machineID, tail
 }
 
-func virtualComputersLedger(s *Server) (*virtualcomputers.Ledger, error) {
+func virtualComputersLedger(s *Server) (*virtualcomputers.Ledger, bool, error) {
 	if s == nil || s.Cfg == nil {
-		return nil, nil
+		return nil, false, nil
+	}
+	if s.VirtualComputersDB != nil {
+		return s.VirtualComputersDB, false, nil
 	}
 	s.CfgMu.RLock()
 	path := s.Cfg.SQLite.VirtualComputersPath
 	s.CfgMu.RUnlock()
 	if strings.TrimSpace(path) == "" {
-		return nil, nil
+		return nil, false, nil
 	}
-	return virtualcomputers.OpenLedger(path)
+	ledger, err := virtualcomputers.OpenLedger(path)
+	return ledger, ledger != nil, err
 }
 
 func virtualComputersWithLedger(s *Server, r *http.Request, fn func(*virtualcomputers.Ledger) error) {
 	if fn == nil {
 		return
 	}
-	ledger, err := virtualComputersLedger(s)
+	ledger, owned, err := virtualComputersLedger(s)
 	if err != nil {
 		virtualComputersLogLedgerError(s, err)
 		return
@@ -1284,7 +1290,9 @@ func virtualComputersWithLedger(s *Server, r *http.Request, fn func(*virtualcomp
 	if ledger == nil {
 		return
 	}
-	defer ledger.Close()
+	if owned {
+		defer ledger.Close()
+	}
 	if err := fn(ledger); err != nil {
 		virtualComputersLogLedgerError(s, err)
 	}

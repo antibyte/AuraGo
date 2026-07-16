@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"aurago/internal/dbutil"
+
 	_ "modernc.org/sqlite"
 )
 
@@ -44,14 +46,10 @@ func OpenLedger(path string) (*Ledger, error) {
 			return nil, fmt.Errorf("create virtual computers ledger dir: %w", err)
 		}
 	}
-	db, err := sql.Open("sqlite", path)
+	db, err := dbutil.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("open virtual computers ledger: %w", err)
 	}
-	// A single connection keeps concurrent task and volume writers serialized.
-	// HTTP capability checks remain parallel and queue only their short DB updates.
-	db.SetMaxOpenConns(1)
-	db.SetMaxIdleConns(1)
 	ledger := &Ledger{db: db, path: path}
 	if err := ledger.Migrate(context.Background()); err != nil {
 		_ = db.Close()
@@ -70,6 +68,13 @@ func (l *Ledger) Close() error {
 func (l *Ledger) Migrate(ctx context.Context) error {
 	if l == nil || l.db == nil {
 		return fmt.Errorf("virtual computers ledger is not open")
+	}
+	current, err := l.currentSchemaInstalled(ctx)
+	if err != nil {
+		return err
+	}
+	if current {
+		return nil
 	}
 	needsBackup, err := l.needsV2Migration(ctx)
 	if err != nil {
@@ -196,6 +201,25 @@ func (l *Ledger) Migrate(ctx context.Context) error {
 		return fmt.Errorf("commit virtual computers migration: %w", err)
 	}
 	return nil
+}
+
+func (l *Ledger) currentSchemaInstalled(ctx context.Context) (bool, error) {
+	var tableCount int
+	if err := l.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'schema_meta'`).Scan(&tableCount); err != nil {
+		return false, fmt.Errorf("inspect virtual computers schema metadata: %w", err)
+	}
+	if tableCount == 0 {
+		return false, nil
+	}
+	var version string
+	err := l.db.QueryRowContext(ctx, `SELECT value FROM schema_meta WHERE key = 'schema_version'`).Scan(&version)
+	if err == sql.ErrNoRows {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("read virtual computers schema version: %w", err)
+	}
+	return version == "2", nil
 }
 
 func (l *Ledger) needsV2Migration(ctx context.Context) (bool, error) {

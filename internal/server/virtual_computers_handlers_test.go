@@ -19,6 +19,23 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+func TestVirtualComputersLedgerReusesServerDependency(t *testing.T) {
+	ledger, err := virtualcomputers.OpenLedger(filepath.Join(t.TempDir(), "virtual_computers.db"))
+	if err != nil {
+		t.Fatalf("OpenLedger: %v", err)
+	}
+	defer ledger.Close()
+
+	s := &Server{Cfg: &config.Config{}, VirtualComputersDB: ledger}
+	got, owned, err := virtualComputersLedger(s)
+	if err != nil {
+		t.Fatalf("virtualComputersLedger: %v", err)
+	}
+	if got != ledger || owned {
+		t.Fatalf("got=%p owned=%v, want shared %p owned=false", got, owned, ledger)
+	}
+}
+
 func TestVirtualComputersPreviewProxyKeepsTokenServerSide(t *testing.T) {
 	var upstreamAuth string
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -41,6 +41,7 @@ import (
 	"aurago/internal/sqlconnections"
 	"aurago/internal/tools"
 	"aurago/internal/tsnetnode"
+	"aurago/internal/virtualcomputers"
 	"aurago/internal/warnings"
 	"aurago/internal/webhooks"
 
@@ -187,6 +188,7 @@ type Server struct {
 	DesktopService       *desktop.Service
 	DesktopStore         *desktopstore.Service
 	DesktopHub           *desktop.Hub
+	VirtualComputersDB   *virtualcomputers.Ledger
 	DesktopMu            sync.Mutex
 	// IsFirstStart is true if core_memory.md was just freshly created (no prior data).
 	IsFirstStart    bool
@@ -272,6 +274,7 @@ type StartOptions struct {
 	SQLConnectionsDB     *sql.DB
 	SQLConnectionPool    *sqlconnections.ConnectionPool
 	BackgroundTasks      *tools.BackgroundTaskManager
+	VirtualComputersDB   *virtualcomputers.Ledger
 	EggMissionResultSink func(result bridge.MissionResultPayload) error
 	WarningsRegistry     *warnings.Registry
 	IsFirstStart         bool
@@ -1157,6 +1160,7 @@ func newServerFromOptions(opts StartOptions) *Server {
 		Registry:           opts.Registry,
 		CronManager:        opts.CronManager,
 		BackgroundTasks:    opts.BackgroundTasks,
+		VirtualComputersDB: opts.VirtualComputersDB,
 		HistoryManager:     opts.HistoryManager,
 		KG:                 opts.KG,
 		InventoryDB:        opts.InventoryDB,

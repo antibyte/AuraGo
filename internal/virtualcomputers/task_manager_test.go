@@ -5,12 +5,32 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/gorilla/websocket"
 )
+
+func TestTaskManagerWithSharedLedgerDoesNotCloseLedger(t *testing.T) {
+	ledger, err := OpenLedger(filepath.Join(t.TempDir(), "virtual_computers.db"))
+	if err != nil {
+		t.Fatalf("OpenLedger: %v", err)
+	}
+	defer ledger.Close()
+
+	mgr, err := NewTaskManager(ledger, slog.Default(), TaskManagerOptions{})
+	if err != nil {
+		t.Fatalf("NewTaskManager: %v", err)
+	}
+	if err := mgr.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+	if err := ledger.UpsertMachine(context.Background(), Machine{ID: "vm-after-close"}); err != nil {
+		t.Fatalf("shared ledger was closed: %v", err)
+	}
+}
 
 func TestTaskManagerRunsWebSocketJobAndPersistsEvents(t *testing.T) {
 	upgrader := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}

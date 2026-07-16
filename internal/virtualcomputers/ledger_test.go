@@ -96,6 +96,64 @@ func TestLedgerMigratesLegacyVolumeSchemaWithBackup(t *testing.T) {
 	}
 }
 
+func TestOpenLedgerSkipsMigrationWriteForCurrentSchema(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "virtual_computers.db")
+	ledger, err := OpenLedger(path)
+	if err != nil {
+		t.Fatalf("OpenLedger: %v", err)
+	}
+	if _, err := ledger.db.Exec(`CREATE TRIGGER reject_schema_version_update
+		BEFORE UPDATE ON schema_meta BEGIN SELECT RAISE(ABORT, 'schema version rewrite'); END`); err != nil {
+		t.Fatalf("create trigger: %v", err)
+	}
+	if err := ledger.Close(); err != nil {
+		t.Fatalf("close ledger: %v", err)
+	}
+
+	reopened, err := OpenLedger(path)
+	if err != nil {
+		t.Fatalf("reopen current ledger: %v", err)
+	}
+	defer reopened.Close()
+}
+
+func TestOpenLedgersWaitForConcurrentWriter(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "virtual_computers.db")
+	first, err := OpenLedger(path)
+	if err != nil {
+		t.Fatalf("OpenLedger first: %v", err)
+	}
+	defer first.Close()
+	second, err := OpenLedger(path)
+	if err != nil {
+		t.Fatalf("OpenLedger second: %v", err)
+	}
+	defer second.Close()
+
+	tx, err := first.db.BeginTx(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("BeginTx: %v", err)
+	}
+	if _, err := tx.Exec(`INSERT INTO machines(id, updated_at) VALUES ('held-writer', '2026-07-16T00:00:00Z')`); err != nil {
+		t.Fatalf("hold write lock: %v", err)
+	}
+	result := make(chan error, 1)
+	go func() {
+		result <- second.UpsertMachine(context.Background(), Machine{ID: "queued-writer"})
+	}()
+	select {
+	case err := <-result:
+		t.Fatalf("second writer returned before lock release: %v", err)
+	case <-time.After(50 * time.Millisecond):
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+	if err := <-result; err != nil {
+		t.Fatalf("queued writer: %v", err)
+	}
+}
+
 func TestListTrackedVolumesVerifiesKnownCapabilities(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")

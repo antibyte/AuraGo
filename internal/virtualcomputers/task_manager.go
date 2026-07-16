@@ -34,17 +34,18 @@ type activeAgentTask struct {
 }
 
 type TaskManager struct {
-	ledger    *Ledger
-	logger    *slog.Logger
-	timeout   time.Duration
-	retention time.Duration
-	sem       chan struct{}
-	ctx       context.Context
-	cancel    context.CancelFunc
-	mu        sync.Mutex
-	active    map[string]*activeAgentTask
-	wg        sync.WaitGroup
-	closeOnce sync.Once
+	ledger     *Ledger
+	ownsLedger bool
+	logger     *slog.Logger
+	timeout    time.Duration
+	retention  time.Duration
+	sem        chan struct{}
+	ctx        context.Context
+	cancel     context.CancelFunc
+	mu         sync.Mutex
+	active     map[string]*activeAgentTask
+	wg         sync.WaitGroup
+	closeOnce  sync.Once
 }
 
 var (
@@ -69,6 +70,24 @@ func OpenTaskManager(path string, logger *slog.Logger, opts TaskManagerOptions) 
 	if err != nil {
 		return nil, err
 	}
+	manager, err := newTaskManager(ledger, logger, opts, true)
+	if err != nil {
+		_ = ledger.Close()
+		return nil, err
+	}
+	return manager, nil
+}
+
+// NewTaskManager creates a task manager that borrows an existing ledger.
+// Closing the manager does not close the shared ledger.
+func NewTaskManager(ledger *Ledger, logger *slog.Logger, opts TaskManagerOptions) (*TaskManager, error) {
+	return newTaskManager(ledger, logger, opts, false)
+}
+
+func newTaskManager(ledger *Ledger, logger *slog.Logger, opts TaskManagerOptions, ownsLedger bool) (*TaskManager, error) {
+	if ledger == nil || ledger.db == nil {
+		return nil, fmt.Errorf("virtual computers ledger is required")
+	}
 	if opts.MaxConcurrent <= 0 {
 		opts.MaxConcurrent = defaultAgentTaskConcurrency
 	}
@@ -80,12 +99,11 @@ func OpenTaskManager(path string, logger *slog.Logger, opts TaskManagerOptions) 
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	mgr := &TaskManager{
-		ledger: ledger, logger: logger, timeout: opts.Timeout, retention: opts.Retention,
+		ledger: ledger, ownsLedger: ownsLedger, logger: logger, timeout: opts.Timeout, retention: opts.Retention,
 		sem: make(chan struct{}, opts.MaxConcurrent), ctx: ctx, cancel: cancel,
 		active: make(map[string]*activeAgentTask),
 	}
 	if err := ledger.InterruptActiveAgentTasks(ctx); err != nil {
-		_ = ledger.Close()
 		cancel()
 		return nil, err
 	}
@@ -316,7 +334,9 @@ func (m *TaskManager) Close() error {
 			_ = conn.Close()
 		}
 		m.wg.Wait()
-		closeErr = m.ledger.Close()
+		if m.ownsLedger {
+			closeErr = m.ledger.Close()
+		}
 	})
 	return closeErr
 }

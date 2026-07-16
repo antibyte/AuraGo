@@ -1076,17 +1076,27 @@ func main() {
 	// Register built-in warning producers (token budget fallback, vectordb, etc.).
 	warnings.RegisterBuiltinProducers(warningsRegistry, cfg, longTermMem, appLog)
 
-	virtualComputerTasks, err := virtualcomputers.OpenTaskManager(cfg.SQLite.VirtualComputersPath, appLog, virtualcomputers.TaskManagerOptions{})
+	virtualComputersLedger, err := virtualcomputers.OpenLedger(cfg.SQLite.VirtualComputersPath)
 	if err != nil {
 		appLog.Warn("Virtual computer agent task history is unavailable", "error", err)
 	} else {
-		virtualcomputers.SetDefaultTaskManager(virtualComputerTasks)
 		defer func() {
-			virtualcomputers.SetDefaultTaskManager(nil)
-			if closeErr := virtualComputerTasks.Close(); closeErr != nil {
-				appLog.Warn("Failed to close virtual computer agent task history", "error", closeErr)
+			if closeErr := virtualComputersLedger.Close(); closeErr != nil {
+				appLog.Warn("Failed to close virtual computer ledger", "error", closeErr)
 			}
 		}()
+		virtualComputerTasks, taskErr := virtualcomputers.NewTaskManager(virtualComputersLedger, appLog, virtualcomputers.TaskManagerOptions{})
+		if taskErr != nil {
+			appLog.Warn("Virtual computer agent task history is unavailable", "error", taskErr)
+		} else {
+			virtualcomputers.SetDefaultTaskManager(virtualComputerTasks)
+			defer func() {
+				virtualcomputers.SetDefaultTaskManager(nil)
+				if closeErr := virtualComputerTasks.Close(); closeErr != nil {
+					appLog.Warn("Failed to close virtual computer agent task history", "error", closeErr)
+				}
+			}()
+		}
 	}
 
 	if err := server.Start(server.StartOptions{
@@ -1114,6 +1124,7 @@ func main() {
 		SQLConnectionsDB:     sqlConnectionsDB,
 		SQLConnectionPool:    sqlConnectionPool,
 		BackgroundTasks:      backgroundTaskManager,
+		VirtualComputersDB:   virtualComputersLedger,
 		EggMissionResultSink: eggMissionResultSink,
 		WarningsRegistry:     warningsRegistry,
 		IsFirstStart:         isFirstStart,
