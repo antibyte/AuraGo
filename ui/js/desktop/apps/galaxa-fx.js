@@ -114,7 +114,7 @@
             ctx.G.shkY = y;
             ctx.G.damageVignetteT = Math.max(ctx.G.damageVignetteT, 600);
             ctx.G.fxRumbleVignette = { t: 0, dur: 1200, intensity: 1 };
-            if (ctx.G.fxRumbleRings) ctx.G.fxRumbleRings = [];
+            if (!ctx.G.fxRumbleRings) ctx.G.fxRumbleRings = [];
             for (let i = 0; i < 5; i++) {
                 ctx.G.fxRumbleRings.push({
                     x, y, t: 0, delay: i * 180, dur: 600,
