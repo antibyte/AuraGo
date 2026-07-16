@@ -98,5 +98,9 @@
   "config.virtual_computers.anthropic_key_label": "Anthropic API key",
   "config.virtual_computers.openrouter_key_label": "OpenRouter API key",
   "help.virtual_computers.anthropic_key": "Required for boringd agent jobs. Stored only in the Vault; run Install / Repair after changing it.",
-  "help.virtual_computers.openrouter_key": "Optional key for boringd’s non-Claude inference gateway. It does not configure agent jobs."
+  "help.virtual_computers.openrouter_key": "Optional key for boringd’s non-Claude inference gateway. It does not configure agent jobs.",
+  "config.virtual_computers.agent_provider_label": "Anthropic provider",
+  "config.virtual_computers.agent_provider_none": "Do not use a provider",
+  "config.virtual_computers.agent_provider_key_missing": "API key missing",
+  "help.virtual_computers.agent_provider": "Select a configured Anthropic provider. Its key stays in the Vault and is used only when agent jobs are enabled. Then run Install / Repair."
 }

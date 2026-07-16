@@ -55,6 +55,21 @@ func TestVirtualComputersStorageConfigLoadsNonSecrets(t *testing.T) {
 	}
 }
 
+func TestVirtualComputersAgentProviderLoadsAsNonSecretReference(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	data := []byte("virtual_computers:\n  allow_agent_tasks: true\n  agent_provider: anthropic-main\n")
+	if err := os.WriteFile(configPath, data, 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if !cfg.VirtualComputers.AllowAgentTasks || cfg.VirtualComputers.AgentProvider != "anthropic-main" {
+		t.Fatalf("agent settings = %+v", cfg.VirtualComputers)
+	}
+}
+
 func TestVirtualComputersLegacyBoringdURLsMigrate(t *testing.T) {
 	tests := []struct {
 		name string

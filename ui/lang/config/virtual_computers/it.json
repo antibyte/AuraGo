@@ -98,5 +98,9 @@
   "config.virtual_computers.anthropic_key_label": "Chiave API Anthropic",
   "config.virtual_computers.openrouter_key_label": "Chiave API OpenRouter",
   "help.virtual_computers.anthropic_key": "Necessaria per i processi agente di boringd. Viene salvata solo nel Vault; dopo una modifica esegui Installa / Ripara.",
-  "help.virtual_computers.openrouter_key": "Chiave facoltativa per il gateway di inferenza di boringd con modelli diversi da Claude. Non configura i processi agente."
+  "help.virtual_computers.openrouter_key": "Chiave facoltativa per il gateway di inferenza di boringd con modelli diversi da Claude. Non configura i processi agente.",
+  "config.virtual_computers.agent_provider_label": "Provider Anthropic",
+  "config.virtual_computers.agent_provider_none": "Non usare un provider",
+  "config.virtual_computers.agent_provider_key_missing": "Chiave API mancante",
+  "help.virtual_computers.agent_provider": "Seleziona un provider Anthropic configurato. La sua chiave rimane nel Vault e viene usata solo quando i processi agente sono attivi. Poi esegui Installa / Ripara."
 }

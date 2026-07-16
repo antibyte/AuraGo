@@ -98,5 +98,9 @@
   "config.virtual_computers.anthropic_key_label": "Κλειδί API Anthropic",
   "config.virtual_computers.openrouter_key_label": "Κλειδί API OpenRouter",
   "help.virtual_computers.anthropic_key": "Απαιτείται για εργασίες πράκτορα boringd. Αποθηκεύεται μόνο στο Vault· μετά από αλλαγή εκτέλεσε Εγκατάσταση / Επιδιόρθωση.",
-  "help.virtual_computers.openrouter_key": "Προαιρετικό κλειδί για την πύλη συμπερασμού του boringd με μοντέλα εκτός Claude. Δεν ρυθμίζει εργασίες πράκτορα."
+  "help.virtual_computers.openrouter_key": "Προαιρετικό κλειδί για την πύλη συμπερασμού του boringd με μοντέλα εκτός Claude. Δεν ρυθμίζει εργασίες πράκτορα.",
+  "config.virtual_computers.agent_provider_label": "Πάροχος Anthropic",
+  "config.virtual_computers.agent_provider_none": "Χωρίς χρήση παρόχου",
+  "config.virtual_computers.agent_provider_key_missing": "Λείπει το κλειδί API",
+  "help.virtual_computers.agent_provider": "Επίλεξε έναν ρυθμισμένο πάροχο Anthropic. Το κλειδί του παραμένει στο Vault και χρησιμοποιείται μόνο όταν είναι ενεργές οι εργασίες πράκτορα. Έπειτα εκτέλεσε Εγκατάσταση / Επιδιόρθωση."
 }

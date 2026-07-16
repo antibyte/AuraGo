@@ -754,6 +754,10 @@ func handleVirtualComputersTasks(s *Server) http.HandlerFunc {
 				jsonError(w, "virtual computer agent tasks are disabled", http.StatusForbidden)
 				return
 			}
+			if strings.TrimSpace(cfg.BoringAnthropicKey) == "" {
+				writeVirtualComputersAPIError(w, "provider_unavailable", "select a configured Anthropic provider in Virtual Computers settings and run Install / Repair", http.StatusServiceUnavailable)
+				return
+			}
 			var req struct {
 				MachineID   string `json:"machine_id"`
 				Kind        string `json:"kind"`

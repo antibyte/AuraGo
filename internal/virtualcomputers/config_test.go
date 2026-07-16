@@ -32,3 +32,60 @@ func TestFromAuraConfigRegistersStorageCredentialsAsSensitive(t *testing.T) {
 		t.Fatalf("storage credentials were not registered as sensitive: %s", redacted)
 	}
 }
+
+func TestFromAuraConfigResolvesSelectedAnthropicProvider(t *testing.T) {
+	cfg := &config.Config{
+		Providers: []config.ProviderEntry{{
+			ID: "agent-claude", Type: "anthropic", APIKey: "provider-anthropic-key",
+		}},
+	}
+	cfg.VirtualComputers.AllowAgentTasks = true
+	cfg.VirtualComputers.AgentProvider = "agent-claude"
+
+	got := FromAuraConfig(cfg)
+	if got.BoringAnthropicKey != "provider-anthropic-key" {
+		t.Fatalf("resolved Anthropic key = %q", got.BoringAnthropicKey)
+	}
+	if strings.Contains(security.Scrub("provider-anthropic-key"), "provider-anthropic-key") {
+		t.Fatal("resolved provider key was not registered as sensitive")
+	}
+}
+
+func TestFromAuraConfigDoesNotExposeAgentProviderWithoutOptIn(t *testing.T) {
+	cfg := &config.Config{
+		Providers: []config.ProviderEntry{{ID: "agent-claude", Type: "anthropic", APIKey: "provider-key"}},
+	}
+	cfg.VirtualComputers.AgentProvider = "agent-claude"
+	cfg.VirtualComputers.BoringAnthropicKey = "legacy-key"
+	cfg.VirtualComputers.BoringOpenRouterKey = "legacy-openrouter-key"
+
+	got := FromAuraConfig(cfg)
+	if got.BoringAnthropicKey != "" || got.BoringOpenRouterKey != "" {
+		t.Fatalf("agent credentials exposed without opt-in: %+v", got)
+	}
+}
+
+func TestFromAuraConfigRejectsIncompatibleAgentProvider(t *testing.T) {
+	cfg := &config.Config{
+		Providers: []config.ProviderEntry{{ID: "router", Type: "openrouter", APIKey: "router-key"}},
+	}
+	cfg.VirtualComputers.AllowAgentTasks = true
+	cfg.VirtualComputers.AgentProvider = "router"
+
+	got := FromAuraConfig(cfg)
+	if got.BoringAnthropicKey != "" || got.BoringOpenRouterKey != "" {
+		t.Fatalf("incompatible provider credentials exposed: %+v", got)
+	}
+}
+
+func TestFromAuraConfigKeepsLegacyAgentCredentialFallback(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.VirtualComputers.AllowAgentTasks = true
+	cfg.VirtualComputers.BoringAnthropicKey = "legacy-anthropic-key"
+	cfg.VirtualComputers.BoringOpenRouterKey = "legacy-openrouter-key"
+
+	got := FromAuraConfig(cfg)
+	if got.BoringAnthropicKey != "legacy-anthropic-key" || got.BoringOpenRouterKey != "legacy-openrouter-key" {
+		t.Fatalf("legacy agent credentials = %+v", got)
+	}
+}

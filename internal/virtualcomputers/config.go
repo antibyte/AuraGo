@@ -1,6 +1,8 @@
 package virtualcomputers
 
 import (
+	"strings"
+
 	"aurago/internal/config"
 	"aurago/internal/security"
 )
@@ -10,7 +12,21 @@ func FromAuraConfig(cfg *config.Config) ToolConfig {
 		return ToolConfig{}
 	}
 	vc := cfg.VirtualComputers
-	for _, value := range []string{vc.S3AccessKeyID, vc.S3SecretKey} {
+	anthropicKey := ""
+	openRouterKey := ""
+	if vc.AllowAgentTasks {
+		providerID := strings.TrimSpace(vc.AgentProvider)
+		if providerID == "" {
+			// Preserve installations configured before provider references were added.
+			anthropicKey = vc.BoringAnthropicKey
+			openRouterKey = vc.BoringOpenRouterKey
+		} else if provider := cfg.FindProvider(providerID); provider != nil &&
+			strings.EqualFold(strings.TrimSpace(provider.Type), "anthropic") &&
+			!strings.EqualFold(strings.TrimSpace(provider.AuthType), "oauth2") {
+			anthropicKey = provider.APIKey
+		}
+	}
+	for _, value := range []string{anthropicKey, openRouterKey, vc.S3AccessKeyID, vc.S3SecretKey} {
 		security.RegisterSensitive(value)
 	}
 	return ToolConfig{
@@ -36,8 +52,8 @@ func FromAuraConfig(cfg *config.Config) ToolConfig {
 		LedgerPath:          cfg.SQLite.VirtualComputersPath,
 		BoringdURL:          vc.ControlPlane.BoringdURL,
 		BoringToken:         vc.BoringToken,
-		BoringAnthropicKey:  vc.BoringAnthropicKey,
-		BoringOpenRouterKey: vc.BoringOpenRouterKey,
+		BoringAnthropicKey:  anthropicKey,
+		BoringOpenRouterKey: openRouterKey,
 		S3AccessKeyID:       vc.S3AccessKeyID,
 		S3SecretKey:         vc.S3SecretKey,
 		DefaultTemplate:     vc.DefaultTemplate,

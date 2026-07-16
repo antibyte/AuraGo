@@ -98,5 +98,9 @@
   "config.virtual_computers.anthropic_key_label": "Anthropic-API-sleutel",
   "config.virtual_computers.openrouter_key_label": "OpenRouter-API-sleutel",
   "help.virtual_computers.anthropic_key": "Vereist voor boringd-agenttaken. Wordt alleen in de Vault opgeslagen; voer na een wijziging Installeren / Herstellen uit.",
-  "help.virtual_computers.openrouter_key": "Optionele sleutel voor de boringd-inferentiegateway met niet-Claude-modellen. Hiermee worden agenttaken niet geconfigureerd."
+  "help.virtual_computers.openrouter_key": "Optionele sleutel voor de boringd-inferentiegateway met niet-Claude-modellen. Hiermee worden agenttaken niet geconfigureerd.",
+  "config.virtual_computers.agent_provider_label": "Anthropic-provider",
+  "config.virtual_computers.agent_provider_none": "Geen provider gebruiken",
+  "config.virtual_computers.agent_provider_key_missing": "API-sleutel ontbreekt",
+  "help.virtual_computers.agent_provider": "Selecteer een geconfigureerde Anthropic-provider. De sleutel blijft in de Vault en wordt alleen gebruikt wanneer agenttaken zijn ingeschakeld. Voer daarna Installeren / Herstellen uit."
 }

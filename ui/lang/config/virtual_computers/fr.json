@@ -98,5 +98,9 @@
   "config.virtual_computers.anthropic_key_label": "Clé API Anthropic",
   "config.virtual_computers.openrouter_key_label": "Clé API OpenRouter",
   "help.virtual_computers.anthropic_key": "Requise pour les tâches d’agent boringd. Elle est stockée uniquement dans le Vault ; lance Installer / Réparer après toute modification.",
-  "help.virtual_computers.openrouter_key": "Clé facultative pour la passerelle d’inférence boringd avec les modèles autres que Claude. Elle ne configure pas les tâches d’agent."
+  "help.virtual_computers.openrouter_key": "Clé facultative pour la passerelle d’inférence boringd avec les modèles autres que Claude. Elle ne configure pas les tâches d’agent.",
+  "config.virtual_computers.agent_provider_label": "Fournisseur Anthropic",
+  "config.virtual_computers.agent_provider_none": "Ne pas utiliser de fournisseur",
+  "config.virtual_computers.agent_provider_key_missing": "Clé API manquante",
+  "help.virtual_computers.agent_provider": "Sélectionne un fournisseur Anthropic configuré. Sa clé reste dans le Vault et n’est utilisée que lorsque les tâches d’agent sont activées. Lance ensuite Installer / Réparer."
 }

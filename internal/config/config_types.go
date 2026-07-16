@@ -443,6 +443,7 @@ type VirtualComputersConfig struct {
 	AllowPublish        bool                         `yaml:"allow_publish" json:"allow_publish"`               // allow publishing templates/previews
 	AllowVolumes        bool                         `yaml:"allow_volumes" json:"allow_volumes"`               // allow volume creation/attachment
 	AllowAgentTasks     bool                         `yaml:"allow_agent_tasks" json:"allow_agent_tasks"`       // allow boringd agent task channels
+	AgentProvider       string                       `yaml:"agent_provider" json:"agent_provider"`             // Anthropic provider whose Vault API key is supplied to boringd
 	BoringToken         string                       `yaml:"-" json:"-" vault:"virtual_computers_boring_token"`
 	BoringAnthropicKey  string                       `yaml:"-" json:"-" vault:"virtual_computers_anthropic_key"`
 	BoringOpenRouterKey string                       `yaml:"-" json:"-" vault:"virtual_computers_openrouter_key"`

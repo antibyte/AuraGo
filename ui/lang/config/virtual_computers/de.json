@@ -98,5 +98,9 @@
   "config.virtual_computers.anthropic_key_label": "Anthropic-API-Schlüssel",
   "config.virtual_computers.openrouter_key_label": "OpenRouter-API-Schlüssel",
   "help.virtual_computers.anthropic_key": "Für boringd-Agentenjobs erforderlich. Wird nur im Vault gespeichert; führe nach einer Änderung Installieren / Reparieren aus.",
-  "help.virtual_computers.openrouter_key": "Optionaler Schlüssel für boringds Inferenz-Gateway mit Nicht-Claude-Modellen. Er konfiguriert keine Agentenjobs."
+  "help.virtual_computers.openrouter_key": "Optionaler Schlüssel für boringds Inferenz-Gateway mit Nicht-Claude-Modellen. Er konfiguriert keine Agentenjobs.",
+  "config.virtual_computers.agent_provider_label": "Anthropic-Provider",
+  "config.virtual_computers.agent_provider_none": "Keinen Provider verwenden",
+  "config.virtual_computers.agent_provider_key_missing": "API-Schlüssel fehlt",
+  "help.virtual_computers.agent_provider": "Wähle einen konfigurierten Anthropic-Provider. Sein Schlüssel bleibt im Vault und wird nur bei aktivierten Agentenjobs verwendet. Führe danach Installieren / Reparieren aus."
 }

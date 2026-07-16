@@ -98,5 +98,9 @@
   "config.virtual_computers.anthropic_key_label": "Clave API de Anthropic",
   "config.virtual_computers.openrouter_key_label": "Clave API de OpenRouter",
   "help.virtual_computers.anthropic_key": "Necesaria para los trabajos de agente de boringd. Solo se guarda en el Vault; ejecuta Instalar / Reparar después de cambiarla.",
-  "help.virtual_computers.openrouter_key": "Clave opcional para la puerta de inferencia de boringd con modelos distintos de Claude. No configura los trabajos de agente."
+  "help.virtual_computers.openrouter_key": "Clave opcional para la puerta de inferencia de boringd con modelos distintos de Claude. No configura los trabajos de agente.",
+  "config.virtual_computers.agent_provider_label": "Proveedor de Anthropic",
+  "config.virtual_computers.agent_provider_none": "No usar un proveedor",
+  "config.virtual_computers.agent_provider_key_missing": "Falta la clave API",
+  "help.virtual_computers.agent_provider": "Selecciona un proveedor de Anthropic configurado. Su clave permanece en el Vault y solo se usa cuando los trabajos de agente están activados. Después ejecuta Instalar / Reparar."
 }

@@ -208,32 +208,33 @@ func TestVirtualComputersStorageUsesVaultFieldsAndReadOnlyConnectionTest(t *test
 	}
 }
 
-func TestVirtualComputersAgentProviderUsesVaultFields(t *testing.T) {
+func TestVirtualComputersAgentProviderUsesConfiguredProviderReference(t *testing.T) {
 	t.Parallel()
 
 	vcJS := normalizeAssetText(mustReadUIFile(t, "cfg/virtual_computers.js"))
 	for _, want := range []string{
-		`id="vc-anthropic-key-input"`,
-		`virtual_computers_anthropic_key`,
-		`id="vc-openrouter-key-input"`,
-		`virtual_computers_openrouter_key`,
+		`data-path="virtual_computers.agent_provider"`,
+		`provider.type || '').trim().toLowerCase() === 'anthropic'`,
+		`provider.api_key`,
+		`vcCfgToggleAgentTasks(this)`,
 	} {
 		if !strings.Contains(vcJS, want) {
 			t.Fatalf("virtual computer agent provider UI missing %q", want)
 		}
 	}
-	if strings.Contains(vcJS, `data-path="virtual_computers.boring_anthropic_key"`) ||
-		strings.Contains(vcJS, `data-path="virtual_computers.boring_openrouter_key"`) {
-		t.Fatal("agent provider credentials must never be serialized into config data")
+	for _, forbidden := range []string{`vc-anthropic-key-input`, `vc-openrouter-key-input`, `virtual_computers_anthropic_key`, `virtual_computers_openrouter_key`} {
+		if strings.Contains(vcJS, forbidden) {
+			t.Fatalf("virtual computer UI must reuse provider Vault credentials, found legacy field %q", forbidden)
+		}
 	}
 
 	languages := []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"}
 	keys := []string{
 		"config.virtual_computers.agent_provider_title",
-		"config.virtual_computers.anthropic_key_label",
-		"config.virtual_computers.openrouter_key_label",
-		"help.virtual_computers.anthropic_key",
-		"help.virtual_computers.openrouter_key",
+		"config.virtual_computers.agent_provider_label",
+		"config.virtual_computers.agent_provider_none",
+		"config.virtual_computers.agent_provider_key_missing",
+		"help.virtual_computers.agent_provider",
 	}
 	for _, language := range languages {
 		var translations map[string]string

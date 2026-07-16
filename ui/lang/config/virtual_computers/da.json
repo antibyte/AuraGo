@@ -98,5 +98,9 @@
   "config.virtual_computers.anthropic_key_label": "Anthropic API-nøgle",
   "config.virtual_computers.openrouter_key_label": "OpenRouter API-nøgle",
   "help.virtual_computers.anthropic_key": "Kræves til boringd-agentjob. Gemmes kun i Vault; kør Installer / Reparer efter en ændring.",
-  "help.virtual_computers.openrouter_key": "Valgfri nøgle til boringds inferensgateway for modeller, der ikke er Claude. Den konfigurerer ikke agentjob."
+  "help.virtual_computers.openrouter_key": "Valgfri nøgle til boringds inferensgateway for modeller, der ikke er Claude. Den konfigurerer ikke agentjob.",
+  "config.virtual_computers.agent_provider_label": "Anthropic-udbyder",
+  "config.virtual_computers.agent_provider_none": "Brug ingen udbyder",
+  "config.virtual_computers.agent_provider_key_missing": "API-nøgle mangler",
+  "help.virtual_computers.agent_provider": "Vælg en konfigureret Anthropic-udbyder. Nøglen bliver i Vault og bruges kun, når agentjob er aktiveret. Kør derefter Installer / Reparer."
 }

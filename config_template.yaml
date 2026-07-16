@@ -940,6 +940,7 @@ virtual_computers:
     allow_publish: false
     allow_volumes: false
     allow_agent_tasks: false
+    agent_provider: ""                                    # ID of an Anthropic provider; its Vault key is used only when agent tasks are enabled
     storage:
         endpoint: ""                                       # S3-compatible host:port without a URL scheme
         bucket: boring-volumes
@@ -948,8 +949,7 @@ virtual_computers:
     # Vault-only fields saved via UI, never config.yaml:
     # boring_token: optional; AuraGo auto-generates this for managed setup. For an existing boringd, it must match BORING_TOKEN.
     # ssh_secret: optional SSH secret material
-    # boring_anthropic_key: optional boring agent provider key
-    # boring_openrouter_key: optional boring agent provider key
+    # boring_anthropic_key / boring_openrouter_key: legacy Vault-only fields; use agent_provider for new setups
     # s3_access_key_id / s3_secret_key: optional boring volume/template storage
 indexing:
     enabled: true

@@ -98,5 +98,9 @@
   "config.virtual_computers.anthropic_key_label": "Anthropic API 密钥",
   "config.virtual_computers.openrouter_key_label": "OpenRouter API 密钥",
   "help.virtual_computers.anthropic_key": "boringd 智能体任务需要此密钥。密钥仅保存在 Vault 中；更改后请运行“安装 / 修复”。",
-  "help.virtual_computers.openrouter_key": "用于 boringd 非 Claude 模型推理网关的可选密钥。它不会配置智能体任务。"
+  "help.virtual_computers.openrouter_key": "用于 boringd 非 Claude 模型推理网关的可选密钥。它不会配置智能体任务。",
+  "config.virtual_computers.agent_provider_label": "Anthropic 提供商",
+  "config.virtual_computers.agent_provider_none": "不使用提供商",
+  "config.virtual_computers.agent_provider_key_missing": "缺少 API 密钥",
+  "help.virtual_computers.agent_provider": "请选择已配置的 Anthropic 提供商。其密钥保留在 Vault 中，并且仅在启用智能体任务时使用。随后请运行“安装 / 修复”。"
 }

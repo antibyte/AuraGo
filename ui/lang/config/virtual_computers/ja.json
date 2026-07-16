@@ -98,5 +98,9 @@
   "config.virtual_computers.anthropic_key_label": "Anthropic APIキー",
   "config.virtual_computers.openrouter_key_label": "OpenRouter APIキー",
   "help.virtual_computers.anthropic_key": "boringdのエージェントジョブに必要です。Vaultにのみ保存されます。変更後に「インストール / 修復」を実行してください。",
-  "help.virtual_computers.openrouter_key": "Claude以外のモデル向けboringd推論ゲートウェイ用の任意キーです。エージェントジョブは設定されません。"
+  "help.virtual_computers.openrouter_key": "Claude以外のモデル向けboringd推論ゲートウェイ用の任意キーです。エージェントジョブは設定されません。",
+  "config.virtual_computers.agent_provider_label": "Anthropicプロバイダー",
+  "config.virtual_computers.agent_provider_none": "プロバイダーを使用しない",
+  "config.virtual_computers.agent_provider_key_missing": "APIキーがありません",
+  "help.virtual_computers.agent_provider": "設定済みのAnthropicプロバイダーを選択してください。キーはVaultに保持され、エージェントジョブが有効な場合にのみ使用されます。その後「インストール / 修復」を実行してください。"
 }

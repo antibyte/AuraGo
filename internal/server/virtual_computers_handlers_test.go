@@ -453,6 +453,7 @@ func TestVirtualComputersRESTAgentTaskHistoryRemainsReadable(t *testing.T) {
 	defer virtualcomputers.SetDefaultTaskManager(nil)
 	cfg := virtualComputersTestConfig(upstream.URL)
 	cfg.VirtualComputers.AllowAgentTasks = true
+	cfg.VirtualComputers.BoringAnthropicKey = "test-anthropic-key"
 	s := &Server{Cfg: cfg}
 	mux := http.NewServeMux()
 	registerVirtualComputersRoutes(mux, s)
@@ -478,6 +479,28 @@ func TestVirtualComputersRESTAgentTaskHistoryRemainsReadable(t *testing.T) {
 	mux.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/virtual-computers/tasks/"+started.TaskID, nil))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("history status=%d body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestVirtualComputersRESTAgentTaskRequiresConfiguredAnthropicProvider(t *testing.T) {
+	mgr, err := virtualcomputers.OpenTaskManager(filepath.Join(t.TempDir(), "virtual_computers.db"), slog.Default(), virtualcomputers.TaskManagerOptions{Timeout: time.Second})
+	if err != nil {
+		t.Fatalf("OpenTaskManager: %v", err)
+	}
+	defer mgr.Close()
+	virtualcomputers.SetDefaultTaskManager(mgr)
+	defer virtualcomputers.SetDefaultTaskManager(nil)
+
+	cfg := virtualComputersTestConfig("http://127.0.0.1:1")
+	cfg.VirtualComputers.AllowAgentTasks = true
+	s := &Server{Cfg: cfg}
+	mux := http.NewServeMux()
+	registerVirtualComputersRoutes(mux, s)
+
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/virtual-computers/tasks", bytes.NewBufferString(`{"machine_id":"vm-1","kind":"shell","instruction":"check disk"}`)))
+	if rec.Code != http.StatusServiceUnavailable || !strings.Contains(rec.Body.String(), "provider_unavailable") {
+		t.Fatalf("start status=%d body=%s", rec.Code, rec.Body.String())
 	}
 }
 

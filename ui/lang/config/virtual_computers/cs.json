@@ -98,5 +98,9 @@
   "config.virtual_computers.anthropic_key_label": "Klíč API Anthropic",
   "config.virtual_computers.openrouter_key_label": "Klíč API OpenRouter",
   "help.virtual_computers.anthropic_key": "Je vyžadován pro úlohy agenta boringd. Ukládá se pouze do Vaultu; po změně spusť Instalovat / Opravit.",
-  "help.virtual_computers.openrouter_key": "Volitelný klíč pro inference bránu boringd pro jiné modely než Claude. Úlohy agenta nekonfiguruje."
+  "help.virtual_computers.openrouter_key": "Volitelný klíč pro inference bránu boringd pro jiné modely než Claude. Úlohy agenta nekonfiguruje.",
+  "config.virtual_computers.agent_provider_label": "Poskytovatel Anthropic",
+  "config.virtual_computers.agent_provider_none": "Nevyužívat poskytovatele",
+  "config.virtual_computers.agent_provider_key_missing": "Chybí klíč API",
+  "help.virtual_computers.agent_provider": "Vyber nakonfigurovaného poskytovatele Anthropic. Jeho klíč zůstane ve Vaultu a použije se pouze při povolených úlohách agenta. Poté spusť Instalovat / Opravit."
 }

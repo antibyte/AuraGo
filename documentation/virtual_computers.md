@@ -92,7 +92,15 @@ TTY access is an interactive write channel. It requires Desktop write or admin a
 
 Shell and desktop agent tasks use boringd's authenticated WebSocket channels with a URL-encoded `goal`. Starting a task returns its ID immediately. AuraGo stores task state and ordered `say`, `action`, `preview`, `done`, and `error` events in `virtual_computers.db`. At restart, unfinished tasks become `interrupted` and are not retried. Canceling closes the task context without rolling back already executed actions. Native-tool output wraps event text as untrusted external data.
 
-Agent jobs require a dedicated Anthropic API key because the pinned boringd agent channels use Anthropic directly. Store it in the Virtual Computers settings under **Agent provider**, enable agent jobs, and run **Install / Repair** so AuraGo writes `BORING_ANTHROPIC_KEY` to the private boringd service. The optional OpenRouter key powers boringd's non-Claude inference gateway; it does not replace the Anthropic key for agent jobs. Both credentials remain Vault-only and are never serialized into `config.yaml` or returned to the browser. Failed asynchronous jobs are retained in task history and written to AuraGo's structured log without their instruction text.
+Agent jobs require an API-key-based Anthropic provider because the pinned boringd agent channels use Anthropic directly. Configure that provider through AuraGo's normal provider system, enable agent jobs in Virtual Computers, select the provider, save, and run **Install / Repair**. AuraGo resolves the selected provider server-side and writes its Vault key as `BORING_ANTHROPIC_KEY` only while agent jobs are enabled. Disabling agent jobs prevents the key from being supplied to boringd. OpenRouter and OAuth providers are not offered because they cannot authenticate these pinned agent channels. The selected provider ID is stored in `config.yaml`; the key remains Vault-only and is never returned to the browser. Existing installations with a legacy Virtual Computers Anthropic Vault key continue to work until a provider is selected. Failed asynchronous jobs are retained in task history and written to AuraGo's structured log without their instruction text.
+
+```yaml
+virtual_computers:
+  allow_agent_tasks: true
+  agent_provider: "anthropic-main"
+```
+
+If no configured Anthropic provider is selected, AuraGo rejects a new task before contacting boringd and directs the user back to Virtual Computers settings instead of leaving an asynchronously failed job as the only feedback.
 
 The REST API provides `GET|POST /api/virtual-computers/tasks` and `GET|DELETE /api/virtual-computers/tasks/{id}`. Read-only mode keeps task history readable but blocks starting and canceling tasks.
 
