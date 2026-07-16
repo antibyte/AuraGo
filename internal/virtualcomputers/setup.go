@@ -39,6 +39,7 @@ type PreflightResult struct {
 	Supported bool              `json:"supported"`
 	Checks    map[string]string `json:"checks"`
 	Issues    []string          `json:"issues,omitempty"`
+	Warnings  []string          `json:"warnings,omitempty"`
 }
 
 func (m SetupManager) Preflight(ctx context.Context) (PreflightResult, error) {
@@ -57,8 +58,9 @@ func (m SetupManager) Preflight(ctx context.Context) (PreflightResult, error) {
 	}
 	result := ParsePreflightOutput(out)
 	if m.InstallOptions.AllowVolumes {
-		result.Issues = append(result.Issues, validateManagedStorage(m.InstallOptions)...)
-		result.Supported = len(result.Issues) == 0
+		// Persistent storage is optional. Report invalid storage configuration to
+		// the UI, but do not prevent repairing the core boringd installation.
+		result.Warnings = append(result.Warnings, validateManagedStorage(m.InstallOptions)...)
 	}
 	return result, nil
 }

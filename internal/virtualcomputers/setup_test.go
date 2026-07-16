@@ -265,8 +265,27 @@ func TestSetupPreflightReportsMissingManagedVolumeStorage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Preflight: %v", err)
 	}
-	if result.Supported || !strings.Contains(strings.Join(result.Issues, " "), "S3 endpoint") || !strings.Contains(strings.Join(result.Issues, " "), "access key") {
+	if !result.Supported || !strings.Contains(strings.Join(result.Warnings, " "), "S3 endpoint") || !strings.Contains(strings.Join(result.Warnings, " "), "access key") {
 		t.Fatalf("preflight result = %+v", result)
+	}
+}
+
+func TestSetupInstallRepairsCoreWhenOptionalStorageIsIncomplete(t *testing.T) {
+	executor := &fakeSSHExecutor{output: "HOST_OS=linux\nARCH=amd64\nHAS_KVM=1\nOS_ID=ubuntu\nRUNNING_IN_DOCKER=0\nHAS_SYSTEMD=1\nHAS_SUDO_OR_ROOT=1\n"}
+	manager := SetupManager{
+		Executor:       executor,
+		InstallOptions: SetupInstallOptions{AllowVolumes: true, S3Bucket: "boring-volumes"},
+	}
+
+	status, err := manager.Install(context.Background())
+	if err != nil {
+		t.Fatalf("Install: %v", err)
+	}
+	if !status.Healthy || len(executor.scripts) != 1 {
+		t.Fatalf("core repair did not run: status=%+v scripts=%d", status, len(executor.scripts))
+	}
+	if !strings.Contains(strings.Join(status.Preflight.Warnings, " "), "S3 endpoint") {
+		t.Fatalf("storage warning missing from status: %+v", status.Preflight)
 	}
 }
 
@@ -285,7 +304,7 @@ func TestSetupPreflightRejectsStorageEndpointURLScheme(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Preflight: %v", err)
 	}
-	if result.Supported || !strings.Contains(strings.Join(result.Issues, " "), "without a URL scheme") {
+	if !result.Supported || !strings.Contains(strings.Join(result.Warnings, " "), "without a URL scheme") {
 		t.Fatalf("preflight result = %+v", result)
 	}
 }
