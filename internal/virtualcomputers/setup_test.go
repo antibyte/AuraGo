@@ -133,6 +133,22 @@ func TestSetupInstallRunsScriptAndHealthCheck(t *testing.T) {
 	}
 }
 
+func TestSetupInstallAlignsRateLimitsWithManagedCapacity(t *testing.T) {
+	manager := SetupManager{InstallOptions: SetupInstallOptions{MaxRunningMachines: 20}}
+	script := manager.installScript()
+
+	for _, want := range []string{
+		"BORING_PER_IP_MAX_VALUE=20",
+		"BORING_CREATE_RATE_VALUE=40",
+		"BORING_PER_IP_MAX=${BORING_PER_IP_MAX_VALUE}",
+		"BORING_CREATE_RATE=${BORING_CREATE_RATE_VALUE}",
+	} {
+		if !strings.Contains(script, want) {
+			t.Fatalf("install script missing %q", want)
+		}
+	}
+}
+
 func TestSetupInstallUsesConfiguredBoringdURL(t *testing.T) {
 	executor := &fakeSSHExecutor{output: "ARCH=x86_64\nHAS_KVM=1\nOS_ID=ubuntu\n"}
 	manager := SetupManager{

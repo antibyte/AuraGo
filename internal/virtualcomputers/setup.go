@@ -212,6 +212,13 @@ func (m SetupManager) installScript() string {
 	if maxMachines <= 0 {
 		maxMachines = 20
 	}
+	// boringd sees managed requests as coming from AuraGo's tunnel address. Keep
+	// its per-address guards aligned with the configured global capacity, while
+	// allowing one full replacement cycle per minute without false throttling.
+	createRatePerMinute := maxMachines * 2
+	if createRatePerMinute < 8 {
+		createRatePerMinute = 8
+	}
 	maxForks := opts.MaxForks
 	if maxForks <= 0 {
 		maxForks = 8
@@ -255,6 +262,8 @@ BORING_OPENROUTER_KEY_VALUE=%s
 	BORING_ADDR_VALUE=%s
 BORING_HEALTH_URL_VALUE=%s
 BORING_MAX_VALUE=%d
+BORING_PER_IP_MAX_VALUE=%d
+BORING_CREATE_RATE_VALUE=%d
 BORING_MAX_FORKS_VALUE=%d
 BORING_MAX_TEMPLATES_VALUE=%d
 BORING_ALLOW_PERSISTENT_VALUE=%s
@@ -342,6 +351,8 @@ BORING_TOKEN=${BORING_TOKEN_VALUE}
 BORING_ANTHROPIC_KEY=${BORING_ANTHROPIC_KEY_VALUE}
 BORING_OPENROUTER_KEY=${BORING_OPENROUTER_KEY_VALUE}
 BORING_MAX=${BORING_MAX_VALUE}
+BORING_PER_IP_MAX=${BORING_PER_IP_MAX_VALUE}
+BORING_CREATE_RATE=${BORING_CREATE_RATE_VALUE}
 BORING_MAX_FORKS=${BORING_MAX_FORKS_VALUE}
 BORING_MAX_TEMPLATES=${BORING_MAX_TEMPLATES_VALUE}
 BORING_S3_KEY=${BORING_S3_KEY_VALUE}
@@ -360,7 +371,7 @@ systemctl restart boringd
 sleep 2
 systemctl is-active boringd
 curl -fsS --max-time 8 "${BORING_HEALTH_URL_VALUE}"
-`, shellQuote(installDir), shellQuote(PinnedUpstreamRevision), shellQuote(envLine(token)), shellQuote(envLine(opts.AnthropicKey)), shellQuote(envLine(opts.OpenRouterKey)), shellQuote(envLine(opts.S3AccessKeyID)), shellQuote(envLine(opts.S3SecretKey)), shellQuote(envLine(opts.S3Endpoint)), shellQuote(envLine(opts.S3Bucket)), shellQuote(envLine(opts.S3Region)), shellQuote(s3UseSSL), shellQuote(boringdAddr), shellQuote(healthURL), maxMachines, maxForks, maxTemplates, allowPersistent, guestNet, skipDesktop)
+`, shellQuote(installDir), shellQuote(PinnedUpstreamRevision), shellQuote(envLine(token)), shellQuote(envLine(opts.AnthropicKey)), shellQuote(envLine(opts.OpenRouterKey)), shellQuote(envLine(opts.S3AccessKeyID)), shellQuote(envLine(opts.S3SecretKey)), shellQuote(envLine(opts.S3Endpoint)), shellQuote(envLine(opts.S3Bucket)), shellQuote(envLine(opts.S3Region)), shellQuote(s3UseSSL), shellQuote(boringdAddr), shellQuote(healthURL), maxMachines, maxMachines, createRatePerMinute, maxForks, maxTemplates, allowPersistent, guestNet, skipDesktop)
 	return script + managementInstallScript(opts)
 }
 
