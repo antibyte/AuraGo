@@ -328,7 +328,7 @@ async function vcCfgPreflight() {
 }
 
 async function vcCfgInstall() {
-    await vcCfgPostSetup('/api/virtual-computers/setup/install', 'vc-install-btn');
+    await vcCfgPostSetup('/api/virtual-computers/setup/install', 'vc-install-btn', true);
 }
 
 async function vcCfgTestStorage() {
@@ -347,18 +347,33 @@ async function vcCfgTestStorage() {
 	}
 }
 
-async function vcCfgPostSetup(url, buttonID) {
+async function vcCfgPostSetup(url, buttonID, showElapsed) {
     const btn = document.getElementById(buttonID);
     if (btn) btn.disabled = true;
     vcCfgSetResult(t('config.virtual_computers.status_loading'), '');
+    let elapsedTimer = null;
+    if (showElapsed) {
+        const startedAt = Date.now();
+        const updateElapsed = () => {
+            const seconds = Math.max(0, Math.floor((Date.now() - startedAt) / 1000));
+            vcCfgSetResult(t('config.virtual_computers.install_button') + '… ' + seconds + 's', '');
+        };
+        updateElapsed();
+        elapsedTimer = window.setInterval(updateElapsed, 1000);
+    }
     try {
         const resp = await fetch(url, { method: 'POST' });
         const body = await resp.json();
-        if (!resp.ok || body.error) throw new Error(body.error || resp.statusText);
-        vcCfgSetResult(body.message || t('config.virtual_computers.status_ok'), 'success');
+        if (!resp.ok || body.error || body.status === 'unhealthy') {
+            throw new Error(body.error || (body.setup && body.setup.message) || body.message || resp.statusText);
+        }
+        const warnings = (body.result && body.result.warnings) || (body.setup && body.setup.preflight && body.setup.preflight.warnings) || [];
+        const message = body.message || t('config.virtual_computers.status_ok');
+        vcCfgSetResult(warnings.length ? message + ' ' + warnings.join('; ') : message, warnings.length ? 'warning' : 'success');
     } catch (e) {
         vcCfgSetResult(t('config.virtual_computers.status_error') + ' ' + e.message, 'danger');
     } finally {
+        if (elapsedTimer !== null) window.clearInterval(elapsedTimer);
         if (btn) btn.disabled = false;
     }
 }

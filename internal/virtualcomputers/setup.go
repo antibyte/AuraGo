@@ -321,15 +321,38 @@ if ! /usr/local/go/bin/go version 2>/dev/null | grep -q "go${GO_VERSION}"; then
 fi
 /usr/local/go/bin/go version
 
-log "bootstrapping Firecracker assets"
-bash /root/infra/bootstrap.sh
-bash /root/infra/build-rootfs.sh
-bash /root/infra/build-template.sh python
-if [ "${SKIP_DESKTOP_VALUE}" = "1" ]; then
-	log "skipping desktop image"
-else
-	bash /root/infra/build-desktop-rootfs.sh
+ASSET_REVISION_FILE="/opt/boring/.aurago-assets-revision"
+ASSETS_READY=1
+for asset in \
+	/opt/boring/bin/firecracker \
+	/opt/boring/kernel/vmlinux \
+	/opt/boring/rootfs/rootfs.ext4 \
+	/opt/boring/templates/python/snapshot_file \
+	/opt/boring/templates/python/mem_file \
+	/opt/boring/templates/python/rootfs.ext4; do
+	[ -s "${asset}" ] || ASSETS_READY=0
+done
+if [ "${SKIP_DESKTOP_VALUE}" != "1" ] && [ ! -s /opt/boring/rootfs/desktop.ext4 ]; then
+	ASSETS_READY=0
 fi
+ASSET_REVISION="$(cat "${ASSET_REVISION_FILE}" 2>/dev/null || true)"
+if [ -n "${ASSET_REVISION}" ] && [ "${ASSET_REVISION}" != "${BORING_REVISION}" ]; then
+	ASSETS_READY=0
+fi
+
+if [ "${ASSETS_READY}" = "1" ]; then
+	log "reusing existing Firecracker assets"
+else
+	log "bootstrapping Firecracker assets"
+	bash /root/infra/bootstrap.sh
+	bash /root/infra/build-template.sh python
+	if [ "${SKIP_DESKTOP_VALUE}" = "1" ]; then
+		log "skipping desktop image"
+	else
+		bash /root/infra/build-desktop-rootfs.sh
+	fi
+fi
+printf '%%s\n' "${BORING_REVISION}" > "${ASSET_REVISION_FILE}"
 
 log "configuring guest networking"
 install -m0755 /root/infra/net-setup.sh /opt/boring/bin/net-setup.sh
@@ -370,8 +393,20 @@ systemctl daemon-reload
 systemctl enable boring-net.service 2>/dev/null || true
 systemctl enable boringd
 systemctl restart boringd
-sleep 2
-systemctl is-active boringd
+log "waiting for boringd health"
+BORING_HEALTHY=0
+for attempt in $(seq 1 30); do
+	if systemctl is-active --quiet boringd && curl -fsS --max-time 2 "${BORING_HEALTH_URL_VALUE}" >/dev/null 2>&1; then
+		BORING_HEALTHY=1
+		break
+	fi
+	sleep 1
+done
+if [ "${BORING_HEALTHY}" != "1" ]; then
+	systemctl status boringd --no-pager 2>&1 || true
+	echo "boringd did not become healthy at ${BORING_HEALTH_URL_VALUE} within 30 seconds" >&2
+	exit 1
+fi
 curl -fsS --max-time 8 "${BORING_HEALTH_URL_VALUE}"
 `, shellQuote(installDir), shellQuote(PinnedUpstreamRevision), shellQuote(envLine(token)), shellQuote(envLine(opts.AnthropicKey)), shellQuote(envLine(opts.OpenRouterKey)), shellQuote(envLine(opts.S3AccessKeyID)), shellQuote(envLine(opts.S3SecretKey)), shellQuote(envLine(opts.S3Endpoint)), shellQuote(envLine(opts.S3Bucket)), shellQuote(envLine(opts.S3Region)), shellQuote(s3UseSSL), shellQuote(boringdAddr), shellQuote(healthURL), maxMachines, maxMachines, createRatePerMinute, maxForks, maxTemplates, allowPersistent, guestNet, skipDesktop)
 	return script + managementInstallScript(opts)

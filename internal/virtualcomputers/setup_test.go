@@ -149,6 +149,28 @@ func TestSetupInstallAlignsRateLimitsWithManagedCapacity(t *testing.T) {
 	}
 }
 
+func TestSetupRepairReusesAssetsAndWaitsForBoringdHealth(t *testing.T) {
+	script := (SetupManager{}).installScript()
+
+	for _, want := range []string{
+		`ASSET_REVISION_FILE="/opt/boring/.aurago-assets-revision"`,
+		`log "reusing existing Firecracker assets"`,
+		`for attempt in $(seq 1 30); do`,
+		`systemctl is-active --quiet boringd`,
+		`boringd did not become healthy at ${BORING_HEALTH_URL_VALUE} within 30 seconds`,
+	} {
+		if !strings.Contains(script, want) {
+			t.Fatalf("install script missing %q", want)
+		}
+	}
+	if strings.Contains(script, "bash /root/infra/build-rootfs.sh") {
+		t.Fatal("install script must not rebuild the base rootfs twice; bootstrap already builds it")
+	}
+	if strings.Contains(script, "sleep 2\nsystemctl is-active boringd") {
+		t.Fatal("install script must not fail while boringd is still activating")
+	}
+}
+
 func TestSetupInstallUsesConfiguredBoringdURL(t *testing.T) {
 	executor := &fakeSSHExecutor{output: "ARCH=x86_64\nHAS_KVM=1\nOS_ID=ubuntu\n"}
 	manager := SetupManager{

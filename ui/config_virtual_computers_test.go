@@ -58,6 +58,23 @@ func TestVirtualComputersBoringdURLDefaultAvoidsCommonCaddyPort(t *testing.T) {
 	}
 }
 
+func TestVirtualComputersInstallShowsElapsedProgressAndFailures(t *testing.T) {
+	t.Parallel()
+
+	vcJS := normalizeAssetText(mustReadUIFile(t, "cfg/virtual_computers.js"))
+	for _, want := range []string{
+		`vcCfgPostSetup('/api/virtual-computers/setup/install', 'vc-install-btn', true)`,
+		`window.setInterval(updateElapsed, 1000)`,
+		`window.clearInterval(elapsedTimer)`,
+		`body.status === 'unhealthy'`,
+		`body.setup && body.setup.message`,
+	} {
+		if !strings.Contains(vcJS, want) {
+			t.Fatalf("virtual computers setup progress handling missing %q", want)
+		}
+	}
+}
+
 func TestVirtualComputersLocalSetupUsesCentralSudoPasswordVaultField(t *testing.T) {
 	t.Parallel()
 
