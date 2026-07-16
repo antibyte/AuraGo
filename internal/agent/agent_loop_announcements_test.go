@@ -113,6 +113,80 @@ func TestMidTaskSubstantiveTextWithoutDoneSkipsAnnouncementRecovery(t *testing.T
 	}
 }
 
+func TestMidTaskGermanCompletionEvidenceSkipsRecovery(t *testing.T) {
+	responses := []struct {
+		name    string
+		content string
+	}{
+		{
+			name:    "stable heartbeat summary",
+			content: "Status: stabil. Gefunden: 1 offener ToDo (`test`, Priorität medium, keine Dringlichkeitshinweise). Keine weiteren Aufgaben, Missionen oder Termine mit Handlungsbedarf. Keine Benachrichtigung nötig.",
+		},
+		{
+			name:    "completed status check",
+			content: "Die Statusprüfung ist abgeschlossen. Der letzte Bericht war korrekt — keine weitere Aktion erforderlich.",
+		},
+	}
+	for _, tt := range responses {
+		t.Run(tt.name, func(t *testing.T) {
+			s := newPostToolRecoveryTestState(t)
+			parsed := ParsedToolResponse{Content: tt.content, SanitizedContent: tt.content}
+
+			got, _, shouldContinue, _ := handleAgentLoopRecoveries(s, tt.content, ToolCall{}, parsed, true, emotionBehaviorPolicy{})
+			if shouldContinue {
+				t.Fatal("completed German status response requested recovery")
+			}
+			if got != tt.content {
+				t.Fatalf("content changed: got %q want %q", got, tt.content)
+			}
+			if len(s.req.Messages) != 0 {
+				t.Fatalf("unexpected recovery messages: %#v", s.req.Messages)
+			}
+		})
+	}
+}
+
+func TestGermanCompletionEvidenceRejectsUnfinishedText(t *testing.T) {
+	for _, content := range []string{
+		"Ich prüfe das jetzt.",
+		"Die Prüfung läuft.",
+		"Status: unbekannt.",
+	} {
+		if containsCompletionEvidence(content) {
+			t.Fatalf("unfinished text matched completion evidence: %q", content)
+		}
+	}
+}
+
+func newPostToolRecoveryTestState(t *testing.T) *agentLoopState {
+	t.Helper()
+	cfg := &config.Config{}
+	cfg.Agent.AnnouncementDetector.Enabled = true
+	cfg.Agent.AnnouncementDetector.MaxRetries = 2
+	logger := slog.New(slog.NewTextHandler(testDiscardWriter{}, &slog.HandlerOptions{Level: slog.LevelError}))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	t.Cleanup(func() { _ = stm.Close() })
+	return &agentLoopState{
+		ctx:                 context.Background(),
+		broker:              NoopBroker{},
+		currentLogger:       logger,
+		useNativeFunctions:  true,
+		lastResponseWasTool: true,
+		lastUserMsg:         "prüfe den Status",
+		recoverySession:     NewRecoverySessionState(logger, NoopBroker{}, cfg),
+		runCfg: RunConfig{
+			Config:         cfg,
+			SessionID:      "heartbeat",
+			MessageSource:  "heartbeat",
+			ShortTermMem:   stm,
+			HistoryManager: memory.NewEphemeralHistoryManager(),
+		},
+	}
+}
+
 func TestAnnouncementDetectorCatchesStructuredPlanWithoutToolCall(t *testing.T) {
 	tc := ToolCall{}
 	content := "1. Build production bundle\n2. Deploy to Netlify\n3. Verify homepage"

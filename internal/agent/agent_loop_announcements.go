@@ -9,7 +9,8 @@ var planLinePattern = regexp.MustCompile(`(?m)^\s*(?:[-*]|\d+[.)])\s+\S`)
 var pathLikePattern = regexp.MustCompile(`(?i)(?:[A-Za-z]:\\|/|\.{1,2}/|[A-Za-z0-9_-]+\.(?:go|ts|tsx|js|jsx|css|html|json|yaml|yml|md|log|txt|png|jpg|jpeg|webp|svg))`)
 var urlLikePattern = regexp.MustCompile(`(?i)\bhttps?://`)
 var resultMetricPattern = regexp.MustCompile(`(?i)\b\d+\s+(?:bytes?|files?|lines?|matches?|entries?|tests?|warnings?|errors?|items?|records?|results?|seconds?|minutes?|hours?|ms|kb|mb|gb)\b`)
-var statusEvidencePattern = regexp.MustCompile(`(?i)\b(?:status|exit code|http)\s*[:=]?\s*(?:ok|success|successful|error|failed|200|201|204|400|401|403|404|409|422|429|500)\b`)
+var statusEvidencePattern = regexp.MustCompile(`(?i)\b(?:status|exit code|http)\s*[:=]?\s*(?:ok|success|successful|stabil|erfolgreich|unauff[äa]llig|error|failed|200|201|204|400|401|403|404|409|422|429|500)\b`)
+var completionPhrasePattern = regexp.MustCompile(`(?i)\b(?:ist\s+abgeschlossen|wurde\s+abgeschlossen|keine\s+(?:weitere\s+)?aktion\s+erforderlich|keine\s+benachrichtigung\s+n[öo]tig)\b`)
 var actionPromisePattern = regexp.MustCompile(`(?i)\b(?:ich\s+(?:werde|pr[üu]fe|schaue|checke|mache|starte|f[üu]hre|erstelle|sende|aktualisiere|behebe|repariere|k[üu]mmere)|i\s+(?:will|am going to)|i'll|i'm going to|let me)\b`)
 var actionableUserIntentPattern = regexp.MustCompile(`(?i)\b(?:ja|ok|okay|weiter|mach|go ahead|do it|check|fix|run|repair|pr[üu]f|sende|erstelle|beheb|reparier|starte|f[üu]hre)\b`)
 var refusalPattern = regexp.MustCompile(`(?i)\b(?:cannot|can't|can not|unable|nicht|kann\s+nicht|keine\s+berechtigung|not allowed)\b`)
@@ -79,7 +80,9 @@ func containsCompletionEvidence(content string) bool {
 	if strings.ContainsAny(content, "✅✓☑✔") {
 		return true
 	}
-	return resultMetricPattern.MatchString(content) || statusEvidencePattern.MatchString(content)
+	return resultMetricPattern.MatchString(content) ||
+		statusEvidencePattern.MatchString(content) ||
+		completionPhrasePattern.MatchString(content)
 }
 
 func asksUserForInput(content string) bool {
