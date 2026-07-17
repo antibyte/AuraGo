@@ -53,11 +53,12 @@ func shouldSuppressCoAgentTools(runCfg RunConfig) bool {
 }
 
 // initAgentLoopState sets up all mutable state before the main agent loop begins.
-func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, broker FeedbackBroker) *agentLoopState {
+func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, broker FeedbackBroker, voiceOutputSuppressed bool) *agentLoopState {
 	s := &agentLoopState{
-		req:    req,
-		runCfg: runCfg,
-		broker: broker,
+		req:                   req,
+		runCfg:                runCfg,
+		broker:                broker,
+		voiceOutputSuppressed: voiceOutputSuppressed,
 	}
 
 	cfg := s.runCfg.Config
@@ -180,6 +181,10 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 		SpecialistsStatus:     buildSpecialistsStatus(cfg),
 		SpecialistsSuggestion: buildSpecialistDelegationHint(cfg, initialUserMsg),
 	})
+	if voiceOutputSuppressed {
+		flags.IsVoiceMode = false
+		flags.VoiceOutputActive = false
+	}
 	flags.Model = req.Model
 	flags.AgentSkillsCatalog = buildAgentSkillsPromptCatalog()
 	applyTaskRulePromptContext(&flags, buildTaskRulePromptContext(cfg, initialUserMsg, nil, nil, "", logger))
@@ -342,6 +347,9 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 
 	adaptiveFilteredTools := make([]string, 0)
 	ff := buildToolFeatureFlags(runCfg, toolingPolicy)
+	if voiceOutputSuppressed {
+		ff.TTSEnabled = false
+	}
 	schemaSnapshot := BuildNativeToolSchemaSnapshot(cfg.Directories.SkillsDir, manifest, ff, logger)
 	allSchemas := schemaSnapshot.FullSchemas()
 	if suppressCoAgentTools {
@@ -371,7 +379,7 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 
 			alwaysInclude := make([]string, len(cfg.Agent.AdaptiveTools.AlwaysInclude))
 			copy(alwaysInclude, cfg.Agent.AdaptiveTools.AlwaysInclude)
-			if (runCfg.VoiceOutputActive || GetVoiceMode()) && ff.TTSEnabled && !isAutonomousAgentRun(runCfg, sessionID) && !runCfg.IsMission {
+			if !voiceOutputSuppressed && (runCfg.VoiceOutputActive || GetVoiceMode()) && ff.TTSEnabled && !isAutonomousAgentRun(runCfg, sessionID) && !runCfg.IsMission {
 				alwaysInclude = append(alwaysInclude, "tts", "send_audio")
 			}
 			if ff.MusicGenerationEnabled {

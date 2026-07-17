@@ -157,7 +157,7 @@ func processPendingToolCalls(s *agentLoopState, ctx context.Context, lastUserMsg
 			ToolCallID: ptc.NativeCallID,
 		})
 	} else {
-		voiceModeActive := (s.runCfg.VoiceOutputActive || GetVoiceMode()) && !isAutonomousAgentRun(s.runCfg, s.runCfg.SessionID) && !s.runCfg.IsMission
+		voiceModeActive := !s.voiceOutputSuppressed && (s.runCfg.VoiceOutputActive || GetVoiceMode()) && !isAutonomousAgentRun(s.runCfg, s.runCfg.SessionID) && !s.runCfg.IsMission
 		followUpContent := toolResultFollowUpContent(ptc, pResultContent, voiceModeActive)
 		s.req.Messages = append(s.req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: ptcJSON})
 		s.req.Messages = append(s.req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: followUpContent})
@@ -616,7 +616,7 @@ func executeAgentToolTurn(
 		if !xmlFallbackHandledThisTurn {
 			s.req.Messages = append(s.req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: content})
 		}
-		voiceModeActive := (s.runCfg.VoiceOutputActive || GetVoiceMode()) && !isAutonomousAgentRun(s.runCfg, s.runCfg.SessionID) && !s.runCfg.IsMission
+		voiceModeActive := !s.voiceOutputSuppressed && (s.runCfg.VoiceOutputActive || GetVoiceMode()) && !isAutonomousAgentRun(s.runCfg, s.runCfg.SessionID) && !s.runCfg.IsMission
 		followUpContent := toolResultFollowUpContent(tc, resultContent, voiceModeActive)
 		s.req.Messages = append(s.req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: followUpContent})
 	}

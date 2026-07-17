@@ -823,5 +823,22 @@
   "dashboard.gauge_used": "已用",
   "dashboard.gauge_free": "空闲",
   "dashboard.quickstatus_n_auto_disabled": "{{n}} 已自动禁用",
-  "dashboard.quickstatus_n_pending": "{{n}} 待处理"
+  "dashboard.quickstatus_n_pending": "{{n}} 待处理",
+  "dashboard.realtime_speech_active_profile": "活动配置文件",
+  "dashboard.realtime_speech_desc": "不含音频、转录或凭据的只读状态。",
+  "dashboard.realtime_speech_enabled": "已启用",
+  "dashboard.realtime_speech_off": "关",
+  "dashboard.realtime_speech_on": "开",
+  "dashboard.realtime_speech_profiles": "配置文件",
+  "dashboard.realtime_speech_session": "会话",
+  "dashboard.realtime_speech_state_connecting": "正在连接",
+  "dashboard.realtime_speech_state_error": "错误",
+  "dashboard.realtime_speech_state_executing": "正在执行",
+  "dashboard.realtime_speech_state_idle": "空闲",
+  "dashboard.realtime_speech_state_listening": "正在聆听",
+  "dashboard.realtime_speech_state_parked": "已停泊",
+  "dashboard.realtime_speech_state_reconnecting": "正在重新连接",
+  "dashboard.realtime_speech_state_speaking": "正在说话",
+  "dashboard.realtime_speech_title": "实时语音",
+  "dashboard.realtime_speech_unavailable": "不可用"
 }

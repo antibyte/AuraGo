@@ -173,7 +173,37 @@
       </div>
     </div>
 
-    <!-- 3. Budget & Tokens -->
+    <!-- 3. Realtime Speech -->
+    <div class="dash-card" id="card-realtime-speech">
+      <div class="dash-card-header">
+        <svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h2l2-6 4 12 4-12 2 6h4"/><path d="M4 19h16" opacity=".45"/></svg>
+        <span data-i18n="dashboard.realtime_speech_title"></span>
+        <button type="button" class="collapse-toggle" data-card="card-realtime-speech" data-i18n-title="dashboard.activity_collapse" title="" aria-expanded="true">▼</button>
+      </div>
+      <div class="dash-card-body">
+        <p class="dash-card-desc" data-i18n="dashboard.realtime_speech_desc"></p>
+        <div class="stats-grid" id="realtime-speech-status">
+          <div class="stat-item">
+            <div class="stat-value" id="rs-status-enabled">—</div>
+            <div class="stat-label" data-i18n="dashboard.realtime_speech_enabled"></div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value" id="rs-status-profiles">—</div>
+            <div class="stat-label" data-i18n="dashboard.realtime_speech_profiles"></div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value" id="rs-status-profile">—</div>
+            <div class="stat-label" data-i18n="dashboard.realtime_speech_active_profile"></div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value" id="rs-status-session">—</div>
+            <div class="stat-label" data-i18n="dashboard.realtime_speech_session"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. Budget & Tokens -->
     <div class="dash-card" id="card-budget">
       <div class="dash-card-header"><svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M2 10h20"/><circle cx="17" cy="15" r="1.5" fill="currentColor" stroke="none"/></svg> <span data-i18n="dashboard.budget_title"></span> <button type="button" class="collapse-toggle" data-card="card-budget" data-i18n-title="dashboard.activity_collapse" title="" aria-expanded="true">▼</button></div>
       <div class="dash-card-body">
@@ -889,6 +919,7 @@
   <script src="/js/dashboard/widgets-knowledge.js" defer></script>
   <script src="/js/dashboard/dashboard-widgets.js" defer></script>
   <script src="/js/dashboard/dashboard-events.js" defer></script>
+  <script src="/js/dashboard/realtime-speech-status.js?v={{.BuildVersion}}" defer></script>
   <script src="/js/knowledge/file_sync_status.js" defer></script>
 
   <!-- Core-Facts Modal -->

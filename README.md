@@ -225,6 +225,7 @@ Background jobs can consolidate and analyze memory; see the manuals for tuning.
 | User guide (DE) | [documentation/manual/de/README.md](documentation/manual/de/README.md) |
 | User guide (EN) | [documentation/manual/en/README.md](documentation/manual/en/README.md) |
 | Configuration | [documentation/configuration.md](documentation/configuration.md) |
+| Realtime Speech | [documentation/realtime_speech.md](documentation/realtime_speech.md) |
 | Docker | [documentation/docker_installation.md](documentation/docker_installation.md) |
 | Architecture | [documentation/architecture.md](documentation/architecture.md) |
 | Telegram | [documentation/telegram_setup.md](documentation/telegram_setup.md) |

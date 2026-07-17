@@ -359,6 +359,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/api/warnings/acknowledge", handleWarningsAcknowledge(s))
 
 	mux.HandleFunc("/v1/chat/completions", handleChatCompletions(s, sse))
+	registerRealtimeSpeechHandlers(mux, s, sse)
 	mux.HandleFunc("/api/chat/sessions", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:

@@ -66,6 +66,14 @@ tools:
 
 API-Keys, Passwörter und Tokens werden niemals im Klartext in der Konfiguration gespeichert, sondern in einem **AES-256-GCM verschlüsselten Vault**.
 
+Für **Realtime Speech** gilt zusätzlich:
+
+- Jeder Schlüssel liegt unter einer profilgebundenen `realtime_speech_profile_<id>_api_key`-Kennung im Vault.
+- Browser erhalten niemals einen dauerhaften Anbieterschlüssel. OpenAI wird über AuraGos SDP-Proxy verbunden; xAI und Gemini erhalten ausschließlich kurzlebige, eingeschränkte Zugangsdaten.
+- Der Präfix `realtime_speech_` ist für Python-Werkzeuge gesperrt.
+- Roh-Audio und partielle Transkripte werden nicht gespeichert. Die lokale Spracherkennung sendet nur als Sprache erkannte Frames an den gewählten Anbieter.
+- Sprachaktionen durchlaufen denselben Agent-Loop, Guardian, Rechte- und Bestätigungsprüfungen wie normale Chataktionen.
+
 ### 4. Circuit Breaker & Limits
 
 ```yaml

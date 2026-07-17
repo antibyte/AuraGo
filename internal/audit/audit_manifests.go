@@ -183,6 +183,7 @@ func NetworkClientInventory() []NetworkClientUse {
 		{Path: "internal/meshcentral/", Classification: "configured-home-lab", AllowsLocalNet: true, Credentialed: true},
 		{Path: "internal/obsidian/", Classification: "configured-local-api", AllowsLocalNet: true, Credentialed: true},
 		{Path: "internal/prompts/", Classification: "tokenizer-download", RequiresSSRF: true},
+		{Path: "internal/realtimespeech/", Classification: "fixed-realtime-speech-provider-api", Credentialed: true},
 		{Path: "internal/rocketchat/", Classification: "configured-messaging", Credentialed: true},
 		{Path: "internal/security/", Classification: "ssrf-policy-implementation", RequiresSSRF: true},
 		{Path: "internal/server/", Classification: "server-handler-or-loopback", AllowsLocalNet: true, Credentialed: true},

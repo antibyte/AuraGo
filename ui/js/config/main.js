@@ -49,6 +49,7 @@ const SECTIONS = [
             { key: 'heartbeat', icon: '💓', label: t('config.section.heartbeat.label'), desc: t('config.section.heartbeat.desc'), customRender: 'renderHeartbeatSection' },
             { key: 'optimizations', icon: '🚀', label: t('config.section.optimizations.label'), desc: t('config.section.optimizations.desc') },
             { key: 'providers', icon: '🔌', label: t('config.section.providers.label'), desc: t('config.section.providers.desc') },
+            { key: 'realtime_speech', icon: '〽', label: t('config.section.realtime_speech.label'), desc: t('config.section.realtime_speech.desc') },
             { key: 'manifest', icon: '▦', label: t('config.section.manifest.label'), desc: t('config.section.manifest.desc') },
             { key: 'omniroute', icon: '◎', label: t('config.section.omniroute.label'), desc: t('config.section.omniroute.desc') },
             { key: 'dograh', icon: '▧', label: t('config.section.dograh.label'), desc: t('config.section.dograh.desc') },
@@ -549,6 +550,7 @@ const CONFIG_SIDEBAR_ICON_SLOTS = Object.freeze({
     ollama: 100,
     danger_zone: 101,
     manus: 102,
+    realtime_speech: 103,
 });
 
 const CONFIG_SIDEBAR_ICON_SYMBOL_PREFIX = 'config-sidebar-icon-';
@@ -558,6 +560,7 @@ const CONFIG_SIDEBAR_ICON_SYMBOLS = Object.freeze({
     heartbeat: "<path d=\"M30 67c-11-15 8-34 24-19l10 10 10-10c16-15 35 4 24 19-7 11-21 22-34 34-13-12-27-23-34-34z\" fill=\"#ef6f78\" opacity=\".2\"/><path d=\"M26 68h19l8-18 15 36 9-18h25\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"6\" stroke=\"#35c7d3\"/>",
     optimizations: "<path d=\"M51 86 42 98l18-5 26-26c9-9 13-24 9-37-13-4-28 0-37 9L32 65l-5 18 12-9z\" fill=\"#4f8ee8\" opacity=\".2\"/><path d=\"M39 74 58 39c9-9 24-13 37-9 4 13 0 28-9 37L51 86M45 88l-10 10M76 43l9 9\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"6\" stroke=\"#4f8ee8\"/><circle cx=\"76\" cy=\"52\" r=\"8\" fill=\"#35c7d3\"/>",
     providers: "<path d=\"M48 29v24M80 29v24M42 53h44v15c0 12-10 22-22 22S42 80 42 68zM64 90v14\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"6\" stroke=\"#27b6a9\"/><path d=\"M48 68h32\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"6\" stroke=\"#7da3c8\"/>",
+    realtime_speech: "<path d=\"M24 64h12m8-18v36m10-52v68m10-48v28m10-44v60m10-72v84m10-50v36m8-18h12\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"6\" stroke=\"#35c7d3\"/><circle cx=\"64\" cy=\"64\" r=\"38\" fill=\"none\" stroke=\"#7da3c8\" stroke-width=\"4\" opacity=\".3\"/>",
     manifest: "<g fill=\"#7b8ff0\"><rect x=\"28\" y=\"28\" width=\"26\" height=\"26\" rx=\"6\"/><rect x=\"59\" y=\"28\" width=\"41\" height=\"26\" rx=\"6\" opacity=\".75\"/><rect x=\"28\" y=\"59\" width=\"41\" height=\"41\" rx=\"6\" opacity=\".75\"/><rect x=\"74\" y=\"59\" width=\"26\" height=\"41\" rx=\"6\"/></g><path d=\"M41 41h.1M87 87h.1\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"6\" stroke=\"#35c7d3\"/>",
     omniroute: "<circle cx=\"36\" cy=\"39\" r=\"10\" fill=\"#35c7d3\"/><circle cx=\"92\" cy=\"89\" r=\"10\" fill=\"#7b8ff0\"/><path d=\"M46 39h15c15 0 17 20 2 20H51c-17 0-20 30 8 30h23\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"6\" stroke=\"#35c7d3\"/>",
     dograh: "<path d=\"M31 40h24l13 24-13 24H31L18 64zM73 30h24l13 24-13 24H73L60 54z\" fill=\"#9b7cf0\" opacity=\".2\"/><path d=\"M43 64h36M70 50l14 14-14 14\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"6\" stroke=\"#35c7d3\"/><text x=\"64\" y=\"65\" text-anchor=\"middle\" dominant-baseline=\"middle\" font-family=\"Geist, Inter, Segoe UI, Arial, sans-serif\" font-size=\"19\" font-weight=\"800\" fill=\"#9b7cf0\">D</text>",
@@ -2626,6 +2629,7 @@ const _moduleCache = {};
 const SECTION_MODULES = {
     heartbeat: { m: 'heartbeat', fn: 'renderHeartbeatSection' },
     providers: { m: 'providers', fn: 'renderProvidersSection' },
+    realtime_speech: { m: 'realtime_speech', fn: 'renderRealtimeSpeechSection' },
     manifest: { m: 'manifest', fn: 'renderManifestSection' },
     omniroute: { m: 'omniroute', fn: 'renderOmniRouteSection' },
     dograh: { m: 'dograh', fn: 'renderDograhSection' },

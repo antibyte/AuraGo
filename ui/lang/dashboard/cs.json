@@ -823,5 +823,22 @@
   "dashboard.gauge_used": "Využito",
   "dashboard.gauge_free": "Volné",
   "dashboard.quickstatus_n_auto_disabled": "{{n}} auto-vypnuto",
-  "dashboard.quickstatus_n_pending": "{{n}} čeká"
+  "dashboard.quickstatus_n_pending": "{{n}} čeká",
+  "dashboard.realtime_speech_active_profile": "Aktivní profil",
+  "dashboard.realtime_speech_desc": "Stav pouze pro čtení bez zvuku, přepisů a přihlašovacích údajů.",
+  "dashboard.realtime_speech_enabled": "Povoleno",
+  "dashboard.realtime_speech_off": "Vypnuto",
+  "dashboard.realtime_speech_on": "Zapnuto",
+  "dashboard.realtime_speech_profiles": "Profily",
+  "dashboard.realtime_speech_session": "Relace",
+  "dashboard.realtime_speech_state_connecting": "Připojování",
+  "dashboard.realtime_speech_state_error": "Chyba",
+  "dashboard.realtime_speech_state_executing": "Provádím",
+  "dashboard.realtime_speech_state_idle": "Nečinné",
+  "dashboard.realtime_speech_state_listening": "Poslouchám",
+  "dashboard.realtime_speech_state_parked": "Zaparkováno",
+  "dashboard.realtime_speech_state_reconnecting": "Obnovování připojení",
+  "dashboard.realtime_speech_state_speaking": "Mluvím",
+  "dashboard.realtime_speech_title": "Řeč v reálném čase",
+  "dashboard.realtime_speech_unavailable": "Nedostupné"
 }

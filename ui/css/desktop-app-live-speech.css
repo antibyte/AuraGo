@@ -1,0 +1,55 @@
+.vd-live-speech-app {
+    box-sizing: border-box;
+    display: grid;
+    grid-template-columns: minmax(180px, .72fr) minmax(320px, 1.28fr);
+    gap: 24px;
+    min-height: 100%;
+    padding: clamp(18px, 4vw, 38px);
+    color: var(--vd-text, #f3f7f8);
+    background:
+        radial-gradient(circle at 12% 12%, color-mix(in srgb, var(--vd-accent, #2fc5a9) 12%, transparent), transparent 34%),
+        var(--vd-surface, #121920);
+}
+
+.vd-live-speech-intro {
+    align-self: center;
+    max-width: 390px;
+}
+
+.vd-live-speech-kicker {
+    color: var(--vd-accent, #2fc5a9);
+    font-size: .72rem;
+    font-weight: 750;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+}
+
+.vd-live-speech-intro h2 {
+    margin: 10px 0 8px;
+    font-size: clamp(1.75rem, 3vw, 2.7rem);
+    letter-spacing: -.035em;
+}
+
+.vd-live-speech-intro p {
+    margin: 0;
+    color: var(--vd-text-muted, #9dafb9);
+    line-height: 1.65;
+}
+
+.vd-live-speech-app [data-live-speech-panel] {
+    display: grid;
+    align-items: center;
+}
+
+.vd-live-speech-app .realtime-speech-panel {
+    --rt-accent: var(--vd-accent, #2fc5a9);
+    --rt-surface: var(--vd-panel, #17202a);
+    margin: auto;
+}
+
+@media (max-width: 720px) {
+    .vd-live-speech-app {
+        grid-template-columns: 1fr;
+        align-content: start;
+    }
+}

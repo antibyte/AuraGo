@@ -823,5 +823,22 @@
   "dashboard.gauge_used": "Χρησιμοποιείται",
   "dashboard.gauge_free": "Ελεύθερο",
   "dashboard.quickstatus_n_auto_disabled": "{{n}} αυτόματα απενεργοποιημένα",
-  "dashboard.quickstatus_n_pending": "{{n}} εκκρεμεί"
+  "dashboard.quickstatus_n_pending": "{{n}} εκκρεμεί",
+  "dashboard.realtime_speech_active_profile": "Ενεργό προφίλ",
+  "dashboard.realtime_speech_desc": "Κατάσταση μόνο για ανάγνωση, χωρίς ήχο, μεταγραφές ή διαπιστευτήρια.",
+  "dashboard.realtime_speech_enabled": "Ενεργή",
+  "dashboard.realtime_speech_off": "Ανενεργό",
+  "dashboard.realtime_speech_on": "Ενεργό",
+  "dashboard.realtime_speech_profiles": "Προφίλ",
+  "dashboard.realtime_speech_session": "Συνεδρία",
+  "dashboard.realtime_speech_state_connecting": "Σύνδεση",
+  "dashboard.realtime_speech_state_error": "Σφάλμα",
+  "dashboard.realtime_speech_state_executing": "Εκτελώ",
+  "dashboard.realtime_speech_state_idle": "Αδρανές",
+  "dashboard.realtime_speech_state_listening": "Ακούω",
+  "dashboard.realtime_speech_state_parked": "Σε στάθμευση",
+  "dashboard.realtime_speech_state_reconnecting": "Επανασύνδεση",
+  "dashboard.realtime_speech_state_speaking": "Μιλάω",
+  "dashboard.realtime_speech_title": "Ομιλία σε πραγματικό χρόνο",
+  "dashboard.realtime_speech_unavailable": "Μη διαθέσιμο"
 }

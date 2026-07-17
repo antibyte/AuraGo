@@ -168,6 +168,38 @@ func migrateProviderSecrets(rawCfg map[string]interface{}, vault SecretReadWrite
 	return migrated
 }
 
+func migrateRealtimeSpeechSecrets(rawCfg map[string]interface{}, vault SecretReadWriter, log *slog.Logger) bool {
+	realtimeSpeech, ok := rawCfg["realtime_speech"].(map[string]interface{})
+	if !ok {
+		return false
+	}
+	items, ok := realtimeSpeech["profiles"].([]interface{})
+	if !ok {
+		return false
+	}
+
+	migrated := false
+	for _, item := range items {
+		profile, ok := item.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		id, _ := profile["id"].(string)
+		key := RealtimeSpeechProfileAPIKeyVaultKey(id)
+		if key == "" {
+			if _, exists := profile["api_key"]; exists {
+				delete(profile, "api_key")
+				migrated = true
+			}
+			continue
+		}
+		if migrateMapStringSecret(profile, "api_key", key, vault, log) {
+			migrated = true
+		}
+	}
+	return migrated
+}
+
 func migrateEmailAccountSecrets(rawCfg map[string]interface{}, vault SecretReadWriter, log *slog.Logger) bool {
 	items, ok := rawCfg["email_accounts"].([]interface{})
 	if !ok {
@@ -304,6 +336,9 @@ func MigratePlaintextSecretsToVault(configPath string, vault SecretReadWriter, l
 		}
 	}
 	if migrateProviderSecrets(rawCfg, vault, log) {
+		migrated = true
+	}
+	if migrateRealtimeSpeechSecrets(rawCfg, vault, log) {
 		migrated = true
 	}
 	if migrateEmailAccountSecrets(rawCfg, vault, log) {

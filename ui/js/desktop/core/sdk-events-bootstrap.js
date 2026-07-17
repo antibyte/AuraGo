@@ -371,6 +371,8 @@
     function wireChrome() {
         $('vd-start-button').addEventListener('click', toggleStartMenu);
         $('vd-agent-button').addEventListener('click', () => openApp('agent-chat'));
+        const liveSpeechButton = $('vd-live-speech-button');
+        if (liveSpeechButton) liveSpeechButton.addEventListener('click', () => openApp('live-speech'));
         const widgetDrawerBtn = document.getElementById('vd-widget-drawer-btn');
         if (widgetDrawerBtn) widgetDrawerBtn.addEventListener('click', toggleWidgetDrawer);
         const showDesktopBtn = document.getElementById('vd-show-desktop-btn');

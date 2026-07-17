@@ -816,6 +816,10 @@ func Load(path string) (*Config, error) {
 
 	NormalizeAIGatewayConfig(&cfg)
 	NormalizeCloudflareTunnelConfig(&cfg)
+	NormalizeRealtimeSpeechConfig(&cfg.RealtimeSpeech)
+	if err := ValidateRealtimeSpeechConfig(cfg.RealtimeSpeech); err != nil {
+		return nil, err
+	}
 
 	switch strings.ToLower(strings.TrimSpace(cfg.WebDAV.AuthType)) {
 	case "", "basic":

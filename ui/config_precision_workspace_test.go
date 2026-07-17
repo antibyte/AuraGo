@@ -267,7 +267,7 @@ func TestConfigPrecisionWorkspaceBrowserMatrix(t *testing.T) {
 			firstUseTarget: inlineIcons[0] ? inlineIcons[0].getAttribute('href') : '',
 		};
 	}`).Map()
-	if iconState["icons"].Int() != 103 || iconState["inlineIcons"].Int() != 103 || !iconState["hasSymbolSprite"].Bool() || !iconState["firstIconVisible"].Bool() {
+	if iconState["icons"].Int() != 104 || iconState["inlineIcons"].Int() != 104 || !iconState["hasSymbolSprite"].Bool() || !iconState["firstIconVisible"].Bool() {
 		t.Fatalf("config sidebar icons are not render-safe: %+v", iconState)
 	}
 	if got := iconState["firstUseTarget"].String(); got != "#config-sidebar-icon-overview" {
@@ -452,7 +452,7 @@ func TestConfigSidebarIconSpriteContract(t *testing.T) {
 	}
 
 	expectedKeys := expectedConfigSidebarIconKeys(t, mainJS)
-	if got, want := len(expectedKeys), 103; got != want {
+	if got, want := len(expectedKeys), 104; got != want {
 		t.Fatalf("expected config sidebar key count = %d, want %d", got, want)
 	}
 
@@ -499,8 +499,8 @@ func TestConfigSidebarIconSpriteContract(t *testing.T) {
 			t.Fatalf("config sidebar SVG sprite missing marker %q", marker)
 		}
 	}
-	if got := strings.Count(sprite, `class="cfg-icon-cell"`); got != 103 {
-		t.Fatalf("config sidebar SVG sprite has %d icon cells, want 103", got)
+	if got := strings.Count(sprite, `class="cfg-icon-cell"`); got != 104 {
+		t.Fatalf("config sidebar SVG sprite has %d icon cells, want 104", got)
 	}
 
 	var metadata struct {
@@ -524,8 +524,8 @@ func TestConfigSidebarIconSpriteContract(t *testing.T) {
 	if metadata.Grid.Columns != 11 || metadata.Grid.Rows != 10 || metadata.Grid.CellSize != 128 {
 		t.Fatalf("metadata grid = %+v, want 11x10 cells of 128", metadata.Grid)
 	}
-	if got := len(metadata.Icons); got != 103 {
-		t.Fatalf("metadata has %d icons, want 103", got)
+	if got := len(metadata.Icons); got != 104 {
+		t.Fatalf("metadata has %d icons, want 104", got)
 	}
 
 	metaByKey := make(map[string]struct {
@@ -634,8 +634,8 @@ func assertConfigIconCoverage(t *testing.T, expectedKeys []string, slotByKey map
 		if !ok {
 			t.Fatalf("slot map missing key %q", key)
 		}
-		if slot < 0 || slot >= 103 {
-			t.Fatalf("slot for %q = %d, want 0..101", key, slot)
+		if slot < 0 || slot >= 104 {
+			t.Fatalf("slot for %q = %d, want 0..103", key, slot)
 		}
 		if previous, exists := usedSlots[slot]; exists {
 			t.Fatalf("slot %d is reused by %q and %q", slot, previous, key)

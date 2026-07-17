@@ -823,5 +823,22 @@
   "dashboard.gauge_used": "Brugt",
   "dashboard.gauge_free": "Ledig",
   "dashboard.quickstatus_n_auto_disabled": "{{n}} auto-deaktiveret",
-  "dashboard.quickstatus_n_pending": "{{n}} afventer"
+  "dashboard.quickstatus_n_pending": "{{n}} afventer",
+  "dashboard.realtime_speech_active_profile": "Aktiv profil",
+  "dashboard.realtime_speech_desc": "Skrivebeskyttet status uden lyd, udskrifter eller legitimationsoplysninger.",
+  "dashboard.realtime_speech_enabled": "Aktiveret",
+  "dashboard.realtime_speech_off": "Fra",
+  "dashboard.realtime_speech_on": "Til",
+  "dashboard.realtime_speech_profiles": "Profiler",
+  "dashboard.realtime_speech_session": "Session",
+  "dashboard.realtime_speech_state_connecting": "Opretter forbindelse",
+  "dashboard.realtime_speech_state_error": "Fejl",
+  "dashboard.realtime_speech_state_executing": "Udfører",
+  "dashboard.realtime_speech_state_idle": "Inaktiv",
+  "dashboard.realtime_speech_state_listening": "Lytter",
+  "dashboard.realtime_speech_state_parked": "Parkeret",
+  "dashboard.realtime_speech_state_reconnecting": "Forbinder igen",
+  "dashboard.realtime_speech_state_speaking": "Taler",
+  "dashboard.realtime_speech_title": "Tale i realtid",
+  "dashboard.realtime_speech_unavailable": "Ikke tilgængelig"
 }

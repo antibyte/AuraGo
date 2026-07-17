@@ -823,5 +823,22 @@
   "dashboard.gauge_used": "Gebruikt",
   "dashboard.gauge_free": "Vrij",
   "dashboard.quickstatus_n_auto_disabled": "{{n}} auto-uitgeschakeld",
-  "dashboard.quickstatus_n_pending": "{{n}} in behandeling"
+  "dashboard.quickstatus_n_pending": "{{n}} in behandeling",
+  "dashboard.realtime_speech_active_profile": "Actief profiel",
+  "dashboard.realtime_speech_desc": "Alleen-lezenstatus zonder audio, transcripties of aanmeldgegevens.",
+  "dashboard.realtime_speech_enabled": "Ingeschakeld",
+  "dashboard.realtime_speech_off": "Uit",
+  "dashboard.realtime_speech_on": "Aan",
+  "dashboard.realtime_speech_profiles": "Profielen",
+  "dashboard.realtime_speech_session": "Sessie",
+  "dashboard.realtime_speech_state_connecting": "Verbinden",
+  "dashboard.realtime_speech_state_error": "Fout",
+  "dashboard.realtime_speech_state_executing": "Voert uit",
+  "dashboard.realtime_speech_state_idle": "Inactief",
+  "dashboard.realtime_speech_state_listening": "Luistert",
+  "dashboard.realtime_speech_state_parked": "Geparkeerd",
+  "dashboard.realtime_speech_state_reconnecting": "Opnieuw verbinden",
+  "dashboard.realtime_speech_state_speaking": "Spreekt",
+  "dashboard.realtime_speech_title": "Realtime spraak",
+  "dashboard.realtime_speech_unavailable": "Niet beschikbaar"
 }

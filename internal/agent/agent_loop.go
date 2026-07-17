@@ -105,12 +105,13 @@ func withAgentLoopSlot(ctx context.Context, fn func()) error {
 
 // agentLoopState holds the mutable state for a single ExecuteAgentLoop invocation.
 type agentLoopState struct {
-	ctx    context.Context
-	stream bool
-	broker FeedbackBroker
-	runCfg RunConfig
-	req    openai.ChatCompletionRequest
-	flags  prompts.ContextFlags
+	ctx                   context.Context
+	stream                bool
+	broker                FeedbackBroker
+	runCfg                RunConfig
+	req                   openai.ChatCompletionRequest
+	flags                 prompts.ContextFlags
+	voiceOutputSuppressed bool
 
 	initialUserMsg           string
 	dailyTodoReminder        string
@@ -249,7 +250,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 	}()
 
-	s := initAgentLoopState(req, runCfg, broker)
+	s := initAgentLoopState(req, runCfg, broker, VoiceOutputSuppressed(ctx))
 	req = s.req
 
 	cfg := s.runCfg.Config
@@ -1027,8 +1028,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				flags.Tier = adjustedTier
 			}
 		}
-		flags.IsDebugMode = cfg.Agent.DebugMode || GetDebugMode()                                           // re-check each iteration (toggleable at runtime)
-		flags.IsVoiceMode = GetVoiceMode() && !isAutonomousAgentRun(runCfg, sessionID) && !runCfg.IsMission // re-check each iteration (toggleable at runtime)
+		flags.IsDebugMode = cfg.Agent.DebugMode || GetDebugMode()                                                                       // re-check each iteration (toggleable at runtime)
+		flags.IsVoiceMode = GetVoiceMode() && !s.voiceOutputSuppressed && !isAutonomousAgentRun(runCfg, sessionID) && !runCfg.IsMission // re-check each iteration (toggleable at runtime)
 		if shouldInjectSpecialistAwareness(lastUserMsg, "") {
 			flags.SpecialistsAvailable = specialistsAvailable(cfg)
 			flags.SpecialistsStatus = buildSpecialistsStatus(cfg)

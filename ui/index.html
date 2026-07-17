@@ -31,6 +31,7 @@
     <script src="/js/shared/shared-chat.js?v={{.BuildVersion}}"></script>
     <link id="hljs-theme" rel="stylesheet" href="/css/hljs-github-dark.min.css">
     <link rel="stylesheet" href="/css/chat.bundle.css?v={{.BuildVersion}}">
+    <link rel="stylesheet" href="/css/realtime-speech.css?v={{.BuildVersion}}">
 </head>
 
 <body class="h-screen h-[100dvh] flex flex-col">
@@ -226,6 +227,11 @@
             <button type="button" id="voice-btn" class="btn-voice btn-composer-primary" data-i18n-aria-label="chat.aria_voice_input">
                 <span class="chat-ui-icon" data-chat-icon="voice"></span>
             </button>
+            <button type="button" id="realtime-speech-btn" class="btn-voice btn-composer-primary realtime-speech-launcher"
+                data-realtime-speech-launcher data-i18n-aria-label="chat.realtime_open"
+                aria-controls="realtime-speech-overlay" aria-expanded="false" aria-pressed="false">
+                <span class="realtime-speech-launcher-wave" aria-hidden="true"><i></i><i></i><i></i></span>
+            </button>
             <div id="composer-panel" class="composer-panel is-hidden">
                 <button type="button" id="clear-btn" class="composer-tool-btn" data-i18n-aria-label="chat.aria_clear">
                     <span class="tool-icon chat-ui-icon" data-chat-icon="clear"></span>
@@ -329,8 +335,28 @@
         </div>
     </div>
 
+    <div id="realtime-speech-overlay" class="realtime-speech-webchat-overlay" aria-hidden="true">
+        <div class="realtime-speech-webchat-dialog" role="dialog" aria-modal="true" aria-labelledby="realtime-speech-webchat-title">
+            <div class="realtime-speech-webchat-titlebar">
+                <strong id="realtime-speech-webchat-title" data-i18n="chat.realtime_title"></strong>
+                <button type="button" id="realtime-speech-overlay-close" data-i18n-aria-label="common.close">×</button>
+            </div>
+            <div id="realtime-speech-webchat-panel"></div>
+        </div>
+    </div>
+
     <script src="/js/chat/bundles/chat-vendor.bundle.js?v={{.BuildVersion}}"></script>
     <script src="/js/chat/bundles/chat-runtime.bundle.js?v={{.BuildVersion}}"></script>
+    <script src="/js/realtime-speech/vendor/ort.wasm.min.js?v={{.BuildVersion}}"></script>
+    <script src="/js/realtime-speech/silero-vad.js?v={{.BuildVersion}}"></script>
+    <script src="/js/realtime-speech/audio-engine.js?v={{.BuildVersion}}"></script>
+    <script src="/js/realtime-speech/provider-common.js?v={{.BuildVersion}}"></script>
+    <script src="/js/realtime-speech/provider-openai.js?v={{.BuildVersion}}"></script>
+    <script src="/js/realtime-speech/provider-xai.js?v={{.BuildVersion}}"></script>
+    <script src="/js/realtime-speech/provider-gemini.js?v={{.BuildVersion}}"></script>
+    <script src="/js/realtime-speech/core.js?v={{.BuildVersion}}"></script>
+    <script src="/js/realtime-speech/panel.js?v={{.BuildVersion}}"></script>
+    <script src="/js/realtime-speech/webchat.js?v={{.BuildVersion}}"></script>
 
     <!-- Image Lightbox Overlay -->
     <div id="img-lightbox">

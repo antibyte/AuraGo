@@ -74,6 +74,21 @@
                 '/js/desktop/apps/agent-chat.js'
             ]
         },
+        'live-speech': {
+            styles: appStyles('/css/realtime-speech.css', '/css/desktop-app-live-speech.css'),
+            scripts: [
+                '/js/realtime-speech/vendor/ort.wasm.min.js',
+                '/js/realtime-speech/silero-vad.js',
+                '/js/realtime-speech/audio-engine.js',
+                '/js/realtime-speech/provider-common.js',
+                '/js/realtime-speech/provider-openai.js',
+                '/js/realtime-speech/provider-xai.js',
+                '/js/realtime-speech/provider-gemini.js',
+                '/js/realtime-speech/core.js',
+                '/js/realtime-speech/panel.js',
+                '/js/desktop/apps/live-speech.js'
+            ]
+        },
         'code-studio': {
             styles: appStyles('/css/code-studio.css', '/css/xterm.css', '/css/hljs-github-dark.min.css'),
             scripts: [

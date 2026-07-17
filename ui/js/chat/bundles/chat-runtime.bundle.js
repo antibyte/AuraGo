@@ -7835,7 +7835,7 @@ function handleSSEMessage(e) {
         let message = '';
         if (!data.event) return;
         if (data.session_id && data.session_id !== getActiveSessionId()) return;
-        if (data.event === 'thinking' || data.event === 'tool_start' || data.event === 'co_agent_spawn' || data.event === 'coding') {
+        if (data.event === 'thinking' || data.event === 'tool_start' || data.event === 'co_agent_spawn' || data.event === 'coding' || data.event === 'progress') {
             chatSetHidden(agentStatusDiv, false);
         }
         if (data.event === 'thinking') {
@@ -7875,6 +7875,9 @@ function handleSSEMessage(e) {
         } else if (data.event === 'error_recovery') {
             message = t('chat.sse_error_recovery');
             setStatusToolIcon('generic_tool');
+        } else if (data.event === 'progress') {
+            message = data.detail || t('chat.sse_progress');
+            setStatusToolIcon('thinking');
         } else if (data.event === 'tool_call') {
             if (debugMode) {
                 appendToolOutput(data.detail, t('chat.tool_call_label'));

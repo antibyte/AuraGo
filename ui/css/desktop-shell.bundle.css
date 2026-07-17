@@ -6420,3 +6420,79 @@
 .vd-pet-bubble.is-success { background: linear-gradient(135deg, rgba(209, 250, 229, 0.97), rgba(167, 243, 208, 0.96)); }
 .vd-pet-bubble.is-error { background: linear-gradient(135deg, rgba(254, 226, 226, 0.97), rgba(254, 202, 202, 0.96)); }
 .vd-pet-bubble.is-info { background: linear-gradient(135deg, rgba(224, 242, 254, 0.97), rgba(186, 230, 253, 0.96)); }
+
+/* ui/css/desktop-realtime-speech.css */
+.vd-live-speech-button {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 32px;
+    padding: 0;
+    color: var(--vd-text-muted, #aeb8c5);
+    background: transparent;
+    border: 0;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.vd-live-speech-button:hover {
+    color: var(--vd-text, #f5f7fb);
+    background: var(--vd-hover, rgb(255 255 255 / 8%));
+}
+
+.vd-live-speech-button-wave {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    height: 18px;
+}
+
+.vd-live-speech-button-wave i {
+    width: 3px;
+    height: 7px;
+    background: currentColor;
+    border-radius: 999px;
+}
+
+.vd-live-speech-button-wave i:nth-child(2) { height: 15px; }
+
+.vd-live-speech-button[data-active="true"] {
+    color: var(--vd-accent, #2fc5a9);
+}
+
+.vd-live-speech-button[data-active="true"] i {
+    animation: vd-live-speech-pulse .8s ease-in-out infinite alternate;
+}
+
+@keyframes vd-live-speech-pulse {
+    to { transform: scaleY(1.55); }
+}
+
+.desktop-body[data-theme="fruity"] .vd-live-speech-button {
+    display: none;
+}
+
+.desktop-body[data-theme="standard"] .vd-live-speech-button {
+    display: inline-flex;
+}
+
+.vd-chat-live-speech {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    color: var(--vd-chat-muted, #9daab4);
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    cursor: pointer;
+}
+
+.vd-chat-live-speech:hover,
+.vd-chat-live-speech[data-active="true"] {
+    color: var(--vd-accent, #2fc5a9);
+    background: color-mix(in srgb, var(--vd-accent, #2fc5a9) 10%, transparent);
+}

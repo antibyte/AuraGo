@@ -23,6 +23,7 @@ var blockedSecretPrefixes = []string{
 	"nest_",
 	"auth_",
 	"provider_",
+	"realtime_speech_",
 	"credential_password_",
 	"credential_certificate_",
 	"credential_token_",

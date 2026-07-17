@@ -823,5 +823,22 @@
   "dashboard.gauge_used": "Brukt",
   "dashboard.gauge_free": "Ledig",
   "dashboard.quickstatus_n_auto_disabled": "{{n}} auto-deaktivert",
-  "dashboard.quickstatus_n_pending": "{{n}} venter"
+  "dashboard.quickstatus_n_pending": "{{n}} venter",
+  "dashboard.realtime_speech_active_profile": "Aktiv profil",
+  "dashboard.realtime_speech_desc": "Skrivebeskyttet status uten lyd, utskrifter eller påloggingsinformasjon.",
+  "dashboard.realtime_speech_enabled": "Aktivert",
+  "dashboard.realtime_speech_off": "Av",
+  "dashboard.realtime_speech_on": "På",
+  "dashboard.realtime_speech_profiles": "Profiler",
+  "dashboard.realtime_speech_session": "Økt",
+  "dashboard.realtime_speech_state_connecting": "Kobler til",
+  "dashboard.realtime_speech_state_error": "Feil",
+  "dashboard.realtime_speech_state_executing": "Utfører",
+  "dashboard.realtime_speech_state_idle": "Inaktiv",
+  "dashboard.realtime_speech_state_listening": "Lytter",
+  "dashboard.realtime_speech_state_parked": "Parkert",
+  "dashboard.realtime_speech_state_reconnecting": "Kobler til igjen",
+  "dashboard.realtime_speech_state_speaking": "Snakker",
+  "dashboard.realtime_speech_title": "Tale i sanntid",
+  "dashboard.realtime_speech_unavailable": "Ikke tilgjengelig"
 }

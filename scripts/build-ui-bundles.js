@@ -127,7 +127,8 @@ const cssBundles = [
       'ui/css/desktop-widgets.css',
       'ui/css/desktop-modals.css',
       'ui/css/desktop-shell-overrides.css',
-      'ui/css/desktop-pet.css'
+      'ui/css/desktop-pet.css',
+      'ui/css/desktop-realtime-speech.css'
     ]
   },
   {

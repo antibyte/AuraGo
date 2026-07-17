@@ -823,5 +823,22 @@
   "dashboard.gauge_used": "使用中",
   "dashboard.gauge_free": "空き",
   "dashboard.quickstatus_n_auto_disabled": "{{n}}件自動無効",
-  "dashboard.quickstatus_n_pending": "{{n}}件保留"
+  "dashboard.quickstatus_n_pending": "{{n}}件保留",
+  "dashboard.realtime_speech_active_profile": "有効なプロファイル",
+  "dashboard.realtime_speech_desc": "音声、文字起こし、認証情報を含まない読み取り専用ステータスです。",
+  "dashboard.realtime_speech_enabled": "有効",
+  "dashboard.realtime_speech_off": "オフ",
+  "dashboard.realtime_speech_on": "オン",
+  "dashboard.realtime_speech_profiles": "プロファイル",
+  "dashboard.realtime_speech_session": "セッション",
+  "dashboard.realtime_speech_state_connecting": "接続中",
+  "dashboard.realtime_speech_state_error": "エラー",
+  "dashboard.realtime_speech_state_executing": "実行中",
+  "dashboard.realtime_speech_state_idle": "待機中",
+  "dashboard.realtime_speech_state_listening": "聞き取り中",
+  "dashboard.realtime_speech_state_parked": "パーク中",
+  "dashboard.realtime_speech_state_reconnecting": "再接続中",
+  "dashboard.realtime_speech_state_speaking": "発話中",
+  "dashboard.realtime_speech_title": "リアルタイム音声",
+  "dashboard.realtime_speech_unavailable": "利用不可"
 }

@@ -823,5 +823,22 @@
   "dashboard.gauge_used": "Usado",
   "dashboard.gauge_free": "Libre",
   "dashboard.quickstatus_n_auto_disabled": "{{n}} auto-desactivados",
-  "dashboard.quickstatus_n_pending": "{{n}} pendientes"
+  "dashboard.quickstatus_n_pending": "{{n}} pendientes",
+  "dashboard.realtime_speech_active_profile": "Perfil activo",
+  "dashboard.realtime_speech_desc": "Estado de solo lectura sin audio, transcripciones ni credenciales.",
+  "dashboard.realtime_speech_enabled": "Activada",
+  "dashboard.realtime_speech_off": "No",
+  "dashboard.realtime_speech_on": "Sí",
+  "dashboard.realtime_speech_profiles": "Perfiles",
+  "dashboard.realtime_speech_session": "Sesión",
+  "dashboard.realtime_speech_state_connecting": "Conectando",
+  "dashboard.realtime_speech_state_error": "Error",
+  "dashboard.realtime_speech_state_executing": "Ejecutando",
+  "dashboard.realtime_speech_state_idle": "Inactiva",
+  "dashboard.realtime_speech_state_listening": "Escuchando",
+  "dashboard.realtime_speech_state_parked": "Aparcada",
+  "dashboard.realtime_speech_state_reconnecting": "Reconectando",
+  "dashboard.realtime_speech_state_speaking": "Hablando",
+  "dashboard.realtime_speech_title": "Voz en tiempo real",
+  "dashboard.realtime_speech_unavailable": "No disponible"
 }

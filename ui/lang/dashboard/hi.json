@@ -823,5 +823,22 @@
   "dashboard.gauge_used": "उपयोग में",
   "dashboard.gauge_free": "खाली",
   "dashboard.quickstatus_n_auto_disabled": "{{n}} स्वतः अक्षम",
-  "dashboard.quickstatus_n_pending": "{{n}} लंबित"
+  "dashboard.quickstatus_n_pending": "{{n}} लंबित",
+  "dashboard.realtime_speech_active_profile": "सक्रिय प्रोफ़ाइल",
+  "dashboard.realtime_speech_desc": "ऑडियो, ट्रांसक्रिप्ट या क्रेडेंशियल के बिना केवल-पढ़ने योग्य स्थिति।",
+  "dashboard.realtime_speech_enabled": "सक्रिय",
+  "dashboard.realtime_speech_off": "बंद",
+  "dashboard.realtime_speech_on": "चालू",
+  "dashboard.realtime_speech_profiles": "प्रोफ़ाइल",
+  "dashboard.realtime_speech_session": "सत्र",
+  "dashboard.realtime_speech_state_connecting": "कनेक्ट हो रहा है",
+  "dashboard.realtime_speech_state_error": "त्रुटि",
+  "dashboard.realtime_speech_state_executing": "कार्रवाई हो रही है",
+  "dashboard.realtime_speech_state_idle": "निष्क्रिय",
+  "dashboard.realtime_speech_state_listening": "सुन रहा है",
+  "dashboard.realtime_speech_state_parked": "पार्क किया गया",
+  "dashboard.realtime_speech_state_reconnecting": "फिर से कनेक्ट हो रहा है",
+  "dashboard.realtime_speech_state_speaking": "बोल रहा है",
+  "dashboard.realtime_speech_title": "रीयलटाइम वाणी",
+  "dashboard.realtime_speech_unavailable": "अनुपलब्ध"
 }

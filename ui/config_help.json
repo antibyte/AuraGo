@@ -5,6 +5,15 @@
     "security": "Manus API keys have full account access. Read-only mode overrides every modifying permission, and turning it off always requires confirmation. Keep resource allowlists narrow.",
     "skills": "The setup view combines account skills with cached skills from selected projects and deduplicates them by ID. The agent can only request explicitly selected allowed_skill_ids; Manus may still load account-default skills when no explicit selection is sent."
   },
+  "realtime_speech": {
+    "title": "Realtime Speech",
+    "description": "Independent OpenAI, xAI, and Gemini live-voice profiles. Provider models and voices must be selected from AuraGo's versioned catalog.",
+    "enabled": "Makes configured profiles available in web chat and on the virtual desktop.",
+    "default_profile": "Profile selected automatically when a user starts Live Speech without making a manual choice.",
+    "park_after_seconds": "Complete inactivity before the provider session is parked. Allowed range: 5 to 60 seconds. Local voice detection remains active.",
+    "profiles": "Profile IDs are immutable. Keys are stored per profile in the Vault; a blank key field preserves the existing secret.",
+    "security": "Permanent provider keys never reach browser storage or chat context. Raw audio and partial transcripts are not persisted."
+  },
   "server": {
     "host": {
       "title": "Server Host",

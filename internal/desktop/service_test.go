@@ -160,6 +160,16 @@ func TestBuiltinVirtualComputersOpensMaximized(t *testing.T) {
 	}
 }
 
+func TestBuiltinAppsExposeLiveSpeech(t *testing.T) {
+	liveSpeech := testFindApp(t, BuiltinApps(), "live-speech")
+	if !liveSpeech.Builtin || liveSpeech.Deletable || !liveSpeech.DockVisible || !liveSpeech.StartVisible {
+		t.Fatalf("live speech visibility = builtin:%v deletable:%v dock:%v start:%v, want first-party visible app", liveSpeech.Builtin, liveSpeech.Deletable, liveSpeech.DockVisible, liveSpeech.StartVisible)
+	}
+	if liveSpeech.Entry != "builtin://live-speech" || liveSpeech.Icon != "audio" || liveSpeech.Runtime != BuiltinRuntime {
+		t.Fatalf("live speech manifest = entry:%q icon:%q runtime:%q", liveSpeech.Entry, liveSpeech.Icon, liveSpeech.Runtime)
+	}
+}
+
 func TestBuiltinAppsExposeTeeVeeMetadata(t *testing.T) {
 	apps := BuiltinApps()
 

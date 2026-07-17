@@ -717,12 +717,13 @@ type EvomapConfig struct {
 }
 
 type Config struct {
-	ConfigPath    string             `yaml:"-"`          // runtime-only: absolute path to the config file
-	Runtime       Runtime            `yaml:"-" json:"-"` // runtime-only: detected environment capabilities
-	Providers     []ProviderEntry    `yaml:"providers"`
-	ModelCatalog  ModelCatalogConfig `yaml:"model_catalog" json:"model_catalog"`
-	EmailAccounts []EmailAccount     `yaml:"email_accounts"`
-	Server        struct {
+	ConfigPath     string               `yaml:"-"`          // runtime-only: absolute path to the config file
+	Runtime        Runtime              `yaml:"-" json:"-"` // runtime-only: detected environment capabilities
+	Providers      []ProviderEntry      `yaml:"providers"`
+	RealtimeSpeech RealtimeSpeechConfig `yaml:"realtime_speech" json:"realtime_speech"`
+	ModelCatalog   ModelCatalogConfig   `yaml:"model_catalog" json:"model_catalog"`
+	EmailAccounts  []EmailAccount       `yaml:"email_accounts"`
+	Server         struct {
 		Host                 string `yaml:"host"`
 		Port                 int    `yaml:"port"`
 		MaxBodyBytes         int64  `yaml:"max_body_bytes"`

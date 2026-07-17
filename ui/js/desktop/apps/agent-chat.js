@@ -234,6 +234,9 @@
                     </div>
                     <div class="vd-chat-form-buttons">
                         <button class="vd-chat-voice" type="button" data-i18n-title="desktop.chat_voice_input" data-i18n-aria-label="desktop.chat_voice_input">${iconMarkup('microphone', 'M', 'vd-chat-voice-icon', 15)}</button>
+                        <button class="vd-chat-live-speech" type="button" data-chat-live-speech data-i18n-title="desktop.live_speech_open" data-i18n-aria-label="desktop.live_speech_open">
+                            <span class="vd-live-speech-button-wave" aria-hidden="true"><i></i><i></i><i></i></span>
+                        </button>
                         <button class="vd-chat-send" type="submit" data-chat-send-button>${iconMarkup('chat', 'S', 'vd-chat-send-icon', 15)}<span data-chat-send-label>${esc(desktopText('desktop.send'))}</span></button>
                     </div>
                 </form>
@@ -242,9 +245,24 @@
 
         const input = host.querySelector('.vd-chat-input');
         const voiceBtn = host.querySelector('.vd-chat-voice');
+        const liveSpeechBtn = host.querySelector('[data-chat-live-speech]');
 
         initTextarea(host, input);
         initDesktopChatVoice(host, input, voiceBtn);
+        if (liveSpeechBtn) {
+            liveSpeechBtn.addEventListener('click', () => {
+                const runtime = useDesktopChatRuntime();
+                if (runtime && typeof runtime.openApp === 'function') runtime.openApp('live-speech');
+            });
+        }
+        const onRealtimeSpeechDisplay = event => {
+            const detail = event.detail || {};
+            if (detail.surface !== 'desktop' || !detail.content) return;
+            const role = detail.role === 'assistant' ? 'agent' : 'user';
+            appendChat(host, role, detail.content);
+        };
+        window.addEventListener('aurago:realtime-speech-display', onRealtimeSpeechDisplay);
+        host._realtimeSpeechDisplayCleanup = () => window.removeEventListener('aurago:realtime-speech-display', onRealtimeSpeechDisplay);
         initSidebar(host);
         initDragAndDrop(host);
         initScrollFab(host);
@@ -492,6 +510,7 @@
         if (renderer) renderer.appendRichBubble(chatLog, 'user', message, lastRole);
         else appendChat(host, 'user', message);
         lastRole = 'user';
+        dispatchDesktopVisibleMessage('user', message);
 
         try {
             await sendDesktopChatStream(host, message, chatContextPayload(host));
@@ -1126,6 +1145,8 @@
                     cancelChatScroll();
                 }
                 announceAgentResponseToPet(petAnnouncementText || streamingContent);
+                const finalMessage = petAnnouncementText || streamingContent;
+                if (finalMessage.trim()) dispatchDesktopVisibleMessage('assistant', finalMessage);
                 resolve();
             }
 
@@ -1324,6 +1345,18 @@
         if (last) last.scrollIntoView({ block: 'end' });
     }
 
+    function dispatchDesktopVisibleMessage(role, content) {
+        window.dispatchEvent(new CustomEvent('aurago:chat-visible-message', {
+            detail: {
+                role,
+                content,
+                surface: 'desktop',
+                chatSessionId: 'virtual-desktop',
+                source: 'desktop-chat'
+            }
+        }));
+    }
+
     function appendChatTimestamp(host, role) {
         const chatLog = host && host.querySelector('.vd-chat-log');
         const renderer = window.DesktopChatRenderer;
@@ -1348,6 +1381,10 @@
             if (typeof host._desktopChatDropCleanup === 'function') {
                 try { host._desktopChatDropCleanup(); } catch (_) {}
                 host._desktopChatDropCleanup = null;
+            }
+            if (typeof host._realtimeSpeechDisplayCleanup === 'function') {
+                try { host._realtimeSpeechDisplayCleanup(); } catch (_) {}
+                host._realtimeSpeechDisplayCleanup = null;
             }
             host.dataset.chatFiles = '';
             host.dataset.chatWindowContext = '';

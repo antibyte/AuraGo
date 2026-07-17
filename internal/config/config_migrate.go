@@ -807,6 +807,14 @@ func (c *Config) ApplyVaultSecrets(vault SecretReader) {
 		apply("provider_"+p.ID+"_oauth_client_secret", &p.OAuthClientSecret)
 	}
 
+	// ── Realtime speech profile secrets ──
+	for i := range c.RealtimeSpeech.Profiles {
+		profile := &c.RealtimeSpeech.Profiles[i]
+		if key := RealtimeSpeechProfileAPIKeyVaultKey(profile.ID); key != "" {
+			apply(key, &profile.APIKey)
+		}
+	}
+
 	// ── Telegram / Discord ──
 	apply("telegram_bot_token", &c.Telegram.BotToken)
 	apply("discord_bot_token", &c.Discord.BotToken)

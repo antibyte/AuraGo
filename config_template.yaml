@@ -572,6 +572,20 @@ s3:
 #     name: "OmniRoute Gateway"
 #     model: "auto"
 providers: []
+# Realtime Speech profiles are intentionally separate from regular LLM providers.
+# API keys are stored per profile in the encrypted Vault by the Config UI and are
+# never serialized below.
+realtime_speech:
+    enabled: false
+    default_profile: ""
+    park_after_seconds: 5                              # 5-60; local VAD keeps the microphone ready while parked
+    profiles:
+        # - id: openai-live                            # immutable after creation
+        #   name: "OpenAI Live"
+        #   provider: openai                           # openai, xai, or gemini
+        #   model: gpt-realtime-2.1                    # selected from AuraGo's versioned catalog
+        #   voice: marin
+        #   enabled: true
 model_catalog:
     enabled: true                                         # use bundled Oh-My-Pi provider/model metadata for UI and capability detection
     disabled_providers: []                                # provider IDs or AuraGo provider types hidden/disabled in catalog status

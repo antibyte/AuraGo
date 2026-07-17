@@ -136,6 +136,7 @@
         teevee: 'teevee',
         todo: 'notes',
         'agent-chat': 'agent-chat',
+        'live-speech': 'audio',
         terminal: 'terminal', 'quick-connect': 'server',
         browser: 'browser', viewer: 'eye',
         launchpad: 'launchpad',
@@ -531,6 +532,7 @@
             'homepage-studio': 'HomepageStudioApp',
             cheater: 'CheaterApp',
             'agent-chat': 'AgentChatApp',
+            'live-speech': 'LiveSpeechApp',
             'virtual-computers': 'VirtualComputersApp',
             'viewer-3d': 'Viewer3DApp',
             'mission-control': 'MissionControlApp',
@@ -6991,7 +6993,8 @@ if (appId === 'system-info') {
             }
             if (typeof window.VirtualComputersApp.render === 'function') return window.VirtualComputersApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, t, api, iconMarkup, notify: showDesktopNotification, readonly: desktopReadonly(), openApp, toggleMaximize: () => toggleMaximizeWindow(id) }));
         }
-        if (appId === 'agent-chat') return window.AgentChatApp && typeof window.AgentChatApp.render === 'function' ? window.AgentChatApp.render(id, Object.assign({}, context || {}, { __desktopRuntime: { contentEl, esc, desktopText, iconMarkup, api, loadBootstrap, showDesktopNotification } })) : renderAppError(id, appId, new Error('Agent chat renderer is not loaded'));
+        if (appId === 'agent-chat') return window.AgentChatApp && typeof window.AgentChatApp.render === 'function' ? window.AgentChatApp.render(id, Object.assign({}, context || {}, { __desktopRuntime: { contentEl, esc, desktopText, iconMarkup, api, loadBootstrap, showDesktopNotification, openApp } })) : renderAppError(id, appId, new Error('Agent chat renderer is not loaded'));
+        if (appId === 'live-speech') return window.LiveSpeechApp && typeof window.LiveSpeechApp.render === 'function' ? window.LiveSpeechApp.render(id, Object.assign({}, context || {}, { __desktopRuntime: { contentEl, esc, desktopText, iconMarkup, api, openApp } })) : renderAppError(id, appId, new Error('Live Speech renderer is not loaded'));
         if (appId === 'viewer') {
             if (!window.ViewerApp) {
                 window.AuraDesktopModules.loadAppScript('viewer').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
@@ -10293,6 +10296,8 @@ if (appId === 'pixel') {
     function wireChrome() {
         $('vd-start-button').addEventListener('click', toggleStartMenu);
         $('vd-agent-button').addEventListener('click', () => openApp('agent-chat'));
+        const liveSpeechButton = $('vd-live-speech-button');
+        if (liveSpeechButton) liveSpeechButton.addEventListener('click', () => openApp('live-speech'));
         const widgetDrawerBtn = document.getElementById('vd-widget-drawer-btn');
         if (widgetDrawerBtn) widgetDrawerBtn.addEventListener('click', toggleWidgetDrawer);
         const showDesktopBtn = document.getElementById('vd-show-desktop-btn');

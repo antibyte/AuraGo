@@ -823,5 +823,22 @@
   "dashboard.gauge_used": "Belegt",
   "dashboard.gauge_free": "Frei",
   "dashboard.quickstatus_n_auto_disabled": "{{n}} auto-deaktiviert",
-  "dashboard.quickstatus_n_pending": "{{n}} ausstehend"
+  "dashboard.quickstatus_n_pending": "{{n}} ausstehend",
+  "dashboard.realtime_speech_active_profile": "Aktives Profil",
+  "dashboard.realtime_speech_desc": "Nur-Lese-Status ohne Audio, Transkripte oder Zugangsdaten.",
+  "dashboard.realtime_speech_enabled": "Aktiviert",
+  "dashboard.realtime_speech_off": "Aus",
+  "dashboard.realtime_speech_on": "Ein",
+  "dashboard.realtime_speech_profiles": "Profile",
+  "dashboard.realtime_speech_session": "Sitzung",
+  "dashboard.realtime_speech_state_connecting": "Verbindet",
+  "dashboard.realtime_speech_state_error": "Fehler",
+  "dashboard.realtime_speech_state_executing": "Führt aus",
+  "dashboard.realtime_speech_state_idle": "Inaktiv",
+  "dashboard.realtime_speech_state_listening": "Hört zu",
+  "dashboard.realtime_speech_state_parked": "Geparkt",
+  "dashboard.realtime_speech_state_reconnecting": "Verbindet erneut",
+  "dashboard.realtime_speech_state_speaking": "Spricht",
+  "dashboard.realtime_speech_title": "Echtzeit-Sprache",
+  "dashboard.realtime_speech_unavailable": "Nicht verfügbar"
 }

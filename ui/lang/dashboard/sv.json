@@ -823,5 +823,22 @@
   "dashboard.gauge_used": "Använt",
   "dashboard.gauge_free": "Ledigt",
   "dashboard.quickstatus_n_auto_disabled": "{{n}} auto-inaktiverade",
-  "dashboard.quickstatus_n_pending": "{{n}} väntande"
+  "dashboard.quickstatus_n_pending": "{{n}} väntande",
+  "dashboard.realtime_speech_active_profile": "Aktiv profil",
+  "dashboard.realtime_speech_desc": "Skrivskyddad status utan ljud, transkriptioner eller inloggningsuppgifter.",
+  "dashboard.realtime_speech_enabled": "Aktiverad",
+  "dashboard.realtime_speech_off": "Av",
+  "dashboard.realtime_speech_on": "På",
+  "dashboard.realtime_speech_profiles": "Profiler",
+  "dashboard.realtime_speech_session": "Session",
+  "dashboard.realtime_speech_state_connecting": "Ansluter",
+  "dashboard.realtime_speech_state_error": "Fel",
+  "dashboard.realtime_speech_state_executing": "Utför",
+  "dashboard.realtime_speech_state_idle": "Inaktiv",
+  "dashboard.realtime_speech_state_listening": "Lyssnar",
+  "dashboard.realtime_speech_state_parked": "Parkerad",
+  "dashboard.realtime_speech_state_reconnecting": "Ansluter igen",
+  "dashboard.realtime_speech_state_speaking": "Talar",
+  "dashboard.realtime_speech_title": "Realtidstal",
+  "dashboard.realtime_speech_unavailable": "Inte tillgänglig"
 }
