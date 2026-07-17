@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
 	"log/slog"
@@ -154,6 +155,8 @@ func TestRealtimeSpeechOpenAISessionNeverReturnsPermanentKey(t *testing.T) {
 }
 
 func TestRealtimeSpeechSessionStateRequiresLeaseOwner(t *testing.T) {
+	var logs bytes.Buffer
+	server := &Server{Logger: slog.New(slog.NewTextHandler(&logs, nil))}
 	registry := realtimespeech.NewRegistry(nil)
 	session, _, err := registry.Acquire("browser-owner", realtimespeech.Session{
 		ProfileID: "main",
@@ -174,7 +177,7 @@ func TestRealtimeSpeechSessionStateRequiresLeaseOwner(t *testing.T) {
 		)
 		request.Header.Set("X-Realtime-Speech-Client-ID", clientID)
 		recorder := httptest.NewRecorder()
-		handleRealtimeSpeechSessionByID(registry).ServeHTTP(recorder, request)
+		handleRealtimeSpeechSessionByID(server, registry).ServeHTTP(recorder, request)
 		return recorder
 	}
 
@@ -194,6 +197,16 @@ func TestRealtimeSpeechSessionStateRequiresLeaseOwner(t *testing.T) {
 	recorder = update("browser-owner", `{"state":"secret-state"}`)
 	if recorder.Code != http.StatusBadRequest {
 		t.Fatalf("invalid state status=%d body=%s", recorder.Code, recorder.Body.String())
+	}
+
+	security.RegisterSensitive("provider-secret-marker")
+	recorder = update("browser-owner", `{"state":"error","error_message":"Gemini rejected provider-secret-marker"}`)
+	if recorder.Code != http.StatusNoContent {
+		t.Fatalf("error update status=%d body=%s", recorder.Code, recorder.Body.String())
+	}
+	if output := logs.String(); !strings.Contains(output, "Browser provider session failed") ||
+		!strings.Contains(output, "provider=gemini") || strings.Contains(output, "provider-secret-marker") {
+		t.Fatalf("unsafe or incomplete realtime speech error log: %s", output)
 	}
 }
 

@@ -46,6 +46,7 @@
             (runtime.config && runtime.config.default_profile) ||
             (profiles[0] && profiles[0].id) || '';
         const compact = options.compact ? ' compact' : '';
+        const errorMessage = currentState === 'error' ? String(runtime.lastErrorMessage || '') : '';
         root.innerHTML = `<section class="realtime-speech-panel${compact}" data-state="${escapeHTML(currentState)}">
             <header class="realtime-speech-panel-header">
                 <div class="realtime-speech-mark" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
@@ -88,6 +89,10 @@
                 <span aria-hidden="true">◉</span>
                 ${escapeHTML(text('chat.realtime_parked_privacy', 'Parked: the provider connection is paused, while local voice detection keeps the microphone ready.'))}
             </div>
+            <div class="realtime-speech-notice realtime-speech-error" data-realtime-error role="alert" ${errorMessage ? '' : 'hidden'}>
+                <span aria-hidden="true">!</span>
+                <span>${escapeHTML(errorMessage)}</span>
+            </div>
         </section>`;
 
         const start = root.querySelector('[data-realtime-start]');
@@ -104,8 +109,7 @@
                     chatSessionId: typeof options.chatSessionId === 'function' ? options.chatSessionId() : options.chatSessionId
                 });
             } catch (error) {
-                const caption = root.querySelector('[data-realtime-caption]');
-                if (caption) caption.textContent = error.message;
+                runtime.lastErrorMessage = String(runtime.lastErrorMessage || error && error.message || '');
             } finally {
                 refreshAll();
             }

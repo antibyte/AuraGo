@@ -361,6 +361,13 @@ function testProviderContractAndSecurityBoundaries() {
   assert.match(core, /detail\.speech\s*===\s*true\)\s*this\.handleAudio/, 'VAD hangover silence must remain local');
   assert.match(core, /wake_latency_ms:\s*Math\.max/, 'provider wake latency must be reported without transcript content');
   assert.match(core, /syncServerState\(this\.state,\s*\{\s*usage:\s*this\.usage\s*\}\)/, 'numeric provider usage must be forwarded as lifecycle telemetry');
+  assert.match(core, /error_message:\s*this\.lastErrorMessage/, 'provider setup errors must be reported to the backend');
+  assert.match(core, /window\.console\.error\('\[RealtimeSpeech\] '/, 'provider setup errors must remain visible in the browser console');
+  assert.match(
+    read('ui/js/realtime-speech/panel.js'),
+    /data-realtime-error[\s\S]*escapeHTML\(errorMessage\)/,
+    'the live speech panel must preserve the sanitized provider error after rerendering'
+  );
   assert.match(core, /action\.cancelled\s*=\s*true/, 'explicit cancellation must mark the in-flight action');
   assert.match(core, /if \(action\.cancelled\) status = 'cancelled'/, 'a completed stream must not overwrite cancellation');
   assert.doesNotMatch(core, /profile\.api_key(?!_set)/, 'the browser runtime must not read a permanent provider key');

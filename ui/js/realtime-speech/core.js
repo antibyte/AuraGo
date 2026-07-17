@@ -67,6 +67,17 @@
             .trim();
     }
 
+    function safeErrorMessage(value) {
+        const raw = value && value.message ? value.message : value;
+        return String(raw || 'Realtime Speech failed.')
+            .replace(/([?&](?:access_token|api_key|key)=)[^&\s]+/gi, '$1[redacted]')
+            .replace(/\bAIza[A-Za-z0-9_-]{20,}\b/g, '[redacted]')
+            .replace(/\bsk-[A-Za-z0-9_-]{12,}\b/g, '[redacted]')
+            .replace(/\u0000/g, '')
+            .trim()
+            .slice(0, 1000);
+    }
+
     function eventContent(payload) {
         if (!payload || typeof payload !== 'object') return '';
         const choices = Array.isArray(payload.choices) ? payload.choices : [];
@@ -146,14 +157,27 @@
 
         setState(state, detail) {
             this.state = state;
-            this.emit('state', Object.assign({
+            const stateDetail = Object.assign({
                 state,
                 active: !['idle', 'closed'].includes(state),
                 muted: this.muted,
                 profile: this.profile
-            }, detail || {}));
+            }, detail || {});
+            if (state === 'connecting') this.lastErrorMessage = '';
+            if (state === 'error') {
+                this.lastErrorMessage = safeErrorMessage(stateDetail.message || stateDetail.error);
+                stateDetail.message = this.lastErrorMessage;
+                if (window.console && typeof window.console.error === 'function') {
+                    window.console.error('[RealtimeSpeech] ' + this.lastErrorMessage);
+                }
+            }
+            this.emit('state', stateDetail);
             this.schedulePark();
-            if (this.sessionId) void this.syncServerState(state);
+            if (this.sessionId) {
+                const telemetry = state === 'error' ? { error_message: this.lastErrorMessage } : undefined;
+                return this.syncServerState(state, telemetry);
+            }
+            return Promise.resolve();
         }
 
         async syncServerState(state, telemetry) {
@@ -161,7 +185,7 @@
             const allowed = new Set(['connecting', 'listening', 'speaking', 'executing', 'parked', 'reconnecting', 'error']);
             if (!allowed.has(state)) return;
             try {
-                await fetch('/api/realtime-speech/sessions/' + encodeURIComponent(this.sessionId) +
+                const response = await fetch('/api/realtime-speech/sessions/' + encodeURIComponent(this.sessionId) +
                     '?client_id=' + encodeURIComponent(this.clientId), {
                     method: 'PATCH',
                     credentials: 'same-origin',
@@ -176,7 +200,12 @@
                         resumption_handle: this.adapter && this.adapter.resumptionHandle || ''
                     }, telemetry || {}))
                 });
-            } catch (_) { }
+                if (!response.ok) throw await readError(response);
+            } catch (error) {
+                if (window.console && typeof window.console.warn === 'function') {
+                    window.console.warn('[RealtimeSpeech] Session state could not be synchronized: ' + safeErrorMessage(error));
+                }
+            }
         }
 
         touch() {
@@ -248,8 +277,9 @@
                         return this.start(Object.assign({}, options, { takeover: true }));
                     }
                 }
+                await this.setState('error', { error, message: safeErrorMessage(error) });
                 await this.stop();
-                this.setState('error', { error, message: error.message });
+                this.setState('error', { error, message: safeErrorMessage(error) });
                 throw error;
             }
         }

@@ -50,18 +50,19 @@ type realtimeSpeechConfigJSON struct {
 }
 
 type realtimeSpeechSessionRequest struct {
-	SessionID        string `json:"session_id"`
-	ClientID         string `json:"client_id"`
-	ProfileID        string `json:"profile_id"`
-	Surface          string `json:"surface"`
-	ChatSessionID    string `json:"chat_session_id"`
-	OfferSDP         string `json:"offer_sdp"`
-	Takeover         bool   `json:"takeover"`
-	State            string `json:"state"`
-	ConversationID   string `json:"conversation_id"`
-	ResumptionHandle string `json:"resumption_handle"`
-	WakeLatencyMS    int64  `json:"wake_latency_ms"`
+	SessionID        string                 `json:"session_id"`
+	ClientID         string                 `json:"client_id"`
+	ProfileID        string                 `json:"profile_id"`
+	Surface          string                 `json:"surface"`
+	ChatSessionID    string                 `json:"chat_session_id"`
+	OfferSDP         string                 `json:"offer_sdp"`
+	Takeover         bool                   `json:"takeover"`
+	State            string                 `json:"state"`
+	ConversationID   string                 `json:"conversation_id"`
+	ResumptionHandle string                 `json:"resumption_handle"`
+	WakeLatencyMS    int64                  `json:"wake_latency_ms"`
 	Usage            map[string]interface{} `json:"usage"`
+	ErrorMessage     string                 `json:"error_message"`
 }
 
 type realtimeSpeechContextMessage struct {
@@ -82,7 +83,7 @@ func registerRealtimeSpeechHandlers(mux *http.ServeMux, s *Server, sse *SSEBroad
 	mux.HandleFunc("/api/realtime-speech/test", handleRealtimeSpeechTest(s, client))
 	mux.HandleFunc("/api/realtime-speech/status", handleRealtimeSpeechStatus(s, registry))
 	mux.HandleFunc("/api/realtime-speech/sessions", handleRealtimeSpeechSessions(s, registry, client))
-	mux.HandleFunc("/api/realtime-speech/sessions/", handleRealtimeSpeechSessionByID(registry))
+	mux.HandleFunc("/api/realtime-speech/sessions/", handleRealtimeSpeechSessionByID(s, registry))
 	mux.HandleFunc("/api/realtime-speech/actions", handleRealtimeSpeechActions(s, registry, webAction, desktopAction))
 	mux.HandleFunc("/api/realtime-speech/actions/", handleRealtimeSpeechActionByID(registry))
 	mux.HandleFunc("/api/realtime-speech/turns", handleRealtimeSpeechTurns(s, registry))
@@ -549,7 +550,7 @@ func handleRealtimeSpeechSessions(s *Server, registry *realtimespeech.Registry, 
 	}
 }
 
-func handleRealtimeSpeechSessionByID(registry *realtimespeech.Registry) http.HandlerFunc {
+func handleRealtimeSpeechSessionByID(s *Server, registry *realtimespeech.Registry) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodDelete && r.Method != http.MethodPatch {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -596,6 +597,23 @@ func handleRealtimeSpeechSessionByID(registry *realtimespeech.Registry) http.Han
 			}
 			if state == "error" {
 				registry.RecordError()
+				message := strings.TrimSpace(security.Scrub(body.ErrorMessage))
+				if message == "" {
+					message = "unspecified provider connection failure"
+				}
+				if runes := []rune(message); len(runes) > 500 {
+					message = string(runes[:500])
+				}
+				if s != nil && s.Logger != nil {
+					s.Logger.Error(
+						"[RealtimeSpeech] Browser provider session failed",
+						"session_id", id,
+						"profile_id", updated.ProfileID,
+						"provider", updated.Provider,
+						"surface", updated.Surface,
+						"error", message,
+					)
+				}
 			}
 			w.WriteHeader(http.StatusNoContent)
 			return

@@ -190,6 +190,31 @@
     line-height: 1.4;
 }
 
+.realtime-speech-error {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    color: #ffd6d6;
+    background: color-mix(in srgb, #ee6a6a 12%, transparent);
+    border-color: color-mix(in srgb, #ee6a6a 38%, transparent);
+    overflow-wrap: anywhere;
+}
+
+.realtime-speech-error[hidden] {
+    display: none;
+}
+
+.realtime-speech-error > span:first-child {
+    display: grid;
+    place-items: center;
+    flex: 0 0 20px;
+    height: 20px;
+    color: #1b0808;
+    background: #ee6a6a;
+    border-radius: 50%;
+    font-weight: 800;
+}
+
 .realtime-speech-modal-backdrop {
     --rt-accent: var(--accent, #2fc5a9);
     --rt-surface: var(--bg-card, #17202a);
