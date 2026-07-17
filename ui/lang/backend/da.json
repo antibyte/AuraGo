@@ -168,6 +168,7 @@
   "backend.stream_error_recovery_xml_in_native_mode": "<tool_call> XML registreret i native tilstand, anmoder om funktionskald...",
   "backend.stream_coding_executing": "Kører Python-script...",
   "backend.stream_done": "Svar fuldført.",
+  "backend.workflow_feedback": "Et øjeblik...",
   "backend.stream_error_recovery_loopback": "Beklager, der opstod en fejl ved behandling af din besked.",
   "backend.stream_thinking_context_recovered": "Kontekstfejl gendannet — prøver igen...",
   "backend.stream_thinking_context_trimmed": "Kontekst for stor, trimmer igen...",

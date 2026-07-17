@@ -404,18 +404,9 @@ func executeAgentToolTurn(
 
 	if cfg.Agent.WorkflowFeedback && !s.flags.IsCoAgent && sessionID == "default" {
 		s.stepsSinceLastFeedback++
-		if s.stepsSinceLastFeedback >= 4 {
+		if s.stepsSinceLastFeedback >= 3 {
 			s.stepsSinceLastFeedback = 0
-			feedbackPhrases := []string{
-				"Ich brauche noch einen Moment, bin aber dran...",
-				"Die Analyse läuft noch, einen Augenblick bitte...",
-				"Ich suche noch nach weiteren Informationen...",
-				"Bin gleich fertig mit der Bearbeitung...",
-				"Das dauert einen Moment länger als erwartet, bleib dran...",
-				"Ich verarbeite die Daten noch...",
-			}
-			phrase := feedbackPhrases[time.Now().Unix()%int64(len(feedbackPhrases))]
-			broker.Send("progress", phrase)
+			broker.Send("progress", i18n.T(cfg.Server.UILanguage, "backend.workflow_feedback"))
 		}
 	}
 

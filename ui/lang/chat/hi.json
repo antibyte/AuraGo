@@ -97,6 +97,7 @@
   "chat.sse_execute_skill": "कौशल निष्पादित किया जाता है:",
   "chat.sse_list_skills": "उपलब्ध कौशल की जाँच की जा रही है...",
   "chat.sse_thinking": "AuraGo सोचता है...",
+  "chat.sse_progress": "कृपया एक क्षण...",
   "chat.sse_tool_end": "उपकरण पूरा हुआ:",
   "chat.sse_tool_start": "उपकरण का उपयोग किया जाता है:",
   "chat.sse_workflow_plan": "🧠 अगले चरणों की योजना बनाएं",

@@ -97,6 +97,7 @@
   "chat.sse_execute_skill": "Η δεξιότητα εκτελείται:",
   "chat.sse_list_skills": "Ελέγχονται οι διαθέσιμες δεξιότητες...",
   "chat.sse_thinking": "Το AuraGo σκέφτεται...",
+  "chat.sse_progress": "One moment please...",
   "chat.sse_tool_end": "Το εργαλείο ολοκληρώθηκε:",
   "chat.sse_tool_start": "Το εργαλείο χρησιμοποιείται:",
   "chat.sse_workflow_plan": "🧠 Σχεδιάστε τα επόμενα βήματα",

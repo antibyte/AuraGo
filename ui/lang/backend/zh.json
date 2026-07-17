@@ -168,6 +168,7 @@
   "backend.stream_error_recovery_xml_in_native_mode": "在原生模式下检测到 <tool_call> XML，正在请求函数调用...",
   "backend.stream_coding_executing": "正在执行 Python 脚本...",
   "backend.stream_done": "响应已完成。",
+  "backend.workflow_feedback": "请稍等...",
   "backend.stream_error_recovery_loopback": "抱歉，处理您的消息时遇到错误。",
   "backend.stream_thinking_context_recovered": "上下文错误已恢复 — 正在重试...",
   "backend.stream_thinking_context_trimmed": "上下文过大，正在重新裁剪...",

@@ -510,6 +510,9 @@
             if (event === 'error_recovery') {
                 return this.translate('chat.sse_error_recovery', 'Script had an error. Fixing code...');
             }
+            if (event === 'progress') {
+                return detail || this.translate('chat.sse_progress', 'Still working...');
+            }
             return '';
         },
 

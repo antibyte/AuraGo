@@ -168,6 +168,7 @@
   "backend.stream_error_recovery_xml_in_native_mode": "<tool_call> XML upptäckt i native läge, begär funktionsanrop...",
   "backend.stream_coding_executing": "Kör Python-skript...",
   "backend.stream_done": "Svar slutfört.",
+  "backend.workflow_feedback": "Ett ögonblick...",
   "backend.stream_error_recovery_loopback": "Tyvärr, jag stötte på ett fel vid bearbetning av ditt meddelande.",
   "backend.stream_thinking_context_recovered": "Kontextfel återställt — försöker igen...",
   "backend.stream_thinking_context_trimmed": "Kontext för stor, trimmar igen...",

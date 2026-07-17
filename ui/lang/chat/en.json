@@ -69,6 +69,7 @@
   "chat.sse_execute_skill": "Running skill: ",
   "chat.sse_list_skills": "Checking available skills...",
   "chat.sse_thinking": "AuraGo is thinking...",
+  "chat.sse_progress": "One moment please...",
   "chat.sse_tool_end": "Tool completed: ",
   "chat.sse_tool_start": "Using tool: ",
   "chat.sse_workflow_plan": "🧠 Planning next steps",

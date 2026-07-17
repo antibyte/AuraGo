@@ -97,6 +97,7 @@
   "chat.sse_execute_skill": "スキルが実行されます：",
   "chat.sse_list_skills": "使用可能なスキルがチェックされています...",
   "chat.sse_thinking": "AuraGoは考えます...",
+  "chat.sse_progress": "しばらくお待ちください...",
   "chat.sse_tool_end": "ツールが完了しました：",
   "chat.sse_tool_start": "使用するツール：",
   "chat.sse_workflow_plan": "🧠 次のステップを計画する",

@@ -168,6 +168,7 @@
   "backend.stream_error_recovery_xml_in_native_mode": "<tool_call> ネイティブモードでXMLが検出されました、関数呼び出しを要求中...",
   "backend.stream_coding_executing": "Pythonスクリプトを実行中...",
   "backend.stream_done": "応答が完了しました。",
+  "backend.workflow_feedback": "しばらくお待ちください...",
   "backend.stream_error_recovery_loopback": "申し訳ありません、メッセージの処理中にエラーが発生しました。",
   "backend.stream_thinking_context_recovered": "コンテキストエラーから回復 — リトライ中...",
   "backend.stream_thinking_context_trimmed": "コンテキストが大きすぎます。再トリミング中...",

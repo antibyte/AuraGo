@@ -97,6 +97,7 @@
   "chat.sse_execute_skill": "技能执行中：",
   "chat.sse_list_skills": "检查可用技能...",
   "chat.sse_thinking": "AuraGo正在思考...",
+  "chat.sse_progress": "请稍等...",
   "chat.sse_tool_end": "工具完成：",
   "chat.sse_tool_start": "使用工具：",
   "chat.sse_workflow_plan": "🧠 计划下一步",

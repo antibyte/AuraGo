@@ -97,6 +97,7 @@
   "chat.sse_execute_skill": "Dovednost se provádí:",
   "chat.sse_list_skills": "Kontrolují se dostupné dovednosti...",
   "chat.sse_thinking": "AuraGo přemýšlí...",
+  "chat.sse_progress": "Moment...",
   "chat.sse_tool_end": "Nástroj dokončen:",
   "chat.sse_tool_start": "Nástroj se používá:",
   "chat.sse_workflow_plan": "🧠 Naplánujte si další kroky",

@@ -168,6 +168,7 @@
   "backend.stream_error_recovery_xml_in_native_mode": "<tool_call> नेटिव मोड में XML का पता चला, फंक्शन कॉल का अनुरोध...",
   "backend.stream_coding_executing": "Python स्क्रिप्ट निष्पादित हो रही है...",
   "backend.stream_done": "उत्तर पूर्ण।",
+  "backend.workflow_feedback": "कृपया एक क्षण...",
   "backend.stream_error_recovery_loopback": "क्षमा करें, आपका संदेश प्रोसेस करते समय त्रुटि हुई।",
   "backend.stream_thinking_context_recovered": "संदर्भ त्रुटि पहचान गई — पुनः प्रयास कर रहे हैं...",
   "backend.stream_thinking_context_trimmed": "संदर्भ बहुत बड़ा, पुनः ट्रिम कर रहे हैं...",

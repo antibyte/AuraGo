@@ -97,6 +97,7 @@
   "chat.sse_execute_skill": "Ferdighet utføres:",
   "chat.sse_list_skills": "Tilgjengelige ferdigheter sjekkes...",
   "chat.sse_thinking": "AuraGo tenker...",
+  "chat.sse_progress": "Et øyeblikk...",
   "chat.sse_tool_end": "Verktøy fullført:",
   "chat.sse_tool_start": "Verktøyet brukes:",
   "chat.sse_workflow_plan": "🧠 Planlegg neste trinn",

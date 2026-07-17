@@ -168,6 +168,7 @@
   "backend.stream_error_recovery_xml_in_native_mode": "<tool_call> XML εντοπίστηκε σε εγγενή λειτουργία, ζητώντας κλήση λειτουργίας...",
   "backend.stream_coding_executing": "Εκτέλεση σεναρίου Python...",
   "backend.stream_done": "Η απάντηση ολοκληρώθηκε.",
+  "backend.workflow_feedback": "One moment please...",
   "backend.stream_error_recovery_loopback": "Συγγνώμη, παρουσιάστηκε σφάλμα κατά την επεξεργασία του μηνύματός σας.",
   "backend.stream_thinking_context_recovered": "Σφάλμα περιβάλλοντος ανακτήθηκε — επανάληψη...",
   "backend.stream_thinking_context_trimmed": "Το περιβάλλον πολύ μεγάλο, επανακοπή...",

@@ -168,6 +168,7 @@
   "backend.stream_error_recovery_xml_in_native_mode": "<tool_call> XML detectado en modo nativo, solicitando llamada de función...",
   "backend.stream_coding_executing": "Ejecutando script Python...",
   "backend.stream_done": "Respuesta completada.",
+  "backend.workflow_feedback": "Un momento, por favor...",
   "backend.stream_error_recovery_loopback": "Lo siento, ocurrió un error al procesar su mensaje.",
   "backend.stream_thinking_context_recovered": "Error de contexto recuperado — reintentando...",
   "backend.stream_thinking_context_trimmed": "Contexto demasiado grande, retrimando...",

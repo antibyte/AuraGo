@@ -97,6 +97,7 @@
   "chat.sse_execute_skill": "Skill wordt uitgevoerd:",
   "chat.sse_list_skills": "Beschikbare vaardigheden worden gecontroleerd...",
   "chat.sse_thinking": "AuraGo denkt...",
+  "chat.sse_progress": "Een ogenblik geduld...",
   "chat.sse_tool_end": "Gereedschap voltooid:",
   "chat.sse_tool_start": "Gereedschap wordt gebruikt:",
   "chat.sse_workflow_plan": "🧠 Plan de volgende stappen",

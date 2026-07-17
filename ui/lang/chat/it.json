@@ -97,6 +97,7 @@
   "chat.sse_execute_skill": "L'abilità viene eseguita:",
   "chat.sse_list_skills": "Vengono verificate le competenze disponibili...",
   "chat.sse_thinking": "AuraGo pensa...",
+  "chat.sse_progress": "Un momento per favore...",
   "chat.sse_tool_end": "Strumento completato:",
   "chat.sse_tool_start": "Lo strumento viene utilizzato:",
   "chat.sse_workflow_plan": "🧠 Pianifica i prossimi passi",

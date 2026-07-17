@@ -168,6 +168,7 @@
   "backend.stream_error_recovery_xml_in_native_mode": "<tool_call> XML detekován v nativním režimu, požadavek na volání funkce...",
   "backend.stream_coding_executing": "Spouští se Python skript...",
   "backend.stream_done": "Odpověď dokončena.",
+  "backend.workflow_feedback": "Moment...",
   "backend.stream_error_recovery_loopback": "Omlouvám se, došlo k chybě při zpracování vaší zprávy.",
   "backend.stream_thinking_context_recovered": "Chyba kontextu obnovena — zkouším znovu...",
   "backend.stream_thinking_context_trimmed": "Kontext je příliš velký, znovu ořezávám...",
