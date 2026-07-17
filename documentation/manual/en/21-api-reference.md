@@ -720,7 +720,7 @@ GET /api/agodesk/media/{bucket}/{path}
 
 `/api/agodesk/ws` uses the AgoDesk JSON envelope protocol. Production clients must pair with `session.start`; loopback development may use `?insecure_loopback=1`. After `session.accepted`, store `advertised_capabilities` and use the accepted `session_id` as the transport session.
 
-Clients that negotiate `local.agent` can use `local.agent.remote_tool` for bounded Memory/query adapters, `local.agent.llm` for a Vault-backed direct provider completion, `local.agent.turn` for fire-and-forget history/activity synchronization, and `local.agent.handoff` for the only local-agent operation that starts the full AuraGo agent loop. Remote-tool and LLM failures use their matching `.result` envelope and preserve `request_id`.
+Clients that negotiate `local.agent` can use `local.agent.remote_tool` for bounded Memory/query adapters, `local.agent.llm` for a Vault-backed direct provider completion, `local.agent.turn` for fire-and-forget history/activity synchronization, and `local.agent.handoff` for the only local-agent operation that starts the full AuraGo agent loop. LLM requests require a whole-second RFC3339 `client_timestamp`; omitted `provider_id` values select the active main provider. LLM results preserve `request_id` and use `success`, `message`, `error_code`, and `error_message`; remote-tool failures keep their matching `.result` envelope.
 
 AgoDesk chat can share AuraGo Web Chat sessions when `chat.sessions` is negotiated:
 

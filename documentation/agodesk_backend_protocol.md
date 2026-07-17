@@ -273,7 +273,8 @@ The LLM proxy lets the local agent use a configured AuraGo provider while provid
   "payload": {
     "session_id": "agodesk:device-123",
     "conversation_id": "sess-abc",
-    "request_id": "llm-1",
+    "request_id": "{turn-1}:llm:2",
+    "client_timestamp": "2026-07-17T18:33:49Z",
     "provider_id": "main",
     "model": "requested-model",
     "messages": [
@@ -313,9 +314,11 @@ The LLM proxy lets the local agent use a configured AuraGo provider while provid
 }
 ```
 
-Allowed message roles are `system`, `user`, `assistant`, and `tool`. `name`, `tool_call_id`, and prior `tool_calls` are preserved so the client can continue multi-step local tool loops. Tool-call `arguments` and function `parameters` must be valid JSON; parameters must be a JSON object.
+Allowed message roles are `system`, `user`, `assistant`, and `tool`. `name`, `tool_call_id`, and prior `tool_calls` are preserved so the client can continue multi-step local tool loops. Tool-call `arguments` and function `parameters` must be JSON objects.
 
-`provider_id` must exactly match an entry in AuraGo's configured provider list. AuraGo uses the requested `model`; only an empty model falls back to that provider's configured model. No server system prompt, agent prompt, native server tool, or automatic tool choice is added.
+`client_timestamp` is required and must be RFC3339 with whole-second precision (for example `2026-07-17T18:33:49Z`; fractional seconds are rejected). `request_id` is opaque, may use the `{turn}:llm:{step}` form, and is mirrored exactly.
+
+When present, `provider_id` must exactly match an entry in AuraGo's configured provider list. When omitted, the active main AuraGo provider is used, never the helper provider. AuraGo uses the requested `model`; only an empty model falls back to that provider's configured model. No server system prompt, agent prompt, or native server tool is added. When the client supplies tools, AuraGo forwards exactly that tool set and sends `tool_choice: "auto"` to the provider.
 
 Response:
 
@@ -325,7 +328,8 @@ Response:
   "payload": {
     "session_id": "agodesk:device-123",
     "conversation_id": "sess-abc",
-    "request_id": "llm-1",
+    "request_id": "{turn-1}:llm:2",
+    "success": true,
     "message": {
       "role": "assistant",
       "content": "",
@@ -341,22 +345,40 @@ Response:
       "prompt_tokens": 21,
       "completion_tokens": 7,
       "total_tokens": 28
-    }
+    },
+    "error_code": null,
+    "error_message": null
   }
 }
 ```
 
-Only the first assistant choice is returned. The request has a three-minute timeout. AuraGo checks the `chat` budget before the provider call and records successful usage in the `chat` category.
+Only the first assistant choice is returned. Provider streaming is disabled for this operation; an HTTP response using chunked transfer encoding is fully decoded before AuraGo writes one `local.agent.llm.result` frame. The request has a three-minute timeout. AuraGo checks the `chat` budget before the provider call and records successful usage in the `chat` category.
 
 ### Local-agent errors
 
-Remote-tool and LLM-proxy failures always use their respective `.result` type, preserve `request_id`, omit `result`/`message`, and include:
+Remote-tool and LLM-proxy failures always use their respective `.result` type and preserve `request_id`. Remote-tool failures use the existing nested error object:
 
 ```json
 {
   "error": {
     "code": "INVALID_REQUEST",
     "message": "Safe client-facing message."
+  }
+}
+```
+
+LLM-proxy failures use the canonical flat result contract:
+
+```json
+{
+  "type": "local.agent.llm.result",
+  "payload": {
+    "session_id": "agodesk:device-123",
+    "request_id": "{turn-1}:llm:2",
+    "success": false,
+    "message": null,
+    "error_code": "LLM_EMPTY",
+    "error_message": "The provider returned no assistant response."
   }
 }
 ```
@@ -370,6 +392,7 @@ Stable local-agent error codes are:
 - `BUDGET_BLOCKED`
 - `TIMEOUT`
 - `UPSTREAM_ERROR`
+- `LLM_EMPTY`
 - `INTERNAL_ERROR`
 
 Existing transport policy errors such as `PAIRING_REQUIRED` and `UNSUPPORTED_CAPABILITY` may be returned before request execution. Provider response bodies, Vault values, API keys, and raw internal errors are never included.

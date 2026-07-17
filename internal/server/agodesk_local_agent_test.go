@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -371,18 +372,24 @@ func TestAgodeskLocalLLMProxyForwardsExactModelMessagesAndTools(t *testing.T) {
 		}
 		requests <- request
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{
+		firstChunk := `{
 			"id":"chatcmpl-test",
 			"object":"chat.completion",
 			"created":1,
 			"model":"requested-model",
 			"choices":[{
 				"index":0,
-				"message":{"role":"assistant","content":"","tool_calls":[{"id":"call-next","type":"function","function":{"name":"read_file","arguments":"{\"path\":\"next.txt\"}"}}]},
+				"message":{"role":"assistant","content":"","tool_calls":[`
+		secondChunk := `{"id":"call-next","type":"function","function":{"name":"read_file","arguments":"{\"path\":\"next.txt\"}"}}]},
 				"finish_reason":"tool_calls"
 			}],
 			"usage":{"prompt_tokens":21,"completion_tokens":7,"total_tokens":28}
-		}`))
+		}`
+		_, _ = w.Write([]byte(firstChunk))
+		if flusher, ok := w.(http.Flusher); ok {
+			flusher.Flush()
+		}
+		_, _ = w.Write([]byte(secondChunk))
 	}))
 	defer provider.Close()
 
@@ -407,10 +414,11 @@ func TestAgodeskLocalLLMProxyForwardsExactModelMessagesAndTools(t *testing.T) {
 	var connectedPayload agodesk.SystemConnectedPayload
 	decodeAgodeskTestPayload(t, connected, &connectedPayload)
 	request := newAgodeskTestEnvelope(t, agodesk.TypeLocalAgentLLM, agodesk.LocalAgentLLMPayload{
-		SessionID:  connectedPayload.SessionID,
-		RequestID:  "llm-1",
-		ProviderID: "main",
-		Model:      "requested-model",
+		SessionID:       connectedPayload.SessionID,
+		RequestID:       "{turn-1}:llm:2",
+		ClientTimestamp: "2026-07-17T18:33:49Z",
+		ProviderID:      "main",
+		Model:           "requested-model",
 		Messages: []agodesk.LocalAgentLLMMessage{
 			{Role: "user", Content: "Read a file"},
 			{Role: "assistant", ToolCalls: []agodesk.LocalAgentLLMToolCall{{
@@ -435,7 +443,12 @@ func TestAgodeskLocalLLMProxyForwardsExactModelMessagesAndTools(t *testing.T) {
 	response := readAgodeskTestEnvelope(t, conn)
 	var payload agodesk.LocalAgentLLMResultPayload
 	decodeAgodeskTestPayload(t, response, &payload)
-	if response.Type != agodesk.TypeLocalAgentLLMResult || payload.RequestID != "llm-1" || payload.Error != nil || payload.Message == nil {
+	if response.Type != agodesk.TypeLocalAgentLLMResult ||
+		payload.RequestID != "{turn-1}:llm:2" ||
+		!payload.Success ||
+		payload.ErrorCode != nil ||
+		payload.ErrorMessage != nil ||
+		payload.Message == nil {
 		t.Fatalf("LLM result = type:%s payload:%+v", response.Type, payload)
 	}
 	if len(payload.Message.ToolCalls) != 1 || payload.Message.ToolCalls[0].Name != "read_file" || string(payload.Message.ToolCalls[0].Arguments) != `{"path":"next.txt"}` {
@@ -451,7 +464,11 @@ func TestAgodeskLocalLLMProxyForwardsExactModelMessagesAndTools(t *testing.T) {
 
 	select {
 	case forwarded := <-requests:
-		if forwarded.Model != "requested-model" || len(forwarded.Messages) != 3 || len(forwarded.Tools) != 1 {
+		if forwarded.Model != "requested-model" ||
+			len(forwarded.Messages) != 3 ||
+			len(forwarded.Tools) != 1 ||
+			forwarded.ToolChoice != "auto" ||
+			forwarded.Stream {
 			t.Fatalf("forwarded request = %+v", forwarded)
 		}
 		if forwarded.Messages[1].ToolCalls[0].Function.Arguments != `{"path":"prior.txt"}` || forwarded.Messages[2].ToolCallID != "call-prior" {
@@ -485,10 +502,11 @@ func TestAgodeskLocalLLMProxyReturnsTypedSafeProviderError(t *testing.T) {
 	var connectedPayload agodesk.SystemConnectedPayload
 	decodeAgodeskTestPayload(t, connected, &connectedPayload)
 	request := newAgodeskTestEnvelope(t, agodesk.TypeLocalAgentLLM, agodesk.LocalAgentLLMPayload{
-		SessionID:  connectedPayload.SessionID,
-		RequestID:  "llm-error",
-		ProviderID: "main",
-		Messages:   []agodesk.LocalAgentLLMMessage{{Role: "user", Content: "hello"}},
+		SessionID:       connectedPayload.SessionID,
+		RequestID:       "llm-error",
+		ClientTimestamp: "2026-07-17T18:33:49Z",
+		ProviderID:      "main",
+		Messages:        []agodesk.LocalAgentLLMMessage{{Role: "user", Content: "hello"}},
 	})
 	if err := conn.WriteJSON(request); err != nil {
 		t.Fatalf("write local.agent.llm: %v", err)
@@ -496,7 +514,12 @@ func TestAgodeskLocalLLMProxyReturnsTypedSafeProviderError(t *testing.T) {
 	response := readAgodeskTestEnvelope(t, conn)
 	var payload agodesk.LocalAgentLLMResultPayload
 	decodeAgodeskTestPayload(t, response, &payload)
-	if payload.Error == nil || payload.Error.Code != agodesk.ErrorUpstream || payload.RequestID != "llm-error" {
+	if payload.Success ||
+		payload.Message != nil ||
+		payload.ErrorCode == nil ||
+		*payload.ErrorCode != agodesk.ErrorUpstream ||
+		payload.ErrorMessage == nil ||
+		payload.RequestID != "llm-error" {
 		t.Fatalf("provider error result = %+v", payload)
 	}
 	raw, _ := json.Marshal(payload)
@@ -537,10 +560,11 @@ func TestAgodeskLocalLLMProxyHonorsChatBudgetBeforeProviderCall(t *testing.T) {
 	var connectedPayload agodesk.SystemConnectedPayload
 	decodeAgodeskTestPayload(t, connected, &connectedPayload)
 	request := newAgodeskTestEnvelope(t, agodesk.TypeLocalAgentLLM, agodesk.LocalAgentLLMPayload{
-		SessionID:  connectedPayload.SessionID,
-		RequestID:  "llm-budget",
-		ProviderID: "main",
-		Messages:   []agodesk.LocalAgentLLMMessage{{Role: "user", Content: "hello"}},
+		SessionID:       connectedPayload.SessionID,
+		RequestID:       "llm-budget",
+		ClientTimestamp: "2026-07-17T18:33:49Z",
+		ProviderID:      "main",
+		Messages:        []agodesk.LocalAgentLLMMessage{{Role: "user", Content: "hello"}},
 	})
 	if err := conn.WriteJSON(request); err != nil {
 		t.Fatalf("write local.agent.llm: %v", err)
@@ -548,11 +572,208 @@ func TestAgodeskLocalLLMProxyHonorsChatBudgetBeforeProviderCall(t *testing.T) {
 	response := readAgodeskTestEnvelope(t, conn)
 	var payload agodesk.LocalAgentLLMResultPayload
 	decodeAgodeskTestPayload(t, response, &payload)
-	if payload.Error == nil || payload.Error.Code != agodesk.ErrorBudgetBlocked {
+	if payload.Success || payload.ErrorCode == nil || *payload.ErrorCode != agodesk.ErrorBudgetBlocked {
 		t.Fatalf("budget result = %+v", payload)
 	}
 	if providerCalls.Load() != 0 {
 		t.Fatalf("blocked request made %d provider calls", providerCalls.Load())
+	}
+}
+
+func TestValidateAgodeskLocalLLMClientTimestamp(t *testing.T) {
+	tests := []struct {
+		name    string
+		value   string
+		wantErr bool
+	}{
+		{name: "UTC seconds", value: "2026-07-17T18:33:49Z"},
+		{name: "offset seconds", value: "2026-07-17T20:33:49+02:00"},
+		{name: "fractional milliseconds", value: "2026-07-17T18:33:49.714Z", wantErr: true},
+		{name: "zero fractional seconds", value: "2026-07-17T18:33:49.000Z", wantErr: true},
+		{name: "invalid date", value: "2026-02-30T18:33:49Z", wantErr: true},
+		{name: "missing", wantErr: true},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := validateAgodeskLocalLLMClientTimestamp(test.value)
+			if (err != nil) != test.wantErr {
+				t.Fatalf("validateAgodeskLocalLLMClientTimestamp(%q) error = %v, wantErr %v", test.value, err, test.wantErr)
+			}
+		})
+	}
+}
+
+func TestAgodeskLocalLLMProxyHandlesTwoSequentialTurnsWithActiveMainProvider(t *testing.T) {
+	var mainCalls atomic.Int32
+	mainProvider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		call := mainCalls.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = fmt.Fprintf(w, `{
+			"id":"chatcmpl-%d",
+			"object":"chat.completion",
+			"created":1,
+			"model":"main-model",
+			"choices":[{"index":0,"message":{"role":"assistant","content":"answer-%d"},"finish_reason":"stop"}]
+		}`, call, call)
+	}))
+	defer mainProvider.Close()
+
+	var helperCalls atomic.Int32
+	helperProvider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		helperCalls.Add(1)
+		http.Error(w, "helper provider must not be called", http.StatusInternalServerError)
+	}))
+	defer helperProvider.Close()
+
+	s := newAgodeskHandlerTestServer()
+	s.Cfg.LLM.Provider = "main"
+	s.Cfg.LLM.HelperProvider = "helper"
+	s.Cfg.Providers = []config.ProviderEntry{
+		{ID: "main", Type: "openai", BaseURL: mainProvider.URL + "/v1", Model: "main-model"},
+		{ID: "helper", Type: "openai", BaseURL: helperProvider.URL + "/v1", Model: "helper-model"},
+	}
+	conn, cleanup := dialAgodeskTestWebSocket(t, s, "/api/agodesk/ws?insecure_loopback=1")
+	defer cleanup()
+	connected := readAgodeskTestEnvelope(t, conn)
+	var connectedPayload agodesk.SystemConnectedPayload
+	decodeAgodeskTestPayload(t, connected, &connectedPayload)
+
+	requestIDs := []string{"{turn-1}:llm:1", "{turn-2}:llm:1"}
+	for index, requestID := range requestIDs {
+		request := newAgodeskTestEnvelope(t, agodesk.TypeLocalAgentLLM, agodesk.LocalAgentLLMPayload{
+			SessionID:       connectedPayload.SessionID,
+			RequestID:       requestID,
+			ClientTimestamp: "2026-07-17T18:33:49Z",
+			Messages:        []agodesk.LocalAgentLLMMessage{{Role: "user", Content: fmt.Sprintf("question-%d", index+1)}},
+		})
+		if err := conn.WriteJSON(request); err != nil {
+			t.Fatalf("write turn %d: %v", index+1, err)
+		}
+		response := readAgodeskTestEnvelope(t, conn)
+		var payload agodesk.LocalAgentLLMResultPayload
+		decodeAgodeskTestPayload(t, response, &payload)
+		if !payload.Success ||
+			payload.RequestID != requestID ||
+			payload.Message == nil ||
+			payload.Message.Content != fmt.Sprintf("answer-%d", index+1) {
+			t.Fatalf("turn %d result = %+v", index+1, payload)
+		}
+	}
+	if mainCalls.Load() != 2 {
+		t.Fatalf("main provider calls = %d, want 2", mainCalls.Load())
+	}
+	if helperCalls.Load() != 0 {
+		t.Fatalf("helper provider calls = %d, want 0", helperCalls.Load())
+	}
+}
+
+func TestAgodeskLocalLLMProxyReturnsCanonicalProviderResponseErrors(t *testing.T) {
+	tests := []struct {
+		name     string
+		body     string
+		wantCode string
+	}{
+		{name: "empty choices", body: `{"id":"empty","object":"chat.completion","choices":[]}`, wantCode: agodesk.ErrorLLMEmpty},
+		{name: "unreadable body", body: `{"choices":`, wantCode: agodesk.ErrorUpstream},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write([]byte(test.body))
+			}))
+			defer provider.Close()
+
+			s := newAgodeskHandlerTestServer()
+			s.Cfg.Providers = []config.ProviderEntry{{
+				ID:      "main",
+				Type:    "openai",
+				BaseURL: provider.URL + "/v1",
+				Model:   "test-model",
+			}}
+			conn, cleanup := dialAgodeskTestWebSocket(t, s, "/api/agodesk/ws?insecure_loopback=1")
+			defer cleanup()
+			connected := readAgodeskTestEnvelope(t, conn)
+			var connectedPayload agodesk.SystemConnectedPayload
+			decodeAgodeskTestPayload(t, connected, &connectedPayload)
+			requestID := "{turn-error}:llm:1"
+			request := newAgodeskTestEnvelope(t, agodesk.TypeLocalAgentLLM, agodesk.LocalAgentLLMPayload{
+				SessionID:       connectedPayload.SessionID,
+				RequestID:       requestID,
+				ClientTimestamp: "2026-07-17T18:33:49Z",
+				ProviderID:      "main",
+				Messages:        []agodesk.LocalAgentLLMMessage{{Role: "user", Content: "hello"}},
+			})
+			if err := conn.WriteJSON(request); err != nil {
+				t.Fatalf("write local.agent.llm: %v", err)
+			}
+			response := readAgodeskTestEnvelope(t, conn)
+			var payload agodesk.LocalAgentLLMResultPayload
+			decodeAgodeskTestPayload(t, response, &payload)
+			if payload.Success ||
+				payload.Message != nil ||
+				payload.RequestID != requestID ||
+				payload.ErrorCode == nil ||
+				*payload.ErrorCode != test.wantCode ||
+				payload.ErrorMessage == nil {
+				t.Fatalf("provider response error = %+v", payload)
+			}
+			var shape map[string]interface{}
+			if err := json.Unmarshal(response.Payload, &shape); err != nil {
+				t.Fatalf("decode result shape: %v", err)
+			}
+			if message, ok := shape["message"]; !ok || message != nil {
+				t.Fatalf("canonical error message field = %#v", message)
+			}
+			if success, ok := shape["success"].(bool); !ok || success {
+				t.Fatalf("canonical success field = %#v", shape["success"])
+			}
+		})
+	}
+}
+
+func TestAgodeskLocalLLMResponseRequiresObjectArguments(t *testing.T) {
+	_, err := agodeskLocalLLMResponseMessage(openai.ChatCompletionMessage{
+		Role: "assistant",
+		ToolCalls: []openai.ToolCall{{
+			ID:   "call-1",
+			Type: openai.ToolTypeFunction,
+			Function: openai.FunctionCall{
+				Name:      "read_file",
+				Arguments: `["README.md"]`,
+			},
+		}},
+	})
+	if err == nil {
+		t.Fatal("array tool-call arguments were accepted")
+	}
+}
+
+func TestAgodeskLocalLLMResultLogJSONRedactsBody(t *testing.T) {
+	secretContent := "private assistant content"
+	secretArguments := json.RawMessage(`{"password":"never-log-this"}`)
+	payload := agodesk.LocalAgentLLMResultPayload{
+		SessionID: "agodesk:session-1",
+		RequestID: "req-1",
+		Success:   true,
+		Message: &agodesk.LocalAgentLLMMessage{
+			Role:    "assistant",
+			Content: secretContent,
+			ToolCalls: []agodesk.LocalAgentLLMToolCall{{
+				ID:        "call-1",
+				Name:      "read_file",
+				Arguments: secretArguments,
+			}},
+		},
+	}
+	logPayload := agodeskLocalLLMResultLogJSON(payload)
+	if strings.Contains(logPayload, secretContent) || strings.Contains(logPayload, "never-log-this") {
+		t.Fatalf("safe result log leaked response body: %s", logPayload)
+	}
+	for _, field := range []string{`"success":true`, `"message":`, `"error_code":null`, `"error_message":null`} {
+		if !strings.Contains(logPayload, field) {
+			t.Fatalf("safe result log missing %s: %s", field, logPayload)
+		}
 	}
 }
 

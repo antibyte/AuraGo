@@ -101,6 +101,7 @@ const (
 	ErrorBudgetBlocked            = "BUDGET_BLOCKED"
 	ErrorTimeout                  = "TIMEOUT"
 	ErrorUpstream                 = "UPSTREAM_ERROR"
+	ErrorLLMEmpty                 = "LLM_EMPTY"
 )
 
 var DefaultCapabilities = []string{
@@ -304,7 +305,7 @@ type LocalAgentLLMToolCall struct {
 
 type LocalAgentLLMMessage struct {
 	Role       string                  `json:"role"`
-	Content    string                  `json:"content,omitempty"`
+	Content    string                  `json:"content"`
 	Name       string                  `json:"name,omitempty"`
 	ToolCallID string                  `json:"tool_call_id,omitempty"`
 	ToolCalls  []LocalAgentLLMToolCall `json:"tool_calls,omitempty"`
@@ -322,13 +323,14 @@ type LocalAgentLLMTool struct {
 }
 
 type LocalAgentLLMPayload struct {
-	SessionID      string                 `json:"session_id"`
-	ConversationID string                 `json:"conversation_id,omitempty"`
-	RequestID      string                 `json:"request_id"`
-	ProviderID     string                 `json:"provider_id"`
-	Model          string                 `json:"model,omitempty"`
-	Messages       []LocalAgentLLMMessage `json:"messages"`
-	Tools          []LocalAgentLLMTool    `json:"tools,omitempty"`
+	SessionID       string                 `json:"session_id"`
+	ConversationID  string                 `json:"conversation_id,omitempty"`
+	RequestID       string                 `json:"request_id"`
+	ClientTimestamp string                 `json:"client_timestamp"`
+	ProviderID      string                 `json:"provider_id,omitempty"`
+	Model           string                 `json:"model,omitempty"`
+	Messages        []LocalAgentLLMMessage `json:"messages"`
+	Tools           []LocalAgentLLMTool    `json:"tools,omitempty"`
 }
 
 type LocalAgentLLMUsagePayload struct {
@@ -341,9 +343,11 @@ type LocalAgentLLMResultPayload struct {
 	SessionID      string                     `json:"session_id"`
 	ConversationID string                     `json:"conversation_id,omitempty"`
 	RequestID      string                     `json:"request_id"`
-	Message        *LocalAgentLLMMessage      `json:"message,omitempty"`
+	Success        bool                       `json:"success"`
+	Message        *LocalAgentLLMMessage      `json:"message"`
 	Usage          *LocalAgentLLMUsagePayload `json:"usage,omitempty"`
-	Error          *LocalAgentErrorPayload    `json:"error,omitempty"`
+	ErrorCode      *string                    `json:"error_code"`
+	ErrorMessage   *string                    `json:"error_message"`
 }
 
 type ChatChunkPayload struct {

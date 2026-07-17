@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"regexp"
 	"strings"
@@ -35,7 +36,11 @@ type agodeskLocalOperationResult struct {
 	err   error
 }
 
-var agodeskLocalFunctionNamePattern = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
+var (
+	agodeskLocalFunctionNamePattern             = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
+	agodeskLocalSecondPrecisionTimestampPattern = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:Z|[+-]\d{2}:\d{2})$`)
+	errAgodeskLocalLLMEmpty                     = errors.New("provider returned an empty assistant response")
+)
 
 func contextWithAgodeskPersistedMessage(ctx context.Context, message string) context.Context {
 	return context.WithValue(ctx, agodeskPersistedMessageContextKey{}, strings.TrimSpace(message))
@@ -508,17 +513,26 @@ func agodeskLocalIntArgument(arguments map[string]json.RawMessage, name string, 
 }
 
 func handleAgodeskLocalLLM(s *Server, conn *websocket.Conn, state *agodeskConnectionState, envelopeID string, payload agodesk.LocalAgentLLMPayload) {
-	requestID := strings.TrimSpace(payload.RequestID)
+	requestID := payload.RequestID
 	sessionID, code, message := validateAgodeskLocalAgentRequest(state, payload.SessionID, requestID)
 	if code != "" {
 		writeAgodeskLocalLLMError(conn, state, requestIDOrEnvelope(requestID, envelopeID), sessionID, payload.ConversationID, code, message)
 		return
 	}
-	if s == nil || s.ConfigSnapshot() == nil {
+	if err := validateAgodeskLocalLLMClientTimestamp(payload.ClientTimestamp); err != nil {
+		writeAgodeskLocalLLMError(conn, state, requestID, sessionID, payload.ConversationID, agodesk.ErrorInvalidRequest, err.Error())
+		return
+	}
+	if s == nil {
 		writeAgodeskLocalLLMError(conn, state, requestID, sessionID, payload.ConversationID, agodesk.ErrorProviderNotFound, "The requested AuraGo provider was not found.")
 		return
 	}
-	provider, ok := agodeskConfiguredProvider(s.ConfigSnapshot(), strings.TrimSpace(payload.ProviderID))
+	cfg := s.ConfigSnapshot()
+	if cfg == nil {
+		writeAgodeskLocalLLMError(conn, state, requestID, sessionID, payload.ConversationID, agodesk.ErrorProviderNotFound, "The requested AuraGo provider was not found.")
+		return
+	}
+	provider, ok := agodeskConfiguredProvider(cfg, strings.TrimSpace(payload.ProviderID))
 	if !ok {
 		writeAgodeskLocalLLMError(conn, state, requestID, sessionID, payload.ConversationID, agodesk.ErrorProviderNotFound, "The requested AuraGo provider was not found.")
 		return
@@ -541,26 +555,45 @@ func handleAgodeskLocalLLM(s *Server, conn *websocket.Conn, state *agodeskConnec
 		return
 	}
 
-	client := llm.NewClientFromProviderWithConfig(s.ConfigSnapshot(), provider.Type, provider.BaseURL, provider.APIKey, provider.AccountID)
+	client := llm.NewClientFromProviderWithConfig(cfg, provider.Type, provider.BaseURL, provider.APIKey, provider.AccountID)
 	ctx, cancel := context.WithTimeout(context.Background(), agodeskLocalLLMTimeout)
 	defer cancel()
-	resp, err := client.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
+	completionRequest := openai.ChatCompletionRequest{
 		Model:    model,
 		Messages: messages,
 		Tools:    tools,
-	})
+	}
+	if len(tools) > 0 {
+		completionRequest.ToolChoice = "auto"
+	}
+	if s.Logger != nil {
+		s.Logger.Debug("forwarding agodesk local agent LLM request",
+			"request_id", requestID,
+			"provider_id", provider.ID,
+			"model", model,
+			"message_count", len(messages),
+			"tool_count", len(tools),
+			"tool_choice", completionRequest.ToolChoice,
+			"stream", completionRequest.Stream,
+		)
+	}
+	resp, err := client.CreateChatCompletion(ctx, completionRequest)
 	if err != nil {
 		code, message := agodeskSafeLLMError(err)
 		writeAgodeskLocalLLMError(conn, state, requestID, sessionID, payload.ConversationID, code, message)
 		return
 	}
 	if len(resp.Choices) == 0 {
-		writeAgodeskLocalLLMError(conn, state, requestID, sessionID, payload.ConversationID, agodesk.ErrorUpstream, "The provider returned no assistant response.")
+		writeAgodeskLocalLLMError(conn, state, requestID, sessionID, payload.ConversationID, agodesk.ErrorLLMEmpty, "The provider returned no assistant response.")
 		return
 	}
 	responseMessage, err := agodeskLocalLLMResponseMessage(resp.Choices[0].Message)
 	if err != nil {
-		writeAgodeskLocalLLMError(conn, state, requestID, sessionID, payload.ConversationID, agodesk.ErrorUpstream, "The provider returned invalid tool-call arguments.")
+		if errors.Is(err, errAgodeskLocalLLMEmpty) {
+			writeAgodeskLocalLLMError(conn, state, requestID, sessionID, payload.ConversationID, agodesk.ErrorLLMEmpty, "The provider returned no assistant response.")
+			return
+		}
+		writeAgodeskLocalLLMError(conn, state, requestID, sessionID, payload.ConversationID, agodesk.ErrorUpstream, "The provider returned invalid tool-call data.")
 		return
 	}
 	if s.BudgetTracker != nil {
@@ -571,17 +604,24 @@ func handleAgodeskLocalLLM(s *Server, conn *websocket.Conn, state *agodeskConnec
 		CompletionTokens: resp.Usage.CompletionTokens,
 		TotalTokens:      resp.Usage.TotalTokens,
 	}
-	_ = writeAgodeskEnvelopeLocked(conn, state, agodesk.TypeLocalAgentLLMResult, agodesk.LocalAgentLLMResultPayload{
+	writeAgodeskLocalLLMResult(conn, state, agodesk.LocalAgentLLMResultPayload{
 		SessionID:      sessionID,
 		ConversationID: strings.TrimSpace(payload.ConversationID),
 		RequestID:      requestID,
+		Success:        true,
 		Message:        &responseMessage,
 		Usage:          usage,
 	})
 }
 
 func agodeskConfiguredProvider(cfg *config.Config, providerID string) (config.ProviderEntry, bool) {
-	if cfg == nil || providerID == "" {
+	if cfg == nil {
+		return config.ProviderEntry{}, false
+	}
+	if providerID == "" {
+		providerID = strings.TrimSpace(cfg.LLM.Provider)
+	}
+	if providerID == "" {
 		return config.ProviderEntry{}, false
 	}
 	for _, provider := range cfg.Providers {
@@ -590,6 +630,20 @@ func agodeskConfiguredProvider(cfg *config.Config, providerID string) (config.Pr
 		}
 	}
 	return config.ProviderEntry{}, false
+}
+
+func validateAgodeskLocalLLMClientTimestamp(value string) error {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return fmt.Errorf("client_timestamp is required")
+	}
+	if !agodeskLocalSecondPrecisionTimestampPattern.MatchString(value) {
+		return fmt.Errorf("client_timestamp must be RFC3339 without fractional seconds")
+	}
+	if _, err := time.Parse(time.RFC3339, value); err != nil {
+		return fmt.Errorf("client_timestamp must be a valid RFC3339 timestamp")
+	}
+	return nil
 }
 
 func validateAgodeskLocalLLMInput(messages []agodesk.LocalAgentLLMMessage, tools []agodesk.LocalAgentLLMTool) ([]openai.ChatCompletionMessage, []openai.Tool, error) {
@@ -623,7 +677,9 @@ func validateAgodeskLocalLLMInput(messages []agodesk.LocalAgentLLMMessage, tools
 			ToolCallID: strings.TrimSpace(message.ToolCallID),
 		}
 		for _, toolCall := range message.ToolCalls {
-			if strings.TrimSpace(toolCall.ID) == "" || !agodeskLocalFunctionNamePattern.MatchString(strings.TrimSpace(toolCall.Name)) || !json.Valid(toolCall.Arguments) {
+			if strings.TrimSpace(toolCall.ID) == "" ||
+				!agodeskLocalFunctionNamePattern.MatchString(strings.TrimSpace(toolCall.Name)) ||
+				!agodeskLocalJSONObject(toolCall.Arguments) {
 				return nil, nil, fmt.Errorf("local.agent.llm contains an invalid prior tool call")
 			}
 			converted.ToolCalls = append(converted.ToolCalls, openai.ToolCall{
@@ -671,8 +727,10 @@ func agodeskLocalLLMResponseMessage(message openai.ChatCompletionMessage) (agode
 	}
 	for _, toolCall := range message.ToolCalls {
 		arguments := json.RawMessage(toolCall.Function.Arguments)
-		if !json.Valid(arguments) {
-			return agodesk.LocalAgentLLMMessage{}, fmt.Errorf("invalid tool-call arguments")
+		if strings.TrimSpace(toolCall.ID) == "" ||
+			!agodeskLocalFunctionNamePattern.MatchString(strings.TrimSpace(toolCall.Function.Name)) ||
+			!agodeskLocalJSONObject(arguments) {
+			return agodesk.LocalAgentLLMMessage{}, fmt.Errorf("invalid tool-call data")
 		}
 		result.ToolCalls = append(result.ToolCalls, agodesk.LocalAgentLLMToolCall{
 			ID:        strings.TrimSpace(toolCall.ID),
@@ -680,7 +738,18 @@ func agodeskLocalLLMResponseMessage(message openai.ChatCompletionMessage) (agode
 			Arguments: arguments,
 		})
 	}
+	if strings.TrimSpace(result.Content) == "" && len(result.ToolCalls) == 0 {
+		return agodesk.LocalAgentLLMMessage{}, errAgodeskLocalLLMEmpty
+	}
 	return result, nil
+}
+
+func agodeskLocalJSONObject(raw json.RawMessage) bool {
+	if !json.Valid(raw) {
+		return false
+	}
+	var value map[string]interface{}
+	return json.Unmarshal(raw, &value) == nil && value != nil
 }
 
 func agodeskSafeLLMError(err error) (string, string) {
@@ -744,15 +813,77 @@ func writeAgodeskLocalRemoteToolError(conn *websocket.Conn, state *agodeskConnec
 }
 
 func writeAgodeskLocalLLMError(conn *websocket.Conn, state *agodeskConnectionState, requestID, sessionID, conversationID, code, message string) {
-	_ = writeAgodeskEnvelopeLocked(conn, state, agodesk.TypeLocalAgentLLMResult, agodesk.LocalAgentLLMResultPayload{
+	errorCode := strings.TrimSpace(code)
+	errorMessage := security.Scrub(message)
+	writeAgodeskLocalLLMResult(conn, state, agodesk.LocalAgentLLMResultPayload{
 		SessionID:      strings.TrimSpace(sessionID),
 		ConversationID: strings.TrimSpace(conversationID),
-		RequestID:      strings.TrimSpace(requestID),
-		Error: &agodesk.LocalAgentErrorPayload{
-			Code:    code,
-			Message: security.Scrub(message),
-		},
+		RequestID:      requestID,
+		Success:        false,
+		ErrorCode:      &errorCode,
+		ErrorMessage:   &errorMessage,
 	})
+}
+
+func writeAgodeskLocalLLMResult(conn *websocket.Conn, state *agodeskConnectionState, payload agodesk.LocalAgentLLMResultPayload) {
+	slog.Default().Debug("writing agodesk local agent LLM result",
+		"request_id", payload.RequestID,
+		"success", payload.Success,
+		"payload_json", agodeskLocalLLMResultLogJSON(payload),
+	)
+	_ = writeAgodeskEnvelopeLocked(conn, state, agodesk.TypeLocalAgentLLMResult, payload)
+}
+
+func agodeskLocalLLMResultLogJSON(payload agodesk.LocalAgentLLMResultPayload) string {
+	safePayload := map[string]interface{}{
+		"session_id":    payload.SessionID,
+		"request_id":    payload.RequestID,
+		"success":       payload.Success,
+		"message":       nil,
+		"error_code":    payload.ErrorCode,
+		"error_message": payload.ErrorMessage,
+	}
+	if payload.ConversationID != "" {
+		safePayload["conversation_id"] = payload.ConversationID
+	}
+	if payload.Usage != nil {
+		safePayload["usage"] = payload.Usage
+	}
+	if payload.Message != nil {
+		message := map[string]interface{}{
+			"role":    payload.Message.Role,
+			"content": fmt.Sprintf("<redacted; %d bytes>", len(payload.Message.Content)),
+		}
+		if payload.Message.Name != "" {
+			message["name"] = payload.Message.Name
+		}
+		if payload.Message.ToolCallID != "" {
+			message["tool_call_id"] = payload.Message.ToolCallID
+		}
+		if len(payload.Message.ToolCalls) > 0 {
+			toolCalls := make([]map[string]interface{}, 0, len(payload.Message.ToolCalls))
+			for _, toolCall := range payload.Message.ToolCalls {
+				toolCalls = append(toolCalls, map[string]interface{}{
+					"id":   toolCall.ID,
+					"name": toolCall.Name,
+					"arguments": map[string]interface{}{
+						"_redacted": fmt.Sprintf("%d bytes", len(toolCall.Arguments)),
+					},
+				})
+			}
+			message["tool_calls"] = toolCalls
+		}
+		safePayload["message"] = message
+	}
+	raw, err := json.Marshal(safePayload)
+	if err != nil {
+		return `{"error":"unable to encode safe payload summary"}`
+	}
+	const maxLogBytes = 2048
+	if len(raw) > maxLogBytes {
+		return string(raw[:maxLogBytes]) + "...<truncated>"
+	}
+	return string(raw)
 }
 
 func logAgodeskLocalAgentError(s *Server, requestID, messageType string, err error) {
