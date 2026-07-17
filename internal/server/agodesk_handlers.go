@@ -76,9 +76,14 @@ type agodeskConnectionState struct {
 	activeRuns            map[string]agodeskActiveChatRun
 	latestActiveRequestID string
 	nextActiveRunSequence uint64
+	localTurnIDs          map[string]struct{}
+	localTurnOrder        []string
+	localHandoffIDs       map[string]string
+	localHandoffOrder     []string
 	mu                    sync.RWMutex
 	writeMu               sync.Mutex
 	activeMu              sync.Mutex
+	localMu               sync.Mutex
 }
 
 type agodeskActiveChatRun struct {
@@ -198,6 +203,34 @@ func handleAgodeskEnvelope(s *Server, r *http.Request, conn *websocket.Conn, sta
 			return true
 		}
 		go handleAgodeskChatMessage(s, r, conn, state, env.ID, payload)
+	case agodesk.TypeLocalAgentRemoteTool:
+		payload, errPayload := decodeAgodeskPayload[agodesk.LocalAgentRemoteToolPayload](env)
+		if errPayload != nil {
+			writeAgodeskLocalRemoteToolError(conn, state, env.ID, "", "", agodesk.ErrorInvalidRequest, "Invalid local agent remote-tool request.")
+			return true
+		}
+		go handleAgodeskLocalRemoteTool(s, conn, state, env.ID, payload)
+	case agodesk.TypeLocalAgentHandoff:
+		payload, errPayload := decodeAgodeskPayload[agodesk.LocalAgentHandoffPayload](env)
+		if errPayload != nil {
+			_ = writeAgodeskErrorLocked(conn, state, env.ID, agodesk.ErrorInvalidRequest, "Invalid local agent handoff request.")
+			return true
+		}
+		handleAgodeskLocalHandoff(s, r, conn, state, env.ID, payload)
+	case agodesk.TypeLocalAgentTurn:
+		payload, errPayload := decodeAgodeskPayload[agodesk.LocalAgentTurnPayload](env)
+		if errPayload != nil {
+			logAgodeskLocalAgentError(s, env.ID, "local.agent.turn", fmt.Errorf("decode payload: %w", errPayload))
+			return true
+		}
+		handleAgodeskLocalTurn(s, state, env.ID, payload)
+	case agodesk.TypeLocalAgentLLM:
+		payload, errPayload := decodeAgodeskPayload[agodesk.LocalAgentLLMPayload](env)
+		if errPayload != nil {
+			writeAgodeskLocalLLMError(conn, state, env.ID, "", "", agodesk.ErrorInvalidRequest, "Invalid local agent LLM request.")
+			return true
+		}
+		go handleAgodeskLocalLLM(s, conn, state, env.ID, payload)
 	case agodesk.TypeChatAttachmentPrepare:
 		payload, errPayload := decodeAgodeskPayload[agodesk.ChatAttachmentPreparePayload](env)
 		if errPayload != nil {
@@ -2079,7 +2112,7 @@ func runAgodeskAgentChat(s *Server, r *http.Request, conn *websocket.Conn, state
 		SessionID:             conversationID,
 		MessageSource:         agodeskMessageSource,
 		AdditionalPrompt:      buildAgodeskAgentContext(deviceID, agodeskStateFileAccess(state)),
-		PersistedMessage:      stripAgodeskAttachmentBlock(message),
+		PersistedMessage:      agodeskPersistedMessageFromContext(r.Context(), stripAgodeskAttachmentBlock(message)),
 		VoiceOutputActive:     voiceOutput,
 		OnUserMessageInserted: agodeskAttachmentBindingCallback(r.Context()),
 		PrepareSessionMessages: func(messages []memory.HistoryMessage, currentMessageID int64) []memory.HistoryMessage {

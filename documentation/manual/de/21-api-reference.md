@@ -713,6 +713,8 @@ GET /api/agodesk/media/{bucket}/{path}
 
 `/api/agodesk/ws` nutzt das AgoDesk-JSON-Envelope-Protokoll. Produktionsclients koppeln sich mit `session.start`; lokale Entwicklung kann `?insecure_loopback=1` verwenden. Nach `session.accepted` speichert AgoDesk `advertised_capabilities` und nutzt die akzeptierte `session_id` als Transport-Session.
 
+Clients mit ausgehandelter Capability `local.agent` können `local.agent.remote_tool` für begrenzte Memory-/Abfrage-Adapter, `local.agent.llm` für einen direkten Provider-Aufruf mit Vault-geschützten Zugangsdaten und `local.agent.turn` zur Fire-and-forget-Synchronisierung von Verlauf und Aktivität nutzen. Nur `local.agent.handoff` startet dabei den vollständigen AuraGo-Agentenloop. Fehler von Remote-Tools und LLM-Proxy verwenden ihren jeweiligen `.result`-Envelope und spiegeln die `request_id`.
+
 AgoDesk-Chat kann dieselben AuraGo-Webchat-Sessions nutzen, wenn `chat.sessions` ausgehandelt ist:
 
 - `chat.sessions.list` liefert die letzten `sess-*`-Konversationen.

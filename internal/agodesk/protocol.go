@@ -66,6 +66,12 @@ const (
 	TypeConfigProviderOAuthStatusRequest MessageType = "config.provider.oauth.status"
 	TypeConfigProviderOAuthStatus        MessageType = "config.provider.oauth.status"
 	TypeConfigProviderOAuthRevoke        MessageType = "config.provider.oauth.revoke"
+	TypeLocalAgentRemoteTool             MessageType = "local.agent.remote_tool"
+	TypeLocalAgentRemoteToolResult       MessageType = "local.agent.remote_tool.result"
+	TypeLocalAgentHandoff                MessageType = "local.agent.handoff"
+	TypeLocalAgentTurn                   MessageType = "local.agent.turn"
+	TypeLocalAgentLLM                    MessageType = "local.agent.llm"
+	TypeLocalAgentLLMResult              MessageType = "local.agent.llm.result"
 )
 
 const (
@@ -88,9 +94,17 @@ const (
 	ErrorAttachmentNotFound       = "ATTACHMENT_NOT_FOUND"
 	ErrorAttachmentNotReady       = "ATTACHMENT_NOT_READY"
 	ErrorAttachmentExpired        = "ATTACHMENT_EXPIRED"
+	ErrorInvalidRequest           = "INVALID_REQUEST"
+	ErrorUnsupportedTool          = "UNSUPPORTED_TOOL"
+	ErrorMemoryDisabled           = "MEMORY_DISABLED"
+	ErrorProviderNotFound         = "PROVIDER_NOT_FOUND"
+	ErrorBudgetBlocked            = "BUDGET_BLOCKED"
+	ErrorTimeout                  = "TIMEOUT"
+	ErrorUpstream                 = "UPSTREAM_ERROR"
 )
 
 var DefaultCapabilities = []string{
+	"local.agent",
 	"chat.full_response",
 	"chat.server_push",
 	"chat.agent_metadata",
@@ -119,6 +133,7 @@ const (
 	CapabilityConfigProvidersRead  = "config.providers.read"
 	CapabilityConfigProvidersWrite = "config.providers.write"
 	CapabilityConfigProvidersOAuth = "config.providers.oauth"
+	CapabilityLocalAgent           = "local.agent"
 )
 
 const PersonaAssetVersion = "20260502-persona-refresh"
@@ -225,6 +240,110 @@ type ChatErrorPayload struct {
 	RequestID string `json:"request_id,omitempty"`
 	Code      string `json:"code"`
 	Message   string `json:"message"`
+}
+
+type LocalAgentErrorPayload struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
+type LocalAgentRemoteToolPayload struct {
+	SessionID      string                     `json:"session_id"`
+	ConversationID string                     `json:"conversation_id,omitempty"`
+	RequestID      string                     `json:"request_id"`
+	Tool           string                     `json:"tool"`
+	Arguments      map[string]json.RawMessage `json:"arguments,omitempty"`
+}
+
+type LocalAgentRemoteToolResultPayload struct {
+	SessionID      string                  `json:"session_id"`
+	ConversationID string                  `json:"conversation_id,omitempty"`
+	RequestID      string                  `json:"request_id"`
+	Result         map[string]interface{}  `json:"result,omitempty"`
+	Error          *LocalAgentErrorPayload `json:"error,omitempty"`
+}
+
+type LocalAgentTranscriptMessage struct {
+	Role    string `json:"role"`
+	Content string `json:"content"`
+}
+
+type LocalAgentHandoffPayload struct {
+	SessionID      string                        `json:"session_id"`
+	ConversationID string                        `json:"conversation_id,omitempty"`
+	RequestID      string                        `json:"request_id"`
+	UserMessage    string                        `json:"user_message"`
+	Transcript     []LocalAgentTranscriptMessage `json:"transcript,omitempty"`
+	VoiceOutput    bool                          `json:"voice_output,omitempty"`
+}
+
+type LocalAgentToolTrace struct {
+	Tool   string `json:"tool"`
+	Target string `json:"target,omitempty"`
+	Status string `json:"status"`
+}
+
+type LocalAgentTurnPayload struct {
+	SessionID        string                `json:"session_id"`
+	ConversationID   string                `json:"conversation_id"`
+	RequestID        string                `json:"request_id"`
+	UserMessage      string                `json:"user_message"`
+	AssistantMessage string                `json:"assistant_message,omitempty"`
+	Status           string                `json:"status"`
+	ProviderID       string                `json:"provider_id,omitempty"`
+	Model            string                `json:"model,omitempty"`
+	ClientTimestamp  string                `json:"client_timestamp"`
+	Tools            []LocalAgentToolTrace `json:"tools,omitempty"`
+}
+
+type LocalAgentLLMToolCall struct {
+	ID        string          `json:"id"`
+	Name      string          `json:"name"`
+	Arguments json.RawMessage `json:"arguments"`
+}
+
+type LocalAgentLLMMessage struct {
+	Role       string                  `json:"role"`
+	Content    string                  `json:"content,omitempty"`
+	Name       string                  `json:"name,omitempty"`
+	ToolCallID string                  `json:"tool_call_id,omitempty"`
+	ToolCalls  []LocalAgentLLMToolCall `json:"tool_calls,omitempty"`
+}
+
+type LocalAgentLLMFunction struct {
+	Name        string          `json:"name"`
+	Description string          `json:"description,omitempty"`
+	Parameters  json.RawMessage `json:"parameters"`
+}
+
+type LocalAgentLLMTool struct {
+	Type     string                `json:"type"`
+	Function LocalAgentLLMFunction `json:"function"`
+}
+
+type LocalAgentLLMPayload struct {
+	SessionID      string                 `json:"session_id"`
+	ConversationID string                 `json:"conversation_id,omitempty"`
+	RequestID      string                 `json:"request_id"`
+	ProviderID     string                 `json:"provider_id"`
+	Model          string                 `json:"model,omitempty"`
+	Messages       []LocalAgentLLMMessage `json:"messages"`
+	Tools          []LocalAgentLLMTool    `json:"tools,omitempty"`
+}
+
+type LocalAgentLLMUsagePayload struct {
+	PromptTokens     int `json:"prompt_tokens"`
+	CompletionTokens int `json:"completion_tokens"`
+	TotalTokens      int `json:"total_tokens"`
+}
+
+type LocalAgentLLMResultPayload struct {
+	SessionID      string                     `json:"session_id"`
+	ConversationID string                     `json:"conversation_id,omitempty"`
+	RequestID      string                     `json:"request_id"`
+	Message        *LocalAgentLLMMessage      `json:"message,omitempty"`
+	Usage          *LocalAgentLLMUsagePayload `json:"usage,omitempty"`
+	Error          *LocalAgentErrorPayload    `json:"error,omitempty"`
 }
 
 type ChatChunkPayload struct {
