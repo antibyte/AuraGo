@@ -314,7 +314,20 @@ The LLM proxy lets the local agent use a configured AuraGo provider while provid
 }
 ```
 
-Allowed message roles are `system`, `user`, `assistant`, and `tool`. `name`, `tool_call_id`, and prior `tool_calls` are preserved so the client can continue multi-step local tool loops. Tool-call `arguments` and function `parameters` must be JSON objects.
+Allowed message roles are `system`, `user`, `assistant`, and `tool`. `name`, `tool_call_id`, and prior `tool_calls` are preserved so the client can continue multi-step local tool loops. Prior assistant tool calls may use either AuraGo's flat form shown above or the OpenAI wire form:
+
+```json
+{
+  "id": "call-1",
+  "type": "function",
+  "function": {
+    "name": "read_file",
+    "arguments": "{\"path\":\"README.md\"}"
+  }
+}
+```
+
+For incoming prior tool calls, `arguments` may therefore be a JSON object or a JSON string containing exactly one JSON object. AuraGo decodes the string once and forwards the normalized object text as `openai.FunctionCall.Arguments`. Arrays, scalars, malformed JSON, ambiguous flat/nested calls, and non-`function` tool types are rejected. Function `parameters` must remain a JSON object. Outgoing `local.agent.llm.result` tool calls keep the canonical flat form with object-valued `arguments`.
 
 `client_timestamp` is required and must be RFC3339 with whole-second precision (for example `2026-07-17T18:33:49Z`; fractional seconds are rejected). `request_id` is opaque, may use the `{turn}:llm:{step}` form, and is mirrored exactly.
 

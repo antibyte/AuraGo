@@ -298,7 +298,14 @@ type LocalAgentTurnPayload struct {
 }
 
 type LocalAgentLLMToolCall struct {
-	ID        string          `json:"id"`
+	ID        string                     `json:"id"`
+	Type      string                     `json:"type,omitempty"`
+	Name      string                     `json:"name,omitempty"`
+	Arguments json.RawMessage            `json:"arguments,omitempty"`
+	Function  *LocalAgentLLMFunctionCall `json:"function,omitempty"`
+}
+
+type LocalAgentLLMFunctionCall struct {
 	Name      string          `json:"name"`
 	Arguments json.RawMessage `json:"arguments"`
 }

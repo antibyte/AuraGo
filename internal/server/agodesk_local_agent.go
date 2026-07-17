@@ -677,17 +677,16 @@ func validateAgodeskLocalLLMInput(messages []agodesk.LocalAgentLLMMessage, tools
 			ToolCallID: strings.TrimSpace(message.ToolCallID),
 		}
 		for _, toolCall := range message.ToolCalls {
-			if strings.TrimSpace(toolCall.ID) == "" ||
-				!agodeskLocalFunctionNamePattern.MatchString(strings.TrimSpace(toolCall.Name)) ||
-				!agodeskLocalJSONObject(toolCall.Arguments) {
+			name, arguments, ok := normalizeAgodeskLocalPriorToolCall(toolCall)
+			if strings.TrimSpace(toolCall.ID) == "" || !ok {
 				return nil, nil, fmt.Errorf("local.agent.llm contains an invalid prior tool call")
 			}
 			converted.ToolCalls = append(converted.ToolCalls, openai.ToolCall{
 				ID:   strings.TrimSpace(toolCall.ID),
 				Type: openai.ToolTypeFunction,
 				Function: openai.FunctionCall{
-					Name:      strings.TrimSpace(toolCall.Name),
-					Arguments: string(toolCall.Arguments),
+					Name:      name,
+					Arguments: arguments,
 				},
 			})
 		}
@@ -717,6 +716,45 @@ func validateAgodeskLocalLLMInput(messages []agodesk.LocalAgentLLMMessage, tools
 		})
 	}
 	return openAIMessages, openAITools, nil
+}
+
+func normalizeAgodeskLocalPriorToolCall(toolCall agodesk.LocalAgentLLMToolCall) (string, string, bool) {
+	name := strings.TrimSpace(toolCall.Name)
+	arguments := toolCall.Arguments
+	toolType := strings.ToLower(strings.TrimSpace(toolCall.Type))
+
+	if toolCall.Function != nil {
+		if name != "" || len(arguments) > 0 || (toolType != "" && toolType != string(openai.ToolTypeFunction)) {
+			return "", "", false
+		}
+		name = strings.TrimSpace(toolCall.Function.Name)
+		arguments = toolCall.Function.Arguments
+	} else if toolType != "" && toolType != string(openai.ToolTypeFunction) {
+		return "", "", false
+	}
+	if !agodeskLocalFunctionNamePattern.MatchString(name) {
+		return "", "", false
+	}
+	normalizedArguments, ok := normalizeAgodeskLocalToolArguments(arguments)
+	if !ok {
+		return "", "", false
+	}
+	return name, normalizedArguments, true
+}
+
+func normalizeAgodeskLocalToolArguments(raw json.RawMessage) (string, bool) {
+	if agodeskLocalJSONObject(raw) {
+		return string(raw), true
+	}
+	var encoded string
+	if err := json.Unmarshal(raw, &encoded); err != nil {
+		return "", false
+	}
+	decoded := json.RawMessage(encoded)
+	if !agodeskLocalJSONObject(decoded) {
+		return "", false
+	}
+	return string(decoded), true
 }
 
 func agodeskLocalLLMResponseMessage(message openai.ChatCompletionMessage) (agodesk.LocalAgentLLMMessage, error) {

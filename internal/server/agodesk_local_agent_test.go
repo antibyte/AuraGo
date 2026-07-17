@@ -482,6 +482,207 @@ func TestAgodeskLocalLLMProxyForwardsExactModelMessagesAndTools(t *testing.T) {
 	}
 }
 
+func TestAgodeskLocalLLMProxyAcceptsOpenAIWirePriorToolCall(t *testing.T) {
+	requests := make(chan openai.ChatCompletionRequest, 1)
+	provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var request openai.ChatCompletionRequest
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			t.Errorf("decode provider request: %v", err)
+			http.Error(w, "bad request", http.StatusBadRequest)
+			return
+		}
+		requests <- request
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{
+			"id":"chatcmpl-after-tool",
+			"object":"chat.completion",
+			"created":1,
+			"model":"weather-model",
+			"choices":[{"index":0,"message":{"role":"assistant","content":"It is 23°C in Berlin."},"finish_reason":"stop"}]
+		}`))
+	}))
+	defer provider.Close()
+
+	s := newAgodeskHandlerTestServer()
+	s.Cfg.Providers = []config.ProviderEntry{{
+		ID:      "main",
+		Type:    "openai",
+		BaseURL: provider.URL + "/v1",
+		Model:   "weather-model",
+	}}
+	conn, cleanup := dialAgodeskTestWebSocket(t, s, "/api/agodesk/ws?insecure_loopback=1")
+	defer cleanup()
+	connected := readAgodeskTestEnvelope(t, conn)
+	var connectedPayload agodesk.SystemConnectedPayload
+	decodeAgodeskTestPayload(t, connected, &connectedPayload)
+
+	request := newAgodeskTestEnvelope(t, agodesk.TypeLocalAgentLLM, map[string]interface{}{
+		"session_id":       connectedPayload.SessionID,
+		"request_id":       "{weather-turn}:llm:2",
+		"client_timestamp": "2026-07-17T18:33:49Z",
+		"provider_id":      "main",
+		"messages": []interface{}{
+			map[string]interface{}{"role": "user", "content": "How is the weather in Berlin?"},
+			map[string]interface{}{
+				"role":    "assistant",
+				"content": nil,
+				"tool_calls": []interface{}{
+					map[string]interface{}{
+						"id":   "call-weather",
+						"type": "function",
+						"function": map[string]interface{}{
+							"name":      "get_weather",
+							"arguments": `{"location":"Berlin","unit":"celsius"}`,
+						},
+					},
+				},
+			},
+			map[string]interface{}{
+				"role":         "tool",
+				"tool_call_id": "call-weather",
+				"content":      `{"temperature":23,"unit":"celsius"}`,
+			},
+		},
+		"tools": []interface{}{
+			map[string]interface{}{
+				"type": "function",
+				"function": map[string]interface{}{
+					"name": "get_weather",
+					"parameters": map[string]interface{}{
+						"type": "object",
+						"properties": map[string]interface{}{
+							"location": map[string]interface{}{"type": "string"},
+							"unit":     map[string]interface{}{"type": "string"},
+						},
+					},
+				},
+			},
+		},
+	})
+	if err := conn.WriteJSON(request); err != nil {
+		t.Fatalf("write OpenAI-wire local.agent.llm: %v", err)
+	}
+	response := readAgodeskTestEnvelope(t, conn)
+	var payload agodesk.LocalAgentLLMResultPayload
+	decodeAgodeskTestPayload(t, response, &payload)
+	if !payload.Success ||
+		payload.RequestID != "{weather-turn}:llm:2" ||
+		payload.Message == nil ||
+		payload.Message.Content != "It is 23°C in Berlin." {
+		t.Fatalf("OpenAI-wire LLM result = %+v", payload)
+	}
+
+	select {
+	case forwarded := <-requests:
+		if len(forwarded.Messages) != 3 || len(forwarded.Messages[1].ToolCalls) != 1 {
+			t.Fatalf("forwarded messages = %+v", forwarded.Messages)
+		}
+		toolCall := forwarded.Messages[1].ToolCalls[0]
+		if toolCall.ID != "call-weather" ||
+			toolCall.Function.Name != "get_weather" ||
+			toolCall.Function.Arguments != `{"location":"Berlin","unit":"celsius"}` ||
+			forwarded.Messages[2].ToolCallID != "call-weather" {
+			t.Fatalf("forwarded OpenAI-wire tool round = %+v", forwarded.Messages)
+		}
+		if len(forwarded.Tools) != 1 || forwarded.ToolChoice != "auto" || forwarded.Stream {
+			t.Fatalf("forwarded tools = %+v", forwarded)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("second provider request was not made")
+	}
+}
+
+func TestNormalizeAgodeskLocalPriorToolCallForms(t *testing.T) {
+	tests := []struct {
+		name          string
+		toolCall      agodesk.LocalAgentLLMToolCall
+		wantName      string
+		wantArguments string
+		wantOK        bool
+	}{
+		{
+			name: "flat object",
+			toolCall: agodesk.LocalAgentLLMToolCall{
+				ID:        "call-1",
+				Name:      "get_weather",
+				Arguments: json.RawMessage(`{"location":"Berlin"}`),
+			},
+			wantName:      "get_weather",
+			wantArguments: `{"location":"Berlin"}`,
+			wantOK:        true,
+		},
+		{
+			name: "flat OpenAI argument string",
+			toolCall: agodesk.LocalAgentLLMToolCall{
+				ID:        "call-1",
+				Name:      "get_weather",
+				Arguments: json.RawMessage(`"{\"location\":\"Berlin\"}"`),
+			},
+			wantName:      "get_weather",
+			wantArguments: `{"location":"Berlin"}`,
+			wantOK:        true,
+		},
+		{
+			name: "nested OpenAI wire",
+			toolCall: agodesk.LocalAgentLLMToolCall{
+				ID:   "call-1",
+				Type: "function",
+				Function: &agodesk.LocalAgentLLMFunctionCall{
+					Name:      "get_weather",
+					Arguments: json.RawMessage(`"{\"location\":\"Berlin\"}"`),
+				},
+			},
+			wantName:      "get_weather",
+			wantArguments: `{"location":"Berlin"}`,
+			wantOK:        true,
+		},
+		{
+			name: "nested array string rejected",
+			toolCall: agodesk.LocalAgentLLMToolCall{
+				ID:   "call-1",
+				Type: "function",
+				Function: &agodesk.LocalAgentLLMFunctionCall{
+					Name:      "get_weather",
+					Arguments: json.RawMessage(`"[\"Berlin\"]"`),
+				},
+			},
+		},
+		{
+			name: "wrong wire type rejected",
+			toolCall: agodesk.LocalAgentLLMToolCall{
+				ID:   "call-1",
+				Type: "custom",
+				Function: &agodesk.LocalAgentLLMFunctionCall{
+					Name:      "get_weather",
+					Arguments: json.RawMessage(`"{}"`),
+				},
+			},
+		},
+		{
+			name: "ambiguous flat and nested rejected",
+			toolCall: agodesk.LocalAgentLLMToolCall{
+				ID:        "call-1",
+				Type:      "function",
+				Name:      "get_weather",
+				Arguments: json.RawMessage(`{}`),
+				Function: &agodesk.LocalAgentLLMFunctionCall{
+					Name:      "get_weather",
+					Arguments: json.RawMessage(`"{}"`),
+				},
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			name, arguments, ok := normalizeAgodeskLocalPriorToolCall(test.toolCall)
+			if ok != test.wantOK || name != test.wantName || arguments != test.wantArguments {
+				t.Fatalf("normalizeAgodeskLocalPriorToolCall() = (%q, %q, %v), want (%q, %q, %v)",
+					name, arguments, ok, test.wantName, test.wantArguments, test.wantOK)
+			}
+		})
+	}
+}
+
 func TestAgodeskLocalLLMProxyReturnsTypedSafeProviderError(t *testing.T) {
 	secret := "provider-secret-that-must-not-leak"
 	provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
