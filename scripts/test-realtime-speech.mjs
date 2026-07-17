@@ -219,6 +219,91 @@ async function testParkingTimerAndGuards() {
   assert.equal(runtime.state, 'parked');
 }
 
+async function testTakeoverPeerProbeAndModalContrast() {
+  const harness = loadRuntimeForTimerTest();
+  const runtime = new harness.Runtime();
+  runtime.createSession = async () => ({ session_id: 'session-before-handshake' });
+  runtime.adapter = {
+    async connect(options) {
+      await options.createSession({});
+      throw new Error('provider handshake failed');
+    }
+  };
+  await assert.rejects(runtime.connectAdapter(false), /provider handshake failed/);
+  assert.equal(
+    runtime.sessionId,
+    'session-before-handshake',
+    'a provider handshake failure must leave the backend lease available for stop() to release'
+  );
+  runtime.sessionId = '';
+
+  assert.equal(
+    await runtime.probeActiveSession('session-without-channel'),
+    null,
+    'a browser without BroadcastChannel support must keep the explicit takeover confirmation'
+  );
+
+  let listeners = new Set();
+  runtime.channel = {
+    addEventListener(type, handler) {
+      if (type === 'message') listeners.add(handler);
+    },
+    removeEventListener(type, handler) {
+      if (type === 'message') listeners.delete(handler);
+    },
+    postMessage(message) {
+      if (message.type !== 'probe') return;
+      for (const listener of [...listeners]) {
+        listener({
+          data: {
+            type: 'active',
+            tabId: 'tab-peer',
+            sessionId: message.sessionId
+          }
+        });
+      }
+    }
+  };
+
+  assert.equal(await runtime.probeActiveSession('session-live'), true, 'a matching live tab must be detected');
+  assert.equal(listeners.size, 0, 'the peer probe listener must be removed after a response');
+
+  listeners = new Set();
+  runtime.channel = {
+    addEventListener(type, handler) {
+      if (type === 'message') listeners.add(handler);
+    },
+    removeEventListener(type, handler) {
+      if (type === 'message') listeners.delete(handler);
+    },
+    postMessage() {}
+  };
+  const staleProbe = runtime.probeActiveSession('session-stale');
+  assert.equal(harness.timerDelay(), 500, 'the live-tab probe must remain short and deterministic');
+  harness.timer()();
+  assert.equal(await staleProbe, false, 'an unanswered lease must be treated as stale');
+  assert.equal(listeners.size, 0, 'the peer probe listener must be removed after timeout');
+
+  const core = read('ui/js/realtime-speech/core.js');
+  assert.match(
+    core,
+    /const peerActive = await this\.probeActiveSession\(conflictSessionId\)/,
+    'a lease conflict must verify that another tab is actually alive before showing the takeover modal'
+  );
+
+  const styles = read('ui/css/realtime-speech.css');
+  assert.match(
+    styles,
+    /\.realtime-speech-modal-backdrop\s*\{[\s\S]*?--rt-accent:\s*var\(--accent,\s*#2fc5a9\)/,
+    'the body-level takeover modal must define its own accent color'
+  );
+  assert.match(
+    styles,
+    /\.realtime-speech-modal-actions \.primary\s*\{[\s\S]*?background:\s*var\(--rt-accent,\s*#2fc5a9\)/,
+    'the takeover action must retain a visible background when theme variables are absent'
+  );
+}
+
 function testProviderContractAndSecurityBoundaries() {
   const required = ['connect', 'sendAudio', 'endTurn', 'sendToolResult', 'interruptOutput', 'park', 'resume', 'close'];
   for (const provider of ['openai', 'xai', 'gemini']) {
@@ -303,6 +388,7 @@ function testTranslationParity() {
 await testLocalAudioGate();
 testAudioWorkletResampling();
 await testParkingTimerAndGuards();
+await testTakeoverPeerProbeAndModalContrast();
 testProviderContractAndSecurityBoundaries();
 testTranslationParity();
 

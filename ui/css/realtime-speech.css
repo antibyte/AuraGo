@@ -161,7 +161,7 @@
     min-height: 40px;
     padding: 0 14px;
     color: var(--text-primary, #f3f7f8);
-    background: color-mix(in srgb, var(--rt-surface) 82%, #000);
+    background: color-mix(in srgb, var(--rt-surface, #17202a) 82%, #000);
     border: 1px solid var(--border, #34424c);
     border-radius: 10px;
     cursor: pointer;
@@ -175,8 +175,9 @@
 .realtime-speech-controls .realtime-speech-primary,
 .realtime-speech-modal-actions .primary {
     color: #07120f;
-    background: var(--rt-accent);
+    background: var(--rt-accent, #2fc5a9);
     border-color: transparent;
+    font-weight: 700;
 }
 
 .realtime-speech-notice {
@@ -190,6 +191,8 @@
 }
 
 .realtime-speech-modal-backdrop {
+    --rt-accent: var(--accent, #2fc5a9);
+    --rt-surface: var(--bg-card, #17202a);
     position: fixed;
     z-index: 100000;
     inset: 0;

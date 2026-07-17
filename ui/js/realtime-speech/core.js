@@ -5,6 +5,7 @@
     const MAX_WAKE_SAMPLES = (window.AuraRealtimeAudio && window.AuraRealtimeAudio.constants.WAKE_BUFFER_SAMPLES) || 48000;
     const CLIENT_ID_KEY = 'aurago.realtimeSpeech.clientId.v1';
     const CHANNEL_NAME = 'aurago-realtime-speech-v1';
+    const PEER_PROBE_TIMEOUT_MS = 500;
 
     function text(key, fallback, vars) {
         let value = typeof window.t === 'function' ? window.t(key, vars) : '';
@@ -238,10 +239,12 @@
                 this.touch();
             } catch (error) {
                 if (error && error.status === 409 && error.body && error.body.takeover_available && !options.takeover) {
-                    const takeOver = await this.confirmTakeover();
+                    const conflictSessionId = String(error.body.active_session_id || '');
+                    const peerActive = await this.probeActiveSession(conflictSessionId);
+                    const takeOver = peerActive === false ? true : await this.confirmTakeover();
                     if (takeOver) {
                         await this.stop({ notifyServer: false });
-                        this.channelPost({ type: 'takeover' });
+                        this.channelPost({ type: 'takeover', sessionId: conflictSessionId });
                         return this.start(Object.assign({}, options, { takeover: true }));
                     }
                 }
@@ -253,7 +256,11 @@
 
         async connectAdapter(takeover) {
             const response = await this.adapter.connect({
-                createSession: extra => this.createSession(extra, takeover),
+                createSession: async extra => {
+                    const created = await this.createSession(extra, takeover);
+                    this.sessionId = created.session_id;
+                    return created;
+                },
                 conversationId: '',
                 resumptionHandle: ''
             });
@@ -684,9 +691,36 @@
             try { this.channel.postMessage(Object.assign({ tabId: this.tabId }, payload || {})); } catch (_) { }
         }
 
+        probeActiveSession(sessionId) {
+            const targetSessionId = String(sessionId || '');
+            if (!targetSessionId) return Promise.resolve(false);
+            if (!this.channel) return Promise.resolve(null);
+            return new Promise(resolve => {
+                let settled = false;
+                let timer = null;
+                const finish = active => {
+                    if (settled) return;
+                    settled = true;
+                    window.clearTimeout(timer);
+                    this.channel.removeEventListener('message', onMessage);
+                    resolve(active);
+                };
+                const onMessage = event => {
+                    const message = event && event.data;
+                    if (!message || message.tabId === this.tabId || message.type !== 'active') return;
+                    if (String(message.sessionId || '') !== targetSessionId) return;
+                    finish(true);
+                };
+                this.channel.addEventListener('message', onMessage);
+                timer = window.setTimeout(() => finish(false), PEER_PROBE_TIMEOUT_MS);
+                this.channelPost({ type: 'probe', sessionId: targetSessionId });
+            });
+        }
+
         handleChannelMessage(message) {
             if (!message || message.tabId === this.tabId) return;
-            if (message.type === 'takeover' && this.sessionId) {
+            if (message.type === 'takeover' && this.sessionId &&
+                (!message.sessionId || message.sessionId === this.sessionId)) {
                 void this.stop({ notifyServer: false });
                 this.emit('takeover', {
                     message: text('chat.realtime_taken_over', 'The microphone session was moved to another tab.')
