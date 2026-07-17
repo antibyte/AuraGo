@@ -8,9 +8,16 @@ This subtree owns built-in virtual desktop app modules that are loaded lazily by
 - `galaxa-*.js` implements Galaxa Deluxe, a modular Canvas 2D arcade shooter
   with procedural audio, biomed progression, parry/super combat, and persistent
   meta-progression.
-- `chess*.js` implements Chess, a casual desktop chess app using
-  `cm-chessboard`, `chess.js`, a local Stockfish WebWorker, and the optional
-  AuraGo agent move endpoint.
+- `chess*.js` implements Chess, a desktop chess app using `cm-chessboard`,
+  `chess.js`, a local Stockfish WebWorker, and the optional AuraGo agent move
+  endpoint. Features three opponent modes (Computer, Agent, Local 2P),
+  optional chess clocks (3/5/10 min), captured-material tray, move-evaluation
+  panel, hint engine (Stockfish), move-history click-to-review with
+  first/prev/next/last scrubber, last-move and check highlights, resign/draw
+  confirmation modals, and Web Audio synthesized move/capture/check/castle/
+  promote/game-over sounds. Split across `chess.js` (core UI and game loop),
+  `chess-engine.js` (Stockfish worker bridge), and `chess-agent.js`
+  (AuraGo agent move API client).
 - `writer.js` implements the Writer app, a word-processing editor with Quill
   rich-text, auto-save with debounce, dirty-state tracking, word/character/page
   count in a status bar, find & replace overlay with match highlighting, an

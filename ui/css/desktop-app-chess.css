@@ -3,7 +3,7 @@
     height: 100%;
     min-height: 0;
     display: grid;
-    grid-template-columns: minmax(360px, 1fr) 312px;
+    grid-template-columns: minmax(360px, 1fr) 340px;
     background: linear-gradient(135deg, #f7faf8 0%, #eef4f2 52%, #f8f1e7 100%);
     color: #18231f;
     overflow: hidden;
@@ -35,7 +35,7 @@
     min-width: 280px;
     min-height: 280px;
     aspect-ratio: 1;
-    border-radius: 8px;
+    border-radius: 10px;
     overflow: hidden;
     box-shadow: 0 18px 42px rgba(29, 48, 38, 0.24), 0 0 0 1px rgba(20, 50, 40, 0.14);
     background: #dbe7df;
@@ -53,8 +53,8 @@
     grid-template-columns: minmax(0, 1fr);
     align-content: center;
     gap: 4px;
-    padding: 10px 12px;
-    border-radius: 8px;
+    padding: 10px 14px;
+    border-radius: 10px;
     background: rgba(255, 255, 255, 0.78);
     border: 1px solid rgba(34, 70, 55, 0.14);
     box-shadow: 0 8px 24px rgba(29, 48, 38, 0.08);
@@ -70,6 +70,28 @@
     text-overflow: ellipsis;
 }
 
+.vd-chess-status::before {
+    content: "";
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    margin-right: 8px;
+    border-radius: 50%;
+    background: #1f6b57;
+    vertical-align: middle;
+    animation: vd-chess-pulse 1.6s ease-in-out infinite;
+}
+
+.vd-chess.is-error .vd-chess-status::before {
+    background: #c0392b;
+    animation: none;
+}
+
+@keyframes vd-chess-pulse {
+    0%, 100% { opacity: 0.4; transform: scale(0.85); }
+    50% { opacity: 1; transform: scale(1.1); }
+}
+
 .vd-chess-comment {
     min-height: 16px;
     font-size: 12px;
@@ -83,22 +105,80 @@
     min-width: 0;
     min-height: 0;
     display: grid;
-    grid-template-rows: auto minmax(0, 1fr);
-    gap: 12px;
+    grid-template-rows: auto auto auto minmax(0, 1fr);
+    gap: 10px;
     padding: 18px 18px 18px 0;
 }
 
-.vd-chess-controls,
-.vd-chess-moves {
+.vd-chess-clocks {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.vd-chess-clock {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.86);
     border: 1px solid rgba(34, 70, 55, 0.16);
-    border-radius: 8px;
+    box-shadow: 0 6px 18px rgba(29, 48, 38, 0.08);
+    transition: background 0.2s, border-color 0.2s, transform 0.2s;
+}
+
+.vd-chess-clock.is-active {
+    background: #1f6b57;
+    border-color: #1f6b57;
+    color: #ffffff;
+    transform: scale(1.03);
+    box-shadow: 0 8px 22px rgba(31, 107, 87, 0.32);
+}
+
+.vd-chess-clock.is-active .vd-chess-clock-side,
+.vd-chess-clock.is-active .vd-chess-clock-time {
+    color: #ffffff;
+}
+
+.vd-chess-clock.is-low {
+    background: #c0392b;
+    border-color: #a93226;
+    animation: vd-chess-clock-blink 0.8s ease-in-out infinite;
+}
+
+@keyframes vd-chess-clock-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
+.vd-chess-clock-side {
+    font-size: 18px;
+    line-height: 1;
+    color: #28463d;
+}
+
+.vd-chess-clock-time {
+    font-size: 18px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    color: #12382d;
+    letter-spacing: 0.5px;
+}
+
+.vd-chess-controls,
+.vd-chess-moves,
+.vd-chess-captured-panel,
+.vd-chess-info-panel {
+    border: 1px solid rgba(34, 70, 55, 0.16);
+    border-radius: 10px;
     background: rgba(255, 255, 255, 0.86);
     box-shadow: 0 12px 28px rgba(29, 48, 38, 0.1);
 }
 
 .vd-chess-controls {
     display: grid;
-    gap: 12px;
+    gap: 10px;
     padding: 14px;
 }
 
@@ -128,6 +208,12 @@
     padding: 0 10px;
     background: #ffffff;
     color: #18231f;
+    cursor: pointer;
+    transition: border-color 0.15s;
+}
+
+.vd-chess-field select:hover:not(:disabled) {
+    border-color: #1f6b57;
 }
 
 .vd-chess-segment {
@@ -140,14 +226,21 @@
     border: 1px solid rgba(34, 70, 55, 0.12);
 }
 
+.vd-chess-segment.is-disabled {
+    opacity: 0.45;
+    pointer-events: none;
+}
+
 .vd-chess-segment button,
 .vd-chess-actions button,
-.vd-chess-promotion button {
+.vd-chess-promotion button,
+.vd-chess-replay button {
     min-width: 0;
     border: 0;
     border-radius: 6px;
     font: inherit;
     cursor: pointer;
+    transition: filter 0.12s, transform 0.12s, background 0.15s;
 }
 
 .vd-chess-segment button {
@@ -185,22 +278,102 @@
 
 .vd-chess-actions button.vd-chess-primary {
     grid-column: 1 / -1;
-    background: #1f6b57;
+    background: linear-gradient(135deg, #1f6b57 0%, #2a8a72 100%);
     color: #ffffff;
+    box-shadow: 0 6px 16px rgba(31, 107, 87, 0.28);
 }
 
 .vd-chess-actions button:hover,
 .vd-chess-segment button:hover,
-.vd-chess-promotion button:hover {
-    filter: brightness(0.97);
+.vd-chess-promotion button:hover,
+.vd-chess-replay button:hover {
+    filter: brightness(0.95);
+    transform: translateY(-1px);
 }
 
-.vd-chess-action-icon {
+.vd-chess-actions button:active,
+.vd-chess-replay button:active {
+    transform: translateY(0);
+}
+
+.vd-chess-actions button[hidden] {
+    display: none;
+}
+
+.vd-chess-action-icon,
+.vd-chess-replay-icon {
     flex: 0 0 auto;
 }
 
 .vd-chess-field.is-disabled {
     opacity: 0.58;
+}
+
+.vd-chess-replay {
+    display: grid;
+    grid-template-columns: auto auto minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: rgba(31, 107, 87, 0.06);
+    border: 1px solid rgba(34, 70, 55, 0.12);
+}
+
+.vd-chess-replay button {
+    width: 30px;
+    height: 30px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #ffffff;
+    color: #1f6b57;
+    font-weight: 800;
+    font-size: 13px;
+    box-shadow: 0 2px 6px rgba(29, 48, 38, 0.12);
+}
+
+.vd-chess-review-label {
+    text-align: center;
+    font-size: 12px;
+    font-weight: 700;
+    color: #28463d;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.vd-chess-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2px;
+    padding: 3px;
+    border-radius: 10px;
+    background: rgba(31, 107, 87, 0.08);
+    border: 1px solid rgba(34, 70, 55, 0.12);
+}
+
+.vd-chess-tabs button {
+    min-width: 0;
+    height: 32px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: #30564a;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+
+.vd-chess-tabs button.active {
+    background: #ffffff;
+    color: #13392f;
+    box-shadow: 0 4px 12px rgba(29, 48, 38, 0.14);
+}
+
+.vd-chess-tabs button:hover:not(.active) {
+    background: rgba(255, 255, 255, 0.5);
 }
 
 .vd-chess-moves {
@@ -231,17 +404,32 @@
     padding: 4px 6px;
     border-radius: 6px;
     font-size: 13px;
+    transition: background 0.12s;
 }
 
 .vd-chess-moves li:nth-child(odd) {
     background: rgba(31, 107, 87, 0.07);
 }
 
-.vd-chess-moves li span {
+.vd-chess-moves li.is-review {
+    background: rgba(255, 196, 64, 0.22);
+    box-shadow: inset 0 0 0 1px rgba(200, 140, 20, 0.4);
+}
+
+.vd-chess-move-cell {
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    cursor: pointer;
+    border-radius: 4px;
+    padding: 2px 4px;
+    transition: background 0.12s, color 0.12s;
+}
+
+.vd-chess-move-cell:hover {
+    background: rgba(31, 107, 87, 0.16);
+    color: #0e2a22;
 }
 
 .vd-chess-move-no {
@@ -254,6 +442,80 @@
     color: #617069;
 }
 
+.vd-chess-captured-panel {
+    display: grid;
+    gap: 12px;
+    padding: 14px;
+    overflow: auto;
+}
+
+.vd-chess-captured-row {
+    display: grid;
+    grid-template-columns: 60px minmax(0, 1fr);
+    align-items: center;
+    gap: 10px;
+}
+
+.vd-chess-captured-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: #28463d;
+}
+
+.vd-chess-captured-pieces {
+    min-height: 32px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+    align-content: center;
+}
+
+.vd-chess-piece {
+    font-size: 22px;
+    line-height: 1;
+    display: inline-flex;
+    width: 24px;
+    height: 24px;
+    align-items: center;
+    justify-content: center;
+}
+
+.vd-chess-captured-row:nth-child(1) .vd-chess-piece { color: #1a1a1a; }
+.vd-chess-captured-row:nth-child(2) .vd-chess-piece { color: #4a4a4a; }
+
+.vd-chess-captured-empty {
+    color: #a8b2ad;
+    font-size: 14px;
+}
+
+.vd-chess-info-panel {
+    display: grid;
+    gap: 10px;
+    padding: 14px;
+    overflow: auto;
+}
+
+.vd-chess-info-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    background: rgba(31, 107, 87, 0.05);
+    font-size: 13px;
+}
+
+.vd-chess-info-row span:first-child {
+    font-weight: 700;
+    color: #28463d;
+}
+
+.vd-chess-info-row span:last-child {
+    font-variant-numeric: tabular-nums;
+    color: #173c32;
+}
+
 .vd-chess-promotion {
     position: absolute;
     left: 50%;
@@ -261,22 +523,99 @@
     z-index: 8;
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 6px;
-    width: min(360px, calc(100% - 40px));
-    padding: 8px;
+    gap: 8px;
+    width: min(380px, calc(100% - 40px));
+    padding: 12px;
     transform: translate(-50%, -50%);
-    border-radius: 8px;
-    background: rgba(248, 250, 248, 0.96);
+    border-radius: 12px;
+    background: rgba(248, 250, 248, 0.97);
     border: 1px solid rgba(34, 70, 55, 0.22);
     box-shadow: 0 18px 40px rgba(20, 40, 32, 0.24);
 }
 
 .vd-chess-promotion button {
-    height: 38px;
+    display: grid;
+    gap: 4px;
+    padding: 10px 6px;
     background: #1f6b57;
     color: #ffffff;
     font-size: 12px;
     font-weight: 700;
+}
+
+.vd-chess-promo-glyph {
+    font-size: 26px;
+    line-height: 1;
+}
+
+.vd-chess-promotion.is-black .vd-chess-promo-glyph { color: #f5f5f5; }
+
+.vd-chess-modal {
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    display: grid;
+    place-items: center;
+    background: rgba(18, 30, 26, 0.45);
+    backdrop-filter: blur(2px);
+    animation: vd-chess-modal-in 0.18s ease-out;
+}
+
+@keyframes vd-chess-modal-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.vd-chess-modal-card {
+    display: grid;
+    gap: 16px;
+    padding: 22px 26px;
+    min-width: 280px;
+    max-width: 90%;
+    border-radius: 14px;
+    background: #ffffff;
+    box-shadow: 0 24px 60px rgba(18, 30, 26, 0.36);
+    transform: scale(0.96);
+    animation: vd-chess-card-in 0.2s cubic-bezier(0.2, 0.9, 0.3, 1.2) forwards;
+}
+
+@keyframes vd-chess-card-in {
+    to { transform: scale(1); }
+}
+
+.vd-chess-modal-text {
+    font-size: 15px;
+    font-weight: 700;
+    color: #12382d;
+    text-align: center;
+}
+
+.vd-chess-modal-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.vd-chess-modal-actions button {
+    height: 38px;
+    border: 0;
+    border-radius: 8px;
+    background: #edf3ef;
+    color: #173c32;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: filter 0.12s, transform 0.12s;
+}
+
+.vd-chess-modal-actions button.is-primary {
+    background: #1f6b57;
+    color: #ffffff;
+}
+
+.vd-chess-modal-actions button:hover {
+    filter: brightness(0.95);
+    transform: translateY(-1px);
 }
 
 .vd-chess.is-error .vd-chess-board {
@@ -300,7 +639,7 @@
 
     .vd-chess-side {
         grid-template-columns: minmax(0, 1fr);
-        grid-template-rows: auto minmax(130px, 190px);
+        grid-template-rows: auto auto auto minmax(130px, 220px);
         padding: 0 12px 12px;
     }
 }
@@ -316,5 +655,9 @@
 
     .vd-chess-promotion {
         grid-template-columns: repeat(2, 1fr);
+    }
+
+    .vd-chess-modal-actions {
+        grid-template-columns: 1fr;
     }
 }
