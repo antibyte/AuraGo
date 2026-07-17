@@ -343,6 +343,16 @@ function testProviderContractAndSecurityBoundaries() {
     /const resuming = !!resumeHandle[\s\S]*if \(!resuming\) await this\.syncContext/,
     'Gemini must not replay visible chat context after session resumption'
   );
+  assert.match(
+    read('ui/js/realtime-speech/provider-gemini.js'),
+    /payload && payload\.error[\s\S]*rejectBeforeSetup\(new Error\('Gemini Live rejected session setup:/,
+    'Gemini must surface a setup rejection instead of timing out'
+  );
+  assert.match(
+    read('ui/js/realtime-speech/provider-gemini.js'),
+    /socket\.addEventListener\('close', event => \{[\s\S]*rejectBeforeSetup\(new Error\('Gemini Live closed before setup completed'/,
+    'Gemini must reject immediately when the socket closes before setup completes'
+  );
 
   const core = read('ui/js/realtime-speech/core.js');
   assert.doesNotMatch(core, /\balert\s*\(/, 'microphone takeover must use an AuraGo modal');

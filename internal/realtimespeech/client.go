@@ -317,11 +317,41 @@ func geminiFunctionDeclarations() []map[string]interface{} {
 	tools := PrivateTools()
 	out := make([]map[string]interface{}, 0, len(tools))
 	for _, tool := range tools {
+		parameters, _ := tool["parameters"].(map[string]interface{})
 		out = append(out, map[string]interface{}{
-			"name":                 tool["name"],
-			"description":          tool["description"],
-			"parametersJsonSchema": tool["parameters"],
+			"name":        tool["name"],
+			"description": tool["description"],
+			"parameters":  geminiTypedSchema(parameters),
 		})
+	}
+	return out
+}
+
+// geminiTypedSchema converts the private JSON schemas to Gemini's typed Schema
+// format. The Live API rejects JSON Schema-only fields such as
+// additionalProperties in bidi setup constraints.
+func geminiTypedSchema(schema map[string]interface{}) map[string]interface{} {
+	out := make(map[string]interface{}, len(schema))
+	for key, value := range schema {
+		if key == "additionalProperties" {
+			continue
+		}
+		switch typed := value.(type) {
+		case map[string]interface{}:
+			out[key] = geminiTypedSchema(typed)
+		case []interface{}:
+			items := make([]interface{}, len(typed))
+			for index, item := range typed {
+				if itemSchema, ok := item.(map[string]interface{}); ok {
+					items[index] = geminiTypedSchema(itemSchema)
+				} else {
+					items[index] = item
+				}
+			}
+			out[key] = items
+		default:
+			out[key] = value
+		}
 	}
 	return out
 }

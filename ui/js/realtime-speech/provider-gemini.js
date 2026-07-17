@@ -43,31 +43,54 @@
             return new Promise((resolve, reject) => {
                 const socket = new WebSocket(tokenizedURL(response.websocket_url, response.access_token));
                 this.socket = socket;
-                const timeout = window.setTimeout(() => {
-                    try { socket.close(); } catch (_) { }
-                    reject(new Error('Gemini Live connection timed out'));
-                }, 15000);
                 let setupComplete = false;
+                let promiseSettled = false;
+                let timeout = 0;
+                const rejectBeforeSetup = error => {
+                    if (setupComplete || promiseSettled) return;
+                    promiseSettled = true;
+                    window.clearTimeout(timeout);
+                    reject(error);
+                };
+                const resolveSetup = () => {
+                    if (promiseSettled) return;
+                    setupComplete = true;
+                    promiseSettled = true;
+                    window.clearTimeout(timeout);
+                    resolve();
+                };
+                timeout = window.setTimeout(() => {
+                    rejectBeforeSetup(new Error('Gemini Live connection timed out'));
+                    try { socket.close(); } catch (_) { }
+                }, 15000);
                 socket.addEventListener('open', () => {
                     this.connected = true;
                     this.send({ setup: response.setup || {} });
                 }, { once: true });
                 socket.addEventListener('message', event => {
                     const payload = Common.safeJSON(event.data);
+                    if (!setupComplete && payload && payload.error) {
+                        const message = String(payload.error.message || payload.error.status || 'session setup was rejected').trim();
+                        rejectBeforeSetup(new Error('Gemini Live rejected session setup: ' + message));
+                        try { socket.close(); } catch (_) { }
+                        return;
+                    }
                     if (!setupComplete && payload && (payload.setupComplete || payload.setup_complete)) {
-                        setupComplete = true;
-                        window.clearTimeout(timeout);
-                        resolve();
+                        resolveSetup();
                     }
                     this.handleEvent(payload);
                 });
                 socket.addEventListener('error', () => {
-                    window.clearTimeout(timeout);
-                    if (!setupComplete) reject(new Error('Gemini Live connection failed'));
+                    if (!setupComplete) rejectBeforeSetup(new Error('Gemini Live connection failed'));
                     else this.fail(new Error('Gemini Live connection failed'));
                 });
-                socket.addEventListener('close', () => {
+                socket.addEventListener('close', event => {
                     this.connected = false;
+                    if (!setupComplete) {
+                        const reason = String(event.reason || '').trim().slice(0, 500);
+                        const detail = reason ? ': ' + reason : (event.code ? ' (code ' + event.code + ')' : '');
+                        rejectBeforeSetup(new Error('Gemini Live closed before setup completed' + detail));
+                    }
                     if (!this.closed && this.options.state !== 'parked') this.setState('disconnected');
                 });
             });

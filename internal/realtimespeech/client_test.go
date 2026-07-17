@@ -115,15 +115,26 @@ func TestCreateGeminiEphemeralTokenIsConstrained(t *testing.T) {
 		}
 		for _, rawDeclaration := range declarations {
 			declaration := rawDeclaration.(map[string]interface{})
-			if _, exists := declaration["parameters"]; exists {
-				t.Fatalf("Gemini declaration %q must not use the typed parameters field", declaration["name"])
+			if _, exists := declaration["parametersJsonSchema"]; exists {
+				t.Fatalf("Gemini declaration %q must not use the JSON Schema parameters field", declaration["name"])
 			}
-			schema, ok := declaration["parametersJsonSchema"].(map[string]interface{})
+			schema, ok := declaration["parameters"].(map[string]interface{})
 			if !ok {
-				t.Fatalf("Gemini declaration %q has no JSON Schema parameters", declaration["name"])
+				t.Fatalf("Gemini declaration %q has no typed parameters", declaration["name"])
 			}
-			if additional, exists := schema["additionalProperties"]; !exists || additional != false {
-				t.Fatalf("Gemini declaration %q lost additionalProperties=false", declaration["name"])
+			if _, exists := schema["additionalProperties"]; exists {
+				t.Fatalf("Gemini declaration %q contains unsupported additionalProperties", declaration["name"])
+			}
+			if declaration["name"] == "aurago_execute" {
+				properties := schema["properties"].(map[string]interface{})
+				request := properties["request"].(map[string]interface{})
+				if request["type"] != "string" {
+					t.Fatalf("aurago_execute request schema = %v", request)
+				}
+				required := schema["required"].([]interface{})
+				if len(required) != 1 || required[0] != "request" {
+					t.Fatalf("aurago_execute required fields = %v", required)
+				}
 			}
 		}
 		_, _ = io.WriteString(w, `{"name":"auth_tokens/ephemeral-one"}`)
