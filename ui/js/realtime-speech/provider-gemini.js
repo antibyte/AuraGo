@@ -8,6 +8,18 @@
         return String(baseURL) + separator + 'access_token=' + encodeURIComponent(token);
     }
 
+    async function decodeGeminiMessage(data) {
+        let json = data;
+        if (typeof Blob !== 'undefined' && data instanceof Blob) {
+            json = await data.text();
+        } else if (data instanceof ArrayBuffer) {
+            json = new TextDecoder().decode(data);
+        } else if (ArrayBuffer.isView(data)) {
+            json = new TextDecoder().decode(data);
+        }
+        return Common.safeJSON(json);
+    }
+
     class GeminiRealtimeAdapter extends Common.ProviderAdapter {
         constructor(options) {
             super(options);
@@ -42,6 +54,7 @@
         openSocket(response) {
             return new Promise((resolve, reject) => {
                 const socket = new WebSocket(tokenizedURL(response.websocket_url, response.access_token));
+                socket.binaryType = 'arraybuffer';
                 this.socket = socket;
                 let setupComplete = false;
                 let promiseSettled = false;
@@ -68,17 +81,25 @@
                     this.send({ setup: response.setup || {} });
                 }, { once: true });
                 socket.addEventListener('message', event => {
-                    const payload = Common.safeJSON(event.data);
-                    if (!setupComplete && payload && payload.error) {
-                        const message = String(payload.error.message || payload.error.status || 'session setup was rejected').trim();
-                        rejectBeforeSetup(new Error('Gemini Live rejected session setup: ' + message));
-                        try { socket.close(); } catch (_) { }
-                        return;
-                    }
-                    if (!setupComplete && payload && (payload.setupComplete || payload.setup_complete)) {
-                        resolveSetup();
-                    }
-                    this.handleEvent(payload);
+                    void decodeGeminiMessage(event.data).then(payload => {
+                        if (!payload) {
+                            rejectBeforeSetup(new Error('Gemini Live returned an invalid setup response'));
+                            return;
+                        }
+                        if (!setupComplete && payload.error) {
+                            const message = String(payload.error.message || payload.error.status || 'session setup was rejected').trim();
+                            rejectBeforeSetup(new Error('Gemini Live rejected session setup: ' + message));
+                            try { socket.close(); } catch (_) { }
+                            return;
+                        }
+                        if (!setupComplete && (payload.setupComplete || payload.setup_complete)) {
+                            resolveSetup();
+                        }
+                        this.handleEvent(payload);
+                    }).catch(error => {
+                        const detail = error instanceof Error ? error.message : String(error || 'invalid response');
+                        rejectBeforeSetup(new Error('Gemini Live response could not be decoded: ' + detail));
+                    });
                 });
                 socket.addEventListener('error', () => {
                     if (!setupComplete) rejectBeforeSetup(new Error('Gemini Live connection failed'));

@@ -304,6 +304,96 @@ async function testTakeoverPeerProbeAndModalContrast() {
   );
 }
 
+async function testGeminiBinarySetupFrames() {
+  const sockets = [];
+  class MockWebSocket extends EventTarget {
+    static OPEN = 1;
+
+    constructor(url) {
+      super();
+      this.url = url;
+      this.readyState = MockWebSocket.OPEN;
+      this.binaryType = '';
+      sockets.push(this);
+      queueMicrotask(() => this.dispatchEvent(new Event('open')));
+    }
+
+    send(payload) {
+      const message = JSON.parse(payload);
+      if (!message.setup) return;
+      const bytes = new TextEncoder().encode(JSON.stringify({ setupComplete: {} }));
+      const data = sockets.length === 1
+        ? bytes.buffer
+        : new Blob([bytes], { type: 'application/json' });
+      queueMicrotask(() => {
+        const event = new Event('message');
+        Object.defineProperty(event, 'data', { value: data });
+        this.dispatchEvent(event);
+      });
+    }
+
+    close() {
+      this.readyState = 3;
+    }
+  }
+
+  const window = {
+    setTimeout,
+    clearTimeout,
+    crypto,
+    AuraRealtimeProviders: {}
+  };
+  const context = {
+    window,
+    WebSocket: MockWebSocket,
+    Event,
+    EventTarget,
+    CustomEvent: TestCustomEvent,
+    Blob,
+    ArrayBuffer,
+    Uint8Array,
+    Int16Array,
+    Float32Array,
+    DataView,
+    TextDecoder,
+    TextEncoder,
+    Promise,
+    Error,
+    String,
+    Object,
+    Array,
+    Math,
+    JSON,
+    btoa,
+    atob,
+    console
+  };
+  vm.createContext(context);
+  vm.runInContext(read('ui/js/realtime-speech/provider-common.js'), context);
+  vm.runInContext(read('ui/js/realtime-speech/provider-gemini.js'), context);
+
+  const Adapter = window.AuraRealtimeProviders.gemini;
+  const adapter = new Adapter({});
+  await adapter.openSocket({
+    websocket_url: 'wss://example.invalid/live',
+    access_token: 'ephemeral-test-token',
+    setup: { model: 'models/test' }
+  });
+
+  assert.equal(sockets.length, 1);
+  assert.equal(sockets[0].binaryType, 'arraybuffer', 'Gemini must request deterministic binary frame delivery');
+  assert.equal(adapter.connected, true, 'a binary setupComplete frame must finish the handshake');
+
+  const blobAdapter = new Adapter({});
+  await blobAdapter.openSocket({
+    websocket_url: 'wss://example.invalid/live',
+    access_token: 'ephemeral-test-token',
+    setup: { model: 'models/test' }
+  });
+  assert.equal(sockets.length, 2);
+  assert.equal(blobAdapter.connected, true, 'a Blob setupComplete frame must finish the handshake');
+}
+
 function testProviderContractAndSecurityBoundaries() {
   const required = ['connect', 'sendAudio', 'endTurn', 'sendToolResult', 'interruptOutput', 'park', 'resume', 'close'];
   for (const provider of ['openai', 'xai', 'gemini']) {
@@ -345,13 +435,18 @@ function testProviderContractAndSecurityBoundaries() {
   );
   assert.match(
     read('ui/js/realtime-speech/provider-gemini.js'),
-    /payload && payload\.error[\s\S]*rejectBeforeSetup\(new Error\('Gemini Live rejected session setup:/,
+    /payload\.error[\s\S]*rejectBeforeSetup\(new Error\('Gemini Live rejected session setup:/,
     'Gemini must surface a setup rejection instead of timing out'
   );
   assert.match(
     read('ui/js/realtime-speech/provider-gemini.js'),
     /socket\.addEventListener\('close', event => \{[\s\S]*rejectBeforeSetup\(new Error\('Gemini Live closed before setup completed'/,
     'Gemini must reject immediately when the socket closes before setup completes'
+  );
+  assert.match(
+    read('ui/js/realtime-speech/provider-gemini.js'),
+    /data instanceof Blob[\s\S]*data instanceof ArrayBuffer[\s\S]*TextDecoder/,
+    'Gemini must decode the binary WebSocket frames used by the Live API'
   );
 
   const core = read('ui/js/realtime-speech/core.js');
@@ -406,6 +501,7 @@ await testLocalAudioGate();
 testAudioWorkletResampling();
 await testParkingTimerAndGuards();
 await testTakeoverPeerProbeAndModalContrast();
+await testGeminiBinarySetupFrames();
 testProviderContractAndSecurityBoundaries();
 testTranslationParity();
 
