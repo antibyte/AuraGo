@@ -318,9 +318,9 @@ func geminiFunctionDeclarations() []map[string]interface{} {
 	out := make([]map[string]interface{}, 0, len(tools))
 	for _, tool := range tools {
 		out = append(out, map[string]interface{}{
-			"name":        tool["name"],
-			"description": tool["description"],
-			"parameters":  tool["parameters"],
+			"name":                 tool["name"],
+			"description":          tool["description"],
+			"parametersJsonSchema": tool["parameters"],
 		})
 	}
 	return out

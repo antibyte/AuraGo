@@ -113,6 +113,19 @@ func TestCreateGeminiEphemeralTokenIsConstrained(t *testing.T) {
 		if len(declarations) != 2 {
 			t.Fatalf("function declarations = %d", len(declarations))
 		}
+		for _, rawDeclaration := range declarations {
+			declaration := rawDeclaration.(map[string]interface{})
+			if _, exists := declaration["parameters"]; exists {
+				t.Fatalf("Gemini declaration %q must not use the typed parameters field", declaration["name"])
+			}
+			schema, ok := declaration["parametersJsonSchema"].(map[string]interface{})
+			if !ok {
+				t.Fatalf("Gemini declaration %q has no JSON Schema parameters", declaration["name"])
+			}
+			if additional, exists := schema["additionalProperties"]; !exists || additional != false {
+				t.Fatalf("Gemini declaration %q lost additionalProperties=false", declaration["name"])
+			}
+		}
 		_, _ = io.WriteString(w, `{"name":"auth_tokens/ephemeral-one"}`)
 	}))
 	defer server.Close()
