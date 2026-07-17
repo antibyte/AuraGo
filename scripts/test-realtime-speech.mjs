@@ -392,6 +392,30 @@ async function testGeminiBinarySetupFrames() {
   });
   assert.equal(sockets.length, 2);
   assert.equal(blobAdapter.connected, true, 'a Blob setupComplete frame must finish the handshake');
+
+  const transcripts = [];
+  blobAdapter.addEventListener('transcript', event => transcripts.push(event.detail));
+  blobAdapter.handleEvent({
+    serverContent: {
+      modelTurn: {
+        parts: [{
+          text: '**Gathering AI News** I will call aurago_execute.',
+          thought: true
+        }]
+      }
+    }
+  });
+  assert.equal(
+    transcripts.length,
+    0,
+    'Gemini modelTurn text must not expose internal planning as an audio transcript'
+  );
+  blobAdapter.handleEvent({
+    serverContent: {
+      outputTranscription: { text: 'Ich prüfe das.' }
+    }
+  });
+  assert.equal(transcripts.at(-1)?.text, 'Ich prüfe das.');
 }
 
 function testProviderContractAndSecurityBoundaries() {
@@ -448,6 +472,11 @@ function testProviderContractAndSecurityBoundaries() {
     /data instanceof Blob[\s\S]*data instanceof ArrayBuffer[\s\S]*TextDecoder/,
     'Gemini must decode the binary WebSocket frames used by the Live API'
   );
+  assert.doesNotMatch(
+    read('ui/js/realtime-speech/provider-gemini.js'),
+    /part\.text[\s\S]{0,200}assistantTranscript/,
+    'Gemini modelTurn text must never be exposed as the spoken audio transcript'
+  );
 
   const core = read('ui/js/realtime-speech/core.js');
   assert.doesNotMatch(core, /\balert\s*\(/, 'microphone takeover must use an AuraGo modal');
@@ -475,6 +504,17 @@ function testProviderContractAndSecurityBoundaries() {
     updatePanelSource,
     /root\.innerHTML\s*=/,
     'incremental Live Speech updates must preserve the mounted card DOM node'
+  );
+  const realtimeStyles = read('ui/css/realtime-speech.css');
+  assert.match(
+    realtimeStyles,
+    /\.realtime-speech-status-row\s*\{[\s\S]*?min-width:\s*0;[\s\S]*?overflow:\s*hidden;/,
+    'the Live Speech status row must constrain long captions to the card'
+  );
+  assert.match(
+    realtimeStyles,
+    /\.realtime-speech-live-caption\s*\{[\s\S]*?flex:\s*1 1 0;[\s\S]*?text-overflow:\s*ellipsis;/,
+    'long Live Speech captions must shrink and use an ellipsis'
   );
   assert.match(core, /action\.cancelled\s*=\s*true/, 'explicit cancellation must mark the in-flight action');
   assert.match(core, /if \(action\.cancelled\) status = 'cancelled'/, 'a completed stream must not overwrite cancellation');

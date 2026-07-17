@@ -63,14 +63,23 @@
     display: flex;
     align-items: center;
     gap: 8px;
+    width: 100%;
+    min-width: 0;
     min-height: 22px;
+    overflow: hidden;
 }
 
 .realtime-speech-state-dot {
+    flex: 0 0 auto;
     width: 9px;
     height: 9px;
     background: #84929a;
     border-radius: 50%;
+}
+
+.realtime-speech-status-row [data-realtime-state] {
+    flex: 0 0 auto;
+    white-space: nowrap;
 }
 
 .realtime-speech-panel[data-state="listening"] .realtime-speech-state-dot,
@@ -88,6 +97,9 @@
 .realtime-speech-panel[data-state="error"] .realtime-speech-state-dot { background: #ee6a6a; }
 
 .realtime-speech-live-caption {
+    display: block;
+    flex: 1 1 0;
+    max-width: 100%;
     min-width: 0;
     overflow: hidden;
     color: var(--text-muted, #9dafb9);

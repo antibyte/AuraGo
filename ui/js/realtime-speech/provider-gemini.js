@@ -246,10 +246,6 @@
                         this.responseActive = true;
                         void this.player.appendBase64PCM16(inline.data, 24000).catch(error => this.fail(error));
                     }
-                    if (part.text && !output) {
-                        this.assistantTranscript += String(part.text);
-                        this.transcript('assistant', this.assistantTranscript, false, this.turnId || 'assistant');
-                    }
                 });
                 if (content.interrupted) {
                     this.player.stop();
