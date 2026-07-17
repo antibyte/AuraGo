@@ -460,8 +460,21 @@ function testProviderContractAndSecurityBoundaries() {
   assert.match(core, /window\.console\.error\('\[RealtimeSpeech\] '/, 'provider setup errors must remain visible in the browser console');
   assert.match(
     read('ui/js/realtime-speech/panel.js'),
-    /data-realtime-error[\s\S]*escapeHTML\(errorMessage\)/,
-    'the live speech panel must preserve the sanitized provider error after rerendering'
+    /data-realtime-error-message[\s\S]*message\.textContent = errorMessage/,
+    'the live speech panel must preserve the sanitized provider error during incremental updates'
+  );
+  const panelSource = read('ui/js/realtime-speech/panel.js');
+  const refreshAllSource = panelSource.match(/function refreshAll\(\) \{[\s\S]*?\n    \}/)?.[0] || '';
+  const updatePanelSource = panelSource.match(/function updatePanel\(root, options\) \{[\s\S]*?\n    \}\n\n    function render/)?.[0] || '';
+  assert.doesNotMatch(
+    refreshAllSource,
+    /\brender\(root,\s*options\)/,
+    'state changes must update the existing Live Speech card instead of recreating it'
+  );
+  assert.doesNotMatch(
+    updatePanelSource,
+    /root\.innerHTML\s*=/,
+    'incremental Live Speech updates must preserve the mounted card DOM node'
   );
   assert.match(core, /action\.cancelled\s*=\s*true/, 'explicit cancellation must mark the in-flight action');
   assert.match(core, /if \(action\.cancelled\) status = 'cancelled'/, 'a completed stream must not overwrite cancellation');

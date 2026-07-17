@@ -38,60 +38,121 @@
         return ((runtime.config && runtime.config.profiles) || []).filter(profile => profile.enabled && profile.api_key_set);
     }
 
-    function render(root, options) {
+    function updatePanel(root, options) {
         const currentState = runtime.state || 'idle';
         const active = !!runtime.sessionId;
         const profiles = enabledProfiles();
         const selected = (runtime.profile && runtime.profile.id) ||
             (runtime.config && runtime.config.default_profile) ||
             (profiles[0] && profiles[0].id) || '';
-        const compact = options.compact ? ' compact' : '';
         const errorMessage = currentState === 'error' ? String(runtime.lastErrorMessage || '') : '';
-        root.innerHTML = `<section class="realtime-speech-panel${compact}" data-state="${escapeHTML(currentState)}">
+        const panel = root.querySelector('[data-realtime-panel]');
+        if (!panel) return;
+
+        panel.classList.toggle('compact', !!options.compact);
+        panel.dataset.state = currentState;
+        const privacy = root.querySelector('[data-realtime-privacy]');
+        if (privacy) {
+            privacy.textContent = active
+                ? text('chat.realtime_privacy_active', 'The microphone is processed locally. Only detected speech is sent.')
+                : text('chat.realtime_privacy_idle', 'Audio stays local until a live session is started.');
+        }
+        const state = root.querySelector('[data-realtime-state]');
+        if (state) state.textContent = stateText(currentState);
+
+        const profile = root.querySelector('[data-realtime-profile]');
+        if (profile) {
+            const signature = profiles.map(item => [item.id, item.name, item.provider].join('\u0000')).join('\u0001');
+            if (profile.dataset.signature !== signature) {
+                const previous = profile.value;
+                profile.innerHTML = profiles.map(item =>
+                    `<option value="${escapeHTML(item.id)}">${escapeHTML(item.name)} · ${escapeHTML(item.provider)}</option>`
+                ).join('');
+                profile.dataset.signature = signature;
+                const available = profiles.some(item => item.id === previous);
+                profile.value = available ? previous : selected;
+            } else if (active && selected) {
+                profile.value = selected;
+            }
+            profile.disabled = active;
+        }
+
+        const start = root.querySelector('[data-realtime-start]');
+        if (start) {
+            start.disabled = profiles.length === 0;
+            const icon = start.querySelector('[data-realtime-start-icon]');
+            const label = start.querySelector('[data-realtime-start-label]');
+            if (icon) icon.textContent = active ? '■' : '●';
+            if (label) label.textContent = active
+                ? text('chat.realtime_stop', 'Stop')
+                : text('chat.realtime_start', 'Start');
+        }
+
+        const mute = root.querySelector('[data-realtime-mute]');
+        if (mute) {
+            mute.disabled = !active;
+            const icon = mute.querySelector('[data-realtime-mute-icon]');
+            const label = mute.querySelector('[data-realtime-mute-label]');
+            if (icon) icon.textContent = runtime.muted ? '🔇' : '🎙';
+            if (label) label.textContent = runtime.muted
+                ? text('chat.realtime_unmute', 'Unmute')
+                : text('chat.realtime_mute', 'Mute');
+        }
+
+        const cancel = root.querySelector('[data-realtime-cancel]');
+        if (cancel) cancel.disabled = !runtime.actionActive;
+        const parkedNotice = root.querySelector('[data-realtime-notice]');
+        if (parkedNotice) parkedNotice.hidden = currentState !== 'parked';
+        const errorNotice = root.querySelector('[data-realtime-error]');
+        if (errorNotice) {
+            errorNotice.hidden = !errorMessage;
+            const message = errorNotice.querySelector('[data-realtime-error-message]');
+            if (message) message.textContent = errorMessage;
+        }
+    }
+
+    function render(root, options) {
+        root.innerHTML = `<section class="realtime-speech-panel" data-realtime-panel data-state="idle">
             <header class="realtime-speech-panel-header">
                 <div class="realtime-speech-mark" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
                 <div>
                     <h3>${escapeHTML(text('chat.realtime_title', 'Live Speech'))}</h3>
-                    <p data-realtime-privacy>${escapeHTML(active
-                        ? text('chat.realtime_privacy_active', 'The microphone is processed locally. Only detected speech is sent.')
-                        : text('chat.realtime_privacy_idle', 'Audio stays local until a live session is started.'))}</p>
+                    <p data-realtime-privacy></p>
                 </div>
             </header>
             <div class="realtime-speech-status-row">
                 <span class="realtime-speech-state-dot"></span>
-                <strong data-realtime-state>${escapeHTML(stateText(currentState))}</strong>
+                <strong data-realtime-state></strong>
                 <span class="realtime-speech-live-caption" data-realtime-caption aria-live="polite"></span>
             </div>
             <label class="realtime-speech-profile-label">
                 <span>${escapeHTML(text('chat.realtime_profile', 'Profile'))}</span>
-                <select data-realtime-profile ${active ? 'disabled' : ''}>
-                    ${profiles.map(profile => `<option value="${escapeHTML(profile.id)}" ${profile.id === selected ? 'selected' : ''}>${escapeHTML(profile.name)} · ${escapeHTML(profile.provider)}</option>`).join('')}
-                </select>
+                <select data-realtime-profile></select>
             </label>
             <div class="realtime-speech-wave" aria-hidden="true">
                 ${Array.from({ length: 24 }, (_, index) => `<i style="--bar:${index}"></i>`).join('')}
             </div>
             <div class="realtime-speech-controls">
-                <button type="button" class="realtime-speech-primary" data-realtime-start ${profiles.length ? '' : 'disabled'}>
-                    <span class="realtime-speech-control-icon" aria-hidden="true">${active ? '■' : '●'}</span>
-                    <span>${escapeHTML(active ? text('chat.realtime_stop', 'Stop') : text('chat.realtime_start', 'Start'))}</span>
+                <button type="button" class="realtime-speech-primary" data-realtime-start>
+                    <span class="realtime-speech-control-icon" data-realtime-start-icon aria-hidden="true"></span>
+                    <span data-realtime-start-label></span>
                 </button>
-                <button type="button" data-realtime-mute ${active ? '' : 'disabled'}>
-                    <span aria-hidden="true">${runtime.muted ? '🔇' : '🎙'}</span>
-                    <span>${escapeHTML(runtime.muted ? text('chat.realtime_unmute', 'Unmute') : text('chat.realtime_mute', 'Mute'))}</span>
+                <button type="button" data-realtime-mute>
+                    <span data-realtime-mute-icon aria-hidden="true"></span>
+                    <span data-realtime-mute-label></span>
                 </button>
-                <button type="button" data-realtime-cancel ${runtime.actionActive ? '' : 'disabled'}>
+                <button type="button" data-realtime-cancel>
                     <span aria-hidden="true">×</span>
                     <span>${escapeHTML(text('chat.realtime_cancel_task', 'Cancel task'))}</span>
                 </button>
             </div>
-            <div class="realtime-speech-notice" data-realtime-notice ${currentState === 'parked' ? '' : 'hidden'}>
+            <div class="realtime-speech-notice" data-realtime-notice hidden>
                 <span aria-hidden="true">◉</span>
                 ${escapeHTML(text('chat.realtime_parked_privacy', 'Parked: the provider connection is paused, while local voice detection keeps the microphone ready.'))}
             </div>
-            <div class="realtime-speech-notice realtime-speech-error" data-realtime-error role="alert" ${errorMessage ? '' : 'hidden'}>
+            <div class="realtime-speech-notice realtime-speech-error" data-realtime-error role="alert" hidden>
                 <span aria-hidden="true">!</span>
-                <span>${escapeHTML(errorMessage)}</span>
+                <span data-realtime-error-message></span>
             </div>
         </section>`;
 
@@ -122,6 +183,7 @@
             await runtime.cancelCurrentAction();
             refreshAll();
         });
+        updatePanel(root, options);
     }
 
     function refreshAll() {
@@ -130,7 +192,7 @@
                 mounts.delete(root);
                 return;
             }
-            render(root, options);
+            updatePanel(root, options);
         });
         document.querySelectorAll('[data-realtime-speech-launcher]').forEach(button => {
             button.dataset.active = runtime.sessionId ? 'true' : 'false';
