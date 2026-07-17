@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 	"unicode/utf8"
 
@@ -702,7 +703,12 @@ func handleRealtimeSpeechActions(s *Server, registry *realtimespeech.Registry, w
 			}},
 			Stream: true,
 		})
-		inner := r.Clone(suppressedContext)
+		responseBroker, err := newRealtimeSpeechActionResponseBroker(w, session.ChatSessionID)
+		if err != nil {
+			jsonError(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		inner := r.Clone(withFeedbackBrokerOverride(suppressedContext, responseBroker))
 		inner.Method = http.MethodPost
 		inner.URL.Path = "/v1/chat/completions"
 		inner.Body = ioNopCloser(bytes.NewReader(payload))
@@ -712,6 +718,107 @@ func handleRealtimeSpeechActions(s *Server, registry *realtimespeech.Registry, w
 		inner.Header.Set("X-Session-ID", session.ChatSessionID)
 		webAction.ServeHTTP(w, inner)
 	}
+}
+
+type realtimeSpeechActionResponseBroker struct {
+	w         http.ResponseWriter
+	flusher   http.Flusher
+	sessionID string
+	mu        sync.Mutex
+}
+
+func newRealtimeSpeechActionResponseBroker(w http.ResponseWriter, sessionID string) (*realtimeSpeechActionResponseBroker, error) {
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		return nil, fmt.Errorf("realtime speech action streaming is not supported")
+	}
+	return &realtimeSpeechActionResponseBroker{
+		w:         w,
+		flusher:   flusher,
+		sessionID: strings.TrimSpace(sessionID),
+	}, nil
+}
+
+func (b *realtimeSpeechActionResponseBroker) writeJSON(payload string) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	_, _ = fmt.Fprintf(b.w, "data: %s\n\n", security.Scrub(payload))
+	b.flusher.Flush()
+}
+
+func (b *realtimeSpeechActionResponseBroker) Send(event, message string) {
+	payload, _ := json.Marshal(map[string]interface{}{
+		"event":      event,
+		"detail":     security.Scrub(message),
+		"session_id": b.sessionID,
+	})
+	b.writeJSON(string(payload))
+}
+
+func (b *realtimeSpeechActionResponseBroker) SendJSON(jsonStr string) {
+	b.writeJSON(jsonStr)
+}
+
+func (b *realtimeSpeechActionResponseBroker) SendTyped(eventType string, payload interface{}) bool {
+	if strings.TrimSpace(eventType) == "" {
+		return false
+	}
+	enriched := enrichPayloadWithSessionID(payload, b.sessionID)
+	message, err := encodeTypedSSEEvent(eventType, enriched)
+	if err != nil {
+		return false
+	}
+	b.writeJSON(message)
+	return true
+}
+
+func (b *realtimeSpeechActionResponseBroker) SendLLMStreamDelta(content, toolName, toolID string, index int, finishReason string) {
+	payload, _ := json.Marshal(map[string]interface{}{
+		"event":         "llm_stream_delta",
+		"session_id":    b.sessionID,
+		"content":       security.Scrub(content),
+		"tool_name":     toolName,
+		"tool_id":       toolID,
+		"index":         index,
+		"finish_reason": finishReason,
+	})
+	b.writeJSON(string(payload))
+}
+
+func (b *realtimeSpeechActionResponseBroker) SendLLMStreamDone(finishReason string) {
+	payload, _ := json.Marshal(map[string]interface{}{
+		"event":         "llm_stream_done",
+		"session_id":    b.sessionID,
+		"finish_reason": finishReason,
+	})
+	b.writeJSON(string(payload))
+}
+
+func (b *realtimeSpeechActionResponseBroker) SendTokenUpdate(prompt, completion, total, sessionTotal, globalTotal int, isEstimated, isFinal bool, source string) {
+	payload, _ := json.Marshal(map[string]interface{}{
+		"event":         "token_update",
+		"session_id":    b.sessionID,
+		"prompt":        prompt,
+		"completion":    completion,
+		"total":         total,
+		"session_total": sessionTotal,
+		"global_total":  globalTotal,
+		"is_estimated":  isEstimated,
+		"is_final":      isFinal,
+		"source":        source,
+	})
+	b.writeJSON(string(payload))
+}
+
+func (b *realtimeSpeechActionResponseBroker) SendThinkingBlock(provider, content, state string) {
+	payload, _ := json.Marshal(map[string]interface{}{
+		"event":      "thinking_block",
+		"session_id": b.sessionID,
+		"provider":   provider,
+		"content":    security.Scrub(content),
+		"state":      state,
+	})
+	b.writeJSON(string(payload))
 }
 
 func handleRealtimeSpeechActionByID(registry *realtimespeech.Registry) http.HandlerFunc {

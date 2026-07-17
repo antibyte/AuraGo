@@ -144,6 +144,24 @@ func feedbackBrokerForRequest(sse *SSEBroadcaster, sessionID, missionID string, 
 	return NewSSEBrokerAdapterWithSession(sse, sessionID)
 }
 
+type feedbackBrokerOverrideContextKey struct{}
+
+func withFeedbackBrokerOverride(ctx context.Context, broker agent.FeedbackBroker) context.Context {
+	if broker == nil {
+		return ctx
+	}
+	return context.WithValue(ctx, feedbackBrokerOverrideContextKey{}, broker)
+}
+
+func feedbackBrokerForRequestContext(ctx context.Context, sse *SSEBroadcaster, sessionID, missionID string, isFollowUp bool) agent.FeedbackBroker {
+	if ctx != nil {
+		if broker, ok := ctx.Value(feedbackBrokerOverrideContextKey{}).(agent.FeedbackBroker); ok && broker != nil {
+			return broker
+		}
+	}
+	return feedbackBrokerForRequest(sse, sessionID, missionID, isFollowUp)
+}
+
 // sanitizeFilename sanitizes a filename to prevent path traversal and ensure safe names.
 func sanitizeFilename(filename string) string {
 	// Get base name only
@@ -613,7 +631,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			// Initial flush to establish SSE connection
 			flusher.Flush()
 
-			broker := newChatVoiceOutputTrackingBroker(feedbackBrokerForRequest(sse, sessionID, missionID, isFollowUp))
+			broker := newChatVoiceOutputTrackingBroker(feedbackBrokerForRequestContext(r.Context(), sse, sessionID, missionID, isFollowUp))
 			resp, err := agent.ExecuteAgentLoop(r.Context(), req, runCfg, true, broker)
 			if err != nil {
 				s.Logger.Error("Streamed agent loop failed", "error", err)
@@ -637,7 +655,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			// the agent already started hatching an egg or running a command).
 			syncCtx, syncCancel := context.WithTimeout(context.Background(), 30*time.Minute)
 			defer syncCancel()
-			broker := newChatVoiceOutputTrackingBroker(feedbackBrokerForRequest(sse, sessionID, missionID, isFollowUp))
+			broker := newChatVoiceOutputTrackingBroker(feedbackBrokerForRequestContext(r.Context(), sse, sessionID, missionID, isFollowUp))
 			resp, err := agent.ExecuteAgentLoop(syncCtx, req, runCfg, false, broker)
 			if err != nil {
 				s.Logger.Error("Sync agent loop failed", "error", err)

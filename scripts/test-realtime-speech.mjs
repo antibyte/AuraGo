@@ -119,7 +119,7 @@ function testAudioWorkletResampling() {
   assert.ok(total >= 15998 && total <= 16000, `one 48 kHz second must produce one 16 kHz second, got ${total} samples`);
 }
 
-function loadRuntimeForTimerTest() {
+function loadRuntimeForTimerTest(fetchImpl) {
   let now = 0;
   let timer = null;
   let timerDelay = null;
@@ -166,9 +166,11 @@ function loadRuntimeForTimerTest() {
     Array,
     Number,
     Math,
-    fetch: async () => { throw new Error('network not expected'); },
+    fetch: fetchImpl || (async () => { throw new Error('network not expected'); }),
     console,
-    TextDecoder
+    TextDecoder,
+    TextEncoder,
+    Uint8Array
   };
   vm.createContext(context);
   vm.runInContext(read('ui/js/realtime-speech/core.js'), context);
@@ -217,6 +219,52 @@ async function testParkingTimerAndGuards() {
   await runtime.park();
   assert.equal(parked, 1);
   assert.equal(runtime.state, 'parked');
+}
+
+async function testActionResultDisplayDeduplication() {
+  const responsePayload = new TextEncoder().encode(
+    'data: {"event":"final_response","detail":"Das ist das Ergebnis."}\n\n'
+  );
+  const actionFetch = async url => {
+    assert.equal(url, '/api/realtime-speech/actions');
+    let delivered = false;
+    return {
+      ok: true,
+      body: {
+        getReader() {
+          return {
+            async read() {
+              if (delivered) return { done: true, value: new Uint8Array() };
+              delivered = true;
+              return { done: false, value: responsePayload };
+            }
+          };
+        }
+      }
+    };
+  };
+
+  const webHarness = loadRuntimeForTimerTest(actionFetch);
+  const webRuntime = new webHarness.Runtime();
+  webRuntime.surface = 'webchat';
+  const webDisplays = [];
+  webRuntime.addEventListener('display', event => webDisplays.push(event.detail));
+  const webResult = await webRuntime.executeAction('Aktuelle KI-News');
+  assert.equal(webResult.text, 'Das ist das Ergebnis.');
+  assert.equal(webDisplays.length, 1, 'webchat actions must render one normalized final result');
+  assert.equal(webDisplays[0].content, 'Das ist das Ergebnis.');
+  assert.equal(webDisplays[0].kind, 'action');
+
+  const desktopHarness = loadRuntimeForTimerTest(actionFetch);
+  const desktopRuntime = new desktopHarness.Runtime();
+  desktopRuntime.surface = 'desktop';
+  const desktopDisplays = [];
+  desktopRuntime.addEventListener('display', event => desktopDisplays.push(event.detail));
+  const desktopResult = await desktopRuntime.executeAction('Aktuelle KI-News');
+  assert.equal(desktopResult.text, 'Das ist das Ergebnis.');
+  assert.equal(desktopDisplays.length, 1, 'desktop actions still need one local final display event');
+  assert.equal(desktopDisplays[0].content, 'Das ist das Ergebnis.');
+  assert.equal(desktopDisplays[0].kind, 'action');
 }
 
 async function testTakeoverPeerProbeAndModalContrast() {
@@ -553,6 +601,7 @@ function testTranslationParity() {
 await testLocalAudioGate();
 testAudioWorkletResampling();
 await testParkingTimerAndGuards();
+await testActionResultDisplayDeduplication();
 await testTakeoverPeerProbeAndModalContrast();
 await testGeminiBinarySetupFrames();
 testProviderContractAndSecurityBoundaries();

@@ -228,6 +228,9 @@ func TestRealtimeSpeechMutationsRejectCrossOriginRequests(t *testing.T) {
 func TestRealtimeSpeechActionBindsChatAndSuppressesTTS(t *testing.T) {
 	server, _ := newRealtimeSpeechTestServer(t)
 	registry := realtimespeech.NewRegistry(nil)
+	globalBroker := NewSSEBroadcaster()
+	globalEvents := globalBroker.subscribe()
+	defer globalBroker.unsubscribe(globalEvents)
 	session, _, err := registry.Acquire("browser", realtimespeech.Session{
 		ProfileID:     "main",
 		Provider:      realtimespeech.ProviderOpenAI,
@@ -247,6 +250,9 @@ func TestRealtimeSpeechActionBindsChatAndSuppressesTTS(t *testing.T) {
 			t.Fatalf("X-Session-ID = %q", r.Header.Get("X-Session-ID"))
 		}
 		w.Header().Set("Content-Type", "text/event-stream")
+		broker := feedbackBrokerForRequestContext(r.Context(), globalBroker, "chat-42", "", false)
+		broker.SendLLMStreamDelta("Das Licht ist eingeschaltet.", "", "", 0, "")
+		broker.Send("final_response", "Das Licht ist eingeschaltet.")
 		_, _ = io.WriteString(w, "data: [DONE]\n\n")
 	})
 	body := `{"session_id":"` + session.ID + `","client_id":"browser","request_id":"request-1","request":"Schalte das Licht ein"}`
@@ -258,6 +264,17 @@ func TestRealtimeSpeechActionBindsChatAndSuppressesTTS(t *testing.T) {
 	})).ServeHTTP(recorder, request)
 	if !called || recorder.Code != http.StatusOK {
 		t.Fatalf("web action called=%v status=%d body=%s", called, recorder.Code, recorder.Body.String())
+	}
+	responseBody := recorder.Body.String()
+	if !strings.Contains(responseBody, `"event":"llm_stream_delta"`) ||
+		!strings.Contains(responseBody, `"event":"final_response"`) ||
+		!strings.Contains(responseBody, "Das Licht ist eingeschaltet.") {
+		t.Fatalf("private action stream is incomplete: %s", responseBody)
+	}
+	select {
+	case event := <-globalEvents:
+		t.Fatalf("realtime speech action leaked into the global chat stream: %s", event)
+	default:
 	}
 }
 
