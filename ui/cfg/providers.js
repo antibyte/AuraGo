@@ -2228,10 +2228,10 @@ let _providerCatalogPromise = null;
                 const account_id = (document.getElementById('prov-account-id') || {}).value ? document.getElementById('prov-account-id').value.trim() : '';
 
                 if (!id) { showToast(t('config.providers.id_empty_error'), 'warn'); return; }
-                // New provider IDs must be canonical. Existing legacy IDs (dots/uppercase)
-                // are allowed so one old entry does not block the whole list save.
+                // New provider IDs: lowercase, digits, dots, hyphens, underscores.
+                // Existing legacy IDs (e.g. mixed-case EdenAi) may still re-save.
                 const isExistingID = data._editMode || (providersCache || []).some(p => p.id === id);
-                if (!isExistingID && !/^[a-z0-9][a-z0-9_-]*$/.test(id)) {
+                if (!isExistingID && !/^[a-z0-9][a-z0-9._-]*$/.test(id)) {
                     showToast(t('config.providers.id_invalid_error', { id }), 'warn');
                     return;
                 }

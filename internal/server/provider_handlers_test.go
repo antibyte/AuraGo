@@ -222,7 +222,8 @@ providers:
 llm:
   provider: main
 `)
-	body := `[{"id":"main","name":"Main","type":"openai","base_url":"https://api.openai.com/v1","model":"gpt-4o-mini","auth_type":"api_key"},{"id":"Bad.ID","name":"Bad","type":"openai","base_url":"https://api.openai.com/v1","model":"gpt-4o-mini","auth_type":"api_key"}]`
+	// Spaces and uppercase remain invalid; dots in IDs are allowed (e.g. llama-3.1-8b).
+	body := `[{"id":"main","name":"Main","type":"openai","base_url":"https://api.openai.com/v1","model":"gpt-4o-mini","auth_type":"api_key"},{"id":"Bad ID","name":"Bad","type":"openai","base_url":"https://api.openai.com/v1","model":"gpt-4o-mini","auth_type":"api_key"}]`
 	req := httptest.NewRequest(http.MethodPut, "/api/providers", bytes.NewBufferString(body))
 	rec := httptest.NewRecorder()
 
@@ -233,6 +234,36 @@ llm:
 	}
 	if got := server.Cfg.FindProvider("main"); got == nil {
 		t.Fatal("existing provider disappeared after invalid request")
+	}
+}
+
+func TestHandlePutProvidersAllowsDotsInNewProviderIDs(t *testing.T) {
+	t.Parallel()
+
+	server, _ := newProviderTestServer(t, `
+providers:
+  - id: main
+    name: Main
+    type: openai
+    base_url: https://api.openai.com/v1
+    model: gpt-4o-mini
+llm:
+  provider: main
+`)
+	body := `[{"id":"main","name":"Main","type":"openai","base_url":"https://api.openai.com/v1","model":"gpt-4o-mini","auth_type":"api_key"},{"id":"llama-3.1-8b","name":"Llama 3.1","type":"openrouter","base_url":"https://openrouter.ai/api/v1","model":"meta-llama/llama-3.1-8b-instruct","auth_type":"api_key"},{"id":"crof.ai","name":"CROF","type":"openai","base_url":"https://crof.ai/v2","model":"deepseek-v4-pro","auth_type":"api_key"}]`
+	req := httptest.NewRequest(http.MethodPut, "/api/providers", bytes.NewBufferString(body))
+	rec := httptest.NewRecorder()
+
+	handleProviders(server).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	if got := server.Cfg.FindProvider("llama-3.1-8b"); got == nil {
+		t.Fatal("provider id with dots not saved")
+	}
+	if got := server.Cfg.FindProvider("crof.ai"); got == nil {
+		t.Fatal("provider id with domain-style dots not saved")
 	}
 }
 
