@@ -339,6 +339,31 @@ func TestLinuxServiceInstallersGrantDetectedGPUGroups(t *testing.T) {
 	}
 }
 
+func TestLinuxServiceInstallersForwardNumericGPUGroupIDs(t *testing.T) {
+	t.Parallel()
+
+	for _, path := range []string{"install_service_linux.sh", "install.sh", "update.sh"} {
+		script := readRepoFile(t, path)
+		for _, marker := range []string{
+			"system_gpu_group_ids()",
+			"AURAGO_GPU_GROUP_IDS=",
+			"Environment=\\\"AURAGO_GPU_GROUP_IDS=",
+		} {
+			if !strings.Contains(script, marker) {
+				t.Fatalf("%s must forward numeric GPU group IDs; missing %q", path, marker)
+			}
+		}
+		if strings.Contains(script, "usermod -aG render") || strings.Contains(script, "usermod -aG video") {
+			t.Fatalf("%s must not permanently add the service user to GPU groups", path)
+		}
+	}
+
+	compose := readRepoFile(t, "docker-compose.yml")
+	if !strings.Contains(compose, "AURAGO_GPU_GROUP_IDS=${AURAGO_GPU_GROUP_IDS:-}") {
+		t.Fatal("docker-compose.yml must forward configured host GPU group IDs")
+	}
+}
+
 func TestUpdateScriptHelperOrderAndVersionTiming(t *testing.T) {
 	t.Parallel()
 

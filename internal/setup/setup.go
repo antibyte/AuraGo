@@ -292,6 +292,26 @@ func buildSystemdUnit(
 	supplementaryGroups []string,
 	dockerMode, sudoUnrestricted bool,
 ) (string, error) {
+	return buildSystemdUnitWithGPUGroupIDs(
+		desc,
+		user,
+		installDir,
+		exePath,
+		credentialFile,
+		readWritePaths,
+		supplementaryGroups,
+		nil,
+		dockerMode,
+		sudoUnrestricted,
+	)
+}
+
+func buildSystemdUnitWithGPUGroupIDs(
+	desc, user, installDir, exePath, credentialFile, readWritePaths string,
+	supplementaryGroups []string,
+	gpuGroupIDs []string,
+	dockerMode, sudoUnrestricted bool,
+) (string, error) {
 	_ = dockerMode // reserved for future container-aware template
 	user = strings.TrimSpace(user)
 	installDir = strings.TrimSpace(installDir)
@@ -324,6 +344,25 @@ func buildSystemdUnit(
 	if len(normalizedGroups) > 0 {
 		supplementaryGroupsLine = "SupplementaryGroups=" + strings.Join(normalizedGroups, " ")
 	}
+	seenGroupIDs := make(map[string]struct{}, len(gpuGroupIDs))
+	var normalizedGroupIDs []string
+	for _, groupID := range gpuGroupIDs {
+		groupID = strings.TrimSpace(groupID)
+		parsed, err := strconv.ParseUint(groupID, 10, 32)
+		if err != nil || parsed == 0 {
+			return "", fmt.Errorf("buildSystemdUnit: invalid GPU group ID %q", groupID)
+		}
+		canonical := strconv.FormatUint(parsed, 10)
+		if _, exists := seenGroupIDs[canonical]; exists {
+			continue
+		}
+		seenGroupIDs[canonical] = struct{}{}
+		normalizedGroupIDs = append(normalizedGroupIDs, canonical)
+	}
+	gpuGroupIDsLine := ""
+	if len(normalizedGroupIDs) > 0 {
+		gpuGroupIDsLine = "Environment=" + strconv.Quote("AURAGO_GPU_GROUP_IDS="+strings.Join(normalizedGroupIDs, ","))
+	}
 
 	protectSystemLine := "ProtectSystem=strict"
 	if sudoUnrestricted {
@@ -340,6 +379,7 @@ StartLimitIntervalSec=0
 Type=simple
 User=%s
 Group=%s
+%s
 %s
 WorkingDirectory=%s
 ExecStart=%s --config %s/config.yaml
@@ -358,6 +398,7 @@ WantedBy=multi-user.target
 		strconv.Quote(user),
 		strconv.Quote(user),
 		supplementaryGroupsLine,
+		gpuGroupIDsLine,
 		strconv.Quote(installDir),
 		strconv.Quote(exePath),
 		strconv.Quote(installDir),
@@ -368,16 +409,23 @@ WantedBy=multi-user.target
 }
 
 func availableSystemdGPUGroups() []string {
+	groups, _ := availableSystemdGPUAccess()
+	return groups
+}
+
+func availableSystemdGPUAccess() ([]string, []string) {
 	if runtime.GOOS != "linux" {
-		return nil
+		return nil, nil
 	}
 	var groups []string
+	var groupIDs []string
 	for _, name := range []string{"render", "video"} {
-		if _, err := osuser.LookupGroup(name); err == nil {
+		if group, err := osuser.LookupGroup(name); err == nil {
 			groups = append(groups, name)
+			groupIDs = append(groupIDs, group.Gid)
 		}
 	}
-	return groups
+	return groups, groupIDs
 }
 
 func installSystemd(exePath, installDir string, logger *slog.Logger) error {
@@ -397,14 +445,16 @@ func installSystemd(exePath, installDir string, logger *slog.Logger) error {
 		readWritePaths = installDir + " /etc/aurago"
 	}
 
-	unit, err := buildSystemdUnit(
+	gpuGroups, gpuGroupIDs := availableSystemdGPUAccess()
+	unit, err := buildSystemdUnitWithGPUGroupIDs(
 		"AuraGo AI Agent",
 		user,
 		installDir,
 		exePath,
 		credentialFile,
 		readWritePaths,
-		availableSystemdGPUGroups(),
+		gpuGroups,
+		gpuGroupIDs,
 		runningInDocker(),
 		configAllowsSudoUnrestricted(filepath.Join(installDir, "config.yaml")),
 	)

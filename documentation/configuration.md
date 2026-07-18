@@ -87,7 +87,11 @@ Used for long-term memory (RAG) vector indexing.
 On Linux, AuraGo only considers native Vulkan available when the service can
 open a `/dev/dri/renderD*` device for reading and writing. The supplied
 installers add existing `render` and `video` groups to the systemd unit through
-`SupplementaryGroups`. Hand-written units must grant equivalent device access.
+`SupplementaryGroups`. They also forward the corresponding numeric host GIDs
+as `AURAGO_GPU_GROUP_IDS` so managed Vulkan containers can use Docker
+`GroupAdd` without changing the service user's permanent account memberships.
+Hand-written units must grant equivalent device access. Docker Compose
+deployments can set `AURAGO_GPU_GROUP_IDS` to the comma-separated host GIDs.
 
 Local Granite is text-only and produces 384-dimensional, CLS-pooled, L2-normalized vectors. Its INT8 ONNX and Q8_0 GGUF artifacts, ONNX Runtime 1.26.0, and llama.cpp b9994 are downloaded over HTTPS with pinned sizes and SHA-256 hashes. Downloads resume through `.part` files and are cached below `data/embeddings/`. The application remains available while initial setup runs.
 

@@ -314,6 +314,49 @@ func TestBuildSystemdUnitEmptyArgsRejected(t *testing.T) {
 	}
 }
 
+func TestBuildSystemdUnitForwardsValidatedGPUGroupIDs(t *testing.T) {
+	t.Parallel()
+
+	unit, err := buildSystemdUnitWithGPUGroupIDs(
+		"AuraGo",
+		"aurago",
+		"/opt/aurago",
+		"/opt/aurago/aurago",
+		"/opt/aurago/.env",
+		"/opt/aurago",
+		[]string{"render", "video"},
+		[]string{"993", "44", "993"},
+		false,
+		false,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(unit, `Environment="AURAGO_GPU_GROUP_IDS=993,44"`) {
+		t.Fatalf("unit does not forward numeric GPU group IDs: %s", unit)
+	}
+}
+
+func TestBuildSystemdUnitRejectsInvalidGPUGroupID(t *testing.T) {
+	t.Parallel()
+
+	_, err := buildSystemdUnitWithGPUGroupIDs(
+		"AuraGo",
+		"aurago",
+		"/opt/aurago",
+		"/opt/aurago/aurago",
+		"/opt/aurago/.env",
+		"/opt/aurago",
+		[]string{"render"},
+		[]string{"993", "render"},
+		false,
+		false,
+	)
+	if err == nil || !strings.Contains(err.Error(), "invalid GPU group ID") {
+		t.Fatalf("invalid GPU group ID error = %v", err)
+	}
+}
+
 func TestBuildSystemdUnitRejectsInjectedSupplementaryGroup(t *testing.T) {
 	t.Parallel()
 

@@ -448,8 +448,12 @@ Local Granite is text-only and emits 384-dimensional normalized vectors. Pinned 
 On Linux, native Vulkan requires read/write access to a
 `/dev/dri/renderD*` device. AuraGo's installers add existing `render` and
 `video` groups to the systemd service automatically. Custom service units must
-grant equivalent access; otherwise the Vulkan probe is skipped and CPU remains
-available.
+grant equivalent access. The installers also pass their numeric host GIDs as
+`AURAGO_GPU_GROUP_IDS`; managed Vulkan containers use those values through
+Docker `GroupAdd` without permanently changing the service user's account
+memberships. Docker Compose deployments can set the variable to a
+comma-separated list of host GIDs. Without equivalent device access, the
+Vulkan probe is skipped and CPU remains available.
 
 ## Memory Optimization
 

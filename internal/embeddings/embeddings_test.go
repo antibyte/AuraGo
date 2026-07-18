@@ -16,6 +16,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -597,6 +598,7 @@ func TestDockerLlamaContainerIsPrivatePinnedAndHardened(t *testing.T) {
 		"cuda",
 		2048,
 		2048,
+		nil,
 		modelMount,
 		"aurago-granite-private",
 	)
@@ -650,6 +652,84 @@ func TestDockerLlamaContainerIsPrivatePinnedAndHardened(t *testing.T) {
 	networkPayload := dockerPrivateNetworkPayload("aurago-granite-private")
 	if networkPayload["Internal"] != true || networkPayload["Attachable"] != false {
 		t.Fatalf("embedding sidecar network is not private: %#v", networkPayload)
+	}
+}
+
+func TestDockerLlamaVulkanContainerUsesNumericHostGroups(t *testing.T) {
+	modelMount := dockerModelMount{
+		Type:          "volume",
+		Source:        "aurago_data",
+		Target:        "/app/data/embeddings/models/gguf",
+		VolumeSubpath: "embeddings/models/gguf",
+	}
+	payload, err := dockerLlamaContainerPayload(
+		llamaDockerVulkanImage,
+		"/app/data/embeddings/models/granite.gguf",
+		"ephemeral-key",
+		"vulkan",
+		2048,
+		2048,
+		[]string{"993", "44", "993"},
+		modelMount,
+		"aurago-granite-private",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	hostConfig, ok := payload["HostConfig"].(map[string]any)
+	if !ok {
+		t.Fatalf("HostConfig has unexpected type: %T", payload["HostConfig"])
+	}
+	groupAdd, ok := hostConfig["GroupAdd"].([]string)
+	if !ok || !slices.Equal(groupAdd, []string{"993", "44"}) {
+		t.Fatalf("Vulkan GroupAdd = %#v, want numeric host groups", hostConfig["GroupAdd"])
+	}
+	devices, ok := hostConfig["Devices"].([]map[string]string)
+	if !ok || len(devices) != 1 || devices[0]["PathOnHost"] != "/dev/dri" {
+		t.Fatalf("Vulkan device mapping missing: %#v", hostConfig["Devices"])
+	}
+	if _, privileged := hostConfig["Privileged"]; privileged {
+		t.Fatal("Vulkan sidecar must not request privileged mode")
+	}
+}
+
+func TestDockerLlamaVulkanContainerRejectsInvalidHostGroup(t *testing.T) {
+	_, err := dockerLlamaContainerPayload(
+		llamaDockerVulkanImage,
+		"/app/data/embeddings/models/granite.gguf",
+		"ephemeral-key",
+		"vulkan",
+		2048,
+		2048,
+		[]string{"993", "render"},
+		dockerModelMount{
+			Type:   "bind",
+			Source: "/srv/aurago/data/embeddings/models/gguf",
+			Target: "/srv/aurago/data/embeddings/models/gguf",
+		},
+		"aurago-granite-private",
+	)
+	if err == nil || !strings.Contains(err.Error(), "invalid GPU group ID") {
+		t.Fatalf("invalid Vulkan group ID error = %v", err)
+	}
+}
+
+func TestDockerVulkanGroupIDsUsesValidatedEnvironment(t *testing.T) {
+	t.Setenv(dockerGPUGroupIDsEnv, "993, 44 993")
+	groupIDs, err := dockerVulkanGroupIDs()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(groupIDs, []string{"993", "44"}) {
+		t.Fatalf("dockerVulkanGroupIDs() = %#v", groupIDs)
+	}
+}
+
+func TestDockerVulkanGroupIDsRejectsInvalidEnvironment(t *testing.T) {
+	t.Setenv(dockerGPUGroupIDsEnv, "993,render")
+	_, err := dockerVulkanGroupIDs()
+	if err == nil || !strings.Contains(err.Error(), "invalid GPU group ID") {
+		t.Fatalf("invalid environment group ID error = %v", err)
 	}
 }
 

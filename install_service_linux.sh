@@ -38,6 +38,45 @@ system_group_exists() {
     grep -q "^${group_name}:" /etc/group 2>/dev/null
 }
 
+system_group_id() {
+    local group_name="$1"
+    local group_record=""
+    local group_id=""
+    if command -v getent >/dev/null 2>&1; then
+        group_record="$(getent group "$group_name" 2>/dev/null | head -n 1 || true)"
+    else
+        group_record="$(grep -m 1 "^${group_name}:" /etc/group 2>/dev/null || true)"
+    fi
+    group_id="$(printf '%s\n' "$group_record" | awk -F: '{print $3}')"
+    case "$group_id" in
+        ""|*[!0-9]*) return 1 ;;
+    esac
+    [[ "$group_id" -gt 0 ]] || return 1
+    printf '%s' "$group_id"
+}
+
+system_gpu_group_ids() {
+    local ids=()
+    local group_name
+    local group_id
+    local existing
+    local duplicate
+    for group_name in render video; do
+        group_id="$(system_group_id "$group_name" || true)"
+        [[ -n "$group_id" ]] || continue
+        duplicate=false
+        for existing in "${ids[@]}"; do
+            if [[ "$existing" == "$group_id" ]]; then
+                duplicate=true
+                break
+            fi
+        done
+        $duplicate || ids+=("$group_id")
+    done
+    local IFS=,
+    printf '%s' "${ids[*]}"
+}
+
 systemd_gpu_groups_line() {
     local groups=()
     local group_name
@@ -180,8 +219,14 @@ fi
 
 # 4. Create Systemd Service File
 GPU_GROUPS_LINE="$(systemd_gpu_groups_line)"
+GPU_GROUP_IDS="$(system_gpu_group_ids)"
+GPU_GROUP_IDS_LINE=""
 if [[ -n "$GPU_GROUPS_LINE" ]]; then
     info "Granting the service access to available GPU groups: ${GPU_GROUPS_LINE#SupplementaryGroups=}"
+fi
+if [[ -n "$GPU_GROUP_IDS" ]]; then
+    GPU_GROUP_IDS_LINE="Environment=\"AURAGO_GPU_GROUP_IDS=${GPU_GROUP_IDS}\""
+    info "Forwarding host GPU group IDs to managed containers: ${GPU_GROUP_IDS}"
 fi
 info "Creating systemd service file at ${SERVICE_FILE}..."
 cat > "${SERVICE_FILE}" <<EOF
@@ -198,6 +243,7 @@ Type=simple
 User=$(id -un "${SUDO_USER:-root}")
 Group=$(id -gn "${SUDO_USER:-root}")
 ${GPU_GROUPS_LINE}
+${GPU_GROUP_IDS_LINE}
 WorkingDirectory="${INSTALL_DIR}"
 ExecStart="${BINARY_PATH}" --config "${CONFIG_PATH}"
 Restart=always

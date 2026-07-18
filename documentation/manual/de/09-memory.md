@@ -124,6 +124,11 @@ embeddings:
 Unter Linux benötigt der native Vulkan-Pfad Lese- und Schreibzugriff auf ein
 `/dev/dri/renderD*`-Gerät. Die AuraGo-Installer ergänzen vorhandene Gruppen
 `render` und `video` automatisch über `SupplementaryGroups` im systemd-Dienst.
+Zusätzlich reichen sie deren numerische Host-GIDs als
+`AURAGO_GPU_GROUP_IDS` an verwaltete Vulkan-Container weiter. Dadurch erhält
+der Sidecar die erforderlichen Docker-Zusatzgruppen, ohne die dauerhaften
+Gruppenmitgliedschaften des Dienstbenutzers zu verändern. Bei Docker-Compose
+kannst du die Variable selbst als kommagetrennte Liste der Host-GIDs setzen.
 Eigene Service-Units müssen gleichwertigen Zugriff erlauben; andernfalls wird
 Vulkan übersprungen und CPU bleibt verfügbar.
 

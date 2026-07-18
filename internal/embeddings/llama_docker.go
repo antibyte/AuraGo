@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	osuser "os/user"
 	pathpkg "path"
 	"path/filepath"
 	"runtime"
@@ -29,6 +30,7 @@ import (
 const (
 	llamaDockerPort          = 8080
 	llamaDockerContainerBase = "aurago-granite-embeddings"
+	dockerGPUGroupIDsEnv     = "AURAGO_GPU_GROUP_IDS"
 )
 
 type dockerAPIClient struct {
@@ -111,6 +113,7 @@ type dockerLlamaEmbedder struct {
 	backend     string
 	contextSize int
 	batchSize   int
+	gpuGroupIDs []string
 	apiKey      string
 	image       string
 	containerID string
@@ -150,6 +153,14 @@ func newDockerLlamaEmbedder(
 	if !ok {
 		return nil, fmt.Errorf("no pinned llama.cpp Docker image for backend %q", backend)
 	}
+	var gpuGroupIDs []string
+	if backend == "vulkan" {
+		var err error
+		gpuGroupIDs, err = dockerVulkanGroupIDs()
+		if err != nil {
+			return nil, fmt.Errorf("resolve Vulkan container groups: %w", err)
+		}
+	}
 	apiKey, err := randomAPIKey()
 	if err != nil {
 		return nil, err
@@ -165,6 +176,7 @@ func newDockerLlamaEmbedder(
 		backend:     backend,
 		contextSize: contextSize,
 		batchSize:   batchSize,
+		gpuGroupIDs: gpuGroupIDs,
 		apiKey:      apiKey,
 		image:       image,
 		container:   llamaDockerContainerBase + "-" + backend + "-" + hex.EncodeToString(suffix),
@@ -185,6 +197,49 @@ func dockerEmbeddingSidecarsAvailable() bool {
 		return true
 	}
 	return strings.EqualFold(strings.TrimSpace(os.Getenv("AURAGO_EMBEDDINGS_DOCKER_SIDECAR")), "true")
+}
+
+func dockerVulkanGroupIDs() ([]string, error) {
+	if configured := strings.TrimSpace(os.Getenv(dockerGPUGroupIDsEnv)); configured != "" {
+		return normalizeDockerGPUGroupIDs([]string{configured})
+	}
+	if runtime.GOOS != "linux" {
+		return nil, nil
+	}
+	if _, err := os.Stat("/.dockerenv"); err == nil {
+		// The container's /etc/group describes the AuraGo image, not the Docker
+		// host. Docker deployments must receive the host GIDs through the
+		// installer-generated AURAGO_GPU_GROUP_IDS environment value.
+		return nil, nil
+	}
+	var groupIDs []string
+	for _, name := range []string{"render", "video"} {
+		group, err := osuser.LookupGroup(name)
+		if err == nil {
+			groupIDs = append(groupIDs, group.Gid)
+		}
+	}
+	return normalizeDockerGPUGroupIDs(groupIDs)
+}
+
+func normalizeDockerGPUGroupIDs(values []string) ([]string, error) {
+	seen := make(map[string]struct{}, len(values))
+	var normalized []string
+	for _, raw := range values {
+		for _, value := range strings.Fields(strings.ReplaceAll(raw, ",", " ")) {
+			groupID, err := strconv.ParseUint(value, 10, 32)
+			if err != nil || groupID == 0 {
+				return nil, fmt.Errorf("invalid GPU group ID %q", value)
+			}
+			canonical := strconv.FormatUint(groupID, 10)
+			if _, exists := seen[canonical]; exists {
+				continue
+			}
+			seen[canonical] = struct{}{}
+			normalized = append(normalized, canonical)
+		}
+	}
+	return normalized, nil
 }
 
 func augmentDockerHardware(ctx context.Context, hardware *hardwareInfo) string {
@@ -394,6 +449,7 @@ func (embedder *dockerLlamaEmbedder) createAndStartLocked(ctx context.Context) e
 		embedder.backend,
 		embedder.contextSize,
 		embedder.batchSize,
+		embedder.gpuGroupIDs,
 		modelMount,
 		embedder.network,
 	)
@@ -653,6 +709,7 @@ func dockerLlamaContainerPayload(
 	backend string,
 	contextSize int,
 	batchSize int,
+	gpuGroupIDs []string,
 	modelMount dockerModelMount,
 	network string,
 ) (map[string]any, error) {
@@ -666,6 +723,14 @@ func dockerLlamaContainerPayload(
 	}
 	if batchSize <= 0 {
 		batchSize = 2048
+	}
+	var normalizedGPUGroupIDs []string
+	if backend == "vulkan" {
+		var err error
+		normalizedGPUGroupIDs, err = normalizeDockerGPUGroupIDs(gpuGroupIDs)
+		if err != nil {
+			return nil, fmt.Errorf("validate Vulkan container groups: %w", err)
+		}
 	}
 	gpuLayers := "0"
 	if backend != "cpu" {
@@ -729,6 +794,9 @@ func dockerLlamaContainerPayload(
 			"PathInContainer":   "/dev/dri",
 			"CgroupPermissions": "rwm",
 		}}
+		if len(normalizedGPUGroupIDs) > 0 {
+			hostConfig["GroupAdd"] = normalizedGPUGroupIDs
+		}
 	}
 	return map[string]any{
 		"Image": image,

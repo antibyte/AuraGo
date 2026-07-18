@@ -85,6 +85,45 @@ system_group_exists() {
     grep -q "^${group_name}:" /etc/group 2>/dev/null
 }
 
+system_group_id() {
+    local group_name="$1"
+    local group_record=""
+    local group_id=""
+    if command -v getent >/dev/null 2>&1; then
+        group_record="$(getent group "$group_name" 2>/dev/null | head -n 1 || true)"
+    else
+        group_record="$(grep -m 1 "^${group_name}:" /etc/group 2>/dev/null || true)"
+    fi
+    group_id="$(printf '%s\n' "$group_record" | awk -F: '{print $3}')"
+    case "$group_id" in
+        ""|*[!0-9]*) return 1 ;;
+    esac
+    [ "$group_id" -gt 0 ] || return 1
+    printf '%s' "$group_id"
+}
+
+system_gpu_group_ids() {
+    local ids=()
+    local group_name
+    local group_id
+    local existing
+    local duplicate
+    for group_name in render video; do
+        group_id="$(system_group_id "$group_name" || true)"
+        [ -n "$group_id" ] || continue
+        duplicate=false
+        for existing in "${ids[@]}"; do
+            if [ "$existing" = "$group_id" ]; then
+                duplicate=true
+                break
+            fi
+        done
+        $duplicate || ids+=("$group_id")
+    done
+    local IFS=,
+    printf '%s' "${ids[*]}"
+}
+
 systemd_gpu_groups_line() {
     local groups=()
     local group_name
@@ -1473,6 +1512,37 @@ if [ -f "$SVC_FILE" ] && [ -n "$_gpu_groups_line" ]; then
         fi
         $SUDO systemctl daemon-reload
         ok "Service GPU access updated: ${_gpu_groups_line#SupplementaryGroups=}."
+    fi
+fi
+
+# Forward numeric host GPU group IDs to managed containers. Host account group
+# membership is intentionally left unchanged; Docker receives only the groups
+# needed by the isolated Vulkan sidecar.
+_gpu_group_ids="$(system_gpu_group_ids)"
+_gpu_group_ids_line=""
+if [ -n "$_gpu_group_ids" ]; then
+    _gpu_group_ids_line="Environment=\"AURAGO_GPU_GROUP_IDS=${_gpu_group_ids}\""
+fi
+if [ -f "$SVC_FILE" ]; then
+    _current_gpu_group_ids_line="$(grep '^Environment=.*AURAGO_GPU_GROUP_IDS=' "$SVC_FILE" | head -n 1 || true)"
+    if [ "$_current_gpu_group_ids_line" != "$_gpu_group_ids_line" ]; then
+        if [ -z "$_gpu_group_ids_line" ]; then
+            $SUDO sed -i '/^Environment=.*AURAGO_GPU_GROUP_IDS=/d' "$SVC_FILE"
+        elif [ -n "$_current_gpu_group_ids_line" ]; then
+            $SUDO sed -i "/^Environment=.*AURAGO_GPU_GROUP_IDS=/c\\${_gpu_group_ids_line}" "$SVC_FILE"
+        elif grep -q '^SupplementaryGroups=' "$SVC_FILE"; then
+            $SUDO sed -i "/^SupplementaryGroups=/a ${_gpu_group_ids_line}" "$SVC_FILE"
+        elif grep -q '^Group=' "$SVC_FILE"; then
+            $SUDO sed -i "/^Group=/a ${_gpu_group_ids_line}" "$SVC_FILE"
+        elif grep -q '^User=' "$SVC_FILE"; then
+            $SUDO sed -i "/^User=/a ${_gpu_group_ids_line}" "$SVC_FILE"
+        fi
+        $SUDO systemctl daemon-reload
+        if [ -n "$_gpu_group_ids" ]; then
+            ok "Managed-container GPU groups updated: ${_gpu_group_ids}."
+        else
+            ok "Removed stale managed-container GPU group IDs."
+        fi
     fi
 fi
 
