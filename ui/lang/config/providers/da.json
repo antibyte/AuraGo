@@ -71,6 +71,7 @@
   "config.providers.hint.workers_ai": "Cloudflare API Token med Workers AI tilladelser.",
   "config.providers.id_empty_error": "ID må ikke være tom.",
   "config.providers.id_exists": "Der findes allerede en udbyder med dette id.",
+  "config.providers.id_invalid_error": "Udbyder-ID \"{id}\" er ugyldigt. Brug kun små bogstaver, tal, bindestreger eller understregninger (ingen punktummer). Eksempel: agnesai eller llama-3-1-8b",
   "config.providers.id_help": "Unik identifikator (f.eks. hoved, vision-ollama). Små bogstaver, bindestreger tilladt.",
   "config.providers.id_placeholder": "min-udbyder",
   "config.providers.input_cost": "Input $/M",

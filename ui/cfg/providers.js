@@ -2228,6 +2228,13 @@ let _providerCatalogPromise = null;
                 const account_id = (document.getElementById('prov-account-id') || {}).value ? document.getElementById('prov-account-id').value.trim() : '';
 
                 if (!id) { showToast(t('config.providers.id_empty_error'), 'warn'); return; }
+                // New provider IDs must be canonical. Existing legacy IDs (dots/uppercase)
+                // are allowed so one old entry does not block the whole list save.
+                const isExistingID = data._editMode || (providersCache || []).some(p => p.id === id);
+                if (!isExistingID && !/^[a-z0-9][a-z0-9_-]*$/.test(id)) {
+                    showToast(t('config.providers.id_invalid_error', { id }), 'warn');
+                    return;
+                }
                 if (type === 'workers-ai') {
                     if (!account_id) { showToast(t('config.providers.account_id_empty_error'), 'warn'); return; }
                 } else if (type === 'manifest' || type === 'omniroute') {
@@ -2402,7 +2409,12 @@ let _providerCatalogPromise = null;
                 });
                 if (!resp.ok) {
                     const txt = await resp.text();
-                    showToast(txt || t('config.common.error'), 'error');
+                    let msg = txt || t('config.common.error');
+                    try {
+                        const parsed = JSON.parse(txt);
+                        if (parsed && parsed.error) msg = parsed.error;
+                    } catch (_) { /* plain text error */ }
+                    showToast(msg, 'error');
                     return false;
                 }
                 const result = await resp.json();

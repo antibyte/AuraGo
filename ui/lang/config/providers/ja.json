@@ -71,6 +71,7 @@
   "config.providers.hint.workers_ai": "Workers AI権限を持つCloudflare APIトークン。",
   "config.providers.id_empty_error": "ID を空にすることはできません。",
   "config.providers.id_exists": "この ID を持つプロバイダーはすでに存在します。",
+  "config.providers.id_invalid_error": "プロバイダーID \"{id}\" は無効です。小文字・数字・ハイフン・アンダースコアのみ（ドット不可）。例: agnesai または llama-3-1-8b",
   "config.providers.id_help": "一意の識別子 (例: main、vision-ollam)。小文字、ハイフンを使用できます。",
   "config.providers.id_placeholder": "my-provider",
   "config.providers.input_cost": "入力 $/M",

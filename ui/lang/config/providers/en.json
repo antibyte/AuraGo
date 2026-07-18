@@ -32,6 +32,7 @@
   "config.providers.revoke_confirm_title": "Revoke OAuth Token",
   "config.providers.revoke_confirm": "Really revoke OAuth token?",
   "config.providers.id_exists": "A provider with this ID already exists.",
+  "config.providers.id_invalid_error": "Provider ID \"{id}\" is invalid. Use only lowercase letters, numbers, hyphens or underscores (no dots). Example: agnesai or llama-3-1-8b",
   "config.providers.edit_provider": "Edit Provider",
   "config.providers.delete_confirm_title": "Delete Provider",
   "config.providers.delete_confirm": "Really delete provider \"{name}\"?",

@@ -71,6 +71,7 @@
   "config.providers.hint.workers_ai": "Token API Cloudflare con permessi Workers AI.",
   "config.providers.id_empty_error": "L'ID non può essere vuoto.",
   "config.providers.id_exists": "Un provider con questo ID esiste già.",
+  "config.providers.id_invalid_error": "L'ID provider \"{id}\" non è valido. Usa solo lettere minuscole, numeri, trattini o underscore (niente punti). Esempio: agnesai o llama-3-1-8b",
   "config.providers.id_help": "Identificatore univoco (es. main, vision-ollama). Minuscolo, trattini consentiti.",
   "config.providers.id_placeholder": "mio-fornitore",
   "config.providers.input_cost": "Input $/M",

@@ -71,6 +71,7 @@
   "config.providers.hint.workers_ai": "具有 Workers AI 权限的 Cloudflare API 令牌。",
   "config.providers.id_empty_error": "ID 不能为空。",
   "config.providers.id_exists": "具有此 ID 的提供商已存在。",
+  "config.providers.id_invalid_error": "提供商 ID \"{id}\" 无效。仅可使用小写字母、数字、连字符或下划线（不可使用点号）。例如：agnesai 或 llama-3-1-8b",
   "config.providers.id_help": "唯一标识符 (例如：main, vision-ollama)。小写，允许使用连字符。",
   "config.providers.id_placeholder": "my-provider",
   "config.providers.input_cost": "输入 $/M",

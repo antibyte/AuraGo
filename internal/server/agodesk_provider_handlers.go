@@ -409,9 +409,6 @@ func upsertAgodeskProvider(s *Server, payload agodesk.ConfigProviderUpsertPayloa
 		return agodesk.ConfigProviderEntryPayload{}, fmt.Errorf("mode must be create or update")
 	}
 	providerID := strings.TrimSpace(payload.Provider.ID)
-	if err := validateProviderID(providerID); err != nil {
-		return agodesk.ConfigProviderEntryPayload{}, err
-	}
 
 	s.CfgMu.RLock()
 	current := append([]config.ProviderEntry(nil), s.Cfg.Providers...)
@@ -421,10 +418,22 @@ func upsertAgodeskProvider(s *Server, payload agodesk.ConfigProviderUpsertPayloa
 		Multimodal:        s.Cfg.LLM.Multimodal,
 	}
 	oldProviderIDs := make([]string, 0, len(current))
+	existingIDSet := make(map[string]bool, len(current))
 	for _, provider := range current {
 		oldProviderIDs = append(oldProviderIDs, provider.ID)
+		existingIDSet[provider.ID] = true
 	}
 	s.CfgMu.RUnlock()
+
+	// Create always requires a canonical ID. Updates may keep a legacy ID that
+	// already exists in config so renames stay explicit and vault keys stay stable.
+	if mode == "create" {
+		if err := validateProviderID(providerID); err != nil {
+			return agodesk.ConfigProviderEntryPayload{}, err
+		}
+	} else if err := validateProviderIDForSave(providerID, existingIDSet); err != nil {
+		return agodesk.ConfigProviderEntryPayload{}, err
+	}
 
 	index := -1
 	var existing config.ProviderEntry

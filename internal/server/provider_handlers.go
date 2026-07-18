@@ -297,14 +297,22 @@ func handlePutProviders(s *Server, w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Convert to ProviderEntry slice and stage vault mutations; secrets stay in the vault, not YAML.
+	existingIDSet := make(map[string]bool, len(oldProviderIDs))
+	for _, id := range oldProviderIDs {
+		existingIDSet[id] = true
+	}
 	entries := make([]config.ProviderEntry, len(incoming))
 	seenIDs := make(map[string]bool, len(incoming))
 	vaultMutations := make([]vaultMutation, 0, len(incoming)*3)
 	for i, p := range incoming {
 		p.ID = strings.TrimSpace(p.ID)
-		if err := validateProviderID(p.ID); err != nil {
+		if err := validateProviderIDForSave(p.ID, existingIDSet); err != nil {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
+		}
+		if !isValidProviderID(p.ID) && s.Logger != nil {
+			s.Logger.Warn("[Providers] Re-saving legacy provider with non-canonical ID",
+				"id", p.ID)
 		}
 		if seenIDs[p.ID] {
 			jsonError(w, "Duplicate provider ID: "+p.ID, http.StatusBadRequest)

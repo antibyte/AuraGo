@@ -31,6 +31,7 @@
   "config.providers.oauth_required_error": "OAuth2: Client-ID ist erforderlich.",
   "config.providers.revoke_confirm": "OAuth Token wirklich widerrufen?",
   "config.providers.id_exists": "Ein Provider mit dieser ID existiert bereits.",
+  "config.providers.id_invalid_error": "Provider-ID \"{id}\" ist ungültig. Nur Kleinbuchstaben, Ziffern, Bindestriche oder Unterstriche (keine Punkte). Beispiel: agnesai oder llama-3-1-8b",
   "config.providers.edit_provider": "Provider bearbeiten",
   "config.providers.delete_confirm": "Provider \"{name}\" wirklich löschen?",
   "config.providers.cancel": "Abbrechen",
