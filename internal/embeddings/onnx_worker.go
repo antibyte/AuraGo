@@ -15,6 +15,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"aurago/internal/sandbox"
 )
 
 type workerRequest struct {
@@ -318,7 +320,7 @@ func (worker *onnxWorkerEmbedder) forceCloseLocked() error {
 }
 
 func runtimeEnvironment(runtimeRoots ...string) []string {
-	environment := append([]string(nil), os.Environ()...)
+	environment := sandbox.FilterEnv(os.Environ())
 	var directories []string
 	for _, runtimeRoot := range runtimeRoots {
 		_ = filepath.WalkDir(runtimeRoot, func(path string, entry os.DirEntry, err error) error {

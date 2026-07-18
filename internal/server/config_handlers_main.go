@@ -1171,9 +1171,13 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 }
 
 func validateLocalGraniteEmbeddingMode(cfg *config.Config) error {
-	if cfg != nil &&
-		strings.EqualFold(strings.TrimSpace(cfg.Embeddings.Provider), "local-granite") &&
-		cfg.Embeddings.Multimodal {
+	if cfg == nil || !strings.EqualFold(strings.TrimSpace(cfg.Embeddings.Provider), "local-granite") {
+		return nil
+	}
+	if strings.EqualFold(strings.TrimSpace(cfg.Embeddings.Local.Backend), "directml") {
+		return fmt.Errorf("DirectML is no longer supported for local Granite embeddings. Select auto, CUDA, Vulkan, or CPU")
+	}
+	if cfg.Embeddings.Multimodal {
 		return fmt.Errorf("Local Granite embeddings are text-only. Disable multimodal embeddings or select another provider")
 	}
 	return nil

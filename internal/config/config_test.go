@@ -2612,6 +2612,21 @@ func TestLoadLocalGraniteDefaults(t *testing.T) {
 	}
 }
 
+func TestLoadNormalizesDeprecatedDirectMLBackend(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	raw := []byte("embeddings:\n  provider: local-granite\n  local:\n    backend: directml\n")
+	if err := os.WriteFile(configPath, raw, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Embeddings.Local.Backend != "auto" {
+		t.Fatalf("deprecated DirectML backend = %q, want auto", cfg.Embeddings.Local.Backend)
+	}
+}
+
 func TestLoadPreservesManagedOllamaWithoutExplicitProvider(t *testing.T) {
 	configPath := filepath.Join(t.TempDir(), "config.yaml")
 	raw := []byte("embeddings:\n  local_ollama:\n    enabled: true\n    model: mxbai-embed-large\n")

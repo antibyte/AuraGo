@@ -104,7 +104,7 @@ Das Langzeitgedächtnis ermöglicht semantische Suche über vergangene Gespräch
 embeddings:
   provider: "local-granite"               # Standard für Neuinstallationen
   local:
-    backend: "auto"                       # auto/cpu/cuda/directml/coreml/metal/vulkan
+    backend: "auto"                       # auto/cpu/cuda/coreml/metal/vulkan
     context_size: 2048
     batch_size: 2048
   internal_model: "qwen/qwen3-embedding-8b"  # Modell für internen Provider

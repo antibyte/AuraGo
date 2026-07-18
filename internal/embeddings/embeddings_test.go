@@ -1,13 +1,16 @@
 package embeddings
 
 import (
+	"archive/tar"
 	"archive/zip"
 	"bytes"
+	"compress/gzip"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -15,11 +18,14 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 )
 
 func TestCandidateMatrixAlwaysIncludesCPUFallbacks(t *testing.T) {
-	hardware := hardwareInfo{NVIDIA: true, Vulkan: true, DirectML: true}
+	hardware := hardwareInfo{NVIDIA: true, Vulkan: true}
 	candidates := candidateMatrix("windows", "amd64", "cuda", hardware)
 	assertCandidate(t, candidates, "onnx-cuda")
 	assertCandidate(t, candidates, "llama-cuda")
@@ -31,7 +37,7 @@ func TestCandidateMatrixAlwaysIncludesCPUFallbacks(t *testing.T) {
 }
 
 func TestCandidateMatrixSkipsUnsupportedWindowsARM64GPU(t *testing.T) {
-	hardware := hardwareInfo{NVIDIA: true, Vulkan: true, DirectML: true}
+	hardware := hardwareInfo{NVIDIA: true, Vulkan: true}
 	candidates := candidateMatrix("windows", "arm64", "auto", hardware)
 	for _, current := range candidates {
 		if current.GPU {
@@ -188,6 +194,60 @@ func TestExtractZipSecureRejectsSymlink(t *testing.T) {
 	}
 }
 
+func TestExtractTarGzipSecureExtractsFilesWithoutMaterializingLinks(t *testing.T) {
+	var archive bytes.Buffer
+	gzipWriter := gzip.NewWriter(&archive)
+	tarWriter := tar.NewWriter(gzipWriter)
+	if err := tarWriter.WriteHeader(&tar.Header{
+		Name:     "runtime/bin/",
+		Typeflag: tar.TypeDir,
+		Mode:     0o755,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	content := []byte("runtime")
+	if err := tarWriter.WriteHeader(&tar.Header{
+		Name:     "runtime/bin/libonnxruntime.so.1",
+		Typeflag: tar.TypeReg,
+		Mode:     0o644,
+		Size:     int64(len(content)),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := tarWriter.Write(content); err != nil {
+		t.Fatal(err)
+	}
+	if err := tarWriter.WriteHeader(&tar.Header{
+		Name:     "runtime/bin/libonnxruntime.so",
+		Typeflag: tar.TypeSymlink,
+		Linkname: "libonnxruntime.so.1",
+		Mode:     0o777,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := tarWriter.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := gzipWriter.Close(); err != nil {
+		t.Fatal(err)
+	}
+	archivePath := filepath.Join(t.TempDir(), "runtime.tar.gz")
+	if err := os.WriteFile(archivePath, archive.Bytes(), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	target := t.TempDir()
+	if err := extractTarGzipSecure(archivePath, target); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(filepath.Join(target, "runtime", "bin", "libonnxruntime.so.1"))
+	if err != nil || string(raw) != "runtime" {
+		t.Fatalf("extracted runtime = %q, %v", raw, err)
+	}
+	if _, err := os.Lstat(filepath.Join(target, "runtime", "bin", "libonnxruntime.so")); !os.IsNotExist(err) {
+		t.Fatalf("archive symlink was materialized: %v", err)
+	}
+}
+
 func TestFileMatchesRejectsManipulatedCache(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "asset.bin")
 	content := []byte("verified asset")
@@ -309,6 +369,30 @@ func TestRuntimeEnvironmentPrependsPrivateDirectories(t *testing.T) {
 	if !bytes.Contains([]byte(pathValue), []byte(root)) {
 		t.Fatalf("PATH %q does not contain runtime root", pathValue)
 	}
+	for key, value := range map[string]string{
+		"AURAGO_MASTER_KEY":   "master-secret",
+		"OPENAI_API_KEY":      "api-secret",
+		"CUSTOM_AUTH_TOKEN":   "token-secret",
+		"MY_DB_PASSWORD":      "password-secret",
+		"PROJECT_CREDENTIALS": "credentials-secret",
+	} {
+		t.Setenv(key, value)
+	}
+	environment = runtimeEnvironment(root)
+	for _, entry := range environment {
+		upper := strings.ToUpper(entry)
+		for _, forbidden := range []string{
+			"AURAGO_MASTER_KEY=",
+			"OPENAI_API_KEY=",
+			"CUSTOM_AUTH_TOKEN=",
+			"MY_DB_PASSWORD=",
+			"PROJECT_CREDENTIALS=",
+		} {
+			if strings.HasPrefix(upper, forbidden) {
+				t.Fatalf("sensitive environment variable escaped into native process: %s", forbidden)
+			}
+		}
+	}
 }
 
 func TestProcessLogsStayBounded(t *testing.T) {
@@ -374,6 +458,80 @@ func TestValidateGraniteVector(t *testing.T) {
 	}
 }
 
+func TestFuncEmbedderCompatibilityAndVectorMath(t *testing.T) {
+	embedder := NewFuncEmbedder(func(_ context.Context, text string) ([]float32, error) {
+		if text == "error" {
+			return nil, errors.New("remote failed")
+		}
+		return []float32{3, 4}, nil
+	}, "custom-model", "custom-fingerprint")
+	vectors, err := embedder.Embed(context.Background(), []string{"one", "two"})
+	if err != nil || len(vectors) != 2 {
+		t.Fatalf("custom embedder vectors = %#v, %v", vectors, err)
+	}
+	if embedder.Dimensions() != 2 || embedder.ModelID() != "custom-model" ||
+		embedder.Fingerprint() != "custom-fingerprint" || embedder.Status().State != "ready" {
+		t.Fatalf("custom embedder metadata is inconsistent: %#v", embedder.Status())
+	}
+	normalized := append([]float32(nil), vectors[0]...)
+	if err := l2Normalize(normalized); err != nil {
+		t.Fatal(err)
+	}
+	if math.Abs(cosineSimilarity(normalized, []float32{0.6, 0.8})-1) > 0.0001 {
+		t.Fatalf("normalized vector cosine mismatch: %#v", normalized)
+	}
+	if err := l2Normalize([]float32{0, 0}); err == nil {
+		t.Fatal("zero vector unexpectedly normalized")
+	}
+	if err := l2Normalize([]float32{float32(math.NaN())}); err == nil {
+		t.Fatal("non-finite vector unexpectedly normalized")
+	}
+	if _, err := embedder.Embed(context.Background(), []string{"error"}); err == nil {
+		t.Fatal("custom provider error was not propagated")
+	}
+	if err := embedder.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := embedder.Embed(context.Background(), []string{"closed"}); err == nil {
+		t.Fatal("closed custom embedder accepted input")
+	}
+	if embedder.Status().State != "closed" {
+		t.Fatalf("closed custom embedder status = %#v", embedder.Status())
+	}
+}
+
+func TestRuntimeDiscoveryAndBackendHelpers(t *testing.T) {
+	root := t.TempDir()
+	serverName := "llama-server"
+	if runtime.GOOS == "windows" {
+		serverName += ".exe"
+	}
+	serverPath := filepath.Join(root, "nested", serverName)
+	if err := os.MkdirAll(filepath.Dir(serverPath), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(serverPath, []byte("binary"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if found, err := findLlamaServer(root); err != nil || found != serverPath {
+		t.Fatalf("llama-server discovery = %q, %v", found, err)
+	}
+	if port, err := availableLoopbackPort(); err != nil || port <= 0 {
+		t.Fatalf("loopback port = %d, %v", port, err)
+	}
+	if key, err := randomAPIKey(); err != nil || len(key) < 32 {
+		t.Fatalf("random API key length = %d, %v", len(key), err)
+	}
+	if onnxProviderName("cuda") != "CUDAExecutionProvider" ||
+		onnxProviderName("coreml") != "CoreMLExecutionProvider" ||
+		onnxProviderName("directml") != "" {
+		t.Fatal("ONNX provider mapping still exposes an unsupported backend")
+	}
+	if !containsStringFold([]string{"CPUExecutionProvider", "CUDAExecutionProvider"}, "cudaexecutionprovider") {
+		t.Fatal("case-insensitive provider lookup failed")
+	}
+}
+
 func TestDetectHardwareProducesStableFingerprint(t *testing.T) {
 	first := detectHardware(context.Background())
 	second := detectHardware(context.Background())
@@ -392,6 +550,12 @@ func TestLlamaGPUVerificationRequiresBackendAndOffloadEvidence(t *testing.T) {
 }
 
 func TestDockerLlamaContainerIsPrivatePinnedAndHardened(t *testing.T) {
+	modelMount := dockerModelMount{
+		Type:          "volume",
+		Source:        "aurago_data",
+		Target:        "/app/data/embeddings/models/gguf",
+		VolumeSubpath: "embeddings/models/gguf",
+	}
 	payload, err := dockerLlamaContainerPayload(
 		llamaDockerCUDAImage,
 		"/app/data/embeddings/models/granite.gguf",
@@ -399,8 +563,8 @@ func TestDockerLlamaContainerIsPrivatePinnedAndHardened(t *testing.T) {
 		"cuda",
 		2048,
 		2048,
-		"aurago-container-id",
-		"aurago_default",
+		modelMount,
+		"aurago-granite-private",
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -418,6 +582,20 @@ func TestDockerLlamaContainerIsPrivatePinnedAndHardened(t *testing.T) {
 	if _, published := hostConfig["PortBindings"]; published {
 		t.Fatal("sidecar must not publish a host port")
 	}
+	if _, inherited := hostConfig["VolumesFrom"]; inherited {
+		t.Fatal("sidecar must not inherit AuraGo volumes")
+	}
+	mounts, ok := hostConfig["Mounts"].([]map[string]any)
+	if !ok || len(mounts) != 1 || mounts[0]["ReadOnly"] != true {
+		t.Fatalf("sidecar mounts = %#v, want exactly one read-only model mount", hostConfig["Mounts"])
+	}
+	volumeOptions, ok := mounts[0]["VolumeOptions"].(map[string]any)
+	if !ok || volumeOptions["Subpath"] != modelMount.VolumeSubpath {
+		t.Fatalf("model volume subpath = %#v", mounts[0]["VolumeOptions"])
+	}
+	if hostConfig["NetworkMode"] != "aurago-granite-private" {
+		t.Fatalf("sidecar network = %#v", hostConfig["NetworkMode"])
+	}
 	deviceRequests, ok := hostConfig["DeviceRequests"].([]map[string]any)
 	if !ok || len(deviceRequests) != 1 || deviceRequests[0]["Driver"] != "nvidia" {
 		t.Fatalf("CUDA device request missing: %#v", hostConfig["DeviceRequests"])
@@ -434,6 +612,319 @@ func TestDockerLlamaContainerIsPrivatePinnedAndHardened(t *testing.T) {
 	}
 	if strings.Contains(joined, "--model-alias") {
 		t.Fatalf("sidecar command %q uses an argument unsupported by llama.cpp b9994", joined)
+	}
+	networkPayload := dockerPrivateNetworkPayload("aurago-granite-private")
+	if networkPayload["Internal"] != true || networkPayload["Attachable"] != false {
+		t.Fatalf("embedding sidecar network is not private: %#v", networkPayload)
+	}
+}
+
+func TestDockerModelMountUsesReadOnlyVolumeSubpathAndRejectsUnsafeOldEngine(t *testing.T) {
+	mounts := []dockerContainerMount{{
+		Type:        "volume",
+		Name:        "aurago_data",
+		Destination: "/app/data",
+	}}
+	selected, err := selectDockerModelMount("/app/data/embeddings/models/gguf", "1.45", mounts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if selected.Source != "aurago_data" || selected.VolumeSubpath != "embeddings/models/gguf" {
+		t.Fatalf("selected mount = %#v", selected)
+	}
+	if _, err := selectDockerModelMount("/app/data/embeddings/models/gguf", "1.44", mounts); err == nil {
+		t.Fatal("old Docker Engine unexpectedly accepted a parent named volume")
+	}
+	exact := []dockerContainerMount{{
+		Type:        "volume",
+		Name:        "aurago_embeddings",
+		Destination: "/app/data/embeddings",
+	}}
+	selected, err = selectDockerModelMount("/app/data/embeddings/models/gguf", "1.44", exact)
+	if err != nil || selected.VolumeSubpath != "" || selected.Target != "/app/data/embeddings" {
+		t.Fatalf("old Docker Engine exact mount = %#v, %v", selected, err)
+	}
+}
+
+func TestRuntimeManifestRepairsTamperedMissingAndUnexpectedFilesOffline(t *testing.T) {
+	var archive bytes.Buffer
+	writer := zip.NewWriter(&archive)
+	for name, content := range map[string]string{
+		"runtime/bin/runtime.dll": "verified runtime",
+		"runtime/bin/helper.exe":  "verified helper",
+	} {
+		entry, err := writer.Create(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := entry.Write([]byte(content)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	content := archive.Bytes()
+	hash := sha256.Sum256(content)
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write(content)
+	}))
+	cache := newAssetCache(t.TempDir(), nil)
+	cache.client = server.Client()
+	spec := assetSpec{
+		ID:     "test-runtime",
+		URL:    server.URL + "/runtime.zip",
+		Size:   int64(len(content)),
+		SHA256: hex.EncodeToString(hash[:]),
+		Kind:   assetZip,
+	}
+	root, err := cache.ensureRuntimeAsset(context.Background(), spec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	server.Close()
+
+	runtimeFile := filepath.Join(root, "runtime", "bin", "runtime.dll")
+	helperFile := filepath.Join(root, "runtime", "bin", "helper.exe")
+	assertRepaired := func(path, want string) {
+		t.Helper()
+		raw, readErr := os.ReadFile(path)
+		if readErr != nil || string(raw) != want {
+			t.Fatalf("repaired file %s = %q, %v; want %q", path, raw, readErr, want)
+		}
+	}
+	if err := os.WriteFile(runtimeFile, []byte("tampered runtime"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := cache.ensureRuntimeAsset(context.Background(), spec); err != nil {
+		t.Fatal(err)
+	}
+	assertRepaired(runtimeFile, "verified runtime")
+
+	if err := os.Remove(helperFile); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := cache.ensureRuntimeAsset(context.Background(), spec); err != nil {
+		t.Fatal(err)
+	}
+	assertRepaired(helperFile, "verified helper")
+
+	unexpected := filepath.Join(root, "runtime", "bin", "injected.dll")
+	if err := os.WriteFile(unexpected, []byte("unexpected"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := cache.ensureRuntimeAsset(context.Background(), spec); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(unexpected); !os.IsNotExist(err) {
+		t.Fatalf("unexpected runtime file was not removed: %v", err)
+	}
+
+	if err := os.Remove(runtimeFile); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(helperFile, runtimeFile); err == nil {
+		if _, err := cache.ensureRuntimeAsset(context.Background(), spec); err != nil {
+			t.Fatal(err)
+		}
+		info, err := os.Lstat(runtimeFile)
+		if err != nil {
+			t.Fatalf("linked runtime file was not replaced: %v", err)
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			t.Fatalf("linked runtime file was not replaced: mode=%v", info.Mode())
+		}
+		assertRepaired(runtimeFile, "verified runtime")
+	}
+}
+
+func TestBenchmarkCoordinatorDeduplicatesFailuresAndStopsAtClose(t *testing.T) {
+	rootCtx, cancel := context.WithCancel(context.Background())
+	ready := make(chan struct{})
+	close(ready)
+	unblock := make(chan struct{})
+	var setupCalls atomic.Int32
+	vector := make([]float32, GraniteDimensions)
+	vector[0] = 1
+	manager := &Manager{
+		active: &testEmbedder{
+			status: Status{Runtime: "onnxruntime", Backend: "cuda", Fingerprint: onnxFingerprint()},
+			err:    errors.New("GPU backend failed"),
+		},
+		fallback: &testEmbedder{
+			status:  Status{Runtime: "onnxruntime", Backend: "cpu", Fingerprint: onnxFingerprint()},
+			vectors: [][]float32{vector},
+		},
+		status:  Status{State: "ready"},
+		logger:  discardEmbeddingLogger(),
+		rootCtx: rootCtx,
+		cancel:  cancel,
+		ready:   ready,
+		setupOverride: func(ctx context.Context, _ bool) error {
+			setupCalls.Add(1)
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-unblock:
+				return nil
+			}
+		},
+	}
+	var callers sync.WaitGroup
+	for i := 0; i < 12; i++ {
+		callers.Add(1)
+		go func() {
+			defer callers.Done()
+			_, _ = manager.Embed(context.Background(), []string{"parallel failure"})
+		}()
+	}
+	callers.Wait()
+	deadline := time.Now().Add(time.Second)
+	for setupCalls.Load() == 0 && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if setupCalls.Load() != 1 {
+		t.Fatalf("parallel backend failures started %d benchmarks, want 1", setupCalls.Load())
+	}
+	close(unblock)
+	manager.initWG.Wait()
+	if err := manager.Close(); err != nil {
+		t.Fatal(err)
+	}
+	manager.triggerBackgroundBenchmark()
+	time.Sleep(10 * time.Millisecond)
+	if setupCalls.Load() != 1 {
+		t.Fatalf("benchmark started after Close: %d calls", setupCalls.Load())
+	}
+}
+
+func TestBenchmarkCoordinatorManualRequestJoinsRunningBenchmark(t *testing.T) {
+	rootCtx, cancel := context.WithCancel(context.Background())
+	unblock := make(chan struct{})
+	var setupCalls atomic.Int32
+	manager := &Manager{
+		logger:  discardEmbeddingLogger(),
+		rootCtx: rootCtx,
+		cancel:  cancel,
+		ready:   make(chan struct{}),
+		setupOverride: func(ctx context.Context, _ bool) error {
+			setupCalls.Add(1)
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-unblock:
+				return nil
+			}
+		},
+	}
+	manager.triggerBackgroundBenchmark()
+	done := make(chan error, 1)
+	go func() {
+		done <- manager.Rebenchmark(context.Background())
+	}()
+	deadline := time.Now().Add(time.Second)
+	for setupCalls.Load() == 0 && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if setupCalls.Load() != 1 {
+		t.Fatalf("manual request did not join running benchmark: %d calls", setupCalls.Load())
+	}
+	close(unblock)
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.Close(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestBenchmarkCoordinatorCooldownAndManualBypass(t *testing.T) {
+	rootCtx, cancel := context.WithCancel(context.Background())
+	var setupCalls atomic.Int32
+	manager := &Manager{
+		logger:  discardEmbeddingLogger(),
+		rootCtx: rootCtx,
+		cancel:  cancel,
+		ready:   make(chan struct{}),
+		setupOverride: func(context.Context, bool) error {
+			setupCalls.Add(1)
+			return errors.New("probe failed")
+		},
+	}
+	manager.triggerBackgroundBenchmark()
+	manager.initWG.Wait()
+	manager.triggerBackgroundBenchmark()
+	manager.initWG.Wait()
+	if setupCalls.Load() != 1 {
+		t.Fatalf("automatic cooldown allowed %d setup calls, want 1", setupCalls.Load())
+	}
+	if err := manager.Rebenchmark(context.Background()); err == nil || !strings.Contains(err.Error(), "probe failed") {
+		t.Fatalf("manual cooldown bypass error = %v", err)
+	}
+	if setupCalls.Load() != 2 {
+		t.Fatalf("manual request did not bypass cooldown: %d calls", setupCalls.Load())
+	}
+	if err := manager.Close(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestBenchmarkCoordinatorCloseCancelsRootTaskQuickly(t *testing.T) {
+	rootCtx, cancel := context.WithCancel(context.Background())
+	started := make(chan struct{})
+	manager := &Manager{
+		logger:  discardEmbeddingLogger(),
+		rootCtx: rootCtx,
+		cancel:  cancel,
+		ready:   make(chan struct{}),
+		setupOverride: func(ctx context.Context, _ bool) error {
+			close(started)
+			<-ctx.Done()
+			return ctx.Err()
+		},
+	}
+	manager.triggerBackgroundBenchmark()
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatal("background benchmark did not start")
+	}
+	start := time.Now()
+	if err := manager.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if elapsed := time.Since(start); elapsed > time.Second {
+		t.Fatalf("manager shutdown took %v after cancellation", elapsed)
+	}
+}
+
+func TestManagerUsesPersistedActualFingerprintBeforeActivation(t *testing.T) {
+	cacheDir := t.TempDir()
+	seed := &Manager{options: LocalOptions{CacheDir: cacheDir}}
+	if err := seed.saveSelection(selectionState{
+		Version:              1,
+		SelectionFingerprint: "previous-selection",
+		HardwareFingerprint:  "previous-hardware",
+		CandidateID:          "llama-vulkan",
+		EmbeddingFingerprint: ggufFingerprint(),
+		SelectedAt:           time.Now().UTC(),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	manager, err := NewLocalGranite(LocalOptions{
+		CacheDir:        cacheDir,
+		ResetMarkerPath: filepath.Join(cacheDir, "reset.json"),
+		Backend:         "auto",
+		Logger:          discardEmbeddingLogger(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := manager.Fingerprint(); got != ggufFingerprint() {
+		t.Fatalf("pre-activation fingerprint = %q, want persisted GGUF fingerprint", got)
+	}
+	if err := manager.Close(); err != nil {
+		t.Fatal(err)
 	}
 }
 

@@ -390,7 +390,7 @@ The actual configuration structure in `config.yaml`:
 embeddings:
   provider: "local-granite"         # Default for new installations
   local:
-    backend: "auto"                 # auto/cpu/cuda/directml/coreml/metal/vulkan
+    backend: "auto"                 # auto/cpu/cuda/coreml/metal/vulkan
     context_size: 2048
     batch_size: 2048
   internal_model: "qwen/qwen3-embedding-8b"  # Model used when provider is "internal"

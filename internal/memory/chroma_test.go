@@ -15,6 +15,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"aurago/internal/embeddings"
 	chromem "github.com/philippgille/chromem-go"
 )
 
@@ -210,9 +211,25 @@ func TestComputeToolGuidesHash_EmptyDir(t *testing.T) {
 	hash := cv.computeToolGuidesHash(dir)
 	h := sha256.New()
 	h.Write([]byte(toolGuideIndexFingerprint()))
+	h.Write([]byte("\x00embedding="))
 	expected := hex.EncodeToString(h.Sum(nil))
 	if hash != expected {
 		t.Errorf("empty dir hash: got %q want %q", hash, expected)
+	}
+}
+
+func TestComputeToolGuidesHash_EmbeddingFingerprintChange(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "tool.md"), []byte("content"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	embedder := &mutableFingerprintEmbedder{fingerprint: "format=gguf"}
+	cv := &ChromemVectorDB{embedder: embedder}
+	ggufHash := cv.computeToolGuidesHash(dir)
+	embedder.fingerprint = "format=onnx"
+	onnxHash := cv.computeToolGuidesHash(dir)
+	if ggufHash == onnxHash {
+		t.Fatal("tool guide hash did not change with active embedding fingerprint")
 	}
 }
 
@@ -579,4 +596,49 @@ func TestChunkText_UTF8Safety(t *testing.T) {
 			t.Errorf("chunk %d contains RuneError: %q", i, chunk)
 		}
 	}
+}
+
+func TestMarkdownIndexFingerprintUsesActiveEmbeddingFingerprint(t *testing.T) {
+	embedder := &mutableFingerprintEmbedder{fingerprint: "format=gguf|runtime=llama.cpp-b9994"}
+	cv := &ChromemVectorDB{
+		embedder:             embedder,
+		embeddingFingerprint: "format=onnx|runtime=onnxruntime-1.26.0",
+	}
+	first := cv.markdownIndexFingerprint()
+	if !strings.Contains(first, embedder.fingerprint) {
+		t.Fatalf("markdown fingerprint %q does not use active embedder fingerprint", first)
+	}
+	embedder.fingerprint = "format=onnx|runtime=onnxruntime-1.26.0"
+	second := cv.markdownIndexFingerprint()
+	if first == second || !strings.Contains(second, embedder.fingerprint) {
+		t.Fatalf("markdown fingerprint did not follow runtime switch: first=%q second=%q", first, second)
+	}
+}
+
+type mutableFingerprintEmbedder struct {
+	fingerprint string
+}
+
+func (embedder *mutableFingerprintEmbedder) Embed(context.Context, []string) ([][]float32, error) {
+	return nil, nil
+}
+
+func (embedder *mutableFingerprintEmbedder) Dimensions() int {
+	return embeddings.GraniteDimensions
+}
+
+func (embedder *mutableFingerprintEmbedder) ModelID() string {
+	return embeddings.GraniteModelID
+}
+
+func (embedder *mutableFingerprintEmbedder) Fingerprint() string {
+	return embedder.fingerprint
+}
+
+func (embedder *mutableFingerprintEmbedder) Status() embeddings.Status {
+	return embeddings.Status{Fingerprint: embedder.fingerprint}
+}
+
+func (embedder *mutableFingerprintEmbedder) Close() error {
+	return nil
 }

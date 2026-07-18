@@ -96,7 +96,6 @@
       "auto",
       "cpu",
       "cuda",
-      "directml",
       "coreml",
       "metal",
       "vulkan"

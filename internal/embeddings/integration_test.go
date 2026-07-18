@@ -94,7 +94,7 @@ func TestLlamaCPUIntegration(t *testing.T) {
 func TestOptionalHardwareBackend(t *testing.T) {
 	backend := os.Getenv("AURAGO_GRANITE_HARDWARE_BACKEND")
 	if backend == "" {
-		t.Skip("set AURAGO_GRANITE_HARDWARE_BACKEND to cuda, directml, coreml, metal, or vulkan")
+		t.Skip("set AURAGO_GRANITE_HARDWARE_BACKEND to cuda, coreml, metal, or vulkan")
 	}
 	hardware := detectHardware(context.Background())
 	candidates := candidateMatrix(runtime.GOOS, runtime.GOARCH, backend, hardware)

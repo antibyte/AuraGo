@@ -819,7 +819,7 @@ type Config struct {
 		Multimodal       bool   `yaml:"multimodal"`        // enable multimodal embeddings (images, audio)
 		MultimodalFormat string `yaml:"multimodal_format"` // "auto", "openai", "vertex" — API format for multimodal
 		Local            struct {
-			Backend     string `yaml:"backend" json:"backend"`           // auto, cpu, cuda, directml, coreml, metal, vulkan
+			Backend     string `yaml:"backend" json:"backend"`           // auto, cpu, cuda, coreml, metal, vulkan
 			ContextSize int    `yaml:"context_size" json:"context_size"` // maximum tokens per text (default: 2048)
 			BatchSize   int    `yaml:"batch_size" json:"batch_size"`     // ONNX/llama processing batch size (default: 2048)
 		} `yaml:"local" json:"local"`

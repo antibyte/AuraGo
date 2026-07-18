@@ -185,14 +185,6 @@ func newORTSession(runtimeRoot, modelFile, backend string) (_ *ortSession, resul
 		if !containsStringFold(providers, provider) {
 			return nil, fmt.Errorf("%s is not available in this ONNX Runtime bundle (available: %s)", provider, strings.Join(providers, ", "))
 		}
-		if backend == "directml" {
-			if err := session.statusError(session.functions.disableMemPattern(options)); err != nil {
-				return nil, fmt.Errorf("disable memory pattern for DirectML: %w", err)
-			}
-			if err := session.statusError(session.functions.setSessionExecutionMode(options, 0)); err != nil {
-				return nil, fmt.Errorf("set sequential execution for DirectML: %w", err)
-			}
-		}
 		providerName := append([]byte(provider), 0)
 		if err := session.statusError(session.functions.appendExecutionProvider(options, &providerName[0], nil, nil, 0)); err != nil {
 			return nil, fmt.Errorf("enable %s: %w", provider, err)
@@ -532,8 +524,6 @@ func onnxProviderName(backend string) string {
 	switch backend {
 	case "cuda":
 		return "CUDAExecutionProvider"
-	case "directml":
-		return "DmlExecutionProvider"
 	case "coreml":
 		return "CoreMLExecutionProvider"
 	default:

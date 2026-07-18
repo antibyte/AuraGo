@@ -321,7 +321,7 @@ embeddings:
     multimodal: false
     multimodal_format: auto
     local:
-        backend: auto # auto, cpu, cuda, directml, coreml, metal, vulkan
+        backend: auto # auto, cpu, cuda, coreml, metal, vulkan
         context_size: 2048
         batch_size: 2048
 fallback_llm:

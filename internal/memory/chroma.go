@@ -528,7 +528,7 @@ func (cv *ChromemVectorDB) markdownIndexFingerprint() string {
 		OverlapChars: chunking.DefaultOverlapChars,
 		MaxChunks:    chunking.DefaultMaxChunks,
 	})
-	if embeddingFingerprint := strings.TrimSpace(cv.embeddingFingerprint); embeddingFingerprint != "" {
+	if embeddingFingerprint := strings.TrimSpace(cv.EmbeddingFingerprint()); embeddingFingerprint != "" {
 		return markdownIndexerFingerprint + "|" + embeddingFingerprint + "|" + chunkingFingerprint
 	}
 	return markdownIndexerFingerprint + "|" + chunkingFingerprint
@@ -581,6 +581,7 @@ func (cv *ChromemVectorDB) computeToolGuidesHash(toolsDir string) string {
 	}
 	h := sha256.New()
 	h.Write([]byte(toolGuideIndexFingerprint()))
+	h.Write([]byte("\x00embedding=" + strings.TrimSpace(cv.EmbeddingFingerprint())))
 	for _, f := range files {
 		h.Write([]byte(f.Name))
 		h.Write(f.Data)

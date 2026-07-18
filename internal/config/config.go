@@ -5,6 +5,7 @@ import (
 	"aurago/internal/kgquality"
 	"bytes"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/url"
 	"os"
@@ -20,6 +21,8 @@ import (
 )
 
 const DefaultVirtualComputersBoringdURL = "http://127.0.0.1:18082"
+
+var directMLMigrationWarning sync.Once
 
 func normalizeVirtualComputersBoringdURL(rawURL string) string {
 	trimmed := strings.TrimSpace(rawURL)
@@ -816,6 +819,7 @@ func Load(path string) (*Config, error) {
 
 		return nil, fmt.Errorf("failed to unmarshal config (backup saved to %s): %w", backupPath, err)
 	}
+	normalizeDeprecatedEmbeddingBackend(&cfg)
 
 	NormalizeAIGatewayConfig(&cfg)
 	NormalizeCloudflareTunnelConfig(&cfg)
@@ -2220,6 +2224,16 @@ func Load(path string) (*Config, error) {
 	cfg.ConfigPath = absConfigPath
 
 	return &cfg, nil
+}
+
+func normalizeDeprecatedEmbeddingBackend(cfg *Config) {
+	if cfg == nil || !strings.EqualFold(strings.TrimSpace(cfg.Embeddings.Local.Backend), "directml") {
+		return
+	}
+	cfg.Embeddings.Local.Backend = "auto"
+	directMLMigrationWarning.Do(func() {
+		slog.Warn("The deprecated local embedding backend directml was normalized to auto; CUDA, Vulkan, or CPU will be selected")
+	})
 }
 
 func normalizeOpenSCADGeometryBackend(value string) string {

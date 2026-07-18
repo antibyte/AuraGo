@@ -436,11 +436,13 @@ func NewChromemVectorDB(cfg *config.Config, logger *slog.Logger) (*ChromemVector
 
 	db, err := chromem.NewPersistentDB(dataDir, false)
 	if err != nil {
+		closeEmbeddingRuntime(runtime, logger)
 		return nil, fmt.Errorf("failed to create persistent vector DB: %w", err)
 	}
 
 	collection, err := db.GetOrCreateCollection("aurago_memories", nil, runtime.EmbeddingFunc)
 	if err != nil {
+		closeEmbeddingRuntime(runtime, logger)
 		return nil, fmt.Errorf("failed to get/create collection: %w", err)
 	}
 
@@ -489,6 +491,15 @@ func NewChromemVectorDB(cfg *config.Config, logger *slog.Logger) (*ChromemVector
 	}()
 
 	return vdb, nil
+}
+
+func closeEmbeddingRuntime(runtime embeddingRuntimeConfig, logger *slog.Logger) {
+	if runtime.Embedder == nil {
+		return
+	}
+	if err := runtime.Embedder.Close(); err != nil && logger != nil {
+		logger.Warn("Could not close embedding runtime after VectorDB initialization failure", "error", err)
+	}
 }
 
 func isLocalEmbeddingProvider(cfg *config.Config) bool {

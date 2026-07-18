@@ -44,6 +44,7 @@ type Manager struct {
 	cache   *assetCache
 	logger  *slog.Logger
 
+	lifecycleMu sync.Mutex
 	operationMu sync.Mutex
 	mu          sync.RWMutex
 	active      Embedder
@@ -52,10 +53,19 @@ type Manager struct {
 	failures    int
 	closed      bool
 
-	cancel    context.CancelFunc
-	initWG    sync.WaitGroup
-	ready     chan struct{}
-	readyOnce sync.Once
+	rootCtx           context.Context
+	cancel            context.CancelFunc
+	initWG            sync.WaitGroup
+	currentBenchmark  *benchmarkRun
+	nextAutoBenchmark time.Time
+	setupOverride     func(context.Context, bool) error
+	ready             chan struct{}
+	readyOnce         sync.Once
+}
+
+type benchmarkRun struct {
+	done chan struct{}
+	err  error
 }
 
 func NewLocalGranite(options LocalOptions) (*Manager, error) {
@@ -91,23 +101,14 @@ func NewLocalGranite(options LocalOptions) (*Manager, error) {
 	manager.status.Fingerprint = onnxFingerprint()
 	manager.cache = newAssetCache(options.CacheDir, manager.updateDownload)
 	ctx, cancel := context.WithCancel(context.Background())
+	manager.rootCtx = ctx
 	manager.cancel = cancel
-	manager.initWG.Add(1)
-	go func() {
-		defer manager.initWG.Done()
-		err := manager.setup(ctx, false)
-		manager.mu.Lock()
-		if err != nil && !manager.closed {
-			manager.status.State = "error"
-			manager.status.Error = err.Error()
-			manager.status.UpdatedAt = time.Now().UTC()
-		}
-		manager.mu.Unlock()
-		manager.readyOnce.Do(func() { close(manager.ready) })
-		if err != nil && !errors.Is(err, context.Canceled) {
-			manager.logger.Warn("Local Granite embeddings setup failed; AuraGo will continue without local embeddings", "error", err)
-		}
-	}()
+	if persisted, err := manager.loadSelection(); err == nil && persisted.EmbeddingFingerprint != "" {
+		manager.status.Fingerprint = persisted.EmbeddingFingerprint
+	}
+	if _, _, err := manager.launchBenchmark(false, false, true); err != nil {
+		return nil, err
+	}
 	return manager, nil
 }
 
@@ -118,11 +119,10 @@ func (manager *Manager) Embed(ctx context.Context, texts []string) ([][]float32,
 	case <-manager.ready:
 	}
 
-	manager.mu.RLock()
-	if manager.closed {
-		manager.mu.RUnlock()
+	if manager.isClosed() {
 		return nil, fmt.Errorf("local Granite embedder is closed")
 	}
+	manager.mu.RLock()
 	active := manager.active
 	fallback := manager.fallback
 	restartRequired := manager.status.RestartRequired
@@ -149,6 +149,7 @@ func (manager *Manager) Embed(ctx context.Context, texts []string) ([][]float32,
 		return vectors, nil
 	}
 	manager.logger.Warn("Selected local embedding backend failed", "backend", active.Status().Backend, "runtime", active.Status().Runtime, "error", err)
+	failures := manager.recordBackendFailure(active, err)
 	if fallback != nil && fallback != active {
 		fallbackVectors, fallbackErr := fallback.Embed(ctx, texts)
 		if fallbackErr == nil {
@@ -158,22 +159,33 @@ func (manager *Manager) Embed(ctx context.Context, texts []string) ([][]float32,
 				}
 				return nil, fmt.Errorf("selected backend failed and the ONNX CPU fallback uses a different vector fingerprint; restart AuraGo to apply the scheduled controlled reindex")
 			}
-			manager.mu.Lock()
-			manager.failures++
-			manager.status.State = "degraded"
-			manager.status.FallbackReason = fmt.Sprintf("%s/%s failed: %v", active.Status().Runtime, active.Status().Backend, err)
-			manager.status.Error = ""
-			manager.status.UpdatedAt = time.Now().UTC()
-			failures := manager.failures
-			manager.mu.Unlock()
 			if failures >= 2 {
 				manager.triggerBackgroundBenchmark()
 			}
 			return fallbackVectors, nil
 		}
+		if failures >= 2 {
+			manager.triggerBackgroundBenchmark()
+		}
 		return nil, fmt.Errorf("selected backend failed: %v; ONNX CPU fallback failed: %w", err, fallbackErr)
 	}
+	if failures >= 2 {
+		manager.triggerBackgroundBenchmark()
+	}
 	return nil, err
+}
+
+func (manager *Manager) recordBackendFailure(active Embedder, backendErr error) int {
+	activeStatus := active.Status()
+	manager.mu.Lock()
+	manager.failures++
+	manager.status.State = "degraded"
+	manager.status.FallbackReason = fmt.Sprintf("%s/%s failed: %v", activeStatus.Runtime, activeStatus.Backend, backendErr)
+	manager.status.Error = ""
+	manager.status.UpdatedAt = time.Now().UTC()
+	failures := manager.failures
+	manager.mu.Unlock()
+	return failures
 }
 
 func (manager *Manager) scheduleCrossFormatFallback(ctx context.Context, active, fallback Embedder) error {
@@ -249,16 +261,16 @@ func (manager *Manager) Status() Status {
 }
 
 func (manager *Manager) Close() error {
-	manager.mu.Lock()
+	manager.lifecycleMu.Lock()
 	if manager.closed {
-		manager.mu.Unlock()
+		manager.lifecycleMu.Unlock()
 		return nil
 	}
 	manager.closed = true
 	if manager.cancel != nil {
 		manager.cancel()
 	}
-	manager.mu.Unlock()
+	manager.lifecycleMu.Unlock()
 	manager.initWG.Wait()
 
 	manager.operationMu.Lock()
@@ -286,24 +298,24 @@ func (manager *Manager) Close() error {
 }
 
 func (manager *Manager) Rebenchmark(ctx context.Context) error {
-	manager.mu.RLock()
-	closed := manager.closed
-	manager.mu.RUnlock()
-	if closed {
-		return fmt.Errorf("local Granite embedder is closed")
+	run, _, err := manager.launchBenchmark(true, false, false)
+	if err != nil {
+		return err
 	}
-	return manager.setup(ctx, true)
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-run.done:
+		return run.err
+	}
 }
 
 func (manager *Manager) setup(ctx context.Context, forceBenchmark bool) error {
 	manager.operationMu.Lock()
 	defer manager.operationMu.Unlock()
-	manager.mu.RLock()
-	if manager.closed {
-		manager.mu.RUnlock()
+	if manager.isClosed() {
 		return context.Canceled
 	}
-	manager.mu.RUnlock()
 
 	manager.setState("setting_up", "")
 	hardware := detectHardware(ctx)
@@ -788,15 +800,95 @@ func candidateRuntimeFromID(candidateID string) string {
 }
 
 func (manager *Manager) triggerBackgroundBenchmark() {
+	_, _, err := manager.launchBenchmark(true, true, false)
+	if err != nil && !errors.Is(err, context.Canceled) && manager.logger != nil {
+		manager.logger.Warn("Could not start automatic local embedding re-benchmark", "error", err)
+	}
+}
+
+func (manager *Manager) launchBenchmark(forceBenchmark, automatic, initial bool) (*benchmarkRun, bool, error) {
+	manager.lifecycleMu.Lock()
+	defer manager.lifecycleMu.Unlock()
+	if manager.closed {
+		return nil, false, fmt.Errorf("local Granite embedder is closed")
+	}
+	if manager.currentBenchmark != nil {
+		return manager.currentBenchmark, false, nil
+	}
+	if automatic && time.Now().Before(manager.nextAutoBenchmark) {
+		return nil, false, nil
+	}
+	rootCtx := manager.rootCtx
+	if rootCtx == nil {
+		rootCtx = context.Background()
+	}
+	ctx, cancel := context.WithTimeout(rootCtx, 20*time.Minute)
+	run := &benchmarkRun{done: make(chan struct{})}
+	manager.currentBenchmark = run
 	manager.initWG.Add(1)
-	go func() {
-		defer manager.initWG.Done()
-		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Minute)
-		defer cancel()
-		if err := manager.setup(ctx, true); err != nil && !errors.Is(err, context.Canceled) {
-			manager.logger.Warn("Automatic local embedding re-benchmark failed", "error", err)
+	go manager.runBenchmarkTask(ctx, cancel, run, forceBenchmark, automatic, initial)
+	return run, true, nil
+}
+
+func (manager *Manager) runBenchmarkTask(
+	ctx context.Context,
+	cancel context.CancelFunc,
+	run *benchmarkRun,
+	forceBenchmark bool,
+	automatic bool,
+	initial bool,
+) {
+	defer manager.initWG.Done()
+	defer cancel()
+	err := manager.runSetup(ctx, forceBenchmark)
+	if err != nil && !errors.Is(err, context.Canceled) {
+		manager.mu.Lock()
+		if !manager.isClosed() {
+			state := "error"
+			if manager.active != nil {
+				state = "degraded"
+			}
+			manager.status.State = state
+			manager.status.Error = err.Error()
+			manager.status.UpdatedAt = time.Now().UTC()
 		}
-	}()
+		manager.mu.Unlock()
+		if manager.logger != nil {
+			message := "Local Granite embeddings setup failed; AuraGo will continue without local embeddings"
+			if automatic {
+				message = "Automatic local embedding re-benchmark failed"
+			}
+			manager.logger.Warn(message, "error", err)
+		}
+	}
+	if initial {
+		manager.readyOnce.Do(func() { close(manager.ready) })
+	}
+	manager.lifecycleMu.Lock()
+	run.err = err
+	if manager.currentBenchmark == run {
+		manager.currentBenchmark = nil
+	}
+	if err != nil && !errors.Is(err, context.Canceled) {
+		manager.nextAutoBenchmark = time.Now().Add(5 * time.Minute)
+	} else if err == nil {
+		manager.nextAutoBenchmark = time.Time{}
+	}
+	close(run.done)
+	manager.lifecycleMu.Unlock()
+}
+
+func (manager *Manager) runSetup(ctx context.Context, forceBenchmark bool) error {
+	if manager.setupOverride != nil {
+		return manager.setupOverride(ctx, forceBenchmark)
+	}
+	return manager.setup(ctx, forceBenchmark)
+}
+
+func (manager *Manager) isClosed() bool {
+	manager.lifecycleMu.Lock()
+	defer manager.lifecycleMu.Unlock()
+	return manager.closed
 }
 
 func (manager *Manager) cleanupUnusedGPURuntimes(selected candidate, candidates []candidate) {
@@ -855,7 +947,7 @@ func findCandidate(candidates []candidate, id string) (candidate, bool) {
 
 func validBackend(backend string) bool {
 	switch backend {
-	case "auto", "cpu", "cuda", "directml", "coreml", "metal", "vulkan":
+	case "auto", "cpu", "cuda", "coreml", "metal", "vulkan":
 		return true
 	default:
 		return false

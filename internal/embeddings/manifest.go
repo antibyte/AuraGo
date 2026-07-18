@@ -201,11 +201,6 @@ func onnxRuntimeAsset(goos, goarch, backend string) (assetSpec, bool) {
 	case "cpu", "coreml":
 		// The official macOS runtime bundle exposes CoreML from the same
 		// archive as its CPU provider.
-	case "directml":
-		// Microsoft does not publish an ONNX Runtime 1.26.0 DirectML bundle.
-		// Keep the candidate visible as a cleanly skipped probe rather than
-		// silently loading an older runtime or mislabeling the CPU archive.
-		return assetSpec{}, false
 	default:
 		return assetSpec{}, false
 	}

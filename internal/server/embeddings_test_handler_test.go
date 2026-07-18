@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"aurago/internal/config"
@@ -124,6 +125,11 @@ func TestLocalGraniteRejectsMultimodalConfiguration(t *testing.T) {
 	if err := validateLocalGraniteEmbeddingMode(&cfg); err != nil {
 		t.Fatalf("text-only local Granite config was rejected: %v", err)
 	}
+	cfg.Embeddings.Local.Backend = "directml"
+	if err := validateLocalGraniteEmbeddingMode(&cfg); err == nil || !strings.Contains(err.Error(), "DirectML") {
+		t.Fatalf("deprecated DirectML API configuration error = %v", err)
+	}
+	cfg.Embeddings.Local.Backend = "auto"
 	cfg.Embeddings.Provider = "custom-multimodal"
 	cfg.Embeddings.Multimodal = true
 	if err := validateLocalGraniteEmbeddingMode(&cfg); err != nil {

@@ -10,6 +10,8 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"aurago/internal/sandbox"
 )
 
 type candidate struct {
@@ -63,7 +65,6 @@ func candidateMatrix(goos, goarch, requestedBackend string, hardware hardwareInf
 	case "windows":
 		if goarch == "amd64" {
 			addONNX("cuda", true, hardware.NVIDIA, hardware.NVIDIAReason)
-			addONNX("directml", true, hardware.DirectML, hardware.DirectMLReason)
 			addLlama("cuda", true, hardware.NVIDIA, hardware.NVIDIAReason)
 			addLlama("vulkan", true, hardware.Vulkan, hardware.VulkanReason)
 		}
@@ -80,13 +81,11 @@ func candidateMatrix(goos, goarch, requestedBackend string, hardware hardwareInf
 }
 
 type hardwareInfo struct {
-	NVIDIA         bool
-	NVIDIAReason   string
-	Vulkan         bool
-	VulkanReason   string
-	DirectML       bool
-	DirectMLReason string
-	Fingerprint    string
+	NVIDIA       bool
+	NVIDIAReason string
+	Vulkan       bool
+	VulkanReason string
+	Fingerprint  string
 }
 
 func detectHardware(ctx context.Context) hardwareInfo {
@@ -107,12 +106,10 @@ func detectHardware(ctx context.Context) hardwareInfo {
 			evidence = append(evidence, "dri=present")
 		}
 	case "windows":
-		info.DirectML = runtime.GOARCH == "amd64"
-		info.DirectMLReason = "Windows DirectML probe"
-		if _, err := exec.LookPath("vulkaninfo"); err == nil {
+		if loaderEvidence := vulkanLoaderEvidence(); loaderEvidence != "" {
 			info.Vulkan = true
-			info.VulkanReason = "vulkaninfo is available"
-			evidence = append(evidence, "vulkaninfo=present")
+			info.VulkanReason = "Windows Vulkan loader is available"
+			evidence = append(evidence, "vulkan_loader="+loaderEvidence)
 		}
 	case "darwin":
 		evidence = append(evidence, "apple="+runtime.GOARCH)
@@ -132,6 +129,7 @@ func shortCommand(parent context.Context, name string, args ...string) (string, 
 	defer cancel()
 	command := exec.CommandContext(ctx, name, args...)
 	configureHiddenProcess(command)
+	command.Env = sandbox.FilterEnv(os.Environ())
 	output, err := command.CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("%s: %w", name, err)

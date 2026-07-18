@@ -77,7 +77,7 @@ Used for long-term memory (RAG) vector indexing.
 | Key | Default | Description |
 |---|---|---|
 | `provider` | `"local-granite"` (new installs) | `"local-granite"` runs the pinned Granite 97M multilingual model locally. `"internal"`, `"external"`, managed Ollama, configured provider IDs, and `"disabled"` remain supported. Existing files are not migrated automatically. |
-| `local.backend` | `"auto"` | Local Granite backend preference: `auto`, `cpu`, `cuda`, `directml`, `coreml`, `metal`, or `vulkan`. `auto` benchmarks suitable GPU paths first and falls back to the fastest valid CPU path. |
+| `local.backend` | `"auto"` | Local Granite backend preference: `auto`, `cpu`, `cuda`, `coreml`, `metal`, or `vulkan`. `auto` benchmarks suitable GPU paths first and falls back to the fastest valid CPU path. Legacy `directml` values are normalized to `auto` while loading. |
 | `local.context_size` | `2048` | Maximum tokens per input for Local Granite. The model supports more, but 2,048 is the resource-conscious AuraGo default. |
 | `local.batch_size` | `2048` | Batch and micro-batch size for the local runtime. |
 | `external_url` | `"http://localhost:11434/v1"` | URL of the external embeddings API (e.g. Ollama). Only used when `provider = "external"`. |
@@ -85,6 +85,8 @@ Used for long-term memory (RAG) vector indexing.
 | `api_key` | `""` | API key for external embeddings provider. Falls back to `EMBEDDINGS_API_KEY` env var, then to `llm.api_key`. Leave empty or `dummy_key` for Ollama (no auth required). |
 
 Local Granite is text-only and produces 384-dimensional, CLS-pooled, L2-normalized vectors. Its INT8 ONNX and Q8_0 GGUF artifacts, ONNX Runtime 1.26.0, and llama.cpp b9994 are downloaded over HTTPS with pinned sizes and SHA-256 hashes. Downloads resume through `.part` files and are cached below `data/embeddings/`. The application remains available while initial setup runs.
+
+In Docker, managed llama.cpp probes and runtimes receive exactly one read-only model mount and use a temporary internal network shared only with AuraGo. Docker Engine 26 or newer uses a read-only named-volume subpath. Older engines require `data/embeddings` to be mounted as its own volume; otherwise the Docker candidate is skipped and the native/CPU fallback remains active.
 
 `GET /api/embeddings/status` reports setup, download, backend, GPU verification, benchmark, and fallback state. `POST /api/embeddings/benchmark` repeats hardware selection. Switching between ONNX and GGUF schedules the existing controlled VectorDB/KG reset for the next restart so vectors from different fingerprints are never mixed.
 

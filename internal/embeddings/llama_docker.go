@@ -7,12 +7,15 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
 	"net/url"
 	"os"
+	pathpkg "path"
+	"path/filepath"
 	"runtime"
 	"sort"
 	"strconv"
@@ -30,6 +33,7 @@ const (
 
 type dockerAPIClient struct {
 	httpClient *http.Client
+	apiVersion string
 }
 
 func newDockerAPIClient(host string) *dockerAPIClient {
@@ -43,10 +47,29 @@ func newDockerAPIClient(host string) *dockerAPIClient {
 	}
 	return &dockerAPIClient{
 		httpClient: &http.Client{Transport: transport},
+		apiVersion: dockerutil.APIVersion,
 	}
 }
 
 func (client *dockerAPIClient) request(
+	ctx context.Context,
+	method string,
+	endpoint string,
+	body []byte,
+) ([]byte, int, error) {
+	return client.requestURL(ctx, method, "/"+client.apiVersion+endpoint, body)
+}
+
+func (client *dockerAPIClient) requestUnversioned(
+	ctx context.Context,
+	method string,
+	endpoint string,
+	body []byte,
+) ([]byte, int, error) {
+	return client.requestURL(ctx, method, endpoint, body)
+}
+
+func (client *dockerAPIClient) requestURL(
 	ctx context.Context,
 	method string,
 	endpoint string,
@@ -59,7 +82,7 @@ func (client *dockerAPIClient) request(
 	request, err := http.NewRequestWithContext(
 		ctx,
 		method,
-		"http://docker/"+dockerutil.APIVersion+endpoint,
+		"http://docker"+endpoint,
 		reader,
 	)
 	if err != nil {
@@ -92,10 +115,27 @@ type dockerLlamaEmbedder struct {
 	image       string
 	containerID string
 	container   string
+	selfID      string
+	networkID   string
+	network     string
 	baseURL     string
 	client      *http.Client
 	restarts    int
 	closed      bool
+}
+
+type dockerModelMount struct {
+	Type          string
+	Source        string
+	Target        string
+	VolumeSubpath string
+}
+
+type dockerContainerMount struct {
+	Type        string `json:"Type"`
+	Name        string `json:"Name"`
+	Source      string `json:"Source"`
+	Destination string `json:"Destination"`
 }
 
 func newDockerLlamaEmbedder(
@@ -333,11 +373,18 @@ func (embedder *dockerLlamaEmbedder) embedLocked(ctx context.Context, texts []st
 }
 
 func (embedder *dockerLlamaEmbedder) createAndStartLocked(ctx context.Context) error {
+	engineAPIVersion, err := embedder.negotiateDockerVersionLocked(ctx)
+	if err != nil {
+		return err
+	}
+	selfID, modelMount, err := embedder.selfContainerModelMountLocked(ctx, engineAPIVersion)
+	if err != nil {
+		return err
+	}
 	if err := embedder.ensureImageLocked(ctx); err != nil {
 		return err
 	}
-	selfID, network, err := embedder.selfContainerNetworkLocked(ctx)
-	if err != nil {
+	if err := embedder.createPrivateNetworkLocked(ctx, selfID); err != nil {
 		return err
 	}
 	payload, err := dockerLlamaContainerPayload(
@@ -347,8 +394,8 @@ func (embedder *dockerLlamaEmbedder) createAndStartLocked(ctx context.Context) e
 		embedder.backend,
 		embedder.contextSize,
 		embedder.batchSize,
-		selfID,
-		network,
+		modelMount,
+		embedder.network,
 	)
 	if err != nil {
 		return err
@@ -416,10 +463,37 @@ func (embedder *dockerLlamaEmbedder) ensureImageLocked(ctx context.Context) erro
 	return nil
 }
 
-func (embedder *dockerLlamaEmbedder) selfContainerNetworkLocked(ctx context.Context) (string, string, error) {
+func (embedder *dockerLlamaEmbedder) negotiateDockerVersionLocked(ctx context.Context) (string, error) {
+	data, code, err := embedder.docker.requestUnversioned(ctx, http.MethodGet, "/version", nil)
+	if err != nil {
+		return "", fmt.Errorf("read Docker Engine version: %w", err)
+	}
+	if code != http.StatusOK {
+		return "", fmt.Errorf("read Docker Engine version returned HTTP %d", code)
+	}
+	var version struct {
+		APIVersion string `json:"ApiVersion"`
+	}
+	if err := json.Unmarshal(data, &version); err != nil || strings.TrimSpace(version.APIVersion) == "" {
+		return "", fmt.Errorf("decode Docker Engine API version")
+	}
+	version.APIVersion = strings.TrimPrefix(strings.TrimSpace(version.APIVersion), "v")
+	if compareDockerAPIVersions(version.APIVersion, "1.25") < 0 {
+		return "", fmt.Errorf("Docker Engine API %s is too old for the managed embedding sidecar", version.APIVersion)
+	}
+	if compareDockerAPIVersions(version.APIVersion, strings.TrimPrefix(dockerutil.APIVersion, "v")) < 0 {
+		embedder.docker.apiVersion = "v" + version.APIVersion
+	}
+	return version.APIVersion, nil
+}
+
+func (embedder *dockerLlamaEmbedder) selfContainerModelMountLocked(
+	ctx context.Context,
+	engineAPIVersion string,
+) (string, dockerModelMount, error) {
 	selfID, err := os.Hostname()
 	if err != nil || strings.TrimSpace(selfID) == "" {
-		return "", "", fmt.Errorf("resolve AuraGo container ID: %w", err)
+		return "", dockerModelMount{}, fmt.Errorf("resolve AuraGo container ID: %w", err)
 	}
 	data, code, err := embedder.docker.request(
 		ctx,
@@ -428,37 +502,148 @@ func (embedder *dockerLlamaEmbedder) selfContainerNetworkLocked(ctx context.Cont
 		nil,
 	)
 	if err != nil {
-		return "", "", fmt.Errorf("inspect AuraGo container: %w", err)
+		return "", dockerModelMount{}, fmt.Errorf("inspect AuraGo container: %w", err)
 	}
 	if code != http.StatusOK {
-		return "", "", fmt.Errorf("inspect AuraGo container returned HTTP %d", code)
+		return "", dockerModelMount{}, fmt.Errorf("inspect AuraGo container returned HTTP %d", code)
 	}
 	var inspected struct {
-		ID              string `json:"Id"`
-		NetworkSettings struct {
-			Networks map[string]json.RawMessage `json:"Networks"`
-		} `json:"NetworkSettings"`
+		ID     string                 `json:"Id"`
+		Mounts []dockerContainerMount `json:"Mounts"`
 	}
 	if err := json.Unmarshal(data, &inspected); err != nil {
-		return "", "", fmt.Errorf("decode AuraGo container inspection: %w", err)
+		return "", dockerModelMount{}, fmt.Errorf("decode AuraGo container inspection: %w", err)
 	}
 	if inspected.ID != "" {
 		selfID = inspected.ID
 	}
-	var networks []string
-	for name := range inspected.NetworkSettings.Networks {
-		networks = append(networks, name)
+	modelDir := pathpkg.Clean(filepath.ToSlash(filepath.Dir(embedder.modelPath)))
+	selected, err := selectDockerModelMount(modelDir, engineAPIVersion, inspected.Mounts)
+	if err != nil {
+		return "", dockerModelMount{}, err
 	}
-	sort.Strings(networks)
-	for _, name := range networks {
-		if !strings.Contains(strings.ToLower(name), "docker-control") {
-			return selfID, name, nil
+	return selfID, selected, nil
+}
+
+func selectDockerModelMount(
+	modelDir string,
+	engineAPIVersion string,
+	mounts []dockerContainerMount,
+) (dockerModelMount, error) {
+	bestDestination := ""
+	var selected dockerModelMount
+	for _, mount := range mounts {
+		relative, ok := containerPathRelative(mount.Destination, modelDir)
+		if !ok || len(pathpkg.Clean(mount.Destination)) < len(bestDestination) {
+			continue
 		}
+		switch strings.ToLower(strings.TrimSpace(mount.Type)) {
+		case "bind":
+			selected = dockerModelMount{
+				Type:   "bind",
+				Source: pathpkg.Join(filepath.ToSlash(mount.Source), relative),
+				Target: modelDir,
+			}
+		case "volume":
+			source := strings.TrimSpace(mount.Name)
+			if source == "" {
+				source = strings.TrimSpace(mount.Source)
+			}
+			if source == "" {
+				continue
+			}
+			if relative != "." && compareDockerAPIVersions(engineAPIVersion, "1.45") < 0 {
+				embeddingRoot := pathpkg.Dir(pathpkg.Dir(modelDir))
+				if pathpkg.Clean(mount.Destination) != embeddingRoot {
+					return dockerModelMount{}, fmt.Errorf(
+						"Docker Engine API %s cannot mount the embedding model subdirectory read-only; mount %s as a separate volume or use the ONNX CPU fallback",
+						engineAPIVersion,
+						embeddingRoot,
+					)
+				}
+				selected = dockerModelMount{
+					Type:   "volume",
+					Source: source,
+					Target: embeddingRoot,
+				}
+				bestDestination = pathpkg.Clean(mount.Destination)
+				continue
+			}
+			selected = dockerModelMount{
+				Type:          "volume",
+				Source:        source,
+				Target:        modelDir,
+				VolumeSubpath: strings.TrimPrefix(relative, "./"),
+			}
+			if relative == "." {
+				selected.VolumeSubpath = ""
+			}
+		default:
+			continue
+		}
+		bestDestination = pathpkg.Clean(mount.Destination)
 	}
-	if len(networks) == 0 {
-		return "", "", fmt.Errorf("AuraGo container has no Docker network")
+	if selected.Source == "" {
+		return dockerModelMount{}, fmt.Errorf(
+			"the local embedding model directory %s is not backed by a safe Docker bind or volume mount; using the native CPU fallback",
+			modelDir,
+		)
 	}
-	return selfID, networks[0], nil
+	return selected, nil
+}
+
+func (embedder *dockerLlamaEmbedder) createPrivateNetworkLocked(ctx context.Context, selfID string) error {
+	networkName := embedder.container + "-internal"
+	payload, err := json.Marshal(dockerPrivateNetworkPayload(networkName))
+	if err != nil {
+		return fmt.Errorf("marshal embedding sidecar network: %w", err)
+	}
+	data, code, err := embedder.docker.request(ctx, http.MethodPost, "/networks/create", payload)
+	if err != nil {
+		return fmt.Errorf("create embedding sidecar network: %w", err)
+	}
+	if code != http.StatusCreated {
+		return fmt.Errorf("create embedding sidecar network returned HTTP %d: %s", code, dockerErrorMessage(data))
+	}
+	var created struct {
+		ID string `json:"Id"`
+	}
+	if err := json.Unmarshal(data, &created); err != nil || created.ID == "" {
+		return fmt.Errorf("decode embedding sidecar network response")
+	}
+	embedder.selfID = selfID
+	embedder.networkID = created.ID
+	embedder.network = networkName
+	connectPayload, err := json.Marshal(map[string]any{"Container": selfID})
+	if err != nil {
+		return fmt.Errorf("marshal AuraGo network connection: %w", err)
+	}
+	data, code, err = embedder.docker.request(
+		ctx,
+		http.MethodPost,
+		"/networks/"+url.PathEscape(created.ID)+"/connect",
+		connectPayload,
+	)
+	if err != nil {
+		return fmt.Errorf("connect AuraGo to embedding sidecar network: %w", err)
+	}
+	if code != http.StatusOK {
+		return fmt.Errorf("connect AuraGo to embedding sidecar network returned HTTP %d: %s", code, dockerErrorMessage(data))
+	}
+	return nil
+}
+
+func dockerPrivateNetworkPayload(networkName string) map[string]any {
+	return map[string]any{
+		"Name":           networkName,
+		"CheckDuplicate": false,
+		"Internal":       true,
+		"Attachable":     false,
+		"Labels": map[string]string{
+			"aurago.managed":   "true",
+			"aurago.component": "local-granite-embeddings",
+		},
+	}
 }
 
 func dockerLlamaContainerPayload(
@@ -468,10 +653,12 @@ func dockerLlamaContainerPayload(
 	backend string,
 	contextSize int,
 	batchSize int,
-	selfID string,
+	modelMount dockerModelMount,
 	network string,
 ) (map[string]any, error) {
-	if image == "" || modelPath == "" || apiKey == "" || selfID == "" || network == "" {
+	if image == "" || modelPath == "" || apiKey == "" ||
+		modelMount.Type == "" || modelMount.Source == "" || modelMount.Target == "" ||
+		network == "" {
 		return nil, fmt.Errorf("incomplete llama.cpp sidecar configuration")
 	}
 	if contextSize <= 0 {
@@ -484,8 +671,9 @@ func dockerLlamaContainerPayload(
 	if backend != "cpu" {
 		gpuLayers = "999"
 	}
+	containerModelPath := filepath.ToSlash(modelPath)
 	command := []string{
-		"--model", modelPath,
+		"--model", containerModelPath,
 		"--alias", GraniteModelID,
 		"--host", "0.0.0.0",
 		"--port", strconv.Itoa(llamaDockerPort),
@@ -499,6 +687,15 @@ func dockerLlamaContainerPayload(
 		"--parallel", "1",
 		"--n-gpu-layers", gpuLayers,
 	}
+	mount := map[string]any{
+		"Type":     modelMount.Type,
+		"Source":   modelMount.Source,
+		"Target":   modelMount.Target,
+		"ReadOnly": true,
+	}
+	if modelMount.Type == "volume" && modelMount.VolumeSubpath != "" {
+		mount["VolumeOptions"] = map[string]any{"Subpath": modelMount.VolumeSubpath}
+	}
 	hostConfig := map[string]any{
 		"AutoRemove":     false,
 		"ReadonlyRootfs": true,
@@ -506,8 +703,8 @@ func dockerLlamaContainerPayload(
 		"PidsLimit":      int64(128),
 		"CapDrop":        []string{"ALL"},
 		"SecurityOpt":    []string{"no-new-privileges"},
-		"VolumesFrom":    []string{selfID + ":ro"},
 		"NetworkMode":    network,
+		"Mounts":         []map[string]any{mount},
 		"Tmpfs": map[string]string{
 			"/tmp": "rw,noexec,nosuid,size=64m",
 		},
@@ -665,31 +862,106 @@ func (embedder *dockerLlamaEmbedder) Close() error {
 }
 
 func (embedder *dockerLlamaEmbedder) removeLocked(parent context.Context) error {
-	if embedder.containerID == "" {
-		return nil
-	}
 	ctx, cancel := context.WithTimeout(parent, 15*time.Second)
 	defer cancel()
-	_, _, _ = embedder.docker.request(
-		ctx,
-		http.MethodPost,
-		"/containers/"+url.PathEscape(embedder.containerID)+"/stop?t=5",
-		nil,
-	)
-	_, code, err := embedder.docker.request(
-		ctx,
-		http.MethodDelete,
-		"/containers/"+url.PathEscape(embedder.containerID)+"?force=true&v=true",
-		nil,
-	)
-	embedder.containerID = ""
-	if err != nil {
-		return fmt.Errorf("remove llama.cpp sidecar: %w", err)
+	var cleanupErrors []error
+	if embedder.containerID != "" {
+		_, _, _ = embedder.docker.request(
+			ctx,
+			http.MethodPost,
+			"/containers/"+url.PathEscape(embedder.containerID)+"/stop?t=5",
+			nil,
+		)
+		_, code, err := embedder.docker.request(
+			ctx,
+			http.MethodDelete,
+			"/containers/"+url.PathEscape(embedder.containerID)+"?force=true&v=true",
+			nil,
+		)
+		embedder.containerID = ""
+		if err != nil {
+			cleanupErrors = append(cleanupErrors, fmt.Errorf("remove llama.cpp sidecar: %w", err))
+		} else if code != http.StatusNoContent && code != http.StatusNotFound {
+			cleanupErrors = append(cleanupErrors, fmt.Errorf("remove llama.cpp sidecar returned HTTP %d", code))
+		}
 	}
-	if code != http.StatusNoContent && code != http.StatusNotFound {
-		return fmt.Errorf("remove llama.cpp sidecar returned HTTP %d", code)
+	if embedder.networkID != "" {
+		if embedder.selfID != "" {
+			disconnectPayload, _ := json.Marshal(map[string]any{
+				"Container": embedder.selfID,
+				"Force":     true,
+			})
+			_, code, err := embedder.docker.request(
+				ctx,
+				http.MethodPost,
+				"/networks/"+url.PathEscape(embedder.networkID)+"/disconnect",
+				disconnectPayload,
+			)
+			if err != nil {
+				cleanupErrors = append(cleanupErrors, fmt.Errorf("disconnect AuraGo from embedding sidecar network: %w", err))
+			} else if code != http.StatusOK && code != http.StatusNotFound {
+				cleanupErrors = append(cleanupErrors, fmt.Errorf("disconnect AuraGo from embedding sidecar network returned HTTP %d", code))
+			}
+		}
+		_, code, err := embedder.docker.request(
+			ctx,
+			http.MethodDelete,
+			"/networks/"+url.PathEscape(embedder.networkID),
+			nil,
+		)
+		if err != nil {
+			cleanupErrors = append(cleanupErrors, fmt.Errorf("remove embedding sidecar network: %w", err))
+		} else if code != http.StatusNoContent && code != http.StatusNotFound {
+			cleanupErrors = append(cleanupErrors, fmt.Errorf("remove embedding sidecar network returned HTTP %d", code))
+		}
+		embedder.networkID = ""
+		embedder.network = ""
+		embedder.selfID = ""
 	}
-	return nil
+	return errors.Join(cleanupErrors...)
+}
+
+func containerPathRelative(parent, child string) (string, bool) {
+	parent = pathpkg.Clean(filepath.ToSlash(parent))
+	child = pathpkg.Clean(filepath.ToSlash(child))
+	if parent == "." || child == "." || !strings.HasPrefix(parent, "/") || !strings.HasPrefix(child, "/") {
+		return "", false
+	}
+	if child == parent {
+		return ".", true
+	}
+	prefix := strings.TrimSuffix(parent, "/") + "/"
+	if !strings.HasPrefix(child, prefix) {
+		return "", false
+	}
+	return strings.TrimPrefix(child, prefix), true
+}
+
+func compareDockerAPIVersions(left, right string) int {
+	parse := func(value string) (int, int) {
+		parts := strings.SplitN(strings.TrimPrefix(strings.TrimSpace(value), "v"), ".", 3)
+		if len(parts) < 2 {
+			return 0, 0
+		}
+		major, _ := strconv.Atoi(parts[0])
+		minor, _ := strconv.Atoi(parts[1])
+		return major, minor
+	}
+	leftMajor, leftMinor := parse(left)
+	rightMajor, rightMinor := parse(right)
+	if leftMajor != rightMajor {
+		if leftMajor < rightMajor {
+			return -1
+		}
+		return 1
+	}
+	if leftMinor < rightMinor {
+		return -1
+	}
+	if leftMinor > rightMinor {
+		return 1
+	}
+	return 0
 }
 
 func dockerErrorMessage(raw []byte) string {

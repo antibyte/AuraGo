@@ -178,10 +178,10 @@ No manual YAML is required for a first successful run.
 | **Long-term (RAG)** | Semantic search over past chats |
 | **Knowledge graph** | Entities and relations |
 | **Core memory** | Always-on facts in context |
-
-New installations use the multilingual Granite 97M embedding model locally. AuraGo downloads only pinned, checksum-verified model/runtime artifacts into `data/embeddings`, benchmarks the GPU paths available on the machine, and falls back to CPU without taking the rest of the application down. The main AuraGo binary remains CGO-free. Existing OpenAI-compatible, Ollama, and custom embedding provider selections are preserved.
 | **Journal** | Timestamped events with importance |
 | **Notes and to-dos** | Persistent lists with due dates |
+
+New installations use the multilingual Granite 97M embedding model locally. AuraGo downloads only pinned, checksum-verified model/runtime artifacts into `data/embeddings`, benchmarks the GPU paths available on the machine, and falls back to CPU without taking the rest of the application down. The main AuraGo binary remains CGO-free. Existing OpenAI-compatible, Ollama, and custom embedding provider selections are preserved.
 
 Background jobs can consolidate and analyze memory; see the manuals for tuning.
 

@@ -27,6 +27,22 @@ type assetCache struct {
 	onProgress func(DownloadStatus)
 }
 
+const runtimeManifestVersion = 1
+
+type runtimeManifestFile struct {
+	Path   string `json:"path"`
+	Size   int64  `json:"size"`
+	SHA256 string `json:"sha256"`
+}
+
+type runtimeCompleteManifest struct {
+	Version int                   `json:"version"`
+	Asset   string                `json:"asset"`
+	SHA256  string                `json:"sha256"`
+	Size    int64                 `json:"size"`
+	Files   []runtimeManifestFile `json:"files"`
+}
+
 func newAssetCache(root string, onProgress func(DownloadStatus)) *assetCache {
 	return &assetCache{
 		root: root,
@@ -80,8 +96,7 @@ func (c *assetCache) ensureRuntimeAsset(ctx context.Context, spec assetSpec) (st
 		if err := c.ensureFileUnlocked(ctx, spec, archivePath); err != nil {
 			return err
 		}
-		markerPath := filepath.Join(target, ".complete.json")
-		if markerMatches(markerPath, spec) {
+		if runtimeManifestMatches(target, spec) {
 			return nil
 		}
 
@@ -117,11 +132,17 @@ func (c *assetCache) ensureRuntimeAsset(ctx context.Context, spec assetSpec) (st
 		if err != nil {
 			return fmt.Errorf("extract runtime %s: %w", spec.ID, err)
 		}
-		marker := struct {
-			Asset  string `json:"asset"`
-			SHA256 string `json:"sha256"`
-			Size   int64  `json:"size"`
-		}{Asset: spec.ID, SHA256: spec.SHA256, Size: spec.Size}
+		files, err := buildRuntimeFileManifest(tempTarget)
+		if err != nil {
+			return fmt.Errorf("inventory runtime %s: %w", spec.ID, err)
+		}
+		marker := runtimeCompleteManifest{
+			Version: runtimeManifestVersion,
+			Asset:   spec.ID,
+			SHA256:  spec.SHA256,
+			Size:    spec.Size,
+			Files:   files,
+		}
 		raw, err := json.Marshal(marker)
 		if err != nil {
 			return fmt.Errorf("marshal runtime marker: %w", err)
@@ -247,20 +268,127 @@ func fileMatches(path string, size int64, expectedHash string) bool {
 	return strings.EqualFold(hex.EncodeToString(hash.Sum(nil)), expectedHash)
 }
 
-func markerMatches(path string, spec assetSpec) bool {
-	raw, err := os.ReadFile(path)
+func runtimeManifestMatches(root string, spec assetSpec) bool {
+	raw, err := os.ReadFile(filepath.Join(root, ".complete.json"))
 	if err != nil {
 		return false
 	}
-	var marker struct {
-		Asset  string `json:"asset"`
-		SHA256 string `json:"sha256"`
-		Size   int64  `json:"size"`
-	}
+	var marker runtimeCompleteManifest
 	if err := json.Unmarshal(raw, &marker); err != nil {
 		return false
 	}
-	return marker.Asset == spec.ID && marker.Size == spec.Size && strings.EqualFold(marker.SHA256, spec.SHA256)
+	if marker.Version != runtimeManifestVersion ||
+		marker.Asset != spec.ID ||
+		marker.Size != spec.Size ||
+		!strings.EqualFold(marker.SHA256, spec.SHA256) ||
+		len(marker.Files) == 0 {
+		return false
+	}
+	expected := make(map[string]runtimeManifestFile, len(marker.Files))
+	for _, file := range marker.Files {
+		path := filepath.Clean(filepath.FromSlash(file.Path))
+		if path == "." || path == ".complete.json" || filepath.IsAbs(path) ||
+			path == ".." || strings.HasPrefix(path, ".."+string(filepath.Separator)) ||
+			file.Size < 0 || len(file.SHA256) != sha256.Size*2 {
+			return false
+		}
+		normalized := filepath.ToSlash(path)
+		if _, duplicate := expected[normalized]; duplicate {
+			return false
+		}
+		expected[normalized] = file
+	}
+	seen := make(map[string]bool, len(expected))
+	err = filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if path == root {
+			return nil
+		}
+		relative, err := filepath.Rel(root, path)
+		if err != nil {
+			return err
+		}
+		relative = filepath.ToSlash(relative)
+		info, err := entry.Info()
+		if err != nil {
+			return err
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			return fmt.Errorf("runtime entry %s is a symlink", relative)
+		}
+		if relative == ".complete.json" {
+			if !info.Mode().IsRegular() {
+				return fmt.Errorf("runtime marker is not a regular file")
+			}
+			return nil
+		}
+		if entry.IsDir() {
+			return nil
+		}
+		file, ok := expected[relative]
+		if !ok || !info.Mode().IsRegular() || info.Size() != file.Size ||
+			!fileMatches(path, file.Size, file.SHA256) {
+			return fmt.Errorf("runtime entry %s failed manifest validation", relative)
+		}
+		seen[relative] = true
+		return nil
+	})
+	return err == nil && len(seen) == len(expected)
+}
+
+func buildRuntimeFileManifest(root string) ([]runtimeManifestFile, error) {
+	var files []runtimeManifestFile
+	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if path == root || entry.IsDir() {
+			return nil
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return err
+		}
+		if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
+			return fmt.Errorf("runtime entry %s is not a regular file", path)
+		}
+		relative, err := filepath.Rel(root, path)
+		if err != nil {
+			return err
+		}
+		hash, err := hashFile(path)
+		if err != nil {
+			return err
+		}
+		files = append(files, runtimeManifestFile{
+			Path:   filepath.ToSlash(relative),
+			Size:   info.Size(),
+			SHA256: hash,
+		})
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	if len(files) == 0 {
+		return nil, fmt.Errorf("runtime archive contained no regular files")
+	}
+	return files, nil
+}
+
+func hashFile(path string) (string, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+	hash := sha256.New()
+	if _, err := io.Copy(hash, file); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(hash.Sum(nil)), nil
 }
 
 type progressWriter struct {
