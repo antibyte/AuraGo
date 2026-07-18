@@ -1666,7 +1666,12 @@ function _embeddingsBindMultimodal() {
     function sync() {
         const localGranite = providerEl && providerEl.value === 'local-granite';
         if (localGranite) {
-            toggle.classList.remove('on');
+            // Avoid writing the observed class attribute when the toggle is
+            // already off. Repeated no-op writes can retrigger the observer
+            // indefinitely in Chromium.
+            if (toggle.classList.contains('on')) {
+                toggle.classList.remove('on');
+            }
             if (toggle.nextElementSibling) {
                 toggle.nextElementSibling.textContent = t('config.toggle.inactive');
             }

@@ -871,6 +871,99 @@ function testVirtualComputersAgentTaskFeedbackAndPolling() {
   assert.equal(scheduled.length, 1, 'terminal tasks must stop polling');
 }
 
+function testLocalGraniteMultimodalObserverIsIdempotent() {
+  const main = read('ui/js/config/main.js');
+  const helperSource = sourceBetween(
+    main,
+    'function _embeddingsBindMultimodal()',
+    'let embeddingsRuntimeRefreshTimer = 0;'
+  );
+  const classes = new Set(['on']);
+  const formatField = { style: { display: '' } };
+  const provider = {
+    value: 'local-granite',
+    addEventListener(_event, callback) {
+      this.changeListener = callback;
+    }
+  };
+  let observerCallbacks = 0;
+  const maxObserverCallbacks = 25;
+  const toggle = {
+    dataset: {},
+    attributes: {},
+    nextElementSibling: { textContent: '' },
+    title: '',
+    classList: {
+      contains(name) {
+        return classes.has(name);
+      },
+      remove(name) {
+        classes.delete(name);
+        notifyClassMutation();
+      },
+      toggle(name, force) {
+        const active = force === undefined ? !classes.has(name) : Boolean(force);
+        if (classes.has(name) === active) return active;
+        if (active) classes.add(name);
+        else classes.delete(name);
+        notifyClassMutation();
+        return active;
+      }
+    },
+    setAttribute(name, value) {
+      this.attributes[name] = value;
+    }
+  };
+
+  function notifyClassMutation() {
+    if (!toggle.classObserver || observerCallbacks >= maxObserverCallbacks) return;
+    observerCallbacks += 1;
+    toggle.classObserver();
+  }
+
+  class FakeMutationObserver {
+    constructor(callback) {
+      this.callback = callback;
+    }
+    observe(target) {
+      target.classObserver = this.callback;
+    }
+  }
+
+  const context = {
+    MutationObserver: FakeMutationObserver,
+    document: {
+      querySelector(selector) {
+        if (selector === '[data-path="embeddings.multimodal"]') return toggle;
+        if (selector === '[data-path="embeddings.multimodal_format"]') {
+          return { closest: () => formatField };
+        }
+        if (selector === '[data-path="embeddings.provider"]') return provider;
+        return null;
+      }
+    },
+    t: key => key
+  };
+  vm.createContext(context);
+  vm.runInContext(
+    `${helperSource}; globalThis.bindMultimodal = _embeddingsBindMultimodal;`,
+    context
+  );
+
+  context.bindMultimodal();
+  provider.changeListener();
+  assert.equal(observerCallbacks, 0, 'selecting local Granite must not create an observer feedback loop');
+  assert.equal(classes.has('on'), false);
+  assert.equal(toggle.dataset.disabled, 'true');
+  assert.equal(formatField.style.display, 'none');
+
+  provider.value = 'openai';
+  provider.changeListener();
+  toggle.classList.toggle('on');
+  assert.equal(observerCallbacks, 2, 'class observation must remain active without recursive mutations');
+  assert.equal(formatField.style.display, '');
+}
+
 const tests = [
   ['versioned service-worker registration', testVersionedServiceWorkerRegistration],
   ['real skill snapshot differences', testSkillSnapshotDifferences],
@@ -893,6 +986,7 @@ const tests = [
   ['Virtual Computers polls machines only when visible and changed', testVirtualComputersMachinePollingLifecycle],
   ['Virtual Computers clears machine polling on dispose', testVirtualComputersMachinePollingDisposeClearsTimer],
   ['Virtual Computers agent tasks report errors and poll active jobs', testVirtualComputersAgentTaskFeedbackAndPolling],
+  ['local Granite multimodal observer remains idempotent', testLocalGraniteMultimodalObserverIsIdempotent],
   ['byte-exact read-only bundle check', testBundleCheckRejectsNonCanonicalBytesWithoutWriting]
 ];
 
