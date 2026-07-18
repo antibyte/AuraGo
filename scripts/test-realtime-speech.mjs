@@ -652,6 +652,15 @@ function testLauncherActivityIndicator() {
   );
 }
 
+function testProfileDeleteButtonAlignment() {
+  const styles = read('ui/css/config-realtime-speech.css');
+  assert.match(
+    styles,
+    /\.rs-icon-button\s*\{[\s\S]*?justify-content:\s*center;/,
+    'the realtime speech profile delete glyph must be centered inside its square button'
+  );
+}
+
 function testTranslationParity() {
   const categoryFilters = {
     chat: key => key.startsWith('chat.realtime_'),
@@ -681,6 +690,7 @@ await testTakeoverPeerProbeAndModalContrast();
 await testGeminiBinarySetupFrames();
 testProviderContractAndSecurityBoundaries();
 testLauncherActivityIndicator();
+testProfileDeleteButtonAlignment();
 testTranslationParity();
 
 console.log('Realtime Speech browser contract tests passed.');
