@@ -64,7 +64,7 @@ function renderVirtualDesktopSection(section) {
 
     html += '<div class="field-grid two-cols">';
     html += vdCfgField('config.virtual_desktop.control_level_label', 'help.virtual_desktop.control_level',
-        '<select class="field-input" data-path="virtual_desktop.control_level">' +
+        '<select class="field-select" data-path="virtual_desktop.control_level">' +
         '<option value="confirm_destructive"' + ((data.control_level || 'confirm_destructive') === 'confirm_destructive' ? ' selected' : '') + '>' + t('config.virtual_desktop.control_confirm') + '</option>' +
         '<option value="trusted"' + (data.control_level === 'trusted' ? ' selected' : '') + '>' + t('config.virtual_desktop.control_trusted') + '</option>' +
         '</select>');

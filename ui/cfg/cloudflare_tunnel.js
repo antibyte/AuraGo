@@ -64,7 +64,7 @@ async function renderCloudflareTunnelSection(section) {
     html += `<label class="cft-field-label">
         <span class="cft-field-caption">${t('config.cloudflare_tunnel.mode')}</span>
         <div class="field-help">${t('config.cloudflare_tunnel.mode_help')}</div>
-        <select class="field-input cft-field-input" data-path="cloudflare_tunnel.mode" onchange="setNestedValue(configData,'cloudflare_tunnel.mode',this.value);setDirty(true)">
+        <select class="field-select cft-field-input" data-path="cloudflare_tunnel.mode" onchange="setNestedValue(configData,'cloudflare_tunnel.mode',this.value);setDirty(true)">
             <option value="auto" ${cfg.mode === 'auto' || !cfg.mode ? 'selected' : ''}>${t('config.cloudflare_tunnel.mode_auto')}</option>
             <option value="docker" ${cfg.mode === 'docker' ? 'selected' : ''}>${t('config.cloudflare_tunnel.mode_docker')}</option>
             <option value="native" ${cfg.mode === 'native' ? 'selected' : ''}>${t('config.cloudflare_tunnel.mode_native')}</option>
@@ -74,7 +74,7 @@ async function renderCloudflareTunnelSection(section) {
     html += `<label class="cft-field-label">
         <span class="cft-field-caption">${t('config.cloudflare_tunnel.auth_method')}</span>
         <div class="field-help">${t('config.cloudflare_tunnel.auth_method_help')}</div>
-        <select class="field-input cft-field-input" data-path="cloudflare_tunnel.auth_method" onchange="setNestedValue(configData,'cloudflare_tunnel.auth_method',this.value);setDirty(true)">
+        <select class="field-select cft-field-input" data-path="cloudflare_tunnel.auth_method" onchange="setNestedValue(configData,'cloudflare_tunnel.auth_method',this.value);setDirty(true)">
             <option value="token" ${cfg.auth_method === 'token' || !cfg.auth_method ? 'selected' : ''}>${t('config.cloudflare_tunnel.auth_connector_token')}</option>
             <option value="named" ${cfg.auth_method === 'named' ? 'selected' : ''}>${t('config.cloudflare_tunnel.auth_named_tunnel')}</option>
             <option value="quick" ${cfg.auth_method === 'quick' ? 'selected' : ''}>${t('config.cloudflare_tunnel.auth_quick_tunnel')}</option>
@@ -105,7 +105,7 @@ async function renderCloudflareTunnelSection(section) {
     html += `<label class="cft-field-label">
         <span class="cft-field-caption">${t('config.cloudflare_tunnel.log_level')}</span>
         <div class="field-help">${t('config.cloudflare_tunnel.log_level_help')}</div>
-        <select class="field-input cft-field-input" data-path="cloudflare_tunnel.log_level" onchange="setNestedValue(configData,'cloudflare_tunnel.log_level',this.value);setDirty(true)">
+        <select class="field-select cft-field-input" data-path="cloudflare_tunnel.log_level" onchange="setNestedValue(configData,'cloudflare_tunnel.log_level',this.value);setDirty(true)">
             <option value="info" ${cfg.log_level === 'info' || !cfg.log_level ? 'selected' : ''}>${t('config.cloudflare_tunnel.log_info')}</option>
             <option value="debug" ${cfg.log_level === 'debug' ? 'selected' : ''}>${t('config.cloudflare_tunnel.log_debug')}</option>
             <option value="warn" ${cfg.log_level === 'warn' ? 'selected' : ''}>${t('config.cloudflare_tunnel.log_warn')}</option>

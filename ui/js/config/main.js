@@ -2238,6 +2238,8 @@ function clearDirtyBaselineRefreshTimers() {
 
 function refreshDirtyBaselineIfIdle() {
     if (userEditedSinceSnapshot) return;
+    // AuraConfigState tracks draft paths independently; never re-baseline over real edits.
+    if (window.AuraConfigState && window.AuraConfigState.isDirty()) return;
     initialSnapshot = collectSnapshot();
     setDirty(false);
 }
@@ -2271,7 +2273,7 @@ function resetDirtySnapshot() {
 
 function closestConfigEditable(target) {
     if (!target || typeof target.closest !== 'function') return null;
-    return target.closest('.field-input, .field-select, .cfg-input, .toggle');
+    return target.closest('.field-input, .field-select, .field-textarea, .cfg-input, .toggle, [data-path]');
 }
 
 function noteConfigEditIntent(event) {
@@ -2288,11 +2290,29 @@ function installConfigEditIntentTracking() {
     });
 }
 
+/** True for trusted commits that never set inputType (selects, checkboxes, radios, ranges). */
+function isTrustedDiscreteControlChange(event) {
+    if (!event || (event.type !== 'change' && event.type !== 'input')) return false;
+    const el = event.target;
+    if (!el || !closestConfigEditable(el)) return false;
+    const tag = String(el.tagName || '').toUpperCase();
+    if (tag === 'SELECT') return true;
+    if (tag === 'INPUT') {
+        const type = String(el.type || 'text').toLowerCase();
+        return type === 'checkbox' || type === 'radio' || type === 'range' || type === 'file' || type === 'color';
+    }
+    return false;
+}
+
 function isUserInitiatedConfigChange(event) {
     if (!event) return true;
     if (event.isTrusted !== true) return false;
-    if (suppressDirtyTracking && Date.now() > configEditIntentUntil) return false;
+    // Recent pointer/keyboard intent always wins (covers typing during settle windows).
     if (Date.now() <= configEditIntentUntil) return true;
+    // Native <select> change events have no inputType. Users often keep the option
+    // list open longer than CONFIG_EDIT_INTENT_WINDOW_MS before committing.
+    if (isTrustedDiscreteControlChange(event)) return true;
+    if (suppressDirtyTracking) return false;
     return !!(event.inputType && event.inputType !== 'insertReplacementText');
 }
 
@@ -2451,9 +2471,21 @@ function markDirty(event) {
 }
 
 function setDirty(dirty) {
-    if (dirty && window.AuraConfigState) {
-        window.AuraConfigState.syncFromDOM();
-        dirty = window.AuraConfigState.isDirty();
+    if (dirty) {
+        // Direct callers (inline onchange, section modules) must pin the draft so
+        // delayed baseline refresh timers cannot clear a real user edit.
+        userEditedSinceSnapshot = true;
+        suppressDirtyTracking = false;
+        clearDirtyBaselineRefreshTimers();
+        if (window.AuraConfigState) {
+            window.AuraConfigState.syncFromDOM();
+            dirty = window.AuraConfigState.isDirty();
+        }
+    } else if (window.AuraConfigState && window.AuraConfigState.isDirty()) {
+        // Never hide the save bar while the draft still has changes.
+        dirty = true;
+        userEditedSinceSnapshot = true;
+        clearDirtyBaselineRefreshTimers();
     }
     isDirty = dirty;
     const btn = document.getElementById('btnSave');
@@ -2462,8 +2494,8 @@ function setDirty(dirty) {
     const changeCount = document.getElementById('saveChangeCount');
     const validation = document.getElementById('saveValidation');
     const count = window.AuraConfigState ? window.AuraConfigState.dirtyPaths().length : (dirty ? 1 : 0);
-    btn.disabled = !dirty || configSaveInFlight;
-    pill.classList.toggle('visible', dirty);
+    if (btn) btn.disabled = !dirty || configSaveInFlight;
+    if (pill) pill.classList.toggle('visible', dirty);
     if (changeCount) {
         changeCount.textContent = t('config.precision.changed_fields').replace('{count}', String(count));
         changeCount.classList.toggle('visible', dirty);
@@ -2532,7 +2564,10 @@ function setConfigSaveBusy(busy) {
 }
 
 function attachChangeListeners() {
-    document.querySelectorAll('.field-input, .field-select, .cfg-input').forEach(el => {
+    // Include data-path controls even when modules omit field-* classes (e.g. indexing selects).
+    document.querySelectorAll('.field-input, .field-select, .field-textarea, .cfg-input, [data-path]').forEach(el => {
+        if (el.dataset.cfgDirtyBound === 'true') return;
+        el.dataset.cfgDirtyBound = 'true';
         el.addEventListener('input', markDirty);
         el.addEventListener('change', markDirty);
     });

@@ -170,7 +170,7 @@ async function renderGuardianSection(section) {
     html += `<div class="field-group">
         <div class="field-label">${t('config.guardian.llm_judge_policy_label')}</div>
         <div class="field-help">${t('config.guardian.llm_judge_policy_help')}</div>
-        <textarea class="field-textarea" data-path="guardian.promptsec.llm_judge.policy" rows="3">${escapeHtml(judgePolicy)}</textarea>
+        <textarea class="field-input field-textarea" data-path="guardian.promptsec.llm_judge.policy" rows="3">${escapeHtml(judgePolicy)}</textarea>
     </div>`;
     html += `</div>`;
 

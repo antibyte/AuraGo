@@ -86,7 +86,7 @@ async function renderBrowserAutomationSection(section) {
     html += '<div class="cfg-advanced-help">' + t('config.browser_automation.advanced_desc') + '</div>';
 
     html += baFieldWithHelp('config.browser_automation.mode_label', 'help.browser_automation.mode',
-        '<select class="field-input" data-path="browser_automation.mode">' +
+        '<select class="field-select" data-path="browser_automation.mode">' +
         '<option value="sidecar"' + ((data.mode || 'sidecar') === 'sidecar' ? ' selected' : '') + '>sidecar</option>' +
         '</select>');
 
@@ -137,7 +137,7 @@ async function renderBrowserAutomationSection(section) {
     html += baToggleRow('config.browser_automation.cloak_humanize_label', 'help.browser_automation.cloak_humanize', data.cloak_humanize === true, 'browser_automation.cloak_humanize');
 
     html += baFieldWithHelp('config.browser_automation.cloak_human_preset_label', 'help.browser_automation.cloak_human_preset',
-        '<select class="field-input" data-path="browser_automation.cloak_human_preset">' +
+        '<select class="field-select" data-path="browser_automation.cloak_human_preset">' +
         '<option value="default"' + ((data.cloak_human_preset || 'default') === 'default' ? ' selected' : '') + '>default</option>' +
         '<option value="careful"' + (data.cloak_human_preset === 'careful' ? ' selected' : '') + '>careful</option>' +
         '</select>');

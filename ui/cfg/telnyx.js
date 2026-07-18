@@ -92,7 +92,7 @@ function renderTelnyxSection(section) {
     // Voice Gender
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.telnyx.voice_gender_label') + '</div>';
-    html += '<select class="field-input" data-path="telnyx.voice_gender">';
+    html += '<select class="field-select" data-path="telnyx.voice_gender">';
     html += '<option value="female"' + ((data.voice_gender || 'female') === 'female' ? ' selected' : '') + '>' + t('config.telnyx.voice_female') + '</option>';
     html += '<option value="male"' + (data.voice_gender === 'male' ? ' selected' : '') + '>' + t('config.telnyx.voice_male') + '</option>';
     html += '</select>';

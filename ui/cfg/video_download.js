@@ -79,7 +79,7 @@ async function renderVideoDownloadSection(section) {
     html += '<div class="field-label">' + t('config.video_download.mode_label') + '</div>';
     const helpMode = t('help.video_download.mode');
     if (helpMode) html += '<div class="field-help">' + helpMode + '</div>';
-    html += '<select class="field-input" data-path="tools.video_download.mode" onchange="vdSwitchMode(this.value)">';
+    html += '<select class="field-select" data-path="tools.video_download.mode" onchange="vdSwitchMode(this.value)">';
     html += '<option value="docker"' + (mode === 'docker' ? ' selected' : '') + '>' + t('config.video_download.mode_docker') + '</option>';
     html += '<option value="native"' + (mode === 'native' ? ' selected' : '') + '>' + t('config.video_download.mode_native') + '</option>';
     html += '</select></div>';

@@ -81,9 +81,9 @@ function renderVirtualComputersSection(section) {
     html += '<div class="field-group-desc">' + t('config.virtual_computers.control_plane_desc') + '</div>';
     html += '<div class="field-grid two-cols">';
     html += vcCfgField('config.virtual_computers.provider_label', 'help.virtual_computers.provider',
-        '<select class="field-input" data-path="virtual_computers.provider"><option value="boring_computers" selected>boring_computers</option></select>');
+        '<select class="field-select" data-path="virtual_computers.provider"><option value="boring_computers" selected>boring_computers</option></select>');
     html += vcCfgField('config.virtual_computers.mode_label', 'help.virtual_computers.mode',
-        '<select class="field-input" data-path="virtual_computers.control_plane.mode" onchange="vcCfgOnModeChange(this)">' +
+        '<select class="field-select" data-path="virtual_computers.control_plane.mode" onchange="vcCfgOnModeChange(this)">' +
         '<option value="ssh_host"' + (mode === 'ssh_host' ? ' selected' : '') + '>' + t('config.virtual_computers.mode_ssh_host') + '</option>' +
         '<option value="local_host"' + (isLocalHost ? ' selected' : '') + '>' + t('config.virtual_computers.mode_local_host') + '</option>' +
         '</select>');
@@ -151,7 +151,7 @@ function renderVirtualComputersSection(section) {
     html += '<div class="field-group-title">' + t('config.virtual_computers.limits_title') + '</div>';
     html += '<div class="field-grid two-cols">';
     html += vcCfgField('config.virtual_computers.default_template_label', 'help.virtual_computers.default_template',
-        '<select class="field-input" data-path="virtual_computers.default_template">' +
+        '<select class="field-select" data-path="virtual_computers.default_template">' +
         '<option value="python"' + ((data.default_template || 'python') === 'python' ? ' selected' : '') + '>python</option>' +
         '<option value="desktop"' + (data.default_template === 'desktop' ? ' selected' : '') + '>desktop</option>' +
         '</select>');
@@ -181,7 +181,7 @@ function renderVirtualComputersSection(section) {
     html += '<div class="field-group-title">' + t('config.virtual_computers.agent_provider_title') + '</div>';
     html += '<div class="field-label">' + t('config.virtual_computers.agent_provider_label') + '</div>';
     html += '<div class="field-help">' + t('help.virtual_computers.agent_provider') + '</div>';
-    html += '<select class="field-input" data-path="virtual_computers.agent_provider"' + (data.allow_agent_tasks === true ? '' : ' disabled') + '>';
+    html += '<select class="field-select" data-path="virtual_computers.agent_provider"' + (data.allow_agent_tasks === true ? '' : ' disabled') + '>';
     html += vcCfgAgentProviderOptions(String(data.agent_provider || '').trim());
     html += '</select>';
     html += '</div>';

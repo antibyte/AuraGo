@@ -78,7 +78,7 @@ async function renderSandboxSection(section) {
 
     html += `<label class="sb-field-label">
         <span class="sb-field-caption">${t('config.sandbox.backend_label')}</span>
-        <select class="field-input sb-field-input" data-path="sandbox.backend" onchange="setNestedValue(configData,'sandbox.backend',this.value);setDirty(true)">
+        <select class="field-select sb-field-input" data-path="sandbox.backend" onchange="setNestedValue(configData,'sandbox.backend',this.value);setDirty(true)">
             <option value="docker" ${sbCfg.backend === 'docker' || !sbCfg.backend ? 'selected' : ''}>${t('config.sandbox.backend_docker')}</option>
             <option value="podman" ${sbCfg.backend === 'podman' ? 'selected' : ''}>${t('config.sandbox.backend_podman')}</option>
         </select>

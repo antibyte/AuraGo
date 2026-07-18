@@ -177,7 +177,7 @@
                 <label class="idx-field-label">${t('config.indexing.chunking_strategy')}</label>
                 <select data-path="indexing.chunking.strategy"
                     onchange="setNestedValue(configData,'indexing.chunking.strategy', this.value);markDirty()"
-                    class="idx-poll-input">
+                    class="field-select idx-poll-input">
                     <option value="recursive" ${chunkingStrategy === 'recursive' ? 'selected' : ''}>${t('config.indexing.chunking_recursive')}</option>
                     <option value="legacy" ${chunkingStrategy === 'legacy' ? 'selected' : ''}>${t('config.indexing.chunking_legacy')}</option>
                 </select>

@@ -3,6 +3,8 @@ package ui
 import (
 	"encoding/json"
 	"os"
+	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -968,6 +970,43 @@ func TestConfigDirtyGuardAndHashNavigationMarkers(t *testing.T) {
 	}
 	if strings.Contains(mainJS, "setTimeout(() => { initialSnapshot = collectSnapshot(); setDirty(false); }, 100);") {
 		t.Fatal("config main.js should not use a timed initial snapshot reset; it races async section rendering")
+	}
+	for _, marker := range []string{
+		"function isTrustedDiscreteControlChange(event)",
+		"if (isTrustedDiscreteControlChange(event)) return true;",
+		"if (window.AuraConfigState && window.AuraConfigState.isDirty()) return;",
+		"Never hide the save bar while the draft still has changes",
+		"el.dataset.cfgDirtyBound === 'true'",
+		".field-textarea, .cfg-input, [data-path]",
+	} {
+		if !strings.Contains(mainJS, marker) {
+			t.Fatalf("config main.js missing dropdown dirty-tracking marker %q", marker)
+		}
+	}
+}
+
+func TestConfigDataPathSelectsUseFieldSelect(t *testing.T) {
+	t.Parallel()
+
+	cfgDir := filepath.Join("cfg")
+	entries, err := os.ReadDir(cfgDir)
+	if err != nil {
+		t.Fatalf("read cfg dir: %v", err)
+	}
+	re := regexp.MustCompile(`<select\s+[^>]*data-path=`)
+	badClass := regexp.MustCompile(`class="[^"]*field-input[^"]*"`)
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".js") {
+			continue
+		}
+		path := filepath.Join(cfgDir, entry.Name())
+		raw := string(mustReadUIFile(t, filepath.ToSlash(path)))
+		// Skip modal-only selects without data-path; scan line-ish chunks around data-path selects.
+		for _, match := range re.FindAllString(raw, -1) {
+			if badClass.MatchString(match) && !strings.Contains(match, "field-select") {
+				t.Fatalf("%s: data-path select should use field-select, got %q", entry.Name(), match)
+			}
+		}
 	}
 }
 
