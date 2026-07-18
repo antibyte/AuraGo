@@ -545,8 +545,13 @@ func TestGitHubWorkflowsUseNativeNode24Actions(t *testing.T) {
 	}
 	for _, forbidden := range []string{
 		"actions/checkout@v4",
+		"actions/checkout@v6",
 		"actions/setup-go@v5",
+		"actions/setup-go@v6",
 		"actions/setup-node@v4",
+		"actions/setup-node@v6",
+		"actions/upload-artifact@v4",
+		"actions/download-artifact@v4",
 		"golang/govulncheck-action",
 		"docker/setup-qemu-action@v3",
 		"docker/setup-buildx-action@v3",
@@ -555,13 +560,15 @@ func TestGitHubWorkflowsUseNativeNode24Actions(t *testing.T) {
 		"docker/build-push-action@v6",
 	} {
 		if strings.Contains(workflowText, forbidden) {
-			t.Fatalf("workflow still uses deprecated Node 20 action %q", forbidden)
+			t.Fatalf("workflow still uses outdated action %q", forbidden)
 		}
 	}
 	for _, required := range []string{
-		"actions/checkout@v6",
-		"actions/setup-go@v6",
-		"actions/setup-node@v6",
+		"actions/checkout@v7",
+		"actions/setup-go@v7",
+		"actions/setup-node@v7",
+		"actions/upload-artifact@v7",
+		"actions/download-artifact@v8",
 		"docker/setup-qemu-action@v4",
 		"docker/setup-buildx-action@v4",
 		"docker/login-action@v4",

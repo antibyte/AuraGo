@@ -12,7 +12,7 @@ func TestHomepageContainerVersionsPinned(t *testing.T) {
 	}
 
 	requiredSnippets := []string{
-		"FROM mcr.microsoft.com/playwright:v1.59.1-noble",
+		"FROM mcr.microsoft.com/playwright:v1.61.1-noble",
 		"ARG CLOUDFLARED_VERSION=2026.3.0",
 		`apt-get install -y --no-install-recommends`,
 		`arch="$(dpkg --print-architecture)"`,

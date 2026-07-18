@@ -320,7 +320,7 @@ select_release_bins_for_arch() {
         REQUIRED_BINS=("aurago_linux" "config-merger_linux")
         OPTIONAL_BINS=("aurago-remote_linux")
     else
-        die "No prebuilt release binaries for architecture ${ARCH_RAW}. Install Go 1.26.4+ to build from source."
+        die "No prebuilt release binaries for architecture ${ARCH_RAW}. Install Go 1.26.5+ to build from source."
     fi
 }
 

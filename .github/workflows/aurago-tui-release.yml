@@ -28,7 +28,7 @@ jobs:
       run:
         working-directory: tools/aurago-tui
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -64,7 +64,7 @@ jobs:
           cp target/${{ matrix.target }}/release/aurago-tui${{ matrix.suffix }} ../../dist/aurago-tui-${{ matrix.target }}${{ matrix.suffix }}
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: aurago-tui-${{ matrix.target }}
           path: dist/aurago-tui-${{ matrix.target }}${{ matrix.suffix }}
@@ -74,10 +74,10 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch'
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: dist
           pattern: aurago-tui-*
@@ -88,7 +88,7 @@ jobs:
         run: echo "sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Upload to GitHub Releases (rolling)
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: aurago-tui-rolling
           name: aurago-tui Rolling Build (${{ steps.sha.outputs.sha }})

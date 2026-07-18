@@ -5,6 +5,13 @@ import { nodeResolve } from '@rollup/plugin-node-resolve';
 const entryFile = 'scripts/codemirror-entry.js';
 const outputFile = 'ui/js/vendor/codemirror-bundle.esm.js';
 
+const stripTrailingWhitespace = {
+  name: 'strip-trailing-whitespace',
+  renderChunk(code) {
+    return code.replace(/[ \t]+$/gm, '');
+  },
+};
+
 const expectedExports = [
   '@codemirror/view',
   '@codemirror/state',
@@ -31,7 +38,7 @@ await mkdir('ui/js/vendor', { recursive: true });
 
 const bundle = await rollup({
   input: entryFile,
-  plugins: [nodeResolve()],
+  plugins: [nodeResolve(), stripTrailingWhitespace],
   onwarn(warning, warn) {
     if (warning.code === 'MODULE_LEVEL_DIRECTIVE') {
       return;

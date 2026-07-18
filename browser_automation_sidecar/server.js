@@ -53,11 +53,20 @@ if (!SIDECAR_TOKEN && !ALLOW_UNAUTH) {
   process.exit(1);
 }
 
-const { launch } = require('cloakbrowser');
-
 const sessions = new Map();
+let cloakBrowserModulePromise = null;
 let browserPromise = null;
 let shuttingDown = false;
+
+function loadCloakBrowser() {
+  if (!cloakBrowserModulePromise) {
+    cloakBrowserModulePromise = import('cloakbrowser').catch((error) => {
+      cloakBrowserModulePromise = null;
+      throw error;
+    });
+  }
+  return cloakBrowserModulePromise;
+}
 
 function json(res, statusCode, payload) {
   res.writeHead(statusCode, { 'Content-Type': 'application/json; charset=utf-8' });
@@ -163,10 +172,12 @@ async function getBrowser() {
     if (CLOAK_FINGERPRINT_SEED) {
       launchOptions.args = [`--fingerprint=${CLOAK_FINGERPRINT_SEED}`];
     }
-    browserPromise = launch(launchOptions).catch((error) => {
-      browserPromise = null;
-      throw error;
-    });
+    browserPromise = loadCloakBrowser()
+      .then(({ launch }) => launch(launchOptions))
+      .catch((error) => {
+        browserPromise = null;
+        throw error;
+      });
   }
   return browserPromise;
 }

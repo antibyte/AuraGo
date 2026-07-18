@@ -13,11 +13,11 @@ import (
 	"strings"
 	"time"
 
+	readability "codeberg.org/readeck/go-readability/v2"
 	htmltomarkdown "github.com/JohannesKaufmann/html-to-markdown/v2"
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/launcher"
 	"github.com/go-rod/rod/lib/proto"
-	readability "github.com/go-shiori/go-readability"
 	"github.com/gocolly/colly/v2"
 )
 
@@ -197,14 +197,22 @@ func processForLLM(result *ScrapeResult, rawURL string, g *security.Guardian) er
 		return fmt.Errorf("readability: %w", err)
 	}
 
-	result.Title = article.Title
+	result.Title = article.Title()
 
 	// Convert the readability-cleaned HTML to Markdown.
+	var cleanedHTML strings.Builder
+	if err := article.RenderHTML(&cleanedHTML); err != nil {
+		return fmt.Errorf("render readability html: %w", err)
+	}
 	var md string
-	converted, err := htmltomarkdown.ConvertString(article.Content)
+	converted, err := htmltomarkdown.ConvertString(cleanedHTML.String())
 	if err != nil {
 		// Fall back to plain text excerpt if conversion fails.
-		md = article.TextContent
+		var plainText strings.Builder
+		if renderErr := article.RenderText(&plainText); renderErr != nil {
+			return fmt.Errorf("render readability text: %w", renderErr)
+		}
+		md = plainText.String()
 	} else {
 		md = strings.TrimSpace(converted)
 	}

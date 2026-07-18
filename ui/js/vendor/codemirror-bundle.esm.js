@@ -162,7 +162,7 @@ class Text {
     Return a cursor that iterates over the given range of lines,
     _without_ returning the line breaks between, and yielding empty
     strings for empty lines.
-    
+
     When `from` and `to` are given, they should be 1-based line numbers.
     */
     iterLines(from, to) {
@@ -612,16 +612,16 @@ let Line$1 = class Line {
     /**
     The position of the start of the line.
     */
-    from, 
+    from,
     /**
     The position at the end of the line (_before_ the line break,
     or at the end of document for the last line).
     */
-    to, 
+    to,
     /**
     This line's line number (1-based).
     */
-    number, 
+    number,
     /**
     The line's content.
     */
@@ -777,7 +777,7 @@ class ChangeDesc {
     `fromA`/`toA` provides the extent of the change in the starting
     document, `fromB`/`toB` the extent of the replacement in the
     changed document.
-    
+
     When `individual` is true, adjacent changes (which are kept
     separate for [position mapping](https://codemirror.net/6/docs/ref/#state.ChangeDesc.mapPos)) are
     reported separately.
@@ -886,7 +886,7 @@ stores the document length, and can only be applied to documents
 with exactly that length.
 */
 class ChangeSet extends ChangeDesc {
-    constructor(sections, 
+    constructor(sections,
     /**
     @internal
     */
@@ -940,7 +940,7 @@ class ChangeSet extends ChangeDesc {
     applied to the document produced by applying `other`. When
     `before` is `true`, order changes as if `this` comes before
     `other`, otherwise (the default) treat `other` as coming first.
-    
+
     Given two changes `A` and `B`, `A.compose(B.map(A))` and
     `B.compose(A.map(B, true))` will produce the same document. This
     provides a basic form of [operational
@@ -953,7 +953,7 @@ class ChangeSet extends ChangeDesc {
     each, with the range in the original document (`fromA`-`toA`)
     and the range that replaces it in the new document
     (`fromB`-`toB`).
-    
+
     When `individual` is true, adjacent changes are reported
     separately.
     */
@@ -1337,14 +1337,22 @@ class SelectionRange {
     /**
     The lower boundary of the range.
     */
-    from, 
+    from,
     /**
     The upper boundary of the range.
     */
-    to, flags) {
+    to, flags,
+    /**
+    The goal column (stored vertical offset) associated with a
+    cursor. This is used to preserve the vertical position when
+    [moving](https://codemirror.net/6/docs/ref/#view.EditorView.moveVertically) across
+    lines of different length.
+    */
+    goalColumn) {
         this.from = from;
         this.to = to;
         this.flags = flags;
+        this.goalColumn = goalColumn;
     }
     /**
     The anchor of the range—the side that doesn't move when you
@@ -1368,22 +1376,22 @@ class SelectionRange {
     */
     get assoc() { return this.flags & 8 /* RangeFlag.AssocBefore */ ? -1 : this.flags & 16 /* RangeFlag.AssocAfter */ ? 1 : 0; }
     /**
+    A flag that, when set, makes some selection-extending commands
+    treat the range's head and anchor as exchangeable, so that for
+    example Shift-ArrowUp will make the lower side of the selection
+    the anchor, even if that was the head before. Used to implement
+    MacOS-style undirectional selections.
+    */
+    get undirectional() {
+        return (this.flags & 64 /* RangeFlag.Undirectional */) > 0;
+    }
+    /**
     The bidirectional text level associated with this cursor, if
     any.
     */
     get bidiLevel() {
         let level = this.flags & 7 /* RangeFlag.BidiLevelMask */;
         return level == 7 ? null : level;
-    }
-    /**
-    The goal column (stored vertical offset) associated with a
-    cursor. This is used to preserve the vertical position when
-    [moving](https://codemirror.net/6/docs/ref/#view.EditorView.moveVertically) across
-    lines of different length.
-    */
-    get goalColumn() {
-        let value = this.flags >> 6 /* RangeFlag.GoalColumnOffset */;
-        return value == 16777215 /* RangeFlag.NoGoalColumn */ ? undefined : value;
     }
     /**
     Map this range through a change, producing a valid range in the
@@ -1398,7 +1406,7 @@ class SelectionRange {
             from = change.mapPos(this.from, 1);
             to = change.mapPos(this.to, -1);
         }
-        return from == this.from && to == this.to ? this : new SelectionRange(from, to, this.flags);
+        return from == this.from && to == this.to ? this : new SelectionRange(from, to, this.flags, this.goalColumn);
     }
     /**
     Extend this range to cover at least `from` to `to`.
@@ -1432,8 +1440,8 @@ class SelectionRange {
     /**
     @internal
     */
-    static create(from, to, flags) {
-        return new SelectionRange(from, to, flags);
+    static create(from, to, flags, goalColumn) {
+        return new SelectionRange(from, to, flags, goalColumn);
     }
 }
 /**
@@ -1445,7 +1453,7 @@ class EditorSelection {
     The ranges in the selection, sorted by position. Ranges cannot
     overlap (but they may touch, if they aren't empty).
     */
-    ranges, 
+    ranges,
     /**
     The index of the _main_ range in the selection (which is
     usually the range that was added last).
@@ -1548,19 +1556,26 @@ class EditorSelection {
     */
     static cursor(pos, assoc = 0, bidiLevel, goalColumn) {
         return SelectionRange.create(pos, pos, (assoc == 0 ? 0 : assoc < 0 ? 8 /* RangeFlag.AssocBefore */ : 16 /* RangeFlag.AssocAfter */) |
-            (bidiLevel == null ? 7 : Math.min(6, bidiLevel)) |
-            ((goalColumn !== null && goalColumn !== void 0 ? goalColumn : 16777215 /* RangeFlag.NoGoalColumn */) << 6 /* RangeFlag.GoalColumnOffset */));
+            (bidiLevel == null ? 7 : Math.min(6, bidiLevel)), goalColumn);
     }
     /**
     Create a selection range.
     */
     static range(anchor, head, goalColumn, bidiLevel, assoc) {
-        let flags = ((goalColumn !== null && goalColumn !== void 0 ? goalColumn : 16777215 /* RangeFlag.NoGoalColumn */) << 6 /* RangeFlag.GoalColumnOffset */) |
-            (bidiLevel == null ? 7 : Math.min(6, bidiLevel));
+        let flags = bidiLevel == null ? 7 : Math.min(6, bidiLevel);
         if (!assoc && anchor != head)
             assoc = head < anchor ? 1 : -1;
-        return head < anchor ? SelectionRange.create(head, anchor, 32 /* RangeFlag.Inverted */ | 16 /* RangeFlag.AssocAfter */ | flags)
-            : SelectionRange.create(anchor, head, (!assoc ? 0 : assoc < 0 ? 8 /* RangeFlag.AssocBefore */ : 16 /* RangeFlag.AssocAfter */) | flags);
+        if (assoc)
+            flags |= assoc < 0 ? 8 /* RangeFlag.AssocBefore */ : 16 /* RangeFlag.AssocAfter */;
+        return head < anchor ? SelectionRange.create(head, anchor, flags | 32 /* RangeFlag.Inverted */, goalColumn)
+            : SelectionRange.create(anchor, head, flags, goalColumn);
+    }
+    /**
+    Create an [undirectional](https://codemirror.net/6/docs/ref/#state.SelectionRange.undirectional)
+    selection range.
+    */
+    static undirectionalRange(from, to) {
+        return SelectionRange.create(from, to, 64 /* RangeFlag.Undirectional */, undefined);
     }
     /**
     @internal
@@ -1606,11 +1621,11 @@ class Facet {
     /**
     @internal
     */
-    combine, 
+    combine,
     /**
     @internal
     */
-    compareInput, 
+    compareInput,
     /**
     @internal
     */
@@ -1648,7 +1663,7 @@ class Facet {
     state. You must take care to declare the parts of the state that
     this value depends on, since your function is only called again
     for a new state when one of those parts changed.
-    
+
     In cases where your value depends only on a single field, you'll
     want to use the [`from`](https://codemirror.net/6/docs/ref/#state.Facet.from) method instead.
     */
@@ -1732,6 +1747,7 @@ class FacetProvider {
             }
         };
     }
+    get extension() { return this; }
 }
 function compareArray(a, b, compare) {
     if (a.length != b.length)
@@ -1808,7 +1824,7 @@ class StateField {
     /**
     @internal
     */
-    id, createF, updateF, compareF, 
+    id, createF, updateF, compareF,
     /**
     @internal
     */
@@ -1929,6 +1945,7 @@ class PrecExtension {
         this.inner = inner;
         this.prec = prec;
     }
+    get extension() { return this; }
 }
 /**
 Extension compartments can be used to make a configuration
@@ -1963,6 +1980,7 @@ class CompartmentInstance {
         this.compartment = compartment;
         this.inner = inner;
     }
+    get extension() { return this; }
 }
 class Configuration {
     constructor(base, compartments, dynamicSlots, address, staticValues, facets) {
@@ -2072,6 +2090,8 @@ function flatten(extension, compartments, newCompartments) {
         else {
             let content = ext.extension;
             if (!content)
+                throw new Error(`Unrecognized extension value in extension set (${ext}).`);
+            if (content == ext)
                 throw new Error(`Unrecognized extension value in extension set (${ext}). This sometimes happens because multiple instances of @codemirror/state are loaded, breaking instanceof checks.`);
             inner(content, prec);
         }
@@ -2129,7 +2149,7 @@ class Annotation {
     /**
     The annotation type.
     */
-    type, 
+    type,
     /**
     The value of this annotation.
     */
@@ -2191,7 +2211,7 @@ class StateEffect {
     /**
     @internal
     */
-    type, 
+    type,
     /**
     The value of this effect.
     */
@@ -2263,24 +2283,24 @@ class Transaction {
     /**
     The state from which the transaction starts.
     */
-    startState, 
+    startState,
     /**
     The document changes made by this transaction.
     */
-    changes, 
+    changes,
     /**
     The selection set by this transaction, or undefined if it
     doesn't explicitly set a selection.
     */
-    selection, 
+    selection,
     /**
     The effects added to the transaction.
     */
-    effects, 
+    effects,
     /**
     @internal
     */
-    annotations, 
+    annotations,
     /**
     Whether the selection should be scrolled into view after this
     transaction is dispatched.
@@ -2601,15 +2621,15 @@ class EditorState {
     /**
     @internal
     */
-    config, 
+    config,
     /**
     The current document.
     */
-    doc, 
+    doc,
     /**
     The current selection.
     */
-    selection, 
+    selection,
     /**
     @internal
     */
@@ -2845,7 +2865,7 @@ class EditorState {
     Look up a translation for the given phrase (via the
     [`phrases`](https://codemirror.net/6/docs/ref/#state.EditorState^phrases) facet), or return the
     original string if no translation is found.
-    
+
     If additional arguments are passed, they will be inserted in
     place of markers like `$1` (for the first value) and `$2`, etc.
     A single `$` is equivalent to `$1`, and `$$` will produce a
@@ -2869,9 +2889,9 @@ class EditorState {
     /**
     Find the values for a given language data field, provided by the
     the [`languageData`](https://codemirror.net/6/docs/ref/#state.EditorState^languageData) facet.
-    
+
     Examples of language data fields are...
-    
+
     - [`"commentTokens"`](https://codemirror.net/6/docs/ref/#commands.CommentTokens) for specifying
       comment syntax.
     - [`"autocomplete"`](https://codemirror.net/6/docs/ref/#autocomplete.autocompletion^config.override)
@@ -2896,7 +2916,7 @@ class EditorState {
     Return a function that can categorize strings (expected to
     represent a single [grapheme cluster](https://codemirror.net/6/docs/ref/#state.findClusterBreak))
     into one of:
-    
+
      - Word (contains an alphanumeric character or a character
        explicitly listed in the local language's `"wordChars"`
        language data, which should be a string)
@@ -3102,11 +3122,11 @@ let Range$1 = class Range {
     /**
     The range's start position.
     */
-    from, 
+    from,
     /**
     Its end position.
     */
-    to, 
+    to,
     /**
     The value associated with this range.
     */
@@ -3126,7 +3146,7 @@ function cmpRange(a, b) {
     return a.from - b.from || a.value.startSide - b.value.startSide;
 }
 class Chunk {
-    constructor(from, to, value, 
+    constructor(from, to, value,
     // Chunks are marked with the largest point that occurs
     // in them (or -1 for no points), so that scans that are
     // only interested in points (such as the
@@ -3205,15 +3225,15 @@ class RangeSet {
     /**
     @internal
     */
-    chunkPos, 
+    chunkPos,
     /**
     @internal
     */
-    chunk, 
+    chunk,
     /**
     @internal
     */
-    nextLayer, 
+    nextLayer,
     /**
     @internal
     */
@@ -3256,7 +3276,7 @@ class RangeSet {
     /**
     Update the range set, optionally adding new ranges or filtering
     out existing ones.
-    
+
     (Note: The type parameter is just there as a kludge to work
     around TypeScript variance issues that prevented `RangeSet<X>`
     from being a subtype of `RangeSet<Y>` when `X` is a subtype of
@@ -3362,12 +3382,12 @@ class RangeSet {
     Iterate over two groups of sets, calling methods on `comparator`
     to notify it of possible differences.
     */
-    static compare(oldSets, newSets, 
+    static compare(oldSets, newSets,
     /**
     This indicates how the underlying data changed between these
     ranges, and is needed to synchronize the iteration.
     */
-    textDiff, comparator, 
+    textDiff, comparator,
     /**
     Can be used to ignore all non-point ranges, and points below
     the given size. When -1, all ranges are compared.
@@ -3415,7 +3435,7 @@ class RangeSet {
     [`SpanIterator.span`](https://codemirror.net/6/docs/ref/#state.SpanIterator.span)) at the end
     of the iteration.
     */
-    static spans(sets, from, to, iterator, 
+    static spans(sets, from, to, iterator,
     /**
     When given and greater than -1, only points of at least this
     size are taken into account.
@@ -4499,15 +4519,15 @@ class Decoration extends RangeValue {
     /**
     @internal
     */
-    startSide, 
+    startSide,
     /**
     @internal
     */
-    endSide, 
+    endSide,
     /**
     @internal
     */
-    widget, 
+    widget,
     /**
     The config object used to create this decoration. You can
     include additional properties in there to store metadata about
@@ -4678,10 +4698,23 @@ widget that starts inside its range, including blocks starting
 directly at `from` but not including `to`.
 */
 class BlockWrapper extends RangeValue {
-    constructor(tagName, attributes) {
+    constructor(
+    /**
+    @internal
+    */
+    tagName,
+    /**
+    @internal
+    */
+    attributes,
+    /**
+    @internal
+    */
+    rank) {
         super();
         this.tagName = tagName;
         this.attributes = attributes;
+        this.rank = rank;
     }
     eq(other) {
         return other == this ||
@@ -4692,7 +4725,7 @@ class BlockWrapper extends RangeValue {
     attributes.
     */
     static create(spec) {
-        return new BlockWrapper(spec.tagName, spec.attributes || noAttrs$1);
+        return new BlockWrapper(spec.tagName, spec.attributes || noAttrs$1, spec.rank == null ? 50 : Math.max(0, Math.min(spec.rank, 100)));
     }
     /**
     Create a range set from the given block wrapper ranges.
@@ -4784,8 +4817,11 @@ function scanFor(node, off, targetNode, targetOff, dir) {
 function maxOffset(node) {
     return node.nodeType == 3 ? node.nodeValue.length : node.childNodes.length;
 }
-function flattenRect(rect, left) {
-    let x = left ? rect.left : rect.right;
+function flattenRect(rect, toLeft) {
+    let { left, right } = rect;
+    if (left == right)
+        return rect;
+    let x = toLeft ? left : right;
     return { left: x, right: x, top: rect.top, bottom: rect.bottom };
 }
 function windowRect(win) {
@@ -5156,11 +5192,11 @@ class BidiSpan {
     /**
     The start of the span (relative to the start of the line).
     */
-    from, 
+    from,
     /**
     The end of the span.
     */
-    to, 
+    to,
     /**
     The ["bidi
     level"](https://unicode.org/reports/tr9/#Basic_Display_Algorithm)
@@ -5595,7 +5631,7 @@ const nativeSelectionHidden = /*@__PURE__*/Facet.define({
 });
 const scrollHandler = /*@__PURE__*/Facet.define();
 class ScrollTarget {
-    constructor(range, y, x, yMargin, xMargin, 
+    constructor(range, y, x, yMargin, xMargin,
     // This data structure is abused to also store precise scroll
     // snapshots, instead of a `scrollIntoView` request. When this
     // flag is `true`, `range` points at a position in the reference
@@ -5668,15 +5704,15 @@ class ViewPlugin {
     /**
     @internal
     */
-    id, 
+    id,
     /**
     @internal
     */
-    create, 
+    create,
     /**
     @internal
     */
-    domEventHandlers, 
+    domEventHandlers,
     /**
     @internal
     */
@@ -5910,11 +5946,11 @@ class ViewUpdate {
     /**
     The editor view that the update is associated with.
     */
-    view, 
+    view,
     /**
     The new editor state.
     */
-    state, 
+    state,
     /**
     The transactions involved in the update. May be empty.
     */
@@ -6049,7 +6085,7 @@ class Tile {
         return this.posBefore(tile) + tile.length;
     }
     covers(side) { return true; }
-    coordsIn(pos, side) { return null; }
+    coordsIn(pos, side, rtl) { return null; }
     domPosFor(off, side) {
         let index = domIndex(this.dom);
         let after = this.length ? off > 0 : side > 0;
@@ -6245,7 +6281,7 @@ class LineTile extends CompositeTile {
                     if (child.isComposite()) {
                         scan(child, pos - off);
                     }
-                    else if ((!after || after.isHidden && (side > 0 || forCoords && onSameLine(after, child))) &&
+                    else if ((!after || after.isHidden && (side > 0 && !(after.flags & 32 /* TileFlag.After */) || forCoords && onSameLine(after, child))) &&
                         (end > pos || (child.flags & 32 /* TileFlag.After */))) {
                         after = child;
                         afterOff = pos - off;
@@ -6262,11 +6298,11 @@ class LineTile extends CompositeTile {
         let target = ((side < 0 ? before : after) || before || after);
         return target ? { tile: target, offset: target == before ? beforeOff : afterOff } : null;
     }
-    coordsIn(pos, side) {
+    coordsIn(pos, side, rtl) {
         let found = this.resolveInline(pos, side, true);
         if (!found)
             return fallbackRect(this);
-        return found.tile.coordsIn(Math.max(0, found.offset), side);
+        return found.tile.coordsIn(Math.max(0, found.offset), side, rtl);
     }
     domIn(pos, side) {
         let found = this.resolveInline(pos, side);
@@ -6330,7 +6366,7 @@ class TextTile extends Tile {
     }
     isText() { return true; }
     toString() { return JSON.stringify(this.text); }
-    coordsIn(pos, side) {
+    coordsIn(pos, side, rtl) {
         let length = this.dom.nodeValue.length;
         if (pos > length)
             pos = length;
@@ -6340,7 +6376,7 @@ class TextTile extends Tile {
                 if (pos) {
                     from--;
                     flatten = 1;
-                } // FIXME this is wrong in RTL text
+                }
                 else if (to < length) {
                     to++;
                     flatten = -1;
@@ -6359,7 +6395,7 @@ class TextTile extends Tile {
         let rect = rects[(flatten ? flatten < 0 : side >= 0) ? 0 : rects.length - 1];
         if (browser.safari && !flatten && rect.width == 0)
             rect = Array.prototype.find.call(rects, r => r.width) || rect;
-        return flatten ? flattenRect(rect, flatten < 0) : rect || null;
+        return rtl == null ? rect : flattenRect(rect, (flatten ? flatten > 0 : side < 0) == rtl);
     }
     static of(text, dom) {
         let tile = new TextTile(dom || document.createTextNode(text), text);
@@ -6435,7 +6471,10 @@ class WidgetBufferTile extends Tile {
     }
     get isHidden() { return true; }
     get overrideDOMText() { return Text.empty; }
-    coordsIn(pos) { return this.dom.getBoundingClientRect(); }
+    coordsIn(pos, side, rtl) {
+        let rect = this.dom.getBoundingClientRect();
+        return rtl == null ? rect : flattenRect(rect, (side > 0) == rtl);
+    }
 }
 // Represents a position in the tile tree.
 class TilePointer {
@@ -6593,6 +6632,7 @@ class TileBuilder {
             this.cache.reused.set(oldTile, 2 /* Reused.DOM */);
         let text = new TextTile(composition.text, composition.text.nodeValue);
         text.flags |= 8 /* TileFlag.Composition */;
+        this.pos = composition.range.toB;
         head.append(text);
     }
     addInlineWidget(widget, marks, openStart) {
@@ -6691,7 +6731,8 @@ class TileBuilder {
                 this.wrappers.splice(i, 1);
         for (let cur = this.blockWrappers; cur.value && cur.from <= this.pos; cur.next())
             if (cur.to >= this.pos) {
-                let wrap = new OpenWrapper(cur.from, cur.to, cur.value, cur.rank), i = this.wrappers.length;
+                let rank = (cur.rank * 102) + cur.value.rank;
+                let wrap = new OpenWrapper(cur.from, cur.to, cur.value, rank), i = this.wrappers.length;
                 while (i > 0 && (this.wrappers[i - 1].rank - wrap.rank || this.wrappers[i - 1].to - wrap.to) < 0)
                     i--;
                 this.wrappers.splice(i, 0, wrap);
@@ -6795,8 +6836,8 @@ class TileCache {
     find(cls, test, type = 2 /* Reused.DOM */) {
         let i = cls.bucket;
         let bucket = this.buckets[i], off = this.index[i];
-        for (let j = bucket.length - 1; j >= 0; j--) {
-            // Look at the most recently added items first (last-in, first-out)
+        for (let j = 0; j < bucket.length; j++) {
+            // Look at the most oldest items first (first-in, first-out)
             let index = (j + off) % bucket.length, tile = bucket[index];
             if ((!test || test(tile)) && !this.reused.has(tile)) {
                 bucket.splice(index, 1);
@@ -6898,6 +6939,7 @@ class TileUpdate {
             if (composition && next.fromA <= composition.range.fromA && next.toA >= composition.range.toA) {
                 this.forward(next.fromA, composition.range.fromA, composition.range.fromA < composition.range.toA ? 1 : -1);
                 this.emit(posB, composition.range.fromB);
+                this.builder.flushBuffer();
                 this.cache.clear(); // Must not reuse DOM across composition
                 this.builder.addComposition(composition, compositionContext);
                 this.text.skip(composition.range.toB - composition.range.fromB);
@@ -6998,7 +7040,7 @@ class TileUpdate {
     }
     emit(from, to) {
         let pendingLineAttrs = null;
-        let b = this.builder, markCount = 0;
+        let b = this.builder, markCount = -1;
         let openEnd = RangeSet.spans(this.decorations, from, to, {
             point: (from, to, deco, active, openStart, index) => {
                 if (deco instanceof PointDecoration) {
@@ -7049,10 +7091,13 @@ class TileUpdate {
                     }
                     pendingLineAttrs = null;
                 }
+                markCount = active.length;
             }
         });
-        b.addLineStartIfNotCovered(pendingLineAttrs);
-        this.openWidget = openEnd > markCount;
+        if (markCount > -1)
+            this.openWidget = openEnd > markCount;
+        if (!this.openWidget)
+            b.addLineStartIfNotCovered(pendingLineAttrs);
         this.openMarks = openEnd;
     }
     forward(from, to, side = 1) {
@@ -7459,7 +7504,7 @@ class DocView {
     domAtPos(pos, side) {
         let { tile, offset } = this.tile.resolveBlock(pos, side);
         if (tile.isWidget())
-            return tile.domPosFor(pos, side);
+            return tile.domPosFor(offset, side);
         return tile.domIn(offset, side);
     }
     inlineDOMNearPos(pos, side) {
@@ -7496,14 +7541,16 @@ class DocView {
             after = null;
         return before && side < 0 || !after ? before.domIn(beforeOff, side) : after.domIn(afterOff, side);
     }
-    coordsAt(pos, side) {
+    // Get the coord of the element at the given side of the given
+    // position. If rtl is given, flatten it using that text direction.
+    coordsAt(pos, side, rtl) {
         let { tile, offset } = this.tile.resolveBlock(pos, side);
         if (tile.isWidget()) {
             if (tile.widget instanceof BlockGapWidget)
                 return null;
             return tile.coordsInWidget(offset, side, true);
         }
-        return tile.coordsIn(offset, side);
+        return tile.coordsIn(offset, side, rtl);
     }
     lineAt(pos, side) {
         let { tile } = this.tile.resolveBlock(pos, side);
@@ -7677,7 +7724,6 @@ class DocView {
         this.blockWrappers = this.view.state.facet(blockWrappers).map(v => typeof v == "function" ? v(this.view) : v);
     }
     scrollIntoView(target) {
-        var _a;
         if (target.isSnapshot) {
             let ref = this.view.viewState.lineBlockAt(target.range.head);
             this.view.scrollDOM.scrollTop = ref.top - target.yMargin;
@@ -7694,7 +7740,7 @@ class DocView {
             }
         }
         let { range } = target;
-        let rect = this.coordsAt(range.head, (_a = range.assoc) !== null && _a !== void 0 ? _a : (range.empty ? 0 : range.head > range.anchor ? -1 : 1)), other;
+        let rect = this.coordsAt(range.head, range.assoc || (range.head > range.anchor ? -1 : 1)), other;
         if (!rect)
             return;
         if (!range.empty && (other = this.coordsAt(range.anchor, range.anchor > range.head ? -1 : 1)))
@@ -7877,7 +7923,7 @@ function groupAt(state, pos, bias = 1) {
             break;
         to = next;
     }
-    return EditorSelection.range(from + line.from, to + line.from);
+    return EditorSelection.undirectionalRange(from + line.from, to + line.from);
 }
 function posAtCoordsImprecise(view, contentRect, block, x, y) {
     let into = Math.round((x - contentRect.left) * view.defaultCharacterWidth);
@@ -8014,8 +8060,12 @@ function skipAtomsForSelection(atoms, sel) {
         else {
             let from = skipAtomicRanges(atoms, range.from, -1);
             let to = skipAtomicRanges(atoms, range.to, 1);
-            if (from != range.from || to != range.to)
-                updated = EditorSelection.range(range.from == range.anchor ? from : to, range.from == range.head ? from : to);
+            if (from != range.from || to != range.to) {
+                if (range.undirectional)
+                    updated = EditorSelection.undirectionalRange(range.from, range.to);
+                else
+                    updated = EditorSelection.range(range.from == range.anchor ? from : to, range.from == range.head ? from : to);
+            }
         }
         if (updated) {
             if (!ranges)
@@ -8111,13 +8161,12 @@ class InlineCoordsScan {
     }
     // Scan through the rectangles for the content of a tile with inline
     // content, looking for one that overlaps the queried position
-    // vertically andis
-    // closest horizontally. The caller is responsible for dividing its
-    // content into N pieces, and pass an array with N+1 positions
-    // (including the position after the last piece). For a text tile,
-    // these will be character clusters, for a composite tile, these
-    // will be child tiles.
-    scan(positions, getRects) {
+    // vertically and is closest horizontally. The caller is responsible
+    // for dividing its content into N pieces, and pass an array with
+    // N+1 positions (including the position after the last piece). For
+    // a text tile, these will be character clusters, for a composite
+    // tile, these will be child tiles.
+    scan(positions, getRects, recursed = false) {
         let lo = 0, hi = positions.length - 1, seen = new Set();
         let bidi = this.bidiIn(positions[0], positions[hi]);
         let above, below;
@@ -8188,21 +8237,23 @@ class InlineCoordsScan {
         // If no element with y overlap is found, find the nearest element
         // on the y axis, move this.y into it, and retry the scan.
         if (!closestRect) {
+            if (!below && !above)
+                return { i: positions[0], after: false };
             let side = above && (!below || (this.y - above.bottom < below.top - this.y)) ? above : below;
             this.y = (side.top + side.bottom) / 2;
-            return this.scan(positions, getRects);
+            return this.scan(positions, getRects, true);
         }
         // Handle the case where closest matched a higher element on the
         // same line as an element below/above the coords
-        if (closestDx) {
+        if (closestDx && !recursed) {
             let { top, bottom } = closestRect;
             if (above && above.bottom > (top + top + bottom) / 3) {
                 this.y = above.bottom - 1;
-                return this.scan(positions, getRects);
+                return this.scan(positions, getRects, true);
             }
             if (below && below.top < (top + bottom + bottom) / 3) {
                 this.y = below.top + 1;
-                return this.scan(positions, getRects);
+                return this.scan(positions, getRects, true);
             }
         }
         let ltr = (bidi ? this.dirAt(positions[closestI], 1) : this.baseDir) == Direction.LTR;
@@ -8420,7 +8471,8 @@ class DOMChange {
             // Chrome will put the selection *inside* them, confusing
             // posFromDOM
             let vp = view.viewport;
-            if ((browser.ios || browser.chrome) && curSel.main.empty && head != anchor &&
+            if ((browser.ios || browser.chrome) && head != anchor &&
+                Math.min(head, anchor) <= curSel.main.from && Math.max(head, anchor) >= curSel.main.to &&
                 (vp.from > 0 || vp.to < view.state.doc.length)) {
                 let from = Math.min(head, anchor), to = Math.max(head, anchor);
                 let offFrom = vp.from - from, offTo = vp.to - to;
@@ -8730,6 +8782,7 @@ class InputState {
         this.view = view;
         this.lastKeyCode = 0;
         this.lastKeyTime = 0;
+        this.touchActive = false;
         this.lastTouchTime = 0;
         this.lastTouchX = 0;
         this.lastTouchY = 0;
@@ -8741,13 +8794,15 @@ class InputState {
         // (after which we retroactively handle them and reset the DOM) to
         // avoid messing up the virtual keyboard state.
         this.pendingIOSKey = undefined;
-        /**
-        When enabled (>-1), tab presses are not given to key handlers,
-        leaving the browser's default behavior. If >0, the mode expires
-        at that timestamp, and any other keypress clears it.
-        Esc enables temporary tab focus mode for two seconds when not
-        otherwise handled.
-        */
+        // Set to a time stap by scroll events when touch isn't active on
+        // iOS, to work around an issue where Safari will abort the scroll
+        // momentum if we set scrollTop
+        this.lastIOSMomentumScroll = 0;
+        // When enabled (>-1), tab presses are not given to key handlers,
+        // leaving the browser's default behavior. If >0, the mode expires
+        // at that timestamp, and any other keypress clears it.
+        // Esc enables temporary tab focus mode for two seconds when not
+        // otherwise handled.
         this.tabFocusMode = -1;
         this.lastSelectionOrigin = null;
         this.lastSelectionTime = 0;
@@ -8855,11 +8910,16 @@ class InputState {
         // state. So we let it go through, and then, in
         // applyDOMChange, notify key handlers of it and reset to
         // the state they produce.
-        let pending;
-        if (browser.ios && !event.synthetic && !event.altKey && !event.metaKey && !event.shiftKey &&
-            ((pending = PendingKeys.find(key => key.keyCode == event.keyCode)) && !event.ctrlKey ||
+        if (browser.ios && !event.synthetic && !event.altKey && !event.metaKey &&
+            (PendingKeys.some(key => key.keyCode == event.keyCode) && !event.ctrlKey ||
                 EmacsyPendingKeys.indexOf(event.key) > -1 && event.ctrlKey)) {
-            this.pendingIOSKey = pending || event;
+            let mods = { ctrlKey: event.ctrlKey, altKey: event.altKey, metaKey: event.metaKey, shiftKey: event.shiftKey };
+            // On iOS with autocapitalize, drop the shift modifier for these
+            // keys, since it will be set at the start of every sentence.
+            if (mods.shiftKey && browser.ios && !/^(off|none)$/.test(this.view.contentDOM.autocapitalize) &&
+                iosVirtualKeyboardOpen(this.view.win))
+                mods.shiftKey = false;
+            this.pendingIOSKey = { key: event.key, keyCode: event.keyCode, mods };
             setTimeout(() => this.flushIOSKey(), 250);
             return true;
         }
@@ -8875,7 +8935,7 @@ class InputState {
         if (key.key == "Enter" && change && change.from < change.to && /^\S+$/.test(change.insert.toString()))
             return false;
         this.pendingIOSKey = undefined;
-        return dispatchKey(this.view.contentDOM, key.key, key.keyCode, key instanceof KeyboardEvent ? key : undefined);
+        return dispatchKey(this.view.contentDOM, key.key, key.keyCode, key.mods);
     }
     ignoreDuringComposition(event) {
         if (!/^key/.test(event.type) || event.synthetic)
@@ -8912,6 +8972,11 @@ class InputState {
         if (this.mouseSelection)
             this.mouseSelection.destroy();
     }
+}
+function iosVirtualKeyboardOpen(win) {
+    if (!win.visualViewport)
+        return false;
+    return win.visualViewport.height * win.visualViewport.scale / win.document.documentElement.clientHeight < 0.85;
 }
 function bindHandler(plugin, handler) {
     return (view, event) => {
@@ -9163,8 +9228,11 @@ function doPaste(view, input) {
     });
 }
 observers.scroll = view => {
-    view.inputState.lastScrollTop = view.scrollDOM.scrollTop;
-    view.inputState.lastScrollLeft = view.scrollDOM.scrollLeft;
+    let iState = view.inputState;
+    iState.lastScrollTop = view.scrollDOM.scrollTop;
+    iState.lastScrollLeft = view.scrollDOM.scrollLeft;
+    if (browser.ios && !iState.touchActive)
+        iState.lastIOSMomentumScroll = Date.now();
 };
 observers.wheel = observers.mousewheel = view => {
     view.inputState.lastWheelEvent = Date.now();
@@ -9177,6 +9245,7 @@ handlers.keydown = (view, event) => {
 };
 observers.touchstart = (view, e) => {
     let iState = view.inputState, touch = e.targetTouches[0];
+    iState.touchActive = true;
     iState.lastTouchTime = Date.now();
     if (touch) {
         iState.lastTouchX = touch.clientX;
@@ -9186,6 +9255,9 @@ observers.touchstart = (view, e) => {
 };
 observers.touchmove = view => {
     view.inputState.setSelectionOrigin("select.pointer");
+};
+observers.touchend = (view, e) => {
+    view.inputState.touchActive = false;
 };
 handlers.mousedown = (view, event) => {
     view.observer.flush();
@@ -9232,7 +9304,7 @@ function rangeForClick(view, pos, bias, type) {
         let from = visual ? visual.posAtStart : line.from, to = visual ? visual.posAtEnd : line.to;
         if (to < view.state.doc.length && to == line.to)
             to++;
-        return EditorSelection.range(from, to);
+        return EditorSelection.undirectionalRange(from, to);
     }
 }
 const BadMouseDetail = browser.ie && browser.ie_version <= 11;
@@ -9290,7 +9362,7 @@ handlers.dragstart = (view, event) => {
         if (tile && tile.isWidget()) {
             let from = tile.posAtStart, to = from + tile.length;
             if (from >= range.to || to <= range.from)
-                range = EditorSelection.range(from, to);
+                range = EditorSelection.undirectionalRange(from, to);
         }
     }
     let { inputState } = view;
@@ -9496,7 +9568,7 @@ observers.compositionend = view => {
     view.inputState.compositionFirstChange = null;
     if (browser.chrome && browser.android) {
         // Delay flushing for a bit on Android because it'll often fire a
-        // bunch of contradictory changes in a row at end of compositon
+        // bunch of contradictory changes in a row at end of composition
         view.observer.flushSoon();
     }
     else if (view.inputState.compositionPendingChange) {
@@ -9627,8 +9699,7 @@ class HeightOracle {
     }
     refresh(whiteSpace, lineHeight, charWidth, textHeight, lineLength, knownHeights) {
         let lineWrapping = wrappingWhiteSpace.indexOf(whiteSpace) > -1;
-        let changed = Math.abs(lineHeight - this.lineHeight) > 0.3 || this.lineWrapping != lineWrapping ||
-            Math.abs(charWidth - this.charWidth) > 0.1;
+        let changed = Math.abs(lineHeight - this.lineHeight) > 0.3 || this.lineWrapping != lineWrapping;
         this.lineWrapping = lineWrapping;
         this.lineHeight = lineHeight;
         this.charWidth = charWidth;
@@ -9670,20 +9741,20 @@ class BlockInfo {
     /**
     The start of the element in the document.
     */
-    from, 
+    from,
     /**
     The length of the element.
     */
-    length, 
+    length,
     /**
     The top position of the element (relative to the top of the
     document).
     */
-    top, 
+    top,
     /**
     Its height.
     */
-    height, 
+    height,
     /**
     @internal Weird packed field that holds an array of children
     for composite blocks, a decoration for block widgets, and a
@@ -11081,6 +11152,7 @@ const baseTheme$1$1 = /*@__PURE__*/buildTheme("." + baseThemeID, {
         padding: "0 2px 0 6px"
     },
     ".cm-layer": {
+        userSelect: "none", // #1708
         position: "absolute",
         left: 0,
         top: 0,
@@ -11915,7 +11987,6 @@ class EditContextManager {
         for (let event in this.handlers)
             context.addEventListener(event, this.handlers[event]);
         this.measureReq = { read: view => {
-                this.editContext.updateControlBounds(view.contentDOM.getBoundingClientRect());
                 let sel = getSelection(view.root);
                 if (sel && sel.rangeCount)
                     this.editContext.updateSelectionBounds(sel.getRangeAt(0).getBoundingClientRect());
@@ -12449,6 +12520,7 @@ class EditorView {
                                 this.viewState.lineBlockAt(scrollAnchorPos).top;
                             let diff = (newAnchorHeight - scrollAnchorHeight) / this.scaleY;
                             if ((diff > 1 || diff < -1) &&
+                                !(browser.ios && this.inputState.lastIOSMomentumScroll > Date.now() - 100) &&
                                 (scroll == this.scrollDOM || this.hasFocus ||
                                     Math.max(this.inputState.lastWheelEvent, this.inputState.lastTouchTime) > Date.now() - 100)) {
                                 scrollOffset = scrollOffset + diff;
@@ -12646,7 +12718,7 @@ class EditorView {
     When the start position was the last one on the line, the
     returned position will be across the line break. If there is no
     further line, the original position is returned.
-    
+
     By default, this method moves over a single cluster. The
     optional `by` argument can be used to move across more. It will
     be called with the first cluster as argument, and should return
@@ -12690,7 +12762,7 @@ class EditorView {
     it defaults to moving to the next line (including wrapped
     lines). Otherwise, `distance` should provide a positive distance
     in pixels.
-    
+
     When `start` has a
     [`goalColumn`](https://codemirror.net/6/docs/ref/#state.SelectionRange.goalColumn), the vertical
     motion will use that as a target horizontal position. Otherwise,
@@ -12705,7 +12777,7 @@ class EditorView {
     Find the DOM parent node and offset (child offset if `node` is
     an element, character offset when it is a text node) at the
     given document position.
-    
+
     Note that for positions that aren't currently in
     `visibleRanges`, the resulting DOM position isn't necessarily
     meaningful (it may just point before or after a placeholder
@@ -12740,12 +12812,9 @@ class EditorView {
     */
     coordsAtPos(pos, side = 1) {
         this.readMeasured();
-        let rect = this.docView.coordsAt(pos, side);
-        if (!rect || rect.left == rect.right)
-            return rect;
         let line = this.state.doc.lineAt(pos), order = this.bidiSpans(line);
         let span = order[BidiSpan.find(order, pos - line.from, -1, side)];
-        return flattenRect(rect, (span.dir == Direction.LTR) == (side > 0));
+        return this.docView.coordsAt(pos, side, span.dir == Direction.RTL);
     }
     /**
     Return the rectangle around a given character. If `pos` does not
@@ -12888,7 +12957,7 @@ class EditorView {
     only affects the editor's own scrollable element, not parents.
     See also
     [`EditorViewConfig.scrollTo`](https://codemirror.net/6/docs/ref/#view.EditorViewConfig.scrollTo).
-    
+
     The effect should be used with a document identical to the one
     it was created for. Failing to do so is not an error, but may
     not scroll to the expected position. You can
@@ -12904,7 +12973,7 @@ class EditorView {
     for Tab and Shift-Tab, letting the browser's default
     focus-changing behavior go through instead. This is useful to
     prevent trapping keyboard users in your editor.
-    
+
     Without argument, this toggles the mode. With a boolean, it
     enables (true) or disables it (false). Given a number, it
     temporarily enables the mode until that number of milliseconds
@@ -12949,14 +13018,14 @@ class EditorView {
     [`style-mod`](https://code.haverbeke.berlin/marijn/style-mod#documentation)
     style spec providing the styles for the theme. These will be
     prefixed with a generated class for the style.
-    
+
     Because the selectors will be prefixed with a scope class, rule
     that directly match the editor's [wrapper
     element](https://codemirror.net/6/docs/ref/#view.EditorView.dom)—to which the scope class will be
     added—need to be explicitly differentiated by adding an `&` to
     the selector for that element—for example
     `&.cm-focused`.
-    
+
     When `dark` is set to true, the theme will be marked as dark,
     which will cause the `&dark` rules from [base
     themes](https://codemirror.net/6/docs/ref/#view.EditorView^baseTheme) to be used (as opposed to
@@ -13457,19 +13526,19 @@ class RectangleMarker {
     Create a marker with the given class and dimensions. If `width`
     is null, the DOM element will get no width style.
     */
-    constructor(className, 
+    constructor(className,
     /**
     The left position of the marker (in pixels, document-relative).
     */
-    left, 
+    left,
     /**
     The top position of the marker.
     */
-    top, 
+    top,
     /**
     The width of the marker, or null if it shouldn't get a width assigned.
     */
-    width, 
+    width,
     /**
     The height of the marker.
     */
@@ -14830,11 +14899,13 @@ const showHoverTooltipHost = /*@__PURE__*/showTooltip.compute([showHoverTooltip]
         arrow: tooltips.some(t => t.arrow),
     };
 });
+const hoverPlugin = /*@__PURE__*/Facet.define();
 class HoverPlugin {
-    constructor(view, source, field, setHover, hoverTime) {
+    constructor(view, source, field, locked, setHover, hoverTime) {
         this.view = view;
         this.source = source;
         this.field = field;
+        this.locked = locked;
         this.setHover = setHover;
         this.hoverTime = hoverTime;
         this.hoverTimeout = -1;
@@ -14845,7 +14916,7 @@ class HoverPlugin {
         view.dom.addEventListener("mouseleave", this.mouseleave = this.mouseleave.bind(this));
         view.dom.addEventListener("mousemove", this.mousemove = this.mousemove.bind(this));
     }
-    update() {
+    update(update) {
         if (this.pending) {
             this.pending = null;
             clearTimeout(this.restartTimeout);
@@ -14889,19 +14960,29 @@ class HoverPlugin {
             let rtl = bidi && bidi.dir == Direction.RTL ? -1 : 1;
             side = (lastMove.x < posCoords.left ? -rtl : rtl);
         }
+        this.activateHover(view, pos, side);
+    }
+    activateHover(view, pos, side, locked) {
         let open = this.source(view, pos, side);
-        if (open === null || open === void 0 ? void 0 : open.then) {
+        let done = (value) => {
+            if (value && !(Array.isArray(value) && !value.length)) {
+                let tooltips = Array.isArray(value) ? value : [value];
+                if (locked)
+                    this.locked.set(tooltips, locked);
+                view.dispatch({ effects: this.setHover.of(tooltips) });
+            }
+        };
+        if (open && "then" in open) {
             let pending = this.pending = { pos };
             open.then(result => {
                 if (this.pending == pending) {
                     this.pending = null;
-                    if (result && !(Array.isArray(result) && !result.length))
-                        view.dispatch({ effects: this.setHover.of(Array.isArray(result) ? result : [result]) });
+                    done(result);
                 }
             }, e => logException(view.state, e, "hover tooltip"));
         }
-        else if (open && !(Array.isArray(open) && !open.length)) {
-            view.dispatch({ effects: this.setHover.of(Array.isArray(open) ? open : [open]) });
+        else {
+            done(open);
         }
     }
     get tooltip() {
@@ -14915,7 +14996,7 @@ class HoverPlugin {
         if (this.hoverTimeout < 0)
             this.hoverTimeout = setTimeout(this.checkHover, this.hoverTime);
         let { active, tooltip } = this;
-        if (active.length && tooltip && !isInTooltip(tooltip.dom, event) || this.pending) {
+        if (active.length && !this.locked.has(active) && tooltip && !isInTooltip(tooltip.dom, event) || this.pending) {
             let { pos } = active[0] || this.pending, end = (_b = (_a = active[0]) === null || _a === void 0 ? void 0 : _a.end) !== null && _b !== void 0 ? _b : pos;
             if ((pos == end ? this.view.posAtCoords(this.lastMove) != pos
                 : !isOverRange(this.view, pos, end, event.clientX, event.clientY))) {
@@ -14928,7 +15009,7 @@ class HoverPlugin {
         clearTimeout(this.hoverTimeout);
         this.hoverTimeout = -1;
         let { active } = this;
-        if (active.length) {
+        if (active.length && !this.locked.has(active)) {
             let { tooltip } = this;
             let inTooltip = tooltip && tooltip.dom.contains(event.relatedTarget);
             if (!inTooltip)
@@ -14940,7 +15021,8 @@ class HoverPlugin {
     watchTooltipLeave(tooltip) {
         let watch = (event) => {
             tooltip.removeEventListener("mouseleave", watch);
-            if (this.active.length && !this.view.dom.contains(event.relatedTarget))
+            let { active } = this;
+            if (active.length && !this.locked.has(active) && !this.view.dom.contains(event.relatedTarget))
                 this.view.dispatch({ effects: this.setHover.of([]) });
         };
         tooltip.addEventListener("mouseleave", watch);
@@ -14991,47 +15073,83 @@ extension.
 */
 function hoverTooltip(source, options = {}) {
     let setHover = StateEffect.define();
+    // This would be better stored in the state field, but we've set
+    // down the type of the field in our interface, so it's indirectly
+    // stored by array identity.
+    let locked = new WeakMap();
     let hoverState = StateField.define({
         create() { return []; },
         update(value, tr) {
+            let lock = locked.get(value);
             if (value.length) {
                 if (options.hideOnChange && (tr.docChanged || tr.selection))
                     value = [];
+                else if (lock && lock(tr))
+                    value = [];
                 else if (options.hideOn)
                     value = value.filter(v => !options.hideOn(tr, v));
-                if (tr.docChanged) {
-                    let mapped = [];
-                    for (let tooltip of value) {
-                        let newPos = tr.changes.mapPos(tooltip.pos, -1, MapMode.TrackDel);
-                        if (newPos != null) {
-                            let copy = Object.assign(Object.create(null), tooltip);
-                            copy.pos = newPos;
-                            if (copy.end != null)
-                                copy.end = tr.changes.mapPos(copy.end);
-                            mapped.push(copy);
-                        }
+            }
+            if (tr.docChanged && value.length) {
+                let mapped = [];
+                for (let tooltip of value) {
+                    let newPos = tr.changes.mapPos(tooltip.pos, -1, MapMode.TrackDel);
+                    if (newPos != null) {
+                        let copy = Object.assign(Object.create(null), tooltip);
+                        copy.pos = newPos;
+                        if (copy.end != null)
+                            copy.end = tr.changes.mapPos(copy.end);
+                        mapped.push(copy);
                     }
-                    value = mapped;
                 }
+                value = mapped;
             }
             for (let effect of tr.effects) {
-                if (effect.is(setHover))
+                if (effect.is(setHover)) {
                     value = effect.value;
-                if (effect.is(closeHoverTooltipEffect))
+                    lock = undefined;
+                }
+                if (effect.is(closeHoverTooltipEffect) && !effect.value || effect.value == hoverState)
                     value = [];
             }
+            if (value.length && lock)
+                locked.set(value, lock);
             return value;
         },
         provide: f => showHoverTooltip.from(f)
     });
+    const plugin = ViewPlugin.define(view => new HoverPlugin(view, source, hoverState, locked, setHover, options.hoverTime || 300 /* Hover.Time */));
     return {
         active: hoverState,
         extension: [
             hoverState,
-            ViewPlugin.define(view => new HoverPlugin(view, source, hoverState, setHover, options.hoverTime || 300 /* Hover.Time */)),
+            plugin,
+            hoverPlugin.of(plugin),
             showHoverTooltipHost
         ]
     };
+}
+/**
+Activate hover tooltips for the given position and side. If you
+provide a specific hover tooltip (the value returned from
+[`hoverTooltip`](https://codemirror.net/6/docs/ref/#view.hoverTooltip)), only that one will be
+activated. If not given, all hover tooltips at the given position
+are triggered.
+
+Note that tooltips opened this way don't close automatically, and
+you'll want to pass an `until` callback or use
+[`closeHoverTooltip`](https://codemirror.net/6/docs/ref/#view.closeHoverTooltip)/[`closeHoverTooltips`](https://codemirror.net/6/docs/ref/#view.closeHoverTooltips)
+to deactivate them.
+*/
+function activateHover(view, pos, side, options = {}) {
+    var _a;
+    let plugins = view.state.facet(hoverPlugin).map(p => view.plugin(p)).filter((p) => !!p);
+    if (options.tooltip && options.tooltip.active) {
+        let found = plugins.find(p => p.field == options.tooltip.active);
+        if (found)
+            plugins = [found];
+    }
+    for (let plugin of plugins)
+        plugin.activateHover(view, pos, side, (_a = options.until) !== null && _a !== void 0 ? _a : (() => false));
 }
 /**
 Get the active tooltip view for a given tooltip, if available.
@@ -15946,7 +16064,7 @@ class MountedTree {
     /**
     The inner tree.
     */
-    tree, 
+    tree,
     /**
     If this is null, this tree replaces the entire node (it will
     be included in the regular iteration instead of its host
@@ -15956,11 +16074,11 @@ class MountedTree {
     only entered by [`resolveInner`](#common.Tree.resolveInner)
     and [`enter`](#common.SyntaxNode.enter).
     */
-    overlay, 
+    overlay,
     /**
     The parser used to create this subtree.
     */
-    parser, 
+    parser,
     /**
     [Indicates](#common.IterMode.EnterBracketed) that the nested
     content is delineated with some kind
@@ -15994,16 +16112,16 @@ class NodeType {
     same name within a node set should play the same semantic
     role.
     */
-    name, 
+    name,
     /**
     @internal
     */
-    props, 
+    props,
     /**
     The id of this node in its set. Corresponds to the term ids
     used in the parser.
     */
-    id, 
+    id,
     /**
     @internal
     */
@@ -16207,20 +16325,20 @@ class Tree {
     /**
     The type of the top node.
     */
-    type, 
+    type,
     /**
     This node's child nodes.
     */
-    children, 
+    children,
     /**
     The positions (offsets relative to the start of this tree) of
     the children.
     */
-    positions, 
+    positions,
     /**
     The total length of this tree
     */
-    length, 
+    length,
     /**
     Per-node [node props](#common.NodeProp) to associate with this node.
     */
@@ -16292,7 +16410,7 @@ class Tree {
     position. If 1, it'll move into nodes that start at the
     position. With 0, it'll only enter nodes that cover the position
     from both sides.
-    
+
     Note that this will not enter
     [overlays](#common.MountedTree.overlay), and you often want
     [`resolveInner`](#common.Tree.resolveInner) instead.
@@ -16417,11 +16535,11 @@ class TreeBuffer {
     /**
     The buffer's content.
     */
-    buffer, 
+    buffer,
     /**
     The total length of the group of nodes in the buffer.
     */
-    length, 
+    length,
     /**
     The node set used in this buffer.
     */
@@ -16566,7 +16684,7 @@ class BaseNode {
     get next() { return this.parent; }
 }
 class TreeNode extends BaseNode {
-    constructor(_tree, from, 
+    constructor(_tree, from,
     // Index in parent node, set to -1 if the node is not a direct child of _parent.node (overlay)
     index, _parent) {
         super();
@@ -17360,17 +17478,17 @@ function nodeSize(balanceType, node) {
 }
 function balanceRange(
 // The type the balanced tree's inner nodes.
-balanceType, 
+balanceType,
 // The direct children and their positions
-children, positions, 
+children, positions,
 // The index range in children/positions to use
-from, to, 
+from, to,
 // The start position of the nodes, relative to their parent.
-start, 
+start,
 // Length of the outer node
-length, 
+length,
 // Function to build the top node of the balanced tree
-mkTop, 
+mkTop,
 // Function to build internal nodes for the balanced tree
 mkTree) {
     let total = 0;
@@ -17481,15 +17599,15 @@ class TreeFragment {
     This refers to an offset in the _updated_ document (as opposed
     to the original tree).
     */
-    from, 
+    from,
     /**
     The end of the unchanged range.
     */
-    to, 
+    to,
     /**
     The tree that this fragment is based on.
     */
-    tree, 
+    tree,
     /**
     The offset between the fragment's tree and the document that
     this fragment can be used against. Add this when going from
@@ -17572,7 +17690,7 @@ class Parser {
     Start a parse, returning a [partial parse](#common.PartialParse)
     object. [`fragments`](#common.TreeFragment) can be passed in to
     make the parse incremental.
-    
+
     By default, the entire input is parsed. You can pass `ranges`,
     which should be a sorted array of non-empty, non-overlapping
     ranges, to parse only those ranges. The tree returned in that
@@ -18063,17 +18181,17 @@ class Tag {
     /**
     The optional name of the base tag @internal
     */
-    name, 
+    name,
     /**
     The set of this tag and all its parent tags, starting with
     this one itself and sorted in order of decreasing specificity.
     */
-    set, 
+    set,
     /**
     The base unmodified tag that this one is based on, if it's
     modified @internal
     */
-    base, 
+    base,
     /**
     The modifiers applied to this.base @internal
     */
@@ -18113,7 +18231,7 @@ class Tag {
     same modifier to a twice tag will return the same value (`m1(t1)
     == m1(t1)`) and applying multiple modifiers will, regardless or
     order, produce the same tag (`m1(m2(t1)) == m2(m1(t1))`).
-    
+
     When multiple modifiers are applied to a given base tag, each
     smaller set of modifiers is registered as a parent, so that for
     example `m1(m2(m3(t1)))` is a subtype of `m1(m2(t1))`,
@@ -18345,17 +18463,17 @@ Highlight the given [tree](#common.Tree) with the given
 [`highlightCode`](#highlight.highlightCode) function is easier to
 use.
 */
-function highlightTree(tree, highlighter, 
+function highlightTree(tree, highlighter,
 /**
 Assign styling to a region of the text. Will be called, in order
 of position, for any ranges where more than zero classes apply.
 `classes` is a space separated string of CSS classes.
 */
-putStyle, 
+putStyle,
 /**
 The start of the range to highlight.
 */
-from = 0, 
+from = 0,
 /**
 The end of the range.
 */
@@ -18976,7 +19094,7 @@ class Language {
     The [language data](https://codemirror.net/6/docs/ref/#state.EditorState.languageDataAt) facet
     used for this language.
     */
-    data, parser, extraExtensions = [], 
+    data, parser, extraExtensions = [],
     /**
     A language name.
     */
@@ -19078,8 +19196,7 @@ function topNodeAt(state, pos, side) {
 }
 /**
 A subclass of [`Language`](https://codemirror.net/6/docs/ref/#language.Language) for use with Lezer
-[LR parsers](https://lezer.codemirror.net/docs/ref#lr.LRParser)
-parsers.
+[LR parsers](https://lezer.codemirror.net/docs/ref#lr.LRParser).
 */
 class LRLanguage extends Language {
     constructor(data, parser, name) {
@@ -19153,23 +19270,23 @@ let currentContext = null;
 A parse context provided to parsers working on the editor content.
 */
 class ParseContext {
-    constructor(parser, 
+    constructor(parser,
     /**
     The current editor state.
     */
-    state, 
+    state,
     /**
     Tree fragments that can be reused by incremental re-parses.
     */
-    fragments = [], 
+    fragments = [],
     /**
     @internal
     */
-    tree, 
+    tree,
     /**
     @internal
     */
-    treeLen, 
+    treeLen,
     /**
     The current editor viewport (or some overapproximation
     thereof). Intended to be used for opportunistically avoiding
@@ -19178,11 +19295,11 @@ class ParseContext {
     should be called to make sure the parser is restarted when the
     skipped region becomes visible).
     */
-    viewport, 
+    viewport,
     /**
     @internal
     */
-    skipped, 
+    skipped,
     /**
     This is where skipping parsers can register a promise that,
     when resolved, will schedule a new parse. It is cleared when
@@ -19346,7 +19463,7 @@ class ParseContext {
     asynchronously loading a nested parser. It'll skip its input and
     mark it as not-really-parsed, so that the next update will parse
     it again.
-    
+
     When `until` is given, a reparse will be scheduled when that
     promise resolves.
     */
@@ -19552,7 +19669,7 @@ class LanguageSupport {
     /**
     The language object.
     */
-    language, 
+    language,
     /**
     An optional set of supporting extensions. When nesting a
     language in another language, the outer language is encouraged
@@ -19576,20 +19693,20 @@ class LanguageDescription {
     /**
     The name of this language.
     */
-    name, 
+    name,
     /**
     Alternative names for the mode (lowercased, includes `this.name`).
     */
-    alias, 
+    alias,
     /**
     File extensions associated with this language.
     */
-    extensions, 
+    extensions,
     /**
     Optional filename pattern that should be associated with this
     language.
     */
-    filename, loadFunc, 
+    filename, loadFunc,
     /**
     If the language has been loaded, this will hold its value.
     */
@@ -19751,7 +19868,7 @@ class IndentContext {
     /**
     The editor state.
     */
-    state, 
+    state,
     /**
     @internal
     */
@@ -19881,11 +19998,11 @@ Objects of this type provide context information and helper
 methods to indentation functions registered on syntax nodes.
 */
 class TreeIndentContext extends IndentContext {
-    constructor(base, 
+    constructor(base,
     /**
     The position at which indentation is being computed.
     */
-    pos, 
+    pos,
     /**
     @internal
     */
@@ -20080,9 +20197,9 @@ class HighlightStyle {
     or array of tags in their `tag` property, and either a single
     `class` property providing a static CSS class (for highlighter
     that rely on external styling), or a
-    [`style-mod`](https://github.com/marijnh/style-mod#documentation)-style
+    [`style-mod`](https://code.haverbeke.berlin/marijn/style-mod#documentation)-style
     set of CSS properties (which define the styling for those tags).
-    
+
     The CSS rules created for a highlighter will be emitted in the
     order of the spec's properties. That means that for elements that
     have multiple tags associated with them, styles defined further
@@ -20676,14 +20793,14 @@ class HistEvent {
     // events before the first change, in which case a special type of
     // instance is created which doesn't hold any changes, with
     // changes == startSelection == undefined
-    changes, 
+    changes,
     // The effects associated with this event
-    effects, 
+    effects,
     // Accumulated mapping (from addToHistory==false) that should be
     // applied to events below this one.
-    mapped, 
+    mapped,
     // The selection before this event
-    startSelection, 
+    startSelection,
     // Stores selection changes after this event, to be used for
     // selection undo/redo.
     selectionsAfter) {
@@ -21094,8 +21211,10 @@ Move the selection to the bracket matching the one it is currently
 on, if any.
 */
 const cursorMatchingBracket = ({ state, dispatch }) => toMatchingBracket(state, dispatch);
-function extendSel(target, how) {
+function extendSel(target, forward, how) {
     let selection = updateSel(target.state.selection, range => {
+        if (range.undirectional && (range.head >= range.anchor) != forward)
+            range = EditorSelection.range(range.head, range.anchor);
         let head = how(range);
         return EditorSelection.range(range.anchor, head.head, head.goalColumn, head.bidiLevel || undefined, head.assoc);
     });
@@ -21105,7 +21224,7 @@ function extendSel(target, how) {
     return true;
 }
 function selectByChar(view, forward) {
-    return extendSel(view, range => view.moveByChar(range, forward));
+    return extendSel(view, forward, range => view.moveByChar(range, forward));
 }
 /**
 Move the selection head one character to the left, while leaving
@@ -21117,7 +21236,7 @@ Move the selection head one character to the right.
 */
 const selectCharRight = view => selectByChar(view, ltrAtCursor(view));
 function selectByGroup(view, forward) {
-    return extendSel(view, range => view.moveByGroup(range, forward));
+    return extendSel(view, forward, range => view.moveByGroup(range, forward));
 }
 /**
 Move the selection head one [group](https://codemirror.net/6/docs/ref/#commands.cursorGroupLeft) to
@@ -21131,13 +21250,19 @@ const selectGroupRight = view => selectByGroup(view, ltrAtCursor(view));
 /**
 Move the selection head over the next syntactic element to the left.
 */
-const selectSyntaxLeft = view => extendSel(view, range => moveBySyntax(view.state, range, !ltrAtCursor(view)));
+const selectSyntaxLeft = view => {
+    let forward = !ltrAtCursor(view);
+    return extendSel(view, forward, range => moveBySyntax(view.state, range, forward));
+};
 /**
 Move the selection head over the next syntactic element to the right.
 */
-const selectSyntaxRight = view => extendSel(view, range => moveBySyntax(view.state, range, ltrAtCursor(view)));
+const selectSyntaxRight = view => {
+    let forward = ltrAtCursor(view);
+    return extendSel(view, forward, range => moveBySyntax(view.state, range, forward));
+};
 function selectByLine(view, forward) {
-    return extendSel(view, range => view.moveVertically(range, forward));
+    return extendSel(view, forward, range => view.moveVertically(range, forward));
 }
 /**
 Move the selection head one line up.
@@ -21148,7 +21273,7 @@ Move the selection head one line down.
 */
 const selectLineDown = view => selectByLine(view, true);
 function selectByPage(view, forward) {
-    return extendSel(view, range => view.moveVertically(range, forward, pageInfo(view).height));
+    return extendSel(view, forward, range => view.moveVertically(range, forward, pageInfo(view).height));
 }
 /**
 Move the selection head one page up.
@@ -21161,27 +21286,33 @@ const selectPageDown = view => selectByPage(view, true);
 /**
 Move the selection head to the next line boundary.
 */
-const selectLineBoundaryForward = view => extendSel(view, range => moveByLineBoundary(view, range, true));
+const selectLineBoundaryForward = view => extendSel(view, true, range => moveByLineBoundary(view, range, true));
 /**
 Move the selection head to the previous line boundary.
 */
-const selectLineBoundaryBackward = view => extendSel(view, range => moveByLineBoundary(view, range, false));
+const selectLineBoundaryBackward = view => extendSel(view, false, range => moveByLineBoundary(view, range, false));
 /**
 Move the selection head one line boundary to the left.
 */
-const selectLineBoundaryLeft = view => extendSel(view, range => moveByLineBoundary(view, range, !ltrAtCursor(view)));
+const selectLineBoundaryLeft = view => {
+    let forward = !ltrAtCursor(view);
+    return extendSel(view, forward, range => moveByLineBoundary(view, range, forward));
+};
 /**
 Move the selection head one line boundary to the right.
 */
-const selectLineBoundaryRight = view => extendSel(view, range => moveByLineBoundary(view, range, ltrAtCursor(view)));
+const selectLineBoundaryRight = view => {
+    let forward = ltrAtCursor(view);
+    return extendSel(view, forward, range => moveByLineBoundary(view, range, forward));
+};
 /**
 Move the selection head to the start of the line.
 */
-const selectLineStart = view => extendSel(view, range => EditorSelection.cursor(view.lineBlockAt(range.head).from));
+const selectLineStart = view => extendSel(view, false, range => EditorSelection.cursor(view.lineBlockAt(range.head).from));
 /**
 Move the selection head to the end of the line.
 */
-const selectLineEnd = view => extendSel(view, range => EditorSelection.cursor(view.lineBlockAt(range.head).to));
+const selectLineEnd = view => extendSel(view, true, range => EditorSelection.cursor(view.lineBlockAt(range.head).to));
 /**
 Move the selection to the start of the document.
 */
@@ -21875,12 +22006,12 @@ class SearchCursor {
     /**
     Create a text cursor. The query is the search string, `from` to
     `to` provides the region to search.
-    
+
     When `normalize` is given, it will be called, on both the query
     string and the content it is matched against, before comparing.
     You can, for example, create a case-insensitive search by
     passing `s => s.toLowerCase()`.
-    
+
     Text is always normalized with
     [`.normalize("NFKD")`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/normalize)
     (when supported).
@@ -21891,7 +22022,7 @@ class SearchCursor {
         The current match (only holds a meaningful value after
         [`next`](https://codemirror.net/6/docs/ref/#search.SearchCursor.next) has been called and when
         `done` is false).
-        
+
         The `precise` flag will be set to false if the match starts or
         ends _inside_ a character that, when normalized, expands to
         multiple characters. It indicates that the `from`-`to` range
@@ -22768,6 +22899,7 @@ const replaceNext = /*@__PURE__*/searchCommand((view, { query }) => {
     else if (next.from == from && next.to == to) {
         replacement = state.toText(query.getReplacement(next));
         changes.push({ from: next.from, to: next.to, insert: replacement });
+        next = query.nextMatch(state, next.from, next.to);
         effects.push(EditorView.announce.of(state.phrase("replaced match on line $", state.doc.lineAt(from).number) + "."));
     }
     let changeSet = view.state.changes(changes);
@@ -23080,16 +23212,16 @@ class Stack {
     /**
     The parse that this stack is part of @internal
     */
-    p, 
+    p,
     /**
     Holds state, input pos, buffer index triplets for all but the
     top state @internal
     */
-    stack, 
+    stack,
     /**
     The current parse state @internal
     */
-    state, 
+    state,
     // The position at which the next reduce should take place. This
     // can be less than `this.pos` when skipped expressions have been
     // added to the stack (which should be moved outside of the next
@@ -23097,24 +23229,24 @@ class Stack {
     /**
     @internal
     */
-    reducePos, 
+    reducePos,
     /**
     The input position up to which this stack has parsed.
     */
-    pos, 
+    pos,
     /**
     The dynamic score of the stack, including dynamic precedence
     and error-recovery penalties
     @internal
     */
-    score, 
+    score,
     // The output buffer. Holds (type, start, end, size) quads
     // representing nodes created by the parser, where `size` is
     // amount of buffer array entries covered by this node.
     /**
     @internal
     */
-    buffer, 
+    buffer,
     // The base offset of the buffer. When stacks are split, the split
     // instance shared the buffer history with its parent up to
     // `bufferBase`, which is the absolute offset (including the
@@ -23123,15 +23255,15 @@ class Stack {
     /**
     @internal
     */
-    bufferBase, 
+    bufferBase,
     /**
     @internal
     */
-    curContext, 
+    curContext,
     /**
     @internal
     */
-    lookAhead = 0, 
+    lookAhead = 0,
     // A parent stack from which this was split off, if any. This is
     // set up so that it always points to a stack that has some
     // additional buffer content, never to a stack with an equal
@@ -23732,7 +23864,7 @@ class InputStream {
     /**
     @internal
     */
-    input, 
+    input,
     /**
     @internal
     */
@@ -23804,7 +23936,7 @@ class InputStream {
     Look at a code unit near the stream position. `.peek(0)` equals
     `.next`, `.peek(-1)` gives you the previous character, and so
     on.
-    
+
     Note that looking around during tokenizing creates dependencies
     on potentially far-away content, which may reduce the
     effectiveness incremental parsing—when looking forward—or even
@@ -25153,18 +25285,18 @@ class CompletionContext {
     /**
     The editor state that the completion happens in.
     */
-    state, 
+    state,
     /**
     The position at which the completion is happening.
     */
-    pos, 
+    pos,
     /**
     Indicates whether completion was activated explicitly, or
     implicitly by typing. The usual way to respond to this is to
     only return completions when either there is part of a
     completable entity before the cursor, or `explicit` is true.
     */
-    explicit, 
+    explicit,
     /**
     The editor view. May be undefined if the context was created
     in a situation where there is no such view available, such as
@@ -25218,7 +25350,7 @@ class CompletionContext {
     Allows you to register abort handlers, which will be called when
     the query is
     [aborted](https://codemirror.net/6/docs/ref/#autocomplete.CompletionContext.aborted).
-    
+
     By default, running queries will not be aborted for regular
     typing or backspacing, on the assumption that they are likely to
     return a result with a
@@ -25618,8 +25750,8 @@ function rangeAroundSelected(total, selected, max) {
         let off = Math.floor(selected / max);
         return { from: off * max, to: (off + 1) * max };
     }
-    let off = Math.floor((total - selected) / max);
-    return { from: total - (off + 1) * max, to: total - off * max };
+    let off = Math.ceil((total - selected) / max);
+    return { from: total - off * max, to: total - (off - 1) * max };
 }
 class CompletionTooltip {
     constructor(view, stateField, applyCompletion) {
@@ -26150,7 +26282,7 @@ class ActiveResult extends ActiveSource {
         let result = this.result.map ? this.result.map(this.result, mapping) : this.result;
         if (!result)
             return new ActiveSource(this.source, 0 /* State.Inactive */);
-        return new ActiveResult(this.source, this.explicit, mapping.mapPos(this.limit), this.result, mapping.mapPos(this.from), mapping.mapPos(this.to, 1));
+        return new ActiveResult(this.source, this.explicit, mapping.mapPos(this.limit), result, mapping.mapPos(this.from), mapping.mapPos(this.to, 1));
     }
     touches(tr) {
         return tr.changes.touchesRange(this.from, this.to);
@@ -26478,7 +26610,8 @@ const baseTheme$1 = /*@__PURE__*/EditorView.baseTheme({
         content: '"···"',
         opacity: 0.5,
         display: "block",
-        textAlign: "center"
+        textAlign: "center",
+        cursor: "pointer",
     },
     ".cm-tooltip.cm-completionInfo": {
         position: "absolute",
@@ -26601,6 +26734,9 @@ class Snippet {
         for (let line of template.split(/\r\n?|\n/)) {
             while (m = /[#$]\{(?:(\d+)(?::([^{}]*))?|((?:\\[{}]|[^{}])*))\}/.exec(line)) {
                 let seq = m[1] ? +m[1] : null, rawName = m[2] || m[3] || "", found = -1;
+                // `${0}` is the cursor's final position, after every other tab stop.
+                if (seq === 0)
+                    seq = 1e9;
                 let name = rawName.replace(/\\[{}]/g, m => m[1]);
                 for (let i = 0; i < fields.length; i++) {
                     if (seq != null ? fields[i].seq == seq : name ? fields[i].name == name : false)
@@ -26715,7 +26851,8 @@ cursor out of the current field deactivates the fields.
 
 The order of fields defaults to textual order, but you can add
 numbers to placeholders (`${1}` or `${1:defaultText}`) to provide
-a custom order.
+a custom order. `${0}` is special—it is always the last stop, where
+the cursor ends up after tabbing through the other fields.
 
 To include a literal `{` or `}` in your template, put a backslash
 in front of it. This will be removed and the brace will not be
@@ -28926,7 +29063,7 @@ function maybeNest(node, input, tags) {
 //   tagName?: string,
 //   parser: Parser
 // }[]
- 
+
 function configureNesting(tags = [], attributes = []) {
   let script = [], style = [], textarea = [], other = [];
   for (let tag of tags) {
@@ -30035,7 +30172,7 @@ class CompositeBlock {
         let hash = (parentHash + (parentHash << 8) + type + (value << 4)) | 0;
         return new CompositeBlock(type, value, from, hash, end, [], []);
     }
-    constructor(type, 
+    constructor(type,
     // Used for indentation in list items, markup character in lists
     value, from, hash, end, children, positions) {
         this.type = type;
@@ -30123,7 +30260,7 @@ class LeafBlock {
     /**
     The start position of the block.
     */
-    start, 
+    start,
     /**
     The block's text content.
     */
@@ -30736,11 +30873,11 @@ class BlockContext {
     /**
     The parser configuration used.
     */
-    parser, 
+    parser,
     /**
     @internal
     */
-    input, fragments, 
+    input, fragments,
     /**
     @internal
     */
@@ -31095,35 +31232,35 @@ class MarkdownParser extends Parser {
     The parser's syntax [node
     types](https://lezer.codemirror.net/docs/ref/#common.NodeSet).
     */
-    nodeSet, 
+    nodeSet,
     /**
     @internal
     */
-    blockParsers, 
+    blockParsers,
     /**
     @internal
     */
-    leafBlockParsers, 
+    leafBlockParsers,
     /**
     @internal
     */
-    blockNames, 
+    blockNames,
     /**
     @internal
     */
-    endLeafBlock, 
+    endLeafBlock,
     /**
     @internal
     */
-    skipContextMarkup, 
+    skipContextMarkup,
     /**
     @internal
     */
-    inlineParsers, 
+    inlineParsers,
     /**
     @internal
     */
-    inlineNames, 
+    inlineNames,
     /**
     @internal
     */
@@ -31348,15 +31485,15 @@ class Element {
     The node's
     [id](https://lezer.codemirror.net/docs/ref/#common.NodeType.id).
     */
-    type, 
+    type,
     /**
     The start of the node, as an offset from the start of the document.
     */
-    from, 
+    from,
     /**
     The end of the node.
     */
-    to, 
+    to,
     /**
     The node's child nodes @internal
     */
@@ -31662,11 +31799,11 @@ class InlineContext {
     /**
     The parser that is being used.
     */
-    parser, 
+    parser,
     /**
     The text of this inline section.
     */
-    text, 
+    text,
     /**
     The starting offset of the section in the document.
     */
@@ -32718,7 +32855,7 @@ const deleteMarkupBackward = ({ state, dispatch }) => {
                     // Only apply this if we're on the line that has the
                     // construct's syntax, or there's only indentation in the
                     // target range
-                    (!inner.item || line.from <= inner.item.from || !/\S/.test(line.text.slice(0, inner.to)))) {
+                    ((inner.item && line.from <= inner.item.from) || /^[\s>]*$/.test(line.text.slice(0, inner.to)))) {
                     let start = line.from + inner.from;
                     // Replace a list item marker with blank space
                     if (inner.item && inner.node.from < inner.item.from && /\S/.test(line.text.slice(inner.from, inner.to))) {
@@ -33136,7 +33273,7 @@ function lintTooltip(view, pos, side) {
     return {
         pos: start,
         end: end,
-        above: view.state.doc.lineAt(start).to < end,
+        above: true,
         create() {
             return { dom: diagnosticsTooltip(view, found) };
         }
@@ -33181,6 +33318,10 @@ const nextDiagnostic = (view) => {
             return false;
     }
     view.dispatch({ selection: { anchor: next.from, head: next.to }, scrollIntoView: true });
+    activateHover(view, next.from, 1, {
+        tooltip: lintHover,
+        until: tr => tr.docChanged || tr.newSelection.main.head < next.from || tr.newSelection.main.head > next.to
+    });
     return true;
 };
 /**
@@ -33490,7 +33631,7 @@ const baseTheme = /*@__PURE__*/EditorView.baseTheme({
         backgroundRepeat: "repeat-x",
         paddingBottom: "0.7px",
     },
-    ".cm-lintRange-error": { backgroundImage: /*@__PURE__*/underline("#d11") },
+    ".cm-lintRange-error": { backgroundImage: /*@__PURE__*/underline("#f11") },
     ".cm-lintRange-warning": { backgroundImage: /*@__PURE__*/underline("orange") },
     ".cm-lintRange-info": { backgroundImage: /*@__PURE__*/underline("#999") },
     ".cm-lintRange-hint": { backgroundImage: /*@__PURE__*/underline("#66d") },
@@ -33571,6 +33712,7 @@ function maxSeverity(diagnostics) {
     }
     return sev;
 }
+const lintHover = /*@__PURE__*/hoverTooltip(lintTooltip, { hideOn: hideTooltip });
 const lintExtensions = [
     lintState,
     /*@__PURE__*/EditorView.decorations.compute([lintState], state => {
@@ -33579,7 +33721,7 @@ const lintExtensions = [
             activeMark.range(selected.from, selected.to)
         ]);
     }),
-    /*@__PURE__*/hoverTooltip(lintTooltip, { hideOn: hideTooltip }),
+    lintHover,
     baseTheme
 ];
 
