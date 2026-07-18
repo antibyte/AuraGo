@@ -254,6 +254,53 @@
 .realtime-speech-modal p { color: var(--text-muted, #9dafb9); line-height: 1.55; }
 .realtime-speech-modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
 
+.realtime-speech-launcher {
+    position: relative;
+}
+
+.realtime-speech-launcher::after {
+    content: '';
+    position: absolute;
+    top: 3px;
+    right: 3px;
+    width: 8px;
+    height: 8px;
+    box-sizing: border-box;
+    background: transparent;
+    border: 2px solid transparent;
+    border-radius: 50%;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .16s ease, background-color .16s ease, border-color .16s ease;
+}
+
+.realtime-speech-launcher[data-session="true"]::after {
+    border-color: var(--text-muted, #9dafb9);
+    opacity: .72;
+}
+
+.realtime-speech-launcher[data-state="parked"]::after {
+    border-color: #d5a94f;
+    opacity: .9;
+}
+
+.realtime-speech-launcher[data-active="true"]::after {
+    background: var(--accent, #2fc5a9);
+    border-color: var(--accent, #2fc5a9);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, #2fc5a9) 18%, transparent);
+    opacity: 1;
+}
+
+.realtime-speech-launcher[data-state="error"]::after {
+    background: #ee6a6a;
+    border-color: #ee6a6a;
+    opacity: 1;
+}
+
+.realtime-speech-launcher[data-transmitting="true"]::after {
+    animation: realtime-speech-data-pulse .8s ease-out infinite;
+}
+
 .realtime-speech-launcher[data-active="true"] {
     color: var(--accent, #2fc5a9);
     box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent, #2fc5a9) 45%, transparent);
@@ -277,6 +324,18 @@
 
 .realtime-speech-launcher[data-active="true"] .realtime-speech-launcher-wave i {
     animation: realtime-speech-wave .75s ease-in-out infinite alternate;
+}
+
+@keyframes realtime-speech-data-pulse {
+    70% { box-shadow: 0 0 0 6px transparent; }
+    100% { box-shadow: 0 0 0 0 transparent; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .realtime-speech-launcher[data-active="true"] .realtime-speech-launcher-wave i,
+    .realtime-speech-launcher[data-transmitting="true"]::after {
+        animation: none;
+    }
 }
 
 .realtime-speech-webchat-overlay {

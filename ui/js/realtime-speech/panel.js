@@ -186,6 +186,19 @@
         updatePanel(root, options);
     }
 
+    function sessionActivity() {
+        const state = runtime.state || 'idle';
+        const session = !!runtime.sessionId;
+        const connected = !!(runtime.adapter && runtime.adapter.connected);
+        const active = session && connected && !['idle', 'closed', 'parked', 'error'].includes(state);
+        return {
+            state,
+            session,
+            active,
+            transmitting: active && !!runtime.userSpeaking && !runtime.muted
+        };
+    }
+
     function refreshAll() {
         mounts.forEach((options, root) => {
             if (!root.isConnected) {
@@ -194,10 +207,14 @@
             }
             updatePanel(root, options);
         });
+        const activity = sessionActivity();
         document.querySelectorAll('[data-realtime-speech-launcher]').forEach(button => {
-            button.dataset.active = runtime.sessionId ? 'true' : 'false';
-            button.dataset.state = runtime.state || 'idle';
-            button.setAttribute('aria-pressed', runtime.sessionId ? 'true' : 'false');
+            button.dataset.session = activity.session ? 'true' : 'false';
+            button.dataset.active = activity.active ? 'true' : 'false';
+            button.dataset.transmitting = activity.transmitting ? 'true' : 'false';
+            button.dataset.state = activity.state;
+            button.setAttribute('aria-pressed', activity.session ? 'true' : 'false');
+            button.setAttribute('aria-description', stateText(activity.state));
         });
     }
 
@@ -237,5 +254,5 @@
         });
     });
 
-    window.AuraRealtimeSpeechUI = { mount, refresh: refreshAll, stateText };
+    window.AuraRealtimeSpeechUI = { mount, refresh: refreshAll, stateText, sessionActivity };
 })();

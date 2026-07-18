@@ -577,6 +577,81 @@ function testProviderContractAndSecurityBoundaries() {
   assert.match(read('ui/css/desktop-realtime-speech.css'), /data-theme="standard"/);
 }
 
+function testLauncherActivityIndicator() {
+  const runtime = new EventTarget();
+  Object.assign(runtime, {
+    sessionId: '',
+    state: 'idle',
+    adapter: null,
+    userSpeaking: false,
+    muted: false,
+    config: null,
+    actionActive: false,
+    async initialize() {}
+  });
+  const button = {
+    dataset: {},
+    attributes: {},
+    setAttribute(name, value) {
+      this.attributes[name] = String(value);
+    }
+  };
+  const window = {
+    AuraRealtimeSpeech: runtime,
+    t: key => key
+  };
+  const context = {
+    window,
+    document: {
+      querySelectorAll(selector) {
+        assert.equal(selector, '[data-realtime-speech-launcher]');
+        return [button];
+      }
+    },
+    Event,
+    EventTarget,
+    CustomEvent: TestCustomEvent,
+    Map,
+    Set,
+    String,
+    Object,
+    Array,
+    Promise
+  };
+  vm.createContext(context);
+  vm.runInContext(read('ui/js/realtime-speech/panel.js'), context);
+
+  runtime.sessionId = 'session-test';
+  runtime.state = 'parked';
+  runtime.adapter = { connected: true };
+  window.AuraRealtimeSpeechUI.refresh();
+  assert.equal(button.dataset.session, 'true', 'a parked voice session must remain visible as an open session');
+  assert.equal(button.dataset.active, 'false', 'a parked voice session must not look provider-active');
+  assert.equal(button.dataset.transmitting, 'false', 'parked local detection must not look like LLM transmission');
+
+  runtime.state = 'listening';
+  window.AuraRealtimeSpeechUI.refresh();
+  assert.equal(button.dataset.active, 'true', 'a connected, non-parked provider session must show as active');
+  assert.equal(button.dataset.transmitting, 'false', 'silence must not look like audio transmission');
+
+  runtime.userSpeaking = true;
+  window.AuraRealtimeSpeechUI.refresh();
+  assert.equal(button.dataset.transmitting, 'true', 'detected speech sent over a live provider connection must pulse the indicator');
+
+  runtime.adapter.connected = false;
+  window.AuraRealtimeSpeechUI.refresh();
+  assert.equal(button.dataset.active, 'false', 'a disconnected provider must not show as active');
+  assert.equal(button.dataset.transmitting, 'false', 'buffered local wake audio must not look like provider transmission');
+  assert.equal(button.attributes['aria-pressed'], 'true', 'the start/stop toggle remains engaged while the session is parked or reconnecting');
+
+  const desktopChat = read('ui/js/desktop/apps/agent-chat.js');
+  assert.match(
+    desktopChat,
+    /data-chat-live-speech data-realtime-speech-launcher/,
+    'the desktop chat launcher must receive the shared Live Speech activity state'
+  );
+}
+
 function testTranslationParity() {
   const categoryFilters = {
     chat: key => key.startsWith('chat.realtime_'),
@@ -605,6 +680,7 @@ await testActionResultDisplayDeduplication();
 await testTakeoverPeerProbeAndModalContrast();
 await testGeminiBinarySetupFrames();
 testProviderContractAndSecurityBoundaries();
+testLauncherActivityIndicator();
 testTranslationParity();
 
 console.log('Realtime Speech browser contract tests passed.');

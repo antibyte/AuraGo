@@ -234,7 +234,7 @@
                     </div>
                     <div class="vd-chat-form-buttons">
                         <button class="vd-chat-voice" type="button" data-i18n-title="desktop.chat_voice_input" data-i18n-aria-label="desktop.chat_voice_input">${iconMarkup('microphone', 'M', 'vd-chat-voice-icon', 15)}</button>
-                        <button class="vd-chat-live-speech" type="button" data-chat-live-speech data-i18n-title="desktop.live_speech_open" data-i18n-aria-label="desktop.live_speech_open">
+                        <button class="vd-chat-live-speech" type="button" data-chat-live-speech data-realtime-speech-launcher data-i18n-title="desktop.live_speech_open" data-i18n-aria-label="desktop.live_speech_open" aria-pressed="false">
                             <span class="vd-live-speech-button-wave" aria-hidden="true"><i></i><i></i><i></i></span>
                         </button>
                         <button class="vd-chat-send" type="submit" data-chat-send-button>${iconMarkup('chat', 'S', 'vd-chat-send-icon', 15)}<span data-chat-send-label>${esc(desktopText('desktop.send'))}</span></button>
