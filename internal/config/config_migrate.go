@@ -344,8 +344,15 @@ func (c *Config) ResolveProviders() {
 		c.Whisper.BaseURL = c.LLM.BaseURL
 	}
 
-	// ── Embeddings ── ("disabled" is a special value, not a provider ID)
-	if c.Embeddings.Provider != "" && c.Embeddings.Provider != "disabled" {
+	// ── Embeddings ── ("disabled" and "local-granite" are built-in values,
+	// not provider IDs). Keep this narrow branch ahead of the shared resolver
+	// so custom provider behavior remains unchanged.
+	if c.Embeddings.Provider == "local-granite" {
+		c.Embeddings.ProviderType = "local-granite"
+		c.Embeddings.BaseURL = ""
+		c.Embeddings.APIKey = ""
+		c.Embeddings.Model = "ibm-granite/granite-embedding-97m-multilingual-r2"
+	} else if c.Embeddings.Provider != "" && c.Embeddings.Provider != "disabled" {
 		if p := c.FindProvider(c.Embeddings.Provider); p != nil {
 			c.Embeddings.ProviderType = p.Type
 			c.Embeddings.BaseURL = p.BaseURL
@@ -371,7 +378,7 @@ func (c *Config) ResolveProviders() {
 		c.Embeddings.APIKey = "ollama" // Ollama ignores auth but field must be non-empty
 		c.Embeddings.Model = model
 	}
-	if c.Embeddings.APIKey == "" {
+	if c.Embeddings.Provider != "local-granite" && c.Embeddings.APIKey == "" {
 		c.Embeddings.APIKey = c.LLM.APIKey
 	}
 
@@ -1104,6 +1111,8 @@ func (c *Config) migrateInlineProviders() {
 		c.Embeddings.Provider = addProvider("embeddings", "Embeddings", eType, embURL, embKey, embModel)
 	case "disabled":
 		// keep as "disabled" — not a provider ref
+	case "local-granite":
+		// Built-in local runtime, not a provider reference.
 	default:
 		c.Embeddings.Provider = "disabled"
 	}

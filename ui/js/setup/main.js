@@ -913,8 +913,10 @@ function onWhisperProviderChange() {
 // ── Embeddings Provider Change Handler ───────
 function onEmbProviderChange() {
     const prov = document.getElementById('emb-provider').value;
-    const group = document.getElementById('emb-apikey-group');
-    if (group) setupSetHidden(group, prov !== 'internal');
+    const apiKeyGroup = document.getElementById('emb-apikey-group');
+    const modelGroup = document.getElementById('emb-model-group');
+    if (apiKeyGroup) setupSetHidden(apiKeyGroup, prov !== 'internal');
+    if (modelGroup) setupSetHidden(modelGroup, prov === 'local-granite' || prov === '');
 }
 
 // ── Test Connection ──────────────────────────
@@ -1291,7 +1293,7 @@ function buildProviderEntries() {
 
     // Embeddings provider
     const embProvValue = document.getElementById('emb-provider').value;
-    if (embProvValue && embProvValue !== '') {
+    if (embProvValue && embProvValue !== '' && embProvValue !== 'local-granite') {
         const embModel = document.getElementById('emb-model').value.trim();
         if (embProvValue === 'ollama') {
             providers.push({
@@ -1516,7 +1518,15 @@ function buildConfigPatch() {
 
     // Embeddings: reference provider entry or disable
     const embProvider = document.getElementById('emb-provider').value;
-    patch.embeddings = { provider: (embProvider && embProvider !== '') ? 'embeddings' : 'disabled' };
+    if (embProvider === 'local-granite') {
+        patch.embeddings = {
+            provider: 'local-granite',
+            local: { backend: 'auto', context_size: 2048, batch_size: 2048 },
+            multimodal: false
+        };
+    } else {
+        patch.embeddings = { provider: (embProvider && embProvider !== '') ? 'embeddings' : 'disabled' };
+    }
 
     // Vision: reference provider entry
     const visionProvider = document.getElementById('vision-provider').value;

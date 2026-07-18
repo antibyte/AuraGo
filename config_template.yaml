@@ -314,9 +314,16 @@ embeddings:
     external_model: ""
     external_url: ""
     internal_model: ""
-    provider: internal
+    # New installations use the local, text-only Granite runtime. Existing
+    # provider IDs, managed Ollama, "internal", "external", and "disabled"
+    # remain supported and are never migrated automatically.
+    provider: local-granite
     multimodal: false
     multimodal_format: auto
+    local:
+        backend: auto # auto, cpu, cuda, directml, coreml, metal, vulkan
+        context_size: 2048
+        batch_size: 2048
 fallback_llm:
     api_key: ""
     base_url: ""

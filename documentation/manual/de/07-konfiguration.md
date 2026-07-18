@@ -139,7 +139,11 @@ llm:
   temperature: 0.7
 
 embeddings:
-  provider: "local-ollama"
+  provider: "local-granite"
+  local:
+    backend: "auto"
+    context_size: 2048
+    batch_size: 2048
 ```
 
 | Typ | Beschreibung |

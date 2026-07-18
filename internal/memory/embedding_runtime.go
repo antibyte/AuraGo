@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"path/filepath"
 	"strings"
 
 	"aurago/internal/config"
+	"aurago/internal/embeddings"
 
 	chromem "github.com/philippgille/chromem-go"
 )
@@ -20,6 +22,7 @@ type embeddingRuntimeConfig struct {
 	Fingerprint   string
 	Disabled      bool
 	Local         bool
+	Embedder      embeddings.Embedder
 }
 
 func buildEmbeddingFuncFromConfig(cfg *config.Config, logger *slog.Logger) (chromem.EmbeddingFunc, string, bool) {
@@ -38,6 +41,42 @@ func buildEmbeddingRuntimeFromConfig(cfg *config.Config, logger *slog.Logger) em
 			logger.Info("VectorDB: embeddings disabled by configuration")
 		}
 		return disabledEmbeddingRuntime("disabled")
+	}
+	if provider == embeddings.LocalGraniteProvider {
+		cacheDir := filepath.Join(cfg.Directories.DataDir, "embeddings")
+		local, err := embeddings.NewLocalGranite(embeddings.LocalOptions{
+			CacheDir:        cacheDir,
+			ResetMarkerPath: filepath.Join(cfg.Directories.DataDir, "embeddings_reset_pending.json"),
+			Backend:         cfg.Embeddings.Local.Backend,
+			ContextSize:     cfg.Embeddings.Local.ContextSize,
+			BatchSize:       cfg.Embeddings.Local.BatchSize,
+			Logger:          logger,
+		})
+		if err != nil {
+			if logger != nil {
+				logger.Error("Local Granite runtime configuration failed", "error", err)
+			}
+			return disabledEmbeddingRuntime(provider)
+		}
+		embeddingFunc := func(ctx context.Context, text string) ([]float32, error) {
+			vectors, err := local.Embed(ctx, []string{text})
+			if err != nil {
+				return nil, err
+			}
+			if len(vectors) != 1 {
+				return nil, fmt.Errorf("local Granite returned %d vectors for one text", len(vectors))
+			}
+			return vectors[0], nil
+		}
+		return embeddingRuntimeConfig{
+			EmbeddingFunc: embeddingFunc,
+			Provider:      provider,
+			Model:         embeddings.GraniteModelID,
+			Fingerprint:   local.Fingerprint(),
+			Disabled:      false,
+			Local:         true,
+			Embedder:      local,
+		}
 	}
 
 	embedURL := cfg.Embeddings.BaseURL
@@ -75,15 +114,18 @@ func buildEmbeddingRuntimeFromConfig(cfg *config.Config, logger *slog.Logger) em
 		}
 	}
 
+	embeddingFunc := withEmbeddingRetry(chromem.NewEmbeddingFuncOpenAICompat(embedURL, embedKey, embedModel, nil), logger)
+	fingerprint := buildEmbeddingFingerprint(provider, embedURL, embedModel)
 	return embeddingRuntimeConfig{
-		EmbeddingFunc: withEmbeddingRetry(chromem.NewEmbeddingFuncOpenAICompat(embedURL, embedKey, embedModel, nil), logger),
+		EmbeddingFunc: embeddingFunc,
 		Provider:      provider,
 		BaseURL:       embedURL,
 		APIKey:        embedKey,
 		Model:         embedModel,
-		Fingerprint:   buildEmbeddingFingerprint(provider, embedURL, embedModel),
+		Fingerprint:   fingerprint,
 		Disabled:      false,
 		Local:         isLocalEmbeddingProvider(cfg),
+		Embedder:      embeddings.NewFuncEmbedder(embeddingFunc, embedModel, fingerprint),
 	}
 }
 

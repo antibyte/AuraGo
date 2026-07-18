@@ -148,7 +148,7 @@
   "help.embeddings.local_ollama.use_host_gpu": "Geeft GPU-apparaten van de host door aan de container (alleen Linux). Activeer voor GPU-versnelde embeddings.",
   "help.embeddings.multimodal": "Schakelt multimodale embeddings in. Wanneer actief worden afbeeldingen en audiobestanden direct als vectoren ingebed. Alleen inschakelen als het embedding-model multimodale invoer ondersteunt (bijv. Voyage AI, Google multimodal-embedding). Gescande PDF's met weinig extraheerbare tekst worden automatisch als afbeelding verwerkt.",
   "help.embeddings.multimodal_format": "Beschrijving: API format for multimodal embedding requests. 'auto' detects the format based on the provider type. 'openai' uses the OpenAI-compatible format, 'vertex' uses the Google Vertex AI format.",
-  "help.embeddings.provider": "Beschrijving: Provider from the provider management used for embeddings. Model and URL are taken from the provider entry. 'disabled' turns off long-term memory entirely.",
+  "help.embeddings.provider": "Lokale Granite werkt zonder externe API. Je kunt ook een ingestelde provider kiezen of embeddings uitschakelen.",
   "help.fallback_llm.enabled": "Fallback LLM inschakelen.",
   "help.fallback_llm.error_threshold": "Aantal: sequential errors before switching to fallback model.",
   "help.fallback_llm.probe_interval_seconds": "Interval in seconden to probe and try restoring the primary model.",
@@ -420,5 +420,8 @@
   "help.ai_gateway.metadata": "Optionele sleutel-waardemetadata verzonden als cf-aig-metadata. Plaats hier geen secrets.",
   "help.agent.max_concurrent_loops": "Maximumaantal agentlussen dat tegelijk mag draaien. Standaard: 8.",
   "help.circuit_breaker.final_retry_interval": "Wachttijd vóór een nieuwe poging nadat de geconfigureerde herhaalintervallen zijn uitgeput. Standaard: 30 seconden.",
-  "help.server.debug_pprof": "Stelt Go-profileringsendpoints beschikbaar onder /debug/pprof. Laat dit uitgeschakeld tenzij je een vertrouwde lokale instantie profileert."
+  "help.server.debug_pprof": "Stelt Go-profileringsendpoints beschikbaar onder /debug/pprof. Laat dit uitgeschakeld tenzij je een vertrouwde lokale instantie profileert.",
+  "help.embeddings.local.backend": "Kiest de lokale backend. „auto“ test passende GPU-opties en gebruikt anders de CPU.",
+  "help.embeddings.local.context_size": "Maximaal aantal tokens per tekst. De standaardwaarde is 2048.",
+  "help.embeddings.local.batch_size": "Batchgrootte voor ONNX Runtime en llama.cpp. De standaardwaarde is 2048."
 }

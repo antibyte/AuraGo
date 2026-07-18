@@ -16,6 +16,8 @@ require (
 	github.com/beevik/etree v1.7.0
 	github.com/bwmarrin/discordgo v0.29.0
 	github.com/danielthedm/promptsec v0.1.0
+	github.com/dlclark/regexp2 v1.12.0
+	github.com/ebitengine/purego v0.10.1
 	github.com/eclipse/paho.mqtt.golang v1.5.1
 	github.com/go-ldap/ldap/v3 v3.4.14
 	github.com/go-rod/rod v0.116.2
@@ -74,9 +76,7 @@ require (
 	github.com/coder/websocket v1.8.15 // indirect
 	github.com/creachadair/msync v0.9.1 // indirect
 	github.com/dblohm7/wingoes v0.0.0-20240119213807-a09d6be7affa // indirect
-	github.com/dlclark/regexp2 v1.12.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
-	github.com/ebitengine/purego v0.10.1 // indirect
 	github.com/f-amaral/go-async v0.3.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.2 // indirect
 	github.com/gaissmai/bart v0.28.1 // indirect

@@ -148,7 +148,7 @@
   "help.embeddings.local_ollama.use_host_gpu": "将主机GPU设备传递给容器（仅Linux）。开启以使用GPU加速嵌入。",
   "help.embeddings.multimodal": "启用多模态嵌入。启用后，图像和音频文件将直接作为向量嵌入。仅在嵌入模型支持多模态输入时启用。文本较少的扫描版PDF将自动作为图像处理。",
   "help.embeddings.multimodal_format": "多模态嵌入请求的API格式。'auto'根据提供者类型自动检测格式。'openai'使用OpenAI兼容格式，'vertex'使用Google Vertex AI格式。",
-  "help.embeddings.provider": "来自用于嵌入的提供者管理的提供者。模型和 URL 取自提供商条目。 “禁用”完全关闭长期记忆。",
+  "help.embeddings.provider": "本地 Granite 无需外部 API。你也可以选择任何已配置的提供商或禁用嵌入。",
   "help.fallback_llm.enabled": "出现错误时启用自动故障转移到备份 LLM。",
   "help.fallback_llm.error_threshold": "切换到后备模型之前的连续错误数。",
   "help.fallback_llm.probe_interval_seconds": "探测并尝试恢复主模型的时间间隔（以秒为单位）。",
@@ -420,5 +420,8 @@
   "help.ai_gateway.metadata": "作为 cf-aig-metadata 发送的可选键值元数据。不要在这里放入密钥。",
   "help.agent.max_concurrent_loops": "可同时运行的代理循环的最大数量。默认值：8。",
   "help.circuit_breaker.final_retry_interval": "配置的重试间隔用尽后，再次重试前的等待时间。默认值：30 秒。",
-  "help.server.debug_pprof": "在 /debug/pprof 下公开 Go 性能分析端点。除非你正在分析受信任的本地实例，否则请保持关闭。"
+  "help.server.debug_pprof": "在 /debug/pprof 下公开 Go 性能分析端点。除非你正在分析受信任的本地实例，否则请保持关闭。",
+  "help.embeddings.local.backend": "选择本地后端。“auto”会测试合适的 GPU 方案，否则回退到 CPU。",
+  "help.embeddings.local.context_size": "每段文本的最大 token 数。默认值为 2048。",
+  "help.embeddings.local.batch_size": "ONNX Runtime 和 llama.cpp 的批次大小。默认值为 2048。"
 }

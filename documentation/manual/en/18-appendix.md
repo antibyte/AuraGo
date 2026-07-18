@@ -63,7 +63,11 @@ llm:
 # Embeddings (for Long-Term Memory)
 # ---------------------------------
 embeddings:
-  provider: "internal"        # internal/external/disabled
+  provider: "local-granite"   # New-install default; custom providers remain supported
+  local:
+    backend: "auto"
+    context_size: 2048
+    batch_size: 2048
   external_url: "http://localhost:11434/v1"  # For external provider
   external_model: "nomic-embed-text"  # External model name
   api_key: "dummy_key"        # API key for external provider

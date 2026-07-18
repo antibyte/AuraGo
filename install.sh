@@ -646,7 +646,7 @@ if $BUILD_FROM_SOURCE; then
     fi
 
     cd "$INSTALL_DIR"
-    mkdir -p bin data agent_workspace/workdir agent_workspace/tools log
+    mkdir -p bin data data/embeddings agent_workspace/workdir agent_workspace/tools log
 
     info "Building AuraGo from source (GOOS=linux GOARCH=$GOARCH)..."
     CGO_ENABLED=0 GOOS=linux GOARCH="$GOARCH" \
@@ -682,7 +682,7 @@ else
     fetch_release_checksums || die "Could not download SHA256SUMS for release ${RELEASE_TAG}."
 
     # Create install directory + subdirectories
-    mkdir -p "$INSTALL_DIR/bin" "$INSTALL_DIR/data" "$INSTALL_DIR/log"
+    mkdir -p "$INSTALL_DIR/bin" "$INSTALL_DIR/data" "$INSTALL_DIR/data/embeddings" "$INSTALL_DIR/log"
     mkdir -p "$INSTALL_DIR/agent_workspace/workdir" "$INSTALL_DIR/agent_workspace/tools"
     cd "$INSTALL_DIR"
 

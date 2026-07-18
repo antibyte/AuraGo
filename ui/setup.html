@@ -312,12 +312,13 @@
                         <div class="field-group">
                             <label id="lbl-emb-provider" class="field-label" data-i18n="setup.step1_embeddings_provider_label"></label>
                             <select class="field-select" id="emb-provider" onchange="onEmbProviderChange()">
+                                <option value="local-granite" data-i18n="setup.step1_embeddings_provider_local"></option>
                                 <option value="internal" data-i18n="setup.step1_embeddings_provider_internal"></option>
                                 <option value="ollama" data-i18n="setup.step1_embeddings_provider_ollama"></option>
                                 <option value="" data-i18n="setup.step1_embeddings_provider_disabled"></option>
                             </select>
                         </div>
-                        <div class="field-group">
+                        <div class="field-group" id="emb-model-group">
                             <label id="lbl-emb-model" class="field-label" data-i18n="setup.step1_embeddings_model_label"></label>
                             <input class="field-input" type="text" id="emb-model" placeholder="qwen/qwen3-embedding-8b"
                                 value="qwen/qwen3-embedding-8b">

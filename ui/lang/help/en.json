@@ -148,7 +148,7 @@
   "help.embeddings.local_ollama.use_host_gpu": "Passes the host's GPU devices into the container (Linux only). Enable for GPU-accelerated embeddings.",
   "help.embeddings.multimodal": "Enables multimodal embeddings. When active, images and audio files are embedded directly as vectors. Only enable if your embedding model supports multimodal input (e.g. Voyage AI, Google multimodal-embedding). Scanned PDFs with little extractable text are automatically processed as images.",
   "help.embeddings.multimodal_format": "API format for multimodal embedding requests. 'auto' detects the format based on the provider type. 'openai' uses the OpenAI-compatible format, 'vertex' uses the Google Vertex AI format.",
-  "help.embeddings.provider": "Provider from the provider management used for embeddings. Model and URL are taken from the provider entry. 'disabled' turns off long-term memory entirely.",
+  "help.embeddings.provider": "Local Granite runs without an external API. You can still select any configured provider or disable embeddings.",
   "help.fallback_llm.enabled": "Enables automatic failover to a backup LLM on errors.",
   "help.fallback_llm.error_threshold": "Number of sequential errors before switching to fallback model.",
   "help.fallback_llm.probe_interval_seconds": "Interval in seconds to probe and try restoring the primary model.",
@@ -420,5 +420,8 @@
   "help.ai_gateway.metadata": "Optional key-value metadata sent as cf-aig-metadata. Do not put secrets here.",
   "help.agent.max_concurrent_loops": "Maximum number of agent loops that may run at the same time. Default: 8.",
   "help.circuit_breaker.final_retry_interval": "Delay before retrying after the configured retry intervals are exhausted. Default: 30 seconds.",
-  "help.server.debug_pprof": "Exposes Go profiling endpoints under /debug/pprof. Keep disabled unless you are profiling a trusted local instance."
+  "help.server.debug_pprof": "Exposes Go profiling endpoints under /debug/pprof. Keep disabled unless you are profiling a trusted local instance.",
+  "help.embeddings.local.backend": "Selects the local backend. “auto” benchmarks suitable GPU paths and otherwise falls back to CPU.",
+  "help.embeddings.local.context_size": "Maximum token count per text. The default is 2048.",
+  "help.embeddings.local.batch_size": "Processing batch size for ONNX Runtime and llama.cpp. The default is 2048."
 }

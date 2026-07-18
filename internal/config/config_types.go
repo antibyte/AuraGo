@@ -818,7 +818,12 @@ type Config struct {
 		LegacyAPIKey     string `yaml:"api_key"  json:"-"` // legacy/compat: separate API key
 		Multimodal       bool   `yaml:"multimodal"`        // enable multimodal embeddings (images, audio)
 		MultimodalFormat string `yaml:"multimodal_format"` // "auto", "openai", "vertex" — API format for multimodal
-		LocalOllama      struct {
+		Local            struct {
+			Backend     string `yaml:"backend" json:"backend"`           // auto, cpu, cuda, directml, coreml, metal, vulkan
+			ContextSize int    `yaml:"context_size" json:"context_size"` // maximum tokens per text (default: 2048)
+			BatchSize   int    `yaml:"batch_size" json:"batch_size"`     // ONNX/llama processing batch size (default: 2048)
+		} `yaml:"local" json:"local"`
+		LocalOllama struct {
 			Enabled       bool   `yaml:"enabled"`        // auto-manage an Ollama container for local embeddings
 			Model         string `yaml:"model"`          // embedding model (default: "nomic-embed-text")
 			ContainerPort int    `yaml:"container_port"` // host port for the managed container (default: 11435)

@@ -148,7 +148,7 @@
   "help.embeddings.local_ollama.use_host_gpu": "Předá GPU zařízení hostitele do kontejneru (pouze Linux). Aktivujte pro GPU-akcelerované embeddingy.",
   "help.embeddings.multimodal": "Aktivuje multimodální embeddings. Když je aktivní, obrázky a zvukové soubory jsou vloženy přímo jako vektory. Aktivujte pouze pokud model embeddingů podporuje multimodální vstupy (např. Voyage AI, Google multimodal-embedding). Naskenované PDF s málo extrahovatelným textem jsou automaticky zpracovány jako obrázky.",
   "help.embeddings.multimodal_format": "Formát API pro multimodální embedding požadavky. 'auto' detekuje formát na základě typu poskytovatele. 'openai' používá formát kompatibilní s OpenAI, 'vertex' formát Google Vertex AI.",
-  "help.embeddings.provider": "Poskytovatel pro embeddings.",
+  "help.embeddings.provider": "Místní Granite běží bez externího API. Můžeš také vybrat libovolného nakonfigurovaného poskytovatele nebo embeddings zakázat.",
   "help.fallback_llm.enabled": "Povoluje Fallback LLM.",
   "help.fallback_llm.error_threshold": "Prahova hodnota pro fallback_llm.",
   "help.fallback_llm.probe_interval_seconds": "Interval pro fallback_llm.",
@@ -420,5 +420,8 @@
   "help.ai_gateway.metadata": "Volitelná metadata klíč-hodnota posílaná jako cf-aig-metadata. Nevkládejte sem tajné údaje.",
   "help.agent.max_concurrent_loops": "Maximální počet smyček agenta, které mohou běžet současně. Výchozí hodnota: 8.",
   "help.circuit_breaker.final_retry_interval": "Prodleva před dalším pokusem po vyčerpání nakonfigurovaných intervalů opakování. Výchozí hodnota: 30 sekund.",
-  "help.server.debug_pprof": "Zpřístupní profilovací koncové body Go pod /debug/pprof. Nechte vypnuté, pokud neprofilujete důvěryhodnou místní instanci."
+  "help.server.debug_pprof": "Zpřístupní profilovací koncové body Go pod /debug/pprof. Nechte vypnuté, pokud neprofilujete důvěryhodnou místní instanci.",
+  "help.embeddings.local.backend": "Vybere místní backend. „auto“ otestuje vhodné GPU varianty a jinak použije CPU.",
+  "help.embeddings.local.context_size": "Maximální počet tokenů na text. Výchozí hodnota je 2048.",
+  "help.embeddings.local.batch_size": "Velikost dávky pro ONNX Runtime a llama.cpp. Výchozí hodnota je 2048."
 }

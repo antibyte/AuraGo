@@ -200,5 +200,6 @@
   "setup.success_config_providers": "Provider & Modelle prüfen",
   "setup.success_config_security": "Login & Sicherheit",
   "setup.success_config_server": "Server & Ports",
-  "setup.success_config_backup": "Backups einrichten"
+  "setup.success_config_backup": "Backups einrichten",
+  "setup.step1_embeddings_provider_local": "Lokales Granite – automatisch"
 }

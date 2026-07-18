@@ -37,7 +37,11 @@ server:
   max_body_bytes: 33554432    # Max upload size (32MB)
 
 embeddings:
-  provider: "internal"        # internal/external/disabled
+  provider: "local-granite"   # Standard bei Neuinstallationen; eigene Provider bleiben möglich
+  local:
+    backend: "auto"
+    context_size: 2048
+    batch_size: 2048
   external_url: "http://localhost:11434/v1"
   external_model: "nomic-embed-text"
   api_key: ""

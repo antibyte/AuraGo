@@ -5387,6 +5387,143 @@ select.cfg-input option {
     border: 1px solid color-mix(in srgb, var(--warning) 28%, transparent);
 }
 
+.emb-runtime-card {
+    margin: 1rem 0 1.25rem;
+    padding: 1rem;
+    border: 1px solid var(--border-subtle);
+    border-radius: 14px;
+    background: var(--bg-secondary);
+}
+
+.emb-runtime-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.emb-runtime-header h3 {
+    margin: 0.15rem 0 0;
+    font-size: 1rem;
+}
+
+.emb-runtime-eyebrow,
+.emb-runtime-benchmark-title {
+    color: var(--text-secondary);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.emb-runtime-state {
+    padding: 0.3rem 0.55rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--success) 12%, transparent);
+    color: var(--success);
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
+.emb-runtime-state[data-state="error"],
+.emb-runtime-state[data-state="degraded"] {
+    background: color-mix(in srgb, var(--warning) 12%, transparent);
+    color: var(--warning);
+}
+
+.emb-runtime-progress {
+    display: grid;
+    grid-template-columns: minmax(120px, 1fr) auto;
+    align-items: center;
+    gap: 0.7rem;
+    margin-top: 0.9rem;
+    color: var(--text-secondary);
+    font-size: 0.72rem;
+}
+
+.emb-runtime-progress-track {
+    height: 6px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: var(--bg-tertiary);
+}
+
+.emb-runtime-progress-track span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--accent);
+    transition: width 180ms ease;
+}
+
+.emb-runtime-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.7rem;
+    margin: 1rem 0 0;
+}
+
+.emb-runtime-grid div {
+    min-width: 0;
+    padding: 0.65rem 0.75rem;
+    border-radius: 9px;
+    background: var(--bg-tertiary);
+}
+
+.emb-runtime-grid dt {
+    color: var(--text-secondary);
+    font-size: 0.68rem;
+}
+
+.emb-runtime-grid dd {
+    overflow-wrap: anywhere;
+    margin: 0.2rem 0 0;
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+
+.emb-runtime-detail {
+    margin-top: 0.75rem;
+    color: var(--warning);
+    font-size: 0.74rem;
+}
+
+.emb-runtime-detail:empty {
+    display: none;
+}
+
+.emb-runtime-detail.is-error {
+    color: var(--danger);
+}
+
+.emb-runtime-benchmarks {
+    margin-top: 0.85rem;
+}
+
+.emb-runtime-benchmark-list {
+    display: grid;
+    gap: 0.3rem;
+    margin-top: 0.4rem;
+}
+
+.emb-runtime-benchmark-list > div {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    color: var(--text-secondary);
+    font-size: 0.72rem;
+}
+
+.emb-runtime-actions {
+    margin-top: 1rem;
+}
+
+@media (max-width: 640px) {
+    .emb-runtime-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
 .cfg-advanced-panel {
     margin-top: 1rem;
     margin-bottom: 1rem;

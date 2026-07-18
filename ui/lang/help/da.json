@@ -148,7 +148,7 @@
   "help.embeddings.local_ollama.use_host_gpu": "Beskrivelse: Passes the host's GPU devices into the container (Linux only). Enable for GPU-accelerated embeddings.",
   "help.embeddings.multimodal": "Aktiverer multimodale embeddings. Når aktivt indlejres billeder og lydfiler direkte som vektorer. Aktiver kun hvis embedding-modellen understøtter multimodalt input (f.eks. Voyage AI, Google multimodal-embedding). Scannede PDF'er med lidt udtrækbar tekst behandles automatisk som billeder.",
   "help.embeddings.multimodal_format": "Beskrivelse: API format for multimodal embedding requests. 'auto' detects the format based on the provider type. 'openai' uses the OpenAI-compatible format, 'vertex' uses the Google Vertex AI format.",
-  "help.embeddings.provider": "Beskrivelse: Provider from the provider management used for embeddings. Model and URL are taken from the provider entry. 'disabled' turns off long-term memory entirely.",
+  "help.embeddings.provider": "Lokal Granite kører uden et eksternt API. Du kan også vælge en konfigureret udbyder eller deaktivere embeddings.",
   "help.fallback_llm.enabled": "Aktiverer automatic failover to a backup LLM on errors.",
   "help.fallback_llm.error_threshold": "Antal: sequential errors before switching to fallback model.",
   "help.fallback_llm.probe_interval_seconds": "Interval i sekunder to probe and try restoring the primary model.",
@@ -420,5 +420,8 @@
   "help.ai_gateway.metadata": "Valgfri nøgle-værdi-metadata sendt som cf-aig-metadata. Læg ikke hemmeligheder her.",
   "help.agent.max_concurrent_loops": "Maksimalt antal agentløkker, der må køre samtidigt. Standard: 8.",
   "help.circuit_breaker.final_retry_interval": "Ventetid før et nyt forsøg, når de konfigurerede genforsøgsintervaller er opbrugt. Standard: 30 sekunder.",
-  "help.server.debug_pprof": "Gør Go-profileringsendepunkter tilgængelige under /debug/pprof. Lad det være slået fra, medmindre du profilerer en lokal instans, du stoler på."
+  "help.server.debug_pprof": "Gør Go-profileringsendepunkter tilgængelige under /debug/pprof. Lad det være slået fra, medmindre du profilerer en lokal instans, du stoler på.",
+  "help.embeddings.local.backend": "Vælger lokal backend. „auto“ tester egnede GPU-varianter og falder ellers tilbage til CPU.",
+  "help.embeddings.local.context_size": "Maksimalt antal tokens pr. tekst. Standard er 2048.",
+  "help.embeddings.local.batch_size": "Batchstørrelse for ONNX Runtime og llama.cpp. Standard er 2048."
 }

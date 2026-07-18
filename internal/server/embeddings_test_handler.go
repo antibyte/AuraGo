@@ -5,93 +5,109 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
-	chromem "github.com/philippgille/chromem-go"
+	"aurago/internal/embeddings"
 )
 
-// handleEmbeddingsTest tests the embeddings provider connection by attempting to generate a dummy embedding.
+type activeEmbeddingRuntime interface {
+	EmbeddingStatus() embeddings.Status
+	TestEmbedding(context.Context, string) ([]float32, error)
+	RebenchmarkEmbeddings(context.Context) error
+}
+
+func serverEmbeddingRuntime(s *Server) (activeEmbeddingRuntime, bool) {
+	if s == nil || s.LongTermMem == nil {
+		return nil, false
+	}
+	runtime, ok := s.LongTermMem.(activeEmbeddingRuntime)
+	return runtime, ok
+}
+
+// handleEmbeddingsTest tests the exact Embedder used by VectorDB and KG.
 func handleEmbeddingsTest(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-
-		w.Header().Set("Content-Type", "application/json")
-
-		s.CfgMu.RLock()
-		cfg := s.Cfg
-		s.CfgMu.RUnlock()
-
-		provider := cfg.Embeddings.Provider
-		if provider == "disabled" || provider == "" {
-			_ = json.NewEncoder(w).Encode(map[string]interface{}{
-				"status":  "error",
-				"message": "Embeddings are disabled in the configuration.",
-			})
+		runtime, ok := serverEmbeddingRuntime(s)
+		if !ok {
+			jsonError(w, "The active embedding runtime is unavailable.", http.StatusServiceUnavailable)
 			return
 		}
-
-		embedURL := cfg.Embeddings.BaseURL
-		embedKey := cfg.Embeddings.APIKey
-		embedModel := cfg.Embeddings.Model
-
-		if provider == "internal" {
-			embedURL = cfg.LLM.BaseURL
-			embedKey = cfg.LLM.APIKey
-			if embedModel == "" {
-				embedModel = cfg.Embeddings.InternalModel
-			}
+		timeout := 30 * time.Second
+		status := runtime.EmbeddingStatus()
+		if status.Provider == embeddings.LocalGraniteProvider || status.State == "setting_up" || status.State == "benchmarking" {
+			timeout = 10 * time.Minute
 		}
-		if provider == "external" {
-			if embedURL == "" {
-				embedURL = cfg.Embeddings.ExternalURL
-			}
-			if embedModel == "" {
-				embedModel = cfg.Embeddings.ExternalModel
-			}
-		}
-
-		if embedModel == "" {
-			embedModel = "text-embedding-3-small"
-		}
-
-		// Resolve API key from vault if empty
-		if embedKey == "" && s.Vault != nil {
-			vaultKey := "provider_" + provider + "_api_key"
-			if val, err := s.Vault.ReadSecret(vaultKey); err == nil && val != "" {
-				embedKey = val
-			}
-		}
-
-		if embedKey == "" && provider != "ollama" && provider != "local-ollama-embeddings" && !strings.Contains(embedURL, "localhost") && !strings.Contains(embedURL, "127.0.0.1") {
-			_ = json.NewEncoder(w).Encode(map[string]interface{}{
-				"status":  "error",
-				"message": fmt.Sprintf("API key for provider '%s' is empty. Please enter it in the Provider settings or Vault.", provider),
-			})
-			return
-		}
-
-		ef := chromem.NewEmbeddingFuncOpenAICompat(embedURL, embedKey, embedModel, nil)
-		
-		ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
+		ctx, cancel := context.WithTimeout(r.Context(), timeout)
 		defer cancel()
-
-		vec, err := ef(ctx, "connection test")
+		vector, err := runtime.TestEmbedding(ctx, "AuraGo local embedding connection test")
 		if err != nil {
-			s.Logger.Error("Embeddings connection test failed", "provider", provider, "url", embedURL, "model", embedModel, "error", err)
+			s.Logger.Error("Embeddings test failed", "provider", status.Provider, "runtime", status.Runtime, "backend", status.Backend, "error", err)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadGateway)
 			_ = json.NewEncoder(w).Encode(map[string]interface{}{
 				"status":  "error",
 				"message": fmt.Sprintf("Test failed: %v", err),
+				"runtime": runtime.EmbeddingStatus(),
 			})
 			return
 		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"status":     "ok",
+			"message":    fmt.Sprintf("Embedding generated successfully with %d dimensions.", len(vector)),
+			"dimensions": len(vector),
+			"runtime":    runtime.EmbeddingStatus(),
+		})
+	}
+}
 
+func handleEmbeddingsStatus(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		runtime, ok := serverEmbeddingRuntime(s)
+		if !ok {
+			jsonError(w, "The active embedding runtime is unavailable.", http.StatusServiceUnavailable)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(runtime.EmbeddingStatus())
+	}
+}
+
+func handleEmbeddingsBenchmark(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		runtime, ok := serverEmbeddingRuntime(s)
+		if !ok {
+			jsonError(w, "The active embedding runtime is unavailable.", http.StatusServiceUnavailable)
+			return
+		}
+		ctx, cancel := context.WithTimeout(r.Context(), 20*time.Minute)
+		defer cancel()
+		if err := runtime.RebenchmarkEmbeddings(ctx); err != nil {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+				"status":  "error",
+				"message": err.Error(),
+				"runtime": runtime.EmbeddingStatus(),
+			})
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"status":  "ok",
-			"message": fmt.Sprintf("Connection successful! Generated vector of size %d using model '%s'.", len(vec), embedModel),
+			"runtime": runtime.EmbeddingStatus(),
 		})
 	}
 }

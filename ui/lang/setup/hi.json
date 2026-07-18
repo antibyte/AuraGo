@@ -200,5 +200,6 @@
   "setup.success_config_providers": "Review providers & models",
   "setup.success_config_security": "Login & security",
   "setup.success_config_server": "Server & ports",
-  "setup.success_config_backup": "Set up backups"
+  "setup.success_config_backup": "Set up backups",
+  "setup.step1_embeddings_provider_local": "स्थानीय Granite – स्वचालित"
 }

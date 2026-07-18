@@ -367,6 +367,16 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			})
 			return
 		}
+		if localEmbeddingErr := validateLocalGraniteEmbeddingMode(&validateCfg); localEmbeddingErr != nil {
+			s.Logger.Error("[Config] Local Granite is text-only — save rejected")
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+				"status":  "error",
+				"message": localEmbeddingErr.Error(),
+			})
+			return
+		}
 
 		// Pre-flight: if HTTPS is being newly enabled or the port is changing, verify the
 		// configured port is actually bindable RIGHT NOW. Reject the save if not.
@@ -1158,6 +1168,15 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			})
 		}
 	}
+}
+
+func validateLocalGraniteEmbeddingMode(cfg *config.Config) error {
+	if cfg != nil &&
+		strings.EqualFold(strings.TrimSpace(cfg.Embeddings.Provider), "local-granite") &&
+		cfg.Embeddings.Multimodal {
+		return fmt.Errorf("Local Granite embeddings are text-only. Disable multimodal embeddings or select another provider")
+	}
+	return nil
 }
 
 func normalizeAIGatewayYAMLSection(rawCfg map[string]interface{}) {

@@ -454,7 +454,7 @@ PROTECTED_FILES=(
     "config_debug.yaml"
 )
 # Directories to back up fully (must be small — they go to /tmp).
-# data/vectordb, data/tts, data/vectordb_backup are intentionally excluded:
+# data/vectordb, data/embeddings, data/tts, data/vectordb_backup are intentionally excluded:
 # they are gitignored (git never touches them) and can be very large.
 # agent_workspace/workdir and agent_workspace/github are also excluded
 # (ephemeral working state, gitignored, safe).

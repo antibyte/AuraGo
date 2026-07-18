@@ -192,7 +192,7 @@ sed \
   config_template.yaml > "$TMPDIR_RES/config.yaml"
 
 # Create empty data structure
-mkdir -p "$TMPDIR_RES/data/vectordb"
+mkdir -p "$TMPDIR_RES/data/vectordb" "$TMPDIR_RES/data/embeddings"
 mkdir -p "$TMPDIR_RES/log"
 
 # Bundle sample assets for first-start seeding

@@ -102,6 +102,7 @@ mkdir "%TMPSTAGE%\assets\mission_samples"
 mkdir "%TMPSTAGE%\assets\cheatsheet_samples"
 mkdir "%TMPSTAGE%\assets\skill_samples"
 mkdir "%TMPSTAGE%\data\vectordb"
+mkdir "%TMPSTAGE%\data\embeddings"
 mkdir "%TMPSTAGE%\log"
 
 if exist "prompts" (

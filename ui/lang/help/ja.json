@@ -148,7 +148,7 @@
   "help.embeddings.local_ollama.use_host_gpu": "ホストのGPUデバイスをコンテナに渡します（Linuxのみ）。GPU加速Embeddingsに有効化します。",
   "help.embeddings.multimodal": "マルチモーダルエンベディングを有効にします。有効な場合、画像と音声ファイルがベクトルとして直接埋め込まれます。エンベディングモデルがマルチモーダル入力をサポートする場合のみ有効にしてください。テキストが少ないスキャン済みPDFは自動的に画像として処理されます。",
   "help.embeddings.multimodal_format": "マルチモーダルエンベディングリクエストのAPIフォーマット。'auto'はプロバイダータイプに基づいてフォーマットを検出します。'openai'はOpenAI互換フォーマット、'vertex'はGoogle Vertex AIフォーマットを使用します。",
-  "help.embeddings.provider": "埋め込みに使用されるプロバイダー管理のプロバイダー。モデルと URL はプロバイダーのエントリから取得されます。 「無効」は長期記憶を完全にオフにします。",
+  "help.embeddings.provider": "ローカル Granite は外部 API なしで動作します。設定済みプロバイダーの選択や埋め込みの無効化もできます。",
   "help.fallback_llm.enabled": "エラー発生時にバックアップ LLM への自動フェイルオーバーを有効にします。",
   "help.fallback_llm.error_threshold": "フォールバック モデルに切り替える前の連続エラーの数。",
   "help.fallback_llm.probe_interval_seconds": "プライマリ モデルをプローブして復元を試行する間隔 (秒単位)。",
@@ -420,5 +420,8 @@
   "help.ai_gateway.metadata": "cf-aig-metadataとして送信する任意のキー値メタデータです。ここにシークレットを入れないでください。",
   "help.agent.max_concurrent_loops": "同時に実行できるエージェントループの最大数です。デフォルト: 8。",
   "help.circuit_breaker.final_retry_interval": "設定した再試行間隔を使い切った後、次の再試行まで待つ時間です。デフォルト: 30秒。",
-  "help.server.debug_pprof": "/debug/pprof で Go のプロファイリングエンドポイントを公開します。信頼できるローカルインスタンスをプロファイリングする場合を除き、無効のままにしてください。"
+  "help.server.debug_pprof": "/debug/pprof で Go のプロファイリングエンドポイントを公開します。信頼できるローカルインスタンスをプロファイリングする場合を除き、無効のままにしてください。",
+  "help.embeddings.local.backend": "ローカルバックエンドを選択します。「auto」は適切な GPU を測定し、利用できない場合は CPU を使います。",
+  "help.embeddings.local.context_size": "テキストごとの最大トークン数です。既定値は 2048 です。",
+  "help.embeddings.local.batch_size": "ONNX Runtime と llama.cpp のバッチサイズです。既定値は 2048 です。"
 }

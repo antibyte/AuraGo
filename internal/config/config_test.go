@@ -2578,6 +2578,76 @@ func TestKnownProviderTypesIncludesHuggingFace(t *testing.T) {
 	}
 }
 
+func TestLoadKeepsExistingEmbeddingSelectionWhenProviderIsAbsent(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(configPath, []byte("{}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Embeddings.Provider != "disabled" {
+		t.Fatalf("missing legacy provider was migrated to %q; existing configs must retain the prior disabled behavior", cfg.Embeddings.Provider)
+	}
+}
+
+func TestLoadLocalGraniteDefaults(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(configPath, []byte("embeddings:\n  provider: local-granite\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Embeddings.Provider != "local-granite" ||
+		cfg.Embeddings.Local.Backend != "auto" ||
+		cfg.Embeddings.Local.ContextSize != 2048 ||
+		cfg.Embeddings.Local.BatchSize != 2048 {
+		t.Fatalf("unexpected local Granite defaults: %+v", cfg.Embeddings)
+	}
+	if cfg.Embeddings.ProviderType != "local-granite" || cfg.Embeddings.APIKey != "" || cfg.Embeddings.BaseURL != "" {
+		t.Fatalf("local Granite was routed through a remote provider: %+v", cfg.Embeddings)
+	}
+}
+
+func TestLoadPreservesManagedOllamaWithoutExplicitProvider(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	raw := []byte("embeddings:\n  local_ollama:\n    enabled: true\n    model: mxbai-embed-large\n")
+	if err := os.WriteFile(configPath, raw, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Embeddings.Provider != "local-ollama-embeddings" ||
+		cfg.Embeddings.ProviderType != "ollama" ||
+		cfg.Embeddings.Model != "mxbai-embed-large" {
+		t.Fatalf("managed Ollama selection changed: %+v", cfg.Embeddings)
+	}
+}
+
+func TestResolveProvidersKeepsCustomEmbeddingProvider(t *testing.T) {
+	cfg := &Config{}
+	cfg.Providers = []ProviderEntry{{
+		ID:      "my-embeddings",
+		Type:    "openai",
+		BaseURL: "https://embeddings.example.test/v1",
+		APIKey:  "test-only-key",
+		Model:   "custom-embedding-model",
+	}}
+	cfg.Embeddings.Provider = "my-embeddings"
+	cfg.ResolveProviders()
+	if cfg.Embeddings.ProviderType != "openai" ||
+		cfg.Embeddings.BaseURL != "https://embeddings.example.test/v1" ||
+		cfg.Embeddings.APIKey != "test-only-key" ||
+		cfg.Embeddings.Model != "custom-embedding-model" {
+		t.Fatalf("custom embedding provider was not preserved: %+v", cfg.Embeddings)
+	}
+}
+
 func TestManifestProviderManagedDefaultBaseURL(t *testing.T) {
 	cfg := &Config{}
 	cfg.Manifest.Mode = "managed"

@@ -27,6 +27,7 @@ import (
 	"aurago/internal/contacts"
 	"aurago/internal/credentials"
 	"aurago/internal/dockerutil"
+	"aurago/internal/embeddings"
 	"aurago/internal/invasion"
 	"aurago/internal/invasion/bridge"
 	"aurago/internal/inventory"
@@ -70,6 +71,10 @@ func resolveInitialPassword(passwordFlag, passwordFile string) (string, error) {
 }
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "--embedding-worker" {
+		os.Exit(embeddings.RunONNXWorker(os.Args[2:], os.Stdin, os.Stdout, os.Stderr))
+	}
+
 	// -- Sandbox helper mode ------------------------------------------------
 	// When invoked with --sandbox-exec, this process applies Landlock + rlimits
 	// and exec's the shell command. Must happen before ANY other initialization.

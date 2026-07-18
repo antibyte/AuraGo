@@ -148,7 +148,7 @@
   "help.embeddings.local_ollama.use_host_gpu": "Passa i dispositivi GPU dell'host al container (solo Linux). Attiva per embedding accelerati da GPU.",
   "help.embeddings.multimodal": "Abilita gli embeddings multimodali. Quando attivo, immagini e file audio vengono incorporati direttamente come vettori. Attivare solo se il modello di embedding supporta input multimodali (es. Voyage AI, Google multimodal-embedding). I PDF scansionati con poco testo estraibile vengono elaborati automaticamente come immagini.",
   "help.embeddings.multimodal_format": "Formato API per le richieste di embedding multimodali. 'auto' rileva il formato in base al tipo di provider. 'openai' utilizza il formato compatibile con OpenAI, 'vertex' il formato Google Vertex AI.",
-  "help.embeddings.provider": "Provider dalla gestione provider utilizzato per gli embeddings. Modello e URL sono presi dall'entry provider. 'disabled' disattiva completamente la memoria a lungo termine.",
+  "help.embeddings.provider": "Granite locale funziona senza API esterne. Puoi anche scegliere un provider configurato o disattivare gli embeddings.",
   "help.fallback_llm.enabled": "Abilita il failover automatico a un LLM di backup in caso di errori.",
   "help.fallback_llm.error_threshold": "Numero di errori sequenziali prima di passare al modello fallback.",
   "help.fallback_llm.probe_interval_seconds": "Intervallo in secondi per testare e provare a ripristinare il modello primario.",
@@ -420,5 +420,8 @@
   "help.ai_gateway.metadata": "Metadati chiave-valore opzionali inviati come cf-aig-metadata. Non inserire segreti qui.",
   "help.agent.max_concurrent_loops": "Numero massimo di cicli dell'agente che possono essere eseguiti contemporaneamente. Predefinito: 8.",
   "help.circuit_breaker.final_retry_interval": "Attesa prima di un nuovo tentativo dopo l'esaurimento degli intervalli di ripetizione configurati. Predefinito: 30 secondi.",
-  "help.server.debug_pprof": "Espone gli endpoint di profilazione Go in /debug/pprof. Lascialo disattivato a meno che tu non stia profilando un'istanza locale attendibile."
+  "help.server.debug_pprof": "Espone gli endpoint di profilazione Go in /debug/pprof. Lascialo disattivato a meno che tu non stia profilando un'istanza locale attendibile.",
+  "help.embeddings.local.backend": "Seleziona il backend locale. „auto“ prova le opzioni GPU adatte e altrimenti usa la CPU.",
+  "help.embeddings.local.context_size": "Numero massimo di token per testo. Il valore predefinito è 2048.",
+  "help.embeddings.local.batch_size": "Dimensione batch per ONNX Runtime e llama.cpp. Il valore predefinito è 2048."
 }

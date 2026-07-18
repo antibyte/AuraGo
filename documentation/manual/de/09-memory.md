@@ -87,22 +87,26 @@ agent:
 
 ## Langzeitgedächtnis (LTM) / Embeddings
 
-> ⚠️ **Optional:** Dieses Feature ist standardmäßig deaktiviert (`embeddings.provider: "disabled"`), da es zusätzliche API-Aufrufe erfordert.
+Bei Neuinstallationen läuft dieses Feature standardmäßig lokal (`embeddings.provider: "local-granite"`). Bestehende Provider-Auswahlen werden nicht verändert.
 
 Das Langzeitgedächtnis ermöglicht semantische Suche über vergangene Gespräche mittels Vektordatenbank.
 
 ### Konfiguration
 
 ### Einrichtung in der Web-UI
-1. Öffne **Config → Agent → Embeddings**.
-2. Wähle einen Provider (`disabled`, `internal` oder Provider-ID).
-3. Speichern — ein Neustart kann erforderlich sein.
+1. Öffne **Config → Embeddings**.
+2. Wähle **Lokales Granite – automatisch**, einen vorhandenen Provider oder **Deaktiviert**.
+3. Speichere. Beim ersten lokalen Start lädt AuraGo die geprüften Modell- und Runtime-Dateien im Hintergrund herunter und ermittelt den schnellsten zuverlässigen GPU-Pfad. Falls kein GPU-Pfad funktioniert, wird automatisch die CPU verwendet.
 
 ### YAML-Referenz
 ```yaml
 # config.yaml - LTM/Embeddings-Konfiguration
 embeddings:
-  provider: "disabled"                    # Optionen: "disabled", "internal", oder Provider-ID
+  provider: "local-granite"               # Standard für Neuinstallationen
+  local:
+    backend: "auto"                       # auto/cpu/cuda/directml/coreml/metal/vulkan
+    context_size: 2048
+    batch_size: 2048
   internal_model: "qwen/qwen3-embedding-8b"  # Modell für internen Provider
   external_url: "http://localhost:11434/v1"  # Für externen Provider (z.B. Ollama)
   external_model: "nomic-embed-text"         # Modell für externen Provider
@@ -112,7 +116,8 @@ embeddings:
 
 | Provider | Beschreibung |
 |----------|--------------|
-| `disabled` | Langzeitgedächtnis deaktiviert (Standard) |
+| `local-granite` | Lokales, mehrsprachiges Granite-97M-Modell; GPU automatisch, CPU-Fallback |
+| `disabled` | Langzeitgedächtnis deaktiviert |
 | `internal` | Nutzt das Haupt-LLM für Embeddings |
 | Provider-ID | Verwendet einen konfigurierten Provider-Eintrag |
 
@@ -120,7 +125,10 @@ embeddings:
 
 ```
 data/vectordb/       # Vektordatenbank (chromem-go) — Langzeit-Speicher (LTM)
+data/embeddings/      # Geprüfte Modelle, native Runtimes und Benchmark-Auswahl
 ```
+
+Lokales Granite ist ausschließlich für Text gedacht und liefert 384-dimensionale, normalisierte Vektoren. AuraGo bleibt mit `CGO_ENABLED=0` baubar: ONNX läuft in einem isolierten AuraGo-Worker, GGUF in einem überwachten `llama-server`. In Docker verwendet AuraGo digest-gepinnte b9994-Sidecar-Images ohne veröffentlichten Host-Port und reicht NVIDIA- beziehungsweise `/dev/dri`-Geräte an die Probe weiter. Der Status in der Web-UI erklärt Downloads, GPU-Nutzung und jeden Fallback.
 
 `sqlite.long_term_path` ist veraltet und wird nur noch für ältere Installationen mit einer bestehenden `long_term.db` berücksichtigt.
 
@@ -403,7 +411,7 @@ llm:
 2. **Embeddings aktivieren für komplexe Projekte** (**Config → Agent → Embeddings**)
    ```yaml
    embeddings:
-     provider: "internal"  # oder externer Provider
+     provider: "local-granite"  # oder vorhandener eigener Provider
    ```
 
 3. **Core Memory regelmäßig aufräumen**
@@ -443,11 +451,11 @@ cp -r data/vectordb backup/  # Falls Embeddings aktiviert
 |---------|--------------|----------|
 | **Kurzzeitgedächtnis** | `sqlite.short_term_path` | Aktiviert |
 | **Kernspeicher** | `agent.core_memory_*` | Aktiviert |
-| **Langzeitgedächtnis** | `embeddings.provider` | Deaktiviert |
+| **Langzeitgedächtnis** | `embeddings.provider` | Lokales Granite bei Neuinstallationen |
 | **Datei-Indexierung** | `indexing.enabled` | Aktiviert |
 | **Kompression** | `agent.memory_compression_char_limit` | 100000 Zeichen |
 
-> 💡 **Profi-Tipp:** Für die meisten Anwendungsfälle reichen Kurzzeitgedächtnis und Core Memory. Aktiviere Embeddings nur, wenn du eine große Menge historischer Konversationen durchsuchen musst.
+> 💡 **Profi-Tipp:** Wenn du keine semantische Suche benötigst, kannst du Embeddings weiterhin auf `disabled` setzen. Ein vorhandener eigener Provider bleibt ebenfalls vollständig unterstützt.
 
 ---
 

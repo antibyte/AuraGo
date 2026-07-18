@@ -148,7 +148,7 @@
   "help.embeddings.local_ollama.use_host_gpu": "Gibt GPU-Geräte des Hosts an den Container weiter (nur Linux). Aktiviere dies für GPU-beschleunigte Embeddings.",
   "help.embeddings.multimodal": "Aktiviert multimodale Embeddings. Wenn aktiv, werden Bilder und Audiodateien direkt als Vektoren eingebettet. Nur aktivieren, wenn das Embedding-Modell multimodale Eingaben unterstützt (z.B. Voyage AI, Google multimodal-embedding). Gescannte PDFs mit wenig Text werden automatisch als Bild verarbeitet.",
   "help.embeddings.multimodal_format": "API-Format für multimodale Embedding-Anfragen. 'auto' erkennt das Format anhand des Provider-Typs. 'openai' verwendet das OpenAI-kompatible Format, 'vertex' das Google Vertex AI-Format.",
-  "help.embeddings.provider": "Provider aus der Provider-Verwaltung, der für Embeddings genutzt wird. Modell und URL werden aus dem Provider-Eintrag übernommen. 'disabled' deaktiviert das Langzeitgedächtnis vollständig.",
+  "help.embeddings.provider": "Lokales Granite läuft ohne externe API. Du kannst weiterhin jeden eingerichteten Provider auswählen oder Embeddings deaktivieren.",
   "help.fallback_llm.enabled": "Aktiviert die automatische Umschaltung auf einen Backup-LLM bei Fehlern.",
   "help.fallback_llm.error_threshold": "Anzahl der Fehler, nach denen auf das Fallback-Modell gewechselt wird.",
   "help.fallback_llm.probe_interval_seconds": "Intervall in Sekunden, nach dem versucht wird, das Hauptmodell wiederherzustellen.",
@@ -420,5 +420,8 @@
   "help.ai_gateway.metadata": "Optionale Schlüssel-Wert-Metadaten für cf-aig-metadata. Lege hier keine Secrets ab.",
   "help.agent.max_concurrent_loops": "Maximale Anzahl an Agent-Schleifen, die gleichzeitig laufen dürfen. Standard: 8.",
   "help.circuit_breaker.final_retry_interval": "Wartezeit vor einem erneuten Versuch, nachdem die konfigurierten Wiederholungsintervalle ausgeschöpft sind. Standard: 30 Sekunden.",
-  "help.server.debug_pprof": "Aktiviert Go-Profiling-Endpunkte unter /debug/pprof. Lass dies deaktiviert, außer du profilierst eine vertrauenswürdige lokale Instanz."
+  "help.server.debug_pprof": "Aktiviert Go-Profiling-Endpunkte unter /debug/pprof. Lass dies deaktiviert, außer du profilierst eine vertrauenswürdige lokale Instanz.",
+  "help.embeddings.local.backend": "Wählt das lokale Backend. „auto“ testet passende GPU-Varianten und verwendet andernfalls die CPU.",
+  "help.embeddings.local.context_size": "Maximale Tokenanzahl pro Text. Der Standardwert ist 2048.",
+  "help.embeddings.local.batch_size": "Batchgröße für ONNX Runtime und llama.cpp. Der Standardwert ist 2048."
 }

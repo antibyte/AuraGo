@@ -1529,6 +1529,7 @@ async function renderSection(key) {
         html += `<div class="cfg-note-banner cfg-note-banner-warning">
                     ⚠️ ${t('config.embeddings.change_warning_banner')}
                 </div>`;
+        html += renderEmbeddingsRuntimeBlock();
     }
 
     // Tools permissions warning
@@ -1648,6 +1649,8 @@ async function renderSection(key) {
     if (key === 'embeddings') {
         _embeddingsBindMultimodal();
         applyManagedDockerGuards('embeddings');
+        bindEmbeddingsRuntimeActions();
+        refreshEmbeddingsRuntimeStatus();
     }
 }
 
@@ -1655,18 +1658,177 @@ async function renderSection(key) {
 function _embeddingsBindMultimodal() {
     const toggle = document.querySelector('[data-path="embeddings.multimodal"]');
     const formatEl = document.querySelector('[data-path="embeddings.multimodal_format"]');
+    const providerEl = document.querySelector('[data-path="embeddings.provider"]');
     if (!toggle || !formatEl) return;
     const formatField = formatEl.closest('.field-group');
     if (!formatField) return;
 
     function sync() {
-        formatField.style.display = toggle.classList.contains('on') ? '' : 'none';
+        const localGranite = providerEl && providerEl.value === 'local-granite';
+        if (localGranite) {
+            toggle.classList.remove('on');
+            if (toggle.nextElementSibling) {
+                toggle.nextElementSibling.textContent = t('config.toggle.inactive');
+            }
+        }
+        toggle.dataset.disabled = localGranite ? 'true' : 'false';
+        toggle.classList.toggle('cfg-toggle-disabled', localGranite);
+        toggle.setAttribute('aria-disabled', localGranite ? 'true' : 'false');
+        toggle.title = localGranite ? t('config.embeddings.text_only') : '';
+        formatField.style.display = !localGranite && toggle.classList.contains('on') ? '' : 'none';
     }
     sync();
 
     // Observe class changes on the toggle to react to toggleBool()
     new MutationObserver(sync).observe(toggle, { attributes: true, attributeFilter: ['class'] });
+    if (providerEl) providerEl.addEventListener('change', sync);
 }
+
+let embeddingsRuntimeRefreshTimer = 0;
+
+function renderEmbeddingsRuntimeBlock() {
+    return `<section class="emb-runtime-card" aria-labelledby="emb-runtime-title">
+        <div class="emb-runtime-header">
+            <div>
+                <div class="emb-runtime-eyebrow">${t('config.embeddings.runtime_eyebrow')}</div>
+                <h3 id="emb-runtime-title">${t('config.embeddings.runtime_title')}</h3>
+            </div>
+            <span id="emb-runtime-state" class="emb-runtime-state">${t('config.embeddings.status_loading')}</span>
+        </div>
+        <div id="emb-runtime-progress" class="emb-runtime-progress is-hidden" role="status" aria-live="polite">
+            <div class="emb-runtime-progress-track"><span id="emb-runtime-progress-bar"></span></div>
+            <span id="emb-runtime-progress-label"></span>
+        </div>
+        <dl class="emb-runtime-grid">
+            <div><dt>${t('config.embeddings.status_model')}</dt><dd id="emb-runtime-model">—</dd></div>
+            <div><dt>${t('config.embeddings.status_runtime')}</dt><dd id="emb-runtime-engine">—</dd></div>
+            <div><dt>${t('config.embeddings.status_backend')}</dt><dd id="emb-runtime-backend">—</dd></div>
+            <div><dt>${t('config.embeddings.status_gpu')}</dt><dd id="emb-runtime-gpu">—</dd></div>
+        </dl>
+        <div id="emb-runtime-detail" class="emb-runtime-detail" aria-live="polite"></div>
+        <div id="emb-runtime-benchmarks" class="emb-runtime-benchmarks"></div>
+        <div class="pw-u-inline-actions emb-runtime-actions">
+            <button id="embedding-runtime-test-btn" type="button" class="cfg-btn cfg-btn-primary">${t('config.embeddings.test_action')}</button>
+            <button id="embedding-runtime-benchmark-btn" type="button" class="cfg-btn">${t('config.embeddings.benchmark_action')}</button>
+            <span id="embedding-runtime-action-result" class="pw-u-muted" aria-live="polite"></span>
+        </div>
+    </section>`;
+}
+
+function bindEmbeddingsRuntimeActions() {
+    const actions = window.AuraConfigActions;
+    if (!actions) return;
+    actions.register('embedding-runtime-test', {
+        elementId: 'embedding-runtime-test-btn',
+        requiresSaved: true,
+        run: testActiveEmbeddingRuntime
+    });
+    actions.register('embedding-runtime-benchmark', {
+        elementId: 'embedding-runtime-benchmark-btn',
+        requiresSaved: true,
+        run: benchmarkActiveEmbeddingRuntime
+    });
+}
+
+async function testActiveEmbeddingRuntime() {
+    const result = document.getElementById('embedding-runtime-action-result');
+    if (result) result.textContent = t('config.embeddings.test_running');
+    try {
+        const response = await fetch('/api/embeddings/test', { method: 'POST' });
+        const data = await response.json();
+        if (result) result.textContent = data.message || (response.ok ? t('config.embeddings.test_ok') : t('config.embeddings.test_failed'));
+        await refreshEmbeddingsRuntimeStatus();
+    } catch (error) {
+        if (result) result.textContent = t('config.common.network_error') + ': ' + error.message;
+    }
+}
+
+async function benchmarkActiveEmbeddingRuntime() {
+    const result = document.getElementById('embedding-runtime-action-result');
+    if (result) result.textContent = t('config.embeddings.benchmark_running');
+    try {
+        const response = await fetch('/api/embeddings/benchmark', { method: 'POST' });
+        const data = await response.json();
+        if (result) result.textContent = response.ok ? t('config.embeddings.benchmark_ok') : (data.message || t('config.embeddings.benchmark_failed'));
+        await refreshEmbeddingsRuntimeStatus();
+    } catch (error) {
+        if (result) result.textContent = t('config.common.network_error') + ': ' + error.message;
+    }
+}
+
+async function refreshEmbeddingsRuntimeStatus() {
+    window.clearTimeout(embeddingsRuntimeRefreshTimer);
+    const stateElement = document.getElementById('emb-runtime-state');
+    if (!stateElement) return;
+    try {
+        const response = await fetch('/api/embeddings/status');
+        if (!response.ok) throw new Error(await response.text());
+        const status = await response.json();
+        renderEmbeddingsRuntimeStatus(status);
+        if (status.state === 'setting_up' || status.state === 'benchmarking') {
+            embeddingsRuntimeRefreshTimer = window.setTimeout(refreshEmbeddingsRuntimeStatus, 1000);
+        }
+    } catch (error) {
+        stateElement.textContent = t('config.embeddings.status_unavailable');
+        stateElement.dataset.state = 'error';
+        const detail = document.getElementById('emb-runtime-detail');
+        if (detail) detail.textContent = error.message;
+    }
+}
+
+function renderEmbeddingsRuntimeStatus(status) {
+    const setText = (id, value) => {
+        const element = document.getElementById(id);
+        if (element) element.textContent = value || '—';
+    };
+    const stateElement = document.getElementById('emb-runtime-state');
+    if (stateElement) {
+        stateElement.textContent = t('config.embeddings.state_' + String(status.state || 'unavailable'));
+        stateElement.dataset.state = status.state || 'unavailable';
+    }
+    setText('emb-runtime-model', status.model_id);
+    setText('emb-runtime-engine', [status.runtime, status.runtime_build].filter(Boolean).join(' '));
+    setText('emb-runtime-backend', status.backend);
+    setText('emb-runtime-gpu', status.gpu
+        ? (status.gpu_verified ? t('config.embeddings.gpu_verified') : t('config.embeddings.gpu_unverified'))
+        : t('config.embeddings.cpu_active'));
+
+    const progress = document.getElementById('emb-runtime-progress');
+    const progressBar = document.getElementById('emb-runtime-progress-bar');
+    const progressLabel = document.getElementById('emb-runtime-progress-label');
+    const download = status.download || {};
+    const showProgress = Number(download.total) > 0 && Number(download.downloaded) < Number(download.total);
+    if (progress) progress.classList.toggle('is-hidden', !showProgress);
+    if (progressBar) progressBar.style.width = Math.max(0, Math.min(100, Number(download.percent) || 0)) + '%';
+    if (progressLabel) progressLabel.textContent = showProgress
+        ? `${download.asset || ''} · ${(Number(download.percent) || 0).toFixed(1)}%`
+        : '';
+
+    const detail = document.getElementById('emb-runtime-detail');
+    if (detail) {
+        detail.textContent = status.error || status.fallback_reason || '';
+        detail.classList.toggle('is-error', !!status.error);
+    }
+    const benchmarks = document.getElementById('emb-runtime-benchmarks');
+    if (benchmarks) {
+        const rows = Array.isArray(status.benchmark) ? status.benchmark : [];
+        benchmarks.innerHTML = rows.length ? `<div class="emb-runtime-benchmark-title">${t('config.embeddings.benchmark_results')}</div>
+            <div class="emb-runtime-benchmark-list">${rows.map(row => {
+                const outcome = row.skipped ? t('config.embeddings.result_skipped') : (row.valid ? t('config.embeddings.result_valid') : t('config.embeddings.result_failed'));
+                const latency = row.latency_ms ? ` · ${Number(row.latency_ms).toFixed(1)} ms` : '';
+                return `<div><span>${escapeHtml(row.candidate || '')}</span><span>${escapeHtml(outcome + latency)}</span></div>`;
+            }).join('')}</div>` : '';
+    }
+    const benchmarkButton = document.getElementById('embedding-runtime-benchmark-btn');
+    if (benchmarkButton) {
+        const localSelected = (configData.embeddings || {}).provider === 'local-granite';
+        benchmarkButton.classList.toggle('is-hidden', !localSelected);
+    }
+}
+
+window.addEventListener('cfg:section-leave', () => {
+    window.clearTimeout(embeddingsRuntimeRefreshTimer);
+});
 
 function _initArrayChipFields() {
     document.querySelectorAll('.cfg-array-chips').forEach((wrap) => {
@@ -1889,12 +2051,19 @@ function renderField(fullPath, key, value, parentPath, fieldSchema) {
     } else if (help && help.provider_ref) {
         // Dynamic provider dropdown — populated from /api/providers
         html += '<select class="field-select" data-path="' + fullPath + '">';
-        const emptyLabel = t('config.field.no_provider');
-        const emptySelected = (!value || value === '') ? ' selected' : '';
-        html += '<option value=""' + emptySelected + '>' + emptyLabel + '</option>';
-        if (help.allow_disabled) {
-            const disSelected = (value === 'disabled') ? ' selected' : '';
-            html += '<option value="disabled"' + disSelected + '>' + escapeHtml(cfgFieldOptionLabel('disabled')) + '</option>';
+        if (!help.allow_disabled) {
+            const emptyLabel = t('config.field.no_provider');
+            const emptySelected = (!value || value === '') ? ' selected' : '';
+            html += '<option value=""' + emptySelected + '>' + emptyLabel + '</option>';
+        }
+        if (help.builtin_options && Array.isArray(help.builtin_options)) {
+            help.builtin_options.forEach(option => {
+                const selected = (String(value) === String(option)) ? ' selected' : '';
+                const label = option === 'local-granite'
+                    ? t('config.embeddings.provider_local')
+                    : option;
+                html += '<option value="' + escapeAttr(option) + '"' + selected + '>' + escapeAttr(label) + '</option>';
+            });
         }
         providersCache.forEach(p => {
             const selected = (String(value) === String(p.id)) ? ' selected' : '';
@@ -1903,6 +2072,10 @@ function renderField(fullPath, key, value, parentPath, fieldSchema) {
             const modelHint = p.model ? (' — ' + p.model) : '';
             html += '<option value="' + escapeAttr(p.id) + '"' + selected + '>' + escapeAttr(displayName + badge + modelHint) + '</option>';
         });
+        if (help.allow_disabled) {
+            const disSelected = (value === 'disabled') ? ' selected' : '';
+            html += '<option value="disabled"' + disSelected + '>' + escapeHtml(cfgFieldOptionLabel('disabled')) + '</option>';
+        }
         html += '</select>';
     } else if (helpOptions && Array.isArray(helpOptions)) {
         // Dropdown for fields with predefined options
@@ -1995,6 +2168,7 @@ function setNestedValue(obj, path, value) {
 }
 
 function toggleBool(el) {
+    if (el.dataset.disabled === 'true' || el.getAttribute('aria-disabled') === 'true') return;
     const on = el.classList.toggle('on');
     if (el.nextElementSibling) {
         el.nextElementSibling.textContent = on ? t('config.toggle.active') : t('config.toggle.inactive');
@@ -2171,6 +2345,8 @@ function embeddingsConfigWillLikelyChange(patch) {
     if (!nextEmbeddings) return false;
 
     const current = configData.embeddings || {};
+    const currentGranite = current.local || {};
+    const nextGranite = nextEmbeddings.local || {};
     const currentLocal = current.local_ollama || {};
     const nextLocal = nextEmbeddings.local_ollama || {};
 
@@ -2181,6 +2357,9 @@ function embeddingsConfigWillLikelyChange(patch) {
         ['external_model', current.external_model, nextEmbeddings.external_model],
         ['multimodal', current.multimodal, nextEmbeddings.multimodal],
         ['multimodal_format', current.multimodal_format, nextEmbeddings.multimodal_format],
+        ['local.backend', currentGranite.backend, nextGranite.backend],
+        ['local.context_size', currentGranite.context_size, nextGranite.context_size],
+        ['local.batch_size', currentGranite.batch_size, nextGranite.batch_size],
         ['local_ollama.enabled', currentLocal.enabled, nextLocal.enabled],
         ['local_ollama.model', currentLocal.model, nextLocal.model],
         ['local_ollama.container_port', currentLocal.container_port, nextLocal.container_port],

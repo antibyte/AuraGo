@@ -148,7 +148,7 @@
   "help.embeddings.local_ollama.use_host_gpu": "Περνά τερματικά GPU του υπολογιστή στο container (μόνο Linux). Ενεργοποιήστε για embeddings επιταχυνόμενα με GPU.",
   "help.embeddings.multimodal": "Ενεργοποιεί πολυτροπικά embeddings. Όταν ενεργό, εικόνες και αρχεία ήχου ενσωματώνονται απευθείας ως διανύσματα. Ενεργοποιήστε μόνο εάν το μοντέλο embedding υποστηρίζει πολυτροπική είσοδο. Σαρωμένα PDF με λίγο εξαγώγιμο κείμενο επεξεργάζονται αυτόματα ως εικόνες.",
   "help.embeddings.multimodal_format": "Περιγραφή: API format for multimodal embedding requests. 'auto' detects the format based on the provider type. 'openai' uses the OpenAI-compatible format, 'vertex' uses the Google Vertex AI format.",
-  "help.embeddings.provider": "Περιγραφή: Provider from the provider management used for embeddings. Model and URL are taken from the provider entry. 'disabled' turns off long-term memory entirely.",
+  "help.embeddings.provider": "Το τοπικό Granite λειτουργεί χωρίς εξωτερικό API. Μπορείς επίσης να επιλέξεις ρυθμισμένο πάροχο ή να απενεργοποιήσεις τα embeddings.",
   "help.fallback_llm.enabled": "Ενεργοποιεί automatic failover to a backup LLM on errors.",
   "help.fallback_llm.error_threshold": "Πλήθος: sequential errors before switching to fallback model.",
   "help.fallback_llm.probe_interval_seconds": "Διάστημα σε δευτερόλεπτα to probe and try restoring the primary model.",
@@ -420,5 +420,8 @@
   "help.ai_gateway.metadata": "Προαιρετικά μεταδεδομένα κλειδιού-τιμής που στέλνονται ως cf-aig-metadata. Μη βάζετε μυστικά εδώ.",
   "help.agent.max_concurrent_loops": "Μέγιστος αριθμός βρόχων πράκτορα που μπορούν να εκτελούνται ταυτόχρονα. Προεπιλογή: 8.",
   "help.circuit_breaker.final_retry_interval": "Καθυστέρηση πριν από νέα προσπάθεια όταν εξαντληθούν τα διαμορφωμένα διαστήματα επανάληψης. Προεπιλογή: 30 δευτερόλεπτα.",
-  "help.server.debug_pprof": "Εκθέτει τα σημεία τερματισμού προφίλ Go στο /debug/pprof. Κράτησέ το απενεργοποιημένο εκτός αν κάνεις προφίλ σε αξιόπιστη τοπική εγκατάσταση."
+  "help.server.debug_pprof": "Εκθέτει τα σημεία τερματισμού προφίλ Go στο /debug/pprof. Κράτησέ το απενεργοποιημένο εκτός αν κάνεις προφίλ σε αξιόπιστη τοπική εγκατάσταση.",
+  "help.embeddings.local.backend": "Επιλέγει το τοπικό backend. Το „auto“ δοκιμάζει κατάλληλες επιλογές GPU και αλλιώς χρησιμοποιεί CPU.",
+  "help.embeddings.local.context_size": "Μέγιστος αριθμός token ανά κείμενο. Προεπιλογή 2048.",
+  "help.embeddings.local.batch_size": "Μέγεθος batch για ONNX Runtime και llama.cpp. Προεπιλογή 2048."
 }

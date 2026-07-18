@@ -593,6 +593,9 @@ func Load(path string) (*Config, error) {
 	cfg.Embeddings.LocalOllama.ContainerPort = 11435
 	cfg.Embeddings.LocalOllama.GPUBackend = "auto"
 	cfg.Embeddings.MultimodalFormat = "auto"
+	cfg.Embeddings.Local.Backend = "auto"
+	cfg.Embeddings.Local.ContextSize = 2048
+	cfg.Embeddings.Local.BatchSize = 2048
 
 	// Local TTS provider defaults
 	cfg.TTS.CacheRetentionHours = 168

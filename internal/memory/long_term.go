@@ -16,6 +16,7 @@ import (
 
 	"aurago/internal/chunking"
 	"aurago/internal/config"
+	"aurago/internal/embeddings"
 
 	chromem "github.com/philippgille/chromem-go"
 	"golang.org/x/sync/singleflight"
@@ -121,6 +122,7 @@ type ChromemVectorDB struct {
 	lifecycleMu            sync.Mutex     // Serializes operation registration with Close.
 	conceptLocks           [64]sync.Mutex // Striped locks to serialise checks/stores per concept bucket
 	embeddingFunc          chromem.EmbeddingFunc
+	embedder               embeddings.Embedder
 	embeddingFingerprint   string
 	embeddingDimension     atomic.Int64
 	ready                  atomic.Bool  // Set once startup embedding validation reaches a final state
@@ -172,6 +174,11 @@ func (cv *ChromemVectorDB) Close() error {
 			cv.logger.Warn("Close timed out waiting for in-flight VectorDB operations", "error", err)
 		}
 		return err
+	}
+	if cv.embedder != nil {
+		if err := cv.embedder.Close(); err != nil {
+			return fmt.Errorf("close embedding runtime: %w", err)
+		}
 	}
 	return nil
 }
@@ -230,7 +237,54 @@ func (cv *ChromemVectorDB) GetEmbeddingFunc() chromem.EmbeddingFunc {
 // stored documents. Callers can persist it to detect stale embeddings after
 // model or endpoint changes.
 func (cv *ChromemVectorDB) EmbeddingFingerprint() string {
+	if cv.embedder != nil {
+		return cv.embedder.Fingerprint()
+	}
 	return cv.embeddingFingerprint
+}
+
+// EmbeddingStatus returns the active runtime state for the configuration UI.
+func (cv *ChromemVectorDB) EmbeddingStatus() embeddings.Status {
+	if cv.embedder != nil {
+		return cv.embedder.Status()
+	}
+	state := "disabled"
+	if !cv.disabled.Load() {
+		state = "unavailable"
+	}
+	return embeddings.Status{
+		State:       state,
+		Provider:    "disabled",
+		Dimensions:  int(cv.embeddingDimension.Load()),
+		Fingerprint: cv.embeddingFingerprint,
+		UpdatedAt:   time.Now().UTC(),
+	}
+}
+
+// TestEmbedding exercises the same active Embedder used by VectorDB and KG.
+func (cv *ChromemVectorDB) TestEmbedding(ctx context.Context, text string) ([]float32, error) {
+	if cv.embedder == nil {
+		return nil, fmt.Errorf("embedding runtime is unavailable")
+	}
+	vectors, err := cv.embedder.Embed(ctx, []string{text})
+	if err != nil {
+		return nil, err
+	}
+	if len(vectors) != 1 {
+		return nil, fmt.Errorf("embedding runtime returned %d vectors", len(vectors))
+	}
+	return vectors[0], nil
+}
+
+// RebenchmarkEmbeddings reruns local hardware selection when supported.
+func (cv *ChromemVectorDB) RebenchmarkEmbeddings(ctx context.Context) error {
+	benchmarkable, ok := cv.embedder.(interface {
+		Rebenchmark(context.Context) error
+	})
+	if !ok {
+		return fmt.Errorf("the active embedding provider does not support local benchmarking")
+	}
+	return benchmarkable.Rebenchmark(ctx)
 }
 
 // Count returns the total number of documents across all collections
@@ -339,8 +393,9 @@ func (cv *ChromemVectorDB) addEmbeddingMetadata(metadata map[string]string) map[
 	if metadata == nil {
 		metadata = make(map[string]string)
 	}
-	if cv.embeddingFingerprint != "" {
-		metadata["embedding_fingerprint"] = cv.embeddingFingerprint
+	fingerprint := cv.EmbeddingFingerprint()
+	if fingerprint != "" {
+		metadata["embedding_fingerprint"] = fingerprint
 	}
 	return metadata
 }
@@ -364,6 +419,7 @@ func NewChromemVectorDB(cfg *config.Config, logger *slog.Logger) (*ChromemVector
 			dataDir:                dataDir,
 			logger:                 logger,
 			embeddingFunc:          runtime.EmbeddingFunc,
+			embedder:               runtime.Embedder,
 			embeddingFingerprint:   runtime.Fingerprint,
 			queryCache:             make(map[string]queryCacheEntry),
 			queryCacheTTL:          5 * time.Minute,
@@ -394,6 +450,7 @@ func NewChromemVectorDB(cfg *config.Config, logger *slog.Logger) (*ChromemVector
 		collection:             collection,
 		logger:                 logger,
 		embeddingFunc:          runtime.EmbeddingFunc,
+		embedder:               runtime.Embedder,
 		embeddingFingerprint:   runtime.Fingerprint,
 		queryCache:             make(map[string]queryCacheEntry),
 		queryCacheTTL:          5 * time.Minute,
@@ -437,6 +494,9 @@ func NewChromemVectorDB(cfg *config.Config, logger *slog.Logger) (*ChromemVector
 func isLocalEmbeddingProvider(cfg *config.Config) bool {
 	if cfg == nil {
 		return false
+	}
+	if strings.EqualFold(strings.TrimSpace(cfg.Embeddings.Provider), embeddings.LocalGraniteProvider) {
+		return true
 	}
 	providerType := strings.ToLower(strings.TrimSpace(cfg.Embeddings.ProviderType))
 	if providerType == "ollama" {

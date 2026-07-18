@@ -388,7 +388,11 @@ The actual configuration structure in `config.yaml`:
 ```yaml
 # Embeddings configuration for LTM/RAG
 embeddings:
-  provider: "internal"              # Options: "disabled", "internal", or provider-id
+  provider: "local-granite"         # Default for new installations
+  local:
+    backend: "auto"                 # auto/cpu/cuda/directml/coreml/metal/vulkan
+    context_size: 2048
+    batch_size: 2048
   internal_model: "qwen/qwen3-embedding-8b"  # Model used when provider is "internal"
   external_url: "http://localhost:11434/v1"  # External embedding service URL
   external_model: "nomic-embed-text"         # Model for external provider
@@ -428,13 +432,18 @@ indexing:
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `embeddings.provider` | `"disabled"` | Embedding provider: `"disabled"` (no LTM), `"internal"` (use main LLM), or a provider ID |
+| `embeddings.provider` | `"local-granite"` (new installs) | Local Granite, `"disabled"`, `"internal"`, managed Ollama, or a configured provider ID. Existing selections are preserved. |
+| `embeddings.local.backend` | `"auto"` | Benchmarks suitable GPU runtimes first, then valid CPU runtimes. |
+| `embeddings.local.context_size` | `2048` | Local maximum token count per text. |
+| `embeddings.local.batch_size` | `2048` | Local runtime batch and micro-batch size. |
 | `embeddings.internal_model` | `"qwen/qwen3-embedding-8b"` | Model for internal embedding generation |
 | `agent.memory_compression_char_limit` | `100000` | Characters before STM compression triggers |
 | `agent.core_memory_max_entries` | `80` | Maximum core memory entries |
 | `agent.core_memory_cap_mode` | `"hard"` | How to handle overflow: `"hard"` rejects, `"soft"` warns |
 | `sqlite.short_term_path` | `"./data/short_term.db"` | Path to STM SQLite database |
 | `indexing.enabled` | `true` | Enable automatic knowledge base indexing |
+
+Local Granite is text-only and emits 384-dimensional normalized vectors. Pinned ONNX INT8 and GGUF Q8_0 models and runtimes are downloaded into `data/embeddings/` with size and SHA-256 verification. AuraGo remains available during setup. The configuration UI shows download, runtime, verified GPU, benchmark, and fallback details and can rerun detection. ONNX/GGUF format changes use the controlled restart/reindex path to avoid mixing vector fingerprints.
 
 ## Memory Optimization
 

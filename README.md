@@ -119,7 +119,7 @@ No manual YAML is required for a first successful run.
 | **LLM Guardian** | Scans tool calls and external content for risky patterns |
 | **Adaptive tools** | Context-aware tool subsets to save tokens |
 | **Vault** | AES-256-GCM for secrets; bcrypt + TOTP for web login |
-| **Memory** | Short-term history, RAG, knowledge graph, core memory, journal |
+| **Memory** | Short-term history, local Granite embeddings by default, RAG, knowledge graph, core memory, journal |
 | **Media** | Image, music, and video generation with registry and limits |
 | **PWA** | Installable UI; voice features need HTTPS |
 | **Integrations** | 100+ tools without third-party "skills" for most homelab tasks |
@@ -178,6 +178,8 @@ No manual YAML is required for a first successful run.
 | **Long-term (RAG)** | Semantic search over past chats |
 | **Knowledge graph** | Entities and relations |
 | **Core memory** | Always-on facts in context |
+
+New installations use the multilingual Granite 97M embedding model locally. AuraGo downloads only pinned, checksum-verified model/runtime artifacts into `data/embeddings`, benchmarks the GPU paths available on the machine, and falls back to CPU without taking the rest of the application down. The main AuraGo binary remains CGO-free. Existing OpenAI-compatible, Ollama, and custom embedding provider selections are preserved.
 | **Journal** | Timestamped events with importance |
 | **Notes and to-dos** | Persistent lists with due dates |
 

@@ -86,7 +86,21 @@
   },
   "help.embeddings.provider": {
     "provider_ref": true,
-    "allow_disabled": true
+    "allow_disabled": true,
+    "builtin_options": [
+      "local-granite"
+    ]
+  },
+  "help.embeddings.local.backend": {
+    "options": [
+      "auto",
+      "cpu",
+      "cuda",
+      "directml",
+      "coreml",
+      "metal",
+      "vulkan"
+    ]
   },
   "help.embeddings.multimodal_format": {
     "options": [

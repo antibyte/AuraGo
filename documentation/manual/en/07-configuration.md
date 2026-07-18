@@ -487,7 +487,11 @@ Embeddings power AuraGo's long-term memory and semantic search.
 ### YAML Reference
 ```yaml
 embeddings:
-    provider: internal           # Provider ID, "internal", or "disabled"
+    provider: local-granite      # New-install default, provider ID, "internal", or "disabled"
+    local:
+      backend: auto
+      context_size: 2048
+      batch_size: 2048
     internal_model: qwen/qwen3-embedding-8b   # legacy: model when using main LLM provider
     external_url: http://localhost:11434/v1   # legacy: dedicated endpoint URL
     external_model: nomic-embed-text          # legacy: dedicated endpoint model
@@ -769,7 +773,7 @@ vision:
     provider: openrouter-vision
 
 embeddings:
-    provider: internal
+    provider: local-granite
     internal_model: qwen/qwen3-embedding-8b
 
 server:

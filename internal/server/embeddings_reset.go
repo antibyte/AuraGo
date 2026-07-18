@@ -253,6 +253,7 @@ func embeddingsConfigChanged(oldCfg, newCfg config.Config) bool {
 		oldCfg.Embeddings.ExternalModel != newCfg.Embeddings.ExternalModel ||
 		oldCfg.Embeddings.Multimodal != newCfg.Embeddings.Multimodal ||
 		oldCfg.Embeddings.MultimodalFormat != newCfg.Embeddings.MultimodalFormat ||
+		oldCfg.Embeddings.Local != newCfg.Embeddings.Local ||
 		oldCfg.Embeddings.LocalOllama != newCfg.Embeddings.LocalOllama
 }
 
