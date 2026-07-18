@@ -217,16 +217,22 @@ func listPetsInDir(workspaceDir string) ([]PetManifest, error) {
 }
 
 func (s *Service) listPetsWithDefaultRepair(workspaceDir string) ([]PetManifest, error) {
-	pets, err := listPetsInDir(workspaceDir)
-	if err != nil {
-		return pets, err
+	// ensureBundledDefaultPets is cheap when each default already exists
+	// (getPetInDir only). Only take the mutation lock when something is missing.
+	needRepair := false
+	for _, pet := range bundledDefaultPets() {
+		if _, err := getPetInDir(workspaceDir, pet.Manifest.ID); err != nil {
+			needRepair = true
+			break
+		}
 	}
-
-	desktopMutationMu.Lock()
-	defer desktopMutationMu.Unlock()
-
-	if err := ensureBundledDefaultPets(workspaceDir); err != nil {
-		return nil, err
+	if needRepair {
+		desktopMutationMu.Lock()
+		err := ensureBundledDefaultPets(workspaceDir)
+		desktopMutationMu.Unlock()
+		if err != nil {
+			return nil, err
+		}
 	}
 	return listPetsInDir(workspaceDir)
 }

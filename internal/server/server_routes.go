@@ -403,7 +403,8 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/api/setup/test", handleSetupTestConnection(s))
 	mux.HandleFunc("/api/setup", handleSetupSave(s))
 
-	// i18n translations endpoint (always available — used by setup wizard pre-auth)
+	// i18n translations endpoint (always available — used by setup wizard pre-auth).
+	// Optional ?sections=a,b returns only those prefixes (+ common) for lazy app loads.
 	mux.HandleFunc("/api/i18n", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -411,7 +412,21 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		}
 		lang := normalizeLang(r.URL.Query().Get("lang"))
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprintf(w, `{"data":%s}`, string(getI18NJSON(lang)))
+		w.Header().Set("Cache-Control", "private, max-age=300")
+		sectionsParam := strings.TrimSpace(r.URL.Query().Get("sections"))
+		if sectionsParam == "" {
+			fmt.Fprintf(w, `{"data":%s}`, string(getI18NJSON(lang)))
+			return
+		}
+		parts := strings.Split(sectionsParam, ",")
+		sections := make([]string, 0, len(parts))
+		for _, p := range parts {
+			p = strings.TrimSpace(p)
+			if p != "" {
+				sections = append(sections, p)
+			}
+		}
+		fmt.Fprintf(w, `{"data":%s}`, string(getI18NJSONForSections(lang, sections...)))
 	})
 
 	// OpenRouter model browser (always available — needed in both setup wizard and config UI)

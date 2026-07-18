@@ -29,8 +29,11 @@ func TestDesktopHTMLLoadsFragmentedAppsOnlyThroughMainLoader(t *testing.T) {
 	if !strings.Contains(mainLoader, "loadBundle('main', '/js/desktop/bundles/main.bundle.js')") {
 		t.Fatal("desktop main loader must load the prebuilt main bundle")
 	}
-	if !strings.Contains(html, `<script defer src="/js/desktop/main.js?v={{.BuildVersion}}-desktop-20260525-window-ai-context"></script>`) {
+	if !strings.Contains(html, `<script defer src="/js/desktop/main.js?v={{.BuildVersion}}"></script>`) {
 		t.Fatal("desktop main.js script tag must be cache-busted with BuildVersion")
+	}
+	if !strings.Contains(html, `rel="preload" href="/js/desktop/bundles/main.bundle.js?v={{.BuildVersion}}"`) {
+		t.Fatal("desktop.html must preload main.bundle.js with BuildVersion")
 	}
 }
 
@@ -39,8 +42,8 @@ func TestDesktopMainLoaderBumpsCacheAfterWindowAIContext(t *testing.T) {
 
 	html := readDesktopAssetText(t, "desktop.html")
 	main := rawDesktopAssetText(t, "js/desktop/main.js")
-	if !strings.Contains(html, "/js/desktop/main.js?v={{.BuildVersion}}-desktop-20260525-window-ai-context") {
-		t.Fatal("desktop main loader script tag must retain the window AI context cache-busting suffix")
+	if !strings.Contains(html, "/js/desktop/main.js?v={{.BuildVersion}}") {
+		t.Fatal("desktop main loader script tag must be cache-busted with BuildVersion")
 	}
 	if !strings.Contains(main, "/js/desktop/bundles/main.bundle.js") {
 		t.Fatal("desktop main loader must point at the prebuilt main bundle")
@@ -173,7 +176,10 @@ func TestDesktopModuleLoaderBypassesBrowserCacheForScriptParts(t *testing.T) {
 	}
 
 	html := readDesktopAssetText(t, "desktop.html")
-	if !strings.Contains(html, `/js/desktop/core/module-loader.js?v={{.BuildVersion}}-desktop-20260524-audit-fixes`) {
-		t.Fatal("desktop module-loader.js script tag must be cache-busted after retry fix")
+	if !strings.Contains(html, `/js/desktop/core/module-loader.js?v={{.BuildVersion}}`) {
+		t.Fatal("desktop module-loader.js script tag must be cache-busted with BuildVersion")
+	}
+	if !strings.Contains(loader, "APP_I18N_SECTIONS") || !strings.Contains(loader, "loadAppI18nSections") {
+		t.Fatal("desktop module loader must support lazy app i18n sections")
 	}
 }

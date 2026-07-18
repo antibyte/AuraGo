@@ -1094,11 +1094,18 @@
         first.focus();
     }
 
+    // fetchBootstrapState loads bootstrap (+ desktop files) without rendering.
+    // Used for parallel boot with icon manifests and for refresh paths.
+    async function fetchBootstrapState() {
+        state.bootstrap = await api('/api/desktop/bootstrap');
+        state.desktopFiles = await resolveDesktopFilesFromBootstrap(state.bootstrap);
+        return state.bootstrap;
+    }
+
     async function loadBootstrap() {
         if (bootstrapReloadPromise) return bootstrapReloadPromise;
         bootstrapReloadPromise = (async () => {
-            state.bootstrap = await api('/api/desktop/bootstrap');
-            state.desktopFiles = await loadDesktopFiles();
+            await fetchBootstrapState();
             renderDesktop();
             refreshPetRuntime();
             return state.bootstrap;
@@ -1106,6 +1113,15 @@
         try {
             return await bootstrapReloadPromise;
         } finally { bootstrapReloadPromise = null; }
+    }
+
+    async function resolveDesktopFilesFromBootstrap(boot) {
+        if (!boot || !boot.enabled) return [];
+        // Prefer embedded listing from bootstrap (single round-trip).
+        if (Array.isArray(boot.desktop_files)) {
+            return boot.desktop_files.filter(file => file && file.path);
+        }
+        return loadDesktopFiles();
     }
 
     async function loadDesktopFiles() {
@@ -10929,20 +10945,46 @@ if (appId === 'pixel') {
     async function init() {
         if (state._initialized) return;
         state._initialized = true;
+        const perfOn = typeof location !== 'undefined' && /(?:\?|&)vd_perf=1(?:&|$)/.test(location.search || '');
+        const mark = (name) => {
+            if (!perfOn || !window.performance || typeof performance.mark !== 'function') return;
+            try { performance.mark('vd:' + name); } catch (_) { /* ignore */ }
+        };
+        mark('init-start');
         ['vd-icons', 'vd-widgets', 'vd-window-layer', 'vd-taskbar-apps', 'vd-start-apps', 'vd-start-menu', 'vd-start-search', 'vd-ws-state', 'vd-clock', 'vd-workspace', 'vd-disabled'].forEach(id => { els[id] = $(id); });
         ensureDesktopRadialMenuAnchor();
-        await loadIconManifest();
         bindViewportMetrics();
         wireChrome();
         document.addEventListener('focusin', ensureFocusedControlVisible);
         updateClock();
         state._clockTimer = setInterval(updateClock, 15000);
         window.addEventListener('beforeunload', cleanupDesktopShellRuntime);
-        await loadBootstrap();
+        // Load icon manifests and bootstrap state in parallel, then render once.
+        mark('parallel-fetch-start');
+        await Promise.all([
+            loadIconManifest().catch(() => null),
+            (async () => {
+                if (bootstrapReloadPromise) return bootstrapReloadPromise;
+                bootstrapReloadPromise = fetchBootstrapState()
+                    .finally(() => { bootstrapReloadPromise = null; });
+                return bootstrapReloadPromise;
+            })()
+        ]);
+        mark('parallel-fetch-done');
+        renderDesktop();
+        refreshPetRuntime();
+        mark('first-render');
         openInitialDesktopApp();
         if (state.bootstrap && state.bootstrap.enabled) connectWS();
         if (window.PetRuntime && typeof window.PetRuntime.init === 'function') {
             window.PetRuntime.init();
+        }
+        if (perfOn && window.performance && typeof performance.measure === 'function') {
+            try {
+                performance.measure('vd:boot', 'vd:init-start', 'vd:first-render');
+                const m = performance.getEntriesByName('vd:boot').pop();
+                console.info('[VD perf] boot ms=', m && Math.round(m.duration));
+            } catch (_) { /* ignore */ }
         }
     }
 

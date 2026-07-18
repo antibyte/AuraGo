@@ -1089,11 +1089,18 @@
         first.focus();
     }
 
+    // fetchBootstrapState loads bootstrap (+ desktop files) without rendering.
+    // Used for parallel boot with icon manifests and for refresh paths.
+    async function fetchBootstrapState() {
+        state.bootstrap = await api('/api/desktop/bootstrap');
+        state.desktopFiles = await resolveDesktopFilesFromBootstrap(state.bootstrap);
+        return state.bootstrap;
+    }
+
     async function loadBootstrap() {
         if (bootstrapReloadPromise) return bootstrapReloadPromise;
         bootstrapReloadPromise = (async () => {
-            state.bootstrap = await api('/api/desktop/bootstrap');
-            state.desktopFiles = await loadDesktopFiles();
+            await fetchBootstrapState();
             renderDesktop();
             refreshPetRuntime();
             return state.bootstrap;
@@ -1101,6 +1108,15 @@
         try {
             return await bootstrapReloadPromise;
         } finally { bootstrapReloadPromise = null; }
+    }
+
+    async function resolveDesktopFilesFromBootstrap(boot) {
+        if (!boot || !boot.enabled) return [];
+        // Prefer embedded listing from bootstrap (single round-trip).
+        if (Array.isArray(boot.desktop_files)) {
+            return boot.desktop_files.filter(file => file && file.path);
+        }
+        return loadDesktopFiles();
     }
 
     async function loadDesktopFiles() {

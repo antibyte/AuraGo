@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"reflect"
+	"strings"
 	"testing"
 
 	"aurago/internal/i18n"
@@ -18,7 +19,7 @@ func TestUII18NSectionsManifestCoversEveryPage(t *testing.T) {
 	want := map[string][]string{
 		"config":      {"config", "chat", "help", "shared"},
 		"dashboard":   {"dashboard", "chat", "config", "knowledge", "shared"},
-		"desktop":     {"desktop", "chat", "cheater", "codeStudio", "config", "galaxa", "homepage_studio", "missions", "pixel", "shared", "viewer", "zipper"},
+		"desktop":     {"desktop"},
 		"plans":       {"plans", "chat", "config", "shared"},
 		"missions":    {"missions", "chat", "config", "shared"},
 		"cheatsheets": {"cheatsheets", "chat", "config", "shared"},
@@ -43,7 +44,7 @@ func TestUII18NSectionsManifestCoversEveryPage(t *testing.T) {
 	}
 }
 
-func TestDesktopTemplateDataIncludesAllDesktopAppI18NSections(t *testing.T) {
+func TestDesktopTemplateDataIsShellOnlyI18N(t *testing.T) {
 	uiFS, err := fs.Sub(ui.Content, ".")
 	if err != nil {
 		t.Fatal(err)
@@ -58,20 +59,27 @@ func TestDesktopTemplateDataIncludesAllDesktopAppI18NSections(t *testing.T) {
 		t.Fatalf("parse desktop template data: %v", err)
 	}
 
+	// Shell must still include desktop + common keys.
 	for _, key := range []string{
-		"chat.sse_thinking",
-		"cheater.save",
-		"codeStudio.refresh",
 		"desktop.chess_flip",
-		"galaxa.title",
-		"homepage_studio.target_label",
-		"missions.filter_all",
-		"pixel.adjust",
-		"viewer.loading",
-		"zipper.open",
+		"common.skip_to_content",
 	} {
 		if payload.I18N[key] == "" || payload.I18N[key] == key {
-			t.Fatalf("desktop template data did not include translated key %s: %q", key, payload.I18N[key])
+			t.Fatalf("desktop shell missing key %s: %q", key, payload.I18N[key])
+		}
+	}
+
+	// App / config prefixes must not bloat the initial desktop HTML payload.
+	forbiddenPrefixes := []string{
+		"config.", "chat.", "cheater.", "codeStudio.", "galaxa.",
+		"homepage_studio.", "missions.", "pixel.", "viewer.", "zipper.",
+		"dashboard.", "help.",
+	}
+	for key := range payload.I18N {
+		for _, prefix := range forbiddenPrefixes {
+			if strings.HasPrefix(key, prefix) {
+				t.Fatalf("desktop shell must not embed %s keys, found %q", prefix, key)
+			}
 		}
 	}
 }

@@ -117,6 +117,9 @@ type BootstrapPayload struct {
 	IconCatalog        IconCatalogInfo   `json:"icon_catalog"`
 	Pets               []PetManifest     `json:"pets"`
 	ActivePetID        string            `json:"active_pet_id,omitempty"`
+	// DesktopFiles is the Desktop folder listing for first paint (avoids a
+	// second /api/desktop/files round-trip). Omitted when listing fails.
+	DesktopFiles []FileEntry `json:"desktop_files,omitempty"`
 }
 
 // IconCatalogInfo tells agents and generated apps which semantic icons are safe

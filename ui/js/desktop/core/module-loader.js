@@ -359,15 +359,59 @@
         return loadBundle(label, bundlePaths[String(label || '')]);
     }
 
+    // App id → i18n section prefixes to merge into window.I18N before scripts run.
+    // Shell only embeds desktop.*; apps load their own sections on demand.
+    const APP_I18N_SECTIONS = {
+        'agent-chat': ['chat'],
+        'cheater': ['cheater'],
+        'chess': [],
+        'code-studio': ['codeStudio'],
+        'galaxa-deluxe': ['galaxa'],
+        'homepage-studio': ['homepage_studio'],
+        'live-speech': [],
+        'mission-control': ['missions'],
+        'pixel': ['pixel'],
+        'viewer': ['viewer'],
+        'viewer-3d': ['viewer'],
+        'zipper': ['zipper']
+    };
+    const loadedI18nSections = new Set();
+
+    function loadAppI18nSections(appId) {
+        const sections = APP_I18N_SECTIONS[appId];
+        if (!sections || !sections.length) return Promise.resolve();
+        const pending = sections.filter(s => s && !loadedI18nSections.has(s));
+        if (!pending.length) return Promise.resolve();
+        const lang = (window.SYSTEM_LANG || document.documentElement.lang || 'en').toString();
+        const url = '/api/i18n?lang=' + encodeURIComponent(lang) +
+            '&sections=' + encodeURIComponent(pending.join(','));
+        return fetch(url, { credentials: 'same-origin' })
+            .then(resp => {
+                if (!resp.ok) throw new Error('i18n sections HTTP ' + resp.status);
+                return resp.json();
+            })
+            .then(body => {
+                const data = (body && body.data) || {};
+                window.I18N = Object.assign({}, window.I18N || {}, data);
+                pending.forEach(s => loadedI18nSections.add(s));
+            })
+            .catch(err => {
+                console.warn('Desktop app i18n sections failed to load', appId, pending, err);
+            });
+    }
+
     function loadAppAssets(appId) {
         const assets = DESKTOP_APP_ASSETS[appId];
         if (!assets) {
-            readyApps.add(appId);
-            return Promise.resolve();
+            // Still try i18n for apps without dedicated asset bundles.
+            return loadAppI18nSections(appId).then(() => {
+                readyApps.add(appId);
+            });
         }
         if (readyApps.has(appId)) return Promise.resolve();
         if (appPromises.has(appId)) return appPromises.get(appId);
-        const promise = loadStyles(assets.styles)
+        const promise = loadAppI18nSections(appId)
+            .then(() => loadStyles(assets.styles))
             .then(() => loadScriptsInOrder(assets.scripts))
             .then(() => {
                 readyApps.add(appId);

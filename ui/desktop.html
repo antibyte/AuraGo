@@ -19,14 +19,16 @@
     <script src="/js/shared/prepaint-theme.js?v={{.BuildVersion}}"></script>
     <script type="application/json" id="aurago-template-data">{{.TemplateDataJSON}}</script>
     <script src="/js/shared/template-data.js?v={{.BuildVersion}}"></script>
+    <link rel="preload" href="/css/desktop-shell.bundle.css?v={{.BuildVersion}}" as="style">
+    <link rel="preload" href="/js/desktop/bundles/main.bundle.js?v={{.BuildVersion}}" as="script">
     <link href="/fonts/fonts.css" rel="stylesheet">
     <link rel="stylesheet" href="/shared-variables.css">
     <link rel="stylesheet" href="/shared-utilities.css">
     <link rel="stylesheet" href="/shared-components.css?v={{.BuildVersion}}">
     <link rel="stylesheet" href="/shared-animations.css">
     <link rel="stylesheet" href="/css/desktop-shell.bundle.css?v={{.BuildVersion}}">
-    <script src="/js/shared/shared-core.js?v={{.BuildVersion}}"></script>
-    <script src="/js/shared/lazy-assets.js?v={{.BuildVersion}}"></script>
+    <script defer src="/js/shared/shared-core.js?v={{.BuildVersion}}"></script>
+    <script defer src="/js/shared/lazy-assets.js?v={{.BuildVersion}}"></script>
 </head>
 
 <body class="desktop-body">
@@ -89,8 +91,8 @@
         </div>
     </noscript>
 
-    <script defer src="/js/desktop/core/module-loader.js?v={{.BuildVersion}}-desktop-20260524-audit-fixes"></script>
-    <script defer src="/js/desktop/main.js?v={{.BuildVersion}}-desktop-20260525-window-ai-context"></script>
+    <script defer src="/js/desktop/core/module-loader.js?v={{.BuildVersion}}"></script>
+    <script defer src="/js/desktop/main.js?v={{.BuildVersion}}"></script>
 </body>
 
 </html>

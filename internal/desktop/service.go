@@ -736,6 +736,14 @@ func (s *Service) Bootstrap(ctx context.Context) (BootstrapPayload, error) {
 	payload.Pets = pets
 	payload.ActivePetID = s.cacheSettings["pet.active_id"]
 
+	// Include Desktop directory entries so the shell can render icons without
+	// a second HTTP round-trip. Listing is cheap; failures are non-fatal.
+	if cfg.Enabled {
+		if files, listErr := s.ListFiles(ctx, "Desktop"); listErr == nil {
+			payload.DesktopFiles = files
+		}
+	}
+
 	return payload, nil
 }
 
