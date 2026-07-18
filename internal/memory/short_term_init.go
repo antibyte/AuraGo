@@ -333,6 +333,9 @@ CREATE INDEX IF NOT EXISTS idx_memory_usage_log_used_at ON memory_usage_log(used
 	if err := stm.InitAgoDeskAttachmentsTable(); err != nil {
 		logger.Warn("Failed to initialize agodesk attachments table", "error", err)
 	}
+	if err := stm.InitAgoDeskKnowledgeTables(); err != nil {
+		logger.Warn("Failed to initialize agodesk knowledge tables", "error", err)
+	}
 
 	// Ensure at least a default chat session exists (backward compatibility)
 	if err := stm.EnsureDefaultSession(); err != nil {

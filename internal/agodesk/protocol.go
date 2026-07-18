@@ -39,6 +39,9 @@ const (
 	TypeChatAttachmentPrepare            MessageType = "chat.attachment.prepare"
 	TypeChatAttachmentPrepared           MessageType = "chat.attachment.prepared"
 	TypeChatAttachmentAccepted           MessageType = "chat.attachment.accepted"
+	TypeKnowledgeArchivePrepare          MessageType = "knowledge.archive.prepare"
+	TypeKnowledgeArchivePrepared         MessageType = "knowledge.archive.prepared"
+	TypeKnowledgeArchiveStatus           MessageType = "knowledge.archive.status"
 	TypeChatVoiceOutputStatus            MessageType = "chat.voice_output.status"
 	TypeIntegrationsWebhostsList         MessageType = "integrations.webhosts.list"
 	TypeIntegrationsWebhosts             MessageType = "integrations.webhosts"
@@ -94,6 +97,12 @@ const (
 	ErrorAttachmentNotFound       = "ATTACHMENT_NOT_FOUND"
 	ErrorAttachmentNotReady       = "ATTACHMENT_NOT_READY"
 	ErrorAttachmentExpired        = "ATTACHMENT_EXPIRED"
+	ErrorKnowledgeRejected        = "KNOWLEDGE_REJECTED"
+	ErrorKnowledgeTooLarge        = "KNOWLEDGE_TOO_LARGE"
+	ErrorKnowledgeMimeNotAllowed  = "KNOWLEDGE_MIME_NOT_ALLOWED"
+	ErrorKnowledgeNotFound        = "KNOWLEDGE_NOT_FOUND"
+	ErrorKnowledgeExpired         = "KNOWLEDGE_EXPIRED"
+	ErrorKnowledgeIngestFailed    = "KNOWLEDGE_INGEST_FAILED"
 	ErrorInvalidRequest           = "INVALID_REQUEST"
 	ErrorUnsupportedTool          = "UNSUPPORTED_TOOL"
 	ErrorMemoryDisabled           = "MEMORY_DISABLED"
@@ -135,6 +144,7 @@ const (
 	CapabilityConfigProvidersWrite = "config.providers.write"
 	CapabilityConfigProvidersOAuth = "config.providers.oauth"
 	CapabilityLocalAgent           = "local.agent"
+	CapabilityKnowledgeArchive     = "knowledge.archive.upload"
 )
 
 const PersonaAssetVersion = "20260502-persona-refresh"
@@ -209,14 +219,15 @@ type SharedKeyProof struct {
 }
 
 type SessionAcceptedPayload struct {
-	SessionID              string                   `json:"session_id"`
-	DeviceID               string                   `json:"device_id"`
-	Approved               bool                     `json:"approved"`
-	ReadOnly               bool                     `json:"read_only"`
-	Capabilities           []string                 `json:"capabilities"`
-	AdvertisedCapabilities []string                 `json:"advertised_capabilities,omitempty"`
-	SharedKey              string                   `json:"shared_key,omitempty"`
-	AttachmentLimits       *AttachmentLimitsPayload `json:"attachment_limits,omitempty"`
+	SessionID              string                         `json:"session_id"`
+	DeviceID               string                         `json:"device_id"`
+	Approved               bool                           `json:"approved"`
+	ReadOnly               bool                           `json:"read_only"`
+	Capabilities           []string                       `json:"capabilities"`
+	AdvertisedCapabilities []string                       `json:"advertised_capabilities,omitempty"`
+	SharedKey              string                         `json:"shared_key,omitempty"`
+	AttachmentLimits       *AttachmentLimitsPayload       `json:"attachment_limits,omitempty"`
+	KnowledgeArchiveLimits *KnowledgeArchiveLimitsPayload `json:"knowledge_archive_limits,omitempty"`
 }
 
 type ChatMessagePayload struct {
@@ -458,6 +469,51 @@ type ChatAttachmentItem struct {
 	SHA256       string                 `json:"sha256,omitempty"`
 	OpenMode     string                 `json:"open_mode,omitempty"`
 	Metadata     map[string]interface{} `json:"metadata,omitempty"`
+}
+
+type KnowledgeArchiveLimitsPayload struct {
+	MaxFileBytes        int64    `json:"max_file_bytes"`
+	MaxFilesPerBatch    int      `json:"max_files_per_batch"`
+	AllowedMimePrefixes []string `json:"allowed_mime_prefixes,omitempty"`
+}
+
+type KnowledgeArchivePreparePayload struct {
+	SessionID string                        `json:"session_id"`
+	Files     []KnowledgeArchivePrepareFile `json:"files"`
+}
+
+type KnowledgeArchivePrepareFile struct {
+	Filename  string   `json:"filename"`
+	MimeType  string   `json:"mime_type"`
+	SizeBytes int64    `json:"size_bytes"`
+	Title     string   `json:"title,omitempty"`
+	Tags      []string `json:"tags,omitempty"`
+}
+
+type KnowledgeArchivePreparedPayload struct {
+	SessionID string                             `json:"session_id"`
+	PrepareID string                             `json:"prepare_id"`
+	Documents []KnowledgeArchivePreparedDocument `json:"documents"`
+}
+
+type KnowledgeArchivePreparedDocument struct {
+	DocumentID   string `json:"document_id"`
+	Filename     string `json:"filename"`
+	UploadURL    string `json:"upload_url"`
+	UploadMethod string `json:"upload_method"`
+	UploadField  string `json:"upload_field"`
+	ExpiresAt    string `json:"expires_at"`
+	MaxBytes     int64  `json:"max_bytes"`
+}
+
+type KnowledgeArchiveStatusPayload struct {
+	SessionID  string `json:"session_id"`
+	DocumentID string `json:"document_id"`
+	State      string `json:"state"`
+	Title      string `json:"title,omitempty"`
+	ChunkCount int    `json:"chunk_count,omitempty"`
+	ErrorCode  string `json:"error_code,omitempty"`
+	Error      string `json:"error,omitempty"`
 }
 
 type ChatSessionsListPayload struct {

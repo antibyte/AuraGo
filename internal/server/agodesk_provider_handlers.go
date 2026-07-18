@@ -25,7 +25,9 @@ func agodeskServerCapabilitiesForDevice(s *Server, readOnly bool) []string {
 	filtered := capabilities[:0]
 	for _, capability := range capabilities {
 		switch capability {
-		case agodesk.CapabilityConfigProvidersWrite, agodesk.CapabilityConfigProvidersOAuth:
+		case agodesk.CapabilityConfigProvidersWrite,
+			agodesk.CapabilityConfigProvidersOAuth,
+			agodesk.CapabilityKnowledgeArchive:
 			continue
 		default:
 			filtered = append(filtered, capability)

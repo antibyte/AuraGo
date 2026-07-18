@@ -668,6 +668,76 @@ func TestSessionAcceptedPayloadCarriesAdvertisedCapabilities(t *testing.T) {
 	}
 }
 
+func TestKnowledgeArchiveProtocolPayloadsRoundTrip(t *testing.T) {
+	preparedEnvelope, err := NewEnvelope(TypeKnowledgeArchivePrepared, KnowledgeArchivePreparedPayload{
+		SessionID: "agodesk:device-1",
+		PrepareID: "prepare-1",
+		Documents: []KnowledgeArchivePreparedDocument{{
+			DocumentID:   "kdoc-1",
+			Filename:     "manual.pdf",
+			UploadURL:    "/api/agodesk/knowledge/upload/kdoc-1?agodesk_exp=1&agodesk_sig=sig",
+			UploadMethod: "POST",
+			UploadField:  "file",
+			ExpiresAt:    "2026-07-19T12:05:00Z",
+			MaxBytes:     20 << 20,
+		}},
+	})
+	if err != nil {
+		t.Fatalf("NewEnvelope prepared: %v", err)
+	}
+	var prepared KnowledgeArchivePreparedPayload
+	if err := json.Unmarshal(preparedEnvelope.Payload, &prepared); err != nil {
+		t.Fatalf("unmarshal prepared payload: %v", err)
+	}
+	if prepared.PrepareID != "prepare-1" || len(prepared.Documents) != 1 ||
+		prepared.Documents[0].DocumentID != "kdoc-1" || prepared.Documents[0].UploadField != "file" {
+		t.Fatalf("prepared payload = %+v", prepared)
+	}
+
+	statusEnvelope, err := NewEnvelope(TypeKnowledgeArchiveStatus, KnowledgeArchiveStatusPayload{
+		SessionID:  "agodesk:device-1",
+		DocumentID: "kdoc-1",
+		State:      "failed",
+		Title:      "Manual",
+		ErrorCode:  ErrorKnowledgeIngestFailed,
+		Error:      "embedding unavailable",
+	})
+	if err != nil {
+		t.Fatalf("NewEnvelope status: %v", err)
+	}
+	var status KnowledgeArchiveStatusPayload
+	if err := json.Unmarshal(statusEnvelope.Payload, &status); err != nil {
+		t.Fatalf("unmarshal status payload: %v", err)
+	}
+	if status.DocumentID != "kdoc-1" || status.ErrorCode != ErrorKnowledgeIngestFailed || status.State != "failed" {
+		t.Fatalf("status payload = %+v", status)
+	}
+
+	acceptedEnvelope, err := NewEnvelope(TypeSessionAccepted, SessionAcceptedPayload{
+		SessionID:              "agodesk:device-1",
+		DeviceID:               "device-1",
+		Approved:               true,
+		AdvertisedCapabilities: []string{CapabilityKnowledgeArchive},
+		KnowledgeArchiveLimits: &KnowledgeArchiveLimitsPayload{
+			MaxFileBytes:        20 << 20,
+			MaxFilesPerBatch:    10,
+			AllowedMimePrefixes: []string{"application/pdf", "text/"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("NewEnvelope accepted: %v", err)
+	}
+	var accepted SessionAcceptedPayload
+	if err := json.Unmarshal(acceptedEnvelope.Payload, &accepted); err != nil {
+		t.Fatalf("unmarshal accepted payload: %v", err)
+	}
+	if accepted.KnowledgeArchiveLimits == nil ||
+		accepted.KnowledgeArchiveLimits.MaxFilesPerBatch != 10 ||
+		accepted.KnowledgeArchiveLimits.MaxFileBytes != 20<<20 {
+		t.Fatalf("accepted knowledge limits = %+v", accepted.KnowledgeArchiveLimits)
+	}
+}
+
 func TestNegotiateCapabilitiesIntersectsClientAndServerCapabilities(t *testing.T) {
 	got := NegotiateCapabilities(
 		[]string{"chat.full_response", "remote.desktop.capture", "remote.desktop.browser", "unknown.cap"},

@@ -66,6 +66,8 @@ AuraGo accepts `desktop.result` WebSocket messages up to 16 MiB because screensh
 - `local.agent.handoff`: hand the current request to the full AuraGo server agent. The normal `chat.response`, `chat.error`, plan, activity, media, and audio events are used for the result.
 - `local.agent.turn`: synchronize one turn completed by the local agent into AuraGo history, activity, journal, and eligible memory analysis. This message is fire-and-forget.
 - `local.agent.llm` / `local.agent.llm.result`: use one configured AuraGo provider without exporting its credentials and without adding server prompts or tools.
+- `knowledge.archive.prepare` / `knowledge.archive.prepared`: atomically reserve one batch of files for upload into AuraGo's knowledge archive and return stable document IDs plus signed HTTP upload URLs.
+- `knowledge.archive.status`: asynchronous and replayable upload/indexing status for one archive document.
 - `agent.activity`: optional server-to-client activity timeline events for agent turns and tool lifecycle updates.
 - `desktop.command` / `desktop.result`: server-to-client command transport for screenshots, discovery, UI automation, browser CDP, permission requests, locally approved input/actions, locally approved file access, and locally enabled remote shell commands.
 
@@ -109,6 +111,7 @@ Desktop commands are dispatched only when the matching client capability is pres
 - `config.providers.read`: enables provider catalog, configured-provider list, provider detail, and OAuth status reads.
 - `config.providers.write`: enables provider create, update, delete, and test commands. AuraGo offers this only when Web Config is enabled, the Vault is available, and the paired AgoDesk device is not read-only.
 - `config.providers.oauth`: enables desktop-assisted OAuth start, complete, status, and revoke commands. AuraGo offers this only when Web Config is enabled, the Vault is available, and the paired AgoDesk device is not read-only.
+- `knowledge.archive.upload`: enables document uploads into the first configured AuraGo knowledge directory and its collection. AuraGo offers it only when indexing, the FileIndexer, VectorDB, knowledge directory, upload signing secret, and a writable paired device are available.
 - `remote.desktop.capture`: required for `desktop_screenshot`
 - `remote.desktop.permission_request`: required for `desktop_permission_request`
 - `remote.desktop.input`: required for `desktop_input`
@@ -447,6 +450,161 @@ Rules:
 - `path_display` is UI/debug metadata. AuraGo must not treat it as an authorization boundary.
 - AuraGo stores only sanitized session metadata from `file_access` and includes available `root_id`, display labels, permissions, and inline byte limits in the AgoDesk agent context.
 - AuraGo caps `file_read` / `file_write` / `file_patch` inline command limits to 8 MiB or the smaller negotiated `max_read_bytes` / `max_write_bytes`, rejects known disabled or denied `root_id` cases for `file_list`, `file_read`, `file_search`, `file_write`, and `file_patch`, and still requires AgoDesk to enforce canonical path checks and permissions locally for every command.
+
+## Knowledge Archive Uploads
+
+Knowledge archive uploads are separate from chat attachments and `remote.files.*`. They write accepted documents into AuraGo's first configured knowledge directory and index them with the same extraction, chunking, embedding, fingerprint, retry, and collection logic used by normal knowledge-directory scans. AgoDesk must advertise `knowledge.archive.upload`; AuraGo does not offer it to read-only devices.
+
+When the capability is negotiated, `session.accepted` includes:
+
+```json
+{
+  "knowledge_archive_limits": {
+    "max_file_bytes": 20971520,
+    "max_files_per_batch": 10,
+    "allowed_mime_prefixes": [
+      "application/pdf",
+      "application/vnd.oasis.opendocument",
+      "application/vnd.openxmlformats-officedocument",
+      "text/"
+    ]
+  }
+}
+```
+
+The field is omitted when the capability was not negotiated. `allowed_mime_prefixes` is derived from AuraGo's configured `indexing.extensions`; it is discovery metadata, not a substitute for validating each file.
+
+### Prepare
+
+AgoDesk sends one atomic batch with 1–10 files:
+
+```json
+{
+  "id": "prepare-archive-2026-07-19-1",
+  "type": "knowledge.archive.prepare",
+  "payload": {
+    "session_id": "agodesk:device-123",
+    "files": [
+      {
+        "filename": "maintenance-notes.md",
+        "mime_type": "text/markdown",
+        "size_bytes": 18342,
+        "title": "Maintenance notes",
+        "tags": ["homelab", "maintenance"]
+      }
+    ]
+  }
+}
+```
+
+Rules:
+
+- `session_id` must match the accepted WebSocket session.
+- `filename` and `title` are limited to 255 Unicode characters. An empty title defaults to the normalized filename.
+- `filename` must be a single safe base name. Absolute paths, traversal, separators, control characters, Windows-reserved path characters, trailing dots/spaces, and names that already exist or are reserved are rejected.
+- `tags` accepts at most 32 entries, each no longer than 64 Unicode characters. AuraGo trims, removes empty tags, and deduplicates them case-insensitively while preserving the first spelling and order.
+- `size_bytes` must be positive and no larger than 20 MiB.
+- The extension must be enabled in `indexing.extensions`, and `mime_type` must match the extension's allowed MIME family.
+- If any entry is invalid or conflicts with an existing/reserved filename, AuraGo rejects the whole batch with `chat.error`; it does not reserve a partial batch.
+- The envelope `id` is the idempotency key. Reusing it for the same paired `device_id` and the identical normalized payload returns the same stable `document_id` values and expiry. Reusing it with a different payload returns `KNOWLEDGE_REJECTED`.
+
+Success:
+
+```json
+{
+  "type": "knowledge.archive.prepared",
+  "payload": {
+    "session_id": "agodesk:device-123",
+    "prepare_id": "prepare-archive-2026-07-19-1",
+    "documents": [
+      {
+        "document_id": "kdoc-...",
+        "filename": "maintenance-notes.md",
+        "upload_url": "/api/agodesk/knowledge/upload/kdoc-...?agodesk_exp=1784455500&agodesk_sig=...",
+        "upload_method": "POST",
+        "upload_field": "file",
+        "expires_at": "2026-07-19T12:05:00Z",
+        "max_bytes": 20971520
+      }
+    ]
+  }
+}
+```
+
+`upload_url` is relative. Resolve it against the configured AuraGo HTTP(S) base URL and use it exactly as returned, including its query string.
+
+### Signed HTTP upload
+
+Upload each prepared document with:
+
+```http
+POST /api/agodesk/knowledge/upload/{document_id}?agodesk_exp=...&agodesk_sig=...
+Content-Type: multipart/form-data; boundary=...
+```
+
+The single file part must use the returned `upload_field` (`file`) and the same filename and byte length declared during prepare. The URL is valid for five minutes. Its lowercase hexadecimal HMAC-SHA256 signature is path-bound and covers:
+
+```text
+escaped_path + "\n" + canonical_query_without_agodesk_sig
+```
+
+The key is AuraGo's server-side session signing secret. AgoDesk never receives the key and must not alter or reconstruct the signed query. Only `/api/agodesk/knowledge/upload/` bypasses browser-session auth; the handler always requires this valid signature.
+
+AuraGo streams the body with a hard 20-MiB file limit into a hidden `.part` file, computes SHA-256, validates the declared size, extension, MIME, and content, then publishes it atomically without overwriting an existing file. Text formats must be valid UTF-8; PDFs and RTF use their expected magic bytes; OOXML and ODF archives must contain the required container entries and ODF media type. Traversal, symlinks, executable content, format spoofing, interrupted uploads, and filename conflicts are rejected.
+
+The HTTP response is `201 Created` only after atomic file acceptance:
+
+```json
+{
+  "document_id": "kdoc-...",
+  "state": "processing",
+  "filename": "maintenance-notes.md",
+  "mime_type": "text/plain",
+  "size_bytes": 18342
+}
+```
+
+Indexing continues asynchronously. At most one archive document is ingested at a time, and processing jobs resume after an AuraGo restart.
+
+### Status and replay
+
+State transitions are:
+
+```text
+uploading -> processing -> ready
+                        \-> failed
+uploading ----------------> failed
+```
+
+Each transition is sent only to the currently connected, capability-negotiated session for the owning `device_id`:
+
+```json
+{
+  "type": "knowledge.archive.status",
+  "payload": {
+    "session_id": "agodesk:device-123",
+    "document_id": "kdoc-...",
+    "state": "ready",
+    "title": "Maintenance notes",
+    "chunk_count": 6
+  }
+}
+```
+
+A failed status includes `error_code` and a safe `error` message. After `session.accepted`, AuraGo replays in-progress documents plus terminal states completed within the last 24 hours for that same device. Delivery is at-least-once; AgoDesk must deduplicate by `document_id` and `state`. Prepared reservations expire after five minutes. AuraGo keeps terminal diagnostics temporarily and cleans stale upload artifacts automatically.
+
+Stable archive error codes:
+
+- `KNOWLEDGE_REJECTED`
+- `KNOWLEDGE_TOO_LARGE`
+- `KNOWLEDGE_MIME_NOT_ALLOWED`
+- `KNOWLEDGE_NOT_FOUND`
+- `KNOWLEDGE_EXPIRED`
+- `KNOWLEDGE_INGEST_FAILED`
+
+Prepare errors use `chat.error`. HTTP errors are JSON and use `401` for a bad signature, `404` for an unknown document, `409` for state/filename conflicts, `410` for expiration, `413` for size, and `415` for MIME/content mismatch.
+
+Every indexed chunk receives the persistent archive document ID, title, tags, `agodesk` source, and owning device ID as metadata. Title and tags also enrich the embedded document context and survive later normal FileIndexer scans. AuraGo currently has one global knowledge space per instance: the device ID is used for authorization, audit, and status isolation, not for a separate VectorDB namespace.
 
 ## Pairing
 

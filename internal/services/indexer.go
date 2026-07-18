@@ -45,6 +45,13 @@ type IndexerStatus struct {
 	Errors           []string  `json:"errors,omitempty"`
 }
 
+// FileIngestResult describes the persisted VectorDB output for one indexed file.
+type FileIngestResult struct {
+	DocumentIDs []string
+	ChunkCount  int
+	Indexed     bool
+}
+
 // FileIndexer watches configured directories and indexes files into VectorDB.
 type FileIndexer struct {
 	cfg               *config.Config
@@ -197,6 +204,62 @@ func (fi *FileIndexer) Rescan() {
 	}
 	fi.lifecycleMu.Unlock()
 	go fi.scan(ctx)
+}
+
+// IndexFile indexes one file through the same extraction, chunking, embedding,
+// fingerprinting, and persistence path used by background directory scans.
+func (fi *FileIndexer) IndexFile(ctx context.Context, directory config.IndexingDirectory, path string, metadata map[string]string) (FileIngestResult, error) {
+	if fi == nil || fi.stm == nil || fi.vectorDB == nil {
+		return FileIngestResult{}, fmt.Errorf("file indexer is not configured")
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return FileIngestResult{}, err
+	}
+	root, err := filepath.Abs(strings.TrimSpace(directory.Path))
+	if err != nil || root == "" {
+		return FileIngestResult{}, fmt.Errorf("resolve indexing directory: %w", err)
+	}
+	target, err := filepath.Abs(strings.TrimSpace(path))
+	if err != nil || target == "" {
+		return FileIngestResult{}, fmt.Errorf("resolve indexed file: %w", err)
+	}
+	rel, err := filepath.Rel(root, target)
+	if err != nil || rel == "." || rel == ".." || filepath.IsAbs(rel) || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
+		return FileIngestResult{}, fmt.Errorf("indexed file must stay within configured directory")
+	}
+	info, err := os.Lstat(target)
+	if err != nil {
+		return FileIngestResult{}, fmt.Errorf("stat indexed file: %w", err)
+	}
+	if info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+		return FileIngestResult{}, fmt.Errorf("indexed path must be a regular file")
+	}
+	collection := getDirCollection(directory)
+	if err := fi.stm.UpsertFileIndexMetadata(target, collection, metadata); err != nil {
+		return FileIngestResult{}, err
+	}
+
+	fi.scanMu.Lock()
+	defer fi.scanMu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return FileIngestResult{}, err
+	}
+	_, _, scanErrors := fi.scanDirectory(ctx, root, collection, target)
+	if len(scanErrors) > 0 {
+		return FileIngestResult{}, fmt.Errorf("index file: %s", strings.Join(scanErrors, "; "))
+	}
+	documentIDs, err := fi.stm.GetFileEmbeddingDocIDs(target, collection)
+	if err != nil {
+		return FileIngestResult{}, fmt.Errorf("load indexed document IDs: %w", err)
+	}
+	return FileIngestResult{
+		DocumentIDs: documentIDs,
+		ChunkCount:  len(documentIDs),
+		Indexed:     len(documentIDs) > 0,
+	}, nil
 }
 
 // ensureDirectories creates any missing configured directories.
@@ -366,16 +429,24 @@ func getDirCollection(dir config.IndexingDirectory) string {
 }
 
 // scanDirectory walks a single directory (recursively) and indexes supported files.
-func (fi *FileIndexer) scanDirectory(ctx context.Context, dir, collection string) (totalFiles, indexedFiles int, errors []string) {
+func (fi *FileIndexer) scanDirectory(ctx context.Context, dir, collection string, targetPaths ...string) (totalFiles, indexedFiles int, errors []string) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
 	if err := ctx.Err(); err != nil {
 		return 0, 0, nil
 	}
-	trackedPaths, trackedErr := fi.stm.ListIndexedFiles(collection)
-	if trackedErr != nil {
-		errors = append(errors, fmt.Sprintf("list indexed files %s: %v", dir, trackedErr))
+	targetPath := ""
+	if len(targetPaths) > 0 {
+		targetPath = filepath.Clean(strings.TrimSpace(targetPaths[0]))
+	}
+	var trackedPaths []string
+	if targetPath == "" {
+		var trackedErr error
+		trackedPaths, trackedErr = fi.stm.ListIndexedFiles(collection)
+		if trackedErr != nil {
+			errors = append(errors, fmt.Sprintf("list indexed files %s: %v", dir, trackedErr))
+		}
 	}
 	seenPaths := make(map[string]struct{})
 
@@ -403,6 +474,9 @@ func (fi *FileIndexer) scanDirectory(ctx context.Context, dir, collection string
 			if strings.HasPrefix(info.Name(), ".") {
 				return filepath.SkipDir
 			}
+			return nil
+		}
+		if targetPath != "" && filepath.Clean(path) != targetPath {
 			return nil
 		}
 
@@ -460,6 +534,11 @@ func (fi *FileIndexer) scanDirectory(ctx context.Context, dir, collection string
 		relPath, _ := filepath.Rel(dir, path)
 		if relPath == "" {
 			relPath = info.Name()
+		}
+		fileMetadata, metadataErr := fi.stm.GetFileIndexMetadata(path, collection)
+		if metadataErr != nil {
+			errors = append(errors, fmt.Sprintf("metadata error %s: %v", path, metadataErr))
+			return nil
 		}
 
 		var content string
@@ -588,6 +667,13 @@ func (fi *FileIndexer) scanDirectory(ctx context.Context, dir, collection string
 		// Build metadata-rich concept for the embedding
 		concept := fmt.Sprintf("Datei: %s (Pfad: %s, Geändert: %s)",
 			info.Name(), relPath, info.ModTime().Format("2006-01-02 15:04"))
+		if title := strings.TrimSpace(fileMetadata["archive_title"]); title != "" {
+			concept = fmt.Sprintf("Dokument: %s (Datei: %s, Pfad: %s, Geändert: %s)",
+				title, info.Name(), relPath, info.ModTime().Format("2006-01-02 15:04"))
+		}
+		if tags := strings.TrimSpace(fileMetadata["archive_tags"]); tags != "" {
+			concept += " Tags: " + tags
+		}
 
 		// Store in VectorDB - use pre-computed embedding when available.
 		// Use collection-aware methods to route documents to the per-directory collection.
@@ -610,6 +696,11 @@ func (fi *FileIndexer) scanDirectory(ctx context.Context, dir, collection string
 				"file_extension": ext,
 				"index_mode":     indexMode,
 			}
+			for key, value := range fileMetadata {
+				if strings.TrimSpace(key) != "" && strings.TrimSpace(value) != "" {
+					extraMetadata[key] = value
+				}
+			}
 			docIDs, storeErr = fi.indexStoreWithRetry(ctx, func() ([]string, error) {
 				return store.StoreDocumentInCollectionWithChunking(concept, content, collection, chunkingOptions, extraMetadata)
 			}, path)
@@ -627,6 +718,10 @@ func (fi *FileIndexer) scanDirectory(ctx context.Context, dir, collection string
 		if err := fi.stm.UpdateFileIndexWithDocsAndState(path, collection, info.ModTime(), rawHash, indexFingerprint, docIDs); err != nil {
 			errors = append(errors, fmt.Sprintf("tracking error %s: %v", path, err))
 			fi.logger.Warn("[Indexer] Failed to persist file index tracking", "path", path, "error", err)
+			if rollbackErr := fi.rollbackUntrackedDocuments(docIDs, collection); rollbackErr != nil {
+				errors = append(errors, fmt.Sprintf("tracking rollback error %s: %v", path, rollbackErr))
+				fi.logger.Warn("[Indexer] Failed to roll back untracked embeddings", "path", path, "error", rollbackErr)
+			}
 			return nil
 		}
 
@@ -644,8 +739,33 @@ func (fi *FileIndexer) scanDirectory(ctx context.Context, dir, collection string
 		errors = append(errors, fmt.Sprintf("walk error %s: %v", dir, err))
 	}
 
-	errors = append(errors, fi.cleanupDeletedTrackedFiles(dir, collection, trackedPaths, seenPaths)...)
+	if targetPath == "" {
+		errors = append(errors, fi.cleanupDeletedTrackedFiles(dir, collection, trackedPaths, seenPaths)...)
+	}
 	return totalFiles, indexedFiles, errors
+}
+
+func (fi *FileIndexer) rollbackUntrackedDocuments(docIDs []string, collection string) error {
+	if len(docIDs) == 0 {
+		return nil
+	}
+	if batcher, ok := fi.vectorDB.(interface {
+		DeleteDocumentsFromCollection([]string, string) error
+	}); ok {
+		if err := batcher.DeleteDocumentsFromCollection(docIDs, collection); err != nil {
+			return fmt.Errorf("batch delete vector docs from collection %s: %w", collection, err)
+		}
+	} else {
+		for _, docID := range docIDs {
+			if err := fi.vectorDB.DeleteDocumentFromCollection(docID, collection); err != nil {
+				return fmt.Errorf("delete vector doc %s from collection %s: %w", docID, collection, err)
+			}
+		}
+	}
+	if err := fi.stm.DeleteMemoryMetaBatch(docIDs); err != nil {
+		return fmt.Errorf("delete memory meta batch: %w", err)
+	}
+	return nil
 }
 
 type embeddingFingerprinter interface {
@@ -824,6 +944,10 @@ func (fi *FileIndexer) cleanupDeletedTrackedFiles(dir, collection string, tracke
 			errors = append(errors, fmt.Sprintf("deleted file cleanup %s: %v", trackedPath, err))
 			fi.logger.Warn("[Indexer] Failed to remove deleted file embeddings", "path", trackedPath, "error", err)
 			continue
+		}
+		if err := fi.stm.DeleteFileIndexMetadata(trackedPath, collection); err != nil {
+			errors = append(errors, fmt.Sprintf("deleted file metadata cleanup %s: %v", trackedPath, err))
+			fi.logger.Warn("[Indexer] Failed to remove deleted file metadata", "path", trackedPath, "error", err)
 		}
 		fi.logger.Info("[Indexer] Removed embeddings for deleted file", "path", trackedPath)
 	}

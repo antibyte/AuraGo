@@ -26,6 +26,7 @@ type fakeIndexerVectorDB struct {
 	nextID       int
 	deleted      []string
 	stored       []string
+	concepts     []string
 	disabled     bool
 	fingerprint  string
 	storeErr     error
@@ -49,6 +50,7 @@ func (f *fakeIndexerVectorDB) StoreDocument(concept, content string) ([]string, 
 	}
 	f.mu.Lock()
 	f.stored = append(f.stored, content)
+	f.concepts = append(f.concepts, concept)
 	f.mu.Unlock()
 	return []string{docID}, nil
 }
@@ -113,6 +115,102 @@ func (f *fakeIndexerVectorDB) DeleteCheatsheet(id string) error {
 }
 
 func (f *fakeIndexerVectorDB) RegisterCollections(collections []string) {}
+
+func TestFileIndexerIndexFileUsesPersistedArchiveMetadata(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	defer stm.Close()
+	dir := t.TempDir()
+	path := filepath.Join(dir, "manual.txt")
+	if err := os.WriteFile(path, []byte("GPU setup uses Vulkan for local inference."), 0o640); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	cfg := &config.Config{}
+	cfg.Indexing.Directories = []config.IndexingDirectory{{Path: dir}}
+	cfg.Indexing.Extensions = []string{".txt"}
+	vdb := &fakeIndexerVectorDB{}
+	indexer := NewFileIndexer(cfg, &sync.RWMutex{}, vdb, stm, logger)
+
+	result, err := indexer.IndexFile(context.Background(), cfg.Indexing.Directories[0], path, map[string]string{
+		"archive_document_id": "kdoc-index",
+		"archive_title":       "Vulkan Manual",
+		"archive_tags":        "gpu, docs",
+	})
+	if err != nil {
+		t.Fatalf("IndexFile: %v", err)
+	}
+	if !result.Indexed || result.ChunkCount != 1 || len(result.DocumentIDs) != 1 {
+		t.Fatalf("IndexFile result = %+v", result)
+	}
+	vdb.mu.Lock()
+	if len(vdb.concepts) != 1 || !strings.Contains(vdb.concepts[0], "Vulkan Manual") || !strings.Contains(vdb.concepts[0], "gpu, docs") {
+		t.Fatalf("stored concepts = %+v", vdb.concepts)
+	}
+	vdb.mu.Unlock()
+
+	metadata, err := stm.GetFileIndexMetadata(path, IndexerCollection)
+	if err != nil {
+		t.Fatalf("GetFileIndexMetadata: %v", err)
+	}
+	if metadata["archive_document_id"] != "kdoc-index" || metadata["archive_title"] != "Vulkan Manual" {
+		t.Fatalf("file metadata = %+v", metadata)
+	}
+}
+
+func TestFileIndexerIndexFileRollsBackVectorsWhenTrackingFails(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	dir := t.TempDir()
+	path := filepath.Join(dir, "tracking-failure.txt")
+	if err := os.WriteFile(path, []byte("content stored before tracking fails"), 0o640); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	cfg := &config.Config{}
+	cfg.Indexing.Directories = []config.IndexingDirectory{{Path: dir}}
+	cfg.Indexing.Extensions = []string{".txt"}
+	vdb := &fakeIndexerVectorDB{
+		storeStarted: make(chan struct{}),
+		releaseStore: make(chan struct{}),
+	}
+	indexer := NewFileIndexer(cfg, &sync.RWMutex{}, vdb, stm, logger)
+
+	done := make(chan error, 1)
+	go func() {
+		_, indexErr := indexer.IndexFile(context.Background(), cfg.Indexing.Directories[0], path, map[string]string{
+			"archive_document_id": "kdoc-tracking-failure",
+		})
+		done <- indexErr
+	}()
+	select {
+	case <-vdb.storeStarted:
+	case <-time.After(time.Second):
+		t.Fatal("vector store did not start")
+	}
+	if err := stm.Close(); err != nil {
+		t.Fatalf("Close SQLite memory: %v", err)
+	}
+	close(vdb.releaseStore)
+
+	select {
+	case indexErr := <-done:
+		if indexErr == nil {
+			t.Fatal("IndexFile succeeded after tracking database was closed")
+		}
+	case <-time.After(time.Second):
+		t.Fatal("IndexFile did not return after tracking failure")
+	}
+	vdb.mu.Lock()
+	defer vdb.mu.Unlock()
+	if !reflect.DeepEqual(vdb.deleted, []string{"doc-1"}) {
+		t.Fatalf("rolled-back vector IDs = %v, want [doc-1]", vdb.deleted)
+	}
+}
 
 func TestFileIndexerReplacesTrackedEmbeddingsOnReindex(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))

@@ -93,10 +93,12 @@ type agodeskActiveChatRun struct {
 }
 
 type agodeskDesktopBroker struct {
-	hub      *remote.RemoteHub
-	logger   *slog.Logger
-	mu       sync.RWMutex
-	sessions map[string]*agodeskDesktopSession
+	hub         *remote.RemoteHub
+	logger      *slog.Logger
+	mu          sync.RWMutex
+	sessions    map[string]*agodeskDesktopSession
+	knowledgeMu sync.Mutex
+	knowledge   *agodeskKnowledgeCoordinator
 }
 
 type agodeskDesktopSession struct {
@@ -195,7 +197,10 @@ func handleAgodeskEnvelope(s *Server, r *http.Request, conn *websocket.Conn, sta
 		state.fileAccess = normalizeAgodeskFileAccessPayload(payload.FileAccess)
 		state.mu.Unlock()
 		registerAgodeskDesktopSession(s, conn, state, accepted)
-		_ = writeAgodeskEnvelopeLocked(conn, state, agodesk.TypeSessionAccepted, accepted)
+		if err := writeAgodeskEnvelopeLocked(conn, state, agodesk.TypeSessionAccepted, accepted); err == nil &&
+			agodeskStringSliceContains(accepted.AdvertisedCapabilities, agodesk.CapabilityKnowledgeArchive) {
+			go replayAgodeskKnowledgeStatuses(s, accepted.DeviceID)
+		}
 	case agodesk.TypeChatMessage:
 		payload, errPayload := decodeAgodeskPayload[agodesk.ChatMessagePayload](env)
 		if errPayload != nil {
@@ -238,6 +243,13 @@ func handleAgodeskEnvelope(s *Server, r *http.Request, conn *websocket.Conn, sta
 			return true
 		}
 		handleAgodeskAttachmentPrepare(s, conn, state, env.ID, payload)
+	case agodesk.TypeKnowledgeArchivePrepare:
+		payload, errPayload := decodeAgodeskPayload[agodesk.KnowledgeArchivePreparePayload](env)
+		if errPayload != nil {
+			_ = writeAgodeskErrorLocked(conn, state, env.ID, agodesk.ErrorInvalidMessage, errPayload.Error())
+			return true
+		}
+		handleAgodeskKnowledgePrepare(s, conn, state, env.ID, payload)
 	case agodesk.TypeChatSessionsList:
 		payload, errPayload := decodeAgodeskPayload[agodesk.ChatSessionsListPayload](env)
 		if errPayload != nil {
@@ -884,6 +896,9 @@ func agodeskServerCapabilities(s *Server) []string {
 	if agodeskAttachmentUploadsEnabled(s) {
 		capabilities = append(capabilities, "chat.media_upload", "chat.attachments")
 	}
+	if agodeskKnowledgeArchiveUploadsEnabled(s) {
+		capabilities = append(capabilities, agodesk.CapabilityKnowledgeArchive)
+	}
 	if agodeskProviderManagementReadable(s) {
 		capabilities = append(capabilities, agodesk.CapabilityConfigProvidersRead)
 		if agodeskProviderManagementWritable(s) {
@@ -1495,6 +1510,7 @@ func acceptAgodeskSessionStart(s *Server, r *http.Request, requestID string, pay
 		AdvertisedCapabilities: advertised,
 		SharedKey:              sharedKey,
 		AttachmentLimits:       agodeskAttachmentLimitsForAccepted(s, advertised),
+		KnowledgeArchiveLimits: agodeskKnowledgeArchiveLimitsForAccepted(s, advertised),
 	}, "", ""
 }
 
@@ -1541,6 +1557,7 @@ func acceptAgodeskDeviceReconnect(s *Server, requestID string, payload agodesk.S
 		Capabilities:           serverCapabilities,
 		AdvertisedCapabilities: advertised,
 		AttachmentLimits:       agodeskAttachmentLimitsForAccepted(s, advertised),
+		KnowledgeArchiveLimits: agodeskKnowledgeArchiveLimitsForAccepted(s, advertised),
 	}, "", ""
 }
 

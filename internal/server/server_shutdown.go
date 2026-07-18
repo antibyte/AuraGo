@@ -37,6 +37,15 @@ func (s *Server) closeRuntimeResources() {
 		_ = s.BackgroundTasks.Close()
 		s.BackgroundTasks = nil
 	}
+	if broker := currentAgodeskDesktopBroker(s); broker != nil {
+		broker.knowledgeMu.Lock()
+		knowledge := broker.knowledge
+		broker.knowledge = nil
+		broker.knowledgeMu.Unlock()
+		if knowledge != nil {
+			knowledge.Close()
+		}
+	}
 
 	closeSQLiteHandle(s.Logger, &s.SkillsDB, "skills")
 	closeSQLiteHandle(s.Logger, &s.MissionHistoryDB, "mission_history")
