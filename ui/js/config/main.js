@@ -1681,6 +1681,7 @@ function _embeddingsBindMultimodal() {
         toggle.setAttribute('aria-disabled', localGranite ? 'true' : 'false');
         toggle.title = localGranite ? t('config.embeddings.text_only') : '';
         formatField.style.display = !localGranite && toggle.classList.contains('on') ? '' : 'none';
+        syncEmbeddingsRuntimeVisibility(localGranite);
     }
     sync();
 
@@ -1689,10 +1690,19 @@ function _embeddingsBindMultimodal() {
     if (providerEl) providerEl.addEventListener('change', sync);
 }
 
+function syncEmbeddingsRuntimeVisibility(localGranite) {
+    const runtimeCard = document.getElementById('emb-local-runtime-card');
+    if (!runtimeCard) return;
+    runtimeCard.classList.toggle('is-hidden', !localGranite);
+    runtimeCard.setAttribute('aria-hidden', localGranite ? 'false' : 'true');
+}
+
 let embeddingsRuntimeRefreshTimer = 0;
 
 function renderEmbeddingsRuntimeBlock() {
-    return `<section class="emb-runtime-card" aria-labelledby="emb-runtime-title">
+    const localGranite = (configData.embeddings || {}).provider === 'local-granite';
+    return `<section id="emb-local-runtime-card" class="emb-runtime-card${localGranite ? '' : ' is-hidden'}"
+            aria-labelledby="emb-runtime-title" aria-hidden="${localGranite ? 'false' : 'true'}">
         <div class="emb-runtime-header">
             <div>
                 <div class="emb-runtime-eyebrow">${t('config.embeddings.runtime_eyebrow')}</div>
@@ -1713,11 +1723,13 @@ function renderEmbeddingsRuntimeBlock() {
         <div id="emb-runtime-detail" class="emb-runtime-detail" aria-live="polite"></div>
         <div id="emb-runtime-benchmarks" class="emb-runtime-benchmarks"></div>
         <div class="pw-u-inline-actions emb-runtime-actions">
-            <button id="embedding-runtime-test-btn" type="button" class="cfg-btn cfg-btn-primary">${t('config.embeddings.test_action')}</button>
             <button id="embedding-runtime-benchmark-btn" type="button" class="cfg-btn">${t('config.embeddings.benchmark_action')}</button>
-            <span id="embedding-runtime-action-result" class="pw-u-muted" aria-live="polite"></span>
         </div>
-    </section>`;
+    </section>
+    <div class="pw-u-inline-actions emb-runtime-actions">
+        <button id="embedding-runtime-test-btn" type="button" class="cfg-btn cfg-btn-primary">${t('config.embeddings.test_action')}</button>
+        <span id="embedding-runtime-action-result" class="pw-u-muted" aria-live="polite"></span>
+    </div>`;
 }
 
 function bindEmbeddingsRuntimeActions() {
@@ -1782,6 +1794,14 @@ async function refreshEmbeddingsRuntimeStatus() {
 }
 
 function renderEmbeddingsRuntimeStatus(status) {
+    const localRuntime = status.provider === 'local-granite';
+    const providerElement = document.querySelector('[data-path="embeddings.provider"]');
+    const localSelected = providerElement
+        ? providerElement.value === 'local-granite'
+        : (configData.embeddings || {}).provider === 'local-granite';
+    syncEmbeddingsRuntimeVisibility(localRuntime && localSelected);
+    if (!localRuntime || !localSelected) return;
+
     const setText = (id, value) => {
         const element = document.getElementById(id);
         if (element) element.textContent = value || '—';
@@ -1826,8 +1846,7 @@ function renderEmbeddingsRuntimeStatus(status) {
     }
     const benchmarkButton = document.getElementById('embedding-runtime-benchmark-btn');
     if (benchmarkButton) {
-        const localSelected = (configData.embeddings || {}).provider === 'local-granite';
-        benchmarkButton.classList.toggle('is-hidden', !localSelected);
+        benchmarkButton.classList.remove('is-hidden');
     }
 }
 

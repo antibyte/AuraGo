@@ -29,6 +29,30 @@ error() { echo -e "${RED}[ERROR]${NC} $*"; exit 1; }
 warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
 ok() { echo -e "${GREEN}[OK]${NC} $*"; }
 
+system_group_exists() {
+    local group_name="$1"
+    if command -v getent >/dev/null 2>&1; then
+        getent group "$group_name" >/dev/null 2>&1
+        return
+    fi
+    grep -q "^${group_name}:" /etc/group 2>/dev/null
+}
+
+systemd_gpu_groups_line() {
+    local groups=()
+    local group_name
+    for group_name in render video; do
+        if system_group_exists "$group_name"; then
+            groups+=("$group_name")
+        fi
+    done
+    if [[ ${#groups[@]} -gt 0 ]]; then
+        local joined
+        joined="${groups[*]}"
+        printf 'SupplementaryGroups=%s' "$joined"
+    fi
+}
+
 warn_if_systemd_hardening_conflicts() {
     local config_path="$1"
     [[ -f "$config_path" ]] || return 0
@@ -155,6 +179,10 @@ if [[ -f "$ENV_FILE" ]]; then
 fi
 
 # 4. Create Systemd Service File
+GPU_GROUPS_LINE="$(systemd_gpu_groups_line)"
+if [[ -n "$GPU_GROUPS_LINE" ]]; then
+    info "Granting the service access to available GPU groups: ${GPU_GROUPS_LINE#SupplementaryGroups=}"
+fi
 info "Creating systemd service file at ${SERVICE_FILE}..."
 cat > "${SERVICE_FILE}" <<EOF
 [Unit]
@@ -169,6 +197,7 @@ StartLimitIntervalSec=0
 Type=simple
 User=$(id -un "${SUDO_USER:-root}")
 Group=$(id -gn "${SUDO_USER:-root}")
+${GPU_GROUPS_LINE}
 WorkingDirectory="${INSTALL_DIR}"
 ExecStart="${BINARY_PATH}" --config "${CONFIG_PATH}"
 Restart=always

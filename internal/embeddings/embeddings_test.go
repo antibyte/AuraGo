@@ -48,6 +48,25 @@ func TestCandidateMatrixSkipsUnsupportedWindowsARM64GPU(t *testing.T) {
 	assertCandidate(t, candidates, "llama-cpu")
 }
 
+func TestAccessibleLinuxVulkanRenderDeviceRequiresUsableRenderNode(t *testing.T) {
+	driRoot := t.TempDir()
+	if _, err := accessibleLinuxVulkanRenderDevice(driRoot); err == nil {
+		t.Fatal("empty DRI directory unexpectedly enabled Vulkan")
+	}
+
+	renderDevice := filepath.Join(driRoot, "renderD128")
+	if err := os.WriteFile(renderDevice, []byte("test render device"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	found, err := accessibleLinuxVulkanRenderDevice(driRoot)
+	if err != nil {
+		t.Fatalf("accessible render device was rejected: %v", err)
+	}
+	if found != renderDevice {
+		t.Fatalf("render device = %q, want %q", found, renderDevice)
+	}
+}
+
 func TestBenchmarkSelectionPrefersVerifiedGPUThenFastest(t *testing.T) {
 	values := []struct {
 		candidate candidate
@@ -497,6 +516,21 @@ func TestFuncEmbedderCompatibilityAndVectorMath(t *testing.T) {
 	}
 	if embedder.Status().State != "closed" {
 		t.Fatalf("closed custom embedder status = %#v", embedder.Status())
+	}
+}
+
+func TestProviderFuncEmbedderPreservesProviderID(t *testing.T) {
+	embedder := NewProviderFuncEmbedder(
+		func(_ context.Context, _ string) ([]float32, error) {
+			return []float32{1, 0}, nil
+		},
+		"openrouter-embeddings",
+		"qwen/qwen3-embedding-8b",
+		"remote-fingerprint",
+	)
+	status := embedder.Status()
+	if status.Provider != "openrouter-embeddings" || status.ModelID != "qwen/qwen3-embedding-8b" {
+		t.Fatalf("provider embedder status lost configured identity: %#v", status)
 	}
 }
 

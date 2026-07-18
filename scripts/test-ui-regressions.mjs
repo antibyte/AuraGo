@@ -886,6 +886,19 @@ function testLocalGraniteMultimodalObserverIsIdempotent() {
       this.changeListener = callback;
     }
   };
+  const runtimeCardClasses = new Set();
+  const runtimeCard = {
+    attributes: {},
+    classList: {
+      toggle(name, active) {
+        if (active) runtimeCardClasses.add(name);
+        else runtimeCardClasses.delete(name);
+      }
+    },
+    setAttribute(name, value) {
+      this.attributes[name] = value;
+    }
+  };
   let observerCallbacks = 0;
   const maxObserverCallbacks = 25;
   const toggle = {
@@ -933,6 +946,9 @@ function testLocalGraniteMultimodalObserverIsIdempotent() {
   const context = {
     MutationObserver: FakeMutationObserver,
     document: {
+      getElementById(id) {
+        return id === 'emb-local-runtime-card' ? runtimeCard : null;
+      },
       querySelector(selector) {
         if (selector === '[data-path="embeddings.multimodal"]') return toggle;
         if (selector === '[data-path="embeddings.multimodal_format"]') {
@@ -956,12 +972,48 @@ function testLocalGraniteMultimodalObserverIsIdempotent() {
   assert.equal(classes.has('on'), false);
   assert.equal(toggle.dataset.disabled, 'true');
   assert.equal(formatField.style.display, 'none');
+  assert.equal(runtimeCardClasses.has('is-hidden'), false);
 
   provider.value = 'openai';
   provider.changeListener();
   toggle.classList.toggle('on');
   assert.equal(observerCallbacks, 2, 'class observation must remain active without recursive mutations');
   assert.equal(formatField.style.display, '');
+  assert.equal(runtimeCardClasses.has('is-hidden'), true);
+  assert.equal(runtimeCard.attributes['aria-hidden'], 'true');
+}
+
+function testRemoteEmbeddingStatusNeverRendersGraniteCPUState() {
+  const main = read('ui/js/config/main.js');
+  const helperSource = sourceBetween(
+    main,
+    'function renderEmbeddingsRuntimeStatus(status)',
+    'window.addEventListener(\'cfg:section-leave\''
+  );
+  const visibility = [];
+  const context = {
+    configData: { embeddings: { provider: 'openrouter-embeddings' } },
+    document: {
+      querySelector() {
+        return { value: 'openrouter-embeddings' };
+      }
+    },
+    syncEmbeddingsRuntimeVisibility(local) {
+      visibility.push(local);
+    }
+  };
+  vm.createContext(context);
+  vm.runInContext(
+    `${helperSource}; globalThis.renderEmbeddingStatus = renderEmbeddingsRuntimeStatus;`,
+    context
+  );
+
+  context.renderEmbeddingStatus({
+    provider: 'openrouter-embeddings',
+    model_id: 'qwen/qwen3-embedding-8b',
+    gpu: false
+  });
+  assert.deepEqual(visibility, [false], 'remote providers must hide the local Granite runtime card');
 }
 
 const tests = [
@@ -987,6 +1039,7 @@ const tests = [
   ['Virtual Computers clears machine polling on dispose', testVirtualComputersMachinePollingDisposeClearsTimer],
   ['Virtual Computers agent tasks report errors and poll active jobs', testVirtualComputersAgentTaskFeedbackAndPolling],
   ['local Granite multimodal observer remains idempotent', testLocalGraniteMultimodalObserverIsIdempotent],
+  ['remote embedding status never renders Granite CPU state', testRemoteEmbeddingStatusNeverRendersGraniteCPUState],
   ['byte-exact read-only bundle check', testBundleCheckRejectsNonCanonicalBytesWithoutWriting]
 ];
 

@@ -84,6 +84,11 @@ Used for long-term memory (RAG) vector indexing.
 | `external_model` | `"nomic-embed-text"` | Model name for external embeddings. |
 | `api_key` | `""` | API key for external embeddings provider. Falls back to `EMBEDDINGS_API_KEY` env var, then to `llm.api_key`. Leave empty or `dummy_key` for Ollama (no auth required). |
 
+On Linux, AuraGo only considers native Vulkan available when the service can
+open a `/dev/dri/renderD*` device for reading and writing. The supplied
+installers add existing `render` and `video` groups to the systemd unit through
+`SupplementaryGroups`. Hand-written units must grant equivalent device access.
+
 Local Granite is text-only and produces 384-dimensional, CLS-pooled, L2-normalized vectors. Its INT8 ONNX and Q8_0 GGUF artifacts, ONNX Runtime 1.26.0, and llama.cpp b9994 are downloaded over HTTPS with pinned sizes and SHA-256 hashes. Downloads resume through `.part` files and are cached below `data/embeddings/`. The application remains available while initial setup runs.
 
 In Docker, managed llama.cpp probes and runtimes receive exactly one read-only model mount and use a temporary internal network shared only with AuraGo. Docker Engine 26 or newer uses a read-only named-volume subpath. Older engines require `data/embeddings` to be mounted as its own volume; otherwise the Docker candidate is skipped and the native/CPU fallback remains active.

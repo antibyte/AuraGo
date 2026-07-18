@@ -322,6 +322,23 @@ func TestDeploymentDefaultsUsePrivateConfigAndNoNewPrivileges(t *testing.T) {
 	}
 }
 
+func TestLinuxServiceInstallersGrantDetectedGPUGroups(t *testing.T) {
+	t.Parallel()
+
+	for _, path := range []string{"install_service_linux.sh", "install.sh", "update.sh"} {
+		script := readRepoFile(t, path)
+		for _, marker := range []string{
+			"systemd_gpu_groups_line()",
+			"SupplementaryGroups=%s",
+			"render video",
+		} {
+			if !strings.Contains(script, marker) {
+				t.Fatalf("%s must grant detected GPU groups; missing %q", path, marker)
+			}
+		}
+	}
+}
+
 func TestUpdateScriptHelperOrderAndVersionTiming(t *testing.T) {
 	t.Parallel()
 

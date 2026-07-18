@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	osuser "os/user"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -286,7 +287,11 @@ func installService(exePath, installDir string, logger *slog.Logger) error {
 // dockerMode is reserved for a future container-aware unit template (currently
 // unused but kept so callers don't need to change signatures when the Docker
 // branch is implemented). See installSystemd for the runningInDocker wiring.
-func buildSystemdUnit(desc, user, installDir, exePath, credentialFile, readWritePaths string, dockerMode, sudoUnrestricted bool) (string, error) {
+func buildSystemdUnit(
+	desc, user, installDir, exePath, credentialFile, readWritePaths string,
+	supplementaryGroups []string,
+	dockerMode, sudoUnrestricted bool,
+) (string, error) {
 	_ = dockerMode // reserved for future container-aware template
 	user = strings.TrimSpace(user)
 	installDir = strings.TrimSpace(installDir)
@@ -304,6 +309,21 @@ func buildSystemdUnit(desc, user, installDir, exePath, credentialFile, readWrite
 	if credentialFile == "" {
 		return "", fmt.Errorf("buildSystemdUnit: credentialFile is required")
 	}
+	var normalizedGroups []string
+	for _, group := range supplementaryGroups {
+		group = strings.TrimSpace(group)
+		if group == "" {
+			continue
+		}
+		if strings.ContainsAny(group, " \t\r\n\"'\\") {
+			return "", fmt.Errorf("buildSystemdUnit: invalid supplementary group %q", group)
+		}
+		normalizedGroups = append(normalizedGroups, group)
+	}
+	supplementaryGroupsLine := ""
+	if len(normalizedGroups) > 0 {
+		supplementaryGroupsLine = "SupplementaryGroups=" + strings.Join(normalizedGroups, " ")
+	}
 
 	protectSystemLine := "ProtectSystem=strict"
 	if sudoUnrestricted {
@@ -320,6 +340,7 @@ StartLimitIntervalSec=0
 Type=simple
 User=%s
 Group=%s
+%s
 WorkingDirectory=%s
 ExecStart=%s --config %s/config.yaml
 Restart=on-failure
@@ -336,6 +357,7 @@ WantedBy=multi-user.target
 		strconv.Quote(desc),
 		strconv.Quote(user),
 		strconv.Quote(user),
+		supplementaryGroupsLine,
 		strconv.Quote(installDir),
 		strconv.Quote(exePath),
 		strconv.Quote(installDir),
@@ -343,6 +365,19 @@ WantedBy=multi-user.target
 		protectSystemLine,
 		strconv.Quote(readWritePaths),
 	), nil
+}
+
+func availableSystemdGPUGroups() []string {
+	if runtime.GOOS != "linux" {
+		return nil
+	}
+	var groups []string
+	for _, name := range []string{"render", "video"} {
+		if _, err := osuser.LookupGroup(name); err == nil {
+			groups = append(groups, name)
+		}
+	}
+	return groups
 }
 
 func installSystemd(exePath, installDir string, logger *slog.Logger) error {
@@ -369,6 +404,7 @@ func installSystemd(exePath, installDir string, logger *slog.Logger) error {
 		exePath,
 		credentialFile,
 		readWritePaths,
+		availableSystemdGPUGroups(),
 		runningInDocker(),
 		configAllowsSudoUnrestricted(filepath.Join(installDir, "config.yaml")),
 	)

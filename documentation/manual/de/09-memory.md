@@ -121,6 +121,12 @@ embeddings:
 | `internal` | Nutzt das Haupt-LLM für Embeddings |
 | Provider-ID | Verwendet einen konfigurierten Provider-Eintrag |
 
+Unter Linux benötigt der native Vulkan-Pfad Lese- und Schreibzugriff auf ein
+`/dev/dri/renderD*`-Gerät. Die AuraGo-Installer ergänzen vorhandene Gruppen
+`render` und `video` automatisch über `SupplementaryGroups` im systemd-Dienst.
+Eigene Service-Units müssen gleichwertigen Zugriff erlauben; andernfalls wird
+Vulkan übersprungen und CPU bleibt verfügbar.
+
 ### Speicherort
 
 ```

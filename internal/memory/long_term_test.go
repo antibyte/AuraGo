@@ -281,6 +281,23 @@ func TestBuildEmbeddingRuntimeFromConfigResolvesLegacyProviders(t *testing.T) {
 	}
 }
 
+func TestBuildEmbeddingRuntimeFromConfigPreservesProviderStatus(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Embeddings.Provider = "openrouter-embeddings"
+	cfg.Embeddings.BaseURL = "https://openrouter.example/v1"
+	cfg.Embeddings.APIKey = "test-key"
+	cfg.Embeddings.Model = "qwen/qwen3-embedding-8b"
+
+	runtime := buildEmbeddingRuntimeFromConfig(cfg, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if runtime.Embedder == nil {
+		t.Fatal("configured provider embedder is nil")
+	}
+	status := runtime.Embedder.Status()
+	if status.Provider != cfg.Embeddings.Provider || status.ModelID != cfg.Embeddings.Model {
+		t.Fatalf("configured provider status = %#v", status)
+	}
+}
+
 func TestBuildEmbeddingRuntimeFromConfigDisabled(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Embeddings.Provider = "disabled"

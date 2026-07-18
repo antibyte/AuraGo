@@ -76,6 +76,30 @@ stat_owner() {
     fi
 }
 
+system_group_exists() {
+    local group_name="$1"
+    if command -v getent >/dev/null 2>&1; then
+        getent group "$group_name" >/dev/null 2>&1
+        return
+    fi
+    grep -q "^${group_name}:" /etc/group 2>/dev/null
+}
+
+systemd_gpu_groups_line() {
+    local groups=()
+    local group_name
+    for group_name in render video; do
+        if system_group_exists "$group_name"; then
+            groups+=("$group_name")
+        fi
+    done
+    if [ "${#groups[@]}" -gt 0 ]; then
+        local joined
+        joined="${groups[*]}"
+        printf 'SupplementaryGroups=%s' "$joined"
+    fi
+}
+
 ensure_private_update_runtime_dir() {
     local dir="/tmp/aurago-update-$(id -u)"
     if [ -e "$dir" ] && [ ! -d "$dir" ]; then
@@ -1431,6 +1455,24 @@ if [ -f "$SVC_FILE" ] && ! grep -q '^User=' "$SVC_FILE"; then
     else
         warn "Service file has no User= and could not determine a non-root user."
         warn "Consider adding 'User=<youruser>' to $SVC_FILE manually."
+    fi
+fi
+
+# Grant existing systemd installations access to GPU render devices without
+# requiring permanent changes to the service user's account memberships.
+_gpu_groups_line="$(systemd_gpu_groups_line)"
+if [ -f "$SVC_FILE" ] && [ -n "$_gpu_groups_line" ]; then
+    _current_gpu_groups_line="$(grep '^SupplementaryGroups=' "$SVC_FILE" | head -n 1 || true)"
+    if [ "$_current_gpu_groups_line" != "$_gpu_groups_line" ]; then
+        if [ -n "$_current_gpu_groups_line" ]; then
+            $SUDO sed -i "s/^SupplementaryGroups=.*/${_gpu_groups_line}/" "$SVC_FILE"
+        elif grep -q '^Group=' "$SVC_FILE"; then
+            $SUDO sed -i "/^Group=/a ${_gpu_groups_line}" "$SVC_FILE"
+        elif grep -q '^User=' "$SVC_FILE"; then
+            $SUDO sed -i "/^User=/a ${_gpu_groups_line}" "$SVC_FILE"
+        fi
+        $SUDO systemctl daemon-reload
+        ok "Service GPU access updated: ${_gpu_groups_line#SupplementaryGroups=}."
     fi
 fi
 

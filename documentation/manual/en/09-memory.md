@@ -445,6 +445,12 @@ indexing:
 
 Local Granite is text-only and emits 384-dimensional normalized vectors. Pinned ONNX INT8 and GGUF Q8_0 models and runtimes are downloaded into `data/embeddings/` with size and SHA-256 verification. AuraGo remains available during setup. The configuration UI shows download, runtime, verified GPU, benchmark, and fallback details and can rerun detection. ONNX/GGUF format changes use the controlled restart/reindex path to avoid mixing vector fingerprints.
 
+On Linux, native Vulkan requires read/write access to a
+`/dev/dri/renderD*` device. AuraGo's installers add existing `render` and
+`video` groups to the systemd service automatically. Custom service units must
+grant equivalent access; otherwise the Vulkan probe is skipped and CPU remains
+available.
+
 ## Memory Optimization
 
 ### Token Usage Management

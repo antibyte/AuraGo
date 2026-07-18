@@ -89,6 +89,7 @@ func cloneStatus(status Status) Status {
 type FuncEmbedder struct {
 	mu          sync.RWMutex
 	embed       func(context.Context, string) ([]float32, error)
+	provider    string
 	modelID     string
 	fingerprint string
 	dimensions  int
@@ -102,6 +103,22 @@ func NewFuncEmbedder(
 ) *FuncEmbedder {
 	return &FuncEmbedder{
 		embed:       embed,
+		modelID:     modelID,
+		fingerprint: fingerprint,
+	}
+}
+
+// NewProviderFuncEmbedder adapts a configured remote or managed provider while
+// preserving its provider ID in the public runtime status.
+func NewProviderFuncEmbedder(
+	embed func(context.Context, string) ([]float32, error),
+	provider string,
+	modelID string,
+	fingerprint string,
+) *FuncEmbedder {
+	return &FuncEmbedder{
+		embed:       embed,
+		provider:    provider,
 		modelID:     modelID,
 		fingerprint: fingerprint,
 	}
@@ -159,9 +176,13 @@ func (e *FuncEmbedder) Status() Status {
 	if e.closed {
 		state = "closed"
 	}
+	provider := e.provider
+	if provider == "" {
+		provider = "configured"
+	}
 	return Status{
 		State:       state,
-		Provider:    "configured",
+		Provider:    provider,
 		ModelID:     e.modelID,
 		Dimensions:  e.dimensions,
 		Fingerprint: e.fingerprint,

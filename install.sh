@@ -157,6 +157,30 @@ stat_owner() {
     fi
 }
 
+system_group_exists() {
+    local group_name="$1"
+    if command -v getent >/dev/null 2>&1; then
+        getent group "$group_name" >/dev/null 2>&1
+        return
+    fi
+    grep -q "^${group_name}:" /etc/group 2>/dev/null
+}
+
+systemd_gpu_groups_line() {
+    local groups=()
+    local group_name
+    for group_name in render video; do
+        if system_group_exists "$group_name"; then
+            groups+=("$group_name")
+        fi
+    done
+    if [ "${#groups[@]}" -gt 0 ]; then
+        local joined
+        joined="${groups[*]}"
+        printf 'SupplementaryGroups=%s' "$joined"
+    fi
+}
+
 latest_release_tag_via_redirect() {
     local latest_url="https://github.com/${GITHUB_REPO}/releases/latest"
     local effective_url=""
@@ -1009,6 +1033,10 @@ if command -v systemctl >/dev/null 2>&1; then
         if grep -Eq '^[[:space:]]+sudo_unrestricted:[[:space:]]*true([[:space:]]|$)' "$CONFIG_FILE"; then
             PROTECT_SYSTEM_LINE="# ProtectSystem=strict disabled because sudo_unrestricted is enabled"
         fi
+        GPU_GROUPS_LINE="$(systemd_gpu_groups_line)"
+        if [ -n "$GPU_GROUPS_LINE" ]; then
+            info "Granting the service access to available GPU groups: ${GPU_GROUPS_LINE#SupplementaryGroups=}"
+        fi
 
         # ── Create systemd unit ──────────────────────────────────────────
         $SUDO tee /etc/systemd/system/${SYSTEMD_SERVICE}.service > /dev/null <<EOF
@@ -1021,6 +1049,7 @@ StartLimitIntervalSec=0
 Type=simple
 User=${SERVICE_USER}
 Group=${SERVICE_GROUP}
+${GPU_GROUPS_LINE}
 WorkingDirectory="${INSTALL_DIR}"
 ExecStart="${INSTALL_DIR}/bin/aurago_linux" --config "${INSTALL_DIR}/config.yaml"
 Restart=on-failure

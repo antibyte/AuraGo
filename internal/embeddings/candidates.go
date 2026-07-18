@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
@@ -100,10 +101,13 @@ func detectHardware(ctx context.Context) hardwareInfo {
 
 	switch runtime.GOOS {
 	case "linux":
-		if _, err := os.Stat("/dev/dri"); err == nil {
+		if renderDevice, err := accessibleLinuxVulkanRenderDevice("/dev/dri"); err == nil {
 			info.Vulkan = true
-			info.VulkanReason = "/dev/dri is available"
-			evidence = append(evidence, "dri=present")
+			info.VulkanReason = renderDevice + " is accessible"
+			evidence = append(evidence, "dri="+renderDevice)
+		} else {
+			info.VulkanReason = err.Error()
+			evidence = append(evidence, "dri=unavailable:"+err.Error())
 		}
 	case "windows":
 		if loaderEvidence := vulkanLoaderEvidence(); loaderEvidence != "" {
@@ -122,6 +126,28 @@ func detectHardware(ctx context.Context) hardwareInfo {
 	sum := sha256.Sum256([]byte(strings.Join(evidence, "\n")))
 	info.Fingerprint = hex.EncodeToString(sum[:])
 	return info
+}
+
+func accessibleLinuxVulkanRenderDevice(driRoot string) (string, error) {
+	renderDevices, err := filepath.Glob(filepath.Join(driRoot, "renderD*"))
+	if err != nil {
+		return "", fmt.Errorf("find Vulkan render devices: %w", err)
+	}
+	if len(renderDevices) == 0 {
+		return "", fmt.Errorf("no Vulkan render device found under %s", driRoot)
+	}
+	var accessErrors []string
+	for _, renderDevice := range renderDevices {
+		handle, openErr := os.OpenFile(renderDevice, os.O_RDWR, 0)
+		if openErr == nil {
+			if closeErr := handle.Close(); closeErr != nil {
+				return "", fmt.Errorf("close Vulkan render device %s: %w", renderDevice, closeErr)
+			}
+			return renderDevice, nil
+		}
+		accessErrors = append(accessErrors, filepath.Base(renderDevice)+": "+openErr.Error())
+	}
+	return "", fmt.Errorf("no accessible Vulkan render device under %s (%s)", driRoot, strings.Join(accessErrors, "; "))
 }
 
 func shortCommand(parent context.Context, name string, args ...string) (string, error) {

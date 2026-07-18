@@ -283,6 +283,7 @@ func TestBuildSystemdUnitEscapesInstallDirWithQuotes(t *testing.T) {
 		exePath,
 		"/etc/aurago/master.key",
 		installDir+" /etc/aurago",
+		[]string{"render", "video"},
 		false,
 		false,
 	)
@@ -299,14 +300,36 @@ func TestBuildSystemdUnitEscapesInstallDirWithQuotes(t *testing.T) {
 	if !strings.Contains(unit, `odd\"path`) {
 		t.Errorf("unit does not contain escaped path: %s", unit)
 	}
+	if !strings.Contains(unit, "SupplementaryGroups=render video") {
+		t.Errorf("unit does not grant detected GPU groups: %s", unit)
+	}
 }
 
 func TestBuildSystemdUnitEmptyArgsRejected(t *testing.T) {
 	t.Parallel()
 
-	_, err := buildSystemdUnit("AuraGo", "", "/opt/aurago", "/opt/aurago/aurago", "/opt/aurago/.env", "/opt/aurago", false, false)
+	_, err := buildSystemdUnit("AuraGo", "", "/opt/aurago", "/opt/aurago/aurago", "/opt/aurago/.env", "/opt/aurago", nil, false, false)
 	if err == nil {
 		t.Fatal("expected error when user is empty")
+	}
+}
+
+func TestBuildSystemdUnitRejectsInjectedSupplementaryGroup(t *testing.T) {
+	t.Parallel()
+
+	_, err := buildSystemdUnit(
+		"AuraGo",
+		"aurago",
+		"/opt/aurago",
+		"/opt/aurago/aurago",
+		"/opt/aurago/.env",
+		"/opt/aurago",
+		[]string{"render\nEnvironment=ESCAPE=1"},
+		false,
+		false,
+	)
+	if err == nil {
+		t.Fatal("expected injected supplementary group to be rejected")
 	}
 }
 

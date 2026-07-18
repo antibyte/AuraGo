@@ -125,7 +125,7 @@ func buildEmbeddingRuntimeFromConfig(cfg *config.Config, logger *slog.Logger) em
 		Fingerprint:   fingerprint,
 		Disabled:      false,
 		Local:         isLocalEmbeddingProvider(cfg),
-		Embedder:      embeddings.NewFuncEmbedder(embeddingFunc, embedModel, fingerprint),
+		Embedder:      embeddings.NewProviderFuncEmbedder(embeddingFunc, provider, embedModel, fingerprint),
 	}
 }
 
