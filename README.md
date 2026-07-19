@@ -61,6 +61,10 @@ It is designed around three practical constraints:
 | **Create and transform** | Documents, PDFs, images, music, video, speech, transcription, web capture, SQL, and media workflows |
 | **Extend the agent** | Python skills, Agent Skills, MCP, custom tools, and provider-backed integrations |
 
+<p align="center">
+  <img src="./assets/readme/capability-icons.png" width="100%" alt="AuraGo capability icons for agent chat, containers, virtualization, smart home, storage, remote shell, missions, webhooks, memory, vault, guardian, voice, documents, media, integrations, and virtual desktop">
+</p>
+
 ## Quick start
 
 ### Install script — recommended

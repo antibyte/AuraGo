@@ -1,0 +1,29 @@
+{
+  "name": "aurago-control-plane",
+  "label": "AuraGo Control Plane",
+  "preamble": "Clean vector-like technical spot icons for a self-hosted AI and home-lab control plane. Flat front-facing construction, calm operational character, rounded modular geometry, and restrained brand colour.",
+  "palette": [
+    "#2DD4BF",
+    "#60A5FA",
+    "#F4C96B",
+    "#DDFCF6",
+    "#0D1725"
+  ],
+  "cutout": "floodfill",
+  "threshold": 30,
+  "construction": {
+    "grid": "24-unit keyline; live area 72%; generous optical padding",
+    "stroke": "uniform medium #0D1725 outline with rounded caps and joins; never a dominant filled mass",
+    "corner_radius": "one soft rounded radius family",
+    "angles": "horizontal, vertical, and 45-degree increments only",
+    "detail_budget": "one core metaphor and no more than four major shapes per icon",
+    "fill_rule": "flat colour blocks with one pale support surface and no background shadow",
+    "color_rule": "#2DD4BF and #60A5FA carry the main forms; #DDFCF6 supports; #F4C96B is a small semantic status accent; #0D1725 is outline and tiny detail only",
+    "shared_parts": "reuse the same terminal frame, server module, circular node, and status dot",
+    "perspective": "flat front-facing",
+    "shadow": "none",
+    "motif": "a tiny paired teal-and-gold signal dot or short orbit arc in the upper-right area",
+    "weight_hierarchy": "the navy outline and primary form define each icon; gold remains smaller and visually lighter than the core metaphor"
+  },
+  "usage": "README feature showcase, feature cards, category art, and empty states at 64px or larger"
+}
