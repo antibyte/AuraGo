@@ -1141,6 +1141,15 @@ if (appId === 'pixel') {
                 return window.ChessApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification, setWindowMenus, clearWindowMenus }));
             }
         }
+        if (appId === 'system-world') {
+            if (!window.SysWorldApp) {
+                window.AuraDesktopModules.loadAppScript('system-world').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            if (typeof window.SysWorldApp.render === 'function') {
+                return window.SysWorldApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification }));
+            }
+        }
         if (appId === 'nasscad') {
             if (!window.NasscadApp) {
                 window.AuraDesktopModules.loadAppScript('nasscad').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));

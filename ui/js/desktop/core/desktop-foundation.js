@@ -532,7 +532,8 @@
             'viewer-3d': 'Viewer3DApp',
             'mission-control': 'MissionControlApp',
             settings: 'SettingsApp',
-            calculator: 'CalculatorApp'
+            calculator: 'CalculatorApp',
+            'system-world': 'SysWorldApp'
         }[appId] || '';
     }
 

@@ -44,6 +44,12 @@ This subtree owns built-in virtual desktop app modules that are loaded lazily by
   `git.js` (Git panel, diff view, commit), `panels.js` (split editor,
   panel management), `shortcuts.js` (keyboard shortcuts, window.CodeStudioApp),
   and `command-palette.js` (separate IIFE).
+- `sysworld*.js` implements System World, an immersive Three.js (r128) 3D
+  universe that visualizes the live AuraGo system: agent core with memory
+  nebula, integration satellites, knowledge-graph constellation, mission ring,
+  cron dial, co-agent drones, tool belt, and infrastructure field. Opens
+  maximized via `open_maximized` metadata; live data from dashboard/KG/mission
+  REST APIs and the shared `AuraSSE` event stream.
 
 ## Ownership
 
@@ -136,6 +142,24 @@ registration lives in `internal/desktop/types.go`.
   `ui/lang/desktop/*.json` files.
 - Code Studio Git commands run via Docker exec in the container workspace (`/workspace`).
   Git API endpoints are in `internal/server/code_studio_handlers.go`.
+- System World modules attach to the shared `window.SysWorld` (NS) namespace and
+  expose `NS.create<Name>(inst)` factories invoked by the entry; per-window state
+  lives in the `instances` Map in `sysworld.js`, which exposes
+  `window.SysWorldApp = { render, dispose }`.
+- System World load order in `module-loader.js` must be: three.min.js,
+  OrbitControls.min.js, sysworld-effects.js (`NS.PALETTE`, `createFx`),
+  sysworld-scene.js (`NS.LAYOUT`, `createStage`), sysworld-core.js,
+  sysworld-orbit.js, sysworld-graph.js, sysworld-fleet.js, sysworld-hud.js,
+  then sysworld.js (entry). Modules read `NS.PALETTE`/`NS.LAYOUT` and call
+  sibling factories only lazily inside functions, never at IIFE top level.
+- System World visible UI strings use `sysworld.*` keys in all
+  `ui/lang/desktop/*.json` files (section registered as `'system-world':
+  ['sysworld']` in `APP_I18N_SECTIONS`); the dock/start name uses
+  `desktop.app_system_world`.
+- System World performance contracts: glow textures are cached in Maps, comet/
+  burst/ring effects come from capped recycled pools, no `new THREE.*`
+  allocations inside per-frame update paths, and every module's `dispose()`
+  frees geometries/materials/textures plus listeners, timers, and SSE handlers.
 
 ## Work Guidance
 
@@ -162,6 +186,10 @@ registration lives in `internal/desktop/types.go`.
 - Keep Code Studio split across `core.js`, `sidebar.js`, `editor.js`,
   `terminal.js`, `search.js`, `agent.js`, `git.js`, `panels.js`, `shortcuts.js`,
   and `command-palette.js`; do not fold domain modules into core.js.
+- Keep System World split across `sysworld.js`, `sysworld-effects.js`,
+  `sysworld-scene.js`, `sysworld-core.js`, `sysworld-orbit.js`,
+  `sysworld-graph.js`, `sysworld-fleet.js`, and `sysworld-hud.js`; do not fold
+  the effects, scene, district, or HUD logic into the entry file.
 - Keep OpenSCAD split across `openscad.js`, `openscad-editor.js`, and
   `openscad-defines.js`; do not fold the CodeMirror editor or defines slider
   logic into the main app file.
@@ -279,6 +307,33 @@ registration lives in `internal/desktop/types.go`.
   file needed.
 - `code-studio/command-palette.js` - Command palette overlay with fuzzy search,
   keyboard navigation. Separate IIFE. No child DOX file needed.
+- `sysworld.js` - System World entry: per-window `instances` Map,
+  `render(container, windowId, context)` / `dispose(windowId)`, data polling
+  (dashboard overview/memory/activity, missions, tool-stats, containers,
+  daemons, KG nodes/edges, personality, budget), `AuraSSE` subscriptions,
+  RAF loop, pointer interaction (hover tooltip, click fly-to + info panel),
+  WebGL fallback. Exposes `window.SysWorldApp`. No child DOX file needed.
+- `sysworld-effects.js` - `NS.PALETTE`, cached glow textures, pooled comets/
+  bursts/pulse rings, drone trails, mini tween runner (`createFx`). No child
+  DOX file needed.
+- `sysworld-scene.js` - `NS.LAYOUT`, renderer/scene/camera/OrbitControls,
+  starfield layers, grid floor, `flyTo`/`resetView`/`introFlight`, raycast
+  helper, per-frame resize check (`createStage`). No child DOX file needed.
+- `sysworld-core.js` - Agent core: fresnel ShaderMaterial sun, icosahedron
+  lattice, gyro rings, corona, memory nebula (vectordb/core facts/journal),
+  mood/metrics/busy reactivity (`createCore`). No child DOX file needed.
+- `sysworld-orbit.js` - Integration satellites on 3 inclined rings with
+  category clustering, enable beams, diff-driven updates (`createOrbit`).
+  No child DOX file needed.
+- `sysworld-graph.js` - Knowledge-graph constellation: one-shot 3D force
+  layout, node/edge meshes, expand-on-click, visibility toggle
+  (`createGraph`). No child DOX file needed.
+- `sysworld-fleet.js` - Mission ring, cron dial, co-agent drones with trails,
+  tool belt with `flashTool`, container/daemon infrastructure field
+  (`createFleet`). No child DOX file needed.
+- `sysworld-hud.js` - HTML overlay: stats card, action buttons, legend, live
+  event feed, tooltip, slide-in info panel (`createHud`). No child DOX file
+  needed.
 - `openscad-editor.js` - CodeMirror editor integration for SCAD source with
   syntax highlighting (using javascript()), error line highlighting, and
   fallback textarea. Exposes `window.OpenSCADEditor { create, parse }`. The

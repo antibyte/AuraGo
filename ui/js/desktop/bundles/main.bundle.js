@@ -537,7 +537,8 @@
             'viewer-3d': 'Viewer3DApp',
             'mission-control': 'MissionControlApp',
             settings: 'SettingsApp',
-            calculator: 'CalculatorApp'
+            calculator: 'CalculatorApp',
+            'system-world': 'SysWorldApp'
         }[appId] || '';
     }
 
@@ -3570,13 +3571,14 @@
             nasscad: { width: 1280, height: 850 },
             people: { width: 1020, height: 700 },
             'mission-control': { width: 1100, height: 750 },
-            'pet-picker': { width: 760, height: 620 }
+            'pet-picker': { width: 760, height: 620 },
+            'system-world': { width: 1440, height: 900 }
         };
         if (presets[appId]) return presets[appId];
         return defaultWindowSize();
     }
 
-    function shouldUseMobileWideWindow(appId) { return !!{ files: true, writer: true, sheets: true, todo: true, radio: true, openscad: true, teevee: true, gallery: true, calendar: true, 'quick-connect': true, 'virtual-computers': true, 'code-studio': true, launchpad: true, looper: true, viewer: true, 'viewer-3d': true, chess: true, nasscad: true, 'mission-control': true }[appId]; }
+    function shouldUseMobileWideWindow(appId) { return !!{ files: true, writer: true, sheets: true, todo: true, radio: true, openscad: true, teevee: true, gallery: true, calendar: true, 'quick-connect': true, 'virtual-computers': true, 'code-studio': true, launchpad: true, looper: true, viewer: true, 'viewer-3d': true, chess: true, nasscad: true, 'mission-control': true, 'system-world': true }[appId]; }
 
     function appWindowMinSize(appId) {
         const mins = { 'system-info': { width: 560, height: 460 }, 'virtual-computers': { width: 640, height: 480 }, calculator: { width: 280, height: 420 }, gallery: { width: 640, height: 480 }, pixel: { width: 700, height: 500 }, chess: { width: 720, height: 520 } };
@@ -7099,6 +7101,15 @@ if (appId === 'pixel') {
             }
             if (typeof window.ChessApp.render === 'function') {
                 return window.ChessApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification, setWindowMenus, clearWindowMenus }));
+            }
+        }
+        if (appId === 'system-world') {
+            if (!window.SysWorldApp) {
+                window.AuraDesktopModules.loadAppScript('system-world').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            if (typeof window.SysWorldApp.render === 'function') {
+                return window.SysWorldApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification }));
             }
         }
         if (appId === 'nasscad') {

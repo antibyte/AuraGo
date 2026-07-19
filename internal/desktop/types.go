@@ -723,6 +723,7 @@ func BuiltinApps() []AppManifest {
 		{ID: "nasscad", Name: "NASSCAD", Version: "4.3.0", Icon: "nasscad", Entry: "builtin://nasscad", Runtime: BuiltinRuntime, Description: "Offline browser-based 3D parametric CAD bundled locally — model parts, run booleans, and export STL, OBJ, or 3MF.", Metadata: map[string]string{"open_maximized": "true", "workspace_entry": "Apps/nasscad/index.html"}},
 		{ID: "viewer", Name: "Viewer", Version: "1.0.0", Icon: "eye", Entry: "builtin://viewer", Runtime: BuiltinRuntime, Description: "Read-only viewer for documents, spreadsheets, PDFs and markdown.", Permissions: []string{"files:read"}, Internal: true},
 		{ID: "pet-picker", Name: "Pet Picker", Version: "1.0.0", Icon: "heart", Entry: "builtin://pet-picker", Runtime: BuiltinRuntime, Description: "Choose and manage your desktop pet companions."},
+		{ID: "system-world", Name: "System World", Version: "1.0.0", Icon: "network", Entry: "builtin://system-world", Runtime: BuiltinRuntime, Description: "Immersive 3D world visualizing the living AuraGo system — integrations, knowledge graph, memory, missions, and agents in realtime.", Metadata: map[string]string{"open_maximized": "true"}},
 	}
 	for i := range apps {
 		apps[i].Builtin = true
