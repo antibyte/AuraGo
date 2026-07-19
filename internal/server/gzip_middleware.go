@@ -123,10 +123,35 @@ func (g *gzipResponseWriter) WriteHeader(status int) {
 	}
 	g.wroteHeader = true
 	g.status = status
-	if status == 0 {
+	if g.status == 0 {
 		g.status = http.StatusOK
 	}
+	// The downstream WriteHeader is deferred to the first Write (or close) so
+	// handlers without an explicit Content-Type still benefit from net/http's
+	// content sniffing; committing headers here would drop the Content-Type.
+}
 
+func (g *gzipResponseWriter) Write(b []byte) (int, error) {
+	if !g.wroteHeader {
+		g.WriteHeader(http.StatusOK)
+	}
+	if !g.headerWritten {
+		g.beginResponse(b)
+	}
+	if g.skip || g.gz == nil {
+		return g.ResponseWriter.Write(b)
+	}
+	return g.gz.Write(b)
+}
+
+// beginResponse finalizes the response headers on the first body write: it
+// sniffs the Content-Type when the handler did not set one, decides between
+// compression and passthrough, and only then commits the status downstream.
+func (g *gzipResponseWriter) beginResponse(first []byte) {
+	g.headerWritten = true
+	if g.Header().Get("Content-Type") == "" && len(first) > 0 {
+		g.Header().Set("Content-Type", http.DetectContentType(first))
+	}
 	if g.shouldSkipCompression() {
 		g.skip = true
 		g.ResponseWriter.WriteHeader(g.status)
@@ -142,20 +167,16 @@ func (g *gzipResponseWriter) WriteHeader(status int) {
 	zw.Reset(g.ResponseWriter)
 	g.gz = zw
 	g.ResponseWriter.WriteHeader(g.status)
-	g.headerWritten = true
-}
-
-func (g *gzipResponseWriter) Write(b []byte) (int, error) {
-	if !g.wroteHeader {
-		g.WriteHeader(http.StatusOK)
-	}
-	if g.skip || g.gz == nil {
-		return g.ResponseWriter.Write(b)
-	}
-	return g.gz.Write(b)
 }
 
 func (g *gzipResponseWriter) Flush() {
+	if !g.headerWritten && g.wroteHeader {
+		// A flush before any body byte would commit headers downstream without
+		// a Content-Type; fall back to uncompressed passthrough instead.
+		g.headerWritten = true
+		g.skip = true
+		g.ResponseWriter.WriteHeader(g.status)
+	}
 	if g.gz != nil {
 		_ = g.gz.Flush()
 	}
@@ -165,6 +186,15 @@ func (g *gzipResponseWriter) Flush() {
 }
 
 func (g *gzipResponseWriter) close() {
+	if !g.headerWritten {
+		// Header-only responses (no body ever written) forward their status.
+		if !g.wroteHeader {
+			g.WriteHeader(http.StatusOK)
+		}
+		g.headerWritten = true
+		g.skip = true
+		g.ResponseWriter.WriteHeader(g.status)
+	}
 	if g.gz != nil {
 		_ = g.gz.Close()
 		gzipPool.Put(g.gz)

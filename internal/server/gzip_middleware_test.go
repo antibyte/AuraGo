@@ -141,6 +141,56 @@ func TestGzipMiddlewareSkipsRangeRequests(t *testing.T) {
 	}
 }
 
+func TestGzipMiddlewarePreservesSniffedContentType(t *testing.T) {
+	t.Parallel()
+
+	// HTML template handlers (/, /desktop, /config, …) do not set an explicit
+	// Content-Type; net/http sniffing must survive gzip compression so that
+	// browsers honoring X-Content-Type-Options: nosniff still render the page.
+	body := "<!DOCTYPE html>\n<html><head><title>desktop</title></head><body>" + strings.Repeat("x", 600) + "</body></html>"
+	inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(body))
+	})
+	req := httptest.NewRequest(http.MethodGet, "/desktop", nil)
+	req.Header.Set("Accept-Encoding", "gzip")
+	rec := httptest.NewRecorder()
+	gzipMiddleware(inner).ServeHTTP(rec, req)
+
+	if got := rec.Header().Get("Content-Encoding"); got != "gzip" {
+		t.Fatalf("Content-Encoding = %q, want gzip", got)
+	}
+	if ct := rec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "text/html") {
+		t.Fatalf("sniffed Content-Type lost under gzip, got %q", ct)
+	}
+	raw, err := io.ReadAll(mustGzipReader(t, rec.Body.Bytes()))
+	if err != nil {
+		t.Fatalf("gunzip: %v", err)
+	}
+	if string(raw) != body {
+		t.Fatal("decompressed body mismatch")
+	}
+}
+
+func TestGzipMiddlewareHeaderOnlyResponseKeepsStatus(t *testing.T) {
+	t.Parallel()
+
+	inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNoContent)
+	})
+	req := httptest.NewRequest(http.MethodGet, "/api/thing", nil)
+	req.Header.Set("Accept-Encoding", "gzip")
+	rec := httptest.NewRecorder()
+	gzipMiddleware(inner).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusNoContent)
+	}
+	if rec.Header().Get("Content-Encoding") != "" {
+		t.Fatal("header-only response must not be gzipped")
+	}
+}
+
 func mustGzipReader(t *testing.T, b []byte) io.Reader {
 	t.Helper()
 	r, err := gzip.NewReader(bytes.NewReader(b))
