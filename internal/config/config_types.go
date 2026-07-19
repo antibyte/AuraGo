@@ -716,6 +716,16 @@ type EvomapConfig struct {
 	APIKey                string `yaml:"-" json:"-" vault:"evomap_api_key"`
 }
 
+// BluetoothConfig controls the Linux BlueZ integration and per-stream audio output.
+type BluetoothConfig struct {
+	Enabled            bool   `yaml:"enabled" json:"enabled"`
+	ReadOnly           bool   `yaml:"readonly" json:"readonly"`
+	AllowPlayback      bool   `yaml:"allow_playback" json:"allow_playback"`
+	ScanTimeoutSeconds int    `yaml:"scan_timeout_seconds" json:"scan_timeout_seconds"`
+	DefaultDevice      string `yaml:"default_device" json:"default_device"`
+	AudioBackend       string `yaml:"audio_backend" json:"audio_backend"`
+}
+
 type Config struct {
 	ConfigPath     string               `yaml:"-"`          // runtime-only: absolute path to the config file
 	Runtime        Runtime              `yaml:"-" json:"-"` // runtime-only: detected environment capabilities
@@ -1479,7 +1489,8 @@ type Config struct {
 		TTSPort            int      `yaml:"tts_port"`
 		MediaHostAllowlist []string `yaml:"media_host_allowlist"`
 	} `yaml:"chromecast"`
-	Homepage struct {
+	Bluetooth BluetoothConfig `yaml:"bluetooth" json:"bluetooth"`
+	Homepage  struct {
 		Enabled                  bool `yaml:"enabled"`
 		AllowDeploy              bool `yaml:"allow_deploy"`
 		AllowContainerManagement bool `yaml:"allow_container_management"`

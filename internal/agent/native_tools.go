@@ -202,6 +202,10 @@ type ToolFeatureFlags struct {
 	ObsidianEnabled bool
 	// Chromecast / Google Cast
 	ChromecastEnabled bool
+	// Linux Bluetooth / BlueZ capability gates
+	BluetoothEnabled      bool
+	BluetoothWriteEnabled bool
+	BluetoothAudioEnabled bool
 	// Discord messaging
 	DiscordEnabled bool
 	// Telegram messaging

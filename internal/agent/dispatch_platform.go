@@ -303,6 +303,8 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 
 	result := func() string {
 		switch tc.Action {
+		case "bluetooth":
+			return dispatchBluetooth(ctx, tc, dc)
 		case "co_agent", "co_agents":
 			req := decodeCoAgentArgs(tc)
 			if budgetTracker != nil && budgetTracker.IsBlocked("coagent") {

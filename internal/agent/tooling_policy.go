@@ -323,6 +323,7 @@ func buildToolFlagsFromConfig(cfg *config.Config) ToolFeatureFlags {
 	homepageEnabled := cfg.Homepage.Enabled && (dockerEnabled || cfg.Homepage.AllowLocalServer)
 	wolEnabled := cfg.Tools.WOL.Enabled && (!cfg.Runtime.IsDocker || cfg.Runtime.BroadcastOK)
 	packageManagerEnabled := cfg.Agent.AllowPackageManager && cfg.PackageManager.Enabled && (!cfg.Runtime.IsDocker || cfg.Agent.SudoEnabled)
+	bluetoothEnabled := cfg.Bluetooth.Enabled && cfg.Runtime.Bluetooth.Usable
 
 	return ToolFeatureFlags{
 		HomeAssistantEnabled:         cfg.HomeAssistant.Enabled,
@@ -333,6 +334,9 @@ func buildToolFlagsFromConfig(cfg *config.Config) ToolFeatureFlags {
 		JellyfinEnabled:              cfg.Jellyfin.Enabled,
 		ObsidianEnabled:              cfg.Obsidian.Enabled,
 		ChromecastEnabled:            cfg.Chromecast.Enabled,
+		BluetoothEnabled:             bluetoothEnabled,
+		BluetoothWriteEnabled:        bluetoothEnabled && !cfg.Bluetooth.ReadOnly,
+		BluetoothAudioEnabled:        bluetoothEnabled && cfg.Bluetooth.AllowPlayback && cfg.Runtime.Bluetooth.Audio.Usable,
 		DiscordEnabled:               cfg.Discord.Enabled,
 		TelegramEnabled:              cfg.Telegram.BotToken != "" && cfg.Telegram.UserID != 0,
 		TrueNASEnabled:               cfg.TrueNAS.Enabled,
@@ -502,6 +506,7 @@ func buildPromptContextFlags(runCfg RunConfig, policy ToolingPolicy, opts prompt
 		KoofrEnabled:             flags.KoofrEnabled,
 		PaperlessNGXEnabled:      state.PaperlessNGXEnabled,
 		ChromecastEnabled:        flags.ChromecastEnabled,
+		BluetoothEnabled:         flags.BluetoothEnabled,
 		CoAgentEnabled:           flags.CoAgentEnabled,
 		GoogleWorkspaceEnabled:   flags.GoogleWorkspaceEnabled,
 		OneDriveEnabled:          flags.OneDriveEnabled,

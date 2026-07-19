@@ -21,6 +21,7 @@ import (
 
 	"aurago/internal/agent"
 	"aurago/internal/agentmail"
+	"aurago/internal/bluetooth"
 	"aurago/internal/budget"
 	"aurago/internal/config"
 	"aurago/internal/desktop"
@@ -139,6 +140,7 @@ type Server struct {
 	Registry             *tools.ProcessRegistry
 	CronManager          *tools.CronManager
 	BackgroundTasks      *tools.BackgroundTaskManager
+	Bluetooth            *bluetooth.Manager
 	HistoryManager       *memory.HistoryManager
 	KG                   *memory.KnowledgeGraph
 	InventoryDB          *sql.DB
@@ -312,6 +314,14 @@ func Start(opts StartOptions) error {
 
 	startLoginRecordCleaner(shutdownCh)
 	s := newServerFromOptions(opts)
+	defer func() {
+		if s.Bluetooth != nil {
+			_ = s.Bluetooth.Close()
+		}
+		if bluetooth.DefaultManager() == s.Bluetooth {
+			bluetooth.SetDefaultManager(nil)
+		}
+	}()
 	startHomepageLedgerReconciler(shutdownCh, s)
 	if cfg.WorkspaceSearch.Enabled {
 		workspaceSearch, err := services.NewWorkspaceSearchService(cfg, &s.CfgMu, logger)
@@ -1086,6 +1096,10 @@ func releaseLoopbackSem(sem chan struct{}) {
 func newServerFromOptions(opts StartOptions) *Server {
 	cfg := opts.Cfg
 	logger := opts.Logger
+	bluetoothManager := bluetooth.NewManager(logger)
+	bluetoothManager.Configure(config.BluetoothRuntimeOptions(cfg))
+	bluetoothManager.SeedStatus(cfg.Runtime.Bluetooth)
+	bluetooth.SetDefaultManager(bluetoothManager)
 	tools.ConfigureRuntimePermissions(tools.RuntimePermissions{
 		AllowShell:           cfg.Agent.AllowShell,
 		AllowPython:          cfg.Agent.AllowPython,
@@ -1160,6 +1174,7 @@ func newServerFromOptions(opts StartOptions) *Server {
 		Registry:           opts.Registry,
 		CronManager:        opts.CronManager,
 		BackgroundTasks:    opts.BackgroundTasks,
+		Bluetooth:          bluetoothManager,
 		VirtualComputersDB: opts.VirtualComputersDB,
 		HistoryManager:     opts.HistoryManager,
 		KG:                 opts.KG,

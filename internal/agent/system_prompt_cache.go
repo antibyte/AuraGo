@@ -393,6 +393,9 @@ func collectEnabledTools(flags *prompts.ContextFlags) []string {
 	if flags.ChromecastEnabled {
 		tools = append(tools, "chromecast")
 	}
+	if flags.BluetoothEnabled {
+		tools = append(tools, "bluetooth")
+	}
 	if flags.WebDAVEnabled {
 		tools = append(tools, "webdav")
 	}

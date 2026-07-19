@@ -131,6 +131,7 @@ type ContextFlags struct {
 	WebDAVEnabled            bool
 	KoofrEnabled             bool
 	ChromecastEnabled        bool
+	BluetoothEnabled         bool
 	CoAgentEnabled           bool
 	GoogleWorkspaceEnabled   bool
 	OneDriveEnabled          bool
@@ -2412,6 +2413,7 @@ func buildEnabledToolsOverview(flags *ContextFlags) string {
 	add("webdav", flags.WebDAVEnabled)
 	add("koofr", flags.KoofrEnabled)
 	add("chromecast", flags.ChromecastEnabled)
+	add("bluetooth", flags.BluetoothEnabled)
 	add("discord", flags.DiscordEnabled)
 	add("telegram", flags.TelegramEnabled)
 	add("truenas", flags.TrueNASEnabled)

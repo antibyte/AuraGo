@@ -837,6 +837,14 @@
       "row": 9,
       "source_type": "custom",
       "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "bluetooth",
+      "slot": 104,
+      "column": 5,
+      "row": 9,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
     }
   ]
 }

@@ -469,6 +469,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 		fileIndexerEnabledAfterReload := false
 		restartAgentMailAfterUnlock := false
 		syncMCPAfterUnlock := false
+		bluetoothChanged := false
 
 		if loadErr != nil {
 			s.Logger.Warn("[Config UI] Hot-reload failed, changes saved but require restart", "error", loadErr)
@@ -482,6 +483,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 
 			// Carry over runtime detection (computed once at startup, not on reload)
 			newCfg.Runtime = oldCfg.Runtime
+			bluetoothChanged = !reflect.DeepEqual(oldCfg.Bluetooth, newCfg.Bluetooth)
 
 			// Detect sections that need restart
 			if oldCfg.Server != newCfg.Server {
@@ -1109,6 +1111,20 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			s.Logger.Info("[Config UI] Configuration hot-reloaded successfully")
 		}
 		s.CfgMu.Unlock()
+		if loadErr == nil && bluetoothChanged && newCfg != nil && s.Bluetooth != nil {
+			s.Bluetooth.Configure(config.BluetoothRuntimeOptions(newCfg))
+			probeCtx, cancelProbe := context.WithTimeout(r.Context(), 5*time.Second)
+			bluetoothStatus := s.Bluetooth.Reprobe(probeCtx)
+			cancelProbe()
+			s.CfgMu.Lock()
+			newCfg.Runtime.Bluetooth = bluetoothStatus
+			s.replaceConfigSnapshot(newCfg)
+			s.CfgMu.Unlock()
+			s.Logger.Info("[Config UI] Bluetooth runtime hot-reloaded",
+				"usable", bluetoothStatus.Usable,
+				"audio_usable", bluetoothStatus.Audio.Usable,
+				"audio_backend", bluetoothStatus.Audio.Backend)
+		}
 		if loadErr == nil && discordChanged && newCfg != nil && !newCfg.EggMode.Enabled {
 			discord.StopBot(s.Logger)
 			discord.StartBot(newCfg, s.Logger, s.LLMClient, s.ShortTermMem, s.LongTermMem, s.Vault, s.Registry, s.CronManager, s.HistoryManager, s.KG, s.InventoryDB, s.MissionManagerV2, s.RemoteHub, s.Guardian)

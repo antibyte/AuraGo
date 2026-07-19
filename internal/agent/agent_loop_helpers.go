@@ -239,7 +239,7 @@ var adaptiveFamilySeedTools = map[string][]string{
 	},
 	"media": {
 		"media_registry", "media_conversion", "send_document", "send_audio", "send_video", "send_youtube_video", "send_image", "tts",
-		"transcribe_audio", "generate_image", "generate_music", "generate_video", "chromecast",
+		"transcribe_audio", "generate_image", "generate_music", "generate_video", "chromecast", "bluetooth",
 	},
 }
 
@@ -276,7 +276,7 @@ var adaptiveToolNeighbors = map[string][]string{
 
 	// Media & Documents
 	"document_creator":   {"media_registry", "media_conversion", "send_document", "filesystem"},
-	"media_registry":     {"document_creator", "media_conversion", "send_document", "filesystem", "generate_image", "generate_video", "send_image", "send_video", "tts", "send_audio", "generate_music"},
+	"media_registry":     {"document_creator", "media_conversion", "send_document", "filesystem", "generate_image", "generate_video", "send_image", "send_video", "tts", "send_audio", "generate_music", "bluetooth"},
 	"media_conversion":   {"media_registry", "document_creator", "image_processing", "transcribe_audio", "send_audio", "send_video", "send_image", "filesystem"},
 	"send_document":      {"media_registry", "document_creator"},
 	"send_image":         {"media_registry", "generate_image"},
@@ -284,10 +284,11 @@ var adaptiveToolNeighbors = map[string][]string{
 	"send_video":         {"media_registry", "generate_video", "media_conversion"},
 	"send_youtube_video": {"send_video"},
 	"generate_image":     {"media_registry", "send_image", "analyze_image"},
-	"generate_music":     {"media_registry", "send_audio", "tts"},
+	"generate_music":     {"media_registry", "send_audio", "tts", "bluetooth"},
 	"generate_video":     {"media_registry", "media_conversion", "send_video"},
 	"analyze_image":      {"generate_image", "media_registry"},
-	"tts":                {"media_registry", "send_audio"},
+	"tts":                {"media_registry", "send_audio", "bluetooth"},
+	"bluetooth":          {"generate_music", "tts", "media_registry", "send_audio"},
 	"transcribe_audio":   {"filesystem", "media_registry"},
 	"pdf_operations":     {"detect_file_type", "filesystem", "document_creator"},
 	"image_processing":   {"detect_file_type", "filesystem", "media_registry"},

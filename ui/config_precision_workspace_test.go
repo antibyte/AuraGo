@@ -452,7 +452,7 @@ func TestConfigSidebarIconSpriteContract(t *testing.T) {
 	}
 
 	expectedKeys := expectedConfigSidebarIconKeys(t, mainJS)
-	if got, want := len(expectedKeys), 104; got != want {
+	if got, want := len(expectedKeys), 105; got != want {
 		t.Fatalf("expected config sidebar key count = %d, want %d", got, want)
 	}
 
@@ -499,8 +499,8 @@ func TestConfigSidebarIconSpriteContract(t *testing.T) {
 			t.Fatalf("config sidebar SVG sprite missing marker %q", marker)
 		}
 	}
-	if got := strings.Count(sprite, `class="cfg-icon-cell"`); got != 104 {
-		t.Fatalf("config sidebar SVG sprite has %d icon cells, want 104", got)
+	if got := strings.Count(sprite, `class="cfg-icon-cell"`); got != len(expectedKeys) {
+		t.Fatalf("config sidebar SVG sprite has %d icon cells, want %d", got, len(expectedKeys))
 	}
 
 	var metadata struct {
@@ -524,8 +524,8 @@ func TestConfigSidebarIconSpriteContract(t *testing.T) {
 	if metadata.Grid.Columns != 11 || metadata.Grid.Rows != 10 || metadata.Grid.CellSize != 128 {
 		t.Fatalf("metadata grid = %+v, want 11x10 cells of 128", metadata.Grid)
 	}
-	if got := len(metadata.Icons); got != 104 {
-		t.Fatalf("metadata has %d icons, want 104", got)
+	if got := len(metadata.Icons); got != len(expectedKeys) {
+		t.Fatalf("metadata has %d icons, want %d", got, len(expectedKeys))
 	}
 
 	metaByKey := make(map[string]struct {
@@ -634,8 +634,8 @@ func assertConfigIconCoverage(t *testing.T, expectedKeys []string, slotByKey map
 		if !ok {
 			t.Fatalf("slot map missing key %q", key)
 		}
-		if slot < 0 || slot >= 104 {
-			t.Fatalf("slot for %q = %d, want 0..103", key, slot)
+		if slot < 0 || slot >= len(expectedKeys) {
+			t.Fatalf("slot for %q = %d, want 0..%d", key, slot, len(expectedKeys)-1)
 		}
 		if previous, exists := usedSlots[slot]; exists {
 			t.Fatalf("slot %d is reused by %q and %q", slot, previous, key)

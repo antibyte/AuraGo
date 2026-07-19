@@ -173,6 +173,7 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"transcribe_audio", "Transcribe audio files to text (Speech-to-Text)"},
 		{"media_conversion", "Convert audio, video, and image files between formats"},
 		{"chromecast", "Cast media to Chromecast devices"},
+		{"bluetooth", "Discover Bluetooth devices and play audio on paired speakers"},
 		{"media_registry", "Manage and search local media files"},
 		{"jellyfin", "Control Jellyfin media server (libraries, playback, users)"},
 	},

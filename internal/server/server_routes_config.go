@@ -125,6 +125,15 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	// Chromecast mDNS discovery
 	mux.HandleFunc("/api/chromecast/discover", handleChromecastDiscover(s))
 
+	// Linux Bluetooth / BlueZ administration. All routes require an
+	// authenticated admin identity, including status and discovery.
+	mux.Handle("/api/bluetooth/status", requireAdmin(s, handleBluetoothStatus(s)))
+	mux.Handle("/api/bluetooth/reprobe", requireAdmin(s, handleBluetoothReprobe(s)))
+	mux.Handle("/api/bluetooth/discover", requireAdmin(s, handleBluetoothDiscover(s)))
+	mux.Handle("/api/bluetooth/devices/action", requireAdmin(s, handleBluetoothDeviceAction(s)))
+	mux.Handle("/api/bluetooth/audio/test", requireAdmin(s, handleBluetoothAudioTest(s)))
+	mux.Handle("/api/bluetooth/audio/stop", requireAdmin(s, handleBluetoothAudioStop(s)))
+
 	// Runtime environment detection (Docker, socket, broadcast, firewall)
 	mux.HandleFunc("/api/runtime", handleRuntime(s))
 	mux.HandleFunc("/api/debug/helper-llm/stats", handleHelperLLMStats(s))

@@ -201,7 +201,7 @@ See the [full memory-system diagram](documentation/illustrations/memory-system-o
 
 - Telegram, Discord, Rocket.Chat, email, SMS, voice, ntfy, and Pushover
 - Vision, Whisper, text-to-speech, and web capture
-- PDF extraction and creation, image/music/video generation, and Chromecast
+- PDF extraction and creation, image/music/video generation, Chromecast, and Linux Bluetooth audio
 
 </details>
 
@@ -217,6 +217,7 @@ The complete list lives in the [tools manual](documentation/manual/en/22-interna
 | **Configuration reference** | [documentation/configuration.md](documentation/configuration.md) |
 | **Architecture** | [documentation/architecture.md](documentation/architecture.md) |
 | **Realtime speech** | [documentation/realtime_speech.md](documentation/realtime_speech.md) |
+| **Bluetooth audio** | [documentation/bluetooth.md](documentation/bluetooth.md) |
 | **Telegram setup** | [documentation/telegram_setup.md](documentation/telegram_setup.md) |
 | **Google OAuth** | [documentation/google_setup.md](documentation/google_setup.md) |
 

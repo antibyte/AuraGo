@@ -958,6 +958,20 @@ chromecast:
 
 Private Medien-URLs sind standardmäßig blockiert. Von AuraGo erzeugte `/tts/`- und `/cast-media/`-URLs sind automatisch erlaubt; Loopback-, Link-Local- und Metadaten-Adressen bleiben blockiert.
 
+## Bluetooth-Integration
+
+Bei nativen Linux-Installationen erkennt AuraGo beim Start einen eingeschalteten
+BlueZ-Adapter und stellt erst dann das `bluetooth`-Tool bereit. Die Gerätesuche
+ist standardmäßig verfügbar. Koppeln und Verbindungen ändern erfordert einen
+deaktivierten Nur-Lesen-Modus; die Wiedergabe benötigt zusätzlich eine
+erreichbare PipeWire- oder PulseAudio-Benutzersitzung und `allow_playback`.
+
+Unter **Konfiguration → Smart Home → Bluetooth** kannst Du neu erkennen, Geräte
+suchen, koppeln, verbinden und einen lokalen Testton abspielen. AuraGo routet
+nur seinen eigenen Audiostream und ändert das Standard-Ausgabegerät des Systems
+nicht. Pakete, Konfiguration, Docker-Einschränkungen und Fehlerdiagnose stehen
+unter [Bluetooth-Geräte und Audioausgabe](../../bluetooth.md).
+
 ## Media Registry
 
 Zentrale Verwaltung von Mediendateien mit Metadaten-Tracking.

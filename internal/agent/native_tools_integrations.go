@@ -449,6 +449,32 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 		))
 	}
 
+	if ff.BluetoothEnabled {
+		operations := []string{"status", "list", "discover"}
+		if ff.BluetoothWriteEnabled {
+			operations = append(operations, "pair", "connect", "disconnect")
+		}
+		if ff.BluetoothAudioEnabled {
+			operations = append(operations, "play", "speak", "playback_status", "stop")
+		}
+		tools = append(tools, tool("bluetooth",
+			"Discover and control Bluetooth devices through the detected Linux BlueZ adapter. Pairing and connection operations appear only when write access is enabled; audio operations appear only when a usable per-stream PipeWire or PulseAudio backend is enabled.",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "Bluetooth operation to perform.",
+					"enum":        operations,
+				},
+				"device":          prop("string", "Explicit Bluetooth address or unique device name. Required for pair; optional for audio when a default or exactly one connected audio device exists."),
+				"local_path":      prop("string", "Workspace-relative local audio path for play. Supply exactly one of local_path or media_id."),
+				"media_id":        prop("integer", "Audio or music item ID from media_registry for play. Supply exactly one of media_id or local_path."),
+				"text":            prop("string", "Text to synthesize and play for speak."),
+				"language":        prop("string", "Optional TTS language code for speak."),
+				"timeout_seconds": prop("integer", "Discovery timeout in seconds (1-60)."),
+			}, "operation"),
+		))
+	}
+
 	if ff.TTSEnabled {
 		tools = append(tools, tool("tts",
 			"Convert text to speech (TTS). The generated audio will AUTOMATICALLY be sent to the user and played in the chat UI! "+

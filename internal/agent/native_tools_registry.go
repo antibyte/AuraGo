@@ -84,7 +84,8 @@ func allBuiltinToolFeatureFlags() ToolFeatureFlags {
 		WebCaptureEnabled:      true, BrowserAutomationEnabled: true, SpaceAgentEnabled: true, VirtualDesktopEnabled: true, VirtualComputersEnabled: true,
 		OpenSCADEnabled: true, OfficeDocumentEnabled: true, OfficeWorkbookEnabled: true, NetworkPingEnabled: true, WebScraperEnabled: true,
 		S3Enabled: true, NetworkScanEnabled: true, FormAutomationEnabled: true, UPnPScanEnabled: true,
-		JellyfinEnabled: true, ChromecastEnabled: true, DiscordEnabled: true, TelegramEnabled: true, AgoDeskChatEnabled: true, TrueNASEnabled: true,
+		JellyfinEnabled: true, ChromecastEnabled: true, BluetoothEnabled: true, BluetoothWriteEnabled: true, BluetoothAudioEnabled: true,
+		DiscordEnabled: true, TelegramEnabled: true, AgoDeskChatEnabled: true, TrueNASEnabled: true,
 		KoofrEnabled: true, FritzBoxSystemEnabled: true, FritzBoxNetworkEnabled: true,
 		FritzBoxTelephonyEnabled: true, FritzBoxSmartHomeEnabled: true, FritzBoxStorageEnabled: true,
 		FritzBoxTVEnabled: true, TelnyxSMSEnabled: true, TelnyxCallEnabled: true,
@@ -206,6 +207,9 @@ func (ff ToolFeatureFlags) Key() string {
 	appendToolFeatureKeyPart("jellyfin", ff.JellyfinEnabled)
 	appendToolFeatureKeyPart("obsidian", ff.ObsidianEnabled)
 	appendToolFeatureKeyPart("chromecast", ff.ChromecastEnabled)
+	appendToolFeatureKeyPart("bluetooth", ff.BluetoothEnabled)
+	appendToolFeatureKeyPart("bluetooth_write", ff.BluetoothWriteEnabled)
+	appendToolFeatureKeyPart("bluetooth_audio", ff.BluetoothAudioEnabled)
 	appendToolFeatureKeyPart("discord", ff.DiscordEnabled)
 	appendToolFeatureKeyPart("telegram", ff.TelegramEnabled)
 	appendToolFeatureKeyPart("agodesk_chat", ff.AgoDeskChatEnabled)

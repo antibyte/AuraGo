@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"aurago/internal/bluetooth"
 	"aurago/internal/dockerutil"
 )
 
@@ -25,8 +26,9 @@ type Runtime struct {
 	FirewallAccessOK bool `json:"firewall_access_ok"`
 	// NoNewPrivileges is true when the kernel flag PR_SET_NO_NEW_PRIVS is active.
 	// This prevents sudo (setuid escalation) from working regardless of config.
-	NoNewPrivileges     bool `json:"no_new_privileges"`
-	ProtectSystemStrict bool `json:"protect_system_strict"`
+	NoNewPrivileges     bool             `json:"no_new_privileges"`
+	ProtectSystemStrict bool             `json:"protect_system_strict"`
+	Bluetooth           bluetooth.Status `json:"bluetooth"`
 }
 
 // FeatureAvailability describes whether a config section is usable
@@ -77,6 +79,21 @@ func DetectRuntime(logger *slog.Logger) Runtime {
 	} else {
 		logger.Info("[Runtime] No-new-privileges flag", "set", false)
 	}
+
+	// 6. Bluetooth and user-session audio. This is a passive probe: it never
+	// starts BlueZ discovery or changes the system's default audio device.
+	bluetoothCtx, cancelBluetoothProbe := context.WithTimeout(context.Background(), 4*time.Second)
+	rt.Bluetooth = bluetooth.Detect(bluetoothCtx, bluetooth.Options{
+		Enabled:      true,
+		ReadOnly:     true,
+		AudioBackend: "auto",
+		IsDocker:     rt.IsDocker,
+	}, logger)
+	cancelBluetoothProbe()
+	logger.Info("[Runtime] Bluetooth",
+		"usable", rt.Bluetooth.Usable,
+		"audio_usable", rt.Bluetooth.Audio.Usable,
+		"audio_backend", rt.Bluetooth.Audio.Backend)
 
 	return rt
 }
@@ -162,6 +179,8 @@ func ComputeFeatureAvailability(rt Runtime, sudoEnabled bool) map[string]Feature
 	// Broadcast network (WOL, Chromecast discovery)
 	avail["wol"] = FeatureAvailability{Available: rt.BroadcastOK, Reason: boolReason(!rt.BroadcastOK, "Wake-on-LAN requires broadcast network. Use network_mode: host in Docker.")}
 	avail["chromecast_discovery"] = FeatureAvailability{Available: rt.BroadcastOK, Reason: boolReason(!rt.BroadcastOK, "Chromecast discovery requires mDNS/broadcast. Manual IP entry still works.")}
+	avail["bluetooth"] = FeatureAvailability{Available: rt.Bluetooth.Usable, Reason: rt.Bluetooth.Reason}
+	avail["bluetooth_audio"] = FeatureAvailability{Available: rt.Bluetooth.Usable && rt.Bluetooth.Audio.Usable, Reason: rt.Bluetooth.Audio.Reason}
 
 	return avail
 }

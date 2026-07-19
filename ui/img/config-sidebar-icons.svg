@@ -415,4 +415,8 @@
     <title>virtual_computers</title>
     <rect x="24" y="28" width="80" height="52" rx="9" fill="#7da3c8" opacity=".18"/><path d="M24 28h80v52H24zM44 96h40M64 80v16M43 52l10 10-10 10M61 72h24" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="6" stroke="#7da3c8"/><circle cx="92" cy="36" r="10" fill="#35c7d3"/>
   </g>
+  <g class="cfg-icon-cell" data-key="bluetooth" data-slot="104" transform="translate(640 1152)">
+    <title>bluetooth</title>
+    <path d="M56 24v80l30-25-44-31 44-24-30-24v104M34 43l52 37M34 85l52-42" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="6" stroke="#4285f4"/>
+  </g>
 </svg>

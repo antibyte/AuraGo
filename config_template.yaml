@@ -128,6 +128,13 @@ chromecast:
     enabled: false
     tts_port: 8090
     media_host_allowlist: []
+bluetooth:
+    enabled: true
+    readonly: true
+    allow_playback: false
+    scan_timeout_seconds: 10
+    default_device: ""
+    audio_backend: auto                                      # auto, pipewire, pulse
 circuit_breaker:
     llm_timeout_seconds: 600
     llm_per_attempt_timeout_seconds: 120           # per API attempt timeout used inside retry loops

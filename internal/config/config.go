@@ -547,6 +547,10 @@ func Load(path string) (*Config, error) {
 	cfg.Tools.NetworkScan.Enabled = true
 	cfg.Tools.Contacts.Enabled = true
 	cfg.Tools.Planner.Enabled = true
+	cfg.Bluetooth.Enabled = true
+	cfg.Bluetooth.ReadOnly = true
+	cfg.Bluetooth.ScanTimeoutSeconds = 10
+	cfg.Bluetooth.AudioBackend = "auto"
 	// form_automation and upnp_scan default to false (opt-in; require headless browser / LAN access)
 
 	// Mission Preparation defaults: disabled by default, uses main LLM provider.
@@ -820,6 +824,19 @@ func Load(path string) (*Config, error) {
 		return nil, fmt.Errorf("failed to unmarshal config (backup saved to %s): %w", backupPath, err)
 	}
 	normalizeDeprecatedEmbeddingBackend(&cfg)
+	if cfg.Bluetooth.ScanTimeoutSeconds <= 0 {
+		cfg.Bluetooth.ScanTimeoutSeconds = 10
+	}
+	switch strings.ToLower(strings.TrimSpace(cfg.Bluetooth.AudioBackend)) {
+	case "", "auto":
+		cfg.Bluetooth.AudioBackend = "auto"
+	case "pipewire":
+		cfg.Bluetooth.AudioBackend = "pipewire"
+	case "pulse", "pulseaudio":
+		cfg.Bluetooth.AudioBackend = "pulse"
+	default:
+		cfg.Bluetooth.AudioBackend = "auto"
+	}
 
 	NormalizeAIGatewayConfig(&cfg)
 	NormalizeCloudflareTunnelConfig(&cfg)

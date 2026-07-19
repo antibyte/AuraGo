@@ -282,6 +282,8 @@ func matchPromptCondition(cond string, flags *ContextFlags) bool {
 		return flags.PaperlessNGXEnabled
 	case "chromecast_enabled":
 		return flags.ChromecastEnabled
+	case "bluetooth_enabled":
+		return flags.BluetoothEnabled
 	case "coagent_enabled":
 		return flags.CoAgentEnabled
 	case "google_workspace_enabled":

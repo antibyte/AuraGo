@@ -2091,6 +2091,7 @@ func TestPromptConditionsCoverEmbeddedFrontmatter(t *testing.T) {
 		"ansible_enabled":            func() *ContextFlags { return &ContextFlags{AnsibleEnabled: true} },
 		"brave_search_enabled":       func() *ContextFlags { return &ContextFlags{BraveSearchEnabled: true} },
 		"chromecast_enabled":         func() *ContextFlags { return &ContextFlags{ChromecastEnabled: true} },
+		"bluetooth_enabled":          func() *ContextFlags { return &ContextFlags{BluetoothEnabled: true} },
 		"cloudflare_tunnel_enabled":  func() *ContextFlags { return &ContextFlags{CloudflareTunnelEnabled: true} },
 		"coagent":                    func() *ContextFlags { return &ContextFlags{IsCoAgent: true} },
 		"coagent_enabled":            func() *ContextFlags { return &ContextFlags{CoAgentEnabled: true} },

@@ -54,6 +54,7 @@ func injectFeatureAvailability(rawCfg map[string]interface{}, rt config.Runtime,
 		"invasion_local":       "invasion_control",
 		"updates":              "updates",
 		"chromecast_discovery": "chromecast",
+		"bluetooth":            "bluetooth",
 	}
 
 	for featureKey, fa := range avail {
@@ -96,6 +97,15 @@ func injectFeatureAvailability(rawCfg map[string]interface{}, rt config.Runtime,
 		section["_available"] = fa.Available
 		if fa.Reason != "" {
 			section["_reason"] = fa.Reason
+		}
+	}
+
+	if section, ok := rawCfg["bluetooth"].(map[string]interface{}); ok {
+		if audio, found := avail["bluetooth_audio"]; found {
+			section["_audio_available"] = audio.Available
+			if audio.Reason != "" {
+				section["_audio_reason"] = audio.Reason
+			}
 		}
 	}
 }
