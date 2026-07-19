@@ -716,6 +716,7 @@ func isAllowedSetupProviderHost(host string) bool {
 		"api.anthropic.com",
 		"generativelanguage.googleapis.com",
 		"openrouter.ai",
+		"apihub.agnes-ai.com",
 		"api.minimax.io",
 		"api.minimaxi.com",
 		"dashscope-intl.aliyuncs.com",

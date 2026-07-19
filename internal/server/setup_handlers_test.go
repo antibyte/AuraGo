@@ -527,6 +527,14 @@ func TestSetupProviderHostAllowsStepFunStepPlan(t *testing.T) {
 	}
 }
 
+func TestSetupProviderHostAllowsAgnesAI(t *testing.T) {
+	t.Parallel()
+
+	if !isAllowedSetupProviderHost("apihub.agnes-ai.com") {
+		t.Fatal("expected apihub.agnes-ai.com to be allowed for Agnes AI setup connection tests")
+	}
+}
+
 func TestIsAllowedSetupProviderHost(t *testing.T) {
 	t.Parallel()
 

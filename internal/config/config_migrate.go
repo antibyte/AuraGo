@@ -171,7 +171,7 @@ var knownProviderTypes = map[string]bool{
 	"openai": true, "openrouter": true, "ollama": true,
 	"anthropic": true, "google": true, "workers-ai": true,
 	"custom": true, "stability": true, "ideogram": true,
-	"vision": true, "minimax": true, "glm": true,
+	"vision": true, "minimax": true, "agnes": true, "glm": true,
 	"yepapi": true, "manifest": true, "omniroute": true, "huggingface": true,
 	// Providers from Manifest (Phase 1 — OpenAI-compatible)
 	"deepseek": true, "groq": true, "mistral": true,

@@ -146,6 +146,14 @@ const providerConfig = {
         defaultModel: 'arcee-ai/trinity-large-preview:free',
         needsKey: true,
     },
+    agnes: {
+        baseUrl: 'https://apihub.agnes-ai.com/v1',
+        placeholder: 'API Key...',
+        link: 'platform.agnes-ai.com',
+        defaultModel: 'agnes-2.0-flash',
+        hintKey: 'setup.step0_provider_hint_agnes',
+        needsKey: true,
+    },
     openai: {
         baseUrl: 'https://api.openai.com/v1',
         placeholder: 'sk-...',
@@ -562,6 +570,7 @@ function buildQuickConfigPatch() {
             use_native_functions: p.native_function_calling !== false,
             helper_enabled: !!(p.features && p.features.helper && m.helper),
             helper_provider: (p.features && p.features.helper && m.helper) ? 'helper' : '',
+            helper_model: (p.features && p.features.helper && m.helper) ? getQuickProfileSubsystemRuntime(p, m.helper).model : '',
         },
         embeddings: {
             provider: (p.features && p.features.embeddings && m.embeddings) ? 'embeddings' : 'disabled',
@@ -851,10 +860,13 @@ function onProviderChange() {
     document.getElementById('llm-api-key').placeholder = cfg.placeholder;
     document.getElementById('llm-model').placeholder = cfg.defaultModel;
     document.getElementById('provider-link').textContent = cfg.link;
+    document.getElementById('hint-provider').textContent = t(cfg.hintKey || 'setup.step0_provider_hint');
 
-    // Pre-fill model if empty
+    // Pre-fill model if empty; Agnes uses one documented setup model for both agents.
     const modelInput = document.getElementById('llm-model');
-    if (!modelInput.value && cfg.defaultModel) {
+    if (provider === 'agnes' && cfg.defaultModel) {
+        modelInput.value = cfg.defaultModel;
+    } else if (cfg.defaultModel && (!modelInput.value || modelInput.value === 'agnes-2.0-flash')) {
         modelInput.value = cfg.defaultModel;
     }
 
@@ -874,7 +886,18 @@ function onProviderChange() {
     }
 
     updateEmbeddingSetupWarnings();
-    syncHelperModelSuggestion();
+    if (provider === 'agnes') {
+        document.getElementById('helper-model').value = cfg.defaultModel;
+        document.getElementById('helper-llm').checked = true;
+        onHelperToggle();
+    } else {
+        if (document.getElementById('helper-model').value === 'agnes-2.0-flash') {
+            document.getElementById('helper-model').value = '';
+            document.getElementById('helper-llm').checked = false;
+            onHelperToggle();
+        }
+        syncHelperModelSuggestion();
+    }
 }
 
 function updateEmbeddingSetupWarnings() {
@@ -1347,6 +1370,18 @@ function buildProviderEntries() {
         }
     }
 
+    // Agnes AI uses dedicated models on the same API base for image and video generation.
+    if (mainType === 'agnes') {
+        providers.push({
+            id: 'image_gen', name: 'Agnes AI Image Gen', type: 'agnes',
+            base_url: mainUrl, api_key: mainKey, model: 'agnes-image-2.1-flash',
+        });
+        providers.push({
+            id: 'video_gen', name: 'Agnes AI Video Gen', type: 'agnes',
+            base_url: mainUrl, api_key: mainKey, model: 'agnes-video-v2.0',
+        });
+    }
+
     return providers;
 }
 
@@ -1515,6 +1550,19 @@ function buildConfigPatch() {
             enabled: document.getElementById('web-config-enabled').checked,
         },
     };
+
+    if (document.getElementById('llm-provider').value === 'agnes') {
+        patch.image_generation = {
+            enabled: true,
+            provider: 'image_gen',
+        };
+        patch.video_generation = {
+            enabled: true,
+            provider: 'video_gen',
+            default_duration_seconds: 6,
+            default_resolution: '768P',
+        };
+    }
 
     // Embeddings: reference provider entry or disable
     const embProvider = document.getElementById('emb-provider').value;

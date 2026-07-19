@@ -50,6 +50,24 @@ func TestResolveProviderCapabilitiesManualOverrideStillWins(t *testing.T) {
 	}
 }
 
+func TestResolveProviderCapabilitiesDetectsAgnesFlash(t *testing.T) {
+	result := ResolveProviderCapabilities(config.ProviderEntry{
+		ID:    "main",
+		Type:  "agnes",
+		Model: "agnes-2.0-flash",
+	}, CapabilityFallback{})
+
+	if !result.Known || result.Source != CapabilitySourceHeuristic {
+		t.Fatalf("expected Agnes heuristic capabilities, got %+v", result)
+	}
+	if !result.ToolCalling || !result.Multimodal {
+		t.Fatalf("expected Agnes tool calling and multimodal support, got %+v", result)
+	}
+	if result.StructuredOutputs {
+		t.Fatalf("structured outputs are not documented for Agnes 2.0 Flash: %+v", result)
+	}
+}
+
 func boolPtr(v bool) *bool {
 	return &v
 }

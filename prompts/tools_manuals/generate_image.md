@@ -7,7 +7,7 @@ The `generate_image` tool creates images from text descriptions using various AI
 
 ## Configuration
 Configure in Settings > Image Generation:
-- **Provider** — Select an existing provider entry (OpenRouter, OpenAI, Stability AI, Ideogram, Google)
+- **Provider** — Select an existing provider entry (OpenRouter, OpenAI, Stability AI, Ideogram, Google, MiniMax, Agnes AI)
 - **Model** — Override model name (empty = provider default)
 - **Defaults** — Size, quality, style applied when not specified per-call
 
@@ -44,6 +44,7 @@ Override the configured model. Usually leave empty to use the provider's default
 - Ideogram: `V_2`
 - Google Imagen: `imagen-3.0-generate-002`
 - OpenRouter: any supported image model
+- Agnes AI: `agnes-image-2.1-flash`
 
 ### source_image
 Path to an existing image for image-to-image generation. The AI will use this as a starting point and modify it based on the prompt.
@@ -125,5 +126,6 @@ Estimated costs per image (vary by provider and settings):
 - Stability AI: ~$0.03-$0.06
 - Ideogram: ~$0.05-$0.08
 - Google Imagen: ~$0.02-$0.04
+- Agnes AI: currently free within the provider's applicable usage limits
 
 Monthly generation limits can be configured in settings.

@@ -20,7 +20,7 @@ conditions: ["image_generation_enabled"]
 - `source_image` — Path to an existing image for image-to-image generation
 - `enhance_prompt` — Set to `true`/`false` to override the default prompt enhancement setting
 
-**Supported providers:** OpenRouter, OpenAI (DALL-E), Stability AI, Ideogram, Google Imagen
+**Supported providers:** OpenRouter, OpenAI (DALL-E), Stability AI, Ideogram, Google Imagen, MiniMax, Agnes AI
 
 **Tips:**
 - Be descriptive: include subject, style, lighting, composition, colors

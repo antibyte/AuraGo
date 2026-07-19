@@ -55,7 +55,7 @@ func ImageGenDailyCount() int {
 
 // ImageGenConfig holds the resolved provider configuration for image generation.
 type ImageGenConfig struct {
-	ProviderType string // openai, openrouter, stability, ideogram, google
+	ProviderType string // openai, openrouter, stability, ideogram, google, minimax, agnes
 	BaseURL      string
 	APIKey       string
 	Model        string
@@ -300,6 +300,8 @@ func GenerateImage(cfg ImageGenConfig, prompt string, opts ImageGenOptions) (*Im
 		imgData, format, err = generateGoogleImagen(cfg, prompt, opts)
 	case "minimax":
 		imgData, format, err = generateMiniMax(cfg, prompt, opts)
+	case "agnes":
+		imgData, format, err = generateAgnesImage(cfg, prompt, opts)
 	default:
 		return nil, fmt.Errorf("unsupported image generation provider type: %q", cfg.ProviderType)
 	}
@@ -384,6 +386,8 @@ func estimateCost(providerType, model string) float64 {
 		return 0.05
 	case "google", "google-imagen":
 		return 0.04
+	case "agnes":
+		return 0
 	default:
 		return 0.04
 	}

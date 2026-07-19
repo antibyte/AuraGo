@@ -44,11 +44,48 @@ profiles:
       helper:
         model: "deepseek/deepseek-chat" # Extrem günstig (DeepSeek V3/R1 Architektur) und rasant als Helper
 
+  - id: agnes_ai
+    name: "Agnes AI"
+    description: "OpenAI-compatible text, image, and video models. Free usage is available."
+    icon: "✨"
+    sort_order: 2
+    pricing_label: "Free usage available"
+    pricing_url: "https://wiki.agnes-ai.com/en/docs/tokenplan"
+    key_url: "https://platform.agnes-ai.com"
+    key_placeholder: "API Key..."
+    provider_type: agnes
+    base_url: "https://apihub.agnes-ai.com/v1"
+    main_model: "agnes-2.0-flash"
+    native_function_calling: true
+    default_trust_level: 3
+    features:
+      vision: true
+      whisper: false
+      embeddings: false
+      helper: true
+      tts: false
+      image_generation: true
+      music_generation: false
+      video_generation: true
+    models:
+      vision:
+        model: "agnes-2.0-flash"
+      helper:
+        model: "agnes-2.0-flash"
+      image_generation:
+        provider_type: "agnes"
+        base_url: "https://apihub.agnes-ai.com/v1"
+        model: "agnes-image-2.1-flash"
+      video_generation:
+        provider_type: "agnes"
+        base_url: "https://apihub.agnes-ai.com/v1"
+        model: "agnes-video-v2.0"
+
   - id: minimax_coding
     name: "MiniMax Coding Plan"
     description: "MiniMax M2.7 token plan with optional High-Speed support. Strong value for creative + agentic code workflows."
     icon: "💻"
-    sort_order: 2
+    sort_order: 3
     recommended: true
     pricing_label: "Token plan – included models"
     pricing_url: "https://platform.minimax.io/docs/guides/pricing-token-plan"
@@ -105,7 +142,7 @@ profiles:
     name: "Alibaba Coding Plan"
     description: "Alibaba Qwen-Max models with coding optimizations. Strong multi-step reasoning."
     icon: "🛒"
-    sort_order: 3
+    sort_order: 4
     pricing_label: "Coding plan – included models"
     pricing_url: "https://www.alibabacloud.com"
     key_url: "https://dashscope.console.aliyun.com"
@@ -139,7 +176,7 @@ profiles:
     name: "StepFun Step Plan"
     description: "StepFun Step Plan models for fast agentic coding with a dedicated helper LLM."
     icon: "🪜"
-    sort_order: 4
+    sort_order: 5
     pricing_label: "Step Plan – included models"
     pricing_url: "https://platform.stepfun.com"
     key_url: "https://platform.stepfun.com"
@@ -166,7 +203,7 @@ profiles:
     name: "Kimi Code"
     description: "Moonshot AI Kimi models. Strong coding and extreme long-context capabilities."
     icon: "🌙"
-    sort_order: 5
+    sort_order: 6
     pricing_label: "Pay-per-use"
     pricing_url: "https://platform.moonshot.cn"
     key_url: "https://platform.moonshot.cn/console/api-keys"

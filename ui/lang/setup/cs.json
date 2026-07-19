@@ -201,5 +201,10 @@
   "setup.success_config_security": "Login & security",
   "setup.success_config_server": "Server & ports",
   "setup.success_config_backup": "Set up backups",
-  "setup.step1_embeddings_provider_local": "Místní Granite – automaticky"
+  "setup.step1_embeddings_provider_local": "Místní Granite – automaticky",
+  "setup.profile_agnes_ai_description": "Modely pro text, obrázky a video kompatibilní s OpenAI. Bezplatné použití je možné.",
+  "setup.profile_agnes_ai_name": "Agnes AI",
+  "setup.profile_agnes_ai_pricing": "Bezplatné použití je možné",
+  "setup.step0_provider_agnes": "Agnes AI",
+  "setup.step0_provider_hint_agnes": "Pro modely Agnes AI pro text, obrázky a video je možné bezplatné použití."
 }

@@ -201,5 +201,10 @@
   "setup.success_config_security": "Login & security",
   "setup.success_config_server": "Server & ports",
   "setup.success_config_backup": "Set up backups",
-  "setup.step1_embeddings_provider_local": "本地 Granite – 自动"
+  "setup.step1_embeddings_provider_local": "本地 Granite – 自动",
+  "setup.profile_agnes_ai_description": "兼容 OpenAI 的文本、图像和视频模型。可免费使用。",
+  "setup.profile_agnes_ai_name": "Agnes AI",
+  "setup.profile_agnes_ai_pricing": "可免费使用",
+  "setup.step0_provider_agnes": "Agnes AI",
+  "setup.step0_provider_hint_agnes": "Agnes AI 的文本、图像和视频模型可免费使用。"
 }

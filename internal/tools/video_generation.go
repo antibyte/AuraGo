@@ -28,6 +28,7 @@ const (
 	defaultMiniMaxVideoModel    = "MiniMax-Hailuo-2.3"
 	legacyMiniMaxHailuo23Preset = "Hailuo-2.3-768P"
 	defaultGoogleVideoModel     = "veo-3.1-generate-preview"
+	defaultAgnesVideoModel      = "agnes-video-v2.0"
 )
 
 // VideoGenParams holds the parameters for the generate_video tool call.
@@ -156,9 +157,11 @@ func GenerateVideoResult(ctx context.Context, cfg *config.Config, mediaDB *sql.D
 		result = generateVideoMiniMax(ctx, cfg.VideoGeneration.BaseURL, apiKey, model, params, cfg.VideoGeneration.PollIntervalSeconds, cfg.VideoGeneration.TimeoutSeconds, videoDir)
 	case "google", "google_veo":
 		result = generateVideoGoogle(ctx, cfg.VideoGeneration.BaseURL, apiKey, model, params, cfg.VideoGeneration.PollIntervalSeconds, cfg.VideoGeneration.TimeoutSeconds, videoDir)
+	case "agnes":
+		result = generateVideoAgnes(ctx, cfg.VideoGeneration.BaseURL, apiKey, model, params, cfg.VideoGeneration.PollIntervalSeconds, cfg.VideoGeneration.TimeoutSeconds, videoDir)
 	default:
 		videoCounterRelease()
-		return VideoGenResult{Status: "error", Error: fmt.Sprintf("Unknown video generation provider type: %q. Supported: minimax, google", providerType)}
+		return VideoGenResult{Status: "error", Error: fmt.Sprintf("Unknown video generation provider type: %q. Supported: minimax, google, agnes", providerType)}
 	}
 
 	if result.Status != "ok" {
@@ -788,6 +791,35 @@ func TestVideoConnection(ctx context.Context, provider, apiKey, baseURL string) 
 		}
 		defer resp.Body.Close()
 		if resp.StatusCode == http.StatusOK {
+			return true, "Connection successful"
+		}
+		if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+			return false, "Authentication failed - check your API key"
+		}
+		body, _ := io.ReadAll(resp.Body)
+		return false, fmt.Sprintf("API returned status %d: %s", resp.StatusCode, truncateString(string(body), 200))
+	case "agnes":
+		apiBase, _ := agnesVideoEndpoints(baseURL)
+		reqBody := map[string]interface{}{
+			"model": "agnes-2.0-flash",
+			"messages": []map[string]string{
+				{"role": "user", "content": "respond with ok"},
+			},
+			"max_tokens": 5,
+		}
+		bodyBytes, _ := json.Marshal(reqBody)
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, apiBase+"/chat/completions", bytes.NewReader(bodyBytes))
+		if err != nil {
+			return false, fmt.Sprintf("Request creation failed: %v", err)
+		}
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+apiKey)
+		resp, err := videoGenHTTPClient.Do(req)
+		if err != nil {
+			return false, fmt.Sprintf("Connection failed: %v", err)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode >= http.StatusOK && resp.StatusCode < http.StatusMultipleChoices {
 			return true, "Connection successful"
 		}
 		if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {

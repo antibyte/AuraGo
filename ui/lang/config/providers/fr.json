@@ -241,5 +241,7 @@
   "config.providers.copilot_unknown_error": "Inconnu",
   "config.providers.type_omniroute": "OmniRoute",
   "config.providers.omniroute_url_auto": "L'URL est resolue depuis les parametres OmniRoute.",
-  "config.providers.hint.omniroute": "Utilise les parametres OmniRoute. En mode gere, AuraGo communique avec le sidecar interne."
+  "config.providers.hint.omniroute": "Utilise les parametres OmniRoute. En mode gere, AuraGo communique avec le sidecar interne.",
+  "config.providers.hint.agnes": "API Agnes AI compatible avec OpenAI ; une utilisation gratuite est possible.",
+  "config.providers.type_agnes": "Agnes AI"
 }

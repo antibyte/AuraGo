@@ -201,5 +201,10 @@
   "setup.success_config_security": "Login & security",
   "setup.success_config_server": "Server & ports",
   "setup.success_config_backup": "Set up backups",
-  "setup.step1_embeddings_provider_local": "Local Granite – automatic"
+  "setup.step1_embeddings_provider_local": "Local Granite – automatic",
+  "setup.profile_agnes_ai_description": "OpenAI-compatible text, image, and video models. Free usage is available.",
+  "setup.profile_agnes_ai_name": "Agnes AI",
+  "setup.profile_agnes_ai_pricing": "Free usage available",
+  "setup.step0_provider_agnes": "Agnes AI",
+  "setup.step0_provider_hint_agnes": "Free usage is available for Agnes AI text, image, and video models."
 }

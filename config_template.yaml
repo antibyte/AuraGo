@@ -554,7 +554,7 @@ s3:
     insecure: false                                         # allow HTTP (non-TLS) endpoints
     # access_key and secret_key are stored in the encrypted vault — configure via Config UI
 # LLM Providers — configure via the Setup Wizard or Config UI
-# Supported types: openai, openrouter, ollama, anthropic, google, minimax,
+# Supported types: openai, openrouter, ollama, anthropic, google, minimax, agnes,
 # workers-ai, manifest, omniroute, yepapi, custom, deepseek, groq, mistral, xai,
 # moonshot, qwen, zai, llamacpp, lmstudio, copilot, opencode-go
 # Example: route through a managed or external Manifest.build gateway.
@@ -1346,7 +1346,7 @@ onedrive:
     tenant_id: common  # "common", "consumers", "organizations", or tenant UUID
 image_generation:
     enabled: false
-    provider: ""
+    provider: ""                   # references a ProviderEntry ID (types include openai, openrouter, minimax, google, agnes)
     model: ""
     default_size: "1024x1024"
     default_quality: "standard"
@@ -1360,10 +1360,10 @@ music_generation:
     max_daily: 0                   # 0 = unlimited
 video_generation:
     enabled: false
-    provider: ""                   # references a ProviderEntry ID (type: minimax or google)
-    model: ""                      # model override (empty = use provider default, e.g. MiniMax-Hailuo-2.3 or veo-3.1-generate-preview)
-    default_duration_seconds: 6    # MiniMax default: 6 seconds
-    default_resolution: "768P"     # MiniMax resolution preset (model is configured separately)
+    provider: ""                   # references a ProviderEntry ID (type: minimax, google, or agnes)
+    model: ""                      # model override (empty = use provider default, e.g. MiniMax-Hailuo-2.3, veo-3.1-generate-preview, or agnes-video-v2.0)
+    default_duration_seconds: 6    # default clip duration
+    default_resolution: "768P"     # provider-specific resolution preset (model is configured separately)
     default_aspect_ratio: "16:9"
     poll_interval_seconds: 10
     timeout_seconds: 600

@@ -241,5 +241,7 @@
   "config.providers.copilot_unknown_error": "Onbekend",
   "config.providers.type_omniroute": "OmniRoute",
   "config.providers.omniroute_url_auto": "URL wordt uit de OmniRoute-instellingen afgeleid.",
-  "config.providers.hint.omniroute": "Gebruikt de OmniRoute-instellingen. In beheerde modus praat AuraGo met de interne sidecar."
+  "config.providers.hint.omniroute": "Gebruikt de OmniRoute-instellingen. In beheerde modus praat AuraGo met de interne sidecar.",
+  "config.providers.hint.agnes": "OpenAI-compatibele Agnes AI-API; gratis gebruik is mogelijk.",
+  "config.providers.type_agnes": "Agnes AI"
 }

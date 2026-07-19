@@ -366,6 +366,7 @@ var runtimeProviderTypes = map[string]bool{
 	"ideogram":    true,
 	"vision":      true,
 	"minimax":     true,
+	"agnes":       true,
 	"glm":         true,
 	"yepapi":      true,
 	"huggingface": true,

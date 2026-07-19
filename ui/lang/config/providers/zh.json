@@ -241,5 +241,7 @@
   "config.providers.copilot_unknown_error": "未知",
   "config.providers.type_omniroute": "OmniRoute",
   "config.providers.omniroute_url_auto": "URL 从 OmniRoute 设置中解析。",
-  "config.providers.hint.omniroute": "使用 OmniRoute 集成设置。托管模式下 AuraGo 会与内部 sidecar 通信。"
+  "config.providers.hint.omniroute": "使用 OmniRoute 集成设置。托管模式下 AuraGo 会与内部 sidecar 通信。",
+  "config.providers.hint.agnes": "兼容 OpenAI 的 Agnes AI API；可免费使用。",
+  "config.providers.type_agnes": "Agnes AI"
 }

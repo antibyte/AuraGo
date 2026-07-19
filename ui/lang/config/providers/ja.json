@@ -241,5 +241,7 @@
   "config.providers.copilot_unknown_error": "不明",
   "config.providers.type_omniroute": "OmniRoute",
   "config.providers.omniroute_url_auto": "URL は OmniRoute 設定から解決されます。",
-  "config.providers.hint.omniroute": "OmniRoute 連携設定を使用します。管理モードでは AuraGo が内部 sidecar と通信します。"
+  "config.providers.hint.omniroute": "OmniRoute 連携設定を使用します。管理モードでは AuraGo が内部 sidecar と通信します。",
+  "config.providers.hint.agnes": "OpenAI互換のAgnes AI API。無料利用が可能です。",
+  "config.providers.type_agnes": "Agnes AI"
 }

@@ -273,9 +273,10 @@ func capabilitiesFromHeuristics(provider, model string) (ProviderCapabilityResul
 	isStepFun := strings.HasPrefix(lowerModel, "step-") || strings.Contains(lowerModel, "/step-")
 	isGPT := strings.HasPrefix(lowerModel, "gpt-") || strings.Contains(lowerModel, "/gpt-")
 	isGemini := strings.Contains(lowerModel, "gemini")
-	toolCalling := isDeepSeek || isClaude || isNemotron || isStepFun || isGPT || isGemini
-	structured := toolCalling && lowerProvider != "ollama"
-	multimodal := modelNameSuggestsMultimodal(lowerModel)
+	isAgnesFlash := lowerProvider == "agnes" && lowerModel == "agnes-2.0-flash"
+	toolCalling := isDeepSeek || isClaude || isNemotron || isStepFun || isGPT || isGemini || isAgnesFlash
+	structured := toolCalling && lowerProvider != "ollama" && !isAgnesFlash
+	multimodal := modelNameSuggestsMultimodal(lowerModel) || isAgnesFlash
 	if !toolCalling && !structured && !multimodal {
 		return ProviderCapabilityResult{}, false
 	}

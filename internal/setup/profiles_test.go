@@ -284,3 +284,40 @@ func TestLoadProfilesFallsBackOnMissingFile(t *testing.T) {
 		t.Fatal("expected fallback to embedded profiles when file is missing")
 	}
 }
+
+func TestAgnesProfileConfiguresTextHelperImageAndVideo(t *testing.T) {
+	t.Parallel()
+
+	profiles := LoadProfiles("", slog.Default())
+	for _, p := range profiles {
+		if p.ID != "agnes_ai" {
+			continue
+		}
+		if p.ProviderType != "agnes" || p.BaseURL != "https://apihub.agnes-ai.com/v1" {
+			t.Fatalf("agnes provider = %q at %q", p.ProviderType, p.BaseURL)
+		}
+		if p.MainModel != "agnes-2.0-flash" {
+			t.Fatalf("main model = %q", p.MainModel)
+		}
+		if !p.Features.Vision || !p.Features.Helper || !p.Features.ImageGeneration || !p.Features.VideoGeneration {
+			t.Fatalf("agnes features incomplete: %+v", p.Features)
+		}
+		if p.Models.Helper == nil || p.Models.Helper.Model != p.MainModel {
+			t.Fatalf("helper model = %+v, want %q", p.Models.Helper, p.MainModel)
+		}
+		if p.Models.ImageGeneration == nil ||
+			p.Models.ImageGeneration.ProviderType != "agnes" ||
+			p.Models.ImageGeneration.BaseURL != p.BaseURL ||
+			p.Models.ImageGeneration.Model != "agnes-image-2.1-flash" {
+			t.Fatalf("image generation config = %+v", p.Models.ImageGeneration)
+		}
+		if p.Models.VideoGeneration == nil ||
+			p.Models.VideoGeneration.ProviderType != "agnes" ||
+			p.Models.VideoGeneration.BaseURL != p.BaseURL ||
+			p.Models.VideoGeneration.Model != "agnes-video-v2.0" {
+			t.Fatalf("video generation config = %+v", p.Models.VideoGeneration)
+		}
+		return
+	}
+	t.Fatal("agnes_ai profile not found")
+}

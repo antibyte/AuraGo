@@ -938,6 +938,7 @@ let _providerCatalogPromise = null;
             google: 'https://generativelanguage.googleapis.com/v1beta/openai',
             huggingface: 'https://router.huggingface.co/v1',
             minimax: 'https://api.minimax.io/v1',
+            agnes: 'https://apihub.agnes-ai.com/v1',
             'workers-ai': '',
             manifest: '',
             omniroute: '',
@@ -964,6 +965,7 @@ let _providerCatalogPromise = null;
             anthropic: 'config.providers.hint.anthropic',
             google: 'config.providers.hint.google',
             openai: 'config.providers.hint.openai',
+            agnes: 'config.providers.hint.agnes',
             'workers-ai': 'config.providers.hint.workers_ai',
             manifest: 'config.providers.hint.manifest',
             omniroute: 'config.providers.hint.omniroute',
@@ -985,7 +987,7 @@ let _providerCatalogPromise = null;
             'opencode-go': 'config.providers.hint.opencode_go'
         };
 
-        const PROVIDER_TYPE_FALLBACKS = ['openai','openrouter','ollama','anthropic','google','huggingface','minimax','workers-ai','manifest','omniroute','yepapi','custom','deepseek','groq','mistral','xai','moonshot','qwen','zai','llamacpp','lmstudio','copilot','opencode-go'];
+        const PROVIDER_TYPE_FALLBACKS = ['openai','openrouter','ollama','anthropic','google','huggingface','minimax','agnes','workers-ai','manifest','omniroute','yepapi','custom','deepseek','groq','mistral','xai','moonshot','qwen','zai','llamacpp','lmstudio','copilot','opencode-go'];
 
         const PROVIDER_OAUTH_PRESETS = {
             google: {
