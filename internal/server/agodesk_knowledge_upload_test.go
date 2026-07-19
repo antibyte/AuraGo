@@ -1,16 +1,22 @@
 package server
 
 import (
+	"archive/zip"
+	"bytes"
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"aurago/internal/agodesk"
 	"aurago/internal/config"
+	"aurago/internal/memory"
 	"aurago/internal/services"
 )
 
@@ -231,6 +237,387 @@ func TestAgoDeskKnowledgeArchiveSecurityValidation(t *testing.T) {
 	}
 	if isAuthBypassed("/api/knowledge/upload") {
 		t.Fatal("existing knowledge API unexpectedly bypasses browser session auth")
+	}
+}
+
+func TestAgoDeskKnowledgeArchiveLimitReturnsTooLarge(t *testing.T) {
+	s := newAgodeskPairingTestServer(t)
+	knowledgeDir := t.TempDir()
+	s.Cfg.Auth.SessionSecret = strings.Repeat("s", 64)
+	s.Cfg.Indexing.Enabled = true
+	s.Cfg.Indexing.Directories = []config.IndexingDirectory{{Path: knowledgeDir}}
+	s.Cfg.Indexing.Extensions = []string{".docx"}
+	s.ShortTermMem = newAgodeskTestMemory(t)
+	s.LongTermMem = &knowledgeUploadVectorDB{}
+	s.FileIndexer = services.NewFileIndexer(s.Cfg, &s.CfgMu, s.LongTermMem, s.ShortTermMem, s.Logger)
+
+	var archive bytes.Buffer
+	writer := zip.NewWriter(&archive)
+	member, err := writer.Create("word/document.xml")
+	if err != nil {
+		t.Fatalf("create DOCX member: %v", err)
+	}
+	if _, err := member.Write(make([]byte, (8<<20)+1)); err != nil {
+		t.Fatalf("write DOCX member: %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("close DOCX: %v", err)
+	}
+	body := archive.Bytes()
+	now := time.Now().UTC()
+	record := memory.AgoDeskKnowledgeDocument{
+		DocumentID:         "kdoc-archive-limit",
+		PrepareID:          "prepare-archive-limit",
+		PrepareFingerprint: "fingerprint",
+		OwnerDeviceID:      "device-limit",
+		Filename:           "oversized.docx",
+		StoragePath:        filepath.Join(knowledgeDir, "oversized.docx"),
+		Collection:         services.IndexerCollection,
+		Title:              "Oversized",
+		DeclaredMime:       "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+		DeclaredSizeBytes:  int64(len(body)),
+		CreatedAt:          now,
+		ExpiresAt:          now.Add(agodeskKnowledgePrepareTTL),
+	}
+	if err := s.ShortTermMem.PrepareAgoDeskKnowledgeBatch([]memory.AgoDeskKnowledgeDocument{record}); err != nil {
+		t.Fatalf("PrepareAgoDeskKnowledgeBatch: %v", err)
+	}
+	t.Cleanup(func() { closeAgodeskKnowledgeCoordinatorForTest(s) })
+	httpServer := httptest.NewServer(handleAgodeskKnowledgeUpload(s))
+	defer httpServer.Close()
+
+	uploadURL := signAgodeskKnowledgeUploadPath(s, record.DocumentID, record.ExpiresAt)
+	statusCode, responseBody := postAgodeskAttachmentTestUpload(
+		t,
+		httpServer.URL+uploadURL,
+		agodeskKnowledgeUploadFormField,
+		record.Filename,
+		body,
+	)
+	if statusCode != http.StatusRequestEntityTooLarge || !strings.Contains(responseBody, agodesk.ErrorKnowledgeTooLarge) {
+		t.Fatalf("upload response = %d %s, want 413 %s", statusCode, responseBody, agodesk.ErrorKnowledgeTooLarge)
+	}
+	if _, err := os.Stat(record.StoragePath); !os.IsNotExist(err) {
+		t.Fatalf("oversized document was published: %v", err)
+	}
+	got, err := s.ShortTermMem.GetAgoDeskKnowledgeDocument(record.DocumentID)
+	if err != nil {
+		t.Fatalf("GetAgoDeskKnowledgeDocument: %v", err)
+	}
+	if got == nil || got.Status != memory.AgoDeskKnowledgeStatusFailed || got.ErrorCode != agodesk.ErrorKnowledgeTooLarge {
+		t.Fatalf("oversized document status = %+v", got)
+	}
+}
+
+func TestAgoDeskKnowledgeActiveUploadSurvivesPrepareExpiryAndPartCleanup(t *testing.T) {
+	s := newAgodeskPairingTestServer(t)
+	knowledgeDir := t.TempDir()
+	s.Cfg.Auth.SessionSecret = strings.Repeat("s", 64)
+	s.Cfg.Indexing.Enabled = true
+	s.Cfg.Indexing.Directories = []config.IndexingDirectory{{Path: knowledgeDir}}
+	s.Cfg.Indexing.Extensions = []string{".txt"}
+	s.ShortTermMem = newAgodeskTestMemory(t)
+	s.LongTermMem = &knowledgeUploadVectorDB{}
+	s.FileIndexer = services.NewFileIndexer(s.Cfg, &s.CfgMu, s.LongTermMem, s.ShortTermMem, s.Logger)
+
+	now := time.Now().UTC()
+	record := memory.AgoDeskKnowledgeDocument{
+		DocumentID:         "kdoc-active-cleanup",
+		PrepareID:          "prepare-active-cleanup",
+		PrepareFingerprint: "fingerprint",
+		OwnerDeviceID:      "device-active",
+		Filename:           "active.txt",
+		StoragePath:        filepath.Join(knowledgeDir, "active.txt"),
+		Collection:         services.IndexerCollection,
+		Title:              "Active",
+		DeclaredMime:       "text/plain",
+		DeclaredSizeBytes:  1,
+		CreatedAt:          now.Add(-10 * time.Minute),
+		ExpiresAt:          now.Add(-time.Minute),
+	}
+	if err := s.ShortTermMem.PrepareAgoDeskKnowledgeBatch([]memory.AgoDeskKnowledgeDocument{record}); err != nil {
+		t.Fatalf("PrepareAgoDeskKnowledgeBatch: %v", err)
+	}
+	coordinator := ensureAgodeskKnowledgeCoordinator(s)
+	t.Cleanup(func() { closeAgodeskKnowledgeCoordinatorForTest(s) })
+	if coordinator == nil {
+		t.Fatal("knowledge coordinator was not created")
+	}
+	if _, err := coordinator.claimUpload(record.DocumentID, record.ExpiresAt.Add(-time.Minute)); err != nil {
+		t.Fatalf("claimUpload: %v", err)
+	}
+
+	partPath := filepath.Join(knowledgeDir, agodeskKnowledgePartPrefix+record.DocumentID+"-stream.part")
+	if err := os.WriteFile(partPath, []byte("x"), 0o600); err != nil {
+		t.Fatalf("WriteFile part: %v", err)
+	}
+	old := now.Add(-2 * agodeskKnowledgePrepareTTL)
+	if err := os.Chtimes(partPath, old, old); err != nil {
+		t.Fatalf("Chtimes part: %v", err)
+	}
+	coordinator.maintain(now)
+	got, err := s.ShortTermMem.GetAgoDeskKnowledgeDocument(record.DocumentID)
+	if err != nil {
+		t.Fatalf("GetAgoDeskKnowledgeDocument active: %v", err)
+	}
+	if got == nil || got.Status != memory.AgoDeskKnowledgeStatusUploading {
+		t.Fatalf("active document = %+v, want uploading", got)
+	}
+	if _, err := os.Stat(partPath); err != nil {
+		t.Fatalf("active part file was removed: %v", err)
+	}
+	retryURL := signAgodeskKnowledgeUploadPath(s, record.DocumentID, now.Add(time.Minute))
+	retryRequest := httptest.NewRequest(http.MethodPost, retryURL, nil)
+	retryResponse := httptest.NewRecorder()
+	handleAgodeskKnowledgeUpload(s).ServeHTTP(retryResponse, retryRequest)
+	if retryResponse.Code != http.StatusConflict {
+		t.Fatalf("active upload retry status = %d, want %d; body=%s", retryResponse.Code, http.StatusConflict, retryResponse.Body.String())
+	}
+	got, err = s.ShortTermMem.GetAgoDeskKnowledgeDocument(record.DocumentID)
+	if err != nil {
+		t.Fatalf("GetAgoDeskKnowledgeDocument after retry: %v", err)
+	}
+	if got == nil || got.Status != memory.AgoDeskKnowledgeStatusUploading {
+		t.Fatalf("active retry changed document state: %+v", got)
+	}
+
+	coordinator.releaseUpload(record.DocumentID)
+	coordinator.reconcileUploading()
+	got, err = s.ShortTermMem.GetAgoDeskKnowledgeDocument(record.DocumentID)
+	if err != nil {
+		t.Fatalf("GetAgoDeskKnowledgeDocument orphaned: %v", err)
+	}
+	if got == nil || got.Status != memory.AgoDeskKnowledgeStatusFailed || got.ErrorCode != agodesk.ErrorKnowledgeExpired {
+		t.Fatalf("orphaned document = %+v, want failed/%s", got, agodesk.ErrorKnowledgeExpired)
+	}
+	coordinator.cleanupPartFiles(now)
+	if _, err := os.Stat(partPath); !os.IsNotExist(err) {
+		t.Fatalf("orphaned part file still exists: %v", err)
+	}
+}
+
+func TestAgoDeskKnowledgeCoordinatorFailsOrphanedUploadOnStart(t *testing.T) {
+	s := newAgodeskPairingTestServer(t)
+	knowledgeDir := t.TempDir()
+	s.Cfg.Auth.SessionSecret = strings.Repeat("s", 64)
+	s.Cfg.Indexing.Enabled = true
+	s.Cfg.Indexing.Directories = []config.IndexingDirectory{{Path: knowledgeDir}}
+	s.Cfg.Indexing.Extensions = []string{".txt"}
+	s.ShortTermMem = newAgodeskTestMemory(t)
+	s.LongTermMem = &knowledgeUploadVectorDB{}
+	s.FileIndexer = services.NewFileIndexer(s.Cfg, &s.CfgMu, s.LongTermMem, s.ShortTermMem, s.Logger)
+
+	now := time.Now().UTC()
+	record := memory.AgoDeskKnowledgeDocument{
+		DocumentID:         "kdoc-orphaned-start",
+		PrepareID:          "prepare-orphaned-start",
+		PrepareFingerprint: "fingerprint",
+		OwnerDeviceID:      "device-orphaned",
+		Filename:           "orphaned.txt",
+		StoragePath:        filepath.Join(knowledgeDir, "orphaned.txt"),
+		Collection:         services.IndexerCollection,
+		Title:              "Orphaned",
+		DeclaredMime:       "text/plain",
+		DeclaredSizeBytes:  1,
+		CreatedAt:          now,
+		ExpiresAt:          now.Add(agodeskKnowledgePrepareTTL),
+	}
+	if err := s.ShortTermMem.PrepareAgoDeskKnowledgeBatch([]memory.AgoDeskKnowledgeDocument{record}); err != nil {
+		t.Fatalf("PrepareAgoDeskKnowledgeBatch: %v", err)
+	}
+	if _, err := s.ShortTermMem.MarkAgoDeskKnowledgeUploading(record.DocumentID, now); err != nil {
+		t.Fatalf("MarkAgoDeskKnowledgeUploading: %v", err)
+	}
+	if ensureAgodeskKnowledgeCoordinator(s) == nil {
+		t.Fatal("knowledge coordinator was not created")
+	}
+	t.Cleanup(func() { closeAgodeskKnowledgeCoordinatorForTest(s) })
+
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		got, err := s.ShortTermMem.GetAgoDeskKnowledgeDocument(record.DocumentID)
+		if err != nil {
+			t.Fatalf("GetAgoDeskKnowledgeDocument: %v", err)
+		}
+		if got != nil && got.Status == memory.AgoDeskKnowledgeStatusFailed {
+			if got.ErrorCode != agodesk.ErrorKnowledgeExpired {
+				t.Fatalf("orphaned error code = %q, want %q", got.ErrorCode, agodesk.ErrorKnowledgeExpired)
+			}
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("orphaned upload did not fail: %+v", got)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+func TestAgoDeskKnowledgeExpiryAndUploadClaimAreSerialized(t *testing.T) {
+	s := newAgodeskPairingTestServer(t)
+	knowledgeDir := t.TempDir()
+	s.Cfg.Indexing.Enabled = true
+	s.Cfg.Indexing.Directories = []config.IndexingDirectory{{Path: knowledgeDir}}
+	s.ShortTermMem = newAgodeskTestMemory(t)
+	coordinator := &agodeskKnowledgeCoordinator{
+		server: s,
+		ctx:    context.Background(),
+		active: make(map[string]struct{}),
+	}
+
+	for attempt := 0; attempt < 50; attempt++ {
+		now := time.Now().UTC()
+		documentID := "kdoc-expiry-race-" + strconv.Itoa(attempt)
+		record := memory.AgoDeskKnowledgeDocument{
+			DocumentID:         documentID,
+			PrepareID:          "prepare-expiry-race-" + strconv.Itoa(attempt),
+			PrepareFingerprint: "fingerprint",
+			OwnerDeviceID:      "device-race",
+			Filename:           "race-" + strconv.Itoa(attempt) + ".txt",
+			StoragePath:        filepath.Join(knowledgeDir, "race-"+strconv.Itoa(attempt)+".txt"),
+			Collection:         services.IndexerCollection,
+			Title:              "Race",
+			DeclaredMime:       "text/plain",
+			DeclaredSizeBytes:  1,
+			CreatedAt:          now.Add(-10 * time.Minute),
+			ExpiresAt:          now.Add(-time.Millisecond),
+		}
+		if err := s.ShortTermMem.PrepareAgoDeskKnowledgeBatch([]memory.AgoDeskKnowledgeDocument{record}); err != nil {
+			t.Fatalf("attempt %d PrepareAgoDeskKnowledgeBatch: %v", attempt, err)
+		}
+
+		start := make(chan struct{})
+		claimResult := make(chan error, 1)
+		var wait sync.WaitGroup
+		wait.Add(2)
+		go func() {
+			defer wait.Done()
+			<-start
+			_, err := coordinator.claimUpload(documentID, now.Add(-2*time.Millisecond))
+			claimResult <- err
+		}()
+		go func() {
+			defer wait.Done()
+			<-start
+			coordinator.maintain(now)
+		}()
+		close(start)
+		wait.Wait()
+		claimErr := <-claimResult
+
+		got, err := s.ShortTermMem.GetAgoDeskKnowledgeDocument(documentID)
+		if err != nil {
+			t.Fatalf("attempt %d GetAgoDeskKnowledgeDocument: %v", attempt, err)
+		}
+		if claimErr == nil {
+			if got == nil || got.Status != memory.AgoDeskKnowledgeStatusUploading {
+				t.Fatalf("attempt %d successful claim raced into state %+v", attempt, got)
+			}
+			coordinator.releaseUpload(documentID)
+			if _, err := s.ShortTermMem.MarkAgoDeskKnowledgeFailed(documentID, agodesk.ErrorKnowledgeExpired, "test cleanup", now); err != nil {
+				t.Fatalf("attempt %d cleanup failed: %v", attempt, err)
+			}
+			continue
+		}
+		if got == nil || got.Status != memory.AgoDeskKnowledgeStatusFailed {
+			t.Fatalf("attempt %d rejected claim left state %+v; error=%v", attempt, got, claimErr)
+		}
+	}
+}
+
+func TestAgoDeskKnowledgeShutdownPreventsCoordinatorRecreation(t *testing.T) {
+	s := newAgodeskPairingTestServer(t)
+	rootCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	configureAgodeskKnowledgeLifecycle(s, rootCtx)
+	if ensureAgodeskKnowledgeCoordinator(s) == nil {
+		t.Fatal("knowledge coordinator was not created")
+	}
+
+	s.closeRuntimeResources()
+	if coordinator := ensureAgodeskKnowledgeCoordinator(s); coordinator != nil {
+		coordinator.Close()
+		t.Fatal("knowledge coordinator was recreated after shutdown")
+	}
+	broker := currentAgodeskDesktopBroker(s)
+	if broker == nil {
+		t.Fatal("AgoDesk broker is missing")
+	}
+	broker.knowledgeMu.Lock()
+	defer broker.knowledgeMu.Unlock()
+	if !broker.knowledgeClosed || broker.knowledge != nil {
+		t.Fatalf("knowledge lifecycle after shutdown: closed=%v coordinator=%p", broker.knowledgeClosed, broker.knowledge)
+	}
+}
+
+func TestAgoDeskKnowledgeProcessingRejectsWhitespaceWithoutVectors(t *testing.T) {
+	s := newAgodeskPairingTestServer(t)
+	knowledgeDir := t.TempDir()
+	s.Cfg.Auth.SessionSecret = strings.Repeat("s", 64)
+	s.Cfg.Indexing.Enabled = true
+	s.Cfg.Indexing.Directories = []config.IndexingDirectory{{Path: knowledgeDir}}
+	s.Cfg.Indexing.Extensions = []string{".txt"}
+	s.ShortTermMem = newAgodeskTestMemory(t)
+	s.LongTermMem = &knowledgeUploadVectorDB{}
+	s.FileIndexer = services.NewFileIndexer(s.Cfg, &s.CfgMu, s.LongTermMem, s.ShortTermMem, s.Logger)
+
+	now := time.Now().UTC()
+	path := filepath.Join(knowledgeDir, "whitespace.txt")
+	body := []byte(" \r\n\t ")
+	if err := os.WriteFile(path, body, 0o640); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	record := memory.AgoDeskKnowledgeDocument{
+		DocumentID:         "kdoc-whitespace",
+		PrepareID:          "prepare-whitespace",
+		PrepareFingerprint: "fingerprint",
+		OwnerDeviceID:      "device-whitespace",
+		Filename:           filepath.Base(path),
+		StoragePath:        path,
+		Collection:         services.IndexerCollection,
+		Title:              "Whitespace",
+		DeclaredMime:       "text/plain",
+		DeclaredSizeBytes:  int64(len(body)),
+		CreatedAt:          now,
+		ExpiresAt:          now.Add(agodeskKnowledgePrepareTTL),
+	}
+	if err := s.ShortTermMem.PrepareAgoDeskKnowledgeBatch([]memory.AgoDeskKnowledgeDocument{record}); err != nil {
+		t.Fatalf("PrepareAgoDeskKnowledgeBatch: %v", err)
+	}
+	if _, err := s.ShortTermMem.MarkAgoDeskKnowledgeUploading(record.DocumentID, now); err != nil {
+		t.Fatalf("MarkAgoDeskKnowledgeUploading: %v", err)
+	}
+	if _, err := s.ShortTermMem.MarkAgoDeskKnowledgeProcessing(record.DocumentID, "text/plain", int64(len(body)), "hash", now); err != nil {
+		t.Fatalf("MarkAgoDeskKnowledgeProcessing: %v", err)
+	}
+	coordinator := &agodeskKnowledgeCoordinator{server: s, ctx: context.Background()}
+	coordinator.process(record.DocumentID)
+
+	got, err := s.ShortTermMem.GetAgoDeskKnowledgeDocument(record.DocumentID)
+	if err != nil {
+		t.Fatalf("GetAgoDeskKnowledgeDocument: %v", err)
+	}
+	if got == nil || got.Status != memory.AgoDeskKnowledgeStatusFailed || got.ErrorCode != agodesk.ErrorKnowledgeIngestFailed {
+		t.Fatalf("whitespace document = %+v, want failed/%s", got, agodesk.ErrorKnowledgeIngestFailed)
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("failed document file still exists: %v", err)
+	}
+}
+
+func TestSanitizeAgoDeskKnowledgeErrorHidesInternalDetails(t *testing.T) {
+	for _, message := range []string{
+		`provider failed for C:\AuraGo\data\knowledge\private.txt`,
+		"provider failed for /srv/aurago/data/knowledge/private.txt",
+		"api_key=sk-test-secret-value",
+		"upstream https://provider.invalid/v1 returned diagnostics",
+	} {
+		if got := sanitizeAgodeskKnowledgeError(message); got != "Knowledge ingest failed." {
+			t.Fatalf("sanitizeAgodeskKnowledgeError(%q) = %q", message, got)
+		}
+	}
+	const controlled = "Uploaded document exceeds safe archive extraction limits."
+	if got := sanitizeAgodeskKnowledgeError(controlled); got != controlled {
+		t.Fatalf("controlled error = %q, want %q", got, controlled)
 	}
 }
 

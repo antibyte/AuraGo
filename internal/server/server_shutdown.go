@@ -39,6 +39,8 @@ func (s *Server) closeRuntimeResources() {
 	}
 	if broker := currentAgodeskDesktopBroker(s); broker != nil {
 		broker.knowledgeMu.Lock()
+		broker.knowledgeClosed = true
+		broker.knowledgeCtx = nil
 		knowledge := broker.knowledge
 		broker.knowledge = nil
 		broker.knowledgeMu.Unlock()

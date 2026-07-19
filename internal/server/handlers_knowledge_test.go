@@ -1,6 +1,7 @@
 package server
 
 import (
+	"archive/zip"
 	"bytes"
 	"io"
 	"log/slog"
@@ -141,6 +142,77 @@ func TestHandleKnowledgeUploadRejectsOverwrite(t *testing.T) {
 	}
 	if strings.TrimSpace(string(content)) != "existing" {
 		t.Fatalf("existing file was modified: %q", string(content))
+	}
+}
+
+func TestHandleKnowledgeUploadRejectsUnsafeDocumentArchives(t *testing.T) {
+	tests := []struct {
+		name       string
+		body       func(t *testing.T) []byte
+		wantStatus int
+	}{
+		{
+			name: "invalid container",
+			body: func(t *testing.T) []byte {
+				return []byte("not a ZIP document")
+			},
+			wantStatus: http.StatusUnsupportedMediaType,
+		},
+		{
+			name: "oversized XML member",
+			body: func(t *testing.T) []byte {
+				t.Helper()
+				var archive bytes.Buffer
+				writer := zip.NewWriter(&archive)
+				member, err := writer.Create("word/document.xml")
+				if err != nil {
+					t.Fatalf("create DOCX member: %v", err)
+				}
+				if _, err := member.Write(make([]byte, (8<<20)+1)); err != nil {
+					t.Fatalf("write DOCX member: %v", err)
+				}
+				if err := writer.Close(); err != nil {
+					t.Fatalf("close DOCX: %v", err)
+				}
+				return archive.Bytes()
+			},
+			wantStatus: http.StatusRequestEntityTooLarge,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			dir := t.TempDir()
+			cfg := &config.Config{}
+			cfg.Indexing.Directories = []config.IndexingDirectory{{Path: dir}}
+			cfg.Indexing.Extensions = []string{".docx"}
+			s := &Server{Cfg: cfg, Logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
+
+			body := &bytes.Buffer{}
+			multipartWriter := multipart.NewWriter(body)
+			part, err := multipartWriter.CreateFormFile("file", "document.docx")
+			if err != nil {
+				t.Fatalf("CreateFormFile: %v", err)
+			}
+			if _, err := part.Write(test.body(t)); err != nil {
+				t.Fatalf("write multipart body: %v", err)
+			}
+			if err := multipartWriter.Close(); err != nil {
+				t.Fatalf("close multipart writer: %v", err)
+			}
+
+			req := httptest.NewRequest(http.MethodPost, "/api/knowledge/upload", body)
+			req.Header.Set("Content-Type", multipartWriter.FormDataContentType())
+			rec := httptest.NewRecorder()
+			handleKnowledgeUpload(s).ServeHTTP(rec, req)
+
+			if rec.Code != test.wantStatus {
+				t.Fatalf("status = %d, want %d; body=%s", rec.Code, test.wantStatus, rec.Body.String())
+			}
+			if _, err := os.Stat(filepath.Join(dir, "document.docx")); !os.IsNotExist(err) {
+				t.Fatalf("rejected document archive still exists: %v", err)
+			}
+		})
 	}
 }
 

@@ -93,12 +93,14 @@ type agodeskActiveChatRun struct {
 }
 
 type agodeskDesktopBroker struct {
-	hub         *remote.RemoteHub
-	logger      *slog.Logger
-	mu          sync.RWMutex
-	sessions    map[string]*agodeskDesktopSession
-	knowledgeMu sync.Mutex
-	knowledge   *agodeskKnowledgeCoordinator
+	hub             *remote.RemoteHub
+	logger          *slog.Logger
+	mu              sync.RWMutex
+	sessions        map[string]*agodeskDesktopSession
+	knowledgeMu     sync.Mutex
+	knowledge       *agodeskKnowledgeCoordinator
+	knowledgeCtx    context.Context
+	knowledgeClosed bool
 }
 
 type agodeskDesktopSession struct {

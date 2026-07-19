@@ -147,12 +147,29 @@ func ExtractText(path string) (string, error) {
 	case ".pdf":
 		return extractPDFText(path)
 	case ".docx":
+		if err := ValidateDocumentArchive(path, "word/document.xml", ""); err != nil {
+			return "", fmt.Errorf("invalid DOCX archive: %w", err)
+		}
 		return extractDOCXText(path)
 	case ".xlsx":
+		if err := ValidateDocumentArchive(path, "xl/workbook.xml", ""); err != nil {
+			return "", fmt.Errorf("invalid XLSX archive: %w", err)
+		}
 		return extractXLSXText(path)
 	case ".pptx":
+		if err := ValidateDocumentArchive(path, "ppt/presentation.xml", ""); err != nil {
+			return "", fmt.Errorf("invalid PPTX archive: %w", err)
+		}
 		return extractPPTXText(path)
 	case ".odt", ".ods", ".odp":
+		requiredMimetype := map[string]string{
+			".odt": "application/vnd.oasis.opendocument.text",
+			".ods": "application/vnd.oasis.opendocument.spreadsheet",
+			".odp": "application/vnd.oasis.opendocument.presentation",
+		}[ext]
+		if err := ValidateDocumentArchive(path, "content.xml", requiredMimetype); err != nil {
+			return "", fmt.Errorf("invalid ODF archive: %w", err)
+		}
 		return extractODFText(path)
 	case ".rtf":
 		return extractRTFText(path)
@@ -203,14 +220,21 @@ func extractDOCXText(path string) (string, error) {
 	}
 	defer r.Close()
 
+	budget := newDocumentArchiveBudget()
 	for _, f := range r.File {
 		if f.Name == "word/document.xml" {
-			rc, err := f.Open()
+			raw, err := readDocumentArchiveMember(f, budget)
 			if err != nil {
 				return "", fmt.Errorf("failed to read document.xml: %w", err)
 			}
-			defer rc.Close()
-			return extractXMLText(io.LimitReader(rc, maxArchiveMemberBytes), "t")
+			text, err := extractXMLText(bytes.NewReader(raw), "t")
+			if err != nil {
+				return "", fmt.Errorf("failed to parse document.xml: %w", err)
+			}
+			if strings.TrimSpace(text) == "" {
+				return "", fmt.Errorf("no text content found in DOCX")
+			}
+			return text, nil
 		}
 	}
 
@@ -228,17 +252,13 @@ func extractXLSXText(path string) (string, error) {
 	defer r.Close()
 
 	var parts []string
+	budget := newDocumentArchiveBudget()
 
 	// 1. Read shared strings
 	sharedStrings := make(map[int]string)
 	for _, f := range r.File {
 		if f.Name == "xl/sharedStrings.xml" {
-			rc, err := f.Open()
-			if err != nil {
-				break
-			}
-			data, readErr := readLimitedAll(rc, maxArchiveMemberBytes)
-			rc.Close()
+			data, readErr := readDocumentArchiveMember(f, budget)
 			if readErr != nil {
 				return "", fmt.Errorf("failed to read shared strings: %w", readErr)
 			}
@@ -249,8 +269,11 @@ func extractXLSXText(path string) (string, error) {
 			inSI := false
 			for {
 				tok, err := decoder.Token()
-				if err != nil {
+				if err == io.EOF {
 					break
+				}
+				if err != nil {
+					return "", fmt.Errorf("failed to parse shared strings: %w", err)
 				}
 				switch t := tok.(type) {
 				case xml.StartElement:
@@ -278,12 +301,14 @@ func extractXLSXText(path string) (string, error) {
 	// 2. Read sheet data
 	for _, f := range r.File {
 		if strings.HasPrefix(f.Name, "xl/worksheets/sheet") && strings.HasSuffix(f.Name, ".xml") {
-			rc, err := f.Open()
-			if err != nil {
-				continue
+			raw, readErr := readDocumentArchiveMember(f, budget)
+			if readErr != nil {
+				return "", fmt.Errorf("failed to read worksheet: %w", readErr)
 			}
-			text, _ := extractXMLText(io.LimitReader(rc, maxArchiveMemberBytes), "v")
-			rc.Close()
+			text, parseErr := extractXMLText(bytes.NewReader(raw), "v")
+			if parseErr != nil {
+				return "", fmt.Errorf("failed to parse worksheet: %w", parseErr)
+			}
 			if text != "" {
 				parts = append(parts, text)
 			}
@@ -317,14 +342,17 @@ func extractPPTXText(path string) (string, error) {
 	defer r.Close()
 
 	var parts []string
+	budget := newDocumentArchiveBudget()
 	for _, f := range r.File {
 		if strings.HasPrefix(f.Name, "ppt/slides/slide") && strings.HasSuffix(f.Name, ".xml") {
-			rc, err := f.Open()
-			if err != nil {
-				continue
+			raw, readErr := readDocumentArchiveMember(f, budget)
+			if readErr != nil {
+				return "", fmt.Errorf("failed to read slide: %w", readErr)
 			}
-			text, _ := extractXMLText(io.LimitReader(rc, maxArchiveMemberBytes), "t")
-			rc.Close()
+			text, parseErr := extractXMLText(bytes.NewReader(raw), "t")
+			if parseErr != nil {
+				return "", fmt.Errorf("failed to parse slide: %w", parseErr)
+			}
 			if text != "" {
 				parts = append(parts, text)
 			}
@@ -348,15 +376,22 @@ func extractODFText(path string) (string, error) {
 	}
 	defer r.Close()
 
+	budget := newDocumentArchiveBudget()
 	for _, f := range r.File {
 		if f.Name == "content.xml" {
-			rc, err := f.Open()
+			raw, err := readDocumentArchiveMember(f, budget)
 			if err != nil {
 				return "", fmt.Errorf("failed to read content.xml: %w", err)
 			}
-			defer rc.Close()
 			// ODF uses <text:p> elements, but extracting all text nodes works too
-			return extractAllXMLText(io.LimitReader(rc, maxArchiveMemberBytes))
+			text, err := extractAllXMLText(bytes.NewReader(raw))
+			if err != nil {
+				return "", fmt.Errorf("failed to parse content.xml: %w", err)
+			}
+			if strings.TrimSpace(text) == "" {
+				return "", fmt.Errorf("no text content found in ODF")
+			}
+			return text, nil
 		}
 	}
 
@@ -414,8 +449,11 @@ func extractXMLText(r io.Reader, elementName string) (string, error) {
 
 	for {
 		tok, err := decoder.Token()
-		if err != nil {
+		if err == io.EOF {
 			break
+		}
+		if err != nil {
+			return "", err
 		}
 		switch t := tok.(type) {
 		case xml.StartElement:
@@ -446,8 +484,11 @@ func extractAllXMLText(r io.Reader) (string, error) {
 
 	for {
 		tok, err := decoder.Token()
-		if err != nil {
+		if err == io.EOF {
 			break
+		}
+		if err != nil {
+			return "", err
 		}
 		if charData, ok := tok.(xml.CharData); ok {
 			s := strings.TrimSpace(string(charData))

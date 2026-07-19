@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"mime"
@@ -10,6 +11,9 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"aurago/internal/security"
+	"aurago/internal/services"
 )
 
 type knowledgeFileEntry struct {
@@ -146,6 +150,16 @@ func handleKnowledgeUpload(s *Server) http.HandlerFunc {
 			jsonError(w, "Could not store uploaded file", http.StatusInternalServerError)
 			return
 		}
+		if err := validateKnowledgeUploadArchive(destPath); err != nil {
+			_ = os.Remove(destPath)
+			s.Logger.Warn("Rejected unsafe knowledge document archive", "file", safeName, "error", security.RedactSensitiveInfo(security.Scrub(err.Error())))
+			if errors.Is(err, services.ErrDocumentArchiveTooLarge) {
+				jsonError(w, "Document archive exceeds safe extraction limits", http.StatusRequestEntityTooLarge)
+				return
+			}
+			jsonError(w, "Document archive is invalid or unsafe", http.StatusUnsupportedMediaType)
+			return
+		}
 
 		s.Logger.Info("Knowledge file uploaded", "file", safeName)
 		if s.FileIndexer != nil {
@@ -155,6 +169,25 @@ func handleKnowledgeUpload(s *Server) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
 		json.NewEncoder(w).Encode(map[string]string{"status": "uploaded", "name": safeName})
+	}
+}
+
+func validateKnowledgeUploadArchive(path string) error {
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".docx":
+		return services.ValidateDocumentArchive(path, "word/document.xml", "")
+	case ".xlsx":
+		return services.ValidateDocumentArchive(path, "xl/workbook.xml", "")
+	case ".pptx":
+		return services.ValidateDocumentArchive(path, "ppt/presentation.xml", "")
+	case ".odt":
+		return services.ValidateDocumentArchive(path, "content.xml", "application/vnd.oasis.opendocument.text")
+	case ".ods":
+		return services.ValidateDocumentArchive(path, "content.xml", "application/vnd.oasis.opendocument.spreadsheet")
+	case ".odp":
+		return services.ValidateDocumentArchive(path, "content.xml", "application/vnd.oasis.opendocument.presentation")
+	default:
+		return nil
 	}
 }
 

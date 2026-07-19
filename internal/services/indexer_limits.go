@@ -11,7 +11,6 @@ import (
 const (
 	maxIndexedFileBytes    int64 = 32 << 20
 	maxIndexedContentBytes       = 500 << 10
-	maxArchiveMemberBytes  int64 = 8 << 20
 )
 
 func shouldSkipIndexingFile(info os.FileInfo) (bool, string) {

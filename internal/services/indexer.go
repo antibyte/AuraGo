@@ -17,6 +17,7 @@ import (
 	"aurago/internal/chunking"
 	"aurago/internal/config"
 	"aurago/internal/memory"
+	"aurago/internal/security"
 	"aurago/internal/tools"
 )
 
@@ -24,6 +25,8 @@ import (
 const IndexerCollection = "file_index"
 
 const fileIndexerFingerprint = "file-indexer-v3"
+
+var ErrNoIndexableContent = stderrors.New("file contains no indexable content")
 
 // Retry constants for indexing operations (aligned with KnowledgeGraph retry pattern).
 const (
@@ -64,7 +67,7 @@ type FileIndexer struct {
 	runToken          *struct{}
 	lifecycleMu       sync.Mutex
 	runWg             sync.WaitGroup
-	scanMu            sync.Mutex
+	scanGate          chan struct{}
 	mu                sync.RWMutex
 	status            IndexerStatus
 	extensions        map[string]bool
@@ -84,6 +87,7 @@ func NewFileIndexer(cfg *config.Config, cfgMu *sync.RWMutex, vectorDB memory.Vec
 		stm:        stm,
 		logger:     logger,
 		extensions: buildIndexingExtensionSet(cfg.Indexing.Extensions),
+		scanGate:   make(chan struct{}, 1),
 		kgSyncSem:  make(chan struct{}, fileIndexerKGSyncConcurrency),
 	}
 }
@@ -242,18 +246,31 @@ func (fi *FileIndexer) IndexFile(ctx context.Context, directory config.IndexingD
 		return FileIngestResult{}, err
 	}
 
-	fi.scanMu.Lock()
-	defer fi.scanMu.Unlock()
-	if err := ctx.Err(); err != nil {
+	if err := fi.acquireScanGate(ctx); err != nil {
 		return FileIngestResult{}, err
 	}
-	_, _, scanErrors := fi.scanDirectory(ctx, root, collection, target)
-	if len(scanErrors) > 0 {
-		return FileIngestResult{}, fmt.Errorf("index file: %s", strings.Join(scanErrors, "; "))
+	defer fi.releaseScanGate()
+	info, err = os.Lstat(target)
+	if err != nil {
+		return FileIngestResult{}, fmt.Errorf("restat indexed file: %w", err)
+	}
+	if info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+		return FileIngestResult{}, fmt.Errorf("indexed path must remain a regular file")
+	}
+
+	outcome := fi.indexFileCore(ctx, root, collection, target, info)
+	if outcome.err != nil {
+		return FileIngestResult{}, fmt.Errorf("index file: %w", outcome.err)
+	}
+	if !outcome.eligible || outcome.noContent {
+		return FileIngestResult{}, ErrNoIndexableContent
 	}
 	documentIDs, err := fi.stm.GetFileEmbeddingDocIDs(target, collection)
 	if err != nil {
 		return FileIngestResult{}, fmt.Errorf("load indexed document IDs: %w", err)
+	}
+	if len(documentIDs) == 0 {
+		return FileIngestResult{}, ErrNoIndexableContent
 	}
 	return FileIngestResult{
 		DocumentIDs: documentIDs,
@@ -279,11 +296,11 @@ func (fi *FileIndexer) scan(ctx context.Context) {
 	if err := ctx.Err(); err != nil {
 		return
 	}
-	if !fi.scanMu.TryLock() {
+	if !fi.tryAcquireScanGate() {
 		fi.logger.Info("[Indexer] Scan already running, skipping overlapping request")
 		return
 	}
-	defer fi.scanMu.Unlock()
+	defer fi.releaseScanGate()
 
 	start := time.Now()
 	fi.logger.Debug("[Indexer] Starting scan...")
@@ -429,24 +446,16 @@ func getDirCollection(dir config.IndexingDirectory) string {
 }
 
 // scanDirectory walks a single directory (recursively) and indexes supported files.
-func (fi *FileIndexer) scanDirectory(ctx context.Context, dir, collection string, targetPaths ...string) (totalFiles, indexedFiles int, errors []string) {
+func (fi *FileIndexer) scanDirectory(ctx context.Context, dir, collection string) (totalFiles, indexedFiles int, errors []string) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
 	if err := ctx.Err(); err != nil {
 		return 0, 0, nil
 	}
-	targetPath := ""
-	if len(targetPaths) > 0 {
-		targetPath = filepath.Clean(strings.TrimSpace(targetPaths[0]))
-	}
-	var trackedPaths []string
-	if targetPath == "" {
-		var trackedErr error
-		trackedPaths, trackedErr = fi.stm.ListIndexedFiles(collection)
-		if trackedErr != nil {
-			errors = append(errors, fmt.Sprintf("list indexed files %s: %v", dir, trackedErr))
-		}
+	trackedPaths, trackedErr := fi.stm.ListIndexedFiles(collection)
+	if trackedErr != nil {
+		errors = append(errors, fmt.Sprintf("list indexed files %s: %v", dir, trackedErr))
 	}
 	seenPaths := make(map[string]struct{})
 
@@ -476,260 +485,18 @@ func (fi *FileIndexer) scanDirectory(ctx context.Context, dir, collection string
 			}
 			return nil
 		}
-		if targetPath != "" && filepath.Clean(path) != targetPath {
+		outcome := fi.indexFileCore(ctx, dir, collection, path, info)
+		if outcome.eligible {
+			totalFiles++
+			seenPaths[path] = struct{}{}
+		}
+		if outcome.err != nil {
+			errors = append(errors, outcome.err.Error())
 			return nil
 		}
-
-		// Check extension
-		ext := strings.ToLower(filepath.Ext(info.Name()))
-		isImage := IsImageFile(ext)
-		isAudio := IsAudioFile(ext)
-
-		// Determine config flags (read under lock since cfg can change)
-		fi.cfgMu.RLock()
-		indexImages := fi.cfg.Indexing.IndexImages
-		multimodal := fi.cfg.Embeddings.Multimodal
-		fi.cfgMu.RUnlock()
-
-		// Accept: configured text/document extension, OR image when IndexImages or multimodal is enabled,
-		// OR audio when multimodal is enabled
-		accepted := fi.extensions[ext] ||
-			(isImage && (indexImages || multimodal)) ||
-			(isAudio && multimodal)
-		if !accepted {
-			return nil
+		if outcome.indexed {
+			indexedFiles++
 		}
-		if skip, reason := shouldSkipIndexingFile(info); skip {
-			errors = append(errors, fmt.Sprintf("skip %s: %s", path, reason))
-			fi.logger.Warn("[Indexer] Skipping oversized file", "path", path, "reason", reason)
-			return nil
-		}
-
-		// Binary safety: skip executables and binary files.
-		if IsBinaryFile(path) {
-			fi.logger.Debug("[Indexer] Skipping binary file", "path", path)
-			return nil
-		}
-
-		totalFiles++
-		seenPaths[path] = struct{}{}
-
-		indexMode := fi.indexModeForFile(ext, isImage, isAudio, multimodal)
-		rawHash, hashErr := hashIndexedFileBytes(path)
-		if hashErr != nil {
-			errors = append(errors, fmt.Sprintf("hash error %s: %v", path, hashErr))
-			return nil
-		}
-		indexFingerprint := fi.indexFingerprintForMode(indexMode)
-		indexState, stateErr := fi.stm.GetFileIndexState(path, collection)
-		if stateErr != nil {
-			errors = append(errors, fmt.Sprintf("get file index %s: %v", path, stateErr))
-			return nil
-		}
-		if !shouldReindexFile(rawHash, indexFingerprint, indexState) {
-			return nil
-		}
-
-		// Build relative path for concept
-		relPath, _ := filepath.Rel(dir, path)
-		if relPath == "" {
-			relPath = info.Name()
-		}
-		fileMetadata, metadataErr := fi.stm.GetFileIndexMetadata(path, collection)
-		if metadataErr != nil {
-			errors = append(errors, fmt.Sprintf("metadata error %s: %v", path, metadataErr))
-			return nil
-		}
-
-		var content string
-		var precomputedEmbedding []float32
-
-		// Multimodal path: images and audio via multimodal embedding API.
-		if multimodal && (isImage || isAudio) {
-			embedder := fi.getMultimodalEmbedder()
-			if embedder == nil {
-				errors = append(errors, fmt.Sprintf("multimodal embedder unavailable for %s", path))
-				return nil
-			}
-			vec, embedErr := fi.indexEmbedWithRetry(ctx, func(ctx context.Context) ([]float32, error) {
-				return embedder.EmbedFile(ctx, path)
-			}, path, "multimodal")
-			if embedErr != nil {
-				errors = append(errors, fmt.Sprintf("multimodal embed error %s: %v", path, embedErr))
-				fi.logger.Warn("[Indexer] Multimodal embedding failed", "path", path, "error", embedErr)
-				return nil
-			}
-			precomputedEmbedding = vec
-			kind := "Bild"
-			if isAudio {
-				kind = "Audio"
-			}
-			content = fmt.Sprintf("%s-Datei: %s (Pfad: %s)", kind, info.Name(), relPath)
-
-		} else if isImage {
-			// Image indexing via Vision LLM (non-multimodal fallback).
-			prompt := fmt.Sprintf(
-				"Analysiere dieses Bild detailliert. Beschreibe den Inhalt, erkennbare Texte, Objekte und relevante Details. "+
-					"Dateiname: %s, Pfad: %s", info.Name(), relPath,
-			)
-
-			var analysis string
-			var visionErr error
-			for attempt := 1; attempt <= indexingRetryMaxAttempts; attempt++ {
-				var a string
-				var w, h int
-				a, w, h, visionErr = tools.AnalyzeImageWithPromptContext(ctx, path, prompt, fi.cfg)
-				if visionErr == nil {
-					if attempt > 1 {
-						fi.logger.Info("[Indexer] Vision retry successful", "path", path, "attempt", attempt)
-					}
-					analysis = a
-					_ = w
-					_ = h
-					break
-				}
-
-				if attempt == indexingRetryMaxAttempts || !shouldRetryIndexingErr(visionErr) {
-					break
-				}
-
-				backoff := time.Duration(attempt*attempt) * indexingRetryBackoffBase
-				fi.logger.Warn("[Indexer] Vision analysis failed, retrying", "path", path, "attempt", attempt, "backoff", backoff, "error", visionErr)
-				if sleepErr := waitIndexingBackoff(ctx, backoff); sleepErr != nil {
-					visionErr = sleepErr
-					break
-				}
-			}
-			if visionErr != nil {
-				errors = append(errors, fmt.Sprintf("vision error %s: %v", path, visionErr))
-				fi.logger.Warn("[Indexer] Vision analysis failed", "path", path, "error", visionErr)
-				return nil
-			}
-
-			content = fmt.Sprintf("Bildanalyse von %s (Pfad: %s):\n%s", info.Name(), relPath, analysis)
-
-		} else if IsDocumentFile(ext) {
-			// Document text extraction (PDF, DOCX, XLSX, PPTX, ODT, RTF).
-			extracted, extractErr := ExtractText(path)
-			if extractErr != nil {
-				if multimodal && ext == ".pdf" {
-					fallbackContent, vec, fallbackErr := fi.indexPDFWithMultimodalFallback(ctx, path, relPath, info.Name())
-					if fallbackErr == nil {
-						content = fallbackContent
-						precomputedEmbedding = vec
-						fi.logger.Info("[Indexer] PDF auto-fallback to multimodal embedding", "path", relPath)
-					} else {
-						fi.logger.Warn("[Indexer] PDF multimodal fallback failed", "path", path, "error", fallbackErr)
-					}
-				}
-				if precomputedEmbedding == nil {
-					fi.logger.Warn("[Indexer] Text extraction failed, skipping document", "path", path, "error", extractErr)
-					errors = append(errors, fmt.Sprintf("text extraction error %s: %v", path, extractErr))
-					return nil
-				}
-			} else {
-				content = extracted
-			}
-
-			// PDF auto-fallback: if text extraction yielded almost nothing and
-			// multimodal is enabled, treat the PDF as an image (scanned document)
-			if multimodal && ext == ".pdf" && precomputedEmbedding == nil && len(strings.TrimSpace(content)) < 10 {
-				fallbackContent, vec, fallbackErr := fi.indexPDFWithMultimodalFallback(ctx, path, relPath, info.Name())
-				if fallbackErr == nil {
-					content = fallbackContent
-					precomputedEmbedding = vec
-					fi.logger.Info("[Indexer] PDF auto-fallback to multimodal embedding", "path", relPath)
-				} else {
-					fi.logger.Warn("[Indexer] PDF multimodal fallback failed", "path", path, "error", fallbackErr)
-				}
-			}
-
-		} else {
-			// Plain text files.
-			text, readErr := readIndexedTextFile(path)
-			if readErr != nil {
-				errors = append(errors, fmt.Sprintf("read error %s: %v", path, readErr))
-				return nil
-			}
-			content = text
-		}
-
-		if len(content) == 0 && precomputedEmbedding == nil {
-			return nil
-		}
-
-		if err := fi.removeTrackedFile(path, collection); err != nil {
-			errors = append(errors, fmt.Sprintf("cleanup error %s: %v", path, err))
-			fi.logger.Warn("[Indexer] Failed to remove stale embeddings before reindex", "path", path, "error", err)
-			return nil
-		}
-
-		// Build metadata-rich concept for the embedding
-		concept := fmt.Sprintf("Datei: %s (Pfad: %s, Geändert: %s)",
-			info.Name(), relPath, info.ModTime().Format("2006-01-02 15:04"))
-		if title := strings.TrimSpace(fileMetadata["archive_title"]); title != "" {
-			concept = fmt.Sprintf("Dokument: %s (Datei: %s, Pfad: %s, Geändert: %s)",
-				title, info.Name(), relPath, info.ModTime().Format("2006-01-02 15:04"))
-		}
-		if tags := strings.TrimSpace(fileMetadata["archive_tags"]); tags != "" {
-			concept += " Tags: " + tags
-		}
-
-		// Store in VectorDB - use pre-computed embedding when available.
-		// Use collection-aware methods to route documents to the per-directory collection.
-		var docIDs []string
-		var storeErr error
-		if precomputedEmbedding != nil {
-			var docID string
-			docID, storeErr = fi.indexStoreDocWithRetry(ctx, func() (string, error) {
-				return fi.vectorDB.StoreDocumentWithEmbeddingInCollection(concept, content, precomputedEmbedding, collection)
-			}, path)
-			if storeErr == nil && docID != "" {
-				docIDs = []string{docID}
-			}
-		} else if store, ok := fi.vectorDB.(chunkingCollectionStore); ok {
-			chunkingOptions := fi.chunkingOptionsSnapshot()
-			extraMetadata := map[string]string{
-				"source_path":    path,
-				"relative_path":  relPath,
-				"source_type":    "file_indexer",
-				"file_extension": ext,
-				"index_mode":     indexMode,
-			}
-			for key, value := range fileMetadata {
-				if strings.TrimSpace(key) != "" && strings.TrimSpace(value) != "" {
-					extraMetadata[key] = value
-				}
-			}
-			docIDs, storeErr = fi.indexStoreWithRetry(ctx, func() ([]string, error) {
-				return store.StoreDocumentInCollectionWithChunking(concept, content, collection, chunkingOptions, extraMetadata)
-			}, path)
-		} else {
-			docIDs, storeErr = fi.indexStoreWithRetry(ctx, func() ([]string, error) {
-				return fi.vectorDB.StoreDocumentInCollection(concept, content, collection)
-			}, path)
-		}
-		if storeErr != nil {
-			errors = append(errors, fmt.Sprintf("index error %s: %v", path, storeErr))
-			fi.logger.Warn("[Indexer] Failed to index file", "path", path, "error", storeErr)
-			return nil
-		}
-
-		if err := fi.stm.UpdateFileIndexWithDocsAndState(path, collection, info.ModTime(), rawHash, indexFingerprint, docIDs); err != nil {
-			errors = append(errors, fmt.Sprintf("tracking error %s: %v", path, err))
-			fi.logger.Warn("[Indexer] Failed to persist file index tracking", "path", path, "error", err)
-			if rollbackErr := fi.rollbackUntrackedDocuments(docIDs, collection); rollbackErr != nil {
-				errors = append(errors, fmt.Sprintf("tracking rollback error %s: %v", path, rollbackErr))
-				fi.logger.Warn("[Indexer] Failed to roll back untracked embeddings", "path", path, "error", rollbackErr)
-			}
-			return nil
-		}
-
-		indexedFiles++
-		fi.recordIndexedDocuments(len(docIDs))
-		fi.logger.Info("[Indexer] Indexed file", "path", relPath, "size", info.Size(), "doc_ids", len(docIDs))
-		fi.syncIndexedFileToKG(path, collection)
-
 		return nil
 	})
 	if err != nil {
@@ -739,10 +506,279 @@ func (fi *FileIndexer) scanDirectory(ctx context.Context, dir, collection string
 		errors = append(errors, fmt.Sprintf("walk error %s: %v", dir, err))
 	}
 
-	if targetPath == "" {
-		errors = append(errors, fi.cleanupDeletedTrackedFiles(dir, collection, trackedPaths, seenPaths)...)
-	}
+	errors = append(errors, fi.cleanupDeletedTrackedFiles(dir, collection, trackedPaths, seenPaths)...)
 	return totalFiles, indexedFiles, errors
+}
+
+type fileIndexOutcome struct {
+	eligible  bool
+	indexed   bool
+	noContent bool
+	err       error
+}
+
+func (fi *FileIndexer) indexFileCore(ctx context.Context, dir, collection, path string, info os.FileInfo) fileIndexOutcome {
+	ext := strings.ToLower(filepath.Ext(info.Name()))
+	isImage := IsImageFile(ext)
+	isAudio := IsAudioFile(ext)
+
+	fi.cfgMu.RLock()
+	indexImages := fi.cfg.Indexing.IndexImages
+	multimodal := fi.cfg.Embeddings.Multimodal
+	fi.cfgMu.RUnlock()
+
+	accepted := fi.extensions[ext] ||
+		(isImage && (indexImages || multimodal)) ||
+		(isAudio && multimodal)
+	if !accepted {
+		return fileIndexOutcome{noContent: true}
+	}
+	if skip, reason := shouldSkipIndexingFile(info); skip {
+		fi.logger.Warn("[Indexer] Skipping oversized file", "path", path, "reason", reason)
+		return fileIndexOutcome{err: fmt.Errorf("skip %s: %s", path, reason)}
+	}
+	if IsBinaryFile(path) {
+		fi.logger.Debug("[Indexer] Skipping binary file", "path", path)
+		return fileIndexOutcome{noContent: true}
+	}
+
+	outcome := fileIndexOutcome{eligible: true}
+	indexMode := fi.indexModeForFile(ext, isImage, isAudio, multimodal)
+	rawHash, hashErr := hashIndexedFileBytes(path)
+	if hashErr != nil {
+		outcome.err = fmt.Errorf("hash error %s: %v", path, hashErr)
+		return outcome
+	}
+	indexFingerprint := fi.indexFingerprintForMode(indexMode)
+	indexState, stateErr := fi.stm.GetFileIndexState(path, collection)
+	if stateErr != nil {
+		outcome.err = fmt.Errorf("get file index %s: %v", path, stateErr)
+		return outcome
+	}
+	if !shouldReindexFile(rawHash, indexFingerprint, indexState) {
+		return outcome
+	}
+
+	relPath, _ := filepath.Rel(dir, path)
+	if relPath == "" {
+		relPath = info.Name()
+	}
+	fileMetadata, metadataErr := fi.stm.GetFileIndexMetadata(path, collection)
+	if metadataErr != nil {
+		outcome.err = fmt.Errorf("metadata error %s: %v", path, metadataErr)
+		return outcome
+	}
+
+	var content string
+	var precomputedEmbedding []float32
+	if multimodal && (isImage || isAudio) {
+		embedder := fi.getMultimodalEmbedder()
+		if embedder == nil {
+			outcome.err = fmt.Errorf("multimodal embedder unavailable for %s", path)
+			return outcome
+		}
+		vec, embedErr := fi.indexEmbedWithRetry(ctx, func(ctx context.Context) ([]float32, error) {
+			return embedder.EmbedFile(ctx, path)
+		}, path, "multimodal")
+		if embedErr != nil {
+			fi.logger.Warn("[Indexer] Multimodal embedding failed", "path", path, "error", scrubIndexingError(embedErr))
+			outcome.err = fmt.Errorf("multimodal embed error %s: %v", path, embedErr)
+			return outcome
+		}
+		precomputedEmbedding = vec
+		kind := "Bild"
+		if isAudio {
+			kind = "Audio"
+		}
+		content = fmt.Sprintf("%s-Datei: %s (Pfad: %s)", kind, info.Name(), relPath)
+	} else if isImage {
+		prompt := fmt.Sprintf(
+			"Analysiere dieses Bild detailliert. Beschreibe den Inhalt, erkennbare Texte, Objekte und relevante Details. "+
+				"Dateiname: %s, Pfad: %s", info.Name(), relPath,
+		)
+		var analysis string
+		var visionErr error
+		for attempt := 1; attempt <= indexingRetryMaxAttempts; attempt++ {
+			var width, height int
+			analysis, width, height, visionErr = tools.AnalyzeImageWithPromptContext(ctx, path, prompt, fi.cfg)
+			_ = width
+			_ = height
+			if visionErr == nil {
+				if attempt > 1 {
+					fi.logger.Info("[Indexer] Vision retry successful", "path", path, "attempt", attempt)
+				}
+				break
+			}
+			if attempt == indexingRetryMaxAttempts || !shouldRetryIndexingErr(visionErr) {
+				break
+			}
+			backoff := time.Duration(attempt*attempt) * indexingRetryBackoffBase
+			fi.logger.Warn("[Indexer] Vision analysis failed, retrying", "path", path, "attempt", attempt, "backoff", backoff, "error", scrubIndexingError(visionErr))
+			if sleepErr := waitIndexingBackoff(ctx, backoff); sleepErr != nil {
+				visionErr = sleepErr
+				break
+			}
+		}
+		if visionErr != nil {
+			fi.logger.Warn("[Indexer] Vision analysis failed", "path", path, "error", scrubIndexingError(visionErr))
+			outcome.err = fmt.Errorf("vision error %s: %v", path, visionErr)
+			return outcome
+		}
+		content = fmt.Sprintf("Bildanalyse von %s (Pfad: %s):\n%s", info.Name(), relPath, analysis)
+	} else if IsDocumentFile(ext) {
+		extracted, extractErr := ExtractText(path)
+		if extractErr != nil {
+			if multimodal && ext == ".pdf" {
+				fallbackContent, vec, fallbackErr := fi.indexPDFWithMultimodalFallback(ctx, path, relPath, info.Name())
+				if fallbackErr == nil {
+					content = fallbackContent
+					precomputedEmbedding = vec
+					fi.logger.Info("[Indexer] PDF auto-fallback to multimodal embedding", "path", relPath)
+				} else {
+					fi.logger.Warn("[Indexer] PDF multimodal fallback failed", "path", path, "error", scrubIndexingError(fallbackErr))
+				}
+			}
+			if precomputedEmbedding == nil {
+				fi.logger.Warn("[Indexer] Text extraction failed, skipping document", "path", path, "error", scrubIndexingError(extractErr))
+				outcome.err = fmt.Errorf("text extraction error %s: %v", path, extractErr)
+				return outcome
+			}
+		} else {
+			content = extracted
+		}
+		if multimodal && ext == ".pdf" && precomputedEmbedding == nil && len(strings.TrimSpace(content)) < 10 {
+			fallbackContent, vec, fallbackErr := fi.indexPDFWithMultimodalFallback(ctx, path, relPath, info.Name())
+			if fallbackErr == nil {
+				content = fallbackContent
+				precomputedEmbedding = vec
+				fi.logger.Info("[Indexer] PDF auto-fallback to multimodal embedding", "path", relPath)
+			} else {
+				fi.logger.Warn("[Indexer] PDF multimodal fallback failed", "path", path, "error", scrubIndexingError(fallbackErr))
+			}
+		}
+	} else {
+		text, readErr := readIndexedTextFile(path)
+		if readErr != nil {
+			outcome.err = fmt.Errorf("read error %s: %v", path, readErr)
+			return outcome
+		}
+		content = text
+	}
+
+	if strings.TrimSpace(content) == "" && precomputedEmbedding == nil {
+		if err := fi.removeTrackedFile(path, collection); err != nil {
+			fi.logger.Warn("[Indexer] Failed to remove stale embeddings for empty file", "path", path, "error", scrubIndexingError(err))
+			outcome.err = fmt.Errorf("cleanup empty file %s: %v", path, err)
+			return outcome
+		}
+		outcome.noContent = true
+		return outcome
+	}
+	if err := fi.removeTrackedFile(path, collection); err != nil {
+		fi.logger.Warn("[Indexer] Failed to remove stale embeddings before reindex", "path", path, "error", scrubIndexingError(err))
+		outcome.err = fmt.Errorf("cleanup error %s: %v", path, err)
+		return outcome
+	}
+
+	concept := fmt.Sprintf("Datei: %s (Pfad: %s, Geändert: %s)",
+		info.Name(), relPath, info.ModTime().Format("2006-01-02 15:04"))
+	if title := strings.TrimSpace(fileMetadata["archive_title"]); title != "" {
+		concept = fmt.Sprintf("Dokument: %s (Datei: %s, Pfad: %s, Geändert: %s)",
+			title, info.Name(), relPath, info.ModTime().Format("2006-01-02 15:04"))
+	}
+	if tags := strings.TrimSpace(fileMetadata["archive_tags"]); tags != "" {
+		concept += " Tags: " + tags
+	}
+
+	var docIDs []string
+	var storeErr error
+	if precomputedEmbedding != nil {
+		var docID string
+		docID, storeErr = fi.indexStoreDocWithRetry(ctx, func() (string, error) {
+			return fi.vectorDB.StoreDocumentWithEmbeddingInCollection(concept, content, precomputedEmbedding, collection)
+		}, path)
+		if storeErr == nil && docID != "" {
+			docIDs = []string{docID}
+		}
+	} else if store, ok := fi.vectorDB.(chunkingCollectionStore); ok {
+		chunkingOptions := fi.chunkingOptionsSnapshot()
+		extraMetadata := map[string]string{
+			"source_path":    path,
+			"relative_path":  relPath,
+			"source_type":    "file_indexer",
+			"file_extension": ext,
+			"index_mode":     indexMode,
+		}
+		for key, value := range fileMetadata {
+			if strings.TrimSpace(key) != "" && strings.TrimSpace(value) != "" {
+				extraMetadata[key] = value
+			}
+		}
+		docIDs, storeErr = fi.indexStoreWithRetry(ctx, func() ([]string, error) {
+			return store.StoreDocumentInCollectionWithChunking(concept, content, collection, chunkingOptions, extraMetadata)
+		}, path)
+	} else {
+		docIDs, storeErr = fi.indexStoreWithRetry(ctx, func() ([]string, error) {
+			return fi.vectorDB.StoreDocumentInCollection(concept, content, collection)
+		}, path)
+	}
+	if storeErr != nil {
+		fi.logger.Warn("[Indexer] Failed to index file", "path", path, "error", scrubIndexingError(storeErr))
+		outcome.err = fmt.Errorf("index error %s: %v", path, storeErr)
+		return outcome
+	}
+	if err := fi.stm.UpdateFileIndexWithDocsAndState(path, collection, info.ModTime(), rawHash, indexFingerprint, docIDs); err != nil {
+		fi.logger.Warn("[Indexer] Failed to persist file index tracking", "path", path, "error", scrubIndexingError(err))
+		if rollbackErr := fi.rollbackUntrackedDocuments(docIDs, collection); rollbackErr != nil {
+			fi.logger.Warn("[Indexer] Failed to roll back untracked embeddings", "path", path, "error", scrubIndexingError(rollbackErr))
+			outcome.err = fmt.Errorf("tracking error %s: %v; tracking rollback error %s: %v", path, err, path, rollbackErr)
+			return outcome
+		}
+		outcome.err = fmt.Errorf("tracking error %s: %v", path, err)
+		return outcome
+	}
+	if len(docIDs) == 0 {
+		outcome.noContent = true
+		return outcome
+	}
+
+	outcome.indexed = true
+	fi.recordIndexedDocuments(len(docIDs))
+	fi.logger.Info("[Indexer] Indexed file", "path", relPath, "size", info.Size(), "doc_ids", len(docIDs))
+	fi.syncIndexedFileToKG(path, collection)
+	return outcome
+}
+
+func scrubIndexingError(err error) string {
+	if err == nil {
+		return ""
+	}
+	return security.RedactSensitiveInfo(security.Scrub(err.Error()))
+}
+
+func (fi *FileIndexer) acquireScanGate(ctx context.Context) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	select {
+	case fi.scanGate <- struct{}{}:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func (fi *FileIndexer) tryAcquireScanGate() bool {
+	select {
+	case fi.scanGate <- struct{}{}:
+		return true
+	default:
+		return false
+	}
+}
+
+func (fi *FileIndexer) releaseScanGate() {
+	<-fi.scanGate
 }
 
 func (fi *FileIndexer) rollbackUntrackedDocuments(docIDs []string, collection string) error {

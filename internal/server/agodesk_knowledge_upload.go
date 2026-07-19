@@ -1,13 +1,13 @@
 package server
 
 import (
-	"archive/zip"
 	"bufio"
 	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"mime"
@@ -15,7 +15,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	pathpkg "path"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -27,6 +26,7 @@ import (
 	"aurago/internal/agodesk"
 	"aurago/internal/config"
 	"aurago/internal/memory"
+	"aurago/internal/security"
 	"aurago/internal/services"
 	"aurago/internal/uid"
 
@@ -45,6 +45,11 @@ const (
 	agodeskKnowledgeUploadFormField         = "file"
 	agodeskKnowledgeUploadPathPrefix        = "/api/agodesk/knowledge/upload/"
 	agodeskKnowledgePartPrefix              = ".agodesk-knowledge-"
+)
+
+var (
+	errAgodeskKnowledgeUploadExpired = errors.New("knowledge upload reservation expired")
+	errAgodeskKnowledgeUploadState   = errors.New("knowledge upload is not prepared")
 )
 
 type agodeskKnowledgeUploadResponse struct {
@@ -71,6 +76,8 @@ type agodeskKnowledgeCoordinator struct {
 	publishMu sync.Mutex
 	queueMu   sync.Mutex
 	queued    map[string]struct{}
+	activeMu  sync.Mutex
+	active    map[string]struct{}
 }
 
 type normalizedKnowledgePrepareFile struct {
@@ -89,6 +96,7 @@ func newAgodeskKnowledgeCoordinator(s *Server, parent context.Context) *agodeskK
 		cancel: cancel,
 		jobs:   make(chan string, 64),
 		queued: make(map[string]struct{}),
+		active: make(map[string]struct{}),
 	}
 	coordinator.wg.Add(2)
 	go coordinator.runWorker()
@@ -97,7 +105,23 @@ func newAgodeskKnowledgeCoordinator(s *Server, parent context.Context) *agodeskK
 }
 
 func ensureAgodeskKnowledgeCoordinator(s *Server) *agodeskKnowledgeCoordinator {
-	return ensureAgodeskKnowledgeCoordinatorWithContext(s, context.Background())
+	return ensureAgodeskKnowledgeCoordinatorWithContext(s, nil)
+}
+
+func configureAgodeskKnowledgeLifecycle(s *Server, parent context.Context) {
+	if parent == nil {
+		return
+	}
+	broker := ensureAgodeskDesktopBroker(s)
+	if broker == nil {
+		return
+	}
+	broker.knowledgeMu.Lock()
+	defer broker.knowledgeMu.Unlock()
+	if broker.knowledgeClosed || parent.Err() != nil {
+		return
+	}
+	broker.knowledgeCtx = parent
 }
 
 func ensureAgodeskKnowledgeCoordinatorWithContext(s *Server, parent context.Context) *agodeskKnowledgeCoordinator {
@@ -107,8 +131,24 @@ func ensureAgodeskKnowledgeCoordinatorWithContext(s *Server, parent context.Cont
 	}
 	broker.knowledgeMu.Lock()
 	defer broker.knowledgeMu.Unlock()
+	if broker.knowledgeClosed {
+		return nil
+	}
+	if parent != nil {
+		if parent.Err() != nil {
+			return nil
+		}
+		broker.knowledgeCtx = parent
+	}
+	rootCtx := broker.knowledgeCtx
+	if rootCtx == nil {
+		rootCtx = context.Background()
+	}
+	if rootCtx.Err() != nil {
+		return nil
+	}
 	if broker.knowledge == nil {
-		broker.knowledge = newAgodeskKnowledgeCoordinator(s, parent)
+		broker.knowledge = newAgodeskKnowledgeCoordinator(s, rootCtx)
 	}
 	return broker.knowledge
 }
@@ -171,6 +211,7 @@ func (c *agodeskKnowledgeCoordinator) runWorker() {
 
 func (c *agodeskKnowledgeCoordinator) runMaintenance() {
 	defer c.wg.Done()
+	c.reconcileUploading()
 	c.recoverProcessing()
 	c.maintain(time.Now().UTC())
 	ticker := time.NewTicker(time.Minute)
@@ -192,7 +233,7 @@ func (c *agodeskKnowledgeCoordinator) recoverProcessing() {
 	}
 	records, err := c.server.ShortTermMem.ListAgoDeskKnowledgeProcessing()
 	if err != nil {
-		c.server.Logger.Warn("Failed to recover AgoDesk knowledge jobs", "error", err)
+		c.server.Logger.Warn("Failed to recover AgoDesk knowledge jobs", "error", scrubAgodeskKnowledgeLogError(err))
 		return
 	}
 	for _, record := range records {
@@ -204,16 +245,19 @@ func (c *agodeskKnowledgeCoordinator) maintain(now time.Time) {
 	if c == nil || c.server == nil || c.server.ShortTermMem == nil {
 		return
 	}
+	c.activeMu.Lock()
 	expired, err := c.server.ShortTermMem.ExpireAgoDeskKnowledgeDocuments(now, agodesk.ErrorKnowledgeExpired)
+	c.activeMu.Unlock()
 	if err != nil {
-		c.server.Logger.Warn("Failed to expire AgoDesk knowledge uploads", "error", err)
+		c.server.Logger.Warn("Failed to expire AgoDesk knowledge uploads", "error", scrubAgodeskKnowledgeLogError(err))
 	} else {
 		for _, record := range expired {
 			c.emit(record)
 		}
 	}
+	c.reconcileUploading()
 	if _, err := c.server.ShortTermMem.CleanupAgoDeskKnowledgeDocuments(now, agodesk.ErrorKnowledgeExpired); err != nil {
-		c.server.Logger.Warn("Failed to clean up AgoDesk knowledge uploads", "error", err)
+		c.server.Logger.Warn("Failed to clean up AgoDesk knowledge uploads", "error", scrubAgodeskKnowledgeLogError(err))
 	}
 	c.cleanupPartFiles(now)
 }
@@ -231,6 +275,9 @@ func (c *agodeskKnowledgeCoordinator) cleanupPartFiles(now time.Time) {
 		if entry.IsDir() || !strings.HasPrefix(entry.Name(), agodeskKnowledgePartPrefix) || !strings.HasSuffix(entry.Name(), ".part") {
 			continue
 		}
+		if c.partFileBelongsToActiveUpload(entry.Name()) {
+			continue
+		}
 		info, err := entry.Info()
 		if err != nil || info.Mode()&os.ModeSymlink != 0 || now.Sub(info.ModTime()) < agodeskKnowledgePrepareTTL {
 			continue
@@ -240,6 +287,85 @@ func (c *agodeskKnowledgeCoordinator) cleanupPartFiles(now time.Time) {
 			_ = os.Remove(target)
 		}
 	}
+}
+
+func (c *agodeskKnowledgeCoordinator) claimUpload(documentID string, now time.Time) (*memory.AgoDeskKnowledgeDocument, error) {
+	c.activeMu.Lock()
+	defer c.activeMu.Unlock()
+	if err := c.ctx.Err(); err != nil {
+		return nil, err
+	}
+	record, err := c.server.ShortTermMem.GetAgoDeskKnowledgeDocument(documentID)
+	if err != nil {
+		return nil, err
+	}
+	if record == nil || record.Status != memory.AgoDeskKnowledgeStatusPrepared {
+		return record, errAgodeskKnowledgeUploadState
+	}
+	if !record.ExpiresAt.IsZero() && now.After(record.ExpiresAt) {
+		failed, failErr := c.server.ShortTermMem.MarkAgoDeskKnowledgeFailed(
+			documentID,
+			agodesk.ErrorKnowledgeExpired,
+			"Knowledge upload reservation expired.",
+			now,
+		)
+		if failErr != nil {
+			return nil, failErr
+		}
+		return failed, errAgodeskKnowledgeUploadExpired
+	}
+	record, err = c.server.ShortTermMem.MarkAgoDeskKnowledgeUploading(documentID, now)
+	if err != nil {
+		return nil, err
+	}
+	c.active[documentID] = struct{}{}
+	return record, nil
+}
+
+func (c *agodeskKnowledgeCoordinator) releaseUpload(documentID string) {
+	c.activeMu.Lock()
+	delete(c.active, strings.TrimSpace(documentID))
+	c.activeMu.Unlock()
+}
+
+func (c *agodeskKnowledgeCoordinator) reconcileUploading() {
+	if c == nil || c.server == nil || c.server.ShortTermMem == nil {
+		return
+	}
+	c.activeMu.Lock()
+	defer c.activeMu.Unlock()
+	records, err := c.server.ShortTermMem.ListAgoDeskKnowledgeUploading()
+	if err != nil {
+		c.server.Logger.Warn("Failed to inspect orphaned AgoDesk knowledge uploads", "error", scrubAgodeskKnowledgeLogError(err))
+		return
+	}
+	for _, record := range records {
+		if _, active := c.active[record.DocumentID]; active {
+			continue
+		}
+		failed, failErr := c.server.ShortTermMem.MarkAgoDeskKnowledgeFailed(
+			record.DocumentID,
+			agodesk.ErrorKnowledgeExpired,
+			"Knowledge upload did not complete.",
+			time.Now().UTC(),
+		)
+		if failErr != nil {
+			c.server.Logger.Warn("Failed to expire orphaned AgoDesk knowledge upload", "document_id", record.DocumentID, "error", scrubAgodeskKnowledgeLogError(failErr))
+			continue
+		}
+		c.emit(*failed)
+	}
+}
+
+func (c *agodeskKnowledgeCoordinator) partFileBelongsToActiveUpload(name string) bool {
+	c.activeMu.Lock()
+	defer c.activeMu.Unlock()
+	for documentID := range c.active {
+		if strings.Contains(name, documentID) {
+			return true
+		}
+	}
+	return false
 }
 
 func (c *agodeskKnowledgeCoordinator) process(documentID string) {
@@ -279,12 +405,22 @@ func (c *agodeskKnowledgeCoordinator) process(documentID string) {
 		if c.ctx.Err() != nil {
 			return
 		}
-		c.failProcessing(*record, err.Error())
+		c.server.Logger.Warn(
+			"AgoDesk knowledge indexing failed",
+			"document_id", record.DocumentID,
+			"error", scrubAgodeskKnowledgeLogError(err),
+		)
+		c.failProcessing(*record, "Knowledge document could not be indexed.")
+		return
+	}
+	if !result.Indexed || result.ChunkCount <= 0 || len(result.DocumentIDs) == 0 {
+		c.server.Logger.Warn("AgoDesk knowledge indexing produced no vectors", "document_id", record.DocumentID)
+		c.failProcessing(*record, "Knowledge document contains no indexable content.")
 		return
 	}
 	ready, err := c.server.ShortTermMem.MarkAgoDeskKnowledgeReady(record.DocumentID, result.ChunkCount, time.Now().UTC())
 	if err != nil {
-		c.server.Logger.Warn("Failed to mark AgoDesk knowledge document ready", "document_id", record.DocumentID, "error", err)
+		c.server.Logger.Warn("Failed to mark AgoDesk knowledge document ready", "document_id", record.DocumentID, "error", scrubAgodeskKnowledgeLogError(err))
 		return
 	}
 	c.emit(*ready)
@@ -300,7 +436,7 @@ func (c *agodeskKnowledgeCoordinator) failProcessing(record memory.AgoDeskKnowle
 		time.Now().UTC(),
 	)
 	if err != nil {
-		c.server.Logger.Warn("Failed to mark AgoDesk knowledge document failed", "document_id", record.DocumentID, "error", err)
+		c.server.Logger.Warn("Failed to mark AgoDesk knowledge document failed", "document_id", record.DocumentID, "error", scrubAgodeskKnowledgeLogError(err))
 		return
 	}
 	c.emit(*failed)
@@ -314,7 +450,7 @@ func (c *agodeskKnowledgeCoordinator) rollbackIndexedDocument(record memory.AgoD
 	if err == nil && c.server.LongTermMem != nil {
 		for _, docID := range docIDs {
 			if deleteErr := c.server.LongTermMem.DeleteDocumentFromCollection(docID, record.Collection); deleteErr != nil {
-				c.server.Logger.Warn("Failed to roll back knowledge embedding", "document_id", record.DocumentID, "vector_id", docID, "error", deleteErr)
+				c.server.Logger.Warn("Failed to roll back knowledge embedding", "document_id", record.DocumentID, "vector_id", docID, "error", scrubAgodeskKnowledgeLogError(deleteErr))
 			}
 		}
 		_ = c.server.ShortTermMem.DeleteMemoryMetaBatch(docIDs)
@@ -519,24 +655,23 @@ func handleAgodeskKnowledgeUpload(s *Server) http.HandlerFunc {
 			writeAgodeskKnowledgeHTTPError(w, http.StatusNotFound, agodesk.ErrorKnowledgeNotFound, "Knowledge document was not found.", documentID)
 			return
 		}
-		now := time.Now().UTC()
-		if !record.ExpiresAt.IsZero() && now.After(record.ExpiresAt) {
-			failed, markErr := s.ShortTermMem.MarkAgoDeskKnowledgeFailed(documentID, agodesk.ErrorKnowledgeExpired, "Knowledge upload reservation expired.", now)
-			if markErr == nil {
-				coordinator.emit(*failed)
+		uploading, err := coordinator.claimUpload(documentID, time.Now().UTC())
+		if errors.Is(err, errAgodeskKnowledgeUploadExpired) {
+			if uploading != nil {
+				coordinator.emit(*uploading)
 			}
 			writeAgodeskKnowledgeHTTPError(w, http.StatusGone, agodesk.ErrorKnowledgeExpired, "Knowledge upload reservation expired.", documentID)
 			return
 		}
-		if record.Status != memory.AgoDeskKnowledgeStatusPrepared {
+		if errors.Is(err, errAgodeskKnowledgeUploadState) {
 			writeAgodeskKnowledgeHTTPError(w, http.StatusConflict, agodesk.ErrorKnowledgeRejected, "Knowledge document is not awaiting upload.", documentID)
 			return
 		}
-		uploading, err := s.ShortTermMem.MarkAgoDeskKnowledgeUploading(documentID, now)
 		if err != nil {
 			writeAgodeskKnowledgeHTTPError(w, http.StatusConflict, agodesk.ErrorKnowledgeRejected, "Knowledge upload is already in progress.", documentID)
 			return
 		}
+		defer coordinator.releaseUpload(documentID)
 		coordinator.emit(*uploading)
 		uploadTerminal := false
 		uploadFailureCode := agodesk.ErrorKnowledgeRejected
@@ -629,33 +764,32 @@ func handleAgodeskKnowledgeUpload(s *Server) http.HandlerFunc {
 		}
 		detectedMime, validationErr := validateAgodeskKnowledgeFile(tmpPath, record.Filename, record.DeclaredMime)
 		if validationErr != nil {
+			if errors.Is(validationErr, services.ErrDocumentArchiveTooLarge) {
+				message := "Uploaded document exceeds safe archive extraction limits."
+				uploadTerminal = coordinator.failUpload(*record, agodesk.ErrorKnowledgeTooLarge, message)
+				writeAgodeskKnowledgeHTTPError(w, http.StatusRequestEntityTooLarge, agodesk.ErrorKnowledgeTooLarge, message, documentID)
+				return
+			}
 			uploadTerminal = coordinator.failUpload(*record, agodesk.ErrorKnowledgeMimeNotAllowed, validationErr.Error())
 			writeAgodeskKnowledgeHTTPError(w, http.StatusUnsupportedMediaType, agodesk.ErrorKnowledgeMimeNotAllowed, validationErr.Error(), documentID)
 			return
 		}
 
 		coordinator.publishMu.Lock()
-		if info, statErr := os.Lstat(record.StoragePath); statErr == nil || info != nil {
-			coordinator.publishMu.Unlock()
+		err = publishFileNoReplace(tmpPath, record.StoragePath)
+		coordinator.publishMu.Unlock()
+		if errors.Is(err, errAtomicPublishTargetExists) {
 			uploadTerminal = coordinator.failUpload(*record, agodesk.ErrorKnowledgeRejected, "A knowledge file with that name already exists.")
 			writeAgodeskKnowledgeHTTPError(w, http.StatusConflict, agodesk.ErrorKnowledgeRejected, "A knowledge file with that name already exists.", documentID)
 			return
-		} else if !os.IsNotExist(statErr) {
-			coordinator.publishMu.Unlock()
-			uploadFailureCode = agodesk.ErrorKnowledgeIngestFailed
-			uploadFailureMessage = "Knowledge storage is unavailable."
-			writeAgodeskKnowledgeHTTPError(w, http.StatusInternalServerError, agodesk.ErrorKnowledgeIngestFailed, "Knowledge storage is unavailable.", documentID)
-			return
 		}
-		err = os.Rename(tmpPath, record.StoragePath)
-		coordinator.publishMu.Unlock()
 		if err != nil {
 			uploadFailureCode = agodesk.ErrorKnowledgeIngestFailed
 			uploadFailureMessage = "Could not publish uploaded document."
+			s.Logger.Warn("AgoDesk knowledge publication failed", "document_id", documentID, "error", scrubAgodeskKnowledgeLogError(err))
 			writeAgodeskKnowledgeHTTPError(w, http.StatusInternalServerError, agodesk.ErrorKnowledgeIngestFailed, "Could not publish uploaded document.", documentID)
 			return
 		}
-		removeTmp = false
 		actualSHA := hex.EncodeToString(hasher.Sum(nil))
 		processing, err := s.ShortTermMem.MarkAgoDeskKnowledgeProcessing(documentID, detectedMime, written, actualSHA, time.Now().UTC())
 		if err != nil {
@@ -688,7 +822,7 @@ func handleAgodeskKnowledgeUpload(s *Server) http.HandlerFunc {
 func (c *agodeskKnowledgeCoordinator) failUpload(record memory.AgoDeskKnowledgeDocument, code, message string) bool {
 	failed, err := c.server.ShortTermMem.MarkAgoDeskKnowledgeFailed(record.DocumentID, code, sanitizeAgodeskKnowledgeError(message), time.Now().UTC())
 	if err != nil {
-		c.server.Logger.Warn("Failed to persist AgoDesk knowledge upload error", "document_id", record.DocumentID, "error", err)
+		c.server.Logger.Warn("Failed to persist AgoDesk knowledge upload error", "document_id", record.DocumentID, "error", scrubAgodeskKnowledgeLogError(err))
 		return false
 	}
 	c.emit(*failed)
@@ -871,31 +1005,49 @@ func validateAgodeskKnowledgeFile(path, filename, declaredMime string) (string, 
 		return "application/pdf", nil
 	case ".docx":
 		if err := validateAgodeskKnowledgeZIP(path, "word/document.xml", ""); err != nil {
+			if errors.Is(err, services.ErrDocumentArchiveTooLarge) {
+				return "", err
+			}
 			return "", fmt.Errorf("Uploaded file is not a valid DOCX document.")
 		}
 		return "application/vnd.openxmlformats-officedocument.wordprocessingml.document", nil
 	case ".xlsx":
 		if err := validateAgodeskKnowledgeZIP(path, "xl/workbook.xml", ""); err != nil {
+			if errors.Is(err, services.ErrDocumentArchiveTooLarge) {
+				return "", err
+			}
 			return "", fmt.Errorf("Uploaded file is not a valid XLSX workbook.")
 		}
 		return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", nil
 	case ".pptx":
 		if err := validateAgodeskKnowledgeZIP(path, "ppt/presentation.xml", ""); err != nil {
+			if errors.Is(err, services.ErrDocumentArchiveTooLarge) {
+				return "", err
+			}
 			return "", fmt.Errorf("Uploaded file is not a valid PPTX presentation.")
 		}
 		return "application/vnd.openxmlformats-officedocument.presentationml.presentation", nil
 	case ".odt":
 		if err := validateAgodeskKnowledgeZIP(path, "content.xml", "application/vnd.oasis.opendocument.text"); err != nil {
+			if errors.Is(err, services.ErrDocumentArchiveTooLarge) {
+				return "", err
+			}
 			return "", fmt.Errorf("Uploaded file is not a valid ODT document.")
 		}
 		return "application/vnd.oasis.opendocument.text", nil
 	case ".ods":
 		if err := validateAgodeskKnowledgeZIP(path, "content.xml", "application/vnd.oasis.opendocument.spreadsheet"); err != nil {
+			if errors.Is(err, services.ErrDocumentArchiveTooLarge) {
+				return "", err
+			}
 			return "", fmt.Errorf("Uploaded file is not a valid ODS spreadsheet.")
 		}
 		return "application/vnd.oasis.opendocument.spreadsheet", nil
 	case ".odp":
 		if err := validateAgodeskKnowledgeZIP(path, "content.xml", "application/vnd.oasis.opendocument.presentation"); err != nil {
+			if errors.Is(err, services.ErrDocumentArchiveTooLarge) {
+				return "", err
+			}
 			return "", fmt.Errorf("Uploaded file is not a valid ODP presentation.")
 		}
 		return "application/vnd.oasis.opendocument.presentation", nil
@@ -977,39 +1129,7 @@ func readAgodeskKnowledgePrefix(path string, count int64) ([]byte, error) {
 }
 
 func validateAgodeskKnowledgeZIP(path, requiredEntry, requiredMimetype string) error {
-	reader, err := zip.OpenReader(path)
-	if err != nil {
-		return err
-	}
-	defer reader.Close()
-	foundEntry := false
-	foundMimetype := requiredMimetype == ""
-	for _, file := range reader.File {
-		cleanName := pathpkg.Clean(strings.ReplaceAll(file.Name, `\`, "/"))
-		if cleanName == "." || cleanName == ".." || strings.HasPrefix(cleanName, "../") ||
-			strings.HasPrefix(file.Name, "/") || file.Mode()&os.ModeSymlink != 0 {
-			return fmt.Errorf("unsafe archive entry")
-		}
-		switch file.Name {
-		case requiredEntry:
-			foundEntry = true
-		case "mimetype":
-			if requiredMimetype == "" {
-				continue
-			}
-			content, err := file.Open()
-			if err != nil {
-				continue
-			}
-			raw, readErr := io.ReadAll(io.LimitReader(content, 256))
-			_ = content.Close()
-			foundMimetype = readErr == nil && strings.TrimSpace(string(raw)) == requiredMimetype
-		}
-	}
-	if !foundEntry || !foundMimetype {
-		return fmt.Errorf("required archive entries are missing")
-	}
-	return nil
+	return services.ValidateDocumentArchive(path, requiredEntry, requiredMimetype)
 }
 
 func agodeskKnowledgeArchiveUploadsEnabled(s *Server) bool {
@@ -1188,8 +1308,34 @@ func sanitizeAgodeskKnowledgeError(message string) string {
 	if message == "" {
 		return "Knowledge ingest failed."
 	}
+	scrubbed := strings.TrimSpace(security.RedactSensitiveInfo(security.Scrub(message)))
+	if scrubbed == "" || scrubbed != message || strings.Contains(strings.ToLower(scrubbed), "[redacted]") ||
+		containsAgodeskKnowledgeInternalLocation(scrubbed) {
+		return "Knowledge ingest failed."
+	}
 	if len(message) > 512 {
 		message = message[:512]
 	}
 	return message
+}
+
+func scrubAgodeskKnowledgeLogError(err error) string {
+	if err == nil {
+		return ""
+	}
+	return security.RedactSensitiveInfo(security.Scrub(err.Error()))
+}
+
+func containsAgodeskKnowledgeInternalLocation(message string) bool {
+	lower := strings.ToLower(message)
+	if strings.Contains(lower, "://") || strings.Contains(message, `:\`) || strings.Contains(message, `\\`) {
+		return true
+	}
+	for _, field := range strings.Fields(message) {
+		candidate := strings.Trim(field, `"'(),:;[]{}<>`)
+		if filepath.IsAbs(candidate) || strings.HasPrefix(candidate, "/") {
+			return true
+		}
+	}
+	return false
 }

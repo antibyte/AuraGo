@@ -54,8 +54,11 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		<-shutdownCh
 		serverCancel()
 	}()
-	if s.RemoteHub != nil && agodeskKnowledgeArchiveUploadsEnabled(s) {
-		ensureAgodeskKnowledgeCoordinatorWithContext(s, serverCtx)
+	if s.RemoteHub != nil {
+		configureAgodeskKnowledgeLifecycle(s, serverCtx)
+		if agodeskKnowledgeArchiveUploadsEnabled(s) {
+			ensureAgodeskKnowledgeCoordinator(s)
+		}
 	}
 	startAgentActionReconciler(serverCtx, s, NewSSEBrokerAdapter(sse))
 	go func() {

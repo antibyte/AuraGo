@@ -125,6 +125,51 @@ func TestAgoDeskKnowledgeLedgerExpiresPreparedDocuments(t *testing.T) {
 	}
 }
 
+func TestAgoDeskKnowledgeLedgerDoesNotExpireActiveUpload(t *testing.T) {
+	stm, err := NewSQLiteMemory(":memory:", slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	defer stm.Close()
+
+	now := time.Now().UTC()
+	record := AgoDeskKnowledgeDocument{
+		DocumentID:         "kdoc-active-upload",
+		PrepareID:          "prepare-active-upload",
+		PrepareFingerprint: "fingerprint",
+		OwnerDeviceID:      "device-a",
+		Filename:           "active.txt",
+		StoragePath:        filepath.Join(t.TempDir(), "active.txt"),
+		Collection:         "file_index",
+		Title:              "Active",
+		DeclaredMime:       "text/plain",
+		DeclaredSizeBytes:  1,
+		CreatedAt:          now.Add(-10 * time.Minute),
+		ExpiresAt:          now.Add(-time.Minute),
+	}
+	if err := stm.PrepareAgoDeskKnowledgeBatch([]AgoDeskKnowledgeDocument{record}); err != nil {
+		t.Fatalf("PrepareAgoDeskKnowledgeBatch: %v", err)
+	}
+	if _, err := stm.MarkAgoDeskKnowledgeUploading(record.DocumentID, now.Add(-2*time.Minute)); err != nil {
+		t.Fatalf("MarkAgoDeskKnowledgeUploading: %v", err)
+	}
+
+	expired, err := stm.ExpireAgoDeskKnowledgeDocuments(now, "KNOWLEDGE_EXPIRED")
+	if err != nil {
+		t.Fatalf("ExpireAgoDeskKnowledgeDocuments: %v", err)
+	}
+	if len(expired) != 0 {
+		t.Fatalf("active upload expired at prepare deadline: %+v", expired)
+	}
+	got, err := stm.GetAgoDeskKnowledgeDocument(record.DocumentID)
+	if err != nil {
+		t.Fatalf("GetAgoDeskKnowledgeDocument: %v", err)
+	}
+	if got == nil || got.Status != AgoDeskKnowledgeStatusUploading {
+		t.Fatalf("active upload status = %+v, want uploading", got)
+	}
+}
+
 func TestAgoDeskKnowledgeLedgerReservesBatchPathsAtomically(t *testing.T) {
 	stm, err := NewSQLiteMemory(":memory:", slog.New(slog.NewTextHandler(io.Discard, nil)))
 	if err != nil {

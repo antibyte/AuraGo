@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -157,6 +158,178 @@ func TestFileIndexerIndexFileUsesPersistedArchiveMetadata(t *testing.T) {
 	}
 	if metadata["archive_document_id"] != "kdoc-index" || metadata["archive_title"] != "Vulkan Manual" {
 		t.Fatalf("file metadata = %+v", metadata)
+	}
+
+	repeated, err := indexer.IndexFile(context.Background(), cfg.Indexing.Directories[0], path, nil)
+	if err != nil {
+		t.Fatalf("idempotent IndexFile: %v", err)
+	}
+	if !repeated.Indexed || repeated.ChunkCount != 1 || len(repeated.DocumentIDs) != 1 {
+		t.Fatalf("idempotent IndexFile result = %+v", repeated)
+	}
+	vdb.mu.Lock()
+	defer vdb.mu.Unlock()
+	if len(vdb.stored) != 1 {
+		t.Fatalf("idempotent IndexFile stored %d copies, want 1", len(vdb.stored))
+	}
+}
+
+func TestFileIndexerIndexFileDoesNotTraverseSiblingFiles(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	defer stm.Close()
+
+	dir := t.TempDir()
+	target := filepath.Join(dir, "target.txt")
+	sibling := filepath.Join(dir, "sibling.txt")
+	if err := os.WriteFile(target, []byte("target-only content"), 0o640); err != nil {
+		t.Fatalf("WriteFile target: %v", err)
+	}
+	if err := os.WriteFile(sibling, []byte("sibling content must remain untouched"), 0o640); err != nil {
+		t.Fatalf("WriteFile sibling: %v", err)
+	}
+	cfg := &config.Config{}
+	cfg.Indexing.Directories = []config.IndexingDirectory{{Path: dir}}
+	cfg.Indexing.Extensions = []string{".txt"}
+	vdb := &fakeIndexerVectorDB{}
+	indexer := NewFileIndexer(cfg, &sync.RWMutex{}, vdb, stm, logger)
+
+	result, err := indexer.IndexFile(context.Background(), cfg.Indexing.Directories[0], target, nil)
+	if err != nil {
+		t.Fatalf("IndexFile: %v", err)
+	}
+	if !result.Indexed {
+		t.Fatalf("IndexFile result = %+v", result)
+	}
+	vdb.mu.Lock()
+	if !reflect.DeepEqual(vdb.stored, []string{"target-only content"}) {
+		t.Fatalf("stored content = %+v, want only target", vdb.stored)
+	}
+	vdb.mu.Unlock()
+	siblingIDs, err := stm.GetFileEmbeddingDocIDs(sibling, IndexerCollection)
+	if err != nil {
+		t.Fatalf("GetFileEmbeddingDocIDs sibling: %v", err)
+	}
+	if len(siblingIDs) != 0 {
+		t.Fatalf("sibling document IDs = %v, want none", siblingIDs)
+	}
+}
+
+func TestFileIndexerIndexFileRejectsWhitespaceOnlyContent(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	defer stm.Close()
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "empty.txt")
+	if err := os.WriteFile(path, []byte(" \r\n\t "), 0o640); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	cfg := &config.Config{}
+	cfg.Indexing.Directories = []config.IndexingDirectory{{Path: dir}}
+	cfg.Indexing.Extensions = []string{".txt"}
+	vdb := &fakeIndexerVectorDB{}
+	indexer := NewFileIndexer(cfg, &sync.RWMutex{}, vdb, stm, logger)
+
+	result, err := indexer.IndexFile(context.Background(), cfg.Indexing.Directories[0], path, nil)
+	if !errors.Is(err, ErrNoIndexableContent) {
+		t.Fatalf("IndexFile error = %v, want ErrNoIndexableContent", err)
+	}
+	if result.Indexed || result.ChunkCount != 0 || len(result.DocumentIDs) != 0 {
+		t.Fatalf("IndexFile result = %+v, want no indexed documents", result)
+	}
+	vdb.mu.Lock()
+	defer vdb.mu.Unlock()
+	if len(vdb.stored) != 0 {
+		t.Fatalf("whitespace content reached vector store: %+v", vdb.stored)
+	}
+}
+
+func TestFileIndexerIndexFileRemovesStaleVectorsWhenContentBecomesEmpty(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	defer stm.Close()
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "emptied.txt")
+	if err := os.WriteFile(path, []byte("previously indexable content"), 0o640); err != nil {
+		t.Fatalf("WriteFile initial: %v", err)
+	}
+	cfg := &config.Config{}
+	cfg.Indexing.Directories = []config.IndexingDirectory{{Path: dir}}
+	cfg.Indexing.Extensions = []string{".txt"}
+	vdb := &fakeIndexerVectorDB{}
+	indexer := NewFileIndexer(cfg, &sync.RWMutex{}, vdb, stm, logger)
+	if _, err := indexer.IndexFile(context.Background(), cfg.Indexing.Directories[0], path, nil); err != nil {
+		t.Fatalf("initial IndexFile: %v", err)
+	}
+	if err := os.WriteFile(path, []byte(" \r\n\t "), 0o640); err != nil {
+		t.Fatalf("WriteFile empty replacement: %v", err)
+	}
+
+	if _, err := indexer.IndexFile(context.Background(), cfg.Indexing.Directories[0], path, nil); !errors.Is(err, ErrNoIndexableContent) {
+		t.Fatalf("empty replacement error = %v, want ErrNoIndexableContent", err)
+	}
+	vdb.mu.Lock()
+	if !reflect.DeepEqual(vdb.deleted, []string{"doc-1"}) {
+		t.Fatalf("deleted vector IDs = %v, want [doc-1]", vdb.deleted)
+	}
+	vdb.mu.Unlock()
+	docIDs, err := stm.GetFileEmbeddingDocIDs(path, IndexerCollection)
+	if err != nil {
+		t.Fatalf("GetFileEmbeddingDocIDs: %v", err)
+	}
+	if len(docIDs) != 0 {
+		t.Fatalf("stale document IDs remain: %v", docIDs)
+	}
+}
+
+func TestFileIndexerIndexFileGateWaitHonorsContext(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	defer stm.Close()
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "waiting.txt")
+	if err := os.WriteFile(path, []byte("indexable content"), 0o640); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	cfg := &config.Config{}
+	cfg.Indexing.Directories = []config.IndexingDirectory{{Path: dir}}
+	cfg.Indexing.Extensions = []string{".txt"}
+	indexer := NewFileIndexer(cfg, &sync.RWMutex{}, &fakeIndexerVectorDB{}, stm, logger)
+	if err := indexer.acquireScanGate(context.Background()); err != nil {
+		t.Fatalf("acquireScanGate: %v", err)
+	}
+	defer indexer.releaseScanGate()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() {
+		_, indexErr := indexer.IndexFile(ctx, cfg.Indexing.Directories[0], path, nil)
+		done <- indexErr
+	}()
+	cancel()
+
+	select {
+	case indexErr := <-done:
+		if !errors.Is(indexErr, context.Canceled) {
+			t.Fatalf("IndexFile error = %v, want context.Canceled", indexErr)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("IndexFile did not stop waiting after context cancellation")
 	}
 }
 

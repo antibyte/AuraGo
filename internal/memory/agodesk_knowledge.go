@@ -321,6 +321,21 @@ func (s *SQLiteMemory) ListAgoDeskKnowledgeProcessing() ([]AgoDeskKnowledgeDocum
 	return scanAgoDeskKnowledgeRows(rows)
 }
 
+func (s *SQLiteMemory) ListAgoDeskKnowledgeUploading() ([]AgoDeskKnowledgeDocument, error) {
+	rows, err := s.db.Query(`
+		SELECT `+agoDeskKnowledgeColumns+`
+		FROM agodesk_knowledge_documents
+		WHERE status = ?
+		ORDER BY upload_started_at, batch_index`,
+		AgoDeskKnowledgeStatusUploading,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list uploading agodesk knowledge documents: %w", err)
+	}
+	defer rows.Close()
+	return scanAgoDeskKnowledgeRows(rows)
+}
+
 func (s *SQLiteMemory) ListAgoDeskKnowledgeReplay(ownerDeviceID string, terminalSince time.Time) ([]AgoDeskKnowledgeDocument, error) {
 	rows, err := s.db.Query(`
 		SELECT `+agoDeskKnowledgeColumns+`
@@ -352,11 +367,10 @@ func (s *SQLiteMemory) ExpireAgoDeskKnowledgeDocuments(now time.Time, errorCode 
 	rows, err := s.db.Query(`
 		SELECT document_id
 		FROM agodesk_knowledge_documents
-		WHERE status IN (?, ?)
+		WHERE status = ?
 		  AND expires_at != ''
 		  AND expires_at < ?`,
 		AgoDeskKnowledgeStatusPrepared,
-		AgoDeskKnowledgeStatusUploading,
 		sqliteTime(now),
 	)
 	if err != nil {

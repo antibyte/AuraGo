@@ -542,7 +542,7 @@ POST /api/agodesk/knowledge/upload/{document_id}?agodesk_exp=...&agodesk_sig=...
 Content-Type: multipart/form-data; boundary=...
 ```
 
-The single file part must use the returned `upload_field` (`file`) and the same filename and byte length declared during prepare. The URL is valid for five minutes. Its lowercase hexadecimal HMAC-SHA256 signature is path-bound and covers:
+The single file part must use the returned `upload_field` (`file`) and the same filename and byte length declared during prepare. The upload must begin while the URL is valid (five minutes); an upload that starts in time may finish streaming after that deadline. Its lowercase hexadecimal HMAC-SHA256 signature is path-bound and covers:
 
 ```text
 escaped_path + "\n" + canonical_query_without_agodesk_sig
@@ -591,7 +591,7 @@ Each transition is sent only to the currently connected, capability-negotiated s
 }
 ```
 
-A failed status includes `error_code` and a safe `error` message. After `session.accepted`, AuraGo replays in-progress documents plus terminal states completed within the last 24 hours for that same device. Delivery is at-least-once; AgoDesk must deduplicate by `document_id` and `state`. Prepared reservations expire after five minutes. AuraGo keeps terminal diagnostics temporarily and cleans stale upload artifacts automatically.
+A failed status includes `error_code` and a safe `error` message. After `session.accepted`, AuraGo replays in-progress documents plus terminal states completed within the last 24 hours for that same device. Delivery is at-least-once; AgoDesk must deduplicate by `document_id` and `state`. Prepared reservations that have not begun uploading expire after five minutes. Active streams are allowed to finish; uploads left in `uploading` after a restart are treated as orphaned and fail with `KNOWLEDGE_EXPIRED`. AuraGo keeps terminal diagnostics temporarily and cleans stale upload artifacts automatically.
 
 Stable archive error codes:
 
