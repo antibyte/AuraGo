@@ -47,9 +47,12 @@ This subtree owns built-in virtual desktop app modules that are loaded lazily by
 - `sysworld*.js` implements System World, an immersive Three.js (r128) 3D
   universe that visualizes the live AuraGo system: agent core with memory
   nebula, integration satellites, knowledge-graph constellation, mission ring,
-  cron dial, co-agent drones, tool belt, and infrastructure field. Opens
-  maximized via `open_maximized` metadata; live data from dashboard/KG/mission
-  REST APIs and the shared `AuraSSE` event stream.
+  cron dial, co-agent drones, tool belt, and infrastructure field. Visual
+  polish includes multi-layer starfields, floating dust, aurora ribbons, floor
+  energy rings, core gyro/halo animation, ambient comets/beams/sparkles (gated
+  by Effects toggle), and HUD glass/scanline chrome. Opens maximized via
+  `open_maximized` metadata; live data from dashboard/KG/mission REST APIs and
+  the shared `AuraSSE` event stream.
 
 ## Ownership
 

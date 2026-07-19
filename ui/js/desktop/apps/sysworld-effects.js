@@ -456,6 +456,87 @@
         }
 
         // ------------------------------------------------------------------
+        // Energy beams: short-lived additive lines between two points
+        // ------------------------------------------------------------------
+        const BEAM_MAX = 16;
+        const beams = [];
+        for (let i = 0; i < BEAM_MAX; i++) {
+            const positions = new Float32Array(6);
+            const geom = new THREE.BufferGeometry();
+            const posAttr = new THREE.BufferAttribute(positions, 3);
+            posAttr.setUsage(THREE.DynamicDrawUsage);
+            geom.setAttribute('position', posAttr);
+            const mat = new THREE.LineBasicMaterial({
+                color: 0xffffff,
+                transparent: true,
+                opacity: 0,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+            const line = new THREE.Line(geom, mat);
+            line.visible = false;
+            line.frustumCulled = false;
+            group.add(line);
+            beams.push({
+                active: false, line: line, geom: geom, mat: mat, posAttr: posAttr,
+                positions: positions, age: 0, life: 0.7,
+                from: new THREE.Vector3(), to: new THREE.Vector3()
+            });
+        }
+
+        function beam(fromVec3, toVec3, hexColor, opts) {
+            ensureGroup();
+            let b = null;
+            for (let i = 0; i < BEAM_MAX; i++) {
+                if (!beams[i].active) { b = beams[i]; break; }
+            }
+            if (!b) return null;
+            const o = opts || {};
+            b.from.copy(fromVec3);
+            b.to.copy(toVec3);
+            b.age = 0;
+            b.life = Math.max(0.25, o.duration || 0.85);
+            b.mat.color.setHex(hexColor);
+            b.mat.opacity = 0.9;
+            b.positions[0] = fromVec3.x; b.positions[1] = fromVec3.y; b.positions[2] = fromVec3.z;
+            b.positions[3] = toVec3.x; b.positions[4] = toVec3.y; b.positions[5] = toVec3.z;
+            b.posAttr.needsUpdate = true;
+            b.line.visible = true;
+            b.active = true;
+            if (o.burst !== false) burst(toVec3, hexColor, o.burstCount || 10);
+            return b;
+        }
+
+        function updateBeams(dt) {
+            for (let i = 0; i < beams.length; i++) {
+                const b = beams[i];
+                if (!b.active) continue;
+                b.age += dt;
+                if (b.age >= b.life) {
+                    b.active = false;
+                    b.line.visible = false;
+                    continue;
+                }
+                const k = b.age / b.life;
+                b.positions[0] = b.from.x;
+                b.positions[1] = b.from.y;
+                b.positions[2] = b.from.z;
+                b.positions[3] = b.to.x;
+                b.positions[4] = b.to.y;
+                b.positions[5] = b.to.z;
+                b.posAttr.needsUpdate = true;
+                b.mat.opacity = 0.95 * (1 - k) * (0.65 + 0.35 * Math.sin(b.age * 22));
+            }
+        }
+
+        // ------------------------------------------------------------------
+        // Ambient sparkles near a point (tiny short bursts)
+        // ------------------------------------------------------------------
+        function sparkle(posVec3, hexColor, count) {
+            burst(posVec3 || tmpVec.set(0, 0, 0), hexColor || 0xffffff, count || 8);
+        }
+
+        // ------------------------------------------------------------------
         // Tween runner (driven by fx.update)
         // ------------------------------------------------------------------
         const tweens = new Set();
@@ -500,6 +581,7 @@
             updateComets(dt);
             updateBursts(dt);
             updateRings(dt);
+            updateBeams(dt);
         }
 
         function dispose() {
@@ -520,6 +602,10 @@
             });
             rings.forEach(function (r) { r.mat.dispose(); });
             ringGeom.dispose();
+            beams.forEach(function (b) {
+                b.geom.dispose();
+                b.mat.dispose();
+            });
             // Cached canvas textures are shared — dispose them exactly here.
             textureCache.forEach(function (tex) { tex.dispose(); });
             textureCache.clear();
@@ -533,6 +619,8 @@
             makeGlowSprite: makeGlowSprite,
             comet: comet,
             burst: burst,
+            beam: beam,
+            sparkle: sparkle,
             pulseRing: pulseRing,
             trailFor: trailFor,
             tween: tween,

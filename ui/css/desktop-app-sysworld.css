@@ -34,7 +34,33 @@
     inset: 0;
     z-index: 1;
     pointer-events: none;
-    background: radial-gradient(ellipse at center, transparent 52%, rgba(0, 0, 10, 0.42) 100%);
+    background:
+        radial-gradient(ellipse at center, transparent 48%, rgba(0, 0, 12, 0.48) 100%),
+        radial-gradient(ellipse 70% 50% at 20% 15%, rgba(60, 120, 255, 0.06), transparent 55%),
+        radial-gradient(ellipse 60% 40% at 80% 85%, rgba(90, 40, 160, 0.05), transparent 50%);
+}
+
+/* Subtle CRT/scanline atmosphere over the 3D stage */
+.sysworld .sysworld-vignette::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+        to bottom,
+        transparent 0,
+        transparent 2px,
+        rgba(0, 0, 0, 0.045) 2px,
+        rgba(0, 0, 0, 0.045) 3px
+    );
+    opacity: 0.55;
+    mix-blend-mode: soft-light;
+    pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sysworld .sysworld-vignette::after {
+        display: none;
+    }
 }
 
 /* ---- HUD shell ----------------------------------------------------------- */
@@ -58,13 +84,19 @@
 .sysworld .sw-tooltip,
 .sysworld .sw-info,
 .sysworld .sw-fallback {
-    background: rgba(8, 12, 24, 0.72);
-    border: 1px solid rgba(120, 180, 255, 0.18);
-    border-radius: 10px;
-    -webkit-backdrop-filter: blur(8px);
-    backdrop-filter: blur(8px);
+    background:
+        linear-gradient(160deg, rgba(18, 28, 52, 0.78), rgba(8, 12, 24, 0.82)),
+        rgba(8, 12, 24, 0.72);
+    border: 1px solid rgba(120, 180, 255, 0.22);
+    border-radius: 12px;
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
     color: #cfe3ff;
     font-size: 12px;
+    box-shadow:
+        0 12px 32px rgba(0, 0, 0, 0.35),
+        inset 0 1px 0 rgba(180, 210, 255, 0.08),
+        0 0 0 1px rgba(0, 0, 0, 0.2);
 }
 
 /* ---- top-left stats panel ------------------------------------------------ */
@@ -82,6 +114,30 @@
 .sysworld .sw-stats {
     padding: 10px 12px;
     min-width: 158px;
+    position: relative;
+    overflow: hidden;
+}
+
+.sysworld .sw-stats::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(110deg, transparent 30%, rgba(120, 190, 255, 0.08) 48%, transparent 64%);
+    background-size: 200% 100%;
+    animation: sysworld-panel-sheen 5.5s ease-in-out infinite;
+    pointer-events: none;
+}
+
+@keyframes sysworld-panel-sheen {
+    0%, 100% { background-position: 120% 0; opacity: 0.2; }
+    50% { background-position: -20% 0; opacity: 0.85; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sysworld .sw-stats::before {
+        animation: none;
+        opacity: 0.2;
+    }
 }
 
 .sysworld .sw-stat {
@@ -100,6 +156,7 @@
 }
 
 .sysworld .sw-stat-value {
+    text-shadow: 0 0 12px rgba(100, 180, 255, 0.25);
     font-variant-numeric: tabular-nums;
     font-weight: 600;
     font-size: 12px;

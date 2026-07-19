@@ -300,9 +300,10 @@
         // ----------------------------------------------------------------
         const rings = [];
         [
-            { radius: 1.28, tilt: [0.90, 0.00, 0.35], spin: [0.35, 0.55], opacity: 0.50 },
-            { radius: 1.55, tilt: [1.35, 0.50, 0.00], spin: [-0.28, 0.42], opacity: 0.38 },
-            { radius: 1.85, tilt: [0.25, 1.10, 0.80], spin: [0.50, -0.30], opacity: 0.30 }
+            { radius: 1.28, tilt: [0.90, 0.00, 0.35], spin: [0.35, 0.55], opacity: 0.55 },
+            { radius: 1.55, tilt: [1.35, 0.50, 0.00], spin: [-0.28, 0.42], opacity: 0.42 },
+            { radius: 1.85, tilt: [0.25, 1.10, 0.80], spin: [0.50, -0.30], opacity: 0.34 },
+            { radius: 2.18, tilt: [0.60, 0.85, 1.20], spin: [-0.18, 0.62], opacity: 0.22 }
         ].forEach(function (def, index) {
             const mat = new THREE.MeshBasicMaterial({
                 color: P.core,
@@ -320,6 +321,25 @@
             coreGroup.add(mesh);
             rings.push({ mesh: mesh, mat: mat, spinX: def.spin[0], spinY: def.spin[1] });
         });
+
+        // Outer wireframe halo shell for extra depth around the core.
+        const haloMat = new THREE.MeshBasicMaterial({
+            color: P.coreHot,
+            wireframe: true,
+            transparent: true,
+            opacity: 0.08,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+        });
+        const halo = new THREE.Mesh(
+            new THREE.IcosahedronGeometry(coreRadius * 2.35, 1),
+            haloMat
+        );
+        halo.name = 'sysworld-core-halo';
+        coreGroup.add(halo);
+
+        // Occasional ambient flare timer (driven in update).
+        let flareCooldown = 1.8 + Math.random() * 2.5;
 
         // ----------------------------------------------------------------
         // Corona — additive point shell orbiting the core with a gentle
@@ -689,13 +709,35 @@
             lattice.rotation.x += dt * 0.06;
             latticeMat.color.copy(currentColor);
             lattice.scale.setScalar(1 + state.pulse * 0.02);
+            latticeMat.opacity = 0.14 + state.pulse * 0.08 + state.hot * 0.06;
+
+            // Outer halo counter-rotates slowly and breathes with heat.
+            halo.rotation.y -= dt * 0.08;
+            halo.rotation.z += dt * 0.04;
+            haloMat.color.copy(currentColor);
+            haloMat.opacity = 0.06 + state.pulse * 0.05 + state.hot * 0.08 + state.pop * 0.1;
+            halo.scale.setScalar(1 + state.pulse * 0.03 + state.pop * 0.08);
 
             // Gyroscopic rings.
             for (let i = 0; i < rings.length; i++) {
                 const ring = rings[i];
-                ring.mesh.rotation.x += ring.spinX * dt;
-                ring.mesh.rotation.y += ring.spinY * dt;
+                const boost = 1 + state.busy * 0.55 + state.hot * 0.4;
+                ring.mesh.rotation.x += ring.spinX * dt * boost;
+                ring.mesh.rotation.y += ring.spinY * dt * boost;
                 ring.mat.color.copy(currentColor);
+                ring.mat.opacity = Math.min(0.85, (0.22 + i * 0.08) + state.pulse * 0.12 + state.hot * 0.1);
+            }
+
+            // Ambient core flares so the center never feels static.
+            flareCooldown -= dt;
+            if (flareCooldown <= 0 && fx && inst.effectsEnabled !== false) {
+                flareCooldown = state.busy ? (0.7 + Math.random() * 1.1) : (2.2 + Math.random() * 3.5);
+                if (typeof fx.pulseRing === 'function') {
+                    fx.pulseRing(originVec, state.moodHex, coreRadius * (3.5 + Math.random() * 3));
+                }
+                if (typeof fx.sparkle === 'function' && Math.random() < 0.55) {
+                    fx.sparkle(originVec, state.moodHex, 10 + Math.floor(Math.random() * 10));
+                }
             }
 
             updateCorona(elapsed);

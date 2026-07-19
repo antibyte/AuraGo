@@ -772,6 +772,49 @@
 
     // ── RAF loop (the only one; stage.update renders, keep it last) ──────────
 
+    // Soft ambient traffic between world zones so the universe always feels alive.
+    function tickAmbientFx(inst, dt) {
+        if (!inst.fx || inst.effectsEnabled === false) return;
+        const THREE = inst.THREE;
+        const L = (window.SysWorld && window.SysWorld.LAYOUT) || {};
+        const P = (window.SysWorld && window.SysWorld.PALETTE) || {};
+        inst._ambientCd = (inst._ambientCd || 1.2) - dt;
+        if (inst._ambientCd > 0) return;
+        inst._ambientCd = 1.4 + Math.random() * 2.8;
+
+        const origin = new THREE.Vector3(0, 0, 0);
+        const graph = L.graphCenter
+            ? new THREE.Vector3(L.graphCenter.x, L.graphCenter.y, L.graphCenter.z)
+            : new THREE.Vector3(0, 34, -120);
+        const mission = new THREE.Vector3(
+            Math.cos(inst.elapsed * 0.2) * (L.missionRingRadius || 84),
+            2,
+            Math.sin(inst.elapsed * 0.2) * (L.missionRingRadius || 84)
+        );
+        const orbit = new THREE.Vector3(
+            Math.cos(inst.elapsed * 0.35) * (L.orbitOuter || 64),
+            4 + Math.sin(inst.elapsed * 0.5) * 3,
+            Math.sin(inst.elapsed * 0.35) * (L.orbitOuter || 64)
+        );
+        const infra = new THREE.Vector3(
+            (Math.random() * 2 - 1) * 40,
+            L.infraY != null ? L.infraY : -34,
+            (Math.random() * 2 - 1) * 40
+        );
+        const points = [origin, graph, mission, orbit, infra];
+        const a = points[Math.floor(Math.random() * points.length)];
+        let b = points[Math.floor(Math.random() * points.length)];
+        if (b === a) b = points[(points.indexOf(a) + 1) % points.length];
+        const colors = [P.core || 0x59d4ff, P.mission || 0xffd54f, P.memory || 0x4dd0e1, P.agent || 0x80deea, P.tool || 0xfff176];
+        const color = colors[Math.floor(Math.random() * colors.length)];
+        const roll = Math.random();
+        try {
+            if (roll < 0.45 && inst.fx.comet) inst.fx.comet(a, b, color, { duration: 1.1 + Math.random() * 0.9, size: 2.4 });
+            else if (roll < 0.8 && inst.fx.beam) inst.fx.beam(a, b, color, { duration: 0.55 + Math.random() * 0.5 });
+            else if (inst.fx.sparkle) inst.fx.sparkle(a, color, 12 + Math.floor(Math.random() * 12));
+        } catch (_) {}
+    }
+
     function startLoop(inst) {
         let last = performance.now();
         const frame = now => {
@@ -787,6 +830,7 @@
             if (dt > MAX_DT) dt = MAX_DT;
             inst.elapsed += dt;
             const e = inst.elapsed;
+            try { tickAmbientFx(inst, dt); } catch (_) {}
             try { if (inst.fx && inst.fx.update) inst.fx.update(dt, e); } catch (_) {}
             try { if (inst.core && inst.core.update) inst.core.update(dt, e); } catch (_) {}
             try { if (inst.orbit && inst.orbit.update) inst.orbit.update(dt, e); } catch (_) {}

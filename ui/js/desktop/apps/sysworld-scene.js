@@ -137,9 +137,10 @@
             starLayers.push({ points: points, driftY: driftY, driftX: driftX });
         }
 
-        addStarLayer(1500, 950, 1.6, 0xffffff, 0.85, 0.0021, 0.0004);
-        addStarLayer(850, 760, 2.6, 0x9fc8ff, 0.6, -0.0015, 0.0009);
-        addStarLayer(380, 560, 3.8, 0xffe2c4, 0.45, 0.001, -0.0006);
+        addStarLayer(Math.round(2200 * qualityScale), 980, 1.5, 0xffffff, 0.88, 0.0021, 0.0004);
+        addStarLayer(Math.round(1200 * qualityScale), 800, 2.4, 0x9fc8ff, 0.62, -0.0015, 0.0009);
+        addStarLayer(Math.round(560 * qualityScale), 620, 3.6, 0xffe2c4, 0.48, 0.001, -0.0006);
+        addStarLayer(Math.round(280 * qualityScale), 420, 5.2, 0xc5a3ff, 0.32, -0.0007, 0.0012);
 
         // ------------------------------------------------------------------
         // Nebula backdrop: a few huge faint glow sprites far behind the scene
@@ -159,14 +160,75 @@
             sprite.position.set(x, y, z);
             sprite.scale.set(size, size, 1);
             scene.add(sprite);
-            nebulae.push({ mat: mat, base: opacity, speed: pulseSpeed, phase: pulsePhase });
+            nebulae.push({ mat: mat, base: opacity, speed: pulseSpeed, phase: pulsePhase, sprite: sprite });
         }
 
-        addNebula(0x1b2a6e, -430, 150, -640, 760, 0.16, 0.11, 0);
-        addNebula(0x3c1a5e, 470, -90, -580, 680, 0.14, 0.09, 1.7);
-        addNebula(0x0e3a52, 130, 330, -720, 600, 0.13, 0.13, 3.1);
-        addNebula(0x4a2418, -170, -270, -660, 560, 0.1, 0.07, 4.4);
-        addNebula(0x123d33, 540, 230, -500, 520, 0.1, 0.1, 5.6);
+        addNebula(0x1b2a6e, -430, 150, -640, 760, 0.18, 0.11, 0);
+        addNebula(0x3c1a5e, 470, -90, -580, 700, 0.16, 0.09, 1.7);
+        addNebula(0x0e3a52, 130, 330, -720, 640, 0.15, 0.13, 3.1);
+        addNebula(0x4a2418, -170, -270, -660, 580, 0.12, 0.07, 4.4);
+        addNebula(0x123d33, 540, 230, -500, 540, 0.12, 0.1, 5.6);
+        addNebula(0x2a1858, -80, 40, -800, 900, 0.1, 0.06, 2.2);
+
+        // ------------------------------------------------------------------
+        // Floating dust motes around the system (close-range atmosphere)
+        // ------------------------------------------------------------------
+        const dustCount = Math.max(80, Math.round(420 * qualityScale));
+        const dustPos = new Float32Array(dustCount * 3);
+        const dustPhase = new Float32Array(dustCount);
+        const dustSpeed = new Float32Array(dustCount);
+        for (let i = 0; i < dustCount; i++) {
+            const r = 18 + Math.random() * 210;
+            const th = Math.random() * Math.PI * 2;
+            const ph = Math.acos(Math.random() * 2 - 1);
+            dustPos[i * 3] = r * Math.sin(ph) * Math.cos(th);
+            dustPos[i * 3 + 1] = r * Math.cos(ph) * 0.55;
+            dustPos[i * 3 + 2] = r * Math.sin(ph) * Math.sin(th);
+            dustPhase[i] = Math.random() * Math.PI * 2;
+            dustSpeed[i] = 0.15 + Math.random() * 0.45;
+        }
+        const dustGeom = new THREE.BufferGeometry();
+        const dustPosAttr = new THREE.BufferAttribute(dustPos, 3);
+        dustPosAttr.setUsage(THREE.DynamicDrawUsage);
+        dustGeom.setAttribute('position', dustPosAttr);
+        const dustMat = new THREE.PointsMaterial({
+            size: 0.85,
+            map: softDotTexture,
+            color: 0xa8d4ff,
+            transparent: true,
+            opacity: 0.35,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+            sizeAttenuation: true
+        });
+        const dustPoints = new THREE.Points(dustGeom, dustMat);
+        dustPoints.frustumCulled = false;
+        dustPoints.name = 'sysworld-dust';
+        scene.add(dustPoints);
+
+        // ------------------------------------------------------------------
+        // Aurora ribbons — slow rotating translucent bands
+        // ------------------------------------------------------------------
+        const auroras = [];
+        function addAurora(radius, y, color, opacity, spin) {
+            const mat = new THREE.MeshBasicMaterial({
+                color: color,
+                transparent: true,
+                opacity: opacity,
+                side: THREE.DoubleSide,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+            const mesh = new THREE.Mesh(new THREE.TorusGeometry(radius, radius * 0.035, 8, 96), mat);
+            mesh.rotation.x = Math.PI / 2.15;
+            mesh.position.y = y;
+            mesh.name = 'sysworld-aurora';
+            scene.add(mesh);
+            auroras.push({ mesh: mesh, mat: mat, base: opacity, spin: spin, phase: Math.random() * 6 });
+        }
+        addAurora(95, 8, 0x3de0c8, 0.07, 0.04);
+        addAurora(118, -4, 0x6a8dff, 0.055, -0.03);
+        addAurora(142, 16, 0xc06bff, 0.04, 0.025);
 
         // ------------------------------------------------------------------
         // Energy grid floor below the infrastructure field
@@ -174,9 +236,35 @@
         const grid = new THREE.GridHelper(680, 68, 0x2a4a6a, 0x101f33);
         grid.position.y = (L.infraY != null ? L.infraY : -34) - 6;
         grid.material.transparent = true;
-        grid.material.opacity = 0.2;
+        grid.material.opacity = 0.22;
         grid.material.depthWrite = false;
         scene.add(grid);
+
+        // Concentric energy rings on the floor
+        const floorRings = [];
+        [40, 70, 100, 140].forEach(function (r, i) {
+            const mat = new THREE.MeshBasicMaterial({
+                color: i % 2 ? 0x3a7a9a : 0x2a5a7a,
+                transparent: true,
+                opacity: 0.12,
+                side: THREE.DoubleSide,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+            const mesh = new THREE.Mesh(new THREE.RingGeometry(r - 0.35, r + 0.35, 96), mat);
+            mesh.rotation.x = -Math.PI / 2;
+            mesh.position.y = grid.position.y + 0.15;
+            scene.add(mesh);
+            floorRings.push({ mesh: mesh, mat: mat, base: 0.1 + i * 0.015, phase: i * 0.9 });
+        });
+
+        // Accent lights for graph / mission zones
+        const graphLight = new THREE.PointLight(0x7ec8ff, 0.45, 220, 2);
+        graphLight.position.copy(L.graphCenter || new THREE.Vector3(0, 34, -120));
+        scene.add(graphLight);
+        const missionLight = new THREE.PointLight(0xffd54f, 0.35, 180, 2);
+        missionLight.position.set(0, 4, L.missionRingRadius || 84);
+        scene.add(missionLight);
 
         // ------------------------------------------------------------------
         // Resize handling (pattern from ui/js/chat/stl-viewer.js: measure in
@@ -284,19 +372,49 @@
         function update(dt, elapsed) {
             controls.update();
             checkResize();
-            // Very slow starfield drift keeps the backdrop alive.
+            // Very slow starfield drift + soft twinkle keeps the backdrop alive.
             for (let i = 0; i < starLayers.length; i++) {
                 const layer = starLayers[i];
                 layer.points.rotation.y += layer.driftY * dt;
                 layer.points.rotation.x += layer.driftX * dt;
+                if (layer.points.material) {
+                    layer.points.material.opacity = (0.42 + i * 0.08) + 0.12 * Math.sin(elapsed * (0.35 + i * 0.11) + i);
+                }
             }
-            // Gentle nebula breathing, grid pulse and core light shimmer.
+            // Gentle nebula breathing + slow drift.
             for (let i = 0; i < nebulae.length; i++) {
                 const neb = nebulae[i];
-                neb.mat.opacity = neb.base * (0.85 + 0.15 * Math.sin(elapsed * neb.speed + neb.phase));
+                neb.mat.opacity = neb.base * (0.82 + 0.18 * Math.sin(elapsed * neb.speed + neb.phase));
+                if (neb.sprite) {
+                    neb.sprite.position.x += Math.sin(elapsed * 0.03 + neb.phase) * 0.02;
+                    neb.sprite.position.y += Math.cos(elapsed * 0.025 + neb.phase) * 0.015;
+                }
             }
-            grid.material.opacity = 0.17 + 0.05 * Math.sin(elapsed * 0.6);
-            coreLight.intensity = 1.2 + 0.18 * Math.sin(elapsed * 2.1);
+            // Dust float
+            for (let i = 0; i < dustCount; i++) {
+                dustPos[i * 3 + 1] += Math.sin(elapsed * dustSpeed[i] + dustPhase[i]) * 0.008;
+                dustPos[i * 3] += Math.cos(elapsed * dustSpeed[i] * 0.7 + dustPhase[i]) * 0.004;
+            }
+            dustPosAttr.needsUpdate = true;
+            dustMat.opacity = 0.28 + 0.12 * Math.sin(elapsed * 0.4);
+            dustPoints.rotation.y += dt * 0.01;
+
+            // Aurora spin / breathe
+            for (let i = 0; i < auroras.length; i++) {
+                const a = auroras[i];
+                a.mesh.rotation.z += a.spin * dt;
+                a.mat.opacity = a.base * (0.75 + 0.35 * Math.sin(elapsed * 0.55 + a.phase));
+            }
+            // Floor rings pulse outward rhythm
+            for (let i = 0; i < floorRings.length; i++) {
+                const fr = floorRings[i];
+                fr.mat.opacity = fr.base * (0.7 + 0.45 * Math.sin(elapsed * 0.9 + fr.phase));
+            }
+
+            grid.material.opacity = 0.16 + 0.07 * Math.sin(elapsed * 0.6);
+            coreLight.intensity = 1.25 + 0.28 * Math.sin(elapsed * 2.1);
+            graphLight.intensity = 0.35 + 0.18 * Math.sin(elapsed * 1.1 + 1);
+            missionLight.intensity = 0.28 + 0.16 * Math.sin(elapsed * 1.4 + 2);
             renderer.render(scene, camera);
         }
 

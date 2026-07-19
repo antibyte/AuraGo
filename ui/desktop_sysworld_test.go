@@ -115,6 +115,8 @@ func TestDesktopSysWorldAppMarkers(t *testing.T) {
 		"reg('system_metrics'",
 		"sse.off(type, inst.sseHandlers[type])",
 		"sysworld.no_webgl",
+		"tickAmbientFx",
+		"inst.effectsEnabled === false",
 	} {
 		if !strings.Contains(app, want) {
 			t.Fatalf("System World entry missing implementation marker %q", want)
@@ -122,9 +124,9 @@ func TestDesktopSysWorldAppMarkers(t *testing.T) {
 	}
 
 	modules := map[string][]string{
-		"js/desktop/apps/sysworld-effects.js": {"window.SysWorld", "NS.createFx", "NS.PALETTE", "glowTexture", "comet", "tween"},
-		"js/desktop/apps/sysworld-scene.js":   {"window.SysWorld", "NS.createStage", "NS.LAYOUT", "THREE.OrbitControls", "flyTo", "introFlight"},
-		"js/desktop/apps/sysworld-core.js":    {"window.SysWorld", "NS.createCore", "setMood", "setMemory", "memoryFlash", "punch"},
+		"js/desktop/apps/sysworld-effects.js": {"window.SysWorld", "NS.createFx", "NS.PALETTE", "glowTexture", "comet", "beam", "sparkle", "tween"},
+		"js/desktop/apps/sysworld-scene.js":   {"window.SysWorld", "NS.createStage", "NS.LAYOUT", "THREE.OrbitControls", "flyTo", "introFlight", "sysworld-dust", "sysworld-aurora"},
+		"js/desktop/apps/sysworld-core.js":    {"window.SysWorld", "NS.createCore", "setMood", "setMemory", "memoryFlash", "punch", "sysworld-core-halo"},
 		"js/desktop/apps/sysworld-orbit.js":   {"window.SysWorld", "NS.createOrbit", "setIntegrations", "pickables", "satellitePosition"},
 		"js/desktop/apps/sysworld-graph.js":   {"window.SysWorld", "NS.createGraph", "build", "expand", "setVisible", "pickables"},
 		"js/desktop/apps/sysworld-fleet.js":   {"window.SysWorld", "NS.createFleet", "setMissions", "setCoAgents", "setTools", "setInfra", "flashTool"},
@@ -152,6 +154,9 @@ func TestDesktopSysWorldAppMarkers(t *testing.T) {
 		".sw-info",
 		".sw-loading",
 		".sw-fallback",
+		"sysworld-panel-sheen",
+		"repeating-linear-gradient",
+		"prefers-reduced-motion",
 	} {
 		if !strings.Contains(css, want) {
 			t.Fatalf("System World CSS missing marker %q", want)
