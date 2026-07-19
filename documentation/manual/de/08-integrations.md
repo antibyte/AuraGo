@@ -264,6 +264,8 @@ Beide Schalter müssen aktiv sein:
 1. `package_manager.enabled: true`
 2. `agent.allow_package_manager: true`
 
+Linux-Mutationen erfordern zusätzlich `agent.sudo_enabled: true`, `agent.sudo_unrestricted: true`, das Vault-Secret `sudo_password` und eine Service-Umgebung ohne `NoNewPrivileges` oder `ProtectSystem=strict`. Leseoperationen bleiben verfügbar, wenn systemweite Schreibzugriffe gesperrt sind.
+
 ### Einrichtung in der Web-UI
 1. Öffne **Config → Gefahrenzone** und aktiviere **Paketverwaltung (package_manager)**.
 2. Setze `package_manager.enabled` und Detail-Optionen (`readonly`, `allow_install`, …) in der `config.yaml` (kein eigener Config-Menüpunkt für den `package_manager`-Block).
@@ -282,6 +284,8 @@ package_manager:
 
 agent:
   allow_package_manager: true
+  sudo_enabled: true
+  sudo_unrestricted: true
 ```
 
 `override` erzwingt einen bestimmten Paketmanager (z. B. `apt`, `brew`, `winget`); leer lassen für Auto-Erkennung über PATH.

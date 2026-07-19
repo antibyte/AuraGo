@@ -309,6 +309,8 @@ Both toggles must be enabled:
 1. `package_manager.enabled: true`
 2. `agent.allow_package_manager: true`
 
+Linux mutations additionally require `agent.sudo_enabled: true`, `agent.sudo_unrestricted: true`, the `sudo_password` Vault secret, and a service environment without `NoNewPrivileges` or `ProtectSystem=strict`. Read-only operations remain available when system-wide writes are blocked.
+
 ### Web UI Setup
 1. Open **Config → Integrations → Package Manager**.
 2. Enable the integration.
@@ -329,6 +331,8 @@ package_manager:
 
 agent:
     allow_package_manager: true
+    sudo_enabled: true
+    sudo_unrestricted: true
 ```
 
 `override` forces a specific manager (e.g., `apt`, `brew`, `winget`); leave empty for auto-detection from PATH.

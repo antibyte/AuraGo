@@ -27,7 +27,7 @@ agent:
     adaptive_system_prompt_token_budget: true
     workflow_feedback: true
     sudo_enabled: false
-    sudo_unrestricted: false  # allow sudo to write outside the install dir (requires removing ProtectSystem=strict from the systemd unit)
+    sudo_unrestricted: false  # allow sudo and Linux package mutations to write outside the install dir (requires removing ProtectSystem=strict from the systemd unit)
 
     # ── Output Compression ── reduces token consumption by filtering and
     #    deduplicating verbose tool outputs before they enter the LLM context.
@@ -280,7 +280,7 @@ docker:
     host: ""
     readonly: false
 package_manager:
-    enabled: false        # master toggle for the package_manager tool
+    enabled: false        # master toggle; Linux mutations additionally require sudo_enabled, sudo_unrestricted and writable system paths
     readonly: false       # allow only detect/search/list_installed/info when true
     auto_detect: true     # detect apt/dnf/yum/pacman/zypper/apk/brew/winget/choco/scoop from PATH
     override: ""          # force a manager, e.g. apt, brew, winget; empty uses auto-detect

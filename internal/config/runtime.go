@@ -3,6 +3,7 @@ package config
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -11,6 +12,7 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
+	"syscall"
 	"time"
 
 	"aurago/internal/bluetooth"
@@ -36,6 +38,11 @@ type Runtime struct {
 type FeatureAvailability struct {
 	Available bool   `json:"available"`
 	Reason    string `json:"reason,omitempty"`
+}
+
+type runtimePrivilegeProbes struct {
+	noNewPrivileges     func() bool
+	protectSystemStrict func() bool
 }
 
 // DetectRuntime probes the environment once at startup and populates
@@ -72,13 +79,12 @@ func DetectRuntime(logger *slog.Logger) Runtime {
 	}
 	logger.Info("[Runtime] Firewall access", "ok", rt.FirewallAccessOK)
 
-	// 5. No-new-privileges kernel flag — if set, sudo cannot escalate privileges.
-	rt.NoNewPrivileges = probeNoNewPrivileges()
-	if rt.NoNewPrivileges {
-		logger.Warn("[Runtime] No-new-privileges flag is SET — sudo cannot escalate. If using the systemd service, comment out 'NoNewPrivileges=true' in the unit file and reload systemd.")
-	} else {
-		logger.Info("[Runtime] No-new-privileges flag", "set", false)
-	}
+	// 5. Privilege restrictions. These are separate checks: sudo may be able to
+	// escalate while systemd still presents system directories as read-only.
+	applyRuntimePrivilegeProbes(&rt, logger, runtimePrivilegeProbes{
+		noNewPrivileges:     probeNoNewPrivileges,
+		protectSystemStrict: probeProtectSystemStrict,
+	})
 
 	// 6. Bluetooth and user-session audio. This is a passive probe: it never
 	// starts BlueZ discovery or changes the system's default audio device.
@@ -96,6 +102,22 @@ func DetectRuntime(logger *slog.Logger) Runtime {
 		"audio_backend", rt.Bluetooth.Audio.Backend)
 
 	return rt
+}
+
+func applyRuntimePrivilegeProbes(rt *Runtime, logger *slog.Logger, probes runtimePrivilegeProbes) {
+	rt.NoNewPrivileges = probes.noNewPrivileges()
+	if rt.NoNewPrivileges {
+		logger.Warn("[Runtime] No-new-privileges flag is SET — sudo cannot escalate. If using the systemd service, comment out 'NoNewPrivileges=true' in the unit file and reload systemd.")
+	} else {
+		logger.Info("[Runtime] No-new-privileges flag", "set", false)
+	}
+
+	rt.ProtectSystemStrict = probes.protectSystemStrict()
+	if rt.ProtectSystemStrict {
+		logger.Warn("[Runtime] System paths are read-only — ProtectSystem=strict or equivalent hardening is active. System-wide sudo writes and Linux package mutations are unavailable.")
+	} else {
+		logger.Info("[Runtime] ProtectSystem restriction", "strict", false)
+	}
 }
 
 // ComputeFeatureAvailability maps each config section to its runtime availability.
@@ -360,9 +382,6 @@ func probeFirewall() bool {
 	return true
 }
 
-// probeNoNewPrivileges checks whether the kernel's no-new-privileges flag is
-// active for this process by reading /proc/self/status.  When set, sudo cannot
-// escalate privileges via the setuid bit.
 // probeProtectSystemStrict checks whether the process is running under
 // ProtectSystem=strict (or a similar read-only root mount) by attempting
 // to create a file in /etc. It immediately cleans up the test file.
@@ -373,13 +392,24 @@ func probeProtectSystemStrict() bool {
 	testPath := fmt.Sprintf("/etc/.aurago_rw_test_%d", os.Getpid())
 	f, err := os.Create(testPath)
 	if err != nil {
-		return strings.Contains(err.Error(), "read-only file system")
+		return isReadOnlyFilesystemError(err)
 	}
 	f.Close()
 	_ = os.Remove(testPath)
 	return false
 }
 
+func isReadOnlyFilesystemError(err error) bool {
+	if err == nil {
+		return false
+	}
+	return errors.Is(err, syscall.EROFS) ||
+		strings.Contains(strings.ToLower(err.Error()), "read-only file system")
+}
+
+// probeNoNewPrivileges checks whether the kernel's no-new-privileges flag is
+// active for this process by reading /proc/self/status. When set, sudo cannot
+// escalate privileges via the setuid bit.
 func probeNoNewPrivileges() bool {
 	data, err := os.ReadFile("/proc/self/status")
 	if err != nil {

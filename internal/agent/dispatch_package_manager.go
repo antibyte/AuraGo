@@ -55,6 +55,12 @@ func dispatchPackageManager(tc ToolCall, dc *DispatchContext) string {
 		if cfg.Runtime.NoNewPrivileges {
 			return packageManagerJSON(map[string]interface{}{"status": "error", "operation": operation, "manager": manager, "message": "sudo is not available because no-new-privileges is active"})
 		}
+		if !cfg.Agent.SudoUnrestricted {
+			return packageManagerJSON(map[string]interface{}{"status": "error", "operation": operation, "manager": manager, "message": "Linux package mutations require agent.sudo_unrestricted=true because they write outside AuraGo's install directory"})
+		}
+		if cfg.Runtime.ProtectSystemStrict {
+			return packageManagerJSON(map[string]interface{}{"status": "error", "operation": operation, "manager": manager, "message": "Linux package mutations are blocked because ProtectSystem=strict makes system paths read-only. Set ProtectSystem=false for aurago.service, reload systemd, and restart AuraGo."})
+		}
 		if vault == nil {
 			return packageManagerJSON(map[string]interface{}{"status": "error", "operation": operation, "manager": manager, "message": "vault is not available for sudo_password lookup"})
 		}

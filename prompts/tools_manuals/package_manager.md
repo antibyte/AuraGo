@@ -32,7 +32,7 @@ Manage local system packages with a structured cross-platform wrapper. The tool 
 
 ### Platform Behavior
 
-- Linux: supports `apt`, `dnf`, `yum`, `pacman`, `zypper`, and `apk`. Mutating operations use `execute_sudo` internally with the vault key `sudo_password`.
+- Linux: supports `apt`, `dnf`, `yum`, `pacman`, `zypper`, and `apk`. Mutating operations use `execute_sudo` internally with the vault key `sudo_password` and require system-wide writes to be explicitly enabled.
 - macOS: supports Homebrew (`brew`) and runs as the current user.
 - Windows: supports `winget`, `choco`, and `scoop` in that order.
 - Docker: usually unavailable unless explicitly enabled and sudo is usable in the container.
@@ -60,4 +60,5 @@ Manage local system packages with a structured cross-platform wrapper. The tool 
 - Prefer `detect`, `search`, `list_installed`, and `info` before changing packages.
 - Confirm with the user before `install` or `remove` unless the user explicitly requested that change.
 - `package_manager.readonly: true` blocks `install`, `remove`, `update`, and `upgrade`.
-- Linux mutations require `agent.sudo_enabled: true` and `sudo_password` stored in the vault.
+- Linux mutations require `agent.sudo_enabled: true`, `agent.sudo_unrestricted: true`, `sudo_password` stored in the vault, and a service environment without `NoNewPrivileges` or `ProtectSystem=strict`.
+- When systemd hardening makes system paths read-only, keep using the read operations and ask the administrator to adjust and restart the service; do not fall back to raw `execute_shell` or `execute_sudo` package commands.
