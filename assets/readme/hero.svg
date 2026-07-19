@@ -1,0 +1,183 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="1200" height="420" viewBox="0 0 1200 420"
+     role="img" aria-labelledby="title desc">
+  <title id="title">AuraGo — your self-hosted AI operator for the home lab</title>
+  <desc id="desc">AuraGo connects a local agent, memory, vault, and permission gates to Docker, Proxmox, Home Assistant, SSH, and storage systems.</desc>
+
+  <defs>
+    <linearGradient id="aura" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2DD4BF"/>
+      <stop offset="1" stop-color="#60A5FA"/>
+    </linearGradient>
+    <linearGradient id="signal" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#2DD4BF"/>
+      <stop offset="1" stop-color="#F4C96B"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="420" rx="28" fill="#070B14"/>
+  <rect x="1" y="1" width="1198" height="418" rx="27" fill="none" stroke="#1E2C3E" stroke-width="2"/>
+
+  <g id="title-block" transform="translate(58 48)">
+    <text x="0" y="0"
+          fill="#2DD4BF"
+          font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+          font-size="18" font-weight="700" letter-spacing="3">
+      SELF-HOSTED AI CONTROL PLANE
+    </text>
+
+    <text x="0" y="91"
+          fill="#F7FAFC"
+          font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
+          font-size="82" font-weight="750" letter-spacing="-3">
+      Aura<tspan fill="url(#aura)">Go</tspan>
+    </text>
+
+    <text x="2" y="137"
+          fill="#C9D4E2"
+          font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
+          font-size="25" font-weight="500">
+      One Go binary. Local memory. Real tools
+    </text>
+    <text x="2" y="171"
+          fill="#C9D4E2"
+          font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
+          font-size="25" font-weight="500">
+      for the infrastructure you already run.
+    </text>
+
+    <g transform="translate(2 218)">
+      <rect width="160" height="42" rx="21" fill="#10251F" stroke="#237C6E"/>
+      <circle cx="23" cy="21" r="6" fill="#2DD4BF"/>
+      <text x="39" y="27"
+            fill="#DDFCF6"
+            font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+            font-size="17" font-weight="650">RUNS LOCALLY</text>
+
+      <rect x="174" width="156" height="42" rx="21" fill="#172033" stroke="#334764"/>
+      <path d="M198 14 v14 M191 21 h14" stroke="#60A5FA" stroke-width="2.5" stroke-linecap="round"/>
+      <text x="215" y="27"
+            fill="#E4ECF7"
+            font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+            font-size="17" font-weight="650">100+ TOOLS</text>
+    </g>
+  </g>
+
+  <g id="control-plane" transform="translate(666 42)">
+    <path d="M238 158 C126 154 82 105 44 76"
+          fill="none" stroke="#29485A" stroke-width="2.5"/>
+    <path d="M238 158 C120 164 82 212 44 246"
+          fill="none" stroke="#29485A" stroke-width="2.5"/>
+    <path d="M296 158 C402 154 449 105 488 76"
+          fill="none" stroke="#4B4332" stroke-width="2.5"/>
+    <path d="M296 158 C405 166 451 213 488 246"
+          fill="none" stroke="#4B4332" stroke-width="2.5"/>
+    <path d="M267 198 V261"
+          fill="none" stroke="#34465D" stroke-width="2.5"/>
+
+    <g id="aurago-hub" transform="translate(166 91)">
+      <rect width="202" height="134" rx="28" fill="#0D1725" stroke="url(#signal)" stroke-width="3"/>
+      <rect x="18" y="18" width="166" height="34" rx="17" fill="#12243A"/>
+      <circle cx="38" cy="35" r="6" fill="#2DD4BF"/>
+      <text x="53" y="42"
+            fill="#F7FAFC"
+            font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
+            font-size="21" font-weight="750">AURAGO AGENT</text>
+      <text x="24" y="82"
+            fill="#9FB0C4"
+            font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+            font-size="17">LOCAL MEMORY</text>
+      <text x="24" y="109"
+            fill="#9FB0C4"
+            font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+            font-size="17">VAULT · POLICY GATES</text>
+    </g>
+
+    <g id="docker-node">
+      <rect x="0" y="42" width="150" height="68" rx="17" fill="#0D1725" stroke="#25465B" stroke-width="2"/>
+      <circle cx="25" cy="76" r="8" fill="#60A5FA"/>
+      <text x="45" y="83"
+            fill="#E7EEF7"
+            font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
+            font-size="20" font-weight="650">Docker</text>
+    </g>
+
+    <g id="proxmox-node">
+      <rect x="384" y="42" width="150" height="68" rx="17" fill="#0D1725" stroke="#51462F" stroke-width="2"/>
+      <circle cx="409" cy="76" r="8" fill="#F4C96B"/>
+      <text x="429" y="83"
+            fill="#E7EEF7"
+            font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
+            font-size="20" font-weight="650">Proxmox</text>
+    </g>
+
+    <g id="home-assistant-node">
+      <rect x="0" y="212" width="150" height="68" rx="17" fill="#0D1725" stroke="#25465B" stroke-width="2"/>
+      <circle cx="25" cy="246" r="8" fill="#2DD4BF"/>
+      <text x="45" y="241"
+            fill="#E7EEF7"
+            font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
+            font-size="18" font-weight="650">Home</text>
+      <text x="45" y="263"
+            fill="#E7EEF7"
+            font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
+            font-size="18" font-weight="650">Assistant</text>
+    </g>
+
+    <g id="storage-node">
+      <rect x="384" y="212" width="150" height="68" rx="17" fill="#0D1725" stroke="#51462F" stroke-width="2"/>
+      <circle cx="409" cy="246" r="8" fill="#F4C96B"/>
+      <text x="429" y="253"
+            fill="#E7EEF7"
+            font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
+            font-size="20" font-weight="650">NAS · SSH</text>
+    </g>
+
+    <g id="user-node">
+      <rect x="192" y="260" width="150" height="58" rx="29" fill="#101B2A" stroke="#334764" stroke-width="2"/>
+      <circle cx="220" cy="289" r="8" fill="#F7FAFC"/>
+      <text x="240" y="296"
+            fill="#F7FAFC"
+            font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
+            font-size="20" font-weight="700">YOU DECIDE</text>
+    </g>
+
+    <circle cx="238" cy="158" r="4.5" fill="#2DD4BF"/>
+    <circle cx="296" cy="158" r="4.5" fill="#F4C96B"/>
+    <circle cx="267" cy="254" r="4.5" fill="#60A5FA"/>
+  </g>
+
+  <g id="metadata" transform="translate(58 378)">
+    <line x1="0" y1="-17" x2="1078" y2="-17" stroke="#1E2C3E"/>
+    <text x="0" y="5"
+          fill="#73869D"
+          font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+          font-size="16" letter-spacing="1.5">
+      PURE GO
+    </text>
+    <text x="148" y="5"
+          fill="#73869D"
+          font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+          font-size="16" letter-spacing="1.5">
+      EMBEDDED WEB UI
+    </text>
+    <text x="385" y="5"
+          fill="#73869D"
+          font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+          font-size="16" letter-spacing="1.5">
+      PROVIDER-AGNOSTIC
+    </text>
+    <text x="656" y="5"
+          fill="#73869D"
+          font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+          font-size="16" letter-spacing="1.5">
+      PER-CAPABILITY CONTROL
+    </text>
+    <text x="994" y="5"
+          fill="#73869D"
+          font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+          font-size="16" letter-spacing="1.5">
+      MIT
+    </text>
+  </g>
+</svg>
