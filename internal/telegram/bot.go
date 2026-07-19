@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -196,7 +197,11 @@ func processUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Con
 				analysis, err := AnalyzeImage(imgPath, cfg)
 				if err != nil {
 					logger.Error("Failed to analyze image", "error", err)
-					analysis = "[Error analyzing image]"
+					if errors.Is(err, tools.ErrVisionPublicURLRequired) {
+						analysis = "[Image analysis unavailable: " + tools.VisionPublicURLRequiredMessage + "]"
+					} else {
+						analysis = "[Error analyzing image]"
+					}
 				}
 
 				logger.Info("Image analysis successful", "length", len(analysis))

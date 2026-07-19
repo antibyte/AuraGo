@@ -509,6 +509,29 @@ func TestPrepareDesktopAgentTurnDoesNotPersistCameraBase64(t *testing.T) {
 	}
 }
 
+func TestPrepareDesktopAgentTurnRejectsCameraBase64ForAgnes(t *testing.T) {
+	t.Parallel()
+
+	s := newTestDesktopChatServer(t)
+	s.Cfg.LLM.Multimodal = true
+	s.Cfg.LLM.ProviderType = "agnes"
+	s.Cfg.LLM.Model = "agnes-2.0-flash"
+
+	_, err := prepareDesktopAgentTurn(context.Background(), s, "what is in the image?", desktopChatContext{
+		ImageBase64: "abc123desktopcamera",
+	}, true)
+	if err == nil || !strings.Contains(err.Error(), "publicly reachable HTTP(S) image URL") {
+		t.Fatalf("error = %v, want Agnes public URL requirement", err)
+	}
+	history, historyErr := s.ShortTermMem.GetSessionMessages(desktopChatSessionID)
+	if historyErr != nil {
+		t.Fatal(historyErr)
+	}
+	if len(history) != 0 {
+		t.Fatalf("rejected camera turn was persisted: %#v", history)
+	}
+}
+
 func TestDesktopChatStreamEmitsLLMDeltaBeforeDone(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/v1/chat/completions" {

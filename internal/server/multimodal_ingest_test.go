@@ -300,3 +300,58 @@ func TestPromoteUploadedImagesToMultiContent_KimiK26ModelAllowlist(t *testing.T)
 		t.Fatalf("expected MultiContent parts (text + image), got %d", len(out.MultiContent))
 	}
 }
+
+func TestAgnesMainProviderRejectsLocalAndInlineImageInputs(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.LLM.ProviderType = "agnes"
+	cfg.LLM.Model = "agnes-2.0-flash"
+	cfg.LLM.Multimodal = true
+
+	local := openai.ChatCompletionMessage{
+		Role:    openai.ChatMessageRoleUser,
+		Content: "Inspect agent_workspace/workdir/attachments/image.png",
+	}
+	if err := validateCurrentMainProviderImageInput(cfg, local); err == nil {
+		t.Fatal("expected Agnes local attachment rejection")
+	}
+	out := promoteUploadedImagesToMultiContent(cfg, local, t.TempDir(), nil)
+	if len(out.MultiContent) != 0 || out.Content != local.Content {
+		t.Fatalf("Agnes local attachment was promoted: %+v", out)
+	}
+
+	inline := openai.ChatCompletionMessage{
+		Role: openai.ChatMessageRoleUser,
+		MultiContent: []openai.ChatMessagePart{{
+			Type:     openai.ChatMessagePartTypeImageURL,
+			ImageURL: &openai.ChatMessageImageURL{URL: "data:image/png;base64,AA=="},
+		}},
+	}
+	if err := validateMainProviderImageParts(cfg, inline); err == nil {
+		t.Fatal("expected Agnes data URL rejection")
+	}
+}
+
+func TestAgnesMainProviderAllowsOnlyPublicImageURLs(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.LLM.ProviderType = "agnes"
+
+	publicMessage := openai.ChatCompletionMessage{
+		Role: openai.ChatMessageRoleUser,
+		MultiContent: []openai.ChatMessagePart{{
+			Type:     openai.ChatMessagePartTypeImageURL,
+			ImageURL: &openai.ChatMessageImageURL{URL: "https://8.8.8.8/image.png?signature=keep-me"},
+		}},
+	}
+	if err := validateMainProviderImageParts(cfg, publicMessage); err != nil {
+		t.Fatalf("public Agnes image URL rejected: %v", err)
+	}
+
+	privateMessage := publicMessage
+	privateMessage.MultiContent = []openai.ChatMessagePart{{
+		Type:     openai.ChatMessagePartTypeImageURL,
+		ImageURL: &openai.ChatMessageImageURL{URL: "http://192.168.1.2/image.png"},
+	}}
+	if err := validateMainProviderImageParts(cfg, privateMessage); err == nil {
+		t.Fatal("expected private Agnes image URL rejection")
+	}
+}

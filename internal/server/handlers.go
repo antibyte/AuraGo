@@ -290,6 +290,21 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 
 		// 1. Save User Input to Short-Term Memory
 		lastUserMsg := req.Messages[len(req.Messages)-1]
+		s.CfgMu.RLock()
+		var imageInputErr error
+		for _, message := range req.Messages {
+			if imageInputErr = validateMainProviderImageParts(s.Cfg, message); imageInputErr != nil {
+				break
+			}
+		}
+		if imageInputErr == nil {
+			imageInputErr = validateCurrentMainProviderImageInput(s.Cfg, lastUserMsg)
+		}
+		s.CfgMu.RUnlock()
+		if imageInputErr != nil {
+			jsonError(w, imageInputErr.Error(), http.StatusBadRequest)
+			return
+		}
 		sessionID := "default"
 		if missionID != "" {
 			sessionID = "mission-" + missionID

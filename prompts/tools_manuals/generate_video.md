@@ -14,7 +14,7 @@ Use `generate_video` when the user asks AuraGo to create a short video clip from
 
 - MiniMax Hailuo through `video_generation.provider`; default API model is `MiniMax-Hailuo-2.3` with a 6-second clip. Resolution is sent separately, defaulting to `768P`.
 - Google Veo through `video_generation.provider`; default fallback is `veo-3.1-generate-preview` if no model is configured.
-- Agnes AI through `video_generation.provider`; default API model is `agnes-video-v2.0`. AuraGo submits `/v1/videos` jobs and polls the Agnes result endpoint until the MP4 is ready.
+- Agnes AI through `video_generation.provider`; default API model is `agnes-video-v2.0`. AuraGo submits `/v1/videos` jobs and polls the Agnes result endpoint until the MP4 is ready. Agnes image guidance accepts public HTTP(S) URLs only.
 
 The provider is chosen in Settings > Video Generation, not per tool call. Only set `model` when the user explicitly asks for a model that belongs to the configured provider; otherwise leave it empty.
 
@@ -33,5 +33,7 @@ The provider is chosen in Settings > Video Generation, not per tool call. Only s
 ## Notes
 
 Video generation is asynchronous and can take several minutes. The tool polls provider status until completion, failure, or `video_generation.timeout_seconds`.
+
+For Agnes AI, duration must be 1–30 seconds; supported resolutions are `480p`, `720p`, `768p`, and `1080p`, with `16:9`, `9:16`, `1:1`, `4:3`, or `3:4`. Base64, local, localhost, and private-network image inputs are rejected. `last_frame_image` requires `first_frame_image`; reference-only keyframe mode requires at least two URLs.
 
 Successful generated videos are automatically posted to the WebUI chat as an inline player. Do not call `send_video` again for the same generated clip unless the user explicitly asks to resend it.

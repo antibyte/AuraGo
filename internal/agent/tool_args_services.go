@@ -17,6 +17,7 @@ type manageWebhooksArgs struct {
 
 type imageAnalysisArgs struct {
 	FilePath string
+	ImageURL string
 	Prompt   string
 }
 
@@ -244,6 +245,7 @@ func decodeManageWebhooksArgs(tc ToolCall) manageWebhooksArgs {
 func decodeImageAnalysisArgs(tc ToolCall) imageAnalysisArgs {
 	return imageAnalysisArgs{
 		FilePath: firstNonEmptyToolString(tc.FilePath, tc.Path, toolArgString(tc.Params, "file_path", "path")),
+		ImageURL: firstNonEmptyToolString(toolArgString(tc.Params, "image_url")),
 		Prompt:   firstNonEmptyToolString(tc.Prompt, toolArgString(tc.Params, "prompt")),
 	}
 }

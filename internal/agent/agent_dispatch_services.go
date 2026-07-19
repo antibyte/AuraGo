@@ -16,8 +16,9 @@ import (
 )
 
 var (
-	dispatchPreferredMCPVision     = tools.CallPreferredMCPVision
-	dispatchAnalyzeImageWithPrompt = tools.AnalyzeImageWithPrompt
+	dispatchPreferredMCPVision        = tools.CallPreferredMCPVision
+	dispatchAnalyzeImageWithPrompt    = tools.AnalyzeImageWithPrompt
+	dispatchAnalyzeImageURLWithPrompt = tools.AnalyzeImageURLWithPrompt
 
 	meshCentralCachedClient    *meshcentral.CachedClient
 	meshCentralCachedConfig    meshCentralClientConfig
@@ -356,26 +357,42 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return `Tool Output: {"status": "error", "message": "Vision blocked: daily budget exceeded. Try again tomorrow."}`
 			}
 			req := decodeImageAnalysisArgs(tc)
-			logger.Info("LLM requested image analysis", "file_path", req.FilePath)
 			fpath := req.FilePath
-			if fpath == "" {
-				return `Tool Output: {"status": "error", "message": "'file_path' is required for analyze_image"}`
+			imageURL := req.ImageURL
+			hasFile := strings.TrimSpace(fpath) != ""
+			hasURL := strings.TrimSpace(imageURL) != ""
+			if hasFile == hasURL {
+				return `Tool Output: {"status": "error", "message": "provide exactly one of 'file_path' or 'image_url' for analyze_image"}`
 			}
-			if strings.Contains(fpath, "..") {
+			if hasFile && strings.Contains(fpath, "..") {
 				return `Tool Output: {"status": "error", "message": "path traversal sequences ('..') are not allowed"}`
 			}
+			source := "public_url"
+			if hasFile {
+				source = "local_file"
+			}
+			logger.Info("LLM requested image analysis", "source", source)
 			prompt := req.Prompt
 			if prompt == "" {
 				prompt = "Describe this image in detail. What do you see? If there is text, transcribe it. If there are people, describe their actions."
 			}
-			if preferredResult, usedPreferred, err := dispatchPreferredMCPVision(cfg, fpath, prompt, logger); usedPreferred {
-				if err != nil {
-					logger.Warn("[Vision] Preferred MCP vision failed, falling back to native vision", "file_path", fpath, "error", err)
-				} else {
-					return "Tool Output: " + security.Scrub(preferredResult)
+			if hasFile {
+				if preferredResult, usedPreferred, err := dispatchPreferredMCPVision(cfg, fpath, prompt, logger); usedPreferred {
+					if err != nil {
+						logger.Warn("[Vision] Preferred MCP vision failed, falling back to native vision", "source", source, "error", err)
+					} else {
+						return "Tool Output: " + security.Scrub(preferredResult)
+					}
 				}
 			}
-			result, pTokens, cTokens, err := dispatchAnalyzeImageWithPrompt(fpath, prompt, cfg)
+			var result string
+			var pTokens, cTokens int
+			var err error
+			if hasURL {
+				result, pTokens, cTokens, err = dispatchAnalyzeImageURLWithPrompt(imageURL, prompt, cfg)
+			} else {
+				result, pTokens, cTokens, err = dispatchAnalyzeImageWithPrompt(fpath, prompt, cfg)
+			}
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Vision analysis failed: %v"}`, err)
 			}

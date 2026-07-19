@@ -797,6 +797,41 @@ func TestFileIndexerSkipsUnchangedImageBeforeVisionCall(t *testing.T) {
 	}
 }
 
+func TestFileIndexerSkipsLocalImagesForAgnesVision(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	defer stm.Close()
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "photo.jpg")
+	if err := os.WriteFile(path, []byte("local image bytes"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := &config.Config{}
+	cfg.Directories.WorkspaceDir = dir
+	cfg.Indexing.Directories = []config.IndexingDirectory{{Path: dir}}
+	cfg.Indexing.Extensions = []string{".jpg"}
+	cfg.Indexing.IndexImages = true
+	cfg.Vision.ProviderType = "agnes"
+	cfg.Vision.APIKey = "unused"
+	vdb := &fakeIndexerVectorDB{}
+	fi := NewFileIndexer(cfg, &sync.RWMutex{}, vdb, stm, logger)
+
+	total, indexed, errs := fi.scanDirectory(context.Background(), dir, IndexerCollection)
+	if total != 1 || indexed != 0 || len(errs) != 0 {
+		t.Fatalf("scan result total=%d indexed=%d errors=%v", total, indexed, errs)
+	}
+	vdb.mu.Lock()
+	defer vdb.mu.Unlock()
+	if len(vdb.stored) != 0 {
+		t.Fatalf("Agnes local image was sent to indexing pipeline: %#v", vdb.stored)
+	}
+}
+
 func TestFileIndexerSkipsOverlappingScans(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	stm, err := memory.NewSQLiteMemory(":memory:", logger)

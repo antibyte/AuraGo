@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -13,11 +14,16 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/providerutil"
+	"aurago/internal/security"
 )
 
 var visionHTTPClient = &http.Client{Timeout: 60 * time.Second}
+var validatePublicImageURL = security.ValidatePublicHTTPURL
 
 const DefaultVisionModel = "google/gemini-2.0-flash-001"
+const VisionPublicURLRequiredMessage = "Agnes AI vision requires a publicly reachable HTTP(S) image URL; local files, uploads, and base64 images are not supported"
+
+var ErrVisionPublicURLRequired = errors.New(VisionPublicURLRequiredMessage)
 
 // AnalyzeImageWithPrompt sends an image file to the configured Vision LLM for analysis.
 // The prompt parameter controls what the model should focus on.
@@ -28,34 +34,33 @@ func AnalyzeImageWithPrompt(filePath, prompt string, cfg *config.Config) (string
 // AnalyzeImageWithPromptContext sends an image file to the configured Vision LLM
 // and binds the provider request to ctx.
 func AnalyzeImageWithPromptContext(ctx context.Context, filePath, prompt string, cfg *config.Config) (string, int, int, error) {
+	return analyzeLocalImageWithPromptContext(ctx, filePath, prompt, cfg, true)
+}
+
+// AnalyzeTrustedImageFileWithPrompt analyzes an application-managed local file
+// such as a temporary Telegram/Discord download. Agent-provided paths must use
+// AnalyzeImageWithPrompt so workspace boundary checks remain enforced.
+func AnalyzeTrustedImageFileWithPrompt(filePath, prompt string, cfg *config.Config) (string, int, int, error) {
+	return analyzeLocalImageWithPromptContext(context.Background(), filePath, prompt, cfg, false)
+}
+
+func analyzeLocalImageWithPromptContext(ctx context.Context, filePath, prompt string, cfg *config.Config, resolveWorkspacePath bool) (string, int, int, error) {
+	if cfg == nil {
+		return "", 0, 0, fmt.Errorf("vision configuration is not available")
+	}
+	if VisionRequiresPublicImageURL(cfg) {
+		return "", 0, 0, ErrVisionPublicURLRequired
+	}
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	resolvedPath, err := resolveToolInputPath(filePath, cfg)
-	if err != nil {
-		return "", 0, 0, fmt.Errorf("invalid image file path: %w", err)
-	}
-
-	// Resolved by config.ResolveProviders (falls back to main LLM)
-	apiKey := strings.TrimSpace(cfg.Vision.APIKey)
-	baseURL := providerutil.NormalizeBaseURL(strings.TrimSpace(cfg.Vision.BaseURL))
-
-	model := strings.TrimSpace(cfg.Vision.Model)
-	if model == "" {
-		model = DefaultVisionModel
-	}
-
-	if apiKey == "" {
-		apiKey = strings.TrimSpace(cfg.LLM.APIKey)
-	}
-	if apiKey == "" {
-		return "", 0, 0, fmt.Errorf("vision API key is not configured — set vision.provider or vision.api_key in config, or ensure the main LLM API key is set as fallback")
-	}
-	if baseURL == "" {
-		baseURL = providerutil.NormalizeBaseURL(strings.TrimSpace(cfg.LLM.BaseURL))
-	}
-	if baseURL == "" {
-		return "", 0, 0, fmt.Errorf("vision base URL is not configured")
+	resolvedPath := filePath
+	if resolveWorkspacePath {
+		var err error
+		resolvedPath, err = resolveToolInputPath(filePath, cfg)
+		if err != nil {
+			return "", 0, 0, fmt.Errorf("invalid image file path: %w", err)
+		}
 	}
 
 	// Read and base64-encode the image
@@ -87,6 +92,67 @@ func AnalyzeImageWithPromptContext(ctx context.Context, filePath, prompt string,
 
 	encodedImage := base64.StdEncoding.EncodeToString(imageData)
 	dataURL := fmt.Sprintf("data:%s;base64,%s", mimeType, encodedImage)
+	return analyzeImageReferenceWithPromptContext(ctx, dataURL, prompt, cfg)
+}
+
+// AnalyzeImageURLWithPrompt analyzes a publicly reachable image URL using the
+// configured Vision LLM.
+func AnalyzeImageURLWithPrompt(imageURL, prompt string, cfg *config.Config) (string, int, int, error) {
+	return AnalyzeImageURLWithPromptContext(context.Background(), imageURL, prompt, cfg)
+}
+
+// AnalyzeImageURLWithPromptContext validates and analyzes a publicly reachable
+// image URL without downloading or logging the signed URL in AuraGo.
+func AnalyzeImageURLWithPromptContext(ctx context.Context, imageURL, prompt string, cfg *config.Config) (string, int, int, error) {
+	if cfg == nil {
+		return "", 0, 0, fmt.Errorf("vision configuration is not available")
+	}
+	imageURL = strings.TrimSpace(imageURL)
+	if err := validatePublicImageURL(imageURL); err != nil {
+		return "", 0, 0, fmt.Errorf("image_url must be publicly reachable via HTTP(S): %w", err)
+	}
+	return analyzeImageReferenceWithPromptContext(ctx, imageURL, prompt, cfg)
+}
+
+// VisionRequiresPublicImageURL reports whether the resolved Vision provider can
+// consume public image URLs but cannot consume inline base64/local file data.
+func VisionRequiresPublicImageURL(cfg *config.Config) bool {
+	if cfg == nil {
+		return false
+	}
+	providerType := strings.TrimSpace(cfg.Vision.ProviderType)
+	if providerType == "" {
+		providerType = strings.TrimSpace(cfg.LLM.ProviderType)
+	}
+	return strings.EqualFold(providerType, "agnes")
+}
+
+func analyzeImageReferenceWithPromptContext(ctx context.Context, imageReference, prompt string, cfg *config.Config) (string, int, int, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	// Resolved by config.ResolveProviders (falls back to main LLM)
+	apiKey := strings.TrimSpace(cfg.Vision.APIKey)
+	baseURL := providerutil.NormalizeBaseURL(strings.TrimSpace(cfg.Vision.BaseURL))
+
+	model := strings.TrimSpace(cfg.Vision.Model)
+	if model == "" {
+		model = DefaultVisionModel
+	}
+
+	if apiKey == "" {
+		apiKey = strings.TrimSpace(cfg.LLM.APIKey)
+	}
+	if apiKey == "" {
+		return "", 0, 0, fmt.Errorf("vision API key is not configured — set vision.provider or vision.api_key in config, or ensure the main LLM API key is set as fallback")
+	}
+	if baseURL == "" {
+		baseURL = providerutil.NormalizeBaseURL(strings.TrimSpace(cfg.LLM.BaseURL))
+	}
+	if baseURL == "" {
+		return "", 0, 0, fmt.Errorf("vision base URL is not configured")
+	}
 
 	// OpenAI-compatible vision payload
 	type ImageURL struct {
@@ -113,7 +179,7 @@ func AnalyzeImageWithPromptContext(ctx context.Context, filePath, prompt string,
 				Role: "user",
 				Content: []ContentPart{
 					{Type: "text", Text: prompt},
-					{Type: "image_url", ImageURL: &ImageURL{URL: dataURL}},
+					{Type: "image_url", ImageURL: &ImageURL{URL: imageReference}},
 				},
 			},
 		},

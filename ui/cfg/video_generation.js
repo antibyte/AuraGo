@@ -2,6 +2,17 @@
 
 let _videoSection = null;
 
+function videoGenerationProviderType(providerId) {
+    const provider = providersCache.find(p => String(p.id) === String(providerId));
+    return String(provider && provider.type ? provider.type : '').trim().toLowerCase();
+}
+
+function videoGenerationProviderChanged(select) {
+    setNestedValue(configData, 'video_generation.provider', select.value);
+    if (typeof markDirty === 'function') markDirty();
+    renderVideoGenerationSection(null);
+}
+
 function renderVideoGenerationSection(section) {
     if (section) _videoSection = section; else section = _videoSection;
     const cfg = configData['video_generation'] || {};
@@ -35,10 +46,15 @@ function renderVideoGenerationSection(section) {
         <div class="field-group-desc">${t('config.video_gen.provider_desc')}</div>`;
 
     const curProvider = cfg.provider || '';
+    const isAgnes = videoGenerationProviderType(curProvider) === 'agnes';
+    const resolutionOptions = isAgnes ? ['480p','720p','768P','1080p'] : ['768P','1080P','720p','4k'];
+    const aspectRatioOptions = isAgnes ? ['16:9','9:16','1:1','4:3','3:4'] : ['16:9','9:16','1:1'];
+    const currentResolution = String(cfg.default_resolution || '768P').toLowerCase();
+    const currentAspectRatio = String(cfg.default_aspect_ratio || '16:9');
     html += `<div class="field-grid two-cols">`;
     html += `<div class="field-group">
         <div class="field-label">${t('config.video_gen.provider_label')}</div>
-        <select class="field-select" data-path="video_generation.provider">
+        <select class="field-select" data-path="video_generation.provider" onchange="videoGenerationProviderChanged(this)">
             <option value=""${!curProvider ? ' selected' : ''}>${t('config.video_gen.select_provider')}</option>`;
     providersCache.forEach(p => {
         const sel = (String(curProvider) === String(p.id)) ? ' selected' : '';
@@ -68,13 +84,13 @@ function renderVideoGenerationSection(section) {
             <div class="field-group">
                 <div class="field-label">${t('config.video_gen.resolution_label')}</div>
                 <select class="field-select" data-path="video_generation.default_resolution">
-                    ${['768P','1080P','720p','4k'].map(v => `<option value="${v}"${String(cfg.default_resolution || '768P') === v ? ' selected' : ''}>${v}</option>`).join('')}
+                    ${resolutionOptions.map(v => `<option value="${v}"${currentResolution === v.toLowerCase() ? ' selected' : ''}>${v}</option>`).join('')}
                 </select>
             </div>
             <div class="field-group">
                 <div class="field-label">${t('config.video_gen.aspect_ratio_label')}</div>
                 <select class="field-select" data-path="video_generation.default_aspect_ratio">
-                    ${['16:9','9:16','1:1'].map(v => `<option value="${v}"${String(cfg.default_aspect_ratio || '16:9') === v ? ' selected' : ''}>${v}</option>`).join('')}
+                    ${aspectRatioOptions.map(v => `<option value="${v}"${currentAspectRatio === v ? ' selected' : ''}>${v}</option>`).join('')}
                 </select>
             </div>
         </div>

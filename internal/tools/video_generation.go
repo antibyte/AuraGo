@@ -799,33 +799,28 @@ func TestVideoConnection(ctx context.Context, provider, apiKey, baseURL string) 
 		body, _ := io.ReadAll(resp.Body)
 		return false, fmt.Sprintf("API returned status %d: %s", resp.StatusCode, truncateString(string(body), 200))
 	case "agnes":
-		apiBase, _ := agnesVideoEndpoints(baseURL)
-		reqBody := map[string]interface{}{
-			"model": "agnes-2.0-flash",
-			"messages": []map[string]string{
-				{"role": "user", "content": "respond with ok"},
-			},
-			"max_tokens": 5,
-		}
-		bodyBytes, _ := json.Marshal(reqBody)
-		req, err := http.NewRequestWithContext(ctx, http.MethodPost, apiBase+"/chat/completions", bytes.NewReader(bodyBytes))
+		_, resultEndpoint := agnesVideoEndpoints(baseURL)
+		statusURL := resultEndpoint + "?video_id=" + url.QueryEscape("video_aurago_connection_test")
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, statusURL, nil)
 		if err != nil {
 			return false, fmt.Sprintf("Request creation failed: %v", err)
 		}
-		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer "+apiKey)
 		resp, err := videoGenHTTPClient.Do(req)
 		if err != nil {
 			return false, fmt.Sprintf("Connection failed: %v", err)
 		}
 		defer resp.Body.Close()
-		if resp.StatusCode >= http.StatusOK && resp.StatusCode < http.StatusMultipleChoices {
+		if (resp.StatusCode >= http.StatusOK && resp.StatusCode < http.StatusMultipleChoices) || resp.StatusCode == http.StatusNotFound {
 			return true, "Connection successful"
 		}
 		if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
 			return false, "Authentication failed - check your API key"
 		}
-		body, _ := io.ReadAll(resp.Body)
+		if resp.StatusCode == http.StatusTooManyRequests {
+			return true, "Connection successful - Agnes AI is currently rate limited"
+		}
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
 		return false, fmt.Sprintf("API returned status %d: %s", resp.StatusCode, truncateString(string(body), 200))
 	default:
 		return false, fmt.Sprintf("Unsupported video provider: %s", provider)

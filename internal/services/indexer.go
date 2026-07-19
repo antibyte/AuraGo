@@ -592,6 +592,15 @@ func (fi *FileIndexer) indexFileCore(ctx context.Context, dir, collection, path 
 		}
 		content = fmt.Sprintf("%s-Datei: %s (Pfad: %s)", kind, info.Name(), relPath)
 	} else if isImage {
+		if tools.VisionRequiresPublicImageURL(fi.cfg) {
+			fi.logger.Debug("[Indexer] Skipping local image because the Vision provider requires a public URL", "path", relPath, "provider", "agnes")
+			if err := fi.removeTrackedFile(path, collection); err != nil {
+				outcome.err = fmt.Errorf("cleanup unsupported local image %s: %v", path, err)
+				return outcome
+			}
+			outcome.noContent = true
+			return outcome
+		}
 		prompt := fmt.Sprintf(
 			"Analysiere dieses Bild detailliert. Beschreibe den Inhalt, erkennbare Texte, Objekte und relevante Details. "+
 				"Dateiname: %s, Pfad: %s", info.Name(), relPath,

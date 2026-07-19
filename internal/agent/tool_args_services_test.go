@@ -20,6 +20,23 @@ func TestDecodeImageAnalysisArgsUsesPathFallback(t *testing.T) {
 	}
 }
 
+func TestDecodeImageAnalysisArgsSupportsPublicURL(t *testing.T) {
+	tc := ToolCall{
+		Action: "analyze_image",
+		Params: map[string]interface{}{
+			"image_url": "https://cdn.example.test/image.png",
+		},
+	}
+
+	req := decodeImageAnalysisArgs(tc)
+	if req.ImageURL != "https://cdn.example.test/image.png" {
+		t.Fatalf("ImageURL = %q", req.ImageURL)
+	}
+	if req.FilePath != "" {
+		t.Fatalf("FilePath = %q, want empty", req.FilePath)
+	}
+}
+
 func TestDecodeMeshCentralArgsNormalizesOperationAndUsesParamsFallback(t *testing.T) {
 	tc := ToolCall{
 		Action: "meshcentral",

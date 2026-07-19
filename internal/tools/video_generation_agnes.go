@@ -30,32 +30,38 @@ func generateVideoAgnes(ctx context.Context, baseURL, apiKey, model string, para
 	if strings.TrimSpace(model) == "" {
 		model = defaultAgnesVideoModel
 	}
+	width, height, err := agnesVideoDimensions(params.Resolution, params.AspectRatio)
+	if err != nil {
+		return VideoGenResult{Status: "error", Error: err.Error()}
+	}
+	frameCount, frameRate, err := agnesVideoFrameSettings(params.DurationSeconds)
+	if err != nil {
+		return VideoGenResult{Status: "error", Error: err.Error()}
+	}
+	firstImage, keyframes, err := agnesVideoImageInputs(params)
+	if err != nil {
+		return VideoGenResult{Status: "error", Error: err.Error()}
+	}
+
 	apiBase, resultEndpoint := agnesVideoEndpoints(baseURL)
-	width, height := agnesVideoDimensions(params.Resolution, params.AspectRatio)
 
 	payload := map[string]interface{}{
 		"model":      model,
 		"prompt":     params.Prompt,
 		"height":     height,
 		"width":      width,
-		"num_frames": agnesVideoFrameCount(params.DurationSeconds),
-		"frame_rate": 24,
+		"num_frames": frameCount,
+		"frame_rate": frameRate,
 	}
 	if params.NegativePrompt != "" {
 		payload["negative_prompt"] = params.NegativePrompt
 	}
-	images := make([]string, 0, 2+len(params.ReferenceImages))
-	if params.FirstFrameImage != "" {
-		images = append(images, params.FirstFrameImage)
-		payload["image"] = params.FirstFrameImage
+	if firstImage != "" {
+		payload["image"] = firstImage
 	}
-	if params.LastFrameImage != "" {
-		images = append(images, params.LastFrameImage)
-	}
-	images = append(images, params.ReferenceImages...)
-	if len(images) > 1 {
+	if len(keyframes) > 1 {
 		payload["extra_body"] = map[string]interface{}{
-			"image": images,
+			"image": keyframes,
 			"mode":  "keyframes",
 		}
 	}
@@ -104,10 +110,11 @@ func generateVideoAgnes(ctx context.Context, baseURL, apiKey, model string, para
 		return VideoGenResult{Status: "error", TaskID: firstNonEmpty(state.TaskID, state.VideoID), Error: fmt.Sprintf("Failed to download Agnes AI video: %v", err)}
 	}
 
-	durationMs := int64(params.DurationSeconds) * 1000
+	durationSeconds := float64(params.DurationSeconds)
 	if state.Seconds > 0 {
-		durationMs = int64(state.Seconds * 1000)
+		durationSeconds = state.Seconds
 	}
+	durationMs := int64(durationSeconds*1000 + 0.5)
 	if state.Model != "" {
 		model = state.Model
 	}
@@ -122,7 +129,7 @@ func generateVideoAgnes(ctx context.Context, baseURL, apiKey, model string, para
 		Format:     "mp4",
 		FileSize:   fileSizeOrZero(filePath),
 		TaskID:     firstNonEmpty(state.TaskID, state.VideoID),
-		Message:    fmt.Sprintf("Video generated successfully with Agnes AI (%ds).", params.DurationSeconds),
+		Message:    fmt.Sprintf("Video generated successfully with Agnes AI (%ss).", strconv.FormatFloat(durationSeconds, 'f', -1, 64)),
 	}
 }
 
@@ -139,33 +146,41 @@ func agnesVideoEndpoints(rawBaseURL string) (apiBase, resultEndpoint string) {
 	return apiBase, resultBase + "/agnesapi"
 }
 
-func agnesVideoDimensions(resolution, aspectRatio string) (width, height int) {
-	shortSide := 768
-	longSide := 1152
-	switch strings.ToLower(strings.TrimSpace(resolution)) {
-	case "480p":
-		shortSide, longSide = 480, 720
-	case "720p":
-		shortSide, longSide = 720, 1080
-	case "1080p":
-		shortSide, longSide = 1080, 1620
+func agnesVideoDimensions(resolution, aspectRatio string) (width, height int, err error) {
+	type dimensions struct {
+		width  int
+		height int
 	}
-
-	switch strings.TrimSpace(aspectRatio) {
-	case "9:16", "3:4":
-		return shortSide, longSide
-	case "1:1":
-		return shortSide, shortSide
-	case "4:3":
-		return longSide, shortSide
-	default:
-		return longSide, shortSide
+	table := map[string]map[string]dimensions{
+		"480p": {
+			"16:9": {854, 480}, "9:16": {480, 854}, "1:1": {480, 480}, "4:3": {640, 480}, "3:4": {480, 640},
+		},
+		"720p": {
+			"16:9": {1280, 720}, "9:16": {720, 1280}, "1:1": {720, 720}, "4:3": {960, 720}, "3:4": {720, 960},
+		},
+		"768p": {
+			"16:9": {1366, 768}, "9:16": {768, 1366}, "1:1": {768, 768}, "4:3": {1024, 768}, "3:4": {768, 1024},
+		},
+		"1080p": {
+			"16:9": {1920, 1080}, "9:16": {1080, 1920}, "1:1": {1080, 1080}, "4:3": {1440, 1080}, "3:4": {1080, 1440},
+		},
 	}
+	resolution = strings.ToLower(strings.TrimSpace(resolution))
+	aspectRatio = strings.TrimSpace(aspectRatio)
+	byAspect, ok := table[resolution]
+	if !ok {
+		return 0, 0, fmt.Errorf("Agnes AI does not support video resolution %q; use 480p, 720p, 768p, or 1080p", resolution)
+	}
+	size, ok := byAspect[aspectRatio]
+	if !ok {
+		return 0, 0, fmt.Errorf("Agnes AI does not support video aspect ratio %q; use 16:9, 9:16, 1:1, 4:3, or 3:4", aspectRatio)
+	}
+	return size.width, size.height, nil
 }
 
 func agnesVideoFrameCount(seconds int) int {
-	if seconds <= 0 {
-		seconds = 6
+	if seconds < 1 {
+		return 0
 	}
 	frames := seconds*24 + 1
 	if frames > 441 {
@@ -175,6 +190,66 @@ func agnesVideoFrameCount(seconds int) int {
 		return 9
 	}
 	return frames
+}
+
+func agnesVideoFrameSettings(seconds int) (frameCount int, frameRate float64, err error) {
+	if seconds < 1 || seconds > 30 {
+		return 0, 0, fmt.Errorf("Agnes AI video duration must be between 1 and 30 seconds")
+	}
+	frameCount = agnesVideoFrameCount(seconds)
+	frameRate = 24
+	if seconds > 18 {
+		frameRate = float64(frameCount) / float64(seconds)
+	}
+	return frameCount, frameRate, nil
+}
+
+func agnesVideoImageInputs(params VideoGenParams) (firstImage string, keyframes []string, err error) {
+	firstImage = strings.TrimSpace(params.FirstFrameImage)
+	lastImage := strings.TrimSpace(params.LastFrameImage)
+	references := make([]string, 0, len(params.ReferenceImages))
+	for i, imageURL := range params.ReferenceImages {
+		imageURL = strings.TrimSpace(imageURL)
+		if imageURL == "" {
+			return "", nil, fmt.Errorf("Agnes AI reference_images[%d] must not be empty", i)
+		}
+		if err := validatePublicImageURL(imageURL); err != nil {
+			return "", nil, fmt.Errorf("Agnes AI reference_images[%d] must be a publicly reachable HTTP(S) URL: %w", i, err)
+		}
+		references = append(references, imageURL)
+	}
+	if firstImage != "" {
+		if err := validatePublicImageURL(firstImage); err != nil {
+			return "", nil, fmt.Errorf("Agnes AI first_frame_image must be a publicly reachable HTTP(S) URL: %w", err)
+		}
+	}
+	if lastImage != "" {
+		if firstImage == "" {
+			return "", nil, fmt.Errorf("Agnes AI last_frame_image requires first_frame_image")
+		}
+		if err := validatePublicImageURL(lastImage); err != nil {
+			return "", nil, fmt.Errorf("Agnes AI last_frame_image must be a publicly reachable HTTP(S) URL: %w", err)
+		}
+	}
+
+	if firstImage == "" {
+		if len(references) == 1 {
+			return "", nil, fmt.Errorf("Agnes AI requires at least two reference_images for keyframe mode; use first_frame_image for a single image")
+		}
+		if len(references) >= 2 {
+			return "", references, nil
+		}
+		return "", nil, nil
+	}
+	if len(references) == 0 && lastImage == "" {
+		return firstImage, nil, nil
+	}
+	keyframes = append(keyframes, firstImage)
+	keyframes = append(keyframes, references...)
+	if lastImage != "" {
+		keyframes = append(keyframes, lastImage)
+	}
+	return firstImage, keyframes, nil
 }
 
 func pollAgnesVideo(ctx context.Context, apiBase, resultEndpoint, apiKey string, state agnesVideoState, pollIntervalSeconds, timeoutSeconds int) (agnesVideoState, error) {

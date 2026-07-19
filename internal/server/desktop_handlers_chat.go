@@ -552,6 +552,15 @@ func prepareDesktopAgentTurnWithOptions(ctx context.Context, s *Server, message 
 	cfg := *s.Cfg
 	s.CfgMu.RUnlock()
 	llmClient := applyDesktopAgentProvider(ctx, s, &cfg)
+	if strings.TrimSpace(chatContext.ImageBase64) != "" && mainProviderRequiresPublicImageURL(&cfg) {
+		return turn, fmt.Errorf("%s", tools.VisionPublicURLRequiredMessage)
+	}
+	if err := validateCurrentMainProviderImageInput(&cfg, openai.ChatCompletionMessage{
+		Role:    openai.ChatMessageRoleUser,
+		Content: message,
+	}); err != nil {
+		return turn, err
+	}
 
 	persistContext := chatContext
 	persistContext.ImageBase64 = ""
@@ -567,7 +576,7 @@ func prepareDesktopAgentTurnWithOptions(ctx context.Context, s *Server, message 
 	}
 	requestPrompt := message
 	if strings.TrimSpace(chatContext.ImageBase64) != "" {
-		if mainProviderSupportsImageMultimodal(&cfg) {
+		if mainProviderSupportsInlineImageData(&cfg) {
 			requestPrompt = message
 		} else {
 			requestPrompt = message + "\n\nThe user attached a Camera app photo for this turn, but the selected provider is not configured for multimodal image input. The raw image data is intentionally not stored in chat history."
@@ -601,7 +610,7 @@ func prepareDesktopAgentTurnWithOptions(ctx context.Context, s *Server, message 
 		Role:    openai.ChatMessageRoleUser,
 		Content: requestPrompt,
 	}
-	if strings.TrimSpace(chatContext.ImageBase64) != "" && mainProviderSupportsImageMultimodal(&cfg) {
+	if strings.TrimSpace(chatContext.ImageBase64) != "" && mainProviderSupportsInlineImageData(&cfg) {
 		currentRequestMessage = openai.ChatCompletionMessage{
 			Role: openai.ChatMessageRoleUser,
 			MultiContent: []openai.ChatMessagePart{

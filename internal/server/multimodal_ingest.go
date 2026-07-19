@@ -17,6 +17,7 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/llm"
+	"aurago/internal/security"
 	"aurago/internal/tools"
 
 	"github.com/sashabaranov/go-openai"
@@ -28,8 +29,11 @@ var attachmentPathRe = regexp.MustCompile(`agent_workspace/workdir/attachments/(
 var analyzeImageForFallback = tools.AnalyzeImageWithPrompt
 
 func promoteUploadedImagesToMultiContent(cfg *config.Config, msg openai.ChatCompletionMessage, workspaceDir string, logger *slog.Logger) openai.ChatCompletionMessage {
+	if cfg == nil || mainProviderRequiresPublicImageURL(cfg) {
+		return msg
+	}
 	effectiveCaps := llm.ResolveConfigProviderCapabilities(cfg)
-	if cfg == nil || !effectiveCaps.Multimodal {
+	if !effectiveCaps.Multimodal {
 		return msg
 	}
 	if msg.Role != openai.ChatMessageRoleUser || strings.TrimSpace(msg.Content) == "" {
@@ -125,6 +129,51 @@ func promoteUploadedImagesToMultiContent(cfg *config.Config, msg openai.ChatComp
 	out.Content = ""
 	out.MultiContent = parts
 	return out
+}
+
+func validateCurrentMainProviderImageInput(cfg *config.Config, msg openai.ChatCompletionMessage) error {
+	if !mainProviderRequiresPublicImageURL(cfg) {
+		return nil
+	}
+	if err := validateMainProviderImageParts(cfg, msg); err != nil {
+		return err
+	}
+	for _, match := range attachmentPathRe.FindAllStringSubmatch(msg.Content, -1) {
+		if len(match) < 2 {
+			continue
+		}
+		relativePath := cleanMatchedAttachmentPath(match[1])
+		if relativePath != "" && imageMimeType(strings.ToLower(filepath.Ext(relativePath))) != "" {
+			return fmt.Errorf("%s", tools.VisionPublicURLRequiredMessage)
+		}
+	}
+	return nil
+}
+
+func validateMainProviderImageParts(cfg *config.Config, msg openai.ChatCompletionMessage) error {
+	if !mainProviderRequiresPublicImageURL(cfg) {
+		return nil
+	}
+	for _, part := range msg.MultiContent {
+		if part.Type != openai.ChatMessagePartTypeImageURL {
+			continue
+		}
+		if part.ImageURL == nil || strings.TrimSpace(part.ImageURL.URL) == "" {
+			return fmt.Errorf("Agnes AI image input requires a non-empty public image_url")
+		}
+		if err := security.ValidatePublicHTTPURL(part.ImageURL.URL); err != nil {
+			return fmt.Errorf("Agnes AI image_url must be publicly reachable via HTTP(S): %w", err)
+		}
+	}
+	return nil
+}
+
+func mainProviderRequiresPublicImageURL(cfg *config.Config) bool {
+	return cfg != nil && strings.EqualFold(strings.TrimSpace(cfg.LLM.ProviderType), "agnes")
+}
+
+func mainProviderSupportsInlineImageData(cfg *config.Config) bool {
+	return !mainProviderRequiresPublicImageURL(cfg) && mainProviderSupportsImageMultimodal(cfg)
 }
 
 func mainProviderSupportsImageMultimodal(cfg *config.Config) bool {

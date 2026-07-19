@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -635,7 +636,11 @@ func processDiscordAttachment(att *discordgo.MessageAttachment, inputText string
 		analysis, err := telegram.AnalyzeImage(imgPath, cfg)
 		if err != nil {
 			logger.Error("[Discord] Image analysis failed", "error", err)
-			analysis = "[Error analyzing image]"
+			if errors.Is(err, tools.ErrVisionPublicURLRequired) {
+				analysis = "[Image analysis unavailable: " + tools.VisionPublicURLRequiredMessage + "]"
+			} else {
+				analysis = "[Error analyzing image]"
+			}
 		}
 
 		logger.Info("[Discord] Image analysis successful", "length", len(analysis))
