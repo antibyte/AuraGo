@@ -456,6 +456,94 @@
         }
 
         // ------------------------------------------------------------------
+        // Selection beacon: persistent halo that tracks the focused object
+        // (two counter-rotating tilted rings + soft glow). One per window.
+        // ------------------------------------------------------------------
+        const beaconGroup = new THREE.Group();
+        beaconGroup.visible = false;
+        beaconGroup.name = 'sysworld-beacon';
+        const beaconRingGeom = new THREE.RingGeometry(0.94, 1, 72);
+        const beaconMatA = new THREE.MeshBasicMaterial({
+            color: 0xffffff,
+            transparent: true,
+            opacity: 0,
+            side: THREE.DoubleSide,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+        });
+        const beaconMatB = beaconMatA.clone();
+        const beaconRingA = new THREE.Mesh(beaconRingGeom, beaconMatA);
+        const beaconRingB = new THREE.Mesh(beaconRingGeom, beaconMatB);
+        beaconRingA.frustumCulled = false;
+        beaconRingB.frustumCulled = false;
+        const beaconGlow = makeGlowSprite(0xffffff, 3);
+        beaconGlow.material.opacity = 0;
+        beaconGroup.add(beaconRingA);
+        beaconGroup.add(beaconRingB);
+        beaconGroup.add(beaconGlow);
+        group.add(beaconGroup);
+        const beacon = {
+            active: false,
+            target: null,
+            baseScale: 2,
+            spin: 0,
+            born: 0
+        };
+        let beaconElapsed = 0;
+
+        // Attaches the halo to an object; radius is the object's world radius.
+        function selectBeacon(object3d, hexColor, radius) {
+            ensureGroup();
+            if (!object3d) { clearBeacon(); return; }
+            beacon.active = true;
+            beacon.target = object3d;
+            beacon.baseScale = Math.max(1.4, (radius || 1) * 1.7);
+            beacon.spin = 0;
+            beacon.born = beaconElapsed;
+            beaconMatA.color.setHex(hexColor);
+            beaconMatB.color.setHex(hexColor);
+            beaconGlow.material.color.setHex(hexColor);
+            beaconGlow.material.map = glowTexture(hexColor);
+            try {
+                object3d.getWorldPosition(beaconGroup.position);
+            } catch (_) {
+                beaconGroup.position.set(0, 0, 0);
+            }
+            beaconGroup.visible = true;
+            // Welcome ripple + particle pop at the selected object.
+            pulseRing(beaconGroup.position, hexColor, beacon.baseScale * 2.4);
+            burst(beaconGroup.position, hexColor, 14);
+        }
+
+        function clearBeacon() {
+            beacon.active = false;
+            beacon.target = null;
+            beaconGroup.visible = false;
+        }
+
+        function updateBeacon(dt, elapsed) {
+            beaconElapsed = elapsed;
+            if (!beacon.active || !beacon.target) return;
+            // The tracked mesh may have been rebuilt (graph refresh): drop.
+            if (!beacon.target.parent) { clearBeacon(); return; }
+            beacon.target.getWorldPosition(beaconGroup.position);
+            beacon.spin += dt;
+            const age = Math.min(1, (elapsed - beacon.born) / 0.5); // fade-in
+            const breathe = 1 + 0.055 * Math.sin(elapsed * 2.3);
+            const s = beacon.baseScale * breathe * (0.6 + 0.4 * age);
+            beaconRingA.scale.set(s, s, s);
+            beaconRingB.scale.set(s * 1.18, s * 1.18, s * 1.18);
+            beaconRingA.rotation.set(Math.PI / 2.4, 0, beacon.spin * 0.9);
+            beaconRingB.rotation.set(Math.PI / 1.7, beacon.spin * 0.7, -beacon.spin * 0.55);
+            const flicker = 0.62 + 0.26 * Math.sin(elapsed * 3.1);
+            beaconMatA.opacity = flicker * age;
+            beaconMatB.opacity = flicker * 0.55 * age;
+            const gs = beacon.baseScale * (2.6 + 0.3 * Math.sin(elapsed * 1.7));
+            beaconGlow.scale.set(gs, gs, 1);
+            beaconGlow.material.opacity = 0.22 * age;
+        }
+
+        // ------------------------------------------------------------------
         // Energy beams: short-lived additive lines between two points
         // ------------------------------------------------------------------
         const BEAM_MAX = 16;
@@ -582,6 +670,7 @@
             updateBursts(dt);
             updateRings(dt);
             updateBeams(dt);
+            updateBeacon(dt, elapsed);
         }
 
         function dispose() {
@@ -602,6 +691,10 @@
             });
             rings.forEach(function (r) { r.mat.dispose(); });
             ringGeom.dispose();
+            beaconRingGeom.dispose();
+            beaconMatA.dispose();
+            beaconMatB.dispose();
+            beaconGlow.material.dispose();
             beams.forEach(function (b) {
                 b.geom.dispose();
                 b.mat.dispose();
@@ -623,6 +716,8 @@
             sparkle: sparkle,
             pulseRing: pulseRing,
             trailFor: trailFor,
+            selectBeacon: selectBeacon,
+            clearBeacon: clearBeacon,
             tween: tween,
             update: update,
             setQuality: setQuality,

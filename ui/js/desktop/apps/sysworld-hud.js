@@ -128,8 +128,22 @@
 
         const infoEl = document.createElement('div');
         infoEl.className = 'sw-info sw-interactive';
+        const infoGlow = document.createElement('div');
+        infoGlow.className = 'sw-info-glow';
+        const infoHead = document.createElement('div');
+        infoHead.className = 'sw-info-head';
+        const infoBadge = document.createElement('div');
+        infoBadge.className = 'sw-info-badge';
+        const infoBadgeDot = document.createElement('span');
+        infoBadgeDot.className = 'sw-info-badge-dot';
+        const infoBadgeText = document.createElement('span');
+        infoBadgeText.className = 'sw-info-badge-text';
+        infoBadge.appendChild(infoBadgeDot);
+        infoBadge.appendChild(infoBadgeText);
         const infoTitle = document.createElement('div');
         infoTitle.className = 'sw-info-title';
+        infoHead.appendChild(infoBadge);
+        infoHead.appendChild(infoTitle);
         const infoClose = document.createElement('button');
         infoClose.type = 'button';
         infoClose.className = 'sw-info-close';
@@ -139,9 +153,14 @@
         infoClose.textContent = '×';
         const infoRows = document.createElement('div');
         infoRows.className = 'sw-info-rows';
-        infoEl.appendChild(infoTitle);
+        const infoFoot = document.createElement('div');
+        infoFoot.className = 'sw-info-foot';
+        infoFoot.textContent = L('sysworld.panel.hint');
+        infoEl.appendChild(infoGlow);
         infoEl.appendChild(infoClose);
+        infoEl.appendChild(infoHead);
         infoEl.appendChild(infoRows);
+        infoEl.appendChild(infoFoot);
 
         inst.root.appendChild(root);
         inst.root.appendChild(infoEl);
@@ -218,6 +237,8 @@
             statValueEls.agent.textContent = stats.agentBusy === true
                 ? L('sysworld.agent.busy')
                 : (stats.agentBusy === false ? L('sysworld.agent.idle') : EMPTY_VALUE);
+            // Pulsing dot next to the agent state while the agent is working.
+            statValueEls.agent.classList.toggle('busy', stats.agentBusy === true);
         }
 
         // Partial update: only keys present in the patch are touched.
@@ -335,24 +356,42 @@
 
         // ── Info panel ───────────────────────────────────────────────────────
 
-        // rows: [{k: translated label, v: pre-escaped value html}]
-        function showPanel(title, rows) {
+        // rows: [{k: translated label, v: pre-escaped value html, tone?}]
+        // meta: {kind: 'sysworld.kind.*' suffix, accent: css color} drives the
+        // badge, the accent glow and the top strip so panel and 3D selection
+        // share one color story.
+        function showPanel(title, rows, meta) {
+            const m = meta || {};
+            const kind = typeof m.kind === 'string' && m.kind ? m.kind : 'object';
+            const accent = typeof m.accent === 'string' && m.accent ? m.accent : '#59d4ff';
+            infoEl.style.setProperty('--sw-accent', accent);
+            let kindLabel = L('sysworld.kind.' + kind);
+            if (kindLabel.indexOf('sysworld.') === 0) kindLabel = L('sysworld.kind.object');
+            infoBadgeText.textContent = kindLabel;
+            infoBadgeDot.style.background = accent;
+            infoBadgeDot.style.boxShadow = '0 0 8px ' + accent;
             infoTitle.textContent = String(title == null ? '' : title);
             infoRows.innerHTML = '';
-            (Array.isArray(rows) ? rows : []).forEach(r => {
+            (Array.isArray(rows) ? rows : []).forEach((r, i) => {
                 if (!r) return;
                 const row = document.createElement('div');
                 row.className = 'sw-row';
+                // Staggered cascade-in; delay capped so long panels stay snappy.
+                row.style.animationDelay = Math.min(i, 10) * 38 + 'ms';
                 const k = document.createElement('span');
                 k.className = 'sw-key';
                 k.textContent = String(r.k == null ? '' : r.k);
                 const v = document.createElement('span');
-                v.className = 'sw-val';
+                v.className = 'sw-val' + (r.tone ? ' sw-pill sw-tone-' + r.tone : '');
                 v.innerHTML = String(r.v == null ? '' : r.v);
                 row.appendChild(k);
                 row.appendChild(v);
                 infoRows.appendChild(row);
             });
+            // Restart the pop animation on every (re)open, even same target.
+            infoEl.classList.remove('sw-pop');
+            void infoEl.offsetWidth;
+            infoEl.classList.add('sw-pop');
             infoEl.classList.add('open');
         }
 

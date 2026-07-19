@@ -20,6 +20,41 @@
 
     const CATEGORY_KEYS = { communication: 1, smarthome: 1, infrastructure: 1, ai: 1, storage: 1, monitoring: 1, other: 1 };
     const STATE_KEYS = { running: 1, queued: 1, idle: 1, error: 1, done: 1, waiting: 1, exited: 1, paused: 1 };
+    const AMBIENT_COMET_MS = 6500;
+
+    // Accent color per pickable kind — drives beacon, tooltip dot and the
+    // info panel's accent theming so a selection reads as one color story.
+    function accentHexFor(ud) {
+        const P = NS().PALETTE || {};
+        const fallback = P.core != null ? P.core : 0x59d4ff;
+        if (!ud || !ud.kind) return fallback;
+        if (ud.kind === 'integration') {
+            return P[ud.category] != null ? P[ud.category] : (P.other != null ? P.other : fallback);
+        }
+        switch (ud.kind) {
+            case 'kgnode': return P.other != null ? P.other : fallback;
+            case 'mission': return P.mission != null ? P.mission : fallback;
+            case 'coagent': return P.agent != null ? P.agent : fallback;
+            case 'container':
+            case 'daemon': return P.infrastructure != null ? P.infrastructure : fallback;
+            case 'tool': return P.tool != null ? P.tool : fallback;
+            case 'cron': return P.cron != null ? P.cron : fallback;
+            default: return fallback;
+        }
+    }
+
+    function hexCss(hex) {
+        return '#' + ((Number(hex) >>> 0) & 0xffffff).toString(16).padStart(6, '0');
+    }
+
+    // Maps a raw state word onto a pill tone for the detail panel.
+    function toneForState(v) {
+        const s = String(v == null ? '' : v).toLowerCase();
+        if (s === 'running' || s === 'done' || s === 'enabled' || s === 'active' || s === 'ok') return 'ok';
+        if (s === 'error' || s === 'failed' || s === 'disabled' || s === 'exited') return 'err';
+        if (s === 'queued' || s === 'waiting' || s === 'paused' || s === 'restarting') return 'warn';
+        return 'dim';
+    }
 
     const NS = () => window.SysWorld || {};
 
@@ -378,6 +413,10 @@
         poll(inst, 30000, () => fetchBudget(inst));
         // Never leave the loading veil up when the backend is unreachable.
         inst.timers.push(setTimeout(() => hideLoading(inst), LOADING_FAILSAFE_MS));
+        // Ambient shooting stars (dice-rolled so the sky stays irregular).
+        inst.timers.push(setInterval(() => {
+            if (!inst.disposed && !inst.paused && Math.random() < 0.6) fireAmbientComet(inst);
+        }, AMBIENT_COMET_MS));
     }
 
     // ── SSE wiring (shared AuraSSE client, all handlers off'ed on dispose) ────
@@ -404,6 +443,24 @@
             if (inst.core && inst.core.group) inst.core.group.getWorldPosition(out);
         } catch (_) {}
         return out;
+    }
+
+    // Ambient shooting stars: slow distant comets keep the far field alive.
+    function fireAmbientComet(inst) {
+        if (!inst.effectsEnabled || !inst.fx || typeof inst.fx.comet !== 'function') return;
+        const THREE = inst.THREE;
+        const mk = () => {
+            const r = 300 + Math.random() * 260;
+            const th = Math.random() * Math.PI * 2;
+            const ph = Math.acos(Math.random() * 2 - 1);
+            return new THREE.Vector3(
+                r * Math.sin(ph) * Math.cos(th),
+                Math.abs(r * Math.cos(ph)) * 0.7 + 30,
+                r * Math.sin(ph) * Math.sin(th)
+            );
+        };
+        const hex = (NS().PALETTE && NS().PALETTE.communication) || 0x4fc3f7;
+        try { inst.fx.comet(mk(), mk(), hex, { size: 1.5, arc: 0.04, duration: 2.4 }); } catch (_) {}
     }
 
     // Comet from the agent core towards the tool mesh (falling back to a random
@@ -565,6 +622,9 @@
     function tooltipHtml(inst, ud) {
         const esc = inst.ctx.esc;
         const label = esc(String(ud.label != null ? ud.label : (ud.id != null ? ud.id : '')));
+        const accent = hexCss(accentHexFor(ud));
+        const dot = '<span class="sw-tt-dot" style="background:' + accent +
+            ';box-shadow:0 0 8px ' + accent + '"></span>';
         let sub = '';
         if (ud.kind === 'integration') {
             const cat = CATEGORY_KEYS[ud.category] ? inst.L('sysworld.cat.' + ud.category) : esc(String(ud.category || ''));
@@ -575,8 +635,8 @@
             sub = esc(String(ud.payload.state || ud.payload.status));
         }
         return sub
-            ? '<strong>' + label + '</strong><span>' + sub + '</span>'
-            : '<strong>' + label + '</strong>';
+            ? dot + '<strong>' + label + '</strong><span class="sw-tt-sub">' + sub + '</span>'
+            : dot + '<strong>' + label + '</strong>';
     }
 
     function handleHover(inst, clientX, clientY) {
@@ -595,6 +655,7 @@
     function clearFocus(inst) {
         inst.panelKind = null;
         inst.panelToken++;
+        try { if (inst.fx && inst.fx.clearBeacon) inst.fx.clearBeacon(); } catch (_) {}
         try { if (inst.hud) inst.hud.hidePanel(); } catch (_) {}
     }
 
@@ -684,6 +745,10 @@
             dir.normalize();
             const camPos = target.clone().add(dir.multiplyScalar(dist));
             if (inst.stage && typeof inst.stage.flyTo === 'function') inst.stage.flyTo(camPos, target, FOCUS_DURATION);
+            // Halo locks onto the selection and follows it while it drifts.
+            if (inst.fx && typeof inst.fx.selectBeacon === 'function') {
+                inst.fx.selectBeacon(mesh, accentHexFor(mesh.userData || {}), radius);
+            }
         } catch (_) {}
         showInfoFor(inst, mesh, mesh.userData || {});
     }
@@ -691,7 +756,10 @@
     // Escaped plain value, or the dash placeholder.
     function fmtVal(inst, v) {
         if (v == null || v === '') return '–';
-        return inst.ctx.esc(String(v));
+        const s = String(v);
+        // Go's zero time renders as 0001-01-01T00:00:00Z — treat as no value.
+        if (/^0001-01-01T00:00:00(\.\d+)?Z?$/.test(s)) return '–';
+        return inst.ctx.esc(s);
     }
 
     // Translate known state words via sysworld.state.*, otherwise escaped raw text.
@@ -711,9 +779,11 @@
         inst.panelKind = kind;
         inst.panelToken++;
         const token = inst.panelToken;
+        const meta = { kind: kind || 'object', accent: hexCss(accentHexFor(ud)) };
 
         if (kind === 'integration') {
-            rows.push({ k: L('sysworld.panel.status'), v: L(ud.enabled !== false ? 'sysworld.panel.enabled' : 'sysworld.panel.disabled') });
+            const enabled = ud.enabled !== false;
+            rows.push({ k: L('sysworld.panel.status'), v: L(enabled ? 'sysworld.panel.enabled' : 'sysworld.panel.disabled'), tone: enabled ? 'ok' : 'err' });
             rows.push({
                 k: L('sysworld.panel.category'),
                 v: CATEGORY_KEYS[ud.category] ? L('sysworld.cat.' + ud.category) : fmtVal(inst, ud.category)
@@ -723,7 +793,7 @@
             rows.push({ k: L('sysworld.panel.type'), v: fmtVal(inst, ud.type) });
             rows.push({ k: L('sysworld.panel.access_count'), v: fmtVal(inst, ud.accessCount) });
             // Protection state (enabled/disabled wording is the closest panel vocabulary).
-            rows.push({ k: L('sysworld.panel.status'), v: L(ud.protected ? 'sysworld.panel.enabled' : 'sysworld.panel.disabled') });
+            rows.push({ k: L('sysworld.panel.status'), v: L(ud.protected ? 'sysworld.panel.enabled' : 'sysworld.panel.disabled'), tone: ud.protected ? 'ok' : 'dim' });
             // Detail fetch: expand the node in the graph, then report relation count.
             inst.apiGet('/api/knowledge-graph/node?id=' + encodeURIComponent(ud.id)).then(detail => {
                 if (inst.disposed || token !== inst.panelToken) return;
@@ -737,25 +807,25 @@
                 ) : undefined;
                 rows.push({ k: L('sysworld.panel.relations'), v: rel != null ? String(rel) : '–' });
                 if (inst.panelKind === 'kgnode' && inst.hud.isPanelOpen && inst.hud.isPanelOpen()) {
-                    try { inst.hud.showPanel(title, rows); } catch (_) {}
+                    try { inst.hud.showPanel(title, rows, meta); } catch (_) {}
                 }
             });
         } else if (kind === 'mission') {
-            rows.push({ k: L('sysworld.panel.status'), v: stateLabel(inst, payload.status || payload.state) });
+            rows.push({ k: L('sysworld.panel.status'), v: stateLabel(inst, payload.status || payload.state), tone: toneForState(payload.status || payload.state) });
             rows.push({ k: L('sysworld.panel.schedule'), v: fmtVal(inst, payload.schedule || payload.cron) });
             rows.push({ k: L('sysworld.panel.last_run'), v: fmtVal(inst, payload.last_run || payload.lastRun) });
             rows.push({ k: L('sysworld.panel.access_count'), v: fmtVal(inst, pickNum(payload.run_count, payload.runs, payload.runCount)) });
         } else if (kind === 'coagent') {
-            rows.push({ k: L('sysworld.panel.state'), v: stateLabel(inst, payload.state || payload.status) });
+            rows.push({ k: L('sysworld.panel.state'), v: stateLabel(inst, payload.state || payload.status), tone: toneForState(payload.state || payload.status) });
             rows.push({ k: L('sysworld.panel.type'), v: fmtVal(inst, payload.specialist || payload.type) });
             rows.push({ k: L('sysworld.panel.tokens'), v: fmtVal(inst, pickNum(payload.tokens, payload.tokens_used, payload.token_count)) });
             rows.push({ k: L('sysworld.panel.access_count'), v: fmtVal(inst, pickNum(payload.tool_calls, payload.toolCalls)) });
         } else if (kind === 'container') {
             rows.push({ k: L('sysworld.panel.image'), v: fmtVal(inst, payload.image) });
-            rows.push({ k: L('sysworld.panel.state'), v: stateLabel(inst, payload.state) });
+            rows.push({ k: L('sysworld.panel.state'), v: stateLabel(inst, payload.state), tone: toneForState(payload.state) });
             rows.push({ k: L('sysworld.panel.status'), v: fmtVal(inst, payload.status) });
         } else if (kind === 'daemon') {
-            rows.push({ k: L('sysworld.panel.status'), v: fmtVal(inst, payload.status || payload.state) });
+            rows.push({ k: L('sysworld.panel.status'), v: fmtVal(inst, payload.status || payload.state), tone: toneForState(payload.status || payload.state) });
             rows.push({ k: L('sysworld.panel.restarts'), v: fmtVal(inst, pickNum(payload.restarts, payload.restart_count)) });
         } else if (kind === 'tool') {
             rows.push({ k: 'ID', v: fmtVal(inst, ud.id || ud.label) });
@@ -767,7 +837,7 @@
             rows.push({ k: 'ID', v: fmtVal(inst, ud.id) });
         }
 
-        try { inst.hud.showPanel(title, rows); } catch (_) {}
+        try { inst.hud.showPanel(title, rows, meta); } catch (_) {}
     }
 
     // ── RAF loop (the only one; stage.update renders, keep it last) ──────────
