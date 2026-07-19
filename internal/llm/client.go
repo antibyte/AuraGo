@@ -308,6 +308,10 @@ func buildLLMHTTPClient(cfg *config.Config, providerType, aiGatewayToken, baseUR
 		transport = &miniMaxTransport{base: transport}
 	}
 
+	if providerType == "agnes" {
+		transport = &agnesThinkingTransport{base: transport}
+	}
+
 	if shouldUseOpenAIPromptCacheKey(providerType, baseURL) {
 		transport = &openAIPromptCacheTransport{base: transport}
 	}
