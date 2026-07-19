@@ -28,12 +28,14 @@
             engine: null,
             agent: null,
             audio: null,
+            fx: null,
             resizeObserver: null,
             resizeHandler: null,
             playerColor: 'white',
             mode: 'computer',
             opponent: 'computer',
             strength: 8,
+            boardSkin: (window.ChessBoardSkin && window.ChessBoardSkin.load) ? window.ChessBoardSkin.load() : 'green',
             clockBase: 0,
             flipped: false,
             busy: false,
@@ -56,7 +58,9 @@
             refs: {}
         };
         instances.set(windowId, state);
-        container.innerHTML = template(ctx);
+        container.innerHTML = window.renderChessTemplate
+            ? window.renderChessTemplate(ctx, PIECE_GLYPH)
+            : '<div class="vd-chess is-error"><div class="vd-chess-ribbon"><div class="vd-chess-status" data-status>Chess UI failed to load.</div></div></div>';
         collectRefs(state);
         bindControls(state);
         setWindowMenus(state);
@@ -69,7 +73,10 @@
                 state.game = new vendor.Chess();
                 state.engine = window.createChessEngine ? window.createChessEngine({}) : null;
                 state.agent = window.createChessAgentClient ? window.createChessAgentClient({ api: ctx.api }) : null;
-                state.audio = createChessAudio();
+                state.audio = window.createChessAudio ? window.createChessAudio() : null;
+                state.fx = window.createChessFx
+                    ? window.createChessFx({ root: state.refs.root, boardShell: state.refs.boardShell })
+                    : null;
                 createBoard(state);
                 startNewGame(state);
             })
@@ -86,6 +93,9 @@
         state.searchToken++;
         state.hintToken++;
         stopClock(state);
+        try {
+            if (state.fx) state.fx.dispose();
+        } catch (e) {}
         try {
             if (state.board) state.board.destroy();
         } catch (e) {}
@@ -115,107 +125,12 @@
         };
     }
 
-    function template(ctx) {
-        const esc = ctx.esc;
-        const t = ctx.t;
-        const icon = (k, fb, cls) => ctx.iconMarkup(k, fb, cls || 'vd-chess-action-icon', 14);
-        return `
-            <div class="vd-chess">
-                <section class="vd-chess-board-pane">
-                    <div class="vd-chess-board-shell">
-                        <div class="vd-chess-board" data-chess-board></div>
-                    </div>
-                    <div class="vd-chess-ribbon">
-                        <div class="vd-chess-status" data-status>${esc(t('desktop.chess_loading'))}</div>
-                        <div class="vd-chess-comment" data-comment></div>
-                    </div>
-                </section>
-                <aside class="vd-chess-side">
-                    <div class="vd-chess-clocks" data-clocks hidden>
-                        <div class="vd-chess-clock" data-clock="white">
-                            <span class="vd-chess-clock-side" data-clock-icon>${PIECE_GLYPH.k}</span>
-                            <span class="vd-chess-clock-time" data-white-time>--:--</span>
-                        </div>
-                        <div class="vd-chess-clock" data-clock="black">
-                            <span class="vd-chess-clock-side" data-clock-icon>${PIECE_GLYPH.k}</span>
-                            <span class="vd-chess-clock-time" data-black-time>--:--</span>
-                        </div>
-                    </div>
-                    <div class="vd-chess-controls">
-                        <div class="vd-chess-field">
-                            <label for="chess-mode">${esc(t('desktop.chess_mode'))}</label>
-                            <select id="chess-mode" data-mode>
-                                <option value="computer">${esc(t('desktop.chess_mode_computer'))}</option>
-                                <option value="agent">${esc(t('desktop.chess_mode_agent'))}</option>
-                                <option value="local">${esc(t('desktop.chess_mode_local'))}</option>
-                            </select>
-                        </div>
-                        <div class="vd-chess-field" data-strength-wrap>
-                            <label for="chess-strength">${esc(t('desktop.chess_strength'))} <span data-strength-value>8</span></label>
-                            <input id="chess-strength" data-strength type="range" min="1" max="20" value="8">
-                        </div>
-                        <div class="vd-chess-field" data-clock-wrap>
-                            <label for="chess-clock-select">${esc(t('desktop.chess_clock'))}</label>
-                            <select id="chess-clock-select" data-clock-select>
-                                <option value="0">${esc(t('desktop.chess_clock_off'))}</option>
-                                <option value="180">${esc(t('desktop.chess_clock_3'))}</option>
-                                <option value="300">${esc(t('desktop.chess_clock_5'))}</option>
-                                <option value="600">${esc(t('desktop.chess_clock_10'))}</option>
-                            </select>
-                        </div>
-                        <div class="vd-chess-field">
-                            <span class="vd-chess-label">${esc(t('desktop.chess_player_color'))}</span>
-                            <div class="vd-chess-segment" data-color-group>
-                                <button type="button" data-color="white" class="active">${esc(t('desktop.chess_color_white'))}</button>
-                                <button type="button" data-color="black">${esc(t('desktop.chess_color_black'))}</button>
-                            </div>
-                        </div>
-                        <div class="vd-chess-actions">
-                            <button type="button" class="vd-chess-primary" data-new-game>${icon('refresh', 'N')}<span>${esc(t('desktop.chess_new_game'))}</span></button>
-                            <button type="button" data-undo>${icon('undo', 'U')}<span>${esc(t('desktop.chess_undo'))}</span></button>
-                            <button type="button" data-flip>${ctx.iconMarkup('refresh', 'F', 'vd-chess-action-icon', 14)}<span>${esc(t('desktop.chess_flip'))}</span></button>
-                            <button type="button" data-hint>${icon('refresh', 'H')}<span>${esc(t('desktop.chess_hint'))}</span></button>
-                            <button type="button" data-resign>${icon('refresh', 'R')}<span>${esc(t('desktop.chess_resign'))}</span></button>
-                            <button type="button" data-draw>${icon('refresh', 'D')}<span>${esc(t('desktop.chess_offer_draw'))}</span></button>
-                        </div>
-                        <div class="vd-chess-replay" data-replay hidden>
-                            <button type="button" data-review-first title="${esc(t('desktop.chess_first'))}">${icon('refresh', '|<', 'vd-chess-replay-icon')}</button>
-                            <button type="button" data-review-prev title="${esc(t('desktop.chess_prev'))}">${icon('undo', '<', 'vd-chess-replay-icon')}</button>
-                            <span class="vd-chess-review-label" data-review-label>${esc(t('desktop.chess_live'))}</span>
-                            <button type="button" data-review-next title="${esc(t('desktop.chess_next'))}">${icon('refresh', '>', 'vd-chess-replay-icon')}</button>
-                            <button type="button" data-review-last title="${esc(t('desktop.chess_last'))}">${icon('refresh', '>|', 'vd-chess-replay-icon')}</button>
-                        </div>
-                    </div>
-                    <div class="vd-chess-tabs" data-tabs>
-                        <button type="button" class="active" data-tab="moves">${esc(t('desktop.chess_tab_moves'))}</button>
-                        <button type="button" data-tab="captured">${esc(t('desktop.chess_tab_captured'))}</button>
-                        <button type="button" data-tab="info">${esc(t('desktop.chess_tab_info'))}</button>
-                    </div>
-                    <div class="vd-chess-moves" data-panel="moves">
-                        <ol data-moves></ol>
-                    </div>
-                    <div class="vd-chess-captured-panel" data-panel="captured" hidden>
-                        <div class="vd-chess-captured-row">
-                            <span class="vd-chess-captured-label">${esc(t('desktop.chess_color_white'))}</span>
-                            <div class="vd-chess-captured-pieces" data-captured-white></div>
-                        </div>
-                        <div class="vd-chess-captured-row">
-                            <span class="vd-chess-captured-label">${esc(t('desktop.chess_color_black'))}</span>
-                            <div class="vd-chess-captured-pieces" data-captured-black></div>
-                        </div>
-                    </div>
-                    <div class="vd-chess-info-panel" data-panel="info" hidden>
-                        <div class="vd-chess-info-row"><span>${esc(t('desktop.chess_material'))}</span><span data-material>0</span></div>
-                        <div class="vd-chess-info-row"><span>${esc(t('desktop.chess_eval'))}</span><span data-eval>${esc(t('desktop.chess_even'))}</span></div>
-                        <div class="vd-chess-info-row"><span>${esc(t('desktop.chess_hint'))}</span><span data-hint-text>${esc(t('desktop.chess_no_moves'))}</span></div>
-                    </div>
-                </aside>
-            </div>
-        `;
-    }
-
     function collectRefs(state) {
         const root = state.container.querySelector('.vd-chess');
+        if (!root) {
+            state.refs = { root: null };
+            return;
+        }
         state.refs = {
             root,
             boardShell: root.querySelector('.vd-chess-board-shell'),
@@ -228,6 +143,7 @@
             strengthWrap: root.querySelector('[data-strength-wrap]'),
             clockWrap: root.querySelector('[data-clock-wrap]'),
             clockSelect: root.querySelector('[data-clock-select]'),
+            boardSkin: root.querySelector('[data-board-skin]'),
             clocks: root.querySelector('[data-clocks]'),
             whiteTime: root.querySelector('[data-white-time]'),
             blackTime: root.querySelector('[data-black-time]'),
@@ -241,6 +157,8 @@
             capturedWhite: root.querySelector('[data-captured-white]'),
             capturedBlack: root.querySelector('[data-captured-black]'),
             material: root.querySelector('[data-material]'),
+            materialFill: root.querySelector('[data-material-fill]'),
+            materialBarScore: root.querySelector('[data-material-bar-score]'),
             evalEl: root.querySelector('[data-eval]'),
             hintText: root.querySelector('[data-hint-text]'),
             colorGroup: root.querySelector('[data-color-group]'),
@@ -276,6 +194,17 @@
             state.clockBase = Number(refs.clockSelect.value) || 0;
             startNewGame(state);
         });
+        if (refs.boardSkin) {
+            refs.boardSkin.value = state.boardSkin || 'green';
+            refs.boardSkin.addEventListener('change', () => {
+                const skinApi = window.ChessBoardSkin;
+                state.boardSkin = skinApi ? skinApi.normalize(refs.boardSkin.value) : 'green';
+                if (skinApi) skinApi.save(state.boardSkin);
+                if (skinApi) skinApi.apply(state);
+                updateLastMoveMarkers(state);
+                updateCheckMarkers(state);
+            });
+        }
         refs.colorGroup.addEventListener('click', event => {
             const button = event.target.closest('[data-color]');
             if (!button) return;
@@ -312,11 +241,11 @@
             assetsUrl: '/img/chess/',
             assetsCache: true,
             style: {
-                cssClass: 'green',
+                cssClass: (window.ChessBoardSkin ? window.ChessBoardSkin.normalize(state.boardSkin) : 'green'),
                 showCoordinates: true,
-                borderType: BORDER_TYPE.thin,
+                borderType: BORDER_TYPE.frame,
                 pieces: { file: 'standard.svg', tileSize: 40 },
-                animationDuration: 200
+                animationDuration: 300
             },
             extensions: [{ class: Markers, props: { autoMarkers: null, sprite: 'markers.svg' } }]
         });
@@ -363,6 +292,10 @@
         state.endedReason = '';
         state.captured = { w: [], b: [] };
         state.materialScore = 0;
+        if (state.fx) {
+            state.fx.dismissResult();
+            state.fx.setThinking(false);
+        }
         if (state.engine) state.engine.newGame();
         initClocks(state);
         syncBoard(state, false);
@@ -510,6 +443,7 @@
         state.reviewActive = false;
         clearReview(state);
         playMoveSound(state, move);
+        if (state.fx) state.fx.playMoveFx(moveFxKind(state, move));
         syncBoard(state, true);
         updateAll(state);
         updateLastMoveMarkers(state);
@@ -517,6 +451,17 @@
         if (isGameOver(state)) { handleGameOver(state); return; }
         if (state.mode === 'local') return;
         if (!isPlayersTurn(state)) requestOpponentMove(state);
+    }
+
+    function moveFxKind(state, move) {
+        const flags = move.flags || '';
+        const inCheck = callBool(state.game, 'inCheck', 'in_check');
+        if (move.captured && inCheck) return 'check-capture';
+        if (move.captured) return 'capture';
+        if (inCheck) return 'check';
+        if (move.promotion) return 'promote';
+        if (flags.indexOf('k') !== -1 || flags.indexOf('q') !== -1) return 'castle';
+        return 'move';
     }
 
     function recordCapture(state, moverColor, capturedType) {
@@ -528,6 +473,7 @@
     async function requestOpponentMove(state) {
         const token = ++state.searchToken;
         state.busy = true;
+        if (state.fx) state.fx.setThinking(true);
         clearMoveMarkers(state);
         updateInput(state);
         setStatus(state, state.ctx.t(state.opponent === 'agent' ? 'desktop.chess_agent_thinking' : 'desktop.chess_engine_thinking', state.opponent === 'agent' ? 'Agent is thinking...' : 'Computer is thinking...'));
@@ -557,6 +503,7 @@
         } finally {
             if (!state.disposed && token === state.searchToken) {
                 state.busy = false;
+                if (state.fx) state.fx.setThinking(false);
                 updateAll(state);
             }
         }
@@ -645,7 +592,7 @@
         if (!state.game || state.gameOver) return;
         showModal(state, state.ctx.t('desktop.chess_confirm_resign'), [
             { label: state.ctx.t('desktop.chess_resign'), primary: true, action: () => { endGame(state, 'resign', playerSide(state)); } },
-            { label: state.ctx.t('desktop.chess_flip'), action: null }
+            { label: state.ctx.t('desktop.cancel'), action: null }
         ]);
     }
 
@@ -653,7 +600,7 @@
         if (!state.game || state.gameOver) return;
         showModal(state, state.ctx.t('desktop.chess_confirm_draw'), [
             { label: state.ctx.t('desktop.chess_offer_draw'), primary: true, action: () => { endGame(state, 'draw', null); } },
-            { label: state.ctx.t('desktop.chess_flip'), action: null }
+            { label: state.ctx.t('desktop.cancel'), action: null }
         ]);
     }
 
@@ -663,39 +610,71 @@
         stopClock(state);
         state.busy = false;
         state.searchToken++;
+        if (state.fx) state.fx.setThinking(false);
         let message;
+        let win = false;
+        const draw = reason === 'draw';
         if (reason === 'draw') {
             message = state.ctx.t('desktop.chess_draw');
         } else if (reason === 'time') {
             message = (loserSide === 'w' ? state.ctx.t('desktop.chess_black_wins') : state.ctx.t('desktop.chess_white_wins'));
+            win = state.mode !== 'local' && loserSide !== playerSide(state);
         } else if (reason === 'resign') {
             message = state.ctx.t('desktop.chess_resigned') + ' — ' + (loserSide === 'w' ? state.ctx.t('desktop.chess_black_wins') : state.ctx.t('desktop.chess_white_wins'));
+            win = state.mode !== 'local' && loserSide !== playerSide(state);
+        } else {
+            message = state.ctx.t('desktop.chess_title');
         }
         setStatus(state, message);
         playGameOverSound(state);
         updateAll(state);
+        showResultOverlay(state, { title: message, detail: '', win, draw });
     }
 
     function handleGameOver(state) {
         state.gameOver = true;
         stopClock(state);
+        if (state.fx) state.fx.setThinking(false);
         let message;
+        let detail = '';
+        let win = false;
+        let draw = false;
         if (callBool(state.game, 'isCheckmate', 'in_checkmate')) {
             const winner = state.game.turn() === 'w' ? 'b' : 'w';
             const winLabel = winner === 'w' ? state.ctx.t('desktop.chess_white_wins') : state.ctx.t('desktop.chess_black_wins');
-            message = state.ctx.t('desktop.chess_checkmate') + ' — ' + winLabel;
+            message = state.ctx.t('desktop.chess_checkmate');
+            detail = winLabel;
             if (state.mode !== 'local') {
-                message += (winner === playerSide(state)) ? ' (' + state.ctx.t('desktop.chess_game_over_win') + ')' : ' (' + state.ctx.t('desktop.chess_game_over_loss') + ')';
+                win = winner === playerSide(state);
+                detail += ' — ' + (win ? state.ctx.t('desktop.chess_game_over_win') : state.ctx.t('desktop.chess_game_over_loss'));
             }
         } else if (callBool(state.game, 'isStalemate', 'in_stalemate')) {
             message = state.ctx.t('desktop.chess_stalemate');
+            draw = true;
         } else if (callBool(state.game, 'isDraw', 'in_draw')) {
             message = state.ctx.t('desktop.chess_draw');
+            draw = true;
         }
         state.endedReason = 'gameover';
-        setStatus(state, message);
+        setStatus(state, message + (detail ? ' — ' + detail : ''));
         playGameOverSound(state);
         updateAll(state);
+        showResultOverlay(state, { title: message, detail, win, draw });
+    }
+
+    function showResultOverlay(state, opts) {
+        if (!state.fx || typeof state.fx.showResult !== 'function') return;
+        state.fx.showResult({
+            esc: state.ctx.esc,
+            title: opts.title || '',
+            detail: opts.detail || '',
+            win: !!opts.win,
+            draw: !!opts.draw,
+            primaryLabel: state.ctx.t('desktop.chess_new_game'),
+            secondaryLabel: state.ctx.t('desktop.ok'),
+            onPrimary: () => startNewGame(state),
+            onSecondary: null
+        });
     }
 
     function tryMove(state, move) {
@@ -784,27 +763,38 @@
     function updateStatus(state) {
         if (!state.game) return;
         let message;
+        let tone = '';
         if (state.gameOver) {
             message = state.refs.status.textContent || state.ctx.t('desktop.chess_title');
+            tone = 'is-game-over';
         } else if (callBool(state.game, 'isCheckmate', 'in_checkmate')) {
             const winner = state.game.turn() === 'w' ? 'b' : 'w';
             message = state.ctx.t('desktop.chess_checkmate') + ' — ' + (winner === 'w' ? state.ctx.t('desktop.chess_white_wins') : state.ctx.t('desktop.chess_black_wins'));
+            tone = 'is-game-over';
         } else if (callBool(state.game, 'isStalemate', 'in_stalemate')) {
             message = state.ctx.t('desktop.chess_stalemate');
+            tone = 'is-game-over';
         } else if (callBool(state.game, 'isDraw', 'in_draw')) {
             message = state.ctx.t('desktop.chess_draw');
+            tone = 'is-game-over';
         } else if (callBool(state.game, 'inCheck', 'in_check')) {
             message = state.ctx.t('desktop.chess_check');
+            tone = 'is-check';
         } else if (state.busy) {
             message = state.ctx.t('desktop.chess_thinking');
+            tone = 'is-thinking';
         } else if (state.reviewActive) {
             message = state.ctx.t('desktop.chess_reviewing').replace('{n}', String(state.reviewIndex + 1));
         } else if (state.mode === 'local') {
             message = state.game.turn() === 'w' ? state.ctx.t('desktop.chess_local_turn_white') : state.ctx.t('desktop.chess_local_turn_black');
+            tone = 'is-your-turn';
         } else {
-            message = isPlayersTurn(state) ? state.ctx.t('desktop.chess_your_turn') : state.ctx.t('desktop.chess_opponent_turn');
+            const yours = isPlayersTurn(state);
+            message = yours ? state.ctx.t('desktop.chess_your_turn') : state.ctx.t('desktop.chess_opponent_turn');
+            tone = yours ? 'is-your-turn' : '';
         }
         setStatus(state, message);
+        if (state.fx) state.fx.setStatusTone(tone);
         state.refs.comment.textContent = state.agentComment || (state.game.turn() === 'w' ? state.ctx.t('desktop.chess_white_to_move') : state.ctx.t('desktop.chess_black_to_move'));
     }
 
@@ -858,7 +848,9 @@
         state.refs.capturedBlack.innerHTML = renderPieces(state.captured.w);
         const wMat = state.captured.b.reduce((s, p) => s + (PIECE_VALUES[p] || 0), 0);
         const bMat = state.captured.w.reduce((s, p) => s + (PIECE_VALUES[p] || 0), 0);
-        state.refs.material.textContent = (wMat - bMat > 0 ? '+' : '') + String(wMat - bMat);
+        const diff = wMat - bMat;
+        state.refs.material.textContent = (diff > 0 ? '+' : '') + String(diff);
+        if (window.ChessMaterialBar) window.ChessMaterialBar.update(state.refs, diff);
     }
 
     function updateInfo(state) {
@@ -869,6 +861,7 @@
         else evalText = state.ctx.t('desktop.chess_advantage_black').replace('{n}', String(Math.abs(diff)));
         state.refs.evalEl.textContent = evalText;
         state.refs.hintText.textContent = state.hintMove ? (state.ctx.t('desktop.chess_hint') + ': ' + String(state.hintMove).toUpperCase()) : state.ctx.t('desktop.chess_no_moves');
+        if (window.ChessMaterialBar) window.ChessMaterialBar.update(state.refs, diff);
     }
 
     function selectTab(state, tab) {
@@ -969,22 +962,10 @@
     }
 
     function showModal(state, message, buttons) {
-        const existing = state.refs.root.querySelector('.vd-chess-modal');
-        if (existing) existing.remove();
-        const dialog = document.createElement('div');
-        dialog.className = 'vd-chess-modal';
-        const esc = state.ctx.esc;
-        const btnHtml = buttons.map((b, i) => `<button type="button" data-idx="${i}" class="${b.primary ? 'is-primary' : ''}">${esc(b.label)}</button>`).join('');
-        dialog.innerHTML = `<div class="vd-chess-modal-card"><div class="vd-chess-modal-text">${esc(message)}</div><div class="vd-chess-modal-actions">${btnHtml}</div></div>`;
-        dialog.addEventListener('click', event => {
-            const button = event.target.closest('[data-idx]');
-            if (!button) return;
-            const idx = Number(button.dataset.idx);
-            dialog.remove();
-            const action = buttons[idx] && buttons[idx].action;
-            if (typeof action === 'function') action();
-        });
-        state.refs.root.appendChild(dialog);
+        if (typeof window.showChessModal === 'function') {
+            window.showChessModal(state.refs.root, message, buttons, state.ctx.esc);
+            return;
+        }
     }
 
     function clearMoveMarkers(state) {
@@ -1035,43 +1016,6 @@
         }
     }
 
-    // --- Web Audio synthesized chess sounds (no sample files) ---
-    function createChessAudio(state) {
-        let actx = null;
-        function ensure() {
-            if (actx) return actx;
-            try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; }
-            return actx;
-        }
-        function tone(freq, dur, type, vol) {
-            const a = ensure(); if (!a) return;
-            if (a.state === 'suspended') a.resume();
-            const o = a.createOscillator(), g = a.createGain();
-            o.type = type || 'sine'; o.frequency.value = freq;
-            g.gain.setValueAtTime(Math.max(0.001, vol || 0.2), a.currentTime);
-            g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + dur);
-            o.connect(g).connect(a.destination);
-            o.start(); o.stop(a.currentTime + dur + 0.01);
-        }
-        function woodThunk(freq) {
-            const a = ensure(); if (!a) return;
-            const buf = a.createBuffer(1, a.sampleRate * 0.05, a.sampleRate), d = buf.getChannelData(0);
-            for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2);
-            const s = a.createBufferSource(), f = a.createBiquadFilter(), g = a.createGain();
-            s.buffer = buf; f.type = 'bandpass'; f.frequency.value = freq || 600; f.Q.value = 2;
-            g.gain.setValueAtTime(0.15, a.currentTime); g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + 0.05);
-            s.connect(f).connect(g).connect(a.destination); s.start();
-        }
-        return {
-            move() { woodThunk(500); tone(300, 0.06, 'sine', 0.1); },
-            capture() { woodThunk(280); tone(180, 0.08, 'sawtooth', 0.12); },
-            check() { tone(880, 0.1, 'triangle', 0.18); setTimeout(() => tone(660, 0.1, 'triangle', 0.15), 80); },
-            castle() { woodThunk(500); setTimeout(() => woodThunk(500), 100); },
-            promote() { [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => tone(f, 0.1, 'sine', 0.15), i * 60)); },
-            gameOver(win) { const notes = win ? [523, 659, 784, 1047] : [392, 330, 262, 196]; notes.forEach((f, i) => setTimeout(() => tone(f, 0.2, 'triangle', 0.18), i * 120)); }
-        };
-    }
-
     function playMoveSound(state, move) {
         if (!state.audio) return;
         const flags = move.flags || '';
@@ -1084,7 +1028,11 @@
 
     function playGameOverSound(state) {
         if (!state.audio) return;
-        const win = state.mode !== 'local' && state.endedReason !== 'draw' && !isPlayersTurn(state) === false && state.game && callBool(state.game, 'isCheckmate', 'in_checkmate');
+        let win = false;
+        if (state.mode !== 'local' && state.endedReason !== 'draw' && state.game && callBool(state.game, 'isCheckmate', 'in_checkmate')) {
+            const winner = state.game.turn() === 'w' ? 'b' : 'w';
+            win = winner === playerSide(state);
+        }
         state.audio.gameOver(win);
     }
 

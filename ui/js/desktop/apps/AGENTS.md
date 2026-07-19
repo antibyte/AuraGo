@@ -11,11 +11,15 @@ This subtree owns built-in virtual desktop app modules that are loaded lazily by
 - `chess*.js` implements Chess, a desktop chess app using `cm-chessboard`,
   `chess.js`, a local Stockfish WebWorker, and the optional AuraGo agent move
   endpoint. Features three opponent modes (Computer, Agent, Local 2P),
-  optional chess clocks (3/5/10 min), captured-material tray, move-evaluation
-  panel, hint engine (Stockfish), move-history click-to-review with
-  first/prev/next/last scrubber, last-move and check highlights, resign/draw
-  confirmation modals, and Web Audio synthesized move/capture/check/castle/
-  promote/game-over sounds. Split across `chess.js` (core UI and game loop),
+  optional chess clocks (3/5/10 min), captured-material tray, material balance
+  bar, board-skin selector (green/blue/wood/classic, persisted in
+  `aurago.desktop.chess.boardSkin`), move-evaluation panel, hint engine
+  (Stockfish), move-history click-to-review with first/prev/next/last scrubber,
+  last-move and check highlights, resign/draw confirmation modals with cancel,
+  game-over result overlay with win confetti, CSS move/capture/check/thinking
+  effects (`prefers-reduced-motion` aware), and Web Audio synthesized
+  move/capture/check/castle/promote/game-over sounds. Split across `chess.js`
+  (core game loop), `chess-fx.js` (template, effects, audio, skin helpers),
   `chess-engine.js` (Stockfish worker bridge), and `chess-agent.js`
   (AuraGo agent move API client).
 - `writer.js` implements the Writer app, a word-processing editor with Quill
@@ -145,8 +149,9 @@ registration lives in `internal/desktop/types.go`.
 - Galaxa canvas resource caches (`cachedRadialGradient`, `spriteAtlasCache`,
   `ensureNebulaCanvas`) must be reused; see
   `ui/desktop_runtime_performance_test.go` for enforced markers.
-- Keep Chess split across `chess.js`, `chess-engine.js`, and `chess-agent.js`;
-  do not fold worker or API bridge logic into the main app file.
+- Keep Chess split across `chess.js`, `chess-fx.js`, `chess-engine.js`, and
+  `chess-agent.js`; do not fold worker, API bridge, template, or FX/audio
+  helpers into the main app file. `chess-fx.js` must load before `chess.js`.
 - Keep Cheater split across `cheater.js`, `cheater-toolbar.js`,
   `cheater-spotlight.js`, `cheater-templates.js`, and `cheater-attachments.js`;
   do not fold the toolbar, spotlight, or attachment logic into the main app

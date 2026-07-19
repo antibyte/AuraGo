@@ -15,6 +15,7 @@ func TestDesktopChessAppAssetsAreLocalAndLazy(t *testing.T) {
 		"'/css/desktop-app-chess.css'",
 		"'/js/desktop/apps/chess-engine.js'",
 		"'/js/desktop/apps/chess-agent.js'",
+		"'/js/desktop/apps/chess-fx.js'",
 		"'/js/desktop/apps/chess.js'",
 	} {
 		if !strings.Contains(loader, want) {
@@ -27,13 +28,31 @@ func TestDesktopChessAppAssetsAreLocalAndLazy(t *testing.T) {
 		"import('/js/vendor/chess-vendor.esm.js')",
 		"createChessEngine",
 		"createChessAgentClient",
+		"createChessFx",
 		"window.ChessApp = { render, dispose }",
 		"requestPromotionChoice",
 		"ResizeObserver",
 		"fitBoardToShell",
+		"desktop.cancel",
 	} {
 		if !strings.Contains(app, want) {
 			t.Fatalf("desktop chess app missing marker %q", want)
+		}
+	}
+
+	fx := readEmbeddedText(t, "js/desktop/apps/chess-fx.js")
+	for _, want := range []string{
+		"window.createChessFx",
+		"window.createChessAudio",
+		"window.renderChessTemplate",
+		"playMoveFx",
+		"showResult",
+		"vd-chess-material-bar",
+		"data-board-skin",
+		"prefers-reduced-motion",
+	} {
+		if !strings.Contains(fx, want) {
+			t.Fatalf("desktop chess fx missing marker %q", want)
 		}
 	}
 
@@ -66,11 +85,14 @@ func TestDesktopChessBoardLayoutKeepsStatusVisible(t *testing.T) {
 
 	css := readEmbeddedText(t, "css/desktop-app-chess.css")
 	for _, want := range []string{
-		"grid-template-rows: minmax(0, 1fr) auto;",
+		"grid-template-rows: auto minmax(0, 1fr) auto;",
 		".vd-chess-board-shell",
 		"overflow: hidden;",
 		"height: min(100%, 620px);",
 		".vd-chess-ribbon",
+		".vd-chess-material-bar",
+		"is-capture-fx",
+		"prefers-reduced-motion",
 	} {
 		if !strings.Contains(css, want) {
 			t.Fatalf("desktop chess layout CSS missing marker %q", want)
@@ -88,6 +110,7 @@ func TestDesktopChessAppFilesStaySmall(t *testing.T) {
 		"js/desktop/apps/chess.js",
 		"js/desktop/apps/chess-engine.js",
 		"js/desktop/apps/chess-agent.js",
+		"js/desktop/apps/chess-fx.js",
 	} {
 		source := readEmbeddedText(t, path)
 		lines := strings.Count(strings.ReplaceAll(source, "\r\n", "\n"), "\n") + 1
@@ -131,20 +154,28 @@ func TestDesktopChessUsesThemeIcons(t *testing.T) {
 	}
 
 	app := readEmbeddedText(t, "js/desktop/apps/chess.js")
+	fx := readEmbeddedText(t, "js/desktop/apps/chess-fx.js")
+	if !strings.Contains(app, "{ id: 'flip', labelKey: 'desktop.chess_flip', icon: 'refresh'") {
+		t.Fatal("desktop chess flip menu must use the refresh theme icon")
+	}
 	for _, want := range []string{
-		"data-flip>${ctx.iconMarkup('refresh'",
-		"{ id: 'flip', labelKey: 'desktop.chess_flip', icon: 'refresh'",
+		"data-flip>",
+		"icon('refresh', 'F')",
+		"icon('help', 'H')",
+		"icon('stop', 'R')",
 	} {
-		if !strings.Contains(app, want) {
-			t.Fatalf("desktop chess flip control must use a bundled theme icon marker %q", want)
+		if !strings.Contains(fx, want) {
+			t.Fatalf("desktop chess template must use theme icon marker %q", want)
 		}
 	}
-	for _, unwanted := range []string{
-		"iconMarkup('rotate'",
-		"icon: 'rotate'",
-	} {
-		if strings.Contains(app, unwanted) {
-			t.Fatalf("desktop chess must not use unavailable rotate icon key %q", unwanted)
+	for _, source := range []string{app, fx} {
+		for _, unwanted := range []string{
+			"iconMarkup('rotate'",
+			"icon: 'rotate'",
+		} {
+			if strings.Contains(source, unwanted) {
+				t.Fatalf("desktop chess must not use unavailable rotate icon key %q", unwanted)
+			}
 		}
 	}
 }
