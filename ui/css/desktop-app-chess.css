@@ -12,7 +12,9 @@
     --chess-warn: #e0a23a;
     --chess-danger: #d35448;
     --chess-good: #3dba8c;
-    --chess-board-frame: linear-gradient(145deg, #6b4a2e 0%, #3d2918 42%, #5a3d24 100%);
+    --chess-board-frame: #5a3f28;
+    --chess-board-frame-hi: #7a5636;
+    --chess-board-frame-lo: #3d2a1a;
     --chess-felt: #d7e5dc;
     --chess-shadow: 0 22px 48px rgba(0, 0, 0, 0.38), 0 0 0 1px rgba(255, 255, 255, 0.05);
     --chess-radius: 14px;
@@ -117,15 +119,18 @@
     height: 100%;
     display: grid;
     place-items: center;
-    overflow: hidden;
+    /* Allow the even board rim/shadow to remain visible on all sides */
+    overflow: visible;
+    padding: 4px;
+    box-sizing: border-box;
 }
 
 .vd-chess-board-shell::before {
     content: "";
     position: absolute;
-    inset: 8% 10%;
+    inset: 10% 12%;
     border-radius: 28px;
-    background: radial-gradient(circle at 50% 45%, rgba(47, 159, 132, 0.16), transparent 62%);
+    background: radial-gradient(circle at 50% 45%, rgba(47, 159, 132, 0.14), transparent 62%);
     filter: blur(18px);
     pointer-events: none;
     z-index: 0;
@@ -140,6 +145,7 @@
 }
 
 .vd-chess-board {
+    --chess-rim: 12px;
     position: relative;
     z-index: 1;
     width: min(100%, 620px);
@@ -149,37 +155,56 @@
     min-width: 280px;
     min-height: 280px;
     aspect-ratio: 1;
-    border-radius: 12px;
+    border-radius: 14px;
     overflow: hidden;
-    padding: 10px;
+    /* Equal wood rim on all four sides */
+    padding: var(--chess-rim);
     box-sizing: border-box;
     background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 28%),
-        var(--chess-board-frame);
+        linear-gradient(
+            180deg,
+            var(--chess-board-frame-hi) 0%,
+            var(--chess-board-frame) 38%,
+            var(--chess-board-frame-lo) 100%
+        );
+    border: 1px solid color-mix(in srgb, var(--chess-board-frame-hi) 70%, #fff 12%);
     box-shadow:
-        var(--chess-shadow),
-        inset 0 1px 0 rgba(255, 255, 255, 0.18),
-        inset 0 -2px 8px rgba(0, 0, 0, 0.35);
+        0 16px 36px rgba(0, 0, 0, 0.38),
+        0 0 0 1px rgba(0, 0, 0, 0.28),
+        inset 0 1px 0 rgba(255, 255, 255, 0.22),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.28);
     transition: transform 0.28s ease, box-shadow 0.28s ease, filter 0.28s ease;
 }
 
-.vd-chess-board::after {
+/* Inner lip: crisp square edge between wood rim and board */
+.vd-chess-board::before {
     content: "";
     position: absolute;
-    inset: 10px;
-    border-radius: 6px;
-    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.28);
+    inset: var(--chess-rim);
+    border-radius: 4px;
+    box-shadow:
+        0 0 0 1px rgba(0, 0, 0, 0.45),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.08);
     pointer-events: none;
     z-index: 2;
+}
+
+.vd-chess-board::after {
+    content: none;
 }
 
 .vd-chess-board .cm-chessboard {
     display: block;
     width: 100%;
     height: 100%;
-    border-radius: 4px;
+    border-radius: 3px;
     overflow: hidden;
     background: var(--chess-felt);
+}
+
+/* Keep cm-chessboard SVG border flush; wood rim is owned by the shell padding */
+.vd-chess-board .cm-chessboard.border-type-thin .board .border {
+    stroke-width: 0.35%;
 }
 
 /* Move FX states on shell */
@@ -1033,9 +1058,9 @@
     }
 
     .vd-chess-board {
+        --chess-rim: 10px;
         min-width: 240px;
         min-height: 240px;
-        padding: 8px;
     }
 
     .vd-chess-side {

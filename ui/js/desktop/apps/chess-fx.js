@@ -228,7 +228,7 @@
     function applyBoardSkin(state) {
         if (!state || !state.board || !state.board.props || !state.board.props.style) return;
         const skin = normalizeBoardSkin(state.boardSkin);
-        const border = state.board.props.style.borderType || 'frame';
+        const border = state.board.props.style.borderType || 'thin';
         state.board.props.style.cssClass = skin;
         try {
             const svg = state.refs && state.refs.board && state.refs.board.querySelector('svg.cm-chessboard');

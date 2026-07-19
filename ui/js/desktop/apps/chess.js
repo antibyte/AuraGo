@@ -243,7 +243,8 @@
             style: {
                 cssClass: (window.ChessBoardSkin ? window.ChessBoardSkin.normalize(state.boardSkin) : 'green'),
                 showCoordinates: true,
-                borderType: BORDER_TYPE.frame,
+                /* thin: coordinates stay; wood rim is handled by CSS padding */
+                borderType: BORDER_TYPE.thin,
                 pieces: { file: 'standard.svg', tileSize: 40 },
                 animationDuration: 300
             },
@@ -269,7 +270,8 @@
         if (!shell || !board || state.disposed) return;
         const width = shell.clientWidth || shell.getBoundingClientRect().width;
         const height = shell.clientHeight || shell.getBoundingClientRect().height;
-        const size = Math.floor(Math.min(width, height, 620));
+        /* leave a few px so the even wood rim/shadow is never clipped by the shell */
+        const size = Math.floor(Math.min(width, height, 620) - 8);
         if (!Number.isFinite(size) || size < 220) return;
         const px = size + 'px';
         if (board.style.width !== px) board.style.width = px;
