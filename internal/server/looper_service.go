@@ -65,8 +65,9 @@ func (r *LooperRunner) ResumeState() (desktop.LooperResumeState, bool) {
 }
 
 // Resume continues a paused loop from the saved snapshot (clean E8 completion).
-// It re-runs Prepare to re-establish context and then continues the iteration
-// loop from the saved point using the seeded carry-over state.
+// When the snapshot contains PrepareResponse, Prepare is NOT re-executed —
+// iterSeed is rebuilt from the saved prepare result so workspace side-effects
+// are not duplicated.
 func (r *LooperRunner) Resume(
 	ctx context.Context,
 	cfg desktop.LooperRunConfig,
@@ -79,8 +80,14 @@ func (r *LooperRunner) Resume(
 	if !ok {
 		return fmt.Errorf("no paused run to resume")
 	}
-	r.holder.ClearResumeState()
+	// Snapshot is cleared inside executeStarted after TryStartResume so a failed
+	// start does not lose the pause point. We hand ownership of the copy.
 	return r.executeStarted(ctx, cfg, auraCfg, client, tools, dispatchCtx, &rs)
+}
+
+// TryStartResume exposes the holder's resume-friendly start for HTTP handlers.
+func (r *LooperRunner) TryStartResume(maxIter, resumeFrom int, cancel context.CancelFunc) error {
+	return r.holder.TryStartResume(maxIter, resumeFrom, cancel)
 }
 
 func (r *LooperRunner) executeStarted(
@@ -139,6 +146,14 @@ func (r *LooperRunner) executeStarted(
 				r.logger.Error("[Looper] step failed after retries", "step", stepName, "error", err)
 				return res, nil, err
 			}
+			// Token / cost accounting for the run UI and global budget category.
+			if res.PromptTokens > 0 || res.CompletionTokens > 0 {
+				cost := estimateLooperCostUSD(res.PromptTokens, res.CompletionTokens)
+				r.holder.AddUsage(res.PromptTokens, res.CompletionTokens, cost)
+				if dispatchCtx != nil && dispatchCtx.BudgetTracker != nil {
+					dispatchCtx.BudgetTracker.RecordForCategory("looper", model, res.PromptTokens, res.CompletionTokens)
+				}
+			}
 			r.logger.Info("[Looper] step done", "step", stepName, "duration_ms", res.Duration.Milliseconds(), "tool_calls", res.ToolCalls)
 			return res, h, nil
 		}
@@ -150,25 +165,9 @@ func (r *LooperRunner) executeStarted(
 	// optsNoTools for the exit step — no tool schemas, no tool rounds.
 	optsNoTools := &agent.MinimalLoopOptions{MaxToolRounds: 0}
 
-	// PREPARE — runs once, result preserved as shared context for every iteration
-	r.holder.SetStep("prepare")
-	prepRes, _, err := stepExec("prepare", cfg.Prepare, sysPrompt, tools, optsWithTools, nil)
-	if err != nil {
-		return r.setErrorAndReturn(err)
-	}
-	r.holder.AppendLog(0, "prepare", cfg.Prepare, prepRes.Response, prepRes.Duration)
-
-	// Build iteration seed: system prompt + prepare result summary so each
-	// iteration starts fresh but retains the preparation context.
 	truncLen := cfg.PrepareTruncation
 	if truncLen <= 0 {
 		truncLen = 2000 // conservative default
-	}
-
-	iterSeed := []openai.ChatCompletionMessage{
-		{Role: openai.ChatMessageRoleSystem, Content: sysPrompt},
-		{Role: openai.ChatMessageRoleUser, Content: cfg.Prepare},
-		{Role: openai.ChatMessageRoleAssistant, Content: truncateResponse(prepRes.Response, truncLen)},
 	}
 
 	ctxMode := cfg.ContextMode
@@ -180,6 +179,7 @@ func (r *LooperRunner) executeStarted(
 	var lastTestResult string
 	var previousIterationSummary string // used primarily by "never" mode
 	var lastIterationSummary string     // result of the optional "summarize" step
+	var prepareResponse string
 
 	startIter := 1
 	if resumeSeed != nil {
@@ -187,8 +187,45 @@ func (r *LooperRunner) executeStarted(
 		lastTestResult = resumeSeed.LastTestResult
 		previousIterationSummary = resumeSeed.PreviousIterationSummary
 		lastIterationSummary = resumeSeed.LastIterationSummary
-		r.logger.Info("[Looper] resuming from saved state", "from_iteration", resumeSeed.Iteration, "starting_at", startIter)
+		prepareResponse = resumeSeed.PrepareResponse
+		r.logger.Info("[Looper] resuming from saved state", "from_iteration", resumeSeed.Iteration, "starting_at", startIter, "has_prepare_snapshot", prepareResponse != "")
+		// Clear pause snapshot only after we successfully begin resume execution.
+		r.holder.ClearResumeState()
 	}
+
+	// PREPARE — runs once on a fresh start. On resume we rebuild from snapshot
+	// when PrepareResponse is available so prepare side-effects are not replayed.
+	var iterSeed []openai.ChatCompletionMessage
+	if prepareResponse != "" {
+		iterSeed = []openai.ChatCompletionMessage{
+			{Role: openai.ChatMessageRoleSystem, Content: sysPrompt},
+			{Role: openai.ChatMessageRoleUser, Content: cfg.Prepare},
+			{Role: openai.ChatMessageRoleAssistant, Content: truncateResponse(prepareResponse, truncLen)},
+		}
+	} else {
+		r.holder.SetStep("prepare")
+		prepRes, _, err := stepExec("prepare", cfg.Prepare, sysPrompt, tools, optsWithTools, nil)
+		if err != nil {
+			return r.setErrorAndReturn(err)
+		}
+		r.holder.AppendLog(0, "prepare", cfg.Prepare, prepRes.Response, prepRes.Duration)
+		prepareResponse = prepRes.Response
+		iterSeed = []openai.ChatCompletionMessage{
+			{Role: openai.ChatMessageRoleSystem, Content: sysPrompt},
+			{Role: openai.ChatMessageRoleUser, Content: cfg.Prepare},
+			{Role: openai.ChatMessageRoleAssistant, Content: truncateResponse(prepRes.Response, truncLen)},
+		}
+	}
+
+	exitMinConf := cfg.ExitMinConfidence
+	if exitMinConf == 0 {
+		exitMinConf = desktop.DefaultExitMinConfidence
+	}
+	stuckRepeats := cfg.StuckTestRepeats
+	if stuckRepeats == 0 {
+		stuckRepeats = desktop.DefaultStuckTestRepeats
+	}
+	recentTestFingerprints := make([]string, 0, 4)
 
 	// ─────────────────────────────────────────────────────────────────────
 	// ITERATION LOOP + CONTEXT MODE SEMANTICS
@@ -234,10 +271,17 @@ func (r *LooperRunner) executeStarted(
 		// exactly after the previous checkpoint but before we began the new round).
 		if r.holder.IsPauseRequested() {
 			rs := desktop.LooperResumeState{
-				Iteration:                i,
+				Iteration:                i - 1, // last completed iteration; resume starts at i
 				LastTestResult:           lastTestResult,
 				PreviousIterationSummary: previousIterationSummary,
 				LastIterationSummary:     lastIterationSummary,
+				PrepareResponse:          prepareResponse,
+			}
+			// When pausing before iteration 1 starts after resume, keep previous index.
+			if i <= 1 && resumeSeed != nil {
+				rs.Iteration = resumeSeed.Iteration
+			} else if i <= 1 {
+				rs.Iteration = 0
 			}
 			r.holder.SaveResumeState(rs)
 			r.logger.Info("[Looper] run paused before starting iteration", "iteration", i)
@@ -296,6 +340,23 @@ func (r *LooperRunner) executeStarted(
 		r.holder.SetLastResult(testRes.Response)
 		lastTestResult = testRes.Response
 
+		// Stuck detection: near-identical test results across consecutive iterations.
+		if stuckRepeats > 0 {
+			fp := normalizeTestFingerprint(testRes.Response)
+			recentTestFingerprints = append(recentTestFingerprints, fp)
+			if len(recentTestFingerprints) > stuckRepeats {
+				recentTestFingerprints = recentTestFingerprints[len(recentTestFingerprints)-stuckRepeats:]
+			}
+			if len(recentTestFingerprints) >= stuckRepeats && allFingerprintsEqual(recentTestFingerprints) {
+				reason := fmt.Sprintf("stuck: test result unchanged for %d consecutive iterations", stuckRepeats)
+				r.holder.AppendLogWithReason(i, "stuck", "", reason, 0, reason)
+				r.holder.SetStuck(reason)
+				r.logger.Warn("[Looper] stuck detection fired", "iteration", i, "repeats", stuckRepeats)
+				// Fall through to Finish if configured, then end.
+				goto finishStep
+			}
+		}
+
 		// Optional explicit summarization step (greatly helps long creative loops)
 		if cfg.SummarizeIterations {
 			r.holder.SetStep("summarize")
@@ -324,6 +385,13 @@ func (r *LooperRunner) executeStarted(
 		decision, reason, confidence, usedStructured := parseStructuredExit(exitRes.Response)
 
 		if usedStructured {
+			// Low-confidence "true" is treated as continue to avoid premature exits.
+			if decision && exitMinConf > 0 && confidence > 0 && confidence < exitMinConf {
+				r.logger.Info("[Looper] exit structured below confidence threshold",
+					"iteration", i, "decision", decision, "confidence", confidence, "min", exitMinConf, "reason", reason)
+				reason = fmt.Sprintf("%s (confidence %.2f < %.2f — continuing)", reason, confidence, exitMinConf)
+				decision = false
+			}
 			r.holder.AppendLogWithReason(i, "exit", cfg.ExitCond, exitRes.Response, exitRes.Duration, reason)
 			r.logger.Info("[Looper] exit structured", "iteration", i, "decision", decision, "confidence", confidence, "reason", reason)
 		} else {
@@ -363,6 +431,7 @@ func (r *LooperRunner) executeStarted(
 				LastTestResult:           lastTestResult,
 				PreviousIterationSummary: previousIterationSummary,
 				LastIterationSummary:     lastIterationSummary,
+				PrepareResponse:          prepareResponse,
 			}
 			r.holder.SaveResumeState(rs)
 			r.logger.Info("[Looper] run paused by user request", "iteration", i, "resume_from", i)
@@ -370,6 +439,7 @@ func (r *LooperRunner) executeStarted(
 		}
 	}
 
+finishStep:
 	// FINISH
 	if strings.TrimSpace(cfg.Finish) != "" {
 		r.holder.SetStep("finish")
@@ -506,8 +576,55 @@ func truncateResponse(s string, maxLen int) string {
 }
 
 func (r *LooperRunner) setErrorAndReturn(err error) error {
-	r.holder.SetError(err.Error())
+	if err == nil {
+		return nil
+	}
+	msg := err.Error()
+	// User stop / context cancel is a terminal stop, not an error condition.
+	if strings.Contains(msg, "aborted by user") || strings.Contains(msg, "context canceled") || strings.Contains(msg, "context deadline exceeded") {
+		// Deadline is still an error (timeout). Only treat explicit user abort as stop.
+		if strings.Contains(msg, "aborted by user") || (strings.Contains(msg, "context canceled") && !strings.Contains(msg, "deadline")) {
+			r.holder.SetStopped()
+			return err
+		}
+	}
+	r.holder.SetError(msg)
 	return err
+}
+
+// estimateLooperCostUSD is a conservative fallback used when provider pricing is
+// unavailable. Rough mid-tier chat rates: $0.50 / 1M input, $1.50 / 1M output.
+func estimateLooperCostUSD(promptTokens, completionTokens int) float64 {
+	const inPerM = 0.50
+	const outPerM = 1.50
+	return (float64(promptTokens)/1_000_000.0)*inPerM + (float64(completionTokens)/1_000_000.0)*outPerM
+}
+
+func normalizeTestFingerprint(s string) string {
+	s = strings.ToLower(strings.TrimSpace(s))
+	// Collapse whitespace so trivial formatting churn does not defeat stuck detection.
+	fields := strings.Fields(s)
+	s = strings.Join(fields, " ")
+	if len(s) > 800 {
+		s = s[:800]
+	}
+	return s
+}
+
+func allFingerprintsEqual(fps []string) bool {
+	if len(fps) < 2 {
+		return false
+	}
+	first := fps[0]
+	if first == "" {
+		return false
+	}
+	for _, fp := range fps[1:] {
+		if fp != first {
+			return false
+		}
+	}
+	return true
 }
 
 // parseStructuredExit tries to interpret the model's response as structured exit output.

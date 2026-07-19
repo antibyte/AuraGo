@@ -9,7 +9,7 @@ func TestDesktopLooperActionButtonsShareConsistentStyle(t *testing.T) {
 	t.Parallel()
 
 	css := strings.ReplaceAll(readDesktopAssetText(t, "css/desktop-app-looper.css"), "\r\n", "\n")
-	shared := desktopLooperCSSRuleBody(t, css, ".vd-looper-start,\n.vd-looper-stop")
+	shared := desktopLooperCSSRuleBody(t, css, ".vd-looper-start,\n.vd-looper-stop,\n.vd-looper-pause,\n.vd-looper-resume")
 	for _, want := range []string{
 		"width: 100%;",
 		"min-height: 32px;",
@@ -30,17 +30,20 @@ func TestDesktopLooperActionButtonsShareConsistentStyle(t *testing.T) {
 	}
 
 	for selector, markers := range map[string][]string{
-		".vd-looper-start": {
+		".vd-looper-start,\n.vd-looper-resume": {
 			"--vd-looper-action-accent: var(--vd-accent, #27c7a6);",
 		},
 		".vd-looper-stop": {
 			"--vd-looper-action-accent: #ef4444;",
 		},
-		".vd-looper-start:hover:not(:disabled),\n.vd-looper-stop:hover:not(:disabled)": {
+		".vd-looper-pause": {
+			"--vd-looper-action-accent: #f59e0b;",
+		},
+		".vd-looper-start:hover:not(:disabled),\n.vd-looper-stop:hover:not(:disabled),\n.vd-looper-pause:hover:not(:disabled),\n.vd-looper-resume:hover:not(:disabled)": {
 			"border-color: var(--vd-looper-action-accent);",
 			"background: rgba(255,255,255,0.06);",
 		},
-		".vd-looper-start:disabled,\n.vd-looper-stop:disabled": {
+		".vd-looper-start:disabled,\n.vd-looper-stop:disabled,\n.vd-looper-pause:disabled,\n.vd-looper-resume:disabled": {
 			"cursor: not-allowed;",
 			"background: var(--vd-surface-strong, rgba(0,0,0,0.25));",
 			"border-color: var(--vd-border, rgba(255,255,255,0.08));",

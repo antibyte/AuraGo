@@ -117,6 +117,129 @@ func TestLooperRunStateHolderPauseAndResumeSnapshot(t *testing.T) {
 	}
 }
 
+func TestLooperPresetStorePersistsSummarizeIterations(t *testing.T) {
+	t.Parallel()
+
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	t.Cleanup(func() { db.Close() })
+
+	if _, err := db.Exec(`CREATE TABLE IF NOT EXISTS desktop_meta (
+		key TEXT PRIMARY KEY,
+		value TEXT NOT NULL
+	)`); err != nil {
+		t.Fatalf("create desktop_meta: %v", err)
+	}
+
+	store := NewLooperPresetStore(db)
+	if err := store.Init(context.Background()); err != nil {
+		t.Fatalf("init: %v", err)
+	}
+
+	// Ralph Loop builtin must persist summarize_iterations=true
+	var summarize int
+	if err := db.QueryRow(`SELECT summarize_iterations FROM desktop_looper_presets WHERE name='Ralph Loop' AND is_builtin=1`).Scan(&summarize); err != nil {
+		t.Fatalf("read summarize flag: %v", err)
+	}
+	if summarize != 1 {
+		t.Fatalf("Ralph Loop summarize_iterations = %d, want 1", summarize)
+	}
+
+	presets, err := store.ListPresets(context.Background())
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	var found bool
+	for _, p := range presets {
+		if p.Name == "Ralph Loop" {
+			found = true
+			if !p.SummarizeIterations {
+				t.Fatal("ListPresets did not surface SummarizeIterations for Ralph Loop")
+			}
+			if p.PrepareTruncation != 6000 {
+				t.Fatalf("PrepareTruncation = %d, want 6000", p.PrepareTruncation)
+			}
+		}
+	}
+	if !found {
+		t.Fatal("Ralph Loop preset missing")
+	}
+
+	// User preset round-trip
+	id, err := store.SavePreset(context.Background(), LooperPreset{
+		Name:                "User Summarize",
+		Prepare:             "p",
+		Plan:                "pl",
+		Action:              "a",
+		Test:                "t",
+		ExitCond:            "e",
+		SummarizeIterations: true,
+		PrepareTruncation:   4000,
+		FinishContext:       "last_action_test",
+		MaxIter:             5,
+	})
+	if err != nil {
+		t.Fatalf("save: %v", err)
+	}
+	got, err := store.GetPreset(context.Background(), id)
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	if !got.SummarizeIterations || got.PrepareTruncation != 4000 || got.FinishContext != "last_action_test" {
+		t.Fatalf("user preset mismatch: %+v", got)
+	}
+}
+
+func TestLooperRunStateHolderStopDistinctFromError(t *testing.T) {
+	t.Parallel()
+	holder := NewLooperRunStateHolder()
+	_, cancel := context.WithCancel(context.Background())
+	if err := holder.TryStart(5, cancel); err != nil {
+		cancel()
+		t.Fatalf("TryStart: %v", err)
+	}
+	holder.SetStopped()
+	holder.SetIdle()
+	st := holder.State()
+	if !st.Stopped || st.Error != "" || st.CurrentStep != "stopped" {
+		t.Fatalf("stopped state = %+v", st)
+	}
+}
+
+func TestLooperResumeStateIncludesPrepareResponse(t *testing.T) {
+	t.Parallel()
+	holder := NewLooperRunStateHolder()
+	_, cancel := context.WithCancel(context.Background())
+	if err := holder.TryStart(10, cancel); err != nil {
+		cancel()
+		t.Fatalf("TryStart: %v", err)
+	}
+	holder.SaveResumeState(LooperResumeState{
+		Iteration:       3,
+		PrepareResponse: "seed from prepare",
+		LastTestResult:  "score 8",
+	})
+	rs, ok := holder.GetResumeState()
+	if !ok || rs.PrepareResponse != "seed from prepare" || rs.Iteration != 3 {
+		t.Fatalf("resume state = %+v ok=%v", rs, ok)
+	}
+	// TryStartResume must keep snapshot until ClearResumeState
+	_, cancel2 := context.WithCancel(context.Background())
+	if err := holder.TryStartResume(10, 3, cancel2); err != nil {
+		cancel2()
+		t.Fatalf("TryStartResume: %v", err)
+	}
+	if _, ok := holder.GetResumeState(); !ok {
+		t.Fatal("snapshot should remain after TryStartResume")
+	}
+	holder.ClearResumeState()
+	if _, ok := holder.GetResumeState(); ok {
+		t.Fatal("snapshot should be gone after ClearResumeState")
+	}
+}
+
 func TestLooperPresetStoreInitRefreshesBuiltinPresets(t *testing.T) {
 	t.Parallel()
 

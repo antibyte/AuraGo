@@ -53,6 +53,14 @@ This subtree owns built-in virtual desktop app modules that are loaded lazily by
   by Effects toggle), and HUD glass/scanline chrome. Opens maximized via
   `open_maximized` metadata; live data from dashboard/KG/mission REST APIs and
   the shared `AuraSSE` event stream.
+- `looper.js` implements Looper, an iterative agent workflow (prepare → plan →
+  action → test → exit → optional finish) with presets, context modes,
+  pause/resume, incremental status SSE, cost/token meta, and advanced options
+  (`finish_context`, `prepare_truncation`, `summarize_iterations`, exit
+  confidence, stuck detection). Backend lives in `internal/desktop/looper*.go`
+  and `internal/server/looper_service.go` / `desktop_looper_handlers.go`.
+  Desktop shell must pass `promptDialog` and `confirmDialog` (no native
+  `prompt`/`confirm`). Readonly mode disables start/save/delete/edit.
 
 ## Ownership
 

@@ -19,10 +19,16 @@ func TestLooperRunHandlerUsesAtomicStart(t *testing.T) {
 		"http.StatusConflict",
 		"runner.executeStarted(",
 		"looperRunTimeout(",
+		"LLMClient:          client",
+		"TryStartResume(",
+		"buildLooperRuntime(",
 	} {
 		if !strings.Contains(source, marker) {
 			t.Fatalf("looper atomic start missing marker %q", marker)
 		}
+	}
+	if strings.Contains(source, "LLMClient:          s.LLMClient") {
+		t.Fatal("looper run must not hard-wire default LLM client into DispatchContext")
 	}
 }
 

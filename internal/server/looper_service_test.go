@@ -171,3 +171,41 @@ func containsHelper(s, substr string) bool {
 	}
 	return false
 }
+
+func TestNormalizeTestFingerprintCollapsesWhitespace(t *testing.T) {
+	t.Parallel()
+	a := normalizeTestFingerprint("  Score:  8/10  \n nice ")
+	b := normalizeTestFingerprint("score: 8/10 nice")
+	if a != b {
+		t.Fatalf("fingerprints differ: %q vs %q", a, b)
+	}
+}
+
+func TestAllFingerprintsEqual(t *testing.T) {
+	t.Parallel()
+	if !allFingerprintsEqual([]string{"a", "a"}) {
+		t.Fatal("expected equal")
+	}
+	if allFingerprintsEqual([]string{"a", "b"}) {
+		t.Fatal("expected not equal")
+	}
+	if allFingerprintsEqual([]string{""}) {
+		t.Fatal("empty fingerprint must not count as stuck")
+	}
+}
+
+func TestEstimateLooperCostUSDPositive(t *testing.T) {
+	t.Parallel()
+	cost := estimateLooperCostUSD(1_000_000, 1_000_000)
+	if cost <= 0 {
+		t.Fatalf("cost = %v, want > 0", cost)
+	}
+}
+
+func TestParseStructuredExitConfidenceFields(t *testing.T) {
+	t.Parallel()
+	decision, reason, conf, ok := parseStructuredExit(`{"decision": true, "reason": "good", "confidence": 0.9}`)
+	if !ok || !decision || reason != "good" || conf != 0.9 {
+		t.Fatalf("parsed = %v %q %v ok=%v", decision, reason, conf, ok)
+	}
+}

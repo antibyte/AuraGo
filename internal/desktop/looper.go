@@ -65,6 +65,14 @@ type LooperRunState struct {
 	LastResult    string           `json:"last_result"`
 	Logs          []LooperLogEntry `json:"logs"`
 	Error         string           `json:"error,omitempty"`
+	// Stopped is true when the user cancelled the run. Distinct from Error.
+	Stopped bool `json:"stopped,omitempty"`
+	// StuckDetected is true when the runner aborted due to repeated identical test results.
+	StuckDetected bool `json:"stuck_detected,omitempty"`
+	// Token / cost accounting for the current (or last finished) run.
+	InputTokens      int64   `json:"input_tokens"`
+	OutputTokens     int64   `json:"output_tokens"`
+	EstimatedCostUSD float64 `json:"estimated_cost_usd"`
 	// Pause / Resume support (E8)
 	Paused         bool               `json:"paused"`
 	ResumeFrom     int                `json:"resume_from,omitempty"`
@@ -75,12 +83,21 @@ type LooperRunState struct {
 // from a given iteration. It stores the key carry-over variables that the
 // iteration loop uses to maintain continuity (especially important for
 // "every_iteration" and "never" context modes and for the optional summarizer).
+// PrepareResponse lets resume rebuild iterSeed without re-executing Prepare.
 type LooperResumeState struct {
 	Iteration                int    `json:"iteration"`
 	LastTestResult           string `json:"last_test_result,omitempty"`
 	PreviousIterationSummary string `json:"previous_iteration_summary,omitempty"`
 	LastIterationSummary     string `json:"last_iteration_summary,omitempty"`
+	PrepareResponse          string `json:"prepare_response,omitempty"`
 }
+
+// DefaultExitMinConfidence is applied when ExitMinConfidence is unset.
+const DefaultExitMinConfidence = 0.55
+
+// DefaultStuckTestRepeats is how many consecutive near-identical test results
+// trigger stuck detection (0 disables).
+const DefaultStuckTestRepeats = 3
 
 // LooperRunConfig holds everything needed to execute one loop.
 type LooperRunConfig struct {
@@ -100,6 +117,15 @@ type LooperRunConfig struct {
 
 	// SummarizeIterations comes from the preset.
 	SummarizeIterations bool
+
+	// ExitMinConfidence: structured exits with confidence below this threshold
+	// are treated as "continue" even when decision is true. 0 = use default.
+	// Negative value disables the threshold.
+	ExitMinConfidence float64
+
+	// StuckTestRepeats: abort after this many consecutive near-identical test
+	// results. 0 = use default. Negative value disables stuck detection.
+	StuckTestRepeats int
 
 	ProviderID  string
 	Model       string
@@ -151,6 +177,7 @@ func (ps *LooperPresetStore) Init(ctx context.Context) error {
 	ps.db.ExecContext(ctx, `ALTER TABLE desktop_looper_presets ADD COLUMN context_mode TEXT DEFAULT ''`)
 	ps.db.ExecContext(ctx, `ALTER TABLE desktop_looper_presets ADD COLUMN finish_context TEXT DEFAULT ''`)
 	ps.db.ExecContext(ctx, `ALTER TABLE desktop_looper_presets ADD COLUMN prepare_truncation INTEGER DEFAULT 0`)
+	ps.db.ExecContext(ctx, `ALTER TABLE desktop_looper_presets ADD COLUMN summarize_iterations INTEGER DEFAULT 0`)
 	return ps.seedBuiltinPresets(ctx)
 }
 
@@ -163,9 +190,13 @@ func (ps *LooperPresetStore) seedBuiltinPresets(ctx context.Context) error {
 	defer tx.Rollback()
 
 	for _, p := range DefaultLooperPresets() {
+		summarize := 0
+		if p.SummarizeIterations {
+			summarize = 1
+		}
 		_, err := tx.ExecContext(ctx,
-			`INSERT INTO desktop_looper_presets(name, is_builtin, prepare, plan, action, test, exit_cond, finish, finish_context, prepare_truncation, provider_id, model, max_iter, context_mode, created_at, updated_at)
-			VALUES(?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			`INSERT INTO desktop_looper_presets(name, is_builtin, prepare, plan, action, test, exit_cond, finish, finish_context, prepare_truncation, summarize_iterations, provider_id, model, max_iter, context_mode, created_at, updated_at)
+			VALUES(?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 			ON CONFLICT(name) DO UPDATE SET
 				is_builtin=excluded.is_builtin,
 				prepare=excluded.prepare,
@@ -176,13 +207,14 @@ func (ps *LooperPresetStore) seedBuiltinPresets(ctx context.Context) error {
 				finish=excluded.finish,
 				finish_context=excluded.finish_context,
 				prepare_truncation=excluded.prepare_truncation,
+				summarize_iterations=excluded.summarize_iterations,
 				provider_id=excluded.provider_id,
 				model=excluded.model,
 				max_iter=excluded.max_iter,
 				context_mode=excluded.context_mode,
 				updated_at=excluded.updated_at
 			WHERE desktop_looper_presets.is_builtin = 1`,
-			p.Name, p.Prepare, p.Plan, p.Action, p.Test, p.ExitCond, p.Finish, p.FinishContext, p.PrepareTruncation, p.ProviderID, p.Model, p.MaxIter, p.ContextMode, now, now)
+			p.Name, p.Prepare, p.Plan, p.Action, p.Test, p.ExitCond, p.Finish, p.FinishContext, p.PrepareTruncation, summarize, p.ProviderID, p.Model, p.MaxIter, p.ContextMode, now, now)
 		if err != nil {
 			return fmt.Errorf("seed looper preset %s: %w", p.Name, err)
 		}
@@ -196,10 +228,23 @@ func (ps *LooperPresetStore) seedBuiltinPresets(ctx context.Context) error {
 	return tx.Commit()
 }
 
+const looperPresetSelectCols = `id, name, is_builtin, prepare, plan, action, test, exit_cond, finish, finish_context, prepare_truncation, summarize_iterations, provider_id, model, max_iter, context_mode, created_at, updated_at`
+
+func scanLooperPreset(scan func(dest ...any) error) (LooperPreset, error) {
+	var p LooperPreset
+	var isBuiltin, summarize int
+	if err := scan(&p.ID, &p.Name, &isBuiltin, &p.Prepare, &p.Plan, &p.Action, &p.Test, &p.ExitCond, &p.Finish, &p.FinishContext, &p.PrepareTruncation, &summarize, &p.ProviderID, &p.Model, &p.MaxIter, &p.ContextMode, &p.CreatedAt, &p.UpdatedAt); err != nil {
+		return p, err
+	}
+	p.IsBuiltin = isBuiltin == 1
+	p.SummarizeIterations = summarize == 1
+	return p, nil
+}
+
 // ListPresets returns all presets (builtin + user-saved).
 func (ps *LooperPresetStore) ListPresets(ctx context.Context) ([]LooperPreset, error) {
 	rows, err := ps.db.QueryContext(ctx,
-		`SELECT id, name, is_builtin, prepare, plan, action, test, exit_cond, finish, finish_context, prepare_truncation, provider_id, model, max_iter, context_mode, created_at, updated_at
+		`SELECT `+looperPresetSelectCols+`
 		FROM desktop_looper_presets ORDER BY is_builtin DESC, name ASC`)
 	if err != nil {
 		return nil, fmt.Errorf("list looper presets: %w", err)
@@ -208,12 +253,10 @@ func (ps *LooperPresetStore) ListPresets(ctx context.Context) ([]LooperPreset, e
 
 	var out []LooperPreset
 	for rows.Next() {
-		var p LooperPreset
-		var isBuiltin int
-		if err := rows.Scan(&p.ID, &p.Name, &isBuiltin, &p.Prepare, &p.Plan, &p.Action, &p.Test, &p.ExitCond, &p.Finish, &p.FinishContext, &p.PrepareTruncation, &p.ProviderID, &p.Model, &p.MaxIter, &p.ContextMode, &p.CreatedAt, &p.UpdatedAt); err != nil {
+		p, err := scanLooperPreset(rows.Scan)
+		if err != nil {
 			return nil, fmt.Errorf("scan looper preset: %w", err)
 		}
-		p.IsBuiltin = isBuiltin == 1
 		out = append(out, p)
 	}
 	return out, rows.Err()
@@ -222,7 +265,7 @@ func (ps *LooperPresetStore) ListPresets(ctx context.Context) ([]LooperPreset, e
 // ListExamples returns only builtin presets.
 func (ps *LooperPresetStore) ListExamples(ctx context.Context) ([]LooperPreset, error) {
 	rows, err := ps.db.QueryContext(ctx,
-		`SELECT id, name, is_builtin, prepare, plan, action, test, exit_cond, finish, finish_context, prepare_truncation, provider_id, model, max_iter, context_mode, created_at, updated_at
+		`SELECT `+looperPresetSelectCols+`
 		FROM desktop_looper_presets WHERE is_builtin = 1 ORDER BY name ASC`)
 	if err != nil {
 		return nil, fmt.Errorf("list looper examples: %w", err)
@@ -231,12 +274,10 @@ func (ps *LooperPresetStore) ListExamples(ctx context.Context) ([]LooperPreset, 
 
 	var out []LooperPreset
 	for rows.Next() {
-		var p LooperPreset
-		var isBuiltin int
-		if err := rows.Scan(&p.ID, &p.Name, &isBuiltin, &p.Prepare, &p.Plan, &p.Action, &p.Test, &p.ExitCond, &p.Finish, &p.FinishContext, &p.PrepareTruncation, &p.ProviderID, &p.Model, &p.MaxIter, &p.ContextMode, &p.CreatedAt, &p.UpdatedAt); err != nil {
+		p, err := scanLooperPreset(rows.Scan)
+		if err != nil {
 			return nil, fmt.Errorf("scan looper example: %w", err)
 		}
-		p.IsBuiltin = isBuiltin == 1
 		out = append(out, p)
 	}
 	return out, rows.Err()
@@ -244,16 +285,13 @@ func (ps *LooperPresetStore) ListExamples(ctx context.Context) ([]LooperPreset, 
 
 // GetPreset loads a single preset by ID.
 func (ps *LooperPresetStore) GetPreset(ctx context.Context, id int64) (LooperPreset, error) {
-	var p LooperPreset
-	var isBuiltin int
-	err := ps.db.QueryRowContext(ctx,
-		`SELECT id, name, is_builtin, prepare, plan, action, test, exit_cond, finish, finish_context, prepare_truncation, provider_id, model, max_iter, context_mode, created_at, updated_at
-		FROM desktop_looper_presets WHERE id = ?`, id,
-	).Scan(&p.ID, &p.Name, &isBuiltin, &p.Prepare, &p.Plan, &p.Action, &p.Test, &p.ExitCond, &p.Finish, &p.FinishContext, &p.PrepareTruncation, &p.ProviderID, &p.Model, &p.MaxIter, &p.ContextMode, &p.CreatedAt, &p.UpdatedAt)
+	row := ps.db.QueryRowContext(ctx,
+		`SELECT `+looperPresetSelectCols+`
+		FROM desktop_looper_presets WHERE id = ?`, id)
+	p, err := scanLooperPreset(row.Scan)
 	if err != nil {
 		return p, fmt.Errorf("get looper preset: %w", err)
 	}
-	p.IsBuiltin = isBuiltin == 1
 	return p, nil
 }
 
@@ -263,20 +301,24 @@ func (ps *LooperPresetStore) SavePreset(ctx context.Context, p LooperPreset) (in
 		return 0, fmt.Errorf("preset name is required")
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
+	summarize := 0
+	if p.SummarizeIterations {
+		summarize = 1
+	}
 	if p.ID == 0 {
 		res, err := ps.db.ExecContext(ctx,
-			`INSERT INTO desktop_looper_presets(name, is_builtin, prepare, plan, action, test, exit_cond, finish, finish_context, prepare_truncation, provider_id, model, max_iter, context_mode, created_at, updated_at)
-			VALUES(?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			p.Name, p.Prepare, p.Plan, p.Action, p.Test, p.ExitCond, p.Finish, p.FinishContext, p.PrepareTruncation, p.ProviderID, p.Model, p.MaxIter, p.ContextMode, now, now)
+			`INSERT INTO desktop_looper_presets(name, is_builtin, prepare, plan, action, test, exit_cond, finish, finish_context, prepare_truncation, summarize_iterations, provider_id, model, max_iter, context_mode, created_at, updated_at)
+			VALUES(?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			p.Name, p.Prepare, p.Plan, p.Action, p.Test, p.ExitCond, p.Finish, p.FinishContext, p.PrepareTruncation, summarize, p.ProviderID, p.Model, p.MaxIter, p.ContextMode, now, now)
 		if err != nil {
 			return 0, fmt.Errorf("insert looper preset: %w", err)
 		}
 		return res.LastInsertId()
 	}
 	_, err := ps.db.ExecContext(ctx,
-		`UPDATE desktop_looper_presets SET name=?, prepare=?, plan=?, action=?, test=?, exit_cond=?, finish=?, finish_context=?, prepare_truncation=?, provider_id=?, model=?, max_iter=?, context_mode=?, updated_at=?
+		`UPDATE desktop_looper_presets SET name=?, prepare=?, plan=?, action=?, test=?, exit_cond=?, finish=?, finish_context=?, prepare_truncation=?, summarize_iterations=?, provider_id=?, model=?, max_iter=?, context_mode=?, updated_at=?
 		WHERE id=? AND is_builtin=0`,
-		p.Name, p.Prepare, p.Plan, p.Action, p.Test, p.ExitCond, p.Finish, p.FinishContext, p.PrepareTruncation, p.ProviderID, p.Model, p.MaxIter, p.ContextMode, now, p.ID)
+		p.Name, p.Prepare, p.Plan, p.Action, p.Test, p.ExitCond, p.Finish, p.FinishContext, p.PrepareTruncation, summarize, p.ProviderID, p.Model, p.MaxIter, p.ContextMode, now, p.ID)
 	if err != nil {
 		return 0, fmt.Errorf("update looper preset: %w", err)
 	}
@@ -334,6 +376,8 @@ func (h *LooperRunStateHolder) SetRunning(maxIter int) {
 		MaxIterations:  maxIter,
 		Logs:           make([]LooperLogEntry, 0),
 		Error:          "",
+		Stopped:        false,
+		StuckDetected:  false,
 		Paused:         false,
 		ResumeFrom:     0,
 		ResumeSnapshot: nil,
@@ -341,6 +385,8 @@ func (h *LooperRunStateHolder) SetRunning(maxIter int) {
 }
 
 // TryStart atomically reserves a new run and stores its cancel function.
+// When resuming a paused run, pass preserveResume=true so TryStart does not
+// clear the snapshot prematurely (caller still owns resume semantics).
 func (h *LooperRunStateHolder) TryStart(maxIter int, cancel context.CancelFunc) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -356,6 +402,8 @@ func (h *LooperRunStateHolder) TryStart(maxIter int, cancel context.CancelFunc) 
 		MaxIterations:  maxIter,
 		Logs:           make([]LooperLogEntry, 0),
 		Error:          "",
+		Stopped:        false,
+		StuckDetected:  false,
 		Paused:         false,
 		ResumeFrom:     0,
 		ResumeSnapshot: nil,
@@ -363,7 +411,37 @@ func (h *LooperRunStateHolder) TryStart(maxIter int, cancel context.CancelFunc) 
 	return nil
 }
 
-// SetIdle marks the run as finished (normal completion or error).
+// TryStartResume re-enters running state while preserving logs and usage counters
+// from a paused run. The resume snapshot stays available until executeStarted
+// (or ClearResumeState) consumes it — Resume() reads it after this call.
+func (h *LooperRunStateHolder) TryStartResume(maxIter, resumeFrom int, cancel context.CancelFunc) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.state.Running {
+		return fmt.Errorf("a loop is already running")
+	}
+	if h.resumeState == nil {
+		return fmt.Errorf("no paused run to resume")
+	}
+	h.paused = false
+	h.cancelFn = cancel
+	// Keep logs/usage from the paused session so the UI stays continuous.
+	h.state.Running = true
+	h.state.CurrentStep = "plan"
+	h.state.MaxIterations = maxIter
+	h.state.Iteration = resumeFrom
+	h.state.Error = ""
+	h.state.Stopped = false
+	h.state.StuckDetected = false
+	h.state.Paused = false
+	// Snapshot remains until ClearResumeState inside executeStarted.
+	if h.state.Logs == nil {
+		h.state.Logs = make([]LooperLogEntry, 0)
+	}
+	return nil
+}
+
+// SetIdle marks the run as finished (normal completion, stop, or error).
 // If a resume snapshot exists we deliberately keep the paused/resumable state
 // so that a later resume call can continue from where we left off.
 func (h *LooperRunStateHolder) SetIdle() {
@@ -382,7 +460,18 @@ func (h *LooperRunStateHolder) SetIdle() {
 	h.paused = false
 	h.resumeState = nil
 	h.state.Running = false
-	h.state.CurrentStep = "idle"
+	if h.state.Stopped {
+		h.state.CurrentStep = "stopped"
+	} else if h.state.StuckDetected {
+		h.state.CurrentStep = "stuck"
+	} else if h.state.Error != "" {
+		// keep current step / idle with error visible
+		if h.state.CurrentStep == "" || h.state.CurrentStep == "paused" {
+			h.state.CurrentStep = "idle"
+		}
+	} else {
+		h.state.CurrentStep = "idle"
+	}
 	h.state.Paused = false
 	h.state.ResumeFrom = 0
 	h.state.ResumeSnapshot = nil
@@ -434,11 +523,49 @@ func (h *LooperRunStateHolder) AppendLogWithReason(iteration int, step, prompt, 
 	}
 }
 
-// SetError sets the error field.
+// SetError sets the error field (clears Stopped so UI shows error, not stop).
 func (h *LooperRunStateHolder) SetError(err string) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.state.Error = err
+	h.state.Stopped = false
+}
+
+// SetStopped marks a user-initiated stop (not an error).
+func (h *LooperRunStateHolder) SetStopped() {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.state.Stopped = true
+	h.state.Error = ""
+	h.state.CurrentStep = "stopped"
+}
+
+// SetStuck marks the run as stopped because stuck detection fired.
+func (h *LooperRunStateHolder) SetStuck(reason string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.state.StuckDetected = true
+	h.state.Error = reason
+	h.state.Stopped = false
+	h.state.CurrentStep = "stuck"
+}
+
+// AddUsage accumulates token usage and estimated USD cost for the run.
+func (h *LooperRunStateHolder) AddUsage(inputTokens, outputTokens int, costUSD float64) {
+	if inputTokens <= 0 && outputTokens <= 0 && costUSD <= 0 {
+		return
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if inputTokens > 0 {
+		h.state.InputTokens += int64(inputTokens)
+	}
+	if outputTokens > 0 {
+		h.state.OutputTokens += int64(outputTokens)
+	}
+	if costUSD > 0 {
+		h.state.EstimatedCostUSD += costUSD
+	}
 }
 
 // SetCancelFn stores the cancel function for the current run.

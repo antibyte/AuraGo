@@ -10,9 +10,12 @@ import (
 	"time"
 
 	"aurago/internal/agent"
+	"aurago/internal/config"
 	"aurago/internal/desktop"
 	"aurago/internal/llm"
 	"aurago/internal/tools"
+
+	"github.com/sashabaranov/go-openai"
 )
 
 func looperRunTimeout(maxIter int) time.Duration {
@@ -55,7 +58,12 @@ func validateLooperPrompts(w http.ResponseWriter, prepare, plan, action, test, e
 
 func handleLooperPresets(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !requireDesktopPermission(s, w, r, desktopScopeRead) {
+		// GET is read-only; mutations require admin (same as run/stop).
+		requiredScope := desktopScopeRead
+		if r.Method == http.MethodPost {
+			requiredScope = desktopScopeAdmin
+		}
+		if !requireDesktopPermission(s, w, r, requiredScope) {
 			return
 		}
 		runner, err := getLooperRunner(s)
@@ -184,99 +192,20 @@ func handleLooperRun(s *Server) http.HandlerFunc {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		var req struct {
-			Prepare             string `json:"prepare"`
-			Plan                string `json:"plan"`
-			Action              string `json:"action"`
-			Test                string `json:"test"`
-			ExitCond            string `json:"exit_cond"`
-			Finish              string `json:"finish"`
-			FinishContext       string `json:"finish_context"`
-			PrepareTruncation   int    `json:"prepare_truncation"`
-			SummarizeIterations bool   `json:"summarize_iterations"`
-			ProviderID          string `json:"provider_id"`
-			Model               string `json:"model"`
-			MaxIter             int    `json:"max_iter"`
-			ContextMode         string `json:"context_mode"`
-		}
+		var req looperRunRequest
 		if err := decodeDesktopJSON(w, r, &req, desktopMediumJSONBodyLimit); err != nil {
 			jsonError(w, "Invalid JSON", http.StatusBadRequest)
 			return
 		}
-		if req.MaxIter <= 0 {
-			req.MaxIter = 20
-		}
-		if req.MaxIter > 100 {
-			req.MaxIter = 100
-		}
+		normalizeLooperRunRequest(&req)
 		if !validateLooperPrompts(w, req.Prepare, req.Plan, req.Action, req.Test, req.ExitCond, req.Finish) {
 			return
 		}
 
-		// Resolve provider and build client
-		s.CfgMu.RLock()
-		cfg := s.Cfg
-		s.CfgMu.RUnlock()
-
-		var client llm.ChatClient
-		model := req.Model
-		if req.ProviderID != "" {
-			for _, p := range cfg.Providers {
-				if p.ID == req.ProviderID {
-					client = llm.NewClientFromProviderWithConfig(cfg, p.Type, p.BaseURL, p.APIKey, p.AccountID)
-					if model == "" {
-						model = p.Model
-					}
-					break
-				}
-			}
-		}
-		if client == nil {
-			client = s.LLMClient
-			if model == "" {
-				model = cfg.LLM.Model
-			}
-		}
-
-		// Build tool schemas
-		toolSchemas := agent.GetLooperToolSchemas(cfg)
-
-		// Build dispatch context
-		manifest := tools.NewManifest(cfg.Directories.ToolsDir)
-		dispatchCtx := &agent.DispatchContext{
-			Cfg:                cfg,
-			Logger:             s.Logger,
-			LLMClient:          s.LLMClient,
-			Vault:              s.Vault,
-			Registry:           s.Registry,
-			Manifest:           manifest,
-			CronManager:        s.CronManager,
-			MissionManagerV2:   s.MissionManagerV2,
-			LongTermMem:        s.LongTermMem,
-			ShortTermMem:       s.ShortTermMem,
-			KG:                 s.KG,
-			InventoryDB:        s.InventoryDB,
-			InvasionDB:         s.InvasionDB,
-			CheatsheetDB:       s.CheatsheetDB,
-			ImageGalleryDB:     s.ImageGalleryDB,
-			MediaRegistryDB:    s.MediaRegistryDB,
-			HomepageRegistryDB: s.HomepageRegistryDB,
-			ContactsDB:         s.ContactsDB,
-			PlannerDB:          s.PlannerDB,
-			SQLConnectionsDB:   s.SQLConnectionsDB,
-			SQLConnectionPool:  s.SQLConnectionPool,
-			RemoteHub:          s.RemoteHub,
-			HistoryMgr:         s.HistoryManager,
-			IsMaintenance:      tools.IsBusy(),
-			Guardian:           s.Guardian,
-			LLMGuardian:        s.LLMGuardian,
-			SessionID:          "looper",
-			CoAgentRegistry:    s.CoAgentRegistry,
-			BudgetTracker:      s.BudgetTracker,
-			DaemonSupervisor:   s.DaemonSupervisor,
-			PreparationService: s.PreparationService,
-			WorkspaceSearch:    s.WorkspaceSearch,
-			MessageSource:      "looper",
+		cfg, client, model, dispatchCtx, toolSchemas, err := buildLooperRuntime(s, req.ProviderID, req.Model)
+		if err != nil {
+			jsonError(w, err.Error(), http.StatusServiceUnavailable)
+			return
 		}
 
 		runner, err := getLooperRunner(s)
@@ -293,21 +222,7 @@ func handleLooperRun(s *Server) http.HandlerFunc {
 		}
 		go func() {
 			defer loopCancel()
-			if err := runner.executeStarted(loopCtx, desktop.LooperRunConfig{
-				Prepare:             req.Prepare,
-				Plan:                req.Plan,
-				Action:              req.Action,
-				Test:                req.Test,
-				ExitCond:            req.ExitCond,
-				Finish:              req.Finish,
-				FinishContext:       req.FinishContext,
-				PrepareTruncation:   req.PrepareTruncation,
-				SummarizeIterations: req.SummarizeIterations,
-				ProviderID:          req.ProviderID,
-				Model:               model,
-				MaxIter:             req.MaxIter,
-				ContextMode:         desktop.NormalizeContextMode(req.ContextMode),
-			}, cfg, client, toolSchemas, dispatchCtx, nil); err != nil {
+			if err := runner.executeStarted(loopCtx, req.toRunConfig(model), cfg, client, toolSchemas, dispatchCtx, nil); err != nil {
 				s.Logger.Error("looper execution failed", "error", err)
 			}
 		}()
@@ -366,31 +281,12 @@ func handleLooperResume(s *Server) http.HandlerFunc {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		var req struct {
-			Prepare             string `json:"prepare"`
-			Plan                string `json:"plan"`
-			Action              string `json:"action"`
-			Test                string `json:"test"`
-			ExitCond            string `json:"exit_cond"`
-			Finish              string `json:"finish"`
-			FinishContext       string `json:"finish_context"`
-			PrepareTruncation   int    `json:"prepare_truncation"`
-			SummarizeIterations bool   `json:"summarize_iterations"`
-			ProviderID          string `json:"provider_id"`
-			Model               string `json:"model"`
-			MaxIter             int    `json:"max_iter"`
-			ContextMode         string `json:"context_mode"`
-		}
+		var req looperRunRequest
 		if err := decodeDesktopJSON(w, r, &req, desktopMediumJSONBodyLimit); err != nil {
 			jsonError(w, "Invalid JSON", http.StatusBadRequest)
 			return
 		}
-		if req.MaxIter <= 0 {
-			req.MaxIter = 20
-		}
-		if req.MaxIter > 100 {
-			req.MaxIter = 100
-		}
+		normalizeLooperRunRequest(&req)
 		if !validateLooperPrompts(w, req.Prepare, req.Plan, req.Action, req.Test, req.ExitCond, req.Finish) {
 			return
 		}
@@ -402,97 +298,28 @@ func handleLooperResume(s *Server) http.HandlerFunc {
 		}
 
 		// Must have a saved resume snapshot
-		if _, ok := runner.ResumeState(); !ok {
+		rs, ok := runner.ResumeState()
+		if !ok {
 			jsonError(w, "no paused run to resume", http.StatusConflict)
 			return
 		}
 
-		s.CfgMu.RLock()
-		cfg := s.Cfg
-		s.CfgMu.RUnlock()
-
-		var client llm.ChatClient
-		model := req.Model
-		if req.ProviderID != "" {
-			for _, p := range cfg.Providers {
-				if p.ID == req.ProviderID {
-					client = llm.NewClientFromProviderWithConfig(cfg, p.Type, p.BaseURL, p.APIKey, p.AccountID)
-					if model == "" {
-						model = p.Model
-					}
-					break
-				}
-			}
+		cfg, client, model, dispatchCtx, toolSchemas, err := buildLooperRuntime(s, req.ProviderID, req.Model)
+		if err != nil {
+			jsonError(w, err.Error(), http.StatusServiceUnavailable)
+			return
 		}
-		if client == nil {
-			client = s.LLMClient
-			if model == "" {
-				model = cfg.LLM.Model
-			}
-		}
-
-		manifest := tools.NewManifest(cfg.Directories.ToolsDir)
-		dispatchCtx := &agent.DispatchContext{
-			Cfg:                cfg,
-			Logger:             s.Logger,
-			LLMClient:          client,
-			Vault:              s.Vault,
-			Registry:           s.Registry,
-			Manifest:           manifest,
-			CronManager:        s.CronManager,
-			MissionManagerV2:   s.MissionManagerV2,
-			LongTermMem:        s.LongTermMem,
-			ShortTermMem:       s.ShortTermMem,
-			KG:                 s.KG,
-			InventoryDB:        s.InventoryDB,
-			InvasionDB:         s.InvasionDB,
-			CheatsheetDB:       s.CheatsheetDB,
-			ImageGalleryDB:     s.ImageGalleryDB,
-			MediaRegistryDB:    s.MediaRegistryDB,
-			HomepageRegistryDB: s.HomepageRegistryDB,
-			ContactsDB:         s.ContactsDB,
-			PlannerDB:          s.PlannerDB,
-			SQLConnectionsDB:   s.SQLConnectionsDB,
-			SQLConnectionPool:  s.SQLConnectionPool,
-			RemoteHub:          s.RemoteHub,
-			HistoryMgr:         s.HistoryManager,
-			IsMaintenance:      tools.IsBusy(),
-			Guardian:           s.Guardian,
-			LLMGuardian:        s.LLMGuardian,
-			SessionID:          "looper",
-			CoAgentRegistry:    s.CoAgentRegistry,
-			BudgetTracker:      s.BudgetTracker,
-			DaemonSupervisor:   s.DaemonSupervisor,
-			PreparationService: s.PreparationService,
-			WorkspaceSearch:    s.WorkspaceSearch,
-			MessageSource:      "looper",
-		}
-
-		toolSchemas := agent.GetLooperToolSchemas(cfg)
 
 		loopCtx, loopCancel := context.WithTimeout(context.Background(), looperRunTimeout(req.MaxIter))
-		if err := runner.TryStart(req.MaxIter, loopCancel); err != nil {
+		// Preserve logs/usage from the paused session; do not use plain TryStart.
+		if err := runner.TryStartResume(req.MaxIter, rs.Iteration, loopCancel); err != nil {
 			loopCancel()
 			jsonError(w, err.Error(), http.StatusConflict)
 			return
 		}
 		go func() {
 			defer loopCancel()
-			if err := runner.Resume(loopCtx, desktop.LooperRunConfig{
-				Prepare:             req.Prepare,
-				Plan:                req.Plan,
-				Action:              req.Action,
-				Test:                req.Test,
-				ExitCond:            req.ExitCond,
-				Finish:              req.Finish,
-				FinishContext:       req.FinishContext,
-				PrepareTruncation:   req.PrepareTruncation,
-				SummarizeIterations: req.SummarizeIterations,
-				ProviderID:          req.ProviderID,
-				Model:               model,
-				MaxIter:             req.MaxIter,
-				ContextMode:         desktop.NormalizeContextMode(req.ContextMode),
-			}, cfg, client, toolSchemas, dispatchCtx); err != nil {
+			if err := runner.Resume(loopCtx, req.toRunConfig(model), cfg, client, toolSchemas, dispatchCtx); err != nil {
 				s.Logger.Error("looper resume failed", "error", err)
 			}
 		}()
@@ -502,6 +329,125 @@ func handleLooperResume(s *Server) http.HandlerFunc {
 			"status": "resuming",
 		})
 	}
+}
+
+// looperRunRequest is the shared JSON body for /run and /resume.
+type looperRunRequest struct {
+	Prepare             string  `json:"prepare"`
+	Plan                string  `json:"plan"`
+	Action              string  `json:"action"`
+	Test                string  `json:"test"`
+	ExitCond            string  `json:"exit_cond"`
+	Finish              string  `json:"finish"`
+	FinishContext       string  `json:"finish_context"`
+	PrepareTruncation   int     `json:"prepare_truncation"`
+	SummarizeIterations bool    `json:"summarize_iterations"`
+	ExitMinConfidence   float64 `json:"exit_min_confidence"`
+	StuckTestRepeats    int     `json:"stuck_test_repeats"`
+	ProviderID          string  `json:"provider_id"`
+	Model               string  `json:"model"`
+	MaxIter             int     `json:"max_iter"`
+	ContextMode         string  `json:"context_mode"`
+}
+
+func normalizeLooperRunRequest(req *looperRunRequest) {
+	if req.MaxIter <= 0 {
+		req.MaxIter = 20
+	}
+	if req.MaxIter > 100 {
+		req.MaxIter = 100
+	}
+}
+
+func (req looperRunRequest) toRunConfig(model string) desktop.LooperRunConfig {
+	return desktop.LooperRunConfig{
+		Prepare:             req.Prepare,
+		Plan:                req.Plan,
+		Action:              req.Action,
+		Test:                req.Test,
+		ExitCond:            req.ExitCond,
+		Finish:              req.Finish,
+		FinishContext:       req.FinishContext,
+		PrepareTruncation:   req.PrepareTruncation,
+		SummarizeIterations: req.SummarizeIterations,
+		ExitMinConfidence:   req.ExitMinConfidence,
+		StuckTestRepeats:    req.StuckTestRepeats,
+		ProviderID:          req.ProviderID,
+		Model:               model,
+		MaxIter:             req.MaxIter,
+		ContextMode:         desktop.NormalizeContextMode(req.ContextMode),
+	}
+}
+
+func buildLooperRuntime(s *Server, providerID, model string) (*config.Config, llm.ChatClient, string, *agent.DispatchContext, []openai.Tool, error) {
+	s.CfgMu.RLock()
+	cfg := s.Cfg
+	s.CfgMu.RUnlock()
+	if cfg == nil {
+		return nil, nil, "", nil, nil, fmt.Errorf("configuration not ready")
+	}
+
+	var client llm.ChatClient
+	resolvedModel := model
+	if providerID != "" {
+		for _, p := range cfg.Providers {
+			if p.ID == providerID {
+				client = llm.NewClientFromProviderWithConfig(cfg, p.Type, p.BaseURL, p.APIKey, p.AccountID)
+				if resolvedModel == "" {
+					resolvedModel = p.Model
+				}
+				break
+			}
+		}
+	}
+	if client == nil {
+		client = s.LLMClient
+		if resolvedModel == "" {
+			resolvedModel = cfg.LLM.Model
+		}
+	}
+	if client == nil {
+		return nil, nil, "", nil, nil, fmt.Errorf("no LLM client available")
+	}
+
+	manifest := tools.NewManifest(cfg.Directories.ToolsDir)
+	dispatchCtx := &agent.DispatchContext{
+		Cfg:                cfg,
+		Logger:             s.Logger,
+		LLMClient:          client, // must match the loop chat client (provider override)
+		Vault:              s.Vault,
+		Registry:           s.Registry,
+		Manifest:           manifest,
+		CronManager:        s.CronManager,
+		MissionManagerV2:   s.MissionManagerV2,
+		LongTermMem:        s.LongTermMem,
+		ShortTermMem:       s.ShortTermMem,
+		KG:                 s.KG,
+		InventoryDB:        s.InventoryDB,
+		InvasionDB:         s.InvasionDB,
+		CheatsheetDB:       s.CheatsheetDB,
+		ImageGalleryDB:     s.ImageGalleryDB,
+		MediaRegistryDB:    s.MediaRegistryDB,
+		HomepageRegistryDB: s.HomepageRegistryDB,
+		ContactsDB:         s.ContactsDB,
+		PlannerDB:          s.PlannerDB,
+		SQLConnectionsDB:   s.SQLConnectionsDB,
+		SQLConnectionPool:  s.SQLConnectionPool,
+		RemoteHub:          s.RemoteHub,
+		HistoryMgr:         s.HistoryManager,
+		IsMaintenance:      tools.IsBusy(),
+		Guardian:           s.Guardian,
+		LLMGuardian:        s.LLMGuardian,
+		SessionID:          "looper",
+		CoAgentRegistry:    s.CoAgentRegistry,
+		BudgetTracker:      s.BudgetTracker,
+		DaemonSupervisor:   s.DaemonSupervisor,
+		PreparationService: s.PreparationService,
+		WorkspaceSearch:    s.WorkspaceSearch,
+		MessageSource:      "looper",
+	}
+	toolSchemas := agent.GetLooperToolSchemas(cfg)
+	return cfg, client, resolvedModel, dispatchCtx, toolSchemas, nil
 }
 
 func handleLooperStatus(s *Server) http.HandlerFunc {
@@ -556,11 +502,15 @@ func handleLooperStatus(s *Server) http.HandlerFunc {
 					fmt.Fprintf(w, "data: %s\n\n", data)
 					flusher.Flush()
 				}
-				if !state.Running && state.CurrentStep == "idle" {
+				// Keep the stream open while paused so clients see resume state;
+				// close only on terminal idle/stopped/stuck.
+				if !state.Running && !state.Paused && (state.CurrentStep == "idle" || state.CurrentStep == "stopped" || state.CurrentStep == "stuck") {
 					idleTicks++
 					if idleTicks >= 3 {
 						return
 					}
+				} else {
+					idleTicks = 0
 				}
 			}
 		}

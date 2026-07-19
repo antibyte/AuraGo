@@ -17,9 +17,11 @@ import (
 
 // MinimalLoopResult is the outcome of a single minimal agent turn.
 type MinimalLoopResult struct {
-	Response  string
-	ToolCalls int
-	Duration  time.Duration
+	Response         string
+	ToolCalls        int
+	Duration         time.Duration
+	PromptTokens     int
+	CompletionTokens int
 }
 
 // MinimalLoopOptions controls optional behaviour of ExecuteMinimalLoop.
@@ -103,6 +105,7 @@ func ExecuteMinimalLoop(
 		if len(resp.Choices) == 0 {
 			return result, req.Messages, fmt.Errorf("empty response from llm")
 		}
+		accumulateMinimalLoopUsage(&result, resp.Usage)
 
 		choice := resp.Choices[0]
 		msg := choice.Message
@@ -147,10 +150,23 @@ func ExecuteMinimalLoop(
 	req.Tools = nil
 	resp, err := client.CreateChatCompletion(ctx, req)
 	if err == nil && len(resp.Choices) > 0 {
+		accumulateMinimalLoopUsage(&result, resp.Usage)
 		result.Response = security.StripThinkingTags(resp.Choices[0].Message.Content)
 	}
 	result.Duration = time.Since(start)
 	return result, req.Messages, nil
+}
+
+func accumulateMinimalLoopUsage(result *MinimalLoopResult, usage openai.Usage) {
+	if result == nil {
+		return
+	}
+	if usage.PromptTokens > 0 {
+		result.PromptTokens += usage.PromptTokens
+	}
+	if usage.CompletionTokens > 0 {
+		result.CompletionTokens += usage.CompletionTokens
+	}
 }
 
 func executeMinimalToolCall(
