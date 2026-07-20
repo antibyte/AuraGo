@@ -92,3 +92,30 @@ func TestConfigNetworkSharesTranslationsCoverAllLocales(t *testing.T) {
 		}
 	}
 }
+
+func TestConfigNetworkSharesUsesRuntimeCapabilitiesAndLocalizedCodes(t *testing.T) {
+	module := readNetworkSharesUIFile(t, "cfg/network_shares.js")
+	for _, wanted := range []string{
+		"function nsLocalizedReason(",
+		"function nsLocalizedError(",
+		"function nsLocalizedDrift(",
+		"function nsWritableProtocols(",
+		"status.reason_code",
+		"id: nsEditingID || undefined",
+		"backend === 'samba'",
+		"(runtime.smb || {}).writable",
+		"(runtime.nfs || {}).writable",
+	} {
+		if !strings.Contains(module, wanted) {
+			t.Fatalf("network-shares config module missing hardened UI contract %q", wanted)
+		}
+	}
+	for _, forbidden := range []string{
+		"data.message || t('config.network_shares.request_failed')",
+		"status.reason ||",
+	} {
+		if strings.Contains(module, forbidden) {
+			t.Fatalf("network-shares config module exposes raw backend/API text %q", forbidden)
+		}
+	}
+}

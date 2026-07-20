@@ -48,14 +48,17 @@ func (a *windowsAdapter) Probe(ctx context.Context, options Options) (Status, er
 	if options.SMBEnabled {
 		status.SMB = a.probeModule(ctx, options, "SMBShare", "Get-SmbShare", "LanmanServer", "Windows SMBShare")
 	} else {
+		status.SMB.ReasonCode = "protocol_disabled"
 		status.SMB.Reason = "SMB management is disabled in the AuraGo configuration."
 	}
 	if options.NFSEnabled {
 		status.NFS = a.probeModule(ctx, options, "NFS", "Get-NfsShare", "NfsService", "Windows NFS")
 	} else {
+		status.NFS.ReasonCode = "protocol_disabled"
 		status.NFS.Reason = "NFS management is disabled in the AuraGo configuration."
 	}
 	status.Usable = status.SMB.Readable || status.NFS.Readable
+	status.ReasonCode = firstNonEmpty(status.SMB.ReasonCode, status.NFS.ReasonCode)
 	status.Reason = firstNonEmpty(status.SMB.Reason, status.NFS.Reason)
 	return status, nil
 }
@@ -113,6 +116,7 @@ $service = Get-Service -Name $args[2] -ErrorAction SilentlyContinue
 `
 	output, err := a.runPowerShell(ctx, options, false, script, nil, module, command, service)
 	if err != nil {
+		result.ReasonCode = "probe_failed"
 		result.Reason = backend + " capability detection failed."
 		return result
 	}
@@ -122,6 +126,7 @@ $service = Get-Service -Name $args[2] -ErrorAction SilentlyContinue
 		ServiceActive bool   `json:"service_active"`
 	}
 	if err := json.Unmarshal(output, &probe); err != nil {
+		result.ReasonCode = "probe_failed"
 		result.Reason = backend + " capability output was invalid."
 		return result
 	}
@@ -130,31 +135,39 @@ $service = Get-Service -Name $args[2] -ErrorAction SilentlyContinue
 	result.ServiceActive = probe.ServiceActive
 	result.Configured = probe.Installed
 	if !result.Installed {
+		result.ReasonCode = "not_installed"
 		result.Reason = backend + " PowerShell module is not installed."
 		return result
 	}
 	if _, err := a.runPowerShell(ctx, options, false, `$ErrorActionPreference='Stop'; & $args[0] | Out-Null`, nil, command); err != nil {
+		result.ReasonCode = "not_readable"
 		result.Reason = backend + " shares are not readable."
 		return result
 	}
 	result.Readable = true
 	if !result.ServiceActive {
+		result.ReasonCode = "service_inactive"
 		result.Reason = backend + " service is not active."
 	}
 	result.Writable = result.Readable && result.ServiceActive && !options.ReadOnly &&
 		(options.AllowCreate || options.AllowUpdate || options.AllowDelete) &&
 		!options.IsDocker && platformElevated()
 	if result.Writable {
+		result.ReasonCode = ""
 		result.Reason = ""
 	} else if result.Readable && result.ServiceActive {
 		switch {
 		case options.ReadOnly:
+			result.ReasonCode = "readonly"
 			result.Reason = "Host mutations are disabled by network_shares.readonly."
 		case !options.AllowCreate && !options.AllowUpdate && !options.AllowDelete:
+			result.ReasonCode = "permission_disabled"
 			result.Reason = "No network share mutation permission is enabled."
 		case options.IsDocker:
+			result.ReasonCode = "docker_restricted"
 			result.Reason = "Network share mutations are unavailable in the standard Docker deployment."
 		default:
+			result.ReasonCode = "privilege_required"
 			result.Reason = elevationReason()
 		}
 	}
@@ -208,6 +221,7 @@ func (a *windowsAdapter) listWindowsShares(ctx context.Context, options Options,
 				},
 			},
 			MarkerID:        markerID(row.Description),
+			MarkerSupported: strings.EqualFold(row.Protocol, ProtocolSMB),
 			Active:          true,
 			CommentObserved: strings.EqualFold(row.Protocol, ProtocolSMB),
 		})
@@ -216,19 +230,12 @@ func (a *windowsAdapter) listWindowsShares(ctx context.Context, options Options,
 }
 
 func (a *windowsAdapter) Create(ctx context.Context, options Options, share ShareSpec) error {
-	if err := a.apply(ctx, options, windowsCreateScript, share); err != nil {
-		_ = a.deleteRaw(ctx, options, share)
-		return err
-	}
-	return nil
+	return a.apply(ctx, options, windowsCreateScript, share)
 }
 
 func (a *windowsAdapter) Update(ctx context.Context, options Options, previous, desired ShareSpec) error {
-	if err := a.apply(ctx, options, windowsUpdateScript, desired); err != nil {
-		_ = a.apply(ctx, options, windowsUpdateScript, previous)
-		return err
-	}
-	return nil
+	_ = previous
+	return a.apply(ctx, options, windowsUpdateScript, desired)
 }
 
 func (a *windowsAdapter) Delete(ctx context.Context, options Options, share ShareSpec) error {
@@ -276,6 +283,10 @@ func (a *windowsAdapter) runPowerShell(ctx context.Context, options Options, pri
 	commandArgs := []string{"-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", script}
 	commandArgs = append(commandArgs, args...)
 	return a.runner.Run(ctx, options, privileged, "powershell.exe", commandArgs, stdin)
+}
+
+func normalizePlatformShare(share ShareSpec) ShareSpec {
+	return share
 }
 
 const windowsListSMBScript = `

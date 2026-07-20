@@ -41,21 +41,24 @@ type ProtocolStatus struct {
 	Writable      bool      `json:"writable"`
 	Backend       string    `json:"backend,omitempty"`
 	Version       string    `json:"version,omitempty"`
+	ReasonCode    string    `json:"reason_code,omitempty"`
 	Reason        string    `json:"reason,omitempty"`
 	LastProbedAt  time.Time `json:"last_probed_at"`
 }
 
 // RootStatus reports whether an allowed root can currently be used.
 type RootStatus struct {
-	Path      string `json:"path"`
-	Available bool   `json:"available"`
-	Reason    string `json:"reason,omitempty"`
+	Path       string `json:"path"`
+	Available  bool   `json:"available"`
+	ReasonCode string `json:"reason_code,omitempty"`
+	Reason     string `json:"reason,omitempty"`
 }
 
 // Status is the passive runtime capability snapshot.
 type Status struct {
 	Supported    bool           `json:"supported"`
 	Usable       bool           `json:"usable"`
+	ReasonCode   string         `json:"reason_code,omitempty"`
 	Reason       string         `json:"reason,omitempty"`
 	SMB          ProtocolStatus `json:"smb"`
 	NFS          ProtocolStatus `json:"nfs"`
@@ -106,9 +109,11 @@ type SharePatch struct {
 
 type observedShare struct {
 	ShareSpec
-	MarkerID        string
-	Active          bool
-	CommentObserved bool
+	MarkerID         string
+	MarkerSupported  bool
+	UnsafeAdminUsers bool
+	Active           bool
+	CommentObserved  bool
 }
 
 type platformAdapter interface {

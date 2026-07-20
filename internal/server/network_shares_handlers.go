@@ -66,18 +66,37 @@ func handleNetworkSharesValidate(s *Server) http.Handler {
 		}
 		var request struct {
 			Operation string                  `json:"operation"`
+			ID        string                  `json:"id,omitempty"`
 			Share     networkshares.ShareSpec `json:"share"`
 		}
 		if err := decodeNetworkSharesJSON(w, r, &request); err != nil {
 			networkSharesJSONError(w, err, 0)
 			return
 		}
-		validated, err := s.NetworkShares.Validate(r.Context(), request.Share, "validate")
+		operation := strings.ToLower(strings.TrimSpace(request.Operation))
+		var validated networkshares.ShareSpec
+		var err error
+		switch operation {
+		case "create":
+			validated, err = s.NetworkShares.ValidateCreate(r.Context(), request.Share)
+		case "update":
+			if strings.TrimSpace(request.ID) == "" {
+				err = &networkshares.CodedError{
+					Code: networkshares.ErrorInvalidArgument, Message: "A managed share ID is required for update validation.",
+				}
+			} else {
+				validated, err = s.NetworkShares.ValidateUpdate(r.Context(), request.ID, request.Share)
+			}
+		default:
+			err = &networkshares.CodedError{
+				Code: networkshares.ErrorInvalidArgument, Message: "operation must be create or update",
+			}
+		}
 		if err != nil {
 			networkSharesJSONError(w, err, 0)
 			return
 		}
-		writeJSON(w, map[string]interface{}{"valid": true, "share": validated})
+		writeJSON(w, map[string]interface{}{"valid": true, "operation": operation, "share": validated})
 	})
 }
 

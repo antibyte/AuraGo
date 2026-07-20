@@ -11,10 +11,13 @@ remote shares and does not manage remote hosts, users, groups, or passwords.
 ## Security model
 
 The integration is disabled and read-only by default. Each mutation needs its
-own permission in addition to `readonly: false`. Only shares created by AuraGo,
-recorded in `data/network_shares.db`, and reconciled with a native marker can be
-changed or removed. External shares inside allowed roots are visible as
-read-only; shares outside allowed roots are not returned to the agent.
+own permission in addition to `readonly: false`. Only shares created by AuraGo
+and recorded in `data/network_shares.db` can be changed or removed. SMB and
+Linux NFS additionally require the native AuraGo ownership marker. Windows NFS
+does not support such comments, so it requires an exact ledger match on
+protocol, name, and canonical path. External, orphaned, unsafe, or drifted
+shares inside allowed roots are visible but locked; shares outside allowed
+roots are not returned to the agent.
 
 Share directories must already exist. Every path is resolved to an absolute,
 canonical directory beneath an allowed root, including symbolic-link checks.
@@ -66,6 +69,13 @@ testparm -s --parameter-name="registry shares"
 smbcontrol all ping
 ```
 
+AuraGo never emits Samba's `admin users` setting because it bypasses normal
+filesystem permissions. The portable SMB ACL level `full` is therefore
+normalized to the safe `change`/`write list` level on Linux. Existing managed
+shares that contain `admin users` are reported as `unsafe_admin_users` and
+remain locked until an administrator removes the unsafe native definition and
+creates a safe replacement. Capability probes never repair it automatically.
+
 ### NFS
 
 Install the distribution's NFS server package, including `exportfs`, and run
@@ -110,9 +120,18 @@ host share configuration.
 
 A mutation validates the request, saves the observed state, applies and reloads
 the native configuration, reads it again, and only then commits the ledger. If
-verification fails, AuraGo attempts rollback. A failed rollback marks the share
-as drifted and locks further mutations until an administrator repairs the
-native state and re-runs detection.
+application or ledger commit fails, AuraGo attempts rollback and reads the
+native state again. A successful command is not treated as a successful
+rollback unless the observed state matches. An unverifiable rollback marks the
+share as `rollback_failed` and locks further mutations until an administrator
+repairs the native state and re-runs detection.
+
+The Admin UI uses stable localized status, drift, and API error codes. Detailed
+native error text remains diagnostic data and is not shown as the primary user
+message. Dry-run validation supports `create` and `update`; update validation
+requires the managed share ID and performs the same permission, ownership,
+identity, and runtime checks as the real mutation without writing host or
+ledger state.
 
 Stable errors include:
 

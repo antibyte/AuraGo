@@ -75,12 +75,16 @@ func rootStatuses(roots []string) []RootStatus {
 	for _, root := range roots {
 		status := RootStatus{Path: root}
 		if !filepath.IsAbs(root) {
+			status.ReasonCode = "root_not_absolute"
 			status.Reason = "The allowed root is not absolute."
 		} else if info, err := os.Stat(root); err != nil {
+			status.ReasonCode = "root_unavailable"
 			status.Reason = "The allowed root does not exist or is not accessible."
 		} else if !info.IsDir() {
+			status.ReasonCode = "root_not_directory"
 			status.Reason = "The allowed root is not a directory."
 		} else if _, err := filepath.EvalSymlinks(root); err != nil {
+			status.ReasonCode = "root_unresolvable"
 			status.Reason = "The allowed root cannot be resolved safely."
 		} else {
 			status.Available = true

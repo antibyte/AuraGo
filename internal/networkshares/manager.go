@@ -102,11 +102,13 @@ func (m *Manager) Reprobe(ctx context.Context) Status {
 	status.Supported = platformSupported()
 	status.AllowedRoots = rootStatuses(options.AllowedRoots)
 	if !options.Enabled {
+		status.ReasonCode = "disabled"
 		status.Reason = "Local network share management is disabled in the AuraGo configuration."
 		m.storeStatus(status)
 		return status
 	}
 	if !status.Supported {
+		status.ReasonCode = "unsupported_os"
 		status.Reason = "Local network share management is supported only on Linux and Windows."
 		m.storeStatus(status)
 		return status
@@ -114,6 +116,7 @@ func (m *Manager) Reprobe(ctx context.Context) Status {
 
 	probed, err := m.adapter.Probe(ctx, options)
 	if err != nil {
+		status.ReasonCode = "probe_failed"
 		status.Reason = "The installed SMB and NFS backends could not be probed."
 		m.logger.Warn("[NetworkShares] Runtime probe failed", "error", err)
 		m.storeStatus(status)
@@ -127,9 +130,11 @@ func (m *Manager) Reprobe(ctx context.Context) Status {
 	probed.Supported = true
 	probed.Usable = (options.SMBEnabled && probed.SMB.Readable) || (options.NFSEnabled && probed.NFS.Readable)
 	if !probed.Usable && probed.Reason == "" {
+		probed.ReasonCode = "no_readable_backend"
 		probed.Reason = firstNonEmpty(probed.SMB.Reason, probed.NFS.Reason, "No enabled SMB or NFS backend is readable.")
 	}
 	if !hasAvailableRoot(probed.AllowedRoots) {
+		probed.ReasonCode = "no_available_root"
 		probed.Reason = "No configured allowed root is currently an accessible directory; share mutations are unavailable."
 		probed.SMB.Writable = false
 		probed.NFS.Writable = false
@@ -155,26 +160,109 @@ func (m *Manager) storeStatus(status Status) {
 }
 
 // Validate checks a desired share without mutating the host.
+// Deprecated callers should prefer ValidateCreate or ValidateUpdate.
 func (m *Manager) Validate(ctx context.Context, desired ShareSpec, operation string) (ShareSpec, error) {
+	switch strings.ToLower(strings.TrimSpace(operation)) {
+	case "create":
+		return m.ValidateCreate(ctx, desired)
+	case "update":
+		if strings.TrimSpace(desired.ID) == "" {
+			return ShareSpec{}, codedError(ErrorInvalidArgument, "A managed share ID is required for update validation.", nil)
+		}
+		return m.ValidateUpdate(ctx, desired.ID, desired)
+	default:
+		return ShareSpec{}, codedError(ErrorInvalidArgument, "operation must be create or update", nil)
+	}
+}
+
+// ValidateCreate performs the complete create preflight without native or ledger writes.
+func (m *Manager) ValidateCreate(ctx context.Context, desired ShareSpec) (ShareSpec, error) {
 	if m == nil {
 		return ShareSpec{}, codedError(ErrorUnavailable, "Network share manager is unavailable.", nil)
 	}
-	m.mu.RLock()
-	options := m.options
-	status := m.status
-	m.mu.RUnlock()
-	desired, err := validateShareSpec(ctx, desired, operation, options, status)
+	desired, _, err := m.prepareCreate(ctx, desired)
 	if err != nil {
-		return ShareSpec{}, err
-	}
-	if err := m.adapter.Validate(ctx, options, desired); err != nil {
 		return ShareSpec{}, err
 	}
 	return desired, nil
 }
 
+func (m *Manager) prepareCreate(ctx context.Context, desired ShareSpec) (ShareSpec, Options, error) {
+	desired.Protocol = strings.ToLower(strings.TrimSpace(desired.Protocol))
+	options, status, err := m.requireOperation("create", desired.Protocol)
+	if err != nil {
+		return ShareSpec{}, Options{}, err
+	}
+	desired, err = validateShareSpec(ctx, desired, "create", options, status)
+	if err != nil {
+		return ShareSpec{}, Options{}, err
+	}
+	if err := m.adapter.Validate(ctx, options, desired); err != nil {
+		return ShareSpec{}, Options{}, err
+	}
+	records, err := m.ledger.list(ctx)
+	if err != nil {
+		return ShareSpec{}, Options{}, err
+	}
+	for _, record := range records {
+		if shareIdentityConflicts(record.Spec, desired) {
+			return ShareSpec{}, Options{}, codedError(ErrorConflict, "An AuraGo-managed share already uses this protocol name or NFS path.", nil)
+		}
+	}
+	existing, err := m.adapter.List(ctx, singleProtocolOptions(options, desired.Protocol))
+	if err != nil {
+		return ShareSpec{}, Options{}, wrapApplyError("inspect existing", err)
+	}
+	for _, share := range existing {
+		if shareIdentityConflicts(share.ShareSpec, desired) {
+			return ShareSpec{}, Options{}, codedError(ErrorConflict, "A share with this protocol and name already exists.", nil)
+		}
+	}
+	return desired, options, nil
+}
+
+// ValidateUpdate performs update authorization and drift checks without persisting reconciliation.
+func (m *Manager) ValidateUpdate(ctx context.Context, id string, desired ShareSpec) (ShareSpec, error) {
+	current, record, options, status, err := m.requireManagedMutable(ctx, id, "update", false)
+	if err != nil {
+		return ShareSpec{}, err
+	}
+	_ = current
+	return m.validateUpdateDesired(ctx, desired, record, options, status)
+}
+
+func (m *Manager) validateUpdateDesired(
+	ctx context.Context,
+	desired ShareSpec,
+	record ledgerRecord,
+	options Options,
+	status Status,
+) (ShareSpec, error) {
+	if desired.ID != "" && desired.ID != record.Spec.ID {
+		return ShareSpec{}, codedError(ErrorInvalidArgument, "The validated share ID does not match the managed share.", nil)
+	}
+	desired.ID = record.Spec.ID
+	normalized, err := validateShareSpec(ctx, desired, "update", options, status)
+	if err != nil {
+		return ShareSpec{}, err
+	}
+	if !strings.EqualFold(normalized.Protocol, record.Spec.Protocol) ||
+		!strings.EqualFold(normalized.Name, record.Spec.Name) ||
+		!samePath(normalized.Path, record.Spec.Path) {
+		return ShareSpec{}, codedError(ErrorInvalidArgument, "Share protocol, name, and path cannot be changed by update.", nil)
+	}
+	if err := m.adapter.Validate(ctx, options, normalized); err != nil {
+		return ShareSpec{}, err
+	}
+	return normalized, nil
+}
+
 // List returns only shares whose canonical paths are inside configured roots.
 func (m *Manager) List(ctx context.Context) ([]Share, error) {
+	return m.list(ctx, true)
+}
+
+func (m *Manager) list(ctx context.Context, persistDrift bool) ([]Share, error) {
 	options, status, err := m.requireReadable()
 	if err != nil {
 		return nil, err
@@ -190,26 +278,52 @@ func (m *Manager) List(ctx context.Context) ([]Share, error) {
 	now := time.Now().UTC()
 	result := make([]Share, 0, len(observed)+len(records))
 	used := make(map[int]bool)
+	matches := make([]int, len(records))
+	for index := range matches {
+		matches[index] = -1
+	}
 
-	for _, record := range records {
+	// Native ownership markers always win, even if name or path drifted.
+	for recordIndex, record := range records {
+		for nativeIndex, native := range observed {
+			if used[nativeIndex] ||
+				!strings.EqualFold(native.Protocol, record.Spec.Protocol) ||
+				native.MarkerID == "" ||
+				native.MarkerID != record.Spec.ID {
+				continue
+			}
+			matches[recordIndex] = nativeIndex
+			used[nativeIndex] = true
+			break
+		}
+	}
+	// Marker-less Windows NFS can use exact ledger identity. Marker-capable
+	// backends are associated only to report missing or conflicting ownership.
+	for recordIndex, record := range records {
+		if matches[recordIndex] >= 0 {
+			continue
+		}
+		for nativeIndex, native := range observed {
+			if used[nativeIndex] || !sameShareIdentity(record.Spec, native.ShareSpec) {
+				continue
+			}
+			matches[recordIndex] = nativeIndex
+			used[nativeIndex] = true
+			break
+		}
+	}
+
+	for recordIndex, record := range records {
 		if !isPathInScope(record.Spec.Path, options.AllowedRoots) {
-			if setErr := m.ledger.setDrift(ctx, record.Spec.ID, "outside_allowed_roots"); setErr != nil {
-				m.logger.Warn("[NetworkShares] Could not persist out-of-scope reconciliation state",
-					"share_id", record.Spec.ID, "error", setErr)
+			if persistDrift {
+				if setErr := m.ledger.setDrift(ctx, record.Spec.ID, "outside_allowed_roots"); setErr != nil {
+					m.logger.Warn("[NetworkShares] Could not persist out-of-scope reconciliation state",
+						"share_id", record.Spec.ID, "error", setErr)
+				}
 			}
 			continue
 		}
-		match := -1
-		for index, native := range observed {
-			if used[index] || !strings.EqualFold(native.Protocol, record.Spec.Protocol) {
-				continue
-			}
-			if native.MarkerID == record.Spec.ID ||
-				(native.MarkerID == "" && strings.EqualFold(native.Name, record.Spec.Name) && samePath(native.Path, record.Spec.Path)) {
-				match = index
-				break
-			}
-		}
+		match := matches[recordIndex]
 		share := Share{
 			ShareSpec:  record.Spec,
 			Managed:    true,
@@ -218,7 +332,6 @@ func (m *Manager) List(ctx context.Context) ([]Share, error) {
 			Drift:      firstNonEmpty(record.Drift, "missing"),
 		}
 		if match >= 0 {
-			used[match] = true
 			native := observed[match]
 			share.Active = native.Active
 			if native.CommentObserved {
@@ -226,30 +339,51 @@ func (m *Manager) List(ctx context.Context) ([]Share, error) {
 			}
 			share.ReadOnly = native.ReadOnly
 			share.Access = native.Access
-			share.Drift = compareDesired(record.Spec, native)
+			switch {
+			case record.Drift == "rollback_failed":
+				share.Drift = record.Drift
+			case native.UnsafeAdminUsers:
+				share.Drift = "unsafe_admin_users"
+			case native.MarkerSupported && native.MarkerID == "":
+				share.Drift = "marker_missing"
+			case native.MarkerSupported && native.MarkerID != record.Spec.ID:
+				share.Drift = "ownership_mismatch"
+			case !native.Active:
+				share.Drift = "inactive"
+			default:
+				share.Drift = compareDesired(record.Spec, native)
+			}
 		}
 		share.Mutable = share.Active && share.Drift == "" && protocolWritable(status, share.Protocol)
-		if setErr := m.ledger.setDrift(ctx, record.Spec.ID, share.Drift); setErr != nil {
-			m.logger.Warn("[NetworkShares] Could not persist reconciliation state", "share_id", record.Spec.ID, "error", setErr)
+		if persistDrift {
+			if setErr := m.ledger.setDrift(ctx, record.Spec.ID, share.Drift); setErr != nil {
+				m.logger.Warn("[NetworkShares] Could not persist reconciliation state",
+					"share_id", record.Spec.ID, "error", setErr)
+			}
 		}
 		result = append(result, share)
 	}
 
 	for index, native := range observed {
-		if used[index] || !native.Active || !isPathInScope(native.Path, options.AllowedRoots) {
+		if used[index] || !isPathInScope(native.Path, options.AllowedRoots) {
 			continue
 		}
+		if !native.Active && native.MarkerID == "" {
+			continue
+		}
+		drift := ""
 		if native.MarkerID != "" {
 			// An AuraGo marker without a ledger entry is intentionally not adopted.
 			native.Comment = stripNativeMarker(native.Comment)
+			drift = "orphaned_marker"
 		}
 		native.ID = externalShareID(native)
 		result = append(result, Share{
 			ShareSpec:  native.ShareSpec,
 			Managed:    false,
 			Mutable:    false,
-			Active:     true,
-			Drift:      "",
+			Active:     native.Active,
+			Drift:      drift,
 			ObservedAt: now,
 		})
 	}
@@ -264,7 +398,11 @@ func (m *Manager) List(ctx context.Context) ([]Share, error) {
 
 // Get returns one scoped share by stable ID.
 func (m *Manager) Get(ctx context.Context, id string) (Share, error) {
-	shares, err := m.List(ctx)
+	return m.get(ctx, id, true)
+}
+
+func (m *Manager) get(ctx context.Context, id string, persistDrift bool) (Share, error) {
+	shares, err := m.list(ctx, persistDrift)
 	if err != nil {
 		return Share{}, err
 	}
@@ -281,34 +419,9 @@ func (m *Manager) Create(ctx context.Context, desired ShareSpec) (Share, error) 
 	m.mutateMu.Lock()
 	defer m.mutateMu.Unlock()
 
-	options, status, err := m.requireOperation("create", desired.Protocol)
+	desired, options, err := m.prepareCreate(ctx, desired)
 	if err != nil {
 		return Share{}, err
-	}
-	desired, err = validateShareSpec(ctx, desired, "create", options, status)
-	if err != nil {
-		return Share{}, err
-	}
-	if err := m.adapter.Validate(ctx, options, desired); err != nil {
-		return Share{}, err
-	}
-	records, err := m.ledger.list(ctx)
-	if err != nil {
-		return Share{}, err
-	}
-	for _, record := range records {
-		if shareIdentityConflicts(record.Spec, desired) {
-			return Share{}, codedError(ErrorConflict, "An AuraGo-managed share already uses this protocol name or NFS path.", nil)
-		}
-	}
-	existing, err := m.adapter.List(ctx, singleProtocolOptions(options, desired.Protocol))
-	if err != nil {
-		return Share{}, wrapApplyError("inspect existing", err)
-	}
-	for _, share := range existing {
-		if shareIdentityConflicts(share.ShareSpec, desired) {
-			return Share{}, codedError(ErrorConflict, "A share with this protocol and name already exists.", nil)
-		}
 	}
 	desired.ID, err = newShareID()
 	if err != nil {
@@ -316,23 +429,68 @@ func (m *Manager) Create(ctx context.Context, desired ShareSpec) (Share, error) 
 	}
 	desired.Comment = nativeComment(desired.Comment, desired.ID)
 	if err := m.adapter.Create(ctx, options, desired); err != nil {
-		return Share{}, wrapApplyError("create", err)
-	}
-	if !m.verifyObserved(ctx, options, desired, true) {
-		if rollbackErr := m.adapter.Delete(ctx, options, desired); rollbackErr != nil {
+		if rollbackErr := m.rollbackCreate(ctx, options, desired, false); rollbackErr != nil {
 			m.recordCreateRollbackFailure(ctx, desired, rollbackErr)
 		}
-		return Share{}, codedError(ErrorApplyFailed, "The share backend did not report the newly created share.", nil)
+		return Share{}, wrapApplyError("create", err)
+	}
+	if err := m.verifyObserved(ctx, options, desired, true); err != nil {
+		if rollbackErr := m.rollbackCreate(ctx, options, desired, true); rollbackErr != nil {
+			m.recordCreateRollbackFailure(ctx, desired, rollbackErr)
+		}
+		return Share{}, codedError(ErrorApplyFailed, "The share backend did not report the newly created share.", err)
 	}
 	ledgerSpec := desired
 	ledgerSpec.Comment = stripNativeMarker(desired.Comment)
 	if err := m.ledger.put(ctx, ledgerSpec, ""); err != nil {
-		if rollbackErr := m.adapter.Delete(ctx, options, desired); rollbackErr != nil {
+		if rollbackErr := m.rollbackCreate(ctx, options, desired, true); rollbackErr != nil {
 			m.recordCreateRollbackFailure(ctx, desired, rollbackErr)
 		}
 		return Share{}, codedError(ErrorApplyFailed, "The created share ownership record could not be committed.", err)
 	}
 	return m.Get(ctx, desired.ID)
+}
+
+func (m *Manager) rollbackCreate(
+	ctx context.Context,
+	options Options,
+	desired ShareSpec,
+	allowMarkerless bool,
+) error {
+	observed, err := m.adapter.List(ctx, singleProtocolOptions(options, desired.Protocol))
+	if err != nil {
+		return fmt.Errorf("inspect create rollback state: %w", err)
+	}
+	var target *ShareSpec
+	identityPresent := false
+	for _, share := range observed {
+		if shareIdentityConflicts(share.ShareSpec, desired) {
+			identityPresent = true
+		}
+		owned := share.MarkerSupported && desired.ID != "" && share.MarkerID == desired.ID
+		if !share.MarkerSupported && allowMarkerless && sameShareIdentity(share.ShareSpec, desired) {
+			owned = true
+		}
+		if !owned {
+			continue
+		}
+		candidate := share.ShareSpec
+		candidate.ID = desired.ID
+		target = &candidate
+		break
+	}
+	if target == nil {
+		if identityPresent {
+			return fmt.Errorf("create rollback refused because native ownership could not be proven")
+		}
+		return nil
+	}
+	deleteErr := m.adapter.Delete(ctx, options, *target)
+	verifyErr := m.verifyObserved(ctx, options, desired, false)
+	if verifyErr != nil {
+		return fmt.Errorf("delete rollback: %v; verify absence: %w", deleteErr, verifyErr)
+	}
+	return nil
 }
 
 func (m *Manager) recordCreateRollbackFailure(ctx context.Context, desired ShareSpec, rollbackErr error) {
@@ -355,7 +513,7 @@ func (m *Manager) Update(ctx context.Context, id string, patch SharePatch) (Shar
 	m.mutateMu.Lock()
 	defer m.mutateMu.Unlock()
 
-	current, record, options, status, err := m.requireManagedMutable(ctx, id, "update")
+	current, record, options, status, err := m.requireManagedMutable(ctx, id, "update", true)
 	if err != nil {
 		return Share{}, err
 	}
@@ -369,32 +527,33 @@ func (m *Manager) Update(ctx context.Context, id string, patch SharePatch) (Shar
 	if patch.Access != nil {
 		desired.Access = *patch.Access
 	}
-	desired, err = validateShareSpec(ctx, desired, "update", options, status)
+	desired, err = m.validateUpdateDesired(ctx, desired, record, options, status)
 	if err != nil {
 		return Share{}, err
 	}
-	if err := m.adapter.Validate(ctx, options, desired); err != nil {
-		return Share{}, err
-	}
-	nativePrevious := current.ShareSpec
+	nativePrevious := record.Spec
 	nativePrevious.Comment = nativeComment(record.Spec.Comment, record.Spec.ID)
 	nativeDesired := desired
 	nativeDesired.Comment = nativeComment(desired.Comment, desired.ID)
 	if err := m.adapter.Update(ctx, options, nativePrevious, nativeDesired); err != nil {
+		if rollbackErr := m.restoreAndVerify(ctx, options, nativePrevious); rollbackErr != nil {
+			m.markRollbackFailure(ctx, id, rollbackErr)
+		}
 		return Share{}, wrapApplyError("update", err)
 	}
-	if !m.verifyObserved(ctx, options, nativeDesired, true) {
-		if rollbackErr := m.adapter.Update(ctx, options, nativeDesired, nativePrevious); rollbackErr != nil {
-			_ = m.ledger.setDrift(ctx, id, "rollback_failed")
+	if err := m.verifyObserved(ctx, options, nativeDesired, true); err != nil {
+		if rollbackErr := m.restoreAndVerify(ctx, options, nativePrevious); rollbackErr != nil {
+			m.markRollbackFailure(ctx, id, rollbackErr)
 		}
-		return Share{}, codedError(ErrorApplyFailed, "The share backend did not report the requested updated state.", nil)
+		return Share{}, codedError(ErrorApplyFailed, "The share backend did not report the requested updated state.", err)
 	}
 	if err := m.ledger.put(ctx, desired, ""); err != nil {
-		if rollbackErr := m.adapter.Update(ctx, options, nativeDesired, nativePrevious); rollbackErr != nil {
-			_ = m.ledger.setDrift(ctx, id, "rollback_failed")
+		if rollbackErr := m.restoreAndVerify(ctx, options, nativePrevious); rollbackErr != nil {
+			m.markRollbackFailure(ctx, id, rollbackErr)
 		}
 		return Share{}, codedError(ErrorApplyFailed, "The updated share ownership record could not be committed.", err)
 	}
+	_ = current
 	return m.Get(ctx, id)
 }
 
@@ -403,25 +562,70 @@ func (m *Manager) Delete(ctx context.Context, id string) error {
 	m.mutateMu.Lock()
 	defer m.mutateMu.Unlock()
 
-	current, record, options, _, err := m.requireManagedMutable(ctx, id, "delete")
+	current, record, options, _, err := m.requireManagedMutable(ctx, id, "delete", true)
 	if err != nil {
 		return err
 	}
+	nativePrevious := record.Spec
+	nativePrevious.Comment = nativeComment(record.Spec.Comment, record.Spec.ID)
 	if err := m.adapter.Delete(ctx, options, current.ShareSpec); err != nil {
+		if stateErr := m.verifyObserved(ctx, options, nativePrevious, true); stateErr != nil {
+			if rollbackErr := m.restoreAndVerify(ctx, options, nativePrevious); rollbackErr != nil {
+				m.markRollbackFailure(ctx, id, rollbackErr)
+			}
+		}
 		return wrapApplyError("delete", err)
 	}
-	if !m.verifyObserved(ctx, options, current.ShareSpec, false) {
-		return codedError(ErrorApplyFailed, "The share backend still reports the deleted share.", nil)
+	if err := m.verifyObserved(ctx, options, nativePrevious, false); err != nil {
+		if rollbackErr := m.restoreAndVerify(ctx, options, nativePrevious); rollbackErr != nil {
+			m.markRollbackFailure(ctx, id, rollbackErr)
+		}
+		return codedError(ErrorApplyFailed, "The share backend still reports the deleted share.", err)
 	}
 	if err := m.ledger.delete(ctx, id); err != nil {
-		nativeRestore := record.Spec
-		nativeRestore.Comment = nativeComment(record.Spec.Comment, record.Spec.ID)
-		if rollbackErr := m.adapter.Create(ctx, options, nativeRestore); rollbackErr != nil {
-			_ = m.ledger.setDrift(ctx, id, "rollback_failed")
+		if rollbackErr := m.restoreAndVerify(ctx, options, nativePrevious); rollbackErr != nil {
+			m.markRollbackFailure(ctx, id, rollbackErr)
 		}
 		return codedError(ErrorApplyFailed, "The deleted share ownership record could not be removed.", err)
 	}
 	return nil
+}
+
+func (m *Manager) restoreAndVerify(ctx context.Context, options Options, expected ShareSpec) error {
+	if err := m.verifyObserved(ctx, options, expected, true); err == nil {
+		return nil
+	}
+	observed, err := m.adapter.List(ctx, singleProtocolOptions(options, expected.Protocol))
+	if err != nil {
+		return fmt.Errorf("inspect rollback state: %w", err)
+	}
+	var current *observedShare
+	for index := range observed {
+		if shareIdentityConflicts(observed[index].ShareSpec, expected) ||
+			(expected.ID != "" && observed[index].MarkerID == expected.ID) {
+			current = &observed[index]
+			break
+		}
+	}
+	if current == nil {
+		err = m.adapter.Create(ctx, options, expected)
+	} else {
+		err = m.adapter.Update(ctx, options, current.ShareSpec, expected)
+	}
+	if verifyErr := m.verifyObserved(ctx, options, expected, true); verifyErr != nil {
+		return fmt.Errorf("restore command: %v; verify restored state: %w", err, verifyErr)
+	}
+	return nil
+}
+
+func (m *Manager) markRollbackFailure(ctx context.Context, id string, rollbackErr error) {
+	if err := m.ledger.setDrift(ctx, id, "rollback_failed"); err != nil {
+		m.logger.Error("[NetworkShares] Could not persist rollback drift",
+			"share_id", id, "rollback_error", rollbackErr, "ledger_error", err)
+		return
+	}
+	m.logger.Error("[NetworkShares] Rollback verification failed; share locked as drifted",
+		"share_id", id, "error", rollbackErr)
 }
 
 func (m *Manager) requireReadable() (Options, Status, error) {
@@ -457,7 +661,12 @@ func (m *Manager) requireOperation(operation, protocol string) (Options, Status,
 	return options, status, nil
 }
 
-func (m *Manager) requireManagedMutable(ctx context.Context, id, operation string) (Share, ledgerRecord, Options, Status, error) {
+func (m *Manager) requireManagedMutable(
+	ctx context.Context,
+	id string,
+	operation string,
+	persistDrift bool,
+) (Share, ledgerRecord, Options, Status, error) {
 	id = strings.TrimSpace(id)
 	if strings.HasPrefix(id, "external:") {
 		return Share{}, ledgerRecord{}, Options{}, Status{}, codedError(ErrorNotManaged, "Only AuraGo-managed shares can be changed.", nil)
@@ -470,7 +679,7 @@ func (m *Manager) requireManagedMutable(ctx context.Context, id, operation strin
 	if err != nil {
 		return Share{}, ledgerRecord{}, Options{}, status, err
 	}
-	current, err := m.Get(ctx, id)
+	current, err := m.get(ctx, id, persistDrift)
 	if err != nil {
 		return Share{}, ledgerRecord{}, Options{}, status, err
 	}
@@ -551,6 +760,7 @@ func validateShareSpec(_ context.Context, desired ShareSpec, operation string, o
 		if runtime.GOOS == "windows" && !desired.ReadOnly && !hasWriteAccess {
 			return ShareSpec{}, codedError(ErrorInvalidArgument, "Writable Windows SMB shares require change or full access for at least one principal.", nil)
 		}
+		desired = normalizePlatformShare(desired)
 		desired.Access.Clients = nil
 	case ProtocolNFS:
 		if !options.NFSEnabled {
@@ -581,23 +791,41 @@ func validateShareSpec(_ context.Context, desired ShareSpec, operation string, o
 	return desired, nil
 }
 
-func (m *Manager) verifyObserved(ctx context.Context, options Options, expected ShareSpec, shouldExist bool) bool {
+func (m *Manager) verifyObserved(ctx context.Context, options Options, expected ShareSpec, shouldExist bool) error {
 	observed, err := m.adapter.List(ctx, singleProtocolOptions(options, expected.Protocol))
 	if err != nil {
-		return false
+		return fmt.Errorf("read observed network shares: %w", err)
 	}
 	for _, share := range observed {
-		match := strings.EqualFold(share.Protocol, expected.Protocol) &&
-			(strings.EqualFold(share.Name, expected.Name) || share.MarkerID == expected.ID)
-		if !match {
+		if !strings.EqualFold(share.Protocol, expected.Protocol) {
 			continue
 		}
 		if !shouldExist {
-			return true
+			if shareIdentityConflicts(share.ShareSpec, expected) ||
+				(expected.ID != "" && share.MarkerID == expected.ID) {
+				return fmt.Errorf("share identity is still present")
+			}
+			continue
 		}
-		return samePath(share.Path, expected.Path) && compareDesired(expected, share) == ""
+		matchesOwnership := share.MarkerSupported && expected.ID != "" && share.MarkerID == expected.ID
+		if !share.MarkerSupported {
+			matchesOwnership = sameShareIdentity(expected, share.ShareSpec)
+		}
+		if !matchesOwnership {
+			continue
+		}
+		if !share.Active {
+			return fmt.Errorf("share is not active")
+		}
+		if drift := compareDesired(expected, share); drift != "" {
+			return fmt.Errorf("share differs from expected state: %s", drift)
+		}
+		return nil
 	}
-	return !shouldExist
+	if shouldExist {
+		return fmt.Errorf("expected share identity was not observed")
+	}
+	return nil
 }
 
 func readableProtocolOptions(options Options, status Status) Options {
@@ -622,7 +850,16 @@ func shareIdentityConflicts(existing, desired ShareSpec) bool {
 	return desired.Protocol == ProtocolNFS && samePath(existing.Path, desired.Path)
 }
 
+func sameShareIdentity(left, right ShareSpec) bool {
+	return strings.EqualFold(left.Protocol, right.Protocol) &&
+		strings.EqualFold(left.Name, right.Name) &&
+		samePath(left.Path, right.Path)
+}
+
 func compareDesired(desired ShareSpec, observed observedShare) string {
+	if !strings.EqualFold(desired.Name, observed.Name) {
+		return "name_changed"
+	}
 	if !samePath(desired.Path, observed.Path) {
 		return "path_changed"
 	}
@@ -666,9 +903,10 @@ func protocolWritable(status Status, protocol string) bool {
 func unavailableStatus(reason string) Status {
 	probedAt := time.Now().UTC()
 	return Status{
+		ReasonCode:   "unavailable",
 		Reason:       reason,
-		SMB:          ProtocolStatus{Reason: reason, LastProbedAt: probedAt},
-		NFS:          ProtocolStatus{Reason: reason, LastProbedAt: probedAt},
+		SMB:          ProtocolStatus{ReasonCode: "unavailable", Reason: reason, LastProbedAt: probedAt},
+		NFS:          ProtocolStatus{ReasonCode: "unavailable", Reason: reason, LastProbedAt: probedAt},
 		LastProbedAt: probedAt,
 	}
 }

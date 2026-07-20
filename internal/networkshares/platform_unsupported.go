@@ -40,3 +40,7 @@ func (unsupportedAdapter) Update(context.Context, Options, ShareSpec, ShareSpec)
 func (unsupportedAdapter) Delete(context.Context, Options, ShareSpec) error {
 	return codedError(ErrorUnavailable, "Local network share management is supported only on Linux and Windows.", nil)
 }
+
+func normalizePlatformShare(share ShareSpec) ShareSpec {
+	return share
+}

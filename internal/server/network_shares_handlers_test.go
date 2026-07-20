@@ -86,3 +86,26 @@ func TestNetworkSharesRoutesRequireAdminSession(t *testing.T) {
 		t.Fatal("network share routes are missing from admin-protected path metadata")
 	}
 }
+
+func TestNetworkSharesValidateRequiresSupportedOperationAndUpdateID(t *testing.T) {
+	server := testNetworkSharesServer(t)
+	tests := []struct {
+		name string
+		body string
+	}{
+		{name: "missing operation", body: `{"share":{}}`},
+		{name: "unknown operation", body: `{"operation":"delete","share":{}}`},
+		{name: "update without id", body: `{"operation":"update","share":{}}`},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			response := httptest.NewRecorder()
+			handleNetworkSharesValidate(server).ServeHTTP(response,
+				httptest.NewRequest(http.MethodPost, "/api/network-shares/validate", strings.NewReader(test.body)))
+			if response.Code != http.StatusBadRequest ||
+				!strings.Contains(response.Body.String(), networkshares.ErrorInvalidArgument) {
+				t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+			}
+		})
+	}
+}

@@ -128,6 +128,69 @@ func TestLinuxSMBPrincipalValidationUsesTypedGetentArguments(t *testing.T) {
 	}
 }
 
+func TestLinuxSMBFullIsNormalizedWithoutAdminUsers(t *testing.T) {
+	root := t.TempDir()
+	normalized, err := validateShareSpec(context.Background(), ShareSpec{
+		Protocol: ProtocolSMB,
+		Name:     "documents",
+		Path:     root,
+		ReadOnly: false,
+		Access:   ShareAccess{ACL: []ACLEntry{{Principal: "share-users", Level: "full"}}},
+	}, "create", Options{
+		SMBEnabled:           true,
+		AllowedRoots:         []string{root},
+		SMBAllowedPrincipals: []string{"share-users"},
+	}, Status{SMB: ProtocolStatus{Readable: true}})
+	if err != nil {
+		t.Fatalf("validateShareSpec: %v", err)
+	}
+	if got := normalized.Access.ACL[0].Level; got != "change" {
+		t.Fatalf("Linux full ACL normalized to %q, want change", got)
+	}
+
+	runner := &linuxFakeRunner{}
+	adapter := &linuxAdapter{runner: runner}
+	if err := adapter.applySMBParameters(context.Background(), Options{}, ShareSpec{
+		Protocol: ProtocolSMB,
+		Name:     "documents",
+		Path:     root,
+		ReadOnly: false,
+		Access:   ShareAccess{ACL: []ACLEntry{{Principal: "share-users", Level: "full"}}},
+	}); err != nil {
+		t.Fatalf("applySMBParameters: %v", err)
+	}
+	foundWriteList := false
+	for _, call := range runner.calls {
+		joined := strings.Join(call.args, "\x00")
+		if strings.Contains(joined, "\x00admin users\x00") &&
+			len(call.args) > 1 && call.args[1] == "setparm" {
+			t.Fatalf("AuraGo attempted to emit Samba admin users: %+v", call)
+		}
+		if strings.Contains(joined, "\x00write list\x00share-users") {
+			foundWriteList = true
+		}
+	}
+	if !foundWriteList {
+		t.Fatalf("safe Samba write list was not emitted: %+v", runner.calls)
+	}
+}
+
+func TestLinuxSMBObservationFlagsAdminUsersAsUnsafe(t *testing.T) {
+	share, ok := observedSMBShare("documents", map[string]string{
+		"path":        "/srv/shares/documents",
+		"comment":     nativeComment("", "11111111-1111-4111-8111-111111111111"),
+		"read only":   "no",
+		"valid users": "share-users",
+		"admin users": "share-users",
+	})
+	if !ok {
+		t.Fatal("observedSMBShare rejected file share")
+	}
+	if !share.MarkerSupported || !share.UnsafeAdminUsers {
+		t.Fatalf("unsafe Samba ownership evidence = %+v", share)
+	}
+}
+
 func TestRenderNFSExportUsesRestrictedOptionsAndEscapesPath(t *testing.T) {
 	content, err := renderNFSExport(ShareSpec{
 		ID:       "11111111-1111-4111-8111-111111111111",
@@ -148,6 +211,38 @@ func TestRenderNFSExportUsesRestrictedOptionsAndEscapesPath(t *testing.T) {
 	}
 	if strings.Contains(text, "no_root_squash") {
 		t.Fatalf("unsafe NFS option present: %s", text)
+	}
+}
+
+func TestNFSExportPathEncodingPreventsGrammarInjectionAndRoundTrips(t *testing.T) {
+	path := "/srv/shares/team #one\\two\tline\r\nü"
+	content, err := renderNFSExport(ShareSpec{
+		ID:       "11111111-1111-4111-8111-111111111111",
+		Protocol: ProtocolNFS,
+		Name:     "media",
+		Path:     path,
+		ReadOnly: true,
+		Access:   ShareAccess{Clients: []string{"192.0.2.1"}},
+	})
+	if err != nil {
+		t.Fatalf("renderNFSExport: %v", err)
+	}
+	text := string(content)
+	if strings.Count(text, "\n") != 2 || strings.Contains(text, "\r") || strings.Contains(text, "\t") {
+		t.Fatalf("NFS export contains injected line/control syntax: %q", text)
+	}
+	lines := strings.Split(text, "\n")
+	if strings.Contains(lines[1], "#") {
+		t.Fatalf("NFS export data line contains an unescaped comment marker: %q", lines[1])
+	}
+	for _, escaped := range []string{`\040`, `\043`, `\134`, `\011`, `\015`, `\012`, `\303\274`} {
+		if !strings.Contains(lines[1], escaped) {
+			t.Fatalf("NFS export missing escaped byte %q: %q", escaped, lines[1])
+		}
+	}
+	parsed := parseExportFS(lines[1])
+	if _, ok := parsed[path]; !ok {
+		t.Fatalf("encoded NFS path did not round-trip: got keys %+v, want %q", parsed, path)
 	}
 }
 

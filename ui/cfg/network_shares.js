@@ -4,6 +4,80 @@ let nsRuntime = null;
 let nsPermissions = null;
 let nsEditingID = '';
 
+const nsReasonTranslationKeys = {
+    disabled: 'config.network_shares.reason_disabled',
+    protocol_disabled: 'config.network_shares.reason_disabled',
+    unsupported_os: 'config.network_shares.reason_unavailable',
+    unavailable: 'config.network_shares.reason_unavailable',
+    probe_failed: 'config.network_shares.reason_probe_failed',
+    no_readable_backend: 'config.network_shares.reason_unavailable',
+    no_available_root: 'config.network_shares.reason_no_roots',
+    not_installed: 'config.network_shares.reason_not_installed',
+    not_readable: 'config.network_shares.reason_unavailable',
+    not_configured: 'config.network_shares.reason_not_configured',
+    registry_shares_disabled: 'config.network_shares.reason_not_configured',
+    service_inactive: 'config.network_shares.reason_service_inactive',
+    backend_unwritable: 'config.network_shares.reason_privileges',
+    readonly: 'config.network_shares.reason_readonly',
+    permission_disabled: 'config.network_shares.reason_permissions',
+    docker_restricted: 'config.network_shares.reason_docker',
+    no_new_privileges: 'config.network_shares.reason_hardening',
+    protect_system_strict: 'config.network_shares.reason_hardening',
+    privilege_required: 'config.network_shares.reason_privileges',
+    root_not_absolute: 'config.network_shares.reason_root_unavailable',
+    root_unavailable: 'config.network_shares.reason_root_unavailable',
+    root_not_directory: 'config.network_shares.reason_root_unavailable',
+    root_unresolvable: 'config.network_shares.reason_root_unavailable'
+};
+
+const nsErrorTranslationKeys = {
+    NETWORK_SHARES_DISABLED: 'config.network_shares.error_unavailable',
+    SHARE_PROTOCOL_UNAVAILABLE: 'config.network_shares.error_unavailable',
+    SHARE_OUTSIDE_ALLOWED_ROOT: 'config.network_shares.error_invalid',
+    SHARE_READ_ONLY: 'config.network_shares.error_forbidden',
+    SHARE_PERMISSION_DENIED: 'config.network_shares.error_forbidden',
+    SHARE_NOT_MANAGED: 'config.network_shares.error_not_managed',
+    SHARE_CONFLICT: 'config.network_shares.error_conflict',
+    SHARE_DRIFT: 'config.network_shares.error_drift',
+    SHARE_APPLY_FAILED: 'config.network_shares.error_apply',
+    SHARE_INVALID_ARGUMENT: 'config.network_shares.error_invalid',
+    SHARE_NOT_FOUND: 'config.network_shares.error_not_found'
+};
+
+const nsDriftTranslationKeys = {
+    name_changed: 'config.network_shares.drift_identity',
+    path_changed: 'config.network_shares.drift_identity',
+    marker_missing: 'config.network_shares.drift_identity',
+    ownership_mismatch: 'config.network_shares.drift_identity',
+    inactive: 'config.network_shares.drift_inactive',
+    missing: 'config.network_shares.drift_inactive',
+    read_only_changed: 'config.network_shares.drift_configuration',
+    comment_changed: 'config.network_shares.drift_configuration',
+    access_changed: 'config.network_shares.drift_configuration',
+    orphaned_marker: 'config.network_shares.drift_orphan',
+    unsafe_admin_users: 'config.network_shares.drift_unsafe',
+    rollback_failed: 'config.network_shares.drift_rollback',
+    outside_allowed_roots: 'config.network_shares.drift_outside'
+};
+
+function nsTranslatedKey(key, fallbackKey) {
+    if (!key) return t(fallbackKey);
+    const translated = t(key);
+    return translated && translated !== key ? translated : t(fallbackKey);
+}
+
+function nsLocalizedReason(code) {
+    return nsTranslatedKey(nsReasonTranslationKeys[String(code || '')], 'config.network_shares.reason_unavailable');
+}
+
+function nsLocalizedError(code) {
+    return nsTranslatedKey(nsErrorTranslationKeys[String(code || '')], 'config.network_shares.request_failed');
+}
+
+function nsLocalizedDrift(code) {
+    return nsTranslatedKey(nsDriftTranslationKeys[String(code || '')], 'config.network_shares.drift_configuration');
+}
+
 function renderNetworkSharesSection(section) {
     const data = configData.network_shares || {};
     const smb = data.smb || {};
@@ -167,10 +241,17 @@ function nsSavedConfigRequired() {
 }
 
 async function nsRequest(path, options) {
-    const response = await fetch(path, options);
+    let response;
+    try {
+        response = await fetch(path, options);
+    } catch (_) {
+        throw new Error(t('config.network_shares.request_failed'));
+    }
     const data = response.status === 204 ? {} : await response.json().catch(() => ({}));
     if (!response.ok || data.status === 'error') {
-        throw new Error(data.message || t('config.network_shares.request_failed'));
+        const error = new Error(nsLocalizedError(data.code));
+        error.code = data.code || '';
+        throw error;
     }
     return data;
 }
@@ -205,7 +286,7 @@ function nsRenderRuntime() {
         banner.className = nsRuntime && nsRuntime.usable ? 'adg-status-banner is-success' : 'adg-status-banner is-warning';
         banner.textContent = nsRuntime && nsRuntime.usable
             ? t('config.network_shares.status_ready')
-            : ((nsRuntime || {}).reason || t('config.network_shares.status_unavailable'));
+            : nsLocalizedReason((nsRuntime || {}).reason_code);
     }
     const area = document.getElementById('ns-protocol-status');
     if (!area) return;
@@ -219,11 +300,12 @@ function nsRenderRuntime() {
             <th>${escapeHtml(t('config.network_shares.access'))}</th>
         </tr></thead>
         <tbody>${protocols.map(([name, status]) => {
+            const reason = status.reason_code ? nsLocalizedReason(status.reason_code) : '';
             const access = status.writable
                 ? escapeHtml(t('config.network_shares.write'))
                 : (status.readable
-                    ? `${escapeHtml(t('config.network_shares.read'))}${status.reason ? `<div class="field-help">${escapeHtml(status.reason)}</div>` : ''}`
-                    : escapeHtml(status.reason || t('config.network_shares.unavailable')));
+                    ? `${escapeHtml(t('config.network_shares.read'))}${reason ? `<div class="field-help">${escapeHtml(reason)}</div>` : ''}`
+                    : escapeHtml(reason || t('config.network_shares.unavailable')));
             return `<tr class="cc-device-row">
             <td class="cc-cell cc-cell-name">${name}</td>
             <td class="cc-cell">${escapeHtml(nsYesNo(status.installed))}</td>
@@ -262,13 +344,16 @@ function nsRenderShares() {
         <tbody>${nsShares.map(share => {
             const state = share.drift ? t('config.network_shares.drifted') :
                 (share.managed ? t('config.network_shares.managed') : t('config.network_shares.external'));
+            const driftDetail = share.drift
+                ? `<div class="field-help">${escapeHtml(nsLocalizedDrift(share.drift))}</div>`
+                : '';
             const canUpdate = share.mutable && nsPermissions && nsPermissions.allow_update;
             const canDelete = share.mutable && nsPermissions && nsPermissions.allow_delete;
             return `<tr class="cc-device-row">
                 <td class="cc-cell cc-cell-name">${escapeHtml(share.name || '')}</td>
                 <td class="cc-cell">${escapeHtml(String(share.protocol || '').toUpperCase())}</td>
                 <td class="cc-cell">${escapeHtml(share.path || '')}</td>
-                <td class="cc-cell">${escapeHtml(state)}</td>
+                <td class="cc-cell">${escapeHtml(state)}${driftDetail}</td>
                 <td class="cc-cell cc-cell-actions">
                     ${canUpdate ? `<button type="button" class="btn-save cc-btn-compact" data-share-id="${escapeAttr(share.id)}" onclick="nsOpenShareModal(this.dataset.shareId)">${escapeHtml(t('config.network_shares.edit'))}</button>` : ''}
                     ${canDelete ? `<button type="button" class="btn-save cc-btn-compact" data-share-id="${escapeAttr(share.id)}" onclick="nsOpenDeleteModal(this.dataset.shareId)">${escapeHtml(t('config.network_shares.delete'))}</button>` : '—'}
@@ -302,14 +387,18 @@ function nsOpenShareModal(id) {
     document.getElementById('ns-modal-title').textContent = share
         ? t('config.network_shares.edit_title')
         : t('config.network_shares.create_title');
-    const protocol = share ? share.protocol : (permissions.smb_enabled ? 'smb' : 'nfs');
+    const protocols = share ? [share.protocol] : nsWritableProtocols();
+    if (!protocols.length) {
+        showToast(t('config.network_shares.reason_unavailable'), 'warn');
+        return;
+    }
+    const protocol = protocols[0];
     const body = document.getElementById('ns-modal-body');
     body.innerHTML = `
         <div class="field-group">
             <div class="field-label">${escapeHtml(t('config.network_shares.protocol'))}</div>
             <select id="ns-form-protocol" class="field-select"${share ? ' disabled' : ''} onchange="nsRenderAccessFields()">
-                ${permissions.smb_enabled ? `<option value="smb"${protocol === 'smb' ? ' selected' : ''}>SMB</option>` : ''}
-                ${permissions.nfs_enabled ? `<option value="nfs"${protocol === 'nfs' ? ' selected' : ''}>NFS</option>` : ''}
+                ${protocols.map(value => `<option value="${value}"${protocol === value ? ' selected' : ''}>${value.toUpperCase()}</option>`).join('')}
             </select>
         </div>
         ${nsTextField('ns-form-name', 'config.network_shares.name', share ? share.name : '', !!share)}
@@ -322,6 +411,15 @@ function nsOpenShareModal(id) {
     error.textContent = '';
     setHidden(error, true);
     setHidden(document.getElementById('ns-share-modal'), false);
+}
+
+function nsWritableProtocols() {
+    const permissions = nsPermissions || {};
+    const runtime = nsRuntime || {};
+    const protocols = [];
+    if (permissions.smb_enabled && (runtime.smb || {}).writable) protocols.push('smb');
+    if (permissions.nfs_enabled && (runtime.nfs || {}).writable) protocols.push('nfs');
+    return protocols;
 }
 
 function nsTextField(id, labelKey, value, disabled) {
@@ -344,13 +442,16 @@ function nsRenderAccessFields(existing) {
     const access = (share || {}).access || {};
     if (protocol === 'smb') {
         const levels = new Map((access.acl || []).map(entry => [entry.principal, entry.level]));
+        const availableLevels = (nsRuntime && (nsRuntime.smb || {}).backend === 'samba')
+            ? ['none', 'read', 'change', 'deny']
+            : ['none', 'read', 'change', 'full', 'deny'];
         area.innerHTML = `
             ${permissions.smb_allow_guest ? `<label class="toggle-wrap"><input id="ns-form-guest" type="checkbox"${access.guest ? ' checked' : ''}> ${escapeHtml(t('config.network_shares.guest'))}</label>` : ''}
             <div class="field-label">${escapeHtml(t('config.network_shares.acl'))}</div>
             ${(permissions.allowed_principals || []).map(principal => `<div class="adg-password-row">
                 <span class="field-help">${escapeHtml(principal)}</span>
                 <select class="field-select ns-acl-level" data-principal="${escapeAttr(principal)}">
-                    ${['none', 'read', 'change', 'full', 'deny'].map(level => `<option value="${level}"${levels.get(principal) === level ? ' selected' : ''}>${escapeHtml(t('config.network_shares.level_' + level))}</option>`).join('')}
+                    ${availableLevels.map(level => `<option value="${level}"${levels.get(principal) === level ? ' selected' : ''}>${escapeHtml(t('config.network_shares.level_' + level))}</option>`).join('')}
                 </select>
             </div>`).join('')}
         `;
@@ -393,7 +494,11 @@ async function nsSaveShare() {
         await nsRequest('/api/network-shares/validate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ operation: nsEditingID ? 'update' : 'create', share })
+            body: JSON.stringify({
+                operation: nsEditingID ? 'update' : 'create',
+                id: nsEditingID || undefined,
+                share
+            })
         });
         if (nsEditingID) {
             await nsRequest('/api/network-shares/' + encodeURIComponent(nsEditingID), {

@@ -34,14 +34,17 @@ func (a *linuxAdapter) Probe(ctx context.Context, options Options) (Status, erro
 	if options.SMBEnabled {
 		status.SMB = a.probeSMB(ctx, options)
 	} else {
+		status.SMB.ReasonCode = "protocol_disabled"
 		status.SMB.Reason = "SMB management is disabled in the AuraGo configuration."
 	}
 	if options.NFSEnabled {
 		status.NFS = a.probeNFS(ctx, options)
 	} else {
+		status.NFS.ReasonCode = "protocol_disabled"
 		status.NFS.Reason = "NFS management is disabled in the AuraGo configuration."
 	}
 	status.Usable = status.SMB.Readable || status.NFS.Readable
+	status.ReasonCode = firstNonEmpty(status.SMB.ReasonCode, status.NFS.ReasonCode)
 	status.Reason = firstNonEmpty(status.SMB.Reason, status.NFS.Reason)
 	return status, nil
 }
@@ -73,6 +76,7 @@ func (a *linuxAdapter) probeSMB(ctx context.Context, options Options) ProtocolSt
 	_, netErr := a.runner.LookPath("net")
 	_, testparmErr := a.runner.LookPath("testparm")
 	if netErr != nil && testparmErr != nil {
+		status.ReasonCode = "not_installed"
 		status.Reason = "Samba net and testparm are not installed."
 		return status
 	}
@@ -82,6 +86,7 @@ func (a *linuxAdapter) probeSMB(ctx context.Context, options Options) ProtocolSt
 		if _, err := a.runRead(ctx, options, "testparm", "-s", "--suppress-prompt"); err == nil {
 			status.Readable = true
 		} else {
+			status.ReasonCode = "not_readable"
 			status.Reason = "The effective Samba file-share configuration is not readable."
 		}
 	}
@@ -106,6 +111,7 @@ func (a *linuxAdapter) probeSMB(ctx context.Context, options Options) ProtocolSt
 		}
 	}
 	if !status.Configured && status.Reason == "" {
+		status.ReasonCode = "registry_shares_disabled"
 		status.Reason = "Samba is installed, but registry shares = yes is not enabled in smb.conf."
 	}
 	if _, err := a.runner.LookPath("smbcontrol"); err == nil {
@@ -116,16 +122,20 @@ func (a *linuxAdapter) probeSMB(ctx context.Context, options Options) ProtocolSt
 		status.ServiceActive = a.systemdServiceActive(ctx, options, "smbd", "smb")
 	}
 	if status.Configured && !status.ServiceActive && status.Reason == "" {
+		status.ReasonCode = "service_inactive"
 		status.Reason = "Samba is configured, but no active smbd service was detected."
 	}
 	status.Writable = status.Readable && registryReadable && status.Configured && status.ServiceActive &&
 		a.hostWritePrivilegeAvailable(ctx, options)
 	if status.Writable {
+		status.ReasonCode = ""
 		status.Reason = ""
 	} else if status.Readable && status.Configured && status.ServiceActive {
 		if !registryReadable {
+			status.ReasonCode = "backend_unwritable"
 			status.Reason = "Samba registry shares are not writable by the current process."
 		} else {
+			status.ReasonCode = linuxWriteRestrictionCode(options)
 			status.Reason = linuxWriteRestrictionReason(options)
 		}
 	}
@@ -135,6 +145,7 @@ func (a *linuxAdapter) probeSMB(ctx context.Context, options Options) ProtocolSt
 func (a *linuxAdapter) probeNFS(ctx context.Context, options Options) ProtocolStatus {
 	status := ProtocolStatus{Supported: true, Backend: "nfs-utils"}
 	if _, err := a.runner.LookPath("exportfs"); err != nil {
+		status.ReasonCode = "not_installed"
 		status.Reason = "nfs-utils exportfs is not installed."
 		return status
 	}
@@ -143,22 +154,27 @@ func (a *linuxAdapter) probeNFS(ctx context.Context, options Options) ProtocolSt
 		_ = output
 		status.Readable = true
 	} else {
+		status.ReasonCode = "not_readable"
 		status.Reason = "The NFS export table is not readable."
 	}
 	if info, err := os.Stat(linuxNFSExportsDir); err == nil && info.IsDir() {
 		status.Configured = true
 	} else if status.Reason == "" {
+		status.ReasonCode = "not_configured"
 		status.Reason = "/etc/exports.d is not available."
 	}
 	status.ServiceActive = a.systemdServiceActive(ctx, options, "nfs-server", "nfs-kernel-server")
 	if !status.ServiceActive && status.Configured && status.Reason == "" {
+		status.ReasonCode = "service_inactive"
 		status.Reason = "No active NFS server service was detected."
 	}
 	status.Writable = status.Readable && status.Configured && status.ServiceActive &&
 		a.hostWritePrivilegeAvailable(ctx, options)
 	if status.Writable {
+		status.ReasonCode = ""
 		status.Reason = ""
 	} else if status.Readable && status.Configured && status.ServiceActive {
+		status.ReasonCode = linuxWriteRestrictionCode(options)
 		status.Reason = linuxWriteRestrictionReason(options)
 	}
 	return status
@@ -204,6 +220,23 @@ func linuxWriteRestrictionReason(options Options) string {
 		return "Network share mutations require root or unrestricted AuraGo sudo."
 	default:
 		return "Network share mutations are unavailable with the current host privileges."
+	}
+}
+
+func linuxWriteRestrictionCode(options Options) string {
+	switch {
+	case options.ReadOnly:
+		return "readonly"
+	case !options.AllowCreate && !options.AllowUpdate && !options.AllowDelete:
+		return "permission_disabled"
+	case options.IsDocker:
+		return "docker_restricted"
+	case options.NoNewPrivileges:
+		return "no_new_privileges"
+	case options.ProtectSystemStrict:
+		return "protect_system_strict"
+	default:
+		return "privilege_required"
 	}
 }
 
@@ -317,9 +350,11 @@ func observedSMBShare(name string, values map[string]string) (observedShare, boo
 				ACL:   sambaACL(values),
 			},
 		},
-		MarkerID:        markerID(comment),
-		Active:          true,
-		CommentObserved: true,
+		MarkerID:         markerID(comment),
+		MarkerSupported:  true,
+		UnsafeAdminUsers: len(splitSambaList(values["admin users"])) > 0,
+		Active:           true,
+		CommentObserved:  true,
 	}, true
 }
 
@@ -471,18 +506,9 @@ func parseYes(raw string) bool {
 func (a *linuxAdapter) Create(ctx context.Context, options Options, share ShareSpec) error {
 	switch share.Protocol {
 	case ProtocolSMB:
-		if err := a.smbAdd(ctx, options, share); err != nil {
-			_ = a.smbDeleteRaw(ctx, options, share.Name)
-			return err
-		}
-		return nil
+		return a.smbAdd(ctx, options, share)
 	case ProtocolNFS:
-		if err := a.writeNFSShare(ctx, options, share); err != nil {
-			_ = a.removeNFSShareFile(ctx, options, share.ID)
-			_ = a.reloadNFS(ctx, options)
-			return err
-		}
-		return nil
+		return a.writeNFSShare(ctx, options, share)
 	default:
 		return codedError(ErrorInvalidArgument, "Unknown share protocol.", nil)
 	}
@@ -496,18 +522,12 @@ func (a *linuxAdapter) Update(ctx context.Context, options Options, previous, de
 		if err == nil {
 			err = a.reloadSMB(ctx, options)
 		}
-		if err != nil {
-			_ = a.applySMBParameters(ctx, options, previous)
-			_ = a.reloadSMB(ctx, options)
-		}
 	case ProtocolNFS:
 		err = a.writeNFSShare(ctx, options, desired)
-		if err != nil {
-			_ = a.writeNFSShare(ctx, options, previous)
-		}
 	default:
 		err = codedError(ErrorInvalidArgument, "Unknown share protocol.", nil)
 	}
+	_ = previous
 	return err
 }
 
@@ -517,20 +537,12 @@ func (a *linuxAdapter) Delete(ctx context.Context, options Options, share ShareS
 		if err := a.smbDeleteRaw(ctx, options, share.Name); err != nil {
 			return err
 		}
-		if err := a.reloadSMB(ctx, options); err != nil {
-			_ = a.smbAdd(ctx, options, share)
-			return err
-		}
-		return nil
+		return a.reloadSMB(ctx, options)
 	case ProtocolNFS:
 		if err := a.removeNFSShareFile(ctx, options, share.ID); err != nil {
 			return err
 		}
-		if err := a.reloadNFS(ctx, options); err != nil {
-			_ = a.writeNFSShare(ctx, options, share)
-			return err
-		}
-		return nil
+		return a.reloadNFS(ctx, options)
 	default:
 		return codedError(ErrorInvalidArgument, "Unknown share protocol.", nil)
 	}
@@ -577,7 +589,9 @@ func (a *linuxAdapter) applySMBParameters(ctx context.Context, options Options, 
 		case "change":
 			aclValues["write list"] = append(aclValues["write list"], entry.Principal)
 		case "full":
-			aclValues["admin users"] = append(aclValues["admin users"], entry.Principal)
+			// Samba admin users bypasses filesystem permissions. Treat full as
+			// the safe change/write-list compatibility alias on Linux.
+			aclValues["write list"] = append(aclValues["write list"], entry.Principal)
 		case "deny":
 			aclValues["invalid users"] = append(aclValues["invalid users"], entry.Principal)
 		}
@@ -676,7 +690,8 @@ func parseExportFS(raw string) map[string]observedShare {
 					Path:     path,
 					ReadOnly: true,
 				},
-				Active: true,
+				MarkerSupported: true,
+				Active:          true,
 			}
 		}
 		for _, field := range fields[1:] {
@@ -736,6 +751,7 @@ func readManagedNFSFiles() ([]observedShare, error) {
 		shares = append(shares, observedShare{
 			ShareSpec:       spec,
 			MarkerID:        spec.ID,
+			MarkerSupported: true,
 			Active:          false,
 			CommentObserved: true,
 		})
@@ -843,15 +859,45 @@ func validManagedID(id string) bool {
 }
 
 func escapeExportsPath(path string) string {
-	path = strings.ReplaceAll(path, `\`, `\\`)
-	path = strings.ReplaceAll(path, " ", `\040`)
-	path = strings.ReplaceAll(path, "\t", `\011`)
-	return path
+	const safe = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._+,:=@%/-"
+	var escaped strings.Builder
+	for index := 0; index < len(path); index++ {
+		value := path[index]
+		if strings.IndexByte(safe, value) >= 0 {
+			escaped.WriteByte(value)
+			continue
+		}
+		fmt.Fprintf(&escaped, `\%03o`, value)
+	}
+	return escaped.String()
 }
 
 func unescapeExportsPath(path string) string {
-	path = strings.ReplaceAll(path, `\011`, "\t")
-	path = strings.ReplaceAll(path, `\040`, " ")
-	path = strings.ReplaceAll(path, `\\`, `\`)
-	return path
+	var decoded strings.Builder
+	for index := 0; index < len(path); {
+		if path[index] == '\\' && index+3 < len(path) &&
+			path[index+1] >= '0' && path[index+1] <= '7' &&
+			path[index+2] >= '0' && path[index+2] <= '7' &&
+			path[index+3] >= '0' && path[index+3] <= '7' {
+			value := (path[index+1]-'0')*64 + (path[index+2]-'0')*8 + (path[index+3] - '0')
+			decoded.WriteByte(value)
+			index += 4
+			continue
+		}
+		decoded.WriteByte(path[index])
+		index++
+	}
+	return decoded.String()
+}
+
+func normalizePlatformShare(share ShareSpec) ShareSpec {
+	if share.Protocol != ProtocolSMB {
+		return share
+	}
+	for index := range share.Access.ACL {
+		if share.Access.ACL[index].Level == "full" {
+			share.Access.ACL[index].Level = "change"
+		}
+	}
+	return share
 }

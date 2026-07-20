@@ -31,7 +31,9 @@ or manages operating-system accounts.
 
 `acl` entries contain a configured, existing OS `principal` and one `level`:
 `read`, `change`, `full`, or `deny`. `guest: true` is accepted only when the
-administrator enabled guest access. Passwords are never accepted.
+administrator enabled guest access. Passwords are never accepted. On Linux
+Samba, `full` is normalized to the safe `change` level; AuraGo never grants
+`admin users` privileges. Windows SMB retains native `full` access.
 
 ```json
 {"action":"network_shares","operation":"create","protocol":"smb","name":"media","path":"/srv/shares/media","comment":"Media library","read_only":true,"guest":false,"acl":[{"principal":"media-readers","level":"read"}]}
@@ -51,4 +53,4 @@ or expand global Windows NFS client groups.
 ```
 
 Use an explicit remove-and-create sequence to change a name or path. Do not
-attempt to update external, unmarked, or drifted shares.
+attempt to update external, unmarked, orphaned, unsafe, or drifted shares.
