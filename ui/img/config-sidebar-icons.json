@@ -845,6 +845,14 @@
       "row": 9,
       "source_type": "custom",
       "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "network_shares",
+      "slot": 105,
+      "column": 6,
+      "row": 9,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
     }
   ]
 }

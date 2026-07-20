@@ -625,6 +625,7 @@ func handleDashboardOverview(s *Server) http.HandlerFunc {
 			"paperless_ngx":     cfg.PaperlessNGX.Enabled,
 			"chromecast":        cfg.Chromecast.Enabled,
 			"bluetooth":         cfg.Bluetooth.Enabled && cfg.Runtime.Bluetooth.Usable,
+			"network_shares":    cfg.NetworkShares.Enabled && cfg.Runtime.NetworkShares.Usable,
 			"proxmox":           cfg.Proxmox.Enabled,
 			"ollama":            cfg.Ollama.Enabled,
 			"ollama_managed":    cfg.Ollama.ManagedInstance.Enabled,

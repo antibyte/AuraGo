@@ -551,6 +551,10 @@ func Load(path string) (*Config, error) {
 	cfg.Bluetooth.ReadOnly = true
 	cfg.Bluetooth.ScanTimeoutSeconds = 10
 	cfg.Bluetooth.AudioBackend = "auto"
+	cfg.NetworkShares.Enabled = false
+	cfg.NetworkShares.ReadOnly = true
+	cfg.NetworkShares.SMB.Enabled = true
+	cfg.NetworkShares.NFS.Enabled = true
 	// form_automation and upnp_scan default to false (opt-in; require headless browser / LAN access)
 
 	// Mission Preparation defaults: disabled by default, uses main LLM provider.
@@ -826,6 +830,9 @@ func Load(path string) (*Config, error) {
 	normalizeDeprecatedEmbeddingBackend(&cfg)
 	if cfg.Bluetooth.ScanTimeoutSeconds <= 0 {
 		cfg.Bluetooth.ScanTimeoutSeconds = 10
+	}
+	if err := NormalizeNetworkSharesConfig(&cfg.NetworkShares); err != nil {
+		return nil, err
 	}
 	switch strings.ToLower(strings.TrimSpace(cfg.Bluetooth.AudioBackend)) {
 	case "", "auto":
@@ -1346,6 +1353,10 @@ func Load(path string) (*Config, error) {
 		cfg.SQLite.LaunchpadPath = "./data/launchpad.db"
 	}
 	cfg.SQLite.LaunchpadPath = resolvePath(configDir, cfg.SQLite.LaunchpadPath)
+	if cfg.SQLite.NetworkSharesPath == "" {
+		cfg.SQLite.NetworkSharesPath = "./data/network_shares.db"
+	}
+	cfg.SQLite.NetworkSharesPath = resolvePath(configDir, cfg.SQLite.NetworkSharesPath)
 
 	// Resolve logging directory
 	cfg.Logging.LogDir = resolvePath(configDir, cfg.Logging.LogDir)

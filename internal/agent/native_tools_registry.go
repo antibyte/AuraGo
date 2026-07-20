@@ -85,6 +85,7 @@ func allBuiltinToolFeatureFlags() ToolFeatureFlags {
 		OpenSCADEnabled: true, OfficeDocumentEnabled: true, OfficeWorkbookEnabled: true, NetworkPingEnabled: true, WebScraperEnabled: true,
 		S3Enabled: true, NetworkScanEnabled: true, FormAutomationEnabled: true, UPnPScanEnabled: true,
 		JellyfinEnabled: true, ChromecastEnabled: true, BluetoothEnabled: true, BluetoothWriteEnabled: true, BluetoothAudioEnabled: true,
+		NetworkSharesEnabled: true, NetworkSharesCreateEnabled: true, NetworkSharesUpdateEnabled: true, NetworkSharesDeleteEnabled: true,
 		DiscordEnabled: true, TelegramEnabled: true, AgoDeskChatEnabled: true, TrueNASEnabled: true,
 		KoofrEnabled: true, FritzBoxSystemEnabled: true, FritzBoxNetworkEnabled: true,
 		FritzBoxTelephonyEnabled: true, FritzBoxSmartHomeEnabled: true, FritzBoxStorageEnabled: true,
@@ -210,6 +211,10 @@ func (ff ToolFeatureFlags) Key() string {
 	appendToolFeatureKeyPart("bluetooth", ff.BluetoothEnabled)
 	appendToolFeatureKeyPart("bluetooth_write", ff.BluetoothWriteEnabled)
 	appendToolFeatureKeyPart("bluetooth_audio", ff.BluetoothAudioEnabled)
+	appendToolFeatureKeyPart("network_shares", ff.NetworkSharesEnabled)
+	appendToolFeatureKeyPart("network_shares_create", ff.NetworkSharesCreateEnabled)
+	appendToolFeatureKeyPart("network_shares_update", ff.NetworkSharesUpdateEnabled)
+	appendToolFeatureKeyPart("network_shares_delete", ff.NetworkSharesDeleteEnabled)
 	appendToolFeatureKeyPart("discord", ff.DiscordEnabled)
 	appendToolFeatureKeyPart("telegram", ff.TelegramEnabled)
 	appendToolFeatureKeyPart("agodesk_chat", ff.AgoDeskChatEnabled)

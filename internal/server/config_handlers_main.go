@@ -470,6 +470,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 		restartAgentMailAfterUnlock := false
 		syncMCPAfterUnlock := false
 		bluetoothChanged := false
+		networkSharesChanged := false
 
 		if loadErr != nil {
 			s.Logger.Warn("[Config UI] Hot-reload failed, changes saved but require restart", "error", loadErr)
@@ -484,6 +485,9 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			// Carry over runtime detection (computed once at startup, not on reload)
 			newCfg.Runtime = oldCfg.Runtime
 			bluetoothChanged = !reflect.DeepEqual(oldCfg.Bluetooth, newCfg.Bluetooth)
+			networkSharesChanged = !reflect.DeepEqual(oldCfg.NetworkShares, newCfg.NetworkShares) ||
+				oldCfg.Agent.SudoEnabled != newCfg.Agent.SudoEnabled ||
+				oldCfg.Agent.SudoUnrestricted != newCfg.Agent.SudoUnrestricted
 
 			// Detect sections that need restart
 			if oldCfg.Server != newCfg.Server {
@@ -1124,6 +1128,24 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				"usable", bluetoothStatus.Usable,
 				"audio_usable", bluetoothStatus.Audio.Usable,
 				"audio_backend", bluetoothStatus.Audio.Backend)
+		}
+		if loadErr == nil && networkSharesChanged && newCfg != nil && s.NetworkShares != nil {
+			sudoPassword := ""
+			if s.Vault != nil && newCfg.Agent.SudoEnabled {
+				sudoPassword, _ = s.Vault.ReadSecret("sudo_password")
+			}
+			s.NetworkShares.Configure(config.NetworkSharesOptions(newCfg, sudoPassword))
+			probeCtx, cancelProbe := context.WithTimeout(r.Context(), 5*time.Second)
+			networkSharesStatus := s.NetworkShares.Reprobe(probeCtx)
+			cancelProbe()
+			s.CfgMu.Lock()
+			newCfg.Runtime.NetworkShares = networkSharesStatus
+			s.replaceConfigSnapshot(newCfg)
+			s.CfgMu.Unlock()
+			s.Logger.Info("[Config UI] Network shares runtime hot-reloaded",
+				"usable", networkSharesStatus.Usable,
+				"smb_writable", networkSharesStatus.SMB.Writable,
+				"nfs_writable", networkSharesStatus.NFS.Writable)
 		}
 		if loadErr == nil && discordChanged && newCfg != nil && !newCfg.EggMode.Enabled {
 			discord.StopBot(s.Logger)

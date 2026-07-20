@@ -44,6 +44,7 @@ func SQLiteDatabasePaths(cfg *Config) []string {
 		cfg.SQLite.MissionHistoryPath,
 		cfg.SQLite.PushPath,
 		cfg.SQLite.LaunchpadPath,
+		cfg.SQLite.NetworkSharesPath,
 	}
 
 	if dataDir := cfg.Directories.DataDir; dataDir != "" {

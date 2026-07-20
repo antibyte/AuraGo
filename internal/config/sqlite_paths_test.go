@@ -16,13 +16,15 @@ func TestSQLiteDatabasePathsIncludesConfiguredAndDataDirDatabases(t *testing.T) 
 	cfg.SQLite.ShortTermPath = filepath.Join(dataDir, "short_term.db")
 	cfg.SQLite.LaunchpadPath = filepath.Join(dataDir, "launchpad.db")
 	cfg.SQLite.VirtualDesktopPath = filepath.Join(dataDir, "virtual_desktop.db")
+	cfg.SQLite.NetworkSharesPath = filepath.Join(dataDir, "network_shares.db")
 	cfg.SQLite.LongTermPath = filepath.Join(dataDir, "long_term.db")
 
 	got := SQLiteDatabasePaths(cfg)
 	want := map[string]bool{
-		cfg.SQLite.ShortTermPath:        true,
-		cfg.SQLite.LaunchpadPath:        true,
-		cfg.SQLite.VirtualDesktopPath:   true,
+		cfg.SQLite.ShortTermPath:                       true,
+		cfg.SQLite.LaunchpadPath:                       true,
+		cfg.SQLite.VirtualDesktopPath:                  true,
+		cfg.SQLite.NetworkSharesPath:                   true,
 		filepath.Join(dataDir, SystemTasksDBFilename):  true,
 		filepath.Join(dataDir, GalaxaDBFilename):       true,
 		filepath.Join(dataDir, DesktopStoreDBFilename): true,

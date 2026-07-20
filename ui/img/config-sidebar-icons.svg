@@ -419,4 +419,8 @@
     <title>bluetooth</title>
     <path d="M56 24v80l30-25-44-31 44-24-30-24v104M34 43l52 37M34 85l52-42" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="6" stroke="#4285f4"/>
   </g>
+  <g class="cfg-icon-cell" data-key="network_shares" data-slot="105" transform="translate(768 1152)">
+    <title>network_shares</title>
+    <path d="M29 42h58M77 31l11 11-11 11M99 86H41M51 75 40 86l11 11" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="6" stroke="#35c7d3"/><rect x="23" y="27" width="18" height="30" rx="4" fill="#4f8ee8" opacity=".28"/><rect x="87" y="71" width="18" height="30" rx="4" fill="#6fca8f" opacity=".28"/>
+  </g>
 </svg>

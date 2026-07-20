@@ -415,6 +415,14 @@ Tools are defined in `internal/tools/`:
 - Route only AuraGo's stream to the matched Bluetooth sink, keep the system default output unchanged, and allow at most one AuraGo-owned Bluetooth playback at a time.
 - Standard Docker installations must report Bluetooth unavailable unless a future explicit and security-reviewed host D-Bus/audio passthrough contract is added.
 
+### Local Network Share Integration Contract
+- Local SMB/NFS capability probing must remain passive: never install packages, start services, enable Samba registry shares, or change global server configuration.
+- The native `network_shares` tool and Admin UI expose reads only when a configured protocol is actually readable. Mutations require the matching granular permission, `readonly: false`, a writable runtime backend, and an existing canonical directory inside an allowed root.
+- Only AuraGo-created shares reconciled through both the ledger and native marker may be updated or removed. External shares are read-only, out-of-root shares stay hidden, and removing a share must never remove its directory or files.
+- SMB access is limited to configured existing OS principals; no account or password management. NFS accepts only configured IP addresses/CIDRs and must use `sync,root_squash,no_subtree_check` plus `ro` or `rw`; Windows NFS host permissions are limited to individual IP addresses because AuraGo does not manage global client groups.
+- Linux Samba uses only `net conf` registry shares when `registry shares = yes` already exists. Linux NFS owns only `/etc/exports.d/aurago-<id>.exports`. Windows uses fixed JSON-driven PowerShell scripts and installed SMBShare/NFS cmdlets.
+- Standard Docker, `NoNewPrivileges`, `ProtectSystem=strict`, and insufficient elevation must disable host mutations without hiding otherwise readable status.
+
 ### GitHub Integration Contract
 - `github.allowed_repos` is a strict allowlist; prefer `owner/repo` entries. Legacy bare repo names only match the configured `github.owner`.
 - An empty `github.allowed_repos` list permits only repositories AuraGo created through the GitHub tool and tracks with `agent_created=true`.

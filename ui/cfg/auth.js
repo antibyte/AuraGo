@@ -299,7 +299,12 @@ function renderSecurityAuditPanel(panel, hints) {
     for (const h of hints) {
         const sevKey = supportedSeverities.has(h.severity) ? h.severity : 'info';
         const sevLabel = t('config.security.severity.' + h.severity) || h.severity.toUpperCase();
-        const desc = escapeHtml(h.description || '');
+        const titleKey = 'security.hint.' + h.id + '.title';
+        const descriptionKey = 'security.hint.' + h.id + '.description';
+        const translatedTitle = t(titleKey);
+        const translatedDescription = t(descriptionKey);
+        const title = translatedTitle === titleKey ? (h.title || '') : translatedTitle;
+        const desc = escapeHtml(translatedDescription === descriptionKey ? (h.description || '') : translatedDescription);
         let fixBtn = '';
         if (h.auto_fixable) {
             fixBtn = `<button onclick="securityHardenIds(['${esc(h.id)}'])"
@@ -310,7 +315,7 @@ function renderSecurityAuditPanel(panel, hints) {
         html += `<div class="auth-sec-hint-card is-${sevKey}">
             <div class="auth-sec-hint-head">
                 <span class="auth-sec-hint-badge is-${sevKey}">${sevLabel}</span>
-                <span class="auth-sec-hint-title">${escapeHtml(h.title || '')}</span>
+                <span class="auth-sec-hint-title">${escapeHtml(title)}</span>
             </div>
             <div class="auth-sec-hint-desc">${desc}</div>
             ${fixBtn}

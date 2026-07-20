@@ -495,6 +495,25 @@ func CheckSecurity(cfg *config.Config) []SecurityHint {
 		})
 	}
 
+	if cfg.NetworkShares.Enabled && !cfg.NetworkShares.ReadOnly &&
+		(cfg.NetworkShares.AllowCreate || cfg.NetworkShares.AllowUpdate || cfg.NetworkShares.AllowDelete) {
+		scope := "The local SMB/NFS integration may change host share definitions."
+		if networkFacing {
+			scope += " This AuraGo instance is reachable from the network."
+		}
+		if cfg.NetworkShares.AllowDelete {
+			scope += " Delete permission is enabled; it removes share definitions but never directories or their contents."
+		}
+		hints = append(hints, SecurityHint{
+			ID:          "network_shares_write_enabled",
+			Severity:    SevWarning,
+			Title:       "Local network-share writes enabled",
+			Description: scope + " Keep allowed roots, SMB principals, and NFS clients narrowly scoped.",
+			AutoFixable: true,
+			FixPatch:    map[string]interface{}{"network_shares": map[string]interface{}{"readonly": true}},
+		})
+	}
+
 	// 21. self_update_public — self-update enabled on internet-facing instance
 	if facing && cfg.Agent.AllowSelfUpdate {
 		hints = append(hints, SecurityHint{
@@ -685,6 +704,8 @@ func countDangerZoneCapabilities(cfg *config.Config) int {
 		cfg.Agent.AllowMCP && cfg.MCP.Enabled,
 		cfg.Agent.SudoEnabled,
 		cfg.Agent.SudoUnrestricted,
+		cfg.NetworkShares.Enabled && !cfg.NetworkShares.ReadOnly &&
+			(cfg.NetworkShares.AllowCreate || cfg.NetworkShares.AllowUpdate || cfg.NetworkShares.AllowDelete),
 	} {
 		if enabled {
 			count++

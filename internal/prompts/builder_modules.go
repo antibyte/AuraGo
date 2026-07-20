@@ -284,6 +284,8 @@ func matchPromptCondition(cond string, flags *ContextFlags) bool {
 		return flags.ChromecastEnabled
 	case "bluetooth_enabled":
 		return flags.BluetoothEnabled
+	case "network_shares_enabled":
+		return flags.NetworkSharesEnabled
 	case "coagent_enabled":
 		return flags.CoAgentEnabled
 	case "google_workspace_enabled":

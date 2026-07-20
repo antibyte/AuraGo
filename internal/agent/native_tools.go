@@ -206,6 +206,11 @@ type ToolFeatureFlags struct {
 	BluetoothEnabled      bool
 	BluetoothWriteEnabled bool
 	BluetoothAudioEnabled bool
+	// Local SMB/NFS server share capability gates
+	NetworkSharesEnabled       bool
+	NetworkSharesCreateEnabled bool
+	NetworkSharesUpdateEnabled bool
+	NetworkSharesDeleteEnabled bool
 	// Discord messaging
 	DiscordEnabled bool
 	// Telegram messaging

@@ -179,6 +179,7 @@ const SECTIONS = [
     {
         group: t('config.group.network_remote'),
         items: [
+            { key: 'network_shares', icon: '⇄', label: t('config.section.network_shares.label'), desc: t('config.section.network_shares.desc') },
             { key: 'truenas', icon: '💾', label: t('config.section.truenas.label'), desc: t('config.section.truenas.desc') },
             { key: 'uptime_kuma', icon: '📈', label: t('config.section.uptime_kuma.label'), desc: t('config.section.uptime_kuma.desc') },
             { key: 'jellyfin', icon: '🎬', label: t('config.section.jellyfin.label'), desc: t('config.section.jellyfin.desc') },
@@ -524,6 +525,7 @@ const CONFIG_SIDEBAR_ICON_SLOTS = Object.freeze({
     mqtt: 73,
     chromecast: 74,
     bluetooth: 104,
+    network_shares: 105,
     adguard: 75,
     fritzbox: 76,
     ldap: 77,
@@ -634,6 +636,7 @@ const CONFIG_SIDEBAR_ICON_SYMBOLS = Object.freeze({
     mqtt: "<path d=\"M64 87V59M42 37a32 32 0 0 1 44 0M31 25a48 48 0 0 1 66 0M53 49a16 16 0 0 1 22 0\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"6\" stroke=\"#6fca8f\"/><circle cx=\"64\" cy=\"91\" r=\"10\" fill=\"#35c7d3\"/><text x=\"64\" y=\"94\" text-anchor=\"middle\" dominant-baseline=\"middle\" font-family=\"Geist, Inter, Segoe UI, Arial, sans-serif\" font-size=\"16\" font-weight=\"800\" fill=\"#6fca8f\">M</text>",
     chromecast: "<rect x=\"29\" y=\"36\" width=\"70\" height=\"48\" rx=\"7\" fill=\"#4285f4\" opacity=\".2\"/><path d=\"M29 36h70v48H29zM31 95a28 28 0 0 1 28 28M31 79a44 44 0 0 1 44 44M31 106h.1\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"6\" stroke=\"#4285f4\"/>",
     bluetooth: "<path d=\"M56 24v80l30-25-44-31 44-24-30-24v104M34 43l52 37M34 85l52-42\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"6\" stroke=\"#4285f4\"/>",
+    network_shares: "<path d=\"M29 42h58M77 31l11 11-11 11M99 86H41M51 75 40 86l11 11\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"6\" stroke=\"#35c7d3\"/><rect x=\"23\" y=\"27\" width=\"18\" height=\"30\" rx=\"4\" fill=\"#4f8ee8\" opacity=\".28\"/><rect x=\"87\" y=\"71\" width=\"18\" height=\"30\" rx=\"4\" fill=\"#6fca8f\" opacity=\".28\"/>",
     adguard: "<path d=\"M64 23 32 37v27c0 22 14 36 32 43 18-7 32-21 32-43V37z\" fill=\"#67b279\"/><path d=\"m47 65 12 12 26-31\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"6\" stroke=\"#ffffff\" stroke-width=\"7\"/>",
     fritzbox: "<rect x=\"27\" y=\"61\" width=\"74\" height=\"32\" rx=\"10\" fill=\"#ef6f78\" opacity=\".2\"/><path d=\"M27 61h74v32H27zM43 77h.1M59 77h.1M76 77h12M45 52a28 28 0 0 1 38 0M55 43a14 14 0 0 1 18 0\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"6\" stroke=\"#ef6f78\"/><text x=\"64\" y=\"77\" text-anchor=\"middle\" dominant-baseline=\"middle\" font-family=\"Geist, Inter, Segoe UI, Arial, sans-serif\" font-size=\"16\" font-weight=\"800\" fill=\"#7da3c8\">F</text>",
     ldap: "<rect x=\"33\" y=\"26\" width=\"62\" height=\"76\" rx=\"9\" fill=\"#7da3c8\" opacity=\".18\"/><path d=\"M47 26v76M60 49h22M60 66h22M60 83h14\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"6\" stroke=\"#7da3c8\"/>",
@@ -2893,6 +2896,7 @@ const SECTION_MODULES = {
     updates: { m: 'updates', fn: 'renderUpdatesSection' },
     chromecast: { m: 'chromecast', fn: 'renderChromecastSection' },
     bluetooth: { m: 'bluetooth', fn: 'renderBluetoothSection' },
+    network_shares: { m: 'network_shares', fn: 'renderNetworkSharesSection' },
     adguard: { m: 'adguard', fn: 'renderAdGuardSection' },
     uptime_kuma: { m: 'uptime_kuma', fn: 'renderUptimeKumaSection' },
     grafana: { m: 'grafana', fn: 'renderGrafanaSection' },

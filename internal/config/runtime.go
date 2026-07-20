@@ -17,6 +17,7 @@ import (
 
 	"aurago/internal/bluetooth"
 	"aurago/internal/dockerutil"
+	"aurago/internal/networkshares"
 )
 
 // Runtime holds auto-detected environment capabilities.
@@ -28,9 +29,10 @@ type Runtime struct {
 	FirewallAccessOK bool `json:"firewall_access_ok"`
 	// NoNewPrivileges is true when the kernel flag PR_SET_NO_NEW_PRIVS is active.
 	// This prevents sudo (setuid escalation) from working regardless of config.
-	NoNewPrivileges     bool             `json:"no_new_privileges"`
-	ProtectSystemStrict bool             `json:"protect_system_strict"`
-	Bluetooth           bluetooth.Status `json:"bluetooth"`
+	NoNewPrivileges     bool                 `json:"no_new_privileges"`
+	ProtectSystemStrict bool                 `json:"protect_system_strict"`
+	Bluetooth           bluetooth.Status     `json:"bluetooth"`
+	NetworkShares       networkshares.Status `json:"network_shares"`
 }
 
 // FeatureAvailability describes whether a config section is usable
@@ -203,6 +205,7 @@ func ComputeFeatureAvailability(rt Runtime, sudoEnabled bool) map[string]Feature
 	avail["chromecast_discovery"] = FeatureAvailability{Available: rt.BroadcastOK, Reason: boolReason(!rt.BroadcastOK, "Chromecast discovery requires mDNS/broadcast. Manual IP entry still works.")}
 	avail["bluetooth"] = FeatureAvailability{Available: rt.Bluetooth.Usable, Reason: rt.Bluetooth.Reason}
 	avail["bluetooth_audio"] = FeatureAvailability{Available: rt.Bluetooth.Usable && rt.Bluetooth.Audio.Usable, Reason: rt.Bluetooth.Audio.Reason}
+	avail["network_shares"] = FeatureAvailability{Available: rt.NetworkShares.Usable, Reason: rt.NetworkShares.Reason}
 
 	return avail
 }

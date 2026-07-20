@@ -134,6 +134,15 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	mux.Handle("/api/bluetooth/audio/test", requireAdmin(s, handleBluetoothAudioTest(s)))
 	mux.Handle("/api/bluetooth/audio/stop", requireAdmin(s, handleBluetoothAudioStop(s)))
 
+	// Local SMB/NFS server share administration. Read and write routes both
+	// require an authenticated administrator; backend policy remains enforced
+	// by the shared manager used by the agent tool.
+	mux.Handle("/api/network-shares/status", requireAdmin(s, handleNetworkSharesStatus(s)))
+	mux.Handle("/api/network-shares/reprobe", requireAdmin(s, handleNetworkSharesReprobe(s)))
+	mux.Handle("/api/network-shares/validate", requireAdmin(s, handleNetworkSharesValidate(s)))
+	mux.Handle("/api/network-shares", requireAdmin(s, handleNetworkSharesCollection(s)))
+	mux.Handle("/api/network-shares/", requireAdmin(s, handleNetworkShareByID(s)))
+
 	// Runtime environment detection (Docker, socket, broadcast, firewall)
 	mux.HandleFunc("/api/runtime", handleRuntime(s))
 	mux.HandleFunc("/api/debug/helper-llm/stats", handleHelperLLMStats(s))

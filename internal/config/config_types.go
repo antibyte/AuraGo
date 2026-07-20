@@ -726,6 +726,25 @@ type BluetoothConfig struct {
 	AudioBackend       string `yaml:"audio_backend" json:"audio_backend"`
 }
 
+// NetworkSharesConfig controls local SMB and NFS server shares on this host.
+type NetworkSharesConfig struct {
+	Enabled      bool     `yaml:"enabled" json:"enabled"`
+	ReadOnly     bool     `yaml:"readonly" json:"readonly"`
+	AllowCreate  bool     `yaml:"allow_create" json:"allow_create"`
+	AllowUpdate  bool     `yaml:"allow_update" json:"allow_update"`
+	AllowDelete  bool     `yaml:"allow_delete" json:"allow_delete"`
+	AllowedRoots []string `yaml:"allowed_roots" json:"allowed_roots"`
+	SMB          struct {
+		Enabled           bool     `yaml:"enabled" json:"enabled"`
+		AllowGuest        bool     `yaml:"allow_guest" json:"allow_guest"`
+		AllowedPrincipals []string `yaml:"allowed_principals" json:"allowed_principals"`
+	} `yaml:"smb" json:"smb"`
+	NFS struct {
+		Enabled        bool     `yaml:"enabled" json:"enabled"`
+		AllowedClients []string `yaml:"allowed_clients" json:"allowed_clients"`
+	} `yaml:"nfs" json:"nfs"`
+}
+
 type Config struct {
 	ConfigPath     string               `yaml:"-"`          // runtime-only: absolute path to the config file
 	Runtime        Runtime              `yaml:"-" json:"-"` // runtime-only: detected environment capabilities
@@ -815,6 +834,7 @@ type Config struct {
 		MissionHistoryPath   string `yaml:"mission_history_path"`
 		PushPath             string `yaml:"push_path"`
 		LaunchpadPath        string `yaml:"launchpad_path"`
+		NetworkSharesPath    string `yaml:"network_shares_path"`
 	} `yaml:"sqlite"`
 	Embeddings struct {
 		Provider         string `yaml:"provider"`          // "disabled" or provider entry ID
@@ -1489,8 +1509,9 @@ type Config struct {
 		TTSPort            int      `yaml:"tts_port"`
 		MediaHostAllowlist []string `yaml:"media_host_allowlist"`
 	} `yaml:"chromecast"`
-	Bluetooth BluetoothConfig `yaml:"bluetooth" json:"bluetooth"`
-	Homepage  struct {
+	Bluetooth     BluetoothConfig     `yaml:"bluetooth" json:"bluetooth"`
+	NetworkShares NetworkSharesConfig `yaml:"network_shares" json:"network_shares"`
+	Homepage      struct {
 		Enabled                  bool `yaml:"enabled"`
 		AllowDeploy              bool `yaml:"allow_deploy"`
 		AllowContainerManagement bool `yaml:"allow_container_management"`

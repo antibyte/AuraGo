@@ -34,6 +34,7 @@ import (
 	"aurago/internal/llm"
 	"aurago/internal/memory"
 	"aurago/internal/mqtt"
+	"aurago/internal/networkshares"
 	"aurago/internal/planner"
 	"aurago/internal/proxy"
 	"aurago/internal/remote"
@@ -141,6 +142,7 @@ type Server struct {
 	CronManager          *tools.CronManager
 	BackgroundTasks      *tools.BackgroundTaskManager
 	Bluetooth            *bluetooth.Manager
+	NetworkShares        *networkshares.Manager
 	HistoryManager       *memory.HistoryManager
 	KG                   *memory.KnowledgeGraph
 	InventoryDB          *sql.DB
@@ -320,6 +322,12 @@ func Start(opts StartOptions) error {
 		}
 		if bluetooth.DefaultManager() == s.Bluetooth {
 			bluetooth.SetDefaultManager(nil)
+		}
+		if s.NetworkShares != nil {
+			_ = s.NetworkShares.Close()
+		}
+		if networkshares.DefaultManager() == s.NetworkShares {
+			networkshares.SetDefaultManager(nil)
 		}
 	}()
 	startHomepageLedgerReconciler(shutdownCh, s)
@@ -1100,6 +1108,25 @@ func newServerFromOptions(opts StartOptions) *Server {
 	bluetoothManager.Configure(config.BluetoothRuntimeOptions(cfg))
 	bluetoothManager.SeedStatus(cfg.Runtime.Bluetooth)
 	bluetooth.SetDefaultManager(bluetoothManager)
+	var networkSharesManager *networkshares.Manager
+	networkSharesManager, networkSharesErr := networkshares.OpenManager(cfg.SQLite.NetworkSharesPath, logger)
+	if networkSharesErr != nil {
+		cfg.Runtime.NetworkShares = networkshares.UnavailableStatus("The network share ownership ledger could not be opened.")
+		if logger != nil {
+			logger.Warn("[NetworkShares] Failed to open ownership ledger", "error", networkSharesErr)
+		}
+		networkshares.SetDefaultManager(nil)
+	} else {
+		sudoPassword := ""
+		if opts.Vault != nil && cfg.Agent.SudoEnabled {
+			sudoPassword, _ = opts.Vault.ReadSecret("sudo_password")
+		}
+		networkSharesManager.Configure(config.NetworkSharesOptions(cfg, sudoPassword))
+		probeCtx, cancelProbe := context.WithTimeout(context.Background(), 5*time.Second)
+		cfg.Runtime.NetworkShares = networkSharesManager.Reprobe(probeCtx)
+		cancelProbe()
+		networkshares.SetDefaultManager(networkSharesManager)
+	}
 	tools.ConfigureRuntimePermissions(tools.RuntimePermissions{
 		AllowShell:           cfg.Agent.AllowShell,
 		AllowPython:          cfg.Agent.AllowPython,
@@ -1175,6 +1202,7 @@ func newServerFromOptions(opts StartOptions) *Server {
 		CronManager:        opts.CronManager,
 		BackgroundTasks:    opts.BackgroundTasks,
 		Bluetooth:          bluetoothManager,
+		NetworkShares:      networkSharesManager,
 		VirtualComputersDB: opts.VirtualComputersDB,
 		HistoryManager:     opts.HistoryManager,
 		KG:                 opts.KG,

@@ -135,6 +135,20 @@ bluetooth:
     scan_timeout_seconds: 10
     default_device: ""
     audio_backend: auto                                      # auto, pipewire, pulse
+network_shares:
+    enabled: false
+    readonly: true
+    allow_create: false
+    allow_update: false
+    allow_delete: false
+    allowed_roots: []                                        # absolute existing directories only
+    smb:
+        enabled: true
+        allow_guest: false
+        allowed_principals: []                               # existing OS users/groups only
+    nfs:
+        enabled: true
+        allowed_clients: []                                  # explicit IP addresses or canonical CIDRs
 circuit_breaker:
     llm_timeout_seconds: 600
     llm_per_attempt_timeout_seconds: 120           # per API attempt timeout used inside retry loops
@@ -696,6 +710,7 @@ sqlite:
     mission_history_path: ./data/mission_history.db
     push_path: ./data/push.db
     launchpad_path: ./data/launchpad.db
+    network_shares_path: ./data/network_shares.db
 
 # SQL Connections — External database connections managed by the agent
 # Supports PostgreSQL, MySQL/MariaDB, and SQLite

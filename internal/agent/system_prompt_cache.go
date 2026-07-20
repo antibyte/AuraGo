@@ -396,6 +396,9 @@ func collectEnabledTools(flags *prompts.ContextFlags) []string {
 	if flags.BluetoothEnabled {
 		tools = append(tools, "bluetooth")
 	}
+	if flags.NetworkSharesEnabled {
+		tools = append(tools, "networkshares")
+	}
 	if flags.WebDAVEnabled {
 		tools = append(tools, "webdav")
 	}

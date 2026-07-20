@@ -475,6 +475,50 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 		))
 	}
 
+	if ff.NetworkSharesEnabled {
+		operations := []string{"status", "list", "get"}
+		if ff.NetworkSharesCreateEnabled {
+			operations = append(operations, "create")
+		}
+		if ff.NetworkSharesUpdateEnabled {
+			operations = append(operations, "update")
+		}
+		if ff.NetworkSharesDeleteEnabled {
+			operations = append(operations, "delete")
+		}
+		tools = append(tools, tool("network_shares",
+			"Inspect and manage local SMB and NFS server shares within administrator-approved roots. Only AuraGo-created shares can be updated or deleted; deleting a share never deletes its directory or files.",
+			schema(map[string]interface{}{
+				"operation": operationProperty("Network share operation to perform.", operations),
+				"id":        prop("string", "Stable share ID. Required for get, update, and delete."),
+				"protocol":  map[string]interface{}{"type": "string", "description": "Share protocol for create or optional list filter.", "enum": []string{"smb", "nfs"}},
+				"name":      prop("string", "Share name. Required for create and immutable afterward."),
+				"path":      prop("string", "Existing absolute directory inside an allowed root. Required for create and immutable afterward."),
+				"comment":   prop("string", "Optional share description."),
+				"read_only": prop("boolean", "Whether clients receive read-only access."),
+				"guest":     prop("boolean", "SMB guest access. Allowed only when explicitly enabled by the administrator."),
+				"acl": map[string]interface{}{
+					"type":        "array",
+					"description": "SMB share ACL entries using configured existing OS principals.",
+					"items": map[string]interface{}{
+						"type": "object",
+						"properties": map[string]interface{}{
+							"principal": prop("string", "Configured OS user or group name."),
+							"level":     map[string]interface{}{"type": "string", "enum": []string{"read", "change", "full", "deny"}},
+						},
+						"required": []string{"principal", "level"},
+					},
+				},
+				"clients": map[string]interface{}{
+					"type":        "array",
+					"description": "NFS client IP addresses or canonical CIDRs from the administrator allowlist.",
+					"items":       map[string]interface{}{"type": "string"},
+				},
+				"managed": prop("boolean", "Optional list filter: true for AuraGo-managed or false for external shares."),
+			}, "operation"),
+		))
+	}
+
 	if ff.TTSEnabled {
 		tools = append(tools, tool("tts",
 			"Convert text to speech (TTS). The generated audio will AUTOMATICALLY be sent to the user and played in the chat UI! "+

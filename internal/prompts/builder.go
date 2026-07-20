@@ -132,6 +132,7 @@ type ContextFlags struct {
 	KoofrEnabled             bool
 	ChromecastEnabled        bool
 	BluetoothEnabled         bool
+	NetworkSharesEnabled     bool
 	CoAgentEnabled           bool
 	GoogleWorkspaceEnabled   bool
 	OneDriveEnabled          bool
@@ -2414,6 +2415,7 @@ func buildEnabledToolsOverview(flags *ContextFlags) string {
 	add("koofr", flags.KoofrEnabled)
 	add("chromecast", flags.ChromecastEnabled)
 	add("bluetooth", flags.BluetoothEnabled)
+	add("network_shares", flags.NetworkSharesEnabled)
 	add("discord", flags.DiscordEnabled)
 	add("telegram", flags.TelegramEnabled)
 	add("truenas", flags.TrueNASEnabled)

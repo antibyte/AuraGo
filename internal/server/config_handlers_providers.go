@@ -55,6 +55,7 @@ func injectFeatureAvailability(rawCfg map[string]interface{}, rt config.Runtime,
 		"updates":              "updates",
 		"chromecast_discovery": "chromecast",
 		"bluetooth":            "bluetooth",
+		"network_shares":       "network_shares",
 	}
 
 	for featureKey, fa := range avail {

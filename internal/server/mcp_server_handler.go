@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"aurago/internal/agent"
+	"aurago/internal/config"
 	"aurago/internal/security"
 	"aurago/internal/tools"
 )
@@ -347,6 +348,7 @@ func mcpToolAllowed(s *Server, toolName string) bool {
 
 func mcpFeatureFlags(s *Server) agent.ToolFeatureFlags {
 	cfg := s.Cfg
+	networkSharesCapabilities := config.ComputeNetworkSharesCapabilities(cfg)
 	return agent.ToolFeatureFlags{
 		HomeAssistantEnabled:         cfg.HomeAssistant.Enabled,
 		DockerEnabled:                cfg.Docker.Enabled && (!cfg.Runtime.IsDocker || cfg.Runtime.DockerSocketOK),
@@ -382,6 +384,10 @@ func mcpFeatureFlags(s *Server) agent.ToolFeatureFlags {
 		RemoteControlEnabled:         cfg.RemoteControl.Enabled,
 		DiscordEnabled:               cfg.Discord.Enabled,
 		TelegramEnabled:              cfg.Telegram.BotToken != "" && cfg.Telegram.UserID != 0,
+		NetworkSharesEnabled:         networkSharesCapabilities.Enabled,
+		NetworkSharesCreateEnabled:   networkSharesCapabilities.AllowCreate,
+		NetworkSharesUpdateEnabled:   networkSharesCapabilities.AllowUpdate,
+		NetworkSharesDeleteEnabled:   networkSharesCapabilities.AllowDelete,
 		SQLConnectionsEnabled:        cfg.SQLConnections.Enabled && s.SQLConnectionsDB != nil && s.SQLConnectionPool != nil,
 		MemoryEnabled:                cfg.Tools.Memory.Enabled,
 		KnowledgeGraphEnabled:        cfg.Tools.KnowledgeGraph.Enabled,

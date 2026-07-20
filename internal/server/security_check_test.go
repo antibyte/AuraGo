@@ -65,6 +65,28 @@ func TestCheckSecurityWarnsWhenShellEnabledWithoutSandbox(t *testing.T) {
 	}
 }
 
+func TestCheckSecurityWarnsWhenNetworkShareWritesAreEnabled(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{}
+	cfg.NetworkShares.Enabled = true
+	cfg.NetworkShares.ReadOnly = false
+	cfg.NetworkShares.AllowCreate = true
+	cfg.NetworkShares.AllowDelete = true
+
+	hints := CheckSecurity(cfg)
+	hint := findSecurityHint(hints, "network_shares_write_enabled")
+	if hint == nil {
+		t.Fatalf("expected network_shares_write_enabled hint, got %#v", hints)
+	}
+	if hint.Severity != SevWarning {
+		t.Fatalf("severity = %q, want %q", hint.Severity, SevWarning)
+	}
+	if patch := hint.FixPatch["network_shares"]; patch == nil {
+		t.Fatalf("expected network_shares read-only auto-fix, got %#v", hint.FixPatch)
+	}
+}
+
 func TestCheckSecurityShellNoSandboxCriticalWhenPublic(t *testing.T) {
 	t.Parallel()
 
