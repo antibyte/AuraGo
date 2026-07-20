@@ -444,7 +444,7 @@ func DockerInspectContainer(cfg DockerConfig, containerID string) string {
 	if cfg, ok := full["Config"].(map[string]interface{}); ok {
 		result["config"] = map[string]interface{}{
 			"image":  cfg["Image"],
-			"env":    cfg["Env"],
+			"env":    redactDockerInspectEnv(cfg["Env"]),
 			"cmd":    cfg["Cmd"],
 			"labels": cfg["Labels"],
 		}
@@ -457,6 +457,44 @@ func DockerInspectContainer(cfg DockerConfig, containerID string) string {
 	}
 	out, _ := json.Marshal(result)
 	return string(out)
+}
+
+func redactDockerInspectEnv(value interface{}) interface{} {
+	items, ok := value.([]interface{})
+	if !ok {
+		return value
+	}
+	redacted := make([]interface{}, len(items))
+	for i, item := range items {
+		text, ok := item.(string)
+		if !ok {
+			redacted[i] = item
+			continue
+		}
+		if key, _, found := strings.Cut(text, "="); found && strings.EqualFold(strings.TrimSpace(key), "AURAGO_GO2RTC_API_PASSWORD") {
+			redacted[i] = key + "=••••••••"
+			continue
+		}
+		redacted[i] = text
+	}
+	return redacted
+}
+
+// DockerContainerManagedBy checks a container's ownership label without exposing its config.
+func DockerContainerManagedBy(cfg DockerConfig, containerID, owner string) bool {
+	if validateDockerName(containerID) != nil {
+		return false
+	}
+	data, code, err := dockerRequest(cfg, http.MethodGet, "/containers/"+url.PathEscape(containerID)+"/json", "")
+	if err != nil || code != http.StatusOK {
+		return false
+	}
+	var info struct {
+		Config struct {
+			Labels map[string]string `json:"Labels"`
+		} `json:"Config"`
+	}
+	return json.Unmarshal(data, &info) == nil && info.Config.Labels["aurago.managed"] == owner
 }
 
 // DockerContainerAction performs start, stop, restart, pause, unpause, or remove on a container.

@@ -1059,6 +1059,16 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 		frigateMediaHandler.ServeHTTP(w, r)
 	})
 
+	// Serve only stored go2rtc snapshots; the adjacent sidecar config is never web-accessible.
+	go2RTCMediaDir := filepath.Join(s.Cfg.Directories.DataDir, "go2rtc", "snapshots")
+	os.MkdirAll(go2RTCMediaDir, 0750)
+	go2RTCMediaHandler := http.StripPrefix("/files/go2rtc/snapshots/", http.FileServer(neuteredFileSystem{http.Dir(go2RTCMediaDir)}))
+	mux.HandleFunc("/files/go2rtc/snapshots/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("Cache-Control", "private, max-age=60")
+		go2RTCMediaHandler.ServeHTTP(w, r)
+	})
+
 	// Serve stored 3D printer snapshots from data/3d_printer_media.
 	threeDPrinterMediaDir := filepath.Join(s.Cfg.Directories.DataDir, "3d_printer_media")
 	os.MkdirAll(threeDPrinterMediaDir, 0755)

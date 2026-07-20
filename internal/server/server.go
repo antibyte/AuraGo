@@ -141,6 +141,7 @@ type Server struct {
 	Registry             *tools.ProcessRegistry
 	CronManager          *tools.CronManager
 	BackgroundTasks      *tools.BackgroundTaskManager
+	Go2RTC               *tools.Go2RTCManager
 	Bluetooth            *bluetooth.Manager
 	NetworkShares        *networkshares.Manager
 	HistoryManager       *memory.HistoryManager
@@ -316,7 +317,16 @@ func Start(opts StartOptions) error {
 
 	startLoginRecordCleaner(shutdownCh)
 	s := newServerFromOptions(opts)
+	if s.Go2RTC != nil {
+		s.Go2RTC.StartBackground(serverCtx)
+	}
 	defer func() {
+		if s.Go2RTC != nil {
+			s.Go2RTC.Close()
+		}
+		if tools.DefaultGo2RTCManager() == s.Go2RTC {
+			tools.SetDefaultGo2RTCManager(nil)
+		}
 		if s.Bluetooth != nil {
 			_ = s.Bluetooth.Close()
 		}
@@ -1229,6 +1239,8 @@ func newServerFromOptions(opts StartOptions) *Server {
 		WarningsRegistry:   opts.WarningsRegistry,
 	}
 	s.initConfigSnapshot()
+	s.Go2RTC = tools.NewGo2RTCManager(cfg, opts.Vault, opts.MediaRegistryDB, logger)
+	tools.SetDefaultGo2RTCManager(s.Go2RTC)
 	return s
 }
 
@@ -1418,7 +1430,8 @@ func (s *Server) serveWithShutdown(server, redirectServer, ttsServer *http.Serve
 func securityHeadersMiddleware(next http.Handler, tlsActive, behindProxy bool) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
-		allowDesktopIframe := strings.HasPrefix(path, "/files/desktop/")
+		allowDesktopIframe := strings.HasPrefix(path, "/files/desktop/") ||
+			strings.HasPrefix(path, "/api/go2rtc/viewer/")
 
 		// Always set these headers
 		w.Header().Set("X-Content-Type-Options", "nosniff")

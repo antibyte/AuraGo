@@ -2431,6 +2431,12 @@ homepage:
 ```
 
 
+## go2rtc Camera Integration
+
+AuraGo can run a pinned, hardened go2rtc Docker sidecar for camera streams. Camera source URLs remain Vault-only. Use **Config → Network & Remote → go2rtc Cameras** to add stable stream IDs, test the saved configuration, create snapshots, and open the same-origin viewer. The original go2rtc Web UI is optional and read-only.
+
+Proxy-based MSE/HLS/MP4/MJPEG viewing is the default. Direct LAN WebRTC must be enabled explicitly with a concrete private LAN IP because WebRTC media does not travel completely through an HTTP proxy. See [go2rtc Integration](../../go2rtc.md).
+
 ## Testing Integrations
 
 ### Health Check Commands

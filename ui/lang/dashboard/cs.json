@@ -672,6 +672,7 @@
   "dashboard.quickstatus_todos": "Úkoly",
   "dashboard.quickstatus_plans": "Plány",
   "dashboard.integration_frigate": "Frigate",
+  "dashboard.integration_go2rtc": "go2rtc",
   "dashboard.integration_three_d_printers": "3D tiskárny",
   "dashboard.adaptive_tools_adaptive_cap": "Adaptivni limit",
   "dashboard.adaptive_tools_total_cap": "Celkovy limit",

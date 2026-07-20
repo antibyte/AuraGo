@@ -7858,3 +7858,10 @@ select.cfg-input option {
         grid-column: 1 / -1;
     }
 }
+.go2rtc-stream-preview-image {
+    display: block;
+    max-width: 100%;
+    max-height: 320px;
+    margin-top: 12px;
+    border-radius: 10px;
+}

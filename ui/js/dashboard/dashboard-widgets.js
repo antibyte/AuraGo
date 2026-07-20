@@ -2475,7 +2475,7 @@
             const icons = {
                 telegram: dashIcon('chat'), discord: dashIcon('chat'), email: dashIcon('email'), home_assistant: dashIcon('home'),
                 docker: dashIcon('docker'), co_agents: dashIcon('bot'), webhooks: dashIcon('link'), webdav: dashIcon('cloud'),
-                koofr: dashIcon('cloud'), chromecast: dashIcon('monitor'), bluetooth: dashIcon('speaker'), network_shares: dashIcon('folder'), proxmox: dashIcon('device'), frigate: dashIcon('video'), three_d_printers: dashIcon('printer'), ollama: dashIcon('brain'),
+                koofr: dashIcon('cloud'), chromecast: dashIcon('monitor'), bluetooth: dashIcon('speaker'), network_shares: dashIcon('folder'), proxmox: dashIcon('device'), frigate: dashIcon('video'), go2rtc: dashIcon('video'), three_d_printers: dashIcon('printer'), ollama: dashIcon('brain'),
                 rocketchat: dashIcon('chat'), tailscale: dashIcon('lock'), ansible: dashIcon('wrench'), invasion: dashIcon('egg'),
                 github: dashIcon('package'), mqtt: dashIcon('wifi'), budget: dashIcon('wallet'), indexing: dashIcon('folder'),
                 auth: dashIcon('key'), fallback_llm: dashIcon('refresh'), helper_llm: dashIcon('feather'), personality_v2: dashIcon('drama'), user_profiling: dashIcon('user'), tts: dashIcon('speaker'),
@@ -2497,7 +2497,7 @@
                 docker: t('dashboard.integration_docker'), co_agents: t('dashboard.integration_co_agents'),
                 webhooks: t('dashboard.integration_webhooks'), webdav: t('dashboard.integration_webdav'),
                 koofr: t('dashboard.integration_koofr'), chromecast: t('dashboard.integration_chromecast'), bluetooth: t('dashboard.integration_bluetooth'), network_shares: t('dashboard.integration_network_shares'),
-                proxmox: t('dashboard.integration_proxmox'), frigate: t('dashboard.integration_frigate'), three_d_printers: t('dashboard.integration_three_d_printers'), ollama: t('dashboard.integration_ollama'),
+                proxmox: t('dashboard.integration_proxmox'), frigate: t('dashboard.integration_frigate'), go2rtc: t('dashboard.integration_go2rtc'), three_d_printers: t('dashboard.integration_three_d_printers'), ollama: t('dashboard.integration_ollama'),
                 rocketchat: t('dashboard.integration_rocketchat'), tailscale: t('dashboard.integration_tailscale'),
                 ansible: t('dashboard.integration_ansible'), invasion: t('dashboard.integration_invasion'),
                 github: t('dashboard.integration_github'), mqtt: t('dashboard.integration_mqtt'),

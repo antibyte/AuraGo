@@ -348,6 +348,7 @@ func buildToolFlagsFromConfig(cfg *config.Config) ToolFeatureFlags {
 		KoofrEnabled:                 cfg.Koofr.Enabled,
 		ProxmoxEnabled:               cfg.Proxmox.Enabled,
 		FrigateEnabled:               cfg.Frigate.Enabled,
+		Go2RTCEnabled:                cfg.Go2RTC.Enabled && cfg.Go2RTC.AgentAccess,
 		ThreeDPrinterEnabled:         cfg.ThreeDPrinters.Enabled,
 		OllamaEnabled:                cfg.Ollama.Enabled,
 		TailscaleEnabled:             cfg.Tailscale.Enabled,
@@ -522,6 +523,7 @@ func buildPromptContextFlags(runCfg RunConfig, policy ToolingPolicy, opts prompt
 		TrueNASEnabled:           flags.TrueNASEnabled,
 		ProxmoxEnabled:           flags.ProxmoxEnabled,
 		FrigateEnabled:           flags.FrigateEnabled,
+		Go2RTCEnabled:            flags.Go2RTCEnabled,
 		ThreeDPrinterEnabled:     flags.ThreeDPrinterEnabled,
 		OllamaEnabled:            flags.OllamaEnabled,
 		TailscaleEnabled:         flags.TailscaleEnabled,
@@ -731,7 +733,12 @@ func buildManagedSitesPromptContext(runCfg RunConfig) string {
 }
 
 func buildToolFeatureFlags(runCfg RunConfig, policy ToolingPolicy) ToolFeatureFlags {
-	return resolveToolFeatureState(runCfg, policy).ToolFlags
+	flags := resolveToolFeatureState(runCfg, policy).ToolFlags
+	if flags.Go2RTCEnabled {
+		manager := tools.DefaultGo2RTCManager()
+		flags.Go2RTCEnabled = manager != nil && manager.Available()
+	}
+	return flags
 }
 
 func isCoAgentSession(sessionID string) bool {

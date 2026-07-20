@@ -212,6 +212,25 @@ func TestSecurityHeadersAllowDesktopWorkspaceFilesToBeFramed(t *testing.T) {
 	}
 }
 
+func TestSecurityHeadersAllowGo2RTCViewerToBeFramedSameOrigin(t *testing.T) {
+	const viewerCSP = "default-src 'none'; frame-ancestors 'self';"
+	handler := securityHeadersMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Security-Policy", viewerCSP)
+		w.WriteHeader(http.StatusNoContent)
+	}), true, false)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "https://example.test/api/go2rtc/viewer/front-door", nil)
+	handler.ServeHTTP(rec, req)
+
+	if got := rec.Header().Get("X-Frame-Options"); got != "" {
+		t.Fatalf("X-Frame-Options = %q, want empty for same-origin go2rtc viewer embedding", got)
+	}
+	if got := rec.Header().Get("Content-Security-Policy"); got != viewerCSP {
+		t.Fatalf("Content-Security-Policy = %q, want viewer CSP", got)
+	}
+}
+
 func TestDesktopWorkspaceCSPKeepsGeneratedAppsOriginIsolated(t *testing.T) {
 	if strings.Contains(desktopAppWorkspaceCSP, "allow-same-origin") {
 		t.Fatalf("generated app CSP must keep an opaque sandbox origin: %s", desktopAppWorkspaceCSP)

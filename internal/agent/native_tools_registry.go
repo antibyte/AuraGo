@@ -67,7 +67,7 @@ func builtinToolSchemasCached(ff ToolFeatureFlags) []openai.Tool {
 func allBuiltinToolFeatureFlags() ToolFeatureFlags {
 	return ToolFeatureFlags{
 		HomeAssistantEnabled: true, DockerEnabled: true, CoAgentEnabled: true, SudoEnabled: true,
-		WebhooksEnabled: true, ProxmoxEnabled: true, FrigateEnabled: true, ThreeDPrinterEnabled: true, OllamaEnabled: true, TailscaleEnabled: true,
+		WebhooksEnabled: true, ProxmoxEnabled: true, FrigateEnabled: true, Go2RTCEnabled: true, ThreeDPrinterEnabled: true, OllamaEnabled: true, TailscaleEnabled: true,
 		AnsibleEnabled: true, InvasionControlEnabled: true, GitHubEnabled: true, HuggingFaceEnabled: true, MQTTEnabled: true,
 		AdGuardEnabled: true, UptimeKumaEnabled: true, GrafanaEnabled: true, MCPEnabled: true, ComposioEnabled: true, ManusEnabled: true, EvomapEnabled: true, SandboxEnabled: true, MeshCentralEnabled: true,
 		HomepageEnabled: true, NetlifyEnabled: true, VercelEnabled: true, FirewallEnabled: true, EmailEnabled: true, AgentMailEnabled: true,
@@ -126,6 +126,7 @@ func (ff ToolFeatureFlags) Key() string {
 	appendToolFeatureKeyPart("webhooks", ff.WebhooksEnabled)
 	appendToolFeatureKeyPart("proxmox", ff.ProxmoxEnabled)
 	appendToolFeatureKeyPart("frigate", ff.FrigateEnabled)
+	appendToolFeatureKeyPart("go2rtc", ff.Go2RTCEnabled)
 	appendToolFeatureKeyPart("three_d_printer", ff.ThreeDPrinterEnabled)
 	appendToolFeatureKeyPart("ollama", ff.OllamaEnabled)
 	appendToolFeatureKeyPart("tailscale", ff.TailscaleEnabled)

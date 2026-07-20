@@ -35,6 +35,7 @@ var blockedSecretPrefixes = []string{
 	"s3_",
 	"telnyx_",
 	"fritzbox_",
+	"go2rtc_",
 	"mqtt_",
 	"ollama_managed_",
 	"jellyfin_",

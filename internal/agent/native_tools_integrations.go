@@ -919,6 +919,25 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 		))
 	}
 
+	if ff.Go2RTCEnabled {
+		tools = append(tools, tool("go2rtc",
+			"Observe configured go2rtc camera streams, create or analyze safe snapshots, and show a same-origin live viewer. This tool never accepts source URLs and cannot change service or stream configuration.",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "Read-only operation to perform",
+					"enum":        []string{"status", "list_streams", "stream_status", "snapshot", "analyze_snapshot", "show_live_stream"},
+				},
+				"stream_id":     prop("string", "Configured stable stream ID. Required for stream-specific operations."),
+				"width":         prop("integer", "Optional snapshot width in pixels, up to 7680."),
+				"height":        prop("integer", "Optional snapshot height in pixels, up to 4320."),
+				"rotate":        prop("integer", "Optional clockwise rotation: 0, 90, 180, or 270."),
+				"cache_seconds": prop("integer", "Optional snapshot cache duration from 0 to 3600 seconds."),
+				"prompt":        prop("string", "Optional vision prompt for analyze_snapshot."),
+			}, "operation"),
+		))
+	}
+
 	if ff.ThreeDPrinterEnabled {
 		tools = append(tools, tool("three_d_printer",
 			"Inspect and control configured 3D printers. Supports Elegoo Centauri Carbon and Klipper/Moonraker status, files, camera snapshots/analysis/live stream, and guarded standard print controls. camera_url returns both the raw stream url and a same-origin proxy_url; generated browser UI should use proxy_url.",

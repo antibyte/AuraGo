@@ -672,6 +672,7 @@
   "dashboard.quickstatus_todos": "कार्य",
   "dashboard.quickstatus_plans": "योजनाएँ",
   "dashboard.integration_frigate": "Frigate",
+  "dashboard.integration_go2rtc": "go2rtc",
   "dashboard.integration_three_d_printers": "3D प्रिंटर",
   "dashboard.adaptive_tools_adaptive_cap": "अनुकूली सीमा",
   "dashboard.adaptive_tools_total_cap": "कुल सीमा",

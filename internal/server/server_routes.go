@@ -565,6 +565,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	// browser CORS errors and provide failover across API mirrors.
 	mux.HandleFunc("/api/radio-browser/", handleRadioBrowserProxy(s))
 
+	registerGo2RTCRoutes(mux, s)
 	s.registerConfigAPIRoutes(mux, sse)
 
 	// ── Integration bots (disabled in egg mode — eggs are headless workers) ──

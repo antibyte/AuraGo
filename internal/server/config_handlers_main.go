@@ -17,6 +17,7 @@ import (
 	"math"
 	"net"
 	"net/http"
+	neturl "net/url"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -109,6 +110,7 @@ func handleGetConfig(s *Server) http.HandlerFunc {
 		injectDefaultToolPermissions(rawCfg, s.Cfg)
 		injectRuntimeDockerDefaults(rawCfg, s.Cfg)
 		injectAIGatewayDefaults(rawCfg, s.Cfg)
+		injectGo2RTCConfig(rawCfg, s.Cfg, s.Vault)
 
 		// Mask sensitive fields
 		maskSensitiveFields(rawCfg)
@@ -122,6 +124,55 @@ func handleGetConfig(s *Server) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(rawCfg)
 	}
+}
+
+func injectGo2RTCConfig(rawCfg map[string]interface{}, cfg *config.Config, vault *security.Vault) {
+	if cfg == nil {
+		return
+	}
+	section, ok := rawCfg["go2rtc"].(map[string]interface{})
+	if !ok {
+		section = make(map[string]interface{})
+		rawCfg["go2rtc"] = section
+	}
+	section["enabled"] = cfg.Go2RTC.Enabled
+	section["auto_start"] = cfg.Go2RTC.AutoStart
+	section["web_ui_enabled"] = cfg.Go2RTC.WebUIEnabled
+	section["agent_access"] = cfg.Go2RTC.AgentAccess
+	section["store_media"] = cfg.Go2RTC.StoreMedia
+	section["image"] = cfg.Go2RTC.Image
+	section["container_name"] = cfg.Go2RTC.ContainerName
+	section["url"] = cfg.Go2RTC.URL
+	section["api_host_port"] = cfg.Go2RTC.APIHostPort
+	section["webrtc"] = map[string]interface{}{
+		"enabled":      cfg.Go2RTC.WebRTC.Enabled,
+		"bind_address": cfg.Go2RTC.WebRTC.BindAddress,
+		"port":         cfg.Go2RTC.WebRTC.Port,
+	}
+	streams := make([]interface{}, 0, len(cfg.Go2RTC.Streams))
+	for _, configured := range cfg.Go2RTC.Streams {
+		sourceConfigured := strings.TrimSpace(configured.Source) != ""
+		if !sourceConfigured && vault != nil {
+			if key := config.Go2RTCStreamSourceVaultKey(configured.ID); key != "" {
+				if value, err := vault.ReadSecret(key); err == nil && strings.TrimSpace(value) != "" {
+					sourceConfigured = true
+				}
+			}
+		}
+		entry := map[string]interface{}{
+			"id":                configured.ID,
+			"name":              configured.Name,
+			"enabled":           configured.Enabled,
+			"source_configured": sourceConfigured,
+		}
+		if sourceConfigured {
+			entry["source"] = "••••••••"
+		} else {
+			entry["source"] = ""
+		}
+		streams = append(streams, entry)
+	}
+	section["streams"] = streams
 }
 
 func injectDefaultToolPermissions(rawCfg map[string]interface{}, cfg *config.Config) {
@@ -356,7 +407,12 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 
 		s.CfgMu.RLock()
 		runtimeSnapshot := s.Cfg.Runtime
+		go2RTCWasEnabled := s.Cfg.Go2RTC.Enabled
 		s.CfgMu.RUnlock()
+		if go2RTCWasEnabled && !validateCfg.Go2RTC.Enabled && (!validateCfg.Docker.Enabled || validateCfg.Docker.ReadOnly) {
+			jsonError(w, "Disable go2rtc while Docker mutations are still enabled, then enable Docker read-only mode or disable Docker in a separate save", http.StatusBadRequest)
+			return
+		}
 		if managedDockerErr := validateManagedDockerBackends(validateCfg, runtimeSnapshot); managedDockerErr != nil {
 			s.Logger.Error("[Config] Managed Docker backend unavailable — save rejected", "error", managedDockerErr)
 			w.Header().Set("Content-Type", "application/json")
@@ -364,6 +420,16 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"status":  "error",
 				"message": managedDockerErr.Error(),
+			})
+			return
+		}
+		if go2RTCErr := validateGo2RTCSettings(validateCfg.Go2RTC, runtimeSnapshot, s.Vault); go2RTCErr != nil {
+			s.Logger.Error("[Config] Invalid go2rtc settings — save rejected", "error", go2RTCErr)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+				"status":  "error",
+				"message": go2RTCErr.Error(),
 			})
 			return
 		}
@@ -471,6 +537,8 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 		syncMCPAfterUnlock := false
 		bluetoothChanged := false
 		networkSharesChanged := false
+		go2RTCChanged := false
+		go2RTCRecreate := false
 
 		if loadErr != nil {
 			s.Logger.Warn("[Config UI] Hot-reload failed, changes saved but require restart", "error", loadErr)
@@ -488,6 +556,8 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			networkSharesChanged = !reflect.DeepEqual(oldCfg.NetworkShares, newCfg.NetworkShares) ||
 				oldCfg.Agent.SudoEnabled != newCfg.Agent.SudoEnabled ||
 				oldCfg.Agent.SudoUnrestricted != newCfg.Agent.SudoUnrestricted
+			go2RTCChanged = !reflect.DeepEqual(oldCfg.Go2RTC, newCfg.Go2RTC)
+			go2RTCRecreate = go2RTCRequiresRecreate(oldCfg.Go2RTC, newCfg.Go2RTC)
 
 			// Detect sections that need restart
 			if oldCfg.Server != newCfg.Server {
@@ -1115,6 +1185,42 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			s.Logger.Info("[Config UI] Configuration hot-reloaded successfully")
 		}
 		s.CfgMu.Unlock()
+		if loadErr == nil && go2RTCChanged && newCfg != nil && s.Go2RTC != nil {
+			if !newCfg.Go2RTC.Enabled {
+				// Keep the old container identity until it has been stopped. This prevents
+				// a simultaneous disable/name edit from orphaning the running sidecar.
+				s.Go2RTC.Configure(&oldCfg)
+			} else {
+				s.Go2RTC.Configure(newCfg)
+			}
+			go func() {
+				ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+				defer cancel()
+				switch {
+				case !newCfg.Go2RTC.Enabled:
+					if err := s.Go2RTC.StopContainer(); err != nil {
+						s.Logger.Warn("[go2rtc] Failed to stop disabled sidecar", "error", err)
+					}
+					s.Go2RTC.Configure(newCfg)
+				case go2RTCRecreate:
+					if err := s.Go2RTC.RestartContainer(ctx); err != nil {
+						s.Logger.Warn("[go2rtc] Failed to recreate sidecar after configuration change", "error", err)
+					}
+				default:
+					if newCfg.Go2RTC.AutoStart {
+						if err := s.Go2RTC.StartContainer(ctx); err != nil {
+							s.Logger.Warn("[go2rtc] Failed to start sidecar after configuration change", "error", err)
+							return
+						}
+					} else if _, err := s.Go2RTC.Test(ctx); err != nil {
+						return
+					}
+					if _, err := s.Go2RTC.ReconcileStreams(ctx); err != nil {
+						s.Logger.Warn("[go2rtc] Failed to reconcile streams after configuration change", "error", err)
+					}
+				}
+			}()
+		}
 		if loadErr == nil && bluetoothChanged && newCfg != nil && s.Bluetooth != nil {
 			s.Bluetooth.Configure(config.BluetoothRuntimeOptions(newCfg))
 			probeCtx, cancelProbe := context.WithTimeout(r.Context(), 5*time.Second)
@@ -1177,6 +1283,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 		}
 		if loadErr == nil && newCfg != nil {
 			cleanupRemovedKlipperPrinterSecrets(oldCfg.ThreeDPrinters.Klipper.Printers, newCfg.ThreeDPrinters.Klipper.Printers, s.Vault, s.Logger)
+			cleanupRemovedGo2RTCStreamSecrets(oldCfg.Go2RTC.Streams, newCfg.Go2RTC.Streams, s.Vault, s.Logger)
 			virtualComputersAutoSetupAfterConfigChange(s, oldCfg, *newCfg)
 		}
 		if loadErr == nil && embeddingsChanged && newCfg != nil {
@@ -1206,6 +1313,27 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			})
 		}
 	}
+}
+
+func go2RTCRequiresRecreate(oldCfg, newCfg config.Go2RTCConfig) bool {
+	if oldCfg.Image != newCfg.Image ||
+		oldCfg.ContainerName != newCfg.ContainerName ||
+		oldCfg.URL != newCfg.URL ||
+		oldCfg.APIHostPort != newCfg.APIHostPort ||
+		!reflect.DeepEqual(oldCfg.WebRTC, newCfg.WebRTC) {
+		return true
+	}
+	newStreams := make(map[string]config.Go2RTCStreamConfig, len(newCfg.Streams))
+	for _, stream := range newCfg.Streams {
+		newStreams[stream.ID] = stream
+	}
+	for _, previous := range oldCfg.Streams {
+		current, exists := newStreams[previous.ID]
+		if !exists || (previous.Enabled && !current.Enabled) {
+			return true
+		}
+	}
+	return false
 }
 
 func validateLocalGraniteEmbeddingMode(cfg *config.Config) error {
@@ -1299,18 +1427,67 @@ func validateManagedDockerBackends(cfg config.Config, rt config.Runtime) error {
 	if strings.TrimSpace(cfg.Docker.Host) == "" {
 		cfg.Docker.Host = strings.TrimSpace(os.Getenv("DOCKER_HOST"))
 	}
-	needsManagedDocker := cfg.Embeddings.LocalOllama.Enabled || cfg.Ollama.ManagedInstance.Enabled
+	needsManagedDocker := cfg.Embeddings.LocalOllama.Enabled || cfg.Ollama.ManagedInstance.Enabled || cfg.Go2RTC.Enabled
 	if !needsManagedDocker {
 		return nil
 	}
 	if !cfg.Docker.Enabled {
-		return fmt.Errorf("Docker integration is disabled. Enable Docker before using managed Ollama containers for local models or embeddings")
+		return fmt.Errorf("Docker integration is disabled. Enable Docker before using managed Ollama or go2rtc containers")
+	}
+	if cfg.Go2RTC.Enabled && cfg.Docker.ReadOnly {
+		return fmt.Errorf("Docker read-only mode cannot create or reconcile the managed go2rtc container")
 	}
 	if strings.TrimSpace(cfg.Docker.Host) != "" {
 		return nil
 	}
 	if rt.IsDocker && !rt.DockerSocketOK {
-		return fmt.Errorf("Docker endpoint not reachable. Start the docker-proxy, mount /var/run/docker.sock, or configure docker.host before using managed Ollama containers")
+		return fmt.Errorf("Docker endpoint not reachable. Start the docker-proxy, mount /var/run/docker.sock, or configure docker.host before using managed Ollama or go2rtc containers")
+	}
+	return nil
+}
+
+func validateGo2RTCSettings(cfg config.Go2RTCConfig, rt config.Runtime, vault *security.Vault) error {
+	if !cfg.Enabled {
+		return nil
+	}
+	if cfg.APIHostPort < 1 || cfg.APIHostPort > 65535 {
+		return fmt.Errorf("go2rtc API host port is invalid")
+	}
+	if err := tools.ValidateGo2RTCInternalURL(cfg.URL, cfg.APIHostPort, rt.IsDocker); err != nil {
+		return err
+	}
+	if cfg.WebRTC.Enabled {
+		ip := net.ParseIP(strings.TrimSpace(cfg.WebRTC.BindAddress))
+		if ip == nil || ip.IsUnspecified() || ip.IsLoopback() || ip.IsMulticast() || !ip.IsPrivate() {
+			return fmt.Errorf("go2rtc WebRTC requires a concrete private LAN bind/candidate IP")
+		}
+		if cfg.WebRTC.Port < 1 || cfg.WebRTC.Port > 65535 {
+			return fmt.Errorf("go2rtc WebRTC port is invalid")
+		}
+	}
+	seen := make(map[string]struct{}, len(cfg.Streams))
+	for _, stream := range cfg.Streams {
+		key := config.Go2RTCStreamSourceVaultKey(stream.ID)
+		if err := tools.ValidateGo2RTCStreamID(stream.ID); err != nil {
+			return fmt.Errorf("go2rtc %w", err)
+		}
+		if _, duplicate := seen[key]; duplicate {
+			return fmt.Errorf("go2rtc stream id %q is duplicated", stream.ID)
+		}
+		seen[key] = struct{}{}
+		if !stream.Enabled {
+			continue
+		}
+		if vault == nil {
+			return fmt.Errorf("enabled go2rtc stream %q requires the secrets vault", stream.ID)
+		}
+		source, readErr := vault.ReadSecret(key)
+		if readErr != nil || strings.TrimSpace(source) == "" {
+			return fmt.Errorf("enabled go2rtc stream %q requires a saved source", stream.ID)
+		}
+		if err := tools.ValidateGo2RTCSource(source); err != nil {
+			return fmt.Errorf("invalid source for go2rtc stream %q: %w", stream.ID, err)
+		}
 	}
 	return nil
 }
@@ -1319,6 +1496,7 @@ func managedDockerConfigFromRaw(rawCfg map[string]interface{}) config.Config {
 	var cfg config.Config
 	if dockerSection := rawMap(rawCfg, "docker"); dockerSection != nil {
 		cfg.Docker.Enabled = rawBool(dockerSection, "enabled")
+		cfg.Docker.ReadOnly = rawBool(dockerSection, "readonly")
 		cfg.Docker.Host = rawString(dockerSection, "host")
 	}
 	if strings.TrimSpace(cfg.Docker.Host) == "" {
@@ -1333,6 +1511,9 @@ func managedDockerConfigFromRaw(rawCfg map[string]interface{}) config.Config {
 		if managedInstance := rawMap(ollamaSection, "managed_instance"); managedInstance != nil {
 			cfg.Ollama.ManagedInstance.Enabled = rawBool(managedInstance, "enabled")
 		}
+	}
+	if go2RTCSection := rawMap(rawCfg, "go2rtc"); go2RTCSection != nil {
+		cfg.Go2RTC.Enabled = rawBool(go2RTCSection, "enabled")
 	}
 	return cfg
 }
@@ -1922,12 +2103,26 @@ func extractRecursive(m map[string]interface{}, prefix string, vault *security.V
 					continue
 				}
 			}
+			if fullPath == "go2rtc.streams" {
+				if converted, ok := numericKeyedMapToSlice(v); ok {
+					m[key] = converted
+					if err := extractGo2RTCStreamSourcesToVault(converted, vault, logger); err != nil && firstErr == nil {
+						firstErr = err
+					}
+					continue
+				}
+			}
 			if err := extractRecursive(v, fullPath, vault, logger); err != nil && firstErr == nil {
 				firstErr = err
 			}
 		case []interface{}:
 			if fullPath == "three_d_printers.klipper.printers" {
 				if err := extractKlipperPrinterAPIKeysToVault(v, vault, logger); err != nil && firstErr == nil {
+					firstErr = err
+				}
+			}
+			if fullPath == "go2rtc.streams" {
+				if err := extractGo2RTCStreamSourcesToVault(v, vault, logger); err != nil && firstErr == nil {
 					firstErr = err
 				}
 			}
@@ -2019,4 +2214,106 @@ func extractKlipperPrinterAPIKeysToVault(items []interface{}, vault *security.Va
 		}
 	}
 	return firstErr
+}
+
+func extractGo2RTCStreamSourcesToVault(items []interface{}, vault *security.Vault, logger *slog.Logger) error {
+	var firstErr error
+	seen := make(map[string]struct{}, len(items))
+	for _, item := range items {
+		stream, ok := item.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		raw, exists := stream["source"]
+		delete(stream, "source")
+		delete(stream, "source_configured")
+		id := strings.TrimSpace(fmt.Sprint(stream["id"]))
+		key := config.Go2RTCStreamSourceVaultKey(id)
+		if err := tools.ValidateGo2RTCStreamID(id); err != nil {
+			if firstErr == nil {
+				firstErr = fmt.Errorf("go2rtc %w", err)
+			}
+			continue
+		}
+		if _, duplicate := seen[key]; duplicate {
+			if firstErr == nil {
+				firstErr = fmt.Errorf("go2rtc stream id %q is duplicated", id)
+			}
+			continue
+		}
+		seen[key] = struct{}{}
+		if !exists {
+			continue
+		}
+		value, ok := raw.(string)
+		if !ok {
+			continue
+		}
+		value = strings.TrimSpace(value)
+		if value == "" || value == "••••••••" {
+			continue
+		}
+		if err := validateGo2RTCSourceURL(value); err != nil {
+			if firstErr == nil {
+				firstErr = fmt.Errorf("invalid source for go2rtc stream %q: %w", id, err)
+			}
+			continue
+		}
+		if vault == nil {
+			if firstErr == nil {
+				firstErr = fmt.Errorf("go2rtc stream source for %q cannot be saved: no vault configured (AURAGO_MASTER_KEY required)", id)
+			}
+			continue
+		}
+		if err := vault.WriteSecret(key, value); err != nil {
+			if firstErr == nil {
+				firstErr = fmt.Errorf("failed to save go2rtc source for stream %q: %w", id, err)
+			}
+			continue
+		}
+		security.RegisterSensitive(value)
+		if logger != nil {
+			logger.Info("[Config] go2rtc stream source saved to vault", "stream_id", id)
+		}
+	}
+	return firstErr
+}
+
+func validateGo2RTCSourceURL(raw string) error {
+	u, err := neturl.Parse(strings.TrimSpace(raw))
+	if err != nil || u == nil || strings.TrimSpace(u.Host) == "" {
+		return fmt.Errorf("a complete network URL is required")
+	}
+	switch strings.ToLower(u.Scheme) {
+	case "rtsp", "rtsps", "rtspx", "http", "https", "onvif":
+		return nil
+	default:
+		return fmt.Errorf("unsupported scheme %q", u.Scheme)
+	}
+}
+
+func cleanupRemovedGo2RTCStreamSecrets(oldStreams, newStreams []config.Go2RTCStreamConfig, vault *security.Vault, logger *slog.Logger) {
+	if vault == nil {
+		return
+	}
+	remaining := make(map[string]struct{}, len(newStreams))
+	for _, stream := range newStreams {
+		if key := config.Go2RTCStreamSourceVaultKey(stream.ID); key != "" {
+			remaining[key] = struct{}{}
+		}
+	}
+	for _, stream := range oldStreams {
+		key := config.Go2RTCStreamSourceVaultKey(stream.ID)
+		if key == "" {
+			continue
+		}
+		if _, ok := remaining[key]; ok {
+			continue
+		}
+		if err := vault.DeleteSecret(key); err != nil && !strings.Contains(strings.ToLower(err.Error()), "not found") {
+			if logger != nil {
+				logger.Warn("[Config] Failed to remove obsolete go2rtc stream source", "stream_id", stream.ID, "error", err)
+			}
+		}
+	}
 }

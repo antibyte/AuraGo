@@ -726,6 +726,18 @@ Frigate NVR (Network Video Recorder) integration. Query camera status, object de
 | `severity` | string | Review severity filter, for example `alert` or `detection` |
 | `start_time` / `end_time` | string | Unix timestamp range for recording clips |
 
+### `go2rtc`
+Read-only access to configured go2rtc camera streams. Lists sanitized stream telemetry, creates verified JPEG snapshots, analyzes snapshots through the configured Vision provider, and opens AuraGo's same-origin live viewer. It accepts stream IDs only and never exposes source URLs or credentials.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `operation` | enum | status, list_streams, stream_status, snapshot, analyze_snapshot, show_live_stream |
+| `stream_id` | string | Stable configured stream ID; required for stream-specific operations |
+| `width` / `height` | integer | Optional bounded snapshot dimensions |
+| `rotate` | enum | 0, 90, 180, or 270 degrees |
+| `cache_seconds` | integer | Snapshot cache duration from 0 to 3600 seconds |
+| `prompt` | string | Optional Vision prompt for `analyze_snapshot` |
+
 ---
 
 ## Integrations (Cloud & APIs)

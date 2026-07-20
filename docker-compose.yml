@@ -316,7 +316,7 @@ services:
   #   - The proxy is isolated on the docker-control network, shared only with AuraGo
   #   - POST=1 allows starting/stopping containers (needed for managed sidecars and Invasion Control)
   #   - IMAGES=1 + POST=1 allow AuraGo to pull pinned managed sidecar images
-  #     such as Code Studio and the optional llama.cpp GPU embedding probes
+  #     such as go2rtc, Code Studio, and the optional llama.cpp GPU embedding probes
   #   - BUILD=0 keeps Docker build API access disabled by default; prefer published images
   #   - EXEC=1 allows DockerExec, Code Studio terminals, and security-proxy reloads
   #   - Together these grant significant control — keep the docker-control network private

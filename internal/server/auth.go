@@ -852,7 +852,8 @@ func authMiddleware(s *Server, next http.Handler) http.Handler {
 			return
 		}
 
-		if strings.HasPrefix(strings.TrimSpace(r.Header.Get("Authorization")), "Bearer ") && (isAdminProtectedPath(r.URL.Path) || isDesktopScopedAPIPath(r.URL.Path)) {
+		if strings.HasPrefix(strings.TrimSpace(r.Header.Get("Authorization")), "Bearer ") &&
+			(isAdminProtectedPath(r.URL.Path) || isDesktopScopedAPIPath(r.URL.Path) || strings.HasPrefix(r.URL.Path, "/api/go2rtc/")) {
 			next.ServeHTTP(w, r)
 			return
 		}

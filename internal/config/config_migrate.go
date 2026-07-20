@@ -857,6 +857,14 @@ func (c *Config) ApplyVaultSecrets(vault SecretReader) {
 			apply(key, &c.ThreeDPrinters.Klipper.Printers[i].APIKey)
 		}
 	}
+	apply(Go2RTCAPIPasswordVaultKey, &c.Go2RTC.APIPassword)
+	for i := range c.Go2RTC.Streams {
+		key := Go2RTCStreamSourceVaultKey(c.Go2RTC.Streams[i].ID)
+		if key != "" {
+			apply(key, &c.Go2RTC.Streams[i].Source)
+			c.Go2RTC.Streams[i].SourceConfigured = strings.TrimSpace(c.Go2RTC.Streams[i].Source) != ""
+		}
+	}
 
 	// ── Notifications ──
 	apply("ntfy_token", &c.Notifications.Ntfy.Token)

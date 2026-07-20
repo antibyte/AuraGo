@@ -298,6 +298,7 @@ var mediaFileServerDataSubdirs = []struct {
 }{
 	{prefix: "/files/3d_printer_media/", subdir: "3d_printer_media"},
 	{prefix: "/files/frigate_media/", subdir: "frigate_media"},
+	{prefix: "/files/go2rtc/snapshots/", subdir: "go2rtc/snapshots"},
 	{prefix: "/files/generated_images/", subdir: "generated_images"},
 	{prefix: "/files/generated_videos/", subdir: "generated_videos"},
 	{prefix: "/files/audio/", subdir: "audio"},

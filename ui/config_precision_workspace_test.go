@@ -452,7 +452,7 @@ func TestConfigSidebarIconSpriteContract(t *testing.T) {
 	}
 
 	expectedKeys := expectedConfigSidebarIconKeys(t, mainJS)
-	if got, want := len(expectedKeys), 106; got != want {
+	if got, want := len(expectedKeys), 107; got != want {
 		t.Fatalf("expected config sidebar key count = %d, want %d", got, want)
 	}
 

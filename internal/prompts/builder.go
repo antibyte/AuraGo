@@ -142,6 +142,7 @@ type ContextFlags struct {
 	TrueNASEnabled           bool
 	ProxmoxEnabled           bool
 	FrigateEnabled           bool
+	Go2RTCEnabled            bool
 	ThreeDPrinterEnabled     bool
 	OllamaEnabled            bool
 	TailscaleEnabled         bool

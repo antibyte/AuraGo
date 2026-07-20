@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -612,6 +613,94 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return "Tool Output: " + tools.ProxmoxGetTaskLog(pxCfg, node, upid)
 			default:
 				return `Tool Output: {"status":"error","message":"Unknown proxmox operation. Use: overview, list_nodes, list_vms, list_containers, status, start, stop, shutdown, reboot, node_status, cluster_resources, storage, create_snapshot, list_snapshots, task_log"}`
+			}
+
+		case "go2rtc":
+			manager := tools.DefaultGo2RTCManager()
+			if manager == nil || !cfg.Go2RTC.Enabled || !cfg.Go2RTC.AgentAccess || !manager.Available() {
+				return `Tool Output: {"status":"error","message":"go2rtc is not enabled for agent access or its API is unavailable."}`
+			}
+			operation := strings.ToLower(strings.TrimSpace(tc.Operation))
+			if operation == "" {
+				operation = strings.ToLower(strings.TrimSpace(toolArgString(tc.Params, "operation")))
+			}
+			streamID := strings.TrimSpace(toolArgString(tc.Params, "stream_id"))
+			encode := func(value interface{}) string {
+				raw, err := json.Marshal(value)
+				if err != nil {
+					return `Tool Output: {"status":"error","message":"failed to encode go2rtc result"}`
+				}
+				return "Tool Output: " + string(raw)
+			}
+			switch operation {
+			case "status":
+				return encode(manager.Status(ctx))
+			case "list_streams":
+				streams, err := manager.ListStreams(ctx)
+				if err != nil {
+					return encode(map[string]interface{}{"status": "error", "message": err.Error()})
+				}
+				return encode(map[string]interface{}{"status": "ok", "streams": streams})
+			case "stream_status":
+				stream, err := manager.StreamStatus(ctx, streamID)
+				if err != nil {
+					return encode(map[string]interface{}{"status": "error", "message": err.Error()})
+				}
+				return encode(map[string]interface{}{"status": "ok", "stream": stream})
+			case "snapshot", "analyze_snapshot":
+				if operation == "analyze_snapshot" && budgetTracker != nil && budgetTracker.IsBlocked("vision") {
+					return `Tool Output: {"status":"error","message":"Vision analysis is blocked because the daily budget is exceeded."}`
+				}
+				result, _, err := manager.Snapshot(ctx, streamID, tools.Go2RTCSnapshotOptions{
+					Width:        toolArgInt(tc.Params, 0, "width"),
+					Height:       toolArgInt(tc.Params, 0, "height"),
+					Rotate:       toolArgInt(tc.Params, 0, "rotate"),
+					CacheSeconds: toolArgInt(tc.Params, 0, "cache_seconds"),
+					Store:        operation == "analyze_snapshot",
+				})
+				if err != nil {
+					return encode(map[string]interface{}{"status": "error", "message": err.Error()})
+				}
+				if operation == "snapshot" {
+					previewPath := result.WebPath
+					if previewPath == "" {
+						previewPath = "/api/go2rtc/proxy/api/frame.jpeg?src=" + url.QueryEscape(streamID)
+					}
+					if dc.Broker != nil {
+						payload, _ := json.Marshal(map[string]string{"path": previewPath, "caption": "go2rtc snapshot: " + streamID})
+						dc.Broker.Send("image", string(payload))
+					}
+					output := map[string]interface{}{"snapshot": result, "image_path": previewPath}
+					return encode(output)
+				}
+				prompt := strings.TrimSpace(toolArgString(tc.Params, "prompt"))
+				if prompt == "" {
+					prompt = "Analyze this camera snapshot. Describe the scene, relevant activity, safety concerns, visible changes, and anything that may need attention."
+				}
+				analysis, promptTokens, completionTokens, err := dispatchAnalyzeImageWithPrompt(result.LocalPath, prompt, cfg)
+				if err != nil {
+					return encode(map[string]interface{}{"status": "error", "message": "snapshot analysis failed: " + err.Error(), "snapshot": result.WebPath})
+				}
+				if budgetTracker != nil {
+					model := cfg.Vision.Model
+					if model == "" {
+						model = tools.DefaultVisionModel
+					}
+					budgetTracker.RecordForCategory("vision", model, promptTokens, completionTokens)
+				}
+				return encode(map[string]interface{}{"status": "ok", "stream_id": streamID, "snapshot": result.WebPath, "analysis": analysis, "prompt": prompt})
+			case "show_live_stream":
+				viewerPath, err := manager.ViewerPath(streamID)
+				if err != nil {
+					return encode(map[string]interface{}{"status": "error", "message": err.Error()})
+				}
+				if dc.Broker != nil {
+					payload, _ := json.Marshal(map[string]string{"path": viewerPath, "title": "go2rtc live stream: " + streamID, "mime_type": "text/html"})
+					dc.Broker.Send("live_stream", string(payload))
+				}
+				return encode(map[string]interface{}{"status": "ok", "stream_id": streamID, "viewer_path": viewerPath})
+			default:
+				return `Tool Output: {"status":"error","message":"Unknown go2rtc operation. Use: status, list_streams, stream_status, snapshot, analyze_snapshot, show_live_stream"}`
 			}
 
 		case "frigate":

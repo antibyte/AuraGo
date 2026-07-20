@@ -671,6 +671,7 @@ func handleDashboardOverview(s *Server) http.HandlerFunc {
 			"virustotal":       cfg.VirusTotal.Enabled,
 			"brave_search":     cfg.BraveSearch.Enabled,
 			"three_d_printers": cfg.ThreeDPrinters.Enabled,
+			"go2rtc":           cfg.Go2RTC.Enabled,
 			"firewall":         cfg.Firewall.Enabled,
 			"remote_control":   cfg.RemoteControl.Enabled,
 			"web_scraper":      cfg.Tools.WebScraper.Enabled,

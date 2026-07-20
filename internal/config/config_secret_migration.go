@@ -301,6 +301,37 @@ func migrateKlipperPrinterSecrets(rawCfg map[string]interface{}, vault SecretRea
 	return migrated
 }
 
+func migrateGo2RTCSecrets(rawCfg map[string]interface{}, vault SecretReadWriter, log *slog.Logger) bool {
+	section, ok := rawCfg["go2rtc"].(map[string]interface{})
+	if !ok {
+		return false
+	}
+	migrated := migrateMapStringSecret(section, "api_password", Go2RTCAPIPasswordVaultKey, vault, log)
+	streams, ok := section["streams"].([]interface{})
+	if !ok {
+		return migrated
+	}
+	for _, item := range streams {
+		stream, ok := item.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		id, _ := stream["id"].(string)
+		key := Go2RTCStreamSourceVaultKey(id)
+		if key == "" {
+			if _, exists := stream["source"]; exists {
+				delete(stream, "source")
+				migrated = true
+			}
+			continue
+		}
+		if migrateMapStringSecret(stream, "source", key, vault, log) {
+			migrated = true
+		}
+	}
+	return migrated
+}
+
 // MigratePlaintextSecretsToVault moves plaintext secrets from config.yaml into the vault.
 // It covers both static top-level paths and dynamic collections such as providers and email accounts.
 func MigratePlaintextSecretsToVault(configPath string, vault SecretReadWriter, log *slog.Logger) {
@@ -348,6 +379,9 @@ func MigratePlaintextSecretsToVault(configPath string, vault SecretReadWriter, l
 		migrated = true
 	}
 	if migrateKlipperPrinterSecrets(rawCfg, vault, log) {
+		migrated = true
+	}
+	if migrateGo2RTCSecrets(rawCfg, vault, log) {
 		migrated = true
 	}
 

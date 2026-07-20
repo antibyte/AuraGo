@@ -672,6 +672,7 @@
   "dashboard.quickstatus_todos": "Tâches",
   "dashboard.quickstatus_plans": "Plans",
   "dashboard.integration_frigate": "Frigate",
+  "dashboard.integration_go2rtc": "go2rtc",
   "dashboard.integration_three_d_printers": "Imprimantes 3D",
   "dashboard.adaptive_tools_adaptive_cap": "Limite adaptive",
   "dashboard.adaptive_tools_total_cap": "Limite totale",

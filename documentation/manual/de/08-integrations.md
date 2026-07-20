@@ -2041,6 +2041,12 @@ homepage:
 ```
 
 
+## go2rtc-Kameraintegration
+
+AuraGo kann einen fest gekoppelten und gehärteten go2rtc-Docker-Sidecar für Kamerastreams betreiben. Kameraquellen bleiben ausschließlich im Vault. Unter **Config → Netzwerk & Remote → go2rtc-Kameras** kannst Du stabile Stream-IDs hinzufügen, die gespeicherte Konfiguration testen, Snapshots erstellen und die gleichursprüngliche Ansicht öffnen. Die originale go2rtc-Weboberfläche ist optional und schreibgeschützt.
+
+Standardmäßig verwendet AuraGo MSE/HLS/MP4/MJPEG über den Proxy. Direktes LAN-WebRTC muss mit einer konkreten privaten LAN-IP ausdrücklich aktiviert werden, weil WebRTC-Medien nicht vollständig durch einen HTTP-Proxy laufen. Details stehen in der [go2rtc-Dokumentation](../../go2rtc.md).
+
 ## Integrationen testen
 
 ### Test über Chat

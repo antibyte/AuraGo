@@ -390,6 +390,16 @@ func Load(path string) (*Config, error) {
 	cfg.BrowserAutomation.ScreenshotsDir = "browser_screenshots"
 	cfg.BrowserAutomation.CloakHumanPreset = "default"
 
+	// go2rtc defaults: disabled, proxy-first, and managed as a hardened sidecar.
+	cfg.Go2RTC.AutoStart = true
+	cfg.Go2RTC.AgentAccess = true
+	cfg.Go2RTC.StoreMedia = true
+	cfg.Go2RTC.Image = Go2RTCDefaultImage
+	cfg.Go2RTC.ContainerName = "aurago_go2rtc"
+	cfg.Go2RTC.URL = defaultSidecarURL(runningInDocker, "go2rtc", 1984)
+	cfg.Go2RTC.APIHostPort = 1984
+	cfg.Go2RTC.WebRTC.Port = 8555
+
 	// Space Agent defaults: disabled by default, managed Docker sidecar when enabled.
 	cfg.SpaceAgent.AutoStart = true
 	cfg.SpaceAgent.RepoURL = "https://github.com/agent0ai/space-agent"
@@ -931,6 +941,19 @@ func Load(path string) (*Config, error) {
 	}
 
 	cfg.BrowserAutomation.URL = NormalizeLegacySidecarURL(cfg.BrowserAutomation.URL, runningInDocker, "browser-automation", 7331)
+	cfg.Go2RTC.URL = NormalizeLegacySidecarURL(cfg.Go2RTC.URL, runningInDocker, "go2rtc", 1984)
+	if strings.TrimSpace(cfg.Go2RTC.Image) == "" {
+		cfg.Go2RTC.Image = Go2RTCDefaultImage
+	}
+	if strings.TrimSpace(cfg.Go2RTC.ContainerName) == "" {
+		cfg.Go2RTC.ContainerName = "aurago_go2rtc"
+	}
+	if cfg.Go2RTC.APIHostPort <= 0 {
+		cfg.Go2RTC.APIHostPort = 1984
+	}
+	if cfg.Go2RTC.WebRTC.Port <= 0 {
+		cfg.Go2RTC.WebRTC.Port = 8555
+	}
 	cfg.SpaceAgent.PublicURL, cfg.SpaceAgent.Port = normalizeSpaceAgentURLAndPort(cfg.SpaceAgent.PublicURL, cfg.SpaceAgent.Port, runningInDocker)
 	cfg.Manifest.URL = NormalizeLegacySidecarURL(cfg.Manifest.URL, runningInDocker, "manifest", 2099)
 	cfg.OmniRoute.URL = NormalizeLegacySidecarURL(cfg.OmniRoute.URL, runningInDocker, "omniroute", 20128)
@@ -2538,6 +2561,19 @@ func (c *Config) Save(path string) error {
 		{[]string{"frigate", "review_relay"}, c.Frigate.ReviewRelay},
 		{[]string{"frigate", "store_media"}, c.Frigate.StoreMedia},
 		{[]string{"frigate", "mqtt_topic_prefix"}, c.Frigate.MQTTTopicPrefix},
+		{[]string{"go2rtc", "enabled"}, c.Go2RTC.Enabled},
+		{[]string{"go2rtc", "auto_start"}, c.Go2RTC.AutoStart},
+		{[]string{"go2rtc", "web_ui_enabled"}, c.Go2RTC.WebUIEnabled},
+		{[]string{"go2rtc", "agent_access"}, c.Go2RTC.AgentAccess},
+		{[]string{"go2rtc", "store_media"}, c.Go2RTC.StoreMedia},
+		{[]string{"go2rtc", "image"}, c.Go2RTC.Image},
+		{[]string{"go2rtc", "container_name"}, c.Go2RTC.ContainerName},
+		{[]string{"go2rtc", "url"}, c.Go2RTC.URL},
+		{[]string{"go2rtc", "api_host_port"}, c.Go2RTC.APIHostPort},
+		{[]string{"go2rtc", "webrtc", "enabled"}, c.Go2RTC.WebRTC.Enabled},
+		{[]string{"go2rtc", "webrtc", "bind_address"}, c.Go2RTC.WebRTC.BindAddress},
+		{[]string{"go2rtc", "webrtc", "port"}, c.Go2RTC.WebRTC.Port},
+		{[]string{"go2rtc", "streams"}, c.Go2RTC.Streams},
 		{[]string{"three_d_printers", "enabled"}, c.ThreeDPrinters.Enabled},
 		{[]string{"three_d_printers", "readonly"}, c.ThreeDPrinters.ReadOnly},
 		{[]string{"three_d_printers", "default_printer"}, c.ThreeDPrinters.DefaultPrinter},

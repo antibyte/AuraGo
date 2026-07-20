@@ -575,6 +575,9 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			}
 			dockerCfg := tools.DockerConfig{Host: cfg.Docker.Host, WorkspaceDir: cfg.Directories.WorkspaceDir}
 			containerID := req.targetContainerID()
+			if !go2RTCDockerOperationSafe(req.Operation) && tools.DockerContainerManagedBy(dockerCfg, containerID, "go2rtc") {
+				return `Tool Output: {"status":"error","message":"Direct lifecycle, log, file, or process access to AuraGo's managed go2rtc container is blocked. Use the read-only go2rtc tool or the administrator API."}`
+			}
 			switch req.Operation {
 			case "list_containers", "ps":
 				logger.Info("LLM requested Docker list_containers", "all", req.All)
@@ -1420,6 +1423,15 @@ func dockerOperationMutates(operation string) bool {
 		"cp", "copy",
 		"create_network", "remove_network", "connect", "disconnect",
 		"create_volume", "remove_volume":
+		return true
+	default:
+		return false
+	}
+}
+
+func go2RTCDockerOperationSafe(operation string) bool {
+	switch strings.ToLower(strings.TrimSpace(operation)) {
+	case "inspect", "inspect_container", "stats", "port":
 		return true
 	default:
 		return false

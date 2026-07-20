@@ -1209,6 +1209,27 @@ frigate:
     review_relay: false
     store_media: true
     mqtt_topic_prefix: "frigate"
+go2rtc:
+    enabled: false
+    auto_start: true
+    web_ui_enabled: false
+    agent_access: true
+    store_media: true
+    # Keep the reviewed digest pin unless you deliberately audit another release.
+    image: "alexxit/go2rtc:1.9.14@sha256:675c318b23c06fd862a61d262240c9a63436b4050d177ffc68a32710d9e05bae"
+    container_name: "aurago_go2rtc"
+    url: ""                         # default: http://go2rtc:1984 in Docker, otherwise http://127.0.0.1:1984
+    api_host_port: 1984             # native AuraGo only; always bound to 127.0.0.1
+    webrtc:
+        enabled: false
+        bind_address: ""            # required concrete private LAN IP when enabled
+        port: 8555
+    # Source URLs are entered through the Config UI and stored only in the Vault.
+    # streams:
+    #   - id: "front-door"
+    #     name: "Front Door"
+    #     enabled: true
+    streams: []
 three_d_printers:
     enabled: false
     readonly: true

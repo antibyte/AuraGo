@@ -280,6 +280,59 @@ type BrowserAutomationConfig struct {
 	CloakFingerprintSeed string                    `yaml:"cloak_fingerprint_seed"` // fixed fingerprint seed for consistent identity (optional)
 }
 
+const (
+	// Go2RTCDefaultImage pins the managed sidecar to the reviewed upstream release.
+	Go2RTCDefaultImage = "alexxit/go2rtc:1.9.14@sha256:675c318b23c06fd862a61d262240c9a63436b4050d177ffc68a32710d9e05bae"
+	// Go2RTCAPIPasswordVaultKey stores the internal API credential used only by AuraGo.
+	Go2RTCAPIPasswordVaultKey = "go2rtc_api_password"
+)
+
+// Go2RTCStreamConfig describes one stable, user-visible stream. Source is vault-only.
+type Go2RTCStreamConfig struct {
+	ID               string `yaml:"id" json:"id"`
+	Name             string `yaml:"name" json:"name"`
+	Enabled          bool   `yaml:"enabled" json:"enabled"`
+	Source           string `yaml:"-" json:"-"`
+	SourceConfigured bool   `yaml:"-" json:"source_configured"`
+}
+
+// Go2RTCWebRTCConfig controls the optional direct LAN media listener.
+type Go2RTCWebRTCConfig struct {
+	Enabled     bool   `yaml:"enabled" json:"enabled"`
+	BindAddress string `yaml:"bind_address" json:"bind_address"`
+	Port        int    `yaml:"port" json:"port"`
+}
+
+// Go2RTCConfig holds settings for AuraGo's managed go2rtc sidecar.
+type Go2RTCConfig struct {
+	Enabled       bool                 `yaml:"enabled" json:"enabled"`
+	AutoStart     bool                 `yaml:"auto_start" json:"auto_start"`
+	WebUIEnabled  bool                 `yaml:"web_ui_enabled" json:"web_ui_enabled"`
+	AgentAccess   bool                 `yaml:"agent_access" json:"agent_access"`
+	StoreMedia    bool                 `yaml:"store_media" json:"store_media"`
+	Image         string               `yaml:"image" json:"image"`
+	ContainerName string               `yaml:"container_name" json:"container_name"`
+	URL           string               `yaml:"url" json:"url"`
+	APIHostPort   int                  `yaml:"api_host_port" json:"api_host_port"`
+	WebRTC        Go2RTCWebRTCConfig   `yaml:"webrtc" json:"webrtc"`
+	Streams       []Go2RTCStreamConfig `yaml:"streams" json:"streams"`
+	APIPassword   string               `yaml:"-" json:"-"`
+}
+
+// Go2RTCStreamSourceVaultKey returns the per-stream vault key for a go2rtc source.
+func Go2RTCStreamSourceVaultKey(streamID string) string {
+	id := strings.TrimSpace(strings.ToLower(streamID))
+	if id == "" {
+		return ""
+	}
+	for _, r := range id {
+		if !((r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' || r == '_') {
+			return ""
+		}
+	}
+	return "go2rtc_stream_" + id + "_source"
+}
+
 // SpaceAgentConfig holds settings for the optional managed Space Agent sidecar.
 type SpaceAgentConfig struct {
 	Enabled        bool   `yaml:"enabled" json:"enabled"`                 // enable Space Agent integration
@@ -1605,6 +1658,7 @@ type Config struct {
 		StoreMedia      bool   `yaml:"store_media"`         // auto-store snapshots in media registry
 		MQTTTopicPrefix string `yaml:"mqtt_topic_prefix"`   // default: "frigate"
 	} `yaml:"frigate"`
+	Go2RTC         Go2RTCConfig         `yaml:"go2rtc" json:"go2rtc"`
 	ThreeDPrinters ThreeDPrintersConfig `yaml:"three_d_printers"`
 	Ollama         struct {
 		Enabled         bool   `yaml:"enabled"`
