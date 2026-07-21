@@ -1,4 +1,5 @@
 {
+  "config.go2rtc.open_camera_app": "打开网络摄像头应用",
   "config.section.go2rtc.label": "go2rtc 摄像头",
   "config.section.go2rtc.desc": "安全管理摄像头流、快照和实时查看",
   "config.go2rtc.proxy_note": "AuraGo 会隐藏摄像头 URL 和 go2rtc 凭据。查看通过 AuraGo 代理；局域网直连 WebRTC 可单独启用。",

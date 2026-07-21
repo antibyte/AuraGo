@@ -118,6 +118,10 @@
             styles: appStyles('/css/camera.css'),
             scripts: ['/js/desktop/apps/camera.js']
         },
+        'network-cameras': {
+            styles: appStyles('/css/desktop-app-network-cameras.css'),
+            scripts: ['/js/desktop/apps/network-cameras.js']
+        },
         'zipper': {
             styles: appStyles('/css/zipper.css'),
             scripts: ['/js/desktop/apps/zipper.js']

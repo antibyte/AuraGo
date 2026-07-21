@@ -29,7 +29,13 @@ func registerGo2RTCRoutes(mux *http.ServeMux, s *Server) {
 	mux.HandleFunc("/api/go2rtc/start", admin(handleGo2RTCStart(s)))
 	mux.HandleFunc("/api/go2rtc/stop", admin(handleGo2RTCStop(s)))
 	mux.HandleFunc("/api/go2rtc/restart", admin(handleGo2RTCRestart(s)))
-	mux.HandleFunc("/api/go2rtc/streams", requireGo2RTCView(s, handleGo2RTCStreams(s)))
+	mux.HandleFunc("/api/go2rtc/app/state", requireGo2RTCView(s, handleGo2RTCAppState(s)))
+	mux.HandleFunc("/api/go2rtc/thumbnail/", requireGo2RTCView(s, handleGo2RTCThumbnail(s)))
+	mux.HandleFunc("/api/go2rtc/setup/enable", admin(handleGo2RTCSetupEnable(s)))
+	mux.HandleFunc("/api/go2rtc/discovery", admin(handleGo2RTCDiscovery(s)))
+	mux.HandleFunc("/api/go2rtc/discovery/profiles", admin(handleGo2RTCDiscoveryProfiles(s)))
+	mux.HandleFunc("/api/go2rtc/streams", handleGo2RTCStreamsRoute(s))
+	mux.HandleFunc("/api/go2rtc/streams/", admin(handleGo2RTCStreamMutation(s)))
 	mux.HandleFunc("/api/go2rtc/snapshot", requireGo2RTCView(s, handleGo2RTCSnapshot(s)))
 	mux.HandleFunc("/api/go2rtc/viewer/", requireGo2RTCView(s, handleGo2RTCViewer(s)))
 	mux.HandleFunc("/api/go2rtc/proxy/", requireGo2RTCView(s, handleGo2RTCProxy(s)))
@@ -419,7 +425,7 @@ func go2RTCProxyPathAllowed(path, method string, adminUI bool) bool {
 			return false
 		}
 		for _, blocked := range []string{
-			"api/config", "api/log", "api/exit", "api/restart",
+			"api/config", "api/log", "api/exit", "api/restart", "api/onvif",
 			"add", "add.html", "config", "config.html", "log", "log.html",
 		} {
 			if path == blocked || strings.HasPrefix(path, blocked+"/") {

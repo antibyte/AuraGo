@@ -170,6 +170,19 @@ func TestBuiltinAppsExposeLiveSpeech(t *testing.T) {
 	}
 }
 
+func TestBuiltinAppsExposeNetworkCamerasMetadata(t *testing.T) {
+	app := testFindApp(t, BuiltinApps(), "network-cameras")
+	if !app.Builtin || app.Deletable || !app.DockVisible || !app.StartVisible {
+		t.Fatalf("network cameras visibility = builtin:%v deletable:%v dock:%v start:%v, want first-party visible app", app.Builtin, app.Deletable, app.DockVisible, app.StartVisible)
+	}
+	if app.Entry != "builtin://network-cameras" || app.Icon != "camera" || app.Runtime != BuiltinRuntime {
+		t.Fatalf("network cameras manifest = entry:%q icon:%q runtime:%q", app.Entry, app.Icon, app.Runtime)
+	}
+	if !stringSliceContains(app.Permissions, "notifications") {
+		t.Fatalf("network cameras permissions = %#v, want notifications", app.Permissions)
+	}
+}
+
 func TestBuiltinAppsExposeTeeVeeMetadata(t *testing.T) {
 	apps := BuiltinApps()
 

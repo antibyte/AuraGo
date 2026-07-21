@@ -519,6 +519,7 @@
             openscad: 'OpenSCADApp',
             looper: 'LooperApp',
             camera: 'CameraApp',
+            'network-cameras': 'NetworkCamerasApp',
             zipper: 'ZipperApp',
             pixel: 'PixelApp',
             'galaxa-deluxe': 'GalaxaDeluxe',

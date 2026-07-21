@@ -1,4 +1,5 @@
 {
+  "config.go2rtc.open_camera_app": "ネットワークカメラアプリを開く",
   "config.section.go2rtc.label": "go2rtcカメラ",
   "config.section.go2rtc.desc": "安全に管理されたカメラ配信、スナップショット、ライブ表示",
   "config.go2rtc.proxy_note": "AuraGoはカメラURLとgo2rtc認証情報を非公開にします。表示はAuraGoプロキシを使用し、LAN内の直接WebRTCは任意です。",

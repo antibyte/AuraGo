@@ -1,4 +1,5 @@
 {
+  "config.go2rtc.open_camera_app": "Apri l’app Telecamere di rete",
   "config.section.go2rtc.label": "Telecamere go2rtc",
   "config.section.go2rtc.desc": "Flussi, istantanee e visualizzazione live gestiti in sicurezza",
   "config.go2rtc.proxy_note": "AuraGo mantiene private le URL delle telecamere e le credenziali go2rtc. La visualizzazione usa il proxy AuraGo; WebRTC diretto in LAN è facoltativo.",

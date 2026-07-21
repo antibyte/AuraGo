@@ -19,7 +19,24 @@ The stable viewer contract is `/api/go2rtc/viewer/{stream_id}`. MSE, HLS, MP4, M
 
 WebRTC media normally flows directly between browser and go2rtc and cannot be carried completely through an HTTP reverse proxy. Direct LAN WebRTC is therefore disabled by default. Enabling it requires a concrete private LAN bind/candidate IP and publishes port 8555 over both TCP and UDP. RTSP port 8554 is never published on the host.
 
-This same-origin viewer and proxy boundary is intended for future use by AuraGo's Virtual Desktop without exposing camera URLs or go2rtc credentials to the desktop app.
+The built-in Virtual Desktop app **Network Cameras** uses this same-origin viewer and proxy boundary without exposing camera URLs or go2rtc credentials to the browser. Open it from the launcher or directly with `/desktop?app=network-cameras`.
+
+## Virtual Desktop app and camera setup
+
+The **Network Cameras** app combines a five-second snapshot grid with one selected live view. Its optional live-grid mode opens at most four viewers at once; hidden, minimized, and closed windows stop polling and tear down their media frames.
+
+Administrators can enable the managed sidecar, discover ONVIF cameras, add a known local ONVIF address, or enter a supported stream URL. Other users with `go2rtc.view` see enabled cameras only. Camera management remains administrator-only.
+
+Automatic ONVIF discovery is capability gated. AuraGo sends one bounded WS-Discovery probe per suitable private IPv4 interface only when `Runtime.BroadcastOK` is available. A normal Docker bridge does not provide that capability, so the app offers manual IP and stream-URL setup without granting host networking or extra privileges. Discovery candidates and credential-bearing setup tokens are random, memory-only, limited, single-use, and expire after five minutes. SOAP requests are limited to the responding private host, 20 seconds, and 1 MiB.
+
+The app consumes these AuraGo-owned endpoints:
+
+- `GET /api/go2rtc/app/state` for sanitized capability and stream telemetry
+- `GET /api/go2rtc/thumbnail/{stream_id}.jpg` for non-persistent JPEG tiles with private caching and ETags
+- `POST /api/go2rtc/setup/enable`, `/api/go2rtc/discovery`, and `/api/go2rtc/discovery/profiles` for administrator setup
+- `POST /api/go2rtc/streams` plus `PATCH` or `DELETE /api/go2rtc/streams/{stream_id}` for administrator-managed streams
+
+The raw upstream `api/onvif` endpoint is always blocked, including when the optional administrator Web UI is enabled. It is never used for discovery or credentials.
 
 ## Agent operations
 
@@ -36,7 +53,7 @@ The agent accepts stable stream IDs only and cannot start or stop the service or
 
 ## Configuration
 
-Configure the integration under **Config → Network & Remote → go2rtc Cameras**. Connection tests, container controls, snapshots, and viewers intentionally use only the last saved configuration.
+Configure the integration under **Config → Network & Remote → go2rtc Cameras**, or use the administrator onboarding in **Network Cameras**. Connection tests, container controls, snapshots, and viewers intentionally use only the last saved configuration.
 
 The optional administrator Web UI is a read-only subset of the original go2rtc interface. Configuration, logs, publishing, process control, and stream mutation routes remain blocked.
 

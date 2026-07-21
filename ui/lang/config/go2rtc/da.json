@@ -1,4 +1,5 @@
 {
+  "config.go2rtc.open_camera_app": "Åbn appen Netværkskameraer",
   "config.section.go2rtc.label": "go2rtc-kameraer",
   "config.section.go2rtc.desc": "Sikkert administrerede kamerastreams, snapshots og livevisning",
   "config.go2rtc.proxy_note": "AuraGo holder kamera-URL'er og go2rtc-legitimationsoplysninger private. Visning bruger AuraGo-proxyen; direkte LAN-WebRTC er valgfrit.",

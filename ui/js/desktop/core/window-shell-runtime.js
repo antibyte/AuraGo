@@ -773,6 +773,7 @@
             'agent-chat': { width: 800, height: 620 },
             'looper': { width: 900, height: 750 },
             camera: { width: 720, height: 600 },
+            'network-cameras': { width: 1120, height: 720 },
             viewer: { width: 900, height: 700 },
             'viewer-3d': { width: 900, height: 700 },
             pixel: { width: 1100, height: 750 },
@@ -788,10 +789,10 @@
         return defaultWindowSize();
     }
 
-    function shouldUseMobileWideWindow(appId) { return !!{ files: true, writer: true, sheets: true, todo: true, radio: true, openscad: true, teevee: true, gallery: true, calendar: true, 'quick-connect': true, 'virtual-computers': true, 'code-studio': true, launchpad: true, looper: true, viewer: true, 'viewer-3d': true, chess: true, nasscad: true, 'mission-control': true, 'system-world': true }[appId]; }
+    function shouldUseMobileWideWindow(appId) { return !!{ files: true, writer: true, sheets: true, todo: true, radio: true, openscad: true, teevee: true, gallery: true, calendar: true, 'quick-connect': true, 'virtual-computers': true, 'network-cameras': true, 'code-studio': true, launchpad: true, looper: true, viewer: true, 'viewer-3d': true, chess: true, nasscad: true, 'mission-control': true, 'system-world': true }[appId]; }
 
     function appWindowMinSize(appId) {
-        const mins = { 'system-info': { width: 560, height: 460 }, 'virtual-computers': { width: 640, height: 480 }, calculator: { width: 280, height: 420 }, gallery: { width: 640, height: 480 }, pixel: { width: 700, height: 500 }, chess: { width: 720, height: 520 } };
+        const mins = { 'system-info': { width: 560, height: 460 }, 'virtual-computers': { width: 640, height: 480 }, 'network-cameras': { width: 680, height: 480 }, calculator: { width: 280, height: 420 }, gallery: { width: 640, height: 480 }, pixel: { width: 700, height: 500 }, chess: { width: 720, height: 520 } };
         return mins[appId] || { width: WINDOW_MIN_W, height: WINDOW_MIN_H };
     }
 

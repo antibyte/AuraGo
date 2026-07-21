@@ -1,4 +1,5 @@
 {
+  "config.go2rtc.open_camera_app": "Otwórz aplikację Kamery sieciowe",
   "config.section.go2rtc.label": "Kamery go2rtc",
   "config.section.go2rtc.desc": "Bezpiecznie zarządzane strumienie kamer, migawki i podgląd na żywo",
   "config.go2rtc.proxy_note": "AuraGo zachowuje prywatność adresów kamer i danych go2rtc. Podgląd używa proxy AuraGo; bezpośredni WebRTC w LAN jest opcjonalny.",

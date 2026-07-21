@@ -32,6 +32,7 @@ function renderGo2RTCSection(section) {
 
     html += '<div class="cfg-group-title cfg-group-title-top">' + t('config.go2rtc.runtime_title') + '</div>';
     html += '<div class="field-group"><div id="go2rtc-runtime-status" class="cfg-note-banner">' + t('config.go2rtc.status_unknown') + '</div>';
+    html += '<a class="btn-secondary" href="/desktop?app=network-cameras" target="_blank" rel="noopener">' + t('config.go2rtc.open_camera_app') + '</a> ';
     html += '<button type="button" class="btn-save" onclick="go2rtcTest()" id="go2rtc-test">' + t('config.go2rtc.test') + '</button> ';
     html += '<button type="button" class="btn-secondary" onclick="go2rtcControl(\'start\')">' + t('config.go2rtc.start') + '</button> ';
     html += '<button type="button" class="btn-secondary" onclick="go2rtcControl(\'stop\')">' + t('config.go2rtc.stop') + '</button> ';

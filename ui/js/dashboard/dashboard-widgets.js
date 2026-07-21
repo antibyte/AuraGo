@@ -2536,7 +2536,9 @@
                 let cls = active ? 'active' : 'inactive';
                 // MQTT: distinguish "enabled but disconnected" from "enabled and connected"
                 if (key === 'mqtt' && active && overview.mqtt && overview.mqtt.connected === false) cls = 'active-warning';
-                return `<span class="int-badge ${cls}">${icons[key] || '•'} ${esc(names[key] || key)}</span>`;
+                const content = `${icons[key] || '•'} ${esc(names[key] || key)}`;
+                if (key === 'go2rtc') return `<a class="int-badge ${cls}" href="/desktop?app=network-cameras">${content}</a>`;
+                return `<span class="int-badge ${cls}">${content}</span>`;
             }).join('');
         }
         // ── LLM Guardian Card ───────────────────────────────────────────────────────

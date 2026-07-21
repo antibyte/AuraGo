@@ -1016,6 +1016,60 @@ function testRemoteEmbeddingStatusNeverRendersGraniteCPUState() {
   assert.deepEqual(visibility, [false], 'remote providers must hide the local Granite runtime card');
 }
 
+function testNetworkCamerasDesktopContracts() {
+  const app = read('ui/js/desktop/apps/network-cameras.js');
+  const loader = read('ui/js/desktop/core/module-loader.js');
+  const routing = read('ui/js/desktop/core/menus-and-routing.js');
+  const foundation = read('ui/js/desktop/core/desktop-foundation.js');
+  const windowRuntime = read('ui/js/desktop/core/window-shell-runtime.js');
+  const dashboard = read('ui/js/dashboard/dashboard-widgets.js');
+
+  assert.match(loader, /'network-cameras'[\s\S]*desktop-app-network-cameras\.css[\s\S]*network-cameras\.js/);
+  assert.match(routing, /appId === 'network-cameras'[\s\S]*NetworkCamerasApp/);
+  assert.match(foundation, /'network-cameras': 'NetworkCamerasApp'/);
+  assert.match(windowRuntime, /'network-cameras': \{ width: 1120, height: 720 \}/);
+  assert.match(windowRuntime, /'network-cameras': \{ width: 680, height: 480 \}/);
+  assert.match(dashboard, /href="\/desktop\?app=network-cameras"/);
+
+  const preferenceSource = sourceBetween(app, 'function savePreferences(state)', 'function createState');
+  assert.match(preferenceSource, /\{ mode: state\.mode, selected: state\.selected \}/);
+  assert.doesNotMatch(preferenceSource, /password|username|source|token/i);
+
+  const gridSource = sourceBetween(app, 'function liveGridIDs(state, streams)', 'function cardMarkup');
+  const gridContext = { Set };
+  vm.createContext(gridContext);
+  vm.runInContext(`${gridSource}; globalThis.liveGridIDsForTest = liveGridIDs;`, gridContext);
+  const streams = ['a', 'b', 'c', 'd', 'e', 'f'].map(id => ({ id, enabled: true }));
+  assert.deepEqual(Array.from(gridContext.liveGridIDsForTest({ mode: 'live', visible: true, selected: 'a' }, streams)), ['a', 'b', 'c', 'd']);
+  assert.equal(gridContext.liveGridIDsForTest({ mode: 'snapshots', visible: true, selected: 'a' }, streams).size, 0);
+  assert.equal(gridContext.liveGridIDsForTest({ mode: 'live', visible: false, selected: 'a' }, streams).size, 0);
+
+  const streamSource = sourceBetween(app, 'function activeStreams(state)', 'function filteredStreams');
+  const streamContext = { Array, Object };
+  vm.createContext(streamContext);
+  vm.runInContext(`${streamSource}; globalThis.allStreamsForTest = allStreams;`, streamContext);
+  const viewerState = { data: { can_manage: false, streams: [{ id: 'front', enabled: true }], disabled_streams: [{ id: 'garage', enabled: false }] } };
+  assert.deepEqual(Array.from(streamContext.allStreamsForTest(viewerState), item => item.id), ['front']);
+  viewerState.data.can_manage = true;
+  assert.deepEqual(Array.from(streamContext.allStreamsForTest(viewerState), item => item.id), ['front', 'garage']);
+
+  assert.match(app, /Math\.min\(4, nodes\.length\)/);
+  assert.match(app, /state\.controllers\.forEach\(controller => controller\.abort\(\)\)/);
+  assert.match(app, /frame\.src = 'about:blank'/);
+  assert.match(app, /originalEnabled[\s\S]*disable_confirm_message[\s\S]*replace_confirm_message[\s\S]*confirmDialog/);
+  assert.match(app, /window\.NetworkCamerasApp = \{ render, dispose \}/);
+  assert.doesNotMatch(app, /\b(?:alert|confirm|prompt)\s*\(/);
+
+  const languages = ['cs', 'da', 'de', 'el', 'en', 'es', 'fr', 'hi', 'it', 'ja', 'nl', 'no', 'pl', 'pt', 'sv', 'zh'];
+  const english = JSON.parse(read('ui/lang/desktop/en.json'));
+  const expectedKeys = Object.keys(english).filter(key => key === 'desktop.app_network_cameras' || key.startsWith('desktop.network_cameras.')).sort();
+  for (const language of languages) {
+    const locale = JSON.parse(read(`ui/lang/desktop/${language}.json`));
+    const actualKeys = Object.keys(locale).filter(key => key === 'desktop.app_network_cameras' || key.startsWith('desktop.network_cameras.')).sort();
+    assert.deepEqual(actualKeys, expectedKeys, `${language} must cover every Network Cameras string`);
+  }
+}
+
 const tests = [
   ['versioned service-worker registration', testVersionedServiceWorkerRegistration],
   ['real skill snapshot differences', testSkillSnapshotDifferences],
@@ -1040,6 +1094,7 @@ const tests = [
   ['Virtual Computers agent tasks report errors and poll active jobs', testVirtualComputersAgentTaskFeedbackAndPolling],
   ['local Granite multimodal observer remains idempotent', testLocalGraniteMultimodalObserverIsIdempotent],
   ['remote embedding status never renders Granite CPU state', testRemoteEmbeddingStatusNeverRendersGraniteCPUState],
+  ['Network Cameras desktop contracts', testNetworkCamerasDesktopContracts],
   ['byte-exact read-only bundle check', testBundleCheckRejectsNonCanonicalBytesWithoutWriting]
 ];
 

@@ -433,20 +433,42 @@ func (m *Go2RTCManager) StreamStatus(ctx context.Context, streamID string) (Go2R
 
 // Snapshot fetches, validates, optionally stores, and registers a JPEG snapshot.
 func (m *Go2RTCManager) Snapshot(ctx context.Context, streamID string, opts Go2RTCSnapshotOptions) (Go2RTCSnapshotResult, []byte, error) {
-	stream, err := m.findEnabledStream(streamID)
+	stream, data, cached, err := m.fetchSnapshotBytes(ctx, streamID, opts)
 	if err != nil {
 		return Go2RTCSnapshotResult{}, nil, err
 	}
+	result, err := m.buildSnapshotResult(stream, data, opts)
+	result.Cached = cached
+	return result, data, err
+}
+
+// SnapshotBytes fetches and validates a JPEG without ever persisting it. It is
+// used by high-frequency thumbnail views even when store_media is enabled.
+func (m *Go2RTCManager) SnapshotBytes(ctx context.Context, streamID string, opts Go2RTCSnapshotOptions) (Go2RTCSnapshotResult, []byte, error) {
+	stream, data, cached, err := m.fetchSnapshotBytes(ctx, streamID, opts)
+	if err != nil {
+		return Go2RTCSnapshotResult{}, nil, err
+	}
+	result := snapshotMetadata(stream.ID, data)
+	result.Cached = cached
+	return result, data, nil
+}
+
+func (m *Go2RTCManager) fetchSnapshotBytes(ctx context.Context, streamID string, opts Go2RTCSnapshotOptions) (config.Go2RTCStreamConfig, []byte, bool, error) {
+	stream, err := m.findEnabledStream(streamID)
+	if err != nil {
+		return config.Go2RTCStreamConfig{}, nil, false, err
+	}
 	if opts.Width < 0 || opts.Width > 7680 || opts.Height < 0 || opts.Height > 4320 {
-		return Go2RTCSnapshotResult{}, nil, fmt.Errorf("snapshot size is outside the supported bounds")
+		return config.Go2RTCStreamConfig{}, nil, false, fmt.Errorf("snapshot size is outside the supported bounds")
 	}
 	switch opts.Rotate {
 	case 0, 90, 180, 270:
 	default:
-		return Go2RTCSnapshotResult{}, nil, fmt.Errorf("rotation must be 0, 90, 180, or 270")
+		return config.Go2RTCStreamConfig{}, nil, false, fmt.Errorf("rotation must be 0, 90, 180, or 270")
 	}
 	if opts.CacheSeconds < 0 || opts.CacheSeconds > 3600 {
-		return Go2RTCSnapshotResult{}, nil, fmt.Errorf("cache duration must be between 0 and 3600 seconds")
+		return config.Go2RTCStreamConfig{}, nil, false, fmt.Errorf("cache duration must be between 0 and 3600 seconds")
 	}
 	cacheKey := fmt.Sprintf("%s:%d:%d:%d", stream.ID, opts.Width, opts.Height, opts.Rotate)
 	if opts.CacheSeconds > 0 {
@@ -460,9 +482,7 @@ func (m *Go2RTCManager) Snapshot(ctx context.Context, streamID string, opts Go2R
 		}
 		m.mu.Unlock()
 		if ok && now.Before(cached.expiresAt) {
-			result, storeErr := m.buildSnapshotResult(stream, cached.data, opts)
-			result.Cached = true
-			return result, append([]byte(nil), cached.data...), storeErr
+			return stream, append([]byte(nil), cached.data...), true, nil
 		}
 	}
 	query := url.Values{"src": {Go2RTCRuntimeStreamName(stream.ID)}}
@@ -478,13 +498,13 @@ func (m *Go2RTCManager) Snapshot(ctx context.Context, streamID string, opts Go2R
 	var contentType string
 	data, err := m.requestBytes(ctx, http.MethodGet, "/api/frame.jpeg?"+query.Encode(), nil, go2RTCMaxResponseBytes, &contentType)
 	if err != nil {
-		return Go2RTCSnapshotResult{}, nil, err
+		return config.Go2RTCStreamConfig{}, nil, false, err
 	}
 	if len(data) < 4 || data[0] != 0xff || data[1] != 0xd8 || data[len(data)-2] != 0xff || data[len(data)-1] != 0xd9 {
-		return Go2RTCSnapshotResult{}, nil, fmt.Errorf("go2rtc returned invalid JPEG data")
+		return config.Go2RTCStreamConfig{}, nil, false, fmt.Errorf("go2rtc returned invalid JPEG data")
 	}
 	if mediaType, _, _ := strings.Cut(strings.ToLower(contentType), ";"); mediaType != "" && mediaType != "image/jpeg" {
-		return Go2RTCSnapshotResult{}, nil, fmt.Errorf("go2rtc returned an unexpected content type")
+		return config.Go2RTCStreamConfig{}, nil, false, fmt.Errorf("go2rtc returned an unexpected content type")
 	}
 	if opts.CacheSeconds > 0 {
 		now := time.Now()
@@ -492,19 +512,11 @@ func (m *Go2RTCManager) Snapshot(ctx context.Context, streamID string, opts Go2R
 		m.putSnapshotCacheLocked(cacheKey, data, now.Add(time.Duration(opts.CacheSeconds)*time.Second), now)
 		m.mu.Unlock()
 	}
-	result, err := m.buildSnapshotResult(stream, data, opts)
-	return result, data, err
+	return stream, data, false, nil
 }
 
 func (m *Go2RTCManager) buildSnapshotResult(stream config.Go2RTCStreamConfig, data []byte, opts Go2RTCSnapshotOptions) (Go2RTCSnapshotResult, error) {
-	sum := sha256.Sum256(data)
-	result := Go2RTCSnapshotResult{
-		Status:      "ok",
-		StreamID:    stream.ID,
-		ContentType: "image/jpeg",
-		Bytes:       len(data),
-		SHA256:      hex.EncodeToString(sum[:]),
-	}
+	result := snapshotMetadata(stream.ID, data)
 	cfg := m.Config()
 	if !opts.Store && !cfg.StoreMedia {
 		return result, nil
@@ -583,6 +595,17 @@ func (m *Go2RTCManager) buildSnapshotResult(stream config.Go2RTCStreamConfig, da
 		m.logger.Warn("[go2rtc] Failed to enforce snapshot retention", "error", err)
 	}
 	return result, nil
+}
+
+func snapshotMetadata(streamID string, data []byte) Go2RTCSnapshotResult {
+	sum := sha256.Sum256(data)
+	return Go2RTCSnapshotResult{
+		Status:      "ok",
+		StreamID:    streamID,
+		ContentType: "image/jpeg",
+		Bytes:       len(data),
+		SHA256:      hex.EncodeToString(sum[:]),
+	}
 }
 
 func (m *Go2RTCManager) putSnapshotCacheLocked(key string, data []byte, expiresAt, now time.Time) {

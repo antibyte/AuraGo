@@ -280,6 +280,13 @@ registration lives in `internal/desktop/types.go`.
   and full desktop shell re-render on changes (icons, widgets, start menu,
   start button). Loaded lazily by `module-loader.js`. Exposes
   `window.SettingsApp`.
+- `network-cameras.js` implements the Network Cameras app with a bounded
+  snapshot grid, one selected live viewer, an optional four-stream live grid,
+  administrator-only ONVIF/manual setup and stream management, and cleanup on
+  minimize or close. It must use AuraGo viewer/thumbnail APIs only, must never
+  receive or persist camera credentials, and stores only non-sensitive grid
+  mode and selected-stream preferences. Loaded lazily by `module-loader.js` and
+  exposes `window.NetworkCamerasApp { render, dispose }`.
 - `editor-filemenu.js` implements file management helpers and the inline text
   editor with window menus (file, edit, agent, help). Bundled in the main shell
   bundle (`desktopMainParts` in `build-ui-bundles.js`) because it is referenced

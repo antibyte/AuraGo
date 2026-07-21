@@ -35,6 +35,7 @@ import (
 	"aurago/internal/memory"
 	"aurago/internal/mqtt"
 	"aurago/internal/networkshares"
+	"aurago/internal/onvif"
 	"aurago/internal/planner"
 	"aurago/internal/proxy"
 	"aurago/internal/remote"
@@ -142,6 +143,7 @@ type Server struct {
 	CronManager          *tools.CronManager
 	BackgroundTasks      *tools.BackgroundTaskManager
 	Go2RTC               *tools.Go2RTCManager
+	Go2RTCDiscovery      *onvif.Service
 	Bluetooth            *bluetooth.Manager
 	NetworkShares        *networkshares.Manager
 	HistoryManager       *memory.HistoryManager
@@ -1240,6 +1242,7 @@ func newServerFromOptions(opts StartOptions) *Server {
 	}
 	s.initConfigSnapshot()
 	s.Go2RTC = tools.NewGo2RTCManager(cfg, opts.Vault, opts.MediaRegistryDB, logger)
+	s.Go2RTCDiscovery = onvif.NewService(cfg.Runtime.BroadcastOK)
 	tools.SetDefaultGo2RTCManager(s.Go2RTC)
 	return s
 }

@@ -1198,38 +1198,11 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 		}
 		s.CfgMu.Unlock()
 		if loadErr == nil && go2RTCChanged && newCfg != nil && s.Go2RTC != nil {
-			if !newCfg.Go2RTC.Enabled {
-				// Keep the old container identity until it has been stopped. This prevents
-				// a simultaneous disable/name edit from orphaning the running sidecar.
-				s.Go2RTC.Configure(&oldCfg)
-			} else if !go2RTCRecreate {
-				s.Go2RTC.Configure(newCfg)
-			}
 			go func() {
 				ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 				defer cancel()
-				switch {
-				case !newCfg.Go2RTC.Enabled:
-					if err := s.Go2RTC.StopContainer(); err != nil {
-						s.Logger.Warn("[go2rtc] Failed to stop disabled sidecar", "error", err)
-					}
-					s.Go2RTC.Configure(newCfg)
-				case go2RTCRecreate:
-					if err := s.Go2RTC.ReconfigureContainer(ctx, &oldCfg, newCfg); err != nil {
-						s.Logger.Warn("[go2rtc] Failed to recreate sidecar after configuration change", "error", err)
-					}
-				default:
-					if newCfg.Go2RTC.AutoStart {
-						if err := s.Go2RTC.StartContainer(ctx); err != nil {
-							s.Logger.Warn("[go2rtc] Failed to start sidecar after configuration change", "error", err)
-							return
-						}
-					} else if _, err := s.Go2RTC.Test(ctx); err != nil {
-						return
-					}
-					if _, err := s.Go2RTC.ReconcileStreams(ctx); err != nil {
-						s.Logger.Warn("[go2rtc] Failed to reconcile streams after configuration change", "error", err)
-					}
+				if err := applyGo2RTCRuntimeTransition(ctx, s, &oldCfg, newCfg, go2RTCRecreate, false); err != nil {
+					s.Logger.Warn("[go2rtc] Failed to apply configuration change", "error", err)
 				}
 			}()
 		}

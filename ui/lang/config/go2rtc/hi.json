@@ -1,4 +1,5 @@
 {
+  "config.go2rtc.open_camera_app": "नेटवर्क कैमरा ऐप खोलें",
   "config.section.go2rtc.label": "go2rtc कैमरे",
   "config.section.go2rtc.desc": "सुरक्षित रूप से प्रबंधित कैमरा स्ट्रीम, स्नैपशॉट और लाइव दृश्य",
   "config.go2rtc.proxy_note": "AuraGo कैमरा URL और go2rtc क्रेडेंशियल निजी रखता है। दृश्य AuraGo प्रॉक्सी से चलता है; सीधे LAN WebRTC को अलग से चालू किया जा सकता है।",

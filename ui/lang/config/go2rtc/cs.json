@@ -1,4 +1,5 @@
 {
+  "config.go2rtc.open_camera_app": "Otevřít aplikaci Síťové kamery",
   "config.section.go2rtc.label": "Kamery go2rtc",
   "config.section.go2rtc.desc": "Bezpečně spravované kamerové streamy, snímky a živý náhled",
   "config.go2rtc.proxy_note": "AuraGo uchovává adresy kamer a přihlašovací údaje go2rtc soukromé. Náhled používá proxy AuraGo; přímé WebRTC v LAN je volitelné.",

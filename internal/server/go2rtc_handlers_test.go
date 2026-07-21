@@ -1,11 +1,14 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -13,6 +16,8 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/security"
 	"aurago/internal/tools"
+
+	"gopkg.in/yaml.v3"
 )
 
 func TestGo2RTCProxyAllowlistBlocksMutationAndSensitiveAPIs(t *testing.T) {
@@ -32,6 +37,7 @@ func TestGo2RTCProxyAllowlistBlocksMutationAndSensitiveAPIs(t *testing.T) {
 		{"api/streams", http.MethodPatch, true, false},
 		{"api/config", http.MethodGet, true, false},
 		{"api/log", http.MethodGet, true, false},
+		{"api/onvif", http.MethodGet, true, false},
 		{"add.html", http.MethodGet, true, false},
 		{"config.html", http.MethodGet, true, false},
 		{"log.html", http.MethodGet, true, false},
@@ -404,5 +410,274 @@ func TestGo2RTCVaultMaskPreservationAndRemovedStreamCleanup(t *testing.T) {
 	}
 	if got, err := vault.ReadSecret(garageKey); err != nil || got != "rtsp://garage.local/live" {
 		t.Fatalf("remaining stream source was disturbed: %q, %v", got, err)
+	}
+}
+
+func TestGo2RTCAppStateNeverExposesSourcesOrDisabledStreamsToViewer(t *testing.T) {
+	const source = "rtsp://camera-user:camera-password@192.168.1.20/live"
+	cfg := &config.Config{}
+	cfg.Go2RTC = config.Go2RTCConfig{
+		Streams: []config.Go2RTCStreamConfig{
+			{ID: "front-door", Name: "Front door", Enabled: true, Source: source, SourceConfigured: true},
+			{ID: "garage", Name: "Garage", Source: source, SourceConfigured: true},
+		},
+	}
+	server := &Server{Cfg: cfg, Go2RTC: tools.NewGo2RTCManager(cfg, nil, nil, nil)}
+
+	viewerRequest := httptest.NewRequest(http.MethodGet, "/api/go2rtc/app/state", nil)
+	viewerRequest.Header.Set("Authorization", "Bearer viewer-scope-only")
+	viewerRecorder := httptest.NewRecorder()
+	handleGo2RTCAppState(server).ServeHTTP(viewerRecorder, viewerRequest)
+	if viewerRecorder.Code != http.StatusOK {
+		t.Fatalf("viewer state status = %d; body=%s", viewerRecorder.Code, viewerRecorder.Body.String())
+	}
+	viewerBody := viewerRecorder.Body.String()
+	for _, forbidden := range []string{"camera-user", "camera-password", "192.168.1.20", "rtsp://", "disabled_streams", "garage"} {
+		if strings.Contains(viewerBody, forbidden) {
+			t.Fatalf("viewer app state exposed %q: %s", forbidden, viewerBody)
+		}
+	}
+
+	adminRequest := httptest.NewRequest(http.MethodGet, "/api/go2rtc/app/state", nil)
+	adminRecorder := httptest.NewRecorder()
+	handleGo2RTCAppState(server).ServeHTTP(adminRecorder, adminRequest)
+	adminBody := adminRecorder.Body.String()
+	if adminRecorder.Code != http.StatusOK || !strings.Contains(adminBody, `"disabled_streams"`) || !strings.Contains(adminBody, `"source_configured":true`) {
+		t.Fatalf("admin state omitted safe disabled stream metadata: status=%d body=%s", adminRecorder.Code, adminBody)
+	}
+	for _, forbidden := range []string{"camera-user", "camera-password", "192.168.1.20", "rtsp://"} {
+		if strings.Contains(adminBody, forbidden) {
+			t.Fatalf("admin app state exposed %q: %s", forbidden, adminBody)
+		}
+	}
+}
+
+func TestGo2RTCThumbnailUsesPrivateCacheAndETag(t *testing.T) {
+	jpeg := []byte{0xff, 0xd8, 0xff, 0xdb, 0x01, 0xff, 0xd9}
+	upstreamCalls := 0
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		upstreamCalls++
+		if r.URL.Path != "/api/go2rtc/proxy/api/frame.jpeg" || r.URL.Query().Get("src") != "aurago_front-door" {
+			t.Errorf("unexpected thumbnail upstream request: %s?%s", r.URL.Path, r.URL.RawQuery)
+		}
+		w.Header().Set("Content-Type", "image/jpeg")
+		_, _ = w.Write(jpeg)
+	}))
+	defer upstream.Close()
+	parsed, _ := url.Parse(upstream.URL)
+	port, _ := strconv.Atoi(parsed.Port())
+	cfg := &config.Config{}
+	cfg.Directories.DataDir = t.TempDir()
+	cfg.Go2RTC = config.Go2RTCConfig{
+		Enabled: true, URL: upstream.URL, APIHostPort: port, APIPassword: "internal-password", StoreMedia: true,
+		Streams: []config.Go2RTCStreamConfig{{ID: "front-door", Name: "Front door", Enabled: true, Source: "rtsp://192.168.1.20/live"}},
+	}
+	server := &Server{Cfg: cfg, Go2RTC: tools.NewGo2RTCManager(cfg, nil, nil, nil)}
+	handler := handleGo2RTCThumbnail(server)
+
+	request := httptest.NewRequest(http.MethodGet, "/api/go2rtc/thumbnail/front-door.jpg?width=640&height=360&cache=5", nil)
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusOK || recorder.Body.String() != string(jpeg) {
+		t.Fatalf("thumbnail response = %d %x", recorder.Code, recorder.Body.Bytes())
+	}
+	etag := recorder.Header().Get("ETag")
+	if etag == "" || recorder.Header().Get("Cache-Control") != "private, max-age=5" || recorder.Header().Get("Content-Type") != "image/jpeg" {
+		t.Fatalf("thumbnail cache headers = %#v", recorder.Header())
+	}
+
+	cachedRequest := httptest.NewRequest(http.MethodGet, "/api/go2rtc/thumbnail/front-door.jpg?width=640&height=360&cache=5", nil)
+	cachedRequest.Header.Set("If-None-Match", etag)
+	cachedRecorder := httptest.NewRecorder()
+	handler.ServeHTTP(cachedRecorder, cachedRequest)
+	if cachedRecorder.Code != http.StatusNotModified || upstreamCalls != 1 {
+		t.Fatalf("cached thumbnail = status %d, upstream calls %d", cachedRecorder.Code, upstreamCalls)
+	}
+
+	invalidRecorder := httptest.NewRecorder()
+	handler.ServeHTTP(invalidRecorder, httptest.NewRequest(http.MethodGet, "/api/go2rtc/thumbnail/front-door.jpg?width=1281", nil))
+	if invalidRecorder.Code != http.StatusBadRequest || upstreamCalls != 1 {
+		t.Fatalf("oversized thumbnail = status %d, upstream calls %d", invalidRecorder.Code, upstreamCalls)
+	}
+}
+
+func TestGo2RTCAppMutationsRejectCrossOriginAndTrailingJSON(t *testing.T) {
+	crossOrigin := httptest.NewRequest(http.MethodPatch, "http://aurago.local/api/go2rtc/streams/front-door", strings.NewReader(`{"enabled":false}`))
+	crossOrigin.Header.Set("Origin", "https://evil.example")
+	crossOriginRecorder := httptest.NewRecorder()
+	handleGo2RTCStreamMutation(&Server{}).ServeHTTP(crossOriginRecorder, crossOrigin)
+	if crossOriginRecorder.Code != http.StatusForbidden {
+		t.Fatalf("cross-origin mutation status = %d, want 403", crossOriginRecorder.Code)
+	}
+
+	type payload struct {
+		Enabled bool `json:"enabled"`
+	}
+	request := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"enabled":true} trailing`))
+	if err := decodeGo2RTCAppJSON(httptest.NewRecorder(), request, &payload{}); err == nil {
+		t.Fatal("trailing non-JSON data was accepted")
+	}
+	request = httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"enabled":true}{"enabled":false}`))
+	if err := decodeGo2RTCAppJSON(httptest.NewRecorder(), request, &payload{}); err == nil {
+		t.Fatal("second JSON object was accepted")
+	}
+}
+
+func TestGo2RTCViewScopeDoesNotAcceptGeneralDesktopBearer(t *testing.T) {
+	vault, err := security.NewVault(strings.Repeat("33", 32), t.TempDir()+"/vault.bin")
+	if err != nil {
+		t.Fatalf("NewVault: %v", err)
+	}
+	tokens, err := security.NewTokenManager(vault, t.TempDir()+"/tokens.enc")
+	if err != nil {
+		t.Fatalf("NewTokenManager: %v", err)
+	}
+	desktopToken, _, err := tokens.Create("desktop", []string{"desktop.control"}, nil)
+	if err != nil {
+		t.Fatalf("create desktop token: %v", err)
+	}
+	viewerToken, _, err := tokens.Create("camera viewer", []string{go2RTCViewScope}, nil)
+	if err != nil {
+		t.Fatalf("create viewer token: %v", err)
+	}
+	adminToken, _, err := tokens.Create("admin", []string{"admin"}, nil)
+	if err != nil {
+		t.Fatalf("create admin token: %v", err)
+	}
+	server := &Server{Cfg: &config.Config{}, TokenManager: tokens}
+	calls := 0
+	handler := requireGo2RTCView(server, func(w http.ResponseWriter, _ *http.Request) {
+		calls++
+		w.WriteHeader(http.StatusNoContent)
+	})
+
+	for _, test := range []struct {
+		name   string
+		token  string
+		status int
+	}{
+		{name: "general desktop", token: desktopToken, status: http.StatusForbidden},
+		{name: "camera viewer", token: viewerToken, status: http.StatusNoContent},
+		{name: "administrator", token: adminToken, status: http.StatusNoContent},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodGet, "/api/go2rtc/app/state", nil)
+			request.Header.Set("Authorization", "Bearer "+test.token)
+			recorder := httptest.NewRecorder()
+			handler.ServeHTTP(recorder, request)
+			if recorder.Code != test.status {
+				t.Fatalf("status = %d, want %d", recorder.Code, test.status)
+			}
+		})
+	}
+	if calls != 2 {
+		t.Fatalf("authorized handler calls = %d, want 2", calls)
+	}
+}
+
+func TestGo2RTCSetupEnableReturnsStructuredDockerRequirements(t *testing.T) {
+	server := &Server{Cfg: &config.Config{}}
+	request := httptest.NewRequest(http.MethodPost, "http://aurago.local/api/go2rtc/setup/enable", strings.NewReader(`{}`))
+	request.Host = "aurago.local"
+	recorder := httptest.NewRecorder()
+	handleGo2RTCSetupEnable(server).ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusPreconditionFailed {
+		t.Fatalf("setup status = %d, want 412; body=%s", recorder.Code, recorder.Body.String())
+	}
+	var response struct {
+		Status       string              `json:"status"`
+		Requirements []map[string]string `json:"requirements"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+		t.Fatalf("decode setup requirements: %v", err)
+	}
+	if response.Status != "requirements_missing" || len(response.Requirements) < 2 {
+		t.Fatalf("setup requirements = %#v", response)
+	}
+}
+
+func TestManagedGo2RTCConfigUpdateKeepsSourcesVaultOnlyAndRollsBackValidationFailure(t *testing.T) {
+	const firstSource = "rtsp://camera-user:first-password@192.168.40.20/live"
+	const secondSource = "rtsp://camera-user:second-password@192.168.40.20/live"
+	var patchedSources []string
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/api/go2rtc/proxy/api":
+			_, _ = w.Write([]byte(`{"version":"1.9.14"}`))
+		case r.Method == http.MethodPatch && r.URL.Path == "/api/go2rtc/proxy/api/streams":
+			patchedSources = append(patchedSources, r.URL.Query().Get("src"))
+			w.WriteHeader(http.StatusOK)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer upstream.Close()
+	parsed, _ := url.Parse(upstream.URL)
+	port, _ := strconv.Atoi(parsed.Port())
+
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	cfg := &config.Config{ConfigPath: configPath}
+	cfg.Directories.DataDir = filepath.Join(tmpDir, "data")
+	cfg.Docker.Enabled = true
+	cfg.Docker.Host = "tcp://127.0.0.1:2375"
+	cfg.Go2RTC = config.Go2RTCConfig{
+		Enabled: true, AutoStart: false, Image: config.Go2RTCDefaultImage,
+		URL: upstream.URL, APIHostPort: port, ContainerName: "aurago_go2rtc",
+		WebRTC: config.Go2RTCWebRTCConfig{Port: 8555},
+	}
+	rawConfig, err := yaml.Marshal(cfg)
+	if err != nil {
+		t.Fatalf("marshal initial config: %v", err)
+	}
+	if err := os.WriteFile(configPath, rawConfig, 0o600); err != nil {
+		t.Fatalf("write initial config: %v", err)
+	}
+	vault, err := security.NewVault(strings.Repeat("44", 32), filepath.Join(tmpDir, "vault.bin"))
+	if err != nil {
+		t.Fatalf("NewVault: %v", err)
+	}
+	if err := vault.WriteSecret(config.Go2RTCAPIPasswordVaultKey, "internal-password"); err != nil {
+		t.Fatalf("seed API password: %v", err)
+	}
+	manager := tools.NewGo2RTCManager(cfg, vault, nil, slog.Default())
+	server := &Server{Cfg: cfg, Vault: vault, Go2RTC: manager, Logger: slog.Default()}
+
+	addStream := func(source string) error {
+		_, updateErr := updateManagedGo2RTCConfig(context.Background(), server, func(value *config.Go2RTCConfig) error {
+			if len(value.Streams) == 0 {
+				value.Streams = append(value.Streams, config.Go2RTCStreamConfig{ID: "front-door", Name: "Front door", Enabled: true})
+			}
+			return nil
+		}, []go2RTCSourceChange{{ID: "front-door", Value: source}}, false)
+		return updateErr
+	}
+	if err := addStream(firstSource); err != nil {
+		t.Fatalf("add stream: %v", err)
+	}
+	if err := addStream(secondSource); err != nil {
+		t.Fatalf("replace stream source: %v", err)
+	}
+	if len(patchedSources) != 2 || patchedSources[0] != firstSource || patchedSources[1] != secondSource {
+		t.Fatalf("runtime reconcile sources = %#v", patchedSources)
+	}
+	if got, err := vault.ReadSecret(config.Go2RTCStreamSourceVaultKey("front-door")); err != nil || got != secondSource {
+		t.Fatalf("vault source = %q, %v", got, err)
+	}
+	publishedYAML, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("read published config: %v", err)
+	}
+	for _, forbidden := range []string{firstSource, secondSource, "first-password", "second-password"} {
+		if strings.Contains(string(publishedYAML), forbidden) {
+			t.Fatalf("published YAML leaked %q", forbidden)
+		}
+	}
+
+	if err := addStream("file:///private/camera.mp4"); err == nil {
+		t.Fatal("invalid replacement source unexpectedly succeeded")
+	}
+	if got, err := vault.ReadSecret(config.Go2RTCStreamSourceVaultKey("front-door")); err != nil || got != secondSource {
+		t.Fatalf("failed validation did not restore source: %q, %v", got, err)
 	}
 }

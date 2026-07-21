@@ -383,6 +383,38 @@ func TestGo2RTCSnapshotStoresAndDeduplicatesMediaRegistryEntry(t *testing.T) {
 	}
 }
 
+func TestGo2RTCSnapshotBytesNeverStoresMedia(t *testing.T) {
+	jpeg := []byte{0xff, 0xd8, 0xff, 0xdb, 0x01, 0xff, 0xd9}
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "image/jpeg")
+		_, _ = w.Write(jpeg)
+	}))
+	defer upstream.Close()
+	manager := testGo2RTCManager(t, upstream.URL, "internal-password", true)
+	manager.dataDir = t.TempDir()
+	db, err := InitMediaRegistryDB(filepath.Join(t.TempDir(), "media.db"))
+	if err != nil {
+		t.Fatalf("InitMediaRegistryDB: %v", err)
+	}
+	defer db.Close()
+	manager.mediaDB = db
+
+	result, data, err := manager.SnapshotBytes(context.Background(), "front-door", Go2RTCSnapshotOptions{Width: 640, Height: 360, CacheSeconds: 5})
+	if err != nil {
+		t.Fatalf("SnapshotBytes: %v", err)
+	}
+	if result.Stored || len(data) != len(jpeg) {
+		t.Fatalf("non-persisting snapshot = %+v, bytes=%d", result, len(data))
+	}
+	var count int
+	if err := db.QueryRow("SELECT COUNT(*) FROM media_items WHERE source_tool = 'go2rtc'").Scan(&count); err != nil || count != 0 {
+		t.Fatalf("go2rtc media rows = %d, %v; want 0", count, err)
+	}
+	if _, err := os.Stat(filepath.Join(manager.dataDir, "go2rtc", "snapshots")); !os.IsNotExist(err) {
+		t.Fatalf("thumbnail path unexpectedly created: %v", err)
+	}
+}
+
 func TestGo2RTCTransportErrorsNeverLeakRuntimeSource(t *testing.T) {
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
