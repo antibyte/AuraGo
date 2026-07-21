@@ -1,4 +1,7 @@
 {
+  "backend.operational_issue_notice_title": "現在の運用上の問題",
+  "backend.operational_issue_notice_summary": "AuraGo はバックグラウンド処理中に {0} 件の問題を検出しました。",
+  "backend.operational_issue_notice_occurrences": "{0} 回発生",
   "backend.cmd_unknown": "❌ 不明なコマンド。コマンド一覧は /help を入力してください。",
   "backend.cmd_reset_success": "🧹 チャット履歴と短期記憶が削除されました。",
   "backend.cmd_reset_help": "現在のチャット履歴を削除します（短期記憶）。",

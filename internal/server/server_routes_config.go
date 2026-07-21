@@ -2,10 +2,12 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"runtime"
 	"strings"
 
+	"aurago/internal/buildinfo"
 	"aurago/internal/services/optimizer"
 	"aurago/internal/tools"
 )
@@ -497,6 +499,7 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	mux.HandleFunc("/api/system/info", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		info := tools.GetHostInfo()
+		build := buildinfo.Current()
 		resp := map[string]string{
 			"hostname":         info.Hostname,
 			"os":               info.OS,
@@ -505,6 +508,10 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 			"kernel_version":   info.KernelVersion,
 			"go_version":       runtime.Version(),
 			"go_arch":          runtime.GOARCH,
+			"build_id":         build.BuildID,
+			"vcs_revision":     build.VCSRevision,
+			"vcs_time":         build.VCSTime,
+			"vcs_modified":     fmt.Sprintf("%t", build.VCSModified),
 		}
 		json.NewEncoder(w).Encode(resp)
 	})

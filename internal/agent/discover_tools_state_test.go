@@ -1,8 +1,10 @@
 package agent
 
 import (
+	"context"
 	"io"
 	"log/slog"
+	"strings"
 	"testing"
 	"time"
 
@@ -397,7 +399,7 @@ func TestConsumeDiscoverRequestedToolsIsOneShot(t *testing.T) {
 	}
 }
 
-func TestHandleActivateToolsClassifiesAndConsumesActivations(t *testing.T) {
+func TestHandleActivateToolsEnforcesCatalogCallMethod(t *testing.T) {
 	t.Cleanup(func() {
 		discoverToolsState.mu.Lock()
 		discoverToolsState.snapshots = nil
@@ -442,16 +444,17 @@ func TestHandleActivateToolsClassifiesAndConsumesActivations(t *testing.T) {
 
 	var payload ActivateToolsResponse
 	decodeToolOutputJSON(t, out, &payload)
-	if payload.Status != "success" || !payload.NextRequest {
+	if payload.Status != "error" || !payload.NextRequest {
 		t.Fatalf("unexpected activate_tools response: %+v raw=%s", payload, out)
 	}
-	if !containsName(payload.AlreadyActive, "docker") {
-		t.Fatalf("already_active = %v, want docker", payload.AlreadyActive)
+	if payload.RequiredCallMethods["docker"] != "direct" {
+		t.Fatalf("docker call method = %q, want direct", payload.RequiredCallMethods["docker"])
 	}
-	for _, want := range []string{"chromecast", "weather_check"} {
-		if !containsName(payload.Activated, want) {
-			t.Fatalf("activated = %v, want %s", payload.Activated, want)
-		}
+	if payload.RequiredCallMethods["chromecast"] != "invoke_tool" {
+		t.Fatalf("chromecast call method = %q, want invoke_tool", payload.RequiredCallMethods["chromecast"])
+	}
+	if payload.RequiredCallMethods["weather_check"] != "execute_skill" {
+		t.Fatalf("weather call method = %q, want execute_skill", payload.RequiredCallMethods["weather_check"])
 	}
 	if !containsName(payload.Disabled, "uptime_kuma") {
 		t.Fatalf("disabled = %v, want uptime_kuma", payload.Disabled)
@@ -460,14 +463,49 @@ func TestHandleActivateToolsClassifiesAndConsumesActivations(t *testing.T) {
 		t.Fatalf("unknown = %v, want no_such_tool", payload.Unknown)
 	}
 
-	first := ConsumeActivatedTools("sess-activate")
-	for _, want := range []string{"chromecast", "skill__weather_check"} {
-		if !containsName(first, want) {
-			t.Fatalf("consumed activations = %v, want %s", first, want)
-		}
+	if activated := ConsumeActivatedTools("sess-activate"); len(activated) != 0 {
+		t.Fatalf("mismatched call methods activated tools: %v", activated)
 	}
-	if second := ConsumeActivatedTools("sess-activate"); len(second) != 0 {
-		t.Fatalf("second consume = %v, want empty", second)
+}
+
+func TestActivateToolsThroughNativeDispatcher(t *testing.T) {
+	t.Cleanup(func() {
+		discoverToolsState.mu.Lock()
+		discoverToolsState.snapshots = nil
+		discoverToolsState.requested = nil
+		discoverToolsState.activated = nil
+		discoverToolsState.mu.Unlock()
+	})
+
+	allSchemas := []openai.Tool{
+		{
+			Type: openai.ToolTypeFunction,
+			Function: &openai.FunctionDefinition{
+				Name: "docker", Parameters: map[string]any{"type": "object"},
+			},
+		},
+		{
+			Type: openai.ToolTypeFunction,
+			Function: &openai.FunctionDefinition{
+				Name: "chromecast", Parameters: map[string]any{"type": "object"},
+			},
+		},
+	}
+	SetDiscoverToolsState("sess-dispatch-activate", allSchemas, allSchemas[:1], "")
+	call := ToolCall{
+		Action: "activate_tools", IsTool: true,
+		Params: map[string]interface{}{"names": []interface{}{"chromecast"}},
+	}
+	out := DispatchToolCall(context.Background(), &call, &DispatchContext{
+		Cfg: &config.Config{}, Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+		SessionID: "sess-dispatch-activate",
+	}, "activate the discovered tool")
+	if !strings.Contains(out, `"required_call_methods":{"chromecast":"invoke_tool"}`) {
+		t.Fatalf("dispatcher output = %q", out)
+	}
+	activated := ConsumeActivatedTools("sess-dispatch-activate")
+	if len(activated) != 0 {
+		t.Fatalf("dispatcher bypassed binding call method: %v", activated)
 	}
 }
 

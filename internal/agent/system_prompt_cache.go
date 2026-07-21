@@ -45,6 +45,7 @@ type systemPromptCacheKey struct {
 	PlannerContext           string   `json:"planner_context"`
 	DailyTodoReminder        string   `json:"daily_todo_reminder"`
 	OperationalIssueReminder string   `json:"operational_issue_reminder"`
+	CurrentToolRoute         string   `json:"current_tool_route"`
 	SessionTodoItems         string   `json:"session_todo_items"`
 	WebhooksDefinitions      string   `json:"webhooks_definitions"`
 	RetrievedMemories        string   `json:"retrieved_memories"`
@@ -122,6 +123,7 @@ func buildSystemPromptCacheKey(promptsDir string, flags *prompts.ContextFlags, c
 		PlannerContext:           flags.PlannerContext,
 		DailyTodoReminder:        flags.DailyTodoReminder,
 		OperationalIssueReminder: flags.OperationalIssueReminder,
+		CurrentToolRoute:         flags.CurrentToolRoute,
 		SessionTodoItems:         flags.SessionTodoItems,
 		WebhooksDefinitions:      flags.WebhooksDefinitions,
 		RetrievedMemories:        flags.RetrievedMemories,

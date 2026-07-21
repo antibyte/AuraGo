@@ -1,4 +1,7 @@
 {
+  "backend.operational_issue_notice_title": "Current operational issues",
+  "backend.operational_issue_notice_summary": "AuraGo detected {0} issue(s) during background work.",
+  "backend.operational_issue_notice_occurrences": "occurred {0} times",
   "backend.cmd_unknown": "❌ Unknown command. Type /help for a list of commands.",
   "backend.cmd_reset_success": "🧹 Chat history and short-term memory have been deleted.",
   "backend.cmd_reset_help": "Deletes the current chat history (short-term memory).",

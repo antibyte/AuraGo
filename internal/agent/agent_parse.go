@@ -47,16 +47,9 @@ func guardianBlockNextStep(reason string) string {
 	}
 }
 
-func formatGuardianBlockedMessage(action, reason string, risk float64, allowClarification bool, clarificationRejected bool) string {
+func formatGuardianBlockedMessage(action, reason string, risk float64, _ bool, _ bool) string {
 	base := fmt.Sprintf("[TOOL BLOCKED] Security check failed for %s: %s (risk: %.0f%%).", action, reason, risk*100)
-	nextStep := guardianBlockNextStep(reason)
-	if clarificationRejected {
-		return base + " Clarification was reviewed but the action remains blocked. " + nextStep
-	}
-	if allowClarification {
-		return base + ` You may retry this tool call once by adding a "_guardian_justification" field explaining why this action is necessary and safe.` + " " + nextStep
-	}
-	return base + " " + nextStep
+	return base + " The block is final for this call. " + guardianBlockNextStep(reason)
 }
 
 // DispatchToolCall executes the appropriate tool based on the parsed ToolCall.
@@ -94,27 +87,6 @@ func DispatchToolCall(ctx context.Context, tc *ToolCall, dc *DispatchContext, us
 		if llmGuardian.ShouldCheck(check) {
 			result := llmGuardian.EvaluateWithFailSafe(ctx, check)
 			if result.Decision == security.DecisionBlock {
-				// Clarification: if agent provided a justification AND clarification is enabled, re-evaluate once
-				if tc.GuardianJustification != "" && cfg.LLMGuardian.AllowClarification {
-					check.Justification = tc.GuardianJustification
-					clarResult := llmGuardian.EvaluateClarification(ctx, check)
-					if clarResult.Decision != security.DecisionBlock {
-						logger.Info("[LLM Guardian] Clarification accepted, proceeding",
-							"tool", tc.Action, "decision", clarResult.Decision, "reason", clarResult.Reason)
-						if clarResult.Decision == security.DecisionQuarantine {
-							logger.Warn("[LLM Guardian] Clarification resulted in quarantine (proceeding with caution)",
-								"tool", tc.Action, "reason", clarResult.Reason, "risk", clarResult.RiskScore)
-						}
-						goto proceed
-					}
-					// Clarification rejected — final block (no more retries)
-					logger.Warn("[LLM Guardian] Clarification rejected, final block",
-						"tool", tc.Action, "reason", clarResult.Reason, "risk", clarResult.RiskScore)
-					tc.GuardianBlocked = true
-					tc.GuardianBlockReason = clarResult.Reason
-					return formatGuardianBlockedMessage(tc.Action, clarResult.Reason, clarResult.RiskScore, cfg.LLMGuardian.AllowClarification, true)
-				}
-
 				logger.Warn("[LLM Guardian] Blocked tool call",
 					"tool", tc.Action, "reason", result.Reason, "risk", result.RiskScore)
 				tc.GuardianBlocked = true
@@ -127,7 +99,6 @@ func DispatchToolCall(ctx context.Context, tc *ToolCall, dc *DispatchContext, us
 			}
 		}
 	}
-proceed:
 
 	startTime := time.Now()
 	rawResult := dispatchInner(ctx, *tc, dc)

@@ -1584,6 +1584,7 @@ const (
 	aggressiveReuseContextChars      = 700
 	aggressiveAvailableContextChars  = 1600
 	runtimeOperationalIssueChars     = 600
+	runtimeCurrentToolRouteChars     = 500
 )
 
 type promptMemoryEntry struct {
@@ -1877,6 +1878,7 @@ func applyRuntimePromptContextBudgets(flags *prompts.ContextFlags) {
 		return
 	}
 	flags.OperationalIssueReminder = compactMemoryForPrompt(flags.OperationalIssueReminder, runtimeOperationalIssueChars)
+	flags.CurrentToolRoute = compactMemoryForPrompt(flags.CurrentToolRoute, runtimeCurrentToolRouteChars)
 }
 
 func shouldInjectReachableChatChannelsContext(userText, messageSource string, recentTools []string, sessionUsed map[string]bool) bool {
@@ -2067,6 +2069,54 @@ func shouldExposeRuntimePaths(userText string, recentTools []string, sessionUsed
 	}
 	for name := range sessionUsed {
 		if isRuntimePathTool(name) {
+			return true
+		}
+	}
+	return false
+}
+
+func shouldInjectComposioContext(userText, composioContext string) bool {
+	text := normalizeAdaptiveIntentText(userText)
+	if text == "" || strings.TrimSpace(composioContext) == "" {
+		return false
+	}
+	if strings.Contains(text, "composio") {
+		return true
+	}
+	for _, line := range strings.Split(composioContext, "\n") {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, "-") {
+			continue
+		}
+		slug := strings.TrimSpace(strings.TrimPrefix(strings.SplitN(line, ":", 2)[0], "-"))
+		if slug != "" && strings.Contains(text, normalizeAdaptiveIntentText(slug)) {
+			return true
+		}
+	}
+	return false
+}
+
+func shouldInjectAgentSkillsCatalog(userText string) bool {
+	text := normalizeAdaptiveIntentText(userText)
+	for _, cue := range []string{
+		"agent skill", "agent skills", "skill md", "skills katalog", "skills catalog",
+		"aktiviere skill", "activate skill", "nutze skill", "use skill", "workflow paket",
+	} {
+		if strings.Contains(text, cue) {
+			return true
+		}
+	}
+	return false
+}
+
+func shouldInjectCodingRules(userText string) bool {
+	text := normalizeAdaptiveIntentText(userText)
+	for _, cue := range []string{
+		"code", "coding", "implement", "programmier", "refactor", "debug", "bugfix",
+		"quellcode", "source code", "skript", "script", "unit test", "integration test",
+		"go datei", "python funktion", "javascript", "typescript",
+	} {
+		if strings.Contains(text, cue) {
 			return true
 		}
 	}

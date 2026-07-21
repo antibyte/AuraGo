@@ -74,3 +74,17 @@ func TestShouldInjectRecentMemoryContextSkipsBareGreeting(t *testing.T) {
 		t.Fatal("specific operational query should inject recent memory context")
 	}
 }
+
+func TestSelectRelevantRecentMemoryLinesRejectsUnrelatedRetry(t *testing.T) {
+	candidates := []string{
+		"MiniMax image generation failed and should be retried",
+		"Tailscale connection status was checked",
+	}
+	if got := selectRelevantRecentMemoryLines("versuche es erneut", candidates, 1); len(got) != 0 {
+		t.Fatalf("generic retry selected recent memory: %#v", got)
+	}
+	got := selectRelevantRecentMemoryLines("prüfe den Tailscale Status", candidates, 1)
+	if len(got) != 1 || got[0] != candidates[1] {
+		t.Fatalf("specific topic selection = %#v, want Tailscale candidate", got)
+	}
+}

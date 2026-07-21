@@ -1,4 +1,7 @@
 {
+  "backend.operational_issue_notice_title": "Problemi operativi attuali",
+  "backend.operational_issue_notice_summary": "AuraGo ha rilevato {0} problema/i durante le attività in background.",
+  "backend.operational_issue_notice_occurrences": "si è verificato {0} volte",
   "backend.cmd_unknown": "❌ Comando sconosciuto. Digita /help per l'elenco dei comandi.",
   "backend.cmd_reset_success": "🧹 La cronologia chat e la memoria a breve termine sono state eliminate.",
   "backend.cmd_reset_help": "Elimina la cronologia chat corrente (memoria a breve termine).",

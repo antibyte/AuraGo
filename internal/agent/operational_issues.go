@@ -6,8 +6,26 @@ import (
 	"strings"
 	"time"
 
+	"aurago/internal/i18n"
 	"aurago/internal/planner"
 )
+
+const operationalIssueNoticeEvent = "operational_issue_notice"
+
+type operationalIssueNoticeState struct {
+	Items            []planner.OperationalIssueNotice
+	Refs             []planner.OperationalIssueNoticeRef
+	Text             string
+	PromptContext    string
+	TypedDelivered   bool
+	FallbackRequired bool
+}
+
+type operationalIssueNoticePayload struct {
+	Text   string                           `json:"text"`
+	Count  int                              `json:"count"`
+	Issues []planner.OperationalIssueNotice `json:"issues"`
+}
 
 func recordToolFailureOperationalIssue(runCfg RunConfig, tc ToolCall, resultContent string, logger *slog.Logger) {
 	if !shouldRecordOperationalIssueForRun(runCfg) {
@@ -38,6 +56,20 @@ func recordToolFailureOperationalIssue(runCfg RunConfig, tc ToolCall, resultCont
 		Fingerprint: strings.Join([]string{source, context, "tool", action}, "|"),
 		OccurredAt:  time.Now(),
 	}, logger)
+}
+
+func resolveToolFailureOperationalIssue(runCfg RunConfig, tc ToolCall, logger *slog.Logger) {
+	if !shouldRecordOperationalIssueForRun(runCfg) || runCfg.PlannerDB == nil {
+		return
+	}
+	action := strings.TrimSpace(tc.Action)
+	if action == "" {
+		action = "unknown_tool"
+	}
+	fingerprint := strings.Join([]string{operationalIssueSource(runCfg), operationalIssueContext(runCfg), "tool", action}, "|")
+	if _, err := planner.ResolveOperationalIssue(runCfg.PlannerDB, fingerprint, "The same tool operation completed successfully.", time.Now()); err != nil && logger != nil {
+		logger.Warn("[OperationalIssue] Failed to resolve internal issue", "tool", action, "error", err)
+	}
 }
 
 func recordOperationalIssue(runCfg RunConfig, issue planner.OperationalIssue, logger *slog.Logger) {
@@ -94,46 +126,115 @@ func operationalIssueContext(runCfg RunConfig) string {
 	return ""
 }
 
-func operationalIssueReminderText(runCfg RunConfig, initialUserMsg string, isFirstTurn bool, logger *slog.Logger) string {
+func prepareOperationalIssueNotice(runCfg RunConfig, initialUserMsg string, logger *slog.Logger) operationalIssueNoticeState {
 	if !shouldConsiderOperationalIssueReminder(runCfg, initialUserMsg) {
-		return ""
+		return operationalIssueNoticeState{}
 	}
-	issues, err := planner.ListOperationalIssueTodos(runCfg.PlannerDB, 5)
+	issues, err := planner.ListPendingOperationalIssueNotices(runCfg.PlannerDB, time.Now(), 2)
 	if err != nil {
 		if logger != nil {
-			logger.Warn("Failed to load operational issue reminder", "error", err)
+			logger.Warn("Failed to load operational issue notices", "error", err)
 		}
-		return ""
+		return operationalIssueNoticeState{}
 	}
-	reminder := planner.BuildOperationalIssueReminderText(issues)
-	if strings.TrimSpace(reminder) == "" {
-		return ""
+	if len(issues) == 0 {
+		return operationalIssueNoticeState{}
 	}
+	lang := "en"
+	if runCfg.Config != nil {
+		lang = runCfg.Config.Server.UILanguage
+	}
+	text := formatOperationalIssueNotice(lang, issues)
+	refs := make([]planner.OperationalIssueNoticeRef, 0, len(issues))
+	for _, issue := range issues {
+		refs = append(refs, planner.OperationalIssueNoticeRef{Fingerprint: issue.Fingerprint, Revision: issue.Revision})
+	}
+	return operationalIssueNoticeState{
+		Items:         issues,
+		Refs:          refs,
+		Text:          text,
+		PromptContext: strings.TrimSpace("The supervisor has already displayed the following REQUIRED USER NOTICE, or will prepend it deterministically to the final answer. Do not repeat it unless it is directly relevant to the answer.\n\n" + text),
+	}
+}
 
-	debugMode := runCfg.Config != nil && runCfg.Config.Agent.DebugMode
-	if GetDebugMode() {
-		debugMode = true
-	}
-	if isFirstTurn {
-		if _, err := planner.ClaimOperationalIssueReminderForDay(runCfg.PlannerDB, time.Now()); err != nil && logger != nil {
-			logger.Warn("Failed to claim operational issue reminder", "error", err)
+func formatOperationalIssueNotice(lang string, issues []planner.OperationalIssueNotice) string {
+	title := translatedOperationalIssueText(lang, "backend.operational_issue_notice_title", "Current operational issues")
+	summary := translatedOperationalIssueText(lang, "backend.operational_issue_notice_summary", "AuraGo detected {0} issue(s) during background work.", len(issues))
+	var b strings.Builder
+	b.WriteString("### ")
+	b.WriteString(title)
+	b.WriteString("\n\n")
+	b.WriteString(summary)
+	for _, issue := range issues {
+		b.WriteString("\n\n- ")
+		b.WriteString(strings.TrimSpace(issue.Title))
+		if detail := strings.TrimSpace(issue.Detail); detail != "" {
+			b.WriteString(": ")
+			b.WriteString(detail)
 		}
-		return reminder
-	}
-	if shouldInjectOperationalIssueReminderForTurn(initialUserMsg, reminder, debugMode) {
-		return reminder
-	}
-	claimed, err := planner.ClaimOperationalIssueReminderForDay(runCfg.PlannerDB, time.Now())
-	if err != nil {
-		if logger != nil {
-			logger.Warn("Failed to claim operational issue reminder", "error", err)
+		if issue.Occurrences > 1 {
+			occurrences := translatedOperationalIssueText(lang, "backend.operational_issue_notice_occurrences", "occurred {0} times", issue.Occurrences)
+			b.WriteString(" (")
+			b.WriteString(occurrences)
+			b.WriteString(")")
 		}
-		return ""
 	}
-	if claimed {
-		return reminder
+	return b.String()
+}
+
+func translatedOperationalIssueText(lang, key, fallback string, params ...any) string {
+	translated := i18n.T(lang, key, params...)
+	if translated == key {
+		translated = fallback
+		for index, value := range params {
+			translated = strings.ReplaceAll(translated, fmt.Sprintf("{%d}", index), fmt.Sprint(value))
+		}
 	}
-	return ""
+	return translated
+}
+
+func deliverOperationalIssueNotice(state *operationalIssueNoticeState, runCfg RunConfig, broker FeedbackBroker, logger *slog.Logger) {
+	if state == nil || len(state.Items) == 0 || strings.TrimSpace(state.Text) == "" {
+		return
+	}
+	typed, ok := broker.(TypedFeedbackBroker)
+	if !ok || !typed.SendTyped(operationalIssueNoticeEvent, operationalIssueNoticePayload{
+		Text: state.Text, Count: len(state.Items), Issues: state.Items,
+	}) {
+		state.FallbackRequired = true
+		return
+	}
+	state.TypedDelivered = true
+	if err := planner.MarkOperationalIssuesNotified(runCfg.PlannerDB, state.Refs, time.Now()); err != nil && logger != nil {
+		logger.Warn("Failed to persist delivered operational issue notice", "error", err)
+	}
+}
+
+func prependOperationalIssueNotice(state operationalIssueNoticeState, content string) string {
+	if !state.FallbackRequired || strings.TrimSpace(state.Text) == "" {
+		return content
+	}
+	content = strings.TrimSpace(content)
+	if content == "" || content == "[Empty Response]" {
+		return state.Text
+	}
+	return state.Text + "\n\n" + content
+
+}
+
+func markPersistedOperationalIssueNotice(state operationalIssueNoticeState, runCfg RunConfig, logger *slog.Logger) {
+	if !state.FallbackRequired || len(state.Refs) == 0 {
+		return
+	}
+	if err := planner.MarkOperationalIssuesNotified(runCfg.PlannerDB, state.Refs, time.Now()); err != nil && logger != nil {
+		logger.Warn("Failed to persist fallback operational issue notice state", "error", err)
+	}
+}
+
+// operationalIssueReminderText remains as a compatibility helper for prompt
+// tests and callers outside the loop. It no longer claims or marks a notice.
+func operationalIssueReminderText(runCfg RunConfig, initialUserMsg string, _ bool, logger *slog.Logger) string {
+	return prepareOperationalIssueNotice(runCfg, initialUserMsg, logger).PromptContext
 }
 
 func shouldConsiderOperationalIssueReminder(runCfg RunConfig, initialUserMsg string) bool {

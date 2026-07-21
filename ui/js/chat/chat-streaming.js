@@ -318,6 +318,12 @@ function connectSSE() {
         }
     });
 
+    window.AuraSSE.on('operational_issue_notice', function (payload) {
+        if (!isCurrentSession(payload)) return;
+        if (!payload || !payload.text) return;
+        appendMessage('system', payload.text);
+    });
+
     window.AuraSSE.on('agent_action', function (payload) {
         if (!isCurrentSession(payload)) return;
         if (!payload) return;

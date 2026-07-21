@@ -395,6 +395,18 @@ Tools are defined in `internal/tools/`:
 - Native OpenAI function calling format
 - Dynamic tool creation supported (agent writes Python tools)
 - `invoke_tool` may route any enabled native tool through its real handler, including an active catalog entry when the current model/runtime cannot emit the direct structured call. It must continue to reject disabled tools and self-invocation.
+- The `call_method` returned by `discover_tools` is binding. Use `invoke_tool` immediately when requested; `activate_tools` must reject any tool for which discovery did not explicitly return `activate_tools`.
+
+### Operational Issue Notification Contract
+- Background and maintenance contexts only record operational issues; they never send user notices themselves.
+- New or changed issue revisions are surfaced by the supervisor at the next direct chat contact, with at most two issues ordered by severity, change, and recency. High-severity open issues may repeat after 24 hours.
+- Supported brokers receive `operational_issue_notice`; other channels receive the same localized text as a deterministic final-answer prefix. Mark a revision notified only after broker delivery or durable final-message persistence.
+- The model receives the notice only as already-delivered diagnostic context and must not be responsible for deciding whether the user sees it. Internal memory-reflection advice stays hidden unless blocked or awaiting a user decision.
+- Explicit retry requests permit at most one supervisor-selected safe retry. Guardian blocks, credential searches, secret environment access, and `_guardian_justification` retries are never eligible.
+
+### Prompt and Runtime Drift Contract
+- Prompt logs must include provider/model, build and VCS identifiers, prompt revision, sorted active tools, tool-catalog hash, and recovery counters.
+- `/api/system/info` exposes the running build identifier and VCS metadata. Deployment acceptance requires its `build_id` to match the reviewed commit; a `-dirty` identifier is not a clean release artifact.
 
 ### 3D Printer Integration Contract
 - Klipper/Moonraker API keys are vault-only. Store them under per-printer keys derived from the printer ID (`three_d_printer_klipper_<sanitized-id>_api_key`); never serialize them into `config.yaml`, API config responses, or tool output.

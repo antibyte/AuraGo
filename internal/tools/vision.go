@@ -132,6 +132,8 @@ func analyzeImageReferenceWithPromptContext(ctx context.Context, imageReference,
 		ctx = context.Background()
 	}
 
+	prompt, _ = PrepareVisionPrompt(prompt)
+
 	// Resolved by config.ResolveProviders (falls back to main LLM)
 	apiKey := strings.TrimSpace(cfg.Vision.APIKey)
 	baseURL := providerutil.NormalizeBaseURL(strings.TrimSpace(cfg.Vision.BaseURL))
@@ -235,5 +237,145 @@ func analyzeImageReferenceWithPromptContext(ctx context.Context, imageReference,
 		return "", 0, 0, fmt.Errorf("no analysis received in vision response")
 	}
 
-	return result.Choices[0].Message.Content, result.Usage.PromptTokens, result.Usage.CompletionTokens, nil
+	analysis := result.Choices[0].Message.Content
+	if normalized, handled := NormalizeVisionAnalysis(prompt, analysis); handled {
+		analysis = normalized
+	}
+	return analysis, result.Usage.PromptTokens, result.Usage.CompletionTokens, nil
+}
+
+const visionCountSchemaMarker = "AURAGO_STRUCTURED_OBJECT_COUNT_V1"
+
+// PrepareVisionPrompt requests a machine-checkable object count when the user
+// asks for quantities. Non-count prompts are returned unchanged.
+func PrepareVisionPrompt(prompt string) (string, bool) {
+	prompt = strings.TrimSpace(prompt)
+	if !visionPromptRequestsObjectCount(prompt) {
+		return prompt, false
+	}
+	if strings.Contains(prompt, visionCountSchemaMarker) {
+		return prompt, true
+	}
+	return prompt + `
+
+` + visionCountSchemaMarker + `
+Return ONLY one JSON object with this exact shape:
+{"confirmed_count":0,"possible_additional_count":0,"other_vehicles":[],"items":[{"index":1,"type":"car","confidence":0.0,"confirmed":true}],"uncertainty":""}
+confirmed_count must equal the number of items where confirmed=true. Put ambiguous candidates only in possible_additional_count and uncertainty. List other vehicle types separately and never add them to confirmed_count.`, true
+}
+
+type visionCountItem struct {
+	Index      int     `json:"index"`
+	Type       string  `json:"type"`
+	Confidence float64 `json:"confidence"`
+	Confirmed  *bool   `json:"confirmed,omitempty"`
+}
+
+type visionCountResult struct {
+	ConfirmedCount          int               `json:"confirmed_count"`
+	PossibleAdditionalCount int               `json:"possible_additional_count"`
+	OtherVehicles           []string          `json:"other_vehicles"`
+	Items                   []visionCountItem `json:"items,omitempty"`
+	Uncertainty             string            `json:"uncertainty"`
+	Consistent              bool              `json:"consistent"`
+}
+
+// NormalizeVisionAnalysis validates count/list consistency locally. When the
+// provider contradicts itself, the item list is discarded and only its stated
+// confirmed count plus an explicit uncertainty signal is retained.
+func NormalizeVisionAnalysis(prompt, raw string) (string, bool) {
+	if !visionPromptRequestsObjectCount(prompt) && !strings.Contains(prompt, visionCountSchemaMarker) {
+		return raw, false
+	}
+	result, ok := parseVisionCountResult(raw)
+	if !ok {
+		fallback := map[string]interface{}{
+			"status":                    "uncertain",
+			"confirmed_count":           nil,
+			"possible_additional_count": nil,
+			"other_vehicles":            []string{},
+			"items":                     []visionCountItem{},
+			"uncertainty":               "Vision provider did not return a valid structured count; do not infer a total from prose.",
+			"consistent":                false,
+		}
+		encoded, _ := json.Marshal(fallback)
+		return string(encoded), true
+	}
+	confirmedItems := 0
+	for _, item := range result.Items {
+		if item.Confirmed == nil || *item.Confirmed {
+			confirmedItems++
+		}
+	}
+	result.Consistent = confirmedItems == result.ConfirmedCount
+	if !result.Consistent {
+		conflict := "The provider's item list conflicted with confirmed_count; only confirmed_count is retained."
+		if strings.TrimSpace(result.Uncertainty) == "" {
+			result.Uncertainty = conflict
+		} else {
+			result.Uncertainty = strings.TrimSpace(result.Uncertainty) + " " + conflict
+		}
+		encoded, err := json.Marshal(map[string]interface{}{
+			"confirmed_count": result.ConfirmedCount,
+			"uncertainty":     result.Uncertainty,
+			"consistent":      false,
+		})
+		if err != nil {
+			return raw, false
+		}
+		return string(encoded), true
+	}
+	if result.OtherVehicles == nil {
+		result.OtherVehicles = []string{}
+	}
+	encoded, err := json.Marshal(result)
+	if err != nil {
+		return raw, false
+	}
+	return string(encoded), true
+}
+
+func visionPromptRequestsObjectCount(prompt string) bool {
+	lower := strings.ToLower(strings.TrimSpace(prompt))
+	for _, marker := range []string{"wie viele", "anzahl", "zähle", "zähl", "how many", "count ", "number of"} {
+		if strings.Contains(lower, marker) {
+			return true
+		}
+	}
+	return false
+}
+
+func parseVisionCountResult(raw string) (visionCountResult, bool) {
+	trimmed := strings.TrimSpace(raw)
+	trimmed = strings.TrimPrefix(trimmed, "```json")
+	trimmed = strings.TrimPrefix(trimmed, "```")
+	trimmed = strings.TrimSuffix(strings.TrimSpace(trimmed), "```")
+	start := strings.Index(trimmed, "{")
+	end := strings.LastIndex(trimmed, "}")
+	if start < 0 || end < start {
+		return visionCountResult{}, false
+	}
+	jsonText := trimmed[start : end+1]
+	var wrapper struct {
+		Analysis json.RawMessage `json:"analysis"`
+	}
+	if json.Unmarshal([]byte(jsonText), &wrapper) == nil && len(wrapper.Analysis) > 0 {
+		var nested string
+		if json.Unmarshal(wrapper.Analysis, &nested) == nil {
+			return parseVisionCountResult(nested)
+		}
+		var result visionCountResult
+		if json.Unmarshal(wrapper.Analysis, &result) == nil {
+			return result, true
+		}
+	}
+	var result visionCountResult
+	if err := json.Unmarshal([]byte(jsonText), &result); err != nil {
+		return visionCountResult{}, false
+	}
+	var presence map[string]json.RawMessage
+	if json.Unmarshal([]byte(jsonText), &presence) != nil || presence["confirmed_count"] == nil {
+		return visionCountResult{}, false
+	}
+	return result, true
 }

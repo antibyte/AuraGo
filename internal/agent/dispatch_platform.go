@@ -670,13 +670,33 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 						payload, _ := json.Marshal(map[string]string{"path": previewPath, "caption": "go2rtc snapshot: " + streamID})
 						dc.Broker.Send("image", string(payload))
 					}
-					output := map[string]interface{}{"snapshot": result, "image_path": previewPath}
+					output := map[string]interface{}{
+						"status":     "ok",
+						"stream_id":  streamID,
+						"snapshot":   result,
+						"image_path": previewPath,
+						"artifact": map[string]interface{}{
+							"media_type":  "image",
+							"stream_id":   streamID,
+							"web_path":    previewPath,
+							"source_tool": "go2rtc",
+						},
+						"recommended_follow_up": map[string]interface{}{
+							"call_method": "native_tool",
+							"tool_name":   "go2rtc",
+							"arguments": map[string]interface{}{
+								"operation": "analyze_snapshot",
+								"stream_id": streamID,
+							},
+						},
+					}
 					return encode(output)
 				}
 				prompt := strings.TrimSpace(toolArgString(tc.Params, "prompt"))
 				if prompt == "" {
 					prompt = "Analyze this camera snapshot. Describe the scene, relevant activity, safety concerns, visible changes, and anything that may need attention."
 				}
+				prompt, _ = tools.PrepareVisionPrompt(prompt)
 				analysis, promptTokens, completionTokens, err := dispatchAnalyzeImageWithPrompt(result.LocalPath, prompt, cfg)
 				if err != nil {
 					return encode(map[string]interface{}{"status": "error", "message": "snapshot analysis failed: " + err.Error(), "snapshot": result.WebPath})
@@ -688,7 +708,27 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					}
 					budgetTracker.RecordForCategory("vision", model, promptTokens, completionTokens)
 				}
-				return encode(map[string]interface{}{"status": "ok", "stream_id": streamID, "snapshot": result.WebPath, "analysis": analysis, "prompt": prompt})
+				if normalized, handled := tools.NormalizeVisionAnalysis(prompt, analysis); handled {
+					analysis = normalized
+				}
+				return encode(map[string]interface{}{
+					"status": "ok", "stream_id": streamID, "snapshot": result.WebPath,
+					"analysis": analysis, "prompt": prompt,
+					"artifact": map[string]interface{}{
+						"media_type":      "image",
+						"stream_id":       streamID,
+						"registered_path": result.WebPath,
+						"source_tool":     "go2rtc",
+					},
+					"recommended_follow_up": map[string]interface{}{
+						"call_method": "native_tool",
+						"tool_name":   "go2rtc",
+						"arguments": map[string]interface{}{
+							"operation": "analyze_snapshot",
+							"stream_id": streamID,
+						},
+					},
+				})
 			case "show_live_stream":
 				viewerPath, err := manager.ViewerPath(streamID)
 				if err != nil {

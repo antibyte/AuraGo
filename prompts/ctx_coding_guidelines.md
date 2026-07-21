@@ -8,7 +8,7 @@ conditions: ["requires_coding"]
 
 ## Execution
 
-**Tool priority:** If `execute_sandbox` is available, **always prefer it** over `execute_python` for running code in any supported language. Use `execute_python` only for persistent tools (`save_tool`) or pre-registered skills.
+**Tool priority:** Run one-off code with `execute_sandbox` first. Use `execute_python` only when the sandbox is unavailable or does not support the task. Put reusable Python functions and executable capabilities in the Skill system instead of treating `execute_python` as persistence.
 
 ## General
 

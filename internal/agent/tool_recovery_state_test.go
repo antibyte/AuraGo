@@ -3,6 +3,7 @@ package agent
 import (
 	"fmt"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/sashabaranov/go-openai"
@@ -295,6 +296,68 @@ func TestToolRecoveryStateUpdateToolErrorStateResolvesOnSuccess(t *testing.T) {
 	_ = state.updateToolErrorState(tc, `Tool Output: {"status":"success","message":"ok"}`, &req, nil, AgentTelemetryScope{}, "v1", 100)
 	if state.shouldRecordResolution() {
 		t.Fatal("expected success to clear pending resolution state")
+	}
+}
+
+func TestToolRecoveryStateSuccessBreaksIdenticalErrorChain(t *testing.T) {
+	state := newToolRecoveryState()
+	req := openai.ChatCompletionRequest{}
+	errorResult := `Tool Output: {"status":"error","message":"shell failed"}`
+
+	if state.updateToolErrorState(ToolCall{Action: "execute_shell", NativeCallID: "call-1"}, errorResult, &req, nil, AgentTelemetryScope{}, "v1", 10) {
+		t.Fatal("first error triggered circuit breaker")
+	}
+	if state.updateToolErrorState(ToolCall{Action: "execute_shell", NativeCallID: "call-2"}, `Tool Output: {"status":"success","message":"ok"}`, &req, nil, AgentTelemetryScope{}, "v1", 10) {
+		t.Fatal("success triggered circuit breaker")
+	}
+	if state.updateToolErrorState(ToolCall{Action: "execute_shell", NativeCallID: "call-3"}, errorResult, &req, nil, AgentTelemetryScope{}, "v1", 10) {
+		t.Fatal("post-success error incorrectly continued the old chain")
+	}
+	if state.ConsecutiveErrorCount != 1 {
+		t.Fatalf("consecutive errors = %d, want 1", state.ConsecutiveErrorCount)
+	}
+}
+
+func TestToolRecoveryStateProcessesToolCallIDOnce(t *testing.T) {
+	state := newToolRecoveryState()
+	req := openai.ChatCompletionRequest{}
+	tc := ToolCall{Action: "execute_shell", NativeCallID: "same-call"}
+	result := `Tool Output: {"status":"error","message":"boom"}`
+
+	_ = state.updateToolErrorState(tc, result, &req, nil, AgentTelemetryScope{}, "v1", 10)
+	_ = state.updateToolErrorState(tc, result, &req, nil, AgentTelemetryScope{}, "v1", 10)
+	if state.TotalErrorCount != 1 || state.ConsecutiveErrorCount != 1 {
+		t.Fatalf("duplicate call counted as total=%d consecutive=%d, want 1/1", state.TotalErrorCount, state.ConsecutiveErrorCount)
+	}
+}
+
+func TestToolRecoveryStateParallelResultsCountEachCallOnce(t *testing.T) {
+	state := newToolRecoveryState()
+	req := openai.ChatCompletionRequest{}
+	result := `Tool Output: {"status":"error","message":"parallel failure"}`
+	callIDs := []string{"parallel-a", "parallel-b", "parallel-a", "parallel-c"}
+
+	var wg sync.WaitGroup
+	for _, callID := range callIDs {
+		callID := callID
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_ = state.updateToolErrorState(ToolCall{Action: "execute_shell", NativeCallID: callID}, result, &req, nil, AgentTelemetryScope{}, "v1", 10)
+		}()
+	}
+	wg.Wait()
+	if state.TotalErrorCount != 3 {
+		t.Fatalf("parallel unique errors counted %d, want 3", state.TotalErrorCount)
+	}
+	breakerMessages := 0
+	for _, message := range req.Messages {
+		if strings.Contains(message.Content, "returned the same error 3 times") {
+			breakerMessages++
+		}
+	}
+	if breakerMessages != 1 {
+		t.Fatalf("breaker messages = %d, want exactly 1; messages=%#v", breakerMessages, req.Messages)
 	}
 }
 

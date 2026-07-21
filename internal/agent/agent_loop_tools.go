@@ -36,6 +36,7 @@ func processPendingToolCalls(s *agentLoopState, ctx context.Context, lastUserMsg
 
 	ptc := s.pendingTCs[0]
 	s.pendingTCs = s.pendingTCs[1:]
+	supervisorRouted := s.currentToolRoute.matches(ptc) && !s.currentToolRouteExecuted
 	s.toolCallCount++
 	if isHomepageRuleTool(ptc.Action) {
 		s.homepageUsedInChain = true
@@ -93,6 +94,11 @@ func processPendingToolCalls(s *agentLoopState, ctx context.Context, lastUserMsg
 	}
 	if policyResult.Failed {
 		recordToolFailureOperationalIssue(s.runCfg, ptc, pResultContent, currentLogger)
+	} else {
+		resolveToolFailureOperationalIssue(s.runCfg, ptc, currentLogger)
+	}
+	if supervisorRouted && s.currentToolRoute.ExplicitRetry {
+		pResultContent = appendControlledRetryReport(pResultContent, s.currentToolRoute, ptc, s.initialUserMsg, policyResult.Failed)
 	}
 	if actionBlocked {
 		toolAction = blockAgentToolAction(currentLogger, actionLedger, toolAction, pResultContent)
@@ -163,6 +169,12 @@ func processPendingToolCalls(s *agentLoopState, ctx context.Context, lastUserMsg
 		s.req.Messages = append(s.req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: followUpContent})
 	}
 	refreshActivatedNativeToolSchemas(s)
+	if supervisorRouted {
+		s.currentToolRouteExecuted = true
+		s.pendingTCs = nil
+		s.req.ToolChoice = "none"
+		s.flags.CurrentToolRoute = ""
+	}
 	s.lastResponseWasTool = true
 	return true
 }
@@ -359,6 +371,8 @@ func executeAgentToolTurn(
 	}
 	if policyResult.Failed {
 		recordToolFailureOperationalIssue(s.runCfg, tc, resultContent, currentLogger)
+	} else {
+		resolveToolFailureOperationalIssue(s.runCfg, tc, currentLogger)
 	}
 	toolAction = completeAgentToolAction(currentLogger, actionLedger, toolAction, policyResult, dispatchCtx.ExecutionTimeMs)
 	trackActivityTool(&s.turnToolNames, &s.turnToolSummaries, tc.Action, resultContent)
@@ -552,6 +566,8 @@ func executeAgentToolTurn(
 			}
 			if policyResult.Failed {
 				recordToolFailureOperationalIssue(s.runCfg, btc, bResult, currentLogger)
+			} else {
+				resolveToolFailureOperationalIssue(s.runCfg, btc, currentLogger)
 			}
 			if batchedBlocked {
 				batchedAction = blockAgentToolAction(currentLogger, batchedLedger, batchedAction, bResult)

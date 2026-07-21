@@ -910,21 +910,36 @@ func TestDetermineTierAdaptiveNilFlagsDefaultsFull(t *testing.T) {
 func TestBuildSystemPromptIncludesOperationalIssueReminder(t *testing.T) {
 	flags := ContextFlags{
 		SystemLanguage:           "en",
-		OperationalIssueReminder: "Unresolved operational issues detected in background contexts:\nMemory reflection follow-ups are actionable when safe and concrete.\n- System issue: Memory reflection suggested a core memory follow-up\n  Detail: Store user location (Pforzheim) in core memory immediately.",
+		OperationalIssueReminder: "Current operational issues:\n- Background maintenance timed out.",
 	}
 
 	prompt, _ := buildSystemPromptInner("", &flags, "", slog.Default())
-	if !strings.Contains(prompt, "### OPERATIONAL ISSUE REMINDER ###") {
+	if !strings.Contains(prompt, "### REQUIRED USER NOTICE ###") {
 		t.Fatalf("prompt = %q, want operational issue reminder header", prompt)
 	}
-	if !strings.Contains(prompt, "Store user location (Pforzheim) in core memory immediately.") {
+	if !strings.Contains(prompt, "Background maintenance timed out.") {
 		t.Fatalf("prompt = %q, want operational issue content", prompt)
 	}
-	if !strings.Contains(prompt, "Use these issues as diagnostic context; mention them only if relevant to the current request or urgent.") {
-		t.Fatalf("prompt = %q, want relevance-gated operational issue instruction", prompt)
+	if !strings.Contains(prompt, "already been displayed or will be prepended to the final answer") {
+		t.Fatalf("prompt = %q, want deterministic supervisor delivery instruction", prompt)
 	}
-	if !strings.Contains(prompt, "When a memory reflection issue is safe, concrete, and relevant, resolve it with the appropriate memory or learned-rule tool before your final reply") {
-		t.Fatalf("prompt = %q, want actionable memory reflection instruction", prompt)
+	if strings.Contains(prompt, "resolve it with the appropriate memory") || strings.Contains(prompt, "mention them only if relevant") {
+		t.Fatalf("prompt = %q, contains obsolete model-owned notice instruction", prompt)
+	}
+}
+
+func TestBuildSystemPromptIncludesExactlyOneCurrentToolRoute(t *testing.T) {
+	flags := ContextFlags{
+		SystemLanguage:   "en",
+		CurrentToolRoute: "Call go2rtc with operation analyze_snapshot and stream_id driveway.",
+	}
+
+	prompt, _ := buildSystemPromptInner("", &flags, "", slog.Default())
+	if strings.Count(prompt, "### CURRENT TOOL ROUTE ###") != 1 {
+		t.Fatalf("prompt must contain exactly one current route section:\n%s", prompt)
+	}
+	if !strings.Contains(prompt, "Do not substitute another tool or add exploratory calls") || !strings.Contains(prompt, "stream_id driveway") {
+		t.Fatalf("prompt missing strict route contract:\n%s", prompt)
 	}
 }
 
@@ -1159,7 +1174,7 @@ func TestBuildSystemPromptNativeModeDoesNotInjectRootToolManuals(t *testing.T) {
 	}
 }
 
-func TestBuildSystemPromptNativeModeAppendsFinalProtocolReminder(t *testing.T) {
+func TestBuildSystemPromptNativeModeHasSingleProtocolInstruction(t *testing.T) {
 	flags := ContextFlags{
 		Tier:               "full",
 		SystemLanguage:     "en",
@@ -1170,21 +1185,17 @@ func TestBuildSystemPromptNativeModeAppendsFinalProtocolReminder(t *testing.T) {
 
 	prompt, _ := buildSystemPromptInner("", &flags, "", slog.Default())
 
-	additionalIdx := strings.Index(prompt, "# ADDITIONAL INSTRUCTIONS")
-	voiceIdx := strings.Index(prompt, "[VOICE]")
-	reminderIdx := strings.LastIndex(prompt, "NATIVE TOOL MODE REMINDER")
-
-	if additionalIdx < 0 {
+	if !strings.Contains(prompt, "# ADDITIONAL INSTRUCTIONS") {
 		t.Fatalf("prompt missing additional instructions")
 	}
-	if voiceIdx < 0 {
+	if !strings.Contains(prompt, "[VOICE]") {
 		t.Fatalf("prompt missing voice mode instructions")
 	}
-	if reminderIdx < 0 {
-		t.Fatalf("prompt missing native tool mode reminder")
+	if count := strings.Count(prompt, "[NATIVE_TOOLS]"); count != 1 {
+		t.Fatalf("native tool instruction count = %d, want exactly one", count)
 	}
-	if reminderIdx < additionalIdx || reminderIdx < voiceIdx {
-		t.Fatalf("native tool mode reminder must appear after late custom sections")
+	if strings.Contains(prompt, "NATIVE TOOL MODE REMINDER") {
+		t.Fatalf("prompt contains obsolete duplicate native reminder")
 	}
 }
 

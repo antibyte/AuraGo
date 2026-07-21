@@ -7,20 +7,23 @@ import (
 	"aurago/internal/security"
 )
 
-func TestFormatGuardianBlockedMessageAddsClarificationAndNextStep(t *testing.T) {
+func TestFormatGuardianBlockedMessageIsFinalAndProvidesSafeNextStep(t *testing.T) {
 	msg := formatGuardianBlockedMessage("execute_shell", "remote code execution via curl pipe sh", 0.85, true, false)
-	if !strings.Contains(msg, `"_guardian_justification"`) {
-		t.Fatalf("expected clarification guidance, got: %s", msg)
+	if strings.Contains(msg, `_guardian_justification`) {
+		t.Fatalf("guardian block offered a justification bypass: %s", msg)
+	}
+	if !strings.Contains(msg, "final for this call") {
+		t.Fatalf("expected final-block guidance, got: %s", msg)
 	}
 	if !strings.Contains(msg, "curl|sh") {
 		t.Fatalf("expected remote execution next-step guidance, got: %s", msg)
 	}
 }
 
-func TestFormatGuardianBlockedMessageForRejectedClarification(t *testing.T) {
+func TestFormatGuardianBlockedMessageIgnoresClarificationCompatibilityFlags(t *testing.T) {
 	msg := formatGuardianBlockedMessage("execute_shell", "remote code execution via curl pipe sh", 0.85, true, true)
-	if !strings.Contains(msg, "Clarification was reviewed but the action remains blocked") {
-		t.Fatalf("expected rejected clarification text, got: %s", msg)
+	if strings.Contains(msg, "Clarification") || strings.Contains(msg, `_guardian_justification`) {
+		t.Fatalf("unexpected clarification path in final block: %s", msg)
 	}
 	if !strings.Contains(msg, "built-in tool") && !strings.Contains(msg, "built-in") {
 		t.Fatalf("expected safer next-step guidance, got: %s", msg)

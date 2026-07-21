@@ -219,6 +219,7 @@ func recordLearnedRuleOutcome(
 // suitable for injection into the system prompt. Returns "" when no rules
 // are available or the feature is disabled.
 func buildLearnedRulesContext(rules []memory.LearnedRule, maxTokens int) string {
+	rules = deduplicateLearnedRules(rules)
 	if len(rules) == 0 {
 		return ""
 	}
@@ -248,4 +249,41 @@ func buildLearnedRulesContext(rules []memory.LearnedRule, maxTokens int) string 
 		s = b.String()
 	}
 	return s
+}
+
+func deduplicateLearnedRules(rules []memory.LearnedRule) []memory.LearnedRule {
+	if len(rules) < 2 {
+		return append([]memory.LearnedRule(nil), rules...)
+	}
+	seen := make(map[string]struct{}, len(rules))
+	out := make([]memory.LearnedRule, 0, len(rules))
+	for _, rule := range rules {
+		tool := normalizeLearnedRuleTool(rule.ToolName)
+		text := strings.ToLower(strings.Join(strings.Fields(strings.TrimSpace(rule.Rule)), " "))
+		text = strings.Trim(text, " .,:;!?")
+		key := tool + "\x00" + text
+		if text == "" {
+			continue
+		}
+		if _, exists := seen[key]; exists {
+			continue
+		}
+		seen[key] = struct{}{}
+		rule.ToolName = tool
+		out = append(out, rule)
+	}
+	return out
+}
+
+func normalizeLearnedRuleTool(tool string) string {
+	tool = strings.ToLower(strings.TrimSpace(tool))
+	tool = strings.NewReplacer("-", "_", " ", "_").Replace(tool)
+	switch tool {
+	case "shell", "execute_command":
+		return "execute_shell"
+	case "python":
+		return "execute_python"
+	default:
+		return tool
+	}
 }

@@ -330,11 +330,11 @@ func buildCoreToolSchemas(ff ToolFeatureFlags, execSkillProps map[string]interfa
 			}, "operation"),
 		),
 		tool("activate_tools",
-			"Activate hidden enabled native tools for the next LLM request in this agent run.",
+			"Activate tools only when discover_tools explicitly returns call_method=activate_tools; otherwise follow the returned call_method.",
 			schema(map[string]interface{}{
 				"names": map[string]interface{}{
 					"type":        "array",
-					"description": "Tool names returned by discover_tools; maximum 8 per call.",
+					"description": "Tool names for which discover_tools explicitly returned call_method=activate_tools; maximum 8 per call.",
 					"items":       map[string]interface{}{"type": "string"},
 				},
 				"reason": prop("string", "Optional reason for activating these tools."),

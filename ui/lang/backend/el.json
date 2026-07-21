@@ -1,4 +1,7 @@
 {
+  "backend.operational_issue_notice_title": "Τρέχοντα λειτουργικά προβλήματα",
+  "backend.operational_issue_notice_summary": "Το AuraGo εντόπισε {0} πρόβλημα/προβλήματα κατά την εργασία στο παρασκήνιο.",
+  "backend.operational_issue_notice_occurrences": "εμφανίστηκε {0} φορές",
   "backend.cmd_unknown": "❌ Άγνωστη εντολή. Πληκτρολογήστε /help για λίστα εντολών.",
   "backend.cmd_reset_success": "🧹 Το ιστορικό συνομιλίας και η βραχυπρόθεσμη μνήμη διαγράφηκαν.",
   "backend.cmd_reset_help": "Διαγράφει το τρέχον ιστορικό συνομιλίας (βραχυπρόθεσμη μνήμη).",

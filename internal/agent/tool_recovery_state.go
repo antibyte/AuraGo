@@ -1,15 +1,19 @@
 package agent
 
 import (
-	"aurago/internal/services/optimizer"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"hash"
 	"hash/fnv"
 	"log/slog"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
+
+	"aurago/internal/services/optimizer"
 
 	"github.com/sashabaranov/go-openai"
 )
@@ -18,6 +22,7 @@ type toolRecoveryState struct {
 	mu                    *sync.RWMutex // pointer avoids copylock vet warnings on struct return by value
 	Policy                RecoveryPolicy
 	LastToolError         string
+	LastToolErrorKey      string
 	ConsecutiveErrorCount int
 	TotalErrorCount       int // cumulative errors this session; never resets (unlike ConsecutiveErrorCount)
 	LastToolCallSig       string
@@ -25,9 +30,11 @@ type toolRecoveryState struct {
 	ToolCallFrequency     map[string]int
 	BlockedToolSignatures map[string]struct{}
 	RecoveryHintFrequency map[string]int
+	ProcessedToolCallIDs  map[string]struct{}
 }
 
 const maxTrackedToolCallSignatures = 512
+const maxProcessedToolCallIDs = 1024
 
 func newToolRecoveryState() toolRecoveryState {
 	return newToolRecoveryStateWithPolicy(defaultRecoveryPolicy())
@@ -40,6 +47,7 @@ func newToolRecoveryStateWithPolicy(policy RecoveryPolicy) toolRecoveryState {
 		ToolCallFrequency:     make(map[string]int),
 		BlockedToolSignatures: make(map[string]struct{}),
 		RecoveryHintFrequency: make(map[string]int),
+		ProcessedToolCallIDs:  make(map[string]struct{}),
 	}
 }
 
@@ -359,6 +367,18 @@ func (s *toolRecoveryState) shouldRecordResolution() bool {
 func (s *toolRecoveryState) updateToolErrorState(tc ToolCall, resultContent string, req *openai.ChatCompletionRequest, logger *slog.Logger, scope AgentTelemetryScope, promptVersion string, execTimeMs int64) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if callID := strings.TrimSpace(tc.NativeCallID); callID != "" {
+		if s.ProcessedToolCallIDs == nil {
+			s.ProcessedToolCallIDs = make(map[string]struct{})
+		}
+		if _, processed := s.ProcessedToolCallIDs[callID]; processed {
+			return false
+		}
+		if len(s.ProcessedToolCallIDs) >= maxProcessedToolCallIDs {
+			s.ProcessedToolCallIDs = make(map[string]struct{}, maxProcessedToolCallIDs)
+		}
+		s.ProcessedToolCallIDs[callID] = struct{}{}
+	}
 	hasSandboxFailure := containsSandboxFailure(resultContent)
 	isToolError := containsToolError(resultContent) || hasSandboxFailure
 
@@ -383,7 +403,8 @@ func (s *toolRecoveryState) updateToolErrorState(tc ToolCall, resultContent stri
 
 	if isToolError {
 		s.TotalErrorCount++
-		if resultContent == s.LastToolError {
+		errorKey := normalizedToolErrorKey(tc.Action, resultContent)
+		if errorKey == s.LastToolErrorKey {
 			s.ConsecutiveErrorCount++
 			hint := recoveryHintForToolFailure(tc, resultContent)
 			if s.ConsecutiveErrorCount == 2 && req != nil && s.shouldSendRecoveryHintLocked(hint, 2) {
@@ -412,19 +433,53 @@ func (s *toolRecoveryState) updateToolErrorState(tc ToolCall, resultContent stri
 				})
 				s.ConsecutiveErrorCount = 0
 				s.LastToolError = ""
+				s.LastToolErrorKey = ""
 				return true
 			}
 		} else {
 			s.ConsecutiveErrorCount = 1
 		}
 		s.LastToolError = resultContent
+		s.LastToolErrorKey = errorKey
 		return false
 	}
 
 	s.ConsecutiveErrorCount = 0
 	s.LastToolError = ""
+	s.LastToolErrorKey = ""
 	s.resetBlockedDuplicateSignaturesAfterSuccessLocked(buildToolSignature(tc))
 	return false
+}
+
+var (
+	recoveryUUIDPattern      = regexp.MustCompile(`(?i)\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b`)
+	recoveryTimestampPattern = regexp.MustCompile(`\b\d{4}-\d{2}-\d{2}[T ][0-9:.+-]+Z?\b`)
+	recoveryCallIDPattern    = regexp.MustCompile(`(?i)\b(tool_?call_?id|call_?id|request_?id)\s*[:=]\s*[^\s,;]+`)
+)
+
+func normalizedToolErrorKey(toolName, resultContent string) string {
+	errorText := extractErrorMessage(resultContent)
+	if strings.TrimSpace(errorText) == "" {
+		errorText = resultContent
+	}
+	lower := strings.ToLower(errorText)
+	if index := strings.Index(lower, "suggested next step"); index >= 0 {
+		errorText = errorText[:index]
+	}
+	var lines []string
+	for _, line := range strings.Split(strings.ReplaceAll(errorText, "\r\n", "\n"), "\n") {
+		lowerLine := strings.ToLower(strings.TrimSpace(line))
+		if strings.Contains(lowerLine, "_guardian_justification") || strings.HasPrefix(lowerLine, "guardian instruction") {
+			continue
+		}
+		lines = append(lines, line)
+	}
+	normalized := strings.ToLower(strings.Join(strings.Fields(strings.Join(lines, " ")), " "))
+	normalized = recoveryUUIDPattern.ReplaceAllString(normalized, "<uuid>")
+	normalized = recoveryTimestampPattern.ReplaceAllString(normalized, "<timestamp>")
+	normalized = recoveryCallIDPattern.ReplaceAllString(normalized, "$1=<id>")
+	sum := sha256.Sum256([]byte(strings.ToLower(strings.TrimSpace(toolName)) + "\x00" + normalized))
+	return hex.EncodeToString(sum[:12])
 }
 
 func (s *toolRecoveryState) resetBlockedDuplicateSignaturesAfterSuccessLocked(successSig string) {

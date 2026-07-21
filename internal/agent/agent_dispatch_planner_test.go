@@ -1,17 +1,25 @@
 package agent
 
 import (
-	"bytes"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"log/slog"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
+	"aurago/internal/config"
 	"aurago/internal/contacts"
 	"aurago/internal/planner"
+	"aurago/internal/tools"
+
+	"github.com/sashabaranov/go-openai"
 )
 
 func newPlannerTestDB(t *testing.T) *sql.DB {
@@ -252,7 +260,7 @@ func TestDispatchManageAppointmentsSupportsContactParticipants(t *testing.T) {
 	}
 }
 
-func TestOperationalIssueReminderTextOnlyOnDirectFirstContact(t *testing.T) {
+func TestOperationalIssueNoticeIsDeliveredWithoutLLMCooperation(t *testing.T) {
 	db := newPlannerTestDB(t)
 	defer db.Close()
 
@@ -268,36 +276,196 @@ func TestOperationalIssueReminderTextOnlyOnDirectFirstContact(t *testing.T) {
 	}
 
 	runCfg := RunConfig{PlannerDB: db, MessageSource: "web_chat"}
-	first := operationalIssueReminderText(runCfg, "Hallo", true, slog.Default())
-	if !strings.Contains(first, "Maintenance agent loop failed") || !strings.Contains(first, "budget exceeded") {
-		t.Fatalf("first operational reminder = %q, want issue title and detail", first)
+	state := prepareOperationalIssueNotice(runCfg, "Hallo", slog.Default())
+	if !strings.Contains(state.Text, "Maintenance agent loop failed") || !strings.Contains(state.Text, "budget exceeded") {
+		t.Fatalf("prepared operational notice = %q, want issue title and detail", state.Text)
+	}
+	broker := &typedActionLedgerCaptureBroker{}
+	deliverOperationalIssueNotice(&state, runCfg, broker, slog.Default())
+	if !state.TypedDelivered || state.FallbackRequired {
+		t.Fatalf("delivery state = %#v, want typed delivery", state)
+	}
+	if len(broker.typedEvents) != 1 || broker.typedEvents[0].eventType != operationalIssueNoticeEvent {
+		t.Fatalf("typed events = %#v, want one %q event", broker.typedEvents, operationalIssueNoticeEvent)
+	}
+	pending, err := planner.ListPendingOperationalIssueNotices(db, time.Now(), 2)
+	if err != nil || len(pending) != 0 {
+		t.Fatalf("pending notices after typed delivery = %#v, err %v, want none", pending, err)
 	}
 
-	repeated := operationalIssueReminderText(runCfg, "Noch mal", false, slog.Default())
-	if repeated != "" {
-		t.Fatalf("repeated operational reminder = %q, want empty after first turn", repeated)
-	}
-
-	newSession := operationalIssueReminderText(runCfg, "Neue Sitzung", true, slog.Default())
-	if !strings.Contains(newSession, "Maintenance agent loop failed") {
-		t.Fatalf("new session operational reminder = %q, want issue despite daily claim", newSession)
-	}
-
-	relevant := operationalIssueReminderText(runCfg, "debug maintenance failed", false, slog.Default())
-	if !strings.Contains(relevant, "Maintenance agent loop failed") {
-		t.Fatalf("relevant operational reminder = %q, want issue despite repeated contact", relevant)
-	}
-
-	blocked := operationalIssueReminderText(RunConfig{PlannerDB: db, MessageSource: "mission", IsMission: true}, "hello", true, slog.Default())
-	if blocked != "" {
-		t.Fatalf("mission operational reminder = %q, want empty", blocked)
+	background := prepareOperationalIssueNotice(RunConfig{PlannerDB: db, MessageSource: "mission", IsMission: true}, "hello", slog.Default())
+	if len(background.Items) != 0 || background.Text != "" {
+		t.Fatalf("background run prepared a user notice: %#v", background)
 	}
 }
 
-func TestOperationalIssueReminderTextLogsFirstTurnClaimFailure(t *testing.T) {
+func TestExecuteAgentLoopDeliversOperationalNoticeWhenLLMIgnoresIt(t *testing.T) {
+	initialTokenCount := globalTokenCount.Load()
+	initialTokenEstimated := globalTokenEstimated.Load()
+	defer func() {
+		globalTokenCount.Store(initialTokenCount)
+		globalTokenEstimated.Store(initialTokenEstimated)
+	}()
+	runCfg, client, cleanup := newPromptPipelineTestRunConfig(t, "notice-uncooperative-llm", "web_chat")
+	defer cleanup()
 	db := newPlannerTestDB(t)
 	defer db.Close()
-	db.SetMaxOpenConns(1)
+	runCfg.PlannerDB = db
+	client.response = "Die aktuelle Nutzerfrage ist beantwortet."
+
+	if _, err := planner.RecordOperationalIssue(db, planner.OperationalIssue{
+		Source: "maintenance", Context: "nightly", Title: "Background probe failed",
+		Detail: "service unavailable", Severity: "error", Reference: "probe",
+	}); err != nil {
+		t.Fatalf("planner.RecordOperationalIssue() error = %v", err)
+	}
+	broker := &typedActionLedgerCaptureBroker{}
+	resp, err := ExecuteAgentLoop(context.Background(), openai.ChatCompletionRequest{
+		Model: runCfg.Config.LLM.Model,
+		Messages: []openai.ChatCompletionMessage{{
+			Role: openai.ChatMessageRoleUser, Content: "Hallo",
+		}},
+	}, runCfg, false, broker)
+	if err != nil {
+		t.Fatalf("ExecuteAgentLoop() error = %v", err)
+	}
+	if client.calls != 1 || len(resp.Choices) == 0 || !strings.Contains(resp.Choices[0].Message.Content, "Nutzerfrage") {
+		t.Fatalf("LLM response/calls = %#v/%d", resp, client.calls)
+	}
+	foundNotice := false
+	for _, event := range broker.typedEvents {
+		if event.eventType == operationalIssueNoticeEvent {
+			foundNotice = true
+		}
+	}
+	if !foundNotice {
+		t.Fatalf("typed events = %#v, want deterministic operational notice", broker.typedEvents)
+	}
+	pending, err := planner.ListPendingOperationalIssueNotices(db, time.Now(), 2)
+	if err != nil || len(pending) != 0 {
+		t.Fatalf("pending after deterministic delivery = %#v, err %v", pending, err)
+	}
+}
+
+func TestExecuteAgentLoopCameraRetryUsesExactlyOneTrustedVisionRoute(t *testing.T) {
+	initialTokenCount := globalTokenCount.Load()
+	initialTokenEstimated := globalTokenEstimated.Load()
+	defer func() {
+		globalTokenCount.Store(initialTokenCount)
+		globalTokenEstimated.Store(initialTokenEstimated)
+	}()
+	previousManager := tools.DefaultGo2RTCManager()
+	previousAnalyze := dispatchAnalyzeImageWithPrompt
+	defer func() {
+		tools.SetDefaultGo2RTCManager(previousManager)
+		dispatchAnalyzeImageWithPrompt = previousAnalyze
+	}()
+
+	const password = "internal-password"
+	jpeg := []byte{0xff, 0xd8, 0xff, 0xdb, 0x00, 0xff, 0xd9}
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, gotPassword, ok := r.BasicAuth()
+		if !ok || gotPassword != password {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		switch r.URL.Path {
+		case "/api/go2rtc/proxy/api":
+			_, _ = w.Write([]byte(`{"version":"1.9.14"}`))
+		case "/api/go2rtc/proxy/api/frame.jpeg":
+			if r.URL.Query().Get("src") != "aurago_driveway" {
+				http.Error(w, "unexpected stream", http.StatusBadRequest)
+				return
+			}
+			w.Header().Set("Content-Type", "image/jpeg")
+			_, _ = w.Write(jpeg)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer upstream.Close()
+	parsedURL, _ := url.Parse(upstream.URL)
+	apiPort, _ := strconv.Atoi(parsedURL.Port())
+
+	runCfg, client, cleanup := newPromptPipelineTestRunConfig(t, "camera-retry", "web_chat")
+	defer cleanup()
+	runCfg.Config.Directories.DataDir = t.TempDir()
+	runCfg.Config.Go2RTC = config.Go2RTCConfig{
+		Enabled: true, AgentAccess: true, URL: upstream.URL, APIHostPort: apiPort, APIPassword: password,
+		Streams: []config.Go2RTCStreamConfig{{ID: "driveway", Name: "Driveway", Enabled: true, Source: "rtsp://camera.local/live"}},
+	}
+	mediaDB, err := tools.InitMediaRegistryDB(filepath.Join(t.TempDir(), "media.db"))
+	if err != nil {
+		t.Fatalf("InitMediaRegistryDB: %v", err)
+	}
+	defer mediaDB.Close()
+	manager := tools.NewGo2RTCManager(runCfg.Config, nil, mediaDB, runCfg.Logger)
+	if _, err := manager.Test(context.Background()); err != nil {
+		t.Fatalf("prime go2rtc manager: %v", err)
+	}
+	tools.SetDefaultGo2RTCManager(manager)
+
+	visionCalls := 0
+	dispatchAnalyzeImageWithPrompt = func(filePath, prompt string, _ *config.Config) (string, int, int, error) {
+		visionCalls++
+		if !strings.Contains(prompt, "AURAGO_STRUCTURED_OBJECT_COUNT_V1") || !strings.Contains(prompt, "Wie viele PKW") {
+			t.Fatalf("vision prompt was not structured or did not reuse the prior question: %q", prompt)
+		}
+		return `{"confirmed_count":2,"possible_additional_count":1,"other_vehicles":["van"],"items":[{"index":1,"type":"car","confidence":0.98,"confirmed":true},{"index":2,"type":"car","confidence":0.93,"confirmed":true}],"uncertainty":"one partially hidden candidate"}`, 12, 8, nil
+	}
+	client.response = "Bestätigt sind 2 PKW; ein weiterer Kandidat bleibt unsicher."
+	broker := &captureBroker{}
+	resp, err := ExecuteAgentLoop(context.Background(), openai.ChatCompletionRequest{
+		Model: runCfg.Config.LLM.Model,
+		Messages: []openai.ChatCompletionMessage{
+			{
+				Role: openai.ChatMessageRoleAssistant,
+				ToolCalls: []openai.ToolCall{{ID: "prior-analysis", Type: openai.ToolTypeFunction, Function: openai.FunctionCall{
+					Name: "go2rtc", Arguments: `{"operation":"analyze_snapshot","stream_id":"driveway","prompt":"Wie viele PKW sind sichtbar?"}`,
+				}}},
+			},
+			{Role: openai.ChatMessageRoleTool, ToolCallID: "prior-analysis", Content: `{"status":"ok","artifact":{"media_type":"image","stream_id":"driveway","registered_path":"/files/prior.jpg","source_tool":"go2rtc"}}`},
+			{Role: openai.ChatMessageRoleUser, Content: "Versuche es erneut"},
+		},
+	}, runCfg, false, broker)
+	if err != nil {
+		t.Fatalf("ExecuteAgentLoop() error = %v", err)
+	}
+	if client.calls != 1 || visionCalls != 1 {
+		t.Fatalf("LLM/vision calls = %d/%d, want 1/1", client.calls, visionCalls)
+	}
+	toolStarts := 0
+	for _, event := range broker.events {
+		if event.event != "tool_start" {
+			continue
+		}
+		toolStarts++
+		if event.message != "go2rtc" {
+			t.Fatalf("unexpected retry tool %q", event.message)
+		}
+	}
+	if toolStarts != 1 {
+		t.Fatalf("tool starts = %d, want exactly one; events=%#v", toolStarts, broker.events)
+	}
+	if len(resp.Choices) == 0 || !strings.Contains(resp.Choices[0].Message.Content, "2 PKW") || !strings.Contains(resp.Choices[0].Message.Content, "unsicher") {
+		t.Fatalf("inconsistent camera answer: %#v", resp)
+	}
+	for _, message := range client.lastReq.Messages {
+		if message.Role != openai.ChatMessageRoleTool {
+			continue
+		}
+		lower := strings.ToLower(message.Content)
+		for _, forbidden := range []string{"execute_shell", "execute_python", "credential", "filesystem"} {
+			if strings.Contains(lower, forbidden) {
+				t.Fatalf("tool result contained forbidden recovery route %q: %s", forbidden, message.Content)
+			}
+		}
+	}
+}
+
+func TestOperationalIssueNoticeFallbackMarksOnlyAfterPersistence(t *testing.T) {
+	db := newPlannerTestDB(t)
+	defer db.Close()
 
 	if _, err := planner.RecordOperationalIssue(db, planner.OperationalIssue{
 		Source:    "maintenance",
@@ -309,18 +477,24 @@ func TestOperationalIssueReminderTextLogsFirstTurnClaimFailure(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("planner.RecordOperationalIssue() error = %v", err)
 	}
-	if _, err := db.Exec("PRAGMA query_only = ON"); err != nil {
-		t.Fatalf("enable query_only: %v", err)
+	runCfg := RunConfig{PlannerDB: db, MessageSource: "web_chat"}
+	state := prepareOperationalIssueNotice(runCfg, "Hallo", slog.Default())
+	deliverOperationalIssueNotice(&state, runCfg, NoopBroker{}, slog.Default())
+	if !state.FallbackRequired || state.TypedDelivered {
+		t.Fatalf("delivery state = %#v, want pending final-prefix fallback", state)
 	}
-
-	var buf bytes.Buffer
-	logger := slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelWarn}))
-	reminder := operationalIssueReminderText(RunConfig{PlannerDB: db, MessageSource: "web_chat"}, "Hallo", true, logger)
-	if !strings.Contains(reminder, "Maintenance agent loop failed") {
-		t.Fatalf("operational reminder = %q, want issue despite claim failure", reminder)
+	pending, err := planner.ListPendingOperationalIssueNotices(db, time.Now(), 2)
+	if err != nil || len(pending) != 1 {
+		t.Fatalf("pending notices before fallback persistence = %#v, err %v, want one", pending, err)
 	}
-	if !strings.Contains(buf.String(), "Failed to claim operational issue reminder") {
-		t.Fatalf("log output = %q, want claim failure warning", buf.String())
+	final := prependOperationalIssueNotice(state, "Die Aufgabe ist abgeschlossen.")
+	if !strings.HasPrefix(final, state.Text) || !strings.Contains(final, "Die Aufgabe ist abgeschlossen.") {
+		t.Fatalf("prefixed final answer = %q", final)
+	}
+	markPersistedOperationalIssueNotice(state, runCfg, slog.Default())
+	pending, err = planner.ListPendingOperationalIssueNotices(db, time.Now(), 2)
+	if err != nil || len(pending) != 0 {
+		t.Fatalf("pending notices after fallback persistence = %#v, err %v, want none", pending, err)
 	}
 }
 

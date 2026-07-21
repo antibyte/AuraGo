@@ -919,20 +919,17 @@ func (s *SQLiteMemory) GetPendingEpisodicActionsForQuery(query string, limit int
 	if limit <= 0 {
 		limit = 3
 	}
-	trimmed := strings.TrimSpace(query)
-	if !hasSpecificPendingActionQueryTerm(trimmed) {
+	queryTerms := pendingActionQueryTerms(query)
+	if len(queryTerms) == 0 {
 		return nil, nil
 	}
-	pattern := "%"
-	pattern = "%" + escapeLike(trimmed) + "%"
 	rows, err := s.db.Query(`
 		SELECT id, event_date, title, summary, details_json, importance, source, session_id, hierarchy_level, action_status, trigger_query, COALESCE(resolved_at, ''), participants_json, related_doc_ids, emotional_valence, created_at
 		FROM episodic_memories
 		WHERE action_status = 'pending'
-		  AND (trigger_query LIKE ? ESCAPE '\' OR title LIKE ? ESCAPE '\' OR summary LIKE ? ESCAPE '\')
 		ORDER BY importance DESC, event_date DESC, created_at DESC
 		LIMIT ?
-	`, pattern, pattern, pattern, limit)
+	`, 50)
 	if err != nil {
 		return nil, fmt.Errorf("query pending episodic actions: %w", err)
 	}
@@ -947,30 +944,49 @@ func (s *SQLiteMemory) GetPendingEpisodicActionsForQuery(query string, limit int
 		}
 		entry.Participants = s.decodeJournalStringSlice(participantsJSON, "episodic_memories.participants_json")
 		entry.RelatedDocIDs = s.decodeJournalStringSlice(relatedDocIDsJSON, "episodic_memories.related_doc_ids")
+		candidateTerms := pendingActionQueryTerms(strings.Join([]string{entry.TriggerQuery, entry.Title, entry.Summary}, " "))
+		matched := false
+		for term := range queryTerms {
+			if _, ok := candidateTerms[term]; ok {
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			continue
+		}
 		entries = append(entries, entry)
+		if len(entries) >= limit {
+			break
+		}
 	}
 	return entries, rows.Err()
 }
 
 func hasSpecificPendingActionQueryTerm(query string) bool {
-	lower := strings.ToLower(strings.TrimSpace(query))
-	if lower == "" {
-		return false
+	return len(pendingActionQueryTerms(query)) > 0
+}
+
+func pendingActionQueryTerms(query string) map[string]struct{} {
+	stop := map[string]struct{}{
+		"again": {}, "bitte": {}, "erneut": {}, "nochmal": {}, "nochmals": {}, "please": {},
+		"retry": {}, "try": {}, "versuch": {}, "versuche": {}, "wieder": {}, "mach": {},
+		"machen": {}, "kannst": {}, "könntest": {}, "could": {}, "would": {}, "with": {},
+		"hallo": {}, "hello": {}, "servus": {}, "okay": {},
 	}
-	lowSignal := map[string]struct{}{
-		"hi": {}, "hello": {}, "hey": {}, "hallo": {}, "moin": {}, "servus": {}, "yo": {}, "ok": {}, "okay": {},
-	}
-	if _, ok := lowSignal[lower]; ok {
-		return false
-	}
-	for _, field := range strings.FieldsFunc(lower, func(r rune) bool {
+	terms := make(map[string]struct{})
+	for _, field := range strings.FieldsFunc(strings.ToLower(strings.TrimSpace(query)), func(r rune) bool {
 		return !unicode.IsLetter(r) && !unicode.IsDigit(r)
 	}) {
-		if len([]rune(field)) >= 3 {
-			return true
+		if _, blocked := stop[field]; blocked {
+			continue
 		}
+		if len([]rune(field)) < 4 && field != "pkw" && field != "api" && field != "ssl" && field != "gpu" && field != "nas" {
+			continue
+		}
+		terms[field] = struct{}{}
 	}
-	return false
+	return terms
 }
 
 // GetEpisodicMemoriesByHierarchyLevel returns non-pending episodic memories at the requested hierarchy level.

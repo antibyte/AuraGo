@@ -1,4 +1,7 @@
 {
+  "backend.operational_issue_notice_title": "Aktuella driftproblem",
+  "backend.operational_issue_notice_summary": "AuraGo upptäckte {0} problem under bakgrundsarbete.",
+  "backend.operational_issue_notice_occurrences": "inträffade {0} gånger",
   "backend.cmd_unknown": "❌ Okänt kommando. Skriv /help för en lista över kommandon.",
   "backend.cmd_reset_success": "🧹 Chatt historik och korttidsminne har raderats.",
   "backend.cmd_reset_help": "Tar bort den aktuella chatt historiken (korttidsminne).",

@@ -299,6 +299,9 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 		case "discover_tools":
 			return dispatchPython(tc, dc)
 
+		case "activate_tools":
+			return dispatchPython(tc, dc)
+
 		case "run_tool":
 			return dispatchPython(tc, dc)
 

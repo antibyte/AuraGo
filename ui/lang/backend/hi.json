@@ -1,4 +1,7 @@
 {
+  "backend.operational_issue_notice_title": "वर्तमान परिचालन समस्याएँ",
+  "backend.operational_issue_notice_summary": "AuraGo ने पृष्ठभूमि कार्य के दौरान {0} समस्या(एँ) पाई हैं।",
+  "backend.operational_issue_notice_occurrences": "{0} बार हुआ",
   "backend.cmd_unknown": "❌ अज्ञात कमांड। कमांड सूची के लिए /help टाइप करें।",
   "backend.cmd_reset_success": "🧹 चैट इतिहास और अल्पकालिक स्मृति हटा दी गई।",
   "backend.cmd_reset_help": "वर्तमान चैट इतिहास को हटाता है (अल्पकालिक स्मृति)।",

@@ -8,7 +8,7 @@ import (
 	"aurago/internal/dbutil"
 )
 
-const plannerSchemaVersion = 8
+const plannerSchemaVersion = 9
 
 func initPlannerSchema(db *sql.DB) error {
 	version, err := dbutil.GetUserVersion(db)
@@ -61,6 +61,11 @@ func initPlannerSchema(db *sql.DB) error {
 		fallthrough
 	case version < 8:
 		if err := migratePlannerToV8(db); err != nil {
+			return err
+		}
+		fallthrough
+	case version < 9:
+		if err := migratePlannerToV9(db); err != nil {
 			return err
 		}
 	default:
@@ -490,6 +495,12 @@ func operationalIssuesTableSQL(tableName string) string {
 			last_seen TEXT NOT NULL,
 			occurrences INTEGER NOT NULL DEFAULT 1,
 			status TEXT NOT NULL DEFAULT 'open',
+			detail_hash TEXT NOT NULL DEFAULT '',
+			revision INTEGER NOT NULL DEFAULT 1,
+			notified_revision INTEGER NOT NULL DEFAULT 0,
+			last_notified_at TEXT NOT NULL DEFAULT '',
+			resolved_at TEXT NOT NULL DEFAULT '',
+			resolution TEXT NOT NULL DEFAULT '',
 			created_at TEXT NOT NULL,
 			updated_at TEXT NOT NULL
 		);
@@ -545,6 +556,82 @@ func migratePlannerToV8(db *sql.DB) error {
 	return ensurePlannerIndexes(db)
 }
 
+func migratePlannerToV9(db *sql.DB) error {
+	hasOperationalIssues, err := plannerTableExists(db, "operational_issues")
+	if err != nil {
+		return err
+	}
+	if !hasOperationalIssues {
+		if _, err := db.Exec(operationalIssuesSQL()); err != nil {
+			return fmt.Errorf("create operational issues table v9: %w", err)
+		}
+		return ensurePlannerIndexes(db)
+	}
+
+	columns := []struct {
+		name string
+		ddl  string
+	}{
+		{"detail_hash", `ALTER TABLE operational_issues ADD COLUMN detail_hash TEXT NOT NULL DEFAULT ''`},
+		{"revision", `ALTER TABLE operational_issues ADD COLUMN revision INTEGER NOT NULL DEFAULT 1`},
+		{"notified_revision", `ALTER TABLE operational_issues ADD COLUMN notified_revision INTEGER NOT NULL DEFAULT 0`},
+		{"last_notified_at", `ALTER TABLE operational_issues ADD COLUMN last_notified_at TEXT NOT NULL DEFAULT ''`},
+		{"resolved_at", `ALTER TABLE operational_issues ADD COLUMN resolved_at TEXT NOT NULL DEFAULT ''`},
+		{"resolution", `ALTER TABLE operational_issues ADD COLUMN resolution TEXT NOT NULL DEFAULT ''`},
+	}
+	for _, column := range columns {
+		exists, err := plannerColumnExists(db, "operational_issues", column.name)
+		if err != nil {
+			return err
+		}
+		if exists {
+			continue
+		}
+		if _, err := db.Exec(column.ddl); err != nil {
+			return fmt.Errorf("add operational_issues.%s: %w", column.name, err)
+		}
+	}
+
+	rows, err := db.Query(`
+		SELECT fingerprint, source, context, severity, title, detail, reference
+		FROM operational_issues
+		WHERE detail_hash = ''`)
+	if err != nil {
+		return fmt.Errorf("query operational issue hashes: %w", err)
+	}
+	type hashBackfill struct {
+		fingerprint string
+		hash        string
+	}
+	var backfills []hashBackfill
+	for rows.Next() {
+		var fingerprint, source, context, severity, title, detail, reference string
+		if err := rows.Scan(&fingerprint, &source, &context, &severity, &title, &detail, &reference); err != nil {
+			rows.Close()
+			return fmt.Errorf("scan operational issue hash: %w", err)
+		}
+		backfills = append(backfills, hashBackfill{
+			fingerprint: fingerprint,
+			hash: operationalIssueContentHash(OperationalIssue{
+				Source: source, Context: context, Severity: severity, Title: title,
+				Detail: detail, Reference: reference,
+			}),
+		})
+	}
+	if err := rows.Close(); err != nil {
+		return fmt.Errorf("close operational issue hash rows: %w", err)
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("iterate operational issue hashes: %w", err)
+	}
+	for _, backfill := range backfills {
+		if _, err := db.Exec(`UPDATE operational_issues SET detail_hash=? WHERE fingerprint=?`, backfill.hash, backfill.fingerprint); err != nil {
+			return fmt.Errorf("backfill operational issue hash: %w", err)
+		}
+	}
+	return ensurePlannerIndexes(db)
+}
+
 func plannerIndexesSQL() string {
 	return strings.TrimSpace(`
 		CREATE INDEX IF NOT EXISTS idx_appointments_date ON appointments(date_time);
@@ -571,5 +658,6 @@ func operationalIssueIndexesSQL() string {
 		CREATE INDEX IF NOT EXISTS idx_operational_issues_status ON operational_issues(status);
 		CREATE INDEX IF NOT EXISTS idx_operational_issues_source ON operational_issues(source);
 		CREATE INDEX IF NOT EXISTS idx_operational_issues_last_seen ON operational_issues(last_seen);
+		CREATE INDEX IF NOT EXISTS idx_operational_issues_notice ON operational_issues(status, notified_revision, revision);
 	`)
 }

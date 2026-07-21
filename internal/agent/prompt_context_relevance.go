@@ -5,10 +5,14 @@ import (
 	"unicode"
 )
 
-// shouldInjectRecentMemoryContext decides whether broad recent activity and
-// episodic reminders are helpful for the current user message. Short greetings
-// should start clean instead of dragging stale follow-ups into the prompt.
+// shouldInjectRecentMemoryContext is intentionally limited to explicit status
+// queries. Topic-based episode injection is decided against the candidate text
+// itself by selectRelevantRecentMemoryLines.
 func shouldInjectRecentMemoryContext(msg string) bool {
+	return isRecentMemoryStatusQuery(msg)
+}
+
+func isRecentMemoryStatusQuery(msg string) bool {
 	lower := strings.ToLower(strings.TrimSpace(msg))
 	if lower == "" {
 		return false
@@ -28,12 +32,63 @@ func shouldInjectRecentMemoryContext(msg string) bool {
 			return true
 		}
 	}
-	for _, term := range strings.FieldsFunc(lower, func(r rune) bool {
-		return !unicode.IsLetter(r) && !unicode.IsDigit(r)
-	}) {
-		if len([]rune(term)) >= 4 {
-			return true
+	return false
+}
+
+func selectRelevantRecentMemoryLines(query string, candidates []string, limit int) []string {
+	if limit <= 0 || len(candidates) == 0 {
+		return nil
+	}
+	queryTerms := meaningfulRecentMemoryTerms(query)
+	for _, generic := range []string{"status", "offen", "todo", "aufgabe", "pending", "open", "remind", "prüfe", "check", "gibts", "neues", "anything"} {
+		delete(queryTerms, generic)
+	}
+	if isRecentMemoryStatusQuery(query) && len(queryTerms) == 0 {
+		if len(candidates) > limit {
+			return append([]string(nil), candidates[:limit]...)
+		}
+		return append([]string(nil), candidates...)
+	}
+	if len(queryTerms) == 0 {
+		return nil
+	}
+	var selected []string
+	for _, candidate := range candidates {
+		candidateTerms := meaningfulRecentMemoryTerms(candidate)
+		matches := 0
+		for term := range queryTerms {
+			if _, ok := candidateTerms[term]; ok {
+				matches++
+			}
+		}
+		if matches == 0 || (len(queryTerms) > 2 && matches < 2) {
+			continue
+		}
+		selected = append(selected, candidate)
+		if len(selected) >= limit {
+			break
 		}
 	}
-	return false
+	return selected
+}
+
+func meaningfulRecentMemoryTerms(text string) map[string]struct{} {
+	stop := map[string]struct{}{
+		"aber": {}, "again": {}, "auch": {}, "bitte": {}, "dann": {}, "erneut": {},
+		"nochmal": {}, "nochmals": {}, "please": {}, "retry": {}, "the": {}, "this": {},
+		"try": {}, "versuch": {}, "versuche": {}, "wieder": {}, "with": {}, "noch": {},
+	}
+	terms := make(map[string]struct{})
+	for _, term := range strings.FieldsFunc(strings.ToLower(text), func(r rune) bool {
+		return !unicode.IsLetter(r) && !unicode.IsDigit(r)
+	}) {
+		if _, blocked := stop[term]; blocked {
+			continue
+		}
+		if len([]rune(term)) < 4 && term != "pkw" && term != "api" && term != "ssl" && term != "gpu" && term != "nas" {
+			continue
+		}
+		terms[term] = struct{}{}
+	}
+	return terms
 }

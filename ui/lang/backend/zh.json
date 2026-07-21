@@ -1,4 +1,7 @@
 {
+  "backend.operational_issue_notice_title": "当前运行问题",
+  "backend.operational_issue_notice_summary": "AuraGo 在后台任务期间检测到 {0} 个问题。",
+  "backend.operational_issue_notice_occurrences": "已发生 {0} 次",
   "backend.cmd_unknown": "❌ 未知命令。请输入 /help 查看命令列表。",
   "backend.cmd_reset_success": "🧹 聊天记录和短期记忆已被删除。",
   "backend.cmd_reset_help": "删除当前聊天记录（短期记忆）。",

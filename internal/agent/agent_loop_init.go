@@ -145,7 +145,12 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 	isFirstTurn := isFirstUserMessageInSession(req.Messages)
 	plannerContext := plannerPromptContextText(runCfg, initialUserMsg, time.Now(), isFirstTurn, logger)
 	dailyTodoReminder := dailyTodoReminderText(runCfg, initialUserMsg, time.Now(), logger)
-	operationalIssueReminder := operationalIssueReminderText(runCfg, initialUserMsg, isFirstTurn, logger)
+	operationalIssueNotice := prepareOperationalIssueNotice(runCfg, initialUserMsg, logger)
+	operationalIssueReminder := operationalIssueNotice.PromptContext
+	currentRoute := currentToolRoute{}
+	if shouldUseSupervisorToolRoute(runCfg) {
+		currentRoute = deriveCurrentToolRoute(req.Messages, initialUserMsg)
+	}
 
 	toolingPolicy := buildToolingPolicy(cfg, initialUserMsg)
 	suppressCoAgentTools := shouldSuppressCoAgentTools(runCfg)
@@ -181,12 +186,23 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 		SpecialistsStatus:     buildSpecialistsStatus(cfg),
 		SpecialistsSuggestion: buildSpecialistDelegationHint(cfg, initialUserMsg),
 	})
+	if currentRoute.valid() {
+		flags.CurrentToolRoute = currentRoute.Text
+	}
+	if !shouldInjectComposioContext(initialUserMsg, flags.ComposioServicesContext) {
+		flags.ComposioServicesContext = ""
+	}
+	if shouldInjectCodingRules(initialUserMsg) {
+		flags.RequiresCoding = true
+	}
 	if voiceOutputSuppressed {
 		flags.IsVoiceMode = false
 		flags.VoiceOutputActive = false
 	}
 	flags.Model = req.Model
-	flags.AgentSkillsCatalog = buildAgentSkillsPromptCatalog()
+	if shouldInjectAgentSkillsCatalog(initialUserMsg) {
+		flags.AgentSkillsCatalog = buildAgentSkillsPromptCatalog()
+	}
 	applyTaskRulePromptContext(&flags, buildTaskRulePromptContext(cfg, initialUserMsg, nil, nil, "", logger))
 	logger.Debug("[Agent] Context flags initialised",
 		"token_budget", flags.TokenBudget,
@@ -280,6 +296,9 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 	ragLastUserMsg := ""
 	ragToolIterationsSinceLastRefresh := 0
 	pendingTCs := make([]ToolCall, 0) // Queued tool calls from multi-tool responses (processed without a new LLM call)
+	if currentRoute.valid() {
+		pendingTCs = append(pendingTCs, currentRoute.toolCall())
+	}
 	pendingSummaryBatch := map[string]string(nil)
 	usedMemoryDocIDs := make(map[string]int)
 	turnToolNames := make([]string, 0, 8)
@@ -498,6 +517,8 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 	s.initialUserMsg = initialUserMsg
 	s.dailyTodoReminder = dailyTodoReminder
 	s.operationalIssueReminder = operationalIssueReminder
+	s.operationalIssueNotice = operationalIssueNotice
+	s.currentToolRoute = currentRoute
 	s.plannerContext = plannerContext
 	s.baseAdditionalPrompt = baseAdditionalPrompt
 	s.toolCallCount = toolCallCount
@@ -553,6 +574,7 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 	s.adaptiveFilteredTools = adaptiveFilteredTools
 	s.nativeSchemaSnapshot = schemaSnapshot
 	s.isMaintenance = isMaintenance
+	deliverOperationalIssueNotice(&s.operationalIssueNotice, runCfg, broker, logger)
 
 	// Suppress unused-variable warnings for values only consumed by makeDispatchContext
 	_ = historyManager

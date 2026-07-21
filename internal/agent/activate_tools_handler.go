@@ -10,13 +10,14 @@ import (
 const maxActivateToolNames = 8
 
 type ActivateToolsResponse struct {
-	Status        string   `json:"status"`
-	Message       string   `json:"message,omitempty"`
-	Activated     []string `json:"activated"`
-	AlreadyActive []string `json:"already_active"`
-	Disabled      []string `json:"disabled"`
-	Unknown       []string `json:"unknown"`
-	NextRequest   bool     `json:"next_request"`
+	Status              string            `json:"status"`
+	Message             string            `json:"message,omitempty"`
+	Activated           []string          `json:"activated"`
+	AlreadyActive       []string          `json:"already_active"`
+	Disabled            []string          `json:"disabled"`
+	Unknown             []string          `json:"unknown"`
+	RequiredCallMethods map[string]string `json:"required_call_methods,omitempty"`
+	NextRequest         bool              `json:"next_request"`
 }
 
 func handleActivateTools(tc ToolCall, logger *slog.Logger, sessionID string) string {
@@ -43,8 +44,8 @@ func handleActivateTools(tc ToolCall, logger *slog.Logger, sessionID string) str
 	}
 
 	resp := ActivateToolsResponse{
-		Status:      "success",
-		NextRequest: true,
+		Status:              "success",
+		RequiredCallMethods: make(map[string]string),
 	}
 	seen := make(map[string]bool, len(names))
 	for _, rawName := range names {
@@ -72,6 +73,10 @@ func handleActivateTools(tc ToolCall, logger *slog.Logger, sessionID string) str
 		switch {
 		case entry.Status == ToolStatusDisabled || !entry.Enabled:
 			resp.Disabled = append(resp.Disabled, canonicalName)
+		case callMethodForEntry(entry) != "activate_tools":
+			// call_method is a runtime contract, not an LLM suggestion. In
+			// particular, hidden native tools currently require invoke_tool.
+			resp.RequiredCallMethods[canonicalName] = callMethodForEntry(entry)
 		case entry.Active:
 			resp.AlreadyActive = append(resp.AlreadyActive, canonicalName)
 		default:
@@ -80,6 +85,11 @@ func handleActivateTools(tc ToolCall, logger *slog.Logger, sessionID string) str
 				MarkActivatedTool(sessionID, schemaName)
 			}
 		}
+	}
+	resp.NextRequest = len(resp.Activated) > 0 || len(resp.RequiredCallMethods) > 0
+	if len(resp.RequiredCallMethods) > 0 {
+		resp.Status = "error"
+		resp.Message = "activate_tools is not permitted for tools whose discover_tools call_method requires another route; follow required_call_methods immediately"
 	}
 	if logger != nil && len(resp.Activated) > 0 {
 		logger.Debug("[NativeTools] Activated hidden tools for next request",

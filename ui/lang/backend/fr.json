@@ -1,4 +1,7 @@
 {
+  "backend.operational_issue_notice_title": "Problèmes opérationnels actuels",
+  "backend.operational_issue_notice_summary": "AuraGo a détecté {0} problème(s) pendant les tâches en arrière-plan.",
+  "backend.operational_issue_notice_occurrences": "s'est produit {0} fois",
   "backend.cmd_unknown": "❌ Commande inconnue. Tapez /help pour la liste des commandes.",
   "backend.cmd_reset_success": "🧹 L'historique de chat et la mémoire à court terme ont été supprimés.",
   "backend.cmd_reset_help": "Supprime l'historique de chat actuel (mémoire à court terme).",

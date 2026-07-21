@@ -376,11 +376,15 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			if prompt == "" {
 				prompt = "Describe this image in detail. What do you see? If there is text, transcribe it. If there are people, describe their actions."
 			}
+			prompt, _ = tools.PrepareVisionPrompt(prompt)
 			if hasFile {
 				if preferredResult, usedPreferred, err := dispatchPreferredMCPVision(cfg, fpath, prompt, logger); usedPreferred {
 					if err != nil {
 						logger.Warn("[Vision] Preferred MCP vision failed, falling back to native vision", "source", source, "error", err)
 					} else {
+						if normalized, handled := tools.NormalizeVisionAnalysis(prompt, preferredResult); handled {
+							preferredResult = normalized
+						}
 						return "Tool Output: " + security.Scrub(preferredResult)
 					}
 				}
@@ -395,6 +399,9 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			}
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Vision analysis failed: %v"}`, err)
+			}
+			if normalized, handled := tools.NormalizeVisionAnalysis(prompt, result); handled {
+				result = normalized
 			}
 			if budgetTracker != nil {
 				vModel := cfg.Vision.Model

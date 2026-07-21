@@ -91,6 +91,26 @@ func TestBuildLearnedRulesContext_TokenBudget(t *testing.T) {
 	}
 }
 
+func TestBuildLearnedRulesContextDeduplicatesNormalizedToolAndRule(t *testing.T) {
+	rules := []memory.LearnedRule{
+		{ToolName: "shell", Rule: " Verify the path before execution. ", Confidence: 0.8},
+		{ToolName: "execute_shell", Rule: "verify   the PATH before execution", Confidence: 0.7},
+		{ToolName: "python", Rule: "Validate input first", Confidence: 0.6},
+	}
+
+	deduped := deduplicateLearnedRules(rules)
+	if len(deduped) != 2 {
+		t.Fatalf("deduplicated rules = %#v, want two", deduped)
+	}
+	ctx := buildLearnedRulesContext(rules, 100)
+	if count := strings.Count(ctx, "Verify the path before execution"); count != 1 {
+		t.Fatalf("duplicate learned rule count = %d, want one:\n%s", count, ctx)
+	}
+	if strings.Count(ctx, "[execute_shell]") != 1 || strings.Count(ctx, "[execute_python]") != 1 {
+		t.Fatalf("normalized tool names missing or duplicated:\n%s", ctx)
+	}
+}
+
 func containsIgnoreCase(s, substr string) bool {
 	return strings.Contains(strings.ToLower(s), strings.ToLower(substr))
 }

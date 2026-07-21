@@ -116,6 +116,9 @@ type agentLoopState struct {
 	initialUserMsg           string
 	dailyTodoReminder        string
 	operationalIssueReminder string
+	operationalIssueNotice   operationalIssueNoticeState
+	currentToolRoute         currentToolRoute
+	currentToolRouteExecuted bool
 	plannerContext           string
 	baseAdditionalPrompt     string
 	toolGuidesDir            string
@@ -488,6 +491,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			lastUserMsg = messageText(req.Messages[len(req.Messages)-1])
 		}
 		s.lastUserMsg = lastUserMsg
+		if shouldInjectCodingRules(lastUserMsg) {
+			flags.RequiresCoding = true
+		}
 
 		// Get the mood trigger context from the message history
 		triggerValue := getMoodTrigger(req.Messages, lastUserMsg)
@@ -787,10 +793,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			s.currentLogger.Debug("[RAG] Capability query: injecting live-state policy hint")
 		}
 
-		// Inject lightweight recent-day anchors and episodic cards, even when
-		// long-term memory retrieval is unavailable/disabled.
+		// Pending follow-ups use their own topic matcher. Generic retry phrases
+		// intentionally produce no match and cannot reactivate stale work.
 		shouldInjectRecentContext := shouldInjectRecentMemoryContext(lastUserMsg)
-		if !runCfg.IsMission && !isAutonomousRun && shouldInjectRecentContext && shortTermMem != nil {
+		if !runCfg.IsMission && !isAutonomousRun && lastUserMsg != "" && shortTermMem != nil {
 			pendingActions, pErr := shortTermMem.GetPendingEpisodicActionsForQuery(lastUserMsg, 1)
 			if pErr == nil && len(pendingActions) > 0 {
 				turnPendingActions = append(turnPendingActions, pendingActions...)
@@ -809,7 +815,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					flags.RetrievedMemories += "\n---\n" + prefix
 				}
 			}
-			anchors, aErr := shortTermMem.GetRecentDayAnchors(1)
+			anchors, aErr := shortTermMem.GetRecentDayAnchors(5)
+			anchors = selectRelevantRecentMemoryLines(lastUserMsg, anchors, 1)
 			if aErr == nil && len(anchors) > 0 {
 				prefix := compactMemoryForPrompt("[Recent Day Anchors]\n- "+strings.Join(anchors, "\n- "), 230)
 				if flags.RetrievedMemories == "" {
@@ -818,7 +825,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					flags.RetrievedMemories += "\n---\n" + prefix
 				}
 			}
-			episodic, eErr := shortTermMem.GetRecentEpisodicMemories(72, 1)
+			episodic, eErr := shortTermMem.GetRecentEpisodicMemories(72, 5)
+			episodic = selectRelevantRecentMemoryLines(lastUserMsg, episodic, 1)
 			if eErr == nil && len(episodic) > 0 {
 				prefix := compactMemoryForPrompt("[Last 72h Episodes]\n- "+strings.Join(episodic, "\n- "), 230)
 				if flags.RetrievedMemories == "" {
@@ -829,9 +837,11 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 		}
 
-		if !runCfg.IsMission && !isAutonomousRun && shouldInjectRecentContext && shortTermMem != nil {
+		if !runCfg.IsMission && !isAutonomousRun && shortTermMem != nil {
 			if overview, err := shortTermMem.BuildRecentActivityPromptOverview(3); err == nil {
-				flags.RecentActivityOverview = compactMemoryForPrompt(overview, aggressiveRecentOverviewChars)
+				if shouldInjectRecentContext || len(selectRelevantRecentMemoryLines(lastUserMsg, []string{overview}, 1)) > 0 {
+					flags.RecentActivityOverview = compactMemoryForPrompt(overview, aggressiveRecentOverviewChars)
+				}
 			}
 		}
 
@@ -961,6 +971,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 			rules, lrErr := shortTermMem.GetLearnedRulesForTools(recentTools, 3)
 			if lrErr == nil && len(rules) > 0 {
+				rules = deduplicateLearnedRules(rules)
 				flags.LearnedRulesContext = buildLearnedRulesContext(rules, 120)
 				flags.InjectedLearnedRules = append([]memory.LearnedRule(nil), rules...)
 			}
@@ -1325,22 +1336,12 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			s.currentLogger.Warn("[PreSend] Sanitized orphaned tool messages before LLM call",
 				"dropped", droppedToolMessages, "before", beforeSanitizeMessages, "after", len(sanitizedMessages))
 		}
+		req.Messages = sanitizeReasoningForContinuation(req.Messages, telemetryScope.ProviderType, req.Model)
 
 		// Prompt log: append full request JSON to prompts.log when enabled.
 		// Logged AFTER sanitization so the record reflects what is actually sent.
 		if cfg.Logging.EnablePromptLog {
-			type promptLogEntry struct {
-				Time       string                         `json:"time"`
-				Model      string                         `json:"model"`
-				ToolsCount int                            `json:"tools_count"`
-				Messages   []openai.ChatCompletionMessage `json:"messages"`
-			}
-			entry := promptLogEntry{
-				Time:       time.Now().UTC().Format(time.RFC3339),
-				Model:      req.Model,
-				ToolsCount: len(req.Tools),
-				Messages:   req.Messages,
-			}
+			entry := newPromptLogEntry(req, telemetryScope.ProviderType, recoveryState, retry422Count, s.toolCallCount)
 			if err := loggerPkg.AppendPromptLogEntry(cfg.Logging.LogDir, entry); err != nil {
 				s.currentLogger.Warn("[PromptLog] Failed to write entry", "error", err)
 			}
@@ -1665,6 +1666,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		if content == "" {
 			content = "[Empty Response]"
 		}
+		content = prependOperationalIssueNotice(s.operationalIssueNotice, content)
+		if len(resp.Choices) > 0 {
+			resp.Choices[0].Message.Content = content
+		}
 		s.currentLogger.Debug("[Sync] Final answer", "content_len", len(content), "content_preview", Truncate(content, 200))
 
 		// Don't persist [Empty Response] as a real message — it pollutes future context
@@ -1677,17 +1682,23 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				isEmpty = true
 			}
 		}
+		finalPersisted := false
 		if !isEmpty {
 			isInternalFinal := isAutonomousAgentRun(runCfg, sessionID)
 			id, err := shortTermMem.InsertMessage(sessionID, resp.Choices[0].Message.Role, content, false, isInternalFinal)
 			if err != nil {
 				s.currentLogger.Error("Failed to persist final-answer message to SQLite", "error", err)
+			} else {
+				finalPersisted = true
 			}
 			if sessionID == "default" && !isInternalFinal && ShouldAppendHistoryMessage(id, err) {
 				historyManager.Add(resp.Choices[0].Message.Role, content, id, false, false)
 			}
 		} else {
 			s.currentLogger.Warn("[Sync] Skipping history persistence for empty response")
+		}
+		if finalPersisted {
+			markPersistedOperationalIssueNotice(s.operationalIssueNotice, runCfg, s.currentLogger)
 		}
 		// Fire "done" AFTER the message is persisted so that the UI can reliably
 		// fall back to /history if the HTTP response was lost (e.g. page refresh

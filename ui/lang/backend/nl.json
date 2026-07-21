@@ -1,4 +1,7 @@
 {
+  "backend.operational_issue_notice_title": "Actuele operationele problemen",
+  "backend.operational_issue_notice_summary": "AuraGo heeft {0} probleem/problemen gedetecteerd tijdens achtergrondtaken.",
+  "backend.operational_issue_notice_occurrences": "{0} keer opgetreden",
   "backend.cmd_unknown": "❌ Onbekend commando. Typ /help voor een lijst met commando's.",
   "backend.cmd_reset_success": "🧹 Chatgeschiedenis en kortetermijngeheugen zijn verwijderd.",
   "backend.cmd_reset_help": "Verwijdert de huidige chatgeschiedenis (kortetermijngeheugen).",

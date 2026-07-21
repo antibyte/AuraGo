@@ -1,4 +1,7 @@
 {
+  "backend.operational_issue_notice_title": "Bieżące problemy operacyjne",
+  "backend.operational_issue_notice_summary": "AuraGo wykrył {0} problem(y) podczas pracy w tle.",
+  "backend.operational_issue_notice_occurrences": "wystąpił {0} razy",
   "backend.cmd_unknown": "❌ Nieznana komenda. Wpisz /help, aby wyświetlić listę komend.",
   "backend.cmd_reset_success": "🧹 Historia czatu i pamięć krótkotrwała zostały usunięte.",
   "backend.cmd_reset_help": "Usuwa bieżącą historię czatu (pamięć krótkotrwała).",
