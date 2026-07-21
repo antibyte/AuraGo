@@ -648,8 +648,18 @@
         }
 
         function setMetrics(m) {
-            state.cpu = clamp(toFinite(m && m.cpu, 0), 0, 100);
-            state.memory = clamp(toFinite(m && m.memory, 0), 0, 100);
+            // Accept flat percents or nested dashboard/SSE shapes
+            // ({ usage_percent } / { used_percent }).
+            const cpuRaw = m && (
+                typeof m.cpu === 'number' ? m.cpu
+                    : (m.cpu && (m.cpu.usage_percent != null ? m.cpu.usage_percent : m.cpu.percent))
+            );
+            const memRaw = m && (
+                typeof m.memory === 'number' ? m.memory
+                    : (m.memory && (m.memory.used_percent != null ? m.memory.used_percent : m.memory.percent))
+            );
+            state.cpu = clamp(toFinite(cpuRaw, 0), 0, 100);
+            state.memory = clamp(toFinite(memRaw, 0), 0, 100);
         }
 
         function setMemory(mem) {

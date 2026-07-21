@@ -300,6 +300,52 @@
         return { spent, limit };
     }
 
+    // Dashboard/SSE system_metrics payloads use nested cpu/memory objects
+    // (usage_percent / used_percent). Accept flat numbers too for robustness.
+    function normalizeSystemMetrics(payload) {
+        if (!payload || typeof payload !== 'object') return null;
+        const cpuObj = payload.cpu && typeof payload.cpu === 'object' ? payload.cpu : null;
+        const memObj = payload.memory && typeof payload.memory === 'object' ? payload.memory : null;
+        const cpu = pickNum(
+            typeof payload.cpu === 'number' ? payload.cpu : undefined,
+            payload.cpu_percent,
+            cpuObj && cpuObj.usage_percent,
+            cpuObj && cpuObj.percent,
+            cpuObj && cpuObj.used_percent
+        );
+        const ram = pickNum(
+            typeof payload.memory === 'number' ? payload.memory : undefined,
+            payload.memory_percent,
+            payload.ram,
+            memObj && memObj.used_percent,
+            memObj && memObj.percent,
+            memObj && memObj.usage_percent
+        );
+        const uptime = pickNum(payload.uptime_seconds, payload.uptime);
+        if (cpu == null && ram == null && uptime == null) return null;
+        return { cpu, ram, uptime };
+    }
+
+    function applySystemMetrics(inst, payload) {
+        const m = normalizeSystemMetrics(payload);
+        if (!m) return;
+        try {
+            if (inst.core && typeof inst.core.setMetrics === 'function') {
+                inst.core.setMetrics({
+                    cpu: m.cpu != null ? m.cpu : 0,
+                    memory: m.ram != null ? m.ram : 0
+                });
+            }
+        } catch (_) {}
+        const patch = {};
+        if (m.cpu != null) patch.cpu = m.cpu;
+        if (m.ram != null) patch.ram = m.ram;
+        if (m.uptime != null) patch.uptime = m.uptime;
+        if (Object.keys(patch).length) {
+            try { inst.hud.setStats(patch); } catch (_) {}
+        }
+    }
+
     function fetchOverview(inst) {
         inst.apiGet('/api/dashboard/overview').then(d => {
             if (inst.disposed) return;
@@ -401,8 +447,18 @@
         });
     }
 
+    function fetchSystem(inst) {
+        inst.apiGet('/api/dashboard/system').then(d => {
+            if (!d || inst.disposed) return;
+            inst.data.system = d;
+            applySystemMetrics(inst, d);
+        });
+    }
+
     function startPolling(inst) {
         poll(inst, 5000, () => fetchOverview(inst));
+        // CPU/RAM/uptime: REST bootstrap + backup poll; SSE keeps them live.
+        poll(inst, 8000, () => fetchSystem(inst));
         poll(inst, 12000, () => fetchMemory(inst));
         poll(inst, 4000, () => fetchActivity(inst));
         poll(inst, 10000, () => fetchMissions(inst));
@@ -504,14 +560,7 @@
 
         reg('system_metrics', payload => {
             if (inst.disposed || !payload) return;
-            try { if (inst.core.setMetrics) inst.core.setMetrics(payload); } catch (_) {}
-            const patch = {};
-            if (typeof payload.cpu === 'number') patch.cpu = payload.cpu;
-            if (typeof payload.memory === 'number') patch.ram = payload.memory;
-            if (typeof payload.uptime_seconds === 'number') patch.uptime = payload.uptime_seconds;
-            if (Object.keys(patch).length) {
-                try { inst.hud.setStats(patch); } catch (_) {}
-            }
+            applySystemMetrics(inst, payload);
         });
 
         reg('agent_status', payload => {
