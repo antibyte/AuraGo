@@ -152,6 +152,26 @@ func TestGo2RTCRecreateDecisionKeepsRuntimePatchForAddsAndChanges(t *testing.T) 
 	}
 }
 
+func TestGo2RTCRuntimeTransitionRecreatesOnContainerIdentityOrDockerHostChange(t *testing.T) {
+	oldCfg := config.Config{}
+	oldCfg.Docker.Host = "tcp://old-docker:2375"
+	oldCfg.Go2RTC = config.Go2RTCConfig{Enabled: true, ContainerName: "aurago_go2rtc"}
+
+	newCfg := oldCfg
+	newCfg.Go2RTC.ContainerName = "aurago_go2rtc_new"
+	changed, recreate := go2RTCRuntimeTransition(oldCfg, newCfg)
+	if !changed || !recreate {
+		t.Fatal("container identity change must recreate the sidecar")
+	}
+
+	newCfg = oldCfg
+	newCfg.Docker.Host = "tcp://new-docker:2375"
+	changed, recreate = go2RTCRuntimeTransition(oldCfg, newCfg)
+	if !changed || !recreate {
+		t.Fatal("Docker target change must remove the old sidecar before switching targets")
+	}
+}
+
 func TestValidateGo2RTCSettingsPinsInternalEndpointAndWebRTCBoundary(t *testing.T) {
 	base := config.Go2RTCConfig{Enabled: true, URL: "http://127.0.0.1:1984", APIHostPort: 1984}
 	if err := validateGo2RTCSettings(base, config.Runtime{}, nil); err != nil {
@@ -259,6 +279,53 @@ func TestGo2RTCProxyEnforcesOriginStreamScopeAndUpstreamAuth(t *testing.T) {
 	handler.ServeHTTP(allowedRecorder, allowed)
 	if allowedRecorder.Code != http.StatusOK || upstreamCalls != 1 {
 		t.Fatalf("same-origin proxy status=%d upstream_calls=%d body=%s", allowedRecorder.Code, upstreamCalls, allowedRecorder.Body.String())
+	}
+}
+
+func TestGo2RTCAdminStreamsProxyMasksRuntimeSources(t *testing.T) {
+	const internalPassword = "internal-password"
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/go2rtc/proxy/api/streams" {
+			http.NotFound(w, r)
+			return
+		}
+		if user, password, ok := r.BasicAuth(); !ok || user != "aurago" || password != internalPassword {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"aurago_front-door":{"producers":[{"url":"rtsp://camera-user:camera-password@camera.local/live"}],"consumers":[]}}`))
+	}))
+	defer upstream.Close()
+
+	parsed, _ := url.Parse(upstream.URL)
+	port, _ := strconv.Atoi(parsed.Port())
+	cfg := &config.Config{}
+	cfg.Go2RTC = config.Go2RTCConfig{
+		Enabled:       true,
+		WebUIEnabled:  true,
+		URL:           upstream.URL,
+		APIHostPort:   port,
+		APIPassword:   internalPassword,
+		ContainerName: "aurago_go2rtc",
+	}
+	server := &Server{Cfg: cfg, Go2RTC: tools.NewGo2RTCManager(cfg, nil, nil, nil)}
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "http://aurago.local/api/go2rtc/proxy/api/streams", nil)
+	request.Host = "aurago.local"
+	handleGo2RTCProxy(server).ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", recorder.Code, recorder.Body.String())
+	}
+	body := recorder.Body.String()
+	for _, secret := range []string{"camera.local", "camera-user", "camera-password", "rtsp://"} {
+		if strings.Contains(body, secret) {
+			t.Fatalf("admin streams proxy leaked %q: %s", secret, body)
+		}
+	}
+	if !strings.Contains(body, "••••••••") {
+		t.Fatalf("admin streams proxy did not preserve a masked source marker: %s", body)
 	}
 }
 

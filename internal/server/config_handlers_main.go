@@ -332,7 +332,22 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			jsonError(w, "Invalid JSON", http.StatusBadRequest)
 			return
 		}
-
+		// Keep config, Vault extraction, validation, and publication in one
+		// transaction boundary. This prevents a rejected concurrent save from
+		// rolling back stream sources committed by another request.
+		s.CfgSaveMu.Lock()
+		defer s.CfgSaveMu.Unlock()
+		go2RTCSourceTxn, txnErr := captureGo2RTCSourceVaultState(patch, s.Vault)
+		if txnErr != nil {
+			s.Logger.Error("[Config] Could not stage go2rtc stream sources", "error", txnErr)
+			jsonError(w, "Could not stage go2rtc stream sources", http.StatusInternalServerError)
+			return
+		}
+		defer func() {
+			if rollbackErr := go2RTCSourceTxn.Rollback(); rollbackErr != nil && s.Logger != nil {
+				s.Logger.Error("[Config] Failed to roll back rejected go2rtc stream sources", "error", rollbackErr)
+			}
+		}()
 		// Read the current config
 		data, err := os.ReadFile(configPath)
 		if err != nil {
@@ -506,15 +521,13 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			}
 		}
 
-		// Serialize concurrent config saves to prevent TOCTOU: read-modify-write race.
-		s.CfgSaveMu.Lock()
 		writeErr := config.WriteFileAtomic(configPath, out, perm)
-		s.CfgSaveMu.Unlock()
 		if writeErr != nil {
 			s.Logger.Error("Failed to write config file", "error", writeErr)
 			jsonError(w, "Failed to write config", http.StatusInternalServerError)
 			return
 		}
+		go2RTCSourceTxn.Commit()
 
 		// Snapshot old config under read lock, then do file I/O without holding any lock.
 		s.CfgMu.RLock()
@@ -556,8 +569,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			networkSharesChanged = !reflect.DeepEqual(oldCfg.NetworkShares, newCfg.NetworkShares) ||
 				oldCfg.Agent.SudoEnabled != newCfg.Agent.SudoEnabled ||
 				oldCfg.Agent.SudoUnrestricted != newCfg.Agent.SudoUnrestricted
-			go2RTCChanged = !reflect.DeepEqual(oldCfg.Go2RTC, newCfg.Go2RTC)
-			go2RTCRecreate = go2RTCRequiresRecreate(oldCfg.Go2RTC, newCfg.Go2RTC)
+			go2RTCChanged, go2RTCRecreate = go2RTCRuntimeTransition(oldCfg, *newCfg)
 
 			// Detect sections that need restart
 			if oldCfg.Server != newCfg.Server {
@@ -1190,7 +1202,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				// Keep the old container identity until it has been stopped. This prevents
 				// a simultaneous disable/name edit from orphaning the running sidecar.
 				s.Go2RTC.Configure(&oldCfg)
-			} else {
+			} else if !go2RTCRecreate {
 				s.Go2RTC.Configure(newCfg)
 			}
 			go func() {
@@ -1203,7 +1215,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 					}
 					s.Go2RTC.Configure(newCfg)
 				case go2RTCRecreate:
-					if err := s.Go2RTC.RestartContainer(ctx); err != nil {
+					if err := s.Go2RTC.ReconfigureContainer(ctx, &oldCfg, newCfg); err != nil {
 						s.Logger.Warn("[go2rtc] Failed to recreate sidecar after configuration change", "error", err)
 					}
 				default:
@@ -1334,6 +1346,14 @@ func go2RTCRequiresRecreate(oldCfg, newCfg config.Go2RTCConfig) bool {
 		}
 	}
 	return false
+}
+
+func go2RTCRuntimeTransition(oldCfg, newCfg config.Config) (changed, recreate bool) {
+	dockerTargetChanged := strings.TrimSpace(oldCfg.Docker.Host) != strings.TrimSpace(newCfg.Docker.Host) ||
+		oldCfg.Runtime.IsDocker != newCfg.Runtime.IsDocker
+	changed = !reflect.DeepEqual(oldCfg.Go2RTC, newCfg.Go2RTC) || dockerTargetChanged
+	recreate = go2RTCRequiresRecreate(oldCfg.Go2RTC, newCfg.Go2RTC) || dockerTargetChanged
+	return changed, recreate
 }
 
 func validateLocalGraniteEmbeddingMode(cfg *config.Config) error {
@@ -2276,6 +2296,90 @@ func extractGo2RTCStreamSourcesToVault(items []interface{}, vault *security.Vaul
 			logger.Info("[Config] go2rtc stream source saved to vault", "stream_id", id)
 		}
 	}
+	return firstErr
+}
+
+type go2RTCSourceVaultSnapshot struct {
+	value  string
+	exists bool
+}
+
+type go2RTCSourceVaultTransaction struct {
+	vault     *security.Vault
+	previous  map[string]go2RTCSourceVaultSnapshot
+	committed bool
+}
+
+func captureGo2RTCSourceVaultState(patch map[string]interface{}, vault *security.Vault) (*go2RTCSourceVaultTransaction, error) {
+	txn := &go2RTCSourceVaultTransaction{vault: vault, previous: make(map[string]go2RTCSourceVaultSnapshot)}
+	if vault == nil {
+		return txn, nil
+	}
+	section, ok := patch["go2rtc"].(map[string]interface{})
+	if !ok {
+		return txn, nil
+	}
+	var items []interface{}
+	switch streams := section["streams"].(type) {
+	case []interface{}:
+		items = streams
+	case map[string]interface{}:
+		items, _ = numericKeyedMapToSlice(streams)
+	}
+	for _, item := range items {
+		stream, ok := item.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		source, ok := stream["source"].(string)
+		if !ok || strings.TrimSpace(source) == "" || source == "••••••••" {
+			continue
+		}
+		id := strings.TrimSpace(fmt.Sprint(stream["id"]))
+		if tools.ValidateGo2RTCStreamID(id) != nil {
+			continue
+		}
+		key := config.Go2RTCStreamSourceVaultKey(id)
+		if _, captured := txn.previous[key]; captured {
+			continue
+		}
+		value, err := vault.ReadSecret(key)
+		if err == nil {
+			txn.previous[key] = go2RTCSourceVaultSnapshot{value: value, exists: true}
+			continue
+		}
+		if strings.Contains(strings.ToLower(err.Error()), "secret not found") {
+			txn.previous[key] = go2RTCSourceVaultSnapshot{}
+			continue
+		}
+		return nil, fmt.Errorf("read previous go2rtc source for stream %q: %w", id, err)
+	}
+	return txn, nil
+}
+
+func (t *go2RTCSourceVaultTransaction) Commit() {
+	if t != nil {
+		t.committed = true
+	}
+}
+
+func (t *go2RTCSourceVaultTransaction) Rollback() error {
+	if t == nil || t.committed || t.vault == nil || len(t.previous) == 0 {
+		return nil
+	}
+	var firstErr error
+	for key, previous := range t.previous {
+		var err error
+		if previous.exists {
+			err = t.vault.WriteSecret(key, previous.value)
+		} else {
+			err = t.vault.DeleteSecret(key)
+		}
+		if err != nil && firstErr == nil {
+			firstErr = fmt.Errorf("restore %s: %w", key, err)
+		}
+	}
+	t.committed = true
 	return firstErr
 }
 

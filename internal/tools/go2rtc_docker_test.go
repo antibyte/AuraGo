@@ -22,11 +22,13 @@ func TestRenderGo2RTCConfigContainsNoSecretOrStreamSource(t *testing.T) {
 		`base_path: "/api/go2rtc/proxy"`,
 		`local_auth: true`,
 		`password: "${AURAGO_GO2RTC_API_PASSWORD}"`,
+		`- "/api/go2rtc/proxy/"`,
 		`- "/api/go2rtc/proxy/api/streams"`,
 		`- "/api/go2rtc/proxy/api/frame.jpeg"`,
 		`- "/api/go2rtc/proxy/api/hls/playlist.m3u8"`,
 		`- "/api/go2rtc/proxy/api/hls/segment.m4s"`,
 		`listen: "127.0.0.1:8554"`,
+		`level: "disabled"`,
 		`streams: {}`,
 	} {
 		if !strings.Contains(rendered, required) {
@@ -37,6 +39,9 @@ func TestRenderGo2RTCConfigContainsNoSecretOrStreamSource(t *testing.T) {
 		if strings.Contains(rendered, forbidden) {
 			t.Fatalf("rendered config leaked %q:\n%s", forbidden, rendered)
 		}
+	}
+	if strings.Contains(rendered, `level: "info"`) {
+		t.Fatalf("rendered config leaves source-bearing upstream logs enabled:\n%s", rendered)
 	}
 	for _, blocked := range []string{"/api/config", "/api/log", "/api/exit", "/api/restart"} {
 		if strings.Contains(rendered, blocked) {

@@ -91,6 +91,10 @@ func TestGo2RTCRealImageContract(t *testing.T) {
 	if err := waitForGo2RTCContractAPI(ctx, client, baseURL, password); err != nil {
 		t.Fatal(err)
 	}
+	staticAsset, err := go2RTCContractRequest(ctx, client, http.MethodGet, baseURL+"/video-stream.js", password)
+	if err != nil || len(staticAsset) == 0 {
+		t.Fatalf("static viewer asset contract failed: bytes=%d err=%v", len(staticAsset), err)
+	}
 
 	source := fmt.Sprintf("http://host.docker.internal:%d/camera.mjpeg", cameraPort)
 	patchURL := baseURL + "/api/streams?" + url.Values{

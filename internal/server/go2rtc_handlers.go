@@ -1,12 +1,14 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"html"
+	"io"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -343,6 +345,11 @@ func handleGo2RTCProxy(s *Server) http.HandlerFunc {
 		proxy.ModifyResponse = func(resp *http.Response) error {
 			resp.Header.Del("Set-Cookie")
 			resp.Header.Set("X-Content-Type-Options", "nosniff")
+			if subpath == "api/streams" && r.Method != http.MethodHead {
+				if err := maskGo2RTCStreamsResponse(resp); err != nil {
+					return err
+				}
+			}
 			return nil
 		}
 		proxy.ErrorHandler = func(rw http.ResponseWriter, _ *http.Request, proxyErr error) {
@@ -352,6 +359,53 @@ func handleGo2RTCProxy(s *Server) http.HandlerFunc {
 			jsonError(rw, "go2rtc upstream unavailable", http.StatusBadGateway)
 		}
 		proxy.ServeHTTP(w, r)
+	}
+}
+
+func maskGo2RTCStreamsResponse(resp *http.Response) error {
+	if resp == nil || resp.Body == nil {
+		return fmt.Errorf("go2rtc streams response is empty")
+	}
+	const maxBody = 4 << 20
+	data, err := io.ReadAll(io.LimitReader(resp.Body, maxBody+1))
+	_ = resp.Body.Close()
+	if err != nil {
+		return fmt.Errorf("read go2rtc streams response: %w", err)
+	}
+	if len(data) > maxBody {
+		return fmt.Errorf("go2rtc streams response exceeds safe limit")
+	}
+	var payload interface{}
+	if err := json.Unmarshal(data, &payload); err != nil {
+		return fmt.Errorf("decode go2rtc streams response")
+	}
+	maskGo2RTCRuntimeSources(payload)
+	data, err = json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("encode sanitized go2rtc streams response")
+	}
+	resp.Body = io.NopCloser(bytes.NewReader(data))
+	resp.ContentLength = int64(len(data))
+	resp.Header.Set("Content-Length", fmt.Sprintf("%d", len(data)))
+	resp.Header.Set("Content-Type", "application/json")
+	return nil
+}
+
+func maskGo2RTCRuntimeSources(value interface{}) {
+	switch typed := value.(type) {
+	case map[string]interface{}:
+		for key, child := range typed {
+			switch strings.ToLower(strings.TrimSpace(key)) {
+			case "url", "source", "src":
+				typed[key] = "••••••••"
+			default:
+				maskGo2RTCRuntimeSources(child)
+			}
+		}
+	case []interface{}:
+		for _, child := range typed {
+			maskGo2RTCRuntimeSources(child)
+		}
 	}
 }
 

@@ -28,6 +28,12 @@ func (m *Go2RTCManager) StartContainer(ctx context.Context) error {
 	if m == nil {
 		return fmt.Errorf("go2rtc manager is not initialized")
 	}
+	m.lifecycleMu.Lock()
+	defer m.lifecycleMu.Unlock()
+	return m.startContainerLocked(ctx)
+}
+
+func (m *Go2RTCManager) startContainerLocked(ctx context.Context) error {
 	m.mu.Lock()
 	m.manualStop = false
 	m.mu.Unlock()
@@ -182,6 +188,12 @@ func (m *Go2RTCManager) StopContainer() error {
 	if m == nil {
 		return fmt.Errorf("go2rtc manager is not initialized")
 	}
+	m.lifecycleMu.Lock()
+	defer m.lifecycleMu.Unlock()
+	return m.stopContainerLocked()
+}
+
+func (m *Go2RTCManager) stopContainerLocked() error {
 	m.mu.RLock()
 	dockerCfg := m.docker
 	m.mu.RUnlock()
@@ -212,13 +224,39 @@ func (m *Go2RTCManager) StopContainer() error {
 
 // RestartContainer recreates the sidecar so removed/disabled sources cannot remain in memory.
 func (m *Go2RTCManager) RestartContainer(ctx context.Context) error {
+	if m == nil {
+		return fmt.Errorf("go2rtc manager is not initialized")
+	}
+	m.lifecycleMu.Lock()
+	defer m.lifecycleMu.Unlock()
 	if err := m.removeContainer(); err != nil {
 		return err
 	}
-	if err := m.StartContainer(ctx); err != nil {
+	if err := m.startContainerLocked(ctx); err != nil {
 		return err
 	}
-	_, err := m.ReconcileStreams(ctx)
+	_, err := m.reconcileStreamsLocked(ctx)
+	return err
+}
+
+// ReconfigureContainer removes the sidecar through its previous Docker target
+// before publishing the new identity. This prevents name or daemon changes from
+// orphaning a container that still contains the previous runtime sources.
+func (m *Go2RTCManager) ReconfigureContainer(ctx context.Context, oldCfg, newCfg *config.Config) error {
+	if m == nil || oldCfg == nil || newCfg == nil {
+		return fmt.Errorf("go2rtc reconfiguration requires old and new config")
+	}
+	m.lifecycleMu.Lock()
+	defer m.lifecycleMu.Unlock()
+	m.configureLocked(oldCfg)
+	if err := m.removeContainer(); err != nil {
+		return err
+	}
+	m.configureLocked(newCfg)
+	if err := m.startContainerLocked(ctx); err != nil {
+		return err
+	}
+	_, err := m.reconcileStreamsLocked(ctx)
 	return err
 }
 
@@ -491,6 +529,7 @@ func renderGo2RTCConfig(cfg config.Go2RTCConfig) []byte {
   password: "${AURAGO_GO2RTC_API_PASSWORD}"
   local_auth: true
   allow_paths:
+    - "/api/go2rtc/proxy/"
     - "/api/go2rtc/proxy/api"
     - "/api/go2rtc/proxy/api/streams"
     - "/api/go2rtc/proxy/api/webrtc"
@@ -514,7 +553,10 @@ rtmp:
 srtp:
   listen: ""
 log:
-  level: "info"
+  # Runtime stream URLs are Vault-only and go2rtc includes producer URLs in
+  # warning messages. Disable upstream logs so Docker logging cannot persist
+  # camera credentials; AuraGo exposes sanitized lifecycle status instead.
+  level: "disabled"
 streams: {}
 `, webrtcListen, candidates))
 }

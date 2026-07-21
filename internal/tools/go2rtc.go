@@ -30,6 +30,10 @@ import (
 const (
 	go2RTCAPIUser          = "aurago"
 	go2RTCMaxResponseBytes = 20 << 20
+	go2RTCMaxCacheEntries  = 16
+	go2RTCMaxCacheBytes    = 64 << 20
+	go2RTCMaxStoredItems   = 1000
+	go2RTCMaxStoredBytes   = int64(2 << 30)
 )
 
 // Go2RTCStreamStatus is the deliberately sanitized public stream view.
@@ -79,24 +83,28 @@ type Go2RTCSnapshotResult struct {
 type go2RTCSnapshotCacheEntry struct {
 	data      []byte
 	expiresAt time.Time
+	lastUsed  time.Time
 }
 
 // Go2RTCManager owns AuraGo's client, sidecar lifecycle, and runtime reconciliation.
 type Go2RTCManager struct {
-	mu         sync.RWMutex
-	cfg        config.Go2RTCConfig
-	docker     DockerConfig
-	dataDir    string
-	configDir  string
-	vault      *security.Vault
-	mediaDB    *sql.DB
-	logger     *slog.Logger
-	client     *http.Client
-	status     Go2RTCStatus
-	cache      map[string]go2RTCSnapshotCacheEntry
-	cancel     context.CancelFunc
-	inDocker   bool
-	manualStop bool
+	lifecycleMu  sync.Mutex
+	credentialMu sync.Mutex
+	mu           sync.RWMutex
+	cfg          config.Go2RTCConfig
+	docker       DockerConfig
+	dataDir      string
+	configDir    string
+	vault        *security.Vault
+	mediaDB      *sql.DB
+	logger       *slog.Logger
+	client       *http.Client
+	status       Go2RTCStatus
+	cache        map[string]go2RTCSnapshotCacheEntry
+	cacheBytes   int64
+	cancel       context.CancelFunc
+	inDocker     bool
+	manualStop   bool
 }
 
 var defaultGo2RTCManager atomic.Pointer[Go2RTCManager]
@@ -141,6 +149,15 @@ func (m *Go2RTCManager) Configure(cfg *config.Config) {
 	if m == nil || cfg == nil {
 		return
 	}
+	m.lifecycleMu.Lock()
+	defer m.lifecycleMu.Unlock()
+	m.configureLocked(cfg)
+}
+
+func (m *Go2RTCManager) configureLocked(cfg *config.Config) {
+	m.credentialMu.Lock()
+	defer m.credentialMu.Unlock()
+
 	goCfg := cfg.Go2RTC
 	if strings.TrimSpace(goCfg.Image) == "" {
 		goCfg.Image = config.Go2RTCDefaultImage
@@ -184,6 +201,7 @@ func (m *Go2RTCManager) Configure(cfg *config.Config) {
 	m.status.Configured = len(goCfg.Streams) > 0
 	m.status.Enabled = goCfg.Enabled
 	m.cache = make(map[string]go2RTCSnapshotCacheEntry)
+	m.cacheBytes = 0
 	if !goCfg.Enabled || !wasEnabled {
 		m.manualStop = false
 	}
@@ -341,6 +359,12 @@ func (m *Go2RTCManager) setAPIStatus(usable bool, version, lastError string) {
 
 // ReconcileStreams injects enabled vault-only sources through go2rtc's runtime API.
 func (m *Go2RTCManager) ReconcileStreams(ctx context.Context) (int, error) {
+	m.lifecycleMu.Lock()
+	defer m.lifecycleMu.Unlock()
+	return m.reconcileStreamsLocked(ctx)
+}
+
+func (m *Go2RTCManager) reconcileStreamsLocked(ctx context.Context) (int, error) {
 	cfg := m.Config()
 	if !cfg.Enabled {
 		return 0, fmt.Errorf("go2rtc integration is disabled")
@@ -381,8 +405,11 @@ func (m *Go2RTCManager) ListStreams(ctx context.Context) ([]Go2RTCStreamStatus, 
 		if raw, ok := upstream[Go2RTCRuntimeStreamName(stream.ID)].(map[string]interface{}); ok {
 			entry.Producers = sliceLength(raw["producers"])
 			entry.Consumers = sliceLength(raw["consumers"])
-			entry.Reachable = entry.Producers > 0
 			entry.Codecs = collectGo2RTCCodecs(raw)
+			// A configured go2rtc source already appears as one producer even before
+			// it has connected. Runtime codec metadata is the passive signal that a
+			// producer has actually been initialized successfully.
+			entry.Reachable = len(entry.Codecs) > 0
 		}
 		result = append(result, entry)
 	}
@@ -423,10 +450,16 @@ func (m *Go2RTCManager) Snapshot(ctx context.Context, streamID string, opts Go2R
 	}
 	cacheKey := fmt.Sprintf("%s:%d:%d:%d", stream.ID, opts.Width, opts.Height, opts.Rotate)
 	if opts.CacheSeconds > 0 {
-		m.mu.RLock()
+		now := time.Now()
+		m.mu.Lock()
+		m.pruneSnapshotCacheLocked(now, 0)
 		cached, ok := m.cache[cacheKey]
-		m.mu.RUnlock()
-		if ok && time.Now().Before(cached.expiresAt) {
+		if ok && now.Before(cached.expiresAt) {
+			cached.lastUsed = now
+			m.cache[cacheKey] = cached
+		}
+		m.mu.Unlock()
+		if ok && now.Before(cached.expiresAt) {
 			result, storeErr := m.buildSnapshotResult(stream, cached.data, opts)
 			result.Cached = true
 			return result, append([]byte(nil), cached.data...), storeErr
@@ -454,8 +487,9 @@ func (m *Go2RTCManager) Snapshot(ctx context.Context, streamID string, opts Go2R
 		return Go2RTCSnapshotResult{}, nil, fmt.Errorf("go2rtc returned an unexpected content type")
 	}
 	if opts.CacheSeconds > 0 {
+		now := time.Now()
 		m.mu.Lock()
-		m.cache[cacheKey] = go2RTCSnapshotCacheEntry{data: append([]byte(nil), data...), expiresAt: time.Now().Add(time.Duration(opts.CacheSeconds) * time.Second)}
+		m.putSnapshotCacheLocked(cacheKey, data, now.Add(time.Duration(opts.CacheSeconds)*time.Second), now)
 		m.mu.Unlock()
 	}
 	result, err := m.buildSnapshotResult(stream, data, opts)
@@ -545,7 +579,111 @@ func (m *Go2RTCManager) buildSnapshotResult(stream config.Go2RTCStreamConfig, da
 		}
 		result.MediaID = mediaID
 	}
+	if err := m.pruneStoredSnapshots(go2RTCMaxStoredItems, go2RTCMaxStoredBytes); err != nil && m.logger != nil {
+		m.logger.Warn("[go2rtc] Failed to enforce snapshot retention", "error", err)
+	}
 	return result, nil
+}
+
+func (m *Go2RTCManager) putSnapshotCacheLocked(key string, data []byte, expiresAt, now time.Time) {
+	if int64(len(data)) > go2RTCMaxCacheBytes {
+		return
+	}
+	if previous, ok := m.cache[key]; ok {
+		m.cacheBytes -= int64(len(previous.data))
+		delete(m.cache, key)
+	}
+	m.pruneSnapshotCacheLocked(now, int64(len(data)))
+	copyData := append([]byte(nil), data...)
+	m.cache[key] = go2RTCSnapshotCacheEntry{data: copyData, expiresAt: expiresAt, lastUsed: now}
+	m.cacheBytes += int64(len(copyData))
+}
+
+func (m *Go2RTCManager) pruneSnapshotCacheLocked(now time.Time, incomingBytes int64) {
+	for key, entry := range m.cache {
+		if !now.Before(entry.expiresAt) {
+			m.cacheBytes -= int64(len(entry.data))
+			delete(m.cache, key)
+		}
+	}
+	for len(m.cache) > go2RTCMaxCacheEntries ||
+		(incomingBytes > 0 && len(m.cache) >= go2RTCMaxCacheEntries) ||
+		m.cacheBytes+incomingBytes > go2RTCMaxCacheBytes {
+		oldestKey := ""
+		var oldest time.Time
+		for key, entry := range m.cache {
+			if oldestKey == "" || entry.lastUsed.Before(oldest) {
+				oldestKey = key
+				oldest = entry.lastUsed
+			}
+		}
+		if oldestKey == "" {
+			break
+		}
+		m.cacheBytes -= int64(len(m.cache[oldestKey].data))
+		delete(m.cache, oldestKey)
+	}
+	if m.cacheBytes < 0 {
+		m.cacheBytes = 0
+	}
+}
+
+type go2RTCStoredSnapshot struct {
+	path    string
+	size    int64
+	modTime time.Time
+}
+
+func (m *Go2RTCManager) pruneStoredSnapshots(maxItems int, maxBytes int64) error {
+	if maxItems <= 0 || maxBytes <= 0 {
+		return fmt.Errorf("go2rtc snapshot retention limits must be positive")
+	}
+	root := filepath.Join(m.dataDir, "go2rtc", "snapshots")
+	var items []go2RTCStoredSnapshot
+	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() || entry.Type()&os.ModeSymlink != 0 || !strings.EqualFold(filepath.Ext(entry.Name()), ".jpg") {
+			return nil
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return err
+		}
+		if info.Mode().IsRegular() {
+			items = append(items, go2RTCStoredSnapshot{path: path, size: info.Size(), modTime: info.ModTime()})
+		}
+		return nil
+	})
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("scan go2rtc snapshots: %w", err)
+	}
+	sort.Slice(items, func(i, j int) bool {
+		if items[i].modTime.Equal(items[j].modTime) {
+			return items[i].path > items[j].path
+		}
+		return items[i].modTime.After(items[j].modTime)
+	})
+	var keptBytes int64
+	for index, item := range items {
+		if index < maxItems && keptBytes+item.size <= maxBytes {
+			keptBytes += item.size
+			continue
+		}
+		if m.mediaDB != nil {
+			if _, err := m.mediaDB.Exec("UPDATE media_items SET deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE source_tool = 'go2rtc' AND file_path = ? AND deleted = 0", item.path); err != nil {
+				return fmt.Errorf("retire expired go2rtc media entry: %w", err)
+			}
+		}
+		if err := os.Remove(item.path); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("remove expired go2rtc snapshot: %w", err)
+		}
+	}
+	return nil
 }
 
 // ViewerPath returns AuraGo's stable viewer route without source URLs or credentials.
@@ -650,6 +788,9 @@ func ValidateGo2RTCInternalURL(raw string, apiHostPort int, inDocker bool) error
 }
 
 func (m *Go2RTCManager) ensureAPIPassword() (string, error) {
+	m.credentialMu.Lock()
+	defer m.credentialMu.Unlock()
+
 	m.mu.RLock()
 	current := strings.TrimSpace(m.cfg.APIPassword)
 	m.mu.RUnlock()

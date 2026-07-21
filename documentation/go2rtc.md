@@ -10,6 +10,8 @@ AuraGo can manage [go2rtc](https://github.com/AlexxIT/go2rtc) as an optional Doc
 - Sources are injected through go2rtc's runtime stream API after startup. Only `rtsp`, `rtsps`, `rtspx`, `http`, `https`, and `onvif` network URLs are accepted.
 - The container runs as a non-root user with a read-only root filesystem, no capabilities, `no-new-privileges`, a restricted `/tmp`, and CPU, memory, and PID limits.
 - AuraGo's proxy removes caller cookies and authorization headers, applies its own internal Basic authentication, and restricts media access to configured, enabled stream IDs.
+- Upstream go2rtc logging is disabled because producer warnings can contain runtime source URLs. AuraGo exposes sanitized lifecycle and stream status instead.
+- Snapshot memory is bounded to 16 entries and 64 MiB. Stored snapshots retain at most 1,000 files or 2 GiB and remove the oldest files first.
 
 ## Proxy and WebRTC
 

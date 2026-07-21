@@ -3,6 +3,8 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -11,11 +13,13 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/security"
 )
 
 func TestValidateGo2RTCSourceAllowsOnlyNetworkSources(t *testing.T) {
@@ -143,6 +147,80 @@ func TestGo2RTCClientUsesBasicAuthAndSanitizesStreamTelemetry(t *testing.T) {
 	}
 }
 
+func TestGo2RTCListStreamsDoesNotTreatConfiguredProducerAsReachable(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/go2rtc/proxy/api/streams" {
+			http.NotFound(w, r)
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"aurago_front-door": map[string]interface{}{
+				"producers": []interface{}{map[string]interface{}{"url": "rtsp://camera.local/live"}},
+				"consumers": []interface{}{},
+			},
+		})
+	}))
+	defer upstream.Close()
+
+	manager := testGo2RTCManager(t, upstream.URL, "internal-password", false)
+	streams, err := manager.ListStreams(context.Background())
+	if err != nil {
+		t.Fatalf("ListStreams: %v", err)
+	}
+	if len(streams) != 1 || streams[0].Reachable {
+		t.Fatalf("configured but disconnected producer reported reachable: %+v", streams)
+	}
+}
+
+func TestGo2RTCConcurrentCredentialInitializationReturnsOnePassword(t *testing.T) {
+	vault, err := security.NewVault(strings.Repeat("44", 32), filepath.Join(t.TempDir(), "vault.bin"))
+	if err != nil {
+		t.Fatalf("NewVault: %v", err)
+	}
+	cfg := &config.Config{}
+	cfg.Go2RTC = config.Go2RTCConfig{Enabled: true, URL: "http://127.0.0.1:1984", APIHostPort: 1984}
+	manager := NewGo2RTCManager(cfg, vault, nil, nil)
+
+	const workers = 24
+	start := make(chan struct{})
+	results := make(chan string, workers)
+	errors := make(chan error, workers)
+	var wg sync.WaitGroup
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			_, password, err := manager.ProxyCredentials()
+			if err != nil {
+				errors <- err
+				return
+			}
+			results <- password
+		}()
+	}
+	close(start)
+	wg.Wait()
+	close(results)
+	close(errors)
+	for err := range errors {
+		t.Fatalf("ProxyCredentials: %v", err)
+	}
+	var first string
+	for password := range results {
+		if first == "" {
+			first = password
+		}
+		if password != first {
+			t.Fatalf("concurrent credential initialization returned multiple passwords")
+		}
+	}
+	stored, err := vault.ReadSecret(config.Go2RTCAPIPasswordVaultKey)
+	if err != nil || stored != first {
+		t.Fatalf("vault password does not match runtime password: stored=%q err=%v", stored, err)
+	}
+}
+
 func TestGo2RTCSnapshotValidatesJPEGAndCaches(t *testing.T) {
 	const password = "internal-password"
 	jpeg := []byte{0xff, 0xd8, 0xff, 0xdb, 0x00, 0xff, 0xd9}
@@ -182,6 +260,77 @@ func TestGo2RTCSnapshotValidatesJPEGAndCaches(t *testing.T) {
 	}
 	if string(firstData) != string(jpeg) || string(secondData) != string(jpeg) || first.SHA256 == "" {
 		t.Fatal("snapshot bytes or hash mismatch")
+	}
+}
+
+func TestGo2RTCSnapshotCacheIsBounded(t *testing.T) {
+	jpeg := []byte{0xff, 0xd8, 0xff, 0xdb, 0x00, 0xff, 0xd9}
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "image/jpeg")
+		_, _ = w.Write(jpeg)
+	}))
+	defer upstream.Close()
+	manager := testGo2RTCManager(t, upstream.URL, "internal-password", false)
+
+	for width := 1; width <= go2RTCMaxCacheEntries+8; width++ {
+		if _, _, err := manager.Snapshot(context.Background(), "front-door", Go2RTCSnapshotOptions{Width: width, CacheSeconds: 60}); err != nil {
+			t.Fatalf("Snapshot width %d: %v", width, err)
+		}
+	}
+	manager.mu.RLock()
+	entries := len(manager.cache)
+	bytes := manager.cacheBytes
+	manager.mu.RUnlock()
+	if entries > go2RTCMaxCacheEntries || bytes > go2RTCMaxCacheBytes {
+		t.Fatalf("snapshot cache exceeds bounds: entries=%d bytes=%d", entries, bytes)
+	}
+}
+
+func TestGo2RTCStoredSnapshotRetentionRemovesOldestFiles(t *testing.T) {
+	manager := &Go2RTCManager{dataDir: t.TempDir()}
+	db, err := InitMediaRegistryDB(filepath.Join(manager.dataDir, "media.db"))
+	if err != nil {
+		t.Fatalf("InitMediaRegistryDB: %v", err)
+	}
+	defer db.Close()
+	manager.mediaDB = db
+	root := filepath.Join(manager.dataDir, "go2rtc", "snapshots")
+	if err := os.MkdirAll(root, 0o750); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+	base := time.Now().Add(-time.Hour)
+	paths := make([]string, 3)
+	for i := range paths {
+		paths[i] = filepath.Join(root, fmt.Sprintf("snapshot-%d.jpg", i))
+		if err := os.WriteFile(paths[i], []byte{0xff, 0xd8, byte(i), 0xff, 0xd9}, 0o640); err != nil {
+			t.Fatalf("WriteFile: %v", err)
+		}
+		stamp := base.Add(time.Duration(i) * time.Minute)
+		if err := os.Chtimes(paths[i], stamp, stamp); err != nil {
+			t.Fatalf("Chtimes: %v", err)
+		}
+		if _, _, err := RegisterMedia(db, MediaItem{
+			MediaType: "image", SourceTool: "go2rtc", Filename: filepath.Base(paths[i]),
+			FilePath: paths[i], WebPath: fmt.Sprintf("/snapshot-%d.jpg", i), FileSize: 5,
+			Format: "jpg", Hash: fmt.Sprintf("retention-%d", i),
+		}); err != nil {
+			t.Fatalf("RegisterMedia: %v", err)
+		}
+	}
+	if err := manager.pruneStoredSnapshots(2, 1<<20); err != nil {
+		t.Fatalf("pruneStoredSnapshots: %v", err)
+	}
+	if _, err := os.Stat(paths[0]); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("oldest snapshot was not removed: %v", err)
+	}
+	for _, path := range paths[1:] {
+		if _, err := os.Stat(path); err != nil {
+			t.Fatalf("retained snapshot missing: %v", err)
+		}
+	}
+	var active int
+	if err := db.QueryRow("SELECT COUNT(*) FROM media_items WHERE source_tool = 'go2rtc' AND deleted = 0").Scan(&active); err != nil || active != 2 {
+		t.Fatalf("active retained media rows = %d, err=%v; want 2", active, err)
 	}
 }
 

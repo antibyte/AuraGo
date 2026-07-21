@@ -376,6 +376,55 @@ func TestHandleUpdateConfigInvalidJSONIsGeneric(t *testing.T) {
 	}
 }
 
+func TestHandleUpdateConfigRollsBackGo2RTCSourceWhenValidationFails(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	configYAML := `docker:
+  enabled: true
+go2rtc:
+  enabled: true
+  url: http://127.0.0.1:1984
+  api_host_port: 1984
+  streams:
+    - id: front-door
+      name: Front door
+      enabled: true
+`
+	if err := os.WriteFile(configPath, []byte(configYAML), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	vault, err := security.NewVault(strings.Repeat("55", 32), filepath.Join(tmpDir, "vault.bin"))
+	if err != nil {
+		t.Fatalf("NewVault: %v", err)
+	}
+	key := config.Go2RTCStreamSourceVaultKey("front-door")
+	const original = "rtsp://camera.local/original"
+	if err := vault.WriteSecret(key, original); err != nil {
+		t.Fatalf("seed source: %v", err)
+	}
+	loaded, err := config.Load(configPath)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	loaded.ConfigPath = configPath
+	loaded.ApplyVaultSecrets(vault)
+	server := &Server{Cfg: loaded, Logger: slog.Default(), Vault: vault}
+	payload := `{"go2rtc":{"enabled":true,"url":"http://127.0.0.1:1984","api_host_port":1984,"webrtc":{"enabled":true,"bind_address":"0.0.0.0","port":8555},"streams":[{"id":"front-door","name":"Front door","enabled":true,"source":"rtsp://camera.local/rejected"},{"id":"garage","name":"Garage","enabled":true,"source":"rtsp://garage.local/rejected"}]}}`
+	recorder := httptest.NewRecorder()
+	handleUpdateConfig(server).ServeHTTP(recorder, httptest.NewRequest(http.MethodPut, "/api/config", strings.NewReader(payload)))
+
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400; body=%s", recorder.Code, recorder.Body.String())
+	}
+	stored, err := vault.ReadSecret(key)
+	if err != nil || stored != original {
+		t.Fatalf("rejected save changed vault source: stored=%q err=%v", stored, err)
+	}
+	if value, err := vault.ReadSecret(config.Go2RTCStreamSourceVaultKey("garage")); err == nil {
+		t.Fatalf("rejected save left new stream source in vault: %q", value)
+	}
+}
+
 func TestHandleUpdateConfigRegistersConfigured3DPrinterDevice(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.yaml")
