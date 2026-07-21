@@ -10,6 +10,13 @@
         return ctx.t(translationNamespace + '.' + key, params || {});
     }
 
+    const iconAliases = Object.freeze({ radar: 'search', link: 'globe', plus: 'file-plus', minimize: 'minus' });
+
+    function appIcon(ctx, key, fallback, size) {
+        const resolved = iconAliases[key] || key;
+        return ctx.iconMarkup(resolved, fallback, 'vd-sprite-icon nc-glyph', size);
+    }
+
     function requirementText(ctx, requirement) {
         const key = translationNamespace + '.requirement_' + String(requirement && requirement.code || 'unknown');
         const translated = ctx.t(key);
@@ -52,6 +59,7 @@
             mode: preferences.mode,
             focus: false,
             modal: null,
+            deletingID: '',
             visibleIDs: new Set(),
             controllers: new Set(),
             objectURLs: new Map(),
@@ -118,15 +126,15 @@
         const ctx = state.ctx;
         const canManage = !!(state.data && state.data.can_manage);
         return '<header class="nc-toolbar">' +
-            '<div class="nc-brand"><span class="nc-brand-icon">' + ctx.iconMarkup('camera', 'C', '', 20) + '</span><div><strong>' + ctx.esc(text(ctx, 'title')) + '</strong>' + statusMarkup(state) + '</div></div>' +
-            '<label class="nc-search"><span>' + ctx.iconMarkup('search', 'S', '', 16) + '</span><input type="search" data-role="filter" value="' + ctx.esc(state.filter) + '" placeholder="' + ctx.esc(text(ctx, 'search')) + '"></label>' +
+            '<div class="nc-brand"><span class="nc-brand-icon">' + appIcon(ctx, 'camera', 'C', 20) + '</span><div><strong>' + ctx.esc(text(ctx, 'title')) + '</strong>' + statusMarkup(state) + '</div></div>' +
+            '<label class="nc-search"><span>' + appIcon(ctx, 'search', 'S', 16) + '</span><input type="search" data-role="filter" value="' + ctx.esc(state.filter) + '" placeholder="' + ctx.esc(text(ctx, 'search')) + '"></label>' +
             '<div class="nc-toolbar-actions">' +
                 '<div class="nc-segmented" role="group" aria-label="' + ctx.esc(text(ctx, 'grid_mode')) + '">' +
                     '<button type="button" data-mode="snapshots" class="' + (state.mode === 'snapshots' ? 'is-active' : '') + '">' + ctx.esc(text(ctx, 'snapshots')) + '</button>' +
                     '<button type="button" data-mode="live" class="' + (state.mode === 'live' ? 'is-active' : '') + '">' + ctx.esc(text(ctx, 'live_grid')) + '</button>' +
                 '</div>' +
-                '<button class="nc-icon-button" type="button" data-action="refresh" title="' + ctx.esc(text(ctx, 'refresh')) + '">' + ctx.iconMarkup('refresh', 'R', '', 17) + '</button>' +
-                (canManage ? '<button class="nc-primary" type="button" data-action="add">' + ctx.iconMarkup('plus', '+', '', 16) + '<span>' + ctx.esc(text(ctx, 'add_camera')) + '</span></button>' : '') +
+                '<button class="nc-icon-button" type="button" data-action="refresh" title="' + ctx.esc(text(ctx, 'refresh')) + '">' + appIcon(ctx, 'refresh', 'R', 17) + '</button>' +
+                (canManage ? '<button class="nc-primary" type="button" data-action="add">' + appIcon(ctx, 'plus', '+', 16) + '<span>' + ctx.esc(text(ctx, 'add_camera')) + '</span></button>' : '') +
             '</div></header>';
     }
 
@@ -136,19 +144,19 @@
         const canManage = !!(state.data && state.data.can_manage);
         const error = state.error ? '<div class="nc-modal-error">' + ctx.esc(state.error) + '</div>' : '';
         if (runtime && !runtime.enabled) {
-            return '<div class="nc-onboarding"><div class="nc-onboarding-icon">' + ctx.iconMarkup('camera', 'C', '', 34) + '</div><h2>' + ctx.esc(text(ctx, canManage ? 'enable_title' : 'disabled_title')) + '</h2><p>' + ctx.esc(text(ctx, canManage ? 'enable_description' : 'disabled_description')) + '</p>' +
+            return '<div class="nc-onboarding"><div class="nc-onboarding-icon">' + appIcon(ctx, 'camera', 'C', 34) + '</div><h2>' + ctx.esc(text(ctx, canManage ? 'enable_title' : 'disabled_title')) + '</h2><p>' + ctx.esc(text(ctx, canManage ? 'enable_description' : 'disabled_description')) + '</p>' +
                 error + (canManage ? '<div class="nc-onboarding-actions"><button class="nc-primary" type="button" data-action="enable">' + ctx.esc(text(ctx, 'enable_action')) + '</button><a href="/config#go2rtc" target="_blank" rel="noopener">' + ctx.esc(text(ctx, 'open_settings')) + '</a></div>' : '') + '</div>';
         }
         if (runtime && !runtime.api_usable) {
             return '<div class="nc-onboarding"><div class="nc-onboarding-icon is-warning">!</div><h2>' + ctx.esc(text(ctx, 'unavailable_title')) + '</h2><p>' + ctx.esc(runtime.last_error || text(ctx, 'unavailable_description')) + '</p><div class="nc-onboarding-actions"><button class="nc-primary" type="button" data-action="refresh">' + ctx.esc(text(ctx, 'retry')) + '</button>' + (canManage ? '<a href="/config#go2rtc" target="_blank" rel="noopener">' + ctx.esc(text(ctx, 'open_settings')) + '</a>' : '') + '</div></div>';
         }
-        return '<div class="nc-onboarding"><div class="nc-onboarding-icon">' + ctx.iconMarkup('camera', 'C', '', 34) + '</div><h2>' + ctx.esc(text(ctx, 'empty_title')) + '</h2><p>' + ctx.esc(text(ctx, canManage ? 'empty_admin_description' : 'empty_viewer_description')) + '</p>' + error + (canManage ? '<button class="nc-primary" type="button" data-action="add">' + ctx.esc(text(ctx, 'setup_camera')) + '</button>' : '') + '</div>';
+        return '<div class="nc-onboarding"><div class="nc-onboarding-icon">' + appIcon(ctx, 'camera', 'C', 34) + '</div><h2>' + ctx.esc(text(ctx, 'empty_title')) + '</h2><p>' + ctx.esc(text(ctx, canManage ? 'empty_admin_description' : 'empty_viewer_description')) + '</p>' + error + (canManage ? '<button class="nc-primary" type="button" data-action="add">' + ctx.esc(text(ctx, 'setup_camera')) + '</button>' : '') + '</div>';
     }
 
     function liveGridIDs(state, streams) {
         if (state.mode !== 'live' || !state.visible) return new Set();
         const ids = [];
-        if (state.selected) ids.push(state.selected);
+        if (state.selected && streams.some(stream => stream.id === state.selected && stream.enabled !== false)) ids.push(state.selected);
         for (const stream of streams) {
             if (stream.enabled === false || ids.includes(stream.id)) continue;
             ids.push(stream.id);
@@ -161,17 +169,18 @@
         const ctx = state.ctx;
         const enabled = stream.enabled !== false;
         const selected = enabled && stream.id === state.selected;
-        const live = enabled && liveIDs.has(stream.id) && !selected;
+        const live = enabled && liveIDs.has(stream.id);
+        const deleting = state.deletingID === stream.id;
         const codecs = Array.isArray(stream.codecs) && stream.codecs.length ? stream.codecs.join(' · ') : text(ctx, enabled ? 'waiting_codec' : 'disabled');
         const media = live
             ? '<iframe title="' + ctx.esc(stream.name || stream.id) + '" src="/api/go2rtc/viewer/' + encodeURIComponent(stream.id) + '" loading="lazy"></iframe>'
-            : (enabled ? '<img data-thumbnail="' + ctx.esc(stream.id) + '" alt="' + ctx.esc(stream.name || stream.id) + '"><div class="nc-image-placeholder">' + ctx.iconMarkup('camera', 'C', '', 25) + '</div>' : '<div class="nc-disabled-placeholder">' + ctx.iconMarkup('camera', 'C', '', 25) + '<span>' + ctx.esc(text(ctx, 'disabled')) + '</span></div>');
+            : (enabled ? '<img data-thumbnail="' + ctx.esc(stream.id) + '" alt="' + ctx.esc(stream.name || stream.id) + '"><div class="nc-image-placeholder">' + appIcon(ctx, 'camera', 'C', 25) + '</div>' : '<div class="nc-disabled-placeholder">' + appIcon(ctx, 'camera', 'C', 25) + '<span>' + ctx.esc(text(ctx, 'disabled')) + '</span></div>');
         return '<article class="nc-card ' + (selected ? 'is-selected ' : '') + (!enabled ? 'is-disabled' : '') + '" data-stream-card="' + ctx.esc(stream.id) + '">' +
             '<button type="button" class="nc-card-select" data-select="' + ctx.esc(stream.id) + '" ' + (!enabled ? 'disabled' : '') + ' aria-label="' + ctx.esc(stream.name || stream.id) + '"></button>' +
             '<div class="nc-card-media">' + media + '<span class="nc-live-badge">' + ctx.esc(live ? text(ctx, 'live') : '') + '</span></div>' +
             '<div class="nc-card-copy"><div><strong>' + ctx.esc(stream.name || stream.id) + '</strong><small>' + ctx.esc(codecs) + '</small></div>' +
                 '<div class="nc-card-state ' + (stream.reachable ? 'is-online' : '') + '"><span></span>' + ctx.esc(enabled ? (stream.reachable ? text(ctx, 'online') : text(ctx, 'connecting')) : text(ctx, 'disabled')) + '</div></div>' +
-            '<div class="nc-card-meta"><span>' + ctx.esc(text(ctx, 'viewers', { count: Number(stream.consumers || 0) })) + '</span>' + (state.data.can_manage ? '<button type="button" data-edit="' + ctx.esc(stream.id) + '" title="' + ctx.esc(text(ctx, 'manage')) + '">' + ctx.iconMarkup('settings', 'M', '', 15) + '</button>' : '') + '</div>' +
+            '<div class="nc-card-meta"><span>' + ctx.esc(text(ctx, 'viewers', { count: Number(stream.consumers || 0) })) + '</span>' + (state.data.can_manage ? '<span class="nc-card-admin-actions"><button type="button" data-edit="' + ctx.esc(stream.id) + '" title="' + ctx.esc(text(ctx, 'manage')) + '" ' + (deleting ? 'disabled' : '') + '>' + appIcon(ctx, 'settings', 'M', 15) + '</button><button class="is-danger" type="button" data-delete="' + ctx.esc(stream.id) + '" title="' + ctx.esc(text(ctx, 'delete')) + '" ' + (deleting ? 'disabled' : '') + '>' + (deleting ? '<span class="nc-spinner is-small"></span>' : appIcon(ctx, 'trash', 'X', 15)) + '</button></span>' : '') + '</div>' +
             '</article>';
     }
 
@@ -180,12 +189,14 @@
         const stream = selectedStream(state);
         if (!stream) return '<div class="nc-detail-empty">' + ctx.esc(text(ctx, 'select_camera')) + '</div>';
         const viewerURL = '/api/go2rtc/viewer/' + encodeURIComponent(stream.id);
+        const deleting = state.deletingID === stream.id;
         return '<section class="nc-detail">' +
             '<div class="nc-detail-header"><div><strong>' + ctx.esc(stream.name || stream.id) + '</strong><small>' + ctx.esc(stream.id) + '</small></div><div class="nc-detail-actions">' +
-                '<button type="button" data-action="snapshot">' + ctx.iconMarkup('camera', 'C', '', 15) + '<span>' + ctx.esc(text(ctx, 'take_snapshot')) + '</span></button>' +
-                '<button type="button" data-action="reconnect">' + ctx.iconMarkup('refresh', 'R', '', 15) + '<span>' + ctx.esc(text(ctx, 'reconnect')) + '</span></button>' +
-                '<button type="button" data-action="focus">' + ctx.iconMarkup(state.focus ? 'minimize' : 'maximize', 'F', '', 15) + '<span>' + ctx.esc(text(ctx, state.focus ? 'leave_focus' : 'focus')) + '</span></button>' +
-                '<button type="button" data-action="fullscreen">' + ctx.iconMarkup('maximize', 'F', '', 15) + '<span>' + ctx.esc(text(ctx, 'fullscreen')) + '</span></button>' +
+                '<button type="button" data-action="snapshot">' + appIcon(ctx, 'camera', 'C', 15) + '<span>' + ctx.esc(text(ctx, 'take_snapshot')) + '</span></button>' +
+                '<button type="button" data-action="reconnect">' + appIcon(ctx, 'refresh', 'R', 15) + '<span>' + ctx.esc(text(ctx, 'reconnect')) + '</span></button>' +
+                '<button type="button" data-action="focus">' + appIcon(ctx, state.focus ? 'minimize' : 'maximize', 'F', 15) + '<span>' + ctx.esc(text(ctx, state.focus ? 'leave_focus' : 'focus')) + '</span></button>' +
+                '<button type="button" data-action="fullscreen">' + appIcon(ctx, 'maximize', 'F', 15) + '<span>' + ctx.esc(text(ctx, 'fullscreen')) + '</span></button>' +
+                (state.data.can_manage ? '<button class="nc-danger-action" type="button" data-delete="' + ctx.esc(stream.id) + '" ' + (deleting ? 'disabled' : '') + '>' + (deleting ? '<span class="nc-spinner is-small"></span>' : appIcon(ctx, 'trash', 'X', 15)) + '<span>' + ctx.esc(text(ctx, 'delete')) + '</span></button>' : '') +
             '</div></div><div class="nc-detail-video" data-role="detail-video"><iframe title="' + ctx.esc(stream.name || stream.id) + '" src="' + viewerURL + '" allow="fullscreen; autoplay" referrerpolicy="same-origin"></iframe></div></section>';
     }
 
@@ -196,7 +207,9 @@
         if (!runtime || !runtime.enabled || !runtime.api_usable || allStreams(state).length === 0) return emptyMarkup(state);
         const streams = filteredStreams(state);
         const liveIDs = liveGridIDs(state, streams);
-        return '<div class="nc-layout ' + (state.focus ? 'is-focus' : '') + '"><aside class="nc-grid-pane"><div class="nc-grid" data-role="grid">' + (streams.length ? streams.map(stream => cardMarkup(state, stream, liveIDs)).join('') : '<div class="nc-no-results">' + state.ctx.esc(text(state.ctx, 'no_results')) + '</div>') + '</div></aside>' + detailMarkup(state) + '</div>';
+        const liveGrid = state.mode === 'live';
+        const focus = state.focus && !liveGrid;
+        return '<div class="nc-layout ' + (focus ? 'is-focus ' : '') + (liveGrid ? 'is-live-grid' : '') + '"><aside class="nc-grid-pane"><div class="nc-grid" data-role="grid">' + (streams.length ? streams.map(stream => cardMarkup(state, stream, liveIDs)).join('') : '<div class="nc-no-results">' + state.ctx.esc(text(state.ctx, 'no_results')) + '</div>') + '</div></aside>' + (liveGrid ? '' : detailMarkup(state)) + '</div>';
     }
 
     function draw(state) {
@@ -216,6 +229,7 @@
         if (filter) filter.addEventListener('input', event => { state.filter = event.target.value; draw(state); });
         host.querySelectorAll('[data-mode]').forEach(button => button.addEventListener('click', () => {
             state.mode = button.dataset.mode === 'live' ? 'live' : 'snapshots';
+            if (state.mode === 'live') state.focus = false;
             savePreferences(state);
             draw(state);
         }));
@@ -228,6 +242,10 @@
             event.stopPropagation();
             openManageModal(state, button.dataset.edit);
         }));
+        host.querySelectorAll('[data-delete]').forEach(button => button.addEventListener('click', event => {
+            event.stopPropagation();
+            deleteStream(state, button.dataset.delete);
+        }));
         host.querySelectorAll('[data-action]').forEach(button => button.addEventListener('click', () => handleAction(state, button.dataset.action)));
     }
 
@@ -235,7 +253,12 @@
         if (action === 'refresh') return loadState(state, true);
         if (action === 'add') return openSetupModal(state);
         if (action === 'enable') return enableIntegration(state);
-        if (action === 'focus') { state.focus = !state.focus; return draw(state); }
+        if (action === 'focus') {
+            if (state.mode === 'live') state.mode = 'snapshots';
+            state.focus = !state.focus;
+            savePreferences(state);
+            return draw(state);
+        }
         if (action === 'fullscreen') {
             const target = state.host.querySelector('[data-role="detail-video"]');
             if (target && target.requestFullscreen) await target.requestFullscreen().catch(() => {});
@@ -387,6 +410,9 @@
             setupMethod(ctx, 'address', 'network', 'method_address', 'method_address_help', true, '') +
             setupMethod(ctx, 'url', 'link', 'method_url', 'method_url_help', true, '') + '</div>';
         if (modal.step === 2) {
+            if (modal.method === 'discover' && modal.busy) {
+                return '<div class="nc-discovery-progress" role="status" aria-live="polite"><span class="nc-spinner"></span><strong>' + ctx.esc(text(ctx, 'method_discover')) + '</strong><small>' + ctx.esc(text(ctx, 'method_discover_help')) + '</small></div>';
+            }
             const candidate = modal.method === 'discover' ? '<label>' + ctx.esc(text(ctx, 'device')) + '<select data-field="selectedCandidate"><option value="">' + ctx.esc(text(ctx, 'choose_device')) + '</option>' + modal.candidates.map(item => '<option value="' + ctx.esc(item.id) + '" ' + (item.id === modal.selectedCandidate ? 'selected' : '') + '>' + ctx.esc(item.name + ' · ' + item.ip + ':' + item.port) + '</option>').join('') + '</select></label>' : '<label>' + ctx.esc(text(ctx, 'onvif_address')) + '<input data-field="address" value="' + ctx.esc(modal.address) + '" placeholder="192.168.1.20"></label>';
             return '<div class="nc-form">' + candidate + '<div class="nc-form-row"><label>' + ctx.esc(text(ctx, 'username')) + '<input data-field="username" autocomplete="username" value="' + ctx.esc(modal.username) + '"></label><label>' + ctx.esc(text(ctx, 'password')) + '<input data-field="password" type="password" autocomplete="new-password" value=""></label></div></div>';
         }
@@ -395,7 +421,7 @@
     }
 
     function setupMethod(ctx, method, icon, title, help, enabled, reason) {
-        return '<button type="button" data-method-choice="' + method + '" ' + (!enabled ? 'disabled' : '') + '><span>' + ctx.iconMarkup(icon, '•', '', 24) + '</span><strong>' + ctx.esc(text(ctx, title)) + '</strong><small>' + ctx.esc(reason || text(ctx, help)) + '</small></button>';
+        return '<button type="button" data-method-choice="' + method + '" ' + (!enabled ? 'disabled' : '') + '><span>' + appIcon(ctx, icon, '•', 24) + '</span><strong>' + ctx.esc(text(ctx, title)) + '</strong><small>' + ctx.esc(reason || text(ctx, help)) + '</small></button>';
     }
 
     function profileSummary(profile) {
@@ -417,7 +443,7 @@
         let actions = '<button type="button" data-modal-action="cancel">' + ctx.esc(text(ctx, 'cancel')) + '</button>';
         if (setup && modal.step > 1) actions += '<button type="button" data-modal-action="back">' + ctx.esc(text(ctx, 'back')) + '</button>';
         if (setup && modal.step > 1) actions += '<button class="nc-primary" type="button" data-modal-action="next" ' + (modal.busy ? 'disabled' : '') + '>' + ctx.esc(text(ctx, modal.step === 4 ? 'save_camera' : 'next')) + '</button>';
-        if (!setup) actions += '<button class="nc-danger" type="button" data-modal-action="delete">' + ctx.esc(text(ctx, 'delete')) + '</button><button class="nc-primary" type="button" data-modal-action="save" ' + (modal.busy ? 'disabled' : '') + '>' + ctx.esc(text(ctx, 'save')) + '</button>';
+        if (!setup) actions += '<button class="nc-danger" type="button" data-modal-action="delete" ' + (modal.busy ? 'disabled' : '') + '>' + appIcon(ctx, 'trash', 'X', 15) + ctx.esc(text(ctx, 'delete')) + '</button><button class="nc-primary" type="button" data-modal-action="save" ' + (modal.busy ? 'disabled' : '') + '>' + ctx.esc(text(ctx, 'save')) + '</button>';
         host.innerHTML = '<div class="nc-modal-backdrop"><section class="nc-modal" role="dialog" aria-modal="true" aria-label="' + ctx.esc(title) + '"><header><div><strong>' + ctx.esc(title) + '</strong>' + (setup ? '<small>' + ctx.esc(text(ctx, 'step', { current: modal.step, total: 4 })) + '</small>' : '') + '</div><button type="button" data-modal-action="cancel">×</button></header><div class="nc-modal-body">' + content + (modal.error ? '<div class="nc-modal-error">' + ctx.esc(modal.error) + '</div>' : '') + '</div><footer>' + actions + '</footer></section></div>';
         bindModalEvents(state);
     }
@@ -548,21 +574,43 @@
 
     async function deleteManagedStream(state) {
         const modal = state.modal;
-        const confirmed = await state.ctx.confirmDialog(text(state.ctx, 'delete_confirm_title'), text(state.ctx, 'delete_confirm_message'));
+        if (!modal) return;
+        return deleteStream(state, modal.streamID, modal);
+    }
+
+    async function deleteStream(state, streamID, modal) {
+        if (!streamID || state.deletingID) return;
+        const stream = allStreams(state).find(item => item.id === streamID);
+        const message = text(state.ctx, 'delete_confirm_message') + (stream ? ' ' + (stream.name || stream.id) : '');
+        const confirmed = await state.ctx.confirmDialog(text(state.ctx, 'delete_confirm_title'), message);
         if (!confirmed) return;
-        modal.busy = true;
-        drawModal(state);
+        state.deletingID = streamID;
+        if (modal) {
+            modal.busy = true;
+            drawModal(state);
+        } else {
+            draw(state);
+        }
         try {
-            const result = await request(state, '/api/go2rtc/streams/' + encodeURIComponent(modal.streamID), { method: 'DELETE' });
+            const result = await request(state, '/api/go2rtc/streams/' + encodeURIComponent(streamID), { method: 'DELETE' });
             state.modal = null;
-            if (state.selected === modal.streamID) state.selected = '';
+            if (state.selected === streamID) state.selected = '';
             savePreferences(state);
             state.ctx.notify(text(state.ctx, mutationNoticeKey(result, 'camera_deleted')));
+            state.deletingID = '';
             await loadState(state, false);
         } catch (error) {
-            modal.error = error.message;
-            modal.busy = false;
-            drawModal(state);
+            if (modal && state.modal === modal) {
+                modal.error = error.message;
+                modal.busy = false;
+                drawModal(state);
+            } else {
+                state.deletingID = '';
+                state.ctx.notify(error.message);
+                draw(state);
+            }
+        } finally {
+            state.deletingID = '';
         }
     }
 

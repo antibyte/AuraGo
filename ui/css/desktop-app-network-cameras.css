@@ -157,6 +157,8 @@
 }
 .nc-layout.is-focus { grid-template-columns: 1fr; }
 .nc-layout.is-focus .nc-grid-pane { display: none; }
+.nc-layout.is-live-grid { grid-template-columns: 1fr; }
+.nc-layout.is-live-grid .nc-grid { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
 
 .nc-grid-pane {
     min-height: 0;
@@ -229,6 +231,10 @@
 .nc-card-state { flex: 0 0 auto; font-size: 9px; }
 .nc-card-meta { color: var(--nc-muted); font-size: 10px; justify-content: space-between; padding: 0 10px 8px; }
 .nc-card-meta button { background: transparent; border: 0; color: inherit; cursor: pointer; padding: 2px; position: relative; z-index: 3; }
+.nc-card-admin-actions { align-items: center; display: inline-flex; gap: 6px; }
+.nc-card-admin-actions button.is-danger,
+.nc-detail-actions button.nc-danger-action { color: #fb7185; }
+.nc-card-admin-actions button:disabled { cursor: wait; opacity: .65; }
 
 .nc-detail {
     background: var(--nc-panel);
@@ -265,6 +271,7 @@
 .nc-onboarding-icon.is-warning { color: #fbbf24; font-size: 26px; font-weight: 800; }
 .nc-onboarding-actions { gap: 8px; margin-top: 4px; }
 .nc-spinner { animation: nc-spin .8s linear infinite; border: 2px solid color-mix(in srgb, var(--nc-muted) 25%, transparent); border-radius: 999px; border-top-color: var(--nc-accent); height: 24px; width: 24px; }
+.nc-spinner.is-small { border-width: 1.5px; height: 14px; width: 14px; }
 @keyframes nc-spin { to { transform: rotate(360deg); } }
 
 .nc-modal-host:empty { display: none; }
@@ -285,6 +292,8 @@
 .nc-methods button:disabled { cursor: not-allowed; opacity: .5; }
 .nc-methods button > span { color: var(--nc-accent); }
 .nc-methods small { color: var(--nc-muted); line-height: 1.45; }
+.nc-discovery-progress { align-items: center; display: flex; flex-direction: column; gap: 9px; justify-content: center; min-height: 190px; text-align: center; }
+.nc-discovery-progress small { color: var(--nc-muted); max-width: 360px; }
 .nc-form { display: grid; gap: 13px; }
 .nc-form-row { display: grid; gap: 12px; grid-template-columns: 1fr 1fr; }
 .nc-form label { color: var(--nc-muted); display: grid; font-size: 11px; gap: 6px; }
