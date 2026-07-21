@@ -596,6 +596,9 @@ func adaptiveFamilySeedsForQuery(userQuery string) []string {
 		add("docker")
 		add("execute_shell")
 	}
+	if isNetworkCameraIntent(q) {
+		add("go2rtc")
+	}
 	if isMCPIntent(q) {
 		add("mcp_call")
 	}
@@ -610,6 +613,25 @@ func adaptiveFamilySeedsForQuery(userQuery string) []string {
 		return nil
 	}
 	return out
+}
+
+func isNetworkCameraIntent(normalizedQuery string) bool {
+	if normalizedQuery == "" {
+		return false
+	}
+	explicitTerms := []string{
+		"go2rtc", "onvif", "netzwerkkamera", "netzwerk kamera",
+		"ip kamera", "ip camera", "network camera",
+	}
+	for _, term := range explicitTerms {
+		if strings.Contains(normalizedQuery, term) {
+			return true
+		}
+	}
+	cameraMentioned := strings.Contains(normalizedQuery, "kamera") || strings.Contains(normalizedQuery, "camera")
+	mediaAction := strings.Contains(normalizedQuery, "snapshot") || strings.Contains(normalizedQuery, "live stream") ||
+		strings.Contains(normalizedQuery, "livebild") || strings.Contains(normalizedQuery, "stream anzeigen")
+	return cameraMentioned && mediaAction
 }
 
 func isResourceUsageIntent(normalizedQuery string) bool {

@@ -21,6 +21,7 @@ type Index struct {
 	EmbeddingFunc chromem.EmbeddingFunc
 	Logger        *slog.Logger
 	Mu            sync.Mutex
+	MutationMu    sync.Mutex
 	ReindexMu     sync.Mutex
 	QueryCache    map[string]QueryCacheEntry
 	QueryCacheTTL time.Duration
@@ -31,6 +32,8 @@ type Index struct {
 
 // Close releases resources held by the semantic index and clears the embedding cache.
 func (idx *Index) Close() {
+	idx.MutationMu.Lock()
+	defer idx.MutationMu.Unlock()
 	idx.Mu.Lock()
 	defer idx.Mu.Unlock()
 	idx.Collection = nil

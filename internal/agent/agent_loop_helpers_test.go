@@ -1016,6 +1016,22 @@ func TestAdaptiveFamilySeedsForQueryIncludesResourceAndContainerTools(t *testing
 	}
 }
 
+func TestAdaptiveFamilySeedsForQueryIncludesGo2RTCForNetworkCameras(t *testing.T) {
+	queries := []string{
+		"mache einen snapshot der netzwerkkamera",
+		"show the ONVIF camera live stream",
+		"öffne das livebild der IP-Kamera",
+	}
+	for _, query := range queries {
+		if seeds := adaptiveFamilySeedsForQuery(query); !containsName(seeds, "go2rtc") {
+			t.Fatalf("expected go2rtc for camera query %q, got %v", query, seeds)
+		}
+	}
+	if seeds := adaptiveFamilySeedsForQuery("erstelle einen snapshot der webseite"); containsName(seeds, "go2rtc") {
+		t.Fatalf("generic snapshot request must not select go2rtc, got %v", seeds)
+	}
+}
+
 func TestAdaptiveFamilySeedsForQueryIncludesBalancedProgressiveTools(t *testing.T) {
 	tests := []struct {
 		name  string

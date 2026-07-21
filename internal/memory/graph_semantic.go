@@ -365,8 +365,8 @@ func (kg *KnowledgeGraph) upsertSemanticNodeReindexBatch(idx *kgsemantic.Index, 
 		return indexedIDs, nil
 	}
 
-	idx.Mu.Lock()
-	defer idx.Mu.Unlock()
+	idx.MutationMu.Lock()
+	defer idx.MutationMu.Unlock()
 	for start := 0; start < len(docs); start += kgsemantic.ReindexDocumentBatchSize {
 		end := start + kgsemantic.ReindexDocumentBatchSize
 		if end > len(docs) {
@@ -383,9 +383,11 @@ func (kg *KnowledgeGraph) upsertSemanticNodeReindexBatch(idx *kgsemantic.Index, 
 			return nil, fmt.Errorf("semantic node batch reindex: %w", err)
 		}
 	}
+	idx.Mu.Lock()
 	for id, content := range contentByID {
 		idx.SetContentCacheEntry(id, content)
 	}
+	idx.Mu.Unlock()
 	return indexedIDs, nil
 }
 
@@ -417,8 +419,8 @@ func (kg *KnowledgeGraph) upsertSemanticEdgeReindexBatch(idx *kgsemantic.Index, 
 		return indexedEdges, nil
 	}
 
-	idx.Mu.Lock()
-	defer idx.Mu.Unlock()
+	idx.MutationMu.Lock()
+	defer idx.MutationMu.Unlock()
 	for start := 0; start < len(docs); start += kgsemantic.ReindexDocumentBatchSize {
 		end := start + kgsemantic.ReindexDocumentBatchSize
 		if end > len(docs) {
@@ -474,8 +476,8 @@ func (kg *KnowledgeGraph) upsertSemanticNodeIndex(node Node) bool {
 		return true
 	}
 
-	idx.Mu.Lock()
-	defer idx.Mu.Unlock()
+	idx.MutationMu.Lock()
+	defer idx.MutationMu.Unlock()
 
 	err := kg.retrySemanticEmbedding("node_upsert", func(ctx context.Context) error {
 		return idx.Collection.AddDocument(ctx, chromem.Document{
@@ -493,7 +495,9 @@ func (kg *KnowledgeGraph) upsertSemanticNodeIndex(node Node) bool {
 		}
 		return false
 	}
+	idx.Mu.Lock()
 	idx.SetContentCacheEntry(node.ID, content)
+	idx.Mu.Unlock()
 	return true
 }
 
@@ -507,8 +511,8 @@ func (kg *KnowledgeGraph) upsertSemanticEdgeIndex(edge Edge) bool {
 		return true
 	}
 
-	idx.Mu.Lock()
-	defer idx.Mu.Unlock()
+	idx.MutationMu.Lock()
+	defer idx.MutationMu.Unlock()
 
 	edgeDocID := "edge://" + edge.Source + "\x00" + edge.Target + "\x00" + edge.Relation
 	err := kg.retrySemanticEmbedding("edge_upsert", func(ctx context.Context) error {
@@ -629,10 +633,11 @@ func (kg *KnowledgeGraph) removeSemanticNodeIndex(nodeID string) error {
 	if idx == nil {
 		return nil
 	}
+	idx.MutationMu.Lock()
+	defer idx.MutationMu.Unlock()
 	idx.Mu.Lock()
-	defer idx.Mu.Unlock()
-
 	idx.RemoveContentCacheEntry(nodeID)
+	idx.Mu.Unlock()
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	return idx.Collection.Delete(ctx, nil, nil, nodeID)
@@ -644,8 +649,8 @@ func (kg *KnowledgeGraph) removeSemanticEdgeIndex(source, target, relation strin
 	if idx == nil {
 		return nil
 	}
-	idx.Mu.Lock()
-	defer idx.Mu.Unlock()
+	idx.MutationMu.Lock()
+	defer idx.MutationMu.Unlock()
 
 	edgeDocID := "edge://" + source + "\x00" + target + "\x00" + relation
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -658,8 +663,8 @@ func (kg *KnowledgeGraph) removeSemanticEdgeIndexBatch(source string, targets []
 	if idx == nil || len(targets) == 0 {
 		return nil
 	}
-	idx.Mu.Lock()
-	defer idx.Mu.Unlock()
+	idx.MutationMu.Lock()
+	defer idx.MutationMu.Unlock()
 
 	ids := make([]string, 0, len(targets))
 	for _, target := range targets {

@@ -554,11 +554,11 @@ func (m *Go2RTCManager) fetchSnapshotBytes(ctx context.Context, streamID string,
 	if err != nil {
 		return config.Go2RTCStreamConfig{}, nil, false, err
 	}
-	if len(data) < 4 || data[0] != 0xff || data[1] != 0xd8 || data[len(data)-2] != 0xff || data[len(data)-1] != 0xd9 {
-		return config.Go2RTCStreamConfig{}, nil, false, fmt.Errorf("go2rtc returned invalid JPEG data")
-	}
 	if mediaType, _, _ := strings.Cut(strings.ToLower(contentType), ";"); mediaType != "" && mediaType != "image/jpeg" {
-		return config.Go2RTCStreamConfig{}, nil, false, fmt.Errorf("go2rtc returned an unexpected content type")
+		return config.Go2RTCStreamConfig{}, nil, false, fmt.Errorf("go2rtc returned unexpected snapshot content type %q", mediaType)
+	}
+	if len(data) < 4 || data[0] != 0xff || data[1] != 0xd8 || data[len(data)-2] != 0xff || data[len(data)-1] != 0xd9 {
+		return config.Go2RTCStreamConfig{}, nil, false, fmt.Errorf("go2rtc returned invalid JPEG data (%d bytes)", len(data))
 	}
 	if opts.CacheSeconds > 0 {
 		now := time.Now()

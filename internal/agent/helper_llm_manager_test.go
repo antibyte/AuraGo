@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestParseHelperTurnBatchResultStripsCodeFences(t *testing.T) {
@@ -371,6 +372,12 @@ func TestHelperLLMManagerAnalyzeRAGUsesSharedModel(t *testing.T) {
 	}
 	if len(got.CandidateScores) != 2 {
 		t.Fatalf("len(candidate_scores) = %d, want 2", len(got.CandidateScores))
+	}
+}
+
+func TestHelperRAGBatchTimeoutKeepsInteractiveFallbackBounded(t *testing.T) {
+	if helperRAGBatchTimeout > 10*time.Second {
+		t.Fatalf("helper RAG timeout = %s, want at most 10s for interactive requests", helperRAGBatchTimeout)
 	}
 }
 

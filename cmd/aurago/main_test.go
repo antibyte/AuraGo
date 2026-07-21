@@ -80,3 +80,17 @@ func TestLocalOllamaEmbeddingsStartBeforeVectorDBInitialization(t *testing.T) {
 		t.Fatal("local Ollama embeddings must start before VectorDB initialization")
 	}
 }
+
+func TestKGStartupUsesOnlyScheduledSemanticReindex(t *testing.T) {
+	data, err := os.ReadFile("main.go")
+	if err != nil {
+		t.Fatalf("ReadFile main.go: %v", err)
+	}
+	source := string(data)
+	if !strings.Contains(source, `appLog.Info("KG startup semantic reindex scheduled"`) {
+		t.Fatal("main.go must report the semantic reindex scheduled by EnableSemanticSearchShared")
+	}
+	if strings.Contains(source, `appLog.Info("KG startup semantic reindex starting"`) || strings.Contains(source, "kg.RunSemanticReindex()") {
+		t.Fatal("main.go must not start a second semantic reindex after EnableSemanticSearchShared")
+	}
+}

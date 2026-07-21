@@ -452,6 +452,10 @@ func TestGo2RTCSnapshotRejectsUnexpectedContent(t *testing.T) {
 	manager := testGo2RTCManager(t, upstream.URL, "internal-password", false)
 	if _, _, err := manager.Snapshot(context.Background(), "front-door", Go2RTCSnapshotOptions{}); err == nil {
 		t.Fatal("Snapshot unexpectedly accepted non-JPEG response")
+	} else if !strings.Contains(err.Error(), `content type "text/html"`) {
+		t.Fatalf("Snapshot error = %q, want safe content-type diagnosis", err)
+	} else if strings.Contains(err.Error(), "<html>") {
+		t.Fatalf("Snapshot error leaked upstream response body: %q", err)
 	}
 }
 

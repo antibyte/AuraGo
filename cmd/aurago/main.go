@@ -902,10 +902,10 @@ func main() {
 				return
 			}
 			if health.DirtyNodes > 0 || health.DirtyEdges > 0 {
-				appLog.Info("KG startup semantic reindex starting", "dirty_nodes", health.DirtyNodes, "dirty_edges", health.DirtyEdges)
-				if err := kg.RunSemanticReindex(); err != nil {
-					appLog.Warn("KG startup semantic reindex failed", "error", err)
-				}
+				// EnableSemanticSearchShared already schedules the bounded backlog drain.
+				// Starting a second pass here serialized two long embedding retries on the
+				// same index and could stall interactive memory queries for minutes.
+				appLog.Info("KG startup semantic reindex scheduled", "dirty_nodes", health.DirtyNodes, "dirty_edges", health.DirtyEdges)
 			}
 		}()
 	} else {

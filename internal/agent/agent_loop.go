@@ -576,14 +576,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					batchCancel()
 					if batchErr != nil {
 						helperManager.ObserveFallback("rag_batch", batchErr.Error())
-						ragQuery = expandQueryForRAG(ctx, cfg, s.currentLogger, lastUserMsg, shortTermMem)
-						memories, docIDs, similarities, err = searchSimilarWithScores(ctx, longTermMem, ragQuery, 6, "tool_guides", "documentation")
-						if err == nil {
-							ranked = rankMemoryCandidatesWithScores(memories, docIDs, similarities, shortTermMem, usedMemoryDocIDs, time.Now())
-							ranked = rerankWithLLM(ctx, cfg, s.currentLogger, ranked, lastUserMsg, shortTermMem)
-						} else {
-							ranked = nil
-						}
+						// Keep the already-ranked vector results. Chaining query expansion,
+						// another embedding search, and a second LLM reranker after an
+						// optional helper timeout made the interactive path progressively
+						// slower while the same provider was unhealthy.
 					} else {
 						if helperQuery := strings.TrimSpace(batchResult.SearchQuery); helperQuery != "" && !strings.EqualFold(helperQuery, strings.TrimSpace(lastUserMsg)) {
 							ragQuery = helperQuery

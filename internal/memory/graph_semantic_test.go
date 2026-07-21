@@ -218,6 +218,84 @@ func TestEnableSemanticSearchWithCollectionReturnsBeforeDirtyBacklogReindex(t *t
 	releaseReindex()
 }
 
+func TestKGReindexEmbeddingDoesNotBlockInteractiveQueryCache(t *testing.T) {
+	kg := newTestKG(t)
+
+	reindexStarted := make(chan struct{})
+	releaseReindex := make(chan struct{})
+	var blockReindex atomic.Bool
+	var signalOnce sync.Once
+	embeddingFunc := func(ctx context.Context, text string) ([]float32, error) {
+		if blockReindex.Load() && strings.Contains(text, "blocked reindex marker") {
+			signalOnce.Do(func() { close(reindexStarted) })
+			select {
+			case <-releaseReindex:
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+		}
+		return []float32{float32(len(text)), 1}, nil
+	}
+	if err := kg.enableSemanticSearchWithCollection(chromem.NewDB(), embeddingFunc, nil); err != nil {
+		t.Fatalf("enableSemanticSearchWithCollection: %v", err)
+	}
+	waitForSemanticReindexIdle(t, kg)
+	if err := kg.AddNode("blocked-node", "Blocked Node", map[string]string{"type": "device", "notes": "blocked reindex marker"}); err != nil {
+		t.Fatalf("AddNode: %v", err)
+	}
+	if _, err := kg.db.Exec("UPDATE kg_nodes SET semantic_indexed_at = NULL WHERE id = 'blocked-node'"); err != nil {
+		t.Fatalf("mark node dirty: %v", err)
+	}
+
+	blockReindex.Store(true)
+	reindexDone := make(chan error, 1)
+	go func() { reindexDone <- kg.RunSemanticReindex() }()
+	select {
+	case <-reindexStarted:
+	case <-time.After(time.Second):
+		t.Fatal("semantic reindex did not reach the blocking embedding call")
+	}
+	updateDone := make(chan error, 1)
+	go func() {
+		updateDone <- kg.AddNode("blocked-node", "Blocked Node", map[string]string{"type": "device", "notes": "fresh interactive update"})
+	}()
+	select {
+	case err := <-updateDone:
+		t.Fatalf("interactive update bypassed reindex write ordering: %v", err)
+	case <-time.After(25 * time.Millisecond):
+	}
+
+	queryDone := make(chan error, 1)
+	go func() {
+		_, err := kg.getSemanticQueryEmbedding("interactive camera query")
+		queryDone <- err
+	}()
+	select {
+	case err := <-queryDone:
+		if err != nil {
+			t.Fatalf("interactive query embedding: %v", err)
+		}
+	case <-time.After(200 * time.Millisecond):
+		close(releaseReindex)
+		t.Fatal("interactive query cache was blocked by background reindex embedding")
+	}
+
+	close(releaseReindex)
+	if err := <-reindexDone; err != nil {
+		t.Fatalf("RunSemanticReindex: %v", err)
+	}
+	if err := <-updateDone; err != nil {
+		t.Fatalf("interactive AddNode: %v", err)
+	}
+	doc, err := kg.semantic.Collection.GetByID(context.Background(), "blocked-node")
+	if err != nil {
+		t.Fatalf("GetByID: %v", err)
+	}
+	if !strings.Contains(doc.Content, "fresh interactive update") {
+		t.Fatalf("semantic document lost the newer interactive update: %q", doc.Content)
+	}
+}
+
 func TestKGDeleteBySourceFileRemovesSemanticIndexEntries(t *testing.T) {
 	kg := newTestKG(t)
 
