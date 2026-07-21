@@ -1446,7 +1446,8 @@ func validateGo2RTCSettings(cfg config.Go2RTCConfig, rt config.Runtime, vault *s
 	if cfg.APIHostPort < 1 || cfg.APIHostPort > 65535 {
 		return fmt.Errorf("go2rtc API host port is invalid")
 	}
-	if err := tools.ValidateGo2RTCInternalURL(cfg.URL, cfg.APIHostPort, rt.IsDocker); err != nil {
+	internalURL := config.ResolveGo2RTCInternalURL(cfg.URL, rt.IsDocker)
+	if err := tools.ValidateGo2RTCInternalURL(internalURL, cfg.APIHostPort, rt.IsDocker); err != nil {
 		return err
 	}
 	if cfg.WebRTC.Enabled {

@@ -425,6 +425,47 @@ go2rtc:
 	}
 }
 
+func TestHandleUpdateConfigEnablesGo2RTCWithBlankDefaultURL(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	configYAML := `docker:
+  enabled: true
+  read_only: false
+go2rtc:
+  enabled: false
+  url: ""
+  api_host_port: 1984
+`
+	if err := os.WriteFile(configPath, []byte(configYAML), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	vault, err := security.NewVault(strings.Repeat("56", 32), filepath.Join(tmpDir, "vault.bin"))
+	if err != nil {
+		t.Fatalf("NewVault: %v", err)
+	}
+	loaded, err := config.Load(configPath)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	loaded.ConfigPath = configPath
+	server := &Server{Cfg: loaded, Logger: slog.Default(), Vault: vault}
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPut, "/api/config", strings.NewReader(`{"go2rtc":{"enabled":true}}`))
+
+	handleUpdateConfig(server).ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", recorder.Code, recorder.Body.String())
+	}
+	if !server.Cfg.Go2RTC.Enabled {
+		t.Fatal("go2rtc was not enabled")
+	}
+	wantURL := config.ResolveGo2RTCInternalURL("", server.Cfg.Runtime.IsDocker)
+	if server.Cfg.Go2RTC.URL != wantURL {
+		t.Fatalf("runtime go2rtc URL = %q, want %q", server.Cfg.Go2RTC.URL, wantURL)
+	}
+}
+
 func TestHandleUpdateConfigRegistersConfigured3DPrinterDevice(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.yaml")

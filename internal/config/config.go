@@ -176,6 +176,17 @@ func NormalizeLegacySidecarURL(raw string, runningInDocker bool, service string,
 	return parsed.String()
 }
 
+// ResolveGo2RTCInternalURL applies the managed sidecar default when the
+// configuration intentionally leaves the internal URL empty. Non-empty values
+// still pass through the legacy host normalization and are validated by the
+// go2rtc boundary before use.
+func ResolveGo2RTCInternalURL(raw string, runningInDocker bool) string {
+	if strings.TrimSpace(raw) == "" {
+		return defaultSidecarURL(runningInDocker, "go2rtc", 1984)
+	}
+	return NormalizeLegacySidecarURL(raw, runningInDocker, "go2rtc", 1984)
+}
+
 func normalizeDograhDefaultImage(raw, currentDefault, legacyDefault string) string {
 	image := strings.TrimSpace(raw)
 	if image == "" || strings.EqualFold(image, legacyDefault) {
@@ -941,7 +952,7 @@ func Load(path string) (*Config, error) {
 	}
 
 	cfg.BrowserAutomation.URL = NormalizeLegacySidecarURL(cfg.BrowserAutomation.URL, runningInDocker, "browser-automation", 7331)
-	cfg.Go2RTC.URL = NormalizeLegacySidecarURL(cfg.Go2RTC.URL, runningInDocker, "go2rtc", 1984)
+	cfg.Go2RTC.URL = ResolveGo2RTCInternalURL(cfg.Go2RTC.URL, runningInDocker)
 	if strings.TrimSpace(cfg.Go2RTC.Image) == "" {
 		cfg.Go2RTC.Image = Go2RTCDefaultImage
 	}

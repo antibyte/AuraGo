@@ -1979,6 +1979,55 @@ func TestNormalizeLegacySidecarURL(t *testing.T) {
 	}
 }
 
+func TestResolveGo2RTCInternalURLUsesManagedDefaultWhenBlank(t *testing.T) {
+	tests := []struct {
+		name            string
+		raw             string
+		runningInDocker bool
+		want            string
+	}{
+		{
+			name: "native blank URL uses loopback",
+			raw:  "  ",
+			want: "http://127.0.0.1:1984",
+		},
+		{
+			name:            "docker blank URL uses managed alias",
+			runningInDocker: true,
+			want:            "http://go2rtc:1984",
+		},
+		{
+			name: "explicit invalid URL remains available for validation",
+			raw:  "http://127.0.0.1:1984/api",
+			want: "http://127.0.0.1:1984/api",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ResolveGo2RTCInternalURL(tt.raw, tt.runningInDocker); got != tt.want {
+				t.Fatalf("ResolveGo2RTCInternalURL(%q, %v) = %q, want %q", tt.raw, tt.runningInDocker, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestLoadGo2RTCBlankURLUsesManagedDefault(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(configPath, []byte("go2rtc:\n  enabled: true\n  url: \"\"\n"), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	want := defaultSidecarURL(probeDockerContainer(), "go2rtc", 1984)
+	if cfg.Go2RTC.URL != want {
+		t.Fatalf("go2rtc URL = %q, want %q", cfg.Go2RTC.URL, want)
+	}
+}
+
 func TestLoadAdaptiveSystemPromptTokenBudgetDefaultsToTrue(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "config_test")
 	if err != nil {

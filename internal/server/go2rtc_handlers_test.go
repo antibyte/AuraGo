@@ -186,6 +186,11 @@ func TestValidateGo2RTCSettingsPinsInternalEndpointAndWebRTCBoundary(t *testing.
 	if err := validateGo2RTCSettings(base, config.Runtime{}, nil); err != nil {
 		t.Fatalf("native loopback URL rejected: %v", err)
 	}
+	blank := base
+	blank.URL = ""
+	if err := validateGo2RTCSettings(blank, config.Runtime{}, nil); err != nil {
+		t.Fatalf("blank native URL should resolve to the managed default: %v", err)
+	}
 	for _, invalidURL := range []string{
 		"http://camera.example:1984",
 		"http://127.0.0.1:1985",
@@ -204,6 +209,10 @@ func TestValidateGo2RTCSettingsPinsInternalEndpointAndWebRTCBoundary(t *testing.
 	dockerCfg.URL = "http://go2rtc:1984"
 	if err := validateGo2RTCSettings(dockerCfg, config.Runtime{IsDocker: true}, nil); err != nil {
 		t.Fatalf("managed Docker alias rejected: %v", err)
+	}
+	dockerCfg.URL = ""
+	if err := validateGo2RTCSettings(dockerCfg, config.Runtime{IsDocker: true}, nil); err != nil {
+		t.Fatalf("blank Docker URL should resolve to the managed default: %v", err)
 	}
 	dockerCfg.URL = "http://other-container:1984"
 	if err := validateGo2RTCSettings(dockerCfg, config.Runtime{IsDocker: true}, nil); err == nil {
