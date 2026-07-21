@@ -1,4 +1,13 @@
 {
+  "desktop.network_cameras.requirement_config_unavailable": "AuraGo-konfigurationen är inte tillgänglig.",
+  "desktop.network_cameras.requirement_docker_disabled": "Aktivera Docker-integrationen först.",
+  "desktop.network_cameras.requirement_docker_read_only": "Inaktivera Dockers skrivskyddade läge så att AuraGo kan hantera sidecaren.",
+  "desktop.network_cameras.requirement_docker_containers_denied": "Docker-slutpunkten för containrar kan inte läsas.",
+  "desktop.network_cameras.requirement_docker_images_denied": "Docker-slutpunkten för avbildningar kan inte läsas.",
+  "desktop.network_cameras.requirement_docker_networks_denied": "Docker-slutpunkten för nätverk kan inte läsas.",
+  "desktop.network_cameras.requirement_docker_post_denied": "Docker tillåter inte den nödvändiga begäran för att starta en container.",
+  "desktop.network_cameras.requirement_docker_unreachable": "Docker-slutpunkten kunde inte nås.",
+  "desktop.network_cameras.saved_degraded": "Sparat. Kameratjänsten är ännu inte synkroniserad och försöker automatiskt igen.",
   "desktop.app_network_cameras": "Nätverkskameror",
   "desktop.network_cameras.add_camera": "Lägg till kamera",
   "desktop.network_cameras.address_required": "Ange en lokal ONVIF-adress.",

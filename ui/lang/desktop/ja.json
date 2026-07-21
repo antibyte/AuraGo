@@ -1,4 +1,13 @@
 {
+  "desktop.network_cameras.requirement_config_unavailable": "AuraGoの設定を利用できません。",
+  "desktop.network_cameras.requirement_docker_disabled": "先にDocker連携を有効にしてください。",
+  "desktop.network_cameras.requirement_docker_read_only": "AuraGoがサイドカーを管理できるように、Dockerの読み取り専用モードを無効にしてください。",
+  "desktop.network_cameras.requirement_docker_containers_denied": "Dockerのコンテナエンドポイントを読み取れません。",
+  "desktop.network_cameras.requirement_docker_images_denied": "Dockerのイメージエンドポイントを読み取れません。",
+  "desktop.network_cameras.requirement_docker_networks_denied": "Dockerのネットワークエンドポイントを読み取れません。",
+  "desktop.network_cameras.requirement_docker_post_denied": "Dockerで必要なコンテナ開始リクエストが許可されていません。",
+  "desktop.network_cameras.requirement_docker_unreachable": "Dockerエンドポイントに接続できません。",
+  "desktop.network_cameras.saved_degraded": "保存しました。カメラサービスはまだ同期されていないため、自動的に再試行します。",
   "desktop.app_network_cameras": "ネットワークカメラ",
   "desktop.network_cameras.add_camera": "カメラを追加",
   "desktop.network_cameras.address_required": "ローカルONVIFアドレスを入力してください。",

@@ -10,6 +10,16 @@
         return ctx.t(translationNamespace + '.' + key, params || {});
     }
 
+    function requirementText(ctx, requirement) {
+        const key = translationNamespace + '.requirement_' + String(requirement && requirement.code || 'unknown');
+        const translated = ctx.t(key);
+        return translated && translated !== key ? translated : String(requirement && requirement.message || '');
+    }
+
+    function mutationNoticeKey(result, successKey) {
+        return result && result.status === 'degraded' ? 'saved_degraded' : successKey;
+    }
+
     function readPreferences() {
         try {
             const value = JSON.parse(localStorage.getItem(preferenceKey) || '{}');
@@ -237,11 +247,11 @@
 
     async function enableIntegration(state) {
         try {
-            await request(state, '/api/go2rtc/setup/enable', { method: 'POST', body: {} });
-            state.ctx.notify(text(state.ctx, 'enabled_notice'));
+            const result = await request(state, '/api/go2rtc/setup/enable', { method: 'POST', body: {} });
+            state.ctx.notify(text(state.ctx, mutationNoticeKey(result, 'enabled_notice')));
             await loadState(state, true);
         } catch (error) {
-            const requirements = error.body && Array.isArray(error.body.requirements) ? error.body.requirements.map(item => item.message).join(' · ') : '';
+            const requirements = error.body && Array.isArray(error.body.requirements) ? error.body.requirements.map(item => requirementText(state.ctx, item)).join(' · ') : '';
             state.error = requirements || error.message;
             draw(state);
         }
@@ -289,11 +299,15 @@
             return;
         }
         state.intersection = new IntersectionObserver(entries => {
+            let becameVisible = false;
             entries.forEach(entry => {
                 const id = entry.target.dataset.streamCard;
-                if (entry.isIntersecting) state.visibleIDs.add(id);
-                else state.visibleIDs.delete(id);
+                if (entry.isIntersecting) {
+                    if (!state.visibleIDs.has(id)) becameVisible = true;
+                    state.visibleIDs.add(id);
+                } else state.visibleIDs.delete(id);
             });
+            if (becameVisible) scheduleThumbnails(state, true);
         }, { root: state.host.querySelector('.nc-grid-pane'), threshold: 0.05 });
         cards.forEach(card => state.intersection.observe(card));
     }
@@ -316,7 +330,7 @@
 
     async function refreshThumbnails(state) {
         if (state.disposed || !state.visible) return;
-        const nodes = Array.from(state.host.querySelectorAll('img[data-thumbnail]')).filter(node => state.visibleIDs.size === 0 || state.visibleIDs.has(node.dataset.thumbnail));
+        const nodes = visibleThumbnailNodes(state);
         let index = 0;
         const worker = async () => {
             while (!state.disposed && index < nodes.length) {
@@ -325,6 +339,11 @@
             }
         };
         await Promise.all(Array.from({ length: Math.min(4, nodes.length) }, worker));
+    }
+
+    function visibleThumbnailNodes(state) {
+        if (state.focus || state.visibleIDs.size === 0) return [];
+        return Array.from(state.host.querySelectorAll('img[data-thumbnail]')).filter(node => state.visibleIDs.has(node.dataset.thumbnail));
     }
 
     async function loadThumbnail(state, node) {
@@ -494,10 +513,9 @@
             state.selected = result.stream && result.stream.id ? result.stream.id : modal.id;
             state.modal = null;
             savePreferences(state);
-            state.ctx.notify(text(state.ctx, 'camera_saved'));
+            state.ctx.notify(text(state.ctx, mutationNoticeKey(result, 'camera_saved')));
             await loadState(state, false);
         } catch (error) {
-            modal.source = '';
             modal.error = error.message;
             modal.busy = false;
             drawModal(state);
@@ -516,13 +534,12 @@
         modal.busy = true;
         drawModal(state);
         try {
-            await request(state, '/api/go2rtc/streams/' + encodeURIComponent(modal.streamID), { method: 'PATCH', body: { name: modal.name, enabled: modal.enabled, source: modal.source } });
+            const result = await request(state, '/api/go2rtc/streams/' + encodeURIComponent(modal.streamID), { method: 'PATCH', body: { name: modal.name, enabled: modal.enabled, source: modal.source } });
             modal.source = '';
             state.modal = null;
-            state.ctx.notify(text(state.ctx, 'camera_updated'));
+            state.ctx.notify(text(state.ctx, mutationNoticeKey(result, 'camera_updated')));
             await loadState(state, false);
         } catch (error) {
-            modal.source = '';
             modal.error = error.message;
             modal.busy = false;
             drawModal(state);
@@ -536,11 +553,11 @@
         modal.busy = true;
         drawModal(state);
         try {
-            await request(state, '/api/go2rtc/streams/' + encodeURIComponent(modal.streamID), { method: 'DELETE' });
+            const result = await request(state, '/api/go2rtc/streams/' + encodeURIComponent(modal.streamID), { method: 'DELETE' });
             state.modal = null;
             if (state.selected === modal.streamID) state.selected = '';
             savePreferences(state);
-            state.ctx.notify(text(state.ctx, 'camera_deleted'));
+            state.ctx.notify(text(state.ctx, mutationNoticeKey(result, 'camera_deleted')));
             await loadState(state, false);
         } catch (error) {
             modal.error = error.message;

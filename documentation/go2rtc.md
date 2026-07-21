@@ -10,6 +10,7 @@ AuraGo can manage [go2rtc](https://github.com/AlexxIT/go2rtc) as an optional Doc
 - Sources are injected through go2rtc's runtime stream API after startup. Only `rtsp`, `rtsps`, `rtspx`, `http`, `https`, and `onvif` network URLs are accepted.
 - The container runs as a non-root user with a read-only root filesystem, no capabilities, `no-new-privileges`, a restricted `/tmp`, and CPU, memory, and PID limits.
 - AuraGo's proxy removes caller cookies and authorization headers, applies its own internal Basic authentication, and restricts media access to configured, enabled stream IDs.
+- Credential-bearing ONVIF SOAP requests use a direct private-network transport and never honor `HTTP_PROXY` or `HTTPS_PROXY` from the environment.
 - Upstream go2rtc logging is disabled because producer warnings can contain runtime source URLs. AuraGo exposes sanitized lifecycle and stream status instead.
 - Snapshot memory is bounded to 16 entries and 64 MiB. Stored snapshots retain at most 1,000 files or 2 GiB and remove the oldest files first.
 
@@ -27,7 +28,7 @@ The **Network Cameras** app combines a five-second snapshot grid with one select
 
 Administrators can enable the managed sidecar, discover ONVIF cameras, add a known local ONVIF address, or enter a supported stream URL. Other users with `go2rtc.view` see enabled cameras only. Camera management remains administrator-only.
 
-Automatic ONVIF discovery is capability gated. AuraGo sends one bounded WS-Discovery probe per suitable private IPv4 interface only when `Runtime.BroadcastOK` is available. A normal Docker bridge does not provide that capability, so the app offers manual IP and stream-URL setup without granting host networking or extra privileges. Discovery candidates and credential-bearing setup tokens are random, memory-only, limited, single-use, and expire after five minutes. SOAP requests are limited to the responding private host, 20 seconds, and 1 MiB.
+Automatic ONVIF discovery is capability gated. AuraGo sends one bounded WS-Discovery probe per suitable private IPv4 interface only when `Runtime.BroadcastOK` is available. A normal Docker bridge does not provide that capability, so the app offers manual IP and stream-URL setup without granting host networking or extra privileges. Discovery candidates and credential-bearing setup tokens are random, memory-only, limited, single-use, and expire after five minutes. A setup token is reserved during publication, released after any pre-publication failure, and consumed only after the desired configuration has been published. SOAP requests are limited to the responding private host, 20 seconds, and 1 MiB.
 
 The app consumes these AuraGo-owned endpoints:
 
@@ -37,6 +38,16 @@ The app consumes these AuraGo-owned endpoints:
 - `POST /api/go2rtc/streams` plus `PATCH` or `DELETE /api/go2rtc/streams/{stream_id}` for administrator-managed streams
 
 The raw upstream `api/onvif` endpoint is always blocked, including when the optional administrator Web UI is enabled. It is never used for discovery or credentials.
+
+### Mutation and recovery contract
+
+Camera create, update, delete, and integration-enable requests publish a fully loaded and validated candidate configuration before replacing the active YAML. Vault changes are rolled back if validation or publication fails. Once published, the YAML/Vault state remains AuraGo's desired state even if Docker or go2rtc is temporarily unavailable; the background manager retries reconciliation.
+
+- Complete create returns HTTP `201`; complete update, delete, and enable return HTTP `200`.
+- A published change whose runtime reconciliation failed returns HTTP `202` with `status: "degraded"`, `saved: true`, and `runtime_reconciled: false`. The response includes only the safe saved stream state or remaining stream count.
+- Invalid input returns `400`, a missing stream `404`, a duplicate ID `409`, and an unmet integration prerequisite `412`. Config or Vault publication failures return `500` and `saved: false`.
+
+Before enabling the integration, AuraGo checks the live Docker contract with bounded requests. Container and image listing must be readable, network listing must also be readable when AuraGo itself runs in Docker, and a POST to start a cryptographically random nonexistent sentinel container must return `404`. The probe never creates a container. Missing capabilities are reported with `docker_unreachable`, `docker_containers_denied`, `docker_images_denied`, `docker_networks_denied`, or `docker_post_denied`.
 
 ## Agent operations
 

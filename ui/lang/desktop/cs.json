@@ -1,4 +1,13 @@
 {
+  "desktop.network_cameras.requirement_config_unavailable": "Konfigurace AuraGo není dostupná.",
+  "desktop.network_cameras.requirement_docker_disabled": "Nejprve aktivuj integraci Dockeru.",
+  "desktop.network_cameras.requirement_docker_read_only": "Vypni režim Dockeru pouze pro čtení, aby AuraGo mohlo spravovat sidecar.",
+  "desktop.network_cameras.requirement_docker_containers_denied": "Rozhraní Dockeru pro kontejnery nelze číst.",
+  "desktop.network_cameras.requirement_docker_images_denied": "Rozhraní Dockeru pro obrazy nelze číst.",
+  "desktop.network_cameras.requirement_docker_networks_denied": "Rozhraní Dockeru pro sítě nelze číst.",
+  "desktop.network_cameras.requirement_docker_post_denied": "Docker nepovoluje požadavek potřebný ke spuštění kontejneru.",
+  "desktop.network_cameras.requirement_docker_unreachable": "Rozhraní Dockeru není dostupné.",
+  "desktop.network_cameras.saved_degraded": "Uloženo. Služba kamery ještě není synchronizovaná a zkusí to automaticky znovu.",
   "desktop.app_network_cameras": "Síťové kamery",
   "desktop.network_cameras.add_camera": "Přidat kameru",
   "desktop.network_cameras.address_required": "Zadej místní adresu ONVIF.",

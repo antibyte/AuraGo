@@ -84,6 +84,114 @@ func TestGo2RTCBackgroundRespectsAdministratorStop(t *testing.T) {
 	}
 }
 
+func TestGo2RTCBackgroundRetriesPendingStopUntilDockerAcceptsIt(t *testing.T) {
+	previous, configured := currentRuntimePermissions()
+	ConfigureRuntimePermissions(RuntimePermissions{DockerEnabled: true})
+	t.Cleanup(func() {
+		if configured {
+			ConfigureRuntimePermissions(previous)
+		} else {
+			ClearRuntimePermissionsForTest()
+		}
+	})
+	status := http.StatusForbidden
+	dockerAPI := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(status)
+	}))
+	defer dockerAPI.Close()
+	cfg := &config.Config{}
+	cfg.Docker.Host = "tcp://" + strings.TrimPrefix(dockerAPI.URL, "http://")
+	cfg.Go2RTC.ContainerName = "aurago_go2rtc"
+	manager := NewGo2RTCManager(cfg, nil, nil, nil)
+	manager.SetRuntimeTransitionPending(false, false, true)
+
+	manager.reconcileTick(context.Background())
+	manager.mu.RLock()
+	pendingAfterFailure := manager.pendingStop
+	manager.mu.RUnlock()
+	if !pendingAfterFailure {
+		t.Fatal("failed background stop cleared the pending transition")
+	}
+	if manager.currentStatus().LastError == "" {
+		t.Fatal("failed background stop did not retain a runtime error")
+	}
+
+	status = http.StatusNotFound
+	manager.reconcileTick(context.Background())
+	manager.mu.RLock()
+	pendingAfterSuccess := manager.pendingStop || manager.pendingStart || manager.pendingRecreate
+	manager.mu.RUnlock()
+	if pendingAfterSuccess {
+		t.Fatal("successful background stop did not clear the pending transition")
+	}
+	if manager.currentStatus().LastError != "" {
+		t.Fatalf("successful background stop retained error %q", manager.currentStatus().LastError)
+	}
+}
+
+func TestGo2RTCBackgroundRetriesPendingRecreateAgainstDesiredConfig(t *testing.T) {
+	previous, configured := currentRuntimePermissions()
+	ConfigureRuntimePermissions(RuntimePermissions{DockerEnabled: true})
+	t.Cleanup(func() {
+		if configured {
+			ConfigureRuntimePermissions(previous)
+		} else {
+			ClearRuntimePermissionsForTest()
+		}
+	})
+	created := 0
+	dockerAPI := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/containers/") && strings.HasSuffix(r.URL.Path, "/json"):
+			http.NotFound(w, r)
+		case r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/images/") && strings.HasSuffix(r.URL.Path, "/json"):
+			_, _ = w.Write([]byte(`{}`))
+		case r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/containers/create"):
+			created++
+			w.WriteHeader(http.StatusCreated)
+		case r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/start"):
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			http.Error(w, "unexpected Docker request", http.StatusInternalServerError)
+		}
+	}))
+	defer dockerAPI.Close()
+	go2RTCAPI := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/api/go2rtc/proxy/api" {
+			_, _ = w.Write([]byte(`{"version":"1.9.14"}`))
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer go2RTCAPI.Close()
+	parsed, _ := url.Parse(go2RTCAPI.URL)
+	port, _ := strconv.Atoi(parsed.Port())
+	cfg := &config.Config{}
+	cfg.Directories.DataDir = t.TempDir()
+	cfg.Docker.Host = "tcp://" + strings.TrimPrefix(dockerAPI.URL, "http://")
+	cfg.Go2RTC = config.Go2RTCConfig{
+		Enabled: true, AutoStart: false, Image: config.Go2RTCDefaultImage,
+		ContainerName: "aurago_go2rtc", URL: go2RTCAPI.URL, APIHostPort: port,
+		APIPassword: "internal-password", WebRTC: config.Go2RTCWebRTCConfig{Port: 8555},
+	}
+	manager := NewGo2RTCManager(cfg, nil, nil, nil)
+	manager.SetRuntimeTransitionPending(true, false, false)
+	manager.reconcileTick(context.Background())
+
+	manager.mu.RLock()
+	pending := manager.pendingStop || manager.pendingStart || manager.pendingRecreate
+	manager.mu.RUnlock()
+	if pending {
+		t.Fatal("successful background recreate did not clear the pending transition")
+	}
+	if created != 1 {
+		t.Fatalf("created containers = %d, want exactly one desired sidecar", created)
+	}
+	if status := manager.currentStatus(); !status.APIUsable || status.LastError != "" {
+		t.Fatalf("background recreate status = %+v", status)
+	}
+}
+
 func TestGo2RTCClientUsesBasicAuthAndSanitizesStreamTelemetry(t *testing.T) {
 	const password = "internal-password"
 	var patchedSource string

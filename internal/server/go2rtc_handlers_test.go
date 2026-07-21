@@ -3,6 +3,8 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -14,6 +16,7 @@ import (
 	"testing"
 
 	"aurago/internal/config"
+	"aurago/internal/onvif"
 	"aurago/internal/security"
 	"aurago/internal/tools"
 
@@ -596,6 +599,38 @@ func TestGo2RTCSetupEnableReturnsStructuredDockerRequirements(t *testing.T) {
 	}
 }
 
+func TestGo2RTCSetupEnableReturnsLiveDockerCapabilityCode(t *testing.T) {
+	tools.ConfigureRuntimePermissions(tools.RuntimePermissions{DockerEnabled: true})
+	t.Cleanup(tools.ClearRuntimePermissionsForTest)
+	dockerAPI := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && strings.HasSuffix(r.URL.Path, "/containers/json") {
+			http.Error(w, "denied", http.StatusForbidden)
+			return
+		}
+		if r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/start") {
+			http.NotFound(w, r)
+			return
+		}
+		_, _ = w.Write([]byte(`[]`))
+	}))
+	defer dockerAPI.Close()
+	cfg := &config.Config{}
+	cfg.Docker.Enabled = true
+	cfg.Docker.Host = "tcp://" + strings.TrimPrefix(dockerAPI.URL, "http://")
+	manager := tools.NewGo2RTCManager(cfg, nil, nil, slog.Default())
+	server := &Server{Cfg: cfg, Go2RTC: manager}
+	request := httptest.NewRequest(http.MethodPost, "http://aurago.local/api/go2rtc/setup/enable", strings.NewReader(`{}`))
+	request.Host = "aurago.local"
+	recorder := httptest.NewRecorder()
+	handleGo2RTCSetupEnable(server).ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusPreconditionFailed {
+		t.Fatalf("setup status = %d, want 412; body=%s", recorder.Code, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), `"code":"docker_containers_denied"`) {
+		t.Fatalf("setup requirements did not include container capability code: %s", recorder.Body.String())
+	}
+}
+
 func TestManagedGo2RTCConfigUpdateKeepsSourcesVaultOnlyAndRollsBackValidationFailure(t *testing.T) {
 	const firstSource = "rtsp://camera-user:first-password@192.168.40.20/live"
 	const secondSource = "rtsp://camera-user:second-password@192.168.40.20/live"
@@ -679,5 +714,304 @@ func TestManagedGo2RTCConfigUpdateKeepsSourcesVaultOnlyAndRollsBackValidationFai
 	}
 	if got, err := vault.ReadSecret(config.Go2RTCStreamSourceVaultKey("front-door")); err != nil || got != secondSource {
 		t.Fatalf("failed validation did not restore source: %q, %v", got, err)
+	}
+}
+
+func TestManagedGo2RTCConfigUpdateKeepsPublishedStateWhenRuntimeReconcileFails(t *testing.T) {
+	const source = "rtsp://camera-user:runtime-password@192.168.40.21/live"
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "offline", http.StatusServiceUnavailable)
+	}))
+	defer upstream.Close()
+	server, configPath, vault := newGo2RTCMutationTestServer(t, upstream.URL, true)
+
+	result, err := updateManagedGo2RTCConfig(context.Background(), server, func(value *config.Go2RTCConfig) error {
+		value.Streams = append(value.Streams, config.Go2RTCStreamConfig{ID: "garage", Name: "Garage", Enabled: true})
+		return nil
+	}, []go2RTCSourceChange{{ID: "garage", Value: source}}, false)
+	if err != nil {
+		t.Fatalf("update returned a pre-publication error: %v", err)
+	}
+	if !result.Published || result.ReconcileErr == nil {
+		t.Fatalf("update result = %+v, want published degraded state", result)
+	}
+	if len(result.Config.Streams) != 1 || result.Config.Streams[0].ID != "garage" {
+		t.Fatalf("published streams = %#v", result.Config.Streams)
+	}
+	managerConfig := server.Go2RTC.Config()
+	if len(managerConfig.Streams) != 1 || managerConfig.Streams[0].ID != "garage" {
+		t.Fatalf("background manager did not retain desired stream generation: %#v", managerConfig.Streams)
+	}
+	if got, err := vault.ReadSecret(config.Go2RTCStreamSourceVaultKey("garage")); err != nil || got != source {
+		t.Fatalf("vault source = %q, %v", got, err)
+	}
+	published, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("read published config: %v", err)
+	}
+	if strings.Contains(string(published), source) || strings.Contains(string(published), "runtime-password") {
+		t.Fatalf("published YAML leaked the camera source: %s", published)
+	}
+	server.CfgMu.RLock()
+	defer server.CfgMu.RUnlock()
+	if len(server.Cfg.Go2RTC.Streams) != 1 || server.Cfg.Go2RTC.Streams[0].ID != "garage" {
+		t.Fatalf("runtime config snapshot did not retain published state: %#v", server.Cfg.Go2RTC.Streams)
+	}
+}
+
+func TestManagedGo2RTCConfigUpdateValidatesCandidateBeforePublicationAndRollsBackVault(t *testing.T) {
+	const source = "rtsp://camera-user:candidate-password@192.168.40.23/live"
+	server, configPath, vault := newGo2RTCMutationTestServer(t, "http://127.0.0.1:1984", true)
+	original, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("read initial config: %v", err)
+	}
+	broken := append(append([]byte(nil), original...), []byte("\nagent: invalid-structure\n")...)
+	if err := os.WriteFile(configPath, broken, 0o600); err != nil {
+		t.Fatalf("write invalid candidate base: %v", err)
+	}
+
+	result, err := updateManagedGo2RTCConfig(context.Background(), server, func(value *config.Go2RTCConfig) error {
+		value.Streams = append(value.Streams, config.Go2RTCStreamConfig{ID: "candidate", Name: "Candidate", Enabled: true})
+		return nil
+	}, []go2RTCSourceChange{{ID: "candidate", Value: source}}, false)
+	if err == nil {
+		t.Fatalf("candidate validation unexpectedly succeeded: %+v", result)
+	}
+	if result.Published {
+		t.Fatalf("failed candidate was marked published: %+v", result)
+	}
+	if _, err := vault.ReadSecret(config.Go2RTCStreamSourceVaultKey("candidate")); err == nil {
+		t.Fatal("failed candidate left its staged source in the Vault")
+	}
+	after, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("read config after validation failure: %v", err)
+	}
+	if string(after) != string(broken) {
+		t.Fatal("candidate validation failure modified the productive config file")
+	}
+}
+
+func TestGo2RTCCameraMutationStatusContract(t *testing.T) {
+	const source = "rtsp://camera-user:contract-password@192.168.40.22/live"
+	t.Run("create and update succeed with 201 and 200", func(t *testing.T) {
+		upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			switch {
+			case r.Method == http.MethodGet && r.URL.Path == "/api/go2rtc/proxy/api":
+				_, _ = w.Write([]byte(`{"version":"1.9.14"}`))
+			case r.Method == http.MethodPatch && r.URL.Path == "/api/go2rtc/proxy/api/streams":
+				w.WriteHeader(http.StatusOK)
+			default:
+				http.NotFound(w, r)
+			}
+		}))
+		defer upstream.Close()
+		server, _, _ := newGo2RTCMutationTestServer(t, upstream.URL, true)
+
+		create := httptest.NewRequest(http.MethodPost, "http://aurago.local/api/go2rtc/streams", strings.NewReader(`{"id":"front-door","name":"Front door","source":"`+source+`"}`))
+		create.Host = "aurago.local"
+		createRecorder := httptest.NewRecorder()
+		handleGo2RTCCreateStream(server).ServeHTTP(createRecorder, create)
+		assertGo2RTCMutationResponse(t, createRecorder, http.StatusCreated, "ok", true)
+
+		update := httptest.NewRequest(http.MethodPatch, "http://aurago.local/api/go2rtc/streams/front-door", strings.NewReader(`{"name":"Entrance"}`))
+		update.Host = "aurago.local"
+		updateRecorder := httptest.NewRecorder()
+		handleGo2RTCStreamMutation(server).ServeHTTP(updateRecorder, update)
+		assertGo2RTCMutationResponse(t, updateRecorder, http.StatusOK, "ok", true)
+	})
+
+	t.Run("published runtime failure returns 202 without secrets", func(t *testing.T) {
+		upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			http.Error(w, "offline", http.StatusServiceUnavailable)
+		}))
+		defer upstream.Close()
+		server, _, vault := newGo2RTCMutationTestServer(t, upstream.URL, true)
+		request := httptest.NewRequest(http.MethodPost, "http://aurago.local/api/go2rtc/streams", strings.NewReader(`{"id":"garage","name":"Garage","source":"`+source+`"}`))
+		request.Host = "aurago.local"
+		recorder := httptest.NewRecorder()
+		handleGo2RTCCreateStream(server).ServeHTTP(recorder, request)
+		assertGo2RTCMutationResponse(t, recorder, http.StatusAccepted, "degraded", false)
+		if strings.Contains(recorder.Body.String(), source) || strings.Contains(recorder.Body.String(), "contract-password") {
+			t.Fatalf("degraded response leaked camera source: %s", recorder.Body.String())
+		}
+		if got, err := vault.ReadSecret(config.Go2RTCStreamSourceVaultKey("garage")); err != nil || got != source {
+			t.Fatalf("degraded mutation did not retain vault source: %q, %v", got, err)
+		}
+
+		duplicate := httptest.NewRequest(http.MethodPost, "http://aurago.local/api/go2rtc/streams", strings.NewReader(`{"id":"garage","source":"`+source+`"}`))
+		duplicate.Host = "aurago.local"
+		duplicateRecorder := httptest.NewRecorder()
+		handleGo2RTCCreateStream(server).ServeHTTP(duplicateRecorder, duplicate)
+		if duplicateRecorder.Code != http.StatusConflict {
+			t.Fatalf("duplicate status = %d, want 409; body=%s", duplicateRecorder.Code, duplicateRecorder.Body.String())
+		}
+
+		update := httptest.NewRequest(http.MethodPatch, "http://aurago.local/api/go2rtc/streams/garage", strings.NewReader(`{"name":"Garage side"}`))
+		update.Host = "aurago.local"
+		updateRecorder := httptest.NewRecorder()
+		handleGo2RTCStreamMutation(server).ServeHTTP(updateRecorder, update)
+		assertGo2RTCMutationResponse(t, updateRecorder, http.StatusAccepted, "degraded", false)
+
+		deleteRequest := httptest.NewRequest(http.MethodDelete, "http://aurago.local/api/go2rtc/streams/garage", nil)
+		deleteRequest.Host = "aurago.local"
+		deleteRecorder := httptest.NewRecorder()
+		handleGo2RTCStreamMutation(server).ServeHTTP(deleteRecorder, deleteRequest)
+		assertGo2RTCMutationResponse(t, deleteRecorder, http.StatusAccepted, "degraded", false)
+		if _, err := vault.ReadSecret(config.Go2RTCStreamSourceVaultKey("garage")); err == nil {
+			t.Fatal("degraded delete retained the removed stream source")
+		}
+
+		missing := httptest.NewRequest(http.MethodDelete, "http://aurago.local/api/go2rtc/streams/missing", nil)
+		missing.Host = "aurago.local"
+		missingRecorder := httptest.NewRecorder()
+		handleGo2RTCStreamMutation(server).ServeHTTP(missingRecorder, missing)
+		if missingRecorder.Code != http.StatusNotFound {
+			t.Fatalf("missing stream status = %d, want 404; body=%s", missingRecorder.Code, missingRecorder.Body.String())
+		}
+	})
+
+	t.Run("disabled integration returns 412 and config service errors return 500", func(t *testing.T) {
+		server, _, _ := newGo2RTCMutationTestServer(t, "http://127.0.0.1:1984", false)
+		request := httptest.NewRequest(http.MethodPost, "http://aurago.local/api/go2rtc/streams", strings.NewReader(`{"id":"garage","source":"`+source+`"}`))
+		request.Host = "aurago.local"
+		recorder := httptest.NewRecorder()
+		handleGo2RTCCreateStream(server).ServeHTTP(recorder, request)
+		if recorder.Code != http.StatusPreconditionFailed {
+			t.Fatalf("disabled status = %d, want 412; body=%s", recorder.Code, recorder.Body.String())
+		}
+
+		server.CfgMu.Lock()
+		server.Cfg.Go2RTC.Enabled = true
+		server.Cfg.ConfigPath = ""
+		server.CfgMu.Unlock()
+		request = httptest.NewRequest(http.MethodPost, "http://aurago.local/api/go2rtc/streams", strings.NewReader(`{"id":"garage","source":"`+source+`"}`))
+		request.Host = "aurago.local"
+		recorder = httptest.NewRecorder()
+		handleGo2RTCCreateStream(server).ServeHTTP(recorder, request)
+		if recorder.Code != http.StatusInternalServerError {
+			t.Fatalf("config failure status = %d, want 500; body=%s", recorder.Code, recorder.Body.String())
+		}
+	})
+}
+
+func TestGo2RTCCreateReservesSetupTokenUntilConfigPublication(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "offline", http.StatusServiceUnavailable)
+	}))
+	defer upstream.Close()
+	server, _, _ := newGo2RTCMutationTestServer(t, upstream.URL, true)
+	server.Cfg.Go2RTC.Streams = append(server.Cfg.Go2RTC.Streams, config.Go2RTCStreamConfig{ID: "existing", Name: "Existing", Enabled: false})
+
+	discovery := onvif.NewService(true)
+	discovery.SetHTTPClient(&http.Client{Transport: go2RTCRoundTripFunc(func(request *http.Request) (*http.Response, error) {
+		body, _ := io.ReadAll(request.Body)
+		response := `<Envelope><Body><GetDeviceInformationResponse><Manufacturer>Acme</Manufacturer><Model>TestCam</Model></GetDeviceInformationResponse></Body></Envelope>`
+		if strings.Contains(string(body), "GetCapabilities") {
+			response = `<Envelope><Body><GetCapabilitiesResponse><Capabilities><Media><XAddr>http://192.168.20.30/onvif/media_service</XAddr></Media></Capabilities></GetCapabilitiesResponse></Body></Envelope>`
+		}
+		if strings.Contains(string(body), "GetProfiles") {
+			response = `<Envelope><Body><GetProfilesResponse><Profiles token="profile-main"><Name>Main stream</Name><VideoEncoderConfiguration><Encoding>H264</Encoding><Resolution><Width>1920</Width><Height>1080</Height></Resolution><RateControl><FrameRateLimit>25</FrameRateLimit></RateControl></VideoEncoderConfiguration></Profiles></GetProfilesResponse></Body></Envelope>`
+		}
+		return &http.Response{StatusCode: http.StatusOK, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(response))}, nil
+	})})
+	profiles, err := discovery.Profiles(context.Background(), onvif.ProfileRequest{
+		Address: "http://192.168.20.30/onvif/device_service", Username: "camera-user", Password: "setup-password",
+	})
+	if err != nil {
+		t.Fatalf("create ONVIF setup session: %v", err)
+	}
+	server.Go2RTCDiscovery = discovery
+	payload := func(id string) string {
+		return fmt.Sprintf(`{"id":%q,"name":"Patio","setup_token":%q,"profile_id":%q}`, id, profiles.SetupToken, profiles.Profiles[0].ID)
+	}
+
+	duplicate := httptest.NewRequest(http.MethodPost, "http://aurago.local/api/go2rtc/streams", strings.NewReader(payload("existing")))
+	duplicate.Host = "aurago.local"
+	duplicateRecorder := httptest.NewRecorder()
+	handleGo2RTCCreateStream(server).ServeHTTP(duplicateRecorder, duplicate)
+	if duplicateRecorder.Code != http.StatusConflict {
+		t.Fatalf("pre-publication failure status = %d, want 409; body=%s", duplicateRecorder.Code, duplicateRecorder.Body.String())
+	}
+
+	create := httptest.NewRequest(http.MethodPost, "http://aurago.local/api/go2rtc/streams", strings.NewReader(payload("patio")))
+	create.Host = "aurago.local"
+	createRecorder := httptest.NewRecorder()
+	handleGo2RTCCreateStream(server).ServeHTTP(createRecorder, create)
+	assertGo2RTCMutationResponse(t, createRecorder, http.StatusAccepted, "degraded", false)
+	if strings.Contains(createRecorder.Body.String(), "camera-user") || strings.Contains(createRecorder.Body.String(), "setup-password") || strings.Contains(createRecorder.Body.String(), profiles.SetupToken) {
+		t.Fatalf("create response leaked setup credentials: %s", createRecorder.Body.String())
+	}
+
+	replay := httptest.NewRequest(http.MethodPost, "http://aurago.local/api/go2rtc/streams", strings.NewReader(payload("patio-2")))
+	replay.Host = "aurago.local"
+	replayRecorder := httptest.NewRecorder()
+	handleGo2RTCCreateStream(server).ServeHTTP(replayRecorder, replay)
+	if replayRecorder.Code != http.StatusBadRequest {
+		t.Fatalf("committed setup token replay status = %d, want 400; body=%s", replayRecorder.Code, replayRecorder.Body.String())
+	}
+}
+
+type go2RTCRoundTripFunc func(*http.Request) (*http.Response, error)
+
+func (fn go2RTCRoundTripFunc) RoundTrip(request *http.Request) (*http.Response, error) {
+	return fn(request)
+}
+
+func newGo2RTCMutationTestServer(t *testing.T, upstreamURL string, enabled bool) (*Server, string, *security.Vault) {
+	t.Helper()
+	parsed, err := url.Parse(upstreamURL)
+	if err != nil {
+		t.Fatalf("parse upstream URL: %v", err)
+	}
+	port, _ := strconv.Atoi(parsed.Port())
+	if port == 0 {
+		port = 1984
+	}
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	cfg := &config.Config{ConfigPath: configPath}
+	cfg.Directories.DataDir = filepath.Join(tmpDir, "data")
+	cfg.Docker.Enabled = true
+	cfg.Docker.Host = "tcp://127.0.0.1:2375"
+	cfg.Go2RTC = config.Go2RTCConfig{
+		Enabled: enabled, AutoStart: false, Image: config.Go2RTCDefaultImage,
+		URL: upstreamURL, APIHostPort: port, ContainerName: "aurago_go2rtc",
+		WebRTC: config.Go2RTCWebRTCConfig{Port: 8555},
+	}
+	rawConfig, err := yaml.Marshal(cfg)
+	if err != nil {
+		t.Fatalf("marshal config: %v", err)
+	}
+	if err := os.WriteFile(configPath, rawConfig, 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	vault, err := security.NewVault(strings.Repeat("55", 32), filepath.Join(tmpDir, "vault.bin"))
+	if err != nil {
+		t.Fatalf("NewVault: %v", err)
+	}
+	if err := vault.WriteSecret(config.Go2RTCAPIPasswordVaultKey, "internal-password"); err != nil {
+		t.Fatalf("seed API password: %v", err)
+	}
+	manager := tools.NewGo2RTCManager(cfg, vault, nil, slog.Default())
+	return &Server{Cfg: cfg, Vault: vault, Go2RTC: manager, Logger: slog.Default()}, configPath, vault
+}
+
+func assertGo2RTCMutationResponse(t *testing.T, recorder *httptest.ResponseRecorder, wantStatus int, wantState string, wantReconciled bool) {
+	t.Helper()
+	if recorder.Code != wantStatus {
+		t.Fatalf("status = %d, want %d; body=%s", recorder.Code, wantStatus, recorder.Body.String())
+	}
+	var response struct {
+		Status            string `json:"status"`
+		Saved             bool   `json:"saved"`
+		RuntimeReconciled bool   `json:"runtime_reconciled"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+		t.Fatalf("decode mutation response: %v", err)
+	}
+	if response.Status != wantState || !response.Saved || response.RuntimeReconciled != wantReconciled {
+		t.Fatalf("mutation response = %#v", response)
 	}
 }

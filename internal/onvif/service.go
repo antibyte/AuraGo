@@ -81,6 +81,41 @@ type setupSession struct {
 	password string
 	profiles map[string]Profile
 	expires  time.Time
+	reserved string
+}
+
+// SetupReservation holds a setup token while its source is being published.
+// Commit consumes the token; Release makes it available for another attempt.
+type SetupReservation struct {
+	service *Service
+	token   string
+	lease   string
+	source  string
+	once    sync.Once
+}
+
+// Source returns the vault-only source represented by this reservation.
+func (r *SetupReservation) Source() string {
+	if r == nil {
+		return ""
+	}
+	return r.source
+}
+
+// Commit permanently consumes the reserved setup token.
+func (r *SetupReservation) Commit() {
+	if r == nil {
+		return
+	}
+	r.once.Do(func() { r.service.finishReservation(r.token, r.lease, true) })
+}
+
+// Release returns an uncommitted setup token to the setup session.
+func (r *SetupReservation) Release() {
+	if r == nil {
+		return
+	}
+	r.once.Do(func() { r.service.finishReservation(r.token, r.lease, false) })
 }
 
 // DiscoverFunc allows the UDP transport to be replaced in focused tests.
@@ -107,7 +142,9 @@ type Service struct {
 // NewService creates an ONVIF setup service. Automatic discovery is capability gated.
 func NewService(broadcastOK bool) *Service {
 	transport := http.DefaultTransport.(*http.Transport).Clone()
-	transport.Proxy = http.ProxyFromEnvironment
+	// Camera setup is deliberately private-network scoped. Never send
+	// credential-bearing ONVIF traffic through an environment proxy.
+	transport.Proxy = nil
 	return &Service{
 		broadcastOK: broadcastOK,
 		now:         time.Now,
@@ -294,27 +331,34 @@ func (s *Service) Profiles(ctx context.Context, request ProfileRequest) (Profile
 	return ProfileResult{SetupToken: token, Name: sanitizeLabel(name, 96), Model: sanitizeLabel(model, 96), Profiles: profiles}, nil
 }
 
-// Consume resolves a setup token exactly once and returns a vault-only source.
-func (s *Service) Consume(token, profileID string) (string, error) {
+// Reserve validates and exclusively leases a setup token while its source is
+// being published. The caller must Commit or Release the reservation.
+func (s *Service) Reserve(token, profileID string) (*SetupReservation, error) {
 	if s == nil {
-		return "", fmt.Errorf("ONVIF setup is unavailable")
+		return nil, fmt.Errorf("ONVIF setup is unavailable")
 	}
 	token = strings.TrimSpace(token)
 	profileID = strings.TrimSpace(profileID)
+	lease, err := randomToken()
+	if err != nil {
+		return nil, fmt.Errorf("reserve setup token: %w", err)
+	}
 	now := s.now()
 	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.pruneLocked(now)
 	session, ok := s.setups[token]
-	if ok {
-		delete(s.setups, token)
-	}
-	s.mu.Unlock()
 	if !ok {
-		return "", fmt.Errorf("setup token is missing, expired, or already used")
+		return nil, fmt.Errorf("setup token is missing, expired, or already used")
 	}
 	if _, ok := session.profiles[profileID]; !ok {
-		return "", fmt.Errorf("selected ONVIF profile is unavailable")
+		return nil, fmt.Errorf("selected ONVIF profile is unavailable")
 	}
+	if session.reserved != "" {
+		return nil, fmt.Errorf("setup token is already in use")
+	}
+	session.reserved = lease
+	s.setups[token] = session
 	source := &url.URL{Scheme: "onvif", Host: session.endpoint.Host, Path: session.endpoint.Path}
 	if session.username != "" || session.password != "" {
 		source.User = url.UserPassword(session.username, session.password)
@@ -324,7 +368,26 @@ func (s *Service) Consume(token, profileID string) (string, error) {
 	source.RawQuery = query.Encode()
 	value := source.String()
 	security.RegisterSensitive(value)
-	return value, nil
+	return &SetupReservation{service: s, token: token, lease: lease, source: value}, nil
+}
+
+func (s *Service) finishReservation(token, lease string, commit bool) {
+	if s == nil {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.pruneLocked(s.now())
+	session, ok := s.setups[token]
+	if !ok || session.reserved != lease {
+		return
+	}
+	if commit {
+		delete(s.setups, token)
+		return
+	}
+	session.reserved = ""
+	s.setups[token] = session
 }
 
 func (s *Service) pruneLocked(now time.Time) {
@@ -361,6 +424,9 @@ func (s *Service) makeSetupRoomLocked() bool {
 		var oldestID string
 		var oldest time.Time
 		for id, item := range s.setups {
+			if item.reserved != "" {
+				continue
+			}
 			if oldestID == "" || item.expires.Before(oldest) {
 				oldestID, oldest = id, item.expires
 			}

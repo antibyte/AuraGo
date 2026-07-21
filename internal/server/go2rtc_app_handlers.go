@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -19,6 +20,44 @@ import (
 )
 
 const go2RTCAppBodyLimit = 64 << 10
+
+type go2RTCMutationError struct {
+	Status  int
+	Code    string
+	Message string
+}
+
+func (e *go2RTCMutationError) Error() string {
+	return e.Message
+}
+
+func writeGo2RTCMutationFailure(w http.ResponseWriter, err error) {
+	status := http.StatusInternalServerError
+	code := "save_failed"
+	message := "The camera configuration could not be saved"
+	var mutationErr *go2RTCMutationError
+	if errors.As(err, &mutationErr) {
+		status = mutationErr.Status
+		code = mutationErr.Code
+		message = mutationErr.Message
+	}
+	writeGo2RTCJSONStatus(w, status, map[string]interface{}{
+		"status": "error", "code": code, "message": security.Scrub(message), "saved": false,
+	})
+}
+
+func writeGo2RTCMutationResult(w http.ResponseWriter, successStatus int, result go2RTCConfigUpdateResult, payload map[string]interface{}) {
+	payload["saved"] = result.Published
+	payload["runtime_reconciled"] = result.ReconcileErr == nil
+	if result.ReconcileErr != nil {
+		payload["status"] = "degraded"
+		payload["message"] = security.Scrub(result.ReconcileErr.Error())
+		writeGo2RTCJSONStatus(w, http.StatusAccepted, payload)
+		return
+	}
+	payload["status"] = "ok"
+	writeGo2RTCJSONStatus(w, successStatus, payload)
+}
 
 func handleGo2RTCStreamsRoute(s *Server) http.HandlerFunc {
 	view := requireGo2RTCView(s, handleGo2RTCStreams(s))
@@ -185,26 +224,26 @@ func handleGo2RTCSetupEnable(s *Server) http.HandlerFunc {
 			jsonError(w, "Request origin does not match server host", http.StatusForbidden)
 			return
 		}
-		requirements := go2RTCDockerRequirements(s)
+		requirements := go2RTCDockerRequirements(r.Context(), s)
 		if len(requirements) > 0 {
 			writeGo2RTCJSONStatus(w, http.StatusPreconditionFailed, map[string]interface{}{
-				"status": "requirements_missing", "requirements": requirements,
+				"status": "requirements_missing", "saved": false, "requirements": requirements,
 			})
 			return
 		}
-		cfg, err := updateManagedGo2RTCConfig(r.Context(), s, func(value *config.Go2RTCConfig) error {
+		result, err := updateManagedGo2RTCConfig(r.Context(), s, func(value *config.Go2RTCConfig) error {
 			value.Enabled = true
 			return nil
 		}, nil, true)
 		if err != nil {
-			writeGo2RTCJSONStatus(w, http.StatusBadGateway, map[string]interface{}{"status": "error", "message": security.Scrub(err.Error())})
+			writeGo2RTCMutationFailure(w, err)
 			return
 		}
-		writeGo2RTCJSON(w, map[string]interface{}{"status": "ok", "enabled": cfg.Enabled})
+		writeGo2RTCMutationResult(w, http.StatusOK, result, map[string]interface{}{"enabled": result.Config.Enabled})
 	}
 }
 
-func go2RTCDockerRequirements(s *Server) []map[string]string {
+func go2RTCDockerRequirements(ctx context.Context, s *Server) []map[string]string {
 	if s == nil || s.Cfg == nil {
 		return []map[string]string{{"code": "config_unavailable", "message": "AuraGo configuration is unavailable"}}
 	}
@@ -220,6 +259,16 @@ func go2RTCDockerRequirements(s *Server) []map[string]string {
 	}
 	if strings.TrimSpace(cfg.Docker.Host) == "" && !cfg.Runtime.DockerSocketOK {
 		result = append(result, map[string]string{"code": "docker_unreachable", "message": "Configure a reachable Docker endpoint or start the Docker socket proxy"})
+	}
+	if len(result) == 0 && s.Go2RTC == nil {
+		result = append(result, map[string]string{"code": "docker_unreachable", "message": "The Docker manager is unavailable"})
+	}
+	if len(result) == 0 {
+		probeCtx, cancel := context.WithTimeout(ctx, 4*time.Second)
+		defer cancel()
+		for _, requirement := range s.Go2RTC.DockerAccessRequirements(probeCtx) {
+			result = append(result, map[string]string{"code": requirement.Code, "message": requirement.Message})
+		}
 	}
 	return result
 }
@@ -333,6 +382,7 @@ func handleGo2RTCCreateStream(s *Server) http.HandlerFunc {
 			return
 		}
 		source := strings.TrimSpace(payload.Source)
+		var reservation *onvif.SetupReservation
 		if strings.TrimSpace(payload.SetupToken) != "" {
 			if source != "" {
 				jsonError(w, "Use either a setup token or a manual source", http.StatusBadRequest)
@@ -340,14 +390,18 @@ func handleGo2RTCCreateStream(s *Server) http.HandlerFunc {
 			}
 			service := go2RTCDiscoveryService(s)
 			if service == nil {
-				jsonError(w, "ONVIF setup is unavailable", http.StatusServiceUnavailable)
+				writeGo2RTCJSONStatus(w, http.StatusPreconditionFailed, map[string]interface{}{
+					"status": "error", "code": "onvif_unavailable", "message": "ONVIF setup is unavailable", "saved": false,
+				})
 				return
 			}
-			source, err = service.Consume(payload.SetupToken, payload.ProfileID)
+			reservation, err = service.Reserve(payload.SetupToken, payload.ProfileID)
 			if err != nil {
-				jsonError(w, err.Error(), http.StatusBadRequest)
+				jsonError(w, security.Scrub(err.Error()), http.StatusBadRequest)
 				return
 			}
+			defer reservation.Release()
+			source = reservation.Source()
 		}
 		security.RegisterSensitive(source)
 		if err := tools.ValidateGo2RTCSource(source); err != nil {
@@ -358,23 +412,26 @@ func handleGo2RTCCreateStream(s *Server) http.HandlerFunc {
 		if payload.Enabled != nil {
 			enabled = *payload.Enabled
 		}
-		cfg, err := updateManagedGo2RTCConfig(r.Context(), s, func(value *config.Go2RTCConfig) error {
+		result, err := updateManagedGo2RTCConfig(r.Context(), s, func(value *config.Go2RTCConfig) error {
 			if !value.Enabled {
-				return fmt.Errorf("enable go2rtc before adding cameras")
+				return &go2RTCMutationError{Status: http.StatusPreconditionFailed, Code: "go2rtc_disabled", Message: "Enable go2rtc before adding cameras"}
 			}
 			for _, stream := range value.Streams {
 				if stream.ID == id {
-					return fmt.Errorf("stream id %q already exists", id)
+					return &go2RTCMutationError{Status: http.StatusConflict, Code: "stream_exists", Message: fmt.Sprintf("stream id %q already exists", id)}
 				}
 			}
 			value.Streams = append(value.Streams, config.Go2RTCStreamConfig{ID: id, Name: name, Enabled: enabled})
 			return nil
 		}, []go2RTCSourceChange{{ID: id, Value: source}}, false)
 		if err != nil {
-			writeGo2RTCJSONStatus(w, http.StatusBadGateway, map[string]interface{}{"status": "error", "message": security.Scrub(err.Error())})
+			writeGo2RTCMutationFailure(w, err)
 			return
 		}
-		writeGo2RTCJSONStatus(w, http.StatusCreated, map[string]interface{}{"status": "ok", "stream": safeGo2RTCStream(cfg, id)})
+		if reservation != nil {
+			reservation.Commit()
+		}
+		writeGo2RTCMutationResult(w, http.StatusCreated, result, map[string]interface{}{"stream": safeGo2RTCStream(result.Config, id)})
 	}
 }
 
@@ -399,20 +456,23 @@ func handleGo2RTCStreamMutation(s *Server) http.HandlerFunc {
 			return
 		}
 		if r.Method == http.MethodDelete {
-			cfg, err := updateManagedGo2RTCConfig(r.Context(), s, func(value *config.Go2RTCConfig) error {
+			result, err := updateManagedGo2RTCConfig(r.Context(), s, func(value *config.Go2RTCConfig) error {
+				if !value.Enabled {
+					return &go2RTCMutationError{Status: http.StatusPreconditionFailed, Code: "go2rtc_disabled", Message: "Enable go2rtc before managing cameras"}
+				}
 				for index, stream := range value.Streams {
 					if stream.ID == streamID {
 						value.Streams = append(value.Streams[:index], value.Streams[index+1:]...)
 						return nil
 					}
 				}
-				return fmt.Errorf("stream %q was not found", streamID)
+				return &go2RTCMutationError{Status: http.StatusNotFound, Code: "stream_not_found", Message: fmt.Sprintf("stream %q was not found", streamID)}
 			}, []go2RTCSourceChange{{ID: streamID, Delete: true}}, false)
 			if err != nil {
-				writeGo2RTCJSONStatus(w, http.StatusBadGateway, map[string]interface{}{"status": "error", "message": security.Scrub(err.Error())})
+				writeGo2RTCMutationFailure(w, err)
 				return
 			}
-			writeGo2RTCJSON(w, map[string]interface{}{"status": "ok", "streams": len(cfg.Streams)})
+			writeGo2RTCMutationResult(w, http.StatusOK, result, map[string]interface{}{"streams": len(result.Config.Streams)})
 			return
 		}
 
@@ -435,7 +495,10 @@ func handleGo2RTCStreamMutation(s *Server) http.HandlerFunc {
 			}
 			changes = append(changes, go2RTCSourceChange{ID: streamID, Value: source})
 		}
-		cfg, err := updateManagedGo2RTCConfig(r.Context(), s, func(value *config.Go2RTCConfig) error {
+		result, err := updateManagedGo2RTCConfig(r.Context(), s, func(value *config.Go2RTCConfig) error {
+			if !value.Enabled {
+				return &go2RTCMutationError{Status: http.StatusPreconditionFailed, Code: "go2rtc_disabled", Message: "Enable go2rtc before managing cameras"}
+			}
 			for index := range value.Streams {
 				if value.Streams[index].ID != streamID {
 					continue
@@ -443,7 +506,7 @@ func handleGo2RTCStreamMutation(s *Server) http.HandlerFunc {
 				if payload.Name != nil {
 					name, err := validateCameraName(*payload.Name, streamID)
 					if err != nil {
-						return err
+						return &go2RTCMutationError{Status: http.StatusBadRequest, Code: "invalid_stream", Message: err.Error()}
 					}
 					value.Streams[index].Name = name
 				}
@@ -452,13 +515,13 @@ func handleGo2RTCStreamMutation(s *Server) http.HandlerFunc {
 				}
 				return nil
 			}
-			return fmt.Errorf("stream %q was not found", streamID)
+			return &go2RTCMutationError{Status: http.StatusNotFound, Code: "stream_not_found", Message: fmt.Sprintf("stream %q was not found", streamID)}
 		}, changes, false)
 		if err != nil {
-			writeGo2RTCJSONStatus(w, http.StatusBadGateway, map[string]interface{}{"status": "error", "message": security.Scrub(err.Error())})
+			writeGo2RTCMutationFailure(w, err)
 			return
 		}
-		writeGo2RTCJSON(w, map[string]interface{}{"status": "ok", "stream": safeGo2RTCStream(cfg, streamID)})
+		writeGo2RTCMutationResult(w, http.StatusOK, result, map[string]interface{}{"stream": safeGo2RTCStream(result.Config, streamID)})
 	}
 }
 

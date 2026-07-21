@@ -88,23 +88,26 @@ type go2RTCSnapshotCacheEntry struct {
 
 // Go2RTCManager owns AuraGo's client, sidecar lifecycle, and runtime reconciliation.
 type Go2RTCManager struct {
-	lifecycleMu  sync.Mutex
-	credentialMu sync.Mutex
-	mu           sync.RWMutex
-	cfg          config.Go2RTCConfig
-	docker       DockerConfig
-	dataDir      string
-	configDir    string
-	vault        *security.Vault
-	mediaDB      *sql.DB
-	logger       *slog.Logger
-	client       *http.Client
-	status       Go2RTCStatus
-	cache        map[string]go2RTCSnapshotCacheEntry
-	cacheBytes   int64
-	cancel       context.CancelFunc
-	inDocker     bool
-	manualStop   bool
+	lifecycleMu     sync.Mutex
+	credentialMu    sync.Mutex
+	mu              sync.RWMutex
+	cfg             config.Go2RTCConfig
+	docker          DockerConfig
+	dataDir         string
+	configDir       string
+	vault           *security.Vault
+	mediaDB         *sql.DB
+	logger          *slog.Logger
+	client          *http.Client
+	status          Go2RTCStatus
+	cache           map[string]go2RTCSnapshotCacheEntry
+	cacheBytes      int64
+	cancel          context.CancelFunc
+	inDocker        bool
+	manualStop      bool
+	pendingStart    bool
+	pendingStop     bool
+	pendingRecreate bool
 }
 
 var defaultGo2RTCManager atomic.Pointer[Go2RTCManager]
@@ -252,8 +255,42 @@ func (m *Go2RTCManager) Close() {
 
 func (m *Go2RTCManager) reconcileTick(ctx context.Context) {
 	cfg := m.Config()
+	m.mu.RLock()
+	pendingStart := m.pendingStart
+	pendingStop := m.pendingStop
+	pendingRecreate := m.pendingRecreate
+	m.mu.RUnlock()
 	if !cfg.Enabled {
+		if pendingStop {
+			if err := m.StopContainer(); err != nil {
+				m.setAPIStatus(false, "", err.Error())
+				return
+			}
+			m.clearRuntimeTransitionPending()
+		}
 		m.setAPIStatus(false, "", "")
+		return
+	}
+	if pendingRecreate {
+		if err := m.RestartContainer(ctx); err != nil {
+			m.setAPIStatus(false, "", err.Error())
+			return
+		}
+		m.clearRuntimeTransitionPending()
+		_, _ = m.Test(ctx)
+		return
+	}
+	if pendingStart {
+		if err := m.StartContainer(ctx); err != nil {
+			m.setAPIStatus(false, "", err.Error())
+			return
+		}
+		if _, err := m.ReconcileStreams(ctx); err != nil {
+			m.setAPIStatus(false, "", err.Error())
+			return
+		}
+		m.clearRuntimeTransitionPending()
+		_, _ = m.Test(ctx)
 		return
 	}
 	m.mu.RLock()
@@ -276,6 +313,23 @@ func (m *Go2RTCManager) reconcileTick(ctx context.Context) {
 		return
 	}
 	_, _ = m.Test(ctx)
+}
+
+// SetRuntimeTransitionPending records lifecycle work that must be retried by
+// the background manager after a desired configuration was already published.
+func (m *Go2RTCManager) SetRuntimeTransitionPending(recreate, start, stop bool) {
+	if m == nil {
+		return
+	}
+	m.mu.Lock()
+	m.pendingRecreate = recreate
+	m.pendingStart = start
+	m.pendingStop = stop
+	m.mu.Unlock()
+}
+
+func (m *Go2RTCManager) clearRuntimeTransitionPending() {
+	m.SetRuntimeTransitionPending(false, false, false)
 }
 
 // Config returns a copy of the current integration config.

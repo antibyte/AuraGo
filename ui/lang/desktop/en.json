@@ -1,4 +1,13 @@
 {
+  "desktop.network_cameras.requirement_config_unavailable": "AuraGo's configuration is unavailable.",
+  "desktop.network_cameras.requirement_docker_disabled": "Enable the Docker integration first.",
+  "desktop.network_cameras.requirement_docker_read_only": "Disable Docker read-only mode so AuraGo can manage the sidecar.",
+  "desktop.network_cameras.requirement_docker_containers_denied": "The Docker container endpoint is not readable.",
+  "desktop.network_cameras.requirement_docker_images_denied": "The Docker image endpoint is not readable.",
+  "desktop.network_cameras.requirement_docker_networks_denied": "The Docker network endpoint is not readable.",
+  "desktop.network_cameras.requirement_docker_post_denied": "Docker does not allow the required container start request.",
+  "desktop.network_cameras.requirement_docker_unreachable": "The Docker endpoint could not be reached.",
+  "desktop.network_cameras.saved_degraded": "Saved. The camera service is not synchronized yet and will retry automatically.",
   "desktop.app_network_cameras": "Network Cameras",
   "desktop.network_cameras.add_camera": "Add camera",
   "desktop.network_cameras.address_required": "Enter a local ONVIF address.",

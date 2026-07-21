@@ -286,7 +286,12 @@ registration lives in `internal/desktop/types.go`.
   minimize or close. It must use AuraGo viewer/thumbnail APIs only, must never
   receive or persist camera credentials, and stores only non-sensitive grid
   mode and selected-stream preferences. Loaded lazily by `module-loader.js` and
-  exposes `window.NetworkCamerasApp { render, dispose }`.
+  exposes `window.NetworkCamerasApp { render, dispose }`. An empty visible-ID
+  set means no thumbnail requests; the no-`IntersectionObserver` fallback must
+  explicitly mark all cards visible, and focus mode must stop grid polling.
+  HTTP 202 mutation responses are saved partial successes: close the dialog,
+  refresh state, and show the localized reconciliation warning. True save
+  failures keep retryable manual sources and setup tokens in window memory.
 - `editor-filemenu.js` implements file management helpers and the inline text
   editor with window menus (file, edit, agent, help). Bundled in the main shell
   bundle (`desktopMainParts` in `build-ui-bundles.js`) because it is referenced

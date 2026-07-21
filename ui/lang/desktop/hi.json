@@ -1,4 +1,13 @@
 {
+  "desktop.network_cameras.requirement_config_unavailable": "AuraGo कॉन्फ़िगरेशन उपलब्ध नहीं है।",
+  "desktop.network_cameras.requirement_docker_disabled": "पहले Docker एकीकरण चालू करें।",
+  "desktop.network_cameras.requirement_docker_read_only": "Docker का केवल-पढ़ने वाला मोड बंद करें, ताकि AuraGo साइडकार प्रबंधित कर सके।",
+  "desktop.network_cameras.requirement_docker_containers_denied": "Docker कंटेनर एंडपॉइंट पढ़ा नहीं जा सकता।",
+  "desktop.network_cameras.requirement_docker_images_denied": "Docker इमेज एंडपॉइंट पढ़ा नहीं जा सकता।",
+  "desktop.network_cameras.requirement_docker_networks_denied": "Docker नेटवर्क एंडपॉइंट पढ़ा नहीं जा सकता।",
+  "desktop.network_cameras.requirement_docker_post_denied": "Docker आवश्यक कंटेनर प्रारंभ अनुरोध की अनुमति नहीं देता।",
+  "desktop.network_cameras.requirement_docker_unreachable": "Docker एंडपॉइंट तक नहीं पहुँचा जा सका।",
+  "desktop.network_cameras.saved_degraded": "सहेजा गया। कैमरा सेवा अभी सिंक्रनाइज़ नहीं हुई है और अपने आप फिर प्रयास करेगी।",
   "desktop.app_network_cameras": "नेटवर्क कैमरे",
   "desktop.network_cameras.add_camera": "कैमरा जोड़ें",
   "desktop.network_cameras.address_required": "स्थानीय ONVIF पता दर्ज करें।",

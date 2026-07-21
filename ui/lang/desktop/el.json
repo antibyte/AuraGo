@@ -1,4 +1,13 @@
 {
+  "desktop.network_cameras.requirement_config_unavailable": "Η διαμόρφωση του AuraGo δεν είναι διαθέσιμη.",
+  "desktop.network_cameras.requirement_docker_disabled": "Ενεργοποίησε πρώτα την ενσωμάτωση Docker.",
+  "desktop.network_cameras.requirement_docker_read_only": "Απενεργοποίησε τη λειτουργία μόνο για ανάγνωση του Docker ώστε το AuraGo να διαχειρίζεται το sidecar.",
+  "desktop.network_cameras.requirement_docker_containers_denied": "Δεν είναι δυνατή η ανάγνωση του τελικού σημείου κοντέινερ του Docker.",
+  "desktop.network_cameras.requirement_docker_images_denied": "Δεν είναι δυνατή η ανάγνωση του τελικού σημείου εικόνων του Docker.",
+  "desktop.network_cameras.requirement_docker_networks_denied": "Δεν είναι δυνατή η ανάγνωση του τελικού σημείου δικτύων του Docker.",
+  "desktop.network_cameras.requirement_docker_post_denied": "Το Docker δεν επιτρέπει το απαιτούμενο αίτημα εκκίνησης κοντέινερ.",
+  "desktop.network_cameras.requirement_docker_unreachable": "Δεν ήταν δυνατή η πρόσβαση στο τελικό σημείο του Docker.",
+  "desktop.network_cameras.saved_degraded": "Αποθηκεύτηκε. Η υπηρεσία κάμερας δεν έχει συγχρονιστεί ακόμη και θα προσπαθήσει ξανά αυτόματα.",
   "desktop.app_network_cameras": "Κάμερες δικτύου",
   "desktop.network_cameras.add_camera": "Προσθήκη κάμερας",
   "desktop.network_cameras.address_required": "Εισαγάγετε μια τοπική διεύθυνση ONVIF.",

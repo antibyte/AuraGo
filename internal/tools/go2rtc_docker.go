@@ -2,6 +2,7 @@ package tools
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -22,6 +23,75 @@ import (
 
 const go2RTCFingerprintLabel = "aurago.go2rtc.fingerprint"
 const go2RTCOwnerLabel = "aurago.go2rtc.owner"
+
+// Go2RTCDockerRequirement describes a missing Docker API capability required
+// before AuraGo can enable and manage the go2rtc sidecar.
+type Go2RTCDockerRequirement struct {
+	Code    string
+	Message string
+}
+
+// DockerAccessRequirements verifies the exact read and mutation endpoints used
+// by the managed go2rtc lifecycle. The POST probe targets a cryptographically
+// random container name that cannot exist, so an HTTP 404 proves permission
+// without creating or changing Docker resources.
+func (m *Go2RTCManager) DockerAccessRequirements(ctx context.Context) []Go2RTCDockerRequirement {
+	if m == nil {
+		return []Go2RTCDockerRequirement{{Code: "docker_unreachable", Message: "The Docker manager is unavailable"}}
+	}
+	m.mu.RLock()
+	dockerCfg := m.docker
+	inDocker := m.inDocker
+	m.mu.RUnlock()
+
+	checks := []struct {
+		endpoint string
+		code     string
+		message  string
+	}{
+		{endpoint: "/containers/json?limit=1", code: "docker_containers_denied", message: "The Docker container endpoint is not readable"},
+		{endpoint: "/images/json?all=0", code: "docker_images_denied", message: "The Docker image endpoint is not readable"},
+	}
+	if inDocker {
+		checks = append(checks, struct {
+			endpoint string
+			code     string
+			message  string
+		}{endpoint: "/networks", code: "docker_networks_denied", message: "The Docker network endpoint is not readable"})
+	}
+
+	result := make([]Go2RTCDockerRequirement, 0, len(checks)+1)
+	for _, check := range checks {
+		_, status, err := DockerRequestContext(ctx, dockerCfg, http.MethodGet, check.endpoint, "")
+		if err != nil {
+			if ctx.Err() != nil || !strings.Contains(strings.ToLower(err.Error()), "runtime permission") {
+				return []Go2RTCDockerRequirement{{Code: "docker_unreachable", Message: "The Docker endpoint could not be reached"}}
+			}
+			result = append(result, Go2RTCDockerRequirement{Code: check.code, Message: check.message})
+			continue
+		}
+		if status != http.StatusOK {
+			result = append(result, Go2RTCDockerRequirement{Code: check.code, Message: check.message})
+		}
+	}
+
+	randomBytes := make([]byte, 32)
+	if _, err := rand.Read(randomBytes); err != nil {
+		result = append(result, Go2RTCDockerRequirement{Code: "docker_post_denied", Message: "Docker POST permission could not be verified"})
+		return result
+	}
+	sentinel := "aurago_go2rtc_capability_" + hex.EncodeToString(randomBytes)
+	_, status, err := DockerRequestContext(ctx, dockerCfg, http.MethodPost, "/containers/"+url.PathEscape(sentinel)+"/start", "")
+	if err != nil {
+		if ctx.Err() != nil || !strings.Contains(strings.ToLower(err.Error()), "runtime permission") {
+			return []Go2RTCDockerRequirement{{Code: "docker_unreachable", Message: "The Docker endpoint could not be reached"}}
+		}
+		result = append(result, Go2RTCDockerRequirement{Code: "docker_post_denied", Message: "The Docker container start endpoint does not allow POST requests"})
+	} else if status != http.StatusNotFound {
+		result = append(result, Go2RTCDockerRequirement{Code: "docker_post_denied", Message: "The Docker container start endpoint does not allow the required POST request"})
+	}
+	return result
+}
 
 // StartContainer creates or starts the hardened managed go2rtc sidecar.
 func (m *Go2RTCManager) StartContainer(ctx context.Context) error {

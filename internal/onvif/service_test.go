@@ -2,6 +2,7 @@ package onvif
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -70,15 +71,80 @@ func TestProfilesUseUsernameTokenAndSetupTokenIsSingleUse(t *testing.T) {
 			t.Fatal("plain password appeared in SOAP request")
 		}
 	}
-	source, err := service.Consume(result.SetupToken, result.Profiles[0].ID)
-	if err != nil {
-		t.Fatalf("Consume: %v", err)
+	if _, err := service.Reserve(result.SetupToken, "missing-profile"); err == nil {
+		t.Fatal("invalid profile unexpectedly reserved the setup token")
 	}
+	reservation, err := service.Reserve(result.SetupToken, result.Profiles[0].ID)
+	if err != nil {
+		t.Fatalf("Reserve: %v", err)
+	}
+	source := reservation.Source()
 	if !strings.HasPrefix(source, "onvif://camera-user:camera-password@192.168.20.30/") || !strings.Contains(source, "subtype=profile-main") {
 		t.Fatalf("unexpected vault source shape: %q", source)
 	}
-	if _, err := service.Consume(result.SetupToken, result.Profiles[0].ID); err == nil {
+	if _, err := service.Reserve(result.SetupToken, result.Profiles[0].ID); err == nil {
+		t.Fatal("concurrent setup token reservation unexpectedly succeeded")
+	}
+	reservation.Release()
+	reservation, err = service.Reserve(result.SetupToken, result.Profiles[0].ID)
+	if err != nil {
+		t.Fatalf("Reserve after release: %v", err)
+	}
+	reservation.Commit()
+	if _, err := service.Reserve(result.SetupToken, result.Profiles[0].ID); err == nil {
 		t.Fatal("setup token replay unexpectedly succeeded")
+	}
+}
+
+func TestNewServiceDisablesEnvironmentProxyForPrivateONVIFTraffic(t *testing.T) {
+	t.Setenv("HTTP_PROXY", "http://127.0.0.1:18080")
+	t.Setenv("HTTPS_PROXY", "http://127.0.0.1:18081")
+	service := NewService(true)
+	transport, ok := service.httpClient.Transport.(*http.Transport)
+	if !ok {
+		t.Fatalf("transport type = %T, want *http.Transport", service.httpClient.Transport)
+	}
+	if transport.Proxy != nil {
+		t.Fatal("ONVIF transport unexpectedly retained an environment proxy resolver")
+	}
+}
+
+func TestSetupSessionLimitNeverEvictsReservedTokens(t *testing.T) {
+	service := NewService(true)
+	now := time.Now()
+	service.setups = make(map[string]setupSession, maxSetupSessions)
+	for index := 0; index < maxSetupSessions; index++ {
+		service.setups[fmt.Sprintf("token-%d", index)] = setupSession{
+			expires:  now.Add(time.Duration(index+1) * time.Minute),
+			reserved: "active-lease",
+		}
+	}
+	if service.makeSetupRoomLocked() {
+		t.Fatal("session limit evicted a reserved setup token")
+	}
+	if len(service.setups) != maxSetupSessions {
+		t.Fatalf("setup sessions = %d, want %d", len(service.setups), maxSetupSessions)
+	}
+
+	oldest := service.setups["token-0"]
+	oldest.reserved = ""
+	service.setups["token-0"] = oldest
+	if !service.makeSetupRoomLocked() {
+		t.Fatal("session limit did not evict an unreserved setup token")
+	}
+	if _, exists := service.setups["token-0"]; exists {
+		t.Fatal("oldest unreserved setup token was not evicted")
+	}
+	service.now = func() time.Time { return now }
+	service.setups["expired"] = setupSession{
+		expires:  now.Add(-time.Second),
+		profiles: map[string]Profile{"profile-main": {ID: "profile-main"}},
+	}
+	if _, err := service.Reserve("expired", "profile-main"); err == nil {
+		t.Fatal("expired setup token was reserved")
+	}
+	if _, exists := service.setups["expired"]; exists {
+		t.Fatal("expired setup token was not pruned")
 	}
 }
 

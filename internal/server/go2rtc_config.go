@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -19,6 +20,12 @@ type go2RTCSourceChange struct {
 	Delete bool
 }
 
+type go2RTCConfigUpdateResult struct {
+	Config       config.Go2RTCConfig
+	Published    bool
+	ReconcileErr error
+}
+
 // updateManagedGo2RTCConfig is the common config/Vault transaction used by the
 // camera app. It publishes the non-secret YAML and vault changes as one unit,
 // replaces the runtime config snapshot, and then reconciles the managed sidecar.
@@ -28,9 +35,9 @@ func updateManagedGo2RTCConfig(
 	mutate func(*config.Go2RTCConfig) error,
 	sourceChanges []go2RTCSourceChange,
 	forceStart bool,
-) (config.Go2RTCConfig, error) {
+) (go2RTCConfigUpdateResult, error) {
 	if s == nil || s.Cfg == nil || s.Vault == nil || s.Go2RTC == nil {
-		return config.Go2RTCConfig{}, fmt.Errorf("go2rtc configuration service is unavailable")
+		return go2RTCConfigUpdateResult{}, fmt.Errorf("go2rtc configuration service is unavailable")
 	}
 
 	type publication struct {
@@ -96,10 +103,36 @@ func updateManagedGo2RTCConfig(
 		if err != nil {
 			return publication{}, fmt.Errorf("marshal config: %w", err)
 		}
-		var validateCfg config.Config
-		if err := yaml.Unmarshal(out, &validateCfg); err != nil {
+		candidate, err := os.CreateTemp(filepath.Dir(oldCfg.ConfigPath), ".aurago-config-candidate-*")
+		if err != nil {
+			return publication{}, fmt.Errorf("create validation config: %w", err)
+		}
+		candidatePath := candidate.Name()
+		defer os.Remove(candidatePath)
+		if err := candidate.Chmod(0o600); err != nil {
+			_ = candidate.Close()
+			return publication{}, fmt.Errorf("protect validation config: %w", err)
+		}
+		if _, err := candidate.Write(out); err != nil {
+			_ = candidate.Close()
+			return publication{}, fmt.Errorf("write validation config: %w", err)
+		}
+		if err := candidate.Sync(); err != nil {
+			_ = candidate.Close()
+			return publication{}, fmt.Errorf("sync validation config: %w", err)
+		}
+		if err := candidate.Close(); err != nil {
+			return publication{}, fmt.Errorf("close validation config: %w", err)
+		}
+		reloaded, err := config.Load(candidatePath)
+		if err != nil {
 			return publication{}, fmt.Errorf("validate config: %w", err)
 		}
+		reloaded.ConfigPath = oldCfg.ConfigPath
+		reloaded.ApplyVaultSecrets(s.Vault)
+		reloaded.ResolveProviders()
+		reloaded.ApplyOAuthTokens(s.Vault)
+		reloaded.Runtime = oldCfg.Runtime
 		perm := os.FileMode(0o600)
 		if info, statErr := os.Stat(oldCfg.ConfigPath); statErr == nil && info.Mode().Perm() != 0 {
 			perm = info.Mode().Perm()
@@ -108,16 +141,6 @@ func updateManagedGo2RTCConfig(
 			return publication{}, fmt.Errorf("write config: %w", err)
 		}
 		vaultTxn.Commit()
-
-		reloaded, err := config.Load(oldCfg.ConfigPath)
-		if err != nil {
-			return publication{}, fmt.Errorf("reload published config: %w", err)
-		}
-		reloaded.ConfigPath = oldCfg.ConfigPath
-		reloaded.ApplyVaultSecrets(s.Vault)
-		reloaded.ResolveProviders()
-		reloaded.ApplyOAuthTokens(s.Vault)
-		reloaded.Runtime = oldCfg.Runtime
 		_, recreate := go2RTCRuntimeTransition(oldCfg, *reloaded)
 		s.CfgMu.Lock()
 		s.replaceConfigSnapshot(reloaded)
@@ -125,15 +148,25 @@ func updateManagedGo2RTCConfig(
 		return publication{oldCfg: oldCfg, newCfg: reloaded, recreate: recreate}, nil
 	}()
 	if err != nil {
-		return config.Go2RTCConfig{}, err
+		return go2RTCConfigUpdateResult{}, err
 	}
+	result := go2RTCConfigUpdateResult{Config: published.newCfg.Go2RTC, Published: true}
 
 	runtimeCtx, cancel := context.WithTimeout(ctx, 45*time.Second)
 	defer cancel()
 	if err := applyGo2RTCRuntimeTransition(runtimeCtx, s, &published.oldCfg, published.newCfg, published.recreate, forceStart); err != nil {
-		return published.newCfg.Go2RTC, fmt.Errorf("configuration was saved but go2rtc reconciliation failed: %w", err)
+		// ReconfigureContainer may temporarily restore the old manager snapshot
+		// while removing the old sidecar. Always leave the manager on the
+		// published desired state and record lifecycle work for background retry.
+		s.Go2RTC.Configure(published.newCfg)
+		pendingStop := !published.newCfg.Go2RTC.Enabled
+		pendingStart := published.newCfg.Go2RTC.Enabled && !published.recreate && (published.newCfg.Go2RTC.AutoStart || forceStart)
+		s.Go2RTC.SetRuntimeTransitionPending(published.recreate, pendingStart, pendingStop)
+		result.ReconcileErr = fmt.Errorf("go2rtc reconciliation failed: %w", err)
+	} else {
+		s.Go2RTC.SetRuntimeTransitionPending(false, false, false)
 	}
-	return published.newCfg.Go2RTC, nil
+	return result, nil
 }
 
 func applyGo2RTCRuntimeTransition(ctx context.Context, s *Server, oldCfg, newCfg *config.Config, recreate, forceStart bool) error {

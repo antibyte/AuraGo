@@ -1,4 +1,13 @@
 {
+  "desktop.network_cameras.requirement_config_unavailable": "AuraGo 配置不可用。",
+  "desktop.network_cameras.requirement_docker_disabled": "请先启用 Docker 集成。",
+  "desktop.network_cameras.requirement_docker_read_only": "请关闭 Docker 只读模式，以便 AuraGo 管理边车。",
+  "desktop.network_cameras.requirement_docker_containers_denied": "无法读取 Docker 容器端点。",
+  "desktop.network_cameras.requirement_docker_images_denied": "无法读取 Docker 镜像端点。",
+  "desktop.network_cameras.requirement_docker_networks_denied": "无法读取 Docker 网络端点。",
+  "desktop.network_cameras.requirement_docker_post_denied": "Docker 不允许所需的容器启动请求。",
+  "desktop.network_cameras.requirement_docker_unreachable": "无法访问 Docker 端点。",
+  "desktop.network_cameras.saved_degraded": "已保存。摄像头服务尚未同步，将自动重试。",
   "desktop.app_network_cameras": "网络摄像头",
   "desktop.network_cameras.add_camera": "添加摄像头",
   "desktop.network_cameras.address_required": "请输入本地 ONVIF 地址。",

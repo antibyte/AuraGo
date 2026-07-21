@@ -2437,6 +2437,8 @@ AuraGo can run a pinned, hardened go2rtc Docker sidecar for camera streams. Came
 
 Proxy-based MSE/HLS/MP4/MJPEG viewing is the default. Direct LAN WebRTC must be enabled explicitly with a concrete private LAN IP because WebRTC media does not travel completely through an HTTP proxy. Automatic discovery also requires local broadcast capability; Docker bridge deployments use the app's manual local-IP or stream-URL fallback. See [go2rtc Integration](../../go2rtc.md).
 
+Camera changes are published safely to configuration and Vault first. If go2rtc is temporarily unreachable afterwards, the app reports the saved partial success and AuraGo reconciles the desired state automatically later. Before activation, AuraGo also checks the required Docker endpoints and shows missing permissions directly in the app. ONVIF setup tokens remain valid for retry after storage failures, and private SOAP connections never use an environment proxy.
+
 ## Testing Integrations
 
 ### Health Check Commands
