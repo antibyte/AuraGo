@@ -1888,6 +1888,7 @@
   "sysworld.kind.tool": "Herramienta",
   "sysworld.legend": "Leyenda",
   "sysworld.loading": "Entrando en el mundo del sistema…",
+  "sysworld.init_error": "El mundo 3D del sistema no pudo iniciarse. Consulta la consola del navegador para más detalles.",
   "sysworld.no_webgl": "Tu navegador no soporta WebGL, por lo que el mundo 3D del sistema no puede iniciarse.",
   "sysworld.panel.access_count": "Accesos",
   "sysworld.panel.category": "Categoría",

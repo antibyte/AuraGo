@@ -208,6 +208,7 @@ func TestDesktopSysWorldTranslations(t *testing.T) {
 		"sysworld.events.empty",
 		"sysworld.legend",
 		"sysworld.loading",
+		"sysworld.init_error",
 		"sysworld.no_webgl",
 		"sysworld.panel.access_count",
 		"sysworld.panel.category",

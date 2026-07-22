@@ -260,7 +260,7 @@
             inst.hud = ns.createHud(inst);
         } catch (err) {
             console.error('[SysWorld] module init failed:', err);
-            renderFallback(root, t);
+            renderFallback(root, t, 'sysworld.init_error');
             instances.set(windowId, { fallback: true, root, disposed: false });
             return;
         }
@@ -276,11 +276,11 @@
         watchVisibility(inst);
     }
 
-    function renderFallback(root, t) {
+    function renderFallback(root, t, messageKey) {
         root.innerHTML = '';
         const fallback = document.createElement('div');
         fallback.className = 'sw-fallback';
-        fallback.textContent = t('sysworld.no_webgl');
+        fallback.textContent = t(messageKey || 'sysworld.no_webgl');
         root.appendChild(fallback);
     }
 

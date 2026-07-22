@@ -1888,6 +1888,7 @@
   "sysworld.kind.tool": "Hulpmiddel",
   "sysworld.legend": "Legenda",
   "sysworld.loading": "De systeemwereld wordt betreden…",
+  "sysworld.init_error": "De 3D-systeemwereld kon niet starten. Zie de browserconsole voor details.",
   "sysworld.no_webgl": "Je browser ondersteunt geen WebGL, dus de 3D-systeemwereld kan niet starten.",
   "sysworld.panel.access_count": "Toegangen",
   "sysworld.panel.category": "Categorie",

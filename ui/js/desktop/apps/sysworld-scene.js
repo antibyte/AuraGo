@@ -154,7 +154,7 @@
                 const sinPhi = Math.sin(phi);
                 positions[i * 3] = r * sinPhi * Math.cos(theta);
                 positions[i * 3 + 1] = r * Math.cos(phi);
-                positions[i * 3 + 2] = r * sin(phi) * Math.sin(theta);
+                positions[i * 3 + 2] = r * sinPhi * Math.sin(theta);
             }
             const geom = new THREE.BufferGeometry();
             geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));

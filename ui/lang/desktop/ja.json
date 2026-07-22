@@ -1888,6 +1888,7 @@
   "sysworld.kind.tool": "ツール",
   "sysworld.legend": "凡例",
   "sysworld.loading": "システムワールドに入っています…",
+  "sysworld.init_error": "3Dシステムワールドを起動できませんでした。詳細はブラウザのコンソールを確認してください。",
   "sysworld.no_webgl": "お使いのブラウザはWebGLに対応していないため、3Dシステムワールドを起動できません。",
   "sysworld.panel.access_count": "アクセス数",
   "sysworld.panel.category": "カテゴリ",

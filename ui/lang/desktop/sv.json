@@ -1888,6 +1888,7 @@
   "sysworld.kind.tool": "Verktyg",
   "sysworld.legend": "Förklaring",
   "sysworld.loading": "Kliver in i systemvärlden…",
+  "sysworld.init_error": "3D-systemvärlden kunde inte startas. Se webbläsarens konsol för detaljer.",
   "sysworld.no_webgl": "Din webbläsare stöder inte WebGL, så 3D-systemvärlden kan inte starta.",
   "sysworld.panel.access_count": "Åtkomster",
   "sysworld.panel.category": "Kategori",

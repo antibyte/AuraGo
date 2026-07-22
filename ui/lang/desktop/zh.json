@@ -1888,6 +1888,7 @@
   "sysworld.kind.tool": "工具",
   "sysworld.legend": "图例",
   "sysworld.loading": "正在进入系统世界…",
+  "sysworld.init_error": "3D 系统世界无法启动。详情请查看浏览器控制台。",
   "sysworld.no_webgl": "您的浏览器不支持 WebGL，无法启动 3D 系统世界。",
   "sysworld.panel.access_count": "访问次数",
   "sysworld.panel.category": "类别",

@@ -1888,6 +1888,7 @@
   "sysworld.kind.tool": "Verktøy",
   "sysworld.legend": "Forklaring",
   "sysworld.loading": "Går inn i systemverdenen…",
+  "sysworld.init_error": "3D-systemverdenen kunne ikke startes. Se nettleserkonsollen for detaljer.",
   "sysworld.no_webgl": "Nettleseren din støtter ikke WebGL, så 3D-systemverdenen kan ikke starte.",
   "sysworld.panel.access_count": "Tilganger",
   "sysworld.panel.category": "Kategori",

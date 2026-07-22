@@ -1888,6 +1888,7 @@
   "sysworld.kind.tool": "Nástroj",
   "sysworld.legend": "Legenda",
   "sysworld.loading": "Vstup do světa systému…",
+  "sysworld.init_error": "3D systémový svět se nepodařilo spustit. Podrobnosti najdeš v konzoli prohlížeče.",
   "sysworld.no_webgl": "Váš prohlížeč nepodporuje WebGL, takže 3D svět systému nemůže být spuštěn.",
   "sysworld.panel.access_count": "Počet přístupů",
   "sysworld.panel.category": "Kategorie",
