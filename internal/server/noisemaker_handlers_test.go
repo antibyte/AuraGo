@@ -179,6 +179,51 @@ func TestNoisemakerGenerateDisabled(t *testing.T) {
 	}
 }
 
+func TestNoisemakerGenerateLyricsRequiredWithoutLLM(t *testing.T) {
+	cfg := noisemakerTestConfig(t)
+	cfg.MusicGeneration.Enabled = true
+	cfg.MusicGeneration.ProviderType = "minimax"
+	cfg.MusicGeneration.APIKey = "test-key"
+	s := &Server{Cfg: cfg, Logger: slog.Default()} // no LLMClient
+
+	req := httptest.NewRequest(http.MethodPost, "/api/desktop/noisemaker/generate", strings.NewReader(`{"prompt":"epic song","instrumental":false}`))
+	rec := httptest.NewRecorder()
+	handleNoisemakerGenerate(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status code = %d, want 400", rec.Code)
+	}
+	var payload map[string]interface{}
+	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if payload["code"] != "lyrics_required" {
+		t.Fatalf("code = %#v, want lyrics_required", payload["code"])
+	}
+}
+
+func TestNoisemakerGenerateInstrumentalSkipsAutoLyrics(t *testing.T) {
+	cfg := noisemakerTestConfig(t)
+	cfg.MusicGeneration.Enabled = true
+	cfg.MusicGeneration.ProviderType = "minimax"
+	cfg.MusicGeneration.APIKey = "test-key"
+	s := &Server{Cfg: cfg, Logger: slog.Default()}
+
+	// Instrumental tracks must not hit the lyrics_required gate; they proceed
+	// to the provider call (which then fails without a reachable API).
+	req := httptest.NewRequest(http.MethodPost, "/api/desktop/noisemaker/generate", strings.NewReader(`{"prompt":"epic song","instrumental":true}`))
+	rec := httptest.NewRecorder()
+	handleNoisemakerGenerate(s).ServeHTTP(rec, req)
+
+	var payload map[string]interface{}
+	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if payload["code"] == "lyrics_required" {
+		t.Fatalf("instrumental generation must not require lyrics")
+	}
+}
+
 func noisemakerSetupRegistry(t *testing.T, cfg *config.Config) *Server {
 	t.Helper()
 	db, err := tools.InitMediaRegistryDB(filepath.Join(cfg.Directories.DataDir, "media_registry.db"))

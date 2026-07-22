@@ -2041,5 +2041,6 @@
   "desktop.noisemaker_player_pause": "Pausa",
   "desktop.noisemaker_player_next": "Successivo",
   "desktop.noisemaker_player_seek": "Posizione",
-  "desktop.noisemaker_player_volume": "Volume"
+  "desktop.noisemaker_player_volume": "Volume",
+  "desktop.noisemaker_lyrics_required": "Il provider richiede un testo per i brani con voce. Lascialo scrivere all'IA (✨), inserisci il tuo o attiva «Strumentale»."
 }

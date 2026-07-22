@@ -34,10 +34,15 @@
     }
 
     function coverMarkup(esc, track, cls) {
+        // SVG spacer: only a replaced element with an intrinsic ratio contributes
+        // its width-derived height to grid track sizing (aspect-ratio does not).
+        const spacer = String(cls || '').indexOf('nm-card-cover') >= 0
+            ? '<svg class="nm-card-ratio" viewBox="0 0 1 1" aria-hidden="true"></svg>'
+            : '';
         if (track && track.cover_url) {
-            return '<div class="nm-cover ' + cls + '"><img src="' + esc(track.cover_url) + '" alt="" loading="lazy" draggable="false"></div>';
+            return '<div class="nm-cover ' + cls + '">' + spacer + '<img src="' + esc(track.cover_url) + '" alt="" loading="lazy" draggable="false"></div>';
         }
-        return '<div class="nm-cover nm-cover--empty ' + cls + '" aria-hidden="true">♪</div>';
+        return '<div class="nm-cover nm-cover--empty ' + cls + '" aria-hidden="true">' + spacer + '<span>♪</span></div>';
     }
 
     function create(deps) {
@@ -144,13 +149,14 @@
             }
             gridEl.innerHTML = list.map(track => {
                 const playing = track.id === currentId;
+                const title = track.title || track.prompt || t('desktop.noisemaker_result_untitled', {}, 'Untitled');
                 const tags = [];
                 if (track.instrumental) tags.push('<span class="nm-card-tag">' + esc(t('desktop.noisemaker_instrumental_tag', {}, 'Instrumental')) + '</span>');
                 return '<div class="nm-card' + (playing ? ' is-playing' : '') + '" role="listitem" data-track-id="' + esc(track.id) + '" tabindex="0">' +
                     coverMarkup(esc, track, 'nm-card-cover') +
                     '<button type="button" class="nm-card-play" aria-label="' + esc(t('desktop.noisemaker_player_play', {}, 'Play')) + '">' + (playing && isPlaying ? SVG.pause : SVG.play) + '</button>' +
                     '<div class="nm-card-body">' +
-                        '<div class="nm-card-title" title="' + esc(track.title) + '">' + esc(track.title) + '</div>' +
+                        '<div class="nm-card-title" title="' + esc(title) + '">' + esc(title) + '</div>' +
                         '<div class="nm-card-meta">' + esc(trackMeta(track)) + '</div>' +
                         (tags.length ? '<div>' + tags.join('') + '</div>' : '') +
                         '<div class="nm-card-actions">' +

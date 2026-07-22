@@ -2041,5 +2041,6 @@
   "desktop.noisemaker_player_pause": "Pause",
   "desktop.noisemaker_player_next": "Weiter",
   "desktop.noisemaker_player_seek": "Position",
-  "desktop.noisemaker_player_volume": "Lautstärke"
+  "desktop.noisemaker_player_volume": "Lautstärke",
+  "desktop.noisemaker_lyrics_required": "Der Musik-Provider benötigt einen Songtext für Songs mit Gesang. Lass ihn von der KI schreiben (✨), gib eigenen Text ein oder aktiviere „Instrumental“."
 }

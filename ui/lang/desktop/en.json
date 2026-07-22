@@ -2041,5 +2041,6 @@
   "desktop.noisemaker_player_pause": "Pause",
   "desktop.noisemaker_player_next": "Next",
   "desktop.noisemaker_player_seek": "Seek",
-  "desktop.noisemaker_player_volume": "Volume"
+  "desktop.noisemaker_player_volume": "Volume",
+  "desktop.noisemaker_lyrics_required": "The music provider requires lyrics for songs with vocals. Let the AI write them (✨), enter your own, or enable \"Instrumental\"."
 }

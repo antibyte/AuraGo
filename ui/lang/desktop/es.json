@@ -2041,5 +2041,6 @@
   "desktop.noisemaker_player_pause": "Pausa",
   "desktop.noisemaker_player_next": "Siguiente",
   "desktop.noisemaker_player_seek": "Posición",
-  "desktop.noisemaker_player_volume": "Volumen"
+  "desktop.noisemaker_player_volume": "Volumen",
+  "desktop.noisemaker_lyrics_required": "El proveedor requiere letra para canciones con voz. Deja que la IA la escriba (✨), introduce la tuya o activa «Instrumental»."
 }

@@ -2041,5 +2041,6 @@
   "desktop.noisemaker_player_pause": "一時停止",
   "desktop.noisemaker_player_next": "次へ",
   "desktop.noisemaker_player_seek": "シーク",
-  "desktop.noisemaker_player_volume": "音量"
+  "desktop.noisemaker_player_volume": "音量",
+  "desktop.noisemaker_lyrics_required": "ボーカル曲には歌詞が必要です。AIに書かせる(✨)か、自分で入力するか、「インストゥルメンタル」を有効にしてください。"
 }

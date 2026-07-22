@@ -2041,5 +2041,6 @@
   "desktop.noisemaker_player_pause": "Pauza",
   "desktop.noisemaker_player_next": "Další",
   "desktop.noisemaker_player_seek": "Pozice",
-  "desktop.noisemaker_player_volume": "Hlasitost"
+  "desktop.noisemaker_player_volume": "Hlasitost",
+  "desktop.noisemaker_lyrics_required": "Poskytovatel vyžaduje text pro skladby s vokály. Nechte ho napsat AI (✨), zadejte vlastní nebo zapněte „Instrumentální“."
 }

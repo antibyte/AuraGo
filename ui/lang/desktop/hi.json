@@ -2041,5 +2041,6 @@
   "desktop.noisemaker_player_pause": "पॉज़",
   "desktop.noisemaker_player_next": "अगला",
   "desktop.noisemaker_player_seek": "सीक",
-  "desktop.noisemaker_player_volume": "वॉल्यूम"
+  "desktop.noisemaker_player_volume": "वॉल्यूम",
+  "desktop.noisemaker_lyrics_required": "वोकल वाले गानों के लिए लिरिक्स ज़रूरी हैं। AI से लिखवाएं (✨), खुद डालें, या „इंस्ट्रूमेंटल“ चालू करें।"
 }

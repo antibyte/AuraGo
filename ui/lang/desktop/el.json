@@ -2041,5 +2041,6 @@
   "desktop.noisemaker_player_pause": "Παύση",
   "desktop.noisemaker_player_next": "Επόμενο",
   "desktop.noisemaker_player_seek": "Θέση",
-  "desktop.noisemaker_player_volume": "Ένταση"
+  "desktop.noisemaker_player_volume": "Ένταση",
+  "desktop.noisemaker_lyrics_required": "Ο πάροχος απαιτεί στίχους για τραγούδια με φωνητικά. Αφήστε το AI να τους γράψει (✨), εισάγετε δικούς σας ή ενεργοποιήστε «Ορχηστρικό»."
 }

@@ -48,6 +48,7 @@ type noisemakerGenerateRequest struct {
 	Instrumental bool   `json:"instrumental"`
 	Title        string `json:"title"`
 	Cover        bool   `json:"cover"`
+	Lang         string `json:"lang"`
 }
 
 // handleNoisemakerState returns GET /api/desktop/noisemaker/state — capabilities
@@ -126,15 +127,7 @@ func handleNoisemakerEnhance(s *Server) http.HandlerFunc {
 		ctx, cancel := context.WithTimeout(r.Context(), noisemakerEnhanceTimeout)
 		defer cancel()
 
-		resp, err := s.LLMClient.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
-			Model: model,
-			Messages: []openai.ChatCompletionMessage{
-				{Role: openai.ChatMessageRoleSystem, Content: systemPrompt},
-				{Role: openai.ChatMessageRoleUser, Content: userPrompt},
-			},
-			Temperature: 0.8,
-			MaxTokens:   maxTokens,
-		})
+		text, err := noisemakerRunEnhance(ctx, s.LLMClient, model, systemPrompt, userPrompt, maxTokens)
 		if err != nil {
 			if s.Logger != nil && !llm.IsContextError(err) {
 				s.Logger.Warn("Noisemaker enhance failed", "kind", body.Kind, "error", err)
@@ -142,17 +135,34 @@ func handleNoisemakerEnhance(s *Server) http.HandlerFunc {
 			jsonError(w, "AI enhancement failed", http.StatusBadGateway)
 			return
 		}
-		text := ""
-		if len(resp.Choices) > 0 {
-			text = strings.TrimSpace(resp.Choices[0].Message.Content)
-		}
-		if text == "" {
-			jsonError(w, "AI returned an empty result", http.StatusBadGateway)
-			return
-		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok", "text": text})
 	}
+}
+
+// noisemakerRunEnhance executes the one-shot LLM call shared by the enhance
+// endpoint and the automatic lyrics writer in the generate flow.
+func noisemakerRunEnhance(ctx context.Context, client llm.ChatClient, model, systemPrompt, userPrompt string, maxTokens int) (string, error) {
+	resp, err := client.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
+		Model: model,
+		Messages: []openai.ChatCompletionMessage{
+			{Role: openai.ChatMessageRoleSystem, Content: systemPrompt},
+			{Role: openai.ChatMessageRoleUser, Content: userPrompt},
+		},
+		Temperature: 0.8,
+		MaxTokens:   maxTokens,
+	})
+	if err != nil {
+		return "", err
+	}
+	text := ""
+	if len(resp.Choices) > 0 {
+		text = strings.TrimSpace(resp.Choices[0].Message.Content)
+	}
+	if text == "" {
+		return "", fmt.Errorf("llm returned an empty result")
+	}
+	return text, nil
 }
 
 // noisemakerEnhancePrompts builds system/user prompts per enhancement kind.
@@ -271,12 +281,49 @@ func handleNoisemakerGenerate(s *Server) http.HandlerFunc {
 			}
 		}
 
+		// MiniMax requires lyrics for non-instrumental songs (API error 2013).
+		// Suno-style: write them automatically with the main LLM when missing.
+		lyrics := body.Lyrics
+		autoLyrics := false
+		providerType := strings.ToLower(strings.TrimSpace(cfg.MusicGeneration.ProviderType))
+		if !body.Instrumental && lyrics == "" && providerType == "minimax" {
+			if s.LLMClient == nil {
+				w.WriteHeader(http.StatusBadRequest)
+				_ = json.NewEncoder(w).Encode(map[string]string{"status": "error", "code": "lyrics_required", "message": "The music provider requires lyrics for songs with vocals. Add lyrics or enable instrumental."})
+				return
+			}
+			model := ""
+			s.CfgMu.RLock()
+			model = s.Cfg.LLM.Model
+			s.CfgMu.RUnlock()
+			sys, usr, maxTokens, perr := noisemakerEnhancePrompts(noisemakerEnhanceRequest{
+				Kind:    "lyrics",
+				Context: strings.TrimSpace(body.Prompt + "\n" + body.Style),
+				Lang:    body.Lang,
+			})
+			if perr == nil {
+				llmCtx, cancel := context.WithTimeout(r.Context(), noisemakerEnhanceTimeout)
+				generated, lerr := noisemakerRunEnhance(llmCtx, s.LLMClient, model, sys, usr, maxTokens)
+				cancel()
+				if lerr != nil {
+					if s.Logger != nil && !llm.IsContextError(lerr) {
+						s.Logger.Warn("Noisemaker auto-lyrics failed", "error", lerr)
+					}
+					w.WriteHeader(http.StatusBadGateway)
+					_ = json.NewEncoder(w).Encode(map[string]string{"status": "error", "code": "lyrics_required", "message": "Could not write lyrics automatically. Add lyrics yourself or enable instrumental."})
+					return
+				}
+				lyrics = limitNoisemakerText(generated, noisemakerMaxLyricsLength)
+				autoLyrics = true
+			}
+		}
+
 		if s.Logger != nil {
-			s.Logger.Info("Noisemaker generation requested", "prompt_len", len(composed), "instrumental", body.Instrumental, "cover", body.Cover)
+			s.Logger.Info("Noisemaker generation requested", "prompt_len", len(composed), "instrumental", body.Instrumental, "cover", body.Cover, "auto_lyrics", autoLyrics)
 		}
 		result := tools.GenerateMusicResult(r.Context(), cfg, s.MediaRegistryDB, s.Logger, tools.MusicGenParams{
 			Prompt:       composed,
-			Lyrics:       body.Lyrics,
+			Lyrics:       lyrics,
 			Instrumental: body.Instrumental,
 			Title:        body.Title,
 		})
@@ -315,6 +362,8 @@ func handleNoisemakerGenerate(s *Server) http.HandlerFunc {
 			"media_id":      result.MediaID,
 			"cost_estimate": result.CostEstimate,
 			"daily_used":    tools.MusicCounterGet(),
+			"lyrics":        lyrics,
+			"auto_lyrics":   autoLyrics,
 			"cover_url":     coverURL,
 			"cover_error":   coverError,
 		})

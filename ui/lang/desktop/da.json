@@ -2041,5 +2041,6 @@
   "desktop.noisemaker_player_pause": "Pause",
   "desktop.noisemaker_player_next": "Næste",
   "desktop.noisemaker_player_seek": "Spol",
-  "desktop.noisemaker_player_volume": "Lydstyrke"
+  "desktop.noisemaker_player_volume": "Lydstyrke",
+  "desktop.noisemaker_lyrics_required": "Udbyderen kræver en sangtekst til sange med vokal. Lad AI skrive den (✨), indtast din egen eller slå „Instrumental“ til."
 }

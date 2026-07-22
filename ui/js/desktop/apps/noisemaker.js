@@ -188,6 +188,10 @@
         const meta = [];
         if (result.duration_ms) meta.push(window.NoisemakerLibrary.formatDuration(result.duration_ms));
         if (result.provider) meta.push(result.provider);
+        const lyricsBlock = result.lyrics
+            ? '<details class="nm-collapsible nm-result-lyrics"><summary>' + esc(text(ctx, 'lyrics_label', {}, 'Lyrics')) + (result.auto_lyrics ? ' ✨' : '') + '</summary>' +
+              '<div class="nm-collapsible-body"><pre class="nm-lyrics-text">' + esc(result.lyrics) + '</pre></div></details>'
+            : '';
         return '<div class="nm-result">' +
             (result.cover_url
                 ? '<div class="nm-cover"><img src="' + esc(result.cover_url) + '" alt="" draggable="false"></div>'
@@ -201,6 +205,7 @@
                     '<a class="nm-btn" href="' + esc(result.web_path) + '" download="' + esc(result.filename || '') + '">' + esc(text(ctx, 'track_download', {}, 'Download')) + '</a>' +
                     '<button type="button" class="nm-btn" data-nm-result-new>' + esc(text(ctx, 'result_new', {}, 'New song')) + '</button>' +
                 '</div>' +
+                lyricsBlock +
             '</div>' +
         '</div>';
     }
@@ -432,7 +437,8 @@
             lyrics: state.form.lyrics.trim(),
             title: state.form.title.trim(),
             instrumental: state.form.instrumental,
-            cover: state.form.cover && state.caps && state.caps.covers_enabled === true
+            cover: state.form.cover && state.caps && state.caps.covers_enabled === true,
+            lang: uiLang()
         };
         if (!params.prompt && !params.style) return;
         state.generation.active = true;
@@ -453,7 +459,11 @@
             refreshTracks(state);
         } catch (err) {
             if (state.disposed) return;
-            state.generation.error = (err && err.message) || text(state.ctx, 'error_unknown', {}, 'Unknown error.');
+            let message = (err && err.message) || text(state.ctx, 'error_unknown', {}, 'Unknown error.');
+            if (err && err.body && err.body.code === 'lyrics_required') {
+                message = text(state.ctx, 'lyrics_required', {}, message);
+            }
+            state.generation.error = message;
         } finally {
             state.generation.active = false;
             stopElapsedTimer(state);

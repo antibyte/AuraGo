@@ -2041,5 +2041,6 @@
   "desktop.noisemaker_player_pause": "暂停",
   "desktop.noisemaker_player_next": "下一首",
   "desktop.noisemaker_player_seek": "进度",
-  "desktop.noisemaker_player_volume": "音量"
+  "desktop.noisemaker_player_volume": "音量",
+  "desktop.noisemaker_lyrics_required": "带人声的歌曲需要歌词。可让 AI 撰写（✨）、自行输入，或启用“纯音乐”。"
 }
