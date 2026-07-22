@@ -24,7 +24,7 @@
     // `arcs` > 0 only in ultra: pooled electric arcs from the core to the
     // integration rings (the sensational tier-exclusive effect).
     const QUALITY = {
-        ultra: { comets: 72, bursts: 24, rings: 12, particles: 1.6, arcs: 8 },
+        ultra: { comets: 72, bursts: 24, rings: 12, particles: 1.6, arcs: 4 },
         high: { comets: 48, bursts: 16, rings: 12, particles: 1, arcs: 0 },
         medium: { comets: 28, bursts: 10, rings: 10, particles: 0.7, arcs: 0 },
         low: { comets: 14, bursts: 6, rings: 8, particles: 0.45, arcs: 0 }
@@ -824,12 +824,11 @@
             const len = Math.max(0.001, Math.sqrt(a.tx * a.tx + a.ty * a.ty + a.tz * a.tz));
             a.px = -a.tz / len; a.py = 0; a.pz = a.tx / len;
             a.qx = (a.ty * a.pz - a.tz * a.py) / 1; a.qy = (a.tz * a.px - a.tx * a.pz) / 1; a.qz = (a.tx * a.py - a.ty * a.px) / 1;
-            // Lightning cadence: long random idle pause, then a very short
-            // violent strike. Keeps the effect rare instead of constant rain.
+            // Lightning cadence: rare strikes with a long, soft fade-out.
             a.state = 'idle';
             a.age = 0;
-            a.idle = initial ? (1 + Math.random() * 4) : (2.5 + Math.random() * 5.5);
-            a.life = 0.1 + Math.random() * 0.08;
+            a.idle = initial ? (2.5 + Math.random() * 6) : (5 + Math.random() * 6);
+            a.life = 0.6 + Math.random() * 0.4;
             a.amp = 1.6 + Math.random() * 1.4;
             a.active = true;
             a.line.visible = false;
@@ -875,8 +874,10 @@
                     continue;
                 }
                 jitterArc(a, k);
-                // Fast hot flash decaying into a dim afterglow.
-                a.mat.opacity = 0.95 * (1 - k) * (0.65 + 0.35 * Math.sin(a.age * 85 + i * 3));
+                // Violent attack, then a long smooth fade-out glow.
+                const attack = k < 0.12 ? k / 0.12 : 1;
+                const decay = k < 0.12 ? 1 : Math.pow(1 - (k - 0.12) / 0.88, 1.7);
+                a.mat.opacity = 0.95 * attack * decay * (0.72 + 0.28 * Math.sin(a.age * 55 + i * 3));
             }
         }
 

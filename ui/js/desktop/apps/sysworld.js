@@ -246,6 +246,11 @@
             },
             onQualityChange: () => {
                 applyQuality(inst);
+            },
+            // Overview flight must release the camera follow, otherwise the
+            // tracked object pulls the camera straight back after resetView.
+            onOverview: () => {
+                clearFollow(inst);
             }
         };
 

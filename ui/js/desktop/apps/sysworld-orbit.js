@@ -222,6 +222,13 @@
             ring.sinTilt = Math.sin(ring.tilt);
             ring.cosYaw = Math.cos(ring.yaw);
             ring.sinYaw = Math.sin(ring.yaw);
+            // Organic irregularity: deterministic three-frequency radial
+            // wobble per ring, shared by the guide loop and the satellites,
+            // so orbits read as natural paths instead of perfect circles.
+            ring.w1 = index * 1.7 + 0.4;
+            ring.w2 = index * 2.3 + 1.9;
+            ring.w3 = index * 3.1 + 3.7;
+            ring.wobbleAmp = 0.045 + index * 0.012;
             return ring;
         });
 
@@ -229,8 +236,12 @@
         // transform baked into the ring guide loops below: yaw around Y,
         // then tilt around X. Writes into `out` (x/y/z components only).
         function ringPoint(ring, angle, out) {
-            const cx = Math.cos(angle) * ring.radius;
-            const cz = Math.sin(angle) * ring.radius;
+            const wob = 1 + ring.wobbleAmp * (
+                Math.sin(angle * 3 + ring.w1) * 0.5 +
+                Math.sin(angle * 7 + ring.w2) * 0.3 +
+                Math.sin(angle * 13 + ring.w3) * 0.2);
+            const cx = Math.cos(angle) * ring.radius * wob;
+            const cz = Math.sin(angle) * ring.radius * wob;
             // Yaw around the Y axis.
             const x1 = cx * ring.cosYaw + cz * ring.sinYaw;
             const z1 = -cx * ring.sinYaw + cz * ring.cosYaw;
@@ -267,6 +278,40 @@
             loop.name = 'sysworld-orbit-ring-' + ring.index;
             group.add(loop);
             ringLoops.push(loop);
+        });
+
+        // Light mist hugging each ring: soft scattered points along the
+        // wobbled orbit path, slowly drifting (built once, cheap per frame).
+        const fogRng = (function () { let s = 1337; return function () { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; })();
+        const fogClouds = [];
+        rings.forEach(function (ring) {
+            const count = 240;
+            const positions = new Float32Array(count * 3);
+            for (let i = 0; i < count; i++) {
+                const angle = fogRng() * TWO_PI;
+                ringPoint(ring, angle, tmpPos);
+                const spread = 2.4 + fogRng() * 3.4;
+                positions[i * 3] = tmpPos.x + (fogRng() * 2 - 1) * spread;
+                positions[i * 3 + 1] = tmpPos.y + (fogRng() * 2 - 1) * spread * 0.55;
+                positions[i * 3 + 2] = tmpPos.z + (fogRng() * 2 - 1) * spread;
+            }
+            const geo = new THREE.BufferGeometry();
+            geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            const mat = new THREE.PointsMaterial({
+                size: 2.6,
+                map: glowTexture(),
+                color: 0x86aede,
+                transparent: true,
+                opacity: 0.11,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false,
+                sizeAttenuation: true
+            });
+            const cloud = new THREE.Points(geo, mat);
+            cloud.frustumCulled = false;
+            cloud.name = 'sysworld-orbit-fog-' + ring.index;
+            group.add(cloud);
+            fogClouds.push({ cloud: cloud, mat: mat, geo: geo, ring: ring });
         });
 
         // Shared geometries for every satellite (disposed once, with the
@@ -630,6 +675,12 @@
                     sat.label.visible = op > 0.01;
                 }
             });
+            // Mist drifts slowly around each ring and gently breathes.
+            for (let i = 0; i < fogClouds.length; i++) {
+                const f = fogClouds[i];
+                f.cloud.rotation.y += dt * 0.014 * (i % 2 ? -1 : 1);
+                f.mat.opacity = 0.09 + 0.035 * Math.sin(elapsed * 0.4 + i * 2.1);
+            }
         }
 
         function dispose() {
@@ -644,6 +695,12 @@
                 disposeMaterialDeep(loop.material, new Set());
             });
             ringLoops.length = 0;
+            fogClouds.forEach(function (f) {
+                group.remove(f.cloud);
+                f.geo.dispose();
+                f.mat.dispose(); // material only — the glow texture is shared
+            });
+            fogClouds.length = 0;
             Object.keys(categoryGeos).forEach(function (key) {
                 categoryGeos[key].dispose();
             });
