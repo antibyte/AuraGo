@@ -171,6 +171,18 @@ registration lives in `internal/desktop/types.go`.
   burst/ring effects come from capped recycled pools, no `new THREE.*`
   allocations inside per-frame update paths, and every module's `dispose()`
   frees geometries/materials/textures plus listeners, timers, and SSE handlers.
+- System World shared fx contracts: `fx.textSprite(text, hex, {opacity, scale})`
+  returns a cached-canvas label sprite (never dispose its `.map` texture);
+  `fx.selectBeacon/clearBeacon` owns the selection halo (rings, glow, light
+  pillar, orbiter sparks); `fx.hoverRing(mesh|null, radius, hex)` is the single
+  pooled hover ring. Object labels use textSprite with distance-based opacity
+  fading in the owning module's update loop.
+- System World selection UX: the entry pins `inst.focused = {mesh, ud, radius}`
+  and the HUD `sw-sel-label` chip follows it via per-frame camera projection
+  (`positionSelLabel`); `graph.highlightNeighbors(id|null)` boosts KG
+  neighborhoods on hover; legend zone items emit `onZoneHover`/`onZoneFocus`
+  (pulse + camera flight via `zoneAnchor`); arrow keys cycle pickables,
+  O/G/E mirror the HUD buttons, idle >45s enables OrbitControls autoRotate.
 
 ## Work Guidance
 
@@ -334,11 +346,15 @@ registration lives in `internal/desktop/types.go`.
   `render(container, windowId, context)` / `dispose(windowId)`, data polling
   (dashboard overview/memory/activity, missions, tool-stats, containers,
   daemons, KG nodes/edges, personality, budget), `AuraSSE` subscriptions,
-  RAF loop, pointer interaction (hover tooltip, click fly-to + info panel),
-  WebGL fallback. Exposes `window.SysWorldApp`. No child DOX file needed.
-- `sysworld-effects.js` - `NS.PALETTE`, cached glow textures, pooled comets/
-  bursts/pulse rings, drone trails, mini tween runner (`createFx`). No child
-  DOX file needed.
+  RAF loop, pointer interaction (hover tooltip + hover ring, click fly-to +
+  info panel, dblclick empty resets view), selection label projection
+  (`inst.focused` + `updateSelLabel`), zone anchors (`zoneAnchor`), arrow-key
+  cycling (`cycleFocus`), idle autoRotate, WebGL fallback. Exposes
+  `window.SysWorldApp`. No child DOX file needed.
+- `sysworld-effects.js` - `NS.PALETTE`, cached glow textures, `textSprite`
+  label factory (cached canvas textures), pooled comets/bursts/pulse rings,
+  drone trails, selection beacon (rings + light pillar + orbiter sparks),
+  pooled hover ring, mini tween runner (`createFx`). No child DOX file needed.
 - `sysworld-scene.js` - `NS.LAYOUT`, renderer/scene/camera/OrbitControls,
   starfield layers, grid floor, `flyTo`/`resetView`/`introFlight`, raycast
   helper, per-frame resize check (`createStage`). No child DOX file needed.
@@ -346,17 +362,20 @@ registration lives in `internal/desktop/types.go`.
   lattice, gyro rings, corona, memory nebula (vectordb/core facts/journal),
   mood/metrics/busy reactivity (`createCore`). No child DOX file needed.
 - `sysworld-orbit.js` - Integration satellites on 3 inclined rings with
-  category clustering, enable beams, diff-driven updates (`createOrbit`).
-  No child DOX file needed.
+  category clustering, per-category geometry identities, inner core +
+  wireframe shells, distance-faded textSprite labels, spawn-in stagger,
+  enable beams, diff-driven updates (`createOrbit`). No child DOX file needed.
 - `sysworld-graph.js` - Knowledge-graph constellation: one-shot 3D force
-  layout, node/edge meshes, expand-on-click, visibility toggle
-  (`createGraph`). No child DOX file needed.
+  layout, core+shell node meshes, protected-node gold rings, synapse comet
+  pulses, `highlightNeighbors` hover boost, expand-on-click, visibility
+  toggle (`createGraph`). No child DOX file needed.
 - `sysworld-fleet.js` - Mission ring, cron dial, co-agent drones with trails,
   tool belt with `flashTool`, container/daemon infrastructure field
   (`createFleet`). No child DOX file needed.
-- `sysworld-hud.js` - HTML overlay: stats card, action buttons, legend, live
-  event feed, tooltip, slide-in info panel (`createHud`). No child DOX file
-  needed.
+- `sysworld-hud.js` - HTML overlay: stats card, action buttons, interactive
+  legend (zone hover/click), live event feed, tooltip, selection label chip
+  (`sw-sel-label`), slide-in info panel with badges/tone pills/sections/
+  bars/relations (`createHud`). No child DOX file needed.
 - `openscad-editor.js` - CodeMirror editor integration for SCAD source with
   syntax highlighting (using javascript()), error line highlighting, and
   fallback textarea. Exposes `window.OpenSCADEditor { create, parse }`. The

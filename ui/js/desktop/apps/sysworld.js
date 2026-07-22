@@ -56,6 +56,24 @@
         return 'dim';
     }
 
+    // Relative time via sysworld.time.in / sysworld.time.ago ("in 3h" / "3h ago").
+    // Returns null for missing/unparseable timestamps so callers can fall back.
+    function relTime(inst, ts) {
+        if (ts == null || ts === '') return null;
+        const d = new Date(ts);
+        if (isNaN(d.getTime())) return null;
+        const diff = d.getTime() - Date.now();
+        const abs = Math.abs(diff);
+        let span;
+        if (abs < 90000) span = Math.max(1, Math.round(abs / 1000)) + 's';
+        else if (abs < 3600000) span = Math.round(abs / 60000) + 'm';
+        else if (abs < 86400000) span = Math.round(abs / 3600000) + 'h';
+        else span = Math.round(abs / 86400000) + 'd';
+        const key = diff >= 0 ? 'sysworld.time.in' : 'sysworld.time.ago';
+        const phrase = inst.L(key);
+        return phrase.indexOf('{{time}}') >= 0 ? phrase.replace('{{time}}', span) : span;
+    }
+
     const NS = () => window.SysWorld || {};
 
     // ── Small helpers ────────────────────────────────────────────────────────
@@ -188,7 +206,9 @@
             inView: true,
             L: t,
             apiGet: null,
-            focusObject: null
+            focusObject: null,
+            focused: null,
+            lastActivity: Date.now()
         };
         instances.set(windowId, inst);
         inst.apiGet = path => apiGet(inst, path);
@@ -198,6 +218,29 @@
             onPanelClose: () => {
                 inst.panelKind = null;
                 inst.panelToken++;
+            },
+            onZoneHover: zone => {
+                if (!zone || !inst.fx || typeof inst.fx.pulseRing !== 'function') return;
+                const anchor = zoneAnchor(inst, zone);
+                if (!anchor) return;
+                const THREE = inst.THREE;
+                const P = NS().PALETTE || {};
+                const hex = P[anchor.palette] != null ? P[anchor.palette] : (P.core || 0x59d4ff);
+                try {
+                    inst.fx.pulseRing(new THREE.Vector3(anchor.tgt[0], anchor.tgt[1], anchor.tgt[2]), hex, 16);
+                } catch (_) {}
+            },
+            onZoneFocus: zone => {
+                const anchor = zoneAnchor(inst, zone);
+                if (!anchor || !inst.stage || typeof inst.stage.flyTo !== 'function') return;
+                const THREE = inst.THREE;
+                try {
+                    inst.stage.flyTo(
+                        new THREE.Vector3(anchor.cam[0], anchor.cam[1], anchor.cam[2]),
+                        new THREE.Vector3(anchor.tgt[0], anchor.tgt[1], anchor.tgt[2]),
+                        1.8
+                    );
+                } catch (_) {}
             }
         };
 
@@ -501,6 +544,34 @@
         return out;
     }
 
+    // Camera anchor + pulse palette per legend zone (hover pulses, click flies).
+    function zoneAnchor(inst, zone) {
+        const L = NS().LAYOUT || {};
+        switch (zone) {
+            case 'core': return { cam: [0, 22, 52], tgt: [0, 2, 0], palette: 'core' };
+            case 'integrations': return { cam: [0, 34, 96], tgt: [0, 2, 0], palette: 'communication' };
+            case 'graph': {
+                const c = L.graphCenter || { x: 0, y: 34, z: -120 };
+                return { cam: [c.x, c.y + 30, c.z + 85], tgt: [c.x, c.y, c.z], palette: 'other' };
+            }
+            case 'memory': return { cam: [0, 14, 34], tgt: [0, 3, 0], palette: 'memory' };
+            case 'missions': {
+                const r = L.missionRingRadius || 84;
+                return { cam: [0, 26, r + 70], tgt: [0, 0, r * 0.8], palette: 'mission' };
+            }
+            case 'agents': return { cam: [26, 20, 48], tgt: [0, 5, 0], palette: 'agent' };
+            case 'tools': {
+                const r = L.beltRadius || 130;
+                return { cam: [0, 55, r + 90], tgt: [0, 0, r * 0.75], palette: 'tool' };
+            }
+            case 'infra': {
+                const y = L.infraY != null ? L.infraY : -34;
+                return { cam: [0, y + 26, 95], tgt: [0, y, 0], palette: 'infrastructure' };
+            }
+            default: return null;
+        }
+    }
+
     // Ambient shooting stars: slow distant comets keep the far field alive.
     function fireAmbientComet(inst) {
         if (!inst.effectsEnabled || !inst.fx || typeof inst.fx.comet !== 'function') return;
@@ -663,8 +734,14 @@
             inst.hovered = null;
         }
         if (mesh && mesh.scale) {
+            const radius = objectRadius(inst, mesh);
             inst.hovered = { mesh, scale: mesh.scale.clone() };
             try { mesh.scale.multiplyScalar(HOVER_SCALE); } catch (_) {}
+            try {
+                if (inst.fx && inst.fx.hoverRing) inst.fx.hoverRing(mesh, radius, accentHexFor(mesh.userData || {}));
+            } catch (_) {}
+        } else {
+            try { if (inst.fx && inst.fx.hoverRing) inst.fx.hoverRing(null); } catch (_) {}
         }
     }
 
@@ -692,6 +769,18 @@
         if (inst.disposed || inst.paused) return;
         const mesh = pick(inst, clientX, clientY);
         setHovered(inst, mesh);
+        // KG neighborhood highlight (deduped — only fires on target change).
+        const hlId = mesh && mesh.userData && mesh.userData.kind === 'kgnode'
+            ? String(mesh.userData.id)
+            : null;
+        if (hlId !== inst._kgHover) {
+            inst._kgHover = hlId;
+            try {
+                if (inst.graph && typeof inst.graph.highlightNeighbors === 'function') {
+                    inst.graph.highlightNeighbors(hlId);
+                }
+            } catch (_) {}
+        }
         if (!inst.hud) return;
         if (mesh && mesh.userData && mesh.userData.kind) {
             try { inst.hud.showTooltip(tooltipHtml(inst, mesh.userData), clientX, clientY); } catch (_) {}
@@ -701,10 +790,36 @@
         inst.canvasHost.style.cursor = mesh ? 'pointer' : '';
     }
 
+    // Clicks a HUD action button by action name (used by keyboard shortcuts).
+    function hudAction(inst, action) {
+        try {
+            const btn = inst.hud && inst.hud.el
+                ? inst.hud.el.querySelector('[data-sw-action="' + action + '"]')
+                : null;
+            if (btn) btn.click();
+        } catch (_) {}
+    }
+
+    // Arrow-key cycling through every pickable in a stable (kind, id) order.
+    function cycleFocus(inst, dir) {
+        const list = collectPickables(inst).filter(m => m && m.parent);
+        if (!list.length) return;
+        list.sort((a, b) => {
+            const ka = ((a.userData && a.userData.kind) || '') + ':' + ((a.userData && a.userData.id) || '');
+            const kb = ((b.userData && b.userData.kind) || '') + ':' + ((b.userData && b.userData.id) || '');
+            return ka < kb ? -1 : (ka > kb ? 1 : 0);
+        });
+        let ix = inst.focused && inst.focused.mesh ? list.indexOf(inst.focused.mesh) : -1;
+        ix = (ix + dir + list.length) % list.length;
+        focusObject(inst, list[ix]);
+    }
+
     function clearFocus(inst) {
         inst.panelKind = null;
         inst.panelToken++;
+        inst.focused = null;
         try { if (inst.fx && inst.fx.clearBeacon) inst.fx.clearBeacon(); } catch (_) {}
+        try { if (inst.hud && inst.hud.hideSelLabel) inst.hud.hideSelLabel(); } catch (_) {}
         try { if (inst.hud) inst.hud.hidePanel(); } catch (_) {}
     }
 
@@ -716,18 +831,21 @@
         let downY = 0;
 
         const onMove = ev => {
+            inst.lastActivity = Date.now();
             const now = Date.now();
             if (now - lastHover < HOVER_THROTTLE_MS) return;
             lastHover = now;
             handleHover(inst, ev.clientX, ev.clientY);
         };
         const onDown = ev => {
+            inst.lastActivity = Date.now();
             down = true;
             downX = ev.clientX;
             downY = ev.clientY;
         };
         // Click = pointerup near pointerdown (<5px travel); anything else was a drag.
         const onUp = ev => {
+            inst.lastActivity = Date.now();
             if (!down) return;
             down = false;
             if (Math.abs(ev.clientX - downX) > CLICK_SLOP_PX || Math.abs(ev.clientY - downY) > CLICK_SLOP_PX) return;
@@ -738,6 +856,15 @@
                 clearFocus(inst);
             }
         };
+        // Double-click on empty space resets the camera to the overview.
+        const onDbl = ev => {
+            inst.lastActivity = Date.now();
+            const mesh = pick(inst, ev.clientX, ev.clientY);
+            if (!mesh) {
+                clearFocus(inst);
+                try { if (inst.stage && inst.stage.resetView) inst.stage.resetView(); } catch (_) {}
+            }
+        };
         const onLeave = () => {
             down = false;
             setHovered(inst, null);
@@ -745,10 +872,26 @@
             host.style.cursor = '';
         };
         const onKey = ev => {
-            if (ev.key !== 'Escape') return;
-            if (inst.hud && inst.hud.isPanelOpen && inst.hud.isPanelOpen()) {
-                clearFocus(inst);
-                ev.stopPropagation();
+            const tag = ev.target && ev.target.tagName;
+            if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+            if (ev.key === 'Escape') {
+                if (inst.hud && inst.hud.isPanelOpen && inst.hud.isPanelOpen()) {
+                    clearFocus(inst);
+                    ev.stopPropagation();
+                }
+                return;
+            }
+            if (inst.disposed || inst.paused) return;
+            // Only when this window plausibly owns the keyboard focus.
+            const ae = document.activeElement;
+            if (ae && ae !== document.body && !inst.root.contains(ae)) return;
+            inst.lastActivity = Date.now();
+            if (ev.key === 'ArrowRight') { cycleFocus(inst, 1); ev.preventDefault(); } else if (ev.key === 'ArrowLeft') { cycleFocus(inst, -1); ev.preventDefault(); } else if (ev.key === 'o' || ev.key === 'O') {
+                try { if (inst.stage && inst.stage.resetView) inst.stage.resetView(); } catch (_) {}
+            } else if (ev.key === 'g' || ev.key === 'G') {
+                hudAction(inst, 'graph');
+            } else if (ev.key === 'e' || ev.key === 'E') {
+                hudAction(inst, 'effects');
             }
         };
 
@@ -756,17 +899,43 @@
         host.addEventListener('pointerdown', onDown);
         host.addEventListener('pointerup', onUp);
         host.addEventListener('pointerleave', onLeave);
+        host.addEventListener('dblclick', onDbl);
         document.addEventListener('keydown', onKey, true);
         inst.disposers.push(() => {
             host.removeEventListener('pointermove', onMove);
             host.removeEventListener('pointerdown', onDown);
             host.removeEventListener('pointerup', onUp);
             host.removeEventListener('pointerleave', onLeave);
+            host.removeEventListener('dblclick', onDbl);
             document.removeEventListener('keydown', onKey, true);
         });
     }
 
     // ── Focus flight + info panel ────────────────────────────────────────────
+
+    // Shared world-radius estimate (bounding sphere × world scale), used by
+    // the focus flight, the hover ring and the selection beacon. The scratch
+    // vector is allocated once per window, never per call.
+    const radiusScratch = { v: null };
+
+    function objectRadius(inst, mesh) {
+        let radius = 1;
+        try {
+            const geometry = mesh.geometry;
+            if (geometry) {
+                if (!geometry.boundingSphere && geometry.computeBoundingSphere) {
+                    try { geometry.computeBoundingSphere(); } catch (_) {}
+                }
+                if (geometry.boundingSphere && isFinite(geometry.boundingSphere.radius)) {
+                    if (!radiusScratch.v) radiusScratch.v = new inst.THREE.Vector3();
+                    mesh.getWorldScale(radiusScratch.v);
+                    radius = Math.max(0.5, geometry.boundingSphere.radius *
+                        Math.max(radiusScratch.v.x, radiusScratch.v.y, radiusScratch.v.z));
+                }
+            }
+        } catch (_) {}
+        return radius;
+    }
 
     function focusObject(inst, mesh) {
         if (!mesh || inst.disposed) return;
@@ -774,18 +943,7 @@
         try {
             const target = new THREE.Vector3();
             mesh.getWorldPosition(target);
-            let radius = 1;
-            const geometry = mesh.geometry;
-            if (geometry) {
-                if (!geometry.boundingSphere && geometry.computeBoundingSphere) {
-                    try { geometry.computeBoundingSphere(); } catch (_) {}
-                }
-                if (geometry.boundingSphere && isFinite(geometry.boundingSphere.radius)) {
-                    const scale = new THREE.Vector3();
-                    mesh.getWorldScale(scale);
-                    radius = Math.max(0.5, geometry.boundingSphere.radius * Math.max(scale.x, scale.y, scale.z));
-                }
-            }
+            const radius = objectRadius(inst, mesh);
             // Approach from the current camera side: 2.5× object radius + 18 units out.
             const dist = radius * 2.5 + 18;
             const dir = new THREE.Vector3();
@@ -797,6 +955,23 @@
             // Halo locks onto the selection and follows it while it drifts.
             if (inst.fx && typeof inst.fx.selectBeacon === 'function') {
                 inst.fx.selectBeacon(mesh, accentHexFor(mesh.userData || {}), radius);
+            }
+            // Persistent floating label (positioned per frame in startLoop).
+            inst.focused = { mesh: mesh, ud: mesh.userData || {}, radius: radius };
+            // Attention link: the core acknowledges the selection twice.
+            if (inst.fx && typeof inst.fx.beam === 'function') {
+                const P = NS().PALETTE || {};
+                const coreHex = P.core != null ? P.core : 0x59d4ff;
+                try {
+                    inst.fx.beam(corePosition(inst, new THREE.Vector3()), target, coreHex, { burst: false, duration: 0.9 });
+                } catch (_) {}
+                const second = setTimeout(() => {
+                    if (inst.disposed) return;
+                    try {
+                        inst.fx.beam(corePosition(inst, new THREE.Vector3()), target, coreHex, { burst: false, duration: 0.7 });
+                    } catch (_) {}
+                }, 220);
+                inst.timers.push(second);
             }
         } catch (_) {}
         showInfoFor(inst, mesh, mesh.userData || {});
@@ -838,12 +1013,14 @@
                 v: CATEGORY_KEYS[ud.category] ? L('sysworld.cat.' + ud.category) : fmtVal(inst, ud.category)
             });
             rows.push({ k: 'ID', v: fmtVal(inst, ud.id) });
+            rows.push({ k: L('sysworld.panel.zone'), v: L('sysworld.zone.integrations') });
         } else if (kind === 'kgnode') {
+            rows.push({ section: L('sysworld.sec.status') });
             rows.push({ k: L('sysworld.panel.type'), v: fmtVal(inst, ud.type) });
             rows.push({ k: L('sysworld.panel.access_count'), v: fmtVal(inst, ud.accessCount) });
             // Protection state (enabled/disabled wording is the closest panel vocabulary).
             rows.push({ k: L('sysworld.panel.status'), v: L(ud.protected ? 'sysworld.panel.enabled' : 'sysworld.panel.disabled'), tone: ud.protected ? 'ok' : 'dim' });
-            // Detail fetch: expand the node in the graph, then report relation count.
+            // Detail fetch: expand the node in the graph, then list top relations.
             inst.apiGet('/api/knowledge-graph/node?id=' + encodeURIComponent(ud.id)).then(detail => {
                 if (inst.disposed || token !== inst.panelToken) return;
                 if (detail) {
@@ -855,38 +1032,134 @@
                     Array.isArray(detail.edges) ? detail.edges.length : undefined
                 ) : undefined;
                 rows.push({ k: L('sysworld.panel.relations'), v: rel != null ? String(rel) : '–' });
+                // Top-5 neighbor list with relation type, resolved to labels.
+                const relRows = [];
+                if (detail && Array.isArray(detail.edges)) {
+                    const labels = {};
+                    if (Array.isArray(detail.neighbors)) {
+                        detail.neighbors.forEach(n => {
+                            if (n && n.id != null) labels[String(n.id)] = n.label || String(n.id);
+                        });
+                    }
+                    const seen = {};
+                    detail.edges.forEach(edge => {
+                        if (!edge || relRows.length >= 5) return;
+                        const src = String(edge.source != null ? edge.source : '');
+                        const tgt = String(edge.target != null ? edge.target : '');
+                        const other = src === String(ud.id) ? tgt : (tgt === String(ud.id) ? src : null);
+                        if (other == null || seen[other]) return;
+                        seen[other] = 1;
+                        relRows.push({
+                            relation: String(edge.relation || '–'),
+                            label: labels[other] || other
+                        });
+                    });
+                }
+                if (relRows.length) {
+                    rows.push({ section: L('sysworld.sec.relations') });
+                    rows.push({ rel: relRows });
+                }
                 if (inst.panelKind === 'kgnode' && inst.hud.isPanelOpen && inst.hud.isPanelOpen()) {
                     try { inst.hud.showPanel(title, rows, meta); } catch (_) {}
                 }
             });
         } else if (kind === 'mission') {
+            rows.push({ section: L('sysworld.sec.status') });
             rows.push({ k: L('sysworld.panel.status'), v: stateLabel(inst, payload.status || payload.state), tone: toneForState(payload.status || payload.state) });
+            const success = pickNum(payload.success_rate, payload.successRate, payload.rate);
+            if (success != null) {
+                const ratio = success > 1 ? success / 100 : success;
+                rows.push({ k: 'OK', v: Math.round(ratio * 100) + '%', bar: Math.max(0, Math.min(1, ratio)) });
+            }
+            rows.push({ section: L('sysworld.sec.details') });
             rows.push({ k: L('sysworld.panel.schedule'), v: fmtVal(inst, payload.schedule || payload.cron) });
-            rows.push({ k: L('sysworld.panel.last_run'), v: fmtVal(inst, payload.last_run || payload.lastRun) });
+            const nextRel = relTime(inst, payload.next_run || payload.nextRun);
+            rows.push({ k: L('sysworld.panel.next_run'), v: nextRel || fmtVal(inst, payload.next_run || payload.nextRun) });
+            const lastRel = relTime(inst, payload.last_run || payload.lastRun);
+            rows.push({ k: L('sysworld.panel.last_run'), v: lastRel || fmtVal(inst, payload.last_run || payload.lastRun) });
             rows.push({ k: L('sysworld.panel.access_count'), v: fmtVal(inst, pickNum(payload.run_count, payload.runs, payload.runCount)) });
         } else if (kind === 'coagent') {
             rows.push({ k: L('sysworld.panel.state'), v: stateLabel(inst, payload.state || payload.status), tone: toneForState(payload.state || payload.status) });
             rows.push({ k: L('sysworld.panel.type'), v: fmtVal(inst, payload.specialist || payload.type) });
+            if (payload.model) rows.push({ k: L('sysworld.panel.model'), v: fmtVal(inst, payload.model) });
             rows.push({ k: L('sysworld.panel.tokens'), v: fmtVal(inst, pickNum(payload.tokens, payload.tokens_used, payload.token_count)) });
             rows.push({ k: L('sysworld.panel.access_count'), v: fmtVal(inst, pickNum(payload.tool_calls, payload.toolCalls)) });
         } else if (kind === 'container') {
             rows.push({ k: L('sysworld.panel.image'), v: fmtVal(inst, payload.image) });
             rows.push({ k: L('sysworld.panel.state'), v: stateLabel(inst, payload.state), tone: toneForState(payload.state) });
             rows.push({ k: L('sysworld.panel.status'), v: fmtVal(inst, payload.status) });
+            const ports = Array.isArray(payload.ports) ? payload.ports.join(', ') : payload.ports;
+            if (ports) rows.push({ k: L('sysworld.panel.ports'), v: fmtVal(inst, ports) });
         } else if (kind === 'daemon') {
             rows.push({ k: L('sysworld.panel.status'), v: fmtVal(inst, payload.status || payload.state), tone: toneForState(payload.status || payload.state) });
             rows.push({ k: L('sysworld.panel.restarts'), v: fmtVal(inst, pickNum(payload.restarts, payload.restart_count)) });
         } else if (kind === 'tool') {
             rows.push({ k: 'ID', v: fmtVal(inst, ud.id || ud.label) });
-            rows.push({ k: L('sysworld.panel.access_count'), v: fmtVal(inst, pickNum(ud.count, payload.count, payload.calls)) });
+            const calls = pickNum(ud.count, payload.count, payload.calls);
+            rows.push({ k: L('sysworld.panel.access_count'), v: fmtVal(inst, calls) });
+            // Rank bar: this tool's calls relative to the busiest tool.
+            const list = Array.isArray(inst.data.tools) ? inst.data.tools : [];
+            let maxCalls = 0;
+            let rank = 0;
+            list.forEach(item => {
+                const c = item ? pickNum(item.count, item.calls) : undefined;
+                if (typeof c === 'number') {
+                    if (c > maxCalls) maxCalls = c;
+                    if ((item.name || item.tool) === (ud.id || ud.label)) rank = c;
+                }
+            });
+            if (calls != null && maxCalls > 0) {
+                rows.push({ k: L('sysworld.panel.rank'), v: Math.round((rank || calls) / maxCalls * 100) + '%', bar: (rank || calls) / maxCalls });
+            }
         } else if (kind === 'cron') {
             rows.push({ k: L('sysworld.panel.schedule'), v: fmtVal(inst, payload.expr || payload.schedule || payload.expression) });
-            rows.push({ k: L('sysworld.panel.next_run'), v: fmtVal(inst, payload.next_run || payload.nextRun) });
+            const cronRel = relTime(inst, payload.next_run || payload.nextRun);
+            rows.push({ k: L('sysworld.panel.next_run'), v: cronRel || fmtVal(inst, payload.next_run || payload.nextRun) });
         } else {
             rows.push({ k: 'ID', v: fmtVal(inst, ud.id) });
         }
 
         try { inst.hud.showPanel(title, rows, meta); } catch (_) {}
+        try {
+            if (inst.hud.showSelLabel) inst.hud.showSelLabel({ name: title, kind: meta.kind, accent: meta.accent });
+        } catch (_) {}
+    }
+
+    // Projects the focused object's world position to HUD pixels and pins
+    // the selection label above it. Runs per frame; one scratch vector.
+    function updateSelLabel(inst) {
+        const hud = inst.hud;
+        if (!hud || typeof hud.positionSelLabel !== 'function') return;
+        const f = inst.focused;
+        if (!f || !f.mesh) return;
+        if (!f.mesh.parent) {
+            // The tracked mesh was rebuilt (data refresh): drop the anchor.
+            inst.focused = null;
+            try { hud.hideSelLabel(); } catch (_) {}
+            return;
+        }
+        if (!inst._selVec) inst._selVec = new inst.THREE.Vector3();
+        const v = inst._selVec;
+        try { f.mesh.getWorldPosition(v); } catch (_) { return; }
+        v.y += (f.radius || 1) + 1.1;
+        if (!inst.stage || !inst.stage.camera) return;
+        v.project(inst.stage.camera);
+        if (v.z > 1 || v.z < -1) {
+            // Behind the camera: keep state, just slide the chip away.
+            try { hud.positionSelLabel(-9999, -9999); } catch (_) {}
+            return;
+        }
+        const w = inst.canvasHost.clientWidth || 1;
+        const h = inst.canvasHost.clientHeight || 1;
+        let x = (v.x * 0.5 + 0.5) * w;
+        let y = (-v.y * 0.5 + 0.5) * h;
+        // Clamp into view so the chip doubles as an edge indicator when the
+        // selected object drifts off-screen instead of rendering at negative
+        // coordinates.
+        const marginX = Math.min(150, Math.max(40, w * 0.18));
+        x = x < marginX ? marginX : (x > w - marginX ? w - marginX : x);
+        y = y < 46 ? 46 : (y > h - 24 ? h - 24 : y);
+        try { hud.positionSelLabel(x, y); } catch (_) {}
     }
 
     // ── RAF loop (the only one; stage.update renders, keep it last) ──────────
@@ -955,6 +1228,17 @@
             try { if (inst.orbit && inst.orbit.update) inst.orbit.update(dt, e); } catch (_) {}
             try { if (inst.graph && inst.graph.update) inst.graph.update(dt, e); } catch (_) {}
             try { if (inst.fleet && inst.fleet.update) inst.fleet.update(dt, e); } catch (_) {}
+            try { updateSelLabel(inst); } catch (_) {}
+            // Cinematic idle drift: after 45s without interaction and with no
+            // active selection, the camera slowly orbits on its own.
+            try {
+                const controls = inst.stage && inst.stage.controls;
+                if (controls) {
+                    const wantSpin = !inst.paused && !inst.focused && (Date.now() - inst.lastActivity) > 45000;
+                    if (controls.autoRotate !== wantSpin) controls.autoRotate = wantSpin;
+                    if (wantSpin && controls.autoRotateSpeed !== 0.35) controls.autoRotateSpeed = 0.35;
+                }
+            } catch (_) {}
             try { if (inst.stage && inst.stage.update) inst.stage.update(dt, e); } catch (_) {}
         };
         inst.rafId = requestAnimationFrame(frame);

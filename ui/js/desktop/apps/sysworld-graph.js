@@ -80,10 +80,35 @@
             }
             return m;
         }
+        // Translucent wireframe shell around every node; one shared
+        // icosahedron-ish geometry plus a small per-hue material cache.
+        const shellGeo = new THREE.IcosahedronGeometry(1, 1);
+        const shellMatCache = new Map(); // hex -> shared wireframe material
+        function shellMatFor(hex) {
+            let m = shellMatCache.get(hex);
+            if (!m) {
+                m = new THREE.MeshBasicMaterial({
+                    color: hex, wireframe: true, transparent: true, opacity: 0.2,
+                    blending: THREE.AdditiveBlending, depthWrite: false
+                });
+                shellMatCache.set(hex, m);
+            }
+            return m;
+        }
+        // Thin gold orbit ring reserved for protected nodes; one shared
+        // geometry and one shared material for all of them.
+        const protRingGeo = new THREE.RingGeometry(1.6, 1.75, 48);
+        const protRingMat = new THREE.MeshBasicMaterial({
+            color: GOLD, transparent: true, opacity: 0.75, side: THREE.DoubleSide,
+            blending: THREE.AdditiveBlending, depthWrite: false
+        });
+        const protRings = []; // ring meshes rotated slowly in update()
         const edgeMat = new THREE.LineBasicMaterial({
             color: EDGE_COLOR, transparent: true, opacity: 0.22,
             blending: THREE.AdditiveBlending, depthWrite: false
         });
+        const EDGE_OPACITY_DEFAULT = 0.22;
+        const EDGE_OPACITY_HIGHLIGHT = 0.4;
 
         // Soft constellation boundary shell so the district reads as its own
         // region of space.
@@ -130,7 +155,8 @@
                 hue: TYPE_HUES[hashString(type) % TYPE_HUES.length],
                 x: 0, y: 0, z: 0,       // layout position (graph-local)
                 fx: 0, fy: 0, fz: 0,    // per-iteration force accumulators
-                mesh: null, glow: null
+                mesh: null, glow: null, shell: null, ring: null,
+                glowBaseScale: 0
             };
         }
 
@@ -202,8 +228,11 @@
         }
 
         // Create the sphere mesh for one node and register it as pickable.
+        // Adds the translucent wireframe shell and, for protected nodes, a
+        // tilted gold orbit ring from the shared assets.
         function createNodeMesh(rec) {
-            const mesh = new THREE.Mesh(nodeGeo, matFor(rec.prot ? GOLD : rec.hue));
+            const hue = rec.prot ? GOLD : rec.hue;
+            const mesh = new THREE.Mesh(nodeGeo, matFor(hue));
             const s = 0.55 + Math.log(1 + rec.accessCount) * 0.35;
             mesh.scale.set(s, s, s);
             mesh.position.set(rec.x, rec.y, rec.z);
@@ -214,15 +243,37 @@
             group.add(mesh);
             rec.mesh = mesh;
             pickables.push(mesh);
+
+            const shell = new THREE.Mesh(shellGeo, shellMatFor(hue));
+            const ss = s * 1.5;
+            shell.scale.set(ss, ss, ss);
+            shell.position.set(rec.x, rec.y, rec.z);
+            group.add(shell);
+            rec.shell = shell;
+
+            if (rec.prot) {
+                const ring = new THREE.Mesh(protRingGeo, protRingMat);
+                const rs = s * 1.5;
+                ring.scale.set(rs, rs, rs);
+                ring.position.set(rec.x, rec.y, rec.z);
+                ring.rotation.x = 1.1;
+                ring.rotation.y = (hashString(rec.id) % 628) / 100;
+                group.add(ring);
+                rec.ring = ring;
+                protRings.push(ring);
+            }
         }
 
-        // Faint glow sprite reserved for the most-accessed nodes.
+        // Faint glow sprite reserved for the most-accessed nodes. Remembers
+        // its resting scale so highlightNeighbors() can restore it later.
         function addGlow(rec) {
-            const sprite = fxCall('makeGlowSprite', [rec.prot ? GOLD : rec.hue, 6 + Math.log(1 + rec.accessCount) * 2]);
+            const size = 6 + Math.log(1 + rec.accessCount) * 2;
+            const sprite = fxCall('makeGlowSprite', [rec.prot ? GOLD : rec.hue, size]);
             if (!sprite) { return; }
             sprite.position.set(rec.x, rec.y, rec.z);
             group.add(sprite);
             rec.glow = sprite;
+            rec.glowBaseScale = size;
         }
 
         // Rebuild the single merged LineSegments from the current edge list.
@@ -251,6 +302,8 @@
             for (let i = 0; i < recs.length; i++) {
                 const rec = recs[i];
                 if (rec.mesh) { group.remove(rec.mesh); } // shared geo/mat survive
+                if (rec.shell) { group.remove(rec.shell); rec.shell = null; }
+                if (rec.ring) { group.remove(rec.ring); rec.ring = null; }
                 if (rec.glow) {
                     group.remove(rec.glow);
                     if (rec.glow.material) { rec.glow.material.dispose(); }
@@ -261,6 +314,8 @@
             edges.length = 0;
             edgeKeys.clear();
             pickables.length = 0;
+            protRings.length = 0;
+            edgeMat.opacity = EDGE_OPACITY_DEFAULT;
             if (edgeLines) {
                 group.remove(edgeLines);
                 edgeLines.geometry.dispose();
@@ -363,14 +418,75 @@
             group.visible = visible;
         }
 
+        // Hover highlight: boosts one node plus its direct neighbors (bigger
+        // glow sprites, brighter edges); null restores the resting state.
+        // Unknown ids are ignored gracefully.
+        function highlightNeighbors(nodeIdOrNull) {
+            let i, rec;
+            // Always restore the resting state first so consecutive
+            // highlights can never accumulate.
+            for (i = 0; i < recs.length; i++) {
+                rec = recs[i];
+                if (rec.glow) {
+                    rec.glow.scale.set(rec.glowBaseScale, rec.glowBaseScale, 1);
+                }
+            }
+            edgeMat.opacity = EDGE_OPACITY_DEFAULT;
+            if (nodeIdOrNull == null) { return; }
+            const target = nodeById.get(String(nodeIdOrNull));
+            if (!target) { return; }
+            if (target.glow) {
+                const ts = target.glowBaseScale * 1.6;
+                target.glow.scale.set(ts, ts, 1);
+            }
+            for (i = 0; i < edges.length; i++) {
+                const e = edges[i];
+                let other = null;
+                if (e.a === target) { other = e.b; }
+                else if (e.b === target) { other = e.a; }
+                if (other && other.glow) {
+                    const os = other.glowBaseScale * 1.6;
+                    other.glow.scale.set(os, os, 1);
+                }
+            }
+            edgeMat.opacity = EDGE_OPACITY_HIGHLIGHT;
+        }
+
+        // Synapse pulses: one comet per interval along a random edge. The two
+        // scratch vectors keep the per-pulse math allocation-free.
+        const SYNAPSE_INTERVAL = 2.2;
+        let synapseTimer = 0;
+        const synFrom = new THREE.Vector3();
+        const synTo = new THREE.Vector3();
+
         // Per-frame: very subtle rotation of the whole constellation plus a
-        // slow shell shimmer. No allocations here.
+        // slow shell shimmer, gold-ring tumble and synapse pulses.
+        // No allocations here.
         function update(dt, elapsed) {
             if (!visible) { return; }
             group.rotation.y += dt * ROT_SPEED;
             shell.rotation.y -= dt * ROT_SPEED * 0.6;
             shell.rotation.x += dt * 0.003;
             shell.material.opacity = 0.04 + 0.015 * (0.5 + 0.5 * Math.sin(elapsed * 0.5));
+            // Slow tumble of the protected-node gold orbit rings.
+            for (let i = 0; i < protRings.length; i++) {
+                protRings[i].rotation.y += dt * 0.5;
+            }
+            synapseTimer += dt;
+            if (synapseTimer >= SYNAPSE_INTERVAL) {
+                synapseTimer -= SYNAPSE_INTERVAL;
+                const q = typeof inst.qualityScale === 'number' ? inst.qualityScale : 1;
+                if (q >= 0.5 && edges.length) {
+                    const e = edges[(Math.random() * edges.length) | 0];
+                    if (e.a.mesh && e.b.mesh) {
+                        // Exact world positions via the shared scratch
+                        // vectors (the constellation group itself rotates).
+                        e.a.mesh.getWorldPosition(synFrom);
+                        e.b.mesh.getWorldPosition(synTo);
+                        fxCall('comet', [synFrom, synTo, EDGE_COLOR, { size: 1.2, arc: 0.02 }]);
+                    }
+                }
+            }
         }
 
         // Free every GPU resource and detach the constellation group.
@@ -380,6 +496,11 @@
             nodeGeo.dispose();
             matCache.forEach(function (m) { m.dispose(); });
             matCache.clear();
+            shellGeo.dispose();
+            shellMatCache.forEach(function (m) { m.dispose(); });
+            shellMatCache.clear();
+            protRingGeo.dispose();
+            protRingMat.dispose();
             shell.geometry.dispose();
             shell.material.dispose();
             if (group.parent) { group.parent.remove(group); }
@@ -391,6 +512,7 @@
             pickables: pickables,
             nodePosition: nodePosition,
             setVisible: setVisible,
+            highlightNeighbors: highlightNeighbors,
             update: update,
             dispose: dispose
         };

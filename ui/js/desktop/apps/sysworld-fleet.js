@@ -93,6 +93,23 @@
         const octaGeo = new THREE.OctahedronGeometry(1, 0);
         const coneGeo = new THREE.ConeGeometry(0.55, 1.8, 8);
         const planeGeo = new THREE.PlaneGeometry(1, 1);
+        const finGeo = new THREE.BoxGeometry(0.7, 0.08, 0.3);      // drone wing fins
+        const gearGeo = new THREE.TorusGeometry(1.1, 0.12, 6, 20); // daemon gear ring
+        const plateEdgeGeo = new THREE.EdgesGeometry(boxGeo);      // tool plate accent frame
+        // 12 radial tick marks (radius ~1.6) forming one mission halo ring.
+        const TICK_COUNT = 12;
+        const tickPos = new Float32Array(TICK_COUNT * 6);
+        for (let i = 0; i < TICK_COUNT; i++) {
+            const ta = (i / TICK_COUNT) * Math.PI * 2;
+            tickPos[i * 6] = Math.cos(ta) * 1.3;
+            tickPos[i * 6 + 1] = Math.sin(ta) * 1.3;
+            tickPos[i * 6 + 2] = 0;
+            tickPos[i * 6 + 3] = Math.cos(ta) * 1.6;
+            tickPos[i * 6 + 4] = Math.sin(ta) * 1.6;
+            tickPos[i * 6 + 5] = 0;
+        }
+        const tickGeo = new THREE.BufferGeometry();
+        tickGeo.setAttribute('position', new THREE.BufferAttribute(tickPos, 3));
 
         // Material caches keyed by "hex|opacity" to avoid per-entity clones.
         const solidMats = new Map();
@@ -124,6 +141,16 @@
             const f = fx[name];
             if (typeof f !== 'function') { return undefined; }
             try { return f.apply(fx, args); } catch (err) { return undefined; }
+        }
+
+        // Spawn-in scale tween (0.001 -> 1) for newly added records. Degrades
+        // to a no-op leaving full scale when fx.tween is unavailable.
+        function spawnIn(apply) {
+            const handle = fxCall('tween', [{
+                duration: 0.45, ease: 'outCubic',
+                update: function (e) { apply(0.001 + e * 0.999); }
+            }]);
+            if (handle) { apply(0.001); }
         }
 
         // Stable pickables array for the entry's raycaster.
@@ -238,7 +265,8 @@
                 angle: 0, targetAngle: 0,
                 phase: (hashString(id) % 628) / 100,
                 isNew: true,
-                mesh: null, glow: null, arc: null
+                mesh: null, glow: null, arc: null,
+                name: null, ticks: null, tickMat: null, trail: null
             };
             const mesh = new THREE.Mesh(octaGeo, solidMat(color, 0.95));
             mesh.scale.set(1.7, 2.4, 1.7);
@@ -247,13 +275,36 @@
             group.add(mesh);
             rec.glow = fxCall('makeGlowSprite', [color, 7]) || null;
             if (rec.glow) { group.add(rec.glow); }
+            // Floating name tag under the beacon (texture stays fx-cached).
+            rec.name = fxCall('textSprite', [rec.label, color, { scale: 0.6 }]) || null;
+            if (rec.name) { group.add(rec.name); }
+            // Rotating halo of 12 tick marks; the material is per-mission.
+            rec.tickMat = new THREE.LineBasicMaterial({
+                color: color, transparent: true, opacity: 0.55,
+                blending: THREE.AdditiveBlending, depthWrite: false
+            });
+            rec.ticks = new THREE.LineSegments(tickGeo, rec.tickMat);
+            rec.ticks.scale.setScalar(1.5);
+            rec.ticks.frustumCulled = false;
+            group.add(rec.ticks);
             missions.set(id, rec);
+            spawnIn(function (k) { mesh.scale.set(1.7 * k, 2.4 * k, 1.7 * k); });
             return rec;
+        }
+        function disposeMissionTrail(rec) {
+            if (rec.trail && typeof rec.trail.dispose === 'function') {
+                try { rec.trail.dispose(); } catch (err) { /* effect module owns it */ }
+            }
+            rec.trail = null;
         }
         function removeMission(rec) {
             dropPick(rec.mesh);
             group.remove(rec.mesh); // shared geo / cached material survive
             disposeGlow(rec.glow);
+            disposeGlow(rec.name); // sprite material only; texture stays cached
+            if (rec.ticks) { group.remove(rec.ticks); }
+            if (rec.tickMat) { rec.tickMat.dispose(); }
+            disposeMissionTrail(rec);
             disposeArc(rec);
             missions.delete(rec.id);
         }
@@ -261,6 +312,10 @@
             const y = Math.sin(elapsed * 0.9 + rec.phase) * 0.5;
             rec.mesh.position.set(Math.cos(rec.angle) * MISSION_R, y, Math.sin(rec.angle) * MISSION_R);
             if (rec.glow) { rec.glow.position.copy(rec.mesh.position); }
+            if (rec.name) {
+                rec.name.position.set(rec.mesh.position.x, rec.mesh.position.y - 2.4, rec.mesh.position.z);
+            }
+            if (rec.ticks) { rec.ticks.position.copy(rec.mesh.position); }
         }
 
         // Diff-driven update from GET /api/missions/v2 -> { missions: [...] }.
@@ -285,10 +340,14 @@
                     rec.color = col;
                     rec.mesh.material = solidMat(col, 0.95);
                     if (rec.glow && rec.glow.material) { rec.glow.material.color.setHex(col); }
+                    if (rec.tickMat) { rec.tickMat.color.setHex(col); }
                 }
                 const run = isRunning(m.status);
                 if (run && !rec.arc && countArcs() < MAX_ARCS) { rec.arc = makeArc(col); }
                 if (!run && rec.arc) { disposeArc(rec); }
+                // Running beacons drag a comet trail; it dies with the state.
+                if (run && !rec.trail) { rec.trail = fxCall('trailFor', [rec.mesh, col, 20]) || null; }
+                if (!run && rec.trail) { disposeMissionTrail(rec); }
             }
             for (const entry of missions) {
                 if (!seen.has(entry[0])) { removeMission(entry[1]); }
@@ -325,6 +384,8 @@
                     rec.glow.scale.set(s, s, 1);
                 }
                 if (rec.arc) { updateArc(rec, rec.arc, elapsed); }
+                if (rec.ticks) { rec.ticks.rotation.z += dt * 0.3; }
+                if (rec.trail && typeof rec.trail.update === 'function') { rec.trail.update(dt); }
             }
         }
 
@@ -399,6 +460,10 @@
             if (s === 'error' || s === 'failed' || s === 'failure') { return C.error; }
             return C.dim;
         }
+        function isDroneRunning(state) {
+            const s = String(state || '').toLowerCase();
+            return s === 'running' || s === 'active' || s === 'working';
+        }
         // Gentle lissajous orbit around the core, evaluated into `out`.
         function dronePosition(rec, t, out) {
             out.set(
@@ -419,7 +484,9 @@
                 label: a.task || a.specialist || id,
                 payload: a,
                 color: color,
+                state: a.state,
                 mesh: mesh, glow: null, trail: null,
+                engine: null, blink: null,
                 t: 0, bornT: 0,
                 leaving: false, leaveT: 0,
                 r: 16 + rand() * 16,
@@ -427,24 +494,42 @@
                 p1: rand() * Math.PI * 2, p2: rand() * Math.PI * 2, p3: rand() * Math.PI * 2,
                 yBase: 7 + rand() * 9, yAmp: 2.5 + rand() * 4
             };
+            // Wing fins share the body material and ride the cone transform.
+            const finL = new THREE.Mesh(finGeo, mat);
+            finL.position.set(-0.58, -0.35, 0);
+            finL.rotation.z = 0.4;
+            const finR = new THREE.Mesh(finGeo, mat);
+            finR.position.set(0.58, -0.35, 0);
+            finR.rotation.z = -0.4;
+            mesh.add(finL);
+            mesh.add(finR);
             setPick(mesh, 'coagent', id, rec.label, a);
             group.add(mesh);
             rec.glow = fxCall('makeGlowSprite', [color, 5]) || null;
             if (rec.glow) { group.add(rec.glow); }
+            // Engine exhaust glow at the tail + state blink light at the nose.
+            rec.engine = fxCall('makeGlowSprite', [color, 1.2]) || null;
+            if (rec.engine) { group.add(rec.engine); }
+            rec.blink = fxCall('makeGlowSprite', [color, 0.55]) || null;
+            if (rec.blink) { group.add(rec.blink); }
             rec.trail = fxCall('trailFor', [mesh, color, Math.round(26 * quality)]) || null;
             drones.set(id, rec);
             // Spawn burst at the drone's initial orbit position.
             dronePosition(rec, 0, _v1);
             mesh.position.copy(_v1);
             if (rec.glow) { rec.glow.position.copy(_v1); }
+            if (rec.engine) { rec.engine.position.copy(_v1); }
+            if (rec.blink) { rec.blink.position.copy(_v1); }
             fxCall('burst', [_v1, color, 12]);
             return rec;
         }
         function removeDrone(rec) {
             dropPick(rec.mesh);
             group.remove(rec.mesh);
-            rec.mesh.material.dispose(); // per-drone clone
+            rec.mesh.material.dispose(); // per-drone clone (fins share it)
             disposeGlow(rec.glow);
+            disposeGlow(rec.engine);
+            disposeGlow(rec.blink);
             if (rec.trail && typeof rec.trail.dispose === 'function') {
                 try { rec.trail.dispose(); } catch (err) { /* effect module owns it */ }
             }
@@ -465,6 +550,7 @@
                 if (!rec) { rec = addDrone(a, id); }
                 rec.label = a.task || a.specialist || id;
                 rec.payload = a;
+                rec.state = a.state;
                 rec.mesh.userData.label = rec.label;
                 rec.mesh.userData.payload = a;
                 const col = droneColor(a.state);
@@ -472,6 +558,8 @@
                     rec.color = col;
                     rec.mesh.material.color.setHex(col);
                     if (rec.glow && rec.glow.material) { rec.glow.material.color.setHex(col); }
+                    if (rec.engine && rec.engine.material) { rec.engine.material.color.setHex(col); }
+                    if (rec.blink && rec.blink.material) { rec.blink.material.color.setHex(col); }
                 }
             }
             // Missing ids despawn by flying outward with a fade.
@@ -496,6 +584,14 @@
                         rec.glow.position.copy(rec.mesh.position);
                         if (rec.glow.material) { rec.glow.material.opacity = 1 - k; }
                     }
+                    if (rec.engine) {
+                        rec.engine.position.copy(rec.mesh.position);
+                        if (rec.engine.material) { rec.engine.material.opacity = 0.85 * (1 - k); }
+                    }
+                    if (rec.blink) {
+                        rec.blink.position.copy(rec.mesh.position);
+                        if (rec.blink.material) { rec.blink.material.opacity = 0; }
+                    }
                     if (k >= 1) { removeDrone(rec); }
                     continue;
                 }
@@ -516,6 +612,27 @@
                     rec.glow.position.copy(_v1);
                     const g = 5 * (0.3 + 0.7 * rec.bornT);
                     rec.glow.scale.set(g, g, 1);
+                }
+                if (rec.engine) {
+                    // Exhaust sits behind the tail and flickers while running.
+                    rec.engine.position.copy(_v1).addScaledVector(_v3, -(0.9 * s + 0.4));
+                    const e = 1.2 * (0.3 + 0.7 * rec.bornT);
+                    rec.engine.scale.set(e, e, 1);
+                    if (rec.engine.material) {
+                        rec.engine.material.opacity = isDroneRunning(rec.state)
+                            ? 0.85 + 0.15 * Math.sin(elapsed * 9 + rec.p1)
+                            : 0.25;
+                    }
+                }
+                if (rec.blink) {
+                    // Nose beacon: ~2 Hz square-wave blink, running only.
+                    rec.blink.position.copy(_v1).addScaledVector(_v3, 0.9 * s + 0.25);
+                    const b = 0.55 * (0.3 + 0.7 * rec.bornT);
+                    rec.blink.scale.set(b, b, 1);
+                    if (rec.blink.material) {
+                        rec.blink.material.opacity =
+                            isDroneRunning(rec.state) && Math.sin(elapsed * 12.566 + rec.p2) > 0 ? 0.9 : 0;
+                    }
                 }
                 if (rec.trail && typeof rec.trail.update === 'function') { rec.trail.update(dt); }
             }
@@ -559,6 +676,13 @@
             const body = new THREE.Mesh(boxGeo, mat);
             body.scale.set(5.4, 3.1, 0.35);
             plate.add(body);
+            // Accent frame around the plate body; shared edge geometry,
+            // per-plate material in the tool color.
+            const frameMat = new THREE.LineBasicMaterial({
+                color: C.tool, transparent: true, opacity: 0.65,
+                blending: THREE.AdditiveBlending, depthWrite: false
+            });
+            body.add(new THREE.LineSegments(plateEdgeGeo, frameMat));
             let face = null, faceMat = null, faceTex = null;
             const label = name.toUpperCase();
             faceTex = makeLabelTexture(label.length > 12 ? label.slice(0, 11) + '…' : label);
@@ -577,7 +701,9 @@
                 count: count,
                 plate: plate, body: body,
                 face: face, faceMat: faceMat, faceTex: faceTex,
+                frameMat: frameMat,
                 glow: null,
+                glowBaseOpacity: 0.6,
                 sizeK: sizeK,
                 angle: 0, targetAngle: 0,
                 radius: BELT_R + (rand() - 0.5) * 14,
@@ -589,8 +715,12 @@
             setPick(body, 'tool', name, name, item);
             group.add(plate);
             rec.glow = fxCall('makeGlowSprite', [C.tool, 6 * sizeK]) || null;
-            if (rec.glow) { group.add(rec.glow); }
+            if (rec.glow) {
+                group.add(rec.glow);
+                if (rec.glow.material) { rec.glowBaseOpacity = rec.glow.material.opacity; }
+            }
             tools.set(name, rec);
+            spawnIn(function (k) { rec.plate.scale.setScalar(rec.sizeK * k); });
             return rec;
         }
         function removeTool(rec) {
@@ -599,6 +729,7 @@
             rec.body.material.dispose();
             if (rec.faceMat) { rec.faceMat.dispose(); }
             if (rec.faceTex) { rec.faceTex.dispose(); }
+            if (rec.frameMat) { rec.frameMat.dispose(); }
             disposeGlow(rec.glow);
             tools.delete(rec.name);
         }
@@ -644,6 +775,16 @@
             if (!rec) { return null; }
             rec.flashT = 1;
             fxCall('pulseRing', [rec.plate.position, C.tool, 10]);
+            // Heat soak: glow opacity spikes, then cools back to baseline.
+            if (rec.glow && rec.glow.material) {
+                const gm = rec.glow.material;
+                const base = rec.glowBaseOpacity;
+                const tw = fxCall('tween', [{
+                    duration: 2, ease: 'outCubic',
+                    update: function (e) { gm.opacity = 0.95 + (base - 0.95) * e; }
+                }]);
+                if (tw) { gm.opacity = 0.95; }
+            }
             return rec.plate.getWorldPosition(new THREE.Vector3());
         }
 
@@ -698,12 +839,22 @@
             const color = containerColor(c);
             const mesh = new THREE.Mesh(boxGeo, solidMat(color, 0.9));
             mesh.scale.set(3.4, 3.4, 3.4);
+            // Wireframe overlay in the status color; geometry is per-container.
+            const edgeGeo = new THREE.EdgesGeometry(boxGeo);
+            const edgeMat = new THREE.LineBasicMaterial({
+                color: color, transparent: true, opacity: 0.5,
+                blending: THREE.AdditiveBlending, depthWrite: false
+            });
+            mesh.add(new THREE.LineSegments(edgeGeo, edgeMat));
             const rec = {
                 id: id,
                 label: c.name || id,
                 payload: c,
                 color: color,
+                state: c.state || c.status,
+                restarting: String(c.state || c.status || '').toLowerCase().indexOf('restart') >= 0,
                 mesh: mesh, glow: null,
+                edgeGeo: edgeGeo, edgeMat: edgeMat,
                 baseX: 0, baseZ: 0,
                 bobPh: (hashString(id) % 628) / 100
             };
@@ -711,6 +862,7 @@
             group.add(mesh);
             containers.set(id, rec);
             updateContainerGlow(rec);
+            spawnIn(function (k) { mesh.scale.set(3.4 * k, 3.4 * k, 3.4 * k); });
             return rec;
         }
         // Only running containers earn a glow sprite, to cap visual noise.
@@ -726,6 +878,8 @@
         function removeContainer(rec) {
             dropPick(rec.mesh);
             group.remove(rec.mesh);
+            if (rec.edgeGeo) { rec.edgeGeo.dispose(); }
+            if (rec.edgeMat) { rec.edgeMat.dispose(); }
             disposeGlow(rec.glow);
             containers.delete(rec.id);
         }
@@ -747,6 +901,22 @@
             infraHalfDepth = ((rows - 1) / 2) * spacing;
         }
 
+        function daemonRestarts(d) {
+            if (!d) { return 0; }
+            const r = d.restarts != null ? d.restarts : d.restart_count;
+            return Math.max(0, r | 0);
+        }
+        // Restart-count tag; rebuilt only when the count actually changes.
+        function updateDaemonLabel(rec) {
+            if (rec.rcLabel) { disposeGlow(rec.rcLabel); rec.rcLabel = null; }
+            if (rec.restarts > 0) {
+                rec.rcLabel = fxCall('textSprite', ['×' + rec.restarts, rec.color, { scale: 0.45 }]) || null;
+                if (rec.rcLabel) {
+                    rec.rcLabel.position.set(rec.mesh.position.x, rec.mesh.position.y + 1.6, rec.mesh.position.z);
+                    group.add(rec.rcLabel);
+                }
+            }
+        }
         function addDaemon(d, id) {
             const color = daemonColor(d);
             const mesh = new THREE.Mesh(boxGeo, solidMat(color, 0.9));
@@ -757,17 +927,25 @@
                 payload: d,
                 color: color,
                 mesh: mesh,
+                gear: null, rcLabel: null,
+                restarts: daemonRestarts(d),
                 baseX: 0, baseZ: 0,
                 bobPh: (hashString(id) % 628) / 100
             };
+            // Slowly rotating gear ring around the pylon shaft.
+            rec.gear = new THREE.Mesh(gearGeo, solidMat(color, 0.75));
+            group.add(rec.gear);
             setPick(mesh, 'daemon', id, rec.label, d);
             group.add(mesh);
             daemons.set(id, rec);
+            updateDaemonLabel(rec);
             return rec;
         }
         function removeDaemon(rec) {
             dropPick(rec.mesh);
             group.remove(rec.mesh);
+            if (rec.gear) { group.remove(rec.gear); } // shared geo / cached mat survive
+            if (rec.rcLabel) { disposeGlow(rec.rcLabel); rec.rcLabel = null; }
             daemons.delete(rec.id);
         }
         // Slim pylons lined up along the back edge of the field.
@@ -804,8 +982,11 @@
                 if (col !== rec.color) {
                     rec.color = col;
                     rec.mesh.material = solidMat(col, 0.9);
+                    if (rec.edgeMat) { rec.edgeMat.color.setHex(col); }
                     updateContainerGlow(rec);
                 }
+                rec.state = c.state || c.status;
+                rec.restarting = String(rec.state || '').toLowerCase().indexOf('restart') >= 0;
             }
             for (const entry of containers) {
                 if (!seenC.has(entry[0])) { removeContainer(entry[1]); }
@@ -830,7 +1011,10 @@
                 if (col !== rec.color) {
                     rec.color = col;
                     rec.mesh.material = solidMat(col, 0.9);
+                    if (rec.gear) { rec.gear.material = solidMat(col, 0.75); }
                 }
+                const rc = daemonRestarts(d);
+                if (rc !== rec.restarts) { rec.restarts = rc; updateDaemonLabel(rec); }
             }
             for (const entry of daemons) {
                 if (!seenD.has(entry[0])) { removeDaemon(entry[1]); }
@@ -847,9 +1031,22 @@
                     rec.baseZ
                 );
                 if (rec.glow) { rec.glow.position.copy(rec.mesh.position); }
+                if (rec.edgeMat) {
+                    // Restarting containers pulse their wireframe.
+                    rec.edgeMat.opacity = rec.restarting
+                        ? 0.3 + 0.5 * Math.abs(Math.sin(elapsed * 6))
+                        : 0.5;
+                }
             }
             for (const rec of daemons.values()) {
                 rec.mesh.position.y = INFRA_Y + 3.4 + Math.sin(elapsed * 0.8 + rec.bobPh) * 0.18;
+                if (rec.gear) {
+                    rec.gear.position.copy(rec.mesh.position);
+                    rec.gear.rotation.z += dt * 0.5;
+                }
+                if (rec.rcLabel) {
+                    rec.rcLabel.position.set(rec.mesh.position.x, rec.mesh.position.y + 1.6, rec.mesh.position.z);
+                }
             }
         }
 
@@ -892,6 +1089,10 @@
             octaGeo.dispose();
             coneGeo.dispose();
             planeGeo.dispose();
+            finGeo.dispose();
+            gearGeo.dispose();
+            plateEdgeGeo.dispose();
+            tickGeo.dispose();
             solidMats.forEach(function (m) { m.dispose(); });
             solidMats.clear();
             lineMats.forEach(function (m) { m.dispose(); });

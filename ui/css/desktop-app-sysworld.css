@@ -358,6 +358,79 @@
     font-size: 10.5px;
 }
 
+/* ---- selection label (follows the focused object) ------------------------- */
+
+.sysworld .sw-sel-label {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 4;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 5px 11px;
+    border-radius: 999px;
+    background: linear-gradient(160deg, rgba(14, 20, 38, 0.88), rgba(6, 9, 18, 0.85));
+    border: 1px solid rgba(120, 180, 255, 0.28);
+    box-shadow:
+        0 6px 20px rgba(0, 0, 0, 0.5),
+        0 0 18px -6px var(--sw-accent, #59d4ff);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    pointer-events: none;
+    white-space: nowrap;
+    max-width: 320px;
+    opacity: 0;
+    visibility: hidden;
+    transform: translate(-50%, -135%) scale(0.92);
+    transition: opacity 0.18s ease, visibility 0.18s ease, transform 0.22s cubic-bezier(0.22, 1.12, 0.36, 1);
+}
+
+.sysworld .sw-sel-label.visible {
+    opacity: 1;
+    visibility: visible;
+    transform: translate(-50%, -135%) scale(1);
+}
+
+/* Thin connector from the chip down to the object */
+.sysworld .sw-sel-label::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 100%;
+    width: 1px;
+    height: 12px;
+    background: linear-gradient(to bottom, var(--sw-accent, #59d4ff), transparent);
+    opacity: 0.8;
+}
+
+.sysworld .sw-sel-dot {
+    flex: 0 0 auto;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--sw-accent, #59d4ff);
+}
+
+.sysworld .sw-sel-name {
+    font-size: 11.5px;
+    font-weight: 650;
+    color: #f2f8ff;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px;
+}
+
+.sysworld .sw-sel-kind {
+    font-size: 9px;
+    font-weight: 650;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: rgba(207, 227, 255, 0.55);
+    border-left: 1px solid rgba(120, 180, 255, 0.22);
+    padding-left: 7px;
+}
+
 /* ---- right info panel ----------------------------------------------------- */
 
 .sysworld .sw-info {
@@ -593,6 +666,83 @@
 @keyframes sysworld-busy-pulse {
     0%, 100% { opacity: 1; transform: scale(1); }
     50% { opacity: 0.4; transform: scale(0.75); }
+}
+
+/* ---- panel detail rows: sections, bars, relations ------------------------- */
+
+.sysworld .sw-section {
+    margin: 10px 0 3px;
+    padding-bottom: 3px;
+    font-size: 9.5px;
+    font-weight: 650;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    color: rgba(207, 227, 255, 0.42);
+    border-bottom: 1px solid rgba(120, 180, 255, 0.12);
+    animation: sysworld-row-in 0.3s cubic-bezier(0.2, 0.8, 0.3, 1) both;
+}
+
+.sysworld .sw-section:first-child {
+    margin-top: 0;
+}
+
+.sysworld .sw-row.sw-rel {
+    padding: 4px 0 4px 8px;
+    border-bottom-style: dotted;
+}
+
+.sysworld .sw-row.sw-rel .sw-key {
+    font-style: italic;
+    color: rgba(207, 227, 255, 0.45);
+}
+
+.sysworld .sw-valwrap {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 3px;
+    min-width: 90px;
+}
+
+.sysworld .sw-bar {
+    display: block;
+    width: 100%;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(120, 180, 255, 0.12);
+    overflow: hidden;
+}
+
+.sysworld .sw-bar-fill {
+    display: block;
+    height: 100%;
+    border-radius: 2px;
+    background: linear-gradient(90deg, var(--sw-accent, #59d4ff), rgba(255, 255, 255, 0.85));
+    box-shadow: 0 0 8px var(--sw-accent, #59d4ff);
+    transition: width 0.5s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
+/* ---- interactive legend zones --------------------------------------------- */
+
+.sysworld .sw-legend-item.sw-legend-zone {
+    cursor: pointer;
+    border-radius: 6px;
+    padding: 1px 5px 1px 1px;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.sysworld .sw-legend-item.sw-legend-zone:hover {
+    background: rgba(120, 180, 255, 0.1);
+    color: #f2f8ff;
+}
+
+/* ---- panel footer keys line ------------------------------------------------ */
+
+.sysworld .sw-info-foot-keys {
+    margin-top: 3px;
+    color: rgba(207, 227, 255, 0.28);
+    font-size: 9px;
+    letter-spacing: 0.04em;
 }
 
 @media (prefers-reduced-motion: reduce) {

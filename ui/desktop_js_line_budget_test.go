@@ -23,6 +23,8 @@ func TestVirtualDesktopFirstPartyJSFilesStayBelowLineBudget(t *testing.T) {
 		filepath.ToSlash(filepath.Join("js", "desktop", "apps", "sheets.js")):                      true,
 		filepath.ToSlash(filepath.Join("js", "desktop", "apps", "code-studio", "core.js")):         true,
 		filepath.ToSlash(filepath.Join("js", "desktop", "apps", "openscad.js")):                    true,
+		filepath.ToSlash(filepath.Join("js", "desktop", "apps", "sysworld.js")):                    true,
+		filepath.ToSlash(filepath.Join("js", "desktop", "apps", "sysworld-fleet.js")):              true,
 	}
 	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
 		if walkErr != nil {

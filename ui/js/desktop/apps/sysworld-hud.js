@@ -126,6 +126,21 @@
         tooltipEl.className = 'sw-tooltip';
         root.appendChild(tooltipEl);
 
+        // Persistent selection label: floats above the focused object and is
+        // positioned every frame by the entry module (positionSelLabel).
+        const selLabel = document.createElement('div');
+        selLabel.className = 'sw-sel-label';
+        const selDot = document.createElement('span');
+        selDot.className = 'sw-sel-dot';
+        const selName = document.createElement('span');
+        selName.className = 'sw-sel-name';
+        const selKind = document.createElement('span');
+        selKind.className = 'sw-sel-kind';
+        selLabel.appendChild(selDot);
+        selLabel.appendChild(selName);
+        selLabel.appendChild(selKind);
+        root.appendChild(selLabel);
+
         const infoEl = document.createElement('div');
         infoEl.className = 'sw-info sw-interactive';
         const infoGlow = document.createElement('div');
@@ -155,7 +170,13 @@
         infoRows.className = 'sw-info-rows';
         const infoFoot = document.createElement('div');
         infoFoot.className = 'sw-info-foot';
-        infoFoot.textContent = L('sysworld.panel.hint');
+        const infoFootHint = document.createElement('div');
+        infoFootHint.textContent = L('sysworld.panel.hint');
+        const infoFootKeys = document.createElement('div');
+        infoFootKeys.className = 'sw-info-foot-keys';
+        infoFootKeys.textContent = L('sysworld.panel.hint_keys');
+        infoFoot.appendChild(infoFootHint);
+        infoFoot.appendChild(infoFootKeys);
         infoEl.appendChild(infoGlow);
         infoEl.appendChild(infoClose);
         infoEl.appendChild(infoHead);
@@ -328,9 +349,47 @@
                 legendEl.appendChild(legendItem(paletteCss(cat), L('sysworld.cat.' + cat)));
             });
             ZONE_DEFS.forEach(def => {
-                legendEl.appendChild(legendItem(paletteCss(def[1]), L('sysworld.zone.' + def[0]), 'sw-legend-zone'));
+                const item = legendItem(paletteCss(def[1]), L('sysworld.zone.' + def[0]), 'sw-legend-zone');
+                item.setAttribute('data-sw-zone', def[0]);
+                legendEl.appendChild(item);
             });
         }
+
+        // Legend zone interactivity: hover notifies for a zone pulse, click
+        // requests a camera flight to the zone (behaviour lives in the entry).
+        let hoverZone = null;
+
+        function zoneOf(ev) {
+            const target = ev.target;
+            const item = target && typeof target.closest === 'function'
+                ? target.closest('[data-sw-zone]')
+                : null;
+            return item && legendEl.contains(item) ? item.getAttribute('data-sw-zone') : null;
+        }
+
+        const onLegendOver = ev => {
+            const zone = zoneOf(ev);
+            if (zone === hoverZone) return;
+            hoverZone = zone;
+            notify('onZoneHover', zone);
+        };
+        const onLegendOut = ev => {
+            const item = ev.target && typeof ev.target.closest === 'function'
+                ? ev.target.closest('[data-sw-zone]')
+                : null;
+            if (item && ev.relatedTarget && item.contains(ev.relatedTarget)) return;
+            if (hoverZone !== null) {
+                hoverZone = null;
+                notify('onZoneHover', null);
+            }
+        };
+        const onLegendClick = ev => {
+            const zone = zoneOf(ev);
+            if (zone) notify('onZoneFocus', zone);
+        };
+        legendEl.addEventListener('mouseover', onLegendOver);
+        legendEl.addEventListener('mouseout', onLegendOut);
+        legendEl.addEventListener('click', onLegendClick);
 
         // ── Tooltip ──────────────────────────────────────────────────────────
 
@@ -354,6 +413,38 @@
             tooltipEl.classList.remove('visible');
         }
 
+        // ── Selection label ─────────────────────────────────────────────────
+
+        // Translated kind caption with graceful fallback to 'object'.
+        function kindText(kind) {
+            let label = L('sysworld.kind.' + (kind || 'object'));
+            if (label.indexOf('sysworld.') === 0) label = L('sysworld.kind.object');
+            return label;
+        }
+
+        // info: {name, kind, accent} — content updates only; positioning is
+        // done per frame via positionSelLabel from the entry's RAF loop.
+        function showSelLabel(info) {
+            const m = info || {};
+            const accent = typeof m.accent === 'string' && m.accent ? m.accent : '#59d4ff';
+            selLabel.style.setProperty('--sw-accent', accent);
+            selDot.style.background = accent;
+            selDot.style.boxShadow = '0 0 8px ' + accent;
+            selName.textContent = String(m.name == null ? '' : m.name);
+            selKind.textContent = kindText(m.kind);
+            selLabel.classList.add('visible');
+        }
+
+        function positionSelLabel(x, y) {
+            if (!selLabel.classList.contains('visible')) return;
+            selLabel.style.left = x + 'px';
+            selLabel.style.top = y + 'px';
+        }
+
+        function hideSelLabel() {
+            selLabel.classList.remove('visible');
+        }
+
         // ── Info panel ───────────────────────────────────────────────────────
 
         // rows: [{k: translated label, v: pre-escaped value html, tone?}]
@@ -365,27 +456,74 @@
             const kind = typeof m.kind === 'string' && m.kind ? m.kind : 'object';
             const accent = typeof m.accent === 'string' && m.accent ? m.accent : '#59d4ff';
             infoEl.style.setProperty('--sw-accent', accent);
-            let kindLabel = L('sysworld.kind.' + kind);
-            if (kindLabel.indexOf('sysworld.') === 0) kindLabel = L('sysworld.kind.object');
-            infoBadgeText.textContent = kindLabel;
+            infoBadgeText.textContent = kindText(kind);
             infoBadgeDot.style.background = accent;
             infoBadgeDot.style.boxShadow = '0 0 8px ' + accent;
             infoTitle.textContent = String(title == null ? '' : title);
             infoRows.innerHTML = '';
-            (Array.isArray(rows) ? rows : []).forEach((r, i) => {
+            let rowIndex = 0;
+            (Array.isArray(rows) ? rows : []).forEach(r => {
                 if (!r) return;
+                // Section header row: {section: 'Label'}
+                if (r.section) {
+                    const sec = document.createElement('div');
+                    sec.className = 'sw-section';
+                    sec.textContent = String(r.section);
+                    sec.style.animationDelay = Math.min(rowIndex, 10) * 38 + 'ms';
+                    rowIndex++;
+                    infoRows.appendChild(sec);
+                    return;
+                }
+                // Relation list row group: {rel: [{label, relation}]}
+                if (Array.isArray(r.rel)) {
+                    r.rel.slice(0, 5).forEach(item => {
+                        if (!item) return;
+                        const row = document.createElement('div');
+                        row.className = 'sw-row sw-rel';
+                        row.style.animationDelay = Math.min(rowIndex, 10) * 38 + 'ms';
+                        rowIndex++;
+                        const k = document.createElement('span');
+                        k.className = 'sw-key';
+                        k.textContent = String(item.relation == null ? '' : item.relation);
+                        const v = document.createElement('span');
+                        v.className = 'sw-val';
+                        v.textContent = String(item.label == null ? '' : item.label);
+                        row.appendChild(k);
+                        row.appendChild(v);
+                        infoRows.appendChild(row);
+                    });
+                    return;
+                }
                 const row = document.createElement('div');
                 row.className = 'sw-row';
                 // Staggered cascade-in; delay capped so long panels stay snappy.
-                row.style.animationDelay = Math.min(i, 10) * 38 + 'ms';
+                row.style.animationDelay = Math.min(rowIndex, 10) * 38 + 'ms';
+                rowIndex++;
                 const k = document.createElement('span');
                 k.className = 'sw-key';
                 k.textContent = String(r.k == null ? '' : r.k);
                 const v = document.createElement('span');
                 v.className = 'sw-val' + (r.tone ? ' sw-pill sw-tone-' + r.tone : '');
                 v.innerHTML = String(r.v == null ? '' : r.v);
-                row.appendChild(k);
-                row.appendChild(v);
+                // Optional mini bar under the value: {bar: 0..1}
+                if (typeof r.bar === 'number' && isFinite(r.bar)) {
+                    const wrap = document.createElement('span');
+                    wrap.className = 'sw-valwrap';
+                    wrap.appendChild(v);
+                    const bar = document.createElement('span');
+                    bar.className = 'sw-bar';
+                    const fill = document.createElement('span');
+                    fill.className = 'sw-bar-fill';
+                    const pct = Math.max(0, Math.min(1, r.bar));
+                    fill.style.width = Math.round(pct * 100) + '%';
+                    bar.appendChild(fill);
+                    wrap.appendChild(bar);
+                    row.appendChild(k);
+                    row.appendChild(wrap);
+                } else {
+                    row.appendChild(k);
+                    row.appendChild(v);
+                }
                 infoRows.appendChild(row);
             });
             // Restart the pop animation on every (re)open, even same target.
@@ -493,6 +631,9 @@
             disposed = true;
             eventTimers.forEach(id => clearTimeout(id));
             eventTimers.length = 0;
+            try { legendEl.removeEventListener('mouseover', onLegendOver); } catch (_) {}
+            try { legendEl.removeEventListener('mouseout', onLegendOut); } catch (_) {}
+            try { legendEl.removeEventListener('click', onLegendClick); } catch (_) {}
             try { actionsEl.removeEventListener('click', onActionsClick); } catch (_) {}
             try { infoClose.removeEventListener('click', onCloseClick); } catch (_) {}
             try { root.remove(); } catch (_) {}
@@ -508,6 +649,9 @@
             setLegend,
             showTooltip,
             hideTooltip,
+            showSelLabel,
+            positionSelLabel,
+            hideSelLabel,
             showPanel,
             hidePanel,
             isPanelOpen,

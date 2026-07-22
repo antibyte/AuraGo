@@ -16,6 +16,7 @@
     // values live on NS.PALETTE / NS.LAYOUT (defined by the foundation
     // modules); these only protect against a missing foundation.
     const FALLBACK_PALETTE = {
+        coreHot: 0xffffff,
         communication: 0x4fc3f7,
         smarthome: 0x81c784,
         infrastructure: 0xffb74d,
@@ -269,14 +270,54 @@
         });
 
         // Shared geometries for every satellite (disposed once, with the
-        // module — never per satellite).
-        const sharedSphereGeo = new THREE.SphereGeometry(0.5, 14, 10);
+        // module — never per satellite). Each category gets its own low-poly
+        // shape so the orbit reads as a taxonomy at a glance; the same
+        // geometry is reused for the translucent wireframe shell.
+        const categoryGeos = {
+            communication: new THREE.IcosahedronGeometry(0.55, 0),
+            smarthome: new THREE.BoxGeometry(0.95, 0.95, 0.95),
+            infrastructure: new THREE.OctahedronGeometry(0.55, 0),
+            ai: new THREE.DodecahedronGeometry(0.55, 0),
+            storage: new THREE.CylinderGeometry(0.5, 0.5, 0.85, 10),
+            monitoring: new THREE.ConeGeometry(0.52, 0.95, 10),
+            other: new THREE.SphereGeometry(0.5, 14, 10)
+        };
+        function categoryGeo(category) {
+            return categoryGeos[category] || categoryGeos.other;
+        }
+        // Per-category shared wireframe material for the outer shell.
+        const wireMatCache = new Map();
+        function wireMatFor(category) {
+            let m = wireMatCache.get(category);
+            if (!m) {
+                m = new THREE.MeshBasicMaterial({
+                    color: categoryColor(category),
+                    wireframe: true,
+                    transparent: true,
+                    opacity: 0.25,
+                    blending: THREE.AdditiveBlending,
+                    depthWrite: false
+                });
+                wireMatCache.set(category, m);
+            }
+            return m;
+        }
+        // Shared bright inner core (identical for every satellite).
+        const coreGeo = new THREE.SphereGeometry(0.22, 10, 8);
+        const coreMat = new THREE.MeshBasicMaterial({
+            color: P.coreHot != null ? P.coreHot : 0xffffff,
+            transparent: true,
+            opacity: 0.95,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+        });
         const sharedRingGeo = new THREE.TorusGeometry(1.05, 0.03, 6, 40);
 
         const pickables = [];
 
-        // Applies the enabled/disabled look: color, glow, beam, accent ring
-        // and travel speed. Fires a small burst when a satellite turns on.
+        // Applies the enabled/disabled look: color, glow, beam, wireframe
+        // shell, accent ring and travel speed. Fires a small burst plus a
+        // pulse ring when a satellite turns on.
         function applyEnabled(sat, enabled, celebrate) {
             const hex = categoryColor(sat.category);
             sat.enabled = enabled;
@@ -285,10 +326,16 @@
             sat.mesh.material.color.setHex(enabled ? hex : P.dim);
             sat.glow.material.color.setHex(enabled ? hex : P.dim);
             sat.glow.material.opacity = enabled ? 0.9 : 0.1;
+            sat.shell.visible = enabled;
             sat.beam.visible = enabled;
             sat.accent.visible = enabled;
-            if (enabled && celebrate && fx && typeof fx.burst === 'function') {
-                fx.burst(sat.node.position, hex, 12);
+            if (enabled && celebrate && fx) {
+                if (typeof fx.burst === 'function') {
+                    fx.burst(sat.node.position, hex, 12);
+                }
+                if (typeof fx.pulseRing === 'function') {
+                    fx.pulseRing(sat.node.position, hex, 6);
+                }
             }
         }
 
@@ -300,7 +347,7 @@
             const node = new THREE.Object3D();
             node.name = 'sysworld-sat-' + id;
 
-            const mesh = new THREE.Mesh(sharedSphereGeo, new THREE.MeshBasicMaterial({ color: hex }));
+            const mesh = new THREE.Mesh(categoryGeo(category), new THREE.MeshBasicMaterial({ color: hex }));
             mesh.userData = {
                 kind: 'integration',
                 id: id,
@@ -310,8 +357,28 @@
             };
             node.add(mesh);
 
+            // Bright inner core marking the "live" center of the solid.
+            const core = new THREE.Mesh(coreGeo, coreMat);
+            node.add(core);
+
+            // Translucent wireframe shell echoing the category shape.
+            const shell = new THREE.Mesh(categoryGeo(category), wireMatFor(category));
+            shell.scale.set(1.35, 1.35, 1.35);
+            node.add(shell);
+
             const glow = makeGlow(hex, 2.6);
             node.add(glow);
+
+            // Name label under the satellite; opacity is distance-faded per
+            // frame in update(). Skipped entirely without the effects module.
+            let label = null;
+            if (fx && typeof fx.textSprite === 'function') {
+                label = fx.textSprite(prettify(id), hex, { scale: 0.55 });
+                if (label) {
+                    label.position.set(0, -2.0, 0);
+                    node.add(label);
+                }
+            }
 
             // Thin accent ring circling the satellite (enabled state only).
             const accent = new THREE.Mesh(sharedRingGeo, new THREE.MeshBasicMaterial({
@@ -349,14 +416,20 @@
                 enabled: enabled,
                 node: node,
                 mesh: mesh,
+                core: core,
+                shell: shell,
                 glow: glow,
+                label: label,
+                labelBase: 0.9,
                 accent: accent,
                 beam: beam,
                 beamAttr: beamAttr,
                 baseAngle: 0,
                 phase: 0,
                 speed: 0,
-                bobPhase: Math.random() * TWO_PI
+                bobPhase: Math.random() * TWO_PI,
+                spawnTimer: null,
+                spawnTween: null
             };
             applyEnabled(sat, enabled, false);
             state.sats.set(id, sat);
@@ -364,14 +437,51 @@
             return sat;
         }
 
+        // Scales a freshly created satellite from a pinpoint to full size,
+        // delayed by its stagger slot. The timer/tween handles live on the
+        // satellite record so removal and dispose() can cancel them safely.
+        function spawnIn(sat, delayMs) {
+            if (!fx || typeof fx.tween !== 'function') {
+                sat.node.scale.set(1, 1, 1);
+                return;
+            }
+            sat.node.scale.set(0.001, 0.001, 0.001);
+            sat.spawnTimer = setTimeout(function () {
+                sat.spawnTimer = null;
+                if (state.disposed || !state.sats.has(sat.id)) return;
+                sat.spawnTween = fx.tween({
+                    duration: 0.5,
+                    ease: 'outCubic',
+                    update: function (e) {
+                        const s = 0.001 + 0.999 * e;
+                        sat.node.scale.set(s, s, s);
+                    },
+                    done: function () {
+                        sat.spawnTween = null;
+                        sat.node.scale.set(1, 1, 1);
+                    }
+                });
+            }, delayMs);
+        }
+
         function removeSatellite(sat) {
             const seenTextures = new Set();
+            if (sat.spawnTimer) {
+                clearTimeout(sat.spawnTimer);
+                sat.spawnTimer = null;
+            }
+            if (sat.spawnTween) {
+                sat.spawnTween.cancel();
+                sat.spawnTween = null;
+            }
             group.remove(sat.node);
             group.remove(sat.beam);
-            // Shared sphere/ring geometries stay alive; only per-satellite
-            // materials and the beam geometry are disposed here.
+            // Shared category/core/ring geometries and shared core/wireframe
+            // materials stay alive; only per-satellite materials and the beam
+            // geometry are disposed here.
             disposeMaterialDeep(sat.mesh.material, seenTextures);
             disposeMaterialDeep(sat.glow.material, seenTextures);
+            if (sat.label) disposeMaterialDeep(sat.label.material, seenTextures);
             disposeMaterialDeep(sat.accent.material, seenTextures);
             sat.beam.geometry.dispose();
             disposeMaterialDeep(sat.beam.material, seenTextures);
@@ -453,10 +563,12 @@
                 });
                 doomed.forEach(removeSatellite);
                 // Create newcomers.
+                const newcomers = [];
                 Object.keys(next).forEach(function (id) {
                     if (!state.sats.has(id)) {
                         const sat = createSatellite(id, next[id]);
                         positionSatellite(sat, 0);
+                        newcomers.push(sat);
                     }
                 });
                 relayout();
@@ -465,6 +577,10 @@
                 // away instead of waiting for the next animation frame.
                 state.sats.forEach(function (sat) {
                     positionSatellite(sat, 0);
+                });
+                // Spawn-in animation, staggered by relayout order.
+                newcomers.forEach(function (sat, ix) {
+                    spawnIn(sat, ix * 40);
                 });
             }
 
@@ -488,6 +604,8 @@
             if (state.disposed) return;
             dt = clamp(toFinite(dt, 0), 0, 0.1);
             elapsed = toFinite(elapsed, 0);
+            const cam = inst.stage.camera;
+            const camPos = cam ? cam.position : null;
             state.sats.forEach(function (sat) {
                 sat.phase += dt * sat.speed;
                 positionSatellite(sat, elapsed);
@@ -496,6 +614,21 @@
                 // Tumbling the tilted accent ring plane (a pure z spin would
                 // be invisible on a uniform torus).
                 sat.accent.rotation.y += dt * 0.6;
+                // Distance-fade the name label: full base opacity up close,
+                // linear fade-out to 120 units; disabled satellites keep a
+                // faint remnant so the orbit stays readable.
+                if (sat.label && camPos) {
+                    const p = sat.node.position;
+                    const dx = p.x - camPos.x;
+                    const dy = p.y - camPos.y;
+                    const dz = p.z - camPos.z;
+                    const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+                    const fade = clamp((120 - dist) / 65, 0, 1);
+                    let op = sat.labelBase * fade;
+                    if (!sat.enabled) op *= 0.35;
+                    sat.label.material.opacity = op;
+                    sat.label.visible = op > 0.01;
+                }
             });
         }
 
@@ -511,7 +644,13 @@
                 disposeMaterialDeep(loop.material, new Set());
             });
             ringLoops.length = 0;
-            sharedSphereGeo.dispose();
+            Object.keys(categoryGeos).forEach(function (key) {
+                categoryGeos[key].dispose();
+            });
+            wireMatCache.forEach(function (m) { m.dispose(); });
+            wireMatCache.clear();
+            coreGeo.dispose();
+            coreMat.dispose();
             sharedRingGeo.dispose();
             if (ownedGlowTex) {
                 ownedGlowTex.dispose();

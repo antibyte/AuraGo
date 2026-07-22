@@ -101,6 +101,58 @@
         }
 
         // ------------------------------------------------------------------
+        // Text sprites: crisp canvas labels with an accent underline, shared
+        // by every module (satellites, missions, tools, daemons). Textures
+        // are cached per text+color and disposed exactly once with the fx.
+        // ------------------------------------------------------------------
+        const textTextureCache = new Map();
+
+        function textSprite(text, hexColor, opts) {
+            const o = opts || {};
+            const label = String(text == null ? '' : text).slice(0, 26);
+            const key = label + '|' + ((Number(hexColor) >>> 0) & 0xffffff);
+            let tex = textTextureCache.get(key);
+            if (!tex) {
+                const w = 256;
+                const h = 64;
+                const canvas = document.createElement('canvas');
+                canvas.width = w;
+                canvas.height = h;
+                const c2 = canvas.getContext('2d');
+                c2.clearRect(0, 0, w, h);
+                c2.font = '600 28px "Segoe UI", system-ui, sans-serif';
+                c2.textAlign = 'center';
+                c2.textBaseline = 'middle';
+                c2.shadowColor = 'rgba(0, 0, 0, 0.85)';
+                c2.shadowBlur = 6;
+                c2.fillStyle = 'rgba(235, 244, 255, 0.95)';
+                c2.fillText(label, w / 2, h / 2 - 5, w - 16);
+                c2.shadowBlur = 0;
+                tmpColor.setHex((Number(hexColor) >>> 0) & 0xffffff);
+                const r = Math.round(tmpColor.r * 255);
+                const g = Math.round(tmpColor.g * 255);
+                const b = Math.round(tmpColor.b * 255);
+                const uw = Math.min(w * 0.62, 26 + label.length * 7.5);
+                c2.fillStyle = 'rgba(' + r + ',' + g + ',' + b + ',0.85)';
+                c2.fillRect(w / 2 - uw / 2, h - 13, uw, 3);
+                tex = new THREE.CanvasTexture(canvas);
+                tex.minFilter = THREE.LinearFilter;
+                tex.generateMipmaps = false;
+                textTextureCache.set(key, tex);
+            }
+            const mat = new THREE.SpriteMaterial({
+                map: tex,
+                transparent: true,
+                opacity: o.opacity != null ? o.opacity : 0.9,
+                depthWrite: false
+            });
+            const sprite = new THREE.Sprite(mat);
+            const scale = o.scale || 1;
+            sprite.scale.set(8 * scale, 2 * scale, 1);
+            return sprite;
+        }
+
+        // ------------------------------------------------------------------
         // Quality state
         // ------------------------------------------------------------------
         let caps = QUALITY.high;
@@ -478,9 +530,43 @@
         beaconRingB.frustumCulled = false;
         const beaconGlow = makeGlowSprite(0xffffff, 3);
         beaconGlow.material.opacity = 0;
+        // Light pillar rising from the selected object.
+        const beaconPillarGeom = new THREE.CylinderGeometry(0.32, 0.62, 30, 12, 1, true);
+        const beaconPillarMat = new THREE.MeshBasicMaterial({
+            color: 0xffffff,
+            transparent: true,
+            opacity: 0,
+            side: THREE.DoubleSide,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+        });
+        const beaconPillar = new THREE.Mesh(beaconPillarGeom, beaconPillarMat);
+        beaconPillar.position.y = 15;
+        beaconPillar.frustumCulled = false;
+        // Orbiter sparks circling the halo (6 points, one shared buffer).
+        const SPARK_COUNT = 6;
+        const sparkPositions = new Float32Array(SPARK_COUNT * 3);
+        const sparkGeom = new THREE.BufferGeometry();
+        const sparkAttr = new THREE.BufferAttribute(sparkPositions, 3);
+        sparkAttr.setUsage(THREE.DynamicDrawUsage);
+        sparkGeom.setAttribute('position', sparkAttr);
+        const sparkMat = new THREE.PointsMaterial({
+            size: 0.85,
+            map: glowTexture(0xffffff),
+            color: 0xffffff,
+            transparent: true,
+            opacity: 0,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+            sizeAttenuation: true
+        });
+        const sparkPoints = new THREE.Points(sparkGeom, sparkMat);
+        sparkPoints.frustumCulled = false;
         beaconGroup.add(beaconRingA);
         beaconGroup.add(beaconRingB);
         beaconGroup.add(beaconGlow);
+        beaconGroup.add(beaconPillar);
+        beaconGroup.add(sparkPoints);
         group.add(beaconGroup);
         const beacon = {
             active: false,
@@ -502,6 +588,9 @@
             beacon.born = beaconElapsed;
             beaconMatA.color.setHex(hexColor);
             beaconMatB.color.setHex(hexColor);
+            beaconPillarMat.color.setHex(hexColor);
+            sparkMat.color.setHex(hexColor);
+            sparkGeom.setDrawRange(0, particleScale < 0.5 ? 3 : SPARK_COUNT);
             beaconGlow.material.color.setHex(hexColor);
             beaconGlow.material.map = glowTexture(hexColor);
             try {
@@ -541,6 +630,70 @@
             const gs = beacon.baseScale * (2.6 + 0.3 * Math.sin(elapsed * 1.7));
             beaconGlow.scale.set(gs, gs, 1);
             beaconGlow.material.opacity = 0.22 * age;
+            // Light pillar breathing; scales with the object so small tools
+            // and big containers both read correctly.
+            const ph = beacon.baseScale * 0.55;
+            beaconPillar.scale.set(ph, Math.max(0.6, beacon.baseScale * 0.45), ph);
+            beaconPillar.position.y = 15 * Math.max(0.6, beacon.baseScale * 0.45);
+            beaconPillarMat.opacity = (0.085 + 0.045 * Math.sin(elapsed * 2.6)) * age;
+            // Orbiter sparks on a tilted path around the halo.
+            const sr = beacon.baseScale * 1.55;
+            for (let i = 0; i < SPARK_COUNT; i++) {
+                const a = beacon.spin * 1.35 + i * (Math.PI * 2 / SPARK_COUNT);
+                sparkPositions[i * 3] = Math.cos(a) * sr;
+                sparkPositions[i * 3 + 1] = Math.sin(elapsed * 2.1 + i * 1.7) * beacon.baseScale * 0.5;
+                sparkPositions[i * 3 + 2] = Math.sin(a) * sr;
+            }
+            sparkAttr.needsUpdate = true;
+            sparkMat.opacity = 0.85 * age;
+        }
+
+        // ------------------------------------------------------------------
+        // Hover ring: a single pooled billboard ring that tracks the hovered
+        // object (set null to hide). Shares the beacon's look, white-hot.
+        // ------------------------------------------------------------------
+        const hoverGeom = new THREE.RingGeometry(0.88, 1, 48);
+        const hoverMat = new THREE.MeshBasicMaterial({
+            color: 0xffffff,
+            transparent: true,
+            opacity: 0,
+            side: THREE.DoubleSide,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+        });
+        const hoverMesh = new THREE.Mesh(hoverGeom, hoverMat);
+        hoverMesh.visible = false;
+        hoverMesh.frustumCulled = false;
+        group.add(hoverMesh);
+        const hover = { target: null, scale: 1 };
+
+        function hoverRing(object3d, radius, hexColor) {
+            ensureGroup();
+            if (!object3d) {
+                hover.target = null;
+                hoverMesh.visible = false;
+                return;
+            }
+            hover.target = object3d;
+            hover.scale = Math.max(0.7, (radius || 1) * 1.55);
+            hoverMat.color.setHex(hexColor != null ? hexColor : 0xffffff);
+            try { object3d.getWorldPosition(hoverMesh.position); } catch (_) {}
+            hoverMesh.visible = true;
+        }
+
+        function updateHoverRing(dt, elapsed) {
+            if (!hover.target) return;
+            if (!hover.target.parent) {
+                hover.target = null;
+                hoverMesh.visible = false;
+                return;
+            }
+            hover.target.getWorldPosition(hoverMesh.position);
+            const s = hover.scale * (1 + 0.07 * Math.sin(elapsed * 5.1));
+            hoverMesh.scale.set(s, s, s);
+            hoverMat.opacity = 0.5 + 0.22 * Math.sin(elapsed * 4.3);
+            const cam = inst.stage && inst.stage.camera;
+            if (cam) hoverMesh.quaternion.copy(cam.quaternion);
         }
 
         // ------------------------------------------------------------------
@@ -671,6 +824,7 @@
             updateRings(dt);
             updateBeams(dt);
             updateBeacon(dt, elapsed);
+            updateHoverRing(dt, elapsed);
         }
 
         function dispose() {
@@ -695,6 +849,15 @@
             beaconMatA.dispose();
             beaconMatB.dispose();
             beaconGlow.material.dispose();
+            beaconPillarGeom.dispose();
+            beaconPillarMat.dispose();
+            sparkGeom.dispose();
+            sparkMat.dispose();
+            hoverGeom.dispose();
+            hoverMat.dispose();
+            // Cached text label textures are shared — dispose them here.
+            textTextureCache.forEach(function (tex) { tex.dispose(); });
+            textTextureCache.clear();
             beams.forEach(function (b) {
                 b.geom.dispose();
                 b.mat.dispose();
@@ -710,6 +873,7 @@
         return {
             glowTexture: glowTexture,
             makeGlowSprite: makeGlowSprite,
+            textSprite: textSprite,
             comet: comet,
             burst: burst,
             beam: beam,
@@ -718,6 +882,7 @@
             trailFor: trailFor,
             selectBeacon: selectBeacon,
             clearBeacon: clearBeacon,
+            hoverRing: hoverRing,
             tween: tween,
             update: update,
             setQuality: setQuality,
