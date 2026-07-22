@@ -1,4 +1,7 @@
 {
+  "help.sip.enabled": "Den nativen SIP-Endpunkt für ein Konto erst aktivieren, wenn Konto, Vault-Passwort, Medienports und Positivlisten vollständig sind.",
+  "help.sip.readonly": "Nur-Lesen lässt Registrierung, Status, Historie und Verbindungstests zu, verhindert aber alle Anrufänderungen.",
+  "help.sip.allowlists": "Eingehende Anrufe benötigen sowohl eine vertrauenswürdige Proxy-Adresse als auch einen Anrufer-Treffer; ausgehende Anrufe eine erlaubte Domain und einen Benutzer oder E.164-Präfix.",
   "help.agent.adaptive_system_prompt_token_budget": "Passt das Token-Budget automatisch an die Größe des Kontextfensters des Modells an. Empfohlen in Kombination mit Token-Budget = 0.",
   "help.agent.adaptive_tools.always_include": "Tool-Namen, die bei aktivem Adaptive Filtering sichtbar bleiben. Standard: filesystem, query_memory, manage_memory, execute_shell.",
   "help.agent.adaptive_tools.clean_transitions_after_days": "Löscht nicht mehr relevante Tool-Übergangsdaten nach X Tagen.",

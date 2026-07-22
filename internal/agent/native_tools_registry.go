@@ -86,6 +86,7 @@ func allBuiltinToolFeatureFlags() ToolFeatureFlags {
 		S3Enabled: true, NetworkScanEnabled: true, FormAutomationEnabled: true, UPnPScanEnabled: true,
 		JellyfinEnabled: true, ChromecastEnabled: true, BluetoothEnabled: true, BluetoothWriteEnabled: true, BluetoothAudioEnabled: true,
 		NetworkSharesEnabled: true, NetworkSharesCreateEnabled: true, NetworkSharesUpdateEnabled: true, NetworkSharesDeleteEnabled: true,
+		SIPPhoneEnabled: true, SIPPhoneDialEnabled: true, SIPPhoneAnswerEnabled: true, SIPPhoneDTMFEnabled: true, SIPPhoneHangupEnabled: true,
 		DiscordEnabled: true, TelegramEnabled: true, AgoDeskChatEnabled: true, TrueNASEnabled: true,
 		KoofrEnabled: true, FritzBoxSystemEnabled: true, FritzBoxNetworkEnabled: true,
 		FritzBoxTelephonyEnabled: true, FritzBoxSmartHomeEnabled: true, FritzBoxStorageEnabled: true,
@@ -216,6 +217,11 @@ func (ff ToolFeatureFlags) Key() string {
 	appendToolFeatureKeyPart("network_shares_create", ff.NetworkSharesCreateEnabled)
 	appendToolFeatureKeyPart("network_shares_update", ff.NetworkSharesUpdateEnabled)
 	appendToolFeatureKeyPart("network_shares_delete", ff.NetworkSharesDeleteEnabled)
+	appendToolFeatureKeyPart("sip_phone", ff.SIPPhoneEnabled)
+	appendToolFeatureKeyPart("sip_phone_dial", ff.SIPPhoneDialEnabled)
+	appendToolFeatureKeyPart("sip_phone_answer", ff.SIPPhoneAnswerEnabled)
+	appendToolFeatureKeyPart("sip_phone_dtmf", ff.SIPPhoneDTMFEnabled)
+	appendToolFeatureKeyPart("sip_phone_hangup", ff.SIPPhoneHangupEnabled)
 	appendToolFeatureKeyPart("discord", ff.DiscordEnabled)
 	appendToolFeatureKeyPart("telegram", ff.TelegramEnabled)
 	appendToolFeatureKeyPart("agodesk_chat", ff.AgoDeskChatEnabled)

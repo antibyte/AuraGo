@@ -427,4 +427,8 @@
     <title>go2rtc</title>
     <rect x="27" y="35" width="58" height="58" rx="12" fill="#35c7d3" opacity=".2"/><path d="M27 35h58v58H27zM85 55l18-11v40L85 73" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="6" stroke="#35c7d3"/><circle cx="56" cy="64" r="13" fill="none" stroke-width="6" stroke="#6fca8f"/>
   </g>
+  <g class="cfg-icon-cell" data-key="sip" data-slot="107" transform="translate(1024 1152)">
+    <title>sip</title>
+    <path d="M41 28h14l8 22-10 8c8 16 17 25 33 33l8-10 22 8v14c0 8-7 14-15 13-42-6-76-40-82-82-1-8 5-15 13-15z" fill="#35c7d3" opacity=".22"/><path d="M41 28h14l8 22-10 8c8 16 17 25 33 33l8-10 22 8v14c0 8-7 14-15 13-42-6-76-40-82-82-1-8 5-15 13-15z" fill="none" stroke="#35c7d3" stroke-width="6" stroke-linejoin="round"/>
+  </g>
 </svg>

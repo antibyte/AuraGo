@@ -1,4 +1,7 @@
 {
+  "help.sip.enabled": "Ενεργοποιήστε το SIP μόνο όταν λογαριασμός, κωδικός Vault, θύρες και λίστες επιτρεπόμενων είναι πλήρη.",
+  "help.sip.readonly": "Η μόνο ανάγνωση επιτρέπει εγγραφή, κατάσταση, ιστορικό και δοκιμές αλλά όχι αλλαγές κλήσεων.",
+  "help.sip.allowlists": "Οι εισερχόμενες κλήσεις απαιτούν έμπιστο proxy και επιτρεπόμενο καλούντα· οι εξερχόμενες επιτρεπόμενο domain και χρήστη ή E.164.",
   "help.agent.adaptive_system_prompt_token_budget": "Προσαρμόζει αυτόματα τον προϋπολογισμό token στο μέγεθος του παραθύρου συμφραζομένων του μοντέλου. Συνιστάται με προϋπολογισμό token = 0.",
   "help.agent.adaptive_tools.always_include": "Ονόματα εργαλείων που μένουν ορατά όταν είναι ενεργό το adaptive filtering. Προεπιλογή: filesystem, query_memory, manage_memory, execute_shell.",
   "help.agent.adaptive_tools.clean_transitions_after_days": "Αφαιρεί παλιά δεδομένα μετάβασης εργαλείων μετά από X ημέρες.",

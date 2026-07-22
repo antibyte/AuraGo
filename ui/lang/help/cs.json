@@ -1,4 +1,7 @@
 {
+  "help.sip.enabled": "Nativní SIP pro jeden účet zapněte až po dokončení účtu, hesla ve Vaultu, mediálních portů a seznamů povolení.",
+  "help.sip.readonly": "Režim jen pro čtení ponechá registraci, stav, historii a testy, ale zabrání změnám hovorů.",
+  "help.sip.allowlists": "Příchozí hovory musí odpovídat důvěryhodnému proxy i volajícímu; odchozí povolené doméně a uživateli či E.164.",
   "help.agent.adaptive_system_prompt_token_budget": "Automaticky přizpůsobí rozpočet tokenů velikosti kontextového okna modelu. Doporučeno s rozpočtem tokenů = 0.",
   "help.agent.adaptive_tools.always_include": "Nazvy nastroju, ktere zustanou viditelne pri aktivnim adaptivnim filtrovani. Vychozi: filesystem, query_memory, manage_memory, execute_shell.",
   "help.agent.adaptive_tools.clean_transitions_after_days": "Odstraňuje zastaralá data o přechodech nástrojů po X dnech.",

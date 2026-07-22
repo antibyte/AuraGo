@@ -440,6 +440,14 @@ Tools are defined in `internal/tools/`:
 - Route only AuraGo's stream to the matched Bluetooth sink, keep the system default output unchanged, and allow at most one AuraGo-owned Bluetooth playback at a time.
 - Standard Docker installations must report Bluetooth unavailable unless a future explicit and security-reviewed host D-Bus/audio passthrough contract is added.
 
+### Native SIP Telephony Contract
+- AuraGo owns one in-process Diago SIP endpoint, one Vault-backed account, and at most one active call. Keep Diago pinned to v0.31.0, sipgo pinned to v1.4.3, G.711-only media, and CGO-free builds; do not add Asterisk, FreeSWITCH, PJSIP, ffmpeg, or a SIP sidecar.
+- Registration and explicit connection tests remain available in read-only mode. Answering, dialing, DTMF, and agent hangup require both `readonly: false` and their granular permissions. Empty caller or destination allowlists deny all.
+- Trust incoming calls only when both the network peer matches a configured CIDR and the normalized caller matches the allowlist. Outgoing calls require canonical `sip:` URIs, an exact allowed domain, and an exact user or allowed E.164 prefix.
+- Keep the SIP password only under Vault key `sip_endpoint_password`; block every `sip_` secret from Python, skills, and agent export. Never log or store full SIP headers, RTP/audio, authentication data, or raw transcripts.
+- Both classic ASR/agent/TTS and server-side Gemini Live use `internal/voice` PCM contracts and the shared `VoiceActionRunner`. SIP turns always carry an explicit `AllowedTools` list whose empty form allows no native tools, including through `invoke_tool`.
+- The PCM `MediaPeer`, incoming-call handler, history schema, REST actions, and SSE events are compatibility anchors for the future authenticated WebRTC desktop phone and bounded Media-Registry answering machine; neither future feature may expose SIP credentials or raw RTP to the browser.
+
 ### Local Network Share Integration Contract
 - Local SMB/NFS capability probing must remain passive: never install packages, start services, enable Samba registry shares, or change global server configuration.
 - The native `network_shares` tool and Admin UI expose reads only when a configured protocol is actually readable. Mutations require the matching granular permission, `readonly: false`, a writable runtime backend, and an existing canonical directory inside an allowed root.

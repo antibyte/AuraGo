@@ -1,4 +1,7 @@
 {
+  "help.sip.enabled": "Schakel SIP pas in als account, Vault-wachtwoord, mediapoorten en toestemmingslijsten compleet zijn.",
+  "help.sip.readonly": "Alleen-lezen laat registratie, status, historie en tests toe, maar voorkomt oproepwijzigingen.",
+  "help.sip.allowlists": "Inkomende oproepen vereisen een vertrouwde proxy en toegestane beller; uitgaande een toegestaan domein en gebruiker of E.164.",
   "help.agent.adaptive_system_prompt_token_budget": "Past het tokenbudget automatisch aan de contextvenstergrootte van het model aan. Aanbevolen met tokenbudget = 0.",
   "help.agent.adaptive_tools.always_include": "Toolnamen die zichtbaar blijven wanneer adaptief filteren actief is. Standaard: filesystem, query_memory, manage_memory, execute_shell.",
   "help.agent.adaptive_tools.clean_transitions_after_days": "Verwijdert verouderde tool-overgangsgegevens na X dagen.",

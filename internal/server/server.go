@@ -41,6 +41,7 @@ import (
 	"aurago/internal/remote"
 	"aurago/internal/security"
 	"aurago/internal/services"
+	"aurago/internal/sipphone"
 	"aurago/internal/sqlconnections"
 	"aurago/internal/tools"
 	"aurago/internal/tsnetnode"
@@ -146,6 +147,8 @@ type Server struct {
 	Go2RTCDiscovery      *onvif.Service
 	Bluetooth            *bluetooth.Manager
 	NetworkShares        *networkshares.Manager
+	SIPPhone             *sipphone.Manager
+	VoiceActionRunner    *VoiceActionRunner
 	HistoryManager       *memory.HistoryManager
 	KG                   *memory.KnowledgeGraph
 	InventoryDB          *sql.DB
@@ -319,6 +322,10 @@ func Start(opts StartOptions) error {
 
 	startLoginRecordCleaner(shutdownCh)
 	s := newServerFromOptions(opts)
+	if err := s.initSIP(serverCtx); err != nil {
+		serverCancel()
+		return err
+	}
 	if s.Go2RTC != nil {
 		s.Go2RTC.StartBackground(serverCtx)
 	}
@@ -340,6 +347,12 @@ func Start(opts StartOptions) error {
 		}
 		if networkshares.DefaultManager() == s.NetworkShares {
 			networkshares.SetDefaultManager(nil)
+		}
+		if s.SIPPhone != nil {
+			_ = s.SIPPhone.Close()
+		}
+		if sipphone.DefaultManager() == s.SIPPhone {
+			sipphone.SetDefaultManager(nil)
 		}
 	}()
 	startHomepageLedgerReconciler(shutdownCh, s)

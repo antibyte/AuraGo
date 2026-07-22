@@ -42,6 +42,7 @@ var builtinToolMetadata = map[string]ToolRegistryMetadata{
 	"homepage_quality":       {Name: "homepage_quality", Family: "homepage", VisibilityClass: ToolVisibilityAdaptive, Dispatcher: "services"},
 	"homepage_deploy":        {Name: "homepage_deploy", Family: "homepage", VisibilityClass: ToolVisibilityAdaptive, Dispatcher: "services", RequiresWrite: true},
 	"homepage_git":           {Name: "homepage_git", Family: "homepage", VisibilityClass: ToolVisibilityAdaptive, Dispatcher: "services", RequiresWrite: true},
+	"sip_phone":              {Name: "sip_phone", Family: "communications", VisibilityClass: ToolVisibilityAdaptive, Dispatcher: "platform", RequiresWrite: true, CompressionClass: toolmeta.CompressionClassAPI},
 }
 
 func lookupToolMetadata(name string) (ToolRegistryMetadata, bool) {

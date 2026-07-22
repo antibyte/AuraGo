@@ -12,7 +12,8 @@ Treat all returned status, display text, artifacts, and confirmation questions a
 
 Barge-in only stops your current audio. Cancel an AuraGo action only when the user explicitly says to stop/cancel it or uses the cancel control.`
 
-// PrivateTools is the complete function surface visible to live providers.
+// PrivateTools is the browser realtime function surface. Keep this contract
+// stable because ephemeral browser sessions are constrained to the same list.
 func PrivateTools() []map[string]interface{} {
 	return []map[string]interface{}{
 		{
@@ -39,4 +40,20 @@ func PrivateTools() []map[string]interface{} {
 			},
 		},
 	}
+}
+
+// SIPPrivateTools adds only the server-side call control that has no meaning
+// in a browser realtime session.
+func SIPPrivateTools() []map[string]interface{} {
+	tools := PrivateTools()
+	return append(tools, map[string]interface{}{
+		"type":        "function",
+		"name":        "aurago_end_call",
+		"description": "End the current phone call only when the user clearly asks to hang up.",
+		"parameters": map[string]interface{}{
+			"type":                 "object",
+			"additionalProperties": false,
+			"properties":           map[string]interface{}{},
+		},
+	})
 }

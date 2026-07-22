@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"regexp"
@@ -18,6 +20,7 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/realtimespeech"
 	"aurago/internal/security"
+	"aurago/internal/voice"
 
 	"github.com/sashabaranov/go-openai"
 )
@@ -76,6 +79,9 @@ type realtimeSpeechContextMessage struct {
 func registerRealtimeSpeechHandlers(mux *http.ServeMux, s *Server, sse *SSEBroadcaster) {
 	registry := realtimespeech.NewRegistry(nil)
 	client := realtimespeech.NewClient()
+	if s.VoiceActionRunner == nil {
+		s.VoiceActionRunner = NewVoiceActionRunner(s)
+	}
 	webAction := handleChatCompletions(s, sse)
 	desktopAction := handleDesktopChatStream(s)
 
@@ -86,7 +92,7 @@ func registerRealtimeSpeechHandlers(mux *http.ServeMux, s *Server, sse *SSEBroad
 	mux.HandleFunc("/api/realtime-speech/sessions", handleRealtimeSpeechSessions(s, registry, client))
 	mux.HandleFunc("/api/realtime-speech/sessions/", handleRealtimeSpeechSessionByID(s, registry))
 	mux.HandleFunc("/api/realtime-speech/actions", handleRealtimeSpeechActions(s, registry, webAction, desktopAction))
-	mux.HandleFunc("/api/realtime-speech/actions/", handleRealtimeSpeechActionByID(registry))
+	mux.HandleFunc("/api/realtime-speech/actions/", handleRealtimeSpeechActionByID(s, registry))
 	mux.HandleFunc("/api/realtime-speech/turns", handleRealtimeSpeechTurns(s, registry))
 }
 
@@ -677,6 +683,24 @@ func handleRealtimeSpeechActions(s *Server, registry *realtimespeech.Registry, w
 		w.Header().Set("Cache-Control", "no-store")
 
 		suppressedContext := agent.WithVoiceOutputSuppressed(r.Context())
+		if s != nil && s.VoiceActionRunner != nil {
+			responseBroker, brokerErr := newRealtimeSpeechActionResponseBroker(w, session.ChatSessionID)
+			if brokerErr != nil {
+				jsonError(w, brokerErr.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "text/event-stream")
+			w.Header().Set("Connection", "keep-alive")
+			_, runErr := s.VoiceActionRunner.run(suppressedContext, voice.CallContext{
+				CallID: requestID, Direction: "browser", SessionID: session.ChatSessionID, AllowedTools: nil,
+			}, requestText, responseBroker)
+			if runErr != nil && !errors.Is(runErr, context.Canceled) {
+				responseBroker.Send("error", "The realtime speech action failed.")
+			}
+			_, _ = io.WriteString(w, "data: [DONE]\n\n")
+			responseBroker.flusher.Flush()
+			return
+		}
 		if session.Surface == "desktop" {
 			payload, _ := json.Marshal(map[string]interface{}{
 				"message": requestText,
@@ -831,7 +855,7 @@ func (b *realtimeSpeechActionResponseBroker) SendThinkingBlock(provider, content
 	b.writeJSON(string(payload))
 }
 
-func handleRealtimeSpeechActionByID(registry *realtimespeech.Registry) http.HandlerFunc {
+func handleRealtimeSpeechActionByID(s *Server, registry *realtimespeech.Registry) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodDelete {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -853,6 +877,9 @@ func handleRealtimeSpeechActionByID(registry *realtimespeech.Registry) http.Hand
 			return
 		}
 		agent.InterruptSession(chatSessionID)
+		if s != nil && s.VoiceActionRunner != nil {
+			s.VoiceActionRunner.CancelVoiceTurn(requestID)
+		}
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]string{"status": "cancelled", "request_id": requestID})
 	}

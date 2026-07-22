@@ -59,4 +59,6 @@ type DispatchContext struct {
 	MessageSource       string
 	Broker              FeedbackBroker
 	UserContext         string
+	AllowedTools        map[string]struct{}
+	ToolScopeRestricted bool
 }

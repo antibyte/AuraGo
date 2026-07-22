@@ -308,6 +308,8 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			return dispatchBluetooth(ctx, tc, dc)
 		case "network_shares":
 			return dispatchNetworkShares(ctx, tc, dc)
+		case "sip_phone":
+			return dispatchSIPPhone(ctx, tc, dc)
 		case "co_agent", "co_agents":
 			req := decodeCoAgentArgs(tc)
 			if budgetTracker != nil && budgetTracker.IsBlocked("coagent") {

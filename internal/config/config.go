@@ -278,6 +278,7 @@ func Load(path string) (*Config, error) {
 	data = normalizeFritzBoxLegacyKeys(data)
 
 	var cfg Config
+	ApplySIPDefaults(&cfg.SIP)
 	cfg.ModelCatalog.Enabled = true
 	cfg.ModelCatalog.CatalogOnlyVisible = true
 	// Tools section defaults: all tools are enabled by default (opt-in to disable).
@@ -870,6 +871,10 @@ func Load(path string) (*Config, error) {
 	NormalizeCloudflareTunnelConfig(&cfg)
 	NormalizeRealtimeSpeechConfig(&cfg.RealtimeSpeech)
 	if err := ValidateRealtimeSpeechConfig(cfg.RealtimeSpeech); err != nil {
+		return nil, err
+	}
+	NormalizeSIPConfig(&cfg.SIP)
+	if err := ValidateSIPConfig(cfg.SIP); err != nil {
 		return nil, err
 	}
 

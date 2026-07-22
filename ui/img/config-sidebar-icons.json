@@ -861,6 +861,14 @@
       "row": 9,
       "source_type": "custom",
       "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "sip",
+      "slot": 107,
+      "column": 8,
+      "row": 9,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
     }
   ]
 }

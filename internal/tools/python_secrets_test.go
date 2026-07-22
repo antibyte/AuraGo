@@ -108,6 +108,7 @@ func TestIsPythonAccessibleSecret_BlocksPrefixedKeys(t *testing.T) {
 		"provider_openrouter_key",
 		"s3_bucket_key",
 		"telnyx_api_key",
+		"sip_endpoint_password",
 		"fritzbox_password",
 		"mqtt_broker_token",
 		"ollama_managed_password",

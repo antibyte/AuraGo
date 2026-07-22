@@ -1,4 +1,7 @@
 {
+  "help.sip.enabled": "Enable the native single-account SIP endpoint only after account, Vault password, media ports, and allowlists are complete.",
+  "help.sip.readonly": "Read-only keeps registration, status, history, and connection tests available while preventing all call mutations.",
+  "help.sip.allowlists": "Incoming calls require both a trusted proxy address and caller match; outgoing calls require an allowed domain and user or E.164 prefix.",
   "help.agent.adaptive_system_prompt_token_budget": "Automatically adjusts the token budget to the model's context window size. Recommended with token budget = 0.",
   "help.agent.adaptive_tools.always_include": "Tool names that stay visible whenever adaptive filtering is active. Default: filesystem, query_memory, manage_memory, execute_shell.",
   "help.agent.adaptive_tools.clean_transitions_after_days": "Removes stale tool transition data after X days.",

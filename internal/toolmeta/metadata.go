@@ -48,6 +48,7 @@ var registry = map[string]Metadata{
 	"manage_plan":          {Name: "manage_plan", Family: "planning", CompressionClass: CompressionClassAPI},
 	"homepage":             {Name: "homepage", Family: "homepage", CompressionClass: CompressionClassAPI},
 	"netlify":              {Name: "netlify", Family: "deploy", CompressionClass: CompressionClassAPI},
+	"sip_phone":            {Name: "sip_phone", Family: "communications", CompressionClass: CompressionClassAPI},
 
 	"homepage_project": {Name: "homepage_project", Family: "homepage", CompressionClass: CompressionClassAPI},
 	"homepage_file":    {Name: "homepage_file", Family: "homepage", CompressionClass: CompressionClassAPI},

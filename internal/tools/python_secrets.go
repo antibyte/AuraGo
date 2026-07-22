@@ -34,6 +34,7 @@ var blockedSecretPrefixes = []string{
 	"cloudflare_tunnel_",
 	"s3_",
 	"telnyx_",
+	"sip_",
 	"fritzbox_",
 	"go2rtc_",
 	"mqtt_",

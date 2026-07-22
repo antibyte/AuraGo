@@ -821,6 +821,7 @@ func (c *Config) ApplyVaultSecrets(vault SecretReader) {
 			apply(key, &profile.APIKey)
 		}
 	}
+	apply(SIPPasswordVaultKey, &c.SIP.Password)
 
 	// ── Telegram / Discord ──
 	apply("telegram_bot_token", &c.Telegram.BotToken)

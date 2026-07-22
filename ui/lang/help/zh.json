@@ -1,4 +1,7 @@
 {
+  "help.sip.enabled": "仅在账户、Vault 密码、媒体端口和允许列表完整后启用 SIP。",
+  "help.sip.readonly": "只读模式允许注册、状态、历史和测试，但阻止所有通话更改。",
+  "help.sip.allowlists": "来电必须同时匹配可信代理和允许的呼叫者；去电必须匹配允许的域和用户或 E.164 前缀。",
   "help.agent.adaptive_system_prompt_token_budget": "自动将令牌预算调整为模型的上下文窗口大小。建议在令牌预算 = 0 时使用。",
   "help.agent.adaptive_tools.always_include": "启用自适应过滤时仍保持可见的工具名。默认：filesystem, query_memory, manage_memory, execute_shell。",
   "help.agent.adaptive_tools.clean_transitions_after_days": "在 X 天后删除过时的工具转换数据。",

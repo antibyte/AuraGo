@@ -45,6 +45,10 @@ func dispatchInvokeTool(ctx context.Context, tc ToolCall, dc *DispatchContext) s
 		logInvalidToolCommand(dc.Logger, entry.Name, stringValueFromMap(args, "operation"), "self_invocation", args)
 		return `Tool Output: {"status":"error","message":"invoke_tool cannot invoke itself"}`
 	}
+	if !dispatchToolAllowed(dc, entry.Name) {
+		logInvalidToolCommand(dc.Logger, entry.Name, stringValueFromMap(args, "operation"), "tool_scope_denied", args)
+		return toolScopeDeniedOutput(entry.Name)
+	}
 	if strings.HasPrefix(entry.Name, "yepapi_") && stringValueFromMap(args, "operation") == "" {
 		logInvalidToolCommand(dc.Logger, entry.Name, "", "missing_operation", args)
 	}

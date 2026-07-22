@@ -462,6 +462,7 @@ func isAdminProtectedPath(path string) bool {
 		strings.HasPrefix(path, "/api/bluetooth/") ||
 		path == "/api/network-shares" ||
 		strings.HasPrefix(path, "/api/network-shares/") ||
+		strings.HasPrefix(path, "/api/sip/") ||
 		(strings.HasPrefix(path, "/api/dashboard/memory/curation/") && path != "/api/dashboard/memory/curation/dry-run") {
 		return true
 	}

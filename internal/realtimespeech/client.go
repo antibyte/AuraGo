@@ -254,13 +254,17 @@ func (c *Client) CreateGeminiEphemeralToken(ctx context.Context, profile config.
 		NewSessionExpiresAt:   newSessionExpireAt,
 		ConstrainedModel:      profile.Model,
 		ConstrainedVoice:      profile.Voice,
-		ConstrainedToolCount:  2,
+		ConstrainedToolCount:  len(PrivateTools()),
 		ManualActivityEnabled: true,
 	}
 	return result, nil
 }
 
 func geminiSetup(profile config.RealtimeSpeechProfile) map[string]interface{} {
+	return geminiSetupWithTools(profile, PrivateTools())
+}
+
+func geminiSetupWithTools(profile config.RealtimeSpeechProfile, tools []map[string]interface{}) map[string]interface{} {
 	return map[string]interface{}{
 		"model": "models/" + strings.TrimPrefix(profile.Model, "models/"),
 		"generationConfig": map[string]interface{}{
@@ -273,7 +277,7 @@ func geminiSetup(profile config.RealtimeSpeechProfile) map[string]interface{} {
 		},
 		"systemInstruction": map[string]interface{}{"parts": []map[string]string{{"text": AuraGoSystemContract}}},
 		"tools": []map[string]interface{}{{
-			"functionDeclarations": geminiFunctionDeclarations(),
+			"functionDeclarations": geminiFunctionDeclarations(tools),
 		}},
 		"realtimeInputConfig": map[string]interface{}{
 			"automaticActivityDetection": map[string]interface{}{"disabled": true},
@@ -289,6 +293,12 @@ func geminiSetup(profile config.RealtimeSpeechProfile) map[string]interface{} {
 // Live API WebSocket frame. It exactly matches the ephemeral-token constraints.
 func GeminiSessionSetup(profile config.RealtimeSpeechProfile) map[string]interface{} {
 	return geminiSetup(profile)
+}
+
+// GeminiSIPSessionSetup is used only by AuraGo's server-side SIP connection.
+// Browser ephemeral-token constraints intentionally remain unchanged.
+func GeminiSIPSessionSetup(profile config.RealtimeSpeechProfile) map[string]interface{} {
+	return geminiSetupWithTools(profile, SIPPrivateTools())
 }
 
 // XAISessionConfig returns the manual-turn, resumable session update used by
@@ -313,8 +323,7 @@ func XAISessionConfig(profile config.RealtimeSpeechProfile) map[string]interface
 	}
 }
 
-func geminiFunctionDeclarations() []map[string]interface{} {
-	tools := PrivateTools()
+func geminiFunctionDeclarations(tools []map[string]interface{}) []map[string]interface{} {
 	out := make([]map[string]interface{}, 0, len(tools))
 	for _, tool := range tools {
 		parameters, _ := tool["parameters"].(map[string]interface{})

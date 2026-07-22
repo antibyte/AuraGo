@@ -149,6 +149,54 @@ network_shares:
     nfs:
         enabled: true
         allowed_clients: []                                  # explicit IP addresses or canonical CIDRs
+sip:
+    enabled: false
+    readonly: true
+    bind_host: 127.0.0.1
+    bind_port: 5060
+    transport: udp                                           # udp, tcp, tls; WS/WSS are not supported
+    registrar: ""
+    outbound_proxy: ""
+    domain: ""
+    username: ""
+    auth_username: ""
+    display_name: AuraGo
+    register_expires_seconds: 300
+    advertised_signaling_host: ""
+    tls:
+        cert_file: ""
+        key_file: ""
+        server_name: ""
+    media:
+        rtp_port_start: 30000
+        rtp_port_end: 30099
+        advertised_host: ""
+        symmetric_rtp: true
+        jitter_buffer_ms: 60
+        codecs: [pcma, pcmu]
+    inbound:
+        route: agent                                        # agent, manual, reject
+        auto_answer_delay_ms: 1000
+        trusted_peer_cidrs: []                              # PBX/proxy source IPs or CIDRs
+        allowed_callers: []                                 # exact SIP URIs or exact users
+    outbound:
+        allowed_domains: []
+        allowed_users: []
+        allowed_e164_prefixes: []
+    permissions:
+        answer_inbound: false
+        originate_outbound: false
+        send_dtmf: false
+        agent_hangup: true
+    voice:
+        backend: classic                                    # classic or gemini_live
+        realtime_profile_id: ""
+        language: auto
+        allowed_tools: []                                   # empty means no native agent tools
+        persist_transcripts: false
+        max_call_duration_seconds: 3600
+    history_retention_days: 90
+    # The digest password is stored only in Vault key sip_endpoint_password.
 circuit_breaker:
     llm_timeout_seconds: 600
     llm_per_attempt_timeout_seconds: 120           # per API attempt timeout used inside retry loops

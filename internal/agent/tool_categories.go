@@ -212,6 +212,7 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"ollama", "Manage local Ollama LLM models (list, pull, run, delete)"},
 		{"truenas", "Manage TrueNAS storage (pools, datasets, snapshots, shares)"},
 		{"network_shares", "Inspect and manage local SMB and NFS server shares"},
+		{"sip_phone", "Inspect and operate the native SIP telephone endpoint"},
 		{"netlify", "Deploy and manage sites on Netlify"},
 		{"vercel", "Deploy and manage sites on Vercel"},
 		{"homepage_project", "Manage homepage project lifecycle and dev servers"},

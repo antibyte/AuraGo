@@ -1,4 +1,7 @@
 {
+  "help.sip.enabled": "Aktivera SIP först när konto, Vault-lösenord, mediaportar och tillåtelselistor är kompletta.",
+  "help.sip.readonly": "Skrivskyddat tillåter registrering, status, historik och test men hindrar samtalsändringar.",
+  "help.sip.allowlists": "Inkommande samtal kräver betrodd proxy och tillåten uppringare; utgående kräver tillåten domän och användare eller E.164.",
   "help.agent.adaptive_system_prompt_token_budget": "Justerar tokenbudgeten automatiskt efter modellens kontextfönster. Rekommenderas med tokenbudget = 0.",
   "help.agent.adaptive_tools.always_include": "Verktygsnamn som förblir synliga när adaptiv filtrering är aktiv. Standard: filesystem, query_memory, manage_memory, execute_shell.",
   "help.agent.adaptive_tools.clean_transitions_after_days": "Tar bort inaktuellt verktygsövergångsdata efter X dagar.",

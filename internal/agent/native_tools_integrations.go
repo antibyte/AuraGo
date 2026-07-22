@@ -519,6 +519,32 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 		))
 	}
 
+	if ff.SIPPhoneEnabled {
+		operations := []string{"status", "list_calls"}
+		if ff.SIPPhoneDialEnabled {
+			operations = append(operations, "dial")
+		}
+		if ff.SIPPhoneAnswerEnabled {
+			operations = append(operations, "answer", "reject")
+		}
+		if ff.SIPPhoneHangupEnabled {
+			operations = append(operations, "hangup")
+		}
+		if ff.SIPPhoneDTMFEnabled {
+			operations = append(operations, "send_dtmf")
+		}
+		tools = append(tools, tool("sip_phone",
+			"Inspect and operate AuraGo's single-account SIP telephone endpoint. Runtime permissions and configured caller/destination allowlists are always enforced.",
+			schema(map[string]interface{}{
+				"operation": operationProperty("SIP phone operation to perform.", operations),
+				"target":    prop("string", "Canonical sip: destination for dial."),
+				"call_id":   prop("string", "Active call ID for answer, reject, hangup, or send_dtmf."),
+				"digits":    prop("string", "DTMF digits 0-9, *, #, or A-D."),
+				"limit":     prop("integer", "Maximum call history records to return (1-200)."),
+			}, "operation"),
+		))
+	}
+
 	if ff.TTSEnabled {
 		tools = append(tools, tool("tts",
 			"Convert text to speech (TTS). The generated audio will AUTOMATICALLY be sent to the user and played in the chat UI! "+

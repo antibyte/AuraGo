@@ -1,4 +1,7 @@
 {
+  "help.sip.enabled": "Włącz SIP dopiero po uzupełnieniu konta, hasła Vault, portów i list dozwolonych.",
+  "help.sip.readonly": "Tryb tylko do odczytu pozwala na rejestrację, stan, historię i testy, ale blokuje zmiany połączeń.",
+  "help.sip.allowlists": "Połączenia przychodzące wymagają zaufanego proxy i dozwolonego rozmówcy; wychodzące domeny i użytkownika lub E.164.",
   "help.agent.adaptive_system_prompt_token_budget": "Automatycznie dostosowuje budżet tokenów do rozmiaru okna kontekstowego modelu. Zalecane przy budżecie tokenów = 0.",
   "help.agent.adaptive_tools.always_include": "Nazwy narzędzi widoczne przy aktywnym filtrowaniu adaptacyjnym. Domyślnie: filesystem, query_memory, manage_memory, execute_shell.",
   "help.agent.adaptive_tools.clean_transitions_after_days": "Usuwa nieaktualne dane przejść narzędzi po X dniach.",

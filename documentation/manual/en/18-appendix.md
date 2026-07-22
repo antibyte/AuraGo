@@ -1102,6 +1102,9 @@ AuraGo uses the following open-source components:
 |---------|---------|---------|
 | go-openai | MIT | OpenAI API client |
 | chromem-go | MPL-2.0 | Vector database |
+| diago | MPL-2.0 | Native SIP dialog and media handling |
+| sipgo | BSD-2-Clause | SIP protocol stack |
+| go-mp3 | Apache-2.0 | Pure-Go telephone TTS audio decoding |
 | modernc.org/sqlite | BSD-3 | SQLite driver |
 | telegram-bot-api | MIT | Telegram bot |
 | discordgo | BSD-3 | Discord bot |

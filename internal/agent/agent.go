@@ -1112,11 +1112,17 @@ type RunConfig struct {
 	MissionID          string // mission ID for logging/tracking
 	MessageSource      string // origin channel: "web_chat", "telegram", "discord", "a2a", "sms", "mission"
 	VoiceOutputActive  bool   // true when the user's speaker toggle is on
+	// AllowedTools is an additive hard scope for native tools. Nil preserves the
+	// historical unrestricted behavior; an explicit empty slice allows no tools.
+	AllowedTools []string
 }
 
 func dispatchInner(ctx context.Context, tc ToolCall, dc *DispatchContext) string {
 	sessionID := dc.SessionID
 	logger := dc.Logger
+	if !dispatchToolAllowed(dc, tc.Action) {
+		return toolScopeDeniedOutput(tc.Action)
+	}
 
 	// Co-Agent blacklist: co-agents cannot access secrets,
 	// mutate memory-like stores, or orchestrate additional autonomous work.

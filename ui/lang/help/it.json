@@ -1,4 +1,7 @@
 {
+  "help.sip.enabled": "Attiva SIP solo quando account, password Vault, porte e liste consentite sono completi.",
+  "help.sip.readonly": "La sola lettura consente registrazione, stato, cronologia e test, ma impedisce modifiche alle chiamate.",
+  "help.sip.allowlists": "Le chiamate in entrata richiedono proxy e chiamante consentiti; quelle in uscita dominio e utente o prefisso E.164 consentiti.",
   "help.agent.adaptive_system_prompt_token_budget": "Regola automaticamente il budget dei token in base alla dimensione della finestra di contesto del modello. Consigliato con budget token = 0.",
   "help.agent.adaptive_tools.always_include": "Nomi strumenti che restano visibili quando il filtro adattivo è attivo. Default: filesystem, query_memory, manage_memory, execute_shell.",
   "help.agent.adaptive_tools.clean_transitions_after_days": "Rimuove i dati di transizione degli strumenti non aggiornati dopo X giorni.",

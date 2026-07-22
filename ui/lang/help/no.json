@@ -1,4 +1,7 @@
 {
+  "help.sip.enabled": "Aktiver SIP først når konto, Vault-passord, medieporter og tillatelseslister er komplette.",
+  "help.sip.readonly": "Skrivebeskyttet tillater registrering, status, historikk og test, men hindrer samtaleendringer.",
+  "help.sip.allowlists": "Innkommende samtaler krever betrodd proxy og tillatt innringer; utgående krever tillatt domene og bruker eller E.164.",
   "help.agent.adaptive_system_prompt_token_budget": "Justerer tokenbudsjettet automatisk etter modellens kontekstvindu. Anbefales med tokenbudsjett = 0.",
   "help.agent.adaptive_tools.always_include": "Verktøynavn som forblir synlige når adaptiv filtrering er aktiv. Standard: filesystem, query_memory, manage_memory, execute_shell.",
   "help.agent.adaptive_tools.clean_transitions_after_days": "Fjerner utdatert verktøyovergangsdata etter X dager.",

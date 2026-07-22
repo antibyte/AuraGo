@@ -362,6 +362,7 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 	}
 	schemaSnapshot := BuildNativeToolSchemaSnapshot(cfg.Directories.SkillsDir, manifest, ff, logger)
 	allSchemas := schemaSnapshot.FullSchemas()
+	allSchemas = filterSchemasByAllowedTools(allSchemas, runCfg.AllowedTools)
 	if suppressCoAgentTools {
 		allSchemas = nil
 	}

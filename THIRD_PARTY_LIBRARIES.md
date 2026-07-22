@@ -41,6 +41,8 @@ Inventory of external libraries, runtimes, fonts, icons, and other third-party a
 | `github.com/beevik/etree` | v1.7.0 | BSD-2-Clause | https://github.com/beevik/etree |
 | `github.com/bwmarrin/discordgo` | v0.29.0 | BSD-3-Clause | https://github.com/bwmarrin/discordgo |
 | `github.com/danielthedm/promptsec` | v0.1.0 | Apache-2.0 | https://github.com/danielthedm/promptsec |
+| `github.com/emiago/diago` | v0.31.0 | MPL-2.0 | https://github.com/emiago/diago |
+| `github.com/emiago/sipgo` | v1.4.3 | BSD-2-Clause | https://github.com/emiago/sipgo |
 | `github.com/dlclark/regexp2` | v1.12.0 | MIT | https://github.com/dlclark/regexp2 |
 | `github.com/ebitengine/purego` | v0.10.1 | Apache-2.0 | https://github.com/ebitengine/purego |
 | `github.com/eclipse/paho.mqtt.golang` | v1.5.1 | EPL-2.0 | https://github.com/eclipse/paho.mqtt.golang |
@@ -52,6 +54,7 @@ Inventory of external libraries, runtimes, fonts, icons, and other third-party a
 | `github.com/gofrs/flock` | v0.13.0 | BSD-3-Clause | https://github.com/gofrs/flock |
 | `github.com/gorilla/websocket` | v1.5.4 (pseudo) | BSD-2-Clause | https://github.com/gorilla/websocket |
 | `github.com/huin/goupnp` | v1.3.0 | BSD-2-Clause | https://github.com/huin/goupnp |
+| `github.com/hajimehoshi/go-mp3` | v0.3.4 | Apache-2.0 | https://github.com/hajimehoshi/go-mp3 |
 | `github.com/johnfercher/maroto/v2` | v2.4.0 | MIT | https://github.com/johnfercher/maroto |
 | `github.com/ledongthuc/pdf` | 20250511 | BSD-style / MIT-compatible | https://github.com/ledongthuc/pdf |
 | `github.com/lib/pq` | v1.12.3 | MIT | https://github.com/lib/pq |
@@ -264,6 +267,7 @@ These use strong or network-relevant copyleft licenses. Redistributors should re
 | Papirus icons | GPL-3.0 | Virtual Desktop icon theme |
 | WhiteSur icons | GPL-3.0 | Virtual Desktop icon theme (fruity theme) |
 | DOMPurify | Apache-2.0 **or** MPL-2.0 (dual) | HTML sanitization |
+| Diago | MPL-2.0 | Native SIP endpoint and RTP media handling |
 | go-sql-driver/mysql | MPL-2.0 | MySQL client |
 | chromem-go | MPL-2.0 | Embedded vector DB |
 | Eclipse Paho MQTT | EPL-2.0 | MQTT client |

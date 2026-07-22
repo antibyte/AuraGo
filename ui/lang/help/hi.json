@@ -1,4 +1,7 @@
 {
+  "help.sip.enabled": "SIP को तभी सक्रिय करें जब खाता, Vault पासवर्ड, मीडिया पोर्ट और अनुमति सूचियाँ पूरी हों।",
+  "help.sip.readonly": "केवल-पढ़ने का मोड पंजीकरण, स्थिति, इतिहास और परीक्षण देता है, पर कॉल बदलाव रोकता है।",
+  "help.sip.allowlists": "इनकमिंग कॉल के लिए विश्वसनीय प्रॉक्सी और अनुमत कॉलर दोनों चाहिए; आउटगोइंग के लिए अनुमत डोमेन और उपयोगकर्ता या E.164।",
   "help.agent.adaptive_system_prompt_token_budget": "टोकन बजट को स्वचालित रूप से मॉडल के संदर्भ विंडो आकार में समायोजित करता है। टोकन बजट = 0 के साथ अनुशंसित।",
   "help.agent.adaptive_tools.always_include": "Adaptive filtering active होने पर visible रहने वाले tool names। Default: filesystem, query_memory, manage_memory, execute_shell.",
   "help.agent.adaptive_tools.clean_transitions_after_days": "X दिनों के बाद पुराने टूल संक्रमण डेटा को हटाता है।",

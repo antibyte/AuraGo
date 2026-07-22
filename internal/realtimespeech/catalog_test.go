@@ -107,6 +107,10 @@ func TestPrivateToolsExposeOnlyAuraGoBridge(t *testing.T) {
 	if names[0] != "aurago_execute" || names[1] != "aurago_cancel_current_task" {
 		t.Fatalf("unexpected private tools: %v", names)
 	}
+	sipTools := SIPPrivateTools()
+	if len(sipTools) != 3 || sipTools[2]["name"] != "aurago_end_call" {
+		t.Fatalf("unexpected SIP private tools: %v", sipTools)
+	}
 	if strings.Contains(strings.ToLower(AuraGoSystemContract), "forward it") {
 		t.Fatal("system contract must not instruct delegation language")
 	}

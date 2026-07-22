@@ -803,6 +803,7 @@ type Config struct {
 	Runtime        Runtime              `yaml:"-" json:"-"` // runtime-only: detected environment capabilities
 	Providers      []ProviderEntry      `yaml:"providers"`
 	RealtimeSpeech RealtimeSpeechConfig `yaml:"realtime_speech" json:"realtime_speech"`
+	SIP            SIPConfig            `yaml:"sip" json:"sip"`
 	ModelCatalog   ModelCatalogConfig   `yaml:"model_catalog" json:"model_catalog"`
 	EmailAccounts  []EmailAccount       `yaml:"email_accounts"`
 	Server         struct {

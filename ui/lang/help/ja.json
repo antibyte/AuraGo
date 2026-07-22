@@ -1,4 +1,7 @@
 {
+  "help.sip.enabled": "アカウント、Vault パスワード、メディアポート、許可リストが揃ってから SIP を有効化してください。",
+  "help.sip.readonly": "読み取り専用では登録、状態、履歴、テストを利用できますが、通話操作はできません。",
+  "help.sip.allowlists": "着信には信頼済みプロキシと許可済み発信者、発信には許可済みドメインとユーザーまたは E.164 が必要です。",
   "help.agent.adaptive_system_prompt_token_budget": "トークン予算をモデルのコンテキストウィンドウサイズに自動調整します。トークン予算 = 0 の場合に推奨。",
   "help.agent.adaptive_tools.always_include": "適応フィルタリングが有効なときも表示され続けるツール名です。既定: filesystem, query_memory, manage_memory, execute_shell。",
   "help.agent.adaptive_tools.clean_transitions_after_days": "X日後に古いツール遷移データを削除します。",

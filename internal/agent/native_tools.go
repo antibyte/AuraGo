@@ -212,6 +212,12 @@ type ToolFeatureFlags struct {
 	NetworkSharesCreateEnabled bool
 	NetworkSharesUpdateEnabled bool
 	NetworkSharesDeleteEnabled bool
+	// Native single-account SIP endpoint capability gates
+	SIPPhoneEnabled       bool
+	SIPPhoneDialEnabled   bool
+	SIPPhoneAnswerEnabled bool
+	SIPPhoneDTMFEnabled   bool
+	SIPPhoneHangupEnabled bool
 	// Discord messaging
 	DiscordEnabled bool
 	// Telegram messaging

@@ -23,6 +23,11 @@ services:
     # Change the host-side port (left) if 8088 is already in use on your machine.
     ports:
       - "8088:8088"
+      # Optional native SIP exposure. Publish the selected signaling transport
+      # and the complete configured UDP RTP range; native host operation remains
+      # preferred. See documentation/sip_telephony.md.
+      # - "5060:5060/udp"
+      # - "30000-30099:30000-30099/udp"
 
     # --- Environment ---
     environment:
