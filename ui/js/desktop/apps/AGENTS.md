@@ -171,6 +171,15 @@ registration lives in `internal/desktop/types.go`.
   burst/ring effects come from capped recycled pools, no `new THREE.*`
   allocations inside per-frame update paths, and every module's `dispose()`
   frees geometries/materials/textures plus listeners, timers, and SSE handlers.
+- System World quality tiers: `low/medium/high/ultra` cycle from the HUD
+  quality button (`aurago.desktop.sysworld.quality`). Particle buffers are
+  always allocated at ultra capacity; the entry's `applyQuality` applies
+  per-tier live levers (star/dust/corona `setDrawRange`, dust/nebula/aurora/
+  trail visibility, fx pool caps, renderer pixel ratio, ambient FX rate)
+  through each module's `setQuality(tier)` — never rebuild the world on a
+  tier switch. Ultra exclusives: electric arcs (pooled in sysworld-effects),
+  twinkle starfield, animated aurora flow shaders, and the
+  `sysworld-energy-wave` floor shader.
 - System World shared fx contracts: `fx.textSprite(text, hex, {opacity, scale})`
   returns a cached-canvas label sprite (never dispose its `.map` texture);
   `fx.selectBeacon/clearBeacon` owns the selection halo (rings, glow, light

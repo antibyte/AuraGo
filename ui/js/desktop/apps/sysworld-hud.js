@@ -7,8 +7,8 @@
 
     const NS = (window.SysWorld = window.SysWorld || {});
 
-    const QUALITY_ORDER = ['low', 'medium', 'high'];
-    const QUALITY_SCALES = { low: 0.4, medium: 0.7, high: 1.0 };
+    const QUALITY_ORDER = ['low', 'medium', 'high', 'ultra'];
+    const QUALITY_SCALES = { low: 0.4, medium: 0.7, high: 1.0, ultra: 1.6 };
     const QUALITY_STORAGE_KEY = 'aurago.desktop.sysworld.quality';
 
     const STAT_KEYS = ['cpu', 'ram', 'uptime', 'budget', 'missions', 'memories', 'agent'];

@@ -1116,6 +1116,14 @@
             if (group.parent) { group.parent.remove(group); }
         }
 
+        // Live quality lever: engine trails only exist on medium and above.
+        function setQuality(tier) {
+            const showTrails = tier !== 'low';
+            drones.forEach(function (rec) {
+                if (rec.trail && typeof rec.trail.setVisible === 'function') rec.trail.setVisible(showTrails);
+            });
+        }
+
         return {
             setMissions: setMissions,
             setCron: setCron,
@@ -1125,6 +1133,7 @@
             flashTool: flashTool,
             pickables: pickables,
             update: update,
+            setQuality: setQuality,
             dispose: dispose
         };
     };

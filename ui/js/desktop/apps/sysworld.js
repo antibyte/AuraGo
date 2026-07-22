@@ -9,7 +9,7 @@
     const instances = new Map();
 
     const QUALITY_STORAGE_KEY = 'aurago.desktop.sysworld.quality';
-    const QUALITY_SCALES = { low: 0.4, medium: 0.7, high: 1.0 };
+    const QUALITY_SCALES = { low: 0.4, medium: 0.7, high: 1.0, ultra: 1.6 };
     const MAX_DT = 0.05;
     const HOVER_THROTTLE_MS = 40;
     const CLICK_SLOP_PX = 5;
@@ -243,6 +243,9 @@
                         1.8
                     );
                 } catch (_) {}
+            },
+            onQualityChange: () => {
+                applyQuality(inst);
             }
         };
 
@@ -265,6 +268,7 @@
         root.appendChild(loading);
         try { inst.stage.introFlight(); } catch (_) {}
 
+        applyQuality(inst);
         wireInteraction(inst);
         wireSse(inst);
         startPolling(inst);
@@ -802,6 +806,19 @@
         } catch (_) {}
     }
 
+    // Applies every live quality lever of the current tier to the modules.
+    // Buffers are always allocated at ultra capacity, so tier switches are
+    // instant: draw ranges, structure visibility, fx caps, pixel ratio and
+    // the ambient effects rate all change without a rebuild.
+    function applyQuality(inst) {
+        const tier = inst.quality || 'high';
+        try { if (inst.fx && typeof inst.fx.setQuality === 'function') inst.fx.setQuality(tier); } catch (_) {}
+        try { if (inst.stage && typeof inst.stage.setQuality === 'function') inst.stage.setQuality(tier); } catch (_) {}
+        try { if (inst.core && typeof inst.core.setQuality === 'function') inst.core.setQuality(tier); } catch (_) {}
+        try { if (inst.fleet && typeof inst.fleet.setQuality === 'function') inst.fleet.setQuality(tier); } catch (_) {}
+        inst._ambientRateMul = tier === 'low' ? 1.6 : tier === 'medium' ? 1.2 : tier === 'ultra' ? 0.3 : 1;
+    }
+
     // Arrow-key cycling through every pickable in a stable (kind, id) order.
     function cycleFocus(inst, dir) {
         const list = collectPickables(inst).filter(m => m && m.parent);
@@ -1225,7 +1242,7 @@
         const P = (window.SysWorld && window.SysWorld.PALETTE) || {};
         inst._ambientCd = (inst._ambientCd || 1.2) - dt;
         if (inst._ambientCd > 0) return;
-        inst._ambientCd = 1.4 + Math.random() * 2.8;
+        inst._ambientCd = (1.4 + Math.random() * 2.8) * (inst._ambientRateMul || 1);
 
         const origin = new THREE.Vector3(0, 0, 0);
         const graph = L.graphCenter

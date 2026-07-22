@@ -21,10 +21,13 @@
     };
 
     // Pool caps per quality tier. Comet caps are part of the shared contract.
+    // `arcs` > 0 only in ultra: pooled electric arcs from the core to the
+    // integration rings (the sensational tier-exclusive effect).
     const QUALITY = {
-        high: { comets: 48, bursts: 16, rings: 12, particles: 1 },
-        medium: { comets: 28, bursts: 10, rings: 10, particles: 0.7 },
-        low: { comets: 14, bursts: 6, rings: 8, particles: 0.45 }
+        ultra: { comets: 72, bursts: 24, rings: 12, particles: 1.6, arcs: 8 },
+        high: { comets: 48, bursts: 16, rings: 12, particles: 1, arcs: 0 },
+        medium: { comets: 28, bursts: 10, rings: 10, particles: 0.7, arcs: 0 },
+        low: { comets: 14, bursts: 6, rings: 8, particles: 0.45, arcs: 0 }
     };
 
     const COMET_TRAIL_POINTS = 8;
@@ -472,6 +475,7 @@
 
             let count = 0;
             const trail = {
+                setVisible: function (v) { line.visible = !!v; },
                 update: function () {
                     object3d.getWorldPosition(tmpVec);
                     // Skip recording when the object barely moved so the trail
@@ -778,6 +782,85 @@
         }
 
         // ------------------------------------------------------------------
+        // Electric arcs (ultra only): jittered lightning lines from the core
+        // to random points on the integration rings. Fully pooled — positions
+        // are rewritten in place every frame, nothing is allocated.
+        // ------------------------------------------------------------------
+        const ARC_POINTS = 14;
+        const ARC_MAX = 8;
+        const arcs = [];
+        for (let i = 0; i < ARC_MAX; i++) {
+            const geom = new THREE.BufferGeometry();
+            const posAttr = new THREE.BufferAttribute(new Float32Array(ARC_POINTS * 3), 3);
+            posAttr.setUsage(THREE.DynamicDrawUsage);
+            geom.setAttribute('position', posAttr);
+            const mat = new THREE.LineBasicMaterial({
+                color: 0x9fe8ff,
+                transparent: true,
+                opacity: 0,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+            const line = new THREE.Line(geom, mat);
+            line.visible = false;
+            line.frustumCulled = false;
+            group.add(line);
+            arcs.push({
+                geom: geom, posAttr: posAttr, positions: posAttr.array, mat: mat, line: line,
+                tx: 0, ty: 0, tz: 0, px: 0, py: 0, pz: 0, qx: 0, qy: 0, qz: 0,
+                age: 0, life: 0, active: false
+            });
+        }
+
+        function respawnArc(a, initial) {
+            // Random target on the inner or outer integration ring.
+            const L = NS.LAYOUT || {};
+            const ring = Math.random() < 0.55 ? (L.orbitInner || 26) : (L.orbitOuter || 64);
+            const ang = Math.random() * Math.PI * 2;
+            a.tx = Math.cos(ang) * ring;
+            a.ty = (Math.random() * 2 - 1) * 6;
+            a.tz = Math.sin(ang) * ring;
+            // Two orthogonal jitter axes spanning the core→target direction.
+            const len = Math.max(0.001, Math.sqrt(a.tx * a.tx + a.ty * a.ty + a.tz * a.tz));
+            a.px = -a.tz / len; a.py = 0; a.pz = a.tx / len;
+            a.qx = (a.ty * a.pz - a.tz * a.py) / 1; a.qy = (a.tz * a.px - a.tx * a.pz) / 1; a.qz = (a.tx * a.py - a.ty * a.px) / 1;
+            a.age = initial ? -Math.random() * 0.6 : 0;
+            a.life = 0.32 + Math.random() * 0.4;
+            a.active = true;
+        }
+
+        function updateArcs(dt) {
+            const want = caps.arcs || 0;
+            for (let i = 0; i < arcs.length; i++) {
+                const a = arcs[i];
+                if (i >= want) {
+                    if (a.line.visible) a.line.visible = false;
+                    a.active = false;
+                    continue;
+                }
+                if (!a.active) respawnArc(a, true);
+                a.age += dt;
+                if (a.age >= a.life) respawnArc(a, false);
+                if (a.age < 0) continue;
+                const k = a.age / a.life;
+                const fade = k < 0.2 ? k / 0.2 : 1 - (k - 0.2) / 0.8;
+                a.line.visible = true;
+                a.mat.opacity = 0.75 * fade * (0.55 + 0.45 * Math.sin(a.age * 47 + i));
+                const jitterAmp = 2.1 * (1 - k * 0.55);
+                for (let p = 0; p < ARC_POINTS; p++) {
+                    const t = p / (ARC_POINTS - 1);
+                    const env = Math.sin(t * Math.PI) * jitterAmp;
+                    const j1 = (Math.random() * 2 - 1) * env;
+                    const j2 = (Math.random() * 2 - 1) * env * 0.6;
+                    a.positions[p * 3] = a.tx * t + a.px * j1 + a.qx * j2;
+                    a.positions[p * 3 + 1] = a.ty * t + a.py * j1 + a.qy * j2;
+                    a.positions[p * 3 + 2] = a.tz * t + a.pz * j1 + a.qz * j2;
+                }
+                a.posAttr.needsUpdate = true;
+            }
+        }
+
+        // ------------------------------------------------------------------
         // Tween runner (driven by fx.update)
         // ------------------------------------------------------------------
         const tweens = new Set();
@@ -823,6 +906,7 @@
             updateBursts(dt);
             updateRings(dt);
             updateBeams(dt);
+            updateArcs(dt);
             updateBeacon(dt, elapsed);
             updateHoverRing(dt, elapsed);
         }
@@ -861,6 +945,10 @@
             beams.forEach(function (b) {
                 b.geom.dispose();
                 b.mat.dispose();
+            });
+            arcs.forEach(function (a) {
+                a.geom.dispose();
+                a.mat.dispose();
             });
             // Cached canvas textures are shared — dispose them exactly here.
             textureCache.forEach(function (tex) { tex.dispose(); });

@@ -39,7 +39,7 @@
         const P = NS.PALETTE || {};
         const L = NS.LAYOUT;
         const host = inst.canvasHost;
-        const qualityScale = typeof inst.qualityScale === 'number' ? inst.qualityScale : 1;
+        const CAPACITY_SCALE = 1.6; // particle buffers are always ultra-sized; tiers scale live
         const bgHex = P.bg != null ? P.bg : 0x020208;
 
         // ------------------------------------------------------------------
@@ -107,7 +107,7 @@
         const starLayers = [];
 
         function addStarLayer(count, spread, size, color, opacity, driftY, driftX) {
-            const n = Math.max(60, Math.round(count * qualityScale));
+            const n = Math.max(60, Math.round(count));
             const positions = new Float32Array(n * 3);
             for (let i = 0; i < n; i++) {
                 // Uniform random direction on a spherical shell.
@@ -134,13 +134,46 @@
             const points = new THREE.Points(geom, mat);
             points.frustumCulled = false;
             scene.add(points);
-            starLayers.push({ points: points, driftY: driftY, driftX: driftX });
+            starLayers.push({ points: points, driftY: driftY, driftX: driftX, full: n });
         }
 
-        addStarLayer(Math.round(2200 * qualityScale), 980, 1.5, 0xffffff, 0.88, 0.0021, 0.0004);
-        addStarLayer(Math.round(1200 * qualityScale), 800, 2.4, 0x9fc8ff, 0.62, -0.0015, 0.0009);
-        addStarLayer(Math.round(560 * qualityScale), 620, 3.6, 0xffe2c4, 0.48, 0.001, -0.0006);
-        addStarLayer(Math.round(280 * qualityScale), 420, 5.2, 0xc5a3ff, 0.32, -0.0007, 0.0012);
+        addStarLayer(2200 * CAPACITY_SCALE, 980, 1.5, 0xffffff, 0.88, 0.0021, 0.0004);
+        addStarLayer(1200 * CAPACITY_SCALE, 800, 2.4, 0x9fc8ff, 0.62, -0.0015, 0.0009);
+        addStarLayer(560 * CAPACITY_SCALE, 620, 3.6, 0xffe2c4, 0.48, 0.001, -0.0006);
+        addStarLayer(280 * CAPACITY_SCALE, 420, 5.2, 0xc5a3ff, 0.32, -0.0007, 0.0012);
+
+        // Ultra-only twinkle layer: a fast-oscillating extra starfield that
+        // makes the sky feel electric on the top tier.
+        const twinkleLayer = (function () {
+            const n = 560;
+            const positions = new Float32Array(n * 3);
+            for (let i = 0; i < n; i++) {
+                const r = 520 * (0.3 + Math.random() * 0.7);
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.acos(Math.random() * 2 - 1);
+                const sinPhi = Math.sin(phi);
+                positions[i * 3] = r * sinPhi * Math.cos(theta);
+                positions[i * 3 + 1] = r * Math.cos(phi);
+                positions[i * 3 + 2] = r * sin(phi) * Math.sin(theta);
+            }
+            const geom = new THREE.BufferGeometry();
+            geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            const mat = new THREE.PointsMaterial({
+                size: 2.6,
+                map: softDotTexture,
+                color: 0xcdf0ff,
+                transparent: true,
+                opacity: 0.5,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false,
+                sizeAttenuation: true
+            });
+            const points = new THREE.Points(geom, mat);
+            points.frustumCulled = false;
+            points.visible = false;
+            scene.add(points);
+            return points;
+        })();
 
         // ------------------------------------------------------------------
         // Nebula backdrop: a few huge faint glow sprites far behind the scene
@@ -173,7 +206,7 @@
         // ------------------------------------------------------------------
         // Floating dust motes around the system (close-range atmosphere)
         // ------------------------------------------------------------------
-        const dustCount = Math.max(80, Math.round(420 * qualityScale));
+        const dustCount = Math.max(80, Math.round(420 * CAPACITY_SCALE));
         const dustPos = new Float32Array(dustCount * 3);
         const dustPhase = new Float32Array(dustCount);
         const dustSpeed = new Float32Array(dustCount);
@@ -207,9 +240,35 @@
         scene.add(dustPoints);
 
         // ------------------------------------------------------------------
-        // Aurora ribbons — slow rotating translucent bands
+        // Aurora ribbons — slow rotating translucent bands. In ultra they
+        // swap to an animated flow shader (energy streaming along the band).
         // ------------------------------------------------------------------
         const auroras = [];
+        function makeFlowMaterial(color, opacity) {
+            return new THREE.ShaderMaterial({
+                uniforms: {
+                    uTime: { value: 0 },
+                    uColor: { value: new THREE.Color(color) },
+                    uOpacity: { value: opacity * 2.6 }
+                },
+                vertexShader: 'varying vec2 vUv;\n' +
+                    'void main() {\n' +
+                    '    vUv = uv;\n' +
+                    '    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);\n' +
+                    '}',
+                fragmentShader: 'uniform float uTime;\nuniform vec3 uColor;\nuniform float uOpacity;\nvarying vec2 vUv;\n' +
+                    'void main() {\n' +
+                    '    float band = 0.5 + 0.5 * sin((vUv.x * 10.0 - uTime * 1.5) * 6.28318);\n' +
+                    '    float flow = 0.5 + 0.5 * sin((vUv.x * 3.0 + uTime * 0.7) * 6.28318);\n' +
+                    '    float a = uOpacity * (0.3 + 0.7 * band) * (0.55 + 0.45 * flow);\n' +
+                    '    gl_FragColor = vec4(uColor * (0.8 + 0.7 * band), a);\n' +
+                    '}',
+                transparent: true,
+                side: THREE.DoubleSide,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+        }
         function addAurora(radius, y, color, opacity, spin) {
             const mat = new THREE.MeshBasicMaterial({
                 color: color,
@@ -219,12 +278,13 @@
                 blending: THREE.AdditiveBlending,
                 depthWrite: false
             });
+            const shaderMat = makeFlowMaterial(color, opacity);
             const mesh = new THREE.Mesh(new THREE.TorusGeometry(radius, radius * 0.035, 8, 96), mat);
             mesh.rotation.x = Math.PI / 2.15;
             mesh.position.y = y;
             mesh.name = 'sysworld-aurora';
             scene.add(mesh);
-            auroras.push({ mesh: mesh, mat: mat, base: opacity, spin: spin, phase: Math.random() * 6 });
+            auroras.push({ mesh: mesh, mat: mat, shaderMat: shaderMat, base: opacity, spin: spin, phase: Math.random() * 6 });
         }
         addAurora(95, 8, 0x3de0c8, 0.07, 0.04);
         addAurora(118, -4, 0x6a8dff, 0.055, -0.03);
@@ -257,6 +317,39 @@
             scene.add(mesh);
             floorRings.push({ mesh: mesh, mat: mat, base: 0.1 + i * 0.015, phase: i * 0.9 });
         });
+
+        // Ultra-only energy wave field: expanding radial pulses flowing
+        // outward across the floor plane (animated shader texture).
+        const waveMat = new THREE.ShaderMaterial({
+            uniforms: {
+                uTime: { value: 0 },
+                uColor: { value: new THREE.Color(0x2fd9c0) },
+                uOpacity: { value: 0.34 }
+            },
+            vertexShader: 'varying vec2 vPos;\n' +
+                'void main() {\n' +
+                '    vPos = position.xy;\n' +
+                '    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);\n' +
+                '}',
+            fragmentShader: 'uniform float uTime;\nuniform vec3 uColor;\nuniform float uOpacity;\nvarying vec2 vPos;\n' +
+                'void main() {\n' +
+                '    float r = length(vPos) / 170.0;\n' +
+                '    float wave = 0.5 + 0.5 * sin((r * 12.0 - uTime * 1.9) * 6.28318);\n' +
+                '    float ripple = 0.5 + 0.5 * sin((r * 34.0 - uTime * 3.4) * 6.28318);\n' +
+                '    float fade = smoothstep(1.0, 0.3, r) * smoothstep(0.02, 0.1, r);\n' +
+                '    gl_FragColor = vec4(uColor * (0.7 + 0.6 * ripple), uOpacity * wave * fade);\n' +
+                '}',
+            transparent: true,
+            side: THREE.DoubleSide,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+        });
+        const waveOverlay = new THREE.Mesh(new THREE.PlaneGeometry(340, 340), waveMat);
+        waveOverlay.rotation.x = -Math.PI / 2;
+        waveOverlay.position.y = grid.position.y + 0.05;
+        waveOverlay.visible = false;
+        waveOverlay.name = 'sysworld-energy-wave';
+        scene.add(waveOverlay);
 
         // Accent lights for graph / mission zones
         const graphLight = new THREE.PointLight(0x7ec8ff, 0.45, 220, 2);
@@ -368,6 +461,37 @@
         // Frame update (driven by the entry's single RAF loop)
         // ------------------------------------------------------------------
         let paused = false;
+        let currentTier = 'high';
+
+        // Live quality levers: density via setDrawRange, structure visibility
+        // and renderer pixel ratio. Buffers stay at ultra capacity, so every
+        // tier switch is instant and rebuild-free.
+        function setQuality(tier) {
+            currentTier = tier;
+            const starFrac = tier === 'low' ? 0.4 : tier === 'medium' ? 0.65 : 1;
+            for (let i = 0; i < starLayers.length; i++) {
+                const layer = starLayers[i];
+                layer.points.geometry.setDrawRange(0, Math.max(60, Math.floor(layer.full * starFrac)));
+            }
+            dustPoints.visible = tier !== 'low';
+            const dustFrac = tier === 'medium' ? 0.6 : 1;
+            dustGeom.setDrawRange(0, Math.floor(dustCount * dustFrac));
+            for (let i = 0; i < nebulae.length; i++) {
+                if (nebulae[i].sprite) nebulae[i].sprite.visible = tier !== 'low';
+            }
+            for (let i = 0; i < auroras.length; i++) {
+                const a = auroras[i];
+                a.mesh.visible = tier !== 'low' && tier !== 'medium';
+                a.mesh.material = tier === 'ultra' ? a.shaderMat : a.mat;
+            }
+            twinkleLayer.visible = tier === 'ultra';
+            waveOverlay.visible = tier === 'ultra';
+            const dpr = window.devicePixelRatio || 1;
+            const pr = tier === 'low' ? 1 : tier === 'medium' ? Math.min(dpr, 1.5) : Math.min(dpr, 2);
+            renderer.setPixelRatio(pr);
+            lastW = 0;
+            checkResize();
+        }
 
         function update(dt, elapsed) {
             controls.update();
@@ -405,6 +529,15 @@
                 a.mesh.rotation.z += a.spin * dt;
                 a.mat.opacity = a.base * (0.75 + 0.35 * Math.sin(elapsed * 0.55 + a.phase));
             }
+            // Ultra tier: drive the animated shader clocks and the fast
+            // twinkle oscillation (all uniform writes, zero allocations).
+            if (currentTier === 'ultra') {
+                for (let i = 0; i < auroras.length; i++) {
+                    auroras[i].shaderMat.uniforms.uTime.value = elapsed;
+                }
+                waveMat.uniforms.uTime.value = elapsed;
+                twinkleLayer.material.opacity = 0.35 + 0.45 * Math.abs(Math.sin(elapsed * 3.1));
+            }
             // Floor rings pulse outward rhythm
             for (let i = 0; i < floorRings.length; i++) {
                 const fr = floorRings[i];
@@ -431,6 +564,8 @@
             disposed = true;
             if (flight) { flight.cancel(); flight = null; }
             if (controls && typeof controls.dispose === 'function') controls.dispose();
+            // Detached aurora flow materials are not reachable via traverse.
+            for (let i = 0; i < auroras.length; i++) auroras[i].shaderMat.dispose();
             scene.traverse(function (obj) {
                 if (obj.geometry) obj.geometry.dispose();
                 if (obj.material) {
@@ -458,6 +593,7 @@
             screenToNDC: screenToNDC,
             raycast: raycast,
             update: update,
+            setQuality: setQuality,
             setPaused: setPaused,
             isPaused: function () { return paused; },
             dispose: dispose

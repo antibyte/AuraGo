@@ -132,6 +132,8 @@ func TestDesktopSysWorldAppMarkers(t *testing.T) {
 		"inst.follow",
 		"clearFollow",
 		"updateFollowTarget",
+		"applyQuality",
+		"ultra",
 	} {
 		if !strings.Contains(app, want) {
 			t.Fatalf("System World entry missing implementation marker %q", want)
@@ -139,12 +141,12 @@ func TestDesktopSysWorldAppMarkers(t *testing.T) {
 	}
 
 	modules := map[string][]string{
-		"js/desktop/apps/sysworld-effects.js": {"window.SysWorld", "NS.createFx", "NS.PALETTE", "glowTexture", "comet", "beam", "sparkle", "tween", "textSprite", "hoverRing", "selectBeacon", "clearBeacon"},
-		"js/desktop/apps/sysworld-scene.js":   {"window.SysWorld", "NS.createStage", "NS.LAYOUT", "THREE.OrbitControls", "flyTo", "introFlight", "sysworld-dust", "sysworld-aurora"},
-		"js/desktop/apps/sysworld-core.js":    {"window.SysWorld", "NS.createCore", "setMood", "setMemory", "memoryFlash", "punch", "sysworld-core-halo"},
+		"js/desktop/apps/sysworld-effects.js": {"window.SysWorld", "NS.createFx", "NS.PALETTE", "glowTexture", "comet", "beam", "sparkle", "tween", "textSprite", "hoverRing", "selectBeacon", "clearBeacon", "updateArcs", "arcs"},
+		"js/desktop/apps/sysworld-scene.js":   {"window.SysWorld", "NS.createStage", "NS.LAYOUT", "THREE.OrbitControls", "flyTo", "introFlight", "sysworld-dust", "sysworld-aurora", "setQuality", "sysworld-energy-wave"},
+		"js/desktop/apps/sysworld-core.js":    {"window.SysWorld", "NS.createCore", "setMood", "setMemory", "memoryFlash", "punch", "sysworld-core-halo", "setQuality"},
 		"js/desktop/apps/sysworld-orbit.js":   {"window.SysWorld", "NS.createOrbit", "setIntegrations", "pickables", "satellitePosition", "textSprite", "categoryGeo"},
 		"js/desktop/apps/sysworld-graph.js":   {"window.SysWorld", "NS.createGraph", "build", "expand", "setVisible", "pickables", "highlightNeighbors"},
-		"js/desktop/apps/sysworld-fleet.js":   {"window.SysWorld", "NS.createFleet", "setMissions", "setCoAgents", "setTools", "setInfra", "flashTool", "textSprite", "tickGeo", "finGeo", "gearGeo", "plateEdgeGeo", "containerName"},
+		"js/desktop/apps/sysworld-fleet.js":   {"window.SysWorld", "NS.createFleet", "setMissions", "setCoAgents", "setTools", "setInfra", "flashTool", "textSprite", "tickGeo", "finGeo", "gearGeo", "plateEdgeGeo", "containerName", "setQuality"},
 		"js/desktop/apps/sysworld-hud.js":     {"window.SysWorld", "NS.createHud", "showPanel", "showTooltip", "setStats", "setLegend", "showSelLabel", "positionSelLabel", "hideSelLabel", "data-sw-zone", "onZoneHover"},
 	}
 	for file, markers := range modules {
@@ -244,6 +246,7 @@ func TestDesktopSysWorldTranslations(t *testing.T) {
 		"sysworld.quality.high",
 		"sysworld.quality.low",
 		"sysworld.quality.medium",
+		"sysworld.quality.ultra",
 		"sysworld.state.done",
 		"sysworld.state.error",
 		"sysworld.state.exited",

@@ -179,7 +179,9 @@
         const P = pal();
         const L = lay();
         const fx = inst.fx || null;
-        const qualityScale = clamp(toFinite(inst.qualityScale, 1), 0.05, 2);
+        // Particle buffers are always ultra-sized; tiers scale live via
+        // setQuality() draw ranges instead of rebuilding.
+        const capacityScale = 1.6;
         const coreRadius = Math.max(0.5, toFinite(L.coreRadius, 6));
         const memoryRadius = Math.max(2, toFinite(L.memoryRadius, 15));
 
@@ -346,7 +348,7 @@
         // radial breathing motion. Per-particle params are precomputed once;
         // update() only rewrites the position attribute.
         // ----------------------------------------------------------------
-        const coronaCount = Math.max(60, Math.floor(600 * qualityScale));
+        const coronaCount = Math.max(60, Math.floor(600 * capacityScale));
         const coronaRadius = new Float32Array(coronaCount);
         const coronaAngle = new Float32Array(coronaCount);
         const coronaSpeed = new Float32Array(coronaCount);
@@ -390,10 +392,13 @@
         corona.frustumCulled = false;
         coreGroup.add(corona);
 
+        // Corona spin is boosted in the ultra tier.
+        let coronaSpinMul = 1;
+
         function updateCorona(elapsed) {
             const breatheGlobal = 1 + state.pop * 0.25;
             for (let i = 0; i < coronaCount; i++) {
-                const a = coronaAngle[i] + elapsed * coronaSpeed[i];
+                const a = coronaAngle[i] + elapsed * coronaSpeed[i] * coronaSpinMul;
                 const breathe = breatheGlobal * (1 + 0.08 * Math.sin(elapsed * 0.7 + coronaPhase[i]));
                 const r = coronaRadius[i] * breathe;
                 coronaPositions[i * 3] = Math.cos(a) * r;
@@ -557,10 +562,10 @@
             const facts = clamp(toFinite(source.core_memory_facts, 0), 0, 1e6);
             const journal = clamp(toFinite(source.journal_entries, 0), 0, 1e9);
 
-            const nebulaCap = Math.max(90, Math.floor(1400 * qualityScale));
+            const nebulaCap = Math.max(90, Math.floor(1400 * capacityScale));
             const nebulaTarget = clamp(Math.round(110 + Math.log10(entries + 1) * 330), 90, nebulaCap);
             const starTarget = clamp(Math.round(facts), 0, 40);
-            const emberCap = Math.max(24, Math.floor(260 * qualityScale));
+            const emberCap = Math.max(24, Math.floor(260 * capacityScale));
             const emberTarget = journal <= 0 ? 0 : clamp(Math.round(50 + Math.log10(journal + 1) * 75), 8, emberCap);
 
             const counts = state.memCounts;
@@ -764,6 +769,14 @@
             disposeObjectTree(group);
         }
 
+        // Live quality lever: corona density via draw range, spin boost in
+        // the ultra tier. Buffers stay at ultra capacity, so no rebuilds.
+        function setQuality(tier) {
+            const frac = tier === 'low' ? 0.35 : tier === 'medium' ? 0.6 : tier === 'high' ? 0.85 : 1;
+            coronaGeo.setDrawRange(0, Math.max(24, Math.floor(coronaCount * frac)));
+            coronaSpinMul = tier === 'ultra' ? 2.2 : 1;
+        }
+
         const api = {
             group: group,
             setAgent: setAgent,
@@ -773,6 +786,7 @@
             memoryFlash: memoryFlash,
             punch: punch,
             update: update,
+            setQuality: setQuality,
             dispose: dispose
         };
 
