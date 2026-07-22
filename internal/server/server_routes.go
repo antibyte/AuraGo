@@ -148,6 +148,9 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 						"sse_clients":    sse.ClientCount(),
 						"uptime_seconds": int(time.Since(s.StartedAt).Seconds()),
 					}
+					if hostInfo := tools.GetHostInfo(); hostInfo.Uptime > 0 {
+						payload["host_uptime_seconds"] = int(hostInfo.Uptime)
+					}
 					sse.BroadcastType(EventSystemMetrics, payload)
 				}
 			case <-serverCtx.Done():

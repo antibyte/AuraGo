@@ -16,6 +16,8 @@
             renderQuickChatWidget(container);
         } else if (widget.id === 'builtin-weather') {
             renderWeatherWidget(container);
+        } else if (widget.id === 'builtin-sysmon') {
+            renderSysmonWidget(container);
         } else {
             container.innerHTML = `<div class="vd-widget-body">${esc(widget.title)}</div>`;
         }

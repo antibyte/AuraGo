@@ -570,6 +570,7 @@ func (s *Service) seedBuiltinWidgetsLocked(ctx context.Context) error {
 		{ID: "builtin-analog-clock", Title: "Analog Clock", Icon: "calculator", Type: "builtin", Runtime: BuiltinRuntime, X: 0, Y: 0, W: 2, H: 2, Visible: true, Builtin: true},
 		{ID: "builtin-quickchat", Title: "Quick Chat", Icon: "chat", Type: "builtin", Runtime: BuiltinRuntime, X: 0, Y: 0, W: 2, H: 2, Visible: true, Builtin: true},
 		{ID: "builtin-weather", Title: "Weather", Icon: "weather", Type: "builtin", Runtime: BuiltinRuntime, X: 0, Y: 0, W: 310, H: 220, Visible: true, Builtin: true},
+		{ID: "builtin-sysmon", Title: "System Monitor", Icon: "analytics", Type: "builtin", Runtime: BuiltinRuntime, X: 0, Y: 0, W: 310, H: 220, Visible: true, Builtin: true},
 	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {

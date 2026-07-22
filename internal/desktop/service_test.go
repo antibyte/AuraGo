@@ -2317,6 +2317,16 @@ func TestServiceBootstrapSeedsBuiltinWidgets(t *testing.T) {
 	if !chat.Builtin {
 		t.Fatal("quickchat widget should be builtin")
 	}
+	sysmon, ok := widgetMap["builtin-sysmon"]
+	if !ok {
+		t.Fatal("builtin-sysmon widget not seeded")
+	}
+	if !sysmon.Builtin {
+		t.Fatal("sysmon widget should be builtin")
+	}
+	if !sysmon.Visible {
+		t.Fatal("sysmon widget should be visible by default")
+	}
 }
 
 func TestServiceUpsertWidgetAddsIntegrityAndDetectsTampering(t *testing.T) {

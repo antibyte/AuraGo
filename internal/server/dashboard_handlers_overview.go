@@ -56,6 +56,9 @@ func handleDashboardSystem(s *Server, sse *SSEBroadcaster, startedAt time.Time) 
 			"sse_clients":    sse.ClientCount(),
 			"uptime_seconds": int(time.Since(startedAt).Seconds()),
 		}
+		if hostInfo := tools.GetHostInfo(); hostInfo.Uptime > 0 {
+			response["host_uptime_seconds"] = int(hostInfo.Uptime)
+		}
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(response)
