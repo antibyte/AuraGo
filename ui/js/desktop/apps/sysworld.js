@@ -208,6 +208,7 @@
             apiGet: null,
             focusObject: null,
             focused: null,
+            follow: null,
             lastActivity: Date.now()
         };
         instances.set(windowId, inst);
@@ -233,6 +234,7 @@
             onZoneFocus: zone => {
                 const anchor = zoneAnchor(inst, zone);
                 if (!anchor || !inst.stage || typeof inst.stage.flyTo !== 'function') return;
+                clearFollow(inst);
                 const THREE = inst.THREE;
                 try {
                     inst.stage.flyTo(
@@ -814,10 +816,18 @@
         focusObject(inst, list[ix]);
     }
 
+    function clearFollow(inst) {
+        if (!inst.follow) return;
+        inst.follow = null;
+        // Pan was disabled while chasing a moving target; restore it.
+        try { if (inst.stage && inst.stage.controls) inst.stage.controls.enablePan = true; } catch (_) {}
+    }
+
     function clearFocus(inst) {
         inst.panelKind = null;
         inst.panelToken++;
         inst.focused = null;
+        clearFollow(inst);
         try { if (inst.fx && inst.fx.clearBeacon) inst.fx.clearBeacon(); } catch (_) {}
         try { if (inst.hud && inst.hud.hideSelLabel) inst.hud.hideSelLabel(); } catch (_) {}
         try { if (inst.hud) inst.hud.hidePanel(); } catch (_) {}
@@ -887,6 +897,7 @@
             if (ae && ae !== document.body && !inst.root.contains(ae)) return;
             inst.lastActivity = Date.now();
             if (ev.key === 'ArrowRight') { cycleFocus(inst, 1); ev.preventDefault(); } else if (ev.key === 'ArrowLeft') { cycleFocus(inst, -1); ev.preventDefault(); } else if (ev.key === 'o' || ev.key === 'O') {
+                clearFollow(inst);
                 try { if (inst.stage && inst.stage.resetView) inst.stage.resetView(); } catch (_) {}
             } else if (ev.key === 'g' || ev.key === 'G') {
                 hudAction(inst, 'graph');
@@ -958,6 +969,10 @@
             }
             // Persistent floating label (positioned per frame in startLoop).
             inst.focused = { mesh: mesh, ud: mesh.userData || {}, radius: radius };
+            // Camera follow: while the selection drifts (satellites, drones,
+            // comet riders), the camera tracks it once the focus flight ends.
+            clearFollow(inst);
+            inst.follow = { mesh: mesh, pending: true };
             // Attention link: the core acknowledges the selection twice.
             if (inst.fx && typeof inst.fx.beam === 'function') {
                 const P = NS().PALETTE || {};
@@ -1125,6 +1140,44 @@
         } catch (_) {}
     }
 
+    // Camera-follow: while a focused object drifts (satellites, drones), the
+    // controls target tracks its live world position and the camera is
+    // translated by the same delta, so the user's orbit angle and zoom are
+    // preserved. Rotation/zoom keep working around the moving target; pan is
+    // disabled only while an actual moving object is being chased (it would
+    // fight the tracking). Engages after the focus flight hands control back,
+    // with the catch-up delta clamped so the first frames never jump.
+    function updateFollowTarget(inst, dt) {
+        const f = inst.follow;
+        if (!f || !f.mesh) return;
+        if (!f.mesh.parent || !inst.stage || !inst.stage.controls || !inst.stage.camera) {
+            clearFollow(inst);
+            return;
+        }
+        const controls = inst.stage.controls;
+        if (f.pending) {
+            if (controls.enabled) f.pending = false;
+            return;
+        }
+        if (!inst._followVec) inst._followVec = new inst.THREE.Vector3();
+        const target = inst._followVec;
+        try { f.mesh.getWorldPosition(target); } catch (_) { return; }
+        if (!inst._followDelta) inst._followDelta = new inst.THREE.Vector3();
+        const delta = inst._followDelta;
+        delta.copy(target).sub(controls.target);
+        if (delta.lengthSq() < 1e-8) return;
+        // Clamp the chase speed: satellites move far slower than this, so only
+        // the initial catch-up after the focus flight is smoothed out.
+        const maxStep = Math.max(0.05, 90 * (dt > 0 ? dt : 0.016));
+        if (delta.lengthSq() > maxStep * maxStep) delta.setLength(maxStep);
+        controls.target.add(delta);
+        inst.stage.camera.position.add(delta);
+        if (!f.moved) {
+            f.moved = true;
+            controls.enablePan = false;
+        }
+    }
+
     // Projects the focused object's world position to HUD pixels and pins
     // the selection label above it. Runs per frame; one scratch vector.
     function updateSelLabel(inst) {
@@ -1228,6 +1281,7 @@
             try { if (inst.orbit && inst.orbit.update) inst.orbit.update(dt, e); } catch (_) {}
             try { if (inst.graph && inst.graph.update) inst.graph.update(dt, e); } catch (_) {}
             try { if (inst.fleet && inst.fleet.update) inst.fleet.update(dt, e); } catch (_) {}
+            try { updateFollowTarget(inst, dt); } catch (_) {}
             try { updateSelLabel(inst); } catch (_) {}
             // Cinematic idle drift: after 45s without interaction and with no
             // active selection, the camera slowly orbits on its own.

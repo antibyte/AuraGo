@@ -129,6 +129,9 @@ func TestDesktopSysWorldAppMarkers(t *testing.T) {
 		"autoRotate",
 		"showSelLabel",
 		"inst.focused",
+		"inst.follow",
+		"clearFollow",
+		"updateFollowTarget",
 	} {
 		if !strings.Contains(app, want) {
 			t.Fatalf("System World entry missing implementation marker %q", want)

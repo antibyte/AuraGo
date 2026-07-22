@@ -183,6 +183,13 @@ registration lives in `internal/desktop/types.go`.
   neighborhoods on hover; legend zone items emit `onZoneHover`/`onZoneFocus`
   (pulse + camera flight via `zoneAnchor`); arrow keys cycle pickables,
   O/G/E mirror the HUD buttons, idle >45s enables OrbitControls autoRotate.
+- System World camera follow: focusing an object also sets
+  `inst.follow = {mesh, pending}`; `updateFollowTarget` runs per frame and,
+  once the focus flight re-enables the controls, glues `controls.target` to
+  the object's live position and translates the camera by the same (clamped)
+  delta so orbit/zoom keep working around the moving target. Pan is disabled
+  only while a moving object is chased. `clearFollow` runs from `clearFocus`,
+  zone-focus flights and the O key and always restores `enablePan`.
 
 ## Work Guidance
 
