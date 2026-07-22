@@ -835,6 +835,22 @@
             return C.dim;
         }
 
+        // Display name for a container: Docker returns names as ["/foo"], the
+        // compact API may also send "name"; the short id is the last resort.
+        function containerName(c, id) {
+            if (c) {
+                if (Array.isArray(c.names) && c.names.length) {
+                    const n = String(c.names[0] || '').replace(/^\/+/, '');
+                    if (n) { return n; }
+                }
+                if (c.name) {
+                    const n = String(c.name).replace(/^\/+/, '');
+                    if (n) { return n; }
+                }
+            }
+            return id;
+        }
+
         function addContainer(c, id) {
             const color = containerColor(c);
             const mesh = new THREE.Mesh(boxGeo, solidMat(color, 0.9));
@@ -848,7 +864,7 @@
             mesh.add(new THREE.LineSegments(edgeGeo, edgeMat));
             const rec = {
                 id: id,
-                label: c.name || id,
+                label: containerName(c, id),
                 payload: c,
                 color: color,
                 state: c.state || c.status,
@@ -974,7 +990,7 @@
                 seenC.add(id);
                 let rec = containers.get(id);
                 if (!rec) { rec = addContainer(c, id); }
-                rec.label = c.name || id;
+                rec.label = containerName(c, id);
                 rec.payload = c;
                 rec.mesh.userData.label = rec.label;
                 rec.mesh.userData.payload = c;

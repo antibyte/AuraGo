@@ -141,7 +141,7 @@ func TestDesktopSysWorldAppMarkers(t *testing.T) {
 		"js/desktop/apps/sysworld-core.js":    {"window.SysWorld", "NS.createCore", "setMood", "setMemory", "memoryFlash", "punch", "sysworld-core-halo"},
 		"js/desktop/apps/sysworld-orbit.js":   {"window.SysWorld", "NS.createOrbit", "setIntegrations", "pickables", "satellitePosition", "textSprite", "categoryGeo"},
 		"js/desktop/apps/sysworld-graph.js":   {"window.SysWorld", "NS.createGraph", "build", "expand", "setVisible", "pickables", "highlightNeighbors"},
-		"js/desktop/apps/sysworld-fleet.js":   {"window.SysWorld", "NS.createFleet", "setMissions", "setCoAgents", "setTools", "setInfra", "flashTool", "textSprite", "tickGeo", "finGeo", "gearGeo", "plateEdgeGeo"},
+		"js/desktop/apps/sysworld-fleet.js":   {"window.SysWorld", "NS.createFleet", "setMissions", "setCoAgents", "setTools", "setInfra", "flashTool", "textSprite", "tickGeo", "finGeo", "gearGeo", "plateEdgeGeo", "containerName"},
 		"js/desktop/apps/sysworld-hud.js":     {"window.SysWorld", "NS.createHud", "showPanel", "showTooltip", "setStats", "setLegend", "showSelLabel", "positionSelLabel", "hideSelLabel", "data-sw-zone", "onZoneHover"},
 	}
 	for file, markers := range modules {
