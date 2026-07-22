@@ -241,27 +241,50 @@
 
         // ------------------------------------------------------------------
         // Aurora ribbons — slow rotating translucent bands. In ultra they
-        // swap to an animated flow shader (energy streaming along the band).
+        // swap to an animated FBM noise shader: domain-warped drifting body
+        // with shimmering ray curtains, like real aurora borealis.
         // ------------------------------------------------------------------
         const auroras = [];
-        function makeFlowMaterial(color, opacity) {
+        function makeFlowMaterial(color, colorB, opacity) {
             return new THREE.ShaderMaterial({
                 uniforms: {
                     uTime: { value: 0 },
-                    uColor: { value: new THREE.Color(color) },
-                    uOpacity: { value: opacity * 2.6 }
+                    uColorA: { value: new THREE.Color(color) },
+                    uColorB: { value: new THREE.Color(colorB) },
+                    uOpacity: { value: opacity * 3.4 }
                 },
                 vertexShader: 'varying vec2 vUv;\n' +
                     'void main() {\n' +
                     '    vUv = uv;\n' +
                     '    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);\n' +
                     '}',
-                fragmentShader: 'uniform float uTime;\nuniform vec3 uColor;\nuniform float uOpacity;\nvarying vec2 vUv;\n' +
+                fragmentShader:
+                    'uniform float uTime;\nuniform vec3 uColorA;\nuniform vec3 uColorB;\nuniform float uOpacity;\nvarying vec2 vUv;\n' +
+                    'float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }\n' +
+                    'float noise(vec2 p) {\n' +
+                    '    vec2 i = floor(p);\n' +
+                    '    vec2 f = fract(p);\n' +
+                    '    vec2 u = f * f * (3.0 - 2.0 * f);\n' +
+                    '    return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), u.x),\n' +
+                    '               mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x), u.y);\n' +
+                    '}\n' +
+                    'float fbm(vec2 p) {\n' +
+                    '    float v = 0.0;\n' +
+                    '    float a = 0.5;\n' +
+                    '    for (int i = 0; i < 3; i++) {\n' +
+                    '        v += a * noise(p);\n' +
+                    '        p = p * 2.03 + 17.1;\n' +
+                    '        a *= 0.5;\n' +
+                    '    }\n' +
+                    '    return v;\n' +
+                    '}\n' +
                     'void main() {\n' +
-                    '    float band = 0.5 + 0.5 * sin((vUv.x * 10.0 - uTime * 1.5) * 6.28318);\n' +
-                    '    float flow = 0.5 + 0.5 * sin((vUv.x * 3.0 + uTime * 0.7) * 6.28318);\n' +
-                    '    float a = uOpacity * (0.3 + 0.7 * band) * (0.55 + 0.45 * flow);\n' +
-                    '    gl_FragColor = vec4(uColor * (0.8 + 0.7 * band), a);\n' +
+                    '    float warp = fbm(vec2(vUv.x * 4.0 - uTime * 0.06, uTime * 0.03));\n' +
+                    '    float body = fbm(vec2(vUv.x * 6.0 - uTime * 0.18 + warp * 1.7, vUv.y * 2.5));\n' +
+                    '    float rays = pow(0.5 + 0.5 * sin((vUv.x * 34.0 + body * 6.0) * 6.28318 - uTime * 0.9), 4.0);\n' +
+                    '    vec3 col = mix(uColorA, uColorB, clamp(body * 1.4 - 0.2, 0.0, 1.0));\n' +
+                    '    float a = uOpacity * (0.22 + 0.78 * body) * (0.35 + 0.65 * rays);\n' +
+                    '    gl_FragColor = vec4(col * (0.65 + 1.1 * rays), a);\n' +
                     '}',
                 transparent: true,
                 side: THREE.DoubleSide,
@@ -269,7 +292,7 @@
                 depthWrite: false
             });
         }
-        function addAurora(radius, y, color, opacity, spin) {
+        function addAurora(radius, y, color, colorB, opacity, spin) {
             const mat = new THREE.MeshBasicMaterial({
                 color: color,
                 transparent: true,
@@ -278,7 +301,7 @@
                 blending: THREE.AdditiveBlending,
                 depthWrite: false
             });
-            const shaderMat = makeFlowMaterial(color, opacity);
+            const shaderMat = makeFlowMaterial(color, colorB, opacity);
             const mesh = new THREE.Mesh(new THREE.TorusGeometry(radius, radius * 0.035, 8, 96), mat);
             mesh.rotation.x = Math.PI / 2.15;
             mesh.position.y = y;
@@ -286,9 +309,9 @@
             scene.add(mesh);
             auroras.push({ mesh: mesh, mat: mat, shaderMat: shaderMat, base: opacity, spin: spin, phase: Math.random() * 6 });
         }
-        addAurora(95, 8, 0x3de0c8, 0.07, 0.04);
-        addAurora(118, -4, 0x6a8dff, 0.055, -0.03);
-        addAurora(142, 16, 0xc06bff, 0.04, 0.025);
+        addAurora(95, 8, 0x3de0c8, 0x5f7cff, 0.07, 0.04);
+        addAurora(118, -4, 0x6a8dff, 0xc06bff, 0.055, -0.03);
+        addAurora(142, 16, 0xc06bff, 0xff6bd5, 0.04, 0.025);
 
         // ------------------------------------------------------------------
         // Energy grid floor below the infrastructure field

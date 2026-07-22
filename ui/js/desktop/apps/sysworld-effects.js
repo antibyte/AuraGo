@@ -824,9 +824,30 @@
             const len = Math.max(0.001, Math.sqrt(a.tx * a.tx + a.ty * a.ty + a.tz * a.tz));
             a.px = -a.tz / len; a.py = 0; a.pz = a.tx / len;
             a.qx = (a.ty * a.pz - a.tz * a.py) / 1; a.qy = (a.tz * a.px - a.tx * a.pz) / 1; a.qz = (a.tx * a.py - a.ty * a.px) / 1;
-            a.age = initial ? -Math.random() * 0.6 : 0;
-            a.life = 0.32 + Math.random() * 0.4;
+            // Lightning cadence: long random idle pause, then a short violent
+            // strike. Keeps the effect occasional instead of constant rain.
+            a.state = 'idle';
+            a.age = 0;
+            a.idle = initial ? Math.random() * 2.5 : (1.2 + Math.random() * 3.8);
+            a.life = 0.16 + Math.random() * 0.18;
+            a.amp = 1.6 + Math.random() * 1.4;
             a.active = true;
+            a.line.visible = false;
+            a.mat.opacity = 0;
+        }
+
+        function jitterArc(a, k) {
+            const jitterAmp = a.amp * (1 - k * 0.5);
+            for (let p = 0; p < ARC_POINTS; p++) {
+                const t = p / (ARC_POINTS - 1);
+                const env = Math.sin(t * Math.PI) * jitterAmp;
+                const j1 = (Math.random() * 2 - 1) * env;
+                const j2 = (Math.random() * 2 - 1) * env * 0.6;
+                a.positions[p * 3] = a.tx * t + a.px * j1 + a.qx * j2;
+                a.positions[p * 3 + 1] = a.ty * t + a.py * j1 + a.qy * j2;
+                a.positions[p * 3 + 2] = a.tz * t + a.pz * j1 + a.qz * j2;
+            }
+            a.posAttr.needsUpdate = true;
         }
 
         function updateArcs(dt) {
@@ -840,23 +861,22 @@
                 }
                 if (!a.active) respawnArc(a, true);
                 a.age += dt;
-                if (a.age >= a.life) respawnArc(a, false);
-                if (a.age < 0) continue;
-                const k = a.age / a.life;
-                const fade = k < 0.2 ? k / 0.2 : 1 - (k - 0.2) / 0.8;
-                a.line.visible = true;
-                a.mat.opacity = 0.75 * fade * (0.55 + 0.45 * Math.sin(a.age * 47 + i));
-                const jitterAmp = 2.1 * (1 - k * 0.55);
-                for (let p = 0; p < ARC_POINTS; p++) {
-                    const t = p / (ARC_POINTS - 1);
-                    const env = Math.sin(t * Math.PI) * jitterAmp;
-                    const j1 = (Math.random() * 2 - 1) * env;
-                    const j2 = (Math.random() * 2 - 1) * env * 0.6;
-                    a.positions[p * 3] = a.tx * t + a.px * j1 + a.qx * j2;
-                    a.positions[p * 3 + 1] = a.ty * t + a.py * j1 + a.qy * j2;
-                    a.positions[p * 3 + 2] = a.tz * t + a.pz * j1 + a.qz * j2;
+                if (a.state === 'idle') {
+                    if (a.age < a.idle) continue;
+                    a.state = 'strike';
+                    a.age = 0;
+                    jitterArc(a, 0);
+                    a.line.visible = true;
+                    continue;
                 }
-                a.posAttr.needsUpdate = true;
+                const k = a.age / a.life;
+                if (k >= 1) {
+                    respawnArc(a, false);
+                    continue;
+                }
+                jitterArc(a, k);
+                // Fast hot flash decaying into a dim afterglow.
+                a.mat.opacity = 0.95 * (1 - k) * (0.65 + 0.35 * Math.sin(a.age * 85 + i * 3));
             }
         }
 
