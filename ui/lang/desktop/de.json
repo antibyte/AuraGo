@@ -1537,6 +1537,8 @@
   "desktop.widget_delete_permanent": "Dauerhaft löschen",
   "desktop.widget_drawer_empty": "Keine Widgets verfügbar.",
   "desktop.widget_drawer_title": "Widgets",
+  "desktop.show_desktop": "Desktop anzeigen",
+  "desktop.widget_drawer_close": "Widget-Leiste schließen",
   "desktop.widget_manager": "Widget-Manager",
   "desktop.widget_on_desktop": "Auf dem Desktop",
   "desktop.widget_quickchat": "Schnell-Chat",

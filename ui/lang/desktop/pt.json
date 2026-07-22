@@ -1537,6 +1537,8 @@
   "desktop.widget_delete_permanent": "Excluir permanentemente",
   "desktop.widget_drawer_empty": "Nenhum widget disponível.",
   "desktop.widget_drawer_title": "Widgets",
+  "desktop.show_desktop": "Mostrar ambiente de trabalho",
+  "desktop.widget_drawer_close": "Fechar painel de widgets",
   "desktop.widget_manager": "Gerenciador de widgets",
   "desktop.widget_on_desktop": "Na área de trabalho",
   "desktop.widget_quickchat": "Chat rápido",

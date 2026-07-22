@@ -1537,6 +1537,8 @@
   "desktop.widget_delete_permanent": "永久删除",
   "desktop.widget_drawer_empty": "没有可用的小组件。",
   "desktop.widget_drawer_title": "小组件",
+  "desktop.show_desktop": "显示桌面",
+  "desktop.widget_drawer_close": "关闭小部件面板",
   "desktop.widget_manager": "小组件管理器",
   "desktop.widget_on_desktop": "在桌面上",
   "desktop.widget_quickchat": "快速聊天",

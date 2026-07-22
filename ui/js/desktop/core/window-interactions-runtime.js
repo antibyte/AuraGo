@@ -4,12 +4,49 @@
         if (item.minimizing) return;
         item.minimizing = true;
         if (state.activeWindowId === id) state.activeWindowId = '';
+        const delta = windowMinimizeTargetDelta(item.element, id);
+        if (delta) {
+            item.element.style.setProperty('--vd-minimize-dx', delta.dx + 'px');
+            item.element.style.setProperty('--vd-minimize-dy', delta.dy + 'px');
+        }
         renderTaskbar();
-        animateThen(item.element, 'vd-window-minimizing', isFruityTheme() ? 180 : 130, () => {
+        animateThen(item.element, 'vd-window-minimizing', isFruityTheme() ? 200 : 170, () => {
             item.element.style.display = 'none';
             item.minimizing = false;
             scheduleFruityDockOcclusionCheck();
         });
+    }
+
+    /* Compute the translation from the window center to its taskbar button
+       (standard) or dock icon (fruity) so minimize/restore can travel there. */
+    function windowMinimizeTargetDelta(win, id) {
+        const item = state.windows.get(id);
+        const host = $('vd-taskbar-apps');
+        if (!item || !host) return null;
+        let target = null;
+        if (isFruityTheme()) {
+            target = host.querySelector('.vd-dock-button[data-app-id="' + cssSel(item.appId) + '"]');
+        } else {
+            target = host.querySelector('[data-window-id="' + cssSel(id) + '"]');
+        }
+        if (!target) return null;
+        const winRect = win.getBoundingClientRect();
+        const btnRect = target.getBoundingClientRect();
+        if (!winRect.width || !btnRect.width) return null;
+        return {
+            dx: Math.round((btnRect.left + btnRect.width / 2) - (winRect.left + winRect.width / 2)),
+            dy: Math.round((btnRect.top + btnRect.height / 2) - (winRect.top + winRect.height / 2))
+        };
+    }
+
+    /* Run a programmatic bounds change (maximize/restore/snap) with a smooth
+       transition. Never used during pointer drag/resize. */
+    function animateWindowBounds(win, apply) {
+        const reduced = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (reduced || (document.body && document.body.dataset.animations === 'false')) { apply(); return; }
+        win.classList.add('vd-window-bounds-animated');
+        apply();
+        window.setTimeout(() => win.classList.remove('vd-window-bounds-animated'), 240);
     }
 
     function minimizeAllWindows() {
@@ -63,6 +100,7 @@ function wireWindow(win, id) {
                 snapZone: null
             };
             bar.setPointerCapture(event.pointerId);
+            win.classList.add('dragging');
         });
         bar.addEventListener('pointermove', (event) => {
             if (!drag) return;
@@ -88,11 +126,13 @@ function wireWindow(win, id) {
             if (drag && drag.snapZone) applyWindowSnap(win, drag.snapZone);
             hideSnapOverlay();
             drag = null;
+            win.classList.remove('dragging');
         });
         bar.addEventListener('pointercancel', () => {
             cancelWindowPointerFrame(drag);
             hideSnapOverlay();
             drag = null;
+            win.classList.remove('dragging');
         });
         if (win.dataset.windowId && state.windows.get(win.dataset.windowId) && state.windows.get(win.dataset.windowId).appId !== 'calculator') {
             bar.addEventListener('dblclick', event => {
@@ -118,6 +158,7 @@ function wireWindow(win, id) {
         let zone = null;
         if (top <= SNAP_EDGE && nearLeftEdge) zone = 'top-left';
         else if (top <= SNAP_EDGE && nearRightEdge) zone = 'top-right';
+        else if (top <= SNAP_EDGE) zone = 'maximize';
         else if (left <= SNAP_EDGE) zone = 'left-half';
         else if (left + width >= ww - SNAP_EDGE) zone = 'right-half';
         drag.snapZone = zone;
@@ -139,7 +180,8 @@ function wireWindow(win, id) {
             'right-half': { left: ww / 2, top: 0, width: ww / 2, height: wh },
             'top-half': { left: 0, top: 0, width: ww, height: wh / 2 },
             'top-left': { left: 0, top: 0, width: ww / 2, height: wh / 2 },
-            'top-right': { left: ww / 2, top: 0, width: ww / 2, height: wh / 2 }
+            'top-right': { left: ww / 2, top: 0, width: ww / 2, height: wh / 2 },
+            'maximize': { left: 0, top: 0, width: ww, height: wh }
         };
         const p = positions[zone];
         overlay.style.left = p.left + 'px';
@@ -168,21 +210,26 @@ function wireWindow(win, id) {
             'top-left': { left: 0, top: 0, width: ww / 2, height: wh / 2 },
             'top-right': { left: ww / 2, top: 0, width: ww / 2, height: wh / 2 }
         };
-        const p = positions[zone];
-        if (!p) return;
         const windowId = win.dataset.windowId;
         const item = state.windows.get(windowId);
         if (!item) return;
-        if (item.maximized) {
-            item.maximized = false;
-            win.classList.remove('maximized');
+        if (zone === 'maximize') {
+            if (!item.maximized) toggleMaximizeWindow(windowId);
+            return;
         }
-        item.restoreBounds = windowBounds(win);
-        win.style.left = p.left + 'px';
-        win.style.top = p.top + 'px';
-        win.style.width = Math.max(WINDOW_MIN_W, p.width) + 'px';
-        win.style.height = Math.max(WINDOW_MIN_H, p.height) + 'px';
-        animateThen(win, 'vd-window-state-changing', 120);
+        const p = positions[zone];
+        if (!p) return;
+        animateWindowBounds(win, () => {
+            if (item.maximized) {
+                item.maximized = false;
+                win.classList.remove('maximized');
+            }
+            item.restoreBounds = windowBounds(win);
+            win.style.left = p.left + 'px';
+            win.style.top = p.top + 'px';
+            win.style.width = Math.max(WINDOW_MIN_W, p.width) + 'px';
+            win.style.height = Math.max(WINDOW_MIN_H, p.height) + 'px';
+        });
         scheduleFruityDockOcclusionCheck();
     }
 
@@ -261,25 +308,26 @@ function wireWindow(win, id) {
         const item = state.windows.get(id);
         if (!item) return;
         const win = item.element;
-        animateThen(win, 'vd-window-state-changing', isFruityTheme() ? 180 : 120);
-        if (item.maximized) {
-            const b = item.restoreBounds || { left: 80, top: 48, width: 820, height: 560 };
-            win.classList.remove('maximized');
-            win.style.left = b.left + 'px';
-            win.style.top = b.top + 'px';
-            win.style.width = b.width + 'px';
-            win.style.height = b.height + 'px';
-            item.maximized = false;
-        } else {
-            item.restoreBounds = windowBounds(win);
-            const bounds = workspaceBoundsForWindow();
-            win.classList.add('maximized');
-            win.style.left = '0';
-            win.style.top = '0';
-            win.style.width = Math.max(WINDOW_MIN_W, bounds.width) + 'px';
-            win.style.height = Math.max(WINDOW_MIN_H, bounds.height) + 'px';
-            item.maximized = true;
-        }
+        animateWindowBounds(win, () => {
+            if (item.maximized) {
+                const b = item.restoreBounds || { left: 80, top: 48, width: 820, height: 560 };
+                win.classList.remove('maximized');
+                win.style.left = b.left + 'px';
+                win.style.top = b.top + 'px';
+                win.style.width = b.width + 'px';
+                win.style.height = b.height + 'px';
+                item.maximized = false;
+            } else {
+                item.restoreBounds = windowBounds(win);
+                const bounds = workspaceBoundsForWindow();
+                win.classList.add('maximized');
+                win.style.left = '0';
+                win.style.top = '0';
+                win.style.width = Math.max(WINDOW_MIN_W, bounds.width) + 'px';
+                win.style.height = Math.max(WINDOW_MIN_H, bounds.height) + 'px';
+                item.maximized = true;
+            }
+        });
         focusWindow(id);
         renderWindowMenus(id);
         scheduleFruityDockOcclusionCheck();
@@ -304,6 +352,7 @@ function wireWindow(win, id) {
                     pendingFrame: null
                 };
                 handle.setPointerCapture(event.pointerId);
+                win.classList.add('resizing');
             });
             handle.addEventListener('pointermove', event => {
                 if (!resize) return;
@@ -322,6 +371,7 @@ function wireWindow(win, id) {
                 handle.releasePointerCapture(event.pointerId);
                 cancelWindowPointerFrame(resize, true);
                 resize = null;
+                win.classList.remove('resizing');
             });
             handle.addEventListener('pointercancel', event => {
                 if (handle.hasPointerCapture && handle.hasPointerCapture(event.pointerId)) {
@@ -329,6 +379,7 @@ function wireWindow(win, id) {
                 }
                 cancelWindowPointerFrame(resize);
                 resize = null;
+                win.classList.remove('resizing');
             });
         });
     }
@@ -408,7 +459,7 @@ function wireWindow(win, id) {
         win.element.style.zIndex = String(++state.z);
         state.activeWindowId = id;
         state.windows.forEach(item => item.element.classList.toggle('active', item.id === id));
-        if (wasHidden) animateThen(win.element, 'vd-window-restoring', isFruityTheme() ? 210 : 140);
+        if (wasHidden) animateThen(win.element, 'vd-window-restoring', isFruityTheme() ? 230 : 180);
         renderTaskbar();
         scheduleFruityDockOcclusionCheck();
     }
@@ -446,7 +497,30 @@ function wireWindow(win, id) {
         }
     }
     function closeContextMenuOnEscape(event) {
-        if (event.key === 'Escape') closeContextMenu();
+        if (event.key === 'Escape') { closeContextMenu(); return; }
+        const menu = state.contextMenu;
+        if (!menu) return;
+        const navKeys = ['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight', 'Home', 'End'];
+        if (!navKeys.includes(event.key)) return;
+        const items = [...menu.querySelectorAll('.vd-context-item:not(:disabled)')].filter(el => el.offsetParent !== null);
+        if (!items.length) return;
+        const idx = items.indexOf(document.activeElement);
+        let next = null;
+        if (event.key === 'ArrowDown') next = items[idx < 0 ? 0 : (idx + 1) % items.length];
+        else if (event.key === 'ArrowUp') next = items[idx < 0 ? items.length - 1 : (idx - 1 + items.length) % items.length];
+        else if (event.key === 'Home') next = items[0];
+        else if (event.key === 'End') next = items[items.length - 1];
+        else if (event.key === 'ArrowRight' && idx >= 0) {
+            const sub = document.activeElement.closest('.vd-context-submenu');
+            const pop = sub ? sub.querySelector(':scope > .vd-context-submenu-popover') : null;
+            if (pop) next = pop.querySelector('.vd-context-item:not(:disabled)');
+        } else if (event.key === 'ArrowLeft' && idx >= 0) {
+            const pop = document.activeElement.closest('.vd-context-submenu-popover');
+            if (pop) next = pop.closest('.vd-context-submenu').querySelector(':scope > .vd-context-item');
+        }
+        if (!next) return;
+        event.preventDefault();
+        next.focus({ preventScroll: true });
     }
     function registerWindowCleanup(windowId, cleanup) {
         if (!windowId || typeof cleanup !== 'function') return;

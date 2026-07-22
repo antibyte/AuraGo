@@ -1537,6 +1537,8 @@
   "desktop.widget_delete_permanent": "Supprimer définitivement",
   "desktop.widget_drawer_empty": "Aucun widget disponible.",
   "desktop.widget_drawer_title": "Widgets",
+  "desktop.show_desktop": "Afficher le bureau",
+  "desktop.widget_drawer_close": "Fermer le panneau des widgets",
   "desktop.widget_manager": "Gestionnaire de widgets",
   "desktop.widget_on_desktop": "Sur le bureau",
   "desktop.widget_quickchat": "Chat rapide",

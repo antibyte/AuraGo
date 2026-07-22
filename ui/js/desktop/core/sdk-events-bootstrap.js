@@ -390,6 +390,36 @@
             clearTimeout(startSearchTimer);
             startSearchTimer = setTimeout(renderStartApps, 150);
         });
+        $('vd-start-menu').addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                closeStartMenu();
+                const startButton = $('vd-start-button');
+                if (startButton) startButton.focus();
+                return;
+            }
+            if (event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey) {
+                const search = $('vd-start-search');
+                if (search && document.activeElement !== search) search.focus();
+                return;
+            }
+            const items = [...$('vd-start-menu').querySelectorAll('.vd-start-item')];
+            if (!items.length) return;
+            const idx = items.indexOf(document.activeElement);
+            const firstTop = items[0].offsetTop;
+            let columns = 1;
+            while (columns < items.length && items[columns].offsetTop === firstTop) columns++;
+            let next = -1;
+            if (event.key === 'ArrowDown') next = idx < 0 ? 0 : Math.min(items.length - 1, idx + columns);
+            else if (event.key === 'ArrowUp') next = idx < 0 ? items.length - 1 : Math.max(0, idx - columns);
+            else if (event.key === 'ArrowRight' && columns > 1) next = idx < 0 ? 0 : Math.min(items.length - 1, idx + 1);
+            else if (event.key === 'ArrowLeft' && columns > 1) next = idx < 0 ? 0 : Math.max(0, idx - 1);
+            else if (event.key === 'Home') next = 0;
+            else if (event.key === 'End') next = items.length - 1;
+            else return;
+            event.preventDefault();
+            items[next].focus();
+        });
         renderStartButtonIcon();
         document.addEventListener('click', (event) => {
             if (!event.target.closest('.vd-context-menu')) closeContextMenu();
@@ -437,24 +467,34 @@
         const drawer = document.getElementById('vd-widget-drawer');
         const backdrop = document.getElementById('vd-widget-drawer-backdrop');
         if (!drawer || !backdrop) return;
+        const drawerBtn = document.getElementById('vd-widget-drawer-btn');
 
-        const isOpen = drawer.classList.contains('open');
-        if (isOpen) {
+        const closeDrawer = () => {
             drawer.classList.remove('open');
-            backdrop.hidden = true;
+            backdrop.classList.remove('active');
+            if (drawerBtn) drawerBtn.setAttribute('aria-expanded', 'false');
+            window.setTimeout(() => { if (!drawer.classList.contains('open')) backdrop.hidden = true; }, 220);
+        };
+
+        if (drawer.classList.contains('open')) {
+            closeDrawer();
             return;
         }
 
         drawer.classList.add('open');
         backdrop.hidden = false;
+        if (drawerBtn) drawerBtn.setAttribute('aria-expanded', 'true');
+        window.requestAnimationFrame(() => backdrop.classList.add('active'));
 
-        backdrop.addEventListener('click', () => {
-            drawer.classList.remove('open');
-            backdrop.hidden = true;
-        }, { once: true });
-
-        const title = drawer.querySelector('.vd-widget-drawer-title');
-        title.textContent = t('desktop.widget_drawer_title');
+        if (!drawer.dataset.controlsWired) {
+            drawer.dataset.controlsWired = 'true';
+            backdrop.addEventListener('click', closeDrawer);
+            const closeBtn = document.getElementById('vd-widget-drawer-close');
+            if (closeBtn) closeBtn.addEventListener('click', closeDrawer);
+            document.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape' && drawer.classList.contains('open')) closeDrawer();
+            });
+        }
 
         renderWidgetDrawerContent(drawer);
     }

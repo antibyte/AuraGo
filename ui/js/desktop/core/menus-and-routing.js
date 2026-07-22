@@ -70,7 +70,7 @@
             return `<button type="button" class="vd-context-item" role="menuitem" data-context-action="${esc(actionKey)}" ${disabled}>${icon}${label}</button>`;
         }).join('');
         const menu = document.createElement('div');
-        menu.className = 'vd-context-menu';
+        menu.className = 'vd-context-menu vd-scroll';
         menu.setAttribute('role', 'menu');
         menu.innerHTML = renderItems(items, []);
         menu.querySelectorAll('.vd-context-item').forEach((btn, idx) => btn.style.setProperty('--context-item-index', String(idx)));
@@ -582,7 +582,7 @@ function modalDialog(options) {
                     <button type="button" class="vd-window-button" data-action="close" data-close title="${esc(t('desktop.close'))}" aria-label="${esc(t('desktop.close'))}"></button>
                 </div>
             </div>
-            <div class="vd-wm-cards">${renderCards()}</div>
+            <div class="vd-wm-cards vd-scroll">${renderCards()}</div>
         </div>`;
         document.body.appendChild(overlay);
 
@@ -676,7 +676,7 @@ function modalDialog(options) {
                     <button type="button" class="vd-window-button" data-action="close" data-close title="${esc(t('desktop.close'))}" aria-label="${esc(t('desktop.close'))}"></button>
                 </div>
             </div>
-            <div class="vd-wm-cards">${renderCards()}</div>
+            <div class="vd-wm-cards vd-scroll">${renderCards()}</div>
         </div>`;
         document.body.appendChild(overlay);
 

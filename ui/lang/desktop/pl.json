@@ -1537,6 +1537,8 @@
   "desktop.widget_delete_permanent": "Usuń na stałe",
   "desktop.widget_drawer_empty": "Brak dostępnych widżetów.",
   "desktop.widget_drawer_title": "Widżety",
+  "desktop.show_desktop": "Pokaż pulpit",
+  "desktop.widget_drawer_close": "Zamknij panel widżetów",
   "desktop.widget_manager": "Menedżer widżetów",
   "desktop.widget_on_desktop": "Na pulpicie",
   "desktop.widget_quickchat": "Szybki czat",

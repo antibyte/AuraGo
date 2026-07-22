@@ -2,16 +2,13 @@ async function renderWidgetDrawerContent(drawer) {
     drawer.querySelectorAll('.vd-widget-drawer-content').forEach(el => el.remove());
 
     const content = document.createElement('div');
-    content.className = 'vd-widget-drawer-content';
-    content.style.padding = '12px 16px 20px';
-    content.style.overflow = 'auto';
-    content.style.maxHeight = 'calc(100% - 48px)';
+    content.className = 'vd-widget-drawer-content vd-scroll';
 
     const allWidgets = (state.bootstrap && state.bootstrap.all_widgets) || [];
 
     if (allWidgets.length === 0) {
         content.innerHTML = `
-            <div style="padding: 24px 12px; color: var(--vd-muted); font-size: 13px; text-align: center;">
+            <div class="vd-widget-drawer-empty">
                 ${t('desktop.widget_drawer_empty')}
             </div>
         `;
@@ -20,9 +17,7 @@ async function renderWidgetDrawerContent(drawer) {
     }
 
     const list = document.createElement('div');
-    list.style.display = 'flex';
-    list.style.flexDirection = 'column';
-    list.style.gap = '8px';
+    list.className = 'vd-widget-drawer-list';
 
     allWidgets.forEach(widget => {
         const isVisible = widget.visible !== false;
@@ -30,21 +25,20 @@ async function renderWidgetDrawerContent(drawer) {
         const card = document.createElement('div');
         const iconKey = widget.icon || 'widgets';
 
-        card.style.cssText = 'display:flex; align-items:center; gap:10px; padding:8px 10px; background:var(--vd-surface); border:1px solid var(--vd-border); border-radius:8px;';
+        card.className = 'vd-widget-drawer-card';
         card.innerHTML = `
-            <div style="flex-shrink:0;">${iconMarkup(iconKey, widget.title || widget.id, 'vd-sprite-file', 22)}</div>
-            <div style="flex:1; min-width:0;">
-                <div style="font-weight:600; font-size:13px; color:var(--vd-text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+            <div class="vd-widget-drawer-card-icon">${iconMarkup(iconKey, widget.title || widget.id, 'vd-sprite-file', 22)}</div>
+            <div class="vd-widget-drawer-card-text">
+                <div class="vd-widget-drawer-card-title">
                     ${esc(widget.title || widget.id)}
                 </div>
-                <div style="font-size:11px; color:var(--vd-muted);">
+                <div class="vd-widget-drawer-card-meta">
                     ${isBuiltin ? t('desktop.widget_builtin') : t('desktop.widget_custom')}
                     ${isVisible ? ' • ' + t('desktop.widget_on_desktop') : ''}
                 </div>
             </div>
             <div>
-                <button type="button" class="vd-wm-btn" data-widget-action="${isVisible ? 'hide' : 'show'}" data-widget-id="${esc(widget.id)}"
-                    style="font-size:11px; padding:4px 10px; min-width:72px;">
+                <button type="button" class="vd-wm-btn vd-widget-drawer-card-btn" data-widget-action="${isVisible ? 'hide' : 'show'}" data-widget-id="${esc(widget.id)}">
                     ${isVisible ? t('desktop.widget_remove_from_desktop') : t('desktop.widget_add_to_desktop')}
                 </button>
             </div>

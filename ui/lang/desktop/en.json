@@ -1537,6 +1537,8 @@
   "desktop.widget_delete_permanent": "Delete Permanently",
   "desktop.widget_drawer_empty": "No widgets available.",
   "desktop.widget_drawer_title": "Widgets",
+  "desktop.show_desktop": "Show Desktop",
+  "desktop.widget_drawer_close": "Close widget drawer",
   "desktop.widget_manager": "Widget Manager",
   "desktop.widget_on_desktop": "On Desktop",
   "desktop.widget_quickchat": "Quick Chat",

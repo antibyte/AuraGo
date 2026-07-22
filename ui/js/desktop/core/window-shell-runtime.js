@@ -568,12 +568,12 @@
         let html = '';
         if (recentApps.length > 0) {
             html += `<div class="vd-start-recent-label">${esc(t('desktop.recent_apps'))}</div>`;
-            html += recentApps.map(app => `<button class="vd-start-item vd-start-recent-item" type="button" data-app-id="${esc(app.id)}">
+            html += recentApps.map((app, index) => `<button class="vd-start-item vd-start-recent-item" type="button" data-app-id="${esc(app.id)}" style="--start-index:${index}">
                 ${iconMarkup(iconForApp(app), iconGlyph(app), 'vd-sprite-start-item', 30)}
                 <span>${esc(appName(app))}${brokenAppLabel(app)}</span>
             </button>`).join('');
         }
-        html += nonRecentApps.map(app => `<button class="vd-start-item" type="button" data-app-id="${esc(app.id)}">
+        html += nonRecentApps.map((app, index) => `<button class="vd-start-item" type="button" data-app-id="${esc(app.id)}" style="--start-index:${recentApps.length + index}">
             ${iconMarkup(iconForApp(app), iconGlyph(app), 'vd-sprite-start-item', 30)}
             <span>${esc(appName(app))}${brokenAppLabel(app)}</span>
         </button>`).join('');

@@ -33,16 +33,6 @@
     pointer-events: none;
 }
 
-/* Stronger, more premium active window indication (improves UX clarity) */
-.vd-window.active {
-    box-shadow: var(--ds-elevation-4), 0 0 0 1.5px color-mix(in srgb, var(--ds-color-accent-500) 45%, transparent);
-    z-index: calc(var(--ds-z-window) + 1);
-}
-
-.vd-window.active .vd-window-titlebar {
-    background: color-mix(in srgb, var(--ds-color-surface-2) 100%, var(--ds-color-accent-500) 4%);
-}
-
 .vd-snap-overlay {
     position: absolute;
     border: 2px solid color-mix(in srgb, var(--ds-color-accent-500) 55%, transparent);
@@ -107,6 +97,25 @@
 
 .vd-switcher-label {
     white-space: nowrap;
+}
+
+.desktop-body:not([data-animations="false"]) .vd-window-switcher {
+    animation: vd-switcher-in 150ms var(--ds-motion-ease-emphasized) both;
+}
+
+@keyframes vd-switcher-in {
+    from { opacity: 0; transform: translate(-50%, -48%) scale(0.97); }
+    to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+.desktop-body[data-theme="standard"] .vd-window-switcher,
+.desktop-body[data-theme="fruity"] .vd-window-switcher {
+    border-color: var(--vd-theme-border);
+    border-radius: var(--vd-theme-radius-panel);
+    background: var(--vd-theme-panel-bg-strong);
+    box-shadow: var(--vd-theme-shadow-panel);
+    -webkit-backdrop-filter: var(--vd-theme-blur);
+    backdrop-filter: var(--vd-theme-blur);
 }
 
 .vd-window {
@@ -209,22 +218,30 @@
     .desktop-body:not([data-theme="fruity"]) .vd-window.maximized {
         top: env(safe-area-inset-top, 0px) !important;
         left: env(safe-area-inset-left, 0px) !important;
-        right: env(safe-area-inset-right, 0px) !important;
-        bottom: calc(env(safe-area-inset-bottom, 0px) + var(--vd-taskbar-height, 54px)) !important;
-        width: auto !important;
-        height: auto !important;
+        width: calc(100% - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)) !important;
+        height: calc(100% - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - var(--vd-taskbar-height, 54px)) !important;
     }
 
     .desktop-body[data-theme="fruity"] .vd-window.maximized {
         top: env(safe-area-inset-top, 0px) !important;
         left: env(safe-area-inset-left, 0px) !important;
-        right: env(safe-area-inset-right, 0px) !important;
-        bottom: calc(env(safe-area-inset-bottom, 0px) + var(--vd-fruity-dock-reserve, 96px)) !important;
-        width: auto !important;
-        height: auto !important;
+        width: calc(100% - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)) !important;
+        height: calc(100% - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - var(--vd-fruity-dock-reserve, 96px)) !important;
         border-radius: 14px;
         border: 1px solid rgba(78, 92, 118, 0.16);
     }
+}
+
+/* Smooth bounds animation for maximize/restore/snap (class is applied only
+   around programmatic bounds changes, never during pointer drag/resize). */
+.desktop-body:not([data-animations="false"]) .vd-window.vd-window-bounds-animated {
+    transition:
+        left 190ms var(--ds-motion-ease-emphasized),
+        top 190ms var(--ds-motion-ease-emphasized),
+        width 190ms var(--ds-motion-ease-emphasized),
+        height 190ms var(--ds-motion-ease-emphasized),
+        border-radius 190ms var(--ds-motion-ease-emphasized),
+        box-shadow 190ms var(--ds-motion-ease-standard);
 }
 
 .vd-window.maximized .vd-resize-handle {
@@ -239,6 +256,11 @@
         0 0 0 1px rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.14) inset,
         0 0 32px var(--vd-accent-glow),
         0 0 0 1px rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.12);
+    z-index: calc(var(--ds-z-window) + 1);
+}
+
+.vd-window.active .vd-window-titlebar {
+    background: color-mix(in srgb, var(--ds-color-surface-2) 100%, var(--ds-color-accent-500) 4%);
 }
 
 .vd-window.vd-window-file-drop-target {
@@ -287,8 +309,18 @@
     border-bottom-color: var(--vd-shell-context-menu-border);
 }
 
+/* Standard (Yaru-style): active titlebar lifts slightly, inactive recedes */
 .desktop-body[data-theme="standard"] .vd-window.active .vd-window-titlebar {
-    background: var(--vd-shell-context-menu-bg);
+    background: color-mix(in srgb, var(--vd-shell-context-menu-bg), rgba(255, 255, 255, 0.07));
+}
+
+.desktop-body[data-theme="standard"] .vd-window:not(.active) .vd-window-titlebar {
+    background: color-mix(in srgb, var(--vd-shell-context-menu-bg), rgba(0, 0, 0, 0.14));
+    border-bottom-color: color-mix(in srgb, var(--vd-shell-context-menu-border), transparent 35%);
+}
+
+.desktop-body[data-theme="standard"] .vd-window:not(.active) {
+    border-color: color-mix(in srgb, var(--vd-shell-context-menu-border), transparent 45%);
 }
 
 .vd-window.dragging .vd-window-titlebar {
@@ -344,6 +376,7 @@
     line-height: var(--ds-type-leading-tight);
     letter-spacing: -0.005em;
     color: var(--ds-color-fg-primary);
+    transition: opacity var(--ds-motion-duration-base) var(--ds-motion-ease-standard);
 }
 
 .vd-window-subtitle {
@@ -353,6 +386,13 @@
     letter-spacing: 0.02em;
     text-transform: uppercase;
     line-height: var(--ds-type-leading-normal);
+    transition: opacity var(--ds-motion-duration-base) var(--ds-motion-ease-standard);
+}
+
+/* Inactive windows recede: title dims in every theme */
+.vd-window:not(.active) .vd-window-title,
+.vd-window:not(.active) .vd-window-subtitle {
+    opacity: 0.62;
 }
 
 .vd-window-subtitle:empty {
@@ -1089,13 +1129,6 @@
     transition: background-color 0.12s var(--ds-motion-ease-standard);
 }
 
-/* Expand invisible hit area for easier touch grabbing */
-.vd-resize-handle::after {
-    content: '';
-    position: absolute;
-    inset: -12px;
-}
-
 .vd-resize-handle:hover {
     background: color-mix(in srgb, var(--ds-color-accent-500) 22%, transparent);
 }
@@ -1210,29 +1243,27 @@
 
 .desktop-body:not([data-animations="false"]) .vd-window-minimizing {
     pointer-events: none;
-    animation: vd-window-minimize-standard 130ms ease-in both;
+    animation: vd-window-minimize-standard 170ms ease-in both;
 }
 
 .desktop-body:not([data-animations="false"]) .vd-window-restoring {
-    animation: vd-window-restore-standard 140ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+    animation: vd-window-restore-standard 180ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
-.desktop-body:not([data-animations="false"]) .vd-window-state-changing {
-    animation: vd-window-state-standard 120ms ease-out both;
-}
-
-.desktop-body[data-theme="fruity"]:not([data-animations="false"]) .vd-window-opening,
-.desktop-body[data-theme="fruity"]:not([data-animations="false"]) .vd-window-restoring {
+.desktop-body[data-theme="fruity"]:not([data-animations="false"]) .vd-window-opening {
     animation: vd-window-open-fruity 220ms cubic-bezier(0.16, 1.18, 0.28, 1) both;
 }
 
-.desktop-body[data-theme="fruity"]:not([data-animations="false"]) .vd-window-closing,
-.desktop-body[data-theme="fruity"]:not([data-animations="false"]) .vd-window-minimizing {
+.desktop-body[data-theme="fruity"]:not([data-animations="false"]) .vd-window-restoring {
+    animation: vd-window-restore-fruity 230ms cubic-bezier(0.16, 1.18, 0.28, 1) both;
+}
+
+.desktop-body[data-theme="fruity"]:not([data-animations="false"]) .vd-window-closing {
     animation: vd-window-close-fruity 160ms cubic-bezier(0.42, 0, 0.6, 1) both;
 }
 
-.desktop-body[data-theme="fruity"]:not([data-animations="false"]) .vd-window-state-changing {
-    animation: vd-window-state-fruity 180ms cubic-bezier(0.16, 1.18, 0.28, 1) both;
+.desktop-body[data-theme="fruity"]:not([data-animations="false"]) .vd-window-minimizing {
+    animation: vd-window-minimize-fruity 200ms cubic-bezier(0.42, 0, 0.6, 1) both;
 }
 
 @keyframes vd-window-open-standard {
@@ -1245,19 +1276,16 @@
     to { opacity: 0; transform: translateY(8px) scale(0.97); }
 }
 
+/* Minimize travels toward the taskbar/dock button via --vd-minimize-dx/dy
+   (set by the runtime; falls back to a gentle sink when no target exists). */
 @keyframes vd-window-minimize-standard {
-    from { opacity: 1; transform: translateY(0) scale(1); }
-    to { opacity: 0; transform: translateY(16px) scale(0.96); }
+    from { opacity: 1; transform: translate(0, 0) scale(1); }
+    to { opacity: 0; transform: translate(var(--vd-minimize-dx, 0px), var(--vd-minimize-dy, 16px)) scale(0.2); }
 }
 
 @keyframes vd-window-restore-standard {
-    from { opacity: 0; transform: translateY(10px) scale(0.98); }
-    to { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-@keyframes vd-window-state-standard {
-    0% { transform: scale(0.995); }
-    100% { transform: scale(1); }
+    from { opacity: 0; transform: translate(var(--vd-minimize-dx, 0px), var(--vd-minimize-dy, 10px)) scale(0.35); }
+    to { opacity: 1; transform: translate(0, 0) scale(1); }
 }
 
 @keyframes vd-window-open-fruity {
@@ -1271,10 +1299,15 @@
     to { opacity: 0; transform: translateY(18px) scale(0.94); }
 }
 
-@keyframes vd-window-state-fruity {
-    0% { transform: scale(0.985); }
-    70% { transform: scale(1.012); }
-    100% { transform: scale(1); }
+@keyframes vd-window-minimize-fruity {
+    from { opacity: 1; transform: translate(0, 0) scale(1); }
+    to { opacity: 0; transform: translate(var(--vd-minimize-dx, 0px), var(--vd-minimize-dy, 18px)) scale(0.18); }
+}
+
+@keyframes vd-window-restore-fruity {
+    0% { opacity: 0; transform: translate(var(--vd-minimize-dx, 0px), var(--vd-minimize-dy, 14px)) scale(0.3); }
+    72% { opacity: 1; transform: translate(0, 0) scale(1.015); }
+    100% { opacity: 1; transform: translate(0, 0) scale(1); }
 }
 
 @keyframes vd-menu-open-standard {

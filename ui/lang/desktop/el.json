@@ -1537,6 +1537,8 @@
   "desktop.widget_delete_permanent": "Μόνιμη διαγραφή",
   "desktop.widget_drawer_empty": "Δεν υπάρχουν διαθέσιμα widget.",
   "desktop.widget_drawer_title": "Widgets",
+  "desktop.show_desktop": "Εμφάνιση επιφάνειας εργασίας",
+  "desktop.widget_drawer_close": "Κλείσιμο πάνελ widget",
   "desktop.widget_manager": "Διαχειριστής widget",
   "desktop.widget_on_desktop": "Στην επιφάνεια εργασίας",
   "desktop.widget_quickchat": "Γρήγορη συνομιλία",

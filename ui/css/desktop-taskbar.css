@@ -58,7 +58,7 @@
 
 .desktop-body[data-theme="standard"] .vd-start-button:hover {
     transform: translateY(-5px);
-    background: #3c3c3c;
+    background: color-mix(in srgb, var(--vd-shell-context-menu-bg), rgba(255, 255, 255, 0.09));
     box-shadow:
         0 12px 32px rgba(0, 0, 0, 0.34),
         inset 0 1px 0 rgba(255, 255, 255, 0.06);
@@ -138,8 +138,8 @@
     display: grid;
     place-items: center;
     border-radius: var(--ds-radius-md);
-    background: linear-gradient(135deg, var(--vd-accent), #7bd1ff);
-    color: #071014;
+    background: linear-gradient(135deg, var(--vd-accent), color-mix(in srgb, var(--vd-accent), #ffffff 45%));
+    color: var(--ds-color-bg-canvas, #071014);
     font-weight: 800;
     font-size: 0.78rem;
 }
@@ -184,19 +184,19 @@
     height: 8px;
     border-radius: var(--ds-radius-full);
     background: var(--ds-color-fg-disabled);
-    box-shadow: 0 0 0 3px var(--ds-color-accent-glow);
+    box-shadow: none;
     transition: background var(--ds-motion-duration-base) var(--ds-motion-ease-standard),
                 box-shadow var(--ds-motion-duration-base) var(--ds-motion-ease-standard);
 }
 
 .vd-status-dot[data-state="online"] {
     background: var(--ds-color-success-fg);
-    box-shadow: 0 0 0 3px var(--ds-color-accent-glow);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ds-color-success-fg) 22%, transparent);
 }
 
 .vd-status-dot[data-state="reconnecting"] {
     background: var(--ds-color-warning-fg);
-    box-shadow: 0 0 0 3px var(--ds-color-accent-glow);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ds-color-warning-fg) 26%, transparent);
     animation: vd-status-pulse 1.2s var(--ds-motion-ease-standard) infinite;
 }
 
@@ -335,10 +335,19 @@
 
 .vd-start-button[data-active="true"] {
     transform: translateY(-2px);
+    box-shadow:
+        0 0 0 5px rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.16),
+        0 0 0 1px rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.4),
+        0 8px 20px rgba(0, 0, 0, 0.32),
+        inset 0 2px 6px rgba(0, 0, 0, 0.28);
 }
 
-.vd-start-button[data-active="true"]::after {
-    opacity: 1;
+.desktop-body[data-theme="standard"] .vd-start-button[data-active="true"] {
+    background: color-mix(in srgb, var(--vd-shell-context-menu-bg), rgba(255, 255, 255, 0.1));
+    box-shadow:
+        0 6px 18px rgba(0, 0, 0, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.06),
+        inset 0 0 0 1px rgba(var(--vd-accent-r, 233), var(--vd-accent-g, 84), var(--vd-accent-b, 32), 0.45);
 }
 
 .vd-start-button .vd-sprite-start,
@@ -357,6 +366,11 @@
     gap: 8px;
     min-width: 0;
     overflow: auto hidden;
+    scrollbar-width: none;
+}
+
+.vd-taskbar-apps::-webkit-scrollbar {
+    display: none;
 }
 
 .vd-task-button {
@@ -403,6 +417,11 @@
 .vd-task-button:hover {
     background: rgba(255, 255, 255, 0.1);
     border-color: rgba(255, 255, 255, 0.13);
+}
+
+.vd-task-button:focus-visible {
+    outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus);
+    outline-offset: 1px;
 }
 
 .vd-task-icon {

@@ -1537,6 +1537,8 @@
   "desktop.widget_delete_permanent": "Smazat trvale",
   "desktop.widget_drawer_empty": "Nejsou k dispozici žádné widgety.",
   "desktop.widget_drawer_title": "Widgety",
+  "desktop.show_desktop": "Zobrazit plochu",
+  "desktop.widget_drawer_close": "Zavřít panel widgetů",
   "desktop.widget_manager": "Správce widgetů",
   "desktop.widget_on_desktop": "Na ploše",
   "desktop.widget_quickchat": "Rychlý chat",

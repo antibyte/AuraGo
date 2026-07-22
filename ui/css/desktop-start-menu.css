@@ -13,7 +13,7 @@
     place-items: center;
     border-radius: var(--ds-radius-md);
     background: linear-gradient(135deg, rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.96), rgba(242, 184, 75, 0.94));
-    color: #071014;
+    color: var(--ds-color-bg-canvas, #071014);
     font-weight: 900;
     box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22);
 }
@@ -155,6 +155,19 @@
     padding: 9px;
     text-align: left;
     cursor: pointer;
+    transition:
+        background var(--ds-motion-duration-fast) var(--ds-motion-ease-standard),
+        border-color var(--ds-motion-duration-fast) var(--ds-motion-ease-standard),
+        transform var(--ds-motion-duration-fast) var(--ds-motion-ease-standard);
+}
+
+.vd-start-item:focus-visible {
+    outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus);
+    outline-offset: 1px;
+}
+
+.vd-start-item:active {
+    transform: scale(0.97);
 }
 
 .desktop-body[data-theme="fruity"] .vd-start-item {
@@ -173,6 +186,32 @@
 
 .desktop-body[data-theme="fruity"] .vd-start-item:hover {
     background: rgba(10, 132, 255, 0.14);
+}
+
+.desktop-body[data-theme="fruity"] .vd-start-item:active {
+    transform: scale(0.94);
+}
+
+/* Launchpad-style cascade when the menu opens (class lives ~900ms via JS) */
+.desktop-body[data-theme="fruity"]:not([data-animations="false"]) .vd-start-menu.vd-start-menu-just-opened .vd-start-item {
+    animation: vd-start-tile-in 260ms var(--ds-motion-ease-emphasized) both;
+    animation-delay: calc(min(var(--start-index, 0), 16) * 16ms);
+}
+
+@keyframes vd-start-tile-in {
+    from { opacity: 0; transform: translateY(10px) scale(0.92); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Standard rows get a subtler, quicker cascade */
+.desktop-body[data-theme="standard"]:not([data-animations="false"]) .vd-start-menu.vd-start-menu-just-opened .vd-start-item {
+    animation: vd-start-row-in 180ms var(--ds-motion-ease-standard) both;
+    animation-delay: calc(min(var(--start-index, 0), 16) * 10ms);
+}
+
+@keyframes vd-start-row-in {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 .desktop-body[data-theme="fruity"] .vd-start-item span:last-child {
@@ -207,7 +246,7 @@
 
 .vd-start-recent-item {
     border-left: 2px solid var(--vd-accent);
-    background: rgba(var(--vd-accent-rgb, 99, 102, 241), 0.05);
+    background: rgba(var(--vd-accent-r, 99), var(--vd-accent-g, 102), var(--vd-accent-b, 241), 0.05);
 }
 
 .desktop-body[data-theme="standard"] .vd-start-recent-item {
@@ -227,7 +266,7 @@
     height: 20px;
     margin-left: 6px;
     border-radius: 50%;
-    background: var(--warning);
+    background: var(--ds-color-warning-fg, #eab308);
     color: #111827;
     font-size: 0.72rem;
     font-weight: 800;

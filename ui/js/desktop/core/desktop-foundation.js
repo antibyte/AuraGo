@@ -1184,6 +1184,10 @@
         const menu = $('vd-start-menu'); if (!menu) return;
         menu.dataset.motionState = 'open'; menu.classList.remove('vd-start-menu-closing'); menu.hidden = false; menu.style.transform = '';
         runStartMenuMotion(menu, 'vd-start-menu-opening', isFruityTheme() ? 190 : 130);
+        menu.classList.add('vd-start-menu-just-opened');
+        window.clearTimeout(menu._justOpenedTimer);
+        menu._justOpenedTimer = window.setTimeout(() => menu.classList.remove('vd-start-menu-just-opened'), 900);
+        const startButton = $('vd-start-button'); if (startButton) { startButton.dataset.active = 'true'; startButton.setAttribute('aria-expanded', 'true'); }
         if (!isCompactViewport()) $('vd-start-search').focus();
         if (isCompactViewport()) { const bd = ensureStartMenuBackdrop(); requestAnimationFrame(() => bd.classList.add('active')); }
     }
@@ -1191,6 +1195,9 @@
     function closeStartMenu() {
         const menu = $('vd-start-menu'); if (!menu || menu.hidden) return; menu.dataset.motionState = 'closing';
         menu.style.transition = ''; menu.style.transform = '';
+        const startButton = $('vd-start-button'); if (startButton) { startButton.dataset.active = 'false'; startButton.setAttribute('aria-expanded', 'false'); }
+        window.clearTimeout(menu._justOpenedTimer);
+        menu.classList.remove('vd-start-menu-just-opened');
         const bd = document.querySelector('.vd-start-menu-backdrop'); if (bd) bd.classList.remove('active');
         runStartMenuMotion(menu, 'vd-start-menu-closing', isFruityTheme() ? 170 : 120, () => { if (menu.dataset.motionState === 'closing') menu.hidden = true; });
     }

@@ -35,7 +35,7 @@
     <a href="#main-content" class="skip-link" data-i18n="common.skip_to_content"></a>
     <div id="vd-toast-container" class="vd-toast-container"></div>
     <div id="vd-widget-drawer-backdrop" class="vd-widget-drawer-backdrop" hidden></div>
-    <div id="vd-widget-drawer" class="vd-widget-drawer"><div class="vd-widget-drawer-title">Widgets</div></div>
+    <div id="vd-widget-drawer" class="vd-widget-drawer vd-scroll" role="dialog" aria-modal="false" data-i18n-aria-label="desktop.widget_drawer_title"><div class="vd-widget-drawer-header"><div class="vd-widget-drawer-title" data-i18n="desktop.widget_drawer_title"></div><button type="button" class="vd-widget-drawer-close" id="vd-widget-drawer-close" data-i18n-aria-label="desktop.widget_drawer_close">&times;</button></div></div>
     <main id="main-content" class="vd-shell" aria-live="polite">
         <section class="vd-workspace" id="vd-workspace">
             <div class="vd-icons" id="vd-icons"></div>
@@ -51,14 +51,14 @@
         </section>
 
         <section class="vd-taskbar">
-            <button class="vd-start-button" id="vd-start-button" type="button" data-i18n-title="desktop.start_menu">
+            <button class="vd-start-button" id="vd-start-button" type="button" data-i18n-title="desktop.start_menu" aria-haspopup="menu" aria-expanded="false" aria-controls="vd-start-menu">
                 <span class="vd-start-glyph">A</span>
                 <span class="vd-start-label" data-i18n="desktop.start_menu"></span>
             </button>
             <div class="vd-taskbar-apps" id="vd-taskbar-apps"></div>
             <div class="vd-taskbar-system">
-                <button class="vd-taskbar-widget-btn" id="vd-widget-drawer-btn" type="button" title="Widgets" aria-label="Widgets">&#9638;</button>
-                <button class="vd-show-desktop-btn" id="vd-show-desktop-btn" type="button" title="Show Desktop" aria-label="Show Desktop"></button>
+                <button class="vd-taskbar-widget-btn" id="vd-widget-drawer-btn" type="button" data-i18n-title="desktop.widget_drawer_title" data-i18n-aria-label="desktop.widget_drawer_title" aria-haspopup="dialog">&#9638;</button>
+                <button class="vd-show-desktop-btn" id="vd-show-desktop-btn" type="button" data-i18n-title="desktop.show_desktop" data-i18n-aria-label="desktop.show_desktop"></button>
                 <span id="vd-ws-state" class="vd-status-dot" data-state="offline"></span>
                 <span id="vd-clock" class="vd-clock"></span>
                 <button class="vd-live-speech-button realtime-speech-launcher" id="vd-live-speech-button"
@@ -73,12 +73,12 @@
             </div>
         </section>
 
-        <aside class="vd-start-menu" id="vd-start-menu" hidden>
+        <aside class="vd-start-menu" id="vd-start-menu" role="menu" data-i18n-aria-label="desktop.start_menu" hidden>
             <div class="vd-start-sheet-handle" aria-hidden="true"></div>
             <div class="vd-start-search">
                 <input id="vd-start-search" type="search" autocomplete="off" spellcheck="false" inputmode="search" enterkeyhint="search" autocapitalize="off" data-i18n-placeholder="desktop.search_placeholder">
             </div>
-            <div id="vd-start-apps" class="vd-start-apps"></div>
+            <div id="vd-start-apps" class="vd-start-apps vd-scroll"></div>
         </aside>
     </main>
 

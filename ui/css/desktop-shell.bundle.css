@@ -266,6 +266,11 @@
     color: var(--vd-text);
 }
 
+.vd-toast-close:focus-visible {
+    outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus);
+    outline-offset: 1px;
+}
+
 .vd-toast.vd-toast-closing {
     animation: vd-toast-out 120ms ease-in both;
 }
@@ -576,6 +581,8 @@
     --fruity-window-minimize: #ffbd2e;
     --fruity-window-maximize: #28c840;
     --fruity-window-chrome: rgba(249, 251, 255, 0.74);
+    --fruity-window-button-inactive: rgba(32, 38, 53, 0.14);
+    --fruity-window-glyph: rgba(32, 38, 53, 0.68);
 }
 
 .desktop-body[data-theme="fruity"] {
@@ -667,6 +674,8 @@
     --vd-muted: #a1a1aa;
     --vd-shadow: 0 26px 70px rgba(0, 0, 0, 0.36);
     --fruity-window-chrome: rgba(54, 54, 60, 0.74);
+    --fruity-window-button-inactive: rgba(255, 255, 255, 0.16);
+    --fruity-window-glyph: rgba(255, 255, 255, 0.72);
 
     --ds-color-fg-primary: #f5f5f7;
     --ds-color-fg-secondary: #d4dbe7;
@@ -975,23 +984,22 @@
     box-shadow:
         inset 0 1px 0 rgba(255, 255, 255, 0.46),
         0 1px 2px rgba(32, 38, 53, 0.18);
-    transition: box-shadow 150ms var(--ds-motion-ease-standard), filter 150ms var(--ds-motion-ease-standard);
+    transition: box-shadow 150ms var(--ds-motion-ease-standard), filter 150ms var(--ds-motion-ease-standard), background-color 150ms var(--ds-motion-ease-standard);
 }
 
 .desktop-body[data-theme="fruity"] .vd-window-button::after,
 .desktop-body[data-theme="fruity"] .vd-widget-manager .vd-window-button::after {
     content: "";
-    width: 4px;
-    height: 4px;
-    border-radius: 50%;
-    background: rgba(32, 38, 53, 0.28);
+    width: 8px;
+    height: 8px;
+    background: var(--fruity-window-glyph, rgba(32, 38, 53, 0.68));
     opacity: 0;
     transition: opacity 120ms var(--ds-motion-ease-standard);
 }
 
 .desktop-body[data-theme="fruity"] .vd-window-titlebar:hover .vd-window-button::after,
 .desktop-body[data-theme="fruity"] .vd-widget-manager:hover .vd-window-button::after {
-    opacity: 0.54;
+    opacity: 0.9;
 }
 
 .desktop-body[data-theme="fruity"] .vd-window .vd-window-ai-button::after {
@@ -1058,6 +1066,34 @@
         inset 0 1px 0 rgba(255, 255, 255, 0.46),
         0 1px 2px rgba(32, 38, 53, 0.18),
         0 0 8px rgba(40, 200, 64, 0.4);
+}
+
+/* macOS-style control glyphs, drawn with gradients to avoid text encoding risks.
+   Placed after the order/background rules so the first textual occurrence of the
+   per-action selectors stays the pinned order rule (tests are position-sensitive). */
+.desktop-body[data-theme="fruity"] .vd-window-button[data-action="close"]::after,
+.desktop-body[data-theme="fruity"] .vd-widget-manager .vd-window-button[data-action="close"]::after {
+    background:
+        linear-gradient(45deg, transparent 41%, var(--fruity-window-glyph) 41%, var(--fruity-window-glyph) 59%, transparent 59%),
+        linear-gradient(-45deg, transparent 41%, var(--fruity-window-glyph) 41%, var(--fruity-window-glyph) 59%, transparent 59%);
+}
+
+.desktop-body[data-theme="fruity"] .vd-window-button[data-action="minimize"]::after,
+.desktop-body[data-theme="fruity"] .vd-widget-manager .vd-window-button[data-action="minimize"]::after {
+    background: linear-gradient(0deg, transparent 39%, var(--fruity-window-glyph) 39%, var(--fruity-window-glyph) 61%, transparent 61%);
+}
+
+.desktop-body[data-theme="fruity"] .vd-window-button[data-action="maximize"]::after,
+.desktop-body[data-theme="fruity"] .vd-widget-manager .vd-window-button[data-action="maximize"]::after {
+    background:
+        linear-gradient(0deg, transparent 39%, var(--fruity-window-glyph) 39%, var(--fruity-window-glyph) 61%, transparent 61%),
+        linear-gradient(90deg, transparent 39%, var(--fruity-window-glyph) 39%, var(--fruity-window-glyph) 61%, transparent 61%);
+}
+
+/* Inactive windows grey out their traffic lights (macOS behavior) */
+.desktop-body[data-theme="fruity"] .vd-window:not(.active) .vd-window-button {
+    background: var(--fruity-window-button-inactive, rgba(32, 38, 53, 0.14));
+    box-shadow: none;
 }
 
 .desktop-body[data-theme="fruity"] .vd-window-menubar {
@@ -1388,6 +1424,11 @@
     cursor: default;
 }
 
+.desktop-body[data-theme="fruity"] .vd-dock-scroll-button:focus-visible {
+    outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus);
+    outline-offset: 2px;
+}
+
 .desktop-body[data-theme="fruity"] .vd-dock-scroll-icon {
     width: 18px !important;
     height: 18px !important;
@@ -1447,11 +1488,14 @@
 .desktop-body[data-theme="fruity"] .vd-dock-button:focus-visible {
     transform: translateY(-8px) scale(1.28);
     filter: drop-shadow(0 12px 18px rgba(52, 64, 84, 0.24));
-    outline: none;
 }
 
-.desktop-body[data-theme="fruity"] .vd-dock-button.running::after,
-.desktop-body[data-theme="fruity"] .vd-dock-button.active::after {
+.desktop-body[data-theme="fruity"] .vd-dock-button:focus-visible {
+    outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus);
+    outline-offset: 2px;
+}
+
+.desktop-body[data-theme="fruity"] .vd-dock-button::after {
     content: "";
     position: absolute;
     left: 50%;
@@ -1461,6 +1505,17 @@
     border-radius: 50%;
     transform: translateX(-50%);
     background: rgba(102, 112, 133, 0.62);
+    opacity: 0;
+    transition:
+        width 160ms var(--ds-motion-ease-standard),
+        border-radius 160ms var(--ds-motion-ease-standard),
+        background-color 160ms var(--ds-motion-ease-standard),
+        opacity 160ms var(--ds-motion-ease-standard);
+}
+
+.desktop-body[data-theme="fruity"] .vd-dock-button.running::after,
+.desktop-body[data-theme="fruity"] .vd-dock-button.active::after {
+    opacity: 1;
 }
 
 .desktop-body[data-theme="fruity"] .vd-dock-button.active::after {
@@ -1480,11 +1535,13 @@
     bottom: calc(100% + 9px);
     max-width: 120px;
     padding: 5px 8px;
-    border: 1px solid rgba(78, 92, 118, 0.14);
+    border: 1px solid var(--vd-theme-border-strong);
     border-radius: var(--ds-radius-md);
-    background: rgba(255, 255, 255, 0.9);
+    background: var(--vd-theme-panel-bg-strong);
     color: var(--vd-text);
-    box-shadow: 0 10px 24px rgba(52, 64, 84, 0.18);
+    box-shadow: var(--vd-theme-shadow-panel);
+    -webkit-backdrop-filter: var(--vd-theme-blur);
+    backdrop-filter: var(--vd-theme-blur);
     font-size: 0.72rem;
     font-weight: 760;
     opacity: 0;
@@ -1505,6 +1562,12 @@
     .desktop-body[data-theme="fruity"] .vd-dock-button:has(+ .vd-dock-button:hover),
     .desktop-body[data-theme="fruity"] .vd-dock-button:hover + .vd-dock-button {
         transform: translateY(-4px) scale(1.12);
+    }
+
+    /* Second neighbor lifts very slightly for a smoother magnification curve */
+    .desktop-body[data-theme="fruity"] .vd-dock-button:has(+ .vd-dock-button + .vd-dock-button:hover),
+    .desktop-body[data-theme="fruity"] .vd-dock-button:hover + .vd-dock-button + .vd-dock-button {
+        transform: translateY(-2px) scale(1.06);
     }
 }
 
@@ -1717,6 +1780,16 @@
     }
 }
 
+@media (prefers-reduced-motion: reduce) {
+    .desktop-body[data-theme="fruity"].fruity-dock-collapsed .vd-taskbar-apps:not(:hover):not(:focus-within) .vd-dock-orb {
+        animation: none;
+    }
+
+    .desktop-body[data-theme="fruity"] .vd-dock-scroll {
+        scroll-behavior: auto;
+    }
+}
+
 @media (prefers-color-scheme: dark) {
     /* Dark mode fallback when no explicit fruity-mode is set - macOS dark appearance */
     .desktop-body[data-theme="fruity"]:not([data-fruity-mode="light"]) {
@@ -1729,6 +1802,8 @@
         --vd-muted: #a1a1aa;
         --vd-shadow: 0 26px 70px rgba(0, 0, 0, 0.36);
         --fruity-window-chrome: rgba(54, 54, 60, 0.74);
+        --fruity-window-button-inactive: rgba(255, 255, 255, 0.16);
+        --fruity-window-glyph: rgba(255, 255, 255, 0.72);
 
         --ds-color-fg-primary: #f5f5f7;
         --ds-color-fg-secondary: #d4dbe7;
@@ -2087,7 +2162,7 @@
 
 .desktop-body[data-theme="standard"] .vd-start-button:hover {
     transform: translateY(-5px);
-    background: #3c3c3c;
+    background: color-mix(in srgb, var(--vd-shell-context-menu-bg), rgba(255, 255, 255, 0.09));
     box-shadow:
         0 12px 32px rgba(0, 0, 0, 0.34),
         inset 0 1px 0 rgba(255, 255, 255, 0.06);
@@ -2167,8 +2242,8 @@
     display: grid;
     place-items: center;
     border-radius: var(--ds-radius-md);
-    background: linear-gradient(135deg, var(--vd-accent), #7bd1ff);
-    color: #071014;
+    background: linear-gradient(135deg, var(--vd-accent), color-mix(in srgb, var(--vd-accent), #ffffff 45%));
+    color: var(--ds-color-bg-canvas, #071014);
     font-weight: 800;
     font-size: 0.78rem;
 }
@@ -2213,19 +2288,19 @@
     height: 8px;
     border-radius: var(--ds-radius-full);
     background: var(--ds-color-fg-disabled);
-    box-shadow: 0 0 0 3px var(--ds-color-accent-glow);
+    box-shadow: none;
     transition: background var(--ds-motion-duration-base) var(--ds-motion-ease-standard),
                 box-shadow var(--ds-motion-duration-base) var(--ds-motion-ease-standard);
 }
 
 .vd-status-dot[data-state="online"] {
     background: var(--ds-color-success-fg);
-    box-shadow: 0 0 0 3px var(--ds-color-accent-glow);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ds-color-success-fg) 22%, transparent);
 }
 
 .vd-status-dot[data-state="reconnecting"] {
     background: var(--ds-color-warning-fg);
-    box-shadow: 0 0 0 3px var(--ds-color-accent-glow);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ds-color-warning-fg) 26%, transparent);
     animation: vd-status-pulse 1.2s var(--ds-motion-ease-standard) infinite;
 }
 
@@ -2364,10 +2439,19 @@
 
 .vd-start-button[data-active="true"] {
     transform: translateY(-2px);
+    box-shadow:
+        0 0 0 5px rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.16),
+        0 0 0 1px rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.4),
+        0 8px 20px rgba(0, 0, 0, 0.32),
+        inset 0 2px 6px rgba(0, 0, 0, 0.28);
 }
 
-.vd-start-button[data-active="true"]::after {
-    opacity: 1;
+.desktop-body[data-theme="standard"] .vd-start-button[data-active="true"] {
+    background: color-mix(in srgb, var(--vd-shell-context-menu-bg), rgba(255, 255, 255, 0.1));
+    box-shadow:
+        0 6px 18px rgba(0, 0, 0, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.06),
+        inset 0 0 0 1px rgba(var(--vd-accent-r, 233), var(--vd-accent-g, 84), var(--vd-accent-b, 32), 0.45);
 }
 
 .vd-start-button .vd-sprite-start,
@@ -2386,6 +2470,11 @@
     gap: 8px;
     min-width: 0;
     overflow: auto hidden;
+    scrollbar-width: none;
+}
+
+.vd-taskbar-apps::-webkit-scrollbar {
+    display: none;
 }
 
 .vd-task-button {
@@ -2432,6 +2521,11 @@
 .vd-task-button:hover {
     background: rgba(255, 255, 255, 0.1);
     border-color: rgba(255, 255, 255, 0.13);
+}
+
+.vd-task-button:focus-visible {
+    outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus);
+    outline-offset: 1px;
 }
 
 .vd-task-icon {
@@ -2644,7 +2738,7 @@
     place-items: center;
     border-radius: var(--ds-radius-md);
     background: linear-gradient(135deg, rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.96), rgba(242, 184, 75, 0.94));
-    color: #071014;
+    color: var(--ds-color-bg-canvas, #071014);
     font-weight: 900;
     box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22);
 }
@@ -2786,6 +2880,19 @@
     padding: 9px;
     text-align: left;
     cursor: pointer;
+    transition:
+        background var(--ds-motion-duration-fast) var(--ds-motion-ease-standard),
+        border-color var(--ds-motion-duration-fast) var(--ds-motion-ease-standard),
+        transform var(--ds-motion-duration-fast) var(--ds-motion-ease-standard);
+}
+
+.vd-start-item:focus-visible {
+    outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus);
+    outline-offset: 1px;
+}
+
+.vd-start-item:active {
+    transform: scale(0.97);
 }
 
 .desktop-body[data-theme="fruity"] .vd-start-item {
@@ -2804,6 +2911,32 @@
 
 .desktop-body[data-theme="fruity"] .vd-start-item:hover {
     background: rgba(10, 132, 255, 0.14);
+}
+
+.desktop-body[data-theme="fruity"] .vd-start-item:active {
+    transform: scale(0.94);
+}
+
+/* Launchpad-style cascade when the menu opens (class lives ~900ms via JS) */
+.desktop-body[data-theme="fruity"]:not([data-animations="false"]) .vd-start-menu.vd-start-menu-just-opened .vd-start-item {
+    animation: vd-start-tile-in 260ms var(--ds-motion-ease-emphasized) both;
+    animation-delay: calc(min(var(--start-index, 0), 16) * 16ms);
+}
+
+@keyframes vd-start-tile-in {
+    from { opacity: 0; transform: translateY(10px) scale(0.92); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Standard rows get a subtler, quicker cascade */
+.desktop-body[data-theme="standard"]:not([data-animations="false"]) .vd-start-menu.vd-start-menu-just-opened .vd-start-item {
+    animation: vd-start-row-in 180ms var(--ds-motion-ease-standard) both;
+    animation-delay: calc(min(var(--start-index, 0), 16) * 10ms);
+}
+
+@keyframes vd-start-row-in {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 .desktop-body[data-theme="fruity"] .vd-start-item span:last-child {
@@ -2838,7 +2971,7 @@
 
 .vd-start-recent-item {
     border-left: 2px solid var(--vd-accent);
-    background: rgba(var(--vd-accent-rgb, 99, 102, 241), 0.05);
+    background: rgba(var(--vd-accent-r, 99), var(--vd-accent-g, 102), var(--vd-accent-b, 241), 0.05);
 }
 
 .desktop-body[data-theme="standard"] .vd-start-recent-item {
@@ -2858,7 +2991,7 @@
     height: 20px;
     margin-left: 6px;
     border-radius: 50%;
-    background: var(--warning);
+    background: var(--ds-color-warning-fg, #eab308);
     color: #111827;
     font-size: 0.72rem;
     font-weight: 800;
@@ -3015,16 +3148,6 @@
     pointer-events: none;
 }
 
-/* Stronger, more premium active window indication (improves UX clarity) */
-.vd-window.active {
-    box-shadow: var(--ds-elevation-4), 0 0 0 1.5px color-mix(in srgb, var(--ds-color-accent-500) 45%, transparent);
-    z-index: calc(var(--ds-z-window) + 1);
-}
-
-.vd-window.active .vd-window-titlebar {
-    background: color-mix(in srgb, var(--ds-color-surface-2) 100%, var(--ds-color-accent-500) 4%);
-}
-
 .vd-snap-overlay {
     position: absolute;
     border: 2px solid color-mix(in srgb, var(--ds-color-accent-500) 55%, transparent);
@@ -3089,6 +3212,25 @@
 
 .vd-switcher-label {
     white-space: nowrap;
+}
+
+.desktop-body:not([data-animations="false"]) .vd-window-switcher {
+    animation: vd-switcher-in 150ms var(--ds-motion-ease-emphasized) both;
+}
+
+@keyframes vd-switcher-in {
+    from { opacity: 0; transform: translate(-50%, -48%) scale(0.97); }
+    to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+.desktop-body[data-theme="standard"] .vd-window-switcher,
+.desktop-body[data-theme="fruity"] .vd-window-switcher {
+    border-color: var(--vd-theme-border);
+    border-radius: var(--vd-theme-radius-panel);
+    background: var(--vd-theme-panel-bg-strong);
+    box-shadow: var(--vd-theme-shadow-panel);
+    -webkit-backdrop-filter: var(--vd-theme-blur);
+    backdrop-filter: var(--vd-theme-blur);
 }
 
 .vd-window {
@@ -3191,22 +3333,30 @@
     .desktop-body:not([data-theme="fruity"]) .vd-window.maximized {
         top: env(safe-area-inset-top, 0px) !important;
         left: env(safe-area-inset-left, 0px) !important;
-        right: env(safe-area-inset-right, 0px) !important;
-        bottom: calc(env(safe-area-inset-bottom, 0px) + var(--vd-taskbar-height, 54px)) !important;
-        width: auto !important;
-        height: auto !important;
+        width: calc(100% - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)) !important;
+        height: calc(100% - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - var(--vd-taskbar-height, 54px)) !important;
     }
 
     .desktop-body[data-theme="fruity"] .vd-window.maximized {
         top: env(safe-area-inset-top, 0px) !important;
         left: env(safe-area-inset-left, 0px) !important;
-        right: env(safe-area-inset-right, 0px) !important;
-        bottom: calc(env(safe-area-inset-bottom, 0px) + var(--vd-fruity-dock-reserve, 96px)) !important;
-        width: auto !important;
-        height: auto !important;
+        width: calc(100% - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)) !important;
+        height: calc(100% - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - var(--vd-fruity-dock-reserve, 96px)) !important;
         border-radius: 14px;
         border: 1px solid rgba(78, 92, 118, 0.16);
     }
+}
+
+/* Smooth bounds animation for maximize/restore/snap (class is applied only
+   around programmatic bounds changes, never during pointer drag/resize). */
+.desktop-body:not([data-animations="false"]) .vd-window.vd-window-bounds-animated {
+    transition:
+        left 190ms var(--ds-motion-ease-emphasized),
+        top 190ms var(--ds-motion-ease-emphasized),
+        width 190ms var(--ds-motion-ease-emphasized),
+        height 190ms var(--ds-motion-ease-emphasized),
+        border-radius 190ms var(--ds-motion-ease-emphasized),
+        box-shadow 190ms var(--ds-motion-ease-standard);
 }
 
 .vd-window.maximized .vd-resize-handle {
@@ -3221,6 +3371,11 @@
         0 0 0 1px rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.14) inset,
         0 0 32px var(--vd-accent-glow),
         0 0 0 1px rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.12);
+    z-index: calc(var(--ds-z-window) + 1);
+}
+
+.vd-window.active .vd-window-titlebar {
+    background: color-mix(in srgb, var(--ds-color-surface-2) 100%, var(--ds-color-accent-500) 4%);
 }
 
 .vd-window.vd-window-file-drop-target {
@@ -3269,8 +3424,18 @@
     border-bottom-color: var(--vd-shell-context-menu-border);
 }
 
+/* Standard (Yaru-style): active titlebar lifts slightly, inactive recedes */
 .desktop-body[data-theme="standard"] .vd-window.active .vd-window-titlebar {
-    background: var(--vd-shell-context-menu-bg);
+    background: color-mix(in srgb, var(--vd-shell-context-menu-bg), rgba(255, 255, 255, 0.07));
+}
+
+.desktop-body[data-theme="standard"] .vd-window:not(.active) .vd-window-titlebar {
+    background: color-mix(in srgb, var(--vd-shell-context-menu-bg), rgba(0, 0, 0, 0.14));
+    border-bottom-color: color-mix(in srgb, var(--vd-shell-context-menu-border), transparent 35%);
+}
+
+.desktop-body[data-theme="standard"] .vd-window:not(.active) {
+    border-color: color-mix(in srgb, var(--vd-shell-context-menu-border), transparent 45%);
 }
 
 .vd-window.dragging .vd-window-titlebar {
@@ -3326,6 +3491,7 @@
     line-height: var(--ds-type-leading-tight);
     letter-spacing: -0.005em;
     color: var(--ds-color-fg-primary);
+    transition: opacity var(--ds-motion-duration-base) var(--ds-motion-ease-standard);
 }
 
 .vd-window-subtitle {
@@ -3335,6 +3501,13 @@
     letter-spacing: 0.02em;
     text-transform: uppercase;
     line-height: var(--ds-type-leading-normal);
+    transition: opacity var(--ds-motion-duration-base) var(--ds-motion-ease-standard);
+}
+
+/* Inactive windows recede: title dims in every theme */
+.vd-window:not(.active) .vd-window-title,
+.vd-window:not(.active) .vd-window-subtitle {
+    opacity: 0.62;
 }
 
 .vd-window-subtitle:empty {
@@ -4071,13 +4244,6 @@
     transition: background-color 0.12s var(--ds-motion-ease-standard);
 }
 
-/* Expand invisible hit area for easier touch grabbing */
-.vd-resize-handle::after {
-    content: '';
-    position: absolute;
-    inset: -12px;
-}
-
 .vd-resize-handle:hover {
     background: color-mix(in srgb, var(--ds-color-accent-500) 22%, transparent);
 }
@@ -4192,29 +4358,27 @@
 
 .desktop-body:not([data-animations="false"]) .vd-window-minimizing {
     pointer-events: none;
-    animation: vd-window-minimize-standard 130ms ease-in both;
+    animation: vd-window-minimize-standard 170ms ease-in both;
 }
 
 .desktop-body:not([data-animations="false"]) .vd-window-restoring {
-    animation: vd-window-restore-standard 140ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+    animation: vd-window-restore-standard 180ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
-.desktop-body:not([data-animations="false"]) .vd-window-state-changing {
-    animation: vd-window-state-standard 120ms ease-out both;
-}
-
-.desktop-body[data-theme="fruity"]:not([data-animations="false"]) .vd-window-opening,
-.desktop-body[data-theme="fruity"]:not([data-animations="false"]) .vd-window-restoring {
+.desktop-body[data-theme="fruity"]:not([data-animations="false"]) .vd-window-opening {
     animation: vd-window-open-fruity 220ms cubic-bezier(0.16, 1.18, 0.28, 1) both;
 }
 
-.desktop-body[data-theme="fruity"]:not([data-animations="false"]) .vd-window-closing,
-.desktop-body[data-theme="fruity"]:not([data-animations="false"]) .vd-window-minimizing {
+.desktop-body[data-theme="fruity"]:not([data-animations="false"]) .vd-window-restoring {
+    animation: vd-window-restore-fruity 230ms cubic-bezier(0.16, 1.18, 0.28, 1) both;
+}
+
+.desktop-body[data-theme="fruity"]:not([data-animations="false"]) .vd-window-closing {
     animation: vd-window-close-fruity 160ms cubic-bezier(0.42, 0, 0.6, 1) both;
 }
 
-.desktop-body[data-theme="fruity"]:not([data-animations="false"]) .vd-window-state-changing {
-    animation: vd-window-state-fruity 180ms cubic-bezier(0.16, 1.18, 0.28, 1) both;
+.desktop-body[data-theme="fruity"]:not([data-animations="false"]) .vd-window-minimizing {
+    animation: vd-window-minimize-fruity 200ms cubic-bezier(0.42, 0, 0.6, 1) both;
 }
 
 @keyframes vd-window-open-standard {
@@ -4227,19 +4391,16 @@
     to { opacity: 0; transform: translateY(8px) scale(0.97); }
 }
 
+/* Minimize travels toward the taskbar/dock button via --vd-minimize-dx/dy
+   (set by the runtime; falls back to a gentle sink when no target exists). */
 @keyframes vd-window-minimize-standard {
-    from { opacity: 1; transform: translateY(0) scale(1); }
-    to { opacity: 0; transform: translateY(16px) scale(0.96); }
+    from { opacity: 1; transform: translate(0, 0) scale(1); }
+    to { opacity: 0; transform: translate(var(--vd-minimize-dx, 0px), var(--vd-minimize-dy, 16px)) scale(0.2); }
 }
 
 @keyframes vd-window-restore-standard {
-    from { opacity: 0; transform: translateY(10px) scale(0.98); }
-    to { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-@keyframes vd-window-state-standard {
-    0% { transform: scale(0.995); }
-    100% { transform: scale(1); }
+    from { opacity: 0; transform: translate(var(--vd-minimize-dx, 0px), var(--vd-minimize-dy, 10px)) scale(0.35); }
+    to { opacity: 1; transform: translate(0, 0) scale(1); }
 }
 
 @keyframes vd-window-open-fruity {
@@ -4253,10 +4414,15 @@
     to { opacity: 0; transform: translateY(18px) scale(0.94); }
 }
 
-@keyframes vd-window-state-fruity {
-    0% { transform: scale(0.985); }
-    70% { transform: scale(1.012); }
-    100% { transform: scale(1); }
+@keyframes vd-window-minimize-fruity {
+    from { opacity: 1; transform: translate(0, 0) scale(1); }
+    to { opacity: 0; transform: translate(var(--vd-minimize-dx, 0px), var(--vd-minimize-dy, 18px)) scale(0.18); }
+}
+
+@keyframes vd-window-restore-fruity {
+    0% { opacity: 0; transform: translate(var(--vd-minimize-dx, 0px), var(--vd-minimize-dy, 14px)) scale(0.3); }
+    72% { opacity: 1; transform: translate(0, 0) scale(1.015); }
+    100% { opacity: 1; transform: translate(0, 0) scale(1); }
 }
 
 @keyframes vd-menu-open-standard {
@@ -4391,15 +4557,31 @@
     pointer-events: auto;
     user-select: none;
     touch-action: none;
+    transition:
+        background 140ms var(--ds-motion-ease-standard),
+        border-color 140ms var(--ds-motion-ease-standard),
+        box-shadow 140ms var(--ds-motion-ease-standard),
+        transform 140ms var(--ds-motion-ease-standard);
 }
 
 .vd-icon:hover,
-.vd-icon:focus-visible,
 .vd-icon.selected {
     background: var(--ds-color-control-bg);
     border-color: var(--ds-color-border-default);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.28), 0 0 0 1px var(--ds-color-inner-highlight) inset;
     outline: none;
+}
+
+.vd-icon:focus-visible {
+    background: var(--ds-color-control-bg);
+    border-color: var(--ds-color-border-default);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.28), 0 0 0 1px var(--ds-color-inner-highlight) inset;
+    outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus);
+    outline-offset: 1px;
+}
+
+.vd-icon:active {
+    transform: scale(0.95);
 }
 
 .vd-icon.selected {
@@ -4422,6 +4604,15 @@
     border-radius: 6px;
     background: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.16);
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.desktop-body:not([data-animations="false"]) .vd-desktop-selection-marquee {
+    animation: vd-marquee-in 120ms ease-out both;
+}
+
+@keyframes vd-marquee-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 
 .vd-desktop-selecting .vd-workspace {
@@ -4589,6 +4780,10 @@
     line-height: 1.2;
     text-align: center;
     overflow-wrap: anywhere;
+    /* Halo in the theme's canvas tone so labels stay readable on any wallpaper */
+    text-shadow:
+        0 1px 3px color-mix(in srgb, var(--vd-bg) 78%, transparent),
+        0 0 8px color-mix(in srgb, var(--vd-bg) 55%, transparent);
 }
 .fm-toolbtn .vd-papirus-icon,
 .fm-btn-icon,
@@ -4670,18 +4865,17 @@
     position: absolute;
     min-height: 56px;
     padding: 10px;
-    border-radius: var(--ds-radius-md);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    background: rgba(10, 14, 22, 0.68);
-    backdrop-filter: blur(32px) saturate(140%);
-    -webkit-backdrop-filter: blur(32px) saturate(140%);
-    box-shadow:
-        0 0 0 1px rgba(255, 255, 255, 0.04) inset,
-        0 20px 54px rgba(0, 0, 0, 0.38),
-        0 4px 12px rgba(0, 0, 0, 0.24);
+    border-radius: var(--ds-radius-lg);
+    border: 1px solid var(--ds-color-border-subtle);
+    background: var(--ds-color-surface-2);
+    backdrop-filter: var(--ds-blur-fine);
+    -webkit-backdrop-filter: var(--ds-blur-fine);
+    box-shadow: var(--ds-elevation-2);
     pointer-events: auto;
     overflow: hidden;
-    transition: height 200ms ease;
+    transition:
+        height 200ms ease,
+        box-shadow var(--ds-motion-duration-base) var(--ds-motion-ease-standard);
 }
 
 
@@ -4983,8 +5177,8 @@
 }
 
 .vd-wm-badge-user {
-    background: rgba(125, 167, 255, 0.18);
-    color: #9db9ff;
+    background: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.14);
+    color: var(--vd-accent);
 }
 
 .vd-wm-badge-dock,
@@ -5019,6 +5213,11 @@
 .vd-wm-btn:hover {
     background: rgba(255, 255, 255, 0.06);
     color: var(--ds-color-fg-primary);
+}
+
+.vd-wm-btn:focus-visible {
+    outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus);
+    outline-offset: 1px;
 }
 
 .vd-wm-btn-add {
@@ -5066,7 +5265,7 @@
     border-left: 1px solid var(--ds-color-border-subtle);
     box-shadow: var(--ds-elevation-2);
     transform: translateX(100%);
-    transition: transform 200ms ease;
+    transition: transform var(--ds-motion-duration-base) var(--ds-motion-ease-emphasized);
     overflow-y: auto;
     padding: 14px;
 }
@@ -5080,10 +5279,121 @@
     inset: 0;
     z-index: calc(var(--vd-z-modal) - 1);
     background: rgba(4, 7, 12, 0.45);
+    opacity: 0;
+    transition: opacity var(--ds-motion-duration-base) var(--ds-motion-ease-standard);
+}
+
+.vd-widget-drawer-backdrop.active {
+    opacity: 1;
 }
 
 .vd-widget-drawer-backdrop[hidden] {
     display: none;
+}
+
+.vd-widget-drawer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.vd-widget-drawer-header .vd-widget-drawer-title {
+    margin-bottom: 0;
+}
+
+.vd-widget-drawer-close {
+    width: 28px;
+    height: 28px;
+    display: inline-grid;
+    place-items: center;
+    border: 1px solid transparent;
+    border-radius: var(--ds-radius-sm);
+    background: transparent;
+    color: var(--ds-color-fg-muted);
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    transition:
+        background var(--ds-motion-duration-fast) var(--ds-motion-ease-standard),
+        color var(--ds-motion-duration-fast) var(--ds-motion-ease-standard);
+}
+
+.vd-widget-drawer-close:hover {
+    background: var(--ds-color-control-hover);
+    color: var(--ds-color-fg-primary);
+}
+
+.vd-widget-drawer-close:focus-visible {
+    outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus);
+    outline-offset: 1px;
+}
+
+.vd-widget-drawer-content {
+    padding: 0 2px 20px 0;
+    overflow: auto;
+    max-height: calc(100% - 48px);
+}
+
+.vd-widget-drawer-empty {
+    padding: 24px 12px;
+    color: var(--vd-muted);
+    font-size: 13px;
+    text-align: center;
+}
+
+.vd-widget-drawer-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.vd-widget-drawer-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    background: var(--ds-color-control-bg);
+    border: 1px solid var(--ds-color-border-subtle);
+    border-radius: var(--ds-radius-md);
+    transition:
+        border-color var(--ds-motion-duration-fast) var(--ds-motion-ease-standard),
+        box-shadow var(--ds-motion-duration-fast) var(--ds-motion-ease-standard);
+}
+
+.vd-widget-drawer-card:hover {
+    border-color: var(--ds-color-border-default);
+    box-shadow: var(--ds-elevation-1);
+}
+
+.vd-widget-drawer-card-icon {
+    flex-shrink: 0;
+}
+
+.vd-widget-drawer-card-text {
+    flex: 1;
+    min-width: 0;
+}
+
+.vd-widget-drawer-card-title {
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--vd-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.vd-widget-drawer-card-meta {
+    font-size: 11px;
+    color: var(--vd-muted);
+}
+
+.vd-widget-drawer-card-btn {
+    font-size: 11px;
+    padding: 4px 10px;
+    min-width: 72px;
 }
 
 .vd-widget-drawer-title {
@@ -5462,16 +5772,6 @@
 }
 
 /* === Widget frame token polish (Phase 4) === */
-.vd-widget {
-    background: var(--ds-color-surface-2);
-    border: 1px solid var(--ds-color-border-subtle);
-    border-radius: var(--ds-radius-lg);
-    box-shadow: var(--ds-elevation-2);
-    backdrop-filter: var(--ds-blur-fine);
-    -webkit-backdrop-filter: var(--ds-blur-fine);
-    transition: box-shadow var(--ds-motion-duration-base) var(--ds-motion-ease-standard);
-}
-
 .vd-widget:hover {
     box-shadow: var(--ds-elevation-3);
 }
@@ -5560,11 +5860,17 @@
     font-size: 0.82rem;
     text-align: left;
     cursor: pointer;
+    transition: background 100ms var(--ds-motion-ease-standard);
 }
 
-.vd-context-item:hover:not(:disabled) {
+.vd-context-item:hover:not(:disabled),
+.vd-context-item:focus-visible:not(:disabled) {
     background: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.13);
     border-radius: 8px;
+}
+
+.vd-context-item:focus-visible {
+    outline: none;
 }
 
 .vd-context-submenu {
@@ -5589,6 +5895,16 @@
 .vd-context-submenu:hover > .vd-context-submenu-popover,
 .vd-context-submenu:focus-within > .vd-context-submenu-popover {
     display: block;
+}
+
+.desktop-body:not([data-animations="false"]) .vd-context-submenu:hover > .vd-context-submenu-popover,
+.desktop-body:not([data-animations="false"]) .vd-context-submenu:focus-within > .vd-context-submenu-popover {
+    animation: vd-context-submenu-in 140ms var(--ds-motion-ease-standard) both;
+}
+
+@keyframes vd-context-submenu-in {
+    from { opacity: 0; transform: translateX(-4px); }
+    to { opacity: 1; transform: translateX(0); }
 }
 
 .vd-context-arrow {
@@ -5645,6 +5961,41 @@
     box-shadow: var(--ds-elevation-5);
     backdrop-filter: var(--ds-blur-fine);
     -webkit-backdrop-filter: var(--ds-blur-fine);
+}
+
+/* Modal entry motion: quick fade+lift in standard, soft spring in fruity */
+.desktop-body:not([data-animations="false"]) .vd-modal-backdrop,
+.desktop-body:not([data-animations="false"]) .vd-file-dialog-backdrop,
+.desktop-body:not([data-animations="false"]) .vd-shortcuts-overlay {
+    animation: vd-modal-backdrop-in 160ms ease-out both;
+}
+
+.desktop-body:not([data-animations="false"]) .vd-modal-backdrop .vd-modal,
+.desktop-body:not([data-animations="false"]) .vd-file-dialog-backdrop .vd-file-dialog,
+.desktop-body:not([data-animations="false"]) .vd-shortcuts-overlay .vd-shortcuts-modal {
+    animation: vd-modal-in 170ms var(--ds-motion-ease-emphasized) both;
+}
+
+.desktop-body[data-theme="fruity"]:not([data-animations="false"]) .vd-modal-backdrop .vd-modal,
+.desktop-body[data-theme="fruity"]:not([data-animations="false"]) .vd-file-dialog-backdrop .vd-file-dialog,
+.desktop-body[data-theme="fruity"]:not([data-animations="false"]) .vd-shortcuts-overlay .vd-shortcuts-modal {
+    animation: vd-modal-in-fruity 230ms cubic-bezier(0.16, 1.18, 0.28, 1) both;
+}
+
+@keyframes vd-modal-backdrop-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes vd-modal-in {
+    from { opacity: 0; transform: translateY(8px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes vd-modal-in-fruity {
+    0% { opacity: 0; transform: translateY(12px) scale(0.94); }
+    72% { opacity: 1; transform: translateY(-2px) scale(1.01); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .vd-modal-title {
@@ -5935,6 +6286,14 @@
     justify-content: center;
 }
 
+.desktop-body:not([data-animations="false"]) .vd-lightbox-overlay {
+    animation: vd-modal-backdrop-in 160ms ease-out both;
+}
+
+.desktop-body:not([data-animations="false"]) .vd-lightbox-content {
+    animation: vd-modal-in 180ms var(--ds-motion-ease-emphasized) both;
+}
+
 .vd-lightbox-overlay[hidden] {
     display: none;
 }
@@ -6124,6 +6483,22 @@
     }
 }
 
+/* Explicit fruity dark mode must flip the same tokens even on a light OS */
+.desktop-body[data-theme="fruity"][data-fruity-mode="dark"] {
+    --vd-theme-app-bg: rgba(24, 30, 42, 0.78);
+    --vd-theme-panel-bg: rgba(24, 30, 42, 0.84);
+    --vd-theme-panel-bg-strong: rgba(31, 38, 52, 0.9);
+    --vd-theme-chrome-bg: rgba(38, 44, 58, 0.76);
+    --vd-theme-overlay-bg: rgba(4, 7, 12, 0.56);
+    --vd-theme-control-bg: rgba(255, 255, 255, 0.08);
+    --vd-theme-control-hover: rgba(255, 255, 255, 0.13);
+    --vd-theme-border: rgba(255, 255, 255, 0.13);
+    --vd-theme-border-strong: rgba(255, 255, 255, 0.2);
+    --vd-theme-muted: #a1a1aa;
+    --vd-theme-shadow-panel: 0 26px 70px rgba(0, 0, 0, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    --vd-theme-shadow-modal: 0 34px 86px rgba(0, 0, 0, 0.48), 0 10px 28px rgba(0, 0, 0, 0.3);
+}
+
 .desktop-body[data-theme="standard"] :where(
     .vd-start-menu,
     .vd-context-menu,
@@ -6297,6 +6672,32 @@
     justify-self: start !important;
 }
 
+/* === Shared thin scrollbar for shell panels (window content keeps its wide one) === */
+.vd-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: var(--ds-color-control-hover) transparent;
+}
+
+.vd-scroll::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.vd-scroll::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.vd-scroll::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+    background-color: var(--ds-color-control-hover);
+}
+
+.vd-scroll::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.55);
+}
+
 /* === Global reduced-motion override (Phase 3) === */
 @media (prefers-reduced-motion: reduce) {
     *,
@@ -6430,7 +6831,7 @@
     width: 38px;
     height: 32px;
     padding: 0;
-    color: var(--vd-text-muted, #aeb8c5);
+    color: var(--vd-muted, #aeb8c5);
     background: transparent;
     border: 0;
     border-radius: 8px;
@@ -6456,7 +6857,7 @@
 
 .vd-live-speech-button[data-session="true"]::after,
 .vd-chat-live-speech[data-session="true"]::after {
-    border-color: var(--vd-text-muted, #aeb8c5);
+    border-color: var(--vd-muted, #aeb8c5);
     opacity: .72;
 }
 
@@ -6488,7 +6889,7 @@
 
 .vd-live-speech-button:hover {
     color: var(--vd-text, #f5f7fb);
-    background: var(--vd-hover, rgb(255 255 255 / 8%));
+    background: var(--vd-control-hover, rgba(255, 255, 255, 0.08));
 }
 
 .vd-live-speech-button-wave {
