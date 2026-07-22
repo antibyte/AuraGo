@@ -824,12 +824,12 @@
             const len = Math.max(0.001, Math.sqrt(a.tx * a.tx + a.ty * a.ty + a.tz * a.tz));
             a.px = -a.tz / len; a.py = 0; a.pz = a.tx / len;
             a.qx = (a.ty * a.pz - a.tz * a.py) / 1; a.qy = (a.tz * a.px - a.tx * a.pz) / 1; a.qz = (a.tx * a.py - a.ty * a.px) / 1;
-            // Lightning cadence: long random idle pause, then a short violent
-            // strike. Keeps the effect occasional instead of constant rain.
+            // Lightning cadence: long random idle pause, then a very short
+            // violent strike. Keeps the effect rare instead of constant rain.
             a.state = 'idle';
             a.age = 0;
-            a.idle = initial ? Math.random() * 2.5 : (1.2 + Math.random() * 3.8);
-            a.life = 0.16 + Math.random() * 0.18;
+            a.idle = initial ? (1 + Math.random() * 4) : (2.5 + Math.random() * 5.5);
+            a.life = 0.1 + Math.random() * 0.08;
             a.amp = 1.6 + Math.random() * 1.4;
             a.active = true;
             a.line.visible = false;

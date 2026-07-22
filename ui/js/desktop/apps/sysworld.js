@@ -979,7 +979,7 @@
             if (dir.lengthSq() < 1e-6) dir.set(0, 0.4, 1);
             dir.normalize();
             const camPos = target.clone().add(dir.multiplyScalar(dist));
-            if (inst.stage && typeof inst.stage.flyTo === 'function') inst.stage.flyTo(camPos, target, FOCUS_DURATION);
+            if (inst.stage && typeof inst.stage.flyTo === 'function') inst.stage.flyTo(camPos, target, FOCUS_DURATION, { trackMesh: mesh });
             // Halo locks onto the selection and follows it while it drifts.
             if (inst.fx && typeof inst.fx.selectBeacon === 'function') {
                 inst.fx.selectBeacon(mesh, accentHexFor(mesh.userData || {}), radius);
@@ -1184,8 +1184,8 @@
         delta.copy(target).sub(controls.target);
         if (delta.lengthSq() < 1e-8) return;
         // Clamp the chase speed: satellites move far slower than this, so only
-        // the initial catch-up after the focus flight is smoothed out.
-        const maxStep = Math.max(0.05, 90 * (dt > 0 ? dt : 0.016));
+        // rare residuals (e.g. interrupted flights) glide softly into place.
+        const maxStep = Math.max(0.05, 40 * (dt > 0 ? dt : 0.016));
         if (delta.lengthSq() > maxStep * maxStep) delta.setLength(maxStep);
         controls.target.add(delta);
         inst.stage.camera.position.add(delta);

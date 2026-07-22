@@ -413,6 +413,14 @@
             if (flight) { flight.cancel(); flight = null; }
             const toPos = new THREE.Vector3(camPos.x, camPos.y, camPos.z);
             const toTarget = new THREE.Vector3(lookAtPos.x, lookAtPos.y, lookAtPos.z);
+            // Optional target tracking: when the destination object moves
+            // (satellites, drones), the flight re-aims at its live position
+            // every frame and lands exactly on it - no catch-up jump after
+            // the flight hands control back to the follow logic.
+            const trackMesh = o.trackMesh || null;
+            const approachDir = camPos.clone().sub(lookAtPos);
+            const approachDist = approachDir.length();
+            if (approachDist > 1e-6) approachDir.divideScalar(approachDist);
             const toFov = typeof o.fov === 'number' ? o.fov : camera.fov;
             if (!inst.fx || typeof inst.fx.tween !== 'function') {
                 // Fx not ready yet: jump directly instead of tweening.
@@ -433,6 +441,12 @@
                 duration: duration || 2,
                 ease: 'inOutCubic',
                 update: function (t) {
+                    if (trackMesh) {
+                        try {
+                            trackMesh.getWorldPosition(toTarget);
+                            toPos.copy(toTarget).addScaledVector(approachDir, approachDist);
+                        } catch (_) {}
+                    }
                     camera.position.lerpVectors(fromPos, toPos, t);
                     controls.target.lerpVectors(fromTarget, toTarget, t);
                     if (toFov !== fromFov) {
