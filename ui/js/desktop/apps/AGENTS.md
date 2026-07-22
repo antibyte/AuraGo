@@ -320,6 +320,24 @@ registration lives in `internal/desktop/types.go`.
   HTTP 202 mutation responses are saved partial successes: close the dialog,
   refresh state, and show the localized reconciliation warning. True save
   failures keep retryable manual sources and setup tokens in window memory.
+- `noisemaker.js` implements the Noisemaker app, a Suno-style AI music studio:
+  create view (song idea, style with suggestion chips, optional lyrics/title,
+  AI enhancement buttons, optional AI cover), generation progress with elapsed
+  timer, result card, library grid, and bottom player bar. It must call only
+  `/api/desktop/noisemaker/*` endpoints and never receives provider credentials;
+  capability gating (music disabled, no LLM, no cover AI, lyrics unsupported)
+  is driven by `/api/desktop/noisemaker/state`, and a disabled integration
+  renders the onboarding card instead of the studio. Exposes
+  `window.NoisemakerApp { render, dispose }`; every window instance owns its
+  enhance/generate AbortControllers, the elapsed timer, form preferences under
+  `aurago.desktop.noisemaker.prefs`, and its NoisemakerLibrary instance.
+- `noisemaker-library.js` implements the library grid plus bottom player bar as
+  `window.NoisemakerLibrary.create(deps)` (factory pattern like
+  CheaterToolbar). It loads before `noisemaker.js` in `module-loader.js`, owns
+  exactly one `<audio>` element per window instance, and its `dispose()` stops
+  playback and detaches all listeners.
+- Noisemaker visible UI strings use `desktop.noisemaker_*` keys plus
+  `desktop.app_noisemaker` in all `ui/lang/desktop/*.json` files.
 - `editor-filemenu.js` implements file management helpers and the inline text
   editor with window menus (file, edit, agent, help). Bundled in the main shell
   bundle (`desktopMainParts` in `build-ui-bundles.js`) because it is referenced
@@ -400,4 +418,12 @@ registration lives in `internal/desktop/types.go`.
 - `openscad-defines.js` - Parametric define slider panel: parses name=value
   pairs, renders numeric values as range sliders with number inputs, and text
   values as plain inputs. Exposes `window.OpenSCADDefines { parse, render, toText }`.
+  No child DOX file needed.
+- `noisemaker.js` - Noisemaker app entry: capability state, create view with AI
+  enhancement helpers, synchronous generation flow with progress/result/error
+  slots, onboarding for unconfigured music generation, tab shell. Exposes
+  `window.NoisemakerApp`. No child DOX file needed.
+- `noisemaker-library.js` - Noisemaker library grid and bottom player bar
+  (search, cards, template/download/delete actions, seek/volume, prev/next).
+  Exposes `window.NoisemakerLibrary { create }`; loads before `noisemaker.js`.
   No child DOX file needed.

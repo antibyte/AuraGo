@@ -126,6 +126,7 @@
         music: 'audio-player',
         'music-player': 'audio-player',
         player: 'audio-player',
+        noisemaker: 'audio',
         radio: 'radio',
         openscad: 'openscad',
         teevee: 'teevee',
@@ -331,7 +332,8 @@
             'galaxa-deluxe': 'Gx',
             nasscad: 'NC',
             people: 'Pp',
-            'mission-control': 'MC'
+            'mission-control': 'MC',
+            noisemaker: 'Nm'
         };
         return map[id] || ((app && app.name && app.name[0]) || 'D').toUpperCase();
     }
@@ -534,7 +536,8 @@
             'mission-control': 'MissionControlApp',
             settings: 'SettingsApp',
             calculator: 'CalculatorApp',
-            'system-world': 'SysWorldApp'
+            'system-world': 'SysWorldApp',
+            noisemaker: 'NoisemakerApp'
         }[appId] || '';
     }
 

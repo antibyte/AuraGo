@@ -122,6 +122,10 @@
             styles: appStyles('/css/desktop-app-network-cameras.css'),
             scripts: ['/js/desktop/apps/network-cameras.js']
         },
+        'noisemaker': {
+            styles: appStyles('/css/desktop-app-noisemaker.css'),
+            scripts: ['/js/desktop/apps/noisemaker-library.js', '/js/desktop/apps/noisemaker.js']
+        },
         'zipper': {
             styles: appStyles('/css/zipper.css'),
             scripts: ['/js/desktop/apps/zipper.js']

@@ -1107,6 +1107,13 @@ if (appId === 'system-info') {
             }
             if (typeof window.NetworkCamerasApp.render === 'function') return window.NetworkCamerasApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification, openApp, confirmDialog, setWindowMenus, clearWindowMenus }));
         }
+        if (appId === 'noisemaker') {
+            if (!window.NoisemakerApp) {
+                window.AuraDesktopModules.loadAppScript('noisemaker').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            if (typeof window.NoisemakerApp.render === 'function') return window.NoisemakerApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification, openApp, confirmDialog, setWindowMenus, clearWindowMenus }));
+        }
 if (appId === 'zipper') {
             if (!window.ZipperApp) {
                 window.AuraDesktopModules.loadAppScript('zipper').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));

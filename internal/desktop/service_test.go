@@ -183,6 +183,19 @@ func TestBuiltinAppsExposeNetworkCamerasMetadata(t *testing.T) {
 	}
 }
 
+func TestBuiltinAppsExposeNoisemakerMetadata(t *testing.T) {
+	app := testFindApp(t, BuiltinApps(), "noisemaker")
+	if !app.Builtin || app.Deletable || !app.DockVisible || !app.StartVisible {
+		t.Fatalf("noisemaker visibility = builtin:%v deletable:%v dock:%v start:%v, want first-party visible app", app.Builtin, app.Deletable, app.DockVisible, app.StartVisible)
+	}
+	if app.Entry != "builtin://noisemaker" || app.Icon != "audio" || app.Runtime != BuiltinRuntime {
+		t.Fatalf("noisemaker manifest = entry:%q icon:%q runtime:%q", app.Entry, app.Icon, app.Runtime)
+	}
+	if !stringSliceContains(app.Permissions, "notifications") {
+		t.Fatalf("noisemaker permissions = %#v, want notifications", app.Permissions)
+	}
+}
+
 func TestBuiltinAppsExposeTeeVeeMetadata(t *testing.T) {
 	apps := BuiltinApps()
 

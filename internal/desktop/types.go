@@ -725,6 +725,7 @@ func BuiltinApps() []AppManifest {
 		{ID: "viewer", Name: "Viewer", Version: "1.0.0", Icon: "eye", Entry: "builtin://viewer", Runtime: BuiltinRuntime, Description: "Read-only viewer for documents, spreadsheets, PDFs and markdown.", Permissions: []string{"files:read"}, Internal: true},
 		{ID: "pet-picker", Name: "Pet Picker", Version: "1.0.0", Icon: "heart", Entry: "builtin://pet-picker", Runtime: BuiltinRuntime, Description: "Choose and manage your desktop pet companions."},
 		{ID: "system-world", Name: "System World", Version: "1.0.0", Icon: "network", Entry: "builtin://system-world", Runtime: BuiltinRuntime, Description: "Immersive 3D world visualizing the living AuraGo system — integrations, knowledge graph, memory, missions, and agents in realtime.", Metadata: map[string]string{"open_maximized": "true"}},
+		{ID: "noisemaker", Name: "Noisemaker", Version: "1.0.0", Icon: "audio", Entry: "builtin://noisemaker", Runtime: BuiltinRuntime, Description: "Create AI-generated songs Suno-style: ideas, styles, lyrics and covers.", Permissions: []string{"notifications"}},
 	}
 	for i := range apps {
 		apps[i].Builtin = true
