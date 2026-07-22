@@ -400,9 +400,6 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Vision analysis failed: %v"}`, err)
 			}
-			if normalized, handled := tools.NormalizeVisionAnalysis(prompt, result); handled {
-				result = normalized
-			}
 			if budgetTracker != nil {
 				vModel := cfg.Vision.Model
 				if vModel == "" {

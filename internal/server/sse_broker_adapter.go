@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"strings"
 
 	"aurago/internal/security"
 )
@@ -101,16 +102,27 @@ func enrichTypedEnvelopePayloadWithSessionID(raw map[string]json.RawMessage, ses
 }
 
 func (b *SSEBrokerAdapter) SendTyped(eventType string, payload interface{}) bool {
+	delivered, _ := b.SendTypedWithTransport(eventType, payload)
+	return delivered
+}
+
+func (b *SSEBrokerAdapter) SendTypedWithTransport(eventType string, payload interface{}) (bool, string) {
 	if b == nil || b.sse == nil || eventType == "" {
-		return false
+		return false, "pending"
 	}
 	enriched := enrichPayloadWithSessionID(payload, b.sessionID)
 	msg, err := encodeTypedSSEEvent(eventType, enriched)
 	if err != nil {
-		return false
+		return false, "pending"
 	}
-	b.sse.SendJSON(msg)
-	return true
+	targetSessionID := strings.TrimSpace(b.sessionID)
+	if targetSessionID == "" {
+		targetSessionID = typedPayloadSessionID(enriched)
+	}
+	if targetSessionID != "" {
+		return b.sse.broadcastToSession(targetSessionID, security.Scrub(msg)) > 0, "typed_session"
+	}
+	return b.sse.broadcast(security.Scrub(msg)) > 0, "typed_session"
 }
 
 func (b *SSEBrokerAdapter) SendLLMStreamDelta(content, toolName, toolID string, index int, finishReason string) {
@@ -210,4 +222,18 @@ func encodeTypedSSEEvent(eventType string, payload interface{}) (string, error) 
 		return "", err
 	}
 	return string(msg), nil
+}
+
+func typedPayloadSessionID(payload interface{}) string {
+	raw, err := json.Marshal(payload)
+	if err != nil {
+		return ""
+	}
+	var envelope struct {
+		SessionID string `json:"session_id"`
+	}
+	if json.Unmarshal(raw, &envelope) != nil {
+		return ""
+	}
+	return strings.TrimSpace(envelope.SessionID)
 }

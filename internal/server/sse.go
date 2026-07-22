@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
+	"unicode"
 
 	"aurago/internal/security"
 )
@@ -44,13 +46,13 @@ const (
 // SSEBroadcaster manages Server-Sent Events connections and broadcasts messages.
 type SSEBroadcaster struct {
 	mu      sync.RWMutex
-	clients map[chan string]struct{}
+	clients map[chan string]string
 }
 
 // NewSSEBroadcaster creates a new broadcaster instance.
 func NewSSEBroadcaster() *SSEBroadcaster {
 	return &SSEBroadcaster{
-		clients: make(map[chan string]struct{}),
+		clients: make(map[chan string]string),
 	}
 }
 
@@ -70,12 +72,14 @@ func (b *SSEBroadcaster) SendJSON(jsonMsg string) {
 	b.broadcast(jsonMsg)
 }
 
-func (b *SSEBroadcaster) broadcast(msg string) {
+func (b *SSEBroadcaster) broadcast(msg string) int {
 	b.mu.RLock()
 	staleClients := make([]chan string, 0)
+	delivered := 0
 	for ch := range b.clients {
 		select {
 		case ch <- msg:
+			delivered++
 		default:
 			// Channel full: mark client as stale so it gets unsubscribed.
 			// The client will reconnect automatically via SSE reconnect.
@@ -87,6 +91,34 @@ func (b *SSEBroadcaster) broadcast(msg string) {
 	for _, ch := range staleClients {
 		b.unsubscribe(ch)
 	}
+	return delivered
+}
+
+func (b *SSEBroadcaster) broadcastToSession(sessionID, msg string) int {
+	sessionID = strings.TrimSpace(sessionID)
+	if sessionID == "" {
+		return 0
+	}
+	b.mu.RLock()
+	staleClients := make([]chan string, 0)
+	delivered := 0
+	for ch, clientSessionID := range b.clients {
+		if clientSessionID != sessionID {
+			continue
+		}
+		select {
+		case ch <- msg:
+			delivered++
+		default:
+			staleClients = append(staleClients, ch)
+		}
+	}
+	b.mu.RUnlock()
+
+	for _, ch := range staleClients {
+		b.unsubscribe(ch)
+	}
+	return delivered
 }
 
 // BroadcastType sends a typed SSE event with a structured payload to all clients.
@@ -102,10 +134,17 @@ func (b *SSEBroadcaster) BroadcastType(eventType SSEEventType, payload any) {
 	b.SendJSON(string(msg))
 }
 
-// BroadcastToSession sends a typed event whose payload includes a session_id.
-// The web client filters typed events by this field.
-func (b *SSEBroadcaster) BroadcastToSession(sessionID string, eventType SSEEventType, payload any) {
-	b.BroadcastType(eventType, payload)
+// BroadcastToSession sends a typed event only to clients subscribed to the
+// exact session. It reports whether at least one matching client accepted it.
+func (b *SSEBroadcaster) BroadcastToSession(sessionID string, eventType SSEEventType, payload any) bool {
+	msg, err := json.Marshal(struct {
+		Type    SSEEventType `json:"type"`
+		Payload any          `json:"payload"`
+	}{eventType, payload})
+	if err != nil {
+		return false
+	}
+	return b.broadcastToSession(sessionID, security.Scrub(string(msg))) > 0
 }
 
 type LLMStreamDeltaPayload struct {
@@ -154,11 +193,16 @@ func (b *SSEBroadcaster) ClientCount() int {
 	return len(b.clients)
 }
 
-// subscribe registers a new client channel.
-func (b *SSEBroadcaster) subscribe() chan string {
+// subscribe registers a new client channel. A missing session keeps the
+// connection eligible for global events only.
+func (b *SSEBroadcaster) subscribe(sessionIDs ...string) chan string {
+	sessionID := ""
+	if len(sessionIDs) > 0 {
+		sessionID = strings.TrimSpace(sessionIDs[0])
+	}
 	ch := make(chan string, 128)
 	b.mu.Lock()
-	b.clients[ch] = struct{}{}
+	b.clients[ch] = sessionID
 	b.mu.Unlock()
 	return ch
 }
@@ -204,7 +248,12 @@ func (b *SSEBroadcaster) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ch := b.subscribe()
+	sessionID := strings.TrimSpace(r.URL.Query().Get("session_id"))
+	if len(sessionID) > 120 || strings.IndexFunc(sessionID, unicode.IsControl) >= 0 {
+		jsonError(w, "Invalid session_id", http.StatusBadRequest)
+		return
+	}
+	ch := b.subscribe(sessionID)
 	defer b.unsubscribe(ch)
 
 	// Flush headers immediately so the browser's EventSource fires onopen

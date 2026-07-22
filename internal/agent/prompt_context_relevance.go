@@ -3,6 +3,8 @@ package agent
 import (
 	"strings"
 	"unicode"
+
+	"aurago/internal/memory"
 )
 
 // shouldInjectRecentMemoryContext is intentionally limited to explicit status
@@ -23,12 +25,16 @@ func isRecentMemoryStatusQuery(msg string) bool {
 	if _, ok := lowSignal[lower]; ok {
 		return false
 	}
-	statusKeywords := []string{
-		"was neues", "gibts", "gibt es", "status", "offen", "todo", "aufgabe", "erinner", "follow",
-		"pending", "open", "what's new", "whats new", "anything new", "remind",
+	for _, phrase := range []string{"was neues", "gibts", "gibt es", "what's new", "whats new", "anything new"} {
+		if strings.Contains(lower, phrase) {
+			return true
+		}
 	}
-	for _, keyword := range statusKeywords {
-		if strings.Contains(lower, keyword) {
+	for _, token := range strings.FieldsFunc(lower, func(r rune) bool {
+		return !unicode.IsLetter(r) && !unicode.IsDigit(r)
+	}) {
+		switch token {
+		case "status", "offen", "todo", "aufgabe", "erinnerung", "followup", "pending", "open", "remind":
 			return true
 		}
 	}
@@ -39,10 +45,7 @@ func selectRelevantRecentMemoryLines(query string, candidates []string, limit in
 	if limit <= 0 || len(candidates) == 0 {
 		return nil
 	}
-	queryTerms := meaningfulRecentMemoryTerms(query)
-	for _, generic := range []string{"status", "offen", "todo", "aufgabe", "pending", "open", "remind", "prüfe", "check", "gibts", "neues", "anything"} {
-		delete(queryTerms, generic)
-	}
+	queryTerms := memory.TopicTermSet(query)
 	if isRecentMemoryStatusQuery(query) && len(queryTerms) == 0 {
 		if len(candidates) > limit {
 			return append([]string(nil), candidates[:limit]...)
@@ -54,14 +57,15 @@ func selectRelevantRecentMemoryLines(query string, candidates []string, limit in
 	}
 	var selected []string
 	for _, candidate := range candidates {
-		candidateTerms := meaningfulRecentMemoryTerms(candidate)
-		matches := 0
+		candidateTerms := memory.TopicTermSet(candidate)
+		matched := false
 		for term := range queryTerms {
 			if _, ok := candidateTerms[term]; ok {
-				matches++
+				matched = true
+				break
 			}
 		}
-		if matches == 0 || (len(queryTerms) > 2 && matches < 2) {
+		if !matched {
 			continue
 		}
 		selected = append(selected, candidate)
@@ -73,22 +77,5 @@ func selectRelevantRecentMemoryLines(query string, candidates []string, limit in
 }
 
 func meaningfulRecentMemoryTerms(text string) map[string]struct{} {
-	stop := map[string]struct{}{
-		"aber": {}, "again": {}, "auch": {}, "bitte": {}, "dann": {}, "erneut": {},
-		"nochmal": {}, "nochmals": {}, "please": {}, "retry": {}, "the": {}, "this": {},
-		"try": {}, "versuch": {}, "versuche": {}, "wieder": {}, "with": {}, "noch": {},
-	}
-	terms := make(map[string]struct{})
-	for _, term := range strings.FieldsFunc(strings.ToLower(text), func(r rune) bool {
-		return !unicode.IsLetter(r) && !unicode.IsDigit(r)
-	}) {
-		if _, blocked := stop[term]; blocked {
-			continue
-		}
-		if len([]rune(term)) < 4 && term != "pkw" && term != "api" && term != "ssl" && term != "gpu" && term != "nas" {
-			continue
-		}
-		terms[term] = struct{}{}
-	}
-	return terms
+	return memory.TopicTermSet(text)
 }

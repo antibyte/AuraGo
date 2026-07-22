@@ -3,7 +3,7 @@
   "help.agent.adaptive_tools.always_include": "Nazvy nastroju, ktere zustanou viditelne pri aktivnim adaptivnim filtrovani. Vychozi: filesystem, query_memory, manage_memory, execute_shell.",
   "help.agent.adaptive_tools.clean_transitions_after_days": "Odstraňuje zastaralá data o přechodech nástrojů po X dnech.",
   "help.agent.adaptive_tools.decay_half_life_days": "Poločas rozpadu pro hodnocení využití ve dnech. Starší data o využití ztrácejí vliv. Vyšší hodnoty = pomalejší zapomínání.",
-  "help.agent.adaptive_tools.enabled": "Necha viditelne pravdepodobne uzitecne native nastroje a zbytek presune za discover_tools/activate_tools. Setri tokeny promptu; vychozi: zapnuto.",
+  "help.agent.adaptive_tools.enabled": "Ponechá pravděpodobně užitečné nativní nástroje viditelné a ostatní zpřístupní přes discover_tools/invoke_tool. Snižuje počet tokenů promptu; výchozí: zapnuto.",
   "help.agent.adaptive_tools.max_tools": "Maximum adaptivnich/preferovanych schemat nastroju pred pridanim povinnych a always-include nastroju. Vychozi: 10.",
   "help.agent.adaptive_tools.weight_success_rate": "Upřednostňuje nástroje s vyšší úspěšností v adaptivním výběru.",
   "help.agent.additional_prompt": "Dodatecny text k promptu.",

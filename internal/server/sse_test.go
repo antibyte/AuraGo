@@ -3,11 +3,31 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
 )
+
+type failingTypedResponseWriter struct {
+	header http.Header
+}
+
+func (w *failingTypedResponseWriter) Header() http.Header {
+	if w.header == nil {
+		w.header = make(http.Header)
+	}
+	return w.header
+}
+
+func (w *failingTypedResponseWriter) Write([]byte) (int, error) {
+	return 0, errors.New("forced write failure")
+}
+
+func (w *failingTypedResponseWriter) WriteHeader(int) {}
+func (w *failingTypedResponseWriter) Flush()          {}
 
 func TestBroadcastTypeProducesTypedEvent(t *testing.T) {
 	b := NewSSEBroadcaster()
@@ -58,7 +78,7 @@ func TestBroadcastTypeProducesTypedEvent(t *testing.T) {
 
 func TestSSEBrokerAdapterSendTypedAddsSessionToPayload(t *testing.T) {
 	b := NewSSEBroadcaster()
-	ch := b.subscribe()
+	ch := b.subscribe("sess-typed")
 	defer b.unsubscribe(ch)
 
 	adapter := NewSSEBrokerAdapterWithSession(b, "sess-typed")
@@ -91,6 +111,127 @@ func TestSSEBrokerAdapterSendTypedAddsSessionToPayload(t *testing.T) {
 		}
 	}
 	t.Fatal("no typed message received from broker adapter")
+}
+
+func TestSSEBrokerAdapterSendTypedRequiresMatchingSession(t *testing.T) {
+	t.Run("no clients", func(t *testing.T) {
+		b := NewSSEBroadcaster()
+		adapter := NewSSEBrokerAdapterWithSession(b, "sess-target")
+		if adapter.SendTyped("operational_issue_notice", map[string]interface{}{"text": "notice"}) {
+			t.Fatal("SendTyped reported delivery without a client")
+		}
+	})
+
+	t.Run("different and legacy clients", func(t *testing.T) {
+		b := NewSSEBroadcaster()
+		foreign := b.subscribe("sess-other")
+		legacy := b.subscribe()
+		defer b.unsubscribe(foreign)
+		defer b.unsubscribe(legacy)
+		adapter := NewSSEBrokerAdapterWithSession(b, "sess-target")
+		if adapter.SendTyped("operational_issue_notice", map[string]interface{}{"text": "notice"}) {
+			t.Fatal("SendTyped reported delivery to a non-matching client")
+		}
+		select {
+		case msg := <-foreign:
+			t.Fatalf("foreign session received targeted event: %s", msg)
+		default:
+		}
+		select {
+		case msg := <-legacy:
+			t.Fatalf("legacy client received targeted event: %s", msg)
+		default:
+		}
+	})
+
+	t.Run("matching client", func(t *testing.T) {
+		b := NewSSEBroadcaster()
+		matching := b.subscribe("sess-target")
+		defer b.unsubscribe(matching)
+		adapter := NewSSEBrokerAdapterWithSession(b, "sess-target")
+		if !adapter.SendTyped("operational_issue_notice", map[string]interface{}{"text": "notice"}) {
+			t.Fatal("SendTyped did not report matching session delivery")
+		}
+		select {
+		case <-matching:
+		case <-time.After(time.Second):
+			t.Fatal("matching session did not receive targeted event")
+		}
+	})
+
+	t.Run("full matching client", func(t *testing.T) {
+		b := NewSSEBroadcaster()
+		matching := b.subscribe("sess-target")
+		for i := 0; i < cap(matching); i++ {
+			matching <- "full"
+		}
+		adapter := NewSSEBrokerAdapterWithSession(b, "sess-target")
+		if adapter.SendTyped("operational_issue_notice", map[string]interface{}{"text": "notice"}) {
+			t.Fatal("SendTyped reported delivery to a full client")
+		}
+		if got := b.ClientCount(); got != 0 {
+			t.Fatalf("full client was not removed: count=%d", got)
+		}
+	})
+}
+
+func TestTypedDirectStreamDeliveryChecksWriterResult(t *testing.T) {
+	t.Run("desktop direct stream", func(t *testing.T) {
+		recorder := httptest.NewRecorder()
+		broker := &desktopStreamCombinedBroker{
+			stream:    &desktopStreamBroker{w: recorder, flusher: recorder, canFlush: true},
+			sessionID: "sess-direct",
+		}
+		delivered, transport := broker.SendTypedWithTransport("operational_issue_notice", map[string]interface{}{"text": "notice"})
+		if !delivered || transport != "direct_stream" || !strings.Contains(recorder.Body.String(), "operational_issue_notice") {
+			t.Fatalf("desktop delivery = %v/%q body=%q", delivered, transport, recorder.Body.String())
+		}
+	})
+
+	t.Run("desktop writer failure", func(t *testing.T) {
+		writer := &failingTypedResponseWriter{}
+		stream := &desktopStreamBroker{w: writer, flusher: writer, canFlush: true}
+		broker := &desktopStreamCombinedBroker{stream: stream, sessionID: "sess-direct"}
+		if delivered, _ := broker.SendTypedWithTransport("operational_issue_notice", map[string]interface{}{"text": "notice"}); delivered {
+			t.Fatal("desktop writer failure reported delivery")
+		}
+		if !stream.closed {
+			t.Fatal("desktop stream was not closed after write failure")
+		}
+	})
+
+	t.Run("desktop falls back to matching SSE when direct writer fails", func(t *testing.T) {
+		broadcaster := NewSSEBroadcaster()
+		client := broadcaster.subscribe("sess-direct")
+		t.Cleanup(func() { broadcaster.unsubscribe(client) })
+		writer := &failingTypedResponseWriter{}
+		stream := &desktopStreamBroker{w: writer, flusher: writer, canFlush: true}
+		broker := &desktopStreamCombinedBroker{
+			stream:    stream,
+			sse:       NewSSEBrokerAdapterWithSession(broadcaster, "sess-direct"),
+			sessionID: "sess-direct",
+		}
+		delivered, transport := broker.SendTypedWithTransport("operational_issue_notice", map[string]interface{}{"text": "notice"})
+		if !delivered || transport != "typed_session" {
+			t.Fatalf("SSE fallback delivery = %v/%q", delivered, transport)
+		}
+		select {
+		case <-client:
+		default:
+			t.Fatal("matching SSE client did not receive fallback event")
+		}
+	})
+
+	t.Run("realtime writer failure", func(t *testing.T) {
+		writer := &failingTypedResponseWriter{}
+		broker, err := newRealtimeSpeechActionResponseBroker(writer, "sess-realtime")
+		if err != nil {
+			t.Fatalf("newRealtimeSpeechActionResponseBroker: %v", err)
+		}
+		if delivered, _ := broker.SendTypedWithTransport("operational_issue_notice", map[string]interface{}{"text": "notice"}); delivered {
+			t.Fatal("realtime writer failure reported delivery")
+		}
+	})
 }
 
 func TestSSEBrokerAdapterSendJSONAddsSessionToTypedPayload(t *testing.T) {

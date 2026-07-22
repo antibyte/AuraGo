@@ -3,7 +3,7 @@
   "help.agent.adaptive_tools.always_include": "Tool-Namen, die bei aktivem Adaptive Filtering sichtbar bleiben. Standard: filesystem, query_memory, manage_memory, execute_shell.",
   "help.agent.adaptive_tools.clean_transitions_after_days": "Löscht nicht mehr relevante Tool-Übergangsdaten nach X Tagen.",
   "help.agent.adaptive_tools.decay_half_life_days": "Halbwertszeit für die Nutzungsbewertung in Tagen. Ältere Nutzungsdaten verlieren an Einfluss. Höhere Werte = langsameres Vergessen.",
-  "help.agent.adaptive_tools.enabled": "Hält wahrscheinlich nützliche native Tools sichtbar und legt den Rest hinter discover_tools/activate_tools. Spart Prompt-Tokens; Standard: an.",
+  "help.agent.adaptive_tools.enabled": "Hält wahrscheinlich nützliche native Tools sichtbar und macht den Rest über discover_tools/invoke_tool zugänglich. Spart Prompt-Tokens; Standard: an.",
   "help.agent.adaptive_tools.max_tools": "Maximale Anzahl adaptiver/bevorzugter Tool-Schemas, bevor Pflicht- und Always-Include-Tools ergänzt werden. Standard: 10.",
   "help.agent.adaptive_tools.weight_success_rate": "Bevorzugt Tools mit höherer Erfolgsquote bei der adaptiven Auswahl.",
   "help.agent.additional_prompt": "Beliebiger Text, der immer am Ende des System-Prompts angehängt wird. Ideal für nutzerspezifische Regeln, Kontextinfos oder feste Anweisungen, die bei jeder Anfrage gelten sollen.",

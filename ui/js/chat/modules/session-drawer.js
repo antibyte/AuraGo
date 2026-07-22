@@ -11,6 +11,12 @@ window.SessionDrawer = (function () {
     let sessions = [];
     let isOpen = false;
 
+    function syncSSESession() {
+        if (window.AuraSSE && typeof window.AuraSSE.setSession === 'function') {
+            window.AuraSSE.setSession(activeSessionId);
+        }
+    }
+
     // ── DOM refs ──
     const drawer = document.getElementById('session-drawer');
     const backdrop = document.getElementById('session-backdrop');
@@ -157,6 +163,7 @@ window.SessionDrawer = (function () {
     async function switchSession(sessionId) {
         activeSessionId = sessionId;
         localStorage.setItem('aurago-session-id', sessionId);
+        syncSSESession();
 
         // Notify main.js to reload chat for the new session
         if (typeof window.onSessionSwitch === 'function') {
@@ -170,6 +177,7 @@ window.SessionDrawer = (function () {
         if (sess) {
             activeSessionId = sess.id;
             localStorage.setItem('aurago-session-id', sess.id);
+            syncSSESession();
             if (typeof window.onSessionSwitch === 'function') {
                 window.onSessionSwitch(sess.id);
             }
@@ -240,7 +248,7 @@ window.SessionDrawer = (function () {
             newBtn.addEventListener('click', handleNewSession);
         }
         // Validate stored session on page load
-        validateStoredSession();
+        validateStoredSession().then(syncSSESession);
     }
 
     // ── Public API ──
@@ -253,6 +261,7 @@ window.SessionDrawer = (function () {
         setActiveSessionId: (id) => {
             activeSessionId = id;
             localStorage.setItem('aurago-session-id', id);
+            syncSSESession();
         },
         refresh: () => fetchSessions().then(renderList),
     };

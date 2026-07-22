@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -280,6 +281,13 @@ type visionCountResult struct {
 	Consistent              bool              `json:"consistent"`
 }
 
+const (
+	visionInvalidCountStatus  = "uncertain"
+	visionConflictCountStatus = "count_conflict"
+	visionInvalidCountText    = "Vision provider did not return a valid structured count; do not infer a total from prose."
+	visionConflictCountText   = "The provider's item list conflicted with confirmed_count; only confirmed_count is retained."
+)
+
 // NormalizeVisionAnalysis validates count/list consistency locally. When the
 // provider contradicts itself, the item list is discarded and only its stated
 // confirmed count plus an explicit uncertainty signal is retained.
@@ -287,35 +295,37 @@ func NormalizeVisionAnalysis(prompt, raw string) (string, bool) {
 	if !visionPromptRequestsObjectCount(prompt) && !strings.Contains(prompt, visionCountSchemaMarker) {
 		return raw, false
 	}
+	if isCanonicalVisionCountFailure(raw) {
+		return raw, true
+	}
 	result, ok := parseVisionCountResult(raw)
 	if !ok {
 		fallback := map[string]interface{}{
-			"status":                    "uncertain",
+			"status":                    visionInvalidCountStatus,
 			"confirmed_count":           nil,
 			"possible_additional_count": nil,
 			"other_vehicles":            []string{},
 			"items":                     []visionCountItem{},
-			"uncertainty":               "Vision provider did not return a valid structured count; do not infer a total from prose.",
+			"uncertainty":               visionInvalidCountText,
 			"consistent":                false,
 		}
 		encoded, _ := json.Marshal(fallback)
 		return string(encoded), true
 	}
 	confirmedItems := 0
+	possibleItems := 0
 	for _, item := range result.Items {
-		if item.Confirmed == nil || *item.Confirmed {
+		if *item.Confirmed {
 			confirmedItems++
+		} else {
+			possibleItems++
 		}
 	}
-	result.Consistent = confirmedItems == result.ConfirmedCount
+	result.Consistent = confirmedItems == result.ConfirmedCount && possibleItems == result.PossibleAdditionalCount
 	if !result.Consistent {
-		conflict := "The provider's item list conflicted with confirmed_count; only confirmed_count is retained."
-		if strings.TrimSpace(result.Uncertainty) == "" {
-			result.Uncertainty = conflict
-		} else {
-			result.Uncertainty = strings.TrimSpace(result.Uncertainty) + " " + conflict
-		}
+		result.Uncertainty = appendVisionUncertaintyOnce(result.Uncertainty, visionConflictCountText)
 		encoded, err := json.Marshal(map[string]interface{}{
+			"status":          visionConflictCountStatus,
 			"confirmed_count": result.ConfirmedCount,
 			"uncertainty":     result.Uncertainty,
 			"consistent":      false,
@@ -346,6 +356,13 @@ func visionPromptRequestsObjectCount(prompt string) bool {
 }
 
 func parseVisionCountResult(raw string) (visionCountResult, bool) {
+	return parseVisionCountResultDepth(raw, 0)
+}
+
+func parseVisionCountResultDepth(raw string, depth int) (visionCountResult, bool) {
+	if depth > 4 {
+		return visionCountResult{}, false
+	}
 	trimmed := strings.TrimSpace(raw)
 	trimmed = strings.TrimPrefix(trimmed, "```json")
 	trimmed = strings.TrimPrefix(trimmed, "```")
@@ -356,26 +373,132 @@ func parseVisionCountResult(raw string) (visionCountResult, bool) {
 		return visionCountResult{}, false
 	}
 	jsonText := trimmed[start : end+1]
-	var wrapper struct {
-		Analysis json.RawMessage `json:"analysis"`
+	var fields map[string]json.RawMessage
+	if json.Unmarshal([]byte(jsonText), &fields) != nil {
+		return visionCountResult{}, false
 	}
-	if json.Unmarshal([]byte(jsonText), &wrapper) == nil && len(wrapper.Analysis) > 0 {
+	if analysis, exists := fields["analysis"]; exists && len(analysis) > 0 {
 		var nested string
-		if json.Unmarshal(wrapper.Analysis, &nested) == nil {
-			return parseVisionCountResult(nested)
+		if json.Unmarshal(analysis, &nested) == nil {
+			return parseVisionCountResultDepth(nested, depth+1)
 		}
-		var result visionCountResult
-		if json.Unmarshal(wrapper.Analysis, &result) == nil {
-			return result, true
+		if len(analysis) > 0 && analysis[0] == '{' {
+			return parseVisionCountResultDepth(string(analysis), depth+1)
 		}
-	}
-	var result visionCountResult
-	if err := json.Unmarshal([]byte(jsonText), &result); err != nil {
 		return visionCountResult{}, false
 	}
-	var presence map[string]json.RawMessage
-	if json.Unmarshal([]byte(jsonText), &presence) != nil || presence["confirmed_count"] == nil {
+
+	confirmedCount, ok := parseNonnegativeJSONInteger(fields["confirmed_count"])
+	if !ok {
 		return visionCountResult{}, false
+	}
+	possibleCount, ok := parseNonnegativeJSONInteger(fields["possible_additional_count"])
+	if !ok {
+		return visionCountResult{}, false
+	}
+	itemsRaw, exists := fields["items"]
+	if !exists || string(itemsRaw) == "null" {
+		return visionCountResult{}, false
+	}
+	var rawItems []json.RawMessage
+	if json.Unmarshal(itemsRaw, &rawItems) != nil {
+		return visionCountResult{}, false
+	}
+	items := make([]visionCountItem, 0, len(rawItems))
+	seenIndices := make(map[int]struct{}, len(rawItems))
+	for _, rawItem := range rawItems {
+		var itemFields map[string]json.RawMessage
+		if json.Unmarshal(rawItem, &itemFields) != nil {
+			return visionCountResult{}, false
+		}
+		index, validIndex := parseNonnegativeJSONInteger(itemFields["index"])
+		if !validIndex || index == 0 {
+			return visionCountResult{}, false
+		}
+		if _, duplicate := seenIndices[index]; duplicate {
+			return visionCountResult{}, false
+		}
+		seenIndices[index] = struct{}{}
+		confirmedRaw, exists := itemFields["confirmed"]
+		if !exists || string(confirmedRaw) == "null" {
+			return visionCountResult{}, false
+		}
+		var confirmed bool
+		if json.Unmarshal(confirmedRaw, &confirmed) != nil {
+			return visionCountResult{}, false
+		}
+		item := visionCountItem{Index: index, Confirmed: &confirmed}
+		_ = json.Unmarshal(rawItem, &item)
+		item.Index = index
+		item.Confirmed = &confirmed
+		items = append(items, item)
+	}
+
+	result := visionCountResult{
+		ConfirmedCount:          confirmedCount,
+		PossibleAdditionalCount: possibleCount,
+		Items:                   items,
+	}
+	if rawVehicles, exists := fields["other_vehicles"]; exists && string(rawVehicles) != "null" {
+		if json.Unmarshal(rawVehicles, &result.OtherVehicles) != nil {
+			return visionCountResult{}, false
+		}
+	}
+	if rawUncertainty, exists := fields["uncertainty"]; exists && string(rawUncertainty) != "null" {
+		if json.Unmarshal(rawUncertainty, &result.Uncertainty) != nil {
+			return visionCountResult{}, false
+		}
 	}
 	return result, true
+}
+
+func parseNonnegativeJSONInteger(raw json.RawMessage) (int, bool) {
+	text := strings.TrimSpace(string(raw))
+	if text == "" || text == "null" || strings.ContainsAny(text, ".eE+-") {
+		return 0, false
+	}
+	value, err := strconv.ParseUint(text, 10, 31)
+	if err != nil {
+		return 0, false
+	}
+	return int(value), true
+}
+
+func appendVisionUncertaintyOnce(existing, addition string) string {
+	existing = strings.TrimSpace(existing)
+	if existing == "" {
+		return addition
+	}
+	if strings.Contains(existing, addition) {
+		return existing
+	}
+	return existing + " " + addition
+}
+
+func isCanonicalVisionCountFailure(raw string) bool {
+	var fields map[string]json.RawMessage
+	if json.Unmarshal([]byte(strings.TrimSpace(raw)), &fields) != nil {
+		return false
+	}
+	var status string
+	if json.Unmarshal(fields["status"], &status) != nil {
+		return false
+	}
+	var consistent bool
+	if json.Unmarshal(fields["consistent"], &consistent) != nil || consistent {
+		return false
+	}
+	switch status {
+	case visionInvalidCountStatus:
+		var uncertainty string
+		return string(fields["confirmed_count"]) == "null" &&
+			string(fields["possible_additional_count"]) == "null" &&
+			json.Unmarshal(fields["uncertainty"], &uncertainty) == nil && uncertainty == visionInvalidCountText
+	case visionConflictCountStatus:
+		_, ok := parseNonnegativeJSONInteger(fields["confirmed_count"])
+		var uncertainty string
+		return ok && json.Unmarshal(fields["uncertainty"], &uncertainty) == nil && strings.Contains(uncertainty, visionConflictCountText)
+	default:
+		return false
+	}
 }

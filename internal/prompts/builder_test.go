@@ -76,6 +76,18 @@ func TestBalancedCoreSystemPromptStaysUnderBudget(t *testing.T) {
 	}
 }
 
+func TestNativePromptDoesNotAdvertiseActivateTools(t *testing.T) {
+	prompt, _ := BuildSystemPromptContext(context.Background(), t.TempDir(), &ContextFlags{
+		Tier:               "full",
+		SystemLanguage:     "en",
+		TokenBudget:        200000,
+		NativeToolsEnabled: true,
+	}, "", slog.Default())
+	if strings.Contains(strings.ToLower(prompt), "activate_tools") {
+		t.Fatalf("native prompt advertised removed activate_tools path:\n%s", prompt)
+	}
+}
+
 func TestAggressiveCoreSystemPromptStaysUnderBudget(t *testing.T) {
 	resetTokenEncoderStateForTest(t, func() (tokenEncoder, error) {
 		return charRatioEncoder{}, nil

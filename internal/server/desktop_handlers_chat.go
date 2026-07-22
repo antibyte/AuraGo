@@ -267,28 +267,43 @@ func (b *desktopStreamCombinedBroker) SendJSON(jsonStr string) {
 }
 
 func (b *desktopStreamCombinedBroker) SendTyped(eventType string, payload interface{}) bool {
-	if b == nil || b.sse == nil || eventType == "" {
-		return false
+	delivered, _ := b.SendTypedWithTransport(eventType, payload)
+	return delivered
+}
+
+func (b *desktopStreamCombinedBroker) SendTypedWithTransport(eventType string, payload interface{}) (bool, string) {
+	if b == nil || strings.TrimSpace(eventType) == "" {
+		return false, "pending"
 	}
-	enriched := enrichPayloadWithSessionID(payload, b.sse.sessionID)
-	if !b.sse.SendTyped(eventType, enriched) {
-		return false
+	sessionID := strings.TrimSpace(b.sessionID)
+	if sessionID == "" && b.sse != nil {
+		sessionID = strings.TrimSpace(b.sse.sessionID)
 	}
+	enriched := enrichPayloadWithSessionID(payload, sessionID)
 	msg, err := encodeTypedSSEEvent(eventType, enriched)
 	if err != nil {
-		return false
+		return false, "pending"
+	}
+	sseDelivered := b.sse != nil && b.sse.SendTyped(eventType, enriched)
+	if b.stream == nil {
+		return sseDelivered, "typed_session"
 	}
 	b.stream.mu.Lock()
 	if b.stream.closed {
 		b.stream.mu.Unlock()
-		return true
+		return sseDelivered, "typed_session"
 	}
-	fmt.Fprintf(b.stream.w, "data: %s\n\n", security.Scrub(msg))
+	_, writeErr := fmt.Fprintf(b.stream.w, "data: %s\n\n", security.Scrub(msg))
+	if writeErr != nil {
+		b.stream.closed = true
+		b.stream.mu.Unlock()
+		return sseDelivered, "typed_session"
+	}
 	if b.stream.canFlush {
 		b.stream.flusher.Flush()
 	}
 	b.stream.mu.Unlock()
-	return true
+	return true, "direct_stream"
 }
 
 func (b *desktopStreamCombinedBroker) SendLLMStreamDelta(content, toolName, toolID string, index int, finishReason string) {

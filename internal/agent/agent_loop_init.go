@@ -148,9 +148,6 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 	operationalIssueNotice := prepareOperationalIssueNotice(runCfg, initialUserMsg, logger)
 	operationalIssueReminder := operationalIssueNotice.PromptContext
 	currentRoute := currentToolRoute{}
-	if shouldUseSupervisorToolRoute(runCfg) {
-		currentRoute = deriveCurrentToolRoute(req.Messages, initialUserMsg)
-	}
 
 	toolingPolicy := buildToolingPolicy(cfg, initialUserMsg)
 	suppressCoAgentTools := shouldSuppressCoAgentTools(runCfg)
@@ -186,9 +183,6 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 		SpecialistsStatus:     buildSpecialistsStatus(cfg),
 		SpecialistsSuggestion: buildSpecialistDelegationHint(cfg, initialUserMsg),
 	})
-	if currentRoute.valid() {
-		flags.CurrentToolRoute = currentRoute.Text
-	}
 	if !shouldInjectComposioContext(initialUserMsg, flags.ComposioServicesContext) {
 		flags.ComposioServicesContext = ""
 	}
@@ -296,9 +290,6 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 	ragLastUserMsg := ""
 	ragToolIterationsSinceLastRefresh := 0
 	pendingTCs := make([]ToolCall, 0) // Queued tool calls from multi-tool responses (processed without a new LLM call)
-	if currentRoute.valid() {
-		pendingTCs = append(pendingTCs, currentRoute.toolCall())
-	}
 	pendingSummaryBatch := map[string]string(nil)
 	usedMemoryDocIDs := make(map[string]int)
 	turnToolNames := make([]string, 0, 8)
@@ -376,6 +367,20 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 	}
 	enabledNativeTools := toolSchemaNames(allSchemas)
 	flags.EnabledNativeTools = enabledNativeTools
+	if shouldUseSupervisorToolRoute(runCfg) {
+		enabledRouteTools := make(map[string]bool, len(enabledNativeTools))
+		for _, toolName := range enabledNativeTools {
+			enabledRouteTools[strings.ToLower(strings.TrimSpace(toolName))] = true
+		}
+		currentRoute = deriveCurrentToolRoute(req.Messages, initialUserMsg, currentToolRouteContext{
+			RunConfig:    runCfg,
+			EnabledTools: enabledRouteTools,
+		})
+		if currentRoute.valid() {
+			flags.CurrentToolRoute = currentRoute.Text
+			pendingTCs = append(pendingTCs, currentRoute.toolCall())
+		}
+	}
 
 	if useNativeFunctions {
 		ntSchemas := make([]openai.Tool, len(allSchemas))

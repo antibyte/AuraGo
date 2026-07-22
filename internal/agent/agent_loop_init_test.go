@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"aurago/internal/config"
-	"aurago/internal/prompts"
 
 	openai "github.com/sashabaranov/go-openai"
 )
@@ -122,56 +121,5 @@ func TestInitAgentLoopStateSuppressesWriterCoAgentToolSchemas(t *testing.T) {
 	}
 	if len(state.flags.EnabledNativeTools) != 0 {
 		t.Fatalf("writer co-agent enabled tools = %v, want none", state.flags.EnabledNativeTools)
-	}
-}
-
-func TestRefreshActivatedNativeToolSchemasAddsActivatedToolForNextRequest(t *testing.T) {
-	t.Cleanup(func() {
-		discoverToolsState.mu.Lock()
-		discoverToolsState.snapshots = nil
-		discoverToolsState.requested = nil
-		discoverToolsState.activated = nil
-		discoverToolsState.mu.Unlock()
-	})
-
-	allSchemas := []openai.Tool{
-		makeTool("discover_tools"),
-		makeTool("activate_tools"),
-		makeTool("chromecast"),
-	}
-	snapshot := newNativeToolSchemaSnapshot(allSchemas)
-	active := []openai.Tool{allSchemas[0], allSchemas[1]}
-	SetDiscoverToolsState("sess-refresh-activate", allSchemas, active, "")
-	MarkActivatedTool("sess-refresh-activate", "chromecast")
-
-	state := &agentLoopState{
-		runCfg: RunConfig{
-			Config:    &config.Config{},
-			Logger:    slog.New(slog.NewTextHandler(io.Discard, nil)),
-			SessionID: "sess-refresh-activate",
-		},
-		req: openai.ChatCompletionRequest{
-			Tools: active,
-		},
-		flags: prompts.ContextFlags{
-			ActiveNativeTools: toolSchemaNames(active),
-		},
-		toolingPolicy:        ToolingPolicy{EffectiveMaxTotalTools: 2},
-		useNativeFunctions:   true,
-		nativeSchemaSnapshot: snapshot,
-	}
-
-	if !refreshActivatedNativeToolSchemas(state) {
-		t.Fatal("expected refresh to consume activation")
-	}
-	names := toolSchemaNames(state.req.Tools)
-	if !containsName(names, "chromecast") {
-		t.Fatalf("refreshed tools = %v, want chromecast", names)
-	}
-	if !containsName(names, "discover_tools") || !containsName(names, "activate_tools") {
-		t.Fatalf("hard tools should remain present, got %v", names)
-	}
-	if got := ConsumeActivatedTools("sess-refresh-activate"); len(got) != 0 {
-		t.Fatalf("activation queue should be consumed, got %v", got)
 	}
 }

@@ -3,7 +3,7 @@
   "help.agent.adaptive_tools.always_include": "Værktøjsnavne der forbliver synlige, når adaptiv filtrering er aktiv. Standard: filesystem, query_memory, manage_memory, execute_shell.",
   "help.agent.adaptive_tools.clean_transitions_after_days": "Fjerner forældet værktøjsovergangsdata efter X dage.",
   "help.agent.adaptive_tools.decay_half_life_days": "Beskrivelse: Halveringstid for brugsscore i dage. Ældre brugsdata mister indflydelse. Højere værdier = langsommere glemsel.",
-  "help.agent.adaptive_tools.enabled": "Holder sandsynligt nyttige native værktøjer synlige og placerer resten bag discover_tools/activate_tools. Sparer prompt-tokens; standard: til.",
+  "help.agent.adaptive_tools.enabled": "Holder sandsynligt nyttige native værktøjer synlige og gør resten tilgængeligt via discover_tools/invoke_tool. Sparer prompt-tokens; standard: til.",
   "help.agent.adaptive_tools.max_tools": "Maksimalt antal adaptive/foretrukne værktøjsskemaer før påkrævede og always-include værktøjer tilføjes. Standard: 10.",
   "help.agent.adaptive_tools.weight_success_rate": "Foretrækker værktøjer med højere succesrater i adaptiv udvælgelse.",
   "help.agent.additional_prompt": "Beskrivelse: Arbitrary text that is always appended at the end of the system prompt. Ideal for user-specific rules, context info, or fixed instructions that should apply to every request.",

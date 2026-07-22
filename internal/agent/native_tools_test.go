@@ -1835,6 +1835,22 @@ func TestBuildNativeToolSchemasReturnsGloballySortedTools(t *testing.T) {
 	}
 }
 
+func TestActivateToolsIsNotAdvertisedInSchemaOrCatalog(t *testing.T) {
+	schemas := BuildNativeToolSchemas(t.TempDir(), nil, allBuiltinToolFeatureFlags(), nil)
+	if containsName(toolSchemaNames(schemas), "activate_tools") {
+		t.Fatal("activate_tools must not be present in the native schema")
+	}
+	catalog := BuildToolCatalog(schemas, schemas, t.TempDir())
+	if _, ok := catalog.Get("activate_tools"); ok {
+		t.Fatal("activate_tools must not be present in the model-visible tool catalog")
+	}
+	for _, entry := range toolCategoryDef["system"] {
+		if entry.Name == "activate_tools" {
+			t.Fatal("activate_tools must not be present in tool categories")
+		}
+	}
+}
+
 func TestSelectedNativeToolDescriptionsStayCompact(t *testing.T) {
 	schemas := BuildNativeToolSchemas(t.TempDir(), nil, allBuiltinToolFeatureFlags(), nil)
 	descriptions := make(map[string]string, len(schemas))

@@ -268,9 +268,11 @@ func MarkOperationalIssuesNotified(db *sql.DB, refs []OperationalIssueNoticeRef,
 		}
 		if _, err := tx.Exec(`
 			UPDATE operational_issues
-			SET notified_revision=?, last_notified_at=?, updated_at=CASE WHEN updated_at='' THEN ? ELSE updated_at END
-			WHERE fingerprint=? AND revision=? AND notified_revision < ?`,
-			ref.Revision, now, now, ref.Fingerprint, ref.Revision, ref.Revision); err != nil {
+			SET notified_revision=CASE WHEN notified_revision < ? THEN ? ELSE notified_revision END,
+				last_notified_at=?,
+				updated_at=CASE WHEN updated_at='' THEN ? ELSE updated_at END
+			WHERE fingerprint=? AND revision=?`,
+			ref.Revision, ref.Revision, now, now, ref.Fingerprint, ref.Revision); err != nil {
 			return fmt.Errorf("mark operational issue notified: %w", err)
 		}
 	}

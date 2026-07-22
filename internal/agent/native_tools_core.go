@@ -329,17 +329,6 @@ func buildCoreToolSchemas(ff ToolFeatureFlags, execSkillProps map[string]interfa
 				"tool_name": prop("string", "Tool name to get full info for (for get_tool_info)"),
 			}, "operation"),
 		),
-		tool("activate_tools",
-			"Activate tools only when discover_tools explicitly returns call_method=activate_tools; otherwise follow the returned call_method.",
-			schema(map[string]interface{}{
-				"names": map[string]interface{}{
-					"type":        "array",
-					"description": "Tool names for which discover_tools explicitly returned call_method=activate_tools; maximum 8 per call.",
-					"items":       map[string]interface{}{"type": "string"},
-				},
-				"reason": prop("string", "Optional reason for activating these tools."),
-			}, "names"),
-		),
 		tool("invoke_tool",
 			"Invoke an enabled native tool through its native handler when discover_tools returns call_method=invoke_tool or a direct call is unavailable.",
 			schema(map[string]interface{}{

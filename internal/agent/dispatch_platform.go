@@ -708,9 +708,6 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					}
 					budgetTracker.RecordForCategory("vision", model, promptTokens, completionTokens)
 				}
-				if normalized, handled := tools.NormalizeVisionAnalysis(prompt, analysis); handled {
-					analysis = normalized
-				}
 				return encode(map[string]interface{}{
 					"status": "ok", "stream_id": streamID, "snapshot": result.WebPath,
 					"analysis": analysis, "prompt": prompt,

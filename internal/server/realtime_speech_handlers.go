@@ -739,11 +739,17 @@ func newRealtimeSpeechActionResponseBroker(w http.ResponseWriter, sessionID stri
 	}, nil
 }
 
-func (b *realtimeSpeechActionResponseBroker) writeJSON(payload string) {
+func (b *realtimeSpeechActionResponseBroker) writeJSON(payload string) bool {
+	if b == nil || b.w == nil {
+		return false
+	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	_, _ = fmt.Fprintf(b.w, "data: %s\n\n", security.Scrub(payload))
+	if _, err := fmt.Fprintf(b.w, "data: %s\n\n", security.Scrub(payload)); err != nil {
+		return false
+	}
 	b.flusher.Flush()
+	return true
 }
 
 func (b *realtimeSpeechActionResponseBroker) Send(event, message string) {
@@ -760,16 +766,20 @@ func (b *realtimeSpeechActionResponseBroker) SendJSON(jsonStr string) {
 }
 
 func (b *realtimeSpeechActionResponseBroker) SendTyped(eventType string, payload interface{}) bool {
+	delivered, _ := b.SendTypedWithTransport(eventType, payload)
+	return delivered
+}
+
+func (b *realtimeSpeechActionResponseBroker) SendTypedWithTransport(eventType string, payload interface{}) (bool, string) {
 	if strings.TrimSpace(eventType) == "" {
-		return false
+		return false, "pending"
 	}
 	enriched := enrichPayloadWithSessionID(payload, b.sessionID)
 	message, err := encodeTypedSSEEvent(eventType, enriched)
 	if err != nil {
-		return false
+		return false, "pending"
 	}
-	b.writeJSON(message)
-	return true
+	return b.writeJSON(message), "direct_stream"
 }
 
 func (b *realtimeSpeechActionResponseBroker) SendLLMStreamDelta(content, toolName, toolID string, index int, finishReason string) {

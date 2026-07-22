@@ -27,7 +27,6 @@ type ToolRegistryMetadata struct {
 
 var builtinToolMetadata = map[string]ToolRegistryMetadata{
 	"discover_tools":         {Name: "discover_tools", Family: "tooling", VisibilityClass: ToolVisibilityHardAlways, Dispatcher: "agent"},
-	"activate_tools":         {Name: "activate_tools", Family: "tooling", VisibilityClass: ToolVisibilityHardAlways, Dispatcher: "agent"},
 	"invoke_tool":            {Name: "invoke_tool", Family: "tooling", VisibilityClass: ToolVisibilityHardAlways, Dispatcher: "agent"},
 	"execute_skill":          {Name: "execute_skill", Family: "skills", VisibilityClass: ToolVisibilityHardAlways, Dispatcher: "exec", RequiresWrite: true},
 	"list_agent_skills":      {Name: "list_agent_skills", Family: "agent_skills", VisibilityClass: ToolVisibilityAdaptive, Dispatcher: "exec"},

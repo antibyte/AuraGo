@@ -3,7 +3,7 @@
   "help.agent.adaptive_tools.always_include": "Tool names that stay visible whenever adaptive filtering is active. Default: filesystem, query_memory, manage_memory, execute_shell.",
   "help.agent.adaptive_tools.clean_transitions_after_days": "Removes stale tool transition data after X days.",
   "help.agent.adaptive_tools.decay_half_life_days": "Half-life for usage scoring in days. Older usage data loses influence. Higher values = slower forgetting.",
-  "help.agent.adaptive_tools.enabled": "Keeps likely useful native tools visible and leaves the rest behind discover_tools/activate_tools. Reduces prompt tokens; default: on.",
+  "help.agent.adaptive_tools.enabled": "Keeps likely useful native tools visible and makes the rest available through discover_tools/invoke_tool. Reduces prompt tokens; default: on.",
   "help.agent.adaptive_tools.max_tools": "Maximum adaptive/preferred tool schemas before required and always-included tools are added. Default: 10.",
   "help.agent.adaptive_tools.weight_success_rate": "Prefers tools with higher success rates in adaptive selection.",
   "help.agent.additional_prompt": "Arbitrary text that is always appended at the end of the system prompt. Ideal for user-specific rules, context info, or fixed instructions that should apply to every request.",

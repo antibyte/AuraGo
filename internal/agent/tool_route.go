@@ -3,7 +3,15 @@ package agent
 import (
 	"encoding/json"
 	"fmt"
+	"math"
+	"net/http"
+	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
+	"unicode"
+
+	"aurago/internal/tools"
 
 	"github.com/sashabaranov/go-openai"
 )
@@ -11,10 +19,21 @@ import (
 type trustedArtifactContext struct {
 	MediaType       string
 	StreamID        string
-	RegisteredPath  string
+	LocalPath       string
+	WebPath         string
+	MediaID         int64
 	SourceTool      string
 	SourceOperation string
 	SourcePrompt    string
+}
+
+type currentToolRouteContext struct {
+	RunConfig    RunConfig
+	EnabledTools map[string]bool
+}
+
+func (ctx currentToolRouteContext) toolEnabled(name string) bool {
+	return ctx.EnabledTools[strings.ToLower(strings.TrimSpace(name))]
 }
 
 type currentToolRoute struct {
@@ -90,49 +109,60 @@ func (route currentToolRoute) matches(call ToolCall) bool {
 		(route.Operation == "" || strings.EqualFold(route.Operation, firstNonEmptyToolString(call.Operation, toolArgString(call.Params, "operation"))))
 }
 
-func deriveCurrentToolRoute(messages []openai.ChatCompletionMessage, userMessage string) currentToolRoute {
-	artifact, ok := deriveTrustedArtifactContext(messages)
+func deriveCurrentToolRoute(messages []openai.ChatCompletionMessage, userMessage string, ctx currentToolRouteContext) currentToolRoute {
+	turnStart, turnEnd := previousHumanTurnBounds(messages)
 	prompt := strings.TrimSpace(userMessage)
 	explicitRetry := isExplicitRetryRequest(prompt)
-	if ok && artifactFollowUpIntent(userMessage) && explicitRetry && strings.TrimSpace(artifact.SourcePrompt) != "" {
+	if explicitRetry {
+		if route := deriveTrustedSafeRetryRoute(messages, turnStart, turnEnd, ctx); route.valid() {
+			return route
+		}
+	}
+	artifact, ok := deriveTrustedArtifactContext(messages, turnStart, turnEnd)
+	if ok && artifactFollowUpIntent(userMessage) && isPureRetryRequest(userMessage) && strings.TrimSpace(artifact.SourcePrompt) != "" {
 		prompt = strings.TrimSpace(artifact.SourcePrompt)
 	}
-	if ok && artifactFollowUpIntent(userMessage) && artifact.SourceTool == "go2rtc" && artifact.StreamID != "" {
+	if ok && artifactFollowUpIntent(userMessage) && artifact.SourceTool == "go2rtc" && artifact.StreamID != "" && ctx.toolEnabled("go2rtc") {
 		return currentToolRoute{
 			ToolName: "go2rtc", Operation: "analyze_snapshot", StreamID: artifact.StreamID, Prompt: prompt, ExplicitRetry: explicitRetry,
 			Text: fmt.Sprintf("Call go2rtc exactly once with operation=analyze_snapshot and stream_id=%q. Use the user's question as the vision prompt. Never search internal /files/ URLs with filesystem, shell, Python, or credential lookup. Do not call analyze_image for this camera artifact.", artifact.StreamID),
 		}
 	}
-	if ok && artifactFollowUpIntent(userMessage) && artifact.RegisteredPath != "" {
-		return currentToolRoute{
-			ToolName: "analyze_image", Path: artifact.RegisteredPath, Prompt: prompt, ExplicitRetry: explicitRetry,
-			Text: fmt.Sprintf("Call analyze_image exactly once for the existing general image artifact at %q. Do not search for the path with filesystem, shell, Python, or credential lookup.", artifact.RegisteredPath),
+	if ok && artifactFollowUpIntent(userMessage) && ctx.toolEnabled("analyze_image") {
+		localPath, resolved := resolveRegisteredImageArtifact(ctx.RunConfig, artifact)
+		if !resolved {
+			return currentToolRoute{}
 		}
-	}
-	if explicitRetry {
-		return deriveTrustedSafeRetryRoute(messages)
+		return currentToolRoute{
+			ToolName: "analyze_image", Path: localPath, Prompt: prompt, ExplicitRetry: explicitRetry,
+			Text: fmt.Sprintf("Call analyze_image exactly once for the existing registered general image artifact at %q. Do not search for the path with filesystem, shell, Python, or credential lookup.", localPath),
+		}
 	}
 	return currentToolRoute{}
 }
 
-func deriveTrustedSafeRetryRoute(messages []openai.ChatCompletionMessage) currentToolRoute {
-	for resultIndex := len(messages) - 1; resultIndex >= 0; resultIndex-- {
+func deriveTrustedSafeRetryRoute(messages []openai.ChatCompletionMessage, turnStart, turnEnd int, ctx currentToolRouteContext) currentToolRoute {
+	for resultIndex := turnEnd - 1; resultIndex >= turnStart; resultIndex-- {
 		result := messages[resultIndex]
 		native := result.Role == openai.ChatMessageRoleTool
 		textMode := result.Role == openai.ChatMessageRoleUser && strings.HasPrefix(strings.TrimSpace(result.Content), "Tool Output:")
 		if !native && !textMode {
 			continue
 		}
-		if !isToolError(result.Content) || strings.Contains(strings.ToLower(result.Content), "[tool blocked]") || strings.Contains(strings.ToLower(result.Content), "guardian") {
+		if !isToolError(result.Content) {
 			continue
 		}
-		producer, args, ok := trustedArtifactProducer(messages, resultIndex, result.ToolCallID, native)
+		lowerResult := strings.ToLower(result.Content)
+		if strings.Contains(lowerResult, "[tool blocked]") || strings.Contains(lowerResult, "guardian") {
+			return currentToolRoute{}
+		}
+		producer, args, ok := trustedArtifactProducer(messages, turnStart, resultIndex, result.ToolCallID, native)
 		if !ok {
-			continue
+			return currentToolRoute{}
 		}
 		args = cloneSafeRetryParameters(args)
 		operation := strings.ToLower(strings.TrimSpace(stringValueFromMap(args, "operation", "action_type")))
-		if !safeExplicitRetryTool(producer, operation) {
+		if !safeExplicitRetryTool(producer, operation) || !ctx.toolEnabled(producer) {
 			return currentToolRoute{}
 		}
 		return currentToolRoute{
@@ -240,20 +270,47 @@ func cloneSafeRetryValue(value interface{}) (interface{}, bool) {
 	}
 }
 
-func deriveTrustedArtifactContext(messages []openai.ChatCompletionMessage) (trustedArtifactContext, bool) {
-	for resultIndex := len(messages) - 1; resultIndex >= 0; resultIndex-- {
+func previousHumanTurnBounds(messages []openai.ChatCompletionMessage) (int, int) {
+	turnEnd := len(messages)
+	for index := len(messages) - 1; index >= 0; index-- {
+		if isHumanUserMessage(messages[index]) {
+			turnEnd = index
+			break
+		}
+	}
+	turnStart := 0
+	for index := turnEnd - 1; index >= 0; index-- {
+		if isHumanUserMessage(messages[index]) {
+			turnStart = index + 1
+			break
+		}
+	}
+	return turnStart, turnEnd
+}
+
+func isHumanUserMessage(message openai.ChatCompletionMessage) bool {
+	return message.Role == openai.ChatMessageRoleUser && !strings.HasPrefix(strings.TrimSpace(message.Content), "Tool Output:")
+}
+
+func deriveTrustedArtifactContext(messages []openai.ChatCompletionMessage, turnStart, turnEnd int) (trustedArtifactContext, bool) {
+	for resultIndex := turnEnd - 1; resultIndex >= turnStart; resultIndex-- {
 		result := messages[resultIndex]
 		isToolResult := result.Role == openai.ChatMessageRoleTool
 		isTextToolResult := result.Role == openai.ChatMessageRoleUser && strings.HasPrefix(strings.TrimSpace(result.Content), "Tool Output:")
 		if !isToolResult && !isTextToolResult {
 			continue
 		}
-		producer, args, ok := trustedArtifactProducer(messages, resultIndex, result.ToolCallID, isToolResult)
+		producer, args, ok := trustedArtifactProducer(messages, turnStart, resultIndex, result.ToolCallID, isToolResult)
 		if !ok {
 			continue
 		}
+		producer = strings.ToLower(strings.TrimSpace(producer))
 		payload := toolResultJSON(result.Content)
-		if payload == nil {
+		successful := payload != nil && successfulToolResultPayload(payload)
+		if producer == "analyze_image" && !isToolError(result.Content) {
+			successful = true
+		}
+		if !successful {
 			continue
 		}
 		artifact := trustedArtifactContext{
@@ -261,40 +318,64 @@ func deriveTrustedArtifactContext(messages []openai.ChatCompletionMessage) (trus
 			SourceOperation: stringValueFromMap(args, "operation"),
 			SourcePrompt:    stringValueFromMap(args, "prompt"),
 		}
+		if producer == "analyze_image" {
+			artifact.MediaType = "image"
+			artifact.LocalPath = stringValueFromMap(args, "file_path", "path")
+			assignArtifactPath(&artifact, stringValueFromMap(args, "image_path", "image_url"))
+		}
 		if nested := mapValueFromMap(payload, "artifact"); nested != nil {
+			if source := strings.TrimSpace(stringValueFromMap(nested, "source_tool")); source != "" && !strings.EqualFold(source, producer) {
+				continue
+			}
 			artifact.MediaType = stringValueFromMap(nested, "media_type", "type")
 			artifact.StreamID = stringValueFromMap(nested, "stream_id")
-			artifact.RegisteredPath = stringValueFromMap(nested, "registered_path", "web_path", "path")
-			if source := stringValueFromMap(nested, "source_tool"); source != "" {
-				artifact.SourceTool = source
-			}
+			artifact.LocalPath = stringValueFromMap(nested, "local_path", "file_path")
+			artifact.WebPath = stringValueFromMap(nested, "web_path")
+			artifact.MediaID = int64ValueFromMap(nested, "media_id")
+			assignArtifactPath(&artifact, stringValueFromMap(nested, "registered_path", "path"))
+		}
+		if source := strings.TrimSpace(stringValueFromMap(payload, "source_tool")); source != "" && !strings.EqualFold(source, producer) {
+			continue
 		}
 		if artifact.StreamID == "" {
 			artifact.StreamID = firstNonEmptyToolString(stringValueFromMap(payload, "stream_id"), stringValueFromMap(args, "stream_id"))
 		}
-		if artifact.RegisteredPath == "" {
-			artifact.RegisteredPath = stringValueFromMap(payload, "image_path", "web_path", "registered_path")
+		if artifact.LocalPath == "" {
+			artifact.LocalPath = stringValueFromMap(payload, "local_path", "file_path")
 		}
-		if artifact.RegisteredPath == "" {
-			if snapshot := mapValueFromMap(payload, "snapshot"); snapshot != nil {
-				artifact.RegisteredPath = stringValueFromMap(snapshot, "web_path")
-				if artifact.StreamID == "" {
-					artifact.StreamID = stringValueFromMap(snapshot, "stream_id")
-				}
+		if artifact.WebPath == "" {
+			artifact.WebPath = stringValueFromMap(payload, "web_path")
+		}
+		if artifact.MediaID == 0 {
+			artifact.MediaID = int64ValueFromMap(payload, "media_id")
+		}
+		assignArtifactPath(&artifact, stringValueFromMap(payload, "image_path", "registered_path"))
+		if snapshot := mapValueFromMap(payload, "snapshot"); snapshot != nil {
+			if artifact.WebPath == "" {
+				artifact.WebPath = stringValueFromMap(snapshot, "web_path")
+			}
+			if artifact.MediaID == 0 {
+				artifact.MediaID = int64ValueFromMap(snapshot, "media_id")
+			}
+			if artifact.StreamID == "" {
+				artifact.StreamID = stringValueFromMap(snapshot, "stream_id")
 			}
 		}
-		if artifact.MediaType == "" && artifact.RegisteredPath != "" {
+		if artifact.MediaType == "" && (artifact.LocalPath != "" || artifact.WebPath != "" || artifact.MediaID > 0) {
 			artifact.MediaType = "image"
 		}
-		if artifact.MediaType == "image" && (artifact.RegisteredPath != "" || artifact.StreamID != "") {
+		if strings.EqualFold(artifact.MediaType, "image") && (artifact.LocalPath != "" || artifact.WebPath != "" || artifact.MediaID > 0 || artifact.StreamID != "") {
 			return artifact, true
 		}
 	}
 	return trustedArtifactContext{}, false
 }
 
-func trustedArtifactProducer(messages []openai.ChatCompletionMessage, resultIndex int, callID string, native bool) (string, map[string]interface{}, bool) {
-	for index := resultIndex - 1; index >= 0; index-- {
+func trustedArtifactProducer(messages []openai.ChatCompletionMessage, turnStart, resultIndex int, callID string, native bool) (string, map[string]interface{}, bool) {
+	if native && strings.TrimSpace(callID) == "" {
+		return "", nil, false
+	}
+	for index := resultIndex - 1; index >= turnStart; index-- {
 		message := messages[index]
 		if message.Role != openai.ChatMessageRoleAssistant {
 			if native {
@@ -339,23 +420,210 @@ func toolResultJSON(content string) map[string]interface{} {
 	return payload
 }
 
+func successfulToolResultPayload(payload map[string]interface{}) bool {
+	status := strings.ToLower(strings.TrimSpace(stringValueFromMap(payload, "status")))
+	return stringInSet(status, "ok", "success", "succeeded", "completed")
+}
+
+func assignArtifactPath(artifact *trustedArtifactContext, value string) {
+	if artifact == nil {
+		return
+	}
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return
+	}
+	lower := strings.ToLower(value)
+	if strings.HasPrefix(value, "/files/") || strings.HasPrefix(lower, "http://") || strings.HasPrefix(lower, "https://") {
+		if artifact.WebPath == "" {
+			artifact.WebPath = value
+		}
+		return
+	}
+	if artifact.LocalPath == "" {
+		artifact.LocalPath = value
+	}
+}
+
+func int64ValueFromMap(values map[string]interface{}, key string) int64 {
+	if values == nil {
+		return 0
+	}
+	value, ok := values[key]
+	if !ok {
+		return 0
+	}
+	switch typed := value.(type) {
+	case int:
+		if typed > 0 {
+			return int64(typed)
+		}
+	case int64:
+		if typed > 0 {
+			return typed
+		}
+	case json.Number:
+		parsed, err := typed.Int64()
+		if err == nil && parsed > 0 {
+			return parsed
+		}
+	case float64:
+		if typed > 0 && typed <= math.MaxInt64 && math.Trunc(typed) == typed {
+			return int64(typed)
+		}
+	}
+	return 0
+}
+
+func resolveRegisteredImageArtifact(runCfg RunConfig, artifact trustedArtifactContext) (string, bool) {
+	if runCfg.Config == nil || runCfg.MediaRegistryDB == nil {
+		return "", false
+	}
+
+	var (
+		item *tools.MediaItem
+		err  error
+	)
+	switch {
+	case artifact.MediaID > 0:
+		item, err = tools.GetMedia(runCfg.MediaRegistryDB, artifact.MediaID)
+	case strings.TrimSpace(artifact.LocalPath) != "":
+		item, err = tools.GetMediaByFilePath(runCfg.MediaRegistryDB, strings.TrimSpace(artifact.LocalPath))
+		if err != nil {
+			localPath, resolveErr := tools.ResolveRegisteredMediaFilePath(artifact.LocalPath, runCfg.Config)
+			if resolveErr != nil {
+				return "", false
+			}
+			item, err = tools.GetMediaByFilePath(runCfg.MediaRegistryDB, localPath)
+		}
+	case strings.HasPrefix(strings.TrimSpace(artifact.WebPath), "/files/"):
+		item, err = tools.GetMediaByWebPath(runCfg.MediaRegistryDB, strings.TrimSpace(artifact.WebPath))
+	default:
+		return "", false
+	}
+	if err != nil || item == nil || !strings.EqualFold(strings.TrimSpace(item.MediaType), "image") {
+		return "", false
+	}
+	if artifact.MediaID > 0 && item.ID != artifact.MediaID {
+		return "", false
+	}
+	if webPath := strings.TrimSpace(artifact.WebPath); webPath != "" && webPath != strings.TrimSpace(item.WebPath) {
+		return "", false
+	}
+
+	registeredPath, err := tools.ResolveRegisteredMediaFilePath(item.FilePath, runCfg.Config)
+	if err != nil {
+		return "", false
+	}
+	if localPath := strings.TrimSpace(artifact.LocalPath); localPath != "" {
+		resolvedLocal, resolveErr := tools.ResolveRegisteredMediaFilePath(localPath, runCfg.Config)
+		if resolveErr != nil || !sameCanonicalPath(resolvedLocal, registeredPath) {
+			return "", false
+		}
+	}
+	info, err := os.Stat(registeredPath)
+	if err != nil || !info.Mode().IsRegular() {
+		return "", false
+	}
+	file, err := os.Open(registeredPath)
+	if err != nil {
+		return "", false
+	}
+	defer file.Close()
+	probe := make([]byte, 512)
+	n, err := file.Read(probe)
+	if err != nil && n == 0 {
+		return "", false
+	}
+	switch strings.ToLower(strings.TrimSpace(http.DetectContentType(probe[:n]))) {
+	case "image/jpeg", "image/png", "image/gif", "image/webp", "image/bmp":
+		return registeredPath, true
+	default:
+		return "", false
+	}
+}
+
+func sameCanonicalPath(left, right string) bool {
+	left = filepath.Clean(left)
+	right = filepath.Clean(right)
+	if runtime.GOOS == "windows" {
+		return strings.EqualFold(left, right)
+	}
+	return left == right
+}
+
 func artifactFollowUpIntent(message string) bool {
 	lower := strings.ToLower(strings.TrimSpace(message))
 	if lower == "" {
 		return false
 	}
+	for _, phrase := range []string{
+		"ignoriere das bild", "bild ignorieren", "ignoriere das foto", "foto ignorieren", "keine bildanalyse", "ohne bildanalyse",
+		"ignore the image", "ignore the photo", "do not analyze the image", "don't analyze the image", "skip image analysis",
+	} {
+		if containsNormalizedRoutePhrase(lower, phrase) {
+			return false
+		}
+	}
 	if isExplicitRetryRequest(lower) {
 		return true
 	}
-	for _, marker := range []string{
-		"wie viele", "how many", "count", "zähl", "pkw", "auto", "fahrzeug", "vehicle",
-		"kamera", "camera", "snapshot", "bild", "image", "siehst", "erkennst", "analy",
-	} {
-		if strings.Contains(lower, marker) {
+	for _, phrase := range []string{"wie viele", "how many"} {
+		if containsNormalizedRoutePhrase(lower, phrase) {
+			return true
+		}
+	}
+	for _, token := range normalizedRouteTokens(lower) {
+		if stringInSet(token,
+			"count", "counts", "zähl", "zähle", "zählen", "pkw", "pkws", "auto", "autos",
+			"fahrzeug", "fahrzeuge", "vehicle", "vehicles", "kamera", "kameras", "camera", "cameras",
+			"snapshot", "snapshots", "bild", "bilder", "image", "images", "foto", "fotos", "photo", "photos",
+			"siehst", "sehen", "erkennst", "erkennen", "analysiere", "analysieren", "analyze", "analyse") {
 			return true
 		}
 	}
 	return false
+}
+
+func normalizedRouteTokens(message string) []string {
+	return strings.FieldsFunc(strings.ToLower(message), func(r rune) bool {
+		return !unicode.IsLetter(r) && !unicode.IsDigit(r)
+	})
+}
+
+func containsNormalizedRoutePhrase(message, phrase string) bool {
+	messageTokens := normalizedRouteTokens(message)
+	phraseTokens := normalizedRouteTokens(phrase)
+	if len(phraseTokens) == 0 || len(phraseTokens) > len(messageTokens) {
+		return false
+	}
+	for start := 0; start+len(phraseTokens) <= len(messageTokens); start++ {
+		matched := true
+		for offset := range phraseTokens {
+			if messageTokens[start+offset] != phraseTokens[offset] {
+				matched = false
+				break
+			}
+		}
+		if matched {
+			return true
+		}
+	}
+	return false
+}
+
+func isPureRetryRequest(message string) bool {
+	if !isExplicitRetryRequest(message) {
+		return false
+	}
+	for _, token := range normalizedRouteTokens(message) {
+		if !stringInSet(token,
+			"bitte", "please", "es", "it", "das", "that", "jetzt", "now", "noch", "einmal", "again",
+			"erneut", "retry", "try", "wieder", "wiederhole", "wiederholen", "versuch", "versuche", "probier", "nochmal") {
+			return false
+		}
+	}
+	return true
 }
 
 func isExplicitRetryRequest(message string) bool {
@@ -363,8 +631,11 @@ func isExplicitRetryRequest(message string) bool {
 	if lower == "" {
 		return false
 	}
-	for _, marker := range []string{"versuche es erneut", "noch einmal", "nochmal", "retry", "try again", "wiederhole"} {
-		if strings.Contains(lower, marker) {
+	for _, marker := range []string{
+		"versuche es erneut", "versuch es erneut", "probier es erneut", "noch einmal", "nochmal",
+		"retry", "try again", "wiederhole",
+	} {
+		if containsNormalizedRoutePhrase(lower, marker) {
 			return true
 		}
 	}

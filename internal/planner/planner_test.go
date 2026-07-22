@@ -639,6 +639,15 @@ func TestOperationalIssueNoticeLifecycle(t *testing.T) {
 	if notices, err := ListPendingOperationalIssueNotices(db, now.Add(25*time.Hour), 2); err != nil || len(notices) != 1 {
 		t.Fatalf("notices after daily repeat = %#v, err %v, want one", notices, err)
 	}
+	if err := MarkOperationalIssuesNotified(db, []OperationalIssueNoticeRef{{Fingerprint: fingerprint, Revision: 1}}, now.Add(25*time.Hour)); err != nil {
+		t.Fatalf("MarkOperationalIssuesNotified() daily repeat error = %v", err)
+	}
+	if notices, err := ListPendingOperationalIssueNotices(db, now.Add(47*time.Hour), 2); err != nil || len(notices) != 0 {
+		t.Fatalf("notices before second daily window = %#v, err %v, want none", notices, err)
+	}
+	if notices, err := ListPendingOperationalIssueNotices(db, now.Add(50*time.Hour), 2); err != nil || len(notices) != 1 {
+		t.Fatalf("notices after second daily window = %#v, err %v, want one", notices, err)
+	}
 
 	issue.Detail = "remote endpoint rejected authentication"
 	issue.OccurredAt = now.Add(26 * time.Hour)

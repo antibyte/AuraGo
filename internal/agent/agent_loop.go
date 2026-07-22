@@ -795,7 +795,6 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 		// Pending follow-ups use their own topic matcher. Generic retry phrases
 		// intentionally produce no match and cannot reactivate stale work.
-		shouldInjectRecentContext := shouldInjectRecentMemoryContext(lastUserMsg)
 		if !runCfg.IsMission && !isAutonomousRun && lastUserMsg != "" && shortTermMem != nil {
 			pendingActions, pErr := shortTermMem.GetPendingEpisodicActionsForQuery(lastUserMsg, 1)
 			if pErr == nil && len(pendingActions) > 0 {
@@ -839,7 +838,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 		if !runCfg.IsMission && !isAutonomousRun && shortTermMem != nil {
 			if overview, err := shortTermMem.BuildRecentActivityPromptOverview(3); err == nil {
-				if shouldInjectRecentContext || len(selectRelevantRecentMemoryLines(lastUserMsg, []string{overview}, 1)) > 0 {
+				if len(selectRelevantRecentMemoryLines(lastUserMsg, []string{overview}, 1)) > 0 {
 					flags.RecentActivityOverview = compactMemoryForPrompt(overview, aggressiveRecentOverviewChars)
 				}
 			}

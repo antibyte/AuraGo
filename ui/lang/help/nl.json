@@ -3,7 +3,7 @@
   "help.agent.adaptive_tools.always_include": "Toolnamen die zichtbaar blijven wanneer adaptief filteren actief is. Standaard: filesystem, query_memory, manage_memory, execute_shell.",
   "help.agent.adaptive_tools.clean_transitions_after_days": "Verwijdert verouderde tool-overgangsgegevens na X dagen.",
   "help.agent.adaptive_tools.decay_half_life_days": "Halfwaardetijd voor gebruiksscore in dagen. Oudere gebruiksgegevens verliezen invloed. Hogere waarden = langzamer vergeten.",
-  "help.agent.adaptive_tools.enabled": "Houdt waarschijnlijk nuttige native tools zichtbaar en zet de rest achter discover_tools/activate_tools. Vermindert prompttokens; standaard: aan.",
+  "help.agent.adaptive_tools.enabled": "Houdt waarschijnlijk nuttige native tools zichtbaar en maakt de rest beschikbaar via discover_tools/invoke_tool. Vermindert prompttokens; standaard: aan.",
   "help.agent.adaptive_tools.max_tools": "Maximum aantal adaptieve/voorkeurstoolschema's voordat verplichte en always-include tools worden toegevoegd. Standaard: 10.",
   "help.agent.adaptive_tools.weight_success_rate": "Voorkeur voor tools met hogere slagingspercentages bij adaptieve selectie.",
   "help.agent.additional_prompt": "Extra tekst toegevoegd aan systeemprompt.",

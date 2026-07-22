@@ -11,7 +11,6 @@ import (
 	"sort"
 	"strings"
 	"time"
-	"unicode"
 )
 
 // JournalEntry represents a single event in the agent's journal timeline.
@@ -919,17 +918,25 @@ func (s *SQLiteMemory) GetPendingEpisodicActionsForQuery(query string, limit int
 	if limit <= 0 {
 		limit = 3
 	}
-	queryTerms := pendingActionQueryTerms(query)
+	queryTerms := TopicTermSet(query)
 	if len(queryTerms) == 0 {
 		return nil, nil
 	}
-	rows, err := s.db.Query(`
+	terms := TopicTerms(query)
+	clauses := make([]string, 0, len(terms))
+	args := make([]interface{}, 0, len(terms)*3)
+	for _, term := range terms {
+		clauses = append(clauses, `(LOWER(trigger_query) LIKE ? ESCAPE '\' OR LOWER(title) LIKE ? ESCAPE '\' OR LOWER(summary) LIKE ? ESCAPE '\')`)
+		pattern := "%" + escapeSQLiteLike(term) + "%"
+		args = append(args, pattern, pattern, pattern)
+	}
+	querySQL := `
 		SELECT id, event_date, title, summary, details_json, importance, source, session_id, hierarchy_level, action_status, trigger_query, COALESCE(resolved_at, ''), participants_json, related_doc_ids, emotional_valence, created_at
 		FROM episodic_memories
-		WHERE action_status = 'pending'
+		WHERE action_status = 'pending' AND (` + strings.Join(clauses, " OR ") + `)
 		ORDER BY importance DESC, event_date DESC, created_at DESC
-		LIMIT ?
-	`, 50)
+	`
+	rows, err := s.db.Query(querySQL, args...)
 	if err != nil {
 		return nil, fmt.Errorf("query pending episodic actions: %w", err)
 	}
@@ -944,7 +951,7 @@ func (s *SQLiteMemory) GetPendingEpisodicActionsForQuery(query string, limit int
 		}
 		entry.Participants = s.decodeJournalStringSlice(participantsJSON, "episodic_memories.participants_json")
 		entry.RelatedDocIDs = s.decodeJournalStringSlice(relatedDocIDsJSON, "episodic_memories.related_doc_ids")
-		candidateTerms := pendingActionQueryTerms(strings.Join([]string{entry.TriggerQuery, entry.Title, entry.Summary}, " "))
+		candidateTerms := TopicTermSet(strings.Join([]string{entry.TriggerQuery, entry.Title, entry.Summary}, " "))
 		matched := false
 		for term := range queryTerms {
 			if _, ok := candidateTerms[term]; ok {
@@ -963,30 +970,8 @@ func (s *SQLiteMemory) GetPendingEpisodicActionsForQuery(query string, limit int
 	return entries, rows.Err()
 }
 
-func hasSpecificPendingActionQueryTerm(query string) bool {
-	return len(pendingActionQueryTerms(query)) > 0
-}
-
-func pendingActionQueryTerms(query string) map[string]struct{} {
-	stop := map[string]struct{}{
-		"again": {}, "bitte": {}, "erneut": {}, "nochmal": {}, "nochmals": {}, "please": {},
-		"retry": {}, "try": {}, "versuch": {}, "versuche": {}, "wieder": {}, "mach": {},
-		"machen": {}, "kannst": {}, "könntest": {}, "could": {}, "would": {}, "with": {},
-		"hallo": {}, "hello": {}, "servus": {}, "okay": {},
-	}
-	terms := make(map[string]struct{})
-	for _, field := range strings.FieldsFunc(strings.ToLower(strings.TrimSpace(query)), func(r rune) bool {
-		return !unicode.IsLetter(r) && !unicode.IsDigit(r)
-	}) {
-		if _, blocked := stop[field]; blocked {
-			continue
-		}
-		if len([]rune(field)) < 4 && field != "pkw" && field != "api" && field != "ssl" && field != "gpu" && field != "nas" {
-			continue
-		}
-		terms[field] = struct{}{}
-	}
-	return terms
+func escapeSQLiteLike(value string) string {
+	return strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(value)
 }
 
 // GetEpisodicMemoriesByHierarchyLevel returns non-pending episodic memories at the requested hierarchy level.

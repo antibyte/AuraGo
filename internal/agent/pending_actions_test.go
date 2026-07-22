@@ -88,3 +88,25 @@ func TestSelectRelevantRecentMemoryLinesRejectsUnrelatedRetry(t *testing.T) {
 		t.Fatalf("specific topic selection = %#v, want Tailscale candidate", got)
 	}
 }
+
+func TestSelectRelevantRecentMemoryLinesStatusRules(t *testing.T) {
+	candidates := []string{
+		"Newest unrelated deployment entry",
+		"Tailscale connection status was checked",
+		"Older storage maintenance entry",
+	}
+	if got := selectRelevantRecentMemoryLines("Status?", candidates, 2); len(got) != 2 || got[0] != candidates[0] || got[1] != candidates[1] {
+		t.Fatalf("general status selection = %#v", got)
+	}
+	if got := selectRelevantRecentMemoryLines("Tailscale Status", candidates, 3); len(got) != 1 || got[0] != candidates[1] {
+		t.Fatalf("topical status selection = %#v", got)
+	}
+	if got := selectRelevantRecentMemoryLines("Was ist mit Tailscale?", candidates, 3); len(got) != 1 || got[0] != candidates[1] {
+		t.Fatalf("topical factual selection = %#v", got)
+	}
+	for _, query := range []string{"versuche das Problem erneut", "Guten Morgen"} {
+		if got := selectRelevantRecentMemoryLines(query, candidates, 3); len(got) != 0 {
+			t.Fatalf("generic query %q selected memory: %#v", query, got)
+		}
+	}
+}

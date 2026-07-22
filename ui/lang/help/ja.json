@@ -3,7 +3,7 @@
   "help.agent.adaptive_tools.always_include": "適応フィルタリングが有効なときも表示され続けるツール名です。既定: filesystem, query_memory, manage_memory, execute_shell。",
   "help.agent.adaptive_tools.clean_transitions_after_days": "X日後に古いツール遷移データを削除します。",
   "help.agent.adaptive_tools.decay_half_life_days": "使用スコアリングの半減期（日数）。古い使用データは影響力を失います。高い値 = より遅い忘却。",
-  "help.agent.adaptive_tools.enabled": "有用そうなネイティブツールだけを表示し、残りは discover_tools/activate_tools 経由にします。プロンプトトークンを減らします。既定: オン。",
+  "help.agent.adaptive_tools.enabled": "有用と思われるネイティブツールを表示し、残りは discover_tools/invoke_tool 経由で利用できるようにします。プロンプトトークンを削減します。既定: オン。",
   "help.agent.adaptive_tools.max_tools": "必須ツールと always-include ツールを追加する前の適応/優先ツールスキーマの最大数です。既定値: 10。",
   "help.agent.adaptive_tools.weight_success_rate": "適応選択で成功率の高いツールを優先します。",
   "help.agent.additional_prompt": "システム プロンプトの最後に常に追加される任意のテキスト。すべてのリクエストに適用する必要があるユーザー固有のルール、コンテキスト情報、または固定命令に最適です。",

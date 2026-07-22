@@ -399,12 +399,11 @@ func TestConsumeDiscoverRequestedToolsIsOneShot(t *testing.T) {
 	}
 }
 
-func TestHandleActivateToolsEnforcesCatalogCallMethod(t *testing.T) {
+func TestHandleLegacyActivateToolsReportsRequiredCallMethodsWithoutMutation(t *testing.T) {
 	t.Cleanup(func() {
 		discoverToolsState.mu.Lock()
 		discoverToolsState.snapshots = nil
 		discoverToolsState.requested = nil
-		discoverToolsState.activated = nil
 		discoverToolsState.mu.Unlock()
 	})
 
@@ -444,7 +443,7 @@ func TestHandleActivateToolsEnforcesCatalogCallMethod(t *testing.T) {
 
 	var payload ActivateToolsResponse
 	decodeToolOutputJSON(t, out, &payload)
-	if payload.Status != "error" || !payload.NextRequest {
+	if payload.Status != "success" {
 		t.Fatalf("unexpected activate_tools response: %+v raw=%s", payload, out)
 	}
 	if payload.RequiredCallMethods["docker"] != "direct" {
@@ -463,17 +462,16 @@ func TestHandleActivateToolsEnforcesCatalogCallMethod(t *testing.T) {
 		t.Fatalf("unknown = %v, want no_such_tool", payload.Unknown)
 	}
 
-	if activated := ConsumeActivatedTools("sess-activate"); len(activated) != 0 {
-		t.Fatalf("mismatched call methods activated tools: %v", activated)
+	if entry, ok := GetToolCatalogState("sess-activate").Get("chromecast"); !ok || entry.Active {
+		t.Fatalf("legacy handler mutated hidden tool state: %+v", entry)
 	}
 }
 
-func TestActivateToolsThroughNativeDispatcher(t *testing.T) {
+func TestLegacyActivateToolsThroughNativeDispatcherDoesNotMutateState(t *testing.T) {
 	t.Cleanup(func() {
 		discoverToolsState.mu.Lock()
 		discoverToolsState.snapshots = nil
 		discoverToolsState.requested = nil
-		discoverToolsState.activated = nil
 		discoverToolsState.mu.Unlock()
 	})
 
@@ -503,9 +501,8 @@ func TestActivateToolsThroughNativeDispatcher(t *testing.T) {
 	if !strings.Contains(out, `"required_call_methods":{"chromecast":"invoke_tool"}`) {
 		t.Fatalf("dispatcher output = %q", out)
 	}
-	activated := ConsumeActivatedTools("sess-dispatch-activate")
-	if len(activated) != 0 {
-		t.Fatalf("dispatcher bypassed binding call method: %v", activated)
+	if entry, ok := GetToolCatalogState("sess-dispatch-activate").Get("chromecast"); !ok || entry.Active {
+		t.Fatalf("legacy dispatcher mutated hidden tool state: %+v", entry)
 	}
 }
 
@@ -514,7 +511,6 @@ func TestHandleActivateToolsRejectsMoreThanEightNames(t *testing.T) {
 		discoverToolsState.mu.Lock()
 		discoverToolsState.snapshots = nil
 		discoverToolsState.requested = nil
-		discoverToolsState.activated = nil
 		discoverToolsState.mu.Unlock()
 	})
 
@@ -537,9 +533,6 @@ func TestHandleActivateToolsRejectsMoreThanEightNames(t *testing.T) {
 	decodeToolOutputJSON(t, out, &payload)
 	if payload.Status != "error" {
 		t.Fatalf("status = %q, want error: %s", payload.Status, out)
-	}
-	if got := ConsumeActivatedTools("sess-too-many"); len(got) != 0 {
-		t.Fatalf("unexpected activations after rejected call: %v", got)
 	}
 }
 

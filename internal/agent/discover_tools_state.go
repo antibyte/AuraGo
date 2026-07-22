@@ -27,7 +27,6 @@ var discoverToolsState struct {
 	mu        sync.RWMutex
 	snapshots map[string]discoverToolsSnapshot
 	requested map[string]map[string]int
-	activated map[string]map[string]int
 }
 
 // SetDiscoverToolsState stores the current tool state for discover_tools lookups.
@@ -65,12 +64,6 @@ func SetDiscoverToolsState(sessionID string, allSchemas []openai.Tool, activeSch
 	if _, ok := discoverToolsState.requested[sessionID]; !ok {
 		discoverToolsState.requested[sessionID] = make(map[string]int)
 	}
-	if discoverToolsState.activated == nil {
-		discoverToolsState.activated = make(map[string]map[string]int)
-	}
-	if _, ok := discoverToolsState.activated[sessionID]; !ok {
-		discoverToolsState.activated[sessionID] = make(map[string]int)
-	}
 	discoverToolsState.mu.Unlock()
 }
 
@@ -101,18 +94,12 @@ func pruneDiscoverToolsSnapshotsLocked(now time.Time) {
 			if discoverToolsState.requested != nil {
 				delete(discoverToolsState.requested, sessionID)
 			}
-			if discoverToolsState.activated != nil {
-				delete(discoverToolsState.activated, sessionID)
-			}
 			continue
 		}
 		if snapshot.updatedAt.Before(cutoff) {
 			delete(discoverToolsState.snapshots, sessionID)
 			if discoverToolsState.requested != nil {
 				delete(discoverToolsState.requested, sessionID)
-			}
-			if discoverToolsState.activated != nil {
-				delete(discoverToolsState.activated, sessionID)
 			}
 		}
 	}
@@ -174,39 +161,6 @@ func ConsumeDiscoverRequestedTools(sessionID string) []string {
 	return out
 }
 
-func MarkActivatedTool(sessionID, toolName string) {
-	if toolName == "" {
-		return
-	}
-	sessionID = normalizeDiscoverSessionID(sessionID)
-	discoverToolsState.mu.Lock()
-	defer discoverToolsState.mu.Unlock()
-	if discoverToolsState.activated == nil {
-		discoverToolsState.activated = make(map[string]map[string]int)
-	}
-	if _, ok := discoverToolsState.activated[sessionID]; !ok {
-		discoverToolsState.activated[sessionID] = make(map[string]int)
-	}
-	discoverToolsState.activated[sessionID][toolName] = 1
-}
-
-func ConsumeActivatedTools(sessionID string) []string {
-	sessionID = normalizeDiscoverSessionID(sessionID)
-	discoverToolsState.mu.Lock()
-	defer discoverToolsState.mu.Unlock()
-	set := discoverToolsState.activated[sessionID]
-	if len(set) == 0 {
-		return nil
-	}
-	out := make([]string, 0, len(set))
-	for name := range set {
-		out = append(out, name)
-	}
-	sort.Strings(out)
-	delete(discoverToolsState.activated, sessionID)
-	return out
-}
-
 // GetDiscoverToolsState returns a snapshot of the current tool state.
 func GetDiscoverToolsState(sessionIDs ...string) (allSchemas []openai.Tool, activeNames map[string]bool, enabledNames map[string]bool, promptsDir string) {
 	discoverToolsState.mu.RLock()
@@ -246,9 +200,6 @@ func ClearDiscoverToolsState(sessionID string) {
 	delete(discoverToolsState.snapshots, sessionID)
 	if discoverToolsState.requested != nil {
 		delete(discoverToolsState.requested, sessionID)
-	}
-	if discoverToolsState.activated != nil {
-		delete(discoverToolsState.activated, sessionID)
 	}
 }
 

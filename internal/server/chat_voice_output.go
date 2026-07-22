@@ -58,10 +58,18 @@ func (b *chatVoiceOutputTrackingBroker) SendJSON(jsonStr string) {
 }
 
 func (b *chatVoiceOutputTrackingBroker) SendTyped(eventType string, payload interface{}) bool {
-	if typed, ok := b.FeedbackBroker.(agent.TypedFeedbackBroker); ok {
-		return typed.SendTyped(eventType, payload)
+	delivered, _ := b.SendTypedWithTransport(eventType, payload)
+	return delivered
+}
+
+func (b *chatVoiceOutputTrackingBroker) SendTypedWithTransport(eventType string, payload interface{}) (bool, string) {
+	if typed, ok := b.FeedbackBroker.(agent.TypedFeedbackDeliveryBroker); ok {
+		return typed.SendTypedWithTransport(eventType, payload)
 	}
-	return false
+	if typed, ok := b.FeedbackBroker.(agent.TypedFeedbackBroker); ok {
+		return typed.SendTyped(eventType, payload), "typed_session"
+	}
+	return false, "pending"
 }
 
 func (b *chatVoiceOutputTrackingBroker) markTTSAudio() {

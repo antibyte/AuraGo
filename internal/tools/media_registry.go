@@ -469,6 +469,45 @@ func GetMedia(db *sql.DB, id int64) (*MediaItem, error) {
 	return &m, nil
 }
 
+// GetMediaByWebPath retrieves a non-deleted media item by its exact published
+// web path. It is intended for trusted runtime provenance resolution, not
+// fuzzy user searches.
+func GetMediaByWebPath(db *sql.DB, webPath string) (*MediaItem, error) {
+	return getMediaByExactField(db, "web_path", strings.TrimSpace(webPath))
+}
+
+// GetMediaByFilePath retrieves a non-deleted media item by its exact local
+// file path.
+func GetMediaByFilePath(db *sql.DB, filePath string) (*MediaItem, error) {
+	return getMediaByExactField(db, "file_path", strings.TrimSpace(filePath))
+}
+
+func getMediaByExactField(db *sql.DB, field, value string) (*MediaItem, error) {
+	if db == nil {
+		return nil, fmt.Errorf("media registry DB not initialized")
+	}
+	if value == "" {
+		return nil, fmt.Errorf("media registry %s is empty", field)
+	}
+	if field != "web_path" && field != "file_path" {
+		return nil, fmt.Errorf("unsupported media lookup field %q", field)
+	}
+	query := "SELECT id, created_at, updated_at, media_type, source_tool, filename, file_path, web_path, file_size, format, provider, model, prompt, description, tags, duration_ms, generation_time_ms, cost_estimate, source_image, quality, style, size, language, voice_id, hash FROM media_items WHERE " + field + " = ? AND deleted = 0 LIMIT 1"
+	var m MediaItem
+	var tagsStr string
+	err := db.QueryRow(query, value).Scan(&m.ID, &m.CreatedAt, &m.UpdatedAt, &m.MediaType, &m.SourceTool, &m.Filename, &m.FilePath, &m.WebPath, &m.FileSize, &m.Format, &m.Provider, &m.Model, &m.Prompt, &m.Description, &tagsStr, &m.DurationMs, &m.GenerationTimeMs, &m.CostEstimate, &m.SourceImage, &m.Quality, &m.Style, &m.Size, &m.Language, &m.VoiceID, &m.Hash)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("media item with %s %q not found", field, value)
+		}
+		return nil, fmt.Errorf("get media item by %s: %w", field, err)
+	}
+	if err := json.Unmarshal([]byte(tagsStr), &m.Tags); err != nil || m.Tags == nil {
+		m.Tags = []string{}
+	}
+	return &m, nil
+}
+
 // ListMedia returns media items filtered by type.
 func ListMedia(db *sql.DB, mediaType string, limit, offset int) ([]MediaItem, int, error) {
 	return SearchMedia(db, "", mediaType, nil, limit, offset)

@@ -22,9 +22,10 @@ type operationalIssueNoticeState struct {
 }
 
 type operationalIssueNoticePayload struct {
-	Text   string                           `json:"text"`
-	Count  int                              `json:"count"`
-	Issues []planner.OperationalIssueNotice `json:"issues"`
+	SessionID string                           `json:"session_id"`
+	Text      string                           `json:"text"`
+	Count     int                              `json:"count"`
+	Issues    []planner.OperationalIssueNotice `json:"issues"`
 }
 
 func recordToolFailureOperationalIssue(runCfg RunConfig, tc ToolCall, resultContent string, logger *slog.Logger) {
@@ -197,14 +198,33 @@ func deliverOperationalIssueNotice(state *operationalIssueNoticeState, runCfg Ru
 	if state == nil || len(state.Items) == 0 || strings.TrimSpace(state.Text) == "" {
 		return
 	}
-	typed, ok := broker.(TypedFeedbackBroker)
-	if !ok || !typed.SendTyped(operationalIssueNoticeEvent, operationalIssueNoticePayload{
-		Text: state.Text, Count: len(state.Items), Issues: state.Items,
-	}) {
+	payload := operationalIssueNoticePayload{
+		SessionID: strings.TrimSpace(runCfg.SessionID), Text: state.Text, Count: len(state.Items), Issues: state.Items,
+	}
+	delivered := false
+	delivery := "pending"
+	if typed, ok := broker.(TypedFeedbackDeliveryBroker); ok {
+		delivered, delivery = typed.SendTypedWithTransport(operationalIssueNoticeEvent, payload)
+	} else if typed, ok := broker.(TypedFeedbackBroker); ok {
+		delivered = typed.SendTyped(operationalIssueNoticeEvent, payload)
+		if delivered {
+			delivery = "typed_session"
+		}
+	}
+	if !delivered {
 		state.FallbackRequired = true
+		if logger != nil {
+			logger.Info("Operational issue notice pending persisted fallback", "delivery", "pending")
+		}
 		return
 	}
 	state.TypedDelivered = true
+	if delivery != "typed_session" && delivery != "direct_stream" {
+		delivery = "typed_session"
+	}
+	if logger != nil {
+		logger.Info("Operational issue notice delivered", "delivery", delivery)
+	}
 	if err := planner.MarkOperationalIssuesNotified(runCfg.PlannerDB, state.Refs, time.Now()); err != nil && logger != nil {
 		logger.Warn("Failed to persist delivered operational issue notice", "error", err)
 	}
@@ -228,6 +248,8 @@ func markPersistedOperationalIssueNotice(state operationalIssueNoticeState, runC
 	}
 	if err := planner.MarkOperationalIssuesNotified(runCfg.PlannerDB, state.Refs, time.Now()); err != nil && logger != nil {
 		logger.Warn("Failed to persist fallback operational issue notice state", "error", err)
+	} else if logger != nil {
+		logger.Info("Operational issue notice persisted with final response", "delivery", "persisted_fallback")
 	}
 }
 

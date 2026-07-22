@@ -161,7 +161,7 @@
     "adaptive_tools": {
       "enabled": {
         "title": "Adaptive Tool Filtering",
-        "description": "Keeps likely useful native tools visible and leaves the rest behind discover_tools/activate_tools. Reduces prompt tokens; default: on."
+        "description": "Keeps likely useful native tools visible and makes the rest available through discover_tools/invoke_tool. Reduces prompt tokens; default: on."
       },
       "max_tools": {
         "title": "Max Adaptive Tools",

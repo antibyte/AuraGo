@@ -256,6 +256,12 @@ type TypedFeedbackBroker interface {
 	SendTyped(eventType string, payload interface{}) bool
 }
 
+// TypedFeedbackDeliveryBroker is implemented by transports that can report
+// which deterministic delivery path accepted a typed event.
+type TypedFeedbackDeliveryBroker interface {
+	SendTypedWithTransport(eventType string, payload interface{}) (bool, string)
+}
+
 // NoopBroker is a silent fallback for transports that don't support real-time feedback
 type NoopBroker struct{}
 

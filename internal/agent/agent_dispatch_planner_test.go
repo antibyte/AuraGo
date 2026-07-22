@@ -411,7 +411,7 @@ func TestExecuteAgentLoopCameraRetryUsesExactlyOneTrustedVisionRoute(t *testing.
 		if !strings.Contains(prompt, "AURAGO_STRUCTURED_OBJECT_COUNT_V1") || !strings.Contains(prompt, "Wie viele PKW") {
 			t.Fatalf("vision prompt was not structured or did not reuse the prior question: %q", prompt)
 		}
-		return `{"confirmed_count":2,"possible_additional_count":1,"other_vehicles":["van"],"items":[{"index":1,"type":"car","confidence":0.98,"confirmed":true},{"index":2,"type":"car","confidence":0.93,"confirmed":true}],"uncertainty":"one partially hidden candidate"}`, 12, 8, nil
+		return `{"confirmed_count":2,"possible_additional_count":1,"other_vehicles":["van"],"items":[{"index":1,"type":"car","confidence":0.98,"confirmed":true},{"index":2,"type":"car","confidence":0.93,"confirmed":true},{"index":3,"type":"car","confidence":0.42,"confirmed":false}],"uncertainty":"one partially hidden candidate"}`, 12, 8, nil
 	}
 	client.response = "Bestätigt sind 2 PKW; ein weiterer Kandidat bleibt unsicher."
 	broker := &captureBroker{}

@@ -3,7 +3,7 @@
   "help.agent.adaptive_tools.always_include": "Nazwy narzędzi widoczne przy aktywnym filtrowaniu adaptacyjnym. Domyślnie: filesystem, query_memory, manage_memory, execute_shell.",
   "help.agent.adaptive_tools.clean_transitions_after_days": "Usuwa nieaktualne dane przejść narzędzi po X dniach.",
   "help.agent.adaptive_tools.decay_half_life_days": "Okres półtrwania dla oceny wykorzystania w dniach. Starsze dane o użyciu tracą wpływ. Wyższe wartości = wolniejsze zapominanie.",
-  "help.agent.adaptive_tools.enabled": "Zostawia widoczne prawdopodobnie przydatne narzędzia native, a resztę przenosi za discover_tools/activate_tools. Zmniejsza tokeny promptu; domyślnie włączone.",
+  "help.agent.adaptive_tools.enabled": "Pozostawia widoczne prawdopodobnie przydatne narzędzia natywne, a pozostałe udostępnia przez discover_tools/invoke_tool. Zmniejsza liczbę tokenów promptu; domyślnie: włączone.",
   "help.agent.adaptive_tools.max_tools": "Maksymalna liczba adaptacyjnych/preferowanych schematów narzędzi przed dodaniem wymaganych i always-include. Domyślnie: 10.",
   "help.agent.adaptive_tools.weight_success_rate": "Preferuje narzędzia o wyższych wskaźnikach sukcesu w doborze adaptacyjnym.",
   "help.agent.additional_prompt": "Dowolny tekst, który jest zawsze dołączany na końcu promptu systemowego. Idealny dla reguł specyficznych dla użytkownika, informacji kontekstowych lub stałych instrukcji, które powinny dotyczyć każdego żądania.",

@@ -1191,7 +1191,7 @@ func TestHardAlwaysToolNamesUsesBalancedKernel(t *testing.T) {
 	cfg.Composio.APIKey = "configured"
 
 	got := hardAlwaysToolNames(cfg)
-	want := []string{"activate_tools", "discover_tools", "execute_skill", "invoke_tool", "run_tool"}
+	want := []string{"discover_tools", "execute_skill", "invoke_tool", "run_tool"}
 	if len(got) != len(want) {
 		t.Fatalf("hard always tools = %v, want %v", got, want)
 	}

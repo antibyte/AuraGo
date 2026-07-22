@@ -1389,6 +1389,15 @@ window.AuraSSE = (function () {
     var _es = null;
     var _retryTimer = null;
     var _connected = false;
+    var _sessionId = 'default';
+    try { _sessionId = localStorage.getItem('aurago-session-id') || 'default'; } catch (_) { }
+
+    function _normalizedSessionId(value) {
+        var normalized = String(value || '').trim();
+        return normalized && normalized.length <= 120 ? normalized : 'default';
+    }
+
+    _sessionId = _normalizedSessionId(_sessionId);
 
     function _dispatch(e) {
         var data;
@@ -1425,7 +1434,8 @@ window.AuraSSE = (function () {
         var path = window.location.pathname;
         if (path.indexOf('/login') !== -1 || path.indexOf('/setup') !== -1) return;
         if (_es) { _es.close(); _es = null; }
-        _es = new EventSource('/events', { withCredentials: true });
+        var eventsURL = '/events?session_id=' + encodeURIComponent(_sessionId);
+        _es = new EventSource(eventsURL, { withCredentials: true });
         _es.onopen = function () {
             _connected = true;
             _retryAttempt = 0;
@@ -1444,6 +1454,13 @@ window.AuraSSE = (function () {
             }
         };
         _es.onmessage = _dispatch;
+    }
+
+    function _setSession(sessionId) {
+        var normalized = _normalizedSessionId(sessionId);
+        if (normalized === _sessionId) return;
+        _sessionId = normalized;
+        if (_es || _connected) _connect();
     }
 
     var _authCheckInProgress = false;
@@ -1485,6 +1502,7 @@ window.AuraSSE = (function () {
 
     return {
         connect: _connect,
+        setSession: _setSession,
         isConnected: function () { return _connected; },
         on: function (type, fn) {
             if (!_typed[type]) _typed[type] = [];

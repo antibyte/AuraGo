@@ -11,35 +11,28 @@ const maxActivateToolNames = 8
 
 type ActivateToolsResponse struct {
 	Status              string            `json:"status"`
-	Message             string            `json:"message,omitempty"`
-	Activated           []string          `json:"activated"`
-	AlreadyActive       []string          `json:"already_active"`
 	Disabled            []string          `json:"disabled"`
 	Unknown             []string          `json:"unknown"`
 	RequiredCallMethods map[string]string `json:"required_call_methods,omitempty"`
-	NextRequest         bool              `json:"next_request"`
 }
 
 func handleActivateTools(tc ToolCall, logger *slog.Logger, sessionID string) string {
 	names := toolArgStringSlice(tc.Params, "names", "tool_names")
 	if len(names) == 0 {
 		return encodeActivateToolsResponse(ActivateToolsResponse{
-			Status:  "error",
-			Message: "names is required",
+			Status: "error",
 		})
 	}
 	if len(names) > maxActivateToolNames {
 		return encodeActivateToolsResponse(ActivateToolsResponse{
-			Status:  "error",
-			Message: fmt.Sprintf("at most %d tool names can be activated per call", maxActivateToolNames),
+			Status: "error",
 		})
 	}
 
 	catalog := GetToolCatalogState(sessionID)
 	if catalog == nil {
 		return encodeActivateToolsResponse(ActivateToolsResponse{
-			Status:  "error",
-			Message: "tool state is not available yet",
+			Status: "error",
 		})
 	}
 
@@ -70,52 +63,18 @@ func handleActivateTools(tc ToolCall, logger *slog.Logger, sessionID string) str
 		}
 		seen["entry:"+canonicalName] = true
 
-		switch {
-		case entry.Status == ToolStatusDisabled || !entry.Enabled:
+		if entry.Status == ToolStatusDisabled || !entry.Enabled {
 			resp.Disabled = append(resp.Disabled, canonicalName)
-		case callMethodForEntry(entry) != "activate_tools":
-			// call_method is a runtime contract, not an LLM suggestion. In
-			// particular, hidden native tools currently require invoke_tool.
-			resp.RequiredCallMethods[canonicalName] = callMethodForEntry(entry)
-		case entry.Active:
-			resp.AlreadyActive = append(resp.AlreadyActive, canonicalName)
-		default:
-			resp.Activated = append(resp.Activated, canonicalName)
-			if schemaName := activationSchemaName(entry); schemaName != "" {
-				MarkActivatedTool(sessionID, schemaName)
-			}
+			continue
 		}
+		resp.RequiredCallMethods[canonicalName] = callMethodForEntry(entry)
 	}
-	resp.NextRequest = len(resp.Activated) > 0 || len(resp.RequiredCallMethods) > 0
-	if len(resp.RequiredCallMethods) > 0 {
-		resp.Status = "error"
-		resp.Message = "activate_tools is not permitted for tools whose discover_tools call_method requires another route; follow required_call_methods immediately"
-	}
-	if logger != nil && len(resp.Activated) > 0 {
-		logger.Debug("[NativeTools] Activated hidden tools for next request",
+	if logger != nil {
+		logger.Debug("[NativeTools] Legacy activate_tools call resolved without changing tool state",
 			"session_id", normalizeDiscoverSessionID(sessionID),
-			"tools", strings.Join(resp.Activated, ","))
+			"requested_count", len(names))
 	}
 	return encodeActivateToolsResponse(resp)
-}
-
-func activationSchemaName(entry *ToolCatalogEntry) string {
-	if entry == nil {
-		return ""
-	}
-	if entry.Schema.Function != nil && entry.Schema.Function.Name != "" {
-		return entry.Schema.Function.Name
-	}
-	if entry.Routing.NativeAction != "" {
-		return entry.Routing.NativeAction
-	}
-	if entry.Routing.SkillName != "" {
-		return "skill__" + entry.Routing.SkillName
-	}
-	if entry.Routing.CustomName != "" {
-		return "tool__" + entry.Routing.CustomName
-	}
-	return entry.Name
 }
 
 func encodeActivateToolsResponse(resp ActivateToolsResponse) string {

@@ -3,7 +3,7 @@
   "help.agent.adaptive_tools.always_include": "启用自适应过滤时仍保持可见的工具名。默认：filesystem, query_memory, manage_memory, execute_shell。",
   "help.agent.adaptive_tools.clean_transitions_after_days": "在 X 天后删除过时的工具转换数据。",
   "help.agent.adaptive_tools.decay_half_life_days": "使用评分的半衰期（天）。较旧的使用数据失去影响力。值越高 = 遗忘越慢。",
-  "help.agent.adaptive_tools.enabled": "仅保持可能有用的原生工具可见，其余通过 discover_tools/activate_tools 使用。减少提示词 token；默认开启。",
+  "help.agent.adaptive_tools.enabled": "仅保持可能有用的原生工具可见，其余工具可通过 discover_tools/invoke_tool 使用。可减少提示词 token；默认开启。",
   "help.agent.adaptive_tools.max_tools": "在加入必需和 always-include 工具前，自适应/优先工具 schema 的最大数量。默认：10。",
   "help.agent.adaptive_tools.weight_success_rate": "在自适应选择中优先选择成功率更高的工具。",
   "help.agent.additional_prompt": "始终附加在系统提示符末尾的任意文本。非常适合用户特定的规则、上下文信息或应适用于每个请求的固定指令。",

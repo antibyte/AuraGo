@@ -3,7 +3,7 @@
   "help.agent.adaptive_tools.always_include": "Ονόματα εργαλείων που μένουν ορατά όταν είναι ενεργό το adaptive filtering. Προεπιλογή: filesystem, query_memory, manage_memory, execute_shell.",
   "help.agent.adaptive_tools.clean_transitions_after_days": "Αφαιρεί παλιά δεδομένα μετάβασης εργαλείων μετά από X ημέρες.",
   "help.agent.adaptive_tools.decay_half_life_days": "Ημιζωή για βαθμολόγηση χρήσης σε ημέρες. Τα παλαιότερα δεδομένα χρήσης χάνουν επιρροή. Υψηλότερες τιμές = πιο αργή λήθη.",
-  "help.agent.adaptive_tools.enabled": "Κρατά ορατά τα πιθανώς χρήσιμα native εργαλεία και αφήνει τα υπόλοιπα πίσω από discover_tools/activate_tools. Μειώνει prompt tokens· προεπιλογή: ενεργό.",
+  "help.agent.adaptive_tools.enabled": "Διατηρεί ορατά τα πιθανώς χρήσιμα εγγενή εργαλεία και κάνει τα υπόλοιπα διαθέσιμα μέσω discover_tools/invoke_tool. Μειώνει τα token του prompt· προεπιλογή: ενεργό.",
   "help.agent.adaptive_tools.max_tools": "Μέγιστος αριθμός adaptive/preferred schemas εργαλείων πριν προστεθούν required και always-include εργαλεία. Προεπιλογή: 10.",
   "help.agent.adaptive_tools.weight_success_rate": "Προτιμά εργαλεία με υψηλότερα ποσοστά επιτυχίας στην προσαρμοστική επιλογή.",
   "help.agent.additional_prompt": "Περιγραφή: Arbitrary text that is always appended at the end of the system prompt. Ideal for user-specific rules, context info, or fixed instructions that should apply to every request.",

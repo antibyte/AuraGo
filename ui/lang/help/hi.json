@@ -3,7 +3,7 @@
   "help.agent.adaptive_tools.always_include": "Adaptive filtering active होने पर visible रहने वाले tool names। Default: filesystem, query_memory, manage_memory, execute_shell.",
   "help.agent.adaptive_tools.clean_transitions_after_days": "X दिनों के बाद पुराने टूल संक्रमण डेटा को हटाता है।",
   "help.agent.adaptive_tools.decay_half_life_days": "उपयोग स्कोरिंग के लिए अर्धजीवन दिनों में। पुराने उपयोग डेटा का प्रभाव कम होता है। उच्च मान = धीमा भूलना।",
-  "help.agent.adaptive_tools.enabled": "संभावित रूप से उपयोगी native tools को visible रखता है और बाकी को discover_tools/activate_tools के पीछे रखता है। Prompt tokens घटते हैं; default: on.",
+  "help.agent.adaptive_tools.enabled": "संभावित रूप से उपयोगी नेटिव टूल दिखाता है और बाकी को discover_tools/invoke_tool के माध्यम से उपलब्ध कराता है। प्रॉम्प्ट टोकन घटते हैं; डिफ़ॉल्ट: चालू।",
   "help.agent.adaptive_tools.max_tools": "Required और always-include tools जोड़ने से पहले adaptive/preferred tool schemas की अधिकतम संख्या। Default: 10.",
   "help.agent.adaptive_tools.weight_success_rate": "अनुकूली चयन में उच्च सफलता दर वाले टूल को प्राथमिकता देता है।",
   "help.agent.additional_prompt": "मनमाना पाठ जो हमेशा सिस्टम प्रॉम्प्ट के अंत में जोड़ा जाता है। उपयोगकर्ता-विशिष्ट नियमों, संदर्भ जानकारी या निश्चित निर्देशों के लिए आदर्श जो हर अनुरोध पर लागू होने चाहिए।",

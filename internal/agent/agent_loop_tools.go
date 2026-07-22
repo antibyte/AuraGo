@@ -168,7 +168,6 @@ func processPendingToolCalls(s *agentLoopState, ctx context.Context, lastUserMsg
 		s.req.Messages = append(s.req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: ptcJSON})
 		s.req.Messages = append(s.req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: followUpContent})
 	}
-	refreshActivatedNativeToolSchemas(s)
 	if supervisorRouted {
 		s.currentToolRouteExecuted = true
 		s.pendingTCs = nil
@@ -636,8 +635,6 @@ func executeAgentToolTurn(
 		followUpContent := toolResultFollowUpContent(tc, resultContent, voiceModeActive)
 		s.req.Messages = append(s.req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: followUpContent})
 	}
-
-	refreshActivatedNativeToolSchemas(s)
 
 	select {
 	case <-time.After(time.Duration(cfg.Agent.StepDelaySeconds) * time.Second):

@@ -1619,7 +1619,6 @@ func (b *agodeskChatBroker) SendTyped(eventType string, payload interface{}) boo
 				Payload: payload,
 			}); err == nil {
 				b.FeedbackBroker.SendJSON(string(raw))
-				forwarded = true
 			}
 		}
 	}
