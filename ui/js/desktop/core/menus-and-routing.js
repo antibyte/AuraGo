@@ -1209,6 +1209,18 @@ if (appId === 'pixel') {
             }
             if (typeof window.HomepageStudioApp.render === 'function') return window.HomepageStudioApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification }));
         }
+        if (appId === 'game-maker-studio') {
+            if (!window.GameMakerStudioApp) {
+                window.AuraDesktopModules.loadAppScript('game-maker-studio').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            if (typeof window.GameMakerStudioApp.render === 'function') {
+                return window.GameMakerStudioApp.render(contentEl(id), id, Object.assign({}, context || {}, {
+                    esc, api, t, iconMarkup, notify: showDesktopNotification,
+                    readonly: desktopReadonly(), openApp, confirmDialog, promptDialog
+                }));
+            }
+        }
         if (appId === 'pet-picker') {
             if (!window.PetPickerApp) {
                 window.AuraDesktopModules.loadAppScript('pet-picker').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));

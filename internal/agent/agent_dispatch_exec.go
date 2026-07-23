@@ -222,6 +222,9 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 
 	result := func() string {
 		switch tc.Action {
+		case "game_maker_project", "game_maker_file", "game_maker_asset", "game_maker_validate":
+			result, _ := dispatchGameMaker(ctx, tc, dc)
+			return result
 		case "code_analysis":
 			if !cfg.Agent.AllowFilesystemWrite && !cfg.Agent.AllowShell {
 				return `Tool Output: {"status":"error","message":"code_analysis requires filesystem access to be enabled"}`

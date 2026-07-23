@@ -559,6 +559,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	registerCodeStudioRoutes(mux, s)
 	registerOpenSCADRoutes(mux, s)
 	registerVirtualComputersRoutes(mux, s)
+	registerGameMakerRoutes(mux, s)
 
 	// Pixel image editor endpoints
 	mux.HandleFunc("/api/pixel/config", handlePixelConfig(s))

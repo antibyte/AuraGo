@@ -58,3 +58,26 @@ func TestInvokeToolCannotBypassScope(t *testing.T) {
 		t.Fatalf("expected invoke scope denial, got %s", got)
 	}
 }
+
+func TestAgentSkillScopeIsBinding(t *testing.T) {
+	dc := &DispatchContext{
+		SkillScopeRestricted: true,
+		AllowedAgentSkills: normalizedAllowedToolSet([]string{
+			"aurago-game-maker-director",
+			"aurago-phaser4-gameplay",
+		}),
+	}
+	if !agentSkillAllowed(dc, " AURAGO-GAME-MAKER-DIRECTOR ") {
+		t.Fatal("curated skill was rejected")
+	}
+	if agentSkillAllowed(dc, "untrusted-game-skill") {
+		t.Fatal("skill outside binding scope was allowed")
+	}
+	got := dispatchActivateAgentSkill(ToolCall{
+		Action: "activate_agent_skill",
+		Name:   "untrusted-game-skill",
+	}, dc)
+	if !strings.Contains(got, "outside the active skill scope") {
+		t.Fatalf("unexpected activation result: %s", got)
+	}
+}

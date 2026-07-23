@@ -474,6 +474,16 @@ Tools are defined in `internal/tools/`:
 - Mutating homepage operations must keep the ledger current by recording structured events and, when files change, revisions plus file-state snapshots. Remote deploys must be linked to provider IDs/URLs and build artifact hashes when available.
 - Server APIs under `/api/homepage/sites` expose the managed-site read model, including detail `deploy_targets` and `remote_observations`, plus the reconciliation path. Keep these APIs additive and compatible with existing `/api/homepage/history`.
 
+### Game Maker Studio Contract
+- Game Maker projects use `Games/<slug>` as their only persistent identity and live below the configured Virtual Desktop workspace. Never persist or return absolute host paths.
+- Jobs run in isolated staging directories with one global writer. Only a successful Pure-Go esbuild validation may publish a revision; failed, cancelled, or interrupted jobs must preserve the last playable revision.
+- Phaser 4.2.1 and Three.js 0.185.1 are embedded, pinned, offline runtimes. Generated games may not load CDNs, external APIs, remote assets, or AuraGo endpoints.
+- The Game Maker agent scope is binding: only `game_maker_project`, `game_maker_file`, `game_maker_asset`, `game_maker_validate`, `list_agent_skills`, and `activate_agent_skill` are allowed. `invoke_tool`, generic filesystem/shell/Python/network tools, and uncurated Agent Skills must remain unavailable.
+- System-managed Game Maker Agent Skills must scan clean and match the embedded package hash. Warning, blocked, missing, or changed packages block new jobs.
+- Preview iframes omit `allow-same-origin`, use short-lived project/job-bound tokens, restrictive CSP, external-connect blocking, and a source/channel-validated read-only diagnostic bridge.
+- Image and music generation are optional project capabilities. Generator failure, disabled configuration, or exhausted budget must return a visible procedural fallback without claiming unsupported 3D model generation.
+- Revision blobs are SHA-256 addressed and deduplicated. Restore creates a new revision; export excludes tokens, staging, revision metadata, and AuraGo state while including source, output, local runtimes, assets, and third-party notices.
+
 ### Server Architecture
 - Single HTTP server with SSE for streaming
 - RESTful API under `/api/`

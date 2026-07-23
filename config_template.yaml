@@ -752,6 +752,7 @@ sqlite:
     remote_control_path: ./data/remote_control.db
     media_registry_path: ./data/media_registry.db
     homepage_registry_path: ./data/homepage_registry.db
+    game_maker_path: ./data/game_maker.db
     contacts_path: ./data/contacts.db
     planner_path: ./data/planner.db
     virtual_desktop_path: ./data/virtual_desktop.db
@@ -1016,6 +1017,19 @@ virtual_desktop:
         render_timeout_seconds: 120                        # default compiler timeout
         max_render_timeout_seconds: 600                    # hard timeout cap
         job_retention_days: 7                              # cached render job retention
+game_maker:
+    enabled: false                                         # enable Game Maker Studio APIs and agent tools
+    readonly: true                                         # secure default: browse existing projects only
+    allow_create: false                                    # allow creating new projects
+    allow_edit: false                                      # allow agent jobs, changes, and revision restore
+    allow_delete: false                                    # allow deleting managed projects (never global media)
+    allow_media_generation: false                          # allow project-bound image/music generation
+    workspace_path: agent_workspace/virtual_desktop        # projects are stored under Games/<slug>
+    max_projects: 25
+    max_files_per_project: 250
+    max_file_size_kb: 2048
+    max_project_size_mb: 100
+    job_timeout_seconds: 1800
 virtual_computers:
     enabled: false                                         # enable Virtual Computers UI/API; boringd stays private behind AuraGo
     provider: boring_computers                             # v1 provider

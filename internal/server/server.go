@@ -28,6 +28,7 @@ import (
 	"aurago/internal/desktopstore"
 	"aurago/internal/discord"
 	"aurago/internal/fritzbox"
+	"aurago/internal/gamemaker"
 	"aurago/internal/heartbeat"
 	"aurago/internal/i18n"
 	"aurago/internal/invasion/bridge"
@@ -200,6 +201,9 @@ type Server struct {
 	DesktopStore         *desktopstore.Service
 	DesktopHub           *desktop.Hub
 	VirtualComputersDB   *virtualcomputers.Ledger
+	GameMaker            *gamemaker.Service
+	gameMakerSkills      []gamemaker.SkillInfo
+	gameMakerSkillsReady bool
 	DesktopMu            sync.Mutex
 	// IsFirstStart is true if core_memory.md was just freshly created (no prior data).
 	IsFirstStart    bool
@@ -331,6 +335,12 @@ func Start(opts StartOptions) error {
 		s.Go2RTC.StartBackground(serverCtx)
 	}
 	defer func() {
+		if s.GameMaker != nil {
+			_ = s.GameMaker.Close()
+		}
+		if gamemaker.DefaultService() == s.GameMaker {
+			gamemaker.SetDefaultService(nil)
+		}
 		if s.Go2RTC != nil {
 			s.Go2RTC.Close()
 		}
@@ -447,6 +457,7 @@ func Start(opts StartOptions) error {
 
 	// Initialize Skill Manager and Agent Skills (classic manager gated by config)
 	s.initSkillManagers(serverCtx, installDir)
+	s.initGameMaker()
 
 	// Initialize Remote Control Hub
 	remote.InsecureHostKey = cfg.RemoteControl.SSHInsecureHostKey
@@ -1299,11 +1310,17 @@ func (s *Server) initSkillManagers(ctx context.Context, installDir string) {
 		logger.Warn("Failed to initialize Agent Skills schema", "error", err)
 		return
 	}
+	installResult, installErr := gamemaker.InstallBundledSkills(cfg.Directories.AgentSkillsDir)
+	if installErr != nil {
+		logger.Warn("Failed to install bundled Game Maker Agent Skills", "error", installErr)
+		installResult.Ready = false
+	}
 	s.AgentSkillManager = tools.NewAgentSkillManager(skillsDB, cfg.Directories.AgentSkillsDir, cfg.Directories.WorkspaceDir, logger)
 	tools.SetDefaultAgentSkillManager(s.AgentSkillManager)
 	if err := s.AgentSkillManager.SyncFromDisk(ctx, s.LLMGuardian, cfg.Tools.SkillManager.ScanWithGuardian, skillSpectorConfig(s)); err != nil {
 		logger.Warn("Failed to sync Agent Skills from disk", "error", err)
 	}
+	s.gameMakerSkills, s.gameMakerSkillsReady = verifyGameMakerAgentSkills(s.AgentSkillManager, installResult, logger)
 	logger.Info("Agent Skills initialized", "agent_skills_dir", cfg.Directories.AgentSkillsDir)
 }
 

@@ -24,6 +24,7 @@ require (
 	github.com/dlclark/regexp2 v1.12.0
 	github.com/ebitengine/purego v0.10.1
 	github.com/eclipse/paho.mqtt.golang v1.5.1
+	github.com/evanw/esbuild v0.28.1
 	github.com/go-ldap/ldap/v3 v3.4.14
 	github.com/go-rod/rod v0.116.2
 	github.com/go-sql-driver/mysql v1.10.0

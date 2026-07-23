@@ -1119,6 +1119,10 @@ type RunConfig struct {
 	// AllowedTools is an additive hard scope for native tools. Nil preserves the
 	// historical unrestricted behavior; an explicit empty slice allows no tools.
 	AllowedTools []string
+	// AllowedAgentSkills is a binding package-name scope for Agent Skills. Nil
+	// preserves the historical unrestricted behavior; an explicit empty slice
+	// exposes no Agent Skills through list/activate.
+	AllowedAgentSkills []string
 }
 
 func dispatchInner(ctx context.Context, tc ToolCall, dc *DispatchContext) string {

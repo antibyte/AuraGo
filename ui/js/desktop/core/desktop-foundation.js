@@ -536,6 +536,7 @@
             'virtual-computers': 'VirtualComputersApp',
             'viewer-3d': 'Viewer3DApp',
             'mission-control': 'MissionControlApp',
+            'game-maker-studio': 'GameMakerStudioApp',
             settings: 'SettingsApp',
             calculator: 'CalculatorApp',
             'system-world': 'SysWorldApp',

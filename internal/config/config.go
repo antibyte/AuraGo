@@ -532,6 +532,16 @@ func Load(path string) (*Config, error) {
 	cfg.VirtualDesktop.OpenSCAD.MaxRenderTimeoutSeconds = 600
 	cfg.VirtualDesktop.OpenSCAD.JobRetentionDays = 7
 
+	// Game Maker is an explicit high-trust capability. It remains disabled and
+	// read-only until an administrator enables the required mutation scopes.
+	cfg.GameMaker.ReadOnly = true
+	cfg.GameMaker.WorkspacePath = "agent_workspace/virtual_desktop"
+	cfg.GameMaker.MaxProjects = 25
+	cfg.GameMaker.MaxFilesPerProject = 250
+	cfg.GameMaker.MaxFileSizeKB = 2048
+	cfg.GameMaker.MaxProjectSizeMB = 100
+	cfg.GameMaker.JobTimeoutSeconds = 1800
+
 	cfg.VirtualComputers.Provider = "boring_computers"
 	cfg.VirtualComputers.ControlPlane.Mode = "ssh_host"
 	cfg.VirtualComputers.ControlPlane.SSHPort = 22
@@ -1255,6 +1265,24 @@ func Load(path string) (*Config, error) {
 	if cfg.VirtualDesktop.OpenSCAD.JobRetentionDays <= 0 {
 		cfg.VirtualDesktop.OpenSCAD.JobRetentionDays = 7
 	}
+	if strings.TrimSpace(cfg.GameMaker.WorkspacePath) == "" {
+		cfg.GameMaker.WorkspacePath = "agent_workspace/virtual_desktop"
+	}
+	if cfg.GameMaker.MaxProjects <= 0 {
+		cfg.GameMaker.MaxProjects = 25
+	}
+	if cfg.GameMaker.MaxFilesPerProject <= 0 {
+		cfg.GameMaker.MaxFilesPerProject = 250
+	}
+	if cfg.GameMaker.MaxFileSizeKB <= 0 {
+		cfg.GameMaker.MaxFileSizeKB = 2048
+	}
+	if cfg.GameMaker.MaxProjectSizeMB <= 0 {
+		cfg.GameMaker.MaxProjectSizeMB = 100
+	}
+	if cfg.GameMaker.JobTimeoutSeconds <= 0 {
+		cfg.GameMaker.JobTimeoutSeconds = 1800
+	}
 	if strings.TrimSpace(cfg.VirtualComputers.Provider) == "" {
 		cfg.VirtualComputers.Provider = "boring_computers"
 	}
@@ -1308,6 +1336,7 @@ func Load(path string) (*Config, error) {
 	cfg.SpaceAgent.CustomwarePath = resolvePath(configDir, cfg.SpaceAgent.CustomwarePath)
 	cfg.SpaceAgent.DataPath = resolvePath(configDir, cfg.SpaceAgent.DataPath)
 	cfg.VirtualDesktop.WorkspaceDir = resolvePath(configDir, cfg.VirtualDesktop.WorkspaceDir)
+	cfg.GameMaker.WorkspacePath = resolvePath(configDir, cfg.GameMaker.WorkspacePath)
 
 	// Resolve document creator output directory
 	cfg.Tools.DocumentCreator.OutputDir = resolvePath(configDir, cfg.Tools.DocumentCreator.OutputDir)
@@ -1336,6 +1365,10 @@ func Load(path string) (*Config, error) {
 		cfg.SQLite.HomepageRegistryPath = "./data/homepage_registry.db"
 	}
 	cfg.SQLite.HomepageRegistryPath = resolvePath(configDir, cfg.SQLite.HomepageRegistryPath)
+	if cfg.SQLite.GameMakerPath == "" {
+		cfg.SQLite.GameMakerPath = "./data/game_maker.db"
+	}
+	cfg.SQLite.GameMakerPath = resolvePath(configDir, cfg.SQLite.GameMakerPath)
 	if cfg.SQLite.ContactsPath == "" {
 		cfg.SQLite.ContactsPath = "./data/contacts.db"
 	}
@@ -2684,6 +2717,18 @@ func (c *Config) Save(path string) error {
 		{[]string{"virtual_desktop", "openscad", "render_timeout_seconds"}, c.VirtualDesktop.OpenSCAD.RenderTimeoutSeconds},
 		{[]string{"virtual_desktop", "openscad", "max_render_timeout_seconds"}, c.VirtualDesktop.OpenSCAD.MaxRenderTimeoutSeconds},
 		{[]string{"virtual_desktop", "openscad", "job_retention_days"}, c.VirtualDesktop.OpenSCAD.JobRetentionDays},
+		{[]string{"game_maker", "enabled"}, c.GameMaker.Enabled},
+		{[]string{"game_maker", "readonly"}, c.GameMaker.ReadOnly},
+		{[]string{"game_maker", "allow_create"}, c.GameMaker.AllowCreate},
+		{[]string{"game_maker", "allow_edit"}, c.GameMaker.AllowEdit},
+		{[]string{"game_maker", "allow_delete"}, c.GameMaker.AllowDelete},
+		{[]string{"game_maker", "allow_media_generation"}, c.GameMaker.AllowMediaGeneration},
+		{[]string{"game_maker", "workspace_path"}, c.GameMaker.WorkspacePath},
+		{[]string{"game_maker", "max_projects"}, c.GameMaker.MaxProjects},
+		{[]string{"game_maker", "max_files_per_project"}, c.GameMaker.MaxFilesPerProject},
+		{[]string{"game_maker", "max_file_size_kb"}, c.GameMaker.MaxFileSizeKB},
+		{[]string{"game_maker", "max_project_size_mb"}, c.GameMaker.MaxProjectSizeMB},
+		{[]string{"game_maker", "job_timeout_seconds"}, c.GameMaker.JobTimeoutSeconds},
 	}
 	for _, patch := range patches {
 		if err := setYAMLPathValue(&root, patch.path, patch.value); err != nil {

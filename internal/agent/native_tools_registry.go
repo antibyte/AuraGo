@@ -45,6 +45,7 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 	tools = appendMemoryToolSchemas(tools, ff)
 	tools = appendPlannerToolSchemas(tools, ff)
 	tools = appendIntegrationToolSchemas(tools, ff)
+	tools = appendGameMakerToolSchemas(tools, ff)
 	tools = replaceMegaToolSchemasWithFocused(tools, ff)
 	tools = appendContentToolSchemas(tools, ff)
 	tools = appendEdgeToolSchemas(tools, ff)
@@ -81,7 +82,7 @@ func allBuiltinToolFeatureFlags() ToolFeatureFlags {
 		MediaRegistryEnabled: true, HomepageRegistryEnabled: true, ContactsEnabled: true,
 		PlannerEnabled: true, JournalEnabled: true, MemoryAnalysisEnabled: true, DocumentCreatorEnabled: true, MediaConversionEnabled: true, VideoDownloadEnabled: true, VideoDownloadAllowDownload: true, VideoDownloadAllowTranscribe: true, SendYouTubeVideoEnabled: true,
 		WorkspaceSearchEnabled: true,
-		WebCaptureEnabled:      true, BrowserAutomationEnabled: true, SpaceAgentEnabled: true, VirtualDesktopEnabled: true, VirtualComputersEnabled: true,
+		WebCaptureEnabled:      true, BrowserAutomationEnabled: true, SpaceAgentEnabled: true, VirtualDesktopEnabled: true, GameMakerEnabled: true, VirtualComputersEnabled: true,
 		OpenSCADEnabled: true, OfficeDocumentEnabled: true, OfficeWorkbookEnabled: true, NetworkPingEnabled: true, WebScraperEnabled: true,
 		S3Enabled: true, NetworkScanEnabled: true, FormAutomationEnabled: true, UPnPScanEnabled: true,
 		JellyfinEnabled: true, ChromecastEnabled: true, BluetoothEnabled: true, BluetoothWriteEnabled: true, BluetoothAudioEnabled: true,
@@ -197,6 +198,7 @@ func (ff ToolFeatureFlags) Key() string {
 	appendToolFeatureKeyPart("browser_automation", ff.BrowserAutomationEnabled)
 	appendToolFeatureKeyPart("space_agent", ff.SpaceAgentEnabled)
 	appendToolFeatureKeyPart("virtual_desktop", ff.VirtualDesktopEnabled)
+	appendToolFeatureKeyPart("game_maker", ff.GameMakerEnabled)
 	appendToolFeatureKeyPart("virtual_computers", ff.VirtualComputersEnabled)
 	appendToolFeatureKeyPart("openscad", ff.OpenSCADEnabled)
 	appendToolFeatureKeyPart("office_document", ff.OfficeDocumentEnabled)

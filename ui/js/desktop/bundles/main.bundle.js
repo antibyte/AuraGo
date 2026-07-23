@@ -768,6 +768,7 @@
             'virtual-computers': 'VirtualComputersApp',
             'viewer-3d': 'Viewer3DApp',
             'mission-control': 'MissionControlApp',
+            'game-maker-studio': 'GameMakerStudioApp',
             settings: 'SettingsApp',
             calculator: 'CalculatorApp',
             'system-world': 'SysWorldApp',
@@ -8387,6 +8388,18 @@ if (appId === 'pixel') {
                 return;
             }
             if (typeof window.HomepageStudioApp.render === 'function') return window.HomepageStudioApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification }));
+        }
+        if (appId === 'game-maker-studio') {
+            if (!window.GameMakerStudioApp) {
+                window.AuraDesktopModules.loadAppScript('game-maker-studio').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            if (typeof window.GameMakerStudioApp.render === 'function') {
+                return window.GameMakerStudioApp.render(contentEl(id), id, Object.assign({}, context || {}, {
+                    esc, api, t, iconMarkup, notify: showDesktopNotification,
+                    readonly: desktopReadonly(), openApp, confirmDialog, promptDialog
+                }));
+            }
         }
         if (appId === 'pet-picker') {
             if (!window.PetPickerApp) {

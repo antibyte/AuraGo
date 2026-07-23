@@ -478,6 +478,22 @@ type VirtualDesktopConfig struct {
 	OpenSCAD                 OpenSCADConfig   `yaml:"openscad" json:"openscad"`                                       // built-in OpenSCAD compiler container
 }
 
+// GameMakerConfig controls the isolated Virtual Desktop Game Maker Studio.
+type GameMakerConfig struct {
+	Enabled              bool   `yaml:"enabled" json:"enabled"`
+	ReadOnly             bool   `yaml:"readonly" json:"readonly"`
+	AllowCreate          bool   `yaml:"allow_create" json:"allow_create"`
+	AllowEdit            bool   `yaml:"allow_edit" json:"allow_edit"`
+	AllowDelete          bool   `yaml:"allow_delete" json:"allow_delete"`
+	AllowMediaGeneration bool   `yaml:"allow_media_generation" json:"allow_media_generation"`
+	WorkspacePath        string `yaml:"workspace_path" json:"workspace_path"`
+	MaxProjects          int    `yaml:"max_projects" json:"max_projects"`
+	MaxFilesPerProject   int    `yaml:"max_files_per_project" json:"max_files_per_project"`
+	MaxFileSizeKB        int    `yaml:"max_file_size_kb" json:"max_file_size_kb"`
+	MaxProjectSizeMB     int    `yaml:"max_project_size_mb" json:"max_project_size_mb"`
+	JobTimeoutSeconds    int    `yaml:"job_timeout_seconds" json:"job_timeout_seconds"`
+}
+
 // VirtualComputersConfig holds settings for external microVM-backed computers.
 type VirtualComputersConfig struct {
 	Enabled             bool                         `yaml:"enabled" json:"enabled"`                           // enable Virtual Computers APIs and UI
@@ -875,6 +891,7 @@ type Config struct {
 		RemoteControlPath    string `yaml:"remote_control_path"`
 		MediaRegistryPath    string `yaml:"media_registry_path"`
 		HomepageRegistryPath string `yaml:"homepage_registry_path"`
+		GameMakerPath        string `yaml:"game_maker_path"`
 		ContactsPath         string `yaml:"contacts_path"`
 		PlannerPath          string `yaml:"planner_path"`
 		VirtualDesktopPath   string `yaml:"virtual_desktop_path"`
@@ -1758,6 +1775,7 @@ type Config struct {
 	OmniRoute         OmniRouteConfig         `yaml:"omniroute"`
 	Dograh            DograhConfig            `yaml:"dograh"`
 	VirtualDesktop    VirtualDesktopConfig    `yaml:"virtual_desktop"`
+	GameMaker         GameMakerConfig         `yaml:"game_maker"`
 	VirtualComputers  VirtualComputersConfig  `yaml:"virtual_computers"`
 	SecurityProxy     struct {
 		Enabled      bool   `yaml:"enabled"`

@@ -42,6 +42,10 @@ var builtinToolMetadata = map[string]ToolRegistryMetadata{
 	"homepage_quality":       {Name: "homepage_quality", Family: "homepage", VisibilityClass: ToolVisibilityAdaptive, Dispatcher: "services"},
 	"homepage_deploy":        {Name: "homepage_deploy", Family: "homepage", VisibilityClass: ToolVisibilityAdaptive, Dispatcher: "services", RequiresWrite: true},
 	"homepage_git":           {Name: "homepage_git", Family: "homepage", VisibilityClass: ToolVisibilityAdaptive, Dispatcher: "services", RequiresWrite: true},
+	"game_maker_project":     {Name: "game_maker_project", Family: "game_maker", VisibilityClass: ToolVisibilityAdaptive, Dispatcher: "exec"},
+	"game_maker_file":        {Name: "game_maker_file", Family: "game_maker", VisibilityClass: ToolVisibilityAdaptive, Dispatcher: "exec", RequiresWrite: true},
+	"game_maker_asset":       {Name: "game_maker_asset", Family: "game_maker", VisibilityClass: ToolVisibilityAdaptive, Dispatcher: "exec", RequiresWrite: true},
+	"game_maker_validate":    {Name: "game_maker_validate", Family: "game_maker", VisibilityClass: ToolVisibilityAdaptive, Dispatcher: "exec"},
 	"sip_phone":              {Name: "sip_phone", Family: "communications", VisibilityClass: ToolVisibilityAdaptive, Dispatcher: "platform", RequiresWrite: true, CompressionClass: toolmeta.CompressionClassAPI},
 }
 

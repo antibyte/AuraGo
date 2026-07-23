@@ -118,6 +118,13 @@
             styles: appStyles('/css/camera.css'),
             scripts: ['/js/desktop/apps/camera.js']
         },
+        'game-maker-studio': {
+            styles: appStyles('/css/desktop-app-game-maker-studio.css'),
+            scripts: [
+                '/js/desktop/apps/game-maker-studio-api.js',
+                '/js/desktop/apps/game-maker-studio.js'
+            ]
+        },
         'sip-phone': {
             styles: appStyles('/css/desktop-app-sip-phone.css'),
             scripts: ['/js/desktop/apps/sip-phone.js']
@@ -395,6 +402,7 @@
         'chess': [],
         'code-studio': ['codeStudio'],
         'galaxa-deluxe': ['galaxa'],
+        'game-maker-studio': ['game_maker'],
         'homepage-studio': ['homepage_studio'],
         'live-speech': [],
         'sip-phone': ['sip_phone'],
