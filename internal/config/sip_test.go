@@ -24,6 +24,7 @@ func TestValidateSIPConfigRequiresAllowlistsAndRuntimeSecret(t *testing.T) {
 	cfg.Registrar = "pbx.example"
 	cfg.Domain = "pbx.example"
 	cfg.Username = "aurago"
+	cfg.Permissions.AnswerInbound = true
 	if err := ValidateSIPConfig(cfg); err == nil {
 		t.Fatal("expected missing SIP allowlists to fail")
 	}
@@ -31,7 +32,6 @@ func TestValidateSIPConfigRequiresAllowlistsAndRuntimeSecret(t *testing.T) {
 	cfg.Inbound.AllowedCallers = []string{"alice"}
 	cfg.Outbound.AllowedDomains = []string{"pbx.example"}
 	cfg.Outbound.AllowedUsers = []string{"alice"}
-	cfg.Permissions.AnswerInbound = true
 	if err := ValidateSIPConfig(cfg); err != nil {
 		t.Fatalf("static validation failed: %v", err)
 	}
@@ -41,6 +41,53 @@ func TestValidateSIPConfigRequiresAllowlistsAndRuntimeSecret(t *testing.T) {
 	cfg.Password = "secret"
 	if err := ValidateSIPRuntimeConfig(cfg); err != nil {
 		t.Fatalf("runtime validation failed: %v", err)
+	}
+}
+
+func TestValidateSIPConfigAllowsRegistrationOnlyWithoutAllowlists(t *testing.T) {
+	var cfg SIPConfig
+	ApplySIPDefaults(&cfg)
+	cfg.Enabled = true
+	cfg.Registrar = "pbx.example"
+	cfg.Domain = "pbx.example"
+	cfg.Username = "aurago"
+	if err := ValidateSIPConfig(cfg); err != nil {
+		t.Fatalf("registration-only SIP config should be valid: %v", err)
+	}
+	cfg.Permissions.OriginateOutbound = true
+	if err := ValidateSIPConfig(cfg); err == nil {
+		t.Fatal("outbound permission without a destination allowlist must fail")
+	}
+}
+
+func TestValidateSIPConfigAllowsAuthUsernameWithDomain(t *testing.T) {
+	var cfg SIPConfig
+	ApplySIPDefaults(&cfg)
+	cfg.Enabled = true
+	cfg.Registrar = "tel.t-online.de"
+	cfg.Domain = "tel.t-online.de"
+	cfg.Username = "+49123456789"
+	cfg.AuthUsername = "name@t-online.de"
+	if err := ValidateSIPConfig(cfg); err != nil {
+		t.Fatalf("domain-qualified digest username should be valid: %v", err)
+	}
+}
+
+func TestValidateSIPConfigRejectsDomainInURIUsers(t *testing.T) {
+	var cfg SIPConfig
+	ApplySIPDefaults(&cfg)
+	cfg.Enabled = true
+	cfg.Registrar = "pbx.example"
+	cfg.Domain = "pbx.example"
+	cfg.Username = "alice@pbx.example"
+	if err := ValidateSIPConfig(cfg); err == nil {
+		t.Fatal("SIP URI username must not contain a domain")
+	}
+
+	cfg.Username = "alice"
+	cfg.Outbound.AllowedUsers = []string{"bob@pbx.example"}
+	if err := ValidateSIPConfig(cfg); err == nil {
+		t.Fatal("outbound allowed user must not contain a domain")
 	}
 }
 

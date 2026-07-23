@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -33,6 +34,13 @@ type sipConfigPayload struct {
 	Password      string `json:"password,omitempty"`
 	PasswordSet   bool   `json:"password_set"`
 	ClearPassword bool   `json:"clear_password,omitempty"`
+}
+
+type sipSetupPayload struct {
+	ProviderID     string            `json:"provider_id"`
+	Values         map[string]string `json:"values"`
+	Password       string            `json:"password,omitempty"`
+	ConfirmReplace bool              `json:"confirm_replace,omitempty"`
 }
 
 type sipRequestLimiter struct {
@@ -79,6 +87,8 @@ func registerSIPHandlers(mux *http.ServeMux, s *Server) {
 		return requireAdmin(s, guarded).ServeHTTP
 	}
 	mux.HandleFunc("/api/sip/config", admin(handleSIPConfig(s)))
+	mux.HandleFunc("/api/sip/providers", admin(handleSIPProviders()))
+	mux.HandleFunc("/api/sip/setup", admin(handleSIPSetup(s)))
 	mux.HandleFunc("/api/sip/test", admin(handleSIPTest(s)))
 	mux.HandleFunc("/api/sip/status", admin(handleSIPStatus(s)))
 	mux.HandleFunc("/api/sip/calls", admin(handleSIPCalls(s)))
@@ -87,6 +97,120 @@ func registerSIPHandlers(mux *http.ServeMux, s *Server) {
 	mux.HandleFunc("/api/sip/app/state", admin(handleSIPAppState(s)))
 	mux.HandleFunc("/api/sip/browser-media/sessions", browserAdmin(handleSIPBrowserMediaSessions(s)))
 	mux.HandleFunc("/api/sip/browser-media/sessions/", browserAdmin(handleSIPBrowserMediaSession(s)))
+}
+
+func handleSIPProviders() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		writeSIPJSON(w, map[string]interface{}{
+			"providers": sipphone.SIPProviderPresets(),
+		})
+	}
+}
+
+func handleSIPSetup(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if !sameOriginOrNoOrigin(r) {
+			jsonError(w, "Request origin does not match server host", http.StatusForbidden)
+			return
+		}
+		var incoming sipSetupPayload
+		decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, sipRequestBodyLimit))
+		decoder.DisallowUnknownFields()
+		if err := decoder.Decode(&incoming); err != nil {
+			jsonError(w, "Invalid SIP setup JSON", http.StatusBadRequest)
+			return
+		}
+		if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
+			jsonError(w, "Invalid SIP setup JSON", http.StatusBadRequest)
+			return
+		}
+		if len(incoming.Values) > 8 {
+			jsonError(w, "Too many SIP setup fields", http.StatusBadRequest)
+			return
+		}
+		old := sipConfigSnapshot(s)
+		providerID := strings.ToLower(strings.TrimSpace(incoming.ProviderID))
+		if sipConfigHasAccount(old) && old.PresetID != providerID && !incoming.ConfirmReplace {
+			jsonError(w, "Provider change requires explicit replacement confirmation", http.StatusConflict)
+			return
+		}
+		next, err := sipphone.ApplySIPProviderPreset(providerID, incoming.Values)
+		if err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		next.Password = old.Password
+		mutations := make([]vaultMutation, 0, 1)
+		password := incoming.Password
+		if password == "" && old.PresetID != providerID {
+			jsonError(w, "A new SIP password is required when changing providers", http.StatusBadRequest)
+			return
+		}
+		if password != "" {
+			if password == maskedKey || len(password) > 1024 || strings.ContainsAny(password, "\r\n\x00") {
+				jsonError(w, "Invalid SIP password", http.StatusBadRequest)
+				return
+			}
+			if s == nil || s.Vault == nil {
+				jsonError(w, "Vault is required to store the SIP password", http.StatusServiceUnavailable)
+				return
+			}
+			next.Password = password
+			security.RegisterSensitive(next.Password)
+			mutations = append(mutations, vaultMutation{key: config.SIPPasswordVaultKey, value: next.Password})
+		}
+		if strings.TrimSpace(next.Password) == "" {
+			jsonError(w, "A SIP password is required", http.StatusBadRequest)
+			return
+		}
+		config.NormalizeSIPConfig(&next)
+		if err := config.ValidateSIPRuntimeConfig(next); err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if old.Enabled && (old.Media.RTPPortStart != next.Media.RTPPortStart || old.Media.RTPPortEnd != next.Media.RTPPortEnd) {
+			jsonError(w, "RTP port range changes require an AuraGo restart", http.StatusConflict)
+			return
+		}
+		browserMediaNeedsRestart := sipBrowserMediaRestartRequired(old, next)
+		if err := persistSIPConfig(s, next, mutations); err != nil {
+			if s != nil && s.Logger != nil {
+				s.Logger.Error("Failed to apply SIP provider preset", "error", err)
+			}
+			jsonError(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		runtimePending := false
+		if s != nil && s.SIPPhone != nil {
+			ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
+			err = s.SIPPhone.Reconfigure(ctx, next)
+			cancel()
+			runtimePending = err != nil
+		}
+		if runtimePending || browserMediaNeedsRestart {
+			w.Header().Set("Content-Type", "application/json")
+			w.Header().Set("Cache-Control", "no-store")
+			w.WriteHeader(http.StatusAccepted)
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+				"status": "pending", "needs_restart": true,
+				"message": "SIP setup saved; restart AuraGo to reconcile the runtime",
+			})
+			return
+		}
+		writeSIPConfig(w, sipConfigSnapshot(s))
+	}
+}
+
+func sipConfigHasAccount(cfg config.SIPConfig) bool {
+	return strings.TrimSpace(cfg.Registrar) != "" || strings.TrimSpace(cfg.Username) != "" || strings.TrimSpace(cfg.PresetID) != ""
 }
 
 func handleSIPConfig(s *Server) http.HandlerFunc {

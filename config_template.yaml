@@ -150,11 +150,13 @@ network_shares:
         enabled: true
         allowed_clients: []                                  # explicit IP addresses or canonical CIDRs
 sip:
+    preset_id: ""                                          # managed by the guided provider setup; empty means expert configuration
     enabled: false
     readonly: true
     bind_host: 127.0.0.1
     bind_port: 5060
     transport: udp                                           # udp, tcp, tls; WS/WSS are not supported
+    prefer_srv: false                                        # prefer DNS SRV targets required by some providers
     registrar: ""
     outbound_proxy: ""
     domain: ""

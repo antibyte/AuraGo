@@ -9,8 +9,10 @@ import (
 )
 
 var (
-	sipConfigUserPattern = regexp.MustCompile(`^[A-Za-z0-9_.!~*'()%+\-]+$`)
-	sipE164PrefixPattern = regexp.MustCompile(`^\+[1-9][0-9]{0,14}$`)
+	sipConfigUserPattern   = regexp.MustCompile(`^[A-Za-z0-9_.!~*'()%+\-]+$`)
+	sipAuthUsernamePattern = regexp.MustCompile(`^[A-Za-z0-9_.!~*'()%+@\-]+$`)
+	sipPresetIDPattern     = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,63}$`)
+	sipE164PrefixPattern   = regexp.MustCompile(`^\+[1-9][0-9]{0,14}$`)
 )
 
 const (
@@ -32,11 +34,13 @@ const (
 // SIPConfig configures AuraGo's single-account, single-call native SIP endpoint.
 // Password is runtime-only and hydrated exclusively from the encrypted vault.
 type SIPConfig struct {
+	PresetID                string                `yaml:"preset_id,omitempty" json:"preset_id,omitempty"`
 	Enabled                 bool                  `yaml:"enabled" json:"enabled"`
 	ReadOnly                bool                  `yaml:"readonly" json:"readonly"`
 	BindHost                string                `yaml:"bind_host" json:"bind_host"`
 	BindPort                int                   `yaml:"bind_port" json:"bind_port"`
 	Transport               string                `yaml:"transport" json:"transport"`
+	PreferSRV               bool                  `yaml:"prefer_srv,omitempty" json:"prefer_srv"`
 	Registrar               string                `yaml:"registrar" json:"registrar"`
 	OutboundProxy           string                `yaml:"outbound_proxy" json:"outbound_proxy"`
 	Domain                  string                `yaml:"domain" json:"domain"`
@@ -141,6 +145,7 @@ func NormalizeSIPConfig(cfg *SIPConfig) {
 		return
 	}
 	cfg.BindHost = strings.TrimSpace(cfg.BindHost)
+	cfg.PresetID = strings.ToLower(strings.TrimSpace(cfg.PresetID))
 	cfg.Transport = strings.ToLower(strings.TrimSpace(cfg.Transport))
 	cfg.Registrar = strings.TrimSpace(cfg.Registrar)
 	cfg.OutboundProxy = strings.TrimSpace(cfg.OutboundProxy)
@@ -177,7 +182,7 @@ func ValidateSIPConfig(cfg SIPConfig) error {
 		return nil
 	}
 	for name, value := range map[string]string{
-		"registrar": cfg.Registrar, "outbound_proxy": cfg.OutboundProxy, "domain": cfg.Domain,
+		"preset_id": cfg.PresetID, "registrar": cfg.Registrar, "outbound_proxy": cfg.OutboundProxy, "domain": cfg.Domain,
 		"username": cfg.Username, "auth_username": cfg.AuthUsername, "display_name": cfg.DisplayName,
 		"advertised_signaling_host": cfg.AdvertisedSignalingHost, "media.advertised_host": cfg.Media.AdvertisedHost,
 		"browser_media.bind_host": cfg.BrowserMedia.BindHost, "browser_media.advertised_ip": cfg.BrowserMedia.AdvertisedIP,
@@ -204,6 +209,9 @@ func ValidateSIPConfig(cfg SIPConfig) error {
 	if cfg.BindHost == "" || net.ParseIP(cfg.BindHost) == nil {
 		return fmt.Errorf("sip.bind_host must be a concrete IP address")
 	}
+	if cfg.PresetID != "" && !sipPresetIDPattern.MatchString(cfg.PresetID) {
+		return fmt.Errorf("sip.preset_id is invalid")
+	}
 	if cfg.BindPort < 1 || cfg.BindPort > 65535 {
 		return fmt.Errorf("sip.bind_port must be between 1 and 65535")
 	}
@@ -216,16 +224,19 @@ func ValidateSIPConfig(cfg SIPConfig) error {
 		if cfg.Registrar == "" || cfg.Username == "" || cfg.Domain == "" {
 			return fmt.Errorf("enabled SIP requires registrar, domain, and username")
 		}
-		if !sipConfigUserPattern.MatchString(cfg.Username) || (cfg.AuthUsername != "" && !sipConfigUserPattern.MatchString(cfg.AuthUsername)) {
-			return fmt.Errorf("sip.username and sip.auth_username must be valid SIP users")
+		if !sipConfigUserPattern.MatchString(cfg.Username) {
+			return fmt.Errorf("sip.username must be a valid SIP URI user")
+		}
+		if cfg.AuthUsername != "" && !sipAuthUsernamePattern.MatchString(cfg.AuthUsername) {
+			return fmt.Errorf("sip.auth_username must be a valid digest authentication user")
 		}
 		if !validSIPDomain(cfg.Domain) {
 			return fmt.Errorf("sip.domain must be a host name or IP address without a port")
 		}
-		if len(cfg.Inbound.TrustedPeerCIDRs) == 0 || len(cfg.Inbound.AllowedCallers) == 0 {
+		if cfg.Permissions.AnswerInbound && (len(cfg.Inbound.TrustedPeerCIDRs) == 0 || len(cfg.Inbound.AllowedCallers) == 0) {
 			return fmt.Errorf("enabled SIP requires trusted peer and caller allowlists")
 		}
-		if len(cfg.Outbound.AllowedDomains) == 0 || (len(cfg.Outbound.AllowedUsers) == 0 && len(cfg.Outbound.AllowedE164Prefixes) == 0) {
+		if cfg.Permissions.OriginateOutbound && (len(cfg.Outbound.AllowedDomains) == 0 || (len(cfg.Outbound.AllowedUsers) == 0 && len(cfg.Outbound.AllowedE164Prefixes) == 0)) {
 			return fmt.Errorf("enabled SIP requires destination domain and user or E.164 allowlists")
 		}
 		if cfg.Transport == "tls" && (cfg.TLS.CertFile == "" || cfg.TLS.KeyFile == "") {

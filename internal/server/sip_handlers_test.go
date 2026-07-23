@@ -4,10 +4,13 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"aurago/internal/config"
+	"aurago/internal/security"
 	"aurago/internal/sipphone"
 )
 
@@ -27,6 +30,29 @@ func TestSIPConfigResponseMasksPassword(t *testing.T) {
 	}
 	if !payload.PasswordSet || payload.Password != "" {
 		t.Fatalf("unexpected secret mask state: %+v", payload)
+	}
+}
+
+func TestSIPProviderCatalogIsPubliclySecretFree(t *testing.T) {
+	recorder := httptest.NewRecorder()
+	handleSIPProviders().ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/sip/providers", nil))
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", recorder.Code, recorder.Body.String())
+	}
+	var payload struct {
+		Providers []sipphone.SIPProviderPreset `json:"providers"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &payload); err != nil {
+		t.Fatal(err)
+	}
+	if len(payload.Providers) < 50 {
+		t.Fatalf("provider catalog is unexpectedly small: %d", len(payload.Providers))
+	}
+	if strings.Contains(strings.ToLower(recorder.Body.String()), `"password":"`) {
+		t.Fatal("provider catalog exposed a password value")
+	}
+	if recorder.Header().Get("Cache-Control") != "no-store" {
+		t.Fatal("provider catalog must not be cached")
 	}
 }
 
@@ -57,9 +83,103 @@ func TestSIPConfigMutationRequiresSameOrigin(t *testing.T) {
 	}
 }
 
+func TestSIPSetupMutationRequiresSameOrigin(t *testing.T) {
+	server := &Server{Cfg: &config.Config{}}
+	request := httptest.NewRequest(http.MethodPost, "https://aurago.local/api/sip/setup", strings.NewReader(`{"provider_id":"fritzbox"}`))
+	request.Header.Set("Origin", "https://attacker.example")
+	recorder := httptest.NewRecorder()
+	handleSIPSetup(server).ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf("status=%d body=%s", recorder.Code, recorder.Body.String())
+	}
+}
+
+func TestSIPSetupRejectsTrailingJSON(t *testing.T) {
+	server := &Server{Cfg: &config.Config{}}
+	body := `{"provider_id":"fritzbox","values":{"server":"fritz.box","username":"desk"}} {}`
+	request := httptest.NewRequest(http.MethodPost, "https://aurago.local/api/sip/setup", strings.NewReader(body))
+	request.Header.Set("Origin", "https://aurago.local")
+	recorder := httptest.NewRecorder()
+	handleSIPSetup(server).ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("status=%d body=%s", recorder.Code, recorder.Body.String())
+	}
+	if sipConfigHasAccount(sipConfigSnapshot(server)) {
+		t.Fatal("trailing JSON must be rejected before changing SIP configuration")
+	}
+}
+
+func TestSIPSetupAppliesPresetAndStoresPasswordOnlyInVault(t *testing.T) {
+	template, err := os.ReadFile(filepath.Join("..", "..", "config_template.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, "config.yaml")
+	if err := os.WriteFile(configPath, template, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := config.Load(configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	loaded.ConfigPath = configPath
+	vault, err := security.NewVault(strings.Repeat("a", 64), filepath.Join(tempDir, "vault.bin"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := &Server{Cfg: loaded, Vault: vault}
+	body := `{"provider_id":"fritzbox","values":{"server":"fritz.box","username":"aurago-phone","display_name":"AuraGo"},"password":" setup-secret "}`
+	request := httptest.NewRequest(http.MethodPost, "https://aurago.local/api/sip/setup", strings.NewReader(body))
+	request.Header.Set("Origin", "https://aurago.local")
+	recorder := httptest.NewRecorder()
+	handleSIPSetup(server).ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", recorder.Code, recorder.Body.String())
+	}
+	snapshot := sipConfigSnapshot(server)
+	if snapshot.PresetID != "fritzbox" || snapshot.Registrar != "fritz.box" || !snapshot.Enabled || !snapshot.ReadOnly {
+		t.Fatalf("unexpected saved preset: %+v", snapshot)
+	}
+	if snapshot.Permissions.AnswerInbound || snapshot.Permissions.OriginateOutbound {
+		t.Fatalf("setup granted call permissions: %+v", snapshot.Permissions)
+	}
+	secret, err := vault.ReadSecret(config.SIPPasswordVaultKey)
+	if err != nil || secret != " setup-secret " {
+		t.Fatalf("SIP password not stored in Vault: value=%q err=%v", secret, err)
+	}
+	savedYAML, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(savedYAML), "setup-secret") {
+		t.Fatal("SIP password leaked into config.yaml")
+	}
+}
+
+func TestSIPSetupRequiresNewPasswordWhenProviderChanges(t *testing.T) {
+	var current config.SIPConfig
+	config.ApplySIPDefaults(&current)
+	current.PresetID = "sipgate-de"
+	current.Registrar = "sipgate.de"
+	current.Username = "old-user"
+	current.Password = "old-password"
+	server := &Server{Cfg: &config.Config{SIP: current}}
+	body := `{"provider_id":"fritzbox","confirm_replace":true,"values":{"server":"fritz.box","username":"new-user"}}`
+	request := httptest.NewRequest(http.MethodPost, "https://aurago.local/api/sip/setup", strings.NewReader(body))
+	request.Header.Set("Origin", "https://aurago.local")
+	recorder := httptest.NewRecorder()
+	handleSIPSetup(server).ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("status=%d body=%s", recorder.Code, recorder.Body.String())
+	}
+}
+
 func TestSIPAPIRoutesAreAdminProtected(t *testing.T) {
 	for _, path := range []string{
 		"/api/sip/config",
+		"/api/sip/providers",
+		"/api/sip/setup",
 		"/api/sip/status",
 		"/api/sip/calls",
 		"/api/sip/events",

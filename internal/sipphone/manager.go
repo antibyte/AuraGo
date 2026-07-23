@@ -122,13 +122,17 @@ func (m *Manager) Start(parent context.Context) error {
 		hostname = cfg.BindHost
 	}
 	protocolLogger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	transportOptions := []sip.TransportLayerOption{sip.WithTransportLayerLogger(protocolLogger)}
+	if cfg.PreferSRV {
+		transportOptions = append(transportOptions, sip.WithTransportLayerDNSLookupSRV(true))
+	}
 	ua, err := sipgo.NewUA(
 		// Diago also uses the UA name as the Contact URI user. The configured
 		// account name is therefore required here for PBX registration routing.
 		sipgo.WithUserAgent(cfg.Username),
 		sipgo.WithUserAgentHostname(hostname),
 		sipgo.WithUserAgentTransactionLayerOptions(sip.WithTransactionLayerLogger(protocolLogger)),
-		sipgo.WithUserAgentTransportLayerOptions(sip.WithTransportLayerLogger(protocolLogger)),
+		sipgo.WithUserAgentTransportLayerOptions(transportOptions...),
 	)
 	if err != nil {
 		return fmt.Errorf("create SIP user agent: %w", err)
