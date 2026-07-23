@@ -68,6 +68,13 @@ self.addEventListener('fetch', event => {
     if (url.origin !== self.location.origin || isApiRequest(url) || !isStaticAsset(url)) {
         return;
     }
+    // Media elements use byte ranges for seeking and progressive playback.
+    // Cache Storage rejects 206 responses, so range requests must go straight
+    // to the network instead of turning a valid response into an offline 503.
+    if (request.headers.has('Range')) {
+        event.respondWith(fetch(request));
+        return;
+    }
 
     event.respondWith(
         caches.open(STATIC_CACHE).then(async cache => {
@@ -77,7 +84,9 @@ self.addEventListener('fetch', event => {
             try {
                 const response = await fetch(request);
                 if (response && response.ok) {
-                    await cache.put(key, response.clone());
+                    // A failed cache write must never discard a valid network
+                    // response. Quota and storage errors are non-fatal here.
+                    try { await cache.put(key, response.clone()); } catch (_) { }
                 }
                 return response;
             } catch (_) {

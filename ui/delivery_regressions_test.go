@@ -37,6 +37,9 @@ func TestServiceWorkerKeepsPushHandlersAndSecureStaticCachePolicy(t *testing.T) 
 		"return request.url;",
 		"url.origin !== self.location.origin",
 		"!isStaticAsset(url)",
+		"request.headers.has('Range')",
+		"event.respondWith(fetch(request))",
+		"try { await cache.put(key, response.clone()); } catch (_) { }",
 		"key.startsWith('aurago-') && key !== STATIC_CACHE",
 	} {
 		if !strings.Contains(sw, marker) {

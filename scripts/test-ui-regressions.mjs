@@ -124,6 +124,71 @@ function testVersionedServiceWorkerRegistration() {
   assert.deepEqual(registrations, ['/sw.js?v=chat-build']);
 }
 
+async function testServiceWorkerPreservesMediaRangeResponses() {
+  const handlers = {};
+  let cacheOpened = false;
+  let networkRequests = 0;
+  const context = {
+    URL,
+    Response,
+    fetch: async request => {
+      networkRequests++;
+      if (request.headers.has('Range')) {
+        assert.equal(request.headers.get('Range'), 'bytes=0-1023');
+        return new Response('audio bytes', { status: 206 });
+      }
+      return new Response('script bytes', { status: 200 });
+    },
+    caches: {
+      open: async () => {
+        cacheOpened = true;
+        throw new Error('range requests must bypass Cache Storage');
+      },
+      keys: async () => []
+    },
+    self: {
+      location: { href: 'https://aurago.test/sw.js?v=test', origin: 'https://aurago.test' },
+      addEventListener(type, handler) { handlers[type] = handler; },
+      skipWaiting: async () => {},
+      clients: { claim: async () => {} },
+      registration: { showNotification: async () => {} }
+    },
+    console
+  };
+  vm.runInNewContext(read('ui/sw.js'), context);
+
+  let responsePromise;
+  const request = new Request('https://aurago.test/img/audio/galaga.mp3', {
+    headers: { Range: 'bytes=0-1023' }
+  });
+  handlers.fetch({ request, respondWith(value) { responsePromise = Promise.resolve(value); } });
+  assert.ok(responsePromise, 'range request must be handled directly');
+  const response = await responsePromise;
+  assert.equal(response.status, 206);
+  assert.equal(networkRequests, 1);
+  assert.equal(cacheOpened, false);
+
+  let cacheWriteAttempted = false;
+  context.caches.open = async () => {
+    cacheOpened = true;
+    return {
+      match: async () => null,
+      put: async () => {
+        cacheWriteAttempted = true;
+        throw new Error('simulated quota failure');
+      }
+    };
+  };
+  responsePromise = null;
+  const scriptRequest = new Request('https://aurago.test/js/example.js');
+  handlers.fetch({ request: scriptRequest, respondWith(value) { responsePromise = Promise.resolve(value); } });
+  const scriptResponse = await responsePromise;
+  assert.equal(scriptResponse.status, 200, 'cache write failures must not replace valid responses');
+  assert.equal(cacheOpened, true);
+  assert.equal(cacheWriteAttempted, true);
+  assert.equal(networkRequests, 2);
+}
+
 function loadSkillSnapshotRuntime() {
   const skills = read('ui/js/skills/main.js');
   const snapshotSource = sourceBetween(skills, 'function sortedSnapshotArray', 'function shouldUpdateSkill');
@@ -1177,6 +1242,7 @@ function testNetworkCamerasDesktopContracts() {
 const tests = [
   ['browser audio lease uses an exclusive Web Lock', testBrowserAudioLeaseUsesExclusiveWebLock],
   ['versioned service-worker registration', testVersionedServiceWorkerRegistration],
+  ['service worker preserves media range responses', testServiceWorkerPreservesMediaRangeResponses],
   ['real skill snapshot differences', testSkillSnapshotDifferences],
   ['Python skill card ordering matches snapshots', testSkillCardOrderingMatchesSnapshots],
   ['Agent skill card ordering matches snapshots', testAgentSkillCardOrderingMatchesSnapshot],

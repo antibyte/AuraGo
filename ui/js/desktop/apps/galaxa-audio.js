@@ -508,7 +508,10 @@
         const GalagaMusic = {
             el: null,
             _playing: false,
+            _playPending: null,
             _shouldPlay: false,
+            _blocked: false,
+            _retryAt: 0,
             _url: '/img/audio/galaga.mp3',
             _ensure() {
                 if (this.el) return this.el;
@@ -517,16 +520,50 @@
                 a.loop = true;
                 a.preload = 'auto';
                 a.volume = Math.max(0, Math.min(1, (ctx.G.vol || 0.3) * 0.7));
-                a.addEventListener('error', () => { this._playing = false; });
+                a.addEventListener('playing', () => { if (this.el === a) this._playing = true; });
+                a.addEventListener('pause', () => { if (this.el === a) this._playing = false; });
+                a.addEventListener('error', () => {
+                    if (this.el !== a) return;
+                    this._playing = false;
+                    this._playPending = null;
+                    this._retryAt = Date.now() + 1000;
+                    this.el = null;
+                });
                 this.el = a;
                 return a;
             },
-            play() {
+            play(fromGesture) {
                 this._shouldPlay = true;
                 if (ctx.G && ctx.G.muted) return;
-                if (this._playing) return;
+                if (fromGesture) { this._blocked = false; this._retryAt = 0; }
+                if (this._playing || (!fromGesture && this._playPending) || this._blocked || Date.now() < this._retryAt) return;
                 const a = this._ensure();
-                try { a.currentTime = 0; const p = a.play(); if (p && typeof p.catch === 'function') p.catch(() => {}); this._playing = true; } catch (_) { this._playing = false; }
+                try {
+                    a.currentTime = 0;
+                    const pending = a.play();
+                    if (!pending || typeof pending.then !== 'function') { this._playing = !a.paused; return; }
+                    this._playPending = pending;
+                    pending.then(() => {
+                        if (this._playPending !== pending) return;
+                        this._playPending = null;
+                        if (!this._shouldPlay || (ctx.G && ctx.G.muted)) { try { a.pause(); a.currentTime = 0; } catch (_) {} return; }
+                        this._playing = true;
+                        this._blocked = false;
+                    }).catch(err => {
+                        if (this._playPending !== pending) return;
+                        this._playPending = null;
+                        this._playing = false;
+                        this._blocked = !!(err && err.name === 'NotAllowedError');
+                        this._retryAt = Date.now() + 1000;
+                    });
+                } catch (err) {
+                    this._playing = false;
+                    this._blocked = !!(err && err.name === 'NotAllowedError');
+                    this._retryAt = Date.now() + 1000;
+                }
+            },
+            resumeFromGesture() {
+                if (this._shouldPlay && !(ctx.G && ctx.G.muted)) this.play(true);
             },
             stop() {
                 this._shouldPlay = false;

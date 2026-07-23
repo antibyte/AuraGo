@@ -494,6 +494,7 @@
 
         function onKey(e) {
             if (ctx.state.disposed) return; const k = e.key;
+            if (ctx.GalagaMusic) ctx.GalagaMusic.resumeFromGesture();
             if (ctx.G.demoMode) {
                 ctx.G.demoMode = false;
                 Object.keys(ctx.G.ai).forEach(function(ak) { ctx.G.ai[ak] = false; });
@@ -540,6 +541,7 @@
 
         function onTouchStart(e) {
             if (ctx.state.disposed) return;
+            if (ctx.GalagaMusic) ctx.GalagaMusic.resumeFromGesture();
             e.preventDefault();
             for (const touch of e.changedTouches) {
                 const rect = ctx.canvas.getBoundingClientRect();
