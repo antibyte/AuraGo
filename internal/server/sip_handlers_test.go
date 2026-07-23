@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"aurago/internal/config"
+	"aurago/internal/sipphone"
 )
 
 func TestSIPConfigResponseMasksPassword(t *testing.T) {
@@ -57,9 +58,236 @@ func TestSIPConfigMutationRequiresSameOrigin(t *testing.T) {
 }
 
 func TestSIPAPIRoutesAreAdminProtected(t *testing.T) {
-	for _, path := range []string{"/api/sip/config", "/api/sip/status", "/api/sip/calls", "/api/sip/events"} {
+	for _, path := range []string{
+		"/api/sip/config",
+		"/api/sip/status",
+		"/api/sip/calls",
+		"/api/sip/events",
+		"/api/sip/app/state",
+		"/api/sip/browser-media/sessions",
+	} {
 		if !isAdminProtectedPath(path) {
 			t.Fatalf("%s is not administrator protected", path)
 		}
+	}
+}
+
+func TestSIPBrowserMediaRejectsBearerAndCrossOrigin(t *testing.T) {
+	server := newSIPBrowserHandlerTestServer(t)
+	mux := http.NewServeMux()
+	registerSIPHandlers(mux, server)
+
+	bearer := httptest.NewRequest(http.MethodPost, "http://aurago.local/api/sip/browser-media/sessions", strings.NewReader(`{}`))
+	bearer.Header.Set("Authorization", "Bearer admin-token")
+	bearerRecorder := httptest.NewRecorder()
+	mux.ServeHTTP(bearerRecorder, bearer)
+	if bearerRecorder.Code != http.StatusForbidden {
+		t.Fatalf("bearer status=%d body=%s", bearerRecorder.Code, bearerRecorder.Body.String())
+	}
+
+	crossOrigin := httptest.NewRequest(http.MethodPost, "http://aurago.local/api/sip/browser-media/sessions", strings.NewReader(`{}`))
+	crossOrigin.Header.Set("Origin", "https://attacker.example")
+	crossOriginRecorder := httptest.NewRecorder()
+	mux.ServeHTTP(crossOriginRecorder, crossOrigin)
+	if crossOriginRecorder.Code != http.StatusForbidden {
+		t.Fatalf("cross-origin status=%d body=%s", crossOriginRecorder.Code, crossOriginRecorder.Body.String())
+	}
+
+	missingOrigin := httptest.NewRequest(http.MethodPost, "http://aurago.local/api/sip/browser-media/sessions", strings.NewReader(`{}`))
+	missingOriginRecorder := httptest.NewRecorder()
+	mux.ServeHTTP(missingOriginRecorder, missingOrigin)
+	if missingOriginRecorder.Code != http.StatusForbidden {
+		t.Fatalf("missing-origin status=%d body=%s", missingOriginRecorder.Code, missingOriginRecorder.Body.String())
+	}
+}
+
+func TestSIPBrowserMediaRequiresExactOrigin(t *testing.T) {
+	tests := []struct {
+		name    string
+		request *http.Request
+		origin  string
+		want    bool
+	}{
+		{
+			name:    "same HTTPS origin",
+			request: httptest.NewRequest(http.MethodPost, "https://aurago.local/api/sip/browser-media/sessions", nil),
+			origin:  "https://aurago.local",
+			want:    true,
+		},
+		{
+			name:    "scheme downgrade",
+			request: httptest.NewRequest(http.MethodPost, "https://aurago.local/api/sip/browser-media/sessions", nil),
+			origin:  "http://aurago.local",
+			want:    false,
+		},
+		{
+			name:    "different port",
+			request: httptest.NewRequest(http.MethodPost, "https://aurago.local/api/sip/browser-media/sessions", nil),
+			origin:  "https://aurago.local:8443",
+			want:    false,
+		},
+		{
+			name:    "origin with path",
+			request: httptest.NewRequest(http.MethodPost, "https://aurago.local/api/sip/browser-media/sessions", nil),
+			origin:  "https://aurago.local/path",
+			want:    false,
+		},
+		{
+			name: "trusted forwarded request origin",
+			request: func() *http.Request {
+				request := httptest.NewRequest(http.MethodPost, "http://127.0.0.1/api/sip/browser-media/sessions", nil)
+				request.Header.Set("X-Forwarded-Proto", "https")
+				request.Header.Set("X-Forwarded-Host", "aurago.local")
+				return request
+			}(),
+			origin: "https://aurago.local",
+			want:   true,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			test.request.Header.Set("Origin", test.origin)
+			if got := sameOriginSIPBrowserRequest(test.request); got != test.want {
+				t.Fatalf("sameOriginSIPBrowserRequest()=%v want %v", got, test.want)
+			}
+		})
+	}
+}
+
+func TestSIPBrowserMediaHonorsCurrentConfiguration(t *testing.T) {
+	server := newSIPBrowserHandlerTestServer(t)
+	server.Cfg.SIP.BrowserMedia.Enabled = false
+	mux := http.NewServeMux()
+	registerSIPHandlers(mux, server)
+
+	request := httptest.NewRequest(http.MethodPost, "http://aurago.local/api/sip/browser-media/sessions", strings.NewReader(`{"client_id":"client-12345678","offer_sdp":"not-reached"}`))
+	request.Header.Set("Origin", "http://aurago.local")
+	recorder := httptest.NewRecorder()
+	mux.ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusServiceUnavailable {
+		t.Fatalf("disabled browser media status=%d body=%s", recorder.Code, recorder.Body.String())
+	}
+}
+
+func TestSIPBrowserMediaRejectsStaleRuntimeConfiguration(t *testing.T) {
+	server := newSIPBrowserHandlerTestServer(t)
+	server.Cfg.SIP.BrowserMedia.UDPPort++
+	recorder := httptest.NewRecorder()
+	if service, unavailable := sipBrowserMedia(server, recorder); !unavailable || service != nil {
+		t.Fatal("stale browser media runtime remained available")
+	}
+	if recorder.Code != http.StatusServiceUnavailable {
+		t.Fatalf("stale runtime status=%d body=%s", recorder.Code, recorder.Body.String())
+	}
+}
+
+func TestSIPBrowserMediaRestartDetection(t *testing.T) {
+	var old config.SIPConfig
+	config.ApplySIPDefaults(&old)
+	old.Enabled = true
+	old.BindHost = "127.0.0.1"
+	old.BrowserMedia.Enabled = true
+
+	tests := []struct {
+		name string
+		edit func(*config.SIPConfig)
+		want bool
+	}{
+		{name: "unchanged", edit: func(*config.SIPConfig) {}, want: false},
+		{name: "unrelated", edit: func(cfg *config.SIPConfig) { cfg.HistoryRetentionDays++ }, want: false},
+		{name: "disable", edit: func(cfg *config.SIPConfig) { cfg.BrowserMedia.Enabled = false }, want: true},
+		{name: "port", edit: func(cfg *config.SIPConfig) { cfg.BrowserMedia.UDPPort++ }, want: true},
+		{name: "inherited bind", edit: func(cfg *config.SIPConfig) { cfg.BindHost = "127.0.0.2" }, want: true},
+		{name: "explicit bind ignores signaling bind", edit: func(cfg *config.SIPConfig) {
+			cfg.BrowserMedia.BindHost = "127.0.0.1"
+			cfg.BindHost = "127.0.0.2"
+		}, want: false},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			next := old
+			test.edit(&next)
+			if got := sipBrowserMediaRestartRequired(old, next); got != test.want {
+				t.Fatalf("sipBrowserMediaRestartRequired()=%v want %v", got, test.want)
+			}
+		})
+	}
+}
+
+func TestSIPBrowserMediaRejectsOversizedAndInvalidSDPWithoutEcho(t *testing.T) {
+	server := newSIPBrowserHandlerTestServer(t)
+	mux := http.NewServeMux()
+	registerSIPHandlers(mux, server)
+
+	marker := "private-ice-credential"
+	invalidBody := `{"client_id":"client-12345678","offer_sdp":"` + marker + `"}`
+	invalid := httptest.NewRequest(http.MethodPost, "http://aurago.local/api/sip/browser-media/sessions", strings.NewReader(invalidBody))
+	invalid.Header.Set("Origin", "http://aurago.local")
+	invalidRecorder := httptest.NewRecorder()
+	mux.ServeHTTP(invalidRecorder, invalid)
+	if invalidRecorder.Code != http.StatusBadGateway {
+		t.Fatalf("invalid SDP status=%d body=%s", invalidRecorder.Code, invalidRecorder.Body.String())
+	}
+	if strings.Contains(invalidRecorder.Body.String(), marker) {
+		t.Fatal("invalid SDP was echoed in the error response")
+	}
+
+	oversizedBody := `{"client_id":"client-12345678","offer_sdp":"` + strings.Repeat("x", sipBrowserSDPBodyLimit) + `"}`
+	oversized := httptest.NewRequest(http.MethodPost, "http://aurago.local/api/sip/browser-media/sessions", strings.NewReader(oversizedBody))
+	oversized.Header.Set("Origin", "http://aurago.local")
+	oversizedRecorder := httptest.NewRecorder()
+	mux.ServeHTTP(oversizedRecorder, oversized)
+	if oversizedRecorder.Code != http.StatusBadRequest {
+		t.Fatalf("oversized SDP status=%d body=%s", oversizedRecorder.Code, oversizedRecorder.Body.String())
+	}
+}
+
+func TestSIPBrowserMediaRejectsForeignSessionAndRateLimits(t *testing.T) {
+	server := newSIPBrowserHandlerTestServer(t)
+	mux := http.NewServeMux()
+	registerSIPHandlers(mux, server)
+
+	foreign := httptest.NewRequest(http.MethodDelete, "http://aurago.local/api/sip/browser-media/sessions/not-owned", nil)
+	foreign.Header.Set("Origin", "http://aurago.local")
+	foreign.Header.Set(sipBrowserClientIDHeader, "client-12345678")
+	foreignRecorder := httptest.NewRecorder()
+	mux.ServeHTTP(foreignRecorder, foreign)
+	if foreignRecorder.Code != http.StatusNotFound {
+		t.Fatalf("foreign session status=%d body=%s", foreignRecorder.Code, foreignRecorder.Body.String())
+	}
+
+	rateServer := newSIPBrowserHandlerTestServer(t)
+	rateMux := http.NewServeMux()
+	registerSIPHandlers(rateMux, rateServer)
+	for i := 0; i <= sipBrowserMediaRateLimit; i++ {
+		request := httptest.NewRequest(http.MethodPost, "http://aurago.local/api/sip/browser-media/sessions", strings.NewReader(`{}`))
+		request.Header.Set("Origin", "http://aurago.local")
+		recorder := httptest.NewRecorder()
+		rateMux.ServeHTTP(recorder, request)
+		if i == sipBrowserMediaRateLimit && recorder.Code != http.StatusTooManyRequests {
+			t.Fatalf("rate-limit status=%d body=%s", recorder.Code, recorder.Body.String())
+		}
+	}
+}
+
+func newSIPBrowserHandlerTestServer(t *testing.T) *Server {
+	t.Helper()
+	var sipCfg config.SIPConfig
+	config.ApplySIPDefaults(&sipCfg)
+	sipCfg.Enabled = true
+	sipCfg.BindHost = "127.0.0.1"
+	sipCfg.BrowserMedia.Enabled = true
+	sipCfg.BrowserMedia.BindHost = "127.0.0.1"
+	sipCfg.BrowserMedia.UDPPort = 0
+	service, err := sipphone.NewBrowserMediaService(sipCfg, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_ = service.Close()
+	})
+	return &Server{
+		Cfg:             &config.Config{SIP: sipCfg},
+		SIPBrowserMedia: service,
 	}
 }

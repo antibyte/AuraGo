@@ -34,17 +34,31 @@ func (s *Server) initSIP(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("initialize SIP endpoint: %w", err)
 	}
+	browserMedia, err := sipphone.NewBrowserMediaService(s.Cfg.SIP, manager.BrowserMediaFailed)
+	if err != nil {
+		// Browser media is optional. Keep registration and the agent call path
+		// available while app/state reports the restart-required blocker.
+		if s.Logger != nil {
+			s.Logger.Warn("SIP browser media is unavailable", "error", err)
+		}
+		browserMedia = nil
+	}
 	runner.SetEndCall(func(callID string) {
 		callCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		_ = manager.Hangup(callCtx, callID)
 	})
 	s.SIPPhone = manager
+	s.SIPBrowserMedia = browserMedia
 	s.VoiceActionRunner = runner
 	sipphone.SetDefaultManager(manager)
 	if err := manager.Start(ctx); err != nil {
+		if browserMedia != nil {
+			_ = browserMedia.Close()
+		}
 		_ = manager.Close()
 		s.SIPPhone = nil
+		s.SIPBrowserMedia = nil
 		sipphone.SetDefaultManager(nil)
 		return fmt.Errorf("start SIP endpoint: %w", err)
 	}

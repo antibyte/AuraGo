@@ -20,6 +20,8 @@ function sipNormalize(data) {
     const state = data || {};
     state.tls = state.tls || {};
     state.media = state.media || {};
+    state.browser_media = state.browser_media || {};
+    if (!Number.isFinite(Number(state.browser_media.udp_port)) || Number(state.browser_media.udp_port) === 0) state.browser_media.udp_port = 30100;
     state.inbound = state.inbound || {};
     state.outbound = state.outbound || {};
     state.permissions = state.permissions || {};
@@ -86,6 +88,16 @@ function sipRender() {
             ${sipField('media.jitter_buffer_ms', t('config.sip.jitter_buffer'), 'number', c.media.jitter_buffer_ms || 60, 'min="20" max="200" step="20"')}
             ${sipField('media.codecs', t('config.sip.codecs'), 'text', sipList(c.media.codecs || ['pcma', 'pcmu']), 'readonly')}
         </div></div>
+
+        <div class="sip-settings-group"><h3>${sipEsc(t('config.sip.browser_media'))}</h3>
+            <p class="sip-settings-hint">${sipEsc(t('config.sip.browser_media_note'))}</p>
+            <div class="sip-settings-grid">
+                ${sipField('browser_media.enabled', t('config.sip.browser_media_enabled'), 'checkbox', c.browser_media.enabled)}
+                ${sipField('browser_media.bind_host', t('config.sip.browser_media_bind_host'), 'text', c.browser_media.bind_host || '', 'placeholder="127.0.0.1"')}
+                ${sipField('browser_media.udp_port', t('config.sip.browser_media_udp_port'), 'number', c.browser_media.udp_port || 30100, 'min="1024" max="65535"')}
+                ${sipField('browser_media.advertised_ip', t('config.sip.browser_media_advertised_ip'), 'text', c.browser_media.advertised_ip || '')}
+            </div>
+        </div>
 
         <div class="sip-settings-group"><h3>${sipEsc(t('config.sip.routing'))}</h3><div class="sip-settings-grid">
             ${sipSelect('inbound.route', t('config.sip.inbound_route'), c.inbound.route || 'agent', [['agent', t('config.sip.route_agent')], ['manual', t('config.sip.route_manual')], ['reject', t('config.sip.route_reject')]])}
@@ -182,7 +194,9 @@ async function sipSave() {
         sipConfigState = sipNormalize(Object.prototype.hasOwnProperty.call(saved, 'enabled') ? saved : await sipRequest('/api/sip/config'));
         sipSavedState = sipComparable(sipConfigState);
         sipRender();
-        document.getElementById('sip-action-status').textContent = t('config.sip.saved');
+        document.getElementById('sip-action-status').textContent = saved && saved.needs_restart
+            ? t('config.sip.restart_required')
+            : t('config.sip.saved');
     } catch (error) {
         status.textContent = error.message;
         save.disabled = false;

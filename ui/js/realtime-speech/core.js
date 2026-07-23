@@ -109,6 +109,7 @@
             this.sessionId = '';
             this.adapter = null;
             this.audioGate = null;
+            this.audioLease = null;
             this.state = 'idle';
             this.muted = false;
             this.userSpeaking = false;
@@ -262,6 +263,16 @@
             this.bindAudioGate(this.audioGate);
 
             try {
+                if (window.AuraBrowserAudioLease) {
+                    try {
+                        this.audioLease = await window.AuraBrowserAudioLease.acquire('realtime-speech', 'realtime-speech:' + this.clientId);
+                    } catch (leaseError) {
+                        if (leaseError && leaseError.code === 'audio_session_busy') {
+                            throw new Error(text('chat.realtime_takeover_title', 'Microphone already in use'));
+                        }
+                        throw leaseError;
+                    }
+                }
                 await this.audioGate.start();
                 await this.connectAdapter(!!options.takeover);
                 this.channelPost({ type: 'active', sessionId: this.sessionId });
@@ -793,9 +804,11 @@
             const sessionId = this.sessionId;
             const adapter = this.adapter;
             const gate = this.audioGate;
+            const audioLease = this.audioLease;
             this.sessionId = '';
             this.adapter = null;
             this.audioGate = null;
+            this.audioLease = null;
             this.actionActive = false;
             this.currentAction = null;
             this.userSpeaking = false;
@@ -808,6 +821,9 @@
             }
             if (gate) {
                 try { await gate.stop(); } catch (_) { }
+            }
+            if (audioLease && window.AuraBrowserAudioLease) {
+                window.AuraBrowserAudioLease.release(audioLease.token);
             }
             if (options.notifyServer && sessionId) {
                 try {

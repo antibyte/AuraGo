@@ -22,6 +22,7 @@ const (
 	DefaultSIPRegisterExpires      = 300
 	DefaultSIPRTPPortStart         = 30000
 	DefaultSIPRTPPortEnd           = 30099
+	DefaultSIPBrowserMediaUDPPort  = 30100
 	DefaultSIPJitterBufferMS       = 60
 	DefaultSIPAutoAnswerDelayMS    = 1000
 	DefaultSIPMaxCallDuration      = 3600
@@ -31,27 +32,28 @@ const (
 // SIPConfig configures AuraGo's single-account, single-call native SIP endpoint.
 // Password is runtime-only and hydrated exclusively from the encrypted vault.
 type SIPConfig struct {
-	Enabled                 bool                 `yaml:"enabled" json:"enabled"`
-	ReadOnly                bool                 `yaml:"readonly" json:"readonly"`
-	BindHost                string               `yaml:"bind_host" json:"bind_host"`
-	BindPort                int                  `yaml:"bind_port" json:"bind_port"`
-	Transport               string               `yaml:"transport" json:"transport"`
-	Registrar               string               `yaml:"registrar" json:"registrar"`
-	OutboundProxy           string               `yaml:"outbound_proxy" json:"outbound_proxy"`
-	Domain                  string               `yaml:"domain" json:"domain"`
-	Username                string               `yaml:"username" json:"username"`
-	AuthUsername            string               `yaml:"auth_username" json:"auth_username"`
-	DisplayName             string               `yaml:"display_name" json:"display_name"`
-	RegisterExpiresSeconds  int                  `yaml:"register_expires_seconds" json:"register_expires_seconds"`
-	AdvertisedSignalingHost string               `yaml:"advertised_signaling_host" json:"advertised_signaling_host"`
-	Password                string               `yaml:"-" json:"-"`
-	TLS                     SIPTLSConfig         `yaml:"tls" json:"tls"`
-	Media                   SIPMediaConfig       `yaml:"media" json:"media"`
-	Inbound                 SIPInboundConfig     `yaml:"inbound" json:"inbound"`
-	Outbound                SIPOutboundConfig    `yaml:"outbound" json:"outbound"`
-	Permissions             SIPPermissionsConfig `yaml:"permissions" json:"permissions"`
-	Voice                   SIPVoiceConfig       `yaml:"voice" json:"voice"`
-	HistoryRetentionDays    int                  `yaml:"history_retention_days" json:"history_retention_days"`
+	Enabled                 bool                  `yaml:"enabled" json:"enabled"`
+	ReadOnly                bool                  `yaml:"readonly" json:"readonly"`
+	BindHost                string                `yaml:"bind_host" json:"bind_host"`
+	BindPort                int                   `yaml:"bind_port" json:"bind_port"`
+	Transport               string                `yaml:"transport" json:"transport"`
+	Registrar               string                `yaml:"registrar" json:"registrar"`
+	OutboundProxy           string                `yaml:"outbound_proxy" json:"outbound_proxy"`
+	Domain                  string                `yaml:"domain" json:"domain"`
+	Username                string                `yaml:"username" json:"username"`
+	AuthUsername            string                `yaml:"auth_username" json:"auth_username"`
+	DisplayName             string                `yaml:"display_name" json:"display_name"`
+	RegisterExpiresSeconds  int                   `yaml:"register_expires_seconds" json:"register_expires_seconds"`
+	AdvertisedSignalingHost string                `yaml:"advertised_signaling_host" json:"advertised_signaling_host"`
+	Password                string                `yaml:"-" json:"-"`
+	TLS                     SIPTLSConfig          `yaml:"tls" json:"tls"`
+	Media                   SIPMediaConfig        `yaml:"media" json:"media"`
+	BrowserMedia            SIPBrowserMediaConfig `yaml:"browser_media" json:"browser_media"`
+	Inbound                 SIPInboundConfig      `yaml:"inbound" json:"inbound"`
+	Outbound                SIPOutboundConfig     `yaml:"outbound" json:"outbound"`
+	Permissions             SIPPermissionsConfig  `yaml:"permissions" json:"permissions"`
+	Voice                   SIPVoiceConfig        `yaml:"voice" json:"voice"`
+	HistoryRetentionDays    int                   `yaml:"history_retention_days" json:"history_retention_days"`
 }
 
 type SIPTLSConfig struct {
@@ -67,6 +69,15 @@ type SIPMediaConfig struct {
 	SymmetricRTP   bool     `yaml:"symmetric_rtp" json:"symmetric_rtp"`
 	JitterBufferMS int      `yaml:"jitter_buffer_ms" json:"jitter_buffer_ms"`
 	Codecs         []string `yaml:"codecs" json:"codecs"`
+}
+
+// SIPBrowserMediaConfig controls the authenticated WebRTC media boundary used
+// by the Virtual Desktop phone. It is opt-in and never exposes SIP credentials.
+type SIPBrowserMediaConfig struct {
+	Enabled      bool   `yaml:"enabled" json:"enabled"`
+	BindHost     string `yaml:"bind_host" json:"bind_host"`
+	UDPPort      int    `yaml:"udp_port" json:"udp_port"`
+	AdvertisedIP string `yaml:"advertised_ip" json:"advertised_ip"`
 }
 
 type SIPInboundConfig struct {
@@ -114,6 +125,7 @@ func ApplySIPDefaults(cfg *SIPConfig) {
 	cfg.Media.SymmetricRTP = true
 	cfg.Media.JitterBufferMS = DefaultSIPJitterBufferMS
 	cfg.Media.Codecs = []string{"pcma", "pcmu"}
+	cfg.BrowserMedia.UDPPort = DefaultSIPBrowserMediaUDPPort
 	cfg.Inbound.Route = "agent"
 	cfg.Inbound.AutoAnswerDelayMS = DefaultSIPAutoAnswerDelayMS
 	cfg.Permissions.AgentHangup = true
@@ -142,6 +154,8 @@ func NormalizeSIPConfig(cfg *SIPConfig) {
 	cfg.TLS.ServerName = strings.TrimSpace(cfg.TLS.ServerName)
 	cfg.Media.AdvertisedHost = strings.TrimSpace(cfg.Media.AdvertisedHost)
 	cfg.Media.Codecs = normalizedUniqueLower(cfg.Media.Codecs)
+	cfg.BrowserMedia.BindHost = strings.TrimSpace(cfg.BrowserMedia.BindHost)
+	cfg.BrowserMedia.AdvertisedIP = strings.TrimSpace(cfg.BrowserMedia.AdvertisedIP)
 	cfg.Inbound.Route = strings.ToLower(strings.TrimSpace(cfg.Inbound.Route))
 	cfg.Inbound.TrustedPeerCIDRs = normalizedUnique(cfg.Inbound.TrustedPeerCIDRs, false)
 	cfg.Inbound.AllowedCallers = normalizedUnique(cfg.Inbound.AllowedCallers, true)
@@ -166,6 +180,7 @@ func ValidateSIPConfig(cfg SIPConfig) error {
 		"registrar": cfg.Registrar, "outbound_proxy": cfg.OutboundProxy, "domain": cfg.Domain,
 		"username": cfg.Username, "auth_username": cfg.AuthUsername, "display_name": cfg.DisplayName,
 		"advertised_signaling_host": cfg.AdvertisedSignalingHost, "media.advertised_host": cfg.Media.AdvertisedHost,
+		"browser_media.bind_host": cfg.BrowserMedia.BindHost, "browser_media.advertised_ip": cfg.BrowserMedia.AdvertisedIP,
 		"tls.server_name": cfg.TLS.ServerName, "tls.cert_file": cfg.TLS.CertFile, "tls.key_file": cfg.TLS.KeyFile,
 	} {
 		if strings.ContainsAny(value, "\r\n\x00") {
@@ -225,6 +240,21 @@ func ValidateSIPConfig(cfg SIPConfig) error {
 	}
 	if cfg.Media.RTPPortEnd <= cfg.Media.RTPPortStart || cfg.Media.RTPPortEnd > 65535 {
 		return fmt.Errorf("sip.media.rtp_port_end must be greater than rtp_port_start and at most 65535")
+	}
+	if cfg.BrowserMedia.UDPPort < 1024 || cfg.BrowserMedia.UDPPort > 65535 {
+		return fmt.Errorf("sip.browser_media.udp_port must be between 1024 and 65535")
+	}
+	if cfg.BrowserMedia.BindHost != "" && net.ParseIP(cfg.BrowserMedia.BindHost) == nil {
+		return fmt.Errorf("sip.browser_media.bind_host must be empty or a concrete IP address")
+	}
+	if cfg.BrowserMedia.AdvertisedIP != "" && net.ParseIP(cfg.BrowserMedia.AdvertisedIP) == nil {
+		return fmt.Errorf("sip.browser_media.advertised_ip must be empty or a concrete IP address")
+	}
+	if cfg.BrowserMedia.UDPPort == cfg.BindPort {
+		return fmt.Errorf("sip.browser_media.udp_port must not overlap sip.bind_port")
+	}
+	if cfg.BrowserMedia.UDPPort >= cfg.Media.RTPPortStart && cfg.BrowserMedia.UDPPort <= cfg.Media.RTPPortEnd {
+		return fmt.Errorf("sip.browser_media.udp_port must not overlap the SIP RTP port range")
 	}
 	if cfg.Media.JitterBufferMS < 20 || cfg.Media.JitterBufferMS > 200 || cfg.Media.JitterBufferMS%20 != 0 {
 		return fmt.Errorf("sip.media.jitter_buffer_ms must be a multiple of 20 between 20 and 200")

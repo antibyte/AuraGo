@@ -19,6 +19,74 @@ function sourceBetween(source, startMarker, endMarker) {
   return source.slice(start, end);
 }
 
+async function testBrowserAudioLeaseUsesExclusiveWebLock() {
+  const source = read('ui/js/shared/browser-audio-lease.js');
+  const values = new Map();
+  let lockHeld = false;
+  let nextID = 0;
+  const locks = {
+    request(_name, options, callback) {
+      assert.equal(options.mode, 'exclusive');
+      assert.equal(options.ifAvailable, true);
+      if (lockHeld) return Promise.resolve(callback(null));
+      lockHeld = true;
+      return Promise.resolve(callback({ name: 'aurago-browser-audio' })).finally(() => {
+        lockHeld = false;
+      });
+    }
+  };
+  const localStorage = {
+    getItem(key) { return values.has(key) ? values.get(key) : null; },
+    setItem(key, value) { values.set(key, String(value)); },
+    removeItem(key) { values.delete(key); }
+  };
+  function loadLeaseRuntime() {
+    const sessionValues = new Map();
+    const window = {
+      crypto: { randomUUID: () => `lease-${++nextID}` },
+      addEventListener() {}
+    };
+    const context = {
+      window,
+      navigator: { locks },
+      localStorage,
+      sessionStorage: {
+        getItem(key) { return sessionValues.has(key) ? sessionValues.get(key) : null; },
+        setItem(key, value) { sessionValues.set(key, String(value)); }
+      },
+      BroadcastChannel: class {
+        addEventListener() {}
+        postMessage() {}
+      },
+      Uint8Array,
+      Array,
+      Date,
+      JSON,
+      String,
+      Number,
+      Error,
+      setInterval,
+      clearInterval,
+      setTimeout
+    };
+    vm.runInNewContext(source, context);
+    return window.AuraBrowserAudioLease;
+  }
+
+  const first = loadLeaseRuntime();
+  const second = loadLeaseRuntime();
+  const firstLease = await first.acquire('sip-phone', 'first-tab');
+  await assert.rejects(
+    second.acquire('realtime-speech', 'second-tab'),
+    error => error && error.code === 'audio_session_busy'
+  );
+  first.release(firstLease.token);
+  await Promise.resolve();
+  await Promise.resolve();
+  const secondLease = await second.acquire('realtime-speech', 'second-tab');
+  second.release(secondLease.token);
+}
+
 function testVersionedServiceWorkerRegistration() {
   const shared = read('ui/js/shared/shared-core.js');
   const helperSource = sourceBetween(shared, 'function serviceWorkerURL()', 'async function initPWA()');
@@ -1107,6 +1175,7 @@ function testNetworkCamerasDesktopContracts() {
 }
 
 const tests = [
+  ['browser audio lease uses an exclusive Web Lock', testBrowserAudioLeaseUsesExclusiveWebLock],
   ['versioned service-worker registration', testVersionedServiceWorkerRegistration],
   ['real skill snapshot differences', testSkillSnapshotDifferences],
   ['Python skill card ordering matches snapshots', testSkillCardOrderingMatchesSnapshots],

@@ -6,9 +6,11 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const checkOnly = process.argv.includes('--check');
 
 const desktopMainParts = [
+  'ui/js/shared/browser-audio-lease.js',
   'ui/js/desktop/core/desktop-foundation.js',
   'ui/js/desktop/core/pet-runtime.js',
   'ui/js/desktop/core/icon-selection-runtime.js',
+  'ui/js/desktop/core/sip-phone-runtime.js',
   'ui/js/desktop/core/window-shell-runtime.js',
   'ui/js/desktop/core/fruity-dock-scroll.js',
   'ui/js/desktop/core/window-interactions-runtime.js',
@@ -39,6 +41,7 @@ const chatMainParts = [
 
 const chatRuntimeParts = [
   'ui/js/shared/lazy-assets.js',
+  'ui/js/shared/browser-audio-lease.js',
   'ui/js/shared/chat-core.js',
   'ui/js/shared/chat-stream-parser.js',
   'ui/js/chat/theme-effects.js',
@@ -129,7 +132,8 @@ const cssBundles = [
       'ui/css/desktop-modals.css',
       'ui/css/desktop-shell-overrides.css',
       'ui/css/desktop-pet.css',
-      'ui/css/desktop-realtime-speech.css'
+      'ui/css/desktop-realtime-speech.css',
+      'ui/css/desktop-sip-phone-shell.css'
     ]
   },
   {

@@ -7131,3 +7131,178 @@
         animation: none;
     }
 }
+
+/* ui/css/desktop-sip-phone-shell.css */
+.vd-sip-incoming {
+    position: fixed;
+    z-index: 26000;
+    top: 24px;
+    left: 50%;
+    display: grid;
+    grid-template-columns: 46px minmax(160px, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    width: min(720px, calc(100vw - 32px));
+    padding: 13px 14px;
+    border: 1px solid color-mix(in srgb, #31c7bd 38%, var(--vd-window-border, rgba(255, 255, 255, 0.12)));
+    border-radius: 14px;
+    color: var(--text-primary, #f3f5fa);
+    background: color-mix(in srgb, var(--vd-window-bg, #111b29) 94%, transparent);
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.34);
+    box-sizing: border-box;
+    transform: translateX(-50%);
+    backdrop-filter: blur(18px);
+}
+
+.vd-sip-incoming-icon {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    color: #31c7bd;
+    background: color-mix(in srgb, #31c7bd 13%, transparent);
+}
+
+.vd-sip-incoming-icon img,
+.vd-sip-incoming-icon svg {
+    width: 24px;
+    height: 24px;
+}
+
+.vd-sip-incoming-copy {
+    min-width: 0;
+}
+
+.vd-sip-incoming-copy strong,
+.vd-sip-incoming-copy span {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vd-sip-incoming-copy strong {
+    font-size: 0.82rem;
+}
+
+.vd-sip-incoming-copy span {
+    margin-top: 4px;
+    color: var(--text-secondary, #a2adbd);
+    font-size: 0.74rem;
+}
+
+.vd-sip-incoming-actions {
+    display: flex;
+    gap: 7px;
+}
+
+.vd-sip-incoming-actions button {
+    min-height: 34px;
+    padding: 7px 12px;
+    border: 1px solid var(--vd-window-border, rgba(255, 255, 255, 0.12));
+    border-radius: 8px;
+    color: inherit;
+    background: color-mix(in srgb, var(--vd-window-bg, #111b29) 74%, white 6%);
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.71rem;
+}
+
+.vd-sip-incoming-actions button.is-answer {
+    border-color: #31c7bd;
+    color: #061b1b;
+    background: #31c7bd;
+}
+
+.vd-sip-incoming-actions button.is-reject {
+    border-color: color-mix(in srgb, #ef6c67 62%, transparent);
+    color: #ffd6d4;
+}
+
+.vd-sip-call-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    max-width: 190px;
+    height: 38px;
+    padding: 4px 10px 4px 7px;
+    border: 1px solid color-mix(in srgb, #31c7bd 48%, transparent);
+    border-radius: 10px;
+    color: var(--text-primary, #f3f5fa);
+    background: color-mix(in srgb, #31c7bd 9%, var(--vd-taskbar-bg, #111b29));
+    cursor: pointer;
+}
+
+.vd-sip-call-pill-icon {
+    display: grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    flex: 0 0 auto;
+    border-radius: 50%;
+    background: color-mix(in srgb, #31c7bd 16%, transparent);
+}
+
+.vd-sip-call-pill-icon img,
+.vd-sip-call-pill-icon svg {
+    width: 15px;
+    height: 15px;
+}
+
+.vd-sip-call-pill > span:last-child {
+    min-width: 0;
+    text-align: left;
+}
+
+.vd-sip-call-pill strong,
+.vd-sip-call-pill small {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vd-sip-call-pill strong {
+    font-size: 0.65rem;
+}
+
+.vd-sip-call-pill small {
+    margin-top: 1px;
+    color: var(--text-secondary, #a2adbd);
+    font-size: 0.57rem;
+}
+
+.vd-sip-call-pill.is-ringing {
+    border-color: #36d19f;
+}
+
+@media (max-width: 720px) {
+    .vd-sip-incoming {
+        grid-template-columns: 40px minmax(0, 1fr);
+    }
+
+    .vd-sip-incoming-actions {
+        grid-column: 1 / -1;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .vd-sip-call-pill {
+        max-width: 44px;
+        padding-right: 7px;
+    }
+
+    .vd-sip-call-pill > span:last-child {
+        display: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .vd-sip-incoming,
+    .vd-sip-call-pill {
+        transition: none !important;
+        animation: none !important;
+    }
+}

@@ -222,6 +222,7 @@
             state._clockTimer = null;
         }
         cleanupDesktopWS();
+        closeSIPPhoneShellRuntime();
         if (wsReconnectTimer) {
             clearTimeout(wsReconnectTimer);
             wsReconnectTimer = null;
@@ -1071,6 +1072,7 @@
         ]);
         mark('parallel-fetch-done');
         renderDesktop();
+        initSIPPhoneShellRuntime();
         refreshPetRuntime();
         mark('first-render');
         openInitialDesktopApp();

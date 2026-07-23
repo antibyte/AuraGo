@@ -1051,6 +1051,22 @@ if (appId === 'system-info') {
         }
         if (appId === 'agent-chat') return window.AgentChatApp && typeof window.AgentChatApp.render === 'function' ? window.AgentChatApp.render(id, Object.assign({}, context || {}, { __desktopRuntime: { contentEl, esc, desktopText, iconMarkup, api, loadBootstrap, showDesktopNotification, openApp } })) : renderAppError(id, appId, new Error('Agent chat renderer is not loaded'));
         if (appId === 'live-speech') return window.LiveSpeechApp && typeof window.LiveSpeechApp.render === 'function' ? window.LiveSpeechApp.render(id, Object.assign({}, context || {}, { __desktopRuntime: { contentEl, esc, desktopText, iconMarkup, api, openApp } })) : renderAppError(id, appId, new Error('Live Speech renderer is not loaded'));
+        if (appId === 'sip-phone') {
+            if (!window.SipPhoneApp) {
+                window.AuraDesktopModules.loadAppScript('sip-phone').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            if (typeof window.SipPhoneApp.render === 'function') {
+                return window.SipPhoneApp.render(contentEl(id), id, Object.assign({}, context || {}, {
+                    esc,
+                    t,
+                    api,
+                    iconMarkup,
+                    notify: showDesktopNotification,
+                    openApp
+                }));
+            }
+        }
         if (appId === 'viewer') {
             if (!window.ViewerApp) {
                 window.AuraDesktopModules.loadAppScript('viewer').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));

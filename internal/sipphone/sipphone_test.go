@@ -25,6 +25,20 @@ type recordingDialog struct {
 	closes  atomic.Int32
 }
 
+type recordingMediaPeer struct {
+	attaches atomic.Int32
+	detaches atomic.Int32
+}
+
+func (p *recordingMediaPeer) Attach(context.Context, string, voice.DuplexAudio) error {
+	p.attaches.Add(1)
+	return nil
+}
+
+func (p *recordingMediaPeer) Detach(string) {
+	p.detaches.Add(1)
+}
+
 func newRecordingDialog() *recordingDialog {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &recordingDialog{ctx: ctx, cancel: cancel}
@@ -162,6 +176,118 @@ func TestManagerRejectsSecondOutboundCall(t *testing.T) {
 	_, err = manager.Dial(context.Background(), "sip:alice@example.com")
 	if !errors.Is(err, ErrBusy) {
 		t.Fatalf("second call error = %v", err)
+	}
+}
+
+func TestManagerAnswerBrowserAssignsExclusivePeer(t *testing.T) {
+	cfg := validTestSIPConfig()
+	cfg.BrowserMedia.Enabled = true
+	cfg.Inbound.Route = "manual"
+	cfg.Permissions.AnswerInbound = true
+	manager, err := NewManager(cfg, t.TempDir(), nil, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer manager.Close()
+	peer := &recordingMediaPeer{}
+	call := &activeCall{
+		record:       CallRecord{ID: "incoming", Backend: cfg.Voice.Backend},
+		serverDialog: &diago.DialogServerSession{},
+		decision:     make(chan string, 1),
+	}
+	manager.active = call
+	if err := manager.AnswerBrowser("incoming", peer); err != nil {
+		t.Fatal(err)
+	}
+	if call.mediaMode != MediaModeBrowser || call.mediaPeer != peer || call.record.Backend != MediaModeBrowser {
+		t.Fatalf("browser peer was not assigned exclusively: %#v", call)
+	}
+	select {
+	case decision := <-call.decision:
+		if decision != "answer" {
+			t.Fatalf("decision = %q", decision)
+		}
+	default:
+		t.Fatal("answer decision was not queued")
+	}
+}
+
+func TestManagerBrowserAnswerRequiresManualRouteAndEnabledMedia(t *testing.T) {
+	cfg := validTestSIPConfig()
+	cfg.Permissions.AnswerInbound = true
+	manager, err := NewManager(cfg, t.TempDir(), nil, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer manager.Close()
+	manager.active = &activeCall{
+		record:       CallRecord{ID: "incoming"},
+		serverDialog: &diago.DialogServerSession{},
+		decision:     make(chan string, 1),
+	}
+	if err := manager.AnswerBrowser("incoming", &recordingMediaPeer{}); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("browser answer error = %v", err)
+	}
+}
+
+func TestManagerBrowserMediaFailureCancelsMatchingCall(t *testing.T) {
+	cfg := validTestSIPConfig()
+	manager, err := NewManager(cfg, t.TempDir(), nil, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer manager.Close()
+	callCtx, cancel := context.WithCancel(context.Background())
+	call := &activeCall{
+		record:    CallRecord{ID: "browser-call"},
+		ctx:       callCtx,
+		cancel:    cancel,
+		mediaMode: MediaModeBrowser,
+	}
+	manager.active = call
+	manager.BrowserMediaFailed("browser-call")
+	if call.terminalReason != "browser_media_error" {
+		t.Fatalf("terminal reason = %q", call.terminalReason)
+	}
+	select {
+	case <-callCtx.Done():
+	case <-time.After(time.Second):
+		t.Fatal("browser media failure did not cancel the call")
+	}
+}
+
+func TestManagerFinishDetachesBrowserPeerExactlyOnce(t *testing.T) {
+	cfg := validTestSIPConfig()
+	manager, err := NewManager(cfg, t.TempDir(), nil, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer manager.Close()
+	dialog := newRecordingDialog()
+	peer := &recordingMediaPeer{}
+	callCtx, cancel := context.WithCancel(context.Background())
+	call := &activeCall{
+		record:            CallRecord{ID: "browser-call", StartedAt: time.Now().UTC()},
+		dialog:            dialog,
+		ctx:               callCtx,
+		cancel:            cancel,
+		bridge:            voice.NewBridge(2),
+		mediaMode:         MediaModeBrowser,
+		mediaPeer:         peer,
+		dialogEstablished: true,
+		done:              make(chan struct{}),
+	}
+	manager.active = call
+	manager.finishCall(call, "local_hangup")
+	manager.finishCall(call, "duplicate")
+	if got := peer.detaches.Load(); got != 1 {
+		t.Fatalf("peer detaches = %d, want 1", got)
+	}
+	if got := dialog.hangups.Load(); got != 1 {
+		t.Fatalf("dialog hangups = %d, want 1", got)
+	}
+	if got := dialog.closes.Load(); got != 1 {
+		t.Fatalf("dialog closes = %d, want 1", got)
 	}
 }
 

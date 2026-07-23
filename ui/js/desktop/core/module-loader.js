@@ -118,6 +118,10 @@
             styles: appStyles('/css/camera.css'),
             scripts: ['/js/desktop/apps/camera.js']
         },
+        'sip-phone': {
+            styles: appStyles('/css/desktop-app-sip-phone.css'),
+            scripts: ['/js/desktop/apps/sip-phone.js']
+        },
         'network-cameras': {
             styles: appStyles('/css/desktop-app-network-cameras.css'),
             scripts: ['/js/desktop/apps/network-cameras.js']
@@ -393,6 +397,7 @@
         'galaxa-deluxe': ['galaxa'],
         'homepage-studio': ['homepage_studio'],
         'live-speech': [],
+        'sip-phone': ['sip_phone'],
         'mission-control': ['missions'],
         'pixel': ['pixel'],
         'system-world': ['sysworld'],
@@ -462,6 +467,7 @@
     window.AuraDesktopModules.loadBundle = loadBundle;
     window.AuraDesktopModules.loadScriptParts = loadScriptParts;
     window.AuraDesktopModules.loadAppAssets = loadAppAssets;
+    window.AuraDesktopModules.loadAppI18nSections = loadAppI18nSections;
     window.AuraDesktopModules.loadAppScript = loadAppScript;
     window.AuraDesktopModules.appAssetsReady = appAssetsReady;
 })();

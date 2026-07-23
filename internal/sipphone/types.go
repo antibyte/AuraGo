@@ -23,6 +23,12 @@ const (
 	StateFailed      State = "failed"
 )
 
+const (
+	MediaModeAgent   = "agent"
+	MediaModeBrowser = "browser"
+	mediaModeNone    = "none"
+)
+
 var (
 	ErrDisabled         = errors.New("SIP endpoint is disabled")
 	ErrReadOnly         = errors.New("SIP endpoint is read-only")

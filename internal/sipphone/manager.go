@@ -61,6 +61,8 @@ type activeCall struct {
 	decision          chan string
 	bridge            *voice.Bridge
 	backend           voice.VoiceSession
+	mediaMode         string
+	mediaPeer         MediaPeer
 	media             *mediaPump
 	terminalReason    string
 	dialogEstablished bool
@@ -267,6 +269,19 @@ func (m *Manager) PruneHistory(ctx context.Context, cutoff time.Time) error {
 }
 
 func (m *Manager) Dial(ctx context.Context, target string) (CallRecord, error) {
+	return m.dial(ctx, target, MediaModeAgent, nil)
+}
+
+// DialBrowser starts an outbound call whose audio is exclusively consumed by
+// the authenticated browser peer.
+func (m *Manager) DialBrowser(ctx context.Context, target string, peer MediaPeer) (CallRecord, error) {
+	if peer == nil {
+		return CallRecord{}, ErrBrowserSessionInvalid
+	}
+	return m.dial(ctx, target, MediaModeBrowser, peer)
+}
+
+func (m *Manager) dial(ctx context.Context, target, mediaMode string, peer MediaPeer) (CallRecord, error) {
 	m.mu.Lock()
 	cfg := m.cfg
 	endpoint := m.endpoint
@@ -282,6 +297,10 @@ func (m *Manager) Dial(ctx context.Context, target string) (CallRecord, error) {
 		m.mu.Unlock()
 		return CallRecord{}, ErrPermissionDenied
 	}
+	if mediaMode == MediaModeBrowser && !cfg.BrowserMedia.Enabled {
+		m.mu.Unlock()
+		return CallRecord{}, ErrBrowserMediaDisabled
+	}
 	if m.active != nil {
 		m.mu.Unlock()
 		return CallRecord{}, ErrBusy
@@ -292,6 +311,11 @@ func (m *Manager) Dial(ctx context.Context, target string) (CallRecord, error) {
 		return CallRecord{}, ErrPermissionDenied
 	}
 	call := m.newActiveCallLocked("outbound", canonical)
+	call.mediaMode = mediaMode
+	call.mediaPeer = peer
+	if mediaMode == MediaModeBrowser {
+		call.record.Backend = MediaModeBrowser
+	}
 	m.state = StateConnecting
 	call.record.State = StateConnecting
 	_ = m.store.Upsert(context.Background(), call.record)
@@ -301,10 +325,20 @@ func (m *Manager) Dial(ctx context.Context, target string) (CallRecord, error) {
 	return call.record, nil
 }
 
-func (m *Manager) Answer(callID string) error { return m.decideInbound(callID, "answer") }
-func (m *Manager) Reject(callID string) error { return m.decideInbound(callID, "reject") }
+func (m *Manager) Answer(callID string) error { return m.decideInbound(callID, "answer", nil) }
 
-func (m *Manager) decideInbound(callID, decision string) error {
+// AnswerBrowser accepts a manually routed inbound call and assigns its one
+// browser media consumer before the SIP dialog is answered.
+func (m *Manager) AnswerBrowser(callID string, peer MediaPeer) error {
+	if peer == nil {
+		return ErrBrowserSessionInvalid
+	}
+	return m.decideInbound(callID, "answer", peer)
+}
+
+func (m *Manager) Reject(callID string) error { return m.decideInbound(callID, "reject", nil) }
+
+func (m *Manager) decideInbound(callID, decision string, peer MediaPeer) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.cfg.ReadOnly {
@@ -315,6 +349,17 @@ func (m *Manager) decideInbound(callID, decision string) error {
 	}
 	if m.active == nil || m.active.record.ID != callID || m.active.serverDialog == nil {
 		return ErrCallNotFound
+	}
+	if peer != nil {
+		if !m.cfg.BrowserMedia.Enabled || m.cfg.Inbound.Route != "manual" {
+			return ErrPermissionDenied
+		}
+		if m.active.mediaPeer != nil || m.active.backend != nil {
+			return ErrBusy
+		}
+		m.active.mediaMode = MediaModeBrowser
+		m.active.mediaPeer = peer
+		m.active.record.Backend = MediaModeBrowser
 	}
 	select {
 	case m.active.decision <- decision:
@@ -353,6 +398,23 @@ func (m *Manager) Hangup(ctx context.Context, callID string) error {
 		return m.endCallDialog(call, true)
 	}
 	return nil
+}
+
+// BrowserMediaFailed ends the matching call without consulting user-action
+// permissions. It is used only after an attached WebRTC peer has irrecoverably
+// failed or exceeded the disconnect grace period.
+func (m *Manager) BrowserMediaFailed(callID string) {
+	m.mu.Lock()
+	call := m.active
+	if call == nil || call.record.ID != callID || call.mediaMode != MediaModeBrowser || call.record.EndedAt != nil {
+		m.mu.Unlock()
+		return
+	}
+	if call.terminalReason == "" {
+		call.terminalReason = "browser_media_error"
+	}
+	m.mu.Unlock()
+	call.cancel()
 }
 
 func (m *Manager) SendDTMF(callID string, digit rune) error {
@@ -497,6 +559,9 @@ func (m *Manager) handleIncoming(dialog *diago.DialogServerSession) {
 	}
 	remote := (&sip.Uri{Scheme: "sip", User: from.Address.User, Host: strings.ToLower(from.Address.Host)}).String()
 	call := m.newActiveCallLocked("inbound", remote)
+	if cfg.Inbound.Route != MediaModeAgent {
+		call.mediaMode = mediaModeNone
+	}
 	call.serverDialog = dialog
 	call.dialog = dialog
 	call.record.State = StateRinging
@@ -551,7 +616,7 @@ func (m *Manager) handleIncoming(dialog *diago.DialogServerSession) {
 	m.mu.Lock()
 	call.dialogEstablished = true
 	m.mu.Unlock()
-	m.runEstablished(call, cfg, cfg.Inbound.Route == "agent")
+	m.runEstablished(call, cfg)
 }
 
 func (m *Manager) runOutbound(call *activeCall, endpoint *diago.Diago, uri sip.Uri, cfg config.SIPConfig) {
@@ -601,10 +666,10 @@ func (m *Manager) runOutbound(call *activeCall, endpoint *diago.Diago, uri sip.U
 	m.mu.Lock()
 	call.dialogEstablished = true
 	m.mu.Unlock()
-	m.runEstablished(call, cfg, true)
+	m.runEstablished(call, cfg)
 }
 
-func (m *Manager) runEstablished(call *activeCall, cfg config.SIPConfig, useAgent bool) {
+func (m *Manager) runEstablished(call *activeCall, cfg config.SIPConfig) {
 	if call.ctx.Err() != nil {
 		m.finishCall(call, m.callCancellationReason(call))
 		return
@@ -627,7 +692,17 @@ func (m *Manager) runEstablished(call *activeCall, cfg config.SIPConfig, useAgen
 		m.finishCall(call, "media_error")
 		return
 	}
-	if useAgent {
+	switch call.mediaMode {
+	case MediaModeBrowser:
+		if call.mediaPeer == nil {
+			m.finishCall(call, "browser_media_error")
+			return
+		}
+		if err := call.mediaPeer.Attach(call.ctx, call.record.ID, call.bridge); err != nil {
+			m.finishCall(call, "browser_media_error")
+			return
+		}
+	case MediaModeAgent:
 		if m.backendFactory == nil {
 			m.finishCall(call, "voice_backend_error")
 			return
@@ -649,6 +724,12 @@ func (m *Manager) runEstablished(call *activeCall, cfg config.SIPConfig, useAgen
 		call.backend = session
 		m.mu.Unlock()
 		go m.forwardVoiceEvents(call, session)
+	case mediaModeNone:
+		// Preserve the compatibility path for manually answered calls that do
+		// not attach a browser or agent consumer.
+	default:
+		m.finishCall(call, "browser_media_error")
+		return
 	}
 	select {
 	case <-call.ctx.Done():
@@ -715,6 +796,7 @@ func (m *Manager) newActiveCallLocked(direction, remote string) *activeCall {
 	call := &activeCall{
 		record: CallRecord{ID: id, Direction: direction, RemoteParty: remote, StartedAt: time.Now().UTC(), State: StateConnecting, Backend: m.cfg.Voice.Backend, SessionID: "sip-" + id},
 		ctx:    ctx, cancel: cancel, decision: make(chan string, 1), bridge: voice.NewBridge(25), done: make(chan struct{}),
+		mediaMode: MediaModeAgent,
 	}
 	m.active = call
 	go m.forwardBridgeEvents(call)
@@ -750,6 +832,7 @@ func (m *Manager) finishCall(call *activeCall, reason string) {
 		now := time.Now().UTC()
 		m.mu.Lock()
 		backend := call.backend
+		mediaPeer := call.mediaPeer
 		established := call.dialogEstablished
 		call.record.EndedAt = &now
 		call.record.State = StateEnded
@@ -770,6 +853,9 @@ func (m *Manager) finishCall(call *activeCall, reason string) {
 		m.mu.Unlock()
 		if backend != nil {
 			_ = backend.Close()
+		}
+		if mediaPeer != nil {
+			mediaPeer.Detach(call.record.ID)
 		}
 		sendHangup := established && reason != "remote_hangup" && reason != "remote_cancel"
 		_ = m.endCallDialog(call, sendHangup)

@@ -11,6 +11,9 @@ func TestSIPDefaultsAreDisabledAndReadOnly(t *testing.T) {
 	if cfg.Media.RTPPortStart != 30000 || cfg.Media.RTPPortEnd != 30099 || cfg.Media.JitterBufferMS != 60 {
 		t.Fatalf("unexpected media defaults: %+v", cfg.Media)
 	}
+	if cfg.BrowserMedia.Enabled || cfg.BrowserMedia.UDPPort != DefaultSIPBrowserMediaUDPPort || cfg.BrowserMedia.BindHost != "" || cfg.BrowserMedia.AdvertisedIP != "" {
+		t.Fatalf("unsafe browser media defaults: %+v", cfg.BrowserMedia)
+	}
 }
 
 func TestValidateSIPConfigRequiresAllowlistsAndRuntimeSecret(t *testing.T) {
@@ -56,5 +59,23 @@ func TestValidateSIPConfigRejectsControlCharacterInjection(t *testing.T) {
 	cfg.DisplayName = "AuraGo\r\nX-Injected: true"
 	if err := ValidateSIPConfig(cfg); err == nil {
 		t.Fatal("expected SIP display-name injection to be rejected")
+	}
+}
+
+func TestValidateSIPConfigRejectsBrowserMediaPortOverlap(t *testing.T) {
+	var cfg SIPConfig
+	ApplySIPDefaults(&cfg)
+	cfg.BrowserMedia.UDPPort = cfg.BindPort
+	if err := ValidateSIPConfig(cfg); err == nil {
+		t.Fatal("expected signaling port overlap to be rejected")
+	}
+	cfg.BrowserMedia.UDPPort = cfg.Media.RTPPortStart + 2
+	if err := ValidateSIPConfig(cfg); err == nil {
+		t.Fatal("expected RTP port overlap to be rejected")
+	}
+	cfg.BrowserMedia.UDPPort = DefaultSIPBrowserMediaUDPPort
+	cfg.BrowserMedia.AdvertisedIP = "not-an-ip"
+	if err := ValidateSIPConfig(cfg); err == nil {
+		t.Fatal("expected invalid advertised browser IP to be rejected")
 	}
 }

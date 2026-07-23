@@ -148,6 +148,7 @@ type Server struct {
 	Bluetooth            *bluetooth.Manager
 	NetworkShares        *networkshares.Manager
 	SIPPhone             *sipphone.Manager
+	SIPBrowserMedia      *sipphone.BrowserMediaService
 	VoiceActionRunner    *VoiceActionRunner
 	HistoryManager       *memory.HistoryManager
 	KG                   *memory.KnowledgeGraph
@@ -347,6 +348,9 @@ func Start(opts StartOptions) error {
 		}
 		if networkshares.DefaultManager() == s.NetworkShares {
 			networkshares.SetDefaultManager(nil)
+		}
+		if s.SIPBrowserMedia != nil {
+			_ = s.SIPBrowserMedia.Close()
 		}
 		if s.SIPPhone != nil {
 			_ = s.SIPPhone.Close()
