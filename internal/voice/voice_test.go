@@ -2,6 +2,7 @@ package voice
 
 import (
 	"context"
+	"encoding/binary"
 	"math"
 	"sync/atomic"
 	"testing"
@@ -111,6 +112,13 @@ func TestResamplerSupportedRatesAndContinuity(t *testing.T) {
 	if _, err := NewResampler(44100, 8000); err == nil {
 		t.Fatal("expected unsupported rate error")
 	}
+	providerResampler, err := NewSourceResampler(32000, 8000)
+	if err != nil {
+		t.Fatalf("provider sample rate rejected: %v", err)
+	}
+	if got := providerResampler.Process(make([]int16, 320)); len(got) == 0 {
+		t.Fatal("provider sample rate produced no telephone audio")
+	}
 }
 
 func TestWAVRoundTrip(t *testing.T) {
@@ -130,6 +138,22 @@ func TestWAVRoundTrip(t *testing.T) {
 		if got[i] != want[i] {
 			t.Fatalf("sample %d: want %d got %d", i, want[i], got[i])
 		}
+	}
+}
+
+func TestDecodeWAVPCM16SourceAcceptsProviderRate(t *testing.T) {
+	data, err := EncodeWAVPCM16([]int16{1, 2, 3, 4}, 16000)
+	if err != nil {
+		t.Fatal(err)
+	}
+	binary.LittleEndian.PutUint32(data[24:28], 22050)
+	binary.LittleEndian.PutUint32(data[28:32], 44100)
+	samples, rate, err := DecodeWAVPCM16Source(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rate != 22050 || len(samples) != 4 {
+		t.Fatalf("provider WAV rate=%d samples=%d", rate, len(samples))
 	}
 }
 
@@ -153,5 +177,48 @@ func TestTurnDetectorCompletesSpeechAfterSilence(t *testing.T) {
 	}
 	if len(utterance) == 0 {
 		t.Fatal("expected completed utterance")
+	}
+}
+
+func TestTurnDetectorDropsOldestAudioAtBound(t *testing.T) {
+	detector := newTurnDetector(20, 20, 20, 0, 60, true)
+	speech := make([]int16, 160)
+	for i := range speech {
+		speech[i] = 4000
+	}
+	if started, _ := detector.Push(speech); !started {
+		t.Fatal("expected immediate speech start")
+	}
+	for range 10 {
+		detector.Push(speech)
+	}
+	if !detector.TakeOverflow() {
+		t.Fatal("expected bounded detector to report discarded audio")
+	}
+	if detector.TakeOverflow() {
+		t.Fatal("overflow must be reported only once per utterance")
+	}
+	_, utterance := detector.Push(make([]int16, 160))
+	if len(utterance) > 3*len(speech) {
+		t.Fatalf("utterance exceeded configured bound: %d samples", len(utterance))
+	}
+}
+
+func TestActivityDetectorDoesNotRetainUtteranceAudio(t *testing.T) {
+	detector := NewActivityDetector(20, 20, 20, 0)
+	speech := make([]int16, 160)
+	for i := range speech {
+		speech[i] = 4000
+	}
+	detector.Push(speech)
+	for range 1000 {
+		detector.Push(speech)
+	}
+	if len(detector.utterance) != 0 {
+		t.Fatalf("activity detector retained %d samples", len(detector.utterance))
+	}
+	_, ended := detector.Push(make([]int16, 160))
+	if ended == nil {
+		t.Fatal("expected non-nil end-of-activity marker")
 	}
 }

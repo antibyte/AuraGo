@@ -2,6 +2,8 @@ package voice
 
 import "math"
 
+const defaultMaxUtteranceMS = 120000
+
 // TurnDetector implements an adaptive telephone VAD with bounded pre-roll and
 // silence-based end-of-turn detection.
 type TurnDetector struct {
@@ -14,10 +16,25 @@ type TurnDetector struct {
 	preRollFrames    int
 	preRoll          [][]int16
 	utterance        []int16
+	captureUtterance bool
+	maxFrames        int
+	maxSamples       int
+	overflowed       bool
+	overflowPending  bool
 	minimumAmplitude float64
 }
 
 func NewTurnDetector(frameMS, startMS, endMS, preRollMS int) *TurnDetector {
+	return newTurnDetector(frameMS, startMS, endMS, preRollMS, defaultMaxUtteranceMS, true)
+}
+
+// NewActivityDetector tracks speech activity without retaining full utterance
+// audio. It is used by duplex providers that consume frames directly.
+func NewActivityDetector(frameMS, startMS, endMS, preRollMS int) *TurnDetector {
+	return newTurnDetector(frameMS, startMS, endMS, preRollMS, 0, false)
+}
+
+func newTurnDetector(frameMS, startMS, endMS, preRollMS, maxUtteranceMS int, captureUtterance bool) *TurnDetector {
 	if frameMS < 1 {
 		frameMS = 20
 	}
@@ -26,6 +43,8 @@ func NewTurnDetector(frameMS, startMS, endMS, preRollMS int) *TurnDetector {
 		startFrames:      max(1, startMS/frameMS),
 		endFrames:        max(1, endMS/frameMS),
 		preRollFrames:    max(0, preRollMS/frameMS),
+		captureUtterance: captureUtterance,
+		maxFrames:        max(1, maxUtteranceMS/frameMS),
 		minimumAmplitude: 280,
 	}
 }
@@ -52,15 +71,17 @@ func (v *TurnDetector) Push(samples []int16) (started bool, utterance []int16) {
 		if v.speechFrames >= v.startFrames {
 			v.active = true
 			started = true
-			for _, frame := range v.preRoll {
-				v.utterance = append(v.utterance, frame...)
+			if v.captureUtterance {
+				for _, frame := range v.preRoll {
+					v.appendUtterance(frame)
+				}
 			}
 			v.preRoll = nil
 		}
 		return started, nil
 	}
 
-	v.utterance = append(v.utterance, samples...)
+	v.appendUtterance(samples)
 	if speech {
 		v.silenceFrames = 0
 	} else {
@@ -69,13 +90,55 @@ func (v *TurnDetector) Push(samples []int16) (started bool, utterance []int16) {
 	if v.silenceFrames < v.endFrames {
 		return false, nil
 	}
-	result := append([]int16(nil), v.utterance...)
+	result := make([]int16, 0)
+	if v.captureUtterance {
+		result = append(result, v.utterance...)
+	}
 	v.active = false
 	v.speechFrames = 0
 	v.silenceFrames = 0
 	v.utterance = nil
 	v.preRoll = nil
+	v.maxSamples = 0
+	v.overflowed = false
 	return false, result
+}
+
+// TakeOverflow reports once per utterance that old audio was discarded to
+// preserve the detector's memory bound.
+func (v *TurnDetector) TakeOverflow() bool {
+	if !v.overflowPending {
+		return false
+	}
+	v.overflowPending = false
+	return true
+}
+
+func (v *TurnDetector) appendUtterance(samples []int16) {
+	if !v.captureUtterance || len(samples) == 0 {
+		return
+	}
+	if v.maxSamples == 0 {
+		v.maxSamples = v.maxFrames * len(samples)
+	}
+	if len(samples) >= v.maxSamples {
+		v.utterance = append(v.utterance[:0], samples[len(samples)-v.maxSamples:]...)
+		v.markOverflow()
+		return
+	}
+	if excess := len(v.utterance) + len(samples) - v.maxSamples; excess > 0 {
+		copy(v.utterance, v.utterance[excess:])
+		v.utterance = v.utterance[:len(v.utterance)-excess]
+		v.markOverflow()
+	}
+	v.utterance = append(v.utterance, samples...)
+}
+
+func (v *TurnDetector) markOverflow() {
+	if !v.overflowed {
+		v.overflowed = true
+		v.overflowPending = true
+	}
 }
 
 func (v *TurnDetector) pushPreRoll(samples []int16) {

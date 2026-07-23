@@ -2,6 +2,7 @@ package tools
 
 import (
 	"aurago/internal/testutil"
+	"context"
 	"crypto/md5"
 	"encoding/json"
 	"fmt"
@@ -284,6 +285,43 @@ func TestMiniMaxTTSModelIDNormalizesLegacySpeech02HD(t *testing.T) {
 	got := miniMaxTTSModelForAPI("speech-02-hd")
 	if got != "speech-2.8-hd" {
 		t.Fatalf("miniMaxTTSModelForAPI = %q, want speech-2.8-hd", got)
+	}
+}
+
+func TestTTSSynthesizeInMemoryContextCancelsProviderRequest(t *testing.T) {
+	started := make(chan struct{})
+	release := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		close(started)
+		select {
+		case <-r.Context().Done():
+		case <-release:
+		}
+	}))
+	defer server.Close()
+	defer close(release)
+	cfg := TTSConfig{Provider: "supertonic"}
+	cfg.Supertonic.URL = server.URL
+	cfg.Supertonic.ResponseFormat = "wav"
+	ctx, cancel := context.WithCancel(context.Background())
+	result := make(chan error, 1)
+	go func() {
+		_, _, err := TTSSynthesizeInMemoryContext(ctx, cfg, "cancel me")
+		result <- err
+	}()
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatal("provider request did not start")
+	}
+	cancel()
+	select {
+	case err := <-result:
+		if err == nil {
+			t.Fatal("cancelled provider request returned no error")
+		}
+	case <-time.After(time.Second):
+		t.Fatal("cancelled provider request did not stop")
 	}
 }
 

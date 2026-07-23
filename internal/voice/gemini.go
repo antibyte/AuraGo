@@ -17,7 +17,11 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-const defaultGeminiLiveWebSocketURL = "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent"
+const (
+	defaultGeminiLiveWebSocketURL = "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent"
+	geminiMaxMessageBytes         = 8 * 1024 * 1024
+	geminiMaxAudioBytes           = 4 * 1024 * 1024
+)
 
 type GeminiLiveBackend struct {
 	Profile      config.RealtimeSpeechProfile
@@ -96,6 +100,7 @@ func (s *geminiLiveSession) connect(resumeHandle string) (*websocket.Conn, error
 		}
 		return nil, fmt.Errorf("connect Gemini Live WebSocket: %w", err)
 	}
+	conn.SetReadLimit(geminiMaxMessageBytes)
 	setup := realtimespeech.GeminiSIPSessionSetup(s.backend.Profile)
 	if resumeHandle != "" {
 		setup["sessionResumption"] = map[string]interface{}{"handle": resumeHandle}
@@ -128,7 +133,7 @@ func (s *geminiLiveSession) connect(resumeHandle string) (*websocket.Conn, error
 
 func (s *geminiLiveSession) inputLoop() {
 	defer s.wg.Done()
-	detector := NewTurnDetector(20, 100, 500, 100)
+	detector := NewActivityDetector(20, 100, 500, 100)
 	resampler, _ := NewResampler(8000, 16000)
 	for {
 		select {
@@ -156,7 +161,7 @@ func (s *geminiLiveSession) inputLoop() {
 					"audio": map[string]interface{}{"data": base64.StdEncoding.EncodeToString(data), "mimeType": "audio/pcm;rate=16000"},
 				}})
 			}
-			if len(utterance) > 0 {
+			if utterance != nil {
 				s.setActivity(false)
 			}
 		}
@@ -182,7 +187,10 @@ func (s *geminiLiveSession) readLoop() {
 			}
 			continue
 		}
-		s.handlePayload(payload)
+		if s.handlePayload(payload) && !s.reconnect() {
+			s.emit("voice_backend_error", "Gemini Live connection could not be resumed before shutdown", nil)
+			return
+		}
 	}
 }
 
@@ -190,6 +198,9 @@ func (s *geminiLiveSession) reconnect() bool {
 	s.stateMu.Lock()
 	handle := s.handle
 	s.stateMu.Unlock()
+	if strings.TrimSpace(handle) == "" {
+		return false
+	}
 	for attempt := 1; attempt <= 5 && s.ctx.Err() == nil; attempt++ {
 		timer := time.NewTimer(time.Duration(1<<min(attempt-1, 4)) * time.Second)
 		select {
@@ -208,18 +219,27 @@ func (s *geminiLiveSession) reconnect() bool {
 	return false
 }
 
-func (s *geminiLiveSession) handlePayload(payload map[string]interface{}) {
+func (s *geminiLiveSession) handlePayload(payload map[string]interface{}) (reconnectRequested bool) {
 	if _, ok := payload["error"]; ok {
 		s.emit("voice_backend_error", "Gemini Live provider error", nil)
-		return
+		return false
 	}
 	if update := mapValue(payload, "sessionResumptionUpdate", "session_resumption_update"); update != nil {
-		if handle := stringValue(update, "newHandle", "new_handle"); handle != "" {
-			s.stateMu.Lock()
+		handle := stringValue(update, "newHandle", "new_handle")
+		resumable := boolValue(update, "resumable")
+		s.stateMu.Lock()
+		if resumable && handle != "" {
 			s.handle = handle
-			s.stateMu.Unlock()
+		} else if !resumable {
+			s.handle = ""
+		}
+		s.stateMu.Unlock()
+		if resumable && handle != "" {
 			s.emit("session_resumption", "", map[string]any{"available": true})
 		}
+	}
+	if mapValue(payload, "goAway", "go_away") != nil {
+		return true
 	}
 	if content := mapValue(payload, "serverContent", "server_content"); content != nil {
 		for _, pair := range []struct{ key, alt, direction string }{
@@ -241,8 +261,14 @@ func (s *geminiLiveSession) handlePayload(payload map[string]interface{}) {
 				if inline == nil || !strings.HasPrefix(mime, "audio/") {
 					continue
 				}
-				decoded, err := base64.StdEncoding.DecodeString(stringValue(inline, "data"))
-				if err != nil || len(decoded)%2 != 0 {
+				encoded := stringValue(inline, "data")
+				if len(encoded) > base64.StdEncoding.EncodedLen(geminiMaxAudioBytes) {
+					s.emit("voice_backend_error", "Gemini Live audio frame exceeds the safety limit", nil)
+					s.cancel()
+					return false
+				}
+				decoded, err := base64.StdEncoding.DecodeString(encoded)
+				if err != nil || len(decoded)%2 != 0 || len(decoded) > geminiMaxAudioBytes {
 					continue
 				}
 				samples := make([]int16, len(decoded)/2)
@@ -267,6 +293,7 @@ func (s *geminiLiveSession) handlePayload(payload map[string]interface{}) {
 			go s.handleToolCall(call)
 		}
 	}
+	return false
 }
 
 func (s *geminiLiveSession) handleToolCall(providerCall map[string]interface{}) {

@@ -58,7 +58,7 @@ func TestGeminiLiveSetupAudioToolsInterruptAndResumption(t *testing.T) {
 			return
 		}
 		if index == 1 {
-			_ = conn.WriteJSON(map[string]interface{}{"sessionResumptionUpdate": map[string]interface{}{"newHandle": "resume-1"}})
+			_ = conn.WriteJSON(map[string]interface{}{"sessionResumptionUpdate": map[string]interface{}{"resumable": true, "newHandle": "resume-1"}})
 			return
 		}
 		pcm := make([]byte, 480)
@@ -147,5 +147,76 @@ func TestGeminiLiveSetupAudioToolsInterruptAndResumption(t *testing.T) {
 	}
 	if runner.cancel.Load() != 1 || runner.end.Load() != 1 {
 		t.Fatalf("private controls cancel=%d end=%d", runner.cancel.Load(), runner.end.Load())
+	}
+}
+
+func TestGeminiLiveDoesNotClaimResumptionWithoutHandle(t *testing.T) {
+	var connections atomic.Int32
+	upgrader := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		connections.Add(1)
+		var setup map[string]interface{}
+		if conn.ReadJSON(&setup) != nil {
+			return
+		}
+		_ = conn.WriteJSON(map[string]interface{}{"setupComplete": map[string]interface{}{}})
+	}))
+	defer server.Close()
+
+	backend := &GeminiLiveBackend{
+		Profile:      config.RealtimeSpeechProfile{ID: "gemini", Enabled: true, Provider: realtimespeech.ProviderGemini, Model: "gemini-live-test", APIKey: "test-key"},
+		Runner:       &geminiTestRunner{executed: make(chan string, 1)},
+		WebSocketURL: "ws" + strings.TrimPrefix(server.URL, "http"),
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	session, err := backend.Start(ctx, CallContext{CallID: "call-no-handle"}, NewBridge(2))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer session.Close()
+
+	for {
+		select {
+		case event := <-session.Events():
+			if event.Type == "session_resumed" {
+				t.Fatal("session was reported resumed without a provider handle")
+			}
+			if event.Type == "voice_backend_error" {
+				if got := connections.Load(); got != 1 {
+					t.Fatalf("connections=%d, want no contextless reconnect", got)
+				}
+				return
+			}
+		case <-ctx.Done():
+			t.Fatal("missing controlled backend error after connection loss")
+		}
+	}
+}
+
+func TestGeminiResumptionRequiresResumableHandleAndHonorsGoAway(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	session := &geminiLiveSession{
+		ctx: ctx, cancel: cancel, events: make(chan VoiceEvent, 4), handle: "stale-handle",
+	}
+	if reconnect := session.handlePayload(map[string]interface{}{
+		"sessionResumptionUpdate": map[string]interface{}{"resumable": false, "newHandle": "ignored"},
+	}); reconnect {
+		t.Fatal("resumption update unexpectedly requested reconnect")
+	}
+	session.stateMu.Lock()
+	handle := session.handle
+	session.stateMu.Unlock()
+	if handle != "" {
+		t.Fatalf("non-resumable handle retained as %q", handle)
+	}
+	if reconnect := session.handlePayload(map[string]interface{}{"goAway": map[string]interface{}{}}); !reconnect {
+		t.Fatal("GoAway did not request proactive reconnect")
 	}
 }

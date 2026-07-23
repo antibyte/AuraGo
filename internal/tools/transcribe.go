@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -19,6 +20,8 @@ import (
 
 var multimodalTranscribeHTTPClient = &http.Client{Timeout: 60 * time.Second}
 
+const maxTranscriptionAudioBytes = 100 * 1024 * 1024
+
 // TranscribeAudioFile sends an audio file to the configured Whisper/STT service for transcription.
 // It tries the native OpenAI Whisper API first, and falls back to multimodal transcription
 // if the provider is set to "multimodal".
@@ -28,33 +31,68 @@ func TranscribeAudioFile(filePath string, cfg *config.Config) (string, float64, 
 		return "", 0.0, fmt.Errorf("invalid audio file path: %w", err)
 	}
 
-	mode := strings.ToLower(cfg.Whisper.Mode)
+	if transcriptionMode(cfg) == "multimodal" {
+		return transcribeMultimodal(resolvedPath, cfg)
+	}
+	return transcribeWhisper(resolvedPath, cfg)
+}
 
+// TranscribeAudio transcribes an in-memory audio payload without creating a
+// temporary file. fileName is used only as multipart format metadata.
+func TranscribeAudio(ctx context.Context, fileName string, audioData []byte, cfg *config.Config) (string, float64, error) {
+	if cfg == nil {
+		return "", 0, fmt.Errorf("transcription config is required")
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if len(audioData) == 0 {
+		return "", 0, fmt.Errorf("audio data is required")
+	}
+	if len(audioData) > maxTranscriptionAudioBytes {
+		return "", 0, fmt.Errorf("audio data too large (%d bytes, max 100 MB)", len(audioData))
+	}
+	fileName = strings.TrimSpace(fileName)
+	if fileName == "" {
+		fileName = "audio.wav"
+	}
+	if transcriptionMode(cfg) == "multimodal" {
+		return transcribeMultimodalBytes(ctx, audioData, audioFormatFromName(fileName), cfg)
+	}
+	return transcribeWhisperBytes(ctx, fileName, audioData, cfg)
+}
+
+func transcriptionMode(cfg *config.Config) string {
+	mode := strings.ToLower(cfg.Whisper.Mode)
 	// OpenRouter does not support OpenAI's /v1/audio/transcriptions endpoint.
-	// If the user hasn't explicitly specified a mode and uses OpenRouter,
-	// default to multimodal (embedding base64 audio into a chat completion).
 	if mode == "" && strings.EqualFold(cfg.Whisper.ProviderType, "openrouter") {
 		mode = "multimodal"
 	}
-
-	// If mode is still not "multimodal" or "local", check whether the configured model is
-	// actually a Whisper-family model. Non-Whisper models (e.g. google/gemini-*, meta-llama/*)
-	// do not implement the /v1/audio/transcriptions endpoint – use multimodal instead.
+	// Non-Whisper models do not implement /v1/audio/transcriptions.
 	if mode != "multimodal" && mode != "local" {
 		model := strings.ToLower(cfg.Whisper.Model)
 		if model != "" && !strings.Contains(model, "whisper") {
 			mode = "multimodal"
 		}
 	}
-
-	if mode == "multimodal" {
-		return transcribeMultimodal(resolvedPath, cfg)
-	}
-	return transcribeWhisper(resolvedPath, cfg)
+	return mode
 }
 
 // transcribeWhisper uses the standard OpenAI Whisper API.
 func transcribeWhisper(filePath string, cfg *config.Config) (string, float64, error) {
+	return transcribeWhisperRequest(context.Background(), openai.AudioRequest{
+		FilePath: filePath,
+	}, cfg)
+}
+
+func transcribeWhisperBytes(ctx context.Context, fileName string, audioData []byte, cfg *config.Config) (string, float64, error) {
+	return transcribeWhisperRequest(ctx, openai.AudioRequest{
+		FilePath: fileName,
+		Reader:   bytes.NewReader(audioData),
+	}, cfg)
+}
+
+func transcribeWhisperRequest(parent context.Context, request openai.AudioRequest, cfg *config.Config) (string, float64, error) {
 	// Resolved by config.ResolveProviders (falls back to main LLM)
 	apiKey := cfg.Whisper.APIKey
 	baseURL := cfg.Whisper.BaseURL
@@ -70,21 +108,16 @@ func transcribeWhisper(filePath string, cfg *config.Config) (string, float64, er
 	if model == "" {
 		model = openai.Whisper1
 	}
+	request.Model = model
 
 	timeout := time.Duration(cfg.CircuitBreaker.LLMTimeoutSeconds) * time.Second
 	if timeout <= 0 {
 		timeout = 10 * time.Minute
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	ctx, cancel := context.WithTimeout(parent, timeout)
 	defer cancel()
 
-	resp, err := client.CreateTranscription(
-		ctx,
-		openai.AudioRequest{
-			Model:    model,
-			FilePath: filePath,
-		},
-	)
+	resp, err := client.CreateTranscription(ctx, request)
 	if err != nil {
 		return "", 0.0, fmt.Errorf("whisper transcription failed: %w", err)
 	}
@@ -94,6 +127,21 @@ func transcribeWhisper(filePath string, cfg *config.Config) (string, float64, er
 
 // transcribeMultimodal uses a multimodal LLM (e.g. Gemini) via OpenRouter for transcription.
 func transcribeMultimodal(filePath string, cfg *config.Config) (string, float64, error) {
+	audioInfo, err := os.Stat(filePath)
+	if err != nil {
+		return "", 0.0, fmt.Errorf("failed to stat audio file: %w", err)
+	}
+	if audioInfo.Size() > maxTranscriptionAudioBytes {
+		return "", 0.0, fmt.Errorf("audio file too large (%d bytes, max 100 MB)", audioInfo.Size())
+	}
+	audioData, err := os.ReadFile(filePath)
+	if err != nil {
+		return "", 0.0, fmt.Errorf("failed to read audio file: %w", err)
+	}
+	return transcribeMultimodalBytes(context.Background(), audioData, audioFormatFromName(filePath), cfg)
+}
+
+func transcribeMultimodalBytes(ctx context.Context, audioData []byte, format string, cfg *config.Config) (string, float64, error) {
 	// Resolved by config.ResolveProviders (falls back to main LLM)
 	apiKey := cfg.Whisper.APIKey
 	baseURL := cfg.Whisper.BaseURL
@@ -103,35 +151,7 @@ func transcribeMultimodal(filePath string, cfg *config.Config) (string, float64,
 		model = "google/gemini-2.5-flash-lite-preview-09-2025"
 	}
 
-	audioInfo, err := os.Stat(filePath)
-	if err != nil {
-		return "", 0.0, fmt.Errorf("failed to stat audio file: %w", err)
-	}
-	const maxAudioBytes = 100 * 1024 * 1024 // 100 MB
-	if audioInfo.Size() > maxAudioBytes {
-		return "", 0.0, fmt.Errorf("audio file too large (%d bytes, max 100 MB)", audioInfo.Size())
-	}
-	audioData, err := os.ReadFile(filePath)
-	if err != nil {
-		return "", 0.0, fmt.Errorf("failed to read audio file: %w", err)
-	}
 	encodedAudio := base64.StdEncoding.EncodeToString(audioData)
-
-	// Detect format from file extension
-	format := "mp3"
-	lower := strings.ToLower(filePath)
-	switch {
-	case strings.HasSuffix(lower, ".wav"):
-		format = "wav"
-	case strings.HasSuffix(lower, ".ogg"):
-		format = "ogg"
-	case strings.HasSuffix(lower, ".flac"):
-		format = "flac"
-	case strings.HasSuffix(lower, ".m4a"):
-		format = "m4a"
-	case strings.HasSuffix(lower, ".webm"):
-		format = "webm"
-	}
 
 	type AudioPart struct {
 		Data   string `json:"data"`
@@ -179,7 +199,7 @@ func transcribeMultimodal(filePath string, cfg *config.Config) (string, float64,
 	}
 
 	reqURL := baseURL + "/chat/completions"
-	req, err := http.NewRequest("POST", reqURL, bytes.NewBuffer(jsonData))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, reqURL, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return "", 0.0, fmt.Errorf("failed to create transcription request: %w", err)
 	}
@@ -220,4 +240,21 @@ func transcribeMultimodal(filePath string, cfg *config.Config) (string, float64,
 	}
 
 	return security.IsolateExternalData(result.Choices[0].Message.Content), 0.0, nil
+}
+
+func audioFormatFromName(fileName string) string {
+	switch strings.ToLower(filepath.Ext(fileName)) {
+	case ".wav":
+		return "wav"
+	case ".ogg":
+		return "ogg"
+	case ".flac":
+		return "flac"
+	case ".m4a":
+		return "m4a"
+	case ".webm":
+		return "webm"
+	default:
+		return "mp3"
+	}
 }

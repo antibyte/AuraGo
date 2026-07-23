@@ -17,6 +17,7 @@ func TestSIPConfigUIUsesSavedStateAndMaskedSecret(t *testing.T) {
 	for _, marker := range []string{
 		"/api/sip/config", "/api/sip/status", "/api/sip/test", "password_set",
 		"sipSavedState", "sipComparable(current) !== sipSavedState", "button.disabled = !!reason",
+		"auto_answer_delay_ms ?? 1000",
 	} {
 		if !strings.Contains(source, marker) {
 			t.Fatalf("SIP config UI missing contract marker %q", marker)

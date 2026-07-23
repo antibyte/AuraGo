@@ -3,13 +3,9 @@ package server
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
 	"encoding/binary"
-	"encoding/hex"
 	"fmt"
 	"io"
-	"os"
-	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -29,26 +25,17 @@ type sipSpeechRecognizer struct {
 }
 
 func (r *sipSpeechRecognizer) Recognize(ctx context.Context, wav []byte, _ int, _ string) (string, error) {
-	if r.server == nil || r.server.Cfg == nil {
+	if r.server == nil {
+		return "", fmt.Errorf("ASR is not configured")
+	}
+	cfg := r.server.ConfigSnapshot()
+	if cfg == nil {
 		return "", fmt.Errorf("ASR is not configured")
 	}
 	if err := ctx.Err(); err != nil {
 		return "", err
 	}
-	workspace := strings.TrimSpace(r.server.Cfg.Directories.WorkspaceDir)
-	if workspace == "" {
-		return "", fmt.Errorf("workspace directory is not configured")
-	}
-	tempDir := filepath.Join(workspace, ".aurago", "sip-audio")
-	if err := os.MkdirAll(tempDir, 0o700); err != nil {
-		return "", fmt.Errorf("create secure SIP ASR directory: %w", err)
-	}
-	path := filepath.Join(tempDir, randomVoiceFileName()+".wav")
-	if err := os.WriteFile(path, wav, 0o600); err != nil {
-		return "", fmt.Errorf("write temporary SIP ASR audio: %w", err)
-	}
-	defer os.Remove(path)
-	text, _, err := tools.TranscribeAudioFile(path, r.server.Cfg)
+	text, _, err := tools.TranscribeAudio(ctx, "sip-call.wav", wav, cfg)
 	if err != nil {
 		return "", err
 	}
@@ -60,7 +47,11 @@ type sipSpeechSynthesizer struct {
 }
 
 func (s *sipSpeechSynthesizer) Synthesize(ctx context.Context, text, language string) ([]int16, int, error) {
-	if s.server == nil || s.server.Cfg == nil {
+	if s.server == nil {
+		return nil, 0, fmt.Errorf("TTS is not configured")
+	}
+	cfg := s.server.ConfigSnapshot()
+	if cfg == nil {
 		return nil, 0, fmt.Errorf("TTS is not configured")
 	}
 	if err := ctx.Err(); err != nil {
@@ -69,12 +60,12 @@ func (s *sipSpeechSynthesizer) Synthesize(ctx context.Context, text, language st
 	if language == "auto" {
 		language = ""
 	}
-	ttsCfg := buildChatVoiceOutputTTSConfig(s.server.Cfg, language)
+	ttsCfg := buildChatVoiceOutputTTSConfig(cfg, language)
 	// The telephone path always asks Supertonic for a directly decodable WAV.
 	if strings.EqualFold(ttsCfg.Provider, "supertonic") {
 		ttsCfg.Supertonic.ResponseFormat = "wav"
 	}
-	data, extension, err := tools.TTSSynthesizeInMemory(ttsCfg, text)
+	data, extension, err := tools.TTSSynthesizeInMemoryContext(ctx, ttsCfg, text)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -82,7 +73,7 @@ func (s *sipSpeechSynthesizer) Synthesize(ctx context.Context, text, language st
 		return nil, 0, fmt.Errorf("synthesized telephone audio exceeds 32 MiB")
 	}
 	if strings.EqualFold(extension, ".wav") {
-		return voice.DecodeWAVPCM16(data)
+		return voice.DecodeWAVPCM16Source(data)
 	}
 	return decodeMP3MonoPCM16(data)
 }
@@ -111,14 +102,20 @@ func decodeMP3MonoPCM16(data []byte) ([]int16, int, error) {
 }
 
 type VoiceActionRunner struct {
-	server  *Server
-	mu      sync.Mutex
-	cancels map[string]context.CancelFunc
-	endCall func(string)
+	server     *Server
+	mu         sync.Mutex
+	cancels    map[string]voiceTurnCancellation
+	nextCancel uint64
+	endCall    func(string)
+}
+
+type voiceTurnCancellation struct {
+	generation uint64
+	cancel     context.CancelFunc
 }
 
 func NewVoiceActionRunner(server *Server) *VoiceActionRunner {
-	return &VoiceActionRunner{server: server, cancels: make(map[string]context.CancelFunc)}
+	return &VoiceActionRunner{server: server, cancels: make(map[string]voiceTurnCancellation)}
 }
 
 func (r *VoiceActionRunner) SetEndCall(endCall func(string)) {
@@ -150,8 +147,9 @@ func (r *VoiceActionRunner) run(ctx context.Context, call voice.CallContext, tex
 	}
 	turn, err := prepareDesktopAgentTurnWithOptions(ctx, r.server, text, desktopChatContext{Source: source}, false, desktopAgentTurnOptions{
 		SessionID: call.SessionID, MessageSource: source,
-		AdditionalPrompt: additionalPrompt,
-		PersistedMessage: text,
+		AdditionalPrompt:    additionalPrompt,
+		PersistedMessage:    text,
+		SkipDesktopProvider: true,
 	})
 	if err != nil {
 		return "", err
@@ -162,18 +160,12 @@ func (r *VoiceActionRunner) run(ctx context.Context, call voice.CallContext, tex
 		turn.runCfg.AllowedTools = append([]string{}, call.AllowedTools...)
 	}
 	turn.runCfg.VoiceOutputActive = false
+	turn.runCfg.SuppressTurnSideEffects = call.Direction != "browser"
 	turnCtx, cancel := context.WithCancel(ctx)
-	r.mu.Lock()
-	if previous := r.cancels[call.CallID]; previous != nil {
-		previous()
-	}
-	r.cancels[call.CallID] = cancel
-	r.mu.Unlock()
+	generation := r.installVoiceTurnCancel(call.CallID, cancel)
 	defer func() {
 		cancel()
-		r.mu.Lock()
-		delete(r.cancels, call.CallID)
-		r.mu.Unlock()
+		r.releaseVoiceTurnCancel(call.CallID, generation)
 	}()
 	capture := &voiceActionCaptureBroker{FeedbackBroker: broker}
 	response, err := agent.ExecuteAgentLoop(turnCtx, turn.req, turn.runCfg, false, capture)
@@ -189,10 +181,30 @@ func (r *VoiceActionRunner) run(ctx context.Context, call voice.CallContext, tex
 
 func (r *VoiceActionRunner) CancelVoiceTurn(callID string) {
 	r.mu.Lock()
-	cancel := r.cancels[callID]
+	cancel := r.cancels[callID].cancel
 	r.mu.Unlock()
 	if cancel != nil {
 		cancel()
+	}
+}
+
+func (r *VoiceActionRunner) installVoiceTurnCancel(callID string, cancel context.CancelFunc) uint64 {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if previous := r.cancels[callID].cancel; previous != nil {
+		previous()
+	}
+	r.nextCancel++
+	generation := r.nextCancel
+	r.cancels[callID] = voiceTurnCancellation{generation: generation, cancel: cancel}
+	return generation
+}
+
+func (r *VoiceActionRunner) releaseVoiceTurnCancel(callID string, generation uint64) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if current := r.cancels[callID]; current.generation == generation {
+		delete(r.cancels, callID)
 	}
 }
 
@@ -236,7 +248,11 @@ func (r *VoiceActionRunner) backendFactory(cfg config.SIPVoiceConfig) (voice.Voi
 			MaxDuration: timeDurationSeconds(cfg.MaxCallDurationSeconds),
 		}, nil
 	case "gemini_live":
-		profile, ok := profileFromConfig(r.server.Cfg.RealtimeSpeech, cfg.RealtimeProfileID)
+		serverCfg := r.server.ConfigSnapshot()
+		if serverCfg == nil {
+			return nil, fmt.Errorf("runtime configuration is unavailable")
+		}
+		profile, ok := profileFromConfig(serverCfg.RealtimeSpeech, cfg.RealtimeProfileID)
 		if !ok || !profile.Enabled || profile.Provider != realtimespeech.ProviderGemini || profile.APIKey == "" {
 			return nil, fmt.Errorf("configured Gemini Live profile is unavailable")
 		}
@@ -251,14 +267,6 @@ func timeDurationSeconds(seconds int) time.Duration {
 		seconds = config.DefaultSIPMaxCallDuration
 	}
 	return time.Duration(seconds) * time.Second
-}
-
-func randomVoiceFileName() string {
-	var value [12]byte
-	if _, err := rand.Read(value[:]); err != nil {
-		return "audio"
-	}
-	return hex.EncodeToString(value[:])
 }
 
 var _ voice.VoiceActionRunner = (*VoiceActionRunner)(nil)

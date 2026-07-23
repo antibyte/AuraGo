@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/tls"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -52,16 +53,21 @@ type Manager struct {
 }
 
 type activeCall struct {
-	record         CallRecord
-	dialog         diago.DialogSession
-	serverDialog   *diago.DialogServerSession
-	ctx            context.Context
-	cancel         context.CancelFunc
-	decision       chan string
-	bridge         *voice.Bridge
-	backend        voice.VoiceSession
-	media          *mediaPump
-	terminalReason string
+	record            CallRecord
+	dialog            diago.DialogSession
+	serverDialog      *diago.DialogServerSession
+	ctx               context.Context
+	cancel            context.CancelFunc
+	decision          chan string
+	bridge            *voice.Bridge
+	backend           voice.VoiceSession
+	media             *mediaPump
+	terminalReason    string
+	dialogEstablished bool
+	finishOnce        sync.Once
+	dialogEndOnce     sync.Once
+	dialogEndErr      error
+	done              chan struct{}
 }
 
 func NewManager(cfg config.SIPConfig, dataDir string, backendFactory BackendFactory, reporter IssueReporter, logger *slog.Logger) (*Manager, error) {
@@ -169,10 +175,16 @@ func (m *Manager) Start(parent context.Context) error {
 }
 
 func (m *Manager) Stop(ctx context.Context) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	m.mu.Lock()
 	cancel := m.cancel
 	ua := m.ua
 	active := m.active
+	if active != nil && active.terminalReason == "" {
+		active.terminalReason = "shutdown"
+	}
 	m.cancel = nil
 	m.ua = nil
 	m.endpoint = nil
@@ -181,28 +193,41 @@ func (m *Manager) Stop(ctx context.Context) error {
 	m.registrationErr = ""
 	m.emitLocked("status", nil, nil)
 	m.mu.Unlock()
+	var dialogErr error
 	if active != nil {
 		if active.cancel != nil {
 			active.cancel()
 		}
-		if active.dialog != nil {
-			_ = active.dialog.Hangup(ctx)
+		m.mu.Lock()
+		established := active.dialogEstablished
+		inbound := active.record.Direction == "inbound"
+		m.mu.Unlock()
+		if established || inbound {
+			dialogErr = m.endCallDialog(active, true)
 		}
 	}
 	if cancel != nil {
 		cancel()
 	}
+	var uaErr error
 	if ua != nil {
-		return ua.Close()
+		uaErr = ua.Close()
 	}
-	return nil
+	var waitErr error
+	if active != nil && active.done != nil {
+		select {
+		case <-active.done:
+		case <-ctx.Done():
+			waitErr = fmt.Errorf("wait for active SIP call shutdown: %w", ctx.Err())
+		}
+	}
+	return errors.Join(dialogErr, uaErr, waitErr)
 }
 
 func (m *Manager) Close() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	_ = m.Stop(ctx)
-	return m.store.Close()
+	return errors.Join(m.Stop(ctx), m.store.Close())
 }
 
 func (m *Manager) Reconfigure(ctx context.Context, cfg config.SIPConfig) error {
@@ -316,11 +341,16 @@ func (m *Manager) Hangup(ctx context.Context, callID string) error {
 	}
 	m.state = StateEnding
 	call.record.State = StateEnding
+	if call.terminalReason == "" {
+		call.terminalReason = "local_hangup"
+	}
+	established := call.dialogEstablished
+	inbound := call.record.Direction == "inbound"
 	m.emitLocked("call", &call.record, nil)
 	m.mu.Unlock()
 	call.cancel()
-	if call.dialog != nil {
-		return call.dialog.Hangup(ctx)
+	if established || inbound {
+		return m.endCallDialog(call, true)
 	}
 	return nil
 }
@@ -485,18 +515,23 @@ func (m *Manager) handleIncoming(dialog *diago.DialogServerSession) {
 		select {
 		case decision = <-call.decision:
 		case <-call.ctx.Done():
-			m.finishCall(call, "cancelled")
+			m.finishCall(call, m.callCancellationReason(call))
 			return
 		case <-dialog.Context().Done():
 			m.finishCall(call, "remote_cancel")
 			return
 		}
 	} else if cfg.Inbound.AutoAnswerDelayMS > 0 {
+		timer := time.NewTimer(time.Duration(cfg.Inbound.AutoAnswerDelayMS) * time.Millisecond)
+		defer timer.Stop()
 		select {
-		case <-time.After(time.Duration(cfg.Inbound.AutoAnswerDelayMS) * time.Millisecond):
+		case <-timer.C:
 		case decision = <-call.decision:
 		case <-call.ctx.Done():
-			m.finishCall(call, "cancelled")
+			m.finishCall(call, m.callCancellationReason(call))
+			return
+		case <-dialog.Context().Done():
+			m.finishCall(call, "remote_cancel")
 			return
 		}
 	}
@@ -513,6 +548,9 @@ func (m *Manager) handleIncoming(dialog *diago.DialogServerSession) {
 		m.finishCall(call, "answer_failed")
 		return
 	}
+	m.mu.Lock()
+	call.dialogEstablished = true
+	m.mu.Unlock()
 	m.runEstablished(call, cfg, cfg.Inbound.Route == "agent")
 }
 
@@ -539,17 +577,38 @@ func (m *Manager) runOutbound(call *activeCall, endpoint *diago.Diago, uri sip.U
 		return nil
 	}))
 	if err != nil {
-		m.finishCall(call, "dial_failed")
+		reason := "dial_failed"
+		if call.ctx.Err() != nil {
+			reason = m.callCancellationReason(call)
+		}
+		m.finishCall(call, reason)
 		return
 	}
-	if err := dialog.Ack(call.ctx); err != nil {
-		m.finishCall(call, "ack_failed")
+	// A successful final INVITE response creates a dialog even when the local
+	// call context is cancelled in the narrow window before ACK. Complete ACK
+	// independently, then let the normal cancellation path send BYE.
+	ackCtx, ackCancel := context.WithTimeout(context.Background(), 3*time.Second)
+	err = dialog.Ack(ackCtx)
+	ackCancel()
+	if err != nil {
+		reason := "ack_failed"
+		if call.ctx.Err() != nil {
+			reason = m.callCancellationReason(call)
+		}
+		m.finishCall(call, reason)
 		return
 	}
+	m.mu.Lock()
+	call.dialogEstablished = true
+	m.mu.Unlock()
 	m.runEstablished(call, cfg, true)
 }
 
 func (m *Manager) runEstablished(call *activeCall, cfg config.SIPConfig, useAgent bool) {
+	if call.ctx.Err() != nil {
+		m.finishCall(call, m.callCancellationReason(call))
+		return
+	}
 	now := time.Now().UTC()
 	m.mu.Lock()
 	call.record.AnsweredAt = &now
@@ -641,7 +700,10 @@ func (m *Manager) forwardBridgeEvents(call *activeCall) {
 		select {
 		case <-call.ctx.Done():
 			return
-		case event := <-call.bridge.Events():
+		case event, ok := <-call.bridge.Events():
+			if !ok {
+				return
+			}
 			m.emitCallData(call, "media_queue", map[string]any{"voice_event": event.Type})
 		}
 	}
@@ -652,7 +714,7 @@ func (m *Manager) newActiveCallLocked(direction, remote string) *activeCall {
 	id := randomCallID()
 	call := &activeCall{
 		record: CallRecord{ID: id, Direction: direction, RemoteParty: remote, StartedAt: time.Now().UTC(), State: StateConnecting, Backend: m.cfg.Voice.Backend, SessionID: "sip-" + id},
-		ctx:    ctx, cancel: cancel, decision: make(chan string, 1), bridge: voice.NewBridge(25),
+		ctx:    ctx, cancel: cancel, decision: make(chan string, 1), bridge: voice.NewBridge(25), done: make(chan struct{}),
 	}
 	m.active = call
 	go m.forwardBridgeEvents(call)
@@ -672,34 +734,81 @@ func (m *Manager) updateCallState(call *activeCall, state State) {
 }
 
 func (m *Manager) finishCall(call *activeCall, reason string) {
-	call.cancel()
-	call.bridge.Close()
-	now := time.Now().UTC()
-	m.mu.Lock()
-	if call.record.EndedAt != nil {
-		m.mu.Unlock()
+	if call == nil {
 		return
 	}
-	backend := call.backend
-	call.record.EndedAt = &now
-	call.record.State = StateEnded
-	call.record.EndReason = reason
-	_ = m.store.Upsert(context.Background(), call.record)
-	m.emitLocked("call", &call.record, nil)
-	if m.active == call {
-		m.active = nil
+	call.finishOnce.Do(func() {
+		if call.done != nil {
+			defer close(call.done)
+		}
+		if call.cancel != nil {
+			call.cancel()
+		}
+		if call.bridge != nil {
+			call.bridge.Close()
+		}
+		now := time.Now().UTC()
+		m.mu.Lock()
+		backend := call.backend
+		established := call.dialogEstablished
+		call.record.EndedAt = &now
+		call.record.State = StateEnded
+		call.record.EndReason = reason
+		_ = m.store.Upsert(context.Background(), call.record)
+		m.emitLocked("call", &call.record, nil)
+		if m.active == call {
+			m.active = nil
+		}
+		if m.cancel == nil || !m.cfg.Enabled {
+			m.state = StateDisabled
+		} else if m.registered {
+			m.state = StateRegistered
+		} else {
+			m.state = StateRegistering
+		}
+		m.emitLocked("status", nil, nil)
+		m.mu.Unlock()
+		if backend != nil {
+			_ = backend.Close()
+		}
+		sendHangup := established && reason != "remote_hangup" && reason != "remote_cancel"
+		_ = m.endCallDialog(call, sendHangup)
+	})
+}
+
+func (m *Manager) endCallDialog(call *activeCall, sendHangup bool) error {
+	if call == nil {
+		return nil
 	}
-	if m.registered {
-		m.state = StateRegistered
-	} else if m.cfg.Enabled {
-		m.state = StateRegistering
-	} else {
-		m.state = StateDisabled
-	}
-	m.emitLocked("status", nil, nil)
+	m.mu.Lock()
+	dialog := call.dialog
 	m.mu.Unlock()
-	if backend != nil {
-		_ = backend.Close()
+	if dialog == nil {
+		return nil
+	}
+	call.dialogEndOnce.Do(func() {
+		var hangupErr error
+		if sendHangup {
+			hangupErr = hangupDialog(dialog, 3*time.Second)
+		}
+		call.dialogEndErr = errors.Join(hangupErr, dialog.Close())
+	})
+	return call.dialogEndErr
+}
+
+func hangupDialog(dialog diago.DialogSession, timeout time.Duration) error {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	result := make(chan error, 1)
+	go func() {
+		result <- dialog.Hangup(ctx)
+	}()
+	select {
+	case err := <-result:
+		return err
+	case <-ctx.Done():
+		_ = dialog.Close()
+		return fmt.Errorf("SIP dialog hangup timed out: %w", ctx.Err())
 	}
 }
 

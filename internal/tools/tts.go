@@ -2,6 +2,7 @@ package tools
 
 import (
 	"bytes"
+	"context"
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
@@ -20,6 +21,7 @@ import (
 type TTSConfig struct {
 	Provider            string // "google", "elevenlabs", "minimax", "piper", or "supertonic"
 	Language            string // BCP-47 language code (e.g. "de", "en")
+	Context             context.Context
 	DataDir             string // base data directory for storing audio files
 	CacheRetentionHours int    // remove cached files older than this many hours; 0 disables age-based cleanup
 	CacheMaxFiles       int    // keep at most this many cached files; 0 disables count-based cleanup
@@ -96,7 +98,7 @@ func TTSSynthesize(cfg TTSConfig, text string) (string, error) {
 	case "supertonic":
 		audioData, err = ttsSupertonic(cfg, text)
 	default: // "google" or fallback
-		audioData, err = ttsGoogle(text, cfg.Language)
+		audioData, err = ttsGoogleContext(ttsRequestContext(cfg), text, cfg.Language)
 	}
 
 	if err != nil {
@@ -237,6 +239,10 @@ func cleanupTTSCache(cfg TTSConfig, keepFilename string, now time.Time) error {
 
 // ttsGoogle uses Google Translate's TTS endpoint (free, max ~200 chars).
 func ttsGoogle(text, lang string) ([]byte, error) {
+	return ttsGoogleContext(context.Background(), text, lang)
+}
+
+func ttsGoogleContext(ctx context.Context, text, lang string) ([]byte, error) {
 	if lang == "" {
 		lang = "en"
 	}
@@ -246,7 +252,7 @@ func ttsGoogle(text, lang string) ([]byte, error) {
 		url.QueryEscape(text),
 	)
 
-	req, err := http.NewRequest("GET", u, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -292,7 +298,7 @@ func ttsElevenLabs(cfg TTSConfig, text string) ([]byte, error) {
 	body := fmt.Sprintf(`{"text":%q,"model_id":%q,"voice_settings":{"stability":0.5,"similarity_boost":0.75}}`,
 		text, modelID)
 
-	req, err := http.NewRequest("POST", apiURL, strings.NewReader(body))
+	req, err := http.NewRequestWithContext(ttsRequestContext(cfg), http.MethodPost, apiURL, strings.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -365,6 +371,10 @@ func CastMediaMIMEType(filename string) (string, bool) {
 
 // ttsPiper uses a local Piper container via the Wyoming protocol.
 func ttsPiper(cfg TTSConfig, text string) ([]byte, error) {
+	ctx := ttsRequestContext(cfg)
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	port := cfg.Piper.Port
 	if port <= 0 {
 		port = 10200
@@ -376,6 +386,15 @@ func ttsPiper(cfg TTSConfig, text string) ([]byte, error) {
 		return nil, fmt.Errorf("piper connect: %w", err)
 	}
 	defer conn.Close()
+	stopCancellation := make(chan struct{})
+	defer close(stopCancellation)
+	go func() {
+		select {
+		case <-ctx.Done():
+			_ = conn.Close()
+		case <-stopCancellation:
+		}
+	}()
 
 	// If voice is "piper" (TTS system name, not a real voice), clear it so Piper uses its default.
 	voice := cfg.Piper.Voice
@@ -432,7 +451,7 @@ func ttsSupertonic(cfg TTSConfig, text string) ([]byte, error) {
 		return nil, fmt.Errorf("failed to encode Supertonic request: %w", err)
 	}
 
-	req, err := http.NewRequest(http.MethodPost, baseURL+"/v1/tts", bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ttsRequestContext(cfg), http.MethodPost, baseURL+"/v1/tts", bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Supertonic request: %w", err)
 	}
@@ -546,7 +565,7 @@ func ttsMiniMax(cfg TTSConfig, text string) ([]byte, error) {
 		return nil, fmt.Errorf("failed to encode MiniMax request: %w", err)
 	}
 
-	req, err := http.NewRequest("POST", "https://api.minimax.io/v1/t2a_v2", bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ttsRequestContext(cfg), http.MethodPost, "https://api.minimax.io/v1/t2a_v2", bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create MiniMax request: %w", err)
 	}
@@ -605,4 +624,11 @@ func miniMaxTTSModelForAPI(model string) string {
 	default:
 		return strings.TrimSpace(model)
 	}
+}
+
+func ttsRequestContext(cfg TTSConfig) context.Context {
+	if cfg.Context != nil {
+		return cfg.Context
+	}
+	return context.Background()
 }

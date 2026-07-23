@@ -1717,7 +1717,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		// Skip personality side-effects for missions, heartbeats, and maintenance —
 		// these are background/autonomous runs that should not update mood, traits,
 		// or trigger emotion synthesis.
-		if personalityEnabled && shortTermMem != nil && !isAutonomousRun && !runCfg.IsMission && !flags.IsMission && !runCfg.IsCoAgent && !runCfg.IsMaintenance && sessionID != "maintenance" {
+		if runTurnSideEffects && personalityEnabled && shortTermMem != nil && !isAutonomousRun && !runCfg.IsMission && !flags.IsMission && !runCfg.IsCoAgent && !runCfg.IsMaintenance && sessionID != "maintenance" {
 			if cfg.Personality.EngineV2 {
 				if !useBatchedTurnPersonality {
 					launchAsyncPersonalityV2Analysis(

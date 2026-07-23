@@ -26,6 +26,15 @@ func NewResampler(from, to int) (*Resampler, error) {
 	return &Resampler{from: from, to: to}, nil
 }
 
+// NewSourceResampler normalizes decoded provider audio into one of AuraGo's
+// fixed internal rates. Provider input may use any sane PCM sample rate.
+func NewSourceResampler(from, to int) (*Resampler, error) {
+	if from < 4000 || from > 192000 || !supportedRates[to] {
+		return nil, fmt.Errorf("unsupported provider PCM sample-rate conversion %d to %d", from, to)
+	}
+	return &Resampler{from: from, to: to}, nil
+}
+
 func (r *Resampler) Process(input []int16) []int16 {
 	if len(input) == 0 {
 		return nil
@@ -82,6 +91,17 @@ func EncodeWAVPCM16(samples []int16, sampleRate int) ([]byte, error) {
 }
 
 func DecodeWAVPCM16(data []byte) ([]int16, int, error) {
+	return decodeWAVPCM16(data, false)
+}
+
+// DecodeWAVPCM16Source decodes mono PCM16 returned by an external speech
+// provider. The caller must normalize its sample rate before using it on the
+// fixed-rate internal media bus.
+func DecodeWAVPCM16Source(data []byte) ([]int16, int, error) {
+	return decodeWAVPCM16(data, true)
+}
+
+func decodeWAVPCM16(data []byte, allowProviderRate bool) ([]int16, int, error) {
 	if len(data) < 44 || string(data[:4]) != "RIFF" || string(data[8:12]) != "WAVE" {
 		return nil, 0, fmt.Errorf("invalid WAV container")
 	}
@@ -111,7 +131,14 @@ func DecodeWAVPCM16(data []byte) ([]int16, int, error) {
 			offset++
 		}
 	}
-	if channels != 1 || bits != 16 || !supportedRates[sampleRate] || len(pcm)%2 != 0 {
+	validRate := supportedRates[sampleRate]
+	if allowProviderRate {
+		validRate = sampleRate >= 4000 && sampleRate <= 192000
+	}
+	if channels != 1 || bits != 16 || !validRate || len(pcm)%2 != 0 {
+		if allowProviderRate {
+			return nil, 0, fmt.Errorf("WAV must be mono PCM16 at a valid sample rate")
+		}
 		return nil, 0, fmt.Errorf("WAV must be mono PCM16 at 8, 16 or 24 kHz")
 	}
 	samples := make([]int16, len(pcm)/2)

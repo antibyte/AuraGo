@@ -1112,6 +1112,10 @@ type RunConfig struct {
 	MissionID          string // mission ID for logging/tracking
 	MessageSource      string // origin channel: "web_chat", "telegram", "discord", "a2a", "sms", "mission"
 	VoiceOutputActive  bool   // true when the user's speaker toggle is on
+	// SuppressTurnSideEffects disables derived memory, personality, journal,
+	// activity and reuse-first work for privacy-sensitive transient sessions.
+	// It preserves the historical behavior when false.
+	SuppressTurnSideEffects bool
 	// AllowedTools is an additive hard scope for native tools. Nil preserves the
 	// historical unrestricted behavior; an explicit empty slice allows no tools.
 	AllowedTools []string

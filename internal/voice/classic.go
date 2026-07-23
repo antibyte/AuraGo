@@ -67,6 +67,9 @@ func (s *classicSession) run() {
 				s.inputRate = frame.SampleRate
 			}
 			started, utterance := s.detector.Push(frame.Samples)
+			if s.detector.TakeOverflow() {
+				s.emitData("audio_queue_dropped", map[string]any{"stage": "vad", "policy": "drop_oldest"})
+			}
 			if started {
 				s.Interrupt()
 				s.emit("barge_in", "")
@@ -136,7 +139,7 @@ func (s *classicSession) handleUtterance(samples []int16, sampleRate int) {
 		}
 		return
 	}
-	toTelephone, err := NewResampler(rate, 8000)
+	toTelephone, err := NewSourceResampler(rate, 8000)
 	if err != nil {
 		s.emitData("voice_backend_error", map[string]any{"stage": "resampling"})
 		return

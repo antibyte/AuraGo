@@ -227,6 +227,9 @@ func TestRealtimeSpeechMutationsRejectCrossOriginRequests(t *testing.T) {
 
 func TestRealtimeSpeechActionBindsChatAndSuppressesTTS(t *testing.T) {
 	server, _ := newRealtimeSpeechTestServer(t)
+	// A SIP runner may exist while browser realtime speech is active. Browser
+	// actions must still use their established surface-specific streaming path.
+	server.VoiceActionRunner = NewVoiceActionRunner(server)
 	registry := realtimespeech.NewRegistry(nil)
 	globalBroker := NewSSEBroadcaster()
 	globalEvents := globalBroker.subscribe()

@@ -531,6 +531,7 @@ type desktopAgentTurnOptions struct {
 	AdditionalPrompt       string
 	PersistedMessage       string
 	VoiceOutputActive      bool
+	SkipDesktopProvider    bool
 	OnUserMessageInserted  func(messageID int64) error
 	PrepareSessionMessages func(messages []memory.HistoryMessage, currentMessageID int64) []memory.HistoryMessage
 }
@@ -566,7 +567,10 @@ func prepareDesktopAgentTurnWithOptions(ctx context.Context, s *Server, message 
 	s.CfgMu.RLock()
 	cfg := *s.Cfg
 	s.CfgMu.RUnlock()
-	llmClient := applyDesktopAgentProvider(ctx, s, &cfg)
+	llmClient := s.LLMClient
+	if !opts.SkipDesktopProvider {
+		llmClient = applyDesktopAgentProvider(ctx, s, &cfg)
+	}
 	if strings.TrimSpace(chatContext.ImageBase64) != "" && mainProviderRequiresPublicImageURL(&cfg) {
 		return turn, fmt.Errorf("%s", tools.VisionPublicURLRequiredMessage)
 	}

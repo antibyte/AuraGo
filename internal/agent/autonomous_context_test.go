@@ -60,4 +60,10 @@ func TestShouldRunTurnSideEffectsBlocksHeartbeatArtifacts(t *testing.T) {
 	if shouldRunTurnSideEffects(RunConfig{MessageSource: "maintenance"}, "maintenance", prompts.ContextFlags{}) {
 		t.Fatal("maintenance runs must not write normal chat side effects")
 	}
+	if shouldRunTurnSideEffects(RunConfig{MessageSource: "sip", SuppressTurnSideEffects: true}, "sip-call-1", prompts.ContextFlags{}) {
+		t.Fatal("privacy-sensitive transient sessions must not write normal chat side effects")
+	}
+	if !shouldRunTurnSideEffects(RunConfig{MessageSource: "sip"}, "sip-call-1", prompts.ContextFlags{}) {
+		t.Fatal("SIP source alone must preserve the historical side-effect default")
+	}
 }

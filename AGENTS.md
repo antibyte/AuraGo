@@ -446,6 +446,8 @@ Tools are defined in `internal/tools/`:
 - Trust incoming calls only when both the network peer matches a configured CIDR and the normalized caller matches the allowlist. Outgoing calls require canonical `sip:` URIs, an exact allowed domain, and an exact user or allowed E.164 prefix.
 - Keep the SIP password only under Vault key `sip_endpoint_password`; block every `sip_` secret from Python, skills, and agent export. Never log or store full SIP headers, RTP/audio, authentication data, or raw transcripts.
 - Both classic ASR/agent/TTS and server-side Gemini Live use `internal/voice` PCM contracts and the shared `VoiceActionRunner`. SIP turns always carry an explicit `AllowedTools` list whose empty form allows no native tools, including through `invoke_tool`.
+- Keep Browser Realtime Speech on its established surface-specific streaming handlers; SIP must not replace browser SSE routing or inherit the Virtual Desktop provider selection. Transient SIP turns suppress derived memory, personality, activity, journal, and reuse-first side effects before their chat session is purged.
+- Terminate established local/outbound call failures with one BYE and close every dialog exactly once; cancellation while an outbound INVITE is pending must flow through its context-driven CANCEL. Keep provider audio and VAD buffers bounded, normalize external sample rates before the fixed 8/16/24 kHz media bus, and never write SIP ASR audio to disk.
 - The PCM `MediaPeer`, incoming-call handler, history schema, REST actions, and SSE events are compatibility anchors for the future authenticated WebRTC desktop phone and bounded Media-Registry answering machine; neither future feature may expose SIP credentials or raw RTP to the browser.
 
 ### Local Network Share Integration Contract
@@ -681,7 +683,7 @@ ALWAYS USE THE disposable FOLDER FOR SCRIPTS AND OTHER FILES YOU NEED FOR YOUR W
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **AuraGo** (64962 symbols, 270960 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **AuraGo** (66196 symbols, 278886 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 

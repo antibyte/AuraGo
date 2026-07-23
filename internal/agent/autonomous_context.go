@@ -23,6 +23,9 @@ func isAutonomousAgentRun(runCfg RunConfig, sessionID string) bool {
 }
 
 func shouldRunTurnSideEffects(runCfg RunConfig, sessionID string, flags prompts.ContextFlags) bool {
+	if runCfg.SuppressTurnSideEffects {
+		return false
+	}
 	if flags.IsMission || flags.IsCoAgent || runCfg.IsMission || runCfg.IsCoAgent {
 		return false
 	}
