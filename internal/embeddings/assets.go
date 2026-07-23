@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -531,22 +532,32 @@ func extractTarGzipSecure(archivePath, target string) error {
 }
 
 func secureArchiveDestination(root, name string) (string, error) {
-	if filepath.IsAbs(name) || filepath.VolumeName(name) != "" ||
-		strings.HasPrefix(name, "/") || strings.HasPrefix(name, "\\") {
+	if strings.IndexByte(name, 0) >= 0 {
+		return "", fmt.Errorf("archive entry %q contains a NUL byte", name)
+	}
+	archiveName := strings.ReplaceAll(name, `\`, "/")
+	if path.IsAbs(archiveName) || hasArchiveVolumeName(archiveName) {
 		return "", fmt.Errorf("archive entry %q is absolute", name)
 	}
-	cleanName := filepath.Clean(filepath.FromSlash(name))
+	cleanName := path.Clean(archiveName)
 	if cleanName == "." || cleanName == "" {
 		return filepath.Clean(root), nil
 	}
-	if cleanName == ".." || strings.HasPrefix(cleanName, ".."+string(filepath.Separator)) {
+	if cleanName == ".." || strings.HasPrefix(cleanName, "../") {
 		return "", fmt.Errorf("archive entry %q escapes extraction root", name)
 	}
-	destination := filepath.Join(root, cleanName)
+	destination := filepath.Join(root, filepath.FromSlash(cleanName))
 	if !pathWithinRoot(destination, root) {
 		return "", fmt.Errorf("archive entry %q escapes extraction root", name)
 	}
 	return destination, nil
+}
+
+func hasArchiveVolumeName(name string) bool {
+	if len(name) < 2 || name[1] != ':' {
+		return false
+	}
+	return (name[0] >= 'a' && name[0] <= 'z') || (name[0] >= 'A' && name[0] <= 'Z')
 }
 
 func sanitizedArchiveMode(mode os.FileMode, name string) os.FileMode {

@@ -179,13 +179,28 @@ func TestGraniteFingerprintsCaptureFormatAndRuntime(t *testing.T) {
 
 func TestSecureArchiveDestinationRejectsTraversal(t *testing.T) {
 	root := t.TempDir()
-	for _, name := range []string{"../escape", "../../escape", `C:\escape`, "/absolute"} {
+	for _, name := range []string{
+		"../escape",
+		"../../escape",
+		`..\escape`,
+		`nested\..\..\escape`,
+		`C:\escape`,
+		"C:/escape",
+		"C:escape",
+		`\\server\share\escape`,
+		"//server/share/escape",
+		"/absolute",
+		`\absolute`,
+		"invalid\x00name",
+	} {
 		if _, err := secureArchiveDestination(root, name); err == nil {
 			t.Fatalf("secureArchiveDestination(%q) unexpectedly succeeded", name)
 		}
 	}
-	if destination, err := secureArchiveDestination(root, "runtime/bin/llama-server"); err != nil || !pathWithinRoot(destination, root) {
-		t.Fatalf("safe destination = %q, %v", destination, err)
+	for _, name := range []string{"runtime/bin/llama-server", `runtime\bin\llama-server`} {
+		if destination, err := secureArchiveDestination(root, name); err != nil || !pathWithinRoot(destination, root) {
+			t.Fatalf("secureArchiveDestination(%q) = %q, %v", name, destination, err)
+		}
 	}
 }
 
