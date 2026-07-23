@@ -71,6 +71,7 @@ CREATE TABLE IF NOT EXISTS gm_revision_files (
  revision_id INTEGER NOT NULL, path TEXT NOT NULL, content_hash TEXT NOT NULL, size INTEGER NOT NULL,
  PRIMARY KEY(revision_id, path), FOREIGN KEY(revision_id) REFERENCES gm_revisions(id) ON DELETE CASCADE
 );
+CREATE INDEX IF NOT EXISTS gm_revision_files_hash_idx ON gm_revision_files(content_hash);
 CREATE TABLE IF NOT EXISTS gm_blobs (
  content_hash TEXT PRIMARY KEY, size INTEGER NOT NULL, created_at DATETIME NOT NULL
 );`

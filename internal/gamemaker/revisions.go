@@ -43,6 +43,12 @@ func (s *Service) publish(stage string, project Project, job Job, source, summar
 	if err != nil {
 		return Revision{}, err
 	}
+	published := false
+	defer func() {
+		if !published {
+			_ = s.pruneOrphanBlobs(context.Background())
+		}
+	}()
 	tx, err := s.db.Begin()
 	if err != nil {
 		return Revision{}, fmt.Errorf("begin game maker revision: %w", err)
@@ -98,11 +104,88 @@ func (s *Service) publish(stage string, project Project, job Job, source, summar
 		}
 		return Revision{}, fmt.Errorf("commit game maker revision: %w", err)
 	}
+	published = true
 	_ = os.RemoveAll(backup)
 	return Revision{
 		ID: revisionID, ProjectID: project.ID, Number: next, Parent: project.CurrentRevision,
 		Source: source, Summary: summary, FileCount: len(files), TotalBytes: total, CreatedAt: now,
 	}, nil
+}
+
+func (s *Service) pruneOrphanBlobs(ctx context.Context) error {
+	rows, err := s.db.QueryContext(ctx, `SELECT b.content_hash
+		FROM gm_blobs b
+		LEFT JOIN gm_revision_files f ON f.content_hash=b.content_hash
+		WHERE f.content_hash IS NULL`)
+	if err != nil {
+		return fmt.Errorf("list orphaned game maker blobs: %w", err)
+	}
+	hashSet := map[string]struct{}{}
+	for rows.Next() {
+		var hash string
+		if err := rows.Scan(&hash); err != nil {
+			_ = rows.Close()
+			return fmt.Errorf("scan orphaned game maker blob: %w", err)
+		}
+		hashSet[hash] = struct{}{}
+	}
+	if err := rows.Err(); err != nil {
+		_ = rows.Close()
+		return fmt.Errorf("iterate orphaned game maker blobs: %w", err)
+	}
+	if err := rows.Close(); err != nil {
+		return fmt.Errorf("close orphaned game maker blob rows: %w", err)
+	}
+	if err := filepath.WalkDir(s.blobDir, func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() {
+			return nil
+		}
+		hash := entry.Name()
+		if len(hash) != sha256.Size*2 {
+			return nil
+		}
+		if _, err := hex.DecodeString(hash); err != nil {
+			return nil
+		}
+		hashSet[hash] = struct{}{}
+		return nil
+	}); err != nil {
+		return fmt.Errorf("scan game maker blob store: %w", err)
+	}
+	hashes := make([]string, 0, len(hashSet))
+	for hash := range hashSet {
+		hashes = append(hashes, hash)
+	}
+	sort.Strings(hashes)
+	for _, hash := range hashes {
+		if len(hash) != sha256.Size*2 {
+			return fmt.Errorf("invalid game maker blob hash %q", hash)
+		}
+		if _, err := hex.DecodeString(hash); err != nil {
+			return fmt.Errorf("invalid game maker blob hash %q: %w", hash, err)
+		}
+		var referenced bool
+		if err := s.db.QueryRowContext(ctx, `SELECT EXISTS(
+			SELECT 1 FROM gm_revision_files WHERE content_hash=?)`, hash).Scan(&referenced); err != nil {
+			return fmt.Errorf("check game maker blob references: %w", err)
+		}
+		if referenced {
+			continue
+		}
+		blobPath := filepath.Join(s.blobDir, hash[:2], hash)
+		if err := os.Remove(blobPath); err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("remove orphaned game maker blob: %w", err)
+		}
+		if _, err := s.db.ExecContext(ctx, `DELETE FROM gm_blobs WHERE content_hash=?
+			AND NOT EXISTS (SELECT 1 FROM gm_revision_files WHERE content_hash=?)`, hash, hash); err != nil {
+			return fmt.Errorf("delete orphaned game maker blob record: %w", err)
+		}
+		_ = os.Remove(filepath.Dir(blobPath))
+	}
+	return nil
 }
 
 func (s *Service) snapshotFiles(root string) ([]revisionFile, int64, error) {
@@ -167,18 +250,20 @@ func (s *Service) snapshotFiles(root string) ([]revisionFile, int64, error) {
 }
 
 func (s *Service) RestoreRevision(ctx context.Context, projectID string, number int64) (Revision, error) {
-	if !s.opts.Enabled {
+	s.policyMu.RLock()
+	defer s.policyMu.RUnlock()
+	policy := s.policy
+	if !policy.Enabled {
 		return Revision{}, ErrDisabled
 	}
-	if s.opts.ReadOnly || !s.opts.AllowEdit {
+	if policy.ReadOnly || !policy.AllowEdit {
 		return Revision{}, ErrReadOnly
 	}
-	s.mu.Lock()
-	if s.activeJobID != "" {
-		s.mu.Unlock()
+	writerID := randomID("restore")
+	if !s.reserveWriter(writerID) {
 		return Revision{}, ErrBusy
 	}
-	s.mu.Unlock()
+	defer s.releaseWriter(writerID)
 	project, err := s.GetProject(ctx, projectID)
 	if err != nil {
 		return Revision{}, err
@@ -231,7 +316,7 @@ func (s *Service) RestoreRevision(ctx context.Context, projectID string, number 
 	if result := buildDirectory(ctx, stage, s.opts.MaxFilesPerProject, s.opts.MaxProjectBytes); !result.OK {
 		return Revision{}, fmt.Errorf("restored game revision failed validation: %s", diagnosticsText(result.Diagnostics))
 	}
-	restoreJob := Job{ID: randomID("restore"), ProjectID: projectID}
+	restoreJob := Job{ID: writerID, ProjectID: projectID}
 	published, err := s.publish(stage, project, restoreJob, "restore", fmt.Sprintf("Restored revision %d", number))
 	if err != nil {
 		return Revision{}, err

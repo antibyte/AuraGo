@@ -36,7 +36,10 @@ type Service struct {
 	blobDir    string
 
 	mu          sync.RWMutex
+	buildMu     sync.Mutex
 	runner      Runner
+	policyMu    sync.RWMutex
+	policy      Policy
 	activeJobID string
 	jobCancels  map[string]context.CancelFunc
 	subscribers map[string]map[chan Event]struct{}
@@ -93,6 +96,7 @@ func NewService(opts Options) (*Service, error) {
 	service := &Service{
 		db:          db,
 		opts:        opts,
+		policy:      policyFromOptions(opts),
 		stagingDir:  staging,
 		blobDir:     blobs,
 		jobCancels:  map[string]context.CancelFunc{},
@@ -120,6 +124,43 @@ func (s *Service) SetRunner(runner Runner) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.runner = runner
+}
+
+// UpdatePolicy applies permission changes from a configuration hot reload.
+// Filesystem paths and resource limits remain startup-only settings.
+func (s *Service) UpdatePolicy(policy Policy) {
+	s.policyMu.Lock()
+	defer s.policyMu.Unlock()
+	s.policy = policy
+}
+
+func policyFromOptions(opts Options) Policy {
+	return Policy{
+		Enabled:              opts.Enabled,
+		ReadOnly:             opts.ReadOnly,
+		AllowCreate:          opts.AllowCreate,
+		AllowEdit:            opts.AllowEdit,
+		AllowDelete:          opts.AllowDelete,
+		AllowMediaGeneration: opts.AllowMediaGeneration,
+	}
+}
+
+func (s *Service) reserveWriter(id string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.activeJobID != "" {
+		return false
+	}
+	s.activeJobID = id
+	return true
+}
+
+func (s *Service) releaseWriter(id string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.activeJobID == id {
+		s.activeJobID = ""
+	}
 }
 
 func (s *Service) SetSkillStatus(skills []SkillInfo, ready bool) {
@@ -168,10 +209,13 @@ func (s *Service) GetProject(ctx context.Context, id string) (Project, error) {
 }
 
 func (s *Service) CreateProject(ctx context.Context, req CreateProjectRequest) (Project, error) {
-	if !s.opts.Enabled {
+	s.policyMu.RLock()
+	defer s.policyMu.RUnlock()
+	policy := s.policy
+	if !policy.Enabled {
 		return Project{}, ErrDisabled
 	}
-	if s.opts.ReadOnly || !s.opts.AllowCreate {
+	if policy.ReadOnly || !policy.AllowCreate {
 		return Project{}, ErrReadOnly
 	}
 	req.Name = strings.TrimSpace(req.Name)
@@ -204,8 +248,8 @@ func (s *Service) CreateProject(ctx context.Context, req CreateProjectRequest) (
 		Description:        req.Description,
 		ProviderID:         strings.TrimSpace(req.ProviderID),
 		Model:              strings.TrimSpace(req.Model),
-		UseImageGeneration: req.UseImageGeneration && s.opts.AllowMediaGeneration,
-		UseMusicGeneration: req.UseMusicGeneration && s.opts.AllowMediaGeneration,
+		UseImageGeneration: req.UseImageGeneration && policy.AllowMediaGeneration,
+		UseMusicGeneration: req.UseMusicGeneration && policy.AllowMediaGeneration,
 		Status:             "draft",
 		CreatedAt:          now,
 		UpdatedAt:          now,
@@ -227,10 +271,13 @@ func (s *Service) CreateProject(ctx context.Context, req CreateProjectRequest) (
 }
 
 func (s *Service) UpdateProject(ctx context.Context, id string, req UpdateProjectRequest) (Project, error) {
-	if !s.opts.Enabled {
+	s.policyMu.RLock()
+	defer s.policyMu.RUnlock()
+	policy := s.policy
+	if !policy.Enabled {
 		return Project{}, ErrDisabled
 	}
-	if s.opts.ReadOnly || !s.opts.AllowEdit {
+	if policy.ReadOnly || !policy.AllowEdit {
 		return Project{}, ErrReadOnly
 	}
 	name := strings.TrimSpace(req.Name)
@@ -252,43 +299,65 @@ func (s *Service) UpdateProject(ctx context.Context, id string, req UpdateProjec
 }
 
 func (s *Service) DeleteProject(ctx context.Context, id string) error {
-	if !s.opts.Enabled {
+	s.policyMu.RLock()
+	defer s.policyMu.RUnlock()
+	policy := s.policy
+	if !policy.Enabled {
 		return ErrDisabled
 	}
-	if s.opts.ReadOnly || !s.opts.AllowDelete {
+	if policy.ReadOnly || !policy.AllowDelete {
 		return ErrReadOnly
 	}
+	writerID := randomID("delete")
+	if !s.reserveWriter(writerID) {
+		return ErrBusy
+	}
+	defer s.releaseWriter(writerID)
 	project, err := s.GetProject(ctx, id)
 	if err != nil {
 		return err
 	}
-	s.mu.RLock()
-	for jobID := range s.jobCancels {
-		job, getErr := s.GetJob(ctx, jobID)
-		if getErr == nil && job.ProjectID == id {
-			s.mu.RUnlock()
-			return ErrBusy
-		}
-	}
-	s.mu.RUnlock()
 	projectDir := filepath.Join(s.opts.WorkspacePath, filepath.FromSlash(project.ProjectKey))
 	if err := rejectSymlinkComponents(s.opts.WorkspacePath, projectDir); err != nil {
 		return err
 	}
-	if err := os.RemoveAll(projectDir); err != nil {
-		return fmt.Errorf("remove game maker project files: %w", err)
+	backupDir := projectDir + ".gm-delete-" + writerID
+	hadProjectDir := false
+	if _, err := os.Stat(projectDir); err == nil {
+		hadProjectDir = true
+		if err := os.Rename(projectDir, backupDir); err != nil {
+			return fmt.Errorf("stage game maker project deletion: %w", err)
+		}
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("inspect game maker project files: %w", err)
 	}
 	if _, err := s.db.ExecContext(ctx, `DELETE FROM gm_projects WHERE id=?`, id); err != nil {
+		if hadProjectDir {
+			if restoreErr := os.Rename(backupDir, projectDir); restoreErr != nil {
+				return fmt.Errorf("delete game maker project: %w (restore project files: %v)", err, restoreErr)
+			}
+		}
 		return fmt.Errorf("delete game maker project: %w", err)
+	}
+	if hadProjectDir {
+		if err := os.RemoveAll(backupDir); err != nil && s.opts.Logger != nil {
+			s.opts.Logger.Warn("Failed to remove deleted Game Maker project backup", "path", backupDir, "error", err)
+		}
+	}
+	if err := s.pruneOrphanBlobs(context.Background()); err != nil && s.opts.Logger != nil {
+		s.opts.Logger.Warn("Failed to prune orphaned Game Maker blobs", "error", err)
 	}
 	return nil
 }
 
 func (s *Service) StartJob(ctx context.Context, projectID string, req StartJobRequest) (Job, error) {
-	if !s.opts.Enabled {
+	s.policyMu.RLock()
+	defer s.policyMu.RUnlock()
+	policy := s.policy
+	if !policy.Enabled {
 		return Job{}, ErrDisabled
 	}
-	if s.opts.ReadOnly || !s.opts.AllowEdit {
+	if policy.ReadOnly || !policy.AllowEdit {
 		return Job{}, ErrReadOnly
 	}
 	_, ready := s.SkillStatus()
@@ -302,10 +371,10 @@ func (s *Service) StartJob(ctx context.Context, projectID string, req StartJobRe
 	imageGeneration := project.UseImageGeneration
 	musicGeneration := project.UseMusicGeneration
 	if req.ImageGeneration != nil {
-		imageGeneration = *req.ImageGeneration && s.opts.AllowMediaGeneration
+		imageGeneration = *req.ImageGeneration && policy.AllowMediaGeneration
 	}
 	if req.MusicGeneration != nil {
-		musicGeneration = *req.MusicGeneration && s.opts.AllowMediaGeneration
+		musicGeneration = *req.MusicGeneration && policy.AllowMediaGeneration
 	}
 	prompt := strings.TrimSpace(req.Prompt)
 	kind := "create"
@@ -319,15 +388,6 @@ func (s *Service) StartJob(ctx context.Context, projectID string, req StartJobRe
 	}
 	providerID := firstNonEmpty(req.ProviderID, project.ProviderID)
 	model := firstNonEmpty(req.Model, project.Model)
-	project.ProviderID = providerID
-	project.Model = model
-	project.UseImageGeneration = imageGeneration
-	project.UseMusicGeneration = musicGeneration
-	if _, err := s.db.ExecContext(ctx, `UPDATE gm_projects
-		SET provider_id=?,model=?,use_image=?,use_music=?,updated_at=? WHERE id=?`,
-		providerID, model, boolInt(imageGeneration), boolInt(musicGeneration), time.Now().UTC(), project.ID); err != nil {
-		return Job{}, fmt.Errorf("update game maker job preferences: %w", err)
-	}
 	now := time.Now().UTC()
 	job := Job{
 		ID:           randomID("job"),
@@ -352,6 +412,16 @@ func (s *Service) StartJob(ctx context.Context, projectID string, req StartJobRe
 	s.jobCancels[job.ID] = cancel
 	s.mu.Unlock()
 
+	project.ProviderID = providerID
+	project.Model = model
+	project.UseImageGeneration = imageGeneration
+	project.UseMusicGeneration = musicGeneration
+	if _, err := s.db.ExecContext(ctx, `UPDATE gm_projects
+		SET provider_id=?,model=?,use_image=?,use_music=?,updated_at=? WHERE id=?`,
+		providerID, model, boolInt(imageGeneration), boolInt(musicGeneration), time.Now().UTC(), project.ID); err != nil {
+		s.releaseJob(job.ID)
+		return Job{}, fmt.Errorf("update game maker job preferences: %w", err)
+	}
 	_, err = s.db.ExecContext(ctx, `INSERT INTO gm_jobs
 		(id,project_id,kind,prompt,status,phase,provider_id,model,base_revision,created_at)
 		VALUES(?,?,?,?,?,?,?,?,?,?)`, job.ID, job.ProjectID, job.Kind, job.Prompt, job.Status, job.Phase,
@@ -413,6 +483,26 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project) {
 		return
 	}
 	result := s.BuildJob(ctx, job.ID)
+	for attempt := 1; !result.OK && attempt <= 3; attempt++ {
+		repairJob := job
+		repairJob.Prompt = fmt.Sprintf(
+			"Repair validation attempt %d of 3. Diagnose and fix these build errors, then validate again: %s",
+			attempt, diagnosticsText(result.Diagnostics),
+		)
+		if err := s.updateJobPhase(ctx, &job, "building"); err != nil {
+			s.terminateJob(job, ctx, err)
+			return
+		}
+		if err := runner.RunGameMakerJob(ctx, JobRun{Job: repairJob, Project: project}); err != nil {
+			s.terminateJob(job, ctx, err)
+			return
+		}
+		if err := s.updateJobPhase(ctx, &job, "validating"); err != nil {
+			s.terminateJob(job, ctx, err)
+			return
+		}
+		result = s.BuildJob(ctx, job.ID)
+	}
 	if !result.OK {
 		s.terminateJob(job, ctx, fmt.Errorf("game validation failed: %s", diagnosticsText(result.Diagnostics)))
 		return
@@ -621,6 +711,7 @@ func (s *Service) WriteJobFile(ctx context.Context, jobID, rawPath, content stri
 	}
 	job, _ := s.GetJob(ctx, jobID)
 	_, _ = s.emit(ctx, job.ProjectID, jobID, "file_changed", map[string]any{"path": rel})
+	_ = s.BuildJob(ctx, jobID)
 	return nil
 }
 
@@ -675,6 +766,7 @@ func (s *Service) StoreJobAsset(ctx context.Context, jobID, rawPath, kind, gener
 	_, _ = s.emit(ctx, job.ProjectID, jobID, "asset_changed", map[string]any{
 		"path": rel, "kind": kind, "generator": generator, "provenance": provenance,
 	})
+	_ = s.BuildJob(ctx, jobID)
 	return rel, nil
 }
 

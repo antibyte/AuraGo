@@ -669,6 +669,7 @@ var authBypassPrefixes = []string{
 	"/api/agodesk/media/",            // agodesk media assets — limited to explicit media buckets by the handler
 	"/api/agodesk/knowledge/upload/", // signed AgoDesk knowledge uploads authenticate inside the handler
 	"/api/invasion/ws",               // Egg WebSocket — has its own HMAC-based auth handshake
+	"/api/game-maker/preview/",       // short-lived project-scoped token is validated by the preview handler
 	"/mcp",
 	"/api/space-agent/bridge/messages", // Space Agent bridge has its own Bearer token auth
 	"/setup",

@@ -266,32 +266,48 @@ func handleGameMakerEvents(w http.ResponseWriter, r *http.Request, s *Server, pr
 	w.Header().Set("Cache-Control", "no-cache, no-store")
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("X-Accel-Buffering", "no")
-	replay, err := s.GameMaker.EventsAfter(r.Context(), projectID, afterID, 500)
-	if err != nil {
+	events, unsubscribe := s.GameMaker.Subscribe(projectID)
+	defer unsubscribe()
+	writePending := func() error {
+		for {
+			replay, err := s.GameMaker.EventsAfter(r.Context(), projectID, afterID, 500)
+			if err != nil {
+				return err
+			}
+			for _, event := range replay {
+				writeGameMakerSSE(w, event)
+				afterID = event.ID
+			}
+			if len(replay) < 500 {
+				flusher.Flush()
+				return nil
+			}
+		}
+	}
+	if err := writePending(); err != nil {
 		writeGameMakerSSEError(w, err)
 		return
 	}
-	for _, event := range replay {
-		writeGameMakerSSE(w, event)
-		afterID = event.ID
-	}
-	flusher.Flush()
-	events, unsubscribe := s.GameMaker.Subscribe(projectID)
-	defer unsubscribe()
 	heartbeat := time.NewTicker(15 * time.Second)
 	defer heartbeat.Stop()
 	for {
 		select {
 		case <-r.Context().Done():
 			return
-		case event := <-events:
-			if event.ID <= afterID {
-				continue
+		case <-events:
+			if err := writePending(); err != nil {
+				if r.Context().Err() == nil {
+					writeGameMakerSSEError(w, err)
+				}
+				return
 			}
-			writeGameMakerSSE(w, event)
-			flusher.Flush()
-			afterID = event.ID
 		case <-heartbeat.C:
+			if err := writePending(); err != nil {
+				if r.Context().Err() == nil {
+					writeGameMakerSSEError(w, err)
+				}
+				return
+			}
 			fmt.Fprint(w, ": heartbeat\n\n")
 			flusher.Flush()
 		}

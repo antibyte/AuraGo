@@ -14,6 +14,7 @@ const (
 func isDesktopScopedAPIPath(path string) bool {
 	return strings.HasPrefix(path, "/api/desktop/") ||
 		strings.HasPrefix(path, "/api/code-studio/") ||
+		strings.HasPrefix(path, "/api/game-maker/") ||
 		strings.HasPrefix(path, "/api/virtual-computers/")
 }
 

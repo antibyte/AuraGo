@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,6 +17,39 @@ type testRunner struct {
 	service *Service
 	mutate  func(context.Context, JobRun) error
 	block   bool
+}
+
+type repairRunner struct {
+	service  *Service
+	attempts int
+	original string
+}
+
+func (r *repairRunner) RunGameMakerJob(ctx context.Context, run JobRun) error {
+	r.attempts++
+	if r.original == "" {
+		original, err := r.service.ReadJobFile(ctx, run.Job.ID, "src/main.ts")
+		if err != nil {
+			return err
+		}
+		r.original = original
+	}
+	content := "this is not valid TypeScript <<<"
+	if r.attempts > 1 {
+		content = r.original + "\n// repaired by validation retry\n"
+	}
+	if err := r.service.WriteJobFile(ctx, run.Job.ID, "src/main.ts", content); err != nil {
+		return err
+	}
+	if r.attempts > 1 {
+		r.service.mu.RLock()
+		previewJobID := r.service.previewJobs[run.Project.ID]
+		r.service.mu.RUnlock()
+		if previewJobID != run.Job.ID {
+			return fmt.Errorf("automatic build did not publish staging preview")
+		}
+	}
+	return nil
 }
 
 func (r testRunner) RunGameMakerJob(ctx context.Context, run JobRun) error {
@@ -173,6 +207,48 @@ func TestGameMakerPublishes2DAnd3DOfflineExports(t *testing.T) {
 	}
 }
 
+func TestUpdatePolicyAppliesPermissionChangesWithoutRestart(t *testing.T) {
+	service := newTestService(t)
+	service.UpdatePolicy(Policy{})
+	if _, err := service.CreateProject(context.Background(), CreateProjectRequest{
+		Name: "Disabled", Dimension: "2d", Description: "Must stay disabled.",
+	}); !errors.Is(err, ErrDisabled) {
+		t.Fatalf("CreateProject with disabled policy error = %v, want ErrDisabled", err)
+	}
+
+	service.UpdatePolicy(Policy{Enabled: true, ReadOnly: true, AllowCreate: true})
+	if _, err := service.CreateProject(context.Background(), CreateProjectRequest{
+		Name: "Read only", Dimension: "2d", Description: "Must stay read only.",
+	}); !errors.Is(err, ErrReadOnly) {
+		t.Fatalf("CreateProject with read-only policy error = %v, want ErrReadOnly", err)
+	}
+
+	service.UpdatePolicy(Policy{Enabled: true, AllowCreate: true})
+	if _, err := service.CreateProject(context.Background(), CreateProjectRequest{
+		Name: "Live policy", Dimension: "2d", Description: "Permission update works.",
+	}); err != nil {
+		t.Fatalf("CreateProject after live policy update: %v", err)
+	}
+}
+
+func TestValidationRetriesRepairBeforePublishing(t *testing.T) {
+	service := newTestService(t)
+	runner := &repairRunner{service: service}
+	service.SetRunner(runner)
+	project := createTestProject(t, service, "2d")
+	job, err := service.StartJob(context.Background(), project.ID, StartJobRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	finished := waitJob(t, service, job.ID)
+	if finished.Status != "ready" || finished.ResultRevision != 1 {
+		t.Fatalf("repaired job = %+v", finished)
+	}
+	if runner.attempts != 2 {
+		t.Fatalf("runner attempts = %d, want initial build plus one repair", runner.attempts)
+	}
+}
+
 func TestFailedEditKeepsLastPlayableRevisionAndRestoreDeduplicatesBlobs(t *testing.T) {
 	service := newTestService(t)
 	service.SetRunner(testRunner{service: service})
@@ -191,7 +267,9 @@ func TestFailedEditKeepsLastPlayableRevisionAndRestoreDeduplicatesBlobs(t *testi
 		t.Fatal(err)
 	}
 
+	attempts := 0
 	service.SetRunner(testRunner{service: service, mutate: func(ctx context.Context, run JobRun) error {
+		attempts++
 		return service.WriteJobFile(ctx, run.Job.ID, "src/main.ts", "this is not valid TypeScript <<<")
 	}})
 	failed, err := service.StartJob(context.Background(), project.ID, StartJobRequest{Prompt: "Break the build"})
@@ -211,6 +289,9 @@ func TestFailedEditKeepsLastPlayableRevisionAndRestoreDeduplicatesBlobs(t *testi
 	project, _ = service.GetProject(context.Background(), project.ID)
 	if project.CurrentRevision != 1 {
 		t.Fatalf("current revision after failed build = %d", project.CurrentRevision)
+	}
+	if attempts != 4 {
+		t.Fatalf("agent attempts = %d, want initial attempt plus three repairs", attempts)
 	}
 
 	restored, err := service.RestoreRevision(context.Background(), project.ID, 1)
@@ -255,6 +336,126 @@ func TestCancelLeavesPublishedRevisionUntouched(t *testing.T) {
 	after, _ := service.GetProject(context.Background(), project.ID)
 	if after.CurrentRevision != project.CurrentRevision {
 		t.Fatalf("cancel changed revision from %d to %d", project.CurrentRevision, after.CurrentRevision)
+	}
+}
+
+func TestRestoreAndDeleteRespectGlobalWriterReservation(t *testing.T) {
+	service := newTestService(t)
+	service.SetRunner(testRunner{service: service})
+	project := createTestProject(t, service, "2d")
+	initial, err := service.StartJob(context.Background(), project.ID, StartJobRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if finished := waitJob(t, service, initial.ID); finished.Status != "ready" {
+		t.Fatalf("initial job = %+v", finished)
+	}
+
+	service.SetRunner(testRunner{service: service, block: true})
+	active, err := service.StartJob(context.Background(), project.ID, StartJobRequest{Prompt: "Keep the writer busy"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.RestoreRevision(context.Background(), project.ID, 1); !errors.Is(err, ErrBusy) {
+		t.Fatalf("RestoreRevision while job active error = %v, want ErrBusy", err)
+	}
+	if err := service.DeleteProject(context.Background(), project.ID); !errors.Is(err, ErrBusy) {
+		t.Fatalf("DeleteProject while job active error = %v, want ErrBusy", err)
+	}
+	if err := service.CancelJob(context.Background(), active.ID); err != nil {
+		t.Fatal(err)
+	}
+	if finished := waitJob(t, service, active.ID); finished.Status != "cancelled" {
+		t.Fatalf("active job after cancellation = %+v", finished)
+	}
+}
+
+func TestDeleteProjectRestoresFilesWhenLedgerDeleteFails(t *testing.T) {
+	service := newTestService(t)
+	service.SetRunner(testRunner{service: service})
+	project := createTestProject(t, service, "2d")
+	job, err := service.StartJob(context.Background(), project.ID, StartJobRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if finished := waitJob(t, service, job.ID); finished.Status != "ready" {
+		t.Fatalf("job = %+v", finished)
+	}
+	project, err = service.GetProject(context.Background(), project.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	projectDir := filepath.Join(service.opts.WorkspacePath, filepath.FromSlash(project.ProjectKey))
+	if _, err := service.db.Exec(`CREATE TRIGGER gm_block_project_delete
+		BEFORE DELETE ON gm_projects BEGIN SELECT RAISE(ABORT, 'blocked delete'); END`); err != nil {
+		t.Fatal(err)
+	}
+	if err := service.DeleteProject(context.Background(), project.ID); err == nil {
+		t.Fatal("DeleteProject succeeded despite blocking database trigger")
+	}
+	if _, err := os.Stat(filepath.Join(projectDir, "index.html")); err != nil {
+		t.Fatalf("published files were not restored after failed ledger delete: %v", err)
+	}
+	if _, err := service.GetProject(context.Background(), project.ID); err != nil {
+		t.Fatalf("project ledger row disappeared after failed delete: %v", err)
+	}
+}
+
+func TestDeleteProjectPrunesOnlyUnreferencedBlobs(t *testing.T) {
+	service := newTestService(t)
+	service.SetRunner(testRunner{service: service})
+	var projects []Project
+	for i := 0; i < 2; i++ {
+		project := createTestProject(t, service, "2d")
+		job, err := service.StartJob(context.Background(), project.ID, StartJobRequest{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if finished := waitJob(t, service, job.ID); finished.Status != "ready" {
+			t.Fatalf("job = %+v", finished)
+		}
+		projects = append(projects, project)
+	}
+	var initial int
+	if err := service.db.QueryRow(`SELECT COUNT(*) FROM gm_blobs`).Scan(&initial); err != nil {
+		t.Fatal(err)
+	}
+	if initial == 0 {
+		t.Fatal("published projects did not create revision blobs")
+	}
+	if err := service.DeleteProject(context.Background(), projects[0].ID); err != nil {
+		t.Fatal(err)
+	}
+	var remaining int
+	if err := service.db.QueryRow(`SELECT COUNT(*) FROM gm_blobs`).Scan(&remaining); err != nil {
+		t.Fatal(err)
+	}
+	if remaining == 0 {
+		t.Fatal("deleting one project removed blobs still referenced by another project")
+	}
+	if err := service.DeleteProject(context.Background(), projects[1].ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := service.db.QueryRow(`SELECT COUNT(*) FROM gm_blobs`).Scan(&remaining); err != nil {
+		t.Fatal(err)
+	}
+	if remaining != 0 {
+		t.Fatalf("orphaned blob records after deleting all projects = %d", remaining)
+	}
+	orphanData := []byte("unregistered snapshot blob")
+	orphanHash := sha256Bytes(orphanData)
+	orphanPath := filepath.Join(service.blobDir, orphanHash[:2], orphanHash)
+	if err := os.MkdirAll(filepath.Dir(orphanPath), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(orphanPath, orphanData, 0o640); err != nil {
+		t.Fatal(err)
+	}
+	if err := service.pruneOrphanBlobs(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(orphanPath); !os.IsNotExist(err) {
+		t.Fatalf("unregistered orphan blob still exists: %v", err)
 	}
 }
 

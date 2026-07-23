@@ -50,6 +50,9 @@ func TestGameMakerStudioDesktopRegistrationAndIsolation(t *testing.T) {
 		`window.removeEventListener('message'`,
 		`confirmDialog`,
 		`preview_reload`,
+		`'polishing', 'cancelling'`,
+		`const modal = layer.querySelector('.gm-modal');`,
+		`const editable = Boolean(state.project && !active`,
 	} {
 		if !strings.Contains(app, marker) {
 			t.Errorf("Game Maker UI missing lifecycle/security marker %q", marker)

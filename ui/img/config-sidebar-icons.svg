@@ -431,4 +431,8 @@
     <title>sip</title>
     <path d="M41 28h14l8 22-10 8c8 16 17 25 33 33l8-10 22 8v14c0 8-7 14-15 13-42-6-76-40-82-82-1-8 5-15 13-15z" fill="#35c7d3" opacity=".22"/><path d="M41 28h14l8 22-10 8c8 16 17 25 33 33l8-10 22 8v14c0 8-7 14-15 13-42-6-76-40-82-82-1-8 5-15 13-15z" fill="none" stroke="#35c7d3" stroke-width="6" stroke-linejoin="round"/>
   </g>
+  <g class="cfg-icon-cell" data-key="game_maker" data-slot="108" transform="translate(1152 1152)">
+    <title>game_maker</title>
+    <path d="M38 45h52c10 0 16 8 18 19l4 23c2 10-10 16-17 9L82 83H46L33 96c-7 7-19 1-17-9l4-23c2-11 8-19 18-19z" fill="#9b7cf0" opacity=".2"/><path d="M38 45h52c10 0 16 8 18 19l4 23c2 10-10 16-17 9L82 83H46L33 96c-7 7-19 1-17-9l4-23c2-11 8-19 18-19zM39 59v20M29 69h20M82 63h.1M94 76h.1" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="6" stroke="#9b7cf0"/>
+  </g>
 </svg>

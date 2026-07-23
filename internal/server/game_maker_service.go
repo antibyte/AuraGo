@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"aurago/internal/agent"
+	"aurago/internal/config"
 	"aurago/internal/gamemaker"
 	"aurago/internal/llm"
 	"aurago/internal/tools"
@@ -23,6 +24,26 @@ var gameMakerAllowedTools = []string{
 	"game_maker_validate",
 	"list_agent_skills",
 	"activate_agent_skill",
+}
+
+func gameMakerPolicy(cfg config.GameMakerConfig) gamemaker.Policy {
+	return gamemaker.Policy{
+		Enabled:              cfg.Enabled,
+		ReadOnly:             cfg.ReadOnly,
+		AllowCreate:          cfg.AllowCreate,
+		AllowEdit:            cfg.AllowEdit,
+		AllowDelete:          cfg.AllowDelete,
+		AllowMediaGeneration: cfg.AllowMediaGeneration,
+	}
+}
+
+func gameMakerRuntimeConfigChanged(oldCfg, newCfg config.GameMakerConfig) bool {
+	return oldCfg.WorkspacePath != newCfg.WorkspacePath ||
+		oldCfg.MaxProjects != newCfg.MaxProjects ||
+		oldCfg.MaxFilesPerProject != newCfg.MaxFilesPerProject ||
+		oldCfg.MaxFileSizeKB != newCfg.MaxFileSizeKB ||
+		oldCfg.MaxProjectSizeMB != newCfg.MaxProjectSizeMB ||
+		oldCfg.JobTimeoutSeconds != newCfg.JobTimeoutSeconds
 }
 
 func (s *Server) initGameMaker() {
@@ -53,6 +74,7 @@ func (s *Server) initGameMaker() {
 		return
 	}
 	service.SetSkillStatus(s.gameMakerSkills, s.gameMakerSkillsReady)
+	service.UpdatePolicy(gameMakerPolicy(cfg))
 	service.SetRunner(&gameMakerAgentRunner{server: s, service: service})
 	s.GameMaker = service
 	gamemaker.SetDefaultService(service)

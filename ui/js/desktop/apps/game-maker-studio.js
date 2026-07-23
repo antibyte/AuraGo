@@ -7,7 +7,7 @@
         'skill_activation', 'file_changed', 'asset_changed', 'preview_reload',
         'diagnostic', 'revision'
     ];
-    const activeStatuses = new Set(['queued', 'planning', 'building', 'validating', 'polishing']);
+    const activeStatuses = new Set(['queued', 'planning', 'building', 'validating', 'polishing', 'cancelling']);
     const phases = ['planning', 'building', 'validating', 'polishing', 'ready'];
 
     function render(container, windowId, context) {
@@ -339,7 +339,7 @@
     }
 
     async function refreshPreview(state) {
-        if (!state.project || !state.project.current_revision) return;
+        if (!state.project) return;
         try {
             const grant = await state.api.previewGrant(state.project.id);
             if (state.disposed) return;
@@ -437,23 +437,32 @@
                     use_image_generation: data.get('use_image_generation') === 'on',
                     use_music_generation: data.get('use_music_generation') === 'on'
                 };
+                let createdProject = null;
                 try {
                     setModalBusy(layer, true);
-                    const project = await state.api.createProject(request);
-                    closeModal(state);
-                    state.projects.unshift(project);
-                    await openProject(state, project.id);
-                    state.job = await state.api.startJob(project.id, {
+                    createdProject = await state.api.createProject(request);
+                    const job = await state.api.startJob(createdProject.id, {
                         prompt: request.description,
                         provider_id: request.provider_id,
                         model: request.model,
                         image_generation: request.use_image_generation,
                         music_generation: request.use_music_generation
                     });
+                    closeModal(state);
+                    state.projects.unshift(createdProject);
+                    await openProject(state, createdProject.id);
+                    if (!state.job) state.job = job;
                     syncJobControls(state);
                 } catch (error) {
-                    setModalBusy(layer, false);
-                    modalError(layer, error.message || String(error));
+                    if (createdProject) {
+                        closeModal(state);
+                        state.projects.unshift(createdProject);
+                        await openProject(state, createdProject.id);
+                        fail(state, error);
+                    } else {
+                        setModalBusy(layer, false);
+                        modalError(layer, error.message || String(error));
+                    }
                 }
             });
         });
@@ -494,7 +503,7 @@
     }
 
     async function stopJob(state) {
-        if (!state.job || !activeStatuses.has(state.job.status)) return;
+        if (!state.job || state.job.status === 'cancelling' || !activeStatuses.has(state.job.status)) return;
         try {
             await state.api.cancelJob(state.job.id);
             state.job.status = 'cancelling';
@@ -627,11 +636,13 @@
     }
 
     function modalError(layer, message) {
+        const modal = layer.querySelector('.gm-modal');
+        if (!modal) return;
         let error = layer.querySelector('.gm-modal-error');
         if (!error) {
             error = document.createElement('p');
             error.className = 'gm-modal-error';
-            layer.querySelector('.gm-modal').appendChild(error);
+            modal.appendChild(error);
         }
         error.textContent = message;
     }
@@ -643,7 +654,7 @@
         stop.hidden = !active;
         stop.disabled = state.job && state.job.status === 'cancelling';
         const form = state.container.querySelector('[data-gm-change-form]');
-        const editable = Boolean(state.project && state.project.current_revision && !active &&
+        const editable = Boolean(state.project && !active &&
             state.capabilities && state.capabilities.allow_edit);
         form.querySelector('textarea').disabled = !editable;
         form.querySelector('button').disabled = !editable;

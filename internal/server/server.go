@@ -1468,7 +1468,8 @@ func securityHeadersMiddleware(next http.Handler, tlsActive, behindProxy bool) h
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
 		allowDesktopIframe := strings.HasPrefix(path, "/files/desktop/") ||
-			strings.HasPrefix(path, "/api/go2rtc/viewer/")
+			strings.HasPrefix(path, "/api/go2rtc/viewer/") ||
+			strings.HasPrefix(path, "/api/game-maker/preview/")
 
 		// Always set these headers
 		w.Header().Set("X-Content-Type-Options", "nosniff")

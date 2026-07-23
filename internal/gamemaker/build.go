@@ -12,6 +12,8 @@ import (
 )
 
 func (s *Service) BuildJob(ctx context.Context, jobID string) BuildResult {
+	s.buildMu.Lock()
+	defer s.buildMu.Unlock()
 	stage, err := s.JobDirectory(jobID)
 	if err != nil {
 		return BuildResult{Diagnostics: []Diagnostic{{Level: "error", Message: err.Error()}}}

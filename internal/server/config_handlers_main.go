@@ -111,6 +111,7 @@ func handleGetConfig(s *Server) http.HandlerFunc {
 		injectRuntimeDockerDefaults(rawCfg, s.Cfg)
 		injectAIGatewayDefaults(rawCfg, s.Cfg)
 		injectGo2RTCConfig(rawCfg, s.Cfg, s.Vault)
+		injectGameMakerDefaults(rawCfg, s.Cfg)
 
 		// Mask sensitive fields
 		maskSensitiveFields(rawCfg)
@@ -199,6 +200,31 @@ func injectDefaultToolPermissions(rawCfg map[string]interface{}, cfg *config.Con
 	setDefaultInt(kgSection, "pending_co_mention_ttl_days", cfg.Tools.KnowledgeGraph.PendingCoMentionTTLDays)
 	setDefaultInt(kgSection, "low_confidence_co_mention_min_weight", cfg.Tools.KnowledgeGraph.LowConfidenceCoMentionMinWeight)
 	setDefaultBool(kgSection, "hide_low_confidence_by_default", cfg.Tools.KnowledgeGraph.HideLowConfidenceByDefault)
+}
+
+func injectGameMakerDefaults(rawCfg map[string]interface{}, cfg *config.Config) {
+	if cfg == nil {
+		return
+	}
+	section, ok := rawCfg["game_maker"].(map[string]interface{})
+	if !ok {
+		section = make(map[string]interface{})
+		rawCfg["game_maker"] = section
+	}
+	setDefaultBool(section, "enabled", cfg.GameMaker.Enabled)
+	setDefaultBool(section, "readonly", cfg.GameMaker.ReadOnly)
+	setDefaultBool(section, "allow_create", cfg.GameMaker.AllowCreate)
+	setDefaultBool(section, "allow_edit", cfg.GameMaker.AllowEdit)
+	setDefaultBool(section, "allow_delete", cfg.GameMaker.AllowDelete)
+	setDefaultBool(section, "allow_media_generation", cfg.GameMaker.AllowMediaGeneration)
+	if _, ok := section["workspace_path"]; !ok {
+		section["workspace_path"] = cfg.GameMaker.WorkspacePath
+	}
+	setDefaultInt(section, "max_projects", cfg.GameMaker.MaxProjects)
+	setDefaultInt(section, "max_files_per_project", cfg.GameMaker.MaxFilesPerProject)
+	setDefaultInt(section, "max_file_size_kb", cfg.GameMaker.MaxFileSizeKB)
+	setDefaultInt(section, "max_project_size_mb", cfg.GameMaker.MaxProjectSizeMB)
+	setDefaultInt(section, "job_timeout_seconds", cfg.GameMaker.JobTimeoutSeconds)
 }
 
 func setDefaultBool(section map[string]interface{}, key string, value bool) {
@@ -594,6 +620,14 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				needsRestart = true
 				restartReasons = append(restartReasons, "Verzeichnisse")
 			}
+			if gameMakerRuntimeConfigChanged(oldCfg.GameMaker, newCfg.GameMaker) {
+				needsRestart = true
+				restartReasons = append(restartReasons, "Game Maker runtime")
+			}
+			if s.GameMaker == nil && newCfg.GameMaker.Enabled {
+				needsRestart = true
+				restartReasons = append(restartReasons, "Game Maker service")
+			}
 			if embeddingsConfigChanged(oldCfg, *newCfg) {
 				embeddingsChanged = true
 				needsRestart = true
@@ -623,6 +657,9 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			}
 
 			newCfg.ConfigPath = s.Cfg.ConfigPath
+			if s.GameMaker != nil {
+				s.GameMaker.UpdatePolicy(gameMakerPolicy(newCfg.GameMaker))
+			}
 			*s.Cfg = *newCfg
 			newCfg = s.Cfg
 			if s.TsNetManager != nil {

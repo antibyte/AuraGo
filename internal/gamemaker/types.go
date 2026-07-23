@@ -41,6 +41,17 @@ type Options struct {
 	Logger               *slog.Logger
 }
 
+// Policy contains the permissions that can be updated at runtime without
+// reopening the database or moving the workspace.
+type Policy struct {
+	Enabled              bool
+	ReadOnly             bool
+	AllowCreate          bool
+	AllowEdit            bool
+	AllowDelete          bool
+	AllowMediaGeneration bool
+}
+
 type Project struct {
 	ID                 string    `json:"id"`
 	Name               string    `json:"name"`
