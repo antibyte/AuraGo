@@ -2042,5 +2042,7 @@
   "desktop.noisemaker_player_next": "Volgende",
   "desktop.noisemaker_player_seek": "Spoelen",
   "desktop.noisemaker_player_volume": "Volume",
-  "desktop.noisemaker_lyrics_required": "De muziekprovider vereist een songtekst voor nummers met zang. Laat de AI ze schrijven (✨), voer je eigen tekst in of schakel „Instrumentaal” in."
+  "desktop.noisemaker_lyrics_required": "De muziekprovider vereist een songtekst voor nummers met zang. Laat de AI ze schrijven (✨), voer je eigen tekst in of schakel „Instrumentaal” in.",
+  "desktop.noisemaker_load_more": "Meer laden",
+  "desktop.noisemaker_showing_of": "{{loaded}} van {{total}}"
 }

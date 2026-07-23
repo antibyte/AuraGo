@@ -9,6 +9,7 @@
     const instances = new Map();
     const preferenceKey = 'aurago.desktop.noisemaker.prefs';
     const NS = 'desktop.noisemaker';
+    const TRACKS_PAGE_SIZE = 60;
 
     const STYLE_SUGGESTIONS = ['Pop', 'Lo-Fi', 'Synthwave', 'Techno', 'Hip-Hop', 'Rock', 'Jazz', 'Ambient', 'Epic Orchestra', 'Acoustic', 'EDM', 'Metal'];
     const IDEA_MAX = 2000;
@@ -59,6 +60,8 @@
             form: { idea: '', style: prefs.style, lyrics: '', title: '', instrumental: prefs.instrumental, cover: prefs.cover },
             generation: { active: false, startedAt: 0, timerId: null, result: null, error: '', lastParams: null, coverFailed: false },
             tracks: [],
+            tracksTotal: 0,
+            tracksQuery: '',
             tracksLoading: false,
             tracksLoadedOnce: false,
             library: null,
@@ -262,8 +265,9 @@
         if (busy) busy.hidden = !state.generation.active;
         const count = qs(state, '[data-nm-track-count]');
         if (count) {
-            count.hidden = state.tracks.length === 0;
-            count.textContent = String(state.tracks.length);
+            const total = state.tracksTotal || state.tracks.length;
+            count.hidden = total === 0;
+            count.textContent = String(total);
         }
     }
 
@@ -339,22 +343,52 @@
         renderApp(state);
     }
 
+    async function fetchTrackPage(state, offset) {
+        const params = new URLSearchParams({ limit: String(TRACKS_PAGE_SIZE), offset: String(offset) });
+        if (state.tracksQuery) params.set('q', state.tracksQuery);
+        return await request(state, '/api/desktop/noisemaker/tracks?' + params.toString());
+    }
+
     async function refreshTracks(state) {
         if (!state.library) return;
         state.tracksLoading = true;
         state.library.setLoading(true);
         try {
-            const data = await request(state, '/api/desktop/noisemaker/tracks');
+            const data = await fetchTrackPage(state, 0);
             if (state.disposed) return;
             state.tracks = Array.isArray(data.items) ? data.items : [];
+            state.tracksTotal = Number(data.total) || 0;
             if (state.caps && typeof data.daily_used === 'number') state.caps.daily_used = data.daily_used;
+            state.library.setTracks(state.tracks);
+            state.library.setPagination({ total: state.tracksTotal, hasMore: state.tracks.length < state.tracksTotal, loading: false });
         } catch (_) {
             if (state.disposed) return;
         }
         state.tracksLoading = false;
         state.tracksLoadedOnce = true;
         state.library.setLoading(false);
-        state.library.setTracks(state.tracks);
+        syncHeader(state);
+    }
+
+    async function loadMoreTracks(state) {
+        if (!state.library || state.tracksLoading) return;
+        if (state.tracksTotal > 0 && state.tracks.length >= state.tracksTotal) return;
+        state.tracksLoading = true;
+        state.library.setPagination({ total: state.tracksTotal, hasMore: true, loading: true });
+        try {
+            const data = await fetchTrackPage(state, state.tracks.length);
+            if (state.disposed) return;
+            const additions = Array.isArray(data.items) ? data.items : [];
+            state.tracks = state.tracks.concat(additions);
+            state.tracksTotal = Number(data.total) || state.tracksTotal;
+            if (state.caps && typeof data.daily_used === 'number') state.caps.daily_used = data.daily_used;
+            state.library.appendTracks(additions);
+            state.library.setPagination({ total: state.tracksTotal, hasMore: state.tracks.length < state.tracksTotal, loading: false });
+        } catch (_) {
+            if (state.disposed) return;
+            state.library.setPagination({ total: state.tracksTotal, hasMore: state.tracks.length < state.tracksTotal, loading: false });
+        }
+        state.tracksLoading = false;
         syncHeader(state);
     }
 
@@ -484,7 +518,9 @@
             if (state.disposed) return;
             state.ctx.notify(text(state.ctx, 'track_deleted', {}, 'Song deleted.'));
             state.tracks = state.tracks.filter(item => item.id !== track.id);
+            state.tracksTotal = Math.max(0, state.tracksTotal - 1);
             state.library.setTracks(state.tracks);
+            state.library.setPagination({ total: state.tracksTotal, hasMore: state.tracks.length < state.tracksTotal, loading: false });
             syncHeader(state);
         } catch (err) {
             if (state.disposed) return;
@@ -628,6 +664,12 @@
         state.library.on('delete', track => deleteTrack(state, track));
         state.library.on('template', track => useTemplate(state, track));
         state.library.on('create', () => switchView(state, 'create'));
+        state.library.on('loadmore', () => loadMoreTracks(state));
+        state.library.on('needmore-for-play', () => loadMoreTracks(state));
+        state.library.on('search', value => {
+            state.tracksQuery = String(value || '').trim();
+            refreshTracks(state);
+        });
 
         syncCounters(state);
         renderSlots(state);

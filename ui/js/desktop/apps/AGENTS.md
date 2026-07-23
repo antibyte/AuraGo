@@ -335,7 +335,14 @@ registration lives in `internal/desktop/types.go`.
   `window.NoisemakerLibrary.create(deps)` (factory pattern like
   CheaterToolbar). It loads before `noisemaker.js` in `module-loader.js`, owns
   exactly one `<audio>` element per window instance, and its `dispose()` stops
-  playback and detaches all listeners.
+  playback and detaches all listeners. The track list is server-paginated
+  (`GET /api/desktop/noisemaker/tracks?limit=&offset=&q=`, newest first via
+  `created_at DESC`): the app feeds pages through `setTracks` (reset) and
+  `appendTracks` (next page) and drives `setPagination({total, hasMore,
+  loading})`; the library emits `loadmore` from an IntersectionObserver
+  sentinel (fallback "load more" button), `search` with a 300 ms debounce for
+  server-side search, and `needmore-for-play` when the player reaches the end
+  of the loaded list while more tracks exist.
 - Noisemaker visible UI strings use `desktop.noisemaker_*` keys plus
   `desktop.app_noisemaker` in all `ui/lang/desktop/*.json` files.
 - `editor-filemenu.js` implements file management helpers and the inline text

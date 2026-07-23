@@ -2042,5 +2042,7 @@
   "desktop.noisemaker_player_next": "Next",
   "desktop.noisemaker_player_seek": "Seek",
   "desktop.noisemaker_player_volume": "Volume",
-  "desktop.noisemaker_lyrics_required": "The music provider requires lyrics for songs with vocals. Let the AI write them (✨), enter your own, or enable \"Instrumental\"."
+  "desktop.noisemaker_lyrics_required": "The music provider requires lyrics for songs with vocals. Let the AI write them (✨), enter your own, or enable \"Instrumental\".",
+  "desktop.noisemaker_load_more": "Load more",
+  "desktop.noisemaker_showing_of": "{{loaded}} of {{total}}"
 }

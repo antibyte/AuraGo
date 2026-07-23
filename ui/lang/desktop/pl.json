@@ -2042,5 +2042,7 @@
   "desktop.noisemaker_player_next": "Następny",
   "desktop.noisemaker_player_seek": "Pozycja",
   "desktop.noisemaker_player_volume": "Głośność",
-  "desktop.noisemaker_lyrics_required": "Dostawca wymaga tekstu piosenki z wokalem. Pozwól AI go napisać (✨), wpisz własny lub włącz „Instrumentalny”."
+  "desktop.noisemaker_lyrics_required": "Dostawca wymaga tekstu piosenki z wokalem. Pozwól AI go napisać (✨), wpisz własny lub włącz „Instrumentalny”.",
+  "desktop.noisemaker_load_more": "Wczytaj więcej",
+  "desktop.noisemaker_showing_of": "{{loaded}} z {{total}}"
 }

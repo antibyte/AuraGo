@@ -319,6 +319,99 @@ func TestNoisemakerTracksListsMusic(t *testing.T) {
 	}
 }
 
+func noisemakerTrackIDs(t *testing.T, payload map[string]interface{}) []int64 {
+	t.Helper()
+	items, ok := payload["items"].([]interface{})
+	if !ok {
+		t.Fatalf("items missing or wrong type: %#v", payload["items"])
+	}
+	ids := make([]int64, 0, len(items))
+	for _, raw := range items {
+		ids = append(ids, int64(raw.(map[string]interface{})["id"].(float64)))
+	}
+	return ids
+}
+
+func TestNoisemakerTracksPaginationNewestFirst(t *testing.T) {
+	cfg := noisemakerTestConfig(t)
+	s := noisemakerSetupRegistry(t, cfg)
+
+	id1 := noisemakerRegisterTrack(t, s, cfg, "music_page1.mp3")
+	id2 := noisemakerRegisterTrack(t, s, cfg, "music_page2.mp3")
+	id3 := noisemakerRegisterTrack(t, s, cfg, "music_page3.mp3")
+
+	// Deterministic timestamps: id1 oldest, id3 newest.
+	for id, ts := range map[int64]string{id1: "2026-01-01 10:00:00", id2: "2026-01-02 10:00:00", id3: "2026-01-03 10:00:00"} {
+		if _, err := s.MediaRegistryDB.Exec("UPDATE media_items SET created_at = ? WHERE id = ?", ts, id); err != nil {
+			t.Fatalf("update created_at: %v", err)
+		}
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/desktop/noisemaker/tracks?limit=2&offset=0", nil)
+	rec := httptest.NewRecorder()
+	handleNoisemakerTracks(s).ServeHTTP(rec, req)
+	var page1 map[string]interface{}
+	if err := json.Unmarshal(rec.Body.Bytes(), &page1); err != nil {
+		t.Fatalf("decode page 1: %v", err)
+	}
+	if page1["total"].(float64) != 3 {
+		t.Fatalf("total = %#v, want 3", page1["total"])
+	}
+	if page1["limit"].(float64) != 2 || page1["offset"].(float64) != 0 {
+		t.Fatalf("limit/offset = %#v/%#v, want 2/0", page1["limit"], page1["offset"])
+	}
+	ids := noisemakerTrackIDs(t, page1)
+	if len(ids) != 2 || ids[0] != id3 || ids[1] != id2 {
+		t.Fatalf("page 1 order = %#v, want [%d %d] (newest first)", ids, id3, id2)
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/api/desktop/noisemaker/tracks?limit=2&offset=2", nil)
+	rec = httptest.NewRecorder()
+	handleNoisemakerTracks(s).ServeHTTP(rec, req)
+	var page2 map[string]interface{}
+	if err := json.Unmarshal(rec.Body.Bytes(), &page2); err != nil {
+		t.Fatalf("decode page 2: %v", err)
+	}
+	ids = noisemakerTrackIDs(t, page2)
+	if len(ids) != 1 || ids[0] != id1 {
+		t.Fatalf("page 2 = %#v, want [%d] (oldest last)", ids, id1)
+	}
+}
+
+func TestNoisemakerTracksSearchFilters(t *testing.T) {
+	cfg := noisemakerTestConfig(t)
+	s := noisemakerSetupRegistry(t, cfg)
+	noisemakerRegisterTrack(t, s, cfg, "music_rain.mp3") // prompt "epic orchestral rain song"
+
+	audioDir := filepath.Join(cfg.Directories.DataDir, "audio")
+	lofiPath := filepath.Join(audioDir, "music_lofi.mp3")
+	if err := os.WriteFile(lofiPath, []byte("fake-mp3"), 0644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	if _, _, err := tools.RegisterMedia(s.MediaRegistryDB, tools.MediaItem{
+		MediaType: "music", SourceTool: "generate_music", Filename: "music_lofi.mp3",
+		FilePath: lofiPath, WebPath: "/files/audio/music_lofi.mp3", Format: "mp3",
+		Prompt: "calm lofi beats", Description: "Lofi Dreams",
+	}); err != nil {
+		t.Fatalf("RegisterMedia: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/desktop/noisemaker/tracks?q=rain", nil)
+	rec := httptest.NewRecorder()
+	handleNoisemakerTracks(s).ServeHTTP(rec, req)
+	var payload map[string]interface{}
+	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if payload["total"].(float64) != 1 {
+		t.Fatalf("total = %#v, want 1 for q=rain", payload["total"])
+	}
+	ids := noisemakerTrackIDs(t, payload)
+	if len(ids) != 1 {
+		t.Fatalf("items = %#v, want exactly the rain track", ids)
+	}
+}
+
 func TestNoisemakerDeleteNotFound(t *testing.T) {
 	cfg := noisemakerTestConfig(t)
 	s := noisemakerSetupRegistry(t, cfg)

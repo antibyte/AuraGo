@@ -2042,5 +2042,7 @@
   "desktop.noisemaker_player_next": "Neste",
   "desktop.noisemaker_player_seek": "Spol",
   "desktop.noisemaker_player_volume": "Volum",
-  "desktop.noisemaker_lyrics_required": "Leverandøren krever sangtekst for sanger med vokal. La AI skrive den (✨), skriv inn din egen eller slå på „Instrumental“."
+  "desktop.noisemaker_lyrics_required": "Leverandøren krever sangtekst for sanger med vokal. La AI skrive den (✨), skriv inn din egen eller slå på „Instrumental“.",
+  "desktop.noisemaker_load_more": "Last flere",
+  "desktop.noisemaker_showing_of": "{{loaded}} av {{total}}"
 }

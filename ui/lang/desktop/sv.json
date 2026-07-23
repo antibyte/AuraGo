@@ -2042,5 +2042,7 @@
   "desktop.noisemaker_player_next": "Nästa",
   "desktop.noisemaker_player_seek": "Spola",
   "desktop.noisemaker_player_volume": "Volym",
-  "desktop.noisemaker_lyrics_required": "Leverantören kräver låttext för låtar med sång. Låt AI skriva den (✨), ange din egen eller aktivera „Instrumental“."
+  "desktop.noisemaker_lyrics_required": "Leverantören kräver låttext för låtar med sång. Låt AI skriva den (✨), ange din egen eller aktivera „Instrumental“.",
+  "desktop.noisemaker_load_more": "Ladda fler",
+  "desktop.noisemaker_showing_of": "{{loaded}} av {{total}}"
 }

@@ -1,9 +1,15 @@
 (function () {
     'use strict';
 
-    // NoisemakerLibrary — track grid + bottom player bar for the Noisemaker app.
-    // Factory pattern (like CheaterToolbar): create(deps) returns a controller
-    // owning one <audio> element and all its listeners; dispose() cleans up.
+    // NoisemakerLibrary — paginated track grid + bottom player bar for the
+    // Noisemaker app. Factory pattern (like CheaterToolbar): create(deps)
+    // returns a controller owning one <audio> element, the IntersectionObserver
+    // sentinel and all listeners; dispose() cleans up.
+    //
+    // Pagination contract: the app feeds pages via setTracks (reset) and
+    // appendTracks (next page); the library emits 'loadmore' from its
+    // infinite-scroll sentinel / fallback button and 'needmore-for-play' when
+    // the player reaches the end of the loaded list while hasMore is true.
 
     const SVG = {
         play: '<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path fill="currentColor" d="M4 2.5v11l9-5.5z"/></svg>',
@@ -49,7 +55,7 @@
         const esc = deps.esc || (v => String(v == null ? '' : v));
         const t = deps.t || ((k, p, f) => f || k);
         const lang = deps.lang || '';
-        const handlers = { delete: [], template: [], create: [], playstate: [] };
+        const handlers = { delete: [], template: [], create: [], playstate: [], loadmore: [], search: [], 'needmore-for-play': [] };
 
         let tracks = [];
         let query = '';
@@ -57,6 +63,11 @@
         let currentId = null;
         let isPlaying = false;
         let disposed = false;
+        let pendingAutoplay = false;
+        let pagination = { total: 0, hasMore: false, loading: false };
+        let observer = null;
+        let footEl = null;
+        let searchDebounce = null;
 
         const root = document.createElement('div');
         root.className = 'nm-library';
@@ -101,17 +112,19 @@
         audio.preload = 'metadata';
         audio.volume = 0.9;
 
+        if ('IntersectionObserver' in window) {
+            observer = new IntersectionObserver(entries => {
+                if (entries.some(entry => entry.isIntersecting)) maybeLoadMore();
+            }, { root: gridEl, rootMargin: '250px' });
+        }
+
         function emit(name, payload) {
             handlers[name].forEach(cb => { try { cb(payload); } catch (_) {} });
         }
 
-        function filteredTracks() {
-            if (!query) return tracks.slice();
-            const q = query.toLowerCase();
-            return tracks.filter(track =>
-                String(track.title || '').toLowerCase().includes(q) ||
-                String(track.prompt || '').toLowerCase().includes(q) ||
-                (Array.isArray(track.tags) && track.tags.join(' ').toLowerCase().includes(q)));
+        function maybeLoadMore() {
+            if (disposed || pagination.loading || !pagination.hasMore || tracks.length === 0) return;
+            emit('loadmore');
         }
 
         function trackMeta(track) {
@@ -123,17 +136,58 @@
             return parts.join(' · ');
         }
 
+        function footerInner() {
+            const count = pagination.total > 0
+                ? '<span class="nm-foot-count">' + esc(t('desktop.noisemaker_showing_of', { loaded: tracks.length, total: pagination.total }, tracks.length + ' / ' + pagination.total)) + '</span>'
+                : '';
+            const more = pagination.hasMore
+                ? '<button type="button" class="nm-btn nm-foot-more">' + esc(t('desktop.noisemaker_load_more', {}, 'Load more')) + '</button>'
+                : '';
+            const spin = pagination.loading ? '<span class="nm-foot-spinner" aria-hidden="true"></span>' : '';
+            return count + more + spin;
+        }
+
+        function footerMarkup() {
+            if (!tracks.length) return '';
+            return '<div class="nm-grid-foot" data-nm-foot>' + footerInner() + '</div>';
+        }
+
+        function wireFooter() {
+            footEl = gridEl.querySelector('[data-nm-foot]');
+            const moreBtn = footEl ? footEl.querySelector('.nm-foot-more') : null;
+            if (moreBtn) moreBtn.addEventListener('click', maybeLoadMore);
+            if (observer && footEl) observer.observe(footEl);
+        }
+
+        function cardMarkup(track) {
+            const playing = track.id === currentId;
+            const title = track.title || track.prompt || t('desktop.noisemaker_result_untitled', {}, 'Untitled');
+            const tags = [];
+            if (track.instrumental) tags.push('<span class="nm-card-tag">' + esc(t('desktop.noisemaker_instrumental_tag', {}, 'Instrumental')) + '</span>');
+            return '<div class="nm-card' + (playing ? ' is-playing' : '') + '" role="listitem" data-track-id="' + esc(track.id) + '" tabindex="0">' +
+                coverMarkup(esc, track, 'nm-card-cover') +
+                '<button type="button" class="nm-card-play" aria-label="' + esc(t('desktop.noisemaker_player_play', {}, 'Play')) + '">' + (playing && isPlaying ? SVG.pause : SVG.play) + '</button>' +
+                '<div class="nm-card-body">' +
+                    '<div class="nm-card-title" title="' + esc(title) + '">' + esc(title) + '</div>' +
+                    '<div class="nm-card-meta">' + esc(trackMeta(track)) + '</div>' +
+                    (tags.length ? '<div>' + tags.join('') + '</div>' : '') +
+                    '<div class="nm-card-actions">' +
+                        '<button type="button" class="nm-icon-btn nm-act-template" title="' + esc(t('desktop.noisemaker_track_use_template', {}, 'Use as template')) + '" aria-label="' + esc(t('desktop.noisemaker_track_use_template', {}, 'Use as template')) + '">' + SVG.template + '</button>' +
+                        '<button type="button" class="nm-icon-btn nm-act-download" title="' + esc(t('desktop.noisemaker_track_download', {}, 'Download')) + '" aria-label="' + esc(t('desktop.noisemaker_track_download', {}, 'Download')) + '">' + SVG.download + '</button>' +
+                        '<button type="button" class="nm-icon-btn nm-icon-btn--danger nm-act-delete" title="' + esc(t('desktop.noisemaker_track_delete', {}, 'Delete')) + '" aria-label="' + esc(t('desktop.noisemaker_track_delete', {}, 'Delete')) + '">' + SVG.trash + '</button>' +
+                    '</div>' +
+                '</div>' +
+            '</div>';
+        }
+
         function renderGrid() {
             if (disposed) return;
-            if (loading) {
-                gridEl.innerHTML = '';
-                gridEl.classList.add('is-loading');
+            if (loading && tracks.length === 0) {
                 gridEl.innerHTML = '<div class="nm-loading">' + esc(t('desktop.noisemaker_library_loading', {}, 'Loading songs…')) + '</div>';
+                footEl = null;
                 return;
             }
-            gridEl.classList.remove('is-loading');
-            const list = filteredTracks();
-            if (list.length === 0) {
+            if (tracks.length === 0) {
                 if (query) {
                     gridEl.innerHTML = '<div class="nm-empty"><div class="nm-empty-icon">⌕</div><h3>' +
                         esc(t('desktop.noisemaker_no_results', {}, 'No songs found.')) + '</h3></div>';
@@ -145,28 +199,21 @@
                     const cta = gridEl.querySelector('.nm-empty-cta');
                     if (cta) cta.addEventListener('click', () => emit('create'));
                 }
+                footEl = null;
                 return;
             }
-            gridEl.innerHTML = list.map(track => {
-                const playing = track.id === currentId;
-                const title = track.title || track.prompt || t('desktop.noisemaker_result_untitled', {}, 'Untitled');
-                const tags = [];
-                if (track.instrumental) tags.push('<span class="nm-card-tag">' + esc(t('desktop.noisemaker_instrumental_tag', {}, 'Instrumental')) + '</span>');
-                return '<div class="nm-card' + (playing ? ' is-playing' : '') + '" role="listitem" data-track-id="' + esc(track.id) + '" tabindex="0">' +
-                    coverMarkup(esc, track, 'nm-card-cover') +
-                    '<button type="button" class="nm-card-play" aria-label="' + esc(t('desktop.noisemaker_player_play', {}, 'Play')) + '">' + (playing && isPlaying ? SVG.pause : SVG.play) + '</button>' +
-                    '<div class="nm-card-body">' +
-                        '<div class="nm-card-title" title="' + esc(title) + '">' + esc(title) + '</div>' +
-                        '<div class="nm-card-meta">' + esc(trackMeta(track)) + '</div>' +
-                        (tags.length ? '<div>' + tags.join('') + '</div>' : '') +
-                        '<div class="nm-card-actions">' +
-                            '<button type="button" class="nm-icon-btn nm-act-template" title="' + esc(t('desktop.noisemaker_track_use_template', {}, 'Use as template')) + '" aria-label="' + esc(t('desktop.noisemaker_track_use_template', {}, 'Use as template')) + '">' + SVG.template + '</button>' +
-                            '<button type="button" class="nm-icon-btn nm-act-download" title="' + esc(t('desktop.noisemaker_track_download', {}, 'Download')) + '" aria-label="' + esc(t('desktop.noisemaker_track_download', {}, 'Download')) + '">' + SVG.download + '</button>' +
-                            '<button type="button" class="nm-icon-btn nm-icon-btn--danger nm-act-delete" title="' + esc(t('desktop.noisemaker_track_delete', {}, 'Delete')) + '" aria-label="' + esc(t('desktop.noisemaker_track_delete', {}, 'Delete')) + '">' + SVG.trash + '</button>' +
-                        '</div>' +
-                    '</div>' +
-                '</div>';
-            }).join('');
+            gridEl.innerHTML = tracks.map(cardMarkup).join('') + footerMarkup();
+            wireFooter();
+        }
+
+        function refreshFooter() {
+            if (disposed) return;
+            if (!footEl || !footEl.isConnected) {
+                if (tracks.length) renderGrid();
+                return;
+            }
+            footEl.innerHTML = footerInner();
+            wireFooter();
         }
 
         function trackById(id) {
@@ -181,8 +228,8 @@
             }
             playerEl.classList.add('is-visible');
             coverSlot.innerHTML = coverMarkup(esc, track, 'nm-player-cover');
-            titleEl.textContent = track.title || '';
-            titleEl.title = track.title || '';
+            titleEl.textContent = track.title || track.prompt || '';
+            titleEl.title = track.title || track.prompt || '';
             metaEl.textContent = trackMeta(track);
             toggleBtn.innerHTML = isPlaying ? SVG.pause : SVG.play;
             toggleBtn.setAttribute('aria-label', isPlaying ? t('desktop.noisemaker_player_pause', {}, 'Pause') : t('desktop.noisemaker_player_play', {}, 'Play'));
@@ -214,8 +261,7 @@
 
         function toggle() {
             if (currentId == null) {
-                const list = filteredTracks();
-                if (list.length) play(list[0]);
+                if (tracks.length) play(tracks[0]);
                 return;
             }
             if (audio.paused) {
@@ -226,11 +272,19 @@
         }
 
         function step(delta) {
-            const list = filteredTracks();
-            if (!list.length) return;
-            const idx = list.findIndex(track => track.id === currentId);
-            const nextIdx = idx < 0 ? 0 : (idx + delta + list.length) % list.length;
-            play(list[nextIdx]);
+            if (!tracks.length) return;
+            const idx = tracks.findIndex(track => track.id === currentId);
+            let nextIdx = idx + delta;
+            if (nextIdx >= tracks.length) {
+                if (delta > 0 && pagination.hasMore) {
+                    pendingAutoplay = true;
+                    emit('needmore-for-play');
+                    return;
+                }
+                nextIdx = 0;
+            }
+            if (nextIdx < 0) nextIdx = tracks.length - 1;
+            play(tracks[nextIdx]);
         }
 
         function stop() {
@@ -284,8 +338,12 @@
         root.querySelector('.nm-player-next').addEventListener('click', () => step(1));
 
         searchEl.addEventListener('input', () => {
-            query = searchEl.value.trim();
-            renderGrid();
+            clearTimeout(searchDebounce);
+            searchDebounce = setTimeout(() => {
+                if (disposed) return;
+                query = searchEl.value.trim();
+                emit('search', query);
+            }, 300);
         });
 
         gridEl.addEventListener('click', event => {
@@ -320,11 +378,29 @@
         return {
             element: root,
             setTracks(list) {
+                pendingAutoplay = false;
                 tracks = Array.isArray(list) ? list : [];
                 if (currentId != null && !trackById(currentId)) {
                     stop();
                 }
                 renderGrid();
+            },
+            appendTracks(list) {
+                const before = tracks.length;
+                const additions = Array.isArray(list) ? list : [];
+                const seen = new Set(tracks.map(track => String(track.id)));
+                additions.forEach(track => {
+                    if (!seen.has(String(track.id))) tracks.push(track);
+                });
+                renderGrid();
+                if (pendingAutoplay) {
+                    pendingAutoplay = false;
+                    if (tracks.length > before) play(tracks[before]);
+                }
+            },
+            setPagination(value) {
+                pagination = Object.assign({ total: 0, hasMore: false, loading: false }, value || {});
+                refreshFooter();
             },
             setLoading(value) {
                 loading = !!value;
@@ -344,6 +420,8 @@
             dispose() {
                 if (disposed) return;
                 disposed = true;
+                clearTimeout(searchDebounce);
+                if (observer) observer.disconnect();
                 stop();
                 root.remove();
             }

@@ -2042,5 +2042,7 @@
   "desktop.noisemaker_player_next": "Další",
   "desktop.noisemaker_player_seek": "Pozice",
   "desktop.noisemaker_player_volume": "Hlasitost",
-  "desktop.noisemaker_lyrics_required": "Poskytovatel vyžaduje text pro skladby s vokály. Nechte ho napsat AI (✨), zadejte vlastní nebo zapněte „Instrumentální“."
+  "desktop.noisemaker_lyrics_required": "Poskytovatel vyžaduje text pro skladby s vokály. Nechte ho napsat AI (✨), zadejte vlastní nebo zapněte „Instrumentální“.",
+  "desktop.noisemaker_load_more": "Načíst další",
+  "desktop.noisemaker_showing_of": "{{loaded}} z {{total}}"
 }

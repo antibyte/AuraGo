@@ -2042,5 +2042,7 @@
   "desktop.noisemaker_player_next": "Seguinte",
   "desktop.noisemaker_player_seek": "Posição",
   "desktop.noisemaker_player_volume": "Volume",
-  "desktop.noisemaker_lyrics_required": "O provedor exige letra para músicas com vocais. Deixe a IA escrevê-la (✨), introduza a sua ou ative «Instrumental»."
+  "desktop.noisemaker_lyrics_required": "O provedor exige letra para músicas com vocais. Deixe a IA escrevê-la (✨), introduza a sua ou ative «Instrumental».",
+  "desktop.noisemaker_load_more": "Carregar mais",
+  "desktop.noisemaker_showing_of": "{{loaded}} de {{total}}"
 }

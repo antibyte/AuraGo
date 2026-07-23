@@ -23,15 +23,16 @@ import (
 // to the desktop app. All endpoints require desktop scopes.
 
 const (
-	noisemakerEnhanceBodyLimit  = int64(64 * 1024)
-	noisemakerGenerateBodyLimit = int64(64 * 1024)
-	noisemakerEnhanceTimeout    = 45 * time.Second
-	noisemakerMaxIdeaLength     = 2000
-	noisemakerMaxStyleLength    = 500
-	noisemakerMaxLyricsLength   = 8000
-	noisemakerMaxTitleLength    = 200
-	noisemakerMaxContextLength  = 4000
-	noisemakerTrackListLimit    = 500
+	noisemakerEnhanceBodyLimit   = int64(64 * 1024)
+	noisemakerGenerateBodyLimit  = int64(64 * 1024)
+	noisemakerEnhanceTimeout     = 45 * time.Second
+	noisemakerMaxIdeaLength      = 2000
+	noisemakerMaxStyleLength     = 500
+	noisemakerMaxLyricsLength    = 8000
+	noisemakerMaxTitleLength     = 200
+	noisemakerMaxContextLength   = 4000
+	noisemakerTracksDefaultLimit = 60
+	noisemakerTracksMaxLimit     = 200
 )
 
 type noisemakerEnhanceRequest struct {
@@ -442,7 +443,8 @@ func (s *Server) noisemakerGenerateCover(cfg *config.Config, title, style, idea 
 }
 
 // handleNoisemakerTracks returns GET /api/desktop/noisemaker/tracks — the generated
-// song library from the media registry (newest first, optional ?q= search).
+// song library from the media registry, newest first (created_at DESC), paginated
+// via ?limit=&offset= and searchable via ?q=.
 func handleNoisemakerTracks(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !requireDesktopPermission(s, w, r, desktopScopeRead) {
@@ -459,6 +461,15 @@ func handleNoisemakerTracks(s *Server) http.HandlerFunc {
 			return
 		}
 
+		limit := noisemakerTracksDefaultLimit
+		if v, err := strconv.Atoi(r.URL.Query().Get("limit")); err == nil && v > 0 && v <= noisemakerTracksMaxLimit {
+			limit = v
+		}
+		offset := 0
+		if v, err := strconv.Atoi(r.URL.Query().Get("offset")); err == nil && v >= 0 {
+			offset = v
+		}
+
 		query := strings.TrimSpace(r.URL.Query().Get("q"))
 		items, err := searchAllMediaForServer(s.MediaRegistryDB, query, "music")
 		if err != nil {
@@ -471,7 +482,7 @@ func handleNoisemakerTracks(s *Server) http.HandlerFunc {
 		dataDir := s.Cfg.Directories.DataDir
 		s.CfgMu.RUnlock()
 
-		items, total := filterDisplayableMediaItems(dataDir, items, noisemakerTrackListLimit, 0)
+		items, total := filterDisplayableMediaItems(dataDir, items, limit, offset)
 
 		tracks := make([]map[string]interface{}, 0, len(items))
 		for _, item := range items {
@@ -507,6 +518,8 @@ func handleNoisemakerTracks(s *Server) http.HandlerFunc {
 			"status":           "ok",
 			"items":            tracks,
 			"total":            total,
+			"limit":            limit,
+			"offset":           offset,
 			"registry_enabled": true,
 			"daily_used":       tools.MusicCounterGet(),
 		})

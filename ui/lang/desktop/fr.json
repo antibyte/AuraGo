@@ -2042,5 +2042,7 @@
   "desktop.noisemaker_player_next": "Suivant",
   "desktop.noisemaker_player_seek": "Position",
   "desktop.noisemaker_player_volume": "Volume",
-  "desktop.noisemaker_lyrics_required": "Le fournisseur exige des paroles pour les chansons avec chant. Laissez l'IA les écrire (✨), saisissez les vôtres ou activez « Instrumental »."
+  "desktop.noisemaker_lyrics_required": "Le fournisseur exige des paroles pour les chansons avec chant. Laissez l'IA les écrire (✨), saisissez les vôtres ou activez « Instrumental ».",
+  "desktop.noisemaker_load_more": "Charger plus",
+  "desktop.noisemaker_showing_of": "{{loaded}} sur {{total}}"
 }

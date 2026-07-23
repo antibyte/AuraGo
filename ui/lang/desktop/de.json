@@ -2042,5 +2042,7 @@
   "desktop.noisemaker_player_next": "Weiter",
   "desktop.noisemaker_player_seek": "Position",
   "desktop.noisemaker_player_volume": "Lautstärke",
-  "desktop.noisemaker_lyrics_required": "Der Musik-Provider benötigt einen Songtext für Songs mit Gesang. Lass ihn von der KI schreiben (✨), gib eigenen Text ein oder aktiviere „Instrumental“."
+  "desktop.noisemaker_lyrics_required": "Der Musik-Provider benötigt einen Songtext für Songs mit Gesang. Lass ihn von der KI schreiben (✨), gib eigenen Text ein oder aktiviere „Instrumental“.",
+  "desktop.noisemaker_load_more": "Mehr laden",
+  "desktop.noisemaker_showing_of": "{{loaded}} von {{total}}"
 }

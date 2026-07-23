@@ -548,6 +548,25 @@
     width: 16px;
 }
 
+.nm-grid-foot {
+    align-items: center;
+    display: flex;
+    gap: 12px;
+    grid-column: 1 / -1;
+    justify-content: center;
+    min-height: 36px;
+    padding: 4px 0 8px;
+}
+.nm-foot-count { color: var(--nm-muted); font-size: 11px; }
+.nm-foot-spinner {
+    animation: nm-spin 1.1s linear infinite;
+    border: 2px solid color-mix(in srgb, var(--nm-accent) 25%, transparent);
+    border-top-color: var(--nm-accent);
+    border-radius: 50%;
+    height: 14px;
+    width: 14px;
+}
+
 /* ---------- player bar ---------- */
 .nm-player {
     align-items: center;
