@@ -22,8 +22,6 @@ const (
 var teeveePlaylistURIAttr = regexp.MustCompile(`URI="([^"]+)"`)
 var teeveePlaylistURIAttrSingle = regexp.MustCompile(`URI='([^']+)'`)
 
-
-
 func teeveeUnwrapProxiedStreamURL(raw string) string {
 	for i := 0; i < 8; i++ {
 		raw = strings.TrimSpace(raw)
@@ -88,7 +86,7 @@ func handleDesktopTeeVeeStream(s *Server) http.HandlerFunc {
 			return
 		}
 		if err := security.ValidateSSRF(upstreamURL); err != nil {
-			jsonError(w, err.Error(), http.StatusBadRequest)
+			jsonError(w, "stream URL is not allowed", http.StatusBadRequest)
 			return
 		}
 		parsed, err := url.Parse(upstreamURL)
@@ -103,12 +101,12 @@ func handleDesktopTeeVeeStream(s *Server) http.HandlerFunc {
 
 		client, err := teeveeHTTPClient(upstreamURL)
 		if err != nil {
-			jsonError(w, err.Error(), http.StatusBadRequest)
+			jsonError(w, "stream URL is not allowed", http.StatusBadRequest)
 			return
 		}
 		upReq, err := http.NewRequestWithContext(r.Context(), r.Method, upstreamURL, nil)
 		if err != nil {
-			jsonError(w, err.Error(), http.StatusBadGateway)
+			jsonError(w, "invalid stream url", http.StatusBadRequest)
 			return
 		}
 		copyTeeVeeUpstreamHeaders(upReq, r)
@@ -116,7 +114,7 @@ func handleDesktopTeeVeeStream(s *Server) http.HandlerFunc {
 
 		resp, err := client.Do(upReq)
 		if err != nil {
-			jsonError(w, err.Error(), http.StatusBadGateway)
+			jsonError(w, "upstream stream request failed", http.StatusBadGateway)
 			return
 		}
 		defer resp.Body.Close()
@@ -138,7 +136,7 @@ func handleDesktopTeeVeeStream(s *Server) http.HandlerFunc {
 		if teeveeShouldRewritePlaylist(contentType, rawURL) {
 			body, err := io.ReadAll(io.LimitReader(resp.Body, teeveeMaxPlaylistBytes))
 			if err != nil {
-				jsonError(w, err.Error(), http.StatusBadGateway)
+				jsonError(w, "upstream playlist read failed", http.StatusBadGateway)
 				return
 			}
 			body = rewriteTeeVeeHLSPlaylist(body, upstreamURL)
@@ -166,7 +164,6 @@ func handleDesktopTeeVeeStream(s *Server) http.HandlerFunc {
 	}
 }
 
-
 func teeveeSanitizeProxyResponseHeaders(upstream *http.Response) {
 	for _, key := range []string{"Content-Encoding", "Content-Length", "Transfer-Encoding"} {
 		upstream.Header.Del(key)
@@ -180,7 +177,11 @@ func copyTeeVeeUpstreamHeaders(dst *http.Request, client *http.Request) {
 	if rng := client.Header.Get("Range"); rng != "" {
 		dst.Header.Set("Range", rng)
 	}
-	dst.Header.Set("User-Agent", "AuraGo-TeeVee/1.0")
+	if userAgent := strings.TrimSpace(client.Header.Get("User-Agent")); userAgent != "" && len(userAgent) <= 512 {
+		dst.Header.Set("User-Agent", userAgent)
+	} else {
+		dst.Header.Set("User-Agent", "AuraGo-TeeVee/1.0")
+	}
 }
 
 func teeveeProxyContentType(header, rawURL string) string {

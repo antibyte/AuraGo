@@ -1,6 +1,7 @@
 package server
 
 import (
+	"net/http"
 	"net/url"
 	"strings"
 	"testing"
@@ -77,5 +78,30 @@ func TestRewriteTeeVeeHLSPlaylistDoesNotDoubleWrapProxyURL(t *testing.T) {
 	}
 	if !strings.Contains(text, url.QueryEscape(inner)) {
 		t.Fatalf("expected single-encoded upstream in proxy url: %s", text)
+	}
+}
+
+func TestCopyTeeVeeUpstreamHeadersUsesBoundedBrowserUserAgent(t *testing.T) {
+	t.Parallel()
+
+	clientReq, err := http.NewRequest(http.MethodGet, "https://aurago.example/api/desktop/teevee/stream", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	clientReq.Header.Set("User-Agent", "Browser UA")
+	upstreamReq, err := http.NewRequest(http.MethodGet, "https://cdn.example.com/live.m3u8", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	copyTeeVeeUpstreamHeaders(upstreamReq, clientReq)
+	if got := upstreamReq.Header.Get("User-Agent"); got != "Browser UA" {
+		t.Fatalf("User-Agent = %q, want forwarded browser value", got)
+	}
+
+	clientReq.Header.Set("User-Agent", strings.Repeat("x", 513))
+	copyTeeVeeUpstreamHeaders(upstreamReq, clientReq)
+	if got := upstreamReq.Header.Get("User-Agent"); got != "AuraGo-TeeVee/1.0" {
+		t.Fatalf("oversized User-Agent must use safe fallback, got %q", got)
 	}
 }

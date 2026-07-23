@@ -78,7 +78,7 @@ func TestDesktopTeeVeeAppMarkers(t *testing.T) {
 		"function playChannel(entry)",
 		"window.Hls",
 		"xhrSetup: teeveeHlsXhrSetup",
-		"function teeveeCreateHls()",
+		"function teeveeCreateHls(forceProxy)",
 		"requestFullscreen",
 		"mediaSession",
 		"Stream unavailable",
@@ -377,22 +377,27 @@ func TestDesktopTeeVeeDisposeCleanupChain(t *testing.T) {
 	}
 }
 
-func TestDesktopTeeVeeUsesSameOriginStreamProxy(t *testing.T) {
+func TestDesktopTeeVeeUsesDirectHTTPSWithProxyFallback(t *testing.T) {
 	t.Parallel()
 
 	app := readDesktopAssetText(t, "js/desktop/apps/teevee.js")
 	for _, want := range []string{
 		"/api/desktop/teevee/stream",
-		"function streamPlaybackURL(url)",
-		"location.protocol === 'https:'",
+		"function streamPlaybackURL(url, forceProxy)",
+		"location.protocol !== 'https:'",
 		"teeveeUnwrapStreamURL",
 		"teeveeHlsXhrSetup",
-		"teeveeCreateHls",
+		"teeveeCreateHls(useProxy)",
+		"data.type === window.Hls.ErrorTypes.NETWORK_ERROR",
+		"if (networkError && !useProxy && teeveeCanProxyStream(entry.url))",
 		"state.entries = data.entries",
 	} {
 		if !strings.Contains(app, want) {
 			t.Fatalf("teevee.js missing stream proxy marker %q", want)
 		}
+	}
+	if !strings.Contains(app, "return !!forceProxy || /^http:") {
+		t.Fatal("teevee must load HTTPS streams directly before retrying through the proxy")
 	}
 	if strings.Contains(app, "filterEntriesForPage") {
 		t.Fatal("teevee must not hide HTTP channels; use stream proxy instead")

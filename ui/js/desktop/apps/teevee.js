@@ -84,7 +84,9 @@
             loading: true,
             error: '',
             hls: null,
-            catalogLoadedAt: 0
+            catalogLoadedAt: 0,
+            hlsErrorCount: 0,
+            playbackID: 0
         };
         video.volume = state.volume;
 
@@ -488,18 +490,22 @@
                 return;
             }
             resetPlayback();
+            const playbackID = state.playbackID;
             state.current = entry;
             state.error = '';
             state.hlsErrorCount = 0;
             renderPlayer();
             try {
-                await attachVideoSource(entry);
+                await attachVideoSource(entry, playbackID);
+                if (state.playbackID !== playbackID || state.current !== entry) return;
                 await video.play();
+                if (state.playbackID !== playbackID || state.current !== entry) return;
                 state.playing = true;
                 state.error = '';
                 rememberRecent(entry);
                 updateMediaSession(entry, 'AuraGo TeeVee');
             } catch (err) {
+                if (state.playbackID !== playbackID || state.current !== entry) return;
                 state.playing = false;
                 state.error = formatPlaybackError(err);
                 showToast(state.error);
@@ -508,39 +514,87 @@
             renderAll();
         }
 
-        async function attachVideoSource(entry) {
+        async function attachVideoSource(entry, playbackID) {
             const url = entry.url;
-            const playbackURL = streamPlaybackURL(url);
             if (!url) throw new Error(t('desktop.teevee_stream_unavailable', STREAM_UNAVAILABLE_FALLBACK));
             if (isHLSURL(url)) {
-                // Always use hls.js on HTTPS so every variant/segment goes through the stream proxy.
-
                 if (window.Hls && window.Hls.isSupported && window.Hls.isSupported()) {
-                    state.hls = teeveeCreateHls();
-                    state.hls.on(window.Hls.Events.ERROR, function (_event, data) {
-                        if (data && data.fatal) {
-                            state.error = t('desktop.teevee_stream_unavailable', STREAM_UNAVAILABLE_FALLBACK);
-                            showToast(state.error);
-                            resetPlayback();
-                            renderAll();
-                            return;
-                        }
-                        state.hlsErrorCount = (state.hlsErrorCount || 0) + 1;
-                        if (state.hlsErrorCount > 5) {
-                            state.error = t('desktop.teevee_stream_unavailable', STREAM_UNAVAILABLE_FALLBACK);
-                            showToast(state.error);
-                            resetPlayback();
-                            renderAll();
-                        }
-                    });
-                    state.hls.attachMedia(video);
-                    state.hls.loadSource(playbackURL);
-                    return;
+                    return attachHlsSource(entry, playbackID);
                 }
                 throw new Error(t('desktop.teevee_stream_unavailable', STREAM_UNAVAILABLE_FALLBACK));
             }
+            const playbackURL = streamPlaybackURL(url);
             video.src = playbackURL;
             video.load();
+        }
+
+        function attachHlsSource(entry, playbackID) {
+            return new Promise((resolve, reject) => {
+                let settled = false;
+
+                const isCurrentPlayback = () => (
+                    state.playbackID === playbackID &&
+                    state.current === entry
+                );
+                const unavailableError = () => new Error(
+                    t('desktop.teevee_stream_unavailable', STREAM_UNAVAILABLE_FALLBACK)
+                );
+                const fail = () => {
+                    if (!isCurrentPlayback()) return;
+                    if (!settled) {
+                        settled = true;
+                        reject(unavailableError());
+                        return;
+                    }
+                    state.playing = false;
+                    state.error = t('desktop.teevee_stream_unavailable', STREAM_UNAVAILABLE_FALLBACK);
+                    showToast(state.error);
+                    resetPlayback();
+                    renderAll();
+                };
+                const loadAttempt = forceProxy => {
+                    if (!isCurrentPlayback()) return;
+                    destroyHls();
+                    state.hlsErrorCount = 0;
+
+                    const useProxy = teeveeUseStreamProxy(entry.url, forceProxy);
+                    const resumeWhenReady = settled;
+                    const hls = teeveeCreateHls(useProxy);
+                    state.hls = hls;
+                    hls.on(window.Hls.Events.MANIFEST_PARSED, function () {
+                        if (!isCurrentPlayback() || state.hls !== hls) return;
+                        if (!settled) {
+                            settled = true;
+                            resolve();
+                            return;
+                        }
+                        if (resumeWhenReady) {
+                            video.play().catch(fail);
+                        }
+                    });
+                    hls.on(window.Hls.Events.ERROR, function (_event, data) {
+                        if (!isCurrentPlayback() || state.hls !== hls) return;
+                        if (data && data.fatal) {
+                            const networkError = (
+                                window.Hls.ErrorTypes &&
+                                data.type === window.Hls.ErrorTypes.NETWORK_ERROR
+                            );
+                            if (networkError && !useProxy && teeveeCanProxyStream(entry.url)) {
+                                loadAttempt(true);
+                                return;
+                            }
+                            fail();
+                            return;
+                        }
+                        state.hlsErrorCount = (state.hlsErrorCount || 0) + 1;
+                        if (state.hlsErrorCount > 5) fail();
+                    });
+                    hls.attachMedia(video);
+                    hls.loadSource(streamPlaybackURL(entry.url, useProxy));
+                };
+
+                loadAttempt(false);
+            });
         }
 
         function destroyHls() {
@@ -552,6 +606,7 @@
 
         function resetPlayback() {
             destroyHls();
+            state.playbackID = (state.playbackID || 0) + 1;
             video.pause();
             video.removeAttribute('src');
             video.load();
@@ -699,7 +754,7 @@
             renderPlayer();
         });
         video.addEventListener('error', () => {
-            if (!state.current) return;
+            if (!state.current || state.hls) return;
             state.playing = false;
             state.error = t('desktop.teevee_stream_unavailable', STREAM_UNAVAILABLE_FALLBACK);
             showToast(state.error);
@@ -870,8 +925,15 @@
     }
 
 
-    function teeveeUseStreamProxy() {
-        return typeof location !== 'undefined' && location.protocol === 'https:';
+    function teeveeCanProxyStream(url) {
+        if (typeof location === 'undefined' || location.protocol !== 'https:') return false;
+        return /^https?:\/\//i.test(teeveeUnwrapStreamURL(url));
+    }
+
+
+    function teeveeUseStreamProxy(url, forceProxy) {
+        if (!teeveeCanProxyStream(url)) return false;
+        return !!forceProxy || /^http:\/\//i.test(teeveeUnwrapStreamURL(url));
     }
 
 
@@ -902,28 +964,30 @@
         return raw;
     }
 
-    function teeveeHlsXhrSetup(xhr, url) {
-        if (!teeveeUseStreamProxy()) return;
-        const raw = clean(url);
-        if (!raw) return;
-        const proxied = streamPlaybackURL(raw);
-        if (!proxied || proxied === raw) return;
-        xhr.open('GET', proxied, true);
+    function teeveeHlsXhrSetup(forceProxy) {
+        return function (xhr, url) {
+            if (!teeveeUseStreamProxy(url, forceProxy)) return;
+            const raw = clean(url);
+            if (!raw) return;
+            const proxied = streamPlaybackURL(raw, forceProxy);
+            if (!proxied || proxied === raw) return;
+            xhr.open('GET', proxied, true);
+        };
     }
 
-    function teeveeCreateHls() {
+    function teeveeCreateHls(forceProxy) {
         return new window.Hls({
             enableWorker: true,
             lowLatencyMode: true,
             backBufferLength: 60,
-            xhrSetup: teeveeHlsXhrSetup
+            xhrSetup: teeveeHlsXhrSetup(forceProxy)
         });
     }
 
-    function streamPlaybackURL(url) {
+    function streamPlaybackURL(url, forceProxy) {
         const upstream = teeveeUnwrapStreamURL(url);
         if (!upstream) return '';
-        if (teeveeUseStreamProxy()) {
+        if (teeveeUseStreamProxy(upstream, forceProxy)) {
             return TEEVEE_STREAM_PROXY + '?url=' + encodeURIComponent(upstream);
         }
         return upstream;
