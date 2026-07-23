@@ -50,6 +50,7 @@ chat_history.json
 chromem-go_data/
 agent_workspace/workdir/
 agent_workspace/tools/broken_tools/
+agent_workspace/virtual_desktop/
 data/vectordb/
 data/vectordb_backup/
 data/tts/
@@ -103,6 +104,8 @@ log/
 
 # Audit reports
 CODE_AUDIT_REPORT.md
+/design-qa.md
+/sysworld-deep-*.png
 
 # Agent reports (may contain sensitive data like log analyses)
 /reports
