@@ -17,7 +17,8 @@ func TestSIPConfigUIUsesSavedStateAndMaskedSecret(t *testing.T) {
 	for _, marker := range []string{
 		"/api/sip/config", "/api/sip/status", "/api/sip/test", "password_set",
 		"sipSavedState", "sipComparable(current) !== sipSavedState", "button.disabled = !!reason",
-		"auto_answer_delay_ms ?? 1000",
+		"auto_answer_delay_ms ?? 1000", `class="sip-settings-grid"`,
+		`class="field-group sip-toggle-field"`, `class="toggle"`, `class="slider"`,
 	} {
 		if !strings.Contains(source, marker) {
 			t.Fatalf("SIP config UI missing contract marker %q", marker)
@@ -25,6 +26,31 @@ func TestSIPConfigUIUsesSavedStateAndMaskedSecret(t *testing.T) {
 	}
 	if strings.Contains(source, "localStorage") || strings.Contains(source, "sessionStorage") {
 		t.Fatal("SIP config UI must not persist credentials in browser storage")
+	}
+}
+
+func TestSIPConfigHasResponsiveLayoutStyles(t *testing.T) {
+	page, err := os.ReadFile("config.html")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(page), `/css/config-sip.css?v={{.BuildVersion}}`) {
+		t.Fatal("config page does not load the SIP layout stylesheet")
+	}
+
+	data, err := os.ReadFile(filepath.Join("css", "config-sip.css"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(data)
+	for _, marker := range []string{
+		`[data-workspace-page="config"] .sip-settings-grid`, "display: grid",
+		"repeat(2, minmax(0, 1fr))", "@media (max-width: 820px)",
+		"grid-template-columns: minmax(0, 1fr)", ".sip-toggle-field",
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("SIP layout stylesheet missing contract marker %q", marker)
+		}
 	}
 }
 

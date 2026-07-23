@@ -262,12 +262,14 @@ func TestConfigPrecisionWorkspaceBrowserMatrix(t *testing.T) {
 		return {
 			icons: icons.length,
 			inlineIcons: inlineIcons.length,
+			sidebarItems: document.querySelectorAll('.sidebar-item').length,
 			hasSymbolSprite: !!symbolSprite,
 			firstIconVisible: !!firstBox && firstBox.width >= 20 && firstBox.height >= 20,
 			firstUseTarget: inlineIcons[0] ? inlineIcons[0].getAttribute('href') : '',
 		};
 	}`).Map()
-	if iconState["icons"].Int() != 104 || iconState["inlineIcons"].Int() != 104 || !iconState["hasSymbolSprite"].Bool() || !iconState["firstIconVisible"].Bool() {
+	iconCount := iconState["icons"].Int()
+	if iconCount == 0 || iconState["inlineIcons"].Int() != iconCount || iconState["sidebarItems"].Int() != iconCount || !iconState["hasSymbolSprite"].Bool() || !iconState["firstIconVisible"].Bool() {
 		t.Fatalf("config sidebar icons are not render-safe: %+v", iconState)
 	}
 	if got := iconState["firstUseTarget"].String(); got != "#config-sidebar-icon-overview" {

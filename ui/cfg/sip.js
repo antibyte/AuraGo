@@ -32,7 +32,7 @@ function sipNormalize(data) {
 function sipField(path, label, type, value, extra) {
     const attrs = extra || '';
     if (type === 'checkbox') {
-        return `<label class="field-group"><span class="field-label">${sipEsc(label)}</span><div class="toggle-wrap"><input type="checkbox" data-sip="${path}" ${value ? 'checked' : ''} ${attrs}></div></label>`;
+        return `<label class="field-group sip-toggle-field"><span class="field-label">${sipEsc(label)}</span><span class="toggle-wrap"><span class="toggle"><input type="checkbox" data-sip="${path}" ${value ? 'checked' : ''} ${attrs}><span class="slider"></span></span></span></label>`;
     }
     return `<label class="field-group"><span class="field-label">${sipEsc(label)}</span><input class="field-input" type="${type}" data-sip="${path}" value="${sipEsc(value)}" ${attrs}></label>`;
 }
@@ -51,12 +51,12 @@ function sipRender() {
         <div class="section-desc">${sipEsc(t('config.sip.description'))}</div>
         <div id="sip-status" class="adg-status-banner" role="status" aria-live="polite">${sipEsc(t('config.sip.loading_status'))}</div>
 
-        <div class="settings-group"><h3>${sipEsc(t('config.sip.activation'))}</h3><div class="settings-grid">
+        <div class="sip-settings-group"><h3>${sipEsc(t('config.sip.activation'))}</h3><div class="sip-settings-grid">
             ${sipField('enabled', t('config.sip.enabled'), 'checkbox', c.enabled)}
             ${sipField('readonly', t('config.sip.readonly'), 'checkbox', c.readonly)}
         </div></div>
 
-        <div class="settings-group"><h3>${sipEsc(t('config.sip.account'))}</h3><div class="settings-grid">
+        <div class="sip-settings-group"><h3>${sipEsc(t('config.sip.account'))}</h3><div class="sip-settings-grid">
             ${sipField('registrar', t('config.sip.registrar'), 'text', c.registrar || '', 'maxlength="255"')}
             ${sipField('domain', t('config.sip.domain'), 'text', c.domain || '', 'maxlength="255"')}
             ${sipField('username', t('config.sip.username'), 'text', c.username || '', 'maxlength="255"')}
@@ -67,7 +67,7 @@ function sipRender() {
             ${sipField('clear_password', t('config.sip.clear_password'), 'checkbox', c.clear_password)}
         </div></div>
 
-        <div class="settings-group"><h3>${sipEsc(t('config.sip.signaling'))}</h3><div class="settings-grid">
+        <div class="sip-settings-group"><h3>${sipEsc(t('config.sip.signaling'))}</h3><div class="sip-settings-grid">
             ${sipField('bind_host', t('config.sip.bind_host'), 'text', c.bind_host || '127.0.0.1')}
             ${sipField('bind_port', t('config.sip.bind_port'), 'number', c.bind_port || 5060, 'min="1" max="65535"')}
             ${sipSelect('transport', t('config.sip.transport'), c.transport || 'udp', [['udp', 'UDP'], ['tcp', 'TCP'], ['tls', 'TLS']])}
@@ -78,7 +78,7 @@ function sipRender() {
             ${sipField('tls.key_file', t('config.sip.tls_key_file'), 'text', c.tls.key_file || '')}
         </div></div>
 
-        <div class="settings-group"><h3>${sipEsc(t('config.sip.media'))}</h3><div class="settings-grid">
+        <div class="sip-settings-group"><h3>${sipEsc(t('config.sip.media'))}</h3><div class="sip-settings-grid">
             ${sipField('media.rtp_port_start', t('config.sip.rtp_port_start'), 'number', c.media.rtp_port_start || 30000, 'min="1024" max="65534" step="2"')}
             ${sipField('media.rtp_port_end', t('config.sip.rtp_port_end'), 'number', c.media.rtp_port_end || 30099, 'min="1025" max="65535"')}
             ${sipField('media.advertised_host', t('config.sip.advertised_media_host'), 'text', c.media.advertised_host || '')}
@@ -87,7 +87,7 @@ function sipRender() {
             ${sipField('media.codecs', t('config.sip.codecs'), 'text', sipList(c.media.codecs || ['pcma', 'pcmu']), 'readonly')}
         </div></div>
 
-        <div class="settings-group"><h3>${sipEsc(t('config.sip.routing'))}</h3><div class="settings-grid">
+        <div class="sip-settings-group"><h3>${sipEsc(t('config.sip.routing'))}</h3><div class="sip-settings-grid">
             ${sipSelect('inbound.route', t('config.sip.inbound_route'), c.inbound.route || 'agent', [['agent', t('config.sip.route_agent')], ['manual', t('config.sip.route_manual')], ['reject', t('config.sip.route_reject')]])}
             ${sipField('inbound.auto_answer_delay_ms', t('config.sip.auto_answer_delay'), 'number', c.inbound.auto_answer_delay_ms ?? 1000, 'min="0" max="60000"')}
             ${sipField('inbound.trusted_peer_cidrs', t('config.sip.trusted_peers'), 'text', sipList(c.inbound.trusted_peer_cidrs))}
@@ -97,14 +97,14 @@ function sipRender() {
             ${sipField('outbound.allowed_e164_prefixes', t('config.sip.allowed_e164'), 'text', sipList(c.outbound.allowed_e164_prefixes))}
         </div></div>
 
-        <div class="settings-group"><h3>${sipEsc(t('config.sip.permissions'))}</h3><div class="settings-grid">
+        <div class="sip-settings-group"><h3>${sipEsc(t('config.sip.permissions'))}</h3><div class="sip-settings-grid">
             ${sipField('permissions.answer_inbound', t('config.sip.answer_inbound'), 'checkbox', c.permissions.answer_inbound)}
             ${sipField('permissions.originate_outbound', t('config.sip.originate_outbound'), 'checkbox', c.permissions.originate_outbound)}
             ${sipField('permissions.send_dtmf', t('config.sip.send_dtmf'), 'checkbox', c.permissions.send_dtmf)}
             ${sipField('permissions.agent_hangup', t('config.sip.agent_hangup'), 'checkbox', c.permissions.agent_hangup)}
         </div></div>
 
-        <div class="settings-group"><h3>${sipEsc(t('config.sip.voice'))}</h3><div class="settings-grid">
+        <div class="sip-settings-group"><h3>${sipEsc(t('config.sip.voice'))}</h3><div class="sip-settings-grid">
             ${sipSelect('voice.backend', t('config.sip.voice_backend'), c.voice.backend || 'classic', [['classic', t('config.sip.backend_classic')], ['gemini_live', 'Gemini Live']])}
             ${sipField('voice.realtime_profile_id', t('config.sip.realtime_profile'), 'text', c.voice.realtime_profile_id || '')}
             ${sipField('voice.language', t('config.sip.language'), 'text', c.voice.language || 'auto')}
