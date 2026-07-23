@@ -46,6 +46,7 @@
   "desktop.sip_phone_open_configuration": "Öppna Konfiguration → SIP-telefon",
   "desktop.sip_phone_open_phone": "Öppna telefon",
   "desktop.sip_phone_outgoing": "Utgående",
+  "desktop.sip_phone_outbound_disabled_detail": "Utgående samtal är inte aktiverade eller så finns inga tillåtna mål konfigurerade.",
   "desktop.sip_phone_preparing": "Förbereder…",
   "desktop.sip_phone_readonly_detail": "SIP är skrivskyddat. Samtalskontroller är inaktiverade.",
   "desktop.sip_phone_ready": "Redo att ringa",

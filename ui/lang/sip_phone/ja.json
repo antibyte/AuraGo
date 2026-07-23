@@ -46,6 +46,7 @@
   "desktop.sip_phone_open_configuration": "設定 → SIP 電話を開く",
   "desktop.sip_phone_open_phone": "電話を開く",
   "desktop.sip_phone_outgoing": "発信",
+  "desktop.sip_phone_outbound_disabled_detail": "発信が有効になっていないか、許可された宛先が設定されていません。",
   "desktop.sip_phone_preparing": "準備中…",
   "desktop.sip_phone_readonly_detail": "SIP は読み取り専用です。通話操作は無効です。",
   "desktop.sip_phone_ready": "発信できます",

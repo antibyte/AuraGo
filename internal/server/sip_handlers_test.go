@@ -192,6 +192,50 @@ func TestSIPAPIRoutesAreAdminProtected(t *testing.T) {
 	}
 }
 
+func TestSIPAppStateReportsDisabledOutboundCalling(t *testing.T) {
+	var sipCfg config.SIPConfig
+	config.ApplySIPDefaults(&sipCfg)
+	sipCfg.Enabled = true
+	sipCfg.ReadOnly = false
+	sipCfg.Registrar = "pbx.example"
+	sipCfg.Domain = "pbx.example"
+	sipCfg.Username = "desk"
+	manager, err := sipphone.NewManager(sipCfg, t.TempDir(), nil, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_ = manager.Close()
+	})
+
+	server := &Server{SIPPhone: manager}
+	recorder := httptest.NewRecorder()
+	handleSIPAppState(server).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/sip/app/state", nil))
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", recorder.Code, recorder.Body.String())
+	}
+	var payload struct {
+		Blockers     []string        `json:"blockers"`
+		Capabilities map[string]bool `json:"capabilities"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &payload); err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, blocker := range payload.Blockers {
+		if blocker == "outbound_disabled" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("missing outbound_disabled blocker: %+v", payload.Blockers)
+	}
+	if payload.Capabilities["dial"] {
+		t.Fatal("dial capability must remain disabled without explicit outbound permission")
+	}
+}
+
 func TestSIPBrowserMediaRejectsBearerAndCrossOrigin(t *testing.T) {
 	server := newSIPBrowserHandlerTestServer(t)
 	mux := http.NewServeMux()

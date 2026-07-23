@@ -659,6 +659,9 @@ func handleSIPAppState(s *Server) http.HandlerFunc {
 		if status.Enabled && !status.Registered {
 			blockers = append(blockers, "not_registered")
 		}
+		if status.Enabled && !status.ReadOnly && !cfg.Permissions.OriginateOutbound {
+			blockers = append(blockers, "outbound_disabled")
+		}
 		if !cfg.BrowserMedia.Enabled {
 			blockers = append(blockers, "browser_media_disabled")
 		} else if !browserReady {

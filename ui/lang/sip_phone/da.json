@@ -46,6 +46,7 @@
   "desktop.sip_phone_open_configuration": "Åbn Konfiguration → SIP-telefon",
   "desktop.sip_phone_open_phone": "Åbn telefon",
   "desktop.sip_phone_outgoing": "Udgående",
+  "desktop.sip_phone_outbound_disabled_detail": "Udgående opkald er ikke aktiveret, eller der er ikke angivet tilladte destinationer.",
   "desktop.sip_phone_preparing": "Forbereder…",
   "desktop.sip_phone_readonly_detail": "SIP er skrivebeskyttet. Opkaldsstyring er deaktiveret.",
   "desktop.sip_phone_ready": "Klar til at ringe",

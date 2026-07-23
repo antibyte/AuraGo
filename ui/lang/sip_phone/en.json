@@ -46,6 +46,7 @@
   "desktop.sip_phone_open_configuration": "Open Configuration → SIP Phone",
   "desktop.sip_phone_open_phone": "Open Phone",
   "desktop.sip_phone_outgoing": "Outgoing",
+  "desktop.sip_phone_outbound_disabled_detail": "Outgoing calls are not enabled or no allowed destinations are configured.",
   "desktop.sip_phone_preparing": "Preparing…",
   "desktop.sip_phone_readonly_detail": "SIP is in read-only mode. Calling controls are disabled.",
   "desktop.sip_phone_ready": "Ready to call",

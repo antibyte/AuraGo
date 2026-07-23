@@ -46,6 +46,7 @@
   "desktop.sip_phone_open_configuration": "Άνοιγμα Ρυθμίσεις → Τηλέφωνο SIP",
   "desktop.sip_phone_open_phone": "Άνοιγμα τηλεφώνου",
   "desktop.sip_phone_outgoing": "Εξερχόμενη",
+  "desktop.sip_phone_outbound_disabled_detail": "Οι εξερχόμενες κλήσεις δεν είναι ενεργοποιημένες ή δεν έχουν οριστεί επιτρεπόμενοι προορισμοί.",
   "desktop.sip_phone_preparing": "Προετοιμασία…",
   "desktop.sip_phone_readonly_detail": "Το SIP είναι μόνο για ανάγνωση. Τα στοιχεία κλήσης είναι ανενεργά.",
   "desktop.sip_phone_ready": "Έτοιμο για κλήση",

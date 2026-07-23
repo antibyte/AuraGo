@@ -46,6 +46,7 @@
   "desktop.sip_phone_open_configuration": "Abrir Configuração → Telefone SIP",
   "desktop.sip_phone_open_phone": "Abrir Telefone",
   "desktop.sip_phone_outgoing": "Efetuada",
+  "desktop.sip_phone_outbound_disabled_detail": "As chamadas efetuadas não estão ativadas ou não existem destinos permitidos configurados.",
   "desktop.sip_phone_preparing": "Preparando…",
   "desktop.sip_phone_readonly_detail": "O SIP está em modo somente leitura. Os controles estão desativados.",
   "desktop.sip_phone_ready": "Pronto para ligar",

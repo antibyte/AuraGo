@@ -46,6 +46,7 @@
   "desktop.sip_phone_open_configuration": "Open Configuratie → SIP-telefoon",
   "desktop.sip_phone_open_phone": "Telefoon openen",
   "desktop.sip_phone_outgoing": "Uitgaand",
+  "desktop.sip_phone_outbound_disabled_detail": "Uitgaande gesprekken zijn niet ingeschakeld of er zijn geen toegestane bestemmingen ingesteld.",
   "desktop.sip_phone_preparing": "Voorbereiden…",
   "desktop.sip_phone_readonly_detail": "SIP is alleen-lezen. Oproepbediening is uitgeschakeld.",
   "desktop.sip_phone_ready": "Klaar om te bellen",

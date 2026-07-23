@@ -46,6 +46,7 @@
   "desktop.sip_phone_open_configuration": "Otevřít Konfigurace → Telefon SIP",
   "desktop.sip_phone_open_phone": "Otevřít telefon",
   "desktop.sip_phone_outgoing": "Odchozí",
+  "desktop.sip_phone_outbound_disabled_detail": "Odchozí hovory nejsou povoleny nebo nejsou nastaveny žádné povolené cíle.",
   "desktop.sip_phone_preparing": "Příprava…",
   "desktop.sip_phone_readonly_detail": "SIP je pouze pro čtení. Ovládání hovorů je vypnuto.",
   "desktop.sip_phone_ready": "Připraveno k volání",

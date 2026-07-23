@@ -46,6 +46,7 @@
   "desktop.sip_phone_open_configuration": "कॉन्फ़िगरेशन → SIP फ़ोन खोलें",
   "desktop.sip_phone_open_phone": "फ़ोन खोलें",
   "desktop.sip_phone_outgoing": "जाने वाली",
+  "desktop.sip_phone_outbound_disabled_detail": "आउटगोइंग कॉल सक्षम नहीं हैं या कोई अनुमत गंतव्य कॉन्फ़िगर नहीं किया गया है।",
   "desktop.sip_phone_preparing": "तैयार हो रहा है…",
   "desktop.sip_phone_readonly_detail": "SIP केवल-पढ़ने योग्य है। कॉल नियंत्रण निष्क्रिय हैं।",
   "desktop.sip_phone_ready": "कॉल के लिए तैयार",

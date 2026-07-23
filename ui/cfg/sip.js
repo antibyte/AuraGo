@@ -10,6 +10,7 @@ let sipWizardQuery = '';
 let sipWizardMessage = '';
 let sipAdvancedDirty = false;
 let sipAdvancedOpen = false;
+let sipPhoneTargets = '';
 
 function sipEsc(value) {
     return String(value == null ? '' : value)
@@ -33,6 +34,9 @@ function sipNormalize(data) {
     if (!Number.isFinite(Number(state.browser_media.udp_port)) || Number(state.browser_media.udp_port) === 0) state.browser_media.udp_port = 30100;
     state.inbound = state.inbound || {};
     state.outbound = state.outbound || {};
+    state.outbound.allowed_domains = Array.isArray(state.outbound.allowed_domains) ? state.outbound.allowed_domains : [];
+    state.outbound.allowed_users = Array.isArray(state.outbound.allowed_users) ? state.outbound.allowed_users : [];
+    state.outbound.allowed_e164_prefixes = Array.isArray(state.outbound.allowed_e164_prefixes) ? state.outbound.allowed_e164_prefixes : [];
     state.permissions = state.permissions || {};
     state.voice = state.voice || {};
     state.password = '';
@@ -74,13 +78,34 @@ function sipWizardProgress() {
 function sipWizardConfigured() {
     const provider = sipProvider(sipConfigState.preset_id);
     if (!provider) return '';
+    const phoneReady = !sipConfigState.readonly &&
+        sipConfigState.browser_media.enabled &&
+        sipConfigState.permissions.originate_outbound &&
+        sipConfigState.outbound.allowed_domains.includes(sipConfigState.domain) &&
+        (sipConfigState.outbound.allowed_users.length || sipConfigState.outbound.allowed_e164_prefixes.length);
     return `<div class="sip-wizard-configured">
-        <div>
+        <div class="sip-wizard-configured-header">
+            <div>
             <span class="sip-eyebrow">${sipEsc(t('config.sip.wizard.configured'))}</span>
             <h3>${sipEsc(provider.name)}</h3>
-            <p>${sipEsc(t('config.sip.wizard.safe_registration'))}</p>
+            <p>${sipEsc(phoneReady ? t('config.sip.wizard.phone_enabled') : t('config.sip.wizard.safe_registration'))}</p>
+            </div>
+            <button type="button" class="btn btn-secondary" data-sip-wizard="change">${sipEsc(t('config.sip.wizard.change'))}</button>
         </div>
-        <button type="button" class="btn btn-secondary" data-sip-wizard="change">${sipEsc(t('config.sip.wizard.change'))}</button>
+        ${phoneReady ? '' : `<div class="sip-phone-activation">
+            <div>
+                <strong>${sipEsc(t('config.sip.wizard.phone_title'))}</strong>
+                <p>${sipEsc(t('config.sip.wizard.phone_intro'))}</p>
+            </div>
+            <label class="field-group">
+                <span class="field-label">${sipEsc(t('config.sip.wizard.phone_targets'))}</span>
+                <input class="field-input" type="text" data-sip-phone-targets value="${sipEsc(sipPhoneTargets)}"
+                    placeholder="${sipEsc(t('config.sip.wizard.phone_targets_placeholder'))}" autocomplete="off" maxlength="1024">
+                <small>${sipEsc(t('config.sip.wizard.phone_targets_hint'))}</small>
+            </label>
+            <p class="sip-phone-warning">${sipEsc(t('config.sip.wizard.phone_warning'))}</p>
+            <button type="button" class="btn-save" data-sip-wizard="enable-phone">${sipEsc(t('config.sip.wizard.phone_enable'))}</button>
+        </div>`}
     </div>`;
 }
 
@@ -313,6 +338,10 @@ function sipBindEvents() {
     });
     document.querySelector('[data-sip-wizard="review"]')?.addEventListener('click', sipReviewProvider);
     document.querySelector('[data-sip-wizard="apply"]')?.addEventListener('click', sipApplyProvider);
+    document.querySelector('[data-sip-phone-targets]')?.addEventListener('input', event => {
+        sipPhoneTargets = event.target.value;
+    });
+    document.querySelector('[data-sip-wizard="enable-phone"]')?.addEventListener('click', sipEnableBrowserPhone);
 }
 
 function sipBindProviderCards() {
@@ -380,6 +409,66 @@ async function sipApplyProvider() {
         sipWizardPassword = '';
         sipWizardStep = 0;
         sipWizardMessage = result && result.needs_restart ? t('config.sip.restart_required') : t('config.sip.wizard.applied');
+        sipRender();
+    } catch (error) {
+        sipWizardMessage = error.message;
+        document.getElementById('sip-wizard-status').textContent = sipWizardMessage;
+        button.disabled = false;
+    }
+}
+
+function sipParsePhoneTargets(raw) {
+    const users = [];
+    const prefixes = [];
+    for (const target of sipSplit(raw)) {
+        if (/^\+[1-9][0-9]{0,14}$/.test(target)) {
+            prefixes.push(target);
+        } else if (/^[A-Za-z0-9_.!~*'()%+\-]+$/.test(target)) {
+            users.push(target);
+        } else {
+            throw new Error(t('config.sip.wizard.phone_invalid', { target }));
+        }
+    }
+    if (!users.length && !prefixes.length) throw new Error(t('config.sip.wizard.phone_required'));
+    return { users: [...new Set(users)], prefixes: [...new Set(prefixes)] };
+}
+
+async function sipEnableBrowserPhone() {
+    const button = document.querySelector('[data-sip-wizard="enable-phone"]');
+    if (!button) return;
+    let targets;
+    try {
+        targets = sipParsePhoneTargets(sipPhoneTargets);
+    } catch (error) {
+        sipWizardMessage = error.message;
+        document.getElementById('sip-wizard-status').textContent = sipWizardMessage;
+        return;
+    }
+    button.disabled = true;
+    sipWizardMessage = t('config.sip.saving');
+    document.getElementById('sip-wizard-status').textContent = sipWizardMessage;
+    try {
+        const browserMediaWasEnabled = !!sipConfigState.browser_media.enabled;
+        const next = JSON.parse(JSON.stringify(sipConfigState));
+        next.readonly = false;
+        next.browser_media.enabled = true;
+        next.outbound.allowed_domains = [next.domain];
+        next.outbound.allowed_users = targets.users;
+        next.outbound.allowed_e164_prefixes = targets.prefixes;
+        next.permissions.originate_outbound = true;
+        next.permissions.send_dtmf = true;
+        next.permissions.agent_hangup = true;
+        const result = await sipRequest('/api/sip/config', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(next)
+        });
+        sipConfigState = sipNormalize(await sipRequest('/api/sip/config'));
+        sipSavedState = sipComparable(sipConfigState);
+        sipAdvancedDirty = false;
+        sipWizardMessage = !browserMediaWasEnabled || (result && result.needs_restart)
+            ? t('config.sip.restart_required')
+            : t('config.sip.wizard.phone_enabled');
         sipRender();
     } catch (error) {
         sipWizardMessage = error.message;
@@ -489,6 +578,7 @@ async function renderSIPSection() {
     sipWizardMessage = '';
     sipAdvancedDirty = false;
     sipAdvancedOpen = false;
+    sipPhoneTargets = '';
     const content = document.getElementById('content');
     content.innerHTML = `<div class="cfg-section active"><div class="cfg-loading-state">${sipEsc(t('config.sip.loading'))}</div></div>`;
     try {
@@ -499,6 +589,10 @@ async function renderSIPSection() {
         sipConfigState = sipNormalize(configuration);
         sipProviderCatalog = Array.isArray(catalog.providers) ? catalog.providers : [];
         sipSavedState = sipComparable(sipConfigState);
+        sipPhoneTargets = sipList([
+            ...(sipConfigState.outbound.allowed_users || []),
+            ...(sipConfigState.outbound.allowed_e164_prefixes || [])
+        ]);
         sipWizardProviderID = sipConfigState.preset_id || '';
         sipWizardStep = sipConfigState.preset_id && sipProvider(sipConfigState.preset_id) ? 0 : 1;
         sipAdvancedDirty = false;

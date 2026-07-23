@@ -46,6 +46,7 @@
   "desktop.sip_phone_open_configuration": "打开配置 → SIP 电话",
   "desktop.sip_phone_open_phone": "打开电话",
   "desktop.sip_phone_outgoing": "呼出",
+  "desktop.sip_phone_outbound_disabled_detail": "未启用外呼，或尚未配置允许的目标。",
   "desktop.sip_phone_preparing": "正在准备…",
   "desktop.sip_phone_readonly_detail": "SIP 处于只读模式，通话控件已禁用。",
   "desktop.sip_phone_ready": "可以呼叫",

@@ -46,6 +46,7 @@
   "desktop.sip_phone_open_configuration": "Abrir Configuración → Teléfono SIP",
   "desktop.sip_phone_open_phone": "Abrir Teléfono",
   "desktop.sip_phone_outgoing": "Saliente",
+  "desktop.sip_phone_outbound_disabled_detail": "Las llamadas salientes no están activadas o no hay destinos permitidos configurados.",
   "desktop.sip_phone_preparing": "Preparando…",
   "desktop.sip_phone_readonly_detail": "SIP está en modo de solo lectura. Los controles están desactivados.",
   "desktop.sip_phone_ready": "Listo para llamar",

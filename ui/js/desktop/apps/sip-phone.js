@@ -173,6 +173,7 @@
         if (blockers.includes('browser_media_disabled')) return ['browser_media_disabled', text(instance, 'browser_media_disabled_detail', 'Enable browser media for the Virtual Desktop phone.')];
         if (blockers.includes('browser_media_restart_required')) return ['browser_media_restart_required', text(instance, 'browser_media_restart_required_detail', 'Restart AuraGo to apply the saved browser media settings.')];
         if (blockers.includes('not_registered')) return ['not_registered', text(instance, 'not_registered_detail', 'The SIP account is not registered yet. Check the account and PBX connection.')];
+        if (blockers.includes('outbound_disabled')) return ['outbound_disabled', text(instance, 'outbound_disabled_detail', 'Outgoing calls are not enabled or no allowed destinations are configured.')];
         return null;
     }
 
@@ -185,7 +186,7 @@
                 <p>${instance.context.esc(text(instance, 'dial_example', 'For example 102, sip:102@example.local or +49 30 1234567'))}</p>
             </header>
             ${blocker ? `<div class="sip-phone-blocker" data-blocker="${instance.context.esc(blocker[0])}">
-                <strong>${instance.context.esc(text(instance, 'setup_required', 'Phone setup required'))}</strong>
+                <strong>${instance.context.esc(text(instance, 'unavailable', 'Calling is unavailable'))}</strong>
                 <span>${instance.context.esc(blocker[1])}</span>
                 <a href="/config#sip" target="_blank" rel="noopener">${instance.context.esc(text(instance, 'open_configuration', 'Open Configuration → SIP Phone'))}</a>
             </div>` : ''}

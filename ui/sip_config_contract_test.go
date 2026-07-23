@@ -24,6 +24,10 @@ func TestSIPConfigUIUsesSavedStateAndMaskedSecret(t *testing.T) {
 		"const canReusePassword = sipConfigState.password_set && sipConfigState.preset_id === provider.id",
 		"async function renderSIPSection() {\n    sipWizardStep = 1;",
 		"sipWizardPassword = '';\n    sipWizardQuery = '';\n    sipWizardMessage = '';",
+		"function sipParsePhoneTargets(raw)", "async function sipEnableBrowserPhone()",
+		"next.browser_media.enabled = true", "next.permissions.originate_outbound = true",
+		"next.outbound.allowed_domains = [next.domain]",
+		"Array.isArray(state.outbound.allowed_users)",
 	} {
 		if !strings.Contains(source, marker) {
 			t.Fatalf("SIP config UI missing contract marker %q", marker)
@@ -71,6 +75,10 @@ func TestSIPConfigTranslationsComplete(t *testing.T) {
 		"config.sip.wizard.category_europe", "config.sip.wizard.category_germany", "config.sip.wizard.category_global",
 		"config.sip.wizard.category_local", "config.sip.wizard.category_north_america", "config.sip.wizard.category_pbx",
 		"config.sip.wizard.change", "config.sip.wizard.choose", "config.sip.wizard.configured",
+		"config.sip.wizard.phone_enable", "config.sip.wizard.phone_enabled", "config.sip.wizard.phone_intro",
+		"config.sip.wizard.phone_invalid", "config.sip.wizard.phone_required", "config.sip.wizard.phone_targets",
+		"config.sip.wizard.phone_targets_hint", "config.sip.wizard.phone_targets_placeholder", "config.sip.wizard.phone_title",
+		"config.sip.wizard.phone_warning",
 		"config.sip.wizard.continue", "config.sip.wizard.documentation", "config.sip.wizard.eyebrow",
 		"config.sip.wizard.intro", "config.sip.wizard.no_results", "config.sip.wizard.notice_account_server",
 		"config.sip.wizard.notice_device_password", "config.sip.wizard.notice_fritzbox_phone",

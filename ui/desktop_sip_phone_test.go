@@ -118,10 +118,15 @@ func TestDesktopSIPPhoneComfortAndPrivacyContracts(t *testing.T) {
 		`data-sip-phone="ringtone"`,
 		"runtime.setMuted",
 		"runtime.sendDTMF",
+		"blockers.includes('outbound_disabled')",
+		"text(instance, 'unavailable', 'Calling is unavailable')",
 	} {
 		if !strings.Contains(app, marker) {
 			t.Fatalf("SIP phone app missing comfort contract %q", marker)
 		}
+	}
+	if strings.Contains(app, "text(instance, 'setup_required'") {
+		t.Fatal("registered-but-locked SIP must show the concrete calling blocker, not a generic setup-required title")
 	}
 
 	combined := strings.ToLower(app + readDesktopAssetText(t, "css/desktop-app-sip-phone.css"))

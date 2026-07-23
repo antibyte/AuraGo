@@ -46,6 +46,7 @@
   "desktop.sip_phone_open_configuration": "Otwórz Konfiguracja → Telefon SIP",
   "desktop.sip_phone_open_phone": "Otwórz Telefon",
   "desktop.sip_phone_outgoing": "Wychodzące",
+  "desktop.sip_phone_outbound_disabled_detail": "Połączenia wychodzące nie są włączone lub nie skonfigurowano dozwolonych celów.",
   "desktop.sip_phone_preparing": "Przygotowywanie…",
   "desktop.sip_phone_readonly_detail": "SIP jest tylko do odczytu. Sterowanie połączeniami jest wyłączone.",
   "desktop.sip_phone_ready": "Gotowy do rozmowy",

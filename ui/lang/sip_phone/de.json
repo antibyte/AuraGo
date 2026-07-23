@@ -46,6 +46,7 @@
   "desktop.sip_phone_open_configuration": "Konfiguration → SIP-Telefon öffnen",
   "desktop.sip_phone_open_phone": "Telefon öffnen",
   "desktop.sip_phone_outgoing": "Ausgehend",
+  "desktop.sip_phone_outbound_disabled_detail": "Ausgehende Anrufe sind nicht aktiviert oder es wurden noch keine erlaubten Ziele festgelegt.",
   "desktop.sip_phone_preparing": "Wird vorbereitet…",
   "desktop.sip_phone_readonly_detail": "SIP ist schreibgeschützt. Die Anrufsteuerung ist deaktiviert.",
   "desktop.sip_phone_ready": "Bereit zum Telefonieren",

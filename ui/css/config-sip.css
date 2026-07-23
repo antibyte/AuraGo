@@ -284,8 +284,11 @@
 }
 
 [data-workspace-page="config"] .sip-wizard-configured {
-    display: flex;
     padding: 0.85rem 0;
+}
+
+[data-workspace-page="config"] .sip-wizard-configured-header {
+    display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
@@ -297,6 +300,39 @@
     color: var(--text-secondary);
     font-size: var(--text-sm);
     line-height: 1.5;
+}
+
+[data-workspace-page="config"] .sip-phone-activation {
+    display: grid;
+    margin-top: 1.25rem;
+    padding: 1rem;
+    border: 1px solid color-mix(in srgb, var(--accent) 38%, var(--border-subtle));
+    border-radius: 12px;
+    background: var(--bg-primary);
+    grid-template-columns: minmax(0, 1fr) minmax(260px, 0.8fr) auto;
+    align-items: end;
+    gap: 0.85rem 1rem;
+}
+
+[data-workspace-page="config"] .sip-phone-activation strong {
+    color: var(--text-primary);
+}
+
+[data-workspace-page="config"] .sip-phone-activation p,
+[data-workspace-page="config"] .sip-phone-activation .field-group {
+    margin: 0;
+}
+
+[data-workspace-page="config"] .sip-phone-activation .field-group small,
+[data-workspace-page="config"] .sip-phone-warning {
+    margin-top: 0.35rem;
+    color: var(--text-secondary);
+    font-size: var(--text-xs);
+    line-height: 1.4;
+}
+
+[data-workspace-page="config"] .sip-phone-warning {
+    grid-column: 1 / -1;
 }
 
 [data-workspace-page="config"] .sip-empty-state {
@@ -398,6 +434,10 @@
 }
 
 @media (max-width: 820px) {
+    [data-workspace-page="config"] .sip-phone-activation {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
     [data-workspace-page="config"] .sip-provider-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
