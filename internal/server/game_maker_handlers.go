@@ -50,8 +50,10 @@ func handleGameMakerCapabilities(s *Server) http.HandlerFunc {
 		}
 		var skills []gamemaker.SkillInfo
 		skillsReady := false
+		var activeJob *gamemaker.ActiveJobInfo
 		if s.GameMaker != nil {
 			skills, skillsReady = s.GameMaker.SkillStatus()
+			activeJob = s.GameMaker.ActiveJobInfo(r.Context())
 		}
 		writeGameMakerJSON(w, http.StatusOK, gamemaker.Capabilities{
 			Enabled:              cfg.GameMaker.Enabled && s.GameMaker != nil,
@@ -70,6 +72,7 @@ func handleGameMakerCapabilities(s *Server) http.HandlerFunc {
 			Providers:            providers,
 			DefaultProviderID:    cfg.LLM.Provider,
 			DefaultModel:         cfg.LLM.Model,
+			ActiveJob:            activeJob,
 		})
 	}
 }

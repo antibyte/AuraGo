@@ -26,5 +26,9 @@ guidance and copies no TinySwords code, text, scripts, or assets.
 7. Verify that external requests are unnecessary and that a ZIP export remains
    playable offline.
 
+Fix the root cause of a diagnostic, never the symptom. Never weaken, remove, or
+stub `window.__AURAGO_GAME_DIAGNOSTICS__` or other checks just to make
+validation pass.
+
 Make at most three focused repair passes. Do not hide a failed validation or
 replace the last working preview with broken output.

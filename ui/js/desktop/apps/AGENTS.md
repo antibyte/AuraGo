@@ -61,8 +61,11 @@ This subtree owns built-in virtual desktop app modules that are loaded lazily by
   and `internal/server/looper_service.go` / `desktop_looper_handlers.go`.
   Desktop shell must pass `promptDialog` and `confirmDialog` (no native
   `prompt`/`confirm`). Readonly mode disables start/save/delete/edit.
-- `game-maker-studio-api.js` and `game-maker-studio.js` implement Game Maker
-  Studio: a project library, 2D/3D creation dialog, bounded agent progress,
+- `game-maker-studio-api.js`, `game-maker-studio-preview.js`,
+  `game-maker-studio-modals.js`, and `game-maker-studio.js` implement Game
+  Maker Studio: a project library, 2D/3D creation dialog with idea chips,
+  bounded agent progress (job banner with phase, elapsed time, and repair-pass
+  indicator plus a phase stepper), result cards for ready/failed jobs,
   revision history, change requests, and a live game preview in one maximized
   desktop window.
 
@@ -74,13 +77,26 @@ registration lives in `internal/desktop/types.go`.
 ## Local Contracts
 
 - Built-in app load order is defined in `ui/js/desktop/core/module-loader.js`.
+- Game Maker Studio loads in the order `game-maker-studio-api.js`,
+  `game-maker-studio-preview.js` (`window.GameMakerStudioPreview`: loading
+  overlay, stale badge, fullscreen, new-tab), `game-maker-studio-modals.js`
+  (`window.GameMakerStudioModals`: skills and revisions modals; the modal
+  framework and security-checked helpers stay in the main module), then
+  `game-maker-studio.js`.
 - Game Maker Studio exposes `window.GameMakerStudioApp = { render, dispose,
   instances }`. Every window owns and closes its EventSource, preview iframe,
-  channel ID, diagnostics, modal handlers, and `message` listener.
+  channel ID, diagnostics, modal handlers, job-elapsed and busy-poll timers,
+  document-level overflow-menu listeners, and `message` listener.
 - Game Maker previews must use `sandbox="allow-scripts"` without
-  `allow-same-origin`. Accept diagnostics only from the instance iframe when
-  `event.source`, the random channel ID, the fixed source marker, and the
-  bounded event type all match. The channel is read-only.
+  `allow-same-origin` (`allowfullscreen` on the iframe is permitted).
+  Accept diagnostics only from the instance iframe when `event.source`, the
+  random channel ID, the fixed source marker, and the bounded event type all
+  match. The channel is read-only.
+- Game Maker job progress UX: the job banner, phase stepper, and result
+  cards are driven by the project-scoped SSE stream; `capabilities.active_job`
+  marks the single globally running job (library spinner, disabled change
+  form plus hint in other projects) and is polled only while another project
+  is busy.
 - Game Maker visible strings use `game_maker.*` plus
   `desktop.app_game_maker_studio` in all 16 `ui/lang/desktop/*.json` files.
   Destructive actions use shell-provided dialogs and never native browser

@@ -17,16 +17,24 @@ Create one self-contained, offline, single-player browser game. Do not add
 multiplayer, a backend, deployment, analytics, CDNs, or external APIs.
 
 1. Inspect the project manifest and file list with `game_maker_project`.
-2. Convert the user's idea into one clear core loop, one fail or pressure
-   condition, one progression signal, and controls that fit the selected engine.
-3. Keep the first implementation small enough to become playable quickly.
+2. Reply first with a short build plan the player can read in the studio:
+   the core loop, the fail or pressure condition, the progression signal,
+   the controls, and which generated assets you will request. Then build.
+3. Keep the first implementation the smallest loop that is actually playable;
+   extend it only after it validates.
 4. Write only through `game_maker_file`; never target `vendor/` or `dist/`.
-5. Use `game_maker_asset` only when the requested media capability is enabled.
-   Treat a fallback response as a design constraint, not a failed job.
+5. Use `game_maker_asset` only for planned, gameplay-relevant media and only
+   when the capability is enabled. Stay within roughly four images and one
+   music track per job. Treat a fallback response as a design constraint,
+   not a failed job.
 6. Call `game_maker_validate` after coherent edits. Fix concrete diagnostics
    before adding polish, with at most three repair passes.
 7. Preserve the AuraGo diagnostic interface and finish only when validation is
-   successful and the controls, objective, feedback, and restart path are clear.
+   successful and the controls, objective, feedback, and restart path are
+   clear.
+
+End with a short player-facing summary: what was built, the controls, and the
+objective. It is shown as the final studio chat message, so skip internals.
 
 For change requests, preserve working behavior, make the smallest coherent
 change, validate it, and describe the player-visible result.

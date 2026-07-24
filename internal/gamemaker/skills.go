@@ -62,9 +62,10 @@ type SkillInstallResult struct {
 	Ready  bool
 }
 
-// InstallBundledSkills installs missing system-managed packages and refuses to
-// overwrite locally changed content. Hash drift is surfaced as a blocking
-// status so a new Game Maker job cannot bypass verification.
+// InstallBundledSkills installs missing system-managed packages and repairs
+// drifted ones by overwriting them with the bundled version. The curated
+// skills are fully managed by AuraGo, so local edits are discarded on startup
+// (self-healing) instead of blocking Game Maker jobs.
 func InstallBundledSkills(root string) (SkillInstallResult, error) {
 	result := SkillInstallResult{Ready: true}
 	for _, definition := range curatedSkills {
@@ -87,8 +88,10 @@ func InstallBundledSkills(root string) (SkillInstallResult, error) {
 		case readErr != nil:
 			return result, fmt.Errorf("inspect bundled game maker skill: %w", readErr)
 		case !equalSHA256(existing, data):
-			status = "hash_mismatch"
-			result.Ready = false
+			if err := os.WriteFile(path, data, 0o640); err != nil {
+				return result, fmt.Errorf("repair bundled game maker skill %s: %w", definition.Name, err)
+			}
+			status = "updated"
 		default:
 			status = "verified"
 		}

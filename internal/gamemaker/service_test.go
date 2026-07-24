@@ -575,7 +575,7 @@ func TestPreviewTokenIsShortLivedScopedAndPathSafe(t *testing.T) {
 	}
 }
 
-func TestBundledSkillHashDriftBlocksReadiness(t *testing.T) {
+func TestBundledSkillHashDriftSelfHeals(t *testing.T) {
 	root := t.TempDir()
 	first, err := InstallBundledSkills(root)
 	if err != nil {
@@ -592,16 +592,36 @@ func TestBundledSkillHashDriftBlocksReadiness(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if second.Ready {
-		t.Fatal("hash drift did not block bundled skills")
+	if !second.Ready {
+		t.Fatal("hash drift must not block bundled skills (self-healing)")
 	}
-	var mismatch bool
+	var updated bool
 	for _, skill := range second.Skills {
-		if skill.Name == "aurago-game-qa" && skill.Status == "hash_mismatch" {
-			mismatch = true
+		if skill.Name == "aurago-game-qa" && skill.Status == "updated" {
+			updated = true
 		}
 	}
-	if !mismatch {
-		t.Fatalf("hash mismatch not surfaced: %+v", second.Skills)
+	if !updated {
+		t.Fatalf("drift repair not surfaced: %+v", second.Skills)
+	}
+	repaired, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bundled, err := bundledSkills.ReadFile("skills/aurago-game-qa/SKILL.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !equalSHA256(repaired, bundled) {
+		t.Fatal("drifted skill was not restored to the bundled version")
+	}
+	third, err := InstallBundledSkills(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, skill := range third.Skills {
+		if skill.Name == "aurago-game-qa" && skill.Status != "verified" {
+			t.Fatalf("repaired skill status = %q, want verified", skill.Status)
+		}
 	}
 }

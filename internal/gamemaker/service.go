@@ -179,6 +179,22 @@ func (s *Service) SkillStatus() ([]SkillInfo, bool) {
 	return append([]SkillInfo(nil), s.skills...), s.skillsReady
 }
 
+// ActiveJobInfo returns the currently running job, if any. Internal writer
+// reservations that are not jobs (e.g. deletes) resolve to nil.
+func (s *Service) ActiveJobInfo(ctx context.Context) *ActiveJobInfo {
+	s.mu.RLock()
+	id := s.activeJobID
+	s.mu.RUnlock()
+	if id == "" {
+		return nil
+	}
+	job, err := s.GetJob(ctx, id)
+	if err != nil {
+		return nil
+	}
+	return &ActiveJobInfo{JobID: job.ID, ProjectID: job.ProjectID, Status: job.Status, Phase: job.Phase}
+}
+
 func (s *Service) ListProjects(ctx context.Context) ([]Project, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT id,name,slug,project_key,dimension,description,
 		provider_id,model,use_image,use_music,status,current_revision,created_at,updated_at

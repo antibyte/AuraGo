@@ -174,22 +174,32 @@ type SkillInfo struct {
 }
 
 type Capabilities struct {
-	Enabled              bool        `json:"enabled"`
-	ReadOnly             bool        `json:"readonly"`
-	AllowCreate          bool        `json:"allow_create"`
-	AllowEdit            bool        `json:"allow_edit"`
-	AllowDelete          bool        `json:"allow_delete"`
-	AllowMediaGeneration bool        `json:"allow_media_generation"`
-	ImageGeneration      bool        `json:"image_generation"`
-	MusicGeneration      bool        `json:"music_generation"`
-	CodeStudio           bool        `json:"code_studio"`
-	PhaserVersion        string      `json:"phaser_version"`
-	ThreeVersion         string      `json:"three_version"`
-	SkillsReady          bool        `json:"skills_ready"`
-	Skills               []SkillInfo `json:"skills"`
-	Providers            []Provider  `json:"providers"`
-	DefaultProviderID    string      `json:"default_provider_id,omitempty"`
-	DefaultModel         string      `json:"default_model,omitempty"`
+	Enabled              bool           `json:"enabled"`
+	ReadOnly             bool           `json:"readonly"`
+	AllowCreate          bool           `json:"allow_create"`
+	AllowEdit            bool           `json:"allow_edit"`
+	AllowDelete          bool           `json:"allow_delete"`
+	AllowMediaGeneration bool           `json:"allow_media_generation"`
+	ImageGeneration      bool           `json:"image_generation"`
+	MusicGeneration      bool           `json:"music_generation"`
+	CodeStudio           bool           `json:"code_studio"`
+	PhaserVersion        string         `json:"phaser_version"`
+	ThreeVersion         string         `json:"three_version"`
+	SkillsReady          bool           `json:"skills_ready"`
+	Skills               []SkillInfo    `json:"skills"`
+	Providers            []Provider     `json:"providers"`
+	DefaultProviderID    string         `json:"default_provider_id,omitempty"`
+	DefaultModel         string         `json:"default_model,omitempty"`
+	ActiveJob            *ActiveJobInfo `json:"active_job,omitempty"`
+}
+
+// ActiveJobInfo exposes the single globally running Game Maker job so the
+// studio UI can mark the owning project and block edits elsewhere.
+type ActiveJobInfo struct {
+	JobID     string `json:"job_id"`
+	ProjectID string `json:"project_id"`
+	Status    string `json:"status"`
+	Phase     string `json:"phase"`
 }
 
 type Provider struct {

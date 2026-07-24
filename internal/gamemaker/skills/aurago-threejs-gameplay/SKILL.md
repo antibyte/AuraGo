@@ -17,10 +17,14 @@ not a passive scene.
 
 - Establish renderer, scene, camera, resize handling, lighting, and a bounded
   animation loop before adding content.
+- Cap the pixel ratio with `renderer.setPixelRatio(Math.min(devicePixelRatio, 2))`
+  and keep the frame loop stable on high-DPI displays.
 - Keep input state separate from movement; multiply motion by a clamped delta.
 - Use simple bounding spheres or boxes for deterministic collision checks.
 - Reuse geometries, materials, vectors, and effect objects. Do not allocate
   transient Three.js objects inside the frame loop.
+- Pause the loop and timers on `visibilitychange` when the tab is hidden, and
+  dispose geometries and materials when a scene or game is rebuilt.
 - Keep the camera oriented toward the gameplay goal and prevent the player from
   leaving the readable play space.
 - Use generated images only as textures, backgrounds, decals, or UI. Do not

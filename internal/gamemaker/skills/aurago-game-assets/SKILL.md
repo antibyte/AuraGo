@@ -15,6 +15,9 @@ allowed-tools: game_maker_project, game_maker_file, game_maker_asset, game_maker
 
 Ask for only assets that materially improve the current game.
 
+- Plan the full asset list before the first request and batch what belongs
+  together. Prefer one sprite sheet or one texture atlas over many single
+  images; stay within roughly four images and one music track per job.
 - Images may serve as sprites, sprite sheets, textures, backgrounds, decals, or
   UI art. Request transparent backgrounds when useful and keep dimensions
   modest.
@@ -25,6 +28,7 @@ Ask for only assets that materially improve the current game.
 - A disabled generator, provider error, or budget limit is a normal fallback.
   Use shapes, gradients, particles, noise, or synthesized tones and keep the
   game playable.
-- Reference only the project-local path returned by `game_maker_asset`.
+- Reference only the project-local path returned by `game_maker_asset`, and
+  confirm the exact path before wiring it into loaders or textures.
 - Never delete or mutate the global AuraGo media registry asset. Project
   deletion removes only the project copy and ledger provenance.

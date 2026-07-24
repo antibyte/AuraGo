@@ -767,11 +767,302 @@
     background: rgba(255, 70, 70, 0.1);
 }
 
-@media (max-width: 980px) {
-    .gm-actions button:nth-child(-n + 2) {
+/* --- Job progress banner --- */
+
+.gm-job-banner {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    margin: 10px 16px 0;
+    padding: 9px 12px;
+    border: 1px solid rgba(139, 124, 246, 0.4);
+    border-radius: 11px;
+    background: rgba(139, 124, 246, 0.1);
+}
+
+.gm-job-banner[hidden] {
+    display: none;
+}
+
+.gm-job-banner-text {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
+    gap: 1px;
+}
+
+.gm-job-banner-text strong {
+    font-size: 12px;
+}
+
+.gm-job-banner-text span {
+    overflow: hidden;
+    color: var(--gm-muted);
+    font-size: 11px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.gm-job-elapsed {
+    color: var(--gm-muted);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+}
+
+.gm-job-spinner {
+    display: inline-block;
+    width: 15px;
+    height: 15px;
+    flex: none;
+    border: 2px solid rgba(139, 124, 246, 0.35);
+    border-top-color: var(--gm-accent);
+    border-radius: 50%;
+    animation: gm-spin 0.9s linear infinite;
+}
+
+@keyframes gm-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* --- Result cards in the conversation --- */
+
+.gm-result-card {
+    display: grid;
+    justify-items: start;
+    gap: 8px;
+    margin: 10px 0 14px;
+    padding: 12px 13px;
+    border-radius: 12px;
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+.gm-result-card p {
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+.gm-result-card.is-success {
+    color: #b8f4e3;
+    border: 1px solid rgba(79, 208, 177, 0.4);
+    background: rgba(79, 208, 177, 0.1);
+}
+
+.gm-result-card.is-error {
+    color: #ffc3c3;
+    border: 1px solid rgba(255, 106, 106, 0.4);
+    background: rgba(255, 78, 78, 0.09);
+}
+
+/* --- Preview toolbar, loading and stale states --- */
+
+.gm-preview-tools {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.gm-preview-tools button[aria-label] {
+    min-width: 34px;
+    padding: 0 8px;
+}
+
+.gm-preview-loading {
+    position: absolute;
+    z-index: 2;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    color: var(--gm-muted);
+    background: rgba(12, 13, 19, 0.72);
+    font-size: 12px;
+}
+
+.gm-preview-stale {
+    position: absolute;
+    z-index: 2;
+    top: 10px;
+    right: 10px;
+    padding: 4px 10px;
+    color: #ddd8ff;
+    border: 1px solid rgba(139, 124, 246, 0.45);
+    border-radius: 99px;
+    background: rgba(17, 18, 26, 0.85);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.gm-preview-shell:fullscreen {
+    background: #050509;
+}
+
+.gm-preview-shell:fullscreen .gm-preview-frame {
+    height: 100vh;
+}
+
+/* --- Busy hint, mobile switcher, overflow menu --- */
+
+.gm-busy-hint {
+    margin: 7px 2px 0;
+    color: #ffd58a;
+    font-size: 11px;
+}
+
+.gm-busy-hint[hidden] {
+    display: none;
+}
+
+.gm-mobile-projects {
+    display: none;
+    max-width: 180px;
+    padding: 7px 9px;
+    color: var(--gm-text);
+    border: 1px solid var(--gm-line);
+    border-radius: 9px;
+    background: #11121a;
+}
+
+.gm-mobile-projects[hidden] {
+    display: none;
+}
+
+.gm-more {
+    position: relative;
+    display: none;
+}
+
+.gm-more > button {
+    min-width: 36px;
+    font-size: 16px;
+    line-height: 1;
+}
+
+.gm-more-menu {
+    position: absolute;
+    z-index: 60;
+    top: calc(100% + 6px);
+    right: 0;
+    display: grid;
+    min-width: 190px;
+    padding: 6px;
+    border: 1px solid var(--gm-line);
+    border-radius: 11px;
+    background: #1c1d28;
+    box-shadow: 0 16px 42px rgba(0, 0, 0, 0.45);
+}
+
+.gm-more-menu[hidden] {
+    display: none;
+}
+
+.gm-more-menu button {
+    width: 100%;
+    min-height: 34px;
+    text-align: left;
+    border-color: transparent;
+    background: transparent;
+}
+
+.gm-more-menu .gm-menu-danger {
+    color: #ffc3c3;
+}
+
+/* --- Project library extras --- */
+
+.gm-project-card {
+    position: relative;
+}
+
+.gm-project-running {
+    position: absolute;
+    top: 7px;
+    right: 7px;
+    width: 10px;
+    height: 10px;
+    border: 2px solid rgba(93, 226, 195, 0.3);
+    border-top-color: var(--gm-accent-2);
+    border-radius: 50%;
+    animation: gm-spin 0.9s linear infinite;
+}
+
+/* --- Create modal helpers --- */
+
+.gm-field-help {
+    margin: -8px 2px 0;
+    color: var(--gm-muted);
+    font-size: 11px;
+    line-height: 1.45;
+}
+
+.gm-idea-chips {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 7px;
+}
+
+.gm-idea-chips > span {
+    margin-right: 2px;
+    color: var(--gm-muted);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.gm-idea-chips button {
+    min-height: 30px;
+    padding: 0 11px;
+    border-radius: 99px;
+    font-size: 11px;
+}
+
+/* --- Skills modal details --- */
+
+.gm-skill-details summary {
+    color: var(--gm-muted);
+    cursor: pointer;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.gm-skill-details dl {
+    margin-top: 7px;
+}
+
+/* --- Diagnostics error emphasis --- */
+
+.gm-diagnostics.has-errors summary {
+    color: #ff908e;
+}
+
+.gm-diagnostics.has-errors [data-gm-diagnostic-count] {
+    padding: 1px 7px;
+    color: #ffd0cf;
+    border-radius: 99px;
+    background: rgba(255, 85, 85, 0.2);
+}
+
+@media (max-width: 1180px) {
+    .gm-actions .gm-action-wide {
         display: none;
     }
 
+    .gm-more {
+        display: block;
+    }
+}
+
+@media (max-width: 980px) {
     .gm-layout {
         grid-template-columns: 190px minmax(0, 1fr);
     }
@@ -797,6 +1088,10 @@
 
     .gm-library {
         display: none;
+    }
+
+    .gm-mobile-projects {
+        display: block;
     }
 
     .gm-workspace {

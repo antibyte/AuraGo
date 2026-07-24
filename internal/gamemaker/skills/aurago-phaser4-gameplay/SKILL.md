@@ -20,15 +20,18 @@ when complexity justifies them.
   input and simulation in `update`.
 - Use Arcade Physics for simple movement, overlap, collision, bounds, and
   velocities. Avoid Matter unless the design genuinely needs it.
+- Pick a fixed logical resolution and `Phaser.Scale.FIT` with auto-centering
+  so the canvas adapts to the preview without stretching gameplay.
 - Make keyboard controls explicit and include touch or pointer controls when
   the game concept is likely to be used on mobile.
-- Use Phaser scale modes so the canvas adapts without stretching gameplay.
-- Pool frequently spawned objects and avoid allocation-heavy effects in
-  per-frame paths.
+- Reference project assets with relative paths (`assets/...`); load them in
+  `preload` and confirm the exact paths returned by `game_maker_asset`.
+- Unlock audio only after a player gesture; keep music opt-in with a mute.
+- Pool frequently spawned objects and never allocate objects or arrays in the
+  per-frame `update` path.
 - Communicate objectives, score, health, cooldowns, and game-over state through
-  readable in-game UI.
-- Use local assets only. Prefer generated art when available and procedural
-  shapes when it is not.
+  readable in-game UI with a fixed HUD (`setScrollFactor(0)`).
+- Release scene resources on shutdown so restarts stay leak-free.
 - Preserve `window.__AURAGO_GAME_DIAGNOSTICS__` and emit scene readiness.
 
 Validate after scene wiring, after gameplay rules, and after final polish.

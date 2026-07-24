@@ -55,6 +55,29 @@ After a validated revision is ready, enter a change request to create the next
 revision. Stop cancels the staging job without changing the last playable
 version.
 
+## Studio workflow
+
+- The creation dialog offers localized idea chips and a short description
+  guide next to name, dimension, provider, and media options.
+- While a job runs, a banner shows the current phase, the elapsed time, and
+  the repair pass when the builder loops back from validation. The phase
+  stepper below it mirrors the same state.
+- Finished jobs end with a result card in the conversation: a playable
+  revision offers **Play now**, a failure shows the error and a **Try again**
+  button that restores the last prompt for editing.
+- The preview toolbar reloads the game, toggles fullscreen, or opens the
+  current revision in a new browser tab with a fresh preview token. While a
+  newer build is running, the preview carries an "updating" badge.
+- Only one job runs at a time. The library marks the busy project with a
+  spinner, and the change form of other projects stays disabled with a hint
+  until the active job finishes (the capabilities API exposes the active
+  job's project ID, status, and phase).
+- On narrow windows the secondary project actions move into an overflow
+  menu; on phone-sized screens the library sidebar collapses into a project
+  dropdown inside the agent pane.
+- The skills dialog summarizes status in plain language and folds source,
+  commit, and license details into a collapsible section.
+
 ## Builds, revisions, and export
 
 Each job works in its own staging copy. TypeScript and ES modules are compiled
@@ -80,8 +103,11 @@ Game Maker jobs receive only six callable tools: the four project-specific
 Game Maker tools plus Agent Skill listing and activation. Generic filesystem,
 shell, Python, network, Desktop, Homepage, and `invoke_tool` access is excluded.
 The binding Agent Skill scope contains exactly the five embedded
-`aurago-game-*` packages. Missing, changed, warning, or blocked packages stop
-new jobs.
+`aurago-game-*` packages. These skills are system-managed: startup restores any
+locally changed or missing `SKILL.md` to the embedded version (self-healing),
+after which the package is rescanned. Packages that scan with a warning or an
+error, or whose post-install hash no longer matches the verified registry
+entry, still block new jobs.
 
 Preview documents use a short-lived token bound to one project and optionally
 one active staging job. The iframe permits scripts but deliberately has no
