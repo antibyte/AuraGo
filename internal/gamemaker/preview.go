@@ -71,6 +71,16 @@ func (s *Service) PreviewFile(token, rawPath string) ([]byte, string, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
+			if fallback, bundled, fallbackErr := bundledRuntimeFile(project.Dimension, rawPath); bundled {
+				if fallbackErr != nil {
+					return nil, "", fallbackErr
+				}
+				contentType := mime.TypeByExtension(strings.ToLower(filepath.Ext(rawPath)))
+				if contentType == "" {
+					contentType = "application/octet-stream"
+				}
+				return fallback, contentType, nil
+			}
 			return nil, "", ErrNotFound
 		}
 		return nil, "", fmt.Errorf("read game preview file: %w", err)

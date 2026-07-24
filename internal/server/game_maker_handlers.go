@@ -372,6 +372,7 @@ func handleGameMakerPreview(s *Server) http.HandlerFunc {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
+		setGameMakerPreviewHeaders(w)
 		relative := strings.TrimPrefix(r.URL.Path, "/api/game-maker/preview/")
 		parts := strings.SplitN(relative, "/", 2)
 		if len(parts) != 2 {
@@ -388,16 +389,19 @@ func handleGameMakerPreview(s *Server) http.HandlerFunc {
 			return
 		}
 		w.Header().Set("Content-Type", contentType)
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Cache-Control", "no-store")
-		w.Header().Set("Cross-Origin-Resource-Policy", "cross-origin")
-		w.Header().Set("Referrer-Policy", "no-referrer")
-		w.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; font-src 'self'; connect-src 'none'; worker-src 'self' blob:; frame-ancestors 'self'; object-src 'none'; base-uri 'none'; form-action 'none'")
-		w.Header().Set("X-Content-Type-Options", "nosniff")
 		if r.Method == http.MethodGet {
 			_, _ = w.Write(data)
 		}
 	}
+}
+
+func setGameMakerPreviewHeaders(w http.ResponseWriter) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Cross-Origin-Resource-Policy", "cross-origin")
+	w.Header().Set("Referrer-Policy", "no-referrer")
+	w.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; font-src 'self'; connect-src 'none'; worker-src 'self' blob:; frame-ancestors 'self'; object-src 'none'; base-uri 'none'; form-action 'none'")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 }
 
 func handleGameMakerExport(w http.ResponseWriter, r *http.Request, s *Server, projectID string) {

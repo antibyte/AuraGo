@@ -92,6 +92,33 @@ func TestGameMakerPreviewIsTokenScopedAndIframeCompatible(t *testing.T) {
 	if got := rec.Header().Get("X-Frame-Options"); got != "" {
 		t.Fatalf("Game Maker preview X-Frame-Options = %q, want empty", got)
 	}
+
+	root := t.TempDir()
+	service, err := gamemaker.NewService(gamemaker.Options{
+		DBPath:        filepath.Join(root, "game_maker.db"),
+		WorkspacePath: filepath.Join(root, "workspace"),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer service.Close()
+	previewRecorder := httptest.NewRecorder()
+	handleGameMakerPreview(&Server{GameMaker: service}).ServeHTTP(
+		previewRecorder,
+		httptest.NewRequest(http.MethodGet, previewPath, nil),
+	)
+	if previewRecorder.Code != http.StatusUnauthorized {
+		t.Fatalf("invalid preview token status = %d, want %d", previewRecorder.Code, http.StatusUnauthorized)
+	}
+	if got := previewRecorder.Header().Get("Access-Control-Allow-Origin"); got != "*" {
+		t.Fatalf("preview error Access-Control-Allow-Origin = %q, want *", got)
+	}
+	if got := previewRecorder.Header().Get("Cross-Origin-Resource-Policy"); got != "cross-origin" {
+		t.Fatalf("preview error Cross-Origin-Resource-Policy = %q, want cross-origin", got)
+	}
+	if got := previewRecorder.Header().Get("Cache-Control"); got != "no-store" {
+		t.Fatalf("preview error Cache-Control = %q, want no-store", got)
+	}
 }
 
 func TestGameMakerSSEReplaysMoreThanOnePageWithoutGaps(t *testing.T) {

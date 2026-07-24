@@ -13,28 +13,60 @@ import (
 //go:embed runtime/*
 var runtimeFS embed.FS
 
-func installRuntime(projectDir, dimension string) error {
-	vendorDir := filepath.Join(projectDir, "vendor")
-	if err := os.MkdirAll(vendorDir, 0o750); err != nil {
-		return fmt.Errorf("create game runtime directory: %w", err)
-	}
-	files := []string{"runtime/THIRD_PARTY_NOTICES.md"}
+type runtimeAsset struct {
+	embeddedPath string
+	projectPath  string
+}
+
+func bundledRuntimeAssets(dimension string) []runtimeAsset {
+	assets := []runtimeAsset{{
+		embeddedPath: "runtime/THIRD_PARTY_NOTICES.md",
+		projectPath:  "THIRD_PARTY_NOTICES.md",
+	}}
 	if dimension == "2d" {
-		files = append(files, "runtime/phaser-4.2.1.min.js")
-	} else {
-		files = append(files, "runtime/three-0.185.1.module.min.js")
+		return append(assets, runtimeAsset{
+			embeddedPath: "runtime/phaser-4.2.1.min.js",
+			projectPath:  "vendor/phaser-4.2.1.min.js",
+		})
 	}
-	for _, name := range files {
-		data, err := runtimeFS.ReadFile(name)
-		if err != nil {
-			return fmt.Errorf("read embedded game runtime %s: %w", name, err)
+	return append(assets,
+		runtimeAsset{
+			embeddedPath: "runtime/three-0.185.1.module.min.js",
+			projectPath:  "vendor/three-0.185.1.module.min.js",
+		},
+		runtimeAsset{
+			embeddedPath: "runtime/three.core.min.js",
+			projectPath:  "vendor/three.core.min.js",
+		},
+	)
+}
+
+func bundledRuntimeFile(dimension, projectPath string) ([]byte, bool, error) {
+	for _, asset := range bundledRuntimeAssets(dimension) {
+		if asset.projectPath != filepath.ToSlash(projectPath) {
+			continue
 		}
-		target := filepath.Join(vendorDir, filepath.Base(name))
-		if filepath.Base(name) == "THIRD_PARTY_NOTICES.md" {
-			target = filepath.Join(projectDir, "THIRD_PARTY_NOTICES.md")
+		data, err := runtimeFS.ReadFile(asset.embeddedPath)
+		if err != nil {
+			return nil, true, fmt.Errorf("read embedded game runtime %s: %w", asset.embeddedPath, err)
+		}
+		return data, true, nil
+	}
+	return nil, false, nil
+}
+
+func installRuntime(projectDir, dimension string) error {
+	for _, asset := range bundledRuntimeAssets(dimension) {
+		data, err := runtimeFS.ReadFile(asset.embeddedPath)
+		if err != nil {
+			return fmt.Errorf("read embedded game runtime %s: %w", asset.embeddedPath, err)
+		}
+		target := filepath.Join(projectDir, filepath.FromSlash(asset.projectPath))
+		if err := os.MkdirAll(filepath.Dir(target), 0o750); err != nil {
+			return fmt.Errorf("create game runtime directory: %w", err)
 		}
 		if err := os.WriteFile(target, data, 0o640); err != nil {
-			return fmt.Errorf("write embedded game runtime %s: %w", name, err)
+			return fmt.Errorf("write embedded game runtime %s: %w", asset.embeddedPath, err)
 		}
 	}
 	return nil

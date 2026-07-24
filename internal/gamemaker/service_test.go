@@ -175,6 +175,23 @@ func TestGameMakerPublishes2DAnd3DOfflineExports(t *testing.T) {
 			if published.ProjectKey != "Games/"+published.Slug || filepath.IsAbs(published.ProjectKey) {
 				t.Fatalf("unsafe public project key %q", published.ProjectKey)
 			}
+			if dimension == "3d" {
+				corePath := filepath.Join(service.opts.WorkspacePath, filepath.FromSlash(published.ProjectKey), "vendor", "three.core.min.js")
+				if err := os.Remove(corePath); err != nil {
+					t.Fatalf("remove core runtime to simulate legacy revision: %v", err)
+				}
+				grant, err := service.CreatePreviewGrant(project.ID)
+				if err != nil {
+					t.Fatalf("CreatePreviewGrant: %v", err)
+				}
+				core, contentType, err := service.PreviewFile(grant.Token, "vendor/three.core.min.js")
+				if err != nil {
+					t.Fatalf("legacy runtime preview fallback: %v", err)
+				}
+				if len(core) == 0 || !strings.Contains(contentType, "javascript") {
+					t.Fatalf("legacy runtime preview fallback = %d bytes, %q", len(core), contentType)
+				}
+			}
 			var output bytes.Buffer
 			name, err := service.WriteExport(context.Background(), project.ID, &output)
 			if err != nil {
@@ -194,11 +211,16 @@ func TestGameMakerPublishes2DAnd3DOfflineExports(t *testing.T) {
 					t.Fatalf("private metadata exported as %q", file.Name)
 				}
 			}
-			runtimeName := "vendor/phaser-" + PhaserVersion + ".min.js"
+			runtimeNames := []string{"vendor/phaser-" + PhaserVersion + ".min.js"}
 			if dimension == "3d" {
-				runtimeName = "vendor/three-" + ThreeVersion + ".module.min.js"
+				runtimeNames = []string{
+					"vendor/three-" + ThreeVersion + ".module.min.js",
+					"vendor/three.core.min.js",
+				}
 			}
-			for _, required := range []string{"game.json", "index.html", "src/main.ts", "dist/game.js", runtimeName, "THIRD_PARTY_NOTICES.md"} {
+			requiredEntries := []string{"game.json", "index.html", "src/main.ts", "dist/game.js", "THIRD_PARTY_NOTICES.md"}
+			requiredEntries = append(requiredEntries, runtimeNames...)
+			for _, required := range requiredEntries {
 				if !entries[required] {
 					t.Errorf("export missing %s", required)
 				}
