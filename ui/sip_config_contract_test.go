@@ -31,6 +31,10 @@ func TestSIPConfigUIUsesSavedStateAndMaskedSecret(t *testing.T) {
 		"sipWizardActivationMode", "data-sip-activation-mode",
 		"next.permissions.answer_inbound = true", "next.inbound.route = 'manual'",
 		"Array.isArray(state.outbound.allowed_users)",
+		"Array.isArray(state.outbound.denied_users)",
+		"data-sip-phone-blocked-targets", "data-sip-wizard-denied-callers",
+		"inbound.denied_callers", "outbound.denied_domains", "outbound.denied_users", "outbound.denied_e164_prefixes",
+		"config.sip.policy_precedence", "config.sip.allowed_callers_help", "config.sip.denied_callers_help",
 		"function sipHasUnsavedChanges()", "async function sipSaveUnsaved()",
 		"function sipDiscardUnsaved()",
 		"window.sipHasUnsavedChanges = sipHasUnsavedChanges",
@@ -123,6 +127,13 @@ func TestSIPConfigTranslationsComplete(t *testing.T) {
 		"config.sip.wizard.replace_confirm", "config.sip.wizard.replace_required", "config.sip.wizard.required",
 		"config.sip.wizard.review", "config.sip.wizard.safe_registration", "config.sip.wizard.safe_title",
 		"config.sip.wizard.search", "config.sip.wizard.server", "config.sip.wizard.title",
+		"config.sip.blocked_targets", "config.sip.blocked_targets_help",
+		"config.sip.denied_callers", "config.sip.denied_domains", "config.sip.denied_e164", "config.sip.denied_users",
+		"config.sip.policy_intro", "config.sip.policy_precedence", "config.sip.trusted_peers_help",
+		"config.sip.allowed_callers_help", "config.sip.denied_callers_help",
+		"config.sip.allowed_domains_help", "config.sip.denied_domains_help",
+		"config.sip.allowed_users_help", "config.sip.denied_users_help",
+		"config.sip.allowed_e164_help", "config.sip.denied_e164_help",
 	}
 	for _, locale := range locales {
 		data, err := os.ReadFile(filepath.Join("lang", "config", locale+".json"))

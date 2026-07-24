@@ -45,6 +45,19 @@ func TestNormalizeSIPConfigMovesE164UsersAndFillsDomain(t *testing.T) {
 	}
 }
 
+func TestNormalizeSIPConfigMovesDeniedE164Users(t *testing.T) {
+	var cfg SIPConfig
+	ApplySIPDefaults(&cfg)
+	cfg.Outbound.DeniedUsers = []string{"sales-*", "+49900"}
+	NormalizeSIPConfig(&cfg)
+	if len(cfg.Outbound.DeniedUsers) != 1 || cfg.Outbound.DeniedUsers[0] != "sales-*" {
+		t.Fatalf("unexpected denied users: %#v", cfg.Outbound.DeniedUsers)
+	}
+	if len(cfg.Outbound.DeniedE164Prefixes) != 1 || cfg.Outbound.DeniedE164Prefixes[0] != "+49900" {
+		t.Fatalf("unexpected denied E.164 prefixes: %#v", cfg.Outbound.DeniedE164Prefixes)
+	}
+}
+
 func TestValidateSIPConfigRequiresAllowlistsAndRuntimeSecret(t *testing.T) {
 	var cfg SIPConfig
 	ApplySIPDefaults(&cfg)
@@ -117,6 +130,24 @@ func TestValidateSIPConfigRejectsDomainInURIUsers(t *testing.T) {
 	cfg.Outbound.AllowedUsers = []string{"bob@pbx.example"}
 	if err := ValidateSIPConfig(cfg); err == nil {
 		t.Fatal("outbound allowed user must not contain a domain")
+	}
+}
+
+func TestValidateSIPConfigAllowsWildcardPolicies(t *testing.T) {
+	var cfg SIPConfig
+	ApplySIPDefaults(&cfg)
+	cfg.Inbound.AllowedCallers = []string{"sip:+49*@*.example.com", "desk-??"}
+	cfg.Inbound.DeniedCallers = []string{"sip:+49900*@*.example.com"}
+	cfg.Outbound.AllowedDomains = []string{"*.example.com"}
+	cfg.Outbound.DeniedDomains = []string{"premium.example.com"}
+	cfg.Outbound.AllowedUsers = []string{"sales-*"}
+	cfg.Outbound.DeniedUsers = []string{"sales-999"}
+	if err := ValidateSIPConfig(cfg); err != nil {
+		t.Fatalf("wildcard policies should be valid: %v", err)
+	}
+	cfg.Outbound.DeniedDomains = []string{"bad domain*"}
+	if err := ValidateSIPConfig(cfg); err == nil {
+		t.Fatal("invalid wildcard domain must be rejected")
 	}
 }
 

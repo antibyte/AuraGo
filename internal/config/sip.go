@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	sipConfigUserPattern   = regexp.MustCompile(`^[A-Za-z0-9_.!~*'()%+\-]+$`)
+	sipConfigUserPattern   = regexp.MustCompile(`^[A-Za-z0-9_.!~*?'()%+\-]+$`)
 	sipAuthUsernamePattern = regexp.MustCompile(`^[A-Za-z0-9_.!~*'()%+@\-]+$`)
 	sipPresetIDPattern     = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,63}$`)
 	sipE164PrefixPattern   = regexp.MustCompile(`^\+[1-9][0-9]{0,14}$`)
@@ -89,12 +89,16 @@ type SIPInboundConfig struct {
 	AutoAnswerDelayMS int      `yaml:"auto_answer_delay_ms" json:"auto_answer_delay_ms"`
 	TrustedPeerCIDRs  []string `yaml:"trusted_peer_cidrs" json:"trusted_peer_cidrs"`
 	AllowedCallers    []string `yaml:"allowed_callers" json:"allowed_callers"`
+	DeniedCallers     []string `yaml:"denied_callers,omitempty" json:"denied_callers"`
 }
 
 type SIPOutboundConfig struct {
 	AllowedDomains      []string `yaml:"allowed_domains" json:"allowed_domains"`
+	DeniedDomains       []string `yaml:"denied_domains,omitempty" json:"denied_domains"`
 	AllowedUsers        []string `yaml:"allowed_users" json:"allowed_users"`
+	DeniedUsers         []string `yaml:"denied_users,omitempty" json:"denied_users"`
 	AllowedE164Prefixes []string `yaml:"allowed_e164_prefixes" json:"allowed_e164_prefixes"`
+	DeniedE164Prefixes  []string `yaml:"denied_e164_prefixes,omitempty" json:"denied_e164_prefixes"`
 }
 
 type SIPPermissionsConfig struct {
@@ -164,9 +168,13 @@ func NormalizeSIPConfig(cfg *SIPConfig) {
 	cfg.Inbound.Route = strings.ToLower(strings.TrimSpace(cfg.Inbound.Route))
 	cfg.Inbound.TrustedPeerCIDRs = normalizedUnique(cfg.Inbound.TrustedPeerCIDRs, false)
 	cfg.Inbound.AllowedCallers = normalizedUnique(cfg.Inbound.AllowedCallers, true)
+	cfg.Inbound.DeniedCallers = normalizedUnique(cfg.Inbound.DeniedCallers, true)
 	cfg.Outbound.AllowedDomains = normalizedUnique(cfg.Outbound.AllowedDomains, true)
+	cfg.Outbound.DeniedDomains = normalizedUnique(cfg.Outbound.DeniedDomains, true)
 	cfg.Outbound.AllowedUsers = normalizedUnique(cfg.Outbound.AllowedUsers, false)
+	cfg.Outbound.DeniedUsers = normalizedUnique(cfg.Outbound.DeniedUsers, false)
 	cfg.Outbound.AllowedE164Prefixes = normalizedUnique(cfg.Outbound.AllowedE164Prefixes, false)
+	cfg.Outbound.DeniedE164Prefixes = normalizedUnique(cfg.Outbound.DeniedE164Prefixes, false)
 	// Exact E.164 values are destinations/prefixes, not SIP URI users. Keep them
 	// in the prefix list so dial policy and validation stay consistent.
 	if len(cfg.Outbound.AllowedUsers) > 0 {
@@ -180,6 +188,18 @@ func NormalizeSIPConfig(cfg *SIPConfig) {
 		}
 		cfg.Outbound.AllowedUsers = normalizedUnique(keptUsers, false)
 		cfg.Outbound.AllowedE164Prefixes = normalizedUnique(cfg.Outbound.AllowedE164Prefixes, false)
+	}
+	if len(cfg.Outbound.DeniedUsers) > 0 {
+		keptUsers := make([]string, 0, len(cfg.Outbound.DeniedUsers))
+		for _, user := range cfg.Outbound.DeniedUsers {
+			if sipE164PrefixPattern.MatchString(user) {
+				cfg.Outbound.DeniedE164Prefixes = append(cfg.Outbound.DeniedE164Prefixes, user)
+				continue
+			}
+			keptUsers = append(keptUsers, user)
+		}
+		cfg.Outbound.DeniedUsers = normalizedUnique(keptUsers, false)
+		cfg.Outbound.DeniedE164Prefixes = normalizedUnique(cfg.Outbound.DeniedE164Prefixes, false)
 	}
 	// Dial requires an allowlisted domain. When destinations exist and the
 	// account domain is known, include it so saved numbers are actually usable.
@@ -223,9 +243,13 @@ func ValidateSIPConfig(cfg SIPConfig) error {
 	for name, values := range map[string][]string{
 		"inbound.trusted_peer_cidrs":     cfg.Inbound.TrustedPeerCIDRs,
 		"inbound.allowed_callers":        cfg.Inbound.AllowedCallers,
+		"inbound.denied_callers":         cfg.Inbound.DeniedCallers,
 		"outbound.allowed_domains":       cfg.Outbound.AllowedDomains,
+		"outbound.denied_domains":        cfg.Outbound.DeniedDomains,
 		"outbound.allowed_users":         cfg.Outbound.AllowedUsers,
+		"outbound.denied_users":          cfg.Outbound.DeniedUsers,
 		"outbound.allowed_e164_prefixes": cfg.Outbound.AllowedE164Prefixes,
+		"outbound.denied_e164_prefixes":  cfg.Outbound.DeniedE164Prefixes,
 		"voice.allowed_tools":            cfg.Voice.AllowedTools,
 	} {
 		for _, value := range values {
@@ -319,8 +343,18 @@ func ValidateSIPConfig(cfg SIPConfig) error {
 		}
 	}
 	for _, domain := range cfg.Outbound.AllowedDomains {
-		if !validSIPDomain(domain) {
+		if !validSIPDomainPattern(domain) {
 			return fmt.Errorf("invalid sip.outbound.allowed_domains entry %q", domain)
+		}
+	}
+	for _, domain := range cfg.Outbound.DeniedDomains {
+		if !validSIPDomainPattern(domain) {
+			return fmt.Errorf("invalid sip.outbound.denied_domains entry %q", domain)
+		}
+	}
+	for _, caller := range append(append([]string(nil), cfg.Inbound.AllowedCallers...), cfg.Inbound.DeniedCallers...) {
+		if !validSIPCallerPattern(caller) {
+			return fmt.Errorf("invalid SIP caller pattern %q", caller)
 		}
 	}
 	for _, user := range cfg.Outbound.AllowedUsers {
@@ -328,9 +362,19 @@ func ValidateSIPConfig(cfg SIPConfig) error {
 			return fmt.Errorf("invalid sip.outbound.allowed_users entry %q", user)
 		}
 	}
+	for _, user := range cfg.Outbound.DeniedUsers {
+		if !sipConfigUserPattern.MatchString(user) {
+			return fmt.Errorf("invalid sip.outbound.denied_users entry %q", user)
+		}
+	}
 	for _, prefix := range cfg.Outbound.AllowedE164Prefixes {
 		if !sipE164PrefixPattern.MatchString(prefix) {
 			return fmt.Errorf("invalid sip.outbound.allowed_e164_prefixes entry %q", prefix)
+		}
+	}
+	for _, prefix := range cfg.Outbound.DeniedE164Prefixes {
+		if !sipE164PrefixPattern.MatchString(prefix) {
+			return fmt.Errorf("invalid sip.outbound.denied_e164_prefixes entry %q", prefix)
 		}
 	}
 	switch cfg.Voice.Backend {
@@ -370,6 +414,37 @@ func validSIPDomain(value string) bool {
 		}
 	}
 	return true
+}
+
+func validSIPDomainPattern(value string) bool {
+	value = strings.TrimSpace(strings.TrimSuffix(value, "."))
+	if value == "" || len(value) > 253 || strings.ContainsAny(value, " \t\r\n/@;") {
+		return false
+	}
+	for _, char := range value {
+		if (char < 'a' || char > 'z') && (char < 'A' || char > 'Z') &&
+			(char < '0' || char > '9') && char != '-' && char != '.' &&
+			char != ':' && char != '[' && char != ']' && char != '*' && char != '?' {
+			return false
+		}
+	}
+	if !strings.ContainsAny(value, "*?") {
+		return validSIPDomain(value)
+	}
+	return !strings.Contains(value, "..")
+}
+
+func validSIPCallerPattern(value string) bool {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return false
+	}
+	if !strings.Contains(value, "@") {
+		return sipConfigUserPattern.MatchString(value)
+	}
+	value = strings.TrimPrefix(strings.ToLower(value), "sip:")
+	user, domain, ok := strings.Cut(value, "@")
+	return ok && sipConfigUserPattern.MatchString(user) && validSIPDomainPattern(domain)
 }
 
 // ValidateSIPRuntimeConfig adds checks that require Vault-hydrated secrets.

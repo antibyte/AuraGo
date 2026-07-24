@@ -48,9 +48,28 @@ func DestinationAllowed(cfg config.SIPOutboundConfig, uri sip.Uri) bool {
 	if len(cfg.AllowedDomains) == 0 || (len(cfg.AllowedUsers) == 0 && len(cfg.AllowedE164Prefixes) == 0) {
 		return false
 	}
+	host := strings.ToLower(strings.TrimSuffix(strings.TrimSpace(uri.Host), "."))
+	for _, domain := range cfg.DeniedDomains {
+		if wildcardMatch(strings.ToLower(strings.TrimSuffix(strings.TrimSpace(domain), ".")), host) {
+			return false
+		}
+	}
+	for _, user := range cfg.DeniedUsers {
+		if wildcardMatch(strings.TrimSpace(user), uri.User) {
+			return false
+		}
+	}
+	if e164Pattern.MatchString(uri.User) {
+		for _, prefix := range cfg.DeniedE164Prefixes {
+			prefix = strings.TrimSpace(prefix)
+			if e164Prefix.MatchString(prefix) && strings.HasPrefix(uri.User, prefix) {
+				return false
+			}
+		}
+	}
 	domainAllowed := false
 	for _, domain := range cfg.AllowedDomains {
-		if strings.EqualFold(strings.TrimSuffix(strings.TrimSpace(domain), "."), uri.Host) {
+		if wildcardMatch(strings.ToLower(strings.TrimSuffix(strings.TrimSpace(domain), ".")), host) {
 			domainAllowed = true
 			break
 		}
@@ -59,7 +78,7 @@ func DestinationAllowed(cfg config.SIPOutboundConfig, uri sip.Uri) bool {
 		return false
 	}
 	for _, user := range cfg.AllowedUsers {
-		if strings.TrimSpace(user) == uri.User {
+		if wildcardMatch(strings.TrimSpace(user), uri.User) {
 			return true
 		}
 	}
@@ -104,13 +123,52 @@ func CallerAllowed(cfg config.SIPInboundConfig, source string, from sip.Uri) boo
 		return false
 	}
 	canonical := strings.ToLower((&sip.Uri{Scheme: "sip", User: from.User, Host: strings.ToLower(strings.TrimSuffix(from.Host, "."))}).String())
+	user := strings.ToLower(from.User)
+	for _, denied := range cfg.DeniedCallers {
+		denied = strings.ToLower(strings.TrimSpace(denied))
+		if wildcardMatch(denied, user) || wildcardMatch(denied, canonical) {
+			return false
+		}
+	}
 	for _, allowed := range cfg.AllowedCallers {
 		allowed = strings.ToLower(strings.TrimSpace(allowed))
-		if allowed == strings.ToLower(from.User) || allowed == canonical {
+		if wildcardMatch(allowed, user) || wildcardMatch(allowed, canonical) {
 			return true
 		}
 	}
 	return false
+}
+
+// wildcardMatch supports the deliberately small policy syntax used by SIP lists:
+// '*' matches any sequence and '?' matches exactly one character.
+func wildcardMatch(pattern, value string) bool {
+	patternRunes := []rune(pattern)
+	valueRunes := []rune(value)
+	patternIndex, valueIndex := 0, 0
+	starIndex, starValueIndex := -1, 0
+	for valueIndex < len(valueRunes) {
+		if patternIndex < len(patternRunes) && (patternRunes[patternIndex] == '?' || patternRunes[patternIndex] == valueRunes[valueIndex]) {
+			patternIndex++
+			valueIndex++
+			continue
+		}
+		if patternIndex < len(patternRunes) && patternRunes[patternIndex] == '*' {
+			starIndex = patternIndex
+			starValueIndex = valueIndex
+			patternIndex++
+			continue
+		}
+		if starIndex < 0 {
+			return false
+		}
+		patternIndex = starIndex + 1
+		starValueIndex++
+		valueIndex = starValueIndex
+	}
+	for patternIndex < len(patternRunes) && patternRunes[patternIndex] == '*' {
+		patternIndex++
+	}
+	return patternIndex == len(patternRunes)
 }
 
 func ValidateRequest(req *sip.Request) error {

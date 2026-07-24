@@ -237,9 +237,13 @@ func sipConfigSnapshot(s *Server) config.SIPConfig {
 	snapshot.Media.Codecs = append([]string(nil), snapshot.Media.Codecs...)
 	snapshot.Inbound.TrustedPeerCIDRs = append([]string(nil), snapshot.Inbound.TrustedPeerCIDRs...)
 	snapshot.Inbound.AllowedCallers = append([]string(nil), snapshot.Inbound.AllowedCallers...)
+	snapshot.Inbound.DeniedCallers = append([]string(nil), snapshot.Inbound.DeniedCallers...)
 	snapshot.Outbound.AllowedDomains = append([]string(nil), snapshot.Outbound.AllowedDomains...)
+	snapshot.Outbound.DeniedDomains = append([]string(nil), snapshot.Outbound.DeniedDomains...)
 	snapshot.Outbound.AllowedUsers = append([]string(nil), snapshot.Outbound.AllowedUsers...)
+	snapshot.Outbound.DeniedUsers = append([]string(nil), snapshot.Outbound.DeniedUsers...)
 	snapshot.Outbound.AllowedE164Prefixes = append([]string(nil), snapshot.Outbound.AllowedE164Prefixes...)
+	snapshot.Outbound.DeniedE164Prefixes = append([]string(nil), snapshot.Outbound.DeniedE164Prefixes...)
 	snapshot.Voice.AllowedTools = append([]string(nil), snapshot.Voice.AllowedTools...)
 	s.CfgMu.RUnlock()
 	return snapshot

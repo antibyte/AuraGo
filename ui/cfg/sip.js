@@ -14,6 +14,8 @@ let sipPhoneTargets = '';
 let sipWizardActivationMode = 'registration'; // registration | desktop
 let sipWizardTrustedPeers = '';
 let sipWizardAllowedCallers = '';
+let sipWizardDeniedCallers = '';
+let sipPhoneBlockedTargets = '';
 
 function sipEsc(value) {
     return String(value == null ? '' : value)
@@ -39,10 +41,14 @@ function sipNormalize(data) {
     state.inbound.route = state.inbound.route || 'agent';
     state.inbound.trusted_peer_cidrs = Array.isArray(state.inbound.trusted_peer_cidrs) ? state.inbound.trusted_peer_cidrs : [];
     state.inbound.allowed_callers = Array.isArray(state.inbound.allowed_callers) ? state.inbound.allowed_callers : [];
+    state.inbound.denied_callers = Array.isArray(state.inbound.denied_callers) ? state.inbound.denied_callers : [];
     state.outbound = state.outbound || {};
     state.outbound.allowed_domains = Array.isArray(state.outbound.allowed_domains) ? state.outbound.allowed_domains : [];
+    state.outbound.denied_domains = Array.isArray(state.outbound.denied_domains) ? state.outbound.denied_domains : [];
     state.outbound.allowed_users = Array.isArray(state.outbound.allowed_users) ? state.outbound.allowed_users : [];
+    state.outbound.denied_users = Array.isArray(state.outbound.denied_users) ? state.outbound.denied_users : [];
     state.outbound.allowed_e164_prefixes = Array.isArray(state.outbound.allowed_e164_prefixes) ? state.outbound.allowed_e164_prefixes : [];
+    state.outbound.denied_e164_prefixes = Array.isArray(state.outbound.denied_e164_prefixes) ? state.outbound.denied_e164_prefixes : [];
     state.permissions = state.permissions || {};
     state.voice = state.voice || {};
     state.password = '';
@@ -50,12 +56,13 @@ function sipNormalize(data) {
     return state;
 }
 
-function sipField(path, label, type, value, extra) {
+function sipField(path, label, type, value, extra, help) {
     const attrs = extra || '';
+    const helpMarkup = help ? `<small>${sipEsc(help)}</small>` : '';
     if (type === 'checkbox') {
-        return `<label class="field-group sip-toggle-field"><span class="field-label">${sipEsc(label)}</span><span class="toggle-wrap"><span class="toggle"><input type="checkbox" data-sip="${path}" ${value ? 'checked' : ''} ${attrs}><span class="slider"></span></span></span></label>`;
+        return `<label class="field-group sip-toggle-field"><span><span class="field-label">${sipEsc(label)}</span>${helpMarkup}</span><span class="toggle-wrap"><span class="toggle"><input type="checkbox" data-sip="${path}" ${value ? 'checked' : ''} ${attrs}><span class="slider"></span></span></span></label>`;
     }
-    return `<label class="field-group"><span class="field-label">${sipEsc(label)}</span><input class="field-input" type="${type}" data-sip="${path}" value="${sipEsc(value)}" ${attrs}></label>`;
+    return `<label class="field-group"><span class="field-label">${sipEsc(label)}</span><input class="field-input" type="${type}" data-sip="${path}" value="${sipEsc(value)}" ${attrs}>${helpMarkup}</label>`;
 }
 
 function sipSelect(path, label, value, options) {
@@ -140,6 +147,12 @@ function sipDesktopActivationFieldsMarkup() {
             <small>${sipEsc(t('config.sip.wizard.phone_targets_hint'))}</small>
         </label>
         <label class="field-group">
+            <span class="field-label">${sipEsc(t('config.sip.blocked_targets'))}</span>
+            <input class="field-input" type="text" data-sip-phone-blocked-targets value="${sipEsc(sipPhoneBlockedTargets)}"
+                placeholder="+49900, premium-*" autocomplete="off" maxlength="1024">
+            <small>${sipEsc(t('config.sip.blocked_targets_help'))}</small>
+        </label>
+        <label class="field-group">
             <span class="field-label">${sipEsc(t('config.sip.wizard.trusted_peers'))}</span>
             <input class="field-input" type="text" data-sip-wizard-trusted-peers value="${sipEsc(sipWizardTrustedPeers)}"
                 placeholder="${sipEsc(t('config.sip.wizard.trusted_peers_placeholder'))}" autocomplete="off" maxlength="1024">
@@ -150,6 +163,12 @@ function sipDesktopActivationFieldsMarkup() {
             <input class="field-input" type="text" data-sip-wizard-allowed-callers value="${sipEsc(sipWizardAllowedCallers)}"
                 placeholder="${sipEsc(t('config.sip.wizard.allowed_callers_placeholder'))}" autocomplete="off" maxlength="1024">
             <small>${sipEsc(t('config.sip.wizard.allowed_callers_hint'))}</small>
+        </label>
+        <label class="field-group">
+            <span class="field-label">${sipEsc(t('config.sip.denied_callers'))}</span>
+            <input class="field-input" type="text" data-sip-wizard-denied-callers value="${sipEsc(sipWizardDeniedCallers)}"
+                placeholder="+49900*, sip:blocked@*" autocomplete="off" maxlength="1024">
+            <small>${sipEsc(t('config.sip.denied_callers_help'))}</small>
         </label>
     </div>`;
 }
@@ -322,14 +341,21 @@ function sipAdvancedMarkup(c) {
                 </div>
             </div>
 
-            <div class="sip-settings-group"><h3>${sipEsc(t('config.sip.routing'))}</h3><div class="sip-settings-grid">
+            <div class="sip-settings-group"><h3>${sipEsc(t('config.sip.routing'))}</h3>
+                <p class="sip-settings-hint">${sipEsc(t('config.sip.policy_intro'))}</p>
+                <div class="sip-policy-legend">${sipEsc(t('config.sip.policy_precedence'))}</div>
+                <div class="sip-settings-grid">
                 ${sipSelect('inbound.route', t('config.sip.inbound_route'), c.inbound.route || 'agent', [['agent', t('config.sip.route_agent')], ['manual', t('config.sip.route_manual')], ['reject', t('config.sip.route_reject')]])}
                 ${sipField('inbound.auto_answer_delay_ms', t('config.sip.auto_answer_delay'), 'number', c.inbound.auto_answer_delay_ms ?? 1000, 'min="0" max="60000"')}
-                ${sipField('inbound.trusted_peer_cidrs', t('config.sip.trusted_peers'), 'text', sipList(c.inbound.trusted_peer_cidrs))}
-                ${sipField('inbound.allowed_callers', t('config.sip.allowed_callers'), 'text', sipList(c.inbound.allowed_callers))}
-                ${sipField('outbound.allowed_domains', t('config.sip.allowed_domains'), 'text', sipList(c.outbound.allowed_domains))}
-                ${sipField('outbound.allowed_users', t('config.sip.allowed_users'), 'text', sipList(c.outbound.allowed_users))}
-                ${sipField('outbound.allowed_e164_prefixes', t('config.sip.allowed_e164'), 'text', sipList(c.outbound.allowed_e164_prefixes))}
+                ${sipField('inbound.trusted_peer_cidrs', t('config.sip.trusted_peers'), 'text', sipList(c.inbound.trusted_peer_cidrs), 'placeholder="192.168.1.1, 192.168.1.0/24"', t('config.sip.trusted_peers_help'))}
+                ${sipField('inbound.allowed_callers', t('config.sip.allowed_callers'), 'text', sipList(c.inbound.allowed_callers), 'placeholder="101, +49*, sip:service-?@pbx.example"', t('config.sip.allowed_callers_help'))}
+                ${sipField('inbound.denied_callers', t('config.sip.denied_callers'), 'text', sipList(c.inbound.denied_callers), 'placeholder="+49900*, sip:blocked@*"', t('config.sip.denied_callers_help'))}
+                ${sipField('outbound.allowed_domains', t('config.sip.allowed_domains'), 'text', sipList(c.outbound.allowed_domains), 'placeholder="pbx.example, *.example.com"', t('config.sip.allowed_domains_help'))}
+                ${sipField('outbound.denied_domains', t('config.sip.denied_domains'), 'text', sipList(c.outbound.denied_domains), 'placeholder="premium.example.com"', t('config.sip.denied_domains_help'))}
+                ${sipField('outbound.allowed_users', t('config.sip.allowed_users'), 'text', sipList(c.outbound.allowed_users), 'placeholder="101, sales-*, *"', t('config.sip.allowed_users_help'))}
+                ${sipField('outbound.denied_users', t('config.sip.denied_users'), 'text', sipList(c.outbound.denied_users), 'placeholder="0900*, service-??"', t('config.sip.denied_users_help'))}
+                ${sipField('outbound.allowed_e164_prefixes', t('config.sip.allowed_e164'), 'text', sipList(c.outbound.allowed_e164_prefixes), 'placeholder="+49, +43"', t('config.sip.allowed_e164_help'))}
+                ${sipField('outbound.denied_e164_prefixes', t('config.sip.denied_e164'), 'text', sipList(c.outbound.denied_e164_prefixes), 'placeholder="+49900, +43810"', t('config.sip.denied_e164_help'))}
             </div></div>
 
             <div class="sip-settings-group"><h3>${sipEsc(t('config.sip.permissions'))}</h3><div class="sip-settings-grid">
@@ -398,6 +424,9 @@ function sipNormalizeOutboundPayload(payload) {
     const classified = sipCanonicalDestinations(payload.outbound.allowed_users, payload.outbound.allowed_e164_prefixes);
     payload.outbound.allowed_users = classified.users;
     payload.outbound.allowed_e164_prefixes = classified.prefixes;
+    const denied = sipCanonicalDestinations(payload.outbound.denied_users, payload.outbound.denied_e164_prefixes);
+    payload.outbound.denied_users = denied.users;
+    payload.outbound.denied_e164_prefixes = denied.prefixes;
     const domain = String(payload.domain || '').trim().toLowerCase();
     const domains = Array.isArray(payload.outbound.allowed_domains) ? payload.outbound.allowed_domains.slice() : [];
     if (domain && (classified.users.length || classified.prefixes.length) && !domains.map(item => String(item).toLowerCase()).includes(domain)) {
@@ -433,10 +462,17 @@ function sipIsDirty() {
             ...(sipConfigState.outbound.allowed_e164_prefixes || [])
         ]);
         if (String(sipPhoneTargets || '').trim() !== String(savedTargets || '').trim()) return true;
+        const savedBlockedTargets = sipList([
+            ...(sipConfigState.outbound.denied_users || []),
+            ...(sipConfigState.outbound.denied_e164_prefixes || [])
+        ]);
+        if (String(sipPhoneBlockedTargets || '').trim() !== String(savedBlockedTargets || '').trim()) return true;
         const savedPeers = sipList(sipConfigState.inbound.trusted_peer_cidrs || []);
         const savedCallers = sipList(sipConfigState.inbound.allowed_callers || []);
+        const savedDeniedCallers = sipList(sipConfigState.inbound.denied_callers || []);
         if (String(sipWizardTrustedPeers || '').trim() !== String(savedPeers || '').trim()) return true;
         if (String(sipWizardAllowedCallers || '').trim() !== String(savedCallers || '').trim()) return true;
+        if (String(sipWizardDeniedCallers || '').trim() !== String(savedDeniedCallers || '').trim()) return true;
     }
     return false;
 }
@@ -511,6 +547,14 @@ function sipBindEvents() {
         sipWizardAllowedCallers = event.target.value;
         sipNotifyDirty();
     });
+    document.querySelector('[data-sip-wizard-denied-callers]')?.addEventListener('input', event => {
+        sipWizardDeniedCallers = event.target.value;
+        sipNotifyDirty();
+    });
+    document.querySelector('[data-sip-phone-blocked-targets]')?.addEventListener('input', event => {
+        sipPhoneBlockedTargets = event.target.value;
+        sipNotifyDirty();
+    });
     document.querySelector('[data-sip-wizard="enable-phone"]')?.addEventListener('click', sipEnableBrowserPhone);
 }
 
@@ -553,7 +597,7 @@ function sipParsePhoneTargets(raw) {
     for (const target of sipSplit(raw)) {
         if (/^\+[1-9][0-9]{0,14}$/.test(target)) {
             prefixes.push(target);
-        } else if (/^[A-Za-z0-9_.!~*'()%+\-]+$/.test(target)) {
+        } else if (/^[A-Za-z0-9_.!~*?'()%+\-]+$/.test(target)) {
             users.push(target);
         } else {
             throw new Error(t('config.sip.wizard.phone_invalid', { target }));
@@ -571,12 +615,14 @@ function sipParseAllowlist(raw, emptyErrorKey) {
 
 function sipReadDesktopActivationOptions() {
     const targets = sipParsePhoneTargets(sipPhoneTargets);
+    const blockedTargets = sipPhoneBlockedTargets.trim() ? sipParsePhoneTargets(sipPhoneBlockedTargets) : { users: [], prefixes: [] };
     const trustedPeers = sipParseAllowlist(sipWizardTrustedPeers, 'config.sip.wizard.trusted_peers_required');
     const allowedCallers = sipParseAllowlist(sipWizardAllowedCallers, 'config.sip.wizard.allowed_callers_required');
-    return { targets, trustedPeers, allowedCallers };
+    const deniedCallers = sipSplit(sipWizardDeniedCallers);
+    return { targets, blockedTargets, trustedPeers, allowedCallers, deniedCallers };
 }
 
-function sipPatchOutboundPhoneConfig(base, targets) {
+function sipPatchOutboundPhoneConfig(base, targets, blockedTargets) {
     const next = JSON.parse(JSON.stringify(base));
     next.readonly = false;
     next.browser_media = next.browser_media || {};
@@ -585,6 +631,8 @@ function sipPatchOutboundPhoneConfig(base, targets) {
     next.outbound.allowed_domains = next.domain ? [next.domain] : [];
     next.outbound.allowed_users = targets.users.slice();
     next.outbound.allowed_e164_prefixes = targets.prefixes.slice();
+    next.outbound.denied_users = (blockedTargets?.users || []).slice();
+    next.outbound.denied_e164_prefixes = (blockedTargets?.prefixes || []).slice();
     next.permissions = next.permissions || {};
     next.permissions.originate_outbound = true;
     next.permissions.send_dtmf = true;
@@ -594,11 +642,12 @@ function sipPatchOutboundPhoneConfig(base, targets) {
 }
 
 function sipPatchDesktopPhoneConfig(base, options) {
-    const next = sipPatchOutboundPhoneConfig(base, options.targets);
+    const next = sipPatchOutboundPhoneConfig(base, options.targets, options.blockedTargets);
     next.inbound = next.inbound || {};
     next.inbound.route = 'manual';
     next.inbound.trusted_peer_cidrs = options.trustedPeers.slice();
     next.inbound.allowed_callers = options.allowedCallers.slice();
+    next.inbound.denied_callers = options.deniedCallers.slice();
     next.permissions.answer_inbound = true;
     return next;
 }
@@ -616,8 +665,13 @@ async function sipPersistDesktopPhone(base, options) {
         ...(sipConfigState.outbound.allowed_users || []),
         ...(sipConfigState.outbound.allowed_e164_prefixes || [])
     ]);
+    sipPhoneBlockedTargets = sipList([
+        ...(sipConfigState.outbound.denied_users || []),
+        ...(sipConfigState.outbound.denied_e164_prefixes || [])
+    ]);
     sipWizardTrustedPeers = sipList(sipConfigState.inbound.trusted_peer_cidrs || []);
     sipWizardAllowedCallers = sipList(sipConfigState.inbound.allowed_callers || []);
+    sipWizardDeniedCallers = sipList(sipConfigState.inbound.denied_callers || []);
     sipMarkClean();
     const needsRestart = !browserMediaWasEnabled || !!(result && (result.needs_restart || result.status === 'pending'));
     return { result, needsRestart };
@@ -745,7 +799,7 @@ function sipRead(options) {
     document.querySelectorAll('[data-sip]').forEach(input => {
         let value = input.type === 'checkbox' ? input.checked : input.value;
         if (input.type === 'number') value = Number(value);
-        if (['media.codecs', 'inbound.trusted_peer_cidrs', 'inbound.allowed_callers', 'outbound.allowed_domains', 'outbound.allowed_users', 'outbound.allowed_e164_prefixes', 'voice.allowed_tools'].includes(input.dataset.sip)) value = sipSplit(value);
+        if (['media.codecs', 'inbound.trusted_peer_cidrs', 'inbound.allowed_callers', 'inbound.denied_callers', 'outbound.allowed_domains', 'outbound.denied_domains', 'outbound.allowed_users', 'outbound.denied_users', 'outbound.allowed_e164_prefixes', 'outbound.denied_e164_prefixes', 'voice.allowed_tools'].includes(input.dataset.sip)) value = sipSplit(value);
         sipAssign(result, input.dataset.sip, value);
     });
     if (!forCompare && sipAdvancedDirty) result.preset_id = '';
@@ -774,11 +828,11 @@ async function sipRequest(path, options) {
 }
 
 function sipActivationPanelOpen() {
-    return !!document.querySelector('[data-sip-phone-targets], [data-sip-wizard-trusted-peers], [data-sip-wizard-allowed-callers]');
+    return !!document.querySelector('[data-sip-phone-targets], [data-sip-phone-blocked-targets], [data-sip-wizard-trusted-peers], [data-sip-wizard-allowed-callers], [data-sip-wizard-denied-callers]');
 }
 
 function sipActivationPanelFilled() {
-    return !!(String(sipPhoneTargets || '').trim() || String(sipWizardTrustedPeers || '').trim() || String(sipWizardAllowedCallers || '').trim());
+    return !!(String(sipPhoneTargets || '').trim() || String(sipPhoneBlockedTargets || '').trim() || String(sipWizardTrustedPeers || '').trim() || String(sipWizardAllowedCallers || '').trim() || String(sipWizardDeniedCallers || '').trim());
 }
 
 async function sipSave() {
@@ -797,7 +851,8 @@ async function sipSave() {
                 if (hasInbound) {
                     payload = sipPatchDesktopPhoneConfig(payload, sipReadDesktopActivationOptions());
                 } else {
-                    payload = sipPatchOutboundPhoneConfig(payload, sipParsePhoneTargets(sipPhoneTargets));
+                    const blockedTargets = sipPhoneBlockedTargets.trim() ? sipParsePhoneTargets(sipPhoneBlockedTargets) : { users: [], prefixes: [] };
+                    payload = sipPatchOutboundPhoneConfig(payload, sipParsePhoneTargets(sipPhoneTargets), blockedTargets);
                 }
             } catch (error) {
                 if (status) status.textContent = error.message;
@@ -824,6 +879,10 @@ async function sipSave() {
         sipPhoneTargets = sipList([
             ...(sipConfigState.outbound.allowed_users || []),
             ...(sipConfigState.outbound.allowed_e164_prefixes || [])
+        ]);
+        sipPhoneBlockedTargets = sipList([
+            ...(sipConfigState.outbound.denied_users || []),
+            ...(sipConfigState.outbound.denied_e164_prefixes || [])
         ]);
         sipWizardTrustedPeers = sipList(sipConfigState.inbound.trusted_peer_cidrs || []);
         sipWizardAllowedCallers = sipList(sipConfigState.inbound.allowed_callers || []);
@@ -861,8 +920,13 @@ function sipDiscardUnsaved() {
             ...(sipConfigState.outbound.allowed_users || []),
             ...(sipConfigState.outbound.allowed_e164_prefixes || [])
         ]);
+        sipPhoneBlockedTargets = sipList([
+            ...(sipConfigState.outbound.denied_users || []),
+            ...(sipConfigState.outbound.denied_e164_prefixes || [])
+        ]);
         sipWizardTrustedPeers = sipList(sipConfigState.inbound.trusted_peer_cidrs || []);
         sipWizardAllowedCallers = sipList(sipConfigState.inbound.allowed_callers || []);
+        sipWizardDeniedCallers = sipList(sipConfigState.inbound.denied_callers || []);
     } else {
         sipPhoneTargets = '';
         sipWizardTrustedPeers = '';
@@ -910,9 +974,11 @@ async function renderSIPSection() {
     sipWizardActivationMode = 'registration';
     sipWizardTrustedPeers = '';
     sipWizardAllowedCallers = '';
+    sipWizardDeniedCallers = '';
     sipAdvancedDirty = false;
     sipAdvancedOpen = false;
     sipPhoneTargets = '';
+    sipPhoneBlockedTargets = '';
     const content = document.getElementById('content');
     content.innerHTML = `<div class="cfg-section active"><div class="cfg-loading-state">${sipEsc(t('config.sip.loading'))}</div></div>`;
     try {

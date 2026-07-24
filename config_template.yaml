@@ -185,11 +185,15 @@ sip:
         route: agent                                        # agent, manual, reject
         auto_answer_delay_ms: 1000
         trusted_peer_cidrs: []                              # PBX/proxy source IPs or CIDRs
-        allowed_callers: []                                 # exact SIP URIs or exact users
+        allowed_callers: []                                 # positive list; users/SIP URIs, * and ? wildcards
+        denied_callers: []                                  # negative list; overrides allowed_callers
     outbound:
-        allowed_domains: []
-        allowed_users: []
-        allowed_e164_prefixes: []
+        allowed_domains: []                                 # positive list; e.g. pbx.example or *.example
+        denied_domains: []                                  # negative list; overrides allowed_domains
+        allowed_users: []                                   # positive list; e.g. 101, sales-*, *
+        denied_users: []                                    # negative list; overrides allowed_users
+        allowed_e164_prefixes: []                           # international prefixes, e.g. +49
+        denied_e164_prefixes: []                            # blocked prefixes; overrides positive lists
     permissions:
         answer_inbound: false
         originate_outbound: false

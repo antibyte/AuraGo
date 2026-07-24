@@ -88,6 +88,48 @@ func TestNormalizeSIPURIAndDestinationPolicy(t *testing.T) {
 	}
 }
 
+func TestDestinationPolicySupportsWildcardsAndDenyPrecedence(t *testing.T) {
+	cfg := config.SIPOutboundConfig{
+		AllowedDomains: []string{"*.example.com"},
+		DeniedDomains:  []string{"premium.example.com"},
+		AllowedUsers:   []string{"sales-*", "desk-??"},
+		DeniedUsers:    []string{"sales-999"},
+	}
+	for _, test := range []struct {
+		raw     string
+		allowed bool
+	}{
+		{"sip:sales-123@branch.example.com", true},
+		{"sip:desk-ab@branch.example.com", true},
+		{"sip:desk-abc@branch.example.com", false},
+		{"sip:sales-999@branch.example.com", false},
+		{"sip:sales-123@premium.example.com", false},
+	} {
+		uri, _, err := NormalizeSIPURI(test.raw)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := DestinationAllowed(cfg, uri); got != test.allowed {
+			t.Errorf("DestinationAllowed(%q) = %v, want %v", test.raw, got, test.allowed)
+		}
+	}
+}
+
+func TestDestinationPolicyDeniedE164PrefixOverridesAllow(t *testing.T) {
+	uri, _, err := NormalizeSIPURI("sip:+49900123@example.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg := config.SIPOutboundConfig{
+		AllowedDomains:      []string{"example.com"},
+		AllowedE164Prefixes: []string{"+49"},
+		DeniedE164Prefixes:  []string{"+49900"},
+	}
+	if DestinationAllowed(cfg, uri) {
+		t.Fatal("denied E.164 prefix must override the allowed prefix")
+	}
+}
+
 func TestCallerAllowedRequiresPeerAndIdentity(t *testing.T) {
 	cfg := config.SIPInboundConfig{
 		TrustedPeerCIDRs: []string{"192.168.10.0/24"},
@@ -106,6 +148,20 @@ func TestCallerAllowedRequiresPeerAndIdentity(t *testing.T) {
 	cfg.TrustedPeerCIDRs = []string{"192.168.10.5"}
 	if !CallerAllowed(cfg, "192.168.10.5:5060", from) {
 		t.Fatal("exact trusted peer IP should pass")
+	}
+}
+
+func TestCallerPolicySupportsWildcardsAndDenyPrecedence(t *testing.T) {
+	cfg := config.SIPInboundConfig{
+		TrustedPeerCIDRs: []string{"192.168.10.0/24"},
+		AllowedCallers:   []string{"sip:+49*@*.example.com"},
+		DeniedCallers:    []string{"sip:+49900*@*.example.com"},
+	}
+	if !CallerAllowed(cfg, "192.168.10.5:5060", sip.Uri{Scheme: "sip", User: "+491701234567", Host: "pbx.example.com"}) {
+		t.Fatal("wildcard caller should pass")
+	}
+	if CallerAllowed(cfg, "192.168.10.5:5060", sip.Uri{Scheme: "sip", User: "+49900123", Host: "pbx.example.com"}) {
+		t.Fatal("denied caller wildcard must override the allowlist")
 	}
 }
 

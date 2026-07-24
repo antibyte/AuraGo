@@ -132,9 +132,13 @@ func ApplySIPProviderPreset(presetID string, values map[string]string) (config.S
 	result.Inbound.Route = "reject"
 	result.Inbound.TrustedPeerCIDRs = nil
 	result.Inbound.AllowedCallers = nil
+	result.Inbound.DeniedCallers = nil
 	result.Outbound.AllowedDomains = nil
+	result.Outbound.DeniedDomains = nil
 	result.Outbound.AllowedUsers = nil
+	result.Outbound.DeniedUsers = nil
 	result.Outbound.AllowedE164Prefixes = nil
+	result.Outbound.DeniedE164Prefixes = nil
 	result.Permissions.AnswerInbound = false
 	result.Permissions.OriginateOutbound = false
 	result.Permissions.SendDTMF = false
