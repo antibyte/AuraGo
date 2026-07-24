@@ -91,6 +91,10 @@ func (s *Server) initGameMaker() {
 
 func verifyGameMakerAgentSkills(manager *tools.AgentSkillManager, install gamemaker.SkillInstallResult, logger *slog.Logger) ([]gamemaker.SkillInfo, bool) {
 	ready := install.Ready && manager != nil
+	curated := make(map[string]struct{}, len(gamemaker.CuratedSkillNames()))
+	for _, name := range gamemaker.CuratedSkillNames() {
+		curated[name] = struct{}{}
+	}
 	skills := append([]gamemaker.SkillInfo(nil), install.Skills...)
 	for i := range skills {
 		if skills[i].Status == "hash_mismatch" || manager == nil {
@@ -103,10 +107,27 @@ func verifyGameMakerAgentSkills(manager *tools.AgentSkillManager, install gamema
 			ready = false
 			continue
 		}
+		// Curated system skills whose on-disk package matches the embedded bundle
+		// are trusted; a warning verdict from an optional scanner is treated as a
+		// false positive and overridden. Hash mismatches or missing files above
+		// still block, so local edits cannot silently inherit trust.
+		_, isCurated := curated[skills[i].Name]
+		trustedCurated := isCurated && skills[i].Status != "hash_mismatch" && skills[i].Status != "missing"
 		if entry.SecurityStatus != tools.SecurityClean {
-			skills[i].Status = string(entry.SecurityStatus)
-			ready = false
-			continue
+			if !trustedCurated {
+				skills[i].Status = string(entry.SecurityStatus)
+				ready = false
+				continue
+			}
+			entry, err = manager.TrustCuratedAgentSkill(entry.ID, "system:game-maker")
+			if err != nil {
+				skills[i].Status = "trust_error"
+				ready = false
+				if logger != nil {
+					logger.Warn("Failed to trust curated Game Maker Agent Skill", "name", entry.Name, "error", err)
+				}
+				continue
+			}
 		}
 		if _, err := manager.LoadCurrentAgentSkillPackage(entry, "system:game-maker"); err != nil {
 			skills[i].Status = "hash_mismatch"

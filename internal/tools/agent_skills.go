@@ -1103,6 +1103,25 @@ func (m *AgentSkillManager) EnableAgentSkill(id string, enabled bool, actor stri
 	return nil
 }
 
+// TrustCuratedAgentSkill overrides a warning verdict for a system-managed,
+// curated skill whose on-disk package is known to match the embedded bundle.
+// It marks the skill clean, warning-approved, and enabled. This is intended
+// for false positives from optional LLM/SkillSpector scans on trusted AuraGo
+// content, not for user-edited or hash-drifted packages.
+func (m *AgentSkillManager) TrustCuratedAgentSkill(id, actor string) (*AgentSkillRegistryEntry, error) {
+	entry, err := m.GetAgentSkill(id)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := m.db.Exec(`UPDATE agent_skills_registry
+		SET security_status = ?, warning_approved = 1, enabled = 1, updated_at = CURRENT_TIMESTAMP
+		WHERE id = ?`, string(SecurityClean), id); err != nil {
+		return nil, fmt.Errorf("trust curated agent skill: %w", err)
+	}
+	m.audit(id, entry.Name, "trust_curated", actor, "curated skill hash matches bundle")
+	return m.GetAgentSkill(id)
+}
+
 func (m *AgentSkillManager) ApproveAgentSkillWarning(id, actor string) error {
 	entry, err := m.GetAgentSkill(id)
 	if err != nil {
