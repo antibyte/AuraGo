@@ -82,8 +82,10 @@ type MediaPeer interface {
 }
 
 type mediaDirectionStats struct {
-	receivedFrames uint64
-	sentFrames     uint64
+	receivedFrames  uint64
+	sentFrames      uint64
+	receivedPackets uint64
+	sentPackets     uint64
 }
 
 type mediaStatsProvider interface {

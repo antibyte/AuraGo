@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -53,6 +54,42 @@ func TestBrowserMediaPCMUAudioLoopback(t *testing.T) {
 	}
 	defer peer.Detach("call-1")
 
+	var inboundTrack *webrtc.TrackRemote
+	select {
+	case inboundTrack = <-remoteTrack:
+	case <-ctx.Done():
+		t.Fatal("browser did not receive the server audio track")
+	}
+	silenceResult := make(chan error, 1)
+	go func() {
+		for packetIndex := 0; packetIndex < 25; packetIndex++ {
+			silence, _, err := inboundTrack.ReadRTP()
+			if err != nil {
+				silenceResult <- err
+				return
+			}
+			if len(silence.Payload) != browserPCMFrameSamples {
+				silenceResult <- fmt.Errorf("silence PCMU payload = %d bytes, want %d", len(silence.Payload), browserPCMFrameSamples)
+				return
+			}
+			for i, sample := range silence.Payload {
+				if sample != 0xff {
+					silenceResult <- fmt.Errorf("silence packet %d byte %d = 0x%x, want 0xff", packetIndex, i, sample)
+					return
+				}
+			}
+		}
+		silenceResult <- nil
+	}()
+	select {
+	case err := <-silenceResult:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-ctx.Done():
+		t.Fatal("browser audio clock stopped before 25 packets")
+	}
+
 	browserLinear := make([]byte, browserPCMFrameSamples*2)
 	for i := 0; i < browserPCMFrameSamples; i++ {
 		binary.LittleEndian.PutUint16(browserLinear[i*2:i*2+2], uint16(int16(900)))
@@ -79,22 +116,36 @@ func TestBrowserMediaPCMUAudioLoopback(t *testing.T) {
 	if err := bridge.PushReceive(voice.PCMFrame{Samples: toBrowser, SampleRate: 8000}); err != nil {
 		t.Fatal(err)
 	}
-	var inboundTrack *webrtc.TrackRemote
-	select {
-	case inboundTrack = <-remoteTrack:
-	case <-ctx.Done():
-		t.Fatal("browser did not receive the server audio track")
-	}
-	packet, _, err := inboundTrack.ReadRTP()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(packet.Payload) != browserPCMFrameSamples {
-		t.Fatalf("PCMU payload = %d bytes, want %d", len(packet.Payload), browserPCMFrameSamples)
+	receivedAudio := false
+	for !receivedAudio {
+		packet, _, err := inboundTrack.ReadRTP()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(packet.Payload) != browserPCMFrameSamples {
+			t.Fatalf("PCMU payload = %d bytes, want %d", len(packet.Payload), browserPCMFrameSamples)
+		}
+		for _, sample := range packet.Payload {
+			if sample != 0xff {
+				receivedAudio = true
+				break
+			}
+		}
 	}
 	stats := peer.(*browserMediaPeer).mediaStats()
 	if stats.receivedFrames == 0 || stats.sentFrames == 0 {
 		t.Fatalf("browser media stats = received:%d sent:%d", stats.receivedFrames, stats.sentFrames)
+	}
+}
+
+func TestBrowserMediaUsesDirectSIPReader(t *testing.T) {
+	browser := &mediaPump{jitterMS: 60, directRead: true}
+	if browser.jitterBufferEnabled() {
+		t.Fatal("browser media must not use the blocking SIP jitter reader")
+	}
+	agent := &mediaPump{jitterMS: 60}
+	if !agent.jitterBufferEnabled() {
+		t.Fatal("agent media should retain the configured jitter buffer")
 	}
 }
 

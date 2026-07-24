@@ -767,7 +767,14 @@ func (m *Manager) runEstablished(call *activeCall, cfg config.SIPConfig) {
 	_ = m.store.Upsert(context.Background(), call.record)
 	m.emitLocked("call", &call.record, nil)
 	m.mu.Unlock()
-	pump := &mediaPump{dialog: call.dialog, bridge: call.bridge, jitterMS: cfg.Media.JitterBufferMS}
+	pump := &mediaPump{
+		dialog:   call.dialog,
+		bridge:   call.bridge,
+		jitterMS: cfg.Media.JitterBufferMS,
+		// WebRTC already has a paced jitter buffer. Composing it with Diago's
+		// independent playout clock can stall a sparse PBX receive stream.
+		directRead: call.mediaMode == MediaModeBrowser,
+	}
 	pump.onDTMF = func(digit rune) { m.emitCallData(call, "dtmf", map[string]any{"digit": string(digit)}) }
 	pump.onError = func(error) { m.cancelCallWithReason(call, "media_error") }
 	m.mu.Lock()
@@ -922,6 +929,8 @@ func (m *Manager) finishCall(call *activeCall, reason string) {
 			}
 			m.logger.Info("SIP call media summary",
 				"call_id", call.record.ID,
+				"sip_rx_packets", sipStats.receivedPackets,
+				"sip_tx_packets", sipStats.sentPackets,
 				"sip_rx_frames", sipStats.receivedFrames,
 				"sip_tx_frames", sipStats.sentFrames,
 				"browser_rx_frames", browserStats.receivedFrames,

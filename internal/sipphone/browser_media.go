@@ -486,21 +486,25 @@ func (p *browserMediaPeer) Detach(callID string) {
 
 func (p *browserMediaPeer) sendSIPAudioToBrowser(ctx context.Context, media voice.DuplexAudio) {
 	pending := make([]int16, 0, browserPCMFrameSamples*2)
+	ticker := time.NewTicker(20 * time.Millisecond)
+	defer ticker.Stop()
 	for {
-		var frame voice.PCMFrame
 		select {
 		case <-ctx.Done():
 			return
-		case frame = <-media.Receive():
-		}
-		if frame.SampleRate != 8000 {
-			p.close(false)
-			return
-		}
-		pending = append(pending, frame.Samples...)
-		for len(pending) >= browserPCMFrameSamples {
+		case frame := <-media.Receive():
+			if frame.SampleRate != 8000 {
+				p.close(false)
+				return
+			}
+			pending = append(pending, frame.Samples...)
+			if len(pending) > browserPCMFrameSamples*4 {
+				pending = append(pending[:0], pending[len(pending)-browserPCMFrameSamples*4:]...)
+			}
+		case <-ticker.C:
 			linear := make([]byte, browserPCMFrameSamples*2)
-			for i, sample := range pending[:browserPCMFrameSamples] {
+			sampleCount := min(len(pending), browserPCMFrameSamples)
+			for i, sample := range pending[:sampleCount] {
 				binary.LittleEndian.PutUint16(linear[i*2:i*2+2], uint16(sample))
 			}
 			encoded := make([]byte, browserPCMFrameSamples)
@@ -515,7 +519,7 @@ func (p *browserMediaPeer) sendSIPAudioToBrowser(ctx context.Context, media voic
 				return
 			}
 			p.sent.Add(1)
-			pending = pending[browserPCMFrameSamples:]
+			pending = pending[sampleCount:]
 		}
 	}
 }

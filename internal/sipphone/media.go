@@ -21,6 +21,7 @@ type mediaPump struct {
 	dialog     diago.DialogSession
 	bridge     *voice.Bridge
 	jitterMS   int
+	directRead bool
 	onDTMF     func(rune)
 	onError    func(error)
 	dtmfMu     sync.Mutex
@@ -39,12 +40,18 @@ func (p *mediaPump) start(ctx context.Context) error {
 		}
 		return nil
 	})
-	delayPackets := max(1, p.jitterMS/20)
-	reader, err := p.dialog.Media().AudioReader(
-		diago.WithAudioReaderJitterBuffer(media.RTPJitterBufferOptions{DelayPackets: delayPackets, MaxPackets: max(delayPackets+10, 20)}),
+	readerOptions := []diago.AudioReaderOption{}
+	if p.jitterBufferEnabled() {
+		delayPackets := max(1, p.jitterMS/20)
+		readerOptions = append(readerOptions,
+			diago.WithAudioReaderJitterBuffer(media.RTPJitterBufferOptions{DelayPackets: delayPackets, MaxPackets: max(delayPackets+10, 20)}),
+		)
+	}
+	readerOptions = append(readerOptions,
 		diago.WithAudioReaderDTMF(dtmfReader),
 		diago.WithAudioReaderMediaProps(props),
 	)
+	reader, err := p.dialog.Media().AudioReader(readerOptions...)
 	if err != nil {
 		return fmt.Errorf("create SIP audio reader: %w", err)
 	}
@@ -68,6 +75,10 @@ func (p *mediaPump) start(ctx context.Context) error {
 	go p.readLoop(ctx, reader, props.Codec.Name)
 	go p.writeLoop(ctx, writer, writerProps.Codec.Name)
 	return nil
+}
+
+func (p *mediaPump) jitterBufferEnabled() bool {
+	return p != nil && !p.directRead && p.jitterMS > 0
 }
 
 func (p *mediaPump) readLoop(ctx context.Context, reader io.Reader, codec string) {
@@ -154,10 +165,17 @@ func (p *mediaPump) mediaStats() mediaDirectionStats {
 	if p == nil {
 		return mediaDirectionStats{}
 	}
-	return mediaDirectionStats{
+	stats := mediaDirectionStats{
 		receivedFrames: p.received.Load(),
 		sentFrames:     p.sent.Load(),
 	}
+	if p.dialog != nil && p.dialog.Media() != nil {
+		if session := p.dialog.Media().RTPSession(); session != nil {
+			stats.receivedPackets = session.ReadStats().PacketsCount
+			stats.sentPackets = session.WriteStats().PacketsCount
+		}
+	}
+	return stats
 }
 
 func (p *mediaPump) sendDTMF(digit rune) error {
