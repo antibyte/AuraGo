@@ -18,6 +18,7 @@
   "config.game_maker.max_projects_label": "Μέγιστος αριθμός έργων",
   "config.game_maker.max_files_per_project_label": "Μέγιστα αρχεία ανά έργο",
   "config.game_maker.max_file_size_kb_label": "Μέγιστο μέγεθος αρχείου (KB)",
+  "config.game_maker.max_asset_size_mb_label": "Μέγιστο μέγεθος πόρου (MB)",
   "config.game_maker.max_project_size_mb_label": "Μέγιστο μέγεθος έργου (MB)",
   "config.game_maker.job_timeout_seconds_label": "Χρονικό όριο εργασίας (δευτερόλεπτα)",
   "help.game_maker.enabled": "Διαθέτει τα API του Game Maker και την απομονωμένη ροή πράκτορα. Τα δικαιώματα εγγραφής ρυθμίζονται χωριστά.",

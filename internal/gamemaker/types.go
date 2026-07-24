@@ -36,6 +36,7 @@ type Options struct {
 	MaxProjects          int
 	MaxFilesPerProject   int
 	MaxFileBytes         int64
+	MaxAssetBytes        int64
 	MaxProjectBytes      int64
 	JobTimeout           time.Duration
 	Logger               *slog.Logger

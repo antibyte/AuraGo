@@ -79,6 +79,9 @@ func NewService(opts Options) (*Service, error) {
 	if opts.MaxFileBytes <= 0 {
 		opts.MaxFileBytes = 2 * 1024 * 1024
 	}
+	if opts.MaxAssetBytes <= 0 {
+		opts.MaxAssetBytes = 32 * 1024 * 1024
+	}
 	if opts.MaxProjectBytes <= 0 {
 		opts.MaxProjectBytes = 100 * 1024 * 1024
 	}
@@ -727,8 +730,8 @@ func (s *Service) StoreJobAsset(ctx context.Context, jobID, rawPath, kind, gener
 	if !strings.HasPrefix(strings.ToLower(rel), "assets/") {
 		return "", fmt.Errorf("%w: generated assets must be stored under assets/", ErrInvalidPath)
 	}
-	if int64(len(data)) > s.opts.MaxFileBytes {
-		return "", fmt.Errorf("game maker asset exceeds configured file limit")
+	if int64(len(data)) > s.opts.MaxAssetBytes {
+		return "", fmt.Errorf("game maker asset exceeds configured asset limit")
 	}
 	path, _, err := secureJoin(stage, rel, false)
 	if err != nil {

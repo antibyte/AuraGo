@@ -490,6 +490,7 @@ type GameMakerConfig struct {
 	MaxProjects          int    `yaml:"max_projects" json:"max_projects"`
 	MaxFilesPerProject   int    `yaml:"max_files_per_project" json:"max_files_per_project"`
 	MaxFileSizeKB        int    `yaml:"max_file_size_kb" json:"max_file_size_kb"`
+	MaxAssetSizeMB       int    `yaml:"max_asset_size_mb" json:"max_asset_size_mb"`
 	MaxProjectSizeMB     int    `yaml:"max_project_size_mb" json:"max_project_size_mb"`
 	JobTimeoutSeconds    int    `yaml:"job_timeout_seconds" json:"job_timeout_seconds"`
 }

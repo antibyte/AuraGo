@@ -22,6 +22,7 @@ game_maker:
   max_projects: 25
   max_files_per_project: 250
   max_file_size_kb: 2048
+  max_asset_size_mb: 32
   max_project_size_mb: 100
   job_timeout_seconds: 1800
 ```
@@ -30,6 +31,9 @@ The ledger defaults to `./data/game_maker.db`. Project files are addressed only
 as `Games/<slug>` below `workspace_path`; APIs never return the resolved host
 path. Deletion is separately gated because it removes the project directory,
 while shared AuraGo Media Registry files remain protected.
+`max_file_size_kb` limits source and configuration files; generated images and
+music use the separate `max_asset_size_mb` limit. The total project limit still
+applies to both.
 
 ## Creating and refining a game
 

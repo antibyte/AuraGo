@@ -156,7 +156,13 @@ func TestCodeContainerEnsureStartedSeedsContainerWorkspaceAfterCreate(t *testing
 		t.Fatalf("container repair exec = %#v, want created-1 as root", fake.execs[1])
 	}
 	repair := strings.Join(fake.execs[1].cmd, " ")
-	for _, want := range []string{"chown developer:developer /workspace", "chmod", "/workspace"} {
+	for _, want := range []string{
+		"chown developer:developer /workspace",
+		"chgrp -R developer /workspace/Games",
+		"find /workspace/Games -type d -exec chmod 0775",
+		"find /workspace/Games -type f -exec chmod 0664",
+		"find /workspace/Games -type d -exec chmod a+rwx",
+	} {
 		if !strings.Contains(repair, want) {
 			t.Fatalf("container repair command %q missing %q", repair, want)
 		}

@@ -15,6 +15,7 @@ function gmCfgEnsureData() {
     if (!data.max_projects) data.max_projects = 25;
     if (!data.max_files_per_project) data.max_files_per_project = 250;
     if (!data.max_file_size_kb) data.max_file_size_kb = 2048;
+    if (!data.max_asset_size_mb) data.max_asset_size_mb = 32;
     if (!data.max_project_size_mb) data.max_project_size_mb = 100;
     if (!data.job_timeout_seconds) data.job_timeout_seconds = 1800;
     return data;
@@ -71,6 +72,8 @@ function renderGameMakerSection(section) {
         '<input class="field-input" type="number" min="10" max="10000" value="' + data.max_files_per_project + '" data-path="game_maker.max_files_per_project">');
     html += gmCfgField('config.game_maker.max_file_size_kb_label',
         '<input class="field-input" type="number" min="64" max="102400" value="' + data.max_file_size_kb + '" data-path="game_maker.max_file_size_kb">');
+    html += gmCfgField('config.game_maker.max_asset_size_mb_label',
+        '<input class="field-input" type="number" min="1" max="1024" value="' + data.max_asset_size_mb + '" data-path="game_maker.max_asset_size_mb">');
     html += gmCfgField('config.game_maker.max_project_size_mb_label',
         '<input class="field-input" type="number" min="1" max="10240" value="' + data.max_project_size_mb + '" data-path="game_maker.max_project_size_mb">');
     html += gmCfgField('config.game_maker.job_timeout_seconds_label',

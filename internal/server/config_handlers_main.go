@@ -223,6 +223,7 @@ func injectGameMakerDefaults(rawCfg map[string]interface{}, cfg *config.Config) 
 	setDefaultInt(section, "max_projects", cfg.GameMaker.MaxProjects)
 	setDefaultInt(section, "max_files_per_project", cfg.GameMaker.MaxFilesPerProject)
 	setDefaultInt(section, "max_file_size_kb", cfg.GameMaker.MaxFileSizeKB)
+	setDefaultInt(section, "max_asset_size_mb", cfg.GameMaker.MaxAssetSizeMB)
 	setDefaultInt(section, "max_project_size_mb", cfg.GameMaker.MaxProjectSizeMB)
 	setDefaultInt(section, "job_timeout_seconds", cfg.GameMaker.JobTimeoutSeconds)
 }

@@ -18,6 +18,7 @@
   "config.game_maker.max_projects_label": "最大プロジェクト数",
   "config.game_maker.max_files_per_project_label": "プロジェクトごとの最大ファイル数",
   "config.game_maker.max_file_size_kb_label": "最大ファイルサイズ (KB)",
+  "config.game_maker.max_asset_size_mb_label": "最大アセットサイズ (MB)",
   "config.game_maker.max_project_size_mb_label": "最大プロジェクトサイズ (MB)",
   "config.game_maker.job_timeout_seconds_label": "ジョブのタイムアウト (秒)",
   "help.game_maker.enabled": "Game Maker API と隔離されたエージェント処理を利用可能にします。書き込み権限は別に設定します。",

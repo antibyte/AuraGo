@@ -18,6 +18,7 @@
   "config.game_maker.max_projects_label": "Maximum projects",
   "config.game_maker.max_files_per_project_label": "Maximum files per project",
   "config.game_maker.max_file_size_kb_label": "Maximum file size (KB)",
+  "config.game_maker.max_asset_size_mb_label": "Maximum asset size (MB)",
   "config.game_maker.max_project_size_mb_label": "Maximum project size (MB)",
   "config.game_maker.job_timeout_seconds_label": "Job timeout (seconds)",
   "help.game_maker.enabled": "Makes the Game Maker APIs and isolated agent workflow available. Secure write permissions are configured separately.",

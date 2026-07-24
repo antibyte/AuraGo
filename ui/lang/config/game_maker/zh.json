@@ -18,6 +18,7 @@
   "config.game_maker.max_projects_label": "最大项目数",
   "config.game_maker.max_files_per_project_label": "每个项目的最大文件数",
   "config.game_maker.max_file_size_kb_label": "最大文件大小（KB）",
+  "config.game_maker.max_asset_size_mb_label": "最大资源大小（MB）",
   "config.game_maker.max_project_size_mb_label": "最大项目大小（MB）",
   "config.game_maker.job_timeout_seconds_label": "任务超时（秒）",
   "help.game_maker.enabled": "提供 Game Maker API 和隔离的智能体流程。写入权限需要单独配置。",

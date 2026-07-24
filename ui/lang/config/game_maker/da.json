@@ -18,6 +18,7 @@
   "config.game_maker.max_projects_label": "Maksimalt antal projekter",
   "config.game_maker.max_files_per_project_label": "Maksimalt antal filer pr. projekt",
   "config.game_maker.max_file_size_kb_label": "Maksimal filstørrelse (KB)",
+  "config.game_maker.max_asset_size_mb_label": "Maksimal aktivstørrelse (MB)",
   "config.game_maker.max_project_size_mb_label": "Maksimal projektstørrelse (MB)",
   "config.game_maker.job_timeout_seconds_label": "Jobtimeout (sekunder)",
   "help.game_maker.enabled": "Gør Game Maker-API'er og den isolerede agentproces tilgængelige. Skriverettigheder konfigureres separat.",

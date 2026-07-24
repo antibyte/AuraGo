@@ -42,6 +42,7 @@ func gameMakerRuntimeConfigChanged(oldCfg, newCfg config.GameMakerConfig) bool {
 		oldCfg.MaxProjects != newCfg.MaxProjects ||
 		oldCfg.MaxFilesPerProject != newCfg.MaxFilesPerProject ||
 		oldCfg.MaxFileSizeKB != newCfg.MaxFileSizeKB ||
+		oldCfg.MaxAssetSizeMB != newCfg.MaxAssetSizeMB ||
 		oldCfg.MaxProjectSizeMB != newCfg.MaxProjectSizeMB ||
 		oldCfg.JobTimeoutSeconds != newCfg.JobTimeoutSeconds
 }
@@ -63,6 +64,7 @@ func (s *Server) initGameMaker() {
 		MaxProjects:          cfg.MaxProjects,
 		MaxFilesPerProject:   cfg.MaxFilesPerProject,
 		MaxFileBytes:         int64(cfg.MaxFileSizeKB) * 1024,
+		MaxAssetBytes:        int64(cfg.MaxAssetSizeMB) * 1024 * 1024,
 		MaxProjectBytes:      int64(cfg.MaxProjectSizeMB) * 1024 * 1024,
 		JobTimeout:           time.Duration(cfg.JobTimeoutSeconds) * time.Second,
 		Logger:               s.Logger,

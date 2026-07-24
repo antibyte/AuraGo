@@ -18,6 +18,7 @@
   "config.game_maker.max_projects_label": "Nombre maximal de projets",
   "config.game_maker.max_files_per_project_label": "Fichiers maximum par projet",
   "config.game_maker.max_file_size_kb_label": "Taille maximale d'un fichier (Ko)",
+  "config.game_maker.max_asset_size_mb_label": "Taille maximale d'une ressource (Mo)",
   "config.game_maker.max_project_size_mb_label": "Taille maximale d'un projet (Mo)",
   "config.game_maker.job_timeout_seconds_label": "Délai d'une tâche (secondes)",
   "help.game_maker.enabled": "Active les API Game Maker et le flux isolé de l'agent. Les droits d'écriture sont configurés séparément.",

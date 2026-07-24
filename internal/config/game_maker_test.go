@@ -49,6 +49,7 @@ game_maker:
   max_projects: 7
   max_files_per_project: 80
   max_file_size_kb: 512
+  max_asset_size_mb: 12
   max_project_size_mb: 24
   job_timeout_seconds: 90
 sqlite:
@@ -74,7 +75,8 @@ sqlite:
 		t.Fatalf("database path = %q, want %q", got, want)
 	}
 	if cfg.GameMaker.MaxProjects != 7 || cfg.GameMaker.MaxFilesPerProject != 80 ||
-		cfg.GameMaker.MaxFileSizeKB != 512 || cfg.GameMaker.MaxProjectSizeMB != 24 ||
+		cfg.GameMaker.MaxFileSizeKB != 512 || cfg.GameMaker.MaxAssetSizeMB != 12 ||
+		cfg.GameMaker.MaxProjectSizeMB != 24 ||
 		cfg.GameMaker.JobTimeoutSeconds != 90 {
 		t.Fatalf("limits were not loaded: %+v", cfg.GameMaker)
 	}

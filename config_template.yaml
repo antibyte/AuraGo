@@ -1028,6 +1028,7 @@ game_maker:
     max_projects: 25
     max_files_per_project: 250
     max_file_size_kb: 2048
+    max_asset_size_mb: 32
     max_project_size_mb: 100
     job_timeout_seconds: 1800
 virtual_computers:

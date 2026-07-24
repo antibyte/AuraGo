@@ -53,7 +53,7 @@ func TestGameMakerConfigSeparatesLivePolicyFromRuntimeSettings(t *testing.T) {
 	oldCfg := config.GameMakerConfig{
 		Enabled: true, ReadOnly: true, WorkspacePath: "workspace",
 		MaxProjects: 10, MaxFilesPerProject: 20, MaxFileSizeKB: 30,
-		MaxProjectSizeMB: 40, JobTimeoutSeconds: 50,
+		MaxAssetSizeMB: 35, MaxProjectSizeMB: 40, JobTimeoutSeconds: 50,
 	}
 	livePolicyChange := oldCfg
 	livePolicyChange.ReadOnly = false
@@ -66,9 +66,9 @@ func TestGameMakerConfigSeparatesLivePolicyFromRuntimeSettings(t *testing.T) {
 		t.Fatalf("live policy = %+v", policy)
 	}
 	runtimeChange := livePolicyChange
-	runtimeChange.WorkspacePath = "other"
+	runtimeChange.MaxAssetSizeMB++
 	if !gameMakerRuntimeConfigChanged(oldCfg, runtimeChange) {
-		t.Fatal("workspace change must require restart")
+		t.Fatal("asset limit change must require restart")
 	}
 }
 

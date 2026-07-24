@@ -539,6 +539,7 @@ func Load(path string) (*Config, error) {
 	cfg.GameMaker.MaxProjects = 25
 	cfg.GameMaker.MaxFilesPerProject = 250
 	cfg.GameMaker.MaxFileSizeKB = 2048
+	cfg.GameMaker.MaxAssetSizeMB = 32
 	cfg.GameMaker.MaxProjectSizeMB = 100
 	cfg.GameMaker.JobTimeoutSeconds = 1800
 
@@ -1276,6 +1277,9 @@ func Load(path string) (*Config, error) {
 	}
 	if cfg.GameMaker.MaxFileSizeKB <= 0 {
 		cfg.GameMaker.MaxFileSizeKB = 2048
+	}
+	if cfg.GameMaker.MaxAssetSizeMB <= 0 {
+		cfg.GameMaker.MaxAssetSizeMB = 32
 	}
 	if cfg.GameMaker.MaxProjectSizeMB <= 0 {
 		cfg.GameMaker.MaxProjectSizeMB = 100
@@ -2727,6 +2731,7 @@ func (c *Config) Save(path string) error {
 		{[]string{"game_maker", "max_projects"}, c.GameMaker.MaxProjects},
 		{[]string{"game_maker", "max_files_per_project"}, c.GameMaker.MaxFilesPerProject},
 		{[]string{"game_maker", "max_file_size_kb"}, c.GameMaker.MaxFileSizeKB},
+		{[]string{"game_maker", "max_asset_size_mb"}, c.GameMaker.MaxAssetSizeMB},
 		{[]string{"game_maker", "max_project_size_mb"}, c.GameMaker.MaxProjectSizeMB},
 		{[]string{"game_maker", "job_timeout_seconds"}, c.GameMaker.JobTimeoutSeconds},
 	}

@@ -18,6 +18,7 @@
   "config.game_maker.max_projects_label": "अधिकतम प्रोजेक्ट",
   "config.game_maker.max_files_per_project_label": "प्रति प्रोजेक्ट अधिकतम फ़ाइलें",
   "config.game_maker.max_file_size_kb_label": "अधिकतम फ़ाइल आकार (KB)",
+  "config.game_maker.max_asset_size_mb_label": "अधिकतम एसेट आकार (MB)",
   "config.game_maker.max_project_size_mb_label": "अधिकतम प्रोजेक्ट आकार (MB)",
   "config.game_maker.job_timeout_seconds_label": "कार्य समय-सीमा (सेकंड)",
   "help.game_maker.enabled": "Game Maker API और अलग एजेंट प्रक्रिया उपलब्ध करता है। लिखने की अनुमतियाँ अलग से तय होती हैं।",

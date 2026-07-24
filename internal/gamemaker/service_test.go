@@ -81,6 +81,7 @@ func newTestService(t *testing.T) *Service {
 		MaxProjects:          10,
 		MaxFilesPerProject:   100,
 		MaxFileBytes:         2 * 1024 * 1024,
+		MaxAssetBytes:        4 * 1024 * 1024,
 		MaxProjectBytes:      20 * 1024 * 1024,
 		JobTimeout:           5 * time.Second,
 	})
@@ -90,6 +91,27 @@ func newTestService(t *testing.T) *Service {
 	service.SetSkillStatus(curatedSkills, true)
 	t.Cleanup(func() { _ = service.Close() })
 	return service
+}
+
+func TestGeneratedAssetUsesSeparateAssetSizeLimit(t *testing.T) {
+	service := newTestService(t)
+	project := createTestProject(t, service, "2d")
+	payload := bytes.Repeat([]byte{0x7f}, int(service.opts.MaxFileBytes)+1)
+	service.SetRunner(testRunner{service: service, mutate: func(ctx context.Context, run JobRun) error {
+		_, err := service.StoreJobAsset(ctx, run.Job.ID, "assets/music.mp3", "music", "test", "generated", payload)
+		return err
+	}})
+
+	job, err := service.StartJob(context.Background(), project.ID, StartJobRequest{})
+	if err != nil {
+		t.Fatalf("StartJob: %v", err)
+	}
+	if finished := waitJob(t, service, job.ID); finished.Status != "ready" {
+		t.Fatalf("job status = %q, error = %q", finished.Status, finished.Error)
+	}
+	if _, err := os.Stat(filepath.Join(service.opts.WorkspacePath, project.ProjectKey, "assets", "music.mp3")); err != nil {
+		t.Fatalf("generated asset was not published: %v", err)
+	}
 }
 
 func createTestProject(t *testing.T, service *Service, dimension string) Project {

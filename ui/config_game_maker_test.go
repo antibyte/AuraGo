@@ -32,6 +32,7 @@ func TestGameMakerConfigSectionIsRegisteredAndPersistsPermissions(t *testing.T) 
 		"game_maker.max_projects",
 		"game_maker.max_files_per_project",
 		"game_maker.max_file_size_kb",
+		"game_maker.max_asset_size_mb",
 		"game_maker.max_project_size_mb",
 		"game_maker.job_timeout_seconds",
 	} {
@@ -77,6 +78,7 @@ func TestGameMakerConfigTranslationsExist(t *testing.T) {
 		"config.game_maker.max_projects_label",
 		"config.game_maker.max_files_per_project_label",
 		"config.game_maker.max_file_size_kb_label",
+		"config.game_maker.max_asset_size_mb_label",
 		"config.game_maker.max_project_size_mb_label",
 		"config.game_maker.job_timeout_seconds_label",
 		"help.game_maker.enabled",

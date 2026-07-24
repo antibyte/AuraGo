@@ -49,6 +49,7 @@ func TestHandleGetConfigInjectsGameMakerDefaultsWithoutOverwritingConfiguredPerm
 		"max_projects":           float64(25),
 		"max_files_per_project":  float64(250),
 		"max_file_size_kb":       float64(2048),
+		"max_asset_size_mb":      float64(32),
 		"max_project_size_mb":    float64(100),
 		"job_timeout_seconds":    float64(1800),
 	} {
