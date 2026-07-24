@@ -1536,7 +1536,7 @@ type Config struct {
 		APIToken string `yaml:"-" json:"-"`
 	} `yaml:"paperless_ngx"`
 	TTS struct {
-		Provider            string `yaml:"provider"`              // "google", "elevenlabs", or "piper"
+		Provider            string `yaml:"provider"`              // "google", "elevenlabs", "minimax", "mistral", "piper", or "supertonic"
 		Language            string `yaml:"language"`              // BCP-47 language code for Google TTS (e.g. "de", "en")
 		CacheRetentionHours int    `yaml:"cache_retention_hours"` // remove cached TTS files older than this many hours (0 disables age-based cleanup)
 		CacheMaxFiles       int    `yaml:"cache_max_files"`       // max cached TTS files to retain (0 disables count-based cleanup)
@@ -1551,6 +1551,11 @@ type Config struct {
 			ModelID string  `yaml:"model_id"`          // "speech-2.8-hd" or "speech-2.8-turbo"
 			Speed   float64 `yaml:"speed"`             // 0.5–2.0; 0 means default (1.0)
 		} `yaml:"minimax"`
+		Mistral struct {
+			APIKey  string `yaml:"-" vault:"api_key"` // vault-only
+			VoiceID string `yaml:"voice_id"`          // preset or custom Mistral voice ID
+			ModelID string `yaml:"model_id"`          // e.g. "voxtral-mini-tts-2603"
+		} `yaml:"mistral"`
 		Piper struct {
 			Enabled       bool   `yaml:"enabled"`        // auto-manage a Piper TTS container
 			Voice         string `yaml:"voice"`          // e.g. "de_DE-thorsten-high"

@@ -609,7 +609,12 @@ func processDiscordAttachment(att *discordgo.MessageAttachment, inputText string
 		}
 		defer os.Remove(mp3Path)
 
-		text, err := telegram.TranscribeMultimodal(mp3Path, cfg)
+		audioData, err := os.ReadFile(mp3Path)
+		if err != nil {
+			logger.Error("[Discord] Failed to read converted audio", "error", err)
+			return inputText
+		}
+		text, _, err := tools.TranscribeAudio(context.Background(), filepath.Base(mp3Path), audioData, cfg)
 		if err != nil {
 			logger.Error("[Discord] Voice transcription failed", "error", err)
 			return inputText

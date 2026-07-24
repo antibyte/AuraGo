@@ -1380,16 +1380,19 @@ Text-to-speech and speech-to-text.
 ### Web UI Setup
 1. Open **Config → Integrations → TTS / Whisper**.
 2. Enable the desired providers.
-3. Enter API keys or configure local Piper/Supertonic sidecar options.
+3. Enter API keys or configure local Piper/Supertonic sidecar options. Mistral TTS additionally requires a preset or custom Voice ID from Mistral Studio.
 4. Save and restart.
 
 ### YAML Reference
 ```yaml
 tts:
-    provider: google
+    provider: mistral
     language: en
     cache_retention_hours: 24
     cache_max_files: 100
+    mistral:
+        model_id: voxtral-mini-tts-2603
+        voice_id: YOUR_MISTRAL_VOICE_ID
     piper:
         voice: "en_US-lessac-high"
         container_port: 10200
@@ -1401,10 +1404,16 @@ tts:
         voice: M1
         response_format: wav
 whisper:
-    provider: openai
+    provider: mistral-asr
+providers:
+    - id: mistral-asr
+      type: mistral
+      name: Mistral Voxtral ASR
+      base_url: https://api.mistral.ai/v1
+      model: voxtral-mini-latest
 ```
 
-Supertonic runs through a managed Docker sidecar, so AuraGo itself remains a pure Go binary without CGO or ONNX Runtime linkage.
+Store both Mistral API-key fields in the Vault through the Web UI. ASR calls `POST /v1/audio/transcriptions`; TTS calls `POST /v1/audio/speech` and stores the decoded MP3 response in AuraGo's TTS cache. Supertonic runs through a managed Docker sidecar, so AuraGo itself remains a pure Go binary without CGO or ONNX Runtime linkage.
 
 ---
 

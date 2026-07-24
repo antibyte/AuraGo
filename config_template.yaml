@@ -810,6 +810,10 @@ tts:
         api_key: ""
         model_id: eleven_multilingual_v2
         voice_id: ""
+    mistral:
+        api_key: ""                    # stored in Vault by the Web UI
+        model_id: voxtral-mini-tts-2603
+        voice_id: ""                   # preset or custom voice ID from Mistral Studio
     language: en
     piper:
         container_port: 10200
@@ -1123,7 +1127,7 @@ webdav:
     username: ""
     # Store password/app password or bearer token in the Vault via the Web UI.
 whisper:
-    provider: ""
+    provider: ""                       # select a provider entry; Mistral uses Voxtral Mini Transcribe
 mqtt:
     enabled: false
     broker: ""                      # e.g. tcp://localhost:1883 or mqtts://broker:8883

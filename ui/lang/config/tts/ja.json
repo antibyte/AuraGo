@@ -88,5 +88,16 @@
   "config.tts.supertonic_status_loading": "Supertonic はまだ読み込み中です",
   "config.tts.supertonic_status_stopped": "Supertonic は停止しています",
   "config.tts.supertonic_status_error": "Supertonic エラー",
-  "config.tts.supertonic_voices_loaded": "音声"
+  "config.tts.supertonic_voices_loaded": "音声",
+  "config.tts.provider_mistral": "Mistral AI",
+  "config.tts.mistral_api_key_label": "API キー",
+  "config.tts.mistral_api_key_placeholder": "Mistral API キーを入力",
+  "config.tts.mistral_api_key_required": "Mistral API キーが必要です",
+  "config.tts.mistral_api_key_saved": "Mistral API キーを保存しました",
+  "config.tts.mistral_api_key_save_failed": "Mistral API キーを保存できませんでした",
+  "config.tts.mistral_voice_id_label": "音声 ID",
+  "config.tts.mistral_voice_id_help": "Mistral Studio のプリセットまたはカスタム音声 ID。",
+  "config.tts.mistral_voice_id_placeholder": "Mistral 音声 ID",
+  "config.tts.mistral_model_id_label": "モデル ID",
+  "config.tts.mistral_model_id_help": "テキスト読み上げ用の Voxtral モデル。"
 }

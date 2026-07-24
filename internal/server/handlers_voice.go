@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"aurago/internal/telegram"
+	"aurago/internal/tools"
 )
 
 // VoiceUploadResponse represents the response from voice upload endpoint
@@ -111,8 +112,15 @@ func handleVoiceUpload(s *Server) http.HandlerFunc {
 			outputPath = inputPath
 		}
 
-		// Transcribe using the same function as Telegram
-		transcription, err := telegram.TranscribeMultimodal(outputPath, s.Cfg)
+		// Transcribe the application-owned temporary file in memory. The
+		// agent-facing file API intentionally accepts workspace paths only.
+		audioData, err := os.ReadFile(outputPath)
+		if err != nil {
+			s.Logger.Error("Failed to read audio for transcription", "error", err)
+			jsonError(w, "Transcription failed", http.StatusInternalServerError)
+			return
+		}
+		transcription, _, err := tools.TranscribeAudio(r.Context(), filepath.Base(outputPath), audioData, s.Cfg)
 		if err != nil {
 			s.Logger.Error("Transcription failed", "error", err)
 			jsonError(w, "Transcription failed", http.StatusInternalServerError)

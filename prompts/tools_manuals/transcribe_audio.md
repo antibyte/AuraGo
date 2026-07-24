@@ -22,7 +22,7 @@ Transcribe an audio file to text using the configured Whisper/STT service. Suppo
 
 ### Notes
 - Supported formats: MP3, WAV, OGG, FLAC, M4A, WebM
-- Uses the Whisper API configured in `config.yaml` (whisper section)
-- If `whisper.provider` is set to `multimodal`, a multimodal LLM (e.g., Gemini) is used instead of the standard Whisper API
+- Uses the ASR provider configured in the `whisper` section. Direct Mistral providers use the Voxtral transcription endpoint.
+- If `whisper.mode` is set to `multimodal`, a multimodal LLM (e.g., Gemini) is used instead of a dedicated transcription endpoint.
 - OGG files from Telegram may need conversion to MP3/WAV first (use `execute_shell` with ffmpeg)
 - The transcription language is auto-detected

@@ -88,5 +88,16 @@
   "config.tts.supertonic_status_loading": "Το Supertonic φορτώνει ακόμη",
   "config.tts.supertonic_status_stopped": "Το Supertonic έχει σταματήσει",
   "config.tts.supertonic_status_error": "Σφάλμα Supertonic",
-  "config.tts.supertonic_voices_loaded": "φωνές"
+  "config.tts.supertonic_voices_loaded": "φωνές",
+  "config.tts.provider_mistral": "Mistral AI",
+  "config.tts.mistral_api_key_label": "Κλειδί API",
+  "config.tts.mistral_api_key_placeholder": "Εισαγάγετε κλειδί API Mistral",
+  "config.tts.mistral_api_key_required": "Απαιτείται κλειδί API Mistral",
+  "config.tts.mistral_api_key_saved": "Το κλειδί API Mistral αποθηκεύτηκε",
+  "config.tts.mistral_api_key_save_failed": "Αποτυχία αποθήκευσης κλειδιού API Mistral",
+  "config.tts.mistral_voice_id_label": "ID φωνής",
+  "config.tts.mistral_voice_id_help": "Προκαθορισμένο ή προσαρμοσμένο ID φωνής από το Mistral Studio.",
+  "config.tts.mistral_voice_id_placeholder": "ID φωνής Mistral",
+  "config.tts.mistral_model_id_label": "ID μοντέλου",
+  "config.tts.mistral_model_id_help": "Μοντέλο Voxtral για μετατροπή κειμένου σε ομιλία."
 }

@@ -7,6 +7,7 @@ function renderTTSSection(section) {
     const currentProvider = data.provider || '';
     const elData = data.elevenlabs || {};
     const mmData = data.minimax || {};
+    const mistralData = data.mistral || {};
     const supertonicData = data.supertonic || {};
     const supertonicAutoStart = supertonicData.auto_start === true;
 
@@ -22,6 +23,7 @@ function renderTTSSection(section) {
     html += '<option value="google"' + (currentProvider === 'google' ? ' selected' : '') + '>' + t('config.tts.provider_google') + '</option>';
     html += '<option value="elevenlabs"' + (currentProvider === 'elevenlabs' ? ' selected' : '') + '>' + t('config.tts.provider_elevenlabs') + '</option>';
     html += '<option value="minimax"' + (currentProvider === 'minimax' ? ' selected' : '') + '>' + t('config.tts.provider_minimax') + '</option>';
+    html += '<option value="mistral"' + (currentProvider === 'mistral' ? ' selected' : '') + '>' + t('config.tts.provider_mistral') + '</option>';
     html += '<option value="piper"' + (currentProvider === 'piper' ? ' selected' : '') + '>' + t('config.tts.provider_piper') + '</option>';
     html += '<option value="supertonic"' + (currentProvider === 'supertonic' ? ' selected' : '') + '>' + t('config.tts.provider_supertonic') + '</option>';
     html += '</select>';
@@ -91,6 +93,33 @@ function renderTTSSection(section) {
     html += '<div class="field-label">' + t('config.tts.minimax_speed_label') + '</div>';
     html += '<div class="field-help">' + t('config.tts.minimax_speed_help') + '</div>';
     html += '<input class="field-input" type="number" data-path="tts.minimax.speed" value="' + (mmData.speed || 1.0) + '" min="0.5" max="2.0" step="0.1" placeholder="' + t('config.tts.minimax_speed_placeholder') + '">';
+    html += '</div>';
+    html += '</div>';
+
+    const showMistral = currentProvider === 'mistral';
+    html += '<div id="tts-mistral-section" class="tts-provider-section' + (showMistral ? '' : ' is-hidden') + '">';
+    html += '<div class="tts-subsection-title">Mistral AI Voxtral TTS</div>';
+
+    html += '<div class="field-group">';
+    html += '<div class="field-label">' + t('config.tts.mistral_api_key_label') + '</div>';
+    html += '<div class="adg-password-row">';
+    html += '<div class="password-wrap adg-password-input">';
+    html += '<input class="field-input adg-password-input" type="password" id="tts-mistral-api-key" value="' + escapeAttr(cfgSecretValue(mistralData.api_key)) + '" placeholder="' + escapeAttr(cfgSecretPlaceholder(mistralData.api_key, t('config.tts.mistral_api_key_placeholder'))) + '">';
+    html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
+    html += '</div>';
+    html += '<button class="btn-save adg-save-btn" onclick="ttsSaveMistralKey()">💾</button>';
+    html += '</div></div>';
+
+    html += '<div class="field-group">';
+    html += '<div class="field-label">' + t('config.tts.mistral_voice_id_label') + '</div>';
+    html += '<div class="field-help">' + t('config.tts.mistral_voice_id_help') + '</div>';
+    html += '<input class="field-input" type="text" data-path="tts.mistral.voice_id" value="' + escapeAttr(mistralData.voice_id || '') + '" placeholder="' + t('config.tts.mistral_voice_id_placeholder') + '">';
+    html += '</div>';
+
+    html += '<div class="field-group">';
+    html += '<div class="field-label">' + t('config.tts.mistral_model_id_label') + '</div>';
+    html += '<div class="field-help">' + t('config.tts.mistral_model_id_help') + '</div>';
+    html += '<input class="field-input" type="text" data-path="tts.mistral.model_id" value="' + escapeAttr(mistralData.model_id || 'voxtral-mini-tts-2603') + '" placeholder="voxtral-mini-tts-2603">';
     html += '</div>';
     html += '</div>';
 
@@ -265,6 +294,8 @@ function ttsProviderChanged(val) {
     if (elSection) elSection.classList.toggle('is-hidden', val !== 'elevenlabs');
     const mmSection = document.getElementById('tts-minimax-section');
     if (mmSection) mmSection.classList.toggle('is-hidden', val !== 'minimax');
+    const mistralSection = document.getElementById('tts-mistral-section');
+    if (mistralSection) mistralSection.classList.toggle('is-hidden', val !== 'mistral');
     const supertonicSection = document.getElementById('tts-supertonic-section');
     if (supertonicSection) {
         supertonicSection.classList.toggle('is-hidden', val !== 'supertonic');
@@ -336,6 +367,31 @@ function ttsSaveMiniMaxKey() {
             }
         })
         .catch(() => showToast(t('config.tts.minimax_api_key_save_failed'), 'error'));
+}
+
+function ttsSaveMistralKey() {
+    const input = document.getElementById('tts-mistral-api-key');
+    const value = input ? input.value.trim() : '';
+    if (!value) {
+        showToast(t('config.tts.mistral_api_key_required'), 'warn');
+        return;
+    }
+
+    fetch('/api/vault/secrets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'tts_mistral_api_key', value })
+    })
+        .then(r => r.json())
+        .then(res => {
+            if (res.status === 'ok' || res.success) {
+                showToast(t('config.tts.mistral_api_key_saved'), 'success');
+                cfgMarkSecretStored(input, 'tts.mistral.api_key');
+            } else {
+                showToast(res.message || t('config.tts.mistral_api_key_save_failed'), 'error');
+            }
+        })
+        .catch(() => showToast(t('config.tts.mistral_api_key_save_failed'), 'error'));
 }
 
 function piperCheckStatus() {

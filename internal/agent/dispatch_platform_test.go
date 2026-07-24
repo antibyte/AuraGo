@@ -33,6 +33,9 @@ func TestBuildRuntimeTTSConfigIncludesMiniMaxAndPiper(t *testing.T) {
 	cfg.TTS.MiniMax.VoiceID = "mm-voice"
 	cfg.TTS.MiniMax.ModelID = "mm-model"
 	cfg.TTS.MiniMax.Speed = 1.25
+	cfg.TTS.Mistral.APIKey = "mistral-key"
+	cfg.TTS.Mistral.VoiceID = "mistral-voice"
+	cfg.TTS.Mistral.ModelID = "voxtral-mini-tts-2603"
 	cfg.TTS.Piper.Enabled = true
 	cfg.TTS.Piper.ContainerPort = 10200
 	cfg.TTS.Piper.Voice = "de_DE-thorsten-high"
@@ -56,6 +59,11 @@ func TestBuildRuntimeTTSConfigIncludesMiniMaxAndPiper(t *testing.T) {
 	}
 	if ttsCfg.MiniMax.Speed != 1.25 {
 		t.Fatalf("MiniMax.Speed = %v, want 1.25", ttsCfg.MiniMax.Speed)
+	}
+	if ttsCfg.Mistral.APIKey != "mistral-key" ||
+		ttsCfg.Mistral.VoiceID != "mistral-voice" ||
+		ttsCfg.Mistral.ModelID != "voxtral-mini-tts-2603" {
+		t.Fatalf("Mistral config not copied: %+v", ttsCfg.Mistral)
 	}
 	if ttsCfg.Piper.Port != 10200 || ttsCfg.Piper.Voice != "de_DE-thorsten-high" || ttsCfg.Piper.SpeakerID != 3 {
 		t.Fatalf("Piper config not copied: %+v", ttsCfg.Piper)
@@ -92,6 +100,21 @@ func TestIsTTSConfiguredRequiresUsableBackend(t *testing.T) {
 	minimaxCfg.TTS.MiniMax.APIKey = "mm-key"
 	if !isTTSConfigured(minimaxCfg) {
 		t.Fatal("minimax with API key should be considered configured")
+	}
+
+	mistralMissingVoiceCfg := &config.Config{}
+	mistralMissingVoiceCfg.TTS.Provider = "mistral"
+	mistralMissingVoiceCfg.TTS.Mistral.APIKey = "mistral-key"
+	if isTTSConfigured(mistralMissingVoiceCfg) {
+		t.Fatal("mistral without voice ID should not be considered configured")
+	}
+
+	mistralCfg := &config.Config{}
+	mistralCfg.TTS.Provider = "mistral"
+	mistralCfg.TTS.Mistral.APIKey = "mistral-key"
+	mistralCfg.TTS.Mistral.VoiceID = "voice-42"
+	if !isTTSConfigured(mistralCfg) {
+		t.Fatal("mistral with API key and voice ID should be considered configured")
 	}
 
 	piperCfg := &config.Config{}

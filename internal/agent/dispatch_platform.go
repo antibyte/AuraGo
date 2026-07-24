@@ -105,6 +105,9 @@ func buildRuntimeTTSConfig(cfg *config.Config, language string) tools.TTSConfig 
 	ttsCfg.MiniMax.VoiceID = cfg.TTS.MiniMax.VoiceID
 	ttsCfg.MiniMax.ModelID = cfg.TTS.MiniMax.ModelID
 	ttsCfg.MiniMax.Speed = cfg.TTS.MiniMax.Speed
+	ttsCfg.Mistral.APIKey = cfg.TTS.Mistral.APIKey
+	ttsCfg.Mistral.VoiceID = cfg.TTS.Mistral.VoiceID
+	ttsCfg.Mistral.ModelID = cfg.TTS.Mistral.ModelID
 	ttsCfg.Piper.Port = cfg.TTS.Piper.ContainerPort
 	ttsCfg.Piper.Voice = cfg.TTS.Piper.Voice
 	ttsCfg.Piper.SpeakerID = cfg.TTS.Piper.SpeakerID
@@ -133,6 +136,9 @@ func isTTSConfigured(cfg *config.Config) bool {
 		return strings.TrimSpace(cfg.TTS.ElevenLabs.APIKey) != ""
 	case "minimax":
 		return strings.TrimSpace(cfg.TTS.MiniMax.APIKey) != ""
+	case "mistral":
+		return strings.TrimSpace(cfg.TTS.Mistral.APIKey) != "" &&
+			strings.TrimSpace(cfg.TTS.Mistral.VoiceID) != ""
 	case "piper":
 		return cfg.TTS.Piper.Enabled
 	case "supertonic":

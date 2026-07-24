@@ -223,6 +223,9 @@ func TestLoadAppliesSupertonicTTSDefaults(t *testing.T) {
 	if cfg.TTS.Supertonic.ResponseFormat != "wav" {
 		t.Fatalf("tts.supertonic.response_format = %q", cfg.TTS.Supertonic.ResponseFormat)
 	}
+	if cfg.TTS.Mistral.ModelID != "voxtral-mini-tts-2603" {
+		t.Fatalf("tts.mistral.model_id = %q", cfg.TTS.Mistral.ModelID)
+	}
 }
 
 func TestNormalizeCloudflareTunnelConfigDefaults(t *testing.T) {

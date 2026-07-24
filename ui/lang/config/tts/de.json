@@ -88,5 +88,16 @@
   "config.tts.supertonic_status_loading": "Supertonic lädt noch",
   "config.tts.supertonic_status_stopped": "Supertonic ist gestoppt",
   "config.tts.supertonic_status_error": "Supertonic-Fehler",
-  "config.tts.supertonic_voices_loaded": "Stimmen"
+  "config.tts.supertonic_voices_loaded": "Stimmen",
+  "config.tts.provider_mistral": "Mistral AI",
+  "config.tts.mistral_api_key_label": "API-Schlüssel",
+  "config.tts.mistral_api_key_placeholder": "Mistral-API-Schlüssel eingeben",
+  "config.tts.mistral_api_key_required": "Mistral-API-Schlüssel ist erforderlich",
+  "config.tts.mistral_api_key_saved": "Mistral-API-Schlüssel gespeichert",
+  "config.tts.mistral_api_key_save_failed": "Mistral-API-Schlüssel konnte nicht gespeichert werden",
+  "config.tts.mistral_voice_id_label": "Stimmen-ID",
+  "config.tts.mistral_voice_id_help": "Voreingestellte oder eigene Stimmen-ID aus Mistral Studio.",
+  "config.tts.mistral_voice_id_placeholder": "Mistral-Stimmen-ID",
+  "config.tts.mistral_model_id_label": "Modell-ID",
+  "config.tts.mistral_model_id_help": "Voxtral-Modell für die Sprachausgabe."
 }

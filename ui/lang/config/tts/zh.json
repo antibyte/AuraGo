@@ -88,5 +88,16 @@
   "config.tts.supertonic_status_loading": "Supertonic 仍在加载",
   "config.tts.supertonic_status_stopped": "Supertonic 已停止",
   "config.tts.supertonic_status_error": "Supertonic 错误",
-  "config.tts.supertonic_voices_loaded": "个声音"
+  "config.tts.supertonic_voices_loaded": "个声音",
+  "config.tts.provider_mistral": "Mistral AI",
+  "config.tts.mistral_api_key_label": "API 密钥",
+  "config.tts.mistral_api_key_placeholder": "输入 Mistral API 密钥",
+  "config.tts.mistral_api_key_required": "需要 Mistral API 密钥",
+  "config.tts.mistral_api_key_saved": "Mistral API 密钥已保存",
+  "config.tts.mistral_api_key_save_failed": "无法保存 Mistral API 密钥",
+  "config.tts.mistral_voice_id_label": "语音 ID",
+  "config.tts.mistral_voice_id_help": "来自 Mistral Studio 的预设或自定义语音 ID。",
+  "config.tts.mistral_voice_id_placeholder": "Mistral 语音 ID",
+  "config.tts.mistral_model_id_label": "模型 ID",
+  "config.tts.mistral_model_id_help": "用于文本转语音的 Voxtral 模型。"
 }

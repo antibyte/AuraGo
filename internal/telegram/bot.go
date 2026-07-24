@@ -161,14 +161,20 @@ func processUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Con
 		}
 		defer os.Remove(mp3Path)
 
-		// 4. Transcribe via Multimodal OpenRouter API
-		text, err := TranscribeMultimodal(mp3Path, cfg)
+		// 4. Transcribe the application-owned temporary audio in memory. The
+		// agent-facing file API intentionally accepts workspace paths only.
+		audioData, err := os.ReadFile(mp3Path)
 		if err != nil {
-			logger.Error("Failed to transcribe voice (multimodal)", "error", err)
+			logger.Error("Failed to read converted voice file", "error", err)
+			return
+		}
+		text, _, err := tools.TranscribeAudio(context.Background(), filepath.Base(mp3Path), audioData, cfg)
+		if err != nil {
+			logger.Error("Failed to transcribe voice", "error", err)
 			return
 		}
 
-		logger.Info("Multimodal transcription successful", "text", text)
+		logger.Info("Voice transcription successful", "text_len", len(text))
 		inputText = text
 	}
 

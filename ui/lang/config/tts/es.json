@@ -88,5 +88,16 @@
   "config.tts.supertonic_status_loading": "Supertonic aún está cargando",
   "config.tts.supertonic_status_stopped": "Supertonic está detenido",
   "config.tts.supertonic_status_error": "Error de Supertonic",
-  "config.tts.supertonic_voices_loaded": "voces"
+  "config.tts.supertonic_voices_loaded": "voces",
+  "config.tts.provider_mistral": "Mistral AI",
+  "config.tts.mistral_api_key_label": "Clave API",
+  "config.tts.mistral_api_key_placeholder": "Introducir clave API de Mistral",
+  "config.tts.mistral_api_key_required": "Se requiere la clave API de Mistral",
+  "config.tts.mistral_api_key_saved": "Clave API de Mistral guardada",
+  "config.tts.mistral_api_key_save_failed": "No se pudo guardar la clave API de Mistral",
+  "config.tts.mistral_voice_id_label": "ID de voz",
+  "config.tts.mistral_voice_id_help": "ID de voz predefinida o personalizada de Mistral Studio.",
+  "config.tts.mistral_voice_id_placeholder": "ID de voz de Mistral",
+  "config.tts.mistral_model_id_label": "ID del modelo",
+  "config.tts.mistral_model_id_help": "Modelo Voxtral de texto a voz."
 }

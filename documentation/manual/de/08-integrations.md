@@ -1278,15 +1278,18 @@ rocketchat:
 
 Sprachsynthese (TTS) und Spracherkennung.
 
-**Web-UI:** Config → Integrationen → TTS → Provider (Piper, Supertonic, MiniMax, ElevenLabs, Google) und Voice-Einstellungen konfigurieren.
+**Web-UI:** Config → Integrationen → TTS → Provider (Piper, Supertonic, Mistral AI, MiniMax, ElevenLabs, Google) und Voice-Einstellungen konfigurieren. Mistral TTS benötigt zusätzlich eine voreingestellte oder eigene Stimmen-ID aus Mistral Studio.
 
 ### YAML-Referenz
 ```yaml
 tts:
-  provider: "piper"
+  provider: "mistral"
   language: "de"
   cache_retention_hours: 24
   cache_max_files: 100
+  mistral:
+    model_id: voxtral-mini-tts-2603
+    voice_id: DEINE_MISTRAL_STIMMEN_ID
   piper:
     voice: "de_DE-thorsten-high"
     container_port: 10200
@@ -1297,9 +1300,17 @@ tts:
     model: supertonic-3
     voice: M1
     response_format: wav
+whisper:
+  provider: "mistral-asr"
+providers:
+  - id: mistral-asr
+    type: mistral
+    name: Mistral Voxtral ASR
+    base_url: https://api.mistral.ai/v1
+    model: voxtral-mini-latest
 ```
 
-Supertonic läuft über einen verwalteten Docker-Sidecar. AuraGo selbst bleibt dadurch ein reines Go-Binary ohne CGO oder ONNX-Runtime-Linking.
+Beide Mistral-API-Schlüssel werden über die Web-UI im Vault gespeichert. ASR nutzt `POST /v1/audio/transcriptions`; TTS nutzt `POST /v1/audio/speech` und legt die dekodierte MP3-Antwort im TTS-Cache ab. Supertonic läuft über einen verwalteten Docker-Sidecar. AuraGo selbst bleibt dadurch ein reines Go-Binary ohne CGO oder ONNX-Runtime-Linking.
 
 ## A2A Protocol
 

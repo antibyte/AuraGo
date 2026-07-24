@@ -63,13 +63,19 @@ func TranscribeAudio(ctx context.Context, fileName string, audioData []byte, cfg
 }
 
 func transcriptionMode(cfg *config.Config) string {
+	// Mistral Voxtral uses the dedicated OpenAI-compatible transcription
+	// endpoint. Ignore a stale multimodal mode left over from a previously
+	// selected provider.
+	if strings.EqualFold(cfg.Whisper.ProviderType, "mistral") {
+		return ""
+	}
 	mode := strings.ToLower(cfg.Whisper.Mode)
 	// OpenRouter does not support OpenAI's /v1/audio/transcriptions endpoint.
 	if mode == "" && strings.EqualFold(cfg.Whisper.ProviderType, "openrouter") {
 		mode = "multimodal"
 	}
 	// Non-Whisper models do not implement /v1/audio/transcriptions.
-	if mode != "multimodal" && mode != "local" {
+	if mode != "multimodal" && mode != "local" && !strings.EqualFold(cfg.Whisper.ProviderType, "mistral") {
 		model := strings.ToLower(cfg.Whisper.Model)
 		if model != "" && !strings.Contains(model, "whisper") {
 			mode = "multimodal"
@@ -104,8 +110,11 @@ func transcribeWhisperRequest(parent context.Context, request openai.AudioReques
 		client = openai.NewClientWithConfig(c)
 	}
 
-	model := cfg.Whisper.Model
-	if model == "" {
+	model := strings.TrimSpace(cfg.Whisper.Model)
+	if strings.EqualFold(cfg.Whisper.ProviderType, "mistral") &&
+		!isMistralTranscriptionModel(model) {
+		model = "voxtral-mini-latest"
+	} else if model == "" {
 		model = openai.Whisper1
 	}
 	request.Model = model
@@ -123,6 +132,12 @@ func transcribeWhisperRequest(parent context.Context, request openai.AudioReques
 	}
 
 	return security.IsolateExternalData(resp.Text), 0.0, nil
+}
+
+func isMistralTranscriptionModel(model string) bool {
+	model = strings.ToLower(strings.TrimSpace(model))
+	return model == "voxtral-mini-latest" ||
+		(strings.HasPrefix(model, "voxtral-mini-") && !strings.Contains(model, "-tts-"))
 }
 
 // transcribeMultimodal uses a multimodal LLM (e.g. Gemini) via OpenRouter for transcription.

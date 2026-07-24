@@ -88,5 +88,16 @@
   "config.tts.supertonic_status_loading": "Supertonic se stále načítá",
   "config.tts.supertonic_status_stopped": "Supertonic je zastaven",
   "config.tts.supertonic_status_error": "Chyba Supertonic",
-  "config.tts.supertonic_voices_loaded": "hlasů"
+  "config.tts.supertonic_voices_loaded": "hlasů",
+  "config.tts.provider_mistral": "Mistral AI",
+  "config.tts.mistral_api_key_label": "API klíč",
+  "config.tts.mistral_api_key_placeholder": "Zadejte API klíč Mistral",
+  "config.tts.mistral_api_key_required": "API klíč Mistral je vyžadován",
+  "config.tts.mistral_api_key_saved": "API klíč Mistral byl uložen",
+  "config.tts.mistral_api_key_save_failed": "API klíč Mistral se nepodařilo uložit",
+  "config.tts.mistral_voice_id_label": "ID hlasu",
+  "config.tts.mistral_voice_id_help": "Přednastavené nebo vlastní ID hlasu z Mistral Studio.",
+  "config.tts.mistral_voice_id_placeholder": "ID hlasu Mistral",
+  "config.tts.mistral_model_id_label": "ID modelu",
+  "config.tts.mistral_model_id_help": "Model Voxtral pro převod textu na řeč."
 }

@@ -4,6 +4,7 @@ import (
 	"aurago/internal/testutil"
 	"context"
 	"crypto/md5"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -127,6 +128,64 @@ func TestTTSElevenLabsRejectsOversizedErrorBody(t *testing.T) {
 			t.Fatalf("expected oversized error response, got %v", err)
 		}
 	})
+}
+
+func TestTTSMistralSendsVoxtralRequestAndDecodesAudio(t *testing.T) {
+	server := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Errorf("method = %q, want POST", r.Method)
+		}
+		if r.URL.Path != "/v1/audio/speech" {
+			t.Errorf("path = %q, want /v1/audio/speech", r.URL.Path)
+		}
+		if got := r.Header.Get("Authorization"); got != "Bearer mistral-key" {
+			t.Errorf("Authorization = %q", got)
+		}
+		var payload struct {
+			Model          string `json:"model"`
+			Input          string `json:"input"`
+			VoiceID        string `json:"voice_id"`
+			ResponseFormat string `json:"response_format"`
+			Stream         bool   `json:"stream"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Errorf("decode request: %v", err)
+		}
+		if payload.Model != "voxtral-mini-tts-2603" ||
+			payload.Input != "Hallo" ||
+			payload.VoiceID != "voice-42" ||
+			payload.ResponseFormat != "mp3" ||
+			payload.Stream {
+			t.Errorf("unexpected payload: %+v", payload)
+		}
+		_ = json.NewEncoder(w).Encode(map[string]string{
+			"audio_data": base64.StdEncoding.EncodeToString([]byte("ID3-audio")),
+		})
+	}))
+	defer server.Close()
+
+	cfg := TTSConfig{}
+	cfg.Mistral.APIKey = "mistral-key"
+	cfg.Mistral.VoiceID = "voice-42"
+	cfg.Mistral.ModelID = "voxtral-mini-tts-2603"
+	withTTSTestClient(t, server, func() {
+		data, err := ttsMistral(cfg, "Hallo")
+		if err != nil {
+			t.Fatalf("ttsMistral: %v", err)
+		}
+		if string(data) != "ID3-audio" {
+			t.Fatalf("audio data = %q", string(data))
+		}
+	})
+}
+
+func TestTTSMistralRequiresVoiceID(t *testing.T) {
+	cfg := TTSConfig{}
+	cfg.Mistral.APIKey = "mistral-key"
+	_, err := ttsMistral(cfg, "Hallo")
+	if err == nil || !strings.Contains(err.Error(), "voice ID is required") {
+		t.Fatalf("expected missing voice ID error, got %v", err)
+	}
 }
 
 func TestTTSSupertonicSendsNativeRequest(t *testing.T) {

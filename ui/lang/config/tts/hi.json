@@ -88,5 +88,16 @@
   "config.tts.supertonic_status_loading": "Supertonic अभी लोड हो रहा है",
   "config.tts.supertonic_status_stopped": "Supertonic रुका हुआ है",
   "config.tts.supertonic_status_error": "Supertonic त्रुटि",
-  "config.tts.supertonic_voices_loaded": "आवाज़ें"
+  "config.tts.supertonic_voices_loaded": "आवाज़ें",
+  "config.tts.provider_mistral": "Mistral AI",
+  "config.tts.mistral_api_key_label": "API कुंजी",
+  "config.tts.mistral_api_key_placeholder": "Mistral API कुंजी दर्ज करें",
+  "config.tts.mistral_api_key_required": "Mistral API कुंजी आवश्यक है",
+  "config.tts.mistral_api_key_saved": "Mistral API कुंजी सहेजी गई",
+  "config.tts.mistral_api_key_save_failed": "Mistral API कुंजी सहेजी नहीं जा सकी",
+  "config.tts.mistral_voice_id_label": "वॉइस ID",
+  "config.tts.mistral_voice_id_help": "Mistral Studio से प्रीसेट या कस्टम वॉइस ID।",
+  "config.tts.mistral_voice_id_placeholder": "Mistral वॉइस ID",
+  "config.tts.mistral_model_id_label": "मॉडल ID",
+  "config.tts.mistral_model_id_help": "टेक्स्ट-टू-स्पीच के लिए Voxtral मॉडल।"
 }

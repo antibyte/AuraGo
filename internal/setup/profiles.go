@@ -74,7 +74,7 @@ type ProfileModels struct {
 // ProfileTTS holds TTS-specific config. TTS does NOT use the provider system —
 // it has its own vault keys and config structure.
 type ProfileTTS struct {
-	Provider string  `yaml:"provider" json:"provider"` // "minimax", "elevenlabs", "google", "piper"
+	Provider string  `yaml:"provider" json:"provider"` // "minimax", "mistral", "elevenlabs", "google", "piper", "supertonic"
 	ModelID  string  `yaml:"model_id" json:"model_id"`
 	VoiceID  string  `yaml:"voice_id" json:"voice_id"`
 	Speed    float64 `yaml:"speed"    json:"speed,omitempty"`

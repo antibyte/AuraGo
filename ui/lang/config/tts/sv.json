@@ -88,5 +88,16 @@
   "config.tts.supertonic_status_loading": "Supertonic laddar fortfarande",
   "config.tts.supertonic_status_stopped": "Supertonic är stoppad",
   "config.tts.supertonic_status_error": "Supertonic-fel",
-  "config.tts.supertonic_voices_loaded": "röster"
+  "config.tts.supertonic_voices_loaded": "röster",
+  "config.tts.provider_mistral": "Mistral AI",
+  "config.tts.mistral_api_key_label": "API-nyckel",
+  "config.tts.mistral_api_key_placeholder": "Ange Mistral API-nyckel",
+  "config.tts.mistral_api_key_required": "Mistral API-nyckel krävs",
+  "config.tts.mistral_api_key_saved": "Mistral API-nyckel sparad",
+  "config.tts.mistral_api_key_save_failed": "Kunde inte spara Mistral API-nyckel",
+  "config.tts.mistral_voice_id_label": "Röst-ID",
+  "config.tts.mistral_voice_id_help": "Förinställt eller anpassat röst-ID från Mistral Studio.",
+  "config.tts.mistral_voice_id_placeholder": "Mistral röst-ID",
+  "config.tts.mistral_model_id_label": "Modell-ID",
+  "config.tts.mistral_model_id_help": "Voxtral-modell för text-till-tal."
 }

@@ -849,6 +849,7 @@ func (c *Config) ApplyVaultSecrets(vault SecretReader) {
 	apply("brave_search_api_key", &c.BraveSearch.APIKey)
 	apply("tts_elevenlabs_api_key", &c.TTS.ElevenLabs.APIKey)
 	apply("tts_minimax_api_key", &c.TTS.MiniMax.APIKey)
+	apply("tts_mistral_api_key", &c.TTS.Mistral.APIKey)
 	apply("telnyx_api_key", &c.Telnyx.APIKey)
 	apply("agentmail_api_key", &c.AgentMail.APIKey)
 

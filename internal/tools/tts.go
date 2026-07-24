@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/md5"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -19,7 +20,7 @@ import (
 
 // TTSConfig holds TTS provider configuration.
 type TTSConfig struct {
-	Provider            string // "google", "elevenlabs", "minimax", "piper", or "supertonic"
+	Provider            string // "google", "elevenlabs", "minimax", "mistral", "piper", or "supertonic"
 	Language            string // BCP-47 language code (e.g. "de", "en")
 	Context             context.Context
 	DataDir             string // base data directory for storing audio files
@@ -48,6 +49,11 @@ type TTSConfig struct {
 		VoiceID string  // e.g. "English_expressive_narrator"
 		ModelID string  // "speech-2.8-hd" or "speech-2.8-turbo"
 		Speed   float64 // 0.5–2.0; 0 means default (1.0)
+	}
+	Mistral struct {
+		APIKey  string
+		VoiceID string // preset or custom Mistral voice ID
+		ModelID string // e.g. "voxtral-mini-tts-2603"
 	}
 }
 
@@ -93,6 +99,8 @@ func TTSSynthesize(cfg TTSConfig, text string) (string, error) {
 		audioData, err = ttsElevenLabs(cfg, text)
 	case "minimax":
 		audioData, err = ttsMiniMax(cfg, text)
+	case "mistral":
+		audioData, err = ttsMistral(cfg, text)
 	case "piper":
 		audioData, err = ttsPiper(cfg, text)
 	case "supertonic":
@@ -132,6 +140,14 @@ func ttsCacheKey(cfg TTSConfig, text string) string {
 			cfg.MiniMax.VoiceID,
 			cfg.MiniMax.ModelID,
 			fmt.Sprintf("%.3f", cfg.MiniMax.Speed),
+			text,
+		}, "\x00")
+	case "mistral":
+		return strings.Join([]string{
+			provider,
+			cfg.Language,
+			cfg.Mistral.VoiceID,
+			cfg.Mistral.ModelID,
 			text,
 		}, "\x00")
 	case "piper":
@@ -325,6 +341,73 @@ func ttsElevenLabs(cfg TTSConfig, text string) ([]byte, error) {
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
 	return data, nil
+}
+
+// ttsMistral calls the Mistral Voxtral TTS API and decodes its base64 MP3 response.
+func ttsMistral(cfg TTSConfig, text string) ([]byte, error) {
+	if strings.TrimSpace(cfg.Mistral.APIKey) == "" {
+		return nil, fmt.Errorf("Mistral API key is required")
+	}
+	voiceID := strings.TrimSpace(cfg.Mistral.VoiceID)
+	if voiceID == "" {
+		return nil, fmt.Errorf("Mistral voice ID is required")
+	}
+	modelID := strings.TrimSpace(cfg.Mistral.ModelID)
+	if modelID == "" {
+		modelID = "voxtral-mini-tts-2603"
+	}
+
+	body, err := json.Marshal(map[string]interface{}{
+		"model":           modelID,
+		"input":           text,
+		"voice_id":        voiceID,
+		"response_format": "mp3",
+		"stream":          false,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode Mistral request: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(
+		ttsRequestContext(cfg),
+		http.MethodPost,
+		"https://api.mistral.ai/v1/audio/speech",
+		bytes.NewReader(body),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create Mistral request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+cfg.Mistral.APIKey)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := ttsHTTPClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("Mistral request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read Mistral response: %w", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("Mistral API error %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	var result struct {
+		AudioData string `json:"audio_data"`
+	}
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("failed to parse Mistral response: %w", err)
+	}
+	if result.AudioData == "" {
+		return nil, fmt.Errorf("Mistral returned empty audio data")
+	}
+	audioData, err := base64.StdEncoding.DecodeString(result.AudioData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode Mistral audio data: %w", err)
+	}
+	return audioData, nil
 }
 
 // TTSAudioDir returns the path to the TTS audio directory.

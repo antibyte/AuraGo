@@ -945,6 +945,9 @@ func agodeskTTSConfigured(cfg *config.Config) bool {
 		return strings.TrimSpace(cfg.TTS.ElevenLabs.APIKey) != ""
 	case "minimax":
 		return strings.TrimSpace(cfg.TTS.MiniMax.APIKey) != ""
+	case "mistral":
+		return strings.TrimSpace(cfg.TTS.Mistral.APIKey) != "" &&
+			strings.TrimSpace(cfg.TTS.Mistral.VoiceID) != ""
 	case "piper":
 		return cfg.TTS.Piper.Enabled
 	case "supertonic":

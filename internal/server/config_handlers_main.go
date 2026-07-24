@@ -2042,6 +2042,7 @@ var vaultKeyMap = map[string]string{
 	"brave_search.api_key":                    "brave_search_api_key",
 	"tts.elevenlabs.api_key":                  "tts_elevenlabs_api_key",
 	"tts.minimax.api_key":                     "tts_minimax_api_key",
+	"tts.mistral.api_key":                     "tts_mistral_api_key",
 	"agentmail.api_key":                       "agentmail_api_key",
 	"notifications.ntfy.token":                "ntfy_token",
 	"auth.password_hash":                      "auth_password_hash",
