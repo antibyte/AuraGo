@@ -733,8 +733,12 @@
                 target.value = idea;
                 target.focus();
             }));
+            let creating = false;
             form.addEventListener('submit', async event => {
                 event.preventDefault();
+                if (creating) return;
+                creating = true;
+                setModalBusy(layer, true);
                 const data = new FormData(form);
                 const request = {
                     name: String(data.get('name') || '').trim(),
@@ -747,7 +751,6 @@
                 };
                 let createdProject = null;
                 try {
-                    setModalBusy(layer, true);
                     createdProject = await state.api.createProject(request);
                     const job = await state.api.startJob(createdProject.id, {
                         prompt: request.description,
@@ -765,6 +768,7 @@
                     if (!state.job) state.job = job;
                     syncJobControls(state);
                 } catch (error) {
+                    creating = false;
                     if (createdProject) {
                         closeModal(state);
                         state.projects.unshift(createdProject);

@@ -282,9 +282,6 @@ func (s *Service) CreateProject(ctx context.Context, req CreateProjectRequest) (
 	if err != nil {
 		return Project{}, fmt.Errorf("create game maker project: %w", err)
 	}
-	if _, err := s.appendMessage(ctx, project.ID, "", "user", project.Description); err != nil {
-		return Project{}, err
-	}
 	_, _ = s.emit(ctx, project.ID, "", "project_created", map[string]any{"project": project})
 	return project, nil
 }

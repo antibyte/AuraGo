@@ -206,6 +206,8 @@ finish by calling game_maker_validate. Do not ask follow-up questions.`,
 	runCfg.IsMission = true
 	runCfg.VoiceOutputActive = false
 
+	slog.Info("game maker job starting", "job_id", run.Job.ID, "project_id", run.Project.ID,
+		"provider_id", cfg.LLM.Provider, "provider_type", cfg.LLM.ProviderType, "model", cfg.LLM.Model)
 	req := openai.ChatCompletionRequest{
 		Model: cfg.LLM.Model,
 		Messages: []openai.ChatCompletionMessage{{
