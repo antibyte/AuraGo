@@ -1,0 +1,19 @@
+{
+  "config": {"sip": {
+    "password_show": "显示", "password_hide": "隐藏", "status_summary": "电话状态：{state}",
+    "status": {"disabled": "已禁用", "registering": "正在连接", "registered": "已连接", "failed": "连接失败", "connecting": "正在接通呼叫", "ringing": "正在响铃", "active": "通话中", "ending": "正在结束通话", "ended": "通话已结束", "unknown": "状态未知"},
+    "profile": {
+      "ready": "电话已准备就绪。", "connected": "账户已连接。请在下方检查其余电话功能。", "attention": "连接需要处理。", "custom_provider": "自定义 SIP 配置",
+      "badge_ready": "已就绪", "badge_check": "检查", "account_ready": "账户已连接", "account_not_ready": "未连接", "outbound_ready": "可拨出电话", "outbound_off": "拨出电话已禁用", "inbound_ready": "可接听电话", "inbound_off": "接听电话已禁用", "audio_ready": "浏览器音频已就绪", "audio_restart": "需要重启", "audio_off": "浏览器音频已禁用", "restart_title": "需要重启", "restart_text": "请重启一次 AuraGo，以便浏览器电话使用新的音频设置。", "delete": "删除配置", "permissions": "更改权限", "credentials": "编辑登录信息"
+    },
+    "delete": {"title": "删除 SIP 配置？", "text": "这会删除账户设置和已保存的 SIP 密码，且无法撤销。", "history": "同时删除通话记录", "cancel": "保留配置", "confirm": "删除配置", "deleting": "正在删除 SIP 配置…", "deleted": "SIP 配置已删除。"},
+    "diagnostic": {"dns_failed": "无法解析 SIP 服务器名称。请检查运营商或服务器地址。", "unreachable": "无法访问 SIP 服务器。请检查地址、网络和路由器。", "authentication_failed": "SIP 服务器拒绝登录。请检查用户名和 SIP 密码。", "rejected": "SIP 服务器拒绝注册。请检查该账户是否允许添加设备。", "timeout": "SIP 服务器未及时响应。请检查网络后重试。", "failed": "连接测试失败。请检查账户信息后重试。", "check_credentials": "检查登录信息", "check_provider": "选择其他运营商"},
+    "wizard": {
+      "calling": "电话权限", "verify": "检查", "calling_title": "此电话应允许哪些呼叫？", "outbound_title": "拨出电话", "outbound_intro": "默认启用浏览器拨出电话。请选择适合此账户的范围。",
+      "scope_all": "通过此运营商拨打所有号码", "scope_all_desc": "允许拨打此账户准确 SIP 域内的所有目标。", "scope_domestic": "国内号码", "scope_domestic_desc": "允许拨打国内号码及该运营商的国家/地区代码。", "scope_custom": "仅指定号码", "scope_custom_desc": "仅允许拨打您输入的号码或分机。",
+      "custom_targets": "允许的号码或分机", "custom_targets_placeholder": "101, +8613812345678", "custom_targets_hint": "请用逗号分隔。模式和通配符可在“技术设置”中使用。", "custom_targets_required": "请至少输入一个允许的号码或分机。",
+      "inbound_title": "接听电话", "inbound_enable": "允许接听电话", "inbound_enable_desc": "默认关闭。启用后，AuraGo 会自动检测电话系统的可信地址。", "callers_all": "所有来电者", "callers_all_desc": "接受来自检测到的电话系统的所有来电者。", "callers_custom": "仅指定来电者", "callers_custom_desc": "仅接受您输入的号码或分机。", "custom_callers": "允许的来电者", "custom_callers_placeholder": "101, +8613812345678", "custom_callers_required": "请至少输入一个允许的来电者。", "inbound_off": "已禁用",
+      "verify_title": "保存并检查连接", "verify_check_title": "AuraGo 将检查配置", "verify_check_text": "配置会以原子方式保存，并立即测试注册。如有问题，您会停留在此步骤。", "save_test": "保存并测试", "custom_value_invalid": "“{value}”不是单个号码或分机。"
+    }
+  }}
+}

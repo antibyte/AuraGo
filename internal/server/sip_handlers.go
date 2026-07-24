@@ -41,6 +41,18 @@ type sipSetupPayload struct {
 	Values         map[string]string `json:"values"`
 	Password       string            `json:"password,omitempty"`
 	ConfirmReplace bool              `json:"confirm_replace,omitempty"`
+	Activation     *struct {
+		OutboundScope  string   `json:"outbound_scope,omitempty"`
+		OutboundValues []string `json:"outbound_values,omitempty"`
+		InboundScope   string   `json:"inbound_scope,omitempty"`
+		InboundValues  []string `json:"inbound_values,omitempty"`
+	} `json:"activation,omitempty"`
+}
+
+type sipTestResult struct {
+	Status    string `json:"status"`
+	Code      string `json:"code,omitempty"`
+	Retryable bool   `json:"retryable,omitempty"`
 }
 
 type sipRequestLimiter struct {
@@ -144,20 +156,36 @@ func handleSIPSetup(s *Server) http.HandlerFunc {
 		}
 		next, err := sipphone.ApplySIPProviderPreset(providerID, incoming.Values)
 		if err != nil {
-			jsonError(w, err.Error(), http.StatusBadRequest)
+			writeSIPSetupError(w, err.Error(), sipSetupErrorField(err.Error()), http.StatusBadRequest)
 			return
 		}
 		sipphone.ApplyProviderNetworkDefaults(r.Context(), &next, r.RemoteAddr)
+		if old.PresetID == providerID {
+			next.Inbound.DeniedCallers = append([]string(nil), old.Inbound.DeniedCallers...)
+			next.Outbound.DeniedDomains = append([]string(nil), old.Outbound.DeniedDomains...)
+			next.Outbound.DeniedUsers = append([]string(nil), old.Outbound.DeniedUsers...)
+			next.Outbound.DeniedE164Prefixes = append([]string(nil), old.Outbound.DeniedE164Prefixes...)
+		}
+		if incoming.Activation != nil {
+			err = sipphone.ApplySetupActivation(r.Context(), &next, providerID, sipphone.SetupActivation{
+				OutboundScope: incoming.Activation.OutboundScope, OutboundValues: incoming.Activation.OutboundValues,
+				InboundScope: incoming.Activation.InboundScope, InboundValues: incoming.Activation.InboundValues,
+			})
+			if err != nil {
+				jsonError(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+		}
 		next.Password = old.Password
 		mutations := make([]vaultMutation, 0, 1)
 		password := incoming.Password
 		if password == "" && old.PresetID != providerID {
-			jsonError(w, "A new SIP password is required when changing providers", http.StatusBadRequest)
+			writeSIPSetupError(w, "A new SIP password is required when changing providers", "password", http.StatusBadRequest)
 			return
 		}
 		if password != "" {
 			if password == maskedKey || len(password) > 1024 || strings.ContainsAny(password, "\r\n\x00") {
-				jsonError(w, "Invalid SIP password", http.StatusBadRequest)
+				writeSIPSetupError(w, "Invalid SIP password", "password", http.StatusBadRequest)
 				return
 			}
 			if s == nil || s.Vault == nil {
@@ -169,7 +197,7 @@ func handleSIPSetup(s *Server) http.HandlerFunc {
 			mutations = append(mutations, vaultMutation{key: config.SIPPasswordVaultKey, value: next.Password})
 		}
 		if strings.TrimSpace(next.Password) == "" {
-			jsonError(w, "A SIP password is required", http.StatusBadRequest)
+			writeSIPSetupError(w, "A SIP password is required", "password", http.StatusBadRequest)
 			return
 		}
 		config.NormalizeSIPConfig(&next)
@@ -210,6 +238,41 @@ func handleSIPSetup(s *Server) http.HandlerFunc {
 	}
 }
 
+func writeSIPSetupError(w http.ResponseWriter, message, field string, status int) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+	w.WriteHeader(status)
+	payload := map[string]string{"error": message}
+	if field != "" {
+		payload["field"] = field
+	}
+	_ = json.NewEncoder(w).Encode(payload)
+}
+
+func sipSetupErrorField(message string) string {
+	lower := strings.ToLower(message)
+	if strings.Contains(lower, "server") || strings.Contains(lower, "registrar") {
+		return "server"
+	}
+	const marker = `field "`
+	start := strings.Index(lower, marker)
+	if start < 0 {
+		return ""
+	}
+	start += len(marker)
+	end := strings.Index(lower[start:], `"`)
+	if end <= 0 {
+		return ""
+	}
+	field := lower[start : start+end]
+	switch field {
+	case "server", "username", "phone_number", "auth_username", "display_name":
+		return field
+	default:
+		return ""
+	}
+}
+
 func sipConfigHasAccount(cfg config.SIPConfig) bool {
 	return strings.TrimSpace(cfg.Registrar) != "" || strings.TrimSpace(cfg.Username) != "" || strings.TrimSpace(cfg.PresetID) != ""
 }
@@ -221,10 +284,66 @@ func handleSIPConfig(s *Server) http.HandlerFunc {
 			writeSIPConfig(w, sipConfigSnapshot(s))
 		case http.MethodPut:
 			handlePutSIPConfig(s, w, r)
+		case http.MethodDelete:
+			handleDeleteSIPConfig(s, w, r)
 		default:
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	}
+}
+
+func handleDeleteSIPConfig(s *Server, w http.ResponseWriter, r *http.Request) {
+	if !sameOriginOrNoOrigin(r) {
+		jsonError(w, "Request origin does not match server host", http.StatusForbidden)
+		return
+	}
+	purgeHistory := false
+	if raw := strings.TrimSpace(r.URL.Query().Get("purge_history")); raw != "" {
+		value, err := strconv.ParseBool(raw)
+		if err != nil {
+			jsonError(w, "purge_history must be true or false", http.StatusBadRequest)
+			return
+		}
+		purgeHistory = value
+	}
+	old := sipConfigSnapshot(s)
+	var next config.SIPConfig
+	config.ApplySIPDefaults(&next)
+	next.Enabled = false
+	next.Inbound.Route = "reject"
+	next.Password = ""
+	if err := persistSIPConfig(s, next, []vaultMutation{{key: config.SIPPasswordVaultKey, delete: true}}); err != nil {
+		if s != nil && s.Logger != nil {
+			s.Logger.Error("Failed to delete SIP profile", "error", err)
+		}
+		jsonError(w, "Failed to delete SIP profile", http.StatusInternalServerError)
+		return
+	}
+	runtimePending := false
+	historyDeleted := false
+	if s != nil && s.SIPPhone != nil {
+		ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
+		err := s.SIPPhone.Reconfigure(ctx, next)
+		if err == nil && purgeHistory {
+			err = s.SIPPhone.DeleteHistory(ctx)
+			historyDeleted = err == nil
+		}
+		cancel()
+		runtimePending = err != nil
+	} else if purgeHistory {
+		runtimePending = true
+	}
+	needsRestart := runtimePending || sipBrowserMediaRestartRequired(old, next)
+	status := http.StatusOK
+	if needsRestart {
+		status = http.StatusAccepted
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"status": "deleted", "needs_restart": needsRestart, "history_deleted": historyDeleted,
+	})
 }
 
 func sipConfigSnapshot(s *Server) config.SIPConfig {
@@ -420,11 +539,47 @@ func handleSIPTest(s *Server) http.HandlerFunc {
 		ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
 		defer cancel()
 		if err := manager.TestConnection(ctx); err != nil {
-			jsonError(w, "SIP connection test failed", http.StatusBadGateway)
+			result := classifySIPTestError(err)
+			w.Header().Set("Content-Type", "application/json")
+			w.Header().Set("Cache-Control", "no-store")
+			w.WriteHeader(http.StatusBadGateway)
+			_ = json.NewEncoder(w).Encode(result)
 			return
 		}
-		writeSIPJSON(w, map[string]string{"status": "ok"})
+		writeSIPJSON(w, sipTestResult{Status: "ok"})
 	}
+}
+
+func classifySIPTestError(err error) sipTestResult {
+	result := sipTestResult{Status: "error", Code: "failed"}
+	if err == nil {
+		return sipTestResult{Status: "ok"}
+	}
+	var dnsErr *net.DNSError
+	var netErr net.Error
+	message := strings.ToLower(err.Error())
+	switch {
+	case errors.Is(err, context.DeadlineExceeded), errors.As(err, &netErr) && netErr.Timeout(),
+		strings.Contains(message, "timeout"), strings.Contains(message, "timed out"),
+		strings.Contains(message, "deadline exceeded"):
+		result.Code, result.Retryable = "timeout", true
+	case errors.As(err, &dnsErr), strings.Contains(message, "no such host"),
+		strings.Contains(message, "name resolution"), strings.Contains(message, "server misbehaving"):
+		result.Code, result.Retryable = "dns_failed", true
+	case strings.Contains(message, "401"), strings.Contains(message, "403"),
+		strings.Contains(message, "unauthorized"), strings.Contains(message, "forbidden"),
+		strings.Contains(message, "authentication"):
+		result.Code = "authentication_failed"
+	case strings.Contains(message, "connection refused"), strings.Contains(message, "no route"),
+		strings.Contains(message, "network is unreachable"), strings.Contains(message, "host is unreachable"):
+		result.Code, result.Retryable = "unreachable", true
+	case strings.Contains(message, "status 4"), strings.Contains(message, "status 5"),
+		strings.Contains(message, "rejected"):
+		result.Code = "rejected"
+	default:
+		result.Retryable = true
+	}
+	return result
 }
 
 func handleSIPStatus(s *Server) http.HandlerFunc {

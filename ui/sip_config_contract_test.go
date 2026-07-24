@@ -16,7 +16,7 @@ func TestSIPConfigUIUsesSavedStateAndMaskedSecret(t *testing.T) {
 	source := string(data)
 	for _, marker := range []string{
 		"/api/sip/config", "/api/sip/providers", "/api/sip/setup", "/api/sip/status", "/api/sip/test", "password_set",
-		"sipSavedState", "sipComparable(current) !== sipSavedState", "button.disabled = !!reason",
+		"sipSavedState", "sipComparable(current) !== sipSavedState",
 		"auto_answer_delay_ms ?? 1000", `class="sip-settings-grid"`,
 		`class="field-group sip-toggle-field"`, `class="toggle"`, `class="slider"`,
 		`class="sip-wizard-shell"`, `class="sip-provider-grid"`, `class="sip-advanced"`,
@@ -24,15 +24,16 @@ func TestSIPConfigUIUsesSavedStateAndMaskedSecret(t *testing.T) {
 		"const canReusePassword = sipConfigState.password_set && sipConfigState.preset_id === provider.id",
 		"async function renderSIPSection() {\n    sipWizardStep = 1;",
 		"sipWizardPassword = '';\n    sipWizardQuery = '';\n    sipWizardMessage = '';",
-		"function sipParsePhoneTargets(raw)", "async function sipEnableBrowserPhone()",
-		"function sipPatchDesktopPhoneConfig(", "function sipPatchOutboundPhoneConfig(",
-		"function sipOfferRestart(", "function sipMarkClean(",
+		"function sipParseGuidedValues(", "function sipReviewCalling()",
+		"function sipMarkClean(", "function sipDeleteProfile()",
 		"function sipNormalizeOutboundPayload(",
-		"sipWizardActivationMode", "data-sip-activation-mode",
-		"next.permissions.answer_inbound = true", "next.inbound.route = 'manual'",
+		"outbound_scope: sipWizardOutboundScope", "inbound_scope: sipWizardInboundEnabled",
+		"data-sip-guided-scope", "data-sip-guided-inbound",
+		"data-sip-profile=\"delete\"", "method: 'DELETE'",
+		"error.code = body.code", "sipTestErrorMessage(",
+		"aria-current=\"step\"", "aria-invalid=\"true\"",
 		"Array.isArray(state.outbound.allowed_users)",
 		"Array.isArray(state.outbound.denied_users)",
-		"data-sip-phone-blocked-targets", "data-sip-wizard-denied-callers",
 		"inbound.denied_callers", "outbound.denied_domains", "outbound.denied_users", "outbound.denied_e164_prefixes",
 		"config.sip.policy_precedence", "config.sip.allowed_callers_help", "config.sip.denied_callers_help",
 		"function sipHasUnsavedChanges()", "async function sipSaveUnsaved()",
@@ -88,7 +89,8 @@ func TestSIPConfigHasResponsiveLayoutStyles(t *testing.T) {
 		"repeat(2, minmax(0, 1fr))", "@media (max-width: 820px)",
 		"grid-template-columns: minmax(0, 1fr)", ".sip-toggle-field",
 		".sip-wizard-shell", ".sip-provider-grid", ".sip-advanced",
-		".sip-mode-card", ".sip-desktop-fields",
+		".sip-mode-card", ".sip-choice-group", ".sip-profile-card",
+		".sip-readiness-list", ".sip-delete-confirm", ".sip-password-toggle",
 		"@media (prefers-reduced-motion: reduce)",
 	} {
 		if !strings.Contains(source, marker) {
@@ -134,6 +136,19 @@ func TestSIPConfigTranslationsComplete(t *testing.T) {
 		"config.sip.allowed_domains_help", "config.sip.denied_domains_help",
 		"config.sip.allowed_users_help", "config.sip.denied_users_help",
 		"config.sip.allowed_e164_help", "config.sip.denied_e164_help",
+		"config.sip.password_show", "config.sip.password_hide", "config.sip.status_summary",
+		"config.sip.status.disabled", "config.sip.status.registered", "config.sip.status.failed",
+		"config.sip.profile.ready", "config.sip.profile.account_ready", "config.sip.profile.outbound_ready",
+		"config.sip.profile.inbound_off", "config.sip.profile.audio_restart", "config.sip.profile.delete",
+		"config.sip.profile.permissions", "config.sip.profile.credentials",
+		"config.sip.delete.title", "config.sip.delete.history", "config.sip.delete.confirm",
+		"config.sip.diagnostic.dns_failed", "config.sip.diagnostic.unreachable",
+		"config.sip.diagnostic.authentication_failed", "config.sip.diagnostic.timeout",
+		"config.sip.wizard.calling", "config.sip.wizard.verify", "config.sip.wizard.calling_title",
+		"config.sip.wizard.scope_all", "config.sip.wizard.scope_domestic", "config.sip.wizard.scope_custom",
+		"config.sip.wizard.custom_targets", "config.sip.wizard.custom_targets_required",
+		"config.sip.wizard.inbound_enable", "config.sip.wizard.callers_all", "config.sip.wizard.callers_custom",
+		"config.sip.wizard.verify_title", "config.sip.wizard.save_test",
 	}
 	for _, locale := range locales {
 		data, err := os.ReadFile(filepath.Join("lang", "config", locale+".json"))
@@ -144,10 +159,34 @@ func TestSIPConfigTranslationsComplete(t *testing.T) {
 		if err := json.Unmarshal(data, &messages); err != nil {
 			t.Fatalf("%s config locale: %v", locale, err)
 		}
+		moduleData, err := os.ReadFile(filepath.Join("lang", "config", "sip", locale+".json"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var module map[string]any
+		if err := json.Unmarshal(moduleData, &module); err != nil {
+			t.Fatalf("%s SIP config module: %v", locale, err)
+		}
+		flattenSIPTranslations("", module, messages)
 		for _, key := range required {
 			if strings.TrimSpace(messages[key]) == "" {
 				t.Fatalf("%s missing %s", locale, key)
 			}
+		}
+	}
+}
+
+func flattenSIPTranslations(prefix string, values map[string]any, target map[string]string) {
+	for key, value := range values {
+		fullKey := key
+		if prefix != "" {
+			fullKey = prefix + "." + key
+		}
+		switch typed := value.(type) {
+		case string:
+			target[fullKey] = typed
+		case map[string]any:
+			flattenSIPTranslations(fullKey, typed, target)
 		}
 	}
 }

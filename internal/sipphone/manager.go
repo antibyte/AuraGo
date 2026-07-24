@@ -279,6 +279,10 @@ func (m *Manager) PruneHistory(ctx context.Context, cutoff time.Time) error {
 	return m.store.DeleteOlderThan(ctx, cutoff)
 }
 
+func (m *Manager) DeleteHistory(ctx context.Context) error {
+	return m.store.DeleteAll(ctx)
+}
+
 func (m *Manager) Dial(ctx context.Context, target string) (CallRecord, error) {
 	return m.dial(ctx, target, MediaModeAgent, nil)
 }

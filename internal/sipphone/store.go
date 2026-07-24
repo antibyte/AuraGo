@@ -105,6 +105,13 @@ func (s *Store) DeleteOlderThan(ctx context.Context, cutoff time.Time) error {
 	return nil
 }
 
+func (s *Store) DeleteAll(ctx context.Context) error {
+	if _, err := s.db.ExecContext(ctx, `DELETE FROM sip_calls`); err != nil {
+		return fmt.Errorf("delete SIP call history: %w", err)
+	}
+	return nil
+}
+
 func (s *Store) Close() error { return s.db.Close() }
 
 func nullableMillis(value *time.Time) any {

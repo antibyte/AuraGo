@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -73,13 +74,17 @@ func TestMarshalConfigWithSIPNeverWritesRuntimePassword(t *testing.T) {
 }
 
 func TestSIPConfigMutationRequiresSameOrigin(t *testing.T) {
-	server := &Server{Cfg: &config.Config{}}
-	request := httptest.NewRequest(http.MethodPut, "https://aurago.local/api/sip/config", strings.NewReader(`{}`))
-	request.Header.Set("Origin", "https://attacker.example")
-	recorder := httptest.NewRecorder()
-	handleSIPConfig(server).ServeHTTP(recorder, request)
-	if recorder.Code != http.StatusForbidden {
-		t.Fatalf("status=%d body=%s", recorder.Code, recorder.Body.String())
+	for _, method := range []string{http.MethodPut, http.MethodDelete} {
+		t.Run(method, func(t *testing.T) {
+			server := &Server{Cfg: &config.Config{}}
+			request := httptest.NewRequest(method, "https://aurago.local/api/sip/config", strings.NewReader(`{}`))
+			request.Header.Set("Origin", "https://attacker.example")
+			recorder := httptest.NewRecorder()
+			handleSIPConfig(server).ServeHTTP(recorder, request)
+			if recorder.Code != http.StatusForbidden {
+				t.Fatalf("status=%d body=%s", recorder.Code, recorder.Body.String())
+			}
+		})
 	}
 }
 
@@ -106,6 +111,25 @@ func TestSIPSetupRejectsTrailingJSON(t *testing.T) {
 	}
 	if sipConfigHasAccount(sipConfigSnapshot(server)) {
 		t.Fatal("trailing JSON must be rejected before changing SIP configuration")
+	}
+}
+
+func TestSIPSetupAssignsValidationErrorToAffectedField(t *testing.T) {
+	server := &Server{Cfg: &config.Config{}}
+	body := `{"provider_id":"fritzbox","values":{"server":"https://fritz.box","username":"desk"},"password":"secret"}`
+	request := httptest.NewRequest(http.MethodPost, "https://aurago.local/api/sip/setup", strings.NewReader(body))
+	request.Header.Set("Origin", "https://aurago.local")
+	recorder := httptest.NewRecorder()
+	handleSIPSetup(server).ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("status=%d body=%s", recorder.Code, recorder.Body.String())
+	}
+	var payload map[string]string
+	if err := json.Unmarshal(recorder.Body.Bytes(), &payload); err != nil {
+		t.Fatal(err)
+	}
+	if payload["field"] != "server" || payload["error"] == "" {
+		t.Fatalf("unexpected validation response: %+v", payload)
 	}
 }
 
@@ -157,6 +181,107 @@ func TestSIPSetupAppliesPresetAndStoresPasswordOnlyInVault(t *testing.T) {
 	}
 }
 
+func TestSIPSetupActivationMakesOutboundBrowserPhoneReady(t *testing.T) {
+	template, err := os.ReadFile(filepath.Join("..", "..", "config_template.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, "config.yaml")
+	if err := os.WriteFile(configPath, template, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := config.Load(configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	loaded.ConfigPath = configPath
+	vault, err := security.NewVault(strings.Repeat("b", 64), filepath.Join(tempDir, "vault.bin"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := &Server{Cfg: loaded, Vault: vault}
+	body := `{"provider_id":"fritzbox","values":{"server":"192.0.2.10","username":"aurago-phone","display_name":"AuraGo"},"password":"setup-secret","activation":{"outbound_scope":"all","inbound_scope":"disabled"}}`
+	request := httptest.NewRequest(http.MethodPost, "https://aurago.local/api/sip/setup", strings.NewReader(body))
+	request.Header.Set("Origin", "https://aurago.local")
+	recorder := httptest.NewRecorder()
+	handleSIPSetup(server).ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusOK && recorder.Code != http.StatusAccepted {
+		t.Fatalf("status=%d body=%s", recorder.Code, recorder.Body.String())
+	}
+	snapshot := sipConfigSnapshot(server)
+	if snapshot.ReadOnly || !snapshot.BrowserMedia.Enabled || !snapshot.Permissions.OriginateOutbound {
+		t.Fatalf("outbound browser phone is not ready: %+v", snapshot)
+	}
+	if snapshot.Permissions.AnswerInbound || snapshot.Inbound.Route != "reject" || len(snapshot.Inbound.TrustedPeerCIDRs) != 0 {
+		t.Fatalf("incoming calls were unexpectedly enabled: %+v", snapshot.Inbound)
+	}
+	if strings.Join(snapshot.Outbound.AllowedDomains, ",") != "192.0.2.10" ||
+		strings.Join(snapshot.Outbound.AllowedUsers, ",") != "*" {
+		t.Fatalf("unexpected strict outbound policy: %+v", snapshot.Outbound)
+	}
+}
+
+func TestDeleteSIPConfigRemovesProfileAndVaultPassword(t *testing.T) {
+	template, err := os.ReadFile(filepath.Join("..", "..", "config_template.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, "config.yaml")
+	if err := os.WriteFile(configPath, template, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := config.Load(configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	loaded.ConfigPath = configPath
+	loaded.SIP.Enabled = true
+	loaded.SIP.Registrar = "192.0.2.10"
+	loaded.SIP.Domain = "192.0.2.10"
+	loaded.SIP.Username = "desk"
+	vault, err := security.NewVault(strings.Repeat("c", 64), filepath.Join(tempDir, "vault.bin"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := vault.WriteSecret(config.SIPPasswordVaultKey, "delete-me"); err != nil {
+		t.Fatal(err)
+	}
+	server := &Server{Cfg: loaded, Vault: vault}
+	request := httptest.NewRequest(http.MethodDelete, "https://aurago.local/api/sip/config", nil)
+	request.Header.Set("Origin", "https://aurago.local")
+	recorder := httptest.NewRecorder()
+	handleSIPConfig(server).ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusOK && recorder.Code != http.StatusAccepted {
+		t.Fatalf("status=%d body=%s", recorder.Code, recorder.Body.String())
+	}
+	snapshot := sipConfigSnapshot(server)
+	if snapshot.Enabled || sipConfigHasAccount(snapshot) || snapshot.Password != "" {
+		t.Fatalf("SIP profile was not removed: %+v", snapshot)
+	}
+	if secret, err := vault.ReadSecret(config.SIPPasswordVaultKey); err == nil || secret != "" {
+		t.Fatalf("SIP Vault password still exists: value=%q err=%v", secret, err)
+	}
+}
+
+func TestClassifySIPTestErrorUsesSafeCodes(t *testing.T) {
+	tests := map[string]string{
+		"lookup registrar: no such host":          "dns_failed",
+		"dial udp: connection refused":            "unreachable",
+		"request timeout while registering":       "timeout",
+		"registration returned 401 unauthorized":  "authentication_failed",
+		"registration was rejected by registrar":  "rejected",
+		"an unexpected internal registration err": "failed",
+	}
+	for message, expected := range tests {
+		result := classifySIPTestError(errors.New(message))
+		if result.Status != "error" || result.Code != expected {
+			t.Fatalf("%q => %+v, want code %q", message, result, expected)
+		}
+	}
+}
+
 func TestSIPSetupRequiresNewPasswordWhenProviderChanges(t *testing.T) {
 	var current config.SIPConfig
 	config.ApplySIPDefaults(&current)
@@ -181,6 +306,7 @@ func TestSIPAPIRoutesAreAdminProtected(t *testing.T) {
 		"/api/sip/providers",
 		"/api/sip/setup",
 		"/api/sip/status",
+		"/api/sip/test",
 		"/api/sip/calls",
 		"/api/sip/events",
 		"/api/sip/app/state",

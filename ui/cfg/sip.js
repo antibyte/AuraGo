@@ -8,14 +8,21 @@ let sipWizardValues = {};
 let sipWizardPassword = '';
 let sipWizardQuery = '';
 let sipWizardMessage = '';
+let sipWizardTestCode = '';
+let sipWizardFieldErrors = {};
+let sipWizardPasswordVisible = false;
 let sipAdvancedDirty = false;
 let sipAdvancedOpen = false;
 let sipPhoneTargets = '';
-let sipWizardActivationMode = 'registration'; // registration | desktop
-let sipWizardTrustedPeers = '';
-let sipWizardAllowedCallers = '';
-let sipWizardDeniedCallers = '';
-let sipPhoneBlockedTargets = '';
+let sipWizardOutboundScope = 'all';
+let sipWizardInboundEnabled = false;
+let sipWizardInboundScope = 'all';
+let sipWizardCustomCallers = '';
+let sipRuntimeStatus = null;
+let sipConnectionVerified = false;
+let sipNeedsRestart = false;
+let sipDeleteConfirm = false;
+let sipDeleteHistory = false;
 
 function sipEsc(value) {
     return String(value == null ? '' : value)
@@ -82,9 +89,12 @@ function sipProviderCategory(category) {
 function sipWizardProgress() {
     const active = Math.max(1, sipWizardStep);
     return `<ol class="sip-wizard-progress" aria-label="${sipEsc(t('config.sip.wizard.progress'))}">
-        <li class="${active >= 1 ? 'is-active' : ''}"><span>1</span>${sipEsc(t('config.sip.wizard.choose'))}</li>
-        <li class="${active >= 2 ? 'is-active' : ''}"><span>2</span>${sipEsc(t('config.sip.account'))}</li>
-        <li class="${active >= 3 ? 'is-active' : ''}"><span>3</span>${sipEsc(t('config.sip.wizard.review'))}</li>
+        ${[
+            ['config.sip.wizard.choose', 1],
+            ['config.sip.account', 2],
+            ['config.sip.wizard.calling', 3],
+            ['config.sip.wizard.verify', 4]
+        ].map(([key, step]) => `<li class="${active === step ? 'is-current' : (active > step ? 'is-complete' : '')}" ${active === step ? 'aria-current="step"' : ''}><span>${step}</span>${sipEsc(t(key))}</li>`).join('')}
     </ol>`;
 }
 
@@ -110,74 +120,66 @@ function sipDesktopPhoneReady(state) {
 }
 
 function sipWizardConfigured() {
-    const provider = sipProvider(sipConfigState.preset_id);
-    if (!provider) return '';
+    const provider = sipProvider(sipConfigState.preset_id) || {
+        id: sipConfigState.preset_id || '',
+        name: sipConfigState.display_name || sipConfigState.registrar || t('config.sip.profile.custom_provider'),
+        fields: []
+    };
     const fullReady = sipDesktopPhoneReady(sipConfigState);
     const outboundReady = sipOutboundPhoneReady(sipConfigState);
-    const statusText = fullReady
-        ? t('config.sip.wizard.phone_enabled')
-        : (outboundReady ? t('config.sip.wizard.phone_enabled') : t('config.sip.wizard.safe_registration'));
-    return `<div class="sip-wizard-configured">
-        <div class="sip-wizard-configured-header">
-            <div>
-            <span class="sip-eyebrow">${sipEsc(t('config.sip.wizard.configured'))}</span>
-            <h3>${sipEsc(provider.name)}</h3>
-            <p>${sipEsc(statusText)}</p>
-            </div>
-            <button type="button" class="btn btn-secondary" data-sip-wizard="change">${sipEsc(t('config.sip.wizard.change'))}</button>
+    const registered = sipConnectionVerified || !!(sipRuntimeStatus && sipRuntimeStatus.registered);
+    const browserReady = !!sipConfigState.browser_media.enabled && !sipNeedsRestart;
+    const headline = registered && outboundReady
+        ? t('config.sip.profile.ready')
+        : (registered ? t('config.sip.profile.connected') : t('config.sip.profile.attention'));
+    const readiness = [
+        [registered, 'config.sip.account', registered ? 'config.sip.profile.account_ready' : 'config.sip.profile.account_not_ready'],
+        [outboundReady, 'config.sip.originate_outbound', outboundReady ? 'config.sip.profile.outbound_ready' : 'config.sip.profile.outbound_off'],
+        [fullReady, 'config.sip.answer_inbound', fullReady ? 'config.sip.profile.inbound_ready' : 'config.sip.profile.inbound_off'],
+        [browserReady, 'config.sip.browser_media', browserReady ? 'config.sip.profile.audio_ready' : (sipNeedsRestart ? 'config.sip.profile.audio_restart' : 'config.sip.profile.audio_off')]
+    ];
+    return `<article class="sip-profile-card">
+        <header class="sip-profile-header">
+            <div><span class="sip-eyebrow">${sipEsc(t('config.sip.wizard.configured'))}</span><h3>${sipEsc(provider.name)}</h3><p>${sipEsc(headline)}</p></div>
+            <span class="sip-profile-state ${registered && outboundReady ? 'is-ready' : 'is-attention'}">${sipEsc(registered && outboundReady ? t('config.sip.profile.badge_ready') : t('config.sip.profile.badge_check'))}</span>
+        </header>
+        <dl class="sip-readiness-list">${readiness.map(([ready, label, value]) => `<div><dt>${sipEsc(t(label))}</dt><dd class="${ready ? 'is-ready' : 'is-muted'}"><span class="sip-readiness-dot" aria-hidden="true"></span>${sipEsc(t(value))}</dd></div>`).join('')}</dl>
+        ${sipWizardTestCode ? `<div class="sip-test-diagnostic sip-profile-diagnostic" role="alert"><strong>${sipEsc(sipTestErrorMessage(sipWizardTestCode))}</strong><div><button type="button" class="btn btn-secondary" data-sip-profile="credentials">${sipEsc(t('config.sip.diagnostic.check_credentials'))}</button><button type="button" class="sip-text-action" data-sip-wizard="change">${sipEsc(t('config.sip.diagnostic.check_provider'))}</button></div></div>` : ''}
+        ${sipNeedsRestart ? `<div class="sip-restart-banner" role="status"><div><strong>${sipEsc(t('config.sip.profile.restart_title'))}</strong><p>${sipEsc(t('config.sip.profile.restart_text'))}</p></div><button type="button" class="btn-save" data-sip-profile="restart">${sipEsc(t('config.sip.restart_modal_confirm'))}</button></div>` : ''}
+        <div class="sip-profile-actions">
+            <button type="button" class="btn-save" data-sip-profile="test">${sipEsc(t('config.sip.test'))}</button>
+            <button type="button" class="btn btn-secondary" data-sip-profile="permissions">${sipEsc(t('config.sip.profile.permissions'))}</button>
+            <button type="button" class="btn btn-secondary" data-sip-profile="credentials">${sipEsc(t('config.sip.profile.credentials'))}</button>
+            <button type="button" class="sip-text-action" data-sip-wizard="change">${sipEsc(t('config.sip.wizard.change'))}</button>
+            <button type="button" class="sip-text-action is-danger" data-sip-profile="delete">${sipEsc(t('config.sip.profile.delete'))}</button>
         </div>
-        ${fullReady ? '' : `<div class="sip-phone-activation">
-            <div>
-                <strong>${sipEsc(t(outboundReady ? 'config.sip.wizard.phone_full_title' : 'config.sip.wizard.phone_full_title'))}</strong>
-                <p>${sipEsc(t('config.sip.wizard.phone_full_intro'))}</p>
-            </div>
-            ${sipDesktopActivationFieldsMarkup()}
-            <p class="sip-phone-warning">${sipEsc(t('config.sip.wizard.phone_warning'))}</p>
-            <button type="button" class="btn-save" data-sip-wizard="enable-phone">${sipEsc(t(outboundReady ? 'config.sip.wizard.phone_full_enable' : 'config.sip.wizard.phone_full_enable'))}</button>
-        </div>`}
-    </div>`;
+        ${sipDeleteConfirm ? sipDeleteConfirmation() : ''}
+    </article>`;
 }
 
-function sipDesktopActivationFieldsMarkup() {
-    return `<div class="sip-desktop-fields">
-        <label class="field-group">
-            <span class="field-label">${sipEsc(t('config.sip.wizard.phone_targets'))}</span>
-            <input class="field-input" type="text" data-sip-phone-targets value="${sipEsc(sipPhoneTargets)}"
-                placeholder="${sipEsc(t('config.sip.wizard.phone_targets_placeholder'))}" autocomplete="off" maxlength="1024">
-            <small>${sipEsc(t('config.sip.wizard.phone_targets_hint'))}</small>
-        </label>
-        <label class="field-group">
-            <span class="field-label">${sipEsc(t('config.sip.blocked_targets'))}</span>
-            <input class="field-input" type="text" data-sip-phone-blocked-targets value="${sipEsc(sipPhoneBlockedTargets)}"
-                placeholder="+49900, premium-*" autocomplete="off" maxlength="1024">
-            <small>${sipEsc(t('config.sip.blocked_targets_help'))}</small>
-        </label>
-        <label class="field-group">
-            <span class="field-label">${sipEsc(t('config.sip.wizard.trusted_peers'))}</span>
-            <input class="field-input" type="text" data-sip-wizard-trusted-peers value="${sipEsc(sipWizardTrustedPeers)}"
-                placeholder="${sipEsc(t('config.sip.wizard.trusted_peers_placeholder'))}" autocomplete="off" maxlength="1024">
-            <small>${sipEsc(t('config.sip.wizard.trusted_peers_hint'))}</small>
-        </label>
-        <label class="field-group">
-            <span class="field-label">${sipEsc(t('config.sip.wizard.allowed_callers'))}</span>
-            <input class="field-input" type="text" data-sip-wizard-allowed-callers value="${sipEsc(sipWizardAllowedCallers)}"
-                placeholder="${sipEsc(t('config.sip.wizard.allowed_callers_placeholder'))}" autocomplete="off" maxlength="1024">
-            <small>${sipEsc(t('config.sip.wizard.allowed_callers_hint'))}</small>
-        </label>
-        <label class="field-group">
-            <span class="field-label">${sipEsc(t('config.sip.denied_callers'))}</span>
-            <input class="field-input" type="text" data-sip-wizard-denied-callers value="${sipEsc(sipWizardDeniedCallers)}"
-                placeholder="+49900*, sip:blocked@*" autocomplete="off" maxlength="1024">
-            <small>${sipEsc(t('config.sip.denied_callers_help'))}</small>
-        </label>
-    </div>`;
+function sipDeleteConfirmation() {
+    return `<section class="sip-delete-confirm" role="alertdialog" tabindex="-1" aria-labelledby="sip-delete-title" aria-describedby="sip-delete-text">
+        <div><strong id="sip-delete-title">${sipEsc(t('config.sip.delete.title'))}</strong><p id="sip-delete-text">${sipEsc(t('config.sip.delete.text'))}</p></div>
+        <label><input type="checkbox" data-sip-delete-history ${sipDeleteHistory ? 'checked' : ''}> <span>${sipEsc(t('config.sip.delete.history'))}</span></label>
+        <div><button type="button" class="btn btn-secondary" data-sip-profile="delete-cancel">${sipEsc(t('config.sip.delete.cancel'))}</button><button type="button" class="btn-save sip-danger-button" data-sip-profile="delete-confirm">${sipEsc(t('config.sip.delete.confirm'))}</button></div>
+    </section>`;
 }
 
 function sipProviderGroupsMarkup() {
     const query = sipWizardQuery.trim().toLocaleLowerCase();
+    const priority = ['fritzbox', 'sipgate-de', 'easybell-voip', 'telekom-de', 'generic-pbx'];
     const filtered = sipProviderCatalog.filter(provider => {
         if (!query) return true;
         return `${provider.name} ${provider.region} ${sipProviderCategory(provider.category)}`.toLocaleLowerCase().includes(query);
+    }).sort((left, right) => {
+        const leftPriority = priority.indexOf(left.id);
+        const rightPriority = priority.indexOf(right.id);
+        if (leftPriority >= 0 || rightPriority >= 0) {
+            if (leftPriority < 0) return 1;
+            if (rightPriority < 0) return -1;
+            return leftPriority - rightPriority;
+        }
+        return left.name.localeCompare(right.name);
     });
     const groups = new Map();
     filtered.forEach(provider => {
@@ -218,74 +220,97 @@ function sipWizardCredentials(provider) {
         <div class="sip-wizard-fields">${provider.fields.map(field => {
             const value = field.secret ? '' : (sipWizardValues[field.key] ?? field.default ?? '');
             const placeholder = field.secret ? passwordHint : (field.placeholder || '');
+            const fieldID = `sip-wizard-${field.key.replaceAll('_', '-')}`;
+            const error = sipWizardFieldErrors[field.key] || '';
             return `<label class="field-group">
                 <span class="field-label">${sipEsc(t(field.label_key))}${field.required ? ' *' : ''}</span>
-                <input class="field-input" type="${field.secret ? 'password' : 'text'}" data-sip-wizard-field="${sipEsc(field.key)}"
+                <span class="${field.secret ? 'sip-password-field' : ''}"><input id="${sipEsc(fieldID)}" class="field-input" type="${field.secret && !sipWizardPasswordVisible ? 'password' : 'text'}" data-sip-wizard-field="${sipEsc(field.key)}"
                     value="${sipEsc(value)}" placeholder="${sipEsc(placeholder)}" maxlength="${field.secret ? '1024' : '512'}"
-                    ${field.secret ? 'autocomplete="new-password"' : 'autocomplete="off"'}>
+                    ${field.secret ? 'autocomplete="new-password"' : 'autocomplete="off"'} ${error ? `aria-invalid="true" aria-describedby="${sipEsc(fieldID)}-error"` : ''}>
+                    ${field.secret ? `<button type="button" class="sip-password-toggle" data-sip-wizard="password-toggle" aria-controls="${sipEsc(fieldID)}">${sipEsc(t(sipWizardPasswordVisible ? 'config.sip.password_hide' : 'config.sip.password_show'))}</button>` : ''}</span>
+                    ${error ? `<small id="${sipEsc(fieldID)}-error" class="sip-field-error">${sipEsc(error)}</small>` : ''}
             </label>`;
         }).join('')}</div>
         <div class="sip-wizard-actions">
             <a class="sip-doc-link" href="${sipEsc(provider.documentation_url)}" target="_blank" rel="noopener noreferrer">${sipEsc(t('config.sip.wizard.documentation'))} ↗</a>
-            <button type="button" class="btn-save" data-sip-wizard="review">${sipEsc(t('config.sip.wizard.continue'))}</button>
+            <button type="button" class="btn-save" data-sip-wizard="calling">${sipEsc(t('config.sip.wizard.continue'))}</button>
         </div>
     </div>`;
 }
 
-function sipWizardReview(provider) {
-    const replacing = !!(sipConfigState.registrar && sipConfigState.preset_id !== provider.id);
-    const desktop = sipWizardActivationMode === 'desktop';
+function sipWizardCalling(provider) {
+    const domesticAvailable = !!provider.domestic_region;
+    const outboundOptions = [
+        ['all', 'config.sip.wizard.scope_all', 'config.sip.wizard.scope_all_desc'],
+        ...(domesticAvailable ? [['domestic', 'config.sip.wizard.scope_domestic', 'config.sip.wizard.scope_domestic_desc']] : []),
+        ['custom', 'config.sip.wizard.scope_custom', 'config.sip.wizard.scope_custom_desc']
+    ];
     return `<div class="sip-wizard-panel">
         <div class="sip-wizard-provider-heading">
             <button type="button" class="sip-back-button" data-sip-wizard="back" aria-label="${sipEsc(t('config.sip.wizard.back'))}">←</button>
-            <div><span class="sip-eyebrow">${sipEsc(t('config.sip.wizard.review'))}</span><h3>${sipEsc(provider.name)}</h3></div>
+            <div><span class="sip-eyebrow">${sipEsc(t('config.sip.wizard.calling'))}</span><h3>${sipEsc(t('config.sip.wizard.calling_title'))}</h3></div>
+        </div>
+        <fieldset class="sip-choice-group">
+            <legend>${sipEsc(t('config.sip.wizard.outbound_title'))}</legend>
+            <p>${sipEsc(t('config.sip.wizard.outbound_intro'))}</p>
+            ${outboundOptions.map(([value, title, description]) => sipChoiceCard('sip-outbound-scope', value, sipWizardOutboundScope, title, description)).join('')}
+            ${sipWizardOutboundScope === 'custom' ? `<label class="field-group sip-guided-values"><span class="field-label">${sipEsc(t('config.sip.wizard.custom_targets'))}</span><input class="field-input" type="text" data-sip-guided-targets value="${sipEsc(sipPhoneTargets)}" placeholder="${sipEsc(t('config.sip.wizard.custom_targets_placeholder'))}" autocomplete="off"><small>${sipEsc(t('config.sip.wizard.custom_targets_hint'))}</small></label>` : ''}
+        </fieldset>
+        <fieldset class="sip-choice-group sip-inbound-choice">
+            <legend>${sipEsc(t('config.sip.wizard.inbound_title'))}</legend>
+            <label class="sip-inbound-toggle"><span><strong>${sipEsc(t('config.sip.wizard.inbound_enable'))}</strong><small>${sipEsc(t('config.sip.wizard.inbound_enable_desc'))}</small></span><span class="toggle-wrap"><span class="toggle"><input type="checkbox" data-sip-guided-inbound ${sipWizardInboundEnabled ? 'checked' : ''}><span class="slider"></span></span></span></label>
+            ${sipWizardInboundEnabled ? `<div class="sip-inbound-options">
+                ${sipChoiceCard('sip-inbound-scope', 'all', sipWizardInboundScope, 'config.sip.wizard.callers_all', 'config.sip.wizard.callers_all_desc')}
+                ${sipChoiceCard('sip-inbound-scope', 'custom', sipWizardInboundScope, 'config.sip.wizard.callers_custom', 'config.sip.wizard.callers_custom_desc')}
+                ${sipWizardInboundScope === 'custom' ? `<label class="field-group sip-guided-values"><span class="field-label">${sipEsc(t('config.sip.wizard.custom_callers'))}</span><input class="field-input" type="text" data-sip-guided-callers value="${sipEsc(sipWizardCustomCallers)}" placeholder="${sipEsc(t('config.sip.wizard.custom_callers_placeholder'))}" autocomplete="off"></label>` : ''}
+            </div>` : ''}
+        </fieldset>
+        <p class="sip-emergency-note">${sipEsc(t('config.sip.wizard.phone_warning'))}</p>
+        <div class="sip-wizard-actions"><span></span><button type="button" class="btn-save" data-sip-wizard="review">${sipEsc(t('config.sip.wizard.continue'))}</button></div>
+    </div>`;
+}
+
+function sipChoiceCard(name, value, selected, titleKey, descriptionKey) {
+    return `<label class="sip-mode-card ${selected === value ? 'is-selected' : ''}">
+        <input type="radio" name="${sipEsc(name)}" data-sip-guided-scope="${sipEsc(name)}" value="${sipEsc(value)}" ${selected === value ? 'checked' : ''}>
+        <span><strong>${sipEsc(t(titleKey))}</strong><small>${sipEsc(t(descriptionKey))}</small></span>
+    </label>`;
+}
+
+function sipWizardReview(provider) {
+    const replacing = !!(sipConfigState.registrar && sipConfigState.preset_id !== provider.id);
+    const outboundSummary = t(`config.sip.wizard.scope_${sipWizardOutboundScope}`);
+    const inboundSummary = sipWizardInboundEnabled
+        ? t(sipWizardInboundScope === 'custom' ? 'config.sip.wizard.callers_custom' : 'config.sip.wizard.callers_all')
+        : t('config.sip.wizard.inbound_off');
+    return `<div class="sip-wizard-panel">
+        <div class="sip-wizard-provider-heading">
+            <button type="button" class="sip-back-button" data-sip-wizard="back" aria-label="${sipEsc(t('config.sip.wizard.back'))}">←</button>
+            <div><span class="sip-eyebrow">${sipEsc(t('config.sip.wizard.verify'))}</span><h3>${sipEsc(t('config.sip.wizard.verify_title'))}</h3></div>
         </div>
         <div class="sip-review-grid">
             <div><span>${sipEsc(t('config.sip.registrar'))}</span><strong>${sipEsc(provider.fields.some(field => field.key === 'server') ? (sipWizardValues.server || '') : t('config.sip.wizard.automatic'))}</strong></div>
             <div><span>${sipEsc(t('config.sip.username'))}</span><strong>${sipEsc(sipWizardValues.username || sipWizardValues.phone_number || '')}</strong></div>
-            <div><span>${sipEsc(t('config.sip.transport'))}</span><strong>UDP · PCMA / PCMU</strong></div>
-            <div><span>${sipEsc(t('config.sip.bind_host'))}</span><strong>0.0.0.0:5060</strong></div>
+            <div><span>${sipEsc(t('config.sip.originate_outbound'))}</span><strong>${sipEsc(outboundSummary)}</strong></div>
+            <div><span>${sipEsc(t('config.sip.answer_inbound'))}</span><strong>${sipEsc(inboundSummary)}</strong></div>
         </div>
-        <div class="sip-activation-modes" role="radiogroup" aria-label="${sipEsc(t('config.sip.wizard.mode_title'))}">
-            <p class="sip-activation-modes-title">${sipEsc(t('config.sip.wizard.mode_title'))}</p>
-            <label class="sip-mode-card ${desktop ? '' : 'is-selected'}">
-                <input type="radio" name="sip-activation-mode" data-sip-activation-mode value="registration" ${desktop ? '' : 'checked'}>
-                <span>
-                    <strong>${sipEsc(t('config.sip.wizard.mode_registration'))}</strong>
-                    <small>${sipEsc(t('config.sip.wizard.mode_registration_desc'))}</small>
-                </span>
-            </label>
-            <label class="sip-mode-card ${desktop ? 'is-selected' : ''}">
-                <input type="radio" name="sip-activation-mode" data-sip-activation-mode value="desktop" ${desktop ? 'checked' : ''}>
-                <span>
-                    <strong>${sipEsc(t('config.sip.wizard.mode_desktop'))}</strong>
-                    <small>${sipEsc(t('config.sip.wizard.mode_desktop_desc'))}</small>
-                </span>
-            </label>
-        </div>
-        ${desktop ? `<div class="sip-desktop-activation-panel">
-            <strong>${sipEsc(t('config.sip.wizard.phone_full_title'))}</strong>
-            <p>${sipEsc(t('config.sip.wizard.phone_full_intro'))}</p>
-            ${sipDesktopActivationFieldsMarkup()}
-            <p class="sip-phone-warning">${sipEsc(t('config.sip.wizard.phone_warning'))}</p>
-        </div>` : `<div class="sip-security-summary">
-            <strong>${sipEsc(t('config.sip.wizard.safe_title'))}</strong>
-            <p>${sipEsc(t('config.sip.wizard.safe_registration'))}</p>
-        </div>`}
+        <div class="sip-security-summary"><strong>${sipEsc(t('config.sip.wizard.verify_check_title'))}</strong><p>${sipEsc(t('config.sip.wizard.verify_check_text'))}</p></div>
+        ${sipWizardTestCode ? `<div class="sip-test-diagnostic" role="alert"><strong>${sipEsc(sipTestErrorMessage(sipWizardTestCode))}</strong><div><button type="button" class="btn btn-secondary" data-sip-wizard="diagnostic-credentials">${sipEsc(t('config.sip.diagnostic.check_credentials'))}</button><button type="button" class="btn btn-secondary" data-sip-wizard="diagnostic-provider">${sipEsc(t('config.sip.diagnostic.check_provider'))}</button></div></div>` : ''}
         ${replacing ? `<label class="sip-replace-confirm"><input type="checkbox" data-sip-replace-confirm> <span>${sipEsc(t('config.sip.wizard.replace_confirm'))}</span></label>` : ''}
         <div class="sip-wizard-actions">
             <span></span>
-            <button type="button" class="btn-save" data-sip-wizard="apply">${sipEsc(desktop ? t('config.sip.wizard.apply_desktop') : t('config.sip.wizard.apply'))}</button>
+            <button type="button" class="btn-save" data-sip-wizard="apply">${sipEsc(t('config.sip.wizard.save_test'))}</button>
         </div>
     </div>`;
 }
 
 function sipWizardMarkup() {
-    if (sipWizardStep === 0 && sipConfigState.preset_id) return sipWizardConfigured();
+    if (sipWizardStep === 0 && sipConfigState.registrar) return sipWizardConfigured();
     const provider = sipProvider(sipWizardProviderID);
     let body = sipWizardProviderCards();
     if (sipWizardStep === 2 && provider) body = sipWizardCredentials(provider);
-    if (sipWizardStep === 3 && provider) body = sipWizardReview(provider);
+    if (sipWizardStep === 3 && provider) body = sipWizardCalling(provider);
+    if (sipWizardStep === 4 && provider) body = sipWizardReview(provider);
     return `${sipWizardProgress()}${body}`;
 }
 
@@ -374,6 +399,7 @@ function sipAdvancedMarkup(c) {
                 ${sipField('voice.max_call_duration_seconds', t('config.sip.max_duration'), 'number', c.voice.max_call_duration_seconds || 3600, 'min="30" max="86400"')}
                 ${sipField('history_retention_days', t('config.sip.history_retention'), 'number', c.history_retention_days || 90, 'min="1" max="3650"')}
             </div></div>
+            <div class="rs-save-row sip-expert-actions"><span id="sip-action-status" role="status" aria-live="polite"></span><button type="button" class="btn-save" data-sip-action="save">${sipEsc(t('config.sip.save'))}</button></div>
         </div>
     </details>`;
 }
@@ -391,16 +417,13 @@ function sipRender() {
         </div>
         ${sipAdvancedMarkup(c)}
         <div class="rs-security-note"><strong>${sipEsc(t('config.sip.security_title'))}</strong><p>${sipEsc(t('config.sip.security_note'))}</p></div>
-        <div class="rs-save-row"><span id="sip-action-status" role="status" aria-live="polite"></span><button type="button" class="btn btn-secondary" data-sip-action="test">${sipEsc(t('config.sip.test'))}</button><button type="button" class="btn-save" data-sip-action="save">${sipEsc(t('config.sip.save'))}</button></div>
     </section>`;
     sipBindEvents();
-    sipRefreshTestLock();
     sipLoadStatus();
 }
 
 function sipNotifyDirty() {
     sipAdvancedDirty = true;
-    sipRefreshTestLock();
     if (typeof setDirty === 'function') setDirty(true);
 }
 
@@ -455,25 +478,6 @@ function sipIsDirty() {
     } catch (_) {
         if (sipAdvancedDirty) return true;
     }
-    // Wizard phone targets live outside the expert data-sip fields.
-    if (document.querySelector('[data-sip-phone-targets]')) {
-        const savedTargets = sipList([
-            ...(sipConfigState.outbound.allowed_users || []),
-            ...(sipConfigState.outbound.allowed_e164_prefixes || [])
-        ]);
-        if (String(sipPhoneTargets || '').trim() !== String(savedTargets || '').trim()) return true;
-        const savedBlockedTargets = sipList([
-            ...(sipConfigState.outbound.denied_users || []),
-            ...(sipConfigState.outbound.denied_e164_prefixes || [])
-        ]);
-        if (String(sipPhoneBlockedTargets || '').trim() !== String(savedBlockedTargets || '').trim()) return true;
-        const savedPeers = sipList(sipConfigState.inbound.trusted_peer_cidrs || []);
-        const savedCallers = sipList(sipConfigState.inbound.allowed_callers || []);
-        const savedDeniedCallers = sipList(sipConfigState.inbound.denied_callers || []);
-        if (String(sipWizardTrustedPeers || '').trim() !== String(savedPeers || '').trim()) return true;
-        if (String(sipWizardAllowedCallers || '').trim() !== String(savedCallers || '').trim()) return true;
-        if (String(sipWizardDeniedCallers || '').trim() !== String(savedDeniedCallers || '').trim()) return true;
-    }
     return false;
 }
 
@@ -505,7 +509,6 @@ function sipBindEvents() {
         sipAdvancedOpen = event.currentTarget.open;
     });
     document.querySelector('[data-sip-action="save"]')?.addEventListener('click', () => { sipSave(); });
-    document.querySelector('[data-sip-action="test"]')?.addEventListener('click', sipTest);
     document.querySelector('[data-sip-provider-search]')?.addEventListener('input', event => {
         sipWizardQuery = event.target.value;
         const results = document.querySelector('.sip-provider-results');
@@ -516,46 +519,136 @@ function sipBindEvents() {
     document.querySelectorAll('[data-sip-wizard-field]').forEach(input => input.addEventListener('input', () => {
         if (input.dataset.sipWizardField === 'password') sipWizardPassword = input.value;
         else sipWizardValues[input.dataset.sipWizardField] = input.value;
+        delete sipWizardFieldErrors[input.dataset.sipWizardField];
+        input.removeAttribute('aria-invalid');
     }));
-    document.querySelector('[data-sip-wizard="change"]')?.addEventListener('click', () => {
+    document.querySelector('[data-sip-wizard="password-toggle"]')?.addEventListener('click', () => {
+        sipWizardPasswordVisible = !sipWizardPasswordVisible;
+        sipRender();
+        document.querySelector('[data-sip-wizard-field="password"]')?.focus();
+    });
+    document.querySelector('[data-sip-wizard="back"]')?.addEventListener('click', () => {
+        sipWizardStep = sipWizardStep === 4 ? 3 : (sipWizardStep === 3 ? 2 : 1);
+        sipWizardMessage = '';
+        sipRender();
+        sipFocusWizardHeading();
+    });
+    document.querySelector('[data-sip-wizard="calling"]')?.addEventListener('click', sipReviewProvider);
+    document.querySelector('[data-sip-wizard="review"]')?.addEventListener('click', sipReviewCalling);
+    document.querySelector('[data-sip-wizard="apply"]')?.addEventListener('click', sipApplyProvider);
+    document.querySelector('[data-sip-wizard="diagnostic-credentials"]')?.addEventListener('click', () => {
+        sipWizardStep = 2;
+        sipWizardMessage = '';
+        sipRender();
+        const field = document.querySelector('[data-sip-wizard-field="password"], [data-sip-wizard-field]');
+        if (field) field.focus();
+        else sipFocusWizardHeading();
+    });
+    document.querySelector('[data-sip-wizard="diagnostic-provider"]')?.addEventListener('click', () => {
+        sipWizardStep = 1;
+        sipWizardMessage = '';
+        sipRender();
+        sipFocusWizardHeading();
+    });
+    document.querySelectorAll('[data-sip-guided-scope]').forEach(input => input.addEventListener('change', event => {
+        if (event.target.dataset.sipGuidedScope === 'sip-outbound-scope') sipWizardOutboundScope = event.target.value;
+        if (event.target.dataset.sipGuidedScope === 'sip-inbound-scope') sipWizardInboundScope = event.target.value;
+        sipWizardMessage = '';
+        sipRender();
+    }));
+    document.querySelector('[data-sip-guided-targets]')?.addEventListener('input', event => {
+        sipPhoneTargets = event.target.value;
+    });
+    document.querySelector('[data-sip-guided-callers]')?.addEventListener('input', event => {
+        sipWizardCustomCallers = event.target.value;
+    });
+    document.querySelector('[data-sip-guided-inbound]')?.addEventListener('change', event => {
+        sipWizardInboundEnabled = event.target.checked;
+        sipWizardMessage = '';
+        sipRender();
+    });
+    sipBindProfileEvents();
+}
+
+function sipBindProfileEvents() {
+    document.querySelectorAll('[data-sip-wizard="change"]').forEach(button => button.addEventListener('click', () => {
         sipWizardStep = 1;
         sipWizardProviderID = '';
         sipWizardMessage = '';
+        sipWizardFieldErrors = {};
         sipRender();
-    });
-    document.querySelector('[data-sip-wizard="back"]')?.addEventListener('click', () => {
-        sipWizardStep = sipWizardStep === 3 ? 2 : 1;
-        sipWizardMessage = '';
-        sipRender();
-    });
-    document.querySelector('[data-sip-wizard="review"]')?.addEventListener('click', sipReviewProvider);
-    document.querySelector('[data-sip-wizard="apply"]')?.addEventListener('click', sipApplyProvider);
-    document.querySelectorAll('[data-sip-activation-mode]').forEach(input => input.addEventListener('change', event => {
-        sipWizardActivationMode = event.target.value === 'desktop' ? 'desktop' : 'registration';
-        sipWizardMessage = '';
-        sipRender();
+        sipFocusWizardHeading();
     }));
-    document.querySelector('[data-sip-phone-targets]')?.addEventListener('input', event => {
-        sipPhoneTargets = event.target.value;
-        sipNotifyDirty();
+    document.querySelector('[data-sip-profile="test"]')?.addEventListener('click', sipTestProfile);
+    document.querySelector('[data-sip-profile="permissions"]')?.addEventListener('click', () => {
+        const provider = sipProvider(sipConfigState.preset_id);
+        if (!provider) {
+            document.querySelector('.sip-advanced')?.setAttribute('open', '');
+            sipAdvancedOpen = true;
+            document.querySelector('.sip-advanced')?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+            return;
+        }
+        sipWizardProviderID = provider.id;
+        sipPrefillWizardValues(provider);
+        sipWizardStep = 3;
+        sipWizardMessage = '';
+        sipRender();
+        sipFocusWizardHeading();
     });
-    document.querySelector('[data-sip-wizard-trusted-peers]')?.addEventListener('input', event => {
-        sipWizardTrustedPeers = event.target.value;
-        sipNotifyDirty();
+    document.querySelector('[data-sip-profile="credentials"]')?.addEventListener('click', () => {
+        const provider = sipProvider(sipConfigState.preset_id);
+        if (!provider) {
+            document.querySelector('.sip-advanced')?.setAttribute('open', '');
+            sipAdvancedOpen = true;
+            document.querySelector('.sip-advanced')?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+            return;
+        }
+        sipWizardProviderID = provider.id;
+        sipPrefillWizardValues(provider);
+        sipWizardStep = 2;
+        sipWizardMessage = '';
+        sipRender();
+        sipFocusWizardHeading();
     });
-    document.querySelector('[data-sip-wizard-allowed-callers]')?.addEventListener('input', event => {
-        sipWizardAllowedCallers = event.target.value;
-        sipNotifyDirty();
+    document.querySelector('[data-sip-profile="delete"]')?.addEventListener('click', () => {
+        sipDeleteConfirm = true;
+        sipRender();
+        document.querySelector('.sip-delete-confirm')?.focus();
     });
-    document.querySelector('[data-sip-wizard-denied-callers]')?.addEventListener('input', event => {
-        sipWizardDeniedCallers = event.target.value;
-        sipNotifyDirty();
+    document.querySelector('[data-sip-profile="delete-cancel"]')?.addEventListener('click', () => {
+        sipDeleteConfirm = false;
+        sipDeleteHistory = false;
+        sipRender();
+        document.querySelector('[data-sip-profile="delete"]')?.focus();
     });
-    document.querySelector('[data-sip-phone-blocked-targets]')?.addEventListener('input', event => {
-        sipPhoneBlockedTargets = event.target.value;
-        sipNotifyDirty();
+    document.querySelector('[data-sip-delete-history]')?.addEventListener('change', event => {
+        sipDeleteHistory = event.target.checked;
     });
-    document.querySelector('[data-sip-wizard="enable-phone"]')?.addEventListener('click', sipEnableBrowserPhone);
+    document.querySelector('[data-sip-profile="delete-confirm"]')?.addEventListener('click', sipDeleteProfile);
+    document.querySelector('[data-sip-profile="restart"]')?.addEventListener('click', async () => {
+        if (typeof restartAuraGo === 'function') await restartAuraGo(true);
+    });
+}
+
+function sipFocusWizardHeading() {
+    const heading = document.querySelector('.sip-wizard-provider-heading h3, .sip-wizard-title h2');
+    if (!heading) return;
+    heading.setAttribute('tabindex', '-1');
+    heading.focus();
+}
+
+function sipPrefillWizardValues(provider) {
+    const source = sipConfigState || {};
+    const values = {};
+    provider.fields.forEach(field => {
+        if (field.secret) return;
+        if (field.key === 'server') values[field.key] = source.registrar || field.default || '';
+        else if (field.key === 'phone_number') values[field.key] = source.username || field.default || '';
+        else values[field.key] = source[field.key] || field.default || '';
+    });
+    sipWizardValues = values;
+    sipWizardPassword = '';
+    sipWizardFieldErrors = {};
 }
 
 function sipBindProviderCards() {
@@ -563,15 +656,19 @@ function sipBindProviderCards() {
         sipWizardProviderID = button.dataset.providerId;
         sipWizardValues = {};
         sipWizardPassword = '';
+        sipWizardPasswordVisible = false;
+        sipWizardFieldErrors = {};
         sipWizardMessage = '';
         sipWizardStep = 2;
         sipRender();
+        sipFocusWizardHeading();
     }));
 }
 
 function sipReviewProvider() {
     const provider = sipProvider(sipWizardProviderID);
     if (!provider) return;
+    sipWizardFieldErrors = {};
     const missing = provider.fields.find(field => {
         if (!field.required) return false;
         if (field.secret) return !sipWizardPassword && !(sipConfigState.password_set && sipConfigState.preset_id === provider.id);
@@ -579,8 +676,9 @@ function sipReviewProvider() {
     });
     if (missing) {
         sipWizardMessage = t('config.sip.wizard.required', { field: t(missing.label_key) });
-        const status = document.getElementById('sip-wizard-status');
-        if (status) status.textContent = sipWizardMessage;
+        sipWizardFieldErrors[missing.key] = sipWizardMessage;
+        sipRender();
+        document.querySelector(`[data-sip-wizard-field="${CSS.escape(missing.key)}"]`)?.focus();
         return;
     }
     provider.fields.forEach(field => {
@@ -589,111 +687,36 @@ function sipReviewProvider() {
     sipWizardMessage = '';
     sipWizardStep = 3;
     sipRender();
+    sipFocusWizardHeading();
 }
 
-function sipParsePhoneTargets(raw) {
-    const users = [];
-    const prefixes = [];
-    for (const target of sipSplit(raw)) {
-        if (/^\+[1-9][0-9]{0,14}$/.test(target)) {
-            prefixes.push(target);
-        } else if (/^[A-Za-z0-9_.!~*?'()%+\-]+$/.test(target)) {
-            users.push(target);
-        } else {
-            throw new Error(t('config.sip.wizard.phone_invalid', { target }));
+function sipReviewCalling() {
+    try {
+        if (sipWizardOutboundScope === 'custom') sipParseGuidedValues(sipPhoneTargets, 'config.sip.wizard.custom_targets_required');
+        if (sipWizardInboundEnabled && sipWizardInboundScope === 'custom') {
+            sipParseGuidedValues(sipWizardCustomCallers, 'config.sip.wizard.custom_callers_required');
         }
+    } catch (error) {
+        sipWizardMessage = error.message;
+        const status = document.getElementById('sip-wizard-status');
+        if (status) status.textContent = sipWizardMessage;
+        return;
     }
-    if (!users.length && !prefixes.length) throw new Error(t('config.sip.wizard.phone_required'));
-    return { users: [...new Set(users)], prefixes: [...new Set(prefixes)] };
+    sipWizardMessage = '';
+    sipWizardStep = 4;
+    sipRender();
+    sipFocusWizardHeading();
 }
 
-function sipParseAllowlist(raw, emptyErrorKey) {
+function sipParseGuidedValues(raw, emptyErrorKey) {
     const values = sipSplit(raw);
     if (!values.length) throw new Error(t(emptyErrorKey));
+    for (const value of values) {
+        if (/[*?\r\n\x00]/.test(value) || !/^[A-Za-z0-9_.!~'()%+\-]+$/.test(value)) {
+            throw new Error(t('config.sip.wizard.custom_value_invalid', { value }));
+        }
+    }
     return [...new Set(values)];
-}
-
-function sipReadDesktopActivationOptions() {
-    const targets = sipParsePhoneTargets(sipPhoneTargets);
-    const blockedTargets = sipPhoneBlockedTargets.trim() ? sipParsePhoneTargets(sipPhoneBlockedTargets) : { users: [], prefixes: [] };
-    const trustedPeers = sipParseAllowlist(sipWizardTrustedPeers, 'config.sip.wizard.trusted_peers_required');
-    const allowedCallers = sipParseAllowlist(sipWizardAllowedCallers, 'config.sip.wizard.allowed_callers_required');
-    const deniedCallers = sipSplit(sipWizardDeniedCallers);
-    return { targets, blockedTargets, trustedPeers, allowedCallers, deniedCallers };
-}
-
-function sipPatchOutboundPhoneConfig(base, targets, blockedTargets) {
-    const next = JSON.parse(JSON.stringify(base));
-    next.readonly = false;
-    next.browser_media = next.browser_media || {};
-    next.browser_media.enabled = true;
-    next.outbound = next.outbound || {};
-    next.outbound.allowed_domains = next.domain ? [next.domain] : [];
-    next.outbound.allowed_users = targets.users.slice();
-    next.outbound.allowed_e164_prefixes = targets.prefixes.slice();
-    next.outbound.denied_users = (blockedTargets?.users || []).slice();
-    next.outbound.denied_e164_prefixes = (blockedTargets?.prefixes || []).slice();
-    next.permissions = next.permissions || {};
-    next.permissions.originate_outbound = true;
-    next.permissions.send_dtmf = true;
-    next.permissions.agent_hangup = true;
-    sipNormalizeOutboundPayload(next);
-    return next;
-}
-
-function sipPatchDesktopPhoneConfig(base, options) {
-    const next = sipPatchOutboundPhoneConfig(base, options.targets, options.blockedTargets);
-    next.inbound = next.inbound || {};
-    next.inbound.route = 'manual';
-    next.inbound.trusted_peer_cidrs = options.trustedPeers.slice();
-    next.inbound.allowed_callers = options.allowedCallers.slice();
-    next.inbound.denied_callers = options.deniedCallers.slice();
-    next.permissions.answer_inbound = true;
-    return next;
-}
-
-async function sipPersistDesktopPhone(base, options) {
-    const browserMediaWasEnabled = !!(base && base.browser_media && base.browser_media.enabled);
-    const next = sipPatchDesktopPhoneConfig(base, options);
-    const result = await sipRequest('/api/sip/config', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(next)
-    });
-    sipConfigState = sipNormalize(await sipRequest('/api/sip/config'));
-    sipPhoneTargets = sipList([
-        ...(sipConfigState.outbound.allowed_users || []),
-        ...(sipConfigState.outbound.allowed_e164_prefixes || [])
-    ]);
-    sipPhoneBlockedTargets = sipList([
-        ...(sipConfigState.outbound.denied_users || []),
-        ...(sipConfigState.outbound.denied_e164_prefixes || [])
-    ]);
-    sipWizardTrustedPeers = sipList(sipConfigState.inbound.trusted_peer_cidrs || []);
-    sipWizardAllowedCallers = sipList(sipConfigState.inbound.allowed_callers || []);
-    sipWizardDeniedCallers = sipList(sipConfigState.inbound.denied_callers || []);
-    sipMarkClean();
-    const needsRestart = !browserMediaWasEnabled || !!(result && (result.needs_restart || result.status === 'pending'));
-    return { result, needsRestart };
-}
-
-async function sipOfferRestart(needsRestart) {
-    if (!needsRestart) return;
-    const title = t('config.sip.restart_modal_title');
-    const message = t('config.sip.restart_modal_message');
-    let confirmed = false;
-    if (typeof showModal === 'function') {
-        confirmed = await showModal(title, message, true, {
-            confirmText: t('config.sip.restart_modal_confirm'),
-            cancelText: t('config.sip.restart_modal_later')
-        });
-    } else if (typeof showConfirm === 'function') {
-        confirmed = await showConfirm(title, message);
-    }
-    if (!confirmed) return;
-    if (typeof restartAuraGo === 'function') {
-        await restartAuraGo(true);
-    }
 }
 
 async function sipApplyProvider() {
@@ -708,18 +731,21 @@ async function sipApplyProvider() {
         if (status) status.textContent = sipWizardMessage;
         return;
     }
-    let desktopOptions = null;
-    if (sipWizardActivationMode === 'desktop') {
-        try {
-            desktopOptions = sipReadDesktopActivationOptions();
-        } catch (error) {
-            sipWizardMessage = error.message;
-            const status = document.getElementById('sip-wizard-status');
-            if (status) status.textContent = sipWizardMessage;
-            return;
+    let outboundValues = [];
+    let inboundValues = [];
+    try {
+        if (sipWizardOutboundScope === 'custom') outboundValues = sipParseGuidedValues(sipPhoneTargets, 'config.sip.wizard.custom_targets_required');
+        if (sipWizardInboundEnabled && sipWizardInboundScope === 'custom') {
+            inboundValues = sipParseGuidedValues(sipWizardCustomCallers, 'config.sip.wizard.custom_callers_required');
         }
+    } catch (error) {
+        sipWizardMessage = error.message;
+        const status = document.getElementById('sip-wizard-status');
+        if (status) status.textContent = sipWizardMessage;
+        return;
     }
     button.disabled = true;
+    sipWizardTestCode = '';
     sipWizardMessage = t('config.sip.saving');
     document.getElementById('sip-wizard-status').textContent = sipWizardMessage;
     try {
@@ -730,59 +756,45 @@ async function sipApplyProvider() {
                 provider_id: provider.id,
                 values: sipWizardValues,
                 password: sipWizardPassword,
-                confirm_replace: replacing
+                confirm_replace: replacing,
+                activation: {
+                    outbound_scope: sipWizardOutboundScope,
+                    outbound_values: outboundValues,
+                    inbound_scope: sipWizardInboundEnabled ? sipWizardInboundScope : 'disabled',
+                    inbound_values: inboundValues
+                }
             })
         });
         sipConfigState = sipNormalize(Object.prototype.hasOwnProperty.call(result, 'enabled') ? result : await sipRequest('/api/sip/config'));
         sipWizardPassword = '';
+        sipNeedsRestart = !!(result && (result.needs_restart || result.status === 'pending'));
+        sipWizardMessage = t('config.sip.testing');
+        document.getElementById('sip-wizard-status').textContent = sipWizardMessage;
+        sipConnectionVerified = false;
+        await sipRequest('/api/sip/test', { method: 'POST' });
+        sipConnectionVerified = true;
+        sipRuntimeStatus = await sipRequest('/api/sip/status').catch(() => ({ registered: false, state: 'unknown' }));
         sipWizardStep = 0;
-        let needsRestart = !!(result && (result.needs_restart || result.status === 'pending'));
-        if (desktopOptions) {
-            const activated = await sipPersistDesktopPhone(sipConfigState, desktopOptions);
-            needsRestart = needsRestart || activated.needsRestart;
-            sipWizardMessage = needsRestart
-                ? t('config.sip.restart_required')
-                : t('config.sip.wizard.phone_enabled');
-        } else {
-            sipWizardMessage = needsRestart
-                ? t('config.sip.restart_required')
-                : t('config.sip.wizard.applied');
-        }
+        sipWizardMessage = sipNeedsRestart ? t('config.sip.restart_required') : t('config.sip.wizard.phone_enabled');
         sipRender();
         sipMarkClean();
-        await sipOfferRestart(needsRestart);
     } catch (error) {
-        sipWizardMessage = error.message;
-        document.getElementById('sip-wizard-status').textContent = sipWizardMessage;
-        button.disabled = false;
-    }
-}
-
-async function sipEnableBrowserPhone() {
-    const button = document.querySelector('[data-sip-wizard="enable-phone"]');
-    if (!button) return;
-    let options;
-    try {
-        options = sipReadDesktopActivationOptions();
-    } catch (error) {
-        sipWizardMessage = error.message;
-        document.getElementById('sip-wizard-status').textContent = sipWizardMessage;
-        return;
-    }
-    button.disabled = true;
-    sipWizardMessage = t('config.sip.saving');
-    document.getElementById('sip-wizard-status').textContent = sipWizardMessage;
-    try {
-        const activated = await sipPersistDesktopPhone(sipConfigState, options);
-        sipWizardMessage = activated.needsRestart
-            ? t('config.sip.restart_required')
-            : t('config.sip.wizard.phone_enabled');
+        const field = error.body && error.body.field;
+        if (field && sipProvider(sipWizardProviderID)?.fields.some(item => item.key === field)) {
+            sipWizardFieldErrors[field] = error.message;
+            sipWizardMessage = error.message;
+            sipWizardStep = 2;
+            sipRender();
+            document.querySelector(`[data-sip-wizard-field="${CSS.escape(field)}"]`)?.focus();
+            return;
+        }
+        sipWizardTestCode = error.code || '';
+        sipWizardMessage = sipWizardTestCode ? sipTestErrorMessage(sipWizardTestCode) : error.message;
+        if (sipWizardTestCode === 'authentication_failed') {
+            sipWizardFieldErrors.password = sipWizardMessage;
+        }
+        sipWizardStep = 4;
         sipRender();
-        await sipOfferRestart(activated.needsRestart);
-    } catch (error) {
-        sipWizardMessage = error.message;
-        document.getElementById('sip-wizard-status').textContent = sipWizardMessage;
-        button.disabled = false;
     }
 }
 
@@ -802,37 +814,21 @@ function sipRead(options) {
         if (['media.codecs', 'inbound.trusted_peer_cidrs', 'inbound.allowed_callers', 'inbound.denied_callers', 'outbound.allowed_domains', 'outbound.denied_domains', 'outbound.allowed_users', 'outbound.denied_users', 'outbound.allowed_e164_prefixes', 'outbound.denied_e164_prefixes', 'voice.allowed_tools'].includes(input.dataset.sip)) value = sipSplit(value);
         sipAssign(result, input.dataset.sip, value);
     });
-    if (!forCompare && sipAdvancedDirty) result.preset_id = '';
     sipNormalizeOutboundPayload(result);
     return result;
-}
-
-function sipRefreshTestLock() {
-    const button = document.querySelector('[data-sip-action="test"]');
-    if (!button) return;
-    const current = sipRead();
-    const dirty = sipComparable(current) !== sipSavedState || current.password || current.clear_password;
-    let reason = '';
-    if (dirty) reason = t('config.sip.save_first');
-    else if (!current.enabled) reason = t('config.sip.enable_first');
-    else if (!current.password_set) reason = t('config.sip.password_required');
-    button.disabled = !!reason;
-    button.title = reason;
 }
 
 async function sipRequest(path, options) {
     const response = await fetch(path, Object.assign({ credentials: 'same-origin', cache: 'no-store' }, options || {}));
     const body = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(body.error || body.message || ('HTTP ' + response.status));
+    if (!response.ok) {
+        const error = new Error(body.error || body.message || ('HTTP ' + response.status));
+        error.code = body.code || '';
+        error.retryable = !!body.retryable;
+        error.body = body;
+        throw error;
+    }
     return body;
-}
-
-function sipActivationPanelOpen() {
-    return !!document.querySelector('[data-sip-phone-targets], [data-sip-phone-blocked-targets], [data-sip-wizard-trusted-peers], [data-sip-wizard-allowed-callers], [data-sip-wizard-denied-callers]');
-}
-
-function sipActivationPanelFilled() {
-    return !!(String(sipPhoneTargets || '').trim() || String(sipPhoneBlockedTargets || '').trim() || String(sipWizardTrustedPeers || '').trim() || String(sipWizardAllowedCallers || '').trim() || String(sipWizardDeniedCallers || '').trim());
 }
 
 async function sipSave() {
@@ -842,37 +838,19 @@ async function sipSave() {
     if (save) save.disabled = true;
     if (status) status.textContent = t('config.sip.saving');
     try {
-        let payload = sipRead();
-        // Guided activation panel: full phone when all fields present, otherwise
-        // outbound-only when destinations are provided.
-        if (sipActivationPanelOpen() && String(sipPhoneTargets || '').trim()) {
-            try {
-                const hasInbound = String(sipWizardTrustedPeers || '').trim() && String(sipWizardAllowedCallers || '').trim();
-                if (hasInbound) {
-                    payload = sipPatchDesktopPhoneConfig(payload, sipReadDesktopActivationOptions());
-                } else {
-                    const blockedTargets = sipPhoneBlockedTargets.trim() ? sipParsePhoneTargets(sipPhoneBlockedTargets) : { users: [], prefixes: [] };
-                    payload = sipPatchOutboundPhoneConfig(payload, sipParsePhoneTargets(sipPhoneTargets), blockedTargets);
-                }
-            } catch (error) {
-                if (status) status.textContent = error.message;
-                if (save) save.disabled = false;
-                return false;
-            }
-        } else {
-            // Destinations in expert mode should still become dialable: classify
-            // E.164 values, keep the account domain, and enable outbound calling.
-            sipNormalizeOutboundPayload(payload);
-            const hasTargets = (payload.outbound.allowed_users && payload.outbound.allowed_users.length) ||
-                (payload.outbound.allowed_e164_prefixes && payload.outbound.allowed_e164_prefixes.length);
-            if (hasTargets && payload.domain && !payload.readonly) {
-                payload.permissions = payload.permissions || {};
-                payload.permissions.originate_outbound = true;
-                payload.permissions.send_dtmf = true;
-                payload.permissions.agent_hangup = true;
-                if (!payload.browser_media) payload.browser_media = {};
-                payload.browser_media.enabled = true;
-            }
+        const payload = sipRead();
+        // Expert destinations still become dialable when the administrator
+        // explicitly leaves read-only mode.
+        sipNormalizeOutboundPayload(payload);
+        const hasTargets = (payload.outbound.allowed_users && payload.outbound.allowed_users.length) ||
+            (payload.outbound.allowed_e164_prefixes && payload.outbound.allowed_e164_prefixes.length);
+        if (hasTargets && payload.domain && !payload.readonly) {
+            payload.permissions = payload.permissions || {};
+            payload.permissions.originate_outbound = true;
+            payload.permissions.send_dtmf = true;
+            payload.permissions.agent_hangup = true;
+            if (!payload.browser_media) payload.browser_media = {};
+            payload.browser_media.enabled = true;
         }
         const saved = await sipRequest('/api/sip/config', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         sipConfigState = sipNormalize(Object.prototype.hasOwnProperty.call(saved, 'enabled') ? saved : await sipRequest('/api/sip/config'));
@@ -880,14 +858,9 @@ async function sipSave() {
             ...(sipConfigState.outbound.allowed_users || []),
             ...(sipConfigState.outbound.allowed_e164_prefixes || [])
         ]);
-        sipPhoneBlockedTargets = sipList([
-            ...(sipConfigState.outbound.denied_users || []),
-            ...(sipConfigState.outbound.denied_e164_prefixes || [])
-        ]);
-        sipWizardTrustedPeers = sipList(sipConfigState.inbound.trusted_peer_cidrs || []);
-        sipWizardAllowedCallers = sipList(sipConfigState.inbound.allowed_callers || []);
-        if (!sipConfigState.preset_id) sipWizardStep = 1;
+        if (sipConfigState.registrar) sipWizardStep = 0;
         const needsRestart = !!(saved && (saved.needs_restart || saved.status === 'pending'));
+        sipNeedsRestart = sipNeedsRestart || needsRestart;
         sipRender();
         sipMarkClean();
         const nextStatus = document.getElementById('sip-action-status');
@@ -896,7 +869,6 @@ async function sipSave() {
                 ? t('config.sip.restart_required')
                 : t('config.sip.saved');
         }
-        await sipOfferRestart(needsRestart);
         return true;
     } catch (error) {
         if (status) status.textContent = error.message;
@@ -920,17 +892,8 @@ function sipDiscardUnsaved() {
             ...(sipConfigState.outbound.allowed_users || []),
             ...(sipConfigState.outbound.allowed_e164_prefixes || [])
         ]);
-        sipPhoneBlockedTargets = sipList([
-            ...(sipConfigState.outbound.denied_users || []),
-            ...(sipConfigState.outbound.denied_e164_prefixes || [])
-        ]);
-        sipWizardTrustedPeers = sipList(sipConfigState.inbound.trusted_peer_cidrs || []);
-        sipWizardAllowedCallers = sipList(sipConfigState.inbound.allowed_callers || []);
-        sipWizardDeniedCallers = sipList(sipConfigState.inbound.denied_callers || []);
     } else {
         sipPhoneTargets = '';
-        sipWizardTrustedPeers = '';
-        sipWizardAllowedCallers = '';
     }
     sipMarkClean();
 }
@@ -939,16 +902,67 @@ window.sipHasUnsavedChanges = sipHasUnsavedChanges;
 window.sipSaveUnsaved = sipSaveUnsaved;
 window.sipDiscardUnsaved = sipDiscardUnsaved;
 
-async function sipTest() {
-    const status = document.getElementById('sip-action-status');
-    status.textContent = t('config.sip.testing');
+function sipTestErrorMessage(code) {
+    const known = ['dns_failed', 'unreachable', 'authentication_failed', 'rejected', 'timeout', 'failed'];
+    return t(`config.sip.diagnostic.${known.includes(code) ? code : 'failed'}`);
+}
+
+async function sipTestProfile() {
+    const button = document.querySelector('[data-sip-profile="test"]');
+    if (button) button.disabled = true;
+    sipWizardMessage = t('config.sip.testing');
+    const message = document.getElementById('sip-wizard-status');
+    if (message) message.textContent = sipWizardMessage;
     try {
         await sipRequest('/api/sip/test', { method: 'POST' });
-        status.textContent = t('config.sip.test_ok');
-        sipLoadStatus();
+        sipConnectionVerified = true;
+        sipWizardTestCode = '';
+        sipWizardMessage = t('config.sip.test_ok');
+        await sipLoadStatus();
     } catch (error) {
-        status.textContent = error.message;
+        sipConnectionVerified = false;
+        sipWizardTestCode = error.code || 'failed';
+        sipWizardMessage = sipTestErrorMessage(sipWizardTestCode);
+        sipRender();
+    } finally {
+        const currentButton = document.querySelector('[data-sip-profile="test"]');
+        if (currentButton) currentButton.disabled = false;
     }
+}
+
+async function sipDeleteProfile() {
+    const button = document.querySelector('[data-sip-profile="delete-confirm"]');
+    if (button) button.disabled = true;
+    sipWizardMessage = t('config.sip.delete.deleting');
+    const status = document.getElementById('sip-wizard-status');
+    if (status) status.textContent = sipWizardMessage;
+    try {
+        const result = await sipRequest(`/api/sip/config?purge_history=${sipDeleteHistory ? 'true' : 'false'}`, { method: 'DELETE' });
+        sipConfigState = sipNormalize(await sipRequest('/api/sip/config'));
+        sipRuntimeStatus = { registered: false, state: 'disabled' };
+        sipConnectionVerified = false;
+        sipNeedsRestart = !!(result && result.needs_restart);
+        sipDeleteConfirm = false;
+        sipDeleteHistory = false;
+        sipWizardProviderID = '';
+        sipWizardValues = {};
+        sipWizardPassword = '';
+        sipWizardStep = 1;
+        sipWizardMessage = t('config.sip.delete.deleted');
+        sipRender();
+        sipMarkClean();
+        sipFocusWizardHeading();
+    } catch (error) {
+        sipWizardMessage = error.message;
+        const current = document.getElementById('sip-wizard-status');
+        if (current) current.textContent = sipWizardMessage;
+        if (button) button.disabled = false;
+    }
+}
+
+function sipStatusLabel(state) {
+    const known = ['disabled', 'registering', 'registered', 'failed', 'connecting', 'ringing', 'active', 'ending', 'ended'];
+    return t(`config.sip.status.${known.includes(state) ? state : 'unknown'}`);
 }
 
 async function sipLoadStatus() {
@@ -956,8 +970,16 @@ async function sipLoadStatus() {
     if (!banner) return;
     try {
         const status = await sipRequest('/api/sip/status');
+        sipRuntimeStatus = status;
+        if (status.registered) sipConnectionVerified = true;
+        if (status.state === 'failed' || status.state === 'disabled') sipConnectionVerified = false;
         banner.className = `adg-status-banner ${status.registered ? 'is-success' : (status.state === 'failed' ? 'is-danger' : 'is-warning')}`;
-        banner.textContent = t('config.sip.status_value', { state: status.state, address: status.bind_address });
+        banner.textContent = t('config.sip.status_summary', { state: sipStatusLabel(status.state) });
+        const profile = document.querySelector('.sip-profile-card');
+        if (profile && sipWizardStep === 0) {
+            profile.outerHTML = sipWizardConfigured();
+            sipBindProfileEvents();
+        }
     } catch (error) {
         banner.className = 'adg-status-banner is-danger';
         banner.textContent = error.message;
@@ -971,32 +993,40 @@ async function renderSIPSection() {
     sipWizardPassword = '';
     sipWizardQuery = '';
     sipWizardMessage = '';
-    sipWizardActivationMode = 'registration';
-    sipWizardTrustedPeers = '';
-    sipWizardAllowedCallers = '';
-    sipWizardDeniedCallers = '';
+    sipWizardTestCode = '';
+    sipWizardFieldErrors = {};
+    sipWizardPasswordVisible = false;
+    sipWizardOutboundScope = 'all';
+    sipWizardInboundEnabled = false;
+    sipWizardInboundScope = 'all';
+    sipWizardCustomCallers = '';
     sipAdvancedDirty = false;
     sipAdvancedOpen = false;
     sipPhoneTargets = '';
-    sipPhoneBlockedTargets = '';
     const content = document.getElementById('content');
     content.innerHTML = `<div class="cfg-section active"><div class="cfg-loading-state">${sipEsc(t('config.sip.loading'))}</div></div>`;
     try {
-        const [configuration, catalog] = await Promise.all([
+        const [configuration, catalog, runtimeStatus, appState] = await Promise.all([
             sipRequest('/api/sip/config'),
-            sipRequest('/api/sip/providers')
+            sipRequest('/api/sip/providers'),
+            sipRequest('/api/sip/status').catch(() => null),
+            sipRequest('/api/sip/app/state').catch(() => null)
         ]);
         sipConfigState = sipNormalize(configuration);
+        sipRuntimeStatus = runtimeStatus;
+        sipConnectionVerified = !!(runtimeStatus && runtimeStatus.registered);
+        sipNeedsRestart = !!(appState && Array.isArray(appState.blockers) && appState.blockers.includes('browser_media_restart_required'));
         sipProviderCatalog = Array.isArray(catalog.providers) ? catalog.providers : [];
         sipPhoneTargets = sipList([
             ...(sipConfigState.outbound.allowed_users || []),
             ...(sipConfigState.outbound.allowed_e164_prefixes || [])
         ]);
-        sipWizardTrustedPeers = sipList(sipConfigState.inbound.trusted_peer_cidrs || []);
-        sipWizardAllowedCallers = sipList(sipConfigState.inbound.allowed_callers || []);
         sipWizardProviderID = sipConfigState.preset_id || '';
-        sipWizardStep = sipConfigState.preset_id && sipProvider(sipConfigState.preset_id) ? 0 : 1;
-        sipWizardActivationMode = sipDesktopPhoneReady(sipConfigState) ? 'desktop' : 'registration';
+        sipWizardStep = sipConfigState.registrar ? 0 : 1;
+        sipWizardOutboundScope = (sipConfigState.outbound.allowed_users || []).includes('*') ? 'all' : 'custom';
+        sipWizardInboundEnabled = sipConfigState.inbound.route === 'manual' && !!sipConfigState.permissions.answer_inbound;
+        sipWizardInboundScope = (sipConfigState.inbound.allowed_callers || []).includes('*') ? 'all' : 'custom';
+        sipWizardCustomCallers = sipList(sipConfigState.inbound.allowed_callers || []);
         sipRender();
         sipMarkClean();
     } catch (error) {

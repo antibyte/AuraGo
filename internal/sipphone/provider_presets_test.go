@@ -157,6 +157,102 @@ func TestApplySIPProviderPresetRejectsUnknownOrInjectedValues(t *testing.T) {
 	}
 }
 
+func TestSIPProviderCatalogExposesDomesticChoiceWithoutTechnicalPatterns(t *testing.T) {
+	var fritz SIPProviderPreset
+	var multiCountry SIPProviderPreset
+	for _, preset := range SIPProviderPresets() {
+		if preset.ID == "fritzbox" {
+			fritz = preset
+		}
+		if preset.ID == "sipcall" {
+			multiCountry = preset
+		}
+	}
+	if fritz.DomesticRegion != "DE" {
+		t.Fatalf("FRITZ!Box domestic region = %q", fritz.DomesticRegion)
+	}
+	if multiCountry.DomesticRegion != "" {
+		t.Fatalf("ambiguous multi-country preset exposed domestic policy %q", multiCountry.DomesticRegion)
+	}
+	encoded, err := json.Marshal(fritz)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(encoded), "domesticPrefix") || strings.Contains(string(encoded), "nationalPattern") {
+		t.Fatalf("technical policy leaked into provider catalog: %s", encoded)
+	}
+}
+
+func TestApplySetupActivationBuildsStrictOutboundPolicies(t *testing.T) {
+	tests := []struct {
+		name     string
+		scope    string
+		values   []string
+		users    []string
+		prefixes []string
+	}{
+		{name: "all account domain", scope: SetupScopeAll, users: []string{"*"}},
+		{name: "German domestic", scope: SetupScopeDomestic, users: []string{"0*"}, prefixes: []string{"+49"}},
+		{name: "individual values", scope: SetupScopeCustom, values: []string{"101", "+491701234567"}, users: []string{"101"}, prefixes: []string{"+491701234567"}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			cfg, err := ApplySIPProviderPreset("fritzbox", map[string]string{"server": "192.0.2.10", "username": "desk"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = ApplySetupActivation(context.Background(), &cfg, "fritzbox", SetupActivation{
+				OutboundScope: test.scope, OutboundValues: test.values, InboundScope: SetupScopeDisabled,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if cfg.ReadOnly || !cfg.BrowserMedia.Enabled || !cfg.Permissions.OriginateOutbound || cfg.Permissions.AnswerInbound {
+				t.Fatalf("unexpected guided permissions: %+v", cfg)
+			}
+			if strings.Join(cfg.Outbound.AllowedDomains, ",") != "192.0.2.10" ||
+				strings.Join(cfg.Outbound.AllowedUsers, ",") != strings.Join(test.users, ",") ||
+				strings.Join(cfg.Outbound.AllowedE164Prefixes, ",") != strings.Join(test.prefixes, ",") {
+				t.Fatalf("unexpected outbound policy: %+v", cfg.Outbound)
+			}
+			if cfg.Inbound.Route != "reject" || len(cfg.Inbound.TrustedPeerCIDRs) != 0 {
+				t.Fatalf("incoming calls were not kept disabled: %+v", cfg.Inbound)
+			}
+		})
+	}
+}
+
+func TestApplySetupActivationRejectsWildcardsInGuidedCustomValues(t *testing.T) {
+	cfg, err := ApplySIPProviderPreset("fritzbox", map[string]string{"server": "192.0.2.10", "username": "desk"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = ApplySetupActivation(context.Background(), &cfg, "fritzbox", SetupActivation{
+		OutboundScope: SetupScopeCustom, OutboundValues: []string{"premium-*"}, InboundScope: SetupScopeDisabled,
+	})
+	if err == nil {
+		t.Fatal("guided custom values accepted a wildcard")
+	}
+}
+
+func TestApplySetupActivationDetectsExactInboundPeer(t *testing.T) {
+	cfg, err := ApplySIPProviderPreset("fritzbox", map[string]string{"server": "192.0.2.10", "username": "desk"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = ApplySetupActivation(context.Background(), &cfg, "fritzbox", SetupActivation{
+		OutboundScope: SetupScopeAll, InboundScope: SetupScopeAll,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Inbound.Route != "manual" || !cfg.Permissions.AnswerInbound ||
+		strings.Join(cfg.Inbound.TrustedPeerCIDRs, ",") != "192.0.2.10" ||
+		strings.Join(cfg.Inbound.AllowedCallers, ",") != "*" {
+		t.Fatalf("unexpected inbound policy: %+v", cfg.Inbound)
+	}
+}
+
 func TestSelectLocalSIPHostUsesRegistrarSubnetAndTailscaleRange(t *testing.T) {
 	locals := []sipLocalAddress{
 		{ip: net.ParseIP("172.18.0.1"), network: mustSIPNetwork(t, "172.18.0.1/16")},

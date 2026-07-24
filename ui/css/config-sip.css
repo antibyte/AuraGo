@@ -38,7 +38,7 @@
     display: grid;
     margin: 0 0 1.5rem;
     padding: 0;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     list-style: none;
 }
 
@@ -64,9 +64,15 @@
     font-weight: 700;
 }
 
-[data-workspace-page="config"] .sip-wizard-progress li.is-active {
+[data-workspace-page="config"] .sip-wizard-progress li.is-current,
+[data-workspace-page="config"] .sip-wizard-progress li.is-complete {
     border-color: var(--accent);
     color: var(--text-primary);
+}
+
+[data-workspace-page="config"] .sip-wizard-progress li.is-complete span {
+    background: var(--accent);
+    color: var(--bg-primary);
 }
 
 [data-workspace-page="config"] .sip-provider-search {
@@ -207,6 +213,45 @@
 
 [data-workspace-page="config"] .sip-wizard-fields .field-group {
     margin: 0;
+}
+
+[data-workspace-page="config"] .sip-password-field {
+    position: relative;
+    display: flex;
+}
+
+[data-workspace-page="config"] .sip-password-field .field-input {
+    width: 100%;
+    padding-right: 6.5rem;
+}
+
+[data-workspace-page="config"] .sip-password-toggle {
+    position: absolute;
+    top: 50%;
+    right: 0.35rem;
+    min-height: 36px;
+    padding: 0 0.65rem;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--accent);
+    cursor: pointer;
+    font: inherit;
+    font-size: var(--text-xs);
+    font-weight: 700;
+    transform: translateY(-50%);
+}
+
+[data-workspace-page="config"] .sip-field-error {
+    margin-top: 0.4rem;
+    color: var(--danger, #c33d3d);
+    font-size: var(--text-xs);
+    line-height: 1.4;
+}
+
+[data-workspace-page="config"] [aria-invalid="true"] {
+    border-color: var(--danger, #c33d3d);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--danger, #c33d3d) 35%, transparent);
 }
 
 [data-workspace-page="config"] .sip-wizard-actions {
@@ -398,6 +443,305 @@
     line-height: 1.45;
 }
 
+[data-workspace-page="config"] .sip-choice-group {
+    display: grid;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    gap: 0.7rem;
+}
+
+[data-workspace-page="config"] .sip-choice-group + .sip-choice-group {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border-subtle);
+}
+
+[data-workspace-page="config"] .sip-choice-group > legend {
+    margin-bottom: 0.25rem;
+    color: var(--text-primary);
+    font-size: 1.05rem;
+    font-weight: 750;
+}
+
+[data-workspace-page="config"] .sip-choice-group > p {
+    max-width: 720px;
+    margin: 0 0 0.25rem;
+    color: var(--text-secondary);
+    font-size: var(--text-sm);
+    line-height: 1.5;
+}
+
+[data-workspace-page="config"] .sip-inbound-toggle {
+    display: flex;
+    min-height: 68px;
+    padding: 0.85rem 1rem;
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    background: var(--bg-primary);
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    cursor: pointer;
+}
+
+[data-workspace-page="config"] .sip-inbound-toggle strong,
+[data-workspace-page="config"] .sip-inbound-toggle small {
+    display: block;
+}
+
+[data-workspace-page="config"] .sip-inbound-toggle strong {
+    color: var(--text-primary);
+    font-size: var(--text-sm);
+}
+
+[data-workspace-page="config"] .sip-inbound-toggle small {
+    margin-top: 0.25rem;
+    color: var(--text-secondary);
+    font-size: var(--text-xs);
+    line-height: 1.45;
+}
+
+[data-workspace-page="config"] .sip-inbound-options {
+    display: grid;
+    gap: 0.7rem;
+}
+
+[data-workspace-page="config"] .sip-guided-values {
+    margin: 0.2rem 0 0 2rem;
+}
+
+[data-workspace-page="config"] .sip-emergency-note {
+    margin: 1.25rem 0 0;
+    padding: 0.75rem 0.9rem;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--warning, #d99a2b) 10%, var(--bg-primary));
+    color: var(--text-secondary);
+    font-size: var(--text-xs);
+    line-height: 1.5;
+}
+
+[data-workspace-page="config"] .sip-test-diagnostic {
+    margin: 1rem 0;
+    padding: 1rem;
+    border: 1px solid color-mix(in srgb, var(--danger, #c33d3d) 45%, var(--border-subtle));
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--danger, #c33d3d) 7%, var(--bg-primary));
+}
+
+[data-workspace-page="config"] .sip-test-diagnostic strong {
+    color: var(--text-primary);
+}
+
+[data-workspace-page="config"] .sip-test-diagnostic p {
+    margin: 0.35rem 0 0.8rem;
+    color: var(--text-secondary);
+    font-size: var(--text-sm);
+}
+
+[data-workspace-page="config"] .sip-test-diagnostic > div {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+}
+
+[data-workspace-page="config"] .sip-profile-diagnostic {
+    margin: 0 1.15rem 1rem;
+}
+
+[data-workspace-page="config"] .sip-profile-card {
+    overflow: hidden;
+    border: 1px solid var(--border-subtle);
+    border-radius: 14px;
+    background: var(--bg-primary);
+}
+
+[data-workspace-page="config"] .sip-profile-header {
+    display: flex;
+    padding: 1.1rem 1.15rem;
+    border-bottom: 1px solid var(--border-subtle);
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+[data-workspace-page="config"] .sip-profile-header h3 {
+    margin: 0.2rem 0 0;
+    color: var(--text-primary);
+    font-size: 1.25rem;
+}
+
+[data-workspace-page="config"] .sip-profile-header p {
+    margin: 0.35rem 0 0;
+    color: var(--text-secondary);
+    font-size: var(--text-sm);
+}
+
+[data-workspace-page="config"] .sip-profile-state {
+    flex: 0 0 auto;
+    padding: 0.35rem 0.55rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--warning, #d99a2b) 14%, var(--bg-secondary));
+    color: var(--text-primary);
+    font-size: var(--text-xs);
+    font-weight: 750;
+}
+
+[data-workspace-page="config"] .sip-profile-state.is-ready {
+    background: color-mix(in srgb, var(--success, #2f9d61) 14%, var(--bg-secondary));
+}
+
+[data-workspace-page="config"] .sip-readiness-list {
+    display: grid;
+    margin: 0;
+    padding: 0.35rem 1.15rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+[data-workspace-page="config"] .sip-readiness-list > div {
+    display: grid;
+    min-width: 0;
+    padding: 0.8rem 0;
+    grid-template-columns: minmax(8rem, 0.7fr) minmax(0, 1.3fr);
+    align-items: center;
+    gap: 0.75rem;
+}
+
+[data-workspace-page="config"] .sip-readiness-list > div:nth-child(odd) {
+    padding-right: 1rem;
+}
+
+[data-workspace-page="config"] .sip-readiness-list dt {
+    color: var(--text-secondary);
+    font-size: var(--text-xs);
+}
+
+[data-workspace-page="config"] .sip-readiness-list dd {
+    display: flex;
+    min-width: 0;
+    margin: 0;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text-secondary);
+    font-size: var(--text-sm);
+    font-weight: 650;
+}
+
+[data-workspace-page="config"] .sip-readiness-dot {
+    width: 0.55rem;
+    height: 0.55rem;
+    flex: 0 0 auto;
+    border: 2px solid currentColor;
+    border-radius: 50%;
+}
+
+[data-workspace-page="config"] .sip-readiness-list dd.is-ready {
+    color: var(--success, #2f9d61);
+}
+
+[data-workspace-page="config"] .sip-restart-banner {
+    display: flex;
+    margin: 0 1.15rem 1rem;
+    padding: 0.85rem 0.95rem;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--warning, #d99a2b) 12%, var(--bg-secondary));
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+[data-workspace-page="config"] .sip-restart-banner strong {
+    color: var(--text-primary);
+    font-size: var(--text-sm);
+}
+
+[data-workspace-page="config"] .sip-restart-banner p {
+    margin: 0.25rem 0 0;
+    color: var(--text-secondary);
+    font-size: var(--text-xs);
+}
+
+[data-workspace-page="config"] .sip-profile-actions {
+    display: flex;
+    padding: 1rem 1.15rem;
+    border-top: 1px solid var(--border-subtle);
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+[data-workspace-page="config"] .sip-text-action {
+    min-height: 44px;
+    padding: 0 0.5rem;
+    border: 0;
+    background: transparent;
+    color: var(--accent);
+    cursor: pointer;
+    font: inherit;
+    font-size: var(--text-sm);
+    font-weight: 650;
+}
+
+[data-workspace-page="config"] .sip-text-action.is-danger {
+    margin-left: auto;
+    color: var(--danger, #c33d3d);
+}
+
+[data-workspace-page="config"] .sip-delete-confirm {
+    margin: 0 1.15rem 1.15rem;
+    padding: 1rem;
+    border: 1px solid color-mix(in srgb, var(--danger, #c33d3d) 42%, var(--border-subtle));
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--danger, #c33d3d) 7%, var(--bg-secondary));
+}
+
+[data-workspace-page="config"] .sip-delete-confirm strong {
+    color: var(--text-primary);
+}
+
+[data-workspace-page="config"] .sip-delete-confirm p {
+    margin: 0.35rem 0 0.8rem;
+    color: var(--text-secondary);
+    font-size: var(--text-sm);
+}
+
+[data-workspace-page="config"] .sip-delete-confirm > label {
+    display: flex;
+    margin-bottom: 0.85rem;
+    align-items: flex-start;
+    gap: 0.55rem;
+    color: var(--text-secondary);
+    font-size: var(--text-sm);
+}
+
+[data-workspace-page="config"] .sip-delete-confirm > div:last-child {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.6rem;
+}
+
+[data-workspace-page="config"] .sip-danger-button {
+    background: var(--danger, #c33d3d);
+}
+
+[data-workspace-page="config"] .sip-expert-actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 1;
+    margin-top: 1.5rem;
+    padding: 0.9rem 0;
+    background: var(--bg-secondary);
+}
+
+[data-workspace-page="config"] .sip-section button:focus-visible,
+[data-workspace-page="config"] .sip-section input:focus-visible,
+[data-workspace-page="config"] .sip-section select:focus-visible,
+[data-workspace-page="config"] .sip-advanced > summary:focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--accent) 38%, transparent);
+    outline-offset: 2px;
+}
+
 [data-workspace-page="config"] .sip-phone-activation .btn-save {
     justify-self: start;
 }
@@ -525,6 +869,14 @@
         grid-template-columns: minmax(0, 1fr);
     }
 
+    [data-workspace-page="config"] .sip-readiness-list {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    [data-workspace-page="config"] .sip-readiness-list > div:nth-child(odd) {
+        padding-right: 0;
+    }
+
     [data-workspace-page="config"] .sip-settings-grid > .sip-toggle-field {
         min-height: 64px;
     }
@@ -532,11 +884,16 @@
 
 @media (max-width: 560px) {
     [data-workspace-page="config"] .sip-wizard-progress {
-        grid-template-columns: minmax(0, 1fr);
+        grid-template-columns: repeat(4, minmax(0, 1fr));
     }
 
     [data-workspace-page="config"] .sip-wizard-progress li {
+        padding: 0.55rem 0.15rem;
         border-bottom-width: 1px;
+        flex-direction: column;
+        gap: 0.3rem;
+        font-size: 0.67rem;
+        text-align: center;
     }
 
     [data-workspace-page="config"] .sip-provider-grid,
@@ -547,9 +904,33 @@
 
     [data-workspace-page="config"] .sip-wizard-configured,
     [data-workspace-page="config"] .sip-wizard-actions,
-    [data-workspace-page="config"] .sip-advanced > summary {
+    [data-workspace-page="config"] .sip-advanced > summary,
+    [data-workspace-page="config"] .sip-profile-header,
+    [data-workspace-page="config"] .sip-restart-banner {
         align-items: stretch;
         flex-direction: column;
+    }
+
+    [data-workspace-page="config"] .sip-provider-results {
+        max-height: none;
+        padding-right: 0;
+        overflow: visible;
+    }
+
+    [data-workspace-page="config"] .sip-guided-values {
+        margin-left: 0;
+    }
+
+    [data-workspace-page="config"] .sip-readiness-list > div {
+        grid-template-columns: minmax(6.5rem, 0.75fr) minmax(0, 1.25fr);
+    }
+
+    [data-workspace-page="config"] .sip-text-action.is-danger {
+        margin-left: 0;
+    }
+
+    [data-workspace-page="config"] .sip-delete-confirm > div:last-child {
+        flex-direction: column-reverse;
     }
 }
 

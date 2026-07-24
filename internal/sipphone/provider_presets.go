@@ -29,6 +29,7 @@ type SIPProviderPreset struct {
 	Name              string             `json:"name"`
 	Category          string             `json:"category"`
 	Region            string             `json:"region"`
+	DomesticRegion    string             `json:"domestic_region,omitempty"`
 	DocumentationURL  string             `json:"documentation_url"`
 	Notice            string             `json:"notice,omitempty"`
 	Fields            []SIPProviderField `json:"fields"`
@@ -40,6 +41,8 @@ type SIPProviderPreset struct {
 	outboundProxy     bool
 	preferSRV         bool
 	registerExpires   int
+	domesticPrefix    string
+	nationalPattern   string
 }
 
 var sipProviderPresets = buildSIPProviderPresets()
@@ -272,8 +275,54 @@ func buildSIPProviderPresets() []SIPProviderPreset {
 		localPBXPreset("wildix", "Wildix", "https://confluence.wildix.com/"),
 		localPBXPreset("avaya", "Avaya", "https://support.avaya.com/"),
 	}
+	for index := range presets {
+		applyDomesticPolicy(&presets[index])
+	}
 	sort.Slice(presets, func(i, j int) bool { return presets[i].ID < presets[j].ID })
 	return presets
+}
+
+func applyDomesticPolicy(preset *SIPProviderPreset) {
+	if preset == nil {
+		return
+	}
+	region := strings.ToUpper(strings.TrimSpace(preset.Region))
+	if preset.ID == "fritzbox" {
+		region = "DE"
+	}
+	type policy struct {
+		prefix   string
+		national string
+	}
+	policies := map[string]policy{
+		"DE": {"+49", "0*"}, "CH": {"+41", "0*"}, "AT": {"+43", "0*"},
+		"UK": {"+44", "0*"}, "FR": {"+33", "0*"}, "NL": {"+31", "0*"},
+		"BE": {"+32", "0*"}, "IT": {"+39", "0*"}, "US": {"+1", ""},
+		"CA": {"+1", ""}, "AU": {"+61", "0*"}, "NZ": {"+64", "0*"},
+	}
+	var selected *policy
+	marker := ""
+	for _, token := range strings.FieldsFunc(region, func(r rune) bool { return r == '/' || r == ',' }) {
+		candidate, ok := policies[strings.TrimSpace(token)]
+		if !ok {
+			continue
+		}
+		if selected != nil && *selected != candidate {
+			// A multi-country provider with different dialling plans cannot
+			// offer one safe "national numbers" shortcut.
+			return
+		}
+		value := candidate
+		selected = &value
+		if marker == "" {
+			marker = strings.TrimSpace(token)
+		}
+	}
+	if selected != nil {
+		preset.DomesticRegion = marker
+		preset.domesticPrefix = selected.prefix
+		preset.nationalPattern = selected.national
+	}
 }
 
 func commonFields(includeServer, includeAuth bool) []SIPProviderField {
