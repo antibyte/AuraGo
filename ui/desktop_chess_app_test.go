@@ -87,12 +87,15 @@ func TestDesktopChessBoardLayoutKeepsStatusVisible(t *testing.T) {
 	for _, want := range []string{
 		"grid-template-rows: auto minmax(0, 1fr) auto;",
 		".vd-chess-board-shell",
+		".vd-chess-board-frame",
 		"overflow: hidden;",
 		"height: min(100%, 620px);",
 		".vd-chess-ribbon",
 		".vd-chess-material-bar",
 		"is-capture-fx",
 		"prefers-reduced-motion",
+		/* cm-chessboard context must not own the wood-rim padding */
+		"cm-chessboard sizes its SVG to context.clientWidth",
 	} {
 		if !strings.Contains(css, want) {
 			t.Fatalf("desktop chess layout CSS missing marker %q", want)
@@ -100,6 +103,15 @@ func TestDesktopChessBoardLayoutKeepsStatusVisible(t *testing.T) {
 	}
 	if strings.Contains(css, "100vh") {
 		t.Fatal("desktop chess board must not size itself from the browser viewport")
+	}
+
+	fx := readEmbeddedText(t, "js/desktop/apps/chess-fx.js")
+	if !strings.Contains(fx, `data-chess-board-frame`) || !strings.Contains(fx, `data-chess-board`) {
+		t.Fatal("chess template must keep a separate board frame and cm-chessboard context")
+	}
+	app := readEmbeddedText(t, "js/desktop/apps/chess.js")
+	if !strings.Contains(app, "boardFrame:") || !strings.Contains(app, "handleResize") {
+		t.Fatal("chess app must size the frame and reflow the board view")
 	}
 }
 

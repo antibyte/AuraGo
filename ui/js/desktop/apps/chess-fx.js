@@ -271,7 +271,8 @@
             '<span class="vd-chess-material-score" data-material-bar-score>0</span></div>' +
             '<div class="vd-chess-board-shell">' +
             '<div class="vd-chess-fx-layer" data-fx-layer aria-hidden="true"></div>' +
-            '<div class="vd-chess-board" data-chess-board></div></div>' +
+            '<div class="vd-chess-board-frame" data-chess-board-frame>' +
+            '<div class="vd-chess-board" data-chess-board></div></div></div>' +
             '<div class="vd-chess-ribbon">' +
             '<div class="vd-chess-status" data-status>' + esc(t('desktop.chess_loading')) + '</div>' +
             '<div class="vd-chess-comment" data-comment></div></div></section>' +

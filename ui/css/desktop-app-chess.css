@@ -119,9 +119,8 @@
     height: 100%;
     display: grid;
     place-items: center;
-    /* Allow the even board rim/shadow to remain visible on all sides */
-    overflow: visible;
-    padding: 4px;
+    overflow: hidden;
+    padding: 6px;
     box-sizing: border-box;
 }
 
@@ -144,20 +143,24 @@
     overflow: hidden;
 }
 
-.vd-chess-board {
+/*
+ * Wood frame is a SEPARATE wrapper from the cm-chessboard context.
+ * cm-chessboard sizes its SVG to context.clientWidth; padding on the
+ * context itself makes pieces overflow and get clipped at bottom/right.
+ */
+.vd-chess-board-frame {
     --chess-rim: 12px;
     position: relative;
     z-index: 1;
     width: min(100%, 620px);
     height: min(100%, 620px);
-    max-width: 620px;
-    max-height: 620px;
-    min-width: 280px;
-    min-height: 280px;
+    max-width: 100%;
+    max-height: 100%;
+    min-width: 0;
+    min-height: 0;
     aspect-ratio: 1;
     border-radius: 14px;
     overflow: hidden;
-    /* Equal wood rim on all four sides */
     padding: var(--chess-rim);
     box-sizing: border-box;
     background:
@@ -177,7 +180,7 @@
 }
 
 /* Inner lip: crisp square edge between wood rim and board */
-.vd-chess-board::before {
+.vd-chess-board-frame::before {
     content: "";
     position: absolute;
     inset: var(--chess-rim);
@@ -189,8 +192,19 @@
     z-index: 2;
 }
 
-.vd-chess-board::after {
-    content: none;
+.vd-chess-board {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    border-radius: 3px;
+    overflow: hidden;
+    background: var(--chess-felt);
+    box-sizing: border-box;
 }
 
 .vd-chess-board .cm-chessboard {
@@ -202,24 +216,24 @@
     background: var(--chess-felt);
 }
 
-/* Keep cm-chessboard SVG border flush; wood rim is owned by the shell padding */
+/* Keep cm-chessboard SVG border flush; wood rim is owned by the frame padding */
 .vd-chess-board .cm-chessboard.border-type-thin .board .border {
     stroke-width: 0.35%;
 }
 
 /* Move FX states on shell */
-.vd-chess-board-shell.is-moved .vd-chess-board {
+.vd-chess-board-shell.is-moved .vd-chess-board-frame {
     box-shadow:
         0 0 0 1px color-mix(in srgb, var(--chess-accent) 45%, transparent),
         0 22px 48px rgba(0, 0, 0, 0.4),
         0 0 28px color-mix(in srgb, var(--chess-accent) 28%, transparent);
 }
 
-.vd-chess-board-shell.is-capture-fx .vd-chess-board {
+.vd-chess-board-shell.is-capture-fx .vd-chess-board-frame {
     animation: vd-chess-capture-pop 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.15);
 }
 
-.vd-chess-board-shell.is-check-fx .vd-chess-board {
+.vd-chess-board-shell.is-check-fx .vd-chess-board-frame {
     animation: vd-chess-check-shake 0.5s ease;
     box-shadow:
         0 0 0 2px color-mix(in srgb, var(--chess-danger) 70%, transparent),
@@ -227,11 +241,11 @@
         0 0 36px color-mix(in srgb, var(--chess-danger) 35%, transparent);
 }
 
-.vd-chess-board-shell.is-promote-fx .vd-chess-board {
+.vd-chess-board-shell.is-promote-fx .vd-chess-board-frame {
     animation: vd-chess-promote-glow 0.5s ease;
 }
 
-.vd-chess-board-shell.is-thinking .vd-chess-board {
+.vd-chess-board-shell.is-thinking .vd-chess-board-frame {
     filter: saturate(0.92);
 }
 
@@ -1043,6 +1057,7 @@
     transform: translateY(-1px);
 }
 
+.vd-chess.is-error .vd-chess-board-frame,
 .vd-chess.is-error .vd-chess-board {
     opacity: 0.48;
 }
@@ -1057,10 +1072,8 @@
         padding: 12px;
     }
 
-    .vd-chess-board {
+    .vd-chess-board-frame {
         --chess-rim: 10px;
-        min-width: 240px;
-        min-height: 240px;
     }
 
     .vd-chess-side {
@@ -1098,9 +1111,9 @@
         animation: none !important;
     }
 
-    .vd-chess-board-shell.is-capture-fx .vd-chess-board,
-    .vd-chess-board-shell.is-check-fx .vd-chess-board,
-    .vd-chess-board-shell.is-promote-fx .vd-chess-board {
+    .vd-chess-board-shell.is-capture-fx .vd-chess-board-frame,
+    .vd-chess-board-shell.is-check-fx .vd-chess-board-frame,
+    .vd-chess-board-shell.is-promote-fx .vd-chess-board-frame {
         animation: none !important;
     }
 

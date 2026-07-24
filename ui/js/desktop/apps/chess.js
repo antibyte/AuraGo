@@ -134,6 +134,7 @@
         state.refs = {
             root,
             boardShell: root.querySelector('.vd-chess-board-shell'),
+            boardFrame: root.querySelector('[data-chess-board-frame]'),
             board: root.querySelector('[data-chess-board]'),
             status: root.querySelector('[data-status]'),
             comment: root.querySelector('[data-comment]'),
@@ -266,16 +267,29 @@
 
     function fitBoardToShell(state) {
         const shell = state.refs.boardShell;
+        const frame = state.refs.boardFrame || state.refs.board;
         const board = state.refs.board;
-        if (!shell || !board || state.disposed) return;
-        const width = shell.clientWidth || shell.getBoundingClientRect().width;
-        const height = shell.clientHeight || shell.getBoundingClientRect().height;
-        /* leave a few px so the even wood rim/shadow is never clipped by the shell */
+        if (!shell || !frame || !board || state.disposed) return;
+        const styles = window.getComputedStyle(shell);
+        const padX = (parseFloat(styles.paddingLeft) || 0) + (parseFloat(styles.paddingRight) || 0);
+        const padY = (parseFloat(styles.paddingTop) || 0) + (parseFloat(styles.paddingBottom) || 0);
+        const width = Math.max(0, (shell.clientWidth || shell.getBoundingClientRect().width || 0) - padX);
+        const height = Math.max(0, (shell.clientHeight || shell.getBoundingClientRect().height || 0) - padY);
+        /* leave a few px so the wood rim/shadow is never clipped by the shell */
         const size = Math.floor(Math.min(width, height, 620) - 8);
-        if (!Number.isFinite(size) || size < 220) return;
+        if (!Number.isFinite(size) || size < 180) return;
         const px = size + 'px';
-        if (board.style.width !== px) board.style.width = px;
-        if (board.style.height !== px) board.style.height = px;
+        if (frame.style.width !== px) frame.style.width = px;
+        if (frame.style.height !== px) frame.style.height = px;
+        // Inner board fills the frame content box; never put padding on the
+        // cm-chessboard context (library sizes SVG to context.clientWidth).
+        board.style.width = '100%';
+        board.style.height = '100%';
+        board.style.minWidth = '0';
+        board.style.minHeight = '0';
+        if (state.board && state.board.view && typeof state.board.view.handleResize === 'function') {
+            state.board.view.handleResize();
+        }
     }
 
     function startNewGame(state) {
