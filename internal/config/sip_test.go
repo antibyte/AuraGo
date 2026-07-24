@@ -16,6 +16,35 @@ func TestSIPDefaultsAreDisabledAndReadOnly(t *testing.T) {
 	}
 }
 
+func TestNormalizeSIPConfigMovesE164UsersAndFillsDomain(t *testing.T) {
+	var cfg SIPConfig
+	ApplySIPDefaults(&cfg)
+	cfg.Domain = "fritz.box"
+	cfg.Outbound.AllowedUsers = []string{"desk", "+4972311222949", "desk"}
+	cfg.Outbound.AllowedE164Prefixes = []string{"+49"}
+	cfg.Outbound.AllowedDomains = nil
+	NormalizeSIPConfig(&cfg)
+	if len(cfg.Outbound.AllowedUsers) != 1 || cfg.Outbound.AllowedUsers[0] != "desk" {
+		t.Fatalf("unexpected users after normalize: %#v", cfg.Outbound.AllowedUsers)
+	}
+	foundFull := false
+	foundPrefix := false
+	for _, prefix := range cfg.Outbound.AllowedE164Prefixes {
+		if prefix == "+4972311222949" {
+			foundFull = true
+		}
+		if prefix == "+49" {
+			foundPrefix = true
+		}
+	}
+	if !foundFull || !foundPrefix {
+		t.Fatalf("unexpected e164 prefixes after normalize: %#v", cfg.Outbound.AllowedE164Prefixes)
+	}
+	if len(cfg.Outbound.AllowedDomains) != 1 || cfg.Outbound.AllowedDomains[0] != "fritz.box" {
+		t.Fatalf("expected domain allowlist to include account domain: %#v", cfg.Outbound.AllowedDomains)
+	}
+}
+
 func TestValidateSIPConfigRequiresAllowlistsAndRuntimeSecret(t *testing.T) {
 	var cfg SIPConfig
 	ApplySIPDefaults(&cfg)

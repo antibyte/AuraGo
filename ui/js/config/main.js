@@ -1142,6 +1142,8 @@ async function navigateToConfigSection(key, options = {}) {
 }
 
 function handleConfigBeforeUnload(event) {
+    // Browsers only allow the native leave prompt here — custom modals are
+    // blocked on document unload. In-app section switches use showUnsavedChangesDecision.
     if (!hasUnsavedConfigChanges()) return;
     event.preventDefault();
     event.returnValue = '';

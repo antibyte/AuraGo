@@ -659,8 +659,16 @@ func handleSIPAppState(s *Server) http.HandlerFunc {
 		if status.Enabled && !status.Registered {
 			blockers = append(blockers, "not_registered")
 		}
-		if status.Enabled && !status.ReadOnly && !cfg.Permissions.OriginateOutbound {
-			blockers = append(blockers, "outbound_disabled")
+		if status.Enabled && !status.ReadOnly {
+			hasOutboundTargets := len(cfg.Outbound.AllowedUsers) > 0 || len(cfg.Outbound.AllowedE164Prefixes) > 0
+			hasOutboundDomain := len(cfg.Outbound.AllowedDomains) > 0
+			switch {
+			case !cfg.Permissions.OriginateOutbound:
+				blockers = append(blockers, "outbound_disabled")
+			case !hasOutboundTargets || !hasOutboundDomain:
+				// Permission alone is not enough; dial policy requires domain + user/prefix allowlists.
+				blockers = append(blockers, "outbound_disabled")
+			}
 		}
 		if !cfg.BrowserMedia.Enabled {
 			blockers = append(blockers, "browser_media_disabled")

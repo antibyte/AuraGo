@@ -167,6 +167,34 @@ func NormalizeSIPConfig(cfg *SIPConfig) {
 	cfg.Outbound.AllowedDomains = normalizedUnique(cfg.Outbound.AllowedDomains, true)
 	cfg.Outbound.AllowedUsers = normalizedUnique(cfg.Outbound.AllowedUsers, false)
 	cfg.Outbound.AllowedE164Prefixes = normalizedUnique(cfg.Outbound.AllowedE164Prefixes, false)
+	// Exact E.164 values are destinations/prefixes, not SIP URI users. Keep them
+	// in the prefix list so dial policy and validation stay consistent.
+	if len(cfg.Outbound.AllowedUsers) > 0 {
+		keptUsers := make([]string, 0, len(cfg.Outbound.AllowedUsers))
+		for _, user := range cfg.Outbound.AllowedUsers {
+			if sipE164PrefixPattern.MatchString(user) {
+				cfg.Outbound.AllowedE164Prefixes = append(cfg.Outbound.AllowedE164Prefixes, user)
+				continue
+			}
+			keptUsers = append(keptUsers, user)
+		}
+		cfg.Outbound.AllowedUsers = normalizedUnique(keptUsers, false)
+		cfg.Outbound.AllowedE164Prefixes = normalizedUnique(cfg.Outbound.AllowedE164Prefixes, false)
+	}
+	// Dial requires an allowlisted domain. When destinations exist and the
+	// account domain is known, include it so saved numbers are actually usable.
+	if cfg.Domain != "" && (len(cfg.Outbound.AllowedUsers) > 0 || len(cfg.Outbound.AllowedE164Prefixes) > 0) {
+		hasDomain := false
+		for _, domain := range cfg.Outbound.AllowedDomains {
+			if domain == cfg.Domain {
+				hasDomain = true
+				break
+			}
+		}
+		if !hasDomain {
+			cfg.Outbound.AllowedDomains = append(cfg.Outbound.AllowedDomains, cfg.Domain)
+		}
+	}
 	cfg.Voice.Backend = strings.ToLower(strings.TrimSpace(cfg.Voice.Backend))
 	cfg.Voice.RealtimeProfileID = strings.TrimSpace(cfg.Voice.RealtimeProfileID)
 	cfg.Voice.Language = strings.TrimSpace(cfg.Voice.Language)
