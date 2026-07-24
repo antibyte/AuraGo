@@ -657,7 +657,7 @@ func (m *Manager) runOutbound(call *activeCall, endpoint *diago.Diago, uri sip.U
 			"call_id", call.record.ID,
 			"status_code", response.StatusCode,
 		)
-		if response.StatusCode == sip.StatusRinging {
+		if isOutboundRingingStatus(response.StatusCode) {
 			m.updateCallState(call, StateRinging)
 		}
 		return nil
@@ -691,6 +691,12 @@ func (m *Manager) runOutbound(call *activeCall, endpoint *diago.Diago, uri sip.U
 	call.dialogEstablished = true
 	m.mu.Unlock()
 	m.runEstablished(call, cfg)
+}
+
+func isOutboundRingingStatus(statusCode int) bool {
+	// Some PBXs, including FRITZ!Box setups, provide network ringback through
+	// 183 Session Progress instead of a separate 180 Ringing response.
+	return statusCode == sip.StatusRinging || statusCode == sip.StatusSessionInProgress
 }
 
 func classifyOutboundCallError(err error) (reason string, statusCode int) {

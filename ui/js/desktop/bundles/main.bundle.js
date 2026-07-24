@@ -3049,6 +3049,7 @@
         reconnectTimer: null,
         durationTimer: null,
         ringTimer: null,
+        ringMode: '',
         ringContext: null,
         ringOscillator: null,
         listeners: new Set()
@@ -3188,8 +3189,11 @@
             } else {
                 sipPhoneShellState.callID = call.id;
                 sipPhoneShellState.phase = call.state || 'connecting';
-                if (call.state === 'ringing') {
+                if (call.direction === 'inbound' && call.state === 'ringing') {
                     handleSIPPhoneIncomingCall(call, appState.inbound_route);
+                } else if (call.direction === 'outbound' && call.state === 'ringing') {
+                    removeSIPPhoneIncomingNotice();
+                    startSIPPhoneOutgoingRingback();
                 } else {
                     stopSIPPhoneRinging();
                     removeSIPPhoneIncomingNotice();
@@ -3638,7 +3642,18 @@
     }
 
     function startSIPPhoneRinging() {
-        if (!sipPhonePreferences().ringtone_enabled || sipPhoneShellState.ringTimer) return;
+        startSIPPhoneCallTone('incoming');
+    }
+
+    function startSIPPhoneOutgoingRingback() {
+        startSIPPhoneCallTone('outgoing');
+    }
+
+    function startSIPPhoneCallTone(mode) {
+        const preferences = sipPhonePreferences();
+        if (!preferences.ringtone_enabled) return;
+        if (sipPhoneShellState.ringTimer && sipPhoneShellState.ringMode === mode) return;
+        if (sipPhoneShellState.ringTimer) stopSIPPhoneRinging();
         const AudioContextClass = window.AudioContext || window.webkitAudioContext;
         if (!AudioContextClass) return;
         try {
@@ -3646,29 +3661,36 @@
             const oscillator = context.createOscillator();
             const gain = context.createGain();
             oscillator.type = 'sine';
-            oscillator.frequency.value = 440;
+            oscillator.frequency.value = mode === 'outgoing' ? 425 : 440;
             gain.gain.value = 0;
             oscillator.connect(gain);
             gain.connect(context.destination);
             oscillator.start();
+            if (preferences.output_device && typeof context.setSinkId === 'function') {
+                context.setSinkId(preferences.output_device).catch(() => {});
+            }
+            sipPhoneShellState.ringMode = mode;
             sipPhoneShellState.ringContext = context;
             sipPhoneShellState.ringOscillator = oscillator;
             const pulse = () => {
                 const now = context.currentTime;
+                const hold = mode === 'outgoing' ? 1 : 0.22;
+                const level = Math.max(0, Math.min(0.06, Number(preferences.volume || 0) * 0.05));
                 gain.gain.cancelScheduledValues(now);
                 gain.gain.setValueAtTime(0, now);
-                gain.gain.linearRampToValueAtTime(0.04, now + 0.03);
-                gain.gain.setValueAtTime(0.04, now + 0.22);
-                gain.gain.linearRampToValueAtTime(0, now + 0.3);
+                gain.gain.linearRampToValueAtTime(level, now + 0.03);
+                gain.gain.setValueAtTime(level, now + hold);
+                gain.gain.linearRampToValueAtTime(0, now + hold + 0.08);
             };
             pulse();
-            sipPhoneShellState.ringTimer = setInterval(pulse, 1800);
+            sipPhoneShellState.ringTimer = setInterval(pulse, mode === 'outgoing' ? 5000 : 1800);
         } catch (_) {}
     }
 
     function stopSIPPhoneRinging() {
         if (sipPhoneShellState.ringTimer) clearInterval(sipPhoneShellState.ringTimer);
         sipPhoneShellState.ringTimer = null;
+        sipPhoneShellState.ringMode = '';
         if (sipPhoneShellState.ringOscillator) {
             try { sipPhoneShellState.ringOscillator.stop(); } catch (_) {}
         }
@@ -3694,9 +3716,13 @@
             pill.addEventListener('click', () => openApp('sip-phone'));
             taskbarSystem.insertBefore(pill, taskbarSystem.firstChild);
         }
-        const stateLabel = call.state === 'ringing'
-            ? sipPhoneText('ringing', 'Ringing')
-            : sipPhoneText('call_active', 'Call active');
+        const stateLabel = call.direction === 'outbound' && call.state === 'ringing'
+            ? sipPhoneText('outgoing_ringing', 'The other phone is ringing')
+            : call.direction === 'outbound' && call.state === 'connecting'
+                ? sipPhoneText('calling', 'Calling…')
+                : call.state === 'ringing'
+                    ? sipPhoneText('ringing', 'Ringing')
+                    : sipPhoneText('call_active', 'Call active');
         pill.innerHTML = `<span class="vd-sip-call-pill-icon">${iconMarkup('phone', 'P', 'vd-sip-glyph', 15)}</span><span><strong>${esc(stateLabel)}</strong><small>${esc(call.remote_party || '')}</small></span>`;
         pill.classList.toggle('is-ringing', call.state === 'ringing');
     }

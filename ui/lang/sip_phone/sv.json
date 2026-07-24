@@ -8,6 +8,8 @@
   "desktop.sip_phone_browser_media_restart_required_detail": "Starta om AuraGo för att tillämpa de sparade webbläsarmediainställningarna.",
   "desktop.sip_phone_call": "Ring",
   "desktop.sip_phone_call_active": "Aktivt samtal",
+  "desktop.sip_phone_calling": "Ringer…",
+  "desktop.sip_phone_outgoing_ringing": "Mottagarens telefon ringer",
   "desktop.sip_phone_call_end_authentication_failed": "Telefonväxeln nekade inloggningsuppgifterna. Kontrollera SIP-inloggningen.",
   "desktop.sip_phone_call_end_destination_not_found": "Målet hittades inte. Kontrollera numret.",
   "desktop.sip_phone_call_end_temporarily_unavailable": "Målet är tillfälligt otillgängligt.",

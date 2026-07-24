@@ -73,6 +73,9 @@ func TestDesktopSIPPhoneBrowserMediaAndShellContracts(t *testing.T) {
 		"call.state === 'active'",
 		"disposeSIPPhoneMediaResources",
 		"startSIPPhoneRinging()",
+		"startSIPPhoneOutgoingRingback()",
+		"call.direction === 'inbound' && call.state === 'ringing'",
+		"sipPhoneText('outgoing_ringing', 'The other phone is ringing')",
 		"window.SipPhoneRuntime = {",
 	} {
 		if !strings.Contains(runtime, marker) {
@@ -121,6 +124,8 @@ func TestDesktopSIPPhoneComfortAndPrivacyContracts(t *testing.T) {
 		`data-sip-phone="ringtone"`,
 		"runtime.setMuted",
 		"runtime.sendDTMF",
+		"text(instance, 'outgoing_ringing', 'The other phone is ringing')",
+		`<p aria-live="polite">`,
 		"blockers.includes('outbound_disabled')",
 		"text(instance, 'unavailable', 'Calling is unavailable')",
 	} {

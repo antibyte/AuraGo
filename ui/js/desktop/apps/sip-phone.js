@@ -219,11 +219,18 @@
         const call = snapshot.call;
         const name = partyLabel(instance, call.remote_party);
         const subtitle = name === call.remote_party ? '' : call.remote_party;
+        const status = call.direction === 'outbound' && call.state === 'ringing'
+            ? text(instance, 'outgoing_ringing', 'The other phone is ringing')
+            : call.direction === 'outbound' && call.state === 'connecting'
+                ? text(instance, 'calling', 'Calling…')
+                : call.state === 'ringing'
+                    ? text(instance, 'incoming_title', 'Incoming call')
+                    : text(instance, 'call_active', 'Call active');
         return `<div class="sip-phone-active-call">
             ${snapshot.observer ? `<div class="sip-phone-observer">${instance.context.esc(text(instance, 'observer_mode', 'This tab can observe the call but cannot take over its audio.'))}</div>` : ''}
             ${snapshot.error ? `<div class="sip-phone-inline-error" role="alert">${instance.context.esc(snapshot.error)}</div>` : ''}
             <div class="sip-phone-call-avatar">${instance.context.iconMarkup('phone', 'P', 'sip-phone-glyph', 44)}</div>
-            <p>${instance.context.esc(text(instance, call.state === 'ringing' ? 'incoming_title' : 'call_active', call.state === 'ringing' ? 'Incoming call' : 'Call active'))}</p>
+            <p aria-live="polite">${instance.context.esc(status)}</p>
             <h1>${instance.context.esc(name)}</h1>
             ${subtitle ? `<span>${instance.context.esc(subtitle)}</span>` : ''}
             <time data-sip-phone-duration>${formatDuration(callDuration(call))}</time>

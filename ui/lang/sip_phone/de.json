@@ -8,6 +8,8 @@
   "desktop.sip_phone_browser_media_restart_required_detail": "Starten Sie AuraGo neu, um die gespeicherten Browser-Medieneinstellungen anzuwenden.",
   "desktop.sip_phone_call": "Anrufen",
   "desktop.sip_phone_call_active": "Gespräch aktiv",
+  "desktop.sip_phone_calling": "Wird angerufen…",
+  "desktop.sip_phone_outgoing_ringing": "Die Gegenstelle klingelt",
   "desktop.sip_phone_call_end_authentication_failed": "Die Telefonanlage hat die Anmeldedaten abgelehnt. SIP-Zugangsdaten prüfen.",
   "desktop.sip_phone_call_end_destination_not_found": "Das Ziel wurde nicht gefunden. Rufnummer prüfen.",
   "desktop.sip_phone_call_end_temporarily_unavailable": "Das Ziel ist vorübergehend nicht erreichbar.",

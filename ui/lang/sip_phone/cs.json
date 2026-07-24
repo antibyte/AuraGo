@@ -8,6 +8,8 @@
   "desktop.sip_phone_browser_media_restart_required_detail": "Restartujte AuraGo, aby se použila uložená nastavení médií prohlížeče.",
   "desktop.sip_phone_call": "Volat",
   "desktop.sip_phone_call_active": "Aktivní hovor",
+  "desktop.sip_phone_calling": "Volání…",
+  "desktop.sip_phone_outgoing_ringing": "Volané zařízení vyzvání",
   "desktop.sip_phone_call_end_authentication_failed": "Telefonní ústředna odmítla přihlašovací údaje. Zkontrolujte přihlášení SIP.",
   "desktop.sip_phone_call_end_destination_not_found": "Cíl nebyl nalezen. Zkontrolujte číslo.",
   "desktop.sip_phone_call_end_temporarily_unavailable": "Cíl je dočasně nedostupný.",

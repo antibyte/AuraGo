@@ -8,6 +8,8 @@
   "desktop.sip_phone_browser_media_restart_required_detail": "重启 AuraGo 以应用已保存的浏览器媒体设置。",
   "desktop.sip_phone_call": "呼叫",
   "desktop.sip_phone_call_active": "通话中",
+  "desktop.sip_phone_calling": "正在呼叫…",
+  "desktop.sip_phone_outgoing_ringing": "对方电话正在响铃",
   "desktop.sip_phone_call_end_authentication_failed": "电话交换机拒绝了登录凭据。请检查 SIP 登录信息。",
   "desktop.sip_phone_call_end_destination_not_found": "未找到目标。请检查号码。",
   "desktop.sip_phone_call_end_temporarily_unavailable": "目标暂时不可用。",

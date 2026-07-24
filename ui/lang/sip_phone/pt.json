@@ -8,6 +8,8 @@
   "desktop.sip_phone_browser_media_restart_required_detail": "Reinicie o AuraGo para aplicar as definições de multimédia do navegador guardadas.",
   "desktop.sip_phone_call": "Ligar",
   "desktop.sip_phone_call_active": "Chamada ativa",
+  "desktop.sip_phone_calling": "A ligar…",
+  "desktop.sip_phone_outgoing_ringing": "O telefone do destinatário está a tocar",
   "desktop.sip_phone_call_end_authentication_failed": "A central telefónica rejeitou as credenciais. Verifique o acesso SIP.",
   "desktop.sip_phone_call_end_destination_not_found": "O destino não foi encontrado. Verifique o número.",
   "desktop.sip_phone_call_end_temporarily_unavailable": "O destino está temporariamente indisponível.",

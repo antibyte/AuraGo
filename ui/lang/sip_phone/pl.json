@@ -8,6 +8,8 @@
   "desktop.sip_phone_browser_media_restart_required_detail": "Uruchom ponownie AuraGo, aby zastosować zapisane ustawienia multimediów przeglądarki.",
   "desktop.sip_phone_call": "Zadzwoń",
   "desktop.sip_phone_call_active": "Aktywne połączenie",
+  "desktop.sip_phone_calling": "Łączenie…",
+  "desktop.sip_phone_outgoing_ringing": "Telefon odbiorcy dzwoni",
   "desktop.sip_phone_call_end_authentication_failed": "Centrala odrzuciła dane logowania. Sprawdź dane SIP.",
   "desktop.sip_phone_call_end_destination_not_found": "Nie znaleziono celu. Sprawdź numer.",
   "desktop.sip_phone_call_end_temporarily_unavailable": "Cel jest tymczasowo niedostępny.",

@@ -8,6 +8,8 @@
   "desktop.sip_phone_browser_media_restart_required_detail": "Redémarrez AuraGo pour appliquer les paramètres de média du navigateur enregistrés.",
   "desktop.sip_phone_call": "Appeler",
   "desktop.sip_phone_call_active": "Appel actif",
+  "desktop.sip_phone_calling": "Appel en cours…",
+  "desktop.sip_phone_outgoing_ringing": "Le téléphone du destinataire sonne",
   "desktop.sip_phone_call_end_authentication_failed": "Le standard a refusé les identifiants. Vérifiez la connexion SIP.",
   "desktop.sip_phone_call_end_destination_not_found": "Le destinataire est introuvable. Vérifiez le numéro.",
   "desktop.sip_phone_call_end_temporarily_unavailable": "Le destinataire est temporairement indisponible.",

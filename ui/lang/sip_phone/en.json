@@ -8,6 +8,8 @@
   "desktop.sip_phone_browser_media_restart_required_detail": "Restart AuraGo to apply the saved browser media settings.",
   "desktop.sip_phone_call": "Call",
   "desktop.sip_phone_call_active": "Call active",
+  "desktop.sip_phone_calling": "Calling…",
+  "desktop.sip_phone_outgoing_ringing": "The other phone is ringing",
   "desktop.sip_phone_call_end_authentication_failed": "The PBX rejected the call credentials. Check the SIP login.",
   "desktop.sip_phone_call_end_destination_not_found": "The destination was not found. Check the number.",
   "desktop.sip_phone_call_end_temporarily_unavailable": "The destination is temporarily unavailable.",

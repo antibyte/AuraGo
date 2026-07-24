@@ -8,6 +8,8 @@
   "desktop.sip_phone_browser_media_restart_required_detail": "保存したブラウザメディア設定を適用するには AuraGo を再起動してください。",
   "desktop.sip_phone_call": "発信",
   "desktop.sip_phone_call_active": "通話中",
+  "desktop.sip_phone_calling": "発信中…",
+  "desktop.sip_phone_outgoing_ringing": "相手の電話を呼び出しています",
   "desktop.sip_phone_call_end_authentication_failed": "電話交換機が認証情報を拒否しました。SIPログインを確認してください。",
   "desktop.sip_phone_call_end_destination_not_found": "宛先が見つかりません。番号を確認してください。",
   "desktop.sip_phone_call_end_temporarily_unavailable": "宛先は一時的に利用できません。",

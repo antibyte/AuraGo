@@ -8,6 +8,8 @@
   "desktop.sip_phone_browser_media_restart_required_detail": "Start AuraGo opnieuw om de opgeslagen browsermedia-instellingen toe te passen.",
   "desktop.sip_phone_call": "Bellen",
   "desktop.sip_phone_call_active": "Gesprek actief",
+  "desktop.sip_phone_calling": "Bellen…",
+  "desktop.sip_phone_outgoing_ringing": "De telefoon aan de andere kant gaat over",
   "desktop.sip_phone_call_end_authentication_failed": "De telefooncentrale heeft de aanmeldgegevens geweigerd. Controleer de SIP-aanmelding.",
   "desktop.sip_phone_call_end_destination_not_found": "De bestemming is niet gevonden. Controleer het nummer.",
   "desktop.sip_phone_call_end_temporarily_unavailable": "De bestemming is tijdelijk niet beschikbaar.",

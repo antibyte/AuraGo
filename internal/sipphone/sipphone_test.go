@@ -193,6 +193,12 @@ func TestStateTransitionsAndRegistrationBackoff(t *testing.T) {
 	if !validTransition(StateRegistered, StateConnecting) || !validTransition(StateActive, StateEnding) {
 		t.Fatal("expected normal call transitions")
 	}
+	if !validTransition(StateConnecting, StateRinging) {
+		t.Fatal("outbound SIP progress must transition from connecting to ringing")
+	}
+	if !validTransition(StateRinging, StateActive) {
+		t.Fatal("answered inbound and outbound SIP calls must transition from ringing to active")
+	}
 	if validTransition(StateDisabled, StateActive) || validTransition(StateEnded, StateActive) {
 		t.Fatal("invalid transition accepted")
 	}
@@ -201,6 +207,19 @@ func TestStateTransitionsAndRegistrationBackoff(t *testing.T) {
 	}
 	if got := registrationBackoff(99); got != 5*time.Minute {
 		t.Fatalf("capped backoff = %s", got)
+	}
+}
+
+func TestOutboundRingingStatus(t *testing.T) {
+	for _, statusCode := range []int{sip.StatusRinging, sip.StatusSessionInProgress} {
+		if !isOutboundRingingStatus(statusCode) {
+			t.Fatalf("status %d must surface outbound ringing", statusCode)
+		}
+	}
+	for _, statusCode := range []int{sip.StatusTrying, sip.StatusCallIsForwarded, sip.StatusOK} {
+		if isOutboundRingingStatus(statusCode) {
+			t.Fatalf("status %d must not claim the other phone is ringing", statusCode)
+		}
 	}
 }
 

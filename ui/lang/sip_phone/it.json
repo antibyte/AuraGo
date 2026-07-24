@@ -8,6 +8,8 @@
   "desktop.sip_phone_browser_media_restart_required_detail": "Riavvia AuraGo per applicare le impostazioni multimediali del browser salvate.",
   "desktop.sip_phone_call": "Chiama",
   "desktop.sip_phone_call_active": "Chiamata attiva",
+  "desktop.sip_phone_calling": "Chiamata in corso…",
+  "desktop.sip_phone_outgoing_ringing": "Il telefono del destinatario sta squillando",
   "desktop.sip_phone_call_end_authentication_failed": "Il centralino ha rifiutato le credenziali. Controlla l'accesso SIP.",
   "desktop.sip_phone_call_end_destination_not_found": "Destinazione non trovata. Controlla il numero.",
   "desktop.sip_phone_call_end_temporarily_unavailable": "La destinazione è temporaneamente non disponibile.",
