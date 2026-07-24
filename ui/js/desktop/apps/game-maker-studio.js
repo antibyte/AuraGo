@@ -199,16 +199,18 @@
             const button = event.target.closest('[data-gm-action]');
             if (!button) return;
             closeMoreMenu(state);
+            const modals = window.GameMakerStudioModals;
+            const preview = window.GameMakerStudioPreview;
             const actions = {
                 new: () => showCreateModal(state),
-                skills: () => window.GameMakerStudioModals.showSkillsModal(state, modalHelpers),
-                revisions: () => window.GameMakerStudioModals.showRevisionsModal(state, modalHelpers),
+                skills: () => modals ? modals.showSkillsModal(state, modalHelpers) : fail(state, new Error('Game Maker Studio modules failed to load')),
+                revisions: () => modals ? modals.showRevisionsModal(state, modalHelpers) : fail(state, new Error('Game Maker Studio modules failed to load')),
                 code: () => openInCodeStudio(state),
                 export: () => exportProject(state),
                 stop: () => stopJob(state),
                 reload: () => refreshPreview(state),
-                fullscreen: () => window.GameMakerStudioPreview.toggleFullscreen(state),
-                open_tab: () => window.GameMakerStudioPreview.openTab(state),
+                fullscreen: () => preview && preview.toggleFullscreen(state),
+                open_tab: () => preview && preview.openTab(state),
                 rename: () => renameProject(state),
                 delete: () => deleteProject(state)
             };
@@ -609,7 +611,7 @@
 
     async function refreshPreview(state) {
         if (!state.project) return;
-        window.GameMakerStudioPreview.clearLoading(state);
+        if (window.GameMakerStudioPreview) window.GameMakerStudioPreview.clearLoading(state);
         try {
             const grant = await state.api.previewGrant(state.project.id);
             if (state.disposed) return;
@@ -626,7 +628,7 @@
             shell.replaceChildren(frame);
             state.frame = frame;
             state.previewStale = false;
-            window.GameMakerStudioPreview.showLoading(state, shell, frame);
+            if (window.GameMakerStudioPreview) window.GameMakerStudioPreview.showLoading(state, shell, frame);
         } catch (error) {
             addDiagnostic(state, { level: 'error', message: error.message || String(error) });
         }
@@ -952,7 +954,7 @@
         if (otherBusy) {
             hint.textContent = state.context.t('game_maker.busy_other', { name: busyProjectName(state) });
         }
-        window.GameMakerStudioPreview.updateStaleBadge(state);
+        if (window.GameMakerStudioPreview) window.GameMakerStudioPreview.updateStaleBadge(state);
         syncBusyPoll(state);
     }
 
@@ -1054,7 +1056,7 @@
         state.disposed = true;
         closeEvents(state);
         stopElapsed(state);
-        window.GameMakerStudioPreview.clearLoading(state);
+        if (window.GameMakerStudioPreview) window.GameMakerStudioPreview.clearLoading(state);
         if (state.busyPoll) clearInterval(state.busyPoll);
         if (state.moreDocListener) document.removeEventListener('click', state.moreDocListener);
         if (state.moreEscListener) document.removeEventListener('keydown', state.moreEscListener);
