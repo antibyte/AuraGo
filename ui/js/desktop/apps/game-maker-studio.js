@@ -267,7 +267,15 @@
         const availability = capabilityState(cap);
         const newButton = state.container.querySelector('[data-gm-action="new"]');
         const notice = state.container.querySelector('[data-gm-capability-notice]');
-        const message = availability.messageKey ? state.context.t(availability.messageKey) : '';
+        let message = availability.messageKey ? state.context.t(availability.messageKey) : '';
+        if (availability.status === 'skills-blocked') {
+            const blocking = (cap.skills || [])
+                .filter(skill => !['ready', 'verified', 'installed', 'updated'].includes(skill.status))
+                .map(skill => `${skill.name}: ${skill.status}`);
+            if (blocking.length) {
+                message += ' ' + state.context.t('game_maker.skills_blocked_details', { details: blocking.join(', ') });
+            }
+        }
         newButton.disabled = availability.status !== 'ready';
         newButton.title = message;
         notice.hidden = availability.status === 'ready';

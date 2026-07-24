@@ -2168,5 +2168,10 @@
   "game_maker.skill_status_verified": "Επαληθεύτηκε",
   "game_maker.skill_status_disabled": "Απενεργοποιημένο",
   "game_maker.skill_status_missing": "Λείπει",
-  "game_maker.skill_status_hash_mismatch": "Τροποποιημένο"
+  "game_maker.skill_status_hash_mismatch": "Τροποποιημένο",
+  "game_maker.skills_blocked_details": "Επηρεάζονται: {{details}}",
+  "game_maker.skill_status_warning": "Προειδοποίηση – απαιτείται έγκριση",
+  "game_maker.skill_status_dangerous": "Αποκλεισμένο",
+  "game_maker.skill_status_pending": "Εκκρεμεί έλεγχος",
+  "game_maker.skill_status_error": "Σφάλμα"
 }

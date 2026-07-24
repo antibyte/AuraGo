@@ -2168,5 +2168,10 @@
   "game_maker.skill_status_verified": "已验证",
   "game_maker.skill_status_disabled": "已禁用",
   "game_maker.skill_status_missing": "缺失",
-  "game_maker.skill_status_hash_mismatch": "已修改"
+  "game_maker.skill_status_hash_mismatch": "已修改",
+  "game_maker.skills_blocked_details": "受影响:{{details}}",
+  "game_maker.skill_status_warning": "警告 — 需要批准",
+  "game_maker.skill_status_dangerous": "已阻止",
+  "game_maker.skill_status_pending": "待审核",
+  "game_maker.skill_status_error": "错误"
 }

@@ -2168,5 +2168,10 @@
   "game_maker.skill_status_verified": "Geverifieerd",
   "game_maker.skill_status_disabled": "Uitgeschakeld",
   "game_maker.skill_status_missing": "Ontbreekt",
-  "game_maker.skill_status_hash_mismatch": "Gewijzigd"
+  "game_maker.skill_status_hash_mismatch": "Gewijzigd",
+  "game_maker.skills_blocked_details": "Betroffen: {{details}}",
+  "game_maker.skill_status_warning": "Waarschuwing – goedkeuring vereist",
+  "game_maker.skill_status_dangerous": "Geblokkeerd",
+  "game_maker.skill_status_pending": "Wacht op beoordeling",
+  "game_maker.skill_status_error": "Fout"
 }

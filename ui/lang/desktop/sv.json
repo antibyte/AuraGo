@@ -2168,5 +2168,10 @@
   "game_maker.skill_status_verified": "Verifierad",
   "game_maker.skill_status_disabled": "Inaktiverad",
   "game_maker.skill_status_missing": "Saknas",
-  "game_maker.skill_status_hash_mismatch": "Ändrad"
+  "game_maker.skill_status_hash_mismatch": "Ändrad",
+  "game_maker.skills_blocked_details": "Berörda: {{details}}",
+  "game_maker.skill_status_warning": "Varning – godkännande krävs",
+  "game_maker.skill_status_dangerous": "Blockerad",
+  "game_maker.skill_status_pending": "Väntar på granskning",
+  "game_maker.skill_status_error": "Fel"
 }

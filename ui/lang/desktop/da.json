@@ -2168,5 +2168,10 @@
   "game_maker.skill_status_verified": "Verificeret",
   "game_maker.skill_status_disabled": "Deaktiveret",
   "game_maker.skill_status_missing": "Mangler",
-  "game_maker.skill_status_hash_mismatch": "Ændret"
+  "game_maker.skill_status_hash_mismatch": "Ændret",
+  "game_maker.skills_blocked_details": "Berørte: {{details}}",
+  "game_maker.skill_status_warning": "Advarsel – godkendelse kræves",
+  "game_maker.skill_status_dangerous": "Blokeret",
+  "game_maker.skill_status_pending": "Afventer gennemgang",
+  "game_maker.skill_status_error": "Fejl"
 }

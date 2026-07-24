@@ -2168,5 +2168,10 @@
   "game_maker.skill_status_verified": "Ověřeno",
   "game_maker.skill_status_disabled": "Zakázáno",
   "game_maker.skill_status_missing": "Chybí",
-  "game_maker.skill_status_hash_mismatch": "Změněno"
+  "game_maker.skill_status_hash_mismatch": "Změněno",
+  "game_maker.skills_blocked_details": "Dotčeno: {{details}}",
+  "game_maker.skill_status_warning": "Varování – vyžaduje schválení",
+  "game_maker.skill_status_dangerous": "Blokováno",
+  "game_maker.skill_status_pending": "Čeká na kontrolu",
+  "game_maker.skill_status_error": "Chyba"
 }

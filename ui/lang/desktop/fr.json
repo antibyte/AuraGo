@@ -2168,5 +2168,10 @@
   "game_maker.skill_status_verified": "Vérifié",
   "game_maker.skill_status_disabled": "Désactivé",
   "game_maker.skill_status_missing": "Manquant",
-  "game_maker.skill_status_hash_mismatch": "Modifié"
+  "game_maker.skill_status_hash_mismatch": "Modifié",
+  "game_maker.skills_blocked_details": "Concernés : {{details}}",
+  "game_maker.skill_status_warning": "Avertissement – approbation requise",
+  "game_maker.skill_status_dangerous": "Bloqué",
+  "game_maker.skill_status_pending": "En attente de révision",
+  "game_maker.skill_status_error": "Erreur"
 }

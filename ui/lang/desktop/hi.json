@@ -2168,5 +2168,10 @@
   "game_maker.skill_status_verified": "सत्यापित",
   "game_maker.skill_status_disabled": "अक्षम",
   "game_maker.skill_status_missing": "गायब",
-  "game_maker.skill_status_hash_mismatch": "बदला गया"
+  "game_maker.skill_status_hash_mismatch": "बदला गया",
+  "game_maker.skills_blocked_details": "प्रभावित: {{details}}",
+  "game_maker.skill_status_warning": "चेतावनी – स्वीकृति आवश्यक",
+  "game_maker.skill_status_dangerous": "अवरुद्ध",
+  "game_maker.skill_status_pending": "समीक्षा लंबित",
+  "game_maker.skill_status_error": "त्रुटि"
 }

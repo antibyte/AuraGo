@@ -4,7 +4,8 @@
     // Skills and revisions modals for Game Maker Studio. The modal framework
     // (showModal, busy state, errors, confirm) is injected by the main module.
 
-    const skillStatuses = ['ready', 'installed', 'updated', 'verified', 'disabled', 'missing', 'hash_mismatch'];
+    const skillStatuses = ['ready', 'installed', 'updated', 'verified', 'disabled', 'missing', 'hash_mismatch',
+        'warning', 'dangerous', 'pending', 'error'];
 
     function skillStatusLabel(state, status) {
         if (skillStatuses.includes(status)) return state.context.t('game_maker.skill_status_' + status);
