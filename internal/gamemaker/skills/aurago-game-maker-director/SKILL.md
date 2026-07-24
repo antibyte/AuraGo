@@ -23,6 +23,9 @@ multiplayer, a backend, deployment, analytics, CDNs, or external APIs.
 3. Keep the first implementation the smallest loop that is actually playable;
    extend it only after it validates.
 4. Write only through `game_maker_file`; never target `vendor/` or `dist/`.
+   If a write does not have the expected effect, fix the parameters and retry
+   once; do not switch to `execute_python`, `execute_shell`, `filesystem`, or
+   any tool outside the allowed Game Maker scope.
 5. Use `game_maker_asset` only for planned, gameplay-relevant media and only
    when the capability is enabled. Stay within roughly four images and one
    music track per job. Treat a fallback response as a design constraint,
@@ -32,6 +35,9 @@ multiplayer, a backend, deployment, analytics, CDNs, or external APIs.
 7. Preserve the AuraGo diagnostic interface and finish only when validation is
    successful and the controls, objective, feedback, and restart path are
    clear.
+8. The live preview runs in a sandboxed iframe without `allow-same-origin`.
+   Do not use `localStorage`, `sessionStorage`, `IndexedDB`, cookies, or
+   `window.parent` access. Keep game state in memory and reset it on restart.
 
 End with a short player-facing summary: what was built, the controls, and the
 objective. It is shown as the final studio chat message, so skip internals.
