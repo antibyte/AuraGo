@@ -962,7 +962,9 @@
         if (otherBusy) {
             hint.textContent = state.context.t('game_maker.busy_other', { name: busyProjectName(state) });
         }
-        if (window.GameMakerStudioPreview) window.GameMakerStudioPreview.updateStaleBadge(state);
+        if (window.GameMakerStudioPreview && window.GameMakerStudioPreview.updateStaleBadge) {
+            window.GameMakerStudioPreview.updateStaleBadge(state);
+        }
         syncBusyPoll(state);
     }
 
