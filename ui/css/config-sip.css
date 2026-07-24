@@ -302,28 +302,42 @@
     line-height: 1.5;
 }
 
-[data-workspace-page="config"] .sip-phone-activation {
+[data-workspace-page="config"] .sip-phone-activation,
+[data-workspace-page="config"] .sip-desktop-activation-panel {
     display: grid;
     margin-top: 1.25rem;
     padding: 1rem;
     border: 1px solid color-mix(in srgb, var(--accent) 38%, var(--border-subtle));
     border-radius: 12px;
     background: var(--bg-primary);
-    grid-template-columns: minmax(0, 1fr) minmax(260px, 0.8fr) auto;
-    align-items: end;
     gap: 0.85rem 1rem;
 }
 
-[data-workspace-page="config"] .sip-phone-activation strong {
+[data-workspace-page="config"] .sip-phone-activation {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+[data-workspace-page="config"] .sip-phone-activation strong,
+[data-workspace-page="config"] .sip-desktop-activation-panel strong {
     color: var(--text-primary);
 }
 
 [data-workspace-page="config"] .sip-phone-activation p,
-[data-workspace-page="config"] .sip-phone-activation .field-group {
+[data-workspace-page="config"] .sip-phone-activation .field-group,
+[data-workspace-page="config"] .sip-desktop-activation-panel p,
+[data-workspace-page="config"] .sip-desktop-activation-panel .field-group,
+[data-workspace-page="config"] .sip-desktop-fields .field-group {
     margin: 0;
 }
 
+[data-workspace-page="config"] .sip-desktop-fields {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.85rem;
+}
+
 [data-workspace-page="config"] .sip-phone-activation .field-group small,
+[data-workspace-page="config"] .sip-desktop-activation-panel .field-group small,
 [data-workspace-page="config"] .sip-phone-warning {
     margin-top: 0.35rem;
     color: var(--text-secondary);
@@ -333,6 +347,59 @@
 
 [data-workspace-page="config"] .sip-phone-warning {
     grid-column: 1 / -1;
+}
+
+[data-workspace-page="config"] .sip-activation-modes {
+    display: grid;
+    margin: 1.25rem 0 0;
+    gap: 0.75rem;
+}
+
+[data-workspace-page="config"] .sip-activation-modes-title {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: var(--text-sm);
+    font-weight: 700;
+}
+
+[data-workspace-page="config"] .sip-mode-card {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0.75rem;
+    align-items: start;
+    margin: 0;
+    padding: 0.9rem 1rem;
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    background: var(--bg-primary);
+    cursor: pointer;
+}
+
+[data-workspace-page="config"] .sip-mode-card.is-selected {
+    border-color: color-mix(in srgb, var(--accent) 55%, var(--border-subtle));
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+[data-workspace-page="config"] .sip-mode-card input {
+    margin-top: 0.2rem;
+}
+
+[data-workspace-page="config"] .sip-mode-card strong {
+    display: block;
+    color: var(--text-primary);
+    font-size: var(--text-sm);
+}
+
+[data-workspace-page="config"] .sip-mode-card small {
+    display: block;
+    margin-top: 0.25rem;
+    color: var(--text-secondary);
+    font-size: var(--text-xs);
+    line-height: 1.45;
+}
+
+[data-workspace-page="config"] .sip-phone-activation .btn-save {
+    justify-self: start;
 }
 
 [data-workspace-page="config"] .sip-empty-state {
@@ -434,7 +501,8 @@
 }
 
 @media (max-width: 820px) {
-    [data-workspace-page="config"] .sip-phone-activation {
+    [data-workspace-page="config"] .sip-phone-activation,
+    [data-workspace-page="config"] .sip-desktop-fields {
         grid-template-columns: minmax(0, 1fr);
     }
 

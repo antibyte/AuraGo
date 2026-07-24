@@ -11,6 +11,9 @@ let sipWizardMessage = '';
 let sipAdvancedDirty = false;
 let sipAdvancedOpen = false;
 let sipPhoneTargets = '';
+let sipWizardActivationMode = 'registration'; // registration | desktop
+let sipWizardTrustedPeers = '';
+let sipWizardAllowedCallers = '';
 
 function sipEsc(value) {
     return String(value == null ? '' : value)
@@ -33,6 +36,9 @@ function sipNormalize(data) {
     state.browser_media = state.browser_media || {};
     if (!Number.isFinite(Number(state.browser_media.udp_port)) || Number(state.browser_media.udp_port) === 0) state.browser_media.udp_port = 30100;
     state.inbound = state.inbound || {};
+    state.inbound.route = state.inbound.route || 'agent';
+    state.inbound.trusted_peer_cidrs = Array.isArray(state.inbound.trusted_peer_cidrs) ? state.inbound.trusted_peer_cidrs : [];
+    state.inbound.allowed_callers = Array.isArray(state.inbound.allowed_callers) ? state.inbound.allowed_callers : [];
     state.outbound = state.outbound || {};
     state.outbound.allowed_domains = Array.isArray(state.outbound.allowed_domains) ? state.outbound.allowed_domains : [];
     state.outbound.allowed_users = Array.isArray(state.outbound.allowed_users) ? state.outbound.allowed_users : [];
@@ -75,14 +81,27 @@ function sipWizardProgress() {
     </ol>`;
 }
 
+function sipDesktopPhoneReady(state) {
+    const c = state || sipConfigState;
+    if (!c) return false;
+    return !c.readonly &&
+        !!c.browser_media.enabled &&
+        c.inbound.route === 'manual' &&
+        !!c.permissions.originate_outbound &&
+        !!c.permissions.answer_inbound &&
+        !!c.permissions.send_dtmf &&
+        Array.isArray(c.outbound.allowed_domains) &&
+        c.outbound.allowed_domains.includes(c.domain) &&
+        ((c.outbound.allowed_users && c.outbound.allowed_users.length) ||
+            (c.outbound.allowed_e164_prefixes && c.outbound.allowed_e164_prefixes.length)) &&
+        Array.isArray(c.inbound.trusted_peer_cidrs) && c.inbound.trusted_peer_cidrs.length > 0 &&
+        Array.isArray(c.inbound.allowed_callers) && c.inbound.allowed_callers.length > 0;
+}
+
 function sipWizardConfigured() {
     const provider = sipProvider(sipConfigState.preset_id);
     if (!provider) return '';
-    const phoneReady = !sipConfigState.readonly &&
-        sipConfigState.browser_media.enabled &&
-        sipConfigState.permissions.originate_outbound &&
-        sipConfigState.outbound.allowed_domains.includes(sipConfigState.domain) &&
-        (sipConfigState.outbound.allowed_users.length || sipConfigState.outbound.allowed_e164_prefixes.length);
+    const phoneReady = sipDesktopPhoneReady(sipConfigState);
     return `<div class="sip-wizard-configured">
         <div class="sip-wizard-configured-header">
             <div>
@@ -94,18 +113,36 @@ function sipWizardConfigured() {
         </div>
         ${phoneReady ? '' : `<div class="sip-phone-activation">
             <div>
-                <strong>${sipEsc(t('config.sip.wizard.phone_title'))}</strong>
-                <p>${sipEsc(t('config.sip.wizard.phone_intro'))}</p>
+                <strong>${sipEsc(t('config.sip.wizard.phone_full_title'))}</strong>
+                <p>${sipEsc(t('config.sip.wizard.phone_full_intro'))}</p>
             </div>
-            <label class="field-group">
-                <span class="field-label">${sipEsc(t('config.sip.wizard.phone_targets'))}</span>
-                <input class="field-input" type="text" data-sip-phone-targets value="${sipEsc(sipPhoneTargets)}"
-                    placeholder="${sipEsc(t('config.sip.wizard.phone_targets_placeholder'))}" autocomplete="off" maxlength="1024">
-                <small>${sipEsc(t('config.sip.wizard.phone_targets_hint'))}</small>
-            </label>
+            ${sipDesktopActivationFieldsMarkup()}
             <p class="sip-phone-warning">${sipEsc(t('config.sip.wizard.phone_warning'))}</p>
-            <button type="button" class="btn-save" data-sip-wizard="enable-phone">${sipEsc(t('config.sip.wizard.phone_enable'))}</button>
+            <button type="button" class="btn-save" data-sip-wizard="enable-phone">${sipEsc(t('config.sip.wizard.phone_full_enable'))}</button>
         </div>`}
+    </div>`;
+}
+
+function sipDesktopActivationFieldsMarkup() {
+    return `<div class="sip-desktop-fields">
+        <label class="field-group">
+            <span class="field-label">${sipEsc(t('config.sip.wizard.phone_targets'))}</span>
+            <input class="field-input" type="text" data-sip-phone-targets value="${sipEsc(sipPhoneTargets)}"
+                placeholder="${sipEsc(t('config.sip.wizard.phone_targets_placeholder'))}" autocomplete="off" maxlength="1024">
+            <small>${sipEsc(t('config.sip.wizard.phone_targets_hint'))}</small>
+        </label>
+        <label class="field-group">
+            <span class="field-label">${sipEsc(t('config.sip.wizard.trusted_peers'))}</span>
+            <input class="field-input" type="text" data-sip-wizard-trusted-peers value="${sipEsc(sipWizardTrustedPeers)}"
+                placeholder="${sipEsc(t('config.sip.wizard.trusted_peers_placeholder'))}" autocomplete="off" maxlength="1024">
+            <small>${sipEsc(t('config.sip.wizard.trusted_peers_hint'))}</small>
+        </label>
+        <label class="field-group">
+            <span class="field-label">${sipEsc(t('config.sip.wizard.allowed_callers'))}</span>
+            <input class="field-input" type="text" data-sip-wizard-allowed-callers value="${sipEsc(sipWizardAllowedCallers)}"
+                placeholder="${sipEsc(t('config.sip.wizard.allowed_callers_placeholder'))}" autocomplete="off" maxlength="1024">
+            <small>${sipEsc(t('config.sip.wizard.allowed_callers_hint'))}</small>
+        </label>
     </div>`;
 }
 
@@ -170,6 +207,7 @@ function sipWizardCredentials(provider) {
 
 function sipWizardReview(provider) {
     const replacing = !!(sipConfigState.registrar && sipConfigState.preset_id !== provider.id);
+    const desktop = sipWizardActivationMode === 'desktop';
     return `<div class="sip-wizard-panel">
         <div class="sip-wizard-provider-heading">
             <button type="button" class="sip-back-button" data-sip-wizard="back" aria-label="${sipEsc(t('config.sip.wizard.back'))}">←</button>
@@ -181,14 +219,36 @@ function sipWizardReview(provider) {
             <div><span>${sipEsc(t('config.sip.transport'))}</span><strong>UDP · PCMA / PCMU</strong></div>
             <div><span>${sipEsc(t('config.sip.bind_host'))}</span><strong>0.0.0.0:5060</strong></div>
         </div>
-        <div class="sip-security-summary">
+        <div class="sip-activation-modes" role="radiogroup" aria-label="${sipEsc(t('config.sip.wizard.mode_title'))}">
+            <p class="sip-activation-modes-title">${sipEsc(t('config.sip.wizard.mode_title'))}</p>
+            <label class="sip-mode-card ${desktop ? '' : 'is-selected'}">
+                <input type="radio" name="sip-activation-mode" data-sip-activation-mode value="registration" ${desktop ? '' : 'checked'}>
+                <span>
+                    <strong>${sipEsc(t('config.sip.wizard.mode_registration'))}</strong>
+                    <small>${sipEsc(t('config.sip.wizard.mode_registration_desc'))}</small>
+                </span>
+            </label>
+            <label class="sip-mode-card ${desktop ? 'is-selected' : ''}">
+                <input type="radio" name="sip-activation-mode" data-sip-activation-mode value="desktop" ${desktop ? 'checked' : ''}>
+                <span>
+                    <strong>${sipEsc(t('config.sip.wizard.mode_desktop'))}</strong>
+                    <small>${sipEsc(t('config.sip.wizard.mode_desktop_desc'))}</small>
+                </span>
+            </label>
+        </div>
+        ${desktop ? `<div class="sip-desktop-activation-panel">
+            <strong>${sipEsc(t('config.sip.wizard.phone_full_title'))}</strong>
+            <p>${sipEsc(t('config.sip.wizard.phone_full_intro'))}</p>
+            ${sipDesktopActivationFieldsMarkup()}
+            <p class="sip-phone-warning">${sipEsc(t('config.sip.wizard.phone_warning'))}</p>
+        </div>` : `<div class="sip-security-summary">
             <strong>${sipEsc(t('config.sip.wizard.safe_title'))}</strong>
             <p>${sipEsc(t('config.sip.wizard.safe_registration'))}</p>
-        </div>
+        </div>`}
         ${replacing ? `<label class="sip-replace-confirm"><input type="checkbox" data-sip-replace-confirm> <span>${sipEsc(t('config.sip.wizard.replace_confirm'))}</span></label>` : ''}
         <div class="sip-wizard-actions">
             <span></span>
-            <button type="button" class="btn-save" data-sip-wizard="apply">${sipEsc(t('config.sip.wizard.apply'))}</button>
+            <button type="button" class="btn-save" data-sip-wizard="apply">${sipEsc(desktop ? t('config.sip.wizard.apply_desktop') : t('config.sip.wizard.apply'))}</button>
         </div>
     </div>`;
 }
@@ -369,8 +429,21 @@ function sipBindEvents() {
     });
     document.querySelector('[data-sip-wizard="review"]')?.addEventListener('click', sipReviewProvider);
     document.querySelector('[data-sip-wizard="apply"]')?.addEventListener('click', sipApplyProvider);
+    document.querySelectorAll('[data-sip-activation-mode]').forEach(input => input.addEventListener('change', event => {
+        sipWizardActivationMode = event.target.value === 'desktop' ? 'desktop' : 'registration';
+        sipWizardMessage = '';
+        sipRender();
+    }));
     document.querySelector('[data-sip-phone-targets]')?.addEventListener('input', event => {
         sipPhoneTargets = event.target.value;
+        sipNotifyDirty();
+    });
+    document.querySelector('[data-sip-wizard-trusted-peers]')?.addEventListener('input', event => {
+        sipWizardTrustedPeers = event.target.value;
+        sipNotifyDirty();
+    });
+    document.querySelector('[data-sip-wizard-allowed-callers]')?.addEventListener('input', event => {
+        sipWizardAllowedCallers = event.target.value;
         sipNotifyDirty();
     });
     document.querySelector('[data-sip-wizard="enable-phone"]')?.addEventListener('click', sipEnableBrowserPhone);
@@ -409,6 +482,96 @@ function sipReviewProvider() {
     sipRender();
 }
 
+function sipParsePhoneTargets(raw) {
+    const users = [];
+    const prefixes = [];
+    for (const target of sipSplit(raw)) {
+        if (/^\+[1-9][0-9]{0,14}$/.test(target)) {
+            prefixes.push(target);
+        } else if (/^[A-Za-z0-9_.!~*'()%+\-]+$/.test(target)) {
+            users.push(target);
+        } else {
+            throw new Error(t('config.sip.wizard.phone_invalid', { target }));
+        }
+    }
+    if (!users.length && !prefixes.length) throw new Error(t('config.sip.wizard.phone_required'));
+    return { users: [...new Set(users)], prefixes: [...new Set(prefixes)] };
+}
+
+function sipParseAllowlist(raw, emptyErrorKey) {
+    const values = sipSplit(raw);
+    if (!values.length) throw new Error(t(emptyErrorKey));
+    return [...new Set(values)];
+}
+
+function sipReadDesktopActivationOptions() {
+    const targets = sipParsePhoneTargets(sipPhoneTargets);
+    const trustedPeers = sipParseAllowlist(sipWizardTrustedPeers, 'config.sip.wizard.trusted_peers_required');
+    const allowedCallers = sipParseAllowlist(sipWizardAllowedCallers, 'config.sip.wizard.allowed_callers_required');
+    return { targets, trustedPeers, allowedCallers };
+}
+
+function sipPatchDesktopPhoneConfig(base, options) {
+    const next = JSON.parse(JSON.stringify(base));
+    next.readonly = false;
+    next.browser_media = next.browser_media || {};
+    next.browser_media.enabled = true;
+    next.inbound = next.inbound || {};
+    next.inbound.route = 'manual';
+    next.inbound.trusted_peer_cidrs = options.trustedPeers.slice();
+    next.inbound.allowed_callers = options.allowedCallers.slice();
+    next.outbound = next.outbound || {};
+    next.outbound.allowed_domains = next.domain ? [next.domain] : [];
+    next.outbound.allowed_users = options.targets.users.slice();
+    next.outbound.allowed_e164_prefixes = options.targets.prefixes.slice();
+    next.permissions = next.permissions || {};
+    next.permissions.originate_outbound = true;
+    next.permissions.send_dtmf = true;
+    next.permissions.agent_hangup = true;
+    next.permissions.answer_inbound = true;
+    return next;
+}
+
+async function sipPersistDesktopPhone(base, options) {
+    const browserMediaWasEnabled = !!(base && base.browser_media && base.browser_media.enabled);
+    const next = sipPatchDesktopPhoneConfig(base, options);
+    const result = await sipRequest('/api/sip/config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(next)
+    });
+    sipConfigState = sipNormalize(await sipRequest('/api/sip/config'));
+    sipSavedState = sipComparable(sipConfigState);
+    sipAdvancedDirty = false;
+    sipPhoneTargets = sipList([
+        ...(sipConfigState.outbound.allowed_users || []),
+        ...(sipConfigState.outbound.allowed_e164_prefixes || [])
+    ]);
+    sipWizardTrustedPeers = sipList(sipConfigState.inbound.trusted_peer_cidrs || []);
+    sipWizardAllowedCallers = sipList(sipConfigState.inbound.allowed_callers || []);
+    const needsRestart = !browserMediaWasEnabled || !!(result && (result.needs_restart || result.status === 'pending'));
+    return { result, needsRestart };
+}
+
+async function sipOfferRestart(needsRestart) {
+    if (!needsRestart) return;
+    const title = t('config.sip.restart_modal_title');
+    const message = t('config.sip.restart_modal_message');
+    let confirmed = false;
+    if (typeof showModal === 'function') {
+        confirmed = await showModal(title, message, true, {
+            confirmText: t('config.sip.restart_modal_confirm'),
+            cancelText: t('config.sip.restart_modal_later')
+        });
+    } else if (typeof showConfirm === 'function') {
+        confirmed = await showConfirm(title, message);
+    }
+    if (!confirmed) return;
+    if (typeof restartAuraGo === 'function') {
+        await restartAuraGo(true);
+    }
+}
+
 async function sipApplyProvider() {
     const provider = sipProvider(sipWizardProviderID);
     const button = document.querySelector('[data-sip-wizard="apply"]');
@@ -420,6 +583,17 @@ async function sipApplyProvider() {
         const status = document.getElementById('sip-wizard-status');
         if (status) status.textContent = sipWizardMessage;
         return;
+    }
+    let desktopOptions = null;
+    if (sipWizardActivationMode === 'desktop') {
+        try {
+            desktopOptions = sipReadDesktopActivationOptions();
+        } catch (error) {
+            sipWizardMessage = error.message;
+            const status = document.getElementById('sip-wizard-status');
+            if (status) status.textContent = sipWizardMessage;
+            return;
+        }
     }
     button.disabled = true;
     sipWizardMessage = t('config.sip.saving');
@@ -440,8 +614,20 @@ async function sipApplyProvider() {
         sipAdvancedDirty = false;
         sipWizardPassword = '';
         sipWizardStep = 0;
-        sipWizardMessage = result && result.needs_restart ? t('config.sip.restart_required') : t('config.sip.wizard.applied');
+        let needsRestart = !!(result && (result.needs_restart || result.status === 'pending'));
+        if (desktopOptions) {
+            const activated = await sipPersistDesktopPhone(sipConfigState, desktopOptions);
+            needsRestart = needsRestart || activated.needsRestart;
+            sipWizardMessage = needsRestart
+                ? t('config.sip.restart_required')
+                : t('config.sip.wizard.phone_enabled');
+        } else {
+            sipWizardMessage = needsRestart
+                ? t('config.sip.restart_required')
+                : t('config.sip.wizard.applied');
+        }
         sipRender();
+        await sipOfferRestart(needsRestart);
     } catch (error) {
         sipWizardMessage = error.message;
         document.getElementById('sip-wizard-status').textContent = sipWizardMessage;
@@ -449,28 +635,12 @@ async function sipApplyProvider() {
     }
 }
 
-function sipParsePhoneTargets(raw) {
-    const users = [];
-    const prefixes = [];
-    for (const target of sipSplit(raw)) {
-        if (/^\+[1-9][0-9]{0,14}$/.test(target)) {
-            prefixes.push(target);
-        } else if (/^[A-Za-z0-9_.!~*'()%+\-]+$/.test(target)) {
-            users.push(target);
-        } else {
-            throw new Error(t('config.sip.wizard.phone_invalid', { target }));
-        }
-    }
-    if (!users.length && !prefixes.length) throw new Error(t('config.sip.wizard.phone_required'));
-    return { users: [...new Set(users)], prefixes: [...new Set(prefixes)] };
-}
-
 async function sipEnableBrowserPhone() {
     const button = document.querySelector('[data-sip-wizard="enable-phone"]');
     if (!button) return;
-    let targets;
+    let options;
     try {
-        targets = sipParsePhoneTargets(sipPhoneTargets);
+        options = sipReadDesktopActivationOptions();
     } catch (error) {
         sipWizardMessage = error.message;
         document.getElementById('sip-wizard-status').textContent = sipWizardMessage;
@@ -480,28 +650,12 @@ async function sipEnableBrowserPhone() {
     sipWizardMessage = t('config.sip.saving');
     document.getElementById('sip-wizard-status').textContent = sipWizardMessage;
     try {
-        const browserMediaWasEnabled = !!sipConfigState.browser_media.enabled;
-        const next = JSON.parse(JSON.stringify(sipConfigState));
-        next.readonly = false;
-        next.browser_media.enabled = true;
-        next.outbound.allowed_domains = [next.domain];
-        next.outbound.allowed_users = targets.users;
-        next.outbound.allowed_e164_prefixes = targets.prefixes;
-        next.permissions.originate_outbound = true;
-        next.permissions.send_dtmf = true;
-        next.permissions.agent_hangup = true;
-        const result = await sipRequest('/api/sip/config', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(next)
-        });
-        sipConfigState = sipNormalize(await sipRequest('/api/sip/config'));
-        sipSavedState = sipComparable(sipConfigState);
-        sipAdvancedDirty = false;
-        sipWizardMessage = !browserMediaWasEnabled || (result && result.needs_restart)
+        const activated = await sipPersistDesktopPhone(sipConfigState, options);
+        sipWizardMessage = activated.needsRestart
             ? t('config.sip.restart_required')
             : t('config.sip.wizard.phone_enabled');
         sipRender();
+        await sipOfferRestart(activated.needsRestart);
     } catch (error) {
         sipWizardMessage = error.message;
         document.getElementById('sip-wizard-status').textContent = sipWizardMessage;
@@ -586,14 +740,16 @@ async function sipSave() {
         sipSavedState = sipComparable(sipConfigState);
         sipAdvancedDirty = false;
         if (!sipConfigState.preset_id) sipWizardStep = 1;
+        const needsRestart = !!(saved && (saved.needs_restart || saved.status === 'pending'));
         sipRender();
         const nextStatus = document.getElementById('sip-action-status');
         if (nextStatus) {
-            nextStatus.textContent = saved && saved.needs_restart
+            nextStatus.textContent = needsRestart
                 ? t('config.sip.restart_required')
                 : t('config.sip.saved');
         }
         if (typeof setDirty === 'function') setDirty(false);
+        await sipOfferRestart(needsRestart);
         return true;
     } catch (error) {
         if (status) status.textContent = error.message;
@@ -661,6 +817,9 @@ async function renderSIPSection() {
     sipWizardPassword = '';
     sipWizardQuery = '';
     sipWizardMessage = '';
+    sipWizardActivationMode = 'registration';
+    sipWizardTrustedPeers = '';
+    sipWizardAllowedCallers = '';
     sipAdvancedDirty = false;
     sipAdvancedOpen = false;
     sipPhoneTargets = '';
@@ -678,8 +837,11 @@ async function renderSIPSection() {
             ...(sipConfigState.outbound.allowed_users || []),
             ...(sipConfigState.outbound.allowed_e164_prefixes || [])
         ]);
+        sipWizardTrustedPeers = sipList(sipConfigState.inbound.trusted_peer_cidrs || []);
+        sipWizardAllowedCallers = sipList(sipConfigState.inbound.allowed_callers || []);
         sipWizardProviderID = sipConfigState.preset_id || '';
         sipWizardStep = sipConfigState.preset_id && sipProvider(sipConfigState.preset_id) ? 0 : 1;
+        sipWizardActivationMode = sipDesktopPhoneReady(sipConfigState) ? 'desktop' : 'registration';
         sipAdvancedDirty = false;
         sipRender();
     } catch (error) {
