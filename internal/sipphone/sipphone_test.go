@@ -536,6 +536,52 @@ func TestFinishCallTerminatesEstablishedDialogExactlyOnce(t *testing.T) {
 	}
 }
 
+func TestClassifyOutboundCallError(t *testing.T) {
+	tests := []struct {
+		name       string
+		err        error
+		wantReason string
+		wantStatus int
+	}{
+		{
+			name:       "authentication",
+			err:        &sipgo.ErrDialogResponse{Res: sip.NewResponse(sip.StatusUnauthorized, "Unauthorized")},
+			wantReason: "authentication_failed",
+			wantStatus: sip.StatusUnauthorized,
+		},
+		{
+			name:       "busy",
+			err:        &sipgo.ErrDialogResponse{Res: sip.NewResponse(sip.StatusBusyHere, "Busy Here")},
+			wantReason: "busy",
+			wantStatus: sip.StatusBusyHere,
+		},
+		{
+			name:       "provider unavailable",
+			err:        &sipgo.ErrDialogResponse{Res: sip.NewResponse(sip.StatusServiceUnavailable, "Service Unavailable")},
+			wantReason: "provider_unavailable",
+			wantStatus: sip.StatusServiceUnavailable,
+		},
+		{
+			name:       "timeout",
+			err:        context.DeadlineExceeded,
+			wantReason: "dial_timeout",
+		},
+		{
+			name:       "generic",
+			err:        errors.New("safe test failure"),
+			wantReason: "dial_failed",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			reason, status := classifyOutboundCallError(test.err)
+			if reason != test.wantReason || status != test.wantStatus {
+				t.Fatalf("classification = (%q, %d), want (%q, %d)", reason, status, test.wantReason, test.wantStatus)
+			}
+		})
+	}
+}
+
 func TestOutboundCallSendsBYEAfterBackendFailure(t *testing.T) {
 	cfg := validTestSIPConfig()
 	ua, err := sipgo.NewUA()

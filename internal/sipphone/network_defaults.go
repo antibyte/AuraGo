@@ -28,24 +28,45 @@ func applyProviderNetworkDefaults(ctx context.Context, cfg *config.SIPConfig, br
 	if len(locals) == 0 {
 		return
 	}
-	if cfg.AdvertisedSignalingHost == "" || cfg.Media.AdvertisedHost == "" {
-		if host := localSIPHostForRegistrar(ctx, cfg.Registrar, locals); host != "" {
-			if cfg.AdvertisedSignalingHost == "" {
+	signalingNeedsDefault := cfg.AdvertisedSignalingHost == "" ||
+		!advertisedHostMatchesBindFamily(cfg.AdvertisedSignalingHost, cfg.BindHost)
+	mediaNeedsDefault := cfg.Media.AdvertisedHost == "" ||
+		!advertisedHostMatchesBindFamily(cfg.Media.AdvertisedHost, cfg.BindHost)
+	if signalingNeedsDefault || mediaNeedsDefault {
+		if host := localSIPHostForRegistrar(ctx, cfg.Registrar, cfg.BindHost, locals); host != "" {
+			if signalingNeedsDefault {
 				cfg.AdvertisedSignalingHost = host
 			}
-			if cfg.Media.AdvertisedHost == "" {
+			if mediaNeedsDefault {
 				cfg.Media.AdvertisedHost = host
 			}
 		}
 	}
-	if cfg.BrowserMedia.AdvertisedIP == "" {
+	browserNeedsDefault := cfg.BrowserMedia.AdvertisedIP == "" ||
+		!advertisedHostMatchesBindFamily(cfg.BrowserMedia.AdvertisedIP, cfg.BrowserMedia.BindHost)
+	if browserNeedsDefault {
+		host := ""
 		if peer := parseSIPPeerIP(browserPeer); isLocalSIPPeer(peer) {
-			cfg.BrowserMedia.AdvertisedIP = selectLocalSIPHost([]net.IP{peer}, locals)
+			host = selectLocalSIPHostForBind([]net.IP{peer}, locals, cfg.BrowserMedia.BindHost)
+		}
+		// Embedded tsnet has no host interface address, so RemoteAddr can be a
+		// tailnet peer that cannot be matched against net.Interfaces. For a
+		// local PBX, the route-selected media address remains the best direct
+		// host candidate and keeps SIP RTP and browser audio on one family.
+		if host == "" {
+			mediaIP := net.ParseIP(strings.Trim(strings.TrimSpace(cfg.Media.AdvertisedHost), "[]"))
+			if isLocalSIPPeer(mediaIP) &&
+				advertisedHostMatchesBindFamily(mediaIP.String(), cfg.BrowserMedia.BindHost) {
+				host = mediaIP.String()
+			}
+		}
+		if host != "" {
+			cfg.BrowserMedia.AdvertisedIP = host
 		}
 	}
 }
 
-func localSIPHostForRegistrar(ctx context.Context, registrar string, locals []sipLocalAddress) string {
+func localSIPHostForRegistrar(ctx context.Context, registrar, bindHost string, locals []sipLocalAddress) string {
 	host := sipRegistrarHost(registrar)
 	if host == "" {
 		return ""
@@ -54,7 +75,7 @@ func localSIPHostForRegistrar(ctx context.Context, registrar string, locals []si
 		if !isLocalSIPPeer(ip) {
 			return ""
 		}
-		return selectLocalSIPHost([]net.IP{ip}, locals)
+		return selectLocalSIPHostForBind([]net.IP{ip}, locals, bindHost)
 	}
 	if ctx == nil {
 		ctx = context.Background()
@@ -71,7 +92,7 @@ func localSIPHostForRegistrar(ctx context.Context, registrar string, locals []si
 			peers = append(peers, address.IP)
 		}
 	}
-	return selectLocalSIPHost(peers, locals)
+	return selectLocalSIPHostForBind(peers, locals, bindHost)
 }
 
 func sipRegistrarHost(registrar string) string {
@@ -116,11 +137,27 @@ func sipLocalAddresses() []sipLocalAddress {
 }
 
 func selectLocalSIPHost(peers []net.IP, locals []sipLocalAddress) string {
+	return selectLocalSIPHostFamily(peers, locals, 0)
+}
+
+func selectLocalSIPHostForBind(peers []net.IP, locals []sipLocalAddress, bindHost string) string {
+	if family := sipIPFamily(net.ParseIP(strings.Trim(strings.TrimSpace(bindHost), "[]"))); family != 0 {
+		if host := selectLocalSIPHostFamily(peers, locals, family); host != "" {
+			return host
+		}
+	}
+	return selectLocalSIPHost(peers, locals)
+}
+
+func selectLocalSIPHostFamily(peers []net.IP, locals []sipLocalAddress, family int) string {
 	bestScore := -1
 	var best net.IP
 	for _, peer := range peers {
 		for _, local := range locals {
 			if peer == nil || local.ip == nil || (peer.To4() == nil) != (local.ip.To4() == nil) {
+				continue
+			}
+			if family != 0 && sipIPFamily(peer) != family {
 				continue
 			}
 			score := -1
@@ -142,6 +179,26 @@ func selectLocalSIPHost(peers []net.IP, locals []sipLocalAddress) string {
 		return ""
 	}
 	return best.String()
+}
+
+func advertisedHostMatchesBindFamily(advertisedHost, bindHost string) bool {
+	advertisedIP := net.ParseIP(strings.Trim(strings.TrimSpace(advertisedHost), "[]"))
+	bindIP := net.ParseIP(strings.Trim(strings.TrimSpace(bindHost), "[]"))
+	if advertisedIP == nil || bindIP == nil {
+		// Preserve explicit hostnames and configurations without an IP bind.
+		return true
+	}
+	return sipIPFamily(advertisedIP) == sipIPFamily(bindIP)
+}
+
+func sipIPFamily(ip net.IP) int {
+	if ip == nil {
+		return 0
+	}
+	if ip.To4() != nil {
+		return 4
+	}
+	return 6
 }
 
 func isLocalSIPPeer(ip net.IP) bool {

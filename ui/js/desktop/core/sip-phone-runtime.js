@@ -32,6 +32,37 @@
         return value === translationKey ? fallback : value;
     }
 
+    function sipPhoneEndReasonMessage(reason) {
+        const messages = {
+            authentication_failed: ['call_end_authentication_failed', 'The PBX rejected the call credentials. Check the SIP login.'],
+            destination_not_found: ['call_end_destination_not_found', 'The destination was not found. Check the number.'],
+            temporarily_unavailable: ['call_end_temporarily_unavailable', 'The destination is temporarily unavailable.'],
+            busy: ['call_end_busy', 'The destination is busy.'],
+            dial_timeout: ['call_end_dial_timeout', 'The PBX did not answer the call request in time.'],
+            provider_unavailable: ['call_end_provider_unavailable', 'The PBX or telephone provider is currently unavailable.'],
+            rejected: ['call_end_rejected', 'The PBX rejected the call.'],
+            unreachable: ['call_end_unreachable', 'The PBX could not be reached.'],
+            dial_failed: ['call_end_dial_failed', 'The call could not be established.'],
+            ack_failed: ['call_end_dial_failed', 'The call could not be established.'],
+            media_error: ['call_end_media_error', 'Telephone audio could not be established.'],
+            browser_media_error: ['call_end_media_error', 'Telephone audio could not be established.']
+        };
+        const entry = messages[String(reason || '')];
+        return entry ? sipPhoneText(entry[0], entry[1]) : '';
+    }
+
+    function sipPhoneTerminalEventMessage(rawEvent, expectedCallID) {
+        if (!rawEvent || !expectedCallID) return '';
+        try {
+            const payload = JSON.parse(rawEvent);
+            const call = payload && payload.call;
+            if (!call || call.id !== expectedCallID || call.state !== 'ended') return '';
+            return sipPhoneEndReasonMessage(call.end_reason);
+        } catch (_) {
+            return '';
+        }
+    }
+
     function sipPhonePreferences() {
         const defaults = { input_device: '', output_device: '', volume: 0.82, ringtone_enabled: true, favorites: [] };
         try {
@@ -150,8 +181,13 @@
         source.addEventListener('open', () => {
             refreshSIPPhoneState();
         });
-        source.addEventListener('sip', () => {
-            refreshSIPPhoneState();
+        source.addEventListener('sip', event => {
+            const terminalMessage = sipPhoneTerminalEventMessage(event.data, sipPhoneShellState.callID);
+            refreshSIPPhoneState().then(() => {
+                if (!terminalMessage) return;
+                sipPhoneShellState.error = terminalMessage;
+                sipPhoneEmit();
+            });
         });
         source.addEventListener('error', () => {
             if (sipPhoneShellState.eventSource !== source) return;
@@ -679,6 +715,7 @@
         },
         getState: sipPhoneSnapshot,
         canonicalizeTarget: canonicalSIPPhoneTarget,
+        describeEndReason: sipPhoneEndReasonMessage,
         dial: dialSIPPhone,
         answer: answerSIPPhone,
         reject: rejectSIPPhone,

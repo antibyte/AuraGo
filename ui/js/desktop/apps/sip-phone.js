@@ -246,12 +246,16 @@
     }
 
     function renderHistory(instance, calls) {
+        const runtime = window.SipPhoneRuntime;
         return `<section class="sip-phone-history-section">
             <div class="sip-phone-section-heading"><h2>${instance.context.esc(text(instance, 'recent_calls', 'Recent calls'))}</h2><span>${Math.min(calls.length, 50)}</span></div>
             <div class="sip-phone-history-list">
                 ${calls.length ? calls.slice(0, 50).map(call => {
                     const label = partyLabel(instance, call.remote_party);
                     const statusClass = call.direction === 'inbound' ? 'is-inbound' : 'is-outbound';
+                    const endReason = runtime && typeof runtime.describeEndReason === 'function'
+                        ? runtime.describeEndReason(call.end_reason)
+                        : '';
                     return `<article class="sip-phone-history-item ${statusClass}">
                         <button type="button" class="sip-phone-history-main" data-sip-redial="${instance.context.esc(call.remote_party)}">
                             <span class="sip-phone-history-icon">${instance.context.iconMarkup('phone', 'P', 'sip-phone-glyph', 17)}</span>
@@ -259,7 +263,7 @@
                             <time>${instance.context.esc(callTime(call))}</time>
                         </button>
                         <div>
-                            <small>${instance.context.esc(text(instance, call.direction === 'inbound' ? 'incoming' : 'outgoing', call.direction === 'inbound' ? 'Incoming' : 'Outgoing'))} · ${formatDuration(callDuration(call))}</small>
+                            <small>${instance.context.esc(text(instance, call.direction === 'inbound' ? 'incoming' : 'outgoing', call.direction === 'inbound' ? 'Incoming' : 'Outgoing'))} · ${formatDuration(callDuration(call))}${endReason ? ` · ${instance.context.esc(endReason)}` : ''}</small>
                             <button type="button" data-sip-copy="${instance.context.esc(call.remote_party)}" title="${instance.context.esc(text(instance, 'copy', 'Copy'))}">${instance.context.iconMarkup('copy', 'C', 'sip-phone-glyph', 14)}</button>
                         </div>
                     </article>`;

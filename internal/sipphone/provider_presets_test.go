@@ -279,6 +279,45 @@ func TestSelectLocalSIPHostUsesRegistrarSubnetAndTailscaleRange(t *testing.T) {
 	}
 }
 
+func TestProviderNetworkDefaultsKeepAdvertisedAddressesOnBindFamily(t *testing.T) {
+	locals := []sipLocalAddress{
+		{ip: net.ParseIP("192.168.6.238"), network: mustSIPNetwork(t, "192.168.6.238/24")},
+		{ip: net.ParseIP("fdb1:861e:795::238"), network: mustSIPNetwork(t, "fdb1:861e:795::238/64")},
+	}
+	cfg := config.SIPConfig{
+		Registrar:               "192.168.6.1",
+		BindHost:                "0.0.0.0",
+		AdvertisedSignalingHost: "fdb1:861e:795::238",
+	}
+	cfg.Media.AdvertisedHost = "fdb1:861e:795::238"
+
+	applyProviderNetworkDefaults(context.Background(), &cfg, "100.112.131.52:443", locals)
+
+	if cfg.AdvertisedSignalingHost != "192.168.6.238" || cfg.Media.AdvertisedHost != "192.168.6.238" {
+		t.Fatalf("IPv4 bind received mismatched advertised addresses: %+v", cfg)
+	}
+	if cfg.BrowserMedia.AdvertisedIP != "192.168.6.238" {
+		t.Fatalf("browser advertised IP = %q, want route-selected LAN address", cfg.BrowserMedia.AdvertisedIP)
+	}
+}
+
+func TestSelectLocalSIPHostPrefersConfiguredBindFamily(t *testing.T) {
+	peers := []net.IP{
+		net.ParseIP("fdb1:861e:795::1"),
+		net.ParseIP("192.168.6.1"),
+	}
+	locals := []sipLocalAddress{
+		{ip: net.ParseIP("fdb1:861e:795::238"), network: mustSIPNetwork(t, "fdb1:861e:795::238/64")},
+		{ip: net.ParseIP("192.168.6.238"), network: mustSIPNetwork(t, "192.168.6.238/24")},
+	}
+	if got := selectLocalSIPHostForBind(peers, locals, "0.0.0.0"); got != "192.168.6.238" {
+		t.Fatalf("IPv4 bind selected %q", got)
+	}
+	if got := selectLocalSIPHostForBind(peers, locals, "::"); got != "fdb1:861e:795::238" {
+		t.Fatalf("IPv6 bind selected %q", got)
+	}
+}
+
 func mustSIPNetwork(t *testing.T, value string) *net.IPNet {
 	t.Helper()
 	_, network, err := net.ParseCIDR(value)

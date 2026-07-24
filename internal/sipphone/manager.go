@@ -641,7 +641,9 @@ func (m *Manager) runOutbound(call *activeCall, endpoint *diago.Diago, uri sip.U
 	uri.UriParams.Add("transport", cfg.Transport)
 	dialog, err := endpoint.NewDialog(uri, diago.NewDialogOptions{Transport: cfg.Transport})
 	if err != nil {
-		m.finishCall(call, "dial_failed")
+		reason, statusCode := classifyOutboundCallError(err)
+		m.logOutboundCallFailure(call, reason, statusCode, err)
+		m.finishCall(call, reason)
 		return
 	}
 	if cfg.OutboundProxy != "" {
@@ -651,15 +653,22 @@ func (m *Manager) runOutbound(call *activeCall, endpoint *diago.Diago, uri sip.U
 	call.dialog = dialog
 	m.mu.Unlock()
 	err = dialog.Invite(call.ctx, outboundInviteOptions(cfg, func(response *sip.Response) error {
+		m.logger.Debug("SIP outbound response",
+			"call_id", call.record.ID,
+			"status_code", response.StatusCode,
+		)
 		if response.StatusCode == sip.StatusRinging {
 			m.updateCallState(call, StateRinging)
 		}
 		return nil
 	}))
 	if err != nil {
-		reason := "dial_failed"
+		reason, statusCode := classifyOutboundCallError(err)
 		if call.ctx.Err() != nil {
 			reason = m.callCancellationReason(call)
+			statusCode = 0
+		} else {
+			m.logOutboundCallFailure(call, reason, statusCode, err)
 		}
 		m.finishCall(call, reason)
 		return
@@ -682,6 +691,61 @@ func (m *Manager) runOutbound(call *activeCall, endpoint *diago.Diago, uri sip.U
 	call.dialogEstablished = true
 	m.mu.Unlock()
 	m.runEstablished(call, cfg)
+}
+
+func classifyOutboundCallError(err error) (reason string, statusCode int) {
+	if err == nil {
+		return "", 0
+	}
+	var responseErr *sipgo.ErrDialogResponse
+	if errors.As(err, &responseErr) && responseErr != nil && responseErr.Res != nil {
+		statusCode = responseErr.Res.StatusCode
+		switch statusCode {
+		case sip.StatusUnauthorized, sip.StatusProxyAuthRequired:
+			return "authentication_failed", statusCode
+		case sip.StatusNotFound:
+			return "destination_not_found", statusCode
+		case sip.StatusRequestTimeout:
+			return "dial_timeout", statusCode
+		case sip.StatusTemporarilyUnavailable:
+			return "temporarily_unavailable", statusCode
+		case sip.StatusBusyHere:
+			return "busy", statusCode
+		}
+		switch {
+		case statusCode >= 500:
+			return "provider_unavailable", statusCode
+		case statusCode >= 300:
+			return "rejected", statusCode
+		}
+	}
+	var dnsErr *net.DNSError
+	if errors.As(err, &dnsErr) {
+		return "unreachable", 0
+	}
+	var netErr net.Error
+	if errors.As(err, &netErr) && netErr.Timeout() {
+		return "dial_timeout", 0
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return "dial_timeout", 0
+	}
+	return "dial_failed", 0
+}
+
+func (m *Manager) logOutboundCallFailure(call *activeCall, reason string, statusCode int, err error) {
+	if m == nil || m.logger == nil || call == nil {
+		return
+	}
+	attributes := []any{
+		"call_id", call.record.ID,
+		"reason", reason,
+		"error_type", fmt.Sprintf("%T", err),
+	}
+	if statusCode > 0 {
+		attributes = append(attributes, "status_code", statusCode)
+	}
+	m.logger.Warn("SIP outbound call failed", attributes...)
 }
 
 func (m *Manager) runEstablished(call *activeCall, cfg config.SIPConfig) {

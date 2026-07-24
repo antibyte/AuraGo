@@ -13,6 +13,13 @@ func (s *Server) initSIP(ctx context.Context) error {
 	if s == nil || s.Cfg == nil {
 		return fmt.Errorf("initialize SIP: server config is unavailable")
 	}
+	s.CfgMu.RLock()
+	sipConfig := s.Cfg.SIP
+	s.CfgMu.RUnlock()
+	sipphone.ApplyProviderNetworkDefaults(ctx, &sipConfig, "")
+	s.CfgMu.Lock()
+	s.Cfg.SIP = sipConfig
+	s.CfgMu.Unlock()
 	runner := s.VoiceActionRunner
 	if runner == nil {
 		runner = NewVoiceActionRunner(s)
@@ -30,11 +37,11 @@ func (s *Server) initSIP(ctx context.Context) error {
 			s.Logger.Warn("Failed to record SIP operational issue", "error", err)
 		}
 	}
-	manager, err := sipphone.NewManager(s.Cfg.SIP, s.Cfg.Directories.DataDir, runner.backendFactory, reporter, s.Logger)
+	manager, err := sipphone.NewManager(sipConfig, s.Cfg.Directories.DataDir, runner.backendFactory, reporter, s.Logger)
 	if err != nil {
 		return fmt.Errorf("initialize SIP endpoint: %w", err)
 	}
-	browserMedia, err := sipphone.NewBrowserMediaService(s.Cfg.SIP, manager.BrowserMediaFailed)
+	browserMedia, err := sipphone.NewBrowserMediaService(sipConfig, manager.BrowserMediaFailed)
 	if err != nil {
 		// Browser media is optional. Keep registration and the agent call path
 		// available while app/state reports the restart-required blocker.
