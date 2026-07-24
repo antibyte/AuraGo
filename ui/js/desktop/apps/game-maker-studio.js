@@ -73,6 +73,10 @@
                                 <button type="button" class="gm-danger" data-gm-action="stop" hidden>${esc(t('game_maker.stop'))}</button>
                             </div>
                             <ol class="gm-phases" data-gm-phases>${phaseMarkup(state, '')}</ol>
+                            <div class="gm-capability-notice" data-gm-capability-notice role="status" hidden>
+                                <strong data-gm-capability-title></strong>
+                                <span data-gm-capability-message></span>
+                            </div>
                             <div class="gm-conversation" data-gm-conversation role="log" aria-live="polite">
                                 <div class="gm-empty"><strong>${esc(t('game_maker.empty_title'))}</strong><span>${esc(t('game_maker.empty_hint'))}</span></div>
                             </div>
@@ -120,7 +124,7 @@
             applyCapabilities(state);
             renderProjects(state);
             if (state.projects.length) openProject(state, state.projects[0].id);
-            else updateStatus(state, capabilities.enabled ? 'ready' : 'disabled');
+            else updateStatus(state, capabilityState(capabilities).status);
         } catch (error) {
             fail(state, error);
         }
@@ -157,10 +161,34 @@
 
     function applyCapabilities(state) {
         const cap = state.capabilities || {};
+        const availability = capabilityState(cap);
         const newButton = state.container.querySelector('[data-gm-action="new"]');
-        newButton.disabled = !cap.enabled || !cap.allow_create || !cap.skills_ready;
-        if (!cap.enabled) showNotice(state, state.context.t('game_maker.disabled_notice'), 'warning');
-        else if (!cap.skills_ready) showNotice(state, state.context.t('game_maker.skills_blocked_notice'), 'warning');
+        const notice = state.container.querySelector('[data-gm-capability-notice]');
+        const message = availability.messageKey ? state.context.t(availability.messageKey) : '';
+        newButton.disabled = availability.status !== 'ready';
+        newButton.title = message;
+        notice.hidden = availability.status === 'ready';
+        notice.querySelector('[data-gm-capability-title]').textContent =
+            availability.status === 'ready' ? '' : state.context.t('game_maker.creation_unavailable');
+        notice.querySelector('[data-gm-capability-message]').textContent = message;
+        if (message) showNotice(state, message, 'warning');
+    }
+
+    function capabilityState(capabilities) {
+        const cap = capabilities || {};
+        if (!cap.enabled) {
+            return { status: 'disabled', messageKey: 'game_maker.disabled_notice' };
+        }
+        if (cap.readonly) {
+            return { status: 'readonly', messageKey: 'game_maker.readonly_notice' };
+        }
+        if (!cap.allow_create) {
+            return { status: 'create-disabled', messageKey: 'game_maker.create_disabled_notice' };
+        }
+        if (!cap.skills_ready) {
+            return { status: 'skills-blocked', messageKey: 'game_maker.skills_blocked_notice' };
+        }
+        return { status: 'ready', messageKey: '' };
     }
 
     function renderProjects(state) {
@@ -392,7 +420,7 @@
 
     function showCreateModal(state) {
         const cap = state.capabilities;
-        if (!cap || !cap.allow_create) return;
+        if (capabilityState(cap).status !== 'ready') return;
         const { esc, t } = state.context;
         const providers = (cap.providers || []).map(provider =>
             `<option value="${esc(provider.id)}" data-model="${esc(provider.model || '')}"

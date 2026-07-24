@@ -53,6 +53,10 @@ func TestGameMakerStudioDesktopRegistrationAndIsolation(t *testing.T) {
 		`'polishing', 'cancelling'`,
 		`const modal = layer.querySelector('.gm-modal');`,
 		`const editable = Boolean(state.project && !active`,
+		`data-gm-capability-notice`,
+		`if (cap.readonly)`,
+		`game_maker.create_disabled_notice`,
+		`capabilityState(cap).status !== 'ready'`,
 	} {
 		if !strings.Contains(app, marker) {
 			t.Errorf("Game Maker UI missing lifecycle/security marker %q", marker)
@@ -83,6 +87,12 @@ func TestGameMakerStudioTranslationsCoverEveryDesktopLocale(t *testing.T) {
 		"game_maker.music_assets",
 		"game_maker.phase_validating",
 		"game_maker.status_interrupted",
+		"game_maker.status_readonly",
+		"game_maker.status_create_disabled",
+		"game_maker.status_skills_blocked",
+		"game_maker.creation_unavailable",
+		"game_maker.readonly_notice",
+		"game_maker.create_disabled_notice",
 		"game_maker.restore_confirm",
 		"game_maker.delete_confirm",
 	}

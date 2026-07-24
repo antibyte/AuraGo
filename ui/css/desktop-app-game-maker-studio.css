@@ -136,6 +136,13 @@
     background: rgba(255, 85, 85, 0.13);
 }
 
+.gm-status.is-readonly,
+.gm-status.is-create-disabled,
+.gm-status.is-skills-blocked {
+    color: #ffd58a;
+    background: rgba(246, 180, 74, 0.14);
+}
+
 .gm-actions {
     display: flex;
     align-items: center;
@@ -267,6 +274,27 @@
     grid-template-rows: auto auto minmax(0, 1fr) auto;
     min-width: 0;
     min-height: 0;
+}
+
+.gm-capability-notice {
+    display: grid;
+    gap: 4px;
+    margin: 12px 16px 0;
+    padding: 11px 13px;
+    color: #ffe2ad;
+    border: 1px solid rgba(246, 180, 74, 0.3);
+    border-radius: 10px;
+    background: rgba(246, 180, 74, 0.09);
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+.gm-capability-notice[hidden] {
+    display: none;
+}
+
+.gm-capability-notice span {
+    color: var(--gm-muted);
 }
 
 .gm-preview-pane {
