@@ -304,15 +304,46 @@ function sipRender() {
     sipLoadStatus();
 }
 
+function sipNotifyDirty() {
+    sipAdvancedDirty = true;
+    sipRefreshTestLock();
+    if (typeof setDirty === 'function') setDirty(true);
+}
+
+function sipIsDirty() {
+    if (!sipConfigState || !sipSavedState) return false;
+    if (!document.querySelector('[data-sip]')) return sipAdvancedDirty;
+    try {
+        const current = sipRead();
+        if (sipComparable(current) !== sipSavedState || !!current.password || !!current.clear_password) return true;
+    } catch (_) {
+        if (sipAdvancedDirty) return true;
+    }
+    // Wizard phone targets live outside the expert data-sip fields.
+    if (document.querySelector('[data-sip-phone-targets]')) {
+        const savedTargets = sipList([
+            ...(sipConfigState.outbound.allowed_users || []),
+            ...(sipConfigState.outbound.allowed_e164_prefixes || [])
+        ]);
+        if (String(sipPhoneTargets || '').trim() !== String(savedTargets || '').trim()) return true;
+    }
+    return false;
+}
+
+function sipHasUnsavedChanges() {
+    return sipIsDirty();
+}
+
 function sipBindEvents() {
-    document.querySelectorAll('[data-sip]').forEach(input => input.addEventListener('input', () => {
-        sipAdvancedDirty = true;
-        sipRefreshTestLock();
-    }));
+    document.querySelectorAll('[data-sip]').forEach(input => {
+        const onChange = () => sipNotifyDirty();
+        input.addEventListener('input', onChange);
+        input.addEventListener('change', onChange);
+    });
     document.querySelector('.sip-advanced')?.addEventListener('toggle', event => {
         sipAdvancedOpen = event.currentTarget.open;
     });
-    document.querySelector('[data-sip-action="save"]')?.addEventListener('click', sipSave);
+    document.querySelector('[data-sip-action="save"]')?.addEventListener('click', () => { sipSave(); });
     document.querySelector('[data-sip-action="test"]')?.addEventListener('click', sipTest);
     document.querySelector('[data-sip-provider-search]')?.addEventListener('input', event => {
         sipWizardQuery = event.target.value;
@@ -340,6 +371,7 @@ function sipBindEvents() {
     document.querySelector('[data-sip-wizard="apply"]')?.addEventListener('click', sipApplyProvider);
     document.querySelector('[data-sip-phone-targets]')?.addEventListener('input', event => {
         sipPhoneTargets = event.target.value;
+        sipNotifyDirty();
     });
     document.querySelector('[data-sip-wizard="enable-phone"]')?.addEventListener('click', sipEnableBrowserPhone);
 }
@@ -526,23 +558,76 @@ async function sipRequest(path, options) {
 async function sipSave() {
     const status = document.getElementById('sip-action-status');
     const save = document.querySelector('[data-sip-action="save"]');
-    save.disabled = true;
-    status.textContent = t('config.sip.saving');
+    if (!document.querySelector('[data-sip]')) return false;
+    if (save) save.disabled = true;
+    if (status) status.textContent = t('config.sip.saving');
     try {
-        const saved = await sipRequest('/api/sip/config', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(sipRead()) });
+        const payload = sipRead();
+        // Keep wizard phone-target edits in the expert payload when activation is still open.
+        const phoneTargetsField = document.querySelector('[data-sip-phone-targets]');
+        if (phoneTargetsField && String(sipPhoneTargets || '').trim()) {
+            try {
+                const targets = sipParsePhoneTargets(sipPhoneTargets);
+                payload.outbound = payload.outbound || {};
+                if (!Array.isArray(payload.outbound.allowed_users) || !payload.outbound.allowed_users.length) {
+                    payload.outbound.allowed_users = targets.users;
+                }
+                if (!Array.isArray(payload.outbound.allowed_e164_prefixes) || !payload.outbound.allowed_e164_prefixes.length) {
+                    payload.outbound.allowed_e164_prefixes = targets.prefixes;
+                }
+            } catch (error) {
+                if (status) status.textContent = error.message;
+                if (save) save.disabled = false;
+                return false;
+            }
+        }
+        const saved = await sipRequest('/api/sip/config', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         sipConfigState = sipNormalize(Object.prototype.hasOwnProperty.call(saved, 'enabled') ? saved : await sipRequest('/api/sip/config'));
         sipSavedState = sipComparable(sipConfigState);
         sipAdvancedDirty = false;
         if (!sipConfigState.preset_id) sipWizardStep = 1;
         sipRender();
-        document.getElementById('sip-action-status').textContent = saved && saved.needs_restart
-            ? t('config.sip.restart_required')
-            : t('config.sip.saved');
+        const nextStatus = document.getElementById('sip-action-status');
+        if (nextStatus) {
+            nextStatus.textContent = saved && saved.needs_restart
+                ? t('config.sip.restart_required')
+                : t('config.sip.saved');
+        }
+        if (typeof setDirty === 'function') setDirty(false);
+        return true;
     } catch (error) {
-        status.textContent = error.message;
-        save.disabled = false;
+        if (status) status.textContent = error.message;
+        if (save) save.disabled = false;
+        return false;
     }
 }
+
+async function sipSaveUnsaved() {
+    if (!sipHasUnsavedChanges()) return true;
+    if (!document.querySelector('[data-sip]')) {
+        // Section left without saving; cannot recover field values from the DOM.
+        return false;
+    }
+    return sipSave();
+}
+
+function sipDiscardUnsaved() {
+    sipAdvancedDirty = false;
+    if (sipConfigState) {
+        sipPhoneTargets = sipList([
+            ...(sipConfigState.outbound.allowed_users || []),
+            ...(sipConfigState.outbound.allowed_e164_prefixes || [])
+        ]);
+        sipSavedState = sipComparable(sipConfigState);
+    } else {
+        sipPhoneTargets = '';
+        sipSavedState = '';
+    }
+}
+
+window.sipHasUnsavedChanges = sipHasUnsavedChanges;
+window.sipSaveUnsaved = sipSaveUnsaved;
+window.sipDiscardUnsaved = sipDiscardUnsaved;
 
 async function sipTest() {
     const status = document.getElementById('sip-action-status');

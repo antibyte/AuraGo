@@ -1051,6 +1051,7 @@ function toggleGroup(groupName, groupDiv) {
 
 
 function hasUnsavedConfigChanges() {
+    if (typeof window.sipHasUnsavedChanges === 'function' && window.sipHasUnsavedChanges()) return true;
     if (window.AuraConfigState) return window.AuraConfigState.isDirty();
     return isDirty && collectSnapshot() !== initialSnapshot;
 }
@@ -1127,6 +1128,7 @@ async function navigateToConfigSection(key, options = {}) {
             if (!await saveConfig()) return false;
         } else if (decision === 'discard') {
             if (window.AuraConfigState) configData = window.AuraConfigState.discard();
+            if (typeof window.sipDiscardUnsaved === 'function') window.sipDiscardUnsaved();
         } else {
             if (window.location.hash !== '#' + activeSection) {
                 history.replaceState(null, '', '#' + activeSection);
@@ -2486,6 +2488,7 @@ function markDirty(event) {
 }
 
 function setDirty(dirty) {
+    const sipDirty = typeof window.sipHasUnsavedChanges === 'function' && window.sipHasUnsavedChanges();
     if (dirty) {
         // Direct callers (inline onchange, section modules) must pin the draft so
         // delayed baseline refresh timers cannot clear a real user edit.
@@ -2494,9 +2497,11 @@ function setDirty(dirty) {
         clearDirtyBaselineRefreshTimers();
         if (window.AuraConfigState) {
             window.AuraConfigState.syncFromDOM();
-            dirty = window.AuraConfigState.isDirty();
+            dirty = window.AuraConfigState.isDirty() || sipDirty;
+        } else {
+            dirty = dirty || sipDirty;
         }
-    } else if (window.AuraConfigState && window.AuraConfigState.isDirty()) {
+    } else if ((window.AuraConfigState && window.AuraConfigState.isDirty()) || sipDirty) {
         // Never hide the save bar while the draft still has changes.
         dirty = true;
         userEditedSinceSnapshot = true;
@@ -2592,6 +2597,7 @@ function attachChangeListeners() {
 // ── Save ────────────────────────────────────────────
 async function saveConfig() {
     if (configSaveInFlight) return;
+    const sipDirty = typeof window.sipHasUnsavedChanges === 'function' && window.sipHasUnsavedChanges();
     if (window.AuraConfigState) {
         window.AuraConfigState.syncFromDOM();
         const validation = window.AuraConfigState.validate();
@@ -2602,6 +2608,11 @@ async function saveConfig() {
         }
         updateSaveDockValidation(true);
     }
+    const configDirty = window.AuraConfigState
+        ? window.AuraConfigState.isDirty()
+        : (isDirty && collectSnapshot() !== initialSnapshot);
+    if (!sipDirty && !configDirty) return true;
+
     configSaveInFlight = true;
     let saveSucceeded = false;
     const status = document.getElementById('saveStatus');
@@ -2610,6 +2621,24 @@ async function saveConfig() {
     status.textContent = t('config.save_bar.saving');
 
     try {
+        if (sipDirty) {
+            if (typeof window.sipSaveUnsaved !== 'function' || !await window.sipSaveUnsaved()) {
+                const sipStatus = document.getElementById('sip-action-status');
+                const detail = (sipStatus && sipStatus.textContent) || t('config.save_bar.error');
+                status.className = 'save-status error';
+                status.textContent = '✗ ' + detail;
+                setTimeout(() => { status.textContent = ''; }, 7000);
+                return false;
+            }
+            if (!configDirty) {
+                status.className = 'save-status success';
+                status.textContent = '✓ ' + t('config.save_bar.saved');
+                setTimeout(() => { status.textContent = ''; }, 4000);
+                saveSucceeded = true;
+                return true;
+            }
+        }
+
         clearConfigValidation();
         const patch = window.AuraConfigState ? window.AuraConfigState.buildPatch() : buildConfigPatchFromForm();
         const likelyEmbeddingsChange = embeddingsConfigWillLikelyChange(patch);

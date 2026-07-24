@@ -28,6 +28,12 @@ func TestSIPConfigUIUsesSavedStateAndMaskedSecret(t *testing.T) {
 		"next.browser_media.enabled = true", "next.permissions.originate_outbound = true",
 		"next.outbound.allowed_domains = [next.domain]",
 		"Array.isArray(state.outbound.allowed_users)",
+		"function sipHasUnsavedChanges()", "async function sipSaveUnsaved()",
+		"function sipDiscardUnsaved()",
+		"window.sipHasUnsavedChanges = sipHasUnsavedChanges",
+		"window.sipSaveUnsaved = sipSaveUnsaved",
+		"window.sipDiscardUnsaved = sipDiscardUnsaved",
+		"function sipNotifyDirty()",
 	} {
 		if !strings.Contains(source, marker) {
 			t.Fatalf("SIP config UI missing contract marker %q", marker)
@@ -35,6 +41,24 @@ func TestSIPConfigUIUsesSavedStateAndMaskedSecret(t *testing.T) {
 	}
 	if strings.Contains(source, "localStorage") || strings.Contains(source, "sessionStorage") {
 		t.Fatal("SIP config UI must not persist credentials in browser storage")
+	}
+}
+
+func TestSIPConfigWiresGlobalSaveBar(t *testing.T) {
+	data, err := os.ReadFile(filepath.Join("js", "config", "main.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(data)
+	for _, marker := range []string{
+		`typeof window.sipHasUnsavedChanges === 'function' && window.sipHasUnsavedChanges()`,
+		`window.sipSaveUnsaved`,
+		`window.sipDiscardUnsaved`,
+		`if (sipDirty)`,
+	} {
+		if !strings.Contains(source, marker) {
+			t.Fatalf("config main.js missing SIP global-save integration marker %q", marker)
+		}
 	}
 }
 
