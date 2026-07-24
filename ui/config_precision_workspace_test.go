@@ -69,10 +69,20 @@ func TestConfigPrecisionWorkspaceTypographyAndDensityContract(t *testing.T) {
 		`max-width: 1120px;`,
 		`@media (max-width: 1099px)`,
 		`min-height: 44px;`,
+		// Body-mounted unsaved modal must not depend on .pw-page ancestors.
+		`.pw-unsaved-overlay {`,
+		`.pw-unsaved-card.modal-card,`,
+		`max-width: min(640px, calc(100vw - 2rem));`,
+		`.pw-unsaved-actions.modal-actions,`,
+		`flex-wrap: wrap;`,
+		`.pw-unsaved-actions > button {`,
 	} {
 		if !strings.Contains(shell, marker) {
 			t.Fatalf("config-workspace.css missing %q", marker)
 		}
+	}
+	if strings.Contains(shell, `.pw-page .pw-unsaved-overlay`) {
+		t.Fatal("unsaved modal styles must remain body-safe without a .pw-page ancestor")
 	}
 }
 

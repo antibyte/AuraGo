@@ -712,37 +712,57 @@
     color: var(--pw-danger, #ef6a6a);
 }
 
-.pw-page .pw-unsaved-overlay {
-    display: grid;
+/* Appended to document.body (not inside .pw-page), so selectors must be unscoped. */
+.pw-unsaved-overlay {
+    display: grid !important;
     place-items: center;
     padding: 1rem;
-    background: color-mix(in srgb, var(--pw-canvas) 78%, transparent);
+    background: color-mix(in srgb, var(--pw-canvas, var(--bg-primary, #0b1220)) 78%, transparent);
     backdrop-filter: blur(14px);
+    z-index: 12000;
 }
 
-.pw-page .pw-unsaved-card {
-    width: min(520px, 100%);
+.pw-unsaved-card.modal-card,
+.pw-unsaved-card {
+    width: min(640px, calc(100vw - 2rem));
+    max-width: min(640px, calc(100vw - 2rem));
     padding: clamp(1.35rem, 4vw, 2rem);
-    background: var(--pw-surface-elevated);
-    border: 1px solid var(--pw-line-strong);
-    border-radius: var(--pw-radius-lg);
-    box-shadow: var(--pw-shadow-soft);
+    background: var(--pw-surface-elevated, var(--modal-surface, var(--bg-secondary)));
+    border: 1px solid var(--pw-line-strong, var(--modal-border, var(--border-subtle)));
+    border-radius: var(--pw-radius-lg, 18px);
+    box-shadow: var(--pw-shadow-soft, 0 20px 60px rgba(0, 0, 0, 0.4));
+    overflow: visible;
 }
 
-.pw-page .pw-unsaved-eyebrow {
+.pw-unsaved-eyebrow {
     margin-bottom: 0.75rem;
-    color: var(--pw-accent);
+    color: var(--pw-accent, var(--accent));
     font-family: var(--font-mono, "Geist Mono", monospace);
-    font-size: var(--pw-meta-size);
+    font-size: var(--pw-meta-size, 0.75rem);
     text-transform: uppercase;
     letter-spacing: 0.08em;
 }
 
-.pw-page .pw-unsaved-actions {
+.pw-unsaved-actions.modal-actions,
+.pw-unsaved-actions {
     display: flex;
+    flex-wrap: wrap;
     justify-content: flex-end;
+    align-items: stretch;
     gap: 0.65rem;
     margin-top: 1.5rem;
+    padding-top: 0;
+    border-top: 0;
+}
+
+.pw-unsaved-actions > button {
+    flex: 1 1 auto;
+    min-width: min(100%, 9.5rem);
+    min-height: 44px;
+    white-space: normal;
+    text-align: center;
+    line-height: 1.25;
+    padding-inline: 0.9rem;
 }
 
 .pw-page .save-bar {
@@ -886,8 +906,16 @@
         grid-template-columns: 1fr;
     }
 
-    .pw-page .pw-unsaved-actions {
+    .pw-unsaved-actions.modal-actions,
+    .pw-unsaved-actions {
         flex-direction: column-reverse;
+        align-items: stretch;
+    }
+
+    .pw-unsaved-actions > button {
+        width: 100%;
+        min-width: 0;
+        flex: 1 1 auto;
     }
 
     .pw-page .save-bar {
