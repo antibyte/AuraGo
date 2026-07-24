@@ -56,7 +56,7 @@
   "desktop.sip_phone_mute": "Dempen",
   "desktop.sip_phone_not_registered": "Niet geregistreerd",
   "desktop.sip_phone_not_registered_detail": "Het SIP-account is nog niet geregistreerd. Controleer het account en de PBX-verbinding.",
-  "desktop.sip_phone_observer_mode": "Dit tabblad kan het gesprek volgen maar de audio niet overnemen.",
+  "desktop.sip_phone_observer_mode": "Dit tabblad kan de gespreksaudio niet overnemen. Je kunt het gesprek hier wel beëindigen.",
   "desktop.sip_phone_open_configuration": "Open Configuratie → SIP-telefoon",
   "desktop.sip_phone_open_phone": "Telefoon openen",
   "desktop.sip_phone_outgoing": "Uitgaand",

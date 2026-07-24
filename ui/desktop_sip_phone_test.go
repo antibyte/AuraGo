@@ -150,6 +150,40 @@ func TestDesktopSIPPhoneComfortAndPrivacyContracts(t *testing.T) {
 	}
 }
 
+func TestDesktopSIPPhoneReloadObserverCanEndCall(t *testing.T) {
+	t.Parallel()
+
+	app := readDesktopAssetText(t, "js/desktop/apps/sip-phone.js")
+	runtime := readDesktopAssetText(t, "js/desktop/core/sip-phone-runtime.js")
+
+	if !strings.Contains(runtime, "sipPhoneShellState.callID || (sipPhoneShellState.appState && sipPhoneShellState.appState.active_call && sipPhoneShellState.appState.active_call.id)") {
+		t.Fatal("SIP hangup must fall back to the server-reported active call after a page reload")
+	}
+
+	const hangupMarker = `class="sip-phone-hangup" data-sip-phone-action="hangup"`
+	hangupAt := strings.Index(app, hangupMarker)
+	if hangupAt < 0 {
+		t.Fatal("SIP phone is missing its hangup control")
+	}
+	hangupLine := app[hangupAt:]
+	if lineEnd := strings.IndexByte(hangupLine, '\n'); lineEnd >= 0 {
+		hangupLine = hangupLine[:lineEnd]
+	}
+	if strings.Contains(hangupLine, "snapshot.observer") || strings.Contains(hangupLine, "disabled") {
+		t.Fatal("an observer created by a page reload must still be able to end the active call")
+	}
+
+	for _, marker := range []string{
+		`data-sip-phone-action="mute" class="${snapshot.muted ? 'is-active' : ''}" ${snapshot.observer ? 'disabled' : ''}`,
+		`data-sip-phone-action="toggle-keypad" ${snapshot.observer ? 'disabled' : ''}`,
+		`data-sip-phone="volume" min="0" max="1" step="0.05" value="${Number(snapshot.preferences.volume || 0)}" ${snapshot.observer ? 'disabled' : ''}`,
+	} {
+		if !strings.Contains(app, marker) {
+			t.Fatalf("observer must not regain browser media control after reload; missing contract %q", marker)
+		}
+	}
+}
+
 func TestDesktopSIPPhoneTranslationsAreComplete(t *testing.T) {
 	t.Parallel()
 

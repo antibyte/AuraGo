@@ -56,7 +56,7 @@
   "desktop.sip_phone_mute": "ミュート",
   "desktop.sip_phone_not_registered": "未登録",
   "desktop.sip_phone_not_registered_detail": "SIP アカウントは未登録です。アカウントと PBX 接続を確認してください。",
-  "desktop.sip_phone_observer_mode": "このタブでは通話を確認できますが、音声は引き継げません。",
+  "desktop.sip_phone_observer_mode": "このタブでは通話音声を引き継げませんが、ここから通話を終了できます。",
   "desktop.sip_phone_open_configuration": "設定 → SIP 電話を開く",
   "desktop.sip_phone_open_phone": "電話を開く",
   "desktop.sip_phone_outgoing": "発信",

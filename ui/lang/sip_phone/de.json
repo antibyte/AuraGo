@@ -56,7 +56,7 @@
   "desktop.sip_phone_mute": "Stummschalten",
   "desktop.sip_phone_not_registered": "Nicht registriert",
   "desktop.sip_phone_not_registered_detail": "Das SIP-Konto ist noch nicht registriert. Konto und PBX-Verbindung prüfen.",
-  "desktop.sip_phone_observer_mode": "Dieser Tab kann das Gespräch beobachten, aber das Audio nicht übernehmen.",
+  "desktop.sip_phone_observer_mode": "Dieser Tab kann das Gesprächsaudio nicht übernehmen. Sie können den Anruf hier weiterhin beenden.",
   "desktop.sip_phone_open_configuration": "Konfiguration → SIP-Telefon öffnen",
   "desktop.sip_phone_open_phone": "Telefon öffnen",
   "desktop.sip_phone_outgoing": "Ausgehend",

@@ -56,7 +56,7 @@
   "desktop.sip_phone_mute": "Ljud av",
   "desktop.sip_phone_not_registered": "Inte registrerad",
   "desktop.sip_phone_not_registered_detail": "SIP-kontot är ännu inte registrerat. Kontrollera konto och PBX-anslutning.",
-  "desktop.sip_phone_observer_mode": "Den här fliken kan följa samtalet men inte ta över ljudet.",
+  "desktop.sip_phone_observer_mode": "Den här fliken kan inte ta över samtalsljudet. Du kan ändå avsluta samtalet här.",
   "desktop.sip_phone_open_configuration": "Öppna Konfiguration → SIP-telefon",
   "desktop.sip_phone_open_phone": "Öppna telefon",
   "desktop.sip_phone_outgoing": "Utgående",

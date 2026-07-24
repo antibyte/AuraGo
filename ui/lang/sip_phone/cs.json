@@ -56,7 +56,7 @@
   "desktop.sip_phone_mute": "Ztlumit",
   "desktop.sip_phone_not_registered": "Neregistrováno",
   "desktop.sip_phone_not_registered_detail": "Účet SIP ještě není registrován. Zkontrolujte účet a připojení PBX.",
-  "desktop.sip_phone_observer_mode": "Tato karta může hovor sledovat, ale nemůže převzít zvuk.",
+  "desktop.sip_phone_observer_mode": "Tato karta nemůže převzít zvuk hovoru. Hovor zde ale můžete ukončit.",
   "desktop.sip_phone_open_configuration": "Otevřít Konfigurace → Telefon SIP",
   "desktop.sip_phone_open_phone": "Otevřít telefon",
   "desktop.sip_phone_outgoing": "Odchozí",

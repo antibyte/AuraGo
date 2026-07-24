@@ -56,7 +56,7 @@
   "desktop.sip_phone_mute": "Couper le son",
   "desktop.sip_phone_not_registered": "Non enregistré",
   "desktop.sip_phone_not_registered_detail": "Le compte SIP n’est pas encore enregistré. Vérifiez le compte et la connexion PBX.",
-  "desktop.sip_phone_observer_mode": "Cet onglet peut observer l’appel sans reprendre son audio.",
+  "desktop.sip_phone_observer_mode": "Cet onglet ne peut pas reprendre l’audio de l’appel. Vous pouvez toutefois raccrocher ici.",
   "desktop.sip_phone_open_configuration": "Ouvrir Configuration → Téléphone SIP",
   "desktop.sip_phone_open_phone": "Ouvrir Téléphone",
   "desktop.sip_phone_outgoing": "Sortant",

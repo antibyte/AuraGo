@@ -56,7 +56,7 @@
   "desktop.sip_phone_mute": "Σίγαση",
   "desktop.sip_phone_not_registered": "Μη καταχωρημένο",
   "desktop.sip_phone_not_registered_detail": "Ο λογαριασμός SIP δεν έχει καταχωρηθεί ακόμη. Ελέγξτε τον λογαριασμό και τη σύνδεση PBX.",
-  "desktop.sip_phone_observer_mode": "Αυτή η καρτέλα μπορεί να παρακολουθεί την κλήση, όχι να αναλάβει τον ήχο.",
+  "desktop.sip_phone_observer_mode": "Αυτή η καρτέλα δεν μπορεί να αναλάβει τον ήχο της κλήσης. Μπορείτε όμως να τερματίσετε την κλήση εδώ.",
   "desktop.sip_phone_open_configuration": "Άνοιγμα Ρυθμίσεις → Τηλέφωνο SIP",
   "desktop.sip_phone_open_phone": "Άνοιγμα τηλεφώνου",
   "desktop.sip_phone_outgoing": "Εξερχόμενη",

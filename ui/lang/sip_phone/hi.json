@@ -56,7 +56,7 @@
   "desktop.sip_phone_mute": "म्यूट",
   "desktop.sip_phone_not_registered": "पंजीकृत नहीं",
   "desktop.sip_phone_not_registered_detail": "SIP खाता अभी पंजीकृत नहीं है। खाता और PBX कनेक्शन जाँचें।",
-  "desktop.sip_phone_observer_mode": "यह टैब कॉल देख सकता है, पर उसका ऑडियो नहीं ले सकता।",
+  "desktop.sip_phone_observer_mode": "यह टैब कॉल का ऑडियो नहीं ले सकता। आप फिर भी यहाँ से कॉल समाप्त कर सकते हैं।",
   "desktop.sip_phone_open_configuration": "कॉन्फ़िगरेशन → SIP फ़ोन खोलें",
   "desktop.sip_phone_open_phone": "फ़ोन खोलें",
   "desktop.sip_phone_outgoing": "जाने वाली",

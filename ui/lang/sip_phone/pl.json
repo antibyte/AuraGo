@@ -56,7 +56,7 @@
   "desktop.sip_phone_mute": "Wycisz",
   "desktop.sip_phone_not_registered": "Niezarejestrowane",
   "desktop.sip_phone_not_registered_detail": "Konto SIP nie jest jeszcze zarejestrowane. Sprawdź konto i połączenie PBX.",
-  "desktop.sip_phone_observer_mode": "Ta karta może obserwować połączenie, ale nie przejąć dźwięku.",
+  "desktop.sip_phone_observer_mode": "Ta karta nie może przejąć dźwięku połączenia. Nadal możesz tutaj zakończyć rozmowę.",
   "desktop.sip_phone_open_configuration": "Otwórz Konfiguracja → Telefon SIP",
   "desktop.sip_phone_open_phone": "Otwórz Telefon",
   "desktop.sip_phone_outgoing": "Wychodzące",

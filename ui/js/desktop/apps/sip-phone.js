@@ -227,7 +227,7 @@
                     ? text(instance, 'incoming_title', 'Incoming call')
                     : text(instance, 'call_active', 'Call active');
         return `<div class="sip-phone-active-call">
-            ${snapshot.observer ? `<div class="sip-phone-observer">${instance.context.esc(text(instance, 'observer_mode', 'This tab can observe the call but cannot take over its audio.'))}</div>` : ''}
+            ${snapshot.observer ? `<div class="sip-phone-observer">${instance.context.esc(text(instance, 'observer_mode', 'This tab cannot take over the call audio. You can still hang up here.'))}</div>` : ''}
             ${snapshot.error ? `<div class="sip-phone-inline-error" role="alert">${instance.context.esc(snapshot.error)}</div>` : ''}
             ${snapshot.audioPlaybackBlocked ? `<div class="sip-phone-audio-gate" role="status">
                 <span>${instance.context.esc(text(instance, 'audio_blocked', 'The browser blocked call audio.'))}</span>
@@ -250,7 +250,7 @@
                 <input type="range" data-sip-phone="volume" min="0" max="1" step="0.05" value="${Number(snapshot.preferences.volume || 0)}" ${snapshot.observer ? 'disabled' : ''}>
             </label>
             <div class="sip-phone-active-keypad" ${instance.keypadOpen ? '' : 'hidden'}>${renderKeypad(instance, snapshot.observer, true)}</div>
-            <button type="button" class="sip-phone-hangup" data-sip-phone-action="hangup" ${snapshot.observer ? 'disabled' : ''}>
+            <button type="button" class="sip-phone-hangup" data-sip-phone-action="hangup">
                 ${instance.context.iconMarkup('phone', 'P', 'sip-phone-glyph', 19)}<span>${instance.context.esc(text(instance, 'hangup', 'Hang up'))}</span>
             </button>
         </div>`;

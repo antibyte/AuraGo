@@ -56,7 +56,7 @@
   "desktop.sip_phone_mute": "Mute",
   "desktop.sip_phone_not_registered": "Not registered",
   "desktop.sip_phone_not_registered_detail": "The SIP account is not registered yet. Check the account and PBX connection.",
-  "desktop.sip_phone_observer_mode": "This tab can observe the call but cannot take over its audio.",
+  "desktop.sip_phone_observer_mode": "This tab cannot take over the call audio. You can still hang up here.",
   "desktop.sip_phone_open_configuration": "Open Configuration → SIP Phone",
   "desktop.sip_phone_open_phone": "Open Phone",
   "desktop.sip_phone_outgoing": "Outgoing",

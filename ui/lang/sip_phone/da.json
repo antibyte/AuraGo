@@ -56,7 +56,7 @@
   "desktop.sip_phone_mute": "Slå lyd fra",
   "desktop.sip_phone_not_registered": "Ikke registreret",
   "desktop.sip_phone_not_registered_detail": "SIP-kontoen er endnu ikke registreret. Kontrollér konto og PBX-forbindelse.",
-  "desktop.sip_phone_observer_mode": "Denne fane kan se opkaldet, men kan ikke overtage lyden.",
+  "desktop.sip_phone_observer_mode": "Denne fane kan ikke overtage opkaldets lyd. Du kan stadig afslutte opkaldet her.",
   "desktop.sip_phone_open_configuration": "Åbn Konfiguration → SIP-telefon",
   "desktop.sip_phone_open_phone": "Åbn telefon",
   "desktop.sip_phone_outgoing": "Udgående",

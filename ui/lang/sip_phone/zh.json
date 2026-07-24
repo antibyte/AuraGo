@@ -56,7 +56,7 @@
   "desktop.sip_phone_mute": "静音",
   "desktop.sip_phone_not_registered": "未注册",
   "desktop.sip_phone_not_registered_detail": "SIP 账户尚未注册。请检查账户和 PBX 连接。",
-  "desktop.sip_phone_observer_mode": "此标签页可查看通话，但不能接管音频。",
+  "desktop.sip_phone_observer_mode": "此标签页无法接管通话音频，但仍可在此结束通话。",
   "desktop.sip_phone_open_configuration": "打开配置 → SIP 电话",
   "desktop.sip_phone_open_phone": "打开电话",
   "desktop.sip_phone_outgoing": "呼出",

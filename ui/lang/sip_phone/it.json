@@ -56,7 +56,7 @@
   "desktop.sip_phone_mute": "Disattiva audio",
   "desktop.sip_phone_not_registered": "Non registrato",
   "desktop.sip_phone_not_registered_detail": "L’account SIP non è ancora registrato. Controlla account e connessione PBX.",
-  "desktop.sip_phone_observer_mode": "Questa scheda può osservare la chiamata ma non prenderne l’audio.",
+  "desktop.sip_phone_observer_mode": "Questa scheda non può prendere l’audio della chiamata. Puoi comunque riagganciare qui.",
   "desktop.sip_phone_open_configuration": "Apri Configurazione → Telefono SIP",
   "desktop.sip_phone_open_phone": "Apri Telefono",
   "desktop.sip_phone_outgoing": "In uscita",

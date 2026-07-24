@@ -56,7 +56,7 @@
   "desktop.sip_phone_mute": "Silenciar",
   "desktop.sip_phone_not_registered": "Não registrado",
   "desktop.sip_phone_not_registered_detail": "A conta SIP ainda não está registrada. Verifique a conta e a conexão PBX.",
-  "desktop.sip_phone_observer_mode": "Esta aba pode observar a chamada, mas não assumir o áudio.",
+  "desktop.sip_phone_observer_mode": "Esta aba não pode assumir o áudio da chamada. Ainda assim, pode terminar a chamada aqui.",
   "desktop.sip_phone_open_configuration": "Abrir Configuração → Telefone SIP",
   "desktop.sip_phone_open_phone": "Abrir Telefone",
   "desktop.sip_phone_outgoing": "Efetuada",
