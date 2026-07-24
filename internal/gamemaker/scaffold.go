@@ -77,6 +77,21 @@ func scaffoldHTML(dimension, title string) string {
   <div id="game-root"></div><div id="hud">Loading…</div>
   %s
   <script type="module" src="dist/game.js"></script>
+  <script>
+    (function(){
+      const hud = document.getElementById('hud');
+      if (!hud) return;
+      let shown = false;
+      const observer = new MutationObserver(function() {
+        if (hud.textContent && hud.textContent !== 'Loading…') {
+          shown = true;
+          hud.style.display = '';
+        }
+      });
+      observer.observe(hud, { childList: true, subtree: true, characterData: true });
+      setTimeout(function() { if (!shown) hud.style.display = 'none'; }, 5000);
+    })();
+  </script>
 </body>
 </html>
 `, htmlEscape(title), runtimeScript)
