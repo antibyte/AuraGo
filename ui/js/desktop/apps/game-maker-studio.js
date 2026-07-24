@@ -794,8 +794,18 @@
         const input = form.querySelector('textarea');
         const prompt = input.value.trim();
         if (!prompt || !state.project || state.jobActive) return;
+        // Lock the form immediately so a double click / double Enter cannot
+        // fire a second request while startJob is still in flight.
+        state.jobActive = true;
+        input.disabled = true;
+        form.querySelector('button[type="submit"]').disabled = true;
+        input.value = '';
+        autoGrow(input);
         try {
             finalizeStreaming(state);
+            state.messages.push({ role: 'user', content: prompt });
+            renderConversation(state);
+            scrollConversation(state);
             state.job = await state.api.startJob(state.project.id, {
                 prompt,
                 provider_id: state.project.provider_id,
@@ -807,13 +817,13 @@
             state.lastPhase = '';
             state.previewStale = true;
             state.activeJob = { job_id: state.job.id, project_id: state.project.id, status: state.job.status, phase: state.job.phase };
-            state.messages.push({ role: 'user', content: prompt });
-            state.container.querySelector('[data-gm-conversation]').insertAdjacentHTML('beforeend',
-                messageMarkup(state, { role: 'user', content: prompt }));
-            input.value = '';
-            autoGrow(input);
             syncJobControls(state);
         } catch (error) {
+            input.value = prompt;
+            autoGrow(input);
+            state.jobActive = false;
+            input.disabled = false;
+            form.querySelector('button[type="submit"]').disabled = false;
             fail(state, error);
         }
     }
