@@ -738,7 +738,6 @@
                 event.preventDefault();
                 if (creating) return;
                 creating = true;
-                setModalBusy(layer, true);
                 const data = new FormData(form);
                 const request = {
                     name: String(data.get('name') || '').trim(),
@@ -749,6 +748,7 @@
                     use_image_generation: data.get('use_image_generation') === 'on',
                     use_music_generation: data.get('use_music_generation') === 'on'
                 };
+                setModalBusy(layer, true);
                 let createdProject = null;
                 try {
                     createdProject = await state.api.createProject(request);
