@@ -61,6 +61,19 @@ func buildDirectory(ctx context.Context, projectDir string, maxFiles int, maxByt
 	if err := os.MkdirAll(filepath.Join(projectDir, "dist"), 0o750); err != nil {
 		return BuildResult{Diagnostics: []Diagnostic{{Level: "error", Message: err.Error()}}}
 	}
+	mainPath := filepath.Join(projectDir, "src", "main.ts")
+	source, err := os.ReadFile(mainPath)
+	if err != nil {
+		return BuildResult{Diagnostics: []Diagnostic{{Level: "error", Message: err.Error()}}}
+	}
+	// Ensure the AuraGo diagnostic interface is always present, even if the
+	// agent's rewrite of src/main.ts omitted it. The prelude is idempotent as
+	// long as the agent did not define its own diagnostic() function.
+	if !strings.Contains(string(source), "__AURAGO_GAME_DIAGNOSTICS__") && !strings.Contains(string(source), "diagnostic(") {
+		if err := os.WriteFile(mainPath, []byte(diagnosticsPrelude+"\n"+string(source)), 0o640); err != nil {
+			return BuildResult{Diagnostics: []Diagnostic{{Level: "error", Message: err.Error()}}}
+		}
+	}
 	build := api.Build(api.BuildOptions{
 		AbsWorkingDir: projectDir,
 		EntryPoints:   []string{filepath.Join("src", "main.ts")},
@@ -87,7 +100,7 @@ func buildDirectory(ctx context.Context, projectDir string, maxFiles int, maxByt
 		}
 		return BuildResult{Diagnostics: diagnostics}
 	}
-	source, err := os.ReadFile(filepath.Join(projectDir, "src", "main.ts"))
+	source, err = os.ReadFile(filepath.Join(projectDir, "src", "main.ts"))
 	if err != nil {
 		return BuildResult{Diagnostics: []Diagnostic{{Level: "error", Message: err.Error()}}}
 	}

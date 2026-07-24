@@ -625,3 +625,46 @@ func TestBundledSkillHashDriftSelfHeals(t *testing.T) {
 		}
 	}
 }
+
+
+func TestBuildDirectoryInjectsDiagnosticInterface(t *testing.T) {
+	ctx := context.Background()
+	dir := t.TempDir()
+	manifest := []byte(`{"name":"test","dimension":"2d","engine":"phaser","engine_version":"4.2.1","entry":"src/main.ts","description":"test"}` + "\n")
+	if err := os.WriteFile(filepath.Join(dir, "game.json"), manifest, 0o640); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "index.html"), []byte(scaffoldHTML("2d", "test")), 0o640); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(dir, "src"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	// Minimal agent-written main.ts without the AuraGo diagnostic interface.
+	minimal := `declare const Phaser: any;
+class MainScene extends Phaser.Scene {
+  constructor() { super("main"); }
+  create() { this.add.text(100, 100, "hello"); }
+}
+new Phaser.Game({ type: Phaser.AUTO, parent: "game-root", width: 960, height: 540, scene: MainScene });
+`
+	if err := os.WriteFile(filepath.Join(dir, "src", "main.ts"), []byte(minimal), 0o640); err != nil {
+		t.Fatal(err)
+	}
+
+	result := buildDirectory(ctx, dir, 100, 64*1024*1024)
+	if !result.OK {
+		t.Fatalf("expected build to succeed, got diagnostics: %v", result.Diagnostics)
+	}
+
+	source, err := os.ReadFile(filepath.Join(dir, "src", "main.ts"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(source), "__AURAGO_GAME_DIAGNOSTICS__") {
+		t.Error("buildDirectory did not inject the AuraGo diagnostic prelude")
+	}
+	if !strings.Contains(string(source), "function diagnostic") {
+		t.Error("buildDirectory did not inject the diagnostic helper")
+	}
+}
