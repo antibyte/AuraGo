@@ -229,6 +229,10 @@
         return `<div class="sip-phone-active-call">
             ${snapshot.observer ? `<div class="sip-phone-observer">${instance.context.esc(text(instance, 'observer_mode', 'This tab can observe the call but cannot take over its audio.'))}</div>` : ''}
             ${snapshot.error ? `<div class="sip-phone-inline-error" role="alert">${instance.context.esc(snapshot.error)}</div>` : ''}
+            ${snapshot.audioPlaybackBlocked ? `<div class="sip-phone-audio-gate" role="status">
+                <span>${instance.context.esc(text(instance, 'audio_blocked', 'The browser blocked call audio.'))}</span>
+                <button type="button" data-sip-phone-action="enable-audio">${instance.context.esc(text(instance, 'enable_audio', 'Enable sound'))}</button>
+            </div>` : ''}
             <div class="sip-phone-call-avatar">${instance.context.iconMarkup('phone', 'P', 'sip-phone-glyph', 44)}</div>
             <p aria-live="polite">${instance.context.esc(status)}</p>
             <h1>${instance.context.esc(name)}</h1>
@@ -313,6 +317,7 @@
             render(instance, runtime.getState());
         });
         instance.host.querySelector('[data-sip-phone-action="hangup"]')?.addEventListener('click', () => runtime.hangup().catch(error => showError(instance, error)));
+        instance.host.querySelector('[data-sip-phone-action="enable-audio"]')?.addEventListener('click', () => runtime.enableAudio().catch(error => showError(instance, error)));
         instance.host.querySelector('[data-sip-phone="input-device"]')?.addEventListener('change', event => runtime.setInputDevice(event.target.value).catch(error => showError(instance, error)));
         instance.host.querySelector('[data-sip-phone="output-device"]')?.addEventListener('change', event => runtime.setOutputDevice(event.target.value).catch(error => showError(instance, error)));
         instance.host.querySelector('[data-sip-phone="volume"]')?.addEventListener('input', event => runtime.setVolume(event.target.value));

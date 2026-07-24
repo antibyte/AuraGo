@@ -4,6 +4,8 @@
   "desktop.sip_phone_add_favorite": "添加到收藏",
   "desktop.sip_phone_answer": "接听",
   "desktop.sip_phone_app_name": "电话",
+  "desktop.sip_phone_audio_blocked": "浏览器阻止了通话音频。",
+  "desktop.sip_phone_enable_audio": "启用声音",
   "desktop.sip_phone_browser_media_disabled_detail": "请为虚拟桌面电话启用浏览器媒体。",
   "desktop.sip_phone_browser_media_restart_required_detail": "重启 AuraGo 以应用已保存的浏览器媒体设置。",
   "desktop.sip_phone_call": "呼叫",

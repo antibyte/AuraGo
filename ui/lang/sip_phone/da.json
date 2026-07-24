@@ -4,6 +4,8 @@
   "desktop.sip_phone_add_favorite": "Føj til favoritter",
   "desktop.sip_phone_answer": "Besvar",
   "desktop.sip_phone_app_name": "Telefon",
+  "desktop.sip_phone_audio_blocked": "Browseren blokerede opkaldslyden.",
+  "desktop.sip_phone_enable_audio": "Aktivér lyd",
   "desktop.sip_phone_browser_media_disabled_detail": "Aktivér browsermedier til telefonen på det virtuelle skrivebord.",
   "desktop.sip_phone_browser_media_restart_required_detail": "Genstart AuraGo for at anvende de gemte browsermedieindstillinger.",
   "desktop.sip_phone_call": "Ring",

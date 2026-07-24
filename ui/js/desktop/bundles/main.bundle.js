@@ -3039,6 +3039,7 @@
         localStream: null,
         localSender: null,
         remoteAudio: null,
+        remoteAudioBlocked: false,
         browserSessionID: '',
         callID: '',
         muted: false,
@@ -3139,6 +3140,7 @@
             error: sipPhoneShellState.error,
             call: appState.active_call || null,
             muted: sipPhoneShellState.muted,
+            audioPlaybackBlocked: sipPhoneShellState.remoteAudioBlocked,
             mediaOwned: !!sipPhoneShellState.peerConnection,
             observer: !!(appState.active_call && !sipPhoneShellState.peerConnection),
             devices: {
@@ -3331,15 +3333,19 @@
                     : [];
                 if (pcmu.length) transceiver.setCodecPreferences(pcmu);
             }
-            pendingRemoteAudio = new Audio();
+            pendingRemoteAudio = document.createElement('audio');
             pendingRemoteAudio.autoplay = true;
             pendingRemoteAudio.playsInline = true;
             pendingRemoteAudio.volume = preferences.volume;
+            pendingRemoteAudio.hidden = true;
+            pendingRemoteAudio.setAttribute('aria-hidden', 'true');
+            pendingRemoteAudio.setAttribute('data-aurago-sip-audio', '');
+            document.body.appendChild(pendingRemoteAudio);
             pendingPeerConnection.addEventListener('track', event => {
                 pendingRemoteAudio.srcObject = event.streams && event.streams[0]
                     ? event.streams[0]
                     : new MediaStream([event.track]);
-                pendingRemoteAudio.play().catch(() => {});
+                startSIPPhoneRemoteAudio(pendingRemoteAudio);
             });
             pendingPeerConnection.addEventListener('connectionstatechange', () => {
                 if (['failed', 'closed'].includes(pendingPeerConnection.connectionState) && sipPhoneShellState.peerConnection === pendingPeerConnection) {
@@ -3533,12 +3539,34 @@
             await sipPhoneShellState.remoteAudio.setSinkId(id);
         }
         saveSIPPhonePreferences({ output_device: id });
+        await enableSIPPhoneAudio();
     }
 
     function setSIPPhoneVolume(value) {
         const volume = Math.max(0, Math.min(1, Number(value)));
         saveSIPPhonePreferences({ volume });
         if (sipPhoneShellState.remoteAudio) sipPhoneShellState.remoteAudio.volume = volume;
+    }
+
+    function startSIPPhoneRemoteAudio(audio) {
+        if (!audio || typeof audio.play !== 'function') return Promise.resolve();
+        return audio.play().then(() => {
+            if (sipPhoneShellState.remoteAudioBlocked) {
+                sipPhoneShellState.remoteAudioBlocked = false;
+                sipPhoneEmit();
+            }
+        }).catch(error => {
+            if (error && error.name !== 'AbortError') {
+                sipPhoneShellState.remoteAudioBlocked = true;
+                sipPhoneEmit();
+            }
+        });
+    }
+
+    async function enableSIPPhoneAudio() {
+        const audio = sipPhoneShellState.remoteAudio;
+        if (!audio) return;
+        await startSIPPhoneRemoteAudio(audio);
     }
 
     function teardownSIPPhoneMedia(deleteSession) {
@@ -3560,6 +3588,7 @@
         sipPhoneShellState.localStream = null;
         sipPhoneShellState.localSender = null;
         sipPhoneShellState.remoteAudio = null;
+        sipPhoneShellState.remoteAudioBlocked = false;
         disposeSIPPhoneMediaResources(peerConnection, localStream, remoteAudio);
         sipPhoneShellState.muted = false;
         if (sipPhoneShellState.lease && window.AuraBrowserAudioLease) {
@@ -3579,6 +3608,7 @@
         if (remoteAudio) {
             try { remoteAudio.pause(); } catch (_) {}
             remoteAudio.srcObject = null;
+            try { remoteAudio.remove(); } catch (_) {}
         }
     }
 
@@ -3782,6 +3812,7 @@
         setInputDevice: setSIPPhoneInputDevice,
         setOutputDevice: setSIPPhoneOutputDevice,
         setVolume: setSIPPhoneVolume,
+        enableAudio: enableSIPPhoneAudio,
         setPreferences: saveSIPPhonePreferences,
         refreshDevices: refreshSIPPhoneDevices,
         disposeMedia: teardownSIPPhoneMedia

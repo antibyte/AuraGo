@@ -914,6 +914,20 @@ func (m *Manager) finishCall(call *activeCall, reason string) {
 		if call.bridge != nil {
 			call.bridge.Close()
 		}
+		if m.logger != nil && call.media != nil {
+			sipStats := call.media.mediaStats()
+			browserStats := mediaDirectionStats{}
+			if provider, ok := call.mediaPeer.(mediaStatsProvider); ok {
+				browserStats = provider.mediaStats()
+			}
+			m.logger.Info("SIP call media summary",
+				"call_id", call.record.ID,
+				"sip_rx_frames", sipStats.receivedFrames,
+				"sip_tx_frames", sipStats.sentFrames,
+				"browser_rx_frames", browserStats.receivedFrames,
+				"browser_tx_frames", browserStats.sentFrames,
+			)
+		}
 		now := time.Now().UTC()
 		m.mu.Lock()
 		backend := call.backend

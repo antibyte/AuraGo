@@ -4,6 +4,8 @@
   "desktop.sip_phone_add_favorite": "पसंदीदा में जोड़ें",
   "desktop.sip_phone_answer": "उत्तर दें",
   "desktop.sip_phone_app_name": "फ़ोन",
+  "desktop.sip_phone_audio_blocked": "ब्राउज़र ने कॉल ऑडियो रोक दिया है।",
+  "desktop.sip_phone_enable_audio": "आवाज़ चालू करें",
   "desktop.sip_phone_browser_media_disabled_detail": "वर्चुअल डेस्कटॉप फ़ोन के लिए ब्राउज़र मीडिया सक्रिय करें।",
   "desktop.sip_phone_browser_media_restart_required_detail": "सहेजी गई ब्राउज़र मीडिया सेटिंग लागू करने के लिए AuraGo को पुनः आरंभ करें।",
   "desktop.sip_phone_call": "कॉल करें",

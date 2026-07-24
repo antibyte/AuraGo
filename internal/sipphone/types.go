@@ -81,6 +81,15 @@ type MediaPeer interface {
 	Detach(string)
 }
 
+type mediaDirectionStats struct {
+	receivedFrames uint64
+	sentFrames     uint64
+}
+
+type mediaStatsProvider interface {
+	mediaStats() mediaDirectionStats
+}
+
 // IncomingCallHandler allows future voicemail routing without changing SIP.
 type IncomingCallHandler interface {
 	HandleIncoming(context.Context, CallRecord, voice.DuplexAudio) error

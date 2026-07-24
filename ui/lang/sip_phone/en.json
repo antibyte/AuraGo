@@ -4,6 +4,8 @@
   "desktop.sip_phone_add_favorite": "Add to favorites",
   "desktop.sip_phone_answer": "Answer",
   "desktop.sip_phone_app_name": "Phone",
+  "desktop.sip_phone_audio_blocked": "The browser blocked call audio.",
+  "desktop.sip_phone_enable_audio": "Enable sound",
   "desktop.sip_phone_browser_media_disabled_detail": "Enable browser media for the Virtual Desktop phone.",
   "desktop.sip_phone_browser_media_restart_required_detail": "Restart AuraGo to apply the saved browser media settings.",
   "desktop.sip_phone_call": "Call",

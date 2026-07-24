@@ -4,6 +4,8 @@
   "desktop.sip_phone_add_favorite": "Přidat k oblíbeným",
   "desktop.sip_phone_answer": "Přijmout",
   "desktop.sip_phone_app_name": "Telefon",
+  "desktop.sip_phone_audio_blocked": "Prohlížeč zablokoval zvuk hovoru.",
+  "desktop.sip_phone_enable_audio": "Zapnout zvuk",
   "desktop.sip_phone_browser_media_disabled_detail": "Povolte média prohlížeče pro telefon na virtuální ploše.",
   "desktop.sip_phone_browser_media_restart_required_detail": "Restartujte AuraGo, aby se použila uložená nastavení médií prohlížeče.",
   "desktop.sip_phone_call": "Volat",

@@ -76,6 +76,11 @@ func TestDesktopSIPPhoneBrowserMediaAndShellContracts(t *testing.T) {
 		"startSIPPhoneOutgoingRingback()",
 		"call.direction === 'inbound' && call.state === 'ringing'",
 		"sipPhoneText('outgoing_ringing', 'The other phone is ringing')",
+		"document.createElement('audio')",
+		"document.body.appendChild(pendingRemoteAudio)",
+		"new MediaStream([event.track])",
+		"startSIPPhoneRemoteAudio(pendingRemoteAudio)",
+		"enableAudio: enableSIPPhoneAudio",
 		"window.SipPhoneRuntime = {",
 	} {
 		if !strings.Contains(runtime, marker) {
@@ -118,6 +123,8 @@ func TestDesktopSIPPhoneComfortAndPrivacyContracts(t *testing.T) {
 		"favorites.length >= 24",
 		"data-sip-redial",
 		"data-sip-copy",
+		"snapshot.audioPlaybackBlocked",
+		"data-sip-phone-action=\"enable-audio\"",
 		"runtime.describeEndReason(call.end_reason)",
 		`data-sip-phone="input-device"`,
 		`data-sip-phone="output-device"`,

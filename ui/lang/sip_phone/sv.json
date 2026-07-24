@@ -4,6 +4,8 @@
   "desktop.sip_phone_add_favorite": "Lägg till i favoriter",
   "desktop.sip_phone_answer": "Svara",
   "desktop.sip_phone_app_name": "Telefon",
+  "desktop.sip_phone_audio_blocked": "Webbläsaren blockerade samtalsljudet.",
+  "desktop.sip_phone_enable_audio": "Aktivera ljud",
   "desktop.sip_phone_browser_media_disabled_detail": "Aktivera webbläsarmedia för telefonen på det virtuella skrivbordet.",
   "desktop.sip_phone_browser_media_restart_required_detail": "Starta om AuraGo för att tillämpa de sparade webbläsarmediainställningarna.",
   "desktop.sip_phone_call": "Ring",

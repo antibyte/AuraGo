@@ -4,6 +4,8 @@
   "desktop.sip_phone_add_favorite": "Προσθήκη στα αγαπημένα",
   "desktop.sip_phone_answer": "Απάντηση",
   "desktop.sip_phone_app_name": "Τηλέφωνο",
+  "desktop.sip_phone_audio_blocked": "Το πρόγραμμα περιήγησης απέκλεισε τον ήχο της κλήσης.",
+  "desktop.sip_phone_enable_audio": "Ενεργοποίηση ήχου",
   "desktop.sip_phone_browser_media_disabled_detail": "Ενεργοποιήστε τα πολυμέσα προγράμματος περιήγησης για το τηλέφωνο της εικονικής επιφάνειας.",
   "desktop.sip_phone_browser_media_restart_required_detail": "Επανεκκινήστε το AuraGo για να εφαρμοστούν οι αποθηκευμένες ρυθμίσεις πολυμέσων του προγράμματος περιήγησης.",
   "desktop.sip_phone_call": "Κλήση",

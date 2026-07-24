@@ -4,6 +4,8 @@
   "desktop.sip_phone_add_favorite": "お気に入りに追加",
   "desktop.sip_phone_answer": "応答",
   "desktop.sip_phone_app_name": "電話",
+  "desktop.sip_phone_audio_blocked": "ブラウザーが通話音声をブロックしました。",
+  "desktop.sip_phone_enable_audio": "音声を有効にする",
   "desktop.sip_phone_browser_media_disabled_detail": "仮想デスクトップ電話のブラウザーメディアを有効にしてください。",
   "desktop.sip_phone_browser_media_restart_required_detail": "保存したブラウザメディア設定を適用するには AuraGo を再起動してください。",
   "desktop.sip_phone_call": "発信",

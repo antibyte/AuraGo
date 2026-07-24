@@ -92,6 +92,10 @@ func TestBrowserMediaPCMUAudioLoopback(t *testing.T) {
 	if len(packet.Payload) != browserPCMFrameSamples {
 		t.Fatalf("PCMU payload = %d bytes, want %d", len(packet.Payload), browserPCMFrameSamples)
 	}
+	stats := peer.(*browserMediaPeer).mediaStats()
+	if stats.receivedFrames == 0 || stats.sentFrames == 0 {
+		t.Fatalf("browser media stats = received:%d sent:%d", stats.receivedFrames, stats.sentFrames)
+	}
 }
 
 func TestBrowserMediaDiscardsAudioBeforeAttach(t *testing.T) {

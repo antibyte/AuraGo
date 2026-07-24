@@ -448,7 +448,8 @@
 
 .sip-phone-blocker,
 .sip-phone-inline-error,
-.sip-phone-observer {
+.sip-phone-observer,
+.sip-phone-audio-gate {
     width: min(100%, 440px);
     margin: 0 0 18px;
     padding: 12px 14px;
@@ -460,6 +461,32 @@
     font-size: 0.72rem;
     line-height: 1.45;
     text-align: left;
+}
+
+.sip-phone-audio-gate {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    border-color: color-mix(in srgb, var(--sip-accent) 40%, transparent);
+    background: color-mix(in srgb, var(--sip-accent) 10%, transparent);
+}
+
+.sip-phone-audio-gate button {
+    flex: 0 0 auto;
+    min-height: 36px;
+    padding: 8px 12px;
+    border: 1px solid color-mix(in srgb, var(--sip-accent) 54%, transparent);
+    border-radius: 8px;
+    color: var(--text-primary, #f3f5fa);
+    background: color-mix(in srgb, var(--sip-accent) 18%, transparent);
+    cursor: pointer;
+}
+
+.sip-phone-audio-gate button:hover,
+.sip-phone-audio-gate button:focus-visible {
+    border-color: var(--sip-accent);
+    outline: none;
 }
 
 .sip-phone-blocker strong,

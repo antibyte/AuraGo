@@ -7,6 +7,7 @@ import (
 	"io"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"aurago/internal/voice"
@@ -25,6 +26,8 @@ type mediaPump struct {
 	dtmfMu     sync.Mutex
 	dtmfWriter *diago.DTMFWriter
 	negotiated string
+	received   atomic.Uint64
+	sent       atomic.Uint64
 }
 
 func (p *mediaPump) start(ctx context.Context) error {
@@ -97,7 +100,10 @@ func (p *mediaPump) readLoop(ctx context.Context, reader io.Reader, codec string
 		for i := range samples {
 			samples[i] = int16(binary.LittleEndian.Uint16(linear[i*2 : i*2+2]))
 		}
-		_ = p.bridge.PushReceive(voice.PCMFrame{Samples: samples, SampleRate: 8000})
+		if err := p.bridge.PushReceive(voice.PCMFrame{Samples: samples, SampleRate: 8000}); err != nil {
+			return
+		}
+		p.received.Add(1)
 	}
 }
 
@@ -134,12 +140,23 @@ func (p *mediaPump) writeLoop(ctx context.Context, writer io.Writer, codec strin
 				}
 				return
 			}
+			p.sent.Add(1)
 			select {
 			case <-ctx.Done():
 				return
 			case <-time.After(20 * time.Millisecond):
 			}
 		}
+	}
+}
+
+func (p *mediaPump) mediaStats() mediaDirectionStats {
+	if p == nil {
+		return mediaDirectionStats{}
+	}
+	return mediaDirectionStats{
+		receivedFrames: p.received.Load(),
+		sentFrames:     p.sent.Load(),
 	}
 }
 

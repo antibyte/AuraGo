@@ -4,6 +4,8 @@
   "desktop.sip_phone_add_favorite": "Dodaj do ulubionych",
   "desktop.sip_phone_answer": "Odbierz",
   "desktop.sip_phone_app_name": "Telefon",
+  "desktop.sip_phone_audio_blocked": "Przeglądarka zablokowała dźwięk rozmowy.",
+  "desktop.sip_phone_enable_audio": "Włącz dźwięk",
   "desktop.sip_phone_browser_media_disabled_detail": "Włącz media przeglądarki dla telefonu pulpitu wirtualnego.",
   "desktop.sip_phone_browser_media_restart_required_detail": "Uruchom ponownie AuraGo, aby zastosować zapisane ustawienia multimediów przeglądarki.",
   "desktop.sip_phone_call": "Zadzwoń",

@@ -11,6 +11,7 @@ import (
 	"net"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"aurago/internal/config"
@@ -442,6 +443,8 @@ type browserMediaPeer struct {
 	disconnectGrace time.Duration
 	onClosed        func(*browserMediaPeer, bool, string)
 	closeOnce       sync.Once
+	received        atomic.Uint64
+	sent            atomic.Uint64
 }
 
 func (p *browserMediaPeer) Attach(ctx context.Context, callID string, media voice.DuplexAudio) error {
@@ -511,6 +514,7 @@ func (p *browserMediaPeer) sendSIPAudioToBrowser(ctx context.Context, media voic
 				}
 				return
 			}
+			p.sent.Add(1)
 			pending = pending[browserPCMFrameSamples:]
 		}
 	}
@@ -563,6 +567,17 @@ func (p *browserMediaPeer) receiveBrowserAudio() {
 		if err := media.Send(ctx, voice.PCMFrame{Samples: samples, SampleRate: 8000}); err != nil {
 			return
 		}
+		p.received.Add(1)
+	}
+}
+
+func (p *browserMediaPeer) mediaStats() mediaDirectionStats {
+	if p == nil {
+		return mediaDirectionStats{}
+	}
+	return mediaDirectionStats{
+		receivedFrames: p.received.Load(),
+		sentFrames:     p.sent.Load(),
 	}
 }
 

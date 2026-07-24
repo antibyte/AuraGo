@@ -4,6 +4,8 @@
   "desktop.sip_phone_add_favorite": "Adicionar aos favoritos",
   "desktop.sip_phone_answer": "Atender",
   "desktop.sip_phone_app_name": "Telefone",
+  "desktop.sip_phone_audio_blocked": "O navegador bloqueou o áudio da chamada.",
+  "desktop.sip_phone_enable_audio": "Ativar som",
   "desktop.sip_phone_browser_media_disabled_detail": "Ative a mídia do navegador para o telefone da área de trabalho virtual.",
   "desktop.sip_phone_browser_media_restart_required_detail": "Reinicie o AuraGo para aplicar as definições de multimédia do navegador guardadas.",
   "desktop.sip_phone_call": "Ligar",
