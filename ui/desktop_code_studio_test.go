@@ -44,6 +44,8 @@ func TestCodeStudioUsesPerWindowStateAndClosesTerminal(t *testing.T) {
 		"cleanup(false)",
 		"function normalizeCodeStudioPath(rawPath)",
 		"codeStudioParentPath(launchPath)",
+		"const launchEntry = state.files.find(entry => entry.path === launchPath)",
+		"launchEntry.type === 'directory'",
 		"path = normalizeCodeStudioPath(path)",
 		"if (path === WORKSPACE_ROOT)",
 	} {

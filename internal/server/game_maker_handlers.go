@@ -395,12 +395,16 @@ func handleGameMakerPreview(s *Server) http.HandlerFunc {
 	}
 }
 
+// Same-origin connects let Phaser fetch token-scoped preview assets. The iframe's
+// opaque sandbox origin still withholds AuraGo cookies and API response access.
+const gameMakerPreviewCSP = "default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; font-src 'self'; connect-src 'self'; worker-src 'self' blob:; frame-ancestors 'self'; object-src 'none'; base-uri 'none'; form-action 'none'"
+
 func setGameMakerPreviewHeaders(w http.ResponseWriter) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Cross-Origin-Resource-Policy", "cross-origin")
 	w.Header().Set("Referrer-Policy", "no-referrer")
-	w.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; font-src 'self'; connect-src 'none'; worker-src 'self' blob:; frame-ancestors 'self'; object-src 'none'; base-uri 'none'; form-action 'none'")
+	w.Header().Set("Content-Security-Policy", gameMakerPreviewCSP)
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 }
 

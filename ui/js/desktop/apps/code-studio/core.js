@@ -355,6 +355,11 @@
             if (!isLiveInstance(instance)) return;
             if (hasLaunchPath) {
                 await runAsyncStep(instance, async () => {
+                    const launchEntry = state.files.find(entry => entry.path === launchPath);
+                    if (launchEntry && launchEntry.type === 'directory') {
+                        await refreshFiles(launchPath);
+                        return;
+                    }
                     try {
                         await openFile(launchPath);
                     } catch (err) {

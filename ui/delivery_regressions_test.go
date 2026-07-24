@@ -81,6 +81,23 @@ func TestSharedLifecycleOrdersDisposerBeforeSSEAndPreservesBFCache(t *testing.T)
 	}
 }
 
+func TestPWARegistrationRetriesOneTransientScriptFetchFailure(t *testing.T) {
+	t.Parallel()
+
+	shared := normalizeAssetText(mustReadUIFile(t, "js/shared/shared-core.js"))
+	for _, marker := range []string{
+		"const swURL = serviceWorkerURL()",
+		"navigator.serviceWorker.register(swURL)",
+		"setTimeout(resolve, 1500)",
+		"registered after retry",
+		"initial error:",
+	} {
+		if !strings.Contains(shared, marker) {
+			t.Fatalf("PWA registration retry is missing %q", marker)
+		}
+	}
+}
+
 func TestBundleBuilderCheckModeIsReadOnlyAndBundlesShipRuntimeSources(t *testing.T) {
 	t.Parallel()
 

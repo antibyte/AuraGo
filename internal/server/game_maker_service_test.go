@@ -92,6 +92,15 @@ func TestGameMakerPreviewIsTokenScopedAndIframeCompatible(t *testing.T) {
 	if got := rec.Header().Get("X-Frame-Options"); got != "" {
 		t.Fatalf("Game Maker preview X-Frame-Options = %q, want empty", got)
 	}
+	connectSrc := cspDirective(gameMakerPreviewCSP, "connect-src")
+	if connectSrc != "connect-src 'self'" {
+		t.Fatalf("Game Maker preview connect-src = %q, want local preview assets only", connectSrc)
+	}
+	for _, forbidden := range []string{"http:", "https:", "ws:", "wss:", "*"} {
+		if strings.Contains(connectSrc, forbidden) {
+			t.Fatalf("Game Maker preview connect-src permits external source %q: %s", forbidden, connectSrc)
+		}
+	}
 
 	root := t.TempDir()
 	service, err := gamemaker.NewService(gamemaker.Options{
