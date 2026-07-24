@@ -106,6 +106,10 @@ func (m *Manager) Start(parent context.Context) error {
 	}
 	cfg := m.cfg
 	m.mu.Unlock()
+	ApplyProviderNetworkDefaults(parent, &cfg, "")
+	m.mu.Lock()
+	m.cfg = cfg
+	m.mu.Unlock()
 	if err := config.ValidateSIPRuntimeConfig(cfg); err != nil {
 		return err
 	}
@@ -117,8 +121,8 @@ func (m *Manager) Start(parent context.Context) error {
 	if err != nil {
 		return err
 	}
-	hostname := cfg.AdvertisedSignalingHost
-	if hostname == "" {
+	hostname := strings.TrimSpace(cfg.AdvertisedSignalingHost)
+	if hostname == "" && net.ParseIP(cfg.BindHost) != nil && !net.ParseIP(cfg.BindHost).IsUnspecified() {
 		hostname = cfg.BindHost
 	}
 	protocolLogger := slog.New(slog.NewTextHandler(io.Discard, nil))
@@ -126,14 +130,17 @@ func (m *Manager) Start(parent context.Context) error {
 	if cfg.PreferSRV {
 		transportOptions = append(transportOptions, sip.WithTransportLayerDNSLookupSRV(true))
 	}
-	ua, err := sipgo.NewUA(
+	uaOptions := []sipgo.UserAgentOption{
 		// Diago also uses the UA name as the Contact URI user. The configured
 		// account name is therefore required here for PBX registration routing.
 		sipgo.WithUserAgent(cfg.Username),
-		sipgo.WithUserAgentHostname(hostname),
 		sipgo.WithUserAgentTransactionLayerOptions(sip.WithTransactionLayerLogger(protocolLogger)),
 		sipgo.WithUserAgentTransportLayerOptions(transportOptions...),
-	)
+	}
+	if hostname != "" {
+		uaOptions = append(uaOptions, sipgo.WithUserAgentHostname(hostname))
+	}
+	ua, err := sipgo.NewUA(uaOptions...)
 	if err != nil {
 		return fmt.Errorf("create SIP user agent: %w", err)
 	}

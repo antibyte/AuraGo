@@ -147,6 +147,7 @@ func handleSIPSetup(s *Server) http.HandlerFunc {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+		sipphone.ApplyProviderNetworkDefaults(r.Context(), &next, r.RemoteAddr)
 		next.Password = old.Password
 		mutations := make([]vaultMutation, 0, 1)
 		password := incoming.Password

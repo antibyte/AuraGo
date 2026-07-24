@@ -1,7 +1,9 @@
 package sipphone
 
 import (
+	"context"
 	"encoding/json"
+	"net"
 	"strings"
 	"testing"
 
@@ -153,4 +155,39 @@ func TestApplySIPProviderPresetRejectsUnknownOrInjectedValues(t *testing.T) {
 			t.Fatalf("expected %q to be rejected", test.id)
 		}
 	}
+}
+
+func TestSelectLocalSIPHostUsesRegistrarSubnetAndTailscaleRange(t *testing.T) {
+	locals := []sipLocalAddress{
+		{ip: net.ParseIP("172.18.0.1"), network: mustSIPNetwork(t, "172.18.0.1/16")},
+		{ip: net.ParseIP("192.168.6.238"), network: mustSIPNetwork(t, "192.168.6.238/24")},
+		{ip: net.ParseIP("100.100.60.102"), network: mustSIPNetwork(t, "100.100.60.102/32")},
+	}
+	if got := selectLocalSIPHost([]net.IP{net.ParseIP("192.168.6.1")}, locals); got != "192.168.6.238" {
+		t.Fatalf("LAN advertised host = %q", got)
+	}
+	if got := selectLocalSIPHost([]net.IP{net.ParseIP("100.112.131.52")}, locals); got != "100.100.60.102" {
+		t.Fatalf("Tailscale advertised host = %q", got)
+	}
+	if got := selectLocalSIPHost([]net.IP{net.ParseIP("203.0.113.10")}, locals); got != "" {
+		t.Fatalf("public peer unexpectedly selected advertised host %q", got)
+	}
+
+	cfg := config.SIPConfig{Registrar: "192.168.6.1"}
+	applyProviderNetworkDefaults(context.Background(), &cfg, "100.112.131.52:443", locals)
+	if cfg.AdvertisedSignalingHost != "192.168.6.238" || cfg.Media.AdvertisedHost != "192.168.6.238" {
+		t.Fatalf("SIP advertised hosts were not populated: %+v", cfg)
+	}
+	if cfg.BrowserMedia.AdvertisedIP != "100.100.60.102" {
+		t.Fatalf("browser advertised IP = %q", cfg.BrowserMedia.AdvertisedIP)
+	}
+}
+
+func mustSIPNetwork(t *testing.T, value string) *net.IPNet {
+	t.Helper()
+	_, network, err := net.ParseCIDR(value)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return network
 }
