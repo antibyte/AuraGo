@@ -5,27 +5,40 @@
     // fullscreen, and opening the sandboxed preview in a new tab.
 
     function showLoading(state, shellEl, frame) {
+        clearLoading(state);
         const overlay = document.createElement('div');
         overlay.className = 'gm-preview-loading';
         overlay.innerHTML = `<span class="gm-job-spinner" aria-hidden="true"></span>
             <span>${state.context.esc(state.context.t('game_maker.preview_loading'))}</span>`;
         shellEl.appendChild(overlay);
+        let timer = null;
         const clear = () => {
             overlay.remove();
-            clearLoading(state);
+            if (timer) clearTimeout(timer);
+            if (state.previewLoadClear === clear) {
+                state.previewLoadTimer = null;
+                state.previewLoadClear = null;
+            }
         };
         frame.addEventListener('load', () => setTimeout(clear, 400), { once: true });
         state.previewLoadClear = clear;
-        state.previewLoadTimer = setTimeout(() => {
+        timer = setTimeout(() => {
+            const current = state.previewLoadClear === clear;
             clear();
-            state.addDiagnostic({ level: 'info', message: state.context.t('game_maker.preview_timeout') });
+            if (current) {
+                state.addDiagnostic({ level: 'info', message: state.context.t('game_maker.preview_timeout') });
+            }
         }, 15000);
+        state.previewLoadTimer = timer;
     }
 
     function clearLoading(state) {
+        if (state.previewLoadClear) {
+            state.previewLoadClear();
+            return;
+        }
         if (state.previewLoadTimer) clearTimeout(state.previewLoadTimer);
         state.previewLoadTimer = null;
-        state.previewLoadClear = null;
     }
 
     function updateStaleBadge(state) {

@@ -127,6 +127,87 @@ function testVersionedServiceWorkerRegistration() {
   assert.deepEqual(registrations, ['/sw.js?v=chat-build']);
 }
 
+function testGameMakerPreviewLoadingIgnoresStaleFrameSettlement() {
+  const source = read('ui/js/desktop/apps/game-maker-studio-preview.js');
+  const timers = new Map();
+  let nextTimerID = 0;
+  const overlays = [];
+  const document = {
+    fullscreenElement: null,
+    createElement() {
+      const overlay = {
+        className: '',
+        innerHTML: '',
+        removed: false,
+        remove() {
+          this.removed = true;
+        }
+      };
+      overlays.push(overlay);
+      return overlay;
+    }
+  };
+  const window = {};
+  const context = {
+    window,
+    document,
+    setTimeout(callback, delay) {
+      const id = ++nextTimerID;
+      timers.set(id, { callback, delay });
+      return id;
+    },
+    clearTimeout(id) {
+      timers.delete(id);
+    }
+  };
+  vm.runInNewContext(source, context);
+  const preview = window.GameMakerStudioPreview;
+  const state = {
+    context: {
+      esc: value => value,
+      t: key => key
+    },
+    previewLoadTimer: null,
+    previewLoadClear: null,
+    addDiagnostic() {}
+  };
+  const shell = {
+    appendChild() {}
+  };
+  const frameHandlers = [];
+  const newFrame = () => ({
+    addEventListener(type, callback) {
+      assert.equal(type, 'load');
+      frameHandlers.push(callback);
+    }
+  });
+
+  preview.showLoading(state, shell, newFrame());
+  preview.showLoading(state, shell, newFrame());
+  assert.equal(overlays[0].removed, true, 'a replacement preview must remove the previous loading overlay');
+  const activeClear = state.previewLoadClear;
+  const activeTimer = state.previewLoadTimer;
+
+  frameHandlers[0]();
+  const staleSettlement = [...timers.entries()].find(([, timer]) => timer.delay === 400);
+  assert.ok(staleSettlement, 'the stale frame load should schedule its delayed settlement');
+  timers.delete(staleSettlement[0]);
+  staleSettlement[1].callback();
+
+  assert.equal(overlays[1].removed, false, 'a stale frame must not clear the current loading overlay');
+  assert.equal(state.previewLoadClear, activeClear, 'a stale frame must not clear the current cleanup callback');
+  assert.equal(state.previewLoadTimer, activeTimer, 'a stale frame must not clear the current timeout');
+  assert.equal(timers.has(activeTimer), true, 'the current timeout must remain armed');
+
+  frameHandlers[1]();
+  const currentSettlement = [...timers.entries()].find(([, timer]) => timer.delay === 400);
+  assert.ok(currentSettlement, 'the current frame load should schedule its delayed settlement');
+  currentSettlement[1].callback();
+  assert.equal(overlays[1].removed, true);
+  assert.equal(state.previewLoadClear, null);
+  assert.equal(state.previewLoadTimer, null);
+}
+
 async function testServiceWorkerPreservesMediaRangeResponses() {
   const handlers = {};
   let cacheOpened = false;
@@ -1245,6 +1326,7 @@ function testNetworkCamerasDesktopContracts() {
 const tests = [
   ['browser audio lease uses an exclusive Web Lock', testBrowserAudioLeaseUsesExclusiveWebLock],
   ['versioned service-worker registration', testVersionedServiceWorkerRegistration],
+  ['Game Maker preview loading ignores stale frame settlement', testGameMakerPreviewLoadingIgnoresStaleFrameSettlement],
   ['service worker preserves media range responses', testServiceWorkerPreservesMediaRangeResponses],
   ['real skill snapshot differences', testSkillSnapshotDifferences],
   ['Python skill card ordering matches snapshots', testSkillCardOrderingMatchesSnapshots],
