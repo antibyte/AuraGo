@@ -79,5 +79,8 @@
   "desktop.sip_phone_target_placeholder": "Αριθμός ή όνομα SIP",
   "desktop.sip_phone_unavailable": "Οι κλήσεις δεν είναι διαθέσιμες",
   "desktop.sip_phone_unknown_party": "Άγνωστος καλών",
-  "desktop.sip_phone_unmute": "Κατάργηση σίγασης"
+  "desktop.sip_phone_unmute": "Κατάργηση σίγασης",
+  "desktop.sip_phone_tab_recents": "Πρόσφατα",
+  "desktop.sip_phone_backspace": "Διαγραφή",
+  "desktop.sip_phone_carrier": "AuraGo"
 }

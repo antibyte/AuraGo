@@ -79,5 +79,8 @@
   "desktop.sip_phone_target_placeholder": "SIP number or name",
   "desktop.sip_phone_unavailable": "Calling is unavailable",
   "desktop.sip_phone_unknown_party": "Unknown caller",
-  "desktop.sip_phone_unmute": "Unmute"
+  "desktop.sip_phone_unmute": "Unmute",
+  "desktop.sip_phone_tab_recents": "Recents",
+  "desktop.sip_phone_backspace": "Delete",
+  "desktop.sip_phone_carrier": "AuraGo"
 }

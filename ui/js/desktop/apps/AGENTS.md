@@ -68,6 +68,12 @@ This subtree owns built-in virtual desktop app modules that are loaded lazily by
   indicator plus a phase stepper), result cards for ready/failed jobs,
   revision history, change requests, and a live game preview in one maximized
   desktop window.
+- `sip-phone.js` implements the Phone app, an iPhone-inspired SIP softphone
+  rendered as a realistic device (titanium frame, side buttons, Dynamic
+  Island, live status-bar clock, signal/battery indicators) on an ambient
+  stage. The screen hosts four tab views (Favorites, Recents, Keypad,
+  Settings) above a glass tab bar, plus a full-screen active-call takeover
+  with contact-hue avatars and incoming-call answer/decline actions.
 
 ## Ownership
 
@@ -198,6 +204,16 @@ registration lives in `internal/desktop/types.go`.
   `ui/lang/desktop/*.json` files (section registered as `'system-world':
   ['sysworld']` in `APP_I18N_SECTIONS`); the dock/start name uses
   `desktop.app_system_world`.
+- SIP Phone exposes `window.SipPhoneApp = { render, dispose }`; every window
+  instance owns its runtime subscription, 1-second clock/duration timer, tab
+  state (`keypad`/`favorites`/`recents`/`settings`), and long-press `0`→`+`
+  handling. All call media flows through `window.SipPhoneRuntime`; the app
+  must keep the `data-sip-phone*` hooks, observer-disabled controls, and the
+  always-enabled hangup control asserted in `ui/desktop_sip_phone_test.go`,
+  and must not introduce voicemail/mailbox UI.
+- SIP Phone visible UI strings use `desktop.sip_phone_*` keys in all 16
+  `ui/lang/sip_phone/*.json` files (identical key sets); the dock/start name
+  uses `desktop.app_sip_phone` in `ui/lang/desktop/*.json`.
 - System World performance contracts: glow textures are cached in Maps, comet/
   burst/ring effects come from capped recycled pools, no `new THREE.*`
   allocations inside per-frame update paths, and every module's `dispose()`
@@ -465,3 +481,9 @@ registration lives in `internal/desktop/types.go`.
   (search, cards, template/download/delete actions, seek/volume, prev/next).
   Exposes `window.NoisemakerLibrary { create }`; loads before `noisemaker.js`.
   No child DOX file needed.
+- `sip-phone.js` - iPhone-inspired SIP softphone: device chassis with Dynamic
+  Island and status bar, four tab views (Favorites, Recents, Keypad,
+  Settings) with glass tab bar, active-call takeover with answer/decline for
+  inbound ringing calls, contact-hue avatars, and frameless small-window
+  fallback. Styling lives in `ui/css/desktop-app-sip-phone.css`. Exposes
+  `window.SipPhoneApp`. No child DOX file needed.

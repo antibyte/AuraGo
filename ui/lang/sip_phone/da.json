@@ -79,5 +79,8 @@
   "desktop.sip_phone_target_placeholder": "SIP-nummer eller navn",
   "desktop.sip_phone_unavailable": "Opkald er ikke tilgængeligt",
   "desktop.sip_phone_unknown_party": "Ukendt opkalder",
-  "desktop.sip_phone_unmute": "Slå lyd til"
+  "desktop.sip_phone_unmute": "Slå lyd til",
+  "desktop.sip_phone_tab_recents": "Seneste",
+  "desktop.sip_phone_backspace": "Slet",
+  "desktop.sip_phone_carrier": "AuraGo"
 }

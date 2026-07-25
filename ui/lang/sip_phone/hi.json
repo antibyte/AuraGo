@@ -79,5 +79,8 @@
   "desktop.sip_phone_target_placeholder": "SIP नंबर या नाम",
   "desktop.sip_phone_unavailable": "कॉल उपलब्ध नहीं है",
   "desktop.sip_phone_unknown_party": "अज्ञात कॉलर",
-  "desktop.sip_phone_unmute": "म्यूट हटाएँ"
+  "desktop.sip_phone_unmute": "म्यूट हटाएँ",
+  "desktop.sip_phone_tab_recents": "हालिया",
+  "desktop.sip_phone_backspace": "हटाएँ",
+  "desktop.sip_phone_carrier": "AuraGo"
 }

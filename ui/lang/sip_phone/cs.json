@@ -79,5 +79,8 @@
   "desktop.sip_phone_target_placeholder": "Číslo nebo jméno SIP",
   "desktop.sip_phone_unavailable": "Volání není dostupné",
   "desktop.sip_phone_unknown_party": "Neznámý volající",
-  "desktop.sip_phone_unmute": "Zapnout zvuk"
+  "desktop.sip_phone_unmute": "Zapnout zvuk",
+  "desktop.sip_phone_tab_recents": "Nedávné",
+  "desktop.sip_phone_backspace": "Smazat",
+  "desktop.sip_phone_carrier": "AuraGo"
 }

@@ -79,5 +79,8 @@
   "desktop.sip_phone_target_placeholder": "Número ou nome SIP",
   "desktop.sip_phone_unavailable": "Chamadas indisponíveis",
   "desktop.sip_phone_unknown_party": "Chamador desconhecido",
-  "desktop.sip_phone_unmute": "Ativar som"
+  "desktop.sip_phone_unmute": "Ativar som",
+  "desktop.sip_phone_tab_recents": "Recentes",
+  "desktop.sip_phone_backspace": "Apagar",
+  "desktop.sip_phone_carrier": "AuraGo"
 }

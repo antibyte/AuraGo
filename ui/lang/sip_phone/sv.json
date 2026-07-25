@@ -79,5 +79,8 @@
   "desktop.sip_phone_target_placeholder": "SIP-nummer eller namn",
   "desktop.sip_phone_unavailable": "Samtal är inte tillgängliga",
   "desktop.sip_phone_unknown_party": "Okänd uppringare",
-  "desktop.sip_phone_unmute": "Ljud på"
+  "desktop.sip_phone_unmute": "Ljud på",
+  "desktop.sip_phone_tab_recents": "Senaste",
+  "desktop.sip_phone_backspace": "Radera",
+  "desktop.sip_phone_carrier": "AuraGo"
 }

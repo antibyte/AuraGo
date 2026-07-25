@@ -79,5 +79,8 @@
   "desktop.sip_phone_target_placeholder": "SIP-nummer of naam",
   "desktop.sip_phone_unavailable": "Bellen is niet beschikbaar",
   "desktop.sip_phone_unknown_party": "Onbekende beller",
-  "desktop.sip_phone_unmute": "Dempen opheffen"
+  "desktop.sip_phone_unmute": "Dempen opheffen",
+  "desktop.sip_phone_tab_recents": "Recent",
+  "desktop.sip_phone_backspace": "Wissen",
+  "desktop.sip_phone_carrier": "AuraGo"
 }

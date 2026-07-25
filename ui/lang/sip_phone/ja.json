@@ -79,5 +79,8 @@
   "desktop.sip_phone_target_placeholder": "SIP 番号または名前",
   "desktop.sip_phone_unavailable": "通話は利用できません",
   "desktop.sip_phone_unknown_party": "不明な発信者",
-  "desktop.sip_phone_unmute": "ミュート解除"
+  "desktop.sip_phone_unmute": "ミュート解除",
+  "desktop.sip_phone_tab_recents": "履歴",
+  "desktop.sip_phone_backspace": "削除",
+  "desktop.sip_phone_carrier": "AuraGo"
 }
