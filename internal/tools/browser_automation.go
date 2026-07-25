@@ -739,23 +739,15 @@ func EnsureBrowserAutomationSidecarRunning(dockerHost string, sidecarCfg Browser
 		env = append(env, "CLOAK_FINGERPRINT_SEED="+sidecarCfg.CloakFingerprintSeed)
 	}
 
+	hostConfig := browserAutomationManagedHostConfig(sidecarCfg)
 	payload := map[string]interface{}{
-		"Image": image,
-		"Env":   env,
-		"HostConfig": map[string]interface{}{
-			"RestartPolicy": map[string]interface{}{"Name": "unless-stopped"},
-			"Memory":        int64(1024 * 1024 * 1024),
-			"NanoCpus":      int64(1_000_000_000),
-			"Binds": []string{
-				dockerutil.FormatBindMount(sidecarCfg.WorkspaceDir, browserAutomationWorkspaceDir),
-				dockerutil.FormatBindMount(sidecarCfg.DownloadDir, browserAutomationDownloadsDir),
-			},
-		},
+		"Image":      image,
+		"Env":        env,
+		"HostConfig": hostConfig,
 		"ExposedPorts": map[string]interface{}{
 			fmt.Sprintf("%d/tcp", browserAutomationContainerPort): struct{}{},
 		},
 	}
-	hostConfig, _ := payload["HostConfig"].(map[string]interface{})
 	if browserAutomationIsLoopbackHost(managedHost) {
 		hostConfig["PortBindings"] = map[string]interface{}{
 			fmt.Sprintf("%d/tcp", browserAutomationContainerPort): []map[string]string{{"HostIp": "127.0.0.1", "HostPort": fmt.Sprintf("%d", browserAutomationContainerPort)}},
@@ -787,6 +779,18 @@ func EnsureBrowserAutomationSidecarRunning(dockerHost string, sidecarCfg Browser
 		return
 	}
 	logger.Info("[BrowserAutomation] Sidecar container created and started", "image", image, "container", containerName)
+}
+
+func browserAutomationManagedHostConfig(sidecarCfg BrowserAutomationSidecarConfig) map[string]interface{} {
+	return hardenManagedSidecarHostConfig(map[string]interface{}{
+		"RestartPolicy": map[string]interface{}{"Name": "unless-stopped"},
+		"Memory":        int64(1024 * 1024 * 1024),
+		"NanoCpus":      int64(1_000_000_000),
+		"Binds": []string{
+			dockerutil.FormatBindMount(sidecarCfg.WorkspaceDir, browserAutomationWorkspaceDir),
+			dockerutil.FormatBindMount(sidecarCfg.DownloadDir, browserAutomationDownloadsDir),
+		},
+	})
 }
 
 // StopBrowserAutomationSidecar stops and removes the managed sidecar container.

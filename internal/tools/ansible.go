@@ -349,15 +349,7 @@ func EnsureAnsibleSidecarRunning(dockerHost string, sidecarCfg AnsibleSidecarCon
 	}
 
 	// Create and start the container
-	hostConfig := map[string]interface{}{
-		"RestartPolicy": map[string]interface{}{"Name": "unless-stopped"},
-		"PortBindings": map[string]interface{}{
-			"5001/tcp": []map[string]string{{"HostIp": "127.0.0.1", "HostPort": "5001"}},
-		},
-	}
-	if len(binds) > 0 {
-		hostConfig["Binds"] = binds
-	}
+	hostConfig := ansibleManagedHostConfig(binds)
 
 	payload := map[string]interface{}{
 		"Image": image,
@@ -380,6 +372,19 @@ func EnsureAnsibleSidecarRunning(dockerHost string, sidecarCfg AnsibleSidecarCon
 		return
 	}
 	logger.Info("[Ansible] Sidecar container created and started", "image", image, "container", containerName)
+}
+
+func ansibleManagedHostConfig(binds []string) map[string]interface{} {
+	hostConfig := hardenManagedSidecarHostConfig(map[string]interface{}{
+		"RestartPolicy": map[string]interface{}{"Name": "unless-stopped"},
+		"PortBindings": map[string]interface{}{
+			"5001/tcp": []map[string]string{{"HostIp": "127.0.0.1", "HostPort": "5001"}},
+		},
+	})
+	if len(binds) > 0 {
+		hostConfig["Binds"] = append([]string(nil), binds...)
+	}
+	return hostConfig
 }
 
 // buildAnsibleImage runs `docker build -f Dockerfile.ansible -t <image> <dir>` to build

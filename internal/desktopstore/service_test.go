@@ -322,26 +322,17 @@ func TestCommandCodeInstallBuildsBundledImageWhenPullFails(t *testing.T) {
 	}
 }
 
-func TestCommandCodeDockerfilesInstallJustOutsideBookwormApt(t *testing.T) {
+func TestCommandCodeDockerfileInstallsJustOutsideBookwormApt(t *testing.T) {
 	embeddedDockerfile, _, err := commandCodeBuildContext()
 	if err != nil {
 		t.Fatalf("load embedded CommandCode Dockerfile: %v", err)
 	}
-	deployDockerfile, err := os.ReadFile(filepath.Join("..", "..", "deploy", "docker", "Dockerfile.commandcode"))
-	if err != nil {
-		t.Fatalf("load deploy CommandCode Dockerfile: %v", err)
+	text := string(embeddedDockerfile)
+	if strings.Contains(text, "\n        just \\") {
+		t.Fatal("CommandCode Dockerfile installs just through Bookworm apt; install it after rustup instead")
 	}
-	for name, dockerfile := range map[string][]byte{
-		"embedded": embeddedDockerfile,
-		"deploy":   deployDockerfile,
-	} {
-		text := string(dockerfile)
-		if strings.Contains(text, "\n        just \\") {
-			t.Fatalf("%s Dockerfile installs just through Bookworm apt; install it after rustup instead", name)
-		}
-		if !strings.Contains(text, "cargo install just --locked") {
-			t.Fatalf("%s Dockerfile must install just through Cargo", name)
-		}
+	if !strings.Contains(text, "cargo install just --locked") {
+		t.Fatal("CommandCode Dockerfile must install just through Cargo")
 	}
 }
 
@@ -356,39 +347,30 @@ func TestCommandCodePreviewGatewayAutoDiscoversAndRefreshesTargets(t *testing.T)
 	if !ok {
 		t.Fatalf("embedded CommandCode build context missing commandcode-preview.js")
 	}
-	deployPreview, err := os.ReadFile(filepath.Join("..", "..", "deploy", "docker", "commandcode-preview.js"))
-	if err != nil {
-		t.Fatalf("load deploy CommandCode preview gateway: %v", err)
-	}
-	for name, source := range map[string][]byte{
-		"embedded": embeddedPreview,
-		"deploy":   deployPreview,
+	text := string(embeddedPreview)
+	for _, marker := range []string{
+		"const candidatePorts",
+		"const previewStatusPath",
+		"const previewReloadStorageKey",
+		"async function resolveTarget(forceDiscover)",
+		"async function resolveTargetStatus(forceDiscover)",
+		"function probeTarget(target)",
+		"fs.writeFileSync(targetFile, target.href)",
+		"function shouldReloadPreview(status)",
+		"function markPreviewNotReady()",
+		"async function pollPreviewStatus()",
+		"fetch('/__commandcode_preview_status'",
+		"if (status && status.ready && shouldReloadPreview(status)) {",
 	} {
-		text := string(source)
-		for _, marker := range []string{
-			"const candidatePorts",
-			"const previewStatusPath",
-			"const previewReloadStorageKey",
-			"async function resolveTarget(forceDiscover)",
-			"async function resolveTargetStatus(forceDiscover)",
-			"function probeTarget(target)",
-			"fs.writeFileSync(targetFile, target.href)",
-			"function shouldReloadPreview(status)",
-			"function markPreviewNotReady()",
-			"async function pollPreviewStatus()",
-			"fetch('/__commandcode_preview_status'",
-			"if (status && status.ready && shouldReloadPreview(status)) {",
-		} {
-			if !strings.Contains(text, marker) {
-				t.Fatalf("%s CommandCode preview gateway missing auto-discovery marker %q", name, marker)
-			}
+		if !strings.Contains(text, marker) {
+			t.Fatalf("CommandCode preview gateway missing auto-discovery marker %q", marker)
 		}
-		if strings.Contains(text, "if (status && status.ready) window.location.reload();") {
-			t.Fatalf("%s CommandCode preview placeholder must not reload continuously without a target guard", name)
-		}
-		if strings.Contains(text, "setTimeout(() => window.location.reload(), 1500)") {
-			t.Fatalf("%s CommandCode preview placeholder must not reload on a fixed timer when no page is available", name)
-		}
+	}
+	if strings.Contains(text, "if (status && status.ready) window.location.reload();") {
+		t.Fatal("CommandCode preview placeholder must not reload continuously without a target guard")
+	}
+	if strings.Contains(text, "setTimeout(() => window.location.reload(), 1500)") {
+		t.Fatal("CommandCode preview placeholder must not reload on a fixed timer when no page is available")
 	}
 }
 

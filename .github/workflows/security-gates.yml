@@ -83,3 +83,94 @@ jobs:
 
       - name: Run govulncheck
         run: govulncheck ./...
+
+  docker-images:
+    name: Docker image contract (${{ matrix.id }})
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - id: aurago
+            context: .
+            dockerfile: Dockerfile
+          - id: code-studio
+            context: .
+            dockerfile: deploy/docker/Dockerfile.code-studio
+          - id: commandcode
+            context: internal/desktopstore/commandcode_assets
+            dockerfile: internal/desktopstore/commandcode_assets/Dockerfile
+          - id: supertonic
+            context: .
+            dockerfile: deploy/docker/Dockerfile.supertonic
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js for the AuraGo image
+        if: matrix.id == 'aurago'
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          package-manager-cache: false
+
+      - name: Build CodeMirror bundle for the AuraGo image
+        if: matrix.id == 'aurago'
+        run: |
+          npm ci --no-audit --no-fund
+          node scripts/build-codemirror.js
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build image without publishing
+        run: >-
+          docker buildx build
+          --platform linux/amd64
+          --load
+          --tag "aurago-ci-${{ matrix.id }}:test"
+          --file "${{ matrix.dockerfile }}"
+          "${{ matrix.context }}"
+
+      - name: Verify Code Studio Go toolchain
+        if: matrix.id == 'code-studio'
+        run: docker run --rm --entrypoint go "aurago-ci-${{ matrix.id }}:test" version | grep -F "go1.26.5"
+
+      - name: Verify Supertonic non-root cache
+        if: matrix.id == 'supertonic'
+        shell: bash
+        run: |
+          set -euo pipefail
+          cache_dir="$(mktemp -d)"
+          trap 'rm -rf "$cache_dir"' EXIT
+          docker run --rm \
+            --user "$(id -u):$(id -g)" \
+            --env HOME=/home/supertonic \
+            --mount "type=bind,src=$cache_dir,dst=/home/supertonic/.cache" \
+            --entrypoint sh \
+            "aurago-ci-${{ matrix.id }}:test" \
+            -c 'test "$(id -u)" -ne 0 &&
+                test "$HOME" = "/home/supertonic" &&
+                touch "$HOME/.cache/.aurago-write-test"'
+
+      - name: Verify Supertonic health endpoint
+        if: matrix.id == 'supertonic'
+        shell: bash
+        run: |
+          set -euo pipefail
+          container_name="aurago-ci-supertonic-health"
+          trap 'docker rm -f "$container_name" >/dev/null 2>&1 || true' EXIT
+          docker run -d --name "$container_name" -p 127.0.0.1:17788:7788 "aurago-ci-${{ matrix.id }}:test"
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent --show-error http://127.0.0.1:17788/v1/health |
+              tee /tmp/aurago-supertonic-health.json |
+              grep --fixed-strings '"status":"ok"'; then
+              exit 0
+            fi
+            sleep 5
+          done
+          docker logs "$container_name"
+          exit 1

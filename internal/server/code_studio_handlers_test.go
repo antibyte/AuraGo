@@ -199,10 +199,13 @@ func TestCodeStudioDockerfileIncludesRunButtonRuntimes(t *testing.T) {
 		t.Fatalf("read code studio Dockerfile: %v", err)
 	}
 	dockerfile := string(content)
-	for _, tool := range []string{"python3", "python3-venv", "python3-pip", "golang-go"} {
+	for _, tool := range []string{"python3", "python3-venv", "python3-pip", "ARG GO_VERSION=1.26.5", "https://go.dev/dl/go${GO_VERSION}.linux-${go_arch}.tar.gz", "ENV PATH=/usr/local/go/bin:$PATH"} {
 		if !strings.Contains(dockerfile, tool) {
 			t.Fatalf("Dockerfile must install %s so Code Studio run buttons work", tool)
 		}
+	}
+	if strings.Contains(dockerfile, "\n        golang-go \\") {
+		t.Fatal("Dockerfile must not use Bookworm's outdated golang-go package")
 	}
 }
 

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/dockerutil"
 )
 
 const (
@@ -20,6 +21,8 @@ const (
 	defaultSupertonicImage         = "ghcr.io/antibyte/aurago-supertonic:latest"
 	defaultSupertonicPort          = 7788
 	defaultSupertonicModel         = "supertonic-3"
+	defaultSupertonicHome          = "/home/supertonic"
+	defaultSupertonicCacheDir      = defaultSupertonicHome + "/.cache"
 )
 
 var supertonicHTTPClient = &http.Client{Timeout: 10 * time.Second}
@@ -82,6 +85,50 @@ func EnsureSupertonicRunning(cfg *config.Config, logger *slog.Logger) {
 		return
 	}
 
+	data, code, inspectErr := dockerRequest(dockerCfg, "GET", "/containers/"+url.PathEscape(containerName)+"/json", "")
+	if inspectErr != nil {
+		logSupertonic(logger, slog.LevelWarn, "Docker unavailable, skipping auto-start", "error", inspectErr)
+		return
+	}
+
+	if code == http.StatusOK {
+		var info map[string]interface{}
+		if err := json.Unmarshal(data, &info); err != nil {
+			logSupertonic(logger, slog.LevelWarn, "Failed to inspect existing container configuration", "error", err)
+			return
+		}
+		if supertonicContainerNeedsRecreate(info) {
+			logSupertonic(logger, slog.LevelInfo, "Recreating legacy container with non-root security settings")
+			_, _, _ = dockerRequest(dockerCfg, "POST", "/containers/"+url.PathEscape(containerName)+"/stop?t=10", "")
+			_, removeCode, removeErr := dockerRequest(dockerCfg, "DELETE", "/containers/"+url.PathEscape(containerName)+"?force=true", "")
+			if removeErr != nil || (removeCode != http.StatusNoContent && removeCode != http.StatusNotFound) {
+				logSupertonic(logger, slog.LevelError, "Failed to replace legacy container", "code", removeCode, "error", removeErr)
+				return
+			}
+			code = http.StatusNotFound
+		} else {
+			if state, ok := info["State"].(map[string]interface{}); ok {
+				if running, _ := state["Running"].(bool); running {
+					logSupertonic(logger, slog.LevelInfo, "Container already running")
+					waitForSupertonicReady(supertonicBaseURL(st.URL, port), logger)
+					return
+				}
+			}
+			_, startCode, startErr := dockerRequest(dockerCfg, "POST", "/containers/"+url.PathEscape(containerName)+"/start", "")
+			if startErr != nil || (startCode != http.StatusNoContent && startCode != http.StatusNotModified) {
+				logSupertonic(logger, slog.LevelError, "Failed to start existing container", "code", startCode, "error", startErr)
+				return
+			}
+			logSupertonic(logger, slog.LevelInfo, "Container started")
+			waitForSupertonicReady(supertonicBaseURL(st.URL, port), logger)
+			return
+		}
+	}
+	if code != http.StatusNotFound {
+		logSupertonic(logger, slog.LevelWarn, "Unexpected Docker inspect response, skipping auto-start", "code", code)
+		return
+	}
+
 	listData, listCode, listErr := dockerRequest(dockerCfg, "GET",
 		fmt.Sprintf(`/containers/json?filters={"status":["running"],"ancestor":[%q]}`, image), "")
 	if listErr == nil && listCode == http.StatusOK {
@@ -93,37 +140,6 @@ func EnsureSupertonicRunning(cfg *config.Config, logger *slog.Logger) {
 		}
 	}
 
-	data, code, inspectErr := dockerRequest(dockerCfg, "GET", "/containers/"+url.PathEscape(containerName)+"/json", "")
-	if inspectErr != nil {
-		logSupertonic(logger, slog.LevelWarn, "Docker unavailable, skipping auto-start", "error", inspectErr)
-		return
-	}
-
-	if code == http.StatusOK {
-		var info map[string]interface{}
-		if json.Unmarshal(data, &info) == nil {
-			if state, ok := info["State"].(map[string]interface{}); ok {
-				if running, _ := state["Running"].(bool); running {
-					logSupertonic(logger, slog.LevelInfo, "Container already running")
-					waitForSupertonicReady(supertonicBaseURL(st.URL, port), logger)
-					return
-				}
-			}
-		}
-		_, startCode, startErr := dockerRequest(dockerCfg, "POST", "/containers/"+url.PathEscape(containerName)+"/start", "")
-		if startErr != nil || (startCode != http.StatusNoContent && startCode != http.StatusNotModified) {
-			logSupertonic(logger, slog.LevelError, "Failed to start existing container", "code", startCode, "error", startErr)
-			return
-		}
-		logSupertonic(logger, slog.LevelInfo, "Container started")
-		waitForSupertonicReady(supertonicBaseURL(st.URL, port), logger)
-		return
-	}
-	if code != http.StatusNotFound {
-		logSupertonic(logger, slog.LevelWarn, "Unexpected Docker inspect response, skipping auto-start", "code", code)
-		return
-	}
-
 	logSupertonic(logger, slog.LevelInfo, "Pulling image", "image", image)
 	_, pullCode, pullErr := dockerRequest(dockerCfg, "POST", "/images/create?fromImage="+url.QueryEscape(image), "")
 	if pullErr != nil {
@@ -132,20 +148,7 @@ func EnsureSupertonicRunning(cfg *config.Config, logger *slog.Logger) {
 		logSupertonic(logger, slog.LevelWarn, "Image pull returned unexpected status", "code", pullCode)
 	}
 
-	payload := map[string]interface{}{
-		"Image": image,
-		"Cmd":   []string{"supertonic", "serve", "--host", "0.0.0.0", "--port", fmt.Sprintf("%d", defaultSupertonicPort), "--model", model},
-		"HostConfig": map[string]interface{}{
-			"RestartPolicy": map[string]interface{}{"Name": "unless-stopped"},
-			"PortBindings": map[string]interface{}{
-				fmt.Sprintf("%d/tcp", defaultSupertonicPort): []map[string]string{{"HostIp": "127.0.0.1", "HostPort": portStr}},
-			},
-			"Binds": []string{absData + ":/root/.cache"},
-		},
-		"ExposedPorts": map[string]interface{}{
-			fmt.Sprintf("%d/tcp", defaultSupertonicPort): struct{}{},
-		},
-	}
+	payload := buildSupertonicCreatePayload(image, model, portStr, absData, managedContainerUserSpec())
 	body, _ := json.Marshal(payload)
 	_, createCode, createErr := dockerRequest(dockerCfg, "POST", "/containers/create?name="+url.QueryEscape(containerName), string(body))
 	if createErr != nil || createCode != http.StatusCreated {
@@ -160,6 +163,96 @@ func EnsureSupertonicRunning(cfg *config.Config, logger *slog.Logger) {
 	}
 	logSupertonic(logger, slog.LevelInfo, "Container created and started", "image", image, "port", port, "model", model)
 	waitForSupertonicReady(supertonicBaseURL(st.URL, port), logger)
+}
+
+func buildSupertonicCreatePayload(image, model, portStr, absData, user string) map[string]interface{} {
+	payload := map[string]interface{}{
+		"Image": image,
+		"Cmd":   []string{"supertonic", "serve", "--host", "0.0.0.0", "--port", fmt.Sprintf("%d", defaultSupertonicPort), "--model", model},
+		"Env":   []string{"HOME=" + defaultSupertonicHome},
+		"HostConfig": hardenManagedSidecarHostConfig(map[string]interface{}{
+			"RestartPolicy": map[string]interface{}{"Name": "unless-stopped"},
+			"PortBindings": map[string]interface{}{
+				fmt.Sprintf("%d/tcp", defaultSupertonicPort): []map[string]string{{"HostIp": "127.0.0.1", "HostPort": portStr}},
+			},
+			"Binds": []string{dockerutil.FormatBindMount(absData, defaultSupertonicCacheDir)},
+		}),
+		"ExposedPorts": map[string]interface{}{
+			fmt.Sprintf("%d/tcp", defaultSupertonicPort): struct{}{},
+		},
+	}
+	if strings.TrimSpace(user) != "" {
+		payload["User"] = strings.TrimSpace(user)
+	}
+	return payload
+}
+
+func supertonicContainerNeedsRecreate(info map[string]interface{}) bool {
+	containerConfig, ok := info["Config"].(map[string]interface{})
+	if !ok {
+		return true
+	}
+	user, _ := containerConfig["User"].(string)
+	user = strings.ToLower(strings.TrimSpace(user))
+	if user == "" || user == "0" || user == "root" || strings.HasPrefix(user, "0:") {
+		return true
+	}
+
+	hostConfig, ok := info["HostConfig"].(map[string]interface{})
+	if !ok {
+		return true
+	}
+	if !dockerInspectStringSliceContains(hostConfig["SecurityOpt"], "no-new-privileges:true") {
+		return true
+	}
+	if !dockerInspectStringSliceContainsFold(hostConfig["CapDrop"], "ALL") {
+		return true
+	}
+	return !dockerInspectStringSliceContainsSuffix(hostConfig["Binds"], ":"+defaultSupertonicCacheDir)
+}
+
+func dockerInspectStringSliceContains(raw interface{}, want string) bool {
+	for _, value := range dockerInspectStringSlice(raw) {
+		if value == want {
+			return true
+		}
+	}
+	return false
+}
+
+func dockerInspectStringSliceContainsFold(raw interface{}, want string) bool {
+	for _, value := range dockerInspectStringSlice(raw) {
+		if strings.EqualFold(value, want) {
+			return true
+		}
+	}
+	return false
+}
+
+func dockerInspectStringSliceContainsSuffix(raw interface{}, suffix string) bool {
+	for _, value := range dockerInspectStringSlice(raw) {
+		if strings.HasSuffix(value, suffix) || strings.Contains(value, suffix+":") {
+			return true
+		}
+	}
+	return false
+}
+
+func dockerInspectStringSlice(raw interface{}) []string {
+	switch values := raw.(type) {
+	case []string:
+		return values
+	case []interface{}:
+		result := make([]string, 0, len(values))
+		for _, value := range values {
+			if text, ok := value.(string); ok {
+				result = append(result, text)
+			}
+		}
+		return result
+	default:
+		return nil
+	}
 }
 
 // SupertonicHealth checks the local Supertonic HTTP server and returns UI-friendly status data.

@@ -133,14 +133,7 @@ fi
 
 if [ ! -f "$CONFIG_FILE" ]; then
     echo "[Entrypoint] No config.yaml found, creating initial configuration..."
-    
-    # Create backup of any existing config before overwriting (safety measure)
-    if [ -f "$CONFIG_FILE" ]; then
-        BACKUP_NAME="${CONFIG_FILE}.backup.$(date +%s)"
-        cp "$CONFIG_FILE" "$BACKUP_NAME" 2>/dev/null && \
-            echo "[Entrypoint] Backed up existing config to $BACKUP_NAME" || true
-    fi
-    
+
     if [ -n "$USER_CONFIG" ] && [ -f "$USER_CONFIG" ]; then
         echo "[Entrypoint] Using user-supplied config from $USER_CONFIG..."
         cp "$USER_CONFIG" "$CONFIG_FILE"
@@ -177,8 +170,13 @@ normalize_file "$CONFIG_FILE"
 
 if [ -f "$TEMPLATE_FILE" ] && [ -f "$MERGER_BIN" ]; then
     echo "[Entrypoint] Checking/merging configuration..."
-    MERGE_OUTPUT=$("$MERGER_BIN" -source "$CONFIG_FILE" -template "$TEMPLATE_FILE" 2>&1) || true
-    echo "$MERGE_OUTPUT"
+    if MERGE_OUTPUT=$("$MERGER_BIN" -source "$CONFIG_FILE" -template "$TEMPLATE_FILE" 2>&1); then
+        echo "$MERGE_OUTPUT"
+    else
+        MERGE_STATUS=$?
+        echo "$MERGE_OUTPUT"
+        echo "[Entrypoint] WARNING: config-merger failed with exit code $MERGE_STATUS; validating the existing config before startup."
+    fi
 else
     echo "[Entrypoint] Skipping config merge (template or merger not found)"
 fi

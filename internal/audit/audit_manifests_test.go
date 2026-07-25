@@ -846,6 +846,47 @@ func TestDockerPublishWorkflowPublishesCodeStudioImage(t *testing.T) {
 	}
 }
 
+func TestDockerPublishWorkflowUsesBundledCommandCodeContext(t *testing.T) {
+	t.Parallel()
+
+	workflow := readRepoFile(t, ".github/workflows/docker-publish.yml")
+	for _, want := range []string{
+		"COMMANDCODE_IMAGE_NAME",
+		"context: internal/desktopstore/commandcode_assets",
+		"file: internal/desktopstore/commandcode_assets/Dockerfile",
+		"aurago-commandcode",
+	} {
+		if !strings.Contains(workflow, want) {
+			t.Fatalf("docker-publish workflow must use the bundled CommandCode context; missing %q", want)
+		}
+	}
+	for _, obsolete := range []string{
+		"deploy/docker/Dockerfile.commandcode",
+		"deploy/docker/commandcode-entrypoint.sh",
+		"deploy/docker/commandcode-preview.js",
+		"deploy/docker/preview-port.sh",
+	} {
+		if strings.Contains(workflow, obsolete) {
+			t.Fatalf("docker-publish workflow still references obsolete duplicate %q", obsolete)
+		}
+	}
+}
+
+func TestDockerEntrypointReportsConfigMergeFailures(t *testing.T) {
+	t.Parallel()
+
+	entrypoint := readRepoFile(t, "docker-entrypoint.sh")
+	if strings.Contains(entrypoint, `if [ ! -f "$CONFIG_FILE" ]; then`+"\n"+`    echo "[Entrypoint] No config.yaml found, creating initial configuration..."`+"\n    \n"+`    # Create backup of any existing config before overwriting`) {
+		t.Fatal("docker-entrypoint.sh still contains the unreachable initial-config backup block")
+	}
+	if strings.Contains(entrypoint, `MERGE_OUTPUT=$("$MERGER_BIN" -source "$CONFIG_FILE" -template "$TEMPLATE_FILE" 2>&1) || true`) {
+		t.Fatal("docker-entrypoint.sh must not discard the config-merger exit status")
+	}
+	if !strings.Contains(entrypoint, "WARNING: config-merger failed with exit code") {
+		t.Fatal("docker-entrypoint.sh must report config-merger failures before validation")
+	}
+}
+
 func TestWindowsReleaseChecksumGenerationAvoidsGetFileHash(t *testing.T) {
 	t.Parallel()
 
