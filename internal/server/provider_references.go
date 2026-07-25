@@ -26,6 +26,8 @@ func providerReferences(cfg *config.Config, providerID string) []providerReferen
 	add("llm.helper_provider", "helper_llm", cfg.LLM.HelperProvider)
 	add("vision.provider", "vision", cfg.Vision.Provider)
 	add("whisper.provider", "speech_to_text", cfg.Whisper.Provider)
+	add("sip.voice.agent_provider_id", "telephone_agent_llm", cfg.SIP.Voice.AgentProviderID)
+	add("sip.voice.classic.asr_provider_id", "telephone_agent_asr", cfg.SIP.Voice.Classic.ASRProviderID)
 	add("embeddings.provider", "embeddings", cfg.Embeddings.Provider)
 	add("llm_guardian.provider", "llm_guardian", cfg.LLMGuardian.Provider)
 	add("mission_preparation.provider", "mission_preparation", cfg.MissionPreparation.Provider)

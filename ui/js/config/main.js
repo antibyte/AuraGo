@@ -50,6 +50,7 @@ const SECTIONS = [
             { key: 'optimizations', icon: '🚀', label: t('config.section.optimizations.label'), desc: t('config.section.optimizations.desc') },
             { key: 'providers', icon: '🔌', label: t('config.section.providers.label'), desc: t('config.section.providers.desc') },
             { key: 'realtime_speech', icon: '〽', label: t('config.section.realtime_speech.label'), desc: t('config.section.realtime_speech.desc') },
+            { key: 'telephone_agent', icon: '☎', label: t('config.section.telephone_agent.label'), desc: t('config.section.telephone_agent.desc') },
             { key: 'manifest', icon: '▦', label: t('config.section.manifest.label'), desc: t('config.section.manifest.desc') },
             { key: 'omniroute', icon: '◎', label: t('config.section.omniroute.label'), desc: t('config.section.omniroute.desc') },
             { key: 'dograh', icon: '▧', label: t('config.section.dograh.label'), desc: t('config.section.dograh.desc') },
@@ -531,6 +532,7 @@ const CONFIG_SIDEBAR_ICON_SLOTS = Object.freeze({
     bluetooth: 104,
     network_shares: 105,
     sip: 107,
+    telephone_agent: 109,
     adguard: 75,
     fritzbox: 76,
     ldap: 77,
@@ -645,6 +647,7 @@ const CONFIG_SIDEBAR_ICON_SYMBOLS = Object.freeze({
     bluetooth: "<path d=\"M56 24v80l30-25-44-31 44-24-30-24v104M34 43l52 37M34 85l52-42\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"6\" stroke=\"#4285f4\"/>",
     network_shares: "<path d=\"M29 42h58M77 31l11 11-11 11M99 86H41M51 75 40 86l11 11\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"6\" stroke=\"#35c7d3\"/><rect x=\"23\" y=\"27\" width=\"18\" height=\"30\" rx=\"4\" fill=\"#4f8ee8\" opacity=\".28\"/><rect x=\"87\" y=\"71\" width=\"18\" height=\"30\" rx=\"4\" fill=\"#6fca8f\" opacity=\".28\"/>",
     sip: "<path d=\"M41 28h14l8 22-10 8c8 16 17 25 33 33l8-10 22 8v14c0 8-7 14-15 13-42-6-76-40-82-82-1-8 5-15 13-15z\" fill=\"#35c7d3\" opacity=\".22\"/><path d=\"M41 28h14l8 22-10 8c8 16 17 25 33 33l8-10 22 8v14c0 8-7 14-15 13-42-6-76-40-82-82-1-8 5-15 13-15z\" fill=\"none\" stroke=\"#35c7d3\" stroke-width=\"6\" stroke-linejoin=\"round\"/>",
+    telephone_agent: "<path d=\"M41 28h14l8 22-10 8c8 16 17 25 33 33l8-10 22 8v14c0 8-7 14-15 13-42-6-76-40-82-82-1-8 5-15 13-15z\" fill=\"#6fca8f\" opacity=\".22\"/><path d=\"M41 28h14l8 22-10 8c8 16 17 25 33 33l8-10 22 8v14c0 8-7 14-15 13-42-6-76-40-82-82-1-8 5-15 13-15z\" fill=\"none\" stroke=\"#6fca8f\" stroke-width=\"6\" stroke-linejoin=\"round\"/>",
     adguard: "<path d=\"M64 23 32 37v27c0 22 14 36 32 43 18-7 32-21 32-43V37z\" fill=\"#67b279\"/><path d=\"m47 65 12 12 26-31\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"6\" stroke=\"#ffffff\" stroke-width=\"7\"/>",
     fritzbox: "<rect x=\"27\" y=\"61\" width=\"74\" height=\"32\" rx=\"10\" fill=\"#ef6f78\" opacity=\".2\"/><path d=\"M27 61h74v32H27zM43 77h.1M59 77h.1M76 77h12M45 52a28 28 0 0 1 38 0M55 43a14 14 0 0 1 18 0\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"6\" stroke=\"#ef6f78\"/><text x=\"64\" y=\"77\" text-anchor=\"middle\" dominant-baseline=\"middle\" font-family=\"Geist, Inter, Segoe UI, Arial, sans-serif\" font-size=\"16\" font-weight=\"800\" fill=\"#7da3c8\">F</text>",
     ldap: "<rect x=\"33\" y=\"26\" width=\"62\" height=\"76\" rx=\"9\" fill=\"#7da3c8\" opacity=\".18\"/><path d=\"M47 26v76M60 49h22M60 66h22M60 83h14\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"6\" stroke=\"#7da3c8\"/>",
@@ -1052,6 +1055,7 @@ function toggleGroup(groupName, groupDiv) {
 
 function hasUnsavedConfigChanges() {
     if (typeof window.sipHasUnsavedChanges === 'function' && window.sipHasUnsavedChanges()) return true;
+    if (typeof window.telephoneAgentHasUnsavedChanges === 'function' && window.telephoneAgentHasUnsavedChanges()) return true;
     if (window.AuraConfigState) return window.AuraConfigState.isDirty();
     return isDirty && collectSnapshot() !== initialSnapshot;
 }
@@ -1129,6 +1133,7 @@ async function navigateToConfigSection(key, options = {}) {
         } else if (decision === 'discard') {
             if (window.AuraConfigState) configData = window.AuraConfigState.discard();
             if (typeof window.sipDiscardUnsaved === 'function') window.sipDiscardUnsaved();
+            if (typeof window.telephoneAgentDiscardUnsaved === 'function') window.telephoneAgentDiscardUnsaved();
         } else {
             if (window.location.hash !== '#' + activeSection) {
                 history.replaceState(null, '', '#' + activeSection);
@@ -2491,6 +2496,8 @@ function markDirty(event) {
 
 function setDirty(dirty) {
     const sipDirty = typeof window.sipHasUnsavedChanges === 'function' && window.sipHasUnsavedChanges();
+    const telephoneAgentDirty = typeof window.telephoneAgentHasUnsavedChanges === 'function' && window.telephoneAgentHasUnsavedChanges();
+    const specialDirty = sipDirty || telephoneAgentDirty;
     if (dirty) {
         // Direct callers (inline onchange, section modules) must pin the draft so
         // delayed baseline refresh timers cannot clear a real user edit.
@@ -2499,11 +2506,11 @@ function setDirty(dirty) {
         clearDirtyBaselineRefreshTimers();
         if (window.AuraConfigState) {
             window.AuraConfigState.syncFromDOM();
-            dirty = window.AuraConfigState.isDirty() || sipDirty;
+            dirty = window.AuraConfigState.isDirty() || specialDirty;
         } else {
-            dirty = dirty || sipDirty;
+            dirty = dirty || specialDirty;
         }
-    } else if ((window.AuraConfigState && window.AuraConfigState.isDirty()) || sipDirty) {
+    } else if ((window.AuraConfigState && window.AuraConfigState.isDirty()) || specialDirty) {
         // Never hide the save bar while the draft still has changes.
         dirty = true;
         userEditedSinceSnapshot = true;
@@ -2515,7 +2522,8 @@ function setDirty(dirty) {
     const restartBtn = document.getElementById('cfg-restart-btn');
     const changeCount = document.getElementById('saveChangeCount');
     const validation = document.getElementById('saveValidation');
-    const count = window.AuraConfigState ? window.AuraConfigState.dirtyPaths().length : (dirty ? 1 : 0);
+    const trackedCount = window.AuraConfigState ? window.AuraConfigState.dirtyPaths().length : 0;
+    const count = trackedCount + (specialDirty ? 1 : ((!window.AuraConfigState && dirty) ? 1 : 0));
     if (btn) btn.disabled = !dirty || configSaveInFlight;
     if (pill) pill.classList.toggle('visible', dirty);
     if (changeCount) {
@@ -2600,6 +2608,7 @@ function attachChangeListeners() {
 async function saveConfig() {
     if (configSaveInFlight) return;
     const sipDirty = typeof window.sipHasUnsavedChanges === 'function' && window.sipHasUnsavedChanges();
+    const telephoneAgentDirty = typeof window.telephoneAgentHasUnsavedChanges === 'function' && window.telephoneAgentHasUnsavedChanges();
     if (window.AuraConfigState) {
         window.AuraConfigState.syncFromDOM();
         const validation = window.AuraConfigState.validate();
@@ -2613,7 +2622,7 @@ async function saveConfig() {
     const configDirty = window.AuraConfigState
         ? window.AuraConfigState.isDirty()
         : (isDirty && collectSnapshot() !== initialSnapshot);
-    if (!sipDirty && !configDirty) return true;
+    if (!sipDirty && !telephoneAgentDirty && !configDirty) return true;
 
     configSaveInFlight = true;
     let saveSucceeded = false;
@@ -2627,6 +2636,23 @@ async function saveConfig() {
             if (typeof window.sipSaveUnsaved !== 'function' || !await window.sipSaveUnsaved()) {
                 const sipStatus = document.getElementById('sip-action-status');
                 const detail = (sipStatus && sipStatus.textContent) || t('config.save_bar.error');
+                status.className = 'save-status error';
+                status.textContent = '✗ ' + detail;
+                setTimeout(() => { status.textContent = ''; }, 7000);
+                return false;
+            }
+            if (!telephoneAgentDirty && !configDirty) {
+                status.className = 'save-status success';
+                status.textContent = '✓ ' + t('config.save_bar.saved');
+                setTimeout(() => { status.textContent = ''; }, 4000);
+                saveSucceeded = true;
+                return true;
+            }
+        }
+        if (telephoneAgentDirty) {
+            if (typeof window.telephoneAgentSaveUnsaved !== 'function' || !await window.telephoneAgentSaveUnsaved()) {
+                const telephoneStatus = document.getElementById('telephone-agent-status');
+                const detail = (telephoneStatus && telephoneStatus.textContent) || t('config.save_bar.error');
                 status.className = 'save-status error';
                 status.textContent = '✗ ' + detail;
                 setTimeout(() => { status.textContent = ''; }, 7000);
@@ -2914,6 +2940,7 @@ const SECTION_MODULES = {
     heartbeat: { m: 'heartbeat', fn: 'renderHeartbeatSection' },
     providers: { m: 'providers', fn: 'renderProvidersSection' },
     realtime_speech: { m: 'realtime_speech', fn: 'renderRealtimeSpeechSection' },
+    telephone_agent: { m: 'telephone_agent', fn: 'renderTelephoneAgentSection' },
     manifest: { m: 'manifest', fn: 'renderManifestSection' },
     omniroute: { m: 'omniroute', fn: 'renderOmniRouteSection' },
     dograh: { m: 'dograh', fn: 'renderDograhSection' },

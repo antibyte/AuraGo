@@ -1,6 +1,9 @@
 package config
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestSIPDefaultsAreDisabledAndReadOnly(t *testing.T) {
 	var cfg SIPConfig
@@ -13,6 +16,116 @@ func TestSIPDefaultsAreDisabledAndReadOnly(t *testing.T) {
 	}
 	if cfg.BrowserMedia.Enabled || cfg.BrowserMedia.UDPPort != DefaultSIPBrowserMediaUDPPort || cfg.BrowserMedia.BindHost != "" || cfg.BrowserMedia.AdvertisedIP != "" {
 		t.Fatalf("unsafe browser media defaults: %+v", cfg.BrowserMedia)
+	}
+	if cfg.Voice.Backend != "classic" || !cfg.Voice.Behavior.GreetingEnabled || cfg.Voice.IdleTimeoutSeconds != 120 {
+		t.Fatalf("unexpected telephone agent defaults: %+v", cfg.Voice)
+	}
+	if len(cfg.Voice.AllowedTools) != 0 || cfg.Voice.PersistTranscripts {
+		t.Fatalf("unsafe telephone agent privacy/tool defaults: %+v", cfg.Voice)
+	}
+	if cfg.Voice.AgentProviderID != "" || cfg.Voice.Classic.ASRProviderID != "" || cfg.Voice.Classic.TTSProvider != "" {
+		t.Fatalf("legacy provider inheritance markers were materialized too early: %+v", cfg.Voice)
+	}
+}
+
+func TestValidateSIPTelephoneAgentConfiguration(t *testing.T) {
+	valid := func() SIPConfig {
+		var cfg SIPConfig
+		ApplySIPDefaults(&cfg)
+		return cfg
+	}
+	tests := []struct {
+		name   string
+		mutate func(*SIPConfig)
+		want   string
+	}{
+		{
+			name: "legacy empty provider references",
+		},
+		{
+			name: "unsupported ASR mode",
+			mutate: func(cfg *SIPConfig) {
+				cfg.Voice.Classic.ASRMode = "magic"
+			},
+			want: "asr_mode",
+		},
+		{
+			name: "unsupported TTS provider",
+			mutate: func(cfg *SIPConfig) {
+				cfg.Voice.Classic.TTSProvider = "unknown"
+			},
+			want: "tts_provider",
+		},
+		{
+			name: "Gemini profile required",
+			mutate: func(cfg *SIPConfig) {
+				cfg.Voice.Backend = "gemini_live"
+			},
+			want: "realtime_profile_id",
+		},
+		{
+			name: "idle timeout bounded",
+			mutate: func(cfg *SIPConfig) {
+				cfg.Voice.IdleTimeoutSeconds = 14
+			},
+			want: "idle_timeout_seconds",
+		},
+		{
+			name: "behavior enum bounded",
+			mutate: func(cfg *SIPConfig) {
+				cfg.Voice.Behavior.UnavailableRequestBehavior = "invent"
+			},
+			want: "unavailable_request_behavior",
+		},
+		{
+			name: "greeting length bounded",
+			mutate: func(cfg *SIPConfig) {
+				cfg.Voice.Behavior.Greeting = strings.Repeat("a", 501)
+			},
+			want: "greeting exceeds 500",
+		},
+		{
+			name: "provider reference length bounded",
+			mutate: func(cfg *SIPConfig) {
+				cfg.Voice.AgentProviderID = strings.Repeat("p", 129)
+			},
+			want: "agent_provider_id exceeds 128",
+		},
+		{
+			name: "language length bounded",
+			mutate: func(cfg *SIPConfig) {
+				cfg.Voice.Language = strings.Repeat("l", 33)
+			},
+			want: "language exceeds 32",
+		},
+		{
+			name: "tool count bounded",
+			mutate: func(cfg *SIPConfig) {
+				cfg.Voice.AllowedTools = make([]string, 129)
+				for i := range cfg.Voice.AllowedTools {
+					cfg.Voice.AllowedTools[i] = strings.Repeat("a", i+1)
+				}
+			},
+			want: "at most 128",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			cfg := valid()
+			if test.mutate != nil {
+				test.mutate(&cfg)
+			}
+			err := ValidateSIPConfig(cfg)
+			if test.want == "" {
+				if err != nil {
+					t.Fatalf("unexpected validation error: %v", err)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(strings.ToLower(err.Error()), strings.ToLower(test.want)) {
+				t.Fatalf("error = %v, want substring %q", err, test.want)
+			}
+		})
 	}
 }
 

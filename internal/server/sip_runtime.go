@@ -87,9 +87,10 @@ func (s *Server) cleanupTransientSIPSessions(ctx context.Context, manager *sipph
 			if event.Call == nil || event.Call.State != sipphone.StateEnded || event.Call.SessionID == "" {
 				continue
 			}
-			s.CfgMu.RLock()
-			persist := s.Cfg.SIP.Voice.PersistTranscripts
-			s.CfgMu.RUnlock()
+			persist := false
+			if data, ok := event.Data.(map[string]any); ok {
+				persist, _ = data["persist_transcripts"].(bool)
+			}
 			if !persist && s.ShortTermMem != nil {
 				if err := s.ShortTermMem.PurgeChatSession(event.Call.SessionID); err != nil && s.Logger != nil {
 					s.Logger.Warn("Failed to purge transient SIP conversation", "call_id", event.Call.ID, "error", err)

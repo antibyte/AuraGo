@@ -67,6 +67,7 @@ type sipRequestWindow struct {
 
 func registerSIPHandlers(mux *http.ServeMux, s *Server) {
 	limiter := &sipRequestLimiter{windows: make(map[string]*sipRequestWindow)}
+	agentLiveLimiter := &sipRequestLimiter{windows: make(map[string]*sipRequestWindow)}
 	browserLimiter := &sipRequestLimiter{windows: make(map[string]*sipRequestWindow)}
 	admin := func(handler http.HandlerFunc) http.HandlerFunc {
 		guarded := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -99,6 +100,9 @@ func registerSIPHandlers(mux *http.ServeMux, s *Server) {
 		return requireAdmin(s, guarded).ServeHTTP
 	}
 	mux.HandleFunc("/api/sip/config", admin(handleSIPConfig(s)))
+	mux.HandleFunc("/api/sip/agent", admin(handleSIPAgent(s)))
+	mux.HandleFunc("/api/sip/agent/catalog", admin(handleSIPAgentCatalog(s)))
+	mux.HandleFunc("/api/sip/agent/test", admin(handleSIPAgentTest(s, agentLiveLimiter)))
 	mux.HandleFunc("/api/sip/providers", admin(handleSIPProviders()))
 	mux.HandleFunc("/api/sip/setup", admin(handleSIPSetup(s)))
 	mux.HandleFunc("/api/sip/test", admin(handleSIPTest(s)))

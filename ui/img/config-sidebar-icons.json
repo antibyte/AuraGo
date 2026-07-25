@@ -877,6 +877,14 @@
       "row": 9,
       "source_type": "custom",
       "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "telephone_agent",
+      "slot": 109,
+      "column": 10,
+      "row": 9,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
     }
   ]
 }

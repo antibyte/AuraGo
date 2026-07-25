@@ -3,6 +3,7 @@ package voice
 import (
 	"context"
 	"encoding/binary"
+	"errors"
 	"math"
 	"sync/atomic"
 	"testing"
@@ -51,13 +52,35 @@ func (testSynthesizer) Synthesize(context.Context, string, string) ([]int16, int
 
 type testVoiceRunner struct {
 	cancelled atomic.Int32
+	ended     atomic.Int32
 }
 
 func (r *testVoiceRunner) RunVoiceTurn(context.Context, CallContext, string) (string, error) {
 	return "Antwort", nil
 }
 func (r *testVoiceRunner) CancelVoiceTurn(string) { r.cancelled.Add(1) }
-func (r *testVoiceRunner) EndVoiceCall(string)    {}
+func (r *testVoiceRunner) EndVoiceCall(string)    { r.ended.Add(1) }
+
+type recordingSynthesizer struct {
+	texts chan string
+	err   error
+}
+
+func (s recordingSynthesizer) Synthesize(_ context.Context, text, _ string) ([]int16, int, error) {
+	if s.texts != nil {
+		s.texts <- text
+	}
+	if s.err != nil {
+		return nil, 0, s.err
+	}
+	return make([]int16, 160), 8000, nil
+}
+
+type failingRecognizer struct{}
+
+func (failingRecognizer) Recognize(context.Context, []byte, int, string) (string, error) {
+	return "", errors.New("recognizer unavailable")
+}
 
 func TestClassicBackendASRAgentTTSPipeline(t *testing.T) {
 	runner := &testVoiceRunner{}
@@ -76,6 +99,91 @@ func TestClassicBackendASRAgentTTSPipeline(t *testing.T) {
 	}
 	if frame.SampleRate != 8000 || len(frame.Samples) == 0 {
 		t.Fatalf("unexpected telephone frame: rate=%d samples=%d", frame.SampleRate, len(frame.Samples))
+	}
+}
+
+func TestClassicBackendUsesSnapshotAndConfiguredGreeting(t *testing.T) {
+	texts := make(chan string, 2)
+	runner := &testVoiceRunner{}
+	backend := &ClassicBackend{
+		Recognizer: testRecognizer{text: "Hallo"}, Synthesizer: recordingSynthesizer{texts: texts}, Runner: runner,
+		MaxDuration: time.Second, IdleTimeout: time.Second, AgentProviderID: "phone-llm",
+		AdditionalPrompt: "Never disclose secrets.", Greeting: "Guten Tag.",
+	}
+	session, err := backend.Start(context.Background(), CallContext{CallID: "call-snapshot"}, NewBridge(4))
+	if err != nil {
+		t.Fatal(err)
+	}
+	classic, ok := session.(*classicSession)
+	if !ok {
+		t.Fatalf("session type = %T", session)
+	}
+	if classic.call.AgentProviderID != "phone-llm" || classic.call.AdditionalPrompt != "Never disclose secrets." {
+		t.Fatalf("telephone call snapshot = %+v", classic.call)
+	}
+	select {
+	case got := <-texts:
+		if got != "Guten Tag." {
+			t.Fatalf("greeting = %q", got)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("configured greeting was not synthesized")
+	}
+	if err := session.Close(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestClassicBackendInactivitySaysGoodbyeAndEndsCall(t *testing.T) {
+	texts := make(chan string, 2)
+	runner := &testVoiceRunner{}
+	backend := &ClassicBackend{
+		Recognizer: testRecognizer{text: "Hallo"}, Synthesizer: recordingSynthesizer{texts: texts}, Runner: runner,
+		MaxDuration: time.Second, IdleTimeout: 20 * time.Millisecond, GoodbyeMessage: "Auf Wiederhören.",
+	}
+	session, err := backend.Start(context.Background(), CallContext{CallID: "call-idle"}, NewBridge(4))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer session.Close()
+	select {
+	case got := <-texts:
+		if got != "Auf Wiederhören." {
+			t.Fatalf("goodbye = %q", got)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("inactivity did not synthesize the farewell")
+	}
+	deadline := time.Now().Add(time.Second)
+	for runner.ended.Load() == 0 && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if runner.ended.Load() != 1 {
+		t.Fatalf("EndVoiceCall count = %d", runner.ended.Load())
+	}
+}
+
+func TestClassicBackendFailureAnnouncesAndEndsWithoutFallback(t *testing.T) {
+	texts := make(chan string, 2)
+	runner := &testVoiceRunner{}
+	session := &classicSession{
+		ctx: context.Background(), cancel: func() {}, call: CallContext{CallID: "call-failure", FailureMessage: "Technischer Fehler."},
+		audio: NewBridge(4), backend: &ClassicBackend{
+			Recognizer: failingRecognizer{}, Synthesizer: recordingSynthesizer{texts: texts}, Runner: runner,
+		},
+		events: make(chan VoiceEvent, 8), framePeriod: time.Millisecond,
+	}
+	session.handleUtterance(make([]int16, 160), 8000)
+	select {
+	case got := <-texts:
+		if got != "Technischer Fehler." {
+			t.Fatalf("failure announcement = %q", got)
+		}
+	default:
+		t.Fatal("pipeline failure did not use the configured technical announcement")
+	}
+	if runner.ended.Load() != 1 {
+		t.Fatalf("EndVoiceCall count = %d", runner.ended.Load())
 	}
 }
 

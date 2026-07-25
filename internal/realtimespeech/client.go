@@ -301,6 +301,31 @@ func GeminiSIPSessionSetup(profile config.RealtimeSpeechProfile) map[string]inte
 	return geminiSetupWithTools(profile, SIPPrivateTools())
 }
 
+// GeminiSIPSessionSetupWithInstruction adds call-profile rules without
+// changing the browser Live contract or replacing AuraGo's immutable contract.
+func GeminiSIPSessionSetupWithInstruction(profile config.RealtimeSpeechProfile, additional string) map[string]interface{} {
+	setup := GeminiSIPSessionSetup(profile)
+	instruction := AuraGoSystemContract
+	if additional = strings.TrimSpace(additional); additional != "" {
+		instruction += "\n\n" + additional
+	}
+	setup["systemInstruction"] = map[string]interface{}{"parts": []map[string]string{{"text": instruction}}}
+	return setup
+}
+
+// GeminiSIPTestSessionSetup validates an explicitly confirmed Live connection
+// without declaring tools or persisting any conversation state.
+func GeminiSIPTestSessionSetup(profile config.RealtimeSpeechProfile, additional string) map[string]interface{} {
+	setup := geminiSetupWithTools(profile, nil)
+	delete(setup, "tools")
+	instruction := AuraGoSystemContract
+	if additional = strings.TrimSpace(additional); additional != "" {
+		instruction += "\n\n" + additional
+	}
+	setup["systemInstruction"] = map[string]interface{}{"parts": []map[string]string{{"text": instruction}}}
+	return setup
+}
+
 // XAISessionConfig returns the manual-turn, resumable session update used by
 // the browser adapter.
 func XAISessionConfig(profile config.RealtimeSpeechProfile) map[string]interface{} {

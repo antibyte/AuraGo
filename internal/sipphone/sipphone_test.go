@@ -30,6 +30,16 @@ type recordingMediaPeer struct {
 	detaches atomic.Int32
 }
 
+type testVoiceBackend struct{}
+
+func (testVoiceBackend) Start(context.Context, voice.CallContext, voice.DuplexAudio) (voice.VoiceSession, error) {
+	return nil, errors.New("test backend must not start")
+}
+
+func readyTestBackendFactory(config.SIPVoiceConfig) (voice.VoiceBackend, error) {
+	return testVoiceBackend{}, nil
+}
+
 func (p *recordingMediaPeer) Attach(context.Context, string, voice.DuplexAudio) error {
 	p.attaches.Add(1)
 	return nil
@@ -238,7 +248,7 @@ func TestOutboundInviteUsesConfiguredCallerIdentity(t *testing.T) {
 
 func TestManagerRejectsSecondOutboundCall(t *testing.T) {
 	cfg := validTestSIPConfig()
-	manager, err := NewManager(cfg, t.TempDir(), nil, nil, nil)
+	manager, err := NewManager(cfg, t.TempDir(), readyTestBackendFactory, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -403,7 +413,7 @@ func TestAutoAnswerStopsImmediatelyOnRemoteCancel(t *testing.T) {
 	cfg.Inbound.AutoAnswerDelayMS = 5000
 	cfg.Inbound.TrustedPeerCIDRs = []string{"192.0.2.10"}
 	cfg.Inbound.AllowedCallers = []string{"alice"}
-	manager, err := NewManager(cfg, t.TempDir(), nil, nil, nil)
+	manager, err := NewManager(cfg, t.TempDir(), readyTestBackendFactory, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -601,7 +611,7 @@ func TestClassifyOutboundCallError(t *testing.T) {
 	}
 }
 
-func TestOutboundCallSendsBYEAfterBackendFailure(t *testing.T) {
+func TestOutboundAgentCallPreflightBlocksBeforeInvite(t *testing.T) {
 	cfg := validTestSIPConfig()
 	ua, err := sipgo.NewUA()
 	if err != nil {
@@ -620,34 +630,72 @@ func TestOutboundCallSendsBYEAfterBackendFailure(t *testing.T) {
 		}
 		return response
 	})
-	manager, err := NewManager(cfg, t.TempDir(), nil, nil, nil)
+	manager, err := NewManager(cfg, t.TempDir(), func(config.SIPVoiceConfig) (voice.VoiceBackend, error) {
+		return nil, errors.New("pipeline unavailable")
+	}, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer manager.Close()
 	manager.endpoint = endpoint
 	manager.rootCtx = context.Background()
-	if _, err := manager.Dial(context.Background(), "sip:alice@example.com"); err != nil {
-		t.Fatal(err)
+	if _, err := manager.Dial(context.Background(), "sip:alice@example.com"); err == nil || !strings.Contains(err.Error(), "preflight") {
+		t.Fatalf("Dial error = %v, want telephone agent preflight blocker", err)
 	}
-	deadline := time.After(2 * time.Second)
-	seenInvite, seenBYE := false, false
-	for !(seenInvite && seenBYE) {
-		select {
-		case method := <-methods:
-			seenInvite = seenInvite || method == sip.INVITE
-			seenBYE = seenBYE || method == sip.BYE
-		case <-deadline:
-			t.Fatalf("SIP methods invite=%v bye=%v", seenInvite, seenBYE)
-		}
+	select {
+	case method := <-methods:
+		t.Fatalf("preflight blocker still sent SIP method %s", method)
+	case <-time.After(50 * time.Millisecond):
 	}
 	calls, err := manager.ListCalls(context.Background(), 1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(calls) != 1 || calls[0].EndReason != "voice_backend_error" {
-		t.Fatalf("calls=%#v, want controlled backend failure", calls)
+	if len(calls) != 0 || manager.Status().ActiveCall != nil {
+		t.Fatalf("blocked preflight created a call: %#v", calls)
 	}
+}
+
+func TestUpdateAgentConfigKeepsActiveCallSnapshot(t *testing.T) {
+	cfg := validTestSIPConfig()
+	cfg.Inbound.Route = MediaModeAgent
+	cfg.Inbound.AutoAnswerDelayMS = 1000
+	cfg.Voice.AgentProviderID = "agent-old"
+	cfg.Voice.AllowedTools = []string{"status"}
+	cfg.Voice.PersistTranscripts = false
+	manager, err := NewManager(cfg, t.TempDir(), readyTestBackendFactory, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer manager.Close()
+	manager.rootCtx = context.Background()
+
+	manager.mu.Lock()
+	call := manager.newActiveCallLocked("inbound", "sip:alice@example.com")
+	call.voiceBackend = testVoiceBackend{}
+	oldCallContext := call.ctx
+	manager.mu.Unlock()
+
+	next := cfg
+	next.Inbound.Route = "manual"
+	next.Inbound.AutoAnswerDelayMS = 4500
+	next.Voice.AgentProviderID = "agent-new"
+	next.Voice.AllowedTools = []string{"workspace_search"}
+	next.Voice.PersistTranscripts = true
+	manager.UpdateAgentConfig(next)
+
+	got := manager.Config()
+	if got.Inbound.Route != "manual" || got.Inbound.AutoAnswerDelayMS != 4500 || got.Voice.AgentProviderID != "agent-new" {
+		t.Fatalf("future telephone config was not updated: %+v", got)
+	}
+	if manager.Status().ActiveCall == nil || oldCallContext.Err() != nil {
+		t.Fatal("telephone config update interrupted the active call")
+	}
+	if call.persistTranscripts || call.voiceBackend == nil {
+		t.Fatalf("active call snapshot changed: persist=%v backend=%T", call.persistTranscripts, call.voiceBackend)
+	}
+
+	manager.finishCall(call, "test_complete")
 }
 
 func TestG711RoundTrip(t *testing.T) {

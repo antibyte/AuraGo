@@ -156,6 +156,27 @@ func TestCreateGeminiEphemeralTokenIsConstrained(t *testing.T) {
 	}
 }
 
+func TestGeminiSIPSetupsKeepInstructionsAndLiveTestHasNoTools(t *testing.T) {
+	profile := config.RealtimeSpeechProfile{Model: "gemini-live-test", Voice: "Kore"}
+	setup := GeminiSIPSessionSetupWithInstruction(profile, "Telephone calls are concise.")
+	instruction := setup["systemInstruction"].(map[string]interface{})["parts"].([]map[string]string)[0]["text"]
+	if !strings.Contains(instruction, AuraGoSystemContract) || !strings.Contains(instruction, "Telephone calls are concise.") {
+		t.Fatalf("SIP system instruction lost immutable or telephone rules: %q", instruction)
+	}
+	if _, ok := setup["tools"]; !ok {
+		t.Fatal("normal SIP setup unexpectedly omitted private telephone tools")
+	}
+
+	testSetup := GeminiSIPTestSessionSetup(profile, "Health check only.")
+	if _, ok := testSetup["tools"]; ok {
+		t.Fatal("live pipeline test declared tools")
+	}
+	testInstruction := testSetup["systemInstruction"].(map[string]interface{})["parts"].([]map[string]string)[0]["text"]
+	if !strings.Contains(testInstruction, AuraGoSystemContract) || !strings.Contains(testInstruction, "Health check only.") {
+		t.Fatalf("live-test instruction = %q", testInstruction)
+	}
+}
+
 func TestDecodeXAIVoicesSupportsDocumentedShapes(t *testing.T) {
 	voices, err := decodeXAIVoices([]byte(`{"voices":[{"voice_id":"ara","name":"Ara"},{"voice_id":"rex","name":"Rex"}]}`))
 	if err != nil {

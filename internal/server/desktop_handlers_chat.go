@@ -530,6 +530,7 @@ type desktopAgentTurnOptions struct {
 	MessageSource          string
 	AdditionalPrompt       string
 	PersistedMessage       string
+	ProviderID             string
 	VoiceOutputActive      bool
 	SkipDesktopProvider    bool
 	OnUserMessageInserted  func(messageID int64) error
@@ -568,7 +569,20 @@ func prepareDesktopAgentTurnWithOptions(ctx context.Context, s *Server, message 
 	cfg := *s.Cfg
 	s.CfgMu.RUnlock()
 	llmClient := s.LLMClient
-	if !opts.SkipDesktopProvider {
+	if providerID := strings.TrimSpace(opts.ProviderID); providerID != "" {
+		provider := cfg.FindProvider(providerID)
+		if provider == nil {
+			return turn, fmt.Errorf("configured provider %q is unavailable", providerID)
+		}
+		cfg.LLM.Provider = provider.ID
+		cfg.LLM.ProviderType = provider.Type
+		cfg.LLM.BaseURL = provider.BaseURL
+		cfg.LLM.APIKey = provider.APIKey
+		cfg.LLM.AccountID = provider.AccountID
+		cfg.LLM.Model = provider.Model
+		cfg.FallbackLLM.Enabled = false
+		llmClient = llm.NewClientFromProviderWithConfig(&cfg, provider.Type, provider.BaseURL, provider.APIKey, provider.AccountID)
+	} else if !opts.SkipDesktopProvider {
 		llmClient = applyDesktopAgentProvider(ctx, s, &cfg)
 	}
 	if strings.TrimSpace(chatContext.ImageBase64) != "" && mainProviderRequiresPublicImageURL(&cfg) {

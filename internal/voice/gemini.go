@@ -24,10 +24,17 @@ const (
 )
 
 type GeminiLiveBackend struct {
-	Profile      config.RealtimeSpeechProfile
-	Runner       VoiceActionRunner
-	WebSocketURL string
-	Dialer       *websocket.Dialer
+	Profile           config.RealtimeSpeechProfile
+	Runner            VoiceActionRunner
+	WebSocketURL      string
+	Dialer            *websocket.Dialer
+	AgentProviderID   string
+	SystemInstruction string
+	Greeting          string
+	FailureMessage    string
+	GoodbyeMessage    string
+	IdleTimeout       time.Duration
+	TestNoTools       bool
 }
 
 func (b *GeminiLiveBackend) Start(ctx context.Context, call CallContext, audio DuplexAudio) (VoiceSession, error) {
@@ -37,10 +44,18 @@ func (b *GeminiLiveBackend) Start(ctx context.Context, call CallContext, audio D
 	if !b.Profile.Enabled || !strings.EqualFold(b.Profile.Provider, realtimespeech.ProviderGemini) || strings.TrimSpace(b.Profile.APIKey) == "" {
 		return nil, fmt.Errorf("Gemini Live profile is unavailable")
 	}
+	if b.IdleTimeout <= 0 {
+		b.IdleTimeout = 2 * time.Minute
+	}
+	call.AgentProviderID = b.AgentProviderID
+	call.AdditionalPrompt = b.SystemInstruction
+	call.Greeting = b.Greeting
+	call.FailureMessage = b.FailureMessage
+	call.GoodbyeMessage = b.GoodbyeMessage
 	sessionCtx, cancel := context.WithCancel(ctx)
 	session := &geminiLiveSession{
 		ctx: sessionCtx, cancel: cancel, call: call, audio: audio, backend: b,
-		events: make(chan VoiceEvent, 64),
+		events: make(chan VoiceEvent, 64), activitySignal: make(chan struct{}, 1),
 	}
 	session.outputResampler, _ = NewResampler(24000, 8000)
 	conn, err := session.connect("")
@@ -49,9 +64,10 @@ func (b *GeminiLiveBackend) Start(ctx context.Context, call CallContext, audio D
 		return nil, err
 	}
 	session.setConnection(conn)
-	session.wg.Add(2)
+	session.wg.Add(3)
 	go session.inputLoop()
 	go session.readLoop()
+	go session.idleLoop()
 	go func() {
 		session.wg.Wait()
 		close(session.events)
@@ -75,6 +91,7 @@ type geminiLiveSession struct {
 	wg              sync.WaitGroup
 	closeOnce       sync.Once
 	outputResampler *Resampler
+	activitySignal  chan struct{}
 }
 
 func (s *geminiLiveSession) connect(resumeHandle string) (*websocket.Conn, error) {
@@ -101,7 +118,10 @@ func (s *geminiLiveSession) connect(resumeHandle string) (*websocket.Conn, error
 		return nil, fmt.Errorf("connect Gemini Live WebSocket: %w", err)
 	}
 	conn.SetReadLimit(geminiMaxMessageBytes)
-	setup := realtimespeech.GeminiSIPSessionSetup(s.backend.Profile)
+	setup := realtimespeech.GeminiSIPSessionSetupWithInstruction(s.backend.Profile, s.backend.SystemInstruction)
+	if s.backend.TestNoTools {
+		setup = realtimespeech.GeminiSIPTestSessionSetup(s.backend.Profile, s.backend.SystemInstruction)
+	}
 	if resumeHandle != "" {
 		setup["sessionResumption"] = map[string]interface{}{"handle": resumeHandle}
 	}
@@ -128,6 +148,12 @@ func (s *geminiLiveSession) connect(resumeHandle string) (*websocket.Conn, error
 		}
 	}
 	_ = conn.SetReadDeadline(time.Time{})
+	if resumeHandle == "" && strings.TrimSpace(s.backend.Greeting) != "" {
+		if err := conn.WriteJSON(geminiTextTurn("Greet the caller now with exactly this meaning, naturally and in the configured voice: " + s.backend.Greeting)); err != nil {
+			_ = conn.Close()
+			return nil, fmt.Errorf("send Gemini Live greeting: %w", err)
+		}
+	}
 	return conn, nil
 }
 
@@ -141,12 +167,13 @@ func (s *geminiLiveSession) inputLoop() {
 			return
 		case frame := <-s.audio.Receive():
 			if frame.SampleRate != 8000 {
-				s.emit("voice_backend_error", fmt.Sprintf("Gemini input requires 8 kHz telephone PCM, got %d", frame.SampleRate), nil)
+				s.fail(fmt.Sprintf("Gemini input requires 8 kHz telephone PCM, got %d", frame.SampleRate), true)
 				s.cancel()
 				return
 			}
 			started, utterance := detector.Push(frame.Samples)
 			if started {
+				s.signalActivity()
 				s.audio.FlushOutput()
 				s.setActivity(true)
 				s.emit("barge_in", "", nil)
@@ -162,6 +189,7 @@ func (s *geminiLiveSession) inputLoop() {
 				}})
 			}
 			if utterance != nil {
+				s.signalActivity()
 				s.setActivity(false)
 			}
 		}
@@ -182,13 +210,13 @@ func (s *geminiLiveSession) readLoop() {
 				return
 			}
 			if !s.reconnect() {
-				s.emit("voice_backend_error", "Gemini Live connection could not be resumed", nil)
+				s.fail("Gemini Live connection could not be resumed", false)
 				return
 			}
 			continue
 		}
 		if s.handlePayload(payload) && !s.reconnect() {
-			s.emit("voice_backend_error", "Gemini Live connection could not be resumed before shutdown", nil)
+			s.fail("Gemini Live connection could not be resumed before shutdown", false)
 			return
 		}
 	}
@@ -221,7 +249,7 @@ func (s *geminiLiveSession) reconnect() bool {
 
 func (s *geminiLiveSession) handlePayload(payload map[string]interface{}) (reconnectRequested bool) {
 	if _, ok := payload["error"]; ok {
-		s.emit("voice_backend_error", "Gemini Live provider error", nil)
+		s.fail("Gemini Live provider error", true)
 		return false
 	}
 	if update := mapValue(payload, "sessionResumptionUpdate", "session_resumption_update"); update != nil {
@@ -248,6 +276,7 @@ func (s *geminiLiveSession) handlePayload(payload map[string]interface{}) (recon
 		} {
 			if transcript := mapValue(content, pair.key, pair.alt); transcript != nil {
 				if text := stringValue(transcript, "text"); text != "" {
+					s.signalActivity()
 					s.emit("transcript", "", map[string]any{"direction": pair.direction, "text": text})
 				}
 			}
@@ -263,7 +292,7 @@ func (s *geminiLiveSession) handlePayload(payload map[string]interface{}) (recon
 				}
 				encoded := stringValue(inline, "data")
 				if len(encoded) > base64.StdEncoding.EncodedLen(geminiMaxAudioBytes) {
-					s.emit("voice_backend_error", "Gemini Live audio frame exceeds the safety limit", nil)
+					s.fail("Gemini Live audio frame exceeds the safety limit", true)
 					s.cancel()
 					return false
 				}
@@ -297,6 +326,7 @@ func (s *geminiLiveSession) handlePayload(payload map[string]interface{}) (recon
 }
 
 func (s *geminiLiveSession) handleToolCall(providerCall map[string]interface{}) {
+	s.signalActivity()
 	name := stringValue(providerCall, "name")
 	id := stringValue(providerCall, "id")
 	args, _ := providerCall["args"].(map[string]interface{})
@@ -325,6 +355,58 @@ func (s *geminiLiveSession) handleToolCall(providerCall map[string]interface{}) 
 	_ = s.writeJSON(map[string]interface{}{"toolResponse": map[string]interface{}{
 		"functionResponses": []map[string]interface{}{{"id": id, "name": name, "response": response}},
 	}})
+}
+
+func (s *geminiLiveSession) idleLoop() {
+	defer s.wg.Done()
+	timer := time.NewTimer(s.backend.IdleTimeout)
+	defer timer.Stop()
+	for {
+		select {
+		case <-s.ctx.Done():
+			return
+		case <-s.activitySignal:
+			resetVoiceIdleTimer(timer, s.backend.IdleTimeout)
+		case <-timer.C:
+			if message := strings.TrimSpace(s.backend.GoodbyeMessage); message != "" {
+				_ = s.writeJSON(geminiTextTurn("Say this brief farewell now and do nothing else: " + message))
+				select {
+				case <-s.ctx.Done():
+					return
+				case <-time.After(3 * time.Second):
+				}
+			}
+			s.emit("inactivity_timeout", "", nil)
+			s.backend.Runner.EndVoiceCall(s.call.CallID)
+			return
+		}
+	}
+}
+
+func (s *geminiLiveSession) signalActivity() {
+	select {
+	case s.activitySignal <- struct{}{}:
+	default:
+	}
+}
+
+func (s *geminiLiveSession) fail(message string, announce bool) {
+	if failure := strings.TrimSpace(s.call.FailureMessage); announce && failure != "" && s.connection() != nil {
+		if err := s.writeJSON(geminiTextTurn("Say this brief technical failure message now and do nothing else: " + failure)); err == nil {
+			select {
+			case <-s.ctx.Done():
+			case <-time.After(3 * time.Second):
+			}
+		}
+	}
+	s.emit("voice_backend_error", message, nil)
+}
+
+func geminiTextTurn(text string) map[string]interface{} {
+	return map[string]interface{}{"clientContent": map[string]interface{}{
+		"turns":        []map[string]interface{}{{"role": "user", "parts": []map[string]string{{"text": text}}}},
+		"turnComplete": true,
+	}}
 }
 
 func (s *geminiLiveSession) Interrupt() {

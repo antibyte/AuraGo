@@ -202,10 +202,25 @@ sip:
     voice:
         backend: classic                                    # classic or gemini_live
         realtime_profile_id: ""
+        agent_provider_id: ""                               # empty inherits llm.provider until first Telefonagent save
+        classic:
+            asr_provider_id: ""                             # empty inherits whisper.provider until first save
+            asr_mode: ""                                    # whisper, multimodal, local; empty inherits whisper.mode
+            tts_provider: ""                                # central TTS profile: google, elevenlabs, minimax, mistral, piper, supertonic
+        behavior:
+            greeting_enabled: true
+            greeting: ""                                    # empty uses a safe pipeline-native AuraGo greeting
+            purpose: ""
+            speaking_style: ""
+            additional_prohibitions: ""                     # can only add restrictions; core identity/security rules remain authoritative
+            unavailable_request_behavior: explain           # explain or explain_and_end
+            failure_message: ""                             # empty uses a safe localized technical message
+            goodbye_message: ""                             # empty uses a safe localized farewell
         language: auto
         allowed_tools: []                                   # empty means no native agent tools
         persist_transcripts: false
         max_call_duration_seconds: 3600
+        idle_timeout_seconds: 120
     history_retention_days: 90
     # The digest password is stored only in Vault key sip_endpoint_password.
 circuit_breaker:

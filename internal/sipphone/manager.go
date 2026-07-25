@@ -53,23 +53,25 @@ type Manager struct {
 }
 
 type activeCall struct {
-	record            CallRecord
-	dialog            diago.DialogSession
-	serverDialog      *diago.DialogServerSession
-	ctx               context.Context
-	cancel            context.CancelFunc
-	decision          chan string
-	bridge            *voice.Bridge
-	backend           voice.VoiceSession
-	mediaMode         string
-	mediaPeer         MediaPeer
-	media             *mediaPump
-	terminalReason    string
-	dialogEstablished bool
-	finishOnce        sync.Once
-	dialogEndOnce     sync.Once
-	dialogEndErr      error
-	done              chan struct{}
+	record             CallRecord
+	dialog             diago.DialogSession
+	serverDialog       *diago.DialogServerSession
+	ctx                context.Context
+	cancel             context.CancelFunc
+	decision           chan string
+	bridge             *voice.Bridge
+	backend            voice.VoiceSession
+	voiceBackend       voice.VoiceBackend
+	mediaMode          string
+	mediaPeer          MediaPeer
+	media              *mediaPump
+	terminalReason     string
+	dialogEstablished  bool
+	finishOnce         sync.Once
+	dialogEndOnce      sync.Once
+	dialogEndErr       error
+	persistTranscripts bool
+	done               chan struct{}
 }
 
 func NewManager(cfg config.SIPConfig, dataDir string, backendFactory BackendFactory, reporter IssueReporter, logger *slog.Logger) (*Manager, error) {
@@ -259,6 +261,16 @@ func (m *Manager) Reconfigure(ctx context.Context, cfg config.SIPConfig) error {
 	return m.Start(parent)
 }
 
+// UpdateAgentConfig atomically replaces only future agent-call behavior. It
+// deliberately leaves registration, browser media, and an active call intact.
+func (m *Manager) UpdateAgentConfig(cfg config.SIPConfig) {
+	m.mu.Lock()
+	m.cfg.Inbound.Route = cfg.Inbound.Route
+	m.cfg.Inbound.AutoAnswerDelayMS = cfg.Inbound.AutoAnswerDelayMS
+	m.cfg.Voice = cfg.Voice
+	m.mu.Unlock()
+}
+
 func (m *Manager) Status() Status {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -325,9 +337,22 @@ func (m *Manager) dial(ctx context.Context, target, mediaMode string, peer Media
 		m.mu.Unlock()
 		return CallRecord{}, ErrPermissionDenied
 	}
+	var preparedBackend voice.VoiceBackend
+	if mediaMode == MediaModeAgent {
+		if m.backendFactory == nil {
+			m.mu.Unlock()
+			return CallRecord{}, fmt.Errorf("telephone agent pipeline is unavailable")
+		}
+		preparedBackend, err = m.backendFactory(cfg.Voice)
+		if err != nil {
+			m.mu.Unlock()
+			return CallRecord{}, fmt.Errorf("telephone agent preflight failed: %w", err)
+		}
+	}
 	call := m.newActiveCallLocked("outbound", canonical)
 	call.mediaMode = mediaMode
 	call.mediaPeer = peer
+	call.voiceBackend = preparedBackend
 	if mediaMode == MediaModeBrowser {
 		call.record.Backend = MediaModeBrowser
 	}
@@ -572,8 +597,25 @@ func (m *Manager) handleIncoming(dialog *diago.DialogServerSession) {
 		_ = dialog.Respond(sip.StatusBusyHere, "Busy Here", nil)
 		return
 	}
+	var preparedBackend voice.VoiceBackend
+	if cfg.Inbound.Route == MediaModeAgent {
+		if m.backendFactory == nil {
+			m.mu.Unlock()
+			_ = dialog.Respond(sip.StatusTemporarilyUnavailable, "Temporarily Unavailable", nil)
+			return
+		}
+		var err error
+		preparedBackend, err = m.backendFactory(cfg.Voice)
+		if err != nil {
+			m.mu.Unlock()
+			m.logger.Warn("SIP telephone agent preflight blocked inbound call", "error_type", fmt.Sprintf("%T", err))
+			_ = dialog.Respond(sip.StatusTemporarilyUnavailable, "Temporarily Unavailable", nil)
+			return
+		}
+	}
 	remote := (&sip.Uri{Scheme: "sip", User: from.Address.User, Host: strings.ToLower(from.Address.Host)}).String()
 	call := m.newActiveCallLocked("inbound", remote)
+	call.voiceBackend = preparedBackend
 	if cfg.Inbound.Route != MediaModeAgent {
 		call.mediaMode = mediaModeNone
 	}
@@ -795,12 +837,8 @@ func (m *Manager) runEstablished(call *activeCall, cfg config.SIPConfig) {
 			return
 		}
 	case MediaModeAgent:
-		if m.backendFactory == nil {
-			m.finishCall(call, "voice_backend_error")
-			return
-		}
-		backend, err := m.backendFactory(cfg.Voice)
-		if err != nil {
+		backend := call.voiceBackend
+		if backend == nil {
 			m.finishCall(call, "voice_backend_error")
 			return
 		}
@@ -888,7 +926,7 @@ func (m *Manager) newActiveCallLocked(direction, remote string) *activeCall {
 	call := &activeCall{
 		record: CallRecord{ID: id, Direction: direction, RemoteParty: remote, StartedAt: time.Now().UTC(), State: StateConnecting, Backend: m.cfg.Voice.Backend, SessionID: "sip-" + id},
 		ctx:    ctx, cancel: cancel, decision: make(chan string, 1), bridge: voice.NewBridge(25), done: make(chan struct{}),
-		mediaMode: MediaModeAgent,
+		mediaMode: MediaModeAgent, persistTranscripts: m.cfg.Voice.PersistTranscripts,
 	}
 	m.active = call
 	go m.forwardBridgeEvents(call)
@@ -946,7 +984,7 @@ func (m *Manager) finishCall(call *activeCall, reason string) {
 		call.record.State = StateEnded
 		call.record.EndReason = reason
 		_ = m.store.Upsert(context.Background(), call.record)
-		m.emitLocked("call", &call.record, nil)
+		m.emitLocked("call", &call.record, map[string]any{"persist_transcripts": call.persistTranscripts})
 		if m.active == call {
 			m.active = nil
 		}

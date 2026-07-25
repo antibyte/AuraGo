@@ -370,8 +370,6 @@ function sipAdvancedMarkup(c) {
                 <p class="sip-settings-hint">${sipEsc(t('config.sip.policy_intro'))}</p>
                 <div class="sip-policy-legend">${sipEsc(t('config.sip.policy_precedence'))}</div>
                 <div class="sip-settings-grid">
-                ${sipSelect('inbound.route', t('config.sip.inbound_route'), c.inbound.route || 'agent', [['agent', t('config.sip.route_agent')], ['manual', t('config.sip.route_manual')], ['reject', t('config.sip.route_reject')]])}
-                ${sipField('inbound.auto_answer_delay_ms', t('config.sip.auto_answer_delay'), 'number', c.inbound.auto_answer_delay_ms ?? 1000, 'min="0" max="60000"')}
                 ${sipField('inbound.trusted_peer_cidrs', t('config.sip.trusted_peers'), 'text', sipList(c.inbound.trusted_peer_cidrs), 'placeholder="192.168.1.1, 192.168.1.0/24"', t('config.sip.trusted_peers_help'))}
                 ${sipField('inbound.allowed_callers', t('config.sip.allowed_callers'), 'text', sipList(c.inbound.allowed_callers), 'placeholder="101, +49*, sip:service-?@pbx.example"', t('config.sip.allowed_callers_help'))}
                 ${sipField('inbound.denied_callers', t('config.sip.denied_callers'), 'text', sipList(c.inbound.denied_callers), 'placeholder="+49900*, sip:blocked@*"', t('config.sip.denied_callers_help'))}
@@ -390,15 +388,13 @@ function sipAdvancedMarkup(c) {
                 ${sipField('permissions.agent_hangup', t('config.sip.agent_hangup'), 'checkbox', c.permissions.agent_hangup)}
             </div></div>
 
-            <div class="sip-settings-group"><h3>${sipEsc(t('config.sip.voice'))}</h3><div class="sip-settings-grid">
-                ${sipSelect('voice.backend', t('config.sip.voice_backend'), c.voice.backend || 'classic', [['classic', t('config.sip.backend_classic')], ['gemini_live', 'Gemini Live']])}
-                ${sipField('voice.realtime_profile_id', t('config.sip.realtime_profile'), 'text', c.voice.realtime_profile_id || '')}
-                ${sipField('voice.language', t('config.sip.language'), 'text', c.voice.language || 'auto')}
-                ${sipField('voice.allowed_tools', t('config.sip.allowed_tools'), 'text', sipList(c.voice.allowed_tools))}
-                ${sipField('voice.persist_transcripts', t('config.sip.persist_transcripts'), 'checkbox', c.voice.persist_transcripts)}
-                ${sipField('voice.max_call_duration_seconds', t('config.sip.max_duration'), 'number', c.voice.max_call_duration_seconds || 3600, 'min="30" max="86400"')}
-                ${sipField('history_retention_days', t('config.sip.history_retention'), 'number', c.history_retention_days || 90, 'min="1" max="3650"')}
-            </div></div>
+            <div class="sip-settings-group"><h3>${sipEsc(t('config.telephone_agent.title'))}</h3>
+                <p class="sip-settings-hint">${sipEsc(t('config.telephone_agent.sip_summary'))}</p>
+                <button type="button" class="btn btn-secondary" data-sip-action="telephone-agent">${sipEsc(t('config.telephone_agent.open_agent'))}</button>
+                <div class="sip-settings-grid">
+                    ${sipField('history_retention_days', t('config.sip.history_retention'), 'number', c.history_retention_days || 90, 'min="1" max="3650"')}
+                </div>
+            </div>
             <div class="rs-save-row sip-expert-actions"><span id="sip-action-status" role="status" aria-live="polite"></span><button type="button" class="btn-save" data-sip-action="save">${sipEsc(t('config.sip.save'))}</button></div>
         </div>
     </details>`;
@@ -509,6 +505,7 @@ function sipBindEvents() {
         sipAdvancedOpen = event.currentTarget.open;
     });
     document.querySelector('[data-sip-action="save"]')?.addEventListener('click', () => { sipSave(); });
+    document.querySelector('[data-sip-action="telephone-agent"]')?.addEventListener('click', () => { navigateToConfigSection('telephone_agent'); });
     document.querySelector('[data-sip-provider-search]')?.addEventListener('input', event => {
         sipWizardQuery = event.target.value;
         const results = document.querySelector('.sip-provider-results');
@@ -811,7 +808,7 @@ function sipRead(options) {
     document.querySelectorAll('[data-sip]').forEach(input => {
         let value = input.type === 'checkbox' ? input.checked : input.value;
         if (input.type === 'number') value = Number(value);
-        if (['media.codecs', 'inbound.trusted_peer_cidrs', 'inbound.allowed_callers', 'inbound.denied_callers', 'outbound.allowed_domains', 'outbound.denied_domains', 'outbound.allowed_users', 'outbound.denied_users', 'outbound.allowed_e164_prefixes', 'outbound.denied_e164_prefixes', 'voice.allowed_tools'].includes(input.dataset.sip)) value = sipSplit(value);
+        if (['media.codecs', 'inbound.trusted_peer_cidrs', 'inbound.allowed_callers', 'inbound.denied_callers', 'outbound.allowed_domains', 'outbound.denied_domains', 'outbound.allowed_users', 'outbound.denied_users', 'outbound.allowed_e164_prefixes', 'outbound.denied_e164_prefixes'].includes(input.dataset.sip)) value = sipSplit(value);
         sipAssign(result, input.dataset.sip, value);
     });
     sipNormalizeOutboundPayload(result);

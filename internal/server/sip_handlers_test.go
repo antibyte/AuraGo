@@ -310,6 +310,9 @@ func TestSIPAPIRoutesAreAdminProtected(t *testing.T) {
 		"/api/sip/calls",
 		"/api/sip/events",
 		"/api/sip/app/state",
+		"/api/sip/agent",
+		"/api/sip/agent/catalog",
+		"/api/sip/agent/test",
 		"/api/sip/browser-media/sessions",
 	} {
 		if !isAdminProtectedPath(path) {

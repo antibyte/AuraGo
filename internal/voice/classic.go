@@ -9,10 +9,16 @@ import (
 )
 
 type ClassicBackend struct {
-	Recognizer  SpeechRecognizer
-	Synthesizer SpeechSynthesizer
-	Runner      VoiceActionRunner
-	MaxDuration time.Duration
+	Recognizer       SpeechRecognizer
+	Synthesizer      SpeechSynthesizer
+	Runner           VoiceActionRunner
+	MaxDuration      time.Duration
+	IdleTimeout      time.Duration
+	AgentProviderID  string
+	AdditionalPrompt string
+	Greeting         string
+	FailureMessage   string
+	GoodbyeMessage   string
 }
 
 func (b *ClassicBackend) Start(ctx context.Context, call CallContext, audio DuplexAudio) (VoiceSession, error) {
@@ -22,6 +28,14 @@ func (b *ClassicBackend) Start(ctx context.Context, call CallContext, audio Dupl
 	if b.MaxDuration <= 0 {
 		b.MaxDuration = time.Hour
 	}
+	if b.IdleTimeout <= 0 {
+		b.IdleTimeout = 2 * time.Minute
+	}
+	call.AgentProviderID = b.AgentProviderID
+	call.AdditionalPrompt = b.AdditionalPrompt
+	call.Greeting = b.Greeting
+	call.FailureMessage = b.FailureMessage
+	call.GoodbyeMessage = b.GoodbyeMessage
 	sessionCtx, cancel := context.WithTimeout(ctx, b.MaxDuration)
 	session := &classicSession{
 		ctx:         sessionCtx,
@@ -56,6 +70,14 @@ type classicSession struct {
 func (s *classicSession) run() {
 	defer close(s.events)
 	s.emit("backend_started", "")
+	idleTimer := time.NewTimer(s.backend.IdleTimeout)
+	defer idleTimer.Stop()
+	if s.call.Greeting != "" {
+		if err := s.speakText(s.ctx, s.call.Greeting, "greeting"); err != nil && s.ctx.Err() == nil {
+			s.fail("greeting", false)
+			return
+		}
+	}
 	for {
 		select {
 		case <-s.ctx.Done():
@@ -71,12 +93,21 @@ func (s *classicSession) run() {
 				s.emitData("audio_queue_dropped", map[string]any{"stage": "vad", "policy": "drop_oldest"})
 			}
 			if started {
+				resetVoiceIdleTimer(idleTimer, s.backend.IdleTimeout)
 				s.Interrupt()
 				s.emit("barge_in", "")
 			}
 			if len(utterance) > 0 {
+				resetVoiceIdleTimer(idleTimer, s.backend.IdleTimeout)
 				go s.handleUtterance(utterance, s.inputRate)
 			}
+		case <-idleTimer.C:
+			if s.call.GoodbyeMessage != "" {
+				_ = s.speakText(s.ctx, s.call.GoodbyeMessage, "goodbye")
+			}
+			s.emit("inactivity_timeout", "")
+			s.backend.Runner.EndVoiceCall(s.call.CallID)
+			return
 		}
 	}
 }
@@ -98,18 +129,18 @@ func (s *classicSession) handleUtterance(samples []int16, sampleRate int) {
 
 	resampler, err := NewResampler(sampleRate, 16000)
 	if err != nil {
-		s.emitData("voice_backend_error", map[string]any{"stage": "resampling"})
+		s.fail("resampling", true)
 		return
 	}
 	wav, err := EncodeWAVPCM16(resampler.Process(samples), 16000)
 	if err != nil {
-		s.emitData("voice_backend_error", map[string]any{"stage": "wav_encoding"})
+		s.fail("wav_encoding", true)
 		return
 	}
 	text, err := s.backend.Recognizer.Recognize(turnCtx, wav, 16000, s.call.Language)
 	if err != nil {
 		if turnCtx.Err() == nil {
-			s.emitData("voice_backend_error", map[string]any{"stage": "asr"})
+			s.fail("asr", true)
 		}
 		return
 	}
@@ -122,7 +153,7 @@ func (s *classicSession) handleUtterance(samples []int16, sampleRate int) {
 	response, err := s.backend.Runner.RunVoiceTurn(turnCtx, s.call, text)
 	if err != nil {
 		if turnCtx.Err() == nil {
-			s.emitData("voice_backend_error", map[string]any{"stage": "agent"})
+			s.fail("agent", true)
 		}
 		return
 	}
@@ -130,35 +161,51 @@ func (s *classicSession) handleUtterance(samples []int16, sampleRate int) {
 	if response == "" {
 		return
 	}
-	s.emitData("transcript", map[string]any{"direction": "output", "text": response})
 
-	pcm, rate, err := s.backend.Synthesizer.Synthesize(turnCtx, response, s.call.Language)
-	if err != nil {
+	if err := s.speakText(turnCtx, response, "response"); err != nil {
 		if turnCtx.Err() == nil {
-			s.emitData("voice_backend_error", map[string]any{"stage": "tts"})
+			s.fail("tts", false)
 		}
 		return
 	}
+	s.emit("turn_complete", "")
+}
+
+func (s *classicSession) speakText(ctx context.Context, text, kind string) error {
+	pcm, rate, err := s.backend.Synthesizer.Synthesize(ctx, text, s.call.Language)
+	if err != nil {
+		return err
+	}
+	s.emitData("transcript", map[string]any{"direction": "output", "text": text, "kind": kind})
 	toTelephone, err := NewSourceResampler(rate, 8000)
 	if err != nil {
-		s.emitData("voice_backend_error", map[string]any{"stage": "resampling"})
-		return
+		return err
 	}
 	telephonePCM := toTelephone.Process(pcm)
 	frameSamples := 160
 	for offset := 0; offset < len(telephonePCM); offset += frameSamples {
 		end := min(offset+frameSamples, len(telephonePCM))
 		frame := PCMFrame{Samples: telephonePCM[offset:end], SampleRate: 8000}
-		if err := s.audio.Send(turnCtx, frame); err != nil {
-			return
+		if err := s.audio.Send(ctx, frame); err != nil {
+			return err
 		}
 		select {
-		case <-turnCtx.Done():
-			return
+		case <-ctx.Done():
+			return ctx.Err()
 		case <-time.After(s.framePeriod):
 		}
 	}
-	s.emit("turn_complete", "")
+	return nil
+}
+
+func (s *classicSession) fail(stage string, announce bool) {
+	s.emitData("voice_backend_error", map[string]any{"stage": stage})
+	if announce && s.call.FailureMessage != "" {
+		ctx, cancel := context.WithTimeout(s.ctx, 20*time.Second)
+		_ = s.speakText(ctx, s.call.FailureMessage, "failure")
+		cancel()
+	}
+	s.backend.Runner.EndVoiceCall(s.call.CallID)
 }
 
 func (s *classicSession) Interrupt() {
@@ -201,4 +248,14 @@ func (s *classicSession) emitDataMessage(eventType, message string, data map[str
 	case s.events <- event:
 	default:
 	}
+}
+
+func resetVoiceIdleTimer(timer *time.Timer, duration time.Duration) {
+	if !timer.Stop() {
+		select {
+		case <-timer.C:
+		default:
+		}
+	}
+	timer.Reset(duration)
 }

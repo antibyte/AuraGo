@@ -28,6 +28,7 @@ const (
 	DefaultSIPJitterBufferMS       = 60
 	DefaultSIPAutoAnswerDelayMS    = 1000
 	DefaultSIPMaxCallDuration      = 3600
+	DefaultSIPIdleTimeout          = 120
 	DefaultSIPHistoryRetentionDays = 90
 )
 
@@ -109,12 +110,38 @@ type SIPPermissionsConfig struct {
 }
 
 type SIPVoiceConfig struct {
-	Backend                string   `yaml:"backend" json:"backend"`
-	RealtimeProfileID      string   `yaml:"realtime_profile_id" json:"realtime_profile_id"`
-	Language               string   `yaml:"language" json:"language"`
-	AllowedTools           []string `yaml:"allowed_tools" json:"allowed_tools"`
-	PersistTranscripts     bool     `yaml:"persist_transcripts" json:"persist_transcripts"`
-	MaxCallDurationSeconds int      `yaml:"max_call_duration_seconds" json:"max_call_duration_seconds"`
+	Backend                string                 `yaml:"backend" json:"backend"`
+	RealtimeProfileID      string                 `yaml:"realtime_profile_id" json:"realtime_profile_id"`
+	AgentProviderID        string                 `yaml:"agent_provider_id,omitempty" json:"agent_provider_id"`
+	Classic                SIPVoiceClassicConfig  `yaml:"classic,omitempty" json:"classic"`
+	Behavior               SIPVoiceBehaviorConfig `yaml:"behavior,omitempty" json:"behavior"`
+	Language               string                 `yaml:"language" json:"language"`
+	AllowedTools           []string               `yaml:"allowed_tools" json:"allowed_tools"`
+	PersistTranscripts     bool                   `yaml:"persist_transcripts" json:"persist_transcripts"`
+	MaxCallDurationSeconds int                    `yaml:"max_call_duration_seconds" json:"max_call_duration_seconds"`
+	IdleTimeoutSeconds     int                    `yaml:"idle_timeout_seconds" json:"idle_timeout_seconds"`
+}
+
+// SIPVoiceClassicConfig selects the three independently managed stages of the
+// classic telephone pipeline. Empty fields are legacy inheritance markers and
+// are materialized by the Telefonagent API on first save.
+type SIPVoiceClassicConfig struct {
+	ASRProviderID string `yaml:"asr_provider_id,omitempty" json:"asr_provider_id"`
+	ASRMode       string `yaml:"asr_mode,omitempty" json:"asr_mode"`
+	TTSProvider   string `yaml:"tts_provider,omitempty" json:"tts_provider"`
+}
+
+// SIPVoiceBehaviorConfig contains only additive telephone guidance. AuraGo's
+// identity, security rules, and prompt-injection defenses remain authoritative.
+type SIPVoiceBehaviorConfig struct {
+	GreetingEnabled            bool   `yaml:"greeting_enabled" json:"greeting_enabled"`
+	Greeting                   string `yaml:"greeting,omitempty" json:"greeting"`
+	Purpose                    string `yaml:"purpose,omitempty" json:"purpose"`
+	SpeakingStyle              string `yaml:"speaking_style,omitempty" json:"speaking_style"`
+	AdditionalProhibitions     string `yaml:"additional_prohibitions,omitempty" json:"additional_prohibitions"`
+	UnavailableRequestBehavior string `yaml:"unavailable_request_behavior" json:"unavailable_request_behavior"`
+	FailureMessage             string `yaml:"failure_message,omitempty" json:"failure_message"`
+	GoodbyeMessage             string `yaml:"goodbye_message,omitempty" json:"goodbye_message"`
 }
 
 // ApplySIPDefaults sets safe defaults before YAML unmarshalling so absent booleans remain secure.
@@ -140,6 +167,9 @@ func ApplySIPDefaults(cfg *SIPConfig) {
 	cfg.Voice.Backend = "classic"
 	cfg.Voice.Language = "auto"
 	cfg.Voice.MaxCallDurationSeconds = DefaultSIPMaxCallDuration
+	cfg.Voice.IdleTimeoutSeconds = DefaultSIPIdleTimeout
+	cfg.Voice.Behavior.GreetingEnabled = true
+	cfg.Voice.Behavior.UnavailableRequestBehavior = "explain"
 	cfg.HistoryRetentionDays = DefaultSIPHistoryRetentionDays
 }
 
@@ -217,6 +247,17 @@ func NormalizeSIPConfig(cfg *SIPConfig) {
 	}
 	cfg.Voice.Backend = strings.ToLower(strings.TrimSpace(cfg.Voice.Backend))
 	cfg.Voice.RealtimeProfileID = strings.TrimSpace(cfg.Voice.RealtimeProfileID)
+	cfg.Voice.AgentProviderID = strings.TrimSpace(cfg.Voice.AgentProviderID)
+	cfg.Voice.Classic.ASRProviderID = strings.TrimSpace(cfg.Voice.Classic.ASRProviderID)
+	cfg.Voice.Classic.ASRMode = strings.ToLower(strings.TrimSpace(cfg.Voice.Classic.ASRMode))
+	cfg.Voice.Classic.TTSProvider = strings.ToLower(strings.TrimSpace(cfg.Voice.Classic.TTSProvider))
+	cfg.Voice.Behavior.Greeting = strings.TrimSpace(cfg.Voice.Behavior.Greeting)
+	cfg.Voice.Behavior.Purpose = strings.TrimSpace(cfg.Voice.Behavior.Purpose)
+	cfg.Voice.Behavior.SpeakingStyle = strings.TrimSpace(cfg.Voice.Behavior.SpeakingStyle)
+	cfg.Voice.Behavior.AdditionalProhibitions = strings.TrimSpace(cfg.Voice.Behavior.AdditionalProhibitions)
+	cfg.Voice.Behavior.UnavailableRequestBehavior = strings.ToLower(strings.TrimSpace(cfg.Voice.Behavior.UnavailableRequestBehavior))
+	cfg.Voice.Behavior.FailureMessage = strings.TrimSpace(cfg.Voice.Behavior.FailureMessage)
+	cfg.Voice.Behavior.GoodbyeMessage = strings.TrimSpace(cfg.Voice.Behavior.GoodbyeMessage)
 	cfg.Voice.Language = strings.TrimSpace(cfg.Voice.Language)
 	cfg.Voice.AllowedTools = normalizedUnique(cfg.Voice.AllowedTools, true)
 }
@@ -235,6 +276,10 @@ func ValidateSIPConfig(cfg SIPConfig) error {
 		"advertised_signaling_host": cfg.AdvertisedSignalingHost, "media.advertised_host": cfg.Media.AdvertisedHost,
 		"browser_media.bind_host": cfg.BrowserMedia.BindHost, "browser_media.advertised_ip": cfg.BrowserMedia.AdvertisedIP,
 		"tls.server_name": cfg.TLS.ServerName, "tls.cert_file": cfg.TLS.CertFile, "tls.key_file": cfg.TLS.KeyFile,
+		"voice.backend": cfg.Voice.Backend, "voice.realtime_profile_id": cfg.Voice.RealtimeProfileID,
+		"voice.language":          cfg.Voice.Language,
+		"voice.agent_provider_id": cfg.Voice.AgentProviderID, "voice.classic.asr_provider_id": cfg.Voice.Classic.ASRProviderID,
+		"voice.classic.asr_mode": cfg.Voice.Classic.ASRMode, "voice.classic.tts_provider": cfg.Voice.Classic.TTSProvider,
 	} {
 		if strings.ContainsAny(value, "\r\n\x00") {
 			return fmt.Errorf("sip.%s contains forbidden control characters", name)
@@ -379,6 +424,16 @@ func ValidateSIPConfig(cfg SIPConfig) error {
 	}
 	switch cfg.Voice.Backend {
 	case "classic":
+		switch cfg.Voice.Classic.ASRMode {
+		case "", "whisper", "multimodal", "local":
+		default:
+			return fmt.Errorf("sip.voice.classic.asr_mode must be whisper, multimodal, or local")
+		}
+		switch cfg.Voice.Classic.TTSProvider {
+		case "", "google", "elevenlabs", "minimax", "mistral", "piper", "supertonic":
+		default:
+			return fmt.Errorf("sip.voice.classic.tts_provider is unsupported")
+		}
 	case "gemini_live":
 		if cfg.Voice.RealtimeProfileID == "" {
 			return fmt.Errorf("sip.voice.realtime_profile_id is required for gemini_live")
@@ -388,6 +443,53 @@ func ValidateSIPConfig(cfg SIPConfig) error {
 	}
 	if cfg.Voice.MaxCallDurationSeconds < 30 || cfg.Voice.MaxCallDurationSeconds > 86400 {
 		return fmt.Errorf("sip.voice.max_call_duration_seconds must be between 30 and 86400")
+	}
+	if cfg.Voice.IdleTimeoutSeconds < 15 || cfg.Voice.IdleTimeoutSeconds > 3600 {
+		return fmt.Errorf("sip.voice.idle_timeout_seconds must be between 15 and 3600")
+	}
+	for name, value := range map[string]string{
+		"agent_provider_id":   cfg.Voice.AgentProviderID,
+		"asr_provider_id":     cfg.Voice.Classic.ASRProviderID,
+		"realtime_profile_id": cfg.Voice.RealtimeProfileID,
+	} {
+		if len([]rune(value)) > 128 {
+			return fmt.Errorf("sip.voice.%s exceeds 128 characters", name)
+		}
+	}
+	if len([]rune(cfg.Voice.Language)) > 32 {
+		return fmt.Errorf("sip.voice.language exceeds 32 characters")
+	}
+	if len(cfg.Voice.AllowedTools) > 128 {
+		return fmt.Errorf("sip.voice.allowed_tools must contain at most 128 entries")
+	}
+	for _, name := range cfg.Voice.AllowedTools {
+		if len(name) > 128 {
+			return fmt.Errorf("sip.voice.allowed_tools contains an entry longer than 128 characters")
+		}
+	}
+	switch cfg.Voice.Behavior.UnavailableRequestBehavior {
+	case "explain", "explain_and_end":
+	default:
+		return fmt.Errorf("sip.voice.behavior.unavailable_request_behavior must be explain or explain_and_end")
+	}
+	for name, value := range map[string]string{
+		"greeting":                cfg.Voice.Behavior.Greeting,
+		"purpose":                 cfg.Voice.Behavior.Purpose,
+		"speaking_style":          cfg.Voice.Behavior.SpeakingStyle,
+		"additional_prohibitions": cfg.Voice.Behavior.AdditionalProhibitions,
+		"failure_message":         cfg.Voice.Behavior.FailureMessage,
+		"goodbye_message":         cfg.Voice.Behavior.GoodbyeMessage,
+	} {
+		if strings.ContainsRune(value, '\x00') {
+			return fmt.Errorf("sip.voice.behavior.%s contains forbidden control characters", name)
+		}
+		limit := 8000
+		if name == "greeting" || name == "failure_message" || name == "goodbye_message" {
+			limit = 500
+		}
+		if len([]rune(value)) > limit {
+			return fmt.Errorf("sip.voice.behavior.%s exceeds %d characters", name, limit)
+		}
 	}
 	if cfg.HistoryRetentionDays < 1 || cfg.HistoryRetentionDays > 3650 {
 		return fmt.Errorf("sip.history_retention_days must be between 1 and 3650")

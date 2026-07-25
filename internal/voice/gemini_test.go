@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/binary"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -196,6 +197,64 @@ func TestGeminiLiveDoesNotClaimResumptionWithoutHandle(t *testing.T) {
 		case <-ctx.Done():
 			t.Fatal("missing controlled backend error after connection loss")
 		}
+	}
+}
+
+func TestGeminiLiveSendsGreetingAsServerSideTextTurn(t *testing.T) {
+	greetingFrame := make(chan map[string]interface{}, 1)
+	serverErrors := make(chan error, 1)
+	upgrader := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			serverErrors <- err
+			return
+		}
+		defer conn.Close()
+		var setup map[string]interface{}
+		if err := conn.ReadJSON(&setup); err != nil {
+			serverErrors <- err
+			return
+		}
+		if err := conn.WriteJSON(map[string]interface{}{"setupComplete": map[string]interface{}{}}); err != nil {
+			serverErrors <- err
+			return
+		}
+		var frame map[string]interface{}
+		if err := conn.ReadJSON(&frame); err != nil {
+			serverErrors <- err
+			return
+		}
+		greetingFrame <- frame
+		<-r.Context().Done()
+	}))
+	defer server.Close()
+
+	backend := &GeminiLiveBackend{
+		Profile: config.RealtimeSpeechProfile{
+			ID: "gemini", Enabled: true, Provider: realtimespeech.ProviderGemini, Model: "gemini-live-test", Voice: "Kore", APIKey: "test-key",
+		},
+		Runner: &geminiTestRunner{executed: make(chan string, 1)}, WebSocketURL: "ws" + strings.TrimPrefix(server.URL, "http"),
+		Greeting: "Guten Tag, hier ist AuraGo.", IdleTimeout: time.Second,
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	session, err := backend.Start(ctx, CallContext{CallID: "call-greeting"}, NewBridge(2))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer session.Close()
+
+	select {
+	case frame := <-greetingFrame:
+		encoded, _ := json.Marshal(frame)
+		if !strings.Contains(string(encoded), "clientContent") || !strings.Contains(string(encoded), backend.Greeting) {
+			t.Fatalf("Gemini greeting frame = %s", encoded)
+		}
+	case err := <-serverErrors:
+		t.Fatal(err)
+	case <-ctx.Done():
+		t.Fatal("Gemini Live greeting was not sent after setup")
 	}
 }
 

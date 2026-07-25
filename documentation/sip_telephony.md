@@ -10,6 +10,12 @@ The feature is disabled and read-only by default. Configure it under `sip` in
 through the UI; it is written only to the encrypted Vault key
 `sip_endpoint_password`.
 
+SIP account, network, trust lists, destination policy, and the authenticated
+browser phone remain under **SIP Phone**. Agent-led call behavior is configured
+separately under **Agent & AI → Telephone agent**. That profile applies to
+agent-led incoming and outgoing calls, never to manual browser conversations.
+It stays visible while SIP is disabled and reports the concrete blockers.
+
 ## Network setup
 
 For a LAN PBX such as a FritzBox, bind signaling to the host's private address
@@ -51,8 +57,8 @@ network isolation provided by Compose and must be chosen explicitly.
 
 ## Voice backends
 
-`classic` uses adaptive VAD, the configured ASR, AuraGo's normal agent path,
-and the configured TTS. Speech during playback cancels the active agent turn
+`classic` uses adaptive VAD, its selected ASR provider/mode, its selected agent
+LLM provider, and its selected central TTS provider. Speech during playback cancels the active agent turn
 and flushes queued audio. The allowed agent tools are an explicit list; an
 empty list means no native tools. ASR audio stays in memory. Decoded provider
 audio is normalized to the fixed telephone media rates, and continuous speech
@@ -66,11 +72,38 @@ interruptions, session resumption, and only the private functions
 reconnection requires a provider-confirmed resumption handle; a contextless
 new session is never reported as resumed.
 
+Both backends use the same structured telephone profile: greeting, purpose,
+speaking style, additional prohibitions, behavior for unsupported requests,
+technical failure message, farewell, language, tool scope, transcript
+retention, maximum duration, and inactivity limit. AuraGo's identity,
+prompt-injection protection, permission checks, and security rules are
+immutable; telephone rules can only add restrictions. Greetings use the
+selected pipeline: classic uses the selected TTS, while Gemini Live receives a
+server-side text turn after setup and speaks with its configured Live voice.
+
+Before answering an agent-routed incoming call or sending an agent-led
+outgoing INVITE, AuraGo validates the route, permissions, provider references,
+Vault-backed readiness, and tool scope. A blocker fails closed. Runtime errors
+use the configured technical message when the failing pipeline can still speak
+and then end the call. AuraGo never switches voice pipelines or providers
+silently.
+
+Saving Telephone agent atomically updates future calls without restarting SIP
+registration or browser media. An active call retains its complete provider,
+tool, behavior, duration, and transcript-retention snapshot. Legacy
+configurations with empty telephone provider fields inherit the existing global
+LLM, Whisper, and TTS selections until the Telephone agent page is first saved;
+that save records the effective IDs.
+
 ## Public interfaces and future clients
 
 Administrative APIs live under `/api/sip/` and include configuration, test,
-status, call history/actions, and an SSE event stream. The native `sip_phone`
-agent tool applies the same runtime permissions.
+status, call history/actions, and an SSE event stream. Telephone agent adds
+`GET/PUT /api/sip/agent`, the secret-free
+`GET /api/sip/agent/catalog`, and `POST /api/sip/agent/test`. The default test
+is a free local preflight. An explicitly confirmed live test is rate-limited,
+uses no agent tools, and stores neither audio nor a test conversation. The
+native `sip_phone` agent tool applies the same runtime permissions.
 
 The PCM media boundary and incoming-call handler are intentionally independent
 of SIP. A future Virtual Desktop phone can attach an authenticated WebRTC media

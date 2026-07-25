@@ -17,7 +17,7 @@ func TestSIPConfigUIUsesSavedStateAndMaskedSecret(t *testing.T) {
 	for _, marker := range []string{
 		"/api/sip/config", "/api/sip/providers", "/api/sip/setup", "/api/sip/status", "/api/sip/test", "password_set",
 		"sipSavedState", "sipComparable(current) !== sipSavedState",
-		"auto_answer_delay_ms ?? 1000", `class="sip-settings-grid"`,
+		"config.telephone_agent.sip_summary", `class="sip-settings-grid"`,
 		`class="field-group sip-toggle-field"`, `class="toggle"`, `class="slider"`,
 		`class="sip-wizard-shell"`, `class="sip-provider-grid"`, `class="sip-advanced"`,
 		"confirm_replace", "sipWizardPassword", "sipAdvancedDirty",

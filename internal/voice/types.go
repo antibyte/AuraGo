@@ -15,12 +15,18 @@ type PCMFrame struct {
 
 // CallContext contains the privacy-safe metadata exposed to voice backends.
 type CallContext struct {
-	CallID       string
-	Direction    string
-	RemoteParty  string
-	Language     string
-	SessionID    string
-	AllowedTools []string
+	CallID                     string
+	Direction                  string
+	RemoteParty                string
+	Language                   string
+	SessionID                  string
+	AgentProviderID            string
+	AdditionalPrompt           string
+	Greeting                   string
+	FailureMessage             string
+	GoodbyeMessage             string
+	UnavailableRequestBehavior string
+	AllowedTools               []string
 }
 
 // VoiceEvent reports bounded, structured backend and media state changes.

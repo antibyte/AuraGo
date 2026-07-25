@@ -48,6 +48,10 @@ images, and browser-oriented regression tests.
   directly.
 - Configuration connection tests operate only on saved configuration. Dirty,
   incomplete, or credential-missing sections expose a visible locked reason.
+- Telephone agent is a dedicated lazy Config section under Agent & AI. SIP Phone
+  owns account/network/trust/browser-media settings and only links to the
+  telephone profile; it must not expose a second editable copy of `sip.voice`
+  or the agent inbound route/delay.
 - Configuration density is a browser-local presentation preference and never
   belongs in `config.yaml`.
 - Every visible UI string must use translations in all supported locales.
