@@ -484,6 +484,167 @@ func TestInstallerCleanupTrapIsPreserved(t *testing.T) {
 	}
 }
 
+func TestInstallerReleaseAssetFailuresAreRecoverable(t *testing.T) {
+	t.Parallel()
+
+	installScript := readRepoFile(t, "install.sh")
+	verifyBody := shellFunctionBody(t, installScript, "verify_release_asset")
+	downloadBody := shellFunctionBody(t, installScript, "download_release_asset")
+	for name, body := range map[string]string{
+		"verify_release_asset":   verifyBody,
+		"download_release_asset": downloadBody,
+	} {
+		if strings.Contains(body, "die ") {
+			t.Fatalf("%s must return errors instead of exiting the installer", name)
+		}
+		if !strings.Contains(body, "return 1") {
+			t.Fatalf("%s must return a failure status", name)
+		}
+	}
+	for _, marker := range []string{
+		`RELEASE_ASSET_TEMP="${dest}.download.$$"`,
+		`if ! _download "${RELEASE_BASE}/${asset}" "$RELEASE_ASSET_TEMP"; then`,
+		`if ! verify_release_asset "$asset" "$RELEASE_ASSET_TEMP"; then`,
+		`mv -f "$RELEASE_ASSET_TEMP" "$dest"`,
+		`rm -f "$RELEASE_ASSET_TEMP"`,
+	} {
+		if !strings.Contains(downloadBody, marker) {
+			t.Fatalf("download_release_asset must stage and clean release downloads; missing %q", marker)
+		}
+	}
+	for _, required := range []string{
+		`download_release_asset "resources.dat" "$INSTALL_DIR/resources.dat" ||`,
+		`download_release_asset "aurago_linux_arm64"                "bin/aurago_linux_arm64"                 || die`,
+		`download_release_asset "aurago_linux"                      "bin/aurago_linux"                       || die`,
+	} {
+		if !strings.Contains(installScript, required) {
+			t.Fatalf("required installer artifact must fail closed; missing %q", required)
+		}
+	}
+	for _, optional := range []string{
+		`download_release_asset "config-merger_linux_arm64"`,
+		`download_release_asset "aurago-remote_linux_arm64"`,
+		`download_release_asset "config-merger_linux"`,
+		`download_release_asset "aurago-remote_linux"`,
+		`if download_release_asset "update.sh"`,
+	} {
+		if !strings.Contains(installScript, optional) {
+			t.Fatalf("optional installer artifact handling missing %q", optional)
+		}
+	}
+}
+
+func TestInstallerDependencyChecksMatchRuntimeNeeds(t *testing.T) {
+	t.Parallel()
+
+	installScript := readRepoFile(t, "install.sh")
+	packageBody := shellFunctionBody(t, installScript, "_pkg_install")
+	if !strings.Contains(packageBody, `return 1`) || !strings.Contains(packageBody, `unknown package manager`) {
+		t.Fatal("_pkg_install must fail instead of reporting success for an unknown package manager")
+	}
+	for _, marker := range []string{
+		`_pkg_install curl ca-certificates`,
+		`_pkg_install tar`,
+		`command -v tar`,
+		`python_runtime_ready()`,
+		`mktemp -d "${TMPDIR:-/tmp}/aurago-python-venv.XXXXXX"`,
+		`"$python_cmd" -m venv "$PYTHON_PROBE_DIR"`,
+		`"$PYTHON_PROBE_DIR/bin/python" -m pip --version`,
+		`apt)    _pkg_install python3 python3-pip python3-venv`,
+		`apk)    _pkg_install python3 py3-pip`,
+	} {
+		if !strings.Contains(installScript, marker) {
+			t.Fatalf("install.sh dependency contract missing %q", marker)
+		}
+	}
+	for _, forbidden := range []string{"python3-dev", "py3-virtualenv"} {
+		if strings.Contains(installScript, forbidden) {
+			t.Fatalf("install.sh must not install unrelated venv package %q", forbidden)
+		}
+	}
+}
+
+func TestInstallerNonInteractiveDefaultsAreConservative(t *testing.T) {
+	t.Parallel()
+
+	installScript := readRepoFile(t, "install.sh")
+	if strings.Count(installScript, "read -r -p") != 1 {
+		t.Fatal("all installer prompts must route through prompt_value")
+	}
+	for _, marker := range []string{
+		`INTERACTIVE_TTY=false`,
+		`prompt_value FF_REPLY "Install ffmpeg? [Y/n]: " "y" "n"`,
+		`prompt_value IM_REPLY "Install ImageMagick for image conversion? [Y/n]: " "y" "n"`,
+		`prompt_value PY_REPLY "Install Python 3, pip and venv? [Y/n]: " "y" "n"`,
+		`prompt_value DKR_REPLY "Install Docker now? (Recommended) [Y/n]: " "y" "n"`,
+		`if _go_version_ok && $INTERACTIVE_TTY; then`,
+		`prompt_value MODE_REPLY "Install mode [1/2, default=1]: " "1" "1"`,
+		`prompt_value HTTPS_REPLY`,
+		`prompt_value NET_REPLY`,
+		`prompt_value SVC_REPLY "Install as systemd service (auto-start on boot)? [Y/n]: " "y" "n"`,
+	} {
+		if !strings.Contains(installScript, marker) {
+			t.Fatalf("install.sh conservative non-interactive contract missing %q", marker)
+		}
+	}
+}
+
+func TestInstallerCleansAllTrackedTemporaryArtifacts(t *testing.T) {
+	t.Parallel()
+
+	installScript := readRepoFile(t, "install.sh")
+	for _, variable := range []string{
+		"RELEASE_CHECKSUMS_FILE",
+		"RELEASE_SIGNATURE_FILE",
+		"RELEASE_CERTIFICATE_FILE",
+		"INITIAL_PASSWORD_FILE",
+		"EXISTING_CONFIG_BAK",
+		"RELEASE_RESOURCES_FILE",
+		"RELEASE_ASSET_TEMP",
+		"TMP_GO",
+		"TMPEXT",
+		"PYTHON_PROBE_DIR",
+	} {
+		if !strings.Contains(installScript, variable+`=""`) {
+			t.Fatalf("install.sh must initialize temporary artifact variable %s", variable)
+		}
+	}
+	cleanupBody := shellFunctionBody(t, installScript, "cleanup_install_failure")
+	for _, variable := range []string{
+		"RELEASE_CHECKSUMS_FILE",
+		"RELEASE_SIGNATURE_FILE",
+		"RELEASE_CERTIFICATE_FILE",
+		"INITIAL_PASSWORD_FILE",
+		"EXISTING_CONFIG_BAK",
+		"RELEASE_RESOURCES_FILE",
+		"RELEASE_ASSET_TEMP",
+		"TMP_GO",
+		"TMPEXT",
+		"PYTHON_PROBE_DIR",
+	} {
+		if !strings.Contains(cleanupBody, `${`+variable+`:-}`) {
+			t.Fatalf("cleanup_install_failure must clean %s", variable)
+		}
+	}
+}
+
+func TestAuraGoStartupTreatsPythonAsOptional(t *testing.T) {
+	t.Parallel()
+
+	mainSource := readRepoFile(t, filepath.Join("cmd", "aurago", "main.go"))
+	if !strings.Contains(mainSource, "if cfg.Agent.AllowPython {") {
+		t.Fatal("startup dependency provisioning must be gated by agent.allow_python")
+	}
+	for _, forbidden := range []string{
+		`exec.Command(pythonExe, "-m", "venv"`,
+		`appLog.Error("Failed to create virtual environment"`,
+	} {
+		if strings.Contains(mainSource, forbidden) {
+			t.Fatalf("core startup must not fail while creating an optional Python venv: %q", forbidden)
+		}
+	}
+}
+
 func TestInstallerDockerCheckVerifiesDaemonAvailability(t *testing.T) {
 	t.Parallel()
 
@@ -1288,4 +1449,19 @@ func repoPath(parts ...string) string {
 	}
 	elems := append([]string{filepath.Dir(file), "..", ".."}, parts...)
 	return filepath.Clean(filepath.Join(elems...))
+}
+
+func shellFunctionBody(t *testing.T, script, name string) string {
+	t.Helper()
+	startMarker := name + "() {"
+	start := strings.Index(script, startMarker)
+	if start < 0 {
+		t.Fatalf("shell function %s not found", name)
+	}
+	tail := script[start:]
+	end := strings.Index(tail, "\n}")
+	if end < 0 {
+		t.Fatalf("shell function %s has no closing brace", name)
+	}
+	return tail[:end+2]
 }

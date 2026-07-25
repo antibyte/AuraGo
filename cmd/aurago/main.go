@@ -14,10 +14,8 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"os/exec"
 	"os/signal"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"syscall"
 	"time"
@@ -365,30 +363,11 @@ func main() {
 		}
 	}
 
-	venvDir := filepath.Join(cfg.Directories.WorkspaceDir, "venv")
-	venvPython := tools.GetPythonBin(cfg.Directories.WorkspaceDir)
-	if _, err := os.Stat(venvPython); os.IsNotExist(err) {
-		appLog.Info("Creating Python virtual environment...", "dir", venvDir)
-
-		// Try 'python3' first on Linux/macOS, then 'python'
-		pythonExe := "python"
-		if runtime.GOOS != "windows" {
-			if _, err := exec.LookPath("python3"); err == nil {
-				pythonExe = "python3"
-			}
-		}
-
-		cmd := exec.Command(pythonExe, "-m", "venv", venvDir)
-		if err := cmd.Run(); err != nil {
-			appLog.Error("Failed to create virtual environment", "error", err, "python", pythonExe)
-			os.Exit(1)
-		}
-		appLog.Info("Virtual environment created successfully.", "python", pythonExe)
+	// Python is optional. Provision dependencies only when Python tools are
+	// enabled; individual Python tools and skills also create the venv lazily.
+	if cfg.Agent.AllowPython {
+		go tools.ProvisionSkillDependencies(cfg.Directories.SkillsDir, cfg.Directories.WorkspaceDir, appLog)
 	}
-
-	// Phase 26.1: Provision skill dependencies into the venv in the background
-	// so the server starts immediately without waiting for pip.
-	go tools.ProvisionSkillDependencies(cfg.Directories.SkillsDir, cfg.Directories.WorkspaceDir, appLog)
 
 	shortTermMem, err := memory.NewSQLiteMemory(cfg.SQLite.ShortTermPath, appLog)
 	if err != nil {

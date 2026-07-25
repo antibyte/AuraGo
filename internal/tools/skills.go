@@ -319,6 +319,11 @@ func executePreparedSkill(ctx context.Context, workspaceDir, skillName string, m
 	if err := requireSkillExecutionPermission(manifest); err != nil {
 		return "", err
 	}
+	if strings.HasSuffix(strings.ToLower(manifest.Executable), ".py") {
+		if err := ensurePythonVenv(workspaceDir); err != nil {
+			return "", fmt.Errorf("cannot execute Python skill %q: %w", skillName, err)
+		}
+	}
 	if opts.logInput {
 		slog.Debug(
 			"[ExecuteSkill] Prepared JSON input",

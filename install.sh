@@ -17,8 +17,15 @@ SERVICE_FILE_CREATED=0
 CREDENTIAL_FILE_CREATED=0
 SERVICE_ENABLED=0
 RELEASE_CHECKSUMS_FILE=""
+RELEASE_SIGNATURE_FILE=""
+RELEASE_CERTIFICATE_FILE=""
 INITIAL_PASSWORD_FILE=""
 TMP_GO=""
+TMPEXT=""
+EXISTING_CONFIG_BAK=""
+RELEASE_RESOURCES_FILE=""
+RELEASE_ASSET_TEMP=""
+PYTHON_PROBE_DIR=""
 
 GITHUB_REPO="antibyte/AuraGo"
 REPO="https://github.com/${GITHUB_REPO}.git"
@@ -47,11 +54,38 @@ ok()   { echo -e "${GREEN}${ICO_OK}${NC}        -> $*"; }
 warn() { echo -e "${YELLOW}${ICO_WARN} WARN${NC}  -> $*"; }
 die()  { echo -e "${RED}${ICO_ERR} ERROR${NC} -> $*"; exit 1; }
 
+INTERACTIVE_TTY=false
+if [ -r /dev/tty ] && [ -w /dev/tty ] && { : </dev/tty; } 2>/dev/null; then
+    INTERACTIVE_TTY=true
+fi
+
+prompt_value() {
+    local variable="$1"
+    local prompt="$2"
+    local interactive_default="$3"
+    local noninteractive_default="$4"
+    local reply=""
+    if $INTERACTIVE_TTY; then
+        read -r -p "$prompt" reply < /dev/tty || reply="$interactive_default"
+        [ -n "$reply" ] || reply="$interactive_default"
+    else
+        reply="$noninteractive_default"
+    fi
+    printf -v "$variable" '%s' "$reply"
+}
+
 cleanup_install_failure() {
     local exit_code=$?
     [ -n "${RELEASE_CHECKSUMS_FILE:-}" ] && rm -f "$RELEASE_CHECKSUMS_FILE"
+    [ -n "${RELEASE_SIGNATURE_FILE:-}" ] && rm -f "$RELEASE_SIGNATURE_FILE"
+    [ -n "${RELEASE_CERTIFICATE_FILE:-}" ] && rm -f "$RELEASE_CERTIFICATE_FILE"
     [ -n "${INITIAL_PASSWORD_FILE:-}" ] && rm -f "$INITIAL_PASSWORD_FILE"
+    [ -n "${EXISTING_CONFIG_BAK:-}" ] && rm -f "$EXISTING_CONFIG_BAK"
+    [ -n "${RELEASE_RESOURCES_FILE:-}" ] && rm -f "$RELEASE_RESOURCES_FILE"
+    [ -n "${RELEASE_ASSET_TEMP:-}" ] && rm -f "$RELEASE_ASSET_TEMP"
     [ -n "${TMP_GO:-}" ] && rm -rf "$TMP_GO"
+    [ -n "${TMPEXT:-}" ] && rm -rf "$TMPEXT"
+    [ -n "${PYTHON_PROBE_DIR:-}" ] && rm -rf "$PYTHON_PROBE_DIR"
     if [ "$exit_code" -eq 0 ] || [ "$INSTALL_SUCCESS" -eq 1 ]; then
         return 0
     fi
@@ -367,13 +401,27 @@ _pkg_install() {
         pacman) $SUDO pacman -Sy --noconfirm "$@" ;;
         apk)    $SUDO apk add --no-cache "$@" ;;
         zypper) $SUDO zypper install -y "$@" ;;
-        *)      warn "Cannot auto-install packages (unknown package manager). Please install manually: $*" ;;
+        *)
+            warn "Cannot auto-install packages (unknown package manager). Please install manually: $*"
+            return 1
+            ;;
     esac
 }
 
 # ── Ensure curl or wget ──────────────────────────────────────────────────
+if ! command -v curl >/dev/null 2>&1 && ! command -v wget >/dev/null 2>&1; then
+    info "Installing curl and CA certificates..."
+    _pkg_install curl ca-certificates || die "Install curl and ca-certificates, then rerun the installer."
+fi
 command -v curl >/dev/null 2>&1 || command -v wget >/dev/null 2>&1 || \
-    { info "Installing curl..."; _pkg_install curl; }
+    die "Neither curl nor wget is available after dependency installation."
+
+if ! command -v tar >/dev/null 2>&1; then
+    info "Installing tar..."
+    _pkg_install tar || die "Install tar, then rerun the installer."
+fi
+command -v tar >/dev/null 2>&1 || die "tar is required to extract AuraGo release resources."
+command -v mktemp >/dev/null 2>&1 || die "mktemp is required. Install coreutils (or your platform equivalent) and rerun the installer."
 
 _download() {
     local url="$1" dest="$2"
@@ -433,11 +481,15 @@ verify_release_checksums_signature() {
     [ -n "${RELEASE_CHECKSUMS_FILE:-}" ] && [ -f "$RELEASE_CHECKSUMS_FILE" ] || die "Release checksums are not available."
 
     local sig_file cert_file
-    sig_file="$(mktemp)"
-    cert_file="$(mktemp)"
+    sig_file="$(mktemp "${TMPDIR:-/tmp}/aurago-sha256-sig.XXXXXX")"
+    cert_file="$(mktemp "${TMPDIR:-/tmp}/aurago-sha256-cert.XXXXXX")"
+    RELEASE_SIGNATURE_FILE="$sig_file"
+    RELEASE_CERTIFICATE_FILE="$cert_file"
 
     if ! _download_optional "${RELEASE_BASE}/SHA256SUMS.sig" "$sig_file" || ! _download_optional "${RELEASE_BASE}/SHA256SUMS.pem" "$cert_file"; then
         rm -f "$sig_file" "$cert_file"
+        RELEASE_SIGNATURE_FILE=""
+        RELEASE_CERTIFICATE_FILE=""
         if strict_release_verify_enabled; then
             die "Release signature files are missing and AURAGO_STRICT_RELEASE_VERIFY=1 is set."
         fi
@@ -447,6 +499,8 @@ verify_release_checksums_signature() {
 
     if ! command -v cosign >/dev/null 2>&1; then
         rm -f "$sig_file" "$cert_file"
+        RELEASE_SIGNATURE_FILE=""
+        RELEASE_CERTIFICATE_FILE=""
         if strict_release_verify_enabled; then
             die "cosign is required for strict release signature verification."
         fi
@@ -463,6 +517,8 @@ verify_release_checksums_signature() {
         ok "Release checksum signature verified."
     else
         rm -f "$sig_file" "$cert_file"
+        RELEASE_SIGNATURE_FILE=""
+        RELEASE_CERTIFICATE_FILE=""
         if strict_release_verify_enabled; then
             die "Release checksum signature verification failed."
         fi
@@ -471,6 +527,8 @@ verify_release_checksums_signature() {
     fi
 
     rm -f "$sig_file" "$cert_file"
+    RELEASE_SIGNATURE_FILE=""
+    RELEASE_CERTIFICATE_FILE=""
 }
 
 fetch_release_checksums() {
@@ -478,7 +536,7 @@ fetch_release_checksums() {
     if [ -n "${RELEASE_CHECKSUMS_FILE:-}" ] && [ -f "${RELEASE_CHECKSUMS_FILE:-}" ]; then
         return 0
     fi
-    RELEASE_CHECKSUMS_FILE="$(mktemp)"
+    RELEASE_CHECKSUMS_FILE="$(mktemp "${TMPDIR:-/tmp}/aurago-sha256.XXXXXX")"
     if ! _download "${RELEASE_BASE}/SHA256SUMS" "$RELEASE_CHECKSUMS_FILE"; then
         rm -f "$RELEASE_CHECKSUMS_FILE"
         RELEASE_CHECKSUMS_FILE=""
@@ -491,20 +549,38 @@ verify_release_asset() {
     local asset="$1"
     local path="$2"
     local expected actual
-    [ -f "$path" ] || die "Cannot verify missing file: $path"
-    [ -n "${RELEASE_CHECKSUMS_FILE:-}" ] && [ -f "$RELEASE_CHECKSUMS_FILE" ] || die "Release checksums are not available."
+    [ -f "$path" ] || { warn "Cannot verify missing file: $path"; return 1; }
+    [ -n "${RELEASE_CHECKSUMS_FILE:-}" ] && [ -f "$RELEASE_CHECKSUMS_FILE" ] || { warn "Release checksums are not available."; return 1; }
     expected="$(awk -v target="$asset" '$2 == target {print $1; exit}' "$RELEASE_CHECKSUMS_FILE")"
-    [ -n "$expected" ] || die "Missing checksum entry for ${asset} in release manifest."
+    [ -n "$expected" ] || { warn "Missing checksum entry for ${asset} in release manifest."; return 1; }
     actual="$(sha256_file "$path" || true)"
-    [ -n "$actual" ] || die "No SHA256 tool available to verify ${asset}."
-    [ "$actual" = "$expected" ] || die "Checksum verification failed for ${asset}."
+    [ -n "$actual" ] || { warn "No SHA256 tool available to verify ${asset}."; return 1; }
+    [ "$actual" = "$expected" ] || { warn "Checksum verification failed for ${asset}."; return 1; }
 }
 
 download_release_asset() {
     local asset="$1"
     local dest="$2"
-    _download "${RELEASE_BASE}/${asset}" "$dest"
-    verify_release_asset "$asset" "$dest"
+    RELEASE_ASSET_TEMP="${dest}.download.$$"
+    rm -f "$RELEASE_ASSET_TEMP"
+    if ! _download "${RELEASE_BASE}/${asset}" "$RELEASE_ASSET_TEMP"; then
+        rm -f "$RELEASE_ASSET_TEMP"
+        RELEASE_ASSET_TEMP=""
+        warn "Could not download release asset ${asset}."
+        return 1
+    fi
+    if ! verify_release_asset "$asset" "$RELEASE_ASSET_TEMP"; then
+        rm -f "$RELEASE_ASSET_TEMP"
+        RELEASE_ASSET_TEMP=""
+        return 1
+    fi
+    if ! mv -f "$RELEASE_ASSET_TEMP" "$dest"; then
+        rm -f "$RELEASE_ASSET_TEMP"
+        RELEASE_ASSET_TEMP=""
+        warn "Could not publish verified release asset ${asset} to ${dest}."
+        return 1
+    fi
+    RELEASE_ASSET_TEMP=""
 }
 
 latest_release_tag() {
@@ -527,7 +603,7 @@ ensure_ffmpeg() {
     fi
 
     warn "ffmpeg not found."
-    read -r -p "Install ffmpeg? [Y/n]: " FF_REPLY < /dev/tty || true
+    prompt_value FF_REPLY "Install ffmpeg? [Y/n]: " "y" "n"
     if [[ "${FF_REPLY:-y}" =~ ^[Yy]$ ]]; then
         if install_ffmpeg; then
             ok "ffmpeg installed."
@@ -546,38 +622,73 @@ ensure_imagemagick() {
     fi
 
     warn "ImageMagick not found."
-    read -r -p "Install ImageMagick for image conversion? [Y/n]: " IM_REPLY < /dev/tty || true
+    prompt_value IM_REPLY "Install ImageMagick for image conversion? [Y/n]: " "y" "n"
     if [[ "${IM_REPLY:-y}" =~ ^[Yy]$ ]]; then
-        case "$PKG_MGR" in
-            dnf)    _pkg_install ImageMagick ;;
-            *)      _pkg_install imagemagick ;;
+        if case "$PKG_MGR" in
+            dnf) _pkg_install ImageMagick ;;
+            *)   _pkg_install imagemagick ;;
         esac
-        ok "ImageMagick installed."
+        then
+            ok "ImageMagick installed."
+        else
+            warn "ImageMagick installation failed. Image format conversion will not work."
+        fi
     else
         warn "Skipping ImageMagick. Image format conversion will not work."
     fi
 }
 
+python_runtime_ready() {
+    local python_cmd
+    PYTHON_PROBE_DIR="$(mktemp -d "${TMPDIR:-/tmp}/aurago-python-venv.XXXXXX")" || return 1
+    for python_cmd in python3 python; do
+        command -v "$python_cmd" >/dev/null 2>&1 || continue
+        rm -rf "$PYTHON_PROBE_DIR"
+        mkdir -p "$PYTHON_PROBE_DIR"
+        if "$python_cmd" -m venv "$PYTHON_PROBE_DIR" >/dev/null 2>&1 \
+            && "$PYTHON_PROBE_DIR/bin/python" -m pip --version >/dev/null 2>&1; then
+            rm -rf "$PYTHON_PROBE_DIR"
+            PYTHON_PROBE_DIR=""
+            return 0
+        fi
+    done
+    rm -rf "$PYTHON_PROBE_DIR"
+    PYTHON_PROBE_DIR=""
+    return 1
+}
+
 ensure_python_runtime() {
     PYTHON_MISSING=false
-    if command -v python3 >/dev/null 2>&1 && python3 -m pip --version >/dev/null 2>&1; then
-        ok "Python 3 + pip found."
+    if python_runtime_ready; then
+        ok "Python with working venv + pip found."
         return 0
     fi
 
-    warn "Python 3 / pip not found."
-    read -r -p "Install Python 3, pip and venv? [Y/n]: " PY_REPLY < /dev/tty || true
+    warn "Python with working venv + pip not found."
+    prompt_value PY_REPLY "Install Python 3, pip and venv? [Y/n]: " "y" "n"
     if [[ "${PY_REPLY:-y}" =~ ^[Yy]$ ]]; then
-        case "$PKG_MGR" in
+        if ! case "$PKG_MGR" in
             apt)    _pkg_install python3 python3-pip python3-venv ;;
-            dnf)    _pkg_install python3 python3-pip ;;
+            dnf|yum) _pkg_install python3 python3-pip ;;
             pacman) _pkg_install python python-pip ;;
             apk)    _pkg_install python3 py3-pip ;;
+            zypper) _pkg_install python3 python3-pip ;;
             *)      _pkg_install python3 python3-pip ;;
         esac
-        ok "Python 3 + pip installed."
+        then
+            warn "Python installation failed. Python-based tools and skills will not work."
+            PYTHON_MISSING=true
+            return 0
+        fi
+        if python_runtime_ready; then
+            ok "Python with working venv + pip installed."
+        else
+            warn "Python packages were installed, but creating a venv with pip still fails."
+            warn "Python-based tools and skills will remain unavailable until the venv support is repaired."
+            PYTHON_MISSING=true
+        fi
     else
-        warn "Skipping Python. Python-based skills will not work."
+        warn "Skipping Python. Python-based tools and skills will not work."
         PYTHON_MISSING=true
     fi
 }
@@ -589,7 +700,7 @@ ensure_docker_engine() {
             return 0
         fi
         warn "Docker CLI found but the daemon is not reachable."
-        if command -v systemctl >/dev/null 2>&1; then
+        if $INTERACTIVE_TTY && command -v systemctl >/dev/null 2>&1; then
             info "Trying to enable/start docker.service..."
             if $SUDO systemctl enable --now docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
                 ok "Docker daemon started."
@@ -605,7 +716,7 @@ ensure_docker_engine() {
     echo -e " ${G3}|${NC}  Many useful AuraGo features (Sandbox, tools) need Docker.   ${G3}|${NC}"
     echo -e " ${G4}+--------------------------------------------------------------+${NC}"
     echo ""
-    read -r -p "Install Docker now? (Recommended) [Y/n]: " DKR_REPLY < /dev/tty || true
+    prompt_value DKR_REPLY "Install Docker now? (Recommended) [Y/n]: " "y" "n"
     if [[ "${DKR_REPLY:-y}" =~ ^[Yy]$ ]]; then
         info "Installing Docker via the local package manager..."
         if install_docker_engine; then
@@ -634,6 +745,9 @@ ensure_docker_engine() {
 
 # ── Optional system dependencies ─────────────────────────────────────────
 info "Checking system dependencies..."
+if ! $INTERACTIVE_TTY; then
+    warn "No interactive TTY detected; using conservative defaults for optional components and services."
+fi
 
 ensure_ffmpeg
 ensure_imagemagick
@@ -658,10 +772,12 @@ _go_version_ok() {
     version_ge "$installed" "$GO_VERSION"
 }
 
-if _go_version_ok; then
+if _go_version_ok && $INTERACTIVE_TTY; then
     export PATH="$GO_INSTALL_DIR/go/bin:$PATH"
     ok "Go $(go version | awk '{print $3}') found — will build from source."
     BUILD_FROM_SOURCE=true
+elif _go_version_ok; then
+    ok "Go $(go version | awk '{print $3}') found; non-interactive safe default selects the binary install."
 else
     info "Go $GO_VERSION+ not found."
     echo ""
@@ -669,12 +785,12 @@ else
     echo "    1) Binary install — download pre-built binaries (no Go needed, fast)"
     echo "    2) Source build   — install Go $GO_VERSION, clone repo, build from source"
     echo ""
-    read -r -p "Install mode [1/2, default=1]: " MODE_REPLY < /dev/tty || true
+    prompt_value MODE_REPLY "Install mode [1/2, default=1]: " "1" "1"
     if [[ "${MODE_REPLY:-1}" == "2" ]]; then
         info "Installing Go $GO_VERSION for $GOARCH..."
         GO_TAR="go${GO_VERSION}.linux-${GOARCH}.tar.gz"
         GO_URL="https://go.dev/dl/${GO_TAR}"
-        TMP_GO="$(mktemp -d)"
+        TMP_GO="$(mktemp -d "${TMPDIR:-/tmp}/aurago-go.XXXXXX")"
 
         _download "$GO_URL" "$TMP_GO/$GO_TAR"
         $SUDO rm -rf "$GO_INSTALL_DIR/go"
@@ -749,19 +865,21 @@ else
     mkdir -p "$INSTALL_DIR/agent_workspace/workdir" "$INSTALL_DIR/agent_workspace/tools"
     cd "$INSTALL_DIR"
 
-    EXISTING_CONFIG_BAK=""
     if [ -f "$INSTALL_DIR/config.yaml" ]; then
-        EXISTING_CONFIG_BAK="$(mktemp)"
+        EXISTING_CONFIG_BAK="$(mktemp "${TMPDIR:-/tmp}/aurago-config.XXXXXX")"
         cp -p "$INSTALL_DIR/config.yaml" "$EXISTING_CONFIG_BAK"
     fi
 
     # Download resources.dat and extract (contains prompts, skills, config template, UI)
     info "Downloading resources.dat ..."
-    download_release_asset "resources.dat" "$INSTALL_DIR/resources.dat"
+    download_release_asset "resources.dat" "$INSTALL_DIR/resources.dat" || \
+        die "Failed to download or verify resources.dat from release ${RELEASE_TAG}."
+    RELEASE_RESOURCES_FILE="$INSTALL_DIR/resources.dat"
     # Extract to a temp dir so we can selectively merge (never clobber existing config)
-    TMPEXT=$(mktemp -d)
-    tar -xzf "$INSTALL_DIR/resources.dat" -C "$TMPEXT"
-    rm -f "$INSTALL_DIR/resources.dat"
+    TMPEXT="$(mktemp -d "${TMPDIR:-/tmp}/aurago-resources.XXXXXX")"
+    tar -xzf "$RELEASE_RESOURCES_FILE" -C "$TMPEXT" || die "Failed to extract verified resources.dat."
+    rm -f "$RELEASE_RESOURCES_FILE"
+    RELEASE_RESOURCES_FILE=""
 
     # Copy prompts, skills, and other resource dirs (always overwrite — they are code)
     [ -d "$TMPEXT/prompts" ]           && cp -a "$TMPEXT/prompts"           "$INSTALL_DIR/"
@@ -774,12 +892,13 @@ else
         cp "$TMPEXT/config.yaml" "$INSTALL_DIR/config.yaml.new_template"
     fi
     rm -rf "$TMPEXT"
+    TMPEXT=""
     ok "Resources extracted."
 
     # Download binaries
     if [ "$GOARCH" = "arm64" ]; then
         info "Downloading arm64 binaries..."
-        download_release_asset "aurago_linux_arm64"                "bin/aurago_linux_arm64"
+        download_release_asset "aurago_linux_arm64"                "bin/aurago_linux_arm64"                 || die "Required AuraGo arm64 binary is unavailable or invalid."
         download_release_asset "config-merger_linux_arm64"         "bin/config-merger_linux_arm64"         2>/dev/null || warn "config-merger_linux_arm64 not in release."
         download_release_asset "aurago-remote_linux_arm64"         "bin/aurago-remote_linux_arm64"         2>/dev/null || warn "aurago-remote_linux_arm64 not in release."
         cp bin/aurago_linux_arm64           bin/aurago_linux
@@ -787,7 +906,7 @@ else
         cp bin/aurago-remote_linux_arm64    bin/aurago-remote_linux         2>/dev/null || true
     else
         info "Downloading amd64 binaries..."
-        download_release_asset "aurago_linux"                      "bin/aurago_linux"
+        download_release_asset "aurago_linux"                      "bin/aurago_linux"                       || die "Required AuraGo amd64 binary is unavailable or invalid."
         download_release_asset "config-merger_linux"               "bin/config-merger_linux"               2>/dev/null || warn "config-merger_linux not in release."
         download_release_asset "aurago-remote_linux"               "bin/aurago-remote_linux"               2>/dev/null || warn "aurago-remote_linux not in release."
     fi
@@ -820,6 +939,7 @@ if ! $BUILD_FROM_SOURCE; then
         rm -f "$INSTALL_DIR/config.yaml.new_template"
     fi
     [ -n "${EXISTING_CONFIG_BAK:-}" ] && rm -f "$EXISTING_CONFIG_BAK"
+    EXISTING_CONFIG_BAK=""
 
     info "Downloading update.sh ..."
     if download_release_asset "update.sh" "$INSTALL_DIR/update.sh"; then
@@ -830,6 +950,7 @@ if ! $BUILD_FROM_SOURCE; then
     fi
 
     [ -n "${RELEASE_CHECKSUMS_FILE:-}" ] && rm -f "$RELEASE_CHECKSUMS_FILE"
+    RELEASE_CHECKSUMS_FILE=""
 fi
 
 # ── Master key ────────────────────────────────────────────────────────────
@@ -896,7 +1017,7 @@ echo -e " ${YELLOW}|${NC}  Configure external access and HTTPS for this installa
 echo -e " ${YELLOW}+--------------------------------------------------------------+${NC}"
 echo ""
 
-read -r -p "Is this an internet-facing server and do you want to enable HTTPS (Let's Encrypt)? [y/N]: " HTTPS_REPLY < /dev/tty || true
+prompt_value HTTPS_REPLY "Is this an internet-facing server and do you want to enable HTTPS (Let's Encrypt)? [y/N]: " "n" "n"
 
 SERVER_HOST="127.0.0.1"
 HTTPS_ENABLED="false"
@@ -904,8 +1025,8 @@ HTTPS_ENABLED="false"
 if [[ "${HTTPS_REPLY:-n}" =~ ^[Yy]$ ]]; then
     SERVER_HOST="0.0.0.0"
     HTTPS_ENABLED="true"
-    read -r -p "Enter your domain (e.g., aurago.example.com): " HTTPS_DOMAIN < /dev/tty || true
-    read -r -p "Enter your email for Let's Encrypt: " HTTPS_EMAIL < /dev/tty || true
+    prompt_value HTTPS_DOMAIN "Enter your domain (e.g., aurago.example.com): " "" ""
+    prompt_value HTTPS_EMAIL "Enter your email for Let's Encrypt: " "" ""
     ok "Web UI will listen on ALL interfaces (0.0.0.0:443) with HTTPS."
 else
     echo ""
@@ -913,7 +1034,7 @@ else
     echo "  (e.g. a home server / Proxmox container) — never expose it directly"
     echo "  to the internet without HTTPS / reverse proxy."
     echo ""
-    read -r -p "Enable HTTP access from outside localhost (LAN)? [y/N]: " NET_REPLY < /dev/tty || true
+    prompt_value NET_REPLY "Enable HTTP access from outside localhost (LAN)? [y/N]: " "n" "n"
     if [[ "${NET_REPLY:-n}" =~ ^[Yy]$ ]]; then
         SERVER_HOST="0.0.0.0"
         warn "Web UI will listen on ALL interfaces (0.0.0.0:8088) without HTTPS."
@@ -988,7 +1109,7 @@ fi
 SERVICE_INSTALLED=false
 if command -v systemctl >/dev/null 2>&1; then
     echo ""
-    read -r -p "Install as systemd service (auto-start on boot)? [Y/n]: " SVC_REPLY < /dev/tty || true
+    prompt_value SVC_REPLY "Install as systemd service (auto-start on boot)? [Y/n]: " "y" "n"
     if [[ "${SVC_REPLY:-y}" =~ ^[Yy]$ ]]; then
 
         # ── Move master key to /etc/aurago/master.key (root-only) ─────────
@@ -1187,7 +1308,7 @@ echo ""
 
 if [ "$PYTHON_MISSING" = "true" ]; then
     echo -e " ${YELLOW}╭──────────────────────────────────────────────────────────────────╮${NC}"
-    echo -e " ${YELLOW}│${NC}  ${BOLD}⚠  Python not installed${NC} — Python-based skills will not work.   ${YELLOW}│${NC}"
+    echo -e " ${YELLOW}│${NC}  ${BOLD}⚠  Python not installed${NC} — Python tools and skills will not work. ${YELLOW}│${NC}"
     echo -e " ${YELLOW}╰──────────────────────────────────────────────────────────────────╯${NC}"
     echo ""
 fi

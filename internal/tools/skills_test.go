@@ -158,6 +158,36 @@ func TestExecuteSkillFiltersSensitiveEnvironment(t *testing.T) {
 	}
 }
 
+func TestExecutePythonSkillCreatesVenvLazily(t *testing.T) {
+	requireHostPython(t)
+
+	skillsDir := t.TempDir()
+	workspaceDir := t.TempDir()
+	manifest := SkillManifest{Name: "lazy_python", Executable: "run.py"}
+	data, err := json.Marshal(manifest)
+	if err != nil {
+		t.Fatalf("marshal manifest: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(skillsDir, "lazy_python.json"), data, 0o600); err != nil {
+		t.Fatalf("write manifest: %v", err)
+	}
+	script := "import json, sys\nprint(json.load(sys.stdin)['value'])\n"
+	if err := os.WriteFile(filepath.Join(skillsDir, "run.py"), []byte(script), 0o600); err != nil {
+		t.Fatalf("write Python skill: %v", err)
+	}
+
+	out, err := ExecuteSkill(context.Background(), skillsDir, workspaceDir, "lazy_python", map[string]interface{}{"value": "lazy-skill-ok"})
+	if err != nil {
+		t.Fatalf("ExecuteSkill() lazy venv error = %v, output = %q", err, out)
+	}
+	if !strings.Contains(out, "lazy-skill-ok") {
+		t.Fatalf("ExecuteSkill() output = %q, want lazy-skill-ok", out)
+	}
+	if _, err := os.Stat(GetPipBin(workspaceDir)); err != nil {
+		t.Fatalf("venv pip missing after lazy Python skill: %v", err)
+	}
+}
+
 func TestExecuteSkillRequiresPythonPermission(t *testing.T) {
 	ClearRuntimePermissionsForTest()
 	t.Cleanup(func() {

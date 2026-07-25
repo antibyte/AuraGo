@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -64,6 +65,10 @@ var sandboxTimeout atomic.Int64
 
 // networkTimeout stores the default execution timeout for network operations (nanoseconds).
 var networkTimeout atomic.Int64
+
+// venvMu serializes virtual-environment validation and creation. Python tools
+// can be invoked concurrently before the first venv exists.
+var venvMu sync.Mutex
 
 func init() {
 	foregroundTimeout.Store(int64(DefaultForegroundTimeout))
@@ -211,24 +216,26 @@ func GetPipBin(workspaceDir string) string {
 
 // EnsureVenv checks if the virtual environment exists and has a working pip binary, creating or recreating it if necessary.
 func EnsureVenv(workspaceDir string, logger *slog.Logger) error {
+	venvMu.Lock()
+	defer venvMu.Unlock()
+
+	if logger == nil {
+		logger = slog.Default()
+	}
 	venvDir := filepath.Join(workspaceDir, "venv")
+	pythonBin := GetPythonBin(workspaceDir)
 
-	// Determine the pip binary path to validate
-	var pipBin string
-	if runtime.GOOS == "windows" {
-		pipBin = filepath.Join(venvDir, "Scripts", "pip.exe")
-	} else {
-		pipBin = filepath.Join(venvDir, "bin", "pip")
+	// If the venv has both its interpreter and pip entry point, it is ready.
+	pipBin := GetPipBin(workspaceDir)
+	if _, pythonErr := os.Stat(pythonBin); pythonErr == nil {
+		if _, pipErr := os.Stat(pipBin); pipErr == nil {
+			return nil
+		}
 	}
 
-	// If venv exists AND pip binary is present, we're good
-	if _, err := os.Stat(pipBin); err == nil {
-		return nil
-	}
-
-	// Either venv dir is missing or pip binary is absent (incomplete/corrupt venv)
+	// Either the venv directory is missing or it is incomplete/corrupt.
 	if _, err := os.Stat(venvDir); err == nil {
-		logger.Warn("Python venv exists but pip binary is missing — recreating venv", "dir", venvDir, "pip", pipBin)
+		logger.Warn("Python venv is incomplete — recreating venv", "dir", venvDir, "python", pythonBin, "pip", pipBin)
 		if err := os.RemoveAll(venvDir); err != nil {
 			return fmt.Errorf("failed to remove broken venv: %w", err)
 		}
@@ -236,7 +243,23 @@ func EnsureVenv(workspaceDir string, logger *slog.Logger) error {
 		logger.Info("Creating Python virtual environment", "dir", venvDir)
 	}
 
-	return createVenv(workspaceDir, logger)
+	if err := createVenv(workspaceDir, logger); err != nil {
+		return err
+	}
+	if _, err := os.Stat(pythonBin); err != nil {
+		return fmt.Errorf("created venv has no Python interpreter at %s: %w", pythonBin, err)
+	}
+	if _, err := os.Stat(pipBin); err != nil {
+		return fmt.Errorf("created venv has no pip entry point at %s: %w", pipBin, err)
+	}
+	return nil
+}
+
+func ensurePythonVenv(workspaceDir string) error {
+	if err := EnsureVenv(workspaceDir, slog.Default()); err != nil {
+		return fmt.Errorf("python runtime unavailable: %w", err)
+	}
+	return nil
 }
 
 // createVenv creates a new virtual environment in workspaceDir using python3 or python.
@@ -324,6 +347,9 @@ func RunTool(name string, args []string, workspaceDir, toolsDir string) (string,
 	if err != nil {
 		return "", "", err
 	}
+	if err := ensurePythonVenv(workspaceDir); err != nil {
+		return "", "", err
+	}
 
 	pythonCmd := GetPythonBin(workspaceDir)
 	cmdArgs := append([]string{absToolPath}, args...)
@@ -356,6 +382,9 @@ func RunToolWithSecrets(name string, args []string, workspaceDir, toolsDir strin
 	}
 	absToolPath, err := resolveToolPath(name, toolsDir)
 	if err != nil {
+		return "", "", err
+	}
+	if err := ensurePythonVenv(workspaceDir); err != nil {
 		return "", "", err
 	}
 
@@ -391,6 +420,9 @@ func RunToolBackground(name string, args []string, workspaceDir, toolsDir string
 	if err != nil {
 		return 0, err
 	}
+	if err := ensurePythonVenv(workspaceDir); err != nil {
+		return 0, err
+	}
 
 	pythonCmd := GetPythonBin(workspaceDir)
 	cmdArgs := append([]string{absToolPath}, args...)
@@ -421,6 +453,9 @@ func RunToolBackgroundWithSecrets(name string, args []string, workspaceDir, tool
 	if err != nil {
 		return 0, err
 	}
+	if err := ensurePythonVenv(workspaceDir); err != nil {
+		return 0, err
+	}
 
 	pythonCmd := GetPythonBin(workspaceDir)
 	cmdArgs := append([]string{absToolPath}, args...)
@@ -448,6 +483,9 @@ func RunToolBackgroundWithSecrets(name string, args []string, workspaceDir, tool
 // (e.g., via subprocess.Popen) are also terminated and the pipes are closed.
 func ExecutePython(code, workspaceDir, toolsDir string) (string, string, error) {
 	if err := requirePythonPermission(); err != nil {
+		return "", "", err
+	}
+	if err := ensurePythonVenv(workspaceDir); err != nil {
 		return "", "", err
 	}
 	scriptPath, cleanup, err := writeScript(code, toolsDir)
@@ -491,6 +529,9 @@ func ExecutePythonWithOptions(opts PythonExecutionOptions) (string, string, erro
 	if err := requirePythonPermission(); err != nil {
 		return "", "", err
 	}
+	if err := ensurePythonVenv(opts.WorkspaceDir); err != nil {
+		return "", "", err
+	}
 	code := opts.Code
 	toolBridgeEnabled := opts.ToolBridgeURL != "" && opts.ToolBridgeToken != ""
 	if toolBridgeEnabled {
@@ -531,6 +572,9 @@ func ExecutePythonWithSecrets(code, workspaceDir, toolsDir string, secrets map[s
 	if err := requirePythonPermission(); err != nil {
 		return "", "", err
 	}
+	if err := ensurePythonVenv(workspaceDir); err != nil {
+		return "", "", err
+	}
 	scriptPath, cleanup, err := writeScript(code, toolsDir)
 	if err != nil {
 		return "", "", err
@@ -560,6 +604,9 @@ func ExecutePythonWithSecrets(code, workspaceDir, toolsDir string, secrets map[s
 // registers it in the process registry, and returns the PID immediately.
 func ExecutePythonBackground(code, workspaceDir, toolsDir string, registry *ProcessRegistry) (int, error) {
 	if err := requirePythonPermission(); err != nil {
+		return 0, err
+	}
+	if err := ensurePythonVenv(workspaceDir); err != nil {
 		return 0, err
 	}
 	scriptPath, _, err := writeScript(code, toolsDir)
@@ -592,6 +639,9 @@ func ExecutePythonBackground(code, workspaceDir, toolsDir string, registry *Proc
 // and credential secrets as environment variables. Output scrubbing happens via ReadOutput + security.Scrub at read time.
 func ExecutePythonBackgroundWithSecrets(code, workspaceDir, toolsDir string, registry *ProcessRegistry, secrets map[string]string, creds []CredentialFields) (int, error) {
 	if err := requirePythonPermission(); err != nil {
+		return 0, err
+	}
+	if err := ensurePythonVenv(workspaceDir); err != nil {
 		return 0, err
 	}
 	scriptPath, _, err := writeScript(code, toolsDir)

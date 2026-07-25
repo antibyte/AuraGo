@@ -3,9 +3,11 @@ package tools
 import (
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -218,6 +220,72 @@ func TestCreateVenvDoesNotInheritSensitiveEnv(t *testing.T) {
 	}
 }
 
+func TestEnsureVenvConcurrentFirstUse(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		if _, err := exec.LookPath("python"); err != nil {
+			t.Skip("python is not available")
+		}
+	} else if _, err := exec.LookPath("python3"); err != nil {
+		if _, fallbackErr := exec.LookPath("python"); fallbackErr != nil {
+			t.Skip("python3 and python are not available")
+		}
+	}
+
+	workspaceDir := t.TempDir()
+	const callers = 8
+	var wg sync.WaitGroup
+	errs := make(chan error, callers)
+	for i := 0; i < callers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			errs <- EnsureVenv(workspaceDir, testBackgroundTaskLogger())
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		if err != nil {
+			t.Fatalf("EnsureVenv() concurrent first use error = %v", err)
+		}
+	}
+	if _, err := os.Stat(GetPythonBin(workspaceDir)); err != nil {
+		t.Fatalf("venv Python missing after concurrent first use: %v", err)
+	}
+	if _, err := os.Stat(GetPipBin(workspaceDir)); err != nil {
+		t.Fatalf("venv pip missing after concurrent first use: %v", err)
+	}
+}
+
+func TestExecutePythonCreatesVenvLazily(t *testing.T) {
+	requireHostPython(t)
+
+	workspaceDir := t.TempDir()
+	toolsDir := t.TempDir()
+	stdout, stderr, err := ExecutePython(`print("lazy-python-ok")`, workspaceDir, toolsDir)
+	if err != nil {
+		t.Fatalf("ExecutePython() lazy venv error = %v, stderr = %q", err, stderr)
+	}
+	if !strings.Contains(stdout, "lazy-python-ok") {
+		t.Fatalf("ExecutePython() stdout = %q, want lazy-python-ok", stdout)
+	}
+	if _, err := os.Stat(GetPipBin(workspaceDir)); err != nil {
+		t.Fatalf("venv pip missing after lazy Python execution: %v", err)
+	}
+}
+
+func TestExecutePythonReportsMissingOptionalRuntime(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
+
+	_, _, err := ExecutePython(`print("unreachable")`, t.TempDir(), t.TempDir())
+	if err == nil {
+		t.Fatal("ExecutePython() error = nil, want missing runtime error")
+	}
+	if !strings.Contains(err.Error(), "python runtime unavailable") || !strings.Contains(err.Error(), "failed to create venv") {
+		t.Fatalf("ExecutePython() error = %q, want concrete optional runtime failure", err)
+	}
+}
+
 func TestInstallPackageDoesNotInheritSensitiveEnv(t *testing.T) {
 	workspaceDir := t.TempDir()
 	installFakePip(t, workspaceDir)
@@ -234,6 +302,23 @@ func TestInstallPackageDoesNotInheritSensitiveEnv(t *testing.T) {
 func installFakePython(t *testing.T, workspaceDir string) {
 	t.Helper()
 	installFakeExecutable(t, fakePythonPath(workspaceDir))
+	installFakeExecutable(t, fakePipPath(workspaceDir))
+}
+
+func requireHostPython(t *testing.T) {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		if _, err := exec.LookPath("python"); err != nil {
+			t.Skip("python is not available")
+		}
+		return
+	}
+	if _, err := exec.LookPath("python3"); err == nil {
+		return
+	}
+	if _, err := exec.LookPath("python"); err != nil {
+		t.Skip("python3 and python are not available")
+	}
 }
 
 func installFakePip(t *testing.T, workspaceDir string) {
