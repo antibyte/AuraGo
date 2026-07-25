@@ -562,6 +562,17 @@ func TestPreviewTokenIsShortLivedScopedAndPathSafe(t *testing.T) {
 	if !bytes.Contains(data, []byte(`dist/game.js`)) || !strings.Contains(contentType, "text/html") {
 		t.Fatalf("unexpected preview response: %s, %q", data, contentType)
 	}
+	if !bytes.Contains(data, []byte(previewBootMarker)) {
+		t.Fatal("preview index.html must inject the studio boot script")
+	}
+	if bytes.Count(data, []byte(previewBootMarker)) != 1 {
+		t.Fatal("preview boot script must be injected exactly once")
+	}
+	// Re-serve to confirm idempotent injection when the marker already exists.
+	withBoot := injectPreviewBoot(data)
+	if !bytes.Equal(withBoot, data) {
+		t.Fatal("injectPreviewBoot must be idempotent for already-booted HTML")
+	}
 	if _, _, err := service.PreviewFile(grant.Token, "../game_maker.db"); !errors.Is(err, ErrInvalidPath) {
 		t.Fatalf("preview traversal error = %v", err)
 	}
@@ -666,5 +677,30 @@ new Phaser.Game({ type: Phaser.AUTO, parent: "game-root", width: 960, height: 54
 	}
 	if !strings.Contains(string(source), "function diagnostic") {
 		t.Error("buildDirectory did not inject the diagnostic helper")
+	}
+	// Opaque sandbox previews must not target location.origin ("null").
+	if strings.Contains(string(source), `postMessage({ source: "aurago-game", type, channel, ...detail }, location.origin)`) {
+		t.Error("diagnostic postMessage must not use location.origin in sandboxed previews")
+	}
+	if !strings.Contains(string(source), `parent.postMessage({ source: "aurago-game", type, channel, ...detail }, "*")`) {
+		t.Error("diagnostic postMessage must target * so the parent studio can receive ready")
+	}
+}
+
+func TestScaffoldPreviewDoesNotShipStickyLoadingHUD(t *testing.T) {
+	html := scaffoldHTML("2d", "Asteroids")
+	if strings.Contains(html, "Loading…") || strings.Contains(html, "Loading...") {
+		t.Fatal("scaffold index.html must not ship a visible Loading HUD label")
+	}
+	if !strings.Contains(html, `<div id="hud" hidden></div>`) {
+		t.Fatal("scaffold HUD must start hidden/empty")
+	}
+	legacy := []byte(`<!doctype html><html><body><div id="hud">Loading…</div></body></html>`)
+	booted := injectPreviewBoot(legacy)
+	if !bytes.Contains(booted, []byte(previewBootMarker)) {
+		t.Fatal("injectPreviewBoot must wrap legacy Loading HUD pages")
+	}
+	if !bytes.Contains(booted, []byte(`isLoadingText`)) {
+		t.Fatal("preview boot must include Loading text detection")
 	}
 }

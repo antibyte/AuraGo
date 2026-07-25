@@ -98,6 +98,13 @@ registration lives in `internal/desktop/types.go`.
   Accept diagnostics only from the instance iframe when `event.source`, the
   random channel ID, the fixed source marker, and the bounded event type all
   match. The channel is read-only.
+- Because the preview sandbox is opaque, game diagnostics must
+  `postMessage(..., "*")` (never `location.origin`, which is the string
+  `"null"`). The parent still validates source/channel/`event.source`.
+  Arm the loading overlay before assigning `iframe.src`, clear it on
+  `ready` or iframe `load`, and rely on the server-injected preview boot
+  script to hide leftover in-game `Loading…` HUD pills for agent-rewritten
+  `index.html` files.
 - Game Maker job progress UX: the job banner, phase stepper, and result
   cards are driven by the project-scoped SSE stream; `capabilities.active_job`
   marks the single globally running job (library spinner, disabled change

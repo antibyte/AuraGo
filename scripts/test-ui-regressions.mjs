@@ -138,7 +138,11 @@ function testGameMakerPreviewLoadingIgnoresStaleFrameSettlement() {
       const overlay = {
         className: '',
         innerHTML: '',
+        attrs: {},
         removed: false,
+        setAttribute(name, value) {
+          this.attrs[name] = value;
+        },
         remove() {
           this.removed = true;
         }
@@ -189,7 +193,7 @@ function testGameMakerPreviewLoadingIgnoresStaleFrameSettlement() {
   const activeTimer = state.previewLoadTimer;
 
   frameHandlers[0]();
-  const staleSettlement = [...timers.entries()].find(([, timer]) => timer.delay === 400);
+  const staleSettlement = [...timers.entries()].find(([, timer]) => timer.delay === 600);
   assert.ok(staleSettlement, 'the stale frame load should schedule its delayed settlement');
   timers.delete(staleSettlement[0]);
   staleSettlement[1].callback();
@@ -200,7 +204,7 @@ function testGameMakerPreviewLoadingIgnoresStaleFrameSettlement() {
   assert.equal(timers.has(activeTimer), true, 'the current timeout must remain armed');
 
   frameHandlers[1]();
-  const currentSettlement = [...timers.entries()].find(([, timer]) => timer.delay === 400);
+  const currentSettlement = [...timers.entries()].find(([, timer]) => timer.delay === 600);
   assert.ok(currentSettlement, 'the current frame load should schedule its delayed settlement');
   currentSettlement[1].callback();
   assert.equal(overlays[1].removed, true);

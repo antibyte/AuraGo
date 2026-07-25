@@ -631,12 +631,14 @@
             frame.setAttribute('sandbox', 'allow-scripts');
             frame.setAttribute('allowfullscreen', '');
             frame.setAttribute('referrerpolicy', 'no-referrer');
-            frame.src = grant.url + '#gm-channel=' + encodeURIComponent(channelID);
             const shell = state.container.querySelector('[data-gm-preview]');
             shell.replaceChildren(frame);
             state.frame = frame;
             state.previewStale = false;
+            // Attach load listeners before assigning src so cached responses
+            // cannot settle the iframe before the loading overlay is armed.
             if (window.GameMakerStudioPreview) window.GameMakerStudioPreview.showLoading(state, shell, frame);
+            frame.src = grant.url + '#gm-channel=' + encodeURIComponent(channelID);
         } catch (error) {
             addDiagnostic(state, { level: 'error', message: error.message || String(error) });
         }
@@ -649,7 +651,8 @@
         const allowed = new Set(['ready', 'runtime_error', 'resource_error', 'diagnostic']);
         if (!allowed.has(data.type)) return;
         if (data.type === 'ready') {
-            if (state.previewLoadClear) state.previewLoadClear();
+            if (window.GameMakerStudioPreview) window.GameMakerStudioPreview.clearLoading(state);
+            else if (state.previewLoadClear) state.previewLoadClear();
             return;
         }
         addDiagnostic(state, {

@@ -57,9 +57,28 @@ func TestGameMakerStudioDesktopRegistrationAndIsolation(t *testing.T) {
 		`if (cap.readonly)`,
 		`game_maker.create_disabled_notice`,
 		`capabilityState(cap).status !== 'ready'`,
+		// Load listeners must arm before src assignment so cached previews
+		// cannot settle before the loading overlay is attached.
+		`window.GameMakerStudioPreview.showLoading(state, shell, frame)`,
+		`frame.src = grant.url + '#gm-channel=' + encodeURIComponent(channelID)`,
 	} {
 		if !strings.Contains(app, marker) {
 			t.Errorf("Game Maker UI missing lifecycle/security marker %q", marker)
+		}
+	}
+	showIdx := strings.Index(app, `window.GameMakerStudioPreview.showLoading(state, shell, frame)`)
+	srcIdx := strings.Index(app, `frame.src = grant.url + '#gm-channel=' + encodeURIComponent(channelID)`)
+	if showIdx < 0 || srcIdx < 0 || showIdx > srcIdx {
+		t.Fatal("Game Maker preview must call showLoading before assigning iframe src")
+	}
+	preview := readGameMakerAsset(t, "js", "desktop", "apps", "game-maker-studio-preview.js")
+	for _, marker := range []string{
+		`data-gm-preview-loading`,
+		`frame.addEventListener('load'`,
+		`game_maker.preview_timeout`,
+	} {
+		if !strings.Contains(preview, marker) {
+			t.Errorf("Game Maker preview helper missing marker %q", marker)
 		}
 	}
 	if strings.Contains(app, "allow-same-origin") ||

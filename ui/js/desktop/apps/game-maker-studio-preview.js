@@ -8,11 +8,15 @@
         clearLoading(state);
         const overlay = document.createElement('div');
         overlay.className = 'gm-preview-loading';
+        overlay.setAttribute('data-gm-preview-loading', 'true');
         overlay.innerHTML = `<span class="gm-job-spinner" aria-hidden="true"></span>
             <span>${state.context.esc(state.context.t('game_maker.preview_loading'))}</span>`;
         shellEl.appendChild(overlay);
         let timer = null;
+        let settled = false;
         const clear = () => {
+            if (settled) return;
+            settled = true;
             overlay.remove();
             if (timer) clearTimeout(timer);
             if (state.previewLoadClear === clear) {
@@ -20,7 +24,9 @@
                 state.previewLoadClear = null;
             }
         };
-        frame.addEventListener('load', () => setTimeout(clear, 400), { once: true });
+        // Prefer the game's ready diagnostic; fall back to iframe load so a
+        // hung/missing canvas does not leave the studio overlay forever.
+        frame.addEventListener('load', () => setTimeout(clear, 600), { once: true });
         state.previewLoadClear = clear;
         timer = setTimeout(() => {
             const current = state.previewLoadClear === clear;
@@ -28,7 +34,7 @@
             if (current) {
                 state.addDiagnostic({ level: 'info', message: state.context.t('game_maker.preview_timeout') });
             }
-        }, 15000);
+        }, 12000);
         state.previewLoadTimer = timer;
     }
 

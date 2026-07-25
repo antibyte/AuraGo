@@ -1,6 +1,7 @@
 package gamemaker
 
 import (
+	"bytes"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
@@ -89,7 +90,102 @@ func (s *Service) PreviewFile(token, rawPath string) ([]byte, string, error) {
 	if contentType == "" {
 		contentType = "application/octet-stream"
 	}
+	if isPreviewHTML(rawPath, path, contentType) {
+		data = injectPreviewBoot(data)
+		if contentType == "application/octet-stream" || contentType == "" {
+			contentType = "text/html; charset=utf-8"
+		}
+	}
 	return data, contentType, nil
+}
+
+func isPreviewHTML(rawPath, absPath, contentType string) bool {
+	name := strings.ToLower(filepath.Base(strings.TrimSpace(rawPath)))
+	if name == "" {
+		name = strings.ToLower(filepath.Base(absPath))
+	}
+	if name == "index.html" || strings.HasSuffix(name, ".html") {
+		return true
+	}
+	return strings.Contains(strings.ToLower(contentType), "text/html")
+}
+
+// previewBootScript is injected into every HTML preview response so agent-rewritten
+// index.html files still clear stale Loading pills and notify the parent studio.
+// The parent validates source, channel, and event.source; "*" is required because
+// the sandboxed iframe has an opaque origin.
+const previewBootMarker = `data-aurago-preview-boot`
+
+const previewBootScript = `<script ` + previewBootMarker + `>
+(function () {
+  if (window.__AURAGO_PREVIEW_BOOT__) return;
+  window.__AURAGO_PREVIEW_BOOT__ = true;
+  function isLoadingText(value) {
+    return /^loading[.…]*(?:\s*preview)?[.…\s]*$/i.test(String(value || "").trim());
+  }
+  function hideStaleLoading() {
+    var nodes = document.querySelectorAll("#hud, [data-loading], .loading, .gm-loading");
+    for (var i = 0; i < nodes.length; i++) {
+      var el = nodes[i];
+      if (!el) continue;
+      var text = String(el.textContent || "").trim();
+      if (isLoadingText(text)) {
+        el.setAttribute("data-aurago-hid-loading", "1");
+        el.hidden = true;
+        el.style.display = "none";
+        continue;
+      }
+      // Restore HUD labels the boot previously hid once the game sets real text.
+      if (text && el.getAttribute("data-aurago-hid-loading") === "1") {
+        el.removeAttribute("data-aurago-hid-loading");
+        el.hidden = false;
+        el.style.display = "";
+      }
+    }
+  }
+  var channel = "";
+  try {
+    channel = new URLSearchParams(location.hash.replace(/^#/, "")).get("gm-channel") || "";
+  } catch (_) {}
+  var readySent = false;
+  function notifyReady() {
+    if (readySent || !channel || !document.querySelector("canvas")) return;
+    readySent = true;
+    try {
+      parent.postMessage({ source: "aurago-game", type: "ready", channel: channel, canvas: true, boot: true }, "*");
+    } catch (_) {}
+  }
+  function tick() {
+    hideStaleLoading();
+    notifyReady();
+  }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", tick, { once: true });
+  } else {
+    tick();
+  }
+  try {
+    new MutationObserver(tick).observe(document.documentElement, { childList: true, subtree: true, characterData: true });
+  } catch (_) {}
+  setTimeout(tick, 250);
+  setTimeout(tick, 1000);
+  setTimeout(function () { hideStaleLoading(); notifyReady(); }, 4000);
+})();
+</script>`
+
+func injectPreviewBoot(data []byte) []byte {
+	if bytes.Contains(data, []byte(previewBootMarker)) {
+		return data
+	}
+	html := string(data)
+	lower := strings.ToLower(html)
+	if idx := strings.LastIndex(lower, "</body>"); idx >= 0 {
+		return []byte(html[:idx] + previewBootScript + html[idx:])
+	}
+	if idx := strings.LastIndex(lower, "</html>"); idx >= 0 {
+		return []byte(html[:idx] + previewBootScript + html[idx:])
+	}
+	return append(data, []byte(previewBootScript)...)
 }
 
 // nilContext avoids retaining request lifetimes for short local DB reads.

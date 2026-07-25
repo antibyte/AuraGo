@@ -60,6 +60,10 @@ func scaffoldHTML(dimension, title string) string {
 	if dimension == "3d" {
 		runtimeScript = ""
 	}
+	// HUD starts empty/hidden so a failed or incomplete game never leaves a
+	// permanent "Loading…" pill in the studio preview. Games reveal it when
+	// they set real status text. Preview serving also injects a boot script
+	// that hides leftover Loading labels and re-emits ready for the parent.
 	return fmt.Sprintf(`<!doctype html>
 <html lang="en">
 <head>
@@ -71,27 +75,13 @@ func scaffoldHTML(dimension, title string) string {
     body{font:14px system-ui,sans-serif} canvas{display:block;width:100%%;height:100%%}
     #hud{position:fixed;inset:14px auto auto 14px;z-index:2;padding:8px 12px;border:1px solid #ffffff30;
       border-radius:9px;background:#07101ccc;backdrop-filter:blur(10px)}
+    #hud:empty,#hud[hidden]{display:none}
   </style>
 </head>
 <body>
-  <div id="game-root"></div><div id="hud">Loading…</div>
+  <div id="game-root"></div><div id="hud" hidden></div>
   %s
   <script type="module" src="dist/game.js"></script>
-  <script>
-    (function(){
-      const hud = document.getElementById('hud');
-      if (!hud) return;
-      let shown = false;
-      const observer = new MutationObserver(function() {
-        if (hud.textContent && hud.textContent !== 'Loading…') {
-          shown = true;
-          hud.style.display = '';
-        }
-      });
-      observer.observe(hud, { childList: true, subtree: true, characterData: true });
-      setTimeout(function() { if (!shown) hud.style.display = 'none'; }, 5000);
-    })();
-  </script>
 </body>
 </html>
 `, htmlEscape(title), runtimeScript)
@@ -121,16 +111,30 @@ type DiagnosticLevel = "ready" | "scene" | "fps" | "resource_error" | "runtime_e
 const channel = new URLSearchParams(location.hash.replace(/^#/, "")).get("gm-channel") || "";
 function diagnostic(type: DiagnosticLevel, detail: Record<string, unknown> = {}) {
   if (!channel) return;
-  parent.postMessage({ source: "aurago-game", type, channel, ...detail }, location.origin);
+  // Preview iframes use sandbox without allow-same-origin, so location.origin
+  // is the opaque string "null" and never matches the parent. Use "*" and let
+  // the parent validate source/channel/event.source.
+  parent.postMessage({ source: "aurago-game", type, channel, ...detail }, "*");
 }
 window.addEventListener("error", (event) => diagnostic("runtime_error", { message: event.message }));
 window.addEventListener("unhandledrejection", (event) => diagnostic("runtime_error", { message: String(event.reason) }));
 (window as any).__AURAGO_GAME_DIAGNOSTICS__ = { diagnostic };
+function setHud(text: string) {
+  const hud = document.getElementById("hud");
+  if (!hud) return;
+  const value = String(text || "").trim();
+  if (!value) {
+    hud.textContent = "";
+    hud.hidden = true;
+    return;
+  }
+  hud.hidden = false;
+  hud.textContent = value;
+}
 `
 
 const phaserScaffold = diagnosticsPrelude + `
 declare const Phaser: any;
-const hud = document.getElementById("hud")!;
 let score = 0;
 class MainScene extends Phaser.Scene {
   player: any; cursors: any; stars: any; hazards: any;
@@ -149,6 +153,7 @@ class MainScene extends Phaser.Scene {
     this.physics.add.overlap(this.player,this.stars,(_:any, star:any)=>{star.destroy();score++;this.spawnStar();});
     this.physics.add.overlap(this.player,this.hazards,()=>{score=Math.max(0,score-2);this.player.setFillStyle(0xfb7185);this.time.delayedCall(160,()=>this.player.setFillStyle(0x5eead4));});
     diagnostic("ready",{canvas:true}); diagnostic("scene",{name:"main"});
+    setHud("Score "+score+" · Arrow keys to move");
   }
   spawnStar(){const o=this.add.circle(40+Math.random()*(this.scale.width-80),40+Math.random()*(this.scale.height-160),10,0xfacc15);this.physics.add.existing(o);this.stars.add(o);}
   spawnHazard(){const o=this.add.rectangle(40+Math.random()*(this.scale.width-80),60+Math.random()*(this.scale.height-220),24,24,0xa855f7);this.physics.add.existing(o);o.body.setVelocity((Math.random()-.5)*180,(Math.random()-.5)*180);o.body.setBounce(1).setCollideWorldBounds(true);this.hazards.add(o);}
@@ -158,7 +163,7 @@ class MainScene extends Phaser.Scene {
     if(this.cursors.right.isDown)this.player.body.setVelocityX(speed);
     if(this.cursors.up.isDown)this.player.body.setVelocityY(-speed);
     if(this.cursors.down.isDown)this.player.body.setVelocityY(speed);
-    hud.textContent="Score "+score+" · Arrow keys to move";
+    setHud("Score "+score+" · Arrow keys to move");
   }
 }
 new Phaser.Game({type:Phaser.AUTO,parent:"game-root",width:960,height:540,backgroundColor:"#081018",
@@ -167,7 +172,7 @@ new Phaser.Game({type:Phaser.AUTO,parent:"game-root",width:960,height:540,backgr
 
 const threeScaffold = diagnosticsPrelude + `
 import * as THREE from "../vendor/three-0.185.1.module.min.js";
-const root=document.getElementById("game-root")!, hud=document.getElementById("hud")!;
+const root=document.getElementById("game-root")!;
 const scene=new THREE.Scene(); scene.background=new THREE.Color(0x07111f);
 const camera=new THREE.PerspectiveCamera(60,innerWidth/innerHeight,.1,100); camera.position.set(0,6,9); camera.lookAt(0,0,0);
 const renderer=new THREE.WebGLRenderer({antialias:true}); renderer.setPixelRatio(Math.min(devicePixelRatio,2)); root.appendChild(renderer.domElement);
@@ -186,6 +191,7 @@ for(let i=0;i<8;i++)spawn(pickups,0xfacc15);for(let i=0;i<5;i++)spawn(hazards,0x
 const keys=new Set<string>();addEventListener("keydown",e=>keys.add(e.key.toLowerCase()));addEventListener("keyup",e=>keys.delete(e.key.toLowerCase()));
 function resize(){renderer.setSize(innerWidth,innerHeight);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix()}addEventListener("resize",resize);resize();
 let last=performance.now(),frames=0,fpsAt=last;diagnostic("ready",{canvas:true});diagnostic("scene",{name:"arena"});
+setHud("Score "+score+" · WASD / arrow keys");
 function loop(now:number){
  requestAnimationFrame(loop);const dt=Math.min((now-last)/1000,.05);last=now;const speed=5*dt;
  if(keys.has("a")||keys.has("arrowleft"))player.position.x-=speed;if(keys.has("d")||keys.has("arrowright"))player.position.x+=speed;
@@ -193,7 +199,7 @@ function loop(now:number){
  player.position.x=THREE.MathUtils.clamp(player.position.x,-6,6);player.position.z=THREE.MathUtils.clamp(player.position.z,-6,6);
  pickups.forEach(p=>{p.rotation.y+=dt;if(p.position.distanceTo(player.position)<.7){score++;p.position.set((Math.random()-.5)*11,.35,(Math.random()-.5)*11)}});
  hazards.forEach((h,i)=>{h.position.x+=Math.sin(now*.001+i)*dt;if(h.position.distanceTo(player.position)<.7){score=Math.max(0,score-1);h.position.set((Math.random()-.5)*11,.35,(Math.random()-.5)*11)}});
- hud.textContent="Score "+score+" · WASD / arrow keys";renderer.render(scene,camera);
+ setHud("Score "+score+" · WASD / arrow keys");renderer.render(scene,camera);
  frames++;if(now-fpsAt>1000){diagnostic("fps",{value:frames});frames=0;fpsAt=now}
 }requestAnimationFrame(loop);
 `
