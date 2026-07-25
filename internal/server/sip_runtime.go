@@ -55,6 +55,7 @@ func (s *Server) initSIP(ctx context.Context) error {
 		defer cancel()
 		_ = manager.Hangup(callCtx, callID)
 	})
+	runner.SetEndCallInternal(manager.EndCallInternal)
 	s.SIPPhone = manager
 	s.SIPBrowserMedia = browserMedia
 	s.VoiceActionRunner = runner

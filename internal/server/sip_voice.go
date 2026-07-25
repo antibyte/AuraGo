@@ -96,11 +96,12 @@ func decodeMP3MonoPCM16(data []byte) ([]int16, int, error) {
 }
 
 type VoiceActionRunner struct {
-	server     *Server
-	mu         sync.Mutex
-	cancels    map[string]voiceTurnCancellation
-	nextCancel uint64
-	endCall    func(string)
+	server          *Server
+	mu              sync.Mutex
+	cancels         map[string]voiceTurnCancellation
+	nextCancel      uint64
+	endCall         func(string)
+	endCallInternal func(string, string)
 }
 
 type voiceTurnCancellation struct {
@@ -131,6 +132,10 @@ func (r *snapshottedVoiceActionRunner) EndVoiceCall(callID string) {
 	r.runner.EndVoiceCall(callID)
 }
 
+func (r *snapshottedVoiceActionRunner) EndVoiceCallInternal(callID, reason string) {
+	r.runner.EndVoiceCallInternal(callID, reason)
+}
+
 func NewVoiceActionRunner(server *Server) *VoiceActionRunner {
 	return &VoiceActionRunner{server: server, cancels: make(map[string]voiceTurnCancellation)}
 }
@@ -138,6 +143,12 @@ func NewVoiceActionRunner(server *Server) *VoiceActionRunner {
 func (r *VoiceActionRunner) SetEndCall(endCall func(string)) {
 	r.mu.Lock()
 	r.endCall = endCall
+	r.mu.Unlock()
+}
+
+func (r *VoiceActionRunner) SetEndCallInternal(endCall func(string, string)) {
+	r.mu.Lock()
+	r.endCallInternal = endCall
 	r.mu.Unlock()
 }
 
@@ -249,6 +260,15 @@ func (r *VoiceActionRunner) EndVoiceCall(callID string) {
 	}
 }
 
+func (r *VoiceActionRunner) EndVoiceCallInternal(callID, reason string) {
+	r.mu.Lock()
+	endCall := r.endCallInternal
+	r.mu.Unlock()
+	if endCall != nil {
+		endCall(callID, reason)
+	}
+}
+
 type voiceActionCaptureBroker struct {
 	agent.FeedbackBroker
 	mu    sync.Mutex
@@ -284,7 +304,13 @@ func (r *VoiceActionRunner) backendFactory(cfg config.SIPVoiceConfig) (voice.Voi
 	if err := validateSIPAgentReferences(serverCfg, cfg); err != nil {
 		return nil, err
 	}
-	if err := validateSIPAgentToolScope(r.server, serverCfg, cfg.AllowedTools); err != nil {
+	toolSchemas := agent.BuildNativeToolSchemas(
+		serverCfg.Directories.SkillsDir,
+		tools.NewManifest(serverCfg.Directories.ToolsDir),
+		mcpFeatureFlags(r.server),
+		r.server.Logger,
+	)
+	if err := validateSIPAgentToolScopeWithSchemas(toolSchemas, cfg.AllowedTools); err != nil {
 		return nil, err
 	}
 	agentProvider := serverCfg.FindProvider(cfg.AgentProviderID)
@@ -300,14 +326,9 @@ func (r *VoiceActionRunner) backendFactory(cfg config.SIPVoiceConfig) (voice.Voi
 	runtimeConfig.LLM.Model = agentProvider.Model
 	runtimeConfig.FallbackLLM.Enabled = false
 	runtimeSnapshot := &sipAgentRuntimeSnapshot{
-		config:    runtimeConfig,
-		llmClient: llm.NewClientFromProviderWithConfig(&runtimeConfig, agentProvider.Type, agentProvider.BaseURL, agentProvider.APIKey, agentProvider.AccountID),
-		toolSchemas: agent.BuildNativeToolSchemas(
-			runtimeConfig.Directories.SkillsDir,
-			tools.NewManifest(runtimeConfig.Directories.ToolsDir),
-			mcpFeatureFlags(r.server),
-			r.server.Logger,
-		),
+		config:      runtimeConfig,
+		llmClient:   llm.NewClientFromProviderWithConfig(&runtimeConfig, agentProvider.Type, agentProvider.BaseURL, agentProvider.APIKey, agentProvider.AccountID),
+		toolSchemas: toolSchemas,
 	}
 	frozenRunner := &snapshottedVoiceActionRunner{runner: r, snapshot: runtimeSnapshot}
 	switch cfg.Backend {

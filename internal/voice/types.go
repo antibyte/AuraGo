@@ -75,4 +75,5 @@ type VoiceActionRunner interface {
 	RunVoiceTurn(context.Context, CallContext, string) (string, error)
 	CancelVoiceTurn(string)
 	EndVoiceCall(string)
+	EndVoiceCallInternal(string, string)
 }

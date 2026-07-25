@@ -25,10 +25,14 @@ type mediaPump struct {
 	onDTMF     func(rune)
 	onError    func(error)
 	dtmfMu     sync.Mutex
-	dtmfWriter *diago.DTMFWriter
+	dtmfWriter dtmfWriter
 	negotiated string
 	received   atomic.Uint64
 	sent       atomic.Uint64
+}
+
+type dtmfWriter interface {
+	WriteDTMF(rune) error
 }
 
 func (p *mediaPump) start(ctx context.Context) error {

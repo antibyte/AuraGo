@@ -392,7 +392,7 @@ func (s *geminiLiveSession) idleLoop() {
 				_ = s.sendTextTurnAndWait("Say this brief farewell now and do nothing else: "+message, 3*time.Second)
 			}
 			s.emit("inactivity_timeout", "", nil)
-			s.backend.Runner.EndVoiceCall(s.call.CallID)
+			s.backend.Runner.EndVoiceCallInternal(s.call.CallID, "inactivity_timeout")
 			return
 		}
 	}

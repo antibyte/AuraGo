@@ -20,9 +20,11 @@ import (
 )
 
 type geminiTestRunner struct {
-	executed chan string
-	cancel   atomic.Int32
-	end      atomic.Int32
+	executed    chan string
+	cancel      atomic.Int32
+	end         atomic.Int32
+	internalEnd atomic.Int32
+	internalWhy atomic.Value
 }
 
 func (r *geminiTestRunner) RunVoiceTurn(_ context.Context, _ CallContext, request string) (string, error) {
@@ -31,6 +33,10 @@ func (r *geminiTestRunner) RunVoiceTurn(_ context.Context, _ CallContext, reques
 }
 func (r *geminiTestRunner) CancelVoiceTurn(string) { r.cancel.Add(1) }
 func (r *geminiTestRunner) EndVoiceCall(string)    { r.end.Add(1) }
+func (r *geminiTestRunner) EndVoiceCallInternal(_ string, reason string) {
+	r.internalWhy.Store(reason)
+	r.internalEnd.Add(1)
+}
 
 func TestGeminiLiveSetupAudioToolsInterruptAndResumption(t *testing.T) {
 	var connections atomic.Int32
@@ -382,17 +388,17 @@ func TestGeminiInactivityPausesDuringToolWork(t *testing.T) {
 	session.wg.Add(1)
 	go session.idleLoop()
 	time.Sleep(60 * time.Millisecond)
-	if runner.end.Load() != 0 {
+	if runner.internalEnd.Load() != 0 {
 		t.Fatal("inactivity ended Gemini call while tool work was active")
 	}
 	session.busyTasks.Store(0)
 	session.signalActivity()
 	deadline := time.Now().Add(time.Second)
-	for runner.end.Load() == 0 && time.Now().Before(deadline) {
+	for runner.internalEnd.Load() == 0 && time.Now().Before(deadline) {
 		time.Sleep(time.Millisecond)
 	}
-	if runner.end.Load() != 1 {
-		t.Fatalf("Gemini inactivity did not resume, EndVoiceCall=%d", runner.end.Load())
+	if runner.internalEnd.Load() != 1 || runner.end.Load() != 0 || runner.internalWhy.Load() != "inactivity_timeout" {
+		t.Fatalf("Gemini inactivity did not resume, internal ends=%d reason=%v agent ends=%d", runner.internalEnd.Load(), runner.internalWhy.Load(), runner.end.Load())
 	}
 	cancel()
 	session.wg.Wait()

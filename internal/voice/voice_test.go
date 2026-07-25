@@ -52,9 +52,11 @@ func (testSynthesizer) Synthesize(context.Context, string, string) ([]int16, int
 }
 
 type testVoiceRunner struct {
-	cancelled atomic.Int32
-	ended     atomic.Int32
-	response  string
+	cancelled    atomic.Int32
+	ended        atomic.Int32
+	internalEnds atomic.Int32
+	internalWhy  atomic.Value
+	response     string
 }
 
 func (r *testVoiceRunner) RunVoiceTurn(context.Context, CallContext, string) (string, error) {
@@ -65,6 +67,10 @@ func (r *testVoiceRunner) RunVoiceTurn(context.Context, CallContext, string) (st
 }
 func (r *testVoiceRunner) CancelVoiceTurn(string) { r.cancelled.Add(1) }
 func (r *testVoiceRunner) EndVoiceCall(string)    { r.ended.Add(1) }
+func (r *testVoiceRunner) EndVoiceCallInternal(_ string, reason string) {
+	r.internalWhy.Store(reason)
+	r.internalEnds.Add(1)
+}
 
 type recordingSynthesizer struct {
 	texts chan string
@@ -160,11 +166,11 @@ func TestClassicBackendInactivitySaysGoodbyeAndEndsCall(t *testing.T) {
 		t.Fatal("inactivity did not synthesize the farewell")
 	}
 	deadline := time.Now().Add(time.Second)
-	for runner.ended.Load() == 0 && time.Now().Before(deadline) {
+	for runner.internalEnds.Load() == 0 && time.Now().Before(deadline) {
 		time.Sleep(time.Millisecond)
 	}
-	if runner.ended.Load() != 1 {
-		t.Fatalf("EndVoiceCall count = %d", runner.ended.Load())
+	if runner.internalEnds.Load() != 1 || runner.ended.Load() != 0 || runner.internalWhy.Load() != "inactivity_timeout" {
+		t.Fatalf("internal ends = %d reason = %v, agent ends = %d", runner.internalEnds.Load(), runner.internalWhy.Load(), runner.ended.Load())
 	}
 }
 
@@ -187,8 +193,8 @@ func TestClassicBackendFailureAnnouncesAndEndsWithoutFallback(t *testing.T) {
 	default:
 		t.Fatal("pipeline failure did not use the configured technical announcement")
 	}
-	if runner.ended.Load() != 1 {
-		t.Fatalf("EndVoiceCall count = %d", runner.ended.Load())
+	if runner.internalEnds.Load() != 1 || runner.ended.Load() != 0 || runner.internalWhy.Load() != "voice_backend_error" {
+		t.Fatalf("internal ends = %d reason = %v, agent ends = %d", runner.internalEnds.Load(), runner.internalWhy.Load(), runner.ended.Load())
 	}
 }
 
@@ -251,16 +257,16 @@ func TestClassicBackendPausesInactivityWhileTurnRuns(t *testing.T) {
 		t.Fatal("voice turn did not start")
 	}
 	time.Sleep(60 * time.Millisecond)
-	if runner.ended.Load() != 0 {
+	if runner.internalEnds.Load() != 0 {
 		t.Fatal("inactivity ended the call while the agent turn was running")
 	}
 	close(runner.release)
 	deadline := time.Now().Add(time.Second)
-	for runner.ended.Load() == 0 && time.Now().Before(deadline) {
+	for runner.internalEnds.Load() == 0 && time.Now().Before(deadline) {
 		time.Sleep(time.Millisecond)
 	}
-	if runner.ended.Load() != 1 {
-		t.Fatalf("inactivity did not resume after the turn, EndVoiceCall=%d", runner.ended.Load())
+	if runner.internalEnds.Load() != 1 || runner.internalWhy.Load() != "inactivity_timeout" {
+		t.Fatalf("inactivity did not resume after the turn, internal ends=%d reason=%v", runner.internalEnds.Load(), runner.internalWhy.Load())
 	}
 }
 

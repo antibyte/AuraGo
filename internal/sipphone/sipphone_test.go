@@ -40,6 +40,17 @@ func readyTestBackendFactory(config.SIPVoiceConfig) (voice.VoiceBackend, error) 
 	return testVoiceBackend{}, nil
 }
 
+type blockingDTMFWriter struct {
+	started chan struct{}
+	release chan struct{}
+}
+
+func (w *blockingDTMFWriter) WriteDTMF(rune) error {
+	close(w.started)
+	<-w.release
+	return nil
+}
+
 func (p *recordingMediaPeer) Attach(context.Context, string, voice.DuplexAudio) error {
 	p.attaches.Add(1)
 	return nil
@@ -654,6 +665,130 @@ func TestOutboundAgentCallPreflightBlocksBeforeInvite(t *testing.T) {
 	if len(calls) != 0 || manager.Status().ActiveCall != nil {
 		t.Fatalf("blocked preflight created a call: %#v", calls)
 	}
+}
+
+func TestOutboundAgentCallPreflightDoesNotHoldManagerLockAndRejectsStaleConfig(t *testing.T) {
+	cfg := validTestSIPConfig()
+	started := make(chan struct{})
+	release := make(chan struct{})
+	manager, err := NewManager(cfg, t.TempDir(), func(config.SIPVoiceConfig) (voice.VoiceBackend, error) {
+		close(started)
+		<-release
+		return testVoiceBackend{}, nil
+	}, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer manager.Close()
+	manager.endpoint = &diago.Diago{}
+	manager.rootCtx = context.Background()
+
+	dialErr := make(chan error, 1)
+	go func() {
+		_, err := manager.Dial(context.Background(), "sip:alice@example.com")
+		dialErr <- err
+	}()
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatal("telephone agent preflight did not start")
+	}
+
+	statusDone := make(chan struct{})
+	go func() {
+		_ = manager.Status()
+		close(statusDone)
+	}()
+	select {
+	case <-statusDone:
+	case <-time.After(100 * time.Millisecond):
+		close(release)
+		t.Fatal("telephone agent preflight held the manager lock")
+	}
+
+	next := cfg
+	next.Voice.AgentProviderID = "new-agent"
+	manager.UpdateAgentConfig(next)
+	close(release)
+	if err := <-dialErr; !errors.Is(err, ErrBusy) {
+		t.Fatalf("Dial error after config change = %v, want ErrBusy", err)
+	}
+	if status := manager.Status(); status.ActiveCall != nil {
+		t.Fatalf("stale preflight published active call %#v", status.ActiveCall)
+	}
+}
+
+func TestInternalEndCallBypassesAgentHangupPermission(t *testing.T) {
+	cfg := validTestSIPConfig()
+	cfg.Permissions.AgentHangup = false
+	manager, err := NewManager(cfg, t.TempDir(), nil, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer manager.Close()
+	manager.rootCtx = context.Background()
+	manager.mu.Lock()
+	call := manager.newActiveCallLocked("inbound", "sip:alice@example.com")
+	manager.mu.Unlock()
+
+	if err := manager.Hangup(context.Background(), call.record.ID); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("permission-gated Hangup error = %v, want ErrPermissionDenied", err)
+	}
+	manager.EndCallInternal(call.record.ID, "inactivity_timeout")
+	select {
+	case <-call.ctx.Done():
+	case <-time.After(time.Second):
+		t.Fatal("internal call termination did not cancel the call")
+	}
+	manager.mu.Lock()
+	reason := call.terminalReason
+	manager.mu.Unlock()
+	if reason != "inactivity_timeout" {
+		t.Fatalf("internal end reason = %q", reason)
+	}
+	manager.finishCall(call, reason)
+}
+
+func TestSendDTMFDoesNotHoldManagerLock(t *testing.T) {
+	cfg := validTestSIPConfig()
+	cfg.Permissions.SendDTMF = true
+	manager, err := NewManager(cfg, t.TempDir(), nil, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer manager.Close()
+	manager.rootCtx = context.Background()
+	writer := &blockingDTMFWriter{started: make(chan struct{}), release: make(chan struct{})}
+	manager.mu.Lock()
+	call := manager.newActiveCallLocked("outbound", "sip:alice@example.com")
+	call.media = &mediaPump{dtmfWriter: writer}
+	manager.mu.Unlock()
+
+	dtmfErr := make(chan error, 1)
+	go func() {
+		dtmfErr <- manager.SendDTMF(call.record.ID, '5')
+	}()
+	select {
+	case <-writer.started:
+	case <-time.After(time.Second):
+		t.Fatal("DTMF send did not start")
+	}
+	statusDone := make(chan struct{})
+	go func() {
+		_ = manager.Status()
+		close(statusDone)
+	}()
+	select {
+	case <-statusDone:
+	case <-time.After(100 * time.Millisecond):
+		close(writer.release)
+		t.Fatal("DTMF send held the manager lock")
+	}
+	close(writer.release)
+	if err := <-dtmfErr; err != nil {
+		t.Fatal(err)
+	}
+	manager.finishCall(call, "test_complete")
 }
 
 func TestUpdateAgentConfigKeepsActiveCallSnapshot(t *testing.T) {

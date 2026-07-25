@@ -32,24 +32,26 @@ var rtpPortConfig struct {
 }
 
 type Manager struct {
-	mu              sync.Mutex
-	cfg             config.SIPConfig
-	logger          *slog.Logger
-	store           *Store
-	backendFactory  BackendFactory
-	issueReporter   IssueReporter
-	state           State
-	registered      bool
-	registrationErr string
-	rootCtx         context.Context
-	lifecycleCtx    context.Context
-	cancel          context.CancelFunc
-	ua              *sipgo.UserAgent
-	endpoint        *diago.Diago
-	active          *activeCall
-	subscribers     map[uint64]chan Event
-	nextSubscriber  uint64
-	sequence        uint64
+	mu                sync.Mutex
+	cfg               config.SIPConfig
+	logger            *slog.Logger
+	store             *Store
+	backendFactory    BackendFactory
+	issueReporter     IssueReporter
+	state             State
+	registered        bool
+	registrationErr   string
+	rootCtx           context.Context
+	lifecycleCtx      context.Context
+	cancel            context.CancelFunc
+	ua                *sipgo.UserAgent
+	endpoint          *diago.Diago
+	active            *activeCall
+	preparingCall     bool
+	callConfigVersion uint64
+	subscribers       map[uint64]chan Event
+	nextSubscriber    uint64
+	sequence          uint64
 }
 
 type activeCall struct {
@@ -169,6 +171,7 @@ func (m *Manager) Start(parent context.Context) error {
 	m.endpoint = endpoint
 	m.rootCtx = rootCtx
 	m.cancel = cancel
+	m.callConfigVersion++
 	m.state = StateRegistering
 	m.emitLocked("status", nil, nil)
 	m.mu.Unlock()
@@ -203,6 +206,7 @@ func (m *Manager) Stop(ctx context.Context) error {
 	m.cancel = nil
 	m.ua = nil
 	m.endpoint = nil
+	m.callConfigVersion++
 	m.registered = false
 	m.state = StateDisabled
 	m.registrationErr = ""
@@ -257,6 +261,7 @@ func (m *Manager) Reconfigure(ctx context.Context, cfg config.SIPConfig) error {
 	}
 	m.mu.Lock()
 	m.cfg = cfg
+	m.callConfigVersion++
 	m.mu.Unlock()
 	return m.Start(parent)
 }
@@ -268,6 +273,7 @@ func (m *Manager) UpdateAgentConfig(cfg config.SIPConfig) {
 	m.cfg.Inbound.Route = cfg.Inbound.Route
 	m.cfg.Inbound.AutoAnswerDelayMS = cfg.Inbound.AutoAnswerDelayMS
 	m.cfg.Voice = cfg.Voice
+	m.callConfigVersion++
 	m.mu.Unlock()
 }
 
@@ -328,7 +334,7 @@ func (m *Manager) dial(ctx context.Context, target, mediaMode string, peer Media
 		m.mu.Unlock()
 		return CallRecord{}, ErrBrowserMediaDisabled
 	}
-	if m.active != nil {
+	if m.active != nil || m.preparingCall {
 		m.mu.Unlock()
 		return CallRecord{}, ErrBusy
 	}
@@ -343,10 +349,26 @@ func (m *Manager) dial(ctx context.Context, target, mediaMode string, peer Media
 			m.mu.Unlock()
 			return CallRecord{}, fmt.Errorf("telephone agent pipeline is unavailable")
 		}
-		preparedBackend, err = m.backendFactory(cfg.Voice)
+		factory := m.backendFactory
+		configVersion := m.callConfigVersion
+		m.preparingCall = true
+		m.mu.Unlock()
+
+		preparedBackend, err = factory(cfg.Voice)
+
+		m.mu.Lock()
+		m.preparingCall = false
 		if err != nil {
 			m.mu.Unlock()
 			return CallRecord{}, fmt.Errorf("telephone agent preflight failed: %w", err)
+		}
+		if configVersion != m.callConfigVersion || endpoint != m.endpoint {
+			m.mu.Unlock()
+			return CallRecord{}, ErrBusy
+		}
+		if m.active != nil {
+			m.mu.Unlock()
+			return CallRecord{}, ErrBusy
 		}
 	}
 	call := m.newActiveCallLocked("outbound", canonical)
@@ -440,6 +462,26 @@ func (m *Manager) Hangup(ctx context.Context, callID string) error {
 	return nil
 }
 
+// EndCallInternal terminates a call for a runtime safety or lifecycle reason.
+// Unlike Hangup, it is not an agent action and therefore does not consult the
+// AgentHangup permission.
+func (m *Manager) EndCallInternal(callID, reason string) {
+	m.mu.Lock()
+	call := m.active
+	if call == nil || call.record.ID != callID || call.record.EndedAt != nil {
+		m.mu.Unlock()
+		return
+	}
+	if call.terminalReason == "" {
+		call.terminalReason = strings.TrimSpace(reason)
+		if call.terminalReason == "" {
+			call.terminalReason = "internal_hangup"
+		}
+	}
+	m.mu.Unlock()
+	call.cancel()
+}
+
 // BrowserMediaFailed ends the matching call without consulting user-action
 // permissions. It is used only after an attached WebRTC peer has irrecoverably
 // failed or exceeded the disconnect grace period.
@@ -462,17 +504,21 @@ func (m *Manager) SendDTMF(callID string, digit rune) error {
 		return fmt.Errorf("invalid DTMF digit")
 	}
 	m.mu.Lock()
-	defer m.mu.Unlock()
 	if m.cfg.ReadOnly {
+		m.mu.Unlock()
 		return ErrReadOnly
 	}
 	if !m.cfg.Permissions.SendDTMF {
+		m.mu.Unlock()
 		return ErrPermissionDenied
 	}
 	if m.active == nil || m.active.record.ID != callID || m.active.media == nil {
+		m.mu.Unlock()
 		return ErrCallNotFound
 	}
-	return m.active.media.sendDTMF(digit)
+	media := m.active.media
+	m.mu.Unlock()
+	return media.sendDTMF(digit)
 }
 
 func (m *Manager) TestConnection(ctx context.Context) error {
@@ -592,7 +638,7 @@ func (m *Manager) handleIncoming(dialog *diago.DialogServerSession) {
 		_ = dialog.Respond(sip.StatusTemporarilyUnavailable, "Temporarily Unavailable", nil)
 		return
 	}
-	if m.active != nil {
+	if m.active != nil || m.preparingCall {
 		m.mu.Unlock()
 		_ = dialog.Respond(sip.StatusBusyHere, "Busy Here", nil)
 		return
@@ -604,11 +650,24 @@ func (m *Manager) handleIncoming(dialog *diago.DialogServerSession) {
 			_ = dialog.Respond(sip.StatusTemporarilyUnavailable, "Temporarily Unavailable", nil)
 			return
 		}
+		factory := m.backendFactory
+		configVersion := m.callConfigVersion
+		m.preparingCall = true
+		m.mu.Unlock()
+
 		var err error
-		preparedBackend, err = m.backendFactory(cfg.Voice)
+		preparedBackend, err = factory(cfg.Voice)
+
+		m.mu.Lock()
+		m.preparingCall = false
 		if err != nil {
 			m.mu.Unlock()
 			m.logger.Warn("SIP telephone agent preflight blocked inbound call", "error_type", fmt.Sprintf("%T", err))
+			_ = dialog.Respond(sip.StatusTemporarilyUnavailable, "Temporarily Unavailable", nil)
+			return
+		}
+		if configVersion != m.callConfigVersion || m.active != nil {
+			m.mu.Unlock()
 			_ = dialog.Respond(sip.StatusTemporarilyUnavailable, "Temporarily Unavailable", nil)
 			return
 		}

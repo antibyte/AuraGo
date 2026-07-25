@@ -282,8 +282,16 @@ func sipAgentPipelineBlockers(s *Server, voiceCfg config.SIPVoiceConfig) []strin
 }
 
 func validateSIPAgentToolScope(s *Server, cfg *config.Config, allowed []string) error {
+	if s == nil || cfg == nil {
+		return fmt.Errorf("telephone tool catalog is unavailable")
+	}
+	schemas := agent.BuildNativeToolSchemas(cfg.Directories.SkillsDir, tools.NewManifest(cfg.Directories.ToolsDir), mcpFeatureFlags(s), s.Logger)
+	return validateSIPAgentToolScopeWithSchemas(schemas, allowed)
+}
+
+func validateSIPAgentToolScopeWithSchemas(schemas []openai.Tool, allowed []string) error {
 	available := make(map[string]struct{})
-	for _, option := range sipAgentToolCatalog(s, cfg) {
+	for _, option := range sipAgentToolOptions(schemas) {
 		available[option.ID] = struct{}{}
 	}
 	for _, name := range allowed {
@@ -299,6 +307,10 @@ func sipAgentToolCatalog(s *Server, cfg *config.Config) []sipAgentToolOption {
 		return nil
 	}
 	schemas := agent.BuildNativeToolSchemas(cfg.Directories.SkillsDir, tools.NewManifest(cfg.Directories.ToolsDir), mcpFeatureFlags(s), s.Logger)
+	return sipAgentToolOptions(schemas)
+}
+
+func sipAgentToolOptions(schemas []openai.Tool) []sipAgentToolOption {
 	options := make([]sipAgentToolOption, 0, len(schemas))
 	for _, schema := range schemas {
 		if schema.Function == nil || strings.TrimSpace(schema.Function.Name) == "" {

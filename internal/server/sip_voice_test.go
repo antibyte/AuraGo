@@ -34,6 +34,32 @@ func TestVoiceTurnCancellationGenerationKeepsNewestTurn(t *testing.T) {
 	runner.releaseVoiceTurnCancel("call-1", secondGeneration)
 }
 
+func TestVoiceActionRunnerSeparatesAgentAndInternalCallTermination(t *testing.T) {
+	runner := NewVoiceActionRunner(nil)
+	var agentEnds atomic.Int32
+	var internalEnds atomic.Int32
+	var internalReason atomic.Value
+	runner.SetEndCall(func(callID string) {
+		if callID != "agent-call" {
+			t.Errorf("agent call ID = %q", callID)
+		}
+		agentEnds.Add(1)
+	})
+	runner.SetEndCallInternal(func(callID, reason string) {
+		if callID != "internal-call" {
+			t.Errorf("internal call ID = %q", callID)
+		}
+		internalReason.Store(reason)
+		internalEnds.Add(1)
+	})
+
+	runner.EndVoiceCall("agent-call")
+	runner.EndVoiceCallInternal("internal-call", "inactivity_timeout")
+	if agentEnds.Load() != 1 || internalEnds.Load() != 1 || internalReason.Load() != "inactivity_timeout" {
+		t.Fatalf("agent ends=%d internal ends=%d reason=%v", agentEnds.Load(), internalEnds.Load(), internalReason.Load())
+	}
+}
+
 func TestTelephoneBackendFreezesLLMConfigToolSchemasAndASRMode(t *testing.T) {
 	cfg := telephoneAgentTestConfig(t)
 	voiceCfg := effectiveSIPVoiceConfig(cfg, cfg.SIP.Voice)

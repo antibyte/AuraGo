@@ -120,7 +120,7 @@ func (s *classicSession) run() {
 				_ = s.speakText(s.ctx, s.call.GoodbyeMessage, "goodbye")
 			}
 			s.emit("inactivity_timeout", "")
-			s.backend.Runner.EndVoiceCall(s.call.CallID)
+			s.backend.Runner.EndVoiceCallInternal(s.call.CallID, "inactivity_timeout")
 			return
 		}
 	}
@@ -245,7 +245,7 @@ func (s *classicSession) fail(stage string, announce bool) {
 		_ = s.speakText(ctx, s.call.FailureMessage, "failure")
 		cancel()
 	}
-	s.backend.Runner.EndVoiceCall(s.call.CallID)
+	s.backend.Runner.EndVoiceCallInternal(s.call.CallID, "voice_backend_error")
 }
 
 func (s *classicSession) Interrupt() {
