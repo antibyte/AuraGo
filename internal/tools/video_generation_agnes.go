@@ -23,13 +23,20 @@ type agnesVideoState struct {
 	URL     string
 	Error   string
 	Model   string
+	Size    string
 	Seconds float64
 }
 
-func generateVideoAgnes(ctx context.Context, baseURL, apiKey, model string, params VideoGenParams, pollIntervalSeconds, timeoutSeconds int, videoDir string) VideoGenResult {
-	if strings.TrimSpace(model) == "" {
-		model = defaultAgnesVideoModel
+func normalizeAgnesVideoModel(model string) string {
+	model = strings.TrimSpace(model)
+	if strings.HasPrefix(strings.ToLower(model), "agnes-video-") {
+		return model
 	}
+	return defaultAgnesVideoModel
+}
+
+func generateVideoAgnes(ctx context.Context, baseURL, apiKey, model string, params VideoGenParams, pollIntervalSeconds, timeoutSeconds int, videoDir string) VideoGenResult {
+	model = normalizeAgnesVideoModel(model)
 	width, height, err := agnesVideoDimensions(params.Resolution, params.AspectRatio)
 	if err != nil {
 		return VideoGenResult{Status: "error", Error: err.Error()}
@@ -118,6 +125,10 @@ func generateVideoAgnes(ctx context.Context, baseURL, apiKey, model string, para
 	if state.Model != "" {
 		model = state.Model
 	}
+	outputSize := fmt.Sprintf("%dx%d", width, height)
+	if state.Size != "" {
+		outputSize = state.Size
+	}
 	return VideoGenResult{
 		Status:     "ok",
 		Filename:   filename,
@@ -126,6 +137,7 @@ func generateVideoAgnes(ctx context.Context, baseURL, apiKey, model string, para
 		DurationMs: durationMs,
 		Provider:   "agnes",
 		Model:      model,
+		Size:       outputSize,
 		Format:     "mp4",
 		FileSize:   fileSizeOrZero(filePath),
 		TaskID:     firstNonEmpty(state.TaskID, state.VideoID),
@@ -294,6 +306,14 @@ func pollAgnesVideo(ctx context.Context, apiBase, resultEndpoint, apiKey string,
 		}
 		next.TaskID = firstNonEmpty(next.TaskID, state.TaskID)
 		next.VideoID = firstNonEmpty(next.VideoID, state.VideoID)
+		next.Status = firstNonEmpty(next.Status, state.Status)
+		next.URL = firstNonEmpty(next.URL, state.URL)
+		next.Error = firstNonEmpty(next.Error, state.Error)
+		next.Model = firstNonEmpty(next.Model, state.Model)
+		next.Size = firstNonEmpty(next.Size, state.Size)
+		if next.Seconds == 0 {
+			next.Seconds = state.Seconds
+		}
 		state = next
 
 		switch strings.ToLower(state.Status) {
@@ -335,9 +355,10 @@ func parseAgnesVideoState(body []byte) (agnesVideoState, error) {
 		state.Status = firstNonEmpty(state.Status, stringFromAny(object["status"]), stringFromAny(object["state"]))
 		state.URL = firstNonEmpty(state.URL, stringFromAny(object["url"]), stringFromAny(object["video_url"]), stringFromAny(object["download_url"]))
 		state.Model = firstNonEmpty(state.Model, stringFromAny(object["model"]), stringFromAny(object["model_name"]))
+		state.Size = firstNonEmpty(state.Size, stringFromAny(object["size"]))
 		state.Error = firstNonEmpty(state.Error, stringFromAny(object["error"]), stringFromAny(object["error_message"]))
 		if errorObject, ok := object["error"].(map[string]interface{}); ok {
-			state.Error = firstNonEmpty(state.Error, stringFromAny(errorObject["message"]), stringFromAny(errorObject["detail"]))
+			state.Error = firstNonEmpty(state.Error, stringFromAny(errorObject["message"]), stringFromAny(errorObject["detail"]), stringFromAny(errorObject["code"]))
 		}
 		if state.Seconds == 0 {
 			if seconds, ok := object["seconds"].(float64); ok {
@@ -346,6 +367,36 @@ func parseAgnesVideoState(body []byte) (agnesVideoState, error) {
 				state.Seconds = seconds
 			}
 		}
+		if metadata, ok := object["metadata"].(map[string]interface{}); ok {
+			state.URL = firstNonEmpty(state.URL, stringFromAny(metadata["url"]), stringFromAny(metadata["video_url"]), stringFromAny(metadata["download_url"]))
+			if sizeMapping, ok := metadata["size_mapping"].(map[string]interface{}); ok && state.Size == "" {
+				width := positiveIntegerFromAny(sizeMapping["width"])
+				height := positiveIntegerFromAny(sizeMapping["height"])
+				if width > 0 && height > 0 {
+					state.Size = fmt.Sprintf("%dx%d", width, height)
+				}
+			}
+		}
 	}
 	return state, nil
+}
+
+func positiveIntegerFromAny(value interface{}) int {
+	switch typed := value.(type) {
+	case float64:
+		if typed > 0 {
+			return int(typed)
+		}
+	case json.Number:
+		parsed, _ := strconv.Atoi(typed.String())
+		if parsed > 0 {
+			return parsed
+		}
+	default:
+		parsed, _ := strconv.Atoi(stringFromAny(value))
+		if parsed > 0 {
+			return parsed
+		}
+	}
+	return 0
 }

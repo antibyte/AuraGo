@@ -9,24 +9,37 @@ import (
 	"strings"
 )
 
-const defaultAgnesImageModel = "agnes-image-2.1-flash"
+const (
+	defaultAgnesImageModel           = "agnes-image-2.1-flash"
+	maxAgnesImageResponseBytes int64 = 70 * 1024 * 1024
+)
+
+func normalizeAgnesImageModel(model string) string {
+	model = strings.TrimSpace(model)
+	if strings.HasPrefix(strings.ToLower(model), "agnes-image-") {
+		return model
+	}
+	return defaultAgnesImageModel
+}
+
+func agnesImageEndpoint(rawBaseURL string) string {
+	endpoint := strings.TrimRight(strings.TrimSpace(rawBaseURL), "/")
+	if endpoint == "" {
+		endpoint = "https://apihub.agnes-ai.com/v1"
+	}
+	endpoint = strings.TrimSuffix(endpoint, "/images/generations")
+	if !strings.HasSuffix(endpoint, "/v1") {
+		endpoint += "/v1"
+	}
+	return endpoint + "/images/generations"
+}
 
 // generateAgnesImage calls Agnes AI's OpenAI-compatible image generation API.
 // Agnes expects return_base64 for text-to-image and the response format inside
 // extra_body for image-to-image requests.
 func generateAgnesImage(cfg ImageGenConfig, prompt string, opts ImageGenOptions) ([]byte, string, error) {
-	endpoint := strings.TrimRight(cfg.BaseURL, "/")
-	if endpoint == "" {
-		endpoint = "https://apihub.agnes-ai.com/v1"
-	}
-	if !strings.HasSuffix(endpoint, "/images/generations") {
-		endpoint += "/images/generations"
-	}
-
-	model := strings.TrimSpace(cfg.Model)
-	if model == "" {
-		model = defaultAgnesImageModel
-	}
+	endpoint := agnesImageEndpoint(cfg.BaseURL)
+	model := normalizeAgnesImageModel(cfg.Model)
 	body := map[string]interface{}{
 		"model":  model,
 		"prompt": prompt,
@@ -70,7 +83,7 @@ func generateAgnesImage(cfg ImageGenConfig, prompt string, opts ImageGenOptions)
 	}
 	defer resp.Body.Close()
 
-	respBody, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
+	respBody, err := readHTTPResponseBody(resp.Body, maxAgnesImageResponseBytes)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to read Agnes AI image response: %w", err)
 	}

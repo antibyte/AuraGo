@@ -29,6 +29,7 @@ const (
 	legacyMiniMaxHailuo23Preset = "Hailuo-2.3-768P"
 	defaultGoogleVideoModel     = "veo-3.1-generate-preview"
 	defaultAgnesVideoModel      = "agnes-video-v2.0"
+	maxGeneratedVideoBytes      = int64(512 * 1024 * 1024)
 )
 
 // VideoGenParams holds the parameters for the generate_video tool call.
@@ -53,6 +54,7 @@ type VideoGenResult struct {
 	DurationMs   int64   `json:"duration_ms,omitempty"`
 	Provider     string  `json:"provider,omitempty"`
 	Model        string  `json:"model,omitempty"`
+	Size         string  `json:"size,omitempty"`
 	Format       string  `json:"format,omitempty"`
 	FileSize     int64   `json:"file_size,omitempty"`
 	MediaID      int64   `json:"media_id,omitempty"`
@@ -130,6 +132,9 @@ func GenerateVideoResult(ctx context.Context, cfg *config.Config, mediaDB *sql.D
 	model := cfg.VideoGeneration.ResolvedModel
 	if params.Model != "" {
 		model = params.Model
+	}
+	if providerType == "agnes" {
+		model = normalizeAgnesVideoModel(model)
 	}
 	params = applyVideoDefaults(cfg, params)
 
@@ -659,6 +664,10 @@ func findGoogleVideoObject(root map[string]interface{}) map[string]interface{} {
 }
 
 func downloadFileWithHeaders(ctx context.Context, rawURL, dest string, headers map[string]string) error {
+	return downloadFileWithHeadersLimit(ctx, rawURL, dest, headers, maxGeneratedVideoBytes)
+}
+
+func downloadFileWithHeadersLimit(ctx context.Context, rawURL, dest string, headers map[string]string, maxBytes int64) error {
 	req, err := http.NewRequestWithContext(ctx, "GET", rawURL, nil)
 	if err != nil {
 		return fmt.Errorf("create download request: %w", err)
@@ -674,14 +683,31 @@ func downloadFileWithHeaders(ctx context.Context, rawURL, dest string, headers m
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("download returned status %d", resp.StatusCode)
 	}
+	if resp.ContentLength > maxBytes {
+		return fmt.Errorf("download exceeds the %d byte limit", maxBytes)
+	}
 	out, err := os.Create(dest)
 	if err != nil {
 		return fmt.Errorf("create file: %w", err)
 	}
-	defer out.Close()
-	if _, err := io.Copy(out, resp.Body); err != nil {
+	keepFile := false
+	defer func() {
+		if !keepFile {
+			_ = out.Close()
+			_ = os.Remove(dest)
+		}
+	}()
+	written, err := io.Copy(out, io.LimitReader(resp.Body, maxBytes+1))
+	if err != nil {
 		return fmt.Errorf("write file: %w", err)
 	}
+	if written > maxBytes {
+		return fmt.Errorf("download exceeds the %d byte limit", maxBytes)
+	}
+	if err := out.Close(); err != nil {
+		return fmt.Errorf("close file: %w", err)
+	}
+	keepFile = true
 	return nil
 }
 

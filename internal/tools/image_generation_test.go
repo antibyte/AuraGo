@@ -485,8 +485,8 @@ func TestResolveSourceImagePath_GeneratedImagesFallback(t *testing.T) {
 
 func TestResolveSourceImagePath_NotFound(t *testing.T) {
 	got := ResolveSourceImagePath("nonexistent.png", t.TempDir(), t.TempDir())
-	if got != "nonexistent.png" {
-		t.Errorf("expected original path returned when not found, got %q", got)
+	if got != "" {
+		t.Errorf("expected empty path when source image is not workspace-local, got %q", got)
 	}
 }
 

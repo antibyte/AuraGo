@@ -2,6 +2,7 @@
   "setup.confirm_skip_setup": "सेटअप छोड़ें? आप बाद में /config के माध्यम से AuraGo कॉन्फ़िगर कर सकते हैं।",
   "setup.confirm_skip_setup_title": "सेटअप छोड़ें",
   "setup.feature_images": "छवियाँ",
+  "setup.feature_video": "वीडियो निर्माण",
   "setup.feature_music": "संगीत",
   "setup.feature_tts": "TTS",
   "setup.feature_unavailable": "इस प्लान में उपलब्ध नहीं",

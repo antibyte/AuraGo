@@ -1509,6 +1509,9 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			}
 			if req.SourceImage != "" {
 				opts.SourceImage = tools.ResolveSourceImagePath(req.SourceImage, cfg.Directories.WorkspaceDir, cfg.Directories.DataDir)
+				if opts.SourceImage == "" {
+					return `Tool Output: {"status":"error","message":"source_image must reference an existing workspace-local image"}`
+				}
 			}
 
 			result, err := tools.GenerateImage(genCfg, effectivePrompt, opts)

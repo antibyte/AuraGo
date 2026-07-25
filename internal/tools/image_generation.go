@@ -282,6 +282,12 @@ func imageGalleryMonthlyCountAt(db *sql.DB, now time.Time) (int, error) {
 // GenerateImage dispatches image generation to the appropriate backend based on provider type.
 func GenerateImage(cfg ImageGenConfig, prompt string, opts ImageGenOptions) (*ImageGenResult, error) {
 	start := time.Now()
+	if strings.EqualFold(cfg.ProviderType, "agnes") {
+		cfg.Model = normalizeAgnesImageModel(cfg.Model)
+		if opts.Size == "" {
+			opts.Size = "1K"
+		}
+	}
 
 	var imgData []byte
 	var format string

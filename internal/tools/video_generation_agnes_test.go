@@ -7,6 +7,8 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -18,6 +20,7 @@ func TestGenerateVideoAgnesFlow(t *testing.T) {
 	videoBytes := []byte("fake agnes mp4 data")
 	var createPayload map[string]interface{}
 	var serverURL string
+	pollCount := 0
 	server := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/download/video.mp4" && r.Header.Get("Authorization") != "Bearer test-key" {
 			t.Fatalf("missing Agnes AI bearer token for %s", r.URL.Path)
@@ -36,7 +39,12 @@ func TestGenerateVideoAgnesFlow(t *testing.T) {
 			if r.URL.Query().Get("video_id") != "video-1" {
 				t.Fatalf("video_id = %q, want video-1", r.URL.Query().Get("video_id"))
 			}
-			_, _ = w.Write([]byte(`{"id":"task-1","video_id":"video-1","status":"completed","seconds":"6.5","url":"` + serverURL + `/download/video.mp4"}`))
+			pollCount++
+			if pollCount == 1 {
+				_, _ = w.Write([]byte(`{"id":"task-1","video_id":"video-1","status":"in_progress"}`))
+				return
+			}
+			_, _ = w.Write([]byte(`{"id":"task-1","video_id":"video-1","status":"completed","seconds":"6.5","size":"832x448","metadata":{"size_mapping":{"adjusted":true,"width":832,"height":448},"url":"` + serverURL + `/download/video.mp4"}}`))
 		case "/download/video.mp4":
 			_, _ = w.Write(videoBytes)
 		default:
@@ -91,6 +99,25 @@ func TestGenerateVideoAgnesFlow(t *testing.T) {
 	}
 	if result.DurationMs != 6500 || !strings.Contains(result.Message, "(6.5s)") {
 		t.Fatalf("duration/message = %d/%q, want API duration 6.5s", result.DurationMs, result.Message)
+	}
+	if result.Size != "832x448" {
+		t.Fatalf("size = %q, want provider size 832x448", result.Size)
+	}
+}
+
+func TestAgnesVideoModelNormalization(t *testing.T) {
+	t.Parallel()
+
+	for input, want := range map[string]string{
+		"":                        defaultAgnesVideoModel,
+		"agnes-2.0-flash":         defaultAgnesVideoModel,
+		"not-a-video-model":       defaultAgnesVideoModel,
+		"agnes-video-v1.5":        "agnes-video-v1.5",
+		" Agnes-Video-Future-v1 ": "Agnes-Video-Future-v1",
+	} {
+		if got := normalizeAgnesVideoModel(input); got != want {
+			t.Fatalf("normalizeAgnesVideoModel(%q) = %q, want %q", input, got, want)
+		}
 	}
 }
 
@@ -223,5 +250,133 @@ func TestAgnesVideoConnectionUsesFreeResultEndpoint(t *testing.T) {
 				t.Fatalf("connection message was not bounded: %d bytes", len(message))
 			}
 		})
+	}
+}
+
+func TestPollAgnesVideoFallsBackToLegacyTaskIDAndReadsSizeMapping(t *testing.T) {
+	server := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/videos/task-legacy" {
+			t.Fatalf("path = %q, want legacy task endpoint", r.URL.Path)
+		}
+		_, _ = w.Write([]byte(`{
+			"task_id":"task-legacy",
+			"status":"completed",
+			"seconds":"4",
+			"metadata":{
+				"url":"https://public.example/video.mp4",
+				"size_mapping":{"width":1280,"height":720}
+			}
+		}`))
+	}))
+	defer server.Close()
+
+	oldClient := videoGenHTTPClient
+	videoGenHTTPClient = server.Client()
+	defer func() { videoGenHTTPClient = oldClient }()
+
+	state, err := pollAgnesVideo(
+		context.Background(),
+		server.URL+"/v1",
+		server.URL+"/agnesapi",
+		"test-key",
+		agnesVideoState{TaskID: "task-legacy", Status: "queued"},
+		-1,
+		10,
+	)
+	if err != nil {
+		t.Fatalf("pollAgnesVideo failed: %v", err)
+	}
+	if state.URL != "https://public.example/video.mp4" || state.Size != "1280x720" || state.Seconds != 4 {
+		t.Fatalf("legacy final state = %+v", state)
+	}
+}
+
+func TestPollAgnesVideoReturnsStructuredFailure(t *testing.T) {
+	server := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"video_id":"video-failed","status":"failed","error":{"code":"generation_failed","message":"provider rejected the prompt"}}`))
+	}))
+	defer server.Close()
+
+	oldClient := videoGenHTTPClient
+	videoGenHTTPClient = server.Client()
+	defer func() { videoGenHTTPClient = oldClient }()
+
+	_, err := pollAgnesVideo(
+		context.Background(),
+		server.URL+"/v1",
+		server.URL+"/agnesapi",
+		"test-key",
+		agnesVideoState{VideoID: "video-failed", Status: "queued"},
+		-1,
+		10,
+	)
+	if err == nil || !strings.Contains(err.Error(), "provider rejected the prompt") {
+		t.Fatalf("structured provider failure = %v", err)
+	}
+}
+
+func TestPollAgnesVideoHonorsCancellationAndTimeout(t *testing.T) {
+	t.Run("cancellation", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		_, err := pollAgnesVideo(
+			ctx,
+			"http://127.0.0.1/v1",
+			"http://127.0.0.1/agnesapi",
+			"test-key",
+			agnesVideoState{TaskID: "task-cancel", Status: "queued"},
+			1,
+			10,
+		)
+		if err == nil || !strings.Contains(err.Error(), context.Canceled.Error()) {
+			t.Fatalf("cancellation error = %v", err)
+		}
+	})
+
+	t.Run("timeout", func(t *testing.T) {
+		server := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			_, _ = w.Write([]byte(`{"video_id":"video-timeout","status":"queued"}`))
+		}))
+		defer server.Close()
+
+		oldClient := videoGenHTTPClient
+		videoGenHTTPClient = server.Client()
+		defer func() { videoGenHTTPClient = oldClient }()
+
+		_, err := pollAgnesVideo(
+			context.Background(),
+			server.URL+"/v1",
+			server.URL+"/agnesapi",
+			"test-key",
+			agnesVideoState{VideoID: "video-timeout", Status: "queued"},
+			1,
+			1,
+		)
+		if err == nil || !strings.Contains(err.Error(), "timed out") {
+			t.Fatalf("timeout error = %v", err)
+		}
+	})
+}
+
+func TestDownloadFileWithHeadersLimitRemovesOversizedPartialFile(t *testing.T) {
+	server := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		if flusher, ok := w.(http.Flusher); ok {
+			flusher.Flush()
+		}
+		_, _ = w.Write([]byte(strings.Repeat("v", 32)))
+	}))
+	defer server.Close()
+
+	oldClient := videoGenHTTPClient
+	videoGenHTTPClient = server.Client()
+	defer func() { videoGenHTTPClient = oldClient }()
+
+	dest := filepath.Join(t.TempDir(), "oversized.mp4")
+	err := downloadFileWithHeadersLimit(context.Background(), server.URL, dest, nil, 16)
+	if err == nil {
+		t.Fatal("oversized video download unexpectedly succeeded")
+	}
+	if _, statErr := os.Stat(dest); !os.IsNotExist(statErr) {
+		t.Fatalf("partial video file still exists after failure: %v", statErr)
 	}
 }

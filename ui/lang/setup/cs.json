@@ -2,6 +2,7 @@
   "setup.confirm_skip_setup": "Přeskočit nastavení? AuraGo můžete nakonfigurovat později přes /config.",
   "setup.confirm_skip_setup_title": "Přeskočit nastavení",
   "setup.feature_images": "Obrázky",
+  "setup.feature_video": "Generování videa",
   "setup.feature_music": "Hudba",
   "setup.feature_tts": "TTS",
   "setup.feature_unavailable": "S tímto plánem nedostupné",

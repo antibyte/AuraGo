@@ -2,6 +2,7 @@
   "setup.confirm_skip_setup": "Παράλειψη ρύθμισης; Μπορείτε να ρυθμίσετε το AuraGo αργότερα μέσω /config.",
   "setup.confirm_skip_setup_title": "Παράλειψη ρύθμισης",
   "setup.feature_images": "Εικόνες",
+  "setup.feature_video": "Δημιουργία βίντεο",
   "setup.feature_music": "Μουσική",
   "setup.feature_tts": "TTS",
   "setup.feature_unavailable": "Μη διαθέσιμο με αυτό το πλάνο",

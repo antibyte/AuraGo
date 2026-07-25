@@ -2,6 +2,7 @@
   "setup.confirm_skip_setup": "Pular configuração? Você pode configurar o AuraGo depois via /config.",
   "setup.confirm_skip_setup_title": "Pular configuração",
   "setup.feature_images": "Imagens",
+  "setup.feature_video": "Geração de vídeo",
   "setup.feature_music": "Música",
   "setup.feature_tts": "TTS",
   "setup.feature_unavailable": "Não disponível com este plano",

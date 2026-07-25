@@ -2,6 +2,7 @@
   "setup.confirm_skip_setup": "Passer la configuration ? Vous pourrez configurer AuraGo plus tard via /config.",
   "setup.confirm_skip_setup_title": "Passer la configuration",
   "setup.feature_images": "Images générées",
+  "setup.feature_video": "Génération vidéo",
   "setup.feature_music": "Musique",
   "setup.feature_tts": "TTS",
   "setup.feature_unavailable": "Non disponible avec ce plan",

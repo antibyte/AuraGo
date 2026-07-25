@@ -211,6 +211,7 @@ function getFeatureBadges(features) {
         ['vision',           'setup.feature_vision',  '👁'],
         ['tts',              'setup.feature_tts',     '🔊'],
         ['image_generation', 'setup.feature_images',  '🎨'],
+        ['video_generation', 'setup.feature_video',   '🎬'],
         ['music_generation', 'setup.feature_music',   '🎵'],
     ];
     return map.map(([key, i18nKey, icon]) => {

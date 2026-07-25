@@ -26,6 +26,7 @@ func TestSetupIncludesAgnesProviderAndAutomaticSubsystemModels(t *testing.T) {
 		`provider === 'agnes'`,
 		`model: 'agnes-image-2.1-flash'`,
 		`model: 'agnes-video-v2.0'`,
+		`['video_generation', 'setup.feature_video',   '🎬']`,
 		`patch.image_generation = {`,
 		`patch.video_generation = {`,
 	} {

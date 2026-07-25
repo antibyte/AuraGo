@@ -2,6 +2,7 @@
   "setup.confirm_skip_setup": "Configuratie overslaan? U kunt AuraGo later configureren via /config.",
   "setup.confirm_skip_setup_title": "Configuratie overslaan",
   "setup.feature_images": "Afbeeldingen",
+  "setup.feature_video": "Videogeneratie",
   "setup.feature_music": "Muziek",
   "setup.feature_tts": "TTS",
   "setup.feature_unavailable": "Niet beschikbaar met dit plan",

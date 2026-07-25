@@ -12,6 +12,8 @@ import (
 	"strings"
 )
 
+const maxGeneratedImageBytes int64 = 50 * 1024 * 1024
+
 // loadSourceImage reads an image file from disk for image-to-image operations.
 func loadSourceImage(path string) ([]byte, error) {
 	if path == "" {
@@ -52,6 +54,10 @@ func buildMultipartForm(fields map[string]string, files map[string][]byte) (*byt
 
 // downloadImage fetches an image from a URL and returns the raw bytes.
 func downloadImage(url string) ([]byte, error) {
+	return downloadImageWithLimit(url, maxGeneratedImageBytes)
+}
+
+func downloadImageWithLimit(url string, maxBytes int64) ([]byte, error) {
 	resp, err := imageGenHTTPClient.Get(url)
 	if err != nil {
 		return nil, fmt.Errorf("failed to download image: %w", err)
@@ -61,10 +67,16 @@ func downloadImage(url string) ([]byte, error) {
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("image download returned status %d", resp.StatusCode)
 	}
+	if resp.ContentLength > maxBytes {
+		return nil, fmt.Errorf("image download exceeds the %d byte limit", maxBytes)
+	}
 
-	data, err := io.ReadAll(io.LimitReader(resp.Body, 50*1024*1024)) // 50MB max
+	data, err := io.ReadAll(io.LimitReader(resp.Body, maxBytes+1))
 	if err != nil {
 		return nil, fmt.Errorf("failed to read image data: %w", err)
+	}
+	if int64(len(data)) > maxBytes {
+		return nil, fmt.Errorf("image download exceeds the %d byte limit", maxBytes)
 	}
 	return data, nil
 }
@@ -256,5 +268,5 @@ func ResolveSourceImagePath(path, workspaceDir, dataDir string) string {
 	if _, err := os.Stat(candidate); err == nil {
 		return candidate
 	}
-	return path
+	return ""
 }

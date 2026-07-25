@@ -2,6 +2,7 @@
   "setup.confirm_skip_setup": "Hoppa över installation? Du kan konfigurera AuraGo senare via /config.",
   "setup.confirm_skip_setup_title": "Hoppa över installation",
   "setup.feature_images": "Bilder",
+  "setup.feature_video": "Videogenerering",
   "setup.feature_music": "Musik",
   "setup.feature_tts": "TTS",
   "setup.feature_unavailable": "Ej tillgänglig med denna plan",

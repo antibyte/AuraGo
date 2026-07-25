@@ -1608,7 +1608,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 
 	if ff.VideoGenerationEnabled {
 		tools = append(tools, tool("generate_video",
-			"Generate short videos from text prompts using AI. Supports MiniMax Hailuo and Google Veo providers. "+
+			"Generate short videos from text prompts using AI. Supports MiniMax Hailuo, Google Veo, and Agnes AI providers. "+
 				"Provider selection comes from Settings > Video Generation; model overrides must match that configured provider. "+
 				"Supports text-to-video, first-frame image-to-video, first/last frame guidance, and provider-supported reference images. "+
 				"The generated MP4 is saved locally and automatically registered in the media registry.",

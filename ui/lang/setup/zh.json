@@ -2,6 +2,7 @@
   "setup.confirm_skip_setup": "跳过设置？您可以稍后通过 /config 配置 AuraGo。",
   "setup.confirm_skip_setup_title": "跳过设置",
   "setup.feature_images": "图像",
+  "setup.feature_video": "视频生成",
   "setup.feature_music": "音乐",
   "setup.feature_tts": "语音",
   "setup.feature_unavailable": "此方案不支持",
