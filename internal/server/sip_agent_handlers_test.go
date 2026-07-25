@@ -2,7 +2,9 @@ package server
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -12,6 +14,9 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/security"
+	"aurago/internal/voice"
+
+	"github.com/sashabaranov/go-openai"
 )
 
 func telephoneAgentTestConfig(t *testing.T) *config.Config {
@@ -122,28 +127,29 @@ func TestSIPAgentMutationRequiresSameOriginAndStrictSchema(t *testing.T) {
 	}
 }
 
-func TestSIPAgentPreflightFailsClosedWithBlockerCodes(t *testing.T) {
+func TestSIPAgentStatusReportsRouteSpecificBlockersWithoutBlockingPipelineTest(t *testing.T) {
 	cfg := telephoneAgentTestConfig(t)
 	server := &Server{Cfg: cfg}
+	voiceCfg := effectiveSIPVoiceConfig(cfg, cfg.SIP.Voice)
+	joined := strings.Join(sipAgentBlockers(server, cfg.SIP, voiceCfg), ",")
+	for _, blocker := range []string{"sip_disabled", "sip_readonly", "inbound_permission_disabled", "outbound_permission_disabled"} {
+		if !strings.Contains(joined, blocker) {
+			t.Fatalf("missing blocker %q in %s", blocker, joined)
+		}
+	}
+
 	request := httptest.NewRequest(http.MethodPost, "https://aurago.local/api/sip/agent/test", strings.NewReader(`{"live":false}`))
 	request.Header.Set("Origin", "https://aurago.local")
 	recorder := httptest.NewRecorder()
 	handleSIPAgentTest(server, nil).ServeHTTP(recorder, request)
-	if recorder.Code != http.StatusConflict || !strings.HasPrefix(recorder.Header().Get("Content-Type"), "application/json") {
+	if recorder.Code != http.StatusOK || !strings.HasPrefix(recorder.Header().Get("Content-Type"), "application/json") {
 		t.Fatalf("status=%d content-type=%q body=%s", recorder.Code, recorder.Header().Get("Content-Type"), recorder.Body.String())
 	}
-	var response struct {
-		Status   string   `json:"status"`
-		Blockers []string `json:"blockers"`
-	}
-	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
-		t.Fatal(err)
-	}
-	joined := strings.Join(response.Blockers, ",")
-	for _, blocker := range []string{"sip_disabled", "sip_readonly", "inbound_permission_disabled"} {
-		if !strings.Contains(joined, blocker) {
-			t.Fatalf("missing blocker %q in %+v", blocker, response.Blockers)
-		}
+
+	cfg.SIP.Inbound.Route = "manual"
+	joined = strings.Join(sipAgentBlockers(server, cfg.SIP, voiceCfg), ",")
+	if strings.Contains(joined, "inbound_permission_disabled") {
+		t.Fatalf("manual inbound route was blocked by agent answer permission: %s", joined)
 	}
 }
 
@@ -155,9 +161,82 @@ func TestSIPAgentPreflightRejectsUnavailableToolScope(t *testing.T) {
 	if blockers := strings.Join(sipAgentBlockers(server, cfg.SIP, voiceCfg), ","); !strings.Contains(blockers, "tool_scope_unavailable") {
 		t.Fatalf("blockers = %s", blockers)
 	}
+	request := httptest.NewRequest(http.MethodPost, "https://aurago.local/api/sip/agent/test", strings.NewReader(`{"live":false}`))
+	request.Header.Set("Origin", "https://aurago.local")
+	recorder := httptest.NewRecorder()
+	handleSIPAgentTest(server, nil).ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusConflict || recorder.Header().Get("Cache-Control") != "no-store" {
+		t.Fatalf("status=%d cache-control=%q body=%s", recorder.Code, recorder.Header().Get("Cache-Control"), recorder.Body.String())
+	}
 	runner := NewVoiceActionRunner(server)
 	if _, err := runner.backendFactory(voiceCfg); err == nil || !strings.Contains(err.Error(), "unknown or unavailable") {
 		t.Fatalf("backend preflight error = %v", err)
+	}
+}
+
+func TestTelephoneAgentToolCatalogExcludesBroadMetaTools(t *testing.T) {
+	for _, name := range []string{
+		"discover_tools", "invoke_tool", "execute_skill", "list_agent_skills",
+		"activate_agent_skill", "run_agent_skill_script", "run_tool",
+	} {
+		if telephoneAgentToolAllowed(name) {
+			t.Fatalf("broad meta-tool %q is allowed in telephone catalog", name)
+		}
+	}
+	if !telephoneAgentToolAllowed("get_weather") {
+		t.Fatal("ordinary scoped tool was unexpectedly rejected")
+	}
+}
+
+type sipLiveTestClient struct {
+	calls int
+}
+
+func (c *sipLiveTestClient) CreateChatCompletion(_ context.Context, request openai.ChatCompletionRequest) (openai.ChatCompletionResponse, error) {
+	c.calls++
+	return openai.ChatCompletionResponse{Choices: []openai.ChatCompletionChoice{{
+		Message: openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: "OK"},
+	}}}, nil
+}
+
+func (*sipLiveTestClient) CreateChatCompletionStream(context.Context, openai.ChatCompletionRequest) (*openai.ChatCompletionStream, error) {
+	return nil, fmt.Errorf("streaming is not expected")
+}
+
+type sipLiveTestSynthesizer struct {
+	calls int
+}
+
+func (s *sipLiveTestSynthesizer) Synthesize(_ context.Context, text, _ string) ([]int16, int, error) {
+	s.calls++
+	if text != "OK" {
+		return nil, 0, fmt.Errorf("unexpected TTS text %q", text)
+	}
+	return make([]int16, 160), 8000, nil
+}
+
+type sipLiveTestRecognizer struct {
+	calls int
+}
+
+func (r *sipLiveTestRecognizer) Recognize(_ context.Context, wav []byte, sampleRate int, _ string) (string, error) {
+	r.calls++
+	if len(wav) < 44 || sampleRate != 8000 {
+		return "", fmt.Errorf("invalid ASR probe audio")
+	}
+	return "OK", nil
+}
+
+func TestClassicTelephoneLiveTestExercisesLLMTTSAndASR(t *testing.T) {
+	client := &sipLiveTestClient{}
+	synthesizer := &sipLiveTestSynthesizer{}
+	recognizer := &sipLiveTestRecognizer{}
+	classic := &voice.ClassicBackend{Synthesizer: synthesizer, Recognizer: recognizer}
+	if err := runClassicSIPAgentLiveTest(context.Background(), client, classic, "phone-model", "de"); err != nil {
+		t.Fatal(err)
+	}
+	if client.calls != 1 || synthesizer.calls != 1 || recognizer.calls != 1 {
+		t.Fatalf("live test stages: LLM=%d TTS=%d ASR=%d", client.calls, synthesizer.calls, recognizer.calls)
 	}
 }
 
@@ -248,6 +327,22 @@ func TestTelephoneAgentPromptOnlyAddsRestrictions(t *testing.T) {
 		if !strings.Contains(prompt, expected) {
 			t.Fatalf("telephone prompt omitted %q: %s", expected, prompt)
 		}
+	}
+}
+
+func TestTelephoneAgentPromptBindsExplainAndEndToPipelineControl(t *testing.T) {
+	var sipCfg config.SIPConfig
+	config.ApplySIPDefaults(&sipCfg)
+	sipCfg.Voice.Behavior.UnavailableRequestBehavior = "explain_and_end"
+
+	sipCfg.Voice.Backend = "classic"
+	if prompt := telephoneAgentPrompt(sipCfg.Voice); !strings.Contains(prompt, voice.EndCallResponseMarker) {
+		t.Fatalf("classic explain-and-end prompt lacks private marker: %s", prompt)
+	}
+	sipCfg.Voice.Backend = "gemini_live"
+	prompt := telephoneAgentPrompt(sipCfg.Voice)
+	if !strings.Contains(prompt, "aurago_end_call") || strings.Contains(prompt, voice.EndCallResponseMarker) {
+		t.Fatalf("Gemini explain-and-end prompt has wrong control: %s", prompt)
 	}
 }
 

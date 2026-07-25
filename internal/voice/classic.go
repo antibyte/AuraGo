@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -47,6 +48,7 @@ func (b *ClassicBackend) Start(ctx context.Context, call CallContext, audio Dupl
 		detector:    NewTurnDetector(20, 120, 600, 200),
 		inputRate:   8000,
 		framePeriod: 20 * time.Millisecond,
+		turnState:   make(chan struct{}, 8),
 	}
 	go session.run()
 	return session, nil
@@ -65,19 +67,21 @@ type classicSession struct {
 	mu          sync.Mutex
 	turnCancel  context.CancelFunc
 	closed      bool
+	activeTurns atomic.Int32
+	turnState   chan struct{}
 }
 
 func (s *classicSession) run() {
 	defer close(s.events)
 	s.emit("backend_started", "")
-	idleTimer := time.NewTimer(s.backend.IdleTimeout)
-	defer idleTimer.Stop()
 	if s.call.Greeting != "" {
 		if err := s.speakText(s.ctx, s.call.Greeting, "greeting"); err != nil && s.ctx.Err() == nil {
 			s.fail("greeting", false)
 			return
 		}
 	}
+	idleTimer := time.NewTimer(s.backend.IdleTimeout)
+	defer idleTimer.Stop()
 	for {
 		select {
 		case <-s.ctx.Done():
@@ -93,15 +97,25 @@ func (s *classicSession) run() {
 				s.emitData("audio_queue_dropped", map[string]any{"stage": "vad", "policy": "drop_oldest"})
 			}
 			if started {
-				resetVoiceIdleTimer(idleTimer, s.backend.IdleTimeout)
+				if s.activeTurns.Load() == 0 {
+					resetVoiceIdleTimer(idleTimer, s.backend.IdleTimeout)
+				}
 				s.Interrupt()
 				s.emit("barge_in", "")
 			}
 			if len(utterance) > 0 {
+				s.startUtterance(utterance, s.inputRate)
+			}
+		case <-s.turnState:
+			if s.activeTurns.Load() > 0 {
+				stopVoiceIdleTimer(idleTimer)
+			} else {
 				resetVoiceIdleTimer(idleTimer, s.backend.IdleTimeout)
-				go s.handleUtterance(utterance, s.inputRate)
 			}
 		case <-idleTimer.C:
+			if s.activeTurns.Load() > 0 {
+				continue
+			}
 			if s.call.GoodbyeMessage != "" {
 				_ = s.speakText(s.ctx, s.call.GoodbyeMessage, "goodbye")
 			}
@@ -109,6 +123,25 @@ func (s *classicSession) run() {
 			s.backend.Runner.EndVoiceCall(s.call.CallID)
 			return
 		}
+	}
+}
+
+func (s *classicSession) startUtterance(samples []int16, sampleRate int) {
+	s.activeTurns.Add(1)
+	s.signalTurnState()
+	go func() {
+		defer func() {
+			s.activeTurns.Add(-1)
+			s.signalTurnState()
+		}()
+		s.handleUtterance(samples, sampleRate)
+	}()
+}
+
+func (s *classicSession) signalTurnState() {
+	select {
+	case s.turnState <- struct{}{}:
+	default:
 	}
 }
 
@@ -158,17 +191,24 @@ func (s *classicSession) handleUtterance(samples []int16, sampleRate int) {
 		return
 	}
 	response = strings.TrimSpace(response)
-	if response == "" {
+	endAfterResponse := strings.Contains(response, EndCallResponseMarker)
+	response = strings.TrimSpace(strings.ReplaceAll(response, EndCallResponseMarker, ""))
+	if response == "" && !endAfterResponse {
 		return
 	}
 
-	if err := s.speakText(turnCtx, response, "response"); err != nil {
-		if turnCtx.Err() == nil {
-			s.fail("tts", false)
+	if response != "" {
+		if err := s.speakText(turnCtx, response, "response"); err != nil {
+			if turnCtx.Err() == nil {
+				s.fail("tts", false)
+			}
+			return
 		}
-		return
 	}
 	s.emit("turn_complete", "")
+	if endAfterResponse {
+		s.backend.Runner.EndVoiceCall(s.call.CallID)
+	}
 }
 
 func (s *classicSession) speakText(ctx context.Context, text, kind string) error {
@@ -251,11 +291,15 @@ func (s *classicSession) emitDataMessage(eventType, message string, data map[str
 }
 
 func resetVoiceIdleTimer(timer *time.Timer, duration time.Duration) {
+	stopVoiceIdleTimer(timer)
+	timer.Reset(duration)
+}
+
+func stopVoiceIdleTimer(timer *time.Timer) {
 	if !timer.Stop() {
 		select {
 		case <-timer.C:
 		default:
 		}
 	}
-	timer.Reset(duration)
 }

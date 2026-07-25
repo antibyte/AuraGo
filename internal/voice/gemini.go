@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"aurago/internal/config"
@@ -56,6 +57,7 @@ func (b *GeminiLiveBackend) Start(ctx context.Context, call CallContext, audio D
 	session := &geminiLiveSession{
 		ctx: sessionCtx, cancel: cancel, call: call, audio: audio, backend: b,
 		events: make(chan VoiceEvent, 64), activitySignal: make(chan struct{}, 1),
+		turnCompleteSignal: make(chan struct{}, 1),
 	}
 	session.outputResampler, _ = NewResampler(24000, 8000)
 	conn, err := session.connect("")
@@ -76,22 +78,25 @@ func (b *GeminiLiveBackend) Start(ctx context.Context, call CallContext, audio D
 }
 
 type geminiLiveSession struct {
-	ctx             context.Context
-	cancel          context.CancelFunc
-	call            CallContext
-	audio           DuplexAudio
-	backend         *GeminiLiveBackend
-	events          chan VoiceEvent
-	connMu          sync.RWMutex
-	conn            *websocket.Conn
-	writeMu         sync.Mutex
-	stateMu         sync.Mutex
-	activity        bool
-	handle          string
-	wg              sync.WaitGroup
-	closeOnce       sync.Once
-	outputResampler *Resampler
-	activitySignal  chan struct{}
+	ctx                context.Context
+	cancel             context.CancelFunc
+	call               CallContext
+	audio              DuplexAudio
+	backend            *GeminiLiveBackend
+	events             chan VoiceEvent
+	connMu             sync.RWMutex
+	conn               *websocket.Conn
+	writeMu            sync.Mutex
+	stateMu            sync.Mutex
+	activity           bool
+	handle             string
+	wg                 sync.WaitGroup
+	closeOnce          sync.Once
+	outputResampler    *Resampler
+	activitySignal     chan struct{}
+	turnCompleteSignal chan struct{}
+	busyTasks          atomic.Int32
+	failureOnce        sync.Once
 }
 
 func (s *geminiLiveSession) connect(resumeHandle string) (*websocket.Conn, error) {
@@ -168,7 +173,6 @@ func (s *geminiLiveSession) inputLoop() {
 		case frame := <-s.audio.Receive():
 			if frame.SampleRate != 8000 {
 				s.fail(fmt.Sprintf("Gemini input requires 8 kHz telephone PCM, got %d", frame.SampleRate), true)
-				s.cancel()
 				return
 			}
 			started, utterance := detector.Push(frame.Samples)
@@ -293,7 +297,6 @@ func (s *geminiLiveSession) handlePayload(payload map[string]interface{}) (recon
 				encoded := stringValue(inline, "data")
 				if len(encoded) > base64.StdEncoding.EncodedLen(geminiMaxAudioBytes) {
 					s.fail("Gemini Live audio frame exceeds the safety limit", true)
-					s.cancel()
 					return false
 				}
 				decoded, err := base64.StdEncoding.DecodeString(encoded)
@@ -304,6 +307,7 @@ func (s *geminiLiveSession) handlePayload(payload map[string]interface{}) (recon
 				for i := range samples {
 					samples[i] = int16(binary.LittleEndian.Uint16(decoded[i*2 : i*2+2]))
 				}
+				s.signalActivity()
 				_ = s.audio.Send(s.ctx, PCMFrame{Samples: s.outputResampler.Process(samples), SampleRate: 8000})
 			}
 		}
@@ -312,6 +316,7 @@ func (s *geminiLiveSession) handlePayload(payload map[string]interface{}) (recon
 			s.emit("interrupted", "", nil)
 		}
 		if boolValue(content, "turnComplete", "turn_complete") {
+			s.signalTurnComplete()
 			s.emit("turn_complete", "", nil)
 		}
 	}
@@ -319,7 +324,15 @@ func (s *geminiLiveSession) handlePayload(payload map[string]interface{}) (recon
 		calls, _ := firstValue(toolCall, "functionCalls", "function_calls").([]interface{})
 		for _, raw := range calls {
 			call, _ := raw.(map[string]interface{})
-			go s.handleToolCall(call)
+			s.busyTasks.Add(1)
+			s.signalActivity()
+			go func() {
+				defer func() {
+					s.busyTasks.Add(-1)
+					s.signalActivity()
+				}()
+				s.handleToolCall(call)
+			}()
 		}
 	}
 	return false
@@ -366,15 +379,17 @@ func (s *geminiLiveSession) idleLoop() {
 		case <-s.ctx.Done():
 			return
 		case <-s.activitySignal:
-			resetVoiceIdleTimer(timer, s.backend.IdleTimeout)
+			if s.busyTasks.Load() > 0 {
+				stopVoiceIdleTimer(timer)
+			} else {
+				resetVoiceIdleTimer(timer, s.backend.IdleTimeout)
+			}
 		case <-timer.C:
+			if s.busyTasks.Load() > 0 {
+				continue
+			}
 			if message := strings.TrimSpace(s.backend.GoodbyeMessage); message != "" {
-				_ = s.writeJSON(geminiTextTurn("Say this brief farewell now and do nothing else: " + message))
-				select {
-				case <-s.ctx.Done():
-					return
-				case <-time.After(3 * time.Second):
-				}
+				_ = s.sendTextTurnAndWait("Say this brief farewell now and do nothing else: "+message, 3*time.Second)
 			}
 			s.emit("inactivity_timeout", "", nil)
 			s.backend.Runner.EndVoiceCall(s.call.CallID)
@@ -391,15 +406,58 @@ func (s *geminiLiveSession) signalActivity() {
 }
 
 func (s *geminiLiveSession) fail(message string, announce bool) {
-	if failure := strings.TrimSpace(s.call.FailureMessage); announce && failure != "" && s.connection() != nil {
-		if err := s.writeJSON(geminiTextTurn("Say this brief technical failure message now and do nothing else: " + failure)); err == nil {
-			select {
-			case <-s.ctx.Done():
-			case <-time.After(3 * time.Second):
-			}
+	s.failureOnce.Do(func() {
+		failure := strings.TrimSpace(s.call.FailureMessage)
+		if !announce || failure == "" || s.connection() == nil {
+			s.emit("voice_backend_error", message, nil)
+			return
+		}
+		s.drainTurnComplete()
+		if err := s.writeJSON(geminiTextTurn("Say this brief technical failure message now and do nothing else: " + failure)); err != nil {
+			s.emit("voice_backend_error", message, nil)
+			return
+		}
+		go func() {
+			s.waitForTurnComplete(3 * time.Second)
+			s.emit("voice_backend_error", message, nil)
+		}()
+	})
+}
+
+func (s *geminiLiveSession) sendTextTurnAndWait(text string, timeout time.Duration) error {
+	s.drainTurnComplete()
+	if err := s.writeJSON(geminiTextTurn(text)); err != nil {
+		return err
+	}
+	s.waitForTurnComplete(timeout)
+	return nil
+}
+
+func (s *geminiLiveSession) waitForTurnComplete(timeout time.Duration) {
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+	select {
+	case <-s.ctx.Done():
+	case <-s.turnCompleteSignal:
+	case <-timer.C:
+	}
+}
+
+func (s *geminiLiveSession) drainTurnComplete() {
+	for {
+		select {
+		case <-s.turnCompleteSignal:
+		default:
+			return
 		}
 	}
-	s.emit("voice_backend_error", message, nil)
+}
+
+func (s *geminiLiveSession) signalTurnComplete() {
+	select {
+	case s.turnCompleteSignal <- struct{}{}:
+	default:
+	}
 }
 
 func geminiTextTurn(text string) map[string]interface{} {

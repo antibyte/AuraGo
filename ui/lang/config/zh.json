@@ -463,6 +463,7 @@
   "config.telephone_agent.blocker.sip_disabled": "SIP 端点已禁用。",
   "config.telephone_agent.blocker.sip_readonly": "SIP 为只读模式。",
   "config.telephone_agent.blocker.inbound_permission_disabled": "不允许接听来电。",
+  "config.telephone_agent.blocker.outbound_permission_disabled": "不允许代理发起呼出电话。",
   "config.telephone_agent.blocker.not_registered": "SIP 帐户未注册。",
   "config.telephone_agent.blocker.agent_llm_unavailable": "电话智能体 LLM 未就绪。",
   "config.telephone_agent.blocker.asr_unavailable": "电话 ASR 提供商未就绪。",

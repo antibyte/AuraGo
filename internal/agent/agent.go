@@ -23,6 +23,8 @@ import (
 	"aurago/internal/services"
 	"aurago/internal/sqlconnections"
 	"aurago/internal/tools"
+
+	"github.com/sashabaranov/go-openai"
 )
 
 // Agent encapsulates the agent's dependencies and state.
@@ -1119,6 +1121,10 @@ type RunConfig struct {
 	// AllowedTools is an additive hard scope for native tools. Nil preserves the
 	// historical unrestricted behavior; an explicit empty slice allows no tools.
 	AllowedTools []string
+	// NativeToolSchemas freezes the native tool catalog for this run. Nil builds
+	// a fresh catalog from Config; an explicit (including empty) slice uses the
+	// supplied per-session snapshot.
+	NativeToolSchemas []openai.Tool
 	// AllowedAgentSkills is a binding package-name scope for Agent Skills. Nil
 	// preserves the historical unrestricted behavior; an explicit empty slice
 	// exposes no Agent Skills through list/activate.

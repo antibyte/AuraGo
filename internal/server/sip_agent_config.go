@@ -6,6 +6,7 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/realtimespeech"
+	"aurago/internal/voice"
 )
 
 func effectiveSIPVoiceConfig(cfg *config.Config, voiceCfg config.SIPVoiceConfig) config.SIPVoiceConfig {
@@ -96,7 +97,11 @@ func telephoneAgentPrompt(voiceCfg config.SIPVoiceConfig) string {
 	add("Speaking style", voiceCfg.Behavior.SpeakingStyle)
 	add("Additional prohibitions", voiceCfg.Behavior.AdditionalProhibitions)
 	if voiceCfg.Behavior.UnavailableRequestBehavior == "explain_and_end" {
-		rules = append(rules, "If a request cannot be fulfilled safely or with the available scope, explain that clearly and then end the call.")
+		if voiceCfg.Backend == "gemini_live" {
+			rules = append(rules, "If a request cannot be fulfilled safely or with the available scope, explain that clearly and then call the private aurago_end_call tool.")
+		} else {
+			rules = append(rules, "If a request cannot be fulfilled safely or with the available scope, explain that clearly and append the exact private marker "+voice.EndCallResponseMarker+" after the final spoken sentence.")
+		}
 	} else {
 		rules = append(rules, "If a request cannot be fulfilled safely or with the available scope, explain that clearly instead of guessing or improvising.")
 	}

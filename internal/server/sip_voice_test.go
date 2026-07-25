@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"aurago/internal/config"
+	"aurago/internal/voice"
 )
 
 func TestVoiceTurnCancellationGenerationKeepsNewestTurn(t *testing.T) {
@@ -31,6 +32,45 @@ func TestVoiceTurnCancellationGenerationKeepsNewestTurn(t *testing.T) {
 		t.Fatal("stale turn cleanup removed the newest cancellation handle")
 	}
 	runner.releaseVoiceTurnCancel("call-1", secondGeneration)
+}
+
+func TestTelephoneBackendFreezesLLMConfigToolSchemasAndASRMode(t *testing.T) {
+	cfg := telephoneAgentTestConfig(t)
+	voiceCfg := effectiveSIPVoiceConfig(cfg, cfg.SIP.Voice)
+	server := &Server{Cfg: cfg}
+	runner := NewVoiceActionRunner(server)
+
+	backend, err := runner.backendFactory(voiceCfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	classic, ok := backend.(*voice.ClassicBackend)
+	if !ok {
+		t.Fatalf("backend type = %T", backend)
+	}
+	frozenRunner, ok := classic.Runner.(*snapshottedVoiceActionRunner)
+	if !ok {
+		t.Fatalf("runner type = %T", classic.Runner)
+	}
+	if frozenRunner.snapshot.config.LLM.Provider != "phone-agent" ||
+		frozenRunner.snapshot.config.LLM.Model != "agent-model" ||
+		frozenRunner.snapshot.llmClient == nil ||
+		frozenRunner.snapshot.toolSchemas == nil {
+		t.Fatalf("incomplete runtime snapshot: %+v", frozenRunner.snapshot.config.LLM)
+	}
+	recognizer, ok := classic.Recognizer.(*sipSpeechRecognizer)
+	if !ok || !recognizer.cfg.Whisper.StrictMode || recognizer.cfg.Whisper.Mode != "whisper" {
+		t.Fatalf("ASR snapshot = %#v", classic.Recognizer)
+	}
+
+	replacement := *cfg
+	replacement.Providers = append([]config.ProviderEntry{}, cfg.Providers...)
+	replacement.Providers[0].Model = "changed-agent-model"
+	replacement.LLM.Model = "changed-main-model"
+	server.Cfg = &replacement
+	if frozenRunner.snapshot.config.LLM.Model != "agent-model" {
+		t.Fatalf("active call LLM snapshot changed to %q", frozenRunner.snapshot.config.LLM.Model)
+	}
 }
 
 func TestTelephoneTurnUsesExplicitProviderWithoutFallback(t *testing.T) {

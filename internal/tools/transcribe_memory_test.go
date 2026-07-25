@@ -138,3 +138,29 @@ func TestTranscribeAudioUsesMistralVoxtralEndpoint(t *testing.T) {
 		t.Fatal("expected Mistral transcription")
 	}
 }
+
+func TestTranscriptionModeHonorsStrictTelephoneSelection(t *testing.T) {
+	tests := []struct {
+		name         string
+		providerType string
+		model        string
+		mode         string
+		want         string
+	}{
+		{name: "explicit whisper is not inferred as multimodal", providerType: "openai", model: "gpt-4o-audio", mode: "whisper", want: "whisper"},
+		{name: "explicit multimodal remains multimodal for mistral", providerType: "mistral", model: "voxtral-mini", mode: "multimodal", want: "multimodal"},
+		{name: "explicit local remains local", providerType: "openrouter", model: "custom-audio", mode: "local", want: "local"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			cfg := &config.Config{}
+			cfg.Whisper.ProviderType = test.providerType
+			cfg.Whisper.Model = test.model
+			cfg.Whisper.Mode = test.mode
+			cfg.Whisper.StrictMode = true
+			if got := transcriptionMode(cfg); got != test.want {
+				t.Fatalf("transcriptionMode() = %q, want %q", got, test.want)
+			}
+		})
+	}
+}

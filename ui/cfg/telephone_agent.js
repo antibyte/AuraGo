@@ -184,7 +184,12 @@ function taRead() {
         if (input.type === 'number') value = Number(value);
         taAssign(next, input.dataset.ta, value);
     });
-    next.voice.allowed_tools = Array.from(document.querySelectorAll('[data-ta-tool]:checked')).map(input => input.value).sort();
+    const selectedTools = new Set(Array.isArray(next.voice.allowed_tools) ? next.voice.allowed_tools : []);
+    document.querySelectorAll('[data-ta-tool]').forEach(input => {
+        if (input.checked) selectedTools.add(input.value);
+        else selectedTools.delete(input.value);
+    });
+    next.voice.allowed_tools = Array.from(selectedTools).sort();
     return next;
 }
 
@@ -253,8 +258,9 @@ async function taSave() {
         telephoneAgentBlockers = response.blockers || [];
         telephoneAgentInherited = response.inherited || {};
         telephoneAgentSaved = taComparable(telephoneAgentState);
-        if (status) status.textContent = t('config.sip.saved');
         taRender();
+        const renderedStatus = document.getElementById('telephone-agent-status');
+        if (renderedStatus) renderedStatus.textContent = t('config.sip.saved');
         if (typeof setDirty === 'function') setDirty(false);
         return true;
     } catch (error) {

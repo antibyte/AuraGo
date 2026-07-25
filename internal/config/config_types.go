@@ -1123,6 +1123,7 @@ type Config struct {
 		APIKey       string `yaml:"-"       json:"-"`  // resolved
 		Model        string `yaml:"-"       json:"-"`  // resolved
 		Mode         string `yaml:"mode"`              // "whisper" (default), "multimodal", "local"
+		StrictMode   bool   `yaml:"-"       json:"-"`  // runtime-only: do not infer a different mode
 		LegacyAPIKey string `yaml:"api_key"  json:"-"` // legacy/compat
 		LegacyURL    string `yaml:"base_url" json:"-"` // legacy/compat
 		LegacyModel  string `yaml:"model"    json:"-"` // legacy/compat

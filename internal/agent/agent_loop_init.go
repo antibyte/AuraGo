@@ -360,7 +360,12 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 	if voiceOutputSuppressed {
 		ff.TTSEnabled = false
 	}
-	schemaSnapshot := BuildNativeToolSchemaSnapshot(cfg.Directories.SkillsDir, manifest, ff, logger)
+	var schemaSnapshot *nativeToolSchemaSnapshot
+	if runCfg.NativeToolSchemas != nil {
+		schemaSnapshot = newNativeToolSchemaSnapshot(runCfg.NativeToolSchemas)
+	} else {
+		schemaSnapshot = BuildNativeToolSchemaSnapshot(cfg.Directories.SkillsDir, manifest, ff, logger)
+	}
 	allSchemas := schemaSnapshot.FullSchemas()
 	allSchemas = filterSchemasByAllowedTools(allSchemas, runCfg.AllowedTools)
 	if suppressCoAgentTools {

@@ -463,6 +463,7 @@
   "config.telephone_agent.blocker.sip_disabled": "SIP エンドポイントが無効です。",
   "config.telephone_agent.blocker.sip_readonly": "SIP は読み取り専用です。",
   "config.telephone_agent.blocker.inbound_permission_disabled": "着信への応答が許可されていません。",
+  "config.telephone_agent.blocker.outbound_permission_disabled": "エージェントによる発信は許可されていません。",
   "config.telephone_agent.blocker.not_registered": "SIP アカウントが登録されていません。",
   "config.telephone_agent.blocker.agent_llm_unavailable": "電話エージェント LLM の準備ができていません。",
   "config.telephone_agent.blocker.asr_unavailable": "電話 ASR プロバイダーの準備ができていません。",

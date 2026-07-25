@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -278,4 +279,121 @@ func TestGeminiResumptionRequiresResumableHandleAndHonorsGoAway(t *testing.T) {
 	if reconnect := session.handlePayload(map[string]interface{}{"goAway": map[string]interface{}{}}); !reconnect {
 		t.Fatal("GoAway did not request proactive reconnect")
 	}
+}
+
+func TestGeminiProviderErrorPlaysFailureBeforeErrorEvent(t *testing.T) {
+	serverErrors := make(chan error, 1)
+	upgrader := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			serverErrors <- err
+			return
+		}
+		defer conn.Close()
+		var setup map[string]interface{}
+		if err := conn.ReadJSON(&setup); err != nil {
+			serverErrors <- err
+			return
+		}
+		if err := conn.WriteJSON(map[string]interface{}{"setupComplete": map[string]interface{}{}}); err != nil {
+			serverErrors <- err
+			return
+		}
+		if err := conn.WriteJSON(map[string]interface{}{"error": map[string]interface{}{"status": "UNAVAILABLE"}}); err != nil {
+			serverErrors <- err
+			return
+		}
+		var failureTurn map[string]interface{}
+		if err := conn.ReadJSON(&failureTurn); err != nil {
+			serverErrors <- err
+			return
+		}
+		encoded, _ := json.Marshal(failureTurn)
+		if !strings.Contains(string(encoded), "Technischer Fehler") {
+			serverErrors <- fmt.Errorf("failure turn = %s", encoded)
+			return
+		}
+		pcm := make([]byte, 480)
+		for i := 0; i < len(pcm); i += 2 {
+			binary.LittleEndian.PutUint16(pcm[i:i+2], uint16(int16(750)))
+		}
+		if err := conn.WriteJSON(map[string]interface{}{"serverContent": map[string]interface{}{
+			"modelTurn": map[string]interface{}{"parts": []interface{}{map[string]interface{}{"inlineData": map[string]interface{}{
+				"mimeType": "audio/pcm;rate=24000", "data": base64.StdEncoding.EncodeToString(pcm),
+			}}}},
+			"turnComplete": true,
+		}}); err != nil {
+			serverErrors <- err
+			return
+		}
+		<-r.Context().Done()
+	}))
+	defer server.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	bridge := NewBridge(4)
+	backend := &GeminiLiveBackend{
+		Profile: config.RealtimeSpeechProfile{
+			ID: "gemini", Enabled: true, Provider: realtimespeech.ProviderGemini, Model: "gemini-live-test", APIKey: "test-key",
+		},
+		Runner: &geminiTestRunner{executed: make(chan string, 1)}, WebSocketURL: "ws" + strings.TrimPrefix(server.URL, "http"),
+		FailureMessage: "Technischer Fehler.", IdleTimeout: time.Second,
+	}
+	session, err := backend.Start(ctx, CallContext{CallID: "call-provider-error"}, bridge)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer session.Close()
+
+	frame, err := bridge.NextSend(ctx)
+	if err != nil {
+		t.Fatalf("failure announcement audio was not delivered: %v", err)
+	}
+	if frame.SampleRate != 8000 || len(frame.Samples) == 0 {
+		t.Fatalf("failure audio frame = %+v", frame)
+	}
+	for {
+		select {
+		case err := <-serverErrors:
+			t.Fatal(err)
+		case event := <-session.Events():
+			if event.Type == "voice_backend_error" {
+				return
+			}
+		case <-ctx.Done():
+			t.Fatal("missing backend error after failure announcement")
+		}
+	}
+}
+
+func TestGeminiInactivityPausesDuringToolWork(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	runner := &geminiTestRunner{executed: make(chan string, 1)}
+	session := &geminiLiveSession{
+		ctx: ctx, cancel: cancel, backend: &GeminiLiveBackend{Runner: runner, IdleTimeout: 20 * time.Millisecond},
+		call: CallContext{CallID: "call-busy"}, events: make(chan VoiceEvent, 4),
+		activitySignal: make(chan struct{}, 1), turnCompleteSignal: make(chan struct{}, 1),
+	}
+	session.busyTasks.Store(1)
+	session.signalActivity()
+	session.wg.Add(1)
+	go session.idleLoop()
+	time.Sleep(60 * time.Millisecond)
+	if runner.end.Load() != 0 {
+		t.Fatal("inactivity ended Gemini call while tool work was active")
+	}
+	session.busyTasks.Store(0)
+	session.signalActivity()
+	deadline := time.Now().Add(time.Second)
+	for runner.end.Load() == 0 && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if runner.end.Load() != 1 {
+		t.Fatalf("Gemini inactivity did not resume, EndVoiceCall=%d", runner.end.Load())
+	}
+	cancel()
+	session.wg.Wait()
 }

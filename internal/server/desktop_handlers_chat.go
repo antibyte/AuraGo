@@ -531,6 +531,9 @@ type desktopAgentTurnOptions struct {
 	AdditionalPrompt       string
 	PersistedMessage       string
 	ProviderID             string
+	RuntimeConfig          *config.Config
+	RuntimeLLMClient       llm.ChatClient
+	NativeToolSchemas      []openai.Tool
 	VoiceOutputActive      bool
 	SkipDesktopProvider    bool
 	OnUserMessageInserted  func(messageID int64) error
@@ -565,11 +568,20 @@ func prepareDesktopAgentTurnWithOptions(ctx context.Context, s *Server, message 
 		messageSource = desktopChatMessageSource
 	}
 
-	s.CfgMu.RLock()
-	cfg := *s.Cfg
-	s.CfgMu.RUnlock()
-	llmClient := s.LLMClient
-	if providerID := strings.TrimSpace(opts.ProviderID); providerID != "" {
+	var cfg config.Config
+	llmClient := opts.RuntimeLLMClient
+	if opts.RuntimeConfig != nil {
+		cfg = *opts.RuntimeConfig
+		if llmClient == nil {
+			return turn, fmt.Errorf("frozen runtime LLM client is unavailable")
+		}
+	} else {
+		s.CfgMu.RLock()
+		cfg = *s.Cfg
+		s.CfgMu.RUnlock()
+		llmClient = s.LLMClient
+	}
+	if providerID := strings.TrimSpace(opts.ProviderID); providerID != "" && opts.RuntimeConfig == nil {
 		provider := cfg.FindProvider(providerID)
 		if provider == nil {
 			return turn, fmt.Errorf("configured provider %q is unavailable", providerID)
@@ -680,6 +692,9 @@ func prepareDesktopAgentTurnWithOptions(ctx context.Context, s *Server, message 
 		Stream:   stream,
 	}
 	turn.runCfg = buildDesktopRunConfigForSession(s, &cfg, llmClient, sessionID, messageSource)
+	if opts.NativeToolSchemas != nil {
+		turn.runCfg.NativeToolSchemas = append([]openai.Tool{}, opts.NativeToolSchemas...)
+	}
 	if opts.VoiceOutputActive {
 		turn.runCfg.VoiceOutputActive = true
 	}

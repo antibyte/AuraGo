@@ -5,6 +5,10 @@ import (
 	"time"
 )
 
+// EndCallResponseMarker is a private classic-pipeline control token. The
+// backend removes it before TTS and ends the call after speaking the response.
+const EndCallResponseMarker = "[[AURAGO_END_CALL]]"
+
 // PCMFrame carries signed mono PCM samples at one of AuraGo's supported rates.
 // Samples are owned by the receiver and may be reused after Send returns.
 type PCMFrame struct {

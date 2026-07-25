@@ -463,6 +463,7 @@
   "config.telephone_agent.blocker.sip_disabled": "O endpoint SIP está desativado.",
   "config.telephone_agent.blocker.sip_readonly": "O SIP está em modo só de leitura.",
   "config.telephone_agent.blocker.inbound_permission_disabled": "Não é permitido atender chamadas recebidas.",
+  "config.telephone_agent.blocker.outbound_permission_disabled": "As chamadas de saída do agente não são permitidas.",
   "config.telephone_agent.blocker.not_registered": "A conta SIP não está registada.",
   "config.telephone_agent.blocker.agent_llm_unavailable": "O LLM telefónico não está pronto.",
   "config.telephone_agent.blocker.asr_unavailable": "O fornecedor ASR telefónico não está pronto.",

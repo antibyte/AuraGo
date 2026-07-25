@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"math"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -53,9 +54,13 @@ func (testSynthesizer) Synthesize(context.Context, string, string) ([]int16, int
 type testVoiceRunner struct {
 	cancelled atomic.Int32
 	ended     atomic.Int32
+	response  string
 }
 
 func (r *testVoiceRunner) RunVoiceTurn(context.Context, CallContext, string) (string, error) {
+	if r.response != "" {
+		return r.response, nil
+	}
 	return "Antwort", nil
 }
 func (r *testVoiceRunner) CancelVoiceTurn(string) { r.cancelled.Add(1) }
@@ -184,6 +189,78 @@ func TestClassicBackendFailureAnnouncesAndEndsWithoutFallback(t *testing.T) {
 	}
 	if runner.ended.Load() != 1 {
 		t.Fatalf("EndVoiceCall count = %d", runner.ended.Load())
+	}
+}
+
+func TestClassicBackendStripsEndMarkerAndEndsAfterSpeaking(t *testing.T) {
+	texts := make(chan string, 1)
+	runner := &testVoiceRunner{response: "Das kann ich nicht erledigen. " + EndCallResponseMarker}
+	session := &classicSession{
+		ctx: context.Background(), cancel: func() {}, call: CallContext{CallID: "call-explain-end"},
+		audio: NewBridge(4), backend: &ClassicBackend{
+			Recognizer: testRecognizer{text: "Tu etwas Unerlaubtes"}, Synthesizer: recordingSynthesizer{texts: texts}, Runner: runner,
+		},
+		events: make(chan VoiceEvent, 8), framePeriod: time.Millisecond,
+	}
+	session.handleUtterance(make([]int16, 160), 8000)
+	select {
+	case spoken := <-texts:
+		if spoken != "Das kann ich nicht erledigen." || strings.Contains(spoken, EndCallResponseMarker) {
+			t.Fatalf("spoken response = %q", spoken)
+		}
+	default:
+		t.Fatal("final explanation was not spoken")
+	}
+	if runner.ended.Load() != 1 {
+		t.Fatalf("EndVoiceCall count = %d", runner.ended.Load())
+	}
+}
+
+type blockingVoiceRunner struct {
+	testVoiceRunner
+	started chan struct{}
+	release chan struct{}
+}
+
+func (r *blockingVoiceRunner) RunVoiceTurn(ctx context.Context, _ CallContext, _ string) (string, error) {
+	close(r.started)
+	select {
+	case <-ctx.Done():
+		return "", ctx.Err()
+	case <-r.release:
+		return "Fertig.", nil
+	}
+}
+
+func TestClassicBackendPausesInactivityWhileTurnRuns(t *testing.T) {
+	runner := &blockingVoiceRunner{started: make(chan struct{}), release: make(chan struct{})}
+	backend := &ClassicBackend{
+		Recognizer: testRecognizer{text: "Lange Aufgabe"}, Synthesizer: testSynthesizer{}, Runner: runner,
+		MaxDuration: time.Second, IdleTimeout: 20 * time.Millisecond,
+	}
+	session, err := backend.Start(context.Background(), CallContext{CallID: "call-busy"}, NewBridge(4))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer session.Close()
+	classic := session.(*classicSession)
+	classic.startUtterance(make([]int16, 160), 8000)
+	select {
+	case <-runner.started:
+	case <-time.After(time.Second):
+		t.Fatal("voice turn did not start")
+	}
+	time.Sleep(60 * time.Millisecond)
+	if runner.ended.Load() != 0 {
+		t.Fatal("inactivity ended the call while the agent turn was running")
+	}
+	close(runner.release)
+	deadline := time.Now().Add(time.Second)
+	for runner.ended.Load() == 0 && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if runner.ended.Load() != 1 {
+		t.Fatalf("inactivity did not resume after the turn, EndVoiceCall=%d", runner.ended.Load())
 	}
 }
 

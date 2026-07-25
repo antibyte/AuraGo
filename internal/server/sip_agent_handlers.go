@@ -171,9 +171,10 @@ func handleSIPAgentTest(s *Server, limiter *sipRequestLimiter) http.HandlerFunc 
 			return
 		}
 		voiceCfg := effectiveSIPVoiceConfig(cfg, cfg.SIP.Voice)
-		blockers := sipAgentBlockers(s, cfg.SIP, voiceCfg)
+		blockers := sipAgentPipelineBlockers(s, voiceCfg)
 		if len(blockers) != 0 {
 			w.Header().Set("Content-Type", "application/json")
+			w.Header().Set("Cache-Control", "no-store")
 			w.WriteHeader(http.StatusConflict)
 			writeSIPJSON(w, map[string]any{"status": "blocked", "blockers": blockers})
 			return
@@ -237,19 +238,27 @@ func writeSIPAgent(w http.ResponseWriter, s *Server, sipCfg config.SIPConfig, in
 }
 
 func sipAgentBlockers(s *Server, sipCfg config.SIPConfig, voiceCfg config.SIPVoiceConfig) []string {
-	blockers := make([]string, 0, 6)
+	blockers := make([]string, 0, 8)
 	if !sipCfg.Enabled {
 		blockers = append(blockers, "sip_disabled")
 	}
 	if sipCfg.ReadOnly {
 		blockers = append(blockers, "sip_readonly")
 	}
-	if !sipCfg.Permissions.AnswerInbound {
+	if strings.EqualFold(strings.TrimSpace(sipCfg.Inbound.Route), "agent") && !sipCfg.Permissions.AnswerInbound {
 		blockers = append(blockers, "inbound_permission_disabled")
+	}
+	if !sipCfg.Permissions.OriginateOutbound {
+		blockers = append(blockers, "outbound_permission_disabled")
 	}
 	if s != nil && s.SIPPhone != nil && sipCfg.Enabled && !s.SIPPhone.Status().Registered {
 		blockers = append(blockers, "not_registered")
 	}
+	return append(blockers, sipAgentPipelineBlockers(s, voiceCfg)...)
+}
+
+func sipAgentPipelineBlockers(s *Server, voiceCfg config.SIPVoiceConfig) []string {
+	blockers := make([]string, 0, 2)
 	var cfg *config.Config
 	if s != nil {
 		cfg = s.ConfigSnapshot()
@@ -295,10 +304,23 @@ func sipAgentToolCatalog(s *Server, cfg *config.Config) []sipAgentToolOption {
 		if schema.Function == nil || strings.TrimSpace(schema.Function.Name) == "" {
 			continue
 		}
+		if !telephoneAgentToolAllowed(schema.Function.Name) {
+			continue
+		}
 		options = append(options, sipAgentToolOption{ID: schema.Function.Name, Description: schema.Function.Description})
 	}
 	sort.Slice(options, func(i, j int) bool { return options[i].ID < options[j].ID })
 	return options
+}
+
+func telephoneAgentToolAllowed(name string) bool {
+	switch strings.ToLower(strings.TrimSpace(name)) {
+	case "discover_tools", "invoke_tool", "execute_skill", "list_agent_skills",
+		"activate_agent_skill", "run_agent_skill_script", "run_tool":
+		return false
+	default:
+		return true
+	}
 }
 
 func runSIPAgentLiveTest(ctx context.Context, s *Server, cfg *config.Config, voiceCfg config.SIPVoiceConfig) error {
@@ -312,16 +334,6 @@ func runSIPAgentLiveTest(ctx context.Context, s *Server, cfg *config.Config, voi
 			return fmt.Errorf("telephone agent LLM provider is unavailable")
 		}
 		client := llm.NewClientFromProviderWithConfig(cfg, provider.Type, provider.BaseURL, provider.APIKey, provider.AccountID)
-		response, err := client.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
-			Model: provider.Model,
-			Messages: []openai.ChatCompletionMessage{
-				{Role: openai.ChatMessageRoleSystem, Content: "This is an explicitly confirmed telephone pipeline health check. Reply with only OK."},
-				{Role: openai.ChatMessageRoleUser, Content: "health check"},
-			},
-		})
-		if err != nil || len(response.Choices) == 0 {
-			return fmt.Errorf("telephone agent LLM probe failed")
-		}
 		if s == nil || s.VoiceActionRunner == nil {
 			return fmt.Errorf("telephone agent runtime is unavailable")
 		}
@@ -333,8 +345,7 @@ func runSIPAgentLiveTest(ctx context.Context, s *Server, cfg *config.Config, voi
 		if !ok {
 			return fmt.Errorf("classic telephone backend is unavailable")
 		}
-		_, _, err = classic.Synthesizer.Synthesize(ctx, response.Choices[0].Message.Content, voiceCfg.Language)
-		return err
+		return runClassicSIPAgentLiveTest(ctx, client, classic, provider.Model, voiceCfg.Language)
 	case "gemini_live":
 		profile, _ := profileFromConfig(cfg.RealtimeSpeech, voiceCfg.RealtimeProfileID)
 		if s == nil || s.VoiceActionRunner == nil {
@@ -351,4 +362,36 @@ func runSIPAgentLiveTest(ctx context.Context, s *Server, cfg *config.Config, voi
 	default:
 		return fmt.Errorf("unsupported telephone backend")
 	}
+}
+
+func runClassicSIPAgentLiveTest(ctx context.Context, client llm.ChatClient, classic *voice.ClassicBackend, model, language string) error {
+	if client == nil || classic == nil || classic.Recognizer == nil || classic.Synthesizer == nil {
+		return fmt.Errorf("classic telephone live-test dependencies are unavailable")
+	}
+	response, err := client.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
+		Model: model,
+		Messages: []openai.ChatCompletionMessage{
+			{Role: openai.ChatMessageRoleSystem, Content: "This is an explicitly confirmed telephone pipeline health check. Reply with only OK."},
+			{Role: openai.ChatMessageRoleUser, Content: "health check"},
+		},
+	})
+	if err != nil || len(response.Choices) == 0 {
+		return fmt.Errorf("telephone agent LLM probe failed")
+	}
+	pcm, sampleRate, err := classic.Synthesizer.Synthesize(ctx, response.Choices[0].Message.Content, language)
+	if err != nil {
+		return err
+	}
+	wav, err := voice.EncodeWAVPCM16(pcm, sampleRate)
+	if err != nil {
+		return fmt.Errorf("encode telephone live-test audio: %w", err)
+	}
+	transcript, err := classic.Recognizer.Recognize(ctx, wav, sampleRate, language)
+	if err != nil {
+		return fmt.Errorf("telephone ASR probe failed: %w", err)
+	}
+	if strings.TrimSpace(transcript) == "" {
+		return fmt.Errorf("telephone ASR probe returned an empty transcript")
+	}
+	return nil
 }

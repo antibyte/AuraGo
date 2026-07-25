@@ -45,6 +45,8 @@ func TestTelephoneAgentConfigSectionContract(t *testing.T) {
 		`data-ta="voice.idle_timeout_seconds"`,
 		`data-ta-live-confirm`,
 		"taComparable(taRead()) !== telephoneAgentSaved",
+		"const selectedTools = new Set(Array.isArray(next.voice.allowed_tools)",
+		"const renderedStatus = document.getElementById('telephone-agent-status')",
 		"navigateToConfigSection('sip')",
 	} {
 		if !strings.Contains(module, marker) {

@@ -63,13 +63,16 @@ func TranscribeAudio(ctx context.Context, fileName string, audioData []byte, cfg
 }
 
 func transcriptionMode(cfg *config.Config) string {
+	mode := strings.ToLower(strings.TrimSpace(cfg.Whisper.Mode))
+	if cfg.Whisper.StrictMode {
+		return mode
+	}
 	// Mistral Voxtral uses the dedicated OpenAI-compatible transcription
 	// endpoint. Ignore a stale multimodal mode left over from a previously
 	// selected provider.
 	if strings.EqualFold(cfg.Whisper.ProviderType, "mistral") {
 		return ""
 	}
-	mode := strings.ToLower(cfg.Whisper.Mode)
 	// OpenRouter does not support OpenAI's /v1/audio/transcriptions endpoint.
 	if mode == "" && strings.EqualFold(cfg.Whisper.ProviderType, "openrouter") {
 		mode = "multimodal"
