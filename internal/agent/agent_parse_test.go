@@ -195,3 +195,26 @@ func TestCheckAndClearInterruptIgnoresOlderInterrupts(t *testing.T) {
 		t.Fatal("new interrupt should stop the active loop")
 	}
 }
+
+func TestIsToolDispatchErrorUsesStableEnvelopesAndPrefixes(t *testing.T) {
+	tests := []struct {
+		name   string
+		output string
+		want   bool
+	}{
+		{name: "successful log text", output: "Search result contains ERROR from an application log", want: false},
+		{name: "successful execution marker text", output: "Matched literal [EXECUTION ERROR] in a file", want: false},
+		{name: "json error", output: `Tool Output: {"status":"error","message":"failed"}`, want: true},
+		{name: "json success false", output: `{"success":false,"message":"failed"}`, want: true},
+		{name: "permission marker", output: "[PERMISSION DENIED] disabled", want: true},
+		{name: "execution marker", output: "[EXECUTION ERROR] failed", want: true},
+		{name: "plain error prefix", output: "ERROR failed", want: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := isToolDispatchError(tt.output); got != tt.want {
+				t.Fatalf("isToolDispatchError(%q) = %v, want %v", tt.output, got, tt.want)
+			}
+		})
+	}
+}

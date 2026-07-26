@@ -1,12 +1,14 @@
 package tools
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -20,10 +22,19 @@ func TestMCPStreamableHTTPTransportInitializeListAndCall(t *testing.T) {
 		mu           sync.Mutex
 		seenAuth     bool
 		seenSession  bool
+		seenProtocol bool
+		seenDelete   bool
 		sessionValue = "session-123"
 	)
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodDelete {
+			mu.Lock()
+			seenDelete = r.Header.Get("Mcp-Session-Id") == sessionValue
+			mu.Unlock()
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
 		if r.Method != http.MethodPost {
 			t.Errorf("method = %s, want POST", r.Method)
 		}
@@ -35,6 +46,11 @@ func TestMCPStreamableHTTPTransportInitializeListAndCall(t *testing.T) {
 		if r.Header.Get("Mcp-Session-Id") == sessionValue {
 			mu.Lock()
 			seenSession = true
+			mu.Unlock()
+		}
+		if r.Header.Get("MCP-Protocol-Version") == mcpProtocolVersionCurrent {
+			mu.Lock()
+			seenProtocol = true
 			mu.Unlock()
 		}
 		w.Header().Set("Mcp-Session-Id", sessionValue)
@@ -52,7 +68,7 @@ func TestMCPStreamableHTTPTransportInitializeListAndCall(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	conn, err := startMCPServerConnection(MCPServerConfig{
+	conn, err := startMCPServerConnection(context.Background(), MCPServerConfig{
 		Name:      "remote-http",
 		Enabled:   true,
 		Transport: "streamable_http",
@@ -62,15 +78,14 @@ func TestMCPStreamableHTTPTransportInitializeListAndCall(t *testing.T) {
 	if err != nil {
 		t.Fatalf("startMCPServerConnection: %v", err)
 	}
-	defer conn.close()
-
-	got, err := conn.callTool("echo", map[string]interface{}{"text": "hello"})
+	got, err := conn.callTool(context.Background(), "echo", map[string]interface{}{"text": "hello"})
 	if err != nil {
 		t.Fatalf("callTool: %v", err)
 	}
 	if got != "called echo" {
 		t.Fatalf("callTool = %q, want called echo", got)
 	}
+	conn.close()
 
 	mu.Lock()
 	defer mu.Unlock()
@@ -79,6 +94,12 @@ func TestMCPStreamableHTTPTransportInitializeListAndCall(t *testing.T) {
 	}
 	if !seenSession {
 		t.Fatal("Mcp-Session-Id response header was not preserved for later requests")
+	}
+	if !seenProtocol {
+		t.Fatal("negotiated MCP-Protocol-Version header was not sent")
+	}
+	if !seenDelete {
+		t.Fatal("streamable HTTP session was not terminated with DELETE")
 	}
 }
 
@@ -114,7 +135,7 @@ func TestMCPWebSocketTransportInitializeListAndCall(t *testing.T) {
 	defer srv.Close()
 
 	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http")
-	conn, err := startMCPServerConnection(MCPServerConfig{
+	conn, err := startMCPServerConnection(context.Background(), MCPServerConfig{
 		Name:      "remote-ws",
 		Enabled:   true,
 		Transport: "websocket",
@@ -125,7 +146,7 @@ func TestMCPWebSocketTransportInitializeListAndCall(t *testing.T) {
 	}
 	defer conn.close()
 
-	got, err := conn.callTool("echo", map[string]interface{}{})
+	got, err := conn.callTool(context.Background(), "echo", map[string]interface{}{})
 	if err != nil {
 		t.Fatalf("callTool: %v", err)
 	}
@@ -177,7 +198,8 @@ func TestMCPSSETransportInitializeListAndCall(t *testing.T) {
 	defer close(events)
 	baseURL = srv.URL
 
-	conn, err := startMCPServerConnection(MCPServerConfig{
+	setupCtx, cancelSetup := context.WithCancel(context.Background())
+	conn, err := startMCPServerConnection(setupCtx, MCPServerConfig{
 		Name:      "remote-sse",
 		Enabled:   true,
 		Transport: "sse",
@@ -187,8 +209,9 @@ func TestMCPSSETransportInitializeListAndCall(t *testing.T) {
 		t.Fatalf("startMCPServerConnection: %v", err)
 	}
 	defer conn.close()
+	cancelSetup()
 
-	got, err := conn.callTool("echo", map[string]interface{}{})
+	got, err := conn.callTool(context.Background(), "echo", map[string]interface{}{})
 	if err != nil {
 		t.Fatalf("callTool: %v", err)
 	}
@@ -204,7 +227,7 @@ func TestMCPSSETransportInitializeListAndCall(t *testing.T) {
 }
 
 func TestMCPNetworkTransportRequiresURL(t *testing.T) {
-	_, err := startMCPServerConnection(MCPServerConfig{
+	_, err := startMCPServerConnection(context.Background(), MCPServerConfig{
 		Name:      "missing-url",
 		Enabled:   true,
 		Transport: "streamable_http",
@@ -245,8 +268,149 @@ func TestMCPNetworkHeaderSecretTemplates(t *testing.T) {
 	}
 }
 
+func TestHTTPMCPTransportRejectsMissingAndMismatchedResponseIDs(t *testing.T) {
+	tests := []struct {
+		name string
+		id   *int64
+		want string
+	}{
+		{name: "missing", id: nil, want: "did not include request id"},
+		{name: "mismatch", id: func() *int64 { id := int64(999); return &id }(), want: "did not match request id"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				_ = json.NewEncoder(w).Encode(jsonRPCResponse{JSONRPC: "2.0", ID: tt.id, Result: json.RawMessage(`{}`)})
+			}))
+			defer srv.Close()
+			transport, err := newHTTPMCPTransport(srv.URL, nil)
+			if err != nil {
+				t.Fatalf("newHTTPMCPTransport: %v", err)
+			}
+			defer transport.Close()
+			if _, err := transport.Send(context.Background(), "ping", nil); err == nil || !strings.Contains(err.Error(), tt.want) {
+				t.Fatalf("Send error = %v, want %q", err, tt.want)
+			}
+		})
+	}
+}
+
+func TestHTTPMCPTransportAcceptsStreamableSSEResponse(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req jsonRPCRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			t.Fatalf("decode request: %v", err)
+		}
+		w.Header().Set("Content-Type", "text/event-stream")
+		fmt.Fprint(w, "event: message\ndata: {\"jsonrpc\":\"2.0\",\"method\":\"notifications/progress\"}\n\n")
+		fmt.Fprintf(w, "event: message\ndata: {\"jsonrpc\":\"2.0\",\"id\":%d,\"result\":{}}\n\n", req.ID)
+	}))
+	defer srv.Close()
+	transport, err := newHTTPMCPTransport(srv.URL, nil)
+	if err != nil {
+		t.Fatalf("newHTTPMCPTransport: %v", err)
+	}
+	defer transport.Close()
+	if _, err := transport.Send(context.Background(), "ping", nil); err != nil {
+		t.Fatalf("Send: %v", err)
+	}
+}
+
+func TestHTTPMCPTransportAllowsConcurrentRequests(t *testing.T) {
+	var started atomic.Int32
+	release := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req jsonRPCRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			t.Errorf("decode request: %v", err)
+			return
+		}
+		if started.Add(1) == 2 {
+			close(release)
+		}
+		select {
+		case <-release:
+		case <-r.Context().Done():
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(jsonRPCResponse{JSONRPC: "2.0", ID: &req.ID, Result: json.RawMessage(`{}`)})
+	}))
+	defer srv.Close()
+	transport, err := newHTTPMCPTransport(srv.URL, nil)
+	if err != nil {
+		t.Fatalf("newHTTPMCPTransport: %v", err)
+	}
+	defer transport.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	errs := make(chan error, 2)
+	for range 2 {
+		go func() {
+			_, callErr := transport.Send(ctx, "ping", nil)
+			errs <- callErr
+		}()
+	}
+	for range 2 {
+		if err := <-errs; err != nil {
+			t.Fatalf("concurrent Send: %v", err)
+		}
+	}
+}
+
+func TestHTTPMCPTransportDoesNotForwardSecretsAcrossRedirects(t *testing.T) {
+	var redirected atomic.Bool
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		redirected.Store(true)
+		if got := r.Header.Get("X-MCP-Secret"); got != "" {
+			t.Errorf("redirected secret header = %q", got)
+		}
+	}))
+	defer target.Close()
+	source := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, target.URL, http.StatusTemporaryRedirect)
+	}))
+	defer source.Close()
+	transport, err := newHTTPMCPTransport(source.URL, map[string]string{"X-MCP-Secret": "dummy-secret"})
+	if err != nil {
+		t.Fatalf("newHTTPMCPTransport: %v", err)
+	}
+	defer transport.Close()
+	if _, err := transport.Send(context.Background(), "ping", nil); err == nil || !strings.Contains(err.Error(), "status 307") {
+		t.Fatalf("Send error = %v, want redirect status error", err)
+	}
+	if redirected.Load() {
+		t.Fatal("redirect target was contacted")
+	}
+}
+
+func TestMCPClientRejectsUnsupportedNegotiatedVersion(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req jsonRPCRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			t.Fatalf("decode request: %v", err)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		result, _ := json.Marshal(map[string]interface{}{
+			"protocolVersion": "2099-01-01",
+			"serverInfo":      map[string]string{"name": "future", "version": "1"},
+			"capabilities":    map[string]interface{}{},
+		})
+		_ = json.NewEncoder(w).Encode(jsonRPCResponse{JSONRPC: "2.0", ID: &req.ID, Result: result})
+	}))
+	defer srv.Close()
+	_, err := startMCPServerConnection(context.Background(), MCPServerConfig{
+		Name: "future", Enabled: true, Transport: "streamable_http", URL: srv.URL,
+	}, testLogger())
+	if err == nil || !strings.Contains(err.Error(), "unsupported protocol version") {
+		t.Fatalf("startMCPServerConnection error = %v, want unsupported protocol version", err)
+	}
+}
+
 func writeMCPTestResponse(t *testing.T, w http.ResponseWriter, req jsonRPCRequest) {
 	t.Helper()
+	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(mcpTestResponseFor(req)); err != nil {
 		t.Fatalf("encode response: %v", err)
 	}
@@ -257,7 +421,7 @@ func mcpTestResponseFor(req jsonRPCRequest) jsonRPCResponse {
 	switch req.Method {
 	case "initialize":
 		result = map[string]interface{}{
-			"protocolVersion": "2024-11-05",
+			"protocolVersion": mcpProtocolVersionCurrent,
 			"serverInfo":      map[string]string{"name": "test-mcp", "version": "1.0.0"},
 			"capabilities":    map[string]interface{}{"tools": map[string]interface{}{}},
 		}

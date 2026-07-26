@@ -22,8 +22,11 @@ import (
 // Exposes AuraGo tools as a remote MCP server so external AI agents can
 // discover and call them over the network.
 
-const mcpProtocolVersion = "2024-11-05"
-const mcpVaultTokenKey = "mcp_server_token"
+const (
+	mcpProtocolVersion       = "2025-11-25"
+	mcpLegacyProtocolVersion = "2024-11-05"
+	mcpVaultTokenKey         = "mcp_server_token"
+)
 
 // ── JSON-RPC 2.0 types ─────────────────────────────────────────────────────
 
@@ -96,6 +99,10 @@ type mcpContent struct {
 
 func handleMCPEndpoint(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !sameOriginOrNoOrigin(r) {
+			jsonError(w, "Request origin does not match server host", http.StatusForbidden)
+			return
+		}
 		if r.Method != http.MethodPost {
 			w.Header().Set("Allow", "POST")
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -150,6 +157,13 @@ func handleMCPEndpoint(s *Server) http.HandlerFunc {
 			})
 			return
 		}
+		if req.Method != "initialize" {
+			version := strings.TrimSpace(r.Header.Get("MCP-Protocol-Version"))
+			if version != "" && !mcpProtocolVersionSupported(version) {
+				jsonError(w, "Unsupported MCP protocol version", http.StatusBadRequest)
+				return
+			}
+		}
 
 		var resp mcpResponse
 		resp.JSONRPC = "2.0"
@@ -157,14 +171,26 @@ func handleMCPEndpoint(s *Server) http.HandlerFunc {
 
 		switch req.Method {
 		case "initialize":
+			var params struct {
+				ProtocolVersion string `json:"protocolVersion"`
+			}
+			if err := json.Unmarshal(req.Params, &params); err != nil || strings.TrimSpace(params.ProtocolVersion) == "" {
+				resp.Error = &mcpError{Code: -32602, Message: "Invalid params: protocolVersion is required"}
+				break
+			}
+			version := mcpProtocolVersion
+			if mcpProtocolVersionSupported(params.ProtocolVersion) {
+				version = params.ProtocolVersion
+			}
 			resp.Result = mcpInitializeResult{
-				ProtocolVersion: mcpProtocolVersion,
+				ProtocolVersion: version,
 				Capabilities:    mcpCapabilities{Tools: &mcpToolsCap{}},
 				ServerInfo:      mcpServerInfo{Name: "AuraGo", Version: "1.0.0"},
 			}
 
 		case "notifications/initialized":
-			// Client acknowledgement — no response required
+			// Client acknowledgement — accepted notifications have no response body.
+			w.WriteHeader(http.StatusAccepted)
 			return
 
 		case "ping":
@@ -175,13 +201,27 @@ func handleMCPEndpoint(s *Server) http.HandlerFunc {
 			resp.Result = mcpToolsListResult{Tools: toolSchemas}
 
 		case "tools/call":
-			resp.Result = mcpCallTool(r.Context(), s, req.Params)
+			var protocolErr *mcpError
+			resp.Result, protocolErr = mcpCallTool(r.Context(), s, req.Params)
+			if protocolErr != nil {
+				resp.Result = nil
+				resp.Error = protocolErr
+			}
 
 		default:
 			resp.Error = &mcpError{Code: -32601, Message: fmt.Sprintf("Method not found: %s", req.Method)}
 		}
 
 		mcpWriteJSON(w, http.StatusOK, resp)
+	}
+}
+
+func mcpProtocolVersionSupported(version string) bool {
+	switch strings.TrimSpace(version) {
+	case mcpProtocolVersion, mcpLegacyProtocolVersion:
+		return true
+	default:
+		return false
 	}
 }
 
@@ -235,27 +275,27 @@ func mcpBuildToolList(s *Server) []mcpToolSchema {
 }
 
 // mcpCallTool dispatches a tools/call request to the agent's tool dispatcher.
-func mcpCallTool(ctx context.Context, s *Server, params json.RawMessage) mcpCallToolResult {
+func mcpCallTool(ctx context.Context, s *Server, params json.RawMessage) (mcpCallToolResult, *mcpError) {
 	var p mcpCallToolParams
 	if err := json.Unmarshal(params, &p); err != nil {
 		s.Logger.Error("MCP tool call received invalid parameters", "error", err)
-		return mcpCallToolResult{
-			Content: []mcpContent{{Type: "text", Text: "Invalid parameters"}},
-			IsError: true,
-		}
+		return mcpCallToolResult{}, &mcpError{Code: -32602, Message: "Invalid params"}
+	}
+	if strings.TrimSpace(p.Name) == "" {
+		return mcpCallToolResult{}, &mcpError{Code: -32602, Message: "Invalid params: tool name is required"}
 	}
 
 	if !mcpToolAvailable(s, p.Name) {
-		return mcpCallToolResult{
-			Content: []mcpContent{{Type: "text", Text: fmt.Sprintf("Tool %q is not available in the current MCP runtime", p.Name)}},
-			IsError: true,
+		return mcpCallToolResult{}, &mcpError{
+			Code:    -32602,
+			Message: fmt.Sprintf("Invalid params: tool %q is not available in the current MCP runtime", p.Name),
 		}
 	}
 	if !mcpToolAllowed(s, p.Name) {
 		return mcpCallToolResult{
 			Content: []mcpContent{{Type: "text", Text: fmt.Sprintf("Tool %q is not allowed by the MCP server configuration", p.Name)}},
 			IsError: true,
-		}
+		}, nil
 	}
 
 	// Build a ToolCall from MCP arguments
@@ -275,7 +315,7 @@ func mcpCallTool(ctx context.Context, s *Server, params json.RawMessage) mcpCall
 				return mcpCallToolResult{
 					Content: []mcpContent{{Type: "text", Text: fmt.Sprintf("Security threat detected in tool arguments (level: %s). Execution blocked.", scan.Level)}},
 					IsError: true,
-				}
+				}, nil
 			}
 		}
 		json.Unmarshal(argBytes, &tc)
@@ -293,7 +333,7 @@ func mcpCallTool(ctx context.Context, s *Server, params json.RawMessage) mcpCall
 	cfg := s.Cfg
 	s.CfgMu.RUnlock()
 	manifest := tools.NewManifest(cfg.Directories.ToolsDir)
-	result := agent.DispatchToolCall(
+	dispatchResult := agent.DispatchToolCallResult(
 		toolCtx, &tc, &agent.DispatchContext{
 			Cfg: cfg, Logger: s.Logger, LLMClient: s.LLMClient, Vault: s.Vault,
 			Registry: s.Registry, Manifest: manifest, CronManager: s.CronManager,
@@ -311,15 +351,13 @@ func mcpCallTool(ctx context.Context, s *Server, params json.RawMessage) mcpCall
 	)
 
 	// Strip the "[Tool Output]\n" prefix if present
-	result = strings.TrimPrefix(result, "[Tool Output]\n")
+	result := strings.TrimPrefix(dispatchResult.Output, "[Tool Output]\n")
 	result = strings.TrimPrefix(result, "[Tool Output]")
-
-	isError := strings.Contains(result, "ERROR") || strings.Contains(result, "[EXECUTION ERROR]")
 
 	return mcpCallToolResult{
 		Content: []mcpContent{{Type: "text", Text: result}},
-		IsError: isError,
-	}
+		IsError: dispatchResult.IsError,
+	}, nil
 }
 
 func mcpToolAvailable(s *Server, toolName string) bool {

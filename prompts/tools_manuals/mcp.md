@@ -43,6 +43,7 @@ Response contains the tool's output text.
   1. **Danger Zone**: `agent.allow_mcp: true` (capability gate)
   2. **MCP Section**: `mcp.enabled: true` (feature toggle)
 - MCP clients can connect to local/Docker stdio servers or to network servers via streamable HTTP, SSE, or WebSocket.
+- AuraGo negotiates MCP `2025-11-25` by default and accepts `2024-11-05` from legacy servers. Use `streamable_http` for the current HTTP transport; `sse` is the separate legacy HTTP+SSE transport.
 - Local and Docker stdio servers can execute arbitrary code; network servers can expose remote capabilities. Only add trusted MCP servers.
 
 ## Configuration

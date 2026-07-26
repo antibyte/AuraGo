@@ -74,7 +74,7 @@ func handleBuiltinSkillAction(ctx context.Context, dc *DispatchContext, action s
 
 	case "ddg_search":
 		req := decodeDDGSearchArgs(args)
-		if preferredResult, usedPreferred, err := tools.CallPreferredMCPWebSearch(cfg, req.Query, req.MaxResults, "", "", logger); usedPreferred {
+		if preferredResult, usedPreferred, err := tools.CallPreferredMCPWebSearch(ctx, cfg, req.Query, req.MaxResults, "", "", logger); usedPreferred {
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Preferred MCP web search failed: %v"}`, err), true
 			}
@@ -131,7 +131,7 @@ func handleBuiltinSkillAction(ctx context.Context, dc *DispatchContext, action s
 		if lang == "" {
 			lang = cfg.BraveSearch.Lang
 		}
-		if preferredResult, usedPreferred, err := tools.CallPreferredMCPWebSearch(cfg, req.Query, req.Count, country, lang, logger); usedPreferred {
+		if preferredResult, usedPreferred, err := tools.CallPreferredMCPWebSearch(ctx, cfg, req.Query, req.Count, country, lang, logger); usedPreferred {
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Preferred MCP web search failed: %v"}`, err), true
 			}

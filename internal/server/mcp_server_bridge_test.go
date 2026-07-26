@@ -4,8 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -58,7 +61,10 @@ func TestMCPCallToolRejectsEmptyAllowedTools(t *testing.T) {
 		t.Fatalf("marshal params: %v", err)
 	}
 
-	got := mcpCallTool(context.Background(), s, params)
+	got, protocolErr := mcpCallTool(context.Background(), s, params)
+	if protocolErr != nil {
+		t.Fatalf("mcpCallTool protocol error = %v", protocolErr)
+	}
 	if !got.IsError {
 		t.Fatal("mcpCallTool with empty allowlist succeeded, want error")
 	}
@@ -83,12 +89,107 @@ func TestMCPCallToolRejectsToolsOutsideAllowedList(t *testing.T) {
 		t.Fatalf("marshal params: %v", err)
 	}
 
-	got := mcpCallTool(context.Background(), s, params)
+	got, protocolErr := mcpCallTool(context.Background(), s, params)
+	if protocolErr != nil {
+		t.Fatalf("mcpCallTool protocol error = %v", protocolErr)
+	}
 	if !got.IsError {
 		t.Fatal("mcpCallTool outside allowlist succeeded, want error")
 	}
 	if len(got.Content) == 0 || !strings.Contains(got.Content[0].Text, "not allowed") {
 		t.Fatalf("unexpected mcpCallTool error content: %#v", got.Content)
+	}
+}
+
+func TestMCPEndpointTransportAndVersionContract(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.MCPServer.Enabled = true
+	s := &Server{Cfg: cfg, Logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
+	handler := handleMCPEndpoint(s)
+
+	t.Run("rejects foreign origin", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "http://aurago.local/mcp", strings.NewReader(`{}`))
+		req.Host = "aurago.local"
+		req.Header.Set("Origin", "https://evil.example")
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusForbidden {
+			t.Fatalf("status = %d, want 403", rec.Code)
+		}
+	})
+
+	t.Run("allows native client without origin and declines get stream", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "http://aurago.local/mcp", nil)
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusMethodNotAllowed {
+			t.Fatalf("status = %d, want 405", rec.Code)
+		}
+	})
+
+	t.Run("accepts initialized notification", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "http://aurago.local/mcp", strings.NewReader(
+			`{"jsonrpc":"2.0","method":"notifications/initialized"}`,
+		))
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusAccepted {
+			t.Fatalf("status = %d, want 202", rec.Code)
+		}
+		if rec.Body.Len() != 0 {
+			t.Fatalf("body = %q, want empty", rec.Body.String())
+		}
+	})
+
+	for _, version := range []string{mcpProtocolVersion, mcpLegacyProtocolVersion} {
+		t.Run("negotiates "+version, func(t *testing.T) {
+			body := fmt.Sprintf(`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":%q,"capabilities":{},"clientInfo":{"name":"test","version":"1"}}}`, version)
+			req := httptest.NewRequest(http.MethodPost, "http://aurago.local/mcp", strings.NewReader(body))
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, req)
+			if rec.Code != http.StatusOK {
+				t.Fatalf("status = %d, want 200: %s", rec.Code, rec.Body.String())
+			}
+			var resp struct {
+				Result mcpInitializeResult `json:"result"`
+			}
+			if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+				t.Fatalf("decode response: %v", err)
+			}
+			if resp.Result.ProtocolVersion != version {
+				t.Fatalf("protocolVersion = %q, want %q", resp.Result.ProtocolVersion, version)
+			}
+		})
+	}
+
+	t.Run("rejects unsupported protocol header", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "http://aurago.local/mcp", strings.NewReader(
+			`{"jsonrpc":"2.0","id":2,"method":"ping"}`,
+		))
+		req.Header.Set("MCP-Protocol-Version", "2099-01-01")
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("status = %d, want 400", rec.Code)
+		}
+	})
+}
+
+func TestMCPCallToolUsesProtocolErrorsForInvalidRequests(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Directories.ToolsDir = t.TempDir()
+	cfg.Directories.SkillsDir = t.TempDir()
+	s := &Server{Cfg: cfg, Logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
+
+	if _, protocolErr := mcpCallTool(context.Background(), s, json.RawMessage(`{`)); protocolErr == nil || protocolErr.Code != -32602 {
+		t.Fatalf("malformed params error = %#v, want -32602", protocolErr)
+	}
+	params, err := json.Marshal(mcpCallToolParams{Name: "not_a_real_tool"})
+	if err != nil {
+		t.Fatalf("marshal params: %v", err)
+	}
+	if _, protocolErr := mcpCallTool(context.Background(), s, params); protocolErr == nil || protocolErr.Code != -32602 {
+		t.Fatalf("unknown tool error = %#v, want -32602", protocolErr)
 	}
 }
 

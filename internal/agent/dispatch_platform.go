@@ -1080,7 +1080,7 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				if req.Server == "" || req.ToolName == "" {
 					return `Tool Output: {"status": "error", "message": "mcp_call with operation=call requires 'server' and 'tool_name'"}`
 				}
-				result, err := tools.MCPCallTool(req.Server, req.ToolName, req.Args, logger)
+				result, err := tools.MCPCallTool(ctx, req.Server, req.ToolName, req.Args, logger)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "MCP call failed: %v"}`, err)
 				}

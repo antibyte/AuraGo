@@ -711,12 +711,16 @@ mcp:
 
 Wenn `transport` fehlt, bleibt AuraGo beim bisherigen Verhalten und startet den Server als lokalen stdio-Prozess. Netzwerk-Transports brauchen eine URL; Header-Werte koennen MCP-Vault-Secrets mit `{{alias}}` referenzieren. In der Web-UI prueft **Verbindung testen** Initialize und Tool-Discovery vor dem Speichern.
 
+AuraGo handelt standardmäßig MCP `2025-11-25` aus und akzeptiert `2024-11-05` weiterhin zur Kompatibilität. Verwende `streamable_http` für den aktuellen Streamable-HTTP-Transport. `sse` ist nur für einen älteren HTTP+SSE-Endpunkt vorgesehen.
+
 Beim MCP-Client ist `allowed_tools` pro Server optional. Leer lassen oder weglassen erlaubt alle entdeckten nicht-destruktiven Tools; trage Toolnamen nur ein, wenn Ausführung und Routing auf diese Teilmenge begrenzt werden sollen.
 
 ### MCP-Server
 Stellt AuraGo-Tools für externe Clients bereit.
 
 **Web-UI:** **Config → Externe KI → MCP-Server** — aktivieren, Auth und `allowed_tools` setzen. Zusätzlich **Config → Gefahrenzone** → **MCP** für Client-Zugriff (`agent.allow_mcp`).
+
+Der Endpunkt `/mcp` handelt MCP `2025-11-25` aus und bleibt zu `2024-11-05` kompatibel. Native Clients dürfen `Origin` weglassen; Browser-Anfragen müssen zum effektiven AuraGo-Host passen.
 
 ### YAML-Referenz
 ```yaml

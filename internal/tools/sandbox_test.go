@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log/slog"
@@ -26,21 +27,21 @@ type fakeSandboxConn struct {
 	closeCh        chan struct{} // closed when close() is called to unblock any pending callTool
 }
 
-func (f *fakeSandboxConn) initialize(logger *slog.Logger) error {
+func (f *fakeSandboxConn) initialize(_ context.Context, logger *slog.Logger) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.initializeCnt++
 	return nil
 }
 
-func (f *fakeSandboxConn) discoverTools(logger *slog.Logger) error {
+func (f *fakeSandboxConn) discoverTools(_ context.Context, logger *slog.Logger) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.discoverCnt++
 	return nil
 }
 
-func (f *fakeSandboxConn) callTool(toolName string, arguments map[string]interface{}) (string, error) {
+func (f *fakeSandboxConn) callTool(ctx context.Context, toolName string, arguments map[string]interface{}) (string, error) {
 	f.mu.Lock()
 	f.callCnt++
 	f.lastTool = toolName
@@ -72,6 +73,8 @@ func (f *fakeSandboxConn) callTool(toolName string, arguments map[string]interfa
 			case <-releaseCh:
 			case <-closeCh:
 				return "", fmt.Errorf("connection closed")
+			case <-ctx.Done():
+				return "", ctx.Err()
 			}
 		}
 	}

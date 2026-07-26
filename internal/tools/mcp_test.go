@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -9,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestExpandMCPPathValueExpandsHomeDir(t *testing.T) {
@@ -173,7 +175,7 @@ func TestMCPManagerListServersReconnectsConfiguredServer(t *testing.T) {
 	})
 
 	startCalls := 0
-	startManagedMCPConn = func(srv MCPServerConfig, _ *slog.Logger) (*mcpConn, error) {
+	startManagedMCPConn = func(_ context.Context, srv MCPServerConfig, _ *slog.Logger) (*mcpConn, error) {
 		startCalls++
 		return &mcpConn{
 			name:  srv.Name,
@@ -222,14 +224,14 @@ func TestMCPManagerCallToolReconnectsAfterTransportFailure(t *testing.T) {
 		connA      = &mcpConn{name: "minimax", ready: true}
 		connB      = &mcpConn{name: "minimax", ready: true}
 	)
-	startManagedMCPConn = func(srv MCPServerConfig, _ *slog.Logger) (*mcpConn, error) {
+	startManagedMCPConn = func(_ context.Context, srv MCPServerConfig, _ *slog.Logger) (*mcpConn, error) {
 		startCalls++
 		if startCalls == 1 {
 			return connA, nil
 		}
 		return connB, nil
 	}
-	invokeMCPConnTool = func(conn *mcpConn, toolName string, arguments map[string]interface{}) (string, error) {
+	invokeMCPConnTool = func(_ context.Context, conn *mcpConn, toolName string, arguments map[string]interface{}) (string, error) {
 		if conn == connA {
 			return "", fmt.Errorf("tools/call: read from stdout: EOF")
 		}
@@ -248,7 +250,7 @@ func TestMCPManagerCallToolReconnectsAfterTransportFailure(t *testing.T) {
 		logger: logger,
 	}
 
-	got, err := mgr.CallTool("minimax", "tts", map[string]interface{}{"text": "Hallo"})
+	got, err := mgr.CallTool(context.Background(), "minimax", "tts", map[string]interface{}{"text": "Hallo"})
 	if err != nil {
 		t.Fatalf("CallTool() error = %v", err)
 	}
@@ -269,7 +271,7 @@ func TestMCPManagerCallToolEnforcesAllowedTools(t *testing.T) {
 		logger: slog.Default(),
 	}
 
-	if _, err := mgr.CallTool("safe", "blocked_tool", nil); err == nil || !strings.Contains(err.Error(), "not allowed") {
+	if _, err := mgr.CallTool(context.Background(), "safe", "blocked_tool", nil); err == nil || !strings.Contains(err.Error(), "not allowed") {
 		t.Fatalf("CallTool error = %v, want allowlist denial", err)
 	}
 }
@@ -283,10 +285,10 @@ func TestMCPManagerCallToolAllowsAllWhenAllowlistEmpty(t *testing.T) {
 		invokeMCPConnTool = oldInvoke
 	})
 
-	startManagedMCPConn = func(srv MCPServerConfig, _ *slog.Logger) (*mcpConn, error) {
+	startManagedMCPConn = func(_ context.Context, srv MCPServerConfig, _ *slog.Logger) (*mcpConn, error) {
 		return &mcpConn{name: srv.Name, ready: true}, nil
 	}
-	invokeMCPConnTool = func(conn *mcpConn, toolName string, arguments map[string]interface{}) (string, error) {
+	invokeMCPConnTool = func(_ context.Context, conn *mcpConn, toolName string, arguments map[string]interface{}) (string, error) {
 		return "ok", nil
 	}
 
@@ -298,7 +300,7 @@ func TestMCPManagerCallToolAllowsAllWhenAllowlistEmpty(t *testing.T) {
 		logger: logger,
 	}
 
-	got, err := mgr.CallTool("safe", "any_safe_tool", nil)
+	got, err := mgr.CallTool(context.Background(), "safe", "any_safe_tool", nil)
 	if err != nil {
 		t.Fatalf("CallTool() error = %v, want empty allowed_tools to allow all non-destructive tools", err)
 	}
@@ -316,8 +318,53 @@ func TestMCPManagerCallToolBlocksDestructiveToolsWithoutToggle(t *testing.T) {
 		logger: slog.Default(),
 	}
 
-	if _, err := mgr.CallTool("safe", "delete_database", nil); err == nil || !strings.Contains(err.Error(), "allow_destructive") {
+	if _, err := mgr.CallTool(context.Background(), "safe", "delete_database", nil); err == nil || !strings.Contains(err.Error(), "allow_destructive") {
 		t.Fatalf("CallTool error = %v, want destructive toggle denial", err)
+	}
+}
+
+func TestMCPManagerCallToolPropagatesCancellation(t *testing.T) {
+	oldInvoke := invokeMCPConnTool
+	t.Cleanup(func() { invokeMCPConnTool = oldInvoke })
+	invokeMCPConnTool = func(ctx context.Context, _ *mcpConn, _ string, _ map[string]interface{}) (string, error) {
+		return "", ctx.Err()
+	}
+	mgr := &MCPManager{
+		configs: map[string]MCPServerConfig{"safe": {Name: "safe", Enabled: true, Command: "test"}},
+		conns:   map[string]*mcpConn{"safe": {name: "safe", ready: true}},
+		logger:  slog.Default(),
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := mgr.CallTool(ctx, "safe", "read", nil); err == nil || !strings.Contains(err.Error(), "context canceled") {
+		t.Fatalf("CallTool error = %v, want context cancellation", err)
+	}
+}
+
+func TestMCPManagerCallToolStopsDuringRetryBackoff(t *testing.T) {
+	oldInvoke := invokeMCPConnTool
+	oldClose := closeManagedMCPConn
+	t.Cleanup(func() {
+		invokeMCPConnTool = oldInvoke
+		closeManagedMCPConn = oldClose
+	})
+	invokeMCPConnTool = func(_ context.Context, _ *mcpConn, _ string, _ map[string]interface{}) (string, error) {
+		return "", io.EOF
+	}
+	closeManagedMCPConn = func(_ *mcpConn) {}
+	mgr := &MCPManager{
+		configs: map[string]MCPServerConfig{"safe": {Name: "safe", Enabled: true, Command: "test"}},
+		conns:   map[string]*mcpConn{"safe": {name: "safe", ready: true}},
+		logger:  slog.Default(),
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	time.AfterFunc(10*time.Millisecond, cancel)
+	started := time.Now()
+	if _, err := mgr.CallTool(ctx, "safe", "read", nil); err == nil || !strings.Contains(err.Error(), "retry backoff") {
+		t.Fatalf("CallTool error = %v, want retry backoff cancellation", err)
+	}
+	if elapsed := time.Since(started); elapsed > 500*time.Millisecond {
+		t.Fatalf("CallTool cancellation took %s", elapsed)
 	}
 }
 

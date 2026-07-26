@@ -21,3 +21,4 @@ conditions: ["mcp_enabled"]
 - Then use `list_tools` with a server name to see what tools the server offers
 - Tool arguments (`mcp_args`) depend on the specific tool — check `input_schema` from `list_tools`
 - MCP servers may be local/Docker stdio processes or remote streamable HTTP, SSE, or WebSocket endpoints. Responses may be slow depending on the server and network.
+- Streamable HTTP uses MCP `2025-11-25` by default; AuraGo still accepts `2024-11-05` for legacy compatibility.

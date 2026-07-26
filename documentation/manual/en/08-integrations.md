@@ -651,6 +651,8 @@ mcp:
 
 When `transport` is omitted, AuraGo keeps the old behavior and starts the server as a local stdio process. Network transports require a URL; header values can reference MCP vault secrets with `{{alias}}`.
 
+AuraGo negotiates MCP `2025-11-25` by default and accepts `2024-11-05` for compatibility. Use `streamable_http` for the current Streamable HTTP transport. Select `sse` only for a legacy HTTP+SSE endpoint.
+
 For MCP clients, `allowed_tools` is optional per server. Leave it empty or omit it to allow all discovered non-destructive tools; add tool names only when you want to restrict execution and routing to that subset.
 
 ### MCP Server
@@ -674,6 +676,8 @@ mcp_server:
 ```
 
 > The MCP server shares the main HTTP server — there is no separate `port` setting. MCP client access also requires `agent.allow_mcp: true`.
+
+The `/mcp` endpoint negotiates MCP `2025-11-25` while retaining `2024-11-05` compatibility. Native clients may omit `Origin`; browser-originated requests must match AuraGo's effective host.
 
 `allowed_tools` is an explicit server-side allowlist. Leave it empty to expose no AuraGo tools; `vscode_debug_bridge` applies its own limited debugging preset.
 

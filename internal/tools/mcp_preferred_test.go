@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"context"
 	"io"
 	"log/slog"
 	"os"
@@ -33,7 +34,7 @@ func TestCallPreferredMCPWebSearchUsesConfiguredSelection(t *testing.T) {
 	}
 
 	var gotArgs map[string]interface{}
-	callPreferredMCPTool = func(serverName, toolName string, arguments map[string]interface{}, logger *slog.Logger) (string, error) {
+	callPreferredMCPTool = func(_ context.Context, serverName, toolName string, arguments map[string]interface{}, logger *slog.Logger) (string, error) {
 		gotArgs = arguments
 		return `{"status":"success"}`, nil
 	}
@@ -44,7 +45,7 @@ func TestCallPreferredMCPWebSearchUsesConfiguredSelection(t *testing.T) {
 	cfg.MCP.PreferredCapabilities.WebSearch = config.MCPPreferredToolSelection{Server: "minimax", Tool: "web_search"}
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	result, used, err := CallPreferredMCPWebSearch(cfg, "latest ai news", 5, "", "", logger)
+	result, used, err := CallPreferredMCPWebSearch(context.Background(), cfg, "latest ai news", 5, "", "", logger)
 	if err != nil {
 		t.Fatalf("CallPreferredMCPWebSearch error = %v", err)
 	}
@@ -84,7 +85,7 @@ func TestCallPreferredMCPVisionUsesResolvedFilePath(t *testing.T) {
 	}
 
 	var gotArgs map[string]interface{}
-	callPreferredMCPTool = func(serverName, toolName string, arguments map[string]interface{}, logger *slog.Logger) (string, error) {
+	callPreferredMCPTool = func(_ context.Context, serverName, toolName string, arguments map[string]interface{}, logger *slog.Logger) (string, error) {
 		gotArgs = arguments
 		return `{"status":"success"}`, nil
 	}
@@ -106,7 +107,7 @@ func TestCallPreferredMCPVisionUsesResolvedFilePath(t *testing.T) {
 	cfg.Directories.WorkspaceDir = workspaceDir
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	_, used, err := CallPreferredMCPVision(cfg, "image.png", "Describe this image", logger)
+	_, used, err := CallPreferredMCPVision(context.Background(), cfg, "image.png", "Describe this image", logger)
 	if err != nil {
 		t.Fatalf("CallPreferredMCPVision error = %v", err)
 	}
@@ -145,7 +146,7 @@ func TestCallPreferredMCPVisionSupportsImageURLStyleInputs(t *testing.T) {
 	}
 
 	var gotArgs map[string]interface{}
-	callPreferredMCPTool = func(serverName, toolName string, arguments map[string]interface{}, logger *slog.Logger) (string, error) {
+	callPreferredMCPTool = func(_ context.Context, serverName, toolName string, arguments map[string]interface{}, logger *slog.Logger) (string, error) {
 		gotArgs = arguments
 		return `{"status":"ok"}`, nil
 	}
@@ -161,7 +162,7 @@ func TestCallPreferredMCPVisionSupportsImageURLStyleInputs(t *testing.T) {
 		t.Fatalf("write image: %v", err)
 	}
 
-	_, used, err := CallPreferredMCPVision(cfg, imgPath, "What is shown?", slog.Default())
+	_, used, err := CallPreferredMCPVision(context.Background(), cfg, imgPath, "What is shown?", slog.Default())
 	if err != nil {
 		t.Fatalf("CallPreferredMCPVision error = %v", err)
 	}
@@ -199,7 +200,7 @@ func TestCallPreferredMCPVisionSupportsCamelCaseInputs(t *testing.T) {
 	}
 
 	var gotArgs map[string]interface{}
-	callPreferredMCPTool = func(serverName, toolName string, arguments map[string]interface{}, logger *slog.Logger) (string, error) {
+	callPreferredMCPTool = func(_ context.Context, serverName, toolName string, arguments map[string]interface{}, logger *slog.Logger) (string, error) {
 		gotArgs = arguments
 		return `{"status":"ok"}`, nil
 	}
@@ -215,7 +216,7 @@ func TestCallPreferredMCPVisionSupportsCamelCaseInputs(t *testing.T) {
 		t.Fatalf("write image: %v", err)
 	}
 
-	_, used, err := CallPreferredMCPVision(cfg, imgPath, "What is shown?", slog.Default())
+	_, used, err := CallPreferredMCPVision(context.Background(), cfg, imgPath, "What is shown?", slog.Default())
 	if err != nil {
 		t.Fatalf("CallPreferredMCPVision error = %v", err)
 	}
@@ -255,7 +256,7 @@ func TestCallPreferredMCPVisionSupportsWrappedSchemaProperties(t *testing.T) {
 	}
 
 	var gotArgs map[string]interface{}
-	callPreferredMCPTool = func(serverName, toolName string, arguments map[string]interface{}, logger *slog.Logger) (string, error) {
+	callPreferredMCPTool = func(_ context.Context, serverName, toolName string, arguments map[string]interface{}, logger *slog.Logger) (string, error) {
 		gotArgs = arguments
 		return `{"status":"ok"}`, nil
 	}
@@ -271,7 +272,7 @@ func TestCallPreferredMCPVisionSupportsWrappedSchemaProperties(t *testing.T) {
 		t.Fatalf("write image: %v", err)
 	}
 
-	_, used, err := CallPreferredMCPVision(cfg, imgPath, "Describe it", slog.Default())
+	_, used, err := CallPreferredMCPVision(context.Background(), cfg, imgPath, "Describe it", slog.Default())
 	if err != nil {
 		t.Fatalf("CallPreferredMCPVision error = %v", err)
 	}
@@ -308,7 +309,7 @@ func TestCallPreferredMCPVisionSupportsImageSourceInputs(t *testing.T) {
 	}
 
 	var gotArgs map[string]interface{}
-	callPreferredMCPTool = func(serverName, toolName string, arguments map[string]interface{}, logger *slog.Logger) (string, error) {
+	callPreferredMCPTool = func(_ context.Context, serverName, toolName string, arguments map[string]interface{}, logger *slog.Logger) (string, error) {
 		gotArgs = arguments
 		return `{"status":"ok"}`, nil
 	}
@@ -324,7 +325,7 @@ func TestCallPreferredMCPVisionSupportsImageSourceInputs(t *testing.T) {
 		t.Fatalf("write image: %v", err)
 	}
 
-	_, used, err := CallPreferredMCPVision(cfg, imgPath, "Describe it", slog.Default())
+	_, used, err := CallPreferredMCPVision(context.Background(), cfg, imgPath, "Describe it", slog.Default())
 	if err != nil {
 		t.Fatalf("CallPreferredMCPVision error = %v", err)
 	}

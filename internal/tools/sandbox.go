@@ -13,9 +13,9 @@ import (
 )
 
 type sandboxConn interface {
-	initialize(logger *slog.Logger) error
-	discoverTools(logger *slog.Logger) error
-	callTool(toolName string, arguments map[string]interface{}) (string, error)
+	initialize(ctx context.Context, logger *slog.Logger) error
+	discoverTools(ctx context.Context, logger *slog.Logger) error
+	callTool(ctx context.Context, toolName string, arguments map[string]interface{}) (string, error)
 	close()
 	markReady()
 	toolCount() int
@@ -206,11 +206,13 @@ func (m *SandboxManager) openConn() (sandboxConn, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to start sandbox MCP server: %w", err)
 	}
-	if err := conn.initialize(m.logger); err != nil {
+	ctx, cancel := context.WithTimeout(context.Background(), mcpCallToolTimeout)
+	defer cancel()
+	if err := conn.initialize(ctx, m.logger); err != nil {
 		conn.close()
 		return nil, fmt.Errorf("MCP initialization failed: %w", err)
 	}
-	if err := conn.discoverTools(m.logger); err != nil {
+	if err := conn.discoverTools(ctx, m.logger); err != nil {
 		conn.close()
 		return nil, fmt.Errorf("tool discovery failed: %w", err)
 	}
@@ -349,23 +351,11 @@ func (m *SandboxManager) ExecuteCode(code, language string, libraries []string, 
 		timeoutSecs = int(GetSandboxTimeout().Seconds())
 	}
 
-	type result struct {
-		output string
-		err    error
-	}
-	ch := make(chan result, 1)
-	go func() {
-		out, err := conn.callTool("execute_code", args)
-		ch <- result{out, err}
-	}()
-
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeoutSecs)*time.Second)
 	defer cancel()
 
-	select {
-	case res := <-ch:
-		return res.output, res.err
-	case <-ctx.Done():
+	out, err := conn.callTool(ctx, "execute_code", args)
+	if ctx.Err() != nil {
 		// Timeout: close the connection to terminate the blocked goroutine
 		// and prevent reuse of a potentially corrupted connection.
 		// markUnhealthy is called asynchronously because close() may block
@@ -373,6 +363,7 @@ func (m *SandboxManager) ExecuteCode(code, language string, libraries []string, 
 		go m.markUnhealthy()
 		return "", fmt.Errorf("TIMEOUT: sandbox execution exceeded %ds limit", timeoutSecs)
 	}
+	return out, err
 }
 
 // GetSupportedLanguages calls get_supported_languages on the sandbox.
@@ -383,7 +374,7 @@ func (m *SandboxManager) GetSupportedLanguages() ([]string, error) {
 	}
 	defer cleanup()
 
-	out, err := conn.callTool("get_supported_languages", map[string]interface{}{})
+	out, err := conn.callTool(context.Background(), "get_supported_languages", map[string]interface{}{})
 	if err != nil {
 		return nil, err
 	}
@@ -433,7 +424,7 @@ func (m *SandboxManager) fetchLanguages() []string {
 }
 
 func (m *SandboxManager) fetchLanguagesFromConn(conn sandboxConn) []string {
-	out, err := conn.callTool("get_supported_languages", map[string]interface{}{})
+	out, err := conn.callTool(context.Background(), "get_supported_languages", map[string]interface{}{})
 	if err != nil {
 		m.logger.Debug("[Sandbox] Could not fetch languages", "error", err)
 		return []string{"python"}

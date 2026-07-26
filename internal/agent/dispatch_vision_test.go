@@ -18,7 +18,7 @@ func TestDispatchServicesAnalyzeImageFallsBackWhenPreferredMCPVisionFails(t *tes
 		dispatchAnalyzeImageWithPrompt = originalAnalyze
 	}()
 
-	dispatchPreferredMCPVision = func(cfg *config.Config, filePath, prompt string, logger *slog.Logger) (string, bool, error) {
+	dispatchPreferredMCPVision = func(_ context.Context, cfg *config.Config, filePath, prompt string, logger *slog.Logger) (string, bool, error) {
 		if filePath != "attachments/example.png" {
 			t.Fatalf("filePath = %q, want attachments/example.png", filePath)
 		}
@@ -67,7 +67,7 @@ func TestDispatchServicesAnalyzeImageUsesPublicURLWithoutLoggingIt(t *testing.T)
 		dispatchAnalyzeImageURLWithPrompt = originalAnalyzeURL
 	}()
 
-	dispatchPreferredMCPVision = func(cfg *config.Config, filePath, prompt string, logger *slog.Logger) (string, bool, error) {
+	dispatchPreferredMCPVision = func(_ context.Context, cfg *config.Config, filePath, prompt string, logger *slog.Logger) (string, bool, error) {
 		t.Fatal("preferred local-file vision must not be called for image_url")
 		return "", false, nil
 	}

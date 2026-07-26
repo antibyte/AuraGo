@@ -2,9 +2,13 @@ package tools
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"log/slog"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -87,10 +91,19 @@ type jsonRPCError struct {
 // ── Single MCP server connection ────────────────────────────────────────────
 
 type mcpTransport interface {
-	Send(method string, params interface{}) (*jsonRPCResponse, error)
-	Notify(method string, params interface{}) error
+	Send(ctx context.Context, method string, params interface{}) (*jsonRPCResponse, error)
+	Notify(ctx context.Context, method string, params interface{}) error
 	Close()
 }
+
+type mcpProtocolVersionSetter interface {
+	SetProtocolVersion(version string)
+}
+
+const (
+	mcpProtocolVersionCurrent = "2025-11-25"
+	mcpProtocolVersionLegacy  = "2024-11-05"
+)
 
 // safeBuffer is a thread-safe wrapper around bytes.Buffer for capturing
 // process stderr without data races.
@@ -132,8 +145,8 @@ type mcpConn struct {
 
 var (
 	startManagedMCPConn = startMCPServerConnection
-	invokeMCPConnTool   = func(conn *mcpConn, toolName string, arguments map[string]interface{}) (string, error) {
-		return conn.callTool(toolName, arguments)
+	invokeMCPConnTool   = func(ctx context.Context, conn *mcpConn, toolName string, arguments map[string]interface{}) (string, error) {
+		return conn.callTool(ctx, toolName, arguments)
 	}
 	closeManagedMCPConn = func(conn *mcpConn) {
 		if conn != nil {
@@ -395,7 +408,7 @@ func mcpUsesNetworkTransport(srv MCPServerConfig) bool {
 	}
 }
 
-func startMCPServerConnection(srv MCPServerConfig, logger *slog.Logger) (*mcpConn, error) {
+func startMCPServerConnection(ctx context.Context, srv MCPServerConfig, logger *slog.Logger) (*mcpConn, error) {
 	var (
 		conn *mcpConn
 		err  error
@@ -415,18 +428,18 @@ func startMCPServerConnection(srv MCPServerConfig, logger *slog.Logger) (*mcpCon
 			conn, err = newLocalMCPConn(srv, logger)
 		}
 	case "streamable_http", "sse", "websocket":
-		conn, err = newNetworkMCPConn(srv, logger)
+		conn, err = newNetworkMCPConn(ctx, srv, logger)
 	default:
 		err = fmt.Errorf("unsupported MCP transport %q for server %q", srv.Transport, srv.Name)
 	}
 	if err != nil {
 		return nil, err
 	}
-	if err := conn.initialize(logger); err != nil {
+	if err := conn.initialize(ctx, logger); err != nil {
 		closeManagedMCPConn(conn)
 		return nil, fmt.Errorf("initialize failed: %w", err)
 	}
-	if err := conn.discoverTools(logger); err != nil {
+	if err := conn.discoverTools(ctx, logger); err != nil {
 		closeManagedMCPConn(conn)
 		return nil, fmt.Errorf("tool discovery failed: %w", err)
 	}
@@ -435,7 +448,9 @@ func startMCPServerConnection(srv MCPServerConfig, logger *slog.Logger) (*mcpCon
 }
 
 func TestMCPServerConnection(srv MCPServerConfig, logger *slog.Logger) (MCPConnectionTestResult, error) {
-	conn, err := startMCPServerConnection(srv, logger)
+	ctx, cancel := context.WithTimeout(context.Background(), mcpCallToolTimeout)
+	defer cancel()
+	conn, err := startMCPServerConnection(ctx, srv, logger)
 	if err != nil {
 		return MCPConnectionTestResult{
 			Status: "error",
@@ -451,17 +466,17 @@ func TestMCPServerConnection(srv MCPServerConfig, logger *slog.Logger) (MCPConne
 }
 
 // send writes a JSON-RPC request and reads the response.
-func (c *mcpConn) send(method string, params interface{}) (*jsonRPCResponse, error) {
+func (c *mcpConn) send(ctx context.Context, method string, params interface{}) (*jsonRPCResponse, error) {
 	if c.transport == nil {
 		return nil, fmt.Errorf("MCP transport is not initialized")
 	}
-	return c.transport.Send(method, params)
+	return c.transport.Send(ctx, method, params)
 }
 
 // initialize performs the MCP initialize handshake + notifications/initialized.
-func (c *mcpConn) initialize(logger *slog.Logger) error {
+func (c *mcpConn) initialize(ctx context.Context, logger *slog.Logger) error {
 	initParams := map[string]interface{}{
-		"protocolVersion": "2024-11-05",
+		"protocolVersion": mcpProtocolVersionCurrent,
 		"capabilities":    map[string]interface{}{},
 		"clientInfo": map[string]interface{}{
 			"name":    "aurago",
@@ -469,7 +484,7 @@ func (c *mcpConn) initialize(logger *slog.Logger) error {
 		},
 	}
 
-	resp, err := c.send("initialize", initParams)
+	resp, err := c.send(ctx, "initialize", initParams)
 	if err != nil {
 		return fmt.Errorf("initialize: %w", err)
 	}
@@ -479,16 +494,26 @@ func (c *mcpConn) initialize(logger *slog.Logger) error {
 
 	// Parse server info for logging
 	var result struct {
-		ServerInfo struct {
+		ProtocolVersion string `json:"protocolVersion"`
+		ServerInfo      struct {
 			Name    string `json:"name"`
 			Version string `json:"version"`
 		} `json:"serverInfo"`
 	}
-	if err := json.Unmarshal(resp.Result, &result); err == nil && result.ServerInfo.Name != "" {
+	if err := json.Unmarshal(resp.Result, &result); err != nil {
+		return fmt.Errorf("parse initialize result: %w", err)
+	}
+	if result.ProtocolVersion != mcpProtocolVersionCurrent && result.ProtocolVersion != mcpProtocolVersionLegacy {
+		return fmt.Errorf("MCP server selected unsupported protocol version %q", result.ProtocolVersion)
+	}
+	if setter, ok := c.transport.(mcpProtocolVersionSetter); ok {
+		setter.SetProtocolVersion(result.ProtocolVersion)
+	}
+	if result.ServerInfo.Name != "" {
 		logger.Info("[MCP] Server identified", "name", c.name, "server", result.ServerInfo.Name, "version", result.ServerInfo.Version)
 	}
 
-	if err := c.transport.Notify("notifications/initialized", nil); err != nil {
+	if err := c.transport.Notify(ctx, "notifications/initialized", nil); err != nil {
 		logger.Warn("[MCP] Failed to send notifications/initialized", "name", c.name, "error", err)
 	}
 
@@ -496,8 +521,8 @@ func (c *mcpConn) initialize(logger *slog.Logger) error {
 }
 
 // discoverTools calls tools/list and caches the results.
-func (c *mcpConn) discoverTools(logger *slog.Logger) error {
-	resp, err := c.send("tools/list", map[string]interface{}{})
+func (c *mcpConn) discoverTools(ctx context.Context, logger *slog.Logger) error {
+	resp, err := c.send(ctx, "tools/list", map[string]interface{}{})
 	if err != nil {
 		return fmt.Errorf("tools/list: %w", err)
 	}
@@ -534,13 +559,13 @@ func (c *mcpConn) discoverTools(logger *slog.Logger) error {
 }
 
 // callTool invokes tools/call on this server connection.
-func (c *mcpConn) callTool(toolName string, arguments map[string]interface{}) (string, error) {
+func (c *mcpConn) callTool(ctx context.Context, toolName string, arguments map[string]interface{}) (string, error) {
 	params := map[string]interface{}{
 		"name":      toolName,
 		"arguments": arguments,
 	}
 
-	resp, err := c.send("tools/call", params)
+	resp, err := c.send(ctx, "tools/call", params)
 	if err != nil {
 		return "", fmt.Errorf("tools/call: %w", err)
 	}
@@ -626,7 +651,9 @@ func InitMCPManager(servers []MCPServerConfig, logger *slog.Logger) *MCPManager 
 		}
 		mgr.configs[srv.Name] = srv
 
-		conn, err := startManagedMCPConn(srv, logger)
+		ctx, cancel := context.WithTimeout(context.Background(), mcpCallToolTimeout)
+		conn, err := startManagedMCPConn(ctx, srv, logger)
+		cancel()
 		if err != nil {
 			logger.Error("[MCP] Failed to start server", "name", srv.Name, "error", err)
 			continue
@@ -678,7 +705,7 @@ func (m *MCPManager) invalidateConnection(serverName string, reason error) {
 	}
 }
 
-func (m *MCPManager) ensureServerConnected(serverName string) (*mcpConn, error) {
+func (m *MCPManager) ensureServerConnected(ctx context.Context, serverName string) (*mcpConn, error) {
 	m.mu.RLock()
 	if conn, ok := m.conns[serverName]; ok {
 		conn.mu.Lock()
@@ -696,7 +723,7 @@ func (m *MCPManager) ensureServerConnected(serverName string) (*mcpConn, error) 
 	}
 
 	m.logger.Warn("[MCP] Reconnecting configured server", "server", serverName)
-	conn, err := startManagedMCPConn(cfg, m.logger)
+	conn, err := startManagedMCPConn(ctx, cfg, m.logger)
 	if err != nil {
 		return nil, fmt.Errorf("reconnect %q failed: %w", serverName, err)
 	}
@@ -720,7 +747,10 @@ func (m *MCPManager) ensureServerConnected(serverName string) (*mcpConn, error) 
 
 func (m *MCPManager) ensureConfiguredServersConnected() {
 	for _, serverName := range m.configuredServerNames() {
-		if _, err := m.ensureServerConnected(serverName); err != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), mcpCallToolTimeout)
+		_, err := m.ensureServerConnected(ctx, serverName)
+		cancel()
+		if err != nil {
 			m.logger.Warn("[MCP] Configured server not connected", "server", serverName, "error", err)
 		}
 	}
@@ -729,6 +759,13 @@ func (m *MCPManager) ensureConfiguredServersConnected() {
 func isRetryableMCPTransportError(err error) bool {
 	if err == nil {
 		return false
+	}
+	if errors.Is(err, io.EOF) || errors.Is(err, net.ErrClosed) || errors.Is(err, errMCPTransportClosed) {
+		return true
+	}
+	var netErr net.Error
+	if errors.As(err, &netErr) && (netErr.Timeout() || netErr.Temporary()) {
+		return true
 	}
 	lower := strings.ToLower(err.Error())
 	needles := []string{
@@ -765,7 +802,10 @@ func ShutdownMCPManager() {
 // ListTools returns all discovered tools, optionally filtered by server name.
 func (m *MCPManager) ListTools(serverName string) []MCPToolInfo {
 	if serverName != "" {
-		if _, err := m.ensureServerConnected(serverName); err != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), mcpCallToolTimeout)
+		_, err := m.ensureServerConnected(ctx, serverName)
+		cancel()
+		if err != nil {
 			m.logger.Warn("[MCP] Failed to refresh server before listing tools", "server", serverName, "error", err)
 		}
 	} else {
@@ -819,7 +859,8 @@ func (m *MCPManager) ListServers() []map[string]interface{} {
 	return result
 }
 
-// mcpCallToolTimeout is the maximum duration for a single MCP tool call.
+// mcpCallToolTimeout is the maximum total duration for a single MCP tool call,
+// including reconnects and retry backoff.
 const mcpCallToolTimeout = 60 * time.Second
 
 // mcpMaxRetries is the maximum number of retries for a failed MCP tool call.
@@ -832,50 +873,52 @@ var mcpRetryDelays = []time.Duration{
 	2 * time.Second,
 }
 
-// CallTool invokes a tool on a specific MCP server with a timeout.
-func (m *MCPManager) CallTool(serverName, toolName string, arguments map[string]interface{}) (string, error) {
-	type result struct {
-		s   string
-		err error
-	}
+// CallTool invokes a tool on a specific MCP server within one total timeout budget.
+func (m *MCPManager) CallTool(ctx context.Context, serverName, toolName string, arguments map[string]interface{}) (string, error) {
 	if err := m.requireToolAllowed(serverName, toolName); err != nil {
 		return "", err
 	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	callCtx, cancel := context.WithTimeout(ctx, mcpCallToolTimeout)
+	defer cancel()
 
 	attempts := mcpMaxRetries + 1
 	for attempt := 0; attempt < attempts; attempt++ {
-		conn, err := m.ensureServerConnected(serverName)
+		conn, err := m.ensureServerConnected(callCtx, serverName)
 		if err != nil {
 			return "", err
 		}
 
-		ch := make(chan result, 1)
-		go func(activeConn *mcpConn) {
-			s, callErr := invokeMCPConnTool(activeConn, toolName, arguments)
-			ch <- result{s, callErr}
-		}(conn)
-
-		select {
-		case r := <-ch:
-			if r.err == nil {
-				return r.s, nil
-			}
-			if !isRetryableMCPTransportError(r.err) || attempt == attempts-1 {
-				return "", r.err
-			}
-			m.invalidateConnection(serverName, r.err)
-		case <-time.After(mcpCallToolTimeout):
-			timeoutErr := fmt.Errorf("MCP tool call timed out after %s (server=%s, tool=%s) — connection closed", mcpCallToolTimeout, serverName, toolName)
-			m.invalidateConnection(serverName, timeoutErr)
-			if attempt == attempts-1 {
-				return "", timeoutErr
-			}
+		result, err := invokeMCPConnTool(callCtx, conn, toolName, arguments)
+		if err == nil {
+			return result, nil
 		}
+		if callCtx.Err() != nil {
+			m.invalidateConnection(serverName, callCtx.Err())
+			return "", fmt.Errorf("MCP tool call stopped (server=%s, tool=%s): %w", serverName, toolName, callCtx.Err())
+		}
+		if !isRetryableMCPTransportError(err) || attempt == attempts-1 {
+			return "", err
+		}
+		m.invalidateConnection(serverName, err)
 
+		delay := mcpRetryDelays[len(mcpRetryDelays)-1]
 		if attempt < len(mcpRetryDelays) {
-			time.Sleep(mcpRetryDelays[attempt])
-		} else {
-			time.Sleep(mcpRetryDelays[len(mcpRetryDelays)-1])
+			delay = mcpRetryDelays[attempt]
+		}
+		timer := time.NewTimer(delay)
+		select {
+		case <-timer.C:
+		case <-callCtx.Done():
+			if !timer.Stop() {
+				select {
+				case <-timer.C:
+				default:
+				}
+			}
+			return "", fmt.Errorf("MCP tool call stopped during retry backoff (server=%s, tool=%s): %w", serverName, toolName, callCtx.Err())
 		}
 	}
 	return "", fmt.Errorf("MCP server %q not found or not connected", serverName)
@@ -960,13 +1003,13 @@ func MCPListTools(serverName string, logger *slog.Logger) ([]MCPToolInfo, error)
 }
 
 // MCPCallTool is a package-level shorthand for agent dispatch.
-func MCPCallTool(serverName, toolName string, arguments map[string]interface{}, logger *slog.Logger) (string, error) {
+func MCPCallTool(ctx context.Context, serverName, toolName string, arguments map[string]interface{}, logger *slog.Logger) (string, error) {
 	mgr := GetMCPManager()
 	if mgr == nil {
 		return "", fmt.Errorf("MCP manager not initialized")
 	}
 	logger.Info("[MCP] Tool call", "server", serverName, "tool", toolName)
-	result, err := mgr.CallTool(serverName, toolName, arguments)
+	result, err := mgr.CallTool(ctx, serverName, toolName, arguments)
 	if err != nil {
 		logger.Warn("[MCP] Tool call failed", "server", serverName, "tool", toolName, "error", err)
 	}

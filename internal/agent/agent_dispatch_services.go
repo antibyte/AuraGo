@@ -378,7 +378,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			}
 			prompt, _ = tools.PrepareVisionPrompt(prompt)
 			if hasFile {
-				if preferredResult, usedPreferred, err := dispatchPreferredMCPVision(cfg, fpath, prompt, logger); usedPreferred {
+				if preferredResult, usedPreferred, err := dispatchPreferredMCPVision(ctx, cfg, fpath, prompt, logger); usedPreferred {
 					if err != nil {
 						logger.Warn("[Vision] Preferred MCP vision failed, falling back to native vision", "source", source, "error", err)
 					} else {

@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	"log/slog"
@@ -154,7 +155,7 @@ func buildPreferredMCPVisionArgs(tool *MCPToolInfo, resolvedPath, prompt string)
 }
 
 // CallPreferredMCPWebSearch routes a web search request through a user-selected MCP tool when configured.
-func CallPreferredMCPWebSearch(cfg *config.Config, query string, count int, country, lang string, logger *slog.Logger) (string, bool, error) {
+func CallPreferredMCPWebSearch(ctx context.Context, cfg *config.Config, query string, count int, country, lang string, logger *slog.Logger) (string, bool, error) {
 	if cfg == nil || !cfg.Agent.AllowMCP || !cfg.MCP.Enabled {
 		return "", false, nil
 	}
@@ -170,7 +171,7 @@ func CallPreferredMCPWebSearch(cfg *config.Config, query string, count int, coun
 	if err != nil {
 		return "", true, err
 	}
-	result, err := callPreferredMCPTool(selection.Server, selection.Tool, args, logger)
+	result, err := callPreferredMCPTool(ctx, selection.Server, selection.Tool, args, logger)
 	if err != nil {
 		return "", true, err
 	}
@@ -178,7 +179,7 @@ func CallPreferredMCPWebSearch(cfg *config.Config, query string, count int, coun
 }
 
 // CallPreferredMCPVision routes an image analysis request through a user-selected MCP tool when configured.
-func CallPreferredMCPVision(cfg *config.Config, filePath, prompt string, logger *slog.Logger) (string, bool, error) {
+func CallPreferredMCPVision(ctx context.Context, cfg *config.Config, filePath, prompt string, logger *slog.Logger) (string, bool, error) {
 	if cfg == nil || !cfg.Agent.AllowMCP || !cfg.MCP.Enabled {
 		return "", false, nil
 	}
@@ -198,7 +199,7 @@ func CallPreferredMCPVision(cfg *config.Config, filePath, prompt string, logger 
 	if err != nil {
 		return "", true, err
 	}
-	result, err := callPreferredMCPTool(selection.Server, selection.Tool, args, logger)
+	result, err := callPreferredMCPTool(ctx, selection.Server, selection.Tool, args, logger)
 	if err != nil {
 		return "", true, err
 	}
