@@ -75,6 +75,31 @@ type apiErrorEnvelope struct {
 	} `json:"error"`
 }
 
+// APIError preserves the safe diagnostic fields returned by the Manus API.
+type APIError struct {
+	StatusCode int
+	Code       string
+	Message    string
+	RequestID  string
+}
+
+func (e *APIError) Error() string {
+	if e == nil {
+		return "Manus API request failed"
+	}
+	message := strings.TrimSpace(e.Message)
+	if message == "" {
+		message = fmt.Sprintf("HTTP %d", e.StatusCode)
+	}
+	if code := strings.TrimSpace(e.Code); code != "" {
+		message = code + ": " + message
+	}
+	if requestID := strings.TrimSpace(e.RequestID); requestID != "" {
+		message += " (request_id: " + requestID + ")"
+	}
+	return "Manus API " + message
+}
+
 // NewClient creates an authenticated Manus v2 client.
 func NewClient(apiKey string, cfg ClientConfig) (*Client, error) {
 	apiKey = strings.TrimSpace(apiKey)
@@ -313,7 +338,10 @@ func (c *Client) doJSON(ctx context.Context, method, path string, query url.Valu
 			return decodeAPIError(resp.StatusCode, payload)
 		}
 		if err := json.Unmarshal(payload, out); err != nil {
-			decodeErr := fmt.Errorf("decode Manus response: %w", err)
+			decodeErr := fmt.Errorf("decode Manus response for %s: %w", path, err)
+			if requestID := strings.TrimSpace(envelope.RequestID); requestID != "" {
+				decodeErr = fmt.Errorf("%w (request_id: %s)", decodeErr, requestID)
+			}
 			if method != http.MethodGet {
 				return &OutcomeUnknownError{Operation: path, Err: decodeErr}
 			}
@@ -337,13 +365,21 @@ func readBounded(body io.Reader, maxBytes int64) ([]byte, error) {
 
 func decodeAPIError(status int, payload []byte) error {
 	var apiErr apiErrorEnvelope
-	if json.Unmarshal(payload, &apiErr) == nil && apiErr.Error.Message != "" {
-		return fmt.Errorf("Manus API %s: %s", apiErr.Error.Code, security.Scrub(apiErr.Error.Message))
+	if json.Unmarshal(payload, &apiErr) == nil {
+		message := security.Scrub(apiErr.Error.Message)
+		if message == "" && apiErr.OK != nil && !*apiErr.OK {
+			message = "request rejected"
+		}
+		if message != "" {
+			return &APIError{
+				StatusCode: status,
+				Code:       strings.TrimSpace(apiErr.Error.Code),
+				Message:    message,
+				RequestID:  strings.TrimSpace(apiErr.RequestID),
+			}
+		}
 	}
-	if apiErr.OK != nil && !*apiErr.OK {
-		return fmt.Errorf("Manus API rejected the request (HTTP %d)", status)
-	}
-	return fmt.Errorf("Manus API returned HTTP %d", status)
+	return &APIError{StatusCode: status, Message: fmt.Sprintf("returned HTTP %d", status)}
 }
 
 func (c *Client) waitForRetry(ctx context.Context, retryAfter string, attempt int) error {

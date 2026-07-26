@@ -1327,6 +1327,82 @@ function testNetworkCamerasDesktopContracts() {
   }
 }
 
+async function testManusCatalogFailuresStayIsolatedAndActionsRequireReadyStatus() {
+  const source = read('ui/cfg/manus.js');
+  const catalogSource = sourceBetween(source, 'async function manusLoadCatalogs(showErrors)', 'async function manusLoadProjectSkills(projectIDs, showErrors)');
+  const loadButton = { disabled: false };
+  let renderCount = 0;
+  let projectLoadCount = 0;
+  const catalogState = {
+    projects: [],
+    connectors: [],
+    skills: [],
+    globalSkills: [],
+    projectSkills: {},
+    projectSkillErrors: {},
+    errors: {},
+    loading: false,
+    actionsEnabled: true
+  };
+  const catalogResponses = {
+    '/api/manus/projects': { ok: true, status: 200, payload: { items: [{ id: 'project-1' }] } },
+    '/api/manus/connectors': { ok: true, status: 200, payload: { items: [{ id: 'connector-1' }] } },
+    '/api/manus/skills': { ok: false, status: 502, payload: { message: 'timestamp mismatch' } }
+  };
+  const catalogContext = {
+    Promise,
+    Array,
+    Object,
+    Error,
+    manusCatalogState: catalogState,
+    document: { getElementById: id => id === 'manus-load-catalogs-btn' ? loadButton : null },
+    fetch: async url => {
+      const response = catalogResponses[url];
+      return { ok: response.ok, status: response.status, json: async () => response.payload };
+    },
+    t: key => key,
+    manusRefreshSkillCatalog() {},
+    manusConfig: () => ({ allowed_project_ids: [] }),
+    async manusLoadProjectSkills() { projectLoadCount += 1; },
+    manusRenderCatalogs() { renderCount += 1; },
+    showToast() {}
+  };
+  vm.createContext(catalogContext);
+  vm.runInContext(`${catalogSource}; globalThis.loadCatalogsForTest = manusLoadCatalogs;`, catalogContext);
+  await catalogContext.loadCatalogsForTest(false);
+
+  assert.deepEqual(Array.from(catalogState.projects, item => item.id), ['project-1']);
+  assert.deepEqual(Array.from(catalogState.connectors, item => item.id), ['connector-1']);
+  assert.equal(catalogState.errors.skills, 'timestamp mismatch (HTTP 502)');
+  assert.equal(projectLoadCount, 1);
+  assert.equal(renderCount, 1);
+  assert.equal(loadButton.disabled, false);
+
+  const statusSource = sourceBetween(source, 'async function manusRefreshStatus()', 'async function manusSaveAPIKey()');
+  const banner = { className: '', textContent: '' };
+  let ready = false;
+  let actionsEnabled = null;
+  const statusContext = {
+    document: { getElementById: id => id === 'manus-status-banner' ? banner : null },
+    fetch: async () => ({
+      ok: true,
+      json: async () => ready
+        ? { status: 'ready', enabled: true, configured: true }
+        : { status: 'missing_key', enabled: true, configured: false }
+    }),
+    t: key => key,
+    manusConfig: () => ({}),
+    manusSetActionAvailability(value) { actionsEnabled = value; }
+  };
+  vm.createContext(statusContext);
+  vm.runInContext(`${statusSource}; globalThis.refreshStatusForTest = manusRefreshStatus;`, statusContext);
+  await statusContext.refreshStatusForTest();
+  assert.equal(actionsEnabled, false, 'enabled without a configured key must keep remote actions locked');
+  ready = true;
+  await statusContext.refreshStatusForTest();
+  assert.equal(actionsEnabled, true, 'ready status must unlock remote actions');
+}
+
 const tests = [
   ['browser audio lease uses an exclusive Web Lock', testBrowserAudioLeaseUsesExclusiveWebLock],
   ['versioned service-worker registration', testVersionedServiceWorkerRegistration],
@@ -1355,6 +1431,7 @@ const tests = [
   ['local Granite multimodal observer remains idempotent', testLocalGraniteMultimodalObserverIsIdempotent],
   ['remote embedding status never renders Granite CPU state', testRemoteEmbeddingStatusNeverRendersGraniteCPUState],
   ['Network Cameras desktop contracts', testNetworkCamerasDesktopContracts],
+  ['Manus catalog failures stay isolated and actions require ready status', testManusCatalogFailuresStayIsolatedAndActionsRequireReadyStatus],
   ['byte-exact read-only bundle check', testBundleCheckRejectsNonCanonicalBytesWithoutWriting]
 ];
 

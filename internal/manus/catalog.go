@@ -11,7 +11,6 @@ import (
 type Project struct {
 	ID          string `json:"id"`
 	Name        string `json:"name"`
-	CreatedAt   int64  `json:"created_at"`
 	Instruction string `json:"instruction"`
 }
 
@@ -30,8 +29,6 @@ type Skill struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
 	OwnerType   string `json:"owner_type"`
-	CreatedAt   int64  `json:"created_at"`
-	UpdatedAt   int64  `json:"updated_at"`
 }
 
 // ListProjects returns the authenticated account's project catalog.

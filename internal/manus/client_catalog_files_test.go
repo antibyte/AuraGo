@@ -31,7 +31,9 @@ func TestClientListsCatalogsAndProjectSkills(t *testing.T) {
 			if r.URL.Query().Get("project_id") != "project-1" {
 				t.Fatalf("project_id = %q", r.URL.Query().Get("project_id"))
 			}
-			_, _ = w.Write([]byte(`{"ok":true,"data":[{"id":"skill-1","name":"Research","owner_type":"official"}]}`))
+			// Production has returned quoted timestamps despite the documented int64 schema.
+			// Catalog decoding must ignore timestamp fields AuraGo does not consume.
+			_, _ = w.Write([]byte(`{"ok":true,"data":[{"id":"skill-1","name":"Research","owner_type":"official","created_at":"2026-07-26T02:03:57Z","updated_at":"1721959437"}]}`))
 		default:
 			t.Fatalf("unexpected catalog path %q", r.URL.Path)
 		}

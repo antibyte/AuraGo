@@ -2741,6 +2741,9 @@ async function saveConfig() {
             }
             if (window.AuraConfigState) window.AuraConfigState.commit(configData);
             resetDirtySnapshot();
+            document.dispatchEvent(new CustomEvent('aurago:config-saved', {
+                detail: { result }
+            }));
             saveSucceeded = true;
             // Check for security issues introduced by this save
             checkSecurityAfterSave();

@@ -6,6 +6,8 @@ const manusCatalogState = {
     skills: [],
     globalSkills: [],
     projectSkills: {},
+    projectSkillErrors: {},
+    errors: {},
     loading: false,
     actionsEnabled: false
 };
@@ -33,13 +35,13 @@ function manusConfig() {
 
 async function renderManusSection(section) {
     const cfg = manusConfig();
-    manusCatalogState.actionsEnabled = cfg.enabled === true;
-    const actionsDisabled = manusCatalogState.actionsEnabled ? '' : ' disabled';
+    manusCatalogState.actionsEnabled = false;
+    const actionsDisabled = ' disabled';
     let html = '<div class="cfg-section active">';
     html += '<div class="section-header">' + section.label + '</div>';
     html += '<div class="section-desc">' + section.desc + '</div>';
     html += '<div id="manus-status-banner" class="adg-status-banner">' + t('config.manus.status_loading') + '</div>';
-    html += '<div class="cfg-actions-row"><button class="btn-save adg-test-btn" id="manus-test-btn" onclick="manusTestConnection()"' + actionsDisabled + '>' + t('config.manus.test_connection') + '</button>';
+    html += '<div class="cfg-actions-row manus-actions-row"><button class="btn-save adg-test-btn" id="manus-test-btn" onclick="manusTestConnection()"' + actionsDisabled + '>' + t('config.manus.test_connection') + '</button>';
     html += '<button class="btn-save btn-secondary" id="manus-load-catalogs-btn" onclick="manusLoadCatalogs(true)"' + actionsDisabled + '>' + t('config.manus.load_catalogs') + '</button>';
     html += '<span id="manus-test-result" class="adg-test-result"></span></div>';
 
@@ -141,7 +143,7 @@ async function manusRefreshStatus() {
         if (!resp.ok) throw new Error(data.error || data.message || t('config.manus.status_error'));
         const cfg = manusConfig();
         cfg.configured = !!data.configured;
-        manusSetActionAvailability(data.enabled === true);
+        manusSetActionAvailability(data.status === 'ready');
         const state = data.status || 'error';
         if (banner) {
             banner.className = 'adg-status-banner' + (state === 'ready' ? ' is-success' : (state === 'disabled' ? '' : ' is-warning'));
@@ -194,28 +196,56 @@ async function manusTestConnection() {
 async function manusLoadCatalogs(showErrors) {
     if (manusCatalogState.loading) return;
     manusCatalogState.loading = true;
+    const loadButton = document.getElementById('manus-load-catalogs-btn');
+    if (loadButton) loadButton.disabled = true;
     try {
-        const responses = await Promise.all([
-            fetch('/api/manus/projects'),
-            fetch('/api/manus/connectors'),
-            fetch('/api/manus/skills')
-        ]);
-        const payloads = await Promise.all(responses.map(resp => resp.json().catch(() => ({}))));
-        const failed = responses.findIndex(resp => !resp.ok);
-        if (failed >= 0) throw new Error(payloads[failed].error || payloads[failed].message || t('config.manus.catalog_load_failed'));
-        manusCatalogState.projects = payloads[0].items || [];
-        manusCatalogState.connectors = payloads[1].items || [];
-        manusCatalogState.globalSkills = payloads[2].items || [];
-        manusCatalogState.projectSkills = {};
+        const catalogs = [
+            { kind: 'projects', stateKey: 'projects', url: '/api/manus/projects' },
+            { kind: 'connectors', stateKey: 'connectors', url: '/api/manus/connectors' },
+            { kind: 'skills', stateKey: 'globalSkills', url: '/api/manus/skills' }
+        ];
+        const results = await Promise.allSettled(catalogs.map(catalog => manusFetchCatalog(catalog.url)));
+        let firstError = null;
+        results.forEach((result, index) => {
+            const catalog = catalogs[index];
+            if (result.status === 'fulfilled') {
+                manusCatalogState[catalog.stateKey] = result.value;
+                delete manusCatalogState.errors[catalog.kind];
+                if (catalog.kind === 'projects') {
+                    manusCatalogState.projectSkills = {};
+                    manusCatalogState.projectSkillErrors = {};
+                }
+                return;
+            }
+            const message = result.reason && result.reason.message ? result.reason.message : t('config.manus.catalog_load_failed');
+            manusCatalogState.errors[catalog.kind] = message;
+            if (!firstError) firstError = result.reason;
+        });
         manusRefreshSkillCatalog();
         const cfg = manusConfig();
         await manusLoadProjectSkills(cfg.allowed_project_ids, showErrors);
         manusRenderCatalogs();
+        if (firstError && showErrors) {
+            showToast(t('config.manus.catalog_load_failed') + ': ' + (firstError.message || t('config.common.error')), 'error');
+        }
     } catch (error) {
-        if (showErrors) showToast(t('config.manus.catalog_load_failed') + ': ' + (error.message || t('config.common.error')), 'error');
+        if (showErrors) {
+            showToast(t('config.manus.catalog_load_failed') + ': ' + (error.message || t('config.common.error')), 'error');
+        }
     } finally {
         manusCatalogState.loading = false;
+        if (loadButton) loadButton.disabled = !manusCatalogState.actionsEnabled;
     }
+}
+
+async function manusFetchCatalog(url) {
+    const resp = await fetch(url);
+    const payload = await resp.json().catch(() => ({}));
+    if (!resp.ok) {
+        const message = payload.error || payload.message || t('config.manus.catalog_load_failed');
+        throw new Error(message + ' (HTTP ' + resp.status + ')');
+    }
+    return Array.isArray(payload.items) ? payload.items : [];
 }
 
 async function manusLoadProjectSkills(projectIDs, showErrors) {
@@ -235,10 +265,12 @@ async function manusLoadProjectSkills(projectIDs, showErrors) {
     let firstError = null;
     results.forEach(result => {
         if (result.error) {
+            manusCatalogState.projectSkillErrors[result.projectID] = result.error.message || t('config.manus.catalog_load_failed');
             if (!firstError) firstError = result.error;
             return;
         }
         manusCatalogState.projectSkills[result.projectID] = result.items;
+        delete manusCatalogState.projectSkillErrors[result.projectID];
     });
     manusRefreshSkillCatalog();
     manusRenderCatalog('skills', 'allowed_skill_ids', manusConfig().allowed_skill_ids);
@@ -270,8 +302,16 @@ function manusRenderCatalog(kind, configKey, selectedIDs) {
     if (!container) return;
     const items = manusCatalogState[kind] || [];
     const selected = new Set((selectedIDs || []).map(String));
-    if (!items.length) { container.innerHTML = '<span class="manus-catalog-empty">' + t('config.manus.catalog_empty') + '</span>'; return; }
-    container.innerHTML = items.map(item => {
+    const projectError = kind === 'skills' ? Object.values(manusCatalogState.projectSkillErrors)[0] : '';
+    const error = manusCatalogState.errors[kind] || projectError;
+    const errorHTML = error
+        ? '<div class="manus-catalog-error"><span>' + escapeHtml(t('config.manus.catalog_load_failed') + ': ' + error) + '</span><button type="button" class="btn-save btn-secondary" onclick="manusLoadCatalogs(true)">' + t('config.manus.load_catalogs') + '</button></div>'
+        : '';
+    if (!items.length) {
+        container.innerHTML = errorHTML || '<span class="manus-catalog-empty">' + t('config.manus.catalog_empty') + '</span>';
+        return;
+    }
+    container.innerHTML = errorHTML + items.map(item => {
         const id = String(item.id || '');
         const name = String(item.name || id);
         const description = String(item.description || item.instruction || item.category || '');
@@ -298,3 +338,9 @@ async function manusToggleCatalogItem(kind, configKey, id) {
         await manusLoadProjectSkills([id], true);
     }
 }
+
+document.addEventListener('aurago:config-saved', () => {
+    if (document.getElementById('manus-status-banner')) {
+        void manusRefreshStatus();
+    }
+});

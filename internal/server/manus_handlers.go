@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -63,7 +64,7 @@ func handleManusTestWithClient(client *manus.Client) http.HandlerFunc {
 		defer cancel()
 		credits, err := client.AvailableCredits(ctx)
 		if err != nil {
-			writeManusJSON(w, http.StatusBadGateway, map[string]interface{}{"status": "error", "message": security.Scrub(err.Error())})
+			writeManusUpstreamError(w, err)
 			return
 		}
 		writeManusJSON(w, http.StatusOK, map[string]interface{}{"status": "ok", "message": "Manus API connection works.", "credits": credits.Data})
@@ -88,7 +89,7 @@ func handleManusProjectsWithClient(client *manus.Client, allowed []string) http.
 		}
 		items, err := client.ListProjects(r.Context())
 		if err != nil {
-			writeManusJSON(w, http.StatusBadGateway, map[string]interface{}{"status": "error", "message": security.Scrub(err.Error())})
+			writeManusUpstreamError(w, err)
 			return
 		}
 		result := make([]map[string]interface{}, 0, len(items))
@@ -107,7 +108,7 @@ func handleManusConnectors(s *Server) http.HandlerFunc {
 		}
 		items, err := client.ListConnectors(r.Context())
 		if err != nil {
-			writeManusJSON(w, http.StatusBadGateway, map[string]interface{}{"status": "error", "message": security.Scrub(err.Error())})
+			writeManusUpstreamError(w, err)
 			return
 		}
 		result := make([]map[string]interface{}, 0, len(items))
@@ -137,7 +138,7 @@ func handleManusSkillsWithClient(client *manus.Client, allowedSkills []string) h
 		projectID := strings.TrimSpace(r.URL.Query().Get("project_id"))
 		items, err := client.ListSkills(r.Context(), projectID)
 		if err != nil {
-			writeManusJSON(w, http.StatusBadGateway, map[string]interface{}{"status": "error", "message": security.Scrub(err.Error())})
+			writeManusUpstreamError(w, err)
 			return
 		}
 		result := make([]map[string]interface{}, 0, len(items))
@@ -175,16 +176,49 @@ func manusClientFromServer(s *Server) (*manus.Client, error) {
 }
 
 func manusConfigSnapshot(s *Server) config.ManusConfig {
-	if s == nil || s.Cfg == nil {
+	if s == nil {
+		return config.ManusConfig{}
+	}
+	s.CfgMu.RLock()
+	if s.Cfg == nil {
+		s.CfgMu.RUnlock()
 		return config.ManusConfig{}
 	}
 	cfg := s.Cfg.Manus
+	cfg.AllowedProjectIDs = append([]string(nil), cfg.AllowedProjectIDs...)
+	cfg.AllowedConnectorIDs = append([]string(nil), cfg.AllowedConnectorIDs...)
+	cfg.AllowedSkillIDs = append([]string(nil), cfg.AllowedSkillIDs...)
+	s.CfgMu.RUnlock()
 	if strings.TrimSpace(cfg.APIKey) == "" && s.Vault != nil {
 		if key, err := s.Vault.ReadSecret("manus_api_key"); err == nil {
 			cfg.APIKey = key
 		}
 	}
 	return cfg
+}
+
+func writeManusUpstreamError(w http.ResponseWriter, err error) {
+	status := http.StatusBadGateway
+	payload := map[string]interface{}{
+		"status":  "error",
+		"message": security.Scrub(err.Error()),
+	}
+	var apiErr *manus.APIError
+	if errors.As(err, &apiErr) {
+		if apiErr.StatusCode == http.StatusTooManyRequests || apiErr.Code == "rate_limited" {
+			status = http.StatusTooManyRequests
+		}
+		if apiErr.StatusCode > 0 {
+			payload["upstream_status"] = apiErr.StatusCode
+		}
+		if apiErr.Code != "" {
+			payload["code"] = apiErr.Code
+		}
+		if apiErr.RequestID != "" {
+			payload["request_id"] = apiErr.RequestID
+		}
+	}
+	writeManusJSON(w, status, payload)
 }
 
 func manusAllowedID(allowed []string, id string) bool {

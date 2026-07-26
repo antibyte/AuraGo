@@ -47,15 +47,45 @@ func TestConfigManusDisablesRemoteActionsUntilStatusConfirmsEnabled(t *testing.T
 	manusJS := readDesktopAssetText(t, "cfg/manus.js")
 	for _, marker := range []string{
 		"actionsEnabled: false",
-		"const actionsDisabled = manusCatalogState.actionsEnabled ? '' : ' disabled'",
+		"const actionsDisabled = ' disabled'",
 		`id="manus-load-catalogs-btn"`,
 		"function manusSetActionAvailability",
-		"manusSetActionAvailability(data.enabled === true)",
+		"manusSetActionAvailability(data.status === 'ready')",
 		"manusSetActionAvailability(false)",
 		"btn.disabled = !manusCatalogState.actionsEnabled",
 	} {
 		if !strings.Contains(manusJS, marker) {
 			t.Fatalf("Manus disabled-action contract missing %q", marker)
+		}
+	}
+}
+
+func TestConfigManusIsolatesCatalogFailuresAndRefreshesAfterSave(t *testing.T) {
+	t.Parallel()
+
+	manusJS := readDesktopAssetText(t, "cfg/manus.js")
+	for _, marker := range []string{
+		"Promise.allSettled(",
+		"manusFetchCatalog(catalog.url)",
+		"manusCatalogState.errors[catalog.kind]",
+		"class=\"manus-catalog-error\"",
+		"document.addEventListener('aurago:config-saved'",
+		"void manusRefreshStatus()",
+	} {
+		if !strings.Contains(manusJS, marker) {
+			t.Fatalf("Manus resilient catalog/status contract missing %q", marker)
+		}
+	}
+
+	mainJS := readDesktopAssetText(t, "js/config/main.js")
+	if !strings.Contains(mainJS, "document.dispatchEvent(new CustomEvent('aurago:config-saved'") {
+		t.Fatal("global config save must notify the active integration section")
+	}
+
+	configCSS := readDesktopAssetText(t, "css/config.css")
+	for _, marker := range []string{".manus-actions-row", ".manus-catalog-error"} {
+		if !strings.Contains(configCSS, marker) {
+			t.Fatalf("Manus layout feedback contract missing %q", marker)
 		}
 	}
 }

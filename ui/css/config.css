@@ -307,6 +307,38 @@ body {
     margin-top: 1rem;
 }
 
+body[data-workspace-page="config"] .manus-actions-row {
+    margin-bottom: var(--space-4);
+}
+
+body[data-workspace-page="config"] .manus-actions-row .adg-test-result {
+    margin-left: 0;
+}
+
+body[data-workspace-page="config"] .manus-catalog-error {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-3);
+    border: 1px solid color-mix(in srgb, var(--danger) 35%, var(--border-subtle));
+    border-radius: var(--radius-lg);
+    color: var(--danger);
+    background: color-mix(in srgb, var(--danger) 8%, var(--card-bg));
+}
+
+body[data-workspace-page="config"] .manus-catalog-error .btn-save {
+    flex: 0 0 auto;
+}
+
+@media (max-width: 480px) {
+    body[data-workspace-page="config"] .manus-catalog-error {
+        align-items: stretch;
+        flex-direction: column;
+    }
+}
+
 /* Layout */
 .cfg-layout {
     flex: 1;
