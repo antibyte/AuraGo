@@ -2,6 +2,7 @@ package config
 
 import (
 	"aurago/internal/kgquality"
+	"encoding/json"
 	"log/slog"
 	"net"
 	"os"
@@ -2598,7 +2599,7 @@ func TestLoadAppliesHuggingFaceDefaults(t *testing.T) {
 	if !cfg.HuggingFace.ReadOnly {
 		t.Fatal("expected HuggingFace.ReadOnly default true")
 	}
-	if cfg.HuggingFace.AllowWrites || cfg.HuggingFace.AllowDelete || cfg.HuggingFace.AllowJobs || cfg.HuggingFace.AllowScheduledJobs {
+	if cfg.HuggingFace.AllowWrites || cfg.HuggingFace.AllowDelete || cfg.HuggingFace.AllowJobs || cfg.HuggingFace.AllowScheduledJobs || cfg.HuggingFace.AllowJobTokenInjection {
 		t.Fatalf("expected mutating/cost gates default false: %+v", cfg.HuggingFace)
 	}
 	if cfg.HuggingFace.HubBaseURL != "https://huggingface.co" {
@@ -2607,20 +2608,39 @@ func TestLoadAppliesHuggingFaceDefaults(t *testing.T) {
 	if cfg.HuggingFace.DatasetBaseURL != "https://datasets-server.huggingface.co" {
 		t.Fatalf("DatasetBaseURL = %q", cfg.HuggingFace.DatasetBaseURL)
 	}
-	if cfg.HuggingFace.RouterBaseURL != "https://router.huggingface.co/v1" {
-		t.Fatalf("RouterBaseURL = %q", cfg.HuggingFace.RouterBaseURL)
-	}
 	if cfg.HuggingFace.MaxDownloadMB <= 0 || cfg.HuggingFace.MaxDatasetRows <= 0 {
 		t.Fatalf("unexpected Hugging Face limits: %+v", cfg.HuggingFace)
 	}
-	if cfg.HuggingFace.MaxUploadMB != 512 {
-		t.Fatalf("MaxUploadMB = %d, want 512", cfg.HuggingFace.MaxUploadMB)
+	if cfg.HuggingFace.MaxUploadMB != 10 {
+		t.Fatalf("MaxUploadMB = %d, want 10", cfg.HuggingFace.MaxUploadMB)
 	}
 	if cfg.HuggingFace.JobDefaultTimeoutMinutes <= 0 || cfg.HuggingFace.JobMaxRuntimeMinutes <= 0 {
 		t.Fatalf("unexpected Hugging Face job timeouts: %+v", cfg.HuggingFace)
 	}
 	if len(cfg.HuggingFace.AllowedHardware) == 0 || cfg.HuggingFace.AllowedHardware[0] != "cpu-basic" {
 		t.Fatalf("AllowedHardware = %#v, want cpu-basic default", cfg.HuggingFace.AllowedHardware)
+	}
+}
+
+func TestLoadClampsHuggingFaceUploadAndAcceptsLegacyRouterURL(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	raw := "providers: []\nhuggingface:\n  max_upload_mb: 512\n  router_base_url: https://legacy.example/v1\n  job_namespace: ' team '\n"
+	if err := os.WriteFile(configPath, []byte(raw), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if cfg.HuggingFace.MaxUploadMB != 10 || cfg.HuggingFace.JobNamespace != "team" {
+		t.Fatalf("normalized Hugging Face config = %+v", cfg.HuggingFace)
+	}
+	encoded, err := json.Marshal(cfg.HuggingFace)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(encoded), "router_base_url") || strings.Contains(string(encoded), "legacy.example") {
+		t.Fatalf("legacy router URL leaked into JSON: %s", encoded)
 	}
 }
 

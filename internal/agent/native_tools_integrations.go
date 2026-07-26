@@ -1262,7 +1262,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 	}
 	if ff.HuggingFaceEnabled {
 		tools = append(tools, tool("huggingface",
-			"Use Hugging Face as a platform integration: discover Hub models, datasets and Spaces; inspect Dataset Viewer rows and statistics; browse Papers; download bounded files into the AuraGo workspace; and run gated Hugging Face Jobs. Public reads may work without a token. Writes, deletes, and jobs remain blocked by AuraGo policy unless explicitly enabled.",
+			"Use Hugging Face as a platform integration: discover Hub models, datasets and Spaces; inspect Dataset Viewer rows and statistics; browse Papers; download bounded files into the AuraGo workspace; inspect authenticated Jobs; and run gated Hugging Face Jobs. Public reads may work without a token. Writes, deletes, Job access, and compute remain blocked by AuraGo policy unless explicitly enabled.",
 			schema(map[string]interface{}{
 				"operation": operationProperty("Hugging Face operation.", []string{
 					"whoami", "search_models", "get_model", "search_datasets", "get_dataset", "search_spaces", "get_space", "list_files", "download_file",
@@ -1303,6 +1303,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 				"scheduled":       prop("boolean", "Request a scheduled Job; separately gated."),
 				"schedule":        prop("string", "CRON schedule for a scheduled Job, such as @hourly or 0 9 * * 1."),
 				"env":             map[string]interface{}{"type": "object", "description": "Environment variables for a Job.", "additionalProperties": true},
+				"inject_token":    prop("boolean", "Inject the Vault-backed HF_TOKEN into a started Job. Requires the separate allow_job_token_injection configuration opt-in."),
 			}, "operation"),
 		))
 	}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -35,6 +36,7 @@ func handleHuggingFaceStatus(s *Server) http.HandlerFunc {
 			"allow_delete":                cfg.AllowDelete,
 			"allow_jobs":                  cfg.AllowJobs,
 			"allow_scheduled_jobs":        cfg.AllowScheduledJobs,
+			"allow_job_token_injection":   cfg.AllowJobTokenInjection,
 			"max_download_mb":             cfg.MaxDownloadMB,
 			"max_upload_mb":               cfg.MaxUploadMB,
 			"max_dataset_rows":            cfg.MaxDatasetRows,
@@ -94,6 +96,14 @@ func handleHuggingFaceJobs(s *Server) http.HandlerFunc {
 			dataDir = s.Cfg.Directories.DataDir
 		}
 		limit := 100
+		if raw := strings.TrimSpace(r.URL.Query().Get("limit")); raw != "" {
+			parsed, err := strconv.Atoi(raw)
+			if err != nil || parsed < 1 || parsed > 200 {
+				jsonError(w, "limit must be an integer between 1 and 200", http.StatusBadRequest)
+				return
+			}
+			limit = parsed
+		}
 		jobs, err := tools.HuggingFaceLedgerJobs(r.Context(), dataDir, limit)
 		if err != nil {
 			writeHuggingFaceJSON(w, map[string]interface{}{"status": "error", "message": err.Error()}, http.StatusInternalServerError)

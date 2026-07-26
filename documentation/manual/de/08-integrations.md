@@ -492,7 +492,7 @@ Zugang zum Hugging Face Hub für Modelle, Datasets, Papers und Jobs. Ermöglicht
 ### Einrichtung in der Web-UI
 1. Öffne **Config → Integrationen → HuggingFace** (falls verfügbar).
 2. Aktiviere die Integration.
-3. Konfiguriere Berechtigungen (Read-Only, Schreibzugriff, Jobs, geplante Jobs).
+3. Konfiguriere Berechtigungen (Read-Only, Schreibzugriff, Job-Zugriff, geplante Jobs und optionale Job-Token-Injektion).
 4. Optional: Definiere erlaubte Namespaces und Repositorys für zusätzliche Sicherheit.
 5. Speichere und starte neu.
 
@@ -503,7 +503,7 @@ Zugang zum Hugging Face Hub für Modelle, Datasets, Papers und Jobs. Ermöglicht
 | **Modelle** | Suche und Abruf von Modellen aus dem Hub | `enabled: true` |
 | **Datasets** | Durchsuchen und Herunterladen von Datasets | `enabled: true` |
 | **Papers** | Zugriff auf wissenschaftliche Paper und tägliche Updates | `enabled: true` |
-| **Jobs** | Ausführung von HuggingFace Jobs und Skripten | `allow_jobs: true` |
+| **Jobs** | Jobs im Read-Only-Modus prüfen oder bei erlaubten Mutationen ausführen | `allow_jobs: true` und Vault-Token |
 | **Repositories** | Erstellen und Verwalten von Hub-Repositories | `allow_writes: true` |
 | **Spaces** | Zugriff auf HuggingFace Spaces | `enabled: true` |
 
@@ -516,16 +516,19 @@ huggingface:
   allow_delete: false            # Löschen von Ressourcen
   allow_jobs: false              # Job-Ausführung
   allow_scheduled_jobs: false    # Geplante Jobs
+  allow_job_token_injection: false # Explizite HF_TOKEN-Injektion in nicht vertrauenswürdigen Job-Code
   allowed_namespaces: []         # Explizite Namespaces
   allowed_repos: []             # Explizite Repositorys
   allowed_hardware: []           # Erlaubte Hardware-Typen
   max_download_mb: 100           # Max. Download-Größe in MB
+  max_upload_mb: 10              # Nur kleine JSON-Uploads; kein LFS/Xet-Support
   max_dataset_rows: 10000        # Max. Dataset-Zeilen
   job_default_timeout_minutes: 60
   job_max_runtime_minutes: 300
   request_timeout_seconds: 120
   max_result_bytes: 1048576     # 1MB
   hub_base_url: "https://huggingface.co"
+  job_namespace: ""              # Optional; leer wird per whoami ermittelt
 ```
 
 ### Agent-Tool: `huggingface`
@@ -541,9 +544,9 @@ huggingface:
 | `daily_papers` | Tägliche Paper-Updates | `{"action": "huggingface", "operation": "daily_papers"}` |
 | `get_paper` | Paper-Details | `{"action": "huggingface", "operation": "get_paper", "id": "paper_id"}` |
 | `jobs_list` | Liste aller Jobs | `{"action": "huggingface", "operation": "jobs_list"}` |
-| `job_run_script` | Skript ausführen | `{"action": "huggingface", "operation": "job_run_script", "space": "user/space", "payload": {}}` |
+| `job_run_python` | Python-Skript ausführen | `{"action": "huggingface", "operation": "job_run_python", "script": "print('ok')"}` |
 
-> 🔒 **Sicherheit:** Standardmäßig ist HuggingFace deaktiviert. Schreiboperationen erfordern explizite Freigabe. Geplante Jobs und Hardware-spezifische Operationen benötigen zusätzliche Berechtigungen.
+> 🔒 **Sicherheit:** Standardmäßig ist HuggingFace deaktiviert. Leere Repository- und Namespace-Allowlists sperren alle Schreibvorgänge. Job-Code ist nicht vertrauenswürdig; `HF_TOKEN` wird nur injiziert, wenn Administrator und einzelner Tool-Aufruf zustimmen.
 
 ## MeshCentral
 

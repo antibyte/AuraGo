@@ -753,6 +753,7 @@ type HuggingFaceConfig struct {
 	AllowDelete              bool     `yaml:"allow_delete" json:"allow_delete"`
 	AllowJobs                bool     `yaml:"allow_jobs" json:"allow_jobs"`
 	AllowScheduledJobs       bool     `yaml:"allow_scheduled_jobs" json:"allow_scheduled_jobs"`
+	AllowJobTokenInjection   bool     `yaml:"allow_job_token_injection" json:"allow_job_token_injection"`
 	AllowedNamespaces        []string `yaml:"allowed_namespaces" json:"allowed_namespaces"`
 	AllowedRepos             []string `yaml:"allowed_repos" json:"allowed_repos"`
 	AllowedHardware          []string `yaml:"allowed_hardware" json:"allowed_hardware"`
@@ -766,8 +767,10 @@ type HuggingFaceConfig struct {
 	HubBaseURL               string   `yaml:"hub_base_url" json:"hub_base_url"`
 	DatasetBaseURL           string   `yaml:"dataset_base_url" json:"dataset_base_url"`
 	JobsBaseURL              string   `yaml:"jobs_base_url" json:"jobs_base_url"`
-	RouterBaseURL            string   `yaml:"router_base_url" json:"router_base_url"`
-	Token                    string   `yaml:"-" json:"-" vault:"huggingface_token"`
+	JobNamespace             string   `yaml:"job_namespace" json:"job_namespace"`
+	// RouterBaseURL is accepted only for compatibility with existing YAML and is otherwise ignored.
+	RouterBaseURL string `yaml:"router_base_url,omitempty" json:"-"`
+	Token         string `yaml:"-" json:"-" vault:"huggingface_token"`
 }
 
 // EvomapConfig controls the optional evomap.ai integration.

@@ -1463,7 +1463,7 @@ Access the Hugging Face Hub for models, datasets, papers, and jobs. Enables sear
 ### Web UI Setup
 1. Open **Config → Integrations → HuggingFace** (if available).
 2. Enable the integration.
-3. Configure permissions (read-only, write access, jobs, scheduled jobs).
+3. Configure permissions (read-only, write access, job access, scheduled jobs, and optional Job token injection).
 4. Optionally define allowed namespaces and repositories for additional security.
 5. Save and restart.
 
@@ -1474,7 +1474,7 @@ Access the Hugging Face Hub for models, datasets, papers, and jobs. Enables sear
 | **Models** | Search and retrieve models from the Hub | `enabled: true` |
 | **Datasets** | Browse and download datasets | `enabled: true` |
 | **Papers** | Access scientific papers and daily updates | `enabled: true` |
-| **Jobs** | Execute HuggingFace jobs and scripts | `allow_jobs: true` |
+| **Jobs** | Inspect Jobs in read-only mode or execute Jobs when mutations are enabled | `allow_jobs: true` and Vault token |
 | **Repositories** | Create and manage Hub repositories | `allow_writes: true` |
 | **Spaces** | Access HuggingFace Spaces | `enabled: true` |
 
@@ -1487,16 +1487,19 @@ huggingface:
   allow_delete: false            # Delete resources
   allow_jobs: false              # Job execution
   allow_scheduled_jobs: false    # Scheduled jobs
+  allow_job_token_injection: false # Allow explicit HF_TOKEN injection into untrusted Job code
   allowed_namespaces: []         # Explicit namespaces
   allowed_repos: []             # Explicit repositories
   allowed_hardware: []           # Allowed hardware types
   max_download_mb: 100           # Max download size in MB
+  max_upload_mb: 10              # Small JSON uploads only; no LFS/Xet support
   max_dataset_rows: 10000        # Max dataset rows
   job_default_timeout_minutes: 60
   job_max_runtime_minutes: 300
   request_timeout_seconds: 120
   max_result_bytes: 1048576     # 1MB
   hub_base_url: "https://huggingface.co"
+  job_namespace: ""              # Optional; empty resolves through whoami
 ```
 
 ### Agent Tool: `huggingface`
@@ -1512,9 +1515,9 @@ huggingface:
 | `daily_papers` | Daily paper updates | `{"action": "huggingface", "operation": "daily_papers"}` |
 | `get_paper` | Get paper details | `{"action": "huggingface", "operation": "get_paper", "id": "paper_id"}` |
 | `jobs_list` | List all jobs | `{"action": "huggingface", "operation": "jobs_list"}` |
-| `job_run_script` | Execute script | `{"action": "huggingface", "operation": "job_run_script", "space": "user/space", "payload": {}}` |
+| `job_run_python` | Execute a Python script | `{"action": "huggingface", "operation": "job_run_python", "script": "print('ok')"}` |
 
-> 🔒 **Security:** HuggingFace integration is disabled by default. Write operations require explicit permissions. Scheduled jobs and hardware-specific operations require additional permissions.
+> 🔒 **Security:** HuggingFace integration is disabled by default. Empty repository and namespace allowlists block every write. Job code is untrusted; `HF_TOKEN` is injected only when both the administrator and the individual tool call opt in.
 
 ---
 

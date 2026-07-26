@@ -9,11 +9,12 @@ function huggingFaceConfig() {
     if (cfg.allow_delete === undefined) cfg.allow_delete = false;
     if (cfg.allow_jobs === undefined) cfg.allow_jobs = false;
     if (cfg.allow_scheduled_jobs === undefined) cfg.allow_scheduled_jobs = false;
+    if (cfg.allow_job_token_injection === undefined) cfg.allow_job_token_injection = false;
     if (!Array.isArray(cfg.allowed_namespaces)) cfg.allowed_namespaces = [];
     if (!Array.isArray(cfg.allowed_repos)) cfg.allowed_repos = [];
     if (!Array.isArray(cfg.allowed_hardware)) cfg.allowed_hardware = ['cpu-basic'];
     if (!cfg.max_download_mb) cfg.max_download_mb = 512;
-    if (!cfg.max_upload_mb) cfg.max_upload_mb = 512;
+    if (!cfg.max_upload_mb || cfg.max_upload_mb > 10) cfg.max_upload_mb = 10;
     if (!cfg.max_dataset_rows) cfg.max_dataset_rows = 100;
     if (!cfg.job_default_timeout_minutes) cfg.job_default_timeout_minutes = 30;
     if (!cfg.job_max_runtime_minutes) cfg.job_max_runtime_minutes = 120;
@@ -22,7 +23,7 @@ function huggingFaceConfig() {
     if (!cfg.hub_base_url) cfg.hub_base_url = 'https://huggingface.co';
     if (!cfg.dataset_base_url) cfg.dataset_base_url = 'https://datasets-server.huggingface.co';
     if (!cfg.jobs_base_url) cfg.jobs_base_url = 'https://huggingface.co/api/jobs';
-    if (!cfg.router_base_url) cfg.router_base_url = 'https://router.huggingface.co/v1';
+    if (cfg.job_namespace === undefined) cfg.job_namespace = '';
     return cfg;
 }
 
@@ -48,7 +49,7 @@ async function renderHuggingFaceSection(section) {
 
     html += '<div class="field-grid two-cols">';
     html += huggingFaceNumber('max_download_mb', 'config.huggingface.max_download_mb', 'help.huggingface.max_download_mb', cfg.max_download_mb);
-    html += huggingFaceNumber('max_upload_mb', 'config.huggingface.max_upload_mb', 'help.huggingface.max_upload_mb', cfg.max_upload_mb);
+    html += huggingFaceNumber('max_upload_mb', 'config.huggingface.max_upload_mb', 'help.huggingface.max_upload_mb', cfg.max_upload_mb, 10);
     html += huggingFaceNumber('max_dataset_rows', 'config.huggingface.max_dataset_rows', 'help.huggingface.max_dataset_rows', cfg.max_dataset_rows);
     html += huggingFaceNumber('job_default_timeout_minutes', 'config.huggingface.job_default_timeout', 'help.huggingface.job_default_timeout', cfg.job_default_timeout_minutes);
     html += huggingFaceNumber('job_max_runtime_minutes', 'config.huggingface.job_max_runtime', 'help.huggingface.job_max_runtime', cfg.job_max_runtime_minutes);
@@ -63,6 +64,7 @@ async function renderHuggingFaceSection(section) {
     html += huggingFaceToggle('huggingface.allow_delete', cfg.allow_delete, 'config.huggingface.allow_delete', 'help.huggingface.allow_delete');
     html += huggingFaceToggle('huggingface.allow_jobs', cfg.allow_jobs, 'config.huggingface.allow_jobs', 'help.huggingface.allow_jobs');
     html += huggingFaceToggle('huggingface.allow_scheduled_jobs', cfg.allow_scheduled_jobs, 'config.huggingface.allow_scheduled_jobs', 'help.huggingface.allow_scheduled_jobs');
+    html += huggingFaceToggle('huggingface.allow_job_token_injection', cfg.allow_job_token_injection, 'config.huggingface.allow_job_token_injection', 'help.huggingface.allow_job_token_injection');
     html += '</div>';
 
     html += '<div class="field-group-title cfg-group-title-top">' + t('config.huggingface.allowlist_title') + '</div>';
@@ -77,7 +79,7 @@ async function renderHuggingFaceSection(section) {
     html += huggingFaceText('hub_base_url', 'config.huggingface.hub_base_url', 'help.huggingface.hub_base_url', cfg.hub_base_url);
     html += huggingFaceText('dataset_base_url', 'config.huggingface.dataset_base_url', 'help.huggingface.dataset_base_url', cfg.dataset_base_url);
     html += huggingFaceText('jobs_base_url', 'config.huggingface.jobs_base_url', 'help.huggingface.jobs_base_url', cfg.jobs_base_url);
-    html += huggingFaceText('router_base_url', 'config.huggingface.router_base_url', 'help.huggingface.router_base_url', cfg.router_base_url);
+    html += huggingFaceText('job_namespace', 'config.huggingface.job_namespace', 'help.huggingface.job_namespace', cfg.job_namespace);
     html += '</div></div>';
 
     document.getElementById('content').innerHTML = html;
@@ -90,8 +92,9 @@ function huggingFaceToggle(path, enabled, labelKey, helpKey) {
         '<div class="toggle-wrap"><div class="toggle' + (enabled ? ' on' : '') + '" data-path="' + path + '" onclick="toggleBool(this)"></div><span class="toggle-label">' + (enabled ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span></div></div>';
 }
 
-function huggingFaceNumber(key, labelKey, helpKey, value) {
-    return '<div class="field-group"><div class="field-label">' + t(labelKey) + '</div><div class="field-help">' + t(helpKey) + '</div><input class="field-input" type="number" min="0" data-path="huggingface.' + key + '" value="' + escapeAttr(value) + '"></div>';
+function huggingFaceNumber(key, labelKey, helpKey, value, maxValue) {
+    const maxAttr = Number.isFinite(maxValue) ? ' max="' + maxValue + '"' : '';
+    return '<div class="field-group"><div class="field-label">' + t(labelKey) + '</div><div class="field-help">' + t(helpKey) + '</div><input class="field-input" type="number" min="0"' + maxAttr + ' data-path="huggingface.' + key + '" value="' + escapeAttr(value) + '"></div>';
 }
 
 function huggingFaceText(key, labelKey, helpKey, value) {

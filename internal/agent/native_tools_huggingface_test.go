@@ -32,17 +32,24 @@ func TestHuggingFaceNativeToolExposesCorrectJobOperations(t *testing.T) {
 	if props["arguments"].(map[string]interface{})["type"] != "array" {
 		t.Fatalf("arguments schema = %#v", props["arguments"])
 	}
+	if props["inject_token"].(map[string]interface{})["type"] != "boolean" {
+		t.Fatalf("inject_token schema = %#v", props["inject_token"])
+	}
 }
 
 func TestDecodeHuggingFaceArrayArgumentsPreservesValues(t *testing.T) {
 	request := decodeHuggingFaceArgs(ToolCall{Params: map[string]interface{}{
-		"operation": "job_run_container",
-		"command":   []interface{}{"python", "-c", "print(1)", ""},
-		"arguments": []interface{}{"--name", "", "value with spaces"},
+		"operation":    "job_run_container",
+		"command":      []interface{}{"python", "-c", "print(1)", ""},
+		"arguments":    []interface{}{"--name", "", "value with spaces"},
+		"inject_token": true,
 	}})
 	wantCommand := []string{"python", "-c", "print(1)", ""}
 	wantArguments := []string{"--name", "", "value with spaces"}
 	if !reflect.DeepEqual(request.Command, wantCommand) || !reflect.DeepEqual(request.Arguments, wantArguments) {
 		t.Fatalf("decoded Hugging Face arrays = %#v, %#v; want %#v, %#v", request.Command, request.Arguments, wantCommand, wantArguments)
+	}
+	if !request.InjectToken {
+		t.Fatal("inject_token was not decoded")
 	}
 }

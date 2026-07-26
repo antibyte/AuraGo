@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -10,6 +11,7 @@ import (
 	"testing"
 
 	"aurago/internal/config"
+	hf "aurago/internal/huggingface"
 )
 
 func TestHandleHuggingFaceStatusMasksToken(t *testing.T) {
@@ -69,6 +71,49 @@ func TestHandleHuggingFaceJobsReturnsLocalLedger(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(dataDir, "huggingface.db")); err != nil {
 		t.Fatalf("expected huggingface.db ledger: %v", err)
+	}
+}
+
+func TestHandleHuggingFaceJobsHonorsLimit(t *testing.T) {
+	dataDir := t.TempDir()
+	store, err := hf.OpenJobStore(dataDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.RecordJob(context.Background(), hf.JobRecord{HFJobID: "job-1", Operation: "job_run_python"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.RecordJob(context.Background(), hf.JobRecord{HFJobID: "job-2", Operation: "job_run_python"}); err != nil {
+		t.Fatal(err)
+	}
+	_ = store.Close()
+	s := &Server{Cfg: &config.Config{HuggingFace: config.HuggingFaceConfig{Enabled: true}}}
+	s.Cfg.Directories.DataDir = dataDir
+
+	rec := httptest.NewRecorder()
+	handleHuggingFaceJobs(s).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/huggingface/jobs?limit=1", nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body=%s", rec.Code, rec.Body.String())
+	}
+	var got struct {
+		Jobs []hf.JobRecord `json:"jobs"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Jobs) != 1 {
+		t.Fatalf("jobs = %#v", got.Jobs)
+	}
+}
+
+func TestHandleHuggingFaceJobsRejectsInvalidLimit(t *testing.T) {
+	s := &Server{Cfg: &config.Config{}}
+	for _, value := range []string{"0", "201", "invalid"} {
+		rec := httptest.NewRecorder()
+		handleHuggingFaceJobs(s).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/huggingface/jobs?limit="+value, nil))
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("limit %q status = %d, body=%s", value, rec.Code, rec.Body.String())
+		}
 	}
 }
 

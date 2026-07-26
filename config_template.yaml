@@ -1686,16 +1686,17 @@ evomap:
     # Store node_secret as evomap_node_secret and API key as evomap_api_key in the encrypted vault.
 huggingface:
     enabled: false                                      # platform integration; public reads can work without a token
-    read_only: true                                     # blocks all writes and Jobs
+    read_only: true                                     # blocks writes, Job starts, and cancellation; authenticated Job inspection remains available
     allow_writes: false                                 # opt-in for repo creation, uploads, and discussions
     allow_delete: false                                 # separate opt-in for repository deletion
     allow_jobs: false                                   # opt-in for compute-backed Hugging Face Jobs
     allow_scheduled_jobs: false                         # separate opt-in for scheduled Jobs
+    allow_job_token_injection: false                    # separate opt-in before a Job may receive the Vault-backed HF_TOKEN
     allowed_namespaces: []                              # optional namespace allowlist for remote mutations
     allowed_repos: []                                   # optional repo allowlist for remote mutations
     allowed_hardware: [cpu-basic]                       # explicit Job hardware allowlist
     max_download_mb: 512
-    max_upload_mb: 512
+    max_upload_mb: 10                                   # small JSON uploads only; LFS/Xet uploads are not implemented
     max_dataset_rows: 100
     job_default_timeout_minutes: 30
     job_max_runtime_minutes: 120
@@ -1704,7 +1705,7 @@ huggingface:
     hub_base_url: https://huggingface.co
     dataset_base_url: https://datasets-server.huggingface.co
     jobs_base_url: https://huggingface.co/api/jobs
-    router_base_url: https://router.huggingface.co/v1
+    job_namespace: ""                                   # optional; empty resolves the namespace via whoami per tool call
     # Store the token in the encrypted Vault as huggingface_token, never in config.yaml.
 sandbox:
     enabled: false

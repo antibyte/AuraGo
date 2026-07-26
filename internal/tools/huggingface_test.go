@@ -1,6 +1,9 @@
 package tools
 
 import (
+	"context"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -43,6 +46,77 @@ func TestHuggingFacePolicyBlocksJobsByDefault(t *testing.T) {
 	err := EvaluateHuggingFacePolicy(cfg, req, "hf_token")
 	if err == nil || !strings.Contains(err.Error(), "allow_jobs") {
 		t.Fatalf("expected allow_jobs error, got %v", err)
+	}
+}
+
+func TestHuggingFacePolicyAllowsAuthenticatedJobReadsInReadOnlyMode(t *testing.T) {
+	cfg := config.HuggingFaceConfig{Enabled: true, ReadOnly: true, AllowJobs: true, AllowedHardware: []string{"a10g-small"}}
+	for _, operation := range []string{"jobs_list", "job_get", "job_logs"} {
+		if err := EvaluateHuggingFacePolicy(cfg, HuggingFaceRequest{Operation: operation}, "hf_token"); err != nil {
+			t.Fatalf("%s blocked in read-only mode: %v", operation, err)
+		}
+		if err := EvaluateHuggingFacePolicy(cfg, HuggingFaceRequest{Operation: operation}, ""); err == nil {
+			t.Fatalf("%s must require a token", operation)
+		}
+	}
+}
+
+func TestRunHuggingFacePassesConfiguredJobNamespace(t *testing.T) {
+	var sawNamespace bool
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		sawNamespace = r.URL.Path == "/api/jobs/team"
+		if r.Header.Get("Authorization") != "Bearer hf_token" {
+			t.Fatalf("missing bearer token")
+		}
+		_, _ = w.Write([]byte("[]"))
+	}))
+	defer server.Close()
+	cfg := config.HuggingFaceConfig{
+		Enabled: true, ReadOnly: true, AllowJobs: true,
+		JobsBaseURL: server.URL + "/api/jobs", JobNamespace: "team",
+	}
+	output := RunHuggingFace(context.Background(), cfg, "hf_token", t.TempDir(), t.TempDir(), HuggingFaceRequest{Operation: "jobs_list"})
+	if !sawNamespace || !strings.Contains(output, `"status":"success"`) {
+		t.Fatalf("namespace was not passed to Jobs client: path=%v output=%s", sawNamespace, output)
+	}
+}
+
+func TestHuggingFacePolicyKeepsJobMutationsBehindReadOnly(t *testing.T) {
+	cfg := config.HuggingFaceConfig{Enabled: true, ReadOnly: true, AllowJobs: true, AllowedHardware: []string{"cpu-basic"}}
+	for _, operation := range []string{"job_run_python", "job_cancel"} {
+		err := EvaluateHuggingFacePolicy(cfg, HuggingFaceRequest{Operation: operation}, "hf_token")
+		if err == nil || !strings.Contains(err.Error(), "read-only") {
+			t.Fatalf("%s should be blocked in read-only mode: %v", operation, err)
+		}
+	}
+}
+
+func TestHuggingFacePolicyDoesNotApplyHardwareGateToCancel(t *testing.T) {
+	cfg := config.HuggingFaceConfig{Enabled: true, ReadOnly: false, AllowJobs: true, AllowedHardware: []string{"a10g-small"}}
+	if err := EvaluateHuggingFacePolicy(cfg, HuggingFaceRequest{Operation: "job_cancel"}, "hf_token"); err != nil {
+		t.Fatalf("job_cancel unexpectedly used the hardware gate: %v", err)
+	}
+}
+
+func TestHuggingFacePolicyRequiresTwoPartTokenInjectionOptIn(t *testing.T) {
+	cfg := config.HuggingFaceConfig{
+		Enabled: true, ReadOnly: false, AllowJobs: true, AllowedHardware: []string{"cpu-basic"},
+	}
+	req := HuggingFaceRequest{Operation: "job_run_python", Script: "print('ok')", InjectToken: true}
+	if err := EvaluateHuggingFacePolicy(cfg, req, "hf_token"); err == nil || !strings.Contains(err.Error(), "allow_job_token_injection") {
+		t.Fatalf("expected config token-injection gate, got %v", err)
+	}
+	cfg.AllowJobTokenInjection = true
+	if err := EvaluateHuggingFacePolicy(cfg, req, "hf_token"); err != nil {
+		t.Fatalf("two-part token opt-in was rejected: %v", err)
+	}
+	withToken := hfJobRunOptions(cfg, req, "hf_token")
+	if withToken.Secrets["HF_TOKEN"] != "hf_token" {
+		t.Fatalf("HF_TOKEN was not injected after both opt-ins: %#v", withToken.Secrets)
+	}
+	withoutToken := hfJobRunOptions(cfg, HuggingFaceRequest{}, "hf_token")
+	if len(withoutToken.Secrets) != 0 {
+		t.Fatalf("HF_TOKEN was injected without request opt-in: %#v", withoutToken.Secrets)
 	}
 }
 
@@ -136,5 +210,21 @@ func TestHuggingFaceUploadSourceRejectsDirectoriesAndSize(t *testing.T) {
 	}
 	if _, err := validateHuggingFaceUploadSource(workspace, "large.bin", 0); err != nil {
 		t.Fatalf("unexpected default upload limit error: %v", err)
+	}
+}
+
+func TestHuggingFaceLedgerFailureProducesSafeWarning(t *testing.T) {
+	blockingFile := filepath.Join(t.TempDir(), "not-a-directory")
+	if err := os.WriteFile(blockingFile, []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	result := map[string]interface{}{"id": "job-1"}
+	err := recordHuggingFaceJob(context.Background(), blockingFile, "job_run_python", "cpu-basic", HuggingFaceRequest{}, result, nil)
+	if err == nil {
+		t.Fatal("expected local ledger failure")
+	}
+	attachHuggingFaceLedgerWarning(result, err)
+	if result["ledger_warning"] == nil || strings.Contains(result["ledger_warning"].(string), blockingFile) {
+		t.Fatalf("unsafe or missing ledger warning: %#v", result)
 	}
 }

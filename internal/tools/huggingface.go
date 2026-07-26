@@ -48,6 +48,7 @@ type HuggingFaceRequest struct {
 	Scheduled      bool              `json:"scheduled,omitempty"`
 	Schedule       string            `json:"schedule,omitempty"`
 	Env            map[string]string `json:"env,omitempty"`
+	InjectToken    bool              `json:"inject_token,omitempty"`
 }
 
 func EvaluateHuggingFacePolicy(cfg config.HuggingFaceConfig, req HuggingFaceRequest, token string) error {
@@ -69,21 +70,36 @@ func EvaluateHuggingFacePolicy(cfg config.HuggingFaceConfig, req HuggingFaceRequ
 	if op == "whoami" && strings.TrimSpace(token) == "" {
 		return fmt.Errorf("huggingface_token is required for whoami")
 	}
-	if isHFJobOperation(op) {
+	if isHFJobReadOperation(op) {
+		if !cfg.AllowJobs {
+			return fmt.Errorf("Hugging Face job access is not allowed. Set huggingface.allow_jobs=true")
+		}
+		if strings.TrimSpace(token) == "" {
+			return fmt.Errorf("huggingface_token is required for job inspection")
+		}
+		return nil
+	}
+	if isHFJobMutationOperation(op) {
 		if cfg.ReadOnly {
-			return fmt.Errorf("Hugging Face is in read-only mode; jobs are blocked")
+			return fmt.Errorf("Hugging Face is in read-only mode; job mutations are blocked")
 		}
 		if !cfg.AllowJobs {
 			return fmt.Errorf("Hugging Face jobs are not allowed. Set huggingface.allow_jobs=true")
+		}
+		if strings.TrimSpace(token) == "" {
+			return fmt.Errorf("huggingface_token is required for jobs")
+		}
+		if op == "job_cancel" {
+			return nil
+		}
+		if req.InjectToken && !cfg.AllowJobTokenInjection {
+			return fmt.Errorf("Hugging Face Job token injection is not allowed. Set huggingface.allow_job_token_injection=true")
 		}
 		if req.Scheduled && !cfg.AllowScheduledJobs {
 			return fmt.Errorf("scheduled Hugging Face jobs are not allowed. Set huggingface.allow_scheduled_jobs=true")
 		}
 		if req.Scheduled && strings.TrimSpace(req.Schedule) == "" {
 			return fmt.Errorf("schedule is required for scheduled Hugging Face jobs")
-		}
-		if strings.TrimSpace(token) == "" {
-			return fmt.Errorf("huggingface_token is required for jobs")
 		}
 		hardware := hfDefaultString(strings.TrimSpace(req.Hardware), "cpu-basic")
 		if !hfStringInList(hardware, hfDefaultStringSlice(cfg.AllowedHardware, []string{"cpu-basic"})) {
@@ -124,6 +140,7 @@ func RunHuggingFace(ctx context.Context, cfg config.HuggingFaceConfig, token, wo
 		HubBaseURL:            cfg.HubBaseURL,
 		DatasetBaseURL:        cfg.DatasetBaseURL,
 		JobsBaseURL:           cfg.JobsBaseURL,
+		JobNamespace:          cfg.JobNamespace,
 		Token:                 token,
 		MaxDatasetRows:        cfg.MaxDatasetRows,
 		MaxDownloadMB:         cfg.MaxDownloadMB,
@@ -193,17 +210,17 @@ func executeHuggingFaceOperation(ctx context.Context, client *hf.Client, cfg con
 	case "job_run_python":
 		opts := hfJobRunOptions(cfg, req, token)
 		result, err := client.JobRunPython(ctx, opts)
-		recordHuggingFaceJob(ctx, dataDir, req.Operation, opts.Hardware, req, result, err)
+		attachHuggingFaceLedgerWarning(result, recordHuggingFaceJob(ctx, dataDir, req.Operation, opts.Hardware, req, result, err))
 		return result, err
 	case "job_run_uv_script":
 		opts := hfJobRunOptions(cfg, req, token)
 		result, err := client.JobRunUVScript(ctx, opts)
-		recordHuggingFaceJob(ctx, dataDir, req.Operation, opts.Hardware, req, result, err)
+		attachHuggingFaceLedgerWarning(result, recordHuggingFaceJob(ctx, dataDir, req.Operation, opts.Hardware, req, result, err))
 		return result, err
 	case "job_run_container":
 		opts := hfJobRunOptions(cfg, req, token)
 		result, err := client.JobRunContainer(ctx, opts)
-		recordHuggingFaceJob(ctx, dataDir, req.Operation, opts.Hardware, req, result, err)
+		attachHuggingFaceLedgerWarning(result, recordHuggingFaceJob(ctx, dataDir, req.Operation, opts.Hardware, req, result, err))
 		return result, err
 	case "create_repo":
 		return client.CreateRepo(ctx, hf.CreateRepoOptions{RepoID: requestRepoID(req), Type: req.RepoType, Private: req.Private})
@@ -234,7 +251,7 @@ func hfJobRunOptions(cfg config.HuggingFaceConfig, req HuggingFaceRequest, token
 	}
 	hardware := hfDefaultString(req.Hardware, "cpu-basic")
 	secrets := map[string]string{}
-	if strings.TrimSpace(token) != "" {
+	if req.InjectToken && strings.TrimSpace(token) != "" {
 		secrets["HF_TOKEN"] = token
 	}
 	return hf.JobRunOptions{
@@ -251,10 +268,10 @@ func hfJobRunOptions(cfg config.HuggingFaceConfig, req HuggingFaceRequest, token
 	}
 }
 
-func recordHuggingFaceJob(ctx context.Context, dataDir, operation, hardware string, req HuggingFaceRequest, result map[string]interface{}, runErr error) {
+func recordHuggingFaceJob(ctx context.Context, dataDir, operation, hardware string, req HuggingFaceRequest, result map[string]interface{}, runErr error) error {
 	store, err := hf.OpenJobStore(dataDir)
 	if err != nil {
-		return
+		return err
 	}
 	defer store.Close()
 	jobID := hf.ExtractJobID(result)
@@ -273,7 +290,14 @@ func recordHuggingFaceJob(ctx context.Context, dataDir, operation, hardware stri
 		rec.Status = "error"
 		rec.LastError = runErr.Error()
 	}
-	_ = store.RecordJob(ctx, rec)
+	return store.RecordJob(ctx, rec)
+}
+
+func attachHuggingFaceLedgerWarning(result map[string]interface{}, err error) {
+	if result == nil || err == nil {
+		return
+	}
+	result["ledger_warning"] = "remote job completed, but AuraGo could not update the local job ledger"
 }
 
 func huggingFaceLedgerRequest(req HuggingFaceRequest) string {
@@ -372,10 +396,13 @@ func validateHuggingFaceUploadSource(workspaceDir, requestedPath string, maxUplo
 		return "", fmt.Errorf("Hugging Face upload source must be a regular file")
 	}
 	if maxUploadMB <= 0 {
-		maxUploadMB = 512
+		maxUploadMB = 10
+	}
+	if maxUploadMB > 10 {
+		maxUploadMB = 10
 	}
 	if info.Size() > int64(maxUploadMB)*1024*1024 {
-		return "", fmt.Errorf("upload exceeds huggingface.max_upload_mb (%d MB)", maxUploadMB)
+		return "", fmt.Errorf("upload exceeds huggingface.max_upload_mb (%d MB); AuraGo supports only small JSON uploads and does not yet implement Hugging Face LFS/Xet uploads", maxUploadMB)
 	}
 	return resolved, nil
 }
@@ -419,9 +446,18 @@ func normalizeHFOperation(op string) string {
 	return strings.ToLower(strings.TrimSpace(op))
 }
 
-func isHFJobOperation(op string) bool {
+func isHFJobReadOperation(op string) bool {
 	switch op {
-	case "jobs_list", "job_get", "job_logs", "job_run_python", "job_run_uv_script", "job_run_container", "job_cancel":
+	case "jobs_list", "job_get", "job_logs":
+		return true
+	default:
+		return false
+	}
+}
+
+func isHFJobMutationOperation(op string) bool {
+	switch op {
+	case "job_run_python", "job_run_uv_script", "job_run_container", "job_cancel":
 		return true
 	default:
 		return false

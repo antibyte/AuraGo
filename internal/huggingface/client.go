@@ -18,6 +18,7 @@ import (
 )
 
 const defaultUserAgent = "AuraGo HuggingFace Integration"
+const maxJSONUploadMB = 10
 
 type ClientConfig struct {
 	HubBaseURL            string
@@ -162,7 +163,10 @@ func NewClient(cfg ClientConfig) *Client {
 		cfg.MaxDownloadMB = 512
 	}
 	if cfg.MaxUploadMB <= 0 {
-		cfg.MaxUploadMB = 512
+		cfg.MaxUploadMB = maxJSONUploadMB
+	}
+	if cfg.MaxUploadMB > maxJSONUploadMB {
+		cfg.MaxUploadMB = maxJSONUploadMB
 	}
 	if cfg.MaxResultBytes <= 0 {
 		cfg.MaxResultBytes = 524288
@@ -242,21 +246,42 @@ func (c *Client) DownloadFile(ctx context.Context, opts DownloadFileOptions) (Do
 	if resp.ContentLength > maxBytes {
 		return DownloadResult{}, fmt.Errorf("download exceeds max_download_mb (%d MB)", c.cfg.MaxDownloadMB)
 	}
-	limited := io.LimitReader(resp.Body, maxBytes+1)
-	data, err := io.ReadAll(limited)
-	if err != nil {
-		return DownloadResult{}, err
-	}
-	if int64(len(data)) > maxBytes {
-		return DownloadResult{}, fmt.Errorf("download exceeds max_download_mb (%d MB)", c.cfg.MaxDownloadMB)
-	}
 	if err := os.MkdirAll(filepath.Dir(opts.Destination), 0o755); err != nil {
 		return DownloadResult{}, err
 	}
-	if err := os.WriteFile(opts.Destination, data, 0o600); err != nil {
-		return DownloadResult{}, err
+	temp, err := os.CreateTemp(filepath.Dir(opts.Destination), ".aurago-huggingface-download-*")
+	if err != nil {
+		return DownloadResult{}, fmt.Errorf("create temporary download: %w", err)
 	}
-	return DownloadResult{Path: opts.Destination, Bytes: int64(len(data))}, nil
+	tempPath := temp.Name()
+	published := false
+	defer func() {
+		_ = temp.Close()
+		if !published {
+			_ = os.Remove(tempPath)
+		}
+	}()
+	if err := temp.Chmod(0o600); err != nil {
+		return DownloadResult{}, fmt.Errorf("secure temporary download: %w", err)
+	}
+	written, err := io.Copy(temp, io.LimitReader(resp.Body, maxBytes+1))
+	if err != nil {
+		return DownloadResult{}, fmt.Errorf("stream Hugging Face download: %w", err)
+	}
+	if written > maxBytes {
+		return DownloadResult{}, fmt.Errorf("download exceeds max_download_mb (%d MB)", c.cfg.MaxDownloadMB)
+	}
+	if err := temp.Sync(); err != nil {
+		return DownloadResult{}, fmt.Errorf("sync temporary download: %w", err)
+	}
+	if err := temp.Close(); err != nil {
+		return DownloadResult{}, fmt.Errorf("close temporary download: %w", err)
+	}
+	if err := replaceDownloadedFile(tempPath, opts.Destination); err != nil {
+		return DownloadResult{}, fmt.Errorf("publish Hugging Face download: %w", err)
+	}
+	published = true
+	return DownloadResult{Path: opts.Destination, Bytes: written}, nil
 }
 
 func (c *Client) DatasetSplits(ctx context.Context, dataset string) (map[string]interface{}, error) {
@@ -326,7 +351,22 @@ func (c *Client) GetPaper(ctx context.Context, id string) (map[string]interface{
 }
 
 func (c *Client) PaperLinks(ctx context.Context, id string) (map[string]interface{}, error) {
-	return c.getHubObject(ctx, "/api/papers/"+strings.Trim(id, "/"))
+	paper, err := c.GetPaper(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	links := map[string]interface{}{}
+	for _, key := range []string{
+		"id",
+		"linkedModels", "numTotalModels",
+		"linkedDatasets", "numTotalDatasets",
+		"linkedSpaces", "numTotalSpaces",
+	} {
+		if value, ok := paper[key]; ok {
+			links[key] = value
+		}
+	}
+	return links, nil
 }
 
 func (c *Client) JobsList(ctx context.Context) ([]map[string]interface{}, error) {
@@ -415,6 +455,9 @@ func (c *Client) JobRunUVScript(ctx context.Context, opts JobRunOptions) (map[st
 }
 
 func (c *Client) JobRunContainer(ctx context.Context, opts JobRunOptions) (map[string]interface{}, error) {
+	if strings.TrimSpace(opts.Image) == "" {
+		return nil, fmt.Errorf("huggingface container image is required")
+	}
 	if len(opts.Command) == 0 || strings.TrimSpace(opts.Command[0]) == "" {
 		return nil, fmt.Errorf("huggingface container command is required")
 	}
@@ -450,7 +493,11 @@ func (c *Client) CreateRepo(ctx context.Context, opts CreateRepoOptions) (map[st
 	if err != nil {
 		return nil, err
 	}
-	payload := map[string]interface{}{"name": name, "type": defaultString(opts.Type, "model"), "private": opts.Private}
+	repoType, err := repoSingular(opts.Type)
+	if err != nil {
+		return nil, err
+	}
+	payload := map[string]interface{}{"name": name, "type": repoType, "private": opts.Private}
 	if namespace != "" {
 		payload["organization"] = namespace
 	}
@@ -460,7 +507,10 @@ func (c *Client) CreateRepo(ctx context.Context, opts CreateRepoOptions) (map[st
 func (c *Client) UploadFile(ctx context.Context, opts UploadFileOptions) (map[string]interface{}, error) {
 	maxBytes := int64(c.cfg.MaxUploadMB) * 1024 * 1024
 	if maxBytes <= 0 {
-		maxBytes = 512 * 1024 * 1024
+		maxBytes = maxJSONUploadMB * 1024 * 1024
+	}
+	if maxBytes > maxJSONUploadMB*1024*1024 {
+		maxBytes = maxJSONUploadMB * 1024 * 1024
 	}
 	file, err := os.Open(opts.LocalPath)
 	if err != nil {
@@ -475,26 +525,57 @@ func (c *Client) UploadFile(ctx context.Context, opts UploadFileOptions) (map[st
 		return nil, fmt.Errorf("huggingface upload source must be a regular file")
 	}
 	if info.Size() > maxBytes {
-		return nil, fmt.Errorf("upload exceeds max_upload_mb (%d MB)", c.cfg.MaxUploadMB)
+		return nil, smallUploadLimitError(c.cfg.MaxUploadMB)
 	}
-	data, err := io.ReadAll(io.LimitReader(file, maxBytes+1))
+	revision := defaultString(opts.Revision, "main")
+	p := "/api/" + repoPlural(opts.RepoType) + "/" + strings.Trim(opts.RepoID, "/") + "/commit/" + revision
+	summaryJSON, err := json.Marshal(defaultString(opts.Message, "Upload file via AuraGo"))
 	if err != nil {
 		return nil, err
 	}
-	if int64(len(data)) > maxBytes {
-		return nil, fmt.Errorf("upload exceeds max_upload_mb (%d MB)", c.cfg.MaxUploadMB)
+	pathJSON, err := json.Marshal(strings.TrimLeft(opts.Path, "/"))
+	if err != nil {
+		return nil, err
 	}
-	revision := defaultString(opts.Revision, "main")
-	payload := map[string]interface{}{
-		"summary": defaultString(opts.Message, "Upload file via AuraGo"),
-		"files": []map[string]interface{}{{
-			"path":     strings.TrimLeft(opts.Path, "/"),
-			"content":  base64.StdEncoding.EncodeToString(data),
-			"encoding": "base64",
-		}},
+	reader, writer := io.Pipe()
+	writeDone := make(chan error, 1)
+	go func() {
+		defer file.Close()
+		_, writeErr := fmt.Fprintf(writer, `{"summary":%s,"files":[{"path":%s,"content":"`, summaryJSON, pathJSON)
+		if writeErr == nil {
+			encoder := base64.NewEncoder(base64.StdEncoding, writer)
+			var written int64
+			written, writeErr = io.Copy(encoder, io.LimitReader(file, maxBytes+1))
+			closeErr := encoder.Close()
+			if writeErr == nil {
+				writeErr = closeErr
+			}
+			if writeErr == nil && written > maxBytes {
+				writeErr = smallUploadLimitError(c.cfg.MaxUploadMB)
+			}
+		}
+		if writeErr == nil {
+			_, writeErr = io.WriteString(writer, `","encoding":"base64"}]}`)
+		}
+		_ = writer.CloseWithError(writeErr)
+		writeDone <- writeErr
+	}()
+	var out map[string]interface{}
+	requestErr := c.doJSONStream(ctx, http.MethodPost, c.cfg.HubBaseURL, p, reader, &out)
+	if requestErr != nil {
+		_ = reader.CloseWithError(requestErr)
 	}
-	p := "/api/" + repoPlural(opts.RepoType) + "/" + strings.Trim(opts.RepoID, "/") + "/commit/" + revision
-	return c.postHubMap(ctx, p, payload)
+	writeErr := <-writeDone
+	if requestErr != nil {
+		return nil, requestErr
+	}
+	if writeErr != nil {
+		return nil, writeErr
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *Client) CreateDiscussion(ctx context.Context, opts DiscussionOptions) (map[string]interface{}, error) {
@@ -512,7 +593,11 @@ func (c *Client) DeleteRepo(ctx context.Context, repoType, repoID string) (map[s
 	if err != nil {
 		return nil, err
 	}
-	payload := map[string]interface{}{"name": name, "type": defaultString(repoType, "model")}
+	normalizedType, err := repoSingular(repoType)
+	if err != nil {
+		return nil, err
+	}
+	payload := map[string]interface{}{"name": name, "type": normalizedType}
 	if namespace != "" {
 		payload["organization"] = namespace
 	}
@@ -734,6 +819,42 @@ func (c *Client) doJSON(ctx context.Context, method, baseURL, endpoint string, q
 	return nil
 }
 
+func (c *Client) doJSONStream(ctx context.Context, method, baseURL, endpoint string, body io.Reader, out interface{}) error {
+	u, err := buildURL(baseURL, endpoint, nil)
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequestWithContext(ctx, method, u, body)
+	if err != nil {
+		return err
+	}
+	c.decorate(req)
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return c.apiError(resp)
+	}
+	limited := io.LimitReader(resp.Body, int64(c.cfg.MaxResultBytes)+1)
+	data, err := io.ReadAll(limited)
+	if err != nil {
+		return err
+	}
+	if len(data) > c.cfg.MaxResultBytes {
+		return fmt.Errorf("huggingface response exceeds max_result_bytes (%d)", c.cfg.MaxResultBytes)
+	}
+	if len(bytes.TrimSpace(data)) == 0 || out == nil {
+		return nil
+	}
+	if err := json.Unmarshal(data, out); err != nil {
+		return fmt.Errorf("decode huggingface response: %w", err)
+	}
+	return nil
+}
+
 func (c *Client) decorate(req *http.Request) {
 	if c.cfg.Token != "" {
 		req.Header.Set("Authorization", "Bearer "+c.cfg.Token)
@@ -809,6 +930,26 @@ func repoPlural(repoType string) string {
 	default:
 		return "models"
 	}
+}
+
+func repoSingular(repoType string) (string, error) {
+	switch strings.ToLower(strings.TrimSpace(repoType)) {
+	case "", "model", "models":
+		return "model", nil
+	case "dataset", "datasets":
+		return "dataset", nil
+	case "space", "spaces":
+		return "space", nil
+	default:
+		return "", fmt.Errorf("unsupported huggingface repo_type %q; use model, dataset, or space", repoType)
+	}
+}
+
+func smallUploadLimitError(configuredMB int) error {
+	if configuredMB <= 0 || configuredMB > maxJSONUploadMB {
+		configuredMB = maxJSONUploadMB
+	}
+	return fmt.Errorf("upload exceeds max_upload_mb (%d MB); AuraGo supports only small JSON uploads and does not yet implement Hugging Face LFS/Xet uploads", configuredMB)
 }
 
 func repoResolvePrefix(repoType string) string {

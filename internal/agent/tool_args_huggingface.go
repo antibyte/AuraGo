@@ -40,6 +40,9 @@ func decodeHuggingFaceArgs(tc ToolCall) tools.HuggingFaceRequest {
 	if scheduled, ok := toolArgBool(tc.Params, "scheduled"); ok {
 		rows.Scheduled = scheduled
 	}
+	if injectToken, ok := toolArgBool(tc.Params, "inject_token"); ok {
+		rows.InjectToken = injectToken
+	}
 	rows.Schedule = toolArgString(tc.Params, "schedule", "cron")
 	if raw := toolArgJSONInterfaceMap(tc.Params, "env"); raw != nil {
 		rows.Env = make(map[string]string, len(raw))

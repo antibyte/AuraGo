@@ -795,9 +795,10 @@ func Load(path string) (*Config, error) {
 	cfg.HuggingFace.AllowDelete = false
 	cfg.HuggingFace.AllowJobs = false
 	cfg.HuggingFace.AllowScheduledJobs = false
+	cfg.HuggingFace.AllowJobTokenInjection = false
 	cfg.HuggingFace.AllowedHardware = []string{"cpu-basic"}
 	cfg.HuggingFace.MaxDownloadMB = 512
-	cfg.HuggingFace.MaxUploadMB = 512
+	cfg.HuggingFace.MaxUploadMB = 10
 	cfg.HuggingFace.MaxDatasetRows = 100
 	cfg.HuggingFace.JobDefaultTimeoutMinutes = 30
 	cfg.HuggingFace.JobMaxRuntimeMinutes = 120
@@ -806,7 +807,6 @@ func Load(path string) (*Config, error) {
 	cfg.HuggingFace.HubBaseURL = "https://huggingface.co"
 	cfg.HuggingFace.DatasetBaseURL = "https://datasets-server.huggingface.co"
 	cfg.HuggingFace.JobsBaseURL = "https://huggingface.co/api/jobs"
-	cfg.HuggingFace.RouterBaseURL = "https://router.huggingface.co/v1"
 
 	// EvoMap defaults: disabled by default and read-only once enabled.
 	cfg.Evomap.Enabled = false
@@ -926,15 +926,14 @@ func Load(path string) (*Config, error) {
 		cfg.HuggingFace.JobsBaseURL = "https://huggingface.co/api/jobs"
 	}
 	cfg.HuggingFace.JobsBaseURL = strings.TrimRight(strings.TrimSpace(cfg.HuggingFace.JobsBaseURL), "/")
-	if strings.TrimSpace(cfg.HuggingFace.RouterBaseURL) == "" {
-		cfg.HuggingFace.RouterBaseURL = "https://router.huggingface.co/v1"
-	}
-	cfg.HuggingFace.RouterBaseURL = strings.TrimRight(strings.TrimSpace(cfg.HuggingFace.RouterBaseURL), "/")
 	if cfg.HuggingFace.MaxDownloadMB <= 0 {
 		cfg.HuggingFace.MaxDownloadMB = 512
 	}
 	if cfg.HuggingFace.MaxUploadMB <= 0 {
-		cfg.HuggingFace.MaxUploadMB = 512
+		cfg.HuggingFace.MaxUploadMB = 10
+	}
+	if cfg.HuggingFace.MaxUploadMB > 10 {
+		cfg.HuggingFace.MaxUploadMB = 10
 	}
 	if cfg.HuggingFace.MaxDatasetRows <= 0 {
 		cfg.HuggingFace.MaxDatasetRows = 100
@@ -951,6 +950,7 @@ func Load(path string) (*Config, error) {
 	if cfg.HuggingFace.MaxResultBytes <= 0 {
 		cfg.HuggingFace.MaxResultBytes = 524288
 	}
+	cfg.HuggingFace.JobNamespace = strings.TrimSpace(cfg.HuggingFace.JobNamespace)
 	if len(cfg.HuggingFace.AllowedHardware) == 0 {
 		cfg.HuggingFace.AllowedHardware = []string{"cpu-basic"}
 	}
@@ -2591,6 +2591,7 @@ func (c *Config) Save(path string) error {
 		{[]string{"huggingface", "allow_delete"}, c.HuggingFace.AllowDelete},
 		{[]string{"huggingface", "allow_jobs"}, c.HuggingFace.AllowJobs},
 		{[]string{"huggingface", "allow_scheduled_jobs"}, c.HuggingFace.AllowScheduledJobs},
+		{[]string{"huggingface", "allow_job_token_injection"}, c.HuggingFace.AllowJobTokenInjection},
 		{[]string{"huggingface", "allowed_namespaces"}, c.HuggingFace.AllowedNamespaces},
 		{[]string{"huggingface", "allowed_repos"}, c.HuggingFace.AllowedRepos},
 		{[]string{"huggingface", "allowed_hardware"}, c.HuggingFace.AllowedHardware},
@@ -2604,7 +2605,7 @@ func (c *Config) Save(path string) error {
 		{[]string{"huggingface", "hub_base_url"}, c.HuggingFace.HubBaseURL},
 		{[]string{"huggingface", "dataset_base_url"}, c.HuggingFace.DatasetBaseURL},
 		{[]string{"huggingface", "jobs_base_url"}, c.HuggingFace.JobsBaseURL},
-		{[]string{"huggingface", "router_base_url"}, c.HuggingFace.RouterBaseURL},
+		{[]string{"huggingface", "job_namespace"}, c.HuggingFace.JobNamespace},
 		{[]string{"frigate", "enabled"}, c.Frigate.Enabled},
 		{[]string{"frigate", "readonly"}, c.Frigate.ReadOnly},
 		{[]string{"frigate", "url"}, c.Frigate.URL},
