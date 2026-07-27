@@ -44,6 +44,9 @@ func setupEnvEchoSkill(t *testing.T) string {
 	executable := "run.sh"
 	script := `#!/usr/bin/env bash
 set -euo pipefail
+# Skills receive their JSON arguments on stdin. Consume them before exiting so
+# the fixture follows the execution contract even when the race detector is slow.
+cat >/dev/null
 if [[ -n "${AURAGO_MASTER_KEY:-}" || -n "${OPENAI_API_KEY:-}" || -n "${CUSTOM_PASSWORD:-}" ]]; then
   echo leaked
   exit 0
@@ -56,7 +59,10 @@ fi
 `
 	if runtime.GOOS == "windows" {
 		executable = "run.ps1"
-		script = `if ($env:AURAGO_MASTER_KEY -or $env:OPENAI_API_KEY -or $env:CUSTOM_PASSWORD) {
+		script = `# Skills receive their JSON arguments on stdin. Consume them before exiting so
+# the fixture follows the execution contract even when the race detector is slow.
+[Console]::In.ReadToEnd() | Out-Null
+if ($env:AURAGO_MASTER_KEY -or $env:OPENAI_API_KEY -or $env:CUSTOM_PASSWORD) {
   Write-Output "leaked"
   exit 0
 }
