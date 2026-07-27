@@ -46,7 +46,7 @@ func setupEnvEchoSkill(t *testing.T) string {
 set -euo pipefail
 # Skills receive their JSON arguments on stdin. Consume them before exiting so
 # the fixture follows the execution contract even when the race detector is slow.
-cat >/dev/null
+IFS= read -r _skill_input || true
 if [[ -n "${AURAGO_MASTER_KEY:-}" || -n "${OPENAI_API_KEY:-}" || -n "${CUSTOM_PASSWORD:-}" ]]; then
   echo leaked
   exit 0
