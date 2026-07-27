@@ -28,7 +28,11 @@ The **Network Cameras** app combines a five-second snapshot grid with one select
 
 Administrators can enable the managed sidecar, discover ONVIF cameras, add a known local ONVIF address, or enter a supported stream URL. Other users with `go2rtc.view` see enabled cameras only. Camera management remains administrator-only.
 
-Automatic ONVIF discovery is capability gated. AuraGo sends one bounded WS-Discovery probe per suitable private IPv4 interface only when `Runtime.BroadcastOK` is available. A normal Docker bridge does not provide that capability, so the app offers manual IP and stream-URL setup without granting host networking or extra privileges. Discovery candidates and credential-bearing setup tokens are random, memory-only, limited, single-use, and expire after five minutes. A setup token is reserved during publication, released after any pre-publication failure, and consumed only after the desired configuration has been published. SOAP requests are limited to the responding private host, 20 seconds, and 1 MiB.
+Automatic ONVIF discovery is capability gated. AuraGo sends one bounded WS-Discovery probe per suitable private IPv4 interface only when `Runtime.BroadcastOK` is available. A normal Docker bridge does not provide reliable LAN multicast discovery, so the app offers manual IP and stream-URL setup without granting host networking or extra privileges.
+
+After AuraGo has selected and validated a concrete private camera IP, its bounded setup client queries ONVIF device information, the media service, media profiles, and snapshot capability directly. The returned profile data can include codec, resolution, frame rate, manufacturer, and model when the camera supplies them. Direct SOAP traffic never uses environment proxies, remains restricted to the selected private host, and does not expose credentials or source URLs to the browser. go2rtc receives only the selected Vault-backed source during normal runtime reconciliation.
+
+Discovery candidates and credential-bearing setup tokens are random, memory-only, limited, single-use, and expire after five minutes. A setup token is reserved during publication, released after any pre-publication failure, and consumed only after the desired configuration has been published.
 
 The app consumes these AuraGo-owned endpoints:
 
@@ -37,7 +41,11 @@ The app consumes these AuraGo-owned endpoints:
 - `POST /api/go2rtc/setup/enable`, `/api/go2rtc/discovery`, and `/api/go2rtc/discovery/profiles` for administrator setup
 - `POST /api/go2rtc/streams` plus `PATCH` or `DELETE /api/go2rtc/streams/{stream_id}` for administrator-managed streams
 
-The raw upstream `api/onvif` endpoint is always blocked, including when the optional administrator Web UI is enabled. It is never used for discovery or credentials.
+The profile response reports `probe_backend: "direct"`. It includes `snapshot_available` only when the camera explicitly returns a valid ONVIF snapshot-capability flag.
+
+The complete profile operation is limited to 20 seconds. Snapshot-capability detection is optional and receives at most five seconds within that budget. Every SOAP response is limited to 1 MiB.
+
+The raw upstream `api/onvif` endpoint remains blocked for browsers, agents, and the optional administrator Web UI, and AuraGo does not call it during setup. The pinned go2rtc 1.9.14 ONVIF client does not provide the request cancellation and per-camera response limits required at this trust boundary. Camera credentials and returned source URLs are never exposed through AuraGo's API.
 
 ### Mutation and recovery contract
 

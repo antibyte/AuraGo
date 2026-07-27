@@ -68,6 +68,7 @@
   "desktop.network_cameras.password": "Heslo",
   "desktop.network_cameras.profile": "Profil kamery",
   "desktop.network_cameras.profile_required": "Vyber profil kamery.",
+  "desktop.network_cameras.snapshot_available": "Kamera podporuje snímky.",
   "desktop.network_cameras.reconnect": "Znovu připojit",
   "desktop.network_cameras.refresh": "Obnovit",
   "desktop.network_cameras.replace_source": "Nahradit zdroj",

@@ -68,6 +68,7 @@
   "desktop.network_cameras.password": "パスワード",
   "desktop.network_cameras.profile": "カメラプロファイル",
   "desktop.network_cameras.profile_required": "カメラプロファイルを選択してください。",
+  "desktop.network_cameras.snapshot_available": "このカメラはスナップショットに対応しています。",
   "desktop.network_cameras.reconnect": "再接続",
   "desktop.network_cameras.refresh": "更新",
   "desktop.network_cameras.replace_source": "ソースを置換",

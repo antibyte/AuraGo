@@ -62,10 +62,12 @@ type ProfileRequest struct {
 
 // ProfileResult is safe to return to the setup client.
 type ProfileResult struct {
-	SetupToken string    `json:"setup_token"`
-	Name       string    `json:"name,omitempty"`
-	Model      string    `json:"model,omitempty"`
-	Profiles   []Profile `json:"profiles"`
+	SetupToken        string    `json:"setup_token"`
+	Name              string    `json:"name,omitempty"`
+	Model             string    `json:"model,omitempty"`
+	Profiles          []Profile `json:"profiles"`
+	ProbeBackend      string    `json:"probe_backend"`
+	SnapshotAvailable *bool     `json:"snapshot_available,omitempty"`
 }
 
 type discoveredDevice struct {
@@ -247,7 +249,8 @@ func (s *Service) Discover(ctx context.Context) ([]Candidate, error) {
 	return result, nil
 }
 
-// Profiles queries the minimal device/media SOAP surface and stores credentials only in memory.
+// Profiles queries the bounded device/media SOAP surface and stores
+// credentials only in memory.
 func (s *Service) Profiles(ctx context.Context, request ProfileRequest) (ProfileResult, error) {
 	if s == nil {
 		return ProfileResult{}, fmt.Errorf("ONVIF setup is unavailable")
@@ -281,14 +284,12 @@ func (s *Service) Profiles(ctx context.Context, request ProfileRequest) (Profile
 	if client == nil {
 		return ProfileResult{}, fmt.Errorf("ONVIF HTTP client is unavailable")
 	}
-	deviceInfo, err := queryDeviceInformation(ctx, client, endpoint, username, password)
-	if err == nil {
-		if name == "" {
-			name = deviceInfo.Name
-		}
-		if model == "" {
-			model = deviceInfo.Model
-		}
+	info, _ := queryDeviceInformation(ctx, client, endpoint, username, password)
+	if name == "" {
+		name = info.Name
+	}
+	if model == "" {
+		model = info.Model
 	}
 	mediaEndpoint, err := queryMediaEndpoint(ctx, client, endpoint, username, password)
 	if err != nil {
@@ -301,6 +302,12 @@ func (s *Service) Profiles(ctx context.Context, request ProfileRequest) (Profile
 	if len(profiles) == 0 {
 		return ProfileResult{}, fmt.Errorf("camera returned no usable ONVIF media profiles")
 	}
+	var snapshotAvailable *bool
+	snapshotCtx, cancelSnapshot := context.WithTimeout(ctx, 5*time.Second)
+	if available, capabilityErr := querySnapshotAvailability(snapshotCtx, client, mediaEndpoint, username, password); capabilityErr == nil {
+		snapshotAvailable = &available
+	}
+	cancelSnapshot()
 	token, err := randomToken()
 	if err != nil {
 		return ProfileResult{}, fmt.Errorf("create setup token: %w", err)
@@ -328,7 +335,10 @@ func (s *Service) Profiles(ctx context.Context, request ProfileRequest) (Profile
 			delete(s.setups, token)
 		}
 	})
-	return ProfileResult{SetupToken: token, Name: sanitizeLabel(name, 96), Model: sanitizeLabel(model, 96), Profiles: profiles}, nil
+	return ProfileResult{
+		SetupToken: token, Name: sanitizeLabel(name, 96), Model: sanitizeLabel(model, 96),
+		Profiles: profiles, ProbeBackend: "direct", SnapshotAvailable: snapshotAvailable,
+	}, nil
 }
 
 // Reserve validates and exclusively leases a setup token while its source is
@@ -693,6 +703,42 @@ func queryProfiles(ctx context.Context, client *http.Client, endpoint *url.URL, 
 		})
 	}
 	return profiles, nil
+}
+
+func querySnapshotAvailability(ctx context.Context, client *http.Client, endpoint *url.URL, username, password string) (bool, error) {
+	body := `<trt:GetServiceCapabilities xmlns:trt="http://www.onvif.org/ver10/media/wsdl"/>`
+	data, err := soapRequest(ctx, client, endpoint, username, password, "http://www.onvif.org/ver10/media/wsdl/GetServiceCapabilities", body)
+	if err != nil {
+		return false, err
+	}
+	decoder := xml.NewDecoder(bytes.NewReader(data))
+	for {
+		token, err := decoder.Token()
+		if errors.Is(err, io.EOF) {
+			return false, fmt.Errorf("camera returned no ONVIF snapshot capability")
+		}
+		if err != nil {
+			return false, fmt.Errorf("decode ONVIF snapshot capabilities")
+		}
+		start, ok := token.(xml.StartElement)
+		if !ok {
+			continue
+		}
+		for _, attribute := range start.Attr {
+			if !strings.EqualFold(attribute.Name.Local, "SnapshotUri") {
+				continue
+			}
+			value := strings.TrimSpace(attribute.Value)
+			switch {
+			case strings.EqualFold(value, "true") || value == "1":
+				return true, nil
+			case strings.EqualFold(value, "false") || value == "0":
+				return false, nil
+			default:
+				return false, fmt.Errorf("camera returned an invalid ONVIF snapshot capability")
+			}
+		}
+	}
 }
 
 func soapRequest(ctx context.Context, client *http.Client, endpoint *url.URL, username, password, action, body string) ([]byte, error) {

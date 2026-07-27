@@ -68,6 +68,7 @@
   "desktop.network_cameras.password": "Wachtwoord",
   "desktop.network_cameras.profile": "Cameraprofiel",
   "desktop.network_cameras.profile_required": "Kies een cameraprofiel.",
+  "desktop.network_cameras.snapshot_available": "De camera ondersteunt momentopnamen.",
   "desktop.network_cameras.reconnect": "Opnieuw verbinden",
   "desktop.network_cameras.refresh": "Vernieuwen",
   "desktop.network_cameras.replace_source": "Bron vervangen",

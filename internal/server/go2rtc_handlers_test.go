@@ -41,6 +41,7 @@ func TestGo2RTCProxyAllowlistBlocksMutationAndSensitiveAPIs(t *testing.T) {
 		{"api/config", http.MethodGet, true, false},
 		{"api/log", http.MethodGet, true, false},
 		{"api/onvif", http.MethodGet, true, false},
+		{"api/onvif", http.MethodGet, false, false},
 		{"add.html", http.MethodGet, true, false},
 		{"config.html", http.MethodGet, true, false},
 		{"log.html", http.MethodGet, true, false},
@@ -50,6 +51,84 @@ func TestGo2RTCProxyAllowlistBlocksMutationAndSensitiveAPIs(t *testing.T) {
 	} {
 		if got := go2RTCProxyPathAllowed(test.path, test.method, test.adminUI); got != test.allowed {
 			t.Fatalf("go2RTCProxyPathAllowed(%q, %q, %t) = %t, want %t", test.path, test.method, test.adminUI, got, test.allowed)
+		}
+	}
+}
+
+func TestGo2RTCProxyNeverPublishesRawONVIFEndpoint(t *testing.T) {
+	upstreamCalls := 0
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		upstreamCalls++
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer upstream.Close()
+	parsed, _ := url.Parse(upstream.URL)
+	port, _ := strconv.Atoi(parsed.Port())
+
+	for _, webUIEnabled := range []bool{false, true} {
+		cfg := &config.Config{}
+		cfg.Go2RTC = config.Go2RTCConfig{
+			Enabled: true, WebUIEnabled: webUIEnabled, URL: upstream.URL,
+			APIHostPort: port, APIPassword: "internal-password",
+		}
+		server := &Server{Cfg: cfg, Go2RTC: tools.NewGo2RTCManager(cfg, nil, nil, nil)}
+		request := httptest.NewRequest(http.MethodGet, "http://aurago.local/api/go2rtc/proxy/api/onvif", nil)
+		request.Host = "aurago.local"
+		recorder := httptest.NewRecorder()
+		handleGo2RTCProxy(server).ServeHTTP(recorder, request)
+		if recorder.Code != http.StatusNotFound {
+			t.Fatalf("web_ui=%t status=%d, want 404; body=%s", webUIEnabled, recorder.Code, recorder.Body.String())
+		}
+	}
+	if upstreamCalls != 0 {
+		t.Fatalf("raw ONVIF proxy reached upstream %d times", upstreamCalls)
+	}
+}
+
+func TestGo2RTCDiscoveryProfilesReturnsBoundedProbeMetadataWithoutSecrets(t *testing.T) {
+	service := onvif.NewService(true)
+	service.SetHTTPClient(&http.Client{Transport: go2RTCRoundTripFunc(func(request *http.Request) (*http.Response, error) {
+		body, _ := io.ReadAll(request.Body)
+		text := string(body)
+		response := `<Envelope><Body><GetDeviceInformationResponse><Manufacturer>Acme</Manufacturer><Model>TestCam</Model></GetDeviceInformationResponse></Body></Envelope>`
+		switch {
+		case strings.Contains(text, "GetCapabilities"):
+			response = `<Envelope><Body><GetCapabilitiesResponse><Capabilities><Media><XAddr>http://192.168.20.30/onvif/media_service</XAddr></Media></Capabilities></GetCapabilitiesResponse></Body></Envelope>`
+		case strings.Contains(text, "GetProfiles"):
+			response = `<Envelope><Body><GetProfilesResponse><Profiles token="profile-main"><Name>Main stream</Name><VideoEncoderConfiguration><Encoding>H264</Encoding></VideoEncoderConfiguration></Profiles></GetProfilesResponse></Body></Envelope>`
+		case strings.Contains(text, "GetServiceCapabilities"):
+			response = `<Envelope><Body><GetServiceCapabilitiesResponse><Capabilities SnapshotUri="true"/></GetServiceCapabilitiesResponse></Body></Envelope>`
+		}
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     make(http.Header),
+			Body:       io.NopCloser(strings.NewReader(response)),
+		}, nil
+	})})
+	server := &Server{Go2RTCDiscovery: service}
+	body := `{"address":"192.168.20.30","username":"camera-user","password":"camera-password"}`
+	request := httptest.NewRequest(http.MethodPost, "http://aurago.local/api/go2rtc/discovery/profiles", strings.NewReader(body))
+	request.Host = "aurago.local"
+	recorder := httptest.NewRecorder()
+	handleGo2RTCDiscoveryProfiles(server).ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("profile status = %d, want 200; body=%s", recorder.Code, recorder.Body.String())
+	}
+	var result struct {
+		ProbeBackend      string          `json:"probe_backend"`
+		SnapshotAvailable *bool           `json:"snapshot_available"`
+		Profiles          []onvif.Profile `json:"profiles"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &result); err != nil {
+		t.Fatalf("decode profile response: %v", err)
+	}
+	if result.ProbeBackend != "direct" || result.SnapshotAvailable == nil || !*result.SnapshotAvailable ||
+		len(result.Profiles) != 1 || result.Profiles[0].ID != "profile-main" {
+		t.Fatalf("unexpected profile response: %#v", result)
+	}
+	for _, secret := range []string{"camera-user", "camera-password", "192.168.20.30", "onvif://"} {
+		if strings.Contains(recorder.Body.String(), secret) {
+			t.Fatalf("profile response leaked %q: %s", secret, recorder.Body.String())
 		}
 	}
 }

@@ -302,6 +302,8 @@
 .nc-form select option { background: #111827; }
 .nc-form .nc-check { align-items: center; display: flex; gap: 8px; }
 .nc-form .nc-check input { height: 16px; width: 16px; }
+.nc-probe-notice { border: 1px solid var(--nc-border); border-radius: 8px; font-size: 11px; line-height: 1.45; padding: 9px 10px; }
+.nc-probe-notice.is-success { background: color-mix(in srgb, #34d399 10%, transparent); border-color: color-mix(in srgb, #34d399 30%, var(--nc-border)); color: #a7f3d0; }
 
 @media (max-width: 880px) {
     .nc-toolbar { grid-template-columns: 1fr auto; }

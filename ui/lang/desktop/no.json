@@ -68,6 +68,7 @@
   "desktop.network_cameras.password": "Passord",
   "desktop.network_cameras.profile": "Kameraprofil",
   "desktop.network_cameras.profile_required": "Velg en kameraprofil.",
+  "desktop.network_cameras.snapshot_available": "Kameraet støtter øyeblikksbilder.",
   "desktop.network_cameras.reconnect": "Koble til igjen",
   "desktop.network_cameras.refresh": "Oppdater",
   "desktop.network_cameras.replace_source": "Bytt kilde",

@@ -68,6 +68,7 @@
   "desktop.network_cameras.password": "Lösenord",
   "desktop.network_cameras.profile": "Kameraprofil",
   "desktop.network_cameras.profile_required": "Välj en kameraprofil.",
+  "desktop.network_cameras.snapshot_available": "Kameran stöder ögonblicksbilder.",
   "desktop.network_cameras.reconnect": "Anslut igen",
   "desktop.network_cameras.refresh": "Uppdatera",
   "desktop.network_cameras.replace_source": "Byt källa",

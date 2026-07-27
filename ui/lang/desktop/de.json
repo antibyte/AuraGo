@@ -68,6 +68,7 @@
   "desktop.network_cameras.password": "Passwort",
   "desktop.network_cameras.profile": "Kameraprofil",
   "desktop.network_cameras.profile_required": "Wähle ein Kameraprofil aus.",
+  "desktop.network_cameras.snapshot_available": "Die Kamera unterstützt Snapshots.",
   "desktop.network_cameras.reconnect": "Neu verbinden",
   "desktop.network_cameras.refresh": "Aktualisieren",
   "desktop.network_cameras.replace_source": "Quelle ersetzen",

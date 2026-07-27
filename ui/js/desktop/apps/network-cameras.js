@@ -392,7 +392,7 @@
     }
 
     function openSetupModal(state) {
-        state.modal = { type: 'setup', step: 1, method: '', candidates: [], selectedCandidate: '', address: '', username: '', password: '', profiles: [], setupToken: '', profileID: '', name: '', id: '', source: '', busy: false, error: '' };
+        state.modal = { type: 'setup', step: 1, method: '', candidates: [], selectedCandidate: '', address: '', username: '', password: '', profiles: [], setupToken: '', profileID: '', snapshotAvailable: null, name: '', id: '', source: '', busy: false, error: '' };
         drawModal(state);
     }
 
@@ -416,7 +416,11 @@
             const candidate = modal.method === 'discover' ? '<label>' + ctx.esc(text(ctx, 'device')) + '<select data-field="selectedCandidate"><option value="">' + ctx.esc(text(ctx, 'choose_device')) + '</option>' + modal.candidates.map(item => '<option value="' + ctx.esc(item.id) + '" ' + (item.id === modal.selectedCandidate ? 'selected' : '') + '>' + ctx.esc(item.name + ' · ' + item.ip + ':' + item.port) + '</option>').join('') + '</select></label>' : '<label>' + ctx.esc(text(ctx, 'onvif_address')) + '<input data-field="address" value="' + ctx.esc(modal.address) + '" placeholder="192.168.1.20"></label>';
             return '<div class="nc-form">' + candidate + '<div class="nc-form-row"><label>' + ctx.esc(text(ctx, 'username')) + '<input data-field="username" autocomplete="username" value="' + ctx.esc(modal.username) + '"></label><label>' + ctx.esc(text(ctx, 'password')) + '<input data-field="password" type="password" autocomplete="new-password" value=""></label></div></div>';
         }
-        if (modal.step === 3) return '<div class="nc-form"><label>' + ctx.esc(text(ctx, 'profile')) + '<select data-field="profileID">' + modal.profiles.map(profile => '<option value="' + ctx.esc(profile.id) + '" ' + (profile.id === modal.profileID ? 'selected' : '') + '>' + ctx.esc(profile.name + profileSummary(profile)) + '</option>').join('') + '</select></label></div>';
+        if (modal.step === 3) {
+            const notices = [];
+            if (modal.snapshotAvailable === true) notices.push('<div class="nc-probe-notice is-success">' + ctx.esc(text(ctx, 'snapshot_available')) + '</div>');
+            return '<div class="nc-form"><label>' + ctx.esc(text(ctx, 'profile')) + '<select data-field="profileID">' + modal.profiles.map(profile => '<option value="' + ctx.esc(profile.id) + '" ' + (profile.id === modal.profileID ? 'selected' : '') + '>' + ctx.esc(profile.name + profileSummary(profile)) + '</option>').join('') + '</select></label>' + notices.join('') + '</div>';
+        }
         return '<div class="nc-form"><div class="nc-form-row"><label>' + ctx.esc(text(ctx, 'camera_name')) + '<input data-field="name" value="' + ctx.esc(modal.name) + '" placeholder="' + ctx.esc(text(ctx, 'camera_name_placeholder')) + '"></label><label>' + ctx.esc(text(ctx, 'stream_id')) + '<input data-field="id" value="' + ctx.esc(modal.id) + '" placeholder="front-door"></label></div>' + (modal.method === 'url' ? '<label>' + ctx.esc(text(ctx, 'stream_url')) + '<input data-field="source" type="password" autocomplete="off" value="' + ctx.esc(modal.source) + '" placeholder="rtsp://…"></label>' : '') + '</div>';
     }
 
@@ -504,6 +508,7 @@
                 modal.setupToken = result.setup_token;
                 modal.profiles = result.profiles || [];
                 modal.profileID = modal.profiles[0] ? modal.profiles[0].id : '';
+                modal.snapshotAvailable = typeof result.snapshot_available === 'boolean' ? result.snapshot_available : null;
                 modal.name = modal.name || result.name || result.model || '';
                 modal.step = 3;
             } catch (error) {

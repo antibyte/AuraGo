@@ -57,11 +57,14 @@ func TestProfilesUseUsernameTokenAndSetupTokenIsSingleUse(t *testing.T) {
 	if len(result.Profiles) != 1 || result.Profiles[0].Codec != "H264" || result.Profiles[0].Width != 1920 {
 		t.Fatalf("unexpected profiles: %#v", result.Profiles)
 	}
+	if result.ProbeBackend != "direct" || result.SnapshotAvailable == nil || !*result.SnapshotAvailable {
+		t.Fatalf("unexpected probe metadata: %#v", result)
+	}
 	transport.mu.Lock()
 	requests := append([]string(nil), transport.requests...)
 	transport.mu.Unlock()
-	if len(requests) != 3 {
-		t.Fatalf("SOAP request count = %d, want 3", len(requests))
+	if len(requests) != 4 {
+		t.Fatalf("SOAP request count = %d, want 4", len(requests))
 	}
 	for _, request := range requests {
 		if !strings.Contains(request, "PasswordDigest") || !strings.Contains(request, "camera-user") {
@@ -93,6 +96,64 @@ func TestProfilesUseUsernameTokenAndSetupTokenIsSingleUse(t *testing.T) {
 	reservation.Commit()
 	if _, err := service.Reserve(result.SetupToken, result.Profiles[0].ID); err == nil {
 		t.Fatal("setup token replay unexpectedly succeeded")
+	}
+}
+
+func TestProfilesOmitSnapshotAvailabilityWhenCapabilityQueryFails(t *testing.T) {
+	service := NewService(true)
+	service.SetHTTPClient(&http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
+		body, _ := io.ReadAll(request.Body)
+		text := string(body)
+		if strings.Contains(text, "GetServiceCapabilities") {
+			return nil, fmt.Errorf("capability lookup unavailable")
+		}
+		request.Body = io.NopCloser(strings.NewReader(text))
+		return (&soapRoundTripper{}).RoundTrip(request)
+	}), Timeout: time.Second})
+
+	result, err := service.Profiles(context.Background(), ProfileRequest{
+		Address:  "http://192.168.20.30/onvif/device_service",
+		Username: "camera-user", Password: "camera-password",
+	})
+	if err != nil {
+		t.Fatalf("Profiles: %v", err)
+	}
+	if result.ProbeBackend != "direct" || result.SnapshotAvailable != nil {
+		t.Fatalf("unexpected probe metadata: %#v", result)
+	}
+	if len(result.Profiles) != 1 || result.Profiles[0].ID != "profile-main" ||
+		result.Profiles[0].Codec != "H264" {
+		t.Fatalf("unexpected profiles: %#v", result.Profiles)
+	}
+}
+
+func TestQuerySnapshotAvailabilityRequiresExplicitBooleanCapability(t *testing.T) {
+	endpoint, _ := url.Parse("http://192.168.20.30/onvif/media_service")
+	for _, test := range []struct {
+		name       string
+		capability string
+		want       bool
+		wantErr    bool
+	}{
+		{name: "true", capability: `SnapshotUri="true"`, want: true},
+		{name: "one", capability: `SnapshotUri="1"`, want: true},
+		{name: "false", capability: `SnapshotUri="false"`, want: false},
+		{name: "zero", capability: `SnapshotUri="0"`, want: false},
+		{name: "missing", wantErr: true},
+		{name: "invalid", capability: `SnapshotUri="yes"`, wantErr: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			client := &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+				return soapResponse(`<Envelope><Body><GetServiceCapabilitiesResponse><Capabilities ` + test.capability + `/></GetServiceCapabilitiesResponse></Body></Envelope>`), nil
+			})}
+			got, err := querySnapshotAvailability(context.Background(), client, endpoint, "", "")
+			if (err != nil) != test.wantErr {
+				t.Fatalf("querySnapshotAvailability error = %v, wantErr %t", err, test.wantErr)
+			}
+			if err == nil && got != test.want {
+				t.Fatalf("querySnapshotAvailability = %t, want %t", got, test.want)
+			}
+		})
 	}
 }
 
@@ -201,6 +262,9 @@ func (transport *soapRoundTripper) RoundTrip(request *http.Request) (*http.Respo
 	}
 	if strings.Contains(text, "GetProfiles") {
 		response = `<Envelope><Body><GetProfilesResponse><Profiles token="profile-main"><Name>Main stream</Name><VideoEncoderConfiguration><Encoding>H264</Encoding><Resolution><Width>1920</Width><Height>1080</Height></Resolution><RateControl><FrameRateLimit>25</FrameRateLimit></RateControl></VideoEncoderConfiguration></Profiles></GetProfilesResponse></Body></Envelope>`
+	}
+	if strings.Contains(text, "GetServiceCapabilities") {
+		response = `<Envelope><Body><GetServiceCapabilitiesResponse><Capabilities SnapshotUri="true"/></GetServiceCapabilitiesResponse></Body></Envelope>`
 	}
 	return soapResponse(response), nil
 }

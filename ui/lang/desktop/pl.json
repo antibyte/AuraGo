@@ -68,6 +68,7 @@
   "desktop.network_cameras.password": "Hasło",
   "desktop.network_cameras.profile": "Profil kamery",
   "desktop.network_cameras.profile_required": "Wybierz profil kamery.",
+  "desktop.network_cameras.snapshot_available": "Kamera obsługuje migawki.",
   "desktop.network_cameras.reconnect": "Połącz ponownie",
   "desktop.network_cameras.refresh": "Odśwież",
   "desktop.network_cameras.replace_source": "Zastąp źródło",

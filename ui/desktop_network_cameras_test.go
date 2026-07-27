@@ -19,6 +19,9 @@ func TestDesktopNetworkCamerasInteractionContracts(t *testing.T) {
 		"if (ids.length >= 4) break",
 		"const liveGrid = state.mode === 'live'",
 		"(liveGrid ? '' : detailMarkup(state))",
+		"result.snapshot_available",
+		"modal.password = '';",
+		"text(ctx, 'snapshot_available')",
 	} {
 		if !strings.Contains(source, marker) {
 			t.Fatalf("network-cameras.js missing interaction contract %q", marker)
@@ -38,6 +41,7 @@ func TestDesktopNetworkCamerasStylesExposeProgressAndLiveGrid(t *testing.T) {
 		".nc-card-admin-actions",
 		".nc-discovery-progress",
 		".nc-spinner.is-small",
+		".nc-probe-notice.is-success",
 	} {
 		if !strings.Contains(styles, marker) {
 			t.Fatalf("network camera styles missing %q", marker)

@@ -68,6 +68,7 @@
   "desktop.network_cameras.password": "Mot de passe",
   "desktop.network_cameras.profile": "Profil de caméra",
   "desktop.network_cameras.profile_required": "Choisis un profil de caméra.",
+  "desktop.network_cameras.snapshot_available": "La caméra prend en charge les instantanés.",
   "desktop.network_cameras.reconnect": "Reconnecter",
   "desktop.network_cameras.refresh": "Actualiser",
   "desktop.network_cameras.replace_source": "Remplacer la source",

@@ -68,6 +68,7 @@
   "desktop.network_cameras.password": "Palavra-passe",
   "desktop.network_cameras.profile": "Perfil da câmara",
   "desktop.network_cameras.profile_required": "Escolhe um perfil de câmara.",
+  "desktop.network_cameras.snapshot_available": "A câmara suporta capturas instantâneas.",
   "desktop.network_cameras.reconnect": "Voltar a ligar",
   "desktop.network_cameras.refresh": "Atualizar",
   "desktop.network_cameras.replace_source": "Substituir origem",
