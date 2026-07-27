@@ -1,0 +1,59 @@
+{
+  "schema_version": "1",
+  "selection_policy": {
+    "maximum_parameters_billions": 3.1,
+    "minimum_improvement_percentage_points": 10,
+    "tie_breaker": "smaller_model",
+    "seeds_for_finalists": [
+      42,
+      3407,
+      2026
+    ]
+  },
+  "candidates": [
+    {
+      "id": "google/functiongemma-270m-it",
+      "family": "functiongemma",
+      "parameters_billions": 0.27,
+      "license": "gemma",
+      "license_review": "required",
+      "gated": true,
+      "tool_calling": true,
+      "unsloth_family_supported": true,
+      "gguf_export": true
+    },
+    {
+      "id": "LiquidAI/LFM2.5-1.2B-Instruct",
+      "family": "lfm2.5",
+      "parameters_billions": 1.2,
+      "license": "custom",
+      "license_review": "required",
+      "gated": false,
+      "tool_calling": true,
+      "unsloth_family_supported": true,
+      "gguf_export": true
+    },
+    {
+      "id": "Qwen/Qwen3-1.7B",
+      "family": "qwen3",
+      "parameters_billions": 1.7,
+      "license": "apache-2.0",
+      "license_review": "approved",
+      "gated": false,
+      "tool_calling": true,
+      "unsloth_family_supported": true,
+      "gguf_export": true
+    },
+    {
+      "id": "HuggingFaceTB/SmolLM3-3B",
+      "family": "smollm3",
+      "parameters_billions": 3.0,
+      "license": "apache-2.0",
+      "license_review": "approved",
+      "gated": false,
+      "tool_calling": true,
+      "unsloth_family_supported": true,
+      "gguf_export": true
+    }
+  ]
+}

@@ -16,6 +16,7 @@
 METRICS_DASHBOARD_DATA_SOURCES.md
 # Lock files (runtime)
 *.lock
+!/training/uv.lock
 
 # Deploy output
 /deploy/*
@@ -138,6 +139,18 @@ CLAUDE.md
 .github/
 .planning/
 disposable/
+# Versioned training-pipeline exceptions.
+!/.github/
+/.github/*
+!/.github/workflows/
+/.github/workflows/*
+!/.github/workflows/training-dataset.yml
+!/disposable/
+/disposable/*
+!/disposable/export_tools/
+!/disposable/export_tools/**
+!/disposable/import_training_traces/
+!/disposable/import_training_traces/**
 disposable/linux
 macos
 windows

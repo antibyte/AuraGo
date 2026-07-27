@@ -1,0 +1,18 @@
+# Locked installs should use:
+#   uv sync --project training --frozen
+#
+# This pip-compatible file pins the direct training dependencies. Transitive
+# versions are fixed by training/uv.lock.
+accelerate==1.14.0
+bitsandbytes==0.50.0
+datasets==4.3.0
+huggingface-hub==0.36.2
+jsonschema==4.26.0
+peft==0.18.1
+protobuf==6.33.6
+sentencepiece==0.2.2
+torch==2.11.0
+trackio==0.20.2
+transformers==4.57.6
+trl==0.24.0
+unsloth==2026.7.5

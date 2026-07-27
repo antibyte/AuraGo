@@ -1,0 +1,71 @@
+name: Training Dataset Gates
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "disposable/export_tools/**"
+      - "disposable/import_training_traces/**"
+      - "internal/agent/native_tools*.go"
+      - "prompts/tools_manuals/**"
+      - "training/**"
+      - ".github/workflows/training-dataset.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "disposable/export_tools/**"
+      - "disposable/import_training_traces/**"
+      - "internal/agent/native_tools*.go"
+      - "prompts/tools_manuals/**"
+      - "training/**"
+      - ".github/workflows/training-dataset.yml"
+  workflow_dispatch:
+
+jobs:
+  validate:
+    name: Regeneration, contracts, privacy, and loaders
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: training/requirements.txt
+
+      - name: Install CPU validation dependencies
+        run: python -m pip install jsonschema==4.26.0
+
+      - name: Test exporter and explicit trace importer
+        run: go test ./disposable/export_tools ./disposable/import_training_traces
+
+      - name: Reject generated artifact drift
+        run: go run ./disposable/export_tools --out training --check
+
+      - name: Validate datasets, contracts, splits, hashes, and secret patterns
+        run: python training/validate_dataset.py --all
+
+      - name: Test loaders, templates, masking preconditions, and evaluation
+        run: python -m unittest training.test_training_pipeline
+
+      - name: Check Python syntax without loading CUDA
+        run: >-
+          python -m py_compile
+          training/validate_dataset.py
+          training/evaluate_tool_calls.py
+          training/preflight_models.py
+          training/train_unsloth.py

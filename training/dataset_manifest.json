@@ -1,0 +1,45 @@
+{
+  "schema_version": "2.0",
+  "scenario_count": 5000,
+  "challenge_count": 404,
+  "tool_count": 202,
+  "operation_count": 1041,
+  "language_counts": {
+    "de": 3000,
+    "en": 2000
+  },
+  "kind_counts": {
+    "clarification": 100,
+    "direct_success": 2250,
+    "disabled": 100,
+    "discover_invoke": 500,
+    "irrelevant": 100,
+    "missing_parameters": 100,
+    "multi_call": 1000,
+    "safety_refusal": 100,
+    "tool_error": 375,
+    "tool_recovery": 375
+  },
+  "split_counts": {
+    "test": 547,
+    "train": 3944,
+    "validation": 509
+  },
+  "sha256": {
+    "dataset_alpaca.jsonl": "bf3861aaba78aca10cfa1074c3e35add325d0ca9977dcabdf0f6ba4e079d7b83",
+    "dataset_challenge_native_fc.jsonl": "d4746654fd8b3dda707ef70ada19ccf440c4e1f81ec8dc81236dbcba02bc8877",
+    "dataset_chatml.jsonl": "7cc0b901915e78a1f114e35fa2743b1a043c36e52999cc39091641da5ec5ac92",
+    "dataset_native_fc.jsonl": "7cc0b901915e78a1f114e35fa2743b1a043c36e52999cc39091641da5ec5ac92",
+    "dataset_native_fc_test.jsonl": "d3b69fe1180b22596b965a47e78fcb9fdcfaa66eb06f968b227540f7150ba8ed",
+    "dataset_native_fc_train.jsonl": "605c453dd9510d85df7344acb08c53e30a7274d66381fc9798f40f83494815f7",
+    "dataset_native_fc_validation.jsonl": "1321fdcf76fd2b02521155a1b97478aea50a967f8a4aab11b61fcab981b8c6b6",
+    "dataset_sharegpt.jsonl": "6add61ba91ea8c903b95ce2548677ad3cdf6af730fd87d13b4c9e530c02f5ebf",
+    "dataset_tagged_fc.jsonl": "40cde68ab1b8243046e84aea838b02099a0aa6feeeb387f792037fb2778e6564",
+    "dataset_tagged_fc_test.jsonl": "c36c8e3c65f2b51b0a9432c7e0fe74deddb933c6a32943b45be45e5737dab32e",
+    "dataset_tagged_fc_train.jsonl": "ae8ee65eaf63a66caf79dcdd2d291e5d7988e2f5625c0060e0bc455c11a8fafe",
+    "dataset_tagged_fc_validation.jsonl": "2a3ff3fd3a2c7c841018048f87ef75da59998ed4ca6d56360ae31cfd074c7782",
+    "tools_catalog.json": "a4e84f291abfd10b440ea2a7119dd2f9fd1e578e6844fd2e638c8c7f29abd8e2",
+    "tools_catalog.md": "cbc7a3f47d851240b5542f2cd7364fa20b0269123dbb65df91440cf191f15232",
+    "tools_list_compact.json": "8f9dec5bc3ed566c1828473979f26850dd0f7615833bf57d85962c54721f85ea"
+  }
+}

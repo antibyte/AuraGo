@@ -1,0 +1,46 @@
+# Local Unsloth / fine-tune run artifacts (never commit models or caches)
+outputs/
+checkpoints/
+runs/
+wandb/
+lightning_logs/
+.cache/
+hf_cache/
+unsloth_compiled_cache/
+
+# Python env for training
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Model weights & adapters
+*.safetensors
+*.bin
+*.pt
+*.pth
+*.gguf
+*.ggml
+*.onnx
+adapter_model.*
+lora_model/
+merged_model/
+
+# Large optional regenerations / logs
+*.log
+train_state.json
+trainer_state.json
+events.out.tfevents.*
+model_preflight_report.json
+trace_staging/
+predictions/
+evaluation_reports/
+
+# Keep datasets and catalogs under version control by default.
+# Uncomment the next block if you prefer not to commit generated JSONL:
+# dataset_*.jsonl
+# tools_catalog.json
+# tools_catalog.md
+# tools_list_compact.json
