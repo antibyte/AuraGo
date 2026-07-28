@@ -37,7 +37,8 @@
                     settingSelect('desktop.icon_size', 'desktop.settings_icon_size', 'desktop.settings_icon_size_desc', [
                         ['small', 'desktop.settings_icon_size_small'], ['medium', 'desktop.settings_icon_size_medium'], ['large', 'desktop.settings_icon_size_large']
                     ]),
-                    settingToggle('desktop.show_widgets', 'desktop.settings_show_widgets', 'desktop.settings_show_widgets_desc')
+                    settingToggle('desktop.show_widgets', 'desktop.settings_show_widgets', 'desktop.settings_show_widgets_desc'),
+                    settingToggle('phone_gadget.enabled', 'desktop.settings_phone_gadget', 'desktop.settings_phone_gadget_desc')
                 ]
             },
             {

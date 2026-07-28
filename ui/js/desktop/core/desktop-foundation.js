@@ -284,7 +284,12 @@
         'pet.scale': '1.0',
         'pet.position_x': '24',
         'pet.position_y': '24',
-        'pet.always_on_top': 'false'
+        'pet.always_on_top': 'false',
+        // Floating SIP phone gadget (windowless phone on the desktop)
+        'phone_gadget.enabled': 'false',
+        'phone_gadget.position_x': '',
+        'phone_gadget.position_y': '',
+        'phone_gadget.always_on_top': 'false'
     };
 
     function $(id) {
@@ -600,6 +605,7 @@
         refreshThemeIconElements(document);
         const agentButton = $('vd-agent-button');
         if (agentButton) agentButton.hidden = !settingBool('agent.show_chat_button');
+        if (window.SipPhoneGadget && typeof window.SipPhoneGadget.sync === 'function') window.SipPhoneGadget.sync();
         renderTaskbar();
     }
 

@@ -11,6 +11,7 @@ const desktopMainParts = [
   'ui/js/desktop/core/pet-runtime.js',
   'ui/js/desktop/core/icon-selection-runtime.js',
   'ui/js/desktop/core/sip-phone-runtime.js',
+  'ui/js/desktop/core/sip-phone-gadget-runtime.js',
   'ui/js/desktop/core/window-shell-runtime.js',
   'ui/js/desktop/core/fruity-dock-scroll.js',
   'ui/js/desktop/core/window-interactions-runtime.js',

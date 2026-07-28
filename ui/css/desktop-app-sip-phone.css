@@ -1636,6 +1636,29 @@
     }
 }
 
+/* ------------------------------------------------------------------ */
+/* Floating gadget context (windowless phone on the desktop)           */
+/* ------------------------------------------------------------------ */
+
+.vd-sip-phone-gadget .sip-phone {
+    background: transparent;
+}
+
+/* The status bar, Dynamic Island and hardware buttons are the drag
+   handles of the gadget, like a title bar on a real window. */
+.vd-sip-phone-gadget .sip-phone-statusbar,
+.vd-sip-phone-gadget .sip-phone-island,
+.vd-sip-phone-gadget .sip-phone-hw {
+    cursor: grab;
+    touch-action: none;
+}
+
+.vd-sip-phone-gadget.dragging .sip-phone-statusbar,
+.vd-sip-phone-gadget.dragging .sip-phone-island,
+.vd-sip-phone-gadget.dragging .sip-phone-hw {
+    cursor: grabbing;
+}
+
 @media (prefers-reduced-motion: reduce) {
     .sip-phone * {
         scroll-behavior: auto !important;

@@ -184,6 +184,80 @@ func TestDesktopSIPPhoneReloadObserverCanEndCall(t *testing.T) {
 	}
 }
 
+func TestDesktopSIPPhoneFloatingGadgetContracts(t *testing.T) {
+	t.Parallel()
+
+	bundler, err := os.ReadFile("../scripts/build-ui-bundles.js")
+	if err != nil {
+		t.Fatalf("read bundle build script: %v", err)
+	}
+	if !strings.Contains(string(bundler), "'ui/js/desktop/core/sip-phone-gadget-runtime.js'") {
+		t.Fatal("desktop main bundle must include the floating phone gadget runtime")
+	}
+
+	checks := map[string][]string{
+		"js/desktop/core/sip-phone-gadget-runtime.js": {
+			"settingValue('phone_gadget.enabled')",
+			"settingValue('phone_gadget.always_on_top')",
+			"'phone_gadget.position_x'",
+			"modules.loadAppScript('sip-phone')",
+			"window.SipPhoneApp.render(host, GADGET_WINDOW_ID, {",
+			"window.SipPhoneApp.dispose(GADGET_WINDOW_ID)",
+			"showPhoneGadgetContextMenu",
+			"openApp('sip-phone')",
+			"window.SipPhoneGadget = {",
+		},
+		"js/desktop/bundles/main.bundle.js": {
+			"window.SipPhoneGadget = {",
+		},
+		"js/desktop/core/desktop-foundation.js": {
+			"'phone_gadget.enabled': 'false'",
+			"window.SipPhoneGadget.sync()",
+		},
+		"js/desktop/core/sdk-events-bootstrap.js": {
+			"window.SipPhoneGadget.init()",
+		},
+		"js/desktop/apps/settings.js": {
+			"settingToggle('phone_gadget.enabled', 'desktop.settings_phone_gadget', 'desktop.settings_phone_gadget_desc')",
+		},
+		"css/desktop-sip-phone-shell.css": {
+			".vd-sip-phone-gadget {",
+			".vd-sip-phone-gadget[data-always-on-top=\"true\"]",
+		},
+		"css/desktop-app-sip-phone.css": {
+			".vd-sip-phone-gadget .sip-phone-statusbar",
+		},
+	}
+	for path, markers := range checks {
+		source := readDesktopAssetText(t, path)
+		for _, marker := range markers {
+			if !strings.Contains(source, marker) {
+				t.Fatalf("%s missing floating phone gadget contract %q", path, marker)
+			}
+		}
+	}
+
+	locales := []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"}
+	keys := []string{
+		"desktop.settings_phone_gadget",
+		"desktop.settings_phone_gadget_desc",
+		"desktop.phone_gadget_open_window",
+		"desktop.phone_gadget_always_on_top",
+		"desktop.phone_gadget_remove",
+	}
+	for _, locale := range locales {
+		values := map[string]string{}
+		if err := json.Unmarshal([]byte(readDesktopAssetText(t, "lang/desktop/"+locale+".json")), &values); err != nil {
+			t.Fatalf("parse lang/desktop/%s.json: %v", locale, err)
+		}
+		for _, key := range keys {
+			if strings.TrimSpace(values[key]) == "" {
+				t.Fatalf("lang/desktop/%s.json is missing floating phone gadget key %q", locale, key)
+			}
+		}
+	}
+}
+
 func TestDesktopSIPPhoneTranslationsAreComplete(t *testing.T) {
 	t.Parallel()
 

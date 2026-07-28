@@ -171,3 +171,46 @@
         animation: none !important;
     }
 }
+
+/* ------------------------------------------------------------------ */
+/* Floating phone gadget (windowless phone directly on the desktop)    */
+/* ------------------------------------------------------------------ */
+
+.vd-sip-phone-gadget {
+    --sip-phone-gadget-scale: 0.72;
+    position: fixed;
+    left: 24px;
+    top: 24px;
+    width: calc(400px * var(--sip-phone-gadget-scale));
+    height: calc(830px * var(--sip-phone-gadget-scale));
+    z-index: var(--vd-z-phone-gadget, 640);
+    user-select: none;
+}
+
+.vd-sip-phone-gadget[data-always-on-top="true"] {
+    z-index: calc(var(--vd-z-modal, 800) + 198);
+}
+
+.vd-sip-phone-gadget.dragging {
+    cursor: grabbing;
+}
+
+.vd-sip-phone-gadget-scale {
+    width: 400px;
+    height: 830px;
+    transform: scale(var(--sip-phone-gadget-scale));
+    transform-origin: top left;
+}
+
+@media (max-width: 640px) {
+    .vd-sip-phone-gadget {
+        display: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .vd-sip-phone-gadget {
+        transition: none !important;
+        animation: none !important;
+    }
+}

@@ -1073,6 +1073,7 @@
         mark('parallel-fetch-done');
         renderDesktop();
         initSIPPhoneShellRuntime();
+        if (window.SipPhoneGadget && typeof window.SipPhoneGadget.init === 'function') window.SipPhoneGadget.init();
         refreshPetRuntime();
         mark('first-render');
         openInitialDesktopApp();

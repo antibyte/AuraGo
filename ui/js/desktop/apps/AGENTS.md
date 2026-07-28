@@ -75,7 +75,9 @@ This subtree owns built-in virtual desktop app modules that are loaded lazily by
   wallpaper) on an ambient stage with a light halo and floor shadow. The
   screen hosts four tab views (Favorites, Recents, Keypad, Settings) above
   a glass tab bar, plus a full-screen active-call takeover with contact-hue
-  avatars and incoming-call answer/decline actions.
+  avatars and incoming-call answer/decline actions. The app can also run
+  windowless as a floating desktop gadget (see `sip-phone-gadget-runtime.js`
+  in the Child DOX Index).
 
 ## Ownership
 
@@ -220,6 +222,18 @@ registration lives in `internal/desktop/types.go`.
   must keep the `data-sip-phone*` hooks, observer-disabled controls, and the
   always-enabled hangup control asserted in `ui/desktop_sip_phone_test.go`,
   and must not introduce voicemail/mailbox UI.
+- The floating phone gadget (`ui/js/desktop/core/sip-phone-gadget-runtime.js`,
+  part of the desktop main bundle) mounts the same app windowless on a
+  fixed, draggable body-level layer under the reserved instance id
+  `sip-phone-gadget`. It exposes `window.SipPhoneGadget = { init, sync }`,
+  renders the app into a 400×830 stage scaled via
+  `.vd-sip-phone-gadget-scale`, drags only from the status bar / Dynamic
+  Island / hardware buttons / device frame, and persists
+  `phone_gadget.enabled|position_x|position_y|always_on_top` through
+  `/api/desktop/settings`. `applyDesktopSettings()` re-syncs the gadget, the
+  Settings app owns the `phone_gadget.enabled` toggle, and the gadget
+  context menu offers open-in-window, always-on-top, and remove. The layer
+  hides below 640 px viewport width.
 - SIP Phone visible UI strings use `desktop.sip_phone_*` keys in all 16
   `ui/lang/sip_phone/*.json` files (identical key sets); the dock/start name
   uses `desktop.app_sip_phone` in `ui/lang/desktop/*.json`.
@@ -500,3 +514,13 @@ registration lives in `internal/desktop/types.go`.
   glare, and stage effects). Styling lives in
   `ui/css/desktop-app-sip-phone.css`. Exposes `window.SipPhoneApp`. No child
   DOX file needed.
+- `sip-phone-gadget-runtime.js` (core, main bundle) - Floating phone gadget:
+  mounts `sip-phone.js` windowless on a draggable body-level layer
+  (`#vd-sip-phone-gadget`, scaled 400×830 stage, instance id
+  `sip-phone-gadget`). Drag handles are the status bar, Dynamic Island,
+  hardware buttons, and device frame; right-click opens a shell context menu
+  (open in window, always on top, remove from desktop). Settings keys
+  `phone_gadget.*` (defaults in `desktop-foundation.js`, toggle in the
+  Settings app), layer CSS in `ui/css/desktop-sip-phone-shell.css`, gadget
+  overrides in `ui/css/desktop-app-sip-phone.css`. Exposes
+  `window.SipPhoneGadget { init, sync }`. No child DOX file needed.
