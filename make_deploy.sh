@@ -207,6 +207,7 @@ cp -r assets/skill_samples/. "$TMPDIR_RES/assets/skill_samples/"
 
 # Pack
 tar -czf "$DEPLOY_DIR/$RESOURCES" -C "$TMPDIR_RES" .
+tar -tzf "$DEPLOY_DIR/$RESOURCES" >/dev/null
 echo "    → resources.dat ($(du -h "$DEPLOY_DIR/$RESOURCES" | cut -f1))"
 
 # ── Step 2: Cross-compile binaries ───────────────────────────────────────
@@ -273,6 +274,13 @@ done
 echo "[4/5] Copying release scripts and generating checksums ..."
 cp install.sh "$DEPLOY_DIR/install.sh"
 cp update.sh "$DEPLOY_DIR/update.sh" 2>/dev/null || true
+
+for required_asset in "$DEPLOY_DIR/$RESOURCES" "$DEPLOY_DIR/install.sh" "$DEPLOY_DIR/update.sh"; do
+  if [ ! -f "$required_asset" ] || [ "$(wc -c < "$required_asset")" -lt 1024 ]; then
+    echo "Required release asset is missing or unexpectedly small: $required_asset" >&2
+    exit 1
+  fi
+done
 
 write_checksum() {
   local path="$1"

@@ -161,8 +161,15 @@ Set-Content -Path (Join-Path $tmpStage "config.yaml") -Value $configContent
 # Create tar.gz
 $resourcesOut = Join-Path $scriptDir "deploy\resources.dat"
 tar -czf $resourcesOut -C $tmpStage .
+if ($LASTEXITCODE -ne 0) {
+    throw "Failed to create deploy\resources.dat"
+}
 Remove-Item -Recurse -Force $tmpStage
 
+tar -tzf $resourcesOut | Out-Null
+if ($LASTEXITCODE -ne 0) {
+    throw "deploy\resources.dat is not a readable tar.gz archive"
+}
 Write-Host "    -> deploy\resources.dat" -ForegroundColor Green
 
 # ── Step 2: Compile all binaries ─────────────────────────────────────────
@@ -234,6 +241,18 @@ Copy-Item "install.sh" "deploy\install.sh" -Force
 Copy-Item "update.sh" "deploy\update.sh" -Force
 Write-Host "    -> deploy\install.sh" -ForegroundColor Green
 Write-Host "    -> deploy\update.sh" -ForegroundColor Green
+
+$requiredPortableAssets = @(
+    "deploy\resources.dat",
+    "deploy\install.sh",
+    "deploy\update.sh"
+)
+foreach ($file in $requiredPortableAssets) {
+    $fullPath = Join-Path $scriptDir $file
+    if (!(Test-Path -LiteralPath $fullPath) -or (Get-Item -LiteralPath $fullPath).Length -lt 1024) {
+        throw "Required release asset is missing or unexpectedly small: $file"
+    }
+}
 
 Write-Host "  Generating SHA256SUMS..." -ForegroundColor Cyan
 function Get-Sha256Hex {

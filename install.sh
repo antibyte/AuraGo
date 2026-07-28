@@ -551,7 +551,7 @@ verify_release_asset() {
     local expected actual
     [ -f "$path" ] || { warn "Cannot verify missing file: $path"; return 1; }
     [ -n "${RELEASE_CHECKSUMS_FILE:-}" ] && [ -f "$RELEASE_CHECKSUMS_FILE" ] || { warn "Release checksums are not available."; return 1; }
-    expected="$(awk -v target="$asset" '$2 == target {print $1; exit}' "$RELEASE_CHECKSUMS_FILE")"
+    expected="$(awk -v target="$asset" '{ sub(/\r$/, "", $2); if ($2 == target) { print $1; exit } }' "$RELEASE_CHECKSUMS_FILE")"
     [ -n "$expected" ] || { warn "Missing checksum entry for ${asset} in release manifest."; return 1; }
     actual="$(sha256_file "$path" || true)"
     [ -n "$actual" ] || { warn "No SHA256 tool available to verify ${asset}."; return 1; }

@@ -135,8 +135,18 @@ if errorlevel 1 (
 )
 
 tar -czf "deploy\resources.dat" -C "%TMPSTAGE%" .
+if errorlevel 1 (
+    echo [ERROR] Failed to create deploy\resources.dat.
+    rmdir /s /q "%TMPSTAGE%" 2>nul
+    exit /b 1
+)
 rmdir /s /q "%TMPSTAGE%"
-echo     -> deploy\resources.dat
+tar -tzf "deploy\resources.dat" >nul
+if errorlevel 1 (
+    echo [ERROR] deploy\resources.dat is not a readable tar.gz archive.
+    exit /b 1
+)
+echo     [OK] deploy\resources.dat
 
 REM -- [2/5] Compile all binaries
 echo.
@@ -149,43 +159,59 @@ set "GOOS=linux" & set "GOARCH=amd64"
 go build -trimpath -ldflags="-s -w" -o "bin\aurago_linux"          ./cmd/aurago/        || goto :build_error
 go build -trimpath -ldflags="-s -w" -o "bin\config-merger_linux"   ./cmd/config-merger/ || goto :build_error
 go build -trimpath -ldflags="-s -w" -o "bin\aurago-remote_linux"   ./cmd/remote/        || goto :build_error
-echo     -> Linux amd64 OK
+echo     [OK] Linux amd64
 
 echo   Linux arm64...
 set "GOOS=linux" & set "GOARCH=arm64"
 go build -trimpath -ldflags="-s -w" -o "bin\aurago_linux_arm64"        ./cmd/aurago/        || goto :build_error
 go build -trimpath -ldflags="-s -w" -o "bin\config-merger_linux_arm64" ./cmd/config-merger/ || goto :build_error
 go build -trimpath -ldflags="-s -w" -o "bin\aurago-remote_linux_arm64" ./cmd/remote/        || goto :build_error
-echo     -> Linux arm64 OK
+echo     [OK] Linux arm64
 
 echo   macOS amd64...
 set "GOOS=darwin" & set "GOARCH=amd64"
 go build -trimpath -ldflags="-s -w" -o "deploy\aurago_darwin_amd64"        ./cmd/aurago/ || goto :build_error
 go build -trimpath -ldflags="-s -w" -o "deploy\aurago-remote_darwin_amd64" ./cmd/remote/ || goto :build_error
-echo     -> macOS amd64 OK
+echo     [OK] macOS amd64
 
 echo   macOS arm64...
 set "GOOS=darwin" & set "GOARCH=arm64"
 go build -trimpath -ldflags="-s -w" -o "deploy\aurago_darwin_arm64"        ./cmd/aurago/ || goto :build_error
 go build -trimpath -ldflags="-s -w" -o "deploy\aurago-remote_darwin_arm64" ./cmd/remote/ || goto :build_error
-echo     -> macOS arm64 OK
+echo     [OK] macOS arm64
 
 echo   Windows amd64...
 set "GOOS=windows" & set "GOARCH=amd64"
 go build -trimpath -ldflags="-s -w" -o "deploy\aurago_windows_amd64.exe"        ./cmd/aurago/ || goto :build_error
 go build -trimpath -ldflags="-s -w" -o "deploy\aurago-remote_windows_amd64.exe" ./cmd/remote/ || goto :build_error
-echo     -> Windows amd64 OK
+echo     [OK] Windows amd64
 
 echo   Windows arm64...
 set "GOOS=windows" & set "GOARCH=arm64"
 go build -trimpath -ldflags="-s -w" -o "deploy\aurago_windows_arm64.exe"        ./cmd/aurago/ || goto :build_error
 go build -trimpath -ldflags="-s -w" -o "deploy\aurago-remote_windows_arm64.exe" ./cmd/remote/ || goto :build_error
-echo     -> Windows arm64 OK
+echo     [OK] Windows arm64
 
 copy "install.sh" "deploy\install.sh" >nul
 copy "update.sh" "deploy\update.sh" >nul
-echo     -> deploy\install.sh
-echo     -> deploy\update.sh
+echo     [OK] deploy\install.sh
+echo     [OK] deploy\update.sh
+
+for %%F in (
+    "deploy\resources.dat"
+    "deploy\install.sh"
+    "deploy\update.sh"
+) do (
+    if not exist "%%~F" (
+        echo [ERROR] Required release asset is missing: %%~F
+        exit /b 1
+    )
+    if %%~zF LSS 1024 (
+        echo [ERROR] Required release asset is unexpectedly small: %%~F ^(%%~zF bytes^)
+        exit /b 1
+    )
+)
+
 echo   Generating SHA256SUMS...
 powershell -nologo -noprofile -command ^
   "$ErrorActionPreference = 'Stop';" ^

@@ -534,6 +534,18 @@ func TestInstallerReleaseAssetFailuresAreRecoverable(t *testing.T) {
 	}
 }
 
+func TestReleaseChecksumReadersAcceptWindowsLineEndings(t *testing.T) {
+	t.Parallel()
+
+	for _, path := range []string{"install.sh", "update.sh"} {
+		script := readRepoFile(t, path)
+		verifyBody := shellFunctionBody(t, script, "verify_release_asset")
+		if !strings.Contains(verifyBody, `sub(/\r$/, "", $2)`) {
+			t.Fatalf("%s must strip CR from Windows-generated SHA256SUMS entries", path)
+		}
+	}
+}
+
 func TestInstallerDependencyChecksMatchRuntimeNeeds(t *testing.T) {
 	t.Parallel()
 
@@ -899,6 +911,57 @@ func TestWindowsReleaseChecksumGenerationAvoidsGetFileHash(t *testing.T) {
 	}
 	if !strings.Contains(script, "$ErrorActionPreference = 'Stop'") {
 		t.Fatal("make_release.bat checksum generation must fail hard on hashing errors")
+	}
+}
+
+func TestReleaseBuildersRejectCorruptPortableAssets(t *testing.T) {
+	t.Parallel()
+
+	batch := readRepoFile(t, "make_release.bat")
+	for _, forbidden := range []string{
+		"echo     -> deploy\\resources.dat",
+		"echo     -> deploy\\install.sh",
+		"echo     -> deploy\\update.sh",
+	} {
+		if strings.Contains(batch, forbidden) {
+			t.Fatalf("make_release.bat must not redirect status output into an asset: %q", forbidden)
+		}
+	}
+	for _, required := range []string{
+		`tar -tzf "deploy\resources.dat" >nul`,
+		`if %%~zF LSS 1024`,
+		`Required release asset is unexpectedly small`,
+	} {
+		if !strings.Contains(batch, required) {
+			t.Fatalf("make_release.bat missing portable asset preflight %q", required)
+		}
+	}
+
+	for _, tc := range []struct {
+		path     string
+		required []string
+	}{
+		{
+			path: "make_release.ps1",
+			required: []string{
+				"tar -tzf $resourcesOut | Out-Null",
+				"(Get-Item -LiteralPath $fullPath).Length -lt 1024",
+			},
+		},
+		{
+			path: "make_deploy.sh",
+			required: []string{
+				`tar -tzf "$DEPLOY_DIR/$RESOURCES" >/dev/null`,
+				`[ "$(wc -c < "$required_asset")" -lt 1024 ]`,
+			},
+		},
+	} {
+		script := readRepoFile(t, tc.path)
+		for _, required := range tc.required {
+			if !strings.Contains(script, required) {
+				t.Fatalf("%s missing portable asset preflight %q", tc.path, required)
+			}
+		}
 	}
 }
 
