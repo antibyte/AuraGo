@@ -15,6 +15,9 @@ set -euo pipefail
 INSTALL_SUCCESS=0
 SERVICE_FILE_CREATED=0
 CREDENTIAL_FILE_CREATED=0
+CREATED_CREDENTIAL_FILE=""
+MIGRATED_MASTER_KEY=""
+MIGRATED_ENV_FILE=""
 SERVICE_ENABLED=0
 RELEASE_CHECKSUMS_FILE=""
 RELEASE_SIGNATURE_FILE=""
@@ -98,8 +101,15 @@ cleanup_install_failure() {
         ${SUDO:-} rm -f "/etc/systemd/system/${SYSTEMD_SERVICE}.service" >/dev/null 2>&1 || true
         command -v systemctl >/dev/null 2>&1 && ${SUDO:-} systemctl daemon-reload >/dev/null 2>&1 || true
     fi
-    if [ "$CREDENTIAL_FILE_CREATED" -eq 1 ] && [ -f "/etc/aurago/master.key" ]; then
-        ${SUDO:-} rm -f "/etc/aurago/master.key" >/dev/null 2>&1 || true
+    if [ "$CREDENTIAL_FILE_CREATED" -eq 1 ] && [ -n "${CREATED_CREDENTIAL_FILE:-}" ] &&
+        ${SUDO:-} test -f "$CREATED_CREDENTIAL_FILE"; then
+        if [ -n "${MIGRATED_ENV_FILE:-}" ] && is_valid_master_key "${MIGRATED_MASTER_KEY:-}" &&
+            write_master_key_file "$MIGRATED_ENV_FILE" "$MIGRATED_MASTER_KEY"; then
+            ${SUDO:-} rm -f "$CREATED_CREDENTIAL_FILE" >/dev/null 2>&1 || true
+            warn "Restored the master key to $MIGRATED_ENV_FILE after service installation failed."
+        else
+            warn "Could not restore the master key to the install directory; preserving $CREATED_CREDENTIAL_FILE."
+        fi
     fi
 }
 
@@ -252,6 +262,27 @@ systemd_gpu_groups_line() {
         joined="${groups[*]}"
         printf 'SupplementaryGroups=%s' "$joined"
     fi
+}
+
+systemd_escape_path_value() {
+    local value="$1"
+    local escaped=""
+    local char
+    local index
+    for ((index = 0; index < ${#value}; index++)); do
+        char="${value:index:1}"
+        case "$char" in
+            " ") escaped+="\\x20" ;;
+            $'\t') escaped+="\\x09" ;;
+            '"') escaped+="\\x22" ;;
+            "'") escaped+="\\x27" ;;
+            "\\") escaped+="\\x5c" ;;
+            "%") escaped+="%%" ;;
+            $'\r'|$'\n') return 1 ;;
+            *) escaped+="$char" ;;
+        esac
+    done
+    printf '%s' "$escaped"
 }
 
 latest_release_tag_via_redirect() {
@@ -1034,7 +1065,7 @@ else
     echo "  (e.g. a home server / Proxmox container) — never expose it directly"
     echo "  to the internet without HTTPS / reverse proxy."
     echo ""
-    prompt_value NET_REPLY "Enable HTTP access from outside localhost (LAN)? [y/N]: " "n" "n"
+    prompt_value NET_REPLY "Enable HTTP access from outside localhost (LAN)? [Y/n]: " "y" "n"
     if [[ "${NET_REPLY:-n}" =~ ^[Yy]$ ]]; then
         SERVER_HOST="0.0.0.0"
         warn "Web UI will listen on ALL interfaces (0.0.0.0:8088) without HTTPS."
@@ -1126,6 +1157,9 @@ if command -v systemctl >/dev/null 2>&1; then
             $SUDO chmod 600 "$CREDENTIAL_FILE"
             $SUDO chown root:root "$CREDENTIAL_DIR" "$CREDENTIAL_FILE"
             CREDENTIAL_FILE_CREATED=1
+            CREATED_CREDENTIAL_FILE="$CREDENTIAL_FILE"
+            MIGRATED_MASTER_KEY="$AURAGO_MASTER_KEY"
+            MIGRATED_ENV_FILE="$ENV_FILE"
             ok "Master key moved to $CREDENTIAL_FILE (root-only, mode 0600)."
         fi
 
@@ -1203,6 +1237,11 @@ if command -v systemctl >/dev/null 2>&1; then
             GPU_GROUP_IDS_LINE="Environment=\"AURAGO_GPU_GROUP_IDS=${GPU_GROUP_IDS}\""
             info "Forwarding host GPU group IDs to managed containers: ${GPU_GROUP_IDS}"
         fi
+        SYSTEMD_INSTALL_DIR="$(systemd_escape_path_value "$INSTALL_DIR")" || die "Install path contains unsupported control characters."
+        SYSTEMD_BINARY_PATH="$(systemd_escape_path_value "$INSTALL_DIR/bin/aurago_linux")" || die "Binary path contains unsupported control characters."
+        SYSTEMD_CONFIG_PATH="$(systemd_escape_path_value "$INSTALL_DIR/config.yaml")" || die "Config path contains unsupported control characters."
+        SYSTEMD_CREDENTIAL_FILE="$(systemd_escape_path_value "$CREDENTIAL_FILE")" || die "Credential path contains unsupported control characters."
+        SYSTEMD_CREDENTIAL_DIR="$(systemd_escape_path_value "$CREDENTIAL_DIR")" || die "Credential directory contains unsupported control characters."
 
         # ── Create systemd unit ──────────────────────────────────────────
         $SUDO tee /etc/systemd/system/${SYSTEMD_SERVICE}.service > /dev/null <<EOF
@@ -1217,22 +1256,27 @@ User=${SERVICE_USER}
 Group=${SERVICE_GROUP}
 ${GPU_GROUPS_LINE}
 ${GPU_GROUP_IDS_LINE}
-WorkingDirectory="${INSTALL_DIR}"
-ExecStart="${INSTALL_DIR}/bin/aurago_linux" --config "${INSTALL_DIR}/config.yaml"
+WorkingDirectory=${SYSTEMD_INSTALL_DIR}
+ExecStart=${SYSTEMD_BINARY_PATH} --config ${SYSTEMD_CONFIG_PATH}
 Restart=on-failure
 RestartSec=5
-EnvironmentFile="${CREDENTIAL_FILE}"
+EnvironmentFile=${SYSTEMD_CREDENTIAL_FILE}
 ${AMBIENT_CAPS_LINE}
 # Security hardening
 NoNewPrivileges=true
 ${PROTECT_SYSTEM_LINE}
-ReadWritePaths=${INSTALL_DIR} ${CREDENTIAL_DIR}
+ReadWritePaths=${SYSTEMD_INSTALL_DIR} ${SYSTEMD_CREDENTIAL_DIR}
 PrivateTmp=true
 
 [Install]
 WantedBy=multi-user.target
 EOF
         SERVICE_FILE_CREATED=1
+        if command -v systemd-analyze >/dev/null 2>&1; then
+            if ! $SUDO systemd-analyze verify "/etc/systemd/system/${SYSTEMD_SERVICE}.service"; then
+                die "Generated systemd unit failed validation."
+            fi
+        fi
         $SUDO systemctl daemon-reload
         $SUDO systemctl enable "$SYSTEMD_SERVICE"
         SERVICE_ENABLED=1

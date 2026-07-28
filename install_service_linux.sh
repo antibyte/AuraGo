@@ -92,6 +92,27 @@ systemd_gpu_groups_line() {
     fi
 }
 
+systemd_escape_path_value() {
+    local value="$1"
+    local escaped=""
+    local char
+    local index
+    for ((index = 0; index < ${#value}; index++)); do
+        char="${value:index:1}"
+        case "$char" in
+            " ") escaped+="\\x20" ;;
+            $'\t') escaped+="\\x09" ;;
+            '"') escaped+="\\x22" ;;
+            "'") escaped+="\\x27" ;;
+            "\\") escaped+="\\x5c" ;;
+            "%") escaped+="%%" ;;
+            $'\r'|$'\n') return 1 ;;
+            *) escaped+="$char" ;;
+        esac
+    done
+    printf '%s' "$escaped"
+}
+
 warn_if_systemd_hardening_conflicts() {
     local config_path="$1"
     [[ -f "$config_path" ]] || return 0
@@ -228,6 +249,11 @@ if [[ -n "$GPU_GROUP_IDS" ]]; then
     GPU_GROUP_IDS_LINE="Environment=\"AURAGO_GPU_GROUP_IDS=${GPU_GROUP_IDS}\""
     info "Forwarding host GPU group IDs to managed containers: ${GPU_GROUP_IDS}"
 fi
+SYSTEMD_INSTALL_DIR="$(systemd_escape_path_value "$INSTALL_DIR")" || error "Install path contains unsupported control characters."
+SYSTEMD_BINARY_PATH="$(systemd_escape_path_value "$BINARY_PATH")" || error "Binary path contains unsupported control characters."
+SYSTEMD_CONFIG_PATH="$(systemd_escape_path_value "$CONFIG_PATH")" || error "Config path contains unsupported control characters."
+SYSTEMD_CREDENTIAL_FILE="$(systemd_escape_path_value "$CREDENTIAL_FILE")" || error "Credential path contains unsupported control characters."
+SYSTEMD_CREDENTIAL_DIR="$(systemd_escape_path_value "$CREDENTIAL_DIR")" || error "Credential directory contains unsupported control characters."
 info "Creating systemd service file at ${SERVICE_FILE}..."
 cat > "${SERVICE_FILE}" <<EOF
 [Unit]
@@ -244,13 +270,13 @@ User=$(id -un "${SUDO_USER:-root}")
 Group=$(id -gn "${SUDO_USER:-root}")
 ${GPU_GROUPS_LINE}
 ${GPU_GROUP_IDS_LINE}
-WorkingDirectory="${INSTALL_DIR}"
-ExecStart="${BINARY_PATH}" --config "${CONFIG_PATH}"
+WorkingDirectory=${SYSTEMD_INSTALL_DIR}
+ExecStart=${SYSTEMD_BINARY_PATH} --config ${SYSTEMD_CONFIG_PATH}
 Restart=always
 RestartSec=5
-EnvironmentFile="${CREDENTIAL_FILE}"
-StandardOutput=append:${INSTALL_DIR}/log/aurago.log
-StandardError=append:${INSTALL_DIR}/log/aurago.err
+EnvironmentFile=${SYSTEMD_CREDENTIAL_FILE}
+StandardOutput=append:${SYSTEMD_INSTALL_DIR}/log/aurago.log
+StandardError=append:${SYSTEMD_INSTALL_DIR}/log/aurago.err
 
 # Allow binding privileged ports (80, 443) without root.
 # Compatible with NoNewPrivileges — systemd sets the capability before the prctl call.
@@ -262,7 +288,7 @@ AmbientCapabilities=CAP_NET_BIND_SERVICE
 #   sudo systemctl daemon-reload && sudo systemctl restart aurago
 NoNewPrivileges=true
 ProtectSystem=strict
-ReadWritePaths=${INSTALL_DIR} ${CREDENTIAL_DIR}
+ReadWritePaths=${SYSTEMD_INSTALL_DIR} ${SYSTEMD_CREDENTIAL_DIR}
 ProtectHome=read-only
 PrivateTmp=true
 
@@ -275,6 +301,9 @@ mkdir -p "${INSTALL_DIR}/log"
 chown -R "${SUDO_USER:-root}:$(id -gn "${SUDO_USER:-root}")" "${INSTALL_DIR}/log"
 
 # 5. Reload systemd and enable service
+if command -v systemd-analyze >/dev/null 2>&1; then
+    systemd-analyze verify "${SERVICE_FILE}" || error "Generated systemd unit failed validation."
+fi
 info "Reloading systemd daemon..."
 systemctl daemon-reload
 

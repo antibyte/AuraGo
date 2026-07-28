@@ -339,6 +339,33 @@ func TestLinuxServiceInstallersGrantDetectedGPUGroups(t *testing.T) {
 	}
 }
 
+func TestLinuxServiceInstallersEmitVerifiableSystemdPaths(t *testing.T) {
+	t.Parallel()
+
+	for _, path := range []string{"install_service_linux.sh", "install.sh"} {
+		script := readRepoFile(t, path)
+		for _, forbidden := range []string{
+			`WorkingDirectory="${INSTALL_DIR}"`,
+			`EnvironmentFile="${CREDENTIAL_FILE}"`,
+		} {
+			if strings.Contains(script, forbidden) {
+				t.Fatalf("%s must not quote single-path systemd directives as %q", path, forbidden)
+			}
+		}
+		for _, required := range []string{
+			"systemd_escape_path_value()",
+			"WorkingDirectory=${SYSTEMD_INSTALL_DIR}",
+			"EnvironmentFile=${SYSTEMD_CREDENTIAL_FILE}",
+			"systemd-analyze verify",
+			"Generated systemd unit failed validation",
+		} {
+			if !strings.Contains(script, required) {
+				t.Fatalf("%s missing systemd path/validation contract %q", path, required)
+			}
+		}
+	}
+}
+
 func TestLinuxServiceInstallersForwardNumericGPUGroupIDs(t *testing.T) {
 	t.Parallel()
 
@@ -484,6 +511,31 @@ func TestInstallerCleanupTrapIsPreserved(t *testing.T) {
 	}
 }
 
+func TestInstallerRestoresMigratedMasterKeyOnServiceFailure(t *testing.T) {
+	t.Parallel()
+
+	installScript := readRepoFile(t, "install.sh")
+	cleanupBody := shellFunctionBody(t, installScript, "cleanup_install_failure")
+	for _, required := range []string{
+		`CREATED_CREDENTIAL_FILE=""`,
+		`MIGRATED_MASTER_KEY=""`,
+		`MIGRATED_ENV_FILE=""`,
+		`write_master_key_file "$MIGRATED_ENV_FILE" "$MIGRATED_MASTER_KEY"`,
+		`rm -f "$CREATED_CREDENTIAL_FILE"`,
+		`preserving $CREATED_CREDENTIAL_FILE`,
+		`CREATED_CREDENTIAL_FILE="$CREDENTIAL_FILE"`,
+		`MIGRATED_MASTER_KEY="$AURAGO_MASTER_KEY"`,
+		`MIGRATED_ENV_FILE="$ENV_FILE"`,
+	} {
+		if !strings.Contains(installScript, required) {
+			t.Fatalf("install.sh master-key rollback contract missing %q", required)
+		}
+	}
+	if strings.Contains(cleanupBody, `rm -f "/etc/aurago/master.key"`) {
+		t.Fatal("cleanup must not delete the migrated master key without first restoring a usable copy")
+	}
+}
+
 func TestInstallerReleaseAssetFailuresAreRecoverable(t *testing.T) {
 	t.Parallel()
 
@@ -592,7 +644,7 @@ func TestInstallerNonInteractiveDefaultsAreConservative(t *testing.T) {
 		`if _go_version_ok && $INTERACTIVE_TTY; then`,
 		`prompt_value MODE_REPLY "Install mode [1/2, default=1]: " "1" "1"`,
 		`prompt_value HTTPS_REPLY`,
-		`prompt_value NET_REPLY`,
+		`prompt_value NET_REPLY "Enable HTTP access from outside localhost (LAN)? [Y/n]: " "y" "n"`,
 		`prompt_value SVC_REPLY "Install as systemd service (auto-start on boot)? [Y/n]: " "y" "n"`,
 	} {
 		if !strings.Contains(installScript, marker) {

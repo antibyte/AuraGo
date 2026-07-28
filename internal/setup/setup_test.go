@@ -6,6 +6,7 @@ import (
 	"compress/gzip"
 	"log/slog"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -282,7 +283,7 @@ func TestBuildSystemdUnitEscapesInstallDirWithQuotes(t *testing.T) {
 		installDir,
 		exePath,
 		"/etc/aurago/master.key",
-		installDir+" /etc/aurago",
+		[]string{installDir, "/etc/aurago"},
 		[]string{"render", "video"},
 		false,
 		false,
@@ -296,19 +297,66 @@ func TestBuildSystemdUnitEscapesInstallDirWithQuotes(t *testing.T) {
 		t.Errorf("unit contains unescaped installDir; raw quote leaked: %s", unit)
 	}
 
-	// The escaped form (with backslash before the quote) MUST appear.
-	if !strings.Contains(unit, `odd\"path`) {
+	// Single-path systemd directives require C-style escaping, not surrounding quotes.
+	if !strings.Contains(unit, `odd\x22path`) {
 		t.Errorf("unit does not contain escaped path: %s", unit)
+	}
+	if strings.Contains(unit, `WorkingDirectory="`) || strings.Contains(unit, `EnvironmentFile=-"`) {
+		t.Errorf("unit uses invalid surrounding quotes for single-path directives: %s", unit)
+	}
+	for _, want := range []string{
+		`User=alice`,
+		`Group=alice`,
+		`WorkingDirectory=/opt/aurago/odd\x22path`,
+		`EnvironmentFile=-/etc/aurago/master.key`,
+		`ReadWritePaths=/opt/aurago/odd\x22path /etc/aurago`,
+	} {
+		if !strings.Contains(unit, want) {
+			t.Errorf("unit missing systemd-safe directive %q: %s", want, unit)
+		}
 	}
 	if !strings.Contains(unit, "SupplementaryGroups=render video") {
 		t.Errorf("unit does not grant detected GPU groups: %s", unit)
 	}
 }
 
+func TestBuildSystemdUnitPassesSystemdAnalyzeVerify(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("systemd verification is Linux-specific")
+	}
+	analyzer, err := exec.LookPath("systemd-analyze")
+	if err != nil {
+		t.Skip("systemd-analyze is unavailable")
+	}
+
+	installDir := t.TempDir()
+	unit, err := buildSystemdUnit(
+		"AuraGo AI Agent",
+		"root",
+		installDir,
+		"/bin/true",
+		"/does/not/exist",
+		[]string{installDir},
+		nil,
+		false,
+		false,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	unitPath := filepath.Join(t.TempDir(), "aurago-test.service")
+	if err := os.WriteFile(unitPath, []byte(unit), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if output, err := exec.Command(analyzer, "verify", unitPath).CombinedOutput(); err != nil {
+		t.Fatalf("systemd-analyze verify failed: %v\n%s", err, output)
+	}
+}
+
 func TestBuildSystemdUnitEmptyArgsRejected(t *testing.T) {
 	t.Parallel()
 
-	_, err := buildSystemdUnit("AuraGo", "", "/opt/aurago", "/opt/aurago/aurago", "/opt/aurago/.env", "/opt/aurago", nil, false, false)
+	_, err := buildSystemdUnit("AuraGo", "", "/opt/aurago", "/opt/aurago/aurago", "/opt/aurago/.env", []string{"/opt/aurago"}, nil, false, false)
 	if err == nil {
 		t.Fatal("expected error when user is empty")
 	}
@@ -323,7 +371,7 @@ func TestBuildSystemdUnitForwardsValidatedGPUGroupIDs(t *testing.T) {
 		"/opt/aurago",
 		"/opt/aurago/aurago",
 		"/opt/aurago/.env",
-		"/opt/aurago",
+		[]string{"/opt/aurago"},
 		[]string{"render", "video"},
 		[]string{"993", "44", "993"},
 		false,
@@ -346,7 +394,7 @@ func TestBuildSystemdUnitRejectsInvalidGPUGroupID(t *testing.T) {
 		"/opt/aurago",
 		"/opt/aurago/aurago",
 		"/opt/aurago/.env",
-		"/opt/aurago",
+		[]string{"/opt/aurago"},
 		[]string{"render"},
 		[]string{"993", "render"},
 		false,
@@ -366,7 +414,7 @@ func TestBuildSystemdUnitRejectsInjectedSupplementaryGroup(t *testing.T) {
 		"/opt/aurago",
 		"/opt/aurago/aurago",
 		"/opt/aurago/.env",
-		"/opt/aurago",
+		[]string{"/opt/aurago"},
 		[]string{"render\nEnvironment=ESCAPE=1"},
 		false,
 		false,

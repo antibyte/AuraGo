@@ -278,17 +278,17 @@ func installService(exePath, installDir string, logger *slog.Logger) error {
 // ── Linux: systemd ──────────────────────────────────────────────────────
 
 // buildSystemdUnit returns the systemd unit file content for AuraGo.
-// All paths and the user/group identifiers are quoted via strconv.Quote to
-// escape embedded quotes, backslashes, and other special characters so the
-// unit file remains syntactically valid even when installDir or credentialFile
-// contain unusual characters. The caller decides whether to disable
+// Paths use systemd's C-style escapes instead of surrounding quotes because
+// single-path directives such as WorkingDirectory= and EnvironmentFile= treat
+// quote characters as part of the path. The caller decides whether to disable
 // ProtectSystem=strict via sudoUnrestricted.
 //
 // dockerMode is reserved for a future container-aware unit template (currently
 // unused but kept so callers don't need to change signatures when the Docker
 // branch is implemented). See installSystemd for the runningInDocker wiring.
 func buildSystemdUnit(
-	desc, user, installDir, exePath, credentialFile, readWritePaths string,
+	desc, user, installDir, exePath, credentialFile string,
+	readWritePaths []string,
 	supplementaryGroups []string,
 	dockerMode, sudoUnrestricted bool,
 ) (string, error) {
@@ -307,7 +307,8 @@ func buildSystemdUnit(
 }
 
 func buildSystemdUnitWithGPUGroupIDs(
-	desc, user, installDir, exePath, credentialFile, readWritePaths string,
+	desc, user, installDir, exePath, credentialFile string,
+	readWritePaths []string,
 	supplementaryGroups []string,
 	gpuGroupIDs []string,
 	dockerMode, sudoUnrestricted bool,
@@ -328,6 +329,36 @@ func buildSystemdUnitWithGPUGroupIDs(
 	}
 	if credentialFile == "" {
 		return "", fmt.Errorf("buildSystemdUnit: credentialFile is required")
+	}
+	if strings.ContainsAny(user, " \t\r\n\"'\\/:;%") {
+		return "", fmt.Errorf("buildSystemdUnit: invalid user %q", user)
+	}
+	systemdInstallDir, err := escapeSystemdPath(installDir)
+	if err != nil {
+		return "", fmt.Errorf("buildSystemdUnit: installDir: %w", err)
+	}
+	systemdExePath, err := escapeSystemdPath(exePath)
+	if err != nil {
+		return "", fmt.Errorf("buildSystemdUnit: exePath: %w", err)
+	}
+	systemdConfigPath, err := escapeSystemdPath(strings.TrimSuffix(installDir, "/") + "/config.yaml")
+	if err != nil {
+		return "", fmt.Errorf("buildSystemdUnit: config path: %w", err)
+	}
+	systemdCredentialFile, err := escapeSystemdPath(credentialFile)
+	if err != nil {
+		return "", fmt.Errorf("buildSystemdUnit: credentialFile: %w", err)
+	}
+	escapedReadWritePaths := make([]string, 0, len(readWritePaths))
+	for _, path := range readWritePaths {
+		escaped, err := escapeSystemdPath(path)
+		if err != nil {
+			return "", fmt.Errorf("buildSystemdUnit: readWritePath: %w", err)
+		}
+		escapedReadWritePaths = append(escapedReadWritePaths, escaped)
+	}
+	if len(escapedReadWritePaths) == 0 {
+		return "", fmt.Errorf("buildSystemdUnit: at least one readWritePath is required")
 	}
 	var normalizedGroups []string
 	for _, group := range supplementaryGroups {
@@ -395,17 +426,35 @@ PrivateTmp=true
 WantedBy=multi-user.target
 `,
 		strconv.Quote(desc),
-		strconv.Quote(user),
-		strconv.Quote(user),
+		user,
+		user,
 		supplementaryGroupsLine,
 		gpuGroupIDsLine,
-		strconv.Quote(installDir),
-		strconv.Quote(exePath),
-		strconv.Quote(installDir),
-		strconv.Quote(credentialFile),
+		systemdInstallDir,
+		systemdExePath,
+		systemdConfigPath,
+		systemdCredentialFile,
 		protectSystemLine,
-		strconv.Quote(readWritePaths),
+		strings.Join(escapedReadWritePaths, " "),
 	), nil
+}
+
+func escapeSystemdPath(path string) (string, error) {
+	if !strings.HasPrefix(path, "/") {
+		return "", fmt.Errorf("path must be absolute: %q", path)
+	}
+	if strings.ContainsAny(path, "\x00\r\n") {
+		return "", fmt.Errorf("path contains control characters")
+	}
+	replacer := strings.NewReplacer(
+		`\`, `\x5c`,
+		` `, `\x20`,
+		"\t", `\x09`,
+		`"`, `\x22`,
+		`'`, `\x27`,
+		`%`, `%%`,
+	)
+	return replacer.Replace(path), nil
 }
 
 func availableSystemdGPUGroups() []string {
@@ -439,10 +488,10 @@ func installSystemd(exePath, installDir string, logger *slog.Logger) error {
 	}
 
 	credentialFile := filepath.Join(installDir, ".env")
-	readWritePaths := installDir
+	readWritePaths := []string{installDir}
 	if _, err := os.Stat("/etc/aurago/master.key"); err == nil {
 		credentialFile = "/etc/aurago/master.key"
-		readWritePaths = installDir + " /etc/aurago"
+		readWritePaths = append(readWritePaths, "/etc/aurago")
 	}
 
 	gpuGroups, gpuGroupIDs := availableSystemdGPUAccess()
@@ -465,6 +514,11 @@ func installSystemd(exePath, installDir string, logger *slog.Logger) error {
 	unitPath := "/etc/systemd/system/aurago.service"
 	if err := os.WriteFile(unitPath, []byte(unit), 0600); err != nil {
 		return fmt.Errorf("failed to write systemd unit (run setup as root?): %w", err)
+	}
+	if _, err := exec.LookPath("systemd-analyze"); err == nil {
+		if out, err := exec.Command("systemd-analyze", "verify", unitPath).CombinedOutput(); err != nil {
+			return fmt.Errorf("generated systemd unit failed validation: %s: %w", strings.TrimSpace(string(out)), err)
+		}
 	}
 
 	for _, cmd := range [][]string{
