@@ -1641,7 +1641,7 @@
 /* ------------------------------------------------------------------ */
 
 .vd-sip-phone-gadget .sip-phone {
-    background: transparent;
+    background: transparent !important;
 }
 
 /* The status bar, Dynamic Island and hardware buttons are the drag
