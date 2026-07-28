@@ -1230,6 +1230,43 @@ func TestServiceSettingsUseDefaultsAndValidateWrites(t *testing.T) {
 	}
 }
 
+func TestServicePhoneGadgetSettingsValidate(t *testing.T) {
+	t.Parallel()
+
+	svc := testService(t)
+	ctx := context.Background()
+
+	bootstrap, err := svc.Bootstrap(ctx)
+	if err != nil {
+		t.Fatalf("Bootstrap: %v", err)
+	}
+	if bootstrap.Settings["phone_gadget.enabled"] != "false" {
+		t.Fatalf("default phone gadget enabled = %q", bootstrap.Settings["phone_gadget.enabled"])
+	}
+	if bootstrap.Settings["phone_gadget.always_on_top"] != "false" {
+		t.Fatalf("default phone gadget always-on-top = %q", bootstrap.Settings["phone_gadget.always_on_top"])
+	}
+	for _, key := range []string{"phone_gadget.enabled", "phone_gadget.always_on_top"} {
+		if err := svc.SetSetting(ctx, key, "true", SourceUser); err != nil {
+			t.Fatalf("SetSetting %s valid: %v", key, err)
+		}
+		if err := svc.SetSetting(ctx, key, "maybe", SourceUser); err == nil {
+			t.Fatalf("expected invalid %s value to be rejected", key)
+		}
+	}
+	for _, key := range []string{"phone_gadget.position_x", "phone_gadget.position_y"} {
+		if err := svc.SetSetting(ctx, key, "", SourceUser); err != nil {
+			t.Fatalf("SetSetting %s empty (auto position): %v", key, err)
+		}
+		if err := svc.SetSetting(ctx, key, "-224", SourceUser); err != nil {
+			t.Fatalf("SetSetting %s numeric: %v", key, err)
+		}
+		if err := svc.SetSetting(ctx, key, "leftish", SourceUser); err == nil {
+			t.Fatalf("expected non-numeric %s value to be rejected", key)
+		}
+	}
+}
+
 func TestServiceRejectsEmptyStandaloneWidgetHTML(t *testing.T) {
 	t.Parallel()
 

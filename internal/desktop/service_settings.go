@@ -120,6 +120,15 @@ func validateFreeformDesktopSetting(key, value string) error {
 			return fmt.Errorf("invalid desktop setting value for %s", key)
 		}
 		return nil
+	case "phone_gadget.position_x", "phone_gadget.position_y":
+		// Empty means "not placed yet"; the UI falls back to an automatic position.
+		if strings.TrimSpace(value) == "" {
+			return nil
+		}
+		if _, err := strconv.ParseFloat(strings.TrimSpace(value), 64); err != nil {
+			return fmt.Errorf("invalid desktop setting value for %s", key)
+		}
+		return nil
 	default:
 		return fmt.Errorf("invalid desktop setting value for %s", key)
 	}

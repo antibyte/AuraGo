@@ -195,6 +195,21 @@ func TestDesktopSIPPhoneFloatingGadgetContracts(t *testing.T) {
 		t.Fatal("desktop main bundle must include the floating phone gadget runtime")
 	}
 
+	desktopTypes, err := os.ReadFile("../internal/desktop/types.go")
+	if err != nil {
+		t.Fatalf("read desktop types: %v", err)
+	}
+	for _, marker := range []string{
+		`{Key: "phone_gadget.enabled", Default: "false", Values: []string{"true", "false"}}`,
+		`{Key: "phone_gadget.position_x", Default: ""}`,
+		`{Key: "phone_gadget.position_y", Default: ""}`,
+		`{Key: "phone_gadget.always_on_top", Default: "false", Values: []string{"true", "false"}}`,
+	} {
+		if !strings.Contains(string(desktopTypes), marker) {
+			t.Fatalf("backend desktop setting definitions missing %q", marker)
+		}
+	}
+
 	checks := map[string][]string{
 		"js/desktop/core/sip-phone-gadget-runtime.js": {
 			"settingValue('phone_gadget.enabled')",

@@ -260,6 +260,10 @@ func DesktopSettingDefinitions() []SettingDefinition {
 		{Key: "pet.position_x", Default: "24"},
 		{Key: "pet.position_y", Default: "24"},
 		{Key: "pet.always_on_top", Default: "false", Values: []string{"true", "false"}},
+		{Key: "phone_gadget.enabled", Default: "false", Values: []string{"true", "false"}},
+		{Key: "phone_gadget.position_x", Default: ""},
+		{Key: "phone_gadget.position_y", Default: ""},
+		{Key: "phone_gadget.always_on_top", Default: "false", Values: []string{"true", "false"}},
 	}
 }
 
