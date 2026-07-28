@@ -567,10 +567,10 @@ func (s *Service) seedDefaultPetLocked(ctx context.Context) error {
 func (s *Service) seedBuiltinWidgetsLocked(ctx context.Context) error {
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	defaults := []Widget{
-		{ID: "builtin-analog-clock", Title: "Analog Clock", Icon: "calculator", Type: "builtin", Runtime: BuiltinRuntime, X: 0, Y: 0, W: 2, H: 2, Visible: true, Builtin: true},
-		{ID: "builtin-quickchat", Title: "Quick Chat", Icon: "chat", Type: "builtin", Runtime: BuiltinRuntime, X: 0, Y: 0, W: 2, H: 2, Visible: true, Builtin: true},
-		{ID: "builtin-weather", Title: "Weather", Icon: "weather", Type: "builtin", Runtime: BuiltinRuntime, X: 0, Y: 0, W: 310, H: 220, Visible: true, Builtin: true},
-		{ID: "builtin-sysmon", Title: "System Monitor", Icon: "analytics", Type: "builtin", Runtime: BuiltinRuntime, X: 0, Y: 0, W: 310, H: 220, Visible: true, Builtin: true},
+		{ID: "builtin-analog-clock", Title: "Analog Clock", Icon: "calculator", Type: "builtin", Runtime: BuiltinRuntime, X: 0, Y: 0, W: 320, H: 220, Visible: false, Builtin: true},
+		{ID: "builtin-quickchat", Title: "Quick Chat", Icon: "chat", Type: "builtin", Runtime: BuiltinRuntime, X: 0, Y: 0, W: 320, H: 56, Visible: true, Builtin: true},
+		{ID: "builtin-weather", Title: "Weather", Icon: "weather", Type: "builtin", Runtime: BuiltinRuntime, X: 0, Y: 0, W: 320, H: 220, Visible: true, Builtin: true},
+		{ID: "builtin-sysmon", Title: "System Monitor", Icon: "analytics", Type: "builtin", Runtime: BuiltinRuntime, X: 0, Y: 0, W: 320, H: 220, Visible: true, Builtin: true},
 	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -581,9 +581,10 @@ func (s *Service) seedBuiltinWidgetsLocked(ctx context.Context) error {
 		widgetJSON, _ := json.Marshal(widget)
 		configJSON, _ := json.Marshal(widget.Config)
 		if _, err := tx.ExecContext(ctx, `INSERT INTO desktop_widgets(id, app_id, title, x, y, w, h, config_json, widget_json, visible, builtin, created_at, updated_at)
-			VALUES(?, '', ?, ?, ?, ?, ?, ?, ?, 1, 1, ?, ?)
+			VALUES(?, '', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 			ON CONFLICT(id) DO NOTHING`,
-			widget.ID, widget.Title, widget.X, widget.Y, widget.W, widget.H, string(configJSON), string(widgetJSON), now, now); err != nil {
+			widget.ID, widget.Title, widget.X, widget.Y, widget.W, widget.H, string(configJSON), string(widgetJSON),
+			boolToInt(widget.Visible), boolToInt(widget.Builtin), now, now); err != nil {
 			return fmt.Errorf("seed desktop builtin widget %s: %w", widget.ID, err)
 		}
 	}

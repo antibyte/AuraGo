@@ -84,18 +84,20 @@
     }
 
     function petScale() {
-        const raw = settingValue('pet.scale') || '1.0';
+        const raw = settingValue('pet.scale') || '0.5';
         const v = parseFloat(raw);
-        if (!Number.isFinite(v) || v < 0.25 || v > 3) return 1;
+        if (!Number.isFinite(v) || v < 0.25 || v > 3) return 0.5;
         return v;
     }
 
-    function petPosition() {
-        const x = parseInt(settingValue('pet.position_x') || '24', 10);
-        const y = parseInt(settingValue('pet.position_y') || '24', 10);
+    function petPosition(scale) {
+        const x = parseInt(settingValue('pet.position_x') || '-1', 10);
+        const y = parseInt(settingValue('pet.position_y') || '-1', 10);
+        const width = Math.round(PET_FRAME_W * scale);
+        const height = Math.round(PET_FRAME_H * scale);
         return {
-            x: Number.isFinite(x) ? x : 24,
-            y: Number.isFinite(y) ? y : 24
+            x: Number.isFinite(x) && x >= 0 ? x : Math.round(window.innerWidth * 0.57 - width / 2),
+            y: Number.isFinite(y) && y >= 0 ? y : Math.round(window.innerHeight - height - 64)
         };
     }
 
@@ -210,8 +212,8 @@
 
     function applyPosition() {
         if (!layer) return;
-        const pos = petPosition();
         const scale = petScale();
+        const pos = petPosition(scale);
         const w = Math.round(PET_FRAME_W * scale);
         const h = Math.round(PET_FRAME_H * scale);
         const clamped = clampToViewport({ x: pos.x, y: pos.y, w, h });

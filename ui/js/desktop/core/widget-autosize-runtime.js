@@ -46,6 +46,19 @@
         schedule();
     }
 
+    function alignDefaultBuiltinWidgetStack() {
+        const weather = document.querySelector('.vd-widget[data-widget-id="builtin-weather"]');
+        const sysmon = document.querySelector('.vd-widget[data-widget-id="builtin-sysmon"]');
+        if (!weather || !sysmon) return;
+        const weatherData = weather._widgetData || {};
+        const sysmonData = sysmon._widgetData || {};
+        const weatherWasMoved = Number(weatherData.x || weatherData.X || 0) !== 0 || Number(weatherData.y || weatherData.Y || 0) !== 0;
+        const sysmonWasMoved = Number(sysmonData.x || sysmonData.X || 0) !== 0 || Number(sysmonData.y || sysmonData.Y || 0) !== 0;
+        if (weatherWasMoved || sysmonWasMoved) return;
+        sysmon.style.left = weather.style.left;
+        sysmon.style.top = Math.round(weather.offsetTop + weather.offsetHeight + 8) + 'px';
+    }
+
     function applyWidgetAutoSize(card, payload) {
         if (!card || card.dataset.widgetAutoSize !== 'true') return;
         const data = payload && typeof payload === 'object' ? payload : {};
@@ -66,6 +79,7 @@
             renderedScrollHeight
         );
         setWidgetPixelVar(card, '--vd-widget-auto-height', clampWidgetHeight(card, desiredHeight, WIDGET_MIN_HEIGHT));
+        alignDefaultBuiltinWidgetStack();
     }
 
     function widgetMeasuredContentHeight(card, data) {

@@ -281,9 +281,9 @@
         // Desktop pet (OpenPets)
         'pet.enabled': 'true',
         'pet.active_id': 'openpets-default',
-        'pet.scale': '1.0',
-        'pet.position_x': '24',
-        'pet.position_y': '24',
+        'pet.scale': '0.5',
+        'pet.position_x': '-1',
+        'pet.position_y': '-1',
         'pet.always_on_top': 'false',
         // Floating SIP phone gadget (windowless phone on the desktop)
         'phone_gadget.enabled': 'false',

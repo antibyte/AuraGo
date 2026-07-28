@@ -2357,8 +2357,8 @@ func TestServiceBootstrapSeedsBuiltinWidgets(t *testing.T) {
 	if !clock.Builtin {
 		t.Fatal("analog clock widget should be builtin")
 	}
-	if !clock.Visible {
-		t.Fatal("analog clock widget should be visible by default")
+	if clock.Visible {
+		t.Fatal("analog clock widget should be hidden by default")
 	}
 	chat, ok := widgetMap["builtin-quickchat"]
 	if !ok {
@@ -2366,6 +2366,16 @@ func TestServiceBootstrapSeedsBuiltinWidgets(t *testing.T) {
 	}
 	if !chat.Builtin {
 		t.Fatal("quickchat widget should be builtin")
+	}
+	if !chat.Visible || chat.W != 320 {
+		t.Fatalf("quickchat default = visible:%v width:%d, want visible and 320px wide", chat.Visible, chat.W)
+	}
+	weather, ok := widgetMap["builtin-weather"]
+	if !ok {
+		t.Fatal("builtin-weather widget not seeded")
+	}
+	if !weather.Builtin || !weather.Visible || weather.W != 320 {
+		t.Fatalf("weather default = builtin:%v visible:%v width:%d, want builtin, visible, and 320px wide", weather.Builtin, weather.Visible, weather.W)
 	}
 	sysmon, ok := widgetMap["builtin-sysmon"]
 	if !ok {
@@ -2376,6 +2386,15 @@ func TestServiceBootstrapSeedsBuiltinWidgets(t *testing.T) {
 	}
 	if !sysmon.Visible {
 		t.Fatal("sysmon widget should be visible by default")
+	}
+	if sysmon.W != weather.W {
+		t.Fatalf("sysmon width = %d, want weather-aligned width %d", sysmon.W, weather.W)
+	}
+	if got := bootstrap.Settings["pet.scale"]; got != "0.5" {
+		t.Fatalf("pet.scale default = %q, want smallest picker scale 0.5", got)
+	}
+	if x, y := bootstrap.Settings["pet.position_x"], bootstrap.Settings["pet.position_y"]; x != "-1" || y != "-1" {
+		t.Fatalf("pet position default = %q/%q, want responsive automatic placement", x, y)
 	}
 }
 

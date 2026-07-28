@@ -426,16 +426,29 @@
         });
     }
 
-    function defaultWidgetBounds(index) {
+    function defaultWidgetBounds(widget, index) {
         const workspace = $('vd-workspace');
+        const workspaceWidth = (workspace && workspace.clientWidth) || window.innerWidth;
         const width = 320;
+        const top = 12;
+        const gap = 8;
+        const right = Math.max(12, workspaceWidth - width - 12);
+        const widgetID = String(widget && widget.id || '');
+        if (widgetID === 'builtin-quickchat') {
+            return { x: Math.max(12, Math.round((workspaceWidth - width) / 2)), y: top, w: width, h: 56 };
+        }
+        if (widgetID === 'builtin-weather') {
+            return { x: right, y: top, w: width, h: 220 };
+        }
+        if (widgetID === 'builtin-sysmon') {
+            return { x: right, y: top + 220 + gap, w: width, h: 220 };
+        }
         const height = 56;
-        const x = Math.max(18, ((workspace && workspace.clientWidth) || window.innerWidth) - width - 18);
-        return { x, y: 18 + index * (height + 12), w: width, h: height };
+        return { x: right, y: top + index * (height + gap), w: width, h: height };
     }
 
     function widgetBounds(widget, index) {
-        const fallback = defaultWidgetBounds(index);
+        const fallback = defaultWidgetBounds(widget, index);
         const w = Number(widget.w || widget.W || 0);
         const h = Number(widget.h || widget.H || 0);
         return {

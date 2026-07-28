@@ -76,7 +76,7 @@
                 activeId = petsBody.active_pet_id || '';
                 renderGrid();
                 const settings = settingsBody.settings || {};
-                scaleInput.value = parseFloat(settings['pet.scale'] || '1');
+                scaleInput.value = parseFloat(settings['pet.scale'] || '0.5');
                 scaleValue.textContent = Number(scaleInput.value).toFixed(1) + 'x';
                 enabledInput.checked = String(settings['pet.enabled']).toLowerCase() !== 'false';
                 alwaysOnTopInput.checked = String(settings['pet.always_on_top']).toLowerCase() === 'true';

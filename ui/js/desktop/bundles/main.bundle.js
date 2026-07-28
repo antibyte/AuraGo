@@ -513,9 +513,9 @@
         // Desktop pet (OpenPets)
         'pet.enabled': 'true',
         'pet.active_id': 'openpets-default',
-        'pet.scale': '1.0',
-        'pet.position_x': '24',
-        'pet.position_y': '24',
+        'pet.scale': '0.5',
+        'pet.position_x': '-1',
+        'pet.position_y': '-1',
         'pet.always_on_top': 'false',
         // Floating SIP phone gadget (windowless phone on the desktop)
         'phone_gadget.enabled': 'false',
@@ -1967,18 +1967,20 @@
     }
 
     function petScale() {
-        const raw = settingValue('pet.scale') || '1.0';
+        const raw = settingValue('pet.scale') || '0.5';
         const v = parseFloat(raw);
-        if (!Number.isFinite(v) || v < 0.25 || v > 3) return 1;
+        if (!Number.isFinite(v) || v < 0.25 || v > 3) return 0.5;
         return v;
     }
 
-    function petPosition() {
-        const x = parseInt(settingValue('pet.position_x') || '24', 10);
-        const y = parseInt(settingValue('pet.position_y') || '24', 10);
+    function petPosition(scale) {
+        const x = parseInt(settingValue('pet.position_x') || '-1', 10);
+        const y = parseInt(settingValue('pet.position_y') || '-1', 10);
+        const width = Math.round(PET_FRAME_W * scale);
+        const height = Math.round(PET_FRAME_H * scale);
         return {
-            x: Number.isFinite(x) ? x : 24,
-            y: Number.isFinite(y) ? y : 24
+            x: Number.isFinite(x) && x >= 0 ? x : Math.round(window.innerWidth * 0.57 - width / 2),
+            y: Number.isFinite(y) && y >= 0 ? y : Math.round(window.innerHeight - height - 64)
         };
     }
 
@@ -2093,8 +2095,8 @@
 
     function applyPosition() {
         if (!layer) return;
-        const pos = petPosition();
         const scale = petScale();
+        const pos = petPosition(scale);
         const w = Math.round(PET_FRAME_W * scale);
         const h = Math.round(PET_FRAME_H * scale);
         const clamped = clampToViewport({ x: pos.x, y: pos.y, w, h });
@@ -4485,16 +4487,29 @@
         });
     }
 
-    function defaultWidgetBounds(index) {
+    function defaultWidgetBounds(widget, index) {
         const workspace = $('vd-workspace');
+        const workspaceWidth = (workspace && workspace.clientWidth) || window.innerWidth;
         const width = 320;
+        const top = 12;
+        const gap = 8;
+        const right = Math.max(12, workspaceWidth - width - 12);
+        const widgetID = String(widget && widget.id || '');
+        if (widgetID === 'builtin-quickchat') {
+            return { x: Math.max(12, Math.round((workspaceWidth - width) / 2)), y: top, w: width, h: 56 };
+        }
+        if (widgetID === 'builtin-weather') {
+            return { x: right, y: top, w: width, h: 220 };
+        }
+        if (widgetID === 'builtin-sysmon') {
+            return { x: right, y: top + 220 + gap, w: width, h: 220 };
+        }
         const height = 56;
-        const x = Math.max(18, ((workspace && workspace.clientWidth) || window.innerWidth) - width - 18);
-        return { x, y: 18 + index * (height + 12), w: width, h: height };
+        return { x: right, y: top + index * (height + gap), w: width, h: height };
     }
 
     function widgetBounds(widget, index) {
-        const fallback = defaultWidgetBounds(index);
+        const fallback = defaultWidgetBounds(widget, index);
         const w = Number(widget.w || widget.W || 0);
         const h = Number(widget.h || widget.H || 0);
         return {
@@ -6001,6 +6016,19 @@ function wireWindow(win, id) {
         schedule();
     }
 
+    function alignDefaultBuiltinWidgetStack() {
+        const weather = document.querySelector('.vd-widget[data-widget-id="builtin-weather"]');
+        const sysmon = document.querySelector('.vd-widget[data-widget-id="builtin-sysmon"]');
+        if (!weather || !sysmon) return;
+        const weatherData = weather._widgetData || {};
+        const sysmonData = sysmon._widgetData || {};
+        const weatherWasMoved = Number(weatherData.x || weatherData.X || 0) !== 0 || Number(weatherData.y || weatherData.Y || 0) !== 0;
+        const sysmonWasMoved = Number(sysmonData.x || sysmonData.X || 0) !== 0 || Number(sysmonData.y || sysmonData.Y || 0) !== 0;
+        if (weatherWasMoved || sysmonWasMoved) return;
+        sysmon.style.left = weather.style.left;
+        sysmon.style.top = Math.round(weather.offsetTop + weather.offsetHeight + 8) + 'px';
+    }
+
     function applyWidgetAutoSize(card, payload) {
         if (!card || card.dataset.widgetAutoSize !== 'true') return;
         const data = payload && typeof payload === 'object' ? payload : {};
@@ -6021,6 +6049,7 @@ function wireWindow(win, id) {
             renderedScrollHeight
         );
         setWidgetPixelVar(card, '--vd-widget-auto-height', clampWidgetHeight(card, desiredHeight, WIDGET_MIN_HEIGHT));
+        alignDefaultBuiltinWidgetStack();
     }
 
     function widgetMeasuredContentHeight(card, data) {
