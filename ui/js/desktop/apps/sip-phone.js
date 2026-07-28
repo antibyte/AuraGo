@@ -93,10 +93,15 @@
         instance.host.innerHTML = `
             <div class="sip-phone ${call ? 'has-call' : ''} ${call && call.state === 'ringing' ? 'is-ringing' : ''}">
                 <div class="sip-phone-device">
+                    <span class="sip-phone-hw sip-phone-hw-mute" aria-hidden="true"></span>
+                    <span class="sip-phone-hw sip-phone-hw-vol-up" aria-hidden="true"></span>
+                    <span class="sip-phone-hw sip-phone-hw-vol-down" aria-hidden="true"></span>
+                    <span class="sip-phone-hw sip-phone-hw-power" aria-hidden="true"></span>
                     <div class="sip-phone-screen">
                         <div class="sip-phone-wallpaper"></div>
                         ${renderStatusBar(instance, status, call)}
                         ${call ? renderActiveCall(instance, snapshot) : renderViews(instance, snapshot, capabilities, status)}
+                        <div class="sip-phone-glare" aria-hidden="true"></div>
                     </div>
                 </div>
             </div>`;

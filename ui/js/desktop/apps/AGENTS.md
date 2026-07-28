@@ -69,11 +69,13 @@ This subtree owns built-in virtual desktop app modules that are loaded lazily by
   revision history, change requests, and a live game preview in one maximized
   desktop window.
 - `sip-phone.js` implements the Phone app, an iPhone-inspired SIP softphone
-  rendered as a realistic device (titanium frame, side buttons, Dynamic
-  Island, live status-bar clock, signal/battery indicators) on an ambient
-  stage. The screen hosts four tab views (Favorites, Recents, Keypad,
-  Settings) above a glass tab bar, plus a full-screen active-call takeover
-  with contact-hue avatars and incoming-call answer/decline actions.
+  rendered as a realistic device (brushed titanium frame, separate mute/
+  volume/power hardware buttons, glossy Dynamic Island, live status-bar
+  clock, signal/battery indicators, glass screen glare, aurora mesh
+  wallpaper) on an ambient stage with a light halo and floor shadow. The
+  screen hosts four tab views (Favorites, Recents, Keypad, Settings) above
+  a glass tab bar, plus a full-screen active-call takeover with contact-hue
+  avatars and incoming-call answer/decline actions.
 
 ## Ownership
 
@@ -488,9 +490,13 @@ registration lives in `internal/desktop/types.go`.
   (search, cards, template/download/delete actions, seek/volume, prev/next).
   Exposes `window.NoisemakerLibrary { create }`; loads before `noisemaker.js`.
   No child DOX file needed.
-- `sip-phone.js` - iPhone-inspired SIP softphone: device chassis with Dynamic
-  Island and status bar, four tab views (Favorites, Recents, Keypad,
-  Settings) with glass tab bar, active-call takeover with answer/decline for
-  inbound ringing calls, contact-hue avatars, and frameless small-window
-  fallback. Styling lives in `ui/css/desktop-app-sip-phone.css`. Exposes
-  `window.SipPhoneApp`. No child DOX file needed.
+- `sip-phone.js` - iPhone-inspired SIP softphone: device chassis with glossy
+  Dynamic Island and status bar, separate `.sip-phone-hw-*` hardware buttons,
+  black screen bezel, aurora mesh wallpaper, `.sip-phone-glare` glass
+  reflection, and ambient stage halo/floor shadow. Four tab views
+  (Favorites, Recents, Keypad, Settings) with glass tab bar, active-call
+  takeover with answer/decline for inbound ringing calls, contact-hue
+  avatars, and frameless small-window fallback (hides hardware buttons,
+  glare, and stage effects). Styling lives in
+  `ui/css/desktop-app-sip-phone.css`. Exposes `window.SipPhoneApp`. No child
+  DOX file needed.

@@ -11,6 +11,7 @@
     --sip-text: #f5f7fb;
     --sip-text-dim: rgba(235, 240, 248, 0.55);
     --sip-text-faint: rgba(235, 240, 248, 0.34);
+    position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -25,6 +26,38 @@
         radial-gradient(80% 65% at 88% 8%, rgba(84, 96, 255, 0.1), transparent 60%),
         #07090f;
     font-family: inherit;
+}
+
+/* Ambient light halo behind the device */
+.sip-phone::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: min(82%, 580px);
+    height: 88%;
+    border-radius: 50%;
+    background:
+        radial-gradient(52% 52% at 50% 44%, rgba(49, 199, 189, 0.09), transparent 70%),
+        radial-gradient(48% 50% at 58% 60%, rgba(84, 96, 255, 0.07), transparent 72%);
+    filter: blur(16px);
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+}
+
+/* Soft floor shadow grounding the device */
+.sip-phone::after {
+    content: "";
+    position: absolute;
+    bottom: max(0.4%, 2px);
+    left: 50%;
+    width: min(58%, 380px);
+    height: 30px;
+    border-radius: 50%;
+    background: radial-gradient(50% 50% at 50% 50%, rgba(0, 0, 0, 0.62), transparent 72%);
+    filter: blur(7px);
+    transform: translateX(-50%);
+    pointer-events: none;
 }
 
 .sip-phone *,
@@ -57,48 +90,58 @@
 
 .sip-phone-device {
     position: relative;
+    z-index: 1;
     width: min(400px, 92%);
     height: min(94%, 830px);
-    padding: 11px;
-    border-radius: 62px;
+    padding: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 64px;
     background:
-        linear-gradient(148deg, #5a606b 0%, #22252c 22%, #454a54 48%, #101216 74%, #3a3f48 100%);
+        repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.022) 0 1px, transparent 1px 4px),
+        linear-gradient(148deg, #6d747f 0%, #262a32 20%, #4d545f 44%, #12151a 70%, #3d434d 92%, #22252b 100%);
     box-shadow:
-        0 44px 90px rgba(0, 0, 0, 0.62),
-        0 12px 32px rgba(0, 0, 0, 0.5),
+        0 52px 100px rgba(0, 0, 0, 0.66),
+        0 16px 36px rgba(0, 0, 0, 0.5),
+        0 2px 8px rgba(0, 0, 0, 0.42),
+        inset 0 1px 1px rgba(255, 255, 255, 0.38),
+        inset 0 -1px 2px rgba(0, 0, 0, 0.68),
+        inset 1px 0 1px rgba(255, 255, 255, 0.14),
+        inset -1px 0 1px rgba(0, 0, 0, 0.45);
+}
+
+/* Hardware buttons: mute switch + volume up/down (left), power (right) */
+.sip-phone-hw {
+    position: absolute;
+    width: 4px;
+    border-radius: 2.5px;
+    background: linear-gradient(to bottom, #7a828e 0%, #3a3f47 18%, #14161b 82%, #4a515b 100%);
+    box-shadow:
         inset 0 1px 1px rgba(255, 255, 255, 0.28),
-        inset 0 -1px 1px rgba(0, 0, 0, 0.6);
+        0 1px 3px rgba(0, 0, 0, 0.7);
 }
 
-/* Left button cluster (action + volume) */
-.sip-phone-device::before {
-    content: "";
-    position: absolute;
-    top: 118px;
-    left: -2.5px;
-    width: 3px;
-    height: 158px;
-    border-radius: 2px;
-    background:
-        linear-gradient(to bottom,
-            #6b7280 0%, #2c2f36 12%, transparent 12.5%,
-            transparent 21%, #6b7280 21.5%, #2c2f36 34%, transparent 34.5%,
-            transparent 43%, #6b7280 43.5%, #2c2f36 60%, transparent 60.5%,
-            transparent 100%);
-    opacity: 0.9;
+.sip-phone-hw-mute {
+    top: 112px;
+    left: -3.5px;
+    height: 28px;
 }
 
-/* Power button (right) */
-.sip-phone-device::after {
-    content: "";
-    position: absolute;
+.sip-phone-hw-vol-up {
     top: 156px;
-    right: -2.5px;
-    width: 3px;
+    left: -3.5px;
+    height: 50px;
+}
+
+.sip-phone-hw-vol-down {
+    top: 216px;
+    left: -3.5px;
+    height: 50px;
+}
+
+.sip-phone-hw-power {
+    top: 170px;
+    right: -3.5px;
     height: 88px;
-    border-radius: 2px;
-    background: linear-gradient(to bottom, #6b7280, #2c2f36);
-    opacity: 0.9;
 }
 
 .sip-phone-screen {
@@ -111,18 +154,33 @@
     border-radius: 52px;
     background: var(--sip-screen-bg);
     box-shadow:
+        0 0 0 3px #000,
+        0 0 0 3.5px rgba(255, 255, 255, 0.05),
         inset 0 0 0 1.5px rgba(0, 0, 0, 0.85),
-        inset 0 0 22px rgba(0, 0, 0, 0.55);
+        inset 0 0 24px rgba(0, 0, 0, 0.55);
 }
 
 .sip-phone-wallpaper {
     position: absolute;
     inset: 0;
     background:
-        radial-gradient(130% 70% at 85% -10%, rgba(64, 72, 150, 0.42), transparent 58%),
-        radial-gradient(120% 80% at 8% 12%, rgba(23, 94, 88, 0.38), transparent 55%),
-        radial-gradient(150% 90% at 50% 118%, rgba(16, 58, 44, 0.5), transparent 60%),
-        linear-gradient(180deg, #0a0e18 0%, #05070c 100%);
+        radial-gradient(120% 62% at 82% -8%, rgba(88, 96, 236, 0.48), transparent 60%),
+        radial-gradient(110% 60% at 8% 16%, rgba(20, 118, 110, 0.42), transparent 58%),
+        radial-gradient(150% 85% at 50% 118%, rgba(14, 68, 50, 0.55), transparent 62%),
+        radial-gradient(70% 42% at 88% 72%, rgba(150, 70, 200, 0.16), transparent 62%),
+        linear-gradient(180deg, #0a0e1a 0%, #04060b 100%);
+}
+
+/* Soft blurred color mesh for an iOS-style aurora depth */
+.sip-phone-wallpaper::before {
+    content: "";
+    position: absolute;
+    inset: -12%;
+    background:
+        radial-gradient(36% 28% at 30% 26%, rgba(56, 189, 248, 0.2), transparent 70%),
+        radial-gradient(40% 32% at 74% 58%, rgba(129, 140, 248, 0.18), transparent 72%),
+        radial-gradient(48% 36% at 42% 86%, rgba(52, 211, 153, 0.15), transparent 72%);
+    filter: blur(26px);
 }
 
 .sip-phone-wallpaper::after {
@@ -130,6 +188,18 @@
     position: absolute;
     inset: 0;
     background: radial-gradient(90% 46% at 50% 0%, rgba(255, 255, 255, 0.05), transparent 70%);
+}
+
+/* Glass reflection layered above the whole screen */
+.sip-phone-glare {
+    position: absolute;
+    inset: 0;
+    z-index: 8;
+    border-radius: inherit;
+    background:
+        linear-gradient(114deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.014) 20%, transparent 36%),
+        radial-gradient(130% 42% at 50% -10%, rgba(255, 255, 255, 0.045), transparent 62%);
+    pointer-events: none;
 }
 
 /* ------------------------------------------------------------------ */
@@ -147,8 +217,9 @@
 
 .sip-phone-clock {
     font-size: 0.92rem;
-    font-weight: 650;
+    font-weight: 700;
     letter-spacing: 0.02em;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
 }
 
 .sip-phone-island {
@@ -159,8 +230,12 @@
     height: 33px;
     overflow: hidden;
     border-radius: 20px;
-    background: #000;
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+    background: linear-gradient(180deg, #060709, #000 45%);
+    box-shadow:
+        inset 0 1px 1px rgba(255, 255, 255, 0.09),
+        inset 0 -1px 2px rgba(0, 0, 0, 0.9),
+        0 0 0 1px rgba(0, 0, 0, 0.6),
+        0 1px 2px rgba(0, 0, 0, 0.45);
     transition: width 0.45s cubic-bezier(0.32, 0.72, 0.24, 1);
 }
 
@@ -169,12 +244,16 @@
 }
 
 .sip-phone-island-camera {
-    width: 11px;
-    height: 11px;
+    width: 12px;
+    height: 12px;
     border-radius: 50%;
     background:
-        radial-gradient(circle at 35% 35%, rgba(72, 104, 180, 0.85) 0%, rgba(20, 26, 40, 0.9) 42%, #05070c 75%);
-    box-shadow: inset 0 0 2px rgba(120, 150, 220, 0.35);
+        radial-gradient(circle at 38% 30%, rgba(148, 178, 255, 0.5) 0%, transparent 26%),
+        radial-gradient(circle at 50% 52%, #22304f 0%, #101828 34%, #05070d 62%, #010204 82%);
+    box-shadow:
+        inset 0 0 0 1.5px rgba(0, 0, 0, 0.85),
+        inset 0 0 3px 1px rgba(96, 128, 210, 0.4),
+        0 0 2px rgba(255, 255, 255, 0.05);
 }
 
 .sip-phone-island-live {
@@ -345,12 +424,14 @@
     grid-template-columns: repeat(4, 1fr);
     margin: 4px 14px 0;
     padding: 7px 6px 5px;
-    border: 1px solid var(--sip-card-border);
+    border: 1px solid rgba(255, 255, 255, 0.09);
     border-radius: 26px;
-    background: rgba(22, 26, 35, 0.62);
-    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
-    backdrop-filter: blur(24px) saturate(1.5);
-    -webkit-backdrop-filter: blur(24px) saturate(1.5);
+    background: rgba(24, 28, 38, 0.55);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.08),
+        0 14px 34px rgba(0, 0, 0, 0.42);
+    backdrop-filter: blur(28px) saturate(1.6);
+    -webkit-backdrop-filter: blur(28px) saturate(1.6);
 }
 
 .sip-phone-tabbar button {
@@ -397,7 +478,8 @@
     height: 5px;
     margin: 9px auto 8px;
     border-radius: 3px;
-    background: rgba(255, 255, 255, 0.38);
+    background: rgba(255, 255, 255, 0.6);
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.16);
 }
 
 /* ------------------------------------------------------------------ */
@@ -520,10 +602,13 @@
     border-radius: 50%;
     color: var(--sip-text);
     background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.045));
+        linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.05));
     box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.1),
-        0 6px 16px rgba(0, 0, 0, 0.28);
+        inset 0 1px 0 rgba(255, 255, 255, 0.14),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.25),
+        0 8px 18px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     cursor: pointer;
     transition: transform 0.1s ease, background 0.15s ease, border-color 0.15s ease;
 }
@@ -1141,6 +1226,7 @@
             hsl(var(--sip-hue, 200) 60% 50%),
             hsl(var(--sip-hue, 200) 55% 32%));
     box-shadow:
+        0 0 0 5px rgba(255, 255, 255, 0.05),
         0 18px 44px hsl(var(--sip-hue, 200) 60% 40% / 0.4),
         inset 0 2px 2px rgba(255, 255, 255, 0.28);
     font-size: 2.5rem;
@@ -1505,17 +1591,23 @@
 /* ------------------------------------------------------------------ */
 
 @media (max-width: 640px) {
+    .sip-phone::before,
+    .sip-phone::after {
+        display: none;
+    }
+
     .sip-phone-device {
         width: 100%;
         height: 100%;
         padding: 0;
+        border: 0;
         border-radius: 0;
         background: none;
         box-shadow: none;
     }
 
-    .sip-phone-device::before,
-    .sip-phone-device::after {
+    .sip-phone-hw,
+    .sip-phone-glare {
         display: none;
     }
 
