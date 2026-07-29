@@ -1,10 +1,12 @@
 package llm
 
 import (
+	"context"
 	"errors"
 	"io"
 	"log/slog"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -55,6 +57,214 @@ func TestFailoverRecordErrorSkipsRateLimit(t *testing.T) {
 	}
 	if fm.isOnFallback {
 		t.Fatal("rate limit error should not switch to fallback")
+	}
+}
+
+type immediateFailoverTestError struct{}
+
+func (immediateFailoverTestError) Error() string           { return "managed local runtime unavailable" }
+func (immediateFailoverTestError) ImmediateFailover() bool { return true }
+
+type failoverRoundTripper func(*http.Request) (*http.Response, error)
+
+func (fn failoverRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	return fn(req)
+}
+
+type failoverStreamBody struct {
+	payload string
+	sent    bool
+}
+
+func (body *failoverStreamBody) Read(buffer []byte) (int, error) {
+	if body.sent {
+		return 0, immediateFailoverTestError{}
+	}
+	body.sent = true
+	return copy(buffer, body.payload), nil
+}
+
+func (*failoverStreamBody) Close() error { return nil }
+
+func failoverTestClient(transport http.RoundTripper) *openai.Client {
+	cfg := openai.DefaultConfig("test-key")
+	cfg.BaseURL = "http://failover.test/v1"
+	cfg.HTTPClient = &http.Client{Transport: transport}
+	return openai.NewClientWithConfig(cfg)
+}
+
+func completionResponse(content string) *http.Response {
+	return &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{"Content-Type": []string{"application/json"}},
+		Body: io.NopCloser(strings.NewReader(
+			`{"id":"test","object":"chat.completion","choices":[{"index":0,"message":{"role":"assistant","content":"` +
+				content + `"},"finish_reason":"stop"}]}`,
+		)),
+	}
+}
+
+func TestFailoverRecordErrorImmediatelySwitchesFromManagedLocalPrimary(t *testing.T) {
+	fm := &FailoverManager{
+		logger:         slog.New(slog.NewTextHandler(io.Discard, nil)),
+		fallback:       openai.NewClient("regular-provider-key"),
+		fallbackModel:  "regular-large-model",
+		errorThreshold: 5,
+	}
+
+	fm.recordError(immediateFailoverTestError{})
+
+	if !fm.isOnFallback {
+		t.Fatal("typed managed-runtime error did not switch immediately")
+	}
+	if fm.errorCount != 0 {
+		t.Fatalf("errorCount = %d, want 0 after immediate switch", fm.errorCount)
+	}
+}
+
+func TestImmediateLocalFailureRetriesSameCompletionExactlyOnce(t *testing.T) {
+	primaryCalls := 0
+	fallbackCalls := 0
+	fm := &FailoverManager{
+		primary: failoverTestClient(failoverRoundTripper(func(*http.Request) (*http.Response, error) {
+			primaryCalls++
+			return nil, immediateFailoverTestError{}
+		})),
+		fallback: failoverTestClient(failoverRoundTripper(func(*http.Request) (*http.Response, error) {
+			fallbackCalls++
+			return completionResponse("fallback-ok"), nil
+		})),
+		primaryModel:  "aurago-qwen",
+		fallbackType:  "openai",
+		fallbackModel: "gpt-4o",
+		logger:        slog.New(slog.NewTextHandler(io.Discard, nil)),
+	}
+	response, err := fm.CreateChatCompletion(context.Background(), openai.ChatCompletionRequest{
+		Messages: []openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleUser, Content: "hello"}},
+	})
+	if err != nil || len(response.Choices) != 1 || response.Choices[0].Message.Content != "fallback-ok" {
+		t.Fatalf("completion response=%#v err=%v", response, err)
+	}
+	if primaryCalls != 1 || fallbackCalls != 1 || !fm.isOnFallback {
+		t.Fatalf("calls primary=%d fallback=%d onFallback=%v", primaryCalls, fallbackCalls, fm.isOnFallback)
+	}
+}
+
+func TestImmediateLocalFailureRetriesStreamCreationOnly(t *testing.T) {
+	fallbackCalls := 0
+	fm := &FailoverManager{
+		primary: failoverTestClient(failoverRoundTripper(func(*http.Request) (*http.Response, error) {
+			return nil, immediateFailoverTestError{}
+		})),
+		fallback: failoverTestClient(failoverRoundTripper(func(*http.Request) (*http.Response, error) {
+			fallbackCalls++
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     http.Header{"Content-Type": []string{"text/event-stream"}},
+				Body: io.NopCloser(strings.NewReader(
+					"data: {\"id\":\"test\",\"object\":\"chat.completion.chunk\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"fallback\"}}]}\n\n" +
+						"data: [DONE]\n\n",
+				)),
+			}, nil
+		})),
+		primaryModel:  "aurago-qwen",
+		fallbackType:  "openai",
+		fallbackModel: "gpt-4o",
+		logger:        slog.New(slog.NewTextHandler(io.Discard, nil)),
+	}
+	stream, err := fm.CreateChatCompletionStream(context.Background(), openai.ChatCompletionRequest{
+		Messages: []openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleUser, Content: "hello"}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stream.Close()
+	chunk, err := stream.Recv()
+	if err != nil || len(chunk.Choices) != 1 || chunk.Choices[0].Delta.Content != "fallback" {
+		t.Fatalf("stream chunk=%#v err=%v", chunk, err)
+	}
+	if fallbackCalls != 1 {
+		t.Fatalf("fallback calls=%d, want 1", fallbackCalls)
+	}
+}
+
+func TestStreamFailureAfterFirstByteDoesNotRetryFallback(t *testing.T) {
+	fallbackCalls := 0
+	fm := &FailoverManager{
+		primary: failoverTestClient(failoverRoundTripper(func(*http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     http.Header{"Content-Type": []string{"text/event-stream"}},
+				Body:       &failoverStreamBody{payload: "data: {\"id\":\"test\",\"object\":\"chat.completion.chunk\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"first\"}}]}\n\n"},
+			}, nil
+		})),
+		fallback: failoverTestClient(failoverRoundTripper(func(*http.Request) (*http.Response, error) {
+			fallbackCalls++
+			return completionResponse("must-not-run"), nil
+		})),
+		primaryModel:  "aurago-qwen",
+		fallbackType:  "openai",
+		fallbackModel: "gpt-4o",
+		logger:        slog.New(slog.NewTextHandler(io.Discard, nil)),
+	}
+	stream, err := fm.CreateChatCompletionStream(context.Background(), openai.ChatCompletionRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stream.Close()
+	if _, err := stream.Recv(); err != nil {
+		t.Fatalf("first streamed byte failed: %v", err)
+	}
+	if _, err := stream.Recv(); err == nil {
+		t.Fatal("expected stream failure after first byte")
+	}
+	if fallbackCalls != 0 || fm.isOnFallback {
+		t.Fatalf("fallback was used after stream began: calls=%d onFallback=%v", fallbackCalls, fm.isOnFallback)
+	}
+}
+
+func TestImmediateFallbackDoesNotRetryCancelledOrIncompatibleRequest(t *testing.T) {
+	fm := &FailoverManager{
+		fallback:      failoverTestClient(failoverRoundTripper(func(*http.Request) (*http.Response, error) { t.Fatal("fallback called"); return nil, nil })),
+		fallbackType:  "openai",
+		fallbackModel: "gpt-3.5-turbo",
+		logger:        slog.New(slog.NewTextHandler(io.Discard, nil)),
+	}
+	imageRequest := openai.ChatCompletionRequest{Messages: []openai.ChatCompletionMessage{{
+		Role: openai.ChatMessageRoleUser,
+		MultiContent: []openai.ChatMessagePart{{
+			Type:     openai.ChatMessagePartTypeImageURL,
+			ImageURL: &openai.ChatMessageImageURL{URL: "https://example.invalid/image.png"},
+		}},
+	}}}
+	if _, _, retry := fm.immediateFallbackForRequest(immediateFailoverTestError{}, false, imageRequest); retry {
+		t.Fatal("incompatible multimodal request was retried")
+	}
+	if _, _, retry := fm.immediateFallbackForRequest(context.Canceled, false, openai.ChatCompletionRequest{}); retry {
+		t.Fatal("cancelled request was retried")
+	}
+}
+
+func TestImmediateFallbackFailureIsNotRetriedAgain(t *testing.T) {
+	fallbackCalls := 0
+	fm := &FailoverManager{
+		primary: failoverTestClient(failoverRoundTripper(func(*http.Request) (*http.Response, error) {
+			return nil, immediateFailoverTestError{}
+		})),
+		fallback: failoverTestClient(failoverRoundTripper(func(*http.Request) (*http.Response, error) {
+			fallbackCalls++
+			return nil, errors.New("fallback unavailable")
+		})),
+		primaryModel:  "aurago-qwen",
+		fallbackType:  "openai",
+		fallbackModel: "gpt-4o",
+		logger:        slog.New(slog.NewTextHandler(io.Discard, nil)),
+	}
+	if _, err := fm.CreateChatCompletion(context.Background(), openai.ChatCompletionRequest{}); err == nil {
+		t.Fatal("expected fallback failure")
+	}
+	if fallbackCalls != 1 {
+		t.Fatalf("fallback calls=%d, want exactly 1", fallbackCalls)
 	}
 }
 

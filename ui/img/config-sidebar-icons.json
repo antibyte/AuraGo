@@ -2,7 +2,7 @@
   "asset": "ui/img/config-sidebar-icons.svg",
   "grid": {
     "columns": 11,
-    "rows": 10,
+    "rows": 11,
     "cell_size": 128
   },
   "icons": [
@@ -883,6 +883,14 @@
       "slot": 109,
       "column": 10,
       "row": 9,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "local_llm",
+      "slot": 110,
+      "column": 0,
+      "row": 10,
       "source_type": "custom",
       "source": "AuraGo custom Precision sidebar icon set"
     }

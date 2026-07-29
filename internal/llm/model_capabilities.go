@@ -79,6 +79,13 @@ func ResolveConfigProviderCapabilities(cfg *config.Config) ProviderCapabilityRes
 // models.dev registry, local heuristics, and finally legacy global fallback.
 func ResolveProviderCapabilities(provider config.ProviderEntry, fallback CapabilityFallback) ProviderCapabilityResult {
 	model := strings.TrimSpace(provider.Model)
+	if strings.EqualFold(strings.TrimSpace(provider.Type), "aurago-local") ||
+		strings.EqualFold(strings.TrimSpace(provider.ID), config.LocalLLMProviderID) {
+		return ProviderCapabilityResult{
+			ToolCalling: true, StructuredOutputs: false, Multimodal: false, Reasoning: false,
+			DetectedModel: config.LocalLLMModelAlias, Source: CapabilitySourceManual, Known: true,
+		}
+	}
 	caps := provider.Capabilities
 	if !caps.AutoEnabled() {
 		return ProviderCapabilityResult{

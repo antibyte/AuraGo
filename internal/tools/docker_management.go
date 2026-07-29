@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -10,6 +11,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	"aurago/internal/dockerutil"
 )
@@ -42,6 +44,9 @@ func DockerCreateContainerWithOptions(cfg DockerConfig, name, image string, env 
 	}
 	if image == "" {
 		return errJSON("image is required")
+	}
+	if dockerutil.IsLocalLLMContainerName(name) {
+		return errJSON("reserved AuraGo local LLM container name")
 	}
 
 	for _, bind := range volumes {
@@ -185,8 +190,9 @@ func DockerListNetworks(cfg DockerConfig) string {
 	return string(out)
 }
 
-// DockerListVolumes returns all Docker volumes.
-func DockerListVolumes(cfg DockerConfig) string {
+// DockerListVolumes returns Docker volumes while optionally hiding managed
+// owners from agent-facing callers.
+func DockerListVolumes(cfg DockerConfig, excludedOwners ...string) string {
 	data, code, err := dockerRequest(cfg, "GET", "/volumes", "")
 	if err != nil {
 		return errJSON("Failed to list volumes: %v", err)
@@ -209,8 +215,17 @@ func DockerListVolumes(cfg DockerConfig) string {
 	if vols, ok := resp["Volumes"].([]interface{}); ok {
 		for _, v := range vols {
 			if vol, ok := v.(map[string]interface{}); ok {
+				name := fmt.Sprintf("%v", vol["Name"])
+				if dockerManagedResourceExcluded(
+					dockerStringLabels(vol["Labels"]),
+					[]string{name},
+					true,
+					excludedOwners,
+				) {
+					continue
+				}
 				result = append(result, compact{
-					Name:       fmt.Sprintf("%v", vol["Name"]),
+					Name:       name,
 					Driver:     fmt.Sprintf("%v", vol["Driver"]),
 					Mountpoint: fmt.Sprintf("%v", vol["Mountpoint"]),
 				})
@@ -580,6 +595,9 @@ func DockerCreateVolume(cfg DockerConfig, name, driver string) string {
 	if name == "" {
 		return errJSON("volume name required")
 	}
+	if dockerutil.IsLocalLLMVolumeName(name) {
+		return errJSON("reserved AuraGo local LLM volume name")
+	}
 	if driver == "" {
 		driver = "local"
 	}
@@ -598,6 +616,9 @@ func DockerCreateVolume(cfg DockerConfig, name, driver string) string {
 func DockerRemoveVolume(cfg DockerConfig, name string, force bool) string {
 	if name == "" {
 		return errJSON("volume name required")
+	}
+	if dockerutil.IsLocalLLMVolumeName(name) {
+		return errJSON("reserved AuraGo local LLM volume name")
 	}
 	forceParam := ""
 	if force {
@@ -740,6 +761,34 @@ func DockerCompose(cfg DockerConfig, file, cmd string) string {
 	return runDockerCLIHelper(cfg, args...)
 }
 
+// DockerComposeResolvedConfig returns Compose's fully interpolated model for a
+// read-only policy preflight. Errors are intentionally returned to let callers
+// fail closed before executing any Compose action.
+func DockerComposeResolvedConfig(cfg DockerConfig, file string) (string, error) {
+	if err := requireDockerPermission(); err != nil {
+		return "", err
+	}
+	composeFile, err := validateDockerComposeFilePath(cfg, file)
+	if err != nil {
+		return "", err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	args := dockerCLIArgs(cfg, "compose", "-f", composeFile, "config", "--format", "json")
+	output, err := exec.CommandContext(ctx, "docker", args...).CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("resolve Compose config: %w", err)
+	}
+	return string(output), nil
+}
+
+// DockerComposeCommandMutates reports whether an allowed Compose command can
+// change Docker state. Invalid commands are treated as mutating.
+func DockerComposeCommandMutates(command string) bool {
+	parts, err := dockerComposeParts(command)
+	return err != nil || !dockerComposeReadOnlySubcommand(parts[0])
+}
+
 func validateDockerComposeFilePath(cfg DockerConfig, file string) (string, error) {
 	rawFile := strings.TrimSpace(file)
 	workspace := strings.TrimSpace(cfg.WorkspaceDir)
@@ -789,6 +838,9 @@ func validateDockerBindMount(cfg DockerConfig, bind string) error {
 		return nil
 	}
 	if !spec.isHostPath {
+		if dockerutil.IsLocalLLMVolumeName(spec.hostPath) {
+			return fmt.Errorf("mounting reserved AuraGo local LLM volume %q is not allowed", spec.hostPath)
+		}
 		return nil // named Docker volume
 	}
 	hostPath := cleanDockerHostPath(spec.hostPath)

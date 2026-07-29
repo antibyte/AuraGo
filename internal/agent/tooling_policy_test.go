@@ -273,6 +273,29 @@ func TestBuildToolingPolicyDisablesStructuredOutputsAndParallelForOllama(t *test
 	}
 }
 
+func TestBuildToolingPolicyUsesManagedLocalCapabilityContract(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.LLM.Provider = config.LocalLLMProviderID
+	cfg.LLM.ProviderType = "aurago-local"
+	cfg.LLM.Model = config.LocalLLMModelAlias
+	cfg.LLM.StructuredOutputs = true
+
+	policy := buildToolingPolicy(cfg, "")
+
+	if !policy.UseNativeFunctions || !policy.Capabilities.ProviderToolCalling {
+		t.Fatal("managed local provider did not enable native tool calls")
+	}
+	if policy.StructuredOutputsEnabled || policy.Capabilities.SupportsStructuredOutputs {
+		t.Fatal("managed local provider enabled strict structured outputs")
+	}
+	if policy.ParallelToolCallsEnabled || policy.Capabilities.SupportsParallelToolCalls {
+		t.Fatal("managed local provider enabled parallel tool calls")
+	}
+	if policy.Capabilities.ProviderMultimodal {
+		t.Fatal("managed local provider advertised vision")
+	}
+}
+
 func TestBuildPromptContextFlagsKeepsHomepageFallbackWhenDockerSocketUnavailable(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Runtime.IsDocker = true

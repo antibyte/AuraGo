@@ -2,6 +2,7 @@ package llm
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"sync"
 	"time"
@@ -33,6 +34,8 @@ type FailoverManager struct {
 	stopCh chan struct{}
 
 	logger *slog.Logger
+
+	clientFactory func(*config.Config) *openai.Client
 }
 
 type failoverProbeSnapshot struct {
@@ -45,7 +48,19 @@ type failoverProbeSnapshot struct {
 	primaryAPIKey  string
 }
 
-func NewFailoverManager(cfg *config.Config, logger *slog.Logger) *FailoverManager {
+// FailoverOption customizes client construction without changing existing callers.
+type FailoverOption func(*FailoverManager)
+
+// WithClientFactory supplies clients for managed runtimes while preserving normal provider behavior.
+func WithClientFactory(factory func(*config.Config) *openai.Client) FailoverOption {
+	return func(manager *FailoverManager) {
+		if factory != nil {
+			manager.clientFactory = factory
+		}
+	}
+}
+
+func NewFailoverManager(cfg *config.Config, logger *slog.Logger, options ...FailoverOption) *FailoverManager {
 	if cfg != nil {
 		if cfg.CircuitBreaker.LLMPerAttemptTimeoutSeconds > 0 {
 			// Enforce a floor of 120s so large-prompt scenarios (Virtual Desktop)
@@ -59,10 +74,7 @@ func NewFailoverManager(cfg *config.Config, logger *slog.Logger) *FailoverManage
 		ConfigureDefaultRetryIntervals(cfg.CircuitBreaker.RetryIntervals, logger)
 		cfg.CircuitBreaker.FinalRetryInterval = configureFinalRetryInterval(cfg.CircuitBreaker.FinalRetryInterval, logger)
 	}
-	primary := NewClient(cfg)
-
 	fm := &FailoverManager{
-		primary:        primary,
 		primaryType:    cfg.LLM.ProviderType,
 		primaryModel:   cfg.LLM.Model,
 		primaryBaseURL: cfg.LLM.BaseURL,
@@ -71,7 +83,12 @@ func NewFailoverManager(cfg *config.Config, logger *slog.Logger) *FailoverManage
 		probeInterval:  60 * time.Second,
 		stopCh:         make(chan struct{}),
 		logger:         logger,
+		clientFactory:  NewClient,
 	}
+	for _, option := range options {
+		option(fm)
+	}
+	fm.primary = fm.clientFactory(cfg)
 
 	fb := cfg.FallbackLLM
 	if !fb.Enabled || (fb.BaseURL == "" && fb.AccountID == "") {
@@ -84,7 +101,7 @@ func NewFailoverManager(cfg *config.Config, logger *slog.Logger) *FailoverManage
 	fallbackCfg.LLM.APIKey = fb.APIKey
 	fallbackCfg.LLM.Model = fb.Model
 	fallbackCfg.LLM.AccountID = fb.AccountID
-	fm.fallback = NewClient(&fallbackCfg)
+	fm.fallback = fm.clientFactory(&fallbackCfg)
 	fm.fallbackType = fb.ProviderType
 	fm.fallbackModel = fb.Model
 
@@ -115,7 +132,7 @@ func (fm *FailoverManager) Reconfigure(cfg *config.Config) {
 	}
 	fm.Stop()
 
-	newPrimary := NewClient(cfg)
+	newPrimary := fm.clientFactory(cfg)
 	newStopCh := make(chan struct{})
 
 	fm.mu.Lock()
@@ -139,7 +156,7 @@ func (fm *FailoverManager) Reconfigure(cfg *config.Config) {
 		fallbackCfg.LLM.APIKey = fb.APIKey
 		fallbackCfg.LLM.Model = fb.Model
 		fallbackCfg.LLM.AccountID = fb.AccountID
-		fm.fallback = NewClient(&fallbackCfg)
+		fm.fallback = fm.clientFactory(&fallbackCfg)
 		fm.fallbackType = fb.ProviderType
 		fm.fallbackModel = fb.Model
 		if fb.ErrorThreshold > 0 {
@@ -184,6 +201,16 @@ func (fm *FailoverManager) CreateChatCompletion(ctx context.Context, req openai.
 
 	resp, err := client.CreateChatCompletion(ctx, reqCopy)
 	if err != nil {
+		if fallbackClient, fallbackModel, retry := fm.immediateFallbackForRequest(err, onFallback, req); retry {
+			reqCopy.Model = fallbackModel
+			resp, err = fallbackClient.CreateChatCompletion(ctx, reqCopy)
+			if err != nil {
+				fm.recordError(err)
+			} else {
+				fm.recordSuccess()
+			}
+			return resp, err
+		}
 		fm.recordError(err)
 	} else {
 		fm.recordSuccess()
@@ -205,11 +232,45 @@ func (fm *FailoverManager) CreateChatCompletionStream(ctx context.Context, req o
 
 	stream, err := client.CreateChatCompletionStream(ctx, reqCopy)
 	if err != nil {
+		if fallbackClient, fallbackModel, retry := fm.immediateFallbackForRequest(err, onFallback, req); retry {
+			reqCopy.Model = fallbackModel
+			stream, err = fallbackClient.CreateChatCompletionStream(ctx, reqCopy)
+			if err != nil {
+				fm.recordError(err)
+			} else {
+				fm.recordSuccess()
+			}
+			return stream, err
+		}
 		fm.recordError(err)
 	} else {
 		fm.recordSuccess()
 	}
 	return stream, err
+}
+
+func (fm *FailoverManager) immediateFallbackForRequest(
+	err error,
+	wasOnFallback bool,
+	req openai.ChatCompletionRequest,
+) (*openai.Client, string, bool) {
+	if err == nil || wasOnFallback || IsContextError(err) || !fm.fallbackSupportsFeatures(req) {
+		return nil, "", false
+	}
+	var immediate interface{ ImmediateFailover() bool }
+	if !errors.As(err, &immediate) || !immediate.ImmediateFailover() {
+		return nil, "", false
+	}
+	fm.mu.Lock()
+	defer fm.mu.Unlock()
+	if fm.fallback == nil || fm.isOnFallback {
+		return nil, "", false
+	}
+	fm.logger.Warn("LLM failover: managed local runtime unavailable, retrying current request on fallback",
+		"model", fm.fallbackModel, "error", err)
+	fm.isOnFallback = true
+	fm.errorCount = 0
+	return fm.fallback, fm.fallbackModel, true
 }
 
 func (fm *FailoverManager) active() (*openai.Client, string, bool) {
@@ -252,12 +313,12 @@ func (fm *FailoverManager) fallbackSupportsFeatures(req openai.ChatCompletionReq
 			break
 		}
 	}
-	if !hasImage {
+	requiresTools := len(req.Tools) > 0
+	requiresStructured := req.ResponseFormat != nil &&
+		req.ResponseFormat.Type != "" &&
+		req.ResponseFormat.Type != openai.ChatCompletionResponseFormatTypeText
+	if !hasImage && !requiresTools && !requiresStructured {
 		return true
-	}
-
-	if _, _, _, multimodal, ok := GetCapabilitiesFromRegistry(fallbackType, fallbackModel); ok {
-		return multimodal
 	}
 
 	caps := ResolveProviderCapabilities(config.ProviderEntry{
@@ -265,10 +326,15 @@ func (fm *FailoverManager) fallbackSupportsFeatures(req openai.ChatCompletionReq
 		Type:  fallbackType,
 		Model: fallbackModel,
 	}, CapabilityFallback{})
-	if caps.Known {
-		return caps.Multimodal
+	if !caps.Known {
+		// Preserve existing custom-provider behavior for text/tool requests.
+		// Unknown vision remains fail-closed because replaying image content to
+		// a text-only model is predictably incompatible.
+		return !hasImage
 	}
-	return false
+	return (!hasImage || caps.Multimodal) &&
+		(!requiresTools || caps.ToolCalling) &&
+		(!requiresStructured || caps.StructuredOutputs)
 }
 
 func (fm *FailoverManager) recordError(err error) {
@@ -283,6 +349,19 @@ func (fm *FailoverManager) recordError(err error) {
 
 	if IsRateLimit(err) {
 		fm.logger.Debug("[LLM] Rate limit error, not counting towards failover", "error", err)
+		return
+	}
+
+	var immediate interface{ ImmediateFailover() bool }
+	if errors.As(err, &immediate) && immediate.ImmediateFailover() {
+		fm.mu.Lock()
+		defer fm.mu.Unlock()
+		if fm.fallback != nil && !fm.isOnFallback {
+			fm.logger.Warn("LLM failover: managed local runtime unavailable, switching immediately",
+				"model", fm.fallbackModel, "error", err)
+			fm.isOnFallback = true
+			fm.errorCount = 0
+		}
 		return
 	}
 

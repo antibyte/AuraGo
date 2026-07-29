@@ -85,6 +85,7 @@ RUN mkdir -p \
         /app/agent_workspace/tools \
         /app/data \
         /app/data/embeddings \
+        /app/data/models/aurago-qwen35 \
         /app/log
 
 # The venv lives inside workdir and is created automatically by AuraGo

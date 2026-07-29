@@ -1,6 +1,9 @@
 package dockerutil
 
-import "testing"
+import (
+	"reflect"
+	"testing"
+)
 
 func TestDefaultHostForGOOS(t *testing.T) {
 	t.Parallel()
@@ -61,5 +64,44 @@ func TestFormatBindMountNormalizesHostSlashesAndOptions(t *testing.T) {
 	want := "C:/Users/andi/project:/workspace:ro"
 	if got != want {
 		t.Fatalf("FormatBindMount() = %q, want %q", got, want)
+	}
+}
+
+func TestManagedByRecognizesCanonicalAndLegacyLabels(t *testing.T) {
+	t.Parallel()
+
+	for _, labels := range []map[string]string{
+		{"aurago.managed": "local-llm"},
+		{"com.aurago.managed": "true", "com.aurago.owner": "local-llm"},
+	} {
+		if !ManagedBy(labels, LocalLLMOwner) {
+			t.Fatalf("labels were not recognized: %#v", labels)
+		}
+	}
+	if ManagedBy(map[string]string{"aurago.managed": "go2rtc"}, LocalLLMOwner) {
+		t.Fatal("foreign managed resource was recognized as local LLM")
+	}
+}
+
+func TestLocalLLMReservedNames(t *testing.T) {
+	t.Parallel()
+
+	if !IsLocalLLMContainerName("/AURAGO-LOCAL-LLM") ||
+		!IsLocalLLMContainerName(LocalLLMKeySeedName) ||
+		!IsLocalLLMContainerName("legacy-aurago-local-llm-1") ||
+		!IsLocalLLMVolumeName("AURAGO_MODELS") ||
+		!IsLocalLLMVolumeName("legacy_aurago_models") ||
+		!IsLocalLLMVolumeName(LocalLLMKeyVolumeName) {
+		t.Fatal("reserved local LLM resource name was not recognized")
+	}
+}
+
+func TestParseNumericGroupIDs(t *testing.T) {
+	t.Parallel()
+
+	got := ParseNumericGroupIDs(" 109,44,109,0,-1,nope,2147483648 ")
+	want := []string{"109", "44"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("ParseNumericGroupIDs() = %#v, want %#v", got, want)
 	}
 }

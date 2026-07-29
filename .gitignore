@@ -55,6 +55,8 @@ agent_workspace/virtual_desktop/
 data/vectordb/
 data/vectordb_backup/
 data/tts/
+# Managed local model cache
+data/models/
 data/core_memory.db
 data/short_term.db
 data/short_term.db-shm

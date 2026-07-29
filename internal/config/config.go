@@ -412,6 +412,14 @@ func Load(path string) (*Config, error) {
 	cfg.Go2RTC.APIHostPort = 1984
 	cfg.Go2RTC.WebRTC.Port = 8555
 
+	// AuraGo-Qwen is opt-in and intentionally conservative. CPU is never selected automatically.
+	cfg.LocalLLM.Backend = "auto"
+	cfg.LocalLLM.ModelVariant = "q4_k_m"
+	cfg.LocalLLM.MTP = "off"
+	cfg.LocalLLM.ContextSize = 8192
+	cfg.LocalLLM.IdleTimeoutMinutes = 15
+	cfg.LocalLLM.ListenPort = 18081
+
 	// Space Agent defaults: disabled by default, managed Docker sidecar when enabled.
 	cfg.SpaceAgent.AutoStart = true
 	cfg.SpaceAgent.RepoURL = "https://github.com/agent0ai/space-agent"
@@ -981,6 +989,30 @@ func Load(path string) (*Config, error) {
 	}
 	if cfg.Go2RTC.WebRTC.Port <= 0 {
 		cfg.Go2RTC.WebRTC.Port = 8555
+	}
+	cfg.LocalLLM.Backend = strings.ToLower(strings.TrimSpace(cfg.LocalLLM.Backend))
+	if cfg.LocalLLM.Backend == "" {
+		cfg.LocalLLM.Backend = "auto"
+	}
+	cfg.LocalLLM.ModelVariant = strings.ToLower(strings.TrimSpace(cfg.LocalLLM.ModelVariant))
+	if cfg.LocalLLM.ModelVariant == "" {
+		cfg.LocalLLM.ModelVariant = "q4_k_m"
+	}
+	cfg.LocalLLM.MTP = strings.ToLower(strings.TrimSpace(cfg.LocalLLM.MTP))
+	if cfg.LocalLLM.MTP == "" {
+		cfg.LocalLLM.MTP = "off"
+	}
+	if cfg.LocalLLM.ContextSize == 0 {
+		cfg.LocalLLM.ContextSize = 8192
+	}
+	if cfg.LocalLLM.IdleTimeoutMinutes == 0 {
+		cfg.LocalLLM.IdleTimeoutMinutes = 15
+	}
+	if cfg.LocalLLM.ListenPort == 0 {
+		cfg.LocalLLM.ListenPort = 18081
+	}
+	if err := ValidateLocalLLMConfig(&cfg); err != nil {
+		return nil, err
 	}
 	cfg.SpaceAgent.PublicURL, cfg.SpaceAgent.Port = normalizeSpaceAgentURLAndPort(cfg.SpaceAgent.PublicURL, cfg.SpaceAgent.Port, runningInDocker)
 	cfg.Manifest.URL = NormalizeLegacySidecarURL(cfg.Manifest.URL, runningInDocker, "manifest", 2099)
@@ -2629,6 +2661,13 @@ func (c *Config) Save(path string) error {
 		{[]string{"go2rtc", "webrtc", "bind_address"}, c.Go2RTC.WebRTC.BindAddress},
 		{[]string{"go2rtc", "webrtc", "port"}, c.Go2RTC.WebRTC.Port},
 		{[]string{"go2rtc", "streams"}, c.Go2RTC.Streams},
+		{[]string{"local_llm", "enabled"}, c.LocalLLM.Enabled},
+		{[]string{"local_llm", "backend"}, c.LocalLLM.Backend},
+		{[]string{"local_llm", "model_variant"}, c.LocalLLM.ModelVariant},
+		{[]string{"local_llm", "mtp"}, c.LocalLLM.MTP},
+		{[]string{"local_llm", "context_size"}, c.LocalLLM.ContextSize},
+		{[]string{"local_llm", "idle_timeout_minutes"}, c.LocalLLM.IdleTimeoutMinutes},
+		{[]string{"local_llm", "listen_port"}, c.LocalLLM.ListenPort},
 		{[]string{"three_d_printers", "enabled"}, c.ThreeDPrinters.Enabled},
 		{[]string{"three_d_printers", "readonly"}, c.ThreeDPrinters.ReadOnly},
 		{[]string{"three_d_printers", "default_printer"}, c.ThreeDPrinters.DefaultPrinter},

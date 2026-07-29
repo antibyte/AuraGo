@@ -208,4 +208,14 @@
   "setup.profile_agnes_ai_pricing": "Bezplatné použití je možné",
   "setup.step0_provider_agnes": "Agnes AI",
   "setup.step0_provider_hint_agnes": "Pro modely Agnes AI pro text, obrázky a video je možné bezplatné použití."
+  ,"setup.step_label_local_llm": "Místní testovací model",
+  "setup.local_llm_backend_cpu": "CPU (experimentální)",
+  "setup.local_llm_mtp_forced": "MTP-2 (experimentální, vynucené)",
+  "setup.local_llm_probing": "Kontrola hardwaru a Dockeru bez změn…",
+  "setup.local_llm_probe_result": "Kompatibilita: {compatibility}; backend: {backend}.",
+  "setup.local_llm_probe_error": "Kontrola kompatibility selhala",
+  "setup.local_llm_job_running": "AuraGo-Qwen se instaluje po uložení běžného poskytovatele.",
+  "setup.local_llm_job_complete": "AuraGo-Qwen prošel testy a zvolená role je aktivní.",
+  "setup.local_llm_job_failed": "Instalace AuraGo-Qwen selhala; běžný poskytovatel zůstává hlavní",
+  "setup.local_llm_job_progress": "Instalace AuraGo-Qwen: {progress}%"
 }

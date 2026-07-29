@@ -411,6 +411,8 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/api/setup/profiles", handleSetupProfiles(s))
 	mux.HandleFunc("/api/setup/status", handleSetupStatus(s))
 	mux.HandleFunc("/api/setup/test", handleSetupTestConnection(s))
+	mux.HandleFunc("/api/setup/local-llm/probe", handleSetupLocalLLMProbe(s))
+	mux.HandleFunc("/api/setup/local-llm/job", handleSetupLocalLLMJob(s))
 	mux.HandleFunc("/api/setup", handleSetupSave(s))
 
 	// i18n translations endpoint (always available — used by setup wizard pre-auth).
@@ -576,6 +578,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/api/radio-browser/", handleRadioBrowserProxy(s))
 
 	registerGo2RTCRoutes(mux, s)
+	registerLocalLLMRoutes(mux, s)
 	s.registerConfigAPIRoutes(mux, sse)
 
 	// ── Integration bots (disabled in egg mode — eggs are headless workers) ──

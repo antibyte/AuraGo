@@ -2,6 +2,10 @@
 
 All settings live in a single `config.yaml` file in the project root directory. Copy `config.yaml`, fill in your values, and start AuraGo.
 
+AuraGo-Qwen's managed local test/fallback runtime is documented in
+[local_llm_aurago_qwen.md](local_llm_aurago_qwen.md), including its Linux/GPU
+requirements, quality limits, release gate, and reserved provider contract.
+
 > **Authoritative defaults:** When this document and your running `config.yaml` disagree, treat **`config_template.yaml`** in the repository root as the source of truth for default values and available keys.
 
 > **Minimal required:** At least one `providers` entry with `api_key`, and `llm.provider` referencing it — everything else has sensible defaults.

@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -33,6 +34,7 @@ import (
 	"aurago/internal/i18n"
 	"aurago/internal/invasion/bridge"
 	"aurago/internal/llm"
+	"aurago/internal/localllm"
 	"aurago/internal/memory"
 	"aurago/internal/mqtt"
 	"aurago/internal/networkshares"
@@ -135,6 +137,8 @@ type Server struct {
 	// started exactly once. Lives on Server (not package global) so each
 	// Server instance has independent cleanup lifecycle for test isolation.
 	SetupCSRFCleanupOnce sync.Once
+	SetupLocalLLMJobsMu  sync.Mutex
+	SetupLocalLLMJobs    map[string]*setupLocalLLMJob
 	Logger               *slog.Logger
 	AccessLogger         *slog.Logger
 	LLMClient            llm.ChatClient
@@ -145,6 +149,8 @@ type Server struct {
 	CronManager          *tools.CronManager
 	BackgroundTasks      *tools.BackgroundTaskManager
 	Go2RTC               *tools.Go2RTCManager
+	LocalLLM             *localllm.Manager
+	localLLMLifecycleCtx context.Context
 	Go2RTCDiscovery      *onvif.Service
 	Bluetooth            *bluetooth.Manager
 	NetworkShares        *networkshares.Manager
@@ -269,6 +275,7 @@ type StartOptions struct {
 	Logger               *slog.Logger
 	AccessLogger         *slog.Logger
 	LLMClient            llm.ChatClient
+	LocalLLM             *localllm.Manager
 	ShortTermMem         *memory.SQLiteMemory
 	LongTermMem          memory.VectorDB
 	Vault                *security.Vault
@@ -327,6 +334,7 @@ func Start(opts StartOptions) error {
 
 	startLoginRecordCleaner(shutdownCh)
 	s := newServerFromOptions(opts)
+	s.localLLMLifecycleCtx = serverCtx
 	if err := s.initSIP(serverCtx); err != nil {
 		serverCancel()
 		return err
@@ -335,6 +343,13 @@ func Start(opts StartOptions) error {
 		s.Go2RTC.StartBackground(serverCtx)
 	}
 	defer func() {
+		if s.LocalLLM != nil {
+			shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
+			if err := s.LocalLLM.Shutdown(shutdownCtx); err != nil && !errors.Is(err, context.Canceled) {
+				s.Logger.Warn("[LocalLLM] Shutdown cleanup did not complete", "code", safeLocalLLMErrorCode(err))
+			}
+			shutdownCancel()
+		}
 		if s.GameMaker != nil {
 			_ = s.GameMaker.Close()
 		}
@@ -1235,6 +1250,7 @@ func newServerFromOptions(opts StartOptions) *Server {
 		Logger:             logger,
 		AccessLogger:       opts.AccessLogger,
 		LLMClient:          opts.LLMClient,
+		LocalLLM:           opts.LocalLLM,
 		ShortTermMem:       opts.ShortTermMem,
 		LongTermMem:        opts.LongTermMem,
 		Vault:              opts.Vault,

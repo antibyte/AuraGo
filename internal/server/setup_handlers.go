@@ -160,6 +160,8 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.http_method_not_allowed"), http.StatusMethodNotAllowed)
 			return
 		}
+		s.CfgSaveMu.Lock()
+		defer s.CfgSaveMu.Unlock()
 
 		// Security: refuse setup writes once initial configuration is complete.
 		// The endpoint is unauthenticated (required for first-run wizard), so we
@@ -207,6 +209,7 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.auth_invalid_json"), http.StatusBadRequest)
 			return
 		}
+		localLLMSetup := parseSetupLocalLLMRequest(patch)
 
 		authPatch, _ := patch["auth"].(map[string]interface{})
 		setupPassword, authEnabled, err := validateSetupAdminPassword(authPatch, s.Cfg.Auth.Enabled, s.Cfg.Auth.PasswordHash != "")
@@ -323,6 +326,9 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 			newCfg := reloadedCfg // already loaded + vault-secrets applied
 
 			s.replaceConfigSnapshot(newCfg)
+			if s.LocalLLM != nil {
+				s.LocalLLM.Configure(newCfg.LocalLLM)
+			}
 
 			// Re-create BudgetTracker and re-register MissionManagerV2 callback.
 			s.reinitBudgetTracker(newCfg)
@@ -377,22 +383,33 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 			s.Logger.Info("[Setup] Configuration hot-reloaded successfully")
 		}()
 
+		var localJob *setupLocalLLMJob
+		if localLLMSetup.Enabled {
+			if s.LocalLLM != nil {
+				s.LocalLLM.Configure(reloadedCfg.LocalLLM)
+			}
+			localJob = startSetupLocalLLMJob(s, localLLMSetup)
+		}
 		w.Header().Set("Content-Type", "application/json")
+		response := map[string]interface{}{
+			"status":        "saved",
+			"needs_restart": needsRestart,
+		}
+		if localJob != nil {
+			response["local_llm_job_id"] = localJob.ID
+			response["local_llm_job_token"] = localJob.Token
+		}
 		if needsRestart {
 			msg := i18n.T(s.Cfg.Server.UILanguage, "backend.setup_restart_required", strings.Join(restartReasons, ", "))
-			json.NewEncoder(w).Encode(map[string]interface{}{
-				"status":         "saved",
-				"message":        msg,
-				"needs_restart":  true,
-				"restart_reason": restartReasons,
-			})
+			response["message"] = msg
+			response["restart_reason"] = restartReasons
 		} else {
-			json.NewEncoder(w).Encode(map[string]interface{}{
-				"status":        "saved",
-				"message":       i18n.T(s.Cfg.Server.UILanguage, "backend.setup_complete_message"),
-				"needs_restart": false,
-			})
+			response["message"] = i18n.T(s.Cfg.Server.UILanguage, "backend.setup_complete_message")
 		}
+		if localJob != nil {
+			w.WriteHeader(http.StatusAccepted)
+		}
+		_ = json.NewEncoder(w).Encode(response)
 	}
 }
 

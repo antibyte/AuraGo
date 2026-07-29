@@ -3,11 +3,11 @@
 
 // ── State ────────────────────────────────────
 // Step IDs for each flow (plan-select is always index 0)
-const QUICK_FLOW_STEPS  = ['plan-select', 'plan-quick', 'step-3'];
-const CUSTOM_FLOW_STEPS = ['plan-select', 'step-0', 'step-1', 'step-2', 'step-3'];
+const QUICK_FLOW_STEPS  = ['plan-select', 'plan-quick', 'step-local-llm', 'step-3'];
+const CUSTOM_FLOW_STEPS = ['plan-select', 'step-0', 'step-1', 'step-2', 'step-local-llm', 'step-3'];
 // Label i18n keys for each logical step in each flow
-const QUICK_FLOW_LABELS  = ['setup.step_label_plan', 'setup.step_label_quick', 'setup.step_label_3'];
-const CUSTOM_FLOW_LABELS = ['setup.step_label_plan', 'setup.step_label_0', 'setup.step_label_1', 'setup.step_label_2', 'setup.step_label_3'];
+const QUICK_FLOW_LABELS  = ['setup.step_label_plan', 'setup.step_label_quick', 'setup.step_label_local_llm', 'setup.step_label_3'];
+const CUSTOM_FLOW_LABELS = ['setup.step_label_plan', 'setup.step_label_0', 'setup.step_label_1', 'setup.step_label_2', 'setup.step_label_local_llm', 'setup.step_label_3'];
 
 let currentStepIndex = 0;   // index into the active flow array
 let highestStepIndex = 0;
@@ -615,6 +615,7 @@ function buildQuickConfigPatch() {
     // Merge any extra config_patch defined in the profile YAML
     if (p.config_patch) deepMergePatch(patch, p.config_patch);
 
+    applySetupLocalLLMPatch(patch);
     return patch;
 }
 function escapeAttr(s) { return String(s).replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
@@ -1040,6 +1041,87 @@ function onHelperToggle() {
     const checked = document.getElementById('helper-llm').checked;
     fields.classList.toggle('visible', checked);
     if (checked) syncHelperModelSuggestion();
+}
+
+function onSetupLocalLLMToggle() {
+    const enabled = document.getElementById('setup-local-llm-enabled').checked;
+    setupSetHidden(document.getElementById('setup-local-llm-fields'), !enabled);
+}
+
+let setupLocalLLMProbeFingerprint = '';
+let setupLocalLLMAcknowledgementRequired = false;
+
+function onSetupLocalLLMBackendChange() {
+    setupLocalLLMProbeFingerprint = '';
+    setupLocalLLMAcknowledgementRequired = false;
+    const acknowledgement = document.getElementById('setup-local-llm-ack');
+    const wrapper = document.getElementById('setup-local-llm-ack-wrap');
+    if (acknowledgement) acknowledgement.checked = false;
+    if (wrapper) wrapper.classList.add('is-hidden');
+    const target = document.getElementById('setup-local-llm-probe-result');
+    if (target) target.textContent = '';
+}
+
+async function probeSetupLocalLLM() {
+    const target = document.getElementById('setup-local-llm-probe-result');
+    target.textContent = t('setup.local_llm_probing');
+    try {
+        const response = await fetch('/api/setup/local-llm/probe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+            body: JSON.stringify({ backend: document.getElementById('setup-local-llm-backend').value }),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || data.error || ('HTTP ' + response.status));
+        const compatibilityKey = 'config.local_llm.compat_' + String(data.compatibility || 'unknown')
+            .toLowerCase().replace(/[^a-z0-9_]/g, '_');
+        const localizedCompatibility = t(compatibilityKey);
+        target.textContent = t('setup.local_llm_probe_result')
+            .replace('{compatibility}', localizedCompatibility === compatibilityKey
+                ? (data.compatibility || 'unknown')
+                : localizedCompatibility)
+            .replace('{backend}', data.backend || '—');
+        setupLocalLLMProbeFingerprint = data.hardware_fingerprint || '';
+        setupLocalLLMAcknowledgementRequired = data.acknowledgement_required === true;
+        const wrapper = document.getElementById('setup-local-llm-ack-wrap');
+        const acknowledgement = document.getElementById('setup-local-llm-ack');
+        if (acknowledgement) acknowledgement.checked = false;
+        if (wrapper) wrapper.classList.toggle('is-hidden', !setupLocalLLMAcknowledgementRequired);
+    } catch (error) {
+        target.textContent = t('setup.local_llm_probe_error') + ': ' + error.message;
+    }
+}
+
+function applySetupLocalLLMPatch(patch) {
+    const enabled = document.getElementById('setup-local-llm-enabled').checked;
+    patch.local_llm = {
+        enabled,
+        backend: document.getElementById('setup-local-llm-backend').value,
+        model_variant: document.getElementById('setup-local-llm-model').value,
+        mtp: document.getElementById('setup-local-llm-mtp').value,
+        context_size: 8192,
+        idle_timeout_minutes: 15,
+        listen_port: 18081,
+    };
+    if (enabled) {
+        const acknowledgement = document.getElementById('setup-local-llm-ack');
+        const backend = document.getElementById('setup-local-llm-backend').value;
+        if (!setupLocalLLMProbeFingerprint) {
+            throw new Error(t('setup.local_llm_probe_error'));
+        }
+        if ((setupLocalLLMAcknowledgementRequired || backend === 'cpu') &&
+            (!acknowledgement || !acknowledgement.checked)) {
+            throw new Error(t('config.local_llm.ack_warning'));
+        }
+        patch._local_llm_setup = {
+            enabled: true,
+            role: document.getElementById('setup-local-llm-role').value,
+            regular_provider: 'main',
+            acknowledgement_fingerprint: setupLocalLLMAcknowledgementRequired
+                ? setupLocalLLMProbeFingerprint
+                : '',
+        };
+    }
 }
 
 // ── Step Navigation ──────────────────────────
@@ -1597,6 +1679,7 @@ function buildConfigPatch() {
         deepMergePatch(patch, trustPatch);
     }
 
+    applySetupLocalLLMPatch(patch);
     return patch;
 }
 
@@ -1644,6 +1727,9 @@ async function saveConfig() {
         if (result.needs_restart) {
             setupSetHidden(document.getElementById('restart-notice'), false);
         }
+        if (result.local_llm_job_id && result.local_llm_job_token) {
+            pollSetupLocalLLMJob(result.local_llm_job_id, result.local_llm_job_token);
+        }
 
         showToast(t('setup.toast_config_saved'), 'success');
     } catch (err) {
@@ -1652,6 +1738,34 @@ async function saveConfig() {
         btnNext.innerHTML = t('setup.nav_save_and_start');
     } finally {
         saving = false;
+    }
+}
+
+async function pollSetupLocalLLMJob(id, token) {
+    const target = document.getElementById('local-llm-job-notice');
+    setupSetHidden(target, false);
+    target.textContent = t('setup.local_llm_job_running');
+    for (let attempt = 0; attempt < 720; attempt++) {
+        try {
+            const response = await fetch('/api/setup/local-llm/job?id=' + encodeURIComponent(id), {
+                headers: { 'X-Setup-Job-Token': token },
+            });
+            const job = await response.json();
+            if (!response.ok) throw new Error(job.message || job.error || ('HTTP ' + response.status));
+            if (job.state === 'completed') {
+                target.textContent = t('setup.local_llm_job_complete');
+                return;
+            }
+            if (job.state === 'failed') {
+                target.textContent = t('setup.local_llm_job_failed') + ' (' + (job.error_code || 'local_llm_error') + ')';
+                return;
+            }
+            target.textContent = t('setup.local_llm_job_progress').replace('{progress}', Math.round((job.progress || 0) * 100));
+        } catch (error) {
+            target.textContent = t('setup.local_llm_job_failed') + ': ' + error.message;
+            return;
+        }
+        await new Promise(resolve => setTimeout(resolve, 5000));
     }
 }
 

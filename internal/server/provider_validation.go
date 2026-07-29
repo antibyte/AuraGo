@@ -1,6 +1,7 @@
 package server
 
 import (
+	"aurago/internal/config"
 	"fmt"
 	"regexp"
 	"strings"
@@ -33,6 +34,9 @@ func validateProviderIDForSave(id string, existingIDs map[string]bool) error {
 	id = strings.TrimSpace(id)
 	if id == "" {
 		return fmt.Errorf("Provider ID must not be empty")
+	}
+	if strings.EqualFold(id, config.LocalLLMProviderID) {
+		return fmt.Errorf("Provider ID %q is reserved for AuraGo's managed local model", id)
 	}
 	if existingIDs[id] {
 		return nil

@@ -150,7 +150,7 @@ func normalizeProviderBaseURL(providerType, baseURL string) string {
 
 func isLocalProviderType(providerType string) bool {
 	pt := strings.ToLower(strings.TrimSpace(providerType))
-	return pt == "ollama" || pt == "llamacpp" || pt == "lmstudio"
+	return pt == "ollama" || pt == "llamacpp" || pt == "lmstudio" || pt == "aurago-local"
 }
 
 // buildOpenAIClientConfig assembles a go-openai client config from resolved
@@ -215,6 +215,12 @@ func buildOpenAIClientConfig(cfg *config.Config, p resolvedProvider) openai.Clie
 // go-openai library still sends an Authorization header — we use a dummy value
 // so the SDK doesn't choke on an empty string.
 func NewClient(cfg *config.Config) *openai.Client {
+	return NewClientWithTransport(cfg, nil)
+}
+
+// NewClientWithTransport creates a provider client with an optional final transport.
+// It is used by AuraGo-owned local runtimes to hold lifecycle request leases.
+func NewClientWithTransport(cfg *config.Config, transport http.RoundTripper) *openai.Client {
 	if cfg == nil {
 		return openai.NewClientWithConfig(openai.DefaultConfig(""))
 	}
@@ -224,7 +230,11 @@ func NewClient(cfg *config.Config) *openai.Client {
 		APIKey:       cfg.LLM.APIKey,
 		AccountID:    cfg.LLM.AccountID,
 	}
-	return openai.NewClientWithConfig(buildOpenAIClientConfig(cfg, p))
+	clientConfig := buildOpenAIClientConfig(cfg, p)
+	if transport != nil {
+		clientConfig.HTTPClient = &http.Client{Transport: transport}
+	}
+	return openai.NewClientWithConfig(clientConfig)
 }
 
 // isLoopbackHTTPS returns true when the URL targets https://127.0.0.1 or https://localhost.

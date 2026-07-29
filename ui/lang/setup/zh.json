@@ -208,4 +208,14 @@
   "setup.profile_agnes_ai_pricing": "可免费使用",
   "setup.step0_provider_agnes": "Agnes AI",
   "setup.step0_provider_hint_agnes": "Agnes AI 的文本、图像和视频模型可免费使用。"
+  ,"setup.step_label_local_llm": "本地测试模型",
+  "setup.local_llm_backend_cpu": "CPU（实验性）",
+  "setup.local_llm_mtp_forced": "MTP-2（实验性，强制）",
+  "setup.local_llm_probing": "正在无修改地检查硬件和 Docker…",
+  "setup.local_llm_probe_result": "兼容性：{compatibility}；后端：{backend}。",
+  "setup.local_llm_probe_error": "兼容性检查失败",
+  "setup.local_llm_job_running": "常规提供商保存后，正在安装 AuraGo-Qwen。",
+  "setup.local_llm_job_complete": "AuraGo-Qwen 已通过检查，所选角色已生效。",
+  "setup.local_llm_job_failed": "AuraGo-Qwen 安装失败；常规提供商仍为主模型",
+  "setup.local_llm_job_progress": "AuraGo-Qwen 安装：{progress}%"
 }

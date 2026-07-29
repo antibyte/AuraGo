@@ -32,6 +32,7 @@ import (
 	"aurago/internal/kgquality"
 	"aurago/internal/launchpad"
 	"aurago/internal/llm"
+	"aurago/internal/localllm"
 	"aurago/internal/logger"
 	"aurago/internal/memory"
 	"aurago/internal/planner"
@@ -49,6 +50,7 @@ import (
 	"aurago/internal/warnings"
 
 	"github.com/gofrs/flock"
+	"github.com/sashabaranov/go-openai"
 )
 
 // cronHTTPClient is used for cron loopback requests with a bounded timeout.
@@ -655,7 +657,20 @@ func main() {
 	// Detect runtime environment capabilities (Docker, socket, broadcast, firewall)
 	cfg.Runtime = config.DetectRuntime(appLog)
 
-	llmClient := llm.NewFailoverManager(cfg, appLog)
+	localLLMManager := localllm.NewManager(cfg, vault, appLog)
+	if cfg.Runtime.DockerSocketOK {
+		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 10*time.Second)
+		if err := localLLMManager.CleanupStaleRuntime(cleanupCtx); err != nil {
+			appLog.Warn("[LocalLLM] Could not fully clean stale ephemeral runtime state", "code", err.Error())
+		}
+		cleanupCancel()
+	}
+	llmClient := llm.NewFailoverManager(cfg, appLog, llm.WithClientFactory(func(clientCfg *config.Config) *openai.Client {
+		if strings.EqualFold(clientCfg.LLM.ProviderType, "aurago-local") {
+			return llm.NewClientWithTransport(clientCfg, localLLMManager.RoundTripper(nil))
+		}
+		return llm.NewClient(clientCfg)
+	}))
 
 	// Auto-detect context window and configure token budget
 	if cfg.Agent.ContextWindow == 0 || cfg.Agent.SystemPromptTokenBudgetAuto {
@@ -1088,6 +1103,7 @@ func main() {
 		Logger:               appLog,
 		AccessLogger:         webAccessLog,
 		LLMClient:            llmClient,
+		LocalLLM:             localLLMManager,
 		ShortTermMem:         shortTermMem,
 		LongTermMem:          longTermMem,
 		Vault:                vault,

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"strings"
 	"unicode"
 
@@ -317,6 +318,40 @@ type Go2RTCConfig struct {
 	WebRTC        Go2RTCWebRTCConfig   `yaml:"webrtc" json:"webrtc"`
 	Streams       []Go2RTCStreamConfig `yaml:"streams" json:"streams"`
 	APIPassword   string               `yaml:"-" json:"-"`
+}
+
+const (
+	// LocalLLMProviderID is reserved for AuraGo's managed local test model.
+	LocalLLMProviderID = "aurago-qwen-local"
+	// LocalLLMModelAlias is the immutable OpenAI-compatible model alias exposed by the sidecar.
+	LocalLLMModelAlias = "aurago-qwen"
+	// LocalLLMRuntimeAPIKeyVaultKey is the only Vault key used for the ephemeral sidecar credential.
+	LocalLLMRuntimeAPIKeyVaultKey = "local_llm_runtime_api_key"
+)
+
+// LocalLLMConfig controls AuraGo's managed AuraGo-Qwen test/fallback model.
+// Paths, container arguments, images and model URLs are deliberately not user-configurable.
+type LocalLLMConfig struct {
+	Enabled            bool   `yaml:"enabled" json:"enabled"`
+	Backend            string `yaml:"backend" json:"backend"`
+	ModelVariant       string `yaml:"model_variant" json:"model_variant"`
+	MTP                string `yaml:"mtp" json:"mtp"`
+	ContextSize        int    `yaml:"context_size" json:"context_size"`
+	IdleTimeoutMinutes int    `yaml:"idle_timeout_minutes" json:"idle_timeout_minutes"`
+	ListenPort         int    `yaml:"listen_port" json:"listen_port"`
+	RuntimeAPIKey      string `yaml:"-" json:"-"`
+}
+
+// Endpoint returns the private OpenAI-compatible endpoint used for the current deployment mode.
+func (c LocalLLMConfig) Endpoint(runningInDocker bool) string {
+	if runningInDocker {
+		return "http://aurago-local-llm:8080/v1"
+	}
+	port := c.ListenPort
+	if port <= 0 {
+		port = 18081
+	}
+	return fmt.Sprintf("http://127.0.0.1:%d/v1", port)
 }
 
 // Go2RTCStreamSourceVaultKey returns the per-stream vault key for a go2rtc source.
@@ -1687,6 +1722,7 @@ type Config struct {
 		MQTTTopicPrefix string `yaml:"mqtt_topic_prefix"`   // default: "frigate"
 	} `yaml:"frigate"`
 	Go2RTC         Go2RTCConfig         `yaml:"go2rtc" json:"go2rtc"`
+	LocalLLM       LocalLLMConfig       `yaml:"local_llm" json:"local_llm"`
 	ThreeDPrinters ThreeDPrintersConfig `yaml:"three_d_printers"`
 	Ollama         struct {
 		Enabled         bool   `yaml:"enabled"`

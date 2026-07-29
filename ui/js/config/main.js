@@ -56,6 +56,7 @@ const SECTIONS = [
             { key: 'dograh', icon: '▧', label: t('config.section.dograh.label'), desc: t('config.section.dograh.desc') },
             { key: 'llm', icon: '🧠', label: t('config.section.llm.label'), desc: t('config.section.llm.desc') },
             { key: 'fallback_llm', icon: '🔄', label: t('config.section.fallback_llm.label'), desc: t('config.section.fallback_llm.desc') },
+            { key: 'local_llm', icon: '◈', label: t('config.section.local_llm.label'), desc: t('config.section.local_llm.desc') },
             { key: 'embeddings', icon: '🔗', label: t('config.section.embeddings.label'), desc: t('config.section.embeddings.desc') },
             { key: 'budget', icon: '💰', label: t('config.section.budget.label'), desc: t('config.section.budget.desc') },
             { key: 'memory_analysis', icon: '🧬', label: t('config.section.memory_analysis.label'), desc: t('config.section.memory_analysis.desc') },
@@ -451,7 +452,7 @@ function scrollActiveSidebarItemIntoView(behavior = 'smooth', delay = 0) {
     requestAnimationFrame(scrollFn);
 }
 
-const CONFIG_SIDEBAR_ICON_GRID = Object.freeze({ columns: 11, rows: 10, cell: 128 });
+const CONFIG_SIDEBAR_ICON_GRID = Object.freeze({ columns: 11, rows: 11, cell: 128 });
 const CONFIG_SIDEBAR_ICON_SLOTS = Object.freeze({
     overview: 0,
     agent: 1,
@@ -533,6 +534,7 @@ const CONFIG_SIDEBAR_ICON_SLOTS = Object.freeze({
     network_shares: 105,
     sip: 107,
     telephone_agent: 109,
+    local_llm: 110,
     adguard: 75,
     fritzbox: 76,
     ldap: 77,
@@ -577,6 +579,7 @@ const CONFIG_SIDEBAR_ICON_SYMBOLS = Object.freeze({
     omniroute: "<circle cx=\"36\" cy=\"39\" r=\"10\" fill=\"#35c7d3\"/><circle cx=\"92\" cy=\"89\" r=\"10\" fill=\"#7b8ff0\"/><path d=\"M46 39h15c15 0 17 20 2 20H51c-17 0-20 30 8 30h23\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"6\" stroke=\"#35c7d3\"/>",
     dograh: "<path d=\"M31 40h24l13 24-13 24H31L18 64zM73 30h24l13 24-13 24H73L60 54z\" fill=\"#9b7cf0\" opacity=\".2\"/><path d=\"M43 64h36M70 50l14 14-14 14\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"6\" stroke=\"#35c7d3\"/><text x=\"64\" y=\"65\" text-anchor=\"middle\" dominant-baseline=\"middle\" font-family=\"Geist, Inter, Segoe UI, Arial, sans-serif\" font-size=\"19\" font-weight=\"800\" fill=\"#9b7cf0\">D</text>",
     llm: "<path d=\"M48 35c-13 2-19 15-13 27-9 7-7 24 7 29 6 12 22 10 26 0 8 9 25 3 25-11 12-7 10-25-1-30 2-14-14-25-26-17-5-6-13-7-18 2z\" fill=\"#9b7cf0\" opacity=\".18\"/><path d=\"M52 42c-9 5-10 17-2 24M74 39c8 6 9 18 0 25M48 84c8 5 18 2 22-6M73 78c7 6 17 6 23-1\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"6\" stroke=\"#9b7cf0\"/><circle cx=\"64\" cy=\"64\" r=\"7\" fill=\"#35c7d3\"/>",
+    local_llm: "<rect x=\"28\" y=\"30\" width=\"72\" height=\"68\" rx=\"14\" fill=\"#9b7cf0\" opacity=\".18\"/><path d=\"M28 52h72M44 30V20M64 30V20M84 30V20M44 108V98M64 108V98M84 108V98M28 48H18M28 66H18M28 84H18M110 48h-10M110 66h-10M110 84h-10\" fill=\"none\" stroke-linecap=\"round\" stroke-width=\"6\" stroke=\"#7da3c8\"/><path d=\"M45 75c6-13 32-13 38 0M52 58h.1M76 58h.1\" fill=\"none\" stroke-linecap=\"round\" stroke-width=\"6\" stroke=\"#35c7d3\"/>",
     fallback_llm: "<path d=\"M91 51A30 30 0 0 0 37 43L27 53M37 43v21M37 77a30 30 0 0 0 54 8l10-10M91 85V64\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"6\" stroke=\"#4f8ee8\"/><circle cx=\"64\" cy=\"64\" r=\"8\" fill=\"#35c7d3\"/>",
     embeddings: "<circle cx=\"37\" cy=\"43\" r=\"10\" fill=\"#35c7d3\"/><circle cx=\"91\" cy=\"43\" r=\"10\" fill=\"#7da3c8\"/><circle cx=\"64\" cy=\"90\" r=\"10\" fill=\"#35c7d3\"/><path d=\"M47 43h34M42 52l17 29M86 52 69 81\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"6\" stroke=\"#9eb3c9\"/>",
     budget: "<rect x=\"27\" y=\"42\" width=\"74\" height=\"48\" rx=\"12\" fill=\"#6fca8f\" opacity=\".24\"/><path d=\"M29 45h67c6 0 10 4 10 10v29H29c-5 0-9-4-9-9V54c0-5 4-9 9-9z\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"6\" stroke=\"#6fca8f\"/><circle cx=\"88\" cy=\"66\" r=\"6\" fill=\"#f6cf58\"/>",
@@ -2973,6 +2976,7 @@ const SECTION_MODULES = {
     uptime_kuma: { m: 'uptime_kuma', fn: 'renderUptimeKumaSection' },
     grafana: { m: 'grafana', fn: 'renderGrafanaSection' },
     go2rtc: { m: 'go2rtc', fn: 'renderGo2RTCSection' },
+    local_llm: { m: 'local_llm', fn: 'renderLocalLLMSection' },
     three_d_printers: { m: 'three_d_printers', fn: 'renderThreeDPrintersSection' },
     fritzbox: { m: 'fritzbox', fn: 'renderFritzBoxSection' },
     ldap: { m: 'ldap', fn: 'renderLDAPSection' },

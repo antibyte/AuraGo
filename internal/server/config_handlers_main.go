@@ -419,7 +419,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 
 		// Safety net: validate that the marshaled YAML can still be loaded
 		// into a Config struct. If not, reject the save and keep the old file.
-		var validateCfg config.Config
+		validateCfg := *s.Cfg
 		if valErr := yaml.Unmarshal(out, &validateCfg); valErr != nil {
 			s.Logger.Error("[Config] Pre-write validation failed — save rejected to protect config", "error", valErr)
 			w.Header().Set("Content-Type", "application/json")
@@ -428,6 +428,11 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				"status":  "error",
 				"message": "Config validation failed. Save rejected — your existing config is unchanged.",
 			})
+			return
+		}
+		if localLLMErr := config.ValidateLocalLLMConfig(&validateCfg); localLLMErr != nil {
+			s.Logger.Error("[Config] Invalid local LLM settings — save rejected", "error", localLLMErr)
+			jsonError(w, localLLMErr.Error(), http.StatusBadRequest)
 			return
 		}
 
@@ -693,6 +698,10 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 							llm.AutoConfigureBudget(newCfg.Agent.ContextWindow, newCfg.Agent.SystemPromptTokenBudget, s.Logger)
 					}
 				}
+			}
+			if s.LocalLLM != nil && oldCfg.LocalLLM != newCfg.LocalLLM {
+				s.LocalLLM.Configure(newCfg.LocalLLM)
+				s.Logger.Info("[Config UI] Local LLM desired state updated")
 			}
 
 			// Apply hot-reload by publishing a new immutable config snapshot after

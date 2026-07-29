@@ -208,4 +208,14 @@
   "setup.profile_agnes_ai_pricing": "Uso gratuito disponible",
   "setup.step0_provider_agnes": "Agnes AI",
   "setup.step0_provider_hint_agnes": "Es posible usar gratis los modelos de Agnes AI para texto, imagen y vídeo."
+  ,"setup.step_label_local_llm": "Modelo local de prueba",
+  "setup.local_llm_backend_cpu": "CPU (experimental)",
+  "setup.local_llm_mtp_forced": "MTP-2 (experimental, forzado)",
+  "setup.local_llm_probing": "Comprobando hardware y Docker sin realizar cambios…",
+  "setup.local_llm_probe_result": "Compatibilidad: {compatibility}; backend: {backend}.",
+  "setup.local_llm_probe_error": "Falló la comprobación de compatibilidad",
+  "setup.local_llm_job_running": "AuraGo-Qwen se instala después de guardar el proveedor normal.",
+  "setup.local_llm_job_complete": "AuraGo-Qwen superó las pruebas y la función elegida está activa.",
+  "setup.local_llm_job_failed": "Falló la instalación de AuraGo-Qwen; el proveedor normal sigue siendo principal",
+  "setup.local_llm_job_progress": "Instalación de AuraGo-Qwen: {progress}%"
 }

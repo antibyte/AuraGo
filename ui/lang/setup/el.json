@@ -208,4 +208,14 @@
   "setup.profile_agnes_ai_pricing": "Διατίθεται δωρεάν χρήση",
   "setup.step0_provider_agnes": "Agnes AI",
   "setup.step0_provider_hint_agnes": "Διατίθεται δωρεάν χρήση για τα μοντέλα κειμένου, εικόνας και βίντεο της Agnes AI."
+  ,"setup.step_label_local_llm": "Τοπικό μοντέλο δοκιμής",
+  "setup.local_llm_backend_cpu": "CPU (πειραματικό)",
+  "setup.local_llm_mtp_forced": "MTP-2 (πειραματικό, υποχρεωτικό)",
+  "setup.local_llm_probing": "Έλεγχος υλικού και Docker χωρίς αλλαγές…",
+  "setup.local_llm_probe_result": "Συμβατότητα: {compatibility}· υποσύστημα: {backend}.",
+  "setup.local_llm_probe_error": "Ο έλεγχος συμβατότητας απέτυχε",
+  "setup.local_llm_job_running": "Το AuraGo-Qwen εγκαθίσταται αφού αποθηκευτεί ο κανονικός πάροχος.",
+  "setup.local_llm_job_complete": "Το AuraGo-Qwen πέρασε τους ελέγχους και ο επιλεγμένος ρόλος είναι ενεργός.",
+  "setup.local_llm_job_failed": "Η εγκατάσταση AuraGo-Qwen απέτυχε· ο κανονικός πάροχος παραμένει κύριος",
+  "setup.local_llm_job_progress": "Εγκατάσταση AuraGo-Qwen: {progress}%"
 }

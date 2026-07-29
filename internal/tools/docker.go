@@ -347,8 +347,10 @@ func dockerBodyMessage(code int, body []byte) string {
 
 // ---------- Operations ----------
 
-// DockerListContainers returns a list of containers (optionally all, not just running).
-func DockerListContainers(cfg DockerConfig, all bool) string {
+// DockerListContainers returns a list of containers (optionally all, not just
+// running). excludedOwners is used by the agent surface to hide protected
+// AuraGo-managed sidecars without changing administrator container APIs.
+func DockerListContainers(cfg DockerConfig, all bool, excludedOwners ...string) string {
 	if err := requireDockerPermission(); err != nil {
 		return errJSON("%v", err)
 	}
@@ -380,6 +382,11 @@ func DockerListContainers(cfg DockerConfig, all bool) string {
 	}
 	var result []compact
 	for _, c := range containers {
+		labels := dockerStringLabels(c["Labels"])
+		names := dockerInterfaceStrings(c["Names"])
+		if dockerManagedResourceExcluded(labels, names, false, excludedOwners) {
+			continue
+		}
 		entry := compact{
 			Image:  fmt.Sprintf("%v", c["Image"]),
 			State:  fmt.Sprintf("%v", c["State"]),
@@ -390,11 +397,7 @@ func DockerListContainers(cfg DockerConfig, all bool) string {
 		} else {
 			entry.ID = fmt.Sprintf("%v", c["Id"])
 		}
-		if names, ok := c["Names"].([]interface{}); ok {
-			for _, n := range names {
-				entry.Names = append(entry.Names, fmt.Sprintf("%v", n))
-			}
-		}
+		entry.Names = append(entry.Names, names...)
 		// Extract health status from State object if available
 		if state, ok := c["State"].(map[string]interface{}); ok {
 			if health, ok := state["Health"].(map[string]interface{}); ok {
@@ -482,19 +485,110 @@ func redactDockerInspectEnv(value interface{}) interface{} {
 
 // DockerContainerManagedBy checks a container's ownership label without exposing its config.
 func DockerContainerManagedBy(cfg DockerConfig, containerID, owner string) bool {
+	if strings.EqualFold(strings.TrimSpace(owner), dockerutil.LocalLLMOwner) &&
+		dockerutil.IsLocalLLMContainerName(containerID) {
+		return true
+	}
 	if validateDockerName(containerID) != nil {
 		return false
 	}
 	data, code, err := dockerRequest(cfg, http.MethodGet, "/containers/"+url.PathEscape(containerID)+"/json", "")
-	if err != nil || code != http.StatusOK {
+	if err == nil && code == http.StatusOK {
+		var info struct {
+			Name   string `json:"Name"`
+			Config struct {
+				Labels map[string]string `json:"Labels"`
+			} `json:"Config"`
+		}
+		if json.Unmarshal(data, &info) == nil {
+			if strings.EqualFold(strings.TrimSpace(owner), dockerutil.LocalLLMOwner) &&
+				dockerutil.IsLocalLLMContainerName(info.Name) {
+				return true
+			}
+			return dockerutil.ManagedBy(info.Config.Labels, owner)
+		}
+	}
+	// An inspect race/error must not expose a managed container addressed by
+	// ID. Fall back to the list representation, which carries the same labels
+	// and lets prefix IDs be matched without returning any resource details.
+	listData, listCode, listErr := dockerRequest(cfg, http.MethodGet, "/containers/json?all=true", "")
+	if listErr != nil || listCode != http.StatusOK {
 		return false
 	}
-	var info struct {
-		Config struct {
-			Labels map[string]string `json:"Labels"`
-		} `json:"Config"`
+	var containers []map[string]interface{}
+	if json.Unmarshal(listData, &containers) != nil {
+		return false
 	}
-	return json.Unmarshal(data, &info) == nil && info.Config.Labels["aurago.managed"] == owner
+	target := strings.ToLower(strings.TrimSpace(containerID))
+	for _, container := range containers {
+		id := strings.ToLower(strings.TrimSpace(fmt.Sprintf("%v", container["Id"])))
+		names := dockerInterfaceStrings(container["Names"])
+		matches := id != "" && strings.HasPrefix(id, target)
+		for _, name := range names {
+			matches = matches || strings.EqualFold(strings.TrimPrefix(name, "/"), target)
+		}
+		if matches && dockerManagedResourceExcluded(
+			dockerStringLabels(container["Labels"]),
+			names,
+			false,
+			[]string{owner},
+		) {
+			return true
+		}
+	}
+	return false
+}
+
+func dockerStringLabels(value any) map[string]string {
+	result := make(map[string]string)
+	switch labels := value.(type) {
+	case map[string]string:
+		for key, item := range labels {
+			result[key] = item
+		}
+	case map[string]interface{}:
+		for key, item := range labels {
+			if text, ok := item.(string); ok {
+				result[key] = text
+			}
+		}
+	}
+	return result
+}
+
+func dockerInterfaceStrings(value any) []string {
+	switch values := value.(type) {
+	case []string:
+		return append([]string(nil), values...)
+	case []interface{}:
+		result := make([]string, 0, len(values))
+		for _, item := range values {
+			result = append(result, fmt.Sprintf("%v", item))
+		}
+		return result
+	default:
+		return nil
+	}
+}
+
+func dockerManagedResourceExcluded(labels map[string]string, names []string, volume bool, owners []string) bool {
+	for _, owner := range owners {
+		if dockerutil.ManagedBy(labels, owner) {
+			return true
+		}
+		if !strings.EqualFold(strings.TrimSpace(owner), dockerutil.LocalLLMOwner) {
+			continue
+		}
+		for _, name := range names {
+			if volume && dockerutil.IsLocalLLMVolumeName(name) {
+				return true
+			}
+			if !volume && dockerutil.IsLocalLLMContainerName(name) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // DockerContainerAction performs start, stop, restart, pause, unpause, or remove on a container.

@@ -12,6 +12,10 @@ import (
 )
 
 func (c *Config) FindProvider(id string) *ProviderEntry {
+	// AuraGo-Qwen is synthetic and may only occupy the primary/fallback slots.
+	if strings.EqualFold(strings.TrimSpace(id), LocalLLMProviderID) {
+		return nil
+	}
 	for i := range c.Providers {
 		if c.Providers[i].ID == id {
 			return &c.Providers[i]
@@ -240,6 +244,10 @@ func (c *Config) ResolveProviders() {
 	// Normalise and validate every provider entry.
 	for i := range c.Providers {
 		p := &c.Providers[i]
+		if strings.EqualFold(strings.TrimSpace(p.ID), LocalLLMProviderID) {
+			slog.Error("[Config] Reserved provider entry is ignored", "provider_id", p.ID)
+			continue
+		}
 		lower := strings.ToLower(p.Type)
 		if lower != "" && !knownProviderTypes[lower] {
 			slog.Warn("[Config] Provider has unknown type — possible typo in config",
@@ -261,7 +269,13 @@ func (c *Config) ResolveProviders() {
 	}
 
 	// ── LLM ──
-	if p := c.FindProvider(c.LLM.Provider); p != nil {
+	if strings.EqualFold(strings.TrimSpace(c.LLM.Provider), LocalLLMProviderID) {
+		c.LLM.ProviderType = "aurago-local"
+		c.LLM.BaseURL = c.LocalLLM.Endpoint(probeDockerContainer())
+		c.LLM.APIKey = c.LocalLLM.RuntimeAPIKey
+		c.LLM.Model = LocalLLMModelAlias
+		c.LLM.AccountID = ""
+	} else if p := c.FindProvider(c.LLM.Provider); p != nil {
 		c.LLM.ProviderType = p.Type
 		c.LLM.BaseURL = p.BaseURL
 		c.LLM.APIKey = p.APIKey
@@ -292,7 +306,13 @@ func (c *Config) ResolveProviders() {
 		strings.TrimSpace(c.LLM.HelperResolvedModel) != ""
 
 	// ── FallbackLLM ──
-	if p := c.FindProvider(c.FallbackLLM.Provider); p != nil {
+	if strings.EqualFold(strings.TrimSpace(c.FallbackLLM.Provider), LocalLLMProviderID) {
+		c.FallbackLLM.ProviderType = "aurago-local"
+		c.FallbackLLM.BaseURL = c.LocalLLM.Endpoint(probeDockerContainer())
+		c.FallbackLLM.APIKey = c.LocalLLM.RuntimeAPIKey
+		c.FallbackLLM.Model = LocalLLMModelAlias
+		c.FallbackLLM.AccountID = ""
+	} else if p := c.FindProvider(c.FallbackLLM.Provider); p != nil {
 		c.FallbackLLM.ProviderType = p.Type
 		c.FallbackLLM.BaseURL = p.BaseURL
 		c.FallbackLLM.APIKey = p.APIKey
@@ -860,6 +880,7 @@ func (c *Config) ApplyVaultSecrets(vault SecretReader) {
 		}
 	}
 	apply(Go2RTCAPIPasswordVaultKey, &c.Go2RTC.APIPassword)
+	apply(LocalLLMRuntimeAPIKeyVaultKey, &c.LocalLLM.RuntimeAPIKey)
 	for i := range c.Go2RTC.Streams {
 		key := Go2RTCStreamSourceVaultKey(c.Go2RTC.Streams[i].ID)
 		if key != "" {

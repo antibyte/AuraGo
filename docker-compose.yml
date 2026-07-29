@@ -58,6 +58,10 @@ services:
       # Persistent runtime data: memory, chat history, state, master key,
       # vector DB, and the checksum-verified local embedding cache.
       - aurago_data:/app/data
+      # Managed AuraGo-Qwen artifacts are writable only by AuraGo. The local
+      # llama.cpp sidecar mounts this dedicated model volume read-only. Its
+      # mode-0600 runtime-key volume is created and seeded only through Docker.
+      - aurago_models:/app/data/models/aurago-qwen35
 
       # Python venv + generated tools.
       # Mount this as a named volume so installed pip packages survive restarts.
@@ -129,6 +133,7 @@ services:
         condition: service_healthy
     networks:
       - default
+      - aurago-app
       - docker-control
 
   # ============================================================================
@@ -345,6 +350,7 @@ services:
       - IMAGES=1
       - NETWORKS=1
       - VOLUMES=1
+      - INFO=1          # passive runtime inventory (including NVIDIA container runtime availability)
       - POST=1          # allow start/stop/restart/create (needed for managed sidecars and Invasion Control)
       - BUILD=0          # keep Docker build API access disabled by default; prefer published images
       - COMMIT=0
@@ -376,7 +382,16 @@ services:
 volumes:
   aurago_data:
   aurago_workdir:
+  aurago_models:
+    name: aurago_models
+    labels:
+      aurago.managed: local-llm
+      aurago.component: aurago-qwen
+      aurago.role: model-volume
 
 networks:
+  aurago-app:
+    name: aurago-app
+    internal: true
   docker-control:
     internal: true

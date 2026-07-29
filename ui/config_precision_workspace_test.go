@@ -448,7 +448,7 @@ func TestConfigSidebarIconSpriteContract(t *testing.T) {
 	}
 
 	for _, marker := range []string{
-		`const CONFIG_SIDEBAR_ICON_GRID = Object.freeze({ columns: 11, rows: 10, cell: 128 });`,
+		`const CONFIG_SIDEBAR_ICON_GRID = Object.freeze({ columns: 11, rows: 11, cell: 128 });`,
 		`const CONFIG_SIDEBAR_ICON_SLOTS = Object.freeze({`,
 		`const CONFIG_SIDEBAR_ICON_SYMBOLS = Object.freeze({`,
 		`function ensureConfigSidebarIconSymbols(`,
@@ -464,7 +464,7 @@ func TestConfigSidebarIconSpriteContract(t *testing.T) {
 	}
 
 	expectedKeys := expectedConfigSidebarIconKeys(t, mainJS)
-	const spriteCapacity = 11 * 10
+	const spriteCapacity = 11 * 11
 	if got := len(expectedKeys); got == 0 || got > spriteCapacity {
 		t.Fatalf("expected config sidebar key count = %d, want 1..%d", got, spriteCapacity)
 	}
@@ -480,7 +480,7 @@ func TestConfigSidebarIconSpriteContract(t *testing.T) {
 			t.Fatalf("config sidebar SVG sprite missing exact cell marker %q", svgMarker)
 		}
 		x := configIconSpritePercent(float64(column) * 100 / 10)
-		y := configIconSpritePercent(float64(row) * 100 / 9)
+		y := configIconSpritePercent(float64(row) * 100 / 10)
 		cssMarker := fmt.Sprintf(`.pw-page .config-icon-slot-%d { background-position: %s %s; }`, slot, x, y)
 		if !strings.Contains(css, cssMarker) {
 			t.Fatalf("config workspace CSS missing exact slot marker %q", cssMarker)
@@ -493,9 +493,9 @@ func TestConfigSidebarIconSpriteContract(t *testing.T) {
 		`.config-sidebar-icon-svg`,
 		`.config-sidebar-icon-sprite:empty`,
 		`background-image: url('/img/config-sidebar-icons.svg')`,
-		`background-size: 1100% 1000%`,
+		`background-size: 1100% 1100%`,
 		`.pw-page .config-icon-slot-0 { background-position: 0% 0%; }`,
-		`.pw-page .config-icon-slot-100 { background-position: 10% 100%; }`,
+		`.pw-page .config-icon-slot-110 { background-position: 0% 100%; }`,
 	} {
 		if !strings.Contains(css, marker) {
 			t.Fatalf("config workspace CSS missing sidebar sprite marker %q", marker)
@@ -503,7 +503,7 @@ func TestConfigSidebarIconSpriteContract(t *testing.T) {
 	}
 
 	for _, marker := range []string{
-		`<svg xmlns="http://www.w3.org/2000/svg" width="1408" height="1280" viewBox="0 0 1408 1280" role="img" aria-label="AuraGo config sidebar icon sprite">`,
+		`<svg xmlns="http://www.w3.org/2000/svg" width="1408" height="1408" viewBox="0 0 1408 1408" role="img" aria-label="AuraGo config sidebar icon sprite">`,
 		`class="cfg-icon-cell"`,
 		`data-key="overview"`,
 		`data-key="danger_zone"`,
@@ -534,8 +534,8 @@ func TestConfigSidebarIconSpriteContract(t *testing.T) {
 	if err := json.Unmarshal(metadataBytes, &metadata); err != nil {
 		t.Fatalf("decode config sidebar sprite metadata: %v", err)
 	}
-	if metadata.Grid.Columns != 11 || metadata.Grid.Rows != 10 || metadata.Grid.CellSize != 128 {
-		t.Fatalf("metadata grid = %+v, want 11x10 cells of 128", metadata.Grid)
+	if metadata.Grid.Columns != 11 || metadata.Grid.Rows != 11 || metadata.Grid.CellSize != 128 {
+		t.Fatalf("metadata grid = %+v, want 11x11 cells of 128", metadata.Grid)
 	}
 	if got := len(metadata.Icons); got != len(expectedKeys) {
 		t.Fatalf("metadata has %d icons, want %d", got, len(expectedKeys))

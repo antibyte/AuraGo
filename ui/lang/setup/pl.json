@@ -208,4 +208,14 @@
   "setup.profile_agnes_ai_pricing": "Możliwe bezpłatne korzystanie",
   "setup.step0_provider_agnes": "Agnes AI",
   "setup.step0_provider_hint_agnes": "Możliwe jest bezpłatne korzystanie z modeli Agnes AI do tekstu, obrazów i wideo."
+  ,"setup.step_label_local_llm": "Lokalny model testowy",
+  "setup.local_llm_backend_cpu": "CPU (eksperymentalny)",
+  "setup.local_llm_mtp_forced": "MTP-2 (eksperymentalny, wymuszony)",
+  "setup.local_llm_probing": "Sprawdzanie sprzętu i Dockera bez zmian…",
+  "setup.local_llm_probe_result": "Zgodność: {compatibility}; backend: {backend}.",
+  "setup.local_llm_probe_error": "Sprawdzenie zgodności nie powiodło się",
+  "setup.local_llm_job_running": "AuraGo-Qwen jest instalowany po zapisaniu zwykłego dostawcy.",
+  "setup.local_llm_job_complete": "AuraGo-Qwen przeszedł testy, a wybrana rola jest aktywna.",
+  "setup.local_llm_job_failed": "Instalacja AuraGo-Qwen nie powiodła się; zwykły dostawca pozostaje główny",
+  "setup.local_llm_job_progress": "Instalacja AuraGo-Qwen: {progress}%"
 }

@@ -99,6 +99,7 @@ func resolveModelCapabilities(cfg *config.Config) ModelCapabilities {
 	lowerProvider := strings.ToLower(providerType)
 	lowerModel := strings.ToLower(model)
 	isOllama := lowerProvider == "ollama"
+	isManagedLocal := lowerProvider == "aurago-local"
 	isDeepSeek := strings.Contains(lowerModel, "deepseek")
 	// isAnthropic is true only for actual Claude/Anthropic models, NOT for third-party models
 	// that use the Anthropic API protocol (type: anthropic) such as Kimi-for-coding or GLM variants.
@@ -112,7 +113,7 @@ func resolveModelCapabilities(cfg *config.Config) ModelCapabilities {
 	// field in the OpenAI-compatible chat completions API. The other entries are
 	// Chinese LLM providers with OpenAI-compatible APIs but without the
 	// strict-mode constraint decoding extension.
-	isNoStrictStructuredOutputs := isOllama ||
+	isNoStrictStructuredOutputs := isOllama || isManagedLocal ||
 		strings.HasPrefix(lowerModel, "glm-") ||
 		strings.Contains(lowerModel, "/glm-") ||
 		strings.Contains(lowerModel, "zhipuai/") ||
@@ -147,7 +148,7 @@ func resolveModelCapabilities(cfg *config.Config) ModelCapabilities {
 		CapabilitySource:             providerCaps.Source,
 		AutoEnableNativeFunctions:    providerCaps.ToolCalling,
 		SupportsStructuredOutputs:    providerCaps.StructuredOutputs && !isNoStrictStructuredOutputs,
-		SupportsParallelToolCalls:    !isOllama,
+		SupportsParallelToolCalls:    !isOllama && !isManagedLocal,
 		DisableNativeFunctionCalling: isGLMFamily,
 	}
 }

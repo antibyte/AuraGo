@@ -6,10 +6,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 
+	"aurago/internal/dockerutil"
 	"aurago/internal/meshcentral"
 	"aurago/internal/security"
 	"aurago/internal/tools"
@@ -19,6 +21,7 @@ var (
 	dispatchPreferredMCPVision        = tools.CallPreferredMCPVision
 	dispatchAnalyzeImageWithPrompt    = tools.AnalyzeImageWithPrompt
 	dispatchAnalyzeImageURLWithPrompt = tools.AnalyzeImageURLWithPrompt
+	resolveDockerComposeConfig        = tools.DockerComposeResolvedConfig
 
 	meshCentralCachedClient    *meshcentral.CachedClient
 	meshCentralCachedConfig    meshCentralClientConfig
@@ -574,7 +577,9 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return `Tool Output: {"status": "error", "message": "Docker integration is not enabled. Set docker.enabled=true in config.yaml."}`
 			}
 			req := decodeDockerArgs(tc)
-			if cfg.Docker.ReadOnly && dockerOperationMutates(req.Operation) {
+			if cfg.Docker.ReadOnly && (dockerOperationMutates(req.Operation) ||
+				strings.EqualFold(strings.TrimSpace(req.Operation), "compose") &&
+					tools.DockerComposeCommandMutates(req.Command)) {
 				return `Tool Output: {"status":"error","message":"Docker is in read-only mode. Disable docker.read_only to allow changes."}`
 			}
 			dockerCfg := tools.DockerConfig{Host: cfg.Docker.Host, WorkspaceDir: cfg.Directories.WorkspaceDir}
@@ -582,10 +587,22 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			if !go2RTCDockerOperationSafe(req.Operation) && tools.DockerContainerManagedBy(dockerCfg, containerID, "go2rtc") {
 				return `Tool Output: {"status":"error","message":"Direct lifecycle, log, file, or process access to AuraGo's managed go2rtc container is blocked. Use the read-only go2rtc tool or the administrator API."}`
 			}
+			if !localLLMDockerOperationSafe(req.Operation) && tools.DockerContainerManagedBy(dockerCfg, containerID, "local-llm") {
+				return `Tool Output: {"status":"error","message":"Direct inspection, lifecycle, log, file, or process access to AuraGo's managed local LLM container is blocked. Use the administrator Local LLM API."}`
+			}
+			if dockerRequestMountsProtectedLocalLLMVolume(req.Volumes) {
+				return `Tool Output: {"status":"error","message":"AuraGo's managed local LLM model and runtime-key volumes cannot be mounted through the Docker agent tool."}`
+			}
+			if dockerProtectedLocalLLMVolumeName(req.Name) {
+				return `Tool Output: {"status":"error","message":"AuraGo's managed local LLM volumes cannot be created, inspected, or removed through the Docker agent tool."}`
+			}
+			if req.Operation == "compose" && dockerComposeReferencesProtectedLocalLLMVolume(dockerCfg, req.File) {
+				return `Tool Output: {"status":"error","message":"Docker Compose access to AuraGo's managed local LLM volumes is blocked."}`
+			}
 			switch req.Operation {
 			case "list_containers", "ps":
 				logger.Info("LLM requested Docker list_containers", "all", req.All)
-				return "Tool Output: " + tools.DockerListContainers(dockerCfg, req.All)
+				return "Tool Output: " + tools.DockerListContainers(dockerCfg, req.All, dockerutil.LocalLLMOwner)
 			case "inspect", "inspect_container":
 				logger.Info("LLM requested Docker inspect", "container_id", containerID)
 				return "Tool Output: " + tools.DockerInspectContainer(dockerCfg, containerID)
@@ -648,7 +665,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return "Tool Output: " + tools.DockerListNetworks(dockerCfg)
 			case "list_volumes", "volumes":
 				logger.Info("LLM requested Docker list_volumes")
-				return "Tool Output: " + tools.DockerListVolumes(dockerCfg)
+				return "Tool Output: " + tools.DockerListVolumes(dockerCfg, dockerutil.LocalLLMOwner)
 			case "info", "system_info":
 				logger.Info("LLM requested Docker system_info")
 				return "Tool Output: " + tools.DockerSystemInfo(dockerCfg)
@@ -1440,4 +1457,87 @@ func go2RTCDockerOperationSafe(operation string) bool {
 	default:
 		return false
 	}
+}
+
+func localLLMDockerOperationSafe(string) bool {
+	// List operations do not carry a target ID and are sanitized by the Docker
+	// tool. Every target-specific operation, including inspect/stats/port, is blocked.
+	return false
+}
+
+func dockerRequestMountsProtectedLocalLLMVolume(volumes []string) bool {
+	for _, volume := range volumes {
+		source := strings.ToLower(strings.TrimSpace(strings.SplitN(volume, ":", 2)[0]))
+		if dockerProtectedLocalLLMVolumeName(source) {
+			return true
+		}
+	}
+	return false
+}
+
+func dockerProtectedLocalLLMVolumeName(name string) bool {
+	return dockerutil.IsLocalLLMVolumeName(name)
+}
+
+func dockerComposeReferencesProtectedLocalLLMVolume(cfg tools.DockerConfig, file string) bool {
+	base, err := filepath.Abs(cfg.WorkspaceDir)
+	if err != nil {
+		return true
+	}
+	path, err := filepath.Abs(filepath.Join(base, filepath.Clean(file)))
+	if err != nil {
+		return true
+	}
+	relative, err := filepath.Rel(base, path)
+	if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) || filepath.IsAbs(relative) {
+		return true
+	}
+	payload, err := os.ReadFile(path)
+	if err != nil {
+		return true
+	}
+	lower := strings.ToLower(string(payload))
+	if dockerComposePayloadReferencesProtectedLocalLLM(lower) {
+		return true
+	}
+	resolved, err := resolveDockerComposeConfig(
+		cfg,
+		file,
+	)
+	return err != nil || dockerComposePayloadReferencesProtectedLocalLLM(strings.ToLower(resolved))
+}
+
+func dockerComposePayloadReferencesProtectedLocalLLM(payload string) bool {
+	compact := strings.NewReplacer(" ", "", "\t", "", "\r", "", "\n", "").Replace(strings.ToLower(payload))
+	for _, token := range []string{
+		dockerutil.LocalLLMModelVolumeName,
+		dockerutil.LocalLLMKeyVolumeName,
+		dockerutil.LocalLLMContainerName,
+		dockerutil.LocalLLMKeySeedName,
+		"aurago.managed: local-llm",
+		`"aurago.managed":"local-llm"`,
+		"com.aurago.owner: local-llm",
+		`"com.aurago.owner":"local-llm"`,
+		"volumes_from",
+	} {
+		if strings.Contains(strings.ToLower(payload), token) {
+			return true
+		}
+	}
+	for _, token := range []string{
+		`"aurago.managed":"local-llm"`,
+		`"aurago.managed=local-llm"`,
+		`aurago.managed:local-llm`,
+		`aurago.managed=local-llm`,
+		`"com.aurago.owner":"local-llm"`,
+		`"com.aurago.owner=local-llm"`,
+		`com.aurago.owner:local-llm`,
+		`com.aurago.owner=local-llm`,
+		`"volumes_from":`,
+	} {
+		if strings.Contains(compact, token) {
+			return true
+		}
+	}
+	return false
 }
