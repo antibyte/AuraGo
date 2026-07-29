@@ -29,10 +29,19 @@ func TestLocalLLMConfigModuleUsesSavedConfigurationAndAdminSurface(t *testing.T)
 		"_localLLMInstallPending",
 		"option[2] ? ' disabled'",
 		"localLLMLocalizedRuntimeValue",
+		"], 'number');",
+		`data-type="`,
 	} {
 		if !strings.Contains(module, required) {
 			t.Fatalf("Local LLM config module missing %q", required)
 		}
+	}
+	stateJS := string(mustReadUIFile(t, "js/config/state.js"))
+	if !strings.Contains(stateJS, `element.dataset.type === 'number'`) {
+		t.Fatal("config state does not preserve numeric select values as numbers")
+	}
+	if !strings.Contains(mainJS, `el.dataset.type === 'number'`) {
+		t.Fatal("legacy config form collector does not preserve numeric select values as numbers")
 	}
 	if !strings.Contains(mainJS, `local_llm: { m: 'local_llm', fn: 'renderLocalLLMSection' }`) {
 		t.Fatal("config main module registry is missing Local LLM lazy loading")

@@ -102,7 +102,7 @@
     function controlValue(element) {
         if (element.classList.contains('toggle')) return element.classList.contains('on');
         if (element.type === 'radio') return element.checked ? element.value : read(draftConfig, element.dataset.path);
-        if (element.type === 'number' || element.type === 'range') {
+        if (element.type === 'number' || element.type === 'range' || element.dataset.type === 'number') {
             if (element.value === '') return 0;
             return element.step && parseFloat(element.step) < 1 ? parseFloat(element.value) : parseInt(element.value, 10);
         }

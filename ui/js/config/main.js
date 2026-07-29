@@ -2364,7 +2364,7 @@ function buildConfigPatchFromForm() {
 
         if (el.classList.contains('toggle')) {
             val = el.classList.contains('on');
-        } else if (el.type === 'number' || el.type === 'range') {
+        } else if (el.type === 'number' || el.type === 'range' || el.dataset.type === 'number') {
             val = el.value === '' ? 0 : (el.step && parseFloat(el.step) < 1 ? parseFloat(el.value) : parseInt(el.value));
         } else if (el.dataset.type === 'array') {
             if (path === 'budget.models' || el.value.trim().startsWith('[')) {

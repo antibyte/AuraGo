@@ -172,20 +172,30 @@ func TestConfigStateBrowserSmoke(t *testing.T) {
 	page := browser.MustPage("about:blank")
 	page.MustSetViewport(1024, 768, 1, false)
 	defer page.MustClose()
-	page.MustSetDocumentContent(`<input id="port" data-path="server.port" type="number" value="8080">`)
+	page.MustSetDocumentContent(`
+		<input id="port" data-path="server.port" type="number" value="8080">
+		<select id="context" data-path="local_llm.context_size" data-type="number">
+			<option value="2048">2K</option>
+			<option value="8192" selected>8K</option>
+		</select>
+	`)
 	if err := page.AddScriptTag("", normalizeAssetText(mustReadUIFile(t, "js/config/state.js"))); err != nil {
 		t.Fatalf("load config state: %v", err)
 	}
 
 	page.MustEval(`() => {
-		window.AuraConfigState.init({server: {port: 8080}});
+		window.AuraConfigState.init({server: {port: 8080}, local_llm: {context_size: 2048}});
 		window.AuraConfigState.bind(document);
 		window.AuraConfigState.setRules({
-			'server.port': {type: 'number', min: 1, max: 65535, required: true}
+			'server.port': {type: 'number', min: 1, max: 65535, required: true},
+			'local_llm.context_size': {type: 'number', required: true}
 		});
 		const input = document.getElementById('port');
 		input.value = '9090';
 		input.dispatchEvent(new Event('input', {bubbles: true}));
+		const context = document.getElementById('context');
+		context.value = '8192';
+		context.dispatchEvent(new Event('change', {bubbles: true}));
 	}`)
 
 	if got := page.MustEval(`() => window.AuraConfigState.get('server.port')`).Int(); got != 9090 {
@@ -196,6 +206,9 @@ func TestConfigStateBrowserSmoke(t *testing.T) {
 	}
 	if !page.MustEval(`() => window.AuraConfigState.validate().valid`).Bool() {
 		t.Fatal("9090 should satisfy the configured port rule")
+	}
+	if got := page.MustEval(`() => window.AuraConfigState.get('local_llm.context_size')`).Int(); got != 8192 {
+		t.Fatalf("draft Local LLM context size = %d, want numeric 8192", got)
 	}
 
 	page.MustEval(`() => {

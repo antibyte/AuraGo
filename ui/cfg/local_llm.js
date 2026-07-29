@@ -47,7 +47,7 @@ function renderLocalLLMSection(section) {
     ]);
     html += localLLMSelect('local_llm.context_size', String(data.context_size), 'config.local_llm.context_size', [
         ['2048', '2K'], ['8192', '8K'], ...(show32K ? [['32768', '32K', !allow32K]] : [])
-    ]);
+    ], 'number');
     html += localLLMSelect('local_llm.mtp', data.mtp, 'config.local_llm.mtp', [
         ['off', t('config.local_llm.mtp_off')], ['auto', t('config.local_llm.mtp_auto')],
         ['mtp2', 'MTP-2 (' + t('config.local_llm.experimental') + ')']
@@ -103,9 +103,10 @@ function localLLMToggle(path, checked, labelKey) {
         '<span class="toggle-label">' + (checked ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span></div></div>';
 }
 
-function localLLMSelect(path, value, labelKey, options) {
+function localLLMSelect(path, value, labelKey, options, dataType) {
     return '<div class="field-group"><div class="field-label">' + t(labelKey) + '</div><select class="field-select" data-path="' +
-        escapeAttr(path) + '">' + options.map(option => '<option value="' + escapeAttr(option[0]) + '"' +
+        escapeAttr(path) + '"' + (dataType ? ' data-type="' + escapeAttr(dataType) + '"' : '') + '>' +
+        options.map(option => '<option value="' + escapeAttr(option[0]) + '"' +
         (String(value) === String(option[0]) ? ' selected' : '') + (option[2] ? ' disabled' : '') + '>' +
         escapeHtml(option[1]) + '</option>').join('') +
         '</select></div>';
