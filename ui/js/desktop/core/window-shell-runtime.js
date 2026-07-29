@@ -1012,6 +1012,7 @@
         const win = document.createElement('section');
         win.className = 'vd-window';
         win.dataset.windowId = id;
+        win.dataset.appId = appId;
 
         const isMobileMode = window.useMobileDesktopMode && window.useMobileDesktopMode();
         const forceMaximized = window.shouldForceMobileMaximizedWindow && window.shouldForceMobileMaximizedWindow(appId);
