@@ -1,6 +1,7 @@
     function minimizeWindow(id) {
         const item = state.windows.get(id);
         if (!item) return;
+        if (item.isGadget) return; // gadgets cannot be minimized
         if (item.minimizing) return;
         item.minimizing = true;
         if (state.activeWindowId === id) state.activeWindowId = '';
@@ -467,6 +468,7 @@ function wireWindow(win, id) {
     function closeWindow(id) {
         const win = state.windows.get(id);
         if (!win) return;
+        if (win.isGadget) return; // gadgets are closed via their own context menu
         if (win.closing) return;
         win.closing = true;
         clearWindowMenus(id);

@@ -3887,6 +3887,9 @@
     function applyPhoneGadgetOnTop() {
         if (!gadgetLayer) return;
         gadgetLayer.dataset.alwaysOnTop = phoneGadgetAlwaysOnTop() ? 'true' : 'false';
+        // Release any inline z-index so CSS can apply the correct layer
+        // (always-on-top mode vs. normal window-stack mode).
+        gadgetLayer.style.zIndex = '';
     }
 
     async function savePhoneGadgetSetting(key, value) {
@@ -3931,6 +3934,20 @@
                     openApp
                 });
                 gadgetMounted = true;
+                // Register the gadget as a pseudo-window so it participates in
+                // the normal window Z-order stack (unless always-on-top is on).
+                if (state && state.windows && !state.windows.has(GADGET_WINDOW_ID)) {
+                    state.windows.set(GADGET_WINDOW_ID, {
+                        id: GADGET_WINDOW_ID,
+                        appId: 'sip-phone',
+                        title: t('desktop.app_sip_phone'),
+                        element: gadgetLayer,
+                        maximized: false,
+                        restoreBounds: null,
+                        context: {},
+                        isGadget: true
+                    });
+                }
             })
             .catch(err => {
                 showDesktopNotification({ title: t('desktop.notification'), message: err.message });
@@ -3947,6 +3964,10 @@
         }
         gadgetMounted = false;
         gadgetDrag = null;
+        if (state && state.windows && state.windows.has(GADGET_WINDOW_ID)) {
+            state.windows.delete(GADGET_WINDOW_ID);
+            if (state.activeWindowId === GADGET_WINDOW_ID) state.activeWindowId = '';
+        }
         if (gadgetLayer) {
             gadgetLayer.remove();
             gadgetLayer = null;
@@ -4012,6 +4033,15 @@
             event.preventDefault();
             event.stopPropagation();
             showPhoneGadgetContextMenu(event.clientX, event.clientY);
+        });
+        // When not always-on-top, treat clicks on the gadget like clicks on a
+        // normal window: bring it to the front of the window stack.
+        gadgetLayer.addEventListener('pointerdown', event => {
+            if (event.button !== 0) return;
+            if (phoneGadgetAlwaysOnTop()) return;
+            if (state && state.windows && state.windows.has(GADGET_WINDOW_ID) && typeof focusWindow === 'function') {
+                focusWindow(GADGET_WINDOW_ID);
+            }
         });
     }
 
@@ -4719,7 +4749,7 @@
         if (!host) return;
         if (host.querySelector('[data-fruity-dock-track]')) host.replaceChildren();
         const seenWindowIds = new Set();
-        [...state.windows.values()].forEach((win, index) => {
+        [...state.windows.values()].filter(win => !win.isGadget).forEach((win, index) => {
             seenWindowIds.add(win.id);
             let btn = host.querySelector(`[data-window-id="${cssSel(win.id)}"]`);
             if (!btn) {
@@ -4938,6 +4968,7 @@
         });
         if (appId === 'virtual-computers') return undefined;
         return [...state.windows.values()].find(win => {
+            if (win.isGadget) return false;
             if (win.appId !== appId) return false;
             if ((appId === 'editor' || appId === 'writer' || appId === 'sheets') && context && context.path != null) {
                 const requestedPath = normalizeDesktopPath(context.path);
@@ -5370,6 +5401,7 @@ function windowOverlapsFruityDock(win, dockRect) {
     function minimizeWindow(id) {
         const item = state.windows.get(id);
         if (!item) return;
+        if (item.isGadget) return; // gadgets cannot be minimized
         if (item.minimizing) return;
         item.minimizing = true;
         if (state.activeWindowId === id) state.activeWindowId = '';
@@ -5836,6 +5868,7 @@ function wireWindow(win, id) {
     function closeWindow(id) {
         const win = state.windows.get(id);
         if (!win) return;
+        if (win.isGadget) return; // gadgets are closed via their own context menu
         if (win.closing) return;
         win.closing = true;
         clearWindowMenus(id);

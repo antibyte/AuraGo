@@ -57,6 +57,9 @@
     function applyPhoneGadgetOnTop() {
         if (!gadgetLayer) return;
         gadgetLayer.dataset.alwaysOnTop = phoneGadgetAlwaysOnTop() ? 'true' : 'false';
+        // Release any inline z-index so CSS can apply the correct layer
+        // (always-on-top mode vs. normal window-stack mode).
+        gadgetLayer.style.zIndex = '';
     }
 
     async function savePhoneGadgetSetting(key, value) {
@@ -101,6 +104,20 @@
                     openApp
                 });
                 gadgetMounted = true;
+                // Register the gadget as a pseudo-window so it participates in
+                // the normal window Z-order stack (unless always-on-top is on).
+                if (state && state.windows && !state.windows.has(GADGET_WINDOW_ID)) {
+                    state.windows.set(GADGET_WINDOW_ID, {
+                        id: GADGET_WINDOW_ID,
+                        appId: 'sip-phone',
+                        title: t('desktop.app_sip_phone'),
+                        element: gadgetLayer,
+                        maximized: false,
+                        restoreBounds: null,
+                        context: {},
+                        isGadget: true
+                    });
+                }
             })
             .catch(err => {
                 showDesktopNotification({ title: t('desktop.notification'), message: err.message });
@@ -117,6 +134,10 @@
         }
         gadgetMounted = false;
         gadgetDrag = null;
+        if (state && state.windows && state.windows.has(GADGET_WINDOW_ID)) {
+            state.windows.delete(GADGET_WINDOW_ID);
+            if (state.activeWindowId === GADGET_WINDOW_ID) state.activeWindowId = '';
+        }
         if (gadgetLayer) {
             gadgetLayer.remove();
             gadgetLayer = null;
@@ -182,6 +203,15 @@
             event.preventDefault();
             event.stopPropagation();
             showPhoneGadgetContextMenu(event.clientX, event.clientY);
+        });
+        // When not always-on-top, treat clicks on the gadget like clicks on a
+        // normal window: bring it to the front of the window stack.
+        gadgetLayer.addEventListener('pointerdown', event => {
+            if (event.button !== 0) return;
+            if (phoneGadgetAlwaysOnTop()) return;
+            if (state && state.windows && state.windows.has(GADGET_WINDOW_ID) && typeof focusWindow === 'function') {
+                focusWindow(GADGET_WINDOW_ID);
+            }
         });
     }
 
