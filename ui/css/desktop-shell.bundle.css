@@ -7342,43 +7342,61 @@
 /* SIP phone window: transparent shell so only the device is visible   */
 /* ------------------------------------------------------------------ */
 
-.vd-window[data-app-id="sip-phone"] {
-    background: transparent;
-    border-color: transparent;
-    box-shadow: none;
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
+.vd-window[data-app-id="sip-phone"],
+.vd-window[data-app-id="sip-phone"].active,
+.vd-window[data-app-id="sip-phone"].vd-window-file-drop-target,
+.vd-window[data-app-id="sip-phone"].vd-window-file-drop-reject,
+.vd-window[data-app-id="sip-phone"].maximized,
+.vd-window[data-app-id="sip-phone"].vd-mobile-forced-maximized,
+.vd-window[data-app-id="sip-phone"].vd-mobile-wide-window {
+    background: transparent !important;
+    border-color: transparent !important;
+    border-width: 0 !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
 }
 
-.vd-window[data-app-id="sip-phone"].active {
-    border-color: transparent;
-    box-shadow: none;
-}
-
-.vd-window[data-app-id="sip-phone"] .vd-window-titlebar {
-    background: transparent;
-    border-bottom-color: transparent;
+.vd-window[data-app-id="sip-phone"] .vd-window-titlebar,
+.vd-window[data-app-id="sip-phone"].active .vd-window-titlebar {
+    background: transparent !important;
+    border-bottom-color: transparent !important;
     opacity: 0;
     transition: opacity 0.2s ease;
 }
 
 .vd-window[data-app-id="sip-phone"]:hover .vd-window-titlebar,
-.vd-window[data-app-id="sip-phone"].active .vd-window-titlebar {
+.vd-window[data-app-id="sip-phone"].active .vd-window-titlebar,
+.vd-window[data-app-id="sip-phone"]:focus-within .vd-window-titlebar {
     opacity: 1;
 }
 
-/* Standard theme overrides */
-.desktop-body[data-theme="standard"] .vd-window[data-app-id="sip-phone"] {
-    background: transparent;
-    border-color: transparent;
-    box-shadow: none;
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
+.vd-window[data-app-id="sip-phone"] .vd-window-content {
+    background: transparent !important;
 }
 
-.desktop-body[data-theme="standard"] .vd-window[data-app-id="sip-phone"].active {
-    border-color: transparent;
-    box-shadow: none;
+/* Standard theme overrides */
+.desktop-body[data-theme="standard"] .vd-window[data-app-id="sip-phone"],
+.desktop-body[data-theme="standard"] .vd-window[data-app-id="sip-phone"].active,
+.desktop-body[data-theme="standard"] .vd-window[data-app-id="sip-phone"].maximized,
+.desktop-body[data-theme="standard"] .vd-window[data-app-id="sip-phone"].vd-mobile-forced-maximized,
+.desktop-body[data-theme="standard"] .vd-window[data-app-id="sip-phone"].vd-mobile-wide-window {
+    background: transparent !important;
+    border-color: transparent !important;
+    border-width: 0 !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+.desktop-body[data-theme="standard"] .vd-window[data-app-id="sip-phone"] .vd-window-titlebar,
+.desktop-body[data-theme="standard"] .vd-window[data-app-id="sip-phone"].active .vd-window-titlebar {
+    background: transparent !important;
+    border-bottom-color: transparent !important;
+}
+
+.desktop-body[data-theme="standard"] .vd-window[data-app-id="sip-phone"] .vd-window-content {
+    background: transparent !important;
 }
 
 @media (max-width: 640px) {
