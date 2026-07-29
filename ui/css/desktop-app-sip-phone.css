@@ -20,8 +20,20 @@
     min-height: 0;
     overflow: hidden;
     color: var(--sip-text);
-    background: transparent;
+    background:
+        radial-gradient(120% 90% at 50% 52%, rgba(22, 30, 46, 0.97) 0%, rgba(6, 8, 13, 0.99) 55%, #03040a 100%);
+    box-shadow: inset 0 0 140px rgba(0, 0, 0, 0.55);
     font-family: inherit;
+}
+
+.sip-phone::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+        radial-gradient(55% 55% at 50% 48%, rgba(49, 199, 189, 0.06), transparent 65%),
+        radial-gradient(45% 40% at 48% 55%, rgba(48, 209, 88, 0.04), transparent 70%);
+    pointer-events: none;
 }
 
 /* Ambient light halo behind the device */
