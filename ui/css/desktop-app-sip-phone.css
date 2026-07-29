@@ -80,6 +80,16 @@
     outline-offset: 2px;
 }
 
+/* Sprite-resolved glyphs need the shared sheet background; theme icons
+   bring their own --vd-theme-icon-url and stay untouched. */
+.sip-phone-glyph[style*="--vd-sprite-x"] {
+    display: block;
+    background-image: url('/img/desktop-icons-sprite.png');
+    background-repeat: no-repeat;
+    background-position: var(--vd-sprite-x) var(--vd-sprite-y);
+    background-size: var(--vd-sprite-sheet);
+}
+
 /* ------------------------------------------------------------------ */
 /* Device chassis                                                      */
 /* ------------------------------------------------------------------ */
