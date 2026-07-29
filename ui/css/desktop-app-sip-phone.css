@@ -20,52 +20,8 @@
     min-height: 0;
     overflow: hidden;
     color: var(--sip-text);
-    background:
-        radial-gradient(120% 90% at 50% 52%, rgba(22, 30, 46, 0.97) 0%, rgba(6, 8, 13, 0.99) 55%, #03040a 100%);
-    box-shadow: inset 0 0 140px rgba(0, 0, 0, 0.55);
+    background: transparent;
     font-family: inherit;
-}
-
-.sip-phone::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background:
-        radial-gradient(55% 55% at 50% 48%, rgba(49, 199, 189, 0.06), transparent 65%),
-        radial-gradient(45% 40% at 48% 55%, rgba(48, 209, 88, 0.04), transparent 70%);
-    pointer-events: none;
-}
-
-/* Ambient light halo behind the device */
-.sip-phone::before {
-    content: "";
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: min(82%, 580px);
-    height: 88%;
-    border-radius: 50%;
-    background:
-        radial-gradient(52% 52% at 50% 44%, rgba(49, 199, 189, 0.09), transparent 70%),
-        radial-gradient(48% 50% at 58% 60%, rgba(84, 96, 255, 0.07), transparent 72%);
-    filter: blur(16px);
-    transform: translate(-50%, -50%);
-    pointer-events: none;
-}
-
-/* Soft floor shadow grounding the device */
-.sip-phone::after {
-    content: "";
-    position: absolute;
-    bottom: max(0.4%, 2px);
-    left: 50%;
-    width: min(58%, 380px);
-    height: 30px;
-    border-radius: 50%;
-    background: radial-gradient(50% 50% at 50% 50%, rgba(0, 0, 0, 0.62), transparent 72%);
-    filter: blur(7px);
-    transform: translateX(-50%);
-    pointer-events: none;
 }
 
 .sip-phone *,
@@ -118,9 +74,9 @@
         repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.022) 0 1px, transparent 1px 4px),
         linear-gradient(148deg, #6d747f 0%, #262a32 20%, #4d545f 44%, #12151a 70%, #3d434d 92%, #22252b 100%);
     box-shadow:
-        0 52px 100px rgba(0, 0, 0, 0.66),
-        0 16px 36px rgba(0, 0, 0, 0.5),
-        0 2px 8px rgba(0, 0, 0, 0.42),
+        0 52px 100px rgba(0, 0, 0, 0.55),
+        0 16px 36px rgba(0, 0, 0, 0.42),
+        0 2px 8px rgba(0, 0, 0, 0.35),
         inset 0 1px 1px rgba(255, 255, 255, 0.38),
         inset 0 -1px 2px rgba(0, 0, 0, 0.68),
         inset 1px 0 1px rgba(255, 255, 255, 0.14),
