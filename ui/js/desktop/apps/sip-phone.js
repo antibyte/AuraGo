@@ -16,6 +16,12 @@
         ['0', '+'],
         ['#', '']
     ];
+    const dtmfFrequencies = {
+        1: [697, 1209], 2: [697, 1336], 3: [697, 1477],
+        4: [770, 1209], 5: [770, 1336], 6: [770, 1477],
+        7: [852, 1209], 8: [852, 1336], 9: [852, 1477],
+        '*': [941, 1209], 0: [941, 1336], '#': [941, 1477]
+    };
 
     function text(instance, key, fallback, params) {
         const translationKey = 'desktop.sip_phone_' + key;
@@ -81,6 +87,67 @@
 
     function backspaceGlyph() {
         return '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M8.2 5h10.3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H8.2L2 12l6.2-7z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="m11 9.2 5.6 5.6m0-5.6L11 14.8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>';
+    }
+
+    function ensureToneContext(instance) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) return null;
+        if (!instance.toneContext) {
+            try {
+                instance.toneContext = new AudioContextClass();
+            } catch (_) {
+                return null;
+            }
+        }
+        if (instance.toneContext.state === 'suspended') instance.toneContext.resume().catch(() => {});
+        return instance.toneContext;
+    }
+
+    function startKeyTone(instance, digit) {
+        const frequencies = dtmfFrequencies[digit];
+        const context = ensureToneContext(instance);
+        if (!frequencies || !context) return;
+        stopKeyTone(instance);
+        const gain = context.createGain();
+        gain.gain.setValueAtTime(0, context.currentTime);
+        gain.gain.linearRampToValueAtTime(0.16, context.currentTime + 0.006);
+        gain.connect(context.destination);
+        const oscillators = frequencies.map(frequency => {
+            const oscillator = context.createOscillator();
+            oscillator.type = 'sine';
+            oscillator.frequency.value = frequency;
+            oscillator.connect(gain);
+            oscillator.start();
+            return oscillator;
+        });
+        const timeout = setTimeout(() => stopKeyTone(instance), 650);
+        instance.keyTone = { gain, oscillators, timeout, startedAt: context.currentTime };
+    }
+
+    function stopKeyTone(instance) {
+        const tone = instance.keyTone;
+        const context = instance.toneContext;
+        if (!tone || !context) return;
+        instance.keyTone = null;
+        clearTimeout(tone.timeout);
+        const stopAt = Math.max(context.currentTime + 0.02, tone.startedAt + 0.07);
+        tone.gain.gain.cancelScheduledValues(context.currentTime);
+        tone.gain.gain.setValueAtTime(tone.gain.gain.value, context.currentTime);
+        tone.gain.gain.linearRampToValueAtTime(0, stopAt);
+        tone.oscillators.forEach(oscillator => {
+            try {
+                oscillator.stop(stopAt + 0.02);
+            } catch (_) {}
+        });
+    }
+
+    function wireKeyTones(instance, button) {
+        button.addEventListener('pointerdown', () => {
+            if (button.disabled) return;
+            instance.keyToneFromPointer = true;
+            startKeyTone(instance, button.dataset.sipDigit);
+        });
+        ['pointerup', 'pointerleave', 'pointercancel'].forEach(type => button.addEventListener(type, () => stopKeyTone(instance)));
     }
 
     function render(instance, snapshot) {
@@ -397,18 +464,26 @@
                 }
             }, true);
         });
-        instance.host.querySelectorAll('[data-sip-digit]').forEach(button => button.addEventListener('click', () => {
-            const digit = button.dataset.sipDigit;
-            if (instance.snapshot.call) runtime.sendDTMF(digit).catch(error => showError(instance, error));
-            else {
-                instance.target += digit;
-                const target = instance.host.querySelector('[data-sip-phone="target"]');
-                if (target) {
-                    target.value = instance.target;
-                    target.focus();
+        instance.host.querySelectorAll('[data-sip-digit]').forEach(button => {
+            wireKeyTones(instance, button);
+            button.addEventListener('click', () => {
+                const digit = button.dataset.sipDigit;
+                if (instance.keyToneFromPointer) instance.keyToneFromPointer = false;
+                else if (!button.disabled) {
+                    startKeyTone(instance, digit);
+                    setTimeout(() => stopKeyTone(instance), 140);
                 }
-            }
-        }));
+                if (instance.snapshot.call) runtime.sendDTMF(digit).catch(error => showError(instance, error));
+                else {
+                    instance.target += digit;
+                    const target = instance.host.querySelector('[data-sip-phone="target"]');
+                    if (target) {
+                        target.value = instance.target;
+                        target.focus();
+                    }
+                }
+            });
+        });
         instance.host.querySelectorAll('[data-sip-tab]').forEach(button => button.addEventListener('click', () => {
             instance.tab = button.dataset.sipTab || 'keypad';
             render(instance, runtime.getState());
@@ -516,7 +591,10 @@
             keypadOpen: false,
             snapshot: runtime.getState(),
             unsubscribe: null,
-            timer: null
+            timer: null,
+            toneContext: null,
+            keyTone: null,
+            keyToneFromPointer: false
         };
         instances.set(windowId, instance);
         instance.unsubscribe = runtime.subscribe(snapshot => render(instance, snapshot));
@@ -531,6 +609,11 @@
         if (!instance) return;
         if (instance.unsubscribe) instance.unsubscribe();
         if (instance.timer) clearInterval(instance.timer);
+        stopKeyTone(instance);
+        if (instance.toneContext) {
+            instance.toneContext.close().catch(() => {});
+            instance.toneContext = null;
+        }
         instances.delete(windowId);
     }
 

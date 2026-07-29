@@ -217,8 +217,10 @@ registration lives in `internal/desktop/types.go`.
   `desktop.app_system_world`.
 - SIP Phone exposes `window.SipPhoneApp = { render, dispose }`; every window
   instance owns its runtime subscription, 1-second clock/duration timer, tab
-  state (`keypad`/`favorites`/`recents`/`settings`), and long-press `0`→`+`
-  handling. All call media flows through `window.SipPhoneRuntime`; the app
+  state (`keypad`/`favorites`/`recents`/`settings`), long-press `0`→`+`
+  handling, and its Web Audio keypad-tone context (DTMF hold-to-play
+  feedback, closed on dispose). All call media flows through
+  `window.SipPhoneRuntime`; the app
   must keep the `data-sip-phone*` hooks, observer-disabled controls, and the
   always-enabled hangup control asserted in `ui/desktop_sip_phone_test.go`,
   and must not introduce voicemail/mailbox UI.
