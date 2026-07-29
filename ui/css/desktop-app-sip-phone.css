@@ -20,11 +20,7 @@
     min-height: 0;
     overflow: hidden;
     color: var(--sip-text);
-    background:
-        radial-gradient(120% 90% at 50% 110%, rgba(48, 209, 88, 0.05), transparent 55%),
-        radial-gradient(90% 70% at 12% -6%, rgba(49, 199, 189, 0.12), transparent 60%),
-        radial-gradient(80% 65% at 88% 8%, rgba(84, 96, 255, 0.1), transparent 60%),
-        #07090f;
+    background: transparent;
     font-family: inherit;
 }
 
