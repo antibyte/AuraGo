@@ -5,6 +5,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -105,6 +106,26 @@ func (m *Manager) containerSpecFor(plan runtimePlan) (dockerContainerSpec, error
 }
 
 func (m *Manager) containerSpecValues(cfg config.LocalLLMConfig, fingerprint string, profile HardwareProfile, model Artifact, draft *Artifact, image Image) (dockerContainerSpec, error) {
+	digestIndex := strings.LastIndex(image.Reference, "@sha256:")
+	if digestIndex < 0 {
+		return dockerContainerSpec{}, fmt.Errorf("image_digest_unavailable")
+	}
+	imageDigest := image.Reference[digestIndex+1:]
+	imageDigestHex := strings.TrimPrefix(imageDigest, "sha256:")
+	if len(imageDigestHex) != 64 || imageDigestHex != strings.ToLower(imageDigestHex) {
+		return dockerContainerSpec{}, fmt.Errorf("image_digest_unavailable")
+	}
+	if _, err := hex.DecodeString(imageDigestHex); err != nil {
+		return dockerContainerSpec{}, fmt.Errorf("image_digest_unavailable")
+	}
+	resolvedParametersJSON, err := json.Marshal(resolvedParametersForPlan(cfg, draft != nil, profile))
+	if err != nil {
+		return dockerContainerSpec{}, fmt.Errorf("resolved_parameters_unavailable")
+	}
+	draftSHA256 := ""
+	if draft != nil {
+		draftSHA256 = draft.SHA256
+	}
 	env := []string{
 		"AURAGO_MODEL=/models/" + model.Name,
 		"AURAGO_HOST=0.0.0.0",
@@ -117,6 +138,11 @@ func (m *Manager) containerSpecValues(cfg config.LocalLLMConfig, fingerprint str
 		"AURAGO_REASONING=off",
 		"AURAGO_CONTEXT_SIZE=" + strconv.Itoa(cfg.ContextSize),
 		"AURAGO_PARALLEL=1",
+		"AURAGO_IMAGE_DIGEST=" + imageDigest,
+		"AURAGO_TARGET_SHA256=" + model.SHA256,
+		"AURAGO_DRAFT_SHA256=" + draftSHA256,
+		"AURAGO_PHYSICAL_DEVICE=" + profile.SelectedDevice,
+		"AURAGO_RESOLVED_PARAMETERS_JSON=" + string(resolvedParametersJSON),
 	}
 	runtimeDevice := resolvedRuntimeDevice(profile)
 	if profile.SelectedBackend != "cpu" {
@@ -132,17 +158,14 @@ func (m *Manager) containerSpecValues(cfg config.LocalLLMConfig, fingerprint str
 		}
 	}
 	if draft != nil {
-		draftGPULayers := "all"
 		draftNGL := "999"
 		if profile.SelectedBackend == "cpu" {
-			draftGPULayers = "0"
 			draftNGL = "0"
 		}
 		env = append(env,
 			"AURAGO_SPEC_TYPE=draft-mtp",
 			"AURAGO_DRAFT_MODEL=/models/"+draft.Name,
 			"AURAGO_DRAFT_DEVICE="+runtimeDevice,
-			"AURAGO_DRAFT_GPU_LAYERS="+draftGPULayers,
 			"AURAGO_SPEC_DRAFT_N_MAX=2",
 			"AURAGO_SPEC_DRAFT_N_MIN=0",
 			"AURAGO_SPEC_DRAFT_P_MIN=0.80",

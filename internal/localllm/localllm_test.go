@@ -1027,6 +1027,30 @@ func containsString(values []string, expected string) bool {
 	return false
 }
 
+func TestContainerSpecRejectsMutableOrMalformedImageReference(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.LocalLLM = config.LocalLLMConfig{
+		Enabled: true, Backend: "cpu", ModelVariant: "q4_k_m",
+		MTP: "off", ContextSize: 8192, ListenPort: 18081,
+	}
+	cfg.Directories.DataDir = t.TempDir()
+	manager := NewManager(cfg, nil, nil)
+	defer manager.Close()
+	model := DefaultManifest().Artifacts["normal_q4_k_m"]
+	profile := HardwareProfile{SelectedBackend: "cpu"}
+
+	for _, reference := range []string{
+		"ghcr.io/antibyte/aurago-llm-vulkan:edge",
+		"ghcr.io/antibyte/aurago-llm-vulkan@sha256:abcd",
+		"ghcr.io/antibyte/aurago-llm-vulkan@sha256:" + strings.Repeat("A", 64),
+	} {
+		if _, err := manager.containerSpec(profile, model, nil, Image{Reference: reference}); err == nil ||
+			err.Error() != "image_digest_unavailable" {
+			t.Fatalf("reference %q error=%v", reference, err)
+		}
+	}
+}
+
 func TestContainerSpecHardeningAndMTPPair(t *testing.T) {
 	originalStat := statRenderNode
 	statRenderNode = func(path string) (fileStat, error) {
@@ -1090,10 +1114,21 @@ func TestContainerSpecHardeningAndMTPPair(t *testing.T) {
 		"AURAGO_KV_OFFLOAD=on",
 		"AURAGO_REASONING=off",
 		"AURAGO_SPEC_DRAFT_N_MAX=2",
+		"AURAGO_SPEC_DRAFT_N_MIN=0",
+		"AURAGO_SPEC_DRAFT_P_MIN=0.80",
+		"AURAGO_SPEC_DRAFT_NGL=999",
+		"AURAGO_IMAGE_DIGEST=sha256:" + strings.Repeat("a", 64),
+		"AURAGO_TARGET_SHA256=" + DefaultManifest().Artifacts["mtp_target_q4_k_m"].SHA256,
+		"AURAGO_DRAFT_SHA256=" + DefaultManifest().Artifacts["mtp_sidecar_q4_k_m"].SHA256,
+		"AURAGO_PHYSICAL_DEVICE=0000:03:00.0",
+		`AURAGO_RESOLVED_PARAMETERS_JSON=["--alias=aurago-qwen"`,
 	} {
 		if !strings.Contains(joined, required) {
 			t.Fatalf("missing %s in env:\n%s", required, joined)
 		}
+	}
+	if strings.Contains(joined, "AURAGO_DRAFT_GPU_LAYERS=") {
+		t.Fatalf("legacy draft GPU layers setting conflicts with the resolved MTP contract:\n%s", joined)
 	}
 	if strings.Contains(joined, "api-key=") {
 		t.Fatal("runtime key leaked into container environment")

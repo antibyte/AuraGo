@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	ReleaseManifestVersion = 2
+	ReleaseManifestVersion = 3
 	LlamaCPPCommit         = "555881ebc8b0fc0402b30e09258a32a7bfd13c52"
 	ggufRepositoryRevision = "37e44d3534c05447be9e486cadca5d1da9838539"
 	mtpRepositoryRevision  = "abf7f625cc52c019ef5a14afa0c56713d5183818"
@@ -107,13 +107,13 @@ func DefaultManifest() Manifest {
 			},
 			"sycl": {
 				Backend: "sycl",
-				Reference: "ghcr.io/antibyte/aurago-llm-sycl:edge-e68803c4fd89@" +
-					"sha256:56f4c103d82d8fc1532aff01270708b11bf70a3a4799c45c3afdb81c21c52a71",
+				Reference: "ghcr.io/antibyte/aurago-llm-sycl:edge-27cf6d2dcef6@" +
+					"sha256:b6d993d3d4df351bec73eb65b131cb27223ba14433748d53c896fb6df9716fd6",
 			},
 			"vulkan": {
 				Backend: "vulkan",
-				Reference: "ghcr.io/antibyte/aurago-llm-vulkan:edge-e68803c4fd89@" +
-					"sha256:7ed4228dd981864e669b5c0e44fad9e6e0636099757b883918bf0d058e9f88c6",
+				Reference: "ghcr.io/antibyte/aurago-llm-vulkan:edge-27cf6d2dcef6@" +
+					"sha256:9fe154a1f74cb2d1bcc26f0db6e7ef31750882e448c1a1899004b84e978938af",
 			},
 		},
 		HardwareProfiles: []ValidatedHardwareProfile{
