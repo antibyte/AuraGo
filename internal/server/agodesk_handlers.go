@@ -30,6 +30,7 @@ import (
 	"aurago/internal/remote"
 	"aurago/internal/security"
 	"aurago/internal/tools"
+	"aurago/internal/vaultprompt"
 	"aurago/internal/warnings"
 	promptsembed "aurago/prompts"
 
@@ -40,6 +41,7 @@ import (
 const (
 	agodeskMessageSource           = "agodesk_chat"
 	agodeskControlMessageMaxBytes  = 256 * 1024
+	agodeskVaultSecretMaxFrameSize = 6*vaultprompt.MaxSecretBytes + 8*1024
 	agodeskDesktopResultMaxBytes   = 16 * 1024 * 1024
 	agodeskWebSocketReadLimitBytes = agodeskDesktopResultMaxBytes
 	agodeskMediaAssetTokenTTL      = 15 * time.Minute
@@ -67,6 +69,7 @@ var errAgodeskAgentTimeout = errors.New("agent request timed out")
 
 type agodeskConnectionState struct {
 	sessionID             string
+	transportID           string
 	deviceID              string
 	paired                bool
 	readOnly              bool
@@ -80,8 +83,12 @@ type agodeskConnectionState struct {
 	localTurnOrder        []string
 	localHandoffIDs       map[string]string
 	localHandoffOrder     []string
+	transportCtx          context.Context
+	cancelTransport       context.CancelFunc
+	vaultRateWindow       []time.Time
 	mu                    sync.RWMutex
 	writeMu               sync.Mutex
+	vaultRateMu           sync.Mutex
 	activeMu              sync.Mutex
 	localMu               sync.Mutex
 }
@@ -93,6 +100,7 @@ type agodeskActiveChatRun struct {
 }
 
 type agodeskDesktopBroker struct {
+	server          *Server
 	hub             *remote.RemoteHub
 	logger          *slog.Logger
 	mu              sync.RWMutex
@@ -130,12 +138,16 @@ func handleAgodeskWebSocket(s *Server) http.HandlerFunc {
 		conn.SetReadLimit(agodeskWebSocketReadLimitBytes)
 
 		serverCapabilities := agodeskServerCapabilities(s)
+		transportCtx, cancelTransport := context.WithCancel(r.Context())
 		state := agodeskConnectionState{
-			sessionID:    "agodesk:temp:" + agodeskConnectionID(),
-			paired:       false,
-			devMode:      isExplicitAgodeskLoopbackDev(r),
-			capabilities: make(map[string]struct{}),
-			activeRuns:   make(map[string]agodeskActiveChatRun),
+			sessionID:       "agodesk:temp:" + agodeskConnectionID(),
+			transportID:     "agodesk-transport:" + agodeskConnectionID(),
+			paired:          false,
+			devMode:         isExplicitAgodeskLoopbackDev(r),
+			capabilities:    make(map[string]struct{}),
+			activeRuns:      make(map[string]agodeskActiveChatRun),
+			transportCtx:    transportCtx,
+			cancelTransport: cancelTransport,
 		}
 		if state.devMode {
 			state.sessionID = "agodesk:dev:" + agodeskConnectionID()
@@ -166,9 +178,15 @@ func handleAgodeskWebSocket(s *Server) http.HandlerFunc {
 					Code:    agodesk.ErrorInvalidMessage,
 					Message: "Invalid agodesk message: " + err.Error(),
 				})
+				clear(data)
 				continue
 			}
-			if !handleAgodeskEnvelope(s, r, conn, &state, env) {
+			keepConnection := handleAgodeskEnvelope(s, r, conn, &state, env)
+			if env.Type == agodesk.TypeVaultSecretSubmit {
+				clear(env.Payload)
+			}
+			clear(data)
+			if !keepConnection {
 				return
 			}
 		}
@@ -280,6 +298,20 @@ func handleAgodeskEnvelope(s *Server, r *http.Request, conn *websocket.Conn, sta
 			return true
 		}
 		handleAgodeskChatCancel(s, conn, state, env.ID, payload)
+	case agodesk.TypeVaultSecretSubmit:
+		payload, errPayload := decodeAgodeskPayload[agodesk.VaultSecretSubmitPayload](env)
+		if errPayload != nil {
+			_ = writeAgodeskErrorLocked(conn, state, env.ID, agodesk.ErrorInvalidMessage, "Invalid vault secret submission.")
+			return true
+		}
+		handleAgodeskVaultSecretSubmit(s, conn, state, env.ID, payload)
+	case agodesk.TypeVaultSecretCancel:
+		payload, errPayload := decodeAgodeskPayload[agodesk.VaultSecretCancelPayload](env)
+		if errPayload != nil {
+			_ = writeAgodeskErrorLocked(conn, state, env.ID, agodesk.ErrorInvalidMessage, "Invalid vault secret cancellation.")
+			return true
+		}
+		handleAgodeskVaultSecretCancel(s, conn, state, env.ID, payload)
 	case agodesk.TypeChatVoiceOutputStatus:
 		payload, errPayload := decodeAgodeskPayload[agodesk.ChatVoiceOutputStatusPayload](env)
 		if errPayload != nil {
@@ -530,6 +562,125 @@ func handleAgodeskChatCancel(s *Server, conn *websocket.Conn, state *agodeskConn
 	if found {
 		emitAgodeskRunActivity(conn, state, sessionID, conversationID, activeRequestID, "cancelled", "Agent cancelled", s.Logger)
 	}
+	if manager := currentVaultSecretPrompter(s); manager != nil && conversationID != "" {
+		manager.CancelConversation(conversationID)
+	}
+}
+
+func handleAgodeskVaultSecretSubmit(s *Server, conn *websocket.Conn, state *agodeskConnectionState, envelopeID string, payload agodesk.VaultSecretSubmitPayload) {
+	sessionID, ok := validateAgodeskTransportSession(s, conn, state, envelopeID, payload.SessionID, string(agodesk.TypeVaultSecretSubmit))
+	if !ok {
+		payload.Value = ""
+		return
+	}
+	transportID, transportCtx := agodeskStateTransport(state)
+	if !agodeskStateAllowsVaultSecret(state) || !vaultSecretPromptWriteEnabled(s) {
+		payload.Value = ""
+		if manager := currentVaultSecretPrompter(s); manager != nil {
+			if result, err := manager.RejectUnsupportedContext(transportCtx, sessionID, transportID, payload.RequestID); err == nil || result.Status != "" {
+				return
+			}
+		}
+		writeAgodeskVaultSecretAck(conn, state, agodesk.VaultSecretAckPayload{
+			SessionID: sessionID, RequestID: strings.TrimSpace(payload.RequestID),
+			Status: "error", ErrorCode: vaultprompt.ErrorUnsupportedCapability,
+		})
+		return
+	}
+	if !agodeskVaultSecretRateAllowed(state) {
+		payload.Value = ""
+		writeAgodeskVaultSecretAck(conn, state, agodesk.VaultSecretAckPayload{
+			SessionID: sessionID,
+			RequestID: strings.TrimSpace(payload.RequestID),
+			Status:    "error",
+			ErrorCode: vaultprompt.ErrorUnsupportedCapability,
+		})
+		return
+	}
+	manager := ensureVaultSecretPrompter(s)
+	if manager == nil {
+		payload.Value = ""
+		writeAgodeskVaultSecretAck(conn, state, agodesk.VaultSecretAckPayload{
+			SessionID: sessionID,
+			RequestID: strings.TrimSpace(payload.RequestID),
+			Status:    "error",
+			ErrorCode: vaultprompt.ErrorUnsupportedCapability,
+		})
+		return
+	}
+
+	value := payload.Value
+	payload.Value = ""
+	result, err := manager.SubmitContext(transportCtx, sessionID, transportID, payload.RequestID, payload.VaultKey, value)
+	value = ""
+	if err != nil {
+		// A valid pending request already receives its terminal ack from the
+		// manager. Correlation/replay failures have no pending sender.
+		if result.Status == "" {
+			writeAgodeskVaultSecretAck(conn, state, agodesk.VaultSecretAckPayload{
+				SessionID: sessionID,
+				RequestID: strings.TrimSpace(payload.RequestID),
+				Status:    "error",
+				ErrorCode: vaultprompt.ErrorCode(err),
+			})
+		}
+		return
+	}
+	_ = result
+}
+
+func handleAgodeskVaultSecretCancel(s *Server, conn *websocket.Conn, state *agodeskConnectionState, envelopeID string, payload agodesk.VaultSecretCancelPayload) {
+	sessionID, ok := validateAgodeskTransportSession(s, conn, state, envelopeID, payload.SessionID, string(agodesk.TypeVaultSecretCancel))
+	if !ok {
+		return
+	}
+	transportID, _ := agodeskStateTransport(state)
+	if !agodeskStateAllowsVaultSecret(state) || !vaultSecretPromptWriteEnabled(s) {
+		if manager := currentVaultSecretPrompter(s); manager != nil {
+			_, transportCtx := agodeskStateTransport(state)
+			if result, err := manager.RejectUnsupportedContext(transportCtx, sessionID, transportID, payload.RequestID); err == nil || result.Status != "" {
+				return
+			}
+		}
+		writeAgodeskVaultSecretAck(conn, state, agodesk.VaultSecretAckPayload{
+			SessionID: sessionID, RequestID: strings.TrimSpace(payload.RequestID),
+			Status: "error", ErrorCode: vaultprompt.ErrorUnsupportedCapability,
+		})
+		return
+	}
+	if !agodeskVaultSecretRateAllowed(state) {
+		writeAgodeskVaultSecretAck(conn, state, agodesk.VaultSecretAckPayload{
+			SessionID: sessionID,
+			RequestID: strings.TrimSpace(payload.RequestID),
+			Status:    "error",
+			ErrorCode: vaultprompt.ErrorUnsupportedCapability,
+		})
+		return
+	}
+	manager := ensureVaultSecretPrompter(s)
+	if manager == nil {
+		writeAgodeskVaultSecretAck(conn, state, agodesk.VaultSecretAckPayload{
+			SessionID: sessionID,
+			RequestID: strings.TrimSpace(payload.RequestID),
+			Status:    "error",
+			ErrorCode: vaultprompt.ErrorUnsupportedCapability,
+		})
+		return
+	}
+	_, transportCtx := agodeskStateTransport(state)
+	result, err := manager.CancelTransportContext(transportCtx, sessionID, transportID, payload.RequestID)
+	if err != nil && result.Status == "" {
+		writeAgodeskVaultSecretAck(conn, state, agodesk.VaultSecretAckPayload{
+			SessionID: sessionID,
+			RequestID: strings.TrimSpace(payload.RequestID),
+			Status:    "error",
+			ErrorCode: vaultprompt.ErrorCode(err),
+		})
+	}
+}
+
+func writeAgodeskVaultSecretAck(conn *websocket.Conn, state *agodeskConnectionState, payload agodesk.VaultSecretAckPayload) {
+	_ = writeAgodeskEnvelopeLocked(conn, state, agodesk.TypeVaultSecretAck, payload)
 }
 
 func handleAgodeskVoiceOutputStatus(s *Server, conn *websocket.Conn, state *agodeskConnectionState, requestID string, payload agodesk.ChatVoiceOutputStatusPayload) {
@@ -906,6 +1057,9 @@ func agodeskServerCapabilities(s *Server) []string {
 		if agodeskProviderManagementWritable(s) {
 			capabilities = append(capabilities, agodesk.CapabilityConfigProvidersWrite, agodesk.CapabilityConfigProvidersOAuth)
 		}
+	}
+	if vaultSecretPromptWriteEnabled(s) {
+		capabilities = append(capabilities, agodesk.CapabilityVaultSecretPrompt)
 	}
 	return capabilities
 }
@@ -1608,6 +1762,37 @@ func (b *agodeskChatBroker) Send(event, message string) {
 }
 
 func (b *agodeskChatBroker) SendTyped(eventType string, payload interface{}) bool {
+	return b.sendTypedContext(context.Background(), eventType, payload)
+}
+
+func (b *agodeskChatBroker) SendTypedContext(ctx context.Context, eventType string, payload interface{}) bool {
+	return b.sendTypedContext(ctx, eventType, payload)
+}
+
+func (b *agodeskChatBroker) sendTypedContext(ctx context.Context, eventType string, payload interface{}) bool {
+	if eventType == vaultprompt.EventPrompt {
+		if b == nil || !agodeskStateAllowsVaultSecret(b.state) {
+			return false
+		}
+		var prompt agodesk.VaultSecretPromptPayload
+		if !convertAgodeskTypedPayload(payload, &prompt) ||
+			strings.TrimSpace(prompt.SessionID) != strings.TrimSpace(b.sessionID) {
+			return false
+		}
+		return writeAgodeskEnvelopeLockedContext(ctx, b.conn, b.state, agodesk.TypeVaultSecretPrompt, prompt) == nil
+	}
+	if eventType == vaultprompt.EventAck {
+		if b == nil || !agodeskStateAllowsVaultSecret(b.state) {
+			return false
+		}
+		var ack agodesk.VaultSecretAckPayload
+		if !convertAgodeskTypedPayload(payload, &ack) ||
+			strings.TrimSpace(ack.SessionID) != strings.TrimSpace(b.sessionID) {
+			return false
+		}
+		return writeAgodeskEnvelopeLockedContext(ctx, b.conn, b.state, agodesk.TypeVaultSecretAck, ack) == nil
+	}
+
 	forwarded := false
 	if b != nil && b.FeedbackBroker != nil {
 		if typed, ok := b.FeedbackBroker.(agent.TypedFeedbackBroker); ok {
@@ -1634,6 +1819,11 @@ func (b *agodeskChatBroker) SendTyped(eventType string, payload interface{}) boo
 	}
 	_ = b.emitAgentActionActivity(action)
 	return true
+}
+
+func convertAgodeskTypedPayload(payload interface{}, destination interface{}) bool {
+	raw, err := json.Marshal(payload)
+	return err == nil && json.Unmarshal(raw, destination) == nil
 }
 
 func agodeskAgentActionFromTypedPayload(payload interface{}) (agent.AgentActionEvent, bool) {
@@ -2143,6 +2333,17 @@ func runAgodeskAgentChat(s *Server, r *http.Request, conn *websocket.Conn, state
 	if err != nil {
 		return agodeskChatResult{}, err
 	}
+	if agodeskStateAllowsVaultSecret(state) && vaultSecretPromptWriteEnabled(s) {
+		if manager := ensureVaultSecretPrompter(s); manager != nil {
+			turn.runCfg.VaultSecretPrompter = manager
+			turn.runCfg.VaultSecretTarget = vaultprompt.Target{
+				Channel:         "agodesk",
+				ClientSessionID: transportSessionID,
+				TransportID:     state.transportID,
+				ConversationID:  conversationID,
+			}
+		}
+	}
 	replyBroker := &desktopReplyBroker{FeedbackBroker: NewSSEBrokerAdapterWithSession(s.SSE, conversationID)}
 	broker := &agodeskChatBroker{
 		FeedbackBroker: replyBroker,
@@ -2266,6 +2467,7 @@ func ensureAgodeskDesktopBroker(s *Server) *agodeskDesktopBroker {
 		return s.agodeskDesktop
 	}
 	broker := &agodeskDesktopBroker{
+		server:   s,
 		hub:      s.RemoteHub,
 		logger:   s.Logger,
 		sessions: make(map[string]*agodeskDesktopSession),
@@ -2290,6 +2492,22 @@ func registerAgodeskDesktopSession(s *Server, conn *websocket.Conn, state *agode
 }
 
 func cleanupAgodeskConnection(s *Server, state *agodeskConnectionState) {
+	if state != nil {
+		state.mu.RLock()
+		sessionID := state.sessionID
+		transportID := state.transportID
+		cancelTransport := state.cancelTransport
+		state.mu.RUnlock()
+		if cancelTransport != nil {
+			cancelTransport()
+		}
+		if transportID == "" {
+			transportID = sessionID
+		}
+		if manager := currentVaultSecretPrompter(s); manager != nil && sessionID != "" {
+			manager.DisconnectTransport(sessionID, transportID)
+		}
+	}
 	deviceID, paired := agodeskStateDevice(state)
 	if !paired || deviceID == "" {
 		return
@@ -2320,6 +2538,52 @@ func agodeskStateHasCapability(state *agodeskConnectionState, capability string)
 	defer state.mu.RUnlock()
 	_, ok := state.capabilities[capability]
 	return ok
+}
+
+func agodeskStateAllowsVaultSecret(state *agodeskConnectionState) bool {
+	if state == nil {
+		return false
+	}
+	state.mu.RLock()
+	defer state.mu.RUnlock()
+	_, capable := state.capabilities[agodesk.CapabilityVaultSecretPrompt]
+	return state.paired && !state.readOnly && capable
+}
+
+func agodeskStateTransport(state *agodeskConnectionState) (string, context.Context) {
+	if state == nil {
+		return "", context.Background()
+	}
+	state.mu.RLock()
+	defer state.mu.RUnlock()
+	ctx := state.transportCtx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return strings.TrimSpace(state.transportID), ctx
+}
+
+func agodeskVaultSecretRateAllowed(state *agodeskConnectionState) bool {
+	if state == nil {
+		return false
+	}
+	const maxPerMinute = 30
+	now := time.Now()
+	cutoff := now.Add(-time.Minute)
+	state.vaultRateMu.Lock()
+	defer state.vaultRateMu.Unlock()
+	window := state.vaultRateWindow
+	first := 0
+	for first < len(window) && window[first].Before(cutoff) {
+		first++
+	}
+	window = window[first:]
+	if len(window) >= maxPerMinute {
+		state.vaultRateWindow = window
+		return false
+	}
+	state.vaultRateWindow = append(window, now)
+	return true
 }
 
 func agodeskStateFileAccess(state *agodeskConnectionState) *agodesk.FileAccessPayload {
@@ -2459,6 +2723,16 @@ func (b *agodeskDesktopBroker) RegisterSession(deviceID string, conn *websocket.
 	b.sessions[deviceID] = session
 	b.mu.Unlock()
 	if old != nil && old != session {
+		if manager := currentVaultSecretPrompter(b.server); manager != nil && old.state != nil {
+			old.state.mu.RLock()
+			sessionID := old.state.sessionID
+			transportID := old.state.transportID
+			old.state.mu.RUnlock()
+			if transportID == "" {
+				transportID = sessionID
+			}
+			manager.DisconnectTransport(sessionID, transportID)
+		}
 		old.failPending(fmt.Errorf("agodesk session replaced"))
 		if old.conn != nil && old.conn != conn {
 			_ = old.conn.Close()
@@ -2878,7 +3152,12 @@ func decodeAgodeskEnvelope(data []byte) (agodesk.Envelope, error) {
 	if err != nil {
 		return agodesk.Envelope{}, err
 	}
-	if env.Type != agodesk.TypeDesktopResult && len(data) > agodeskControlMessageMaxBytes {
+	if env.Type == agodesk.TypeVaultSecretSubmit && len(data) > agodeskVaultSecretMaxFrameSize {
+		return agodesk.Envelope{}, errors.New("vault secret submission exceeds the allowed limit")
+	}
+	if env.Type != agodesk.TypeDesktopResult &&
+		env.Type != agodesk.TypeVaultSecretSubmit &&
+		len(data) > agodeskControlMessageMaxBytes {
 		return agodesk.Envelope{}, fmt.Errorf("message too large: %d bytes exceeds %d for %s", len(data), agodeskControlMessageMaxBytes, env.Type)
 	}
 	return env, nil
@@ -2909,20 +3188,69 @@ func writeAgodeskErrorLocked(conn *websocket.Conn, state *agodeskConnectionState
 }
 
 func writeAgodeskEnvelope(conn *websocket.Conn, messageType agodesk.MessageType, payload interface{}) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	return writeAgodeskEnvelopeContext(ctx, conn, messageType, payload)
+}
+
+func writeAgodeskEnvelopeContext(ctx context.Context, conn *websocket.Conn, messageType agodesk.MessageType, payload interface{}) error {
+	if conn == nil {
+		return fmt.Errorf("agodesk connection is unavailable")
+	}
 	env, err := agodesk.NewEnvelope(messageType, payload)
 	if err != nil {
 		return err
 	}
-	return conn.WriteJSON(env)
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if deadline, ok := ctx.Deadline(); ok {
+		if err := conn.SetWriteDeadline(deadline); err != nil {
+			_ = conn.Close()
+			return err
+		}
+	}
+	err = conn.WriteJSON(env)
+	if err != nil {
+		_ = conn.Close()
+		return err
+	}
+	_ = conn.SetWriteDeadline(time.Time{})
+	return nil
 }
 
 func writeAgodeskEnvelopeLocked(conn *websocket.Conn, state *agodeskConnectionState, messageType agodesk.MessageType, payload interface{}) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	return writeAgodeskEnvelopeLockedContext(ctx, conn, state, messageType, payload)
+}
+
+func writeAgodeskEnvelopeLockedContext(ctx context.Context, conn *websocket.Conn, state *agodeskConnectionState, messageType agodesk.MessageType, payload interface{}) error {
 	if state == nil {
-		return writeAgodeskEnvelope(conn, messageType, payload)
+		return writeAgodeskEnvelopeContext(ctx, conn, messageType, payload)
 	}
-	state.writeMu.Lock()
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	for {
+		if state.writeMu.TryLock() {
+			break
+		}
+		timer := time.NewTimer(10 * time.Millisecond)
+		select {
+		case <-ctx.Done():
+			if !timer.Stop() {
+				<-timer.C
+			}
+			if conn != nil {
+				_ = conn.Close()
+			}
+			return ctx.Err()
+		case <-timer.C:
+		}
+	}
 	defer state.writeMu.Unlock()
-	return writeAgodeskEnvelope(conn, messageType, payload)
+	return writeAgodeskEnvelopeContext(ctx, conn, messageType, payload)
 }
 
 func isExplicitAgodeskLoopbackDev(r *http.Request) bool {

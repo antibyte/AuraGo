@@ -93,6 +93,7 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"manage_todos", "Manage todo lists and tasks"},
 		{"follow_up", "Schedule autonomous background tasks"},
 		{"question_user", "Ask the user a question with predefined options"},
+		{"request_vault_secret", "Open a secure client dialog that stores a user secret without revealing it to the agent"},
 		{"wait_for_event", "Wait for a process, HTTP endpoint, or file event"},
 		{"manage_daemon", "Manage long-running daemon skills"},
 	},

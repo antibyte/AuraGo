@@ -1,4 +1,12 @@
 {
+  "chat.vault_secret_title": "Bezpečně uložit tajný údaj",
+  "chat.vault_secret_notice": "Agent váš vstup nikdy neuvidí. Uloží se přímo do šifrovaného trezoru.",
+  "chat.vault_secret_key_label": "Klíč trezoru",
+  "chat.vault_secret_input_label": "Hodnota tajného údaje",
+  "chat.vault_secret_cancel": "Zrušit",
+  "chat.vault_secret_save": "Uložit do trezoru",
+  "chat.vault_secret_error": "Tajný údaj se nepodařilo uložit.",
+  "chat.vault_secret_error_code": "Tajný údaj se nepodařilo uložit ({{code}}).",
   "chat.agent_active": "Svázané dohromady",
   "chat.agent_connected": "Svázané dohromady",
   "chat.agent_disconnected": "Oddělené",

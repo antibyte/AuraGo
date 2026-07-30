@@ -43,7 +43,7 @@ func buildCoreToolSchemas(ff ToolFeatureFlags, execSkillProps map[string]interfa
 				"background": prop("boolean", "Run as background process (default false)"),
 				"vault_keys": map[string]interface{}{
 					"type":        "array",
-					"description": "List of vault secret key names to inject as AURAGO_SECRET_<KEY> environment variables. Only user/agent-created secrets are accessible.",
+					"description": "List of vault secret key names to inject as AURAGO_SECRET_<KEY> environment variables. Only values the agent itself created through secrets_vault are accessible; UI, modal, system and legacy values remain hidden.",
 					"items":       map[string]interface{}{"type": "string"},
 				},
 				"credential_ids": map[string]interface{}{

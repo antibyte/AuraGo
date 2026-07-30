@@ -20,7 +20,7 @@ func buildExecuteSkillProps(ff ToolFeatureFlags) map[string]interface{} {
 	if ff.PythonSecretInjectionEnabled {
 		execSkillProps["vault_keys"] = map[string]interface{}{
 			"type":        "array",
-			"description": "List of vault secret key names to inject as AURAGO_SECRET_<KEY> environment variables. Only user/agent-created secrets are accessible.",
+			"description": "List of vault secret key names to inject as AURAGO_SECRET_<KEY> environment variables. Only values the agent itself created through secrets_vault are accessible; UI, modal, system and legacy values remain hidden.",
 			"items":       map[string]interface{}{"type": "string"},
 		}
 		execSkillProps["credential_ids"] = map[string]interface{}{

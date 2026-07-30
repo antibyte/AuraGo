@@ -1,4 +1,12 @@
 {
+  "chat.vault_secret_title": "シークレットを安全に保存",
+  "chat.vault_secret_notice": "エージェントが入力内容を見ることはありません。暗号化されたVaultに直接保存されます。",
+  "chat.vault_secret_key_label": "Vaultキー",
+  "chat.vault_secret_input_label": "シークレット値",
+  "chat.vault_secret_cancel": "キャンセル",
+  "chat.vault_secret_save": "Vaultに保存",
+  "chat.vault_secret_error": "シークレットを保存できませんでした。",
+  "chat.vault_secret_error_code": "シークレットを保存できませんでした（{{code}}）。",
   "chat.agent_active": "紐づけられた",
   "chat.agent_connected": "紐づけられた",
   "chat.agent_disconnected": "分離された",

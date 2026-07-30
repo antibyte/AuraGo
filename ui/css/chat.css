@@ -267,6 +267,60 @@
             transition: transform 0.25s linear;
         }
 
+        .vault-secret-modal-panel {
+            width: min(32rem, calc(100vw - 2rem));
+        }
+
+        .vault-secret-modal-prompt,
+        .vault-secret-modal-notice {
+            margin: 0;
+            line-height: 1.55;
+            white-space: pre-wrap;
+        }
+
+        .vault-secret-modal-notice {
+            padding: 0.8rem 0.9rem;
+            border: 1px solid var(--border-accent);
+            border-radius: 14px;
+            color: var(--text-secondary);
+            background: var(--accent-dim, rgba(77, 141, 255, 0.12));
+        }
+
+        .vault-secret-modal-label {
+            display: grid;
+            gap: 0.4rem;
+            color: var(--text-secondary);
+            font-size: 0.82rem;
+            font-weight: 700;
+        }
+
+        .vault-secret-modal-key {
+            width: fit-content;
+            color: var(--text-primary);
+            overflow-wrap: anywhere;
+        }
+
+        .vault-secret-modal-input {
+            width: 100%;
+            box-sizing: border-box;
+            border: 1px solid var(--border-subtle);
+            border-radius: 14px;
+            padding: 0.85rem;
+            color: var(--text-primary);
+            background: var(--input-bg, rgba(0, 0, 0, 0.18));
+        }
+
+        .vault-secret-modal-input:focus {
+            outline: 2px solid var(--accent, #4d8dff);
+            outline-offset: 2px;
+        }
+
+        .vault-secret-modal-error {
+            margin: 0;
+            color: var(--danger, #ff667a);
+            font-size: 0.85rem;
+        }
+
         /* ── Page-specific: Chat Interface ─────────────────── */
 
         body {

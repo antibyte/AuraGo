@@ -5,6 +5,8 @@ import (
 	"os/exec"
 	"strings"
 	"testing"
+
+	"aurago/internal/security"
 )
 
 // mockVault is a simple in-memory implementation of config.SecretReader for testing.
@@ -15,9 +17,37 @@ type mockVault struct {
 func (m *mockVault) ReadSecret(key string) (string, error) {
 	v, ok := m.secrets[key]
 	if !ok {
+		return "", fmt.Errorf("%w: %s", security.ErrSecretNotFound, key)
+	}
+	return v, nil
+}
+
+func (m *mockVault) ReadSecretForAgent(key string) (string, error) {
+	return m.ReadSecret(key)
+}
+
+type legacyMockVault struct {
+	secrets map[string]string
+}
+
+func (m *legacyMockVault) ReadSecret(key string) (string, error) {
+	v, ok := m.secrets[key]
+	if !ok {
 		return "", fmt.Errorf("secret %q not found", key)
 	}
 	return v, nil
+}
+
+type provenanceMockVault struct {
+	*mockVault
+	readable map[string]bool
+}
+
+func (m *provenanceMockVault) ReadSecretForAgent(key string) (string, error) {
+	if !m.readable[key] {
+		return "", fmt.Errorf("%w: %s", security.ErrSecretAgentAccessDenied, key)
+	}
+	return m.ReadSecret(key)
 }
 
 // ---------------------------------------------------------------------------
@@ -270,6 +300,43 @@ func TestResolveVaultSecrets_PrefixBlockedKeys(t *testing.T) {
 	}
 	if len(resolved) != 0 {
 		t.Errorf("expected empty resolved, got %v", resolved)
+	}
+}
+
+func TestResolveVaultSecretsRejectsUserSuppliedProvenance(t *testing.T) {
+	vault := &provenanceMockVault{
+		mockVault: &mockVault{secrets: map[string]string{
+			"agent_key": "allowed",
+			"user_key":  "hidden",
+		}},
+		readable: map[string]bool{"agent_key": true},
+	}
+	resolved, rejected, err := ResolveVaultSecrets(vault, []string{"agent_key", "user_key"})
+	if err != nil {
+		t.Fatalf("ResolveVaultSecrets() error = %v", err)
+	}
+	if resolved["agent_key"] != "allowed" {
+		t.Fatalf("agent-created value was not resolved: %v", resolved)
+	}
+	if _, ok := resolved["user_key"]; ok {
+		t.Fatalf("user-supplied value leaked: %v", resolved)
+	}
+	if len(rejected) != 1 || rejected[0] != "user_key" {
+		t.Fatalf("rejected = %v, want [user_key]", rejected)
+	}
+}
+
+func TestResolveVaultSecretsRejectsReaderWithoutProvenance(t *testing.T) {
+	vault := &legacyMockVault{secrets: map[string]string{"legacy_key": "hidden"}}
+	resolved, rejected, err := ResolveVaultSecrets(vault, []string{"legacy_key"})
+	if err != nil {
+		t.Fatalf("ResolveVaultSecrets() error = %v", err)
+	}
+	if len(resolved) != 0 {
+		t.Fatalf("unclassified value leaked: %v", resolved)
+	}
+	if len(rejected) != 1 || rejected[0] != "legacy_key" {
+		t.Fatalf("rejected = %v, want [legacy_key]", rejected)
 	}
 }
 

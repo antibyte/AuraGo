@@ -166,6 +166,9 @@ window._hidePersonalityPreview = hidePersonaPreview;
 window._setActivePersonaIconKey = setActivePersonaIconKey;
 
 window.onSessionSwitch = async function (sessionId) {
+    if (typeof window.handleVaultSecretSessionChange === 'function') {
+        await window.handleVaultSecretSessionChange(sessionId);
+    }
     chatContent.innerHTML = '';
     conversation = [];
     hideTodoPanel();

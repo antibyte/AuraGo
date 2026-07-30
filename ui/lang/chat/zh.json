@@ -1,4 +1,12 @@
 {
+  "chat.vault_secret_title": "安全保存密钥",
+  "chat.vault_secret_notice": "代理永远不会看到你的输入。该值会直接保存到加密的 Vault 中。",
+  "chat.vault_secret_key_label": "Vault 键名",
+  "chat.vault_secret_input_label": "密钥值",
+  "chat.vault_secret_cancel": "取消",
+  "chat.vault_secret_save": "保存到 Vault",
+  "chat.vault_secret_error": "无法保存密钥。",
+  "chat.vault_secret_error_code": "无法保存密钥（{{code}}）。",
   "chat.agent_active": "绑定在一起",
   "chat.agent_connected": "绑定在一起",
   "chat.agent_disconnected": "分开",

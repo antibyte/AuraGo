@@ -22,6 +22,7 @@ import (
 	"aurago/internal/memory"
 	"aurago/internal/security"
 	"aurago/internal/tools"
+	"aurago/internal/vaultprompt"
 
 	"aurago/internal/uid"
 
@@ -568,6 +569,16 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			MessageSource:      msgSource,
 			VoiceOutputActive:  GetSpeakerMode(),
 		}
+		if msgSource == "web_chat" && !inMaintenance && webVaultSecretPromptAuthenticated(s, r) && vaultSecretPromptWriteEnabled(s) {
+			if manager := ensureVaultSecretPrompter(s); manager != nil {
+				runCfg.VaultSecretPrompter = manager
+				runCfg.VaultSecretTarget = vaultprompt.Target{
+					Channel:         "web_chat",
+					ClientSessionID: sessionID,
+					ConversationID:  sessionID,
+				}
+			}
+		}
 
 		missionToolResultsBefore := 0
 		if missionID != "" && s.ShortTermMem != nil {
@@ -811,6 +822,9 @@ func handleInterrupt(s *Server) http.HandlerFunc {
 		s.Logger.Warn("Stop requested via Web UI", "session_id", sessionID)
 
 		agent.InterruptSession(sessionID)
+		if manager := currentVaultSecretPrompter(s); manager != nil {
+			manager.CancelConversation(sessionID)
+		}
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{

@@ -109,6 +109,21 @@ Und bitte mit Type-Hinweisen.
 - Sende die Datei direkt an den Bot
 - Oder nutze die "Datei senden"-Funktion
 
+## Sichere Secret-Eingabe
+
+Benötigt der Agent einen API-Key, ein Token, Passwort oder ähnliche
+Zugangsdaten, kann er im angemeldeten Web Chat oder in einer schreibbaren,
+gekoppelten AgoDesk-Sitzung einen eigenen sicheren Dialog öffnen. Der Dialog
+zeigt die Erklärung des Agents und den benannten Vault-Key. Der maskierte Wert
+wird jedoch direkt im verschlüsselten AuraGo-Vault gespeichert. Agent, Modell,
+Chatverlauf, Tool-Trace, Logs und Memories erhalten den Wert niemals.
+
+Füge Secrets nie in eine normale Chatnachricht ein. Ist der sichere Dialog
+nicht verfügbar, nutze die passende vertrauenswürdige Konfigurations- oder
+Credential-Oberfläche. Über den Dialog gespeicherte Keys können namentlich
+referenziert werden; ihre Werte bleiben auch für agentengesteuertes Python,
+Sandboxen, Custom Tools und Skills verborgen.
+
 ### Beispiele für Datei-Interaktionen
 
 ```

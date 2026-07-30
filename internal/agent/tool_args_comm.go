@@ -20,6 +20,12 @@ type questionUserArgs struct {
 	TimeoutSecs   int
 }
 
+type vaultSecretPromptArgs struct {
+	Prompt   string
+	VaultKey string
+	Replace  bool
+}
+
 type waitForEventArgs struct {
 	EventType          string
 	TaskPrompt         string
@@ -206,6 +212,18 @@ func decodeQuestionUserArgs(tc ToolCall) questionUserArgs {
 			Value:       value,
 			Description: strings.TrimSpace(asString(item["description"])),
 		})
+	}
+	return req
+}
+
+func decodeVaultSecretPromptArgs(tc ToolCall) vaultSecretPromptArgs {
+	req := vaultSecretPromptArgs{
+		Prompt:   firstNonEmptyToolString(tc.Prompt, tc.Message, tc.Content, toolArgString(tc.Params, "prompt")),
+		VaultKey: firstNonEmptyToolString(tc.Key, toolArgString(tc.Params, "vault_key", "key")),
+		Replace:  true,
+	}
+	if replace, ok := toolArgBool(tc.Params, "replace"); ok {
+		req.Replace = replace
 	}
 	return req
 }

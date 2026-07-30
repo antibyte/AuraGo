@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -160,7 +161,7 @@ func resolveVaultKeys(cfg *config.Config, vault *security.Vault, keys []string, 
 	}
 	var info string
 	if len(rejected) > 0 {
-		info = fmt.Sprintf("[NOTE] The following vault keys were rejected (system/integration secrets cannot be accessed by Python tools): %s", strings.Join(rejected, ", "))
+		info = fmt.Sprintf("[NOTE] The following vault keys were rejected (only agent-created values may be injected into Python tools): %s", strings.Join(rejected, ", "))
 		logger.Warn("Vault keys rejected for Python injection", "rejected", rejected)
 	}
 	if len(resolved) > 0 {
@@ -1149,7 +1150,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				return `Tool Output: {"status":"error","message":"Secrets vault is disabled. Set tools.secrets_vault.enabled=true in config.yaml."}`
 			}
 			op := strings.TrimSpace(strings.ToLower(req.Operation))
-			if cfg.Tools.SecretsVault.ReadOnly && (op == "store" || op == "set" || req.Action == "set_secret") {
+			if cfg.Tools.SecretsVault.ReadOnly && (op == "store" || op == "set" || op == "delete" || req.Action == "set_secret") {
 				return `Tool Output: {"status":"error","message":"Secrets vault is in read-only mode. Disable tools.secrets_vault.read_only to allow changes."}`
 			}
 			if op == "store" || op == "set" || (req.Action == "set_secret") {
@@ -1161,11 +1162,31 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 					logger.Warn("LLM attempted to overwrite system-managed secret — access denied", "key", req.Key)
 					return `Tool Output: {"status": "error", "message": "Access denied: this secret is managed by a system component and cannot be overwritten via secrets_vault."}`
 				}
-				err := vault.WriteSecret(req.Key, req.Value)
+				err := vault.WriteAgentSecret(req.Key, req.Value)
 				if err != nil {
+					if errors.Is(err, security.ErrSecretAgentAccessDenied) {
+						return `Tool Output: {"status":"error","message":"Access denied: this key contains a user-supplied secret and cannot be overwritten by the agent."}`
+					}
 					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
 				}
 				return fmt.Sprintf(`Tool Output: {"status": "success", "message": "Secret '%s' stored safely."}`, req.Key)
+			}
+			if op == "delete" {
+				logger.Info("LLM requested secret deletion", "key", req.Key)
+				if strings.TrimSpace(req.Key) == "" {
+					return `Tool Output: {"status":"error","message":"'key' is required for delete"}`
+				}
+				if isSystemSecret(req.Key) {
+					return `Tool Output: {"status":"error","message":"Access denied: this secret is managed by a system component and cannot be deleted via secrets_vault."}`
+				}
+				if err := vault.DeleteAgentSecret(req.Key); err != nil {
+					if errors.Is(err, security.ErrSecretAgentAccessDenied) {
+						return `Tool Output: {"status":"error","message":"Access denied: only agent-created secrets can be deleted by the agent."}`
+					}
+					return fmt.Sprintf(`Tool Output: {"status":"error","message":%q}`, err.Error())
+				}
+				keyJSON, _ := json.Marshal(req.Key)
+				return fmt.Sprintf(`Tool Output: {"status":"success","deleted":true,"key":%s}`, keyJSON)
 			}
 
 			// Default: read/list
@@ -1187,20 +1208,31 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				if mErr != nil {
 					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Failed to serialize keys: %v"}`, mErr)
 				}
-				return fmt.Sprintf(`Tool Output: {"status": "success", "message": "Stored secret keys (use get_secret with 'key' to retrieve a value)", "keys": %s}`, string(b))
+				return fmt.Sprintf(`Tool Output: {"status":"success","message":"Stored secret keys. User-supplied values remain hidden; keys can still be referenced.","keys":%s}`, string(b))
 			}
 			// Block access to system-managed secrets
 			if isSystemSecret(req.Key) {
 				logger.Warn("LLM attempted to read system-managed secret — access denied", "key", req.Key)
 				return `Tool Output: {"status": "error", "message": "Access denied: this secret is managed by a system component and cannot be retrieved via secrets_vault."}`
 			}
-			secret, err := vault.ReadSecret(req.Key)
+			present, readable, err := vault.AgentSecretInfo(req.Key)
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
 			}
+			keyJSON, _ := json.Marshal(req.Key)
+			if !present {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":"secret not found","key":%s}`, keyJSON)
+			}
+			if !readable {
+				return fmt.Sprintf(`Tool Output: {"status":"success","key":%s,"present":true,"value_hidden":true}`, keyJSON)
+			}
+			secret, err := vault.ReadSecretForAgent(req.Key)
+			if err != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":%q}`, err.Error())
+			}
 			// JSON-encode the secret value to prevent injection from special characters
 			safeVal, _ := json.Marshal(secret)
-			return fmt.Sprintf(`Tool Output: {"status": "success", "key": "%s", "value": %s}`, req.Key, string(safeVal))
+			return fmt.Sprintf(`Tool Output: {"status":"success","key":%s,"present":true,"value":%s}`, keyJSON, string(safeVal))
 
 		case "set_secret":
 			req := decodeSecretVaultArgs(tc)
@@ -1218,8 +1250,11 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				logger.Warn("LLM attempted to overwrite system-managed secret — access denied", "key", req.Key)
 				return `Tool Output: {"status": "error", "message": "Access denied: this secret is managed by a system component and cannot be overwritten via secrets_vault."}`
 			}
-			err := vault.WriteSecret(req.Key, req.Value)
+			err := vault.WriteAgentSecret(req.Key, req.Value)
 			if err != nil {
+				if errors.Is(err, security.ErrSecretAgentAccessDenied) {
+					return `Tool Output: {"status":"error","message":"Access denied: this key contains a user-supplied secret and cannot be overwritten by the agent."}`
+				}
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
 			}
 			return fmt.Sprintf(`Tool Output: {"status": "success", "message": "Secret '%s' stored safely."}`, req.Key)

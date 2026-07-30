@@ -173,7 +173,7 @@ func appendMemoryToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai.
 
 	if ff.SecretsVaultEnabled {
 		tools = append(tools, tool("secrets_vault",
-			"Store, retrieve, list, or delete secrets from the encrypted vault.",
+			"Store, retrieve, list, or delete agent-created secrets from the encrypted vault. User-supplied values remain hidden and can only be referenced by key.",
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{
 					"type":        "string",
@@ -183,6 +183,27 @@ func appendMemoryToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai.
 				"key":   prop("string", "Secret key name"),
 				"value": prop("string", "Secret value (for 'set' operation)"),
 			}, "operation"),
+		))
+		tools = append(tools, tool("request_vault_secret",
+			"Ask the user to enter a secret through a secure client dialog. The value is stored directly in the vault and you will NEVER see it. Use this instead of asking the user to paste secrets into chat.",
+			schema(map[string]interface{}{
+				"prompt": map[string]interface{}{
+					"type":        "string",
+					"description": "Free text shown to the user explaining which secret to enter and why. Maximum 2000 characters.",
+					"maxLength":   2000,
+				},
+				"vault_key": map[string]interface{}{
+					"type":        "string",
+					"description": "Uppercase key name used to reference the stored secret. Pattern [A-Z0-9_]{1,64}.",
+					"pattern":     "^[A-Z0-9_]{1,64}$",
+					"maxLength":   64,
+				},
+				"replace": map[string]interface{}{
+					"type":        "boolean",
+					"description": "Overwrite an existing value for vault_key. Defaults to true.",
+					"default":     true,
+				},
+			}, "prompt", "vault_key"),
 		))
 	}
 

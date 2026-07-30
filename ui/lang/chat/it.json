@@ -1,4 +1,12 @@
 {
+  "chat.vault_secret_title": "Salva il segreto in modo sicuro",
+  "chat.vault_secret_notice": "L’agente non vede mai ciò che inserisci. Il valore viene salvato direttamente nel Vault cifrato.",
+  "chat.vault_secret_key_label": "Chiave del Vault",
+  "chat.vault_secret_input_label": "Valore segreto",
+  "chat.vault_secret_cancel": "Annulla",
+  "chat.vault_secret_save": "Salva nel Vault",
+  "chat.vault_secret_error": "Impossibile salvare il segreto.",
+  "chat.vault_secret_error_code": "Impossibile salvare il segreto ({{code}}).",
   "chat.agent_active": "Legati insieme",
   "chat.agent_connected": "Legati insieme",
   "chat.agent_disconnected": "Separato",

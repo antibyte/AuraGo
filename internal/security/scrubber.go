@@ -15,7 +15,7 @@ var (
 	// Regex for common API keys and secrets.
 	// \b word boundaries prevent matching keywords embedded inside longer identifiers
 	// (e.g. "auth" inside "auth_token", "key" inside "local_key_path").
-	apiKeyRegex = regexp.MustCompile(`(?i)\b(key|secret|password|token|auth|credential|api_key|master_key|bot_token)\b["']?\s*[:=]\s*["']?([A-Za-z0-9][A-Za-z0-9\-_:+=/]{7,})["']?`)
+	apiKeyRegex = regexp.MustCompile(`(?i)\b(key|secret|password|passwd|pwd|pin|token|auth|credential|api_key|master_key|bot_token)\b["']?\s*[:=]\s*["']?([A-Za-z0-9][A-Za-z0-9\-_:+=/]*)["']?`)
 	// fragmentedSecretRegex catches secrets obfuscated by inserting whitespace/punctuation
 	// between each character (e.g. "s k - 1 2 3 4 5 6 7 8").
 	// '/' and '.' are intentionally excluded from the separator class: they are path
@@ -44,9 +44,22 @@ var (
 	// These must be stripped before they reach the chat UI.
 	hallucinatedRagRe = regexp.MustCompile(`(?m)^\s*\[\$[^\]]*\]\s*$|^\s*\[\/[A-ZÄÖÜ][A-ZÄÖÜ _]+\]\s*$`)
 
-	sensitiveMu     sync.RWMutex
-	sensitiveValues []string
+	sensitiveMu           sync.RWMutex
+	sensitiveValues       = make(map[string]sensitiveEntry)
+	scopedSensitiveValues = make(map[string]int)
 )
+
+const minimumGlobalSensitiveLiteralBytes = 8
+
+// sensitiveEntry contains the immutable, precomputed redaction forms for one
+// permanently registered value. Keeping these forms with the deduplicated
+// value avoids recompiling regular expressions on every Scrub call.
+type sensitiveEntry struct {
+	value      string
+	fragmented *regexp.Regexp
+	hex        *regexp.Regexp
+	base64     []string
+}
 
 // RedactedText returns a user-visible placeholder for hidden content.
 func RedactedText(reason string) string {
@@ -70,12 +83,52 @@ func SanitizedText(reason string) string {
 // never appear in any outgoing text. Every registered value is replaced with a
 // visible placeholder whenever Scrub() is called.
 func RegisterSensitive(value string) {
-	if value == "" {
+	if len(value) < minimumGlobalSensitiveLiteralBytes {
 		return
 	}
 	sensitiveMu.Lock()
-	defer sensitiveMu.Unlock()
-	sensitiveValues = append(sensitiveValues, value)
+	if sensitiveValues == nil {
+		sensitiveValues = make(map[string]sensitiveEntry)
+	}
+	if _, exists := sensitiveValues[value]; !exists {
+		sensitiveValues[value] = prepareSensitiveEntry(value)
+	}
+	sensitiveMu.Unlock()
+}
+
+// RegisterScopedSensitiveExact registers a value for short-lived exact-match
+// redaction and returns an idempotent release function. Modal secrets use this
+// scope while the Vault write and value-free acknowledgement are in flight, so
+// they never accumulate in the permanent process-wide registry.
+//
+// Values shorter than eight bytes are deliberately excluded: registering a
+// common PIN or one-character value as a global literal would corrupt unrelated
+// application output. Those values remain protected by the value-free prompt
+// data flow and contextual credential redaction.
+func RegisterScopedSensitiveExact(value string) func() {
+	if len(value) < minimumGlobalSensitiveLiteralBytes {
+		return func() {}
+	}
+
+	sensitiveMu.Lock()
+	if scopedSensitiveValues == nil {
+		scopedSensitiveValues = make(map[string]int)
+	}
+	scopedSensitiveValues[value]++
+	sensitiveMu.Unlock()
+
+	var once sync.Once
+	return func() {
+		once.Do(func() {
+			sensitiveMu.Lock()
+			if scopedSensitiveValues[value] <= 1 {
+				delete(scopedSensitiveValues, value)
+			} else {
+				scopedSensitiveValues[value]--
+			}
+			sensitiveMu.Unlock()
+		})
+	}
 }
 
 // Scrub replaces occurrences of registered sensitive values with a visible placeholder.
@@ -86,43 +139,62 @@ func Scrub(text string) string {
 		return ""
 	}
 	sensitiveMu.RLock()
-	vals := make([]string, len(sensitiveValues))
-	copy(vals, sensitiveValues)
+	entries := make([]sensitiveEntry, 0, len(sensitiveValues))
+	for _, entry := range sensitiveValues {
+		entries = append(entries, entry)
+	}
+	scoped := make([]string, 0, len(scopedSensitiveValues))
+	for value := range scopedSensitiveValues {
+		if _, permanent := sensitiveValues[value]; !permanent {
+			scoped = append(scoped, value)
+		}
+	}
 	sensitiveMu.RUnlock()
 
-	for _, v := range vals {
-		if v == "" {
-			continue
-		}
-		text = scrubRegisteredSensitive(text, v)
+	for _, entry := range entries {
+		text = scrubSensitiveEntry(text, entry)
+	}
+	for _, value := range scoped {
+		text = strings.ReplaceAll(text, value, redactedPlaceholder)
 	}
 	return text
 }
 
-func scrubRegisteredSensitive(text, value string) string {
-	if strings.Contains(text, value) {
-		text = strings.ReplaceAll(text, value, redactedPlaceholder)
-	}
-
+func prepareSensitiveEntry(value string) sensitiveEntry {
+	entry := sensitiveEntry{value: value}
 	compact := compactSensitiveValue(value)
 	if len(compact) >= 8 {
-		if fragmented := buildFragmentedSensitiveRegex(compact); fragmented != nil {
-			text = fragmented.ReplaceAllString(text, redactedPlaceholder)
-		}
+		entry.fragmented = buildFragmentedSensitiveRegex(compact)
 	}
-
 	if len(value) >= 6 {
-		text = replaceEncodedLiteral(text, hex.EncodeToString([]byte(value)), true)
-		for _, encoded := range []string{
+		if pattern, err := regexp.Compile(`(?i)` + regexp.QuoteMeta(hex.EncodeToString([]byte(value)))); err == nil {
+			entry.hex = pattern
+		}
+		entry.base64 = []string{
 			base64.StdEncoding.EncodeToString([]byte(value)),
 			base64.RawStdEncoding.EncodeToString([]byte(value)),
 			base64.URLEncoding.EncodeToString([]byte(value)),
 			base64.RawURLEncoding.EncodeToString([]byte(value)),
-		} {
-			text = replaceEncodedLiteral(text, encoded, false)
 		}
 	}
+	return entry
+}
 
+func scrubSensitiveEntry(text string, entry sensitiveEntry) string {
+	if entry.value != "" && strings.Contains(text, entry.value) {
+		text = strings.ReplaceAll(text, entry.value, redactedPlaceholder)
+	}
+	if entry.fragmented != nil {
+		text = entry.fragmented.ReplaceAllString(text, redactedPlaceholder)
+	}
+	if entry.hex != nil {
+		text = entry.hex.ReplaceAllString(text, redactedPlaceholder)
+	}
+	for _, encoded := range entry.base64 {
+		if encoded != "" && strings.Contains(text, encoded) {
+			text = strings.ReplaceAll(text, encoded, redactedPlaceholder)
+		}
+	}
 	return text
 }
 
@@ -150,24 +222,6 @@ func buildFragmentedSensitiveRegex(value string) *regexp.Regexp {
 		return nil
 	}
 	return compiled
-}
-
-func replaceEncodedLiteral(text, encoded string, insensitive bool) string {
-	if encoded == "" || len(encoded) < 8 {
-		return text
-	}
-	if !insensitive && !strings.Contains(text, encoded) {
-		return text
-	}
-	pattern := regexp.QuoteMeta(encoded)
-	if insensitive {
-		pattern = `(?i)` + pattern
-	}
-	re, err := regexp.Compile(pattern)
-	if err != nil {
-		return text
-	}
-	return re.ReplaceAllString(text, redactedPlaceholder)
 }
 
 // RedactSensitiveInfo replaces sensitive patterns with a visible placeholder.

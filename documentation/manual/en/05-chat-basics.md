@@ -90,6 +90,21 @@ You: Create file path="config.yml" content="[YAML content]"
 
 > 💡 **Tip:** AuraGo is flexible. Experiment to find the style that works best for your use case.
 
+## Secure Secret Prompts
+
+When the agent needs an API key, token, password, or similar credential in an
+authenticated Web Chat or writable paired AgoDesk session, it can open a
+dedicated secure dialog. The dialog shows the agent's explanation and the
+named Vault key, but the masked value is sent directly to AuraGo's encrypted
+Vault. The agent, model, chat history, tool trace, logs, and memories never
+receive the value.
+
+Never paste a secret into a normal chat message. If the secure dialog is not
+available, use the appropriate trusted configuration or credential screen.
+Keys created through the secure dialog can be referenced by name, while their
+values remain hidden from agent-controlled Python, sandbox, custom-tool, and
+skill execution.
+
 ## File Uploads and Handling
 
 ### Uploading Files in Web UI

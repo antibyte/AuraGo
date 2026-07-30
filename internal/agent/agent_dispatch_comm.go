@@ -24,6 +24,7 @@ import (
 	"aurago/internal/security"
 	"aurago/internal/services"
 	"aurago/internal/tools"
+	"aurago/internal/vaultprompt"
 )
 
 // resolveSkillBridgeTools returns the intersection of the skill manifest's InternalTools
@@ -225,6 +226,40 @@ func dispatchQuestionUser(tc ToolCall, dc *DispatchContext) string {
 	}
 }
 
+type vaultSecretBrokerSender struct {
+	broker        TypedFeedbackBroker
+	allowDeferred bool
+}
+
+func (s vaultSecretBrokerSender) SendTyped(event string, payload interface{}) bool {
+	delivered := s.broker != nil && s.broker.SendTyped(event, payload)
+	return delivered || s.allowDeferred
+}
+
+func dispatchRequestVaultSecret(ctx context.Context, tc ToolCall, dc *DispatchContext) string {
+	if dc == nil || dc.VaultSecretPrompter == nil {
+		return `Tool Output: {"status":"error","error_code":"UNSUPPORTED_CAPABILITY"}`
+	}
+	typedBroker, ok := dc.Broker.(TypedFeedbackBroker)
+	if !ok || typedBroker == nil {
+		return `Tool Output: {"status":"error","error_code":"UNSUPPORTED_CAPABILITY"}`
+	}
+	req := decodeVaultSecretPromptArgs(tc)
+	result := dc.VaultSecretPrompter.Request(ctx, dc.VaultSecretTarget, vaultprompt.Request{
+		Prompt:   req.Prompt,
+		VaultKey: req.VaultKey,
+		Replace:  req.Replace,
+	}, vaultSecretBrokerSender{
+		broker:        typedBroker,
+		allowDeferred: strings.EqualFold(strings.TrimSpace(dc.VaultSecretTarget.Channel), "web_chat"),
+	})
+	encoded, err := json.Marshal(result)
+	if err != nil {
+		return `Tool Output: {"status":"error","error_code":"VAULT_WRITE_FAILED"}`
+	}
+	return "Tool Output: " + string(encoded)
+}
+
 func questionUserUsesInteractiveUI(source string) bool {
 	switch strings.ToLower(strings.TrimSpace(source)) {
 	case "web_chat", "virtual_desktop_chat":
@@ -291,6 +326,9 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 		switch tc.Action {
 		case "invoke_tool":
 			return dispatchInvokeTool(ctx, tc, dc)
+
+		case "request_vault_secret":
+			return dispatchRequestVaultSecret(ctx, tc, dc)
 
 		case "question_user":
 			return dispatchQuestionUser(tc, dc)

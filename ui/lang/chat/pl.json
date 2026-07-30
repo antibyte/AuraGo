@@ -1,4 +1,12 @@
 {
+  "chat.vault_secret_title": "Bezpiecznie zapisz sekret",
+  "chat.vault_secret_notice": "Agent nigdy nie widzi wpisanej wartości. Jest ona zapisywana bezpośrednio w zaszyfrowanym Vault.",
+  "chat.vault_secret_key_label": "Klucz Vault",
+  "chat.vault_secret_input_label": "Wartość sekretu",
+  "chat.vault_secret_cancel": "Anuluj",
+  "chat.vault_secret_save": "Zapisz w Vault",
+  "chat.vault_secret_error": "Nie udało się zapisać sekretu.",
+  "chat.vault_secret_error_code": "Nie udało się zapisać sekretu ({{code}}).",
   "chat.agent_active": "Połączeni razem",
   "chat.agent_connected": "Połączeni razem",
   "chat.agent_disconnected": "Rozdzielony",

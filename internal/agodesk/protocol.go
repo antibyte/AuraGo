@@ -75,6 +75,10 @@ const (
 	TypeLocalAgentTurn                   MessageType = "local.agent.turn"
 	TypeLocalAgentLLM                    MessageType = "local.agent.llm"
 	TypeLocalAgentLLMResult              MessageType = "local.agent.llm.result"
+	TypeVaultSecretPrompt                MessageType = "vault.secret.prompt"
+	TypeVaultSecretSubmit                MessageType = "vault.secret.submit"
+	TypeVaultSecretCancel                MessageType = "vault.secret.cancel"
+	TypeVaultSecretAck                   MessageType = "vault.secret.ack"
 )
 
 const (
@@ -145,6 +149,7 @@ const (
 	CapabilityConfigProvidersOAuth = "config.providers.oauth"
 	CapabilityLocalAgent           = "local.agent"
 	CapabilityKnowledgeArchive     = "knowledge.archive.upload"
+	CapabilityVaultSecretPrompt    = "vault.secret.prompt"
 )
 
 const PersonaAssetVersion = "20260502-persona-refresh"
@@ -553,6 +558,33 @@ type ChatCancelledPayload struct {
 	ConversationID string `json:"conversation_id,omitempty"`
 	RequestID      string `json:"request_id,omitempty"`
 	Status         string `json:"status,omitempty"`
+}
+
+type VaultSecretPromptPayload struct {
+	SessionID string `json:"session_id"`
+	RequestID string `json:"request_id"`
+	Prompt    string `json:"prompt"`
+	VaultKey  string `json:"vault_key"`
+}
+
+type VaultSecretSubmitPayload struct {
+	SessionID string `json:"session_id"`
+	RequestID string `json:"request_id"`
+	VaultKey  string `json:"vault_key"`
+	Value     string `json:"value"`
+}
+
+type VaultSecretCancelPayload struct {
+	SessionID string `json:"session_id"`
+	RequestID string `json:"request_id"`
+}
+
+type VaultSecretAckPayload struct {
+	SessionID string `json:"session_id"`
+	RequestID string `json:"request_id"`
+	Status    string `json:"status"`
+	VaultKey  string `json:"vault_key,omitempty"`
+	ErrorCode string `json:"error_code,omitempty"`
 }
 
 type ChatAudioPayload struct {

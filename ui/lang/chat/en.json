@@ -1,4 +1,12 @@
 {
+  "chat.vault_secret_title": "Store secret securely",
+  "chat.vault_secret_notice": "The agent never sees your entry. It is stored directly in the encrypted Vault.",
+  "chat.vault_secret_key_label": "Vault key",
+  "chat.vault_secret_input_label": "Secret value",
+  "chat.vault_secret_cancel": "Cancel",
+  "chat.vault_secret_save": "Store in Vault",
+  "chat.vault_secret_error": "The secret could not be stored.",
+  "chat.vault_secret_error_code": "The secret could not be stored ({{code}}).",
   "chat.agent_active": "Agent Active",
   "chat.agent_connected": "Connected",
   "chat.agent_disconnected": "Disconnected",

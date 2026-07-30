@@ -1,4 +1,12 @@
 {
+  "chat.vault_secret_title": "सीक्रेट सुरक्षित रूप से सहेजें",
+  "chat.vault_secret_notice": "एजेंट आपकी प्रविष्टि कभी नहीं देखता। इसे सीधे एन्क्रिप्टेड Vault में सहेजा जाता है।",
+  "chat.vault_secret_key_label": "Vault कुंजी",
+  "chat.vault_secret_input_label": "सीक्रेट मान",
+  "chat.vault_secret_cancel": "रद्द करें",
+  "chat.vault_secret_save": "Vault में सहेजें",
+  "chat.vault_secret_error": "सीक्रेट सहेजा नहीं जा सका।",
+  "chat.vault_secret_error_code": "सीक्रेट सहेजा नहीं जा सका ({{code}})।",
   "chat.agent_active": "एक साथ बंधा हुआ",
   "chat.agent_connected": "एक साथ बंधा हुआ",
   "chat.agent_disconnected": "अलग किए",

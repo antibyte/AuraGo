@@ -1,4 +1,12 @@
 {
+  "chat.vault_secret_title": "Lagre hemmeligheten sikkert",
+  "chat.vault_secret_notice": "Agenten ser aldri det du skriver inn. Verdien lagres direkte i det krypterte Vault.",
+  "chat.vault_secret_key_label": "Vault-nøkkel",
+  "chat.vault_secret_input_label": "Hemmelig verdi",
+  "chat.vault_secret_cancel": "Avbryt",
+  "chat.vault_secret_save": "Lagre i Vault",
+  "chat.vault_secret_error": "Hemmeligheten kunne ikke lagres.",
+  "chat.vault_secret_error_code": "Hemmeligheten kunne ikke lagres ({{code}}).",
   "chat.agent_active": "Bundet sammen",
   "chat.agent_connected": "Bundet sammen",
   "chat.agent_disconnected": "Separerer",

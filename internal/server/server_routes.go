@@ -459,6 +459,9 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/api/personality/feedback", handlePersonalityFeedback(s))
 	mux.HandleFunc("/api/agent/question-status", handleQuestionStatus(s))
 	mux.HandleFunc("/api/agent/question-response", handleQuestionResponse(s))
+	mux.HandleFunc("/api/agent/vault-secret/status", handleVaultSecretPromptStatus(s))
+	mux.HandleFunc("/api/agent/vault-secret/submit", handleVaultSecretPromptSubmit(s))
+	mux.HandleFunc("/api/agent/vault-secret/cancel", handleVaultSecretPromptCancel(s))
 	mux.HandleFunc("/events", func(w http.ResponseWriter, r *http.Request) {
 		s.CfgMu.RLock()
 		enabled := s.Cfg.Auth.Enabled

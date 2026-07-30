@@ -1,4 +1,12 @@
 {
+  "chat.vault_secret_title": "Guardar segredo com segurança",
+  "chat.vault_secret_notice": "O agente nunca vê o que introduz. O valor é guardado diretamente no Vault encriptado.",
+  "chat.vault_secret_key_label": "Chave do Vault",
+  "chat.vault_secret_input_label": "Valor secreto",
+  "chat.vault_secret_cancel": "Cancelar",
+  "chat.vault_secret_save": "Guardar no Vault",
+  "chat.vault_secret_error": "Não foi possível guardar o segredo.",
+  "chat.vault_secret_error_code": "Não foi possível guardar o segredo ({{code}}).",
   "chat.agent_active": "Amarrados juntos",
   "chat.agent_connected": "Amarrados juntos",
   "chat.agent_disconnected": "Separado",

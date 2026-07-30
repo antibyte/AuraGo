@@ -58,7 +58,10 @@ func TestRedactSensitiveInfoLeavesBenignShortValuesUntouched(t *testing.T) {
 }
 
 func TestScrubUsesVisiblePlaceholderForSensitiveValues(t *testing.T) {
-	sensitiveValues = nil
+	sensitiveMu.Lock()
+	sensitiveValues = make(map[string]sensitiveEntry)
+	scopedSensitiveValues = make(map[string]int)
+	sensitiveMu.Unlock()
 	RegisterSensitive("secret123")
 
 	t.Run("exact", func(t *testing.T) {
@@ -88,6 +91,80 @@ func TestScrubUsesVisiblePlaceholderForSensitiveValues(t *testing.T) {
 			t.Fatalf("expected base64 secret to be scrubbed, got %q", result)
 		}
 	})
+}
+
+func TestRegisterSensitiveDeduplicatesAndIgnoresShortLiterals(t *testing.T) {
+	sensitiveMu.Lock()
+	sensitiveValues = make(map[string]sensitiveEntry)
+	scopedSensitiveValues = make(map[string]int)
+	sensitiveMu.Unlock()
+
+	RegisterSensitive("duplicate-secret")
+	RegisterSensitive("duplicate-secret")
+	RegisterSensitive("1")
+
+	sensitiveMu.RLock()
+	count := len(sensitiveValues)
+	sensitiveMu.RUnlock()
+	if count != 1 {
+		t.Fatalf("registered sensitive values = %d, want 1", count)
+	}
+	if got := Scrub("normal 1 output"); got != "normal 1 output" {
+		t.Fatalf("short literal corrupted output: %q", got)
+	}
+	if got := RedactSensitiveInfo("pin: 1"); strings.Contains(got, "1") || !containsRedacted(got) {
+		t.Fatalf("contextual short PIN was not redacted: %q", got)
+	}
+}
+
+func TestScopedSensitiveExactIsRefcountedAndReleased(t *testing.T) {
+	sensitiveMu.Lock()
+	sensitiveValues = make(map[string]sensitiveEntry)
+	scopedSensitiveValues = make(map[string]int)
+	sensitiveMu.Unlock()
+
+	const secret = "scoped-secret-value"
+	releaseOne := RegisterScopedSensitiveExact(secret)
+	releaseTwo := RegisterScopedSensitiveExact(secret)
+	if got := Scrub("prefix " + secret + " suffix"); strings.Contains(got, secret) {
+		t.Fatalf("scoped secret was not redacted: %q", got)
+	}
+	// Exact-only scopes deliberately do not add expanded encodings.
+	if got := Scrub("73636f7065642d7365637265742d76616c7565"); !strings.Contains(got, "73636f") {
+		t.Fatalf("scoped secret unexpectedly expanded to encoded patterns: %q", got)
+	}
+	releaseOne()
+	if got := Scrub(secret); strings.Contains(got, secret) {
+		t.Fatalf("first release removed a shared scope: %q", got)
+	}
+	releaseTwo()
+	releaseTwo()
+	if got := Scrub(secret); got != secret {
+		t.Fatalf("released scope remained registered: %q", got)
+	}
+}
+
+func TestScopedSensitiveExactAcceptsMaximumModalSizeWithoutExpansion(t *testing.T) {
+	sensitiveMu.Lock()
+	sensitiveValues = make(map[string]sensitiveEntry)
+	scopedSensitiveValues = make(map[string]int)
+	sensitiveMu.Unlock()
+
+	secret := strings.Repeat("m", 64*1024)
+	release := RegisterScopedSensitiveExact(secret)
+	if got := Scrub("prefix" + secret + "suffix"); strings.Contains(got, secret) {
+		t.Fatal("maximum-size scoped value was not redacted")
+	}
+	sensitiveMu.RLock()
+	count := len(scopedSensitiveValues)
+	sensitiveMu.RUnlock()
+	if count != 1 {
+		t.Fatalf("scoped registry entries = %d, want 1", count)
+	}
+	release()
+	if got := Scrub(secret); got != secret {
+		t.Fatal("maximum-size scoped value remained registered")
+	}
 }
 
 func TestVisiblePlaceholderHelpers(t *testing.T) {

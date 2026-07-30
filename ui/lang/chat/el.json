@@ -1,4 +1,12 @@
 {
+  "chat.vault_secret_title": "Ασφαλής αποθήκευση μυστικού",
+  "chat.vault_secret_notice": "Ο πράκτορας δεν βλέπει ποτέ την καταχώρισή σας. Αποθηκεύεται απευθείας στο κρυπτογραφημένο Vault.",
+  "chat.vault_secret_key_label": "Κλειδί Vault",
+  "chat.vault_secret_input_label": "Μυστική τιμή",
+  "chat.vault_secret_cancel": "Ακύρωση",
+  "chat.vault_secret_save": "Αποθήκευση στο Vault",
+  "chat.vault_secret_error": "Δεν ήταν δυνατή η αποθήκευση του μυστικού.",
+  "chat.vault_secret_error_code": "Δεν ήταν δυνατή η αποθήκευση του μυστικού ({{code}}).",
   "chat.agent_active": "Δεμένα μαζί",
   "chat.agent_connected": "Δεμένα μαζί",
   "chat.agent_disconnected": "Χωρισμένοι",

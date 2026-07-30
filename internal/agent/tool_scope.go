@@ -39,6 +39,18 @@ func filterSchemasByAllowedTools(schemas []openai.Tool, allowed []string) []open
 	return filtered
 }
 
+func filterSchemasByName(schemas []openai.Tool, excluded string) []openai.Tool {
+	excluded = strings.ToLower(strings.TrimSpace(excluded))
+	filtered := make([]openai.Tool, 0, len(schemas))
+	for _, schema := range schemas {
+		if schema.Function != nil && strings.EqualFold(strings.TrimSpace(schema.Function.Name), excluded) {
+			continue
+		}
+		filtered = append(filtered, schema)
+	}
+	return filtered
+}
+
 func dispatchToolAllowed(dc *DispatchContext, name string) bool {
 	if dc == nil || !dc.ToolScopeRestricted {
 		return true

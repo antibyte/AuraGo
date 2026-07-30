@@ -159,6 +159,7 @@ function connectSSE() {
         setConnectionState('connected');
         if (sseReconnectTimer) { clearTimeout(sseReconnectTimer); sseReconnectTimer = null; }
         if (typeof window.checkPendingQuestion === 'function') window.checkPendingQuestion();
+        if (typeof window.checkPendingVaultSecretPrompt === 'function') window.checkPendingVaultSecretPrompt();
     });
 
     window.AuraSSE.on('_error', function (readyState) {
@@ -315,6 +316,20 @@ function connectSSE() {
         if (!isCurrentSession(payload)) return;
         if (typeof window.showQuestionModal === 'function') {
             window.showQuestionModal(payload);
+        }
+    });
+
+    window.AuraSSE.on('vault.secret.prompt', function (payload) {
+        if (!isCurrentSession(payload)) return;
+        if (typeof window.showVaultSecretPrompt === 'function') {
+            window.showVaultSecretPrompt(payload);
+        }
+    });
+
+    window.AuraSSE.on('vault.secret.ack', function (payload) {
+        if (!isCurrentSession(payload)) return;
+        if (typeof window.handleVaultSecretAck === 'function') {
+            window.handleVaultSecretAck(payload);
         }
     });
 

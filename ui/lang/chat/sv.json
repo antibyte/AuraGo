@@ -1,4 +1,12 @@
 {
+  "chat.vault_secret_title": "Spara hemligheten säkert",
+  "chat.vault_secret_notice": "Agenten ser aldrig det du skriver in. Värdet sparas direkt i det krypterade Vault.",
+  "chat.vault_secret_key_label": "Vault-nyckel",
+  "chat.vault_secret_input_label": "Hemligt värde",
+  "chat.vault_secret_cancel": "Avbryt",
+  "chat.vault_secret_save": "Spara i Vault",
+  "chat.vault_secret_error": "Hemligheten kunde inte sparas.",
+  "chat.vault_secret_error_code": "Hemligheten kunde inte sparas ({{code}}).",
   "chat.agent_active": "Sammankopplade",
   "chat.agent_connected": "Sammankopplade",
   "chat.agent_disconnected": "Separerat",

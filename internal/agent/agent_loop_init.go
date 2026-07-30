@@ -368,6 +368,9 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 	}
 	allSchemas := schemaSnapshot.FullSchemas()
 	allSchemas = filterSchemasByAllowedTools(allSchemas, runCfg.AllowedTools)
+	if runCfg.VaultSecretPrompter == nil {
+		allSchemas = filterSchemasByName(allSchemas, "request_vault_secret")
+	}
 	if suppressCoAgentTools {
 		allSchemas = nil
 	}

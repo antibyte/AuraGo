@@ -13,6 +13,7 @@ import (
 	"aurago/internal/services"
 	"aurago/internal/sqlconnections"
 	"aurago/internal/tools"
+	"aurago/internal/vaultprompt"
 )
 
 // DispatchContext bundles the shared dependencies passed through the tool-dispatch chain.
@@ -63,4 +64,6 @@ type DispatchContext struct {
 	ToolScopeRestricted  bool
 	AllowedAgentSkills   map[string]struct{}
 	SkillScopeRestricted bool
+	VaultSecretPrompter  *vaultprompt.Manager
+	VaultSecretTarget    vaultprompt.Target
 }

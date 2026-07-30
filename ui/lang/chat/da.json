@@ -1,4 +1,12 @@
 {
+  "chat.vault_secret_title": "Gem hemmelighed sikkert",
+  "chat.vault_secret_notice": "Agenten ser aldrig din indtastning. Den gemmes direkte i den krypterede Vault.",
+  "chat.vault_secret_key_label": "Vault-nøgle",
+  "chat.vault_secret_input_label": "Hemmelig værdi",
+  "chat.vault_secret_cancel": "Annuller",
+  "chat.vault_secret_save": "Gem i Vault",
+  "chat.vault_secret_error": "Hemmeligheden kunne ikke gemmes.",
+  "chat.vault_secret_error_code": "Hemmeligheden kunne ikke gemmes ({{code}}).",
   "chat.agent_active": "Bundet sammen",
   "chat.agent_connected": "Bundet sammen",
   "chat.agent_disconnected": "Separeret",

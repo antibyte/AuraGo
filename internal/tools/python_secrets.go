@@ -2,6 +2,7 @@ package tools
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os/exec"
@@ -56,67 +57,73 @@ var blockedSecretPrefixes = []string{
 	"a2a_remote_",
 	"music_minimax_",
 	"music_google_lyria_",
+	"remote_shared_key_",
+	"__aurago_",
 }
 
 // blockedSecretExact is the set of exact vault keys that are exclusively
 // managed by system integrations and must NEVER be accessible to Python tools.
 var blockedSecretExact = map[string]struct{}{
-	"ai_gateway_token":            {},
-	"telegram_bot_token":          {},
-	"discord_bot_token":           {},
-	"meshcentral_password":        {},
-	"meshcentral_token":           {},
-	"tailscale_api_key":           {},
-	"tailscale_tsnet_authkey":     {},
-	"ansible_token":               {},
-	"virustotal_api_key":          {},
-	"brave_search_api_key":        {},
-	"tts_elevenlabs_api_key":      {},
-	"tts_minimax_api_key":         {},
-	"tts_mistral_api_key":         {},
-	"ntfy_token":                  {},
-	"home_assistant_access_token": {},
-	"webdav_password":             {},
-	"webdav_token":                {},
-	"koofr_password":              {},
-	"proxmox_secret":              {},
-	"frigate_api_token":           {},
-	"github_token":                {},
-	"rocketchat_auth_token":       {},
-	"mqtt_password":               {},
-	"ldap_bind_password":          {},
-	"adguard_password":            {},
-	"netlify_token":               {},
-	"vercel_token":                {},
-	"pushover_user_key":           {},
-	"pushover_app_token":          {},
-	"paperless_ngx_api_token":     {},
-	"jellyfin_api_key":            {},
-	"obsidian_api_key":            {},
-	"uptime_kuma_api_key":         {},
-	"grafana_api_key":             {},
-	"yepapi_api_key":              {},
-	"n8n_api_token":               {},
-	"mcp_server_token":            {},
-	"copilot_github_token":        {},
-	"onedrive_client_secret":      {},
-	"onedrive_device_code":        {},
-	"sudo_password":               {},
-	"a2a_api_key":                 {},
-	"a2a_bearer_secret":           {},
-	"egg_shared_key":              {},
-	"truenas_api_key":             {},
-	"composio_api_key":            {},
-	"manus_api_key":               {},
-	"evomap_node_secret":          {},
-	"evomap_api_key":              {},
-	"boring_token":                {},
-	"boring_anthropic_key":        {},
-	"boring_openrouter_key":       {},
+	"ai_gateway_token":                    {},
+	"telegram_bot_token":                  {},
+	"discord_bot_token":                   {},
+	"meshcentral_password":                {},
+	"meshcentral_token":                   {},
+	"tailscale_api_key":                   {},
+	"tailscale_tsnet_authkey":             {},
+	"tailscale_tsnet_authkey_main":        {},
+	"tailscale_tsnet_authkey_manifest":    {},
+	"tailscale_tsnet_authkey_space_agent": {},
+	"ansible_token":                       {},
+	"virustotal_api_key":                  {},
+	"brave_search_api_key":                {},
+	"tts_elevenlabs_api_key":              {},
+	"tts_minimax_api_key":                 {},
+	"tts_mistral_api_key":                 {},
+	"ntfy_token":                          {},
+	"home_assistant_access_token":         {},
+	"webdav_password":                     {},
+	"webdav_token":                        {},
+	"koofr_password":                      {},
+	"proxmox_secret":                      {},
+	"frigate_api_token":                   {},
+	"github_token":                        {},
+	"rocketchat_auth_token":               {},
+	"mqtt_password":                       {},
+	"ldap_bind_password":                  {},
+	"adguard_password":                    {},
+	"netlify_token":                       {},
+	"vercel_token":                        {},
+	"pushover_user_key":                   {},
+	"pushover_app_token":                  {},
+	"paperless_ngx_api_token":             {},
+	"jellyfin_api_key":                    {},
+	"obsidian_api_key":                    {},
+	"uptime_kuma_api_key":                 {},
+	"grafana_api_key":                     {},
+	"yepapi_api_key":                      {},
+	"n8n_api_token":                       {},
+	"mcp_server_token":                    {},
+	"copilot_github_token":                {},
+	"onedrive_client_secret":              {},
+	"onedrive_device_code":                {},
+	"sudo_password":                       {},
+	"a2a_api_key":                         {},
+	"a2a_bearer_secret":                   {},
+	"egg_shared_key":                      {},
+	"truenas_api_key":                     {},
+	"composio_api_key":                    {},
+	"manus_api_key":                       {},
+	"evomap_node_secret":                  {},
+	"evomap_api_key":                      {},
+	"boring_token":                        {},
+	"boring_anthropic_key":                {},
+	"boring_openrouter_key":               {},
 }
 
-// IsPythonAccessibleSecret returns true only if the vault key is a user/agent-created
-// secret and NOT a system/integration-managed secret.
+// IsPythonAccessibleSecret applies the static system-key blocklist. Callers
+// must additionally verify Vault provenance; only model-created values may be
+// injected into agent-authored code.
 func IsPythonAccessibleSecret(key string) bool {
 	lower := strings.ToLower(key)
 	if _, ok := blockedSecretExact[lower]; ok {
@@ -135,6 +142,9 @@ func IsPythonAccessibleSecret(key string) bool {
 // and an error only if the vault itself fails.
 func ResolveVaultSecrets(vault config.SecretReader, keys []string) (resolved map[string]string, rejected []string, err error) {
 	resolved = make(map[string]string, len(keys))
+	provenanceReader, hasProvenance := vault.(interface {
+		ReadSecretForAgent(string) (string, error)
+	})
 	for _, key := range keys {
 		key = strings.TrimSpace(key)
 		if key == "" {
@@ -144,10 +154,21 @@ func ResolveVaultSecrets(vault config.SecretReader, keys []string) (resolved map
 			rejected = append(rejected, key)
 			continue
 		}
-		val, readErr := vault.ReadSecret(key)
-		if readErr != nil {
-			slog.Warn("Vault secret not found for Python injection", "key", key)
+		if !hasProvenance {
+			rejected = append(rejected, key)
 			continue
+		}
+		val, readErr := provenanceReader.ReadSecretForAgent(key)
+		if readErr != nil {
+			switch {
+			case errors.Is(readErr, security.ErrSecretAgentAccessDenied):
+				rejected = append(rejected, key)
+				continue
+			case errors.Is(readErr, security.ErrSecretNotFound):
+				continue
+			default:
+				return resolved, rejected, fmt.Errorf("read agent Vault secret: %w", readErr)
+			}
 		}
 		if val == "" {
 			continue

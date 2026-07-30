@@ -1,4 +1,12 @@
 {
+  "chat.vault_secret_title": "Geheim veilig opslaan",
+  "chat.vault_secret_notice": "De agent ziet je invoer nooit. Deze wordt rechtstreeks in de versleutelde Vault opgeslagen.",
+  "chat.vault_secret_key_label": "Vault-sleutel",
+  "chat.vault_secret_input_label": "Geheime waarde",
+  "chat.vault_secret_cancel": "Annuleren",
+  "chat.vault_secret_save": "Opslaan in Vault",
+  "chat.vault_secret_error": "Het geheim kon niet worden opgeslagen.",
+  "chat.vault_secret_error_code": "Het geheim kon niet worden opgeslagen ({{code}}).",
   "chat.agent_active": "Samengebonden",
   "chat.agent_connected": "Samengebonden",
   "chat.agent_disconnected": "Gescheiden",

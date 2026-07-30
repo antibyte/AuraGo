@@ -20,7 +20,7 @@ When `tools.python_secret_injection.enabled` is set to `true` in the config, you
 
 - Pass `vault_keys` as an array of secret key names from the vault
 - Each secret is available as `AURAGO_SECRET_<KEY>` (key name uppercased, special chars replaced with `_`)
-- **Only user/agent-created secrets are accessible** — system and integration secrets (API keys, bot tokens, etc.) are blocked
+- **Only values created by the model through `secrets_vault set` are accessible**. Secure-dialog, UI, system, integration, and unclassified legacy values are blocked.
 - Secret values are automatically scrubbed from all output to prevent leaks
 - After the process exits, secrets are removed (child process env is isolated)
 

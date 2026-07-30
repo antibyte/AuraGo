@@ -112,6 +112,7 @@ Desktop commands are dispatched only when the matching client capability is pres
 - `config.providers.write`: enables provider create, update, delete, and test commands. AuraGo offers this only when Web Config is enabled, the Vault is available, and the paired AgoDesk device is not read-only.
 - `config.providers.oauth`: enables desktop-assisted OAuth start, complete, status, and revoke commands. AuraGo offers this only when Web Config is enabled, the Vault is available, and the paired AgoDesk device is not read-only.
 - `knowledge.archive.upload`: enables document uploads into the first configured AuraGo knowledge directory and its collection. AuraGo offers it only when indexing, the FileIndexer, VectorDB, knowledge directory, upload signing secret, and a writable paired device are available.
+- `vault.secret.prompt`: enables the one-shot secure secret dialog. AuraGo offers it only when Vault writes are enabled and the accepted paired device is writable.
 - `remote.desktop.capture`: required for `desktop_screenshot`
 - `remote.desktop.permission_request`: required for `desktop_permission_request`
 - `remote.desktop.input`: required for `desktop_input`
@@ -124,6 +125,25 @@ Desktop commands are dispatched only when the matching client capability is pres
 - `remote.shell.session`: required for `shell_session_start`, `shell_session_read`, `shell_session_input`, `shell_session_stop`, and `shell_session_list`; AgoDesk must advertise it only when persistent local shell sessions are enabled, and AuraGo offers it only when `agent.allow_remote_shell=true`.
 
 If a client omits these capabilities, pairing, heartbeat, persona assets, and chat can still work, but remote commands return `UNSUPPORTED_CAPABILITY` immediately instead of waiting for a `desktop.result` timeout. A client that sends keepalives but does not advertise the desktop, file, or shell capabilities is connected, but only capable of the features it advertised.
+
+## Secure Vault Secret Prompt
+
+`vault.secret.prompt` is negotiated separately from chat and desktop control.
+It lets `request_vault_secret` display a masked client dialog without putting
+the value in `chat.message`, an agent trace, or a transcript.
+
+- Server to client: `vault.secret.prompt` with `session_id`, `request_id`,
+  `prompt`, and `vault_key`.
+- Client to server: `vault.secret.submit` with the matching fields and the
+  one-time `value`, or `vault.secret.cancel`.
+- Server to client: `vault.secret.ack` with `stored`, `cancelled`, or a
+  sanitized error code.
+
+The server binds the request to the exact paired WebSocket session, negotiated
+capability, request ID, and server-selected key. The value is limited to
+64 KiB, is synchronously committed to the encrypted Vault before the ack, and
+is never included in any response. Duplicate, expired, read-only, foreign, or
+wrong-key submissions are rejected.
 
 ## Local Agent Backend
 

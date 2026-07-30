@@ -1,4 +1,12 @@
 {
+  "chat.vault_secret_title": "Enregistrer le secret en toute sécurité",
+  "chat.vault_secret_notice": "L’agent ne voit jamais votre saisie. Elle est enregistrée directement dans le Vault chiffré.",
+  "chat.vault_secret_key_label": "Clé du Vault",
+  "chat.vault_secret_input_label": "Valeur secrète",
+  "chat.vault_secret_cancel": "Annuler",
+  "chat.vault_secret_save": "Enregistrer dans le Vault",
+  "chat.vault_secret_error": "Le secret n’a pas pu être enregistré.",
+  "chat.vault_secret_error_code": "Le secret n’a pas pu être enregistré ({{code}}).",
   "chat.agent_active": "Attachés ensemble",
   "chat.agent_connected": "Attachés ensemble",
   "chat.agent_disconnected": "Séparé",

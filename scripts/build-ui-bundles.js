@@ -64,6 +64,7 @@ const chatRuntimeParts = [
   'ui/js/chat/chat-messages.js',
   'ui/js/chat/stl-viewer.js',
   'ui/js/chat/chat-question.js',
+  'ui/js/chat/chat-vault-secret.js',
   'ui/js/chat/chat-streaming.js',
   'ui/js/chat/chat-history.js',
   'ui/js/chat/viewport-fix.js'

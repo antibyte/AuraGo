@@ -1,8 +1,10 @@
 package server
 
 import (
+	"context"
 	"database/sql"
 	"log/slog"
+	"time"
 
 	"aurago/internal/tools"
 )
@@ -11,6 +13,12 @@ import (
 func (s *Server) closeRuntimeResources() {
 	if s == nil {
 		return
+	}
+
+	if manager := currentVaultSecretPrompter(s); manager != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
+		manager.Shutdown(ctx)
+		cancel()
 	}
 
 	if s.PreparationService != nil {

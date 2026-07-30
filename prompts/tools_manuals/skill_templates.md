@@ -119,8 +119,8 @@ After creating or editing a normal skill, call `execute_skill` with small safe t
 
 When a skill uses `vault_keys`, the user must manually configure the secrets before the skill can work:
 
-1. **Store secret in vault**: Web UI → Settings → Secrets → New Secret (e.g. name: `API_KEY`, value: the actual key)
-2. **Assign secret to skill**: Web UI → Skills → select the skill → Assign Secrets → check the matching vault entries → Save
+1. **Use an eligible Vault value**: only values created by the model through `secrets_vault set` can be exported to skills. Secure-dialog and UI values remain hidden.
+2. **Assign secret to skill**: Web UI → Skills → select skill → Assign Secrets → check the matching eligible Vault entry → Save
 
 Vault keys are injected as environment variables named `AURAGO_SECRET_<KEY>` where the key is uppercased and non-alphanumeric characters become `_` (for example `api-key` becomes `AURAGO_SECRET_API_KEY`).
 

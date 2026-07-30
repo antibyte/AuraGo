@@ -23,6 +23,7 @@ import (
 	"aurago/internal/services"
 	"aurago/internal/sqlconnections"
 	"aurago/internal/tools"
+	"aurago/internal/vaultprompt"
 
 	"github.com/sashabaranov/go-openai"
 )
@@ -1129,6 +1130,10 @@ type RunConfig struct {
 	// preserves the historical unrestricted behavior; an explicit empty slice
 	// exposes no Agent Skills through list/activate.
 	AllowedAgentSkills []string
+	// VaultSecretPrompter is present only for an authenticated interactive
+	// client that can receive the secure secret-entry prompt.
+	VaultSecretPrompter *vaultprompt.Manager
+	VaultSecretTarget   vaultprompt.Target
 }
 
 func dispatchInner(ctx context.Context, tc ToolCall, dc *DispatchContext) string {
@@ -1185,7 +1190,7 @@ func dispatchInner(ctx context.Context, tc ToolCall, dc *DispatchContext) string
 			return `Tool Output: {"status": "error", "message": "Co-Agents cannot schedule follow-ups."}`
 		case "wait_for_event":
 			return `Tool Output: {"status": "error", "message": "Co-Agents cannot schedule wait events."}`
-		case "question_user":
+		case "question_user", "request_vault_secret":
 			return `Tool Output: {"status": "error", "message": "Co-Agents cannot ask the user questions."}`
 		case "cron_scheduler":
 			return `Tool Output: {"status": "error", "message": "Co-Agents cannot manage cron jobs."}`

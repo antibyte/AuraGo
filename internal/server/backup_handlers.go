@@ -95,18 +95,13 @@ func exportVaultSecrets(vault *security.Vault, password string) ([]byte, error) 
 	if vault == nil {
 		return nil, nil
 	}
-	keys, err := vault.ListKeys()
+	data, err := vault.BackupSnapshot()
 	if err != nil {
-		return nil, fmt.Errorf("vault list: %w", err)
+		return nil, fmt.Errorf("vault snapshot: %w", err)
 	}
-	data := make(map[string]string, len(keys))
-	for _, k := range keys {
-		if vaultSkipKeys[k] {
-			continue
-		}
-		v, err := vault.ReadSecret(k)
-		if err == nil && v != "" {
-			data[k] = v
+	for key, value := range data {
+		if vaultSkipKeys[key] || value == "" {
+			delete(data, key)
 		}
 	}
 	if len(data) == 0 {
@@ -134,14 +129,14 @@ func importVaultSecrets(vault *security.Vault, encData []byte, password string) 
 	if err := json.Unmarshal(plain, &data); err != nil {
 		return 0, fmt.Errorf("vault secrets parse: %w", err)
 	}
-	count := 0
-	for k, v := range data {
-		if vaultSkipKeys[k] {
-			continue
+	for key := range data {
+		if vaultSkipKeys[key] {
+			delete(data, key)
 		}
-		if err := vault.WriteSecret(k, v); err == nil {
-			count++
-		}
+	}
+	count, err := vault.RestoreBackupSnapshot(data)
+	if err != nil {
+		return 0, fmt.Errorf("vault restore: %w", err)
 	}
 	return count, nil
 }

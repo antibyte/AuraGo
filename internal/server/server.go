@@ -48,6 +48,7 @@ import (
 	"aurago/internal/sqlconnections"
 	"aurago/internal/tools"
 	"aurago/internal/tsnetnode"
+	"aurago/internal/vaultprompt"
 	"aurago/internal/virtualcomputers"
 	"aurago/internal/warnings"
 	"aurago/internal/webhooks"
@@ -145,6 +146,8 @@ type Server struct {
 	ShortTermMem         *memory.SQLiteMemory
 	LongTermMem          memory.VectorDB
 	Vault                *security.Vault
+	VaultSecretPrompter  *vaultprompt.Manager
+	vaultSecretPromptMu  sync.Mutex
 	Registry             *tools.ProcessRegistry
 	CronManager          *tools.CronManager
 	BackgroundTasks      *tools.BackgroundTaskManager
@@ -1285,6 +1288,9 @@ func newServerFromOptions(opts StartOptions) *Server {
 		WarningsRegistry:   opts.WarningsRegistry,
 	}
 	s.initConfigSnapshot()
+	if opts.Vault != nil {
+		s.VaultSecretPrompter = vaultprompt.NewManager(opts.Vault, 5*time.Minute)
+	}
 	s.Go2RTC = tools.NewGo2RTCManager(cfg, opts.Vault, opts.MediaRegistryDB, logger)
 	s.Go2RTCDiscovery = onvif.NewService(cfg.Runtime.BroadcastOK)
 	tools.SetDefaultGo2RTCManager(s.Go2RTC)

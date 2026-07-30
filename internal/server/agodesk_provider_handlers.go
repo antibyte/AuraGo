@@ -27,7 +27,8 @@ func agodeskServerCapabilitiesForDevice(s *Server, readOnly bool) []string {
 		switch capability {
 		case agodesk.CapabilityConfigProvidersWrite,
 			agodesk.CapabilityConfigProvidersOAuth,
-			agodesk.CapabilityKnowledgeArchive:
+			agodesk.CapabilityKnowledgeArchive,
+			agodesk.CapabilityVaultSecretPrompt:
 			continue
 		default:
 			filtered = append(filtered, capability)
