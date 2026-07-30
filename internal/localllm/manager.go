@@ -628,7 +628,7 @@ func (m *Manager) install(parent context.Context) error {
 	if !m.generationCurrent(generation) {
 		return &UnavailableError{Code: "desired_state_changed"}
 	}
-	if !plan.Image.Supported || !isDigestPinned(plan.Image.Reference) {
+	if !isDigestPinned(plan.Image.Reference) {
 		return m.failGeneration(generation, "backend_not_supported", nil)
 	}
 	m.mu.Lock()
@@ -796,6 +796,9 @@ func (m *Manager) startPlan(parent context.Context, plan runtimePlan) error {
 	if plan.Profile.Compatibility == "unsupported" || !plan.Profile.DockerAvailable {
 		return &UnavailableError{Code: "hardware_or_docker_unavailable"}
 	}
+	if plan.Profile.AcknowledgementDue && !m.acknowledged(plan.Profile.Fingerprint) {
+		return &UnavailableError{Code: "experimental_hardware_acknowledgement_required"}
+	}
 	if ok, _ := verifyArtifact(filepath.Join(m.modelDir, plan.Model.Name), plan.Model); !ok {
 		return &UnavailableError{Code: "model_not_installed"}
 	}
@@ -804,7 +807,7 @@ func (m *Manager) startPlan(parent context.Context, plan runtimePlan) error {
 			return &UnavailableError{Code: "draft_not_installed"}
 		}
 	}
-	if !plan.Image.Supported || !isDigestPinned(plan.Image.Reference) {
+	if !isDigestPinned(plan.Image.Reference) {
 		return &UnavailableError{Code: "backend_not_supported"}
 	}
 	key, err := m.ensureRuntimeKey()
@@ -965,6 +968,9 @@ func (m *Manager) smokeTest(ctx context.Context) error {
 	defer cancel()
 	plan, err := m.resolveRuntimePlan(ctx, cfg, generation)
 	if err != nil {
+		return err
+	}
+	if err := m.startWithPlan(ctx, plan); err != nil {
 		return err
 	}
 	return m.smokeTestPlan(ctx, plan)

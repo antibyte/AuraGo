@@ -84,4 +84,9 @@ Automatic selection requires semantically identical tool calls, no OOM/offload e
 - `POST /api/local-llm/role`
 - `POST /api/local-llm/acknowledgement`
 
+The `smoke_test` action starts an installed runtime on demand before sending the
+exact tool-call probe. Experimental backends require the current
+hardware-fingerprint acknowledgement for install, start, recreate, smoke test,
+and benchmark operations.
+
 All routes are same-origin protected and administrator-only. Status responses contain sanitized codes and resolved parameters, not raw logs, host paths, or credentials.

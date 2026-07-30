@@ -14,6 +14,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -564,6 +565,56 @@ func TestReleaseManifestRequiresDigestPinsAndNativeValidatedProfiles(t *testing.
 	partialRelease.HardwareProfiles = filteredProfiles
 	if err := partialRelease.validate(); err != nil {
 		t.Fatalf("manifest with intentionally unsupported backend rejected: %v", err)
+	}
+}
+
+func TestStartPlanAllowsExplicitDigestPinnedCandidateImage(t *testing.T) {
+	modelBytes := []byte("candidate-model")
+	modelHash := sha256.Sum256(modelBytes)
+	model := Artifact{
+		Name:   "candidate.gguf",
+		Size:   int64(len(modelBytes)),
+		SHA256: hex.EncodeToString(modelHash[:]),
+	}
+	modelDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(modelDir, model.Name), modelBytes, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	secrets := &localLLMTestVault{values: make(map[string]string)}
+	const hardwareFingerprint = "candidate-hardware"
+	manager := &Manager{
+		manifest: DefaultManifest(),
+		modelDir: modelDir,
+		vault:    secrets,
+		docker:   &recordingDockerEngine{client: http.DefaultClient},
+	}
+	plan := runtimePlan{
+		Config: config.LocalLLMConfig{Enabled: true, Backend: "cpu", ContextSize: 8192},
+		Profile: HardwareProfile{
+			DockerAvailable:    true,
+			Compatibility:      "experimental",
+			SelectedBackend:    "cpu",
+			AcknowledgementDue: true,
+			Fingerprint:        hardwareFingerprint,
+		},
+		Fingerprint: "candidate-plan",
+		Model:       model,
+		Image: Image{
+			Backend:   "vulkan",
+			Reference: DefaultManifest().Images["vulkan"].Reference,
+			Supported: false,
+		},
+	}
+	if err := manager.startPlan(context.Background(), plan); errorCode(err) != "experimental_hardware_acknowledgement_required" {
+		t.Fatalf("unacknowledged startPlan() error = %v", err)
+	}
+	secrets.values["local_llm_ack_"+hardwareFingerprint] = "acknowledged"
+	err := manager.startPlan(context.Background(), plan)
+	if errorCode(err) != "image_not_installed" {
+		t.Fatalf("startPlan() error = %v, want candidate image to pass the explicit-backend gate", err)
+	}
+	if secrets.values[config.LocalLLMRuntimeAPIKeyVaultKey] == "" {
+		t.Fatal("explicit candidate plan did not create its runtime key")
 	}
 }
 
@@ -1231,6 +1282,45 @@ func (vault *localLLMTestVault) ReadSecret(key string) (string, error) {
 func (vault *localLLMTestVault) WriteSecret(key, value string) error {
 	vault.values[key] = value
 	return nil
+}
+
+func TestSmokeTestStartsOnDemandBeforeReadingRuntimeKey(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("managed local LLM runtime is supported on Linux AMD64")
+	}
+	cfg := &config.Config{}
+	cfg.Directories.DataDir = t.TempDir()
+	cfg.LocalLLM = config.LocalLLMConfig{
+		Enabled: true, Backend: "cpu", ModelVariant: "q4_k_m", MTP: "off",
+		ContextSize: 8192, IdleTimeoutMinutes: 15, ListenPort: 18081,
+	}
+	engine := &recordingDockerEngine{
+		client: &http.Client{Transport: roundTripperFunc(func(*http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader("")),
+				Header:     make(http.Header),
+			}, nil
+		})},
+	}
+	secrets := &localLLMTestVault{values: make(map[string]string)}
+	manager := NewManager(
+		cfg,
+		secrets,
+		nil,
+		withDockerEngine(engine),
+	)
+	defer manager.Close()
+	profile := manager.Probe(context.Background())
+	if err := manager.Acknowledge(profile.Fingerprint); err != nil {
+		t.Fatal(err)
+	}
+
+	err := manager.SmokeTest(context.Background())
+	if errorCode(err) != "model_not_installed" {
+		t.Fatalf("SmokeTest() error = %v, status=%#v, docker paths=%v; want on-demand start to check installation before the runtime key",
+			err, manager.Status(), engine.paths)
+	}
 }
 
 func TestFakeLlamaServerSmokeTestValidatesToolCallAndStartupManifest(t *testing.T) {
