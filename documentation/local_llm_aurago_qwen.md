@@ -50,7 +50,7 @@ The public model artifacts are pinned to immutable Hugging Face commits:
 - GGUF: `37e44d3534c05447be9e486cadca5d1da9838539`;
 - MTP target and sidecar: `abf7f625cc52c019ef5a14afa0c56713d5183818`.
 
-The CUDA, SYCL, and Vulkan GHCR packages are public and digest-pinned. The UI still reports the release gate and refuses installation until replacement runtime images pass the required native Linux GPU smoke tests. AuraGo does not accept Hugging Face or GHCR credentials for this feature.
+The CUDA, SYCL, and Vulkan GHCR packages and the model artifacts are public and digest-pinned. Candidate backends may be installed only after an explicit backend choice and experimental-hardware acknowledgement. Automatic backend selection remains unavailable until an image and matching hardware profile pass the required native Linux GPU smoke test. AuraGo does not accept Hugging Face or GHCR credentials for this feature.
 
 ### WSL2 development tests
 
@@ -58,8 +58,8 @@ WSL2 is not treated as a native Linux release qualification. Intel Arc GPUs can
 nevertheless run the SYCL image experimentally through `/dev/dxg` when the
 Windows WSL driver libraries are mounted read-only from `/usr/lib/wsl`. The
 managed v1 runtime currently accepts native DRM render nodes only, so a
-successful manual WSL2 test must not mark a backend `validated-linux` or bypass
-the release gate.
+successful manual WSL2 test must not mark a backend `validated-linux` or make
+it available to automatic backend selection.
 
 ## Runtime security
 

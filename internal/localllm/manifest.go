@@ -54,12 +54,13 @@ type Manifest struct {
 	HardwareProfiles []ValidatedHardwareProfile `json:"hardware_profiles"`
 }
 
-// DefaultManifest contains the public, commit-pinned model artifacts. It remains
-// release-gated until replacement images pass native Linux GPU smoke tests.
+// DefaultManifest contains the public, commit-pinned model artifacts and runtime
+// images. Backends remain unavailable to automatic selection until their image
+// and hardware profile have passed native Linux GPU qualification.
 func DefaultManifest() Manifest {
 	return Manifest{
 		Version:        ReleaseManifestVersion,
-		ReleaseReady:   false,
+		ReleaseReady:   true,
 		LlamaCPPCommit: LlamaCPPCommit,
 		Artifacts: map[string]Artifact{
 			"normal_q4_k_m": {
@@ -98,7 +99,7 @@ func DefaultManifest() Manifest {
 			},
 		},
 		Images: map[string]Image{
-			// Candidate digests are retained for traceability, never selected while ReleaseReady is false.
+			// Candidate images require an explicit backend choice and experimental acknowledgement.
 			"cuda": {
 				Backend: "cuda",
 				Reference: "ghcr.io/antibyte/aurago-llm-cuda:edge-e68803c4fd89@" +
@@ -137,7 +138,9 @@ func (m Manifest) validate() error {
 			return fmt.Errorf("release_manifest_invalid: artifact %s", name)
 		}
 	}
-	supportedBackends := 0
+	if len(m.Images) == 0 {
+		return fmt.Errorf("release_manifest_invalid: no runtime images")
+	}
 	for backend, image := range m.Images {
 		if !isDigestPinned(image.Reference) {
 			return fmt.Errorf("release_manifest_invalid: backend %s is not digest-pinned", backend)
@@ -145,7 +148,6 @@ func (m Manifest) validate() error {
 		if !image.Supported {
 			continue
 		}
-		supportedBackends++
 		validated := false
 		for _, profile := range m.HardwareProfiles {
 			if profile.Backend == backend && profile.Status == "validated-linux" &&
@@ -157,9 +159,6 @@ func (m Manifest) validate() error {
 		if !validated {
 			return fmt.Errorf("release_manifest_invalid: backend %s has no validated Linux hardware profile", backend)
 		}
-	}
-	if supportedBackends == 0 {
-		return fmt.Errorf("release_manifest_invalid: no supported backend")
 	}
 	return nil
 }

@@ -434,8 +434,16 @@ func TestSelectedArtifactsNeverMixNormalAndMTPQuantizations(t *testing.T) {
 
 func TestDefaultManifestPinsPublicHuggingFaceArtifacts(t *testing.T) {
 	manifest := DefaultManifest()
-	if manifest.ReleaseReady {
-		t.Fatal("public artifact pins must not bypass the native Linux release gate")
+	if !manifest.ReleaseReady {
+		t.Fatal("public, commit-pinned release artifacts must be installable")
+	}
+	for backend, image := range manifest.Images {
+		if image.Supported {
+			t.Fatalf("candidate backend %q must not be available to automatic selection", backend)
+		}
+	}
+	if err := manifest.validate(); err != nil {
+		t.Fatalf("public experimental manifest rejected: %v", err)
 	}
 
 	expected := map[string]struct {
@@ -493,7 +501,6 @@ func TestDefaultManifestPinsPublicHuggingFaceArtifacts(t *testing.T) {
 
 func TestReleaseManifestRequiresDigestPinsAndNativeValidatedProfiles(t *testing.T) {
 	manifest := DefaultManifest()
-	manifest.ReleaseReady = true
 	manifest.HardwareProfiles = nil
 	for key, artifact := range manifest.Artifacts {
 		if artifact.Path == "" {
@@ -512,6 +519,15 @@ func TestReleaseManifestRequiresDigestPinsAndNativeValidatedProfiles(t *testing.
 	}
 	if err := manifest.validate(); err != nil {
 		t.Fatalf("ready manifest rejected: %v", err)
+	}
+	experimentalOnly := DefaultManifest()
+	if err := experimentalOnly.validate(); err != nil {
+		t.Fatalf("digest-pinned experimental-only manifest rejected: %v", err)
+	}
+	missingImages := experimentalOnly
+	missingImages.Images = nil
+	if err := missingImages.validate(); err == nil || !strings.Contains(err.Error(), "no runtime images") {
+		t.Fatalf("missing runtime image validation error = %v", err)
 	}
 	brokenDigest := manifest
 	brokenDigest.Images = cloneImages(manifest.Images)
