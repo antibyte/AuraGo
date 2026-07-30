@@ -1099,7 +1099,7 @@ function applySetupLocalLLMPatch(patch) {
         backend: document.getElementById('setup-local-llm-backend').value,
         model_variant: document.getElementById('setup-local-llm-model').value,
         mtp: document.getElementById('setup-local-llm-mtp').value,
-        context_size: 8192,
+        context_size: 16384,
         idle_timeout_minutes: 15,
         listen_port: 18081,
     };

@@ -416,7 +416,7 @@ func Load(path string) (*Config, error) {
 	cfg.LocalLLM.Backend = "auto"
 	cfg.LocalLLM.ModelVariant = "q4_k_m"
 	cfg.LocalLLM.MTP = "off"
-	cfg.LocalLLM.ContextSize = 8192
+	cfg.LocalLLM.ContextSize = 16384
 	cfg.LocalLLM.IdleTimeoutMinutes = 15
 	cfg.LocalLLM.ListenPort = 18081
 
@@ -1002,8 +1002,8 @@ func Load(path string) (*Config, error) {
 	if cfg.LocalLLM.MTP == "" {
 		cfg.LocalLLM.MTP = "off"
 	}
-	if cfg.LocalLLM.ContextSize == 0 {
-		cfg.LocalLLM.ContextSize = 8192
+	if cfg.LocalLLM.ContextSize == 0 || cfg.LocalLLM.ContextSize == 2048 || cfg.LocalLLM.ContextSize == 8192 {
+		cfg.LocalLLM.ContextSize = 16384
 	}
 	if cfg.LocalLLM.IdleTimeoutMinutes == 0 {
 		cfg.LocalLLM.IdleTimeoutMinutes = 15

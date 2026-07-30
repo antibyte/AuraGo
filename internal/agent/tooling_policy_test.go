@@ -598,6 +598,34 @@ func TestBuildToolingPolicyCapsMiniMaxToolBudgets(t *testing.T) {
 	}
 }
 
+func TestBuildToolingPolicyCapsManagedLocalContextBudget(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.LLM.ProviderType = "aurago-local"
+	cfg.LLM.Model = config.LocalLLMModelAlias
+	cfg.Agent.AdaptiveTools.Enabled = true
+	cfg.Agent.AdaptiveTools.MaxTools = 32
+	cfg.Agent.AdaptiveTools.MaxTotalTools = 52
+	cfg.Agent.AdaptiveTools.MaxSchemaTokens = 0
+	cfg.Agent.AdaptiveTools.ProviderProfilesEnabled = false
+
+	policy := buildToolingPolicy(cfg, "check the system")
+
+	if policy.ProviderToolProfile != "aurago_local_context" {
+		t.Fatalf("ProviderToolProfile = %q, want aurago_local_context", policy.ProviderToolProfile)
+	}
+	if policy.EffectiveMaxAdaptiveTools != 10 ||
+		policy.EffectiveMaxTotalTools != 16 ||
+		policy.EffectiveMaxSchemaTokens != 4096 {
+		t.Fatalf("unexpected managed-local budgets: adaptive=%d total=%d schema=%d",
+			policy.EffectiveMaxAdaptiveTools,
+			policy.EffectiveMaxTotalTools,
+			policy.EffectiveMaxSchemaTokens)
+	}
+	if policy.EffectiveHeaderTimeoutSec != 60 {
+		t.Fatalf("EffectiveHeaderTimeoutSec = %d, want 60", policy.EffectiveHeaderTimeoutSec)
+	}
+}
+
 func TestBuildToolingPolicyHonorsProviderProfileOptOut(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.LLM.ProviderType = "minimax"

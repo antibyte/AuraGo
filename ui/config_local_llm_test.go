@@ -22,18 +22,22 @@ func TestLocalLLMConfigModuleUsesSavedConfigurationAndAdminSurface(t *testing.T)
 		"/api/local-llm/acknowledgement",
 		"isDirty",
 		"aurago:config-saved",
-		"memory_profile_verified",
-		"verified_fingerprint",
 		"cfg:section-leave",
 		"setTimeout(localLLMRefreshStatus, 2000)",
 		"_localLLMInstallPending",
-		"option[2] ? ' disabled'",
+		"['16384', '16K']",
+		"['32768', '32K']",
 		"localLLMLocalizedRuntimeValue",
 		"], 'number');",
 		`data-type="`,
 	} {
 		if !strings.Contains(module, required) {
 			t.Fatalf("Local LLM config module missing %q", required)
+		}
+	}
+	for _, obsolete := range []string{"['2048', '2K']", "['8192', '8K']"} {
+		if strings.Contains(module, obsolete) {
+			t.Fatalf("Local LLM config module still offers obsolete context option %q", obsolete)
 		}
 	}
 	stateJS := string(mustReadUIFile(t, "js/config/state.js"))

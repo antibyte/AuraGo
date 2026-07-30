@@ -29,8 +29,8 @@ func ValidateLocalLLMConfig(cfg *Config) error {
 	if !oneOf(local.MTP, "off", "auto", "mtp2") {
 		return fmt.Errorf("local_llm.mtp must be off, auto, or mtp2")
 	}
-	if !oneOf(fmt.Sprint(local.ContextSize), "2048", "8192", "32768") {
-		return fmt.Errorf("local_llm.context_size must be 2048, 8192, or 32768")
+	if !oneOf(fmt.Sprint(local.ContextSize), "16384", "32768") {
+		return fmt.Errorf("local_llm.context_size must be 16384 or 32768")
 	}
 	if local.IdleTimeoutMinutes < 1 || local.IdleTimeoutMinutes > 1440 {
 		return fmt.Errorf("local_llm.idle_timeout_minutes must be between 1 and 1440")

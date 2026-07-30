@@ -11,7 +11,9 @@ function localLLMEnsureData() {
     if (!data.backend) data.backend = 'auto';
     if (!data.model_variant) data.model_variant = 'q4_k_m';
     if (!data.mtp) data.mtp = 'off';
-    if (!data.context_size) data.context_size = 8192;
+    if (!data.context_size || Number(data.context_size) === 2048 || Number(data.context_size) === 8192) {
+        data.context_size = 16384;
+    }
     if (!data.idle_timeout_minutes) data.idle_timeout_minutes = 15;
     if (!data.listen_port) data.listen_port = 18081;
     return data;
@@ -22,11 +24,6 @@ function renderLocalLLMSection(section) {
     section = section || _localLLMSection;
     const data = localLLMEnsureData();
     const status = _localLLMStatus || {};
-    const allow32K = status.memory_profile_verified === true &&
-        Number(status.verified_context_size) >= 32768 &&
-        status.verified_fingerprint &&
-        status.verified_fingerprint === status.desired_fingerprint;
-    const show32K = allow32K || Number(data.context_size) === 32768;
     const providers = (configData.providers || []).filter(provider => provider && provider.id && provider.id !== 'aurago-qwen-local');
     const selectedRegular = localLLMRegularProvider(status.role, providers);
 
@@ -46,7 +43,7 @@ function renderLocalLLMSection(section) {
         ['q4_k_m', 'Q4_K_M · 2.59 GiB'], ['q8_0', 'Q8_0 · 4.29 GiB']
     ]);
     html += localLLMSelect('local_llm.context_size', String(data.context_size), 'config.local_llm.context_size', [
-        ['2048', '2K'], ['8192', '8K'], ...(show32K ? [['32768', '32K', !allow32K]] : [])
+        ['16384', '16K'], ['32768', '32K']
     ], 'number');
     html += localLLMSelect('local_llm.mtp', data.mtp, 'config.local_llm.mtp', [
         ['off', t('config.local_llm.mtp_off')], ['auto', t('config.local_llm.mtp_auto')],

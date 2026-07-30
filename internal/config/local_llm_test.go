@@ -2,6 +2,9 @@ package config
 
 import (
 	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -15,11 +18,47 @@ func validLocalLLMTestConfig() *Config {
 		Backend:            "auto",
 		ModelVariant:       "q4_k_m",
 		MTP:                "off",
-		ContextSize:        8192,
+		ContextSize:        16384,
 		IdleTimeoutMinutes: 15,
 		ListenPort:         18081,
 	}
 	return cfg
+}
+
+func TestValidateLocalLLMConfigContextSizes(t *testing.T) {
+	for _, size := range []int{16384, 32768} {
+		cfg := validLocalLLMTestConfig()
+		cfg.LocalLLM.ContextSize = size
+		if err := ValidateLocalLLMConfig(cfg); err != nil {
+			t.Fatalf("context size %d rejected: %v", size, err)
+		}
+	}
+	for _, size := range []int{2048, 8192} {
+		cfg := validLocalLLMTestConfig()
+		cfg.LocalLLM.ContextSize = size
+		if err := ValidateLocalLLMConfig(cfg); err == nil {
+			t.Fatalf("obsolete context size %d was accepted", size)
+		}
+	}
+}
+
+func TestLoadMigratesObsoleteLocalLLMContextSizes(t *testing.T) {
+	for _, size := range []int{2048, 8192} {
+		t.Run(fmt.Sprint(size), func(t *testing.T) {
+			configPath := filepath.Join(t.TempDir(), "config.yaml")
+			payload := []byte("local_llm:\n  context_size: " + fmt.Sprint(size) + "\n")
+			if err := os.WriteFile(configPath, payload, 0o600); err != nil {
+				t.Fatalf("write legacy config: %v", err)
+			}
+			cfg, err := Load(configPath)
+			if err != nil {
+				t.Fatalf("Load legacy config: %v", err)
+			}
+			if cfg.LocalLLM.ContextSize != 16384 {
+				t.Fatalf("legacy context size %d migrated to %d, want 16384", size, cfg.LocalLLM.ContextSize)
+			}
+		})
+	}
 }
 
 func TestValidateLocalLLMConfigRejectsReservedProviderEntry(t *testing.T) {

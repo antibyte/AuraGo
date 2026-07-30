@@ -18,10 +18,16 @@ local_llm:
   backend: auto
   model_variant: q4_k_m
   mtp: off
-  context_size: 8192
+  context_size: 16384
   idle_timeout_minutes: 15
   listen_port: 18081
 ```
+
+The selectable context sizes are 16K and 32K. Existing 2K and 8K settings are
+migrated to 16K because AuraGo's normal system prompt and native tool schemas
+do not fit usefully into those smaller windows. Selecting 32K remains
+fail-closed: startup must still pass the configured memory and GPU/KV-offload
+attestation, with no silent reduction to 16K.
 
 The provider ID `aurago-qwen-local` is reserved. Do not add it to `providers`. AuraGo resolves its model alias, private endpoint, and runtime credential through the manager.
 

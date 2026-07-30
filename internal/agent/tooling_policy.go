@@ -58,6 +58,7 @@ type ToolingPolicy struct {
 	ProviderToolProfile        string
 	EffectiveMaxAdaptiveTools  int
 	EffectiveMaxTotalTools     int
+	EffectiveMaxSchemaTokens   int
 	EffectiveHeaderTimeoutSec  int
 	EffectiveGuideStrategy     prompts.DynamicGuideStrategy
 }
@@ -217,8 +218,14 @@ func buildToolingPolicy(cfg *config.Config, userQuery string) ToolingPolicy {
 			effectiveMaxToolGuides--
 		}
 	}
-	providerToolProfile, effectiveMaxAdaptiveTools, effectiveMaxTotalTools, effectiveHeaderTimeoutSec :=
-		resolveProviderToolProfile(cfg, caps, cfg.Agent.AdaptiveTools.MaxTools, cfg.Agent.AdaptiveTools.MaxTotalTools)
+	providerToolProfile, effectiveMaxAdaptiveTools, effectiveMaxTotalTools, effectiveMaxSchemaTokens, effectiveHeaderTimeoutSec :=
+		resolveProviderToolProfile(
+			cfg,
+			caps,
+			cfg.Agent.AdaptiveTools.MaxTools,
+			cfg.Agent.AdaptiveTools.MaxTotalTools,
+			cfg.Agent.AdaptiveTools.MaxSchemaTokens,
+		)
 
 	return ToolingPolicy{
 		Capabilities:               caps,
@@ -242,30 +249,38 @@ func buildToolingPolicy(cfg *config.Config, userQuery string) ToolingPolicy {
 		ProviderToolProfile:        providerToolProfile,
 		EffectiveMaxAdaptiveTools:  effectiveMaxAdaptiveTools,
 		EffectiveMaxTotalTools:     effectiveMaxTotalTools,
+		EffectiveMaxSchemaTokens:   effectiveMaxSchemaTokens,
 		EffectiveHeaderTimeoutSec:  effectiveHeaderTimeoutSec,
 		EffectiveGuideStrategy:     guideStrategy,
 	}
 }
 
-func resolveProviderToolProfile(cfg *config.Config, caps ModelCapabilities, maxAdaptiveTools, maxTotalTools int) (string, int, int, int) {
+func resolveProviderToolProfile(cfg *config.Config, caps ModelCapabilities, maxAdaptiveTools, maxTotalTools, maxSchemaTokens int) (string, int, int, int, int) {
 	headerTimeoutSec := 30
-	if cfg == nil || !cfg.Agent.AdaptiveTools.ProviderProfilesEnabled {
-		return "default", maxAdaptiveTools, maxTotalTools, headerTimeoutSec
-	}
 	lowerProvider := strings.ToLower(strings.TrimSpace(caps.ProviderType))
 	lowerModel := strings.ToLower(strings.TrimSpace(caps.Model))
+	if lowerProvider == "aurago-local" {
+		return "aurago_local_context",
+			minPositive(maxAdaptiveTools, 10),
+			minPositive(maxTotalTools, 16),
+			minPositive(maxSchemaTokens, 4096),
+			60
+	}
+	if cfg == nil || !cfg.Agent.AdaptiveTools.ProviderProfilesEnabled {
+		return "default", maxAdaptiveTools, maxTotalTools, maxSchemaTokens, headerTimeoutSec
+	}
 	isMiniMax := lowerProvider == "minimax" || strings.Contains(lowerModel, "minimax") || strings.HasPrefix(lowerModel, "abab")
 	isGLM := strings.Contains(lowerModel, "glm-") || strings.Contains(lowerModel, "/glm-") || strings.Contains(lowerModel, "zhipuai/")
 	if isMiniMax {
-		return "minimax_stability", minPositive(maxAdaptiveTools, 12), minPositive(maxTotalTools, 24), 90
+		return "minimax_stability", minPositive(maxAdaptiveTools, 12), minPositive(maxTotalTools, 24), maxSchemaTokens, 90
 	}
 	if isGLM {
-		return "glm_stability", minPositive(maxAdaptiveTools, 12), minPositive(maxTotalTools, 24), 60
+		return "glm_stability", minPositive(maxAdaptiveTools, 12), minPositive(maxTotalTools, 24), maxSchemaTokens, 60
 	}
 	if caps.IsOllama {
-		return "ollama_local", maxAdaptiveTools, maxTotalTools, 30
+		return "ollama_local", maxAdaptiveTools, maxTotalTools, maxSchemaTokens, 30
 	}
-	return "default", maxAdaptiveTools, maxTotalTools, headerTimeoutSec
+	return "default", maxAdaptiveTools, maxTotalTools, maxSchemaTokens, headerTimeoutSec
 }
 
 func minPositive(value, cap int) int {

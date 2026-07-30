@@ -396,8 +396,11 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 		copy(ntSchemas, allSchemas)
 		filterReport := toolSchemaFilterReport{}
 
-		// Adaptive tool filtering: remove rarely-used tools to save tokens
-		if cfg.Agent.AdaptiveTools.Enabled && shortTermMem != nil {
+		// Adaptive tool filtering removes rarely used tools to save tokens. The
+		// managed 4B local model always requires its provider context budget,
+		// even when global adaptive filtering was disabled or STM is unavailable.
+		managedLocalContextBudget := toolingPolicy.ProviderToolProfile == "aurago_local_context"
+		if (cfg.Agent.AdaptiveTools.Enabled && shortTermMem != nil) || managedLocalContextBudget {
 			halfLife := cfg.Agent.AdaptiveTools.DecayHalfLifeDays
 			if halfLife <= 0 {
 				halfLife = 7.0
@@ -446,7 +449,7 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 				SoftAlwaysTools:  alwaysInclude,
 				MaxAdaptiveTools: maxTools,
 				MaxTotalTools:    toolingPolicy.EffectiveMaxTotalTools,
-				MaxSchemaTokens:  cfg.Agent.AdaptiveTools.MaxSchemaTokens,
+				MaxSchemaTokens:  toolingPolicy.EffectiveMaxSchemaTokens,
 			}, logger)
 			ntSchemas = filterResult.Tools
 			filterReport = filterResult.Report
@@ -496,7 +499,7 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 			if filterReport.FinalToolCount == 0 && len(ntSchemas) > 0 {
 				filterReport.FinalToolCount = len(ntSchemas)
 				filterReport.MaxTotal = toolingPolicy.EffectiveMaxTotalTools
-				filterReport.MaxSchemaTokens = cfg.Agent.AdaptiveTools.MaxSchemaTokens
+				filterReport.MaxSchemaTokens = toolingPolicy.EffectiveMaxSchemaTokens
 				for _, tool := range ntSchemas {
 					filterReport.FinalSchemaTokens += estimateSingleToolSchemaTokens(tool)
 				}
