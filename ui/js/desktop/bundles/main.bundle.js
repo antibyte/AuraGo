@@ -3886,9 +3886,20 @@
 
     function applyPhoneGadgetOnTop() {
         if (!gadgetLayer) return;
-        gadgetLayer.dataset.alwaysOnTop = phoneGadgetAlwaysOnTop() ? 'true' : 'false';
-        // Release any inline z-index so CSS can apply the correct layer
-        // (always-on-top mode vs. normal window-stack mode).
+        const onTop = phoneGadgetAlwaysOnTop();
+        gadgetLayer.dataset.alwaysOnTop = onTop ? 'true' : 'false';
+        // Always-on-top gadgets live outside the window layer so they can float
+        // above modals/menus; normal gadgets live inside the window layer to
+        // share the window stacking context.
+        const layer = document.getElementById('vd-window-layer');
+        if (onTop) {
+            if (gadgetLayer.parentElement !== document.body) {
+                document.body.appendChild(gadgetLayer);
+            }
+        } else if (layer && gadgetLayer.parentElement !== layer) {
+            layer.appendChild(gadgetLayer);
+        }
+        // Release any inline z-index so CSS can apply the correct layer.
         gadgetLayer.style.zIndex = '';
     }
 
@@ -3908,7 +3919,11 @@
         gadgetLayer.id = 'vd-sip-phone-gadget';
         gadgetLayer.className = 'vd-sip-phone-gadget';
         gadgetLayer.innerHTML = '<div class="vd-sip-phone-gadget-scale" data-sip-phone-gadget-host></div>';
-        document.body.appendChild(gadgetLayer);
+        // Place the gadget inside the window layer so it shares the same stacking
+        // context as normal windows and participates in the window Z-order.
+        const layer = document.getElementById('vd-window-layer');
+        if (layer) layer.appendChild(gadgetLayer);
+        else document.body.appendChild(gadgetLayer);
         wirePhoneGadgetEvents();
     }
 

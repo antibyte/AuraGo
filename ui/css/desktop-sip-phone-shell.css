@@ -185,6 +185,7 @@
     height: calc(830px * var(--sip-phone-gadget-scale));
     z-index: var(--vd-z-phone-gadget, 640);
     user-select: none;
+    pointer-events: auto;
 }
 
 .vd-sip-phone-gadget[data-always-on-top="true"] {
