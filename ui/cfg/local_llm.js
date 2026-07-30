@@ -58,6 +58,7 @@ function renderLocalLLMSection(section) {
 
     html += '<div class="cfg-group-title cfg-group-title-top">' + t('config.local_llm.compatibility') + '</div>';
     html += '<div id="local-llm-status" class="cfg-note-banner ' + localLLMStatusClass(status) + '">' + localLLMStatusText(status) + '</div>';
+    html += localLLMPromptCacheStatus(status);
     if (status.acknowledgement_required) {
         html += '<div class="cfg-note-banner cfg-note-banner-warning">' + t('config.local_llm.ack_warning') + '</div>';
         html += '<button type="button" class="btn-secondary" data-local-llm-saved-action data-policy-disabled="false" onclick="localLLMAcknowledge()">' + t('config.local_llm.ack') + '</button> ';
@@ -152,6 +153,36 @@ function localLLMStatusText(status) {
     if (status.resolved_profile) text += ' · ' + t('config.local_llm.resolved_profile') + ': ' + status.resolved_profile;
     if (status.active_requests) text += ' · ' + t('config.local_llm.active_requests') + ': ' + status.active_requests;
     return text;
+}
+
+function localLLMPromptCacheStatus(status) {
+    const cache = status && status.prompt_cache ? status.prompt_cache : {};
+    const state = localLLMLocalizedRuntimeValue('cache_state', cache.state || 'disabled');
+    const profile = status && status.performance_profile ? status.performance_profile : '—';
+    const hitRate = Math.max(0, Math.min(1, Number(cache.hit_rate) || 0));
+    let text = '<strong>' + escapeHtml(t('config.local_llm.prompt_cache')) + '</strong><br>' +
+        escapeHtml(t('config.local_llm.performance_profile')) + ': ' + escapeHtml(profile) + ' · ' +
+        escapeHtml(t('config.local_llm.cache_state')) + ': ' + escapeHtml(state) + ' · ' +
+        escapeHtml(t('config.local_llm.cache_hit_rate')) + ': ' + escapeHtml((hitRate * 100).toFixed(1) + ' %');
+    if (Number(cache.cache_ram_mib) > 0) {
+        text += ' · RAM: ' + escapeHtml(String(cache.cache_ram_mib) + ' MiB');
+    }
+    if (Number(cache.cold_ttft_ms) > 0 || Number(cache.warm_ttft_ms) > 0) {
+        text += '<br>' + escapeHtml(t('config.local_llm.cache_ttft')
+            .replace('{cold}', localLLMFormatMilliseconds(cache.cold_ttft_ms))
+            .replace('{warm}', localLLMFormatMilliseconds(cache.warm_ttft_ms)));
+    }
+    text += '<br><span class="field-help">' + escapeHtml(t('config.local_llm.prompt_cache_first_start')) + '</span>';
+    if (cache.error_code) {
+        text += '<br>' + escapeHtml(t('config.local_llm.error_prefix') + ': ' + cache.error_code);
+    }
+    return '<div class="cfg-note-banner">' + text + '</div>';
+}
+
+function localLLMFormatMilliseconds(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric) || numeric <= 0) return '—';
+    return numeric >= 1000 ? (numeric / 1000).toFixed(2) + ' s' : numeric.toFixed(0) + ' ms';
 }
 
 function localLLMLocalizedRuntimeValue(kind, value) {

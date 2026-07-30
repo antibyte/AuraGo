@@ -994,6 +994,7 @@ type toolSchemaFilterOptions struct {
 	MaxAdaptiveTools int
 	MaxTotalTools    int
 	MaxSchemaTokens  int
+	DisableAdaptive  bool
 }
 
 type toolSchemaFilterReport struct {
@@ -1146,7 +1147,7 @@ func filterToolSchemasWithReport(schemas []openai.Tool, opts toolSchemaFilterOpt
 	}
 
 	canAddAdaptive := func() bool {
-		return opts.MaxAdaptiveTools <= 0 || report.KeptAdaptive < opts.MaxAdaptiveTools
+		return !opts.DisableAdaptive && (opts.MaxAdaptiveTools <= 0 || report.KeptAdaptive < opts.MaxAdaptiveTools)
 	}
 	adaptiveOrder := buildAdaptiveKnapsackOrder(schemaOrder, preferredOrder, consumed, hardSet, softSet, schemaTokens, opts.MaxSchemaTokens > 0)
 	for _, name := range adaptiveOrder {

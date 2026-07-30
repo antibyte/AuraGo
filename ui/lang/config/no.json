@@ -565,5 +565,17 @@
   "config.local_llm.replaces_fallback": "Gjeldende reserve blir erstattet.",
   "config.local_llm.apply_role": "Bruk rolle",
   "config.local_llm.save_first": "Lagre endringene før en handling.",
-  "config.local_llm.working": "Arbeider…"
+  "config.local_llm.working": "Arbeider…",
+  "config.local_llm.performance_profile": "Ytelsesprofil",
+  "config.local_llm.prompt_cache": "Prefiksbuffer i RAM",
+  "config.local_llm.cache_state": "Bufferstatus",
+  "config.local_llm.cache_hit_rate": "Gjenbruk av tokener",
+  "config.local_llm.cache_ttft": "TTFT: kald {cold}, varm {warm}",
+  "config.local_llm.prompt_cache_first_start": "Etter omstart av AuraGo må prefikset varmes opp én gang ved første start. Bufferen sparer beregningstid, ikke kontekstplass.",
+  "config.local_llm.cache_state_disabled": "Deaktivert",
+  "config.local_llm.cache_state_cold": "Kald",
+  "config.local_llm.cache_state_warming": "Varmer opp",
+  "config.local_llm.cache_state_warm": "Varm",
+  "config.local_llm.cache_state_rejected": "Avvist",
+  "config.local_llm.cache_state_degraded": "Redusert"
 }

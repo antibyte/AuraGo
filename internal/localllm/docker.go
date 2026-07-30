@@ -126,6 +126,7 @@ func (m *Manager) containerSpecValues(cfg config.LocalLLMConfig, fingerprint str
 	if draft != nil {
 		draftSHA256 = draft.SHA256
 	}
+	perf := performanceProfileFor(profile)
 	env := []string{
 		"AURAGO_MODEL=/models/" + model.Name,
 		"AURAGO_HOST=0.0.0.0",
@@ -138,11 +139,47 @@ func (m *Manager) containerSpecValues(cfg config.LocalLLMConfig, fingerprint str
 		"AURAGO_REASONING=off",
 		"AURAGO_CONTEXT_SIZE=" + strconv.Itoa(cfg.ContextSize),
 		"AURAGO_PARALLEL=1",
+		"AURAGO_CACHE_RAM=" + strconv.Itoa(perf.CacheRAMMiB),
+		"AURAGO_CACHE_TYPE_K=" + perf.CacheTypeK,
+		"AURAGO_CACHE_TYPE_V=" + perf.CacheTypeV,
+		"AURAGO_CONTEXT_CHECKPOINTS=" + strconv.Itoa(perf.ContextCheckpoints),
+		"AURAGO_CHECKPOINT_MIN_STEP=" + strconv.Itoa(perf.CheckpointMinStep),
+		"AURAGO_CACHE_REUSE=" + strconv.Itoa(perf.CacheReuse),
+		"AURAGO_CACHE_IDLE_SLOTS=on",
+		"AURAGO_SLOTS_ENDPOINT=off",
+		"AURAGO_PERFORMANCE_PROFILE=" + perf.Name,
 		"AURAGO_IMAGE_DIGEST=" + imageDigest,
 		"AURAGO_TARGET_SHA256=" + model.SHA256,
 		"AURAGO_DRAFT_SHA256=" + draftSHA256,
 		"AURAGO_PHYSICAL_DEVICE=" + profile.SelectedDevice,
 		"AURAGO_RESOLVED_PARAMETERS_JSON=" + string(resolvedParametersJSON),
+	}
+	if perf.BatchSize > 0 {
+		env = append(env, "AURAGO_BATCH_SIZE="+strconv.Itoa(perf.BatchSize))
+	}
+	if perf.UBatchSize > 0 {
+		env = append(env, "AURAGO_UBATCH_SIZE="+strconv.Itoa(perf.UBatchSize))
+	}
+	if perf.Threads > 0 {
+		env = append(env, "AURAGO_THREADS="+strconv.Itoa(perf.Threads))
+	}
+	if perf.ThreadsBatch > 0 {
+		env = append(env, "AURAGO_THREADS_BATCH="+strconv.Itoa(perf.ThreadsBatch))
+	}
+	if perf.FlashAttention != "" {
+		env = append(env, "AURAGO_FLASH_ATTN="+perf.FlashAttention)
+	}
+	if perf.SplitMode != "" {
+		env = append(env, "AURAGO_SPLIT_MODE="+perf.SplitMode)
+	}
+	if perf.Poll != nil {
+		env = append(env, "AURAGO_POLL="+strconv.Itoa(*perf.Poll))
+	}
+	if perf.Priority != nil {
+		env = append(env, "AURAGO_PRIORITY="+strconv.Itoa(*perf.Priority))
+	}
+	if perf.RADVPerfTest != "" {
+		env = append(env, "RADV_PERFTEST="+perf.RADVPerfTest)
 	}
 	runtimeDevice := resolvedRuntimeDevice(profile)
 	if profile.SelectedBackend != "cpu" {
@@ -158,7 +195,7 @@ func (m *Manager) containerSpecValues(cfg config.LocalLLMConfig, fingerprint str
 		}
 	}
 	if draft != nil {
-		draftNGL := "999"
+		draftNGL := "all"
 		if profile.SelectedBackend == "cpu" {
 			draftNGL = "0"
 		}

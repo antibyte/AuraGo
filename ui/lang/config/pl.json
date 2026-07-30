@@ -565,5 +565,17 @@
   "config.local_llm.replaces_fallback": "Obecny model awaryjny zostanie zastąpiony.",
   "config.local_llm.apply_role": "Zastosuj rolę",
   "config.local_llm.save_first": "Zapisz zmiany przed wykonaniem działania.",
-  "config.local_llm.working": "Przetwarzanie…"
+  "config.local_llm.working": "Przetwarzanie…",
+  "config.local_llm.performance_profile": "Profil wydajności",
+  "config.local_llm.prompt_cache": "Pamięć prefiksu w RAM",
+  "config.local_llm.cache_state": "Stan pamięci",
+  "config.local_llm.cache_hit_rate": "Ponowne użycie tokenów",
+  "config.local_llm.cache_ttft": "TTFT: zimny {cold}, ciepły {warm}",
+  "config.local_llm.prompt_cache_first_start": "Po ponownym uruchomieniu AuraGo prefiks musi zostać raz rozgrzany przy pierwszym starcie. Pamięć oszczędza czas obliczeń, a nie miejsce kontekstu.",
+  "config.local_llm.cache_state_disabled": "Wyłączona",
+  "config.local_llm.cache_state_cold": "Zimna",
+  "config.local_llm.cache_state_warming": "Rozgrzewanie",
+  "config.local_llm.cache_state_warm": "Ciepła",
+  "config.local_llm.cache_state_rejected": "Odrzucona",
+  "config.local_llm.cache_state_degraded": "Ograniczona"
 }

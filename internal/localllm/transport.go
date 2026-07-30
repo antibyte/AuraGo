@@ -1,6 +1,7 @@
 package localllm
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"net/http"
@@ -15,6 +16,22 @@ func (m *Manager) RoundTripper(base http.RoundTripper) http.RoundTripper {
 		base = http.DefaultTransport
 	}
 	return roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+		releaseSlot, err := m.acquirePromptSlot(req.Context())
+		if err != nil {
+			return nil, err
+		}
+		slotOwned := true
+		defer func() {
+			if slotOwned {
+				releaseSlot()
+			}
+		}()
+
+		req, seed, stream, err := preparePromptCacheRequest(req)
+		if err != nil {
+			return nil, &UnavailableError{Code: errorCode(err), Err: err}
+		}
+		m.rememberPromptSeed(seed)
 		if err := m.acquireRequest(); err != nil {
 			return nil, err
 		}
@@ -26,7 +43,7 @@ func (m *Manager) RoundTripper(base http.RoundTripper) http.RoundTripper {
 		}()
 
 		startCtx, cancel := context.WithTimeout(req.Context(), 180*time.Second)
-		err := m.Start(startCtx)
+		err = m.Start(startCtx)
 		cancel()
 		if err != nil {
 			return nil, err
@@ -35,9 +52,30 @@ func (m *Manager) RoundTripper(base http.RoundTripper) http.RoundTripper {
 		if err != nil {
 			return nil, &UnavailableError{Code: "runtime_key_unavailable", Err: err}
 		}
+		m.mu.Lock()
+		var applied *runtimePlan
+		if m.appliedPlan != nil {
+			copyPlan := *m.appliedPlan
+			applied = &copyPlan
+		}
+		m.mu.Unlock()
+		if applied != nil {
+			m.ensurePromptCacheWarm(req.Context(), *applied, key)
+		}
+		if m.promptCacheReady(seed) {
+			if cachedReq, cacheErr := enablePromptCacheRequest(req); cacheErr == nil {
+				req = cachedReq
+			} else {
+				m.mu.Lock()
+				m.status.PromptCache.State = "degraded"
+				m.status.PromptCache.ErrorCode = "prompt_cache_request_failed"
+				m.mu.Unlock()
+			}
+		}
 		req = req.Clone(req.Context())
 		req.Header = req.Header.Clone()
 		req.Header.Set("Authorization", "Bearer "+key)
+		started := time.Now()
 		resp, err := base.RoundTrip(req)
 		if err != nil {
 			if req.Context().Err() != nil {
@@ -49,8 +87,17 @@ func (m *Manager) RoundTripper(base http.RoundTripper) http.RoundTripper {
 			_ = resp.Body.Close()
 			return nil, &UnavailableError{Code: "local_runtime_unavailable"}
 		}
-		resp.Body = &releaseBody{ReadCloser: resp.Body, release: m.release}
+		resp.Body = &releaseBody{
+			ReadCloser: newCacheObservingBody(resp.Body, func(payload []byte, firstByte time.Duration) {
+				m.observePromptCacheResponse(payload, stream, firstByte)
+			}, started),
+			release: func() {
+				m.release()
+				releaseSlot()
+			},
+		}
 		release = false
+		slotOwned = false
 		return resp, nil
 	})
 }
@@ -71,6 +118,52 @@ type releaseBody struct {
 	io.ReadCloser
 	once    sync.Once
 	release func()
+}
+
+type cacheObservingBody struct {
+	body      io.ReadCloser
+	observe   func([]byte, time.Duration)
+	started   time.Time
+	firstByte time.Duration
+	buffer    bytes.Buffer
+	once      sync.Once
+}
+
+func newCacheObservingBody(body io.ReadCloser, observe func([]byte, time.Duration), started time.Time) io.ReadCloser {
+	return &cacheObservingBody{body: body, observe: observe, started: started}
+}
+
+func (body *cacheObservingBody) Read(payload []byte) (int, error) {
+	n, err := body.body.Read(payload)
+	if n > 0 {
+		if body.firstByte == 0 {
+			body.firstByte = time.Since(body.started)
+		}
+		if body.buffer.Len() < maxLocalRequestBytes {
+			remaining := maxLocalRequestBytes - body.buffer.Len()
+			if n < remaining {
+				remaining = n
+			}
+			_, _ = body.buffer.Write(payload[:remaining])
+		}
+	}
+	if err == io.EOF {
+		body.finish()
+	}
+	return n, err
+}
+
+func (body *cacheObservingBody) Close() error {
+	body.finish()
+	return body.body.Close()
+}
+
+func (body *cacheObservingBody) finish() {
+	body.once.Do(func() {
+		if body.observe != nil {
+			body.observe(body.buffer.Bytes(), body.firstByte)
+		}
+	})
 }
 
 func (body *releaseBody) Close() error {

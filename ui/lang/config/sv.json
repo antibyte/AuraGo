@@ -565,5 +565,17 @@
   "config.local_llm.replaces_fallback": "Nuvarande reserv ersätts.",
   "config.local_llm.apply_role": "Tillämpa roll",
   "config.local_llm.save_first": "Spara ändringar före en åtgärd.",
-  "config.local_llm.working": "Arbetar…"
+  "config.local_llm.working": "Arbetar…",
+  "config.local_llm.performance_profile": "Prestandaprofil",
+  "config.local_llm.prompt_cache": "Prefixcache i RAM",
+  "config.local_llm.cache_state": "Cachestatus",
+  "config.local_llm.cache_hit_rate": "Återanvändning av token",
+  "config.local_llm.cache_ttft": "TTFT: kall {cold}, varm {warm}",
+  "config.local_llm.prompt_cache_first_start": "Efter omstart av AuraGo måste prefixet värmas upp en gång vid första starten. Cachen sparar beräkningstid, inte kontextutrymme.",
+  "config.local_llm.cache_state_disabled": "Inaktiverad",
+  "config.local_llm.cache_state_cold": "Kall",
+  "config.local_llm.cache_state_warming": "Värmer upp",
+  "config.local_llm.cache_state_warm": "Varm",
+  "config.local_llm.cache_state_rejected": "Avvisad",
+  "config.local_llm.cache_state_degraded": "Försämrad"
 }

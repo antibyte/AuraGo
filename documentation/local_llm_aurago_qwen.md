@@ -39,6 +39,34 @@ Supported roles are:
 
 Primary or fallback routing is activated only after health, native tool-call, memory-profile, and GPU/KV-offload checks succeed. A regular fallback is mandatory when AuraGo-Qwen is primary.
 
+## Stable tools and RAM prefix cache
+
+AuraGo-Qwen uses a deterministic core tool profile with at most 16 direct
+tools and 4,096 tool-schema tokens. Other permitted tools remain available
+through `discover_tools` followed by `invoke_tool`. Restricted runtimes such as
+SIP, missions, Game Maker, and co-agents keep their narrower allowlists; the
+indirect tool path never widens them.
+
+The local transport asks llama.cpp to retain the identical rendered prefix in
+RAM. This prefix contains only the model/template settings, canonical tool
+schemas, and the static system prompt before `# TURN CONTEXT`. User messages,
+history, current memories, RAG results, tool output, paths, and secrets are not
+part of the reusable seed. Cache state is not written to disk. A restart
+therefore needs one cold warm-up; an idle restart warms the retained in-process
+seed again.
+
+The prefix cache saves prompt-processing time only. It does **not** reduce the
+number of tokens occupying the selected 16K or 32K context window. If template
+rendering, warm-up, or cache verification fails, the request continues
+uncached and the status reports a sanitized degraded or rejected state.
+
+AMD Vulkan devices use the tested `vulkan-amd-fast-v1` profile. It enables the
+RADV `nogttspill` optimization, full GPU offload, batch/uBatch 2048/512, eight
+prompt/decode threads, flash attention, one slot, F16 KV caches, and a bounded
+2,048 MiB prompt cache on integrated/shared-memory GPUs. These parameters are
+attested through the container startup manifest and are not free-form YAML
+settings. Other Vulkan devices never inherit the AMD-only RADV option.
+
 ## Installation and release gate
 
 Downloads happen only after an explicit administrator action. Requests never trigger model downloads. Each GGUF is downloaded through a resumable `.part` file and is published only after exact size and SHA-256 validation.
@@ -83,7 +111,7 @@ The model and runtime-key volumes are protected from AuraGo's agent-facing Docke
 
 ## MTP
 
-`off` uses the normal GGUF and is the default. `mtp2` requires the exact same-quantization target/sidecar pair and fails visibly if that profile does not pass. `auto` compares the MTP target without and with its sidecar using one warm-up and three measured 2K tool-call runs.
+`off` uses the normal GGUF and is the default. `mtp2` requires the exact same-quantization target/sidecar pair and fails visibly if that profile does not pass. `auto` compares the MTP target without and with its sidecar using one warm-up and three measured 8K tool-call runs. Prompt caching is disabled during this comparison so the target and MTP paths are measured fairly.
 
 Automatic selection requires semantically identical tool calls, no OOM/offload error, at least 80% draft acceptance, at least 10% higher median generation performance, and no more than 25% median TTFT regression. The decision is cached by the full desired-state and hardware fingerprint.
 

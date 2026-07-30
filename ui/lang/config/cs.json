@@ -565,5 +565,17 @@
   "config.local_llm.replaces_fallback": "Současná záloha bude nahrazena.",
   "config.local_llm.apply_role": "Použít roli",
   "config.local_llm.save_first": "Před akcí uložte změny konfigurace.",
-  "config.local_llm.working": "Probíhá…"
+  "config.local_llm.working": "Probíhá…",
+  "config.local_llm.performance_profile": "Výkonnostní profil",
+  "config.local_llm.prompt_cache": "Mezipaměť prefixu v RAM",
+  "config.local_llm.cache_state": "Stav mezipaměti",
+  "config.local_llm.cache_hit_rate": "Opětovné využití tokenů",
+  "config.local_llm.cache_ttft": "TTFT: studený {cold}, zahřátý {warm}",
+  "config.local_llm.prompt_cache_first_start": "Po restartu AuraGo se musí prefix při prvním spuštění jednou zahřát. Mezipaměť šetří výpočetní čas, nikoli místo v kontextu.",
+  "config.local_llm.cache_state_disabled": "Vypnuto",
+  "config.local_llm.cache_state_cold": "Studený",
+  "config.local_llm.cache_state_warming": "Zahřívání",
+  "config.local_llm.cache_state_warm": "Zahřátý",
+  "config.local_llm.cache_state_rejected": "Odmítnuto",
+  "config.local_llm.cache_state_degraded": "Omezený"
 }

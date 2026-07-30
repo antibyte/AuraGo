@@ -565,5 +565,17 @@
   "config.local_llm.replaces_fallback": "現在の予備モデルは置き換えられます。",
   "config.local_llm.apply_role": "役割を適用",
   "config.local_llm.save_first": "操作前に設定変更を保存してください。",
-  "config.local_llm.working": "処理中…"
+  "config.local_llm.working": "処理中…",
+  "config.local_llm.performance_profile": "性能プロファイル",
+  "config.local_llm.prompt_cache": "RAMプレフィックスキャッシュ",
+  "config.local_llm.cache_state": "キャッシュ状態",
+  "config.local_llm.cache_hit_rate": "トークン再利用率",
+  "config.local_llm.cache_ttft": "TTFT: コールド {cold}、ウォーム {warm}",
+  "config.local_llm.prompt_cache_first_start": "AuraGoの再起動後は、最初の起動時にプレフィックスを一度ウォームアップします。キャッシュが節約するのは計算時間であり、コンテキスト容量ではありません。",
+  "config.local_llm.cache_state_disabled": "無効",
+  "config.local_llm.cache_state_cold": "コールド",
+  "config.local_llm.cache_state_warming": "ウォームアップ中",
+  "config.local_llm.cache_state_warm": "ウォーム",
+  "config.local_llm.cache_state_rejected": "拒否",
+  "config.local_llm.cache_state_degraded": "低下"
 }

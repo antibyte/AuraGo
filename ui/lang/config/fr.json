@@ -565,5 +565,17 @@
   "config.local_llm.replaces_fallback": "Le secours actuel sera remplacé.",
   "config.local_llm.apply_role": "Appliquer le rôle",
   "config.local_llm.save_first": "Enregistrez les modifications avant une action.",
-  "config.local_llm.working": "Traitement…"
+  "config.local_llm.working": "Traitement…",
+  "config.local_llm.performance_profile": "Profil de performances",
+  "config.local_llm.prompt_cache": "Cache de préfixe en RAM",
+  "config.local_llm.cache_state": "État du cache",
+  "config.local_llm.cache_hit_rate": "Réutilisation des jetons",
+  "config.local_llm.cache_ttft": "TTFT : froid {cold}, chaud {warm}",
+  "config.local_llm.prompt_cache_first_start": "Après un redémarrage d’AuraGo, le préfixe doit être préchauffé une fois au premier démarrage. Le cache économise du calcul, pas de l’espace de contexte.",
+  "config.local_llm.cache_state_disabled": "Désactivé",
+  "config.local_llm.cache_state_cold": "Froid",
+  "config.local_llm.cache_state_warming": "Préchauffage",
+  "config.local_llm.cache_state_warm": "Chaud",
+  "config.local_llm.cache_state_rejected": "Rejeté",
+  "config.local_llm.cache_state_degraded": "Dégradé"
 }

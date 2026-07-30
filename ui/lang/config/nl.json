@@ -565,5 +565,17 @@
   "config.local_llm.replaces_fallback": "De huidige reserve wordt vervangen.",
   "config.local_llm.apply_role": "Rol toepassen",
   "config.local_llm.save_first": "Sla wijzigingen op voordat je een actie uitvoert.",
-  "config.local_llm.working": "Bezig…"
+  "config.local_llm.working": "Bezig…",
+  "config.local_llm.performance_profile": "Prestatieprofiel",
+  "config.local_llm.prompt_cache": "Prefixcache in RAM",
+  "config.local_llm.cache_state": "Cachestatus",
+  "config.local_llm.cache_hit_rate": "Hergebruik van tokens",
+  "config.local_llm.cache_ttft": "TTFT: koud {cold}, warm {warm}",
+  "config.local_llm.prompt_cache_first_start": "Na een herstart van AuraGo moet het prefix bij de eerste start eenmaal worden opgewarmd. De cache bespaart rekentijd, geen contextruimte.",
+  "config.local_llm.cache_state_disabled": "Uitgeschakeld",
+  "config.local_llm.cache_state_cold": "Koud",
+  "config.local_llm.cache_state_warming": "Opwarmen",
+  "config.local_llm.cache_state_warm": "Warm",
+  "config.local_llm.cache_state_rejected": "Afgewezen",
+  "config.local_llm.cache_state_degraded": "Beperkt"
 }

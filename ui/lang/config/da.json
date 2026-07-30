@@ -565,5 +565,17 @@
   "config.local_llm.replaces_fallback": "Den nuværende reserve erstattes.",
   "config.local_llm.apply_role": "Anvend rolle",
   "config.local_llm.save_first": "Gem ændringer før en handling.",
-  "config.local_llm.working": "Arbejder…"
+  "config.local_llm.working": "Arbejder…",
+  "config.local_llm.performance_profile": "Ydelsesprofil",
+  "config.local_llm.prompt_cache": "Præfikscache i RAM",
+  "config.local_llm.cache_state": "Cachestatus",
+  "config.local_llm.cache_hit_rate": "Genbrugte tokens",
+  "config.local_llm.cache_ttft": "TTFT: kold {cold}, varm {warm}",
+  "config.local_llm.prompt_cache_first_start": "Efter genstart af AuraGo skal præfikset varmes én gang ved første start. Cachen sparer beregningstid, ikke kontekstplads.",
+  "config.local_llm.cache_state_disabled": "Deaktiveret",
+  "config.local_llm.cache_state_cold": "Kold",
+  "config.local_llm.cache_state_warming": "Varmer op",
+  "config.local_llm.cache_state_warm": "Varm",
+  "config.local_llm.cache_state_rejected": "Afvist",
+  "config.local_llm.cache_state_degraded": "Forringet"
 }

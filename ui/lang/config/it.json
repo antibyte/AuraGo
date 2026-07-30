@@ -565,5 +565,17 @@
   "config.local_llm.replaces_fallback": "La riserva corrente verrà sostituita.",
   "config.local_llm.apply_role": "Applica ruolo",
   "config.local_llm.save_first": "Salva le modifiche prima di eseguire un’azione.",
-  "config.local_llm.working": "Elaborazione…"
+  "config.local_llm.working": "Elaborazione…",
+  "config.local_llm.performance_profile": "Profilo prestazioni",
+  "config.local_llm.prompt_cache": "Cache del prefisso in RAM",
+  "config.local_llm.cache_state": "Stato della cache",
+  "config.local_llm.cache_hit_rate": "Riutilizzo dei token",
+  "config.local_llm.cache_ttft": "TTFT: freddo {cold}, caldo {warm}",
+  "config.local_llm.prompt_cache_first_start": "Dopo il riavvio di AuraGo, il prefisso deve essere preriscaldato una volta al primo avvio. La cache risparmia tempo di calcolo, non spazio di contesto.",
+  "config.local_llm.cache_state_disabled": "Disattivata",
+  "config.local_llm.cache_state_cold": "Fredda",
+  "config.local_llm.cache_state_warming": "Riscaldamento",
+  "config.local_llm.cache_state_warm": "Calda",
+  "config.local_llm.cache_state_rejected": "Rifiutata",
+  "config.local_llm.cache_state_degraded": "Degradata"
 }

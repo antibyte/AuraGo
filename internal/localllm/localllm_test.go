@@ -276,15 +276,15 @@ func TestEvaluateMTPThresholdsAndSemanticToolCalls(t *testing.T) {
 	}
 }
 
-func TestMTPAutoMeasurementUsesTemporary2KTargetPlan(t *testing.T) {
+func TestMTPAutoMeasurementUsesTemporary8KTargetPlan(t *testing.T) {
 	original := runtimePlan{
 		Config:  config.LocalLLMConfig{ContextSize: 8192},
 		Profile: HardwareProfile{SelectedBackend: "sycl"},
 		Draft:   &Artifact{SHA256: strings.Repeat("a", 64)},
 	}
 	measurement := mtpMeasurementPlan(original)
-	if measurement.Config.ContextSize != 2048 || measurement.Draft != nil ||
-		!containsString(measurement.ResolvedParameters, "--ctx-size=2048") ||
+	if measurement.Config.ContextSize != 8192 || measurement.Draft != nil ||
+		!containsString(measurement.ResolvedParameters, "--ctx-size=8192") ||
 		!containsString(measurement.ResolvedParameters, "--spec-type=none") {
 		t.Fatalf("MTP measurement plan = %#v", measurement)
 	}
@@ -941,6 +941,23 @@ func TestStartupManifestAttestsExactDeviceHashesParametersAndOffload(t *testing.
 		PhysicalDevice:     "0000:03:00.0",
 		ActualDevice:       "SYCL0",
 		ResolvedParameters: []string{"--ctx-size=8192", "--spec-draft-n-max=2"},
+		LlamaCPPCommit:     LlamaCPPCommit,
+		PerformanceProfile: performanceProfileSYCLArc,
+		BatchSize:          2048,
+		UBatchSize:         512,
+		CacheTypeK:         "f16",
+		CacheTypeV:         "f16",
+		FlashAttention:     "off",
+		CacheRAMMiB:        2048,
+		ContextCheckpoints: 32,
+		CheckpointMinStep:  2048,
+		CacheReuse:         0,
+		CacheIdleSlots:     "on",
+		SlotsEndpoint:      "off",
+		SplitMode:          "",
+		Poll:               "",
+		Priority:           "",
+		RADVPerfTest:       "",
 	}
 	if err := validateStartupManifest(plan, valid); err != nil {
 		t.Fatalf("valid manifest rejected: %v", err)
@@ -973,6 +990,9 @@ func TestStartupManifestAttestsExactDeviceHashesParametersAndOffload(t *testing.
 	cpu.DraftSHA256 = ""
 	cpu.PhysicalDevice = ""
 	cpu.ActualDevice = "cpu"
+	cpu.PerformanceProfile = performanceProfileGeneric
+	cpu.CacheRAMMiB = 1024
+	cpu.FlashAttention = "auto"
 	if err := validateStartupManifest(cpuPlan, cpu); err != nil {
 		t.Fatalf("explicit CPU manifest rejected: %v", err)
 	}
@@ -1116,7 +1136,7 @@ func TestContainerSpecHardeningAndMTPPair(t *testing.T) {
 		"AURAGO_SPEC_DRAFT_N_MAX=2",
 		"AURAGO_SPEC_DRAFT_N_MIN=0",
 		"AURAGO_SPEC_DRAFT_P_MIN=0.80",
-		"AURAGO_SPEC_DRAFT_NGL=999",
+		"AURAGO_SPEC_DRAFT_NGL=all",
 		"AURAGO_IMAGE_DIGEST=sha256:" + strings.Repeat("a", 64),
 		"AURAGO_TARGET_SHA256=" + DefaultManifest().Artifacts["mtp_target_q4_k_m"].SHA256,
 		"AURAGO_DRAFT_SHA256=" + DefaultManifest().Artifacts["mtp_sidecar_q4_k_m"].SHA256,
@@ -1220,14 +1240,14 @@ func TestResolvedCPUParametersNeverRequestDraftGPUOffload(t *testing.T) {
 	for _, expected := range []string{
 		"--parallel=1",
 		"--spec-type=draft-mtp",
-		"--draft-device=cpu",
+		"--spec-draft-device=cpu",
 		"--spec-draft-ngl=0",
 	} {
 		if !strings.Contains(joined, expected) {
 			t.Fatalf("CPU MTP parameters missing %q: %v", expected, params)
 		}
 	}
-	if strings.Contains(joined, "--spec-draft-ngl=999") ||
+	if strings.Contains(joined, "--spec-draft-ngl=all") ||
 		strings.Contains(joined, "--n-gpu-layers=all") {
 		t.Fatalf("CPU parameters requested GPU offload: %v", params)
 	}
@@ -1424,7 +1444,15 @@ func TestFakeLlamaServerSmokeTestValidatesToolCallAndStartupManifest(t *testing.
 		ModelSHA256: strings.Repeat("b", 64),
 		ContextSize: 8192,
 	}
-	status.ResolvedParameters = resolvedParameters(config.LocalLLMConfig{ContextSize: 8192}, false)
+	status.ResolvedParameters = resolvedParametersForPlan(
+		config.LocalLLMConfig{ContextSize: 8192},
+		false,
+		HardwareProfile{SelectedBackend: "cpu"},
+	)
+	resolvedParametersJSON, err := json.Marshal(status.ResolvedParameters)
+	if err != nil {
+		t.Fatal(err)
+	}
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		if request.Header.Get("Authorization") != "Bearer "+key {
 			t.Errorf("Authorization = %q", request.Header.Get("Authorization"))
@@ -1437,7 +1465,12 @@ func TestFakeLlamaServerSmokeTestValidatesToolCallAndStartupManifest(t *testing.
 			_, _ = io.WriteString(writer, `{"gpu_offload":false,"kv_offload":false,"memory_profile_verified":true,`+
 				`"image_digest":"`+status.ImageDigest+`","target_sha256":"`+status.ModelSHA256+`",`+
 				`"draft_sha256":"","physical_device":"","actual_device":"cpu",`+
-				`"resolved_parameters":["--alias=aurago-qwen","--fit=off","--kv-offload=on","--reasoning=off","--ctx-size=8192"]}`)
+				`"llama_cpp_commit":"`+LlamaCPPCommit+`","performance_profile":"generic-safe-v1",`+
+				`"batch_size":2048,"ubatch_size":512,"cache_type_k":"f16","cache_type_v":"f16","flash_attention":"auto",`+
+				`"cache_ram_mib":1024,"context_checkpoints":32,"checkpoint_min_step":2048,`+
+				`"cache_reuse":0,"cache_idle_slots":"on","slots_endpoint":"off",`+
+				`"split_mode":"","poll":"","priority":"","radv_perftest":"",`+
+				`"resolved_parameters":`+string(resolvedParametersJSON)+`}`)
 		default:
 			http.NotFound(writer, request)
 		}

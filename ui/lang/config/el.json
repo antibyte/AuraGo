@@ -565,5 +565,17 @@
   "config.local_llm.replaces_fallback": "Η τρέχουσα εφεδρεία θα αντικατασταθεί.",
   "config.local_llm.apply_role": "Εφαρμογή ρόλου",
   "config.local_llm.save_first": "Αποθηκεύστε τις αλλαγές πριν από μια ενέργεια.",
-  "config.local_llm.working": "Επεξεργασία…"
+  "config.local_llm.working": "Επεξεργασία…",
+  "config.local_llm.performance_profile": "Προφίλ απόδοσης",
+  "config.local_llm.prompt_cache": "Κρυφή μνήμη προθέματος στη RAM",
+  "config.local_llm.cache_state": "Κατάσταση κρυφής μνήμης",
+  "config.local_llm.cache_hit_rate": "Επαναχρησιμοποίηση token",
+  "config.local_llm.cache_ttft": "TTFT: ψυχρό {cold}, θερμό {warm}",
+  "config.local_llm.prompt_cache_first_start": "Μετά από επανεκκίνηση του AuraGo, το πρόθεμα πρέπει να προθερμανθεί μία φορά στην πρώτη εκκίνηση. Η κρυφή μνήμη εξοικονομεί χρόνο υπολογισμού, όχι χώρο περιβάλλοντος.",
+  "config.local_llm.cache_state_disabled": "Απενεργοποιημένη",
+  "config.local_llm.cache_state_cold": "Ψυχρή",
+  "config.local_llm.cache_state_warming": "Προθέρμανση",
+  "config.local_llm.cache_state_warm": "Θερμή",
+  "config.local_llm.cache_state_rejected": "Απορρίφθηκε",
+  "config.local_llm.cache_state_degraded": "Υποβαθμισμένη"
 }

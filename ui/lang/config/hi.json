@@ -565,5 +565,17 @@
   "config.local_llm.replaces_fallback": "मौजूदा बैकअप बदल दिया जाएगा।",
   "config.local_llm.apply_role": "भूमिका लागू करें",
   "config.local_llm.save_first": "कोई क्रिया चलाने से पहले बदलाव सहेजें।",
-  "config.local_llm.working": "कार्य जारी…"
+  "config.local_llm.working": "कार्य जारी…",
+  "config.local_llm.performance_profile": "प्रदर्शन प्रोफ़ाइल",
+  "config.local_llm.prompt_cache": "RAM प्रीफ़िक्स कैश",
+  "config.local_llm.cache_state": "कैश स्थिति",
+  "config.local_llm.cache_hit_rate": "टोकन पुनः उपयोग",
+  "config.local_llm.cache_ttft": "TTFT: ठंडा {cold}, गर्म {warm}",
+  "config.local_llm.prompt_cache_first_start": "AuraGo के पुनः आरंभ के बाद पहले स्टार्ट पर प्रीफ़िक्स को एक बार गर्म करना होगा। कैश गणना समय बचाता है, कॉन्टेक्स्ट स्थान नहीं।",
+  "config.local_llm.cache_state_disabled": "बंद",
+  "config.local_llm.cache_state_cold": "ठंडा",
+  "config.local_llm.cache_state_warming": "गर्म हो रहा है",
+  "config.local_llm.cache_state_warm": "गर्म",
+  "config.local_llm.cache_state_rejected": "अस्वीकृत",
+  "config.local_llm.cache_state_degraded": "सीमित"
 }

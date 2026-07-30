@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -87,6 +88,10 @@ type Manager struct {
 
 	idleStop chan struct{}
 	control  chan struct{}
+
+	promptSlot  chan struct{}
+	promptSeed  *promptCacheSeed
+	appliedPlan *runtimePlan
 }
 
 type runtimePlan struct {
@@ -134,12 +139,13 @@ func NewManager(cfg *config.Config, secrets vault, logger *slog.Logger, options 
 		runtimeDir: filepath.Join(dataDir, "runtime", "aurago-local-llm"),
 		idleStop:   make(chan struct{}), lifecycleCtx: lifecycleCtx, lifecycleCancel: lifecycleCancel,
 		desiredCtx: desiredCtx, desiredCancel: desiredCancel, generation: 1,
-		control: make(chan struct{}, 1),
+		control: make(chan struct{}, 1), promptSlot: make(chan struct{}, 1),
 	}
 	manager.cond = sync.NewCond(&manager.mu)
 	manager.status = Status{
 		State: "disabled", ContextSize: localCfg.ContextSize,
 		ReleaseManifestReady: opts.manifest.ReleaseReady,
+		PromptCache:          PromptCacheStatus{State: "disabled"},
 	}
 	manager.cleanupRuntimeKey()
 	manager.desiredFingerprint = manager.computeDesiredFingerprint(localCfg, HardwareProfile{})
@@ -211,6 +217,10 @@ func (m *Manager) finishOperation(name string, owned bool) {
 // shutdown uses Shutdown so ephemeral runtime resources are also removed.
 func (m *Manager) Close() {
 	m.lifecycleCancel()
+	m.mu.Lock()
+	m.promptSeed = nil
+	m.appliedPlan = nil
+	m.mu.Unlock()
 	select {
 	case <-m.idleStop:
 	default:
@@ -273,6 +283,11 @@ activeWait:
 		return err
 	}
 	m.cleanupRuntimeKey()
+	m.mu.Lock()
+	m.promptSeed = nil
+	m.appliedPlan = nil
+	m.status.PromptCache.State = "disabled"
+	m.mu.Unlock()
 	return ctx.Err()
 }
 
@@ -321,6 +336,9 @@ func (m *Manager) invalidateVerificationLocked() {
 	m.status.VerifiedFingerprint = ""
 	m.status.VerifiedContextSize = 0
 	m.status.ActualDevice = ""
+	m.status.PromptCache = PromptCacheStatus{State: "cold"}
+	m.promptSeed = nil
+	m.appliedPlan = nil
 }
 
 func (m *Manager) desiredSnapshot() (config.LocalLLMConfig, uint64, context.Context, error) {
@@ -384,11 +402,19 @@ func (m *Manager) Probe(ctx context.Context) HardwareProfile {
 	m.status.HardwareFingerprint = profile.Fingerprint
 	m.status.AcknowledgementDue = profile.AcknowledgementDue && !m.acknowledged(profile.Fingerprint)
 	m.status.DesiredFingerprint = fingerprint
+	perf := performanceProfileFor(profile)
+	m.status.PerformanceProfile = perf.Name
+	m.status.PromptCache.CacheRAMMiB = perf.CacheRAMMiB
+	m.status.PromptCache.CheckpointProfile = "32x2048"
+	if m.status.PromptCache.State == "" {
+		m.status.PromptCache.State = "cold"
+	}
 	if gpu, err := profile.selectedGPU(); err == nil {
 		m.status.VRAMBytes = gpu.VRAMBytes
 	}
 	if !cfg.Enabled {
 		m.status.State = "disabled"
+		m.status.PromptCache.State = "disabled"
 	} else if !m.manifest.ReleaseReady {
 		m.setErrorLocked("release_artifacts_unavailable")
 	} else if profile.Compatibility == "unsupported" {
@@ -853,7 +879,10 @@ func (m *Manager) startPlan(parent context.Context, plan runtimePlan) error {
 	}
 	now := time.Now()
 	m.status.LastHealthCheck = &now
+	applied := plan
+	m.appliedPlan = &applied
 	m.mu.Unlock()
+	m.ensurePromptCacheWarm(startCtx, plan, key)
 	return nil
 }
 
@@ -884,6 +913,10 @@ func (m *Manager) stop(ctx context.Context, force bool) error {
 	m.mu.Lock()
 	m.status.State = "stopped"
 	m.status.IdleDeadline = nil
+	if m.promptSeed != nil {
+		m.status.PromptCache.State = "cold"
+	}
+	m.appliedPlan = nil
 	m.mu.Unlock()
 	if stopErr != nil && !strings.Contains(stopErr.Error(), "404") && !strings.Contains(stopErr.Error(), "304") {
 		return fmt.Errorf("container_stop_failed: %w", stopErr)
@@ -1045,6 +1078,25 @@ type startupManifest struct {
 	PhysicalDevice        string   `json:"physical_device"`
 	ActualDevice          string   `json:"actual_device"`
 	ResolvedParameters    []string `json:"resolved_parameters"`
+	LlamaCPPCommit        string   `json:"llama_cpp_commit"`
+	PerformanceProfile    string   `json:"performance_profile"`
+	Threads               int      `json:"threads"`
+	ThreadsBatch          int      `json:"threads_batch"`
+	BatchSize             int      `json:"batch_size"`
+	UBatchSize            int      `json:"ubatch_size"`
+	CacheTypeK            string   `json:"cache_type_k"`
+	CacheTypeV            string   `json:"cache_type_v"`
+	FlashAttention        string   `json:"flash_attention"`
+	CacheRAMMiB           int      `json:"cache_ram_mib"`
+	ContextCheckpoints    int      `json:"context_checkpoints"`
+	CheckpointMinStep     int      `json:"checkpoint_min_step"`
+	CacheReuse            int      `json:"cache_reuse"`
+	CacheIdleSlots        string   `json:"cache_idle_slots"`
+	SlotsEndpoint         string   `json:"slots_endpoint"`
+	SplitMode             string   `json:"split_mode"`
+	Poll                  string   `json:"poll"`
+	Priority              string   `json:"priority"`
+	RADVPerfTest          string   `json:"radv_perftest"`
 }
 
 func (m *Manager) attestStartupPlan(ctx context.Context, plan runtimePlan, key string) error {
@@ -1084,13 +1136,43 @@ func validateStartupManifest(plan runtimePlan, startup startupManifest) error {
 		expectedDraft = plan.Draft.SHA256
 	}
 	expectedDigest := plan.Image.Reference[strings.LastIndex(plan.Image.Reference, "@sha256:")+1:]
+	perf := performanceProfileFor(plan.Profile)
 	if startup.ImageDigest != expectedDigest ||
+		startup.LlamaCPPCommit != LlamaCPPCommit ||
 		startup.TargetSHA256 != plan.Model.SHA256 ||
 		startup.DraftSHA256 != expectedDraft ||
 		startup.PhysicalDevice != plan.Profile.SelectedDevice ||
 		!equalStrings(startup.ResolvedParameters, plan.ResolvedParameters) ||
 		!actualDeviceMatches(plan, startup.ActualDevice) {
 		return fmt.Errorf("startup_manifest_mismatch")
+	}
+	expectedPoll, expectedPriority := "", ""
+	if perf.Poll != nil {
+		expectedPoll = strconv.Itoa(*perf.Poll)
+	}
+	if perf.Priority != nil {
+		expectedPriority = strconv.Itoa(*perf.Priority)
+	}
+	if startup.PerformanceProfile != perf.Name ||
+		startup.BatchSize != perf.BatchSize ||
+		startup.UBatchSize != perf.UBatchSize ||
+		startup.CacheTypeK != perf.CacheTypeK ||
+		startup.CacheTypeV != perf.CacheTypeV ||
+		startup.FlashAttention != perf.FlashAttention ||
+		startup.CacheRAMMiB != perf.CacheRAMMiB ||
+		startup.ContextCheckpoints != perf.ContextCheckpoints ||
+		startup.CheckpointMinStep != perf.CheckpointMinStep ||
+		startup.CacheReuse != perf.CacheReuse ||
+		startup.CacheIdleSlots != "on" ||
+		startup.SlotsEndpoint != "off" ||
+		startup.SplitMode != perf.SplitMode ||
+		startup.Poll != expectedPoll ||
+		startup.Priority != expectedPriority ||
+		startup.RADVPerfTest != perf.RADVPerfTest {
+		return fmt.Errorf("startup_manifest_performance_mismatch")
+	}
+	if perf.Threads > 0 && (startup.Threads != perf.Threads || startup.ThreadsBatch != perf.ThreadsBatch) {
+		return fmt.Errorf("startup_manifest_performance_mismatch")
 	}
 	return nil
 }
@@ -1139,7 +1221,21 @@ func (m *Manager) Benchmark(ctx context.Context) (MTPDecision, error) {
 		return MTPDecision{}, err
 	}
 	defer release()
-	return m.benchmark(ctx)
+	decision, err := m.benchmark(ctx)
+	if err != nil {
+		return decision, err
+	}
+	m.mu.Lock()
+	cacheStatus := m.status.PromptCache
+	if decision.Runtime == nil {
+		decision.Runtime = &RuntimeBenchmark{
+			PerformanceProfile: m.status.PerformanceProfile,
+			ContextSize:        m.status.ContextSize,
+		}
+	}
+	decision.PromptCache = &cacheStatus
+	m.mu.Unlock()
+	return decision, nil
 }
 
 func (m *Manager) benchmark(ctx context.Context) (MTPDecision, error) {
@@ -1280,6 +1376,17 @@ func (m *Manager) benchmarkMTPAuto(ctx context.Context, plan runtimePlan) (MTPDe
 		return decision, nil
 	}
 	decision := EvaluateMTP(target, speculative)
+	selectedSamples := target
+	if decision.Selected {
+		selectedSamples = speculative
+	}
+	decision.Runtime = &RuntimeBenchmark{
+		PerformanceProfile: performanceProfileFor(plan.Profile).Name,
+		ContextSize:        benchmarkPlan.Config.ContextSize,
+		GenerationTPS:      median(selectedSamples, func(v BenchmarkSample) float64 { return v.GenerationTokensS }),
+		TTFTMilliseconds:   median(selectedSamples, func(v BenchmarkSample) float64 { return v.TTFTMilliseconds }),
+		DraftAcceptance:    median(speculative, func(v BenchmarkSample) float64 { return v.DraftAcceptance }),
+	}
 	m.mu.Lock()
 	if plan.Generation == m.generation {
 		m.status.MTP = decision
@@ -1318,7 +1425,7 @@ func (m *Manager) ensureAutoMTPPlan(ctx context.Context, plan runtimePlan) (runt
 }
 
 func mtpMeasurementPlan(plan runtimePlan) runtimePlan {
-	plan.Config.ContextSize = 2048
+	plan.Config.ContextSize = 8192
 	plan.Draft = nil
 	plan.ResolvedParameters = resolvedParametersForPlan(plan.Config, false, plan.Profile)
 	return plan
@@ -1413,7 +1520,8 @@ func (m *Manager) benchmarkSample(ctx context.Context, cfg config.LocalLLMConfig
 			},
 		}},
 		"tool_choice": "required", "parallel_tool_calls": false, "max_tokens": 128,
-		"stream": true,
+		"stream": true, "cache_prompt": false,
+		"stream_options": map[string]bool{"include_usage": true},
 	}
 	payload, err := json.Marshal(request)
 	if err != nil {
@@ -1755,6 +1863,13 @@ func (m *Manager) resolveRuntimePlan(ctx context.Context, cfg config.LocalLLMCon
 	m.status.HardwareFingerprint = profile.Fingerprint
 	m.status.AcknowledgementDue = profile.AcknowledgementDue && !m.acknowledged(profile.Fingerprint)
 	m.status.ContextSize = cfg.ContextSize
+	perf := performanceProfileFor(profile)
+	m.status.PerformanceProfile = perf.Name
+	m.status.PromptCache.CacheRAMMiB = perf.CacheRAMMiB
+	m.status.PromptCache.CheckpointProfile = "32x2048"
+	if m.status.PromptCache.State == "" || m.status.PromptCache.State == "disabled" {
+		m.status.PromptCache.State = "cold"
+	}
 	if gpu, gpuErr := profile.selectedGPU(); gpuErr == nil {
 		m.status.VRAMBytes = gpu.VRAMBytes
 	}
@@ -2073,7 +2188,7 @@ func resolvedParameters(cfg config.LocalLLMConfig, mtp bool) []string {
 			"--spec-draft-n-max=2",
 			"--spec-draft-n-min=0",
 			"--spec-draft-p-min=0.80",
-			"--spec-draft-ngl=999",
+			"--spec-draft-ngl=all",
 		)
 	}
 	return values
@@ -2101,16 +2216,17 @@ func resolvedRuntimeDevice(profile HardwareProfile) string {
 func resolvedParametersForPlan(cfg config.LocalLLMConfig, mtp bool, profile HardwareProfile) []string {
 	values := resolvedParameters(cfg, mtp)
 	values = append(values, "--parallel=1")
+	values = append(values, performanceParameters(cfg, profile)...)
 	if profile.SelectedBackend == "cpu" {
 		if mtp {
 			for index := range values {
-				if values[index] == "--spec-draft-ngl=999" {
+				if values[index] == "--spec-draft-ngl=all" {
 					values[index] = "--spec-draft-ngl=0"
 				}
 			}
 			return append(values,
 				"--spec-type=draft-mtp",
-				"--draft-device=cpu",
+				"--spec-draft-device=cpu",
 			)
 		}
 		return append(values, "--spec-type=none")
@@ -2123,7 +2239,7 @@ func resolvedParametersForPlan(cfg config.LocalLLMConfig, mtp bool, profile Hard
 	if mtp {
 		values = append(values,
 			"--spec-type=draft-mtp",
-			"--draft-device="+device,
+			"--spec-draft-device="+device,
 		)
 	} else {
 		values = append(values, "--spec-type=none")

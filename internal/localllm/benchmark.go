@@ -17,8 +17,19 @@ type BenchmarkSample struct {
 
 // MTPDecision is safe to expose through status APIs.
 type MTPDecision struct {
-	Selected bool   `json:"selected"`
-	Reason   string `json:"reason"`
+	Selected    bool               `json:"selected"`
+	Reason      string             `json:"reason"`
+	Runtime     *RuntimeBenchmark  `json:"runtime,omitempty"`
+	PromptCache *PromptCacheStatus `json:"prompt_cache,omitempty"`
+}
+
+// RuntimeBenchmark exposes only value-free aggregate measurements.
+type RuntimeBenchmark struct {
+	PerformanceProfile string  `json:"performance_profile"`
+	ContextSize        int     `json:"context_size"`
+	GenerationTPS      float64 `json:"generation_tps,omitempty"`
+	TTFTMilliseconds   float64 `json:"ttft_ms,omitempty"`
+	DraftAcceptance    float64 `json:"draft_acceptance,omitempty"`
 }
 
 // EvaluateMTP enforces the fixed v1 auto-selection thresholds.

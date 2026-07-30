@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	ReleaseManifestVersion = 3
+	ReleaseManifestVersion = 4
 	LlamaCPPCommit         = "555881ebc8b0fc0402b30e09258a32a7bfd13c52"
 	ggufRepositoryRevision = "37e44d3534c05447be9e486cadca5d1da9838539"
 	mtpRepositoryRevision  = "abf7f625cc52c019ef5a14afa0c56713d5183818"
@@ -102,18 +102,18 @@ func DefaultManifest() Manifest {
 			// Candidate images require an explicit backend choice and experimental acknowledgement.
 			"cuda": {
 				Backend: "cuda",
-				Reference: "ghcr.io/antibyte/aurago-llm-cuda:edge-e68803c4fd89@" +
-					"sha256:e3d7ceaf959303e6d161d409506774de5a80a94d798e0632a132f3834f984114",
+				Reference: "ghcr.io/antibyte/aurago-llm-cuda:edge-8ac3d8c69e8a@" +
+					"sha256:2b063f4e67f8bcba54f5f47607fe298167d7b63775fe9dfe22ce5bb42870dc19",
 			},
 			"sycl": {
 				Backend: "sycl",
-				Reference: "ghcr.io/antibyte/aurago-llm-sycl:edge-27cf6d2dcef6@" +
-					"sha256:b6d993d3d4df351bec73eb65b131cb27223ba14433748d53c896fb6df9716fd6",
+				Reference: "ghcr.io/antibyte/aurago-llm-sycl:edge-8ac3d8c69e8a@" +
+					"sha256:ba2f0208cf77c29cb69cd5a84e305296dab597722ca9b88449d0cbf9b965eaef",
 			},
 			"vulkan": {
 				Backend: "vulkan",
-				Reference: "ghcr.io/antibyte/aurago-llm-vulkan:edge-27cf6d2dcef6@" +
-					"sha256:9fe154a1f74cb2d1bcc26f0db6e7ef31750882e448c1a1899004b84e978938af",
+				Reference: "ghcr.io/antibyte/aurago-llm-vulkan:edge-8ac3d8c69e8a@" +
+					"sha256:ad94aba8c422dbaf7c298d2c5d7c51ce3e6aabea378e31b816a11c55162d4970",
 			},
 		},
 		HardwareProfiles: []ValidatedHardwareProfile{

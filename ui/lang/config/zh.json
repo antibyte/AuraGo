@@ -565,5 +565,17 @@
   "config.local_llm.replaces_fallback": "当前备用将被替换。",
   "config.local_llm.apply_role": "应用角色",
   "config.local_llm.save_first": "执行操作前请先保存配置更改。",
-  "config.local_llm.working": "处理中…"
+  "config.local_llm.working": "处理中…",
+  "config.local_llm.performance_profile": "性能配置",
+  "config.local_llm.prompt_cache": "内存前缀缓存",
+  "config.local_llm.cache_state": "缓存状态",
+  "config.local_llm.cache_hit_rate": "令牌复用率",
+  "config.local_llm.cache_ttft": "TTFT：冷缓存 {cold}，热缓存 {warm}",
+  "config.local_llm.prompt_cache_first_start": "AuraGo 重启后，首次启动需要预热一次前缀。缓存节省的是计算时间，而不是上下文空间。",
+  "config.local_llm.cache_state_disabled": "已禁用",
+  "config.local_llm.cache_state_cold": "冷缓存",
+  "config.local_llm.cache_state_warming": "正在预热",
+  "config.local_llm.cache_state_warm": "热缓存",
+  "config.local_llm.cache_state_rejected": "已拒绝",
+  "config.local_llm.cache_state_degraded": "已降级"
 }

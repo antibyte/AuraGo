@@ -15,6 +15,50 @@ import (
 
 func intPtr(v int) *int { return &v }
 
+func TestStableLocalToolSchemasIgnoreIntentAndRemainSorted(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Agent.AdaptiveTools.AlwaysInclude = []string{"filesystem"}
+	schemas := []openai.Tool{
+		testFunctionTool("weather"),
+		testFunctionTool("invoke_tool"),
+		testFunctionTool("filesystem"),
+		testFunctionTool("discover_tools"),
+		testFunctionTool("execute_skill"),
+		testFunctionTool("run_tool"),
+	}
+	first := stableLocalToolSchemas(schemas, cfg, RunConfig{SessionID: "one"}, ToolFeatureFlags{}, false, nil)
+	second := stableLocalToolSchemas(schemas, cfg, RunConfig{SessionID: "two"}, ToolFeatureFlags{}, false, nil)
+	if got, want := strings.Join(toolSchemaNames(first.Tools), ","), "discover_tools,execute_skill,filesystem,invoke_tool,run_tool"; got != want {
+		t.Fatalf("stable local tools = %q, want %q", got, want)
+	}
+	if got, want := strings.Join(toolSchemaNames(second.Tools), ","), strings.Join(toolSchemaNames(first.Tools), ","); got != want {
+		t.Fatalf("tool profile changed between unrelated sessions: %q != %q", got, want)
+	}
+}
+
+func TestStableLocalToolSchemasNeverRestoreOutOfScopeTools(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Agent.AdaptiveTools.AlwaysInclude = []string{"filesystem", "weather"}
+	scoped := filterSchemasByAllowedTools([]openai.Tool{
+		testFunctionTool("filesystem"),
+		testFunctionTool("weather"),
+	}, []string{"filesystem"})
+	result := stableLocalToolSchemas(scoped, cfg, RunConfig{AllowedTools: []string{"filesystem"}}, ToolFeatureFlags{}, false, nil)
+	if got := strings.Join(toolSchemaNames(result.Tools), ","); got != "filesystem" {
+		t.Fatalf("restricted scope was widened: %q", got)
+	}
+}
+
+func testFunctionTool(name string) openai.Tool {
+	return openai.Tool{Type: openai.ToolTypeFunction, Function: &openai.FunctionDefinition{
+		Name: name,
+		Parameters: map[string]any{
+			"type":       "object",
+			"properties": map[string]any{},
+		},
+	}}
+}
+
 func TestStreamToolCallAssemblerEmptyReturnsNil(t *testing.T) {
 	asm := NewStreamToolCallAssembler()
 	result := asm.Assemble()

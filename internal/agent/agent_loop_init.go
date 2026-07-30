@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"log/slog"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
+	"aurago/internal/config"
 	"aurago/internal/memory"
 	"aurago/internal/prompts"
 	"aurago/internal/security"
@@ -397,10 +399,26 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 		filterReport := toolSchemaFilterReport{}
 
 		// Adaptive tool filtering removes rarely used tools to save tokens. The
-		// managed 4B local model always requires its provider context budget,
-		// even when global adaptive filtering was disabled or STM is unavailable.
+		// managed 4B local model instead receives a deterministic kernel so its
+		// llama.cpp prompt prefix remains reusable between unrelated turns.
 		managedLocalContextBudget := toolingPolicy.ProviderToolProfile == "aurago_local_context"
-		if (cfg.Agent.AdaptiveTools.Enabled && shortTermMem != nil) || managedLocalContextBudget {
+		if managedLocalContextBudget {
+			filterResult := stableLocalToolSchemas(ntSchemas, cfg, runCfg, ff, voiceOutputSuppressed, logger)
+			ntSchemas = filterResult.Tools
+			filterReport = filterResult.Report
+			RecordToolFilterReport(filterReport)
+			remainingSet := make(map[string]bool, len(ntSchemas))
+			for _, tool := range ntSchemas {
+				if tool.Function != nil {
+					remainingSet[tool.Function.Name] = true
+				}
+			}
+			for _, tool := range allSchemas {
+				if tool.Function != nil && !remainingSet[tool.Function.Name] {
+					adaptiveFilteredTools = append(adaptiveFilteredTools, tool.Function.Name)
+				}
+			}
+		} else if cfg.Agent.AdaptiveTools.Enabled && shortTermMem != nil {
 			halfLife := cfg.Agent.AdaptiveTools.DecayHalfLifeDays
 			if halfLife <= 0 {
 				halfLife = 7.0
@@ -618,4 +636,46 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 	_ = sessionID
 
 	return s
+}
+
+func stableLocalToolSchemas(schemas []openai.Tool, cfg *config.Config, runCfg RunConfig, ff ToolFeatureFlags, voiceOutputSuppressed bool, logger *slog.Logger) toolSchemaFilterResult {
+	if cfg == nil {
+		return toolSchemaFilterResult{}
+	}
+	softAlways := append([]string(nil), cfg.Agent.AdaptiveTools.AlwaysInclude...)
+	if !voiceOutputSuppressed && (runCfg.VoiceOutputActive || GetVoiceMode()) && ff.TTSEnabled &&
+		!isAutonomousAgentRun(runCfg, runCfg.SessionID) && !runCfg.IsMission {
+		softAlways = append(softAlways, "tts", "send_audio")
+	}
+	if ff.MusicGenerationEnabled {
+		softAlways = append(softAlways, "generate_music")
+	}
+	if ff.VideoGenerationEnabled {
+		softAlways = append(softAlways, "generate_video")
+	}
+	if ff.ImageGenerationEnabled {
+		softAlways = append(softAlways, "generate_image")
+	}
+	softAlways = channelAdaptiveAlwaysInclude(runCfg, softAlways, ff)
+	softAlways = expandAdaptiveAlwaysInclude(cfg, softAlways)
+
+	result := filterToolSchemasWithReport(schemas, toolSchemaFilterOptions{
+		HardAlwaysTools: adaptiveHardAlwaysInclude(cfg),
+		SoftAlwaysTools: softAlways,
+		DisableAdaptive: true,
+		MaxTotalTools:   16,
+		MaxSchemaTokens: 4096,
+	}, logger)
+	sort.SliceStable(result.Tools, func(i, j int) bool {
+		left, right := "", ""
+		if result.Tools[i].Function != nil {
+			left = result.Tools[i].Function.Name
+		}
+		if result.Tools[j].Function != nil {
+			right = result.Tools[j].Function.Name
+		}
+		return left < right
+	})
+	sort.Strings(result.Report.DroppedTools)
+	return result
 }
