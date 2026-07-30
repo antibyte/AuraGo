@@ -25,6 +25,28 @@ import (
 	"time"
 )
 
+type assetDownloadTestTransport struct {
+	handler http.Handler
+}
+
+func (transport assetDownloadTestTransport) RoundTrip(request *http.Request) (*http.Response, error) {
+	recorder := httptest.NewRecorder()
+	transport.handler.ServeHTTP(recorder, request.Clone(request.Context()))
+	response := recorder.Result()
+	response.Request = request
+	return response, nil
+}
+
+// newAssetDownloadTestClient keeps the asset specification on an HTTPS URL
+// while serving the test response entirely in memory. This avoids dependence
+// on host-wide TLS interception and loopback capacity without weakening
+// production TLS or bypassing validateAssetSpec's HTTPS requirement.
+func newAssetDownloadTestClient(handler http.Handler) (*http.Client, string) {
+	return &http.Client{
+		Transport: assetDownloadTestTransport{handler: handler},
+	}, "https://assets.invalid"
+}
+
 func TestCandidateMatrixAlwaysIncludesCPUFallbacks(t *testing.T) {
 	hardware := hardwareInfo{NVIDIA: true, Vulkan: true}
 	candidates := candidateMatrix("windows", "amd64", "cuda", hardware)
@@ -305,7 +327,7 @@ func TestAssetDownloadCleansInterruptedPartAndReusesOfflineCache(t *testing.T) {
 	content := []byte("checksum-verified embedding asset")
 	hash := sha256.Sum256(content)
 	interrupt := true
-	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	client, baseURL := newAssetDownloadTestClient(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Length", strconv.Itoa(len(content)))
 		if interrupt {
 			_, _ = w.Write(content[:len(content)/2])
@@ -314,10 +336,10 @@ func TestAssetDownloadCleansInterruptedPartAndReusesOfflineCache(t *testing.T) {
 		_, _ = w.Write(content)
 	}))
 	cache := newAssetCache(t.TempDir(), nil)
-	cache.client = server.Client()
+	cache.client = client
 	spec := assetSpec{
 		ID:     "test-asset",
-		URL:    server.URL + "/asset",
+		URL:    baseURL + "/asset",
 		Size:   int64(len(content)),
 		SHA256: hex.EncodeToString(hash[:]),
 		Kind:   assetFile,
@@ -333,7 +355,6 @@ func TestAssetDownloadCleansInterruptedPartAndReusesOfflineCache(t *testing.T) {
 	if err := cache.ensureDirectAsset(context.Background(), spec, destination); err != nil {
 		t.Fatal(err)
 	}
-	server.Close()
 	if err := cache.ensureDirectAsset(context.Background(), spec, destination); err != nil {
 		t.Fatalf("verified offline cache was not reused: %v", err)
 	}
@@ -346,15 +367,14 @@ func TestAssetDownloadRejectsMatchingSizeWithWrongHash(t *testing.T) {
 		t.Fatal("test data must have matching lengths")
 	}
 	hash := sha256.Sum256(content)
-	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	client, baseURL := newAssetDownloadTestClient(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write(tampered)
 	}))
-	defer server.Close()
 	cache := newAssetCache(t.TempDir(), nil)
-	cache.client = server.Client()
+	cache.client = client
 	spec := assetSpec{
 		ID:     "tampered",
-		URL:    server.URL,
+		URL:    baseURL,
 		Size:   int64(len(content)),
 		SHA256: hex.EncodeToString(hash[:]),
 		Kind:   assetFile,
@@ -362,6 +382,8 @@ func TestAssetDownloadRejectsMatchingSizeWithWrongHash(t *testing.T) {
 	destination := filepath.Join(cache.root, "asset.bin")
 	if err := cache.ensureDirectAsset(context.Background(), spec, destination); err == nil {
 		t.Fatal("tampered download unexpectedly succeeded")
+	} else if !strings.Contains(err.Error(), "SHA-256") {
+		t.Fatalf("tampered download failed before checksum verification: %v", err)
 	}
 	if _, err := os.Stat(destination); !os.IsNotExist(err) {
 		t.Fatalf("tampered destination exists: %v", err)
@@ -795,14 +817,14 @@ func TestRuntimeManifestRepairsTamperedMissingAndUnexpectedFilesOffline(t *testi
 	}
 	content := archive.Bytes()
 	hash := sha256.Sum256(content)
-	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	client, baseURL := newAssetDownloadTestClient(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write(content)
 	}))
 	cache := newAssetCache(t.TempDir(), nil)
-	cache.client = server.Client()
+	cache.client = client
 	spec := assetSpec{
 		ID:     "test-runtime",
-		URL:    server.URL + "/runtime.zip",
+		URL:    baseURL + "/runtime.zip",
 		Size:   int64(len(content)),
 		SHA256: hex.EncodeToString(hash[:]),
 		Kind:   assetZip,
@@ -811,8 +833,6 @@ func TestRuntimeManifestRepairsTamperedMissingAndUnexpectedFilesOffline(t *testi
 	if err != nil {
 		t.Fatal(err)
 	}
-	server.Close()
-
 	runtimeFile := filepath.Join(root, "runtime", "bin", "runtime.dll")
 	helperFile := filepath.Join(root, "runtime", "bin", "helper.exe")
 	assertRepaired := func(path, want string) {

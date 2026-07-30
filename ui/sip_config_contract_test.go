@@ -8,12 +8,23 @@ import (
 	"testing"
 )
 
+func normalizeSIPContractSource(data []byte) string {
+	source := strings.ReplaceAll(string(data), "\r\n", "\n")
+	return strings.ReplaceAll(source, "\r", "\n")
+}
+
+func TestNormalizeSIPContractSourceHandlesWindowsLineEndings(t *testing.T) {
+	if got, want := normalizeSIPContractSource([]byte("first\r\nsecond\rthird\n")), "first\nsecond\nthird\n"; got != want {
+		t.Fatalf("normalized source = %q, want %q", got, want)
+	}
+}
+
 func TestSIPConfigUIUsesSavedStateAndMaskedSecret(t *testing.T) {
 	data, err := os.ReadFile(filepath.Join("cfg", "sip.js"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	source := string(data)
+	source := normalizeSIPContractSource(data)
 	for _, marker := range []string{
 		"/api/sip/config", "/api/sip/providers", "/api/sip/setup", "/api/sip/status", "/api/sip/test", "password_set",
 		"sipSavedState", "sipComparable(current) !== sipSavedState",
