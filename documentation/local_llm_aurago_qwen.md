@@ -65,6 +65,12 @@ it available to automatic backend selection.
 
 Native AuraGo publishes the sidecar only on `127.0.0.1`. Containerized AuraGo uses the private `aurago-app` network without a host port. The sidecar runs as `65532:65532` with a read-only root filesystem, no Linux capabilities, `no-new-privileges`, a PID limit, and a bounded `/tmp`.
 
+For a native installation, `listen_port` must be unused on the loopback
+interface. AuraGo checks the configured binding before container creation and
+reports `listen_port_unavailable` instead of selecting another port silently.
+Choose a free loopback port, save the configuration, and retry the requested
+action.
+
 The random API key is stored only as `local_llm_runtime_api_key` in the Vault. At runtime it is materialized as a mode-0600 file, mounted read-only, and removed on stop and AuraGo startup. It is never placed in YAML, container environment variables, command arguments, logs, or API responses.
 
 The model and runtime-key volumes are protected from AuraGo's agent-facing Docker tool. That permission boundary is independent of the internal manager's Docker transport.

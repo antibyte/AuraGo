@@ -2053,6 +2053,8 @@ func recommendation(code string) string {
 		return "Run the explicit install action before selecting AuraGo-Qwen for chat routing."
 	case "gpu_offload_not_verified":
 		return "Select a supported GPU backend and verify device access, VRAM, and container runtime support."
+	case "listen_port_unavailable":
+		return "Choose an unused loopback port, save the Local LLM configuration, and retry the operation."
 	default:
 		return "Run the passive probe and review Docker, GPU, and storage compatibility."
 	}

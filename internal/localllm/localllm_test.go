@@ -1212,6 +1212,65 @@ func (engine *recordingDockerEngine) DoJSON(_ context.Context, method, path stri
 
 func (engine *recordingDockerEngine) HTTPClient() *http.Client { return engine.client }
 
+type failingStartDockerEngine struct {
+	paths    []string
+	startErr error
+}
+
+func (engine *failingStartDockerEngine) DoJSON(_ context.Context, method, path string, _, _ any) (int, error) {
+	engine.paths = append(engine.paths, method+" "+path)
+	if strings.HasSuffix(path, "/start") {
+		return http.StatusInternalServerError, engine.startErr
+	}
+	return http.StatusOK, nil
+}
+
+func (engine *failingStartDockerEngine) HTTPClient() *http.Client { return http.DefaultClient }
+
+func TestRecreateContainerRejectsOccupiedLoopbackPortBeforeCreate(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+
+	engine := &recordingDockerEngine{}
+	manager := &Manager{docker: engine}
+	port := strconv.Itoa(listener.Addr().(*net.TCPAddr).Port)
+	spec := dockerContainerSpec{HostConfig: dockerHostConfig{PortBindings: map[string][]dockerPortBind{
+		"8080/tcp": {{HostIP: "127.0.0.1", HostPort: port}},
+	}}}
+	err = manager.recreateContainer(context.Background(), spec)
+	if errorCode(err) != "listen_port_unavailable" {
+		t.Fatalf("recreateContainer() error = %v", err)
+	}
+	for _, path := range engine.paths {
+		if strings.Contains(path, "containers/create") || strings.HasSuffix(path, "/start") {
+			t.Fatalf("occupied port reached container create/start: %v", engine.paths)
+		}
+	}
+}
+
+func TestRecreateContainerClassifiesDockerPortBindingRace(t *testing.T) {
+	engine := &failingStartDockerEngine{
+		startErr: errors.New("driver failed programming external connectivity: failed to bind host port: address already in use"),
+	}
+	manager := &Manager{docker: engine}
+	err := manager.recreateContainer(context.Background(), dockerContainerSpec{})
+	if errorCode(err) != "listen_port_unavailable" {
+		t.Fatalf("recreateContainer() error = %v", err)
+	}
+}
+
+func TestRecreateContainerPreservesGenericStartFailure(t *testing.T) {
+	engine := &failingStartDockerEngine{startErr: errors.New("runtime rejected device request")}
+	manager := &Manager{docker: engine}
+	err := manager.recreateContainer(context.Background(), dockerContainerSpec{})
+	if errorCode(err) != "container_start_failed" {
+		t.Fatalf("recreateContainer() error = %v", err)
+	}
+}
+
 func TestRuntimeKeyVolumeUsesMode0600ArchiveAndNoSecretEnvironment(t *testing.T) {
 	const secret = "runtime-secret-must-not-leak"
 	var header *tar.Header

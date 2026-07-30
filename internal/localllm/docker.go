@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -372,11 +373,55 @@ func (m *Manager) ensureImageAvailable(ctx context.Context, reference string) er
 func (m *Manager) recreateContainer(ctx context.Context, spec dockerContainerSpec) error {
 	_, _ = m.docker.DoJSON(ctx, http.MethodPost, "containers/"+managedContainerName+"/stop?t=15", nil, nil)
 	_, _ = m.docker.DoJSON(ctx, http.MethodDelete, "containers/"+managedContainerName+"?force=true", nil, nil)
+	if err := ensureHostPortsAvailable(ctx, spec.HostConfig.PortBindings); err != nil {
+		return err
+	}
 	if _, err := m.docker.DoJSON(ctx, http.MethodPost, "containers/create?name="+managedContainerName, spec, nil); err != nil {
 		return fmt.Errorf("container_create_failed: %w", err)
 	}
 	if _, err := m.docker.DoJSON(ctx, http.MethodPost, "containers/"+managedContainerName+"/start", nil, nil); err != nil {
+		if isDockerPortConflict(err) {
+			return fmt.Errorf("listen_port_unavailable")
+		}
 		return fmt.Errorf("container_start_failed: %w", err)
 	}
 	return nil
+}
+
+func ensureHostPortsAvailable(ctx context.Context, bindings map[string][]dockerPortBind) error {
+	var listenConfig net.ListenConfig
+	for _, portBindings := range bindings {
+		for _, binding := range portBindings {
+			hostIP := strings.TrimSpace(binding.HostIP)
+			hostPort := strings.TrimSpace(binding.HostPort)
+			if hostIP == "" || hostPort == "" {
+				continue
+			}
+			listener, err := listenConfig.Listen(ctx, "tcp", net.JoinHostPort(hostIP, hostPort))
+			if err != nil {
+				return fmt.Errorf("listen_port_unavailable")
+			}
+			if err := listener.Close(); err != nil {
+				return fmt.Errorf("listen_port_unavailable")
+			}
+		}
+	}
+	return nil
+}
+
+func isDockerPortConflict(err error) bool {
+	if err == nil {
+		return false
+	}
+	message := strings.ToLower(err.Error())
+	for _, marker := range []string{
+		"address already in use",
+		"failed to bind host port",
+		"port is already allocated",
+	} {
+		if strings.Contains(message, marker) {
+			return true
+		}
+	}
+	return false
 }
