@@ -109,7 +109,10 @@
 
     function startDesktopSelectionDrag(event) {
         if (!event || event.defaultPrevented || event.button !== 0 || isTouchLikePointer(event)) return;
-        if (event.target.closest('.vd-icon, .vd-widget, .vd-window, .vd-start-menu, .vd-taskbar')) return;
+        // .vd-sip-phone-gadget sits inside #vd-workspace too; without this
+        // exclusion, workspace.setPointerCapture() below would hijack every
+        // click on the gadget (retargeting mouseup/click to the workspace).
+        if (event.target.closest('.vd-icon, .vd-widget, .vd-window, .vd-start-menu, .vd-taskbar, .vd-sip-phone-gadget')) return;
         const workspace = $('vd-workspace');
         if (!workspace) return;
         closeContextMenu();
