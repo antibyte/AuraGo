@@ -3,7 +3,7 @@
   "config.image_generation.disabled_notice": "La generación de imágenes está desactivada",
   "config.image_generation.disabled_desc": "Activa el interruptor de arriba para permitir que el agente genere imágenes a partir de descripciones de texto usando modelos de IA.",
   "config.image_generation.provider_title": "Proveedor",
-  "config.image_generation.provider_desc": "Selecciona un proveedor configurado en la gestión de proveedores. Tipos compatibles: OpenAI, OpenRouter, Stability AI, Ideogram, Google Imagen, MiniMax.",
+  "config.image_generation.provider_desc": "Selecciona un proveedor configurado en la gestión de proveedores. Tipos compatibles: OpenAI, OpenRouter, Stability AI, Ideogram, Google Imagen, MiniMax, Agnes AI.",
   "config.image_generation.provider_label": "Proveedor",
   "config.image_generation.select_provider": "— Selecciona un proveedor —",
   "config.image_generation.model_label": "Modelo",

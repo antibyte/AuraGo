@@ -3,7 +3,7 @@
   "config.image_generation.disabled_notice": "Billedgenerering er deaktiveret",
   "config.image_generation.disabled_desc": "Aktivér kontakten ovenfor for at lade agenten generere billeder fra tekstprompter med AI-modeller.",
   "config.image_generation.provider_title": "Udbyder",
-  "config.image_generation.provider_desc": "Vælg en udbyder konfigureret i udbyderstyring. Understøttede typer: OpenAI, OpenRouter, Stability AI, Ideogram, Google Imagen, MiniMax.",
+  "config.image_generation.provider_desc": "Vælg en udbyder konfigureret i udbyderstyring. Understøttede typer: OpenAI, OpenRouter, Stability AI, Ideogram, Google Imagen, MiniMax, Agnes AI.",
   "config.image_generation.provider_label": "Udbyder",
   "config.image_generation.select_provider": "— Vælg en udbyder —",
   "config.image_generation.model_label": "Modelnavn",

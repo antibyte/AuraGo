@@ -3,7 +3,7 @@
   "config.image_generation.disabled_notice": "Bildgenerierung ist deaktiviert",
   "config.image_generation.disabled_desc": "Aktiviere den Schalter oben, damit der Agent Bilder aus Textbeschreibungen mit KI-Modellen erstellen kann.",
   "config.image_generation.provider_title": "Anbieter",
-  "config.image_generation.provider_desc": "Wähle einen in der Anbieterverwaltung konfigurierten Anbieter. Unterstützte Typen: OpenAI, OpenRouter, Stability AI, Ideogram, Google Imagen, MiniMax.",
+  "config.image_generation.provider_desc": "Wähle einen in der Anbieterverwaltung konfigurierten Anbieter. Unterstützte Typen: OpenAI, OpenRouter, Stability AI, Ideogram, Google Imagen, MiniMax, Agnes AI.",
   "config.image_generation.provider_label": "Anbieter",
   "config.image_generation.select_provider": "— Anbieter auswählen —",
   "config.image_generation.model_label": "Modell",

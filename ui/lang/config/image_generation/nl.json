@@ -3,7 +3,7 @@
   "config.image_generation.disabled_notice": "Afbeeldingsgeneratie is uitgeschakeld",
   "config.image_generation.disabled_desc": "Schakel de optie hierboven in zodat de agent afbeeldingen uit tekstprompts kan genereren met AI-modellen.",
   "config.image_generation.provider_title": "Aanbieder",
-  "config.image_generation.provider_desc": "Selecteer een provider die is geconfigureerd in Providerbeheer. Ondersteunde typen: OpenAI, OpenRouter, Stabiliteit AI, Ideogram, Google Imagen, MiniMax.",
+  "config.image_generation.provider_desc": "Selecteer een provider die is geconfigureerd in Providerbeheer. Ondersteunde typen: OpenAI, OpenRouter, Stability AI, Ideogram, Google Imagen, MiniMax, Agnes AI.",
   "config.image_generation.provider_label": "Aanbieder",
   "config.image_generation.select_provider": "— Selecteer een aanbieder —",
   "config.image_generation.model_label": "Modelkeuze",

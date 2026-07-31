@@ -7,7 +7,7 @@
   "config.video_gen.resolution_label": "Resolution",
   "config.video_gen.test_desc": "Verify provider connectivity without generating a video.",
   "config.video_gen.enabled_label": "Video generation enabled:",
-  "config.video_gen.provider_desc": "Select a provider configured in Provider Management. Supported types: MiniMax and Google Veo.",
+  "config.video_gen.provider_desc": "Select a provider configured in Provider Management. Supported types: MiniMax, Google Veo, and Agnes AI.",
   "config.video_gen.duration_label": "Duration (seconds)",
   "config.video_gen.testing": "Testing...",
   "config.video_gen.select_provider": "Select a provider",

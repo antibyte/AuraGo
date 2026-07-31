@@ -8,7 +8,7 @@
   "config.video_gen.resolution_label": "Rozliseni",
   "config.video_gen.test_desc": "Overi spojeni bez generovani videa.",
   "config.video_gen.timeout_label": "Timeout (s)",
-  "config.video_gen.provider_desc": "Vyberte poskytovatele z konfigurace. Podporovano: MiniMax a Google Veo.",
+  "config.video_gen.provider_desc": "Vyberte poskytovatele z konfigurace. Podporovány jsou MiniMax, Google Veo a Agnes AI.",
   "config.video_gen.duration_label": "Délka (sekundy)",
   "config.video_gen.testing": "Testuji...",
   "config.video_gen.select_provider": "Vyberte poskytovatele",

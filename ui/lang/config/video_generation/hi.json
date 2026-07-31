@@ -8,7 +8,7 @@
   "config.video_gen.resolution_label": "Resolution",
   "config.video_gen.test_desc": "वीडियो बनाए बिना provider connectivity जांचें.",
   "config.video_gen.timeout_label": "टाइमआउट (सेकंड)",
-  "config.video_gen.provider_desc": "Provider Management में कॉन्फ़िगर किया गया provider चुनें. MiniMax और Google Veo समर्थित हैं.",
+  "config.video_gen.provider_desc": "Provider Management में कॉन्फ़िगर किया गया provider चुनें. MiniMax, Google Veo और Agnes AI समर्थित हैं.",
   "config.video_gen.duration_label": "अवधि (सेकंड)",
   "config.video_gen.testing": "परीक्षण हो रहा है...",
   "config.video_gen.select_provider": "Provider चुनें",

@@ -8,7 +8,7 @@
   "config.video_gen.resolution_label": "分辨率",
   "config.video_gen.test_desc": "在不生成视频的情况下验证提供商连接。",
   "config.video_gen.timeout_label": "超时（秒）",
-  "config.video_gen.provider_desc": "选择在提供商管理中配置的提供商。支持 MiniMax 和 Google Veo。",
+  "config.video_gen.provider_desc": "选择在提供商管理中配置的提供商。支持 MiniMax、Google Veo 和 Agnes AI。",
   "config.video_gen.duration_label": "时长（秒）",
   "config.video_gen.testing": "正在测试...",
   "config.video_gen.select_provider": "选择提供商",

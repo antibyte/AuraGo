@@ -3,7 +3,7 @@
   "config.image_generation.disabled_notice": "Η δημιουργία εικόνων είναι απενεργοποιημένη",
   "config.image_generation.disabled_desc": "Ενεργοποιήστε την παραπάνω εναλλαγή για να επιτρέψετε στον πράκτορα να δημιουργεί εικόνες από προτροπές κειμένου χρησιμοποιώντας μοντέλα AI.",
   "config.image_generation.provider_title": "Πάροχος",
-  "config.image_generation.provider_desc": "Επιλέξτε πάροχο που έχει ρυθμιστεί στη Διαχείριση Παρόχων. Υποστηριζόμενοι τύποι: OpenAI, OpenRouter, Stability AI, Ideogram, Google Imagen, MiniMax.",
+  "config.image_generation.provider_desc": "Επιλέξτε πάροχο που έχει ρυθμιστεί στη Διαχείριση Παρόχων. Υποστηριζόμενοι τύποι: OpenAI, OpenRouter, Stability AI, Ideogram, Google Imagen, MiniMax, Agnes AI.",
   "config.image_generation.provider_label": "Πάροχος",
   "config.image_generation.select_provider": "— Επιλέξτε πάροχο —",
   "config.image_generation.model_label": "Μοντέλο",

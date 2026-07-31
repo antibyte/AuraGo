@@ -8,7 +8,7 @@
   "config.video_gen.resolution_label": "Oppløsning",
   "config.video_gen.test_desc": "Sjekker tilkobling uten å generere video.",
   "config.video_gen.timeout_label": "Tidsavbrudd (s)",
-  "config.video_gen.provider_desc": "Velg en leverandør fra Provider Management. MiniMax og Google Veo støttes.",
+  "config.video_gen.provider_desc": "Velg en leverandør fra Provider Management. MiniMax, Google Veo og Agnes AI støttes.",
   "config.video_gen.duration_label": "Varighet (sekunder)",
   "config.video_gen.testing": "Tester...",
   "config.video_gen.select_provider": "Velg leverandør",

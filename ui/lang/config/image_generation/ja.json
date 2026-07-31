@@ -3,7 +3,7 @@
   "config.image_generation.disabled_notice": "画像生成は無効です",
   "config.image_generation.disabled_desc": "上のトグルを有効にすると、エージェントがAIモデルを使ってテキストプロンプトから画像を生成できます。",
   "config.image_generation.provider_title": "プロバイダー",
-  "config.image_generation.provider_desc": "プロバイダー管理で設定されたプロバイダーを選択します。対応タイプ: OpenAI, OpenRouter, Stability AI, Ideogram, Google Imagen, MiniMax。",
+  "config.image_generation.provider_desc": "プロバイダー管理で設定されたプロバイダーを選択します。対応タイプ: OpenAI, OpenRouter, Stability AI, Ideogram, Google Imagen, MiniMax, Agnes AI。",
   "config.image_generation.provider_label": "プロバイダー",
   "config.image_generation.select_provider": "— プロバイダーを選択 —",
   "config.image_generation.model_label": "モデル",

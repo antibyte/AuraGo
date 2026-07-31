@@ -3,7 +3,7 @@
   "config.image_generation.disabled_notice": "Bildgenerering är inaktiverad",
   "config.image_generation.disabled_desc": "Aktivera reglaget ovan för att låta agenten generera bilder från textprompter med AI-modeller.",
   "config.image_generation.provider_title": "Leverantör",
-  "config.image_generation.provider_desc": "Välj en leverantör som är konfigurerad i leverantörshanteringen. Stödda typer: OpenAI, OpenRouter, Stability AI, Ideogram, Google Imagen, MiniMax.",
+  "config.image_generation.provider_desc": "Välj en leverantör som är konfigurerad i leverantörshanteringen. Stödda typer: OpenAI, OpenRouter, Stability AI, Ideogram, Google Imagen, MiniMax, Agnes AI.",
   "config.image_generation.provider_label": "Leverantör",
   "config.image_generation.select_provider": "— Välj en leverantör —",
   "config.image_generation.model_label": "Modell",
