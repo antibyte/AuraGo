@@ -347,7 +347,7 @@ function initChatThemePicker() {
 }
 
 /* ── Initialize Chat Modules ── */
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     // Smart Scroller
     if (window.SmartScroller) {
         window.SmartScroller.init(document.getElementById('chat-box'));
@@ -384,10 +384,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (window.showToast) { window.showToast(msg, 'error'); } else { await showAlert(msg, ''); }
             };
 
-            // Prefer browser-native Speech-to-Text (Chrome, Edge, Android)
-            const useBrowserSTT = window.SpeechToText && window.SpeechToText.isSupported;
+			const useSpeechLabSTT = !!(window.SpeechLabRecorder && await window.SpeechLabRecorder.selected());
+			// Browser SpeechRecognition remains the default unless local Speech Lab
+			// chat input was explicitly selected by the administrator.
+			const useBrowserSTT = !useSpeechLabSTT && window.SpeechToText && window.SpeechToText.isSupported;
 
-            if (useBrowserSTT) {
+			if (useSpeechLabSTT) {
+				window.SpeechLabRecorder.init({
+					onTranscription: _populateInput,
+					onError: (msg) => {
+						voiceBtn.classList.remove('btn-active');
+						_showError(msg);
+					}
+				});
+			} else if (useBrowserSTT) {
                 window.SpeechToText.init({
                     // Don't touch textarea during live recognition —
                     // the overlay displays the streaming transcript.
@@ -403,10 +413,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         _showError(msg);
                     }
                 });
-            }
-
-            // Always init VoiceRecorder as fallback
-            if (window.VoiceRecorder) {
+			} else if (window.VoiceRecorder) {
                 window.VoiceRecorder.init({
                     onTranscription: _populateInput,
                     onError: _showError
@@ -414,7 +421,15 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             voiceBtn.addEventListener('click', () => {
-                if (useBrowserSTT) {
+				if (useSpeechLabSTT) {
+					if (window.SpeechLabRecorder.isRecording) {
+						window.SpeechLabRecorder.send();
+						voiceBtn.classList.remove('btn-active');
+					} else {
+						window.SpeechLabRecorder.start();
+						voiceBtn.classList.add('btn-active');
+					}
+				} else if (useBrowserSTT) {
                     if (window.SpeechToText.isActive) {
                         window.SpeechToText.stop();
                         voiceBtn.classList.remove('btn-active');

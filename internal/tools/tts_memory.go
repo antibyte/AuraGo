@@ -41,6 +41,8 @@ func TTSSynthesizeInMemoryContext(ctx context.Context, cfg TTSConfig, text strin
 		data, err = ttsPiper(cfg, text)
 	case "supertonic":
 		data, err = ttsSupertonic(cfg, text)
+	case "s2s", "speech_lab", "s2s-lab":
+		data, _, err = ttsSpeechLab(cfg, text)
 	default:
 		data, err = ttsGoogleContext(ctx, text, cfg.Language)
 	}

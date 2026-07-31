@@ -15,6 +15,7 @@ import (
 	"aurago/internal/llm"
 	"aurago/internal/realtimespeech"
 	"aurago/internal/security"
+	"aurago/internal/speechlab"
 	"aurago/internal/tools"
 	"aurago/internal/voice"
 
@@ -23,15 +24,21 @@ import (
 )
 
 type sipSpeechRecognizer struct {
-	cfg *config.Config
+	cfg           *config.Config
+	speechLab     *speechlab.Client
+	expectedASRID string
 }
 
-func (r *sipSpeechRecognizer) Recognize(ctx context.Context, wav []byte, _ int, _ string) (string, error) {
+func (r *sipSpeechRecognizer) Recognize(ctx context.Context, wav []byte, _ int, language string) (string, error) {
 	if r == nil || r.cfg == nil {
 		return "", fmt.Errorf("ASR is not configured")
 	}
 	if err := ctx.Err(); err != nil {
 		return "", err
+	}
+	if r.speechLab != nil {
+		result, err := r.speechLab.Transcribe(ctx, wav, language, r.expectedASRID)
+		return result.Text, err
 	}
 	text, _, err := tools.TranscribeAudio(ctx, "sip-call.wav", wav, r.cfg)
 	if err != nil {
@@ -41,7 +48,9 @@ func (r *sipSpeechRecognizer) Recognize(ctx context.Context, wav []byte, _ int, 
 }
 
 type sipSpeechSynthesizer struct {
-	cfg *config.Config
+	cfg           *config.Config
+	speechLab     *speechlab.Client
+	expectedTTSID string
 }
 
 func (s *sipSpeechSynthesizer) Synthesize(ctx context.Context, text, language string) ([]int16, int, error) {
@@ -54,8 +63,15 @@ func (s *sipSpeechSynthesizer) Synthesize(ctx context.Context, text, language st
 	if language == "auto" {
 		language = ""
 	}
+	if s.speechLab != nil {
+		data, _, err := s.speechLab.Synthesize(ctx, text, language, s.cfg.SpeechLab.Voice, s.expectedTTSID)
+		if err != nil {
+			return nil, 0, err
+		}
+		return voice.DecodeWAVPCM16Source(data)
+	}
 	ttsCfg := buildChatVoiceOutputTTSConfig(s.cfg, language)
-	// The telephone path always asks Supertonic for a directly decodable WAV.
+	// The telephone path always asks for a directly decodable WAV.
 	if strings.EqualFold(ttsCfg.Provider, "supertonic") {
 		ttsCfg.Supertonic.ResponseFormat = "wav"
 	}
@@ -292,7 +308,7 @@ func (b *voiceActionCaptureBroker) FinalResponse() string {
 	return strings.TrimSpace(b.final)
 }
 
-func (r *VoiceActionRunner) backendFactory(cfg config.SIPVoiceConfig) (voice.VoiceBackend, error) {
+func (r *VoiceActionRunner) backendFactory(ctx context.Context, cfg config.SIPVoiceConfig) (voice.VoiceBackend, error) {
 	if r == nil || r.server == nil {
 		return nil, fmt.Errorf("telephone agent runtime is unavailable")
 	}
@@ -333,21 +349,47 @@ func (r *VoiceActionRunner) backendFactory(cfg config.SIPVoiceConfig) (voice.Voi
 	frozenRunner := &snapshottedVoiceActionRunner{runner: r, snapshot: runtimeSnapshot}
 	switch cfg.Backend {
 	case "classic":
-		asrProvider := serverCfg.FindProvider(cfg.Classic.ASRProviderID)
-		if asrProvider == nil {
-			return nil, fmt.Errorf("telephone ASR provider is unavailable")
+		useSpeechLabASR := cfg.Classic.ASRMode == "speech_lab"
+		useSpeechLabTTS := cfg.Classic.TTSProvider == "speech_lab"
+		var speechLabReady speechlab.Ready
+		if useSpeechLabASR || useSpeechLabTTS {
+			if r.server.SpeechLab == nil {
+				return nil, fmt.Errorf("telephone Speech Lab runtime is unavailable")
+			}
+			var err error
+			speechLabReady, err = r.server.SpeechLab.Require(ctx, useSpeechLabASR, useSpeechLabTTS)
+			if err != nil {
+				return nil, err
+			}
 		}
 		voiceSnapshot := *serverCfg
-		voiceSnapshot.Whisper.Provider = asrProvider.ID
-		voiceSnapshot.Whisper.ProviderType = asrProvider.Type
-		voiceSnapshot.Whisper.BaseURL = asrProvider.BaseURL
-		voiceSnapshot.Whisper.APIKey = asrProvider.APIKey
-		voiceSnapshot.Whisper.Model = asrProvider.Model
-		voiceSnapshot.Whisper.Mode = cfg.Classic.ASRMode
-		voiceSnapshot.Whisper.StrictMode = true
+		if !useSpeechLabASR {
+			asrProvider := serverCfg.FindProvider(cfg.Classic.ASRProviderID)
+			if asrProvider == nil {
+				return nil, fmt.Errorf("telephone ASR provider is unavailable")
+			}
+			voiceSnapshot.Whisper.Provider = asrProvider.ID
+			voiceSnapshot.Whisper.ProviderType = asrProvider.Type
+			voiceSnapshot.Whisper.BaseURL = asrProvider.BaseURL
+			voiceSnapshot.Whisper.APIKey = asrProvider.APIKey
+			voiceSnapshot.Whisper.Model = asrProvider.Model
+			voiceSnapshot.Whisper.Mode = cfg.Classic.ASRMode
+			voiceSnapshot.Whisper.StrictMode = true
+		}
 		voiceSnapshot.TTS.Provider = cfg.Classic.TTSProvider
+		voiceSnapshot.SpeechLab.ChatOutputEnabled = false
+		recognizer := &sipSpeechRecognizer{cfg: &voiceSnapshot}
+		synthesizer := &sipSpeechSynthesizer{cfg: &voiceSnapshot}
+		if useSpeechLabASR {
+			recognizer.speechLab = r.server.SpeechLab
+			recognizer.expectedASRID = speechLabReady.ASRID
+		}
+		if useSpeechLabTTS {
+			synthesizer.speechLab = r.server.SpeechLab
+			synthesizer.expectedTTSID = speechLabReady.TTSID
+		}
 		return &voice.ClassicBackend{
-			Recognizer: &sipSpeechRecognizer{cfg: &voiceSnapshot}, Synthesizer: &sipSpeechSynthesizer{cfg: &voiceSnapshot}, Runner: frozenRunner,
+			Recognizer: recognizer, Synthesizer: synthesizer, Runner: frozenRunner,
 			MaxDuration: timeDurationSeconds(cfg.MaxCallDurationSeconds), IdleTimeout: timeIdleDurationSeconds(cfg.IdleTimeoutSeconds),
 			AgentProviderID: cfg.AgentProviderID, AdditionalPrompt: telephoneAgentPrompt(cfg),
 			Greeting: telephoneGreeting(cfg), FailureMessage: telephoneFailureMessage(cfg), GoodbyeMessage: telephoneGoodbyeMessage(cfg),

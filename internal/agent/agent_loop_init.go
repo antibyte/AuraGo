@@ -360,7 +360,7 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 
 	adaptiveFilteredTools := make([]string, 0)
 	ff := buildToolFeatureFlags(runCfg, toolingPolicy)
-	if voiceOutputSuppressed {
+	if voiceOutputSuppressed || speechLabOwnsAutomaticWebChatOutput(cfg, runCfg) {
 		ff.TTSEnabled = false
 	}
 	var schemaSnapshot *nativeToolSchemaSnapshot

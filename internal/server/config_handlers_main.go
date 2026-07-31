@@ -435,6 +435,12 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			jsonError(w, localLLMErr.Error(), http.StatusBadRequest)
 			return
 		}
+		config.NormalizeSpeechLabConfig(&validateCfg.SpeechLab, out)
+		if speechLabErr := config.ValidateSpeechLabConfig(validateCfg.SpeechLab); speechLabErr != nil {
+			s.Logger.Error("[Config] Invalid Speech Lab settings — save rejected", "error", speechLabErr)
+			jsonError(w, speechLabErr.Error(), http.StatusBadRequest)
+			return
+		}
 
 		// Mutual exclusion: Security Proxy (Caddy) and built-in HTTPS both want port 443.
 		// If the Security Proxy is enabled, AuraGo runs as a plain HTTP backend behind it.

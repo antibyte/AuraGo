@@ -668,7 +668,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 				return
 			}
 			if len(resp.Choices) > 0 {
-				maybeEmitChatVoiceOutputFallback(s.Cfg, s.Logger, runCfg, broker, resp.Choices[0].Message.Content)
+				maybeEmitChatVoiceOutputFallback(s.Cfg, s.Logger, runCfg, broker, resp.Choices[0].Message.Content, s.SpeechLab)
 			}
 
 			// Conclude SSE stream nicely
@@ -698,7 +698,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 				)
 			}
 			if len(resp.Choices) > 0 {
-				maybeEmitChatVoiceOutputFallback(s.Cfg, s.Logger, runCfg, broker, resp.Choices[0].Message.Content)
+				maybeEmitChatVoiceOutputFallback(s.Cfg, s.Logger, runCfg, broker, resp.Choices[0].Message.Content, s.SpeechLab)
 			}
 			if missionID != "" && s.ShortTermMem != nil {
 				missionToolResultsAfter := missionToolResultsBefore

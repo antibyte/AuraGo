@@ -4,12 +4,15 @@ import (
 	"encoding/json"
 	"io"
 	"log/slog"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
 	"aurago/internal/agent"
 	"aurago/internal/config"
 	"aurago/internal/i18n"
+	"aurago/internal/speechlab"
 	"aurago/internal/tools"
 	"aurago/ui"
 )
@@ -108,6 +111,103 @@ func TestMaybeEmitChatVoiceOutputFallbackSkipsWhenModelAlreadyEmittedTTS(t *test
 
 	if len(base.events) != 1 {
 		t.Fatalf("expected only the original audio event, got %+v", base.events)
+	}
+}
+
+func TestChatVoiceOutputSpeechLabPreflightsAndSnapshotsTTS(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/ready" {
+			http.NotFound(w, r)
+			return
+		}
+		_ = json.NewEncoder(w).Encode(speechlab.Ready{Ready: true, ASRID: "asr-local", TTSID: "tts-local", ASROK: true, TTSOK: true})
+	}))
+	defer upstream.Close()
+
+	original := chatVoiceOutputSynthesize
+	t.Cleanup(func() { chatVoiceOutputSynthesize = original })
+	var gotCfg tools.TTSConfig
+	chatVoiceOutputSynthesize = func(cfg tools.TTSConfig, _ string) (string, error) {
+		gotCfg = cfg
+		return "speech-lab.wav", nil
+	}
+	cfg := &config.Config{}
+	cfg.Directories.DataDir = t.TempDir()
+	cfg.SpeechLab = config.SpeechLabConfig{
+		Enabled: true, BaseURL: upstream.URL, Language: "de", Voice: "M1", TimeoutSeconds: 2, ChatOutputEnabled: true,
+	}
+	client, err := speechlab.NewClient(cfg.SpeechLab)
+	if err != nil {
+		t.Fatal(err)
+	}
+	base := &chatVoiceOutputCaptureBroker{}
+	broker := newChatVoiceOutputTrackingBroker(base)
+	maybeEmitChatVoiceOutputFallback(cfg, nil, agent.RunConfig{VoiceOutputActive: true, MessageSource: "web_chat"}, broker, "Hallo", client)
+
+	if gotCfg.Provider != "speech_lab" || gotCfg.SpeechLab.Client != client || gotCfg.SpeechLab.ExpectedTTSID != "tts-local" {
+		t.Fatalf("Speech Lab TTS snapshot = provider %q id %q client=%v", gotCfg.Provider, gotCfg.SpeechLab.ExpectedTTSID, gotCfg.SpeechLab.Client == client)
+	}
+	if len(base.events) != 1 || base.events[0].event != "audio" {
+		t.Fatalf("events = %+v", base.events)
+	}
+}
+
+func TestChatVoiceOutputSpeechLabFailureKeepsTextAndEmitsStructuredError(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		_ = json.NewEncoder(w).Encode(speechlab.Ready{ASRID: "asr-local", TTSID: "tts-local", ASROK: true, TTSOK: false, Message: "TTS warming"})
+	}))
+	defer upstream.Close()
+
+	original := chatVoiceOutputSynthesize
+	t.Cleanup(func() { chatVoiceOutputSynthesize = original })
+	chatVoiceOutputSynthesize = func(tools.TTSConfig, string) (string, error) {
+		t.Fatal("synthesis must not run when Speech Lab TTS is not ready")
+		return "", nil
+	}
+	cfg := &config.Config{}
+	cfg.SpeechLab = config.SpeechLabConfig{
+		Enabled: true, BaseURL: upstream.URL, Language: "de", Voice: "M1", TimeoutSeconds: 2, ChatOutputEnabled: true,
+	}
+	client, err := speechlab.NewClient(cfg.SpeechLab)
+	if err != nil {
+		t.Fatal(err)
+	}
+	base := &chatVoiceOutputCaptureBroker{}
+	broker := newChatVoiceOutputTrackingBroker(base)
+	maybeEmitChatVoiceOutputFallback(cfg, nil, agent.RunConfig{VoiceOutputActive: true, MessageSource: "web_chat"}, broker, "Die Textantwort bleibt sichtbar.", client)
+
+	if len(base.events) != 1 || base.events[0].event != "speech_lab_error" {
+		t.Fatalf("events = %+v", base.events)
+	}
+	if !strings.Contains(base.events[0].message, `"code":"speech_lab_not_ready"`) ||
+		!strings.Contains(base.events[0].message, `"config_path":"/config#speech_lab"`) {
+		t.Fatalf("structured Speech Lab error = %s", base.events[0].message)
+	}
+	if broker.hasTTSAudio() {
+		t.Fatal("failed Speech Lab synthesis was recorded as audio")
+	}
+}
+
+func TestChatVoiceOutputDoesNotUseSpeechLabWithoutChannelOptIn(t *testing.T) {
+	original := chatVoiceOutputSynthesize
+	t.Cleanup(func() { chatVoiceOutputSynthesize = original })
+	chatVoiceOutputSynthesize = func(tools.TTSConfig, string) (string, error) {
+		t.Fatal("Speech Lab must not synthesize when chat_output_enabled is false")
+		return "", nil
+	}
+	cfg := &config.Config{}
+	cfg.TTS.Provider = "speech_lab"
+	cfg.SpeechLab = config.SpeechLabConfig{
+		Enabled: true, BaseURL: "http://127.0.0.1:8765", Language: "de", Voice: "M1", TimeoutSeconds: 2,
+	}
+	base := &chatVoiceOutputCaptureBroker{}
+	maybeEmitChatVoiceOutputFallback(
+		cfg, nil, agent.RunConfig{VoiceOutputActive: true, MessageSource: "web_chat"},
+		newChatVoiceOutputTrackingBroker(base), "Hallo",
+	)
+	if len(base.events) != 0 {
+		t.Fatalf("unexpected chat voice events: %+v", base.events)
 	}
 }
 

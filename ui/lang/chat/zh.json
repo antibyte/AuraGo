@@ -251,5 +251,15 @@
   "chat.realtime_takeover_message": "另一个 AuraGo 标签页正在使用实时语音。是否将麦克风会话移到这里？",
   "chat.realtime_takeover_title": "麦克风已在使用",
   "chat.realtime_title": "实时语音",
-  "chat.realtime_unmute": "取消静音"
+  "chat.realtime_unmute": "取消静音",
+  "chat.speech_lab_local_recording": "本地 PCM/WAV 录音",
+  "chat.speech_lab_settings": "Speech Lab 设置",
+  "chat.speech_lab_audio_worklet_required": "本地 Speech Lab 录音需要 AudioWorklet。请在 Speech Lab 设置中选择其他输入方式。",
+  "chat.speech_lab_asr_not_ready": "Speech Lab ASR 尚未就绪。请检查“媒体”→“Speech Lab”。",
+  "chat.speech_lab_microphone_denied": "麦克风权限已被拒绝。",
+  "chat.speech_lab_recorder_start_failed": "Speech Lab 无法启动麦克风录音。",
+  "chat.speech_lab_no_audio": "未录制到语音。",
+  "chat.speech_lab_too_large": "Speech Lab 录音超过 8 MiB。请录制更短的消息。",
+  "chat.speech_lab_transcription_failed": "Speech Lab 转写失败。",
+  "chat.speech_lab_transcribe": "转写"
 }

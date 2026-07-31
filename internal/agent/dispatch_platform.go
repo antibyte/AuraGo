@@ -463,6 +463,9 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			}
 
 		case "tts":
+			if speechLabOwnsAutomaticWebChatOutput(cfg, RunConfig{MessageSource: dc.MessageSource, VoiceOutputActive: dc.VoiceOutputActive}) {
+				return `Tool Output: {"status":"error","message":"Automatic Speech Lab chat audio is emitted after the final text response; do not invoke TTS directly."}`
+			}
 			if !isTTSConfigured(cfg) {
 				return `Tool Output: {"status": "error", "message": "TTS is not configured. Set tts.provider in config.yaml."}`
 			}

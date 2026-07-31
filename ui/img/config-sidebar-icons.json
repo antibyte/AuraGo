@@ -893,6 +893,14 @@
       "row": 10,
       "source_type": "custom",
       "source": "AuraGo custom Precision sidebar icon set"
+    },
+    {
+      "key": "speech_lab",
+      "slot": 111,
+      "column": 1,
+      "row": 10,
+      "source_type": "custom",
+      "source": "AuraGo custom Precision sidebar icon set"
     }
   ]
 }

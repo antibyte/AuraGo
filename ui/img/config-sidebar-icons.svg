@@ -443,4 +443,8 @@
     <title>local_llm</title>
     <rect x="28" y="30" width="72" height="68" rx="14" fill="#9b7cf0" opacity=".18"/><path d="M28 52h72M44 30V20M64 30V20M84 30V20M44 108V98M64 108V98M84 108V98M28 48H18M28 66H18M28 84H18M110 48h-10M110 66h-10M110 84h-10" fill="none" stroke-linecap="round" stroke-width="6" stroke="#7da3c8"/><path d="M45 75c6-13 32-13 38 0M52 58h.1M76 58h.1" fill="none" stroke-linecap="round" stroke-width="6" stroke="#35c7d3"/>
   </g>
+  <g class="cfg-icon-cell" data-key="speech_lab" data-slot="111" transform="translate(128 1280)">
+    <title>speech_lab</title>
+    <rect x="51" y="24" width="26" height="46" rx="13" fill="#35c7d3" opacity=".2"/><path d="M51 47v10a13 13 0 0 0 26 0V47M37 56a27 27 0 0 0 54 0M64 83v21M50 104h28" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="6" stroke="#35c7d3"/><path d="M26 42v28M35 50v12M93 50v12M102 42v28" fill="none" stroke-linecap="round" stroke-width="5" stroke="#9b7cf0"/>
+  </g>
 </svg>

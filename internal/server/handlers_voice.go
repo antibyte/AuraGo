@@ -4,12 +4,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"aurago/internal/speechlab"
 	"aurago/internal/telegram"
 	"aurago/internal/tools"
 )
@@ -26,6 +28,11 @@ func handleVoiceUpload(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		cfg := s.ConfigSnapshot()
+		if cfg != nil && cfg.SpeechLab.Active() && cfg.SpeechLab.ChatInputEnabled {
+			handleSpeechLabVoiceUpload(s, w, r)
 			return
 		}
 
@@ -139,4 +146,74 @@ func handleVoiceUpload(s *Server) http.HandlerFunc {
 			Duration:      0, // Could extract from ffmpeg if needed
 		})
 	}
+}
+
+func handleSpeechLabVoiceUpload(s *Server, w http.ResponseWriter, r *http.Request) {
+	if s == nil || s.SpeechLab == nil {
+		jsonError(w, "Speech Lab is unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, speechlab.MaxASRBytes+64*1024)
+	mediaType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	if err != nil || !strings.HasPrefix(mediaType, "multipart/") {
+		jsonError(w, "Expected a multipart WAV upload", http.StatusBadRequest)
+		return
+	}
+	reader, err := r.MultipartReader()
+	if err != nil {
+		jsonError(w, "Invalid multipart upload", http.StatusBadRequest)
+		return
+	}
+	var wav []byte
+	for {
+		part, nextErr := reader.NextPart()
+		if nextErr == io.EOF {
+			break
+		}
+		if nextErr != nil {
+			jsonError(w, "Invalid multipart upload", http.StatusBadRequest)
+			return
+		}
+		if part.FormName() != "audio" {
+			_ = part.Close()
+			continue
+		}
+		if !strings.HasPrefix(strings.ToLower(part.Header.Get("Content-Type")), "audio/wav") {
+			_ = part.Close()
+			jsonError(w, "Speech Lab chat input requires WAV audio", http.StatusBadRequest)
+			return
+		}
+		wav, err = io.ReadAll(io.LimitReader(part, speechlab.MaxASRBytes+1))
+		_ = part.Close()
+		if err != nil || len(wav) > speechlab.MaxASRBytes {
+			jsonError(w, "Speech Lab audio exceeds 8 MiB", http.StatusRequestEntityTooLarge)
+			return
+		}
+		break
+	}
+	duration, err := speechlab.PCM16WAVDuration(wav)
+	if err != nil {
+		jsonError(w, "Speech Lab chat input requires mono PCM16 WAV at 16 kHz", http.StatusBadRequest)
+		return
+	}
+	if duration > 120*time.Second {
+		jsonError(w, "Speech Lab chat input is limited to 120 seconds", http.StatusRequestEntityTooLarge)
+		return
+	}
+	ready, err := s.SpeechLab.Require(r.Context(), true, false)
+	if err != nil {
+		writeSpeechLabError(w, err)
+		return
+	}
+	result, err := s.SpeechLab.Transcribe(r.Context(), wav, s.ConfigSnapshot().SpeechLab.Language, ready.ASRID)
+	if err != nil {
+		writeSpeechLabError(w, err)
+		return
+	}
+	if s.Logger != nil {
+		s.Logger.Info("Speech Lab chat transcription succeeded", "transcription_length", len(result.Text), "asr_id", result.ASRID)
+	}
+	writeSpeechLabJSON(w, http.StatusOK, VoiceUploadResponse{
+		Success: "true", Transcription: result.Text, Duration: int(duration / time.Second),
+	})
 }

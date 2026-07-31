@@ -169,7 +169,7 @@ func TestSIPAgentPreflightRejectsUnavailableToolScope(t *testing.T) {
 		t.Fatalf("status=%d cache-control=%q body=%s", recorder.Code, recorder.Header().Get("Cache-Control"), recorder.Body.String())
 	}
 	runner := NewVoiceActionRunner(server)
-	if _, err := runner.backendFactory(voiceCfg); err == nil || !strings.Contains(err.Error(), "unknown or unavailable") {
+	if _, err := runner.backendFactory(context.Background(), voiceCfg); err == nil || !strings.Contains(err.Error(), "unknown or unavailable") {
 		t.Fatalf("backend preflight error = %v", err)
 	}
 }

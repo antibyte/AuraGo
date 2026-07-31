@@ -251,5 +251,15 @@
   "chat.realtime_takeover_message": "Tale i sanntid er aktiv i en annen AuraGo-fane. Flytte mikrofonøkten hit?",
   "chat.realtime_takeover_title": "Mikrofonen er allerede i bruk",
   "chat.realtime_title": "Direkte tale",
-  "chat.realtime_unmute": "Opphev demping"
+  "chat.realtime_unmute": "Opphev demping",
+  "chat.speech_lab_local_recording": "Lokalt PCM/WAV-opptak",
+  "chat.speech_lab_settings": "Innstillinger for Speech Lab",
+  "chat.speech_lab_audio_worklet_required": "Lokalt Speech Lab-opptak krever AudioWorklet. Velg en annen inngang i Speech Lab-innstillingene.",
+  "chat.speech_lab_asr_not_ready": "Speech Lab ASR er ikke klart. Kontroller Media → Speech Lab.",
+  "chat.speech_lab_microphone_denied": "Tilgang til mikrofonen ble avvist.",
+  "chat.speech_lab_recorder_start_failed": "Speech Lab kunne ikke starte mikrofonopptaket.",
+  "chat.speech_lab_no_audio": "Ingen tale ble tatt opp.",
+  "chat.speech_lab_too_large": "Speech Lab-opptaket overstiger 8 MiB. Ta opp en kortere melding.",
+  "chat.speech_lab_transcription_failed": "Speech Lab-transkripsjonen mislyktes.",
+  "chat.speech_lab_transcribe": "Transkriber"
 }

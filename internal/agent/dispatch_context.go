@@ -58,6 +58,7 @@ type DispatchContext struct {
 	WorkspaceSearch      *services.WorkspaceSearchService
 	ExecutionTimeMs      int64
 	MessageSource        string
+	VoiceOutputActive    bool
 	Broker               FeedbackBroker
 	UserContext          string
 	AllowedTools         map[string]struct{}

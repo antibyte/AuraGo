@@ -251,5 +251,15 @@
   "chat.realtime_takeover_message": "दूसरे AuraGo टैब में रीयलटाइम वाणी सक्रिय है। माइक्रोफ़ोन सत्र यहाँ ले आएँ?",
   "chat.realtime_takeover_title": "माइक्रोफ़ोन पहले से उपयोग में है",
   "chat.realtime_title": "लाइव वाणी",
-  "chat.realtime_unmute": "म्यूट हटाएँ"
+  "chat.realtime_unmute": "म्यूट हटाएँ",
+  "chat.speech_lab_local_recording": "स्थानीय PCM/WAV रिकॉर्डिंग",
+  "chat.speech_lab_settings": "Speech Lab सेटिंग्स",
+  "chat.speech_lab_audio_worklet_required": "स्थानीय Speech Lab रिकॉर्डिंग के लिए AudioWorklet आवश्यक है। Speech Lab सेटिंग्स में कोई अन्य इनपुट चुनें।",
+  "chat.speech_lab_asr_not_ready": "Speech Lab ASR तैयार नहीं है। मीडिया → Speech Lab जाँचें।",
+  "chat.speech_lab_microphone_denied": "माइक्रोफ़ोन की अनुमति अस्वीकार कर दी गई।",
+  "chat.speech_lab_recorder_start_failed": "Speech Lab माइक्रोफ़ोन रिकॉर्डर शुरू नहीं कर सका।",
+  "chat.speech_lab_no_audio": "कोई वाक् ऑडियो रिकॉर्ड नहीं हुआ।",
+  "chat.speech_lab_too_large": "Speech Lab रिकॉर्डिंग 8 MiB से बड़ी है। छोटा संदेश रिकॉर्ड करें।",
+  "chat.speech_lab_transcription_failed": "Speech Lab ट्रांसक्रिप्शन विफल रहा।",
+  "chat.speech_lab_transcribe": "ट्रांसक्राइब करें"
 }

@@ -48,17 +48,30 @@ func validateSIPAgentReferences(cfg *config.Config, voiceCfg config.SIPVoiceConf
 	}
 	switch voiceCfg.Backend {
 	case "classic":
-		asrProvider := cfg.FindProvider(voiceCfg.Classic.ASRProviderID)
-		if asrProvider == nil || strings.TrimSpace(asrProvider.Model) == "" {
-			return fmt.Errorf("telephone ASR provider is unavailable")
+		if voiceCfg.Classic.ASRMode == "speech_lab" {
+			if !cfg.SpeechLab.Active() || !cfg.SpeechLab.SIPEnabled {
+				return fmt.Errorf("telephone Speech Lab ASR is unavailable")
+			}
+		} else {
+			asrProvider := cfg.FindProvider(voiceCfg.Classic.ASRProviderID)
+			if asrProvider == nil || strings.TrimSpace(asrProvider.Model) == "" {
+				return fmt.Errorf("telephone ASR provider is unavailable")
+			}
+			if strings.TrimSpace(asrProvider.APIKey) == "" && !isLocalTelephoneProvider(asrProvider.Type) {
+				return fmt.Errorf("telephone ASR credentials are unavailable")
+			}
 		}
-		if strings.TrimSpace(asrProvider.APIKey) == "" && !isLocalTelephoneProvider(asrProvider.Type) {
-			return fmt.Errorf("telephone ASR credentials are unavailable")
-		}
-		ttsCfg := *cfg
-		ttsCfg.TTS.Provider = voiceCfg.Classic.TTSProvider
-		if !chatVoiceOutputTTSConfigured(&ttsCfg) {
-			return fmt.Errorf("telephone TTS provider is unavailable")
+		if voiceCfg.Classic.TTSProvider == "speech_lab" {
+			if !cfg.SpeechLab.Active() || !cfg.SpeechLab.SIPEnabled {
+				return fmt.Errorf("telephone Speech Lab TTS is unavailable")
+			}
+		} else {
+			ttsCfg := *cfg
+			ttsCfg.SpeechLab.ChatOutputEnabled = false
+			ttsCfg.TTS.Provider = voiceCfg.Classic.TTSProvider
+			if !chatVoiceOutputTTSConfigured(&ttsCfg) {
+				return fmt.Errorf("telephone TTS provider is unavailable")
+			}
 		}
 	case "gemini_live":
 		profile, ok := profileFromConfig(cfg.RealtimeSpeech, voiceCfg.RealtimeProfileID)

@@ -251,5 +251,15 @@
   "chat.realtime_takeover_message": "別のAuraGoタブでリアルタイム音声が有効です。マイクセッションをここに移動しますか？",
   "chat.realtime_takeover_title": "マイクはすでに使用中です",
   "chat.realtime_title": "ライブ音声",
-  "chat.realtime_unmute": "ミュート解除"
+  "chat.realtime_unmute": "ミュート解除",
+  "chat.speech_lab_local_recording": "ローカル PCM/WAV 録音",
+  "chat.speech_lab_settings": "Speech Lab 設定",
+  "chat.speech_lab_audio_worklet_required": "ローカル Speech Lab 録音には AudioWorklet が必要です。Speech Lab 設定で別の入力を選択してください。",
+  "chat.speech_lab_asr_not_ready": "Speech Lab ASR の準備ができていません。メディア → Speech Lab を確認してください。",
+  "chat.speech_lab_microphone_denied": "マイクの使用が拒否されました。",
+  "chat.speech_lab_recorder_start_failed": "Speech Lab でマイク録音を開始できませんでした。",
+  "chat.speech_lab_no_audio": "音声が録音されませんでした。",
+  "chat.speech_lab_too_large": "Speech Lab の録音が 8 MiB を超えています。短いメッセージを録音してください。",
+  "chat.speech_lab_transcription_failed": "Speech Lab の文字起こしに失敗しました。",
+  "chat.speech_lab_transcribe": "文字起こし"
 }

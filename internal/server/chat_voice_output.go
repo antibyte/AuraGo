@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -13,6 +14,7 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/i18n"
 	"aurago/internal/security"
+	"aurago/internal/speechlab"
 	"aurago/internal/tools"
 )
 
@@ -87,7 +89,7 @@ func (b *chatVoiceOutputTrackingBroker) hasTTSAudio() bool {
 	return b.ttsAudio
 }
 
-func maybeEmitChatVoiceOutputFallback(cfg *config.Config, logger *slog.Logger, runCfg agent.RunConfig, broker *chatVoiceOutputTrackingBroker, content string) {
+func maybeEmitChatVoiceOutputFallback(cfg *config.Config, logger *slog.Logger, runCfg agent.RunConfig, broker *chatVoiceOutputTrackingBroker, content string, clients ...*speechlab.Client) {
 	if cfg == nil || broker == nil || broker.hasTTSAudio() {
 		return
 	}
@@ -100,11 +102,35 @@ func maybeEmitChatVoiceOutputFallback(cfg *config.Config, logger *slog.Logger, r
 		return
 	}
 
-	ttsCfg := buildChatVoiceOutputTTSConfig(cfg, "")
+	ttsCfg := buildChatVoiceOutputTTSConfig(cfg, "", clients...)
+	if strings.EqualFold(ttsCfg.Provider, "speech_lab") || strings.EqualFold(ttsCfg.Provider, "s2s") {
+		client := ttsCfg.SpeechLab.Client
+		if client == nil {
+			var err error
+			client, err = speechlab.NewClient(cfg.SpeechLab)
+			if err != nil {
+				emitChatSpeechLabError(broker, err)
+				return
+			}
+			ttsCfg.SpeechLab.Client = client
+		}
+		ready, err := client.Require(context.Background(), false, true)
+		if err != nil {
+			if logger != nil {
+				logger.Warn("Chat Speech Lab TTS is not ready", "code", speechlab.ErrorCode(err))
+			}
+			emitChatSpeechLabError(broker, err)
+			return
+		}
+		ttsCfg.SpeechLab.ExpectedTTSID = ready.TTSID
+	}
 	filename, err := chatVoiceOutputSynthesize(ttsCfg, text)
 	if err != nil {
 		if logger != nil {
-			logger.Warn("Chat voice output fallback failed", "error", err)
+			logger.Warn("Chat voice output fallback failed", "code", speechlab.ErrorCode(err))
+		}
+		if cfg.SpeechLab.ChatOutputEnabled {
+			emitChatSpeechLabError(broker, err)
 		}
 		return
 	}
@@ -127,6 +153,18 @@ func maybeEmitChatVoiceOutputFallback(cfg *config.Config, logger *slog.Logger, r
 		return
 	}
 	broker.Send("audio", string(payload))
+}
+
+func emitChatSpeechLabError(broker *chatVoiceOutputTrackingBroker, err error) {
+	if broker == nil {
+		return
+	}
+	payload, _ := json.Marshal(map[string]string{
+		"code":        speechlab.ErrorCode(err),
+		"message":     "Speech Lab audio is unavailable. The text response is still available.",
+		"config_path": "/config#speech_lab",
+	})
+	broker.Send("speech_lab_error", string(payload))
 }
 
 func chatVoiceOutputText(content string, language ...string) string {
@@ -318,10 +356,16 @@ func chatVoiceLimitRunes(text string, limit int) string {
 	return strings.TrimSpace(string(runes[:limit]))
 }
 
-func buildChatVoiceOutputTTSConfig(cfg *config.Config, language string) tools.TTSConfig {
+func buildChatVoiceOutputTTSConfig(cfg *config.Config, language string, clients ...*speechlab.Client) tools.TTSConfig {
 	provider := cfg.TTS.Provider
+	if isSpeechLabTTSProvider(provider) && !(cfg.SpeechLab.Active() && cfg.SpeechLab.ChatOutputEnabled) {
+		provider = ""
+	}
 	if provider == "" && cfg.TTS.Piper.Enabled {
 		provider = "piper"
+	}
+	if cfg.SpeechLab.Active() && cfg.SpeechLab.ChatOutputEnabled {
+		provider = "speech_lab"
 	}
 
 	ttsCfg := tools.TTSConfig{
@@ -333,6 +377,9 @@ func buildChatVoiceOutputTTSConfig(cfg *config.Config, language string) tools.TT
 	}
 	if ttsCfg.Language == "" {
 		ttsCfg.Language = cfg.TTS.Language
+	}
+	if ttsCfg.Language == "" {
+		ttsCfg.Language = cfg.SpeechLab.Language
 	}
 	ttsCfg.ElevenLabs.APIKey = cfg.TTS.ElevenLabs.APIKey
 	ttsCfg.ElevenLabs.VoiceID = cfg.TTS.ElevenLabs.VoiceID
@@ -353,6 +400,13 @@ func buildChatVoiceOutputTTSConfig(cfg *config.Config, language string) tools.TT
 	ttsCfg.Supertonic.Speed = cfg.TTS.Supertonic.Speed
 	ttsCfg.Supertonic.Steps = cfg.TTS.Supertonic.Steps
 	ttsCfg.Supertonic.ResponseFormat = cfg.TTS.Supertonic.ResponseFormat
+	ttsCfg.SpeechLab.BaseURL = cfg.SpeechLab.BaseURL
+	ttsCfg.SpeechLab.Language = cfg.SpeechLab.Language
+	ttsCfg.SpeechLab.Voice = cfg.SpeechLab.Voice
+	ttsCfg.SpeechLab.TimeoutSeconds = cfg.SpeechLab.TimeoutSeconds
+	if len(clients) > 0 {
+		ttsCfg.SpeechLab.Client = clients[0]
+	}
 	return ttsCfg
 }
 
@@ -361,8 +415,14 @@ func chatVoiceOutputTTSConfigured(cfg *config.Config) bool {
 		return false
 	}
 	provider := strings.ToLower(strings.TrimSpace(cfg.TTS.Provider))
+	if isSpeechLabTTSProvider(provider) && !(cfg.SpeechLab.Active() && cfg.SpeechLab.ChatOutputEnabled) {
+		provider = ""
+	}
 	if provider == "" && cfg.TTS.Piper.Enabled {
 		provider = "piper"
+	}
+	if cfg.SpeechLab.Active() && cfg.SpeechLab.ChatOutputEnabled {
+		provider = "speech_lab"
 	}
 
 	switch provider {
@@ -379,6 +439,17 @@ func chatVoiceOutputTTSConfigured(cfg *config.Config) bool {
 		return cfg.TTS.Piper.Enabled
 	case "supertonic":
 		return strings.TrimSpace(cfg.TTS.Supertonic.URL) != ""
+	case "s2s", "speech_lab", "s2s-lab":
+		return cfg.SpeechLab.Active()
+	default:
+		return false
+	}
+}
+
+func isSpeechLabTTSProvider(provider string) bool {
+	switch strings.ToLower(strings.TrimSpace(provider)) {
+	case "s2s", "speech_lab", "s2s-lab":
+		return true
 	default:
 		return false
 	}

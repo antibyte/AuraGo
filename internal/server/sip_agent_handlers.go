@@ -131,6 +131,11 @@ func handleSIPAgentCatalog(s *Server) http.HandlerFunc {
 			})
 		}
 		ttsProviders := []string{"google", "elevenlabs", "minimax", "mistral", "piper", "supertonic"}
+		asrModes := []string{"whisper", "multimodal", "local"}
+		if cfg.SpeechLab.Active() && cfg.SpeechLab.SIPEnabled {
+			ttsProviders = append(ttsProviders, "speech_lab")
+			asrModes = append(asrModes, "speech_lab")
+		}
 		tts := make([]sipAgentNamedOption, 0, len(ttsProviders))
 		for _, provider := range ttsProviders {
 			testCfg := *cfg
@@ -141,7 +146,7 @@ func handleSIPAgentCatalog(s *Server) http.HandlerFunc {
 			"providers":         providers,
 			"realtime_profiles": realtime,
 			"tts_providers":     tts,
-			"asr_modes":         []string{"whisper", "multimodal", "local"},
+			"asr_modes":         asrModes,
 			"tools":             sipAgentToolCatalog(s, cfg),
 		})
 	}
@@ -349,7 +354,7 @@ func runSIPAgentLiveTest(ctx context.Context, s *Server, cfg *config.Config, voi
 		if s == nil || s.VoiceActionRunner == nil {
 			return fmt.Errorf("telephone agent runtime is unavailable")
 		}
-		backend, err := s.VoiceActionRunner.backendFactory(voiceCfg)
+		backend, err := s.VoiceActionRunner.backendFactory(ctx, voiceCfg)
 		if err != nil {
 			return err
 		}

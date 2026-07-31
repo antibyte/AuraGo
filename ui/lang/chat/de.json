@@ -251,5 +251,15 @@
   "chat.realtime_takeover_message": "Echtzeit-Sprache ist in einem anderen AuraGo-Tab aktiv. Soll die Mikrofonsitzung hierher verschoben werden?",
   "chat.realtime_takeover_title": "Mikrofon wird bereits verwendet",
   "chat.realtime_title": "Live-Sprache",
-  "chat.realtime_unmute": "Stummschaltung aufheben"
+  "chat.realtime_unmute": "Stummschaltung aufheben",
+  "chat.speech_lab_local_recording": "Lokale PCM/WAV-Aufnahme",
+  "chat.speech_lab_settings": "Speech-Lab-Einstellungen",
+  "chat.speech_lab_audio_worklet_required": "Die lokale Speech-Lab-Aufnahme benötigt AudioWorklet. Wähle in den Speech-Lab-Einstellungen eine andere Eingabe.",
+  "chat.speech_lab_asr_not_ready": "Speech-Lab-ASR ist nicht bereit. Prüfe Medien → Speech Lab.",
+  "chat.speech_lab_microphone_denied": "Der Mikrofonzugriff wurde abgelehnt.",
+  "chat.speech_lab_recorder_start_failed": "Speech Lab konnte die Mikrofonaufnahme nicht starten.",
+  "chat.speech_lab_no_audio": "Es wurde keine Sprache aufgenommen.",
+  "chat.speech_lab_too_large": "Die Speech-Lab-Aufnahme überschreitet 8 MiB. Nimm eine kürzere Nachricht auf.",
+  "chat.speech_lab_transcription_failed": "Die Speech-Lab-Transkription ist fehlgeschlagen.",
+  "chat.speech_lab_transcribe": "Transkribieren"
 }

@@ -251,5 +251,15 @@
   "chat.realtime_takeover_message": "A fala em tempo real está ativa noutro separador do AuraGo. Mover a sessão do microfone para aqui?",
   "chat.realtime_takeover_title": "O microfone já está a ser utilizado",
   "chat.realtime_title": "Fala ao vivo",
-  "chat.realtime_unmute": "Ativar som"
+  "chat.realtime_unmute": "Ativar som",
+  "chat.speech_lab_local_recording": "Gravação PCM/WAV local",
+  "chat.speech_lab_settings": "Definições do Speech Lab",
+  "chat.speech_lab_audio_worklet_required": "A gravação local do Speech Lab requer AudioWorklet. Escolha outra entrada nas definições do Speech Lab.",
+  "chat.speech_lab_asr_not_ready": "O ASR do Speech Lab não está pronto. Verifique Multimédia → Speech Lab.",
+  "chat.speech_lab_microphone_denied": "A permissão do microfone foi recusada.",
+  "chat.speech_lab_recorder_start_failed": "O Speech Lab não conseguiu iniciar a gravação do microfone.",
+  "chat.speech_lab_no_audio": "Não foi gravada nenhuma fala.",
+  "chat.speech_lab_too_large": "A gravação do Speech Lab excede 8 MiB. Grave uma mensagem mais curta.",
+  "chat.speech_lab_transcription_failed": "A transcrição do Speech Lab falhou.",
+  "chat.speech_lab_transcribe": "Transcrever"
 }

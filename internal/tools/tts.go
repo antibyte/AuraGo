@@ -16,6 +16,9 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"aurago/internal/config"
+	"aurago/internal/speechlab"
 )
 
 // TTSConfig holds TTS provider configuration.
@@ -54,6 +57,15 @@ type TTSConfig struct {
 		APIKey  string
 		VoiceID string // preset or custom Mistral voice ID
 		ModelID string // e.g. "voxtral-mini-tts-2603"
+	}
+	// SpeechLab is used when Provider is "s2s" / "speech_lab".
+	SpeechLab struct {
+		BaseURL        string
+		Language       string
+		Voice          string
+		TimeoutSeconds int
+		Client         *speechlab.Client
+		ExpectedTTSID  string
 	}
 }
 
@@ -105,6 +117,8 @@ func TTSSynthesize(cfg TTSConfig, text string) (string, error) {
 		audioData, err = ttsPiper(cfg, text)
 	case "supertonic":
 		audioData, err = ttsSupertonic(cfg, text)
+	case "s2s", "speech_lab", "s2s-lab":
+		audioData, _, err = ttsSpeechLab(cfg, text)
 	default: // "google" or fallback
 		audioData, err = ttsGoogleContext(ttsRequestContext(cfg), text, cfg.Language)
 	}
@@ -171,6 +185,14 @@ func ttsCacheKey(cfg TTSConfig, text string) string {
 			supertonicResponseFormat(cfg.Supertonic.ResponseFormat),
 			text,
 		}, "\x00")
+	case "s2s", "speech_lab", "s2s-lab":
+		return strings.Join([]string{
+			provider,
+			cfg.Language,
+			cfg.SpeechLab.BaseURL,
+			cfg.SpeechLab.Voice,
+			text,
+		}, "\x00")
 	default:
 		return cfg.Provider + cfg.Language + text
 	}
@@ -182,9 +204,43 @@ func ttsAudioExtension(cfg TTSConfig) string {
 		return ".wav"
 	case "supertonic":
 		return "." + supertonicResponseFormat(cfg.Supertonic.ResponseFormat)
+	case "s2s", "speech_lab", "s2s-lab":
+		return ".wav"
 	default:
 		return ".mp3"
 	}
+}
+
+func ttsSpeechLab(cfg TTSConfig, text string) ([]byte, string, error) {
+	lab := config.SpeechLabConfig{
+		Enabled:        true,
+		BaseURL:        cfg.SpeechLab.BaseURL,
+		Language:       speechLabFirstNonEmpty(cfg.Language, cfg.SpeechLab.Language),
+		Voice:          speechLabFirstNonEmpty(cfg.SpeechLab.Voice, "M1"),
+		TimeoutSeconds: cfg.SpeechLab.TimeoutSeconds,
+	}
+	if lab.BaseURL == "" {
+		return nil, "", fmt.Errorf("speech_lab base_url is required for provider s2s")
+	}
+	client := cfg.SpeechLab.Client
+	if client == nil {
+		var err error
+		client, err = speechlab.NewClient(lab)
+		if err != nil {
+			return nil, "", err
+		}
+	}
+	data, _, err := client.Synthesize(ttsRequestContext(cfg), text, lab.Language, lab.Voice, cfg.SpeechLab.ExpectedTTSID)
+	return data, ".wav", err
+}
+
+func speechLabFirstNonEmpty(values ...string) string {
+	for _, v := range values {
+		if strings.TrimSpace(v) != "" {
+			return strings.TrimSpace(v)
+		}
+	}
+	return ""
 }
 
 type ttsCacheFile struct {

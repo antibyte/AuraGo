@@ -20,6 +20,7 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/security"
 	"aurago/internal/sipphone"
+	"aurago/internal/speechlab"
 )
 
 const (
@@ -1040,7 +1041,12 @@ func writeSIPJSON(w http.ResponseWriter, value interface{}) {
 }
 
 func writeSIPManagerError(w http.ResponseWriter, err error) {
+	var speechLabNotReady *speechlab.NotReadyError
 	switch {
+	case errors.As(err, &speechLabNotReady):
+		writeSpeechLabJSON(w, http.StatusServiceUnavailable, map[string]any{
+			"error": speechlab.ErrorCode(err), "message": speechLabNotReady.Error(), "ready": speechLabNotReady.Status,
+		})
 	case errors.Is(err, sipphone.ErrDisabled):
 		jsonError(w, err.Error(), http.StatusServiceUnavailable)
 	case errors.Is(err, sipphone.ErrReadOnly), errors.Is(err, sipphone.ErrPermissionDenied):

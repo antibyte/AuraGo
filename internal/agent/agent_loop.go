@@ -235,6 +235,7 @@ func (s *agentLoopState) makeDispatchContext(currentLogger *slog.Logger) *Dispat
 		PreparationService:   s.runCfg.PreparationService,
 		WorkspaceSearch:      s.runCfg.WorkspaceSearch,
 		MessageSource:        s.runCfg.MessageSource,
+		VoiceOutputActive:    s.runCfg.VoiceOutputActive,
 		Broker:               s.broker,
 		AllowedTools:         normalizedAllowedToolSet(s.runCfg.AllowedTools),
 		ToolScopeRestricted:  s.runCfg.AllowedTools != nil,

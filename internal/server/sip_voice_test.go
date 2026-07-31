@@ -2,11 +2,15 @@ package server
 
 import (
 	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"sync/atomic"
 	"testing"
 
 	"aurago/internal/config"
+	"aurago/internal/speechlab"
 	"aurago/internal/voice"
 )
 
@@ -66,7 +70,7 @@ func TestTelephoneBackendFreezesLLMConfigToolSchemasAndASRMode(t *testing.T) {
 	server := &Server{Cfg: cfg}
 	runner := NewVoiceActionRunner(server)
 
-	backend, err := runner.backendFactory(voiceCfg)
+	backend, err := runner.backendFactory(context.Background(), voiceCfg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -96,6 +100,113 @@ func TestTelephoneBackendFreezesLLMConfigToolSchemasAndASRMode(t *testing.T) {
 	server.Cfg = &replacement
 	if frozenRunner.snapshot.config.LLM.Model != "agent-model" {
 		t.Fatalf("active call LLM snapshot changed to %q", frozenRunner.snapshot.config.LLM.Model)
+	}
+}
+
+func TestTelephoneSpeechLabSupportsLocalAndHybridSnapshots(t *testing.T) {
+	tests := []struct {
+		name             string
+		asrMode          string
+		ttsProvider      string
+		ready            speechlab.Ready
+		wantLabASR       bool
+		wantLabTTS       bool
+		clearASRProvider bool
+	}{
+		{
+			name: "local ASR and TTS", asrMode: "speech_lab", ttsProvider: "speech_lab",
+			ready:      speechlab.Ready{Ready: true, ASRID: "asr-local", TTSID: "tts-local", ASROK: true, TTSOK: true},
+			wantLabASR: true, wantLabTTS: true, clearASRProvider: true,
+		},
+		{
+			name: "local ASR and existing TTS", asrMode: "speech_lab", ttsProvider: "google",
+			ready:      speechlab.Ready{ASRID: "asr-local", TTSID: "tts-offline", ASROK: true, TTSOK: false},
+			wantLabASR: true, clearASRProvider: true,
+		},
+		{
+			name: "existing ASR and local TTS", asrMode: "whisper", ttsProvider: "speech_lab",
+			ready:      speechlab.Ready{ASRID: "asr-offline", TTSID: "tts-local", ASROK: false, TTSOK: true},
+			wantLabTTS: true,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path != "/ready" {
+					http.NotFound(w, r)
+					return
+				}
+				status := http.StatusOK
+				if !test.ready.Ready {
+					status = http.StatusServiceUnavailable
+				}
+				w.WriteHeader(status)
+				_ = json.NewEncoder(w).Encode(test.ready)
+			}))
+			t.Cleanup(upstream.Close)
+
+			cfg := telephoneAgentTestConfig(t)
+			cfg.SpeechLab = config.SpeechLabConfig{
+				Enabled: true, BaseURL: upstream.URL, Language: "de", Voice: "M1", TimeoutSeconds: 2, SIPEnabled: true,
+			}
+			voiceCfg := effectiveSIPVoiceConfig(cfg, cfg.SIP.Voice)
+			voiceCfg.Classic.ASRMode = test.asrMode
+			voiceCfg.Classic.TTSProvider = test.ttsProvider
+			if test.clearASRProvider {
+				voiceCfg.Classic.ASRProviderID = ""
+			}
+			client, err := speechlab.NewClient(cfg.SpeechLab)
+			if err != nil {
+				t.Fatal(err)
+			}
+			runner := NewVoiceActionRunner(&Server{Cfg: cfg, SpeechLab: client})
+			backend, err := runner.backendFactory(context.Background(), voiceCfg)
+			if err != nil {
+				t.Fatal(err)
+			}
+			classic := backend.(*voice.ClassicBackend)
+			recognizer := classic.Recognizer.(*sipSpeechRecognizer)
+			synthesizer := classic.Synthesizer.(*sipSpeechSynthesizer)
+			if (recognizer.speechLab != nil) != test.wantLabASR || (synthesizer.speechLab != nil) != test.wantLabTTS {
+				t.Fatalf("Speech Lab adapters: ASR=%v TTS=%v", recognizer.speechLab != nil, synthesizer.speechLab != nil)
+			}
+			if test.wantLabASR && recognizer.expectedASRID != test.ready.ASRID {
+				t.Fatalf("ASR snapshot ID = %q", recognizer.expectedASRID)
+			}
+			if test.wantLabTTS && synthesizer.expectedTTSID != test.ready.TTSID {
+				t.Fatalf("TTS snapshot ID = %q", synthesizer.expectedTTSID)
+			}
+		})
+	}
+}
+
+func TestTelephoneSpeechLabPreflightFailsClosed(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		_ = json.NewEncoder(w).Encode(speechlab.Ready{ASRID: "asr-local", TTSID: "tts-local", ASROK: false, TTSOK: true, Message: "ASR warming"})
+	}))
+	defer upstream.Close()
+
+	cfg := telephoneAgentTestConfig(t)
+	cfg.SpeechLab = config.SpeechLabConfig{
+		Enabled: true, BaseURL: upstream.URL, Language: "de", Voice: "M1", TimeoutSeconds: 2, SIPEnabled: true,
+	}
+	voiceCfg := effectiveSIPVoiceConfig(cfg, cfg.SIP.Voice)
+	voiceCfg.Classic.ASRMode = "speech_lab"
+	voiceCfg.Classic.ASRProviderID = ""
+	client, err := speechlab.NewClient(cfg.SpeechLab)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runner := NewVoiceActionRunner(&Server{Cfg: cfg, SpeechLab: client})
+	_, err = runner.backendFactory(context.Background(), voiceCfg)
+	if speechlab.ErrorCode(err) != "speech_lab_not_ready" {
+		t.Fatalf("preflight error = %v", err)
+	}
+
+	cfg.SpeechLab.SIPEnabled = false
+	if err := validateSIPAgentReferences(cfg, voiceCfg); err == nil || !strings.Contains(err.Error(), "Speech Lab ASR is unavailable") {
+		t.Fatalf("disabled Speech Lab validation error = %v", err)
 	}
 }
 

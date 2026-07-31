@@ -858,8 +858,11 @@ type Config struct {
 	Runtime        Runtime              `yaml:"-" json:"-"` // runtime-only: detected environment capabilities
 	Providers      []ProviderEntry      `yaml:"providers"`
 	RealtimeSpeech RealtimeSpeechConfig `yaml:"realtime_speech" json:"realtime_speech"`
-	SIP            SIPConfig            `yaml:"sip" json:"sip"`
-	ModelCatalog   ModelCatalogConfig   `yaml:"model_catalog" json:"model_catalog"`
+	// SpeechLab integrates the external s2s-vulkan orchestrator for local ASR/TTS
+	// selection (catalog/suggestions) and stable gateway endpoints for chat/SIP.
+	SpeechLab    SpeechLabConfig    `yaml:"speech_lab" json:"speech_lab"`
+	SIP          SIPConfig          `yaml:"sip" json:"sip"`
+	ModelCatalog ModelCatalogConfig `yaml:"model_catalog" json:"model_catalog"`
 	EmailAccounts  []EmailAccount       `yaml:"email_accounts"`
 	Server         struct {
 		Host                 string `yaml:"host"`
@@ -1575,7 +1578,7 @@ type Config struct {
 		APIToken string `yaml:"-" json:"-"`
 	} `yaml:"paperless_ngx"`
 	TTS struct {
-		Provider            string `yaml:"provider"`              // "google", "elevenlabs", "minimax", "mistral", "piper", or "supertonic"
+		Provider            string `yaml:"provider"`              // "google", "elevenlabs", "minimax", "mistral", "piper", "supertonic", or "s2s"
 		Language            string `yaml:"language"`              // BCP-47 language code for Google TTS (e.g. "de", "en")
 		CacheRetentionHours int    `yaml:"cache_retention_hours"` // remove cached TTS files older than this many hours (0 disables age-based cleanup)
 		CacheMaxFiles       int    `yaml:"cache_max_files"`       // max cached TTS files to retain (0 disables count-based cleanup)

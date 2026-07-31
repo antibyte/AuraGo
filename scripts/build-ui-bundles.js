@@ -52,6 +52,7 @@ const chatRuntimeParts = [
   'ui/js/chat/modules/code-blocks.js',
   'ui/js/chat/modules/chart-renderer.js',
   'ui/js/chat/modules/voice-recorder.js',
+	'ui/js/chat/modules/speech-lab-recorder.js',
   'ui/js/chat/modules/speech-to-text.js',
   'ui/js/chat/modules/drag-drop.js',
   'ui/js/chat/modules/mermaid-loader.js',

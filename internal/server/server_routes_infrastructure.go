@@ -12,6 +12,7 @@ import (
 )
 
 func (s *Server) registerInfrastructureRoutes(mux *http.ServeMux, shutdownCh chan struct{}) {
+	registerSpeechLabRoutes(mux, s)
 	if s.Cfg.WebConfig.Enabled {
 		mux.HandleFunc("/api/invasion/nests", handleInvasionNests(s))
 		mux.HandleFunc("/api/invasion/eggs", handleInvasionEggs(s))

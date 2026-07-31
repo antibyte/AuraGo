@@ -851,7 +851,7 @@ tts:
         image: rhasspy/wyoming-piper:latest
         speaker_id: 0
         voice: de_DE-thorsten-high
-    provider: ""
+    provider: ""                       # Speech Lab chat output is selected only by speech_lab.chat_output_enabled
     supertonic:
         auto_start: false
         container_name: aurago-supertonic-tts
@@ -864,6 +864,18 @@ tts:
         steps: 8
         url: http://127.0.0.1:7788
         voice: M1
+# Local s2s-vulkan speech lab (catalog/suggestions + stable ASR/TTS gateway).
+# See documentation/s2s_speech_lab.md and deploy/docker/docker-compose.s2s.yml
+speech_lab:
+    enabled: false
+    base_url: http://s2s-vulkan:8765
+    advanced_ui_url: ""                # optional link only; AuraGo never embeds or proxies the lab UI
+    language: de
+    voice: M1
+    timeout_seconds: 60
+    sip_enabled: false                  # permits explicit speech_lab selection in the Telephone agent
+    chat_input_enabled: false           # browser AudioWorklet -> PCM16/16 kHz WAV -> local ASR
+    chat_output_enabled: false          # local TTS for chat; text survives synthesis errors
 media_registry:
     enabled: true
 vision:

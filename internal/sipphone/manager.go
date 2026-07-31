@@ -354,7 +354,7 @@ func (m *Manager) dial(ctx context.Context, target, mediaMode string, peer Media
 		m.preparingCall = true
 		m.mu.Unlock()
 
-		preparedBackend, err = factory(cfg.Voice)
+		preparedBackend, err = factory(ctx, cfg.Voice)
 
 		m.mu.Lock()
 		m.preparingCall = false
@@ -656,7 +656,7 @@ func (m *Manager) handleIncoming(dialog *diago.DialogServerSession) {
 		m.mu.Unlock()
 
 		var err error
-		preparedBackend, err = factory(cfg.Voice)
+		preparedBackend, err = factory(dialog.Context(), cfg.Voice)
 
 		m.mu.Lock()
 		m.preparingCall = false

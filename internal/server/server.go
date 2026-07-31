@@ -45,6 +45,7 @@ import (
 	"aurago/internal/security"
 	"aurago/internal/services"
 	"aurago/internal/sipphone"
+	"aurago/internal/speechlab"
 	"aurago/internal/sqlconnections"
 	"aurago/internal/tools"
 	"aurago/internal/tsnetnode"
@@ -158,6 +159,7 @@ type Server struct {
 	Bluetooth            *bluetooth.Manager
 	NetworkShares        *networkshares.Manager
 	SIPPhone             *sipphone.Manager
+	SpeechLab            *speechlab.Client
 	SIPBrowserMedia      *sipphone.BrowserMediaService
 	VoiceActionRunner    *VoiceActionRunner
 	HistoryManager       *memory.HistoryManager
@@ -258,6 +260,15 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 	}
 	s.Cfg = cfg
 	s.cfgSnapshot.Store(cfg)
+	if s.SpeechLab == nil {
+		if client, err := speechlab.NewClient(cfg.SpeechLab); err == nil {
+			s.SpeechLab = client
+		} else if s.Logger != nil {
+			s.Logger.Warn("Speech Lab configuration rejected during reload", "error", err)
+		}
+	} else {
+		s.SpeechLab.Reconfigure(cfg.SpeechLab)
+	}
 }
 
 // reinitBudgetTracker recreates the BudgetTracker from the current config and
@@ -1286,6 +1297,11 @@ func newServerFromOptions(opts StartOptions) *Server {
 		MissionManagerV2:   tools.NewMissionManagerV2(cfg.Directories.DataDir, opts.CronManager),
 		EggHub:             bridge.NewEggHub(logger),
 		WarningsRegistry:   opts.WarningsRegistry,
+	}
+	if speechLabClient, err := speechlab.NewClient(cfg.SpeechLab); err != nil {
+		logger.Warn("Speech Lab client is unavailable", "error", err)
+	} else {
+		s.SpeechLab = speechLabClient
 	}
 	s.initConfigSnapshot()
 	if opts.Vault != nil {

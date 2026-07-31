@@ -71,7 +71,7 @@ type Event struct {
 	Data      any         `json:"data,omitempty"`
 }
 
-type BackendFactory func(config.SIPVoiceConfig) (voice.VoiceBackend, error)
+type BackendFactory func(context.Context, config.SIPVoiceConfig) (voice.VoiceBackend, error)
 
 type IssueReporter func(context.Context, string, string)
 

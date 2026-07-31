@@ -251,5 +251,15 @@
   "chat.realtime_takeover_message": "La voce in tempo reale è attiva in un’altra scheda AuraGo. Spostare qui la sessione del microfono?",
   "chat.realtime_takeover_title": "Il microfono è già in uso",
   "chat.realtime_title": "Voce live",
-  "chat.realtime_unmute": "Attiva audio"
+  "chat.realtime_unmute": "Attiva audio",
+  "chat.speech_lab_local_recording": "Registrazione PCM/WAV locale",
+  "chat.speech_lab_settings": "Impostazioni Speech Lab",
+  "chat.speech_lab_audio_worklet_required": "La registrazione locale di Speech Lab richiede AudioWorklet. Scegli un altro ingresso nelle impostazioni di Speech Lab.",
+  "chat.speech_lab_asr_not_ready": "L’ASR di Speech Lab non è pronto. Controlla Media → Speech Lab.",
+  "chat.speech_lab_microphone_denied": "L’autorizzazione al microfono è stata negata.",
+  "chat.speech_lab_recorder_start_failed": "Speech Lab non ha potuto avviare la registrazione del microfono.",
+  "chat.speech_lab_no_audio": "Non è stato registrato alcun parlato.",
+  "chat.speech_lab_too_large": "La registrazione Speech Lab supera 8 MiB. Registra un messaggio più breve.",
+  "chat.speech_lab_transcription_failed": "La trascrizione Speech Lab non è riuscita.",
+  "chat.speech_lab_transcribe": "Trascrivi"
 }

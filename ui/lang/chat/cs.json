@@ -251,5 +251,15 @@
   "chat.realtime_takeover_message": "Řeč v reálném čase je aktivní v jiné kartě AuraGo. Přesunout sem relaci mikrofonu?",
   "chat.realtime_takeover_title": "Mikrofon se již používá",
   "chat.realtime_title": "Živá řeč",
-  "chat.realtime_unmute": "Zapnout zvuk"
+  "chat.realtime_unmute": "Zapnout zvuk",
+  "chat.speech_lab_local_recording": "Místní nahrávání PCM/WAV",
+  "chat.speech_lab_settings": "Nastavení Speech Lab",
+  "chat.speech_lab_audio_worklet_required": "Místní nahrávání Speech Lab vyžaduje AudioWorklet. V nastavení Speech Lab zvolte jiný vstup.",
+  "chat.speech_lab_asr_not_ready": "ASR Speech Lab není připraveno. Zkontrolujte Média → Speech Lab.",
+  "chat.speech_lab_microphone_denied": "Přístup k mikrofonu byl zamítnut.",
+  "chat.speech_lab_recorder_start_failed": "Speech Lab nemohl spustit záznam mikrofonu.",
+  "chat.speech_lab_no_audio": "Nebyl zaznamenán žádný hlasový zvuk.",
+  "chat.speech_lab_too_large": "Nahrávka Speech Lab překračuje 8 MiB. Nahrajte kratší zprávu.",
+  "chat.speech_lab_transcription_failed": "Přepis v Speech Lab se nezdařil.",
+  "chat.speech_lab_transcribe": "Přepsat"
 }

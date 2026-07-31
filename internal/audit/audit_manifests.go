@@ -193,6 +193,7 @@ func NetworkClientInventory() []NetworkClientUse {
 		{Path: "internal/rocketchat/", Classification: "configured-messaging", Credentialed: true},
 		{Path: "internal/security/", Classification: "ssrf-policy-implementation", RequiresSSRF: true},
 		{Path: "internal/server/", Classification: "server-handler-or-loopback", AllowsLocalNet: true, Credentialed: true},
+		{Path: "internal/speechlab/", Classification: "configured-private-speech-sidecar", AllowsLocalNet: true},
 		{Path: "internal/telegram/", Classification: "telegram-api", Credentialed: true},
 		{Path: "internal/telnyx/", Classification: "telnyx-api", Credentialed: true},
 		{Path: "internal/tools/", Classification: "tool-specific-network-policy", RequiresSSRF: true, AllowsLocalNet: true, Credentialed: true},

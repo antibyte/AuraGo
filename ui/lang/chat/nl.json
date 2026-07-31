@@ -251,5 +251,15 @@
   "chat.realtime_takeover_message": "Realtime spraak is actief in een ander AuraGo-tabblad. De microfoonsessie hierheen verplaatsen?",
   "chat.realtime_takeover_title": "De microfoon is al in gebruik",
   "chat.realtime_title": "Live-spraak",
-  "chat.realtime_unmute": "Dempen opheffen"
+  "chat.realtime_unmute": "Dempen opheffen",
+  "chat.speech_lab_local_recording": "Lokale PCM/WAV-opname",
+  "chat.speech_lab_settings": "Speech Lab-instellingen",
+  "chat.speech_lab_audio_worklet_required": "Lokale Speech Lab-opname vereist AudioWorklet. Kies een andere invoer in de Speech Lab-instellingen.",
+  "chat.speech_lab_asr_not_ready": "Speech Lab ASR is niet gereed. Controleer Media → Speech Lab.",
+  "chat.speech_lab_microphone_denied": "Toegang tot de microfoon is geweigerd.",
+  "chat.speech_lab_recorder_start_failed": "Speech Lab kon de microfoonopname niet starten.",
+  "chat.speech_lab_no_audio": "Er is geen spraak opgenomen.",
+  "chat.speech_lab_too_large": "De Speech Lab-opname is groter dan 8 MiB. Neem een korter bericht op.",
+  "chat.speech_lab_transcription_failed": "De Speech Lab-transcriptie is mislukt.",
+  "chat.speech_lab_transcribe": "Transcriberen"
 }

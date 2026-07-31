@@ -36,7 +36,7 @@ func (testVoiceBackend) Start(context.Context, voice.CallContext, voice.DuplexAu
 	return nil, errors.New("test backend must not start")
 }
 
-func readyTestBackendFactory(config.SIPVoiceConfig) (voice.VoiceBackend, error) {
+func readyTestBackendFactory(context.Context, config.SIPVoiceConfig) (voice.VoiceBackend, error) {
 	return testVoiceBackend{}, nil
 }
 
@@ -641,7 +641,7 @@ func TestOutboundAgentCallPreflightBlocksBeforeInvite(t *testing.T) {
 		}
 		return response
 	})
-	manager, err := NewManager(cfg, t.TempDir(), func(config.SIPVoiceConfig) (voice.VoiceBackend, error) {
+	manager, err := NewManager(cfg, t.TempDir(), func(context.Context, config.SIPVoiceConfig) (voice.VoiceBackend, error) {
 		return nil, errors.New("pipeline unavailable")
 	}, nil, nil)
 	if err != nil {
@@ -671,7 +671,7 @@ func TestOutboundAgentCallPreflightDoesNotHoldManagerLockAndRejectsStaleConfig(t
 	cfg := validTestSIPConfig()
 	started := make(chan struct{})
 	release := make(chan struct{})
-	manager, err := NewManager(cfg, t.TempDir(), func(config.SIPVoiceConfig) (voice.VoiceBackend, error) {
+	manager, err := NewManager(cfg, t.TempDir(), func(context.Context, config.SIPVoiceConfig) (voice.VoiceBackend, error) {
 		close(started)
 		<-release
 		return testVoiceBackend{}, nil

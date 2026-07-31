@@ -668,6 +668,12 @@ func Load(path string) (*Config, error) {
 	cfg.TTS.Supertonic.Steps = 8
 	cfg.TTS.Supertonic.ResponseFormat = "wav"
 
+	// s2s speech lab gateway (external orchestrator; disabled by default)
+	cfg.SpeechLab.BaseURL = DefaultSpeechLabBaseURL
+	cfg.SpeechLab.Language = "de"
+	cfg.SpeechLab.Voice = "M1"
+	cfg.SpeechLab.TimeoutSeconds = DefaultSpeechLabTimeoutSeconds
+
 	// Music Generation defaults
 	// (Provider must be configured via Provider Management — no defaults for API keys)
 
@@ -893,6 +899,7 @@ func Load(path string) (*Config, error) {
 	if err := ValidateRealtimeSpeechConfig(cfg.RealtimeSpeech); err != nil {
 		return nil, err
 	}
+	NormalizeSpeechLabConfig(&cfg.SpeechLab, data)
 	NormalizeSIPConfig(&cfg.SIP)
 	if err := ValidateSIPConfig(cfg.SIP); err != nil {
 		return nil, err
@@ -1475,6 +1482,12 @@ func Load(path string) (*Config, error) {
 	// Used in Docker to force 0.0.0.0 without touching the YAML file.
 	if val := os.Getenv("AURAGO_SERVER_HOST"); val != "" {
 		cfg.Server.Host = val
+	}
+	if val := strings.TrimSpace(os.Getenv("AURAGO_SPEECH_LAB_BASE_URL")); val != "" {
+		cfg.SpeechLab.BaseURL = strings.TrimRight(val, "/")
+	}
+	if err := ValidateSpeechLabConfig(cfg.SpeechLab); err != nil {
+		return nil, err
 	}
 
 	// --- Environment Variable Fallbacks (for secrets) ---
