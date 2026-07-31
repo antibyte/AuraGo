@@ -185,11 +185,13 @@
     height: calc(830px * var(--sip-phone-gadget-scale));
     user-select: none;
     pointer-events: auto;
+    z-index: var(--vd-z-phone-gadget, 20);
 }
 
 .vd-sip-phone-gadget[data-always-on-top="true"] {
-    /* z-index is controlled by JS so the gadget can sit behind normal windows
-       when not focused and above them when focused or pinned. */
+    /* Resting z-index above defaults to var(--vd-z-phone-gadget), below
+       --vd-z-window, so it sits behind windows unless focused or pinned;
+       JS overrides it inline when focused/pinned (see sip-phone-gadget-runtime.js). */
 }
 
 .vd-sip-phone-gadget.dragging {

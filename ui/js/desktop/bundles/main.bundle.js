@@ -3935,34 +3935,38 @@
     let gadgetDrag = null;
     let gadgetInitialized = false;
 
-    // The gadget is mounted directly on <body>, while every window lives inside
-    // <main class="vd-shell"> (which never sets its own z-index). Per CSS stacking
-    // rules, ANY sibling with an explicit z-index - no matter how low the number -
-    // always paints above a sibling stuck at the implicit "auto" stacking level.
-    // So the gadget must have NO inline z-index at all in its resting state (see
-    // clearPhoneGadgetZIndex below) and must sit before <main> in the DOM, so the
-    // shell - being later in tree order at the same "auto" level - wins by default.
-    // Only the focused/pinned tiers set an explicit z-index, which then
-    // unconditionally outranks the shell, regardless of the exact number.
-    const GADGET_Z_FOCUS = 90;
+    // The gadget must live inside #vd-workspace, as a sibling of #vd-window-layer:
+    // .vd-workspace uses isolation:isolate, so z-index comparisons for anything
+    // inside it (including --vd-z-window=100) never leak out to compare against
+    // body-level elements. Mounting the gadget on document.body instead put it
+    // in a *different* stacking context, where the desktop shell (<main
+    // class="vd-shell">, no z-index of its own) always won ties by DOM order and
+    // its full-viewport, pointer-events:auto surface then swallowed every click
+    // meant for the gadget. Keeping both inside .vd-workspace lets a plain
+    // numeric comparison against --vd-z-window decide the stacking, and only
+    // .vd-window-layer's actual window/icon/widget elements (each opting back
+    // into pointer-events:auto) intercept clicks - never an empty background.
+    const GADGET_Z_FOCUS = 150;
     const GADGET_Z_ALWAYS_ON_TOP = 998;
 
     function clearPhoneGadgetZIndex() {
         if (gadgetLayer) gadgetLayer.style.zIndex = '';
     }
 
-    function insertPhoneGadgetBeforeShell() {
+    function mountPhoneGadgetIntoWorkspace() {
         if (!gadgetLayer) return;
-        // Insert right before the desktop shell (not document.body.firstChild)
-        // so we never jump ahead of the accessibility skip-link, while still
-        // preceding <main> in tree order for the default stacking comparison.
-        const shell = document.getElementById('main-content');
-        if (shell && shell.parentElement === document.body) {
-            if (gadgetLayer.nextSibling !== shell) {
-                document.body.insertBefore(gadgetLayer, shell);
-            }
-        } else if (gadgetLayer.parentElement !== document.body) {
+        const workspace = document.getElementById('vd-workspace');
+        if (!workspace) {
             document.body.appendChild(gadgetLayer);
+            return;
+        }
+        // Insert before the disabled overlay so a tie at the shared z=20
+        // baseline still lets the overlay (later in DOM order) cover the gadget.
+        const disabled = document.getElementById('vd-disabled');
+        if (disabled && disabled.parentElement === workspace) {
+            if (gadgetLayer.nextSibling !== disabled) workspace.insertBefore(gadgetLayer, disabled);
+        } else if (gadgetLayer.parentElement !== workspace) {
+            workspace.appendChild(gadgetLayer);
         }
     }
 
@@ -4009,16 +4013,15 @@
         if (!gadgetLayer) return;
         const onTop = phoneGadgetAlwaysOnTop();
         gadgetLayer.dataset.alwaysOnTop = onTop ? 'true' : 'false';
-        // Keep the gadget positioned right before the shell so it stays *before*
-        // <main> in tree order - required for the default (no z-index) case to
-        // lose to the shell, see the comment above GADGET_Z_FOCUS.
-        insertPhoneGadgetBeforeShell();
+        // Keep the gadget inside #vd-workspace (see comment above GADGET_Z_FOCUS)
+        // so its z-index is validly compared against --vd-z-window.
+        mountPhoneGadgetIntoWorkspace();
         if (onTop) {
             gadgetLayer.style.zIndex = String(GADGET_Z_ALWAYS_ON_TOP);
         } else {
-            // No inline z-index: falls back to "auto", so the desktop shell (later
-            // in the DOM) always paints on top unless the user is actively
-            // interacting with the gadget (see focusPhoneGadget/wirePhoneGadgetEvents).
+            // Clear the inline override: CSS's var(--vd-z-phone-gadget, 20)
+            // takes over, keeping the gadget below --vd-z-window (100) until
+            // the user interacts with it or a window is focused elsewhere.
             clearPhoneGadgetZIndex();
         }
     }
@@ -4039,11 +4042,10 @@
         gadgetLayer.id = 'vd-sip-phone-gadget';
         gadgetLayer.className = 'vd-sip-phone-gadget';
         gadgetLayer.innerHTML = '<div class="vd-sip-phone-gadget-scale" data-sip-phone-gadget-host></div>';
-        // Insert right before the shell so it shares the global Z-order stack
-        // without being clipped or pointer-events-blocked by the window layer,
-        // while still losing to the shell by default (see GADGET_Z_FOCUS comment
-        // above) and without skipping ahead of the accessibility skip-link.
-        insertPhoneGadgetBeforeShell();
+        // Mount inside #vd-workspace (see GADGET_Z_FOCUS comment above) instead
+        // of document.body, so pointer-events and z-index stacking behave like
+        // every other desktop layer (icons, widgets, windows).
+        mountPhoneGadgetIntoWorkspace();
         wirePhoneGadgetEvents();
     }
 

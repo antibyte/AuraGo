@@ -226,7 +226,9 @@ registration lives in `internal/desktop/types.go`.
   and must not introduce voicemail/mailbox UI.
 - The floating phone gadget (`ui/js/desktop/core/sip-phone-gadget-runtime.js`,
   part of the desktop main bundle) mounts the same app windowless on a
-  fixed, draggable body-level layer under the reserved instance id
+  fixed, draggable layer inside `#vd-workspace` (sibling of
+  `#vd-window-layer`, so its z-index is validly compared against
+  `--vd-z-window`) under the reserved instance id
   `sip-phone-gadget`. It exposes `window.SipPhoneGadget = { init, sync }`,
   renders the app into a 400×830 stage scaled via
   `.vd-sip-phone-gadget-scale`, drags only from the status bar / Dynamic
