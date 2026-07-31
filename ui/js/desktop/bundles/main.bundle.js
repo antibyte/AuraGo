@@ -3935,19 +3935,36 @@
     let gadgetDrag = null;
     let gadgetInitialized = false;
 
-    // The gadget is mounted directly on <body>, as a sibling of #vd-window-layer.
-    // #vd-window-layer sets a fixed z-index (--vd-z-window, currently 100) and
-    // therefore forms its own stacking context: every window inside it is only
-    // ordered *relative to other windows*, never against elements outside the
-    // layer. That means GADGET_Z_BASE/GADGET_Z_FOCUS only need to be compared
-    // against --vd-z-window, not against individual window z-indexes.
-    // Keeping both below --vd-z-window guarantees the gadget can always be sent
-    // behind any window simply by focusing that window - it can never end up
-    // permanently stuck in front (and blocking clicks on windows underneath it)
-    // unless the user explicitly pins it with "Always on top".
-    const GADGET_Z_BASE = 20;
+    // The gadget is mounted directly on <body>, while every window lives inside
+    // <main class="vd-shell"> (which never sets its own z-index). Per CSS stacking
+    // rules, ANY sibling with an explicit z-index - no matter how low the number -
+    // always paints above a sibling stuck at the implicit "auto" stacking level.
+    // So the gadget must have NO inline z-index at all in its resting state (see
+    // clearPhoneGadgetZIndex below) and must sit before <main> in the DOM, so the
+    // shell - being later in tree order at the same "auto" level - wins by default.
+    // Only the focused/pinned tiers set an explicit z-index, which then
+    // unconditionally outranks the shell, regardless of the exact number.
     const GADGET_Z_FOCUS = 90;
     const GADGET_Z_ALWAYS_ON_TOP = 998;
+
+    function clearPhoneGadgetZIndex() {
+        if (gadgetLayer) gadgetLayer.style.zIndex = '';
+    }
+
+    function insertPhoneGadgetBeforeShell() {
+        if (!gadgetLayer) return;
+        // Insert right before the desktop shell (not document.body.firstChild)
+        // so we never jump ahead of the accessibility skip-link, while still
+        // preceding <main> in tree order for the default stacking comparison.
+        const shell = document.getElementById('main-content');
+        if (shell && shell.parentElement === document.body) {
+            if (gadgetLayer.nextSibling !== shell) {
+                document.body.insertBefore(gadgetLayer, shell);
+            }
+        } else if (gadgetLayer.parentElement !== document.body) {
+            document.body.appendChild(gadgetLayer);
+        }
+    }
 
     function phoneGadgetEnabled() {
         return String(settingValue('phone_gadget.enabled')).toLowerCase() === 'true';
@@ -3992,17 +4009,17 @@
         if (!gadgetLayer) return;
         const onTop = phoneGadgetAlwaysOnTop();
         gadgetLayer.dataset.alwaysOnTop = onTop ? 'true' : 'false';
-        // Always keep the gadget as a direct child of body so it sits in the
-        // global Z-order stack and is never clipped or pointer-events-blocked
-        // by the window layer.
-        if (gadgetLayer.parentElement !== document.body) {
-            document.body.appendChild(gadgetLayer);
-        }
+        // Keep the gadget positioned right before the shell so it stays *before*
+        // <main> in tree order - required for the default (no z-index) case to
+        // lose to the shell, see the comment above GADGET_Z_FOCUS.
+        insertPhoneGadgetBeforeShell();
         if (onTop) {
             gadgetLayer.style.zIndex = String(GADGET_Z_ALWAYS_ON_TOP);
         } else {
-            // Background by default; focusWindow or user interaction promotes it.
-            gadgetLayer.style.zIndex = String(GADGET_Z_BASE);
+            // No inline z-index: falls back to "auto", so the desktop shell (later
+            // in the DOM) always paints on top unless the user is actively
+            // interacting with the gadget (see focusPhoneGadget/wirePhoneGadgetEvents).
+            clearPhoneGadgetZIndex();
         }
     }
 
@@ -4022,9 +4039,11 @@
         gadgetLayer.id = 'vd-sip-phone-gadget';
         gadgetLayer.className = 'vd-sip-phone-gadget';
         gadgetLayer.innerHTML = '<div class="vd-sip-phone-gadget-scale" data-sip-phone-gadget-host></div>';
-        // Always append to body so it shares the global Z-order stack and is not
-        // affected by the window layer's pointer-events rules.
-        document.body.appendChild(gadgetLayer);
+        // Insert right before the shell so it shares the global Z-order stack
+        // without being clipped or pointer-events-blocked by the window layer,
+        // while still losing to the shell by default (see GADGET_Z_FOCUS comment
+        // above) and without skipping ahead of the accessibility skip-link.
+        insertPhoneGadgetBeforeShell();
         wirePhoneGadgetEvents();
     }
 
@@ -4187,7 +4206,7 @@
 
     function blurPhoneGadget() {
         if (!gadgetLayer || phoneGadgetAlwaysOnTop()) return;
-        gadgetLayer.style.zIndex = String(GADGET_Z_BASE);
+        clearPhoneGadgetZIndex();
         gadgetLayer.classList.remove('active');
     }
 
