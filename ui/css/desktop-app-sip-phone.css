@@ -1673,6 +1673,75 @@
     background: transparent !important;
 }
 
+/* In the desktop app window the device is scaled down so the full phone fits
+   like it does in the gadget. */
+.vd-window[data-app-id="sip-phone"] .sip-phone {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.vd-window[data-app-id="sip-phone"] .sip-phone-device {
+    transform: scale(0.82);
+    transform-origin: center center;
+}
+
+/* ------------------------------------------------------------------ */
+/* Audio-reactive background visualization (microphone + speaker)      */
+/* ------------------------------------------------------------------ */
+
+.sip-phone-audio-viz {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    z-index: 0;
+    overflow: hidden;
+}
+
+.sip-phone-viz-ring {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(22px);
+    opacity: 0;
+    transform: scale(0.6);
+    transition: opacity 0.15s ease, transform 0.08s ease-out;
+    will-change: transform, opacity;
+}
+
+.sip-phone-viz-mic {
+    width: 260px;
+    height: 260px;
+    background:
+        radial-gradient(50% 50% at 50% 50%, rgba(48, 209, 88, 0.35), rgba(49, 199, 189, 0.15) 55%, transparent 72%);
+}
+
+.sip-phone-viz-speaker {
+    width: 340px;
+    height: 340px;
+    background:
+        radial-gradient(50% 50% at 50% 50%, rgba(84, 96, 255, 0.32), rgba(49, 199, 189, 0.12) 55%, transparent 72%);
+}
+
+.sip-phone-viz-active .sip-phone-viz-ring {
+    opacity: 1;
+}
+
+.sip-phone-viz-active .sip-phone-viz-mic {
+    transform: scale(calc(0.6 + var(--sip-viz-mic, 0) * 1.1));
+}
+
+.sip-phone-viz-active .sip-phone-viz-speaker {
+    transform: scale(calc(0.6 + var(--sip-viz-speaker, 0) * 1.1));
+}
+
+/* Hide visualization when the gadget is on the desktop so the wallpaper stays clean. */
+.vd-sip-phone-gadget .sip-phone-audio-viz {
+    display: none;
+}
+
 /* The status bar, Dynamic Island and hardware buttons are the drag
    handles of the gadget, like a title bar on a real window. */
 .vd-sip-phone-gadget .sip-phone-statusbar,

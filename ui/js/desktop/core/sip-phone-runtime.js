@@ -22,6 +22,12 @@
         ringMode: '',
         ringContext: null,
         ringOscillator: null,
+        vizContext: null,
+        vizMicAnalyser: null,
+        vizSpeakerAnalyser: null,
+        vizFrame: 0,
+        vizMicLevel: 0,
+        vizSpeakerLevel: 0,
         listeners: new Set()
     };
 
@@ -315,6 +321,7 @@
                     ? event.streams[0]
                     : new MediaStream([event.track]);
                 startSIPPhoneRemoteAudio(pendingRemoteAudio);
+                startSIPPhoneAudioVisualization();
             });
             pendingPeerConnection.addEventListener('connectionstatechange', () => {
                 if (['failed', 'closed'].includes(pendingPeerConnection.connectionState) && sipPhoneShellState.peerConnection === pendingPeerConnection) {
@@ -538,6 +545,88 @@
         await startSIPPhoneRemoteAudio(audio);
     }
 
+    function startSIPPhoneAudioVisualization() {
+        if (sipPhoneShellState.vizFrame) return;
+        if (sipPhoneShellState.vizContext) {
+            try { sipPhoneShellState.vizContext.close(); } catch (_) {}
+        }
+        sipPhoneShellState.vizContext = null;
+        sipPhoneShellState.vizMicAnalyser = null;
+        sipPhoneShellState.vizSpeakerAnalyser = null;
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) return;
+        const localStream = sipPhoneShellState.localStream;
+        const remoteAudio = sipPhoneShellState.remoteAudio;
+        const remoteStream = remoteAudio && remoteAudio.srcObject;
+        if (!localStream && !remoteStream) return;
+        try {
+            const ctx = new AudioContextClass();
+            sipPhoneShellState.vizContext = ctx;
+            if (localStream) {
+                const micSource = ctx.createMediaStreamSource(localStream);
+                const micAnalyser = ctx.createAnalyser();
+                micAnalyser.fftSize = 256;
+                micAnalyser.smoothingTimeConstant = 0.75;
+                micSource.connect(micAnalyser);
+                sipPhoneShellState.vizMicAnalyser = micAnalyser;
+            }
+            if (remoteStream) {
+                const speakerSource = ctx.createMediaStreamSource(remoteStream);
+                const speakerAnalyser = ctx.createAnalyser();
+                speakerAnalyser.fftSize = 256;
+                speakerAnalyser.smoothingTimeConstant = 0.75;
+                speakerSource.connect(speakerAnalyser);
+                sipPhoneShellState.vizSpeakerAnalyser = speakerAnalyser;
+            }
+            if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+            updateSIPPhoneAudioVisualization();
+        } catch (_) {}
+    }
+
+    function stopSIPPhoneAudioVisualization() {
+        if (sipPhoneShellState.vizFrame) {
+            cancelAnimationFrame(sipPhoneShellState.vizFrame);
+            sipPhoneShellState.vizFrame = 0;
+        }
+        sipPhoneShellState.vizMicAnalyser = null;
+        sipPhoneShellState.vizSpeakerAnalyser = null;
+        sipPhoneShellState.vizMicLevel = 0;
+        sipPhoneShellState.vizSpeakerLevel = 0;
+        applySIPPhoneAudioVisualization();
+        if (sipPhoneShellState.vizContext) {
+            try { sipPhoneShellState.vizContext.close(); } catch (_) {}
+            sipPhoneShellState.vizContext = null;
+        }
+    }
+
+    function computeSIPPhoneAudioLevel(analyser) {
+        if (!analyser) return 0;
+        const data = new Uint8Array(analyser.frequencyBinCount);
+        analyser.getByteFrequencyData(data);
+        let sum = 0;
+        for (let i = 0; i < data.length; i++) sum += data[i];
+        const avg = sum / (data.length * 255);
+        return Math.min(1, Math.max(0, avg));
+    }
+
+    function applySIPPhoneAudioVisualization() {
+        const mic = sipPhoneShellState.muted ? 0 : sipPhoneShellState.vizMicLevel;
+        const speaker = sipPhoneShellState.vizSpeakerLevel;
+        document.querySelectorAll('.sip-phone').forEach(phone => {
+            phone.style.setProperty('--sip-viz-mic', mic.toFixed(3));
+            phone.style.setProperty('--sip-viz-speaker', speaker.toFixed(3));
+            phone.classList.toggle('sip-phone-viz-active', mic > 0.02 || speaker > 0.02);
+        });
+    }
+
+    function updateSIPPhoneAudioVisualization() {
+        sipPhoneShellState.vizFrame = 0;
+        if (!sipPhoneShellState.vizContext) return;
+        sipPhoneShellState.vizMicLevel = computeSIPPhoneAudioLevel(sipPhoneShellState.vizMicAnalyser);
+        sipPhoneShellState.vizSpeakerLevel = computeSIPPhoneAudioLevel(sipPhoneShellState.vizSpeakerAnalyser);
+        applySIPPhoneAudioVisualization();
+        sipPhoneShellState.vizFrame = requestAnimationFrame(updateSIPPhoneAudioVisualization);
+    }
     function teardownSIPPhoneMedia(deleteSession) {
         const sessionID = sipPhoneShellState.browserSessionID;
         const peerConnection = sipPhoneShellState.peerConnection;
@@ -559,6 +648,7 @@
         sipPhoneShellState.remoteAudio = null;
         sipPhoneShellState.remoteAudioBlocked = false;
         disposeSIPPhoneMediaResources(peerConnection, localStream, remoteAudio);
+        stopSIPPhoneAudioVisualization();
         sipPhoneShellState.muted = false;
         if (sipPhoneShellState.lease && window.AuraBrowserAudioLease) {
             window.AuraBrowserAudioLease.release(sipPhoneShellState.lease.token);

@@ -3061,6 +3061,12 @@
         ringMode: '',
         ringContext: null,
         ringOscillator: null,
+        vizContext: null,
+        vizMicAnalyser: null,
+        vizSpeakerAnalyser: null,
+        vizFrame: 0,
+        vizMicLevel: 0,
+        vizSpeakerLevel: 0,
         listeners: new Set()
     };
 
@@ -3354,6 +3360,7 @@
                     ? event.streams[0]
                     : new MediaStream([event.track]);
                 startSIPPhoneRemoteAudio(pendingRemoteAudio);
+                startSIPPhoneAudioVisualization();
             });
             pendingPeerConnection.addEventListener('connectionstatechange', () => {
                 if (['failed', 'closed'].includes(pendingPeerConnection.connectionState) && sipPhoneShellState.peerConnection === pendingPeerConnection) {
@@ -3577,6 +3584,88 @@
         await startSIPPhoneRemoteAudio(audio);
     }
 
+    function startSIPPhoneAudioVisualization() {
+        if (sipPhoneShellState.vizFrame) return;
+        if (sipPhoneShellState.vizContext) {
+            try { sipPhoneShellState.vizContext.close(); } catch (_) {}
+        }
+        sipPhoneShellState.vizContext = null;
+        sipPhoneShellState.vizMicAnalyser = null;
+        sipPhoneShellState.vizSpeakerAnalyser = null;
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) return;
+        const localStream = sipPhoneShellState.localStream;
+        const remoteAudio = sipPhoneShellState.remoteAudio;
+        const remoteStream = remoteAudio && remoteAudio.srcObject;
+        if (!localStream && !remoteStream) return;
+        try {
+            const ctx = new AudioContextClass();
+            sipPhoneShellState.vizContext = ctx;
+            if (localStream) {
+                const micSource = ctx.createMediaStreamSource(localStream);
+                const micAnalyser = ctx.createAnalyser();
+                micAnalyser.fftSize = 256;
+                micAnalyser.smoothingTimeConstant = 0.75;
+                micSource.connect(micAnalyser);
+                sipPhoneShellState.vizMicAnalyser = micAnalyser;
+            }
+            if (remoteStream) {
+                const speakerSource = ctx.createMediaStreamSource(remoteStream);
+                const speakerAnalyser = ctx.createAnalyser();
+                speakerAnalyser.fftSize = 256;
+                speakerAnalyser.smoothingTimeConstant = 0.75;
+                speakerSource.connect(speakerAnalyser);
+                sipPhoneShellState.vizSpeakerAnalyser = speakerAnalyser;
+            }
+            if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+            updateSIPPhoneAudioVisualization();
+        } catch (_) {}
+    }
+
+    function stopSIPPhoneAudioVisualization() {
+        if (sipPhoneShellState.vizFrame) {
+            cancelAnimationFrame(sipPhoneShellState.vizFrame);
+            sipPhoneShellState.vizFrame = 0;
+        }
+        sipPhoneShellState.vizMicAnalyser = null;
+        sipPhoneShellState.vizSpeakerAnalyser = null;
+        sipPhoneShellState.vizMicLevel = 0;
+        sipPhoneShellState.vizSpeakerLevel = 0;
+        applySIPPhoneAudioVisualization();
+        if (sipPhoneShellState.vizContext) {
+            try { sipPhoneShellState.vizContext.close(); } catch (_) {}
+            sipPhoneShellState.vizContext = null;
+        }
+    }
+
+    function computeSIPPhoneAudioLevel(analyser) {
+        if (!analyser) return 0;
+        const data = new Uint8Array(analyser.frequencyBinCount);
+        analyser.getByteFrequencyData(data);
+        let sum = 0;
+        for (let i = 0; i < data.length; i++) sum += data[i];
+        const avg = sum / (data.length * 255);
+        return Math.min(1, Math.max(0, avg));
+    }
+
+    function applySIPPhoneAudioVisualization() {
+        const mic = sipPhoneShellState.muted ? 0 : sipPhoneShellState.vizMicLevel;
+        const speaker = sipPhoneShellState.vizSpeakerLevel;
+        document.querySelectorAll('.sip-phone').forEach(phone => {
+            phone.style.setProperty('--sip-viz-mic', mic.toFixed(3));
+            phone.style.setProperty('--sip-viz-speaker', speaker.toFixed(3));
+            phone.classList.toggle('sip-phone-viz-active', mic > 0.02 || speaker > 0.02);
+        });
+    }
+
+    function updateSIPPhoneAudioVisualization() {
+        sipPhoneShellState.vizFrame = 0;
+        if (!sipPhoneShellState.vizContext) return;
+        sipPhoneShellState.vizMicLevel = computeSIPPhoneAudioLevel(sipPhoneShellState.vizMicAnalyser);
+        sipPhoneShellState.vizSpeakerLevel = computeSIPPhoneAudioLevel(sipPhoneShellState.vizSpeakerAnalyser);
+        applySIPPhoneAudioVisualization();
+        sipPhoneShellState.vizFrame = requestAnimationFrame(updateSIPPhoneAudioVisualization);
+    }
     function teardownSIPPhoneMedia(deleteSession) {
         const sessionID = sipPhoneShellState.browserSessionID;
         const peerConnection = sipPhoneShellState.peerConnection;
@@ -3598,6 +3687,7 @@
         sipPhoneShellState.remoteAudio = null;
         sipPhoneShellState.remoteAudioBlocked = false;
         disposeSIPPhoneMediaResources(peerConnection, localStream, remoteAudio);
+        stopSIPPhoneAudioVisualization();
         sipPhoneShellState.muted = false;
         if (sipPhoneShellState.lease && window.AuraBrowserAudioLease) {
             window.AuraBrowserAudioLease.release(sipPhoneShellState.lease.token);
@@ -4895,7 +4985,7 @@
             'looper': { width: 900, height: 750 },
             camera: { width: 720, height: 600 },
             'network-cameras': { width: 1120, height: 720 },
-            'sip-phone': { width: 1120, height: 720 },
+            'sip-phone': { width: 520, height: 820 },
             viewer: { width: 900, height: 700 },
             'viewer-3d': { width: 900, height: 700 },
             pixel: { width: 1100, height: 750 },
@@ -4912,10 +5002,10 @@
         return defaultWindowSize();
     }
 
-    function shouldUseMobileWideWindow(appId) { return !!{ files: true, writer: true, sheets: true, todo: true, radio: true, openscad: true, teevee: true, gallery: true, calendar: true, 'quick-connect': true, 'virtual-computers': true, 'network-cameras': true, 'sip-phone': true, 'code-studio': true, launchpad: true, looper: true, viewer: true, 'viewer-3d': true, chess: true, nasscad: true, 'mission-control': true, 'system-world': true, noisemaker: true }[appId]; }
+    function shouldUseMobileWideWindow(appId) { return !!{ files: true, writer: true, sheets: true, todo: true, radio: true, openscad: true, teevee: true, gallery: true, calendar: true, 'quick-connect': true, 'virtual-computers': true, 'network-cameras': true, 'code-studio': true, launchpad: true, looper: true, viewer: true, 'viewer-3d': true, chess: true, nasscad: true, 'mission-control': true, 'system-world': true, noisemaker: true }[appId]; }
 
     function appWindowMinSize(appId) {
-        const mins = { 'system-info': { width: 560, height: 460 }, 'virtual-computers': { width: 640, height: 480 }, 'network-cameras': { width: 680, height: 480 }, 'sip-phone': { width: 720, height: 560 }, calculator: { width: 280, height: 420 }, gallery: { width: 640, height: 480 }, pixel: { width: 700, height: 500 }, chess: { width: 720, height: 520 }, noisemaker: { width: 760, height: 520 } };
+        const mins = { 'system-info': { width: 560, height: 460 }, 'virtual-computers': { width: 640, height: 480 }, 'network-cameras': { width: 680, height: 480 }, 'sip-phone': { width: 420, height: 640 }, calculator: { width: 280, height: 420 }, gallery: { width: 640, height: 480 }, pixel: { width: 700, height: 500 }, chess: { width: 720, height: 520 }, noisemaker: { width: 760, height: 520 } };
         return mins[appId] || { width: WINDOW_MIN_W, height: WINDOW_MIN_H };
     }
 

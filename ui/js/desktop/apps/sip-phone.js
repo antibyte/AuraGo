@@ -159,6 +159,10 @@
         instance.snapshot = snapshot;
         instance.host.innerHTML = `
             <div class="sip-phone ${call ? 'has-call' : ''} ${call && call.state === 'ringing' ? 'is-ringing' : ''}">
+                <div class="sip-phone-audio-viz" aria-hidden="true">
+                    <div class="sip-phone-viz-ring sip-phone-viz-mic"></div>
+                    <div class="sip-phone-viz-ring sip-phone-viz-speaker"></div>
+                </div>
                 <div class="sip-phone-device">
                     <span class="sip-phone-hw sip-phone-hw-mute" aria-hidden="true"></span>
                     <span class="sip-phone-hw sip-phone-hw-vol-up" aria-hidden="true"></span>
