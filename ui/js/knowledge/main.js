@@ -721,14 +721,17 @@ function renderDevices() {
         const tags = (d.tags || []).map(tag =>
             '<span class="kc-tag">' + esc(tag) + '</span>'
         ).join('') || '—';
+        const accessLabel = getDeviceAccessLabel(d);
+        const ip = d.ip_address || '—';
+        const mac = d.mac_address || '—';
         return `
         <tr>
-            <td class="kc-name kc-wrap">${esc(d.name)}</td>
-            <td><span class="kc-type-badge">${esc(d.type)}</span></td>
-            <td class="kc-mono">${esc(d.ip_address || '—')}</td>
+            <td class="kc-name" title="${escAttr(d.name)}">${esc(d.name)}</td>
+            <td><span class="kc-type-badge" title="${escAttr(d.type)}">${esc(d.type)}</span></td>
+            <td class="kc-mono" title="${escAttr(ip)}">${esc(ip)}</td>
             <td>${d.port || '—'}</td>
-            <td class="kc-wrap">${esc(getDeviceAccessLabel(d))}</td>
-            <td class="kc-mono kc-size">${esc(d.mac_address || '—')}</td>
+            <td class="kc-access" title="${escAttr(accessLabel)}">${esc(accessLabel)}</td>
+            <td class="kc-mono kc-size" title="${escAttr(mac)}">${esc(mac)}</td>
             <td class="kc-tags-cell">${tags}</td>
             <td class="kc-actions">
                 <button class="kc-icon-btn" onclick="editDevice('${esc(d.id)}')" title="${t('common.btn_edit')}">${svgIcon('edit')}</button>

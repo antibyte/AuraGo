@@ -280,6 +280,54 @@
     white-space: normal;
 }
 
+/* Devices table: fixed column widths so long IDs/IPv6 addresses truncate
+   cleanly on one line instead of wrapping across many rows (use the
+   title attribute on each cell for the full value on hover). */
+
+.pw-page[data-workspace-page="knowledge"] .kc-table-fixed {
+    table-layout: fixed;
+}
+
+.pw-page[data-workspace-page="knowledge"] .kc-col-device-name {
+    width: 20%;
+}
+
+.pw-page[data-workspace-page="knowledge"] .kc-col-device-type {
+    width: 10%;
+}
+
+.pw-page[data-workspace-page="knowledge"] .kc-col-device-ip {
+    width: 16%;
+}
+
+.pw-page[data-workspace-page="knowledge"] .kc-col-device-port {
+    width: 7%;
+}
+
+.pw-page[data-workspace-page="knowledge"] .kc-col-device-access {
+    width: 15%;
+}
+
+.pw-page[data-workspace-page="knowledge"] .kc-col-device-mac {
+    width: 13%;
+}
+
+.pw-page[data-workspace-page="knowledge"] .kc-col-device-tags {
+    width: 11%;
+}
+
+.pw-page[data-workspace-page="knowledge"] .kc-col-device-actions {
+    width: 88px;
+}
+
+.pw-page[data-workspace-page="knowledge"] #devices-table td.kc-name,
+.pw-page[data-workspace-page="knowledge"] #devices-table td.kc-access {
+    white-space: nowrap;
+    max-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 .pw-page[data-workspace-page="knowledge"] .kc-tab:focus-visible, .pw-page[data-workspace-page="knowledge"] .kc-search:focus-visible, .pw-page[data-workspace-page="knowledge"] .kc-actions .btn-sm:focus-visible, .pw-page[data-workspace-page="knowledge"] .password-toggle:focus-visible, .pw-page[data-workspace-page="knowledge"] .btn-save:focus-visible {
     outline: none;
 }
