@@ -92,6 +92,9 @@ type Manager struct {
 	promptSlot           chan struct{}
 	promptSeed           *promptCacheSeed
 	promptCacheQualified bool
+	promptWarmSequence   uint64
+	promptWarmCancel     context.CancelFunc
+	promptWarmWG         sync.WaitGroup
 	promptPersistRunning bool
 	promptPersistPending *promptCacheDecisionEntry
 	promptPersistLast    time.Time
@@ -226,6 +229,11 @@ func (m *Manager) finishOperation(name string, owned bool) {
 func (m *Manager) Close() {
 	m.lifecycleCancel()
 	m.mu.Lock()
+	if m.promptWarmCancel != nil {
+		m.promptWarmCancel()
+		m.promptWarmCancel = nil
+	}
+	m.promptWarmSequence++
 	m.promptPersistPending = nil
 	m.promptSeed = nil
 	m.promptCacheQualified = false
@@ -246,6 +254,11 @@ func (m *Manager) Shutdown(ctx context.Context) error {
 	if !m.shuttingDown {
 		m.shuttingDown = true
 		m.lifecycleCancel()
+		if m.promptWarmCancel != nil {
+			m.promptWarmCancel()
+			m.promptWarmCancel = nil
+		}
+		m.promptWarmSequence++
 	}
 	m.mu.Unlock()
 	select {
@@ -275,6 +288,7 @@ activeWait:
 		waitDone := make(chan struct{})
 		go func() {
 			m.operationWG.Wait()
+			m.promptWarmWG.Wait()
 			close(waitDone)
 		}()
 		select {
@@ -350,6 +364,11 @@ func (m *Manager) Configure(cfg config.LocalLLMConfig) {
 }
 
 func (m *Manager) invalidateVerificationLocked() {
+	if m.promptWarmCancel != nil {
+		m.promptWarmCancel()
+		m.promptWarmCancel = nil
+	}
+	m.promptWarmSequence++
 	m.status.ToolCallVerified = false
 	m.status.GPUOffloadVerified = false
 	m.status.MemoryProfileVerified = false
@@ -904,7 +923,6 @@ func (m *Manager) startPlan(parent context.Context, plan runtimePlan) error {
 	applied := plan
 	m.appliedPlan = &applied
 	m.mu.Unlock()
-	m.ensurePromptCacheWarm(startCtx, plan, key)
 	return nil
 }
 
@@ -921,6 +939,7 @@ func (m *Manager) Stop(ctx context.Context, force bool) error {
 }
 
 func (m *Manager) stop(ctx context.Context, force bool) error {
+	m.cancelPromptCacheWarmForRequest()
 	m.mu.Lock()
 	if m.activeRequests > 0 && !force {
 		m.mu.Unlock()

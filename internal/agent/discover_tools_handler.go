@@ -13,6 +13,8 @@ import (
 	openai "github.com/sashabaranov/go-openai"
 )
 
+const maxDiscoverToolSearchResults = 5
+
 type DiscoverToolsResponse struct {
 	Status   string               `json:"status"`
 	Summary  string               `json:"summary,omitempty"`
@@ -82,9 +84,18 @@ func handleDiscoverTools(tc ToolCall, cfg *config.Config, logger *slog.Logger, s
 		combined := make([]DiscoverToolResult, 0, len(serviceResults)+len(results))
 		combined = append(combined, serviceResults...)
 		combined = append(combined, discoverResultsFromEntries(results, sessionID, false)...)
+		total := len(combined)
+		summary := fmt.Sprintf("%d tools matching '%s'", total, query)
+		if total > maxDiscoverToolSearchResults {
+			combined = combined[:maxDiscoverToolSearchResults]
+			summary = fmt.Sprintf(
+				"showing %d of %d tools matching '%s'; refine the query or use get_tool_info for one exact tool",
+				len(combined), total, query,
+			)
+		}
 		return discoverToolsJSON(DiscoverToolsResponse{
 			Status:  "success",
-			Summary: fmt.Sprintf("%d tools matching '%s'", len(combined), query),
+			Summary: summary,
 			Results: combined,
 		})
 

@@ -24,9 +24,10 @@ const (
 	maxLocalRequestBytes             = 4 << 20
 	maxPromptSeedBytes               = 256 << 10
 	promptCacheFileName              = "prompt-cache-decision.json"
-	promptCacheDecisionSchemaVersion = 2
+	promptCacheDecisionSchemaVersion = 3
 	promptCacheQualificationTimeout  = 90 * time.Second
 	promptCacheRequestReserve        = 30 * time.Second
+	promptCacheQualificationQuiet    = 5 * time.Second
 	promptCachePersistInterval       = time.Minute
 	promptCacheProbeQuery            = "aurago_prompt_cache_probe"
 	promptCacheProbeText             = `Call discover_tools exactly once with {"operation":"search","query":"aurago_prompt_cache_probe"}. Do not answer with normal text.`
@@ -80,6 +81,12 @@ type promptCacheQualificationResult struct {
 	ProcessedTokens uint64
 	ColdTTFT        time.Duration
 	WarmTTFT        time.Duration
+}
+
+type promptCacheWarmupResult struct {
+	SeedTokens      uint64
+	CachedTokens    uint64
+	ProcessedTokens uint64
 }
 
 func (m *Manager) acquirePromptSlot(ctx context.Context) (func(), error) {
@@ -144,6 +151,9 @@ func preparePromptCacheRequest(req *http.Request) (*http.Request, *promptCacheSe
 			}
 		}
 	}
+	if err := normalizeLocalSystemMessages(object); err != nil {
+		return nil, nil, false, "", err
+	}
 
 	seed, err := seedFromChatRequest(object)
 	seedError := ""
@@ -163,6 +173,85 @@ func preparePromptCacheRequest(req *http.Request) (*http.Request, *promptCacheSe
 		return io.NopCloser(bytes.NewReader(encoded)), nil
 	}
 	return clone, seed, stream, seedError, nil
+}
+
+// normalizeLocalSystemMessages preserves the meaning of runtime recovery and
+// compaction notices while satisfying Qwen's embedded template contract:
+// exactly one system message, at the beginning of the conversation. Dynamic
+// notices are appended after the original message, so seedFromChatRequest still
+// stops at # TURN CONTEXT and never includes them in the reusable prefix.
+func normalizeLocalSystemMessages(object map[string]json.RawMessage) error {
+	var messages []map[string]json.RawMessage
+	if len(object["messages"]) == 0 || json.Unmarshal(object["messages"], &messages) != nil {
+		return fmt.Errorf("local_request_invalid")
+	}
+	var primaryMessage map[string]json.RawMessage
+	systemContents := make([]string, 0, 1)
+	nonSystem := make([]map[string]json.RawMessage, 0, len(messages))
+	for _, message := range messages {
+		var role string
+		if json.Unmarshal(message["role"], &role) != nil {
+			return fmt.Errorf("local_request_invalid")
+		}
+		if role != "system" {
+			nonSystem = append(nonSystem, message)
+			continue
+		}
+		if primaryMessage == nil {
+			primaryMessage = message
+		}
+		content, err := localMessageText(message["content"])
+		if err != nil {
+			return err
+		}
+		systemContents = append(systemContents, content)
+	}
+	if primaryMessage == nil {
+		return nil
+	}
+	primary := systemContents[0]
+	if len(systemContents) > 1 {
+		primary += "\n\n# RUNTIME SYSTEM CONTEXT\n\n" +
+			strings.Join(systemContents[1:], "\n\n")
+	}
+	encodedContent, err := json.Marshal(primary)
+	if err != nil {
+		return fmt.Errorf("local_request_encode_failed")
+	}
+	encodedRole, _ := json.Marshal("system")
+	primaryMessage["role"] = encodedRole
+	primaryMessage["content"] = encodedContent
+	normalized := make([]map[string]json.RawMessage, 0, len(nonSystem)+1)
+	normalized = append(normalized, primaryMessage)
+	normalized = append(normalized, nonSystem...)
+	encodedMessages, err := json.Marshal(normalized)
+	if err != nil {
+		return fmt.Errorf("local_request_encode_failed")
+	}
+	object["messages"] = encodedMessages
+	return nil
+}
+
+func localMessageText(raw json.RawMessage) (string, error) {
+	var text string
+	if json.Unmarshal(raw, &text) == nil {
+		return text, nil
+	}
+	var parts []struct {
+		Type string `json:"type"`
+		Text string `json:"text"`
+	}
+	if json.Unmarshal(raw, &parts) != nil {
+		return "", fmt.Errorf("local_system_content_unsupported")
+	}
+	var builder strings.Builder
+	for _, part := range parts {
+		if part.Type != "text" {
+			return "", fmt.Errorf("local_system_content_unsupported")
+		}
+		builder.WriteString(part.Text)
+	}
+	return builder.String(), nil
 }
 
 func enablePromptCacheRequest(req *http.Request) (*http.Request, error) {
@@ -353,6 +442,111 @@ func (m *Manager) promptCacheReady(seed *promptCacheSeed) bool {
 		m.status.PromptCache.State == "warm"
 }
 
+func (m *Manager) promptCacheNeedsSynchronousWarm(seed *promptCacheSeed) bool {
+	if seed == nil {
+		return false
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.promptSeed != nil &&
+		m.promptSeed.Generation == m.generation &&
+		m.promptSeed.Fingerprint == seed.Fingerprint &&
+		m.promptCacheQualified &&
+		m.status.PromptCache.Qualified &&
+		m.status.PromptCache.State == "cold"
+}
+
+func (m *Manager) cancelPromptCacheWarmForRequest() {
+	m.mu.Lock()
+	m.promptWarmSequence++
+	cancel := m.promptWarmCancel
+	m.promptWarmCancel = nil
+	if cancel != nil && m.status.PromptCache.State == "warming" &&
+		!m.promptCacheQualified {
+		m.status.PromptCache.State = "cold"
+		m.status.PromptCache.ErrorCode = ""
+	}
+	m.mu.Unlock()
+	if cancel != nil {
+		cancel()
+	}
+}
+
+// schedulePromptCacheQualification waits for a short quiet period after a
+// completed real response. A subsequent model turn cancels it before taking the
+// single llama.cpp slot, so qualification can never consume most of the user's
+// request deadline again.
+func (m *Manager) schedulePromptCacheQualification(plan runtimePlan, seed *promptCacheSeed) {
+	m.schedulePromptCacheQualificationAfter(plan, seed, promptCacheQualificationQuiet)
+}
+
+func (m *Manager) schedulePromptCacheQualificationAfter(plan runtimePlan, seed *promptCacheSeed, quiet time.Duration) {
+	if seed == nil {
+		return
+	}
+	m.mu.Lock()
+	if m.shuttingDown || plan.Generation != m.generation ||
+		m.promptSeed == nil || m.promptSeed.Fingerprint != seed.Fingerprint ||
+		m.promptCacheQualified ||
+		m.status.PromptCache.State == "rejected" ||
+		m.status.PromptCache.State == "degraded" {
+		m.mu.Unlock()
+		return
+	}
+	if m.promptWarmCancel != nil {
+		m.promptWarmCancel()
+	}
+	m.promptWarmSequence++
+	sequence := m.promptWarmSequence
+	lifecycle := m.lifecycleCtx
+	if lifecycle == nil {
+		lifecycle = context.Background()
+	}
+	ctx, cancel := context.WithCancel(lifecycle)
+	m.promptWarmCancel = cancel
+	m.promptWarmWG.Add(1)
+	m.mu.Unlock()
+
+	go func() {
+		defer m.promptWarmWG.Done()
+		defer func() {
+			m.mu.Lock()
+			if sequence == m.promptWarmSequence {
+				m.promptWarmCancel = nil
+				if ctx.Err() != nil && m.status.PromptCache.State == "warming" &&
+					!m.promptCacheQualified {
+					m.status.PromptCache.State = "cold"
+					m.status.PromptCache.ErrorCode = ""
+				}
+			}
+			m.mu.Unlock()
+		}()
+		timer := time.NewTimer(quiet)
+		defer timer.Stop()
+		select {
+		case <-timer.C:
+		case <-ctx.Done():
+			return
+		}
+
+		releaseSlot, err := m.acquirePromptSlot(ctx)
+		if err != nil {
+			return
+		}
+		defer releaseSlot()
+		if err := m.acquireRequest(); err != nil {
+			return
+		}
+		defer m.release()
+		key, err := m.runtimeKey()
+		if err != nil {
+			m.markPromptCacheDegraded("runtime_key_unavailable")
+			return
+		}
+		m.ensurePromptCacheWarm(ctx, plan, key)
+	}()
+}
+
 func (m *Manager) ensurePromptCacheWarm(ctx context.Context, plan runtimePlan, key string) {
 	m.mu.Lock()
 	if plan.Generation != m.generation || m.promptSeed == nil ||
@@ -385,7 +579,11 @@ func (m *Manager) ensurePromptCacheWarm(ctx context.Context, plan runtimePlan, k
 	defer cancel()
 	var result promptCacheQualificationResult
 	if qualified {
-		result.SeedTokens, err = m.warmPromptPrefix(warmCtx, plan, key, seed)
+		var warmup promptCacheWarmupResult
+		warmup, err = m.warmPromptPrefix(warmCtx, plan, key, seed)
+		result.SeedTokens = warmup.SeedTokens
+		result.CachedTokens = warmup.CachedTokens
+		result.ProcessedTokens = warmup.ProcessedTokens
 	} else {
 		result, err = m.qualifyPromptCache(warmCtx, plan, key, seed)
 	}
@@ -584,21 +782,21 @@ func (m *Manager) promptCacheHTTPClient() *http.Client {
 	return http.DefaultClient
 }
 
-func (m *Manager) warmPromptPrefix(ctx context.Context, plan runtimePlan, key string, seed promptCacheSeed) (uint64, error) {
+func (m *Manager) warmPromptPrefix(ctx context.Context, plan runtimePlan, key string, seed promptCacheSeed) (promptCacheWarmupResult, error) {
 	templateBody, err := promptCacheTemplateBody(seed)
 	if err != nil {
-		return 0, err
+		return promptCacheWarmupResult{}, err
 	}
 	rendered, err := m.applyPromptTemplate(ctx, plan.Config, key, templateBody)
 	if err != nil {
 		if ctx.Err() != nil {
-			return 0, fmt.Errorf("prompt_cache_qualification_timeout: %w", ctx.Err())
+			return promptCacheWarmupResult{}, fmt.Errorf("prompt_cache_qualification_timeout: %w", ctx.Err())
 		}
-		return 0, fmt.Errorf("prompt_cache_template_failed: %w", err)
+		return promptCacheWarmupResult{}, fmt.Errorf("prompt_cache_template_failed: %w", err)
 	}
 	rendered, err = truncateRenderedPromptAtBoundary(rendered)
 	if err != nil {
-		return 0, err
+		return promptCacheWarmupResult{}, err
 	}
 	payload, err := json.Marshal(map[string]any{
 		"prompt":       rendered,
@@ -607,38 +805,44 @@ func (m *Manager) warmPromptPrefix(ctx context.Context, plan runtimePlan, key st
 		"id_slot":      0,
 	})
 	if err != nil {
-		return 0, fmt.Errorf("prompt_cache_seed_invalid")
+		return promptCacheWarmupResult{}, fmt.Errorf("prompt_cache_seed_invalid")
 	}
 	base := strings.TrimSuffix(plan.Config.Endpoint(m.runningInDocker), "/v1")
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, base+"/completion", bytes.NewReader(payload))
 	if err != nil {
-		return 0, fmt.Errorf("prompt_cache_warmup_failed")
+		return promptCacheWarmupResult{}, fmt.Errorf("prompt_cache_warmup_failed")
 	}
 	req.Header.Set("Authorization", "Bearer "+key)
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := m.promptCacheHTTPClient().Do(req)
 	if err != nil {
 		if ctx.Err() != nil {
-			return 0, fmt.Errorf("prompt_cache_qualification_timeout: %w", ctx.Err())
+			return promptCacheWarmupResult{}, fmt.Errorf("prompt_cache_qualification_timeout: %w", ctx.Err())
 		}
-		return 0, fmt.Errorf("prompt_cache_transport_failed: %w", err)
+		return promptCacheWarmupResult{}, fmt.Errorf("prompt_cache_transport_failed: %w", err)
 	}
 	defer resp.Body.Close()
 	body, readErr := io.ReadAll(io.LimitReader(resp.Body, maxPromptSeedBytes+1))
 	if readErr != nil || len(body) > maxPromptSeedBytes {
-		return 0, fmt.Errorf("prompt_cache_warmup_failed")
+		return promptCacheWarmupResult{}, fmt.Errorf("prompt_cache_warmup_failed")
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return 0, promptCacheHTTPError(body)
+		return promptCacheWarmupResult{}, promptCacheHTTPError(body)
 	}
 	cached, prompt := promptCacheUsage(body)
 	if prompt == 0 {
 		prompt = cached
 	}
 	if prompt == 0 {
-		return 0, fmt.Errorf("prompt_cache_seed_tokens_unavailable")
+		return promptCacheWarmupResult{}, fmt.Errorf("prompt_cache_seed_tokens_unavailable")
 	}
-	return prompt, nil
+	processed := prompt
+	if cached <= prompt {
+		processed -= cached
+	}
+	return promptCacheWarmupResult{
+		SeedTokens: prompt, CachedTokens: cached, ProcessedTokens: processed,
+	}, nil
 }
 
 func (m *Manager) qualifyPromptCache(ctx context.Context, plan runtimePlan, key string, seed promptCacheSeed) (promptCacheQualificationResult, error) {
@@ -649,7 +853,7 @@ func (m *Manager) qualifyPromptCache(ctx context.Context, plan runtimePlan, key 
 	if err != nil {
 		return promptCacheQualificationResult{}, err
 	}
-	seedTokens, err := m.warmPromptPrefix(ctx, plan, key, seed)
+	warmup, err := m.warmPromptPrefix(ctx, plan, key, seed)
 	if err != nil {
 		return promptCacheQualificationResult{}, err
 	}
@@ -657,7 +861,13 @@ func (m *Manager) qualifyPromptCache(ctx context.Context, plan runtimePlan, key 
 	if err != nil {
 		return promptCacheQualificationResult{}, err
 	}
-	return validatePromptCacheQualification(cold, warm, seedTokens)
+	if warmup.CachedTokens > warm.CachedTokens {
+		warm.CachedTokens = warmup.CachedTokens
+	}
+	if warmup.SeedTokens > warm.PromptTokens {
+		warm.PromptTokens = warmup.SeedTokens
+	}
+	return validatePromptCacheQualification(cold, warm, warmup.SeedTokens)
 }
 
 func validatePromptCacheQualification(cold, warm promptCacheProbeResult, seedTokens uint64) (promptCacheQualificationResult, error) {
@@ -905,7 +1115,7 @@ func (m *Manager) promptCacheFingerprintLocked() string {
 		return ""
 	}
 	payload := m.desiredFingerprint + "\x00" + m.promptSeed.Fingerprint + "\x00" +
-		LlamaCPPCommit + "\x00" + m.status.PerformanceProfile + "\x00schema=2"
+		LlamaCPPCommit + "\x00" + m.status.PerformanceProfile + "\x00schema=3"
 	sum := sha256.Sum256([]byte(payload))
 	return hex.EncodeToString(sum[:])
 }

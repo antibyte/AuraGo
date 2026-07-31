@@ -79,6 +79,60 @@ func TestPreparePromptCacheRequestBuildsValueFreeStableSeed(t *testing.T) {
 	}
 }
 
+func TestPreparePromptCacheRequestMergesSecondarySystemMessagesForQwen(t *testing.T) {
+	body := `{
+		"model":"aurago-qwen",
+		"messages":[
+			{"role":"user","content":"older user turn"},
+			{"role":"system","name":"generated","content":"STATIC PREFIX\n# TURN CONTEXT\nruntime data"},
+			{"role":"assistant","content":"working"},
+			{"role":"system","content":"Duplicate tool-call circuit breaker activated."},
+			{"role":"tool","tool_call_id":"call-1","content":"result"}
+		],
+		"tools":[]
+	}`
+	request, err := http.NewRequest(http.MethodPost, "http://localhost/v1/chat/completions", strings.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	prepared, seed, _, seedError, err := preparePromptCacheRequest(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if seedError != "" || seed == nil {
+		t.Fatalf("seed=%#v error=%q", seed, seedError)
+	}
+	raw, _ := io.ReadAll(prepared.Body)
+	var object struct {
+		Messages []struct {
+			Role       string `json:"role"`
+			Name       string `json:"name"`
+			Content    string `json:"content"`
+			ToolCallID string `json:"tool_call_id"`
+		} `json:"messages"`
+	}
+	if err := json.Unmarshal(raw, &object); err != nil {
+		t.Fatal(err)
+	}
+	if len(object.Messages) != 4 || object.Messages[0].Role != "system" ||
+		object.Messages[0].Name != "generated" {
+		t.Fatalf("normalized messages = %#v", object.Messages)
+	}
+	for index, message := range object.Messages[1:] {
+		if message.Role == "system" {
+			t.Fatalf("secondary system remained at index %d: %#v", index+1, object.Messages)
+		}
+	}
+	if !strings.Contains(object.Messages[0].Content, "# RUNTIME SYSTEM CONTEXT") ||
+		!strings.Contains(object.Messages[0].Content, "circuit breaker activated") {
+		t.Fatalf("runtime system notice was lost: %q", object.Messages[0].Content)
+	}
+	if strings.Contains(string(seed.ApplyTemplateBody), "circuit breaker activated") ||
+		strings.Contains(string(seed.ApplyTemplateBody), "runtime data") {
+		t.Fatalf("dynamic system context leaked into cache seed: %s", seed.ApplyTemplateBody)
+	}
+}
+
 func TestPromptCacheResponseMeasurementsUseCacheN(t *testing.T) {
 	manager := promptCacheObservationTestManager(t)
 	plan := promptCacheObservationPlan{Generation: 1, SeedFingerprint: "seed", CacheEnabled: true}
@@ -207,6 +261,32 @@ func TestPromptCacheDecisionV1IsIgnored(t *testing.T) {
 	}
 }
 
+func TestPromptCacheDecisionV2IsIgnored(t *testing.T) {
+	manager := &Manager{
+		generation: 1, desiredFingerprint: "runtime", modelDir: t.TempDir(),
+		promptSeed: &promptCacheSeed{Generation: 1, Fingerprint: "seed"},
+		status:     Status{PerformanceProfile: performanceProfileGeneric},
+	}
+	manager.mu.Lock()
+	fingerprint := manager.promptCacheFingerprintLocked()
+	manager.mu.Unlock()
+	payload, _ := json.Marshal(map[string]any{
+		"schema_version": 2,
+		"fingerprint":    fingerprint,
+		"accepted":       true,
+		"state":          "warm",
+	})
+	if err := os.WriteFile(filepath.Join(manager.modelDir, promptCacheFileName), payload, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	manager.mu.Lock()
+	_, ok := manager.loadPromptCacheDecisionLocked()
+	manager.mu.Unlock()
+	if ok {
+		t.Fatal("schema-v2 cache decision was trusted")
+	}
+}
+
 func TestPromptCacheDecisionWriterDoesNotHoldPromptSlotAndCoalesces(t *testing.T) {
 	blocked := make(chan struct{})
 	started := make(chan struct{})
@@ -296,6 +376,67 @@ func TestPromptCacheQualificationReservesTimeForRealTurn(t *testing.T) {
 		qualificationCancel()
 		t.Fatal("qualification started without reserving 30 seconds for the real turn")
 	}
+}
+
+func TestBackgroundPromptCacheQualificationYieldsToRealRequest(t *testing.T) {
+	coldStarted := make(chan struct{})
+	releaseHandler := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if request.URL.Path != "/v1/chat/completions" {
+			http.NotFound(writer, request)
+			return
+		}
+		close(coldStarted)
+		select {
+		case <-request.Context().Done():
+		case <-releaseHandler:
+		}
+	}))
+	defer server.Close()
+	_, portText, err := net.SplitHostPort(strings.TrimPrefix(server.URL, "http://"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	port, _ := strconv.Atoi(portText)
+	lifecycle, lifecycleCancel := context.WithCancel(context.Background())
+	manager := &Manager{
+		generation:   1,
+		promptSlot:   make(chan struct{}, 1),
+		lifecycleCtx: lifecycle, lifecycleCancel: lifecycleCancel,
+		vault: &localLLMTestVault{values: map[string]string{
+			config.LocalLLMRuntimeAPIKeyVaultKey: "runtime-key",
+		}},
+		status: Status{PromptCache: PromptCacheStatus{State: "cold"}},
+	}
+	manager.promptSeed = &promptCacheSeed{
+		Generation: 1, Fingerprint: "seed",
+		SystemPrefix: "STATIC PREFIX",
+		ApplyTemplateBody: []byte(`{
+			"messages":[{"role":"system","content":"STATIC PREFIX"},{"role":"user","content":"probe"}],
+			"tools":[{"type":"function","function":{"name":"discover_tools","parameters":{"type":"object"}}}]
+		}`),
+	}
+	plan := runtimePlan{Generation: 1, Config: config.LocalLLMConfig{ListenPort: port}}
+	manager.schedulePromptCacheQualificationAfter(plan, manager.promptSeed, 0)
+	select {
+	case <-coldStarted:
+	case <-time.After(time.Second):
+		t.Fatal("background qualification did not start")
+	}
+	manager.cancelPromptCacheWarmForRequest()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	release, err := manager.acquirePromptSlot(ctx)
+	cancel()
+	if err != nil {
+		t.Fatalf("real request did not regain prompt slot: %v", err)
+	}
+	release()
+	manager.promptWarmWG.Wait()
+	if status := manager.Status().PromptCache; status.State == "warming" {
+		t.Fatalf("cancelled qualification left stale warming state: %#v", status)
+	}
+	lifecycleCancel()
+	close(releaseHandler)
 }
 
 func TestPromptCacheQualificationThresholdsAndSemantics(t *testing.T) {
@@ -453,7 +594,9 @@ func TestPromptCacheWarmupPersistsOnlyValueFreeDecision(t *testing.T) {
 				`{"prompt":"rendered STATIC PREFIX `+secretSuffix+promptCacheRenderBoundary+` synthetic turn"}`,
 			)
 		case "/completion":
-			_, _ = io.WriteString(writer, `{"timings":{"cache_n":0,"prompt_n":1000}}`)
+			// llama.cpp exposes these reliable non-streaming counters even on
+			// builds where the final chat SSE omits cache timing details.
+			_, _ = io.WriteString(writer, `{"tokens_cached":900,"tokens_evaluated":100}`)
 		case "/v1/chat/completions":
 			var payload map[string]json.RawMessage
 			_ = json.NewDecoder(request.Body).Decode(&payload)
@@ -463,11 +606,7 @@ func TestPromptCacheWarmupPersistsOnlyValueFreeDecision(t *testing.T) {
 			}
 			writer.Header().Set("Content-Type", "text/event-stream")
 			_, _ = io.WriteString(writer, `data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"name":"discover_tools","arguments":"{\"operation\":\"search\",\"query\":\"aurago_prompt_cache_probe\"}"}}]}}],"timings":{"cache_n":`)
-			if cache {
-				_, _ = io.WriteString(writer, "900")
-			} else {
-				_, _ = io.WriteString(writer, "0")
-			}
+			_, _ = io.WriteString(writer, "0")
 			_, _ = io.WriteString(writer, `,"prompt_n":100}}`+"\n\ndata: [DONE]\n\n")
 		default:
 			http.NotFound(writer, request)

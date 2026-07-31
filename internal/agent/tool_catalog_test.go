@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
 	"os"
@@ -196,6 +197,45 @@ func TestToolCatalogSearchMatchesTermsAcrossToolFields(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("broad results did not include remote_control: %+v", results)
+	}
+}
+
+func TestToolCatalogRanksSystemMetricsForCPUMonitorQuery(t *testing.T) {
+	schemas := []openai.Tool{
+		testToolSchema("site_monitor", "Monitor website availability and changes"),
+		testToolSchema("co_agent", "Monitor delegated agent work"),
+		testToolSchema("system_metrics", "Retrieve CPU, memory, disk, host and sensor metrics"),
+	}
+	catalog := BuildToolCatalog(schemas, nil, "")
+
+	results := catalog.Search("monitor cpu")
+	if len(results) == 0 || results[0].Name != "system_metrics" {
+		t.Fatalf("top result = %+v, want system_metrics", results)
+	}
+}
+
+func TestDiscoverToolsSearchCapsBroadResultSet(t *testing.T) {
+	resetToolCatalogForTest(t)
+	schemas := make([]openai.Tool, 0, 8)
+	for index := 0; index < 8; index++ {
+		schemas = append(schemas, testToolSchema(
+			fmt.Sprintf("monitor_%d", index),
+			"Monitor a distinct test target",
+		))
+	}
+	SetDiscoverToolsState("sess-search-cap", schemas, nil, "")
+
+	out := handleDiscoverTools(ToolCall{
+		Params: map[string]interface{}{
+			"operation": "search",
+			"query":     "monitor",
+		},
+	}, &config.Config{}, slog.New(slog.NewTextHandler(io.Discard, nil)), "sess-search-cap")
+	var payload DiscoverToolsResponse
+	decodeToolOutputJSON(t, out, &payload)
+	if len(payload.Results) != maxDiscoverToolSearchResults ||
+		!strings.Contains(payload.Summary, "showing 5 of ") {
+		t.Fatalf("broad search was not capped: %+v raw=%s", payload, out)
 	}
 }
 

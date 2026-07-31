@@ -17,6 +17,10 @@ func (m *Manager) RoundTripper(base http.RoundTripper) http.RoundTripper {
 		base = http.DefaultTransport
 	}
 	return roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+		// A real model turn always takes priority over background cache
+		// qualification. This also aborts a qualification that started while a
+		// long-running tool was executing between two agent turns.
+		m.cancelPromptCacheWarmForRequest()
 		releaseSlot, err := m.acquirePromptSlot(req.Context())
 		if err != nil {
 			return nil, err
@@ -63,7 +67,7 @@ func (m *Manager) RoundTripper(base http.RoundTripper) http.RoundTripper {
 			applied = &copyPlan
 		}
 		m.mu.Unlock()
-		if applied != nil {
+		if applied != nil && m.promptCacheNeedsSynchronousWarm(seed) {
 			m.ensurePromptCacheWarm(req.Context(), *applied, key)
 		}
 		cacheEnabled := m.promptCacheReady(seed)
@@ -98,6 +102,9 @@ func (m *Manager) RoundTripper(base http.RoundTripper) http.RoundTripper {
 		resp.Body = &releaseBody{
 			ReadCloser: newCacheObservingBody(resp.Body, stream, func(payload []byte, firstByte time.Duration, complete bool) {
 				m.observePromptCacheResponse(observation, payload, stream, firstByte, complete)
+				if complete && !cacheEnabled && applied != nil {
+					m.schedulePromptCacheQualification(*applied, seed)
+				}
 			}, started),
 			release: func() {
 				m.release()

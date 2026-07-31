@@ -142,8 +142,22 @@ func catalogEntryFromSchema(schema openai.Tool, active bool, promptsDir string) 
 		entry.Kind = ToolKindMCP
 		entry.Routing = ToolRouting{NativeAction: name}
 	}
+	entry.Aliases = append(entry.Aliases, toolSearchAliases(name)...)
 
 	return entry
+}
+
+func toolSearchAliases(name string) []string {
+	switch name {
+	case "system_metrics":
+		return []string{
+			"cpu temperature", "cpu temperatures", "cpu temperatur",
+			"temperature sensors", "thermal sensors", "system monitor",
+			"monitor cpu", "cpu monitor", "hardware metrics",
+		}
+	default:
+		return nil
+	}
 }
 
 func (c *ToolCatalog) add(entry *ToolCatalogEntry) {
