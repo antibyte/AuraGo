@@ -3935,8 +3935,18 @@
     let gadgetDrag = null;
     let gadgetInitialized = false;
 
+    // The gadget is mounted directly on <body>, as a sibling of #vd-window-layer.
+    // #vd-window-layer sets a fixed z-index (--vd-z-window, currently 100) and
+    // therefore forms its own stacking context: every window inside it is only
+    // ordered *relative to other windows*, never against elements outside the
+    // layer. That means GADGET_Z_BASE/GADGET_Z_FOCUS only need to be compared
+    // against --vd-z-window, not against individual window z-indexes.
+    // Keeping both below --vd-z-window guarantees the gadget can always be sent
+    // behind any window simply by focusing that window - it can never end up
+    // permanently stuck in front (and blocking clicks on windows underneath it)
+    // unless the user explicitly pins it with "Always on top".
     const GADGET_Z_BASE = 20;
-    const GADGET_Z_FOCUS = 110;
+    const GADGET_Z_FOCUS = 90;
     const GADGET_Z_ALWAYS_ON_TOP = 998;
 
     function phoneGadgetEnabled() {
