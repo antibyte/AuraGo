@@ -6652,3 +6652,74 @@
         grid-template-columns: 1fr;
     }
 }
+.pw-page[data-workspace-page="dashboard"] .operational-issues-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    align-items: center;
+    margin-bottom: var(--space-3);
+}
+
+.pw-page[data-workspace-page="dashboard"] .operational-issues-controls .profile-search {
+    min-width: 12rem;
+    flex: 1 1 14rem;
+}
+
+.pw-page[data-workspace-page="dashboard"] .operational-issues-table-wrap {
+    overflow-x: auto;
+}
+
+.pw-page[data-workspace-page="dashboard"] .operational-issue-detail {
+    max-width: 34rem;
+    margin-top: var(--space-1);
+    color: var(--text-secondary);
+    font-size: var(--text-xs);
+    overflow-wrap: anywhere;
+}
+
+.pw-page[data-workspace-page="dashboard"] .operational-issue-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+}
+
+.pw-page[data-workspace-page="dashboard"] .operational-issue-action {
+    white-space: nowrap;
+}
+
+.pw-page[data-workspace-page="dashboard"] .operational-issue-severity {
+    font-weight: 600;
+}
+
+.pw-page[data-workspace-page="dashboard"] .operational-issue-severity-error,
+.pw-page[data-workspace-page="dashboard"] .operational-issue-severity-critical,
+.pw-page[data-workspace-page="dashboard"] .operational-issue-severity-high {
+    color: var(--pw-danger);
+}
+
+.pw-page[data-workspace-page="dashboard"] .operational-issue-severity-warning,
+.pw-page[data-workspace-page="dashboard"] .operational-issue-severity-warn,
+.pw-page[data-workspace-page="dashboard"] .operational-issue-severity-medium {
+    color: var(--pw-warning);
+}
+
+.pw-page[data-workspace-page="dashboard"] .operational-issues-confirm {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3);
+    margin-bottom: var(--space-3);
+    border: 1px solid var(--pw-warning);
+    background: var(--pw-surface-elevated);
+}
+
+.pw-page[data-workspace-page="dashboard"] .operational-issues-confirm.is-hidden {
+    display: none;
+}
+
+.pw-page[data-workspace-page="dashboard"] .operational-issues-confirm-actions {
+    display: flex;
+    gap: var(--space-2);
+    flex: 0 0 auto;
+}

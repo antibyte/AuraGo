@@ -191,7 +191,7 @@ func dispatchPython(tc ToolCall, dc *DispatchContext) string {
 					skillBase := strings.TrimSuffix(skillCheckName, ".py")
 					return fmt.Sprintf("Tool Output: ERROR '%s' is a registered SKILL, not a generic tool. You MUST use {\"action\": \"execute_skill\", \"skill\": \"%s\", \"skill_args\": {\"arg1\": \"val1\"}} (JSON object) instead.", req.Name, skillBase)
 				}
-				return fmt.Sprintf(`Tool Output: {"status":"error","message":"Tool '%s' not found"}`, req.Name)
+				return runToolNotFoundOutput(manifest, req.Name)
 			}
 			return fmt.Sprintf(`Tool Output: {"status":"error","message":"Tool '%s' not accessible: %s"}`, req.Name, err)
 		}

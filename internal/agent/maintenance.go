@@ -312,6 +312,12 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 		SyncPlannerToKnowledgeGraph(taskCtx, plannerDB, kg, logger)
 	}
 	if plannerDB != nil {
+		if archived, err := planner.ArchiveStaleOperationalIssues(plannerDB, time.Now()); err != nil {
+			logger.Warn("[Maintenance] Failed to archive stale operational issues", "error", err)
+			ledger.addError("operational_issue_archive: " + err.Error())
+		} else if archived > 0 {
+			logger.Info("[Maintenance] Archived stale operational issues", "archived", archived)
+		}
 		if cleaned, err := planner.CleanupOperationalIssues(plannerDB, time.Duration(retention.OperationalIssuesDays)*24*time.Hour); err != nil {
 			logger.Warn("[Maintenance] Failed to clean up operational issues", "error", err)
 			ledger.addError("operational_issue_cleanup: " + err.Error())

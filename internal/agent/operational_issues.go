@@ -53,6 +53,7 @@ func recordToolFailureOperationalIssue(runCfg RunConfig, tc ToolCall, resultCont
 		Title:       title,
 		Detail:      detail,
 		Severity:    "warning",
+		Kind:        planner.OperationalIssueKindToolFailure,
 		Reference:   action,
 		Fingerprint: strings.Join([]string{source, context, "tool", action}, "|"),
 		OccurredAt:  time.Now(),
@@ -159,7 +160,7 @@ func prepareOperationalIssueNotice(runCfg RunConfig, initialUserMsg string, logg
 }
 
 func formatOperationalIssueNotice(lang string, issues []planner.OperationalIssueNotice) string {
-	title := translatedOperationalIssueText(lang, "backend.operational_issue_notice_title", "Current operational issues")
+	title := translatedOperationalIssueText(lang, "backend.operational_issue_notice_title", "Operational issues")
 	summary := translatedOperationalIssueText(lang, "backend.operational_issue_notice_summary", "AuraGo detected {0} issue(s) during background work.", len(issues))
 	var b strings.Builder
 	b.WriteString("### ")
@@ -173,14 +174,52 @@ func formatOperationalIssueNotice(lang string, issues []planner.OperationalIssue
 			b.WriteString(": ")
 			b.WriteString(detail)
 		}
+		var metadata []string
+		severity := translatedOperationalIssueText(
+			lang,
+			"backend.operational_issue_notice_severity",
+			"severity: {0}",
+			translatedOperationalIssueSeverity(lang, issue.Severity),
+		)
+		metadata = append(metadata, severity)
 		if issue.Occurrences > 1 {
-			occurrences := translatedOperationalIssueText(lang, "backend.operational_issue_notice_occurrences", "occurred {0} times", issue.Occurrences)
+			metadata = append(metadata, translatedOperationalIssueText(lang, "backend.operational_issue_notice_occurrences", "occurred {0} times", issue.Occurrences))
+		}
+		if lastSeen := formatOperationalIssueNoticeTime(issue.LastSeen); lastSeen != "" {
+			metadata = append(metadata, translatedOperationalIssueText(lang, "backend.operational_issue_notice_last_seen", "last seen: {0}", lastSeen))
+		}
+		if len(metadata) > 0 {
 			b.WriteString(" (")
-			b.WriteString(occurrences)
+			b.WriteString(strings.Join(metadata, "; "))
 			b.WriteString(")")
 		}
 	}
 	return b.String()
+}
+
+func translatedOperationalIssueSeverity(lang, severity string) string {
+	severity = strings.ToLower(strings.TrimSpace(severity))
+	switch severity {
+	case "critical", "error", "high":
+		severity = "error"
+	case "info", "low":
+		severity = "info"
+	default:
+		severity = "warning"
+	}
+	return translatedOperationalIssueText(
+		lang,
+		"backend.operational_issue_severity_"+severity,
+		severity,
+	)
+}
+
+func formatOperationalIssueNoticeTime(value string) string {
+	parsed, err := time.Parse(time.RFC3339, strings.TrimSpace(value))
+	if err != nil {
+		return ""
+	}
+	return parsed.UTC().Format("2006-01-02 15:04 UTC")
 }
 
 func translatedOperationalIssueText(lang, key, fallback string, params ...any) string {

@@ -35,7 +35,7 @@ func buildCoreToolSchemas(ff ToolFeatureFlags, execSkillProps map[string]interfa
 			}, "skill", "script"),
 		),
 		tool("run_tool",
-			"Run a saved custom Python tool from the agent tools directory. Requires agent.allow_python. Use name from discover_tools/list_tools and pass positional args as an array, or pass a params object that will be forwarded as one JSON argument.",
+			"Run only a saved custom Python tool from the agent tools directory. Requires agent.allow_python. The name must exactly match a custom tool returned by discover_tools/list_tools; never invent a name or use run_tool for built-in AuraGo tools. Pass positional args as an array, or pass a params object that will be forwarded as one JSON argument.",
 			schema(map[string]interface{}{
 				"name":       prop("string", "Custom tool filename or registered manifest name to run"),
 				"args":       map[string]interface{}{"type": "array", "description": "Optional positional command-line arguments for the tool", "items": map[string]interface{}{"type": "string"}},

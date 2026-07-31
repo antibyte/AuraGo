@@ -165,6 +165,7 @@ func TestIsAdminProtectedPathIncludesLegacyCronAPI(t *testing.T) {
 	for _, path := range []string{
 		"/api/cron", "/api/cron/job-1", "/api/dashboard/memory/reflection/run",
 		"/api/memory/conflicts/resolve", "/api/local-llm/status", "/api/local-llm/action",
+		"/api/operational-issues", "/api/operational-issues/stale-preview",
 	} {
 		if !isAdminProtectedPath(path) {
 			t.Fatalf("%s should be admin protected", path)

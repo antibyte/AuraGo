@@ -59,6 +59,7 @@ images, and browser-oriented regression tests.
 - Configuration density is a browser-local presentation preference and never
   belongs in `config.yaml`.
 - Every visible UI string must use translations in all supported locales.
+- The Dashboard operational-issues view uses the sanitized admin API only, renders dynamic issue data with `textContent`, and requires an inline confirmation before archival or resolution. It must never decode or display internal fingerprints, raw logs, or unredacted error text.
 - Skill-card list fields must render in deterministic sorted order matching
   their DOM-diff snapshots so API-only reordering cannot leave stale cards.
 - The service worker caches only same-origin static assets, retains full

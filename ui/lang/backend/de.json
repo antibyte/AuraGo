@@ -1,7 +1,12 @@
 {
-  "backend.operational_issue_notice_title": "Aktuelle Betriebsprobleme",
+  "backend.operational_issue_notice_title": "Betriebsprobleme",
   "backend.operational_issue_notice_summary": "AuraGo hat bei Hintergrundarbeiten {0} Problem(e) erkannt.",
   "backend.operational_issue_notice_occurrences": "{0}-mal aufgetreten",
+  "backend.operational_issue_notice_last_seen": "zuletzt aufgetreten: {0}",
+  "backend.operational_issue_notice_severity": "Schweregrad: {0}",
+  "backend.operational_issue_severity_error": "Fehler",
+  "backend.operational_issue_severity_warning": "Warnung",
+  "backend.operational_issue_severity_info": "Information",
   "backend.cmd_unknown": "❌ Unbekannter Befehl. Tippe /help für eine Liste der Befehle.",
   "backend.cmd_reset_success": "🧹 Chat-Verlauf und Kurzzeitgedächtnis wurden gelöscht.",
   "backend.cmd_reset_help": "Löscht den aktuellen Chat-Verlauf (Short-Term Memory).",

@@ -553,6 +553,7 @@
         async function loadTabSystem() {
             // Set loading state on system cards
             CardState.setLoading('card-operations');
+            CardState.setLoading('card-operational-issues');
             CardState.setLoading('card-helper-llm');
             CardState.setLoading('card-activity');
             CardState.setLoading('card-prompt');
@@ -582,6 +583,9 @@
             if (overview) {
                 renderOperations(overview);
                 renderIntegrations(overview);
+            }
+            if (typeof window.loadOperationalIssues === 'function') {
+                window.loadOperationalIssues();
             }
             loadGuardianCard();
             loadHelperLLMCard();

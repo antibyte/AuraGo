@@ -23,6 +23,8 @@ Schedule an independent background prompt to be executed by yourself immediately
 
 - Maximum 10 sequential follow-ups before the system forces a pause.
 - You CAN include a natural-language response to the user AND append this tool call at the end. The user sees your text; the follow-up triggers immediately afterward.
+- Use only tools and schemas present in the background run. For an unknown capability, call `discover_tools` (`search` or `get_tool_info`) first and obey its `call_method`.
+- `run_tool` is exclusively for exact names from the current custom-tool manifest. Built-in operations such as notes and open tasks use `manage_notes` and `manage_todos`; never invent aliases such as `save_note` or `list_open_tasks`.
 
 ### Schema
 

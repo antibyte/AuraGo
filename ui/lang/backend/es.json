@@ -1,7 +1,12 @@
 {
-  "backend.operational_issue_notice_title": "Problemas operativos actuales",
+  "backend.operational_issue_notice_title": "Problemas operativos",
   "backend.operational_issue_notice_summary": "AuraGo detectó {0} problema(s) durante el trabajo en segundo plano.",
   "backend.operational_issue_notice_occurrences": "ocurrió {0} veces",
+  "backend.operational_issue_notice_last_seen": "última aparición: {0}",
+  "backend.operational_issue_notice_severity": "gravedad: {0}",
+  "backend.operational_issue_severity_error": "error",
+  "backend.operational_issue_severity_warning": "advertencia",
+  "backend.operational_issue_severity_info": "información",
   "backend.cmd_unknown": "❌ Comando desconocido. Escriba /help para ver la lista de comandos.",
   "backend.cmd_reset_success": "🧹 El historial de chat y la memoria a corto plazo han sido eliminados.",
   "backend.cmd_reset_help": "Elimina el historial de chat actual (memoria a corto plazo).",

@@ -745,6 +745,71 @@
       </div>
     </div>
 
+    <div class="dash-card dash-full-width" id="card-operational-issues">
+      <div class="dash-card-header">
+        <svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2 21h20L12 3z"/><path d="M12 9v5M12 18h.01"/></svg>
+        <span data-i18n="dashboard.operational_issues_title"></span>
+        <span class="status-badge" id="operational-issues-counts"></span>
+        <button type="button" class="collapse-toggle" data-card="card-operational-issues" data-i18n-title="dashboard.activity_collapse" title="" aria-expanded="true">▼</button>
+      </div>
+      <div class="dash-card-body">
+        <p class="dash-card-desc" data-i18n="dashboard.operational_issues_desc"></p>
+        <div class="operational-issues-controls">
+          <select id="operational-issues-status" class="audit-select">
+            <option value="active" data-i18n="dashboard.operational_issues_filter_active"></option>
+            <option value="archived" data-i18n="dashboard.operational_issues_filter_archived"></option>
+            <option value="done" data-i18n="dashboard.operational_issues_filter_done"></option>
+            <option value="all" data-i18n="dashboard.operational_issues_filter_all"></option>
+          </select>
+          <select id="operational-issues-kind" class="audit-select">
+            <option value="" data-i18n="dashboard.operational_issues_kind_all"></option>
+            <option value="runtime_failure" data-i18n="dashboard.operational_issues_kind_runtime"></option>
+            <option value="tool_failure" data-i18n="dashboard.operational_issues_kind_tool"></option>
+            <option value="review_required" data-i18n="dashboard.operational_issues_kind_review"></option>
+          </select>
+          <select id="operational-issues-severity" class="audit-select">
+            <option value="" data-i18n="dashboard.operational_issues_severity_all"></option>
+            <option value="error" data-i18n="dashboard.operational_issues_severity_error"></option>
+            <option value="warning" data-i18n="dashboard.operational_issues_severity_warning"></option>
+            <option value="info" data-i18n="dashboard.operational_issues_severity_info"></option>
+          </select>
+          <input type="search" id="operational-issues-source" class="profile-search" maxlength="64" data-i18n-placeholder="dashboard.operational_issues_source_placeholder" placeholder="">
+          <button type="button" id="operational-issues-refresh" class="log-btn" data-i18n="dashboard.operational_issues_refresh"></button>
+          <button type="button" id="operational-issues-archive-stale" class="log-btn" data-i18n="dashboard.operational_issues_archive_stale"></button>
+        </div>
+        <div id="operational-issues-confirm" class="operational-issues-confirm is-hidden" role="alert">
+          <span id="operational-issues-confirm-text"></span>
+          <div class="operational-issues-confirm-actions">
+            <button type="button" id="operational-issues-confirm-cancel" class="log-btn" data-i18n="dashboard.operational_issues_cancel"></button>
+            <button type="button" id="operational-issues-confirm-apply" class="log-btn audit-danger-btn" data-i18n="dashboard.operational_issues_confirm"></button>
+          </div>
+        </div>
+        <div class="operational-issues-table-wrap">
+          <table class="audit-table">
+            <thead>
+              <tr>
+                <th data-i18n="dashboard.operational_issues_col_last_seen"></th>
+                <th data-i18n="dashboard.operational_issues_col_issue"></th>
+                <th data-i18n="dashboard.operational_issues_col_source"></th>
+                <th data-i18n="dashboard.operational_issues_col_kind"></th>
+                <th data-i18n="dashboard.operational_issues_col_severity"></th>
+                <th data-i18n="dashboard.operational_issues_col_occurrences"></th>
+                <th data-i18n="dashboard.operational_issues_col_status"></th>
+                <th data-i18n="dashboard.operational_issues_col_actions"></th>
+              </tr>
+            </thead>
+            <tbody id="operational-issues-tbody"></tbody>
+          </table>
+          <div id="operational-issues-empty" class="empty-state" data-i18n="dashboard.operational_issues_empty"></div>
+          <div class="audit-pager">
+            <button type="button" id="operational-issues-prev" class="mh-more-btn" data-i18n="dashboard.audit_prev"></button>
+            <span id="operational-issues-page-meta" class="audit-page-meta"></span>
+            <button type="button" id="operational-issues-next" class="mh-more-btn" data-i18n="dashboard.audit_next"></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- 7b. LLM Guardian Security -->
     <div class="dash-card is-hidden" id="card-guardian">
       <div class="dash-card-header"><svg class="dash-ic card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2L4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5z" fill="none"/></svg> <span data-i18n="dashboard.guardian_title"></span> <button type="button" class="collapse-toggle" data-card="card-guardian" data-i18n-title="dashboard.activity_collapse" title="" aria-expanded="true">▼</button></div>
@@ -915,6 +980,7 @@
 
   <script src="/js/precision/workspace.js?v={{.BuildVersion}}"></script>
   <script src="/js/dashboard/main.js" defer></script>
+  <script src="/js/dashboard/operational-issues.js?v={{.BuildVersion}}" defer></script>
   <script src="/js/dashboard/dashboard-charts.js" defer></script>
   <script src="/js/dashboard/widgets-knowledge.js" defer></script>
   <script src="/js/dashboard/dashboard-widgets.js" defer></script>

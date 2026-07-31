@@ -28,6 +28,7 @@ type OperationalIssue struct {
 	Title       string
 	Detail      string
 	Severity    string
+	Kind        string
 	Reference   string
 	Fingerprint string
 	OccurredAt  time.Time
@@ -45,12 +46,15 @@ type operationalIssueRecord struct {
 	LastSeen         string
 	Occurrences      int
 	Status           string
+	Kind             string
 	DetailHash       string
 	Revision         int
 	NotifiedRevision int
 	LastNotifiedAt   string
 	ResolvedAt       string
 	Resolution       string
+	ArchivedAt       string
+	ArchiveReason    string
 	CreatedAt        string
 	UpdatedAt        string
 }
@@ -85,60 +89,41 @@ func RecordOperationalIssue(db *sql.DB, issue OperationalIssue) (string, error) 
 	fingerprint := normalized.Fingerprint
 	now := normalized.OccurredAt.UTC().Format(time.RFC3339)
 	contentHash := operationalIssueContentHash(normalized)
-
-	record, found, err := getOperationalIssueRecord(db, fingerprint)
-	if err != nil {
-		return "", err
-	}
-	if found {
-		firstSeen := record.FirstSeen
-		if firstSeen == "" {
-			firstSeen = now
-		}
-		occurrences := record.Occurrences + 1
-		if occurrences < 1 {
-			occurrences = 1
-		}
-
-		revision := record.Revision
-		if revision < 1 {
-			revision = 1
-		}
-		storedHash := record.DetailHash
-		if storedHash == "" {
-			storedHash = operationalIssueContentHash(OperationalIssue{
-				Source: record.Source, Context: record.Context, Severity: record.Severity,
-				Title: record.Title, Detail: record.Detail, Reference: record.Reference,
-			})
-		}
-		if storedHash != contentHash || strings.EqualFold(record.Status, "done") {
-			revision++
-		}
-
-		_, err := db.Exec(`
-			UPDATE operational_issues
-			SET source=?, context=?, severity=?, title=?, detail=?, reference=?,
-				last_seen=?, occurrences=?, status='open', detail_hash=?, revision=?,
-				resolved_at='', resolution='', updated_at=?
-			WHERE fingerprint=?`,
-			normalized.Source, normalized.Context, normalized.Severity, normalized.Title,
-			normalized.Detail, normalized.Reference, now, occurrences, contentHash, revision, now, fingerprint)
-		if err != nil {
-			return "", fmt.Errorf("update operational issue: %w", err)
-		}
-		return fingerprint, nil
-	}
-
-	_, err = db.Exec(`
+	_, err := db.Exec(`
 		INSERT INTO operational_issues
 			(fingerprint, source, context, severity, title, detail, reference,
-			 first_seen, last_seen, occurrences, status, detail_hash, revision,
+			 first_seen, last_seen, occurrences, status, kind, detail_hash, revision,
 			 notified_revision, last_notified_at, resolved_at, resolution, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 'open', ?, 1, 0, '', '', '', ?, ?)`,
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 'open', ?, ?, 1, 0, '', '', '', ?, ?)
+		ON CONFLICT(fingerprint) DO UPDATE SET
+			source=excluded.source,
+			context=excluded.context,
+			severity=excluded.severity,
+			title=excluded.title,
+			detail=excluded.detail,
+			reference=excluded.reference,
+			last_seen=CASE
+				WHEN excluded.last_seen > operational_issues.last_seen THEN excluded.last_seen
+				ELSE operational_issues.last_seen
+			END,
+			occurrences=MAX(operational_issues.occurrences, 0) + 1,
+			status='open',
+			kind=excluded.kind,
+			detail_hash=excluded.detail_hash,
+			revision=MAX(operational_issues.revision, 1) + CASE
+				WHEN operational_issues.detail_hash <> excluded.detail_hash
+					OR operational_issues.status NOT IN ('open', 'in_progress')
+				THEN 1 ELSE 0 END,
+			resolved_at='',
+			resolution='',
+			archived_at='',
+			archive_reason='',
+			updated_at=excluded.updated_at`,
 		fingerprint, normalized.Source, normalized.Context, normalized.Severity,
-		normalized.Title, normalized.Detail, normalized.Reference, now, now, contentHash, now, now)
+		normalized.Title, normalized.Detail, normalized.Reference, now, now,
+		normalized.Kind, contentHash, now, now)
 	if err != nil {
-		return "", fmt.Errorf("insert operational issue: %w", err)
+		return "", fmt.Errorf("record operational issue: %w", err)
 	}
 	return fingerprint, nil
 }
@@ -164,7 +149,8 @@ func ResolveOperationalIssue(db *sql.DB, fingerprint, resolution string, resolve
 	}
 	result, err := db.Exec(`
 		UPDATE operational_issues
-		SET status='done', resolved_at=?, resolution=?, updated_at=?
+		SET status='done', resolved_at=?, resolution=?,
+			archived_at='', archive_reason='', updated_at=?
 		WHERE fingerprint=? AND status IN ('open', 'in_progress')`,
 		now, resolution, now, fingerprint)
 	if err != nil {
@@ -192,8 +178,9 @@ func ListPendingOperationalIssueNotices(db *sql.DB, now time.Time, limit int) ([
 	}
 	rows, err := db.Query(`
 		SELECT fingerprint, source, context, severity, title, detail, reference,
-			first_seen, last_seen, occurrences, status, detail_hash, revision,
-			notified_revision, last_notified_at, resolved_at, resolution, created_at, updated_at
+			first_seen, last_seen, occurrences, status, kind, detail_hash, revision,
+			notified_revision, last_notified_at, resolved_at, resolution,
+			archived_at, archive_reason, created_at, updated_at
 		FROM operational_issues
 		WHERE status IN ('open', 'in_progress')`)
 	if err != nil {
@@ -291,8 +278,9 @@ func ListOperationalIssueTodos(db *sql.DB, limit int) ([]Todo, error) {
 	}
 	query := `
 		SELECT fingerprint, source, context, severity, title, detail, reference,
-			first_seen, last_seen, occurrences, status, detail_hash, revision,
-			notified_revision, last_notified_at, resolved_at, resolution, created_at, updated_at
+			first_seen, last_seen, occurrences, status, kind, detail_hash, revision,
+			notified_revision, last_notified_at, resolved_at, resolution,
+			archived_at, archive_reason, created_at, updated_at
 		FROM operational_issues
 		WHERE status IN ('open', 'in_progress')
 		ORDER BY last_seen DESC`
@@ -439,8 +427,9 @@ func getOperationalIssueRecord(db *sql.DB, fingerprint string) (operationalIssue
 	var record operationalIssueRecord
 	row := db.QueryRow(`
 		SELECT fingerprint, source, context, severity, title, detail, reference,
-			first_seen, last_seen, occurrences, status, detail_hash, revision,
-			notified_revision, last_notified_at, resolved_at, resolution, created_at, updated_at
+			first_seen, last_seen, occurrences, status, kind, detail_hash, revision,
+			notified_revision, last_notified_at, resolved_at, resolution,
+			archived_at, archive_reason, created_at, updated_at
 		FROM operational_issues
 		WHERE fingerprint = ?`, fingerprint)
 	err := scanOperationalIssueRecord(row, &record)
@@ -461,9 +450,10 @@ func scanOperationalIssueRecord(scanner operationalIssueScanner, record *operati
 	if err := scanner.Scan(
 		&record.Fingerprint, &record.Source, &record.Context, &record.Severity,
 		&record.Title, &record.Detail, &record.Reference, &record.FirstSeen,
-		&record.LastSeen, &record.Occurrences, &record.Status, &record.DetailHash,
+		&record.LastSeen, &record.Occurrences, &record.Status, &record.Kind, &record.DetailHash,
 		&record.Revision, &record.NotifiedRevision, &record.LastNotifiedAt,
-		&record.ResolvedAt, &record.Resolution, &record.CreatedAt, &record.UpdatedAt,
+		&record.ResolvedAt, &record.Resolution, &record.ArchivedAt,
+		&record.ArchiveReason, &record.CreatedAt, &record.UpdatedAt,
 	); err != nil {
 		return fmt.Errorf("scan operational issue: %w", err)
 	}
@@ -586,6 +576,7 @@ func normalizeOperationalIssue(issue OperationalIssue) OperationalIssue {
 		issue.Fingerprint = strings.TrimSpace(issue.Fingerprint)
 	}
 	issue.Title = OperationalIssueTitlePrefix + " " + baseTitle
+	issue.Kind = inferOperationalIssueKind(issue)
 	return issue
 }
 
@@ -603,6 +594,7 @@ func operationalIssueContentHash(issue OperationalIssue) string {
 		strings.ToLower(strings.TrimSpace(issue.Source)),
 		strings.ToLower(strings.TrimSpace(issue.Context)),
 		strings.ToLower(strings.TrimSpace(issue.Severity)),
+		strings.ToLower(strings.TrimSpace(issue.Kind)),
 		strings.ToLower(title),
 		strings.ToLower(strings.TrimSpace(issue.Reference)),
 		sanitizeOperationalIssueText(issue.Detail, 1400),
@@ -649,20 +641,17 @@ func operationalIssueVisibleToUser(record operationalIssueRecord) bool {
 	if !strings.EqualFold(strings.TrimSpace(record.Source), "memory_reflect") {
 		return true
 	}
-	text := strings.ToLower(strings.Join([]string{record.Title, record.Detail, record.Context}, " "))
-	for _, marker := range []string{
-		"blocked", "blockiert", "requires user", "user decision", "decision required",
-		"needs approval", "approval required", "entscheidung", "freigabe erforderlich",
-		"rückfrage", "clarification required",
-	} {
-		if strings.Contains(text, marker) {
-			return true
-		}
-	}
-	return false
+	return operationalIssueRequiresUserAction(record)
 }
 
 func operationalIssueNoticeDue(record operationalIssueRecord, now time.Time) bool {
+	if _, stale := operationalIssueStaleReason(record, now); stale {
+		return false
+	}
+	if strings.EqualFold(strings.TrimSpace(record.Kind), OperationalIssueKindToolFailure) &&
+		record.Occurrences <= 1 {
+		return false
+	}
 	if record.Revision < 1 {
 		record.Revision = 1
 	}
@@ -676,7 +665,17 @@ func operationalIssueNoticeDue(record operationalIssueRecord, now time.Time) boo
 	if err != nil {
 		return true
 	}
-	return !now.UTC().Before(lastNotified.UTC().Add(24 * time.Hour))
+	if now.UTC().Before(lastNotified.UTC().Add(24 * time.Hour)) {
+		return false
+	}
+	if operationalIssueRequiresUserAction(record) {
+		return true
+	}
+	lastSeen, err := time.Parse(time.RFC3339, strings.TrimSpace(record.LastSeen))
+	if err != nil {
+		return false
+	}
+	return lastSeen.UTC().After(lastNotified.UTC())
 }
 
 func operationalIssueSeverityRank(severity string) int {

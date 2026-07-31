@@ -636,21 +636,28 @@ func TestOperationalIssueNoticeLifecycle(t *testing.T) {
 	if notices, err := ListPendingOperationalIssueNotices(db, now.Add(23*time.Hour), 2); err != nil || len(notices) != 0 {
 		t.Fatalf("notices before daily repeat = %#v, err %v, want none", notices, err)
 	}
-	if notices, err := ListPendingOperationalIssueNotices(db, now.Add(25*time.Hour), 2); err != nil || len(notices) != 1 {
-		t.Fatalf("notices after daily repeat = %#v, err %v, want one", notices, err)
+	if notices, err := ListPendingOperationalIssueNotices(db, now.Add(25*time.Hour), 2); err != nil || len(notices) != 0 {
+		t.Fatalf("notices without a new occurrence = %#v, err %v, want none", notices, err)
 	}
-	if err := MarkOperationalIssuesNotified(db, []OperationalIssueNoticeRef{{Fingerprint: fingerprint, Revision: 1}}, now.Add(25*time.Hour)); err != nil {
+	issue.OccurredAt = now.Add(25*time.Hour + time.Minute)
+	if _, err := RecordOperationalIssue(db, issue); err != nil {
+		t.Fatalf("RecordOperationalIssue post-notice recurrence error = %v", err)
+	}
+	if notices, err := ListPendingOperationalIssueNotices(db, now.Add(26*time.Hour), 2); err != nil || len(notices) != 1 {
+		t.Fatalf("notices after a new occurrence = %#v, err %v, want one", notices, err)
+	}
+	if err := MarkOperationalIssuesNotified(db, []OperationalIssueNoticeRef{{Fingerprint: fingerprint, Revision: 1}}, now.Add(26*time.Hour)); err != nil {
 		t.Fatalf("MarkOperationalIssuesNotified() daily repeat error = %v", err)
 	}
 	if notices, err := ListPendingOperationalIssueNotices(db, now.Add(47*time.Hour), 2); err != nil || len(notices) != 0 {
 		t.Fatalf("notices before second daily window = %#v, err %v, want none", notices, err)
 	}
-	if notices, err := ListPendingOperationalIssueNotices(db, now.Add(50*time.Hour), 2); err != nil || len(notices) != 1 {
-		t.Fatalf("notices after second daily window = %#v, err %v, want one", notices, err)
+	if notices, err := ListPendingOperationalIssueNotices(db, now.Add(50*time.Hour), 2); err != nil || len(notices) != 0 {
+		t.Fatalf("notices in second daily window without recurrence = %#v, err %v, want none", notices, err)
 	}
 
 	issue.Detail = "remote endpoint rejected authentication"
-	issue.OccurredAt = now.Add(26 * time.Hour)
+	issue.OccurredAt = now.Add(51 * time.Hour)
 	if _, err := RecordOperationalIssue(db, issue); err != nil {
 		t.Fatalf("RecordOperationalIssue changed error = %v", err)
 	}
@@ -662,7 +669,7 @@ func TestOperationalIssueNoticeLifecycle(t *testing.T) {
 		t.Fatalf("changed revision/notified = %d/%d, want 2/1", record.Revision, record.NotifiedRevision)
 	}
 
-	resolved, err := ResolveOperationalIssue(db, fingerprint, "Backup completed successfully without secrets.", now.Add(27*time.Hour))
+	resolved, err := ResolveOperationalIssue(db, fingerprint, "Backup completed successfully without secrets.", now.Add(52*time.Hour))
 	if err != nil || !resolved {
 		t.Fatalf("ResolveOperationalIssue() = %v, %v", resolved, err)
 	}
@@ -671,7 +678,7 @@ func TestOperationalIssueNoticeLifecycle(t *testing.T) {
 		t.Fatalf("resolved record = %#v, want done metadata", record)
 	}
 
-	issue.OccurredAt = now.Add(28 * time.Hour)
+	issue.OccurredAt = now.Add(53 * time.Hour)
 	if _, err := RecordOperationalIssue(db, issue); err != nil {
 		t.Fatalf("RecordOperationalIssue reopen error = %v", err)
 	}
@@ -1022,11 +1029,15 @@ func TestInitDBMigratesV6OperationalIssuesOutOfVisibleTodos(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListOperationalIssueTodos error = %v", err)
 	}
-	if len(issues) != 1 {
-		t.Fatalf("len(issues) = %d, want 1", len(issues))
+	if len(issues) != 0 {
+		t.Fatalf("len(active issues) = %d, want 0 after startup archival", len(issues))
 	}
-	if got := operationalIssueField(issues[0].Description, "Occurrences"); got != "3" {
-		t.Fatalf("Occurrences = %q, want 3", got)
+	page, err := ListOperationalIssues(migrated, OperationalIssueListFilter{Status: "archived"})
+	if err != nil {
+		t.Fatalf("ListOperationalIssues archived error = %v", err)
+	}
+	if len(page.Items) != 1 || page.Items[0].Occurrences != 3 || page.Items[0].Status != "archived" {
+		t.Fatalf("archived migrated issues = %#v, want preserved occurrence history", page.Items)
 	}
 }
 
@@ -1056,7 +1067,7 @@ func TestInitDBMigratesV8OperationalIssueNotificationState(t *testing.T) {
 		INSERT INTO operational_issues
 			(fingerprint, source, context, severity, title, detail, reference, first_seen, last_seen, occurrences, status, created_at, updated_at)
 		VALUES
-			('legacy-v8', 'maintenance', 'nightly', 'error', 'System issue: Legacy maintenance failed', 'timeout', 'daily',
+			('legacy|nightly|tool|save_note', 'maintenance', 'nightly', 'error', 'System issue: Legacy maintenance failed', 'timeout', 'daily',
 			 '2026-07-20T00:00:00Z', '2026-07-20T01:00:00Z', 2, 'open', '2026-07-20T00:00:00Z', '2026-07-20T01:00:00Z')`); err != nil {
 		db.Close()
 		t.Fatalf("create v8 operational issue table: %v", err)
@@ -1075,18 +1086,21 @@ func TestInitDBMigratesV8OperationalIssueNotificationState(t *testing.T) {
 	}
 	defer migrated.Close()
 
-	for _, column := range []string{"detail_hash", "revision", "notified_revision", "last_notified_at", "resolved_at", "resolution"} {
+	for _, column := range []string{"detail_hash", "revision", "notified_revision", "last_notified_at", "resolved_at", "resolution", "kind", "archived_at", "archive_reason"} {
 		exists, err := plannerColumnExists(migrated, "operational_issues", column)
 		if err != nil || !exists {
 			t.Fatalf("migrated column %s exists = %v, err %v", column, exists, err)
 		}
 	}
-	record, found, err := getOperationalIssueRecord(migrated, "legacy-v8")
+	record, found, err := getOperationalIssueRecord(migrated, "legacy|nightly|tool|save_note")
 	if err != nil || !found {
 		t.Fatalf("migrated record found = %v, err %v", found, err)
 	}
 	if record.DetailHash == "" || record.Revision != 1 || record.NotifiedRevision != 0 {
 		t.Fatalf("migrated notification state = %#v", record)
+	}
+	if record.Kind != OperationalIssueKindToolFailure {
+		t.Fatalf("migrated kind = %q, want %q", record.Kind, OperationalIssueKindToolFailure)
 	}
 	version, err := dbutil.GetUserVersion(migrated)
 	if err != nil || version != plannerSchemaVersion {

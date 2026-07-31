@@ -4,11 +4,12 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"time"
 
 	"aurago/internal/dbutil"
 )
 
-const plannerSchemaVersion = 9
+const plannerSchemaVersion = 10
 
 func initPlannerSchema(db *sql.DB) error {
 	version, err := dbutil.GetUserVersion(db)
@@ -68,6 +69,11 @@ func initPlannerSchema(db *sql.DB) error {
 		if err := migratePlannerToV9(db); err != nil {
 			return err
 		}
+		fallthrough
+	case version < 10:
+		if err := migratePlannerToV10(db); err != nil {
+			return err
+		}
 	default:
 		if err := ensurePlannerIndexes(db); err != nil {
 			return err
@@ -76,6 +82,9 @@ func initPlannerSchema(db *sql.DB) error {
 
 	if err := dbutil.SetUserVersion(db, plannerSchemaVersion); err != nil {
 		return fmt.Errorf("set planner schema version: %w", err)
+	}
+	if _, err := ArchiveStaleOperationalIssues(db, time.Now()); err != nil {
+		return fmt.Errorf("archive stale operational issues after planner startup: %w", err)
 	}
 	return nil
 }
@@ -131,6 +140,15 @@ func ensurePlannerIndexes(db *sql.DB) error {
 	if hasOperationalIssues {
 		if _, err := db.Exec(operationalIssueIndexesSQL()); err != nil {
 			return fmt.Errorf("ensure operational issue indexes: %w", err)
+		}
+		hasKind, err := plannerColumnExists(db, "operational_issues", "kind")
+		if err != nil {
+			return err
+		}
+		if hasKind {
+			if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_operational_issues_kind_status ON operational_issues(kind, status)`); err != nil {
+				return fmt.Errorf("ensure operational issue kind index: %w", err)
+			}
 		}
 	}
 	hasAppointmentContacts, err := plannerTableExists(db, "appointment_contacts")
@@ -495,12 +513,15 @@ func operationalIssuesTableSQL(tableName string) string {
 			last_seen TEXT NOT NULL,
 			occurrences INTEGER NOT NULL DEFAULT 1,
 			status TEXT NOT NULL DEFAULT 'open',
+			kind TEXT NOT NULL DEFAULT 'runtime_failure',
 			detail_hash TEXT NOT NULL DEFAULT '',
 			revision INTEGER NOT NULL DEFAULT 1,
 			notified_revision INTEGER NOT NULL DEFAULT 0,
 			last_notified_at TEXT NOT NULL DEFAULT '',
 			resolved_at TEXT NOT NULL DEFAULT '',
 			resolution TEXT NOT NULL DEFAULT '',
+			archived_at TEXT NOT NULL DEFAULT '',
+			archive_reason TEXT NOT NULL DEFAULT '',
 			created_at TEXT NOT NULL,
 			updated_at TEXT NOT NULL
 		);
@@ -627,6 +648,87 @@ func migratePlannerToV9(db *sql.DB) error {
 	for _, backfill := range backfills {
 		if _, err := db.Exec(`UPDATE operational_issues SET detail_hash=? WHERE fingerprint=?`, backfill.hash, backfill.fingerprint); err != nil {
 			return fmt.Errorf("backfill operational issue hash: %w", err)
+		}
+	}
+	return ensurePlannerIndexes(db)
+}
+
+func migratePlannerToV10(db *sql.DB) error {
+	hasOperationalIssues, err := plannerTableExists(db, "operational_issues")
+	if err != nil {
+		return err
+	}
+	if !hasOperationalIssues {
+		if _, err := db.Exec(operationalIssuesSQL()); err != nil {
+			return fmt.Errorf("create operational issues table v10: %w", err)
+		}
+		return ensurePlannerIndexes(db)
+	}
+
+	columns := []struct {
+		name string
+		ddl  string
+	}{
+		{"kind", `ALTER TABLE operational_issues ADD COLUMN kind TEXT NOT NULL DEFAULT 'runtime_failure'`},
+		{"archived_at", `ALTER TABLE operational_issues ADD COLUMN archived_at TEXT NOT NULL DEFAULT ''`},
+		{"archive_reason", `ALTER TABLE operational_issues ADD COLUMN archive_reason TEXT NOT NULL DEFAULT ''`},
+	}
+	for _, column := range columns {
+		exists, err := plannerColumnExists(db, "operational_issues", column.name)
+		if err != nil {
+			return err
+		}
+		if exists {
+			continue
+		}
+		if _, err := db.Exec(column.ddl); err != nil {
+			return fmt.Errorf("add operational_issues.%s: %w", column.name, err)
+		}
+	}
+
+	rows, err := db.Query(`
+		SELECT fingerprint, source, context, severity, title, detail, reference
+		FROM operational_issues`)
+	if err != nil {
+		return fmt.Errorf("query operational issue kinds: %w", err)
+	}
+	type kindBackfill struct {
+		fingerprint string
+		kind        string
+		detailHash  string
+	}
+	var backfills []kindBackfill
+	for rows.Next() {
+		var fingerprint, source, context, severity, title, detail, reference string
+		if err := rows.Scan(&fingerprint, &source, &context, &severity, &title, &detail, &reference); err != nil {
+			rows.Close()
+			return fmt.Errorf("scan operational issue kind: %w", err)
+		}
+		issue := OperationalIssue{
+			Fingerprint: fingerprint,
+			Source:      source,
+			Context:     context,
+			Severity:    severity,
+			Title:       title,
+			Detail:      detail,
+			Reference:   reference,
+		}
+		issue.Kind = inferOperationalIssueKind(issue)
+		backfills = append(backfills, kindBackfill{
+			fingerprint: fingerprint,
+			kind:        issue.Kind,
+			detailHash:  operationalIssueContentHash(issue),
+		})
+	}
+	if err := rows.Close(); err != nil {
+		return fmt.Errorf("close operational issue kind rows: %w", err)
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("iterate operational issue kinds: %w", err)
+	}
+	for _, backfill := range backfills {
+		if _, err := db.Exec(`UPDATE operational_issues SET kind=?, detail_hash=? WHERE fingerprint=?`, backfill.kind, backfill.detailHash, backfill.fingerprint); err != nil {
+			return fmt.Errorf("backfill operational issue kind: %w", err)
 		}
 	}
 	return ensurePlannerIndexes(db)

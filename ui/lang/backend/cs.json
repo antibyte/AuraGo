@@ -1,7 +1,12 @@
 {
-  "backend.operational_issue_notice_title": "Aktuální provozní problémy",
+  "backend.operational_issue_notice_title": "Provozní problémy",
   "backend.operational_issue_notice_summary": "AuraGo při práci na pozadí zjistilo {0} problémů.",
   "backend.operational_issue_notice_occurrences": "vyskytlo se {0}krát",
+  "backend.operational_issue_notice_last_seen": "naposledy zjištěno: {0}",
+  "backend.operational_issue_notice_severity": "závažnost: {0}",
+  "backend.operational_issue_severity_error": "chyba",
+  "backend.operational_issue_severity_warning": "varování",
+  "backend.operational_issue_severity_info": "informace",
   "backend.cmd_unknown": "❌ Neznámý příkaz. Napište /help pro seznam příkazů.",
   "backend.cmd_reset_success": "🧹 Historie chatu a krátkodobá paměť byly smazány.",
   "backend.cmd_reset_help": "Smaže aktuální historii chatu (krátkodobá paměť).",

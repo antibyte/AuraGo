@@ -453,6 +453,8 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	mux.Handle("/api/dashboard/audit/", requireAdmin(s, handleDashboardAuditByID(s, sse)))
 	mux.Handle("/api/dashboard/cronjobs", requireAdmin(s, handleDashboardCronjobs(s)))
 	mux.Handle("/api/dashboard/cronjobs/", requireAdmin(s, handleDashboardCronjobByID(s)))
+	mux.Handle("/api/operational-issues", requireAdmin(s, handleOperationalIssues(s)))
+	mux.Handle("/api/operational-issues/", requireAdmin(s, handleOperationalIssues(s)))
 	mux.Handle("/api/cron", requireAdmin(s, handleCronAPI(s)))
 	mux.Handle("/api/cron/", requireAdmin(s, handleCronAPI(s)))
 	mux.HandleFunc("/api/background-tasks", handleBackgroundTasks(s))
