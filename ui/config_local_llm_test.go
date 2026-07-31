@@ -31,6 +31,13 @@ func TestLocalLLMConfigModuleUsesSavedConfigurationAndAdminSurface(t *testing.T)
 		"cache.qualified",
 		"cache.decision_persisted",
 		"localLLMCacheErrorText",
+		"localLLMToggleEnabled(this)",
+		"localLLMDisableRoutingPlan",
+		"window.AuraConfigState.set(path, value)",
+		"window.AuraConfigState.snapshot()",
+		"'llm.provider': regularProvider",
+		"'fallback_llm.enabled': false",
+		"'fallback_llm.provider': ''",
 		"], 'number');",
 		`data-type="`,
 	} {

@@ -25,7 +25,8 @@ function renderLocalLLMSection(section) {
     const data = localLLMEnsureData();
     const status = _localLLMStatus || {};
     const providers = (configData.providers || []).filter(provider => provider && provider.id && provider.id !== 'aurago-qwen-local');
-    const selectedRegular = localLLMRegularProvider(status.role, providers);
+    const displayedRole = data.enabled === false ? 'test_only' : (status.role || 'test_only');
+    const selectedRegular = localLLMRegularProvider(displayedRole, providers);
 
     let html = '<div class="cfg-section active">';
     html += '<div class="section-header">' + section.label + '</div>';
@@ -34,7 +35,7 @@ function renderLocalLLMSection(section) {
     html += '<div class="cfg-note-banner cfg-note-banner-info">' + t('config.local_llm.hardware') + '</div>';
     html += '<div class="cfg-note-banner">' + t('config.local_llm.quality') + '</div>';
 
-    html += localLLMToggle('local_llm.enabled', data.enabled === true, 'config.local_llm.enabled');
+    html += localLLMEnabledToggle(data.enabled === true, 'config.local_llm.enabled');
     html += localLLMSelect('local_llm.backend', data.backend, 'config.local_llm.backend', [
         ['auto', t('config.local_llm.backend_auto')], ['cuda', 'CUDA'], ['sycl', 'SYCL / Intel Arc'],
         ['vulkan', 'Vulkan'], ['cpu', 'CPU (' + t('config.local_llm.experimental') + ')']
@@ -77,7 +78,7 @@ function renderLocalLLMSection(section) {
     }
 
     html += '<div class="cfg-group-title cfg-group-title-top">' + t('config.local_llm.routing') + '</div>';
-    html += localLLMPlainSelect('local-llm-role', status.role || 'test_only', 'config.local_llm.role', [
+    html += localLLMPlainSelect('local-llm-role', displayedRole, 'config.local_llm.role', [
         ['test_only', t('config.local_llm.role_test')], ['fallback', t('config.local_llm.role_fallback')],
         ['primary', t('config.local_llm.role_primary')]
     ], 'localLLMRenderRoutingPreview()');
@@ -92,6 +93,87 @@ function renderLocalLLMSection(section) {
     localLLMRenderRoutingPreview();
     localLLMUpdateSavedActionState();
     localLLMRefreshStatus();
+}
+
+function localLLMEnabledToggle(checked, labelKey) {
+    return '<div class="field-group"><div class="field-label">' + t(labelKey) + '</div><div class="toggle-wrap">' +
+        '<div class="toggle' + (checked ? ' on' : '') + '" data-path="local_llm.enabled" ' +
+        'onclick="localLLMToggleEnabled(this)"></div>' +
+        '<span class="toggle-label">' + (checked ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span></div></div>';
+}
+
+function localLLMSetDraftValue(path, value) {
+    setNestedValue(configData, path, value);
+    if (window.AuraConfigState && typeof window.AuraConfigState.set === 'function') {
+        window.AuraConfigState.set(path, value);
+    }
+}
+
+function localLLMCurrentDraft() {
+    if (window.AuraConfigState && typeof window.AuraConfigState.snapshot === 'function') {
+        const snapshot = window.AuraConfigState.snapshot();
+        if (snapshot && snapshot.draft) return snapshot.draft;
+    }
+    return configData;
+}
+
+function localLLMDisableRoutingPlan(config, providers) {
+    const localProvider = 'aurago-qwen-local';
+    const mainProvider = String(config && config.llm && config.llm.provider || '').trim();
+    const fallback = config && config.fallback_llm || {};
+    const fallbackProvider = String(fallback.provider || '').trim();
+    const localIsPrimary = mainProvider === localProvider;
+    const localIsFallback = fallback.enabled === true && fallbackProvider === localProvider;
+    if (!localIsPrimary && !localIsFallback) {
+        return { ok: true, regularProvider: '', changes: {} };
+    }
+
+    const regularProviders = (providers || []).filter(provider => provider && provider.id && provider.id !== localProvider);
+    let regularProvider = localIsPrimary ? fallbackProvider : mainProvider;
+    if (!regularProviders.some(provider => provider.id === regularProvider)) {
+        regularProvider = regularProviders.length ? regularProviders[0].id : '';
+    }
+    if (!regularProvider) return { ok: false, regularProvider: '', changes: {} };
+
+    return {
+        ok: true,
+        regularProvider,
+        changes: {
+            'llm.provider': regularProvider,
+            'fallback_llm.enabled': false,
+            'fallback_llm.provider': ''
+        }
+    };
+}
+
+function localLLMToggleEnabled(element) {
+    toggleBool(element);
+    const enabled = element.classList.contains('on');
+    localLLMSetDraftValue('local_llm.enabled', enabled);
+    if (enabled) return;
+
+    const draft = localLLMCurrentDraft();
+    const providers = (draft.providers || []).filter(provider => provider && provider.id);
+    const plan = localLLMDisableRoutingPlan(draft, providers);
+    if (!plan.ok) {
+        element.classList.add('on');
+        if (element.nextElementSibling) element.nextElementSibling.textContent = t('config.toggle.active');
+        if (typeof syncToggleA11y === 'function') syncToggleA11y(element);
+        localLLMSetDraftValue('local_llm.enabled', true);
+        const target = document.getElementById('local-llm-status');
+        if (target) {
+            target.textContent = t('config.local_llm.error_prefix') + ': ' + t('config.local_llm.regular_provider');
+            target.className = 'cfg-note-banner cfg-note-banner-warning';
+        }
+        return;
+    }
+
+    Object.entries(plan.changes).forEach(([path, value]) => localLLMSetDraftValue(path, value));
+    const role = document.getElementById('local-llm-role');
+    const provider = document.getElementById('local-llm-regular-provider');
+    if (role) role.value = 'test_only';
+    if (provider && plan.regularProvider) provider.value = plan.regularProvider;
+    localLLMRenderRoutingPreview();
 }
 
 function localLLMToggle(path, checked, labelKey) {

@@ -85,6 +85,16 @@ func TestValidateLocalLLMConfigRoutingRules(t *testing.T) {
 			wantError: "cannot be disabled",
 		},
 		{
+			name: "disabled after local fallback is detached",
+			configure: func(cfg *Config) {
+				cfg.LocalLLM.Enabled = false
+				cfg.LLM.Provider = "cloud"
+				cfg.FallbackLLM.Enabled = false
+				cfg.FallbackLLM.Provider = ""
+				cfg.Providers = []ProviderEntry{{ID: "cloud", Type: "openai"}}
+			},
+		},
+		{
 			name: "primary without regular fallback",
 			configure: func(cfg *Config) {
 				cfg.LLM.Provider = LocalLLMProviderID
