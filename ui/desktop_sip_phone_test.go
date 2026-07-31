@@ -40,8 +40,8 @@ func TestDesktopSIPPhoneRegistrationAndLazyLifecycle(t *testing.T) {
 			"window.SipPhoneApp = { render: mount, dispose }",
 		},
 		"js/desktop/core/window-shell-runtime.js": {
-			"'sip-phone': { width: 520, height: 820 }",
-			"'sip-phone': { width: 420, height: 640 }",
+			"'sip-phone': { width: 420, height: 760 }",
+			"'sip-phone': { width: 340, height: 580 }",
 		},
 	}
 	for path, markers := range checks {

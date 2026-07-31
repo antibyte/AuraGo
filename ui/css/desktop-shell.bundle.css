@@ -7319,13 +7319,13 @@
     top: 24px;
     width: calc(400px * var(--sip-phone-gadget-scale));
     height: calc(830px * var(--sip-phone-gadget-scale));
-    z-index: var(--vd-z-phone-gadget, 640);
     user-select: none;
     pointer-events: auto;
 }
 
 .vd-sip-phone-gadget[data-always-on-top="true"] {
-    z-index: calc(var(--vd-z-modal, 800) + 198);
+    /* z-index is controlled by JS so the gadget can sit behind normal windows
+       when not focused and above them when focused or pinned. */
 }
 
 .vd-sip-phone-gadget.dragging {

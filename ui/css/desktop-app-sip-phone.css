@@ -1682,7 +1682,7 @@
 }
 
 .vd-window[data-app-id="sip-phone"] .sip-phone-device {
-    transform: scale(0.82);
+    transform: scale(0.78);
     transform-origin: center center;
 }
 
