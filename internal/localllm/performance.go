@@ -50,10 +50,14 @@ func performanceProfileFor(profile HardwareProfile) runtimePerformanceProfile {
 	if err == nil && !gpu.Discrete {
 		result.CacheRAMMiB = 2048
 	}
-	if profile.SelectedBackend == "sycl" {
+	if profile.SelectedBackend == "sycl" && err == nil &&
+		strings.EqualFold(gpu.Vendor, "intel") &&
+		strings.EqualFold(strings.TrimSpace(gpu.Device), "0xe20b") {
 		result.Name = performanceProfileSYCLArc
 		result.BatchSize = 2048
-		result.UBatchSize = 512
+		result.UBatchSize = 2048
+		result.Threads = 8
+		result.ThreadsBatch = 8
 		result.FlashAttention = "off"
 		return result
 	}

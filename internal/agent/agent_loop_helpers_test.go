@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -46,6 +47,64 @@ func TestStableLocalToolSchemasNeverRestoreOutOfScopeTools(t *testing.T) {
 	result := stableLocalToolSchemas(scoped, cfg, RunConfig{AllowedTools: []string{"filesystem"}}, ToolFeatureFlags{}, false, nil)
 	if got := strings.Join(toolSchemaNames(result.Tools), ","); got != "filesystem" {
 		t.Fatalf("restricted scope was widened: %q", got)
+	}
+}
+
+func TestStableLocalToolSchemasEnforceHardBudgetByPriority(t *testing.T) {
+	core := []string{"discover_tools", "invoke_tool", "execute_skill", "run_tool"}
+	var schemas []openai.Tool
+	for _, name := range core {
+		schemas = append(schemas, testFunctionTool(name))
+	}
+	var channel []string
+	for index := 19; index >= 0; index-- {
+		name := fmt.Sprintf("channel_%02d", index)
+		channel = append(channel, name)
+		schemas = append(schemas, testFunctionTool(name))
+	}
+	configured := []string{"configured_b", "configured_a"}
+	for _, name := range configured {
+		schemas = append(schemas, testFunctionTool(name))
+	}
+	result := filterStableLocalToolSchemas(schemas, channel, configured, nil)
+	names := toolSchemaNames(result.Tools)
+	if len(names) > 16 || result.Report.FinalSchemaTokens > 4096 {
+		t.Fatalf("budget exceeded: names=%v report=%#v", names, result.Report)
+	}
+	for _, name := range core {
+		if !containsName(names, name) {
+			t.Fatalf("routing core %q was not retained: %v", name, names)
+		}
+	}
+	for _, name := range []string{"channel_00", "channel_11"} {
+		if !containsName(names, name) {
+			t.Fatalf("deterministic channel priority did not retain %q: %v", name, names)
+		}
+	}
+	if len(result.Report.DroppedChannelTools) == 0 ||
+		len(result.Report.DroppedConfiguredTools) != len(configured) {
+		t.Fatalf("trim report does not separate channel/config tools: %#v", result.Report)
+	}
+	reversed := append([]openai.Tool(nil), schemas...)
+	for left, right := 0, len(reversed)-1; left < right; left, right = left+1, right-1 {
+		reversed[left], reversed[right] = reversed[right], reversed[left]
+	}
+	again := filterStableLocalToolSchemas(reversed, channel, configured, nil)
+	if strings.Join(toolSchemaNames(again.Tools), ",") != strings.Join(names, ",") {
+		t.Fatalf("selection depends on input ordering: %v != %v", toolSchemaNames(again.Tools), names)
+	}
+}
+
+func TestStableLocalToolSchemasDoNotExemptOversizedCore(t *testing.T) {
+	result := filterStableLocalToolSchemas([]openai.Tool{
+		makeSizedTool("discover_tools", strings.Repeat("oversized schema ", 5000)),
+		testFunctionTool("invoke_tool"),
+	}, nil, nil, nil)
+	if containsName(toolSchemaNames(result.Tools), "discover_tools") {
+		t.Fatalf("oversized routing tool bypassed schema budget: %#v", result.Report)
+	}
+	if result.Report.FinalSchemaTokens > 4096 {
+		t.Fatalf("schema token budget exceeded: %#v", result.Report)
 	}
 }
 

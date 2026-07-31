@@ -28,6 +28,9 @@ func TestLocalLLMConfigModuleUsesSavedConfigurationAndAdminSurface(t *testing.T)
 		"['16384', '16K']",
 		"['32768', '32K']",
 		"localLLMLocalizedRuntimeValue",
+		"cache.qualified",
+		"cache.decision_persisted",
+		"localLLMCacheErrorText",
 		"], 'number');",
 		`data-type="`,
 	} {

@@ -1,11 +1,13 @@
 package localllm
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -19,10 +21,15 @@ import (
 )
 
 const (
-	maxLocalRequestBytes = 4 << 20
-	maxPromptSeedBytes   = 256 << 10
-	promptCacheFileName  = "prompt-cache-decision.json"
-	promptCacheProbeText = "__AURAGO_PREFIX_WARMUP__"
+	maxLocalRequestBytes             = 4 << 20
+	maxPromptSeedBytes               = 256 << 10
+	promptCacheFileName              = "prompt-cache-decision.json"
+	promptCacheDecisionSchemaVersion = 2
+	promptCacheQualificationTimeout  = 90 * time.Second
+	promptCacheRequestReserve        = 30 * time.Second
+	promptCachePersistInterval       = time.Minute
+	promptCacheProbeQuery            = "aurago_prompt_cache_probe"
+	promptCacheProbeText             = `Call discover_tools exactly once with {"operation":"search","query":"aurago_prompt_cache_probe"}. Do not answer with normal text.`
 )
 
 type promptCacheSeed struct {
@@ -35,13 +42,43 @@ type promptCacheSeed struct {
 }
 
 type promptCacheDecisionEntry struct {
-	Fingerprint      string  `json:"fingerprint"`
-	Accepted         bool    `json:"accepted"`
-	State            string  `json:"state"`
-	WarmupDurationMS float64 `json:"warmup_duration_ms,omitempty"`
-	CachedTokens     uint64  `json:"cached_tokens,omitempty"`
-	ProcessedTokens  uint64  `json:"processed_tokens,omitempty"`
-	HitRate          float64 `json:"hit_rate,omitempty"`
+	SchemaVersion     int     `json:"schema_version"`
+	Fingerprint       string  `json:"fingerprint"`
+	Accepted          bool    `json:"accepted"`
+	State             string  `json:"state"`
+	Reason            string  `json:"reason,omitempty"`
+	ReuseThreshold    float64 `json:"reuse_threshold"`
+	TTFTGainThreshold float64 `json:"ttft_gain_threshold"`
+	WarmupDurationMS  float64 `json:"warmup_duration_ms,omitempty"`
+	CachedTokens      uint64  `json:"cached_tokens,omitempty"`
+	ProcessedTokens   uint64  `json:"processed_tokens,omitempty"`
+	HitRate           float64 `json:"hit_rate,omitempty"`
+	ColdTTFTMS        float64 `json:"cold_ttft_ms,omitempty"`
+	WarmTTFTMS        float64 `json:"warm_ttft_ms,omitempty"`
+	Generation        uint64  `json:"-"`
+	Terminal          bool    `json:"-"`
+}
+
+type promptCacheObservationPlan struct {
+	Generation      uint64
+	SeedFingerprint string
+	CacheEnabled    bool
+}
+
+type promptCacheProbeResult struct {
+	ToolCall     string
+	TTFT         time.Duration
+	CachedTokens uint64
+	PromptTokens uint64
+	Complete     bool
+}
+
+type promptCacheQualificationResult struct {
+	SeedTokens      uint64
+	CachedTokens    uint64
+	ProcessedTokens uint64
+	ColdTTFT        time.Duration
+	WarmTTFT        time.Duration
 }
 
 func (m *Manager) acquirePromptSlot(ctx context.Context) (func(), error) {
@@ -63,23 +100,23 @@ func (m *Manager) acquirePromptSlot(ctx context.Context) (func(), error) {
 	}
 }
 
-func preparePromptCacheRequest(req *http.Request) (*http.Request, *promptCacheSeed, bool, error) {
+func preparePromptCacheRequest(req *http.Request) (*http.Request, *promptCacheSeed, bool, string, error) {
 	if req == nil || req.Method != http.MethodPost ||
 		!strings.HasSuffix(strings.TrimSuffix(req.URL.Path, "/"), "/chat/completions") {
-		return req, nil, false, nil
+		return req, nil, false, "", nil
 	}
 	raw, err := io.ReadAll(io.LimitReader(req.Body, maxLocalRequestBytes+1))
 	if err != nil {
-		return nil, nil, false, fmt.Errorf("local_request_read_failed: %w", err)
+		return nil, nil, false, "", fmt.Errorf("local_request_read_failed: %w", err)
 	}
 	if len(raw) > maxLocalRequestBytes {
-		return nil, nil, false, fmt.Errorf("local_request_too_large")
+		return nil, nil, false, "", fmt.Errorf("local_request_too_large")
 	}
 	_ = req.Body.Close()
 
 	var object map[string]json.RawMessage
 	if err := json.Unmarshal(raw, &object); err != nil {
-		return nil, nil, false, fmt.Errorf("local_request_invalid")
+		return nil, nil, false, "", fmt.Errorf("local_request_invalid")
 	}
 	stream := rawJSONBool(object["stream"])
 	object["cache_prompt"] = json.RawMessage("false")
@@ -108,12 +145,14 @@ func preparePromptCacheRequest(req *http.Request) (*http.Request, *promptCacheSe
 	}
 
 	seed, err := seedFromChatRequest(object)
+	seedError := ""
 	if err != nil {
 		seed = nil
+		seedError = errorCode(err)
 	}
 	encoded, err := json.Marshal(object)
 	if err != nil {
-		return nil, nil, false, fmt.Errorf("local_request_encode_failed")
+		return nil, nil, false, "", fmt.Errorf("local_request_encode_failed")
 	}
 	clone := req.Clone(req.Context())
 	clone.Header = req.Header.Clone()
@@ -122,7 +161,7 @@ func preparePromptCacheRequest(req *http.Request) (*http.Request, *promptCacheSe
 	clone.GetBody = func() (io.ReadCloser, error) {
 		return io.NopCloser(bytes.NewReader(encoded)), nil
 	}
-	return clone, seed, stream, nil
+	return clone, seed, stream, seedError, nil
 }
 
 func enablePromptCacheRequest(req *http.Request) (*http.Request, error) {
@@ -254,6 +293,7 @@ func (m *Manager) rememberPromptSeed(seed *promptCacheSeed) {
 	copySeed := *seed
 	copySeed.ApplyTemplateBody = append([]byte(nil), seed.ApplyTemplateBody...)
 	m.promptSeed = &copySeed
+	m.promptCacheQualified = false
 	perf := performanceProfileFor(m.profile)
 	m.status.PerformanceProfile = perf.Name
 	m.status.PromptCache = PromptCacheStatus{
@@ -261,14 +301,41 @@ func (m *Manager) rememberPromptSeed(seed *promptCacheSeed) {
 		ToolsetFingerprint: seed.ToolsetFingerprint, StableToolCount: seed.ToolCount,
 		CacheRAMMiB: perf.CacheRAMMiB, CheckpointProfile: "32x2048",
 	}
-	if decision, ok := m.loadPromptCacheDecisionLocked(); ok && decision.State == "rejected" {
-		m.status.PromptCache.State = "rejected"
-		m.status.PromptCache.ErrorCode = "prompt_cache_profile_rejected"
-		m.status.PromptCache.WarmupDurationMS = decision.WarmupDurationMS
-		m.status.PromptCache.CachedTokens = decision.CachedTokens
-		m.status.PromptCache.ProcessedTokens = decision.ProcessedTokens
-		m.status.PromptCache.HitRate = decision.HitRate
+	if decision, ok := m.loadPromptCacheDecisionLocked(); ok {
+		status := &m.status.PromptCache
+		status.WarmupDurationMS = decision.WarmupDurationMS
+		status.CachedTokens = decision.CachedTokens
+		status.ProcessedTokens = decision.ProcessedTokens
+		status.HitRate = decision.HitRate
+		status.ColdTTFTMS = decision.ColdTTFTMS
+		status.WarmTTFTMS = decision.WarmTTFTMS
+		status.DecisionPersisted = true
+		if decision.Accepted && decision.State == "warm" {
+			m.promptCacheQualified = true
+			status.Qualified = true
+			status.State = "cold"
+		} else if decision.State == "rejected" {
+			status.State = "rejected"
+			status.ErrorCode = decision.Reason
+			if status.ErrorCode == "" {
+				status.ErrorCode = "prompt_cache_profile_rejected"
+			}
+		}
 	}
+}
+
+func (m *Manager) markPromptCacheDegraded(code string) {
+	if code == "" {
+		code = "prompt_cache_request_failed"
+	}
+	m.mu.Lock()
+	m.promptSeed = nil
+	m.promptCacheQualified = false
+	m.status.PromptCache.State = "degraded"
+	m.status.PromptCache.Qualified = false
+	m.status.PromptCache.DecisionPersisted = false
+	m.status.PromptCache.ErrorCode = code
+	m.mu.Unlock()
 }
 
 func (m *Manager) promptCacheReady(seed *promptCacheSeed) bool {
@@ -280,6 +347,8 @@ func (m *Manager) promptCacheReady(seed *promptCacheSeed) bool {
 	return m.promptSeed != nil &&
 		m.promptSeed.Generation == m.generation &&
 		m.promptSeed.Fingerprint == seed.Fingerprint &&
+		m.promptCacheQualified &&
+		m.status.PromptCache.Qualified &&
 		m.status.PromptCache.State == "warm"
 }
 
@@ -290,13 +359,14 @@ func (m *Manager) ensurePromptCacheWarm(ctx context.Context, plan runtimePlan, k
 		m.mu.Unlock()
 		return
 	}
-	if m.status.PromptCache.State == "rejected" {
+	if m.status.PromptCache.State == "rejected" || m.status.PromptCache.State == "degraded" {
 		m.mu.Unlock()
 		return
 	}
 	seed := *m.promptSeed
 	seed.ApplyTemplateBody = append([]byte(nil), m.promptSeed.ApplyTemplateBody...)
-	if m.status.PromptCache.State == "warm" &&
+	qualified := m.promptCacheQualified
+	if qualified && m.status.PromptCache.State == "warm" &&
 		m.status.PromptCache.SeedFingerprint == seed.Fingerprint {
 		m.mu.Unlock()
 		return
@@ -306,60 +376,118 @@ func (m *Manager) ensurePromptCacheWarm(ctx context.Context, plan runtimePlan, k
 	m.mu.Unlock()
 
 	started := time.Now()
-	warmCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
-	defer cancel()
-	rendered, err := m.applyPromptTemplate(warmCtx, plan.Config, key, seed.ApplyTemplateBody)
-	if err == nil {
-		rendered, err = truncateRenderedPromptAtStaticPrefix(rendered, seed.SystemPrefix)
+	warmCtx, cancel, err := promptCacheQualificationContext(ctx)
+	if err != nil {
+		m.publishPromptCacheFailure(plan, seed, "prompt_cache_qualification_timeout", false, 0)
+		return
 	}
-	if err == nil {
-		var response json.RawMessage
-		err = m.apiJSONFor(warmCtx, plan.Config, http.MethodPost, "/completion", key, map[string]any{
-			"prompt": rendered, "n_predict": 0, "cache_prompt": true, "id_slot": 0,
-		}, &response)
-		if err == nil {
-			var timing struct {
-				TokensCached    uint64 `json:"tokens_cached"`
-				TokensEvaluated uint64 `json:"tokens_evaluated"`
-				Timings         struct {
-					CacheN  uint64 `json:"cache_n"`
-					PromptN uint64 `json:"prompt_n"`
-				} `json:"timings"`
-			}
-			if json.Unmarshal(response, &timing) == nil {
-				seedTokens := timing.Timings.CacheN + timing.Timings.PromptN
-				if timing.TokensCached > seedTokens {
-					seedTokens = timing.TokensCached
-				}
-				if timing.TokensEvaluated > seedTokens {
-					seedTokens = timing.TokensEvaluated
-				}
-				m.mu.Lock()
-				if plan.Generation == m.generation && m.promptSeed != nil &&
-					m.promptSeed.Fingerprint == seed.Fingerprint {
-					m.status.PromptCache.SeedTokens = seedTokens
-				}
-				m.mu.Unlock()
-			}
-		}
+	defer cancel()
+	var result promptCacheQualificationResult
+	if qualified {
+		result.SeedTokens, err = m.warmPromptPrefix(warmCtx, plan, key, seed)
+	} else {
+		result, err = m.qualifyPromptCache(warmCtx, plan, key, seed)
 	}
 	duration := float64(time.Since(started).Microseconds()) / 1000
+	if err != nil {
+		if errors.Is(err, context.Canceled) && ctx.Err() != nil {
+			return
+		}
+		code := errorCode(err)
+		permanent := isPermanentPromptCacheRejection(code)
+		m.publishPromptCacheFailure(plan, seed, code, permanent, duration)
+		return
+	}
 	m.mu.Lock()
-	defer m.mu.Unlock()
 	if plan.Generation != m.generation || m.promptSeed == nil ||
 		m.promptSeed.Fingerprint != seed.Fingerprint {
+		m.mu.Unlock()
 		return
 	}
-	if err != nil {
-		m.status.PromptCache.State = "degraded"
-		m.status.PromptCache.ErrorCode = "prompt_cache_warmup_failed"
-		m.savePromptCacheDecisionLocked(false, duration)
-		return
-	}
+	m.promptCacheQualified = true
 	m.status.PromptCache.State = "warm"
+	m.status.PromptCache.Qualified = true
+	m.status.PromptCache.DecisionPersisted = qualified && m.status.PromptCache.DecisionPersisted
+	m.status.PromptCache.SeedTokens = result.SeedTokens
 	m.status.PromptCache.WarmupDurationMS = duration
+	if result.ColdTTFT > 0 {
+		m.status.PromptCache.ColdTTFTMS = float64(result.ColdTTFT.Microseconds()) / 1000
+	}
+	if result.WarmTTFT > 0 {
+		m.status.PromptCache.WarmTTFTMS = float64(result.WarmTTFT.Microseconds()) / 1000
+	}
+	if result.CachedTokens > 0 || result.ProcessedTokens > 0 {
+		m.status.PromptCache.CachedTokens = result.CachedTokens
+		m.status.PromptCache.ProcessedTokens = result.ProcessedTokens
+		total := result.CachedTokens + result.ProcessedTokens
+		if total > 0 {
+			m.status.PromptCache.HitRate = float64(result.CachedTokens) / float64(total)
+		}
+	}
 	m.status.PromptCache.ErrorCode = ""
-	m.savePromptCacheDecisionLocked(true, duration)
+	entry, ok := m.promptCacheDecisionEntryLocked(true, true)
+	m.mu.Unlock()
+	if ok {
+		m.queuePromptCacheDecision(entry, true)
+	}
+}
+
+func promptCacheQualificationContext(parent context.Context) (context.Context, context.CancelFunc, error) {
+	if parent == nil {
+		parent = context.Background()
+	}
+	now := time.Now()
+	deadline := now.Add(promptCacheQualificationTimeout)
+	if parentDeadline, ok := parent.Deadline(); ok {
+		reserved := parentDeadline.Add(-promptCacheRequestReserve)
+		if !reserved.After(now) {
+			return nil, func() {}, fmt.Errorf("prompt_cache_qualification_timeout")
+		}
+		if reserved.Before(deadline) {
+			deadline = reserved
+		}
+	}
+	ctx, cancel := context.WithDeadline(parent, deadline)
+	return ctx, cancel, nil
+}
+
+func (m *Manager) publishPromptCacheFailure(plan runtimePlan, seed promptCacheSeed, code string, permanent bool, duration float64) {
+	if code == "" {
+		code = "prompt_cache_warmup_failed"
+	}
+	m.mu.Lock()
+	if plan.Generation != m.generation || m.promptSeed == nil ||
+		m.promptSeed.Fingerprint != seed.Fingerprint {
+		m.mu.Unlock()
+		return
+	}
+	m.promptCacheQualified = false
+	m.status.PromptCache.Qualified = false
+	m.status.PromptCache.DecisionPersisted = false
+	m.status.PromptCache.WarmupDurationMS = duration
+	m.status.PromptCache.ErrorCode = code
+	if permanent {
+		m.status.PromptCache.State = "rejected"
+	} else {
+		m.status.PromptCache.State = "degraded"
+	}
+	entry, ok := m.promptCacheDecisionEntryLocked(false, permanent)
+	m.mu.Unlock()
+	if permanent && ok {
+		m.queuePromptCacheDecision(entry, true)
+	}
+}
+
+func isPermanentPromptCacheRejection(code string) bool {
+	switch code {
+	case "prompt_cache_probe_tool_unavailable",
+		"prompt_cache_semantic_mismatch",
+		"prompt_cache_reuse_below_80_percent",
+		"prompt_cache_ttft_gain_below_70_percent":
+		return true
+	default:
+		return false
+	}
 }
 
 func truncateRenderedPromptAtStaticPrefix(rendered, prefix string) (string, error) {
@@ -381,7 +509,7 @@ func (m *Manager) applyPromptTemplate(ctx context.Context, cfg interface{ Endpoi
 	}
 	req.Header.Set("Authorization", "Bearer "+key)
 	req.Header.Set("Content-Type", "application/json")
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := m.promptCacheHTTPClient().Do(req)
 	if err != nil {
 		return "", err
 	}
@@ -406,12 +534,328 @@ func (m *Manager) applyPromptTemplate(ctx context.Context, cfg interface{ Endpoi
 	return "", fmt.Errorf("apply_template_response_invalid")
 }
 
+func (m *Manager) promptCacheHTTPClient() *http.Client {
+	return http.DefaultClient
+}
+
+func (m *Manager) warmPromptPrefix(ctx context.Context, plan runtimePlan, key string, seed promptCacheSeed) (uint64, error) {
+	rendered, err := m.applyPromptTemplate(ctx, plan.Config, key, seed.ApplyTemplateBody)
+	if err != nil {
+		if ctx.Err() != nil {
+			return 0, fmt.Errorf("prompt_cache_qualification_timeout: %w", ctx.Err())
+		}
+		return 0, fmt.Errorf("prompt_cache_template_failed: %w", err)
+	}
+	rendered, err = truncateRenderedPromptAtStaticPrefix(rendered, seed.SystemPrefix)
+	if err != nil {
+		return 0, err
+	}
+	payload, err := json.Marshal(map[string]any{
+		"prompt":       rendered,
+		"n_predict":    0,
+		"cache_prompt": true,
+		"id_slot":      0,
+	})
+	if err != nil {
+		return 0, fmt.Errorf("prompt_cache_seed_invalid")
+	}
+	base := strings.TrimSuffix(plan.Config.Endpoint(m.runningInDocker), "/v1")
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, base+"/completion", bytes.NewReader(payload))
+	if err != nil {
+		return 0, fmt.Errorf("prompt_cache_warmup_failed")
+	}
+	req.Header.Set("Authorization", "Bearer "+key)
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := m.promptCacheHTTPClient().Do(req)
+	if err != nil {
+		if ctx.Err() != nil {
+			return 0, fmt.Errorf("prompt_cache_qualification_timeout: %w", ctx.Err())
+		}
+		return 0, fmt.Errorf("prompt_cache_transport_failed: %w", err)
+	}
+	defer resp.Body.Close()
+	body, readErr := io.ReadAll(io.LimitReader(resp.Body, maxPromptSeedBytes+1))
+	if readErr != nil || len(body) > maxPromptSeedBytes {
+		return 0, fmt.Errorf("prompt_cache_warmup_failed")
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return 0, promptCacheHTTPError(body)
+	}
+	cached, prompt := promptCacheUsage(body)
+	if prompt == 0 {
+		prompt = cached
+	}
+	if prompt == 0 {
+		return 0, fmt.Errorf("prompt_cache_seed_tokens_unavailable")
+	}
+	return prompt, nil
+}
+
+func (m *Manager) qualifyPromptCache(ctx context.Context, plan runtimePlan, key string, seed promptCacheSeed) (promptCacheQualificationResult, error) {
+	if !promptCacheSeedHasTool(seed, "discover_tools") {
+		return promptCacheQualificationResult{}, fmt.Errorf("prompt_cache_probe_tool_unavailable")
+	}
+	cold, err := m.runPromptCacheProbe(ctx, plan, key, seed, false)
+	if err != nil {
+		return promptCacheQualificationResult{}, err
+	}
+	seedTokens, err := m.warmPromptPrefix(ctx, plan, key, seed)
+	if err != nil {
+		return promptCacheQualificationResult{}, err
+	}
+	warm, err := m.runPromptCacheProbe(ctx, plan, key, seed, true)
+	if err != nil {
+		return promptCacheQualificationResult{}, err
+	}
+	return validatePromptCacheQualification(cold, warm, seedTokens)
+}
+
+func validatePromptCacheQualification(cold, warm promptCacheProbeResult, seedTokens uint64) (promptCacheQualificationResult, error) {
+	if !cold.Complete || !warm.Complete ||
+		!validPromptCacheProbeCall(cold.ToolCall) ||
+		normalizeToolCall(cold.ToolCall) != normalizeToolCall(warm.ToolCall) {
+		return promptCacheQualificationResult{}, fmt.Errorf("prompt_cache_semantic_mismatch")
+	}
+	if seedTokens == 0 || float64(warm.CachedTokens) < float64(seedTokens)*0.80 {
+		return promptCacheQualificationResult{}, fmt.Errorf("prompt_cache_reuse_below_80_percent")
+	}
+	if cold.TTFT <= 0 || warm.TTFT <= 0 ||
+		float64(warm.TTFT) > float64(cold.TTFT)*0.30 {
+		return promptCacheQualificationResult{}, fmt.Errorf("prompt_cache_ttft_gain_below_70_percent")
+	}
+	processed := warm.PromptTokens
+	if warm.CachedTokens <= processed {
+		processed -= warm.CachedTokens
+	}
+	return promptCacheQualificationResult{
+		SeedTokens: seedTokens, CachedTokens: warm.CachedTokens,
+		ProcessedTokens: processed, ColdTTFT: cold.TTFT, WarmTTFT: warm.TTFT,
+	}, nil
+}
+
+func promptCacheSeedHasTool(seed promptCacheSeed, name string) bool {
+	var request struct {
+		Tools []json.RawMessage `json:"tools"`
+	}
+	if json.Unmarshal(seed.ApplyTemplateBody, &request) != nil {
+		return false
+	}
+	for _, tool := range request.Tools {
+		if toolNameFromRaw(tool) == name {
+			return true
+		}
+	}
+	return false
+}
+
+func (m *Manager) runPromptCacheProbe(ctx context.Context, plan runtimePlan, key string, seed promptCacheSeed, cache bool) (promptCacheProbeResult, error) {
+	var request map[string]json.RawMessage
+	if json.Unmarshal(seed.ApplyTemplateBody, &request) != nil {
+		return promptCacheProbeResult{}, fmt.Errorf("prompt_cache_seed_invalid")
+	}
+	setJSON := func(name string, value any) error {
+		encoded, err := json.Marshal(value)
+		if err == nil {
+			request[name] = encoded
+		}
+		return err
+	}
+	if setJSON("stream", true) != nil ||
+		setJSON("stream_options", map[string]bool{"include_usage": true}) != nil ||
+		setJSON("cache_prompt", cache) != nil ||
+		setJSON("max_tokens", 128) != nil ||
+		setJSON("temperature", 0) != nil ||
+		setJSON("tool_choice", "required") != nil ||
+		setJSON("parallel_tool_calls", false) != nil {
+		return promptCacheProbeResult{}, fmt.Errorf("prompt_cache_seed_invalid")
+	}
+	payload, err := json.Marshal(request)
+	if err != nil || len(payload) > maxPromptSeedBytes {
+		return promptCacheProbeResult{}, fmt.Errorf("prompt_cache_seed_too_large")
+	}
+	endpoint := strings.TrimSuffix(plan.Config.Endpoint(m.runningInDocker), "/") + "/chat/completions"
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(payload))
+	if err != nil {
+		return promptCacheProbeResult{}, fmt.Errorf("prompt_cache_transport_failed")
+	}
+	req.Header.Set("Authorization", "Bearer "+key)
+	req.Header.Set("Content-Type", "application/json")
+	started := time.Now()
+	resp, err := m.promptCacheHTTPClient().Do(req)
+	if err != nil {
+		if ctx.Err() != nil {
+			return promptCacheProbeResult{}, fmt.Errorf("prompt_cache_qualification_timeout: %w", ctx.Err())
+		}
+		return promptCacheProbeResult{}, fmt.Errorf("prompt_cache_transport_failed: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+		return promptCacheProbeResult{}, promptCacheHTTPError(body)
+	}
+	result, err := readPromptCacheProbe(resp.Body, started)
+	if err != nil {
+		return promptCacheProbeResult{}, err
+	}
+	return result, nil
+}
+
+func readPromptCacheProbe(reader io.Reader, started time.Time) (promptCacheProbeResult, error) {
+	type toolDelta struct {
+		Index    int `json:"index"`
+		Function struct {
+			Name      string `json:"name"`
+			Arguments string `json:"arguments"`
+		} `json:"function"`
+	}
+	var result promptCacheProbeResult
+	type callParts struct {
+		name      strings.Builder
+		arguments strings.Builder
+	}
+	calls := make(map[int]*callParts)
+	scanner := bufio.NewScanner(reader)
+	scanner.Buffer(make([]byte, 64<<10), maxLocalRequestBytes)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if !strings.HasPrefix(line, "data:") {
+			continue
+		}
+		data := strings.TrimSpace(strings.TrimPrefix(line, "data:"))
+		if data == "[DONE]" {
+			result.Complete = true
+			continue
+		}
+		if data == "" {
+			continue
+		}
+		if failed := promptCacheHTTPError([]byte(data)); errorCode(failed) != "prompt_cache_transport_failed" {
+			return promptCacheProbeResult{}, failed
+		}
+		var chunk struct {
+			Choices []struct {
+				Delta struct {
+					Content   string      `json:"content"`
+					ToolCalls []toolDelta `json:"tool_calls"`
+				} `json:"delta"`
+			} `json:"choices"`
+		}
+		if json.Unmarshal([]byte(data), &chunk) != nil {
+			continue
+		}
+		cached, prompt := promptCacheUsage([]byte(data))
+		if cached > result.CachedTokens {
+			result.CachedTokens = cached
+		}
+		if prompt > result.PromptTokens {
+			result.PromptTokens = prompt
+		}
+		for _, choice := range chunk.Choices {
+			if result.TTFT == 0 && (choice.Delta.Content != "" || len(choice.Delta.ToolCalls) > 0) {
+				result.TTFT = time.Since(started)
+			}
+			for _, delta := range choice.Delta.ToolCalls {
+				parts := calls[delta.Index]
+				if parts == nil {
+					parts = &callParts{}
+					calls[delta.Index] = parts
+				}
+				parts.name.WriteString(delta.Function.Name)
+				parts.arguments.WriteString(delta.Function.Arguments)
+			}
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return promptCacheProbeResult{}, fmt.Errorf("prompt_cache_transport_failed: %w", err)
+	}
+	if !result.Complete || len(calls) != 1 {
+		return promptCacheProbeResult{}, fmt.Errorf("prompt_cache_semantic_mismatch")
+	}
+	parts, ok := calls[0]
+	if !ok {
+		return promptCacheProbeResult{}, fmt.Errorf("prompt_cache_semantic_mismatch")
+	}
+	encoded, _ := json.Marshal(map[string]any{
+		"name":      parts.name.String(),
+		"arguments": parts.arguments.String(),
+	})
+	result.ToolCall = string(encoded)
+	return result, nil
+}
+
+func validPromptCacheProbeCall(value string) bool {
+	var call struct {
+		Name      string          `json:"name"`
+		Arguments json.RawMessage `json:"arguments"`
+	}
+	if json.Unmarshal([]byte(value), &call) != nil || call.Name != "discover_tools" {
+		return false
+	}
+	var argumentText string
+	if json.Unmarshal(call.Arguments, &argumentText) != nil {
+		return false
+	}
+	var arguments struct {
+		Operation string `json:"operation"`
+		Query     string `json:"query"`
+	}
+	return json.Unmarshal([]byte(argumentText), &arguments) == nil &&
+		arguments.Operation == "search" && arguments.Query == promptCacheProbeQuery
+}
+
+func promptCacheHTTPError(payload []byte) error {
+	text := strings.ToLower(string(payload))
+	switch {
+	case strings.Contains(text, "out of memory"), strings.Contains(text, "oom"):
+		return fmt.Errorf("prompt_cache_oom")
+	case strings.Contains(text, "offload"), strings.Contains(text, "device lost"):
+		return fmt.Errorf("prompt_cache_offload_failed")
+	default:
+		return fmt.Errorf("prompt_cache_transport_failed")
+	}
+}
+
+func promptCacheUsage(raw []byte) (cached, prompt uint64) {
+	var response struct {
+		TokensCached    uint64 `json:"tokens_cached"`
+		TokensEvaluated uint64 `json:"tokens_evaluated"`
+		Usage           struct {
+			PromptTokens        uint64 `json:"prompt_tokens"`
+			PromptTokensDetails struct {
+				CachedTokens uint64 `json:"cached_tokens"`
+			} `json:"prompt_tokens_details"`
+		} `json:"usage"`
+		Timings struct {
+			CacheN  uint64 `json:"cache_n"`
+			PromptN uint64 `json:"prompt_n"`
+		} `json:"timings"`
+	}
+	if json.Unmarshal(raw, &response) != nil {
+		return 0, 0
+	}
+	prompt = response.Usage.PromptTokens
+	cached = response.Usage.PromptTokensDetails.CachedTokens
+	if response.Timings.CacheN > cached {
+		cached = response.Timings.CacheN
+	}
+	if total := response.Timings.PromptN + response.Timings.CacheN; total > prompt {
+		prompt = total
+	}
+	if response.TokensCached > cached {
+		cached = response.TokensCached
+	}
+	if total := response.TokensCached + response.TokensEvaluated; total > prompt {
+		prompt = total
+	}
+	return cached, prompt
+}
+
 func (m *Manager) promptCacheFingerprintLocked() string {
 	if m.promptSeed == nil {
 		return ""
 	}
 	payload := m.desiredFingerprint + "\x00" + m.promptSeed.Fingerprint + "\x00" +
-		LlamaCPPCommit + "\x00" + m.status.PerformanceProfile
+		LlamaCPPCommit + "\x00" + m.status.PerformanceProfile + "\x00schema=2"
 	sum := sha256.Sum256([]byte(payload))
 	return hex.EncodeToString(sum[:])
 }
@@ -422,88 +866,179 @@ func (m *Manager) loadPromptCacheDecisionLocked() (promptCacheDecisionEntry, boo
 		return promptCacheDecisionEntry{}, false
 	}
 	var entry promptCacheDecisionEntry
-	if json.Unmarshal(payload, &entry) != nil || entry.Fingerprint != m.promptCacheFingerprintLocked() {
+	if json.Unmarshal(payload, &entry) != nil ||
+		entry.SchemaVersion != promptCacheDecisionSchemaVersion ||
+		entry.Fingerprint != m.promptCacheFingerprintLocked() ||
+		(entry.State != "warm" && entry.State != "rejected") {
 		return promptCacheDecisionEntry{}, false
 	}
 	return entry, true
 }
 
-func (m *Manager) savePromptCacheDecisionLocked(accepted bool, duration float64) {
+func (m *Manager) promptCacheDecisionEntryLocked(accepted, terminal bool) (promptCacheDecisionEntry, bool) {
 	fingerprint := m.promptCacheFingerprintLocked()
-	if fingerprint == "" || os.MkdirAll(m.modelDir, 0o700) != nil {
-		return
+	if fingerprint == "" ||
+		(m.status.PromptCache.State != "warm" && m.status.PromptCache.State != "rejected") {
+		return promptCacheDecisionEntry{}, false
 	}
 	entry := promptCacheDecisionEntry{
-		Fingerprint: fingerprint, Accepted: accepted, State: m.status.PromptCache.State,
-		WarmupDurationMS: duration,
-		CachedTokens:     m.status.PromptCache.CachedTokens,
-		ProcessedTokens:  m.status.PromptCache.ProcessedTokens,
-		HitRate:          m.status.PromptCache.HitRate,
+		SchemaVersion: promptCacheDecisionSchemaVersion,
+		Fingerprint:   fingerprint, Accepted: accepted, State: m.status.PromptCache.State,
+		Reason:            m.status.PromptCache.ErrorCode,
+		ReuseThreshold:    0.80,
+		TTFTGainThreshold: 0.70,
+		WarmupDurationMS:  m.status.PromptCache.WarmupDurationMS,
+		CachedTokens:      m.status.PromptCache.CachedTokens,
+		ProcessedTokens:   m.status.PromptCache.ProcessedTokens,
+		HitRate:           m.status.PromptCache.HitRate,
+		ColdTTFTMS:        m.status.PromptCache.ColdTTFTMS,
+		WarmTTFTMS:        m.status.PromptCache.WarmTTFTMS,
+		Generation:        m.generation,
+		Terminal:          terminal,
 	}
-	payload, err := json.Marshal(entry)
-	if err != nil {
-		return
-	}
-	_ = config.WriteFileAtomic(
-		filepath.Join(m.modelDir, promptCacheFileName),
-		payload,
-		0o600,
-	)
+	return entry, true
 }
 
-func (m *Manager) observePromptCacheResponse(payload []byte, stream bool, firstByte time.Duration) {
-	var cached, prompt uint64
-	observe := func(raw []byte) {
-		var response struct {
-			TokensCached    uint64 `json:"tokens_cached"`
-			TokensEvaluated uint64 `json:"tokens_evaluated"`
-			Usage           struct {
-				PromptTokens        uint64 `json:"prompt_tokens"`
-				PromptTokensDetails struct {
-					CachedTokens uint64 `json:"cached_tokens"`
-				} `json:"prompt_tokens_details"`
-			} `json:"usage"`
-			Timings struct {
-				CacheN  uint64 `json:"cache_n"`
-				PromptN uint64 `json:"prompt_n"`
-			} `json:"timings"`
-		}
-		if json.Unmarshal(raw, &response) != nil {
+func (m *Manager) queuePromptCacheSnapshot(terminal bool) {
+	m.mu.Lock()
+	entry, ok := m.promptCacheDecisionEntryLocked(m.promptCacheQualified, terminal)
+	m.mu.Unlock()
+	if ok {
+		m.queuePromptCacheDecision(entry, terminal)
+	}
+}
+
+func (m *Manager) queuePromptCacheDecision(entry promptCacheDecisionEntry, terminal bool) {
+	m.mu.Lock()
+	if entry.Generation != m.generation || entry.Fingerprint != m.promptCacheFingerprintLocked() {
+		m.mu.Unlock()
+		return
+	}
+	entry.Terminal = terminal
+	copyEntry := entry
+	if m.promptPersistPending != nil && m.promptPersistPending.Terminal {
+		copyEntry.Terminal = true
+	}
+	m.promptPersistPending = &copyEntry
+	if m.promptPersistRunning {
+		m.mu.Unlock()
+		return
+	}
+	if !copyEntry.Terminal && !m.promptPersistLast.IsZero() &&
+		time.Since(m.promptPersistLast) < promptCachePersistInterval {
+		m.mu.Unlock()
+		return
+	}
+	m.promptPersistRunning = true
+	m.promptPersistWG.Add(1)
+	m.mu.Unlock()
+	go m.promptCachePersistLoop()
+}
+
+func (m *Manager) promptCachePersistLoop() {
+	defer m.promptPersistWG.Done()
+	for {
+		m.mu.Lock()
+		entry := m.promptPersistPending
+		m.promptPersistPending = nil
+		modelDir := m.modelDir
+		writer := m.promptDecisionWrite
+		m.mu.Unlock()
+		if entry == nil {
+			m.mu.Lock()
+			m.promptPersistRunning = false
+			m.mu.Unlock()
 			return
 		}
-		if response.Usage.PromptTokens > prompt {
-			prompt = response.Usage.PromptTokens
+		payload, err := json.Marshal(entry)
+		if err == nil {
+			err = os.MkdirAll(modelDir, 0o700)
 		}
-		if response.Usage.PromptTokensDetails.CachedTokens > cached {
-			cached = response.Usage.PromptTokensDetails.CachedTokens
+		if err == nil {
+			if writer == nil {
+				writer = config.WriteFileAtomic
+			}
+			m.promptPersistCommit.Lock()
+			m.mu.Lock()
+			current := entry.Generation == m.generation &&
+				entry.Fingerprint == m.promptCacheFingerprintLocked()
+			m.mu.Unlock()
+			if current {
+				err = writer(filepath.Join(modelDir, promptCacheFileName), payload, 0o600)
+			}
+			m.promptPersistCommit.Unlock()
 		}
-		if response.Timings.CacheN > cached {
-			cached = response.Timings.CacheN
+		now := time.Now()
+		m.mu.Lock()
+		if entry.Generation == m.generation &&
+			entry.Fingerprint == m.promptCacheFingerprintLocked() {
+			if err != nil {
+				m.status.PromptCache.DecisionPersisted = false
+				m.status.PromptCache.ErrorCode = "prompt_cache_decision_write_failed"
+			} else {
+				m.promptPersistLast = now
+				m.status.PromptCache.DecisionPersisted = true
+				if m.status.PromptCache.ErrorCode == "prompt_cache_decision_write_failed" {
+					m.status.PromptCache.ErrorCode = ""
+				}
+			}
 		}
-		if response.Timings.PromptN+response.Timings.CacheN > prompt {
-			prompt = response.Timings.PromptN + response.Timings.CacheN
+		next := m.promptPersistPending
+		if next == nil || (!next.Terminal && time.Since(m.promptPersistLast) < promptCachePersistInterval) {
+			m.promptPersistRunning = false
+			m.mu.Unlock()
+			return
 		}
-		if response.TokensCached > cached {
-			cached = response.TokensCached
+		m.mu.Unlock()
+	}
+}
+
+func (m *Manager) waitPromptCachePersistence(ctx context.Context) error {
+	done := make(chan struct{})
+	go func() {
+		m.promptPersistWG.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func promptCacheResponseMetrics(payload []byte, stream bool) (cached, prompt uint64) {
+	observe := func(raw []byte) {
+		currentCached, currentPrompt := promptCacheUsage(raw)
+		if currentCached > cached {
+			cached = currentCached
 		}
-		if response.TokensCached+response.TokensEvaluated > prompt {
-			prompt = response.TokensCached + response.TokensEvaluated
+		if currentPrompt > prompt {
+			prompt = currentPrompt
 		}
 	}
-	if stream {
-		for _, line := range bytes.Split(payload, []byte("\n")) {
-			line = bytes.TrimSpace(line)
-			if !bytes.HasPrefix(line, []byte("data:")) {
-				continue
-			}
-			data := bytes.TrimSpace(bytes.TrimPrefix(line, []byte("data:")))
-			if len(data) > 0 && !bytes.Equal(data, []byte("[DONE]")) {
-				observe(data)
-			}
-		}
-	} else {
+	if !stream {
 		observe(payload)
+		return cached, prompt
 	}
+	for _, line := range bytes.Split(payload, []byte("\n")) {
+		line = bytes.TrimSpace(line)
+		if !bytes.HasPrefix(line, []byte("data:")) {
+			continue
+		}
+		data := bytes.TrimSpace(bytes.TrimPrefix(line, []byte("data:")))
+		if len(data) > 0 && !bytes.Equal(data, []byte("[DONE]")) {
+			observe(data)
+		}
+	}
+	return cached, prompt
+}
+
+func (m *Manager) observePromptCacheResponse(plan promptCacheObservationPlan, payload []byte, stream bool, firstByte time.Duration, complete bool) {
+	if !complete {
+		return
+	}
+	cached, prompt := promptCacheResponseMetrics(payload, stream)
 	if prompt == 0 {
 		return
 	}
@@ -512,11 +1047,15 @@ func (m *Manager) observePromptCacheResponse(payload []byte, stream bool, firstB
 		processed = prompt - cached
 	}
 	m.mu.Lock()
-	defer m.mu.Unlock()
+	if plan.Generation != m.generation || m.promptSeed == nil ||
+		plan.SeedFingerprint != m.promptSeed.Fingerprint {
+		m.mu.Unlock()
+		return
+	}
 	status := &m.status.PromptCache
 	status.Requests++
-	status.LastHit = cached > 0
-	if cached > 0 {
+	status.LastHit = plan.CacheEnabled && cached > 0
+	if plan.CacheEnabled && cached > 0 {
 		status.Hits++
 		status.WarmTTFTMS = float64(firstByte.Microseconds()) / 1000
 	} else {
@@ -528,10 +1067,17 @@ func (m *Manager) observePromptCacheResponse(payload []byte, stream bool, firstB
 	if total > 0 {
 		status.HitRate = float64(status.CachedTokens) / float64(total)
 	}
-	if status.State == "warm" && status.SeedTokens > 0 &&
+	if plan.CacheEnabled && status.State == "warm" && status.SeedTokens > 0 &&
 		float64(cached) < float64(status.SeedTokens)*0.80 {
 		status.State = "rejected"
+		status.Qualified = false
+		m.promptCacheQualified = false
 		status.ErrorCode = "prompt_cache_reuse_below_80_percent"
 	}
-	m.savePromptCacheDecisionLocked(status.State == "warm", status.WarmupDurationMS)
+	terminal := status.State == "rejected"
+	entry, ok := m.promptCacheDecisionEntryLocked(status.State == "warm", terminal)
+	m.mu.Unlock()
+	if ok {
+		m.queuePromptCacheDecision(entry, terminal)
+	}
 }

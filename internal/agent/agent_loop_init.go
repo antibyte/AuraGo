@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"path/filepath"
@@ -642,40 +643,162 @@ func stableLocalToolSchemas(schemas []openai.Tool, cfg *config.Config, runCfg Ru
 	if cfg == nil {
 		return toolSchemaFilterResult{}
 	}
-	softAlways := append([]string(nil), cfg.Agent.AdaptiveTools.AlwaysInclude...)
+	channelRequired := append([]string(nil), runCfg.AllowedTools...)
 	if !voiceOutputSuppressed && (runCfg.VoiceOutputActive || GetVoiceMode()) && ff.TTSEnabled &&
 		!isAutonomousAgentRun(runCfg, runCfg.SessionID) && !runCfg.IsMission {
-		softAlways = append(softAlways, "tts", "send_audio")
+		channelRequired = append(channelRequired, "tts", "send_audio")
 	}
 	if ff.MusicGenerationEnabled {
-		softAlways = append(softAlways, "generate_music")
+		channelRequired = append(channelRequired, "generate_music")
 	}
 	if ff.VideoGenerationEnabled {
-		softAlways = append(softAlways, "generate_video")
+		channelRequired = append(channelRequired, "generate_video")
 	}
 	if ff.ImageGenerationEnabled {
-		softAlways = append(softAlways, "generate_image")
+		channelRequired = append(channelRequired, "generate_image")
 	}
-	softAlways = channelAdaptiveAlwaysInclude(runCfg, softAlways, ff)
-	softAlways = expandAdaptiveAlwaysInclude(cfg, softAlways)
+	channelRequired = channelAdaptiveAlwaysInclude(runCfg, channelRequired, ff)
+	configured := expandStableLocalConfiguredTools(cfg.Agent.AdaptiveTools.AlwaysInclude)
+	return filterStableLocalToolSchemas(schemas, channelRequired, configured, logger)
+}
 
-	result := filterToolSchemasWithReport(schemas, toolSchemaFilterOptions{
-		HardAlwaysTools: adaptiveHardAlwaysInclude(cfg),
-		SoftAlwaysTools: softAlways,
-		DisableAdaptive: true,
-		MaxTotalTools:   16,
-		MaxSchemaTokens: 4096,
-	}, logger)
-	sort.SliceStable(result.Tools, func(i, j int) bool {
-		left, right := "", ""
-		if result.Tools[i].Function != nil {
-			left = result.Tools[i].Function.Name
+func expandStableLocalConfiguredTools(values []string) []string {
+	seen := make(map[string]bool, len(values))
+	var expanded []string
+	for _, value := range values {
+		for _, name := range expandAdaptiveAlwaysIncludeAlias(value) {
+			if name != "" && !seen[name] {
+				seen[name] = true
+				expanded = append(expanded, name)
+			}
 		}
-		if result.Tools[j].Function != nil {
-			right = result.Tools[j].Function.Name
+	}
+	sort.Strings(expanded)
+	return expanded
+}
+
+func filterStableLocalToolSchemas(schemas []openai.Tool, channelRequired, configured []string, logger *slog.Logger) toolSchemaFilterResult {
+	const maxTools = 16
+	const maxTokens = 4096
+	originalBytes, originalLargest := measureToolSchemaSizes(schemas, 5)
+	report := toolSchemaFilterReport{
+		OriginalToolCount: len(schemas), OriginalSchemaBytes: originalBytes,
+		OriginalSchemaTokens: roughTokenEstimate(originalBytes), LargestSchemas: originalLargest,
+		MaxTotal: maxTools, MaxSchemaTokens: maxTokens,
+	}
+	byName := make(map[string]openai.Tool, len(schemas))
+	allNames := make([]string, 0, len(schemas))
+	for _, schema := range schemas {
+		if schema.Function == nil || strings.TrimSpace(schema.Function.Name) == "" {
+			continue
 		}
-		return left < right
-	})
-	sort.Strings(result.Report.DroppedTools)
+		name := schema.Function.Name
+		byName[name] = schema
+		allNames = append(allNames, name)
+	}
+	sort.Strings(allNames)
+	channelRequired = uniqueSortedToolNames(channelRequired)
+	configured = uniqueSortedToolNames(configured)
+	channelSet := stringSet(channelRequired)
+	configuredSet := stringSet(configured)
+	consumed := make(map[string]bool, len(schemas))
+	var kept []openai.Tool
+	keptTokens := 0
+	add := func(name, class string) {
+		schema, ok := byName[name]
+		if !ok || consumed[name] {
+			return
+		}
+		candidate := append(append([]openai.Tool(nil), kept...), schema)
+		candidateTokens := estimateToolSchemaListTokens(candidate)
+		if len(kept) >= maxTools || candidateTokens > maxTokens {
+			switch class {
+			case "channel":
+				report.DroppedChannelTools = append(report.DroppedChannelTools, name)
+			case "configured":
+				report.DroppedConfiguredTools = append(report.DroppedConfiguredTools, name)
+			}
+			return
+		}
+		consumed[name] = true
+		kept = append(kept, schema)
+		keptTokens = candidateTokens
+		switch class {
+		case "core":
+			report.KeptHardAlways++
+		case "channel":
+			report.KeptChannelRequired++
+			report.KeptSoftAlways++
+		case "configured":
+			report.KeptConfigured++
+			report.KeptSoftAlways++
+		}
+	}
+	for _, name := range uniqueSortedToolNames([]string{"discover_tools", "invoke_tool", "execute_skill", "run_tool"}) {
+		add(name, "core")
+	}
+	for _, name := range channelRequired {
+		add(name, "channel")
+	}
+	for _, name := range configured {
+		add(name, "configured")
+	}
+	sort.SliceStable(kept, func(i, j int) bool { return kept[i].Function.Name < kept[j].Function.Name })
+	for _, name := range allNames {
+		if !consumed[name] {
+			report.DroppedTools = append(report.DroppedTools, name)
+			if channelSet[name] && !stableLocalContains(report.DroppedChannelTools, name) {
+				report.DroppedChannelTools = append(report.DroppedChannelTools, name)
+			}
+			if configuredSet[name] && !stableLocalContains(report.DroppedConfiguredTools, name) {
+				report.DroppedConfiguredTools = append(report.DroppedConfiguredTools, name)
+			}
+		}
+	}
+	sort.Strings(report.DroppedTools)
+	sort.Strings(report.DroppedChannelTools)
+	sort.Strings(report.DroppedConfiguredTools)
+	finalBytes, _ := measureToolSchemaSizes(kept, 5)
+	report.FinalToolCount = len(kept)
+	report.FinalSchemaBytes = finalBytes
+	report.FinalSchemaTokens = keptTokens
+	report.Dropped = len(schemas) - len(kept)
+	if logger != nil && (len(report.DroppedChannelTools) > 0 || len(report.DroppedConfiguredTools) > 0) {
+		logger.Warn("[NativeTools] Managed local tool budget trimmed requested tools",
+			"dropped_channel_tools", report.DroppedChannelTools,
+			"dropped_configured_tools", report.DroppedConfiguredTools,
+			"max_total", maxTools, "max_schema_tokens", maxTokens)
+	}
+	return toolSchemaFilterResult{Tools: kept, Report: report}
+}
+
+func uniqueSortedToolNames(values []string) []string {
+	seen := make(map[string]bool, len(values))
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value != "" && !seen[value] {
+			seen[value] = true
+			result = append(result, value)
+		}
+	}
+	sort.Strings(result)
 	return result
+}
+
+func estimateToolSchemaListTokens(schemas []openai.Tool) int {
+	encoded, err := json.Marshal(schemas)
+	if err != nil {
+		return int(^uint(0) >> 1)
+	}
+	return roughTokenEstimate(len(encoded))
+}
+
+func stableLocalContains(values []string, target string) bool {
+	for _, value := range values {
+		if value == target {
+			return true
+		}
+	}
+	return false
 }

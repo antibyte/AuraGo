@@ -5,6 +5,8 @@ import "time"
 // PromptCacheStatus contains only value-free measurements and fingerprints.
 type PromptCacheStatus struct {
 	State              string  `json:"state"`
+	Qualified          bool    `json:"qualified"`
+	DecisionPersisted  bool    `json:"decision_persisted"`
 	SeedFingerprint    string  `json:"seed_fingerprint,omitempty"`
 	ToolsetFingerprint string  `json:"toolset_fingerprint,omitempty"`
 	StableToolCount    int     `json:"stable_tool_count"`

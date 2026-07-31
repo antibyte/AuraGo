@@ -89,9 +89,16 @@ type Manager struct {
 	idleStop chan struct{}
 	control  chan struct{}
 
-	promptSlot  chan struct{}
-	promptSeed  *promptCacheSeed
-	appliedPlan *runtimePlan
+	promptSlot           chan struct{}
+	promptSeed           *promptCacheSeed
+	promptCacheQualified bool
+	promptPersistRunning bool
+	promptPersistPending *promptCacheDecisionEntry
+	promptPersistLast    time.Time
+	promptPersistWG      sync.WaitGroup
+	promptPersistCommit  sync.Mutex
+	promptDecisionWrite  func(string, []byte, os.FileMode) error
+	appliedPlan          *runtimePlan
 }
 
 type runtimePlan struct {
@@ -140,6 +147,7 @@ func NewManager(cfg *config.Config, secrets vault, logger *slog.Logger, options 
 		idleStop:   make(chan struct{}), lifecycleCtx: lifecycleCtx, lifecycleCancel: lifecycleCancel,
 		desiredCtx: desiredCtx, desiredCancel: desiredCancel, generation: 1,
 		control: make(chan struct{}, 1), promptSlot: make(chan struct{}, 1),
+		promptDecisionWrite: config.WriteFileAtomic,
 	}
 	manager.cond = sync.NewCond(&manager.mu)
 	manager.status = Status{
@@ -218,7 +226,9 @@ func (m *Manager) finishOperation(name string, owned bool) {
 func (m *Manager) Close() {
 	m.lifecycleCancel()
 	m.mu.Lock()
+	m.promptPersistPending = nil
 	m.promptSeed = nil
+	m.promptCacheQualified = false
 	m.appliedPlan = nil
 	m.mu.Unlock()
 	select {
@@ -272,6 +282,13 @@ activeWait:
 		case <-ctx.Done():
 		}
 	}
+	m.queuePromptCacheSnapshot(true)
+	if err := m.waitPromptCachePersistence(ctx); err != nil && ctx.Err() == nil {
+		m.mu.Lock()
+		m.status.PromptCache.DecisionPersisted = false
+		m.status.PromptCache.ErrorCode = "prompt_cache_decision_write_failed"
+		m.mu.Unlock()
+	}
 
 	cleanupCtx := ctx
 	cleanupCancel := func() {}
@@ -285,6 +302,7 @@ activeWait:
 	m.cleanupRuntimeKey()
 	m.mu.Lock()
 	m.promptSeed = nil
+	m.promptCacheQualified = false
 	m.appliedPlan = nil
 	m.status.PromptCache.State = "disabled"
 	m.mu.Unlock()
@@ -293,6 +311,8 @@ activeWait:
 
 // Configure publishes a new desired state. Recreation waits until active streams close.
 func (m *Manager) Configure(cfg config.LocalLLMConfig) {
+	m.promptPersistCommit.Lock()
+	defer m.promptPersistCommit.Unlock()
 	m.mu.Lock()
 	fingerprint := m.computeDesiredFingerprint(cfg, m.profile)
 	if fingerprint == m.desiredFingerprint {
@@ -338,6 +358,8 @@ func (m *Manager) invalidateVerificationLocked() {
 	m.status.ActualDevice = ""
 	m.status.PromptCache = PromptCacheStatus{State: "cold"}
 	m.promptSeed = nil
+	m.promptCacheQualified = false
+	m.promptPersistPending = nil
 	m.appliedPlan = nil
 }
 
@@ -2037,10 +2059,11 @@ func (m *Manager) acknowledged(fingerprint string) bool {
 
 func (m *Manager) computeDesiredFingerprint(cfg config.LocalLLMConfig, profile HardwareProfile) string {
 	payload, _ := json.Marshal(struct {
-		Config   config.LocalLLMConfig
-		Profile  string
-		Manifest Manifest
-	}{cfg, profile.Fingerprint, m.manifest})
+		Config      config.LocalLLMConfig
+		Profile     string
+		Performance runtimePerformanceProfile
+		Manifest    Manifest
+	}{cfg, profile.Fingerprint, performanceProfileFor(profile), m.manifest})
 	sum := sha256.Sum256(payload)
 	return hex.EncodeToString(sum[:])
 }

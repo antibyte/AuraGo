@@ -1008,11 +1008,15 @@ type toolSchemaFilterReport struct {
 	KeptHardAlways             int                   `json:"kept_hard_always"`
 	KeptSoftAlways             int                   `json:"kept_soft_always"`
 	KeptAdaptive               int                   `json:"kept_adaptive"`
+	KeptChannelRequired        int                   `json:"kept_channel_required,omitempty"`
+	KeptConfigured             int                   `json:"kept_configured,omitempty"`
 	Dropped                    int                   `json:"dropped"`
 	MaxAdaptive                int                   `json:"max_adaptive"`
 	MaxTotal                   int                   `json:"max_total"`
 	MaxSchemaTokens            int                   `json:"max_schema_tokens,omitempty"`
 	DroppedTools               []string              `json:"dropped_tools,omitempty"`
+	DroppedChannelTools        []string              `json:"dropped_channel_tools,omitempty"`
+	DroppedConfiguredTools     []string              `json:"dropped_configured_tools,omitempty"`
 	HardAlwaysExceededTotalCap bool                  `json:"hard_always_exceeded_total_cap,omitempty"`
 	HardAlwaysExceededTokenCap bool                  `json:"hard_always_exceeded_token_cap,omitempty"`
 }

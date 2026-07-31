@@ -164,6 +164,11 @@ function localLLMPromptCacheStatus(status) {
         escapeHtml(t('config.local_llm.performance_profile')) + ': ' + escapeHtml(profile) + ' · ' +
         escapeHtml(t('config.local_llm.cache_state')) + ': ' + escapeHtml(state) + ' · ' +
         escapeHtml(t('config.local_llm.cache_hit_rate')) + ': ' + escapeHtml((hitRate * 100).toFixed(1) + ' %');
+    text += '<br>' +
+        escapeHtml(t('config.local_llm.cache_qualification')) + ': ' +
+        escapeHtml(t(cache.qualified ? 'common.yes' : 'common.no')) + ' · ' +
+        escapeHtml(t('config.local_llm.cache_decision_persistence')) + ': ' +
+        escapeHtml(t(cache.decision_persisted ? 'common.yes' : 'common.no'));
     if (Number(cache.cache_ram_mib) > 0) {
         text += ' · RAM: ' + escapeHtml(String(cache.cache_ram_mib) + ' MiB');
     }
@@ -174,9 +179,22 @@ function localLLMPromptCacheStatus(status) {
     }
     text += '<br><span class="field-help">' + escapeHtml(t('config.local_llm.prompt_cache_first_start')) + '</span>';
     if (cache.error_code) {
-        text += '<br>' + escapeHtml(t('config.local_llm.error_prefix') + ': ' + cache.error_code);
+        text += '<br>' + escapeHtml(t('config.local_llm.error_prefix') + ': ' + localLLMCacheErrorText(cache.error_code));
     }
     return '<div class="cfg-note-banner">' + text + '</div>';
+}
+
+function localLLMCacheErrorText(errorCode) {
+    const code = String(errorCode || '');
+    let key = 'config.local_llm.cache_error_runtime';
+    if (code === 'prompt_cache_probe_tool_unavailable') key = 'config.local_llm.cache_error_probe_tool';
+    else if (code === 'prompt_cache_semantic_mismatch') key = 'config.local_llm.cache_error_semantic';
+    else if (code === 'prompt_cache_reuse_below_80_percent') key = 'config.local_llm.cache_error_reuse';
+    else if (code === 'prompt_cache_ttft_gain_below_70_percent') key = 'config.local_llm.cache_error_ttft';
+    else if (code === 'prompt_cache_qualification_timeout') key = 'config.local_llm.cache_error_timeout';
+    else if (code === 'prompt_cache_decision_write_failed') key = 'config.local_llm.cache_error_persistence';
+    const translated = t(key);
+    return translated && translated !== key ? translated : code;
 }
 
 function localLLMFormatMilliseconds(value) {

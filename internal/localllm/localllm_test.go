@@ -926,6 +926,7 @@ func TestStartupManifestAttestsExactDeviceHashesParametersAndOffload(t *testing.
 			SelectedBackend: "sycl", SelectedDevice: "0000:03:00.0",
 			Devices: []GPUDevice{{
 				ID: "0000:03:00.0", DockerID: "1", RenderNode: "/dev/dri/renderD129",
+				Vendor: "intel", Device: "0xe20b", Discrete: true,
 			}},
 		},
 		Model:              Artifact{SHA256: strings.Repeat("a", 64)},
@@ -944,11 +945,13 @@ func TestStartupManifestAttestsExactDeviceHashesParametersAndOffload(t *testing.
 		LlamaCPPCommit:     LlamaCPPCommit,
 		PerformanceProfile: performanceProfileSYCLArc,
 		BatchSize:          2048,
-		UBatchSize:         512,
+		UBatchSize:         2048,
+		Threads:            8,
+		ThreadsBatch:       8,
 		CacheTypeK:         "f16",
 		CacheTypeV:         "f16",
 		FlashAttention:     "off",
-		CacheRAMMiB:        2048,
+		CacheRAMMiB:        8192,
 		ContextCheckpoints: 32,
 		CheckpointMinStep:  2048,
 		CacheReuse:         0,
@@ -992,6 +995,9 @@ func TestStartupManifestAttestsExactDeviceHashesParametersAndOffload(t *testing.
 	cpu.ActualDevice = "cpu"
 	cpu.PerformanceProfile = performanceProfileGeneric
 	cpu.CacheRAMMiB = 1024
+	cpu.UBatchSize = 512
+	cpu.Threads = 0
+	cpu.ThreadsBatch = 0
 	cpu.FlashAttention = "auto"
 	if err := validateStartupManifest(cpuPlan, cpu); err != nil {
 		t.Fatalf("explicit CPU manifest rejected: %v", err)

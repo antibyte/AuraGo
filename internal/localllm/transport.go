@@ -3,6 +3,7 @@ package localllm
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"io"
 	"net/http"
 	"sync"
@@ -27,9 +28,12 @@ func (m *Manager) RoundTripper(base http.RoundTripper) http.RoundTripper {
 			}
 		}()
 
-		req, seed, stream, err := preparePromptCacheRequest(req)
+		req, seed, stream, seedError, err := preparePromptCacheRequest(req)
 		if err != nil {
 			return nil, &UnavailableError{Code: errorCode(err), Err: err}
+		}
+		if seedError != "" {
+			m.markPromptCacheDegraded(seedError)
 		}
 		m.rememberPromptSeed(seed)
 		if err := m.acquireRequest(); err != nil {
@@ -62,14 +66,13 @@ func (m *Manager) RoundTripper(base http.RoundTripper) http.RoundTripper {
 		if applied != nil {
 			m.ensurePromptCacheWarm(req.Context(), *applied, key)
 		}
-		if m.promptCacheReady(seed) {
+		cacheEnabled := m.promptCacheReady(seed)
+		if cacheEnabled {
 			if cachedReq, cacheErr := enablePromptCacheRequest(req); cacheErr == nil {
 				req = cachedReq
 			} else {
-				m.mu.Lock()
-				m.status.PromptCache.State = "degraded"
-				m.status.PromptCache.ErrorCode = "prompt_cache_request_failed"
-				m.mu.Unlock()
+				m.markPromptCacheDegraded("prompt_cache_request_failed")
+				cacheEnabled = false
 			}
 		}
 		req = req.Clone(req.Context())
@@ -87,9 +90,14 @@ func (m *Manager) RoundTripper(base http.RoundTripper) http.RoundTripper {
 			_ = resp.Body.Close()
 			return nil, &UnavailableError{Code: "local_runtime_unavailable"}
 		}
+		observation := promptCacheObservationPlan{CacheEnabled: cacheEnabled}
+		if seed != nil {
+			observation.Generation = seed.Generation
+			observation.SeedFingerprint = seed.Fingerprint
+		}
 		resp.Body = &releaseBody{
-			ReadCloser: newCacheObservingBody(resp.Body, func(payload []byte, firstByte time.Duration) {
-				m.observePromptCacheResponse(payload, stream, firstByte)
+			ReadCloser: newCacheObservingBody(resp.Body, stream, func(payload []byte, firstByte time.Duration, complete bool) {
+				m.observePromptCacheResponse(observation, payload, stream, firstByte, complete)
 			}, started),
 			release: func() {
 				m.release()
@@ -121,20 +129,36 @@ type releaseBody struct {
 }
 
 type cacheObservingBody struct {
-	body      io.ReadCloser
-	observe   func([]byte, time.Duration)
-	started   time.Time
-	firstByte time.Duration
-	buffer    bytes.Buffer
-	once      sync.Once
+	body    io.ReadCloser
+	stream  bool
+	observe func([]byte, time.Duration, bool)
+	started time.Time
+
+	mu         sync.Mutex
+	reads      sync.WaitGroup
+	closing    bool
+	complete   bool
+	firstByte  time.Duration
+	buffer     bytes.Buffer
+	closeOnce  sync.Once
+	finishOnce sync.Once
+	closeErr   error
 }
 
-func newCacheObservingBody(body io.ReadCloser, observe func([]byte, time.Duration), started time.Time) io.ReadCloser {
-	return &cacheObservingBody{body: body, observe: observe, started: started}
+func newCacheObservingBody(body io.ReadCloser, stream bool, observe func([]byte, time.Duration, bool), started time.Time) io.ReadCloser {
+	return &cacheObservingBody{body: body, stream: stream, observe: observe, started: started}
 }
 
 func (body *cacheObservingBody) Read(payload []byte) (int, error) {
+	body.mu.Lock()
+	if body.closing {
+		body.mu.Unlock()
+		return 0, io.ErrClosedPipe
+	}
+	body.reads.Add(1)
+	body.mu.Unlock()
 	n, err := body.body.Read(payload)
+	body.mu.Lock()
 	if n > 0 {
 		if body.firstByte == 0 {
 			body.firstByte = time.Since(body.started)
@@ -148,22 +172,60 @@ func (body *cacheObservingBody) Read(payload []byte) (int, error) {
 		}
 	}
 	if err == io.EOF {
+		body.complete = !body.stream || promptCacheSSETerminal(body.buffer.Bytes())
+	}
+	body.mu.Unlock()
+	body.reads.Done()
+	if err == io.EOF {
 		body.finish()
 	}
 	return n, err
 }
 
 func (body *cacheObservingBody) Close() error {
-	body.finish()
-	return body.body.Close()
+	body.closeOnce.Do(func() {
+		body.mu.Lock()
+		body.closing = true
+		body.mu.Unlock()
+		body.closeErr = body.body.Close()
+		body.reads.Wait()
+		body.finish()
+	})
+	return body.closeErr
 }
 
 func (body *cacheObservingBody) finish() {
-	body.once.Do(func() {
+	body.finishOnce.Do(func() {
+		body.mu.Lock()
+		payload := append([]byte(nil), body.buffer.Bytes()...)
+		firstByte := body.firstByte
+		complete := body.complete
+		body.mu.Unlock()
 		if body.observe != nil {
-			body.observe(body.buffer.Bytes(), body.firstByte)
+			body.observe(payload, firstByte, complete)
 		}
 	})
+}
+
+func promptCacheSSETerminal(payload []byte) bool {
+	for _, line := range bytes.Split(payload, []byte("\n")) {
+		line = bytes.TrimSpace(line)
+		if !bytes.HasPrefix(line, []byte("data:")) {
+			continue
+		}
+		data := bytes.TrimSpace(bytes.TrimPrefix(line, []byte("data:")))
+		if bytes.Equal(data, []byte("[DONE]")) {
+			return true
+		}
+		var chunk struct {
+			Usage json.RawMessage `json:"usage"`
+		}
+		if json.Unmarshal(data, &chunk) == nil && len(chunk.Usage) > 0 &&
+			!bytes.Equal(bytes.TrimSpace(chunk.Usage), []byte("null")) {
+			return true
+		}
+	}
+	return false
 }
 
 func (body *releaseBody) Close() error {
