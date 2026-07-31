@@ -658,7 +658,7 @@
         if (!host) return;
         if (host.querySelector('[data-fruity-dock-track]')) host.replaceChildren();
         const seenWindowIds = new Set();
-        [...state.windows.values()].filter(win => !win.isGadget).forEach((win, index) => {
+        [...state.windows.values()].forEach((win, index) => {
             seenWindowIds.add(win.id);
             let btn = host.querySelector(`[data-window-id="${cssSel(win.id)}"]`);
             if (!btn) {
@@ -877,7 +877,6 @@
         });
         if (appId === 'virtual-computers') return undefined;
         return [...state.windows.values()].find(win => {
-            if (win.isGadget) return false;
             if (win.appId !== appId) return false;
             if ((appId === 'editor' || appId === 'writer' || appId === 'sheets') && context && context.path != null) {
                 const requestedPath = normalizeDesktopPath(context.path);

@@ -463,6 +463,11 @@ function wireWindow(win, id) {
         if (wasHidden) animateThen(win.element, 'vd-window-restoring', isFruityTheme() ? 230 : 180);
         renderTaskbar();
         scheduleFruityDockOcclusionCheck();
+        // Demote the SIP phone gadget so normal windows stay above it unless
+        // the gadget is configured as always-on-top.
+        if (window.SipPhoneGadget && typeof window.SipPhoneGadget.blur === 'function') {
+            window.SipPhoneGadget.blur();
+        }
     }
 
     function closeWindow(id) {

@@ -15,6 +15,10 @@
     let gadgetDrag = null;
     let gadgetInitialized = false;
 
+    const GADGET_Z_BASE = 20;
+    const GADGET_Z_FOCUS = 110;
+    const GADGET_Z_ALWAYS_ON_TOP = 998;
+
     function phoneGadgetEnabled() {
         return String(settingValue('phone_gadget.enabled')).toLowerCase() === 'true';
     }
@@ -58,19 +62,18 @@
         if (!gadgetLayer) return;
         const onTop = phoneGadgetAlwaysOnTop();
         gadgetLayer.dataset.alwaysOnTop = onTop ? 'true' : 'false';
-        // Always-on-top gadgets live outside the window layer so they can float
-        // above modals/menus; normal gadgets live inside the window layer to
-        // share the window stacking context.
-        const layer = document.getElementById('vd-window-layer');
-        if (onTop) {
-            if (gadgetLayer.parentElement !== document.body) {
-                document.body.appendChild(gadgetLayer);
-            }
-        } else if (layer && gadgetLayer.parentElement !== layer) {
-            layer.appendChild(gadgetLayer);
+        // Always keep the gadget as a direct child of body so it sits in the
+        // global Z-order stack and is never clipped or pointer-events-blocked
+        // by the window layer.
+        if (gadgetLayer.parentElement !== document.body) {
+            document.body.appendChild(gadgetLayer);
         }
-        // Release any inline z-index so CSS can apply the correct layer.
-        gadgetLayer.style.zIndex = '';
+        if (onTop) {
+            gadgetLayer.style.zIndex = String(GADGET_Z_ALWAYS_ON_TOP);
+        } else {
+            // Background by default; focusWindow or user interaction promotes it.
+            gadgetLayer.style.zIndex = String(GADGET_Z_BASE);
+        }
     }
 
     async function savePhoneGadgetSetting(key, value) {
@@ -89,11 +92,9 @@
         gadgetLayer.id = 'vd-sip-phone-gadget';
         gadgetLayer.className = 'vd-sip-phone-gadget';
         gadgetLayer.innerHTML = '<div class="vd-sip-phone-gadget-scale" data-sip-phone-gadget-host></div>';
-        // Place the gadget inside the window layer so it shares the same stacking
-        // context as normal windows and participates in the window Z-order.
-        const layer = document.getElementById('vd-window-layer');
-        if (layer) layer.appendChild(gadgetLayer);
-        else document.body.appendChild(gadgetLayer);
+        // Always append to body so it shares the global Z-order stack and is not
+        // affected by the window layer's pointer-events rules.
+        document.body.appendChild(gadgetLayer);
         wirePhoneGadgetEvents();
     }
 
@@ -119,20 +120,6 @@
                     openApp
                 });
                 gadgetMounted = true;
-                // Register the gadget as a pseudo-window so it participates in
-                // the normal window Z-order stack (unless always-on-top is on).
-                if (state && state.windows && !state.windows.has(GADGET_WINDOW_ID)) {
-                    state.windows.set(GADGET_WINDOW_ID, {
-                        id: GADGET_WINDOW_ID,
-                        appId: 'sip-phone',
-                        title: t('desktop.app_sip_phone'),
-                        element: gadgetLayer,
-                        maximized: false,
-                        restoreBounds: null,
-                        context: {},
-                        isGadget: true
-                    });
-                }
             })
             .catch(err => {
                 showDesktopNotification({ title: t('desktop.notification'), message: err.message });
@@ -149,10 +136,6 @@
         }
         gadgetMounted = false;
         gadgetDrag = null;
-        if (state && state.windows && state.windows.has(GADGET_WINDOW_ID)) {
-            state.windows.delete(GADGET_WINDOW_ID);
-            if (state.activeWindowId === GADGET_WINDOW_ID) state.activeWindowId = '';
-        }
         if (gadgetLayer) {
             gadgetLayer.remove();
             gadgetLayer = null;
@@ -219,14 +202,13 @@
             event.stopPropagation();
             showPhoneGadgetContextMenu(event.clientX, event.clientY);
         });
-        // When not always-on-top, treat clicks on the gadget like clicks on a
-        // normal window: bring it to the front of the window stack.
+        // Promote the gadget to the focused Z-band when the user interacts with
+        // it, unless it is pinned as always-on-top.
         gadgetLayer.addEventListener('pointerdown', event => {
             if (event.button !== 0) return;
             if (phoneGadgetAlwaysOnTop()) return;
-            if (state && state.windows && state.windows.has(GADGET_WINDOW_ID) && typeof focusWindow === 'function') {
-                focusWindow(GADGET_WINDOW_ID);
-            }
+            gadgetLayer.style.zIndex = String(GADGET_Z_FOCUS);
+            gadgetLayer.classList.add('active');
         });
     }
 
@@ -267,7 +249,21 @@
         check();
     }
 
+    function focusPhoneGadget() {
+        if (!gadgetLayer) return;
+        gadgetLayer.style.zIndex = phoneGadgetAlwaysOnTop() ? String(GADGET_Z_ALWAYS_ON_TOP) : String(GADGET_Z_FOCUS);
+        gadgetLayer.classList.add('active');
+    }
+
+    function blurPhoneGadget() {
+        if (!gadgetLayer || phoneGadgetAlwaysOnTop()) return;
+        gadgetLayer.style.zIndex = String(GADGET_Z_BASE);
+        gadgetLayer.classList.remove('active');
+    }
+
     window.SipPhoneGadget = {
         init: initPhoneGadgetRuntime,
-        sync: syncPhoneGadget
+        sync: syncPhoneGadget,
+        focus: focusPhoneGadget,
+        blur: blurPhoneGadget
     };
