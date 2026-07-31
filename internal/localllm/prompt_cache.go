@@ -30,6 +30,7 @@ const (
 	promptCachePersistInterval       = time.Minute
 	promptCacheProbeQuery            = "aurago_prompt_cache_probe"
 	promptCacheProbeText             = `Call discover_tools exactly once with {"operation":"search","query":"aurago_prompt_cache_probe"}. Do not answer with normal text.`
+	promptCacheRenderBoundary        = "AURAGO_INTERNAL_CACHE_BOUNDARY_4B5DCC569C8E"
 )
 
 type promptCacheSeed struct {
@@ -490,15 +491,60 @@ func isPermanentPromptCacheRejection(code string) bool {
 	}
 }
 
-func truncateRenderedPromptAtStaticPrefix(rendered, prefix string) (string, error) {
-	if rendered == "" || prefix == "" {
+func promptCacheTemplateBody(seed promptCacheSeed) ([]byte, error) {
+	if seed.SystemPrefix == "" || strings.Contains(seed.SystemPrefix, promptCacheRenderBoundary) {
+		return nil, fmt.Errorf("prompt_cache_seed_invalid")
+	}
+	var request map[string]json.RawMessage
+	if json.Unmarshal(seed.ApplyTemplateBody, &request) != nil {
+		return nil, fmt.Errorf("prompt_cache_seed_invalid")
+	}
+	var messages []map[string]json.RawMessage
+	if json.Unmarshal(request["messages"], &messages) != nil {
+		return nil, fmt.Errorf("prompt_cache_seed_invalid")
+	}
+	found := false
+	for index := range messages {
+		var role string
+		var content string
+		if json.Unmarshal(messages[index]["role"], &role) != nil || role != "system" {
+			continue
+		}
+		if json.Unmarshal(messages[index]["content"], &content) != nil || content != seed.SystemPrefix {
+			return nil, fmt.Errorf("prompt_cache_seed_invalid")
+		}
+		encoded, err := json.Marshal(content + promptCacheRenderBoundary)
+		if err != nil {
+			return nil, fmt.Errorf("prompt_cache_seed_invalid")
+		}
+		messages[index]["content"] = encoded
+		found = true
+		break
+	}
+	if !found {
+		return nil, fmt.Errorf("prompt_cache_seed_invalid")
+	}
+	encodedMessages, err := json.Marshal(messages)
+	if err != nil {
+		return nil, fmt.Errorf("prompt_cache_seed_invalid")
+	}
+	request["messages"] = encodedMessages
+	body, err := json.Marshal(request)
+	if err != nil || len(body) > maxPromptSeedBytes {
+		return nil, fmt.Errorf("prompt_cache_seed_too_large")
+	}
+	return body, nil
+}
+
+func truncateRenderedPromptAtBoundary(rendered string) (string, error) {
+	if rendered == "" {
 		return "", fmt.Errorf("prompt_cache_prefix_unavailable")
 	}
-	index := strings.LastIndex(rendered, prefix)
+	index := strings.LastIndex(rendered, promptCacheRenderBoundary)
 	if index < 0 {
 		return "", fmt.Errorf("prompt_cache_prefix_unavailable")
 	}
-	return rendered[:index+len(prefix)], nil
+	return rendered[:index], nil
 }
 
 func (m *Manager) applyPromptTemplate(ctx context.Context, cfg interface{ Endpoint(bool) string }, key string, body []byte) (string, error) {
@@ -539,14 +585,18 @@ func (m *Manager) promptCacheHTTPClient() *http.Client {
 }
 
 func (m *Manager) warmPromptPrefix(ctx context.Context, plan runtimePlan, key string, seed promptCacheSeed) (uint64, error) {
-	rendered, err := m.applyPromptTemplate(ctx, plan.Config, key, seed.ApplyTemplateBody)
+	templateBody, err := promptCacheTemplateBody(seed)
+	if err != nil {
+		return 0, err
+	}
+	rendered, err := m.applyPromptTemplate(ctx, plan.Config, key, templateBody)
 	if err != nil {
 		if ctx.Err() != nil {
 			return 0, fmt.Errorf("prompt_cache_qualification_timeout: %w", ctx.Err())
 		}
 		return 0, fmt.Errorf("prompt_cache_template_failed: %w", err)
 	}
-	rendered, err = truncateRenderedPromptAtStaticPrefix(rendered, seed.SystemPrefix)
+	rendered, err = truncateRenderedPromptAtBoundary(rendered)
 	if err != nil {
 		return 0, err
 	}

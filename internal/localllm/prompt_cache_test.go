@@ -64,6 +64,9 @@ func TestPreparePromptCacheRequestBuildsValueFreeStableSeed(t *testing.T) {
 	if strings.Index(seedText, "a_tool") > strings.Index(seedText, "z_tool") {
 		t.Fatalf("tool schemas are not canonicalized: %s", seedText)
 	}
+	if strings.Contains(seedText, promptCacheRenderBoundary) {
+		t.Fatalf("qualification probe contains the internal render boundary: %s", seedText)
+	}
 	raw, _ := io.ReadAll(prepared.Body)
 	var object map[string]json.RawMessage
 	if json.Unmarshal(raw, &object) != nil || rawJSONBool(object["cache_prompt"]) {
@@ -162,11 +165,11 @@ func TestCacheObservingBodyRejectsIncompleteSSE(t *testing.T) {
 	}
 }
 
-func TestTruncateRenderedPromptAtStaticPrefixDropsSyntheticTurn(t *testing.T) {
+func TestTruncateRenderedPromptAtBoundaryDropsSyntheticTurn(t *testing.T) {
 	const prefix = "STATIC PREFIX"
 	rendered := "<tools>safe</tools>\n<system>" + prefix +
-		"</system>\n<user>" + promptCacheProbeText + "</user>"
-	truncated, err := truncateRenderedPromptAtStaticPrefix(rendered, prefix)
+		promptCacheRenderBoundary + "</system>\n<user>" + promptCacheProbeText + "</user>"
+	truncated, err := truncateRenderedPromptAtBoundary(rendered)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -347,6 +350,43 @@ func TestPromptCacheQualificationThresholdsAndSemantics(t *testing.T) {
 	}
 }
 
+func TestPromptCacheTemplateBoundarySurvivesTemplateTrimming(t *testing.T) {
+	seed := promptCacheSeed{
+		SystemPrefix: "STATIC PREFIX\n\n",
+		ApplyTemplateBody: []byte(`{
+			"messages":[
+				{"role":"system","content":"STATIC PREFIX\n\n"},
+				{"role":"user","content":"probe"}
+			],
+			"tools":[]
+		}`),
+	}
+	body, err := promptCacheTemplateBody(seed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var request struct {
+		Messages []struct {
+			Content string `json:"content"`
+		} `json:"messages"`
+	}
+	if json.Unmarshal(body, &request) != nil || len(request.Messages) != 2 {
+		t.Fatalf("template request invalid: %s", body)
+	}
+	system := strings.TrimSpace(request.Messages[0].Content)
+	rendered := "<|im_start|>system\n" + system + "<|im_end|>"
+	prefix, err := truncateRenderedPromptAtBoundary(rendered)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if prefix != "<|im_start|>system\nSTATIC PREFIX\n\n" {
+		t.Fatalf("rendered prefix = %q", prefix)
+	}
+	if strings.Contains(prefix, promptCacheRenderBoundary) {
+		t.Fatalf("render boundary leaked into cached prefix: %q", prefix)
+	}
+}
+
 func TestPerformanceProfileAMDVulkanIsIsolated(t *testing.T) {
 	amd := HardwareProfile{
 		SelectedBackend: "vulkan", SelectedDevice: "0000:05:00.0",
@@ -404,12 +444,13 @@ func TestPromptCacheWarmupPersistsOnlyValueFreeDecision(t *testing.T) {
 		switch request.URL.Path {
 		case "/apply-template":
 			payload, _ := io.ReadAll(request.Body)
-			if !strings.Contains(string(payload), "STATIC PREFIX") {
+			if !strings.Contains(string(payload), "STATIC PREFIX") ||
+				!strings.Contains(string(payload), promptCacheRenderBoundary) {
 				t.Errorf("apply-template body = %s", payload)
 			}
 			_, _ = io.WriteString(
 				writer,
-				`{"prompt":"rendered STATIC PREFIX `+secretSuffix+` synthetic turn"}`,
+				`{"prompt":"rendered STATIC PREFIX `+secretSuffix+promptCacheRenderBoundary+` synthetic turn"}`,
 			)
 		case "/completion":
 			_, _ = io.WriteString(writer, `{"timings":{"cache_n":0,"prompt_n":1000}}`)
