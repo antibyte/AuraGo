@@ -6,6 +6,8 @@ let speechLabCatalog = null;
 let speechLabCapability = null;
 let speechLabSuggestions = null;
 let speechLabShowExperimental = false;
+let speechLabProviders = [];
+let speechLabProviderLoadFailed = false;
 
 function speechLabEnsureData() {
     if (!configData.speech_lab) configData.speech_lab = {};
@@ -22,6 +24,7 @@ async function renderSpeechLabSection(section) {
     if (section) speechLabSection = section;
     speechLabSection = speechLabSection || section;
     const data = speechLabEnsureData();
+    await speechLabLoadProviders();
     let html = '<div class="cfg-section active" id="speech_lab">';
     html += '<div class="section-header">' + escapeHtml(speechLabSection.label) + '</div>';
     html += '<div class="section-desc">' + escapeHtml(speechLabSection.desc) + '</div>';
@@ -35,6 +38,9 @@ async function renderSpeechLabSection(section) {
     html += speechLabField('speech_lab.advanced_ui_url', data.advanced_ui_url || '', 'url', 'config.speech_lab.advanced_ui_url', 'config.speech_lab.advanced_ui_url_help');
     html += speechLabField('speech_lab.language', data.language, 'text', 'config.speech_lab.language', 'config.speech_lab.language_help');
     html += speechLabProviderField(data.chat_llm_provider_id);
+    if (speechLabProviderLoadFailed) {
+        html += '<div class="cfg-note-banner cfg-note-banner-warning">' + escapeHtml(t('config.speech_lab.provider_load_failed')) + '</div>';
+    }
     html += speechLabField('speech_lab.timeout_seconds', data.timeout_seconds, 'number', 'config.speech_lab.timeout', 'config.speech_lab.timeout_help', ' min="1" max="60"');
     html += '<div class="cfg-group-title cfg-group-title-top">' + escapeHtml(t('config.speech_lab.runtime')) + '</div>';
     html += '<div id="speech-lab-status" class="cfg-note-banner">' + escapeHtml(t('config.speech_lab.checking')) + '</div>';
@@ -69,17 +75,36 @@ function speechLabField(path, value, type, labelKey, helpKey, extra) {
 }
 
 function speechLabProviderField(selected) {
-    const providers = Array.isArray(configData.providers) ? configData.providers : [];
     let options = '<option value="">' + escapeHtml(t('config.speech_lab.global_provider')) + '</option>';
-    providers.forEach(provider => {
+    let selectedFound = !selected;
+    speechLabProviders.filter(provider => provider.runtime_chat?.eligible === true).forEach(provider => {
         const id = String(provider.id || '').trim();
         if (!id) return;
-        const label = [provider.name || id, provider.model || ''].filter(Boolean).join(' · ');
+        if (id === selected) selectedFound = true;
+        let label = [provider.name || id, provider.model || ''].filter(Boolean).join(' · ');
+        if (provider.runtime_chat?.configured !== true) label += ' — ' + t('config.speech_lab.provider_not_configured');
         options += '<option value="' + escapeAttr(id) + '"' + (id === selected ? ' selected' : '') + '>' + escapeHtml(label) + '</option>';
     });
+    if (!selectedFound) {
+        const selectedProvider = speechLabProviders.find(provider => String(provider.id || '').trim() === selected);
+        const label = selectedProvider ? [selectedProvider.name || selected, selectedProvider.model || ''].filter(Boolean).join(' · ') : selected;
+        options += '<option value="' + escapeAttr(selected) + '" selected disabled>' + escapeHtml(label + ' — ' + t('config.speech_lab.provider_unavailable')) + '</option>';
+    }
     return '<label class="field-group"><span class="field-label">' + escapeHtml(t('config.speech_lab.chat_llm_provider')) + '</span>' +
         '<span class="field-help">' + escapeHtml(t('config.speech_lab.chat_llm_provider_help')) + '</span>' +
         '<select class="field-select" data-path="speech_lab.chat_llm_provider_id">' + options + '</select></label>';
+}
+
+async function speechLabLoadProviders() {
+    speechLabProviderLoadFailed = false;
+    try {
+        const response = await fetch('/api/providers');
+        const providers = await speechLabJSON(response);
+        speechLabProviders = Array.isArray(providers) ? providers : [];
+    } catch (_) {
+        speechLabProviders = [];
+        speechLabProviderLoadFailed = true;
+    }
 }
 
 async function speechLabRefresh() {

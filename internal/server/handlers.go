@@ -17,6 +17,7 @@ import (
 
 	"aurago/internal/agent"
 	"aurago/internal/commands"
+	"aurago/internal/config"
 	"aurago/internal/i18n"
 	"aurago/internal/llm"
 	"aurago/internal/memory"
@@ -283,7 +284,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 		turnCfg := s.ConfigSnapshot()
 		turnLLMClient := s.LLMClient
 		markedSpeechLabInput := strings.TrimSpace(r.Header.Get(speechLabChatInputHeader)) == "1"
-		turnCfg, turnLLMClient, routeErr := speechLabChatTurnRuntime(markedSpeechLabInput, isFollowUp, missionID, turnCfg, turnLLMClient)
+		turnCfg, turnLLMClient, routeErr := speechLabChatTurnRuntime(markedSpeechLabInput, isFollowUp, missionID, turnCfg, turnLLMClient, s.Vault)
 		if routeErr != nil {
 			lang := ""
 			if cfg := s.ConfigSnapshot(); cfg != nil {
@@ -441,7 +442,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 
 		// Phase 33: Recursive Context Compression (Character Based)
 		// Only applies to the default session which uses HistoryManager
-		charLimit := s.Cfg.Agent.MemoryCompressionCharLimit
+		charLimit := turnCfg.Agent.MemoryCompressionCharLimit
 		if sessionID == "default" && s.HistoryManager.TotalChars() >= charLimit {
 			if ok, release := s.HistoryManager.TryLockCompression(); ok {
 				// Do NOT defer release() here — ownership transfers to the goroutine below.
@@ -473,16 +474,16 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 				messagesToSummarize, actualChars := s.HistoryManager.GetOldestMessagesForPruning(targetPruneChars)
 
 				if len(messagesToSummarize) > 0 {
-					go func(msgs []memory.HistoryMessage, charsPruned int, existingSummary string, releaseFn func()) {
+					go func(msgs []memory.HistoryMessage, charsPruned int, existingSummary string, releaseFn func(), compressionCfg *config.Config, fallbackClient llm.ChatClient) {
 						defer releaseFn() // Goroutine owns the lock; released when summarisation completes
 						defer func() {
 							if r := recover(); r != nil {
 								s.Logger.Error("[Compression] Goroutine panic recovered", "error", r)
 							}
 						}()
-						compressionClient, compressionModel := llm.ResolveHelperBackedClient(s.Cfg, s.LLMClient, s.Cfg.LLM.Model)
+						compressionClient, compressionModel := llm.ResolveHelperBackedClient(compressionCfg, fallbackClient, compressionCfg.LLM.Model)
 						llmSource := "main"
-						if compressionModel != s.Cfg.LLM.Model {
+						if compressionModel != compressionCfg.LLM.Model {
 							llmSource = "helper"
 						}
 						s.Logger.Info("[Compression] Triggering character-based context compression",
@@ -536,7 +537,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 								}(concept, newSummary)
 							}
 						}
-					}(messagesToSummarize, actualChars, s.HistoryManager.GetSummary(), release)
+					}(messagesToSummarize, actualChars, s.HistoryManager.GetSummary(), release, turnCfg, turnLLMClient)
 				} else {
 					// No messages to compress — release the lock immediately.
 					release()

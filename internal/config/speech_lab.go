@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
+
+	"aurago/internal/llm/catalog"
 )
 
 const (
@@ -101,10 +103,38 @@ func ValidateSpeechLabProviderReference(cfg *Config) error {
 	if provider == nil {
 		return fmt.Errorf("speech_lab.chat_llm_provider_id references an unknown provider")
 	}
-	if strings.TrimSpace(provider.Model) == "" {
-		return fmt.Errorf("speech_lab.chat_llm_provider_id references a provider without a model")
+	if eligible, reason := SpeechLabChatProviderEligibility(provider); !eligible {
+		switch reason {
+		case "missing_model":
+			return fmt.Errorf("speech_lab.chat_llm_provider_id references a provider without a model")
+		case "media_provider":
+			return fmt.Errorf("speech_lab.chat_llm_provider_id references a media-only provider")
+		default:
+			return fmt.Errorf("speech_lab.chat_llm_provider_id references an unsupported chat provider")
+		}
 	}
 	return nil
+}
+
+// SpeechLabChatProviderEligibility reports whether an existing provider can
+// drive a complete chat-agent turn. Authentication readiness is evaluated by
+// the server against the Vault and provider-specific runtime managers.
+func SpeechLabChatProviderEligibility(provider *ProviderEntry) (bool, string) {
+	if provider == nil {
+		return false, "unknown_provider"
+	}
+	providerType := catalog.NormalizeProviderID(provider.Type)
+	if !catalog.IsRuntimeProviderType(providerType) {
+		return false, "unsupported_provider_type"
+	}
+	switch providerType {
+	case "stability", "ideogram", "vision", "agnes":
+		return false, "media_provider"
+	}
+	if strings.TrimSpace(provider.Model) == "" {
+		return false, "missing_model"
+	}
+	return true, "available"
 }
 
 func validateSpeechLabURL(field, raw string, required bool) error {

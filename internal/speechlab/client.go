@@ -325,14 +325,14 @@ func (c *Client) Transcribe(ctx context.Context, wav []byte, language, expectedA
 	return result, nil
 }
 
-func (c *Client) Synthesize(ctx context.Context, text, language, voice, expectedTTSID string) ([]byte, string, error) {
+func (c *Client) Synthesize(ctx context.Context, text, language, voice, expectedTTSID, expectedVoice string) ([]byte, string, string, error) {
 	text = strings.TrimSpace(text)
 	if text == "" {
-		return nil, "", fmt.Errorf("text is required")
+		return nil, "", "", fmt.Errorf("text is required")
 	}
 	cfg, err := c.activeConfig()
 	if err != nil {
-		return nil, "", err
+		return nil, "", "", err
 	}
 	c.operationMu.RLock()
 	defer c.operationMu.RUnlock()
@@ -346,26 +346,30 @@ func (c *Client) Synthesize(ctx context.Context, text, language, voice, expected
 		"input": text, "language": language, "voice": voice, "response_format": "wav",
 	})
 	if err != nil {
-		return nil, "", err
+		return nil, "", "", err
 	}
 	body, status, headers, err := c.doWithHeaders(ctx, cfg, http.MethodPost, ttsPath, "application/json", bytes.NewReader(payload), maxTTSBytes, true)
 	if err != nil {
-		return nil, "", fmt.Errorf("speech lab TTS: %w", err)
+		return nil, "", "", fmt.Errorf("speech lab TTS: %w", err)
 	}
 	if status < 200 || status >= 300 {
-		return nil, "", fmt.Errorf("speech lab TTS returned HTTP %d", status)
+		return nil, "", "", fmt.Errorf("speech lab TTS returned HTTP %d", status)
 	}
 	if !strings.Contains(strings.ToLower(headers.Get("Content-Type")), "audio/wav") {
-		return nil, "", fmt.Errorf("speech lab TTS returned an unsupported audio format")
+		return nil, "", "", fmt.Errorf("speech lab TTS returned an unsupported audio format")
 	}
 	if err := ValidateWAV(body); err != nil {
-		return nil, "", fmt.Errorf("speech lab TTS returned invalid WAV: %w", err)
+		return nil, "", "", fmt.Errorf("speech lab TTS returned invalid WAV: %w", err)
 	}
 	ttsID := strings.TrimSpace(headers.Get("X-S2S-TTS-ID"))
 	if expected := strings.TrimSpace(expectedTTSID); expected != "" && ttsID != expected {
-		return nil, "", fmt.Errorf("speech lab TTS backend changed during operation")
+		return nil, "", "", fmt.Errorf("speech lab TTS backend changed during operation")
 	}
-	return body, ttsID, nil
+	effectiveVoice := strings.TrimSpace(headers.Get("X-S2S-Voice"))
+	if expected := strings.TrimSpace(expectedVoice); expected != "" && effectiveVoice != expected {
+		return nil, "", "", fmt.Errorf("speech lab TTS voice changed during operation")
+	}
+	return body, ttsID, effectiveVoice, nil
 }
 
 func (c *Client) getJSON(ctx context.Context, path, query string) (json.RawMessage, error) {

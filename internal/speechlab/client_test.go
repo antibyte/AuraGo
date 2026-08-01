@@ -104,18 +104,22 @@ func TestTranscribeRequiresCanonicalWAVAndChecksBackendID(t *testing.T) {
 	}
 }
 
-func TestSynthesizeRequiresWAVAndChecksBackendID(t *testing.T) {
+func TestSynthesizeRequiresWAVAndChecksBackendAndVoice(t *testing.T) {
 	client := testClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "audio/wav")
 		w.Header().Set("X-S2S-TTS-ID", "tts-a")
+		w.Header().Set("X-S2S-Voice", "M1")
 		_, _ = w.Write(testPCM16WAV())
 	}))
-	data, id, err := client.Synthesize(context.Background(), "Hallo", "de", "M1", "tts-a")
-	if err != nil || id != "tts-a" || len(data) == 0 {
-		t.Fatalf("unexpected synthesis id=%q bytes=%d err=%v", id, len(data), err)
+	data, id, voice, err := client.Synthesize(context.Background(), "Hallo", "de", "M1", "tts-a", "M1")
+	if err != nil || id != "tts-a" || voice != "M1" || len(data) == 0 {
+		t.Fatalf("unexpected synthesis id=%q voice=%q bytes=%d err=%v", id, voice, len(data), err)
 	}
-	if _, _, err := client.Synthesize(context.Background(), "Hallo", "de", "M1", "tts-b"); err == nil {
+	if _, _, _, err := client.Synthesize(context.Background(), "Hallo", "de", "M1", "tts-b", "M1"); err == nil {
 		t.Fatal("backend drift was not rejected")
+	}
+	if _, _, _, err := client.Synthesize(context.Background(), "Hallo", "de", "M1", "tts-a", "F1"); err == nil || !strings.Contains(err.Error(), "voice changed") {
+		t.Fatalf("voice drift was not rejected: %v", err)
 	}
 }
 
@@ -130,9 +134,10 @@ func TestSynthesizeDoesNotInventConfiguredVoice(t *testing.T) {
 		}
 		w.Header().Set("Content-Type", "audio/wav")
 		w.Header().Set("X-S2S-TTS-ID", "tts-a")
+		w.Header().Set("X-S2S-Voice", "default")
 		_, _ = w.Write(testPCM16WAV())
 	}))
-	if _, _, err := client.Synthesize(context.Background(), "Hallo", "de", "", "tts-a"); err != nil {
+	if _, _, _, err := client.Synthesize(context.Background(), "Hallo", "de", "", "tts-a", ""); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -248,7 +253,7 @@ func TestSpeechLabResponseLimitsAreAppliedBySurface(t *testing.T) {
 	if _, err := client.Capability(context.Background()); err == nil || !strings.Contains(err.Error(), "exceeds") {
 		t.Fatalf("oversized JSON response error = %v", err)
 	}
-	if _, _, err := client.Synthesize(context.Background(), "Hallo", "de", "M1", "tts-a"); err == nil || !strings.Contains(err.Error(), "exceeds") {
+	if _, _, _, err := client.Synthesize(context.Background(), "Hallo", "de", "M1", "tts-a", "M1"); err == nil || !strings.Contains(err.Error(), "exceeds") {
 		t.Fatalf("oversized TTS response error = %v", err)
 	}
 }

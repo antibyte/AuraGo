@@ -65,7 +65,7 @@ func (s *sipSpeechSynthesizer) Synthesize(ctx context.Context, text, language st
 		language = ""
 	}
 	if s.speechLab != nil {
-		data, _, err := s.speechLab.Synthesize(ctx, text, language, s.voice, s.expectedTTSID)
+		data, _, _, err := s.speechLab.Synthesize(ctx, text, language, s.voice, s.expectedTTSID, s.voice)
 		if err != nil {
 			return nil, 0, err
 		}

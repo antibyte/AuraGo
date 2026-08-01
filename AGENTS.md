@@ -455,9 +455,9 @@ Tools are defined in `internal/tools/`:
 - The PCM `MediaPeer`, incoming-call handler, history schema, REST actions, and SSE events are compatibility anchors for the future authenticated WebRTC desktop phone and bounded Media-Registry answering machine; neither future feature may expose SIP credentials or raw RTP to the browser.
 
 ### Speech Lab Integration Contract
-- Speech Lab owns its active ASR, TTS, and voice stack. AuraGo must read all three from one `/ready` snapshot for chat synthesis and new SIP calls; legacy `speech_lab.voice` values are load-only and never become runtime defaults.
+- Speech Lab owns its active ASR, TTS, and effective voice stack. AuraGo must read all three from one `/ready` snapshot for chat synthesis and new SIP calls, then require both `X-S2S-TTS-ID` and `X-S2S-Voice` to match on synthesis; legacy `speech_lab.voice` values are load-only and never become runtime defaults.
 - AuraGo and the Browser Lab may both activate the shared stack, but AuraGo never sends `llm_id`. Voice choices come only from the selected TTS backend catalog, and active operations or calls keep their immutable start snapshot.
-- `speech_lab.chat_llm_provider_id` applies only to the next direct webchat turn marked after Speech Lab ASR. Typed chat, browser speech recognition, internal follow-ups, missions, and SIP retain their existing provider routing; an unavailable selected provider fails closed without main-provider fallback.
+- `speech_lab.chat_llm_provider_id` applies only to the next direct webchat turn marked after Speech Lab ASR. Resolve its static Vault key, unexpired OAuth token, Copilot auth manager, or supported keyless local runtime from the turn snapshot; disable helper and fallback routing for that full turn. Typed chat, browser speech recognition, internal follow-ups, missions, and SIP retain their existing provider routing; an unavailable selected provider fails closed without main-provider fallback.
 - When enabled, Speech Lab remains visible in the chat integrations drawer. `advanced_ui_url` is an optional external Browser Lab link; a missing URL is shown as a configuration warning and never blocks ASR/TTS activation.
 
 ### Local Network Share Integration Contract

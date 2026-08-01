@@ -39,6 +39,7 @@ func TestSpeechLabTranscribeAndSynthesize(t *testing.T) {
 			}
 			w.Header().Set("Content-Type", "audio/wav")
 			w.Header().Set("X-S2S-TTS-ID", "supertonic")
+			w.Header().Set("X-S2S-Voice", "M1")
 			_, _ = w.Write(PCMToWAV(make([]byte, 320), 16000, 2, 1))
 		default:
 			http.NotFound(w, r)

@@ -36,6 +36,6 @@ func SpeechLabSynthesize(ctx context.Context, text, language, voice string, cfg 
 	if err != nil {
 		return nil, "", err
 	}
-	data, _, err := client.Synthesize(ctx, text, language, voice, "")
+	data, _, _, err := client.Synthesize(ctx, text, language, voice, "", "")
 	return data, ".wav", err
 }

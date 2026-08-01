@@ -11,8 +11,34 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/speechlab"
+	"aurago/internal/tools"
 	"aurago/internal/voice"
 )
+
+func TestSIPSpeechLabVoiceDriftFailsClosed(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/audio/speech" {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "audio/wav")
+		w.Header().Set("X-S2S-TTS-ID", "tts-local")
+		w.Header().Set("X-S2S-Voice", "new-voice")
+		_, _ = w.Write(tools.PCMToWAV(make([]byte, 320), 16000, 2, 1))
+	}))
+	defer upstream.Close()
+
+	client, err := speechlab.NewClient(config.SpeechLabConfig{Enabled: true, BaseURL: upstream.URL, TimeoutSeconds: 2})
+	if err != nil {
+		t.Fatal(err)
+	}
+	synthesizer := &sipSpeechSynthesizer{
+		cfg: &config.Config{}, speechLab: client, expectedTTSID: "tts-local", voice: "call-voice",
+	}
+	if _, _, err := synthesizer.Synthesize(context.Background(), "Hallo", "de"); err == nil || !strings.Contains(err.Error(), "voice changed") {
+		t.Fatalf("SIP voice drift did not fail closed: %v", err)
+	}
+}
 
 func TestVoiceTurnCancellationGenerationKeepsNewestTurn(t *testing.T) {
 	runner := NewVoiceActionRunner(nil)

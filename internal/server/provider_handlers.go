@@ -31,6 +31,7 @@ type providerJSON struct {
 	Capabilities          *providerCapabilitiesJSON  `json:"capabilities,omitempty"`
 	EffectiveCapabilities providerCapabilitiesJSON   `json:"effective_capabilities,omitempty"`
 	References            []providerReferencePayload `json:"references,omitempty"`
+	RuntimeChat           speechLabRuntimeChatStatus `json:"runtime_chat"`
 }
 
 type providerCapabilitiesJSON struct {
@@ -227,6 +228,7 @@ func handleGetProviders(s *Server, w http.ResponseWriter, _ *http.Request) {
 		if authType == "oauth2" && p.OAuthClientSecret != "" {
 			clientSecret = maskedKey
 		}
+		runtimeChat, _ := speechLabRuntimeChatProvider(&p, s.Vault)
 		out[i] = providerJSON{
 			ID:                    p.ID,
 			Name:                  p.Name,
@@ -245,6 +247,7 @@ func handleGetProviders(s *Server, w http.ResponseWriter, _ *http.Request) {
 			Capabilities:          &providerCapabilitiesJSON{},
 			EffectiveCapabilities: providerCapabilitiesResultToJSON(llm.ResolveProviderCapabilities(p, fallback)),
 			References:            providerReferences(&cfgSnapshot, p.ID),
+			RuntimeChat:           runtimeChat,
 		}
 		caps := providerCapabilitiesToJSON(p.Capabilities)
 		out[i].Capabilities = &caps

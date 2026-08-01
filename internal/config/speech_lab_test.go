@@ -54,6 +54,40 @@ func TestValidateSpeechLabProviderReference(t *testing.T) {
 	}
 }
 
+func TestValidateSpeechLabProviderReferenceRejectsNonChatProviders(t *testing.T) {
+	for _, provider := range []ProviderEntry{
+		{ID: "image", Type: "stability", Model: "stable-image"},
+		{ID: "unknown", Type: "future-media", Model: "model"},
+		{ID: "model-less", Type: "openai"},
+	} {
+		cfg := &Config{
+			SpeechLab: SpeechLabConfig{ChatLLMProviderID: provider.ID},
+			Providers: []ProviderEntry{provider},
+		}
+		if err := ValidateSpeechLabProviderReference(cfg); err == nil {
+			t.Fatalf("non-chat provider was accepted: %+v", provider)
+		}
+	}
+}
+
+func TestSpeechLabChatProviderEligibilityUsesRuntimeCatalog(t *testing.T) {
+	for _, tc := range []struct {
+		provider ProviderEntry
+		want     bool
+		reason   string
+	}{
+		{ProviderEntry{Type: "github-copilot", Model: "copilot/gpt-5-mini"}, true, "available"},
+		{ProviderEntry{Type: "ollama", Model: "qwen3"}, true, "available"},
+		{ProviderEntry{Type: "vision", Model: "image-model"}, false, "media_provider"},
+		{ProviderEntry{Type: "not-runtime", Model: "model"}, false, "unsupported_provider_type"},
+	} {
+		got, reason := SpeechLabChatProviderEligibility(&tc.provider)
+		if got != tc.want || reason != tc.reason {
+			t.Fatalf("eligibility(%+v) = %v, %q; want %v, %q", tc.provider, got, reason, tc.want, tc.reason)
+		}
+	}
+}
+
 func TestNormalizeSpeechLabCanonicalFieldsWin(t *testing.T) {
 	legacy := true
 	cfg := SpeechLabConfig{LegacyUseForSIP: &legacy}

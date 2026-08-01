@@ -234,7 +234,7 @@ func ttsSpeechLab(cfg TTSConfig, text string) ([]byte, string, error) {
 			return nil, "", err
 		}
 	}
-	data, _, err := client.Synthesize(ttsRequestContext(cfg), text, lab.Language, cfg.SpeechLab.Voice, cfg.SpeechLab.ExpectedTTSID)
+	data, _, _, err := client.Synthesize(ttsRequestContext(cfg), text, lab.Language, cfg.SpeechLab.Voice, cfg.SpeechLab.ExpectedTTSID, cfg.SpeechLab.Voice)
 	return data, ".wav", err
 }
 

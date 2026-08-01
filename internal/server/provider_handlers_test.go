@@ -94,6 +94,12 @@ llm:
 	if providers[0].OAuthClientSecret != maskedKey {
 		t.Fatalf("oauth_client_secret = %q, want masked", providers[0].OAuthClientSecret)
 	}
+	if !providers[0].RuntimeChat.Eligible || !providers[0].RuntimeChat.Configured || providers[0].RuntimeChat.Reason != "available" {
+		t.Fatalf("OAuth runtime_chat = %+v", providers[0].RuntimeChat)
+	}
+	if strings.Contains(rec.Body.String(), "oauth-access-token") {
+		t.Fatal("provider API exposed the OAuth access token")
+	}
 }
 
 func TestHandleGetProvidersMasksSecretsAndIncludesReferences(t *testing.T) {
@@ -141,9 +147,41 @@ image_generation:
 	if providers[0].APIKey != maskedKey {
 		t.Fatalf("api_key = %q, want masked", providers[0].APIKey)
 	}
+	if !providers[0].RuntimeChat.Eligible || !providers[0].RuntimeChat.Configured {
+		t.Fatalf("static-key runtime_chat = %+v", providers[0].RuntimeChat)
+	}
+	if strings.Contains(rec.Body.String(), "static-secret") {
+		t.Fatal("provider API exposed the static API key")
+	}
 	if !providerJSONReferenceContains(providers[0].References, "llm.provider") ||
 		!providerJSONReferenceContains(providers[0].References, "image_generation.provider") {
 		t.Fatalf("references = %+v, want llm and image generation references", providers[0].References)
+	}
+}
+
+func TestHandleGetProvidersMarksMediaProvidersIneligibleForSpeechLabChat(t *testing.T) {
+	server, _ := newProviderTestServer(t, `
+providers:
+  - id: image
+    name: Image
+    type: stability
+    base_url: https://api.stability.ai/v2
+    model: stable-image
+llm:
+  provider: image
+`)
+	req := httptest.NewRequest(http.MethodGet, "/api/providers", nil)
+	rec := httptest.NewRecorder()
+	handleProviders(server).ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body=%s", rec.Code, rec.Body.String())
+	}
+	var providers []providerJSON
+	if err := json.Unmarshal(rec.Body.Bytes(), &providers); err != nil {
+		t.Fatal(err)
+	}
+	if len(providers) != 1 || providers[0].RuntimeChat.Eligible || providers[0].RuntimeChat.Reason != "media_provider" {
+		t.Fatalf("media runtime_chat = %+v", providers)
 	}
 }
 

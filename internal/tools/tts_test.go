@@ -351,8 +351,13 @@ func TestTTSSpeechLabCacheUsesExpectedBackendID(t *testing.T) {
 		if call > 1 {
 			id = "tts-b"
 		}
+		var payload map[string]string
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Fatalf("decode Speech Lab request: %v", err)
+		}
 		w.Header().Set("Content-Type", "audio/wav")
 		w.Header().Set("X-S2S-TTS-ID", id)
+		w.Header().Set("X-S2S-Voice", payload["voice"])
 		_, _ = w.Write(speechLabCacheWAVForTest())
 	}))
 	defer server.Close()
