@@ -921,7 +921,22 @@ SYSTEMD_STOP_FORCED=false
 if command -v systemctl >/dev/null 2>&1 && systemctl is-active --quiet aurago 2>/dev/null; then
     info "Stopping aurago systemd service..."
     if command -v timeout >/dev/null 2>&1; then
-        if ! timeout 60s $SUDO systemctl stop aurago; then
+        # GNU timeout normally places the command in a separate process
+        # group.  sudo then receives SIGTTIN while reading its password from
+        # the controlling terminal and appears to hang.  --foreground keeps
+        # the command in the terminal's foreground process group.
+        if timeout --help 2>&1 | grep -q -- '--foreground'; then
+            if ! timeout --foreground 60s $SUDO systemctl stop aurago; then
+                abort_before_file_changes "systemd did not stop AuraGo cleanly within 60 seconds."
+            fi
+        elif has_interactive_tty && [ "$SUDO" = "sudo" ]; then
+            # BusyBox timeout has no --foreground.  Authenticate before
+            # entering its process group, then run the timed command without
+            # another terminal read.
+            if ! $SUDO -v || ! timeout 60s sudo -n systemctl stop aurago; then
+                abort_before_file_changes "systemd did not stop AuraGo cleanly within 60 seconds."
+            fi
+        elif ! timeout 60s $SUDO systemctl stop aurago; then
             abort_before_file_changes "systemd did not stop AuraGo cleanly within 60 seconds."
         fi
     elif ! $SUDO systemctl stop aurago; then

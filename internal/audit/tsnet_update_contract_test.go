@@ -51,6 +51,8 @@ func TestUpdaterSudoStrategyUsesControllingTTY(t *testing.T) {
 		": </dev/tty",
 		"if has_interactive_tty; then",
 		`SUDO="sudo -n"`,
+		"timeout --foreground 60s $SUDO systemctl stop aurago",
+		"timeout --help 2>&1 | grep -q -- '--foreground'",
 	} {
 		if !strings.Contains(update, required) {
 			t.Fatalf("update.sh is missing TTY-aware sudo strategy marker %q", required)
@@ -58,6 +60,9 @@ func TestUpdaterSudoStrategyUsesControllingTTY(t *testing.T) {
 	}
 	if strings.Contains(update, "if [ -t 0 ]; then") {
 		t.Fatal("update.sh must not decide sudo interactivity from stdin alone")
+	}
+	if strings.Contains(update, "\n        if ! timeout 60s $SUDO systemctl stop aurago; then") {
+		t.Fatal("update.sh must keep sudo in timeout's foreground process group")
 	}
 }
 
