@@ -313,6 +313,26 @@ func TestAuthenticateNodeLeavesHealthyStateUntouched(t *testing.T) {
 	}
 }
 
+func TestEnsureNodeAuthenticatedWaitsForTsnetStartup(t *testing.T) {
+	client := &fakeNodeLocalClient{}
+	manager := NewManager(&config.Config{}, slog.Default())
+	manager.localClientForServer = func(*tsnet.Server) (nodeLocalClient, error) { return client, nil }
+	manager.upForServer = func(context.Context, *tsnet.Server) (*ipnstate.Status, error) {
+		return &ipnstate.Status{
+			BackendState: fmt.Sprint(ipn.Running),
+			HaveNodeKey:  true,
+			Self:         &ipnstate.PeerStatus{},
+		}, nil
+	}
+
+	if err := manager.ensureNodeAuthenticated(context.Background(), NodeMain, &tsnet.Server{}, "stale-auth-key"); err != nil {
+		t.Fatalf("ensureNodeAuthenticated() error = %v", err)
+	}
+	if client.getPrefsCalls != 0 || client.startCalls != 0 || client.startLoginCalls != 0 {
+		t.Fatalf("startup readiness attempted a second authentication: prefs:%d start:%d interactive:%d", client.getPrefsCalls, client.startCalls, client.startLoginCalls)
+	}
+}
+
 func TestAuthenticateNodeClassifiesRejectedAuthKey(t *testing.T) {
 	client := &fakeNodeLocalClient{statuses: []*ipnstate.Status{
 		{BackendState: fmt.Sprint(ipn.NeedsLogin)},

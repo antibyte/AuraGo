@@ -135,6 +135,7 @@ type Manager struct {
 	logger *slog.Logger
 
 	localClientForServer func(*tsnet.Server) (nodeLocalClient, error)
+	upForServer          func(context.Context, *tsnet.Server) (*ipnstate.Status, error)
 	listenTLSForNode     func(context.Context, *tsnet.Server, string, time.Duration, bool) (net.Listener, error)
 	listenFunnelForNode  func(context.Context, *tsnet.Server, string, time.Duration, bool) (net.Listener, error)
 	recoveryFS           recoveryFileSystem
@@ -324,6 +325,9 @@ func NewManager(cfg *config.Config, logger *slog.Logger) *Manager {
 		logger: logger,
 		localClientForServer: func(server *tsnet.Server) (nodeLocalClient, error) {
 			return server.LocalClient()
+		},
+		upForServer: func(ctx context.Context, server *tsnet.Server) (*ipnstate.Status, error) {
+			return server.Up(ctx)
 		},
 		listenTLSForNode:    listenTLSWithContext,
 		listenFunnelForNode: listenFunnelWithContext,
@@ -1100,8 +1104,32 @@ func authActionErrorCode(err error) string {
 	}
 }
 
-func (m *Manager) ensureNodeAuthenticated(parent context.Context, node NodeID, srv *tsnet.Server, authKey string) error {
-	return m.authenticateNode(parent, node, srv, authKey, false)
+func (m *Manager) ensureNodeAuthenticated(parent context.Context, node NodeID, srv *tsnet.Server, _ string) error {
+	// tsnet.Server.Start starts the backend asynchronously. In particular, an
+	// already enrolled node briefly reports NoState/NeedsLogin/Starting while
+	// its persisted state is restored. Calling LocalClient.Start with the
+	// configured auth key during that window races tsnet's own AuthLoop and can
+	// reject an otherwise irrelevant (and possibly expired) key. Server.Up is
+	// the upstream readiness gate and deliberately waits through those transient
+	// states until the backend is Running.
+	ctx, cancel := context.WithTimeout(parent, 90*time.Second)
+	defer cancel()
+
+	up := m.upForServer
+	if up == nil {
+		up = func(ctx context.Context, server *tsnet.Server) (*ipnstate.Status, error) {
+			return server.Up(ctx)
+		}
+	}
+	status, err := up(ctx, srv)
+	if err != nil {
+		return fmt.Errorf("%s: wait for node %s: %w", authActionErrorCode(err), node, err)
+	}
+	if status == nil || status.BackendState != fmt.Sprint(ipn.Running) || nodeNeedsAuthentication(status) {
+		return fmt.Errorf("%s: node %s did not reach a healthy running state", ErrorBackendUnavailable, node)
+	}
+	m.markNodeAuthenticated(node)
+	return nil
 }
 
 func (m *Manager) authenticateNode(parent context.Context, node NodeID, srv *tsnet.Server, authKey string, force bool) error {
