@@ -6,6 +6,7 @@ FROM --platform=$BUILDPLATFORM golang:1.26.5-bookworm AS builder
 # Injected by docker buildx for cross-compilation
 ARG TARGETOS=linux
 ARG TARGETARCH=amd64
+ARG AURAGO_BUILD_ID=devel
 
 WORKDIR /src
 
@@ -23,7 +24,7 @@ RUN go mod download
 # Copy source and build the production binaries
 COPY . .
 RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
-    go build -trimpath -ldflags="-s -w" -o /aurago ./cmd/aurago
+    go build -trimpath -ldflags="-s -w -X aurago/internal/buildinfo.BuildID=${AURAGO_BUILD_ID}" -o /aurago ./cmd/aurago
 RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
     go build -trimpath -ldflags="-s -w" -o /config-merger ./cmd/config-merger
 RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
