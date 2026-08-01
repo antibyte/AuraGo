@@ -413,7 +413,7 @@ func integrationWebhostsForRequest(s *Server, r *http.Request) []webhostIntegrat
 		cached := make([]webhostIntegration, len(webhostsCache))
 		copy(cached, webhostsCache)
 		webhostsCacheMu.RUnlock()
-		return cached
+		return resolveRequestWebhostURLs(cached, r)
 	}
 	webhostsCacheMu.RUnlock()
 
@@ -586,7 +586,22 @@ func integrationWebhostsForRequest(s *Server, r *http.Request) []webhostIntegrat
 	webhostsCachedAt = time.Now()
 	webhostsCacheMu.Unlock()
 
-	return webhosts
+	return resolveRequestWebhostURLs(webhosts, r)
+}
+
+func resolveRequestWebhostURLs(webhosts []webhostIntegration, r *http.Request) []webhostIntegration {
+	resolved := make([]webhostIntegration, len(webhosts))
+	copy(resolved, webhosts)
+	for i := range resolved {
+		if resolved[i].ID != "speech_lab" || strings.TrimSpace(resolved[i].URL) != "" {
+			continue
+		}
+		resolved[i].URL = speechLabBrowserURLForRequest("", r)
+		if resolved[i].URL != "" {
+			resolved[i].MessageKey = ""
+		}
+	}
+	return resolved
 }
 
 func clearWebhostsCache() {

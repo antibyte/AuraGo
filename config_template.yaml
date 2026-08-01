@@ -869,7 +869,6 @@ tts:
 speech_lab:
     enabled: false
     base_url: http://s2s-vulkan:8765
-    advanced_ui_url: ""                # optional link only; AuraGo never embeds or proxies the lab UI
     language: de
     chat_llm_provider_id: ""            # optional AuraGo provider for Speech-Lab-transcribed webchat turns
     timeout_seconds: 60

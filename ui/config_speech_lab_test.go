@@ -44,13 +44,16 @@ func TestConfigSpeechLabSectionUsesNarrowNativeAPIs(t *testing.T) {
 		"provider.runtime_chat?.configured !== true",
 		"backend.default_voice",
 		"speechLabStatus?.voice",
+		"const SPEECH_LAB_BROWSER_PORT = '8766'",
+		"function speechLabBrowserURL(",
+		"new URL(window.location.href)",
 		"target=\"_blank\"",
 	} {
 		if !strings.Contains(module, wanted) {
 			t.Fatalf("Speech Lab config module missing %q", wanted)
 		}
 	}
-	for _, forbidden := range []string{"<iframe", "llm_id", "/api/proxy", "hf_token", "speechLabField('speech_lab.voice'", "data.voice = 'M1'"} {
+	for _, forbidden := range []string{"<iframe", "llm_id", "/api/proxy", "hf_token", "speechLabField('speech_lab.voice'", "speechLabField('speech_lab.advanced_ui_url'", "data.voice = 'M1'"} {
 		if strings.Contains(strings.ToLower(module), forbidden) {
 			t.Fatalf("Speech Lab config module contains forbidden surface %q", forbidden)
 		}

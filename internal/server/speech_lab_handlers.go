@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"errors"
+	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -10,6 +11,8 @@ import (
 	"aurago/internal/sipphone"
 	"aurago/internal/speechlab"
 )
+
+const defaultSpeechLabBrowserPort = "8766"
 
 type speechLabStatusResponse struct {
 	Enabled            bool   `json:"enabled"`
@@ -55,7 +58,8 @@ func handleSpeechLabStatus(s *Server) http.HandlerFunc {
 		result := speechLabStatusResponse{
 			Enabled: cfg.SpeechLab.Enabled, Language: cfg.SpeechLab.Language,
 			SIPEnabled: cfg.SpeechLab.SIPEnabled, ChatInputEnabled: cfg.SpeechLab.ChatInputEnabled,
-			ChatOutputEnabled: cfg.SpeechLab.ChatOutputEnabled, AdvancedUIURL: cfg.SpeechLab.AdvancedUIURL,
+			ChatOutputEnabled:  cfg.SpeechLab.ChatOutputEnabled,
+			AdvancedUIURL:      speechLabBrowserURLForRequest(cfg.SpeechLab.AdvancedUIURL, r),
 			EnvironmentManaged: strings.TrimSpace(os.Getenv("AURAGO_SPEECH_LAB_BASE_URL")) != "",
 		}
 		if s.SpeechLab != nil {
@@ -84,6 +88,22 @@ func handleSpeechLabStatus(s *Server) http.HandlerFunc {
 		}
 		writeSpeechLabJSON(w, http.StatusOK, result)
 	}
+}
+
+// speechLabBrowserURLForRequest resolves the browser-facing lab address. The
+// gateway URL cannot be reused because it normally contains a Docker-only host.
+// Standard deployments publish the lab UI on port 8766 of the same host that
+// serves AuraGo. AdvancedUIURL remains an expert override for reverse proxies
+// and non-standard port mappings.
+func speechLabBrowserURLForRequest(configured string, r *http.Request) string {
+	if configured = strings.TrimRight(strings.TrimSpace(configured), "/"); configured != "" {
+		return configured
+	}
+	host := effectiveRequestHost(r)
+	if host == "" || len(host) > 253 || strings.ContainsAny(host, "/\\?#@ \t\r\n") {
+		return ""
+	}
+	return "http://" + net.JoinHostPort(host, defaultSpeechLabBrowserPort) + "/"
 }
 
 func handleSpeechLabRaw(s *Server, resource string) http.Handler {

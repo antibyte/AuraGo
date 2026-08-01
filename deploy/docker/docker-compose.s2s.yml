@@ -3,6 +3,7 @@
 # Prerequisites:
 #   1. Start s2s (from the s2s-vulkan repo) with production-ish settings:
 #        S2S_LAB_IDLE_UNLOAD_SECS=0
+#        WEB_PORT=8766
 #        docker compose -f docker-compose.yml -f docker/docker-compose.windows.yml \
 #          --profile backends --profile managed --profile web up -d
 #   2. Note the Docker network name (usually s2s-vulkan_s2s).
@@ -14,7 +15,8 @@
 # Then enable speech_lab and the desired channel toggles in AuraGo. The
 # environment override below is runtime-only and is shown as managed in the UI.
 #
-# AuraGo chat/SIP then call the fixed gateway on s2s-vulkan:8765.
+# AuraGo chat/SIP then call the fixed gateway on s2s-vulkan:8765. Browser
+# clients open the Lab automatically on port 8766 of the AuraGo host.
 
 services:
   aurago:

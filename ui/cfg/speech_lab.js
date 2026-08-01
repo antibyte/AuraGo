@@ -8,6 +8,7 @@ let speechLabSuggestions = null;
 let speechLabShowExperimental = false;
 let speechLabProviders = [];
 let speechLabProviderLoadFailed = false;
+const SPEECH_LAB_BROWSER_PORT = '8766';
 
 function speechLabEnsureData() {
     if (!configData.speech_lab) configData.speech_lab = {};
@@ -35,7 +36,6 @@ async function renderSpeechLabSection(section) {
     html += speechLabToggle('speech_lab.chat_output_enabled', data.chat_output_enabled === true, 'config.speech_lab.chat_output_enabled', 'config.speech_lab.chat_output_enabled_help');
     html += '<div class="cfg-group-title cfg-group-title-top">' + escapeHtml(t('config.speech_lab.connection')) + '</div>';
     html += speechLabField('speech_lab.base_url', data.base_url, 'url', 'config.speech_lab.base_url', 'config.speech_lab.base_url_help');
-    html += speechLabField('speech_lab.advanced_ui_url', data.advanced_ui_url || '', 'url', 'config.speech_lab.advanced_ui_url', 'config.speech_lab.advanced_ui_url_help');
     html += speechLabField('speech_lab.language', data.language, 'text', 'config.speech_lab.language', 'config.speech_lab.language_help');
     html += speechLabProviderField(data.chat_llm_provider_id);
     if (speechLabProviderLoadFailed) {
@@ -45,20 +45,34 @@ async function renderSpeechLabSection(section) {
     html += '<div class="cfg-group-title cfg-group-title-top">' + escapeHtml(t('config.speech_lab.runtime')) + '</div>';
     html += '<div id="speech-lab-status" class="cfg-note-banner">' + escapeHtml(t('config.speech_lab.checking')) + '</div>';
     html += '<div class="field-group"><button type="button" class="btn-secondary" onclick="speechLabRefresh()">' + escapeHtml(t('config.speech_lab.refresh')) + '</button>';
-    if (data.advanced_ui_url) {
-        html += ' <a id="speech-lab-advanced-link" class="btn-secondary" href="' + escapeAttr(data.advanced_ui_url) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(t('config.speech_lab.open_advanced')) + '</a>';
+    const browserURL = speechLabBrowserURL(data.advanced_ui_url);
+    if (browserURL) {
+        html += ' <a id="speech-lab-advanced-link" class="btn-secondary" href="' + escapeAttr(browserURL) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(t('config.speech_lab.open_advanced')) + '</a>';
     } else {
         html += ' <button id="speech-lab-advanced-link" type="button" class="btn-secondary" disabled>' + escapeHtml(t('config.speech_lab.open_advanced')) + '</button>';
     }
     html += '</div>';
-    if (!data.advanced_ui_url) {
-        html += '<div class="cfg-note-banner cfg-note-banner-warning">' + escapeHtml(t('config.speech_lab.advanced_ui_url_help')) + '</div>';
-    }
     html += '<div id="speech-lab-capability"></div><div id="speech-lab-suggestions"></div><div id="speech-lab-stack"></div>';
     html += '</div>';
     document.getElementById('content').innerHTML = html;
     attachChangeListeners();
     await speechLabRefresh();
+}
+
+function speechLabBrowserURL(configured) {
+    const override = String(configured || '').trim();
+    if (override) return override;
+    try {
+        const url = new URL(window.location.href);
+        url.protocol = 'http:';
+        url.port = SPEECH_LAB_BROWSER_PORT;
+        url.pathname = '/';
+        url.search = '';
+        url.hash = '';
+        return url.toString();
+    } catch (_) {
+        return '';
+    }
 }
 
 function speechLabToggle(path, enabled, labelKey, helpKey) {
@@ -138,6 +152,10 @@ async function speechLabRefresh() {
     }
     const baseInput = document.querySelector('[data-path="speech_lab.base_url"]');
     if (baseInput && speechLabStatus && speechLabStatus.environment_managed) baseInput.disabled = true;
+    const browserLink = document.getElementById('speech-lab-advanced-link');
+    if (browserLink && browserLink.tagName === 'A') {
+        browserLink.href = speechLabBrowserURL(speechLabStatus && speechLabStatus.advanced_ui_url);
+    }
     speechLabRenderCapability();
     speechLabRenderSuggestions();
     speechLabRenderStack();

@@ -10,7 +10,6 @@ All surfaces default to disabled and are selected independently:
 speech_lab:
   enabled: true
   base_url: http://s2s-vulkan:8765
-  advanced_ui_url: ""       # optional external link, never an iframe or proxy
   language: de
   chat_llm_provider_id: ""  # optional fast AuraGo provider for Speech-Lab-transcribed webchat turns
   timeout_seconds: 60
@@ -21,7 +20,7 @@ speech_lab:
 
 `use_for_sip`, `use_for_chat_voice`, and the former free-form `voice` value remain load-compatible for older configuration files. The voice value is ignored and removed on the next UI save because voice is owned by the active Speech Lab stack. API paths are fixed by contract and are not configurable.
 
-`AURAGO_SPEECH_LAB_BASE_URL` overrides `base_url` at runtime without rewriting YAML. The configuration UI marks the URL as environment-managed.
+`AURAGO_SPEECH_LAB_BASE_URL` overrides `base_url` at runtime without rewriting YAML. The configuration UI marks the URL as environment-managed. AuraGo automatically opens the Browser Lab on `http://<current AuraGo host>:8766`; users do not have to discover or enter that address. `advanced_ui_url` remains an expert-only YAML override for non-standard reverse proxies or port mappings.
 
 Only credential-free HTTP(S) URLs without query or fragment are accepted. AuraGo resolves and connects only to loopback or private network addresses. It does not provide a general Speech Lab proxy.
 
@@ -46,9 +45,9 @@ Every telephone call snapshots its selected providers, language, the active Spee
 
 AuraGo never sends `llm_id`. It validates backend IDs and voices against the catalog, checks the stack response `ok` field, and then checks `/ready`. A stack change is rejected while a Speech Lab operation or SIP call is active.
 
-The native configuration page under **Media → Speech Lab** displays connectivity, readiness, the active `ASR + TTS + voice` combination, capability, recommendations, and stable available catalog entries. Voice is selected only from the chosen TTS backend's `voices` or `default_voice` catalog values. The Browser Lab and AuraGo stack editor both update the same s2s runtime stack; the next refresh or preflight observes either change. Experimental entries require an explicit visible filter. Downloads, Hugging Face tokens, benchmarks, and expert model management stay in the Speech Lab UI reached through `advanced_ui_url`. The link remains visibly disabled with a configuration warning when that optional URL is absent.
+The native configuration page under **Media → Speech Lab** displays connectivity, readiness, the active `ASR + TTS + voice` combination, capability, recommendations, and stable available catalog entries. Voice is selected only from the chosen TTS backend's `voices` or `default_voice` catalog values. The Browser Lab and AuraGo stack editor both update the same s2s runtime stack; the next refresh or preflight observes either change. Experimental entries require an explicit visible filter. Downloads, Hugging Face tokens, benchmarks, and expert model management stay in the Speech Lab UI. AuraGo derives its link from the current browser host and the standard Lab port `8766`.
 
-When Speech Lab is enabled, the chat integrations drawer shows it as running, starting, or offline. The drawer opens `advanced_ui_url` when configured and otherwise displays the missing-link hint without hiding the integration.
+When Speech Lab is enabled, the chat integrations drawer shows it as running, starting, or offline and opens the automatically derived Browser Lab URL. An expert `advanced_ui_url` override takes precedence when configured.
 
 ## s2s contract
 
@@ -69,6 +68,8 @@ AuraGo verifies the returned ASR/TTS backend IDs against the operation snapshot 
 ## Deployment
 
 Containerized AuraGo should use [the Docker network overlay](../deploy/docker/docker-compose.s2s.yml). Port 8765 stays inside the shared Docker network and is not published to the LAN.
+
+The s2s Browser Lab uses host port `8766` in the AuraGo deployment (`WEB_PORT=8766`). AuraGo derives this browser-facing address from the hostname or IP through which the user opened AuraGo.
 
 For a native AuraGo process, start s2s with its optional AuraGo host overlay, which publishes only `127.0.0.1:8765`. Then set `base_url: http://127.0.0.1:8765`.
 
