@@ -51,6 +51,22 @@ func TestConfigSpeechLabSectionUsesNarrowNativeAPIs(t *testing.T) {
 	}
 }
 
+func TestConfigFieldGroupsKeepLabelCardsInNormalFlow(t *testing.T) {
+	css := readSpeechLabUIFile(t, "css/config.css")
+	start := strings.Index(css, ".field-group {")
+	if start < 0 {
+		t.Fatal("config.css is missing the shared field-group rule")
+	}
+	end := strings.Index(css[start:], "}")
+	if end < 0 {
+		t.Fatal("config.css field-group rule is not closed")
+	}
+	rule := css[start : start+end]
+	if !strings.Contains(rule, "display: block;") {
+		t.Fatal("label-based field groups must be block-level to preserve vertical form flow")
+	}
+}
+
 func TestSpeechLabChatRecorderIsPCMWorkletOnly(t *testing.T) {
 	recorder := readSpeechLabUIFile(t, "js/chat/modules/speech-lab-recorder.js")
 	for _, wanted := range []string{

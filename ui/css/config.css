@@ -582,6 +582,7 @@ body[data-workspace-page="config"] .manus-catalog-error .btn-save {
 
 /* Form fields */
 .field-group {
+    display: block;
     background: var(--card-bg);
     border: 1px solid var(--border-subtle);
     border-radius: 14px;
