@@ -43,6 +43,24 @@ func TestTsNetUpdaterLifecycleContract(t *testing.T) {
 	}
 }
 
+func TestUpdaterSudoStrategyUsesControllingTTY(t *testing.T) {
+	update := readRepoFile(t, "update.sh")
+	for _, required := range []string{
+		"has_interactive_tty() {",
+		"[ -r /dev/tty ] && [ -w /dev/tty ]",
+		": </dev/tty",
+		"if has_interactive_tty; then",
+		`SUDO="sudo -n"`,
+	} {
+		if !strings.Contains(update, required) {
+			t.Fatalf("update.sh is missing TTY-aware sudo strategy marker %q", required)
+		}
+	}
+	if strings.Contains(update, "if [ -t 0 ]; then") {
+		t.Fatal("update.sh must not decide sudo interactivity from stdin alone")
+	}
+}
+
 func TestGeneratedSystemdUnitsHaveBoundedStopTimeout(t *testing.T) {
 	for _, path := range []string{
 		"install.sh",

@@ -225,11 +225,17 @@ esac
 ok "Architecture: $ARCH_RAW → Go target: $GOARCH"
 
 # ── Sudo strategy ─────────────────────────────────────────────────────
-# When no TTY is attached (triggered from web UI / nohup), use sudo -n
-# so the command fails immediately instead of hanging on a password prompt.
-# When a TTY is available (manual terminal run), use plain sudo so the
-# user can enter a password interactively.
-if [ -t 0 ]; then
+# When no interactive terminal is attached (triggered from web UI / nohup),
+# use sudo -n so the command fails immediately instead of hanging on a
+# password prompt.  stdin may be redirected by a wrapper while the process
+# still has a controlling terminal, so probe the readable and writable
+# /dev/tty instead of checking stdin alone.  Plain sudo reads the password
+# from that controlling terminal and therefore remains usable in that case.
+has_interactive_tty() {
+    [ -r /dev/tty ] && [ -w /dev/tty ] && { : </dev/tty; } 2>/dev/null
+}
+
+if has_interactive_tty; then
     SUDO="sudo"
 else
     SUDO="sudo -n"
