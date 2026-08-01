@@ -1752,9 +1752,9 @@ type Config struct {
 	} `yaml:"rocketchat"`
 	Tailscale struct {
 		Enabled  bool   `yaml:"enabled"`
-		ReadOnly bool   `yaml:"readonly"`          // true = only list/status/dns, block enable/disable routes
-		APIKey   string `yaml:"-" vault:"api_key"` // Tailscale API key (vault-only)
-		Tailnet  string `yaml:"tailnet"`           // Tailnet name, e.g. "example.com" or "-" for default
+		ReadOnly bool   `yaml:"readonly"`                   // true = only list/status/dns, block enable/disable routes
+		APIKey   string `yaml:"-" json:"-" vault:"api_key"` // Tailscale API key (vault-only)
+		Tailnet  string `yaml:"tailnet"`                    // Tailnet name, e.g. "example.com" or "-" for default
 		TsNet    struct {
 			Enabled            bool   `yaml:"enabled"`              // enable tsnet embedded Tailscale node (independent of API integration)
 			Hostname           string `yaml:"hostname"`             // MagicDNS hostname, e.g. "aurago" → aurago.tailnet-name.ts.net
@@ -1768,7 +1768,10 @@ type Config struct {
 			ManifestPort       int    `yaml:"manifest_port"`        // HTTPS port for Manifest exposure
 			Funnel             bool   `yaml:"funnel"`               // expose AuraGo publicly via Tailscale Funnel on 443
 			AllowHTTPFallback  bool   `yaml:"allow_http_fallback"`  // fall back to HTTP on :80 when HTTPS cert is unavailable (default: false)
-			AuthKey            string `yaml:"-"`                    // tsnet auth key (vault-only: tailscale_tsnet_authkey)
+			AuthKey            string `yaml:"-" json:"-"`           // tsnet auth key (vault-only: tailscale_tsnet_authkey)
+			AuthKeyMain        string `yaml:"-" json:"-"`           // main-node override (vault-only)
+			AuthKeyManifest    string `yaml:"-" json:"-"`           // Manifest-node override (vault-only)
+			AuthKeySpaceAgent  string `yaml:"-" json:"-"`           // Space Agent-node override (vault-only)
 		} `yaml:"tsnet"`
 	} `yaml:"tailscale"`
 	CloudflareTunnel struct {

@@ -50,11 +50,11 @@ func handleBluetoothStatus(s *Server) http.Handler {
 		}
 		if cfg != nil {
 			response["permissions"] = map[string]interface{}{
-				"enabled":         cfg.Bluetooth.Enabled,
-				"readonly":        cfg.Bluetooth.ReadOnly,
-				"allow_playback":  cfg.Bluetooth.AllowPlayback,
-				"default_device":  cfg.Bluetooth.DefaultDevice,
-				"audio_backend":   cfg.Bluetooth.AudioBackend,
+				"enabled":          cfg.Bluetooth.Enabled,
+				"readonly":         cfg.Bluetooth.ReadOnly,
+				"allow_playback":   cfg.Bluetooth.AllowPlayback,
+				"default_device":   cfg.Bluetooth.DefaultDevice,
+				"audio_backend":    cfg.Bluetooth.AudioBackend,
 				"scan_timeout_sec": cfg.Bluetooth.ScanTimeoutSeconds,
 			}
 		}

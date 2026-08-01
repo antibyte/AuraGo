@@ -854,6 +854,9 @@ func (c *Config) ApplyVaultSecrets(vault SecretReader) {
 	// ── Tailscale / Ansible ──
 	apply("tailscale_api_key", &c.Tailscale.APIKey)
 	apply("tailscale_tsnet_authkey", &c.Tailscale.TsNet.AuthKey)
+	apply("tailscale_tsnet_authkey_main", &c.Tailscale.TsNet.AuthKeyMain)
+	apply("tailscale_tsnet_authkey_manifest", &c.Tailscale.TsNet.AuthKeyManifest)
+	apply("tailscale_tsnet_authkey_space_agent", &c.Tailscale.TsNet.AuthKeySpaceAgent)
 	apply("ansible_token", &c.Ansible.Token)
 
 	// ── Virtual Computers ──

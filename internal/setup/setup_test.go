@@ -353,6 +353,38 @@ func TestBuildSystemdUnitPassesSystemdAnalyzeVerify(t *testing.T) {
 	}
 }
 
+func TestBuildSystemdUnitUnrestrictedDisablesConflictingHardening(t *testing.T) {
+	t.Parallel()
+
+	unit, err := buildSystemdUnit(
+		"AuraGo AI Agent",
+		"alice",
+		"/opt/aurago",
+		"/opt/aurago/aurago",
+		"/etc/aurago/master.key",
+		[]string{"/opt/aurago", "/etc/aurago"},
+		nil,
+		false,
+		true,
+	)
+	if err != nil {
+		t.Fatalf("buildSystemdUnit: %v", err)
+	}
+	for _, forbidden := range []string{"\nNoNewPrivileges=true\n", "\nProtectSystem=strict\n"} {
+		if strings.Contains(unit, forbidden) {
+			t.Fatalf("unrestricted unit retains conflicting hardening %q:\n%s", forbidden, unit)
+		}
+	}
+	for _, want := range []string{
+		"# NoNewPrivileges=true disabled because sudo_unrestricted is enabled",
+		"# ProtectSystem=strict disabled because sudo_unrestricted is enabled",
+	} {
+		if !strings.Contains(unit, want) {
+			t.Fatalf("unrestricted unit missing explanation %q:\n%s", want, unit)
+		}
+	}
+}
+
 func TestBuildSystemdUnitEmptyArgsRejected(t *testing.T) {
 	t.Parallel()
 

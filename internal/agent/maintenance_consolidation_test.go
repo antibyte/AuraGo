@@ -26,7 +26,9 @@ func (v *dedupConsolidationVectorDB) StoreDocument(concept, content string) ([]s
 func (v *dedupConsolidationVectorDB) StoreDocumentWithEmbedding(concept, content string, embedding []float32) (string, error) {
 	return concept, nil
 }
-func (v *dedupConsolidationVectorDB) StoreBatch(items []memory.ArchiveItem) ([]string, error) { return nil, nil }
+func (v *dedupConsolidationVectorDB) StoreBatch(items []memory.ArchiveItem) ([]string, error) {
+	return nil, nil
+}
 func (v *dedupConsolidationVectorDB) SearchSimilar(query string, topK int, excludeCollections ...string) ([]string, []string, error) {
 	return nil, nil, nil
 }
@@ -58,8 +60,8 @@ func (v *dedupConsolidationVectorDB) DeleteCheatsheet(id string) error         {
 func (v *dedupConsolidationVectorDB) RegisterCollections(collections []string) {}
 
 type partialFailConsolidationVectorDB struct {
-	attempts  int
-	stored    []string
+	attempts   int
+	stored     []string
 	rolledBack []string
 }
 
@@ -74,7 +76,9 @@ func (v *partialFailConsolidationVectorDB) StoreDocument(concept, content string
 func (v *partialFailConsolidationVectorDB) StoreDocumentWithEmbedding(concept, content string, embedding []float32) (string, error) {
 	return concept, nil
 }
-func (v *partialFailConsolidationVectorDB) StoreBatch(items []memory.ArchiveItem) ([]string, error) { return nil, nil }
+func (v *partialFailConsolidationVectorDB) StoreBatch(items []memory.ArchiveItem) ([]string, error) {
+	return nil, nil
+}
 func (v *partialFailConsolidationVectorDB) SearchSimilar(query string, topK int, excludeCollections ...string) ([]string, []string, error) {
 	return nil, nil, nil
 }

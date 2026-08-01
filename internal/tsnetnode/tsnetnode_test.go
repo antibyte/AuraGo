@@ -49,6 +49,7 @@ func TestManifestHostnameDefault(t *testing.T) {
 	}
 
 	cfg.Tailscale.TsNet.ManifestHostname = "custom-manifest"
+	m.UpdateConfig(cfg)
 	if got := m.effectiveManifestHostname(); got != "custom-manifest" {
 		t.Fatalf("effectiveManifestHostname() = %q, want custom-manifest", got)
 	}

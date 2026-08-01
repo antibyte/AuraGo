@@ -178,6 +178,12 @@
 .ts-warning-box { margin-top:0.55rem; padding:0.45rem 0.7rem; border-radius:var(--radius-md); background:var(--warning-bg); border:1px solid var(--warning); font-size:var(--text-xs); color:var(--warning); }
 .ts-info-box { margin-top:0.55rem; padding:0.45rem 0.7rem; border-radius:var(--radius-md); background:var(--bg-glass); border:1px solid var(--border-subtle); font-size:var(--text-xs); color:var(--text-secondary); }
 .ts-status-area { margin-top:var(--space-4); }
+.ts-node-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:var(--space-3); margin:var(--space-3) 0; }
+.ts-node-card { min-width:0; padding:var(--space-4); border:1px solid var(--border-subtle); border-radius:var(--radius-xl); background:var(--card-bg); }
+.ts-node-card-head { display:flex; align-items:center; justify-content:space-between; gap:var(--space-3); margin-bottom:var(--space-2); }
+.ts-node-details { display:grid; gap:0.25rem; min-height:5.5rem; color:var(--text-secondary); font-size:var(--text-xs); overflow-wrap:anywhere; }
+.ts-node-key-row { margin-top:var(--space-3); align-items:stretch; }
+.ts-node-key-row .btn { white-space:nowrap; }
 .ts-status-title { font-weight:500; font-size:var(--text-sm); margin-bottom:0.4rem; }
 .ts-status-info { padding:0.6rem var(--space-4); border-radius:var(--radius-lg); background:var(--bg-tertiary); font-size:var(--text-sm); color:var(--text-secondary); }
 .ts-btn-row { display:flex; gap:var(--space-2); margin-top:0.6rem; }

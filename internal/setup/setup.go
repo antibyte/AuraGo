@@ -281,7 +281,7 @@ func installService(exePath, installDir string, logger *slog.Logger) error {
 // Paths use systemd's C-style escapes instead of surrounding quotes because
 // single-path directives such as WorkingDirectory= and EnvironmentFile= treat
 // quote characters as part of the path. The caller decides whether to disable
-// ProtectSystem=strict via sudoUnrestricted.
+// privilege-escalation and filesystem hardening via sudoUnrestricted.
 //
 // dockerMode is reserved for a future container-aware unit template (currently
 // unused but kept so callers don't need to change signatures when the Docker
@@ -396,8 +396,10 @@ func buildSystemdUnitWithGPUGroupIDs(
 	}
 
 	protectSystemLine := "ProtectSystem=strict"
+	noNewPrivilegesLine := "NoNewPrivileges=true"
 	if sudoUnrestricted {
 		protectSystemLine = "# ProtectSystem=strict disabled because sudo_unrestricted is enabled"
+		noNewPrivilegesLine = "# NoNewPrivileges=true disabled because sudo_unrestricted is enabled"
 	}
 
 	return fmt.Sprintf(`[Unit]
@@ -416,8 +418,9 @@ WorkingDirectory=%s
 ExecStart=%s --config %s/config.yaml
 Restart=on-failure
 RestartSec=10
+TimeoutStopSec=60s
 EnvironmentFile=-%s
-NoNewPrivileges=true
+%s
 %s
 ReadWritePaths=%s
 PrivateTmp=true
@@ -434,6 +437,7 @@ WantedBy=multi-user.target
 		systemdExePath,
 		systemdConfigPath,
 		systemdCredentialFile,
+		noNewPrivilegesLine,
 		protectSystemLine,
 		strings.Join(escapedReadWritePaths, " "),
 	), nil

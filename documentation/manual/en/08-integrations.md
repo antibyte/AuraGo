@@ -507,7 +507,34 @@ Manage your Tailscale VPN network.
 tailscale:
     enabled: true
     tailnet: "your-tailnet"
+    tsnet:
+        enabled: true
+        hostname: "aurago"
+        serve_http: true
 ```
+
+### Embedded tsnet nodes
+
+The embedded connection manages three separate Tailscale identities: the main
+AuraGo node and, when enabled, dedicated Manifest and Space Agent nodes. Store
+their auth keys in the Vault under `tailscale_tsnet_authkey_main`,
+`tailscale_tsnet_authkey_manifest`, and
+`tailscale_tsnet_authkey_space_agent`. The legacy
+`tailscale_tsnet_authkey` and `TS_AUTHKEY` remain shared fallbacks, but a
+one-off key cannot register several nodes.
+
+Saving a key does not interrupt a healthy connection. Use the node-specific
+**Reauthenticate** action to apply it. AuraGo first uses that node's local
+tsnet client and preserves healthy state on normal restarts. **Recover state**
+is shown only after a state initialization error. It requires explicit
+confirmation because it can create a new Tailscale identity and MagicDNS
+name; AuraGo backs up and restores the previous state if validation fails.
+Never delete `data/tsnet` to repair an authentication problem.
+
+`GET /api/ready?require=tsnet` verifies the main node and its configured web
+listener. Manifest, Space Agent, and Homepage exposure failures are reported
+as degraded without hiding a working main UI. The updater preserves the
+configured tsnet state and rechecks a previously healthy node after restart.
 
 ---
 

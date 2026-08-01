@@ -1416,10 +1416,14 @@ func (s *Server) serveWithShutdown(server, redirectServer, ttsServer *http.Serve
 	go func() {
 		<-shutdownCh
 		s.Logger.Info("Initiating graceful server shutdown...")
+		ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+		defer cancel()
 
 		// Shut down tsnet node
 		if s.TsNetManager != nil {
-			s.TsNetManager.Stop()
+			if err := s.TsNetManager.Shutdown(ctx); err != nil {
+				s.Logger.Warn("tsnet shutdown did not complete cleanly", "error", err)
+			}
 		}
 
 		// Shut down Heartbeat scheduler
@@ -1430,9 +1434,8 @@ func (s *Server) serveWithShutdown(server, redirectServer, ttsServer *http.Serve
 			s.UptimeKumaPoller.Stop()
 		}
 		if s.AgentMailService != nil {
-			s.AgentMailService.Stop(context.Background())
+			s.AgentMailService.Stop(ctx)
 		}
-
 		// Shut down MCP servers
 		tools.ShutdownMCPManager()
 		// Shut down Sandbox
@@ -1450,9 +1453,6 @@ func (s *Server) serveWithShutdown(server, redirectServer, ttsServer *http.Serve
 		}
 
 		s.closeRuntimeResources()
-
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
 
 		if ttsServer != nil {
 			ttsServer.Shutdown(ctx)

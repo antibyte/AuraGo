@@ -285,6 +285,60 @@ systemd_escape_path_value() {
     printf '%s' "$escaped"
 }
 
+primary_lan_ipv4() {
+    local candidates=""
+    local candidate
+    if command -v ip >/dev/null 2>&1; then
+        candidates="$(ip -o -4 route get 1.1.1.1 2>/dev/null | awk '{ for (i = 1; i <= NF; i++) if ($i == "src") { print $(i + 1); exit } }' || true)"
+    fi
+    if [ -z "$candidates" ] && command -v hostname >/dev/null 2>&1; then
+        candidates="$(hostname -I 2>/dev/null || true)"
+    fi
+    for candidate in $candidates; do
+        case "$candidate" in
+            0.0.0.0|127.*) continue ;;
+        esac
+        if printf '%s\n' "$candidate" | grep -Eq '^[0-9]{1,3}(\.[0-9]{1,3}){3}$'; then
+            printf '%s' "$candidate"
+            return 0
+        fi
+    done
+    return 1
+}
+
+configured_server_port() {
+    local config_file="$1"
+    local key="$2"
+    local fallback="$3"
+    local value=""
+    if [ -f "$config_file" ]; then
+        value="$(awk -v key="$key" '
+            /^server:[[:space:]]*($|#)/ { in_server=1; next }
+            in_server && /^[^[:space:]]/ { exit }
+            in_server {
+                line=$0
+                sub(/[[:space:]]*#.*/, "", line)
+                if (line ~ "^[[:space:]]+" key ":[[:space:]]*") {
+                    sub("^[[:space:]]+" key ":[[:space:]]*", "", line)
+                    gsub(/[[:space:]]/, "", line)
+                    print line
+                    exit
+                }
+            }
+        ' "$config_file")"
+    fi
+    case "$value" in
+        ""|*[!0-9]*) printf '%s' "$fallback" ;;
+        *)
+            if [ "$value" -ge 1 ] && [ "$value" -le 65535 ]; then
+                printf '%s' "$value"
+            else
+                printf '%s' "$fallback"
+            fi
+            ;;
+    esac
+}
+
 latest_release_tag_via_redirect() {
     local latest_url="https://github.com/${GITHUB_REPO}/releases/latest"
     local effective_url=""
@@ -1035,7 +1089,7 @@ fi
 
 echo "Starting AuraGo..."
 ./bin/aurago_linux > log/aurago.log 2>&1 &
-echo "Started (PID=$!). Web UI: http://localhost:8088"
+echo "Started (PID=$!). Web UI endpoint: see the installation summary or server settings in $DIR/config.yaml"
 echo "Follow logs: tail -f $DIR/log/aurago.log"
 STARTSH
 chmod +x "$INSTALL_DIR/start.sh"
@@ -1224,6 +1278,10 @@ if command -v systemctl >/dev/null 2>&1; then
             AMBIENT_CAPS_LINE="AmbientCapabilities=CAP_NET_BIND_SERVICE"
         fi
         PROTECT_SYSTEM_LINE="ProtectSystem=strict"
+        NO_NEW_PRIVILEGES_LINE="NoNewPrivileges=true"
+        if grep -Eq '^[[:space:]]+sudo_enabled:[[:space:]]*true([[:space:]]|$)' "$CONFIG_FILE"; then
+            NO_NEW_PRIVILEGES_LINE="# NoNewPrivileges=true disabled because sudo_enabled is enabled"
+        fi
         if grep -Eq '^[[:space:]]+sudo_unrestricted:[[:space:]]*true([[:space:]]|$)' "$CONFIG_FILE"; then
             PROTECT_SYSTEM_LINE="# ProtectSystem=strict disabled because sudo_unrestricted is enabled"
         fi
@@ -1260,10 +1318,11 @@ WorkingDirectory=${SYSTEMD_INSTALL_DIR}
 ExecStart=${SYSTEMD_BINARY_PATH} --config ${SYSTEMD_CONFIG_PATH}
 Restart=on-failure
 RestartSec=5
+TimeoutStopSec=60s
 EnvironmentFile=${SYSTEMD_CREDENTIAL_FILE}
 ${AMBIENT_CAPS_LINE}
 # Security hardening
-NoNewPrivileges=true
+${NO_NEW_PRIVILEGES_LINE}
 ${PROTECT_SYSTEM_LINE}
 ReadWritePaths=${SYSTEMD_INSTALL_DIR} ${SYSTEMD_CREDENTIAL_DIR}
 PrivateTmp=true
@@ -1295,11 +1354,28 @@ EOF
 fi
 
 # ── Summary ───────────────────────────────────────────────────────────────
+HTTP_PORT="$(configured_server_port "$CONFIG_FILE" "port" "8088")"
+HTTPS_PORT="$(configured_server_port "$CONFIG_FILE" "https_port" "443")"
+if [ "$HTTPS_ENABLED" = "true" ]; then
+    WEB_UI_URL="https://${HTTPS_DOMAIN}:${HTTPS_PORT}"
+    WEB_UI_LISTEN="0.0.0.0:${HTTPS_PORT} (HTTPS)"
+elif [ "$SERVER_HOST" = "0.0.0.0" ]; then
+    LAN_IP="$(primary_lan_ipv4 || true)"
+    WEB_UI_URL="http://${LAN_IP:-<server-LAN-IP>}:${HTTP_PORT}"
+    WEB_UI_LISTEN="0.0.0.0:${HTTP_PORT} (HTTP, LAN)"
+else
+    WEB_UI_URL="http://127.0.0.1:${HTTP_PORT}"
+    WEB_UI_LISTEN="127.0.0.1:${HTTP_PORT} (HTTP, local only)"
+fi
+
 echo ""
 echo -e " ${GREEN}+---------------------------------------------------------------+${NC}"
 echo -e " ${GREEN}|${NC}  ${BOLD}AuraGo successfully installed!${NC}"
 echo -e " ${GREEN}|${NC}  ${DIM}Location:${NC} $INSTALL_DIR"
 echo -e " ${GREEN}+---------------------------------------------------------------+${NC}"
+echo ""
+echo -e "  ${CYAN}Web UI:${NC}         $WEB_UI_URL"
+echo -e "  ${CYAN}Listening on:${NC}   $WEB_UI_LISTEN"
 echo ""
 
 if [ -n "${INFO_PASSWORD:-}" ]; then
@@ -1328,7 +1404,7 @@ else
     echo "  1. Open the Web UI and go to Config -> Providers"
     echo "     Add your LLM provider and API key there."
     echo "  2. Restart after config change: cd $INSTALL_DIR && ./start.sh"
-    echo "  3. Open UI:      http://localhost:8088"
+    echo "  3. Open UI:      $WEB_UI_URL"
     echo ""
     echo -e "  ${CYAN}Logs:${NC}  tail -f $INSTALL_DIR/log/aurago.log"
 

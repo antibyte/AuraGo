@@ -280,8 +280,8 @@ func TestDeploymentDefaultsUsePrivateConfigAndNoNewPrivileges(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read install_service_linux.sh: %v", err)
 	}
-	if !regexp.MustCompile(`(?m)^NoNewPrivileges=true$`).Match(service) {
-		t.Fatal("install_service_linux.sh must enable NoNewPrivileges=true by default")
+	if !strings.Contains(string(service), `NO_NEW_PRIVILEGES_LINE="NoNewPrivileges=true"`) {
+		t.Fatal("install_service_linux.sh must enable NoNewPrivileges=true by default unless saved sudo permissions require escalation")
 	}
 
 	updateScript := readRepoFile(t, "update.sh")
@@ -649,6 +649,64 @@ func TestInstallerNonInteractiveDefaultsAreConservative(t *testing.T) {
 	} {
 		if !strings.Contains(installScript, marker) {
 			t.Fatalf("install.sh conservative non-interactive contract missing %q", marker)
+		}
+	}
+}
+
+func TestInstallerSummaryReportsEffectiveWebUIPort(t *testing.T) {
+	t.Parallel()
+
+	installScript := readRepoFile(t, "install.sh")
+	for _, required := range []string{
+		"primary_lan_ipv4()",
+		"configured_server_port()",
+		`HTTP_PORT="$(configured_server_port "$CONFIG_FILE" "port" "8088")"`,
+		`HTTPS_PORT="$(configured_server_port "$CONFIG_FILE" "https_port" "443")"`,
+		`WEB_UI_URL="https://${HTTPS_DOMAIN}:${HTTPS_PORT}"`,
+		`WEB_UI_URL="http://${LAN_IP:-<server-LAN-IP>}:${HTTP_PORT}"`,
+		`WEB_UI_URL="http://127.0.0.1:${HTTP_PORT}"`,
+		`WEB_UI_LISTEN="0.0.0.0:${HTTP_PORT} (HTTP, LAN)"`,
+		`Web UI:${NC}         $WEB_UI_URL`,
+		`Listening on:${NC}   $WEB_UI_LISTEN`,
+		`echo "  3. Open UI:      $WEB_UI_URL"`,
+	} {
+		if !strings.Contains(installScript, required) {
+			t.Fatalf("install.sh summary must report the effective Web UI endpoint; missing %q", required)
+		}
+	}
+	if strings.Contains(installScript, `echo "  3. Open UI:      http://localhost:8088"`) {
+		t.Fatal("install.sh must not report a hard-coded localhost endpoint after LAN or HTTPS setup")
+	}
+}
+
+func TestSetupTrustProfilesEnableDockerAndUnrestrictedMode(t *testing.T) {
+	t.Parallel()
+
+	setupJS := readRepoFile(t, "ui/js/setup/main.js")
+	for _, required := range []string{
+		"sudo_unrestricted:      n >= 4",
+		"docker:           { enabled: n >= 2, readonly: n <= 2 }",
+	} {
+		if !strings.Contains(setupJS, required) {
+			t.Fatalf("setup trust profiles missing permission mapping %q", required)
+		}
+	}
+
+	installScript := readRepoFile(t, "install.sh")
+	serviceInstaller := readRepoFile(t, "install_service_linux.sh")
+	for path, script := range map[string]string{
+		"install.sh":               installScript,
+		"install_service_linux.sh": serviceInstaller,
+	} {
+		for _, required := range []string{
+			`NO_NEW_PRIVILEGES_LINE="NoNewPrivileges=true"`,
+			`PROTECT_SYSTEM_LINE="ProtectSystem=strict"`,
+			`sudo_enabled:[[:space:]]*true`,
+			`sudo_unrestricted:[[:space:]]*true`,
+		} {
+			if !strings.Contains(script, required) {
+				t.Fatalf("%s must derive systemd hardening from saved permissions; missing %q", path, required)
+			}
 		}
 	}
 }

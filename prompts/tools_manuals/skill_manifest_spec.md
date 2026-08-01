@@ -100,7 +100,7 @@ For manifest-level credential requests, use the existing compatibility pattern i
 }
 ```
 
-Do not store secret values in manifests or code. Store the secret in the Vault, then assign it to the skill in the Skill Manager.
+Do not store secret values in manifests or code. Only model-created Vault values are eligible for skill injection; secure-dialog, UI, system, and legacy values remain hidden. Assign an eligible key to the skill in Skill Manager.
 
 ## Daemon Manifest Settings
 

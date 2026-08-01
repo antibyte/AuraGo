@@ -7,19 +7,19 @@ import (
 
 // serpEngines maps friendly operation names to YepAPI endpoint paths.
 var serpEngines = map[string]string{
-	"google":            "/v1/serp/google",
-	"google_images":     "/v1/serp/google-images",
-	"google_news":       "/v1/serp/google-news",
-	"google_maps":       "/v1/serp/google-maps",
-	"google_datasets":   "/v1/serp/google-datasets",
+	"google":              "/v1/serp/google",
+	"google_images":       "/v1/serp/google-images",
+	"google_news":         "/v1/serp/google-news",
+	"google_maps":         "/v1/serp/google-maps",
+	"google_datasets":     "/v1/serp/google-datasets",
 	"google_autocomplete": "/v1/serp/google-autocomplete",
-	"google_ads":        "/v1/serp/google-ads",
-	"google_ai_mode":    "/v1/serp/google-ai-mode",
-	"google_finance":    "/v1/serp/google-finance",
-	"yahoo":             "/v1/serp/yahoo",
-	"bing":              "/v1/serp/bing",
-	"baidu":             "/v1/serp/baidu",
-	"youtube":           "/v1/serp/youtube",
+	"google_ads":          "/v1/serp/google-ads",
+	"google_ai_mode":      "/v1/serp/google-ai-mode",
+	"google_finance":      "/v1/serp/google-finance",
+	"yahoo":               "/v1/serp/yahoo",
+	"bing":                "/v1/serp/bing",
+	"baidu":               "/v1/serp/baidu",
+	"youtube":             "/v1/serp/youtube",
 }
 
 // DispatchYepAPISERP handles SERP tool operations via YepAPI.

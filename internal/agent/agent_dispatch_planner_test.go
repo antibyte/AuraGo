@@ -280,6 +280,11 @@ func TestOperationalIssueNoticeIsDeliveredWithoutLLMCooperation(t *testing.T) {
 	if !strings.Contains(state.Text, "Maintenance agent loop failed") || !strings.Contains(state.Text, "budget exceeded") {
 		t.Fatalf("prepared operational notice = %q, want issue title and detail", state.Text)
 	}
+	for _, marker := range []string{"Operational issues", "severity:", "last seen:"} {
+		if !strings.Contains(state.Text, marker) {
+			t.Fatalf("prepared operational notice = %q, want metadata %q", state.Text, marker)
+		}
+	}
 	broker := &typedActionLedgerCaptureBroker{}
 	deliverOperationalIssueNotice(&state, runCfg, broker, slog.Default())
 	if !state.TypedDelivered || state.FallbackRequired {

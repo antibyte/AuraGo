@@ -639,7 +639,7 @@ AURAGO_SECRET_MY_KEY is None
 **Solution:**
 1. Enable **Config → Tools → Tool Permissions** → **Python Secret Injection** (YAML: `tools.python_secret_injection.enabled: true`)
 2. Ensure the key exists in the vault
-3. Verify it's a user-created secret (not a system secret)
+3. Verify that the agent itself created the value through `secrets_vault`. Values entered in the UI or secure secret dialog, system secrets, and unclassified legacy values are intentionally not exported to skills.
 
 ### Timeout during execution
 

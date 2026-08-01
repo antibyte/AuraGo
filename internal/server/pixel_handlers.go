@@ -33,13 +33,13 @@ func handlePixelConfig(s *Server) http.HandlerFunc {
 		}
 
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"enabled":           cfg.Enabled,
-			"provider_type":     cfg.ProviderType,
-			"model":             cfg.ResolvedModel,
-			"supports_img2img":  supportsImg2Img,
-			"default_size":      cfg.DefaultSize,
-			"default_quality":   cfg.DefaultQuality,
-			"default_style":     cfg.DefaultStyle,
+			"enabled":          cfg.Enabled,
+			"provider_type":    cfg.ProviderType,
+			"model":            cfg.ResolvedModel,
+			"supports_img2img": supportsImg2Img,
+			"default_size":     cfg.DefaultSize,
+			"default_quality":  cfg.DefaultQuality,
+			"default_style":    cfg.DefaultStyle,
 		})
 	}
 }
@@ -116,12 +116,12 @@ func handlePixelGenerate(s *Server) http.HandlerFunc {
 		width, height := imageDimensions(imgPath)
 
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"status":  "ok",
-			"path":    imgPath,
-			"url":     result.WebPath,
-			"width":   width,
-			"height":  height,
-			"format":  "png",
+			"status": "ok",
+			"path":   imgPath,
+			"url":    result.WebPath,
+			"width":  width,
+			"height": height,
+			"format": "png",
 		})
 	}
 }
@@ -225,12 +225,12 @@ func handlePixelEnhance(s *Server) http.HandlerFunc {
 		width, height := imageDimensions(imgPath)
 
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"status":  "ok",
-			"path":    imgPath,
-			"url":     result.WebPath,
-			"width":   width,
-			"height":  height,
-			"format":  "png",
+			"status": "ok",
+			"path":   imgPath,
+			"url":    result.WebPath,
+			"width":  width,
+			"height": height,
+			"format": "png",
 		})
 	}
 }

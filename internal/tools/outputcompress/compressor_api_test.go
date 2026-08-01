@@ -65,6 +65,7 @@ func TestCompressAws_Routing(t *testing.T) {
 		}
 	}
 }
+
 // ── V5: Ansible Compressor Tests ──────────────────────────────────────
 
 func TestCompressAnsible_Small(t *testing.T) {
@@ -127,6 +128,7 @@ func TestCompressAnsible_Routing(t *testing.T) {
 		}
 	}
 }
+
 // ─── V7: Home Assistant Compressor Tests ─────────────────────────────────────
 
 // buildHAStatesJSON builds a HA get_states JSON envelope for testing.

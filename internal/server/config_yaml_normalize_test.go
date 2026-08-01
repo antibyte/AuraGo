@@ -11,9 +11,9 @@ func TestNormalizeConfigYAMLValueStringifiesLegacyMapKeys(t *testing.T) {
 	input := map[string]interface{}{
 		"providers": []interface{}{
 			map[interface{}]interface{}{
-				"id":    "main",
-				1:       "numeric-key",
-				true:    "bool-key",
+				"id": "main",
+				1:    "numeric-key",
+				true: "bool-key",
 				"nested": map[interface{}]interface{}{
 					3: "three",
 				},

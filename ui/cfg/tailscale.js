@@ -1,6 +1,13 @@
 let _tsSection = null;
+let _tsnetPollTimer = null;
+let _tsnetPollOperationID = '';
+let _tsnetPollGeneration = 0;
+let _tsnetPollingActive = false;
+let _tsnetStatusAbort = null;
+let _tsnetStatusPromise = null;
 
 async function renderTailscaleSection(section) {
+    _tsnetStopPolling();
     if (section) _tsSection = section; else section = _tsSection;
     const cfg = configData.tailscale || {};
     const tsnet = cfg.tsnet || {};
@@ -146,8 +153,8 @@ async function renderTailscaleSection(section) {
         </div>`;
 
         html += `<div class="field-group ts-mt">
-            <div class="field-label">🔑 ${t('config.tailscale.tsnet_auth_key_label')}</div>
-            <div class="field-help">${t('config.tailscale.tsnet_auth_key_hint')}</div>
+            <div class="field-label">🔑 ${t('config.tailscale.tsnet_shared_key_label')}</div>
+            <div class="field-help">${t('config.tailscale.tsnet_shared_key_hint')}</div>
             <div class="adg-password-row">
                 <div class="password-wrap cfg-password-input">
                     <input class="field-input adg-password-input" type="password" id="ts-auth-key-input" value="${escapeAttr(cfgSecretValue(tsnet.auth_key))}" placeholder="${escapeAttr(cfgSecretPlaceholder(tsnet.auth_key, 'tskey-auth-••••••••'))}" autocomplete="off">
@@ -156,10 +163,12 @@ async function renderTailscaleSection(section) {
                 <button class="btn-save adg-save-btn" onclick="tsSaveAuthKey()">💾 ${t('config.tailscale.save_vault')}</button>
             </div>
             <div id="ts-auth-key-status" class="adg-test-result"></div>
+            <div id="tsnet-shared-key-warning"></div>
         </div>`;
 
         html += `<div id="tsnet-status-area" class="ts-status-area">
             <div class="ts-status-title">${t('config.tailscale.tsnet_status_title')}</div>
+            <div id="tsnet-node-cards" class="ts-node-grid"></div>
             <div id="tsnet-status-info" class="ts-status-info">
                 ${t('config.tailscale.tsnet_status_loading')}
             </div>
@@ -262,13 +271,31 @@ function tsApiTestConnection() {
 }
 
 async function _tsnetRefreshStatus() {
+    if (_tsnetStatusPromise) return _tsnetStatusPromise;
+    const request = _tsnetFetchAndRenderStatus();
+    _tsnetStatusPromise = request;
+    try {
+        return await request;
+    } finally {
+        if (_tsnetStatusPromise === request) _tsnetStatusPromise = null;
+    }
+}
+
+async function _tsnetFetchAndRenderStatus() {
     const el = document.getElementById('tsnet-status-info');
-    if (!el) return;
-    el.textContent = t('config.tailscale.tsnet_status_loading');
+    if (!el) {
+        _tsnetStopPolling();
+        return null;
+    }
+    if (!el.dataset.loaded) el.textContent = t('config.tailscale.tsnet_status_loading');
+    const controller = new AbortController();
+    _tsnetStatusAbort = controller;
 
     try {
-        const resp = await fetch('/api/tsnet/status');
+        const resp = await fetch('/api/tsnet/status', { signal: controller.signal });
         const data = await resp.json();
+        if (!resp.ok) throw new Error(data.message || t('config.tailscale.tsnet_status_error'));
+        _tsnetRenderNodeCards(data);
 
         let info = '';
         const startBtn = document.getElementById('tsnet-btn-start');
@@ -333,45 +360,283 @@ async function _tsnetRefreshStatus() {
                 <a href="${escapeAttr(data.login_url)}" target="_blank" rel="noopener noreferrer" class="ts-login-link">${escapeHtml(data.login_url)}</a>
             </div>`;
         }
+        if (data.operation) {
+            const operationLabel = `${t('config.tailscale.tsnet_operation')}: ${escapeHtml(_tsnetOperationLabel(data.operation.type))}`;
+            if (data.operation.state === 'running' || data.operation.state === 'pending') {
+                info += `<div class="ts-detail-box-lg">⏳ ${operationLabel}</div>`;
+                _tsnetStartPolling(data.operation.id || '');
+            } else {
+                if (_tsnetPollingActive && _tsnetPollOperationID && data.operation.id === _tsnetPollOperationID) {
+                    _tsnetStopPolling(false);
+                }
+                if (data.operation.state === 'failed') {
+                    info += `<div class="ts-warning-detail">⚠️ ${operationLabel}: ${escapeHtml(_tsnetErrorLabel(data.operation.error_code))}</div>`;
+                }
+            }
+        }
 
         el.innerHTML = info;
+        el.dataset.loaded = 'true';
+        return data;
     } catch (e) {
+        if (e && e.name === 'AbortError') return null;
         el.innerHTML = `<span class="ts-color-error">${t('config.tailscale.tsnet_status_error')}</span>`;
+        return null;
+    } finally {
+        if (_tsnetStatusAbort === controller) _tsnetStatusAbort = null;
+    }
+}
+
+function _tsnetStartPolling(operationID = '') {
+    if (operationID) _tsnetPollOperationID = operationID;
+    if (_tsnetPollingActive) return;
+    _tsnetPollingActive = true;
+    const generation = ++_tsnetPollGeneration;
+
+    const poll = async () => {
+        if (!_tsnetPollingActive || generation !== _tsnetPollGeneration) return;
+        if (!document.getElementById('tsnet-status-area')) {
+            _tsnetStopPolling();
+            return;
+        }
+        const data = await _tsnetRefreshStatus();
+        if (!_tsnetPollingActive || generation !== _tsnetPollGeneration) return;
+
+        const operation = data && data.operation;
+        if (_tsnetPollOperationID) {
+            if (operation && operation.id === _tsnetPollOperationID &&
+                operation.state !== 'running' && operation.state !== 'pending') {
+                _tsnetStopPolling(false);
+                return;
+            }
+        } else if (operation && (operation.state === 'running' || operation.state === 'pending')) {
+            _tsnetPollOperationID = operation.id || '';
+        } else if (data) {
+            _tsnetStopPolling(false);
+            return;
+        }
+        _tsnetPollTimer = setTimeout(poll, 2000);
+    };
+
+    _tsnetPollTimer = setTimeout(poll, 0);
+}
+
+function _tsnetStopPolling(abortCurrent = true) {
+    _tsnetPollingActive = false;
+    _tsnetPollOperationID = '';
+    _tsnetPollGeneration += 1;
+    if (_tsnetPollTimer) {
+        clearTimeout(_tsnetPollTimer);
+        _tsnetPollTimer = null;
+    }
+    if (abortCurrent && _tsnetStatusAbort) {
+        _tsnetStatusAbort.abort();
+        _tsnetStatusAbort = null;
+    }
+}
+
+function _tsnetActionsBlocked() {
+    return typeof hasUnsavedConfigChanges === 'function' && hasUnsavedConfigChanges();
+}
+
+function _tsnetRequireSavedConfig() {
+    if (!_tsnetActionsBlocked()) return true;
+    showToast(t('config.tailscale.tsnet_save_config_first'), 'warning');
+    return false;
+}
+
+function _tsnetNodeName(node) {
+    const key = {
+        main: 'config.tailscale.tsnet_node_main',
+        manifest: 'config.tailscale.tsnet_node_manifest',
+        space_agent: 'config.tailscale.tsnet_node_space_agent'
+    }[node];
+    return t(key || 'config.tailscale.tsnet_node_main');
+}
+
+function _tsnetHealthLabel(health) {
+    const normalized = String(health || 'stopped').replace(/[^a-z_]/g, '');
+    return t(`config.tailscale.tsnet_health_${normalized}`);
+}
+
+function _tsnetKeySourceLabel(source) {
+    const normalized = String(source || 'none').replace(/[^a-z_]/g, '');
+    return t(`config.tailscale.tsnet_key_source_${normalized}`);
+}
+
+function _tsnetErrorLabel(code) {
+    const key = {
+        TSNET_AUTH_KEY_MISSING: 'config.tailscale.tsnet_error_auth_key_missing',
+        TSNET_AUTH_KEY_REJECTED: 'config.tailscale.tsnet_error_auth_key_rejected',
+        TSNET_LOGIN_REQUIRED: 'config.tailscale.tsnet_error_login_required',
+        TSNET_NODE_KEY_EXPIRED: 'config.tailscale.tsnet_error_node_key_expired',
+        TSNET_STATE_CORRUPT: 'config.tailscale.tsnet_error_state_corrupt',
+        TSNET_CERT_UNAVAILABLE: 'config.tailscale.tsnet_error_cert_unavailable',
+        TSNET_FUNNEL_UNAVAILABLE: 'config.tailscale.tsnet_error_funnel_unavailable',
+        TSNET_TIMEOUT: 'config.tailscale.tsnet_error_timeout',
+        TSNET_OPERATION_CONFLICT: 'config.tailscale.tsnet_error_operation_conflict',
+        TSNET_NODE_NOT_CONFIGURED: 'config.tailscale.tsnet_error_node_not_configured',
+        TSNET_BACKEND_UNAVAILABLE: 'config.tailscale.tsnet_error_backend_unavailable'
+    }[String(code || '')];
+    return t(key || 'config.tailscale.tsnet_status_error');
+}
+
+function _tsnetOperationLabel(type) {
+    const key = {
+        start: 'config.tailscale.tsnet_btn_start',
+        stop: 'config.tailscale.tsnet_btn_stop',
+        reconfigure: 'config.tailscale.tsnet_reconfigure',
+        reauth_normal: 'config.tailscale.tsnet_reauth',
+        reauth_recover_state: 'config.tailscale.tsnet_recover_state'
+    }[String(type || '')];
+    return t(key || 'config.tailscale.tsnet_operation');
+}
+
+function _tsnetRenderNodeCards(data) {
+    const container = document.getElementById('tsnet-node-cards');
+    if (!container) return;
+    const nodes = data.nodes || {};
+    const operationRunning = !!(data.operation && (data.operation.state === 'running' || data.operation.state === 'pending'));
+    const disabled = operationRunning || _tsnetActionsBlocked();
+    const nodeOrder = ['main', 'manifest', 'space_agent'];
+    container.innerHTML = nodeOrder.map(node => {
+        const state = nodes[node] || {};
+        const health = state.health || 'stopped';
+        const healthClass = health === 'ready' ? 'ts-color-success' : (health === 'stopped' ? 'ts-color-muted' : 'ts-color-warning');
+        const recoveryAllowed = state.error_code === 'TSNET_STATE_CORRUPT';
+        const lifecycleDisabled = disabled || state.configured !== true;
+        const details = [];
+        if (state.backend_state) details.push(`<div><strong>${escapeHtml(t('config.tailscale.tsnet_backend'))}:</strong> ${escapeHtml(state.backend_state)}</div>`);
+        if (state.dns) details.push(`<div><strong>DNS:</strong> ${escapeHtml(state.dns)}</div>`);
+        if (state.key_expiry) details.push(`<div><strong>${escapeHtml(t('config.tailscale.tsnet_key_expiry'))}:</strong> ${escapeHtml(new Date(state.key_expiry).toLocaleString())}</div>`);
+        details.push(`<div><strong>${escapeHtml(t('config.tailscale.tsnet_key_source'))}:</strong> ${escapeHtml(_tsnetKeySourceLabel(state.key_source))}</div>`);
+        if (state.error_code) details.push(`<div class="ts-color-error"><strong>${escapeHtml(state.error_code)}</strong> ${escapeHtml(_tsnetErrorLabel(state.error_code))}</div>`);
+        if (state.credential_changed) details.push(`<div class="ts-color-warning">${escapeHtml(t('config.tailscale.tsnet_credential_saved_pending'))}</div>`);
+        if (state.login_url) details.push(`<div><a href="${escapeAttr(state.login_url)}" target="_blank" rel="noopener noreferrer" class="ts-link">${escapeHtml(t('shared.tsnet.login_banner_link'))}</a></div>`);
+        return `<article class="ts-node-card" data-tsnet-node="${escapeAttr(node)}">
+            <div class="ts-node-card-head">
+                <strong>${escapeHtml(_tsnetNodeName(node))}</strong>
+                <span class="${healthClass}">● ${escapeHtml(_tsnetHealthLabel(health))}</span>
+            </div>
+            <div class="ts-node-details">${details.join('')}</div>
+            <div class="adg-password-row ts-node-key-row">
+                <div class="password-wrap cfg-password-input">
+                    <input class="field-input adg-password-input" type="password" id="tsnet-node-key-${escapeAttr(node)}" placeholder="tskey-auth-••••••••" autocomplete="off" ${disabled ? 'disabled' : ''}>
+                    <button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)" ${disabled ? 'disabled' : ''}>${EYE_OPEN_SVG}</button>
+                </div>
+                <button class="btn btn-sm btn-secondary" onclick="_tsnetSaveNodeKey('${escapeAttr(node)}')" ${disabled ? 'disabled' : ''}>💾 ${escapeHtml(t('config.tailscale.tsnet_save_node_key'))}</button>
+            </div>
+            <div id="tsnet-node-result-${escapeAttr(node)}" class="adg-test-result"></div>
+            <div class="ts-btn-row">
+                <button class="btn btn-sm btn-success" onclick="_tsnetReauth('${escapeAttr(node)}','normal')" ${lifecycleDisabled ? 'disabled' : ''}>🔐 ${escapeHtml(t('config.tailscale.tsnet_reauth'))}</button>
+                <button class="btn btn-sm btn-secondary" onclick="_tsnetDeleteNodeKey('${escapeAttr(node)}')" ${disabled ? 'disabled' : ''}>🗑 ${escapeHtml(t('config.tailscale.tsnet_delete_node_key'))}</button>
+                ${recoveryAllowed ? `<button class="btn btn-sm btn-danger" onclick="_tsnetReauth('${escapeAttr(node)}','recover_state')" ${lifecycleDisabled ? 'disabled' : ''}>⚠ ${escapeHtml(t('config.tailscale.tsnet_recover_state'))}</button>` : ''}
+            </div>
+        </article>`;
+    }).join('');
+
+    const sharedWarning = document.getElementById('tsnet-shared-key-warning');
+    if (sharedWarning) {
+        const sharedCount = nodeOrder.filter(node => nodes[node] && nodes[node].configured && nodes[node].key_source === 'shared_vault').length;
+        sharedWarning.innerHTML = sharedCount > 1
+            ? `<div class="ts-warning-box">${escapeHtml(t('config.tailscale.tsnet_shared_key_warning'))}</div>`
+            : '';
+    }
+}
+
+async function _tsnetSaveNodeKey(node) {
+    if (!_tsnetRequireSavedConfig()) return;
+    const input = document.getElementById(`tsnet-node-key-${node}`);
+    const result = document.getElementById(`tsnet-node-result-${node}`);
+    const authKey = input ? input.value.trim() : '';
+    if (!authKey) {
+        if (result) result.textContent = t('config.tailscale.key_empty');
+        return;
+    }
+    try {
+        const resp = await fetch('/api/tsnet/credentials', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ node, auth_key: authKey })
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(t('config.tailscale.key_save_failed'));
+        if (input) input.value = '';
+        if (result) {
+            result.className = 'adg-test-result is-success';
+            result.textContent = t('config.tailscale.tsnet_node_key_saved');
+        }
+        await _tsnetRefreshStatus();
+    } catch (error) {
+        if (result) {
+            result.className = 'adg-test-result is-danger';
+            result.textContent = t('config.tailscale.key_save_failed');
+        }
+    }
+}
+
+async function _tsnetDeleteNodeKey(node) {
+    if (!_tsnetRequireSavedConfig()) return;
+    if (!confirm(t('config.tailscale.tsnet_delete_key_confirm'))) return;
+    const resp = await fetch(`/api/tsnet/credentials?node=${encodeURIComponent(node)}`, { method: 'DELETE' });
+    const data = await resp.json();
+    if (!resp.ok) {
+        showToast(t('config.tailscale.key_save_failed'), 'error');
+        return;
+    }
+    showToast(t('config.tailscale.tsnet_node_key_deleted'), 'success');
+    await _tsnetRefreshStatus();
+}
+
+async function _tsnetReauth(node, mode) {
+    if (!_tsnetRequireSavedConfig()) return;
+    const recovering = mode === 'recover_state';
+    if (recovering && !confirm(t('config.tailscale.tsnet_recover_confirm'))) return;
+    try {
+        const resp = await fetch('/api/tsnet/reauth', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ node, mode, confirm_new_identity: recovering })
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(_tsnetErrorLabel(data.error_code));
+        showToast(t(recovering ? 'config.tailscale.tsnet_recovery_started' : 'config.tailscale.tsnet_reauth_started'), 'success');
+        _tsnetStartPolling(data.operation_id || '');
+    } catch (error) {
+        showToast(error.message || t('config.tailscale.tsnet_status_error'), 'error');
     }
 }
 
 async function _tsnetStop() {
+    if (!_tsnetRequireSavedConfig()) return;
     try {
         const resp = await fetch('/api/tsnet/stop', { method: 'POST' });
         const data = await resp.json();
-        if (data.error) {
-            showToast(data.error, 'error');
+        if (!resp.ok || data.error) {
+            showToast(t('config.tailscale.tsnet_status_error'), 'error');
         } else {
             showToast(t('config.tailscale.tsnet_stopped_toast'), 'success');
         }
+        _tsnetStartPolling();
         setTimeout(_tsnetRefreshStatus, 500);
     } catch (e) {
-        showToast(e.message, 'error');
+        showToast(t('config.tailscale.tsnet_status_error'), 'error');
     }
 }
 
 async function _tsnetStart() {
+    if (!_tsnetRequireSavedConfig()) return;
     try {
         const resp = await fetch('/api/tsnet/start', { method: 'POST' });
         const data = await resp.json();
-        if (data.error) {
-            showToast(data.error, 'error');
+        if (!resp.ok || data.error) {
+            showToast(t('config.tailscale.tsnet_status_error'), 'error');
         } else {
             showToast(t('config.tailscale.tsnet_starting_toast'), 'success');
-            let attempts = 0;
-            const poll = setInterval(async () => {
-                await _tsnetRefreshStatus();
-                attempts++;
-                if (attempts > 120) clearInterval(poll);
-            }, 3000);
+            _tsnetStartPolling(data.operation_id || '');
         }
     } catch (e) {
-        showToast(e.message, 'error');
+        showToast(t('config.tailscale.tsnet_status_error'), 'error');
     }
 }
 
@@ -414,6 +679,7 @@ function tsSaveApiKey() {
 }
 
 function tsSaveAuthKey() {
+    if (!_tsnetRequireSavedConfig()) return;
     const input = document.getElementById('ts-auth-key-input');
     const statusEl = document.getElementById('ts-auth-key-status');
     const key = input ? input.value.trim() : '';
@@ -437,6 +703,7 @@ function tsSaveAuthKey() {
                 statusEl.textContent = t('config.tailscale.key_saved');
             }
             cfgMarkSecretStored(input, 'tailscale.tsnet.auth_key');
+            _tsnetRefreshStatus();
         } else if (statusEl) {
             statusEl.className = 'adg-test-result is-danger';
             statusEl.textContent = res.message || t('config.tailscale.key_save_failed');
@@ -450,3 +717,10 @@ function tsSaveAuthKey() {
         }
     });
 }
+
+document.addEventListener('aurago:config-saved', () => {
+    if (document.getElementById('tsnet-status-area')) _tsnetRefreshStatus();
+});
+
+window.addEventListener('cfg:section-leave', () => _tsnetStopPolling());
+window.addEventListener('beforeunload', () => _tsnetStopPolling());

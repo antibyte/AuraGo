@@ -26,7 +26,7 @@ func newDesktopFilesystemTestServer(t *testing.T) *Server {
 	cfg.Directories.DataDir = filepath.Join(t.TempDir(), "data")
 	cfg.SQLite.MediaRegistryPath = filepath.Join(cfg.Directories.DataDir, "media_registry.db")
 	cfg.SQLite.ImageGalleryPath = filepath.Join(cfg.Directories.DataDir, "image_gallery.db")
-	
+
 	s := &Server{Cfg: cfg, Logger: slog.Default()}
 	t.Cleanup(func() {
 		if s.DesktopService != nil {

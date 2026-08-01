@@ -130,18 +130,18 @@ type formAutomationArgs struct {
 }
 
 type browserAutomationArgs struct {
-	Operation    string
-	SessionID    string
-	URL          string
-	Selector     string
-	Text         string
-	Value        string
-	Key          string
-	WaitFor      string
-	TimeoutMs    int
-	OutputPath   string
-	FullPage     bool
-	FilePath     string
+	Operation            string
+	SessionID            string
+	URL                  string
+	Selector             string
+	Text                 string
+	Value                string
+	Key                  string
+	WaitFor              string
+	TimeoutMs            int
+	OutputPath           string
+	FullPage             bool
+	FilePath             string
 	DownloadName         string
 	DOMSnippet           bool
 	MaxElements          int

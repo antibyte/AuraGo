@@ -1526,6 +1526,7 @@ function buildTrustLevelPatch(level) {
             allow_self_update:      n >= 4,
             allow_mcp:              n >= 4,
             sudo_enabled:           n >= 4,
+            sudo_unrestricted:      n >= 4,
         },
         tools: Object.assign({}, baseTools, extTools),
         sandbox: {
@@ -1551,7 +1552,10 @@ function buildTrustLevelPatch(level) {
         fritzbox:         { readonly: n <= 2 },
         telnyx:           { readonly: n <= 2 },
         meshcentral:      { readonly: n <= 2 },
-        docker:           { readonly: n <= 2 },
+        // Docker is useful infrastructure for many integrations. Keep it off
+        // only at the lowest trust level, read-only at level 2, and writable
+        // once the user explicitly grants broader agent permissions.
+        docker:           { enabled: n >= 2, readonly: n <= 2 },
         proxmox:          { readonly: n <= 2 },
         ollama:           { readonly: n <= 2 },
         ansible:          { readonly: n <= 2 },

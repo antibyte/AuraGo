@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"aurago/internal/security"
 	"aurago/internal/tools"
 )
 
@@ -133,6 +134,14 @@ func handleSetVaultSecret(s *Server, w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "Secret value must not be empty", http.StatusBadRequest)
 		return
 	}
+	if isTsNetAuthVaultKey(req.Key) {
+		req.Value = strings.TrimSpace(req.Value)
+		if err := validateTsNetAuthKey(req.Value); err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		security.RegisterSensitive(req.Value)
+	}
 
 	if err := s.Vault.WriteSecret(req.Key, req.Value); err != nil {
 		jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to write secret", "[Vault] Failed to write secret", err, "key", req.Key)
@@ -146,6 +155,7 @@ func handleSetVaultSecret(s *Server, w http.ResponseWriter, r *http.Request) {
 		s.Cfg.ApplyVaultSecrets(s.Vault)
 		s.CfgMu.Unlock()
 	}
+	applyTsNetCredentialMutation(s, req.Key, req.Value)
 	if req.Key == "sudo_password" {
 		virtualComputersRetryAutoSetupAfterSudoCredentialChange(s)
 	}
@@ -170,6 +180,7 @@ func handleDeleteVaultSecret(s *Server, w http.ResponseWriter, r *http.Request) 
 			return
 		}
 	}
+	applyTsNetCredentialMutation(s, key, "")
 
 	s.Logger.Info("[Vault] Secret deleted via Web UI", "key", key)
 	w.Header().Set("Content-Type", "application/json")

@@ -116,10 +116,11 @@ systemd_escape_path_value() {
 warn_if_systemd_hardening_conflicts() {
     local config_path="$1"
     [[ -f "$config_path" ]] || return 0
-    if grep -Eq '^[[:space:]]+sudo_enabled:[[:space:]]*true([[:space:]]|$)' "$config_path" || \
-       grep -Eq '^[[:space:]]+sudo_unrestricted:[[:space:]]*true([[:space:]]|$)' "$config_path"; then
-        warn "config.yaml enables sudo features. ProtectSystem=strict in the generated unit may block unrestricted sudo writes."
-        warn "If you intentionally need unrestricted sudo, edit the unit afterwards and reload systemd."
+    if grep -Eq '^[[:space:]]+sudo_enabled:[[:space:]]*true([[:space:]]|$)' "$config_path"; then
+        warn "config.yaml enables sudo features. The generated unit will allow privilege escalation."
+    fi
+    if grep -Eq '^[[:space:]]+sudo_unrestricted:[[:space:]]*true([[:space:]]|$)' "$config_path"; then
+        warn "config.yaml enables sudo_unrestricted. The generated unit will not use ProtectSystem=strict."
     fi
 }
 
@@ -242,6 +243,14 @@ fi
 GPU_GROUPS_LINE="$(systemd_gpu_groups_line)"
 GPU_GROUP_IDS="$(system_gpu_group_ids)"
 GPU_GROUP_IDS_LINE=""
+NO_NEW_PRIVILEGES_LINE="NoNewPrivileges=true"
+PROTECT_SYSTEM_LINE="ProtectSystem=strict"
+if grep -Eq '^[[:space:]]+sudo_enabled:[[:space:]]*true([[:space:]]|$)' "$CONFIG_PATH"; then
+    NO_NEW_PRIVILEGES_LINE="# NoNewPrivileges=true disabled because sudo_enabled is enabled"
+fi
+if grep -Eq '^[[:space:]]+sudo_unrestricted:[[:space:]]*true([[:space:]]|$)' "$CONFIG_PATH"; then
+    PROTECT_SYSTEM_LINE="# ProtectSystem=strict disabled because sudo_unrestricted is enabled"
+fi
 if [[ -n "$GPU_GROUPS_LINE" ]]; then
     info "Granting the service access to available GPU groups: ${GPU_GROUPS_LINE#SupplementaryGroups=}"
 fi
@@ -274,6 +283,7 @@ WorkingDirectory=${SYSTEMD_INSTALL_DIR}
 ExecStart=${SYSTEMD_BINARY_PATH} --config ${SYSTEMD_CONFIG_PATH}
 Restart=always
 RestartSec=5
+TimeoutStopSec=60s
 EnvironmentFile=${SYSTEMD_CREDENTIAL_FILE}
 StandardOutput=append:${SYSTEMD_INSTALL_DIR}/log/aurago.log
 StandardError=append:${SYSTEMD_INSTALL_DIR}/log/aurago.err
@@ -283,11 +293,8 @@ StandardError=append:${SYSTEMD_INSTALL_DIR}/log/aurago.err
 AmbientCapabilities=CAP_NET_BIND_SERVICE
 
 # Security hardening
-# NOTE: NoNewPrivileges=true blocks sudo. If you enable agent.sudo_enabled in
-# config.yaml (Danger Zone), comment out this line in the service file and run:
-#   sudo systemctl daemon-reload && sudo systemctl restart aurago
-NoNewPrivileges=true
-ProtectSystem=strict
+${NO_NEW_PRIVILEGES_LINE}
+${PROTECT_SYSTEM_LINE}
 ReadWritePaths=${SYSTEMD_INSTALL_DIR} ${SYSTEMD_CREDENTIAL_DIR}
 ProtectHome=read-only
 PrivateTmp=true

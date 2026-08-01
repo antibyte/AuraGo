@@ -2,7 +2,7 @@
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #  AuraGo Update Script (Linux)
 #
-#  Usage:  ./update.sh [--yes] [--no-restart] [--force-reset]
+#  Usage:  ./update.sh [--yes] [--no-restart] [--force-reset] [--rebuild]
 #
 #  What it does:
 #    1. Fetches the latest commit from GitHub (no clobber of user data)
@@ -40,18 +40,21 @@ section() { echo -e "\n${BOLD}${BLUE}--- $* ---${NC}"; }
 AUTO_YES=false
 NO_RESTART=false
 FORCE_RESET=false
+REBUILD=false
 _AU_ESCAPED=""
 for arg in "$@"; do
     case "$arg" in
         --yes)        AUTO_YES=true ;;
         --no-restart) NO_RESTART=true ;;
         --force-reset) FORCE_RESET=true ;;
+        --rebuild)     REBUILD=true ;;
         --escaped)    _AU_ESCAPED=1 ;;   # internal: already running in an independent scope
         --help|-h)
-            echo "Usage: $0 [--yes] [--no-restart] [--force-reset]"
+            echo "Usage: $0 [--yes] [--no-restart] [--force-reset] [--rebuild]"
             echo "  --yes          Skip confirmation prompts"
             echo "  --no-restart   Do not restart the service after update"
             echo "  --force-reset  Reset a diverged git install to origin/main"
+            echo "  --rebuild      Rebuild/reinstall even when the version is unchanged"
             exit 0 ;;
         *) warn "Unknown argument: $arg" ;;
     esac
@@ -637,6 +640,14 @@ if $BINARY_ONLY; then
     RELEASE_TAG=$(latest_release_tag || true)
     [ -z "$RELEASE_TAG" ] && die "Could not determine latest release tag from GitHub."
     info "Latest release available: $RELEASE_TAG"
+    INSTALLED_RELEASE=""
+    if [ -f "$DIR/.version" ]; then
+        INSTALLED_RELEASE="$(tr -d '\r\n' < "$DIR/.version")"
+    fi
+    if [ "$INSTALLED_RELEASE" = "$RELEASE_TAG" ] && ! $REBUILD; then
+        ok "AuraGo is already at ${RELEASE_TAG}; no files or services were changed."
+        exit 0
+    fi
     RELEASE_BASE="https://github.com/${GITHUB_REPO}/releases/download/${RELEASE_TAG}"
     fetch_release_checksums || die "Could not download SHA256SUMS for release ${RELEASE_TAG}."
     echo ""
@@ -651,6 +662,10 @@ else
     if [ "$LOCAL_HASH" = "$REMOTE_HASH" ]; then
         ok "Code is already at the latest version ($(git log --format='%h %s' -1))"
         GIT_UP_TO_DATE=true
+        if ! $REBUILD; then
+            ok "No rebuild requested; no files or services were changed."
+            exit 0
+        fi
     else
         AHEAD_COUNT=$(git rev-list HEAD..origin/main --count)
         info "Local:  $(git log --format='%h  %s  (%cd)' --date=short -1)"
@@ -669,13 +684,91 @@ else
     confirm "Proceed with update?" || { info "Update cancelled."; exit 0; }
 fi
 
+# Capture the pre-update readiness contract before stopping anything. Older
+# binaries that do not expose the read-only healthcheck remain "unknown".
+CURRENT_AURAGO_BIN="$DIR/bin/aurago_linux"
+[ -x "$CURRENT_AURAGO_BIN" ] || CURRENT_AURAGO_BIN="$DIR/bin/aurago"
+CORE_WAS_READY="unknown"
+TSNET_WAS_READY="unknown"
+TSNET_STATE_DIR=""
+
+binary_supports_option() {
+    local binary="$1"
+    local option="$2"
+    [ -x "$binary" ] || return 1
+    "$binary" --help 2>&1 | grep -q -- "$option"
+}
+
+configured_tsnet_state_dir_fallback() {
+    local config_file="$DIR/config.yaml"
+    local value=""
+    if [ -f "$config_file" ]; then
+        value="$(awk '
+            /^tailscale:[[:space:]]*($|#)/ { in_tailscale=1; in_tsnet=0; next }
+            in_tailscale {
+                raw=$0
+                line=raw
+                sub(/^[[:space:]]+/, "", line)
+                indent=length(raw)-length(line)
+                if (indent == 0 && line !~ /^($|#)/) {
+                    in_tailscale=0
+                    in_tsnet=0
+                    next
+                }
+                if (!in_tsnet && line ~ /^tsnet:[[:space:]]*($|#)/) {
+                    in_tsnet=1
+                    tsnet_indent=indent
+                    next
+                }
+                if (in_tsnet && indent <= tsnet_indent && line !~ /^($|#)/) {
+                    in_tsnet=0
+                }
+            }
+            in_tsnet && line ~ /^state_dir:[[:space:]]*/ {
+                sub(/^state_dir:[[:space:]]*/, "", line)
+                sub(/[[:space:]]*#.*/, "", line)
+                gsub(/^[[:space:]]+|[[:space:]]+$/, "", line)
+                if ((substr(line,1,1) == "\"" && substr(line,length(line),1) == "\"") ||
+                    (substr(line,1,1) == "\047" && substr(line,length(line),1) == "\047")) {
+                    line=substr(line,2,length(line)-2)
+                }
+                print line
+                exit
+            }
+        ' "$config_file")"
+    fi
+    [ -n "$value" ] || value="$DIR/data/tsnet"
+    case "$value" in
+        /*) printf '%s\n' "$value" ;;
+        *) printf '%s\n' "$DIR/$value" ;;
+    esac
+}
+
+if binary_supports_option "$CURRENT_AURAGO_BIN" "healthcheck"; then
+    if "$CURRENT_AURAGO_BIN" --config "$DIR/config.yaml" --healthcheck --healthcheck-timeout 5s >/dev/null 2>&1; then
+        CORE_WAS_READY="ready"
+        if "$CURRENT_AURAGO_BIN" --config "$DIR/config.yaml" --healthcheck --healthcheck-timeout 5s --healthcheck-require-tsnet >/dev/null 2>&1; then
+            TSNET_WAS_READY="ready"
+        else
+            TSNET_WAS_READY="not_ready"
+        fi
+    else
+        CORE_WAS_READY="not_ready"
+        TSNET_WAS_READY="not_ready"
+    fi
+fi
+if binary_supports_option "$CURRENT_AURAGO_BIN" "print-tsnet-state-dir"; then
+    TSNET_STATE_DIR="$("$CURRENT_AURAGO_BIN" --config "$DIR/config.yaml" --print-tsnet-state-dir 2>/dev/null | tail -n 1 || true)"
+fi
+[ -n "$TSNET_STATE_DIR" ] || TSNET_STATE_DIR="$(configured_tsnet_state_dir_fallback)"
+info "Pre-update readiness: core=${CORE_WAS_READY}, tsnet=${TSNET_WAS_READY}"
+
 # ── Stop running instances BEFORE any file changes ────────────────────
 # This must happen early so the binary file is not locked and lock files
 # are cleaned up before git-pull/build overwrites anything.
 section "Stopping running instances"
 
-_kill_proc() {
-    local label="$1"; shift
+_find_install_pids() {
     local patterns=("$@")
     local pids=""
     local pat pid exe cwd cmd expected
@@ -703,7 +796,13 @@ _kill_proc() {
             fi
         done < <(pgrep -f "$pat" 2>/dev/null || true)
     done
+    printf '%s\n' "$pids"
+}
 
+_kill_proc() {
+    local label="$1"; shift
+    local pids
+    pids="$(_find_install_pids "$@")"
     [ -n "${pids// /}" ] || { info "$label: not running"; return 0; }
 
     info "Stopping $label (SIGTERM)..."
@@ -711,7 +810,7 @@ _kill_proc() {
         kill -TERM "$pid" 2>/dev/null || true
     done
 
-    # Wait up to 8 seconds for clean exit
+    # Wait up to 60 seconds for AuraGo's graceful shutdown contract.
     local waited=0
     while true; do
         local still_up=false
@@ -720,7 +819,7 @@ _kill_proc() {
         done
         $still_up || break
         sleep 1; waited=$((waited + 1))
-        [ $waited -ge 8 ] && break
+        [ $waited -ge 60 ] && break
     done
 
     # SIGKILL if still alive
@@ -741,18 +840,108 @@ _kill_proc() {
                 warn "Could not kill $label process $pid — update may fail"
             fi
         done
+        return 2
     fi
 
     ok "$label stopped"
+    return 0
 }
 
-# Try to stop via systemd (needs sudo). If sudo fails, fall through to manual kill.
+PRE_START_MODE="stopped"
+if command -v systemctl >/dev/null 2>&1 && systemctl is-active --quiet aurago 2>/dev/null; then
+    PRE_START_MODE="systemd"
+elif [ -n "$(_find_install_pids "bin/aurago_linux" "bin/aurago" | tr -d '[:space:]')" ]; then
+    PRE_START_MODE="direct"
+fi
+info "Pre-update start mode: ${PRE_START_MODE}"
+
+restart_unchanged_after_failed_stop() {
+    local launch_pid=""
+    case "$PRE_START_MODE" in
+        stopped)
+            return 0
+            ;;
+        systemd)
+            command -v systemctl >/dev/null 2>&1 || return 1
+            $SUDO systemctl start aurago >/dev/null 2>&1 || return 1
+            local waited=0
+            while ! systemctl is-active --quiet aurago 2>/dev/null && [ "$waited" -lt 20 ]; do
+                sleep 1
+                waited=$((waited + 1))
+            done
+            systemctl is-active --quiet aurago 2>/dev/null || return 1
+            ;;
+        direct)
+            [ -x "$CURRENT_AURAGO_BIN" ] || return 1
+            mkdir -p "$DIR/log"
+            if [ -z "${AURAGO_MASTER_KEY:-}" ] && [ -f "$DIR/.env" ]; then
+                AURAGO_MASTER_KEY="$(read_master_key_from_env "$DIR/.env")"
+                export AURAGO_MASTER_KEY
+            fi
+            nohup "$CURRENT_AURAGO_BIN" --config "$DIR/config.yaml" >>"$DIR/log/aurago.log" 2>&1 &
+            launch_pid=$!
+            sleep 3
+            kill -0 "$launch_pid" 2>/dev/null || return 1
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+
+    if [ "$CORE_WAS_READY" = "ready" ] && binary_supports_option "$CURRENT_AURAGO_BIN" "healthcheck"; then
+        "$CURRENT_AURAGO_BIN" --config "$DIR/config.yaml" --healthcheck --healthcheck-timeout 60s >/dev/null 2>&1 || return 1
+    elif [ "$PRE_START_MODE" = "systemd" ]; then
+        systemctl is-active --quiet aurago 2>/dev/null || return 1
+    elif [ "$PRE_START_MODE" = "direct" ]; then
+        kill -0 "$launch_pid" 2>/dev/null || return 1
+    fi
+    return 0
+}
+
+abort_before_file_changes() {
+    local reason="$1"
+    if restart_unchanged_after_failed_stop; then
+        if [ "$PRE_START_MODE" = "stopped" ]; then
+            die "${reason} AuraGo was not running before the update; no restart was needed and no update files were touched."
+        fi
+        die "${reason} The unchanged installation was restarted and verified; no update files were touched."
+    fi
+    die "${reason} AuraGo could not be restarted automatically and is currently stopped. Start it manually with 'sudo systemctl start aurago' or './start.sh'. No update files were touched."
+}
+
+# Stop systemd first. An authorization failure is not bypassed with a manual
+# kill because Restart=always/on-failure could race the updater.
+SYSTEMD_STOP_FORCED=false
 if command -v systemctl >/dev/null 2>&1 && systemctl is-active --quiet aurago 2>/dev/null; then
     info "Stopping aurago systemd service..."
-    $SUDO systemctl stop aurago 2>/dev/null && sleep 2 && ok "systemd service stopped" || warn "sudo not available — falling back to manual kill"
+    if command -v timeout >/dev/null 2>&1; then
+        if ! timeout 60s $SUDO systemctl stop aurago; then
+            abort_before_file_changes "systemd did not stop AuraGo cleanly within 60 seconds."
+        fi
+    elif ! $SUDO systemctl stop aurago; then
+        abort_before_file_changes "systemd could not stop AuraGo."
+    fi
+    if systemctl is-active --quiet aurago 2>/dev/null; then
+        abort_before_file_changes "AuraGo is still active after systemd stop."
+    fi
+    _systemd_result="$(systemctl show aurago.service -p Result --value 2>/dev/null || true)"
+    if [ "$_systemd_result" = "timeout" ]; then
+        SYSTEMD_STOP_FORCED=true
+    fi
+    ok "systemd service stopped"
 fi
 # Always kill any remaining instances (covers manual starts, systemd restarts, etc.)
-_kill_proc "aurago"   "bin/aurago_linux" "bin/aurago"
+_stop_rc=0
+_kill_proc "aurago" "bin/aurago_linux" "bin/aurago" || _stop_rc=$?
+if [ "$_stop_rc" -ne 0 ]; then
+    if [ "$_stop_rc" -eq 2 ]; then
+        abort_before_file_changes "AuraGo required SIGKILL after the 60-second shutdown deadline."
+    fi
+    abort_before_file_changes "AuraGo could not be stopped safely."
+fi
+if $SYSTEMD_STOP_FORCED; then
+    abort_before_file_changes "systemd reported a forced timeout stop."
+fi
 
 # ── Remove lock files left by killed processes ─────────────────────────
 info "Removing stale lock files..."
@@ -774,6 +963,109 @@ ok "AuraGo-owned instances stopped"
 section "Backing up user data"
 BACKUP_DIR="$(mktemp -d /tmp/aurago-backup-XXXXXX)"
 info "Backup location: $BACKUP_DIR"
+SYSTEMD_DROPIN_DIR="/etc/systemd/system/aurago.service.d"
+SYSTEMD_STOP_TIMEOUT_DROPIN="${SYSTEMD_DROPIN_DIR}/20-aurago-stop-timeout.conf"
+SYSTEMD_DROPIN_BACKUP="${BACKUP_DIR}/20-aurago-stop-timeout.conf"
+SYSTEMD_DROPIN_EXISTED=false
+SYSTEMD_DROPIN_CHANGED=false
+
+if [ -L "$SYSTEMD_DROPIN_DIR" ] || [ -L "$SYSTEMD_STOP_TIMEOUT_DROPIN" ]; then
+    abort_before_file_changes "Refusing to update an unsafe symlinked systemd drop-in path."
+fi
+if [ -f "$SYSTEMD_STOP_TIMEOUT_DROPIN" ]; then
+    if cp -p "$SYSTEMD_STOP_TIMEOUT_DROPIN" "$SYSTEMD_DROPIN_BACKUP" 2>/dev/null || \
+       $SUDO cp -p "$SYSTEMD_STOP_TIMEOUT_DROPIN" "$SYSTEMD_DROPIN_BACKUP"; then
+        SYSTEMD_DROPIN_EXISTED=true
+        ok "Backed up the systemd stop-timeout drop-in."
+    else
+        abort_before_file_changes "Could not back up the existing systemd stop-timeout drop-in."
+    fi
+fi
+
+validate_tsnet_state_dir() {
+    local path="${1%/}"
+    [ -n "$path" ] || return 1
+    case "$path" in
+        /*) ;;
+        *) path="$DIR/$path" ;;
+    esac
+    local current="/"
+    local part
+    local parts=()
+    IFS='/' read -r -a parts <<< "${path#/}"
+    for part in "${parts[@]}"; do
+        [ -n "$part" ] || continue
+        current="${current%/}/$part"
+        [ ! -L "$current" ] || return 1
+    done
+    [ -d "$path" ] || return 1
+    local resolved
+    resolved="$(cd "$path" 2>/dev/null && pwd -P)" || return 1
+    case "$resolved" in
+        "/"|"${HOME%/}"|"${DIR%/}") return 1 ;;
+    esac
+    printf '%s\n' "$resolved"
+}
+
+backup_tsnet_state() {
+    local resolved candidate
+    candidate="${TSNET_STATE_DIR%/}"
+    case "$candidate" in
+        /*) ;;
+        *) candidate="$DIR/$candidate" ;;
+    esac
+    if [ ! -e "$candidate" ]; then
+        if [ "$TSNET_WAS_READY" = "ready" ]; then
+            abort_before_file_changes "The previously working tsnet state directory disappeared before backup."
+        fi
+        warn "No persisted tsnet state directory exists yet; there is nothing to back up."
+        return 0
+    fi
+    resolved="$(validate_tsnet_state_dir "$TSNET_STATE_DIR" || true)"
+    if [ -z "$resolved" ]; then
+        abort_before_file_changes "Refusing to update because the configured tsnet state path is unsafe."
+    fi
+    printf '%s\n' "$resolved" > "$BACKUP_DIR/tsnet-state.path"
+    if cp -a -- "$resolved" "$BACKUP_DIR/tsnet-state" 2>/dev/null || $SUDO cp -a -- "$resolved" "$BACKUP_DIR/tsnet-state"; then
+        ok "Backed up tsnet state with ownership and mode."
+        return 0
+    fi
+    abort_before_file_changes "Could not back up the configured tsnet state directory safely."
+}
+
+restore_tsnet_state_backup() {
+    [ -d "$BACKUP_DIR/tsnet-state" ] || return 0
+    [ -f "$BACKUP_DIR/tsnet-state.path" ] || return 1
+    local original resolved failed_copy
+    original="$(head -n 1 "$BACKUP_DIR/tsnet-state.path")"
+    resolved="$(validate_tsnet_state_dir "$original" || true)"
+    if [ -z "$resolved" ]; then
+        # The failed runtime may have removed the directory. Validate its parent
+        # and original lexical target before recreating it.
+        [ ! -L "$original" ] || return 1
+        local original_parent resolved_parent
+        original_parent="$(dirname "$original")"
+        resolved_parent="$(cd "$original_parent" 2>/dev/null && pwd -P)" || return 1
+        [ "$resolved_parent" = "$original_parent" ] || return 1
+        resolved="$resolved_parent/$(basename "$original")"
+    fi
+    case "${resolved%/}" in
+        ""|"/"|"${HOME%/}"|"${DIR%/}") return 1 ;;
+    esac
+    failed_copy="$BACKUP_DIR/tsnet-state.failed"
+    if [ -e "$resolved" ]; then
+        mv -- "$resolved" "$failed_copy" 2>/dev/null || $SUDO mv -- "$resolved" "$failed_copy" || return 1
+    fi
+    mkdir -p "$(dirname "$resolved")" 2>/dev/null || $SUDO mkdir -p "$(dirname "$resolved")"
+    if cp -a -- "$BACKUP_DIR/tsnet-state" "$resolved" 2>/dev/null || $SUDO cp -a -- "$BACKUP_DIR/tsnet-state" "$resolved"; then
+        ok "Restored pre-update tsnet state."
+        return 0
+    fi
+    if [ -e "$failed_copy" ]; then
+        mv -- "$failed_copy" "$resolved" 2>/dev/null || $SUDO mv -- "$failed_copy" "$resolved" || true
+    fi
+    return 1
+}
 
 backup_current_aurago_binary() {
     mkdir -p "$BACKUP_DIR/bin"
@@ -855,34 +1147,59 @@ restore_binary_update_resources_after_failure() {
 
 restart_previous_after_rollback() {
     $NO_RESTART && return 0
-    if command -v systemctl >/dev/null 2>&1; then
-        if $SUDO systemctl start aurago 2>/dev/null; then
-            ok "Previous aurago systemd service restarted after rollback."
-            return 0
+    CURRENT_AURAGO_BIN="$DIR/bin/aurago_linux"
+    [ -x "$CURRENT_AURAGO_BIN" ] || CURRENT_AURAGO_BIN="$DIR/bin/aurago"
+    if restart_unchanged_after_failed_stop; then
+        if [ "$PRE_START_MODE" = "stopped" ]; then
+            info "AuraGo was stopped before the update; rollback left it stopped."
+        else
+            ok "Previous AuraGo start mode restored and verified after rollback."
         fi
+        return 0
     fi
-    local launch_bin="$DIR/bin/aurago_linux"
-    [ -f "$launch_bin" ] || launch_bin="$DIR/bin/aurago"
-    [ -f "$launch_bin" ] || return 0
-    mkdir -p "$DIR/log"
-    nohup "$launch_bin" --config "$DIR/config.yaml" >> "$DIR/log/aurago.log" 2>&1 &
-    ok "Previous AuraGo binary restarted after rollback."
+    warn "The previous AuraGo installation was restored but could not be restarted automatically."
+    warn "Start it manually with 'sudo systemctl start aurago' or './start.sh'."
+    return 1
+}
+
+restore_service_stop_timeout_dropin() {
+    $SYSTEMD_DROPIN_CHANGED || return 0
+    if $SYSTEMD_DROPIN_EXISTED; then
+        [ -f "$SYSTEMD_DROPIN_BACKUP" ] || return 1
+        $SUDO mkdir -p "$SYSTEMD_DROPIN_DIR" || return 1
+        $SUDO install -o root -g root -m 0644 "$SYSTEMD_DROPIN_BACKUP" "$SYSTEMD_STOP_TIMEOUT_DROPIN" || return 1
+    else
+        $SUDO rm -f -- "$SYSTEMD_STOP_TIMEOUT_DROPIN" || return 1
+        $SUDO rmdir "$SYSTEMD_DROPIN_DIR" >/dev/null 2>&1 || true
+    fi
+    $SUDO systemctl daemon-reload >/dev/null 2>&1 || return 1
+    SYSTEMD_DROPIN_CHANGED=false
+    return 0
 }
 
 abort_update() {
     local msg="$1"
     warn "Update failed after shutdown; rolling back to the previous working state."
+    if command -v systemctl >/dev/null 2>&1; then
+        timeout 60s $SUDO systemctl stop aurago >/dev/null 2>&1 || true
+    fi
+    _kill_proc "updated AuraGo" "bin/aurago_linux" "bin/aurago" >/dev/null 2>&1 || true
     restore_previous_aurago_binary || true
     if [ -n "${PRE_UPDATE_REF:-}" ] && [ -d "$DIR/.git" ]; then
         git -C "$DIR" reset --hard "$PRE_UPDATE_REF" >/dev/null 2>&1 || warn "Could not reset git checkout to $PRE_UPDATE_REF during rollback."
     fi
     restore_binary_update_resources_after_failure
     restore_critical_user_data_after_failure
-    restart_previous_after_rollback || true
+    restore_tsnet_state_backup || warn "Could not restore the pre-update tsnet state automatically."
+    restore_service_stop_timeout_dropin || warn "Could not restore the previous systemd stop-timeout drop-in automatically."
+    if ! restart_previous_after_rollback; then
+        die "${msg} The previous files were restored, but AuraGo is stopped; start it manually with 'sudo systemctl start aurago' or './start.sh'."
+    fi
     die "$msg"
 }
 
 backup_current_aurago_binary
+backup_tsnet_state
 
 for f in "${PROTECTED_FILES[@]}"; do
     if [ -f "$DIR/$f" ]; then
@@ -1546,87 +1863,94 @@ if [ -f "$SVC_FILE" ]; then
     fi
 fi
 
+# Keep systemd's stop deadline slightly above AuraGo's 45-second internal
+# shutdown deadline. A dedicated drop-in avoids position-dependent edits to
+# legacy service files.
+if [ -f "$SVC_FILE" ]; then
+    _dropin_tmp="$(mktemp)"
+    printf '%s\n' \
+        '[Service]' \
+        'TimeoutStopSec=60s' > "$_dropin_tmp"
+    if ! $SUDO mkdir -p "$SYSTEMD_DROPIN_DIR" ||
+       ! $SUDO install -o root -g root -m 0644 "$_dropin_tmp" "$SYSTEMD_STOP_TIMEOUT_DROPIN"; then
+        rm -f -- "$_dropin_tmp"
+        abort_update "Could not install the systemd stop-timeout drop-in."
+    fi
+    rm -f -- "$_dropin_tmp"
+    SYSTEMD_DROPIN_CHANGED=true
+    if ! $SUDO systemctl daemon-reload ||
+       ! systemd-analyze verify aurago.service >/dev/null 2>&1; then
+        restore_service_stop_timeout_dropin || warn "Could not restore the previous systemd stop-timeout drop-in after verification failed."
+        abort_update "systemd rejected the AuraGo service configuration after installing the stop-timeout drop-in."
+    fi
+    ok "Service stop timeout drop-in verified at 60 seconds."
+fi
+
 # ── Service restart ────────────────────────────────────────────────────
 section "Restart"
+
+LAUNCH_BIN="$DIR/bin/aurago_linux"
+[ -x "$LAUNCH_BIN" ] || LAUNCH_BIN="$DIR/bin/aurago"
+STARTED_AFTER_UPDATE=false
+START_MODE=""
+
+start_updated_directly() {
+    [ -x "$LAUNCH_BIN" ] || return 1
+    mkdir -p "$DIR/log"
+    if [ -z "${AURAGO_MASTER_KEY:-}" ] && [ -f "$DIR/.env" ]; then
+        AURAGO_MASTER_KEY="$(read_master_key_from_env "$DIR/.env")"
+        export AURAGO_MASTER_KEY
+    fi
+    nohup "$LAUNCH_BIN" --config "$DIR/config.yaml" >>"${DIR}/log/aurago.log" 2>&1 &
+    LAUNCH_PID=$!
+    START_MODE="direct"
+    STARTED_AFTER_UPDATE=true
+    info "AuraGo starting directly (PID=$LAUNCH_PID)..."
+}
 
 if $NO_RESTART; then
     warn "Skipping restart (--no-restart flag set). Start manually:"
     echo "   sudo systemctl restart aurago   OR   ./start.sh"
 elif command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files aurago.service >/dev/null 2>&1; then
     info "Starting aurago systemd service..."
-    # Try sudo first; if it fails (no password), fall back to nohup start
-    if $SUDO systemctl start aurago 2>/dev/null; then
-        sleep 2
-        if systemctl is-active --quiet aurago 2>/dev/null; then
-            ok "Service started successfully via systemd."
-        else
-            warn "systemd start failed health check — rolling back to previous binary."
-            if restore_previous_aurago_binary; then
-                $SUDO systemctl start aurago 2>/dev/null || true
-            fi
-            if systemctl is-active --quiet aurago 2>/dev/null; then
-                ok "Service recovered successfully after rollback."
-            else
-                warn "Rollback did not recover the service — check: sudo journalctl -u aurago -n 50"
-            fi
-        fi
+    if $SUDO systemctl start aurago; then
+        START_MODE="systemd"
+        STARTED_AFTER_UPDATE=true
     else
         warn "sudo not available — starting aurago directly (systemd will adopt on next boot)"
-        LAUNCH_BIN="$DIR/bin/aurago_linux"
-        [ ! -f "$LAUNCH_BIN" ] && LAUNCH_BIN="$DIR/bin/aurago"
-        if [ -f "$LAUNCH_BIN" ]; then
-            mkdir -p "$DIR/log"
-            # Ensure the vault key is available even if env inheritance broke.
-            if [ -z "${AURAGO_MASTER_KEY:-}" ] && [ -f "$DIR/.env" ]; then
-                AURAGO_MASTER_KEY="$(read_master_key_from_env "$DIR/.env")"
-                export AURAGO_MASTER_KEY
-            fi
-            nohup "$LAUNCH_BIN" --config "$DIR/config.yaml" >>"${DIR}/log/aurago.log" 2>&1 &
-            LAUNCH_PID=$!
-            info "AuraGo starting (PID=$LAUNCH_PID)..."
-            sleep 3
-            if kill -0 "$LAUNCH_PID" 2>/dev/null; then
-                ok "AuraGo running (PID=$LAUNCH_PID). Logs: ${DIR}/log/aurago.log"
-            else
-                warn "direct start failed health check — rolling back to previous binary."
-                if restore_previous_aurago_binary; then
-                    nohup "$LAUNCH_BIN" --config "$DIR/config.yaml" >>"${DIR}/log/aurago.log" 2>&1 &
-                    ok "Started previous AuraGo binary after rollback (PID=$!)."
-                else
-                    warn "AuraGo may have exited immediately — check: tail -n 50 ${DIR}/log/aurago.log"
-                fi
-            fi
-        else
-            warn "No aurago binary found — start manually with: ./start.sh"
-        fi
+        start_updated_directly || abort_update "No executable AuraGo binary is available after the update."
     fi
 else
-    LAUNCH_BIN="$DIR/bin/aurago_linux"
-    [ ! -f "$LAUNCH_BIN" ] && LAUNCH_BIN="$DIR/bin/aurago"
-    if [ ! -f "$LAUNCH_BIN" ]; then
-        warn "No aurago binary found — start manually with: ./start.sh"
-    else
-        mkdir -p "$DIR/log"
-        # Ensure the vault key is available even if env inheritance broke.
-        if [ -z "${AURAGO_MASTER_KEY:-}" ] && [ -f "$DIR/.env" ]; then
-            AURAGO_MASTER_KEY="$(read_master_key_from_env "$DIR/.env")"
-            export AURAGO_MASTER_KEY
+    start_updated_directly || abort_update "No executable AuraGo binary is available after the update."
+fi
+
+if $STARTED_AFTER_UPDATE; then
+    if [ "$START_MODE" = "systemd" ]; then
+        # A systemd start failed health check is a core failure and must use
+        # the same complete rollback path as any other core-readiness failure.
+        _active_wait=0
+        while ! systemctl is-active --quiet aurago 2>/dev/null && [ "$_active_wait" -lt 20 ]; do
+            sleep 1
+            _active_wait=$((_active_wait + 1))
+        done
+        if ! systemctl is-active --quiet aurago 2>/dev/null; then
+            abort_update "The updated systemd process did not become active."
         fi
-        nohup "$LAUNCH_BIN" --config "$DIR/config.yaml" >>"${DIR}/log/aurago.log" 2>&1 &
-        LAUNCH_PID=$!
-        info "AuraGo starting (PID=$LAUNCH_PID)..."
-        sleep 3
-        if kill -0 "$LAUNCH_PID" 2>/dev/null; then
-            ok "AuraGo running (PID=$LAUNCH_PID). Logs: ${DIR}/log/aurago.log"
-        else
-            warn "direct start failed health check — rolling back to previous binary."
-            if restore_previous_aurago_binary; then
-                nohup "$LAUNCH_BIN" --config "$DIR/config.yaml" >>"${DIR}/log/aurago.log" 2>&1 &
-                ok "Started previous AuraGo binary after rollback (PID=$!)."
-            else
-                warn "AuraGo may have exited immediately — check: tail -n 50 ${DIR}/log/aurago.log"
-            fi
+        ok "Updated systemd process is active."
+    fi
+
+    if ! "$LAUNCH_BIN" --config "$DIR/config.yaml" --healthcheck --healthcheck-timeout 60s; then
+        abort_update "Core readiness failed after the update."
+    fi
+    ok "Core readiness verified."
+
+    if [ "$TSNET_WAS_READY" = "ready" ]; then
+        if ! "$LAUNCH_BIN" --config "$DIR/config.yaml" --healthcheck --healthcheck-timeout 180s --healthcheck-require-tsnet; then
+            warn "AuraGo core is healthy, but the previously working tsnet node did not recover."
+            warn "The updated binary and the state backup are being kept; a binary rollback would not repair a credential or node-key problem."
+            die "Update incomplete: tsnet readiness failed. Review /api/tsnet/status and use node-specific reauthentication. Backup: $BACKUP_DIR"
         fi
+        ok "tsnet readiness verified."
     fi
 fi
 

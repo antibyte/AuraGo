@@ -495,7 +495,6 @@ os.system("ls")
 	}
 }
 
-
 func TestGetExecutableSkillByNameBlocksDisabledAndPending(t *testing.T) {
 	mgr, _ := setupTestSkillManager(t)
 	created, err := mgr.CreateSkillEntry("exec_guard", "guard test", `def run(): return "ok"`, SkillTypeUser, "test", "", nil)

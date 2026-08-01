@@ -119,14 +119,14 @@ func TestBuildToolCallGroups(t *testing.T) {
 func TestScoreBasedTrimming(t *testing.T) {
 	messages := []openai.ChatCompletionMessage{
 		{Role: openai.ChatMessageRoleSystem, Content: "sys"},
-		{Role: openai.ChatMessageRoleUser, Content: "question"},          // score High, idx=1
-		{Role: openai.ChatMessageRoleAssistant, Content: "ok"},           // score Low, idx=2
-		{Role: openai.ChatMessageRoleAssistant, Content: "ack"},          // score Low, idx=3
-		{Role: openai.ChatMessageRoleUser, Content: "another question"},  // score High, idx=4
-		{Role: openai.ChatMessageRoleAssistant, Content: "response"},     // score Medium, idx=5
-		{Role: openai.ChatMessageRoleUser, Content: "q3"},                // score High, idx=6
-		{Role: openai.ChatMessageRoleAssistant, Content: "a3"},           // score Medium, idx=7
-		{Role: openai.ChatMessageRoleUser, Content: "latest"},            // score High, idx=8
+		{Role: openai.ChatMessageRoleUser, Content: "question"},         // score High, idx=1
+		{Role: openai.ChatMessageRoleAssistant, Content: "ok"},          // score Low, idx=2
+		{Role: openai.ChatMessageRoleAssistant, Content: "ack"},         // score Low, idx=3
+		{Role: openai.ChatMessageRoleUser, Content: "another question"}, // score High, idx=4
+		{Role: openai.ChatMessageRoleAssistant, Content: "response"},    // score Medium, idx=5
+		{Role: openai.ChatMessageRoleUser, Content: "q3"},               // score High, idx=6
+		{Role: openai.ChatMessageRoleAssistant, Content: "a3"},          // score Medium, idx=7
+		{Role: openai.ChatMessageRoleUser, Content: "latest"},           // score High, idx=8
 	}
 
 	tokenFn := func(s string) int { return len(s) }

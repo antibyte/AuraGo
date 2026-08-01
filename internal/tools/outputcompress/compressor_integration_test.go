@@ -121,6 +121,7 @@ func TestCompress_UnknownTool(t *testing.T) {
 		t.Errorf("expected generic filter, got %q", stats.FilterUsed)
 	}
 }
+
 // ── V3: Sub-Toggle Tests ─────────────────────────────────────────────
 
 func TestCompress_ShellSubToggleOff(t *testing.T) {
@@ -209,6 +210,7 @@ func TestCompress_SubToggleMixed(t *testing.T) {
 		t.Errorf("python should fall through to generic with PythonCompression=false, got %q", pyStats.FilterUsed)
 	}
 }
+
 // ─── Grenzwert- und Performance-Tests ──────────────────────────────────────
 
 func TestCompress_VeryLargeOutput(t *testing.T) {

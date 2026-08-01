@@ -97,6 +97,10 @@ func main() {
 	var httpsEmail string
 	var initialPassword string
 	var initialPasswordFile string
+	var healthcheck bool
+	var healthcheckTimeout time.Duration
+	var healthcheckRequireTsNet bool
+	var printTsNetStateDirOnly bool
 	flag.BoolVar(&debug, "debug", false, "Enable debug mode")
 	flag.BoolVar(&runSetup, "setup", false, "Extract resources.dat, install service, and exit")
 	flag.BoolVar(&initOnly, "init-only", false, "Apply -password/-password-file/-https flags to config/vault, then exit immediately (used by installer)")
@@ -107,6 +111,10 @@ func main() {
 	flag.StringVar(&httpsEmail, "email", "", "Email for Let's Encrypt")
 	flag.StringVar(&initialPassword, "password", "", "Set initial login password (hashes and stores in vault)")
 	flag.StringVar(&initialPasswordFile, "password-file", "", "Read initial login password from a 0600 file")
+	flag.BoolVar(&healthcheck, "healthcheck", false, "Check local AuraGo readiness and exit")
+	flag.DurationVar(&healthcheckTimeout, "healthcheck-timeout", 60*time.Second, "Maximum wait for --healthcheck")
+	flag.BoolVar(&healthcheckRequireTsNet, "healthcheck-require-tsnet", false, "Require the main tsnet node and listener to be ready")
+	flag.BoolVar(&printTsNetStateDirOnly, "print-tsnet-state-dir", false, "Print the configured tsnet state directory and exit")
 	flag.Parse()
 
 	appLog := logger.Setup(debug)
@@ -129,6 +137,26 @@ func main() {
 		os.Exit(1)
 	} else {
 		initialPassword = resolved
+	}
+
+	if healthcheck || printTsNetStateDirOnly {
+		healthCfg, loadErr := config.Load(configFile)
+		if loadErr != nil {
+			fmt.Fprintf(os.Stderr, "CONFIG ERROR: %v\n", loadErr)
+			os.Exit(1)
+		}
+		if printTsNetStateDirOnly {
+			if err := printTsNetStateDir(healthCfg); err != nil {
+				fmt.Fprintf(os.Stderr, "TSNET STATE ERROR: %v\n", err)
+				os.Exit(1)
+			}
+			return
+		}
+		if err := runCLIHealthcheck(healthCfg, healthcheckTimeout, healthcheckRequireTsNet); err != nil {
+			fmt.Fprintf(os.Stderr, "HEALTHCHECK ERROR: %v\n", err)
+			os.Exit(1)
+		}
+		return
 	}
 
 	// -- Robust File Locking ------------------------------------------------

@@ -1415,6 +1415,9 @@ tailscale:
     readonly: false
     tailnet: ""
     tsnet:
+        # Auth keys are Vault-only. Prefer tailscale_tsnet_authkey_main,
+        # tailscale_tsnet_authkey_manifest and tailscale_tsnet_authkey_space_agent.
+        # tailscale_tsnet_authkey and TS_AUTHKEY remain shared legacy fallbacks.
         enabled: false                      # enable embedded Tailscale node (independent of API integration)
         hostname: aurago                    # MagicDNS hostname → aurago.tailnet-name.ts.net
         state_dir: ""                       # persistent state directory (default: data/tsnet)

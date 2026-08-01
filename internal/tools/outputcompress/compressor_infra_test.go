@@ -115,6 +115,7 @@ func TestCompressK8s_Routing(t *testing.T) {
 		}
 	}
 }
+
 // ── V5: Systemctl Compressor Tests ────────────────────────────────────
 
 func TestCompressSystemctlStatus(t *testing.T) {
@@ -193,6 +194,7 @@ func TestCompressSystemctl_Routing(t *testing.T) {
 		}
 	}
 }
+
 // ── V5: Journalctl/Logs Routing Tests ─────────────────────────────────
 
 func TestCompressLogs_Routing(t *testing.T) {
@@ -210,6 +212,7 @@ func TestCompressLogs_Routing(t *testing.T) {
 		}
 	}
 }
+
 // ── V6: Docker Compose Tests ──────────────────────────────────────────
 
 func TestCompressComposePs_Large(t *testing.T) {
@@ -269,6 +272,7 @@ func TestCompressDockerCompose_Routing(t *testing.T) {
 		}
 	}
 }
+
 // ── V6: Helm Tests ────────────────────────────────────────────────────
 
 func TestCompressHelmList_Large(t *testing.T) {
@@ -333,6 +337,7 @@ func TestCompressHelm_Routing(t *testing.T) {
 		}
 	}
 }
+
 // ── V6: Terraform Tests ───────────────────────────────────────────────
 
 func TestCompressTerraformPlan(t *testing.T) {
@@ -430,6 +435,7 @@ func TestCompressTerraform_Routing(t *testing.T) {
 		}
 	}
 }
+
 // ── V6: SSH Diagnostic Tests ──────────────────────────────────────────
 
 func TestCompressDiskFree_HighUsage(t *testing.T) {
@@ -572,6 +578,7 @@ func TestCompressSSHDiag_Routing(t *testing.T) {
 		}
 	}
 }
+
 // ─── V8: Network Diagnostics Compressor Tests ────────────────────────────────
 
 func TestCompressPing_Success(t *testing.T) {

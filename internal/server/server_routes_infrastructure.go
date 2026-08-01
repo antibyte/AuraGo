@@ -188,8 +188,10 @@ func (s *Server) registerInfrastructureRoutes(mux *http.ServeMux, shutdownCh cha
 	s.Logger.Info("Cloudflare Tunnel API registered at /api/cloudflare-tunnel/...")
 
 	mux.HandleFunc("/api/tsnet/status", handleTsNetStatus(s))
-	mux.HandleFunc("/api/tsnet/start", handleTsNetStart(s))
-	mux.HandleFunc("/api/tsnet/stop", handleTsNetStop(s))
+	mux.Handle("/api/tsnet/start", requireAdmin(s, handleTsNetStart(s)))
+	mux.Handle("/api/tsnet/stop", requireAdmin(s, handleTsNetStop(s)))
+	mux.Handle("/api/tsnet/credentials", requireAdmin(s, handleTsNetCredentials(s)))
+	mux.Handle("/api/tsnet/reauth", requireAdmin(s, handleTsNetReauth(s)))
 	s.Logger.Info("tsnet API registered at /api/tsnet/...")
 
 	mux.HandleFunc("/api/cert/status", handleCertStatus(s))

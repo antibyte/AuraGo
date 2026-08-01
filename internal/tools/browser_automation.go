@@ -33,17 +33,17 @@ const (
 )
 
 type BrowserAutomationRequest struct {
-	Operation    string
-	SessionID    string
-	URL          string
-	Selector     string
-	Text         string
-	Value        string
-	Key          string
-	WaitFor      string
-	TimeoutMs    int
-	OutputPath   string
-	FullPage     bool
+	Operation            string
+	SessionID            string
+	URL                  string
+	Selector             string
+	Text                 string
+	Value                string
+	Key                  string
+	WaitFor              string
+	TimeoutMs            int
+	OutputPath           string
+	FullPage             bool
 	FilePath             string
 	DownloadName         string
 	DOMSnippet           bool
@@ -54,18 +54,18 @@ type BrowserAutomationRequest struct {
 }
 
 type BrowserAutomationSidecarConfig struct {
-	URL            string
-	Image          string
-	ContainerName  string
-	AuthToken      string
-	HTTPClient     *http.Client
-	AutoBuild      bool
-	DockerfileDir  string
-	SessionTTL     int
-	MaxSessions    int
-	Headless       bool
-	AllowUploads   bool
-	AllowDownloads bool
+	URL                  string
+	Image                string
+	ContainerName        string
+	AuthToken            string
+	HTTPClient           *http.Client
+	AutoBuild            bool
+	DockerfileDir        string
+	SessionTTL           int
+	MaxSessions          int
+	Headless             bool
+	AllowUploads         bool
+	AllowDownloads       bool
 	ReadOnly             bool
 	WorkspaceDir         string
 	DownloadDir          string
@@ -510,17 +510,17 @@ func browserAutomationSidecarConfig(cfg *config.Config) (BrowserAutomationSideca
 	}
 	runningInDocker := cfg.Runtime.IsDocker || browserAutomationRunsInDocker()
 	return BrowserAutomationSidecarConfig{
-		URL:            config.NormalizeLegacySidecarURL(cfg.BrowserAutomation.URL, runningInDocker, "browser-automation", browserAutomationContainerPort),
-		Image:          cfg.BrowserAutomation.Image,
-		ContainerName:  cfg.BrowserAutomation.ContainerName,
-		AuthToken:      browserAutomationAuthToken(cfg),
-		AutoBuild:      cfg.BrowserAutomation.AutoBuild,
-		DockerfileDir:  cfg.BrowserAutomation.DockerfileDir,
-		SessionTTL:     cfg.BrowserAutomation.SessionTTLMinutes,
-		MaxSessions:    cfg.BrowserAutomation.MaxSessions,
-		Headless:       cfg.BrowserAutomation.Headless,
-		AllowUploads:   cfg.BrowserAutomation.AllowFileUploads,
-		AllowDownloads: cfg.BrowserAutomation.AllowFileDownloads,
+		URL:                  config.NormalizeLegacySidecarURL(cfg.BrowserAutomation.URL, runningInDocker, "browser-automation", browserAutomationContainerPort),
+		Image:                cfg.BrowserAutomation.Image,
+		ContainerName:        cfg.BrowserAutomation.ContainerName,
+		AuthToken:            browserAutomationAuthToken(cfg),
+		AutoBuild:            cfg.BrowserAutomation.AutoBuild,
+		DockerfileDir:        cfg.BrowserAutomation.DockerfileDir,
+		SessionTTL:           cfg.BrowserAutomation.SessionTTLMinutes,
+		MaxSessions:          cfg.BrowserAutomation.MaxSessions,
+		Headless:             cfg.BrowserAutomation.Headless,
+		AllowUploads:         cfg.BrowserAutomation.AllowFileUploads,
+		AllowDownloads:       cfg.BrowserAutomation.AllowFileDownloads,
 		ReadOnly:             cfg.BrowserAutomation.ReadOnly,
 		WorkspaceDir:         workspaceRoot,
 		DownloadDir:          downloadsRoot,

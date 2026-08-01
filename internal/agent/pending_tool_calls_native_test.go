@@ -38,18 +38,18 @@ func TestProcessPendingToolCallsNativeAppendsOnlyToolResultToRequest(t *testing.
 
 	ptc := ToolCall{Action: "shell", NativeCallID: "call_second"}
 	s := &agentLoopState{
-		ctx:               context.Background(),
-		broker:            NoopBroker{},
-		currentLogger:     logger,
-		recoveryState:     newToolRecoveryStateWithPolicy(buildRecoveryPolicy(cfg)),
-		sessionUsedTools:  make(map[string]bool),
+		ctx:              context.Background(),
+		broker:           NoopBroker{},
+		currentLogger:    logger,
+		recoveryState:    newToolRecoveryStateWithPolicy(buildRecoveryPolicy(cfg)),
+		sessionUsedTools: make(map[string]bool),
 		runCfg: RunConfig{
 			Config:         cfg,
 			SessionID:      "default",
 			ShortTermMem:   stm,
 			HistoryManager: historyManager,
 		},
-		req: openai.ChatCompletionRequest{Messages: append([]openai.ChatCompletionMessage(nil), initialMessages...)},
+		req:        openai.ChatCompletionRequest{Messages: append([]openai.ChatCompletionMessage(nil), initialMessages...)},
 		pendingTCs: []ToolCall{ptc},
 		pendingSummaryBatch: map[string]string{
 			pendingSummaryBatchKey(ptc): `{"status":"shell ok"}`,

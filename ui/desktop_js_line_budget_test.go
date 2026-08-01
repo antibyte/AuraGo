@@ -18,7 +18,7 @@ func TestVirtualDesktopFirstPartyJSFilesStayBelowLineBudget(t *testing.T) {
 		filepath.ToSlash(filepath.Join("js", "desktop", "apps", "agent-chat.js")):                  true,
 		filepath.ToSlash(filepath.Join("js", "desktop", "apps", "quickconnect-launchpad-chat.js")): true,
 		filepath.ToSlash(filepath.Join("js", "desktop", "apps", "galaxa-entities.js")):             true,
-		filepath.ToSlash(filepath.Join("js", "desktop", "apps", "galaxa-render.js")):                true,
+		filepath.ToSlash(filepath.Join("js", "desktop", "apps", "galaxa-render.js")):               true,
 		filepath.ToSlash(filepath.Join("js", "desktop", "apps", "galaxa-sprites.js")):              true,
 		filepath.ToSlash(filepath.Join("js", "desktop", "apps", "sheets.js")):                      true,
 		filepath.ToSlash(filepath.Join("js", "desktop", "apps", "code-studio", "core.js")):         true,

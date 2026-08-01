@@ -145,6 +145,7 @@ func TestCompressRsync_Errors(t *testing.T) {
 		t.Error("expected rsync error preserved")
 	}
 }
+
 // ─── V10A Tests: Filesystem / File Reader / Smart File ──────────────────────
 
 func TestCompress_APIRouting_FileTools(t *testing.T) {
@@ -564,6 +565,7 @@ func TestCompressSF_Error(t *testing.T) {
 		t.Error("expected error preserved")
 	}
 }
+
 // ─── V10B: Process tool tests ──────────────────────────────────────────────
 
 func TestCompress_APIRouting_ProcessTools(t *testing.T) {
@@ -662,6 +664,7 @@ func TestCompressReadProcessLogs_Empty(t *testing.T) {
 		t.Errorf("expected empty indicator, got %q", result)
 	}
 }
+
 // ─── V10C: Agent status tool tests ─────────────────────────────────────────
 
 func TestCompress_APIRouting_AgentStatusTools(t *testing.T) {

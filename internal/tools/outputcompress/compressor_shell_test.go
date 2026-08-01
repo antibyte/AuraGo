@@ -133,6 +133,7 @@ func TestCompressGitDiff_Small(t *testing.T) {
 		t.Error("should produce output")
 	}
 }
+
 // ─── Docker Filter Tests ────────────────────────────────────────────────────
 
 func TestCompressDockerPS(t *testing.T) {
@@ -166,6 +167,7 @@ func TestCompressDockerLogs(t *testing.T) {
 		t.Errorf("expected compression: %d >= %d", len(result), len(output))
 	}
 }
+
 // ─── Go Test Filter Tests ───────────────────────────────────────────────────
 
 func TestCompressGoTest(t *testing.T) {
@@ -193,6 +195,7 @@ ok      aurago/internal/config  0.012s
 		t.Error("should contain passing package summary")
 	}
 }
+
 // ─── Python Traceback Filter Tests ──────────────────────────────────────────
 
 func TestFilterPythonTraceback_NoTraceback(t *testing.T) {
@@ -229,6 +232,7 @@ json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
 		// Also acceptable if just filtered out
 	}
 }
+
 // ─── Grep Filter Tests ──────────────────────────────────────────────────────
 
 func TestCompressGrep_SmallOutput(t *testing.T) {
@@ -256,6 +260,7 @@ func TestCompressGrep_LargeOutput(t *testing.T) {
 		t.Error("should show match count for large files")
 	}
 }
+
 // ─── Find Filter Tests ──────────────────────────────────────────────────────
 
 func TestCompressFind_SmallOutput(t *testing.T) {
@@ -279,6 +284,7 @@ func TestCompressFind_LargeOutput(t *testing.T) {
 		t.Error("should mention directories")
 	}
 }
+
 // ─── LsTree Filter Tests ────────────────────────────────────────────────────
 
 func TestCompressLsTree_Small(t *testing.T) {
@@ -299,6 +305,7 @@ func TestCompressLsTree_Large(t *testing.T) {
 		t.Error("should group by directory")
 	}
 }
+
 // ── V5: JS/Test Compressor Tests ──────────────────────────────────────
 
 func TestCompressJsTest_WithFailures(t *testing.T) {
@@ -363,6 +370,7 @@ func TestCompressJsTest_Routing(t *testing.T) {
 		}
 	}
 }
+
 // ── V5: Lint Compressor Tests ─────────────────────────────────────────
 
 func TestCompressLint_Small(t *testing.T) {
@@ -419,6 +427,7 @@ func TestExtractLintFile(t *testing.T) {
 		}
 	}
 }
+
 // ─── V7: Shell File/Log Compressor Tests ─────────────────────────────────────
 
 func TestCompressCatFile_LogContent(t *testing.T) {
@@ -584,6 +593,7 @@ func TestCompressShell_V7Routing(t *testing.T) {
 		}
 	}
 }
+
 // ─── V9B: Text pipeline tests ──────────────────────────────────────────────
 
 func TestCompressShell_V9B_Routing(t *testing.T) {

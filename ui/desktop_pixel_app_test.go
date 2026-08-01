@@ -127,13 +127,13 @@ func TestPixelNewMenuItemsUseAvailableIcons(t *testing.T) {
 	js := readPixelAppScripts(t)
 
 	newMenuIcons := map[string]string{
-		"new-image": "image",
-		"copy":      "image",
-		"cut":       "scissors",
-		"paste":     "image",
+		"new-image":  "image",
+		"copy":       "image",
+		"cut":        "scissors",
+		"paste":      "image",
 		"select-all": "image",
-		"deselect":  "image",
-		"shortcuts": "image",
+		"deselect":   "image",
+		"shortcuts":  "image",
 	}
 	for id, icon := range newMenuIcons {
 		pattern := regexp.MustCompile(`\{\s*id:\s*'` + regexp.QuoteMeta(id) + `',\s*labelKey:\s*'[^']+',\s*icon:\s*'` + regexp.QuoteMeta(icon) + `'`)

@@ -23,8 +23,11 @@ func TestLoadPlainSkillSecretsRejectsSystemManagedKeys(t *testing.T) {
 	if err := vault.WriteSecret("github_token", "system-secret"); err != nil {
 		t.Fatalf("WriteSecret(system): %v", err)
 	}
-	if err := vault.WriteSecret("user_defined_api_key", "user-secret"); err != nil {
-		t.Fatalf("WriteSecret(user): %v", err)
+	if err := vault.WriteAgentSecret("user_defined_api_key", "agent-secret"); err != nil {
+		t.Fatalf("WriteAgentSecret: %v", err)
+	}
+	if err := vault.WriteSecret("modal_api_key", "modal-secret"); err != nil {
+		t.Fatalf("WriteSecret(modal): %v", err)
 	}
 
 	s := &Server{
@@ -33,15 +36,18 @@ func TestLoadPlainSkillSecretsRejectsSystemManagedKeys(t *testing.T) {
 	}
 	s.Cfg.Tools.PythonSecretInjection.Enabled = true
 	skill := &tools.SkillRegistryEntry{
-		VaultKeys: []string{"github_token", "user_defined_api_key"},
+		VaultKeys: []string{"github_token", "user_defined_api_key", "modal_api_key"},
 	}
 
 	got := loadPlainSkillSecrets(s, skill)
 	if _, ok := got["github_token"]; ok {
 		t.Fatalf("loadPlainSkillSecrets exposed system-managed github_token")
 	}
-	if got["user_defined_api_key"] != "user-secret" {
-		t.Fatalf("loadPlainSkillSecrets user secret = %q, want user-secret", got["user_defined_api_key"])
+	if got["user_defined_api_key"] != "agent-secret" {
+		t.Fatalf("loadPlainSkillSecrets agent secret = %q, want agent-secret", got["user_defined_api_key"])
+	}
+	if _, ok := got["modal_api_key"]; ok {
+		t.Fatalf("loadPlainSkillSecrets exposed modal/user-supplied secret")
 	}
 }
 

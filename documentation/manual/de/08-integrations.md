@@ -388,7 +388,36 @@ VPN-Status und -Verwaltung.
 tailscale:
   enabled: true
   tailnet: "tailnet.ts.net"
+  tsnet:
+    enabled: true
+    hostname: "aurago"
+    serve_http: true
 ```
+
+### Eingebettete tsnet-Knoten
+
+Die eingebettete Verbindung verwaltet drei getrennte Tailscale-Identitäten:
+den AuraGo-Hauptknoten und – sofern aktiviert – eigene Manifest- und
+Space-Agent-Knoten. Speichere ihre Auth-Keys im Vault unter
+`tailscale_tsnet_authkey_main`, `tailscale_tsnet_authkey_manifest` und
+`tailscale_tsnet_authkey_space_agent`. Der bisherige
+`tailscale_tsnet_authkey` und `TS_AUTHKEY` bleiben gemeinsame Fallbacks. Ein
+One-off-Key kann jedoch nicht mehrere Knoten registrieren.
+
+Das Speichern eines Schlüssels unterbricht eine gesunde Verbindung nicht.
+Wende ihn gezielt mit **Neu authentifizieren** am jeweiligen Knoten an.
+Normale Neustarts behalten einen gesunden Zustand bei. **Zustand
+wiederherstellen** erscheint nur nach einem Initialisierungsfehler und
+verlangt eine ausdrückliche Bestätigung, weil dadurch eine neue
+Tailscale-Identität und MagicDNS-Adresse entstehen können. AuraGo sichert den
+bisherigen Zustand atomar und stellt ihn bei fehlgeschlagener Prüfung wieder
+her. Lösche `data/tsnet` niemals zur Behebung eines Authentifizierungsfehlers.
+
+`GET /api/ready?require=tsnet` prüft den Hauptknoten und seine konfigurierte
+Webfreigabe. Fehler der optionalen Manifest-, Space-Agent- und
+Homepage-Freigaben werden als eingeschränkt gemeldet, blockieren aber nicht
+die funktionierende Haupt-UI. Der Updater erhält den konfigurierten
+tsnet-Zustand und prüft einen zuvor gesunden Knoten nach dem Neustart erneut.
 
 ## Brave Search
 

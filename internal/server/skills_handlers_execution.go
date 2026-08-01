@@ -125,8 +125,11 @@ func loadPlainSkillSecrets(s *Server, skill *tools.SkillRegistryEntry) map[strin
 			}
 			continue
 		}
-		value, err := s.Vault.ReadSecret(key)
+		value, err := s.Vault.ReadSecretForAgent(key)
 		if err != nil || value == "" {
+			if s.Logger != nil {
+				s.Logger.Warn("[Skills] blocked non-agent Vault key for skill test", "skill", skill.Name, "key", key)
+			}
 			continue
 		}
 		secrets[key] = value

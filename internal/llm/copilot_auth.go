@@ -25,11 +25,11 @@ import (
 // The Copilot token is short-lived (typically ~25 min). It is refreshed
 // automatically when GetToken is called and the cached token is near expiry.
 type CopilotAuth struct {
-	mu          sync.RWMutex
-	githubToken string        // the OAuth access token from GitHub
-	copilotToken string       // the short-lived token for api.githubcopilot.com
-	expiresAt   time.Time     // cached token expiry (already reduced by safety margin)
-	client      *http.Client
+	mu           sync.RWMutex
+	githubToken  string    // the OAuth access token from GitHub
+	copilotToken string    // the short-lived token for api.githubcopilot.com
+	expiresAt    time.Time // cached token expiry (already reduced by safety margin)
+	client       *http.Client
 }
 
 // Global Copilot auth manager. Initialized at server startup when a Copilot
@@ -82,11 +82,11 @@ type CopilotTokenResponse struct {
 }
 
 const (
-	githubDeviceCodeURL   = "https://github.com/login/device/code"
-	githubAccessTokenURL  = "https://github.com/login/oauth/access_token"
-	copilotTokenURL       = "https://api.github.com/copilot_internal/v2/token"
-	githubOAuthClientID   = "Iv1.b507a08c87ecfe98" // GitHub Copilot's public client ID
-	copilotExpiryBuffer   = 2 * time.Minute          // refresh 2 min before actual expiry
+	githubDeviceCodeURL  = "https://github.com/login/device/code"
+	githubAccessTokenURL = "https://github.com/login/oauth/access_token"
+	copilotTokenURL      = "https://api.github.com/copilot_internal/v2/token"
+	githubOAuthClientID  = "Iv1.b507a08c87ecfe98" // GitHub Copilot's public client ID
+	copilotExpiryBuffer  = 2 * time.Minute        // refresh 2 min before actual expiry
 )
 
 // RequestDeviceCode initiates the GitHub OAuth device-code flow.

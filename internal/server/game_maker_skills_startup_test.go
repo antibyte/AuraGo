@@ -113,7 +113,6 @@ Previous bundled content.
 	}
 }
 
-
 // TestGameMakerSkillStartupTrustsCuratedWarning verifies that a curated
 // system skill whose registry row was left in warning state by an LLM/SkillSpector
 // false-positive is still accepted when its on-disk package matches the embedded

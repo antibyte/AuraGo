@@ -30,10 +30,10 @@ var (
 )
 
 const (
-	CopilotEditorVersion      = "vscode/1.100.0"
-	CopilotPluginVersion      = "copilot/1.300.0"
-	CopilotIntegrationID      = "vscode-chat"
-	CopilotBaseURL            = "https://api.githubcopilot.com"
+	CopilotEditorVersion = "vscode/1.100.0"
+	CopilotPluginVersion = "copilot/1.300.0"
+	CopilotIntegrationID = "vscode-chat"
+	CopilotBaseURL       = "https://api.githubcopilot.com"
 )
 
 func (t *copilotTransport) RoundTrip(req *http.Request) (*http.Response, error) {

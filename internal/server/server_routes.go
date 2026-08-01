@@ -22,6 +22,7 @@ import (
 	"aurago/internal/telegram"
 	"aurago/internal/telnyx"
 	"aurago/internal/tools"
+	"aurago/internal/tsnetnode"
 	"aurago/internal/warnings"
 )
 
@@ -354,13 +355,61 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	// and is actively accepting connections. Used by Docker HEALTHCHECK and load balancers.
 	mux.HandleFunc("/api/ready", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		if s.ready.Load() {
-			w.WriteHeader(http.StatusOK)
-			json.NewEncoder(w).Encode(map[string]string{"status": "ready"})
-		} else {
+		if !s.ready.Load() {
 			w.WriteHeader(http.StatusServiceUnavailable)
 			json.NewEncoder(w).Encode(map[string]string{"status": "initializing"})
+			return
 		}
+		if r.URL.Query().Get("require") != "tsnet" {
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(map[string]string{"status": "ready"})
+			return
+		}
+
+		s.CfgMu.RLock()
+		tsnetEnabled := s.Cfg != nil && s.Cfg.Tailscale.TsNet.Enabled
+		s.CfgMu.RUnlock()
+		if !tsnetEnabled || s.TsNetManager == nil {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"status":     "initializing",
+				"component":  "tsnet",
+				"error_code": "TSNET_NOT_CONFIGURED",
+			})
+			return
+		}
+		status := s.TsNetManager.GetStatus()
+		mainNode := status.Nodes[tsnetnode.NodeMain]
+		if !status.Ready {
+			errorCode := mainNode.ErrorCode
+			if errorCode == "" {
+				errorCode = tsnetnode.ErrorBackendUnavailable
+			}
+			w.WriteHeader(http.StatusServiceUnavailable)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"status":     "initializing",
+				"component":  "tsnet",
+				"error_code": errorCode,
+			})
+			return
+		}
+		degraded := make([]string, 0, 2)
+		for _, node := range []tsnetnode.NodeID{tsnetnode.NodeManifest, tsnetnode.NodeSpaceAgent} {
+			nodeStatus := status.Nodes[node]
+			if nodeStatus.Configured && nodeStatus.Health != "ready" {
+				degraded = append(degraded, string(node))
+			}
+		}
+		s.CfgMu.RLock()
+		homepageConfigured := s.Cfg != nil &&
+			s.Cfg.Tailscale.TsNet.ExposeHomepage &&
+			s.Cfg.Homepage.WebServerEnabled
+		s.CfgMu.RUnlock()
+		if homepageConfigured && !status.HomepageServing {
+			degraded = append(degraded, "homepage")
+		}
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]interface{}{"status": "ready", "tsnet": "ready", "degraded": degraded})
 	})
 
 	// System warnings — returns runtime health warnings.

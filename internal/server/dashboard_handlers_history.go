@@ -276,4 +276,3 @@ func handleDashboardErrors(s *Server) http.HandlerFunc {
 		})
 	}
 }
-
