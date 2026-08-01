@@ -38,13 +38,16 @@ func TestConfigSpeechLabSectionUsesNarrowNativeAPIs(t *testing.T) {
 		"method: 'PUT'",
 		"showConfirm(",
 		"speechLabShowExperimental",
+		"speech_lab.chat_llm_provider_id",
+		"backend.default_voice",
+		"speechLabStatus?.voice",
 		"target=\"_blank\"",
 	} {
 		if !strings.Contains(module, wanted) {
 			t.Fatalf("Speech Lab config module missing %q", wanted)
 		}
 	}
-	for _, forbidden := range []string{"<iframe", "llm_id", "/api/proxy", "hf_token"} {
+	for _, forbidden := range []string{"<iframe", "llm_id", "/api/proxy", "hf_token", "speechLabField('speech_lab.voice'", "data.voice = 'M1'"} {
 		if strings.Contains(strings.ToLower(module), forbidden) {
 			t.Fatalf("Speech Lab config module contains forbidden surface %q", forbidden)
 		}
@@ -96,6 +99,14 @@ func TestSpeechLabChatRecorderIsPCMWorkletOnly(t *testing.T) {
 	if !strings.Contains(bootstrap, "const useBrowserSTT = !useSpeechLabSTT") {
 		t.Fatal("browser speech recognition is not disabled when Speech Lab input is selected")
 	}
+	if !strings.Contains(bootstrap, "pendingSpeechLabInput = true") {
+		t.Fatal("Speech Lab transcription does not mark the next chat turn")
+	}
+	network := readSpeechLabUIFile(t, "js/chat/main/network-submit.js")
+	if !strings.Contains(network, "pendingSpeechLabInput = false") ||
+		!strings.Contains(network, "X-AuraGo-Speech-Lab-Input") {
+		t.Fatal("Speech Lab chat marker is not consumed exactly once by the next request")
+	}
 	bundle := readSpeechLabUIFile(t, "js/chat/bundles/chat-runtime.bundle.js")
 	if !strings.Contains(bundle, "/* ui/js/chat/modules/speech-lab-recorder.js */") {
 		t.Fatal("chat runtime bundle does not contain the Speech Lab recorder")
@@ -141,6 +152,7 @@ func TestSpeechLabRecorderTranslationsCoverAllLocales(t *testing.T) {
 		"chat.speech_lab_microphone_denied", "chat.speech_lab_recorder_start_failed",
 		"chat.speech_lab_no_audio", "chat.speech_lab_too_large",
 		"chat.speech_lab_transcription_failed", "chat.speech_lab_transcribe",
+		"chat.speech_lab_browser_url_missing",
 	}
 	for _, locale := range locales {
 		path := "lang/chat/" + locale + ".json"

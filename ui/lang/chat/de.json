@@ -1,4 +1,5 @@
 {
+  "chat.speech_lab_browser_url_missing": "Konfiguriere die Speech-Lab-Browser-URL unter Media → Speech Lab.",
   "chat.vault_secret_title": "Secret sicher speichern",
   "chat.vault_secret_notice": "Der Agent sieht deine Eingabe niemals. Sie wird direkt im verschlüsselten Vault gespeichert.",
   "chat.vault_secret_key_label": "Vault-Key",

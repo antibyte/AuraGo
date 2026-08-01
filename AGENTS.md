@@ -454,6 +454,12 @@ Tools are defined in `internal/tools/`:
 - Terminate established local/outbound call failures with one BYE and close every dialog exactly once; cancellation while an outbound INVITE is pending must flow through its context-driven CANCEL. Keep provider audio and VAD buffers bounded, normalize external sample rates before the fixed 8/16/24 kHz media bus, and never write SIP ASR audio to disk.
 - The PCM `MediaPeer`, incoming-call handler, history schema, REST actions, and SSE events are compatibility anchors for the future authenticated WebRTC desktop phone and bounded Media-Registry answering machine; neither future feature may expose SIP credentials or raw RTP to the browser.
 
+### Speech Lab Integration Contract
+- Speech Lab owns its active ASR, TTS, and voice stack. AuraGo must read all three from one `/ready` snapshot for chat synthesis and new SIP calls; legacy `speech_lab.voice` values are load-only and never become runtime defaults.
+- AuraGo and the Browser Lab may both activate the shared stack, but AuraGo never sends `llm_id`. Voice choices come only from the selected TTS backend catalog, and active operations or calls keep their immutable start snapshot.
+- `speech_lab.chat_llm_provider_id` applies only to the next direct webchat turn marked after Speech Lab ASR. Typed chat, browser speech recognition, internal follow-ups, missions, and SIP retain their existing provider routing; an unavailable selected provider fails closed without main-provider fallback.
+- When enabled, Speech Lab remains visible in the chat integrations drawer. `advanced_ui_url` is an optional external Browser Lab link; a missing URL is shown as a configuration warning and never blocks ASR/TTS activation.
+
 ### Local Network Share Integration Contract
 - Local SMB/NFS capability probing must remain passive: never install packages, start services, enable Samba registry shares, or change global server configuration.
 - The native `network_shares` tool and Admin UI expose reads only when a configured protocol is actually readable. Mutations require the matching granular permission, `readonly: false`, a writable runtime backend, and an existing canonical directory inside an allowed root.

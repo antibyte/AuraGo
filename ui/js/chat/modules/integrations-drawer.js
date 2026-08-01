@@ -91,6 +91,7 @@ window.IntegrationsDrawer = (function () {
         listEl.innerHTML = webhosts.map(item => {
             const status = item.status || 'starting';
             const url = item.url || '';
+            const meta = url || (item.message_key ? t(item.message_key) : (item.description || ''));
             return `
                 <div class="integration-item" data-integration-id="${escapeAttr(item.id)}">
                     <div class="integration-icon">${window.chatUiIconMarkup ? window.chatUiIconMarkup(item.icon || 'web') : ''}</div>
@@ -98,7 +99,7 @@ window.IntegrationsDrawer = (function () {
                         <div class="integration-name">${escapeHtml(item.name || item.id)}</div>
                         <div class="integration-meta">
                             <span class="integration-status ${escapeAttr(status)}" aria-hidden="true"></span>
-                            <span class="integration-url">${escapeHtml(url)}</span>
+                            <span class="integration-url">${escapeHtml(meta)}</span>
                         </div>
                     </div>
                     ${url ? `<a class="integration-open" href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(t('chat.integrations_open'))}</a>` : ''}

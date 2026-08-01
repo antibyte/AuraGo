@@ -115,7 +115,7 @@ func TestTelephoneSpeechLabSupportsLocalAndHybridSnapshots(t *testing.T) {
 	}{
 		{
 			name: "local ASR and TTS", asrMode: "speech_lab", ttsProvider: "speech_lab",
-			ready:      speechlab.Ready{Ready: true, ASRID: "asr-local", TTSID: "tts-local", ASROK: true, TTSOK: true},
+			ready:      speechlab.Ready{Ready: true, ASRID: "asr-local", TTSID: "tts-local", ASROK: true, TTSOK: true, Voice: "Serena"},
 			wantLabASR: true, wantLabTTS: true, clearASRProvider: true,
 		},
 		{
@@ -125,7 +125,7 @@ func TestTelephoneSpeechLabSupportsLocalAndHybridSnapshots(t *testing.T) {
 		},
 		{
 			name: "existing ASR and local TTS", asrMode: "whisper", ttsProvider: "speech_lab",
-			ready:      speechlab.Ready{ASRID: "asr-offline", TTSID: "tts-local", ASROK: false, TTSOK: true},
+			ready:      speechlab.Ready{ASRID: "asr-offline", TTSID: "tts-local", ASROK: false, TTSOK: true, Voice: "Serena"},
 			wantLabTTS: true,
 		},
 	}
@@ -175,6 +175,9 @@ func TestTelephoneSpeechLabSupportsLocalAndHybridSnapshots(t *testing.T) {
 			}
 			if test.wantLabTTS && synthesizer.expectedTTSID != test.ready.TTSID {
 				t.Fatalf("TTS snapshot ID = %q", synthesizer.expectedTTSID)
+			}
+			if test.wantLabTTS && synthesizer.voice != test.ready.Voice {
+				t.Fatalf("TTS snapshot voice = %q, want %q", synthesizer.voice, test.ready.Voice)
 			}
 		})
 	}

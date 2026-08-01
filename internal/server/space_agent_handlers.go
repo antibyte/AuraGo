@@ -42,6 +42,7 @@ type webhostIntegration struct {
 	ID          string `json:"id"`
 	Name        string `json:"name"`
 	Description string `json:"description,omitempty"`
+	MessageKey  string `json:"message_key,omitempty"`
 	Status      string `json:"status"`
 	URL         string `json:"url"`
 	Icon        string `json:"icon,omitempty"`
@@ -417,7 +418,7 @@ func integrationWebhostsForRequest(s *Server, r *http.Request) []webhostIntegrat
 	webhostsCacheMu.RUnlock()
 
 	cfg := s.currentSpaceAgentConfig()
-	webhosts := make([]webhostIntegration, 0, 5)
+	webhosts := make([]webhostIntegration, 0, 6)
 	if cfg.VirtualComputers.Enabled {
 		status := "starting"
 		if virtualComputersManagementHealthy(s, virtualcomputers.FromAuraConfig(&cfg)) {
@@ -435,6 +436,40 @@ func integrationWebhostsForRequest(s *Server, r *http.Request) []webhostIntegrat
 
 	var mu sync.Mutex
 	var wg sync.WaitGroup
+
+	if cfg.SpeechLab.Enabled {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			status := "offline"
+			if s.SpeechLab != nil {
+				ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+				ready, err := s.SpeechLab.Ready(ctx)
+				cancel()
+				if err == nil {
+					status = "starting"
+					if ready.Ready {
+						status = "running"
+					}
+				}
+			}
+			messageKey := ""
+			if strings.TrimSpace(cfg.SpeechLab.AdvancedUIURL) == "" {
+				messageKey = "chat.speech_lab_browser_url_missing"
+			}
+			mu.Lock()
+			webhosts = append(webhosts, webhostIntegration{
+				ID:          "speech_lab",
+				Name:        "Speech Lab",
+				Description: "Local ASR and TTS laboratory",
+				MessageKey:  messageKey,
+				Status:      status,
+				URL:         cfg.SpeechLab.AdvancedUIURL,
+				Icon:        "microphone",
+			})
+			mu.Unlock()
+		}()
+	}
 
 	if cfg.SpaceAgent.Enabled {
 		wg.Add(1)

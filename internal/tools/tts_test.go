@@ -382,6 +382,15 @@ func TestTTSSpeechLabCacheUsesExpectedBackendID(t *testing.T) {
 	if third == first || calls.Load() != 2 {
 		t.Fatalf("backend ID change reused cache: first=%q third=%q calls=%d", first, third, calls.Load())
 	}
+
+	cfg.SpeechLab.Voice = "F1"
+	fourth, err := TTSSynthesize(cfg, "same text")
+	if err != nil {
+		t.Fatalf("changed-voice Speech Lab synthesis: %v", err)
+	}
+	if fourth == third || calls.Load() != 3 {
+		t.Fatalf("voice change reused cache: third=%q fourth=%q calls=%d", third, fourth, calls.Load())
+	}
 }
 
 func speechLabCacheWAVForTest() []byte {

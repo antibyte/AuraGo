@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"aurago/internal/config"
+	"aurago/internal/speechlab"
 	"aurago/internal/tsnetnode"
 	"aurago/internal/virtualcomputers"
 )
@@ -307,6 +308,38 @@ func TestHandleIntegrationWebhostsOmitsDisabledBoringComputers(t *testing.T) {
 
 	if len(got) != 0 {
 		t.Fatalf("webhosts = %#v, want no disabled Boring Computers entry", got)
+	}
+}
+
+func TestIntegrationWebhostsIncludesEnabledSpeechLab(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(speechlab.Ready{Ready: true, ASRID: "asr-a", TTSID: "tts-a", ASROK: true, TTSOK: true, Voice: "Serena"})
+	}))
+	defer upstream.Close()
+	cfg := &config.Config{SpeechLab: config.SpeechLabConfig{
+		Enabled: true, BaseURL: upstream.URL, AdvancedUIURL: "http://127.0.0.1:7860", TimeoutSeconds: 2,
+	}}
+	client, err := speechlab.NewClient(cfg.SpeechLab)
+	if err != nil {
+		t.Fatal(err)
+	}
+	clearWebhostsCache()
+	got := integrationWebhostsForRequest(&Server{Cfg: cfg, SpeechLab: client, Logger: slog.Default()}, httptest.NewRequest(http.MethodGet, "/api/integrations/webhosts", nil))
+	if len(got) != 1 || got[0].ID != "speech_lab" || got[0].Status != "running" || got[0].URL != cfg.SpeechLab.AdvancedUIURL {
+		t.Fatalf("Speech Lab webhost = %#v", got)
+	}
+}
+
+func TestIntegrationWebhostsShowsSpeechLabWithoutBrowserURL(t *testing.T) {
+	cfg := &config.Config{SpeechLab: config.SpeechLabConfig{Enabled: true, BaseURL: "http://127.0.0.1:1", TimeoutSeconds: 1}}
+	client, err := speechlab.NewClient(cfg.SpeechLab)
+	if err != nil {
+		t.Fatal(err)
+	}
+	clearWebhostsCache()
+	got := integrationWebhostsForRequest(&Server{Cfg: cfg, SpeechLab: client, Logger: slog.Default()}, httptest.NewRequest(http.MethodGet, "/api/integrations/webhosts", nil))
+	if len(got) != 1 || got[0].Status != "offline" || got[0].URL != "" || got[0].MessageKey != "chat.speech_lab_browser_url_missing" {
+		t.Fatalf("Speech Lab webhost without URL = %#v", got)
 	}
 }
 

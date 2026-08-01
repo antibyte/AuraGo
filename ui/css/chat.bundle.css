@@ -6788,6 +6788,10 @@ html[data-theme="retro-crt"]::before {
     background: #22c55e;
 }
 
+.integration-status.offline {
+    background: #ef4444;
+}
+
 .integration-url {
     overflow: hidden;
     text-overflow: ellipsis;

@@ -17,11 +17,40 @@ func TestNormalizeSpeechLabConfigDefaultsAndLegacyAliases(t *testing.T) {
 	if cfg.BaseURL != DefaultSpeechLabBaseURL || cfg.TimeoutSeconds != 60 {
 		t.Fatalf("unexpected defaults: %+v", cfg)
 	}
+	if cfg.Voice != "" {
+		t.Fatalf("legacy voice must not become a runtime default: %q", cfg.Voice)
+	}
 	if !cfg.SIPEnabled || !cfg.ChatOutputEnabled || cfg.ChatInputEnabled {
 		t.Fatalf("unexpected surface migration: %+v", cfg)
 	}
 	if cfg.LegacyUseForSIP != nil || cfg.LegacyUseForChatVoice != nil {
 		t.Fatal("legacy aliases must be cleared after normalization")
+	}
+}
+
+func TestNormalizeSpeechLabConfigDiscardsLegacyVoiceAndTrimsProvider(t *testing.T) {
+	cfg := SpeechLabConfig{Voice: "M1", ChatLLMProviderID: " fast "}
+	NormalizeSpeechLabConfig(&cfg, []byte("speech_lab:\n  voice: M1\n  chat_llm_provider_id: fast\n"))
+	if cfg.Voice != "" {
+		t.Fatalf("legacy voice was retained: %q", cfg.Voice)
+	}
+	if cfg.ChatLLMProviderID != "fast" {
+		t.Fatalf("provider ID was not normalized: %q", cfg.ChatLLMProviderID)
+	}
+}
+
+func TestValidateSpeechLabProviderReference(t *testing.T) {
+	cfg := &Config{Providers: []ProviderEntry{{ID: "fast", Type: "openai", Model: "fast-model"}}}
+	if err := ValidateSpeechLabProviderReference(cfg); err != nil {
+		t.Fatalf("valid provider rejected: %v", err)
+	}
+	cfg.SpeechLab.ChatLLMProviderID = "fast"
+	if err := ValidateSpeechLabProviderReference(cfg); err != nil {
+		t.Fatalf("known provider rejected: %v", err)
+	}
+	cfg.SpeechLab.ChatLLMProviderID = "missing"
+	if err := ValidateSpeechLabProviderReference(cfg); err == nil {
+		t.Fatal("unknown provider was accepted")
 	}
 }
 
@@ -70,5 +99,19 @@ func TestLoadSpeechLabEnvironmentOverride(t *testing.T) {
 	}
 	if cfg.SpeechLab.BaseURL != "http://127.0.0.1:9876" {
 		t.Fatalf("env override not applied: %q", cfg.SpeechLab.BaseURL)
+	}
+}
+
+func TestLoadSpeechLabLegacyVoiceIsIgnored(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(path, []byte("speech_lab:\n  enabled: true\n  base_url: http://127.0.0.1:8765\n  voice: M1\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.SpeechLab.Voice != "" {
+		t.Fatalf("legacy voice became a runtime default: %q", cfg.SpeechLab.Voice)
 	}
 }

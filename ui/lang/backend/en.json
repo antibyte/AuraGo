@@ -1,4 +1,5 @@
 {
+  "backend.speech_lab_llm_unavailable": "The selected Speech Lab LLM provider is unavailable. No fallback provider was used.",
   "backend.operational_issue_notice_title": "Operational issues",
   "backend.operational_issue_notice_summary": "AuraGo detected {0} issue(s) during background work.",
   "backend.operational_issue_notice_occurrences": "occurred {0} times",

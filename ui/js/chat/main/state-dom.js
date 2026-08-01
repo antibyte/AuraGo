@@ -22,6 +22,7 @@ const cheatsheetPickerCloseXBtn = document.getElementById('cheatsheet-picker-clo
 
 let cheatsheetPickerItems = [];
 let selectedCheatsheetId = '';
+let pendingSpeechLabInput = false;
 
 function chatIconMarkup(iconName, className = '') {
     return window.chatUiIconMarkup ? window.chatUiIconMarkup(iconName, className) : '';

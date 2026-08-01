@@ -221,7 +221,6 @@ func ttsSpeechLab(cfg TTSConfig, text string) ([]byte, string, error) {
 		Enabled:        true,
 		BaseURL:        cfg.SpeechLab.BaseURL,
 		Language:       speechLabFirstNonEmpty(cfg.Language, cfg.SpeechLab.Language),
-		Voice:          speechLabFirstNonEmpty(cfg.SpeechLab.Voice, "M1"),
 		TimeoutSeconds: cfg.SpeechLab.TimeoutSeconds,
 	}
 	if lab.BaseURL == "" {
@@ -235,7 +234,7 @@ func ttsSpeechLab(cfg TTSConfig, text string) ([]byte, string, error) {
 			return nil, "", err
 		}
 	}
-	data, _, err := client.Synthesize(ttsRequestContext(cfg), text, lab.Language, lab.Voice, cfg.SpeechLab.ExpectedTTSID)
+	data, _, err := client.Synthesize(ttsRequestContext(cfg), text, lab.Language, cfg.SpeechLab.Voice, cfg.SpeechLab.ExpectedTTSID)
 	return data, ".wav", err
 }
 

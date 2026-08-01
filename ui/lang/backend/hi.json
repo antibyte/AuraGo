@@ -1,4 +1,5 @@
 {
+  "backend.speech_lab_llm_unavailable": "चुना गया Speech Lab LLM प्रदाता उपलब्ध नहीं है। किसी फ़ॉलबैक प्रदाता का उपयोग नहीं किया गया।",
   "backend.operational_issue_notice_title": "परिचालन समस्याएँ",
   "backend.operational_issue_notice_summary": "AuraGo ने पृष्ठभूमि कार्य के दौरान {0} समस्या(एँ) पाई हैं।",
   "backend.operational_issue_notice_occurrences": "{0} बार हुआ",

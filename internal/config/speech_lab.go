@@ -19,7 +19,7 @@ type SpeechLabConfig struct {
 	BaseURL           string `yaml:"base_url" json:"base_url"`
 	AdvancedUIURL     string `yaml:"advanced_ui_url,omitempty" json:"advanced_ui_url,omitempty"`
 	Language          string `yaml:"language" json:"language"`
-	Voice             string `yaml:"voice" json:"voice"`
+	ChatLLMProviderID string `yaml:"chat_llm_provider_id,omitempty" json:"chat_llm_provider_id,omitempty"`
 	TimeoutSeconds    int    `yaml:"timeout_seconds" json:"timeout_seconds"`
 	SIPEnabled        bool   `yaml:"sip_enabled" json:"sip_enabled"`
 	ChatInputEnabled  bool   `yaml:"chat_input_enabled" json:"chat_input_enabled"`
@@ -27,8 +27,9 @@ type SpeechLabConfig struct {
 
 	// Legacy aliases from the pre-release Speech Lab integration. They are
 	// accepted on load but never emitted through JSON or new configuration.
-	LegacyUseForSIP       *bool `yaml:"use_for_sip,omitempty" json:"-"`
-	LegacyUseForChatVoice *bool `yaml:"use_for_chat_voice,omitempty" json:"-"`
+	LegacyUseForSIP       *bool  `yaml:"use_for_sip,omitempty" json:"-"`
+	LegacyUseForChatVoice *bool  `yaml:"use_for_chat_voice,omitempty" json:"-"`
+	Voice                 string `yaml:"voice,omitempty" json:"-"`
 }
 
 // NormalizeSpeechLabConfig applies defaults and legacy aliases. rawConfig is
@@ -55,10 +56,10 @@ func NormalizeSpeechLabConfig(cfg *SpeechLabConfig, rawConfig []byte) {
 	if cfg.Language == "" {
 		cfg.Language = "de"
 	}
-	cfg.Voice = strings.TrimSpace(cfg.Voice)
-	if cfg.Voice == "" {
-		cfg.Voice = "M1"
-	}
+	// Voice is owned by the active Speech Lab runtime stack. Legacy YAML values
+	// remain loadable but are deliberately ignored and removed on the next save.
+	cfg.Voice = ""
+	cfg.ChatLLMProviderID = strings.TrimSpace(cfg.ChatLLMProviderID)
 	if cfg.TimeoutSeconds <= 0 {
 		cfg.TimeoutSeconds = DefaultSpeechLabTimeoutSeconds
 	}
@@ -80,8 +81,28 @@ func ValidateSpeechLabConfig(cfg SpeechLabConfig) error {
 	if len(cfg.Language) > 35 {
 		return fmt.Errorf("speech_lab.language is too long")
 	}
-	if len(cfg.Voice) > 128 {
-		return fmt.Errorf("speech_lab.voice is too long")
+	if len(cfg.ChatLLMProviderID) > 128 {
+		return fmt.Errorf("speech_lab.chat_llm_provider_id is too long")
+	}
+	return nil
+}
+
+// ValidateSpeechLabProviderReference verifies the optional provider selected
+// exclusively for direct webchat turns transcribed by Speech Lab.
+func ValidateSpeechLabProviderReference(cfg *Config) error {
+	if cfg == nil {
+		return fmt.Errorf("runtime configuration is unavailable")
+	}
+	id := strings.TrimSpace(cfg.SpeechLab.ChatLLMProviderID)
+	if id == "" {
+		return nil
+	}
+	provider := cfg.FindProvider(id)
+	if provider == nil {
+		return fmt.Errorf("speech_lab.chat_llm_provider_id references an unknown provider")
+	}
+	if strings.TrimSpace(provider.Model) == "" {
+		return fmt.Errorf("speech_lab.chat_llm_provider_id references a provider without a model")
 	}
 	return nil
 }

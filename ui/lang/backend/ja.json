@@ -1,4 +1,5 @@
 {
+  "backend.speech_lab_llm_unavailable": "選択した Speech Lab の LLM プロバイダーは利用できません。フォールバックプロバイダーは使用されませんでした。",
   "backend.operational_issue_notice_title": "運用上の問題",
   "backend.operational_issue_notice_summary": "AuraGo はバックグラウンド処理中に {0} 件の問題を検出しました。",
   "backend.operational_issue_notice_occurrences": "{0} 回発生",

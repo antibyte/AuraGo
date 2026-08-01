@@ -123,6 +123,7 @@ func maybeEmitChatVoiceOutputFallback(cfg *config.Config, logger *slog.Logger, r
 			return
 		}
 		ttsCfg.SpeechLab.ExpectedTTSID = ready.TTSID
+		ttsCfg.SpeechLab.Voice = ready.Voice
 	}
 	filename, err := chatVoiceOutputSynthesize(ttsCfg, text)
 	if err != nil {
@@ -402,7 +403,6 @@ func buildChatVoiceOutputTTSConfig(cfg *config.Config, language string, clients 
 	ttsCfg.Supertonic.ResponseFormat = cfg.TTS.Supertonic.ResponseFormat
 	ttsCfg.SpeechLab.BaseURL = cfg.SpeechLab.BaseURL
 	ttsCfg.SpeechLab.Language = cfg.SpeechLab.Language
-	ttsCfg.SpeechLab.Voice = cfg.SpeechLab.Voice
 	ttsCfg.SpeechLab.TimeoutSeconds = cfg.SpeechLab.TimeoutSeconds
 	if len(clients) > 0 {
 		ttsCfg.SpeechLab.Client = clients[0]

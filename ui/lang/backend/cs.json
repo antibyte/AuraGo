@@ -1,4 +1,5 @@
 {
+  "backend.speech_lab_llm_unavailable": "Vybraný poskytovatel LLM pro Speech Lab není dostupný. Nebyl použit žádný náhradní poskytovatel.",
   "backend.operational_issue_notice_title": "Provozní problémy",
   "backend.operational_issue_notice_summary": "AuraGo při práci na pozadí zjistilo {0} problémů.",
   "backend.operational_issue_notice_occurrences": "vyskytlo se {0}krát",

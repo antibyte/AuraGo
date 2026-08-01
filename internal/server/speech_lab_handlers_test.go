@@ -62,7 +62,7 @@ func speechLabWAVSecondsForTest(seconds int) []byte {
 func TestSpeechLabRoutesProtectManagementButNotStatus(t *testing.T) {
 	s, _ := speechLabServerForTest(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/ready" {
-			_ = json.NewEncoder(w).Encode(speechlab.Ready{Ready: true, ASRID: "asr-a", TTSID: "tts-a", ASROK: true, TTSOK: true})
+			_ = json.NewEncoder(w).Encode(speechlab.Ready{Ready: true, ASRID: "asr-a", TTSID: "tts-a", ASROK: true, TTSOK: true, Voice: "Serena"})
 			return
 		}
 		http.NotFound(w, r)
@@ -79,6 +79,9 @@ func TestSpeechLabRoutesProtectManagementButNotStatus(t *testing.T) {
 	}
 	if strings.Contains(statusRec.Body.String(), s.Cfg.SpeechLab.BaseURL) {
 		t.Fatal("sanitized status exposed the Speech Lab base URL")
+	}
+	if !strings.Contains(statusRec.Body.String(), `"voice":"Serena"`) {
+		t.Fatalf("status did not expose the active runtime voice: %s", statusRec.Body.String())
 	}
 
 	adminRec := httptest.NewRecorder()

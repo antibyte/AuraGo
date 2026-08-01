@@ -1,4 +1,5 @@
 {
+  "backend.speech_lab_llm_unavailable": "Der ausgewählte Speech-Lab-LLM-Anbieter ist nicht verfügbar. Es wurde kein Ersatzanbieter verwendet.",
   "backend.operational_issue_notice_title": "Betriebsprobleme",
   "backend.operational_issue_notice_summary": "AuraGo hat bei Hintergrundarbeiten {0} Problem(e) erkannt.",
   "backend.operational_issue_notice_occurrences": "{0}-mal aufgetreten",

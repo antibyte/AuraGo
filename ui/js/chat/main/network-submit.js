@@ -3,6 +3,8 @@ async function handleOutgoingMessage(inputMessage, displayMessageOverride = '') 
     closeMoodFeedbackRow();
     let message = String(inputMessage || '').trim();
     if (!message && !pendingAttachments.length) return;
+    const useSpeechLabInput = pendingSpeechLabInput;
+    pendingSpeechLabInput = false;
     const hasTypedInput = message.length > 0;
     if (!message) {
         message = t('chat.file_sent');
@@ -69,6 +71,9 @@ async function handleOutgoingMessage(inputMessage, displayMessageOverride = '') 
             if (sid && sid !== 'default') {
                 sessionHeaders['X-Session-ID'] = sid;
             }
+            if (useSpeechLabInput) {
+                sessionHeaders['X-AuraGo-Speech-Lab-Input'] = '1';
+            }
             response = await fetch('/v1/chat/completions', {
                 method: 'POST',
                 headers: sessionHeaders,
@@ -82,7 +87,10 @@ async function handleOutgoingMessage(inputMessage, displayMessageOverride = '') 
             clearTimeout(timeoutId);
         }
 
-        if (!response.ok) throw new Error('API Error: ' + response.statusText);
+        if (!response.ok) {
+            const errorPayload = await response.json().catch(() => ({}));
+            throw new Error(errorPayload.message || errorPayload.error || ('API Error: ' + response.statusText));
+        }
 
         const data = await response.json();
         const assistantMessage = data.choices[0].message;

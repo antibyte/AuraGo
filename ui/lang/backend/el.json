@@ -1,4 +1,5 @@
 {
+  "backend.speech_lab_llm_unavailable": "Ο επιλεγμένος πάροχος LLM του Speech Lab δεν είναι διαθέσιμος. Δεν χρησιμοποιήθηκε εναλλακτικός πάροχος.",
   "backend.operational_issue_notice_title": "Λειτουργικά προβλήματα",
   "backend.operational_issue_notice_summary": "Το AuraGo εντόπισε {0} πρόβλημα/προβλήματα κατά την εργασία στο παρασκήνιο.",
   "backend.operational_issue_notice_occurrences": "εμφανίστηκε {0} φορές",

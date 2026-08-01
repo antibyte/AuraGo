@@ -1,4 +1,5 @@
 {
+  "chat.speech_lab_browser_url_missing": "मीडिया → Speech Lab में Speech Lab ब्राउज़र URL कॉन्फ़िगर करें।",
   "chat.vault_secret_title": "सीक्रेट सुरक्षित रूप से सहेजें",
   "chat.vault_secret_notice": "एजेंट आपकी प्रविष्टि कभी नहीं देखता। इसे सीधे एन्क्रिप्टेड Vault में सहेजा जाता है।",
   "chat.vault_secret_key_label": "Vault कुंजी",

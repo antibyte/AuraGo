@@ -55,6 +55,7 @@ func handleGetConfig(s *Server) http.HandlerFunc {
 			jsonError(w, "Failed to parse config", http.StatusInternalServerError)
 			return
 		}
+		removeDeprecatedSpeechLabVoice(rawCfg)
 
 		// Inject personality section from in-memory config when it is absent
 		// from the raw YAML (migration scenario: old config only has agent.personality_*).
@@ -408,6 +409,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 		deepMerge(rawCfg, patch, "")
 		rawCfg = normalizeConfigYAMLMap(rawCfg)
 		normalizeAIGatewayYAMLSection(rawCfg)
+		removeDeprecatedSpeechLabVoice(rawCfg)
 
 		// Write back
 		out, err := yaml.Marshal(rawCfg)
@@ -439,6 +441,11 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 		if speechLabErr := config.ValidateSpeechLabConfig(validateCfg.SpeechLab); speechLabErr != nil {
 			s.Logger.Error("[Config] Invalid Speech Lab settings — save rejected", "error", speechLabErr)
 			jsonError(w, speechLabErr.Error(), http.StatusBadRequest)
+			return
+		}
+		if speechLabProviderErr := config.ValidateSpeechLabProviderReference(&validateCfg); speechLabProviderErr != nil {
+			s.Logger.Error("[Config] Invalid Speech Lab chat provider — save rejected", "error", speechLabProviderErr)
+			jsonError(w, speechLabProviderErr.Error(), http.StatusBadRequest)
 			return
 		}
 
@@ -1250,6 +1257,9 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			s.Logger.Info("[Config UI] Configuration hot-reloaded successfully")
 		}
 		s.CfgMu.Unlock()
+		if loadErr == nil && newCfg != nil && !reflect.DeepEqual(oldCfg.SpeechLab, newCfg.SpeechLab) {
+			clearWebhostsCache()
+		}
 		if loadErr == nil && go2RTCChanged && newCfg != nil && s.Go2RTC != nil {
 			go func() {
 				ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)

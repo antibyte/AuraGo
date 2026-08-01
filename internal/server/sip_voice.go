@@ -51,6 +51,7 @@ type sipSpeechSynthesizer struct {
 	cfg           *config.Config
 	speechLab     *speechlab.Client
 	expectedTTSID string
+	voice         string
 }
 
 func (s *sipSpeechSynthesizer) Synthesize(ctx context.Context, text, language string) ([]int16, int, error) {
@@ -64,7 +65,7 @@ func (s *sipSpeechSynthesizer) Synthesize(ctx context.Context, text, language st
 		language = ""
 	}
 	if s.speechLab != nil {
-		data, _, err := s.speechLab.Synthesize(ctx, text, language, s.cfg.SpeechLab.Voice, s.expectedTTSID)
+		data, _, err := s.speechLab.Synthesize(ctx, text, language, s.voice, s.expectedTTSID)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -387,6 +388,7 @@ func (r *VoiceActionRunner) backendFactory(ctx context.Context, cfg config.SIPVo
 		if useSpeechLabTTS {
 			synthesizer.speechLab = r.server.SpeechLab
 			synthesizer.expectedTTSID = speechLabReady.TTSID
+			synthesizer.voice = speechLabReady.Voice
 		}
 		return &voice.ClassicBackend{
 			Recognizer: recognizer, Synthesizer: synthesizer, Runner: frozenRunner,

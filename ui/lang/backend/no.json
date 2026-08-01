@@ -1,4 +1,5 @@
 {
+  "backend.speech_lab_llm_unavailable": "Den valgte Speech Lab-LLM-leverandøren er ikke tilgjengelig. Ingen reserveleverandør ble brukt.",
   "backend.operational_issue_notice_title": "Driftsproblemer",
   "backend.operational_issue_notice_summary": "AuraGo oppdaget {0} problem(er) under bakgrunnsarbeid.",
   "backend.operational_issue_notice_occurrences": "oppstod {0} ganger",

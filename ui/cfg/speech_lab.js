@@ -12,7 +12,8 @@ function speechLabEnsureData() {
     const data = configData.speech_lab;
     if (!data.base_url) data.base_url = 'http://s2s-vulkan:8765';
     if (!data.language) data.language = 'de';
-    if (!data.voice) data.voice = 'M1';
+    delete data.voice;
+    data.chat_llm_provider_id = String(data.chat_llm_provider_id || '').trim();
     if (!data.timeout_seconds) data.timeout_seconds = 60;
     return data;
 }
@@ -33,12 +34,20 @@ async function renderSpeechLabSection(section) {
     html += speechLabField('speech_lab.base_url', data.base_url, 'url', 'config.speech_lab.base_url', 'config.speech_lab.base_url_help');
     html += speechLabField('speech_lab.advanced_ui_url', data.advanced_ui_url || '', 'url', 'config.speech_lab.advanced_ui_url', 'config.speech_lab.advanced_ui_url_help');
     html += speechLabField('speech_lab.language', data.language, 'text', 'config.speech_lab.language', 'config.speech_lab.language_help');
-    html += speechLabField('speech_lab.voice', data.voice, 'text', 'config.speech_lab.voice', 'config.speech_lab.voice_help');
+    html += speechLabProviderField(data.chat_llm_provider_id);
     html += speechLabField('speech_lab.timeout_seconds', data.timeout_seconds, 'number', 'config.speech_lab.timeout', 'config.speech_lab.timeout_help', ' min="1" max="60"');
     html += '<div class="cfg-group-title cfg-group-title-top">' + escapeHtml(t('config.speech_lab.runtime')) + '</div>';
     html += '<div id="speech-lab-status" class="cfg-note-banner">' + escapeHtml(t('config.speech_lab.checking')) + '</div>';
     html += '<div class="field-group"><button type="button" class="btn-secondary" onclick="speechLabRefresh()">' + escapeHtml(t('config.speech_lab.refresh')) + '</button>';
-    html += ' <a id="speech-lab-advanced-link" class="btn-secondary' + (data.advanced_ui_url ? '' : ' is-hidden') + '" href="' + escapeAttr(data.advanced_ui_url || '#') + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(t('config.speech_lab.open_advanced')) + '</a></div>';
+    if (data.advanced_ui_url) {
+        html += ' <a id="speech-lab-advanced-link" class="btn-secondary" href="' + escapeAttr(data.advanced_ui_url) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(t('config.speech_lab.open_advanced')) + '</a>';
+    } else {
+        html += ' <button id="speech-lab-advanced-link" type="button" class="btn-secondary" disabled>' + escapeHtml(t('config.speech_lab.open_advanced')) + '</button>';
+    }
+    html += '</div>';
+    if (!data.advanced_ui_url) {
+        html += '<div class="cfg-note-banner cfg-note-banner-warning">' + escapeHtml(t('config.speech_lab.advanced_ui_url_help')) + '</div>';
+    }
     html += '<div id="speech-lab-capability"></div><div id="speech-lab-suggestions"></div><div id="speech-lab-stack"></div>';
     html += '</div>';
     document.getElementById('content').innerHTML = html;
@@ -57,6 +66,20 @@ function speechLabField(path, value, type, labelKey, helpKey, extra) {
     return '<label class="field-group"><span class="field-label">' + escapeHtml(t(labelKey)) + '</span>' +
         '<span class="field-help">' + escapeHtml(t(helpKey)) + '</span><input class="field-input" type="' + type + '" data-path="' +
         escapeAttr(path) + '" value="' + escapeAttr(value) + '"' + (extra || '') + '></label>';
+}
+
+function speechLabProviderField(selected) {
+    const providers = Array.isArray(configData.providers) ? configData.providers : [];
+    let options = '<option value="">' + escapeHtml(t('config.speech_lab.global_provider')) + '</option>';
+    providers.forEach(provider => {
+        const id = String(provider.id || '').trim();
+        if (!id) return;
+        const label = [provider.name || id, provider.model || ''].filter(Boolean).join(' · ');
+        options += '<option value="' + escapeAttr(id) + '"' + (id === selected ? ' selected' : '') + '>' + escapeHtml(label) + '</option>';
+    });
+    return '<label class="field-group"><span class="field-label">' + escapeHtml(t('config.speech_lab.chat_llm_provider')) + '</span>' +
+        '<span class="field-help">' + escapeHtml(t('config.speech_lab.chat_llm_provider_help')) + '</span>' +
+        '<select class="field-select" data-path="speech_lab.chat_llm_provider_id">' + options + '</select></label>';
 }
 
 async function speechLabRefresh() {
@@ -85,6 +108,8 @@ async function speechLabRefresh() {
         statusNode.className = 'cfg-note-banner ' + (speechLabStatus.ready ? 'cfg-note-banner-success' : 'cfg-note-banner-warning');
         statusNode.textContent = t(speechLabStatus.ready ? 'config.speech_lab.ready' : 'config.speech_lab.not_ready') +
             (speechLabStatus.environment_managed ? ' · ' + t('config.speech_lab.env_managed') : '');
+        const activeParts = [speechLabStatus.asr_id, speechLabStatus.tts_id, speechLabStatus.voice].filter(Boolean);
+        if (activeParts.length) statusNode.textContent += ' · ' + t('config.speech_lab.active_combination') + ': ' + activeParts.join(' + ');
     }
     const baseInput = document.querySelector('[data-path="speech_lab.base_url"]');
     if (baseInput && speechLabStatus && speechLabStatus.environment_managed) baseInput.disabled = true;
@@ -135,9 +160,11 @@ function speechLabRenderStack() {
     const tts = backends.filter(speechLabIsTTS);
     const asr = backends.filter(item => !speechLabIsTTS(item));
     let html = '<div class="cfg-card"><div class="cfg-card-title">' + escapeHtml(t('config.speech_lab.stack')) + '</div>';
+    const activeParts = [speechLabStatus?.asr_id || '—', speechLabStatus?.tts_id || '—', speechLabStatus?.voice || '—'];
+    html += '<div class="cfg-note-banner cfg-note-banner-info"><strong>' + escapeHtml(t('config.speech_lab.active_combination')) + ':</strong> ' + escapeHtml(activeParts.join(' + ')) + '</div>';
     html += '<label class="field-group"><span class="field-label">ASR</span><select id="speech-lab-asr" class="field-select">' + speechLabOptions(asr, speechLabStatus && speechLabStatus.asr_id) + '</select></label>';
     html += '<label class="field-group"><span class="field-label">TTS</span><select id="speech-lab-tts" class="field-select" onchange="speechLabUpdateVoices()">' + speechLabOptions(tts, speechLabStatus && speechLabStatus.tts_id) + '</select></label>';
-    html += '<label class="field-group"><span class="field-label">' + escapeHtml(t('config.speech_lab.voice')) + '</span><select id="speech-lab-voice" class="field-select"></select></label>';
+    html += '<label class="field-group"><span class="field-label">' + escapeHtml(t('config.speech_lab.voice')) + '</span><span class="field-help">' + escapeHtml(t('config.speech_lab.voice_help')) + '</span><select id="speech-lab-voice" class="field-select"></select></label>';
     html += '<label class="field-group"><input id="speech-lab-experimental" type="checkbox" ' + (speechLabShowExperimental ? 'checked' : '') + ' onchange="speechLabToggleExperimental(this.checked)"> ' + escapeHtml(t('config.speech_lab.show_experimental')) + '</label>';
     html += '<button type="button" class="btn-save" onclick="speechLabApplyStack()">' + escapeHtml(t('config.speech_lab.apply_stack')) + '</button></div>';
     node.innerHTML = html;
@@ -159,9 +186,16 @@ function speechLabOptions(items, selected) {
 function speechLabUpdateVoices() {
     const ttsID = document.getElementById('speech-lab-tts')?.value;
     const backend = (speechLabCatalog?.backends || []).find(item => item.id === ttsID) || {};
-    const voices = (backend.voices || []).length ? backend.voices : [backend.default_voice || speechLabEnsureData().voice || 'M1'];
     const voice = document.getElementById('speech-lab-voice');
-    if (voice) voice.innerHTML = voices.map(value => '<option value="' + escapeAttr(value) + '">' + escapeHtml(value) + '</option>').join('');
+    if (!voice) return;
+    const voices = [...new Set((Array.isArray(backend.voices) ? backend.voices : [])
+        .map(value => String(value || '').trim()).filter(Boolean))];
+    const defaultVoice = String(backend.default_voice || '').trim();
+    if (!voices.length && defaultVoice) voices.push(defaultVoice);
+    const activeVoice = ttsID === speechLabStatus?.tts_id ? String(speechLabStatus?.voice || '').trim() : '';
+    const selected = voices.includes(activeVoice) ? activeVoice : (voices.includes(defaultVoice) ? defaultVoice : (voices[0] || ''));
+    voice.innerHTML = voices.map(value => '<option value="' + escapeAttr(value) + '"' + (value === selected ? ' selected' : '') + '>' + escapeHtml(value) + '</option>').join('');
+    voice.disabled = voices.length === 0;
 }
 
 function speechLabToggleExperimental(enabled) {
@@ -183,8 +217,8 @@ async function speechLabApplyStack() {
         showToast(t('config.speech_lab.select_stack'), 'warn');
         return;
     }
-    const oldStack = (speechLabStatus?.asr_id || '—') + ' + ' + (speechLabStatus?.tts_id || '—');
-    const nextStack = request.asr_id + ' + ' + request.tts_id + ' · ' + request.voice;
+    const oldStack = (speechLabStatus?.asr_id || '—') + ' + ' + (speechLabStatus?.tts_id || '—') + ' + ' + (speechLabStatus?.voice || '—');
+    const nextStack = request.asr_id + ' + ' + request.tts_id + ' + ' + (request.voice || '—');
     if (!await showConfirm(t('config.speech_lab.confirm').replace('{old}', oldStack).replace('{next}', nextStack))) return;
     try {
         const response = await fetch('/api/speech-lab/stack', {

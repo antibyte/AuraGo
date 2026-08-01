@@ -275,33 +275,47 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			}()
 		}
 
-		// Override the model with the configured backend model
-		s.CfgMu.RLock()
-		overrideModel := s.Cfg.LLM.Model
-		s.CfgMu.RUnlock()
-		if overrideModel != "" {
-			s.Logger.Debug("Overriding model", "from", req.Model, "to", overrideModel)
-			req.Model = overrideModel
-		}
-
 		if len(req.Messages) == 0 {
 			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.handler_no_messages"), http.StatusBadRequest)
 			return
 		}
 
+		turnCfg := s.ConfigSnapshot()
+		turnLLMClient := s.LLMClient
+		markedSpeechLabInput := strings.TrimSpace(r.Header.Get(speechLabChatInputHeader)) == "1"
+		turnCfg, turnLLMClient, routeErr := speechLabChatTurnRuntime(markedSpeechLabInput, isFollowUp, missionID, turnCfg, turnLLMClient)
+		if routeErr != nil {
+			lang := ""
+			if cfg := s.ConfigSnapshot(); cfg != nil {
+				lang = cfg.Server.UILanguage
+			}
+			message := i18n.T(lang, "backend.speech_lab_llm_unavailable")
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusServiceUnavailable)
+			_ = json.NewEncoder(w).Encode(map[string]string{
+				"error": "speech_lab_llm_unavailable", "message": message,
+			})
+			return
+		}
+
+		// Override the model with the configured backend model
+		overrideModel := turnCfg.LLM.Model
+		if overrideModel != "" {
+			s.Logger.Debug("Overriding model", "from", req.Model, "to", overrideModel)
+			req.Model = overrideModel
+		}
+
 		// 1. Save User Input to Short-Term Memory
 		lastUserMsg := req.Messages[len(req.Messages)-1]
-		s.CfgMu.RLock()
 		var imageInputErr error
 		for _, message := range req.Messages {
-			if imageInputErr = validateMainProviderImageParts(s.Cfg, message); imageInputErr != nil {
+			if imageInputErr = validateMainProviderImageParts(turnCfg, message); imageInputErr != nil {
 				break
 			}
 		}
 		if imageInputErr == nil {
-			imageInputErr = validateCurrentMainProviderImageInput(s.Cfg, lastUserMsg)
+			imageInputErr = validateCurrentMainProviderImageInput(turnCfg, lastUserMsg)
 		}
-		s.CfgMu.RUnlock()
 		if imageInputErr != nil {
 			jsonError(w, imageInputErr.Error(), http.StatusBadRequest)
 			return
@@ -533,9 +547,9 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 		// Build run configuration for the unified agent loop.
 		msgSource := chatCompletionMessageSource(isFollowUp, missionID)
 		runCfg := agent.RunConfig{
-			Config:             s.Cfg,
+			Config:             turnCfg,
 			Logger:             s.Logger,
-			LLMClient:          s.LLMClient,
+			LLMClient:          turnLLMClient,
 			ShortTermMem:       s.ShortTermMem,
 			HistoryManager:     s.HistoryManager,
 			LongTermMem:        s.LongTermMem,
@@ -630,10 +644,8 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 		// OpenAI-style MultiContent parts for the outgoing LLM request. We do this
 		// here (not in HistoryManager) to avoid bloating persisted history with
 		// base64-encoded image data.
-		s.CfgMu.RLock()
-		cfg := s.Cfg
-		workspaceDir := s.Cfg.Directories.WorkspaceDir
-		s.CfgMu.RUnlock()
+		cfg := runCfg.Config
+		workspaceDir := runCfg.Config.Directories.WorkspaceDir
 		for i := range finalMessages {
 			finalMessages[i] = promoteUploadedImagesToMultiContent(cfg, finalMessages[i], workspaceDir, s.Logger)
 		}
@@ -668,7 +680,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 				return
 			}
 			if len(resp.Choices) > 0 {
-				maybeEmitChatVoiceOutputFallback(s.Cfg, s.Logger, runCfg, broker, resp.Choices[0].Message.Content, s.SpeechLab)
+				maybeEmitChatVoiceOutputFallback(runCfg.Config, s.Logger, runCfg, broker, resp.Choices[0].Message.Content, s.SpeechLab)
 			}
 
 			// Conclude SSE stream nicely
@@ -698,7 +710,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 				)
 			}
 			if len(resp.Choices) > 0 {
-				maybeEmitChatVoiceOutputFallback(s.Cfg, s.Logger, runCfg, broker, resp.Choices[0].Message.Content, s.SpeechLab)
+				maybeEmitChatVoiceOutputFallback(runCfg.Config, s.Logger, runCfg, broker, resp.Choices[0].Message.Content, s.SpeechLab)
 			}
 			if missionID != "" && s.ShortTermMem != nil {
 				missionToolResultsAfter := missionToolResultsBefore

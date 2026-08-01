@@ -1,4 +1,5 @@
 {
+  "chat.speech_lab_browser_url_missing": "请在媒体 → Speech Lab 中配置 Speech Lab 浏览器 URL。",
   "chat.vault_secret_title": "安全保存密钥",
   "chat.vault_secret_notice": "代理永远不会看到你的输入。该值会直接保存到加密的 Vault 中。",
   "chat.vault_secret_key_label": "Vault 键名",

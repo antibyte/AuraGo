@@ -12,14 +12,14 @@ speech_lab:
   base_url: http://s2s-vulkan:8765
   advanced_ui_url: ""       # optional external link, never an iframe or proxy
   language: de
-  voice: M1
+  chat_llm_provider_id: ""  # optional fast AuraGo provider for Speech-Lab-transcribed webchat turns
   timeout_seconds: 60
   sip_enabled: false
   chat_input_enabled: false
   chat_output_enabled: false
 ```
 
-`use_for_sip` and `use_for_chat_voice` remain load-only aliases for older configuration files. Saving the configuration materializes the canonical fields. API paths are fixed by contract and are not configurable.
+`use_for_sip`, `use_for_chat_voice`, and the former free-form `voice` value remain load-compatible for older configuration files. The voice value is ignored and removed on the next UI save because voice is owned by the active Speech Lab stack. API paths are fixed by contract and are not configurable.
 
 `AURAGO_SPEECH_LAB_BASE_URL` overrides `base_url` at runtime without rewriting YAML. The configuration UI marks the URL as environment-managed.
 
@@ -29,9 +29,10 @@ Only credential-free HTTP(S) URLs without query or fragment are accepted. AuraGo
 
 - Telephone: first enable `sip_enabled`, then choose `speech_lab` independently for classic ASR and/or TTS in the Telephone agent. Hybrid combinations remain valid.
 - Chat input: `chat_input_enabled` selects an AudioWorklet recorder that creates mono PCM16/16 kHz RIFF/WAV in the browser. It does not run Web Speech in parallel and does not fall back automatically.
+- Speech-Lab-transcribed webchat: `chat_llm_provider_id` optionally selects a fast AuraGo provider for exactly that next chat turn. Typed chat, browser speech recognition, internal follow-ups, missions, and SIP retain their established providers. An unavailable selection fails with `speech_lab_llm_unavailable`; it never falls back to the main provider.
 - Chat output: `chat_output_enabled` selects Speech Lab TTS for chat responses. If readiness or synthesis fails, the text response remains and the stream reports a structured audio error.
 
-Every telephone call snapshots its selected providers, language, voice, Speech Lab backend IDs, behavior, and tool scope before answer or INVITE. A required component that is not ready rejects inbound calls with SIP 480 and outgoing requests with HTTP 503 (`speech_lab_not_ready`). No cloud provider is selected automatically.
+Every telephone call snapshots its selected providers, language, the active Speech Lab voice, Speech Lab backend IDs, behavior, and tool scope before answer or INVITE. A required component that is not ready rejects inbound calls with SIP 480 and outgoing requests with HTTP 503 (`speech_lab_not_ready`). No cloud provider is selected automatically.
 
 ## AuraGo API
 
@@ -45,7 +46,9 @@ Every telephone call snapshots its selected providers, language, voice, Speech L
 
 AuraGo never sends `llm_id`. It validates backend IDs and voices against the catalog, checks the stack response `ok` field, and then checks `/ready`. A stack change is rejected while a Speech Lab operation or SIP call is active.
 
-The native configuration page under **Media → Speech Lab** displays connectivity, readiness, active backend IDs, capability, recommendations, and stable available catalog entries. Experimental entries require an explicit visible filter. Downloads, Hugging Face tokens, benchmarks, and expert model management stay in the Speech Lab UI reached through `advanced_ui_url`.
+The native configuration page under **Media → Speech Lab** displays connectivity, readiness, the active `ASR + TTS + voice` combination, capability, recommendations, and stable available catalog entries. Voice is selected only from the chosen TTS backend's `voices` or `default_voice` catalog values. The Browser Lab and AuraGo stack editor both update the same s2s runtime stack; the next refresh or preflight observes either change. Experimental entries require an explicit visible filter. Downloads, Hugging Face tokens, benchmarks, and expert model management stay in the Speech Lab UI reached through `advanced_ui_url`. The link remains visibly disabled with a configuration warning when that optional URL is absent.
+
+When Speech Lab is enabled, the chat integrations drawer shows it as running, starting, or offline. The drawer opens `advanced_ui_url` when configured and otherwise displays the missing-link hint without hiding the integration.
 
 ## s2s contract
 
@@ -53,7 +56,7 @@ AuraGo uses these fixed paths:
 
 | Method | Path | Contract |
 |---|---|---|
-| `GET` | `/ready` | HTTP 200 when ready, otherwise 503; includes component status and backend IDs |
+| `GET` | `/ready` | HTTP 200 when ready, otherwise 503; includes component status, backend IDs, and active voice from one runtime snapshot |
 | `GET` | `/api/v1/capability` | Hardware capability profile |
 | `GET` | `/api/v1/catalog` | Backend metadata, availability, stability, languages, and voices |
 | `GET` | `/api/v1/suggestions` | Heuristic stable-first recommendations |
@@ -61,7 +64,7 @@ AuraGo uses these fixed paths:
 | `POST` | `/v1/audio/transcriptions` | Raw or multipart PCM-WAV, maximum 8 MiB; response includes `asr_id` |
 | `POST` | `/v1/audio/speech` | JSON speech request; WAV response includes `X-S2S-TTS-ID` |
 
-AuraGo verifies the returned ASR/TTS backend IDs against the operation snapshot. Unexpected external stack drift fails the local speech path instead of silently changing models.
+AuraGo verifies the returned ASR/TTS backend IDs against the operation snapshot and uses the `/ready` voice for chat TTS and newly started SIP calls. Unexpected external stack drift fails the local speech path instead of silently changing models.
 
 ## Deployment
 

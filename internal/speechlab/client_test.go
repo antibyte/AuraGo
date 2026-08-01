@@ -41,7 +41,7 @@ func testClient(t *testing.T, handler http.Handler) *Client {
 	server := httptest.NewServer(handler)
 	t.Cleanup(server.Close)
 	client, err := NewClient(config.SpeechLabConfig{
-		Enabled: true, BaseURL: server.URL, Language: "de", Voice: "M1", TimeoutSeconds: 2,
+		Enabled: true, BaseURL: server.URL, Language: "de", TimeoutSeconds: 2,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -52,7 +52,7 @@ func testClient(t *testing.T, handler http.Handler) *Client {
 func TestReadyParsesServiceUnavailableBody(t *testing.T) {
 	client := testClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusServiceUnavailable)
-		_ = json.NewEncoder(w).Encode(Ready{ASRID: "whisper", TTSID: "tts", ASROK: true, Message: "tts unreachable"})
+		_ = json.NewEncoder(w).Encode(Ready{ASRID: "whisper", TTSID: "tts", ASROK: true, Message: "tts unreachable", Voice: "Serena"})
 	}))
 	ready, err := client.Ready(context.Background())
 	if err != nil {
@@ -60,6 +60,9 @@ func TestReadyParsesServiceUnavailableBody(t *testing.T) {
 	}
 	if ready.Ready || !ready.ASROK || ready.TTSOK {
 		t.Fatalf("unexpected readiness: %+v", ready)
+	}
+	if ready.Voice != "Serena" {
+		t.Fatalf("active voice was not parsed: %q", ready.Voice)
 	}
 	if _, err := client.Require(context.Background(), true, false); err != nil {
 		t.Fatalf("ASR-only readiness should pass: %v", err)
@@ -116,6 +119,24 @@ func TestSynthesizeRequiresWAVAndChecksBackendID(t *testing.T) {
 	}
 }
 
+func TestSynthesizeDoesNotInventConfiguredVoice(t *testing.T) {
+	client := testClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var payload map[string]string
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Fatal(err)
+		}
+		if payload["voice"] != "" {
+			t.Fatalf("unexpected invented voice: %q", payload["voice"])
+		}
+		w.Header().Set("Content-Type", "audio/wav")
+		w.Header().Set("X-S2S-TTS-ID", "tts-a")
+		_, _ = w.Write(testPCM16WAV())
+	}))
+	if _, _, err := client.Synthesize(context.Background(), "Hallo", "de", "", "tts-a"); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestValidateWAVRejectsHeaderOnlyAndTruncatedChunks(t *testing.T) {
 	valid := testPCM16WAV()
 	if err := ValidateWAV(valid); err != nil {
@@ -145,7 +166,7 @@ func TestActivateStackNeverSendsLLMIDAndRechecksReadiness(t *testing.T) {
 			stackBody = string(body)
 			_, _ = io.WriteString(w, `{"ok":true,"message":"ok"}`)
 		case readyPath:
-			_ = json.NewEncoder(w).Encode(Ready{Ready: true, ASRID: "asr-a", TTSID: "tts-a", ASROK: true, TTSOK: true})
+			_ = json.NewEncoder(w).Encode(Ready{Ready: true, ASRID: "asr-a", TTSID: "tts-a", ASROK: true, TTSOK: true, Voice: "M1"})
 		default:
 			http.NotFound(w, r)
 		}
@@ -153,6 +174,9 @@ func TestActivateStackNeverSendsLLMIDAndRechecksReadiness(t *testing.T) {
 	_, ready, err := client.ActivateStack(context.Background(), StackRequest{ASRID: "asr-a", TTSID: "tts-a", Voice: "M1"})
 	if err != nil || !ready.Ready {
 		t.Fatalf("activation failed: ready=%+v err=%v", ready, err)
+	}
+	if ready.Voice != "M1" {
+		t.Fatalf("activation did not return the active voice: %q", ready.Voice)
 	}
 	if strings.Contains(stackBody, "llm") {
 		t.Fatalf("AuraGo forwarded an LLM field: %s", stackBody)

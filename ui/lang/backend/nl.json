@@ -1,4 +1,5 @@
 {
+  "backend.speech_lab_llm_unavailable": "De geselecteerde Speech Lab-LLM-provider is niet beschikbaar. Er is geen fallbackprovider gebruikt.",
   "backend.operational_issue_notice_title": "Operationele problemen",
   "backend.operational_issue_notice_summary": "AuraGo heeft {0} probleem/problemen gedetecteerd tijdens achtergrondtaken.",
   "backend.operational_issue_notice_occurrences": "{0} keer opgetreden",

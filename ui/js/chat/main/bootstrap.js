@@ -391,7 +391,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 			if (useSpeechLabSTT) {
 				window.SpeechLabRecorder.init({
-					onTranscription: _populateInput,
+					onTranscription: (text) => {
+						pendingSpeechLabInput = true;
+						voiceBtn.classList.remove('btn-active');
+						_populateInput(text);
+					},
 					onError: (msg) => {
 						voiceBtn.classList.remove('btn-active');
 						_showError(msg);

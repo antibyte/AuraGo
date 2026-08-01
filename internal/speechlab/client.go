@@ -46,6 +46,7 @@ type Ready struct {
 	TTSOK    bool   `json:"tts_ok"`
 	Message  string `json:"message"`
 	Language string `json:"language,omitempty"`
+	Voice    string `json:"voice,omitempty"`
 }
 
 // StackRequest intentionally omits llm_id. AuraGo never owns the s2s LLM.
@@ -340,9 +341,7 @@ func (c *Client) Synthesize(ctx context.Context, text, language, voice, expected
 	if strings.TrimSpace(language) == "" {
 		language = cfg.Language
 	}
-	if strings.TrimSpace(voice) == "" {
-		voice = cfg.Voice
-	}
+	voice = strings.TrimSpace(voice)
 	payload, err := json.Marshal(map[string]string{
 		"input": text, "language": language, "voice": voice, "response_format": "wav",
 	})

@@ -53,7 +53,7 @@ func handleSpeechLabStatus(s *Server) http.HandlerFunc {
 			return
 		}
 		result := speechLabStatusResponse{
-			Enabled: cfg.SpeechLab.Enabled, Language: cfg.SpeechLab.Language, Voice: cfg.SpeechLab.Voice,
+			Enabled: cfg.SpeechLab.Enabled, Language: cfg.SpeechLab.Language,
 			SIPEnabled: cfg.SpeechLab.SIPEnabled, ChatInputEnabled: cfg.SpeechLab.ChatInputEnabled,
 			ChatOutputEnabled: cfg.SpeechLab.ChatOutputEnabled, AdvancedUIURL: cfg.SpeechLab.AdvancedUIURL,
 			EnvironmentManaged: strings.TrimSpace(os.Getenv("AURAGO_SPEECH_LAB_BASE_URL")) != "",
@@ -75,6 +75,7 @@ func handleSpeechLabStatus(s *Server) http.HandlerFunc {
 		result.Reachable = true
 		result.Ready = ready.Ready
 		result.ASRID, result.TTSID = ready.ASRID, ready.TTSID
+		result.Voice = ready.Voice
 		result.ASROK, result.TTSOK = ready.ASROK, ready.TTSOK
 		if ready.Ready {
 			result.Message = "Speech Lab is ready"

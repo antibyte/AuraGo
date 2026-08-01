@@ -1,4 +1,5 @@
 {
+  "chat.speech_lab_browser_url_missing": "Konfigurer Speech Lab-nettleser-URL under Medier → Speech Lab.",
   "chat.vault_secret_title": "Lagre hemmeligheten sikkert",
   "chat.vault_secret_notice": "Agenten ser aldri det du skriver inn. Verdien lagres direkte i det krypterte Vault.",
   "chat.vault_secret_key_label": "Vault-nøkkel",

@@ -120,7 +120,7 @@ func TestChatVoiceOutputSpeechLabPreflightsAndSnapshotsTTS(t *testing.T) {
 			http.NotFound(w, r)
 			return
 		}
-		_ = json.NewEncoder(w).Encode(speechlab.Ready{Ready: true, ASRID: "asr-local", TTSID: "tts-local", ASROK: true, TTSOK: true})
+		_ = json.NewEncoder(w).Encode(speechlab.Ready{Ready: true, ASRID: "asr-local", TTSID: "tts-local", ASROK: true, TTSOK: true, Voice: "Serena"})
 	}))
 	defer upstream.Close()
 
@@ -146,6 +146,9 @@ func TestChatVoiceOutputSpeechLabPreflightsAndSnapshotsTTS(t *testing.T) {
 
 	if gotCfg.Provider != "speech_lab" || gotCfg.SpeechLab.Client != client || gotCfg.SpeechLab.ExpectedTTSID != "tts-local" {
 		t.Fatalf("Speech Lab TTS snapshot = provider %q id %q client=%v", gotCfg.Provider, gotCfg.SpeechLab.ExpectedTTSID, gotCfg.SpeechLab.Client == client)
+	}
+	if gotCfg.SpeechLab.Voice != "Serena" {
+		t.Fatalf("Speech Lab active voice snapshot = %q, want Serena", gotCfg.SpeechLab.Voice)
 	}
 	if len(base.events) != 1 || base.events[0].event != "audio" {
 		t.Fatalf("events = %+v", base.events)
