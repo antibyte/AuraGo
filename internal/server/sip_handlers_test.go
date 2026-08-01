@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -14,6 +15,15 @@ import (
 	"aurago/internal/security"
 	"aurago/internal/sipphone"
 )
+
+func TestSIPStackReservationMapsOutboundBusyToServiceUnavailable(t *testing.T) {
+	recorder := httptest.NewRecorder()
+	err := fmt.Errorf("%w: %w", sipphone.ErrSpeechLabStackChange, sipphone.ErrBusy)
+	writeSIPManagerError(recorder, err)
+	if recorder.Code != http.StatusServiceUnavailable {
+		t.Fatalf("stack reservation error status = %d, want 503", recorder.Code)
+	}
+}
 
 func TestSIPConfigResponseMasksPassword(t *testing.T) {
 	var sipCfg config.SIPConfig

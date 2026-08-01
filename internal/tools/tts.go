@@ -186,13 +186,18 @@ func ttsCacheKey(cfg TTSConfig, text string) string {
 			text,
 		}, "\x00")
 	case "s2s", "speech_lab", "s2s-lab":
-		return strings.Join([]string{
+		parts := []string{
 			provider,
 			cfg.Language,
 			cfg.SpeechLab.BaseURL,
 			cfg.SpeechLab.Voice,
-			text,
-		}, "\x00")
+		}
+		// A chat call snapshots the expected backend ID. Include it only for
+		// Speech Lab snapshots so legacy non-snapshot cache names remain valid.
+		if expected := strings.TrimSpace(cfg.SpeechLab.ExpectedTTSID); expected != "" {
+			parts = append(parts, expected)
+		}
+		return strings.Join(append(parts, text), "\x00")
 	default:
 		return cfg.Provider + cfg.Language + text
 	}

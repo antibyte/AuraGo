@@ -1051,6 +1051,8 @@ func writeSIPManagerError(w http.ResponseWriter, err error) {
 		jsonError(w, err.Error(), http.StatusServiceUnavailable)
 	case errors.Is(err, sipphone.ErrReadOnly), errors.Is(err, sipphone.ErrPermissionDenied):
 		jsonError(w, err.Error(), http.StatusForbidden)
+	case errors.Is(err, sipphone.ErrSpeechLabStackChange):
+		jsonError(w, err.Error(), http.StatusServiceUnavailable)
 	case errors.Is(err, sipphone.ErrBusy):
 		jsonError(w, err.Error(), http.StatusConflict)
 	case errors.Is(err, sipphone.ErrBrowserMediaDisabled):

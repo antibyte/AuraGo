@@ -417,6 +417,54 @@ func TestManagerRespondsBusyToSecondInboundCall(t *testing.T) {
 	}
 }
 
+func TestSpeechLabStackReservationBlocksOutboundAndInboundAdmission(t *testing.T) {
+	cfg := validTestSIPConfig()
+	cfg.Permissions.AnswerInbound = true
+	cfg.Inbound.TrustedPeerCIDRs = []string{"192.0.2.10"}
+	cfg.Inbound.AllowedCallers = []string{"alice"}
+	manager, err := NewManager(cfg, t.TempDir(), readyTestBackendFactory, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer manager.Close()
+	manager.endpoint = &diago.Diago{}
+
+	release, err := manager.ReserveSpeechLabStackChange()
+	if err != nil {
+		t.Fatalf("reserve stack change: %v", err)
+	}
+	if _, err := manager.ReserveSpeechLabStackChange(); !errors.Is(err, ErrBusy) {
+		t.Fatalf("second stack reservation error = %v, want ErrBusy", err)
+	}
+	if _, err := manager.Dial(context.Background(), "sip:alice@example.com"); !errors.Is(err, ErrBusy) {
+		t.Fatalf("outbound admission error = %v, want ErrBusy", err)
+	}
+
+	req, err := diagotest.NewRequest(sip.INVITE, sip.Uri{Scheme: "sip", User: "aurago", Host: "example.com"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.SetSource("192.0.2.10:5060")
+	req.From().Address.User = "alice"
+	dialog, recorder, err := diagotest.NewDialogServerSession(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	manager.handleIncoming(dialog)
+	responses := recorder.Result()
+	if len(responses) == 0 || responses[len(responses)-1].StatusCode != sip.StatusTemporarilyUnavailable {
+		t.Fatalf("responses = %#v, want 480 during stack reservation", responses)
+	}
+
+	release()
+	release() // idempotent release must not make a later reservation unsafe.
+	nextRelease, err := manager.ReserveSpeechLabStackChange()
+	if err != nil {
+		t.Fatalf("reservation was not released: %v", err)
+	}
+	nextRelease()
+}
+
 func TestAutoAnswerStopsImmediatelyOnRemoteCancel(t *testing.T) {
 	cfg := validTestSIPConfig()
 	cfg.Permissions.AnswerInbound = true

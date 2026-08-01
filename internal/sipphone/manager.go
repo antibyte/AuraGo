@@ -32,26 +32,29 @@ var rtpPortConfig struct {
 }
 
 type Manager struct {
-	mu                sync.Mutex
-	cfg               config.SIPConfig
-	logger            *slog.Logger
-	store             *Store
-	backendFactory    BackendFactory
-	issueReporter     IssueReporter
-	state             State
-	registered        bool
-	registrationErr   string
-	rootCtx           context.Context
-	lifecycleCtx      context.Context
-	cancel            context.CancelFunc
-	ua                *sipgo.UserAgent
-	endpoint          *diago.Diago
-	active            *activeCall
-	preparingCall     bool
-	callConfigVersion uint64
-	subscribers       map[uint64]chan Event
-	nextSubscriber    uint64
-	sequence          uint64
+	mu              sync.Mutex
+	cfg             config.SIPConfig
+	logger          *slog.Logger
+	store           *Store
+	backendFactory  BackendFactory
+	issueReporter   IssueReporter
+	state           State
+	registered      bool
+	registrationErr string
+	rootCtx         context.Context
+	lifecycleCtx    context.Context
+	cancel          context.CancelFunc
+	ua              *sipgo.UserAgent
+	endpoint        *diago.Diago
+	active          *activeCall
+	preparingCall   bool
+	// speechLabStackChange serializes stack activation with SIP preflight and
+	// call admission. It is held by the server handler until activation ends.
+	speechLabStackChange bool
+	callConfigVersion    uint64
+	subscribers          map[uint64]chan Event
+	nextSubscriber       uint64
+	sequence             uint64
 }
 
 type activeCall struct {
@@ -289,6 +292,31 @@ func (m *Manager) Config() config.SIPConfig {
 	return m.cfg
 }
 
+// ReserveSpeechLabStackChange atomically reserves the SIP pipeline for a
+// Speech Lab stack activation. The returned release function is idempotent and
+// must be called when activation succeeds, fails, or is cancelled.
+func (m *Manager) ReserveSpeechLabStackChange() (func(), error) {
+	if m == nil {
+		return nil, ErrBusy
+	}
+	m.mu.Lock()
+	if m.active != nil || m.preparingCall || m.speechLabStackChange {
+		m.mu.Unlock()
+		return nil, ErrBusy
+	}
+	m.speechLabStackChange = true
+	m.mu.Unlock()
+
+	var once sync.Once
+	return func() {
+		once.Do(func() {
+			m.mu.Lock()
+			m.speechLabStackChange = false
+			m.mu.Unlock()
+		})
+	}, nil
+}
+
 func (m *Manager) ListCalls(ctx context.Context, limit int) ([]CallRecord, error) {
 	return m.store.List(ctx, limit)
 }
@@ -333,6 +361,10 @@ func (m *Manager) dial(ctx context.Context, target, mediaMode string, peer Media
 	if mediaMode == MediaModeBrowser && !cfg.BrowserMedia.Enabled {
 		m.mu.Unlock()
 		return CallRecord{}, ErrBrowserMediaDisabled
+	}
+	if m.speechLabStackChange {
+		m.mu.Unlock()
+		return CallRecord{}, fmt.Errorf("%w: %w", ErrSpeechLabStackChange, ErrBusy)
 	}
 	if m.active != nil || m.preparingCall {
 		m.mu.Unlock()
@@ -634,6 +666,11 @@ func (m *Manager) handleIncoming(dialog *diago.DialogServerSession) {
 		return
 	}
 	if !cfg.Enabled || cfg.ReadOnly || !cfg.Permissions.AnswerInbound {
+		m.mu.Unlock()
+		_ = dialog.Respond(sip.StatusTemporarilyUnavailable, "Temporarily Unavailable", nil)
+		return
+	}
+	if m.speechLabStackChange {
 		m.mu.Unlock()
 		_ = dialog.Respond(sip.StatusTemporarilyUnavailable, "Temporarily Unavailable", nil)
 		return

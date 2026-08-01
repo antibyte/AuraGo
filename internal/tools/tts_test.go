@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/md5"
 	"encoding/base64"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -13,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -338,6 +340,66 @@ func TestTTSSynthesizeSupertonicUsesFormatExtensionAndVoiceCacheKey(t *testing.T
 	if string(secondData) != "audio-F1" {
 		t.Fatalf("second audio = %q, want audio-F1", string(secondData))
 	}
+}
+
+func TestTTSSpeechLabCacheUsesExpectedBackendID(t *testing.T) {
+	dataDir := t.TempDir()
+	var calls atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		call := calls.Add(1)
+		id := "tts-a"
+		if call > 1 {
+			id = "tts-b"
+		}
+		w.Header().Set("Content-Type", "audio/wav")
+		w.Header().Set("X-S2S-TTS-ID", id)
+		_, _ = w.Write(speechLabCacheWAVForTest())
+	}))
+	defer server.Close()
+
+	cfg := TTSConfig{Provider: "speech_lab", Language: "de", DataDir: dataDir}
+	cfg.SpeechLab.BaseURL = server.URL
+	cfg.SpeechLab.Voice = "M1"
+	cfg.SpeechLab.ExpectedTTSID = "tts-a"
+
+	first, err := TTSSynthesize(cfg, "same text")
+	if err != nil {
+		t.Fatalf("first Speech Lab synthesis: %v", err)
+	}
+	second, err := TTSSynthesize(cfg, "same text")
+	if err != nil {
+		t.Fatalf("same-ID Speech Lab synthesis: %v", err)
+	}
+	if first != second || calls.Load() != 1 {
+		t.Fatalf("same backend did not reuse cache: first=%q second=%q calls=%d", first, second, calls.Load())
+	}
+
+	cfg.SpeechLab.ExpectedTTSID = "tts-b"
+	third, err := TTSSynthesize(cfg, "same text")
+	if err != nil {
+		t.Fatalf("changed-ID Speech Lab synthesis: %v", err)
+	}
+	if third == first || calls.Load() != 2 {
+		t.Fatalf("backend ID change reused cache: first=%q third=%q calls=%d", first, third, calls.Load())
+	}
+}
+
+func speechLabCacheWAVForTest() []byte {
+	data := make([]byte, 46)
+	copy(data[0:4], "RIFF")
+	binary.LittleEndian.PutUint32(data[4:8], uint32(len(data)-8))
+	copy(data[8:12], "WAVE")
+	copy(data[12:16], "fmt ")
+	binary.LittleEndian.PutUint32(data[16:20], 16)
+	binary.LittleEndian.PutUint16(data[20:22], 1)
+	binary.LittleEndian.PutUint16(data[22:24], 1)
+	binary.LittleEndian.PutUint32(data[24:28], 16000)
+	binary.LittleEndian.PutUint32(data[28:32], 32000)
+	binary.LittleEndian.PutUint16(data[32:34], 2)
+	binary.LittleEndian.PutUint16(data[34:36], 16)
+	copy(data[36:40], "data")
+	binary.LittleEndian.PutUint32(data[40:44], 2)
+	return data
 }
 
 func TestMiniMaxTTSModelIDNormalizesLegacySpeech02HD(t *testing.T) {

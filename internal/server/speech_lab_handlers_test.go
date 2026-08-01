@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"aurago/internal/config"
+	"aurago/internal/sipphone"
 	"aurago/internal/speechlab"
 )
 
@@ -131,6 +132,36 @@ func TestSpeechLabStackUsesFixedContractAndNeverSendsLLM(t *testing.T) {
 	}
 	if strings.Contains(upstreamStackBody, "llm") {
 		t.Fatalf("AuraGo sent an LLM field upstream: %s", upstreamStackBody)
+	}
+}
+
+func TestSpeechLabStackRejectsAtomicSIPReservation(t *testing.T) {
+	s, _ := speechLabServerForTest(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Fatalf("busy stack request reached Speech Lab: %s", r.URL.Path)
+	}))
+	manager, err := sipphone.NewManager(config.SIPConfig{}, t.TempDir(), nil, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer manager.Close()
+	s.SIPPhone = manager
+	release, err := manager.ReserveSpeechLabStackChange()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rec := httptest.NewRecorder()
+	handleSpeechLabStack(s).ServeHTTP(rec, httptest.NewRequest(http.MethodPut, "/api/speech-lab/stack", strings.NewReader(
+		`{"asr_id":"asr-a","tts_id":"tts-a"}`,
+	)))
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("stack during SIP reservation = %d, want 409", rec.Code)
+	}
+	release()
+	if next, err := manager.ReserveSpeechLabStackChange(); err != nil {
+		t.Fatalf("reservation remained held after release: %v", err)
+	} else {
+		next()
 	}
 }
 

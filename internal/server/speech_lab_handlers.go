@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 
+	"aurago/internal/sipphone"
 	"aurago/internal/speechlab"
 )
 
@@ -127,9 +128,19 @@ func handleSpeechLabStack(s *Server) http.Handler {
 			jsonError(w, "Speech Lab is unavailable", http.StatusServiceUnavailable)
 			return
 		}
-		if s.SIPPhone != nil && s.SIPPhone.Status().ActiveCall != nil {
-			jsonError(w, "Speech Lab stack cannot change during an active call", http.StatusConflict)
-			return
+		var release func()
+		if s.SIPPhone != nil {
+			var err error
+			release, err = s.SIPPhone.ReserveSpeechLabStackChange()
+			if err != nil {
+				if errors.Is(err, sipphone.ErrBusy) {
+					jsonError(w, "Speech Lab stack cannot change while SIP is busy", http.StatusConflict)
+					return
+				}
+				jsonError(w, "Speech Lab stack reservation failed", http.StatusConflict)
+				return
+			}
+			defer release()
 		}
 		var request speechlab.StackRequest
 		decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<10))

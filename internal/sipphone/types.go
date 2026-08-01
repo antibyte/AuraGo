@@ -30,11 +30,12 @@ const (
 )
 
 var (
-	ErrDisabled         = errors.New("SIP endpoint is disabled")
-	ErrReadOnly         = errors.New("SIP endpoint is read-only")
-	ErrBusy             = errors.New("SIP endpoint already has an active call")
-	ErrPermissionDenied = errors.New("SIP operation is not permitted")
-	ErrCallNotFound     = errors.New("SIP call not found")
+	ErrDisabled             = errors.New("SIP endpoint is disabled")
+	ErrReadOnly             = errors.New("SIP endpoint is read-only")
+	ErrBusy                 = errors.New("SIP endpoint already has an active call")
+	ErrSpeechLabStackChange = errors.New("Speech Lab stack activation is in progress")
+	ErrPermissionDenied     = errors.New("SIP operation is not permitted")
+	ErrCallNotFound         = errors.New("SIP call not found")
 )
 
 type CallRecord struct {
