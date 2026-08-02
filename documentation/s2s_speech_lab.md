@@ -10,6 +10,11 @@ All surfaces default to disabled and are selected independently:
 speech_lab:
   enabled: true
   base_url: http://s2s-vulkan:8765
+  deployment:
+    mode: managed       # managed provisions the signed GHCR bundle; external keeps an existing stack
+    bundle: stable
+    auto_start: true
+    auto_update: false
   language: de
   chat_llm_provider_id: ""  # optional fast AuraGo provider for Speech-Lab-transcribed webchat turns
   timeout_seconds: 60
@@ -67,11 +72,29 @@ AuraGo verifies the returned ASR/TTS backend IDs against the operation snapshot 
 
 ## Deployment
 
+New installations use the managed mode. The first image pull always requires
+an administrator confirmation in **Media → Speech Lab**; setting `enabled: true`
+alone never downloads images. AuraGo fetches the fixed s2s release asset and
+its detached SHA-256 checksum,
+accepts only `ghcr.io/antibyte/*@sha256:…` images, creates labeled resources,
+and waits for `/health` plus `/ready`. After a restart an already installed
+bundle may be started automatically. Updates remain explicit and roll back if
+the replacement does not become ready.
+
+The status endpoint exposes deployment state (`pulling`, `starting`, `ready`,
+`stopped`, or `error`), bundle version, digest, progress, and a sanitized error
+code. Managed resources use the `aurago.managed=speech-lab` label; unrelated
+containers, networks, and volumes are never removed. Removing a deployment
+leaves model volumes intact unless an administrator performs a separate Docker
+cleanup.
+
 Containerized AuraGo should use [the Docker network overlay](../deploy/docker/docker-compose.s2s.yml). Port 8765 stays inside the shared Docker network and is not published to the LAN.
 
 The s2s Browser Lab uses host port `8766` in the AuraGo deployment (`WEB_PORT=8766`). AuraGo derives this browser-facing address from the hostname or IP through which the user opened AuraGo.
 
-For a native AuraGo process, start s2s with its optional AuraGo host overlay, which publishes only `127.0.0.1:8765`. Then set `base_url: http://127.0.0.1:8765`.
+For a native AuraGo process, managed mode publishes only `127.0.0.1:8765` and
+`127.0.0.1:8766`; AuraGo derives both addresses. External mode can still use
+the optional host overlay and an explicit `base_url: http://127.0.0.1:8765`.
 
 For production chat or telephony, configure:
 

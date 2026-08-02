@@ -869,6 +869,11 @@ tts:
 speech_lab:
     enabled: false
     base_url: http://s2s-vulkan:8765
+    deployment:
+        mode: managed                       # managed: AuraGo provisions the verified GHCR bundle; external: existing s2s stack
+        bundle: stable
+        auto_start: true
+        auto_update: false
     language: de
     chat_llm_provider_id: ""            # optional AuraGo provider for Speech-Lab-transcribed webchat turns
     timeout_seconds: 60

@@ -50,5 +50,13 @@
   "config.speech_lab.select_stack": "Select an available ASR and TTS backend.",
   "config.speech_lab.confirm": "Change Speech Lab stack from {old} to {next}? Active operations and calls block this change.",
   "config.speech_lab.applied": "Speech Lab stack activated.",
-  "config.speech_lab.apply_failed": "Could not activate Speech Lab stack."
+  "config.speech_lab.apply_failed": "Could not activate Speech Lab stack.",
+  "config.speech_lab.deployment_managed": "Managed by AuraGo",
+  "config.speech_lab.deployment_install": "Install Speech Lab",
+  "config.speech_lab.deployment_start": "Start Speech Lab",
+  "config.speech_lab.deployment_update": "Update Speech Lab",
+  "config.speech_lab.deployment_confirm": "Confirm Speech Lab deployment? Images will be downloaded from the verified s2s release.",
+  "config.speech_lab.deployment_stop": "Stop Speech Lab",
+  "config.speech_lab.deployment_remove": "Remove Speech Lab",
+  "config.speech_lab.deployment_stop_confirm": "Stop or remove the managed Speech Lab?"
 }

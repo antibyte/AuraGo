@@ -50,5 +50,13 @@
   "config.speech_lab.select_stack": "Wähle ein verfügbares ASR- und TTS-Backend.",
   "config.speech_lab.confirm": "Speech-Lab-Stack von {old} auf {next} ändern? Laufende Vorgänge und Anrufe blockieren den Wechsel.",
   "config.speech_lab.applied": "Speech-Lab-Stack aktiviert.",
-  "config.speech_lab.apply_failed": "Speech-Lab-Stack konnte nicht aktiviert werden."
+  "config.speech_lab.apply_failed": "Speech-Lab-Stack konnte nicht aktiviert werden.",
+  "config.speech_lab.deployment_managed": "Von AuraGo verwaltet",
+  "config.speech_lab.deployment_install": "Speech Lab installieren",
+  "config.speech_lab.deployment_start": "Speech Lab starten",
+  "config.speech_lab.deployment_update": "Speech Lab aktualisieren",
+  "config.speech_lab.deployment_confirm": "Speech-Lab-Bereitstellung bestätigen? Verifizierte s2s-Images werden heruntergeladen.",
+  "config.speech_lab.deployment_stop": "Speech Lab stoppen",
+  "config.speech_lab.deployment_remove": "Speech Lab entfernen",
+  "config.speech_lab.deployment_stop_confirm": "Verwaltetes Speech Lab stoppen oder entfernen?"
 }

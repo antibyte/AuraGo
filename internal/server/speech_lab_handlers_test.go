@@ -93,7 +93,7 @@ func TestSpeechLabRoutesProtectManagementButNotStatus(t *testing.T) {
 		t.Fatalf("catalog without admin session = %d, want 401", adminRec.Code)
 	}
 	for _, path := range []string{
-		"/api/speech-lab/capability", "/api/speech-lab/catalog", "/api/speech-lab/suggestions", "/api/speech-lab/stack",
+		"/api/speech-lab/capability", "/api/speech-lab/catalog", "/api/speech-lab/suggestions", "/api/speech-lab/stack", "/api/speech-lab/deployment/install",
 	} {
 		if !isAdminProtectedPath(path) {
 			t.Fatalf("%s should be classified as admin protected", path)

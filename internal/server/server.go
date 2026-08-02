@@ -28,6 +28,7 @@ import (
 	"aurago/internal/desktop"
 	"aurago/internal/desktopstore"
 	"aurago/internal/discord"
+	"aurago/internal/dockerutil"
 	"aurago/internal/fritzbox"
 	"aurago/internal/gamemaker"
 	"aurago/internal/heartbeat"
@@ -46,6 +47,7 @@ import (
 	"aurago/internal/services"
 	"aurago/internal/sipphone"
 	"aurago/internal/speechlab"
+	"aurago/internal/speechlab/deployer"
 	"aurago/internal/sqlconnections"
 	"aurago/internal/tools"
 	"aurago/internal/tsnetnode"
@@ -160,6 +162,7 @@ type Server struct {
 	NetworkShares        *networkshares.Manager
 	SIPPhone             *sipphone.Manager
 	SpeechLab            *speechlab.Client
+	SpeechLabDeployer    *deployer.Manager
 	SIPBrowserMedia      *sipphone.BrowserMediaService
 	VoiceActionRunner    *VoiceActionRunner
 	HistoryManager       *memory.HistoryManager
@@ -260,15 +263,32 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 	}
 	s.Cfg = cfg
 	s.cfgSnapshot.Store(cfg)
+	speechCfg := effectiveSpeechLabConfig(cfg)
 	if s.SpeechLab == nil {
-		if client, err := speechlab.NewClient(cfg.SpeechLab); err == nil {
+		if client, err := speechlab.NewClient(speechCfg); err == nil {
 			s.SpeechLab = client
 		} else if s.Logger != nil {
 			s.Logger.Warn("Speech Lab configuration rejected during reload", "error", err)
 		}
 	} else {
-		s.SpeechLab.Reconfigure(cfg.SpeechLab)
+		s.SpeechLab.Reconfigure(speechCfg)
 	}
+	if s.SpeechLabDeployer != nil {
+		s.SpeechLabDeployer.Reconfigure(speechCfg)
+	} else if speechCfg.Deployment.Mode == "managed" {
+		s.SpeechLabDeployer = deployer.NewManager(speechCfg, cfg.Runtime.IsDocker, cfg.Docker.Enabled, cfg.Docker.ReadOnly, cfg.Directories.DataDir, s.Logger, deployer.WithDockerClient(dockerutil.NewClient(cfg.Docker.Host, 30*time.Second)))
+	}
+}
+
+func effectiveSpeechLabConfig(cfg *config.Config) config.SpeechLabConfig {
+	if cfg == nil {
+		return config.SpeechLabConfig{}
+	}
+	speechCfg := cfg.SpeechLab
+	if speechCfg.Deployment.Mode == "managed" && !cfg.Runtime.IsDocker && strings.EqualFold(strings.TrimRight(speechCfg.BaseURL, "/"), strings.TrimRight(config.DefaultSpeechLabBaseURL, "/")) {
+		speechCfg.BaseURL = config.DefaultManagedSpeechLabBaseURL
+	}
+	return speechCfg
 }
 
 // reinitBudgetTracker recreates the BudgetTracker from the current config and
@@ -349,6 +369,13 @@ func Start(opts StartOptions) error {
 	startLoginRecordCleaner(shutdownCh)
 	s := newServerFromOptions(opts)
 	s.localLLMLifecycleCtx = serverCtx
+	if s.SpeechLabDeployer != nil {
+		go func() {
+			if err := s.SpeechLabDeployer.AutoStart(serverCtx); err != nil && s.Logger != nil {
+				s.Logger.Warn("[SpeechLab] Managed bundle auto-start failed", "code", deployer.Code(err), "error", err)
+			}
+		}()
+	}
 	if err := s.initSIP(serverCtx); err != nil {
 		serverCancel()
 		return err
@@ -1298,10 +1325,14 @@ func newServerFromOptions(opts StartOptions) *Server {
 		EggHub:             bridge.NewEggHub(logger),
 		WarningsRegistry:   opts.WarningsRegistry,
 	}
-	if speechLabClient, err := speechlab.NewClient(cfg.SpeechLab); err != nil {
+	speechCfg := effectiveSpeechLabConfig(cfg)
+	if speechLabClient, err := speechlab.NewClient(speechCfg); err != nil {
 		logger.Warn("Speech Lab client is unavailable", "error", err)
 	} else {
 		s.SpeechLab = speechLabClient
+	}
+	if cfg.SpeechLab.Deployment.Mode == "managed" {
+		s.SpeechLabDeployer = deployer.NewManager(speechCfg, cfg.Runtime.IsDocker, cfg.Docker.Enabled, cfg.Docker.ReadOnly, cfg.Directories.DataDir, logger, deployer.WithDockerClient(dockerutil.NewClient(cfg.Docker.Host, 30*time.Second)))
 	}
 	s.initConfigSnapshot()
 	if opts.Vault != nil {

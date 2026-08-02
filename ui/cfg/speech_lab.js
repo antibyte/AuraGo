@@ -14,6 +14,9 @@ function speechLabEnsureData() {
     if (!configData.speech_lab) configData.speech_lab = {};
     const data = configData.speech_lab;
     if (!data.base_url) data.base_url = 'http://s2s-vulkan:8765';
+    if (!data.deployment) data.deployment = {};
+    if (!data.deployment.mode) data.deployment.mode = 'managed';
+    if (!data.deployment.bundle) data.deployment.bundle = 'stable';
     if (!data.language) data.language = 'de';
     delete data.voice;
     data.chat_llm_provider_id = String(data.chat_llm_provider_id || '').trim();
@@ -35,7 +38,11 @@ async function renderSpeechLabSection(section) {
     html += speechLabToggle('speech_lab.chat_input_enabled', data.chat_input_enabled === true, 'config.speech_lab.chat_input_enabled', 'config.speech_lab.chat_input_enabled_help');
     html += speechLabToggle('speech_lab.chat_output_enabled', data.chat_output_enabled === true, 'config.speech_lab.chat_output_enabled', 'config.speech_lab.chat_output_enabled_help');
     html += '<div class="cfg-group-title cfg-group-title-top">' + escapeHtml(t('config.speech_lab.connection')) + '</div>';
-    html += speechLabField('speech_lab.base_url', data.base_url, 'url', 'config.speech_lab.base_url', 'config.speech_lab.base_url_help');
+    if (data.deployment.mode !== 'managed') {
+        html += speechLabField('speech_lab.base_url', data.base_url, 'url', 'config.speech_lab.base_url', 'config.speech_lab.base_url_help');
+    } else {
+        html += '<div class="cfg-note-banner cfg-note-banner-info">' + escapeHtml(t('config.speech_lab.env_managed')) + '</div>';
+    }
     html += speechLabField('speech_lab.language', data.language, 'text', 'config.speech_lab.language', 'config.speech_lab.language_help');
     html += speechLabProviderField(data.chat_llm_provider_id);
     if (speechLabProviderLoadFailed) {
@@ -52,7 +59,7 @@ async function renderSpeechLabSection(section) {
         html += ' <button id="speech-lab-advanced-link" type="button" class="btn-secondary" disabled>' + escapeHtml(t('config.speech_lab.open_advanced')) + '</button>';
     }
     html += '</div>';
-    html += '<div id="speech-lab-capability"></div><div id="speech-lab-suggestions"></div><div id="speech-lab-stack"></div>';
+    html += '<div id="speech-lab-deployment"></div><div id="speech-lab-capability"></div><div id="speech-lab-suggestions"></div><div id="speech-lab-stack"></div>';
     html += '</div>';
     document.getElementById('content').innerHTML = html;
     attachChangeListeners();
@@ -159,6 +166,7 @@ async function speechLabRefresh() {
     speechLabRenderCapability();
     speechLabRenderSuggestions();
     speechLabRenderStack();
+    speechLabRenderDeployment();
 }
 
 async function speechLabJSON(response) {
@@ -175,6 +183,39 @@ function speechLabRenderCapability() {
     const name = speechLabCapability.device_name || speechLabCapability.vendor || gpu.name || gpu.device_name || gpu.vendor || '';
     node.innerHTML = '<div class="cfg-card"><div class="cfg-card-title">' + escapeHtml(t('config.speech_lab.capability')) + '</div>' +
         '<p>' + escapeHtml(String(tier)) + (name ? ' · ' + escapeHtml(String(name)) : '') + '</p></div>';
+}
+
+function speechLabRenderDeployment() {
+    const node = document.getElementById('speech-lab-deployment');
+    if (!node || !speechLabStatus) return;
+    const deployment = speechLabStatus.deployment || {};
+    if (deployment.managed !== true) { node.innerHTML = ''; return; }
+    const state = String(deployment.state || 'disabled');
+    let html = '<div class="cfg-card"><div class="cfg-card-title">' + escapeHtml(t('config.speech_lab.deployment_managed')) + '</div>';
+    html += '<p>' + escapeHtml(state) + (deployment.bundle ? ' · ' + escapeHtml(deployment.bundle) : '') + (deployment.digest ? ' · ' + escapeHtml(deployment.digest.slice(0, 20)) : '') + '</p>';
+    if (deployment.last_error) html += '<p class="cfg-note-banner cfg-note-banner-warning">' + escapeHtml(deployment.last_error) + '</p>';
+    const busy = ['pulling', 'starting', 'checking'].includes(state);
+    html += '<div class="field-group">';
+    html += '<button type="button" class="btn-secondary" ' + (busy ? 'disabled' : '') + ' onclick="speechLabDeploymentAction(\'install\')">' + escapeHtml(t('config.speech_lab.deployment_install')) + '</button> ';
+    html += '<button type="button" class="btn-secondary" ' + (busy ? 'disabled' : '') + ' onclick="speechLabDeploymentAction(\'start\')">' + escapeHtml(t('config.speech_lab.deployment_start')) + '</button> ';
+    html += '<button type="button" class="btn-secondary" ' + (busy ? 'disabled' : '') + ' onclick="speechLabDeploymentAction(\'update\')">' + escapeHtml(t('config.speech_lab.deployment_update')) + '</button> ';
+    html += '<button type="button" class="btn-secondary" ' + (busy ? 'disabled' : '') + ' onclick="speechLabDeploymentAction(\'stop\')">' + escapeHtml(t('config.speech_lab.deployment_stop')) + '</button> ';
+    html += '<button type="button" class="btn-secondary" ' + (busy ? 'disabled' : '') + ' onclick="speechLabDeploymentAction(\'remove\')">' + escapeHtml(t('config.speech_lab.deployment_remove')) + '</button>';
+    html += '</div></div>';
+    node.innerHTML = html;
+}
+
+async function speechLabDeploymentAction(action) {
+    const destructive = action === 'install' || action === 'update';
+    const confirming = destructive || action === 'stop' || action === 'remove';
+    if (confirming && !await showConfirm(t(destructive ? 'config.speech_lab.deployment_confirm' : 'config.speech_lab.deployment_stop_confirm'))) return;
+    const method = action === 'remove' ? 'DELETE' : 'POST';
+    const response = await fetch('/api/speech-lab/deployment/' + action, {
+        method, headers: { 'Content-Type': 'application/json' },
+        body: confirming ? JSON.stringify({ confirm: true }) : undefined
+    });
+    try { await speechLabJSON(response); await speechLabRefresh(); }
+    catch (error) { showToast(error.message || t('config.speech_lab.apply_failed'), 'error'); }
 }
 
 function speechLabRenderSuggestions() {
@@ -280,3 +321,4 @@ window.speechLabRefresh = speechLabRefresh;
 window.speechLabApplyStack = speechLabApplyStack;
 window.speechLabUpdateVoices = speechLabUpdateVoices;
 window.speechLabToggleExperimental = speechLabToggleExperimental;
+window.speechLabDeploymentAction = speechLabDeploymentAction;

@@ -468,6 +468,7 @@ func isAdminProtectedPath(path string) bool {
 		path == "/api/speech-lab/catalog" ||
 		path == "/api/speech-lab/suggestions" ||
 		path == "/api/speech-lab/stack" ||
+		strings.HasPrefix(path, "/api/speech-lab/deployment") ||
 		strings.HasPrefix(path, "/api/sip/") ||
 		(strings.HasPrefix(path, "/api/dashboard/memory/curation/") && path != "/api/dashboard/memory/curation/dry-run") {
 		return true

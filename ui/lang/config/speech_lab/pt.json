@@ -50,5 +50,13 @@
   "config.speech_lab.select_stack": "Selecione backends ASR e TTS disponíveis.",
   "config.speech_lab.confirm": "Alterar a pilha de {old} para {next}? Operações e chamadas ativas bloqueiam a alteração.",
   "config.speech_lab.applied": "Pilha Speech Lab ativada.",
-  "config.speech_lab.apply_failed": "Não foi possível ativar a pilha Speech Lab."
+  "config.speech_lab.apply_failed": "Não foi possível ativar a pilha Speech Lab.",
+  "config.speech_lab.deployment_managed": "Gerido pelo AuraGo",
+  "config.speech_lab.deployment_install": "Instalar Speech Lab",
+  "config.speech_lab.deployment_start": "Iniciar Speech Lab",
+  "config.speech_lab.deployment_update": "Atualizar Speech Lab",
+  "config.speech_lab.deployment_confirm": "Confirmar a implementação do Speech Lab? Serão descarregadas imagens s2s verificadas.",
+  "config.speech_lab.deployment_stop": "Parar Speech Lab",
+  "config.speech_lab.deployment_remove": "Remover Speech Lab",
+  "config.speech_lab.deployment_stop_confirm": "Parar ou remover o Speech Lab gerido?"
 }

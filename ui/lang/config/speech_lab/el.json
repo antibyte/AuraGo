@@ -50,5 +50,13 @@
   "config.speech_lab.select_stack": "Επιλέξτε διαθέσιμα backend ASR και TTS.",
   "config.speech_lab.confirm": "Αλλαγή στοίβας από {old} σε {next}; Ενεργές εργασίες και κλήσεις την εμποδίζουν.",
   "config.speech_lab.applied": "Η στοίβα Speech Lab ενεργοποιήθηκε.",
-  "config.speech_lab.apply_failed": "Αποτυχία ενεργοποίησης στοίβας Speech Lab."
+  "config.speech_lab.apply_failed": "Αποτυχία ενεργοποίησης στοίβας Speech Lab.",
+  "config.speech_lab.deployment_managed": "Διαχείριση από το AuraGo",
+  "config.speech_lab.deployment_install": "Εγκατάσταση Speech Lab",
+  "config.speech_lab.deployment_start": "Εκκίνηση Speech Lab",
+  "config.speech_lab.deployment_update": "Ενημέρωση Speech Lab",
+  "config.speech_lab.deployment_confirm": "Επιβεβαίωση ανάπτυξης Speech Lab; Θα ληφθούν επαληθευμένες εικόνες s2s.",
+  "config.speech_lab.deployment_stop": "Διακοπή Speech Lab",
+  "config.speech_lab.deployment_remove": "Αφαίρεση Speech Lab",
+  "config.speech_lab.deployment_stop_confirm": "Διακοπή ή αφαίρεση του διαχειριζόμενου Speech Lab;"
 }

@@ -97,6 +97,14 @@ func TestNormalizeSpeechLabCanonicalFieldsWin(t *testing.T) {
 	}
 }
 
+func TestNormalizeSpeechLabExplicitBaseURLRemainsExternal(t *testing.T) {
+	cfg := SpeechLabConfig{BaseURL: "http://127.0.0.1:8765"}
+	NormalizeSpeechLabConfig(&cfg, []byte("speech_lab:\n  base_url: http://127.0.0.1:8765\n"))
+	if cfg.Deployment.Mode != "external" {
+		t.Fatalf("explicit existing base URL was migrated to managed mode: %q", cfg.Deployment.Mode)
+	}
+}
+
 func TestValidateSpeechLabConfig(t *testing.T) {
 	valid := SpeechLabConfig{BaseURL: "http://127.0.0.1:8765", TimeoutSeconds: 60}
 	if err := ValidateSpeechLabConfig(valid); err != nil {

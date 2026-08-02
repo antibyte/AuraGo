@@ -442,6 +442,12 @@ func integrationWebhostsForRequest(s *Server, r *http.Request) []webhostIntegrat
 		go func() {
 			defer wg.Done()
 			status := "offline"
+			if s.SpeechLabDeployer != nil {
+				deploymentState := s.SpeechLabDeployer.Status().State
+				if deploymentState == "pulling" || deploymentState == "starting" || deploymentState == "checking" {
+					status = "starting"
+				}
+			}
 			if s.SpeechLab != nil {
 				ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 				ready, err := s.SpeechLab.Ready(ctx)

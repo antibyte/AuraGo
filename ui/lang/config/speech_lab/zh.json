@@ -50,5 +50,13 @@
   "config.speech_lab.select_stack": "请选择可用的 ASR 和 TTS 后端。",
   "config.speech_lab.confirm": "将 Speech Lab 栈从 {old} 更改为 {next}？活动操作和通话会阻止更改。",
   "config.speech_lab.applied": "Speech Lab 栈已激活。",
-  "config.speech_lab.apply_failed": "无法激活 Speech Lab 栈。"
+  "config.speech_lab.apply_failed": "无法激活 Speech Lab 栈。",
+  "config.speech_lab.deployment_managed": "由 AuraGo 管理",
+  "config.speech_lab.deployment_install": "安装 Speech Lab",
+  "config.speech_lab.deployment_start": "启动 Speech Lab",
+  "config.speech_lab.deployment_update": "更新 Speech Lab",
+  "config.speech_lab.deployment_confirm": "确认部署 Speech Lab？将下载经过验证的 s2s 镜像。",
+  "config.speech_lab.deployment_stop": "停止 Speech Lab",
+  "config.speech_lab.deployment_remove": "移除 Speech Lab",
+  "config.speech_lab.deployment_stop_confirm": "停止或移除受 AuraGo 管理的 Speech Lab？"
 }

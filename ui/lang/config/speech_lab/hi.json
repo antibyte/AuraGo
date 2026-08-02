@@ -50,5 +50,13 @@
   "config.speech_lab.select_stack": "उपलब्ध ASR और TTS बैकएंड चुनें।",
   "config.speech_lab.confirm": "स्टैक {old} से {next} करें? सक्रिय कार्य और कॉल बदलाव रोकते हैं।",
   "config.speech_lab.applied": "Speech Lab स्टैक सक्रिय हुआ।",
-  "config.speech_lab.apply_failed": "Speech Lab स्टैक सक्रिय नहीं हो सका।"
+  "config.speech_lab.apply_failed": "Speech Lab स्टैक सक्रिय नहीं हो सका।",
+  "config.speech_lab.deployment_managed": "AuraGo द्वारा प्रबंधित",
+  "config.speech_lab.deployment_install": "Speech Lab स्थापित करें",
+  "config.speech_lab.deployment_start": "Speech Lab प्रारंभ करें",
+  "config.speech_lab.deployment_update": "Speech Lab अपडेट करें",
+  "config.speech_lab.deployment_confirm": "Speech Lab परिनियोजन की पुष्टि करें? सत्यापित s2s इमेज डाउनलोड होंगी।",
+  "config.speech_lab.deployment_stop": "Speech Lab रोकें",
+  "config.speech_lab.deployment_remove": "Speech Lab हटाएँ",
+  "config.speech_lab.deployment_stop_confirm": "प्रबंधित Speech Lab को रोकें या हटाएँ?"
 }

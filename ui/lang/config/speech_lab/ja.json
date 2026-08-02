@@ -50,5 +50,13 @@
   "config.speech_lab.select_stack": "利用可能な ASR と TTS バックエンドを選択してください。",
   "config.speech_lab.confirm": "スタックを {old} から {next} に変更しますか？実行中の処理と通話がある場合は変更できません。",
   "config.speech_lab.applied": "Speech Lab スタックを有効化しました。",
-  "config.speech_lab.apply_failed": "Speech Lab スタックを有効化できませんでした。"
+  "config.speech_lab.apply_failed": "Speech Lab スタックを有効化できませんでした。",
+  "config.speech_lab.deployment_managed": "AuraGo が管理",
+  "config.speech_lab.deployment_install": "Speech Lab をインストール",
+  "config.speech_lab.deployment_start": "Speech Lab を開始",
+  "config.speech_lab.deployment_update": "Speech Lab を更新",
+  "config.speech_lab.deployment_confirm": "Speech Lab のデプロイを確認しますか？検証済み s2s イメージをダウンロードします。",
+  "config.speech_lab.deployment_stop": "Speech Lab を停止",
+  "config.speech_lab.deployment_remove": "Speech Lab を削除",
+  "config.speech_lab.deployment_stop_confirm": "管理対象の Speech Lab を停止または削除しますか？"
 }

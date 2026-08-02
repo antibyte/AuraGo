@@ -670,6 +670,10 @@ func Load(path string) (*Config, error) {
 
 	// s2s speech lab gateway (external orchestrator; disabled by default)
 	cfg.SpeechLab.BaseURL = DefaultSpeechLabBaseURL
+	cfg.SpeechLab.Deployment.Mode = "managed"
+	cfg.SpeechLab.Deployment.Bundle = "stable"
+	cfg.SpeechLab.Deployment.AutoStart = true
+	cfg.SpeechLab.Deployment.AutoUpdate = false
 	cfg.SpeechLab.Language = "de"
 	cfg.SpeechLab.Voice = "M1"
 	cfg.SpeechLab.TimeoutSeconds = DefaultSpeechLabTimeoutSeconds

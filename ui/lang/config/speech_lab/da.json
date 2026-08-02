@@ -50,5 +50,13 @@
   "config.speech_lab.select_stack": "Vælg tilgængelige ASR- og TTS-backends.",
   "config.speech_lab.confirm": "Skift stack fra {old} til {next}? Aktive handlinger og opkald blokerer ændringen.",
   "config.speech_lab.applied": "Speech Lab-stack aktiveret.",
-  "config.speech_lab.apply_failed": "Speech Lab-stacken kunne ikke aktiveres."
+  "config.speech_lab.apply_failed": "Speech Lab-stacken kunne ikke aktiveres.",
+  "config.speech_lab.deployment_managed": "Administreret af AuraGo",
+  "config.speech_lab.deployment_install": "Installer Speech Lab",
+  "config.speech_lab.deployment_start": "Start Speech Lab",
+  "config.speech_lab.deployment_update": "Opdater Speech Lab",
+  "config.speech_lab.deployment_confirm": "Bekræft Speech Lab-udrulning? Verificerede s2s-images hentes.",
+  "config.speech_lab.deployment_stop": "Stop Speech Lab",
+  "config.speech_lab.deployment_remove": "Fjern Speech Lab",
+  "config.speech_lab.deployment_stop_confirm": "Stop eller fjern den administrerede Speech Lab?"
 }

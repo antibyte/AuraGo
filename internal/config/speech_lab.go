@@ -10,22 +10,34 @@ import (
 
 const (
 	DefaultSpeechLabBaseURL        = "http://s2s-vulkan:8765"
+	DefaultManagedSpeechLabBaseURL = "http://127.0.0.1:8765"
 	DefaultSpeechLabTimeoutSeconds = 60
 )
+
+// SpeechLabDeploymentConfig controls the optional AuraGo-owned Docker bundle.
+// External mode remains the backwards-compatible default for configurations
+// that already point at a separately managed s2s instance.
+type SpeechLabDeploymentConfig struct {
+	Mode       string `yaml:"mode,omitempty" json:"mode,omitempty"`
+	Bundle     string `yaml:"bundle,omitempty" json:"bundle,omitempty"`
+	AutoStart  bool   `yaml:"auto_start" json:"auto_start"`
+	AutoUpdate bool   `yaml:"auto_update" json:"auto_update"`
+}
 
 // SpeechLabConfig integrates the external s2s-vulkan speech orchestrator.
 // Speech Lab is an optional, surface-scoped ASR/TTS provider; AuraGo retains
 // ownership of conversations, LLM calls, tools, and memory.
 type SpeechLabConfig struct {
-	Enabled           bool   `yaml:"enabled" json:"enabled"`
-	BaseURL           string `yaml:"base_url" json:"base_url"`
-	AdvancedUIURL     string `yaml:"advanced_ui_url,omitempty" json:"advanced_ui_url,omitempty"`
-	Language          string `yaml:"language" json:"language"`
-	ChatLLMProviderID string `yaml:"chat_llm_provider_id,omitempty" json:"chat_llm_provider_id,omitempty"`
-	TimeoutSeconds    int    `yaml:"timeout_seconds" json:"timeout_seconds"`
-	SIPEnabled        bool   `yaml:"sip_enabled" json:"sip_enabled"`
-	ChatInputEnabled  bool   `yaml:"chat_input_enabled" json:"chat_input_enabled"`
-	ChatOutputEnabled bool   `yaml:"chat_output_enabled" json:"chat_output_enabled"`
+	Enabled           bool                      `yaml:"enabled" json:"enabled"`
+	BaseURL           string                    `yaml:"base_url" json:"base_url"`
+	AdvancedUIURL     string                    `yaml:"advanced_ui_url,omitempty" json:"advanced_ui_url,omitempty"`
+	Language          string                    `yaml:"language" json:"language"`
+	ChatLLMProviderID string                    `yaml:"chat_llm_provider_id,omitempty" json:"chat_llm_provider_id,omitempty"`
+	TimeoutSeconds    int                       `yaml:"timeout_seconds" json:"timeout_seconds"`
+	SIPEnabled        bool                      `yaml:"sip_enabled" json:"sip_enabled"`
+	ChatInputEnabled  bool                      `yaml:"chat_input_enabled" json:"chat_input_enabled"`
+	ChatOutputEnabled bool                      `yaml:"chat_output_enabled" json:"chat_output_enabled"`
+	Deployment        SpeechLabDeploymentConfig `yaml:"deployment,omitempty" json:"deployment,omitempty"`
 
 	// Legacy aliases from the pre-release Speech Lab integration. They are
 	// accepted on load but never emitted through JSON or new configuration.
@@ -50,6 +62,23 @@ func NormalizeSpeechLabConfig(cfg *SpeechLabConfig, rawConfig []byte) {
 	cfg.LegacyUseForChatVoice = nil
 
 	cfg.BaseURL = strings.TrimRight(strings.TrimSpace(cfg.BaseURL), "/")
+	if strings.TrimSpace(cfg.Deployment.Mode) == "" {
+		// New/default configurations use the managed bundle. Existing explicit
+		// base URLs remain external and are never silently replaced.
+		if !yamlHasPath(rawConfig, "speech_lab", "base_url") {
+			cfg.Deployment.Mode = "managed"
+		} else {
+			cfg.Deployment.Mode = "external"
+		}
+	}
+	cfg.Deployment.Mode = strings.ToLower(strings.TrimSpace(cfg.Deployment.Mode))
+	if cfg.Deployment.Mode != "managed" && cfg.Deployment.Mode != "external" {
+		cfg.Deployment.Mode = "external"
+	}
+	cfg.Deployment.Bundle = strings.TrimSpace(cfg.Deployment.Bundle)
+	if cfg.Deployment.Bundle == "" {
+		cfg.Deployment.Bundle = "stable"
+	}
 	if cfg.BaseURL == "" {
 		cfg.BaseURL = DefaultSpeechLabBaseURL
 	}
@@ -71,6 +100,12 @@ func NormalizeSpeechLabConfig(cfg *SpeechLabConfig, rawConfig []byte) {
 // destinations are additionally restricted by the Speech Lab HTTP transport at
 // dial time, after DNS resolution.
 func ValidateSpeechLabConfig(cfg SpeechLabConfig) error {
+	if mode := strings.ToLower(strings.TrimSpace(cfg.Deployment.Mode)); mode != "" && mode != "managed" && mode != "external" {
+		return fmt.Errorf("speech_lab.deployment.mode must be managed or external")
+	}
+	if len(strings.TrimSpace(cfg.Deployment.Bundle)) > 64 {
+		return fmt.Errorf("speech_lab.deployment.bundle is too long")
+	}
 	if err := validateSpeechLabURL("base_url", cfg.BaseURL, true); err != nil {
 		return err
 	}

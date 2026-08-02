@@ -50,5 +50,13 @@
   "config.speech_lab.select_stack": "Selecteer beschikbare ASR- en TTS-backends.",
   "config.speech_lab.confirm": "Stack wijzigen van {old} naar {next}? Actieve bewerkingen en gesprekken blokkeren dit.",
   "config.speech_lab.applied": "Speech Lab-stack geactiveerd.",
-  "config.speech_lab.apply_failed": "Speech Lab-stack kon niet worden geactiveerd."
+  "config.speech_lab.apply_failed": "Speech Lab-stack kon niet worden geactiveerd.",
+  "config.speech_lab.deployment_managed": "Beheerd door AuraGo",
+  "config.speech_lab.deployment_install": "Speech Lab installeren",
+  "config.speech_lab.deployment_start": "Speech Lab starten",
+  "config.speech_lab.deployment_update": "Speech Lab bijwerken",
+  "config.speech_lab.deployment_confirm": "Speech Lab implementeren? Geverifieerde s2s-images worden gedownload.",
+  "config.speech_lab.deployment_stop": "Speech Lab stoppen",
+  "config.speech_lab.deployment_remove": "Speech Lab verwijderen",
+  "config.speech_lab.deployment_stop_confirm": "Beheerde Speech Lab stoppen of verwijderen?"
 }

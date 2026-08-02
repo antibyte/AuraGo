@@ -1,0 +1,14 @@
+# Optional Docker deployment overlay for the AuraGo-managed Speech Lab.
+# AuraGo creates and labels this network through the Docker Engine API after
+# administrator confirmation; this overlay is only for documenting the private
+# network contract and must not publish Speech Lab ports on the host.
+services:
+  aurago:
+    networks:
+      - default
+      - aurago_speech_lab
+
+networks:
+  aurago_speech_lab:
+    external: true
+    name: aurago-speech-lab

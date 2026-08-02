@@ -50,5 +50,13 @@
   "config.speech_lab.select_stack": "Vyberte dostupné backendy ASR a TTS.",
   "config.speech_lab.confirm": "Změnit sestavu z {old} na {next}? Aktivní operace a hovory změnu blokují.",
   "config.speech_lab.applied": "Sestava Speech Lab aktivována.",
-  "config.speech_lab.apply_failed": "Sestavu Speech Lab se nepodařilo aktivovat."
+  "config.speech_lab.apply_failed": "Sestavu Speech Lab se nepodařilo aktivovat.",
+  "config.speech_lab.deployment_managed": "Spravováno AuraGo",
+  "config.speech_lab.deployment_install": "Instalovat Speech Lab",
+  "config.speech_lab.deployment_start": "Spustit Speech Lab",
+  "config.speech_lab.deployment_update": "Aktualizovat Speech Lab",
+  "config.speech_lab.deployment_confirm": "Potvrdit nasazení Speech Lab? Budou staženy ověřené obrazy s2s.",
+  "config.speech_lab.deployment_stop": "Zastavit Speech Lab",
+  "config.speech_lab.deployment_remove": "Odebrat Speech Lab",
+  "config.speech_lab.deployment_stop_confirm": "Opravdu zastavit nebo odebrat spravovaný Speech Lab?"
 }

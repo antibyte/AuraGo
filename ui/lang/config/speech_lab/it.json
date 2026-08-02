@@ -50,5 +50,13 @@
   "config.speech_lab.select_stack": "Seleziona backend ASR e TTS disponibili.",
   "config.speech_lab.confirm": "Cambiare lo stack da {old} a {next}? Operazioni e chiamate attive bloccano la modifica.",
   "config.speech_lab.applied": "Stack Speech Lab attivato.",
-  "config.speech_lab.apply_failed": "Impossibile attivare lo stack Speech Lab."
+  "config.speech_lab.apply_failed": "Impossibile attivare lo stack Speech Lab.",
+  "config.speech_lab.deployment_managed": "Gestito da AuraGo",
+  "config.speech_lab.deployment_install": "Installa Speech Lab",
+  "config.speech_lab.deployment_start": "Avvia Speech Lab",
+  "config.speech_lab.deployment_update": "Aggiorna Speech Lab",
+  "config.speech_lab.deployment_confirm": "Confermare il deployment Speech Lab? Verranno scaricate immagini s2s verificate.",
+  "config.speech_lab.deployment_stop": "Arresta Speech Lab",
+  "config.speech_lab.deployment_remove": "Rimuovi Speech Lab",
+  "config.speech_lab.deployment_stop_confirm": "Arrestare o rimuovere Speech Lab?"
 }
