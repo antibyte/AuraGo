@@ -34,6 +34,7 @@ const (
 var tcpDialTimeout = net.DialTimeout
 var listenTLSWithTimeoutFn = listenTLSWithTimeout
 var homepageExposureRetryDelay = 5 * time.Second
+var speechLabExposureRetryDelay = 5 * time.Second
 
 type NodeID string
 
@@ -95,6 +96,7 @@ type Status struct {
 	Starting          bool                  `json:"starting,omitempty"`            // waiting for interactive auth / cert issuance
 	ServingHTTP       bool                  `json:"serving_http"`                  // true when AuraGo itself is exposed on 443/80
 	HomepageServing   bool                  `json:"homepage_serving,omitempty"`    // true when Homepage/Caddy is exposed on 8443
+	SpeechLabServing  bool                  `json:"speech_lab_serving,omitempty"`  // true when the managed Speech Lab UI is exposed on 8766
 	SpaceAgentServing bool                  `json:"space_agent_serving,omitempty"` // true when Space Agent is exposed over HTTPS
 	SpaceAgentDNS     string                `json:"space_agent_dns,omitempty"`     // MagicDNS name of the dedicated Space Agent node
 	ManifestServing   bool                  `json:"manifest_serving,omitempty"`    // true when Manifest is exposed over HTTPS
@@ -140,25 +142,29 @@ type Manager struct {
 	listenFunnelForNode  func(context.Context, *tsnet.Server, string, time.Duration, bool) (net.Listener, error)
 	recoveryFS           recoveryFileSystem
 
-	mu               sync.Mutex
-	server           *tsnet.Server
-	listener         net.Listener // main listener (Funnel or TLS)
-	httpSrv          *http.Server
-	homepageLn       net.Listener
-	homepageSrv      *http.Server
-	manifest         childResourceState
-	spaceAgent       childResourceState
-	running          bool
-	starting         bool // true while Start() is blocked waiting for tsnet auth / certs
-	servingHTTP      bool // true when an HTTP/HTTPS listener is active
-	homepageUp       bool // true when the homepage proxy listener is active
-	homepageRetrying bool // true while a background retry is waiting for the homepage backend
-	httpFallback     bool // true when serving HTTP (no TLS) instead of HTTPS
-	funnelActive     bool // true when the AuraGo listener is exposed via Tailscale Funnel
-	lastErr          string
-	storeProxyLns    map[string]net.Listener
-	storeProxySrvs   map[string]*http.Server
-	storeProxySpecs  map[string]StoreAppProxySpec
+	mu                sync.Mutex
+	server            *tsnet.Server
+	listener          net.Listener // main listener (Funnel or TLS)
+	httpSrv           *http.Server
+	homepageLn        net.Listener
+	homepageSrv       *http.Server
+	speechLabLn       net.Listener
+	speechLabSrv      *http.Server
+	manifest          childResourceState
+	spaceAgent        childResourceState
+	running           bool
+	starting          bool // true while Start() is blocked waiting for tsnet auth / certs
+	servingHTTP       bool // true when an HTTP/HTTPS listener is active
+	homepageUp        bool // true when the homepage proxy listener is active
+	homepageRetrying  bool // true while a background retry is waiting for the homepage backend
+	speechLabUp       bool // true when the managed Speech Lab browser proxy is active
+	speechLabRetrying bool // true while a background retry is waiting for the Speech Lab web backend
+	httpFallback      bool // true when serving HTTP (no TLS) instead of HTTPS
+	funnelActive      bool // true when the AuraGo listener is exposed via Tailscale Funnel
+	lastErr           string
+	storeProxyLns     map[string]net.Listener
+	storeProxySrvs    map[string]*http.Server
+	storeProxySpecs   map[string]StoreAppProxySpec
 
 	// loginURL is the Tailscale auth URL when the node needs interactive login.
 	// It is set once and shown in the UI instead of spamming the log.
@@ -225,6 +231,11 @@ type managerConfigSnapshot struct {
 	Homepage struct {
 		WebServerEnabled bool
 		WebServerPort    int
+	}
+	SpeechLab struct {
+		Enabled bool
+		Managed bool
+		Port    int
 	}
 	Manifest struct {
 		Enabled  bool
@@ -373,6 +384,9 @@ func snapshotManagerConfig(cfg *config.Config) managerConfigSnapshot {
 	target.AuthKeySpaceAgent = source.AuthKeySpaceAgent
 	snapshot.Homepage.WebServerEnabled = cfg.Homepage.WebServerEnabled
 	snapshot.Homepage.WebServerPort = cfg.Homepage.WebServerPort
+	snapshot.SpeechLab.Enabled = cfg.SpeechLab.Enabled
+	snapshot.SpeechLab.Managed = strings.EqualFold(strings.TrimSpace(cfg.SpeechLab.Deployment.Mode), "managed")
+	snapshot.SpeechLab.Port = 8766
 	snapshot.Manifest.Enabled = cfg.Manifest.Enabled
 	snapshot.Manifest.Port = cfg.Manifest.Port
 	snapshot.Manifest.HostPort = cfg.Manifest.HostPort
@@ -1256,6 +1270,8 @@ func (m *Manager) start(ctx context.Context, handler http.Handler) error {
 		m.httpSrv != nil ||
 		m.homepageLn != nil ||
 		m.homepageSrv != nil ||
+		m.speechLabLn != nil ||
+		m.speechLabSrv != nil ||
 		m.manifest.Node != nil ||
 		m.manifest.Listener != nil ||
 		m.manifest.Server != nil ||
@@ -1374,6 +1390,8 @@ func (m *Manager) start(ctx context.Context, handler http.Handler) error {
 		m.httpSrv = nil
 		m.homepageLn = nil
 		m.homepageSrv = nil
+		m.speechLabLn = nil
+		m.speechLabSrv = nil
 		m.manifest = childResourceState{Generation: m.manifest.Generation}
 		m.spaceAgent = childResourceState{Generation: m.spaceAgent.Generation}
 		m.running = true
@@ -1381,6 +1399,7 @@ func (m *Manager) start(ctx context.Context, handler http.Handler) error {
 		m.lastErr = ""
 		m.servingHTTP = false
 		m.homepageUp = false
+		m.speechLabUp = false
 		m.httpFallback = false
 		m.funnelActive = false
 		m.mu.Unlock()
@@ -1466,6 +1485,8 @@ func (m *Manager) stopRuntime(ctx context.Context) error {
 	mainLn := m.listener
 	homepageSrv := m.homepageSrv
 	homepageLn := m.homepageLn
+	speechLabSrv := m.speechLabSrv
+	speechLabLn := m.speechLabLn
 	manifestResources := m.manifest
 	spaceAgentResources := m.spaceAgent
 	storeProxySrvs := make(map[string]*http.Server, len(m.storeProxySrvs))
@@ -1484,6 +1505,8 @@ func (m *Manager) stopRuntime(ctx context.Context) error {
 	m.httpSrv = nil
 	m.homepageLn = nil
 	m.homepageSrv = nil
+	m.speechLabLn = nil
+	m.speechLabSrv = nil
 	m.manifest = childResourceState{Generation: m.manifest.Generation}
 	m.spaceAgent = childResourceState{Generation: m.spaceAgent.Generation}
 	m.storeProxyLns = nil
@@ -1491,6 +1514,7 @@ func (m *Manager) stopRuntime(ctx context.Context) error {
 	m.storeProxySpecs = nil
 	m.servingHTTP = false
 	m.homepageUp = false
+	m.speechLabUp = false
 	m.httpFallback = false
 	m.funnelActive = false
 	m.mu.Unlock()
@@ -1500,6 +1524,9 @@ func (m *Manager) stopRuntime(ctx context.Context) error {
 		shutdownErrs = append(shutdownErrs, err)
 	}
 	if err := shutdownHTTPResource(ctx, homepageSrv, homepageLn, "Homepage listener"); err != nil {
+		shutdownErrs = append(shutdownErrs, err)
+	}
+	if err := shutdownHTTPResource(ctx, speechLabSrv, speechLabLn, "Speech Lab listener"); err != nil {
 		shutdownErrs = append(shutdownErrs, err)
 	}
 	if err := shutdownHTTPResource(ctx, manifestResources.Server, manifestResources.Listener, "Manifest listener"); err != nil {
@@ -1602,6 +1629,7 @@ func (m *Manager) GetStatus() Status {
 		Starting:          m.starting,
 		ServingHTTP:       m.servingHTTP,
 		HomepageServing:   m.homepageUp,
+		SpeechLabServing:  m.speechLabUp,
 		SpaceAgentServing: m.spaceAgent.State == "ready",
 		ManifestServing:   m.manifest.State == "ready",
 		HTTPFallback:      m.httpFallback,
@@ -1801,6 +1829,8 @@ func (m *Manager) reconfigureExposure(ctx context.Context, handler http.Handler)
 	}
 	servingHTTP := m.servingHTTP
 	homepageUp := m.homepageUp
+	speechLabUp := m.speechLabUp
+	speechLabHasResources := m.speechLabLn != nil || m.speechLabSrv != nil
 	manifestUp := m.manifest.State == "ready"
 	activeManifestHost := m.manifest.Host
 	manifestHasResources := m.manifest.Node != nil || m.manifest.Listener != nil || m.manifest.Server != nil
@@ -1813,6 +1843,7 @@ func (m *Manager) reconfigureExposure(ctx context.Context, handler http.Handler)
 	wantMain := cfg.Tailscale.TsNet.ServeHTTP
 	wantFunnel := wantMain && cfg.Tailscale.TsNet.Funnel
 	wantHomepage := cfg.Tailscale.TsNet.ExposeHomepage && cfg.Homepage.WebServerEnabled && cfg.Homepage.WebServerPort > 0
+	wantSpeechLab := cfg.Tailscale.TsNet.Enabled && cfg.SpeechLab.Enabled && cfg.SpeechLab.Managed && cfg.SpeechLab.Port > 0
 	wantManifest := cfg.Tailscale.TsNet.ExposeManifest && cfg.Manifest.Enabled && cfg.Manifest.Port > 0
 	wantSpaceAgent := cfg.Tailscale.TsNet.ExposeSpaceAgent && cfg.SpaceAgent.Enabled && cfg.SpaceAgent.Port > 0
 	desiredManifestHost := m.effectiveManifestHostname()
@@ -1830,6 +1861,12 @@ func (m *Manager) reconfigureExposure(ctx context.Context, handler http.Handler)
 			return err
 		}
 		homepageUp = false
+	}
+	if speechLabHasResources && !wantSpeechLab {
+		if err := m.stopSpeechLabListener(ctx); err != nil {
+			return err
+		}
+		speechLabUp = false
 	}
 	if manifestHasResources && (!wantManifest || !manifestUp || activeManifestHost != desiredManifestHost) {
 		if err := m.stopManifestListener(ctx); err != nil {
@@ -1864,6 +1901,21 @@ func (m *Manager) reconfigureExposure(ctx context.Context, handler http.Handler)
 			m.mu.Unlock()
 		}
 	}
+	if wantSpeechLab && !speechLabUp {
+		if speechLabProxyBackendReachable(cfg.SpeechLab.Port, 2*time.Second) {
+			if err := m.startSpeechLabListener(ctx, srv, cfg.SpeechLab.Port); err != nil {
+				m.logger.Warn("[tsnet] Speech Lab exposure could not be started", "error_code", classifyError(err), "error", safeErrorMessage(err))
+				m.mu.Lock()
+				m.lastErr = safeErrorMessage(err)
+				m.mu.Unlock()
+			} else {
+				speechLabUp = true
+			}
+		} else {
+			m.logger.Warn("[tsnet] Speech Lab exposure backend unavailable", "error_code", ErrorBackendUnavailable, "port", cfg.SpeechLab.Port)
+			m.scheduleSpeechLabExposureRetry()
+		}
+	}
 	if wantManifest && !manifestUp {
 		if err := m.startManifestListener(ctx, srv); err != nil {
 			m.logger.Warn("[tsnet] Manifest exposure could not be started", "error_code", classifyError(err), "error", safeErrorMessage(err))
@@ -1882,7 +1934,7 @@ func (m *Manager) reconfigureExposure(ctx context.Context, handler http.Handler)
 	}
 
 	m.mu.Lock()
-	if (!wantMain || m.servingHTTP) && (!wantHomepage || m.homepageUp) && (!wantManifest || m.manifest.State == "ready") && (!wantSpaceAgent || m.spaceAgent.State == "ready") && (!wantFunnel || m.funnelActive) {
+	if (!wantMain || m.servingHTTP) && (!wantHomepage || m.homepageUp) && (!wantSpeechLab || m.speechLabUp) && (!wantManifest || m.manifest.State == "ready") && (!wantSpaceAgent || m.spaceAgent.State == "ready") && (!wantFunnel || m.funnelActive) {
 		m.lastErr = ""
 	}
 	m.mu.Unlock()
@@ -2206,6 +2258,54 @@ func (m *Manager) retryHomepageExposure() {
 	}
 }
 
+func (m *Manager) scheduleSpeechLabExposureRetry() {
+	m.mu.Lock()
+	if m.speechLabRetrying {
+		m.mu.Unlock()
+		return
+	}
+	m.speechLabRetrying = true
+	m.mu.Unlock()
+	go m.retrySpeechLabExposure()
+}
+
+func (m *Manager) retrySpeechLabExposure() {
+	for {
+		time.Sleep(speechLabExposureRetryDelay)
+		cfg := m.configSnapshot()
+		m.mu.Lock()
+		wanted := m.running && m.server != nil && !m.speechLabUp && cfg.Tailscale.TsNet.Enabled && cfg.SpeechLab.Enabled && cfg.SpeechLab.Managed && cfg.SpeechLab.Port > 0
+		srv := m.server
+		m.mu.Unlock()
+		if !wanted {
+			m.mu.Lock()
+			m.speechLabRetrying = false
+			m.mu.Unlock()
+			return
+		}
+		if !speechLabProxyBackendReachable(cfg.SpeechLab.Port, 2*time.Second) {
+			continue
+		}
+		ctx, operationID, err := m.beginOperation("reconfigure", NodeMain)
+		if err != nil {
+			continue
+		}
+		err = m.startSpeechLabListener(ctx, srv, cfg.SpeechLab.Port)
+		m.finishOperation(operationID, err)
+		if err != nil {
+			m.mu.Lock()
+			m.lastErr = safeErrorMessage(err)
+			m.mu.Unlock()
+			continue
+		}
+		m.mu.Lock()
+		m.speechLabRetrying = false
+		m.lastErr = ""
+		m.mu.Unlock()
+		return
+	}
+}
+
 // UpgradeToHTTP keeps backward compatibility for the existing callers.
 func (m *Manager) UpgradeToHTTP(handler http.Handler) error {
 	return m.ReconfigureExposure(handler)
@@ -2441,8 +2541,74 @@ func (m *Manager) startHomepageListener(ctx context.Context, srv *tsnet.Server) 
 	return nil
 }
 
+// startSpeechLabListener exposes only the managed Browser Lab over the
+// embedded Tailscale node. The container remains loopback-bound on the host;
+// no LAN port is published.
+func (m *Manager) startSpeechLabListener(ctx context.Context, srv *tsnet.Server, port int) error {
+	if port <= 0 {
+		return fmt.Errorf("invalid Speech Lab browser port %d", port)
+	}
+	targetURL, err := url.Parse("http://127.0.0.1:" + strconv.Itoa(port))
+	if err != nil {
+		return fmt.Errorf("invalid Speech Lab proxy target: %w", err)
+	}
+	ln, err := listenTLSWithFunction(ctx, srv, ":"+strconv.Itoa(port), tsnetTLSStrictTimeout, false, listenTLSWithTimeoutFn)
+	if err != nil {
+		return fmt.Errorf("Speech Lab exposure requires Tailscale HTTPS on :%d: %w", port, err)
+	}
+	proxy := httputil.NewSingleHostReverseProxy(targetURL)
+	originalDirector := proxy.Director
+	proxy.Director = func(req *http.Request) {
+		originalDirector(req)
+		req.Header.Set("X-Forwarded-Proto", "https")
+		req.Header.Set("X-Forwarded-Host", req.Host)
+	}
+	proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, proxyErr error) {
+		m.logger.Warn("[tsnet] Speech Lab reverse proxy failed", "error_code", classifyError(proxyErr), "error", safeErrorMessage(proxyErr))
+		http.Error(w, "Speech Lab backend unavailable", http.StatusBadGateway)
+	}
+	speechLabSrv := &http.Server{
+		Handler:      proxy,
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 5 * time.Minute,
+		IdleTimeout:  2 * time.Minute,
+		TLSConfig:    &tls.Config{MinVersion: tls.VersionTLS12},
+	}
+	m.mu.Lock()
+	m.speechLabLn = ln
+	m.speechLabSrv = speechLabSrv
+	m.speechLabUp = true
+	m.mu.Unlock()
+	go func() {
+		m.logger.Info("tsnet Speech Lab listener started", "protocol", "HTTPS", "target", targetURL.String(), "port", port)
+		if err := speechLabSrv.Serve(ln); err != nil && err != http.ErrServerClosed {
+			m.logger.Error("tsnet Speech Lab listener error", "error_code", classifyError(err), "error", safeErrorMessage(err))
+			m.mu.Lock()
+			m.lastErr = safeErrorMessage(err)
+			m.speechLabUp = false
+			m.mu.Unlock()
+		}
+	}()
+	return nil
+}
+
+func (m *Manager) stopSpeechLabListener(ctx context.Context) error {
+	m.mu.Lock()
+	srv := m.speechLabSrv
+	ln := m.speechLabLn
+	m.speechLabSrv = nil
+	m.speechLabLn = nil
+	m.speechLabUp = false
+	m.mu.Unlock()
+	return shutdownHTTPResource(ctx, srv, ln, "Speech Lab listener")
+}
+
 func homepageBackendUnavailableError(port int) error {
 	return fmt.Errorf("homepage backend http://127.0.0.1:%d is not reachable; the tsnet homepage listener will retry after the homepage web server starts", port)
+}
+
+func speechLabProxyBackendReachable(port int, timeout time.Duration) bool {
+	return homepageProxyBackendReachable(port, timeout)
 }
 
 func homepageProxyBackendReachable(port int, timeout time.Duration) bool {
