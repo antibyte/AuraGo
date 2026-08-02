@@ -30,6 +30,7 @@ func TestConfigSpeechLabSectionUsesNarrowNativeAPIs(t *testing.T) {
 	module := readSpeechLabUIFile(t, "cfg/speech_lab.js")
 	for _, wanted := range []string{
 		"function renderSpeechLabSection(",
+		"cfg-section active speech-lab-section",
 		"/api/speech-lab/status",
 		"/api/speech-lab/capability",
 		"/api/speech-lab/catalog",
@@ -56,6 +57,23 @@ func TestConfigSpeechLabSectionUsesNarrowNativeAPIs(t *testing.T) {
 	for _, forbidden := range []string{"<iframe", "llm_id", "/api/proxy", "hf_token", "speechLabField('speech_lab.voice'", "speechLabField('speech_lab.advanced_ui_url'", "data.voice = 'M1'"} {
 		if strings.Contains(strings.ToLower(module), forbidden) {
 			t.Fatalf("Speech Lab config module contains forbidden surface %q", forbidden)
+		}
+	}
+}
+
+func TestSpeechLabSectionKeepsAsyncFieldsInNormalFlow(t *testing.T) {
+	css := readSpeechLabUIFile(t, "css/config-workspace.css")
+	for _, wanted := range []string{
+		".pw-page .speech-lab-section {",
+		"display: block;",
+		"overflow: visible;",
+		".pw-page .speech-lab-section > .field-group",
+		"position: static;",
+		".pw-page .speech-lab-section .field-input",
+		"max-width: 100%;",
+	} {
+		if !strings.Contains(css, wanted) {
+			t.Fatalf("Speech Lab layout guard missing %q", wanted)
 		}
 	}
 }

@@ -29,7 +29,7 @@ async function renderSpeechLabSection(section) {
     speechLabSection = speechLabSection || section;
     const data = speechLabEnsureData();
     await speechLabLoadProviders();
-    let html = '<div class="cfg-section active" id="speech_lab">';
+    let html = '<div class="cfg-section active speech-lab-section" id="speech_lab">';
     html += '<div class="section-header">' + escapeHtml(speechLabSection.label) + '</div>';
     html += '<div class="section-desc">' + escapeHtml(speechLabSection.desc) + '</div>';
     html += '<div class="cfg-note-banner cfg-note-banner-info">' + escapeHtml(t('config.speech_lab.ownership_note')) + '</div>';

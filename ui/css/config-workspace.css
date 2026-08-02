@@ -336,6 +336,56 @@
     border-color: var(--pw-line-strong);
 }
 
+/* Speech Lab is rendered asynchronously and uses label-based field cards.
+   Keep those cards in a strict vertical flow when the config section is
+   switched or refreshed; generic precision-workspace rules must not turn
+   their labels/controls into an overlapping layout. */
+.pw-page .speech-lab-section {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    overflow: visible;
+}
+
+.pw-page .speech-lab-section > .field-group,
+.pw-page .speech-lab-section .cfg-card,
+.pw-page .speech-lab-section .cfg-note-banner,
+.pw-page .speech-lab-section .cfg-group-title {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+}
+
+.pw-page .speech-lab-section > .field-group {
+    display: block;
+    position: static;
+    clear: both;
+}
+
+.pw-page .speech-lab-section .field-label,
+.pw-page .speech-lab-section .field-help {
+    display: block;
+    width: 100%;
+}
+
+.pw-page .speech-lab-section .field-input,
+.pw-page .speech-lab-section .field-select {
+    display: block;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+}
+
+.pw-page .speech-lab-section .toggle-wrap {
+    display: flex;
+    align-items: center;
+    min-height: 26px;
+}
+
+.pw-page .speech-lab-section .cfg-card {
+    margin-block: 1rem;
+}
+
 .pw-page .pw-panel {
     margin-block: 1rem;
     border: 1px solid var(--pw-line);
