@@ -93,7 +93,10 @@ Containerized AuraGo should use [the Docker network overlay](../deploy/docker/do
 The s2s Browser Lab uses host port `8766` in the AuraGo deployment (`WEB_PORT=8766`). AuraGo derives this browser-facing address from the hostname or IP through which the user opened AuraGo.
 
 For a native AuraGo process, managed mode publishes only `127.0.0.1:8765` and
-`127.0.0.1:8766`; AuraGo derives both addresses. External mode can still use
+`127.0.0.1:8766`; AuraGo derives both addresses. When the embedded Tailscale
+node is enabled, AuraGo additionally exposes the Browser Lab through its own
+TLS listener on Tailscale port `8766`, reverse-proxied to the loopback web
+container. No LAN interface is opened. External mode can still use
 the optional host overlay and an explicit `base_url: http://127.0.0.1:8765`.
 
 For production chat or telephony, configure:
