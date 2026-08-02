@@ -30,6 +30,7 @@ const (
 	PublisherPrefix         = "ghcr.io/antibyte/"
 	ManifestMaxBytes        = 1 << 20
 	DockerPullMaxBytes      = 8 << 20
+	DockerPullTimeout       = 30 * time.Minute
 	DefaultReadinessTimeout = 180 * time.Second
 	OwnerLabel              = "speech-lab"
 )
@@ -507,7 +508,11 @@ func (m *Manager) pull(ctx context.Context, image string) error {
 	if err != nil {
 		return &Error{Code: "speech_lab_pull_failed", Err: err}
 	}
-	resp, err := m.docker.HTTPClient().Do(req)
+	client := m.docker.HTTPClientWithTimeout(DockerPullTimeout)
+	if client == nil {
+		return &Error{Code: "speech_lab_pull_failed", Err: fmt.Errorf("Docker client is unavailable")}
+	}
+	resp, err := client.Do(req)
 	if err != nil {
 		return &Error{Code: "speech_lab_pull_failed", Err: err}
 	}

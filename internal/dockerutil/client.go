@@ -84,6 +84,21 @@ func (c *Client) HTTPClient() *http.Client {
 	return c.httpClient
 }
 
+// HTTPClientWithTimeout returns a streaming client that reuses the Docker
+// transport but applies an operation-specific total timeout. Docker image
+// pulls can legitimately take several minutes and must not inherit the short
+// request timeout used for ordinary Engine API calls.
+func (c *Client) HTTPClientWithTimeout(timeout time.Duration) *http.Client {
+	if c == nil || c.httpClient == nil {
+		return nil
+	}
+	client := *c.httpClient
+	if timeout > 0 {
+		client.Timeout = timeout
+	}
+	return &client
+}
+
 func sanitizeDockerError(value []byte) string {
 	text := strings.TrimSpace(string(value))
 	if len(text) > 512 {
