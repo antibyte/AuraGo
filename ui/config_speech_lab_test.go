@@ -31,6 +31,9 @@ func TestConfigSpeechLabSectionUsesNarrowNativeAPIs(t *testing.T) {
 	for _, wanted := range []string{
 		"function renderSpeechLabSection(",
 		"cfg-section active speech-lab-section",
+		"speech-lab-stack-editor",
+		"speech-lab-stack-field",
+		"speech-lab-experimental-row",
 		"/api/speech-lab/status",
 		"/api/speech-lab/capability",
 		"/api/speech-lab/catalog",

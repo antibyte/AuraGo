@@ -243,14 +243,14 @@ function speechLabRenderStack() {
         (speechLabShowExperimental || item.stable === true || item.selected_variant?.stable === true));
     const tts = backends.filter(speechLabIsTTS);
     const asr = backends.filter(item => !speechLabIsTTS(item));
-    let html = '<div class="cfg-card"><div class="cfg-card-title">' + escapeHtml(t('config.speech_lab.stack')) + '</div>';
+    let html = '<div class="cfg-card speech-lab-stack-editor"><div class="cfg-card-title">' + escapeHtml(t('config.speech_lab.stack')) + '</div>';
     const activeParts = [speechLabStatus?.asr_id || '—', speechLabStatus?.tts_id || '—', speechLabStatus?.voice || '—'];
     html += '<div class="cfg-note-banner cfg-note-banner-info"><strong>' + escapeHtml(t('config.speech_lab.active_combination')) + ':</strong> ' + escapeHtml(activeParts.join(' + ')) + '</div>';
-    html += '<label class="field-group"><span class="field-label">ASR</span><select id="speech-lab-asr" class="field-select">' + speechLabOptions(asr, speechLabStatus && speechLabStatus.asr_id) + '</select></label>';
-    html += '<label class="field-group"><span class="field-label">TTS</span><select id="speech-lab-tts" class="field-select" onchange="speechLabUpdateVoices()">' + speechLabOptions(tts, speechLabStatus && speechLabStatus.tts_id) + '</select></label>';
-    html += '<label class="field-group"><span class="field-label">' + escapeHtml(t('config.speech_lab.voice')) + '</span><span class="field-help">' + escapeHtml(t('config.speech_lab.voice_help')) + '</span><select id="speech-lab-voice" class="field-select"></select></label>';
-    html += '<label class="field-group"><input id="speech-lab-experimental" type="checkbox" ' + (speechLabShowExperimental ? 'checked' : '') + ' onchange="speechLabToggleExperimental(this.checked)"> ' + escapeHtml(t('config.speech_lab.show_experimental')) + '</label>';
-    html += '<button type="button" class="btn-save" onclick="speechLabApplyStack()">' + escapeHtml(t('config.speech_lab.apply_stack')) + '</button></div>';
+    html += '<div class="field-group speech-lab-stack-field"><label class="field-label" for="speech-lab-asr">ASR</label><select id="speech-lab-asr" class="field-select">' + speechLabOptions(asr, speechLabStatus && speechLabStatus.asr_id) + '</select></div>';
+    html += '<div class="field-group speech-lab-stack-field"><label class="field-label" for="speech-lab-tts">TTS</label><select id="speech-lab-tts" class="field-select" onchange="speechLabUpdateVoices()">' + speechLabOptions(tts, speechLabStatus && speechLabStatus.tts_id) + '</select></div>';
+    html += '<div class="field-group speech-lab-stack-field"><label class="field-label" for="speech-lab-voice">' + escapeHtml(t('config.speech_lab.voice')) + '</label><span class="field-help">' + escapeHtml(t('config.speech_lab.voice_help')) + '</span><select id="speech-lab-voice" class="field-select"></select></div>';
+    html += '<label class="speech-lab-experimental-row"><input id="speech-lab-experimental" type="checkbox" ' + (speechLabShowExperimental ? 'checked' : '') + ' onchange="speechLabToggleExperimental(this.checked)"><span>' + escapeHtml(t('config.speech_lab.show_experimental')) + '</span></label>';
+    html += '<div class="speech-lab-stack-actions"><button type="button" class="btn-save" onclick="speechLabApplyStack()">' + escapeHtml(t('config.speech_lab.apply_stack')) + '</button></div></div>';
     node.innerHTML = html;
     speechLabUpdateVoices();
 }

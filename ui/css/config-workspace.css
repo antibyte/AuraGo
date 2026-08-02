@@ -384,6 +384,61 @@
 
 .pw-page .speech-lab-section .cfg-card {
     margin-block: 1rem;
+    min-width: 0;
+    padding: 1rem;
+    border: 1px solid var(--pw-line);
+    border-radius: var(--pw-radius-lg);
+    background: color-mix(in srgb, var(--pw-surface) 82%, transparent);
+    overflow: visible;
+}
+
+.pw-page .speech-lab-section .speech-lab-stack-editor {
+    display: block;
+    position: static;
+    float: none;
+    width: 100%;
+}
+
+.pw-page .speech-lab-section .speech-lab-stack-field {
+    display: grid;
+    gap: 0.45rem;
+    margin: 0.7rem 0;
+    padding: 0.85rem 1rem;
+    min-width: 0;
+    position: static;
+    float: none;
+    clear: both;
+    width: 100%;
+    max-width: 100%;
+}
+
+.pw-page .speech-lab-section .speech-lab-stack-field .field-label,
+.pw-page .speech-lab-section .speech-lab-stack-field .field-help {
+    margin: 0;
+}
+
+.pw-page .speech-lab-section .speech-lab-experimental-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin: 0.85rem 0 0.15rem;
+    color: var(--pw-text);
+    font-size: var(--pw-label-size);
+    line-height: 1.35;
+    cursor: pointer;
+}
+
+.pw-page .speech-lab-section .speech-lab-experimental-row input {
+    width: 1rem;
+    height: 1rem;
+    margin: 0;
+    accent-color: var(--pw-accent);
+}
+
+.pw-page .speech-lab-section .speech-lab-stack-actions {
+    display: flex;
+    justify-content: flex-start;
+    margin-top: 0.85rem;
 }
 
 .pw-page .pw-panel {
