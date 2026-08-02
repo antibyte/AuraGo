@@ -612,11 +612,19 @@ func (m *Manager) startServices(ctx context.Context, manifest BundleManifest) er
 			hostConfig["PortBindings"] = map[string][]map[string]string{fmt.Sprintf("%d/tcp", containerPort): {{"HostIp": "127.0.0.1", "HostPort": fmt.Sprintf("%d", hostPort)}}}
 		}
 		aliases := []string{}
-		if role == "gateway" {
+		switch role {
+		case "gateway":
 			aliases = []string{"s2s-vulkan", "gateway"}
-		}
-		if role == "web" {
+		case "web":
 			aliases = []string{"s2s-web", "web"}
+		case "asr":
+			// These names are the stable catalog endpoints used by the
+			// gateway after it reconciles the bundled fw-tiny backend.
+			aliases = []string{"whisper-tiny"}
+		case "tts":
+			aliases = []string{"supertonic"}
+		case "llm":
+			aliases = []string{"llama-fallback"}
 		}
 		environment := append([]string(nil), spec.Environment...)
 		if role == "gateway" {
