@@ -83,5 +83,10 @@
   "desktop.sip_phone_tab_recents": "हालिया",
   "desktop.sip_phone_backspace": "हटाएँ",
   "desktop.sip_phone_carrier": "AuraGo",
-  "desktop.sip_phone_outbound_policy_migration_required_detail": "SIP सेटिंग में पुराने वाइल्डकार्ड आउटबाउंड नियमों को सटीक गंतव्यों से बदलें।"
+  "desktop.sip_phone_outbound_policy_migration_required_detail": "SIP सेटिंग में पुराने वाइल्डकार्ड आउटबाउंड नियमों को सटीक गंतव्यों से बदलें।",
+  "desktop.sip_phone_contacts": "संपर्क",
+  "desktop.sip_phone_contacts_empty": "अभी तक फ़ोन नंबर वाला कोई संपर्क नहीं है।",
+  "desktop.sip_phone_contacts_search": "संपर्क खोजें",
+  "desktop.sip_phone_phone_label": "फ़ोन",
+  "desktop.sip_phone_mobile_label": "मोबाइल"
 }

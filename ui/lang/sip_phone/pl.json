@@ -83,5 +83,10 @@
   "desktop.sip_phone_tab_recents": "Ostatnie",
   "desktop.sip_phone_backspace": "Usuń",
   "desktop.sip_phone_carrier": "AuraGo",
-  "desktop.sip_phone_outbound_policy_migration_required_detail": "Zastąp starsze reguły wychodzące z symbolami wieloznacznymi dokładnymi celami w ustawieniach SIP."
+  "desktop.sip_phone_outbound_policy_migration_required_detail": "Zastąp starsze reguły wychodzące z symbolami wieloznacznymi dokładnymi celami w ustawieniach SIP.",
+  "desktop.sip_phone_contacts": "Kontakty",
+  "desktop.sip_phone_contacts_empty": "Brak kontaktów z numerem telefonu.",
+  "desktop.sip_phone_contacts_search": "Szukaj kontaktów",
+  "desktop.sip_phone_phone_label": "Telefon",
+  "desktop.sip_phone_mobile_label": "Komórka"
 }

@@ -83,5 +83,10 @@
   "desktop.sip_phone_tab_recents": "Récents",
   "desktop.sip_phone_backspace": "Supprimer",
   "desktop.sip_phone_carrier": "AuraGo",
-  "desktop.sip_phone_outbound_policy_migration_required_detail": "Remplacez les anciennes règles sortantes avec jokers par des destinations exactes dans les paramètres SIP."
+  "desktop.sip_phone_outbound_policy_migration_required_detail": "Remplacez les anciennes règles sortantes avec jokers par des destinations exactes dans les paramètres SIP.",
+  "desktop.sip_phone_contacts": "Contacts",
+  "desktop.sip_phone_contacts_empty": "Aucun contact avec un numéro de téléphone pour le moment.",
+  "desktop.sip_phone_contacts_search": "Rechercher des contacts",
+  "desktop.sip_phone_phone_label": "Téléphone",
+  "desktop.sip_phone_mobile_label": "Mobile"
 }

@@ -83,5 +83,10 @@
   "desktop.sip_phone_tab_recents": "Recents",
   "desktop.sip_phone_backspace": "Delete",
   "desktop.sip_phone_carrier": "AuraGo",
-  "desktop.sip_phone_outbound_policy_migration_required_detail": "Replace legacy wildcard outbound rules with exact destinations in SIP settings."
+  "desktop.sip_phone_outbound_policy_migration_required_detail": "Replace legacy wildcard outbound rules with exact destinations in SIP settings.",
+  "desktop.sip_phone_contacts": "Contacts",
+  "desktop.sip_phone_contacts_empty": "No contacts with a phone number yet.",
+  "desktop.sip_phone_contacts_search": "Search contacts",
+  "desktop.sip_phone_phone_label": "Phone",
+  "desktop.sip_phone_mobile_label": "Mobile"
 }

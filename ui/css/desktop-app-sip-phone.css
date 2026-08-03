@@ -450,7 +450,7 @@
     position: relative;
     z-index: 5;
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     margin: 4px 14px 0;
     padding: 7px 6px 5px;
     border: 1px solid rgba(255, 255, 255, 0.09);
@@ -858,12 +858,14 @@
     font-weight: 650;
 }
 
-.sip-phone-favorite-list {
+.sip-phone-favorite-list,
+.sip-phone-contact-list {
     display: grid;
     gap: 4px;
 }
 
 .sip-phone-favorite-list > p,
+.sip-phone-contact-list > p,
 .sip-phone-history-empty {
     margin: 18px 4px;
     color: var(--sip-text-dim);
@@ -872,7 +874,8 @@
     text-align: center;
 }
 
-.sip-phone-favorite-list button {
+.sip-phone-favorite-list button,
+.sip-phone-contact-list button {
     display: grid;
     grid-template-columns: 42px minmax(0, 1fr) 30px;
     align-items: center;
@@ -888,15 +891,18 @@
     transition: background 0.15s ease, transform 0.12s ease;
 }
 
-.sip-phone-favorite-list button:hover {
+.sip-phone-favorite-list button:hover,
+.sip-phone-contact-list button:hover {
     background: var(--sip-card);
 }
 
-.sip-phone-favorite-list button:active {
+.sip-phone-favorite-list button:active,
+.sip-phone-contact-list button:active {
     transform: scale(0.98);
 }
 
-.sip-phone-favorite-list button > span:last-child {
+.sip-phone-favorite-list button > span:last-child,
+.sip-phone-contact-list button > span:last-child {
     display: grid;
     place-items: center;
     width: 28px;
@@ -907,12 +913,15 @@
 }
 
 .sip-phone-favorite-list button > span:last-child img,
-.sip-phone-favorite-list button > span:last-child svg {
+.sip-phone-favorite-list button > span:last-child svg,
+.sip-phone-contact-list button > span:last-child img,
+.sip-phone-contact-list button > span:last-child svg {
     width: 14px;
     height: 14px;
 }
 
-.sip-phone-favorite-list strong {
+.sip-phone-favorite-list strong,
+.sip-phone-contact-list strong {
     display: block;
     overflow: hidden;
     font-size: 0.86rem;
@@ -921,7 +930,8 @@
     white-space: nowrap;
 }
 
-.sip-phone-favorite-list small {
+.sip-phone-favorite-list small,
+.sip-phone-contact-list small {
     display: block;
     margin-top: 2px;
     overflow: hidden;
@@ -929,6 +939,26 @@
     font-size: 0.68rem;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.sip-phone-contact-search {
+    width: 100%;
+    margin: 0 0 8px;
+    padding: 8px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 12px;
+    color: inherit;
+    background: var(--sip-card);
+    font-size: 0.78rem;
+    outline: none;
+}
+
+.sip-phone-contact-search:focus {
+    border-color: rgba(48, 209, 88, 0.5);
+}
+
+.sip-phone-contact-search:disabled {
+    opacity: 0.5;
 }
 
 .sip-phone-history-list {

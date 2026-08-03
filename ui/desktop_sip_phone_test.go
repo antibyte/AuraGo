@@ -120,6 +120,10 @@ func TestDesktopSIPPhoneComfortAndPrivacyContracts(t *testing.T) {
 	app := readDesktopAssetText(t, "js/desktop/apps/sip-phone.js")
 	for _, marker := range []string{
 		"'/api/contacts'",
+		"['contacts', 'users', 'C', text(instance, 'contacts', 'Contacts')]",
+		"function renderContactsView(instance)",
+		"data-sip-contact-dial",
+		"applyContactFilter",
 		"favorites.length >= 24",
 		"data-sip-redial",
 		"data-sip-copy",
@@ -142,6 +146,17 @@ func TestDesktopSIPPhoneComfortAndPrivacyContracts(t *testing.T) {
 	}
 	if strings.Contains(app, "text(instance, 'setup_required'") {
 		t.Fatal("registered-but-locked SIP must show the concrete calling blocker, not a generic setup-required title")
+	}
+
+	stylesheet := readDesktopAssetText(t, "css/desktop-app-sip-phone.css")
+	for _, marker := range []string{
+		"grid-template-columns: repeat(5, 1fr)",
+		".sip-phone-contact-list",
+		".sip-phone-contact-search",
+	} {
+		if !strings.Contains(stylesheet, marker) {
+			t.Fatalf("SIP phone stylesheet missing contacts contract %q", marker)
+		}
 	}
 
 	combined := strings.ToLower(app + readDesktopAssetText(t, "css/desktop-app-sip-phone.css"))

@@ -83,5 +83,10 @@
   "desktop.sip_phone_tab_recents": "最近通话",
   "desktop.sip_phone_backspace": "删除",
   "desktop.sip_phone_carrier": "AuraGo",
-  "desktop.sip_phone_outbound_policy_migration_required_detail": "请在 SIP 设置中将旧的通配符呼出规则替换为精确目标。"
+  "desktop.sip_phone_outbound_policy_migration_required_detail": "请在 SIP 设置中将旧的通配符呼出规则替换为精确目标。",
+  "desktop.sip_phone_contacts": "联系人",
+  "desktop.sip_phone_contacts_empty": "暂无包含电话号码的联系人。",
+  "desktop.sip_phone_contacts_search": "搜索联系人",
+  "desktop.sip_phone_phone_label": "电话",
+  "desktop.sip_phone_mobile_label": "手机"
 }

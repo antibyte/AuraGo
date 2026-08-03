@@ -73,9 +73,12 @@ This subtree owns built-in virtual desktop app modules that are loaded lazily by
   volume/power hardware buttons, glossy Dynamic Island, live status-bar
   clock, signal/battery indicators, glass screen glare, aurora mesh
   wallpaper) on an ambient stage with a light halo and floor shadow. The
-  screen hosts four tab views (Favorites, Recents, Keypad, Settings) above
-  a glass tab bar, plus a full-screen active-call takeover with contact-hue
-  avatars and incoming-call answer/decline actions. The app can also run
+  screen hosts five tab views (Favorites, Recents, Contacts, Keypad, Settings)
+  above a glass tab bar, plus a full-screen active-call takeover with
+  contact-hue avatars and incoming-call answer/decline actions. The Contacts
+  tab lists AuraGo address book entries (`/api/contacts`) that carry a phone or
+  mobile number, one tap-to-dial row per number with a client-side search
+  filter. The app can also run
   windowless as a floating desktop gadget (see `sip-phone-gadget-runtime.js`
   in the Child DOX Index).
 
@@ -217,7 +220,8 @@ registration lives in `internal/desktop/types.go`.
   `desktop.app_system_world`.
 - SIP Phone exposes `window.SipPhoneApp = { render, dispose }`; every window
   instance owns its runtime subscription, 1-second clock/duration timer, tab
-  state (`keypad`/`favorites`/`recents`/`settings`), long-press `0`→`+`
+  state (`keypad`/`favorites`/`recents`/`contacts`/`settings`), address-book
+  search state, long-press `0`→`+`
   handling, and its Web Audio keypad-tone context (DTMF hold-to-play
   feedback, closed on dispose). All call media flows through
   `window.SipPhoneRuntime`; the app
@@ -511,8 +515,11 @@ registration lives in `internal/desktop/types.go`.
 - `sip-phone.js` - iPhone-inspired SIP softphone: device chassis with glossy
   Dynamic Island and status bar, separate `.sip-phone-hw-*` hardware buttons,
   black screen bezel, aurora mesh wallpaper, `.sip-phone-glare` glass
-  reflection, and ambient stage halo/floor shadow. Four tab views
-  (Favorites, Recents, Keypad, Settings) with glass tab bar, active-call
+  reflection, and ambient stage halo/floor shadow. Five tab views
+  (Favorites, Recents, Contacts, Keypad, Settings) with glass tab bar; the
+  Contacts tab renders the AuraGo address book (entries with phone/mobile,
+  one dial row per number, client-side search filter, refresh on tab
+  activation), active-call
   takeover with answer/decline for inbound ringing calls, contact-hue
   avatars, and frameless small-window fallback (hides hardware buttons,
   glare, and stage effects). Styling lives in

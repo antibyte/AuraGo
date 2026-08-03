@@ -200,6 +200,7 @@
         let view;
         if (tab === 'favorites') view = renderFavoritesView(instance, (snapshot.preferences || {}).favorites || []);
         else if (tab === 'recents') view = renderHistory(instance, (snapshot.appState || {}).recent_calls || []);
+        else if (tab === 'contacts') view = renderContactsView(instance);
         else if (tab === 'settings') view = renderSettingsView(instance, snapshot, status);
         else view = renderKeypadView(instance, snapshot, capabilities, status);
         return `<div class="sip-phone-views">${view}</div>
@@ -211,6 +212,7 @@
         const tabs = [
             ['favorites', 'star', 'F', text(instance, 'favorites', 'Favorites')],
             ['recents', 'clock', 'R', text(instance, 'tab_recents', 'Recents')],
+            ['contacts', 'users', 'C', text(instance, 'contacts', 'Contacts')],
             ['keypad', 'grid', 'K', text(instance, 'keypad', 'Keypad')],
             ['settings', 'settings', 'S', text(instance, 'settings', 'Settings')]
         ];
@@ -294,6 +296,48 @@
                     : `<p>${instance.context.esc(text(instance, 'favorites_empty', 'Save frequently used numbers for one-click calling.'))}</p>`}
             </div>
         </section>`;
+    }
+
+    function contactEntries(instance) {
+        const entries = [];
+        (instance.contacts || []).forEach(contact => {
+            const name = String(contact.name || '').trim();
+            if (!name) return;
+            [['phone', text(instance, 'phone_label', 'Phone')], ['mobile', text(instance, 'mobile_label', 'Mobile')]].forEach(([field, label]) => {
+                const number = String(contact[field] || '').trim();
+                if (number) entries.push({ name, number, label });
+            });
+        });
+        return entries;
+    }
+
+    function renderContactsView(instance) {
+        const entries = contactEntries(instance);
+        return `<section class="sip-phone-view sip-phone-view-contacts">
+            <div class="sip-phone-view-header"><h2>${instance.context.esc(text(instance, 'contacts', 'Contacts'))}</h2><span>${entries.length}</span></div>
+            <input type="text" class="sip-phone-contact-search" data-sip-phone="contact-search" value="${instance.context.esc(instance.contactSearch)}"
+                placeholder="${instance.context.esc(text(instance, 'contacts_search', 'Search contacts'))}"
+                autocomplete="off" spellcheck="false" ${entries.length ? '' : 'disabled'}>
+            <div class="sip-phone-contact-list">
+                ${entries.length
+                    ? entries.map(entry => `<button type="button" data-sip-contact-dial="${instance.context.esc(entry.number)}" data-sip-contact-search="${instance.context.esc((entry.name + ' ' + entry.number).toLowerCase())}" title="${instance.context.esc(entry.number)}">
+                        <span class="sip-phone-avatar" style="--sip-hue:${avatarHue(entry.name)}">${instance.context.esc(initialOf(entry.name))}</span>
+                        <span><strong>${instance.context.esc(entry.name)}</strong><small>${instance.context.esc(entry.label)} · ${instance.context.esc(entry.number)}</small></span>
+                        <span>${instance.context.iconMarkup('phone', 'P', 'sip-phone-glyph', 14)}</span>
+                    </button>`).join('')
+                    : `<p>${instance.context.esc(text(instance, 'contacts_empty', 'No contacts with a phone number yet.'))}</p>`}
+            </div>
+        </section>`;
+    }
+
+    function applyContactFilter(instance) {
+        const input = instance.host.querySelector('[data-sip-phone="contact-search"]');
+        if (!input) return;
+        const query = String(input.value || '').trim().toLowerCase();
+        instance.contactSearch = input.value || '';
+        instance.host.querySelectorAll('[data-sip-contact-dial]').forEach(row => {
+            row.hidden = !!query && !(row.dataset.sipContactSearch || '').includes(query);
+        });
     }
 
     function renderSettingsView(instance, snapshot, status) {
@@ -492,6 +536,7 @@
         instance.host.querySelectorAll('[data-sip-tab]').forEach(button => button.addEventListener('click', () => {
             instance.tab = button.dataset.sipTab || 'keypad';
             render(instance, runtime.getState());
+            if (instance.tab === 'contacts') loadContacts(instance);
         }));
         instance.host.querySelector('[data-sip-phone-action="clear"]')?.addEventListener('click', () => {
             instance.target = '';
@@ -535,6 +580,12 @@
         instance.host.querySelectorAll('[data-sip-copy]').forEach(button => button.addEventListener('click', () => {
             navigator.clipboard.writeText(button.dataset.sipCopy || '').catch(() => {});
         }));
+        instance.host.querySelectorAll('[data-sip-contact-dial]').forEach(button => button.addEventListener('click', () => {
+            instance.target = button.dataset.sipContactDial || '';
+            if (!instance.snapshot.call) startDial(instance);
+        }));
+        instance.host.querySelector('[data-sip-phone="contact-search"]')?.addEventListener('input', () => applyContactFilter(instance));
+        applyContactFilter(instance);
     }
 
     async function startDial(instance) {
@@ -591,6 +642,7 @@
             windowId,
             context,
             contacts: [],
+            contactSearch: '',
             target: '',
             tab: 'keypad',
             keypadOpen: false,

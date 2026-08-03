@@ -83,5 +83,10 @@
   "desktop.sip_phone_tab_recents": "Recentes",
   "desktop.sip_phone_backspace": "Apagar",
   "desktop.sip_phone_carrier": "AuraGo",
-  "desktop.sip_phone_outbound_policy_migration_required_detail": "Substitua as regras de saída antigas com caracteres universais por destinos exatos nas definições SIP."
+  "desktop.sip_phone_outbound_policy_migration_required_detail": "Substitua as regras de saída antigas com caracteres universais por destinos exatos nas definições SIP.",
+  "desktop.sip_phone_contacts": "Contactos",
+  "desktop.sip_phone_contacts_empty": "Ainda não há contactos com número de telefone.",
+  "desktop.sip_phone_contacts_search": "Procurar contactos",
+  "desktop.sip_phone_phone_label": "Telefone",
+  "desktop.sip_phone_mobile_label": "Telemóvel"
 }

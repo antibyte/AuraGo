@@ -83,5 +83,10 @@
   "desktop.sip_phone_tab_recents": "Anrufe",
   "desktop.sip_phone_backspace": "Löschen",
   "desktop.sip_phone_carrier": "AuraGo",
-  "desktop.sip_phone_outbound_policy_migration_required_detail": "Ersetze veraltete ausgehende Platzhalterregeln in den SIP-Einstellungen durch exakte Ziele."
+  "desktop.sip_phone_outbound_policy_migration_required_detail": "Ersetze veraltete ausgehende Platzhalterregeln in den SIP-Einstellungen durch exakte Ziele.",
+  "desktop.sip_phone_contacts": "Kontakte",
+  "desktop.sip_phone_contacts_empty": "Noch keine Kontakte mit Telefonnummer.",
+  "desktop.sip_phone_contacts_search": "Kontakte suchen",
+  "desktop.sip_phone_phone_label": "Telefon",
+  "desktop.sip_phone_mobile_label": "Mobil"
 }

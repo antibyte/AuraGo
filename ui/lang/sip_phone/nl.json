@@ -83,5 +83,10 @@
   "desktop.sip_phone_tab_recents": "Recent",
   "desktop.sip_phone_backspace": "Wissen",
   "desktop.sip_phone_carrier": "AuraGo",
-  "desktop.sip_phone_outbound_policy_migration_required_detail": "Vervang verouderde uitgaande jokerregels door exacte bestemmingen in de SIP-instellingen."
+  "desktop.sip_phone_outbound_policy_migration_required_detail": "Vervang verouderde uitgaande jokerregels door exacte bestemmingen in de SIP-instellingen.",
+  "desktop.sip_phone_contacts": "Contacten",
+  "desktop.sip_phone_contacts_empty": "Nog geen contacten met een telefoonnummer.",
+  "desktop.sip_phone_contacts_search": "Contacten zoeken",
+  "desktop.sip_phone_phone_label": "Telefoon",
+  "desktop.sip_phone_mobile_label": "Mobiel"
 }

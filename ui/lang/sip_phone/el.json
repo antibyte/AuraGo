@@ -83,5 +83,10 @@
   "desktop.sip_phone_tab_recents": "Πρόσφατα",
   "desktop.sip_phone_backspace": "Διαγραφή",
   "desktop.sip_phone_carrier": "AuraGo",
-  "desktop.sip_phone_outbound_policy_migration_required_detail": "Αντικαταστήστε τους παλιούς κανόνες εξερχομένων με χαρακτήρες μπαλαντέρ με ακριβείς προορισμούς στις ρυθμίσεις SIP."
+  "desktop.sip_phone_outbound_policy_migration_required_detail": "Αντικαταστήστε τους παλιούς κανόνες εξερχομένων με χαρακτήρες μπαλαντέρ με ακριβείς προορισμούς στις ρυθμίσεις SIP.",
+  "desktop.sip_phone_contacts": "Επαφές",
+  "desktop.sip_phone_contacts_empty": "Δεν υπάρχουν ακόμη επαφές με αριθμό τηλεφώνου.",
+  "desktop.sip_phone_contacts_search": "Αναζήτηση επαφών",
+  "desktop.sip_phone_phone_label": "Τηλέφωνο",
+  "desktop.sip_phone_mobile_label": "Κινητό"
 }

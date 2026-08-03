@@ -83,5 +83,10 @@
   "desktop.sip_phone_tab_recents": "Nylige",
   "desktop.sip_phone_backspace": "Slett",
   "desktop.sip_phone_carrier": "AuraGo",
-  "desktop.sip_phone_outbound_policy_migration_required_detail": "Erstatt eldre utgående jokerregler med eksakte mål i SIP-innstillingene."
+  "desktop.sip_phone_outbound_policy_migration_required_detail": "Erstatt eldre utgående jokerregler med eksakte mål i SIP-innstillingene.",
+  "desktop.sip_phone_contacts": "Kontakter",
+  "desktop.sip_phone_contacts_empty": "Ingen kontakter med telefonnummer ennå.",
+  "desktop.sip_phone_contacts_search": "Søk i kontakter",
+  "desktop.sip_phone_phone_label": "Telefon",
+  "desktop.sip_phone_mobile_label": "Mobil"
 }

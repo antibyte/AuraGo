@@ -83,5 +83,10 @@
   "desktop.sip_phone_tab_recents": "Senaste",
   "desktop.sip_phone_backspace": "Radera",
   "desktop.sip_phone_carrier": "AuraGo",
-  "desktop.sip_phone_outbound_policy_migration_required_detail": "Ersätt äldre utgående jokerregler med exakta destinationer i SIP-inställningarna."
+  "desktop.sip_phone_outbound_policy_migration_required_detail": "Ersätt äldre utgående jokerregler med exakta destinationer i SIP-inställningarna.",
+  "desktop.sip_phone_contacts": "Kontakter",
+  "desktop.sip_phone_contacts_empty": "Inga kontakter med telefonnummer ännu.",
+  "desktop.sip_phone_contacts_search": "Sök kontakter",
+  "desktop.sip_phone_phone_label": "Telefon",
+  "desktop.sip_phone_mobile_label": "Mobil"
 }
