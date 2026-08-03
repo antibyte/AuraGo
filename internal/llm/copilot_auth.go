@@ -1,6 +1,7 @@
 package llm
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -174,7 +175,11 @@ func (ca *CopilotAuth) PollForToken(deviceCode string) (*PollTokenResponse, erro
 // ExchangeGitHubTokenForCopilotToken exchanges a GitHub access token for a
 // short-lived Copilot API token.
 func (ca *CopilotAuth) ExchangeGitHubTokenForCopilotToken(githubToken string) (*CopilotTokenResponse, error) {
-	req, err := http.NewRequest(http.MethodGet, copilotTokenURL, nil)
+	return ca.exchangeGitHubTokenForCopilotToken(context.Background(), githubToken)
+}
+
+func (ca *CopilotAuth) exchangeGitHubTokenForCopilotToken(ctx context.Context, githubToken string) (*CopilotTokenResponse, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, copilotTokenURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("copilot token exchange: build request: %w", err)
 	}
@@ -202,6 +207,12 @@ func (ca *CopilotAuth) ExchangeGitHubTokenForCopilotToken(githubToken string) (*
 // GetToken returns a valid Copilot API token, refreshing from the cached
 // GitHub token if necessary.
 func (ca *CopilotAuth) GetToken() (string, error) {
+	return ca.GetTokenContext(context.Background())
+}
+
+// GetTokenContext returns a valid Copilot token while allowing call preflight
+// cancellation to abort a provider token exchange.
+func (ca *CopilotAuth) GetTokenContext(ctx context.Context) (string, error) {
 	ca.mu.RLock()
 	token := ca.copilotToken
 	expires := ca.expiresAt
@@ -226,7 +237,7 @@ func (ca *CopilotAuth) GetToken() (string, error) {
 		return ca.copilotToken, nil
 	}
 
-	resp, err := ca.ExchangeGitHubTokenForCopilotToken(ca.githubToken)
+	resp, err := ca.exchangeGitHubTokenForCopilotToken(ctx, ca.githubToken)
 	if err != nil {
 		return "", err
 	}

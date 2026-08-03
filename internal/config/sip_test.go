@@ -14,6 +14,9 @@ func TestSIPDefaultsAreDisabledAndReadOnly(t *testing.T) {
 	if cfg.Media.RTPPortStart != 30000 || cfg.Media.RTPPortEnd != 30099 || cfg.Media.JitterBufferMS != 60 {
 		t.Fatalf("unexpected media defaults: %+v", cfg.Media)
 	}
+	if cfg.Media.RTPIdleTimeoutSeconds != 60 || cfg.Inbound.RingTimeoutSeconds != 90 || cfg.Voice.TurnTimeoutSeconds != 60 || cfg.Voice.MaxResponseChars != 1200 {
+		t.Fatalf("unexpected SIP safety defaults: %+v", cfg)
+	}
 	if cfg.BrowserMedia.Enabled || cfg.BrowserMedia.UDPPort != DefaultSIPBrowserMediaUDPPort || cfg.BrowserMedia.BindHost != "" || cfg.BrowserMedia.AdvertisedIP != "" {
 		t.Fatalf("unsafe browser media defaults: %+v", cfg.BrowserMedia)
 	}
@@ -25,6 +28,15 @@ func TestSIPDefaultsAreDisabledAndReadOnly(t *testing.T) {
 	}
 	if cfg.Voice.AgentProviderID != "" || cfg.Voice.Classic.ASRProviderID != "" || cfg.Voice.Classic.TTSProvider != "" {
 		t.Fatalf("legacy provider inheritance markers were materialized too early: %+v", cfg.Voice)
+	}
+}
+
+func TestSIPRejectsDomainAllowEntriesWithPorts(t *testing.T) {
+	var cfg SIPConfig
+	ApplySIPDefaults(&cfg)
+	cfg.Outbound.AllowedDomains = []string{"pbx.example:5060"}
+	if err := ValidateSIPConfig(cfg); err == nil || !strings.Contains(err.Error(), "allowed_domains") {
+		t.Fatalf("domain with port was not rejected: %v", err)
 	}
 }
 

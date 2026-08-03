@@ -539,8 +539,11 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 				"operation": operationProperty("SIP phone operation to perform.", operations),
 				"target":    prop("string", "Canonical sip: destination for dial."),
 				"call_id":   prop("string", "Active call ID for answer, reject, hangup, or send_dtmf."),
-				"digits":    prop("string", "DTMF digits 0-9, *, #, or A-D."),
-				"limit":     prop("integer", "Maximum call history records to return (1-200)."),
+				"digits": map[string]interface{}{
+					"type": "string", "description": "One RTP DTMF digit: 0-9, *, #, or A-D.",
+					"maxLength": 1, "pattern": "^[0-9*#A-D]$",
+				},
+				"limit": prop("integer", "Maximum call history records to return (1-200)."),
 			}, "operation"),
 		))
 	}

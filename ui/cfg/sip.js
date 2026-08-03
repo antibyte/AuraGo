@@ -23,6 +23,7 @@ let sipConnectionVerified = false;
 let sipNeedsRestart = false;
 let sipDeleteConfirm = false;
 let sipDeleteHistory = false;
+let sipDockerAdvertisedHostRequired = false;
 
 function sipEsc(value) {
     return String(value == null ? '' : value)
@@ -41,11 +42,14 @@ function sipSplit(value) {
 function sipNormalize(data) {
     const state = data || {};
     state.tls = state.tls || {};
-    state.media = state.media || {};
+	state.media = state.media || {};
+	if (!Number.isFinite(Number(state.media.rtp_idle_timeout_seconds)) || Number(state.media.rtp_idle_timeout_seconds) === 0) state.media.rtp_idle_timeout_seconds = 60;
     state.browser_media = state.browser_media || {};
     if (!Number.isFinite(Number(state.browser_media.udp_port)) || Number(state.browser_media.udp_port) === 0) state.browser_media.udp_port = 30100;
     state.inbound = state.inbound || {};
-    state.inbound.route = state.inbound.route || 'agent';
+	state.inbound.route = state.inbound.route || 'agent';
+	if (!Number.isFinite(Number(state.inbound.ring_timeout_seconds)) || Number(state.inbound.ring_timeout_seconds) === 0) state.inbound.ring_timeout_seconds = 90;
+	state.inbound.number_region = state.inbound.number_region || '';
     state.inbound.trusted_peer_cidrs = Array.isArray(state.inbound.trusted_peer_cidrs) ? state.inbound.trusted_peer_cidrs : [];
     state.inbound.allowed_callers = Array.isArray(state.inbound.allowed_callers) ? state.inbound.allowed_callers : [];
     state.inbound.denied_callers = Array.isArray(state.inbound.denied_callers) ? state.inbound.denied_callers : [];
@@ -351,7 +355,8 @@ function sipAdvancedMarkup(c) {
                 ${sipField('media.rtp_port_end', t('config.sip.rtp_port_end'), 'number', c.media.rtp_port_end || 30099, 'min="1025" max="65535"')}
                 ${sipField('media.advertised_host', t('config.sip.advertised_media_host'), 'text', c.media.advertised_host || '')}
                 ${sipField('media.symmetric_rtp', t('config.sip.symmetric_rtp'), 'checkbox', c.media.symmetric_rtp)}
-                ${sipField('media.jitter_buffer_ms', t('config.sip.jitter_buffer'), 'number', c.media.jitter_buffer_ms || 60, 'min="20" max="200" step="20"')}
+				${sipField('media.jitter_buffer_ms', t('config.sip.jitter_buffer'), 'number', c.media.jitter_buffer_ms || 60, 'min="20" max="200" step="20"')}
+				${sipField('media.rtp_idle_timeout_seconds', t('config.sip.rtp_idle_timeout'), 'number', c.media.rtp_idle_timeout_seconds || 60, 'min="15" max="600"')}
                 ${sipField('media.codecs', t('config.sip.codecs'), 'text', sipList(c.media.codecs || ['pcma', 'pcmu']), 'readonly')}
             </div></div>
 
@@ -369,7 +374,9 @@ function sipAdvancedMarkup(c) {
                 <p class="sip-settings-hint">${sipEsc(t('config.sip.policy_intro'))}</p>
                 <div class="sip-policy-legend">${sipEsc(t('config.sip.policy_precedence'))}</div>
                 <div class="sip-settings-grid">
-                ${sipField('inbound.trusted_peer_cidrs', t('config.sip.trusted_peers'), 'text', sipList(c.inbound.trusted_peer_cidrs), 'placeholder="192.168.1.1, 192.168.1.0/24"', t('config.sip.trusted_peers_help'))}
+				${sipField('inbound.trusted_peer_cidrs', t('config.sip.trusted_peers'), 'text', sipList(c.inbound.trusted_peer_cidrs), 'placeholder="192.168.1.1, 192.168.1.0/24"', t('config.sip.trusted_peers_help'))}
+				${sipField('inbound.ring_timeout_seconds', t('config.sip.ring_timeout'), 'number', c.inbound.ring_timeout_seconds || 90, 'min="15" max="300"')}
+				${sipField('inbound.number_region', t('config.sip.number_region'), 'text', c.inbound.number_region || '', 'maxlength="2" placeholder="DE"', t('config.sip.number_region_help'))}
                 ${sipField('inbound.allowed_callers', t('config.sip.allowed_callers'), 'text', sipList(c.inbound.allowed_callers), 'placeholder="101, +49*, sip:service-?@pbx.example"', t('config.sip.allowed_callers_help'))}
                 ${sipField('inbound.denied_callers', t('config.sip.denied_callers'), 'text', sipList(c.inbound.denied_callers), 'placeholder="+49900*, sip:blocked@*"', t('config.sip.denied_callers_help'))}
                 ${sipField('outbound.allowed_domains', t('config.sip.allowed_domains'), 'text', sipList(c.outbound.allowed_domains), 'placeholder="pbx.example, voice.example.com"', t('config.sip.allowed_domains_help'))}
@@ -408,6 +415,7 @@ function sipRender() {
         <div class="section-desc">${sipEsc(t('config.sip.wizard.intro'))}</div>
         <div id="sip-status" class="adg-status-banner" role="status" aria-live="polite">${sipEsc(t('config.sip.loading_status'))}</div>
         ${outboundMigrationRequired ? `<div class="rs-security-note" role="alert"><strong>${sipEsc(t('config.sip.outbound_policy_migration_required'))}</strong></div>` : ''}
+        ${sipDockerAdvertisedHostRequired ? `<div class="rs-security-note" role="alert"><strong>${sipEsc(t('config.sip.docker_advertised_host_required'))}</strong></div>` : ''}
         <div class="sip-wizard-shell">
             <div class="sip-wizard-title"><span class="sip-eyebrow">${sipEsc(t('config.sip.wizard.eyebrow'))}</span><h2>${sipEsc(t('config.sip.wizard.title'))}</h2></div>
             ${sipWizardMarkup()}
@@ -711,7 +719,8 @@ function sipParseGuidedValues(raw, emptyErrorKey) {
     const values = sipSplit(raw);
     if (!values.length) throw new Error(t(emptyErrorKey));
     for (const value of values) {
-        if (/[*?\r\n\x00]/.test(value) || !/^[A-Za-z0-9_.!~'()%+\-]+$/.test(value)) {
+        const fritzInternal = /^\*\*[0-9]{1,4}$/.test(value);
+        if (/[?\r\n\x00]/.test(value) || (value.includes('*') && !fritzInternal) || (!fritzInternal && !/^[A-Za-z0-9_.!~'()%+\-]+$/.test(value))) {
             throw new Error(t('config.sip.wizard.custom_value_invalid', { value }));
         }
     }
@@ -964,6 +973,11 @@ function sipStatusLabel(state) {
     return t(`config.sip.status.${known.includes(state) ? state : 'unknown'}`);
 }
 
+function sipRegistrationErrorLabel(status) {
+    const code = Number(status?.registration_status_code || 0);
+    return [401, 403, 404, 408].includes(code) ? t(`config.sip.registration_error_${code}`) : '';
+}
+
 async function sipLoadStatus() {
     const banner = document.getElementById('sip-status');
     if (!banner) return;
@@ -973,7 +987,8 @@ async function sipLoadStatus() {
         if (status.registered) sipConnectionVerified = true;
         if (status.state === 'failed' || status.state === 'disabled') sipConnectionVerified = false;
         banner.className = `adg-status-banner ${status.registered ? 'is-success' : (status.state === 'failed' ? 'is-danger' : 'is-warning')}`;
-        banner.textContent = t('config.sip.status_summary', { state: sipStatusLabel(status.state) });
+        const registrationHint = sipRegistrationErrorLabel(status);
+        banner.textContent = t('config.sip.status_summary', { state: sipStatusLabel(status.state) }) + (registrationHint ? ` · ${registrationHint}` : '');
         const profile = document.querySelector('.sip-profile-card');
         if (profile && sipWizardStep === 0) {
             profile.outerHTML = sipWizardConfigured();
@@ -1015,6 +1030,7 @@ async function renderSIPSection() {
         sipRuntimeStatus = runtimeStatus;
         sipConnectionVerified = !!(runtimeStatus && runtimeStatus.registered);
         sipNeedsRestart = !!(appState && Array.isArray(appState.blockers) && appState.blockers.includes('browser_media_restart_required'));
+        sipDockerAdvertisedHostRequired = !!(appState && Array.isArray(appState.blockers) && appState.blockers.includes('docker_advertised_host_required'));
         sipProviderCatalog = Array.isArray(catalog.providers) ? catalog.providers : [];
         sipPhoneTargets = sipList([
             ...(sipConfigState.outbound.allowed_users || []),

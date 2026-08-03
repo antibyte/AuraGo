@@ -32,22 +32,25 @@ var rtpPortConfig struct {
 }
 
 type Manager struct {
-	mu              sync.Mutex
-	cfg             config.SIPConfig
-	logger          *slog.Logger
-	store           callStore
-	backendFactory  BackendFactory
-	issueReporter   IssueReporter
-	state           State
-	registered      bool
-	registrationErr string
-	rootCtx         context.Context
-	lifecycleCtx    context.Context
-	cancel          context.CancelFunc
-	ua              *sipgo.UserAgent
-	endpoint        *diago.Diago
-	active          *activeCall
-	preparingCall   bool
+	mu                     sync.Mutex
+	cfg                    config.SIPConfig
+	logger                 *slog.Logger
+	store                  callStore
+	backendFactory         BackendFactory
+	issueReporter          IssueReporter
+	state                  State
+	registered             bool
+	registrationErr        string
+	registrationStatusCode int
+	registrationRetryAt    *time.Time
+	rootCtx                context.Context
+	lifecycleCtx           context.Context
+	cancel                 context.CancelFunc
+	registrationWG         sync.WaitGroup
+	ua                     *sipgo.UserAgent
+	endpoint               *diago.Diago
+	active                 *activeCall
+	preparingCall          bool
 	// speechLabStackChange serializes stack activation with SIP preflight and
 	// call admission. It is held by the server handler until activation ends.
 	speechLabStackChange bool
@@ -56,6 +59,31 @@ type Manager struct {
 	subscribers          map[uint64]chan Event
 	nextSubscriber       uint64
 	sequence             uint64
+	isDocker             bool
+	persistMu            sync.Mutex
+	persistWriteMu       sync.Mutex
+	persistPending       map[string]persistRequest
+	persistOrder         []string
+	persistWake          chan struct{}
+	persistStop          chan struct{}
+	persistDone          chan struct{}
+	persistCloseOnce     sync.Once
+	callFinished         func(CallRecord, bool)
+}
+
+type persistRequest struct {
+	record CallRecord
+	stage  string
+}
+
+type ManagerOption func(*Manager)
+
+func WithDockerRuntime(enabled bool) ManagerOption {
+	return func(manager *Manager) { manager.isDocker = enabled }
+}
+
+func WithCallFinishedHook(hook func(CallRecord, bool)) ManagerOption {
+	return func(manager *Manager) { manager.callFinished = hook }
 }
 
 type activeCall struct {
@@ -89,7 +117,8 @@ type callStore interface {
 	Close() error
 }
 
-func NewManager(cfg config.SIPConfig, dataDir string, backendFactory BackendFactory, reporter IssueReporter, logger *slog.Logger) (*Manager, error) {
+func NewManager(cfg config.SIPConfig, dataDir string, backendFactory BackendFactory, reporter IssueReporter, logger *slog.Logger, options ...ManagerOption) (*Manager, error) {
+	config.NormalizeSIPConfig(&cfg)
 	store, err := OpenStore(filepath.Join(dataDir, "sip_calls.db"))
 	if err != nil {
 		return nil, err
@@ -101,10 +130,19 @@ func NewManager(cfg config.SIPConfig, dataDir string, backendFactory BackendFact
 	if cfg.Enabled {
 		state = StateRegistering
 	}
-	return &Manager{
+	manager := &Manager{
 		cfg: cfg, logger: logger, store: store, backendFactory: backendFactory,
 		issueReporter: reporter, state: state, subscribers: make(map[uint64]chan Event),
-	}, nil
+		persistPending: make(map[string]persistRequest), persistWake: make(chan struct{}, 1),
+		persistStop: make(chan struct{}), persistDone: make(chan struct{}),
+	}
+	for _, option := range options {
+		if option != nil {
+			option(manager)
+		}
+	}
+	go manager.persistenceLoop()
+	return manager, nil
 }
 
 func (m *Manager) Start(parent context.Context) error {
@@ -123,7 +161,9 @@ func (m *Manager) Start(parent context.Context) error {
 	}
 	cfg := m.cfg
 	m.mu.Unlock()
-	ApplyProviderNetworkDefaults(parent, &cfg, "")
+	if !m.isDocker {
+		ApplyProviderNetworkDefaults(parent, &cfg, "")
+	}
 	m.mu.Lock()
 	m.cfg = cfg
 	m.mu.Unlock()
@@ -186,10 +226,12 @@ func (m *Manager) Start(parent context.Context) error {
 	m.cancel = cancel
 	m.callConfigVersion++
 	m.state = StateRegistering
+	m.registrationWG.Add(1)
 	m.emitLocked("status", nil, nil)
 	m.mu.Unlock()
 	if err := endpoint.ServeBackground(rootCtx, m.handleIncoming); err != nil {
 		cancel()
+		m.registrationWG.Done()
 		_ = ua.Close()
 		m.mu.Lock()
 		m.ua = nil
@@ -201,7 +243,10 @@ func (m *Manager) Start(parent context.Context) error {
 		m.mu.Unlock()
 		return fmt.Errorf("start SIP listener: %w", err)
 	}
-	go m.registrationLoop(rootCtx, endpoint, cfg)
+	go func() {
+		defer m.registrationWG.Done()
+		m.registrationLoop(rootCtx, endpoint, cfg)
+	}()
 	return nil
 }
 
@@ -223,23 +268,40 @@ func (m *Manager) Stop(ctx context.Context) error {
 	m.registered = false
 	m.state = StateDisabled
 	m.registrationErr = ""
+	m.registrationStatusCode = 0
+	m.registrationRetryAt = nil
 	m.emitLocked("status", nil, nil)
 	m.mu.Unlock()
 	var dialogErr error
 	if active != nil {
-		if active.cancel != nil {
-			active.cancel()
-		}
 		m.mu.Lock()
 		established := active.dialogEstablished
 		inbound := active.record.Direction == "inbound"
 		m.mu.Unlock()
-		if established || inbound {
+		if inbound && !established && active.serverDialog != nil {
+			active.dialogMu.Lock()
+			dialogErr = active.serverDialog.Respond(sip.StatusTemporarilyUnavailable, "Temporarily Unavailable", nil)
+			active.dialogMu.Unlock()
+		} else if established {
 			dialogErr = m.endCallDialog(active, true)
+		}
+		if active.cancel != nil {
+			active.cancel()
 		}
 	}
 	if cancel != nil {
 		cancel()
+	}
+	registrationDone := make(chan struct{})
+	go func() {
+		m.registrationWG.Wait()
+		close(registrationDone)
+	}()
+	var registrationErr error
+	select {
+	case <-registrationDone:
+	case <-ctx.Done():
+		registrationErr = fmt.Errorf("wait for SIP registration shutdown: %w", ctx.Err())
 	}
 	var uaErr error
 	if ua != nil {
@@ -253,16 +315,30 @@ func (m *Manager) Stop(ctx context.Context) error {
 			waitErr = fmt.Errorf("wait for active SIP call shutdown: %w", ctx.Err())
 		}
 	}
-	return errors.Join(dialogErr, uaErr, waitErr)
+	return errors.Join(dialogErr, registrationErr, uaErr, waitErr)
 }
 
 func (m *Manager) Close() error {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	return errors.Join(m.Stop(ctx), m.store.Close())
+	stopCtx, stopCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	stopErr := m.Stop(stopCtx)
+	stopCancel()
+	m.persistCloseOnce.Do(func() { close(m.persistStop) })
+	flushCtx, flushCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer flushCancel()
+	var flushErr error
+	select {
+	case <-m.persistDone:
+	case <-flushCtx.Done():
+		flushErr = fmt.Errorf("flush SIP call history: %w", flushCtx.Err())
+	}
+	if flushErr != nil {
+		return errors.Join(stopErr, flushErr)
+	}
+	return errors.Join(stopErr, m.store.Close())
 }
 
 func (m *Manager) Reconfigure(ctx context.Context, cfg config.SIPConfig) error {
+	config.NormalizeSIPConfig(&cfg)
 	m.mu.Lock()
 	parent := m.lifecycleCtx
 	m.mu.Unlock()
@@ -330,14 +406,84 @@ func (m *Manager) persistCall(record CallRecord, stage string) {
 	if m == nil || m.store == nil {
 		return
 	}
-	if err := m.store.Upsert(context.Background(), record); err != nil {
-		if m.logger != nil {
-			m.logger.Error("Failed to persist SIP call history", "call_id", record.ID, "stage", stage, "error_type", fmt.Sprintf("%T", err))
+	m.persistMu.Lock()
+	startWorker := false
+	if m.persistPending == nil {
+		m.persistPending = make(map[string]persistRequest)
+		m.persistWake = make(chan struct{}, 1)
+		m.persistStop = make(chan struct{})
+		m.persistDone = make(chan struct{})
+		startWorker = true
+	}
+	if _, exists := m.persistPending[record.ID]; !exists {
+		if len(m.persistOrder) >= 128 {
+			dropped := m.persistOrder[0]
+			m.persistOrder = m.persistOrder[1:]
+			delete(m.persistPending, dropped)
+			go m.reportPersistenceFailure(dropped, "queue_overflow", nil)
 		}
-		if m.issueReporter != nil {
-			reporter := m.issueReporter
-			go reporter(context.Background(), "sip_call_history_persist_failed", "SIP call history could not be persisted")
+		m.persistOrder = append(m.persistOrder, record.ID)
+	}
+	m.persistPending[record.ID] = persistRequest{record: record, stage: stage}
+	m.persistMu.Unlock()
+	if startWorker {
+		go m.persistenceLoop()
+	}
+	select {
+	case m.persistWake <- struct{}{}:
+	default:
+	}
+}
+
+func (m *Manager) persistenceLoop() {
+	defer close(m.persistDone)
+	for {
+		select {
+		case <-m.persistWake:
+			m.drainPersistence(true)
+		case <-m.persistStop:
+			m.drainPersistence(true)
+			return
 		}
+	}
+}
+
+func (m *Manager) drainPersistence(all bool) {
+	for {
+		m.persistMu.Lock()
+		if len(m.persistOrder) == 0 {
+			m.persistMu.Unlock()
+			return
+		}
+		id := m.persistOrder[0]
+		m.persistOrder = m.persistOrder[1:]
+		request := m.persistPending[id]
+		delete(m.persistPending, id)
+		m.persistMu.Unlock()
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		m.persistWriteMu.Lock()
+		err := m.store.Upsert(ctx, request.record)
+		m.persistWriteMu.Unlock()
+		cancel()
+		if err != nil {
+			m.reportPersistenceFailure(id, request.stage, err)
+		}
+		if !all {
+			return
+		}
+	}
+}
+
+func (m *Manager) reportPersistenceFailure(callID, stage string, err error) {
+	if m.logger != nil {
+		attributes := []any{"call_id", callID, "stage", stage}
+		if err != nil {
+			attributes = append(attributes, "error_type", fmt.Sprintf("%T", err))
+		}
+		m.logger.Error("Failed to persist SIP call history", attributes...)
+	}
+	if m.issueReporter != nil {
+		m.issueReporter(context.Background(), "sip_call_history_persist_failed", "SIP call history could not be persisted")
 	}
 }
 
@@ -367,15 +513,34 @@ func (m *Manager) ReserveSpeechLabStackChange() (func(), error) {
 }
 
 func (m *Manager) ListCalls(ctx context.Context, limit int) ([]CallRecord, error) {
+	m.drainPersistence(true)
+	m.persistWriteMu.Lock()
+	m.persistWriteMu.Unlock()
 	return m.store.List(ctx, limit)
 }
 
 func (m *Manager) PruneHistory(ctx context.Context, cutoff time.Time) error {
+	m.drainPersistence(true)
+	m.persistWriteMu.Lock()
+	defer m.persistWriteMu.Unlock()
 	return m.store.DeleteOlderThan(ctx, cutoff)
 }
 
 func (m *Manager) DeleteHistory(ctx context.Context) error {
+	m.drainPersistence(true)
+	m.persistWriteMu.Lock()
+	defer m.persistWriteMu.Unlock()
 	return m.store.DeleteAll(ctx)
+}
+
+func (m *Manager) NonPersistentSessionIDs(ctx context.Context) ([]string, error) {
+	store, ok := m.store.(interface {
+		NonPersistentSessionIDs(context.Context) ([]string, error)
+	})
+	if !ok {
+		return nil, nil
+	}
+	return store.NonPersistentSessionIDs(ctx)
 }
 
 func (m *Manager) Dial(ctx context.Context, target string) (CallRecord, error) {
@@ -407,6 +572,10 @@ func (m *Manager) dial(ctx context.Context, target, mediaMode string, peer Media
 		m.mu.Unlock()
 		return CallRecord{}, ErrPermissionDenied
 	}
+	if m.networkConfigurationRequired(cfg) {
+		m.mu.Unlock()
+		return CallRecord{}, ErrNetworkConfiguration
+	}
 	if mediaMode == MediaModeBrowser && !cfg.BrowserMedia.Enabled {
 		m.mu.Unlock()
 		return CallRecord{}, ErrBrowserMediaDisabled
@@ -420,7 +589,11 @@ func (m *Manager) dial(ctx context.Context, target, mediaMode string, peer Media
 		return CallRecord{}, ErrBusy
 	}
 	uri, canonical, err := NormalizeSIPURI(target)
-	if err != nil || !DestinationAllowed(cfg.Outbound, uri) {
+	if err != nil {
+		m.mu.Unlock()
+		return CallRecord{}, fmt.Errorf("%w: %v", ErrInvalidTarget, err)
+	}
+	if !DestinationAllowed(cfg.Outbound, uri) {
 		m.mu.Unlock()
 		return CallRecord{}, ErrPermissionDenied
 	}
@@ -623,10 +796,11 @@ func (m *Manager) TestConnection(ctx context.Context) error {
 		return fmt.Errorf("prepare SIP registration test: %w", err)
 	}
 	if err := tx.Register(ctx); err != nil {
-		return fmt.Errorf("SIP registration test failed: %w", err)
+		code, _ := classifyRegistrationError(err)
+		return fmt.Errorf("%s: %w", code, err)
 	}
 	defer func() {
-		unregisterCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		unregisterCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		_ = tx.Unregister(unregisterCtx)
 	}()
@@ -657,27 +831,52 @@ func (m *Manager) registrationLoop(ctx context.Context, endpoint *diago.Diago, c
 		return
 	}
 	for attempt := 1; ctx.Err() == nil; attempt++ {
+		registeredThisTransaction := false
 		m.mu.Lock()
 		if m.active == nil {
 			m.state = StateRegistering
 		}
 		m.emitLocked("status", nil, nil)
 		m.mu.Unlock()
-		err = endpoint.Register(ctx, uri, registerOptions(cfg, func() {
+		tx, prepareErr := endpoint.RegisterTransaction(ctx, uri, registerOptions(cfg, func() {
 			m.mu.Lock()
+			if m.endpoint != endpoint || m.cancel == nil || ctx.Err() != nil {
+				m.mu.Unlock()
+				return
+			}
 			m.registered = true
 			m.registrationErr = ""
+			m.registrationStatusCode = 0
+			m.registrationRetryAt = nil
 			if m.active == nil {
 				m.state = StateRegistered
 			}
 			m.emitLocked("status", nil, nil)
 			m.mu.Unlock()
 		}))
+		if prepareErr == nil {
+			err = tx.Register(ctx)
+			if err == nil {
+				registeredThisTransaction = true
+				err = tx.QualifyLoop(ctx)
+			}
+			if tx != nil && registeredThisTransaction {
+				unregisterCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				unregisterErr := tx.Unregister(unregisterCtx)
+				cancel()
+				if ctx.Err() == nil && unregisterErr != nil {
+					m.logger.Warn("SIP unregister failed", "error_type", fmt.Sprintf("%T", unregisterErr))
+				}
+			}
+		} else {
+			err = prepareErr
+		}
 		if ctx.Err() != nil {
 			return
 		}
-		m.registrationFailed(ctx, attempt, err)
-		timer := time.NewTimer(registrationBackoff(attempt))
+		delay := registrationBackoff(attempt)
+		m.registrationFailed(ctx, attempt, err, delay)
+		timer := time.NewTimer(delay)
 		select {
 		case <-ctx.Done():
 			timer.Stop()
@@ -687,19 +886,37 @@ func (m *Manager) registrationLoop(ctx context.Context, endpoint *diago.Diago, c
 	}
 }
 
-func (m *Manager) registrationFailed(ctx context.Context, attempt int, err error) {
+func (m *Manager) registrationFailed(ctx context.Context, attempt int, err error, retryDelays ...time.Duration) {
+	retryAfter := registrationBackoff(attempt)
+	if len(retryDelays) > 0 {
+		retryAfter = retryDelays[0]
+	}
+	code, statusCode := classifyRegistrationError(err)
+	retryAt := time.Now().UTC().Add(retryAfter)
 	m.mu.Lock()
 	m.registered = false
 	if m.active == nil {
 		m.state = StateFailed
 	}
-	m.registrationErr = "registration_failed"
-	m.emitLocked("registration_error", nil, map[string]any{"attempt": attempt})
+	m.registrationErr = code
+	m.registrationStatusCode = statusCode
+	m.registrationRetryAt = &retryAt
+	m.emitLocked("registration_error", nil, map[string]any{"attempt": attempt, "code": code, "status_code": statusCode})
 	m.mu.Unlock()
-	m.logger.Warn("SIP registration failed", "attempt", attempt, "error_type", fmt.Sprintf("%T", err))
-	if attempt >= 3 && m.issueReporter != nil {
-		m.issueReporter(ctx, "sip_registration_failed", "SIP registration repeatedly failed")
+	m.logger.Warn("SIP registration failed", "attempt", attempt, "code", code, "status_code", statusCode, "error_type", fmt.Sprintf("%T", err))
+	importantStatus := statusCode == sip.StatusUnauthorized || statusCode == sip.StatusForbidden || statusCode == sip.StatusNotFound || statusCode == sip.StatusRequestTimeout
+	if (attempt >= 3 || importantStatus) && m.issueReporter != nil {
+		m.issueReporter(ctx, code, fmt.Sprintf("SIP registration repeatedly failed (status=%d)", statusCode))
 	}
+}
+
+func classifyRegistrationError(err error) (string, int) {
+	var responseErr *diago.RegisterResponseError
+	if errors.As(err, &responseErr) && responseErr != nil {
+		statusCode := responseErr.StatusCode()
+		return fmt.Sprintf("registration_failed_%d", statusCode), statusCode
+	}
+	return "registration_failed", 0
 }
 
 func (m *Manager) handleIncoming(dialog *diago.DialogServerSession) {
@@ -711,7 +928,12 @@ func (m *Manager) handleIncoming(dialog *diago.DialogServerSession) {
 	}
 	m.mu.Lock()
 	cfg := m.cfg
-	if !CallerAllowed(cfg.Inbound, req.Source(), from.Address) {
+	if m.networkConfigurationRequired(cfg) {
+		m.mu.Unlock()
+		_ = dialog.Respond(sip.StatusTemporarilyUnavailable, "Temporarily Unavailable", nil)
+		return
+	}
+	if !CallerAllowed(cfg.Inbound, req.Source(), from.Address, EffectiveNumberRegion(cfg)) {
 		m.mu.Unlock()
 		_ = dialog.Respond(sip.StatusForbidden, "Forbidden", nil)
 		return
@@ -785,8 +1007,16 @@ func (m *Manager) handleIncoming(dialog *diago.DialogServerSession) {
 	call.dialogMu.Unlock()
 	decision := "answer"
 	if cfg.Inbound.Route == "manual" {
+		ringTimer := time.NewTimer(time.Duration(cfg.Inbound.RingTimeoutSeconds) * time.Second)
+		defer ringTimer.Stop()
 		select {
 		case decision = <-call.decision:
+		case <-ringTimer.C:
+			call.dialogMu.Lock()
+			_ = dialog.Respond(sip.StatusTemporarilyUnavailable, "Temporarily Unavailable", nil)
+			call.dialogMu.Unlock()
+			m.finishCall(call, "ring_timeout")
+			return
 		case <-call.ctx.Done():
 			m.finishCall(call, m.callCancellationReason(call))
 			return
@@ -830,6 +1060,19 @@ func (m *Manager) handleIncoming(dialog *diago.DialogServerSession) {
 	call.dialogEstablished = true
 	m.mu.Unlock()
 	m.runEstablished(call, cfg)
+}
+
+func (m *Manager) networkConfigurationRequired(cfg config.SIPConfig) bool {
+	return m.isDocker && (strings.TrimSpace(cfg.AdvertisedSignalingHost) == "" || strings.TrimSpace(cfg.Media.AdvertisedHost) == "")
+}
+
+func (m *Manager) NetworkConfigurationRequired() bool {
+	if m == nil {
+		return false
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.networkConfigurationRequired(m.cfg)
 }
 
 func (m *Manager) runOutbound(call *activeCall, endpoint *diago.Diago, uri sip.Uri, cfg config.SIPConfig) {
@@ -876,7 +1119,16 @@ func (m *Manager) runOutbound(call *activeCall, endpoint *diago.Diago, uri sip.U
 	// call context is cancelled in the narrow window before ACK. Complete ACK
 	// independently, then let the normal cancellation path send BYE.
 	ackCtx, ackCancel := context.WithTimeout(context.Background(), 3*time.Second)
-	err = dialog.Ack(ackCtx)
+	for attempt := 0; attempt < 2; attempt++ {
+		err = dialog.Ack(ackCtx)
+		if err == nil || ackCtx.Err() != nil {
+			break
+		}
+		select {
+		case <-ackCtx.Done():
+		case <-time.After(100 * time.Millisecond):
+		}
+	}
 	ackCancel()
 	if err != nil {
 		reason := "ack_failed"
@@ -959,15 +1211,20 @@ func (m *Manager) runEstablished(call *activeCall, cfg config.SIPConfig) {
 		return
 	}
 	pump := &mediaPump{
-		dialog:   call.dialog,
-		bridge:   call.bridge,
-		jitterMS: cfg.Media.JitterBufferMS,
+		dialog: call.dialog, bridge: call.bridge, jitterMS: cfg.Media.JitterBufferMS,
+		idleTimeout: time.Duration(cfg.Media.RTPIdleTimeoutSeconds) * time.Second,
 		// WebRTC already has a paced jitter buffer. Composing it with Diago's
 		// independent playout clock can stall a sparse PBX receive stream.
 		directRead: call.mediaMode == MediaModeBrowser,
 	}
 	pump.onDTMF = func(digit rune) { m.emitCallData(call, "dtmf", map[string]any{"digit": string(digit)}) }
-	pump.onError = func(error) { m.cancelCallWithReason(call, "media_error") }
+	pump.onError = func(err error) {
+		reason := "media_error"
+		if errors.Is(err, ErrMediaTimeout) {
+			reason = "media_timeout"
+		}
+		m.cancelCallWithReason(call, reason)
+	}
 	if err := pump.start(call.ctx); err != nil {
 		m.finishCall(call, "media_error")
 		return
@@ -1079,7 +1336,7 @@ func (m *Manager) newActiveCallLocked(direction, remote string) *activeCall {
 	ctx, cancel := context.WithTimeout(m.rootCtx, time.Duration(m.cfg.Voice.MaxCallDurationSeconds)*time.Second)
 	id := randomCallID()
 	call := &activeCall{
-		record: CallRecord{ID: id, Direction: direction, RemoteParty: remote, StartedAt: time.Now().UTC(), State: StateConnecting, Backend: m.cfg.Voice.Backend, SessionID: "sip-" + id},
+		record: CallRecord{ID: id, Direction: direction, RemoteParty: remote, StartedAt: time.Now().UTC(), State: StateConnecting, Backend: m.cfg.Voice.Backend, SessionID: "sip-" + id, persistTranscripts: m.cfg.Voice.PersistTranscripts},
 		ctx:    ctx, cancel: cancel, decision: make(chan string, 1), bridge: voice.NewBridge(25), done: make(chan struct{}),
 		mediaMode: MediaModeAgent, persistTranscripts: m.cfg.Voice.PersistTranscripts,
 	}
@@ -1160,6 +1417,9 @@ func (m *Manager) finishCall(call *activeCall, reason string) {
 		}
 		sendHangup := established && reason != "remote_hangup" && reason != "remote_cancel"
 		_ = m.endCallDialog(call, sendHangup)
+		if m.callFinished != nil {
+			m.callFinished(call.record, call.persistTranscripts)
+		}
 	})
 }
 
@@ -1224,7 +1484,8 @@ func (m *Manager) emitLocked(eventType string, call *CallRecord, data any) {
 func (m *Manager) statusLocked() Status {
 	status := Status{
 		Enabled: m.cfg.Enabled, ReadOnly: m.cfg.ReadOnly, State: m.state, Registered: m.registered,
-		RegistrationError: m.registrationErr, Transport: m.cfg.Transport,
+		RegistrationError: m.registrationErr, RegistrationStatusCode: m.registrationStatusCode,
+		RegistrationRetryAt: m.registrationRetryAt, Transport: m.cfg.Transport,
 		BindAddress: net.JoinHostPort(m.cfg.BindHost, fmt.Sprint(m.cfg.BindPort)), PasswordSet: m.cfg.Password != "",
 	}
 	if m.active != nil {
@@ -1311,7 +1572,7 @@ func registrarURI(cfg config.SIPConfig) (sip.Uri, error) {
 func registerOptions(cfg config.SIPConfig, onRegistered func()) diago.RegisterOptions {
 	return diago.RegisterOptions{
 		Username: authUsername(cfg), Password: cfg.Password, ProxyHost: cfg.OutboundProxy,
-		Expiry: time.Duration(cfg.RegisterExpiresSeconds) * time.Second, RetryInterval: 5 * time.Second,
+		Expiry:       time.Duration(cfg.RegisterExpiresSeconds) * time.Second,
 		OnRegistered: onRegistered,
 	}
 }

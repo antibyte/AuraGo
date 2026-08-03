@@ -123,11 +123,19 @@ func refreshAllOAuthTokens(s *Server) {
 		// Apply updated tokens to live config and reconfigure all LLM clients
 		// so refreshed tokens take effect immediately without a restart.
 		s.CfgMu.Lock()
-		s.Cfg.ApplyOAuthTokens(s.Vault)
-		if fm, ok := s.LLMClient.(*llm.FailoverManager); ok {
-			fm.Reconfigure(s.Cfg)
+		current := s.ConfigSnapshot()
+		if current == nil {
+			s.CfgMu.Unlock()
+			return
 		}
-		s.LLMGuardian = security.NewLLMGuardian(s.Cfg, s.Logger)
+		updatedConfig := *current
+		updatedConfig.Providers = append([]config.ProviderEntry(nil), current.Providers...)
+		updatedConfig.ApplyOAuthTokens(s.Vault)
+		s.replaceConfigSnapshot(&updatedConfig)
+		if fm, ok := s.LLMClient.(*llm.FailoverManager); ok {
+			fm.Reconfigure(&updatedConfig)
+		}
+		s.LLMGuardian = security.NewLLMGuardian(&updatedConfig, s.Logger)
 		s.CfgMu.Unlock()
 		agent.ResetGlobalHelperLLMManager()
 		s.Logger.Info("[OAuth Refresh] Applied refreshed tokens", "count", refreshed)

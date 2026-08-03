@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -35,6 +36,8 @@ type GeminiLiveBackend struct {
 	FailureMessage    string
 	GoodbyeMessage    string
 	IdleTimeout       time.Duration
+	TurnTimeout       time.Duration
+	MaxResponseChars  int
 	TestNoTools       bool
 }
 
@@ -47,6 +50,12 @@ func (b *GeminiLiveBackend) Start(ctx context.Context, call CallContext, audio D
 	}
 	if b.IdleTimeout <= 0 {
 		b.IdleTimeout = 2 * time.Minute
+	}
+	if b.TurnTimeout <= 0 {
+		b.TurnTimeout = time.Minute
+	}
+	if b.MaxResponseChars <= 0 {
+		b.MaxResponseChars = 1200
 	}
 	call.AgentProviderID = b.AgentProviderID
 	call.AdditionalPrompt = b.SystemInstruction
@@ -359,11 +368,22 @@ func (s *geminiLiveSession) handleToolCall(providerCall map[string]interface{}) 
 	switch name {
 	case "aurago_execute":
 		request, _ := args["request"].(string)
-		result, err := s.backend.Runner.RunVoiceTurn(s.ctx, s.call, request)
+		turnCtx, cancel := context.WithTimeout(s.ctx, s.backend.TurnTimeout)
+		result, err := s.backend.Runner.RunVoiceTurn(turnCtx, s.call, request)
+		cancel()
 		if err != nil {
 			response = map[string]interface{}{"status": "error", "message": "AuraGo action failed"}
+			if errors.Is(err, context.DeadlineExceeded) || errors.Is(turnCtx.Err(), context.DeadlineExceeded) {
+				s.fail("AuraGo action timed out", true)
+			}
 		} else {
+			var truncated bool
+			result, truncated = truncateVoiceResponse(result, s.backend.MaxResponseChars)
 			response["result"] = result
+			if truncated {
+				response["response_truncated"] = true
+				s.emit("response_truncated", "", map[string]any{"max_chars": s.backend.MaxResponseChars})
+			}
 		}
 	case "aurago_cancel_current_task":
 		s.backend.Runner.CancelVoiceTurn(s.call.CallID)

@@ -26,9 +26,13 @@ const (
 	DefaultSIPRTPPortEnd           = 30099
 	DefaultSIPBrowserMediaUDPPort  = 30100
 	DefaultSIPJitterBufferMS       = 60
+	DefaultSIPRTPIdleTimeout       = 60
 	DefaultSIPAutoAnswerDelayMS    = 1000
+	DefaultSIPRingTimeout          = 90
 	DefaultSIPMaxCallDuration      = 3600
 	DefaultSIPIdleTimeout          = 120
+	DefaultSIPTurnTimeout          = 60
+	DefaultSIPMaxResponseChars     = 1200
 	DefaultSIPHistoryRetentionDays = 90
 )
 
@@ -68,12 +72,13 @@ type SIPTLSConfig struct {
 }
 
 type SIPMediaConfig struct {
-	RTPPortStart   int      `yaml:"rtp_port_start" json:"rtp_port_start"`
-	RTPPortEnd     int      `yaml:"rtp_port_end" json:"rtp_port_end"`
-	AdvertisedHost string   `yaml:"advertised_host" json:"advertised_host"`
-	SymmetricRTP   bool     `yaml:"symmetric_rtp" json:"symmetric_rtp"`
-	JitterBufferMS int      `yaml:"jitter_buffer_ms" json:"jitter_buffer_ms"`
-	Codecs         []string `yaml:"codecs" json:"codecs"`
+	RTPPortStart          int      `yaml:"rtp_port_start" json:"rtp_port_start"`
+	RTPPortEnd            int      `yaml:"rtp_port_end" json:"rtp_port_end"`
+	AdvertisedHost        string   `yaml:"advertised_host" json:"advertised_host"`
+	SymmetricRTP          bool     `yaml:"symmetric_rtp" json:"symmetric_rtp"`
+	JitterBufferMS        int      `yaml:"jitter_buffer_ms" json:"jitter_buffer_ms"`
+	RTPIdleTimeoutSeconds int      `yaml:"rtp_idle_timeout_seconds" json:"rtp_idle_timeout_seconds"`
+	Codecs                []string `yaml:"codecs" json:"codecs"`
 }
 
 // SIPBrowserMediaConfig controls the authenticated WebRTC media boundary used
@@ -86,11 +91,13 @@ type SIPBrowserMediaConfig struct {
 }
 
 type SIPInboundConfig struct {
-	Route             string   `yaml:"route" json:"route"`
-	AutoAnswerDelayMS int      `yaml:"auto_answer_delay_ms" json:"auto_answer_delay_ms"`
-	TrustedPeerCIDRs  []string `yaml:"trusted_peer_cidrs" json:"trusted_peer_cidrs"`
-	AllowedCallers    []string `yaml:"allowed_callers" json:"allowed_callers"`
-	DeniedCallers     []string `yaml:"denied_callers,omitempty" json:"denied_callers"`
+	Route              string   `yaml:"route" json:"route"`
+	AutoAnswerDelayMS  int      `yaml:"auto_answer_delay_ms" json:"auto_answer_delay_ms"`
+	RingTimeoutSeconds int      `yaml:"ring_timeout_seconds" json:"ring_timeout_seconds"`
+	NumberRegion       string   `yaml:"number_region,omitempty" json:"number_region"`
+	TrustedPeerCIDRs   []string `yaml:"trusted_peer_cidrs" json:"trusted_peer_cidrs"`
+	AllowedCallers     []string `yaml:"allowed_callers" json:"allowed_callers"`
+	DeniedCallers      []string `yaml:"denied_callers,omitempty" json:"denied_callers"`
 }
 
 type SIPOutboundConfig struct {
@@ -120,6 +127,8 @@ type SIPVoiceConfig struct {
 	PersistTranscripts     bool                   `yaml:"persist_transcripts" json:"persist_transcripts"`
 	MaxCallDurationSeconds int                    `yaml:"max_call_duration_seconds" json:"max_call_duration_seconds"`
 	IdleTimeoutSeconds     int                    `yaml:"idle_timeout_seconds" json:"idle_timeout_seconds"`
+	TurnTimeoutSeconds     int                    `yaml:"turn_timeout_seconds" json:"turn_timeout_seconds"`
+	MaxResponseChars       int                    `yaml:"max_response_chars" json:"max_response_chars"`
 }
 
 // SIPVoiceClassicConfig selects the three independently managed stages of the
@@ -159,15 +168,19 @@ func ApplySIPDefaults(cfg *SIPConfig) {
 	cfg.Media.RTPPortEnd = DefaultSIPRTPPortEnd
 	cfg.Media.SymmetricRTP = true
 	cfg.Media.JitterBufferMS = DefaultSIPJitterBufferMS
+	cfg.Media.RTPIdleTimeoutSeconds = DefaultSIPRTPIdleTimeout
 	cfg.Media.Codecs = []string{"pcma", "pcmu"}
 	cfg.BrowserMedia.UDPPort = DefaultSIPBrowserMediaUDPPort
 	cfg.Inbound.Route = "agent"
 	cfg.Inbound.AutoAnswerDelayMS = DefaultSIPAutoAnswerDelayMS
+	cfg.Inbound.RingTimeoutSeconds = DefaultSIPRingTimeout
 	cfg.Permissions.AgentHangup = true
 	cfg.Voice.Backend = "classic"
 	cfg.Voice.Language = "auto"
 	cfg.Voice.MaxCallDurationSeconds = DefaultSIPMaxCallDuration
 	cfg.Voice.IdleTimeoutSeconds = DefaultSIPIdleTimeout
+	cfg.Voice.TurnTimeoutSeconds = DefaultSIPTurnTimeout
+	cfg.Voice.MaxResponseChars = DefaultSIPMaxResponseChars
 	cfg.Voice.Behavior.GreetingEnabled = true
 	cfg.Voice.Behavior.UnavailableRequestBehavior = "explain"
 	cfg.HistoryRetentionDays = DefaultSIPHistoryRetentionDays
@@ -177,6 +190,20 @@ func ApplySIPDefaults(cfg *SIPConfig) {
 func NormalizeSIPConfig(cfg *SIPConfig) {
 	if cfg == nil {
 		return
+	}
+	// Preserve compatibility with API clients and tests that construct partial
+	// SIP values instead of unmarshalling on top of ApplySIPDefaults.
+	if cfg.Media.RTPIdleTimeoutSeconds == 0 {
+		cfg.Media.RTPIdleTimeoutSeconds = DefaultSIPRTPIdleTimeout
+	}
+	if cfg.Inbound.RingTimeoutSeconds == 0 {
+		cfg.Inbound.RingTimeoutSeconds = DefaultSIPRingTimeout
+	}
+	if cfg.Voice.TurnTimeoutSeconds == 0 {
+		cfg.Voice.TurnTimeoutSeconds = DefaultSIPTurnTimeout
+	}
+	if cfg.Voice.MaxResponseChars == 0 {
+		cfg.Voice.MaxResponseChars = DefaultSIPMaxResponseChars
 	}
 	cfg.BindHost = strings.TrimSpace(cfg.BindHost)
 	cfg.PresetID = strings.ToLower(strings.TrimSpace(cfg.PresetID))
@@ -196,6 +223,7 @@ func NormalizeSIPConfig(cfg *SIPConfig) {
 	cfg.BrowserMedia.BindHost = strings.TrimSpace(cfg.BrowserMedia.BindHost)
 	cfg.BrowserMedia.AdvertisedIP = strings.TrimSpace(cfg.BrowserMedia.AdvertisedIP)
 	cfg.Inbound.Route = strings.ToLower(strings.TrimSpace(cfg.Inbound.Route))
+	cfg.Inbound.NumberRegion = strings.ToUpper(strings.TrimSpace(cfg.Inbound.NumberRegion))
 	cfg.Inbound.TrustedPeerCIDRs = normalizedUnique(cfg.Inbound.TrustedPeerCIDRs, false)
 	cfg.Inbound.AllowedCallers = normalizedUnique(cfg.Inbound.AllowedCallers, true)
 	cfg.Inbound.DeniedCallers = normalizedUnique(cfg.Inbound.DeniedCallers, true)
@@ -278,6 +306,7 @@ func ValidateSIPConfig(cfg SIPConfig) error {
 		"tls.server_name": cfg.TLS.ServerName, "tls.cert_file": cfg.TLS.CertFile, "tls.key_file": cfg.TLS.KeyFile,
 		"voice.backend": cfg.Voice.Backend, "voice.realtime_profile_id": cfg.Voice.RealtimeProfileID,
 		"voice.language":          cfg.Voice.Language,
+		"inbound.number_region":   cfg.Inbound.NumberRegion,
 		"voice.agent_provider_id": cfg.Voice.AgentProviderID, "voice.classic.asr_provider_id": cfg.Voice.Classic.ASRProviderID,
 		"voice.classic.asr_mode": cfg.Voice.Classic.ASRMode, "voice.classic.tts_provider": cfg.Voice.Classic.TTSProvider,
 	} {
@@ -367,6 +396,9 @@ func ValidateSIPConfig(cfg SIPConfig) error {
 	if cfg.Media.JitterBufferMS < 20 || cfg.Media.JitterBufferMS > 200 || cfg.Media.JitterBufferMS%20 != 0 {
 		return fmt.Errorf("sip.media.jitter_buffer_ms must be a multiple of 20 between 20 and 200")
 	}
+	if cfg.Media.RTPIdleTimeoutSeconds < 15 || cfg.Media.RTPIdleTimeoutSeconds > 600 {
+		return fmt.Errorf("sip.media.rtp_idle_timeout_seconds must be between 15 and 600")
+	}
 	if len(cfg.Media.Codecs) == 0 {
 		return fmt.Errorf("sip.media.codecs must include pcma or pcmu")
 	}
@@ -379,6 +411,12 @@ func ValidateSIPConfig(cfg SIPConfig) error {
 	case "agent", "manual", "reject":
 	default:
 		return fmt.Errorf("sip.inbound.route must be agent, manual, or reject")
+	}
+	if cfg.Inbound.RingTimeoutSeconds < 15 || cfg.Inbound.RingTimeoutSeconds > 300 {
+		return fmt.Errorf("sip.inbound.ring_timeout_seconds must be between 15 and 300")
+	}
+	if cfg.Inbound.NumberRegion != "" && !regexp.MustCompile(`^[A-Z]{2}$`).MatchString(cfg.Inbound.NumberRegion) {
+		return fmt.Errorf("sip.inbound.number_region must be an ISO 3166-1 alpha-2 country code")
 	}
 	for _, raw := range cfg.Inbound.TrustedPeerCIDRs {
 		if net.ParseIP(raw) == nil {
@@ -446,6 +484,12 @@ func ValidateSIPConfig(cfg SIPConfig) error {
 	}
 	if cfg.Voice.IdleTimeoutSeconds < 15 || cfg.Voice.IdleTimeoutSeconds > 3600 {
 		return fmt.Errorf("sip.voice.idle_timeout_seconds must be between 15 and 3600")
+	}
+	if cfg.Voice.TurnTimeoutSeconds < 15 || cfg.Voice.TurnTimeoutSeconds > 300 {
+		return fmt.Errorf("sip.voice.turn_timeout_seconds must be between 15 and 300")
+	}
+	if cfg.Voice.MaxResponseChars < 200 || cfg.Voice.MaxResponseChars > 5000 {
+		return fmt.Errorf("sip.voice.max_response_chars must be between 200 and 5000")
 	}
 	for name, value := range map[string]string{
 		"agent_provider_id":   cfg.Voice.AgentProviderID,
@@ -523,10 +567,13 @@ func validSIPDomainPattern(value string) bool {
 	if value == "" || len(value) > 253 || strings.ContainsAny(value, " \t\r\n/@;") {
 		return false
 	}
+	if strings.Contains(value, ":") {
+		return !strings.ContainsAny(value, "*?") && strings.HasPrefix(value, "[") && strings.HasSuffix(value, "]") && net.ParseIP(strings.Trim(value, "[]")) != nil
+	}
 	for _, char := range value {
 		if (char < 'a' || char > 'z') && (char < 'A' || char > 'Z') &&
 			(char < '0' || char > '9') && char != '-' && char != '.' &&
-			char != ':' && char != '[' && char != ']' && char != '*' && char != '?' {
+			char != '*' && char != '?' {
 			return false
 		}
 	}

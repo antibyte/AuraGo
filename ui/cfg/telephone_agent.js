@@ -39,7 +39,9 @@ function taNormalize(payload) {
             allowed_tools: Array.isArray(voice.allowed_tools) ? voice.allowed_tools.slice().sort() : [],
             persist_transcripts: !!voice.persist_transcripts,
             max_call_duration_seconds: Number(voice.max_call_duration_seconds || 3600),
-            idle_timeout_seconds: Number(voice.idle_timeout_seconds || 120)
+			idle_timeout_seconds: Number(voice.idle_timeout_seconds || 120),
+			turn_timeout_seconds: Number(voice.turn_timeout_seconds || 60),
+			max_response_chars: Number(voice.max_response_chars || 1200)
         }
     };
 }
@@ -52,9 +54,15 @@ function taOptions(items, selected, emptyKey) {
     const options = [`<option value="">${taEsc(t(emptyKey))}</option>`];
     (items || []).forEach(item => {
         const label = `${item.name || item.id}${item.model ? ` · ${item.model}` : ''}${item.ready ? '' : ` · ${t('config.telephone_agent.not_ready')}`}`;
-        options.push(`<option value="${taEsc(item.id)}" ${item.id === selected ? 'selected' : ''}>${taEsc(label)}</option>`);
+		const reason = item.ready || !item.reason ? '' : ` · ${item.reason}`;
+		options.push(`<option value="${taEsc(item.id)}" ${item.id === selected ? 'selected' : ''} ${item.ready ? '' : 'disabled'}>${taEsc(label + reason)}</option>`);
     });
     return options.join('');
+}
+
+function taLabel(key, inheritedKey) {
+	const suffix = telephoneAgentInherited?.[inheritedKey] ? ` · ${t('config.telephone_agent.inherited')}` : '';
+	return taEsc(t(key) + suffix);
 }
 
 function taBlockerMarkup() {
@@ -112,13 +120,13 @@ function taRender() {
                         <option value="gemini_live" ${classic ? '' : 'selected'}>Gemini Live</option>
                     </select>
                 </label>
-                <label>${taEsc(t('config.telephone_agent.agent_provider'))}<select class="field-select" data-ta="voice.agent_provider_id">${taOptions(providers, c.voice.agent_provider_id, 'config.telephone_agent.choose_provider')}</select></label>
+				<label>${taLabel('config.telephone_agent.agent_provider', 'agent_provider_id')}<select class="field-select" data-ta="voice.agent_provider_id">${taOptions(providers, c.voice.agent_provider_id, 'config.telephone_agent.choose_provider')}</select></label>
                 ${classic ? `
-                    <label>${taEsc(t('config.telephone_agent.asr_provider'))}<select class="field-select" data-ta="voice.classic.asr_provider_id">${taOptions(providers, c.voice.classic.asr_provider_id, 'config.telephone_agent.choose_provider')}</select></label>
-                    <label>${taEsc(t('config.telephone_agent.asr_mode'))}<select class="field-select" data-ta="voice.classic.asr_mode">
+					<label>${taLabel('config.telephone_agent.asr_provider', 'asr_provider_id')}<select class="field-select" data-ta="voice.classic.asr_provider_id">${taOptions(providers, c.voice.classic.asr_provider_id, 'config.telephone_agent.choose_provider')}</select></label>
+					<label>${taLabel('config.telephone_agent.asr_mode', 'asr_mode')}<select class="field-select" data-ta="voice.classic.asr_mode">
                         ${(telephoneAgentCatalog?.asr_modes || []).map(mode => `<option value="${taEsc(mode)}" ${mode === c.voice.classic.asr_mode ? 'selected' : ''}>${taEsc(mode)}</option>`).join('')}
                     </select></label>
-                    <label>${taEsc(t('config.telephone_agent.tts_provider'))}<select class="field-select" data-ta="voice.classic.tts_provider">${taOptions(ttsProviders, c.voice.classic.tts_provider, 'config.telephone_agent.choose_provider')}</select></label>
+					<label>${taLabel('config.telephone_agent.tts_provider', 'tts_provider')}<select class="field-select" data-ta="voice.classic.tts_provider">${taOptions(ttsProviders, c.voice.classic.tts_provider, 'config.telephone_agent.choose_provider')}</select></label>
                 ` : `<label>${taEsc(t('config.sip.realtime_profile'))}<select class="field-select" data-ta="voice.realtime_profile_id">${taOptions(profiles, c.voice.realtime_profile_id, 'config.telephone_agent.choose_profile')}</select></label>`}
                 <label>${taEsc(t('config.sip.language'))}
                     <select class="field-select" data-ta="voice.language">
@@ -153,7 +161,9 @@ function taRender() {
                 <legend>${taEsc(t('config.telephone_agent.privacy_limits'))}</legend>
                 <label class="ta-check"><input type="checkbox" data-ta="voice.persist_transcripts" ${c.voice.persist_transcripts ? 'checked' : ''}>${taEsc(t('config.sip.persist_transcripts'))}</label>
                 <label>${taEsc(t('config.sip.max_duration'))}<input class="field-input" type="number" min="30" max="86400" data-ta="voice.max_call_duration_seconds" value="${c.voice.max_call_duration_seconds}"></label>
-                <label>${taEsc(t('config.telephone_agent.idle_timeout'))}<input class="field-input" type="number" min="15" max="3600" data-ta="voice.idle_timeout_seconds" value="${c.voice.idle_timeout_seconds}"></label>
+				<label>${taEsc(t('config.telephone_agent.idle_timeout'))}<input class="field-input" type="number" min="15" max="3600" data-ta="voice.idle_timeout_seconds" value="${c.voice.idle_timeout_seconds}"></label>
+				<label>${taEsc(t('config.telephone_agent.turn_timeout'))}<input class="field-input" type="number" min="15" max="300" data-ta="voice.turn_timeout_seconds" value="${c.voice.turn_timeout_seconds}"></label>
+				<label>${taEsc(t('config.telephone_agent.max_response_chars'))}<input class="field-input" type="number" min="200" max="5000" data-ta="voice.max_response_chars" value="${c.voice.max_response_chars}"></label>
                 <p class="ta-hint">${taEsc(t('config.telephone_agent.snapshot_note'))}</p>
             </fieldset>
         </div>

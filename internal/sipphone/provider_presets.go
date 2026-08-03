@@ -133,6 +133,7 @@ func ApplySIPProviderPreset(presetID string, values map[string]string) (config.S
 		result.OutboundProxy = registrar
 	}
 	result.Inbound.Route = "reject"
+	result.Inbound.NumberRegion = preset.DomesticRegion
 	result.Inbound.TrustedPeerCIDRs = nil
 	result.Inbound.AllowedCallers = nil
 	result.Inbound.DeniedCallers = nil
@@ -152,6 +153,19 @@ func ApplySIPProviderPreset(presetID string, values map[string]string) (config.S
 		return config.SIPConfig{}, fmt.Errorf("invalid SIP provider values: %w", err)
 	}
 	return result, nil
+}
+
+// EffectiveNumberRegion returns the explicit inbound region or the single,
+// unambiguous domestic region associated with the selected provider preset.
+func EffectiveNumberRegion(cfg config.SIPConfig) string {
+	if region := strings.ToUpper(strings.TrimSpace(cfg.Inbound.NumberRegion)); region != "" {
+		return region
+	}
+	preset, ok := sipProviderPreset(cfg.PresetID)
+	if !ok {
+		return ""
+	}
+	return strings.ToUpper(strings.TrimSpace(preset.DomesticRegion))
 }
 
 func parseProviderServer(raw string) (registrar string, domain string, err error) {

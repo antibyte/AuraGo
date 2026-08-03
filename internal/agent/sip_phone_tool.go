@@ -60,7 +60,7 @@ func dispatchSIPPhone(ctx context.Context, tc ToolCall, dc *DispatchContext) str
 		return sipPhoneToolResult(map[string]any{"calls": calls}, err)
 	case "dial":
 		call, err := manager.Dial(ctx, request.Target)
-		return sipPhoneToolResult(map[string]any{"call": call}, err)
+		return sipPhoneToolResult(map[string]any{"call": call, "accepted": err == nil, "final": false, "verify_with": []string{"status", "list_calls", "end_reason"}}, err)
 	case "answer":
 		return sipPhoneToolResult(map[string]any{"call_id": request.CallID}, manager.Answer(request.CallID))
 	case "reject":
@@ -105,6 +105,10 @@ func sipPhoneErrorCode(err error) string {
 		return "busy"
 	case errors.Is(err, sipphone.ErrPermissionDenied):
 		return "permission_denied"
+	case errors.Is(err, sipphone.ErrInvalidTarget):
+		return "invalid_target"
+	case errors.Is(err, sipphone.ErrNetworkConfiguration):
+		return "docker_advertised_host_required"
 	case errors.Is(err, sipphone.ErrCallNotFound):
 		return "call_not_found"
 	default:
@@ -122,6 +126,10 @@ func sipPhonePublicError(err error) string {
 		return "The SIP phone already has an active call."
 	case "permission_denied":
 		return "The SIP operation is not permitted."
+	case "invalid_target":
+		return "The SIP target is invalid."
+	case "docker_advertised_host_required":
+		return "Docker SIP calls require explicit advertised signaling and media hosts."
 	case "call_not_found":
 		return "The SIP call was not found."
 	default:

@@ -16,7 +16,9 @@ func (s *Server) initSIP(ctx context.Context) error {
 	s.CfgMu.RLock()
 	sipConfig := s.Cfg.SIP
 	s.CfgMu.RUnlock()
-	sipphone.ApplyProviderNetworkDefaults(ctx, &sipConfig, "")
+	if !s.Cfg.Runtime.IsDocker {
+		sipphone.ApplyProviderNetworkDefaults(ctx, &sipConfig, "")
+	}
 	s.CfgMu.Lock()
 	s.Cfg.SIP = sipConfig
 	s.CfgMu.Unlock()
@@ -30,14 +32,26 @@ func (s *Server) initSIP(ctx context.Context) error {
 		}
 		_, err := planner.RecordOperationalIssue(s.PlannerDB, planner.OperationalIssue{
 			Source: "sip", Context: "background_service", Severity: "high",
-			Title: "SIP registration failed", Detail: detail,
+			Title: "SIP operational issue", Detail: detail,
 			Fingerprint: fingerprint, OccurredAt: time.Now().UTC(),
 		})
 		if err != nil && s.Logger != nil {
 			s.Logger.Warn("Failed to record SIP operational issue", "error", err)
 		}
 	}
-	manager, err := sipphone.NewManager(sipConfig, s.Cfg.Directories.DataDir, runner.backendFactory, reporter, s.Logger)
+	finishedHook := func(call sipphone.CallRecord, persist bool) {
+		if persist || call.SessionID == "" || s.ShortTermMem == nil {
+			return
+		}
+		if err := s.ShortTermMem.PurgeChatSession(call.SessionID); err != nil {
+			if s.Logger != nil {
+				s.Logger.Warn("Failed to purge transient SIP conversation", "call_id", call.ID, "error_type", fmt.Sprintf("%T", err))
+			}
+			reporter(context.Background(), "sip_transient_session_purge_failed", "A transient SIP session could not be purged")
+		}
+	}
+	manager, err := sipphone.NewManager(sipConfig, s.Cfg.Directories.DataDir, runner.backendFactory, reporter, s.Logger,
+		sipphone.WithDockerRuntime(s.Cfg.Runtime.IsDocker), sipphone.WithCallFinishedHook(finishedHook))
 	if err != nil {
 		return fmt.Errorf("initialize SIP endpoint: %w", err)
 	}
@@ -60,6 +74,18 @@ func (s *Server) initSIP(ctx context.Context) error {
 	s.SIPBrowserMedia = browserMedia
 	s.VoiceActionRunner = runner
 	sipphone.SetDefaultManager(manager)
+	if s.ShortTermMem != nil {
+		sessionIDs, listErr := manager.NonPersistentSessionIDs(ctx)
+		if listErr != nil {
+			reporter(ctx, "sip_transient_session_purge_failed", "Transient SIP sessions could not be enumerated")
+		} else {
+			for _, sessionID := range sessionIDs {
+				if purgeErr := s.ShortTermMem.PurgeChatSession(sessionID); purgeErr != nil {
+					reporter(ctx, "sip_transient_session_purge_failed", "An orphaned transient SIP session could not be purged")
+				}
+			}
+		}
+	}
 	if err := manager.Start(ctx); err != nil {
 		if browserMedia != nil {
 			_ = browserMedia.Close()
@@ -73,7 +99,6 @@ func (s *Server) initSIP(ctx context.Context) error {
 	if s.Cfg.SIP.HistoryRetentionDays > 0 {
 		_ = manager.PruneHistory(ctx, time.Now().AddDate(0, 0, -s.Cfg.SIP.HistoryRetentionDays))
 	}
-	go s.cleanupTransientSIPSessions(ctx, manager)
 	return nil
 }
 
@@ -84,7 +109,10 @@ func (s *Server) cleanupTransientSIPSessions(ctx context.Context, manager *sipph
 		select {
 		case <-ctx.Done():
 			return
-		case event := <-events:
+		case event, ok := <-events:
+			if !ok {
+				return
+			}
 			if event.Call == nil || event.Call.State != sipphone.StateEnded || event.Call.SessionID == "" {
 				continue
 			}

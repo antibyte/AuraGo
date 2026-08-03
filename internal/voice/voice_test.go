@@ -467,6 +467,13 @@ func TestClassicInterruptCancelsTurnAndFlushesOutput(t *testing.T) {
 	}
 }
 
+func TestTruncateVoiceResponseUsesBoundary(t *testing.T) {
+	text, truncated := truncateVoiceResponse("Ein kurzer Satz. Danach kommt deutlich mehr Text.", 22)
+	if !truncated || text != "Ein kurzer Satz." {
+		t.Fatalf("truncateVoiceResponse = %q/%v", text, truncated)
+	}
+}
+
 func TestResamplerSupportedRatesAndContinuity(t *testing.T) {
 	resampler, err := NewResampler(8000, 16000)
 	if err != nil {

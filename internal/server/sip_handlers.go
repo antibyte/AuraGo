@@ -138,6 +138,10 @@ func handleSIPSetup(s *Server) http.HandlerFunc {
 			jsonError(w, "Request origin does not match server host", http.StatusForbidden)
 			return
 		}
+		if s != nil {
+			s.SIPConfigMu.Lock()
+			defer s.SIPConfigMu.Unlock()
+		}
 		var incoming sipSetupPayload
 		decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, sipRequestBodyLimit))
 		decoder.DisallowUnknownFields()
@@ -164,7 +168,13 @@ func handleSIPSetup(s *Server) http.HandlerFunc {
 			writeSIPSetupError(w, err.Error(), sipSetupErrorField(err.Error()), http.StatusBadRequest)
 			return
 		}
-		sipphone.ApplyProviderNetworkDefaults(r.Context(), &next, r.RemoteAddr)
+		var runtimeCfg *config.Config
+		if s != nil {
+			runtimeCfg = s.ConfigSnapshot()
+		}
+		if runtimeCfg == nil || !runtimeCfg.Runtime.IsDocker {
+			sipphone.ApplyProviderNetworkDefaults(r.Context(), &next, r.RemoteAddr)
+		}
 		if old.PresetID == providerID {
 			next.Inbound.DeniedCallers = append([]string(nil), old.Inbound.DeniedCallers...)
 			next.Outbound.DeniedDomains = append([]string(nil), old.Outbound.DeniedDomains...)
@@ -311,6 +321,10 @@ func handleDeleteSIPConfig(s *Server, w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "Request origin does not match server host", http.StatusForbidden)
 		return
 	}
+	if s != nil {
+		s.SIPConfigMu.Lock()
+		defer s.SIPConfigMu.Unlock()
+	}
 	purgeHistory := false
 	if raw := strings.TrimSpace(r.URL.Query().Get("purge_history")); raw != "" {
 		value, err := strconv.ParseBool(raw)
@@ -400,6 +414,10 @@ func handlePutSIPConfig(s *Server, w http.ResponseWriter, r *http.Request) {
 	if !sameOriginOrNoOrigin(r) {
 		jsonError(w, "Request origin does not match server host", http.StatusForbidden)
 		return
+	}
+	if s != nil {
+		s.SIPConfigMu.Lock()
+		defer s.SIPConfigMu.Unlock()
 	}
 	var incoming sipConfigPayload
 	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, sipRequestBodyLimit))
@@ -858,6 +876,7 @@ func handleSIPAppState(s *Server) http.HandlerFunc {
 			s != nil &&
 			s.SIPBrowserMedia != nil &&
 			s.SIPBrowserMedia.MatchesConfig(cfg)
+		networkReady := !manager.NetworkConfigurationRequired()
 		blockers := make([]string, 0, 4)
 		switch {
 		case !status.Enabled:
@@ -882,6 +901,9 @@ func handleSIPAppState(s *Server) http.HandlerFunc {
 		if sipphone.OutboundPolicyMigrationRequired(cfg.Outbound) {
 			blockers = append(blockers, "outbound_policy_migration_required")
 		}
+		if !networkReady {
+			blockers = append(blockers, "docker_advertised_host_required")
+		}
 		if !cfg.BrowserMedia.Enabled {
 			blockers = append(blockers, "browser_media_disabled")
 		} else if !browserReady {
@@ -894,8 +916,8 @@ func handleSIPAppState(s *Server) http.HandlerFunc {
 			"dial_domain":   cfg.Domain,
 			"inbound_route": cfg.Inbound.Route,
 			"capabilities": map[string]bool{
-				"dial":          status.Enabled && status.Registered && !status.ReadOnly && cfg.Permissions.OriginateOutbound && browserReady,
-				"answer":        status.Enabled && !status.ReadOnly && cfg.Permissions.AnswerInbound && cfg.Inbound.Route == "manual" && browserReady,
+				"dial":          status.Enabled && status.Registered && !status.ReadOnly && cfg.Permissions.OriginateOutbound && browserReady && networkReady,
+				"answer":        status.Enabled && !status.ReadOnly && cfg.Permissions.AnswerInbound && cfg.Inbound.Route == "manual" && browserReady && networkReady,
 				"reject":        status.Enabled && !status.ReadOnly && cfg.Permissions.AnswerInbound && cfg.Inbound.Route == "manual",
 				"hangup":        status.Enabled && !status.ReadOnly && cfg.Permissions.AgentHangup,
 				"dtmf":          status.Enabled && !status.ReadOnly && cfg.Permissions.SendDTMF,
@@ -1098,6 +1120,10 @@ func writeSIPManagerError(w http.ResponseWriter, err error) {
 		jsonError(w, err.Error(), http.StatusServiceUnavailable)
 	case errors.Is(err, sipphone.ErrReadOnly), errors.Is(err, sipphone.ErrPermissionDenied):
 		jsonError(w, err.Error(), http.StatusForbidden)
+	case errors.Is(err, sipphone.ErrInvalidTarget):
+		writeSIPJSONStatus(w, http.StatusBadRequest, map[string]string{"error": "invalid_target", "message": "The SIP target is invalid"})
+	case errors.Is(err, sipphone.ErrNetworkConfiguration):
+		writeSIPJSONStatus(w, http.StatusConflict, map[string]string{"error": "docker_advertised_host_required", "message": err.Error()})
 	case errors.Is(err, sipphone.ErrSpeechLabStackChange):
 		jsonError(w, err.Error(), http.StatusServiceUnavailable)
 	case errors.Is(err, sipphone.ErrBusy):

@@ -441,7 +441,10 @@ func (r *VoiceActionRunner) backendFactory(ctx context.Context, cfg config.SIPVo
 		return nil, fmt.Errorf("runtime configuration is unavailable")
 	}
 	cfg = effectiveSIPVoiceConfig(serverCfg, cfg)
-	if err := validateSIPAgentReferences(serverCfg, cfg); err != nil {
+	if cfg.Behavior.UnavailableRequestBehavior == "explain_and_end" && !serverCfg.SIP.Permissions.AgentHangup {
+		return nil, fmt.Errorf("agent_hangup_required")
+	}
+	if err := validateSIPAgentReferencesWithServer(ctx, r.server, serverCfg, cfg, true); err != nil {
 		return nil, err
 	}
 	toolSchemas := agent.BuildNativeToolSchemas(
@@ -453,11 +456,12 @@ func (r *VoiceActionRunner) backendFactory(ctx context.Context, cfg config.SIPVo
 	if err := validateSIPAgentToolScopeWithSchemas(toolSchemas, cfg.AllowedTools); err != nil {
 		return nil, err
 	}
-	agentProvider := serverCfg.FindProvider(cfg.AgentProviderID)
-	if agentProvider == nil {
-		return nil, fmt.Errorf("telephone agent LLM provider is unavailable")
+	agentProvider, err := requireTelephoneProvider(ctx, r.server, serverCfg, cfg.AgentProviderID)
+	if err != nil {
+		return nil, err
 	}
 	runtimeConfig := *serverCfg
+	runtimeConfig.Providers = append([]config.ProviderEntry(nil), serverCfg.Providers...)
 	runtimeConfig.LLM.Provider = agentProvider.ID
 	runtimeConfig.LLM.ProviderType = agentProvider.Type
 	runtimeConfig.LLM.BaseURL = agentProvider.BaseURL
@@ -465,6 +469,27 @@ func (r *VoiceActionRunner) backendFactory(ctx context.Context, cfg config.SIPVo
 	runtimeConfig.LLM.AccountID = agentProvider.AccountID
 	runtimeConfig.LLM.Model = agentProvider.Model
 	runtimeConfig.FallbackLLM.Enabled = false
+	runtimeConfig.FallbackLLM.Provider = ""
+	runtimeConfig.FallbackLLM.ProviderType = ""
+	runtimeConfig.FallbackLLM.BaseURL = ""
+	runtimeConfig.FallbackLLM.APIKey = ""
+	runtimeConfig.FallbackLLM.Model = ""
+	runtimeConfig.FallbackLLM.AccountID = ""
+	runtimeConfig.LLM.HelperEnabled = false
+	runtimeConfig.LLM.HelperProvider = ""
+	runtimeConfig.LLM.HelperProviderType = ""
+	runtimeConfig.LLM.HelperBaseURL = ""
+	runtimeConfig.LLM.HelperAPIKey = ""
+	runtimeConfig.LLM.HelperAccountID = ""
+	runtimeConfig.LLM.HelperModel = ""
+	runtimeConfig.LLM.HelperResolvedModel = ""
+	runtimeConfig.MemoryAnalysis.Enabled = false
+	runtimeConfig.MemoryAnalysis.Provider = ""
+	runtimeConfig.MemoryAnalysis.ProviderType = ""
+	runtimeConfig.MemoryAnalysis.BaseURL = ""
+	runtimeConfig.MemoryAnalysis.APIKey = ""
+	runtimeConfig.MemoryAnalysis.Model = ""
+	runtimeConfig.MemoryAnalysis.ResolvedModel = ""
 	runtimeSnapshot := &sipAgentRuntimeSnapshot{
 		config:      runtimeConfig,
 		llmClient:   llm.NewClientFromProviderWithConfig(&runtimeConfig, agentProvider.Type, agentProvider.BaseURL, agentProvider.APIKey, agentProvider.AccountID),
@@ -488,9 +513,9 @@ func (r *VoiceActionRunner) backendFactory(ctx context.Context, cfg config.SIPVo
 		}
 		voiceSnapshot := *serverCfg
 		if !useSpeechLabASR {
-			asrProvider := serverCfg.FindProvider(cfg.Classic.ASRProviderID)
-			if asrProvider == nil {
-				return nil, fmt.Errorf("telephone ASR provider is unavailable")
+			asrProvider, err := requireTelephoneProvider(ctx, r.server, serverCfg, cfg.Classic.ASRProviderID)
+			if err != nil {
+				return nil, fmt.Errorf("telephone ASR provider is unavailable: %w", err)
 			}
 			voiceSnapshot.Whisper.Provider = asrProvider.ID
 			voiceSnapshot.Whisper.ProviderType = asrProvider.Type
@@ -516,6 +541,7 @@ func (r *VoiceActionRunner) backendFactory(ctx context.Context, cfg config.SIPVo
 		return &voice.ClassicBackend{
 			Recognizer: recognizer, Synthesizer: synthesizer, Runner: frozenRunner,
 			MaxDuration: timeDurationSeconds(cfg.MaxCallDurationSeconds), IdleTimeout: timeIdleDurationSeconds(cfg.IdleTimeoutSeconds),
+			TurnTimeout: timeTurnDurationSeconds(cfg.TurnTimeoutSeconds), MaxResponseChars: cfg.MaxResponseChars,
 			AgentProviderID: cfg.AgentProviderID, AdditionalPrompt: telephoneAgentPrompt(cfg),
 			Greeting: telephoneGreeting(cfg), FailureMessage: telephoneFailureMessage(cfg), GoodbyeMessage: telephoneGoodbyeMessage(cfg),
 		}, nil
@@ -527,6 +553,7 @@ func (r *VoiceActionRunner) backendFactory(ctx context.Context, cfg config.SIPVo
 		return &voice.GeminiLiveBackend{
 			Profile: profile, Runner: frozenRunner, SystemInstruction: telephoneAgentPrompt(cfg),
 			Greeting: telephoneGreeting(cfg), IdleTimeout: timeIdleDurationSeconds(cfg.IdleTimeoutSeconds),
+			TurnTimeout: timeTurnDurationSeconds(cfg.TurnTimeoutSeconds), MaxResponseChars: cfg.MaxResponseChars,
 			FailureMessage: telephoneFailureMessage(cfg), GoodbyeMessage: telephoneGoodbyeMessage(cfg),
 			AgentProviderID: cfg.AgentProviderID,
 		}, nil
@@ -545,6 +572,13 @@ func timeDurationSeconds(seconds int) time.Duration {
 func timeIdleDurationSeconds(seconds int) time.Duration {
 	if seconds <= 0 {
 		seconds = config.DefaultSIPIdleTimeout
+	}
+	return time.Duration(seconds) * time.Second
+}
+
+func timeTurnDurationSeconds(seconds int) time.Duration {
+	if seconds <= 0 {
+		seconds = config.DefaultSIPTurnTimeout
 	}
 	return time.Duration(seconds) * time.Second
 }

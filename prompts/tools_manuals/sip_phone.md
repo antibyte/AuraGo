@@ -13,10 +13,10 @@ to the actions permitted by the saved configuration.
 
 - `status`: Show registration and active-call state without credentials.
 - `list_calls`: Return privacy-safe call history. Set `limit` from 1 to 200.
-- `dial`: Start one outgoing call to a canonical `sip:user@domain` target.
+- `dial`: Asynchronously accept one outgoing call request to a canonical `sip:user@domain` target. Verify the result with `status` or `list_calls` and inspect `end_reason`.
 - `answer` / `reject`: Decide a pending manually routed incoming call.
 - `hangup`: End the active call.
-- `send_dtmf`: Send exactly one digit from `0-9`, `*`, `#`, or `A-D`.
+- `send_dtmf`: Send exactly one RTP-DTMF digit from `0-9`, `*`, `#`, or `A-D`; SIP INFO is not used.
 
 Mutating operations disappear in read-only mode and remain subject to their
 individual permission flags. Incoming callers must match both a trusted proxy

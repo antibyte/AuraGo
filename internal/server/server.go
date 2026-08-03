@@ -132,6 +132,7 @@ type Server struct {
 	cfgSnapshot atomic.Pointer[config.Config]
 	CfgMu       sync.RWMutex // protects Cfg during hot-reload
 	CfgSaveMu   sync.Mutex   // serializes config file writes to prevent TOCTOU races
+	SIPConfigMu sync.Mutex   // serializes SIP snapshots, Vault mutations, and config publication
 	// Setup wizard CSRF tokens (short-lived, multi-token support).
 	// These live on the Server so tests can construct independent Server
 	// instances without racing on a shared package-level map.

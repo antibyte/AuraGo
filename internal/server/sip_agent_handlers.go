@@ -28,11 +28,12 @@ type sipAgentPayload struct {
 }
 
 type sipAgentProviderOption struct {
-	ID    string `json:"id"`
-	Name  string `json:"name"`
-	Type  string `json:"type"`
-	Model string `json:"model"`
-	Ready bool   `json:"ready"`
+	ID     string `json:"id"`
+	Name   string `json:"name"`
+	Type   string `json:"type"`
+	Model  string `json:"model"`
+	Ready  bool   `json:"ready"`
+	Reason string `json:"reason,omitempty"`
 }
 
 type sipAgentNamedOption struct {
@@ -57,6 +58,10 @@ func handleSIPAgent(s *Server) http.HandlerFunc {
 				jsonError(w, "Request origin does not match server host", http.StatusForbidden)
 				return
 			}
+			if s != nil {
+				s.SIPConfigMu.Lock()
+				defer s.SIPConfigMu.Unlock()
+			}
 			var incoming sipAgentPayload
 			if err := decodeSIPAgentJSON(w, r, &incoming); err != nil {
 				jsonError(w, "Invalid telephone agent configuration JSON", http.StatusBadRequest)
@@ -74,7 +79,11 @@ func handleSIPAgent(s *Server) http.HandlerFunc {
 				jsonError(w, err.Error(), http.StatusBadRequest)
 				return
 			}
-			if err := validateSIPAgentReferences(serverCfg, next.Voice); err != nil {
+			if next.Voice.Behavior.UnavailableRequestBehavior == "explain_and_end" && !next.Permissions.AgentHangup {
+				writeSIPJSONStatus(w, http.StatusBadRequest, map[string]string{"error": "agent_hangup_required", "message": "Explain and end requires agent_hangup permission"})
+				return
+			}
+			if err := validateSIPAgentReferencesWithServer(r.Context(), s, serverCfg, next.Voice, false); err != nil {
 				jsonError(w, err.Error(), http.StatusBadRequest)
 				return
 			}
@@ -111,10 +120,10 @@ func handleSIPAgentCatalog(s *Server) http.HandlerFunc {
 		}
 		providers := make([]sipAgentProviderOption, 0, len(cfg.Providers))
 		for _, provider := range cfg.Providers {
+			resolution := resolveTelephoneProvider(r.Context(), s, cfg, provider.ID, false)
 			providers = append(providers, sipAgentProviderOption{
 				ID: provider.ID, Name: provider.Name, Type: provider.Type, Model: provider.Model,
-				Ready: strings.TrimSpace(provider.Model) != "" &&
-					(strings.TrimSpace(provider.APIKey) != "" || isLocalTelephoneProvider(provider.Type)),
+				Ready: resolution.Ready, Reason: resolution.Reason,
 			})
 		}
 		sort.Slice(providers, func(i, j int) bool {
@@ -259,6 +268,9 @@ func sipAgentBlockers(s *Server, sipCfg config.SIPConfig, voiceCfg config.SIPVoi
 	if s != nil && s.SIPPhone != nil && sipCfg.Enabled && !s.SIPPhone.Status().Registered {
 		blockers = append(blockers, "not_registered")
 	}
+	if s != nil && s.SIPPhone != nil && s.SIPPhone.NetworkConfigurationRequired() {
+		blockers = append(blockers, "docker_advertised_host_required")
+	}
 	return append(blockers, sipAgentPipelineBlockers(s, voiceCfg)...)
 }
 
@@ -268,7 +280,10 @@ func sipAgentPipelineBlockers(s *Server, voiceCfg config.SIPVoiceConfig) []strin
 	if s != nil {
 		cfg = s.ConfigSnapshot()
 	}
-	if err := validateSIPAgentReferences(cfg, voiceCfg); err != nil {
+	if cfg != nil && voiceCfg.Behavior.UnavailableRequestBehavior == "explain_and_end" && !cfg.SIP.Permissions.AgentHangup {
+		blockers = append(blockers, "agent_hangup_required")
+	}
+	if err := validateSIPAgentReferencesWithServer(context.Background(), s, cfg, voiceCfg, false); err != nil {
 		message := strings.ToLower(err.Error())
 		switch {
 		case strings.Contains(message, "asr"):
@@ -341,14 +356,14 @@ func telephoneAgentToolAllowed(name string) bool {
 }
 
 func runSIPAgentLiveTest(ctx context.Context, s *Server, cfg *config.Config, voiceCfg config.SIPVoiceConfig) error {
-	if err := validateSIPAgentReferences(cfg, voiceCfg); err != nil {
+	if err := validateSIPAgentReferencesWithServer(ctx, s, cfg, voiceCfg, true); err != nil {
 		return err
 	}
 	switch voiceCfg.Backend {
 	case "classic":
-		provider := cfg.FindProvider(voiceCfg.AgentProviderID)
-		if provider == nil {
-			return fmt.Errorf("telephone agent LLM provider is unavailable")
+		provider, err := requireTelephoneProvider(ctx, s, cfg, voiceCfg.AgentProviderID)
+		if err != nil {
+			return err
 		}
 		client := llm.NewClientFromProviderWithConfig(cfg, provider.Type, provider.BaseURL, provider.APIKey, provider.AccountID)
 		if s == nil || s.VoiceActionRunner == nil {

@@ -112,7 +112,7 @@ func classifyGuidedTargets(values []string) ([]string, []string, error) {
 	prefixes := make([]string, 0, len(values))
 	for _, raw := range values {
 		value := strings.TrimSpace(raw)
-		if value == "" || strings.ContainsAny(value, "\r\n\x00*?") {
+		if value == "" || strings.ContainsAny(value, "\r\n\x00?") || (strings.Contains(value, "*") && !isFritzInternalNumber(value)) {
 			return nil, nil, fmt.Errorf("guided destinations must be individual numbers or extensions")
 		}
 		switch {
@@ -139,7 +139,7 @@ func classifyGuidedCallers(values []string) ([]string, error) {
 	result := make([]string, 0, len(values))
 	for _, raw := range values {
 		value := strings.TrimSpace(raw)
-		if value == "" || strings.ContainsAny(value, "\r\n\x00*?") {
+		if value == "" || strings.ContainsAny(value, "\r\n\x00?") || (strings.Contains(value, "*") && !isFritzInternalNumber(value)) {
 			return nil, fmt.Errorf("guided callers must be individual numbers or extensions")
 		}
 		if !sipUserPattern.MatchString(value) {

@@ -16,6 +16,8 @@ type ClassicBackend struct {
 	Runner           VoiceActionRunner
 	MaxDuration      time.Duration
 	IdleTimeout      time.Duration
+	TurnTimeout      time.Duration
+	MaxResponseChars int
 	AgentProviderID  string
 	AdditionalPrompt string
 	Greeting         string
@@ -32,6 +34,12 @@ func (b *ClassicBackend) Start(ctx context.Context, call CallContext, audio Dupl
 	}
 	if b.IdleTimeout <= 0 {
 		b.IdleTimeout = 2 * time.Minute
+	}
+	if b.TurnTimeout <= 0 {
+		b.TurnTimeout = time.Minute
+	}
+	if b.MaxResponseChars <= 0 {
+		b.MaxResponseChars = 1200
 	}
 	call.AgentProviderID = b.AgentProviderID
 	call.AdditionalPrompt = b.AdditionalPrompt
@@ -56,30 +64,28 @@ func (b *ClassicBackend) Start(ctx context.Context, call CallContext, audio Dupl
 }
 
 type classicSession struct {
-	ctx         context.Context
-	cancel      context.CancelFunc
-	call        CallContext
-	audio       DuplexAudio
-	backend     *ClassicBackend
-	events      chan VoiceEvent
-	detector    *TurnDetector
-	inputRate   int
-	framePeriod time.Duration
-	mu          sync.Mutex
-	turnCancel  context.CancelFunc
-	closed      bool
-	activeTurns atomic.Int32
-	turnState   chan struct{}
+	ctx                context.Context
+	cancel             context.CancelFunc
+	call               CallContext
+	audio              DuplexAudio
+	backend            *ClassicBackend
+	events             chan VoiceEvent
+	detector           *TurnDetector
+	inputRate          int
+	framePeriod        time.Duration
+	mu                 sync.Mutex
+	turnCancel         context.CancelFunc
+	announcementCancel context.CancelFunc
+	closed             bool
+	activeTurns        atomic.Int32
+	turnState          chan struct{}
 }
 
 func (s *classicSession) run() {
 	defer close(s.events)
 	s.emit("backend_started", "")
 	if s.call.Greeting != "" {
-		if err := s.speakText(s.ctx, s.call.Greeting, "greeting"); err != nil && s.ctx.Err() == nil {
-			s.fail("greeting", false)
-			return
-		}
+		s.startAnnouncement(s.call.Greeting, "greeting")
 	}
 	idleTimer := time.NewTimer(s.backend.IdleTimeout)
 	defer idleTimer.Stop()
@@ -127,6 +133,33 @@ func (s *classicSession) run() {
 	}
 }
 
+func (s *classicSession) startAnnouncement(text, kind string) {
+	announcementCtx, cancel := context.WithCancel(s.ctx)
+	s.mu.Lock()
+	if s.closed {
+		s.mu.Unlock()
+		cancel()
+		return
+	}
+	s.announcementCancel = cancel
+	s.mu.Unlock()
+	s.activeTurns.Add(1)
+	s.signalTurnState()
+	go func() {
+		defer func() {
+			s.mu.Lock()
+			s.announcementCancel = nil
+			s.mu.Unlock()
+			s.activeTurns.Add(-1)
+			s.signalTurnState()
+			cancel()
+		}()
+		if err := s.speakText(announcementCtx, text, kind); err != nil && announcementCtx.Err() == nil && s.ctx.Err() == nil {
+			s.fail(kind, false)
+		}
+	}()
+}
+
 func (s *classicSession) startUtterance(samples []int16, sampleRate int) {
 	s.activeTurns.Add(1)
 	s.signalTurnState()
@@ -147,7 +180,11 @@ func (s *classicSession) signalTurnState() {
 }
 
 func (s *classicSession) handleUtterance(samples []int16, sampleRate int) {
-	turnCtx, turnCancel := context.WithCancel(s.ctx)
+	turnTimeout := s.backend.TurnTimeout
+	if turnTimeout <= 0 {
+		turnTimeout = time.Minute
+	}
+	turnCtx, turnCancel := context.WithTimeout(s.ctx, turnTimeout)
 	s.mu.Lock()
 	if s.closed {
 		s.mu.Unlock()
@@ -173,7 +210,9 @@ func (s *classicSession) handleUtterance(samples []int16, sampleRate int) {
 	}
 	text, err := s.backend.Recognizer.Recognize(turnCtx, wav, 16000, s.call.Language)
 	if err != nil {
-		if turnCtx.Err() == nil {
+		if errors.Is(turnCtx.Err(), context.DeadlineExceeded) {
+			s.fail("turn_timeout", true)
+		} else if turnCtx.Err() == nil {
 			s.fail("asr", true)
 		}
 		return
@@ -186,7 +225,9 @@ func (s *classicSession) handleUtterance(samples []int16, sampleRate int) {
 
 	response, err := s.backend.Runner.RunVoiceTurn(turnCtx, s.call, text)
 	if err != nil {
-		if turnCtx.Err() == nil {
+		if errors.Is(turnCtx.Err(), context.DeadlineExceeded) {
+			s.fail("turn_timeout", true)
+		} else if turnCtx.Err() == nil {
 			s.fail("agent", true)
 		}
 		return
@@ -194,13 +235,20 @@ func (s *classicSession) handleUtterance(samples []int16, sampleRate int) {
 	response = strings.TrimSpace(response)
 	endAfterResponse := strings.Contains(response, EndCallResponseMarker)
 	response = strings.TrimSpace(strings.ReplaceAll(response, EndCallResponseMarker, ""))
+	var truncated bool
+	response, truncated = truncateVoiceResponse(response, s.backend.MaxResponseChars)
+	if truncated {
+		s.emitData("response_truncated", map[string]any{"max_chars": s.backend.MaxResponseChars})
+	}
 	if response == "" && !endAfterResponse {
 		return
 	}
 
 	if response != "" {
 		if err := s.speakText(turnCtx, response, "response"); err != nil {
-			if turnCtx.Err() == nil {
+			if errors.Is(turnCtx.Err(), context.DeadlineExceeded) {
+				s.fail("turn_timeout", true)
+			} else if turnCtx.Err() == nil {
 				s.fail("tts", false)
 			}
 			return
@@ -210,6 +258,22 @@ func (s *classicSession) handleUtterance(samples []int16, sampleRate int) {
 	if endAfterResponse {
 		s.backend.Runner.EndVoiceCall(s.call.CallID)
 	}
+}
+
+func truncateVoiceResponse(text string, limit int) (string, bool) {
+	runes := []rune(strings.TrimSpace(text))
+	if limit <= 0 || len(runes) <= limit {
+		return string(runes), false
+	}
+	cut := limit
+	floor := limit / 2
+	for index := limit; index > floor; index-- {
+		if strings.ContainsRune(".!?;,: \t\n", runes[index-1]) {
+			cut = index
+			break
+		}
+	}
+	return strings.TrimSpace(string(runes[:cut])), true
 }
 
 func (s *classicSession) speakText(ctx context.Context, text, kind string) error {
@@ -321,10 +385,17 @@ func (s *classicSession) fail(stage string, announce bool) {
 func (s *classicSession) Interrupt() {
 	s.mu.Lock()
 	cancel := s.turnCancel
+	announcementCancel := s.announcementCancel
 	s.turnCancel = nil
+	s.announcementCancel = nil
 	s.mu.Unlock()
+	if announcementCancel != nil {
+		announcementCancel()
+	}
 	if cancel != nil {
 		cancel()
+		s.backend.Runner.CancelVoiceTurn(s.call.CallID)
+	} else if announcementCancel != nil {
 		s.backend.Runner.CancelVoiceTurn(s.call.CallID)
 	}
 	s.audio.FlushOutput()

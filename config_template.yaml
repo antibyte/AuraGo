@@ -164,7 +164,7 @@ sip:
     auth_username: ""
     display_name: AuraGo
     register_expires_seconds: 300
-    advertised_signaling_host: ""
+    advertised_signaling_host: ""                            # required for calls in Docker; use the PBX-reachable host address
     tls:
         cert_file: ""
         key_file: ""
@@ -172,9 +172,10 @@ sip:
     media:
         rtp_port_start: 30000
         rtp_port_end: 30099
-        advertised_host: ""
+        advertised_host: ""                                  # required for calls in Docker; RTP address reachable by the PBX
         symmetric_rtp: true
         jitter_buffer_ms: 60
+        rtp_idle_timeout_seconds: 60                        # end a call after 15-600 seconds without inbound RTP
         codecs: [pcma, pcmu]
     browser_media:
         enabled: false                                      # authenticated Virtual Desktop WebRTC audio
@@ -184,13 +185,15 @@ sip:
     inbound:
         route: agent                                        # agent, manual, reject
         auto_answer_delay_ms: 1000
+        ring_timeout_seconds: 90                            # unanswered manual calls: 15-300 seconds
+        number_region: ""                                  # optional ISO region (e.g. DE) for national 0... caller normalization
         trusted_peer_cidrs: []                              # PBX/proxy source IPs or CIDRs
         allowed_callers: []                                 # positive list; users/SIP URIs, * and ? wildcards
         denied_callers: []                                  # negative list; overrides allowed_callers
     outbound:
-        allowed_domains: []                                 # positive list; e.g. pbx.example or *.example
+        allowed_domains: []                                 # exact domains only; ports and wildcards are rejected
         denied_domains: []                                  # negative list; overrides allowed_domains
-        allowed_users: []                                   # positive list; e.g. 101, sales-*, *
+        allowed_users: []                                   # exact users/internal numbers, e.g. 101 or FRITZ!Box **610
         denied_users: []                                    # negative list; overrides allowed_users
         allowed_e164_prefixes: []                           # international prefixes, e.g. +49
         denied_e164_prefixes: []                            # blocked prefixes; overrides positive lists
@@ -221,6 +224,8 @@ sip:
         persist_transcripts: false
         max_call_duration_seconds: 3600
         idle_timeout_seconds: 120
+        turn_timeout_seconds: 60                            # complete ASR/agent/TTS turn budget: 15-300 seconds
+        max_response_chars: 1200                           # spoken/tool response cap: 200-5000 characters
     history_retention_days: 90
     # The digest password is stored only in Vault key sip_endpoint_password.
 circuit_breaker:

@@ -2,8 +2,10 @@ package sipphone
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"log/slog"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -198,6 +200,73 @@ func TestCallerPolicySupportsWildcardsAndDenyPrecedence(t *testing.T) {
 	}
 	if CallerAllowed(cfg, "192.168.10.5:5060", sip.Uri{Scheme: "sip", User: "+49900123", Host: "pbx.example.com"}) {
 		t.Fatal("denied caller wildcard must override the allowlist")
+	}
+}
+
+func TestCallerPolicyCanonicalizesNumbersAndKeepsFritzInternalLiteral(t *testing.T) {
+	base := config.SIPInboundConfig{TrustedPeerCIDRs: []string{"192.168.10.5"}, NumberRegion: "DE"}
+	base.AllowedCallers = []string{"01701234567"}
+	if !CallerAllowed(base, "192.168.10.5:5060", sip.Uri{Scheme: "sip", User: "+491701234567", Host: "fritz.box"}) {
+		t.Fatal("national caller was not canonicalized with the explicit region")
+	}
+	base.AllowedCallers = []string{"00491701234567"}
+	if !CallerAllowed(base, "192.168.10.5:5060", sip.Uri{Scheme: "sip", User: "+491701234567", Host: "fritz.box"}) {
+		t.Fatal("00 caller form was not canonicalized")
+	}
+	base.AllowedCallers = []string{"**610"}
+	if !CallerAllowed(base, "192.168.10.5:5060", sip.Uri{Scheme: "sip", User: "**610", Host: "fritz.box"}) {
+		t.Fatal("FRITZ!Box internal number was not matched literally")
+	}
+	if CallerAllowed(base, "192.168.10.5:5060", sip.Uri{Scheme: "sip", User: "9910", Host: "fritz.box"}) {
+		t.Fatal("FRITZ!Box internal number was treated as a wildcard")
+	}
+}
+
+func TestRegisterOptionsUseNegotiatedExpiryRefresh(t *testing.T) {
+	var cfg config.SIPConfig
+	config.ApplySIPDefaults(&cfg)
+	if got := registerOptions(cfg, nil).RetryInterval; got != 0 {
+		t.Fatalf("RetryInterval = %v, want zero for negotiated 75%% refresh", got)
+	}
+	err := &diago.RegisterResponseError{RegisterRes: sip.NewResponse(403, "Forbidden")}
+	code, status := classifyRegistrationError(err)
+	if code != "registration_failed_403" || status != 403 {
+		t.Fatalf("registration classification = %q/%d", code, status)
+	}
+}
+
+func TestStoreMigratesV1AndTracksTransientSessions(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "sip_calls.db")
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = db.Exec(`CREATE TABLE sip_calls (
+id TEXT PRIMARY KEY, direction TEXT NOT NULL, remote_party TEXT NOT NULL, started_at INTEGER NOT NULL,
+answered_at INTEGER, ended_at INTEGER, state TEXT NOT NULL, end_reason TEXT NOT NULL DEFAULT '',
+backend TEXT NOT NULL, session_id TEXT NOT NULL DEFAULT ''); PRAGMA user_version=1;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+	store, err := OpenStore(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	var version int
+	if err := store.db.QueryRow(`PRAGMA user_version`).Scan(&version); err != nil || version != 2 {
+		t.Fatalf("schema version = %d, err=%v", version, err)
+	}
+	call := CallRecord{ID: "call-1", Direction: "inbound", StartedAt: time.Now(), State: StateEnded, Backend: "classic", SessionID: "sip-call-1", persistTranscripts: false}
+	if err := store.Upsert(context.Background(), call); err != nil {
+		t.Fatal(err)
+	}
+	sessions, err := store.NonPersistentSessionIDs(context.Background())
+	if err != nil || len(sessions) != 1 || sessions[0] != call.SessionID {
+		t.Fatalf("transient sessions = %v, err=%v", sessions, err)
 	}
 }
 

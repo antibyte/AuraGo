@@ -38,12 +38,27 @@ Docker Desktop NAT is unsuitable when the PBX cannot reach the advertised RTP
 address. Linux `network_mode: host` avoids that NAT boundary, but removes the
 network isolation provided by Compose and must be chosen explicitly.
 
+In every Docker mode, set both `advertised_signaling_host` and
+`media.advertised_host` to an address that the PBX can route to. AuraGo does
+not guess these values from a container bridge address: registration and the
+connection diagnostic remain available, while answering and dialing fail with
+`docker_advertised_host_required` until both values are explicit. For a
+FRITZ!Box, the advertised values normally point to the Docker host on the same
+LAN as the box. TLS covers SIP signaling only, requires local certificate/key
+files, and does not add SRTP media encryption or WS/WSS support.
+
 ## Policy and privacy
 
 - Incoming calls require both a trusted source IP/CIDR and an exact caller
   allowlist match. A spoofable `From` header alone is never trusted.
 - Outgoing calls require a canonical `sip:` URI, an exact allowed domain, and
   either an exact user or an allowed E.164 prefix. Empty lists deny all.
+- Destination domains never include a port. FRITZ!Box internal destinations
+  such as `**610` are exact users rather than wildcard patterns.
+- Incoming `00...` numbers are canonicalized to `+...`. National `0...`
+  numbers are expanded only when the selected preset has one unambiguous
+  country or `inbound.number_region` explicitly names it. The same conversion
+  applies to numeric allow/deny entries, and deny rules retain precedence.
 - `readonly: true` permits registration, status, history, and explicit
   connection tests, but prevents answering or originating calls.
 - Audio, RTP packets, complete SIP headers, and authentication material are
@@ -88,6 +103,13 @@ use the configured technical message when the failing pipeline can still speak
 and then end the call. AuraGo never switches voice pipelines or providers
 silently.
 
+Call media ends after `media.rtp_idle_timeout_seconds` without inbound RTP;
+manual incoming calls stop ringing after `inbound.ring_timeout_seconds`.
+`voice.turn_timeout_seconds` bounds each classic processing turn and private
+Gemini action. Spoken responses and Gemini tool results are capped by
+`voice.max_response_chars` before classic TTS chunking. DTMF uses RTP telephone
+events; SIP INFO DTMF is not implemented.
+
 Saving Telephone agent atomically updates future calls without restarting SIP
 registration or browser media. An active call retains its complete provider,
 tool, behavior, duration, and transcript-retention snapshot. Legacy
@@ -101,9 +123,17 @@ Administrative APIs live under `/api/sip/` and include configuration, test,
 status, call history/actions, and an SSE event stream. Telephone agent adds
 `GET/PUT /api/sip/agent`, the secret-free
 `GET /api/sip/agent/catalog`, and `POST /api/sip/agent/test`. The default test
-is a free local preflight. An explicitly confirmed live test is rate-limited,
+is a free local reference, token, and pipeline-readiness preflight; it does not
+send a paid completion. An explicitly confirmed live test is rate-limited,
 uses no agent tools, and stores neither audio nor a test conversation. The
 native `sip_phone` agent tool applies the same runtime permissions.
+
+Status exposes sanitized registration codes. `registration_failed_401` and
+`registration_failed_403` normally indicate account credentials or provider
+authorization, `registration_failed_404` an unknown account/address, and
+`registration_failed_408` a DNS, routing, firewall, or registrar timeout.
+AuraGo retries with exponential backoff and refreshes successful registrations
+at 75 percent of the registrar-negotiated expiry.
 
 The PCM media boundary and incoming-call handler are intentionally independent
 of SIP. A future Virtual Desktop phone can attach an authenticated WebRTC media

@@ -160,6 +160,14 @@ func TestVoiceActionRunnerSeparatesAgentAndInternalCallTermination(t *testing.T)
 
 func TestTelephoneBackendFreezesLLMConfigToolSchemasAndASRMode(t *testing.T) {
 	cfg := telephoneAgentTestConfig(t)
+	cfg.FallbackLLM.Enabled = true
+	cfg.FallbackLLM.APIKey = "fallback-secret"
+	cfg.LLM.HelperEnabled = true
+	cfg.LLM.HelperProvider = "helper"
+	cfg.LLM.HelperAPIKey = "helper-secret"
+	cfg.MemoryAnalysis.Enabled = true
+	cfg.MemoryAnalysis.Provider = "memory"
+	cfg.MemoryAnalysis.APIKey = "memory-secret"
 	voiceCfg := effectiveSIPVoiceConfig(cfg, cfg.SIP.Voice)
 	server := &Server{Cfg: cfg}
 	runner := NewVoiceActionRunner(server)
@@ -182,6 +190,11 @@ func TestTelephoneBackendFreezesLLMConfigToolSchemasAndASRMode(t *testing.T) {
 		frozenRunner.snapshot.toolSchemas == nil {
 		t.Fatalf("incomplete runtime snapshot: %+v", frozenRunner.snapshot.config.LLM)
 	}
+	if frozenRunner.snapshot.config.FallbackLLM.Enabled || frozenRunner.snapshot.config.FallbackLLM.APIKey != "" ||
+		frozenRunner.snapshot.config.LLM.HelperEnabled || frozenRunner.snapshot.config.LLM.HelperAPIKey != "" ||
+		frozenRunner.snapshot.config.MemoryAnalysis.Enabled || frozenRunner.snapshot.config.MemoryAnalysis.APIKey != "" {
+		t.Fatal("telephone snapshot retained fallback, helper, or memory-analysis credentials")
+	}
 	recognizer, ok := classic.Recognizer.(*sipSpeechRecognizer)
 	if !ok || !recognizer.cfg.Whisper.StrictMode || recognizer.cfg.Whisper.Mode != "whisper" {
 		t.Fatalf("ASR snapshot = %#v", classic.Recognizer)
@@ -190,10 +203,14 @@ func TestTelephoneBackendFreezesLLMConfigToolSchemasAndASRMode(t *testing.T) {
 	replacement := *cfg
 	replacement.Providers = append([]config.ProviderEntry{}, cfg.Providers...)
 	replacement.Providers[0].Model = "changed-agent-model"
+	cfg.Providers[0].Model = "mutated-original-model"
 	replacement.LLM.Model = "changed-main-model"
 	server.Cfg = &replacement
 	if frozenRunner.snapshot.config.LLM.Model != "agent-model" {
 		t.Fatalf("active call LLM snapshot changed to %q", frozenRunner.snapshot.config.LLM.Model)
+	}
+	if frozenRunner.snapshot.config.Providers[0].Model == "mutated-original-model" {
+		t.Fatal("telephone snapshot retained the mutable provider slice")
 	}
 }
 

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -35,16 +36,17 @@ func effectiveSIPVoiceConfig(cfg *config.Config, voiceCfg config.SIPVoiceConfig)
 }
 
 func validateSIPAgentReferences(cfg *config.Config, voiceCfg config.SIPVoiceConfig) error {
+	return validateSIPAgentReferencesWithServer(context.Background(), nil, cfg, voiceCfg, false)
+}
+
+func validateSIPAgentReferencesWithServer(ctx context.Context, s *Server, cfg *config.Config, voiceCfg config.SIPVoiceConfig, acquireRuntimeToken bool) error {
 	if cfg == nil {
 		return fmt.Errorf("runtime configuration is unavailable")
 	}
 	voiceCfg = effectiveSIPVoiceConfig(cfg, voiceCfg)
-	agentProvider := cfg.FindProvider(voiceCfg.AgentProviderID)
-	if agentProvider == nil || strings.TrimSpace(agentProvider.Model) == "" {
-		return fmt.Errorf("telephone agent LLM provider is unavailable")
-	}
-	if strings.TrimSpace(agentProvider.APIKey) == "" && !isLocalTelephoneProvider(agentProvider.Type) {
-		return fmt.Errorf("telephone agent LLM credentials are unavailable")
+	agentResolution := resolveTelephoneProvider(ctx, s, cfg, voiceCfg.AgentProviderID, acquireRuntimeToken)
+	if !agentResolution.Ready {
+		return fmt.Errorf("telephone agent LLM provider is unavailable: %s", agentResolution.Reason)
 	}
 	switch voiceCfg.Backend {
 	case "classic":
@@ -53,12 +55,9 @@ func validateSIPAgentReferences(cfg *config.Config, voiceCfg config.SIPVoiceConf
 				return fmt.Errorf("telephone Speech Lab ASR is unavailable")
 			}
 		} else {
-			asrProvider := cfg.FindProvider(voiceCfg.Classic.ASRProviderID)
-			if asrProvider == nil || strings.TrimSpace(asrProvider.Model) == "" {
-				return fmt.Errorf("telephone ASR provider is unavailable")
-			}
-			if strings.TrimSpace(asrProvider.APIKey) == "" && !isLocalTelephoneProvider(asrProvider.Type) {
-				return fmt.Errorf("telephone ASR credentials are unavailable")
+			asrResolution := resolveTelephoneProvider(ctx, s, cfg, voiceCfg.Classic.ASRProviderID, acquireRuntimeToken)
+			if !asrResolution.Ready {
+				return fmt.Errorf("telephone ASR provider is unavailable: %s", asrResolution.Reason)
 			}
 		}
 		if voiceCfg.Classic.TTSProvider == "speech_lab" {
@@ -82,15 +81,6 @@ func validateSIPAgentReferences(cfg *config.Config, voiceCfg config.SIPVoiceConf
 		return fmt.Errorf("unsupported SIP voice backend %q", voiceCfg.Backend)
 	}
 	return nil
-}
-
-func isLocalTelephoneProvider(providerType string) bool {
-	switch strings.ToLower(strings.TrimSpace(providerType)) {
-	case "ollama", "llamacpp", "lmstudio", "localai", "manifest", "omniroute":
-		return true
-	default:
-		return false
-	}
 }
 
 func telephoneAgentPrompt(voiceCfg config.SIPVoiceConfig) string {

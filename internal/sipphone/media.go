@@ -18,17 +18,19 @@ import (
 )
 
 type mediaPump struct {
-	dialog     diago.DialogSession
-	bridge     *voice.Bridge
-	jitterMS   int
-	directRead bool
-	onDTMF     func(rune)
-	onError    func(error)
-	dtmfMu     sync.Mutex
-	dtmfWriter dtmfWriter
-	negotiated string
-	received   atomic.Uint64
-	sent       atomic.Uint64
+	dialog       diago.DialogSession
+	bridge       *voice.Bridge
+	jitterMS     int
+	directRead   bool
+	onDTMF       func(rune)
+	onError      func(error)
+	dtmfMu       sync.Mutex
+	dtmfWriter   dtmfWriter
+	negotiated   string
+	received     atomic.Uint64
+	sent         atomic.Uint64
+	lastReceived atomic.Int64
+	idleTimeout  time.Duration
 }
 
 type dtmfWriter interface {
@@ -78,7 +80,34 @@ func (p *mediaPump) start(ctx context.Context) error {
 
 	go p.readLoop(ctx, reader, props.Codec.Name)
 	go p.writeLoop(ctx, writer, writerProps.Codec.Name)
+	if p.idleTimeout > 0 {
+		p.lastReceived.Store(time.Now().UnixNano())
+		go p.watchRTPIdle(ctx)
+	}
 	return nil
+}
+
+func (p *mediaPump) watchRTPIdle(ctx context.Context) {
+	interval := min(p.idleTimeout/4, time.Second)
+	if interval <= 0 {
+		interval = time.Second
+	}
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case now := <-ticker.C:
+			last := time.Unix(0, p.lastReceived.Load())
+			if now.Sub(last) >= p.idleTimeout {
+				if p.onError != nil {
+					p.onError(ErrMediaTimeout)
+				}
+				return
+			}
+		}
+	}
 }
 
 func (p *mediaPump) jitterBufferEnabled() bool {
@@ -119,6 +148,7 @@ func (p *mediaPump) readLoop(ctx context.Context, reader io.Reader, codec string
 			return
 		}
 		p.received.Add(1)
+		p.lastReceived.Store(time.Now().UnixNano())
 	}
 }
 

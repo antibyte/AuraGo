@@ -36,31 +36,37 @@ var (
 	ErrSpeechLabStackChange = errors.New("Speech Lab stack activation is in progress")
 	ErrPermissionDenied     = errors.New("SIP operation is not permitted")
 	ErrCallNotFound         = errors.New("SIP call not found")
+	ErrInvalidTarget        = errors.New("invalid SIP target")
+	ErrNetworkConfiguration = errors.New("SIP advertised signaling and media hosts are required in Docker")
+	ErrMediaTimeout         = errors.New("SIP RTP media timed out")
 )
 
 type CallRecord struct {
-	ID          string     `json:"id"`
-	Direction   string     `json:"direction"`
-	RemoteParty string     `json:"remote_party"`
-	StartedAt   time.Time  `json:"started_at"`
-	AnsweredAt  *time.Time `json:"answered_at,omitempty"`
-	EndedAt     *time.Time `json:"ended_at,omitempty"`
-	State       State      `json:"state"`
-	EndReason   string     `json:"end_reason,omitempty"`
-	Backend     string     `json:"backend"`
-	SessionID   string     `json:"session_id,omitempty"`
+	ID                 string     `json:"id"`
+	Direction          string     `json:"direction"`
+	RemoteParty        string     `json:"remote_party"`
+	StartedAt          time.Time  `json:"started_at"`
+	AnsweredAt         *time.Time `json:"answered_at,omitempty"`
+	EndedAt            *time.Time `json:"ended_at,omitempty"`
+	State              State      `json:"state"`
+	EndReason          string     `json:"end_reason,omitempty"`
+	Backend            string     `json:"backend"`
+	SessionID          string     `json:"session_id,omitempty"`
+	persistTranscripts bool
 }
 
 type Status struct {
-	Enabled           bool        `json:"enabled"`
-	ReadOnly          bool        `json:"readonly"`
-	State             State       `json:"state"`
-	Registered        bool        `json:"registered"`
-	RegistrationError string      `json:"registration_error,omitempty"`
-	ActiveCall        *CallRecord `json:"active_call,omitempty"`
-	Transport         string      `json:"transport"`
-	BindAddress       string      `json:"bind_address"`
-	PasswordSet       bool        `json:"password_set"`
+	Enabled                bool        `json:"enabled"`
+	ReadOnly               bool        `json:"readonly"`
+	State                  State       `json:"state"`
+	Registered             bool        `json:"registered"`
+	RegistrationError      string      `json:"registration_error,omitempty"`
+	RegistrationStatusCode int         `json:"registration_status_code,omitempty"`
+	RegistrationRetryAt    *time.Time  `json:"registration_retry_at,omitempty"`
+	ActiveCall             *CallRecord `json:"active_call,omitempty"`
+	Transport              string      `json:"transport"`
+	BindAddress            string      `json:"bind_address"`
+	PasswordSet            bool        `json:"password_set"`
 }
 
 type Event struct {
