@@ -74,7 +74,7 @@ func handleSpeechLabStatus(s *Server) http.HandlerFunc {
 		if s.SpeechLabDeployer != nil {
 			result.Deployment = s.SpeechLabDeployer.PublicStatus()
 		} else {
-			result.Deployment = deployer.PublicState{Mode: cfg.SpeechLab.Deployment.Mode, Managed: cfg.SpeechLab.Deployment.Mode == "managed", State: "disabled", Bundle: cfg.SpeechLab.Deployment.Bundle}
+			result.Deployment = deployer.PublicState{Mode: cfg.SpeechLab.Deployment.Mode, Managed: cfg.SpeechLab.Deployment.Mode == "managed", State: "disabled", RequestedBundle: cfg.SpeechLab.Deployment.Bundle}
 		}
 		if s.SpeechLab != nil {
 			result.ActiveOperations = s.SpeechLab.ActiveOperations()

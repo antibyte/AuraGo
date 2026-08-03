@@ -2,6 +2,7 @@ package voice
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -212,6 +213,11 @@ func (s *classicSession) handleUtterance(samples []int16, sampleRate int) {
 }
 
 func (s *classicSession) speakText(ctx context.Context, text, kind string) error {
+	if streaming, ok := s.backend.Synthesizer.(StreamingSpeechSynthesizer); ok {
+		synthesisCtx, cancel := context.WithCancel(ctx)
+		defer cancel()
+		return s.speakStream(ctx, text, kind, streaming.SynthesizeStream(synthesisCtx, text, s.call.Language))
+	}
 	pcm, rate, err := s.backend.Synthesizer.Synthesize(ctx, text, s.call.Language)
 	if err != nil {
 		return err
@@ -222,15 +228,79 @@ func (s *classicSession) speakText(ctx context.Context, text, kind string) error
 		return err
 	}
 	telephonePCM := toTelephone.Process(pcm)
-	frameSamples := 160
+	return s.sendTelephonePCM(ctx, telephonePCM)
+}
+
+func (s *classicSession) speakStream(ctx context.Context, text, kind string, chunks <-chan SpeechSynthesisChunk) error {
+	if chunks == nil {
+		return errors.New("TTS stream is unavailable")
+	}
+	var resampler *Resampler
+	sampleRate := 0
+	emittedTranscript := false
+	receivedAudio := false
+	for {
+		select {
+		case <-ctx.Done():
+			s.audio.FlushOutput()
+			return ctx.Err()
+		case chunk, ok := <-chunks:
+			if !ok {
+				if !receivedAudio {
+					return errors.New("TTS stream returned no audio")
+				}
+				return nil
+			}
+			if chunk.Release != nil {
+				chunk.Release()
+			}
+			if chunk.Err != nil {
+				return chunk.Err
+			}
+			if len(chunk.Samples) == 0 {
+				continue
+			}
+			if resampler == nil {
+				var err error
+				resampler, err = NewSourceResampler(chunk.SampleRate, 8000)
+				if err != nil {
+					return err
+				}
+				sampleRate = chunk.SampleRate
+			} else if chunk.SampleRate != sampleRate {
+				return errors.New("TTS sample rate changed between chunks")
+			}
+			if !emittedTranscript {
+				s.emitData("transcript", map[string]any{"direction": "output", "text": text, "kind": kind})
+				emittedTranscript = true
+			}
+			receivedAudio = true
+			if err := s.sendTelephonePCM(ctx, resampler.Process(chunk.Samples)); err != nil {
+				return err
+			}
+		}
+	}
+}
+
+func (s *classicSession) sendTelephonePCM(ctx context.Context, telephonePCM []int16) error {
+	const frameSamples = 160
 	for offset := 0; offset < len(telephonePCM); offset += frameSamples {
+		if err := ctx.Err(); err != nil {
+			s.audio.FlushOutput()
+			return err
+		}
 		end := min(offset+frameSamples, len(telephonePCM))
 		frame := PCMFrame{Samples: telephonePCM[offset:end], SampleRate: 8000}
 		if err := s.audio.Send(ctx, frame); err != nil {
 			return err
 		}
+		if err := ctx.Err(); err != nil {
+			s.audio.FlushOutput()
+			return err
+		}
 		select {
 		case <-ctx.Done():
+			s.audio.FlushOutput()
 			return ctx.Err()
 		case <-time.After(s.framePeriod):
 		}

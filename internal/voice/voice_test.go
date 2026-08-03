@@ -77,6 +77,63 @@ type recordingSynthesizer struct {
 	err   error
 }
 
+type stagedStreamingSynthesizer struct {
+	secondStarted chan struct{}
+	releaseSecond chan struct{}
+	done          chan struct{}
+}
+
+func (*stagedStreamingSynthesizer) Synthesize(context.Context, string, string) ([]int16, int, error) {
+	return nil, 0, errors.New("non-streaming synthesis must not be used")
+}
+
+func (s *stagedStreamingSynthesizer) SynthesizeStream(ctx context.Context, _, _ string) <-chan SpeechSynthesisChunk {
+	chunks := make(chan SpeechSynthesisChunk, 1)
+	go func() {
+		defer close(chunks)
+		defer close(s.done)
+		select {
+		case chunks <- SpeechSynthesisChunk{Samples: make([]int16, 320), SampleRate: 8000}:
+		case <-ctx.Done():
+			return
+		}
+		close(s.secondStarted)
+		select {
+		case <-s.releaseSecond:
+		case <-ctx.Done():
+			return
+		}
+		select {
+		case chunks <- SpeechSynthesisChunk{Samples: make([]int16, 160), SampleRate: 8000}:
+		case <-ctx.Done():
+		}
+	}()
+	return chunks
+}
+
+type scriptedStreamingSynthesizer struct {
+	chunks []SpeechSynthesisChunk
+}
+
+func (*scriptedStreamingSynthesizer) Synthesize(context.Context, string, string) ([]int16, int, error) {
+	return nil, 0, errors.New("non-streaming synthesis must not be used")
+}
+
+func (s *scriptedStreamingSynthesizer) SynthesizeStream(ctx context.Context, _, _ string) <-chan SpeechSynthesisChunk {
+	chunks := make(chan SpeechSynthesisChunk, 1)
+	go func() {
+		defer close(chunks)
+		for _, chunk := range s.chunks {
+			select {
+			case chunks <- chunk:
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+	return chunks
+}
+
 func (s recordingSynthesizer) Synthesize(_ context.Context, text, _ string) ([]int16, int, error) {
 	if s.texts != nil {
 		s.texts <- text
@@ -110,6 +167,126 @@ func TestClassicBackendASRAgentTTSPipeline(t *testing.T) {
 	}
 	if frame.SampleRate != 8000 || len(frame.Samples) == 0 {
 		t.Fatalf("unexpected telephone frame: rate=%d samples=%d", frame.SampleRate, len(frame.Samples))
+	}
+}
+
+func TestClassicSpeechStreamingStartsPlaybackBeforeNextBlockCompletes(t *testing.T) {
+	synthesizer := &stagedStreamingSynthesizer{
+		secondStarted: make(chan struct{}), releaseSecond: make(chan struct{}), done: make(chan struct{}),
+	}
+	bridge := NewBridge(8)
+	session := &classicSession{
+		call: CallContext{Language: "de"}, audio: bridge,
+		backend: &ClassicBackend{Synthesizer: synthesizer}, events: make(chan VoiceEvent, 4), framePeriod: time.Millisecond,
+	}
+	errCh := make(chan error, 1)
+	go func() { errCh <- session.speakText(context.Background(), "Erster Satz. Zweiter Satz.", "response") }()
+	select {
+	case <-synthesizer.secondStarted:
+	case <-time.After(time.Second):
+		t.Fatal("second synthesis did not start")
+	}
+	readCtx, cancelRead := context.WithTimeout(context.Background(), time.Second)
+	frame, err := bridge.NextSend(readCtx)
+	cancelRead()
+	if err != nil || len(frame.Samples) == 0 {
+		t.Fatalf("first audio was not played while second synthesis was pending: frame=%+v err=%v", frame, err)
+	}
+	close(synthesizer.releaseSecond)
+	select {
+	case err := <-errCh:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("streaming playback did not complete")
+	}
+	select {
+	case <-synthesizer.done:
+	case <-time.After(time.Second):
+		t.Fatal("streaming synthesis goroutine leaked")
+	}
+}
+
+func TestClassicSpeechStreamingFailsClosedOnRateChangeAndLaterError(t *testing.T) {
+	tests := []struct {
+		name   string
+		chunks []SpeechSynthesisChunk
+		want   string
+	}{
+		{
+			name: "sample rate change",
+			chunks: []SpeechSynthesisChunk{
+				{Samples: make([]int16, 160), SampleRate: 8000},
+				{Samples: make([]int16, 160), SampleRate: 16000},
+			},
+			want: "sample rate changed",
+		},
+		{
+			name: "later provider failure",
+			chunks: []SpeechSynthesisChunk{
+				{Samples: make([]int16, 160), SampleRate: 8000},
+				{Err: errors.New("provider failed on block two")},
+			},
+			want: "provider failed on block two",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bridge := NewBridge(4)
+			session := &classicSession{
+				call: CallContext{Language: "de"}, audio: bridge,
+				backend: &ClassicBackend{Synthesizer: &scriptedStreamingSynthesizer{chunks: tt.chunks}},
+				events:  make(chan VoiceEvent, 4), framePeriod: time.Millisecond,
+			}
+			err := session.speakText(context.Background(), "Zwei Blöcke", "response")
+			if err == nil || !strings.Contains(err.Error(), tt.want) {
+				t.Fatalf("error = %v, want %q", err, tt.want)
+			}
+			readCtx, cancelRead := context.WithTimeout(context.Background(), time.Second)
+			frame, readErr := bridge.NextSend(readCtx)
+			cancelRead()
+			if readErr != nil || len(frame.Samples) == 0 {
+				t.Fatalf("audio completed before the later failure was lost: frame=%+v err=%v", frame, readErr)
+			}
+		})
+	}
+}
+
+func TestClassicSpeechStreamingBargeInCancelsAndFlushesOutput(t *testing.T) {
+	bridge := NewBridge(8)
+	runner := &testVoiceRunner{}
+	synthesizer := &scriptedStreamingSynthesizer{chunks: []SpeechSynthesisChunk{{Samples: make([]int16, 1600), SampleRate: 8000}}}
+	turnCtx, turnCancel := context.WithCancel(context.Background())
+	session := &classicSession{
+		call: CallContext{CallID: "stream-barge-in", Language: "de"}, audio: bridge,
+		backend: &ClassicBackend{Synthesizer: synthesizer, Runner: runner},
+		events:  make(chan VoiceEvent, 4), framePeriod: 10 * time.Millisecond, turnCancel: turnCancel,
+	}
+	errCh := make(chan error, 1)
+	go func() { errCh <- session.speakText(turnCtx, "Lange Antwort", "response") }()
+	readCtx, cancelRead := context.WithTimeout(context.Background(), time.Second)
+	if _, err := bridge.NextSend(readCtx); err != nil {
+		cancelRead()
+		t.Fatalf("stream did not begin playback: %v", err)
+	}
+	cancelRead()
+	session.Interrupt()
+	select {
+	case err := <-errCh:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("barge-in error = %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("barge-in did not stop streaming playback")
+	}
+	if runner.cancelled.Load() != 1 {
+		t.Fatalf("voice runner cancel count = %d", runner.cancelled.Load())
+	}
+	emptyCtx, cancelEmpty := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancelEmpty()
+	if frame, err := bridge.NextSend(emptyCtx); err == nil {
+		t.Fatalf("audio remained queued after barge-in: %+v", frame)
 	}
 }
 

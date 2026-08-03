@@ -272,7 +272,11 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 		s.Logger.Warn("Speech Lab runtime is unavailable; restart is required after repairing configuration")
 	}
 	if s.SpeechLabDeployer != nil {
-		s.SpeechLabDeployer.Reconfigure(speechCfg)
+		s.SpeechLabDeployer.Reconfigure(speechCfg, deployer.RuntimeAccess{
+			DockerEnabled:  cfg.Docker.Enabled,
+			DockerReadOnly: cfg.Docker.ReadOnly,
+			Docker:         dockerutil.NewClient(cfg.Docker.Host, 30*time.Second),
+		})
 	}
 }
 

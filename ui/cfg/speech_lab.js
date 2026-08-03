@@ -185,15 +185,26 @@ function speechLabRenderCapability() {
 }
 
 function speechLabRenderDeployment() {
-    const node = document.getElementById('speech-lab-deployment');
-    if (!node || !speechLabStatus) return;
-    const deployment = speechLabStatus.deployment || {};
-    if (deployment.managed !== true) { node.innerHTML = ''; return; }
-    const state = String(deployment.state || 'disabled');
-    let html = '<div class="cfg-card"><div class="cfg-card-title">' + escapeHtml(t('config.speech_lab.deployment_managed')) + '</div>';
-    html += '<p>' + escapeHtml(state) + (deployment.bundle ? ' · ' + escapeHtml(deployment.bundle) : '') + (deployment.digest ? ' · ' + escapeHtml(deployment.digest.slice(0, 20)) : '') + '</p>';
-    if (deployment.last_error) html += '<p class="cfg-note-banner cfg-note-banner-warning">' + escapeHtml(deployment.last_error) + '</p>';
-    const busy = ['pulling', 'starting', 'checking'].includes(state);
+	const node = document.getElementById('speech-lab-deployment');
+	if (!node || !speechLabStatus) return;
+	const deployment = speechLabStatus.deployment || {};
+	const cleanupAvailable = deployment.cleanup_available === true;
+	if (deployment.managed !== true && !cleanupAvailable) { node.innerHTML = ''; return; }
+	const state = String(deployment.state || 'disabled');
+	const installedBundle = String(deployment.bundle || '');
+	const requestedBundle = String(deployment.requested_bundle || '');
+	let html = '<div class="cfg-card"><div class="cfg-card-title">' + escapeHtml(t('config.speech_lab.deployment_managed')) + '</div>';
+	html += '<p>' + escapeHtml(state) + (installedBundle ? ' · ✓ ' + escapeHtml(installedBundle) : '') + (deployment.digest ? ' · ' + escapeHtml(deployment.digest.slice(0, 20)) : '') + '</p>';
+	if (deployment.managed === true && requestedBundle && requestedBundle !== installedBundle) {
+		html += '<p class="field-help">✓ ' + escapeHtml(installedBundle || '—') + ' → ' + escapeHtml(requestedBundle) + '</p>';
+	}
+	if (deployment.last_error) html += '<p class="cfg-note-banner cfg-note-banner-warning">' + escapeHtml(deployment.last_error) + '</p>';
+	if (deployment.managed !== true) {
+		html += '<div class="field-group"><button type="button" class="btn-secondary" onclick="speechLabDeploymentAction(\'remove\')">' + escapeHtml(t('config.speech_lab.deployment_remove')) + '</button></div></div>';
+		node.innerHTML = html;
+		return;
+	}
+	const busy = ['pulling', 'starting', 'stopping', 'removing', 'checking'].includes(state) || deployment.recovery_pending === true || deployment.cleanup_pending === true;
     html += '<div class="field-group">';
     html += '<button type="button" class="btn-secondary" ' + (busy ? 'disabled' : '') + ' onclick="speechLabDeploymentAction(\'install\')">' + escapeHtml(t('config.speech_lab.deployment_install')) + '</button> ';
     html += '<button type="button" class="btn-secondary" ' + (busy ? 'disabled' : '') + ' onclick="speechLabDeploymentAction(\'start\')">' + escapeHtml(t('config.speech_lab.deployment_start')) + '</button> ';

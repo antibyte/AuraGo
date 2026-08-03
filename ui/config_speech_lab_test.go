@@ -51,6 +51,10 @@ func TestConfigSpeechLabSectionUsesNarrowNativeAPIs(t *testing.T) {
 		"function speechLabBrowserURL(",
 		"return String(configured || '').trim()",
 		"advanced_ui_url_missing",
+		"deployment.cleanup_available === true",
+		"deployment.managed !== true && !cleanupAvailable",
+		"deployment.requested_bundle || ''",
+		"requestedBundle !== installedBundle",
 		"target=\"_blank\"",
 	} {
 		if !strings.Contains(module, wanted) {

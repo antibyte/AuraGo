@@ -957,6 +957,9 @@ func (m *Manager) runPromptCacheProbe(ctx context.Context, plan runtimePlan, key
 	if err != nil {
 		return promptCacheProbeResult{}, err
 	}
+	if m.promptProbeTTFT != nil {
+		result.TTFT = m.promptProbeTTFT(cache, result.TTFT)
+	}
 	return result, nil
 }
 

@@ -84,6 +84,14 @@ func (c *Client) HTTPClient() *http.Client {
 	return c.httpClient
 }
 
+// Host returns the normalized Engine endpoint used by this client.
+func (c *Client) Host() string {
+	if c == nil {
+		return ""
+	}
+	return c.host
+}
+
 // HTTPClientWithTimeout returns a streaming client that reuses the Docker
 // transport but applies an operation-specific total timeout. Docker image
 // pulls can legitimately take several minutes and must not inherit the short
@@ -97,6 +105,14 @@ func (c *Client) HTTPClientWithTimeout(timeout time.Duration) *http.Client {
 		client.Timeout = timeout
 	}
 	return &client
+}
+
+// CloseIdleConnections releases pooled connections without interrupting
+// requests that are already using this client.
+func (c *Client) CloseIdleConnections() {
+	if c != nil && c.httpClient != nil {
+		c.httpClient.CloseIdleConnections()
+	}
 }
 
 func sanitizeDockerError(value []byte) string {

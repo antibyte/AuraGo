@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"aurago/internal/config"
 	"aurago/internal/speechlab"
@@ -55,6 +56,55 @@ func TestTelephoneTTSChunksPreserveCompleteResponse(t *testing.T) {
 	}
 	if strings.ReplaceAll(rebuilt.String(), " ", "") != strings.ReplaceAll(strings.TrimSpace(text), " ", "") {
 		t.Fatal("telephone chunking dropped response content")
+	}
+}
+
+func TestSIPSpeechSynthesisStreamBuffersAtMostOneCompletedBlock(t *testing.T) {
+	var started atomic.Int32
+	synthesizer := &sipSpeechSynthesizer{
+		cfg: &config.Config{},
+		synthesizeForTest: func(context.Context, string, string) ([]int16, int, error) {
+			started.Add(1)
+			return make([]int16, 160), 8000, nil
+		},
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	stream := synthesizer.SynthesizeStream(ctx, strings.Repeat("x", 1200), "de")
+	if cap(stream) != 1 {
+		t.Fatalf("stream capacity = %d, want 1", cap(stream))
+	}
+	waitForAtomicValue(t, &started, 1)
+	time.Sleep(10 * time.Millisecond)
+	if got := started.Load(); got != 1 {
+		t.Fatalf("synthesized %d blocks before the first result was consumed", got)
+	}
+	if chunk := <-stream; chunk.Err != nil || len(chunk.Samples) == 0 {
+		t.Fatalf("first chunk = %+v", chunk)
+	} else if chunk.Release != nil {
+		chunk.Release()
+	}
+	waitForAtomicValue(t, &started, 2)
+	time.Sleep(10 * time.Millisecond)
+	if got := started.Load(); got != 2 {
+		t.Fatalf("synthesized %d blocks while one completed result was buffered", got)
+	}
+	if chunk := <-stream; chunk.Err != nil || len(chunk.Samples) == 0 {
+		t.Fatalf("second chunk = %+v", chunk)
+	} else if chunk.Release != nil {
+		chunk.Release()
+	}
+	waitForAtomicValue(t, &started, 3)
+}
+
+func waitForAtomicValue(t *testing.T, value *atomic.Int32, want int32) {
+	t.Helper()
+	deadline := time.Now().Add(time.Second)
+	for value.Load() < want && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if got := value.Load(); got != want {
+		t.Fatalf("value = %d, want %d", got, want)
 	}
 }
 

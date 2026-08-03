@@ -70,6 +70,24 @@ type SpeechSynthesizer interface {
 	Synthesize(context.Context, string, string) ([]int16, int, error)
 }
 
+// SpeechSynthesisChunk is one bounded provider result. Err terminates the
+// stream; successful chunks carry mono PCM at one stable sample rate.
+type SpeechSynthesisChunk struct {
+	Samples    []int16
+	SampleRate int
+	Err        error
+	// Release signals that the consumer accepted this block and the producer
+	// may synthesize one additional block. It must be safe to call once.
+	Release func()
+}
+
+// StreamingSpeechSynthesizer optionally allows playback to begin before the
+// complete response has been synthesized. Implementations must close the
+// returned channel and honor context cancellation.
+type StreamingSpeechSynthesizer interface {
+	SynthesizeStream(context.Context, string, string) <-chan SpeechSynthesisChunk
+}
+
 // VoiceActionRunner runs one isolated user turn through AuraGo's agent path.
 type VoiceActionRunner interface {
 	RunVoiceTurn(context.Context, CallContext, string) (string, error)

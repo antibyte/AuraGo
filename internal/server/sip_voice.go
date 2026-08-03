@@ -48,48 +48,106 @@ func (r *sipSpeechRecognizer) Recognize(ctx context.Context, wav []byte, _ int, 
 }
 
 type sipSpeechSynthesizer struct {
-	cfg           *config.Config
-	speechLab     *speechlab.Client
-	expectedTTSID string
-	voice         string
+	cfg               *config.Config
+	speechLab         *speechlab.Client
+	expectedTTSID     string
+	voice             string
+	synthesizeForTest func(context.Context, string, string) ([]int16, int, error)
 }
 
 func (s *sipSpeechSynthesizer) Synthesize(ctx context.Context, text, language string) ([]int16, int, error) {
-	if s == nil || s.cfg == nil {
-		return nil, 0, fmt.Errorf("TTS is not configured")
-	}
-	if err := ctx.Err(); err != nil {
-		return nil, 0, err
-	}
-	if language == "auto" {
-		language = ""
-	}
-	chunks := splitTelephoneTTSChunks(text, 500)
-	if len(chunks) == 0 {
-		return nil, 0, fmt.Errorf("text is required")
-	}
 	const maxTelephoneSamples = 64 * 1024 * 1024
 	var output []int16
 	sampleRate := 0
-	for _, chunk := range chunks {
-		pcm, rate, err := s.synthesizeChunk(ctx, chunk, language)
-		if err != nil {
-			return nil, 0, err
+	streamCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	for chunk := range s.SynthesizeStream(streamCtx, text, language) {
+		if chunk.Release != nil {
+			chunk.Release()
+		}
+		if chunk.Err != nil {
+			return nil, 0, chunk.Err
 		}
 		if sampleRate == 0 {
-			sampleRate = rate
-		} else if rate != sampleRate {
+			sampleRate = chunk.SampleRate
+		} else if chunk.SampleRate != sampleRate {
 			return nil, 0, fmt.Errorf("telephone TTS sample rate changed between chunks")
 		}
-		if len(pcm) > maxTelephoneSamples-len(output) {
+		if len(chunk.Samples) > maxTelephoneSamples-len(output) {
 			return nil, 0, fmt.Errorf("synthesized telephone audio exceeds 128 MiB")
 		}
-		output = append(output, pcm...)
+		output = append(output, chunk.Samples...)
+	}
+	if len(output) == 0 {
+		return nil, 0, fmt.Errorf("synthesized telephone audio is empty")
 	}
 	return output, sampleRate, nil
 }
 
+func (s *sipSpeechSynthesizer) SynthesizeStream(ctx context.Context, text, language string) <-chan voice.SpeechSynthesisChunk {
+	// One queued block is intentional: while the current block is playing, at
+	// most one additional provider result may be retained in memory.
+	results := make(chan voice.SpeechSynthesisChunk, 1)
+	go func() {
+		defer close(results)
+		send := func(chunk voice.SpeechSynthesisChunk) bool {
+			select {
+			case results <- chunk:
+				return true
+			case <-ctx.Done():
+				return false
+			}
+		}
+		if s == nil || s.cfg == nil {
+			send(voice.SpeechSynthesisChunk{Err: fmt.Errorf("TTS is not configured")})
+			return
+		}
+		if err := ctx.Err(); err != nil {
+			send(voice.SpeechSynthesisChunk{Err: err})
+			return
+		}
+		if language == "auto" {
+			language = ""
+		}
+		chunks := splitTelephoneTTSChunks(text, 500)
+		if len(chunks) == 0 {
+			send(voice.SpeechSynthesisChunk{Err: fmt.Errorf("text is required")})
+			return
+		}
+		for index, textChunk := range chunks {
+			pcm, rate, err := s.synthesizeChunk(ctx, textChunk, language)
+			if err != nil {
+				send(voice.SpeechSynthesisChunk{Err: err})
+				return
+			}
+			chunk := voice.SpeechSynthesisChunk{Samples: pcm, SampleRate: rate}
+			var accepted chan struct{}
+			if index+1 < len(chunks) {
+				accepted = make(chan struct{})
+				var once sync.Once
+				chunk.Release = func() { once.Do(func() { close(accepted) }) }
+			}
+			if !send(chunk) {
+				return
+			}
+			if accepted != nil {
+				select {
+				case <-accepted:
+				case <-ctx.Done():
+					return
+				}
+			}
+		}
+	}()
+	return results
+}
+
+var _ voice.StreamingSpeechSynthesizer = (*sipSpeechSynthesizer)(nil)
+
 func (s *sipSpeechSynthesizer) synthesizeChunk(ctx context.Context, text, language string) ([]int16, int, error) {
+	if s.synthesizeForTest != nil {
+		return s.synthesizeForTest(ctx, text, language)
+	}
 	if s.speechLab != nil {
 		data, _, _, err := s.speechLab.Synthesize(ctx, text, language, s.voice, s.expectedTTSID, s.voice)
 		if err != nil {

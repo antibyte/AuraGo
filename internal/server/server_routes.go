@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -943,10 +944,25 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		tsHandler := panicRecoveryMiddleware(s.Logger, accessLogMiddleware(s.accessLogger(), securityHeadersMiddleware(authMiddleware(s, mux), true, false), false))
 		s.tsNetHandler = tsHandler // stored for /api/tsnet/start (runtime start after hot-reload)
 		if s.Cfg.Tailscale.TsNet.Enabled {
+			tsNetStartupCtx, cancelTsNetStartup := context.WithCancel(context.Background())
 			go func() {
-				if err := s.TsNetManager.Start(tsHandler); err != nil {
-					s.Logger.Error("Failed to start tsnet node", "error", err)
-				} else if err := s.reconcileDesktopStoreTailscale(context.Background()); err != nil {
+				select {
+				case <-shutdownCh:
+					cancelTsNetStartup()
+				case <-tsNetStartupCtx.Done():
+				}
+			}()
+			go func() {
+				defer cancelTsNetStartup()
+				if err := retryTsNetStartup(tsNetStartupCtx, 2*time.Second, func() error {
+					return s.TsNetManager.Start(tsHandler)
+				}); err != nil {
+					if !errors.Is(err, context.Canceled) {
+						s.Logger.Error("Failed to start tsnet node", "error_code", tsnetPublicErrorCode(err))
+					}
+					return
+				}
+				if err := s.reconcileDesktopStoreTailscale(context.Background()); err != nil {
 					s.Logger.Warn("Failed to reconcile desktop store Tailscale proxies", "error", err)
 				}
 			}()
@@ -994,4 +1010,38 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	}
 
 	return s.runHTTP(mux, ttsServer, shutdownCh)
+}
+
+func retryTsNetStartup(ctx context.Context, delay time.Duration, start func() error) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if start == nil {
+		return fmt.Errorf("tsnet start function is unavailable")
+	}
+	if delay < 0 {
+		delay = 0
+	}
+	var lastErr error
+	for attempt := 1; attempt <= 2; attempt++ {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		lastErr = start()
+		if lastErr == nil {
+			return nil
+		}
+		code := tsnetPublicErrorCode(lastErr)
+		if attempt == 2 || (code != tsnetnode.ErrorTimeout && code != tsnetnode.ErrorBackendUnavailable) {
+			return lastErr
+		}
+		timer := time.NewTimer(delay)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return ctx.Err()
+		case <-timer.C:
+		}
+	}
+	return lastErr
 }

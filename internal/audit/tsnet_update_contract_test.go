@@ -16,7 +16,7 @@ func TestTsNetUpdaterLifecycleContract(t *testing.T) {
 		`[ "$INSTALLED_RELEASE" = "$RELEASE_TAG" ] && ! $REBUILD`,
 		`[ "$LOCAL_HASH" = "$REMOTE_HASH" ]`,
 		"--healthcheck-timeout 60s",
-		"--healthcheck-timeout 180s --healthcheck-require-tsnet",
+		"--healthcheck-timeout 210s --healthcheck-require-tsnet",
 		"--print-tsnet-state-dir",
 		"TSNET_WAS_READY",
 		"cp -a --",
@@ -24,6 +24,7 @@ func TestTsNetUpdaterLifecycleContract(t *testing.T) {
 		"AuraGo required SIGKILL",
 		"Update incomplete: tsnet readiness failed",
 		"node-specific reauthentication",
+		"do not reauthenticate unless /api/tsnet/status reports a login or node-key error",
 		`PRE_START_MODE="stopped"`,
 		"abort_before_file_changes",
 		"systemd-analyze verify aurago.service",
@@ -40,6 +41,37 @@ func TestTsNetUpdaterLifecycleContract(t *testing.T) {
 	if strings.Contains(update, `sed -i 's/^TimeoutStopSec=`) ||
 		strings.Contains(update, `sed -i '/^RestartSec=/a TimeoutStopSec=`) {
 		t.Fatal("update.sh must use the verified systemd drop-in instead of editing TimeoutStopSec in the main unit")
+	}
+}
+
+func TestUpdaterTsNetFailureGuidanceDistinguishesTimeoutFromAuthentication(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("behavioral updater test requires a POSIX shell")
+	}
+	if _, err := exec.LookPath("bash"); err != nil {
+		t.Skip("bash is unavailable")
+	}
+
+	update := readRepoFile(t, "update.sh")
+	start := strings.Index(update, "tsnet_failure_guidance() {")
+	if start < 0 {
+		t.Fatal("could not find tsnet_failure_guidance")
+	}
+	end := strings.Index(update[start:], "\nconfigured_tsnet_state_dir_fallback() {")
+	if end < 0 {
+		t.Fatal("could not extract tsnet_failure_guidance")
+	}
+	harness := update[start:start+end] + `
+timeout_guidance="$(tsnet_failure_guidance 'TSNET_TIMEOUT')"
+auth_guidance="$(tsnet_failure_guidance 'TSNET_LOGIN_REQUIRED')"
+[[ "$timeout_guidance" == *"do not reauthenticate"* ]]
+[[ "$timeout_guidance" != *"use node-specific reauthentication"* ]]
+[[ "$auth_guidance" == *"use node-specific reauthentication"* ]]
+[[ "$auth_guidance" != *"do not reauthenticate"* ]]
+`
+	command := exec.Command("bash", "-c", harness)
+	if output, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("tsnet guidance contract failed: %v\n%s", err, output)
 	}
 }
 

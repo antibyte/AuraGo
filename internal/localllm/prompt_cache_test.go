@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -580,6 +581,7 @@ func TestPerformanceProfileSYCLArcB580IsExactAndDeviceBound(t *testing.T) {
 
 func TestPromptCacheWarmupPersistsOnlyValueFreeDecision(t *testing.T) {
 	const secretSuffix = "must-never-be-persisted"
+	var probeCount atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		writer.Header().Set("Content-Type", "application/json")
 		switch request.URL.Path {
@@ -601,8 +603,9 @@ func TestPromptCacheWarmupPersistsOnlyValueFreeDecision(t *testing.T) {
 			var payload map[string]json.RawMessage
 			_ = json.NewDecoder(request.Body).Decode(&payload)
 			cache := rawJSONBool(payload["cache_prompt"])
-			if !cache {
-				time.Sleep(40 * time.Millisecond)
+			probe := probeCount.Add(1)
+			if probe == 1 && cache || probe == 2 && !cache {
+				t.Errorf("probe %d cache_prompt=%t", probe, cache)
 			}
 			writer.Header().Set("Content-Type", "text/event-stream")
 			_, _ = io.WriteString(writer, `data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"name":"discover_tools","arguments":"{\"operation\":\"search\",\"query\":\"aurago_prompt_cache_probe\"}"}}]}}],"timings":{"cache_n":`)
@@ -628,6 +631,15 @@ func TestPromptCacheWarmupPersistsOnlyValueFreeDecision(t *testing.T) {
 			PromptCache:        PromptCacheStatus{State: "cold"},
 		},
 		promptDecisionWrite: config.WriteFileAtomic,
+		// Threshold boundaries have their own deterministic unit test. This
+		// integration test verifies the HTTP and persistence lifecycle without
+		// depending on scheduler timing from unrelated parallel packages.
+		promptProbeTTFT: func(cache bool, _ time.Duration) time.Duration {
+			if cache {
+				return 10 * time.Millisecond
+			}
+			return 100 * time.Millisecond
+		},
 	}
 	manager.promptSeed = &promptCacheSeed{
 		Generation: 1, Fingerprint: "seed-fingerprint", ToolsetFingerprint: "tools",

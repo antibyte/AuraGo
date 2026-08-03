@@ -101,6 +101,7 @@ type Manager struct {
 	promptPersistWG      sync.WaitGroup
 	promptPersistCommit  sync.Mutex
 	promptDecisionWrite  func(string, []byte, os.FileMode) error
+	promptProbeTTFT      func(bool, time.Duration) time.Duration
 	appliedPlan          *runtimePlan
 }
 

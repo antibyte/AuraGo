@@ -705,6 +705,24 @@ binary_supports_option() {
     "$binary" --help 2>&1 | grep -q -- "$option"
 }
 
+tsnet_failure_guidance() {
+    local health_output="$1"
+    case "$health_output" in
+        *TSNET_TIMEOUT*)
+            printf '%s\n' "The tsnet startup retry timed out. Check outbound network, DNS, system time, and 'journalctl -u aurago'; do not reauthenticate unless /api/tsnet/status reports a login or node-key error."
+            ;;
+        *TSNET_LOGIN_REQUIRED*|*TSNET_NODE_KEY_EXPIRED*|*TSNET_AUTH_KEY_MISSING*|*TSNET_AUTH_KEY_REJECTED*)
+            printf '%s\n' "Review /api/tsnet/status and use node-specific reauthentication."
+            ;;
+        *TSNET_STATE_CORRUPT*)
+            printf '%s\n' "The persisted tsnet state could not be loaded. Keep the updater backup and review /api/tsnet/status before replacing state."
+            ;;
+        *)
+            printf '%s\n' "Review /api/tsnet/status and 'journalctl -u aurago' for the node-specific failure code."
+            ;;
+    esac
+}
+
 configured_tsnet_state_dir_fallback() {
     local config_file="$DIR/config.yaml"
     local value=""
@@ -1966,10 +1984,13 @@ if $STARTED_AFTER_UPDATE; then
     ok "Core readiness verified."
 
     if [ "$TSNET_WAS_READY" = "ready" ]; then
-        if ! "$LAUNCH_BIN" --config "$DIR/config.yaml" --healthcheck --healthcheck-timeout 180s --healthcheck-require-tsnet; then
+        TSNET_HEALTH_OUTPUT=""
+        if ! TSNET_HEALTH_OUTPUT="$("$LAUNCH_BIN" --config "$DIR/config.yaml" --healthcheck --healthcheck-timeout 210s --healthcheck-require-tsnet 2>&1)"; then
+            [ -z "$TSNET_HEALTH_OUTPUT" ] || printf '%s\n' "$TSNET_HEALTH_OUTPUT" >&2
             warn "AuraGo core is healthy, but the previously working tsnet node did not recover."
-            warn "The updated binary and the state backup are being kept; a binary rollback would not repair a credential or node-key problem."
-            die "Update incomplete: tsnet readiness failed. Review /api/tsnet/status and use node-specific reauthentication. Backup: $BACKUP_DIR"
+            warn "The updated binary and the state backup are being kept; the core update does not need rollback."
+            warn "$(tsnet_failure_guidance "$TSNET_HEALTH_OUTPUT")"
+            die "Update incomplete: tsnet readiness failed. Backup: $BACKUP_DIR"
         fi
         ok "tsnet readiness verified."
     fi
