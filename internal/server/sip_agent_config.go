@@ -40,47 +40,60 @@ func validateSIPAgentReferences(cfg *config.Config, voiceCfg config.SIPVoiceConf
 }
 
 func validateSIPAgentReferencesWithServer(ctx context.Context, s *Server, cfg *config.Config, voiceCfg config.SIPVoiceConfig, acquireRuntimeToken bool) error {
+	_, err := resolveSIPAgentReferencesWithServer(ctx, s, cfg, voiceCfg, acquireRuntimeToken)
+	return err
+}
+
+type sipAgentReferenceSnapshot struct {
+	voiceCfg      config.SIPVoiceConfig
+	agentProvider *config.ProviderEntry
+	asrProvider   *config.ProviderEntry
+}
+
+func resolveSIPAgentReferencesWithServer(ctx context.Context, s *Server, cfg *config.Config, voiceCfg config.SIPVoiceConfig, acquireRuntimeToken bool) (sipAgentReferenceSnapshot, error) {
 	if cfg == nil {
-		return fmt.Errorf("runtime configuration is unavailable")
+		return sipAgentReferenceSnapshot{}, fmt.Errorf("runtime configuration is unavailable")
 	}
 	voiceCfg = effectiveSIPVoiceConfig(cfg, voiceCfg)
 	agentResolution := resolveTelephoneProvider(ctx, s, cfg, voiceCfg.AgentProviderID, acquireRuntimeToken)
-	if !agentResolution.Ready {
-		return fmt.Errorf("telephone agent LLM provider is unavailable: %s", agentResolution.Reason)
+	if !agentResolution.Ready || agentResolution.Provider == nil {
+		return sipAgentReferenceSnapshot{}, fmt.Errorf("telephone agent LLM provider is unavailable: %s", agentResolution.Reason)
 	}
+	result := sipAgentReferenceSnapshot{voiceCfg: voiceCfg, agentProvider: agentResolution.Provider}
 	switch voiceCfg.Backend {
 	case "classic":
 		if voiceCfg.Classic.ASRMode == "speech_lab" {
 			if !cfg.SpeechLab.Active() || !cfg.SpeechLab.SIPEnabled {
-				return fmt.Errorf("telephone Speech Lab ASR is unavailable")
+				return sipAgentReferenceSnapshot{}, fmt.Errorf("telephone Speech Lab ASR is unavailable")
 			}
 		} else {
 			asrResolution := resolveTelephoneProvider(ctx, s, cfg, voiceCfg.Classic.ASRProviderID, acquireRuntimeToken)
-			if !asrResolution.Ready {
-				return fmt.Errorf("telephone ASR provider is unavailable: %s", asrResolution.Reason)
+			if !asrResolution.Ready || asrResolution.Provider == nil {
+				return sipAgentReferenceSnapshot{}, fmt.Errorf("telephone ASR provider is unavailable: %s", asrResolution.Reason)
 			}
+			result.asrProvider = asrResolution.Provider
 		}
 		if voiceCfg.Classic.TTSProvider == "speech_lab" {
 			if !cfg.SpeechLab.Active() || !cfg.SpeechLab.SIPEnabled {
-				return fmt.Errorf("telephone Speech Lab TTS is unavailable")
+				return sipAgentReferenceSnapshot{}, fmt.Errorf("telephone Speech Lab TTS is unavailable")
 			}
 		} else {
 			ttsCfg := *cfg
 			ttsCfg.SpeechLab.ChatOutputEnabled = false
 			ttsCfg.TTS.Provider = voiceCfg.Classic.TTSProvider
 			if !chatVoiceOutputTTSConfigured(&ttsCfg) {
-				return fmt.Errorf("telephone TTS provider is unavailable")
+				return sipAgentReferenceSnapshot{}, fmt.Errorf("telephone TTS provider is unavailable")
 			}
 		}
 	case "gemini_live":
 		profile, ok := profileFromConfig(cfg.RealtimeSpeech, voiceCfg.RealtimeProfileID)
 		if !ok || !profile.Enabled || profile.Provider != realtimespeech.ProviderGemini || strings.TrimSpace(profile.APIKey) == "" {
-			return fmt.Errorf("configured Gemini Live profile is unavailable")
+			return sipAgentReferenceSnapshot{}, fmt.Errorf("configured Gemini Live profile is unavailable")
 		}
 	default:
-		return fmt.Errorf("unsupported SIP voice backend %q", voiceCfg.Backend)
+		return sipAgentReferenceSnapshot{}, fmt.Errorf("unsupported SIP voice backend %q", voiceCfg.Backend)
 	}
-	return nil
+	return result, nil
 }
 
 func telephoneAgentPrompt(voiceCfg config.SIPVoiceConfig) string {

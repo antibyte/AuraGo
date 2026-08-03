@@ -214,6 +214,32 @@ func TestTelephoneBackendFreezesLLMConfigToolSchemasAndASRMode(t *testing.T) {
 	}
 }
 
+func TestTelephoneBackendBuilderUsesProvidedConfigSnapshot(t *testing.T) {
+	captured := telephoneAgentTestConfig(t)
+	voiceCfg := effectiveSIPVoiceConfig(captured, captured.SIP.Voice)
+	replacement := *captured
+	replacement.Providers = append([]config.ProviderEntry(nil), captured.Providers...)
+	for index := range replacement.Providers {
+		if replacement.Providers[index].ID == voiceCfg.AgentProviderID {
+			replacement.Providers[index].Model = "replacement-model"
+		}
+	}
+	server := &Server{Cfg: &replacement}
+	runner := NewVoiceActionRunner(server)
+
+	snapshot, err := runner.buildTelephoneBackendSnapshot(context.Background(), captured, voiceCfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if snapshot.agent.config.LLM.Model != "agent-model" {
+		t.Fatalf("builder reread mutable server config: model=%q", snapshot.agent.config.LLM.Model)
+	}
+	classic, ok := snapshot.backend.(*voice.ClassicBackend)
+	if !ok || classic.Runner == nil || snapshot.agent.llmClient == nil {
+		t.Fatalf("incomplete telephone snapshot: backend=%T agent=%+v", snapshot.backend, snapshot.agent)
+	}
+}
+
 func TestTelephoneSpeechLabSupportsLocalAndHybridSnapshots(t *testing.T) {
 	tests := []struct {
 		name             string

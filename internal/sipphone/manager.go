@@ -32,6 +32,7 @@ var rtpPortConfig struct {
 }
 
 type Manager struct {
+	lifecycleMu            sync.Mutex
 	mu                     sync.Mutex
 	cfg                    config.SIPConfig
 	logger                 *slog.Logger
@@ -43,10 +44,12 @@ type Manager struct {
 	registrationErr        string
 	registrationStatusCode int
 	registrationRetryAt    *time.Time
+	registrationFactory    registrationTransactionFactory
+	registrationDelay      func(int) time.Duration
 	rootCtx                context.Context
 	lifecycleCtx           context.Context
 	cancel                 context.CancelFunc
-	registrationWG         sync.WaitGroup
+	registrationDone       <-chan struct{}
 	ua                     *sipgo.UserAgent
 	endpoint               *diago.Diago
 	active                 *activeCall
@@ -61,13 +64,15 @@ type Manager struct {
 	sequence             uint64
 	isDocker             bool
 	persistMu            sync.Mutex
-	persistWriteMu       sync.Mutex
-	persistPending       map[string]persistRequest
-	persistOrder         []string
+	persistQueue         []historyCommand
+	persistUpserts       int
+	persistControls      int
 	persistWake          chan struct{}
-	persistStop          chan struct{}
+	persistSpace         chan struct{}
 	persistDone          chan struct{}
-	persistCloseOnce     sync.Once
+	persistStarted       bool
+	persistClosed        bool
+	persistCloseErr      error
 	callFinished         func(CallRecord, bool)
 }
 
@@ -75,6 +80,39 @@ type persistRequest struct {
 	record CallRecord
 	stage  string
 }
+
+type historyCommandKind uint8
+
+const (
+	historyUpsert historyCommandKind = iota
+	historyList
+	historyPrune
+	historyDeleteAll
+	historyNonPersistentSessions
+	historyClose
+)
+
+type historyCommand struct {
+	kind    historyCommandKind
+	request persistRequest
+	limit   int
+	cutoff  time.Time
+	result  chan historyResult
+}
+
+type historyResult struct {
+	calls      []CallRecord
+	sessionIDs []string
+	err        error
+}
+
+type registrationTransaction interface {
+	Register(context.Context) error
+	QualifyLoop(context.Context) error
+	Unregister(context.Context) error
+}
+
+type registrationTransactionFactory func(context.Context, sip.Uri, diago.RegisterOptions) (registrationTransaction, error)
 
 type ManagerOption func(*Manager)
 
@@ -133,8 +171,8 @@ func NewManager(cfg config.SIPConfig, dataDir string, backendFactory BackendFact
 	manager := &Manager{
 		cfg: cfg, logger: logger, store: store, backendFactory: backendFactory,
 		issueReporter: reporter, state: state, subscribers: make(map[uint64]chan Event),
-		persistPending: make(map[string]persistRequest), persistWake: make(chan struct{}, 1),
-		persistStop: make(chan struct{}), persistDone: make(chan struct{}),
+		persistWake: make(chan struct{}, 1), persistSpace: make(chan struct{}, 1), persistDone: make(chan struct{}),
+		persistStarted: true,
 	}
 	for _, option := range options {
 		if option != nil {
@@ -146,6 +184,12 @@ func NewManager(cfg config.SIPConfig, dataDir string, backendFactory BackendFact
 }
 
 func (m *Manager) Start(parent context.Context) error {
+	m.lifecycleMu.Lock()
+	defer m.lifecycleMu.Unlock()
+	return m.startLocked(parent)
+}
+
+func (m *Manager) startLocked(parent context.Context) error {
 	m.mu.Lock()
 	if m.lifecycleCtx == nil {
 		m.lifecycleCtx = parent
@@ -226,12 +270,10 @@ func (m *Manager) Start(parent context.Context) error {
 	m.cancel = cancel
 	m.callConfigVersion++
 	m.state = StateRegistering
-	m.registrationWG.Add(1)
 	m.emitLocked("status", nil, nil)
 	m.mu.Unlock()
 	if err := endpoint.ServeBackground(rootCtx, m.handleIncoming); err != nil {
 		cancel()
-		m.registrationWG.Done()
 		_ = ua.Close()
 		m.mu.Lock()
 		m.ua = nil
@@ -243,14 +285,24 @@ func (m *Manager) Start(parent context.Context) error {
 		m.mu.Unlock()
 		return fmt.Errorf("start SIP listener: %w", err)
 	}
+	registrationDone := make(chan struct{})
+	m.mu.Lock()
+	m.registrationDone = registrationDone
+	m.mu.Unlock()
 	go func() {
-		defer m.registrationWG.Done()
+		defer close(registrationDone)
 		m.registrationLoop(rootCtx, endpoint, cfg)
 	}()
 	return nil
 }
 
 func (m *Manager) Stop(ctx context.Context) error {
+	m.lifecycleMu.Lock()
+	defer m.lifecycleMu.Unlock()
+	return m.stopLocked(ctx)
+}
+
+func (m *Manager) stopLocked(ctx context.Context) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -258,12 +310,14 @@ func (m *Manager) Stop(ctx context.Context) error {
 	cancel := m.cancel
 	ua := m.ua
 	active := m.active
+	registrationDone := m.registrationDone
 	if active != nil && active.terminalReason == "" {
 		active.terminalReason = "shutdown"
 	}
 	m.cancel = nil
 	m.ua = nil
 	m.endpoint = nil
+	m.registrationDone = nil
 	m.callConfigVersion++
 	m.registered = false
 	m.state = StateDisabled
@@ -292,16 +346,14 @@ func (m *Manager) Stop(ctx context.Context) error {
 	if cancel != nil {
 		cancel()
 	}
-	registrationDone := make(chan struct{})
-	go func() {
-		m.registrationWG.Wait()
-		close(registrationDone)
-	}()
 	var registrationErr error
-	select {
-	case <-registrationDone:
-	case <-ctx.Done():
-		registrationErr = fmt.Errorf("wait for SIP registration shutdown: %w", ctx.Err())
+	if registrationDone != nil {
+		select {
+		case <-registrationDone:
+		case <-ctx.Done():
+			registrationErr = fmt.Errorf("wait for SIP registration shutdown: %w", ctx.Err())
+			m.reportUnregisterTimeout()
+		}
 	}
 	var uaErr error
 	if ua != nil {
@@ -319,25 +371,17 @@ func (m *Manager) Stop(ctx context.Context) error {
 }
 
 func (m *Manager) Close() error {
-	stopCtx, stopCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	stopCtx, stopCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	stopErr := m.Stop(stopCtx)
 	stopCancel()
-	m.persistCloseOnce.Do(func() { close(m.persistStop) })
 	flushCtx, flushCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer flushCancel()
-	var flushErr error
-	select {
-	case <-m.persistDone:
-	case <-flushCtx.Done():
-		flushErr = fmt.Errorf("flush SIP call history: %w", flushCtx.Err())
-	}
-	if flushErr != nil {
-		return errors.Join(stopErr, flushErr)
-	}
-	return errors.Join(stopErr, m.store.Close())
+	return errors.Join(stopErr, m.closePersistence(flushCtx))
 }
 
 func (m *Manager) Reconfigure(ctx context.Context, cfg config.SIPConfig) error {
+	m.lifecycleMu.Lock()
+	defer m.lifecycleMu.Unlock()
 	config.NormalizeSIPConfig(&cfg)
 	m.mu.Lock()
 	parent := m.lifecycleCtx
@@ -345,14 +389,14 @@ func (m *Manager) Reconfigure(ctx context.Context, cfg config.SIPConfig) error {
 	if parent == nil {
 		parent = context.Background()
 	}
-	if err := m.Stop(ctx); err != nil {
+	if err := m.stopLocked(ctx); err != nil {
 		return err
 	}
 	m.mu.Lock()
 	m.cfg = cfg
 	m.callConfigVersion++
 	m.mu.Unlock()
-	return m.Start(parent)
+	return m.startLocked(parent)
 }
 
 // ReserveReconfigure guarantees that configuration persistence and runtime
@@ -407,69 +451,218 @@ func (m *Manager) persistCall(record CallRecord, stage string) {
 		return
 	}
 	m.persistMu.Lock()
-	startWorker := false
-	if m.persistPending == nil {
-		m.persistPending = make(map[string]persistRequest)
-		m.persistWake = make(chan struct{}, 1)
-		m.persistStop = make(chan struct{})
-		m.persistDone = make(chan struct{})
-		startWorker = true
+	startWorker := m.ensurePersistenceLocked()
+	if m.persistClosed {
+		m.persistMu.Unlock()
+		return
 	}
-	if _, exists := m.persistPending[record.ID]; !exists {
-		if len(m.persistOrder) >= 128 {
-			dropped := m.persistOrder[0]
-			m.persistOrder = m.persistOrder[1:]
-			delete(m.persistPending, dropped)
-			go m.reportPersistenceFailure(dropped, "queue_overflow", nil)
+	for index := len(m.persistQueue) - 1; index >= 0; index-- {
+		command := &m.persistQueue[index]
+		if command.kind != historyUpsert {
+			break
 		}
-		m.persistOrder = append(m.persistOrder, record.ID)
+		if command.request.record.ID == record.ID {
+			command.request = persistRequest{record: record, stage: stage}
+			m.persistMu.Unlock()
+			if startWorker {
+				go m.persistenceLoop()
+			}
+			m.wakePersistence()
+			return
+		}
 	}
-	m.persistPending[record.ID] = persistRequest{record: record, stage: stage}
+	var dropped *persistRequest
+	if m.persistUpserts >= 128 {
+		for index, command := range m.persistQueue {
+			if command.kind == historyUpsert {
+				request := command.request
+				dropped = &request
+				m.persistQueue = append(m.persistQueue[:index], m.persistQueue[index+1:]...)
+				m.persistUpserts--
+				break
+			}
+		}
+	}
+	m.persistQueue = append(m.persistQueue, historyCommand{kind: historyUpsert, request: persistRequest{record: record, stage: stage}})
+	m.persistUpserts++
 	m.persistMu.Unlock()
 	if startWorker {
 		go m.persistenceLoop()
 	}
+	if dropped != nil {
+		go m.reportPersistenceFailure(dropped.record.ID, "queue_overflow", nil)
+	}
+	m.wakePersistence()
+}
+
+func (m *Manager) ensurePersistenceLocked() bool {
+	if m.persistStarted {
+		return false
+	}
+	m.persistWake = make(chan struct{}, 1)
+	m.persistSpace = make(chan struct{}, 1)
+	m.persistDone = make(chan struct{})
+	m.persistStarted = true
+	return true
+}
+
+func (m *Manager) wakePersistence() {
 	select {
 	case m.persistWake <- struct{}{}:
 	default:
 	}
 }
 
-func (m *Manager) persistenceLoop() {
-	defer close(m.persistDone)
-	for {
+func (m *Manager) nextHistoryCommand() (historyCommand, bool) {
+	m.persistMu.Lock()
+	defer m.persistMu.Unlock()
+	if len(m.persistQueue) == 0 {
+		return historyCommand{}, false
+	}
+	command := m.persistQueue[0]
+	m.persistQueue = m.persistQueue[1:]
+	if command.kind == historyUpsert {
+		m.persistUpserts--
+	} else {
+		m.persistControls--
 		select {
-		case <-m.persistWake:
-			m.drainPersistence(true)
-		case <-m.persistStop:
-			m.drainPersistence(true)
-			return
+		case m.persistSpace <- struct{}{}:
+		default:
+		}
+	}
+	return command, true
+}
+
+func (m *Manager) executeHistoryCommand(command historyCommand) bool {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	result := historyResult{}
+	switch command.kind {
+	case historyUpsert:
+		result.err = m.store.Upsert(ctx, command.request.record)
+		if result.err != nil {
+			m.reportPersistenceFailure(command.request.record.ID, command.request.stage, result.err)
+		}
+	case historyList:
+		result.calls, result.err = m.store.List(ctx, command.limit)
+	case historyPrune:
+		result.err = m.store.DeleteOlderThan(ctx, command.cutoff)
+	case historyDeleteAll:
+		result.err = m.store.DeleteAll(ctx)
+	case historyNonPersistentSessions:
+		if store, ok := m.store.(interface {
+			NonPersistentSessionIDs(context.Context) ([]string, error)
+		}); ok {
+			result.sessionIDs, result.err = store.NonPersistentSessionIDs(ctx)
+		}
+	case historyClose:
+		result.err = m.store.Close()
+		m.persistMu.Lock()
+		m.persistCloseErr = result.err
+		m.persistMu.Unlock()
+	}
+	if command.result != nil {
+		command.result <- result
+	}
+	return command.kind == historyClose
+}
+
+func (m *Manager) submitHistoryCommand(ctx context.Context, command historyCommand) (historyResult, error) {
+	if m == nil || m.store == nil {
+		return historyResult{}, fmt.Errorf("SIP call history is unavailable")
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	command.result = make(chan historyResult, 1)
+	for {
+		m.persistMu.Lock()
+		startWorker := m.ensurePersistenceLocked()
+		if m.persistClosed {
+			m.persistMu.Unlock()
+			return historyResult{}, fmt.Errorf("SIP call history is closed")
+		}
+		if m.persistControls < 64 {
+			m.persistQueue = append(m.persistQueue, command)
+			m.persistControls++
+			m.persistMu.Unlock()
+			if startWorker {
+				go m.persistenceLoop()
+			}
+			m.wakePersistence()
+			select {
+			case result := <-command.result:
+				return result, result.err
+			case <-ctx.Done():
+				return historyResult{}, ctx.Err()
+			}
+		}
+		m.persistMu.Unlock()
+		if startWorker {
+			go m.persistenceLoop()
+		}
+		select {
+		case <-m.persistSpace:
+		case <-ctx.Done():
+			return historyResult{}, ctx.Err()
 		}
 	}
 }
 
-func (m *Manager) drainPersistence(all bool) {
-	for {
-		m.persistMu.Lock()
-		if len(m.persistOrder) == 0 {
-			m.persistMu.Unlock()
-			return
-		}
-		id := m.persistOrder[0]
-		m.persistOrder = m.persistOrder[1:]
-		request := m.persistPending[id]
-		delete(m.persistPending, id)
+func (m *Manager) closePersistence(ctx context.Context) error {
+	if m == nil || m.store == nil {
+		return nil
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	m.persistMu.Lock()
+	startWorker := m.ensurePersistenceLocked()
+	if m.persistClosed {
+		done := m.persistDone
 		m.persistMu.Unlock()
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		m.persistWriteMu.Lock()
-		err := m.store.Upsert(ctx, request.record)
-		m.persistWriteMu.Unlock()
-		cancel()
-		if err != nil {
-			m.reportPersistenceFailure(id, request.stage, err)
+		if startWorker {
+			go m.persistenceLoop()
 		}
-		if !all {
-			return
+		select {
+		case <-done:
+			m.persistMu.Lock()
+			err := m.persistCloseErr
+			m.persistMu.Unlock()
+			return err
+		case <-ctx.Done():
+			return fmt.Errorf("flush SIP call history: %w", ctx.Err())
+		}
+	}
+	result := make(chan historyResult, 1)
+	m.persistClosed = true
+	m.persistQueue = append(m.persistQueue, historyCommand{kind: historyClose, result: result})
+	m.persistControls++
+	m.persistMu.Unlock()
+	if startWorker {
+		go m.persistenceLoop()
+	}
+	m.wakePersistence()
+	select {
+	case historyResult := <-result:
+		return historyResult.err
+	case <-ctx.Done():
+		return fmt.Errorf("flush SIP call history: %w", ctx.Err())
+	}
+}
+
+func (m *Manager) persistenceLoop() {
+	defer close(m.persistDone)
+	for {
+		<-m.persistWake
+		for {
+			command, ok := m.nextHistoryCommand()
+			if !ok {
+				break
+			}
+			if m.executeHistoryCommand(command) {
+				return
+			}
 		}
 	}
 }
@@ -484,6 +677,15 @@ func (m *Manager) reportPersistenceFailure(callID, stage string, err error) {
 	}
 	if m.issueReporter != nil {
 		m.issueReporter(context.Background(), "sip_call_history_persist_failed", "SIP call history could not be persisted")
+	}
+}
+
+func (m *Manager) reportUnregisterTimeout() {
+	if m.logger != nil {
+		m.logger.Error("SIP registration shutdown exceeded its deadline")
+	}
+	if m.issueReporter != nil {
+		m.issueReporter(context.Background(), "sip_unregister_timeout", "SIP registration could not be cleanly unregistered before shutdown")
 	}
 }
 
@@ -513,34 +715,23 @@ func (m *Manager) ReserveSpeechLabStackChange() (func(), error) {
 }
 
 func (m *Manager) ListCalls(ctx context.Context, limit int) ([]CallRecord, error) {
-	m.drainPersistence(true)
-	m.persistWriteMu.Lock()
-	m.persistWriteMu.Unlock()
-	return m.store.List(ctx, limit)
+	result, err := m.submitHistoryCommand(ctx, historyCommand{kind: historyList, limit: limit})
+	return result.calls, err
 }
 
 func (m *Manager) PruneHistory(ctx context.Context, cutoff time.Time) error {
-	m.drainPersistence(true)
-	m.persistWriteMu.Lock()
-	defer m.persistWriteMu.Unlock()
-	return m.store.DeleteOlderThan(ctx, cutoff)
+	_, err := m.submitHistoryCommand(ctx, historyCommand{kind: historyPrune, cutoff: cutoff})
+	return err
 }
 
 func (m *Manager) DeleteHistory(ctx context.Context) error {
-	m.drainPersistence(true)
-	m.persistWriteMu.Lock()
-	defer m.persistWriteMu.Unlock()
-	return m.store.DeleteAll(ctx)
+	_, err := m.submitHistoryCommand(ctx, historyCommand{kind: historyDeleteAll})
+	return err
 }
 
 func (m *Manager) NonPersistentSessionIDs(ctx context.Context) ([]string, error) {
-	store, ok := m.store.(interface {
-		NonPersistentSessionIDs(context.Context) ([]string, error)
-	})
-	if !ok {
-		return nil, nil
-	}
-	return store.NonPersistentSessionIDs(ctx)
+	result, err := m.submitHistoryCommand(ctx, historyCommand{kind: historyNonPersistentSessions})
+	return result.sessionIDs, err
 }
 
 func (m *Manager) Dial(ctx context.Context, target string) (CallRecord, error) {
@@ -791,7 +982,7 @@ func (m *Manager) TestConnection(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	tx, err := endpoint.RegisterTransaction(ctx, uri, registerOptions(cfg, nil))
+	tx, err := m.newRegistrationTransaction(ctx, endpoint, uri, registerOptions(cfg, nil))
 	if err != nil {
 		return fmt.Errorf("prepare SIP registration test: %w", err)
 	}
@@ -830,7 +1021,8 @@ func (m *Manager) registrationLoop(ctx context.Context, endpoint *diago.Diago, c
 		m.registrationFailed(ctx, 1, err)
 		return
 	}
-	for attempt := 1; ctx.Err() == nil; attempt++ {
+	consecutiveFailures := 0
+	for ctx.Err() == nil {
 		registeredThisTransaction := false
 		m.mu.Lock()
 		if m.active == nil {
@@ -838,7 +1030,7 @@ func (m *Manager) registrationLoop(ctx context.Context, endpoint *diago.Diago, c
 		}
 		m.emitLocked("status", nil, nil)
 		m.mu.Unlock()
-		tx, prepareErr := endpoint.RegisterTransaction(ctx, uri, registerOptions(cfg, func() {
+		tx, prepareErr := m.newRegistrationTransaction(ctx, endpoint, uri, registerOptions(cfg, func() {
 			m.mu.Lock()
 			if m.endpoint != endpoint || m.cancel == nil || ctx.Err() != nil {
 				m.mu.Unlock()
@@ -858,6 +1050,7 @@ func (m *Manager) registrationLoop(ctx context.Context, endpoint *diago.Diago, c
 			err = tx.Register(ctx)
 			if err == nil {
 				registeredThisTransaction = true
+				consecutiveFailures = 0
 				err = tx.QualifyLoop(ctx)
 			}
 			if tx != nil && registeredThisTransaction {
@@ -874,8 +1067,9 @@ func (m *Manager) registrationLoop(ctx context.Context, endpoint *diago.Diago, c
 		if ctx.Err() != nil {
 			return
 		}
-		delay := registrationBackoff(attempt)
-		m.registrationFailed(ctx, attempt, err, delay)
+		consecutiveFailures++
+		delay := m.registrationRetryDelay(consecutiveFailures)
+		m.registrationFailed(ctx, consecutiveFailures, err, delay)
 		timer := time.NewTimer(delay)
 		select {
 		case <-ctx.Done():
@@ -884,6 +1078,29 @@ func (m *Manager) registrationLoop(ctx context.Context, endpoint *diago.Diago, c
 		case <-timer.C:
 		}
 	}
+}
+
+func (m *Manager) newRegistrationTransaction(ctx context.Context, endpoint *diago.Diago, uri sip.Uri, options diago.RegisterOptions) (registrationTransaction, error) {
+	m.mu.Lock()
+	factory := m.registrationFactory
+	m.mu.Unlock()
+	if factory != nil {
+		return factory(ctx, uri, options)
+	}
+	if endpoint == nil {
+		return nil, fmt.Errorf("SIP registration endpoint is unavailable")
+	}
+	return endpoint.RegisterTransaction(ctx, uri, options)
+}
+
+func (m *Manager) registrationRetryDelay(attempt int) time.Duration {
+	m.mu.Lock()
+	delay := m.registrationDelay
+	m.mu.Unlock()
+	if delay != nil {
+		return delay(attempt)
+	}
+	return registrationBackoff(attempt)
 }
 
 func (m *Manager) registrationFailed(ctx context.Context, attempt int, err error, retryDelays ...time.Duration) {

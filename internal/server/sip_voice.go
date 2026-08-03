@@ -255,6 +255,12 @@ type sipAgentRuntimeSnapshot struct {
 	toolSchemas []openai.Tool
 }
 
+type telephoneBackendSnapshot struct {
+	backend     voice.VoiceBackend
+	agent       *sipAgentRuntimeSnapshot
+	voiceConfig config.SIPVoiceConfig
+}
+
 type snapshottedVoiceActionRunner struct {
 	runner   *VoiceActionRunner
 	snapshot *sipAgentRuntimeSnapshot
@@ -440,13 +446,29 @@ func (r *VoiceActionRunner) backendFactory(ctx context.Context, cfg config.SIPVo
 	if serverCfg == nil {
 		return nil, fmt.Errorf("runtime configuration is unavailable")
 	}
+	snapshot, err := r.buildTelephoneBackendSnapshot(ctx, serverCfg, cfg)
+	if err != nil {
+		return nil, err
+	}
+	return snapshot.backend, nil
+}
+
+func (r *VoiceActionRunner) buildTelephoneBackendSnapshot(ctx context.Context, serverCfg *config.Config, cfg config.SIPVoiceConfig) (*telephoneBackendSnapshot, error) {
+	if r == nil || r.server == nil {
+		return nil, fmt.Errorf("telephone agent runtime is unavailable")
+	}
+	if serverCfg == nil {
+		return nil, fmt.Errorf("runtime configuration is unavailable")
+	}
 	cfg = effectiveSIPVoiceConfig(serverCfg, cfg)
 	if cfg.Behavior.UnavailableRequestBehavior == "explain_and_end" && !serverCfg.SIP.Permissions.AgentHangup {
 		return nil, fmt.Errorf("agent_hangup_required")
 	}
-	if err := validateSIPAgentReferencesWithServer(ctx, r.server, serverCfg, cfg, true); err != nil {
+	references, err := resolveSIPAgentReferencesWithServer(ctx, r.server, serverCfg, cfg, true)
+	if err != nil {
 		return nil, err
 	}
+	cfg = references.voiceCfg
 	toolSchemas := agent.BuildNativeToolSchemas(
 		serverCfg.Directories.SkillsDir,
 		tools.NewManifest(serverCfg.Directories.ToolsDir),
@@ -456,10 +478,7 @@ func (r *VoiceActionRunner) backendFactory(ctx context.Context, cfg config.SIPVo
 	if err := validateSIPAgentToolScopeWithSchemas(toolSchemas, cfg.AllowedTools); err != nil {
 		return nil, err
 	}
-	agentProvider, err := requireTelephoneProvider(ctx, r.server, serverCfg, cfg.AgentProviderID)
-	if err != nil {
-		return nil, err
-	}
+	agentProvider := references.agentProvider
 	runtimeConfig := *serverCfg
 	runtimeConfig.Providers = append([]config.ProviderEntry(nil), serverCfg.Providers...)
 	runtimeConfig.LLM.Provider = agentProvider.ID
@@ -513,9 +532,9 @@ func (r *VoiceActionRunner) backendFactory(ctx context.Context, cfg config.SIPVo
 		}
 		voiceSnapshot := *serverCfg
 		if !useSpeechLabASR {
-			asrProvider, err := requireTelephoneProvider(ctx, r.server, serverCfg, cfg.Classic.ASRProviderID)
-			if err != nil {
-				return nil, fmt.Errorf("telephone ASR provider is unavailable: %w", err)
+			asrProvider := references.asrProvider
+			if asrProvider == nil {
+				return nil, fmt.Errorf("telephone ASR provider is unavailable")
 			}
 			voiceSnapshot.Whisper.Provider = asrProvider.ID
 			voiceSnapshot.Whisper.ProviderType = asrProvider.Type
@@ -538,25 +557,27 @@ func (r *VoiceActionRunner) backendFactory(ctx context.Context, cfg config.SIPVo
 			synthesizer.expectedTTSID = speechLabReady.TTSID
 			synthesizer.voice = speechLabReady.Voice
 		}
-		return &voice.ClassicBackend{
+		backend := &voice.ClassicBackend{
 			Recognizer: recognizer, Synthesizer: synthesizer, Runner: frozenRunner,
 			MaxDuration: timeDurationSeconds(cfg.MaxCallDurationSeconds), IdleTimeout: timeIdleDurationSeconds(cfg.IdleTimeoutSeconds),
 			TurnTimeout: timeTurnDurationSeconds(cfg.TurnTimeoutSeconds), MaxResponseChars: cfg.MaxResponseChars,
 			AgentProviderID: cfg.AgentProviderID, AdditionalPrompt: telephoneAgentPrompt(cfg),
 			Greeting: telephoneGreeting(cfg), FailureMessage: telephoneFailureMessage(cfg), GoodbyeMessage: telephoneGoodbyeMessage(cfg),
-		}, nil
+		}
+		return &telephoneBackendSnapshot{backend: backend, agent: runtimeSnapshot, voiceConfig: cfg}, nil
 	case "gemini_live":
 		profile, ok := profileFromConfig(serverCfg.RealtimeSpeech, cfg.RealtimeProfileID)
 		if !ok || !profile.Enabled || profile.Provider != realtimespeech.ProviderGemini || profile.APIKey == "" {
 			return nil, fmt.Errorf("configured Gemini Live profile is unavailable")
 		}
-		return &voice.GeminiLiveBackend{
+		backend := &voice.GeminiLiveBackend{
 			Profile: profile, Runner: frozenRunner, SystemInstruction: telephoneAgentPrompt(cfg),
 			Greeting: telephoneGreeting(cfg), IdleTimeout: timeIdleDurationSeconds(cfg.IdleTimeoutSeconds),
 			TurnTimeout: timeTurnDurationSeconds(cfg.TurnTimeoutSeconds), MaxResponseChars: cfg.MaxResponseChars,
 			FailureMessage: telephoneFailureMessage(cfg), GoodbyeMessage: telephoneGoodbyeMessage(cfg),
 			AgentProviderID: cfg.AgentProviderID,
-		}, nil
+		}
+		return &telephoneBackendSnapshot{backend: backend, agent: runtimeSnapshot, voiceConfig: cfg}, nil
 	default:
 		return nil, fmt.Errorf("unsupported SIP voice backend %q", cfg.Backend)
 	}

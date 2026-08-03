@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	"aurago/internal/config"
@@ -52,16 +51,8 @@ func resolveTelephoneProvider(ctx context.Context, s *Server, cfg *config.Config
 }
 
 func secretReaderForServer(s *Server) config.SecretReader {
-	if s == nil {
+	if s == nil || s.Vault == nil {
 		return nil
 	}
 	return s.Vault
-}
-
-func requireTelephoneProvider(ctx context.Context, s *Server, cfg *config.Config, providerID string) (*config.ProviderEntry, error) {
-	resolution := resolveTelephoneProvider(ctx, s, cfg, providerID, true)
-	if !resolution.Ready || resolution.Provider == nil {
-		return nil, fmt.Errorf("telephone provider unavailable: %s", resolution.Reason)
-	}
-	return resolution.Provider, nil
 }

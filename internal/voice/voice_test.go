@@ -51,6 +51,14 @@ func (testSynthesizer) Synthesize(context.Context, string, string) ([]int16, int
 	return make([]int16, 320), 16000, nil
 }
 
+func loudPCMFrame(samples int) []int16 {
+	frame := make([]int16, samples)
+	for index := range frame {
+		frame[index] = 2000
+	}
+	return frame
+}
+
 type testVoiceRunner struct {
 	cancelled    atomic.Int32
 	ended        atomic.Int32
@@ -319,6 +327,86 @@ func TestClassicBackendUsesSnapshotAndConfiguredGreeting(t *testing.T) {
 	}
 	if err := session.Close(); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestClassicGreetingBargeInCancelsAnnouncementAndFlushesAudio(t *testing.T) {
+	bridge := NewBridge(8)
+	runner := &testVoiceRunner{}
+	synthesizer := &stagedStreamingSynthesizer{
+		secondStarted: make(chan struct{}), releaseSecond: make(chan struct{}), done: make(chan struct{}),
+	}
+	backend := &ClassicBackend{
+		Recognizer: testRecognizer{text: "Hallo"}, Synthesizer: synthesizer, Runner: runner,
+		MaxDuration: time.Second, IdleTimeout: time.Second, Greeting: "Guten Tag.",
+	}
+	session, err := backend.Start(context.Background(), CallContext{CallID: "greeting-barge"}, bridge)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer session.Close()
+	select {
+	case <-synthesizer.secondStarted:
+	case <-time.After(time.Second):
+		t.Fatal("greeting synthesis did not start")
+	}
+	readCtx, cancelRead := context.WithTimeout(context.Background(), time.Second)
+	if _, err := bridge.NextSend(readCtx); err != nil {
+		cancelRead()
+		t.Fatalf("greeting playback did not start: %v", err)
+	}
+	cancelRead()
+	for index := 0; index < 6; index++ {
+		if err := bridge.PushReceive(PCMFrame{Samples: loudPCMFrame(160), SampleRate: 8000}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	select {
+	case <-synthesizer.done:
+	case <-time.After(time.Second):
+		t.Fatal("barge-in did not cancel greeting synthesis")
+	}
+	if runner.cancelled.Load() == 0 {
+		t.Fatal("barge-in did not cancel the active telephone turn")
+	}
+	emptyCtx, cancelEmpty := context.WithTimeout(context.Background(), 30*time.Millisecond)
+	defer cancelEmpty()
+	if frame, err := bridge.NextSend(emptyCtx); err == nil {
+		t.Fatalf("greeting audio remained queued after barge-in: %+v", frame)
+	}
+}
+
+func TestClassicTurnTimeoutAnnouncesFailureAndEndsCall(t *testing.T) {
+	texts := make(chan string, 1)
+	runner := &blockingVoiceRunner{started: make(chan struct{}), release: make(chan struct{})}
+	session := &classicSession{
+		ctx: context.Background(), cancel: func() {}, call: CallContext{CallID: "turn-timeout", FailureMessage: "Technischer Fehler."},
+		audio: NewBridge(4), backend: &ClassicBackend{
+			Recognizer: testRecognizer{text: "Lange Aufgabe"}, Synthesizer: recordingSynthesizer{texts: texts}, Runner: runner,
+			TurnTimeout: 20 * time.Millisecond,
+		},
+		events: make(chan VoiceEvent, 8), framePeriod: time.Millisecond,
+	}
+	done := make(chan struct{})
+	go func() {
+		session.handleUtterance(make([]int16, 160), 8000)
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("timed-out voice turn did not return")
+	}
+	select {
+	case text := <-texts:
+		if text != "Technischer Fehler." {
+			t.Fatalf("timeout announcement = %q", text)
+		}
+	default:
+		t.Fatal("turn timeout did not play the failure announcement")
+	}
+	if runner.internalEnds.Load() != 1 || runner.internalWhy.Load() != "voice_backend_error" {
+		t.Fatalf("turn timeout ended call %d times with reason %v", runner.internalEnds.Load(), runner.internalWhy.Load())
 	}
 }
 

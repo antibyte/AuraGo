@@ -356,37 +356,22 @@ func telephoneAgentToolAllowed(name string) bool {
 }
 
 func runSIPAgentLiveTest(ctx context.Context, s *Server, cfg *config.Config, voiceCfg config.SIPVoiceConfig) error {
-	if err := validateSIPAgentReferencesWithServer(ctx, s, cfg, voiceCfg, true); err != nil {
+	if s == nil || s.VoiceActionRunner == nil {
+		return fmt.Errorf("telephone agent runtime is unavailable")
+	}
+	snapshot, err := s.VoiceActionRunner.buildTelephoneBackendSnapshot(ctx, cfg, voiceCfg)
+	if err != nil {
 		return err
 	}
-	switch voiceCfg.Backend {
-	case "classic":
-		provider, err := requireTelephoneProvider(ctx, s, cfg, voiceCfg.AgentProviderID)
-		if err != nil {
-			return err
-		}
-		client := llm.NewClientFromProviderWithConfig(cfg, provider.Type, provider.BaseURL, provider.APIKey, provider.AccountID)
-		if s == nil || s.VoiceActionRunner == nil {
-			return fmt.Errorf("telephone agent runtime is unavailable")
-		}
-		backend, err := s.VoiceActionRunner.backendFactory(ctx, voiceCfg)
-		if err != nil {
-			return err
-		}
-		classic, ok := backend.(*voice.ClassicBackend)
-		if !ok {
-			return fmt.Errorf("classic telephone backend is unavailable")
-		}
-		return runClassicSIPAgentLiveTest(ctx, client, classic, provider.Model, voiceCfg.Language)
-	case "gemini_live":
-		profile, _ := profileFromConfig(cfg.RealtimeSpeech, voiceCfg.RealtimeProfileID)
-		if s == nil || s.VoiceActionRunner == nil {
-			return fmt.Errorf("telephone agent runtime is unavailable")
-		}
-		backend := &voice.GeminiLiveBackend{Profile: profile, Runner: s.VoiceActionRunner, SystemInstruction: telephoneAgentPrompt(voiceCfg), TestNoTools: true}
+	switch backend := snapshot.backend.(type) {
+	case *voice.ClassicBackend:
+		return runClassicSIPAgentLiveTest(ctx, snapshot.agent.llmClient, backend, snapshot.agent.config.LLM.Model, snapshot.voiceConfig.Language)
+	case *voice.GeminiLiveBackend:
+		liveBackend := *backend
+		liveBackend.TestNoTools = true
 		bridge := voice.NewBridge(2)
 		defer bridge.Close()
-		session, err := backend.Start(ctx, voice.CallContext{CallID: "sip-live-test", Direction: "test", AllowedTools: []string{}}, bridge)
+		session, err := liveBackend.Start(ctx, voice.CallContext{CallID: "sip-live-test", Direction: "test", AllowedTools: []string{}}, bridge)
 		if err != nil {
 			return err
 		}
