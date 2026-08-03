@@ -77,5 +77,8 @@
   "config.sip.wizard.verify_check_title": "AuraGo sprawdzi konfigurację",
   "config.sip.wizard.verify_check_text": "Profil jest zapisywany atomowo, a rejestracja od razu testowana. W razie problemu pozostaniesz na tym kroku.",
   "config.sip.wizard.save_test": "Zapisz i przetestuj",
-  "config.sip.wizard.custom_value_invalid": "„{value}” nie jest pojedynczym numerem ani numerem wewnętrznym."
+  "config.sip.wizard.custom_value_invalid": "„{value}” nie jest pojedynczym numerem ani numerem wewnętrznym.",
+  "config.sip.allowed_domains_help": "Dozwolone są tylko dokładne domeny; symbole wieloznaczne nie zapewniają dostępu.",
+  "config.sip.allowed_users_help": "Dozwoleni są tylko dokładni użytkownicy SIP; zakresy numerów podawaj jako prefiksy E.164.",
+  "config.sip.outbound_policy_migration_required": "Reguły wychodzące z symbolami wieloznacznymi nie zapewniają już dostępu. Przed zapisaniem zastąp je dokładnymi celami."
 }

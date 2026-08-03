@@ -23,9 +23,6 @@ func TTSSynthesizeInMemoryContext(ctx context.Context, cfg TTSConfig, text strin
 		ctx = context.Background()
 	}
 	cfg.Context = ctx
-	if len([]rune(text)) > 500 {
-		text = string([]rune(text)[:500])
-	}
 	var (
 		data []byte
 		err  error

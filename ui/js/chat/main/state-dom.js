@@ -22,7 +22,7 @@ const cheatsheetPickerCloseXBtn = document.getElementById('cheatsheet-picker-clo
 
 let cheatsheetPickerItems = [];
 let selectedCheatsheetId = '';
-let pendingSpeechLabInput = false;
+let pendingSpeechLabTurnToken = '';
 
 function chatIconMarkup(iconName, className = '') {
     return window.chatUiIconMarkup ? window.chatUiIconMarkup(iconName, className) : '';

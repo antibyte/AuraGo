@@ -82,5 +82,6 @@
   "desktop.sip_phone_unmute": "Ativar som",
   "desktop.sip_phone_tab_recents": "Recentes",
   "desktop.sip_phone_backspace": "Apagar",
-  "desktop.sip_phone_carrier": "AuraGo"
+  "desktop.sip_phone_carrier": "AuraGo",
+  "desktop.sip_phone_outbound_policy_migration_required_detail": "Substitua as regras de saída antigas com caracteres universais por destinos exatos nas definições SIP."
 }

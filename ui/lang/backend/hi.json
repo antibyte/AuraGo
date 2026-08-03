@@ -233,5 +233,6 @@
   "backend.budget_mode_warn_de": "(केवल चेतावनी)",
   "backend.budget_mode_warn_en": "(केवल चेतावनी)",
   "backend.budget_mode_partial_en": "(सह-एजेंट + vision/STT अधिक होने पर अवरुद्ध)",
-  "backend.budget_mode_full_en": "(अधिक होने पर सभी ब्लॉक कर दिए जाएंगे)"
+  "backend.budget_mode_full_en": "(अधिक होने पर सभी ब्लॉक कर दिए जाएंगे)",
+  "backend.speech_lab_audio_warning": "Speech Lab ऑडियो बनाया नहीं जा सका। टेक्स्ट उत्तर उपलब्ध है।"
 }

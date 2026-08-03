@@ -58,5 +58,6 @@
   "config.speech_lab.deployment_confirm": "Potvrdit nasazení Speech Lab? Budou staženy ověřené obrazy s2s.",
   "config.speech_lab.deployment_stop": "Zastavit Speech Lab",
   "config.speech_lab.deployment_remove": "Odebrat Speech Lab",
-  "config.speech_lab.deployment_stop_confirm": "Opravdu zastavit nebo odebrat spravovaný Speech Lab?"
+  "config.speech_lab.deployment_stop_confirm": "Opravdu zastavit nebo odebrat spravovaný Speech Lab?",
+  "config.speech_lab.advanced_ui_url_missing": "Nastavte URL Speech Lab dostupnou z prohlížeče, chcete-li otevřít rozšířené rozhraní."
 }

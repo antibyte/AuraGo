@@ -11,7 +11,19 @@ import (
 	"aurago/internal/llm/catalog"
 )
 
-const speechLabChatInputHeader = "X-AuraGo-Speech-Lab-Input"
+const speechLabChatTurnTokenHeader = "X-AuraGo-Speech-Lab-Turn-Token"
+
+func (s *Server) speechLabTokens() *speechLabTurnTokenRegistry {
+	if s == nil {
+		return nil
+	}
+	s.speechLabTurnTokensMu.Lock()
+	defer s.speechLabTurnTokensMu.Unlock()
+	if s.speechLabTurnTokens == nil {
+		s.speechLabTurnTokens = newSpeechLabTurnTokenRegistry(nil)
+	}
+	return s.speechLabTurnTokens
+}
 
 var (
 	errSpeechLabChatLLMUnavailable = errors.New("Speech Lab chat LLM is unavailable")

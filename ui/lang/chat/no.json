@@ -262,5 +262,7 @@
   "chat.speech_lab_no_audio": "Ingen tale ble tatt opp.",
   "chat.speech_lab_too_large": "Speech Lab-opptaket overstiger 8 MiB. Ta opp en kortere melding.",
   "chat.speech_lab_transcription_failed": "Speech Lab-transkripsjonen mislyktes.",
-  "chat.speech_lab_transcribe": "Transkriber"
+  "chat.speech_lab_transcribe": "Transkriber",
+  "chat.speech_lab_audio_warning": "Speech Lab-lyden kunne ikke genereres. Tekstsvaret er fortsatt tilgjengelig.",
+  "chat.speech_lab_capture_unavailable": "Denne nettleseren støtter verken WAV-opptak for Speech Lab eller talegjenkjenning."
 }

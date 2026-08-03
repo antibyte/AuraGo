@@ -283,7 +283,17 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 
 		turnCfg := s.ConfigSnapshot()
 		turnLLMClient := s.LLMClient
-		markedSpeechLabInput := strings.TrimSpace(r.Header.Get(speechLabChatInputHeader)) == "1"
+		speechLabSessionID := "default"
+		if missionID != "" {
+			speechLabSessionID = "mission-" + missionID
+		}
+		if chatSessionID := strings.TrimSpace(r.Header.Get("X-Session-ID")); chatSessionID != "" {
+			speechLabSessionID = chatSessionID
+		}
+		lastRequestMessage := req.Messages[len(req.Messages)-1]
+		markedSpeechLabInput := !isFollowUp && missionID == "" && s.speechLabTokens().Consume(
+			strings.TrimSpace(r.Header.Get(speechLabChatTurnTokenHeader)), speechLabSessionID, lastRequestMessage.Content,
+		)
 		turnCfg, turnLLMClient, routeErr := speechLabChatTurnRuntime(markedSpeechLabInput, isFollowUp, missionID, turnCfg, turnLLMClient, s.Vault)
 		if routeErr != nil {
 			lang := ""
@@ -321,14 +331,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			jsonError(w, imageInputErr.Error(), http.StatusBadRequest)
 			return
 		}
-		sessionID := "default"
-		if missionID != "" {
-			sessionID = "mission-" + missionID
-		}
-		// Support chat session switching via X-Session-ID header
-		if chatSessionID := r.Header.Get("X-Session-ID"); chatSessionID != "" {
-			sessionID = chatSessionID
-		}
+		sessionID := speechLabSessionID
 		if lastUserMsg.Role == openai.ChatMessageRoleUser &&
 			handlePendingQuestionChatMessage(w, req, sessionID, lastUserMsg.Content, s.Logger) {
 			return
@@ -681,7 +684,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 				return
 			}
 			if len(resp.Choices) > 0 {
-				maybeEmitChatVoiceOutputFallback(runCfg.Config, s.Logger, runCfg, broker, resp.Choices[0].Message.Content, s.SpeechLab)
+				maybeEmitChatVoiceOutputFallback(r.Context(), runCfg.Config, s.Logger, runCfg, broker, resp.Choices[0].Message.Content, s.SpeechLab)
 			}
 
 			// Conclude SSE stream nicely
@@ -711,7 +714,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 				)
 			}
 			if len(resp.Choices) > 0 {
-				maybeEmitChatVoiceOutputFallback(runCfg.Config, s.Logger, runCfg, broker, resp.Choices[0].Message.Content, s.SpeechLab)
+				maybeEmitChatVoiceOutputFallback(r.Context(), runCfg.Config, s.Logger, runCfg, broker, resp.Choices[0].Message.Content, s.SpeechLab)
 			}
 			if missionID != "" && s.ShortTermMem != nil {
 				missionToolResultsAfter := missionToolResultsBefore

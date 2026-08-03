@@ -3,6 +3,7 @@ package sipphone
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -109,11 +110,11 @@ func TestNormalizeSIPURIAndDestinationPolicy(t *testing.T) {
 	}
 }
 
-func TestDestinationPolicySupportsWildcardsAndDenyPrecedence(t *testing.T) {
+func TestDestinationPolicyRequiresExactAllowsAndKeepsDenyPrecedence(t *testing.T) {
 	cfg := config.SIPOutboundConfig{
-		AllowedDomains: []string{"*.example.com"},
+		AllowedDomains: []string{"branch.example.com"},
 		DeniedDomains:  []string{"premium.example.com"},
-		AllowedUsers:   []string{"sales-*", "desk-??"},
+		AllowedUsers:   []string{"sales-123", "desk-ab"},
 		DeniedUsers:    []string{"sales-999"},
 	}
 	for _, test := range []struct {
@@ -133,6 +134,20 @@ func TestDestinationPolicySupportsWildcardsAndDenyPrecedence(t *testing.T) {
 		if got := DestinationAllowed(cfg, uri); got != test.allowed {
 			t.Errorf("DestinationAllowed(%q) = %v, want %v", test.raw, got, test.allowed)
 		}
+	}
+}
+
+func TestDestinationPolicyLegacyWildcardAllowsRequireMigrationAndGrantNothing(t *testing.T) {
+	cfg := config.SIPOutboundConfig{AllowedDomains: []string{"*.example.com"}, AllowedUsers: []string{"sales-*"}}
+	uri, _, err := NormalizeSIPURI("sip:sales-123@branch.example.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if DestinationAllowed(cfg, uri) {
+		t.Fatal("legacy wildcard allow granted outbound access")
+	}
+	if !OutboundPolicyMigrationRequired(cfg) {
+		t.Fatal("legacy wildcard allow did not request migration")
 	}
 }
 
@@ -272,6 +287,86 @@ func TestManagerRejectsSecondOutboundCall(t *testing.T) {
 	_, err = manager.Dial(context.Background(), "sip:alice@example.com")
 	if !errors.Is(err, ErrBusy) {
 		t.Fatalf("second call error = %v", err)
+	}
+}
+
+func TestReconfigureReservationBlocksCallsAndIsIdempotent(t *testing.T) {
+	cfg := validTestSIPConfig()
+	manager, err := NewManager(cfg, t.TempDir(), nil, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer manager.Close()
+	manager.endpoint = &diago.Diago{}
+	release, err := manager.ReserveReconfigure()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := manager.Dial(context.Background(), "sip:alice@example.com"); !errors.Is(err, ErrBusy) {
+		t.Fatalf("Dial during reconfigure = %v", err)
+	}
+	if _, err := manager.ReserveReconfigure(); !errors.Is(err, ErrBusy) {
+		t.Fatalf("second reservation = %v", err)
+	}
+	release()
+	release()
+	if nextRelease, err := manager.ReserveReconfigure(); err != nil {
+		t.Fatalf("reservation after release = %v", err)
+	} else {
+		nextRelease()
+	}
+}
+
+func TestRegistrationFailureDoesNotOverwriteActiveCallState(t *testing.T) {
+	cfg := validTestSIPConfig()
+	manager, err := NewManager(cfg, t.TempDir(), nil, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		manager.active = nil
+		_ = manager.Close()
+	}()
+	manager.active = &activeCall{record: CallRecord{ID: "active"}}
+	manager.state = StateActive
+	manager.registered = true
+	manager.registrationFailed(context.Background(), 1, errors.New("registration failed"))
+	status := manager.Status()
+	if status.State != StateActive || status.Registered || status.RegistrationError != "registration_failed" {
+		t.Fatalf("status after registration failure = %+v", status)
+	}
+}
+
+type failingCallStore struct{ err error }
+
+func (s failingCallStore) Upsert(context.Context, CallRecord) error         { return s.err }
+func (s failingCallStore) List(context.Context, int) ([]CallRecord, error)  { return nil, s.err }
+func (s failingCallStore) DeleteOlderThan(context.Context, time.Time) error { return s.err }
+func (s failingCallStore) DeleteAll(context.Context) error                  { return s.err }
+func (s failingCallStore) Close() error                                     { return nil }
+
+func TestCallHistoryFailureReportsIssueWithoutEndingLiveCall(t *testing.T) {
+	reported := make(chan string, 1)
+	manager := &Manager{
+		logger: slog.Default(),
+		store:  failingCallStore{err: errors.New("disk unavailable")},
+		issueReporter: func(_ context.Context, fingerprint, _ string) {
+			reported <- fingerprint
+		},
+		active: &activeCall{record: CallRecord{ID: "active"}},
+		state:  StateActive,
+	}
+	manager.persistCall(CallRecord{ID: "active"}, "connected")
+	select {
+	case fingerprint := <-reported:
+		if fingerprint != "sip_call_history_persist_failed" {
+			t.Fatalf("fingerprint = %q", fingerprint)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("operational issue was not reported")
+	}
+	if manager.active == nil || manager.state != StateActive {
+		t.Fatal("history failure ended or replaced the live call")
 	}
 }
 

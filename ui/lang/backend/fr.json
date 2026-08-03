@@ -233,5 +233,6 @@
   "backend.budget_mode_warn_de": "(avertissement uniquement)",
   "backend.budget_mode_warn_en": "(avertissement seulement)",
   "backend.budget_mode_partial_en": "(co-agents + vision/STT bloqués en cas de dépassement)",
-  "backend.budget_mode_full_en": "(tous bloqués en cas de dépassement)"
+  "backend.budget_mode_full_en": "(tous bloqués en cas de dépassement)",
+  "backend.speech_lab_audio_warning": "L’audio Speech Lab n’a pas pu être généré. La réponse texte reste disponible."
 }

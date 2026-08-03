@@ -3,7 +3,6 @@ package server
 import (
 	"encoding/json"
 	"errors"
-	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -12,8 +11,6 @@ import (
 	"aurago/internal/speechlab"
 	"aurago/internal/speechlab/deployer"
 )
-
-const defaultSpeechLabBrowserPort = "8766"
 
 type speechLabStatusResponse struct {
 	Enabled            bool                 `json:"enabled"`
@@ -33,6 +30,7 @@ type speechLabStatusResponse struct {
 	EnvironmentManaged bool                 `json:"environment_managed"`
 	ActiveOperations   int64                `json:"active_operations"`
 	Deployment         deployer.PublicState `json:"deployment"`
+	Warnings           []string             `json:"warnings"`
 }
 
 func registerSpeechLabRoutes(mux *http.ServeMux, s *Server) {
@@ -68,6 +66,10 @@ func handleSpeechLabStatus(s *Server) http.HandlerFunc {
 			ChatOutputEnabled:  cfg.SpeechLab.ChatOutputEnabled,
 			AdvancedUIURL:      speechLabBrowserURLForRequest(cfg.SpeechLab.AdvancedUIURL, r),
 			EnvironmentManaged: strings.TrimSpace(os.Getenv("AURAGO_SPEECH_LAB_BASE_URL")) != "",
+			Warnings:           []string{},
+		}
+		if result.AdvancedUIURL == "" {
+			result.Warnings = append(result.Warnings, "advanced_ui_url_missing")
 		}
 		if s.SpeechLabDeployer != nil {
 			result.Deployment = s.SpeechLabDeployer.PublicStatus()
@@ -170,20 +172,11 @@ func handleSpeechLabDeployment(s *Server, action string) http.Handler {
 	})
 }
 
-// speechLabBrowserURLForRequest resolves the browser-facing lab address. The
-// gateway URL cannot be reused because it normally contains a Docker-only host.
-// Standard deployments publish the lab UI on port 8766 of the same host that
-// serves AuraGo. AdvancedUIURL remains an expert override for reverse proxies
-// and non-standard port mappings.
-func speechLabBrowserURLForRequest(configured string, r *http.Request) string {
-	if configured = strings.TrimRight(strings.TrimSpace(configured), "/"); configured != "" {
-		return configured
-	}
-	host := effectiveRequestHost(r)
-	if host == "" || len(host) > 253 || strings.ContainsAny(host, "/\\?#@ \t\r\n") {
-		return ""
-	}
-	return "http://" + net.JoinHostPort(host, defaultSpeechLabBrowserPort) + "/"
+// speechLabBrowserURLForRequest returns only the explicit browser-facing lab
+// address. Request hosts are not configuration and may be reverse-proxy or
+// attacker controlled, so the status endpoint never synthesizes a URL.
+func speechLabBrowserURLForRequest(configured string, _ *http.Request) string {
+	return strings.TrimRight(strings.TrimSpace(configured), "/")
 }
 
 func handleSpeechLabRaw(s *Server, resource string) http.Handler {

@@ -82,5 +82,6 @@
   "desktop.sip_phone_unmute": "म्यूट हटाएँ",
   "desktop.sip_phone_tab_recents": "हालिया",
   "desktop.sip_phone_backspace": "हटाएँ",
-  "desktop.sip_phone_carrier": "AuraGo"
+  "desktop.sip_phone_carrier": "AuraGo",
+  "desktop.sip_phone_outbound_policy_migration_required_detail": "SIP सेटिंग में पुराने वाइल्डकार्ड आउटबाउंड नियमों को सटीक गंतव्यों से बदलें।"
 }

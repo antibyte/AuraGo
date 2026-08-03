@@ -77,5 +77,8 @@
   "config.sip.wizard.verify_check_title": "O AuraGo verifica a configuração",
   "config.sip.wizard.verify_check_text": "O perfil é guardado de forma atómica e o registo é testado de imediato. Se existir um problema, permanece neste passo.",
   "config.sip.wizard.save_test": "Guardar e testar",
-  "config.sip.wizard.custom_value_invalid": "«{value}» não é um número ou extensão individual."
+  "config.sip.wizard.custom_value_invalid": "«{value}» não é um número ou extensão individual.",
+  "config.sip.allowed_domains_help": "Apenas são permitidos domínios exatos; os caracteres universais não concedem acesso.",
+  "config.sip.allowed_users_help": "Apenas são permitidos utilizadores SIP exatos; introduza intervalos de números como prefixos E.164.",
+  "config.sip.outbound_policy_migration_required": "As regras de saída com caracteres universais já não concedem acesso. Substitua-as por destinos exatos antes de guardar."
 }

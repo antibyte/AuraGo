@@ -140,85 +140,87 @@ type Server struct {
 	// SetupCSRFCleanupOnce ensures the per-Server CSRF cleanup goroutine is
 	// started exactly once. Lives on Server (not package global) so each
 	// Server instance has independent cleanup lifecycle for test isolation.
-	SetupCSRFCleanupOnce sync.Once
-	SetupLocalLLMJobsMu  sync.Mutex
-	SetupLocalLLMJobs    map[string]*setupLocalLLMJob
-	Logger               *slog.Logger
-	AccessLogger         *slog.Logger
-	LLMClient            llm.ChatClient
-	ShortTermMem         *memory.SQLiteMemory
-	LongTermMem          memory.VectorDB
-	Vault                *security.Vault
-	VaultSecretPrompter  *vaultprompt.Manager
-	vaultSecretPromptMu  sync.Mutex
-	Registry             *tools.ProcessRegistry
-	CronManager          *tools.CronManager
-	BackgroundTasks      *tools.BackgroundTaskManager
-	Go2RTC               *tools.Go2RTCManager
-	LocalLLM             *localllm.Manager
-	localLLMLifecycleCtx context.Context
-	Go2RTCDiscovery      *onvif.Service
-	Bluetooth            *bluetooth.Manager
-	NetworkShares        *networkshares.Manager
-	SIPPhone             *sipphone.Manager
-	SpeechLab            *speechlab.Client
-	SpeechLabDeployer    *deployer.Manager
-	SIPBrowserMedia      *sipphone.BrowserMediaService
-	VoiceActionRunner    *VoiceActionRunner
-	HistoryManager       *memory.HistoryManager
-	KG                   *memory.KnowledgeGraph
-	InventoryDB          *sql.DB
-	InvasionDB           *sql.DB
-	Guardian             *security.Guardian
-	LLMGuardian          *security.LLMGuardian
-	CoAgentRegistry      *agent.CoAgentRegistry
-	BudgetTracker        *budget.Tracker
-	TokenManager         *security.TokenManager
-	WebhookManager       *webhooks.Manager
-	WebhookHandler       *webhooks.Handler
-	SSE                  *SSEBroadcaster // shared SSE broadcaster, set by run()
-	MissionManagerV2     *tools.MissionManagerV2
-	EggHub               *bridge.EggHub
-	RemoteHub            *remote.RemoteHub
-	agodeskDesktopMu     sync.Mutex
-	agodeskDesktop       *agodeskDesktopBroker
-	ProxyManager         *proxy.Manager
-	TsNetManager         *tsnetnode.Manager
-	tsNetHandler         http.Handler // stored so the UI can restart tsnet without a full server restart
-	FileIndexer          *services.FileIndexer
-	WorkspaceSearch      *services.WorkspaceSearchService
-	HeartbeatScheduler   *heartbeat.Scheduler
-	UptimeKumaPoller     *tools.UptimeKumaPoller
-	AgentMailService     *agentmail.Service
-	AgentMailMu          sync.Mutex
-	CheatsheetDB         *sql.DB
-	ImageGalleryDB       *sql.DB
-	MediaRegistryDB      *sql.DB
-	HomepageRegistryDB   *sql.DB
-	ContactsDB           *sql.DB
-	PlannerDB            *sql.DB
-	LaunchpadDB          *sql.DB
-	SQLConnectionsDB     *sql.DB
-	SQLConnectionPool    *sqlconnections.ConnectionPool
-	A2AServer            *a2apkg.Server        // A2A protocol server (nil if disabled)
-	A2AClientMgr         *a2apkg.ClientManager // A2A client manager (nil if disabled)
-	A2ABridge            *a2apkg.Bridge        // A2A co-agent bridge (nil if disabled)
-	SkillManager         *tools.SkillManager   // Skill Manager for registry and security scanning
-	AgentSkillManager    *tools.AgentSkillManager
-	SkillsDB             *sql.DB // Skills registry database
-	PreparedMissionsDB   *sql.DB // Prepared missions SQLite database
-	MissionHistoryDB     *sql.DB // Mission execution history SQLite database
-	PreparationService   *services.MissionPreparationService
-	WarningsRegistry     *warnings.Registry // Runtime warnings and health issues
-	DaemonSupervisor     *tools.DaemonSupervisor
-	DesktopService       *desktop.Service
-	DesktopStore         *desktopstore.Service
-	DesktopHub           *desktop.Hub
-	VirtualComputersDB   *virtualcomputers.Ledger
-	GameMaker            *gamemaker.Service
-	gameMakerSkills      []gamemaker.SkillInfo
-	gameMakerSkillsReady bool
-	DesktopMu            sync.Mutex
+	SetupCSRFCleanupOnce  sync.Once
+	SetupLocalLLMJobsMu   sync.Mutex
+	SetupLocalLLMJobs     map[string]*setupLocalLLMJob
+	Logger                *slog.Logger
+	AccessLogger          *slog.Logger
+	LLMClient             llm.ChatClient
+	ShortTermMem          *memory.SQLiteMemory
+	LongTermMem           memory.VectorDB
+	Vault                 *security.Vault
+	VaultSecretPrompter   *vaultprompt.Manager
+	vaultSecretPromptMu   sync.Mutex
+	Registry              *tools.ProcessRegistry
+	CronManager           *tools.CronManager
+	BackgroundTasks       *tools.BackgroundTaskManager
+	Go2RTC                *tools.Go2RTCManager
+	LocalLLM              *localllm.Manager
+	localLLMLifecycleCtx  context.Context
+	Go2RTCDiscovery       *onvif.Service
+	Bluetooth             *bluetooth.Manager
+	NetworkShares         *networkshares.Manager
+	SIPPhone              *sipphone.Manager
+	SpeechLab             *speechlab.Client
+	SpeechLabDeployer     *deployer.Manager
+	speechLabTurnTokens   *speechLabTurnTokenRegistry
+	speechLabTurnTokensMu sync.Mutex
+	SIPBrowserMedia       *sipphone.BrowserMediaService
+	VoiceActionRunner     *VoiceActionRunner
+	HistoryManager        *memory.HistoryManager
+	KG                    *memory.KnowledgeGraph
+	InventoryDB           *sql.DB
+	InvasionDB            *sql.DB
+	Guardian              *security.Guardian
+	LLMGuardian           *security.LLMGuardian
+	CoAgentRegistry       *agent.CoAgentRegistry
+	BudgetTracker         *budget.Tracker
+	TokenManager          *security.TokenManager
+	WebhookManager        *webhooks.Manager
+	WebhookHandler        *webhooks.Handler
+	SSE                   *SSEBroadcaster // shared SSE broadcaster, set by run()
+	MissionManagerV2      *tools.MissionManagerV2
+	EggHub                *bridge.EggHub
+	RemoteHub             *remote.RemoteHub
+	agodeskDesktopMu      sync.Mutex
+	agodeskDesktop        *agodeskDesktopBroker
+	ProxyManager          *proxy.Manager
+	TsNetManager          *tsnetnode.Manager
+	tsNetHandler          http.Handler // stored so the UI can restart tsnet without a full server restart
+	FileIndexer           *services.FileIndexer
+	WorkspaceSearch       *services.WorkspaceSearchService
+	HeartbeatScheduler    *heartbeat.Scheduler
+	UptimeKumaPoller      *tools.UptimeKumaPoller
+	AgentMailService      *agentmail.Service
+	AgentMailMu           sync.Mutex
+	CheatsheetDB          *sql.DB
+	ImageGalleryDB        *sql.DB
+	MediaRegistryDB       *sql.DB
+	HomepageRegistryDB    *sql.DB
+	ContactsDB            *sql.DB
+	PlannerDB             *sql.DB
+	LaunchpadDB           *sql.DB
+	SQLConnectionsDB      *sql.DB
+	SQLConnectionPool     *sqlconnections.ConnectionPool
+	A2AServer             *a2apkg.Server        // A2A protocol server (nil if disabled)
+	A2AClientMgr          *a2apkg.ClientManager // A2A client manager (nil if disabled)
+	A2ABridge             *a2apkg.Bridge        // A2A co-agent bridge (nil if disabled)
+	SkillManager          *tools.SkillManager   // Skill Manager for registry and security scanning
+	AgentSkillManager     *tools.AgentSkillManager
+	SkillsDB              *sql.DB // Skills registry database
+	PreparedMissionsDB    *sql.DB // Prepared missions SQLite database
+	MissionHistoryDB      *sql.DB // Mission execution history SQLite database
+	PreparationService    *services.MissionPreparationService
+	WarningsRegistry      *warnings.Registry // Runtime warnings and health issues
+	DaemonSupervisor      *tools.DaemonSupervisor
+	DesktopService        *desktop.Service
+	DesktopStore          *desktopstore.Service
+	DesktopHub            *desktop.Hub
+	VirtualComputersDB    *virtualcomputers.Ledger
+	GameMaker             *gamemaker.Service
+	gameMakerSkills       []gamemaker.SkillInfo
+	gameMakerSkillsReady  bool
+	DesktopMu             sync.Mutex
 	// IsFirstStart is true if core_memory.md was just freshly created (no prior data).
 	IsFirstStart    bool
 	StartedAt       time.Time     // server start time for uptime calculation
@@ -264,19 +266,13 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 	s.Cfg = cfg
 	s.cfgSnapshot.Store(cfg)
 	speechCfg := effectiveSpeechLabConfig(cfg)
-	if s.SpeechLab == nil {
-		if client, err := speechlab.NewClient(speechCfg); err == nil {
-			s.SpeechLab = client
-		} else if s.Logger != nil {
-			s.Logger.Warn("Speech Lab configuration rejected during reload", "error", err)
-		}
-	} else {
+	if s.SpeechLab != nil {
 		s.SpeechLab.Reconfigure(speechCfg)
+	} else if s.Logger != nil {
+		s.Logger.Warn("Speech Lab runtime is unavailable; restart is required after repairing configuration")
 	}
 	if s.SpeechLabDeployer != nil {
 		s.SpeechLabDeployer.Reconfigure(speechCfg)
-	} else if speechCfg.Deployment.Mode == "managed" {
-		s.SpeechLabDeployer = deployer.NewManager(speechCfg, cfg.Runtime.IsDocker, cfg.Docker.Enabled, cfg.Docker.ReadOnly, cfg.Directories.DataDir, s.Logger, deployer.WithDockerClient(dockerutil.NewClient(cfg.Docker.Host, 30*time.Second)))
 	}
 }
 
@@ -1331,9 +1327,10 @@ func newServerFromOptions(opts StartOptions) *Server {
 	} else {
 		s.SpeechLab = speechLabClient
 	}
-	if cfg.SpeechLab.Deployment.Mode == "managed" {
-		s.SpeechLabDeployer = deployer.NewManager(speechCfg, cfg.Runtime.IsDocker, cfg.Docker.Enabled, cfg.Docker.ReadOnly, cfg.Directories.DataDir, logger, deployer.WithDockerClient(dockerutil.NewClient(cfg.Docker.Host, 30*time.Second)))
-	}
+	// Keep one stable deployer instance for the full process lifetime. This
+	// avoids pointer races during reload and preserves safe cleanup access after
+	// Speech Lab is disabled or switched to an external deployment.
+	s.SpeechLabDeployer = deployer.NewManager(speechCfg, cfg.Runtime.IsDocker, cfg.Docker.Enabled, cfg.Docker.ReadOnly, cfg.Directories.DataDir, logger, deployer.WithDockerClient(dockerutil.NewClient(cfg.Docker.Host, 30*time.Second)))
 	s.initConfigSnapshot()
 	if opts.Vault != nil {
 		s.VaultSecretPrompter = vaultprompt.NewManager(opts.Vault, 5*time.Minute)

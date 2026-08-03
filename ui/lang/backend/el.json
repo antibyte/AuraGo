@@ -233,5 +233,6 @@
   "backend.budget_mode_warn_de": "(μόνο προειδοποίηση)",
   "backend.budget_mode_warn_en": "(μόνο προειδοποίηση)",
   "backend.budget_mode_partial_en": "(συν-πράκτορες + vision/STT αποκλεισμένοι σε περίπτωση υπέρβασης)",
-  "backend.budget_mode_full_en": "(όλα αποκλείονται όταν γίνεται υπέρβαση)"
+  "backend.budget_mode_full_en": "(όλα αποκλείονται όταν γίνεται υπέρβαση)",
+  "backend.speech_lab_audio_warning": "Δεν ήταν δυνατή η δημιουργία ήχου Speech Lab. Η απάντηση κειμένου παραμένει διαθέσιμη."
 }

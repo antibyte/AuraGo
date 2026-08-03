@@ -82,5 +82,6 @@
   "desktop.sip_phone_unmute": "Riattiva audio",
   "desktop.sip_phone_tab_recents": "Recenti",
   "desktop.sip_phone_backspace": "Elimina",
-  "desktop.sip_phone_carrier": "AuraGo"
+  "desktop.sip_phone_carrier": "AuraGo",
+  "desktop.sip_phone_outbound_policy_migration_required_detail": "Sostituisci le regole in uscita legacy con caratteri jolly con destinazioni esatte nelle impostazioni SIP."
 }

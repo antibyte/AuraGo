@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"time"
 
 	"aurago/internal/agent"
 	"aurago/internal/config"
@@ -89,8 +90,14 @@ func (b *chatVoiceOutputTrackingBroker) hasTTSAudio() bool {
 	return b.ttsAudio
 }
 
-func maybeEmitChatVoiceOutputFallback(cfg *config.Config, logger *slog.Logger, runCfg agent.RunConfig, broker *chatVoiceOutputTrackingBroker, content string, clients ...*speechlab.Client) {
+func maybeEmitChatVoiceOutputFallback(ctx context.Context, cfg *config.Config, logger *slog.Logger, runCfg agent.RunConfig, broker *chatVoiceOutputTrackingBroker, content string, clients ...*speechlab.Client) {
 	if cfg == nil || broker == nil || broker.hasTTSAudio() {
+		return
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if agent.VoiceOutputSuppressed(ctx) {
 		return
 	}
 	if !runCfg.VoiceOutputActive || runCfg.MessageSource != "web_chat" || !chatVoiceOutputTTSConfigured(cfg) {
@@ -102,24 +109,27 @@ func maybeEmitChatVoiceOutputFallback(cfg *config.Config, logger *slog.Logger, r
 		return
 	}
 
+	ttsCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
 	ttsCfg := buildChatVoiceOutputTTSConfig(cfg, "", clients...)
+	ttsCfg.Context = ttsCtx
 	if strings.EqualFold(ttsCfg.Provider, "speech_lab") || strings.EqualFold(ttsCfg.Provider, "s2s") {
 		client := ttsCfg.SpeechLab.Client
 		if client == nil {
 			var err error
 			client, err = speechlab.NewClient(cfg.SpeechLab)
 			if err != nil {
-				emitChatSpeechLabError(broker, err)
+				emitChatSpeechLabError(cfg, broker, err)
 				return
 			}
 			ttsCfg.SpeechLab.Client = client
 		}
-		ready, err := client.Require(context.Background(), false, true)
+		ready, err := client.Require(ttsCtx, false, true)
 		if err != nil {
 			if logger != nil {
 				logger.Warn("Chat Speech Lab TTS is not ready", "code", speechlab.ErrorCode(err))
 			}
-			emitChatSpeechLabError(broker, err)
+			emitChatSpeechLabError(cfg, broker, err)
 			return
 		}
 		ttsCfg.SpeechLab.ExpectedTTSID = ready.TTSID
@@ -131,7 +141,7 @@ func maybeEmitChatVoiceOutputFallback(cfg *config.Config, logger *slog.Logger, r
 			logger.Warn("Chat voice output fallback failed", "code", speechlab.ErrorCode(err))
 		}
 		if cfg.SpeechLab.ChatOutputEnabled {
-			emitChatSpeechLabError(broker, err)
+			emitChatSpeechLabError(cfg, broker, err)
 		}
 		return
 	}
@@ -156,13 +166,17 @@ func maybeEmitChatVoiceOutputFallback(cfg *config.Config, logger *slog.Logger, r
 	broker.Send("audio", string(payload))
 }
 
-func emitChatSpeechLabError(broker *chatVoiceOutputTrackingBroker, err error) {
+func emitChatSpeechLabError(cfg *config.Config, broker *chatVoiceOutputTrackingBroker, err error) {
 	if broker == nil {
 		return
 	}
+	message := i18n.T(chatVoiceOutputLanguage(cfg), "backend.speech_lab_audio_warning")
+	if message == "backend.speech_lab_audio_warning" {
+		message = "Speech Lab audio is unavailable. The text response is still available."
+	}
 	payload, _ := json.Marshal(map[string]string{
 		"code":        speechlab.ErrorCode(err),
-		"message":     "Speech Lab audio is unavailable. The text response is still available.",
+		"message":     message,
 		"config_path": "/config#speech_lab",
 	})
 	broker.Send("speech_lab_error", string(payload))

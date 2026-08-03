@@ -77,5 +77,8 @@
   "config.sip.wizard.verify_check_title": "AuraGo सेटअप की जाँच करता है",
   "config.sip.wizard.verify_check_text": "प्रोफ़ाइल सुरक्षित रूप से एक साथ सहेजी जाती है और पंजीकरण तुरंत जाँचा जाता है। समस्या होने पर आप इसी चरण में रहेंगे।",
   "config.sip.wizard.save_test": "सहेजें और जाँचें",
-  "config.sip.wizard.custom_value_invalid": "“{value}” कोई एकल नंबर या एक्सटेंशन नहीं है।"
+  "config.sip.wizard.custom_value_invalid": "“{value}” कोई एकल नंबर या एक्सटेंशन नहीं है।",
+  "config.sip.allowed_domains_help": "केवल सटीक डोमेन अनुमत हैं; वाइल्डकार्ड पहुँच नहीं देते।",
+  "config.sip.allowed_users_help": "केवल सटीक SIP उपयोगकर्ता अनुमत हैं; नंबर श्रेणियाँ E.164 प्रीफ़िक्स के रूप में दर्ज करें।",
+  "config.sip.outbound_policy_migration_required": "वाइल्डकार्ड आउटबाउंड नियम अब पहुँच नहीं देते। सहेजने से पहले उन्हें सटीक गंतव्यों से बदलें।"
 }

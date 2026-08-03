@@ -206,6 +206,10 @@ func handleSIPSetup(s *Server) http.HandlerFunc {
 			return
 		}
 		config.NormalizeSIPConfig(&next)
+		if sipphone.OutboundPolicyMigrationRequired(next.Outbound) {
+			writeSIPJSONStatus(w, http.StatusBadRequest, map[string]string{"error": "outbound_policy_migration_required", "message": "Replace wildcard outbound allow entries with exact users/domains or E.164 prefixes"})
+			return
+		}
 		if err := config.ValidateSIPRuntimeConfig(next); err != nil {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
@@ -215,6 +219,11 @@ func handleSIPSetup(s *Server) http.HandlerFunc {
 			return
 		}
 		browserMediaNeedsRestart := sipBrowserMediaRestartRequired(old, next)
+		releaseReconfigure, ok := reserveSIPReconfigure(s, w)
+		if !ok {
+			return
+		}
+		defer releaseReconfigure()
 		if err := persistSIPConfig(s, next, mutations); err != nil {
 			if s != nil && s.Logger != nil {
 				s.Logger.Error("Failed to apply SIP provider preset", "error", err)
@@ -312,6 +321,11 @@ func handleDeleteSIPConfig(s *Server, w http.ResponseWriter, r *http.Request) {
 		purgeHistory = value
 	}
 	old := sipConfigSnapshot(s)
+	releaseReconfigure, ok := reserveSIPReconfigure(s, w)
+	if !ok {
+		return
+	}
+	defer releaseReconfigure()
 	var next config.SIPConfig
 	config.ApplySIPDefaults(&next)
 	next.Enabled = false
@@ -416,6 +430,10 @@ func handlePutSIPConfig(s *Server, w http.ResponseWriter, r *http.Request) {
 		mutations = append(mutations, vaultMutation{key: config.SIPPasswordVaultKey, value: next.Password})
 	}
 	config.NormalizeSIPConfig(&next)
+	if sipphone.OutboundPolicyMigrationRequired(next.Outbound) {
+		writeSIPJSONStatus(w, http.StatusBadRequest, map[string]string{"error": "outbound_policy_migration_required", "message": "Replace wildcard outbound allow entries with exact users/domains or E.164 prefixes"})
+		return
+	}
 	if err := config.ValidateSIPRuntimeConfig(next); err != nil {
 		jsonError(w, err.Error(), http.StatusBadRequest)
 		return
@@ -425,6 +443,11 @@ func handlePutSIPConfig(s *Server, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	browserMediaNeedsRestart := sipBrowserMediaRestartRequired(old, next)
+	releaseReconfigure, ok := reserveSIPReconfigure(s, w)
+	if !ok {
+		return
+	}
+	defer releaseReconfigure()
 	if err := persistSIPConfig(s, next, mutations); err != nil {
 		if s != nil && s.Logger != nil {
 			s.Logger.Error("Failed to update SIP configuration", "error", err)
@@ -456,6 +479,27 @@ func handlePutSIPConfig(s *Server, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeSIPConfig(w, sipConfigSnapshot(s))
+}
+
+func reserveSIPReconfigure(s *Server, w http.ResponseWriter) (func(), bool) {
+	if s == nil || s.SIPPhone == nil {
+		return func() {}, true
+	}
+	release, err := s.SIPPhone.ReserveReconfigure()
+	if err != nil {
+		writeSIPJSONStatus(w, http.StatusConflict, map[string]string{
+			"error": "sip_busy", "message": "SIP configuration was not saved because a call or call preparation is active",
+		})
+		return nil, false
+	}
+	return release, true
+}
+
+func writeSIPJSONStatus(w http.ResponseWriter, status int, value any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(value)
 }
 
 func sipBrowserMediaRestartRequired(old, next config.SIPConfig) bool {
@@ -700,7 +744,7 @@ func handleSIPCallAction(s *Server) http.HandlerFunc {
 			if r.ContentLength != 0 {
 				decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 8<<10))
 				decoder.DisallowUnknownFields()
-				if decodeErr := decoder.Decode(&body); decodeErr != nil {
+				if decodeErr := decoder.Decode(&body); decodeErr != nil && !errors.Is(decodeErr, io.EOF) {
 					jsonError(w, "Invalid JSON", http.StatusBadRequest)
 					return
 				}
@@ -834,6 +878,9 @@ func handleSIPAppState(s *Server) http.HandlerFunc {
 				// Permission alone is not enough; dial policy requires domain + user/prefix allowlists.
 				blockers = append(blockers, "outbound_disabled")
 			}
+		}
+		if sipphone.OutboundPolicyMigrationRequired(cfg.Outbound) {
+			blockers = append(blockers, "outbound_policy_migration_required")
 		}
 		if !cfg.BrowserMedia.Enabled {
 			blockers = append(blockers, "browser_media_disabled")
@@ -1069,6 +1116,7 @@ func writeSIPManagerError(w http.ResponseWriter, err error) {
 }
 
 func (l *sipRequestLimiter) allow(r *http.Request, maximum int, window time.Duration) bool {
+	const maxLimiterEntries = 4096
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
 		host = r.RemoteAddr
@@ -1079,8 +1127,23 @@ func (l *sipRequestLimiter) allow(r *http.Request, maximum int, window time.Dura
 	now := time.Now()
 	l.mu.Lock()
 	defer l.mu.Unlock()
+	for key, candidate := range l.windows {
+		if candidate == nil || now.Sub(candidate.started) >= window {
+			delete(l.windows, key)
+		}
+	}
 	record := l.windows[host]
-	if record == nil || now.Sub(record.started) >= window {
+	if record == nil {
+		if len(l.windows) >= maxLimiterEntries {
+			oldestKey := ""
+			var oldest time.Time
+			for key, candidate := range l.windows {
+				if oldestKey == "" || candidate.started.Before(oldest) {
+					oldestKey, oldest = key, candidate.started
+				}
+			}
+			delete(l.windows, oldestKey)
+		}
 		l.windows[host] = &sipRequestWindow{started: now, count: 1}
 		return true
 	}

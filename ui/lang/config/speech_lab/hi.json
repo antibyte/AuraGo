@@ -58,5 +58,6 @@
   "config.speech_lab.deployment_confirm": "Speech Lab परिनियोजन की पुष्टि करें? सत्यापित s2s इमेज डाउनलोड होंगी।",
   "config.speech_lab.deployment_stop": "Speech Lab रोकें",
   "config.speech_lab.deployment_remove": "Speech Lab हटाएँ",
-  "config.speech_lab.deployment_stop_confirm": "प्रबंधित Speech Lab को रोकें या हटाएँ?"
+  "config.speech_lab.deployment_stop_confirm": "प्रबंधित Speech Lab को रोकें या हटाएँ?",
+  "config.speech_lab.advanced_ui_url_missing": "उन्नत इंटरफ़ेस खोलने के लिए ब्राउज़र से पहुँच योग्य Speech Lab URL कॉन्फ़िगर करें।"
 }

@@ -233,5 +233,6 @@
   "backend.budget_mode_warn_de": "(solo avvertimento)",
   "backend.budget_mode_warn_en": "(solo avviso)",
   "backend.budget_mode_partial_en": "(co-agenti + vision/STT bloccati al superamento)",
-  "backend.budget_mode_full_en": "(tutto bloccato una volta superato)"
+  "backend.budget_mode_full_en": "(tutto bloccato una volta superato)",
+  "backend.speech_lab_audio_warning": "Non è stato possibile generare l’audio di Speech Lab. La risposta testuale resta disponibile."
 }

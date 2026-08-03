@@ -82,5 +82,6 @@
   "desktop.sip_phone_unmute": "Κατάργηση σίγασης",
   "desktop.sip_phone_tab_recents": "Πρόσφατα",
   "desktop.sip_phone_backspace": "Διαγραφή",
-  "desktop.sip_phone_carrier": "AuraGo"
+  "desktop.sip_phone_carrier": "AuraGo",
+  "desktop.sip_phone_outbound_policy_migration_required_detail": "Αντικαταστήστε τους παλιούς κανόνες εξερχομένων με χαρακτήρες μπαλαντέρ με ακριβείς προορισμούς στις ρυθμίσεις SIP."
 }

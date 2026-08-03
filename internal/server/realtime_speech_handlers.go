@@ -668,15 +668,17 @@ func handleRealtimeSpeechActions(s *Server, registry *realtimespeech.Registry, w
 			jsonError(w, "Invalid realtime speech request_id", http.StatusBadRequest)
 			return
 		}
-		if err := registry.BeginAction(requestID, session.ID, clientID, session.ChatSessionID); err != nil {
+		actionContext, cancelAction := context.WithCancel(agent.WithVoiceOutputSuppressed(r.Context()))
+		if err := registry.BeginAction(requestID, session.ID, clientID, session.ChatSessionID, cancelAction); err != nil {
+			cancelAction()
 			jsonError(w, err.Error(), http.StatusConflict)
 			return
 		}
+		defer cancelAction()
 		defer registry.EndAction(requestID)
 		w.Header().Set("X-Realtime-Speech-Request-ID", requestID)
 		w.Header().Set("Cache-Control", "no-store")
 
-		suppressedContext := agent.WithVoiceOutputSuppressed(r.Context())
 		if session.Surface == "desktop" {
 			payload, _ := json.Marshal(map[string]interface{}{
 				"message": requestText,
@@ -685,7 +687,7 @@ func handleRealtimeSpeechActions(s *Server, registry *realtimespeech.Registry, w
 					"origin_app": "live-speech",
 				},
 			})
-			inner := r.Clone(suppressedContext)
+			inner := r.Clone(actionContext)
 			inner.Method = http.MethodPost
 			inner.URL.Path = "/api/desktop/chat/stream"
 			inner.Body = ioNopCloser(bytes.NewReader(payload))
@@ -708,7 +710,7 @@ func handleRealtimeSpeechActions(s *Server, registry *realtimespeech.Registry, w
 			jsonError(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		inner := r.Clone(withFeedbackBrokerOverride(suppressedContext, responseBroker))
+		inner := r.Clone(withFeedbackBrokerOverride(actionContext, responseBroker))
 		inner.Method = http.MethodPost
 		inner.URL.Path = "/v1/chat/completions"
 		inner.Body = ioNopCloser(bytes.NewReader(payload))
@@ -725,6 +727,9 @@ type realtimeSpeechActionResponseBroker struct {
 	flusher   http.Flusher
 	sessionID string
 	mu        sync.Mutex
+	response  strings.Builder
+	finalSent bool
+	doneSent  bool
 }
 
 func newRealtimeSpeechActionResponseBroker(w http.ResponseWriter, sessionID string) (*realtimeSpeechActionResponseBroker, error) {
@@ -753,6 +758,20 @@ func (b *realtimeSpeechActionResponseBroker) writeJSON(payload string) bool {
 }
 
 func (b *realtimeSpeechActionResponseBroker) Send(event, message string) {
+	event = strings.TrimSpace(event)
+	if event == "final_response" {
+		b.mu.Lock()
+		if text := strings.TrimSpace(security.Scrub(message)); text != "" {
+			b.response.Reset()
+			b.response.WriteString(text)
+		}
+		b.mu.Unlock()
+		return
+	}
+	if event == "done" {
+		b.finish()
+		return
+	}
 	payload, _ := json.Marshal(map[string]interface{}{
 		"event":      event,
 		"detail":     security.Scrub(message),
@@ -762,6 +781,27 @@ func (b *realtimeSpeechActionResponseBroker) Send(event, message string) {
 }
 
 func (b *realtimeSpeechActionResponseBroker) SendJSON(jsonStr string) {
+	var envelope struct {
+		Event   string `json:"event"`
+		Detail  string `json:"detail"`
+		Content string `json:"content"`
+		Choices []struct {
+			Delta struct {
+				Content string `json:"content"`
+			} `json:"delta"`
+		} `json:"choices"`
+	}
+	if json.Unmarshal([]byte(jsonStr), &envelope) == nil {
+		if envelope.Event == "final_response" || envelope.Event == "done" {
+			b.Send(envelope.Event, envelope.Detail)
+			return
+		}
+		content := envelope.Content
+		if content == "" && len(envelope.Choices) > 0 {
+			content = envelope.Choices[0].Delta.Content
+		}
+		b.appendResponse(content)
+	}
 	b.writeJSON(jsonStr)
 }
 
@@ -783,6 +823,7 @@ func (b *realtimeSpeechActionResponseBroker) SendTypedWithTransport(eventType st
 }
 
 func (b *realtimeSpeechActionResponseBroker) SendLLMStreamDelta(content, toolName, toolID string, index int, finishReason string) {
+	b.appendResponse(content)
 	payload, _ := json.Marshal(map[string]interface{}{
 		"event":         "llm_stream_delta",
 		"session_id":    b.sessionID,
@@ -792,6 +833,38 @@ func (b *realtimeSpeechActionResponseBroker) SendLLMStreamDelta(content, toolNam
 		"index":         index,
 		"finish_reason": finishReason,
 	})
+	b.writeJSON(string(payload))
+}
+
+func (b *realtimeSpeechActionResponseBroker) appendResponse(content string) {
+	content = security.Scrub(content)
+	if content == "" {
+		return
+	}
+	b.mu.Lock()
+	b.response.WriteString(content)
+	b.mu.Unlock()
+}
+
+func (b *realtimeSpeechActionResponseBroker) finish() {
+	if b == nil {
+		return
+	}
+	b.mu.Lock()
+	if b.doneSent {
+		b.mu.Unlock()
+		return
+	}
+	response := strings.TrimSpace(b.response.String())
+	shouldSendFinal := !b.finalSent && response != ""
+	b.finalSent = b.finalSent || shouldSendFinal
+	b.doneSent = true
+	b.mu.Unlock()
+	if shouldSendFinal {
+		payload, _ := json.Marshal(map[string]interface{}{"event": "final_response", "detail": response, "session_id": b.sessionID})
+		b.writeJSON(string(payload))
+	}
+	payload, _ := json.Marshal(map[string]interface{}{"event": "done", "session_id": b.sessionID})
 	b.writeJSON(string(payload))
 }
 
@@ -847,12 +920,10 @@ func handleRealtimeSpeechActionByID(registry *realtimespeech.Registry) http.Hand
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		chatSessionID, ok := registry.ActionSession(requestID, clientID)
-		if !ok {
+		if !registry.CancelAction(requestID, clientID) {
 			jsonError(w, "Realtime speech action not found", http.StatusNotFound)
 			return
 		}
-		agent.InterruptSession(chatSessionID)
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]string{"status": "cancelled", "request_id": requestID})
 	}

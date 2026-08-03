@@ -109,10 +109,17 @@
             const form = new FormData();
             form.append('audio', wav, 'speech-lab.wav');
             try {
-                const response = await fetch('/api/upload-voice', { method: 'POST', body: form });
-                const payload = await response.json().catch(() => ({}));
-                if (!response.ok) throw new Error(payload.message || this._t('speech_lab_transcription_failed', 'Speech Lab transcription failed.'));
-                this.onTranscription(payload.transcription || '');
+                const headers = {};
+                const sessionID = typeof window.activeSessionId === 'function' ? window.activeSessionId() : '';
+                if (sessionID && sessionID !== 'default') headers['X-Session-ID'] = sessionID;
+                const response = await fetch('/api/upload-voice', { method: 'POST', headers, body: form });
+                if (!response.ok) {
+                    const contentType = response.headers.get('content-type') || '';
+                    const payload = contentType.includes('application/json') ? await response.json().catch(() => ({})) : {};
+                    throw new Error(payload.message || ('HTTP ' + response.status + ': ' + this._t('speech_lab_transcription_failed', 'Speech Lab transcription failed.')));
+                }
+                const payload = await response.json();
+                this.onTranscription(payload.transcription || '', payload.speech_lab_turn_token || '');
             } catch (error) {
                 this._fail(error.message || this._t('speech_lab_transcription_failed', 'Speech Lab transcription failed.'));
             }

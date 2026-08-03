@@ -82,5 +82,6 @@
   "desktop.sip_phone_unmute": "Rétablir le son",
   "desktop.sip_phone_tab_recents": "Récents",
   "desktop.sip_phone_backspace": "Supprimer",
-  "desktop.sip_phone_carrier": "AuraGo"
+  "desktop.sip_phone_carrier": "AuraGo",
+  "desktop.sip_phone_outbound_policy_migration_required_detail": "Remplacez les anciennes règles sortantes avec jokers par des destinations exactes dans les paramètres SIP."
 }

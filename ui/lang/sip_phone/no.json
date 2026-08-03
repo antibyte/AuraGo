@@ -82,5 +82,6 @@
   "desktop.sip_phone_unmute": "Opphev demping",
   "desktop.sip_phone_tab_recents": "Nylige",
   "desktop.sip_phone_backspace": "Slett",
-  "desktop.sip_phone_carrier": "AuraGo"
+  "desktop.sip_phone_carrier": "AuraGo",
+  "desktop.sip_phone_outbound_policy_migration_required_detail": "Erstatt eldre utgående jokerregler med eksakte mål i SIP-innstillingene."
 }

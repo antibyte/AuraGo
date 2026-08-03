@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime"
 	"mime/multipart"
 	"net"
 	"net/http"
@@ -166,12 +167,12 @@ func (c *Client) Ready(ctx context.Context) (Ready, error) {
 	if err != nil {
 		return Ready{}, fmt.Errorf("speech lab readiness: %w", err)
 	}
+	if status != http.StatusOK && status != http.StatusServiceUnavailable {
+		return Ready{}, fmt.Errorf("speech lab readiness returned HTTP %d", status)
+	}
 	var ready Ready
 	if err := json.Unmarshal(body, &ready); err != nil {
 		return Ready{}, fmt.Errorf("speech lab readiness response: %w", err)
-	}
-	if status != http.StatusOK && status != http.StatusServiceUnavailable {
-		return Ready{}, fmt.Errorf("speech lab readiness returned HTTP %d", status)
 	}
 	return ready, nil
 }
@@ -183,7 +184,8 @@ func (c *Client) Require(ctx context.Context, needASR, needTTS bool) (Ready, err
 	}
 	if (needASR && !ready.ASROK) || (needTTS && !ready.TTSOK) ||
 		(needASR && strings.TrimSpace(ready.ASRID) == "") ||
-		(needTTS && strings.TrimSpace(ready.TTSID) == "") {
+		(needTTS && strings.TrimSpace(ready.TTSID) == "") ||
+		(needTTS && strings.TrimSpace(ready.Voice) == "") {
 		return ready, &NotReadyError{NeedASR: needASR, NeedTTS: needTTS, Status: ready}
 	}
 	return ready, nil
@@ -355,21 +357,40 @@ func (c *Client) Synthesize(ctx context.Context, text, language, voice, expected
 	if status < 200 || status >= 300 {
 		return nil, "", "", fmt.Errorf("speech lab TTS returned HTTP %d", status)
 	}
-	if !strings.Contains(strings.ToLower(headers.Get("Content-Type")), "audio/wav") {
+	if !isWAVContentType(headers.Get("Content-Type")) {
 		return nil, "", "", fmt.Errorf("speech lab TTS returned an unsupported audio format")
 	}
 	if err := ValidateWAV(body); err != nil {
 		return nil, "", "", fmt.Errorf("speech lab TTS returned invalid WAV: %w", err)
 	}
 	ttsID := strings.TrimSpace(headers.Get("X-S2S-TTS-ID"))
+	if ttsID == "" {
+		return nil, "", "", fmt.Errorf("speech lab TTS response did not identify its backend")
+	}
 	if expected := strings.TrimSpace(expectedTTSID); expected != "" && ttsID != expected {
 		return nil, "", "", fmt.Errorf("speech lab TTS backend changed during operation")
 	}
 	effectiveVoice := strings.TrimSpace(headers.Get("X-S2S-Voice"))
+	if effectiveVoice == "" {
+		return nil, "", "", fmt.Errorf("speech lab TTS response did not identify its voice")
+	}
 	if expected := strings.TrimSpace(expectedVoice); expected != "" && effectiveVoice != expected {
 		return nil, "", "", fmt.Errorf("speech lab TTS voice changed during operation")
 	}
 	return body, ttsID, effectiveVoice, nil
+}
+
+func isWAVContentType(value string) bool {
+	mediaType, _, err := mime.ParseMediaType(strings.TrimSpace(value))
+	if err != nil {
+		return false
+	}
+	switch strings.ToLower(mediaType) {
+	case "audio/wav", "audio/x-wav", "audio/wave", "audio/vnd.wave":
+		return true
+	default:
+		return false
+	}
 }
 
 func (c *Client) getJSON(ctx context.Context, path, query string) (json.RawMessage, error) {

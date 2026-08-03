@@ -262,5 +262,7 @@
   "chat.speech_lab_no_audio": "Er is geen spraak opgenomen.",
   "chat.speech_lab_too_large": "De Speech Lab-opname is groter dan 8 MiB. Neem een korter bericht op.",
   "chat.speech_lab_transcription_failed": "De Speech Lab-transcriptie is mislukt.",
-  "chat.speech_lab_transcribe": "Transcriberen"
+  "chat.speech_lab_transcribe": "Transcriberen",
+  "chat.speech_lab_audio_warning": "Speech Lab-audio kon niet worden gegenereerd. Het tekstantwoord blijft beschikbaar.",
+  "chat.speech_lab_capture_unavailable": "Deze browser ondersteunt geen WAV-opname voor Speech Lab en ook geen spraakherkenning."
 }

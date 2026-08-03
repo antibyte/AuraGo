@@ -83,8 +83,8 @@ func TestSpeechLabRoutesProtectManagementButNotStatus(t *testing.T) {
 	if !strings.Contains(statusRec.Body.String(), `"voice":"Serena"`) {
 		t.Fatalf("status did not expose the active runtime voice: %s", statusRec.Body.String())
 	}
-	if !strings.Contains(statusRec.Body.String(), `"advanced_ui_url":"http://example.com:8766/"`) {
-		t.Fatalf("status did not derive the browser lab URL: %s", statusRec.Body.String())
+	if !strings.Contains(statusRec.Body.String(), `"warnings":["advanced_ui_url_missing"]`) || strings.Contains(statusRec.Body.String(), `"advanced_ui_url"`) {
+		t.Fatalf("status did not report the missing explicit browser lab URL: %s", statusRec.Body.String())
 	}
 
 	adminRec := httptest.NewRecorder()
@@ -104,10 +104,10 @@ func TestSpeechLabRoutesProtectManagementButNotStatus(t *testing.T) {
 	}
 }
 
-func TestSpeechLabBrowserURLUsesCurrentHostAndExpertOverride(t *testing.T) {
+func TestSpeechLabBrowserURLRequiresExplicitExpertOverride(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "http://192.168.1.42:8088/api/speech-lab/status", nil)
-	if got := speechLabBrowserURLForRequest("", req); got != "http://192.168.1.42:8766/" {
-		t.Fatalf("derived browser URL = %q", got)
+	if got := speechLabBrowserURLForRequest("", req); got != "" {
+		t.Fatalf("request host produced browser URL = %q", got)
 	}
 	if got := speechLabBrowserURLForRequest("https://speech.example.test:9443/", req); got != "https://speech.example.test:9443" {
 		t.Fatalf("expert override = %q", got)
@@ -129,7 +129,7 @@ func TestSpeechLabStackUsesFixedContractAndNeverSendsLLM(t *testing.T) {
 			upstreamStackBody = string(body)
 			_, _ = io.WriteString(w, `{"ok":true,"message":"activated"}`)
 		case "/ready":
-			_ = json.NewEncoder(w).Encode(speechlab.Ready{Ready: true, ASRID: "asr-a", TTSID: "tts-a", ASROK: true, TTSOK: true})
+			_ = json.NewEncoder(w).Encode(speechlab.Ready{Ready: true, ASRID: "asr-a", TTSID: "tts-a", ASROK: true, TTSOK: true, Voice: "M1"})
 		default:
 			http.NotFound(w, r)
 		}

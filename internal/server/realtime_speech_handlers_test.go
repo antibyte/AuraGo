@@ -256,6 +256,7 @@ func TestRealtimeSpeechActionBindsChatAndSuppressesTTS(t *testing.T) {
 		broker := feedbackBrokerForRequestContext(r.Context(), globalBroker, "chat-42", "", false)
 		broker.SendLLMStreamDelta("Das Licht ist eingeschaltet.", "", "", 0, "")
 		broker.Send("final_response", "Das Licht ist eingeschaltet.")
+		broker.Send("done", "irrelevant completion text")
 		_, _ = io.WriteString(w, "data: [DONE]\n\n")
 	})
 	body := `{"session_id":"` + session.ID + `","client_id":"browser","request_id":"request-1","request":"Schalte das Licht ein"}`
@@ -273,6 +274,10 @@ func TestRealtimeSpeechActionBindsChatAndSuppressesTTS(t *testing.T) {
 		!strings.Contains(responseBody, `"event":"final_response"`) ||
 		!strings.Contains(responseBody, "Das Licht ist eingeschaltet.") {
 		t.Fatalf("private action stream is incomplete: %s", responseBody)
+	}
+	if strings.Count(responseBody, `"event":"final_response"`) != 1 ||
+		strings.Contains(responseBody, "irrelevant completion text") {
+		t.Fatalf("action finalization contract was violated: %s", responseBody)
 	}
 	select {
 	case event := <-globalEvents:

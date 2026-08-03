@@ -262,5 +262,7 @@
   "chat.speech_lab_no_audio": "Nebyl zaznamenán žádný hlasový zvuk.",
   "chat.speech_lab_too_large": "Nahrávka Speech Lab překračuje 8 MiB. Nahrajte kratší zprávu.",
   "chat.speech_lab_transcription_failed": "Přepis v Speech Lab se nezdařil.",
-  "chat.speech_lab_transcribe": "Přepsat"
+  "chat.speech_lab_transcribe": "Přepsat",
+  "chat.speech_lab_audio_warning": "Zvuk Speech Lab se nepodařilo vygenerovat. Textová odpověď zůstává dostupná.",
+  "chat.speech_lab_capture_unavailable": "Tento prohlížeč nepodporuje nahrávání WAV pro Speech Lab ani rozpoznávání řeči."
 }

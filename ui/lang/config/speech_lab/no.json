@@ -58,5 +58,6 @@
   "config.speech_lab.deployment_confirm": "Bekreft Speech Lab-distribusjon? Verifiserte s2s-bilder lastes ned.",
   "config.speech_lab.deployment_stop": "Stopp Speech Lab",
   "config.speech_lab.deployment_remove": "Fjern Speech Lab",
-  "config.speech_lab.deployment_stop_confirm": "Stoppe eller fjerne den administrerte Speech Lab?"
+  "config.speech_lab.deployment_stop_confirm": "Stoppe eller fjerne den administrerte Speech Lab?",
+  "config.speech_lab.advanced_ui_url_missing": "Konfigurer en Speech Lab-URL som nettleseren kan nå for å åpne det avanserte grensesnittet."
 }

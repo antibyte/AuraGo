@@ -262,5 +262,7 @@
   "chat.speech_lab_no_audio": "No se grabó audio de voz.",
   "chat.speech_lab_too_large": "La grabación de Speech Lab supera 8 MiB. Graba un mensaje más corto.",
   "chat.speech_lab_transcription_failed": "Falló la transcripción de Speech Lab.",
-  "chat.speech_lab_transcribe": "Transcribir"
+  "chat.speech_lab_transcribe": "Transcribir",
+  "chat.speech_lab_audio_warning": "No se pudo generar el audio de Speech Lab. La respuesta de texto sigue disponible.",
+  "chat.speech_lab_capture_unavailable": "Este navegador no admite la grabación WAV para Speech Lab ni el reconocimiento de voz."
 }

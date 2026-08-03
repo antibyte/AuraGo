@@ -77,5 +77,8 @@
   "config.sip.wizard.verify_check_title": "AuraGo 将检查配置",
   "config.sip.wizard.verify_check_text": "配置会以原子方式保存，并立即测试注册。如有问题，您会停留在此步骤。",
   "config.sip.wizard.save_test": "保存并测试",
-  "config.sip.wizard.custom_value_invalid": "“{value}”不是单个号码或分机。"
+  "config.sip.wizard.custom_value_invalid": "“{value}”不是单个号码或分机。",
+  "config.sip.allowed_domains_help": "仅允许精确域名；通配符不会授予访问权限。",
+  "config.sip.allowed_users_help": "仅允许精确的 SIP 用户；号码范围请填写为 E.164 前缀。",
+  "config.sip.outbound_policy_migration_required": "通配符呼出规则不再授予访问权限。保存前请将其替换为精确目标。"
 }

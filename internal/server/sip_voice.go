@@ -64,6 +64,32 @@ func (s *sipSpeechSynthesizer) Synthesize(ctx context.Context, text, language st
 	if language == "auto" {
 		language = ""
 	}
+	chunks := splitTelephoneTTSChunks(text, 500)
+	if len(chunks) == 0 {
+		return nil, 0, fmt.Errorf("text is required")
+	}
+	const maxTelephoneSamples = 64 * 1024 * 1024
+	var output []int16
+	sampleRate := 0
+	for _, chunk := range chunks {
+		pcm, rate, err := s.synthesizeChunk(ctx, chunk, language)
+		if err != nil {
+			return nil, 0, err
+		}
+		if sampleRate == 0 {
+			sampleRate = rate
+		} else if rate != sampleRate {
+			return nil, 0, fmt.Errorf("telephone TTS sample rate changed between chunks")
+		}
+		if len(pcm) > maxTelephoneSamples-len(output) {
+			return nil, 0, fmt.Errorf("synthesized telephone audio exceeds 128 MiB")
+		}
+		output = append(output, pcm...)
+	}
+	return output, sampleRate, nil
+}
+
+func (s *sipSpeechSynthesizer) synthesizeChunk(ctx context.Context, text, language string) ([]int16, int, error) {
 	if s.speechLab != nil {
 		data, _, _, err := s.speechLab.Synthesize(ctx, text, language, s.voice, s.expectedTTSID, s.voice)
 		if err != nil {
@@ -87,6 +113,45 @@ func (s *sipSpeechSynthesizer) Synthesize(ctx context.Context, text, language st
 		return voice.DecodeWAVPCM16Source(data)
 	}
 	return decodeMP3MonoPCM16(data)
+}
+
+func splitTelephoneTTSChunks(text string, limit int) []string {
+	runes := []rune(strings.TrimSpace(text))
+	if limit <= 0 || len(runes) == 0 {
+		return nil
+	}
+	chunks := make([]string, 0, (len(runes)+limit-1)/limit)
+	for len(runes) > 0 {
+		if len(runes) <= limit {
+			chunks = append(chunks, strings.TrimSpace(string(runes)))
+			break
+		}
+		cut := 0
+		for index := 0; index < limit; index++ {
+			switch runes[index] {
+			case '.', '!', '?', ';', ':', '\n':
+				if index+1 == limit || index+1 < len(runes) && (runes[index+1] == ' ' || runes[index+1] == '\n' || runes[index+1] == '\t') {
+					cut = index + 1
+				}
+			}
+		}
+		if cut == 0 {
+			for index := limit - 1; index > 0; index-- {
+				if runes[index] == ' ' || runes[index] == '\n' || runes[index] == '\t' {
+					cut = index
+					break
+				}
+			}
+		}
+		if cut == 0 {
+			cut = limit
+		}
+		if chunk := strings.TrimSpace(string(runes[:cut])); chunk != "" {
+			chunks = append(chunks, chunk)
+		}
+		runes = []rune(strings.TrimSpace(string(runes[cut:])))
+	}
+	return chunks
 }
 
 func decodeMP3MonoPCM16(data []byte) ([]int16, int, error) {

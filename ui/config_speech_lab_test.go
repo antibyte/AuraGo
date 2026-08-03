@@ -48,9 +48,9 @@ func TestConfigSpeechLabSectionUsesNarrowNativeAPIs(t *testing.T) {
 		"provider.runtime_chat?.configured !== true",
 		"backend.default_voice",
 		"speechLabStatus?.voice",
-		"const SPEECH_LAB_BROWSER_PORT = '8766'",
 		"function speechLabBrowserURL(",
-		"new URL(window.location.href)",
+		"return String(configured || '').trim()",
+		"advanced_ui_url_missing",
 		"target=\"_blank\"",
 	} {
 		if !strings.Contains(module, wanted) {
@@ -123,16 +123,16 @@ func TestSpeechLabChatRecorderIsPCMWorkletOnly(t *testing.T) {
 	}
 
 	bootstrap := readSpeechLabUIFile(t, "js/chat/main/bootstrap.js")
-	if !strings.Contains(bootstrap, "const useBrowserSTT = !useSpeechLabSTT") {
-		t.Fatal("browser speech recognition is not disabled when Speech Lab input is selected")
+	if !strings.Contains(bootstrap, "const useBrowserSTT = !useSpeechLabSTT && window.SpeechToText") {
+		t.Fatal("browser speech recognition fallback is not selected explicitly")
 	}
-	if !strings.Contains(bootstrap, "pendingSpeechLabInput = true") {
-		t.Fatal("Speech Lab transcription does not mark the next chat turn")
+	if !strings.Contains(bootstrap, "pendingSpeechLabTurnToken = String(turnToken || '')") {
+		t.Fatal("Speech Lab transcription does not retain the single-use turn token")
 	}
 	network := readSpeechLabUIFile(t, "js/chat/main/network-submit.js")
-	if !strings.Contains(network, "pendingSpeechLabInput = false") ||
-		!strings.Contains(network, "X-AuraGo-Speech-Lab-Input") {
-		t.Fatal("Speech Lab chat marker is not consumed exactly once by the next request")
+	if !strings.Contains(network, "pendingSpeechLabTurnToken = ''") ||
+		!strings.Contains(network, "X-AuraGo-Speech-Lab-Turn-Token") {
+		t.Fatal("Speech Lab turn token is not consumed exactly once by the next request")
 	}
 	bundle := readSpeechLabUIFile(t, "js/chat/bundles/chat-runtime.bundle.js")
 	if !strings.Contains(bundle, "/* ui/js/chat/modules/speech-lab-recorder.js */") {

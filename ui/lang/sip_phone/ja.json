@@ -82,5 +82,6 @@
   "desktop.sip_phone_unmute": "ミュート解除",
   "desktop.sip_phone_tab_recents": "履歴",
   "desktop.sip_phone_backspace": "削除",
-  "desktop.sip_phone_carrier": "AuraGo"
+  "desktop.sip_phone_carrier": "AuraGo",
+  "desktop.sip_phone_outbound_policy_migration_required_detail": "SIP 設定で従来のワイルドカード発信ルールを正確な宛先に置き換えてください。"
 }

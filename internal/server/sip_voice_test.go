@@ -40,6 +40,24 @@ func TestSIPSpeechLabVoiceDriftFailsClosed(t *testing.T) {
 	}
 }
 
+func TestTelephoneTTSChunksPreserveCompleteResponse(t *testing.T) {
+	text := strings.Repeat("A long telephone sentence ends here. ", 45) + strings.Repeat("界", 520)
+	chunks := splitTelephoneTTSChunks(text, 500)
+	if len(chunks) < 2 {
+		t.Fatalf("chunks = %d, want multiple", len(chunks))
+	}
+	var rebuilt strings.Builder
+	for index, chunk := range chunks {
+		if got := len([]rune(chunk)); got == 0 || got > 500 {
+			t.Fatalf("chunk %d length = %d", index, got)
+		}
+		rebuilt.WriteString(strings.TrimSpace(chunk))
+	}
+	if strings.ReplaceAll(rebuilt.String(), " ", "") != strings.ReplaceAll(strings.TrimSpace(text), " ", "") {
+		t.Fatal("telephone chunking dropped response content")
+	}
+}
+
 func TestVoiceTurnCancellationGenerationKeepsNewestTurn(t *testing.T) {
 	runner := NewVoiceActionRunner(nil)
 	var firstCancelled atomic.Bool

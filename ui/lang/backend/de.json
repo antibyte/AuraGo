@@ -233,5 +233,6 @@
   "tools.dns_txt_lookup_failed": "TXT-Abfrage: {0}",
   "tools.dns_cname_lookup_failed": "CNAME-Lookup: {0}",
   "tools.dns_ptr_lookup_failed": "PTR-Lookup: {0}",
-  "tools.dns_partial_results": "Teilergebnisse"
+  "tools.dns_partial_results": "Teilergebnisse",
+  "backend.speech_lab_audio_warning": "Das Speech-Lab-Audio konnte nicht erzeugt werden. Die Textantwort bleibt verfügbar."
 }

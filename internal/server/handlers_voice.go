@@ -18,9 +18,10 @@ import (
 
 // VoiceUploadResponse represents the response from voice upload endpoint
 type VoiceUploadResponse struct {
-	Success       string `json:"success"`
-	Transcription string `json:"transcription"`
-	Duration      int    `json:"duration"`
+	Success            string `json:"success"`
+	Transcription      string `json:"transcription"`
+	Duration           int    `json:"duration"`
+	SpeechLabTurnToken string `json:"speech_lab_turn_token,omitempty"`
 }
 
 // handleVoiceUpload receives audio recordings and transcribes them
@@ -178,7 +179,7 @@ func handleSpeechLabVoiceUpload(s *Server, w http.ResponseWriter, r *http.Reques
 			_ = part.Close()
 			continue
 		}
-		if !strings.HasPrefix(strings.ToLower(part.Header.Get("Content-Type")), "audio/wav") {
+		if !isWAVMediaType(part.Header.Get("Content-Type")) {
 			_ = part.Close()
 			jsonError(w, "Speech Lab chat input requires WAV audio", http.StatusBadRequest)
 			return
@@ -213,7 +214,25 @@ func handleSpeechLabVoiceUpload(s *Server, w http.ResponseWriter, r *http.Reques
 	if s.Logger != nil {
 		s.Logger.Info("Speech Lab chat transcription succeeded", "transcription_length", len(result.Text), "asr_id", result.ASRID)
 	}
+	sessionID := strings.TrimSpace(r.Header.Get("X-Session-ID"))
+	if sessionID == "" {
+		sessionID = "default"
+	}
+	turnToken := s.speechLabTokens().Issue(sessionID, result.Text)
 	writeSpeechLabJSON(w, http.StatusOK, VoiceUploadResponse{
-		Success: "true", Transcription: result.Text, Duration: int(duration / time.Second),
+		Success: "true", Transcription: result.Text, Duration: int(duration / time.Second), SpeechLabTurnToken: turnToken,
 	})
+}
+
+func isWAVMediaType(value string) bool {
+	mediaType, _, err := mime.ParseMediaType(strings.TrimSpace(value))
+	if err != nil {
+		return false
+	}
+	switch strings.ToLower(mediaType) {
+	case "audio/wav", "audio/x-wav", "audio/wave", "audio/vnd.wave":
+		return true
+	default:
+		return false
+	}
 }

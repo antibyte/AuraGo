@@ -58,5 +58,6 @@
   "config.speech_lab.deployment_confirm": "Speech-Lab-Bereitstellung bestätigen? Verifizierte s2s-Images werden heruntergeladen.",
   "config.speech_lab.deployment_stop": "Speech Lab stoppen",
   "config.speech_lab.deployment_remove": "Speech Lab entfernen",
-  "config.speech_lab.deployment_stop_confirm": "Verwaltetes Speech Lab stoppen oder entfernen?"
+  "config.speech_lab.deployment_stop_confirm": "Verwaltetes Speech Lab stoppen oder entfernen?",
+  "config.speech_lab.advanced_ui_url_missing": "Konfiguriere eine vom Browser erreichbare Speech-Lab-URL, um die erweiterte Oberfläche zu öffnen."
 }

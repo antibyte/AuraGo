@@ -233,5 +233,6 @@
   "backend.budget_mode_warn_de": "(kun advarsel)",
   "backend.budget_mode_warn_en": "(kun advarsel)",
   "backend.budget_mode_partial_en": "(medagenter + vision/STT blokkert når overskredet)",
-  "backend.budget_mode_full_en": "(alle blokkert når overskredet)"
+  "backend.budget_mode_full_en": "(alle blokkert når overskredet)",
+  "backend.speech_lab_audio_warning": "Speech Lab-lyden kunne ikke genereres. Tekstsvaret er fortsatt tilgjengelig."
 }

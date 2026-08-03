@@ -58,5 +58,6 @@
   "config.speech_lab.deployment_confirm": "Confirmer le déploiement Speech Lab ? Les images s2s vérifiées seront téléchargées.",
   "config.speech_lab.deployment_stop": "Arrêter Speech Lab",
   "config.speech_lab.deployment_remove": "Supprimer Speech Lab",
-  "config.speech_lab.deployment_stop_confirm": "Arrêter ou supprimer le Speech Lab géré ?"
+  "config.speech_lab.deployment_stop_confirm": "Arrêter ou supprimer le Speech Lab géré ?",
+  "config.speech_lab.advanced_ui_url_missing": "Configurez une URL Speech Lab accessible au navigateur pour ouvrir l’interface avancée."
 }

@@ -88,12 +88,11 @@
         return '';
     }
 
-    function finalEventContent(payload) {
-        if (!payload || typeof payload !== 'object') return '';
-        if (payload.event === 'final_response') return String(payload.detail || payload.content || '');
-        if (payload.event === 'done' && typeof payload.detail === 'string') return payload.detail;
-        return '';
-    }
+	function finalEventContent(payload) {
+		if (!payload || typeof payload !== 'object') return '';
+		if (payload.event === 'final_response') return String(payload.detail || payload.content || '');
+		return '';
+	}
 
     class RealtimeSpeechRuntime extends EventTarget {
         constructor() {

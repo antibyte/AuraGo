@@ -35,7 +35,7 @@ type Manager struct {
 	mu              sync.Mutex
 	cfg             config.SIPConfig
 	logger          *slog.Logger
-	store           *Store
+	store           callStore
 	backendFactory  BackendFactory
 	issueReporter   IssueReporter
 	state           State
@@ -51,6 +51,7 @@ type Manager struct {
 	// speechLabStackChange serializes stack activation with SIP preflight and
 	// call admission. It is held by the server handler until activation ends.
 	speechLabStackChange bool
+	reconfiguring        bool
 	callConfigVersion    uint64
 	subscribers          map[uint64]chan Event
 	nextSubscriber       uint64
@@ -72,11 +73,20 @@ type activeCall struct {
 	media              *mediaPump
 	terminalReason     string
 	dialogEstablished  bool
+	dialogMu           sync.Mutex
 	finishOnce         sync.Once
 	dialogEndOnce      sync.Once
 	dialogEndErr       error
 	persistTranscripts bool
 	done               chan struct{}
+}
+
+type callStore interface {
+	Upsert(context.Context, CallRecord) error
+	List(context.Context, int) ([]CallRecord, error)
+	DeleteOlderThan(context.Context, time.Time) error
+	DeleteAll(context.Context) error
+	Close() error
 }
 
 func NewManager(cfg config.SIPConfig, dataDir string, backendFactory BackendFactory, reporter IssueReporter, logger *slog.Logger) (*Manager, error) {
@@ -269,6 +279,30 @@ func (m *Manager) Reconfigure(ctx context.Context, cfg config.SIPConfig) error {
 	return m.Start(parent)
 }
 
+// ReserveReconfigure guarantees that configuration persistence and runtime
+// replacement cannot race with call preparation or admission. The caller must
+// hold the reservation from before Vault/config writes until Reconfigure ends.
+func (m *Manager) ReserveReconfigure() (func(), error) {
+	if m == nil {
+		return nil, ErrBusy
+	}
+	m.mu.Lock()
+	if m.active != nil || m.preparingCall || m.speechLabStackChange || m.reconfiguring {
+		m.mu.Unlock()
+		return nil, ErrBusy
+	}
+	m.reconfiguring = true
+	m.mu.Unlock()
+	var once sync.Once
+	return func() {
+		once.Do(func() {
+			m.mu.Lock()
+			m.reconfiguring = false
+			m.mu.Unlock()
+		})
+	}, nil
+}
+
 // UpdateAgentConfig atomically replaces only future agent-call behavior. It
 // deliberately leaves registration, browser media, and an active call intact.
 func (m *Manager) UpdateAgentConfig(cfg config.SIPConfig) {
@@ -290,6 +324,21 @@ func (m *Manager) Config() config.SIPConfig {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return m.cfg
+}
+
+func (m *Manager) persistCall(record CallRecord, stage string) {
+	if m == nil || m.store == nil {
+		return
+	}
+	if err := m.store.Upsert(context.Background(), record); err != nil {
+		if m.logger != nil {
+			m.logger.Error("Failed to persist SIP call history", "call_id", record.ID, "stage", stage, "error_type", fmt.Sprintf("%T", err))
+		}
+		if m.issueReporter != nil {
+			reporter := m.issueReporter
+			go reporter(context.Background(), "sip_call_history_persist_failed", "SIP call history could not be persisted")
+		}
+	}
 }
 
 // ReserveSpeechLabStackChange atomically reserves the SIP pipeline for a
@@ -362,7 +411,7 @@ func (m *Manager) dial(ctx context.Context, target, mediaMode string, peer Media
 		m.mu.Unlock()
 		return CallRecord{}, ErrBrowserMediaDisabled
 	}
-	if m.speechLabStackChange {
+	if m.speechLabStackChange || m.reconfiguring {
 		m.mu.Unlock()
 		return CallRecord{}, fmt.Errorf("%w: %w", ErrSpeechLabStackChange, ErrBusy)
 	}
@@ -412,7 +461,7 @@ func (m *Manager) dial(ctx context.Context, target, mediaMode string, peer Media
 	}
 	m.state = StateConnecting
 	call.record.State = StateConnecting
-	_ = m.store.Upsert(context.Background(), call.record)
+	m.persistCall(call.record, "outbound_created")
 	m.emitLocked("call", &call.record, nil)
 	m.mu.Unlock()
 	go m.runOutbound(call, endpoint, uri, cfg)
@@ -641,7 +690,9 @@ func (m *Manager) registrationLoop(ctx context.Context, endpoint *diago.Diago, c
 func (m *Manager) registrationFailed(ctx context.Context, attempt int, err error) {
 	m.mu.Lock()
 	m.registered = false
-	m.state = StateFailed
+	if m.active == nil {
+		m.state = StateFailed
+	}
 	m.registrationErr = "registration_failed"
 	m.emitLocked("registration_error", nil, map[string]any{"attempt": attempt})
 	m.mu.Unlock()
@@ -670,7 +721,7 @@ func (m *Manager) handleIncoming(dialog *diago.DialogServerSession) {
 		_ = dialog.Respond(sip.StatusTemporarilyUnavailable, "Temporarily Unavailable", nil)
 		return
 	}
-	if m.speechLabStackChange {
+	if m.speechLabStackChange || m.reconfiguring {
 		m.mu.Unlock()
 		_ = dialog.Respond(sip.StatusTemporarilyUnavailable, "Temporarily Unavailable", nil)
 		return
@@ -719,15 +770,19 @@ func (m *Manager) handleIncoming(dialog *diago.DialogServerSession) {
 	call.dialog = dialog
 	call.record.State = StateRinging
 	m.state = StateRinging
-	_ = m.store.Upsert(context.Background(), call.record)
+	m.persistCall(call.record, "inbound_created")
 	m.emitLocked("call", &call.record, nil)
 	m.mu.Unlock()
 	if cfg.Inbound.Route == "reject" {
+		call.dialogMu.Lock()
 		_ = dialog.Respond(sip.StatusGlobalDecline, "Decline", nil)
+		call.dialogMu.Unlock()
 		m.finishCall(call, "rejected")
 		return
 	}
+	call.dialogMu.Lock()
 	_ = dialog.Ringing()
+	call.dialogMu.Unlock()
 	decision := "answer"
 	if cfg.Inbound.Route == "manual" {
 		select {
@@ -754,7 +809,9 @@ func (m *Manager) handleIncoming(dialog *diago.DialogServerSession) {
 		}
 	}
 	if decision == "reject" {
+		call.dialogMu.Lock()
 		_ = dialog.Respond(sip.StatusGlobalDecline, "Decline", nil)
+		call.dialogMu.Unlock()
 		m.finishCall(call, "rejected")
 		return
 	}
@@ -762,7 +819,10 @@ func (m *Manager) handleIncoming(dialog *diago.DialogServerSession) {
 	if cfg.Media.SymmetricRTP {
 		rtpNAT = media.RTPNATSymetric
 	}
-	if err := dialog.AnswerOptions(diago.AnswerOptions{Codecs: configuredCodecs(cfg.Media.Codecs), RTPNAT: rtpNAT}); err != nil {
+	call.dialogMu.Lock()
+	err := dialog.AnswerOptions(diago.AnswerOptions{Codecs: configuredCodecs(cfg.Media.Codecs), RTPNAT: rtpNAT})
+	call.dialogMu.Unlock()
+	if err != nil {
 		m.finishCall(call, "answer_failed")
 		return
 	}
@@ -776,6 +836,7 @@ func (m *Manager) runOutbound(call *activeCall, endpoint *diago.Diago, uri sip.U
 	if uri.UriParams == nil {
 		uri.UriParams = sip.NewParams()
 	}
+	uri.UriParams.Remove("transport")
 	uri.UriParams.Add("transport", cfg.Transport)
 	dialog, err := endpoint.NewDialog(uri, diago.NewDialogOptions{Transport: cfg.Transport})
 	if err != nil {
@@ -897,14 +958,6 @@ func (m *Manager) runEstablished(call *activeCall, cfg config.SIPConfig) {
 		m.finishCall(call, m.callCancellationReason(call))
 		return
 	}
-	now := time.Now().UTC()
-	m.mu.Lock()
-	call.record.AnsweredAt = &now
-	call.record.State = StateActive
-	m.state = StateActive
-	_ = m.store.Upsert(context.Background(), call.record)
-	m.emitLocked("call", &call.record, nil)
-	m.mu.Unlock()
 	pump := &mediaPump{
 		dialog:   call.dialog,
 		bridge:   call.bridge,
@@ -915,13 +968,19 @@ func (m *Manager) runEstablished(call *activeCall, cfg config.SIPConfig) {
 	}
 	pump.onDTMF = func(digit rune) { m.emitCallData(call, "dtmf", map[string]any{"digit": string(digit)}) }
 	pump.onError = func(error) { m.cancelCallWithReason(call, "media_error") }
-	m.mu.Lock()
-	call.media = pump
-	m.mu.Unlock()
 	if err := pump.start(call.ctx); err != nil {
 		m.finishCall(call, "media_error")
 		return
 	}
+	now := time.Now().UTC()
+	m.mu.Lock()
+	call.media = pump
+	call.record.AnsweredAt = &now
+	call.record.State = StateActive
+	m.state = StateActive
+	m.persistCall(call.record, "answered")
+	m.emitLocked("call", &call.record, nil)
+	m.mu.Unlock()
 	switch call.mediaMode {
 	case MediaModeBrowser:
 		if call.mediaPeer == nil {
@@ -1037,7 +1096,7 @@ func (m *Manager) updateCallState(call *activeCall, state State) {
 	}
 	call.record.State = state
 	m.state = state
-	_ = m.store.Upsert(context.Background(), call.record)
+	m.persistCall(call.record, "state_changed")
 	m.emitLocked("call", &call.record, nil)
 }
 
@@ -1079,7 +1138,7 @@ func (m *Manager) finishCall(call *activeCall, reason string) {
 		call.record.EndedAt = &now
 		call.record.State = StateEnded
 		call.record.EndReason = reason
-		_ = m.store.Upsert(context.Background(), call.record)
+		m.persistCall(call.record, "finished")
 		m.emitLocked("call", &call.record, map[string]any{"persist_transcripts": call.persistTranscripts})
 		if m.active == call {
 			m.active = nil
@@ -1115,6 +1174,8 @@ func (m *Manager) endCallDialog(call *activeCall, sendHangup bool) error {
 		return nil
 	}
 	call.dialogEndOnce.Do(func() {
+		call.dialogMu.Lock()
+		defer call.dialogMu.Unlock()
 		var hangupErr error
 		if sendHangup {
 			hangupErr = hangupDialog(dialog, 3*time.Second)
@@ -1242,6 +1303,7 @@ func registrarURI(cfg config.SIPConfig) (sip.Uri, error) {
 	if uri.UriParams == nil {
 		uri.UriParams = sip.NewParams()
 	}
+	uri.UriParams.Remove("transport")
 	uri.UriParams.Add("transport", cfg.Transport)
 	return uri, nil
 }

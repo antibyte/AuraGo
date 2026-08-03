@@ -262,5 +262,7 @@
   "chat.speech_lab_no_audio": "未录制到语音。",
   "chat.speech_lab_too_large": "Speech Lab 录音超过 8 MiB。请录制更短的消息。",
   "chat.speech_lab_transcription_failed": "Speech Lab 转写失败。",
-  "chat.speech_lab_transcribe": "转写"
+  "chat.speech_lab_transcribe": "转写",
+  "chat.speech_lab_audio_warning": "无法生成 Speech Lab 音频。文本回复仍然可用。",
+  "chat.speech_lab_capture_unavailable": "此浏览器既不支持 Speech Lab 的 WAV 录音，也不支持语音识别。"
 }

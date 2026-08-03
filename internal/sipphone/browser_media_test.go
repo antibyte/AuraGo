@@ -138,6 +138,15 @@ func TestBrowserMediaPCMUAudioLoopback(t *testing.T) {
 	}
 }
 
+func TestBrowserMediaPeerAttachRejectsClosedPeer(t *testing.T) {
+	peer := &browserMediaPeer{closed: true}
+	bridge := voice.NewBridge(1)
+	defer bridge.Close()
+	if err := peer.Attach(context.Background(), "call-1", bridge); !errors.Is(err, ErrBusy) {
+		t.Fatalf("Attach closed peer = %v", err)
+	}
+}
+
 func TestBrowserMediaUsesDirectSIPReader(t *testing.T) {
 	browser := &mediaPump{jitterMS: 60, directRead: true}
 	if browser.jitterBufferEnabled() {

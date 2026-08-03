@@ -58,5 +58,6 @@
   "config.speech_lab.deployment_confirm": "Speech Lab のデプロイを確認しますか？検証済み s2s イメージをダウンロードします。",
   "config.speech_lab.deployment_stop": "Speech Lab を停止",
   "config.speech_lab.deployment_remove": "Speech Lab を削除",
-  "config.speech_lab.deployment_stop_confirm": "管理対象の Speech Lab を停止または削除しますか？"
+  "config.speech_lab.deployment_stop_confirm": "管理対象の Speech Lab を停止または削除しますか？",
+  "config.speech_lab.advanced_ui_url_missing": "詳細画面を開くには、ブラウザーから到達可能な Speech Lab URL を設定してください。"
 }

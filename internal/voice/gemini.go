@@ -59,7 +59,12 @@ func (b *GeminiLiveBackend) Start(ctx context.Context, call CallContext, audio D
 		events: make(chan VoiceEvent, 64), activitySignal: make(chan struct{}, 1),
 		turnCompleteSignal: make(chan struct{}, 1),
 	}
-	session.outputResampler, _ = NewResampler(24000, 8000)
+	var err error
+	session.outputResampler, err = NewResampler(24000, 8000)
+	if err != nil {
+		cancel()
+		return nil, fmt.Errorf("initialize Gemini output resampler: %w", err)
+	}
 	conn, err := session.connect("")
 	if err != nil {
 		cancel()
@@ -165,7 +170,11 @@ func (s *geminiLiveSession) connect(resumeHandle string) (*websocket.Conn, error
 func (s *geminiLiveSession) inputLoop() {
 	defer s.wg.Done()
 	detector := NewActivityDetector(20, 100, 500, 100)
-	resampler, _ := NewResampler(8000, 16000)
+	resampler, err := NewResampler(8000, 16000)
+	if err != nil {
+		s.fail("initialize Gemini input resampler", true)
+		return
+	}
 	for {
 		select {
 		case <-s.ctx.Done():

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"log/slog"
@@ -62,7 +63,7 @@ func TestMaybeEmitChatVoiceOutputFallbackEmitsAudio(t *testing.T) {
 	runCfg := agent.RunConfig{VoiceOutputActive: true, MessageSource: "web_chat"}
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 
-	maybeEmitChatVoiceOutputFallback(cfg, logger, runCfg, broker, "**Hallo** <done/>")
+	maybeEmitChatVoiceOutputFallback(context.Background(), cfg, logger, runCfg, broker, "**Hallo** <done/>")
 
 	if gotText != "Hallo" {
 		t.Fatalf("fallback synthesized text = %q", gotText)
@@ -107,7 +108,7 @@ func TestMaybeEmitChatVoiceOutputFallbackSkipsWhenModelAlreadyEmittedTTS(t *test
 	cfg.TTS.Supertonic.URL = "http://127.0.0.1:7788"
 	runCfg := agent.RunConfig{VoiceOutputActive: true, MessageSource: "web_chat"}
 
-	maybeEmitChatVoiceOutputFallback(cfg, nil, runCfg, broker, "Hallo")
+	maybeEmitChatVoiceOutputFallback(context.Background(), cfg, nil, runCfg, broker, "Hallo")
 
 	if len(base.events) != 1 {
 		t.Fatalf("expected only the original audio event, got %+v", base.events)
@@ -142,7 +143,7 @@ func TestChatVoiceOutputSpeechLabPreflightsAndSnapshotsTTS(t *testing.T) {
 	}
 	base := &chatVoiceOutputCaptureBroker{}
 	broker := newChatVoiceOutputTrackingBroker(base)
-	maybeEmitChatVoiceOutputFallback(cfg, nil, agent.RunConfig{VoiceOutputActive: true, MessageSource: "web_chat"}, broker, "Hallo", client)
+	maybeEmitChatVoiceOutputFallback(context.Background(), cfg, nil, agent.RunConfig{VoiceOutputActive: true, MessageSource: "web_chat"}, broker, "Hallo", client)
 
 	if gotCfg.Provider != "speech_lab" || gotCfg.SpeechLab.Client != client || gotCfg.SpeechLab.ExpectedTTSID != "tts-local" {
 		t.Fatalf("Speech Lab TTS snapshot = provider %q id %q client=%v", gotCfg.Provider, gotCfg.SpeechLab.ExpectedTTSID, gotCfg.SpeechLab.Client == client)
@@ -178,7 +179,7 @@ func TestChatVoiceOutputSpeechLabFailureKeepsTextAndEmitsStructuredError(t *test
 	}
 	base := &chatVoiceOutputCaptureBroker{}
 	broker := newChatVoiceOutputTrackingBroker(base)
-	maybeEmitChatVoiceOutputFallback(cfg, nil, agent.RunConfig{VoiceOutputActive: true, MessageSource: "web_chat"}, broker, "Die Textantwort bleibt sichtbar.", client)
+	maybeEmitChatVoiceOutputFallback(context.Background(), cfg, nil, agent.RunConfig{VoiceOutputActive: true, MessageSource: "web_chat"}, broker, "Die Textantwort bleibt sichtbar.", client)
 
 	if len(base.events) != 1 || base.events[0].event != "speech_lab_error" {
 		t.Fatalf("events = %+v", base.events)
@@ -206,12 +207,26 @@ func TestChatVoiceOutputDoesNotUseSpeechLabWithoutChannelOptIn(t *testing.T) {
 	}
 	base := &chatVoiceOutputCaptureBroker{}
 	maybeEmitChatVoiceOutputFallback(
-		cfg, nil, agent.RunConfig{VoiceOutputActive: true, MessageSource: "web_chat"},
+		context.Background(), cfg, nil, agent.RunConfig{VoiceOutputActive: true, MessageSource: "web_chat"},
 		newChatVoiceOutputTrackingBroker(base), "Hallo",
 	)
 	if len(base.events) != 0 {
 		t.Fatalf("unexpected chat voice events: %+v", base.events)
 	}
+}
+
+func TestChatVoiceOutputSuppressionReachesEndOfTurnFallback(t *testing.T) {
+	original := chatVoiceOutputSynthesize
+	t.Cleanup(func() { chatVoiceOutputSynthesize = original })
+	chatVoiceOutputSynthesize = func(tools.TTSConfig, string) (string, error) {
+		t.Fatal("suppressed realtime action reached chat TTS fallback")
+		return "", nil
+	}
+	cfg := &config.Config{}
+	cfg.TTS.Provider = "google"
+	broker := newChatVoiceOutputTrackingBroker(&chatVoiceOutputCaptureBroker{})
+	ctx := agent.WithVoiceOutputSuppressed(context.Background())
+	maybeEmitChatVoiceOutputFallback(ctx, cfg, nil, agent.RunConfig{VoiceOutputActive: true, MessageSource: "web_chat"}, broker, "Hallo")
 }
 
 func TestChatVoiceOutputTextSummarizesLongStructuredStatus(t *testing.T) {

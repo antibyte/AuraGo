@@ -233,5 +233,6 @@
   "backend.budget_mode_full_en": "(alla blockerade när de överskrids)",
   "backend.budget_mode_warn_de": "(endast varning)",
   "backend.budget_mode_partial_de": "(Co-Agents + Vision/STT blockeras vid överskridande)",
-  "backend.budget_mode_full_de": "(allas gesperrt bei Überschreitung)"
+  "backend.budget_mode_full_de": "(allas gesperrt bei Überschreitung)",
+  "backend.speech_lab_audio_warning": "Speech Lab-ljudet kunde inte skapas. Textsvaret är fortfarande tillgängligt."
 }

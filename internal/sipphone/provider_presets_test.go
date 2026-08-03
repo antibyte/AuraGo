@@ -191,8 +191,7 @@ func TestApplySetupActivationBuildsStrictOutboundPolicies(t *testing.T) {
 		users    []string
 		prefixes []string
 	}{
-		{name: "all account domain", scope: SetupScopeAll, users: []string{"*"}},
-		{name: "German domestic", scope: SetupScopeDomestic, users: []string{"0*"}, prefixes: []string{"+49"}},
+		{name: "German domestic", scope: SetupScopeDomestic, prefixes: []string{"+49"}},
 		{name: "individual values", scope: SetupScopeCustom, values: []string{"101", "+491701234567"}, users: []string{"101"}, prefixes: []string{"+491701234567"}},
 	}
 	for _, test := range tests {
@@ -222,6 +221,16 @@ func TestApplySetupActivationBuildsStrictOutboundPolicies(t *testing.T) {
 	}
 }
 
+func TestApplySetupActivationRejectsUnrestrictedOutbound(t *testing.T) {
+	cfg, err := ApplySIPProviderPreset("fritzbox", map[string]string{"server": "192.0.2.10", "username": "desk"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := ApplySetupActivation(context.Background(), &cfg, "fritzbox", SetupActivation{OutboundScope: SetupScopeAll}); err == nil {
+		t.Fatal("unrestricted outbound setup was accepted")
+	}
+}
+
 func TestApplySetupActivationRejectsWildcardsInGuidedCustomValues(t *testing.T) {
 	cfg, err := ApplySIPProviderPreset("fritzbox", map[string]string{"server": "192.0.2.10", "username": "desk"})
 	if err != nil {
@@ -241,7 +250,7 @@ func TestApplySetupActivationDetectsExactInboundPeer(t *testing.T) {
 		t.Fatal(err)
 	}
 	err = ApplySetupActivation(context.Background(), &cfg, "fritzbox", SetupActivation{
-		OutboundScope: SetupScopeAll, InboundScope: SetupScopeAll,
+		OutboundScope: SetupScopeCustom, OutboundValues: []string{"101"}, InboundScope: SetupScopeAll,
 	})
 	if err != nil {
 		t.Fatal(err)

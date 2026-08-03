@@ -1,6 +1,7 @@
 package realtimespeech
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
@@ -36,6 +37,7 @@ type actionLease struct {
 	sessionID     string
 	chatSessionID string
 	startedAt     time.Time
+	cancel        context.CancelFunc
 }
 
 type clientRate struct {
@@ -204,6 +206,9 @@ func (r *Registry) Release(id, clientID string) bool {
 	}
 	for requestID, action := range r.actions {
 		if action.sessionID == id {
+			if action.cancel != nil {
+				action.cancel()
+			}
 			delete(r.actions, requestID)
 		}
 	}
@@ -212,7 +217,7 @@ func (r *Registry) Release(id, clientID string) bool {
 
 // BeginAction links a voice request ID to the authoritative AuraGo chat
 // session used by agent.InterruptSession.
-func (r *Registry) BeginAction(requestID, sessionID, clientID, chatSessionID string) error {
+func (r *Registry) BeginAction(requestID, sessionID, clientID, chatSessionID string, cancels ...context.CancelFunc) error {
 	if strings.TrimSpace(requestID) == "" || len(requestID) > 128 {
 		return fmt.Errorf("valid request_id is required")
 	}
@@ -224,7 +229,11 @@ func (r *Registry) BeginAction(requestID, sessionID, clientID, chatSessionID str
 	if _, exists := r.actions[requestID]; exists {
 		return fmt.Errorf("request_id is already active")
 	}
-	r.actions[requestID] = actionLease{sessionID: sessionID, chatSessionID: chatSessionID, startedAt: r.now()}
+	var cancel context.CancelFunc
+	if len(cancels) > 0 {
+		cancel = cancels[0]
+	}
+	r.actions[requestID] = actionLease{sessionID: sessionID, chatSessionID: chatSessionID, startedAt: r.now(), cancel: cancel}
 	if session, ok := r.sessions[sessionID]; ok {
 		session.State = "executing"
 		session.LastActiveAt = r.now()
@@ -247,6 +256,28 @@ func (r *Registry) EndAction(requestID string) {
 		session.LastActiveAt = r.now()
 		r.sessions[action.sessionID] = session
 	}
+}
+
+// CancelAction cancels only the request-scoped action owned by clientID. It
+// never interrupts another turn that happens to share the chat session.
+func (r *Registry) CancelAction(requestID, clientID string) bool {
+	r.mu.Lock()
+	action, ok := r.actions[requestID]
+	if !ok {
+		r.mu.Unlock()
+		return false
+	}
+	session, ok := r.sessions[action.sessionID]
+	if !ok || session.ClientID != clientID {
+		r.mu.Unlock()
+		return false
+	}
+	cancel := action.cancel
+	r.mu.Unlock()
+	if cancel != nil {
+		cancel()
+	}
+	return true
 }
 
 // ActionSession resolves a cancellable action.
@@ -385,6 +416,9 @@ func (r *Registry) pruneLocked(now time.Time) {
 	}
 	for requestID, action := range r.actions {
 		if now.Sub(action.startedAt) > sessionLeaseTTL {
+			if action.cancel != nil {
+				action.cancel()
+			}
 			delete(r.actions, requestID)
 		}
 	}

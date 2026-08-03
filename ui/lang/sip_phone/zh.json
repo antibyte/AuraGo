@@ -82,5 +82,6 @@
   "desktop.sip_phone_unmute": "取消静音",
   "desktop.sip_phone_tab_recents": "最近通话",
   "desktop.sip_phone_backspace": "删除",
-  "desktop.sip_phone_carrier": "AuraGo"
+  "desktop.sip_phone_carrier": "AuraGo",
+  "desktop.sip_phone_outbound_policy_migration_required_detail": "请在 SIP 设置中将旧的通配符呼出规则替换为精确目标。"
 }

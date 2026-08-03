@@ -1,15 +1,19 @@
 package server
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"aurago/internal/config"
 	"aurago/internal/security"
@@ -211,7 +215,7 @@ func TestSIPSetupActivationMakesOutboundBrowserPhoneReady(t *testing.T) {
 		t.Fatal(err)
 	}
 	server := &Server{Cfg: loaded, Vault: vault}
-	body := `{"provider_id":"fritzbox","values":{"server":"192.0.2.10","username":"aurago-phone","display_name":"AuraGo"},"password":"setup-secret","activation":{"outbound_scope":"all","inbound_scope":"disabled"}}`
+	body := `{"provider_id":"fritzbox","values":{"server":"192.0.2.10","username":"aurago-phone","display_name":"AuraGo"},"password":"setup-secret","activation":{"outbound_scope":"custom","outbound_values":["101"],"inbound_scope":"disabled"}}`
 	request := httptest.NewRequest(http.MethodPost, "https://aurago.local/api/sip/setup", strings.NewReader(body))
 	request.Header.Set("Origin", "https://aurago.local")
 	recorder := httptest.NewRecorder()
@@ -227,7 +231,7 @@ func TestSIPSetupActivationMakesOutboundBrowserPhoneReady(t *testing.T) {
 		t.Fatalf("incoming calls were unexpectedly enabled: %+v", snapshot.Inbound)
 	}
 	if strings.Join(snapshot.Outbound.AllowedDomains, ",") != "192.0.2.10" ||
-		strings.Join(snapshot.Outbound.AllowedUsers, ",") != "*" {
+		strings.Join(snapshot.Outbound.AllowedUsers, ",") != "101" {
 		t.Fatalf("unexpected strict outbound policy: %+v", snapshot.Outbound)
 	}
 }
@@ -272,6 +276,37 @@ func TestDeleteSIPConfigRemovesProfileAndVaultPassword(t *testing.T) {
 	}
 	if secret, err := vault.ReadSecret(config.SIPPasswordVaultKey); err == nil || secret != "" {
 		t.Fatalf("SIP Vault password still exists: value=%q err=%v", secret, err)
+	}
+}
+
+func TestSIPConfigSaveReturnsConflictBeforePersistenceWhileReserved(t *testing.T) {
+	var sipCfg config.SIPConfig
+	config.ApplySIPDefaults(&sipCfg)
+	sipCfg.Enabled = false
+	manager, err := sipphone.NewManager(sipCfg, t.TempDir(), nil, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = manager.Close() })
+	release, err := manager.ReserveReconfigure()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer release()
+	server := &Server{Cfg: &config.Config{SIP: sipCfg}, SIPPhone: manager}
+	payload, err := json.Marshal(sipConfigPayload{SIPConfig: sipCfg})
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := httptest.NewRequest(http.MethodPut, "https://aurago.local/api/sip/config", bytes.NewReader(payload))
+	request.Header.Set("Origin", "https://aurago.local")
+	recorder := httptest.NewRecorder()
+	handleSIPConfig(server).ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusConflict || !strings.Contains(recorder.Body.String(), "sip_busy") {
+		t.Fatalf("status=%d body=%s", recorder.Code, recorder.Body.String())
+	}
+	if server.Cfg.SIP.Enabled != sipCfg.Enabled || server.Cfg.SIP.Registrar != sipCfg.Registrar {
+		t.Fatal("SIP configuration changed despite reservation conflict")
 	}
 }
 
@@ -372,6 +407,79 @@ func TestSIPAppStateReportsDisabledOutboundCalling(t *testing.T) {
 	}
 	if payload.Capabilities["dial"] {
 		t.Fatal("dial capability must remain disabled without explicit outbound permission")
+	}
+}
+
+func TestSIPAppStateReportsOutboundPolicyMigration(t *testing.T) {
+	var sipCfg config.SIPConfig
+	config.ApplySIPDefaults(&sipCfg)
+	sipCfg.Enabled = true
+	sipCfg.ReadOnly = false
+	sipCfg.Registrar = "pbx.example"
+	sipCfg.Domain = "pbx.example"
+	sipCfg.Username = "desk"
+	sipCfg.Permissions.OriginateOutbound = true
+	sipCfg.Outbound.AllowedDomains = []string{"pbx.example"}
+	sipCfg.Outbound.AllowedUsers = []string{"*"}
+	manager, err := sipphone.NewManager(sipCfg, t.TempDir(), nil, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = manager.Close() })
+	recorder := httptest.NewRecorder()
+	handleSIPAppState(&Server{SIPPhone: manager}).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/sip/app/state", nil))
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", recorder.Code, recorder.Body.String())
+	}
+	var payload struct {
+		Blockers []string `json:"blockers"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &payload); err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Contains(payload.Blockers, "outbound_policy_migration_required") {
+		t.Fatalf("missing migration blocker: %+v", payload.Blockers)
+	}
+}
+
+func TestSIPRequestLimiterExpiresAndBoundsEntries(t *testing.T) {
+	limiter := &sipRequestLimiter{windows: make(map[string]*sipRequestWindow)}
+	for index := 0; index < 4200; index++ {
+		request := httptest.NewRequest(http.MethodPost, "/api/sip/answer", nil)
+		request.RemoteAddr = fmt.Sprintf("192.0.2.%d:1234", index)
+		if !limiter.allow(request, 1, time.Minute) {
+			t.Fatalf("first request %d was rejected", index)
+		}
+	}
+	if len(limiter.windows) > 4096 {
+		t.Fatalf("limiter entries = %d", len(limiter.windows))
+	}
+	for _, entry := range limiter.windows {
+		entry.started = time.Now().Add(-2 * time.Minute)
+	}
+	request := httptest.NewRequest(http.MethodPost, "/api/sip/answer", nil)
+	request.RemoteAddr = "198.51.100.1:1234"
+	if !limiter.allow(request, 1, time.Minute) || len(limiter.windows) != 1 {
+		t.Fatalf("expired limiter entries were not pruned: %d", len(limiter.windows))
+	}
+}
+
+func TestSIPAnswerAcceptsEmptyChunkedBody(t *testing.T) {
+	var sipCfg config.SIPConfig
+	config.ApplySIPDefaults(&sipCfg)
+	manager, err := sipphone.NewManager(sipCfg, t.TempDir(), nil, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = manager.Close() })
+	request := httptest.NewRequest(http.MethodPost, "https://aurago.local/api/sip/calls/missing/answer", nil)
+	request.Header.Set("Origin", "https://aurago.local")
+	request.Body = io.NopCloser(strings.NewReader(""))
+	request.ContentLength = -1
+	recorder := httptest.NewRecorder()
+	handleSIPCallAction(&Server{SIPPhone: manager}).ServeHTTP(recorder, request)
+	if recorder.Code == http.StatusBadRequest && strings.Contains(recorder.Body.String(), "Invalid JSON") {
+		t.Fatalf("empty chunked answer body was rejected: %s", recorder.Body.String())
 	}
 }
 

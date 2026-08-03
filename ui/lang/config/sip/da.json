@@ -77,5 +77,8 @@
   "config.sip.wizard.verify_check_title": "AuraGo kontrollerer opsætningen",
   "config.sip.wizard.verify_check_text": "Profilen gemmes atomisk, og registreringen testes straks. Ved problemer bliver du i dette trin.",
   "config.sip.wizard.save_test": "Gem og test",
-  "config.sip.wizard.custom_value_invalid": "“{value}” er ikke et enkelt nummer eller lokalnummer."
+  "config.sip.wizard.custom_value_invalid": "“{value}” er ikke et enkelt nummer eller lokalnummer.",
+  "config.sip.allowed_domains_help": "Kun præcise domæner er tilladt; jokertegn giver ikke adgang.",
+  "config.sip.allowed_users_help": "Kun præcise SIP-brugere er tilladt; angiv nummerområder som E.164-præfikser.",
+  "config.sip.outbound_policy_migration_required": "Udgående jokerregler giver ikke længere adgang. Erstat dem med præcise destinationer før lagring."
 }

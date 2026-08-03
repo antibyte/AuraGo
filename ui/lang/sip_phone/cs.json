@@ -82,5 +82,6 @@
   "desktop.sip_phone_unmute": "Zapnout zvuk",
   "desktop.sip_phone_tab_recents": "Nedávné",
   "desktop.sip_phone_backspace": "Smazat",
-  "desktop.sip_phone_carrier": "AuraGo"
+  "desktop.sip_phone_carrier": "AuraGo",
+  "desktop.sip_phone_outbound_policy_migration_required_detail": "Nahraďte starší odchozí pravidla se zástupnými znaky přesnými cíli v nastavení SIP."
 }

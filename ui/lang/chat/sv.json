@@ -262,5 +262,7 @@
   "chat.speech_lab_no_audio": "Inget tal spelades in.",
   "chat.speech_lab_too_large": "Speech Lab-inspelningen överstiger 8 MiB. Spela in ett kortare meddelande.",
   "chat.speech_lab_transcription_failed": "Speech Lab-transkriberingen misslyckades.",
-  "chat.speech_lab_transcribe": "Transkribera"
+  "chat.speech_lab_transcribe": "Transkribera",
+  "chat.speech_lab_audio_warning": "Speech Lab-ljudet kunde inte skapas. Textsvaret är fortfarande tillgängligt.",
+  "chat.speech_lab_capture_unavailable": "Den här webbläsaren stöder varken WAV-inspelning för Speech Lab eller taligenkänning."
 }

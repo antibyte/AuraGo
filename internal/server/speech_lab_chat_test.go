@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -31,7 +32,7 @@ func TestSpeechLabChatHandlerReturnsStructuredUnavailableError(t *testing.T) {
 	s := &Server{Cfg: cfg, Logger: slog.Default()}
 	body := bytes.NewBufferString(`{"model":"aurago","messages":[{"role":"user","content":"Hallo"}]}`)
 	req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", body)
-	req.Header.Set(speechLabChatInputHeader, "1")
+	req.Header.Set(speechLabChatTurnTokenHeader, s.speechLabTokens().Issue("default", "Hallo"))
 	rec := httptest.NewRecorder()
 	handleChatCompletions(s, nil).ServeHTTP(rec, req)
 	if rec.Code != http.StatusServiceUnavailable {
@@ -151,5 +152,47 @@ func TestSpeechLabChatTurnRuntimeFailsClosed(t *testing.T) {
 	cfg.SpeechLab.ChatLLMProviderID = "missing"
 	if _, _, err := speechLabChatTurnRuntime(true, false, "", cfg, llm.NewClient(&config.Config{}), nil); !errors.Is(err, errSpeechLabChatLLMUnavailable) {
 		t.Fatalf("missing provider did not fail closed: %v", err)
+	}
+}
+
+func TestSpeechLabTurnTokenIsBoundToSessionTranscriptAndSingleUse(t *testing.T) {
+	now := time.Date(2026, 8, 3, 12, 0, 0, 0, time.UTC)
+	registry := newSpeechLabTurnTokenRegistry(func() time.Time { return now })
+	token := registry.Issue("session-a", "Hallo Welt")
+	if token == "" {
+		t.Fatal("Issue() returned an empty token")
+	}
+	if registry.Consume(token, "session-b", "Hallo Welt") {
+		t.Fatal("token accepted for another session")
+	}
+	if registry.Consume(token, "session-a", "Hallo Welt") {
+		t.Fatal("mismatched attempt did not consume the one-time token")
+	}
+	token = registry.Issue("session-a", "Hallo Welt")
+	if !registry.Consume(token, "session-a", "Hallo Welt") {
+		t.Fatal("matching token was rejected")
+	}
+	if registry.Consume(token, "session-a", "Hallo Welt") {
+		t.Fatal("token was reusable")
+	}
+	token = registry.Issue("session-a", "Hallo Welt")
+	now = now.Add(5 * time.Minute)
+	if registry.Consume(token, "session-a", "Hallo Welt") {
+		t.Fatal("expired token was accepted")
+	}
+}
+
+func TestSpeechLabTurnTokenRegistryIsGloballyBounded(t *testing.T) {
+	registry := newSpeechLabTurnTokenRegistry(nil)
+	for index := 0; index < speechLabTurnTokenMax+20; index++ {
+		if token := registry.Issue("default", fmt.Sprintf("transcript-%d", index)); token == "" {
+			t.Fatalf("Issue(%d) returned an empty token", index)
+		}
+	}
+	registry.mu.Lock()
+	count := len(registry.tokens)
+	registry.mu.Unlock()
+	if count != speechLabTurnTokenMax {
+		t.Fatalf("token count = %d, want %d", count, speechLabTurnTokenMax)
 	}
 }

@@ -69,7 +69,7 @@ func DestinationAllowed(cfg config.SIPOutboundConfig, uri sip.Uri) bool {
 	}
 	domainAllowed := false
 	for _, domain := range cfg.AllowedDomains {
-		if wildcardMatch(strings.ToLower(strings.TrimSuffix(strings.TrimSpace(domain), ".")), host) {
+		if strings.ToLower(strings.TrimSuffix(strings.TrimSpace(domain), ".")) == host {
 			domainAllowed = true
 			break
 		}
@@ -78,7 +78,7 @@ func DestinationAllowed(cfg config.SIPOutboundConfig, uri sip.Uri) bool {
 		return false
 	}
 	for _, user := range cfg.AllowedUsers {
-		if wildcardMatch(strings.TrimSpace(user), uri.User) {
+		if strings.TrimSpace(user) == uri.User {
 			return true
 		}
 	}
@@ -89,6 +89,19 @@ func DestinationAllowed(cfg config.SIPOutboundConfig, uri sip.Uri) bool {
 		prefix = strings.TrimSpace(prefix)
 		if e164Prefix.MatchString(prefix) && strings.HasPrefix(uri.User, prefix) {
 			return true
+		}
+	}
+	return false
+}
+
+// OutboundPolicyMigrationRequired reports legacy wildcard allow entries. They
+// remain loadable for configuration compatibility but never grant access.
+func OutboundPolicyMigrationRequired(cfg config.SIPOutboundConfig) bool {
+	for _, values := range [][]string{cfg.AllowedDomains, cfg.AllowedUsers} {
+		for _, value := range values {
+			if strings.ContainsAny(value, "*?") {
+				return true
+			}
 		}
 	}
 	return false

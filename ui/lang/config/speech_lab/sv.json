@@ -58,5 +58,6 @@
   "config.speech_lab.deployment_confirm": "Bekräfta Speech Lab-distributionen? Verifierade s2s-avbildningar hämtas.",
   "config.speech_lab.deployment_stop": "Stoppa Speech Lab",
   "config.speech_lab.deployment_remove": "Ta bort Speech Lab",
-  "config.speech_lab.deployment_stop_confirm": "Stoppa eller ta bort hanterat Speech Lab?"
+  "config.speech_lab.deployment_stop_confirm": "Stoppa eller ta bort hanterat Speech Lab?",
+  "config.speech_lab.advanced_ui_url_missing": "Konfigurera en Speech Lab-URL som webbläsaren kan nå för att öppna det avancerade gränssnittet."
 }

@@ -482,7 +482,17 @@ function handleSSEMessage(e) {
                 }
             } catch (e) { }
             return;
-        } else if (data.event === 'audio') {
+		} else if (data.event === 'speech_lab_error') {
+			try {
+				const warning = JSON.parse(data.detail || '{}');
+				const message = warning.message || t('chat.speech_lab_audio_warning');
+				if (window.showToast) window.showToast(message, 'warning');
+				else appendMessage('system', '\u26a0\ufe0f ' + message);
+			} catch (_) {
+				appendMessage('system', '\u26a0\ufe0f ' + t('chat.speech_lab_audio_warning'));
+			}
+			return;
+		} else if (data.event === 'audio') {
             try {
                 const audioData = JSON.parse(data.detail);
                 if (audioData && audioData.path && !seenSSEAudios.has(audioData.path)) {

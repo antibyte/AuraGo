@@ -233,5 +233,6 @@
   "backend.budget_mode_full_en": "（超过则全部封锁）",
   "backend.budget_mode_warn_de": "（努尔警告）",
   "backend.budget_mode_partial_de": "（超过限制时会阻止协同代理 + Vision/STT）",
-  "backend.budget_mode_full_de": "（超出时全部阻止）"
+  "backend.budget_mode_full_de": "（超出时全部阻止）",
+  "backend.speech_lab_audio_warning": "无法生成 Speech Lab 音频。文本回复仍然可用。"
 }

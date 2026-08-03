@@ -330,7 +330,7 @@ func TestIntegrationWebhostsIncludesEnabledSpeechLab(t *testing.T) {
 	}
 }
 
-func TestIntegrationWebhostsDerivesSpeechLabBrowserURL(t *testing.T) {
+func TestIntegrationWebhostsRequiresExplicitSpeechLabBrowserURL(t *testing.T) {
 	cfg := &config.Config{SpeechLab: config.SpeechLabConfig{Enabled: true, BaseURL: "http://127.0.0.1:1", TimeoutSeconds: 1}}
 	client, err := speechlab.NewClient(cfg.SpeechLab)
 	if err != nil {
@@ -339,12 +339,12 @@ func TestIntegrationWebhostsDerivesSpeechLabBrowserURL(t *testing.T) {
 	clearWebhostsCache()
 	req := httptest.NewRequest(http.MethodGet, "http://aurago.lan:8088/api/integrations/webhosts", nil)
 	got := integrationWebhostsForRequest(&Server{Cfg: cfg, SpeechLab: client, Logger: slog.Default()}, req)
-	if len(got) != 1 || got[0].Status != "offline" || got[0].URL != "http://aurago.lan:8766/" || got[0].MessageKey != "" {
-		t.Fatalf("Speech Lab derived webhost = %#v", got)
+	if len(got) != 1 || got[0].Status != "offline" || got[0].URL != "" || got[0].MessageKey != "chat.speech_lab_browser_url_missing" {
+		t.Fatalf("Speech Lab missing-URL webhost = %#v", got)
 	}
 }
 
-func TestIntegrationWebhostsDoesNotCacheSpeechLabRequestHost(t *testing.T) {
+func TestIntegrationWebhostsIgnoresSpeechLabRequestHost(t *testing.T) {
 	cfg := &config.Config{SpeechLab: config.SpeechLabConfig{Enabled: true, BaseURL: "http://127.0.0.1:1", TimeoutSeconds: 1}}
 	client, err := speechlab.NewClient(cfg.SpeechLab)
 	if err != nil {
@@ -354,10 +354,10 @@ func TestIntegrationWebhostsDoesNotCacheSpeechLabRequestHost(t *testing.T) {
 	s := &Server{Cfg: cfg, SpeechLab: client, Logger: slog.Default()}
 	first := integrationWebhostsForRequest(s, httptest.NewRequest(http.MethodGet, "http://first.lan:8088/api/integrations/webhosts", nil))
 	second := integrationWebhostsForRequest(s, httptest.NewRequest(http.MethodGet, "http://second.lan:8088/api/integrations/webhosts", nil))
-	if len(first) != 1 || first[0].URL != "http://first.lan:8766/" {
+	if len(first) != 1 || first[0].URL != "" || first[0].MessageKey != "chat.speech_lab_browser_url_missing" {
 		t.Fatalf("first Speech Lab URL = %#v", first)
 	}
-	if len(second) != 1 || second[0].URL != "http://second.lan:8766/" {
+	if len(second) != 1 || second[0].URL != "" || second[0].MessageKey != "chat.speech_lab_browser_url_missing" {
 		t.Fatalf("cached Speech Lab URL = %#v", second)
 	}
 }

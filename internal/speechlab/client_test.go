@@ -72,6 +72,26 @@ func TestReadyParsesServiceUnavailableBody(t *testing.T) {
 	}
 }
 
+func TestReadyRejectsUnexpectedStatusBeforeJSONDecoding(t *testing.T) {
+	client := testClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusBadGateway)
+		_, _ = io.WriteString(w, "upstream unavailable")
+	}))
+	_, err := client.Ready(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "HTTP 502") || strings.Contains(err.Error(), "response:") {
+		t.Fatalf("Ready() error = %v, want HTTP status error", err)
+	}
+}
+
+func TestRequireTTSRequiresBackendAndVoice(t *testing.T) {
+	client := testClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(Ready{Ready: true, TTSID: "tts-a", TTSOK: true})
+	}))
+	if _, err := client.Require(context.Background(), false, true); err == nil {
+		t.Fatal("TTS readiness without an effective voice was accepted")
+	}
+}
+
 func TestTranscribeRequiresCanonicalWAVAndChecksBackendID(t *testing.T) {
 	client := testClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != asrPath {
@@ -142,6 +162,25 @@ func TestSynthesizeDoesNotInventConfiguredVoice(t *testing.T) {
 	}
 }
 
+func TestSynthesizeAcceptsStandardWAVAliasesAndRequiresIdentityHeaders(t *testing.T) {
+	includeHeaders := true
+	client := testClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "audio/x-wav; charset=binary")
+		if includeHeaders {
+			w.Header().Set("X-S2S-TTS-ID", "tts-a")
+			w.Header().Set("X-S2S-Voice", "M1")
+		}
+		_, _ = w.Write(testPCM16WAV())
+	}))
+	if _, _, _, err := client.Synthesize(context.Background(), "Hallo", "de", "M1", "tts-a", "M1"); err != nil {
+		t.Fatalf("audio/x-wav was rejected: %v", err)
+	}
+	includeHeaders = false
+	if _, _, _, err := client.Synthesize(context.Background(), "Hallo", "de", "M1", "", ""); err == nil {
+		t.Fatal("TTS response without backend and voice headers was accepted")
+	}
+}
+
 func TestValidateWAVRejectsHeaderOnlyAndTruncatedChunks(t *testing.T) {
 	valid := testPCM16WAV()
 	if err := ValidateWAV(valid); err != nil {
@@ -157,6 +196,15 @@ func TestValidateWAVRejectsHeaderOnlyAndTruncatedChunks(t *testing.T) {
 	binary.LittleEndian.PutUint32(truncated[40:44], uint32(len(truncated)))
 	if err := ValidateWAV(truncated); err == nil {
 		t.Fatal("truncated WAV data chunk accepted")
+	}
+}
+
+func TestValidateWAVSumsMultipleDataChunks(t *testing.T) {
+	wav := append([]byte(nil), testPCM16WAV()...)
+	wav = append(wav, []byte{'d', 'a', 't', 'a', 0, 0, 0, 0}...)
+	binary.LittleEndian.PutUint32(wav[4:8], uint32(len(wav)-8))
+	if err := ValidateWAV(wav); err != nil {
+		t.Fatalf("valid WAV with a trailing empty data chunk was rejected: %v", err)
 	}
 }
 

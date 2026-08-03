@@ -82,5 +82,6 @@
   "desktop.sip_phone_unmute": "Ljud på",
   "desktop.sip_phone_tab_recents": "Senaste",
   "desktop.sip_phone_backspace": "Radera",
-  "desktop.sip_phone_carrier": "AuraGo"
+  "desktop.sip_phone_carrier": "AuraGo",
+  "desktop.sip_phone_outbound_policy_migration_required_detail": "Ersätt äldre utgående jokerregler med exakta destinationer i SIP-inställningarna."
 }

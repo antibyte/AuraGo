@@ -262,5 +262,7 @@
   "chat.speech_lab_no_audio": "音声が録音されませんでした。",
   "chat.speech_lab_too_large": "Speech Lab の録音が 8 MiB を超えています。短いメッセージを録音してください。",
   "chat.speech_lab_transcription_failed": "Speech Lab の文字起こしに失敗しました。",
-  "chat.speech_lab_transcribe": "文字起こし"
+  "chat.speech_lab_transcribe": "文字起こし",
+  "chat.speech_lab_audio_warning": "Speech Lab の音声を生成できませんでした。テキスト応答は引き続き利用できます。",
+  "chat.speech_lab_capture_unavailable": "このブラウザーは Speech Lab 用の WAV 録音にも音声認識にも対応していません。"
 }

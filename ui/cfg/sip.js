@@ -241,7 +241,6 @@ function sipWizardCredentials(provider) {
 function sipWizardCalling(provider) {
     const domesticAvailable = !!provider.domestic_region;
     const outboundOptions = [
-        ['all', 'config.sip.wizard.scope_all', 'config.sip.wizard.scope_all_desc'],
         ...(domesticAvailable ? [['domestic', 'config.sip.wizard.scope_domestic', 'config.sip.wizard.scope_domestic_desc']] : []),
         ['custom', 'config.sip.wizard.scope_custom', 'config.sip.wizard.scope_custom_desc']
     ];
@@ -373,9 +372,9 @@ function sipAdvancedMarkup(c) {
                 ${sipField('inbound.trusted_peer_cidrs', t('config.sip.trusted_peers'), 'text', sipList(c.inbound.trusted_peer_cidrs), 'placeholder="192.168.1.1, 192.168.1.0/24"', t('config.sip.trusted_peers_help'))}
                 ${sipField('inbound.allowed_callers', t('config.sip.allowed_callers'), 'text', sipList(c.inbound.allowed_callers), 'placeholder="101, +49*, sip:service-?@pbx.example"', t('config.sip.allowed_callers_help'))}
                 ${sipField('inbound.denied_callers', t('config.sip.denied_callers'), 'text', sipList(c.inbound.denied_callers), 'placeholder="+49900*, sip:blocked@*"', t('config.sip.denied_callers_help'))}
-                ${sipField('outbound.allowed_domains', t('config.sip.allowed_domains'), 'text', sipList(c.outbound.allowed_domains), 'placeholder="pbx.example, *.example.com"', t('config.sip.allowed_domains_help'))}
+                ${sipField('outbound.allowed_domains', t('config.sip.allowed_domains'), 'text', sipList(c.outbound.allowed_domains), 'placeholder="pbx.example, voice.example.com"', t('config.sip.allowed_domains_help'))}
                 ${sipField('outbound.denied_domains', t('config.sip.denied_domains'), 'text', sipList(c.outbound.denied_domains), 'placeholder="premium.example.com"', t('config.sip.denied_domains_help'))}
-                ${sipField('outbound.allowed_users', t('config.sip.allowed_users'), 'text', sipList(c.outbound.allowed_users), 'placeholder="101, sales-*, *"', t('config.sip.allowed_users_help'))}
+                ${sipField('outbound.allowed_users', t('config.sip.allowed_users'), 'text', sipList(c.outbound.allowed_users), 'placeholder="101, reception"', t('config.sip.allowed_users_help'))}
                 ${sipField('outbound.denied_users', t('config.sip.denied_users'), 'text', sipList(c.outbound.denied_users), 'placeholder="0900*, service-??"', t('config.sip.denied_users_help'))}
                 ${sipField('outbound.allowed_e164_prefixes', t('config.sip.allowed_e164'), 'text', sipList(c.outbound.allowed_e164_prefixes), 'placeholder="+49, +43"', t('config.sip.allowed_e164_help'))}
                 ${sipField('outbound.denied_e164_prefixes', t('config.sip.denied_e164'), 'text', sipList(c.outbound.denied_e164_prefixes), 'placeholder="+49900, +43810"', t('config.sip.denied_e164_help'))}
@@ -402,10 +401,13 @@ function sipAdvancedMarkup(c) {
 
 function sipRender() {
     const c = sipConfigState;
+    const outboundMigrationRequired = [...(c.outbound.allowed_domains || []), ...(c.outbound.allowed_users || [])]
+        .some((value) => /[*?]/.test(String(value || '')));
     document.getElementById('content').innerHTML = `<section class="cfg-section active sip-section">
         <div class="section-header">${sipEsc(t('config.sip.title'))}</div>
         <div class="section-desc">${sipEsc(t('config.sip.wizard.intro'))}</div>
         <div id="sip-status" class="adg-status-banner" role="status" aria-live="polite">${sipEsc(t('config.sip.loading_status'))}</div>
+        ${outboundMigrationRequired ? `<div class="rs-security-note" role="alert"><strong>${sipEsc(t('config.sip.outbound_policy_migration_required'))}</strong></div>` : ''}
         <div class="sip-wizard-shell">
             <div class="sip-wizard-title"><span class="sip-eyebrow">${sipEsc(t('config.sip.wizard.eyebrow'))}</span><h2>${sipEsc(t('config.sip.wizard.title'))}</h2></div>
             ${sipWizardMarkup()}
@@ -993,7 +995,7 @@ async function renderSIPSection() {
     sipWizardTestCode = '';
     sipWizardFieldErrors = {};
     sipWizardPasswordVisible = false;
-    sipWizardOutboundScope = 'all';
+    sipWizardOutboundScope = 'custom';
     sipWizardInboundEnabled = false;
     sipWizardInboundScope = 'all';
     sipWizardCustomCallers = '';
@@ -1020,7 +1022,7 @@ async function renderSIPSection() {
         ]);
         sipWizardProviderID = sipConfigState.preset_id || '';
         sipWizardStep = sipConfigState.registrar ? 0 : 1;
-        sipWizardOutboundScope = (sipConfigState.outbound.allowed_users || []).includes('*') ? 'all' : 'custom';
+        sipWizardOutboundScope = 'custom';
         sipWizardInboundEnabled = sipConfigState.inbound.route === 'manual' && !!sipConfigState.permissions.answer_inbound;
         sipWizardInboundScope = (sipConfigState.inbound.allowed_callers || []).includes('*') ? 'all' : 'custom';
         sipWizardCustomCallers = sipList(sipConfigState.inbound.allowed_callers || []);

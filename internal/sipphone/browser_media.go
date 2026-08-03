@@ -452,7 +452,7 @@ func (p *browserMediaPeer) Attach(ctx context.Context, callID string, media voic
 		return ErrBrowserSessionInvalid
 	}
 	p.mu.Lock()
-	if p.callID != "" {
+	if p.closed || p.callID != "" {
 		p.mu.Unlock()
 		return ErrBusy
 	}

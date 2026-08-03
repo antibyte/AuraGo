@@ -1,6 +1,7 @@
 package realtimespeech
 
 import (
+	"context"
 	"testing"
 	"time"
 )
@@ -61,6 +62,24 @@ func TestRegistryTracksResumeParkingActionsAndTurns(t *testing.T) {
 		t.Fatalf("ActionSession = %q, %v", chatSession, ok)
 	}
 	registry.EndAction("request-1")
+	cancelled := make(chan struct{})
+	cancelCtx, cancel := context.WithCancel(context.Background())
+	go func() {
+		<-cancelCtx.Done()
+		close(cancelled)
+	}()
+	if err := registry.BeginAction("request-cancel", session.ID, "browser", "default", cancel); err != nil {
+		t.Fatal(err)
+	}
+	if !registry.CancelAction("request-cancel", "browser") {
+		t.Fatal("request-scoped action was not cancelled")
+	}
+	select {
+	case <-cancelled:
+	case <-time.After(time.Second):
+		t.Fatal("action cancel function was not called")
+	}
+	registry.EndAction("request-cancel")
 	if !registry.MarkTurn(session.ID, "browser", "turn-1") {
 		t.Fatal("first turn should be accepted")
 	}

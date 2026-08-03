@@ -262,5 +262,7 @@
   "chat.speech_lab_no_audio": "कोई वाक् ऑडियो रिकॉर्ड नहीं हुआ।",
   "chat.speech_lab_too_large": "Speech Lab रिकॉर्डिंग 8 MiB से बड़ी है। छोटा संदेश रिकॉर्ड करें।",
   "chat.speech_lab_transcription_failed": "Speech Lab ट्रांसक्रिप्शन विफल रहा।",
-  "chat.speech_lab_transcribe": "ट्रांसक्राइब करें"
+  "chat.speech_lab_transcribe": "ट्रांसक्राइब करें",
+  "chat.speech_lab_audio_warning": "Speech Lab ऑडियो बनाया नहीं जा सका। टेक्स्ट उत्तर उपलब्ध है।",
+  "chat.speech_lab_capture_unavailable": "यह ब्राउज़र Speech Lab के लिए WAV रिकॉर्डिंग या वाक् पहचान का समर्थन नहीं करता।"
 }

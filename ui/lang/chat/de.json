@@ -262,5 +262,7 @@
   "chat.speech_lab_no_audio": "Es wurde keine Sprache aufgenommen.",
   "chat.speech_lab_too_large": "Die Speech-Lab-Aufnahme überschreitet 8 MiB. Nimm eine kürzere Nachricht auf.",
   "chat.speech_lab_transcription_failed": "Die Speech-Lab-Transkription ist fehlgeschlagen.",
-  "chat.speech_lab_transcribe": "Transkribieren"
+  "chat.speech_lab_transcribe": "Transkribieren",
+  "chat.speech_lab_audio_warning": "Das Speech-Lab-Audio konnte nicht erzeugt werden. Die Textantwort bleibt verfügbar.",
+  "chat.speech_lab_capture_unavailable": "Dieser Browser unterstützt weder WAV-Aufnahme für Speech Lab noch Spracherkennung."
 }

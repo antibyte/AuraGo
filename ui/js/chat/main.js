@@ -27,7 +27,7 @@ const cheatsheetPickerCloseXBtn = document.getElementById('cheatsheet-picker-clo
 
 let cheatsheetPickerItems = [];
 let selectedCheatsheetId = '';
-let pendingSpeechLabInput = false;
+let pendingSpeechLabTurnToken = '';
 
 function chatIconMarkup(iconName, className = '') {
     return window.chatUiIconMarkup ? window.chatUiIconMarkup(iconName, className) : '';
@@ -1152,8 +1152,8 @@ async function handleOutgoingMessage(inputMessage, displayMessageOverride = '') 
     closeMoodFeedbackRow();
     let message = String(inputMessage || '').trim();
     if (!message && !pendingAttachments.length) return;
-    const useSpeechLabInput = pendingSpeechLabInput;
-    pendingSpeechLabInput = false;
+    const speechLabTurnToken = pendingSpeechLabTurnToken;
+    pendingSpeechLabTurnToken = '';
     const hasTypedInput = message.length > 0;
     if (!message) {
         message = t('chat.file_sent');
@@ -1220,8 +1220,8 @@ async function handleOutgoingMessage(inputMessage, displayMessageOverride = '') 
             if (sid && sid !== 'default') {
                 sessionHeaders['X-Session-ID'] = sid;
             }
-            if (useSpeechLabInput) {
-                sessionHeaders['X-AuraGo-Speech-Lab-Input'] = '1';
+            if (speechLabTurnToken) {
+                sessionHeaders['X-AuraGo-Speech-Lab-Turn-Token'] = speechLabTurnToken;
             }
             response = await fetch('/v1/chat/completions', {
                 method: 'POST',
@@ -1743,15 +1743,18 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (window.showToast) { window.showToast(msg, 'error'); } else { await showAlert(msg, ''); }
             };
 
-			const useSpeechLabSTT = !!(window.SpeechLabRecorder && await window.SpeechLabRecorder.selected());
+			const speechLabSelected = !!(window.SpeechLabRecorder && await window.SpeechLabRecorder.selected());
+			const useSpeechLabSTT = speechLabSelected && window.SpeechLabRecorder.isSupported;
 			// Browser SpeechRecognition remains the default unless local Speech Lab
-			// chat input was explicitly selected by the administrator.
+			// chat input can capture an exact PCM/WAV stream. When AudioWorklet is
+			// unavailable, use browser recognition explicitly and never send a
+			// MediaRecorder format to the WAV-only Speech Lab endpoint.
 			const useBrowserSTT = !useSpeechLabSTT && window.SpeechToText && window.SpeechToText.isSupported;
 
 			if (useSpeechLabSTT) {
 				window.SpeechLabRecorder.init({
-					onTranscription: (text) => {
-						pendingSpeechLabInput = true;
+					onTranscription: (text, turnToken) => {
+						pendingSpeechLabTurnToken = String(turnToken || '');
 						voiceBtn.classList.remove('btn-active');
 						_populateInput(text);
 					},
@@ -1776,6 +1779,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                         _showError(msg);
                     }
                 });
+			} else if (speechLabSelected) {
+				voiceBtn.disabled = true;
+				voiceBtn.classList.add('btn-disabled');
+				voiceBtn.title = t('chat.speech_lab_capture_unavailable');
+				_showError(voiceBtn.title);
 			} else if (window.VoiceRecorder) {
                 window.VoiceRecorder.init({
                     onTranscription: _populateInput,

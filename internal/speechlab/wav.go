@@ -51,7 +51,7 @@ func parseWAV(data []byte) (wavMetadata, error) {
 			metadata.bits = binary.LittleEndian.Uint16(data[start+14 : start+16])
 			foundFormat = true
 		case "data":
-			foundData = chunkSize > 0
+			foundData = foundData || chunkSize > 0
 			metadata.dataBytes += uint64(chunkSize)
 		}
 		offset = end + chunkSize%2

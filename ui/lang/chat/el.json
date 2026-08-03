@@ -262,5 +262,7 @@
   "chat.speech_lab_no_audio": "Δεν καταγράφηκε ομιλία.",
   "chat.speech_lab_too_large": "Η εγγραφή Speech Lab υπερβαίνει τα 8 MiB. Ηχογραφήστε συντομότερο μήνυμα.",
   "chat.speech_lab_transcription_failed": "Η μεταγραφή Speech Lab απέτυχε.",
-  "chat.speech_lab_transcribe": "Μεταγραφή"
+  "chat.speech_lab_transcribe": "Μεταγραφή",
+  "chat.speech_lab_audio_warning": "Δεν ήταν δυνατή η δημιουργία ήχου Speech Lab. Η απάντηση κειμένου παραμένει διαθέσιμη.",
+  "chat.speech_lab_capture_unavailable": "Αυτό το πρόγραμμα περιήγησης δεν υποστηρίζει εγγραφή WAV για το Speech Lab ούτε αναγνώριση ομιλίας."
 }

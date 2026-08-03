@@ -82,5 +82,6 @@
   "desktop.sip_phone_unmute": "Unmute",
   "desktop.sip_phone_tab_recents": "Recents",
   "desktop.sip_phone_backspace": "Delete",
-  "desktop.sip_phone_carrier": "AuraGo"
+  "desktop.sip_phone_carrier": "AuraGo",
+  "desktop.sip_phone_outbound_policy_migration_required_detail": "Replace legacy wildcard outbound rules with exact destinations in SIP settings."
 }

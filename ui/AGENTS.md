@@ -56,6 +56,12 @@ images, and browser-oriented regression tests.
   owns account/network/trust/browser-media settings and only links to the
   telephone profile; it must not expose a second editable copy of `sip.voice`
   or the agent inbound route/delay.
+- Speech Lab voice upload carries a single-use turn token into the next matching
+  chat submit. Without AudioWorklet, use browser SpeechRecognition when
+  available; never feed MediaRecorder output to the WAV-only endpoint.
+- Realtime Speech consumes the answer from `final_response`; `done` is a
+  contentless terminator. SIP Phone surfaces
+  `outbound_policy_migration_required` as a localized setup blocker.
 - Configuration density is a browser-local presentation preference and never
   belongs in `config.yaml`.
 - Every visible UI string must use translations in all supported locales.

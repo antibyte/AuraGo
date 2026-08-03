@@ -82,5 +82,6 @@
   "desktop.sip_phone_unmute": "Dempen opheffen",
   "desktop.sip_phone_tab_recents": "Recent",
   "desktop.sip_phone_backspace": "Wissen",
-  "desktop.sip_phone_carrier": "AuraGo"
+  "desktop.sip_phone_carrier": "AuraGo",
+  "desktop.sip_phone_outbound_policy_migration_required_detail": "Vervang verouderde uitgaande jokerregels door exacte bestemmingen in de SIP-instellingen."
 }

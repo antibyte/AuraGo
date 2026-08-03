@@ -233,5 +233,6 @@
   "backend.budget_mode_full_en": "(všechny blokovány při překročení)",
   "backend.budget_mode_warn_de": "(pouze varování)",
   "backend.budget_mode_partial_de": "(Spoluagenti + Vision/STT gesperrt bei Überschreitung)",
-  "backend.budget_mode_full_de": "(při překročení se vše zablokuje)"
+  "backend.budget_mode_full_de": "(při překročení se vše zablokuje)",
+  "backend.speech_lab_audio_warning": "Zvuk Speech Lab se nepodařilo vygenerovat. Textová odpověď zůstává dostupná."
 }

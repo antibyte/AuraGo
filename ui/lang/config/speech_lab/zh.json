@@ -58,5 +58,6 @@
   "config.speech_lab.deployment_confirm": "确认部署 Speech Lab？将下载经过验证的 s2s 镜像。",
   "config.speech_lab.deployment_stop": "停止 Speech Lab",
   "config.speech_lab.deployment_remove": "移除 Speech Lab",
-  "config.speech_lab.deployment_stop_confirm": "停止或移除受 AuraGo 管理的 Speech Lab？"
+  "config.speech_lab.deployment_stop_confirm": "停止或移除受 AuraGo 管理的 Speech Lab？",
+  "config.speech_lab.advanced_ui_url_missing": "请配置浏览器可访问的 Speech Lab URL，以打开高级界面。"
 }

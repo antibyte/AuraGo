@@ -384,15 +384,18 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (window.showToast) { window.showToast(msg, 'error'); } else { await showAlert(msg, ''); }
             };
 
-			const useSpeechLabSTT = !!(window.SpeechLabRecorder && await window.SpeechLabRecorder.selected());
+			const speechLabSelected = !!(window.SpeechLabRecorder && await window.SpeechLabRecorder.selected());
+			const useSpeechLabSTT = speechLabSelected && window.SpeechLabRecorder.isSupported;
 			// Browser SpeechRecognition remains the default unless local Speech Lab
-			// chat input was explicitly selected by the administrator.
+			// chat input can capture an exact PCM/WAV stream. When AudioWorklet is
+			// unavailable, use browser recognition explicitly and never send a
+			// MediaRecorder format to the WAV-only Speech Lab endpoint.
 			const useBrowserSTT = !useSpeechLabSTT && window.SpeechToText && window.SpeechToText.isSupported;
 
 			if (useSpeechLabSTT) {
 				window.SpeechLabRecorder.init({
-					onTranscription: (text) => {
-						pendingSpeechLabInput = true;
+					onTranscription: (text, turnToken) => {
+						pendingSpeechLabTurnToken = String(turnToken || '');
 						voiceBtn.classList.remove('btn-active');
 						_populateInput(text);
 					},
@@ -417,6 +420,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                         _showError(msg);
                     }
                 });
+			} else if (speechLabSelected) {
+				voiceBtn.disabled = true;
+				voiceBtn.classList.add('btn-disabled');
+				voiceBtn.title = t('chat.speech_lab_capture_unavailable');
+				_showError(voiceBtn.title);
 			} else if (window.VoiceRecorder) {
                 window.VoiceRecorder.init({
                     onTranscription: _populateInput,

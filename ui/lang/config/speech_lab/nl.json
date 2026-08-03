@@ -58,5 +58,6 @@
   "config.speech_lab.deployment_confirm": "Speech Lab implementeren? Geverifieerde s2s-images worden gedownload.",
   "config.speech_lab.deployment_stop": "Speech Lab stoppen",
   "config.speech_lab.deployment_remove": "Speech Lab verwijderen",
-  "config.speech_lab.deployment_stop_confirm": "Beheerde Speech Lab stoppen of verwijderen?"
+  "config.speech_lab.deployment_stop_confirm": "Beheerde Speech Lab stoppen of verwijderen?",
+  "config.speech_lab.advanced_ui_url_missing": "Configureer een vanuit de browser bereikbare Speech Lab-URL om de geavanceerde interface te openen."
 }

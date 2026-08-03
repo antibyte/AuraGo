@@ -82,5 +82,6 @@
   "desktop.sip_phone_unmute": "Stummschaltung aufheben",
   "desktop.sip_phone_tab_recents": "Anrufe",
   "desktop.sip_phone_backspace": "Löschen",
-  "desktop.sip_phone_carrier": "AuraGo"
+  "desktop.sip_phone_carrier": "AuraGo",
+  "desktop.sip_phone_outbound_policy_migration_required_detail": "Ersetze veraltete ausgehende Platzhalterregeln in den SIP-Einstellungen durch exakte Ziele."
 }

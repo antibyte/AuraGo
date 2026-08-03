@@ -8,7 +8,6 @@ let speechLabSuggestions = null;
 let speechLabShowExperimental = false;
 let speechLabProviders = [];
 let speechLabProviderLoadFailed = false;
-const SPEECH_LAB_BROWSER_PORT = '8766';
 
 function speechLabEnsureData() {
     if (!configData.speech_lab) configData.speech_lab = {};
@@ -67,19 +66,12 @@ async function renderSpeechLabSection(section) {
 }
 
 function speechLabBrowserURL(configured) {
-    const override = String(configured || '').trim();
-    if (override) return override;
-    try {
-        const url = new URL(window.location.href);
-        url.protocol = 'http:';
-        url.port = SPEECH_LAB_BROWSER_PORT;
-        url.pathname = '/';
-        url.search = '';
-        url.hash = '';
-        return url.toString();
-    } catch (_) {
-        return '';
-    }
+    return String(configured || '').trim();
+}
+
+function speechLabWarningText(code) {
+    if (code === 'advanced_ui_url_missing') return t('config.speech_lab.advanced_ui_url_missing');
+    return String(code || '');
 }
 
 function speechLabToggle(path, enabled, labelKey, helpKey) {
@@ -157,6 +149,13 @@ async function speechLabRefresh() {
         const activeParts = [speechLabStatus.asr_id, speechLabStatus.tts_id, speechLabStatus.voice].filter(Boolean);
         if (activeParts.length) statusNode.textContent += ' · ' + t('config.speech_lab.active_combination') + ': ' + activeParts.join(' + ');
     }
+	const warnings = speechLabStatus && Array.isArray(speechLabStatus.warnings)
+		? speechLabStatus.warnings.map(speechLabWarningText).filter(Boolean)
+		: [];
+	if (warnings.length) {
+		statusNode.classList.add('cfg-note-banner-warning');
+		statusNode.textContent += ' · ' + warnings.join(' · ');
+	}
     const baseInput = document.querySelector('[data-path="speech_lab.base_url"]');
     if (baseInput && speechLabStatus && speechLabStatus.environment_managed) baseInput.disabled = true;
     const browserLink = document.getElementById('speech-lab-advanced-link');

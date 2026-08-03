@@ -229,6 +229,7 @@
         if (blockers.includes('readonly')) return ['readonly', text(instance, 'readonly_detail', 'SIP is in read-only mode. Calling controls are disabled.')];
         if (blockers.includes('browser_media_disabled')) return ['browser_media_disabled', text(instance, 'browser_media_disabled_detail', 'Enable browser media for the Virtual Desktop phone.')];
         if (blockers.includes('browser_media_restart_required')) return ['browser_media_restart_required', text(instance, 'browser_media_restart_required_detail', 'Restart AuraGo to apply the saved browser media settings.')];
+        if (blockers.includes('outbound_policy_migration_required')) return ['outbound_policy_migration_required', text(instance, 'outbound_policy_migration_required_detail', 'Replace legacy wildcard outbound rules with exact destinations in SIP settings.')];
         if (blockers.includes('not_registered')) return ['not_registered', text(instance, 'not_registered_detail', 'The SIP account is not registered yet. Check the account and PBX connection.')];
         if (blockers.includes('outbound_disabled')) return ['outbound_disabled', text(instance, 'outbound_disabled_detail', 'Outgoing calls are not enabled or no allowed destinations are configured.')];
         return null;

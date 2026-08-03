@@ -446,6 +446,7 @@ Tools are defined in `internal/tools/`:
 - AuraGo owns one in-process Diago SIP endpoint, one Vault-backed account, and at most one active call. Keep Diago pinned to v0.31.0, sipgo pinned to v1.4.3, G.711-only media, and CGO-free builds; do not add Asterisk, FreeSWITCH, PJSIP, ffmpeg, or a SIP sidecar.
 - Registration and explicit connection tests remain available in read-only mode. Answering, dialing, DTMF, and agent hangup require both `readonly: false` and their granular permissions. Empty caller or destination allowlists deny all.
 - Trust incoming calls only when both the network peer matches a configured CIDR and the normalized caller matches the allowlist. Outgoing calls require canonical `sip:` URIs, an exact allowed domain, and an exact user or allowed E.164 prefix.
+- SIP config/setup persistence must reserve reconfiguration before any Vault or YAML mutation and return HTTP 409 while a call is active or being prepared. Legacy wildcard outbound allow entries remain loadable but authorize nothing, surface `outbound_policy_migration_required`, and must be replaced on the next save.
 - Keep the SIP password only under Vault key `sip_endpoint_password`; block every `sip_` secret from Python, skills, and agent export. Never log or store full SIP headers, RTP/audio, authentication data, or raw transcripts.
 - Both classic ASR/agent/TTS and server-side Gemini Live use `internal/voice` PCM contracts and the shared `VoiceActionRunner`. SIP turns always carry an explicit `AllowedTools` list whose empty form allows no native tools, including through `invoke_tool`.
 - `sip.voice` is the single Telephone agent profile for agent-led inbound and outbound calls. It selects explicit agent-LLM, classic ASR/mode/TTS, or Gemini Live references plus additive behavior, privacy, and duration rules. Legacy empty provider fields inherit the global LLM/Whisper/TTS choice only until the first Telephone agent save materializes the effective IDs.
@@ -458,6 +459,7 @@ Tools are defined in `internal/tools/`:
 - Speech Lab owns its active ASR, TTS, and effective voice stack. AuraGo must read all three from one `/ready` snapshot for chat synthesis and new SIP calls, then require both `X-S2S-TTS-ID` and `X-S2S-Voice` to match on synthesis; legacy `speech_lab.voice` values are load-only and never become runtime defaults.
 - AuraGo and the Browser Lab may both activate the shared stack, but AuraGo never sends `llm_id`. Voice choices come only from the selected TTS backend catalog, and active operations or calls keep their immutable start snapshot.
 - `speech_lab.chat_llm_provider_id` applies only to the next direct webchat turn marked after Speech Lab ASR. Resolve its static Vault key, unexpired OAuth token, Copilot auth manager, or supported keyless local runtime from the turn snapshot; disable helper and fallback routing for that full turn. Typed chat, browser speech recognition, internal follow-ups, missions, and SIP retain their existing provider routing; an unavailable selected provider fails closed without main-provider fallback.
+- Speech Lab ASR provenance uses a single-use five-minute token bound to the session and exact transcript; client-supplied booleans never activate Speech Lab chat routing. Realtime actions emit exactly one `final_response`, then a contentless `done`, and request-scoped cancellation must not interrupt sibling turns in the same session.
 - When enabled, Speech Lab remains visible in the chat integrations drawer. `advanced_ui_url` is an optional external Browser Lab link; a missing URL is shown as a configuration warning and never blocks ASR/TTS activation.
 
 ### Local Network Share Integration Contract
@@ -703,7 +705,7 @@ ALWAYS USE THE disposable FOLDER FOR SCRIPTS AND OTHER FILES YOU NEED FOR YOUR W
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **AuraGo** (69862 symbols, 294486 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **AuraGo** (71088 symbols, 300410 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 

@@ -44,17 +44,13 @@ func ApplySetupActivation(ctx context.Context, cfg *config.SIPConfig, presetID s
 		cfg.Outbound.AllowedE164Prefixes = nil
 		cfg.Permissions.OriginateOutbound = false
 	case SetupScopeAll:
-		enableGuidedOutbound(cfg, []string{"*"}, nil)
+		return fmt.Errorf("unrestricted outbound calling is no longer supported; enter exact destinations")
 	case SetupScopeDomestic:
 		preset, ok := sipProviderPreset(presetID)
 		if !ok || preset.domesticPrefix == "" {
 			return fmt.Errorf("domestic calling is unavailable for this SIP provider")
 		}
-		users := make([]string, 0, 1)
-		if preset.nationalPattern != "" {
-			users = append(users, preset.nationalPattern)
-		}
-		enableGuidedOutbound(cfg, users, []string{preset.domesticPrefix})
+		enableGuidedOutbound(cfg, nil, []string{preset.domesticPrefix})
 	case SetupScopeCustom:
 		users, prefixes, err := classifyGuidedTargets(activation.OutboundValues)
 		if err != nil {
